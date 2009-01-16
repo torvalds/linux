@@ -141,6 +141,7 @@ hydra_init(void)
 		of_node_put(np);
 		return 0;
 	}
+	of_node_put(np);
 	Hydra = ioremap(r.start, r.end-r.start);
 	printk("Hydra Mac I/O at %llx\n", (unsigned long long)r.start);
 	printk("Hydra Feature_Control was %x",
@@ -198,7 +199,7 @@ static void __init setup_peg2(struct pci_controller *hose, struct device_node *d
 		printk ("RTAS supporting Pegasos OF not found, please upgrade"
 			" your firmware\n");
 	}
-	ppc_pci_flags |= PPC_PCI_REASSIGN_ALL_BUS;
+	ppc_pci_add_flags(PPC_PCI_REASSIGN_ALL_BUS);
 	/* keep the reference to the root node */
 }
 

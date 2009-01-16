@@ -250,7 +250,7 @@ static ssize_t o2nm_node_ipv4_port_write(struct o2nm_node *node,
 
 static ssize_t o2nm_node_ipv4_address_read(struct o2nm_node *node, char *page)
 {
-	return sprintf(page, "%u.%u.%u.%u\n", NIPQUAD(node->nd_ipv4_address));
+	return sprintf(page, "%pI4\n", &node->nd_ipv4_address);
 }
 
 static ssize_t o2nm_node_ipv4_address_write(struct o2nm_node *node,

@@ -30,6 +30,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michal Schmidt <mschmidt@redhat.com>");
 MODULE_DESCRIPTION("SANE connection tracking helper");
+MODULE_ALIAS_NFCT_HELPER("sane");
 
 static char *sane_buffer;
 

@@ -144,7 +144,7 @@ __be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 EXPORT_SYMBOL(hippi_type_trans);
 
-static int hippi_change_mtu(struct net_device *dev, int new_mtu)
+int hippi_change_mtu(struct net_device *dev, int new_mtu)
 {
 	/*
 	 * HIPPI's got these nice large MTUs.
@@ -154,12 +154,13 @@ static int hippi_change_mtu(struct net_device *dev, int new_mtu)
 	dev->mtu = new_mtu;
 	return(0);
 }
+EXPORT_SYMBOL(hippi_change_mtu);
 
 /*
  * For HIPPI we will actually use the lower 4 bytes of the hardware
  * address as the I-FIELD rather than the actual hardware address.
  */
-static int hippi_mac_addr(struct net_device *dev, void *p)
+int hippi_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 	if (netif_running(dev))
@@ -167,8 +168,9 @@ static int hippi_mac_addr(struct net_device *dev, void *p)
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	return 0;
 }
+EXPORT_SYMBOL(hippi_mac_addr);
 
-static int hippi_neigh_setup_dev(struct net_device *dev, struct neigh_parms *p)
+int hippi_neigh_setup_dev(struct net_device *dev, struct neigh_parms *p)
 {
 	/* Never send broadcast/multicast ARP messages */
 	p->mcast_probes = 0;
@@ -181,6 +183,7 @@ static int hippi_neigh_setup_dev(struct net_device *dev, struct neigh_parms *p)
 		p->ucast_probes = 0;
 	return 0;
 }
+EXPORT_SYMBOL(hippi_neigh_setup_dev);
 
 static const struct header_ops hippi_header_ops = {
 	.create		= hippi_header,
@@ -190,11 +193,12 @@ static const struct header_ops hippi_header_ops = {
 
 static void hippi_setup(struct net_device *dev)
 {
-	dev->set_multicast_list		= NULL;
+#ifdef CONFIG_COMPAT_NET_DEV_OPS
 	dev->change_mtu			= hippi_change_mtu;
-	dev->header_ops			= &hippi_header_ops;
 	dev->set_mac_address 		= hippi_mac_addr;
 	dev->neigh_setup 		= hippi_neigh_setup_dev;
+#endif
+	dev->header_ops			= &hippi_header_ops;
 
 	/*
 	 * We don't support HIPPI `ARP' for the time being, and probably

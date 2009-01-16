@@ -26,12 +26,11 @@ iprange_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 		if ((ntohl(iph->saddr) < ntohl(info->src.min_ip)
 			  || ntohl(iph->saddr) > ntohl(info->src.max_ip))
 			 ^ !!(info->flags & IPRANGE_SRC_INV)) {
-			pr_debug("src IP %u.%u.%u.%u NOT in range %s"
-				 "%u.%u.%u.%u-%u.%u.%u.%u\n",
-				 NIPQUAD(iph->saddr),
+			pr_debug("src IP %pI4 NOT in range %s%pI4-%pI4\n",
+				 &iph->saddr,
 				 info->flags & IPRANGE_SRC_INV ? "(INV) " : "",
-				 NIPQUAD(info->src.min_ip),
-				 NIPQUAD(info->src.max_ip));
+				 &info->src.min_ip,
+				 &info->src.max_ip);
 			return false;
 		}
 	}
@@ -39,12 +38,11 @@ iprange_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 		if ((ntohl(iph->daddr) < ntohl(info->dst.min_ip)
 			  || ntohl(iph->daddr) > ntohl(info->dst.max_ip))
 			 ^ !!(info->flags & IPRANGE_DST_INV)) {
-			pr_debug("dst IP %u.%u.%u.%u NOT in range %s"
-				 "%u.%u.%u.%u-%u.%u.%u.%u\n",
-				 NIPQUAD(iph->daddr),
+			pr_debug("dst IP %pI4 NOT in range %s%pI4-%pI4\n",
+				 &iph->daddr,
 				 info->flags & IPRANGE_DST_INV ? "(INV) " : "",
-				 NIPQUAD(info->dst.min_ip),
-				 NIPQUAD(info->dst.max_ip));
+				 &info->dst.min_ip,
+				 &info->dst.max_ip);
 			return false;
 		}
 	}
@@ -63,12 +61,11 @@ iprange_mt4(const struct sk_buff *skb, const struct xt_match_param *par)
 		m |= ntohl(iph->saddr) > ntohl(info->src_max.ip);
 		m ^= !!(info->flags & IPRANGE_SRC_INV);
 		if (m) {
-			pr_debug("src IP " NIPQUAD_FMT " NOT in range %s"
-			         NIPQUAD_FMT "-" NIPQUAD_FMT "\n",
-			         NIPQUAD(iph->saddr),
+			pr_debug("src IP %pI4 NOT in range %s%pI4-%pI4\n",
+			         &iph->saddr,
 			         (info->flags & IPRANGE_SRC_INV) ? "(INV) " : "",
-			         NIPQUAD(info->src_max.ip),
-			         NIPQUAD(info->src_max.ip));
+			         &info->src_max.ip,
+			         &info->src_max.ip);
 			return false;
 		}
 	}
@@ -77,12 +74,11 @@ iprange_mt4(const struct sk_buff *skb, const struct xt_match_param *par)
 		m |= ntohl(iph->daddr) > ntohl(info->dst_max.ip);
 		m ^= !!(info->flags & IPRANGE_DST_INV);
 		if (m) {
-			pr_debug("dst IP " NIPQUAD_FMT " NOT in range %s"
-			         NIPQUAD_FMT "-" NIPQUAD_FMT "\n",
-			         NIPQUAD(iph->daddr),
+			pr_debug("dst IP %pI4 NOT in range %s%pI4-%pI4\n",
+			         &iph->daddr,
 			         (info->flags & IPRANGE_DST_INV) ? "(INV) " : "",
-			         NIPQUAD(info->dst_min.ip),
-			         NIPQUAD(info->dst_max.ip));
+			         &info->dst_min.ip,
+			         &info->dst_max.ip);
 			return false;
 		}
 	}

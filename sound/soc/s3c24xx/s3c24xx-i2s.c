@@ -243,7 +243,8 @@ static int s3c24xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 }
 
 static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	u32 iismod;
@@ -261,10 +262,17 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
+		iismod &= ~S3C2410_IISMOD_16BIT;
+		((struct s3c24xx_pcm_dma_params *)
+		  rtd->dai->cpu_dai->dma_data)->dma_size = 1;
 		break;
 	case SNDRV_PCM_FORMAT_S16_LE:
 		iismod |= S3C2410_IISMOD_16BIT;
+		((struct s3c24xx_pcm_dma_params *)
+		  rtd->dai->cpu_dai->dma_data)->dma_size = 2;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	writel(iismod, s3c24xx_i2s.regs + S3C2410_IISMOD);
@@ -272,7 +280,8 @@ static int s3c24xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd)
+static int s3c24xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+			       struct snd_soc_dai *dai)
 {
 	int ret = 0;
 
@@ -410,8 +419,7 @@ static int s3c24xx_i2s_probe(struct platform_device *pdev,
 }
 
 #ifdef CONFIG_PM
-static int s3c24xx_i2s_suspend(struct platform_device *pdev,
-		struct snd_soc_dai *cpu_dai)
+static int s3c24xx_i2s_suspend(struct snd_soc_dai *cpu_dai)
 {
 	DBG("Entered %s\n", __func__);
 
@@ -425,8 +433,7 @@ static int s3c24xx_i2s_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int s3c24xx_i2s_resume(struct platform_device *pdev,
-		struct snd_soc_dai *cpu_dai)
+static int s3c24xx_i2s_resume(struct snd_soc_dai *cpu_dai)
 {
 	DBG("Entered %s\n", __func__);
 	clk_enable(s3c24xx_i2s.iis_clk);
@@ -452,7 +459,6 @@ static int s3c24xx_i2s_resume(struct platform_device *pdev,
 struct snd_soc_dai s3c24xx_i2s_dai = {
 	.name = "s3c24xx-i2s",
 	.id = 0,
-	.type = SND_SOC_DAI_I2S,
 	.probe = s3c24xx_i2s_probe,
 	.suspend = s3c24xx_i2s_suspend,
 	.resume = s3c24xx_i2s_resume,
@@ -468,14 +474,25 @@ struct snd_soc_dai s3c24xx_i2s_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
 		.trigger = s3c24xx_i2s_trigger,
-		.hw_params = s3c24xx_i2s_hw_params,},
-	.dai_ops = {
+		.hw_params = s3c24xx_i2s_hw_params,
 		.set_fmt = s3c24xx_i2s_set_fmt,
 		.set_clkdiv = s3c24xx_i2s_set_clkdiv,
 		.set_sysclk = s3c24xx_i2s_set_sysclk,
 	},
 };
 EXPORT_SYMBOL_GPL(s3c24xx_i2s_dai);
+
+static int __init s3c24xx_i2s_init(void)
+{
+	return snd_soc_register_dai(&s3c24xx_i2s_dai);
+}
+module_init(s3c24xx_i2s_init);
+
+static void __exit s3c24xx_i2s_exit(void)
+{
+	snd_soc_unregister_dai(&s3c24xx_i2s_dai);
+}
+module_exit(s3c24xx_i2s_exit);
 
 /* Module information */
 MODULE_AUTHOR("Ben Dooks, <ben@simtec.co.uk>");

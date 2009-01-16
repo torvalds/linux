@@ -72,7 +72,8 @@
 /* for mx27*/
 #define OTG_BASE_ADDR           USBOTG_BASE_ADDR
 #define SAHARA_BASE_ADDR        (AIPI_BASE_ADDR + 0x25000)
-#define EMMA_BASE_ADDR          (AIPI_BASE_ADDR + 0x26400)
+#define EMMA_PP_BASE_ADDR       (AIPI_BASE_ADDR + 0x26000)
+#define EMMA_PRP_BASE_ADDR      (AIPI_BASE_ADDR + 0x26400)
 #define CCM_BASE_ADDR           (AIPI_BASE_ADDR + 0x27000)
 #define SYSCTRL_BASE_ADDR       (AIPI_BASE_ADDR + 0x27800)
 #define IIM_BASE_ADDR           (AIPI_BASE_ADDR + 0x28000)
@@ -287,17 +288,5 @@ extern int mx27_revision(void);
 
 /* this CPU supports up to 192 GPIOs (don't forget the baseboard!) */
 #define ARCH_NR_GPIOS		(192 + 16)
-
-/* OS clock tick rate */
-#define CLOCK_TICK_RATE         13300000
-
-/* Start of RAM */
-#define PHYS_OFFSET		SDRAM_BASE_ADDR
-
-/* max interrupt lines count */
-#define NR_IRQS			256
-
-/* count of internal interrupt sources */
-#define MXC_MAX_INT_LINES	64
 
 #endif /* __ASM_ARCH_MXC_MX27_H__ */

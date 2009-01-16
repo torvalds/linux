@@ -165,7 +165,6 @@ static void netx_eth_receive(struct net_device *ndev)
 	pfifo_push(EMPTY_PTR_FIFO(priv->id),
 		FIFO_PTR_SEGMENT(seg) | FIFO_PTR_FRAMENO(frameno));
 
-	ndev->last_rx = jiffies;
 	skb->protocol = eth_type_trans(skb, ndev);
 	netif_rx(skb);
 	ndev->stats.rx_packets++;

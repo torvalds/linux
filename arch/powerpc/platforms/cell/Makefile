@@ -1,7 +1,7 @@
-obj-$(CONFIG_PPC_CELL_NATIVE)		+= interrupt.o iommu.o setup.o \
-					   cbe_regs.o spider-pic.o \
-					   pervasive.o pmu.o io-workarounds.o \
-					   spider-pci.o
+obj-$(CONFIG_PPC_CELL_COMMON)		+= cbe_regs.o interrupt.o pervasive.o
+
+obj-$(CONFIG_PPC_CELL_NATIVE)		+= iommu.o setup.o spider-pic.o \
+					   pmu.o io-workarounds.o spider-pci.o
 obj-$(CONFIG_CBE_RAS)			+= ras.o
 
 obj-$(CONFIG_CBE_THERM)			+= cbe_thermal.o
@@ -14,13 +14,12 @@ obj-$(CONFIG_PPC_IBM_CELL_POWERBUTTON)	+= cbe_powerbutton.o
 
 ifeq ($(CONFIG_SMP),y)
 obj-$(CONFIG_PPC_CELL_NATIVE)		+= smp.o
+obj-$(CONFIG_PPC_CELL_QPACE)		+= smp.o
 endif
 
 # needed only when building loadable spufs.ko
-spu-priv1-$(CONFIG_PPC_CELL_NATIVE)	+= spu_priv1_mmio.o
-
-spu-manage-$(CONFIG_PPC_CELLEB)		+= spu_manage.o
-spu-manage-$(CONFIG_PPC_CELL_NATIVE)	+= spu_manage.o
+spu-priv1-$(CONFIG_PPC_CELL_COMMON)	+= spu_priv1_mmio.o
+spu-manage-$(CONFIG_PPC_CELL_COMMON)	+= spu_manage.o
 
 obj-$(CONFIG_SPU_BASE)			+= spu_callbacks.o spu_base.o \
 					   spu_notify.o \
@@ -31,6 +30,8 @@ obj-$(CONFIG_SPU_BASE)			+= spu_callbacks.o spu_base.o \
 
 obj-$(CONFIG_PCI_MSI)			+= axon_msi.o
 
+# qpace setup
+obj-$(CONFIG_PPC_CELL_QPACE)		+= qpace_setup.o
 
 # celleb stuff
 ifeq ($(CONFIG_PPC_CELLEB),y)

@@ -123,7 +123,7 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct v4l2_pix_format vga_mode[] = {
+static const struct v4l2_pix_format vga_mode[] = {
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
@@ -136,7 +136,7 @@ static struct v4l2_pix_format vga_mode[] = {
 		.priv = 1},
 };
 
-static struct v4l2_pix_format custom_mode[] = {
+static const struct v4l2_pix_format custom_mode[] = {
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
@@ -149,7 +149,7 @@ static struct v4l2_pix_format custom_mode[] = {
 		.priv = 1},
 };
 
-static struct v4l2_pix_format vga_mode2[] = {
+static const struct v4l2_pix_format vga_mode2[] = {
 	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 8 + 590,

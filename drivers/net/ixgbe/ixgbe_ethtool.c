@@ -94,12 +94,21 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 };
 
 #define IXGBE_QUEUE_STATS_LEN \
-                ((((struct ixgbe_adapter *)netdev->priv)->num_tx_queues + \
-                 ((struct ixgbe_adapter *)netdev->priv)->num_rx_queues) * \
-                 (sizeof(struct ixgbe_queue_stats) / sizeof(u64)))
-#define IXGBE_STATS_LEN (IXGBE_GLOBAL_STATS_LEN + IXGBE_QUEUE_STATS_LEN)
+	((((struct ixgbe_adapter *)netdev_priv(netdev))->num_tx_queues + \
+	((struct ixgbe_adapter *)netdev_priv(netdev))->num_rx_queues) * \
+	(sizeof(struct ixgbe_queue_stats) / sizeof(u64)))
 #define IXGBE_GLOBAL_STATS_LEN ARRAY_SIZE(ixgbe_gstrings_stats)
-#define IXGBE_STATS_LEN (IXGBE_GLOBAL_STATS_LEN + IXGBE_QUEUE_STATS_LEN)
+#define IXGBE_PB_STATS_LEN ( \
+                 (((struct ixgbe_adapter *)netdev_priv(netdev))->flags & \
+                 IXGBE_FLAG_DCB_ENABLED) ? \
+                 (sizeof(((struct ixgbe_adapter *)0)->stats.pxonrxc) + \
+                  sizeof(((struct ixgbe_adapter *)0)->stats.pxontxc) + \
+                  sizeof(((struct ixgbe_adapter *)0)->stats.pxoffrxc) + \
+                  sizeof(((struct ixgbe_adapter *)0)->stats.pxofftxc)) \
+                  / sizeof(u64) : 0)
+#define IXGBE_STATS_LEN (IXGBE_GLOBAL_STATS_LEN + \
+                         IXGBE_PB_STATS_LEN + \
+                         IXGBE_QUEUE_STATS_LEN)
 
 static int ixgbe_get_settings(struct net_device *netdev,
                               struct ethtool_cmd *ecmd)
@@ -149,6 +158,8 @@ static int ixgbe_set_settings(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
+	u32 advertised, old;
+	s32 err;
 
 	switch (hw->phy.media_type) {
 	case ixgbe_media_type_fiber:
@@ -156,6 +167,31 @@ static int ixgbe_set_settings(struct net_device *netdev,
 		    (ecmd->speed + ecmd->duplex != SPEED_10000 + DUPLEX_FULL))
 			return -EINVAL;
 		/* in this case we currently only support 10Gb/FULL */
+		break;
+	case ixgbe_media_type_copper:
+		/* 10000/copper and 1000/copper must autoneg
+		 * this function does not support any duplex forcing, but can
+		 * limit the advertising of the adapter to only 10000 or 1000 */
+		if (ecmd->autoneg == AUTONEG_DISABLE)
+			return -EINVAL;
+
+		old = hw->phy.autoneg_advertised;
+		advertised = 0;
+		if (ecmd->advertising & ADVERTISED_10000baseT_Full)
+			advertised |= IXGBE_LINK_SPEED_10GB_FULL;
+
+		if (ecmd->advertising & ADVERTISED_1000baseT_Full)
+			advertised |= IXGBE_LINK_SPEED_1GB_FULL;
+
+		if (old == advertised)
+			break;
+		/* this sets the link speed and restarts auto-neg */
+		err = hw->mac.ops.setup_link_speed(hw, advertised, true, true);
+		if (err) {
+			DPRINTK(PROBE, INFO,
+			        "setup link failed with code %d\n", err);
+			hw->mac.ops.setup_link_speed(hw, old, true, true);
+		}
 		break;
 	default:
 		break;
@@ -676,30 +712,15 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 		return 0;
 	}
 
-	if (adapter->num_tx_queues > adapter->num_rx_queues)
-		temp_ring = vmalloc(adapter->num_tx_queues *
-		                    sizeof(struct ixgbe_ring));
-	else
-		temp_ring = vmalloc(adapter->num_rx_queues *
-		                    sizeof(struct ixgbe_ring));
+	temp_ring = kcalloc(adapter->num_tx_queues,
+	                    sizeof(struct ixgbe_ring), GFP_KERNEL);
 	if (!temp_ring)
 		return -ENOMEM;
 
 	while (test_and_set_bit(__IXGBE_RESETTING, &adapter->state))
 		msleep(1);
 
-	if (netif_running(netdev))
-		ixgbe_down(adapter);
-
-	/*
-	 * We can't just free everything and then setup again,
-	 * because the ISRs in MSI-X mode get passed pointers
-	 * to the tx and rx ring structs.
-	 */
 	if (new_tx_count != adapter->tx_ring->count) {
-		memcpy(temp_ring, adapter->tx_ring,
-		       adapter->num_tx_queues * sizeof(struct ixgbe_ring));
-
 		for (i = 0; i < adapter->num_tx_queues; i++) {
 			temp_ring[i].count = new_tx_count;
 			err = ixgbe_setup_tx_resources(adapter, &temp_ring[i]);
@@ -711,21 +732,28 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 				}
 				goto err_setup;
 			}
+			temp_ring[i].v_idx = adapter->tx_ring[i].v_idx;
 		}
-
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			ixgbe_free_tx_resources(adapter, &adapter->tx_ring[i]);
-
-		memcpy(adapter->tx_ring, temp_ring,
-		       adapter->num_tx_queues * sizeof(struct ixgbe_ring));
-
+		if (netif_running(netdev))
+			netdev->netdev_ops->ndo_stop(netdev);
+		ixgbe_reset_interrupt_capability(adapter);
+		ixgbe_napi_del_all(adapter);
+		INIT_LIST_HEAD(&netdev->napi_list);
+		kfree(adapter->tx_ring);
+		adapter->tx_ring = temp_ring;
+		temp_ring = NULL;
 		adapter->tx_ring_count = new_tx_count;
 	}
 
-	if (new_rx_count != adapter->rx_ring->count) {
-		memcpy(temp_ring, adapter->rx_ring,
-		       adapter->num_rx_queues * sizeof(struct ixgbe_ring));
+	temp_ring = kcalloc(adapter->num_rx_queues,
+	                    sizeof(struct ixgbe_ring), GFP_KERNEL);
+	if (!temp_ring) {
+		if (netif_running(netdev))
+			netdev->netdev_ops->ndo_open(netdev);
+		return -ENOMEM;
+	}
 
+	if (new_rx_count != adapter->rx_ring->count) {
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			temp_ring[i].count = new_rx_count;
 			err = ixgbe_setup_rx_resources(adapter, &temp_ring[i]);
@@ -737,13 +765,16 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 				}
 				goto err_setup;
 			}
+			temp_ring[i].v_idx = adapter->rx_ring[i].v_idx;
 		}
-
-		for (i = 0; i < adapter->num_rx_queues; i++)
-			ixgbe_free_rx_resources(adapter, &adapter->rx_ring[i]);
-
-		memcpy(adapter->rx_ring, temp_ring,
-		       adapter->num_rx_queues * sizeof(struct ixgbe_ring));
+		if (netif_running(netdev))
+			netdev->netdev_ops->ndo_stop(netdev);
+		ixgbe_reset_interrupt_capability(adapter);
+		ixgbe_napi_del_all(adapter);
+		INIT_LIST_HEAD(&netdev->napi_list);
+		kfree(adapter->rx_ring);
+		adapter->rx_ring = temp_ring;
+		temp_ring = NULL;
 
 		adapter->rx_ring_count = new_rx_count;
 	}
@@ -751,8 +782,9 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 	/* success! */
 	err = 0;
 err_setup:
+	ixgbe_init_interrupt_scheme(adapter);
 	if (netif_running(netdev))
-		ixgbe_up(adapter);
+		netdev->netdev_ops->ndo_open(netdev);
 
 	clear_bit(__IXGBE_RESETTING, &adapter->state);
 	return err;
@@ -804,6 +836,16 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 			data[i + k] = queue_stat[k];
 		i += k;
 	}
+	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+		for (j = 0; j < MAX_TX_PACKET_BUFFERS; j++) {
+			data[i++] = adapter->stats.pxontxc[j];
+			data[i++] = adapter->stats.pxofftxc[j];
+		}
+		for (j = 0; j < MAX_RX_PACKET_BUFFERS; j++) {
+			data[i++] = adapter->stats.pxonrxc[j];
+			data[i++] = adapter->stats.pxoffrxc[j];
+		}
+	}
 }
 
 static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
@@ -831,6 +873,20 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "rx_queue_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
+		}
+		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			for (i = 0; i < MAX_TX_PACKET_BUFFERS; i++) {
+				sprintf(p, "tx_pb_%u_pxon", i);
+				p += ETH_GSTRING_LEN;
+				sprintf(p, "tx_pb_%u_pxoff", i);
+				p += ETH_GSTRING_LEN;
+			}
+			for (i = 0; i < MAX_RX_PACKET_BUFFERS; i++) {
+				sprintf(p, "rx_pb_%u_pxon", i);
+				p += ETH_GSTRING_LEN;
+				sprintf(p, "rx_pb_%u_pxoff", i);
+				p += ETH_GSTRING_LEN;
+			}
 		}
 		/* BUG_ON(p - data != IXGBE_STATS_LEN * ETH_GSTRING_LEN); */
 		break;

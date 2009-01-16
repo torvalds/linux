@@ -56,6 +56,15 @@ static struct virtio_device_id id_table[] = {
 	{ 0 },
 };
 
+static u32 page_to_balloon_pfn(struct page *page)
+{
+	unsigned long pfn = page_to_pfn(page);
+
+	BUILD_BUG_ON(PAGE_SHIFT < VIRTIO_BALLOON_PFN_SHIFT);
+	/* Convert pfn from Linux page size to balloon page size. */
+	return pfn >> (PAGE_SHIFT - VIRTIO_BALLOON_PFN_SHIFT);
+}
+
 static void balloon_ack(struct virtqueue *vq)
 {
 	struct virtio_balloon *vb;
@@ -99,7 +108,7 @@ static void fill_balloon(struct virtio_balloon *vb, size_t num)
 			msleep(200);
 			break;
 		}
-		vb->pfns[vb->num_pfns] = page_to_pfn(page);
+		vb->pfns[vb->num_pfns] = page_to_balloon_pfn(page);
 		totalram_pages--;
 		vb->num_pages++;
 		list_add(&page->lru, &vb->pages);
@@ -132,7 +141,7 @@ static void leak_balloon(struct virtio_balloon *vb, size_t num)
 	for (vb->num_pfns = 0; vb->num_pfns < num; vb->num_pfns++) {
 		page = list_first_entry(&vb->pages, struct page, lru);
 		list_del(&page->lru);
-		vb->pfns[vb->num_pfns] = page_to_pfn(page);
+		vb->pfns[vb->num_pfns] = page_to_balloon_pfn(page);
 		vb->num_pages--;
 	}
 

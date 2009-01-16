@@ -28,7 +28,7 @@ static void arch_detect_cpu(void);
 /* defines for UART registers */
 
 #include <plat/regs-serial.h>
-#include <asm/plat-s3c/regs-watchdog.h>
+#include <plat/regs-watchdog.h>
 
 /* working in physical space... */
 #undef S3C2410_WDOGREG
@@ -37,7 +37,7 @@ static void arch_detect_cpu(void);
 /* how many bytes we allow into the FIFO at a time in FIFO mode */
 #define FIFO_MAX	 (14)
 
-#define uart_base S3C24XX_PA_UART + (0x4000*CONFIG_S3C_LOWLEVEL_UART_PORT)
+#define uart_base S3C_PA_UART + (S3C_UART_OFFSET * CONFIG_S3C_LOWLEVEL_UART_PORT)
 
 static __inline__ void
 uart_wr(unsigned int reg, unsigned int val)
@@ -139,6 +139,28 @@ static void arch_decomp_error(const char *x)
 
 static void error(char *err);
 
+#ifdef CONFIG_S3C_BOOT_UART_FORCE_FIFO
+static inline void arch_enable_uart_fifo(void)
+{
+	u32 fifocon = uart_rd(S3C2410_UFCON);
+
+	if (!(fifocon & S3C2410_UFCON_FIFOMODE)) {
+		fifocon |= S3C2410_UFCON_RESETBOTH;
+		uart_wr(S3C2410_UFCON, fifocon);
+
+		/* wait for fifo reset to complete */
+		while (1) {
+			fifocon = uart_rd(S3C2410_UFCON);
+			if (!(fifocon & S3C2410_UFCON_RESETBOTH))
+				break;
+		}
+	}
+}
+#else
+#define arch_enable_uart_fifo() do { } while(0)
+#endif
+
+
 static void
 arch_decomp_setup(void)
 {
@@ -149,6 +171,12 @@ arch_decomp_setup(void)
 
 	arch_detect_cpu();
 	arch_decomp_wdog_start();
+
+	/* Enable the UART FIFOs if they where not enabled and our
+	 * configuration says we should turn them on.
+	 */
+
+	arch_enable_uart_fifo();
 }
 
 

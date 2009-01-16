@@ -1,5 +1,5 @@
 /*
- * Hardware definitions for the Toshiba eseries PDAs
+ * Hardware definitions for the Toshiba e330 PDAs
  *
  * Copyright (c) 2003 Ian Molton <spyro@f2s.com>
  *
@@ -12,6 +12,9 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/clk.h>
+#include <linux/platform_device.h>
+#include <linux/mfd/tc6387xb.h>
 
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
@@ -19,13 +22,44 @@
 
 #include <mach/mfp-pxa25x.h>
 #include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/eseries-gpio.h>
 #include <mach/udc.h>
 
 #include "generic.h"
 #include "eseries.h"
+#include "clock.h"
+
+/* -------------------- e330 tc6387xb parameters -------------------- */
+
+static struct tc6387xb_platform_data e330_tc6387xb_info = {
+	.enable   = &eseries_tmio_enable,
+	.disable  = &eseries_tmio_disable,
+	.suspend  = &eseries_tmio_suspend,
+	.resume   = &eseries_tmio_resume,
+};
+
+static struct platform_device e330_tc6387xb_device = {
+	.name           = "tc6387xb",
+	.id             = -1,
+	.dev            = {
+		.platform_data = &e330_tc6387xb_info,
+	},
+	.num_resources = 2,
+	.resource      = eseries_tmio_resources,
+};
+
+/* --------------------------------------------------------------- */
+
+static struct platform_device *devices[] __initdata = {
+	&e330_tc6387xb_device,
+};
 
 static void __init e330_init(void)
 {
+	eseries_register_clks();
+	eseries_get_tmio_gpios();
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_udc_info(&e7xx_udc_mach_info);
 }
 

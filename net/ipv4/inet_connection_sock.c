@@ -109,7 +109,7 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 					hashinfo->bhash_size)];
 			spin_lock(&head->lock);
 			inet_bind_bucket_for_each(tb, node, &head->chain)
-				if (tb->ib_net == net && tb->port == rover)
+				if (ib_net(tb) == net && tb->port == rover)
 					goto next;
 			break;
 		next:
@@ -137,7 +137,7 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 				hashinfo->bhash_size)];
 		spin_lock(&head->lock);
 		inet_bind_bucket_for_each(tb, node, &head->chain)
-			if (tb->ib_net == net && tb->port == snum)
+			if (ib_net(tb) == net && tb->port == snum)
 				goto tb_found;
 	}
 	tb = NULL;
@@ -323,7 +323,7 @@ void inet_csk_reset_keepalive_timer(struct sock *sk, unsigned long len)
 
 EXPORT_SYMBOL(inet_csk_reset_keepalive_timer);
 
-struct dst_entry* inet_csk_route_req(struct sock *sk,
+struct dst_entry *inet_csk_route_req(struct sock *sk,
 				     const struct request_sock *req)
 {
 	struct rtable *rt;
@@ -344,16 +344,17 @@ struct dst_entry* inet_csk_route_req(struct sock *sk,
 	struct net *net = sock_net(sk);
 
 	security_req_classify_flow(req, &fl);
-	if (ip_route_output_flow(net, &rt, &fl, sk, 0)) {
-		IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
-		return NULL;
-	}
-	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway) {
-		ip_rt_put(rt);
-		IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
-		return NULL;
-	}
+	if (ip_route_output_flow(net, &rt, &fl, sk, 0))
+		goto no_route;
+	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
+		goto route_err;
 	return &rt->u.dst;
+
+route_err:
+	ip_rt_put(rt);
+no_route:
+	IP_INC_STATS_BH(net, IPSTATS_MIB_OUTNOROUTES);
+	return NULL;
 }
 
 EXPORT_SYMBOL_GPL(inet_csk_route_req);
@@ -561,7 +562,7 @@ void inet_csk_destroy_sock(struct sock *sk)
 
 	sk_refcnt_debug_release(sk);
 
-	atomic_dec(sk->sk_prot->orphan_count);
+	percpu_counter_dec(sk->sk_prot->orphan_count);
 	sock_put(sk);
 }
 
@@ -641,7 +642,7 @@ void inet_csk_listen_stop(struct sock *sk)
 
 		sock_orphan(child);
 
-		atomic_inc(sk->sk_prot->orphan_count);
+		percpu_counter_inc(sk->sk_prot->orphan_count);
 
 		inet_csk_destroy_sock(child);
 

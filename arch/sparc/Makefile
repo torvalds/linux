@@ -2,18 +2,31 @@
 # sparc/Makefile
 #
 # Makefile for the architecture dependent flags and dependencies on the
-# Sparc.
+# Sparc and sparc64.
 #
-# Copyright (C) 1994 David S. Miller (davem@caip.rutgers.edu)
+# Copyright (C) 1994,1996,1998 David S. Miller (davem@caip.rutgers.edu)
+# Copyright (C) 1998 Jakub Jelinek (jj@ultra.linux.cz)
+
+# We are not yet configured - so test on arch
+ifeq ($(ARCH),sparc)
+        KBUILD_DEFCONFIG := sparc32_defconfig
+else
+        KBUILD_DEFCONFIG := sparc64_defconfig
+endif
+
+ifeq ($(CONFIG_SPARC32),y)
+#####
+# sparc32
 #
 
 #
 # Uncomment the first KBUILD_CFLAGS if you are doing kgdb source level
 # debugging of the kernel to get the proper debugging information.
 
-AS              := $(AS) -32
-LDFLAGS		:= -m elf32_sparc
-CHECKFLAGS	+= -D__sparc__
+AS             := $(AS) -32
+LDFLAGS        := -m elf32_sparc
+CHECKFLAGS     += -D__sparc__
+export BITS    := 32
 
 #KBUILD_CFLAGS += -g -pipe -fcall-used-g5 -fcall-used-g7
 KBUILD_CFLAGS += -m32 -pipe -mno-fpu -fcall-used-g5 -fcall-used-g7
@@ -25,38 +38,60 @@ CPPFLAGS_vmlinux.lds += -m32
 #  Actual linking is done with "make image".
 LDFLAGS_vmlinux = -r
 
-head-y := arch/sparc/kernel/head.o arch/sparc/kernel/init_task.o
-HEAD_Y := $(head-y)
+# Default target
+all: zImage
 
-core-y += arch/sparc/kernel/ arch/sparc/mm/ arch/sparc/math-emu/
-libs-y += arch/sparc/prom/ arch/sparc/lib/
+
+else
+#####
+# sparc64
+#
+
+CHECKFLAGS      += -D__sparc__ -D__sparc_v9__ -D__arch64__ -m64
+
+# Undefine sparc when processing vmlinux.lds - it is used
+# And teach CPP we are doing 64 bit builds (for this case)
+CPPFLAGS_vmlinux.lds += -m64 -Usparc
+LDFLAGS              := -m elf64_sparc
+export BITS          := 64
+
+KBUILD_CFLAGS += -m64 -pipe -mno-fpu -mcpu=ultrasparc -mcmodel=medlow   \
+                 -ffixed-g4 -ffixed-g5 -fcall-used-g7 -Wno-sign-compare \
+                 -Wa,--undeclared-regs
+KBUILD_CFLAGS += $(call cc-option,-mtune=ultrasparc3)
+KBUILD_AFLAGS += -m64 -mcpu=ultrasparc -Wa,--undeclared-regs
+
+ifeq ($(CONFIG_MCOUNT),y)
+  KBUILD_CFLAGS += -pg
+endif
+
+endif
+
+head-y                 := arch/sparc/kernel/head_$(BITS).o
+head-y                 += arch/sparc/kernel/init_task.o
+
+core-y                 += arch/sparc/kernel/
+core-y                 += arch/sparc/mm/ arch/sparc/math-emu/
+
+libs-y                 += arch/sparc/prom/
+libs-y                 += arch/sparc/lib/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/
 
 # Export what is needed by arch/sparc/boot/Makefile
-# Renaming is done to avoid confusing pattern matching rules in 2.5.45 (multy-)
-INIT_Y		:= $(patsubst %/, %/built-in.o, $(init-y))
-CORE_Y		:= $(core-y)
-CORE_Y		+= kernel/ mm/ fs/ ipc/ security/ crypto/ block/
-CORE_Y		:= $(patsubst %/, %/built-in.o, $(CORE_Y))
-DRIVERS_Y	:= $(patsubst %/, %/built-in.o, $(drivers-y))
-NET_Y		:= $(patsubst %/, %/built-in.o, $(net-y))
-LIBS_Y1		:= $(patsubst %/, %/lib.a, $(libs-y))
-LIBS_Y2		:= $(patsubst %/, %/built-in.o, $(libs-y))
-LIBS_Y		:= $(LIBS_Y1) $(LIBS_Y2)
+export VMLINUX_INIT VMLINUX_MAIN
+VMLINUX_INIT := $(head-y) $(init-y)
+VMLINUX_MAIN := $(core-y) kernel/ mm/ fs/ ipc/ security/ crypto/ block/
+VMLINUX_MAIN += $(patsubst %/, %/lib.a, $(libs-y)) $(libs-y)
+VMLINUX_MAIN += $(drivers-y) $(net-y)
 
 ifdef CONFIG_KALLSYMS
-kallsyms.o := .tmp_kallsyms2.o
+export kallsyms.o := .tmp_kallsyms2.o
 endif
-
-export INIT_Y CORE_Y DRIVERS_Y NET_Y LIBS_Y HEAD_Y kallsyms.o
-
-# Default target
-all: zImage
 
 boot := arch/sparc/boot
 
-image zImage tftpboot.img: vmlinux
+image zImage tftpboot.img vmlinux.aout: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 archclean:
@@ -65,11 +100,17 @@ archclean:
 # This is the image used for packaging
 KBUILD_IMAGE := $(boot)/zImage
 
-CLEAN_FILES += arch/$(ARCH)/boot/System.map
-
 # Don't use tabs in echo arguments.
+ifeq ($(ARCH),sparc)
 define archhelp
   echo  '* image        - kernel image ($(boot)/image)'
   echo  '* zImage       - stripped kernel image ($(boot)/zImage)'
   echo  '  tftpboot.img - image prepared for tftp'
 endef
+else
+define archhelp
+  echo  '* vmlinux       - Standard sparc64 kernel'
+  echo  '  vmlinux.aout  - a.out kernel for sparc64'
+  echo  '  tftpboot.img - image prepared for tftp'
+endef
+endif

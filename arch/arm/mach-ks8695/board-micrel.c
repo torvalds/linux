@@ -18,6 +18,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/gpio.h>
 #include <mach/devices.h>
 
 #include "generic.h"
@@ -38,6 +39,8 @@ static struct ks8695_pci_cfg __initdata micrel_pci = {
 static void __init micrel_init(void)
 {
 	printk(KERN_INFO "Micrel KS8695 Development Board initializing\n");
+
+	ks8695_register_gpios();
 
 #ifdef CONFIG_PCI
 	ks8695_init_pci(&micrel_pci);

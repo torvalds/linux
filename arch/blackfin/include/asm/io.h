@@ -94,12 +94,12 @@ static inline unsigned int readl(const volatile void __iomem *addr)
 #define outw_p(x,addr) outw(x,addr)
 #define outl_p(x,addr) outl(x,addr)
 
-#define ioread8_rep(a,d,c)	insb(a,d,c)
-#define ioread16_rep(a,d,c)	insw(a,d,c)
-#define ioread32_rep(a,d,c)	insl(a,d,c)
-#define iowrite8_rep(a,s,c)	outsb(a,s,c)
-#define iowrite16_rep(a,s,c)	outsw(a,s,c)
-#define iowrite32_rep(a,s,c)	outsl(a,s,c)
+#define ioread8_rep(a,d,c)	readsb(a,d,c)
+#define ioread16_rep(a,d,c)	readsw(a,d,c)
+#define ioread32_rep(a,d,c)	readsl(a,d,c)
+#define iowrite8_rep(a,s,c)	writesb(a,s,c)
+#define iowrite16_rep(a,s,c)	writesw(a,s,c)
+#define iowrite32_rep(a,s,c)	writesl(a,s,c)
 
 #define ioread8(X)			readb(X)
 #define ioread16(X)			readw(X)
@@ -107,6 +107,8 @@ static inline unsigned int readl(const volatile void __iomem *addr)
 #define iowrite8(val,X)			writeb(val,X)
 #define iowrite16(val,X)		writew(val,X)
 #define iowrite32(val,X)		writel(val,X)
+
+#define mmiowb() wmb()
 
 #define IO_SPACE_LIMIT 0xffffffff
 

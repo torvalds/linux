@@ -163,8 +163,8 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 
 	/* Fill in defaults */
 
-	*uid        = current->uid;
-	*gid        = current->gid;
+	*uid        = current_uid();
+	*gid        = current_gid();
 	*reserved   = 2;
 	*root       = -1;
 	*blocksize  = -1;

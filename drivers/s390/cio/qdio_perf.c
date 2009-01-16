@@ -74,12 +74,20 @@ static int qdio_perf_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "\n");
 	seq_printf(m, "Number of fast requeues (outg. SBAL w/o SIGA)\t: %li\n",
 		   (long)atomic_long_read(&perf_stats.fast_requeue));
+	seq_printf(m, "Number of outbound target full condition\t: %li\n",
+		   (long)atomic_long_read(&perf_stats.outbound_target_full));
 	seq_printf(m, "Number of outbound tasklet mod_timer calls\t: %li\n",
 		   (long)atomic_long_read(&perf_stats.debug_tl_out_timer));
 	seq_printf(m, "Number of stop polling calls\t\t\t: %li\n",
 		   (long)atomic_long_read(&perf_stats.debug_stop_polling));
 	seq_printf(m, "AI inbound tasklet loops after stop polling\t: %li\n",
 		   (long)atomic_long_read(&perf_stats.thinint_inbound_loop2));
+	seq_printf(m, "QEBSM EQBS total/incomplete\t\t\t: %li/%li\n",
+		   (long)atomic_long_read(&perf_stats.debug_eqbs_all),
+		   (long)atomic_long_read(&perf_stats.debug_eqbs_incomplete));
+	seq_printf(m, "QEBSM SQBS total/incomplete\t\t\t: %li/%li\n",
+		   (long)atomic_long_read(&perf_stats.debug_sqbs_all),
+		   (long)atomic_long_read(&perf_stats.debug_sqbs_incomplete));
 	seq_printf(m, "\n");
 	return 0;
 }

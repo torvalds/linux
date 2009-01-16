@@ -21,6 +21,10 @@ KALLSYMS         += --symbol-prefix=_
 KBUILD_DEFCONFIG := BF537-STAMP_defconfig
 
 # setup the machine name and the machine dependent settings
+machine-$(CONFIG_BF512) := bf518
+machine-$(CONFIG_BF514) := bf518
+machine-$(CONFIG_BF516) := bf518
+machine-$(CONFIG_BF518) := bf518
 machine-$(CONFIG_BF522) := bf527
 machine-$(CONFIG_BF523) := bf527
 machine-$(CONFIG_BF524) := bf527
@@ -33,6 +37,8 @@ machine-$(CONFIG_BF533) := bf533
 machine-$(CONFIG_BF534) := bf537
 machine-$(CONFIG_BF536) := bf537
 machine-$(CONFIG_BF537) := bf537
+machine-$(CONFIG_BF538) := bf538
+machine-$(CONFIG_BF539) := bf538
 machine-$(CONFIG_BF542) := bf548
 machine-$(CONFIG_BF544) := bf548
 machine-$(CONFIG_BF547) := bf548
@@ -42,6 +48,10 @@ machine-$(CONFIG_BF561) := bf561
 MACHINE := $(machine-y)
 export MACHINE
 
+cpu-$(CONFIG_BF512) := bf512
+cpu-$(CONFIG_BF514) := bf514
+cpu-$(CONFIG_BF516) := bf516
+cpu-$(CONFIG_BF518) := bf518
 cpu-$(CONFIG_BF522) := bf522
 cpu-$(CONFIG_BF523) := bf523
 cpu-$(CONFIG_BF524) := bf524
@@ -54,6 +64,8 @@ cpu-$(CONFIG_BF533) := bf533
 cpu-$(CONFIG_BF534) := bf534
 cpu-$(CONFIG_BF536) := bf536
 cpu-$(CONFIG_BF537) := bf537
+cpu-$(CONFIG_BF538) := bf538
+cpu-$(CONFIG_BF539) := bf539
 cpu-$(CONFIG_BF542) := bf542
 cpu-$(CONFIG_BF544) := bf544
 cpu-$(CONFIG_BF547) := bf547
@@ -79,7 +91,7 @@ KBUILD_AFLAGS += -mcpu=$(cpu-y)-$(rev-y)
 CHECKFLAGS_SILICON = $(shell echo "" | $(CPP) $(KBUILD_CFLAGS) -dD - 2>/dev/null | awk '$$2 == "__SILICON_REVISION__" { print $$3 }')
 CHECKFLAGS += -D__SILICON_REVISION__=$(CHECKFLAGS_SILICON) -Dl1_text=__used__
 
-head-y   := arch/$(ARCH)/mach-$(MACHINE)/head.o arch/$(ARCH)/kernel/init_task.o
+head-y   := arch/$(ARCH)/kernel/init_task.o
 
 core-y   += arch/$(ARCH)/kernel/ arch/$(ARCH)/mm/ arch/$(ARCH)/mach-common/
 
@@ -95,9 +107,9 @@ else
 core-y	+= arch/$(ARCH)/kernel/cplb-nompu/
 endif
 
-libs-y   += arch/$(ARCH)/lib/
-
 drivers-$(CONFIG_OPROFILE) += arch/$(ARCH)/oprofile/
+
+libs-y   += arch/$(ARCH)/lib/
 
 machdirs	:= $(patsubst %,arch/blackfin/mach-%/, $(machine-y))
 

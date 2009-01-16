@@ -19,8 +19,7 @@
 #define	__XFS_INODE_H__
 
 struct xfs_dinode;
-struct xfs_dinode_core;
-
+struct xfs_inode;
 
 /*
  * Fork identifiers.
@@ -63,7 +62,7 @@ typedef struct xfs_ext_irec {
 typedef struct xfs_ifork {
 	int			if_bytes;	/* bytes in if_u1 */
 	int			if_real_bytes;	/* bytes allocated in if_u1 */
-	xfs_bmbt_block_t	*if_broot;	/* file's incore btree root */
+	struct xfs_btree_block	*if_broot;	/* file's incore btree root */
 	short			if_broot_bytes;	/* bytes allocated for root */
 	unsigned char		if_flags;	/* per-fork flags */
 	unsigned char		if_ext_max;	/* max # of extent records */
@@ -84,52 +83,14 @@ typedef struct xfs_ifork {
 } xfs_ifork_t;
 
 /*
- * Flags for xfs_ichgtime().
+ * Inode location information.  Stored in the inode and passed to
+ * xfs_imap_to_bp() to get a buffer and dinode for a given inode.
  */
-#define	XFS_ICHGTIME_MOD	0x1	/* data fork modification timestamp */
-#define	XFS_ICHGTIME_CHG	0x2	/* inode field change timestamp */
-
-/*
- * Per-fork incore inode flags.
- */
-#define	XFS_IFINLINE	0x01	/* Inline data is read in */
-#define	XFS_IFEXTENTS	0x02	/* All extent pointers are read in */
-#define	XFS_IFBROOT	0x04	/* i_broot points to the bmap b-tree root */
-#define	XFS_IFEXTIREC	0x08	/* Indirection array of extent blocks */
-
-/*
- * Flags for xfs_itobp(), xfs_imap() and xfs_dilocate().
- */
-#define XFS_IMAP_LOOKUP		0x1
-#define XFS_IMAP_BULKSTAT	0x2
-
-#ifdef __KERNEL__
-struct bhv_desc;
-struct cred;
-struct ktrace;
-struct xfs_buf;
-struct xfs_bmap_free;
-struct xfs_bmbt_irec;
-struct xfs_bmbt_block;
-struct xfs_inode;
-struct xfs_inode_log_item;
-struct xfs_mount;
-struct xfs_trans;
-struct xfs_dquot;
-
-#if defined(XFS_ILOCK_TRACE)
-#define XFS_ILOCK_KTRACE_SIZE	32
-extern ktrace_t *xfs_ilock_trace_buf;
-extern void xfs_ilock_trace(struct xfs_inode *, int, unsigned int, inst_t *);
-#else
-#define	xfs_ilock_trace(i,n,f,ra)
-#endif
-
-typedef struct dm_attrs_s {
-	__uint32_t	da_dmevmask;	/* DMIG event mask */
-	__uint16_t	da_dmstate;	/* DMIG state info */
-	__uint16_t	da_pad;		/* DMIG extra padding */
-} dm_attrs_t;
+struct xfs_imap {
+	xfs_daddr_t	im_blkno;	/* starting BB of inode chunk */
+	ushort		im_len;		/* length in BBs of inode chunk */
+	ushort		im_boffset;	/* inode offset in block in bytes */
+};
 
 /*
  * This is the xfs in-core inode structure.
@@ -160,7 +121,7 @@ typedef struct xfs_ictimestamp {
 } xfs_ictimestamp_t;
 
 /*
- * NOTE:  This structure must be kept identical to struct xfs_dinode_core
+ * NOTE:  This structure must be kept identical to struct xfs_dinode
  * 	  in xfs_dinode.h except for the endianess annotations.
  */
 typedef struct xfs_icdinode {
@@ -191,27 +152,97 @@ typedef struct xfs_icdinode {
 	__uint32_t	di_gen;		/* generation number */
 } xfs_icdinode_t;
 
-typedef struct {
-	struct xfs_inode	*ip_mnext;	/* next inode in mount list */
-	struct xfs_inode	*ip_mprev;	/* ptr to prev inode */
-	struct xfs_mount	*ip_mount;	/* fs mount struct ptr */
-} xfs_iptr_t;
+/*
+ * Flags for xfs_ichgtime().
+ */
+#define	XFS_ICHGTIME_MOD	0x1	/* data fork modification timestamp */
+#define	XFS_ICHGTIME_CHG	0x2	/* inode field change timestamp */
+
+/*
+ * Per-fork incore inode flags.
+ */
+#define	XFS_IFINLINE	0x01	/* Inline data is read in */
+#define	XFS_IFEXTENTS	0x02	/* All extent pointers are read in */
+#define	XFS_IFBROOT	0x04	/* i_broot points to the bmap b-tree root */
+#define	XFS_IFEXTIREC	0x08	/* Indirection array of extent blocks */
+
+/*
+ * Fork handling.
+ */
+
+#define XFS_IFORK_Q(ip)			((ip)->i_d.di_forkoff != 0)
+#define XFS_IFORK_BOFF(ip)		((int)((ip)->i_d.di_forkoff << 3))
+
+#define XFS_IFORK_PTR(ip,w)		\
+	((w) == XFS_DATA_FORK ? \
+		&(ip)->i_df : \
+		(ip)->i_afp)
+#define XFS_IFORK_DSIZE(ip) \
+	(XFS_IFORK_Q(ip) ? \
+		XFS_IFORK_BOFF(ip) : \
+		XFS_LITINO((ip)->i_mount))
+#define XFS_IFORK_ASIZE(ip) \
+	(XFS_IFORK_Q(ip) ? \
+		XFS_LITINO((ip)->i_mount) - XFS_IFORK_BOFF(ip) : \
+		0)
+#define XFS_IFORK_SIZE(ip,w) \
+	((w) == XFS_DATA_FORK ? \
+		XFS_IFORK_DSIZE(ip) : \
+		XFS_IFORK_ASIZE(ip))
+#define XFS_IFORK_FORMAT(ip,w) \
+	((w) == XFS_DATA_FORK ? \
+		(ip)->i_d.di_format : \
+		(ip)->i_d.di_aformat)
+#define XFS_IFORK_FMT_SET(ip,w,n) \
+	((w) == XFS_DATA_FORK ? \
+		((ip)->i_d.di_format = (n)) : \
+		((ip)->i_d.di_aformat = (n)))
+#define XFS_IFORK_NEXTENTS(ip,w) \
+	((w) == XFS_DATA_FORK ? \
+		(ip)->i_d.di_nextents : \
+		(ip)->i_d.di_anextents)
+#define XFS_IFORK_NEXT_SET(ip,w,n) \
+	((w) == XFS_DATA_FORK ? \
+		((ip)->i_d.di_nextents = (n)) : \
+		((ip)->i_d.di_anextents = (n)))
+
+
+
+#ifdef __KERNEL__
+
+struct bhv_desc;
+struct cred;
+struct ktrace;
+struct xfs_buf;
+struct xfs_bmap_free;
+struct xfs_bmbt_irec;
+struct xfs_inode_log_item;
+struct xfs_mount;
+struct xfs_trans;
+struct xfs_dquot;
+
+#if defined(XFS_ILOCK_TRACE)
+#define XFS_ILOCK_KTRACE_SIZE	32
+extern void xfs_ilock_trace(struct xfs_inode *, int, unsigned int, inst_t *);
+#else
+#define	xfs_ilock_trace(i,n,f,ra)
+#endif
+
+typedef struct dm_attrs_s {
+	__uint32_t	da_dmevmask;	/* DMIG event mask */
+	__uint16_t	da_dmstate;	/* DMIG state info */
+	__uint16_t	da_pad;		/* DMIG extra padding */
+} dm_attrs_t;
 
 typedef struct xfs_inode {
 	/* Inode linking and identification information. */
-	struct xfs_inode	*i_mnext;	/* next inode in mount list */
-	struct xfs_inode	*i_mprev;	/* ptr to prev inode */
 	struct xfs_mount	*i_mount;	/* fs mount struct ptr */
-	struct list_head	i_reclaim;	/* reclaim list */
-	struct inode		*i_vnode;	/* vnode backpointer */
 	struct xfs_dquot	*i_udquot;	/* user dquot */
 	struct xfs_dquot	*i_gdquot;	/* group dquot */
 
 	/* Inode location stuff */
 	xfs_ino_t		i_ino;		/* inode number (agno/agino)*/
-	xfs_daddr_t		i_blkno;	/* blkno of inode buffer */
-	ushort			i_len;		/* len of inode buffer */
-	ushort			i_boffset;	/* off of inode in buffer */
+	struct xfs_imap		i_imap;		/* location for xfs_imap() */
 
 	/* Extent information. */
 	xfs_ifork_t		*i_afp;		/* attribute fork pointer */
@@ -230,7 +261,6 @@ typedef struct xfs_inode {
 	unsigned short		i_flags;	/* see defined flags below */
 	unsigned char		i_update_core;	/* timestamps/size is dirty */
 	unsigned char		i_update_size;	/* di_size field is dirty */
-	unsigned int		i_gen;		/* generation count */
 	unsigned int		i_delayed_blks;	/* count of delay alloc blks */
 
 	xfs_icdinode_t		i_d;		/* most of ondisk inode */
@@ -238,6 +268,10 @@ typedef struct xfs_inode {
 	xfs_fsize_t		i_size;		/* in-memory size */
 	xfs_fsize_t		i_new_size;	/* size when write completes */
 	atomic_t		i_iocount;	/* outstanding I/O count */
+
+	/* VFS inode */
+	struct inode		i_vnode;	/* embedded VFS inode */
+
 	/* Trace buffers per inode. */
 #ifdef XFS_INODE_TRACE
 	struct ktrace		*i_trace;	/* general inode trace */
@@ -245,7 +279,7 @@ typedef struct xfs_inode {
 #ifdef XFS_BMAP_TRACE
 	struct ktrace		*i_xtrace;	/* inode extent list trace */
 #endif
-#ifdef XFS_BMBT_TRACE
+#ifdef XFS_BTREE_TRACE
 	struct ktrace		*i_btrace;	/* inode bmap btree trace */
 #endif
 #ifdef XFS_RW_TRACE
@@ -265,13 +299,30 @@ typedef struct xfs_inode {
 /* Convert from vfs inode to xfs inode */
 static inline struct xfs_inode *XFS_I(struct inode *inode)
 {
-	return (struct xfs_inode *)inode->i_private;
+	return container_of(inode, struct xfs_inode, i_vnode);
 }
 
 /* convert from xfs inode to vfs inode */
 static inline struct inode *VFS_I(struct xfs_inode *ip)
 {
-	return (struct inode *)ip->i_vnode;
+	return &ip->i_vnode;
+}
+
+/*
+ * Get rid of a partially initialized inode.
+ *
+ * We have to go through destroy_inode to make sure allocations
+ * from init_inode_always like the security data are undone.
+ *
+ * We mark the inode bad so that it takes the short cut in
+ * the reclaim path instead of going through the flush path
+ * which doesn't make sense for an inode that has never seen the
+ * light of day.
+ */
+static inline void xfs_destroy_inode(struct xfs_inode *ip)
+{
+	make_bad_inode(VFS_I(ip));
+	return destroy_inode(VFS_I(ip));
 }
 
 /*
@@ -327,65 +378,36 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
 	spin_unlock(&ip->i_flags_lock);
 	return ret;
 }
-#endif	/* __KERNEL__ */
-
 
 /*
- * Fork handling.
+ * Manage the i_flush queue embedded in the inode.  This completion
+ * queue synchronizes processes attempting to flush the in-core
+ * inode back to disk.
  */
+static inline void xfs_iflock(xfs_inode_t *ip)
+{
+	wait_for_completion(&ip->i_flush);
+}
 
-#define XFS_IFORK_Q(ip)			((ip)->i_d.di_forkoff != 0)
-#define XFS_IFORK_BOFF(ip)		((int)((ip)->i_d.di_forkoff << 3))
+static inline int xfs_iflock_nowait(xfs_inode_t *ip)
+{
+	return try_wait_for_completion(&ip->i_flush);
+}
 
-#define XFS_IFORK_PTR(ip,w)		\
-	((w) == XFS_DATA_FORK ? \
-		&(ip)->i_df : \
-		(ip)->i_afp)
-#define XFS_IFORK_DSIZE(ip) \
-	(XFS_IFORK_Q(ip) ? \
-		XFS_IFORK_BOFF(ip) : \
-		XFS_LITINO((ip)->i_mount))
-#define XFS_IFORK_ASIZE(ip) \
-	(XFS_IFORK_Q(ip) ? \
-		XFS_LITINO((ip)->i_mount) - XFS_IFORK_BOFF(ip) : \
-		0)
-#define XFS_IFORK_SIZE(ip,w) \
-	((w) == XFS_DATA_FORK ? \
-		XFS_IFORK_DSIZE(ip) : \
-		XFS_IFORK_ASIZE(ip))
-#define XFS_IFORK_FORMAT(ip,w) \
-	((w) == XFS_DATA_FORK ? \
-		(ip)->i_d.di_format : \
-		(ip)->i_d.di_aformat)
-#define XFS_IFORK_FMT_SET(ip,w,n) \
-	((w) == XFS_DATA_FORK ? \
-		((ip)->i_d.di_format = (n)) : \
-		((ip)->i_d.di_aformat = (n)))
-#define XFS_IFORK_NEXTENTS(ip,w) \
-	((w) == XFS_DATA_FORK ? \
-		(ip)->i_d.di_nextents : \
-		(ip)->i_d.di_anextents)
-#define XFS_IFORK_NEXT_SET(ip,w,n) \
-	((w) == XFS_DATA_FORK ? \
-		((ip)->i_d.di_nextents = (n)) : \
-		((ip)->i_d.di_anextents = (n)))
-
-#ifdef __KERNEL__
+static inline void xfs_ifunlock(xfs_inode_t *ip)
+{
+	complete(&ip->i_flush);
+}
 
 /*
  * In-core inode flags.
  */
-#define XFS_IGRIO	0x0001  /* inode used for guaranteed rate i/o */
-#define XFS_IUIOSZ	0x0002  /* inode i/o sizes have been explicitly set */
-#define XFS_IQUIESCE    0x0004  /* we have started quiescing for this inode */
-#define XFS_IRECLAIM    0x0008  /* we have started reclaiming this inode    */
-#define XFS_ISTALE	0x0010	/* inode has been staled */
-#define XFS_IRECLAIMABLE 0x0020 /* inode can be reclaimed */
-#define XFS_INEW	0x0040
-#define XFS_IFILESTREAM	0x0080	/* inode is in a filestream directory */
-#define XFS_IMODIFIED	0x0100	/* XFS inode state possibly differs */
-				/* to the Linux inode state. */
-#define XFS_ITRUNCATED	0x0200	/* truncated down so flush-on-close */
+#define XFS_IRECLAIM    0x0001  /* we have started reclaiming this inode    */
+#define XFS_ISTALE	0x0002	/* inode has been staled */
+#define XFS_IRECLAIMABLE 0x0004 /* inode can be reclaimed */
+#define XFS_INEW	0x0008	/* inode has just been allocated */
+#define XFS_IFILESTREAM	0x0010	/* inode is in a filestream directory */
+#define XFS_ITRUNCATED	0x0020	/* truncated down so flush-on-close */
 
 /*
  * Flags for inode locking.
@@ -460,16 +482,8 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
 	 ((pip)->i_d.di_mode & S_ISGID))
 
 /*
- * Flags for xfs_iget()
- */
-#define XFS_IGET_CREATE		0x1
-#define XFS_IGET_BULKSTAT	0x2
-
-/*
  * xfs_iget.c prototypes.
  */
-void		xfs_ihash_init(struct xfs_mount *);
-void		xfs_ihash_free(struct xfs_mount *);
 xfs_inode_t	*xfs_inode_incore(struct xfs_mount *, xfs_ino_t,
 				  struct xfs_trans *);
 int		xfs_iget(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
@@ -484,25 +498,13 @@ int		xfs_isilocked(xfs_inode_t *, uint);
 uint		xfs_ilock_map_shared(xfs_inode_t *);
 void		xfs_iunlock_map_shared(xfs_inode_t *, uint);
 void		xfs_ireclaim(xfs_inode_t *);
-int		xfs_finish_reclaim(xfs_inode_t *, int, int);
-int		xfs_finish_reclaim_all(struct xfs_mount *, int);
 
 /*
  * xfs_inode.c prototypes.
  */
-int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
-			  xfs_inode_t *, struct xfs_dinode **, struct xfs_buf **,
-			  xfs_daddr_t, uint, uint);
-int		xfs_iread(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
-			  xfs_inode_t **, xfs_daddr_t, uint);
-int		xfs_iread_extents(struct xfs_trans *, xfs_inode_t *, int);
 int		xfs_ialloc(struct xfs_trans *, xfs_inode_t *, mode_t,
-			   xfs_nlink_t, xfs_dev_t, struct cred *, xfs_prid_t,
+			   xfs_nlink_t, xfs_dev_t, cred_t *, xfs_prid_t,
 			   int, struct xfs_buf **, boolean_t *, xfs_inode_t **);
-void		xfs_dinode_from_disk(struct xfs_icdinode *,
-				     struct xfs_dinode_core *);
-void		xfs_dinode_to_disk(struct xfs_dinode_core *,
-				   struct xfs_icdinode *);
 
 uint		xfs_ip2xflags(struct xfs_inode *);
 uint		xfs_dic2xflags(struct xfs_dinode *);
@@ -513,17 +515,10 @@ int		xfs_itruncate_finish(struct xfs_trans **, xfs_inode_t *,
 				     xfs_fsize_t, int, int);
 int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);
 
-void		xfs_idestroy_fork(xfs_inode_t *, int);
-void		xfs_idestroy(xfs_inode_t *);
-void		xfs_idata_realloc(xfs_inode_t *, int, int);
-void		xfs_iextract(xfs_inode_t *);
 void		xfs_iext_realloc(xfs_inode_t *, int, int);
-void		xfs_iroot_realloc(xfs_inode_t *, int, int);
 void		xfs_ipin(xfs_inode_t *);
 void		xfs_iunpin(xfs_inode_t *);
-int		xfs_iextents_copy(xfs_inode_t *, xfs_bmbt_rec_t *, int);
 int		xfs_iflush(xfs_inode_t *, uint);
-void		xfs_iflush_all(struct xfs_mount *);
 void		xfs_ichgtime(xfs_inode_t *, int);
 xfs_fsize_t	xfs_file_last_byte(xfs_inode_t *);
 void		xfs_lock_inodes(xfs_inode_t **, int, uint);
@@ -531,6 +526,77 @@ void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
 
 void		xfs_synchronize_atime(xfs_inode_t *);
 void		xfs_mark_inode_dirty_sync(xfs_inode_t *);
+
+#if defined(XFS_INODE_TRACE)
+
+#define	INODE_TRACE_SIZE	16		/* number of trace entries */
+#define	INODE_KTRACE_ENTRY	1
+#define	INODE_KTRACE_EXIT	2
+#define	INODE_KTRACE_HOLD	3
+#define	INODE_KTRACE_REF	4
+#define	INODE_KTRACE_RELE	5
+
+extern void _xfs_itrace_entry(struct xfs_inode *, const char *, inst_t *);
+extern void _xfs_itrace_exit(struct xfs_inode *, const char *, inst_t *);
+extern void xfs_itrace_hold(struct xfs_inode *, char *, int, inst_t *);
+extern void _xfs_itrace_ref(struct xfs_inode *, char *, int, inst_t *);
+extern void xfs_itrace_rele(struct xfs_inode *, char *, int, inst_t *);
+#define xfs_itrace_entry(ip)	\
+	_xfs_itrace_entry(ip, __func__, (inst_t *)__return_address)
+#define xfs_itrace_exit(ip)	\
+	_xfs_itrace_exit(ip, __func__, (inst_t *)__return_address)
+#define xfs_itrace_exit_tag(ip, tag)	\
+	_xfs_itrace_exit(ip, tag, (inst_t *)__return_address)
+#define xfs_itrace_ref(ip)	\
+	_xfs_itrace_ref(ip, __FILE__, __LINE__, (inst_t *)__return_address)
+
+#else
+#define	xfs_itrace_entry(a)
+#define	xfs_itrace_exit(a)
+#define	xfs_itrace_exit_tag(a, b)
+#define	xfs_itrace_hold(a, b, c, d)
+#define	xfs_itrace_ref(a)
+#define	xfs_itrace_rele(a, b, c, d)
+#endif
+
+#define IHOLD(ip) \
+do { \
+	ASSERT(atomic_read(&VFS_I(ip)->i_count) > 0) ; \
+	atomic_inc(&(VFS_I(ip)->i_count)); \
+	xfs_itrace_hold((ip), __FILE__, __LINE__, (inst_t *)__return_address); \
+} while (0)
+
+#define IRELE(ip) \
+do { \
+	xfs_itrace_rele((ip), __FILE__, __LINE__, (inst_t *)__return_address); \
+	iput(VFS_I(ip)); \
+} while (0)
+
+#endif /* __KERNEL__ */
+
+/*
+ * Flags for xfs_iget()
+ */
+#define XFS_IGET_CREATE		0x1
+#define XFS_IGET_BULKSTAT	0x2
+
+int		xfs_inotobp(struct xfs_mount *, struct xfs_trans *,
+			    xfs_ino_t, struct xfs_dinode **,
+			    struct xfs_buf **, int *, uint);
+int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
+			  struct xfs_inode *, struct xfs_dinode **,
+			  struct xfs_buf **, uint);
+int		xfs_iread(struct xfs_mount *, struct xfs_trans *,
+			  struct xfs_inode *, xfs_daddr_t, uint);
+void		xfs_dinode_from_disk(struct xfs_icdinode *,
+				     struct xfs_dinode *);
+void		xfs_dinode_to_disk(struct xfs_dinode *,
+				   struct xfs_icdinode *);
+void		xfs_idestroy_fork(struct xfs_inode *, int);
+void		xfs_idata_realloc(struct xfs_inode *, int, int);
+void		xfs_iroot_realloc(struct xfs_inode *, int, int);
+int		xfs_iread_extents(struct xfs_trans *, struct xfs_inode *, int);
+int		xfs_iextents_copy(struct xfs_inode *, xfs_bmbt_rec_t *, int);
 
 xfs_bmbt_rec_host_t *xfs_iext_get_ext(xfs_ifork_t *, xfs_extnum_t);
 void		xfs_iext_insert(xfs_ifork_t *, xfs_extnum_t, xfs_extnum_t,
@@ -561,7 +627,8 @@ void		xfs_iext_irec_update_extoffs(xfs_ifork_t *, int, int);
 #define xfs_ipincount(ip)	((unsigned int) atomic_read(&ip->i_pincount))
 
 #ifdef DEBUG
-void		xfs_isize_check(struct xfs_mount *, xfs_inode_t *, xfs_fsize_t);
+void		xfs_isize_check(struct xfs_mount *, struct xfs_inode *,
+				xfs_fsize_t);
 #else	/* DEBUG */
 #define xfs_isize_check(mp, ip, isize)
 #endif	/* DEBUG */
@@ -575,27 +642,5 @@ void		xfs_inobp_check(struct xfs_mount *, struct xfs_buf *);
 extern struct kmem_zone	*xfs_ifork_zone;
 extern struct kmem_zone	*xfs_inode_zone;
 extern struct kmem_zone	*xfs_ili_zone;
-
-/*
- * Manage the i_flush queue embedded in the inode.  This completion
- * queue synchronizes processes attempting to flush the in-core
- * inode back to disk.
- */
-static inline void xfs_iflock(xfs_inode_t *ip)
-{
-	wait_for_completion(&ip->i_flush);
-}
-
-static inline int xfs_iflock_nowait(xfs_inode_t *ip)
-{
-	return try_wait_for_completion(&ip->i_flush);
-}
-
-static inline void xfs_ifunlock(xfs_inode_t *ip)
-{
-	complete(&ip->i_flush);
-}
-
-#endif	/* __KERNEL__ */
 
 #endif	/* __XFS_INODE_H__ */

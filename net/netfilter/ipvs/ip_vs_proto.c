@@ -164,26 +164,21 @@ ip_vs_tcpudp_debug_packet_v4(struct ip_vs_protocol *pp,
 	if (ih == NULL)
 		sprintf(buf, "%s TRUNCATED", pp->name);
 	else if (ih->frag_off & htons(IP_OFFSET))
-		sprintf(buf, "%s %u.%u.%u.%u->%u.%u.%u.%u frag",
-			pp->name, NIPQUAD(ih->saddr),
-			NIPQUAD(ih->daddr));
+		sprintf(buf, "%s %pI4->%pI4 frag",
+			pp->name, &ih->saddr, &ih->daddr);
 	else {
 		__be16 _ports[2], *pptr
 ;
 		pptr = skb_header_pointer(skb, offset + ih->ihl*4,
 					  sizeof(_ports), _ports);
 		if (pptr == NULL)
-			sprintf(buf, "%s TRUNCATED %u.%u.%u.%u->%u.%u.%u.%u",
-				pp->name,
-				NIPQUAD(ih->saddr),
-				NIPQUAD(ih->daddr));
+			sprintf(buf, "%s TRUNCATED %pI4->%pI4",
+				pp->name, &ih->saddr, &ih->daddr);
 		else
-			sprintf(buf, "%s %u.%u.%u.%u:%u->%u.%u.%u.%u:%u",
+			sprintf(buf, "%s %pI4:%u->%pI4:%u",
 				pp->name,
-				NIPQUAD(ih->saddr),
-				ntohs(pptr[0]),
-				NIPQUAD(ih->daddr),
-				ntohs(pptr[1]));
+				&ih->saddr, ntohs(pptr[0]),
+				&ih->daddr, ntohs(pptr[1]));
 	}
 
 	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
@@ -203,26 +198,21 @@ ip_vs_tcpudp_debug_packet_v6(struct ip_vs_protocol *pp,
 	if (ih == NULL)
 		sprintf(buf, "%s TRUNCATED", pp->name);
 	else if (ih->nexthdr == IPPROTO_FRAGMENT)
-		sprintf(buf, "%s " NIP6_FMT "->" NIP6_FMT " frag",
-			pp->name, NIP6(ih->saddr),
-			NIP6(ih->daddr));
+		sprintf(buf, "%s %pI6->%pI6 frag",
+			pp->name, &ih->saddr, &ih->daddr);
 	else {
 		__be16 _ports[2], *pptr;
 
 		pptr = skb_header_pointer(skb, offset + sizeof(struct ipv6hdr),
 					  sizeof(_ports), _ports);
 		if (pptr == NULL)
-			sprintf(buf, "%s TRUNCATED " NIP6_FMT "->" NIP6_FMT,
-				pp->name,
-				NIP6(ih->saddr),
-				NIP6(ih->daddr));
+			sprintf(buf, "%s TRUNCATED %pI6->%pI6",
+				pp->name, &ih->saddr, &ih->daddr);
 		else
-			sprintf(buf, "%s " NIP6_FMT ":%u->" NIP6_FMT ":%u",
+			sprintf(buf, "%s %pI6:%u->%pI6:%u",
 				pp->name,
-				NIP6(ih->saddr),
-				ntohs(pptr[0]),
-				NIP6(ih->daddr),
-				ntohs(pptr[1]));
+				&ih->saddr, ntohs(pptr[0]),
+				&ih->daddr, ntohs(pptr[1]));
 	}
 
 	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);

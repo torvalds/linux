@@ -20,9 +20,11 @@
 #include <linux/fb.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
+#include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/mtd/sharpsl.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -413,9 +415,90 @@ static struct pxafb_mach_info poodle_fb_info = {
 	.lcd_conn	= LCD_COLOR_TFT_16BPP,
 };
 
+static struct mtd_partition sharpsl_nand_partitions[] = {
+	{
+		.name = "System Area",
+		.offset = 0,
+		.size = 7 * 1024 * 1024,
+	},
+	{
+		.name = "Root Filesystem",
+		.offset = 7 * 1024 * 1024,
+		.size = 22 * 1024 * 1024,
+	},
+	{
+		.name = "Home Filesystem",
+		.offset = MTDPART_OFS_APPEND,
+		.size = MTDPART_SIZ_FULL,
+	},
+};
+
+static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
+
+static struct nand_bbt_descr sharpsl_bbt = {
+	.options = 0,
+	.offs = 4,
+	.len = 2,
+	.pattern = scan_ff_pattern
+};
+
+static struct sharpsl_nand_platform_data sharpsl_nand_platform_data = {
+	.badblock_pattern	= &sharpsl_bbt,
+	.partitions		= sharpsl_nand_partitions,
+	.nr_partitions		= ARRAY_SIZE(sharpsl_nand_partitions),
+};
+
+static struct resource sharpsl_nand_resources[] = {
+	{
+		.start	= 0x0C000000,
+		.end	= 0x0C000FFF,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device sharpsl_nand_device = {
+	.name		= "sharpsl-nand",
+	.id		= -1,
+	.resource	= sharpsl_nand_resources,
+	.num_resources	= ARRAY_SIZE(sharpsl_nand_resources),
+	.dev.platform_data	= &sharpsl_nand_platform_data,
+};
+
+static struct mtd_partition sharpsl_rom_parts[] = {
+	{
+		.name	="Boot PROM Filesystem",
+		.offset	= 0x00120000,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data sharpsl_rom_data = {
+	.width		= 2,
+	.nr_parts	= ARRAY_SIZE(sharpsl_rom_parts),
+	.parts		= sharpsl_rom_parts,
+};
+
+static struct resource sharpsl_rom_resources[] = {
+	{
+		.start	= 0x00000000,
+		.end	= 0x007fffff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device sharpsl_rom_device = {
+	.name	= "physmap-flash",
+	.id	= -1,
+	.resource = sharpsl_rom_resources,
+	.num_resources = ARRAY_SIZE(sharpsl_rom_resources),
+	.dev.platform_data = &sharpsl_rom_data,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&poodle_locomo_device,
 	&poodle_scoop_device,
+	&sharpsl_nand_device,
+	&sharpsl_rom_device,
 };
 
 static void poodle_poweroff(void)

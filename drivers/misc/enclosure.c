@@ -119,7 +119,7 @@ enclosure_register(struct device *dev, const char *name, int components,
 	edev->edev.class = &enclosure_class;
 	edev->edev.parent = get_device(dev);
 	edev->cb = cb;
-	snprintf(edev->edev.bus_id, BUS_ID_SIZE, "%s", name);
+	dev_set_name(&edev->edev, name);
 	err = device_register(&edev->edev);
 	if (err)
 		goto err;
@@ -170,7 +170,7 @@ EXPORT_SYMBOL_GPL(enclosure_unregister);
 static void enclosure_link_name(struct enclosure_component *cdev, char *name)
 {
 	strcpy(name, "enclosure_device:");
-	strcat(name, cdev->cdev.bus_id);
+	strcat(name, dev_name(&cdev->cdev));
 }
 
 static void enclosure_remove_links(struct enclosure_component *cdev)
@@ -256,9 +256,9 @@ enclosure_component_register(struct enclosure_device *edev,
 	cdev = &ecomp->cdev;
 	cdev->parent = get_device(&edev->edev);
 	if (name)
-		snprintf(cdev->bus_id, BUS_ID_SIZE, "%s", name);
+		dev_set_name(cdev, name);
 	else
-		snprintf(cdev->bus_id, BUS_ID_SIZE, "%u", number);
+		dev_set_name(cdev, "%u", number);
 
 	cdev->release = enclosure_component_release;
 	cdev->groups = enclosure_groups;

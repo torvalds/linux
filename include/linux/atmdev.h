@@ -100,6 +100,10 @@ struct atm_dev_stats {
 					/* use backend to make new if */
 #define ATM_ADDPARTY  	_IOW('a', ATMIOC_SPECIAL+4,struct atm_iobuf)
  					/* add party to p2mp call */
+#ifdef CONFIG_COMPAT
+/* It actually takes struct sockaddr_atmsvc, not struct atm_iobuf */
+#define COMPAT_ATM_ADDPARTY  	_IOW('a', ATMIOC_SPECIAL+4,struct compat_atm_iobuf)
+#endif
 #define ATM_DROPPARTY 	_IOW('a', ATMIOC_SPECIAL+5,int)
 					/* drop party from p2mp call */
 
@@ -224,6 +228,13 @@ struct atm_cirange {
 extern struct proc_dir_entry *atm_proc_root;
 #endif
 
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+struct compat_atm_iobuf {
+	int length;
+	compat_uptr_t buffer;
+};
+#endif
 
 struct k_atm_aal_stats {
 #define __HANDLE_ITEM(i) atomic_t i
@@ -379,6 +390,10 @@ struct atmdev_ops { /* only send is required */
 	int (*open)(struct atm_vcc *vcc);
 	void (*close)(struct atm_vcc *vcc);
 	int (*ioctl)(struct atm_dev *dev,unsigned int cmd,void __user *arg);
+#ifdef CONFIG_COMPAT
+	int (*compat_ioctl)(struct atm_dev *dev,unsigned int cmd,
+			    void __user *arg);
+#endif
 	int (*getsockopt)(struct atm_vcc *vcc,int level,int optname,
 	    void __user *optval,int optlen);
 	int (*setsockopt)(struct atm_vcc *vcc,int level,int optname,

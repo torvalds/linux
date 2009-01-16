@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 #include <linux/pwm_backlight.h>
 #include <linux/smc91x.h>
 
@@ -25,7 +26,6 @@
 #include <asm/mach/arch.h>
 #include <mach/hardware.h>
 #include <mach/audio.h>
-#include <mach/gpio.h>
 #include <mach/pxafb.h>
 #include <mach/zylonite.h>
 #include <mach/mmc.h>

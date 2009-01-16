@@ -608,6 +608,22 @@ static int svc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return error;
 }
 
+#ifdef CONFIG_COMPAT
+static int svc_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	/* The definition of ATM_ADDPARTY uses the size of struct atm_iobuf.
+	   But actually it takes a struct sockaddr_atmsvc, which doesn't need
+	   compat handling. So all we have to do is fix up cmd... */
+	if (cmd == COMPAT_ATM_ADDPARTY)
+		cmd = ATM_ADDPARTY;
+
+	if (cmd == ATM_ADDPARTY || cmd == ATM_DROPPARTY)
+		return svc_ioctl(sock, cmd, arg);
+	else
+		return vcc_compat_ioctl(sock, cmd, arg);
+}
+#endif /* CONFIG_COMPAT */
+
 static const struct proto_ops svc_proto_ops = {
 	.family =	PF_ATMSVC,
 	.owner =	THIS_MODULE,
@@ -620,6 +636,9 @@ static const struct proto_ops svc_proto_ops = {
 	.getname =	svc_getname,
 	.poll =		vcc_poll,
 	.ioctl =	svc_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =	svc_compat_ioctl,
+#endif
 	.listen =	svc_listen,
 	.shutdown =	svc_shutdown,
 	.setsockopt =	svc_setsockopt,

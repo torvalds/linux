@@ -312,4 +312,26 @@ config MPC8xxx_GPIO
 	  Say Y here if you're going to use hardware that connects to the
 	  MPC831x/834x/837x/8572/8610 GPIOs.
 
+config SIMPLE_GPIO
+	bool "Support for simple, memory-mapped GPIO controllers"
+	depends on PPC
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Say Y here to support simple, memory-mapped GPIO controllers.
+	  These are usually BCSRs used to control board's switches, LEDs,
+	  chip-selects, Ethernet/USB PHY's power and various other small
+	  on-board peripherals.
+
+config MCU_MPC8349EMITX
+	tristate "MPC8349E-mITX MCU driver"
+	depends on I2C && PPC_83xx
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Say Y here to enable soft power-off functionality on the Freescale
+	  boards with the MPC8349E-mITX-compatible MCU chips. This driver will
+	  also register MCU GPIOs with the generic GPIO API, so you'll able
+	  to use MCU pins as GPIOs.
+
 endmenu

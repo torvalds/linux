@@ -93,7 +93,7 @@ struct p54p_priv {
 	struct pci_dev *pdev;
 	struct p54p_csr __iomem *map;
 	struct tasklet_struct rx_tasklet;
-
+	const struct firmware *firmware;
 	spinlock_t lock;
 	struct p54p_ring_control *ring_control;
 	dma_addr_t ring_control_dma;

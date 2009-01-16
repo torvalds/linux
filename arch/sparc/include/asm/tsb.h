@@ -50,8 +50,6 @@
 #define TSB_TAG_INVALID_BIT	46
 #define TSB_TAG_INVALID_HIGH	(1 << (TSB_TAG_INVALID_BIT - 32))
 
-#define TSB_MEMBAR	membar	#StoreStore
-
 /* Some cpus support physical address quad loads.  We want to use
  * those if possible so we don't need to hard-lock the TSB mapping
  * into the TLB.  We encode some instruction patching in order to
@@ -128,13 +126,11 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	cmp	REG1, REG2;		\
 	bne,pn	%icc, 99b;		\
 	 nop;				\
-	TSB_MEMBAR
 
 #define TSB_WRITE(TSB, TTE, TAG) \
 	add	TSB, 0x8, TSB;   \
 	TSB_STORE(TSB, TTE);     \
 	sub	TSB, 0x8, TSB;   \
-	TSB_MEMBAR;              \
 	TSB_STORE(TSB, TAG);
 
 #define KTSB_LOAD_QUAD(TSB, REG) \
@@ -153,13 +149,11 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	cmp	REG1, REG2;		\
 	bne,pn	%icc, 99b;		\
 	 nop;				\
-	TSB_MEMBAR
 
 #define KTSB_WRITE(TSB, TTE, TAG) \
 	add	TSB, 0x8, TSB;   \
 	stxa	TTE, [TSB] ASI_N;     \
 	sub	TSB, 0x8, TSB;   \
-	TSB_MEMBAR;              \
 	stxa	TAG, [TSB] ASI_N;
 
 	/* Do a kernel page table walk.  Leaves physical PTE pointer in

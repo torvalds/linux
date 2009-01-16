@@ -182,17 +182,32 @@ override:
 		R_tab = qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE]);
 		if (R_tab == NULL)
 			goto failure;
+
+		if (!est && (ret == ACT_P_CREATED ||
+			     !gen_estimator_active(&police->tcf_bstats,
+						   &police->tcf_rate_est))) {
+			err = -EINVAL;
+			goto failure;
+		}
+
 		if (parm->peakrate.rate) {
 			P_tab = qdisc_get_rtab(&parm->peakrate,
 					       tb[TCA_POLICE_PEAKRATE]);
-			if (P_tab == NULL) {
-				qdisc_put_rtab(R_tab);
+			if (P_tab == NULL)
 				goto failure;
-			}
 		}
 	}
-	/* No failure allowed after this point */
+
 	spin_lock_bh(&police->tcf_lock);
+	if (est) {
+		err = gen_replace_estimator(&police->tcf_bstats,
+					    &police->tcf_rate_est,
+					    &police->tcf_lock, est);
+		if (err)
+			goto failure_unlock;
+	}
+
+	/* No failure allowed after this point */
 	if (R_tab != NULL) {
 		qdisc_put_rtab(police->tcfp_R_tab);
 		police->tcfp_R_tab = R_tab;
@@ -217,10 +232,6 @@ override:
 
 	if (tb[TCA_POLICE_AVRATE])
 		police->tcfp_ewma_rate = nla_get_u32(tb[TCA_POLICE_AVRATE]);
-	if (est)
-		gen_replace_estimator(&police->tcf_bstats,
-				      &police->tcf_rate_est,
-				      &police->tcf_lock, est);
 
 	spin_unlock_bh(&police->tcf_lock);
 	if (ret != ACT_P_CREATED)
@@ -238,7 +249,13 @@ override:
 	a->priv = police;
 	return ret;
 
+failure_unlock:
+	spin_unlock_bh(&police->tcf_lock);
 failure:
+	if (P_tab)
+		qdisc_put_rtab(P_tab);
+	if (R_tab)
+		qdisc_put_rtab(R_tab);
 	if (ret == ACT_P_CREATED)
 		kfree(police);
 	return err;

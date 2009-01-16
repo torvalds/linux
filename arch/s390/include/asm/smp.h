@@ -91,8 +91,9 @@ extern int __cpu_up (unsigned int cpu);
 extern struct mutex smp_cpu_state_mutex;
 extern int smp_cpu_polarization[];
 
-extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
-	void *info, int wait);
+extern void arch_send_call_function_single_ipi(int cpu);
+extern void arch_send_call_function_ipi(cpumask_t mask);
+
 #endif
 
 #ifndef CONFIG_SMP

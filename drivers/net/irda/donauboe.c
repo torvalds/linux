@@ -979,7 +979,7 @@ toshoboe_hard_xmit (struct sk_buff *skb, struct net_device *dev)
   unsigned long flags;
   struct irda_skb_cb *cb = (struct irda_skb_cb *) skb->cb;
 
-  self = (struct toshoboe_cb *) dev->priv;
+  self = netdev_priv(dev);
 
   IRDA_ASSERT (self != NULL, return 0; );
 
@@ -1194,13 +1194,13 @@ toshoboe_interrupt (int irq, void *dev_id)
               txp = txpc;
               txpc++;
               txpc %= TX_SLOTS;
-              self->stats.tx_packets++;
+              self->netdev->stats.tx_packets++;
               if (self->ring->tx[txpc].control & OBOE_CTL_TX_HW_OWNS)
                   self->ring->tx[txp].control &= ~OBOE_CTL_TX_RTCENTX;
             }
-          self->stats.tx_packets--;
+          self->netdev->stats.tx_packets--;
 #else
-          self->stats.tx_packets++;
+          self->netdev->stats.tx_packets++;
 #endif
           toshoboe_start_DMA(self, OBOE_CONFIG0H_ENTX);
         }
@@ -1280,7 +1280,7 @@ dumpbufs(self->rx_bufs[self->rxs],len,'<');
                       skb_put (skb, len);
                       skb_copy_to_linear_data(skb, self->rx_bufs[self->rxs],
 					      len);
-                      self->stats.rx_packets++;
+                      self->netdev->stats.rx_packets++;
                       skb->dev = self->netdev;
                       skb_reset_mac_header(skb);
                       skb->protocol = htons (ETH_P_IRDA);
@@ -1384,7 +1384,7 @@ toshoboe_net_close (struct net_device *dev)
   IRDA_DEBUG (4, "%s()\n", __func__);
 
   IRDA_ASSERT (dev != NULL, return -1; );
-  self = (struct toshoboe_cb *) dev->priv;
+  self = netdev_priv(dev);
 
   /* Stop device */
   netif_stop_queue(dev);
@@ -1422,7 +1422,7 @@ toshoboe_net_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 
   IRDA_ASSERT (dev != NULL, return -1; );
 
-  self = dev->priv;
+  self = netdev_priv(dev);
 
   IRDA_ASSERT (self != NULL, return -1; );
 
@@ -1546,7 +1546,7 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
       return -ENOMEM;
     }
 
-  self = dev->priv;
+  self = netdev_priv(dev);
   self->netdev = dev;
   self->pdev = pci_dev;
   self->base = pci_resource_start(pci_dev,0);

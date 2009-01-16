@@ -133,7 +133,8 @@ struct lppaca {
 //=============================================================================
 // CACHE_LINE_4-5 0x0180 - 0x027F Contains PMC interrupt data
 //=============================================================================
-	u8	pmc_save_area[256];	// PMC interrupt Area           x00-xFF
+	u32	page_ins;			// CMO Hint - # page ins by OS  x00-x04
+	u8	pmc_save_area[252];	// PMC interrupt Area           x04-xFF
 } __attribute__((__aligned__(0x400)));
 
 extern struct lppaca lppaca[];

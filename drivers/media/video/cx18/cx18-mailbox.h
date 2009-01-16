@@ -2,6 +2,7 @@
  *  cx18 mailbox functions
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,7 +31,23 @@
 #define MB_RESERVED_HANDLE_0 0
 #define MB_RESERVED_HANDLE_1 0xFFFFFFFF
 
+#define APU 0
+#define CPU 1
+#define EPU 2
+#define HPU 3
+
 struct cx18;
+
+/*
+ * This structure is used by CPU to provide completed buffers information
+ * Its structure is dictrated by the layout of the SCB, required by the
+ * firmware, but its defintion needs to be here, instead of in cx18-scb.h,
+ * for mailbox work order scheduling
+ */
+struct cx18_mdl_ack {
+    u32 id;        /* ID of a completed MDL */
+    u32 data_used; /* Total data filled in the MDL for buffer 'id' */
+};
 
 /* The cx18_mailbox struct is the mailbox structure which is used for passing
    messages between processors */
@@ -62,12 +79,22 @@ struct cx18_mailbox {
     u32       error;
 };
 
+struct cx18_stream;
+
+struct cx18_api_func_private {
+	struct cx18 *cx;
+	struct cx18_stream *s;
+};
+
 int cx18_api(struct cx18 *cx, u32 cmd, int args, u32 data[]);
 int cx18_vapi_result(struct cx18 *cx, u32 data[MAX_MB_ARGUMENTS], u32 cmd,
 		int args, ...);
 int cx18_vapi(struct cx18 *cx, u32 cmd, int args, ...);
 int cx18_api_func(void *priv, u32 cmd, int in, int out,
 		u32 data[CX2341X_MBOX_MAX_DATA]);
-long cx18_mb_ack(struct cx18 *cx, const struct cx18_mailbox *mb);
+
+void cx18_api_epu_cmd_irq(struct cx18 *cx, int rpu);
+
+void cx18_epu_work_handler(struct work_struct *work);
 
 #endif

@@ -203,15 +203,6 @@ struct reply_t gigaset_tab_nocid_m10x[]= /* with dle mode */
 	{EV_TIMEOUT,  120,121, -1,                  0, 0, {ACT_FAILVER, ACT_INIT}},
 	{RSP_ERROR,   120,121, -1,                  0, 0, {ACT_FAILVER, ACT_INIT}},
 	{RSP_OK,      121,121, -1,                  0, 0, {ACT_GOTVER,  ACT_INIT}},
-#if 0
-	{EV_TIMEOUT,  120,121, -1,                130, 5, {ACT_FAILVER},   "^SGCI=1\r"},
-	{RSP_ERROR,   120,121, -1,                130, 5, {ACT_FAILVER},   "^SGCI=1\r"},
-	{RSP_OK,      121,121, -1,                130, 5, {ACT_GOTVER},    "^SGCI=1\r"},
-
-	{RSP_OK,      130,130, -1,                  0, 0, {ACT_INIT}},
-	{RSP_ERROR,   130,130, -1,                  0, 0, {ACT_FAILINIT}},
-	{EV_TIMEOUT,  130,130, -1,                  0, 0, {ACT_FAILINIT}},
-#endif
 
 	/* leave dle mode */
 	{RSP_INIT,      0,  0,SEQ_DLE0,           201, 5, {0},             "^SDLE=0\r"},
@@ -260,10 +251,6 @@ struct reply_t gigaset_tab_nocid_m10x[]= /* with dle mode */
 	{RSP_INIT,      0,  0,SEQ_NOCID,            0, 0, {ACT_ABORTCID}},
 
 	/* reset */
-#if 0
-	{RSP_INIT,      0,  0,SEQ_SHUTDOWN,       503, 5, {0},             "^SGCI=0\r"},
-	{RSP_OK,      503,503, -1,                504, 5, {0},             "Z\r"},
-#endif
 	{RSP_INIT,      0,  0,SEQ_SHUTDOWN,       504, 5, {0},             "Z\r"},
 	{RSP_OK,      504,504, -1,                  0, 0, {ACT_SDOWN}},
 	{RSP_ERROR,   501,599, -1,                  0, 0, {ACT_FAILSDOWN}},
@@ -390,24 +377,6 @@ struct reply_t gigaset_tab_cid_m10x[] = /* for M10x */
 	{RSP_LAST}
 };
 
-
-#if 0
-static struct reply_t tab_nocid[]= /* no dle mode */ //FIXME
-{
-	/* resp_code, min_ConState, max_ConState, parameter, new_ConState, timeout, action, command */
-
-	{RSP_ANY,      -1, -1, -1,                 -1,-1, ACT_WARN,         NULL},
-	{RSP_LAST,0,0,0,0,0,0}
-};
-
-static struct reply_t tab_cid[] = /* no dle mode */ //FIXME
-{
-	/* resp_code, min_ConState, max_ConState, parameter, new_ConState, timeout, action, command */
-
-	{RSP_ANY,      -1, -1, -1,                 -1,-1, ACT_WARN,         NULL},
-	{RSP_LAST,0,0,0,0,0,0}
-};
-#endif
 
 static const struct resp_type_t resp_type[] =
 {
@@ -665,13 +634,8 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 					dev_err(cs->dev, "out of memory\n");
 				++curarg;
 			}
-#ifdef CONFIG_GIGASET_DEBUG
-			if (!event->ptr)
-				gig_dbg(DEBUG_CMD, "string==NULL");
-			else
-				gig_dbg(DEBUG_CMD, "string==%s",
-					(char *) event->ptr);
-#endif
+			gig_dbg(DEBUG_CMD, "string==%s",
+				event->ptr ? (char *) event->ptr : "NULL");
 			break;
 		case RT_ZCAU:
 			event->parameter = -1;
@@ -697,9 +661,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 				++curarg;
 			} else
 				event->parameter = -1;
-#ifdef CONFIG_GIGASET_DEBUG
 			gig_dbg(DEBUG_CMD, "parameter==%d", event->parameter);
-#endif
 			break;
 		}
 

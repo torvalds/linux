@@ -343,7 +343,18 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
 static int  netdev_close(struct net_device *dev);
 
-
+static const struct net_device_ops netdev_ops = {
+	.ndo_open		= netdev_open,
+	.ndo_stop		= netdev_close,
+	.ndo_start_xmit		= start_tx,
+	.ndo_get_stats		= get_stats,
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_do_ioctl		= netdev_ioctl,
+	.ndo_tx_timeout		= tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 static int __devinit w840_probe1 (struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
@@ -355,7 +366,6 @@ static int __devinit w840_probe1 (struct pci_dev *pdev,
 	int irq;
 	int i, option = find_cnt < MAX_UNITS ? options[find_cnt] : 0;
 	void __iomem *ioaddr;
-	DECLARE_MAC_BUF(mac);
 
 	i = pci_enable_device(pdev);
 	if (i) return i;
@@ -421,23 +431,17 @@ static int __devinit w840_probe1 (struct pci_dev *pdev,
 		np->mii_if.force_media = 1;
 
 	/* The chip-specific entries in the device structure. */
-	dev->open = &netdev_open;
-	dev->hard_start_xmit = &start_tx;
-	dev->stop = &netdev_close;
-	dev->get_stats = &get_stats;
-	dev->set_multicast_list = &set_rx_mode;
-	dev->do_ioctl = &netdev_ioctl;
+	dev->netdev_ops = &netdev_ops;
 	dev->ethtool_ops = &netdev_ethtool_ops;
-	dev->tx_timeout = &tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	i = register_netdev(dev);
 	if (i)
 		goto err_out_cleardev;
 
-	printk(KERN_INFO "%s: %s at %p, %s, IRQ %d.\n",
+	printk(KERN_INFO "%s: %s at %p, %pM, IRQ %d.\n",
 	       dev->name, pci_id_tbl[chip_idx].name, ioaddr,
-	       print_mac(mac, dev->dev_addr), irq);
+	       dev->dev_addr, irq);
 
 	if (np->drv_flags & CanHaveMII) {
 		int phy, phy_idx = 0;
@@ -1245,20 +1249,15 @@ static int netdev_rx(struct net_device *dev)
 			}
 #ifndef final_version				/* Remove after testing. */
 			/* You will want this info for the initial debug. */
-			if (debug > 5) {
-				DECLARE_MAC_BUF(mac);
-				DECLARE_MAC_BUF(mac2);
-
-				printk(KERN_DEBUG "  Rx data %s %s"
+			if (debug > 5)
+				printk(KERN_DEBUG "  Rx data %pM %pM"
 				       " %2.2x%2.2x %d.%d.%d.%d.\n",
-				       print_mac(mac, &skb->data[0]), print_mac(mac2, &skb->data[6]),
+				       &skb->data[0], &skb->data[6],
 				       skb->data[12], skb->data[13],
 				       skb->data[14], skb->data[15], skb->data[16], skb->data[17]);
-			}
 #endif
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			np->stats.rx_packets++;
 			np->stats.rx_bytes += pkt_len;
 		}
@@ -1561,7 +1560,7 @@ static void __devexit w840_remove1 (struct pci_dev *pdev)
  * 	rtnl_lock, & netif_device_detach after the rtnl_unlock.
  * - get_stats:
  * 	spin_lock_irq(np->lock), doesn't touch hw if not present
- * - hard_start_xmit:
+ * - start_xmit:
  * 	synchronize_irq + netif_tx_disable;
  * - tx_timeout:
  * 	netif_device_detach + netif_tx_disable;

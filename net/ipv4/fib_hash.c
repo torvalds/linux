@@ -247,7 +247,7 @@ fn_hash_lookup(struct fib_table *tb, const struct flowi *flp, struct fib_result 
 {
 	int err;
 	struct fn_zone *fz;
-	struct fn_hash *t = (struct fn_hash*)tb->tb_data;
+	struct fn_hash *t = (struct fn_hash *)tb->tb_data;
 
 	read_lock(&fib_hash_lock);
 	for (fz = t->fn_zone_list; fz; fz = fz->fz_next) {
@@ -283,7 +283,7 @@ fn_hash_select_default(struct fib_table *tb, const struct flowi *flp, struct fib
 	struct fib_node *f;
 	struct fib_info *fi = NULL;
 	struct fib_info *last_resort;
-	struct fn_hash *t = (struct fn_hash*)tb->tb_data;
+	struct fn_hash *t = (struct fn_hash *)tb->tb_data;
 	struct fn_zone *fz = t->fn_zones[0];
 
 	if (fz == NULL)
@@ -548,7 +548,7 @@ out:
 
 static int fn_hash_delete(struct fib_table *tb, struct fib_config *cfg)
 {
-	struct fn_hash *table = (struct fn_hash*)tb->tb_data;
+	struct fn_hash *table = (struct fn_hash *)tb->tb_data;
 	struct fib_node *f;
 	struct fib_alias *fa, *fa_to_delete;
 	struct fn_zone *fz;
@@ -748,7 +748,7 @@ static int fn_hash_dump(struct fib_table *tb, struct sk_buff *skb, struct netlin
 {
 	int m, s_m;
 	struct fn_zone *fz;
-	struct fn_hash *table = (struct fn_hash*)tb->tb_data;
+	struct fn_hash *table = (struct fn_hash *)tb->tb_data;
 
 	s_m = cb->args[2];
 	read_lock(&fib_hash_lock);
@@ -845,10 +845,10 @@ static struct fib_alias *fib_get_first(struct seq_file *seq)
 			struct hlist_node *node;
 			struct fib_node *fn;
 
-			hlist_for_each_entry(fn,node,iter->hash_head,fn_hash) {
+			hlist_for_each_entry(fn, node, iter->hash_head, fn_hash) {
 				struct fib_alias *fa;
 
-				list_for_each_entry(fa,&fn->fn_alias,fa_list) {
+				list_for_each_entry(fa, &fn->fn_alias, fa_list) {
 					iter->fn = fn;
 					iter->fa = fa;
 					goto out;

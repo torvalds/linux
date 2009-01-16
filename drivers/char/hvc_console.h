@@ -48,7 +48,7 @@ struct hvc_struct {
 	spinlock_t lock;
 	int index;
 	struct tty_struct *tty;
-	unsigned int count;
+	int count;
 	int do_wakeup;
 	char *outbuf;
 	int outbuf_size;

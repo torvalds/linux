@@ -25,6 +25,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define KMSG_COMPONENT "cio"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/bootmem.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -185,56 +188,19 @@ static inline void cmf_activate(void *area, unsigned int onoff)
 static int set_schib(struct ccw_device *cdev, u32 mme, int mbfc,
 		     unsigned long address)
 {
-	int ret;
-	int retry;
 	struct subchannel *sch;
-	struct schib *schib;
 
 	sch = to_subchannel(cdev->dev.parent);
-	schib = &sch->schib;
-	/* msch can silently fail, so do it again if necessary */
-	for (retry = 0; retry < 3; retry++) {
-		/* prepare schib */
-		stsch(sch->schid, schib);
-		schib->pmcw.mme  = mme;
-		schib->pmcw.mbfc = mbfc;
-		/* address can be either a block address or a block index */
-		if (mbfc)
-			schib->mba = address;
-		else
-			schib->pmcw.mbi = address;
 
-		/* try to submit it */
-		switch(ret = msch_err(sch->schid, schib)) {
-			case 0:
-				break;
-			case 1:
-			case 2: /* in I/O or status pending */
-				ret = -EBUSY;
-				break;
-			case 3: /* subchannel is no longer valid */
-				ret = -ENODEV;
-				break;
-			default: /* msch caught an exception */
-				ret = -EINVAL;
-				break;
-		}
-		stsch(sch->schid, schib); /* restore the schib */
+	sch->config.mme = mme;
+	sch->config.mbfc = mbfc;
+	/* address can be either a block address or a block index */
+	if (mbfc)
+		sch->config.mba = address;
+	else
+		sch->config.mbi = address;
 
-		if (ret)
-			break;
-
-		/* check if it worked */
-		if (schib->pmcw.mme  == mme &&
-		    schib->pmcw.mbfc == mbfc &&
-		    (mbfc ? (schib->mba == address)
-			  : (schib->pmcw.mbi == address)))
-			return 0;
-
-		ret = -EINVAL;
-	}
-
-	return ret;
+	return cio_commit_config(sch);
 }
 
 struct set_schib_struct {
@@ -338,7 +304,7 @@ static int cmf_copy_block(struct ccw_device *cdev)
 
 	sch = to_subchannel(cdev->dev.parent);
 
-	if (stsch(sch->schid, &sch->schib))
+	if (cio_update_schib(sch))
 		return -ENODEV;
 
 	if (scsw_fctl(&sch->schib.scsw) & SCSW_FCTL_START_FUNC) {
@@ -1359,9 +1325,8 @@ static int __init init_cmf(void)
 	default:
 		return 1;
 	}
-
-	printk(KERN_INFO "cio: Channel measurement facility using %s "
-	       "format (%s)\n", format_string, detect_string);
+	pr_info("Channel measurement facility initialized using format "
+		"%s (mode %s)\n", format_string, detect_string);
 	return 0;
 }
 

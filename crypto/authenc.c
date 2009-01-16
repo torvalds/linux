@@ -11,6 +11,7 @@
  */
 
 #include <crypto/aead.h>
+#include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
@@ -431,6 +432,8 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 	inst->alg.cra_aead.ivsize = enc->cra_ablkcipher.ivsize;
 	inst->alg.cra_aead.maxauthsize = auth->cra_type == &crypto_hash_type ?
 					 auth->cra_hash.digestsize :
+					 auth->cra_type ?
+					 __crypto_shash_alg(auth)->digestsize :
 					 auth->cra_digest.dia_digestsize;
 
 	inst->alg.cra_ctxsize = sizeof(struct crypto_authenc_ctx);

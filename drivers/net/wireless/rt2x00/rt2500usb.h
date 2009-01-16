@@ -57,7 +57,9 @@
 #define CSR_REG_SIZE			0x0100
 #define EEPROM_BASE			0x0000
 #define EEPROM_SIZE			0x006a
+#define BBP_BASE			0x0000
 #define BBP_SIZE			0x0060
+#define RF_BASE				0x0000
 #define RF_SIZE				0x0014
 
 /*
@@ -444,6 +446,9 @@
 #define SEC_CSR29			0x04ba
 #define SEC_CSR30			0x04bc
 #define SEC_CSR31			0x04be
+
+#define KEY_ENTRY(__idx) \
+	( SEC_CSR0 + ((__idx) * 16) )
 
 /*
  * PHY control registers.

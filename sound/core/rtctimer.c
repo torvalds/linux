@@ -118,7 +118,7 @@ static void rtctimer_tasklet(unsigned long data)
  */
 static void rtctimer_interrupt(void *private_data)
 {
-	tasklet_hi_schedule(private_data);
+	tasklet_schedule(private_data);
 }
 
 

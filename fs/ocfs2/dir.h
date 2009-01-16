@@ -83,4 +83,6 @@ int ocfs2_fill_new_dir(struct ocfs2_super *osb,
 		       struct buffer_head *fe_bh,
 		       struct ocfs2_alloc_context *data_ac);
 
+struct ocfs2_dir_block_trailer *ocfs2_dir_trailer_from_size(int blocksize,
+							    void *data);
 #endif /* OCFS2_DIR_H */

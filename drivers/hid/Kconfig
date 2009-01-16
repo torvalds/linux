@@ -85,14 +85,14 @@ config HID_COMPAT
 config HID_A4TECH
 	tristate "A4 tech" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for A4 tech X5 and WOP-35 / Trust 450L mice.
 
 config HID_APPLE
 	tristate "Apple" if EMBEDDED
 	depends on (USB_HID || BT_HIDP)
-	default y
+	default !EMBEDDED
 	---help---
 	Support for some Apple devices which less or more break
 	HID specification.
@@ -103,64 +103,49 @@ config HID_APPLE
 config HID_BELKIN
 	tristate "Belkin" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Belkin Flip KVM and Wireless keyboard.
-
-config HID_BRIGHT
-	tristate "Bright" if EMBEDDED
-	depends on USB_HID
-	default y
-	---help---
-	Support for Bright ABNT-2 keyboard.
 
 config HID_CHERRY
 	tristate "Cherry" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Cherry Cymotion keyboard.
 
 config HID_CHICONY
 	tristate "Chicony" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Chicony Tactical pad.
 
 config HID_CYPRESS
 	tristate "Cypress" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for cypress mouse and barcode readers.
-
-config HID_DELL
-	tristate "Dell" if EMBEDDED
-	depends on USB_HID
-	default y
-	---help---
-	Support for quirky Dell HID hardware that require
-	special LED handling (W7658 and SK8115 models)
 
 config HID_EZKEY
 	tristate "Ezkey" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Ezkey BTC 8193 keyboard.
 
 config HID_GYRATION
 	tristate "Gyration" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Gyration remote control.
 
 config HID_LOGITECH
 	tristate "Logitech" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Logitech devices that are not fully compliant with HID standard.
 
@@ -191,21 +176,28 @@ config LOGIRUMBLEPAD2_FF
 config HID_MICROSOFT
 	tristate "Microsoft" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 
 config HID_MONTEREY
 	tristate "Monterey" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Monterey Genius KB29E.
+
+config HID_NTRIG
+	tristate "NTrig" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for N-Trig touch screen.
 
 config HID_PANTHERLORD
 	tristate "Pantherlord devices support" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for PantherLord/GreenAsia based device support.
 
@@ -220,30 +212,46 @@ config PANTHERLORD_FF
 config HID_PETALYNX
 	tristate "Petalynx" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Petalynx Maxter remote control.
 
 config HID_SAMSUNG
 	tristate "Samsung" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Samsung InfraRed remote control.
 
 config HID_SONY
 	tristate "Sony" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Sony PS3 controller.
 
 config HID_SUNPLUS
 	tristate "Sunplus" if EMBEDDED
 	depends on USB_HID
-	default y
+	default !EMBEDDED
 	---help---
 	Support for Sunplus wireless desktop.
+
+config GREENASIA_FF
+	tristate "GreenAsia (Product ID 0x12) force feedback support"
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you have a GreenAsia (Product ID 0x12) based game controller
+	(like MANTA Warior MM816 and SpeedLink Strike2 SL-6635) or adapter
+	and want to enable force feedback support for it.
+
+config HID_TOPSEED
+	tristate "TopSeed Cyberlink remote control support" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Say Y if you have a TopSeed Cyberlink remote control.
 
 config THRUSTMASTER_FF
 	tristate "ThrustMaster devices support"

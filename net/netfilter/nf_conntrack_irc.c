@@ -41,6 +41,7 @@ MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
 MODULE_DESCRIPTION("IRC (DCC) connection tracking helper");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ip_conntrack_irc");
+MODULE_ALIAS_NFCT_HELPER("irc");
 
 module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "port numbers of IRC servers");
@@ -156,9 +157,9 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 		/* we have at least (19+MINMATCHLEN)-5 bytes valid data left */
 
 		iph = ip_hdr(skb);
-		pr_debug("DCC found in master %u.%u.%u.%u:%u %u.%u.%u.%u:%u\n",
-			 NIPQUAD(iph->saddr), ntohs(th->source),
-			 NIPQUAD(iph->daddr), ntohs(th->dest));
+		pr_debug("DCC found in master %pI4:%u %pI4:%u\n",
+			 &iph->saddr, ntohs(th->source),
+			 &iph->daddr, ntohs(th->dest));
 
 		for (i = 0; i < ARRAY_SIZE(dccprotos); i++) {
 			if (memcmp(data, dccprotos[i], strlen(dccprotos[i]))) {
@@ -185,10 +186,9 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 			    tuple->dst.u3.ip != htonl(dcc_ip)) {
 				if (net_ratelimit())
 					printk(KERN_WARNING
-						"Forged DCC command from "
-						"%u.%u.%u.%u: %u.%u.%u.%u:%u\n",
-						NIPQUAD(tuple->src.u3.ip),
-						HIPQUAD(dcc_ip), dcc_port);
+						"Forged DCC command from %pI4: %pI4:%u\n",
+						&tuple->src.u3.ip,
+						&dcc_ip, dcc_port);
 				continue;
 			}
 

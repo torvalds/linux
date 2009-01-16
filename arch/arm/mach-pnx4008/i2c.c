@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <mach/platform.h>
+#include <mach/irqs.h>
 #include <mach/i2c.h>
 
 static int set_clock_run(struct platform_device *pdev)

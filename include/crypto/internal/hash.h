@@ -39,6 +39,12 @@ extern const struct crypto_type crypto_ahash_type;
 int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err);
 int crypto_hash_walk_first(struct ahash_request *req,
 			   struct crypto_hash_walk *walk);
+int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
+				  struct crypto_hash_walk *walk,
+				  struct scatterlist *sg, unsigned int len);
+
+int crypto_register_shash(struct shash_alg *alg);
+int crypto_unregister_shash(struct shash_alg *alg);
 
 static inline void *crypto_ahash_ctx(struct crypto_ahash *tfm)
 {
@@ -63,15 +69,15 @@ static inline struct ahash_request *ahash_dequeue_request(
 	return ahash_request_cast(crypto_dequeue_request(queue));
 }
 
-static inline void *ahash_request_ctx(struct ahash_request *req)
-{
-	return req->__ctx;
-}
-
 static inline int ahash_tfm_in_queue(struct crypto_queue *queue,
 					  struct crypto_ahash *tfm)
 {
 	return crypto_tfm_in_queue(queue, crypto_ahash_tfm(tfm));
+}
+
+static inline void *crypto_shash_ctx(struct crypto_shash *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
 }
 
 #endif	/* _CRYPTO_INTERNAL_HASH_H */

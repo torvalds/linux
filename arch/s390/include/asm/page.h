@@ -152,4 +152,6 @@ void arch_alloc_page(struct page *page, int order);
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
 
+#define __HAVE_ARCH_GATE_AREA 1
+
 #endif /* _S390_PAGE_H */

@@ -55,8 +55,6 @@
  */
 
 #include "i1480u-wlp.h"
-#define D_LOCAL 5
-#include <linux/uwb/debug.h>
 
 enum {
 	/* This is only for Next and Last TX packets */
@@ -64,7 +62,7 @@ enum {
 		- sizeof(struct untd_hdr_rst),
 };
 
-/** Free resources allocated to a i1480u tx context. */
+/* Free resources allocated to a i1480u tx context. */
 static
 void i1480u_tx_free(struct i1480u_tx *wtx)
 {
@@ -99,7 +97,7 @@ void i1480u_tx_unlink_urbs(struct i1480u *i1480u)
 }
 
 
-/**
+/*
  * Callback for a completed tx USB URB.
  *
  * TODO:
@@ -119,8 +117,8 @@ void i1480u_tx_cb(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		spin_lock_irqsave(&i1480u->lock, flags);
-		i1480u->stats.tx_packets++;
-		i1480u->stats.tx_bytes += urb->actual_length;
+		net_dev->stats.tx_packets++;
+		net_dev->stats.tx_bytes += urb->actual_length;
 		spin_unlock_irqrestore(&i1480u->lock, flags);
 		break;
 	case -ECONNRESET:	/* Not an error, but a controlled situation; */
@@ -149,8 +147,6 @@ void i1480u_tx_cb(struct urb *urb)
 	    <= i1480u->tx_inflight.threshold
 	    && netif_queue_stopped(net_dev)
 	    && i1480u->tx_inflight.threshold != 0) {
-		if (d_test(2) && printk_ratelimit())
-			d_printf(2, dev, "Restart queue. \n");
 		netif_start_queue(net_dev);
 		atomic_inc(&i1480u->tx_inflight.restart_count);
 	}
@@ -158,7 +154,7 @@ void i1480u_tx_cb(struct urb *urb)
 }
 
 
-/**
+/*
  * Given a buffer that doesn't fit in a single fragment, create an
  * scatter/gather structure for delivery to the USB pipe.
  *
@@ -253,15 +249,11 @@ int i1480u_tx_create_n(struct i1480u_tx *wtx, struct sk_buff *skb,
 	/* Now do each remaining fragment */
 	result = -EINVAL;
 	while (pl_size_left > 0) {
-		d_printf(5, NULL, "ITR HDR: pl_size_left %zu buf_itr %zu\n",
-			 pl_size_left, buf_itr - wtx->buf);
 		if (buf_itr + sizeof(*untd_hdr_rst) - wtx->buf
 		    > wtx->buf_size) {
 			printk(KERN_ERR "BUG: no space for header\n");
 			goto error_bug;
 		}
-		d_printf(5, NULL, "ITR HDR 2: pl_size_left %zu buf_itr %zu\n",
-			 pl_size_left, buf_itr - wtx->buf);
 		untd_hdr_rst = buf_itr;
 		buf_itr += sizeof(*untd_hdr_rst);
 		if (pl_size_left > i1480u_MAX_PL_SIZE) {
@@ -271,9 +263,6 @@ int i1480u_tx_create_n(struct i1480u_tx *wtx, struct sk_buff *skb,
 			frg_pl_size = pl_size_left;
 			untd_hdr_set_type(&untd_hdr_rst->hdr, i1480u_PKT_FRAG_LST);
 		}
-		d_printf(5, NULL,
-			 "ITR PL: pl_size_left %zu buf_itr %zu frg_pl_size %zu\n",
-			 pl_size_left, buf_itr - wtx->buf, frg_pl_size);
 		untd_hdr_set_rx_tx(&untd_hdr_rst->hdr, 0);
 		untd_hdr_rst->hdr.len = cpu_to_le16(frg_pl_size);
 		untd_hdr_rst->padding = 0;
@@ -286,9 +275,6 @@ int i1480u_tx_create_n(struct i1480u_tx *wtx, struct sk_buff *skb,
 		buf_itr += frg_pl_size;
 		pl_itr += frg_pl_size;
 		pl_size_left -= frg_pl_size;
-		d_printf(5, NULL,
-			 "ITR PL 2: pl_size_left %zu buf_itr %zu frg_pl_size %zu\n",
-			 pl_size_left, buf_itr - wtx->buf, frg_pl_size);
 	}
 	dev_kfree_skb_irq(skb);
 	return 0;
@@ -308,7 +294,7 @@ error_buf_alloc:
 }
 
 
-/**
+/*
  * Given a buffer that fits in a single fragment, fill out a @wtx
  * struct for transmitting it down the USB pipe.
  *
@@ -346,7 +332,7 @@ int i1480u_tx_create_1(struct i1480u_tx *wtx, struct sk_buff *skb,
 }
 
 
-/**
+/*
  * Given a skb to transmit, massage it to become palatable for the TX pipe
  *
  * This will break the buffer in chunks smaller than
@@ -425,7 +411,7 @@ error_wtx_alloc:
 	return NULL;
 }
 
-/**
+/*
  * Actual fragmentation and transmission of frame
  *
  * @wlp:  WLP substack data structure
@@ -447,20 +433,12 @@ int i1480u_xmit_frame(struct wlp *wlp, struct sk_buff *skb,
 	struct i1480u_tx *wtx;
 	struct wlp_tx_hdr *wlp_tx_hdr;
 	static unsigned char dev_bcast[2] = { 0xff, 0xff };
-#if 0
-	int lockup = 50;
-#endif
 
-	d_fnstart(6, dev, "(skb %p (%u), net_dev %p)\n", skb, skb->len,
-		  net_dev);
 	BUG_ON(i1480u->wlp.rc == NULL);
 	if ((net_dev->flags & IFF_UP) == 0)
 		goto out;
 	result = -EBUSY;
 	if (atomic_read(&i1480u->tx_inflight.count) >= i1480u->tx_inflight.max) {
-		if (d_test(2) && printk_ratelimit())
-			d_printf(2, dev, "Max frames in flight "
-				 "stopping queue.\n");
 		netif_stop_queue(net_dev);
 		goto error_max_inflight;
 	}
@@ -489,21 +467,6 @@ int i1480u_xmit_frame(struct wlp *wlp, struct sk_buff *skb,
 		wlp_tx_hdr_set_delivery_id_type(wlp_tx_hdr, i1480u->options.pca_base_priority);
 	}
 
-#if 0
-	dev_info(dev, "TX delivering skb -> USB, %zu bytes\n", skb->len);
-	dump_bytes(dev, skb->data, skb->len > 72 ? 72 : skb->len);
-#endif
-#if 0
-	/* simulates a device lockup after every lockup# packets */
-	if (lockup && ((i1480u->stats.tx_packets + 1) % lockup) == 0) {
-		/* Simulate a dropped transmit interrupt */
-		net_dev->trans_start = jiffies;
-		netif_stop_queue(net_dev);
-		dev_err(dev, "Simulate lockup at %ld\n", jiffies);
-		return result;
-	}
-#endif
-
 	result = usb_submit_urb(wtx->urb, GFP_ATOMIC);		/* Go baby */
 	if (result < 0) {
 		dev_err(dev, "TX: cannot submit URB: %d\n", result);
@@ -513,8 +476,6 @@ int i1480u_xmit_frame(struct wlp *wlp, struct sk_buff *skb,
 	}
 	atomic_inc(&i1480u->tx_inflight.count);
 	net_dev->trans_start = jiffies;
-	d_fnend(6, dev, "(skb %p (%u), net_dev %p) = %d\n", skb, skb->len,
-		net_dev, result);
 	return result;
 
 error_tx_urb_submit:
@@ -522,13 +483,11 @@ error_tx_urb_submit:
 error_wtx_alloc:
 error_max_inflight:
 out:
-	d_fnend(6, dev, "(skb %p (%u), net_dev %p) = %d\n", skb, skb->len,
-		net_dev, result);
 	return result;
 }
 
 
-/**
+/*
  * Transmit an skb  Called when an skbuf has to be transmitted
  *
  * The skb is first passed to WLP substack to ensure this is a valid
@@ -551,9 +510,6 @@ int i1480u_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	struct device *dev = &i1480u->usb_iface->dev;
 	struct uwb_dev_addr dst;
 
-	d_fnstart(6, dev, "(skb %p (%u), net_dev %p)\n", skb, skb->len,
-		  net_dev);
-	BUG_ON(i1480u->wlp.rc == NULL);
 	if ((net_dev->flags & IFF_UP) == 0)
 		goto error;
 	result = wlp_prepare_tx_frame(dev, &i1480u->wlp, skb, &dst);
@@ -562,31 +518,25 @@ int i1480u_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 			"Dropping packet.\n", result);
 		goto error;
 	} else if (result == 1) {
-		d_printf(6, dev, "WLP will transmit frame. \n");
 		/* trans_start time will be set when WLP actually transmits
 		 * the frame */
 		goto out;
 	}
-	d_printf(6, dev, "Transmitting frame. \n");
 	result = i1480u_xmit_frame(&i1480u->wlp, skb, &dst);
 	if (result < 0) {
 		dev_err(dev, "Frame TX failed (%d).\n", result);
 		goto error;
 	}
-	d_fnend(6, dev, "(skb %p (%u), net_dev %p) = %d\n", skb, skb->len,
-		net_dev, result);
 	return NETDEV_TX_OK;
 error:
 	dev_kfree_skb_any(skb);
-	i1480u->stats.tx_dropped++;
+	net_dev->stats.tx_dropped++;
 out:
-	d_fnend(6, dev, "(skb %p (%u), net_dev %p) = %d\n", skb, skb->len,
-		net_dev, result);
 	return NETDEV_TX_OK;
 }
 
 
-/**
+/*
  * Called when a pkt transmission doesn't complete in a reasonable period
  * Device reset may sleep - do it outside of interrupt context (delayed)
  */

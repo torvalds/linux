@@ -2184,7 +2184,7 @@ static void ipr_dump_location_data(struct ipr_ioa_cfg *ioa_cfg,
 		sizeof(struct ipr_dump_entry_header);
 	driver_dump->location_entry.hdr.data_type = IPR_DUMP_DATA_TYPE_ASCII;
 	driver_dump->location_entry.hdr.id = IPR_DUMP_LOCATION_ID;
-	strcpy(driver_dump->location_entry.location, ioa_cfg->pdev->dev.bus_id);
+	strcpy(driver_dump->location_entry.location, dev_name(&ioa_cfg->pdev->dev));
 	driver_dump->hdr.num_entries++;
 }
 
@@ -5389,9 +5389,9 @@ static int ipr_ioa_reset_done(struct ipr_cmnd *ipr_cmd)
 	list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
 	wake_up_all(&ioa_cfg->reset_wait_q);
 
-	spin_unlock_irq(ioa_cfg->host->host_lock);
+	spin_unlock(ioa_cfg->host->host_lock);
 	scsi_unblock_requests(ioa_cfg->host);
-	spin_lock_irq(ioa_cfg->host->host_lock);
+	spin_lock(ioa_cfg->host->host_lock);
 
 	if (!ioa_cfg->allow_cmds)
 		scsi_block_requests(ioa_cfg->host);
@@ -7473,7 +7473,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 		goto out_scsi_host_put;
 	}
 
-	ipr_regs = ioremap(ipr_regs_pci, pci_resource_len(pdev, 0));
+	ipr_regs = pci_ioremap_bar(pdev, 0);
 
 	if (!ipr_regs) {
 		dev_err(&pdev->dev,

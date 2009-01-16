@@ -30,7 +30,7 @@
  * $Log: NCR5380.c,v $
 
  * Revision 1.10 1998/9/2	Alan Cox
- *				(alan@redhat.com)
+ *				(alan@lxorguk.ukuu.org.uk)
  * Fixed up the timer lockups reported so far. Things still suck. Looking 
  * forward to 2.3 and per device request queues. Then it'll be possible to
  * SMP thread this beast and improve life no end.

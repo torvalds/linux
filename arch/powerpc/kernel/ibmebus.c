@@ -47,7 +47,7 @@
 #include <asm/abs_addr.h>
 
 static struct device ibmebus_bus_device = { /* fake "parent" device */
-	.bus_id = "ibmebus",
+	.init_name = "ibmebus",
 };
 
 struct bus_type ibmebus_bus_type;
@@ -231,6 +231,7 @@ void ibmebus_free_irq(u32 ist, void *dev_id)
 	unsigned int irq = irq_find_mapping(NULL, ist);
 
 	free_irq(irq, dev_id);
+	irq_dispose_mapping(irq);
 }
 EXPORT_SYMBOL(ibmebus_free_irq);
 

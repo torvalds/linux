@@ -1467,19 +1467,17 @@ static void arlan_rx_interrupt(struct net_device *dev, u_char rxStatus, u_short 
 						else if (hw_dst_addr[1] == 0x40)
 							printk(KERN_ERR "%s m/bcast 0x0140 \n", dev->name);
 					while (dmi)
-					{							if (dmi->dmi_addrlen == 6)
-						{
-							DECLARE_MAC_BUF(mac);
+					{
+						if (dmi->dmi_addrlen == 6) {
 							if (arlan_debug & ARLAN_DEBUG_HEADER_DUMP)
-								printk(KERN_ERR "%s mcl %s\n",
-								       dev->name, print_mac(mac, dmi->dmi_addr));
+								printk(KERN_ERR "%s mcl %pM\n",
+								       dev->name, dmi->dmi_addr);
 							for (i = 0; i < 6; i++)
 								if (dmi->dmi_addr[i] != hw_dst_addr[i])
 									break;
 							if (i == 6)
 								break;
-						}
-						else
+						} else
 							printk(KERN_ERR "%s: invalid multicast address length given.\n", dev->name);
 						dmi = dmi->next;
 					}
@@ -1512,18 +1510,14 @@ static void arlan_rx_interrupt(struct net_device *dev, u_char rxStatus, u_short 
 			{
 				char immedDestAddress[6];
 				char immedSrcAddress[6];
-				DECLARE_MAC_BUF(mac);
-				DECLARE_MAC_BUF(mac2);
-				DECLARE_MAC_BUF(mac3);
-				DECLARE_MAC_BUF(mac4);
 				memcpy_fromio(immedDestAddress, arlan->immedDestAddress, 6);
 				memcpy_fromio(immedSrcAddress, arlan->immedSrcAddress, 6);
 
-				printk(KERN_WARNING "%s t %s f %s imd %s ims %s\n",
-				       dev->name, print_mac(mac, skbtmp),
-				       print_mac(mac2, &skbtmp[6]),
-				       print_mac(mac3, immedDestAddress),
-				       print_mac(mac4, immedSrcAddress));
+				printk(KERN_WARNING "%s t %pM f %pM imd %pM ims %pM\n",
+				       dev->name, skbtmp,
+				       &skbtmp[6],
+				       immedDestAddress,
+				       immedSrcAddress);
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 			IFDEBUG(ARLAN_DEBUG_HEADER_DUMP)
@@ -1535,7 +1529,6 @@ static void arlan_rx_interrupt(struct net_device *dev, u_char rxStatus, u_short 
 					printk(KERN_WARNING "arlan kernel pkt type trans %x \n", skb->protocol);
 				}
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += pkt_len;
 		}

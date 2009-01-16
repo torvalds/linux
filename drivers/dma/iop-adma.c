@@ -24,7 +24,6 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/async_tx.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
@@ -116,7 +115,7 @@ iop_adma_run_tx_complete_actions(struct iop_adma_desc_slot *desc,
 	}
 
 	/* run dependent operations */
-	async_tx_run_dependencies(&desc->async_tx);
+	dma_run_dependencies(&desc->async_tx);
 
 	return cookie;
 }
@@ -269,8 +268,6 @@ static void __iop_adma_slot_cleanup(struct iop_adma_chan *iop_chan)
 		if (iop_adma_clean_slot(iter, iop_chan))
 			break;
 	}
-
-	BUG_ON(!seen_current);
 
 	if (cookie > 0) {
 		iop_chan->completed_cookie = cookie;
@@ -471,8 +468,7 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan);
  * greater than 2x the number slots needed to satisfy a device->max_xor
  * request.
  * */
-static int iop_adma_alloc_chan_resources(struct dma_chan *chan,
-					 struct dma_client *client)
+static int iop_adma_alloc_chan_resources(struct dma_chan *chan)
 {
 	char *hw_desc;
 	int idx;
@@ -866,7 +862,7 @@ static int __devinit iop_adma_memcpy_self_test(struct iop_adma_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (iop_adma_alloc_chan_resources(dma_chan, NULL) < 1) {
+	if (iop_adma_alloc_chan_resources(dma_chan) < 1) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -964,7 +960,7 @@ iop_adma_xor_zero_sum_self_test(struct iop_adma_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (iop_adma_alloc_chan_resources(dma_chan, NULL) < 1) {
+	if (iop_adma_alloc_chan_resources(dma_chan) < 1) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -1115,25 +1111,12 @@ static int __devexit iop_adma_remove(struct platform_device *dev)
 	struct iop_adma_device *device = platform_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 	struct iop_adma_chan *iop_chan;
-	int i;
 	struct iop_adma_platform_data *plat_data = dev->dev.platform_data;
 
 	dma_async_device_unregister(&device->common);
 
-	for (i = 0; i < 3; i++) {
-		unsigned int irq;
-		irq = platform_get_irq(dev, i);
-		free_irq(irq, device);
-	}
-
 	dma_free_coherent(&dev->dev, plat_data->pool_size,
 			device->dma_desc_pool_virt, device->dma_desc_pool);
-
-	do {
-		struct resource *res;
-		res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-		release_mem_region(res->start, res->end - res->start);
-	} while (0);
 
 	list_for_each_entry_safe(chan, _chan, &device->common.channels,
 				device_node) {
@@ -1255,7 +1238,6 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 	spin_lock_init(&iop_chan->lock);
 	INIT_LIST_HEAD(&iop_chan->chain);
 	INIT_LIST_HEAD(&iop_chan->all_slots);
-	INIT_RCU_HEAD(&iop_chan->common.rcu);
 	iop_chan->common.device = dma_dev;
 	list_add_tail(&iop_chan->common.device_node, &dma_dev->channels);
 
@@ -1431,16 +1413,12 @@ static int __init iop_adma_init (void)
 	return platform_driver_register(&iop_adma_driver);
 }
 
-/* it's currently unsafe to unload this module */
-#if 0
 static void __exit iop_adma_exit (void)
 {
 	platform_driver_unregister(&iop_adma_driver);
 	return;
 }
 module_exit(iop_adma_exit);
-#endif
-
 module_init(iop_adma_init);
 
 MODULE_AUTHOR("Intel Corporation");

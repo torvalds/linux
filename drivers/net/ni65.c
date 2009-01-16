@@ -7,8 +7,6 @@
  * EtherBlaster. (probably it also works with every full NE2100
  * compatible card)
  *
- * To compile as module, type:
- *     gcc -O2 -fomit-frame-pointer -m486 -D__KERNEL__ -DMODULE -c ni65.c
  * driver probes: io: 0x360,0x300,0x320,0x340 / dma: 3,5,6,7
  *
  * This is an extension to the Linux operating system, and is covered by the
@@ -295,7 +293,7 @@ static void ni65_set_performance(struct priv *p)
  */
 static int ni65_open(struct net_device *dev)
 {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = dev->ml_priv;
 	int irqval = request_irq(dev->irq, &ni65_interrupt,0,
                         cards[p->cardno].cardname,dev);
 	if (irqval) {
@@ -321,7 +319,7 @@ static int ni65_open(struct net_device *dev)
  */
 static int ni65_close(struct net_device *dev)
 {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = dev->ml_priv;
 
 	netif_stop_queue(dev);
 
@@ -345,7 +343,7 @@ static int ni65_close(struct net_device *dev)
 
 static void cleanup_card(struct net_device *dev)
 {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = dev->ml_priv;
 	disable_dma(dev->dma);
 	free_dma(dev->dma);
 	release_region(dev->base_addr, cards[p->cardno].total_size);
@@ -444,7 +442,7 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 		release_region(ioaddr, cards[i].total_size);
 		return j;
 	}
-	p = (struct priv *) dev->priv;
+	p = dev->ml_priv;
 	p->cmdr_addr = ioaddr + cards[i].cmd_offset;
 	p->cardno = i;
 	spin_lock_init(&p->ring_lock);
@@ -647,8 +645,8 @@ static int ni65_alloc_buffer(struct net_device *dev)
 	if(!ptr)
 		return -ENOMEM;
 
-	p = dev->priv = (struct priv *) (((unsigned long) ptr + 7) & ~0x7);
-	memset((char *) dev->priv,0,sizeof(struct priv));
+	p = dev->ml_priv = (struct priv *) (((unsigned long) ptr + 7) & ~0x7);
+	memset((char *)p, 0, sizeof(struct priv));
 	p->self = ptr;
 
 	for(i=0;i<TMDNUM;i++)
@@ -790,7 +788,7 @@ static void ni65_stop_start(struct net_device *dev,struct priv *p)
 static int ni65_lance_reinit(struct net_device *dev)
 {
 	 int i;
-	 struct priv *p = (struct priv *) dev->priv;
+	 struct priv *p = dev->ml_priv;
 	 unsigned long flags;
 
 	 p->lock = 0;
@@ -876,7 +874,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
 	struct priv *p;
 	int bcnt = 32;
 
-	p = (struct priv *) dev->priv;
+	p = dev->ml_priv;
 
 	spin_lock(&p->ring_lock);
 
@@ -899,7 +897,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
 
 		if(csr0 & CSR0_ERR)
 		{
-			struct priv *p = (struct priv *) dev->priv;
+			struct priv *p = dev->ml_priv;
 			if(debuglevel > 1)
 				printk(KERN_ERR "%s: general error: %04x.\n",dev->name,csr0);
 			if(csr0 & CSR0_BABL)
@@ -924,7 +922,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
  int j;
  for(j=0;j<RMDNUM;j++)
  {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = dev->ml_priv;
 	int i,k,num1,num2;
 	for(i=RMDNUM-1;i>0;i--) {
 		 num2 = (p->rmdnum + i) & (RMDNUM-1);
@@ -982,7 +980,7 @@ static irqreturn_t ni65_interrupt(int irq, void * dev_id)
  */
 static void ni65_xmit_intr(struct net_device *dev,int csr0)
 {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = dev->ml_priv;
 
 	while(p->xmit_queued)
 	{
@@ -1049,7 +1047,7 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 	struct rmd *rmdp;
 	int rmdstat,len;
 	int cnt=0;
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = dev->ml_priv;
 
 	rmdp = p->rmdhead + p->rmdnum;
 	while(!( (rmdstat = rmdp->u.s.status) & RCV_OWN))
@@ -1113,7 +1111,6 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 				p->stats.rx_bytes += len;
 				skb->protocol=eth_type_trans(skb,dev);
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 			}
 			else
 			{
@@ -1140,7 +1137,7 @@ static void ni65_recv_intr(struct net_device *dev,int csr0)
 static void ni65_timeout(struct net_device *dev)
 {
 	int i;
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = dev->ml_priv;
 
 	printk(KERN_ERR "%s: xmitter timed out, try to restart!\n",dev->name);
 	for(i=0;i<TMDNUM;i++)
@@ -1157,7 +1154,7 @@ static void ni65_timeout(struct net_device *dev)
 
 static int ni65_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = dev->ml_priv;
 
 	netif_stop_queue(dev);
 
@@ -1222,7 +1219,7 @@ static struct net_device_stats *ni65_get_stats(struct net_device *dev)
 
 #if 0
 	int i;
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = dev->ml_priv;
 	for(i=0;i<RMDNUM;i++)
 	{
 		struct rmd *rmdp = p->rmdhead + ((p->rmdnum + i) & (RMDNUM-1));
@@ -1231,7 +1228,7 @@ static struct net_device_stats *ni65_get_stats(struct net_device *dev)
 	printk("\n");
 #endif
 
-	return &((struct priv *) dev->priv)->stats;
+	return &((struct priv *)dev->ml_priv)->stats;
 }
 
 static void set_multicast_list(struct net_device *dev)
@@ -1266,7 +1263,3 @@ void __exit cleanup_module(void)
 #endif /* MODULE */
 
 MODULE_LICENSE("GPL");
-
-/*
- * END of ni65.c
- */

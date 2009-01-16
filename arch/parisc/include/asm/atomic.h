@@ -155,13 +155,10 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 #define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
 #endif
 
-/* Note that we need not lock read accesses - aligned word writes/reads
- * are atomic, so a reader never sees unconsistent values.
- *
- * Cache-line alignment would conflict with, for example, linux/module.h
+/*
+ * Note that we need not lock read accesses - aligned word writes/reads
+ * are atomic, so a reader never sees inconsistent values.
  */
-
-typedef struct { volatile int counter; } atomic_t;
 
 /* It's possible to reduce all atomic operations to either
  * __atomic_add_return, atomic_set and atomic_read (the latter
@@ -259,8 +256,6 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 #define smp_mb__after_atomic_inc()	smp_mb()
 
 #ifdef CONFIG_64BIT
-
-typedef struct { volatile s64 counter; } atomic64_t;
 
 #define ATOMIC64_INIT(i) ((atomic64_t) { (i) })
 

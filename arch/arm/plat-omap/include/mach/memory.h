@@ -43,18 +43,7 @@
 #endif
 
 /*
- * Conversion between SDRAM and fake PCI bus, used by USB
- * NOTE: Physical address must be converted to Local Bus address
- *	 on OMAP-1510 only
- */
-
-/*
  * Bus address is physical address, except for OMAP-1510 Local Bus.
- */
-#define __virt_to_bus(x)	__virt_to_phys(x)
-#define __bus_to_virt(x)	__phys_to_virt(x)
-
-/*
  * OMAP-1510 bus address is translated into a Local Bus address if the
  * OMAP bus type is lbus. We do the address translation based on the
  * device overriding the defaults used in the dma-mapping API.
@@ -70,20 +59,20 @@
 
 #define virt_to_lbus(x)		((x) - PAGE_OFFSET + OMAP1510_LB_OFFSET)
 #define lbus_to_virt(x)		((x) - OMAP1510_LB_OFFSET + PAGE_OFFSET)
-#define is_lbus_device(dev)	(cpu_is_omap15xx() && dev && (strncmp(dev->bus_id, "ohci", 4) == 0))
+#define is_lbus_device(dev)	(cpu_is_omap15xx() && dev && (strncmp(dev_name(dev), "ohci", 4) == 0))
 
 #define __arch_page_to_dma(dev, page)	({is_lbus_device(dev) ? \
 					(dma_addr_t)virt_to_lbus(page_address(page)) : \
-					(dma_addr_t)__virt_to_bus(page_address(page));})
+					(dma_addr_t)__virt_to_phys(page_address(page));})
 
 #define __arch_dma_to_virt(dev, addr)	({ (void *) (is_lbus_device(dev) ? \
 						lbus_to_virt(addr) : \
-						__bus_to_virt(addr)); })
+						__phys_to_virt(addr)); })
 
 #define __arch_virt_to_dma(dev, addr)	({ unsigned long __addr = (unsigned long)(addr); \
 					   (dma_addr_t) (is_lbus_device(dev) ? \
 						virt_to_lbus(__addr) : \
-						__virt_to_bus(__addr)); })
+						__virt_to_phys(__addr)); })
 
 #endif	/* CONFIG_ARCH_OMAP15XX */
 

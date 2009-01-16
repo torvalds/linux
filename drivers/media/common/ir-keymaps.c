@@ -2391,6 +2391,67 @@ IR_KEYTAB_TYPE ir_codes_powercolor_real_angel[IR_KEYTAB_SIZE] = {
 };
 EXPORT_SYMBOL_GPL(ir_codes_powercolor_real_angel);
 
+/* Kworld Plus TV Analog Lite PCI IR
+   Mauro Carvalho Chehab <mchehab@infradead.org>
+ */
+IR_KEYTAB_TYPE ir_codes_kworld_plus_tv_analog[IR_KEYTAB_SIZE] = {
+	[0x0c] = KEY_PROG1,		/* Kworld key */
+	[0x16] = KEY_CLOSECD,		/* -> ) */
+	[0x1d] = KEY_POWER2,
+
+	[0x00] = KEY_1,
+	[0x01] = KEY_2,
+	[0x02] = KEY_3,			/* Two keys have the same code: 3 and left */
+	[0x03] = KEY_4,			/* Two keys have the same code: 3 and right */
+	[0x04] = KEY_5,
+	[0x05] = KEY_6,
+	[0x06] = KEY_7,
+	[0x07] = KEY_8,
+	[0x08] = KEY_9,
+	[0x0a] = KEY_0,
+
+	[0x09] = KEY_AGAIN,
+	[0x14] = KEY_MUTE,
+
+	[0x20] = KEY_UP,
+	[0x21] = KEY_DOWN,
+	[0x0b] = KEY_ENTER,
+
+	[0x10] = KEY_CHANNELUP,
+	[0x11] = KEY_CHANNELDOWN,
+
+	/* Couldn't map key left/key right since those
+	   conflict with '3' and '4' scancodes
+	   I dunno what the original driver does
+	 */
+
+	[0x13] = KEY_VOLUMEUP,
+	[0x12] = KEY_VOLUMEDOWN,
+
+	/* The lower part of the IR
+	   There are several duplicated keycodes there.
+	   Most of them conflict with digits.
+	   Add mappings just to the unused scancodes.
+	   Somehow, the original driver has a way to know,
+	   but this doesn't seem to be on some GPIO.
+	   Also, it is not related to the time between keyup
+	   and keydown.
+	 */
+	[0x19] = KEY_PAUSE,		/* Timeshift */
+	[0x1a] = KEY_STOP,
+	[0x1b] = KEY_RECORD,
+
+	[0x22] = KEY_TEXT,
+
+	[0x15] = KEY_AUDIO,		/* ((*)) */
+	[0x0f] = KEY_ZOOM,
+	[0x1c] = KEY_SHUFFLE,		/* snapshot */
+
+	[0x18] = KEY_RED,		/* B */
+	[0x23] = KEY_GREEN,		/* C */
+};
+EXPORT_SYMBOL_GPL(ir_codes_kworld_plus_tv_analog);
+
 IR_KEYTAB_TYPE ir_codes_avermedia_a16d[IR_KEYTAB_SIZE] = {
 	[0x20] = KEY_LIST,
 	[0x00] = KEY_POWER,
@@ -2511,3 +2572,35 @@ IR_KEYTAB_TYPE ir_codes_real_audio_220_32_keys[IR_KEYTAB_SIZE] = {
 
 };
 EXPORT_SYMBOL_GPL(ir_codes_real_audio_220_32_keys);
+
+/* ATI TV Wonder HD 600 USB
+   Devin Heitmueller <devin.heitmueller@gmail.com>
+ */
+IR_KEYTAB_TYPE ir_codes_ati_tv_wonder_hd_600[IR_KEYTAB_SIZE] = {
+	[0x00] = KEY_RECORD,		/* Row 1 */
+	[0x01] = KEY_PLAYPAUSE,
+	[0x02] = KEY_STOP,
+	[0x03] = KEY_POWER,
+	[0x04] = KEY_PREVIOUS,	/* Row 2 */
+	[0x05] = KEY_REWIND,
+	[0x06] = KEY_FORWARD,
+	[0x07] = KEY_NEXT,
+	[0x08] = KEY_EPG,		/* Row 3 */
+	[0x09] = KEY_HOME,
+	[0x0a] = KEY_MENU,
+	[0x0b] = KEY_CHANNELUP,
+	[0x0c] = KEY_BACK,		/* Row 4 */
+	[0x0d] = KEY_UP,
+	[0x0e] = KEY_INFO,
+	[0x0f] = KEY_CHANNELDOWN,
+	[0x10] = KEY_LEFT,		/* Row 5 */
+	[0x11] = KEY_SELECT,
+	[0x12] = KEY_RIGHT,
+	[0x13] = KEY_VOLUMEUP,
+	[0x14] = KEY_LAST,		/* Row 6 */
+	[0x15] = KEY_DOWN,
+	[0x16] = KEY_MUTE,
+	[0x17] = KEY_VOLUMEDOWN,
+};
+
+EXPORT_SYMBOL_GPL(ir_codes_ati_tv_wonder_hd_600);

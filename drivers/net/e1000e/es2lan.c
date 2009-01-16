@@ -112,6 +112,11 @@ static void e1000_initialize_hw_bits_80003es2lan(struct e1000_hw *hw);
 static void e1000_clear_hw_cntrs_80003es2lan(struct e1000_hw *hw);
 static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw);
 static s32 e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex);
+static s32 e1000_cfg_on_link_up_80003es2lan(struct e1000_hw *hw);
+static s32  e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
+                                            u16 *data);
+static s32  e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
+                                             u16 data);
 
 /**
  *  e1000_init_phy_params_80003es2lan - Init ESB2 PHY func ptrs.
@@ -275,8 +280,6 @@ static s32 e1000_acquire_phy_80003es2lan(struct e1000_hw *hw)
 	u16 mask;
 
 	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
-	mask |= E1000_SWFW_CSR_SM;
-
 	return e1000_acquire_swfw_sync_80003es2lan(hw, mask);
 }
 
@@ -292,7 +295,36 @@ static void e1000_release_phy_80003es2lan(struct e1000_hw *hw)
 	u16 mask;
 
 	mask = hw->bus.func ? E1000_SWFW_PHY1_SM : E1000_SWFW_PHY0_SM;
-	mask |= E1000_SWFW_CSR_SM;
+	e1000_release_swfw_sync_80003es2lan(hw, mask);
+}
+
+/**
+ *  e1000_acquire_mac_csr_80003es2lan - Acquire rights to access Kumeran register
+ *  @hw: pointer to the HW structure
+ *
+ *  Acquire the semaphore to access the Kumeran interface.
+ *
+ **/
+static s32 e1000_acquire_mac_csr_80003es2lan(struct e1000_hw *hw)
+{
+	u16 mask;
+
+	mask = E1000_SWFW_CSR_SM;
+
+	return e1000_acquire_swfw_sync_80003es2lan(hw, mask);
+}
+
+/**
+ *  e1000_release_mac_csr_80003es2lan - Release rights to access Kumeran Register
+ *  @hw: pointer to the HW structure
+ *
+ *  Release the semaphore used to access the Kumeran interface
+ **/
+static void e1000_release_mac_csr_80003es2lan(struct e1000_hw *hw)
+{
+	u16 mask;
+
+	mask = E1000_SWFW_CSR_SM;
 
 	e1000_release_swfw_sync_80003es2lan(hw, mask);
 }
@@ -347,7 +379,7 @@ static s32 e1000_acquire_swfw_sync_80003es2lan(struct e1000_hw *hw, u16 mask)
 	u32 swmask = mask;
 	u32 fwmask = mask << 16;
 	s32 i = 0;
-	s32 timeout = 200;
+	s32 timeout = 50;
 
 	while (i < timeout) {
 		if (e1000e_get_hw_semaphore(hw))
@@ -715,13 +747,7 @@ static s32 e1000_get_link_up_info_80003es2lan(struct e1000_hw *hw, u16 *speed,
 		ret_val = e1000e_get_speed_and_duplex_copper(hw,
 								    speed,
 								    duplex);
-		if (ret_val)
-			return ret_val;
-		if (*speed == SPEED_1000)
-			ret_val = e1000_cfg_kmrn_1000_80003es2lan(hw);
-		else
-			ret_val = e1000_cfg_kmrn_10_100_80003es2lan(hw,
-							      *duplex);
+		hw->phy.ops.cfg_on_link_up(hw);
 	} else {
 		ret_val = e1000e_get_speed_and_duplex_fiber_serdes(hw,
 								  speed,
@@ -763,8 +789,10 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 
 	ctrl = er32(CTRL);
 
+	ret_val = e1000_acquire_phy_80003es2lan(hw);
 	hw_dbg(hw, "Issuing a global reset to MAC\n");
 	ew32(CTRL, ctrl | E1000_CTRL_RST);
+	e1000_release_phy_80003es2lan(hw);
 
 	ret_val = e1000e_get_auto_rd_done(hw);
 	if (ret_val)
@@ -907,8 +935,7 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val;
 	u32 ctrl_ext;
-	u32 i = 0;
-	u16 data, data2;
+	u16 data;
 
 	ret_val = e1e_rphy(hw, GG82563_PHY_MAC_SPEC_CTRL, &data);
 	if (ret_val)
@@ -972,19 +999,20 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 	}
 
 	/* Bypass Rx and Tx FIFO's */
-	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL,
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
+					E1000_KMRNCTRLSTA_OFFSET_FIFO_CTRL,
 					E1000_KMRNCTRLSTA_FIFO_CTRL_RX_BYPASS |
 					E1000_KMRNCTRLSTA_FIFO_CTRL_TX_BYPASS);
 	if (ret_val)
 		return ret_val;
 
-	ret_val = e1000e_read_kmrn_reg(hw,
+	ret_val = e1000_read_kmrn_reg_80003es2lan(hw,
 				       E1000_KMRNCTRLSTA_OFFSET_MAC2PHY_OPMODE,
 				       &data);
 	if (ret_val)
 		return ret_val;
 	data |= E1000_KMRNCTRLSTA_OPMODE_E_IDLE;
-	ret_val = e1000e_write_kmrn_reg(hw,
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
 					E1000_KMRNCTRLSTA_OFFSET_MAC2PHY_OPMODE,
 					data);
 	if (ret_val)
@@ -1019,18 +1047,9 @@ static s32 e1000_copper_link_setup_gg82563_80003es2lan(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 
-		do {
-			ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL,
-					   &data);
-			if (ret_val)
-				return ret_val;
-
-			ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL,
-					   &data2);
-			if (ret_val)
-				return ret_val;
-			i++;
-		} while ((data != data2) && (i < GG82563_MAX_KMRN_RETRY));
+		ret_val = e1e_rphy(hw, GG82563_PHY_KMRN_MODE_CTRL, &data);
+		if (ret_val)
+			return ret_val;
 
 		data &= ~GG82563_KMCR_PASS_FALSE_CARRIER;
 		ret_val = e1e_wphy(hw, GG82563_PHY_KMRN_MODE_CTRL, data);
@@ -1077,23 +1096,27 @@ static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw)
 	 * iteration and increase the max iterations when
 	 * polling the phy; this fixes erroneous timeouts at 10Mbps.
 	 */
-	ret_val = e1000e_write_kmrn_reg(hw, GG82563_REG(0x34, 4), 0xFFFF);
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw, GG82563_REG(0x34, 4),
+	                                           0xFFFF);
 	if (ret_val)
 		return ret_val;
-	ret_val = e1000e_read_kmrn_reg(hw, GG82563_REG(0x34, 9), &reg_data);
+	ret_val = e1000_read_kmrn_reg_80003es2lan(hw, GG82563_REG(0x34, 9),
+	                                          &reg_data);
 	if (ret_val)
 		return ret_val;
 	reg_data |= 0x3F;
-	ret_val = e1000e_write_kmrn_reg(hw, GG82563_REG(0x34, 9), reg_data);
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw, GG82563_REG(0x34, 9),
+	                                           reg_data);
 	if (ret_val)
 		return ret_val;
-	ret_val = e1000e_read_kmrn_reg(hw,
+	ret_val = e1000_read_kmrn_reg_80003es2lan(hw,
 				      E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
 				      &reg_data);
 	if (ret_val)
 		return ret_val;
 	reg_data |= E1000_KMRNCTRLSTA_INB_CTRL_DIS_PADDING;
-	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
+					E1000_KMRNCTRLSTA_OFFSET_INB_CTRL,
 					reg_data);
 	if (ret_val)
 		return ret_val;
@@ -1105,6 +1128,35 @@ static s32 e1000_setup_copper_link_80003es2lan(struct e1000_hw *hw)
 	ret_val = e1000e_setup_copper_link(hw);
 
 	return 0;
+}
+
+/**
+ *  e1000_cfg_on_link_up_80003es2lan - es2 link configuration after link-up
+ *  @hw: pointer to the HW structure
+ *  @duplex: current duplex setting
+ *
+ *  Configure the KMRN interface by applying last minute quirks for
+ *  10/100 operation.
+ **/
+static s32 e1000_cfg_on_link_up_80003es2lan(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	u16 speed;
+	u16 duplex;
+
+	if (hw->phy.media_type == e1000_media_type_copper) {
+		ret_val = e1000e_get_speed_and_duplex_copper(hw, &speed,
+		                                             &duplex);
+		if (ret_val)
+			return ret_val;
+
+		if (speed == SPEED_1000)
+			ret_val = e1000_cfg_kmrn_1000_80003es2lan(hw);
+		else
+			ret_val = e1000_cfg_kmrn_10_100_80003es2lan(hw, duplex);
+	}
+
+	return ret_val;
 }
 
 /**
@@ -1123,8 +1175,9 @@ static s32 e1000_cfg_kmrn_10_100_80003es2lan(struct e1000_hw *hw, u16 duplex)
 	u16 reg_data, reg_data2;
 
 	reg_data = E1000_KMRNCTRLSTA_HD_CTRL_10_100_DEFAULT;
-	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
-					reg_data);
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
+	                               E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
+	                               reg_data);
 	if (ret_val)
 		return ret_val;
 
@@ -1170,8 +1223,9 @@ static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 	u32 i = 0;
 
 	reg_data = E1000_KMRNCTRLSTA_HD_CTRL_1000_DEFAULT;
-	ret_val = e1000e_write_kmrn_reg(hw, E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
-					reg_data);
+	ret_val = e1000_write_kmrn_reg_80003es2lan(hw,
+	                               E1000_KMRNCTRLSTA_OFFSET_HD_CTRL,
+	                               reg_data);
 	if (ret_val)
 		return ret_val;
 
@@ -1194,6 +1248,71 @@ static s32 e1000_cfg_kmrn_1000_80003es2lan(struct e1000_hw *hw)
 
 	reg_data &= ~GG82563_KMCR_PASS_FALSE_CARRIER;
 	ret_val = e1e_wphy(hw, GG82563_PHY_KMRN_MODE_CTRL, reg_data);
+
+	return ret_val;
+}
+
+/**
+ *  e1000_read_kmrn_reg_80003es2lan - Read kumeran register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
+ *
+ *  Acquire semaphore, then read the PHY register at offset
+ *  using the kumeran interface.  The information retrieved is stored in data.
+ *  Release the semaphore before exiting.
+ **/
+static s32 e1000_read_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
+					   u16 *data)
+{
+	u32 kmrnctrlsta;
+	s32 ret_val = 0;
+
+	ret_val = e1000_acquire_mac_csr_80003es2lan(hw);
+	if (ret_val)
+		return ret_val;
+
+	kmrnctrlsta = ((offset << E1000_KMRNCTRLSTA_OFFSET_SHIFT) &
+	               E1000_KMRNCTRLSTA_OFFSET) | E1000_KMRNCTRLSTA_REN;
+	ew32(KMRNCTRLSTA, kmrnctrlsta);
+
+	udelay(2);
+
+	kmrnctrlsta = er32(KMRNCTRLSTA);
+	*data = (u16)kmrnctrlsta;
+
+	e1000_release_mac_csr_80003es2lan(hw);
+
+	return ret_val;
+}
+
+/**
+ *  e1000_write_kmrn_reg_80003es2lan - Write kumeran register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write at register offset
+ *
+ *  Acquire semaphore, then write the data to PHY register
+ *  at the offset using the kumeran interface.  Release semaphore
+ *  before exiting.
+ **/
+static s32 e1000_write_kmrn_reg_80003es2lan(struct e1000_hw *hw, u32 offset,
+					    u16 data)
+{
+	u32 kmrnctrlsta;
+	s32 ret_val = 0;
+
+	ret_val = e1000_acquire_mac_csr_80003es2lan(hw);
+	if (ret_val)
+		return ret_val;
+
+	kmrnctrlsta = ((offset << E1000_KMRNCTRLSTA_OFFSET_SHIFT) &
+	               E1000_KMRNCTRLSTA_OFFSET) | data;
+	ew32(KMRNCTRLSTA, kmrnctrlsta);
+
+	udelay(2);
+
+	e1000_release_mac_csr_80003es2lan(hw);
 
 	return ret_val;
 }
@@ -1276,6 +1395,7 @@ static struct e1000_phy_operations es2_phy_ops = {
 	.set_d0_lplu_state  	= NULL,
 	.set_d3_lplu_state  	= e1000e_set_d3_lplu_state,
 	.write_phy_reg      	= e1000_write_phy_reg_gg82563_80003es2lan,
+	.cfg_on_link_up      	= e1000_cfg_on_link_up_80003es2lan,
 };
 
 static struct e1000_nvm_operations es2_nvm_ops = {

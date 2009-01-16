@@ -82,7 +82,7 @@ static void sysrq_handle_loglevel(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_loglevel_op = {
 	.handler	= sysrq_handle_loglevel,
-	.help_msg	= "loglevel0-8",
+	.help_msg	= "loglevel(0-9)",
 	.action_msg	= "Changing Loglevel",
 	.enable_mask	= SYSRQ_ENABLE_LOG,
 };
@@ -233,7 +233,7 @@ static void sysrq_handle_showallcpus(int key, struct tty_struct *tty)
 
 static struct sysrq_key_op sysrq_showallcpus_op = {
 	.handler	= sysrq_handle_showallcpus,
-	.help_msg	= "aLlcpus",
+	.help_msg	= "show-backtrace-all-active-cpus(L)",
 	.action_msg	= "Show backtrace of all active CPUs",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -247,7 +247,7 @@ static void sysrq_handle_showregs(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_showregs_op = {
 	.handler	= sysrq_handle_showregs,
-	.help_msg	= "showPc",
+	.help_msg	= "show-registers(P)",
 	.action_msg	= "Show Regs",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -258,7 +258,7 @@ static void sysrq_handle_showstate(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_showstate_op = {
 	.handler	= sysrq_handle_showstate,
-	.help_msg	= "showTasks",
+	.help_msg	= "show-task-states(T)",
 	.action_msg	= "Show State",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -269,11 +269,27 @@ static void sysrq_handle_showstate_blocked(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_showstate_blocked_op = {
 	.handler	= sysrq_handle_showstate_blocked,
-	.help_msg	= "shoW-blocked-tasks",
+	.help_msg	= "show-blocked-tasks(W)",
 	.action_msg	= "Show Blocked State",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
 
+#ifdef CONFIG_TRACING
+#include <linux/ftrace.h>
+
+static void sysrq_ftrace_dump(int key, struct tty_struct *tty)
+{
+	ftrace_dump();
+}
+static struct sysrq_key_op sysrq_ftrace_dump_op = {
+	.handler	= sysrq_ftrace_dump,
+	.help_msg	= "dumpZ-ftrace-buffer",
+	.action_msg	= "Dump ftrace buffer",
+	.enable_mask	= SYSRQ_ENABLE_DUMP,
+};
+#else
+#define sysrq_ftrace_dump_op (*(struct sysrq_key_op *)0)
+#endif
 
 static void sysrq_handle_showmem(int key, struct tty_struct *tty)
 {
@@ -281,7 +297,7 @@ static void sysrq_handle_showmem(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_showmem_op = {
 	.handler	= sysrq_handle_showmem,
-	.help_msg	= "showMem",
+	.help_msg	= "show-memory-usage(M)",
 	.action_msg	= "Show Memory",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
@@ -307,7 +323,7 @@ static void sysrq_handle_term(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_term_op = {
 	.handler	= sysrq_handle_term,
-	.help_msg	= "tErm",
+	.help_msg	= "terminate-all-tasks(E)",
 	.action_msg	= "Terminate All Tasks",
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
@@ -325,7 +341,7 @@ static void sysrq_handle_moom(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_moom_op = {
 	.handler	= sysrq_handle_moom,
-	.help_msg	= "Full",
+	.help_msg	= "memory-full-oom-kill(F)",
 	.action_msg	= "Manual OOM execution",
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
@@ -337,7 +353,7 @@ static void sysrq_handle_kill(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_kill_op = {
 	.handler	= sysrq_handle_kill,
-	.help_msg	= "kIll",
+	.help_msg	= "kill-all-tasks(I)",
 	.action_msg	= "Kill All Tasks",
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
@@ -348,7 +364,7 @@ static void sysrq_handle_unrt(int key, struct tty_struct *tty)
 }
 static struct sysrq_key_op sysrq_unrt_op = {
 	.handler	= sysrq_handle_unrt,
-	.help_msg	= "Nice",
+	.help_msg	= "nice-all-RT-tasks(N)",
 	.action_msg	= "Nice All RT Tasks",
 	.enable_mask	= SYSRQ_ENABLE_RTNICE,
 };
@@ -406,7 +422,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	NULL,				/* x */
 	/* y: May be registered on sparc64 for global register dump */
 	NULL,				/* y */
-	NULL				/* z */
+	&sysrq_ftrace_dump_op,		/* z */
 };
 
 /* key2index calculation, -1 on invalid index */
@@ -457,6 +473,12 @@ void __handle_sysrq(int key, struct tty_struct *tty, int check_mask)
 	unsigned long flags;
 
 	spin_lock_irqsave(&sysrq_key_table_lock, flags);
+	/*
+	 * Raise the apparent loglevel to maximum so that the sysrq header
+	 * is shown to provide the user with positive feedback.  We do not
+	 * simply emit this at KERN_EMERG as that would change message
+	 * routing in the consumers of /proc/kmsg.
+	 */
 	orig_log_level = console_loglevel;
 	console_loglevel = 7;
 	printk(KERN_INFO "SysRq : ");

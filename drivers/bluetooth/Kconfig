@@ -2,26 +2,6 @@
 menu "Bluetooth device drivers"
 	depends on BT
 
-config BT_HCIUSB
-	tristate "HCI USB driver (old version)"
-	depends on USB && BT_HCIBTUSB=n
-	help
-	  Bluetooth HCI USB driver.
-	  This driver is required if you want to use Bluetooth devices with
-	  USB interface.
-
-	  Say Y here to compile support for Bluetooth USB devices into the
-	  kernel or say M to compile it as module (hci_usb).
-
-config BT_HCIUSB_SCO
-	bool "SCO (voice) support"
-	depends on BT_HCIUSB
-	help
-	  This option enables the SCO support in the HCI USB driver. You need this
-	  to transmit voice data with your Bluetooth USB device.
-
-	  Say Y here to compile support for SCO over HCI USB.
-
 config BT_HCIBTUSB
 	tristate "HCI USB driver"
 	depends on USB

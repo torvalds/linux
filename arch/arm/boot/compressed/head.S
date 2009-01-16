@@ -624,6 +624,12 @@ proc_types:
 		b	__armv4_mmu_cache_off
 		b	__armv4_mmu_cache_flush
 
+		.word	0x56056930
+		.word	0xff0ffff0		@ PXA935
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv4_mmu_cache_flush
+
 		.word	0x56050000		@ Feroceon
 		.word	0xff0f0000
 		b	__armv4_mmu_cache_on
@@ -717,6 +723,9 @@ __armv7_mmu_cache_off:
 		bl	__armv7_mmu_cache_flush
 		mov	r0, #0
 		mcr	p15, 0, r0, c8, c7, 0	@ invalidate whole TLB
+		mcr	p15, 0, r0, c7, c5, 6	@ invalidate BTC
+		mcr	p15, 0, r0, c7, c10, 4	@ DSB
+		mcr	p15, 0, r0, c7, c5, 4	@ ISB
 		mov	pc, r12
 
 __arm6_mmu_cache_off:
@@ -778,12 +787,13 @@ __armv6_mmu_cache_flush:
 __armv7_mmu_cache_flush:
 		mrc	p15, 0, r10, c0, c1, 5	@ read ID_MMFR1
 		tst	r10, #0xf << 16		@ hierarchical cache (ARMv7)
-		beq	hierarchical
 		mov	r10, #0
+		beq	hierarchical
 		mcr	p15, 0, r10, c7, c14, 0	@ clean+invalidate D
 		b	iflush
 hierarchical:
-		stmfd	sp!, {r0-r5, r7, r9-r11}
+		mcr	p15, 0, r10, c7, c10, 5	@ DMB
+		stmfd	sp!, {r0-r5, r7, r9, r11}
 		mrc	p15, 1, r0, c0, c0, 1	@ read clidr
 		ands	r3, r0, #0x7000000	@ extract loc from clidr
 		mov	r3, r3, lsr #23		@ left align loc bit field
@@ -820,12 +830,14 @@ skip:
 		cmp	r3, r10
 		bgt	loop1
 finished:
+		ldmfd	sp!, {r0-r5, r7, r9, r11}
 		mov	r10, #0			@ swith back to cache level 0
 		mcr	p15, 2, r10, c0, c0, 0	@ select current cache level in cssr
-		ldmfd	sp!, {r0-r5, r7, r9-r11}
 iflush:
+		mcr	p15, 0, r10, c7, c10, 4	@ DSB
 		mcr	p15, 0, r10, c7, c5, 0	@ invalidate I+BTB
-		mcr	p15, 0, r10, c7, c10, 4	@ drain WB
+		mcr	p15, 0, r10, c7, c10, 4	@ DSB
+		mcr	p15, 0, r10, c7, c5, 4	@ ISB
 		mov	pc, lr
 
 __armv5tej_mmu_cache_flush:

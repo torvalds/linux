@@ -10,34 +10,13 @@
  *
  */
 
-#
-# startup-code at 0x10000, running in absolute addressing mode
-# this is called either by the ipl loader or directly by PSW restart
-# or linload or SALIPL
-#
-	.org	0x10000
-startup:basr	%r13,0			# get base
-.LPG0:	l	%r13,0f-.LPG0(%r13)
-	b	0(%r13)
-0:	.long	startup_continue
-
-#
-# params at 10400 (setup.h)
-#
-	.org	PARMAREA
-	.long	0,0			# IPL_DEVICE
-	.long	0,0			# INITRD_START
-	.long	0,0			# INITRD_SIZE
-
-	.org	COMMAND_LINE
-	.byte	"root=/dev/ram0 ro"
-	.byte	0
-
 	.org	0x11000
 
 startup_continue:
 	basr	%r13,0			# get base
-.LPG1:	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
+.LPG1:
+
+	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
 	lctl	%c0,%c15,.Lctl-.LPG1(%r13) # load control registers
 	l	%r12,.Lparmaddr-.LPG1(%r13) # pointer to parameter area
 					# move IPL device to lowcore
@@ -50,7 +29,6 @@ startup_continue:
 	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union+THREAD_SIZE
 	st	%r15,__LC_KERNEL_STACK	# set end of kernel stack
 	ahi	%r15,-96
-	xc	__SF_BACKCHAIN(4,%r15),__SF_BACKCHAIN(%r15) # clear backchain
 #
 # Save ipl parameters, clear bss memory, initialize storage key for kernel pages,
 # and create a kernel NSS if the SAVESYS= parm is defined

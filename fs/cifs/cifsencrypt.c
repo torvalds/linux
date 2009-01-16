@@ -37,7 +37,7 @@
 
 extern void mdfour(unsigned char *out, unsigned char *in, int n);
 extern void E_md4hash(const unsigned char *passwd, unsigned char *p16);
-extern void SMBencrypt(unsigned char *passwd, unsigned char *c8,
+extern void SMBencrypt(unsigned char *passwd, const unsigned char *c8,
 		       unsigned char *p24);
 
 static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
@@ -280,25 +280,22 @@ int CalcNTLMv2_partial_mac_key(struct cifsSesInfo *ses,
 }
 
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
-void calc_lanman_hash(struct cifsSesInfo *ses, char *lnm_session_key)
+void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
+			char *lnm_session_key)
 {
 	int i;
 	char password_with_pad[CIFS_ENCPWD_SIZE];
 
-	if (ses->server == NULL)
-		return;
-
 	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
-	if (ses->password)
-		strncpy(password_with_pad, ses->password, CIFS_ENCPWD_SIZE);
+	if (password)
+		strncpy(password_with_pad, password, CIFS_ENCPWD_SIZE);
 
-	if ((ses->server->secMode & SECMODE_PW_ENCRYPT) == 0)
-		if (extended_security & CIFSSEC_MAY_PLNTXT) {
-			memset(lnm_session_key, 0, CIFS_SESS_KEY_SIZE);
-			memcpy(lnm_session_key, password_with_pad,
-				CIFS_ENCPWD_SIZE);
-			return;
-		}
+	if (!encrypt && extended_security & CIFSSEC_MAY_PLNTXT) {
+		memset(lnm_session_key, 0, CIFS_SESS_KEY_SIZE);
+		memcpy(lnm_session_key, password_with_pad,
+			CIFS_ENCPWD_SIZE);
+		return;
+	}
 
 	/* calculate old style session key */
 	/* calling toupper is less broken than repeatedly
@@ -314,7 +311,8 @@ void calc_lanman_hash(struct cifsSesInfo *ses, char *lnm_session_key)
 	for (i = 0; i < CIFS_ENCPWD_SIZE; i++)
 		password_with_pad[i] = toupper(password_with_pad[i]);
 
-	SMBencrypt(password_with_pad, ses->server->cryptKey, lnm_session_key);
+	SMBencrypt(password_with_pad, cryptkey, lnm_session_key);
+
 	/* clear password before we return/free memory */
 	memset(password_with_pad, 0, CIFS_ENCPWD_SIZE);
 }

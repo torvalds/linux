@@ -54,16 +54,9 @@
 /* System Includes */
 #define WLAN_DBVAR	prism2_debug
 
-#include "version.h"
-
-
 #include <linux/version.h>
-
 #include <linux/module.h>
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,25))
 #include <linux/moduleparam.h>
-#endif
-
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -71,33 +64,14 @@
 #include <linux/slab.h>
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#include <linux/tqueue.h>
-#else
 #include <linux/workqueue.h>
-#endif
 
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>
 #include <linux/if_arp.h>
 
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-#include <pcmcia/version.h>
-#include <pcmcia/cs_types.h>
-#include <pcmcia/cs.h>
-#include <pcmcia/cistpl.h>
-#include <pcmcia/ds.h>
-#include <pcmcia/cisreg.h>
-#endif
-
 #include "wlan_compat.h"
-
-#if ((WLAN_HOSTIF == WLAN_PLX) || (WLAN_HOSTIF == WLAN_PCI))
-#include <linux/ioport.h>
-#include <linux/pci.h>
-#endif
 
 /*================================================================*/
 /* Project Includes */
@@ -126,34 +100,7 @@
 /*================================================================*/
 /* Local Static Definitions */
 
-#if (WLAN_HOSTIF == WLAN_PCMCIA)
-#define DRIVER_SUFFIX	"_cs"
-#elif (WLAN_HOSTIF == WLAN_PLX)
-#define DRIVER_SUFFIX	"_plx"
-typedef char* dev_info_t;
-#elif (WLAN_HOSTIF == WLAN_PCI)
-#define DRIVER_SUFFIX	"_pci"
-typedef char* dev_info_t;
-#elif (WLAN_HOSTIF == WLAN_USB)
-#define DRIVER_SUFFIX	"_usb"
-typedef char* dev_info_t;
-#else
-#error "HOSTIF unsupported or undefined!"
-#endif
-
-static char		*version = "prism2" DRIVER_SUFFIX ".o: " WLAN_RELEASE;
-static dev_info_t	dev_info = "prism2" DRIVER_SUFFIX;
-
-#if (WLAN_HOSTIF == WLAN_PLX || WLAN_HOSTIF == WLAN_PCI)
-#ifdef CONFIG_PM
-static int prism2sta_suspend_pci(struct pci_dev *pdev, pm_message_t state);
-static int prism2sta_resume_pci(struct pci_dev *pdev);
-#endif
-#endif
-
-#if (WLAN_HOSTIF == WLAN_PCI)
-
-#endif /* WLAN_PCI */
+static char *dev_info = "prism2_usb";
 
 static wlandevice_t *create_wlan(void);
 
@@ -163,16 +110,7 @@ static wlandevice_t *create_wlan(void);
 int      prism2_reset_holdtime=30;	/* Reset hold time in ms */
 int	 prism2_reset_settletime=100;	/* Reset settle time in ms */
 
-#if (WLAN_HOSTIF == WLAN_USB)
 static int	prism2_doreset=0;		/* Do a reset at init? */
-#else
-static int      prism2_doreset=1;		/* Do a reset at init? */
-int             prism2_bap_timeout=1000;        /* BAP timeout */
-int		prism2_irq_evread_max=20;	/* Maximum number of
-						 * ev_reads (loops)
-						 * in irq handler
-						 */
-#endif
 
 #ifdef WLAN_INCLUDE_DEBUG
 int prism2_debug=0;
@@ -187,13 +125,6 @@ module_param( prism2_reset_holdtime, int, 0644);
 MODULE_PARM_DESC( prism2_reset_holdtime, "reset hold time in ms");
 module_param( prism2_reset_settletime, int, 0644);
 MODULE_PARM_DESC( prism2_reset_settletime, "reset settle time in ms");
-
-#if (WLAN_HOSTIF != WLAN_USB)
-module_param( prism2_bap_timeout, int, 0644);
-MODULE_PARM_DESC(prism2_bap_timeout, "BufferAccessPath Timeout in 10*n us");
-module_param( prism2_irq_evread_max, int, 0644);
-MODULE_PARM_DESC( prism2_irq_evread_max, "Maximim number of event reads in interrupt handler");
-#endif
 
 MODULE_LICENSE("Dual MPL/GPL");
 
@@ -231,17 +162,6 @@ static void	prism2sta_inf_authreq_defer(
 static void	prism2sta_inf_psusercnt(
 			wlandevice_t *wlandev, hfa384x_InfFrame_t *inf);
 
-#ifdef CONFIG_PROC_FS
-static int
-prism2sta_proc_read(
-	char	*page,
-	char	**start,
-	off_t	offset,
-	int	count,
-	int	*eof,
-	void	*data);
-#endif
-
 /*================================================================*/
 /* Function Definitions */
 
@@ -267,7 +187,7 @@ inline void dmpmem(void *buf, int n)
 	int c;
 	for ( c= 0; c < n; c++) {
 		if ( (c % 16) == 0 ) printk(KERN_DEBUG"dmp[%d]: ", c);
-		printk("%02x ", ((UINT8*)buf)[c]);
+		printk("%02x ", ((u8*)buf)[c]);
 		if ( (c % 16) == 15 ) printk("\n");
 	}
 	if ( (c % 16) != 0 ) printk("\n");
@@ -298,10 +218,6 @@ inline void dmpmem(void *buf, int n)
 static int prism2sta_open(wlandevice_t *wlandev)
 {
 	DBFENTER;
-
-#ifdef ANCIENT_MODULE_CODE
-	MOD_INC_USE_COUNT;
-#endif
 
 	/* We don't currently have to do anything else.
 	 * The setup of the MAC should be subsequently completed via
@@ -340,10 +256,6 @@ static int prism2sta_open(wlandevice_t *wlandev)
 static int prism2sta_close(wlandevice_t *wlandev)
 {
 	DBFENTER;
-
-#ifdef ANCIENT_MODULE_CODE
-	MOD_DEC_USE_COUNT;
-#endif
 
 	/* We don't currently have to do anything else.
 	 * Higher layers know we're not ready from dev->start==0 and
@@ -463,10 +375,6 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		WLAN_LOG_DEBUG(2,"Received mibset request\n");
 		result = prism2mgmt_mibset_mibget(wlandev, msg);
 		break;
-	case DIDmsg_dot11req_powermgmt :
-		WLAN_LOG_DEBUG(2,"Received powermgmt request\n");
-		result = prism2mgmt_powermgmt(wlandev, msg);
-		break;
 	case DIDmsg_dot11req_scan :
 		WLAN_LOG_DEBUG(2,"Received scan request\n");
 		result = prism2mgmt_scan(wlandev, msg);
@@ -475,34 +383,6 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		WLAN_LOG_DEBUG(2,"Received scan_results request\n");
 		result = prism2mgmt_scan_results(wlandev, msg);
 		break;
-	case DIDmsg_dot11req_join :
-		WLAN_LOG_DEBUG(2,"Received join request\n");
-		result = prism2mgmt_join(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_authenticate :
-		WLAN_LOG_DEBUG(2,"Received authenticate request\n");
-		result = prism2mgmt_authenticate(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_deauthenticate :
-		WLAN_LOG_DEBUG(2,"Received mlme deauthenticate request\n");
-		result = prism2mgmt_deauthenticate(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_associate :
-		WLAN_LOG_DEBUG(2,"Received mlme associate request\n");
-		result = prism2mgmt_associate(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_reassociate :
-		WLAN_LOG_DEBUG(2,"Received mlme reassociate request\n");
-		result = prism2mgmt_reassociate(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_disassociate :
-		WLAN_LOG_DEBUG(2,"Received mlme disassociate request\n");
-		result = prism2mgmt_disassociate(wlandev, msg);
-		break;
-	case DIDmsg_dot11req_reset :
-		WLAN_LOG_DEBUG(2,"Received mlme reset request\n");
-		result = prism2mgmt_reset(wlandev, msg);
-		break;
 	case DIDmsg_dot11req_start :
 		WLAN_LOG_DEBUG(2,"Received mlme start request\n");
 		result = prism2mgmt_start(wlandev, msg);
@@ -510,46 +390,10 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 	/*
 	 * Prism2 specific messages
 	 */
-	case DIDmsg_p2req_join :
-		WLAN_LOG_DEBUG(2,"Received p2 join request\n");
-		result = prism2mgmt_p2_join(wlandev, msg);
-		break;
        	case DIDmsg_p2req_readpda :
 		WLAN_LOG_DEBUG(2,"Received mlme readpda request\n");
 		result = prism2mgmt_readpda(wlandev, msg);
 		break;
-	case DIDmsg_p2req_readcis :
-		WLAN_LOG_DEBUG(2,"Received mlme readcis request\n");
-		result = prism2mgmt_readcis(wlandev, msg);
-		break;
-	case DIDmsg_p2req_auxport_state :
-		WLAN_LOG_DEBUG(2,"Received mlme auxport_state request\n");
-		result = prism2mgmt_auxport_state(wlandev, msg);
-		break;
-	case DIDmsg_p2req_auxport_read :
-		WLAN_LOG_DEBUG(2,"Received mlme auxport_read request\n");
-		result = prism2mgmt_auxport_read(wlandev, msg);
-		break;
-	case DIDmsg_p2req_auxport_write :
-		WLAN_LOG_DEBUG(2,"Received mlme auxport_write request\n");
-		result = prism2mgmt_auxport_write(wlandev, msg);
-		break;
-	case DIDmsg_p2req_low_level :
-		WLAN_LOG_DEBUG(2,"Received mlme low_level request\n");
-		result = prism2mgmt_low_level(wlandev, msg);
-		break;
-        case DIDmsg_p2req_test_command :
-                WLAN_LOG_DEBUG(2,"Received mlme test_command request\n");
-                result = prism2mgmt_test_command(wlandev, msg);
-                break;
-        case DIDmsg_p2req_mmi_read :
-                WLAN_LOG_DEBUG(2,"Received mlme mmi_read request\n");
-                result = prism2mgmt_mmi_read(wlandev, msg);
-                break;
-        case DIDmsg_p2req_mmi_write :
-                WLAN_LOG_DEBUG(2,"Received mlme mmi_write request\n");
-                result = prism2mgmt_mmi_write(wlandev, msg);
-                break;
 	case DIDmsg_p2req_ramdl_state :
 		WLAN_LOG_DEBUG(2,"Received mlme ramdl_state request\n");
 		result = prism2mgmt_ramdl_state(wlandev, msg);
@@ -565,18 +409,6 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 	case DIDmsg_p2req_flashdl_write :
 		WLAN_LOG_DEBUG(2,"Received mlme flashdl_write request\n");
 		result = prism2mgmt_flashdl_write(wlandev, msg);
-		break;
-	case DIDmsg_p2req_dump_state :
-		WLAN_LOG_DEBUG(2,"Received mlme dump_state request\n");
-		result = prism2mgmt_dump_state(wlandev, msg);
-		break;
-	case DIDmsg_p2req_channel_info :
-		WLAN_LOG_DEBUG(2,"Received mlme channel_info request\n");
-		result = prism2mgmt_channel_info(wlandev, msg);
-		break;
-	case DIDmsg_p2req_channel_info_results :
-		WLAN_LOG_DEBUG(2,"Received mlme channel_info_results request\n");
-		result = prism2mgmt_channel_info_results(wlandev, msg);
 		break;
 	/*
 	 * Linux specific messages
@@ -603,17 +435,10 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		WLAN_LOG_DEBUG(2,"Received mlme autojoin request\n");
 		result = prism2mgmt_autojoin(wlandev, msg);
 		break;
-	case DIDmsg_p2req_enable :
-		WLAN_LOG_DEBUG(2,"Received mlme enable request\n");
-		result = prism2mgmt_enable(wlandev, msg);
-		break;
 	case DIDmsg_lnxreq_commsquality: {
 		p80211msg_lnxreq_commsquality_t *qualmsg;
 
 		WLAN_LOG_DEBUG(2,"Received commsquality request\n");
-
-		if (hw->ap)
-			break;
 
 		qualmsg = (p80211msg_lnxreq_commsquality_t*) msg;
 
@@ -659,10 +484,10 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 *	process thread  (usually)
 *	interrupt
 ----------------------------------------------------------------*/
-UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
+u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 {
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
-	UINT32 			result;
+	u32 			result;
 	DBFENTER;
 
 	result = P80211ENUM_resultcode_implementation_failure;
@@ -679,9 +504,6 @@ UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
 			 * Initialize the device+driver sufficiently
 			 * for firmware loading.
 			 */
-#if (WLAN_HOSTIF != WLAN_USB)
-			result=hfa384x_cmd_initialize(hw);
-#else
 			if ((result=hfa384x_drvr_start(hw))) {
 				WLAN_LOG_ERROR(
 					"hfa384x_drvr_start() failed,"
@@ -691,7 +513,6 @@ UINT32 prism2sta_ifstate(wlandevice_t *wlandev, UINT32 ifstate)
 				wlandev->msdstate = WLAN_MSD_HWPRESENT;
 				break;
 			}
-#endif
 			wlandev->msdstate = WLAN_MSD_FWLOAD;
 			result = P80211ENUM_resultcode_success;
 			break;
@@ -841,8 +662,8 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 {
 	int 			result = 0;
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
-	UINT16                  temp;
-	UINT8			snum[HFA384x_RID_NICSERIALNUMBER_LEN];
+	u16                  temp;
+	u8			snum[HFA384x_RID_NICSERIALNUMBER_LEN];
 	char			pstr[(HFA384x_RID_NICSERIALNUMBER_LEN * 4) + 1];
 
 	DBFENTER;
@@ -907,20 +728,20 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	/* strip out the 'special' variant bits */
 	hw->mm_mods = hw->ident_sta_fw.variant & (BIT14 | BIT15);
-	hw->ident_sta_fw.variant &= ~((UINT16)(BIT14 | BIT15));
+	hw->ident_sta_fw.variant &= ~((u16)(BIT14 | BIT15));
 
 	if  ( hw->ident_sta_fw.id == 0x1f ) {
-		hw->ap = 0;
 		WLAN_LOG_INFO(
 			"ident: sta f/w: id=0x%02x %d.%d.%d\n",
 			hw->ident_sta_fw.id, hw->ident_sta_fw.major,
 			hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
 	} else {
-		hw->ap = 1;
 		WLAN_LOG_INFO(
 			"ident:  ap f/w: id=0x%02x %d.%d.%d\n",
 			hw->ident_sta_fw.id, hw->ident_sta_fw.major,
 			hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
+		WLAN_LOG_ERROR("Unsupported Tertiary AP firmeare loaded!\n");
+		goto failed;
 	}
 
 	/* Compatibility range, Modem supplier */
@@ -1168,16 +989,12 @@ static int prism2sta_setmulticast(wlandevice_t *wlandev, netdevice_t *dev)
 	int result = 0;
 	hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 
-	UINT16  promisc;
+	u16  promisc;
 
 	DBFENTER;
 
 	/* If we're not ready, what's the point? */
 	if ( hw->state != HFA384x_STATE_RUNNING )
-		goto exit;
-
-	/* If we're an AP, do nothing here */
-	if (hw->ap)
 		goto exit;
 
 	if ( (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0 )
@@ -1247,9 +1064,9 @@ static void prism2sta_inf_handover(wlandevice_t *wlandev, hfa384x_InfFrame_t *in
 static void prism2sta_inf_tallies(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
-	UINT16			*src16;
-	UINT32			*dst;
-	UINT32			*src32;
+	u16			*src16;
+	u32			*dst;
+	u32			*src32;
 	int			i;
 	int			cnt;
 
@@ -1260,15 +1077,15 @@ static void prism2sta_inf_tallies(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf
 	** record length of the info record.
 	*/
 
-	cnt = sizeof(hfa384x_CommTallies32_t) / sizeof(UINT32);
+	cnt = sizeof(hfa384x_CommTallies32_t) / sizeof(u32);
 	if (inf->framelen > 22) {
-		dst   = (UINT32 *) &hw->tallies;
-		src32 = (UINT32 *) &inf->info.commtallies32;
+		dst   = (u32 *) &hw->tallies;
+		src32 = (u32 *) &inf->info.commtallies32;
 		for (i = 0; i < cnt; i++, dst++, src32++)
 			*dst += hfa384x2host_32(*src32);
 	} else {
-		dst   = (UINT32 *) &hw->tallies;
-		src16 = (UINT16 *) &inf->info.commtallies16;
+		dst   = (u32 *) &hw->tallies;
+		src16 = (u16 *) &inf->info.commtallies16;
 		for (i = 0; i < cnt; i++, dst++, src16++)
 			*dst += hfa384x2host_16(*src16);
 	}
@@ -1308,7 +1125,7 @@ static void prism2sta_inf_scanresults(wlandevice_t *wlandev,
 	DBFENTER;
 
 	/* Get the number of results, first in bytes, then in results */
-	nbss = (inf->framelen * sizeof(UINT16)) -
+	nbss = (inf->framelen * sizeof(u16)) -
 		sizeof(inf->infotype) -
 		sizeof(inf->info.scanresult.scanreason);
 	nbss /= sizeof(hfa384x_ScanResultSub_t);
@@ -1500,7 +1317,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 		/* Don't call this in monitor mode */
 		if ( wlandev->netdev->type == ARPHRD_ETHER ) {
-			UINT16			portstatus;
+			u16			portstatus;
 
 			WLAN_LOG_INFO("linkstatus=CONNECTED\n");
 
@@ -1836,7 +1653,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 	hfa384x_authenticateStation_data_t  rec;
 
 	int    i, added, result, cnt;
-	UINT8  *addr;
+	u8  *addr;
 
 	DBFENTER;
 
@@ -2163,7 +1980,7 @@ void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-void prism2sta_ev_txexc(wlandevice_t *wlandev, UINT16 status)
+void prism2sta_ev_txexc(wlandevice_t *wlandev, u16 status)
 {
 	DBFENTER;
 
@@ -2190,7 +2007,7 @@ void prism2sta_ev_txexc(wlandevice_t *wlandev, UINT16 status)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-void prism2sta_ev_tx(wlandevice_t *wlandev, UINT16 status)
+void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status)
 {
 	DBFENTER;
 	WLAN_LOG_DEBUG(4, "Tx Complete, status=0x%04x\n", status);
@@ -2247,46 +2064,11 @@ void prism2sta_ev_alloc(wlandevice_t *wlandev)
 {
 	DBFENTER;
 
-	p80211netdev_wake_queue(wlandev);
+	netif_wake_queue(wlandev->netdev);
 
 	DBFEXIT;
 	return;
 }
-
-#if (WLAN_HOSTIF == WLAN_PLX || WLAN_HOSTIF == WLAN_PCI)
-#ifdef CONFIG_PM
-static int prism2sta_suspend_pci(struct pci_dev *pdev, pm_message_t state)
-{
-       	wlandevice_t		*wlandev;
-
-	wlandev = (wlandevice_t *) pci_get_drvdata(pdev);
-
-	/* reset hardware */
-	if (wlandev) {
-		prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
-		p80211_suspend(wlandev);
-	}
-
-	// call a netif_device_detach(wlandev->netdev) ?
-
-	return 0;
-}
-
-static int prism2sta_resume_pci (struct pci_dev *pdev)
-{
-       	wlandevice_t		*wlandev;
-
-	wlandev = (wlandevice_t *) pci_get_drvdata(pdev);
-
-	if (wlandev) {
-		prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
-		p80211_resume(wlandev);
-	}
-
-        return 0;
-}
-#endif
-#endif
 
 /*----------------------------------------------------------------
 * create_wlan
@@ -2334,9 +2116,6 @@ static wlandevice_t *create_wlan(void)
 	wlandev->open = prism2sta_open;
 	wlandev->close = prism2sta_close;
 	wlandev->reset = prism2sta_reset;
-#ifdef CONFIG_PROC_FS
-	wlandev->nsd_proc_read = prism2sta_proc_read;
-#endif
 	wlandev->txframe = prism2sta_txframe;
 	wlandev->mlmerequest = prism2sta_mlmerequest;
 	wlandev->set_multicast_list = prism2sta_setmulticast;
@@ -2350,75 +2129,6 @@ static wlandevice_t *create_wlan(void)
 
 	return wlandev;
 }
-
-#ifdef CONFIG_PROC_FS
-static int
-prism2sta_proc_read(
-	char	*page,
-	char	**start,
-	off_t	offset,
-	int	count,
-	int	*eof,
-	void	*data)
-{
-	char	 *p = page;
-	wlandevice_t *wlandev = (wlandevice_t *) data;
-	hfa384x_t *hw = (hfa384x_t *) wlandev->priv;
-
-	UINT16 hwtype = 0;
-
-	DBFENTER;
-	if (offset != 0) {
-		*eof = 1;
-		goto exit;
-	}
-
-	// XXX 0x0001 for prism2.5/3, 0x0000 for prism2.
-	hwtype = BIT0;
-
-#if (WLAN_HOSTIF != WLAN_USB)
-	if (hw->isram16)
-		hwtype |= BIT1;
-#endif
-
-#if (WLAN_HOSTIF == WLAN_PCI)
-	hwtype |= BIT2;
-#endif
-
-#define PRISM2_CVS_ID "$Id: prism2sta.c 1826 2007-03-19 15:37:00Z pizza $"
-
-	p += sprintf(p, "# %s version %s (%s) '%s'\n\n",
-		     dev_info,
-		     WLAN_RELEASE, WLAN_BUILD_DATE, PRISM2_CVS_ID);
-
-	p += sprintf(p, "# nic h/w: id=0x%02x %d.%d.%d\n",
-		     hw->ident_nic.id, hw->ident_nic.major,
-		     hw->ident_nic.minor, hw->ident_nic.variant);
-
-	p += sprintf(p, "# pri f/w: id=0x%02x %d.%d.%d\n",
-		     hw->ident_pri_fw.id, hw->ident_pri_fw.major,
-		     hw->ident_pri_fw.minor, hw->ident_pri_fw.variant);
-
-	if (hw->ident_sta_fw.id == 0x1f) {
-		p += sprintf(p, "# sta f/w: id=0x%02x %d.%d.%d\n",
-			     hw->ident_sta_fw.id, hw->ident_sta_fw.major,
-			     hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
-	} else {
-		p += sprintf(p, "# ap f/w: id=0x%02x %d.%d.%d\n",
-			     hw->ident_sta_fw.id, hw->ident_sta_fw.major,
-			     hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
-	}
-
-#if (WLAN_HOSTIF != WLAN_USB)
-	p += sprintf(p, "# initial nic hw type, needed for SSF ramdl\n");
-	p += sprintf(p, "initnichw=%04x\n", hwtype);
-#endif
-
- exit:
-	DBFEXIT;
-	return (p - page);
-}
-#endif
 
 void prism2sta_commsqual_defer(struct work_struct *data)
 {

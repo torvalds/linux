@@ -16,7 +16,19 @@
 #include <asm/es7000/apic.h>
 #include <asm/es7000/ipi.h>
 #include <asm/es7000/mpparse.h>
-#include <asm/es7000/wakecpu.h>
+#include <asm/mach-default/mach_wakecpu.h>
+
+void __init es7000_update_genapic_to_cluster(void)
+{
+	genapic->target_cpus = target_cpus_cluster;
+	genapic->int_delivery_mode = INT_DELIVERY_MODE_CLUSTER;
+	genapic->int_dest_mode = INT_DEST_MODE_CLUSTER;
+	genapic->no_balance_irq = NO_BALANCE_IRQ_CLUSTER;
+
+	genapic->init_apic_ldr = init_apic_ldr_cluster;
+
+	genapic->cpu_mask_to_apicid = cpu_mask_to_apicid_cluster;
+}
 
 static int probe_es7000(void)
 {
@@ -31,12 +43,12 @@ static void __init enable_apic_mode(void)
 	return;
 }
 
-static __init int mps_oem_check(struct mp_config_table *mpc, char *oem,
-		char *productid)
+static __init int
+mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
-	if (mpc->mpc_oemptr) {
-		struct mp_config_oemtable *oem_table =
-			(struct mp_config_oemtable *)mpc->mpc_oemptr;
+	if (mpc->oemptr) {
+		struct mpc_oemtable *oem_table =
+			(struct mpc_oemtable *)mpc->oemptr;
 		if (!strncmp(oem, "UNISYS", 6))
 			return parse_unisys_oem((char *)oem_table);
 	}
@@ -75,7 +87,7 @@ static int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 }
 #endif
 
-static cpumask_t vector_allocation_domain(int cpu)
+static void vector_allocation_domain(int cpu, cpumask_t *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
 	 * specified in the interrupt destination when using lowest
@@ -85,8 +97,7 @@ static cpumask_t vector_allocation_domain(int cpu)
 	 * deliver interrupts to the wrong hyperthread when only one
 	 * hyperthread was specified in the interrupt desitination.
 	 */
-	cpumask_t domain = { { [0] = APIC_ALL_CPUS, } };
-	return domain;
+	*retmask = (cpumask_t){ { [0] = APIC_ALL_CPUS, } };
 }
 
 struct genapic __initdata_refok apic_es7000 = APIC_INIT("es7000", probe_es7000);

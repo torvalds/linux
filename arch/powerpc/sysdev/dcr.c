@@ -124,7 +124,8 @@ EXPORT_SYMBOL_GPL(dcr_write_generic);
 
 #endif /* defined(CONFIG_PPC_DCR_NATIVE) && defined(CONFIG_PPC_DCR_MMIO) */
 
-unsigned int dcr_resource_start(struct device_node *np, unsigned int index)
+unsigned int dcr_resource_start(const struct device_node *np,
+				unsigned int index)
 {
 	unsigned int ds;
 	const u32 *dr = of_get_property(np, "dcr-reg", &ds);
@@ -136,7 +137,7 @@ unsigned int dcr_resource_start(struct device_node *np, unsigned int index)
 }
 EXPORT_SYMBOL_GPL(dcr_resource_start);
 
-unsigned int dcr_resource_len(struct device_node *np, unsigned int index)
+unsigned int dcr_resource_len(const struct device_node *np, unsigned int index)
 {
 	unsigned int ds;
 	const u32 *dr = of_get_property(np, "dcr-reg", &ds);

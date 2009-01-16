@@ -75,7 +75,7 @@ EXPORT_SYMBOL(profile_pc);
 irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	/* Keep nmi watchdog up to date */
-	per_cpu(irq_stat, smp_processor_id()).irq0_irqs++;
+	inc_irq_stat(irq0_irqs);
 
 #ifdef CONFIG_X86_IO_APIC
 	if (timer_ack) {
@@ -105,8 +105,8 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		high bit of the PPI port B (0x61).  Note that some PS/2s,
 		notably the 55SX, work fine if this is removed.  */
 
-		u8 irq_v = inb_p( 0x61 );	/* read the current state */
-		outb_p( irq_v|0x80, 0x61 );	/* reset the IRQ */
+		u8 irq_v = inb_p(0x61);		/* read the current state */
+		outb_p(irq_v | 0x80, 0x61);	/* reset the IRQ */
 	}
 #endif
 

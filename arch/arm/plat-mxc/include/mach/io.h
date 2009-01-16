@@ -25,8 +25,8 @@ __mx3_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 		/* Access all peripherals below 0x80000000 as nonshared device
 		 * but leave l2cc alone.
 		 */
-		if ((phys_addr < 0x80000000) && ((phys_addr < L2CC_BASE_ADDR) ||
-			(phys_addr >= L2CC_BASE_ADDR + L2CC_SIZE)))
+		if ((phys_addr < 0x80000000) && ((phys_addr < 0x30000000) ||
+			(phys_addr >= 0x30000000 + SZ_1M)))
 			mtype = MT_DEVICE_NONSHARED;
 	}
 
@@ -35,8 +35,8 @@ __mx3_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 #endif
 
 /* io address mapping macro */
-#define __io(a)			((void __iomem *)(a))
+#define __io(a)		__typesafe_io(a)
 
-#define __mem_pci(a)		(a)
+#define __mem_pci(a)	(a)
 
 #endif

@@ -63,6 +63,18 @@
 #define IXGBE_SFF_VENDOR_OUI_FTL      0x00906500
 #define IXGBE_SFF_VENDOR_OUI_AVAGO    0x00176A00
 
+/* I2C SDA and SCL timing parameters for standard mode */
+#define IXGBE_I2C_T_HD_STA  4
+#define IXGBE_I2C_T_LOW     5
+#define IXGBE_I2C_T_HIGH    4
+#define IXGBE_I2C_T_SU_STA  5
+#define IXGBE_I2C_T_HD_DATA 5
+#define IXGBE_I2C_T_SU_DATA 1
+#define IXGBE_I2C_T_RISE    1
+#define IXGBE_I2C_T_FALL    1
+#define IXGBE_I2C_T_SU_STO  4
+#define IXGBE_I2C_T_BUF     5
+
 
 s32 ixgbe_init_phy_ops_generic(struct ixgbe_hw *hw);
 s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw);
@@ -76,5 +88,18 @@ s32 ixgbe_setup_phy_link_speed_generic(struct ixgbe_hw *hw,
                                        ixgbe_link_speed speed,
                                        bool autoneg,
                                        bool autoneg_wait_to_complete);
+
+/* PHY specific */
+s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw,
+                             ixgbe_link_speed *speed,
+                             bool *link_up);
+s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
+                                       u16 *firmware_version);
+
+s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw);
+s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw);
+s32 ixgbe_get_sfp_init_sequence_offsets(struct ixgbe_hw *hw,
+                                        u16 *list_offset,
+                                        u16 *data_offset);
 
 #endif /* _IXGBE_PHY_H_ */

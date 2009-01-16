@@ -498,6 +498,7 @@ void iser_conn_init(struct iser_conn *ib_conn)
 	init_waitqueue_head(&ib_conn->wait);
 	atomic_set(&ib_conn->post_recv_buf_count, 0);
 	atomic_set(&ib_conn->post_send_buf_count, 0);
+	atomic_set(&ib_conn->unexpected_pdu_count, 0);
 	atomic_set(&ib_conn->refcount, 1);
 	INIT_LIST_HEAD(&ib_conn->conn_list);
 	spin_lock_init(&ib_conn->lock);
@@ -515,14 +516,14 @@ int iser_connect(struct iser_conn   *ib_conn,
 	struct sockaddr *src, *dst;
 	int err = 0;
 
-	sprintf(ib_conn->name,"%d.%d.%d.%d:%d",
-		NIPQUAD(dst_addr->sin_addr.s_addr), dst_addr->sin_port);
+	sprintf(ib_conn->name, "%pI4:%d",
+		&dst_addr->sin_addr.s_addr, dst_addr->sin_port);
 
 	/* the device is known only --after-- address resolution */
 	ib_conn->device = NULL;
 
-	iser_err("connecting to: %d.%d.%d.%d, port 0x%x\n",
-		 NIPQUAD(dst_addr->sin_addr), dst_addr->sin_port);
+	iser_err("connecting to: %pI4, port 0x%x\n",
+		 &dst_addr->sin_addr, dst_addr->sin_port);
 
 	ib_conn->state = ISER_CONN_PENDING;
 

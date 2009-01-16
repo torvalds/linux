@@ -14,14 +14,6 @@
 #include <asm/pat.h>
 #include "mtrr.h"
 
-struct mtrr_state {
-	struct mtrr_var_range var_ranges[MAX_VAR_RANGES];
-	mtrr_type fixed_ranges[NUM_FIXED_RANGES];
-	unsigned char enabled;
-	unsigned char have_fixed;
-	mtrr_type def_type;
-};
-
 struct fixed_range_block {
 	int base_msr; /* start address of an MTRR block */
 	int ranges;   /* number of MTRRs in this block  */
@@ -35,9 +27,11 @@ static struct fixed_range_block fixed_range_blocks[] = {
 };
 
 static unsigned long smp_changes_mask;
-static struct mtrr_state mtrr_state = {};
 static int mtrr_state_set;
 u64 mtrr_tom2;
+
+struct mtrr_state_type mtrr_state = {};
+EXPORT_SYMBOL_GPL(mtrr_state);
 
 #undef MODULE_PARAM_PREFIX
 #define MODULE_PARAM_PREFIX "mtrr."

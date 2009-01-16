@@ -4,7 +4,7 @@
 #include <linux/irq.h>
 #include <linux/dmi.h>
 #include <asm/numa.h>
-#include "pci.h"
+#include <asm/pci_x86.h>
 
 struct pci_root_info {
 	char *name;
@@ -210,11 +210,10 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 	if (bus && node != -1) {
 #ifdef CONFIG_ACPI_NUMA
 		if (pxm >= 0)
-			printk(KERN_DEBUG "bus %02x -> pxm %d -> node %d\n",
-				busnum, pxm, node);
+			dev_printk(KERN_DEBUG, &bus->dev,
+				   "on NUMA node %d (pxm %d)\n", node, pxm);
 #else
-		printk(KERN_DEBUG "bus %02x -> node %d\n",
-			busnum, node);
+		dev_printk(KERN_DEBUG, &bus->dev, "on NUMA node %d\n", node);
 #endif
 	}
 

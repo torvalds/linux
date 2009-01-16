@@ -26,7 +26,7 @@
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <asm/hardware/scoop.h>
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <mach/collie.h>
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/sharpsl_pm.h>
@@ -263,24 +263,24 @@ static int __init collie_pm_ucb_add(struct ucb1x00_dev *pdev)
 }
 
 static struct ucb1x00_driver collie_pm_ucb_driver = {
-	.add            = collie_pm_ucb_add,
+	.add	= collie_pm_ucb_add,
 };
 
 static struct platform_device *collie_pm_device;
 
 static int __init collie_pm_init(void)
 {
-        int ret;
+	int ret;
 
-        collie_pm_device = platform_device_alloc("sharpsl-pm", -1);
-        if (!collie_pm_device)
-                return -ENOMEM;
+	collie_pm_device = platform_device_alloc("sharpsl-pm", -1);
+	if (!collie_pm_device)
+		return -ENOMEM;
 
-        collie_pm_device->dev.platform_data = &collie_pm_machinfo;
-        ret = platform_device_add(collie_pm_device);
+	collie_pm_device->dev.platform_data = &collie_pm_machinfo;
+	ret = platform_device_add(collie_pm_device);
 
-        if (ret)
-                platform_device_put(collie_pm_device);
+	if (ret)
+		platform_device_put(collie_pm_device);
 
 	if (!ret)
 		ret = ucb1x00_register_driver(&collie_pm_ucb_driver);
@@ -291,7 +291,7 @@ static int __init collie_pm_init(void)
 static void __exit collie_pm_exit(void)
 {
 	ucb1x00_unregister_driver(&collie_pm_ucb_driver);
-        platform_device_unregister(collie_pm_device);
+	platform_device_unregister(collie_pm_device);
 }
 
 module_init(collie_pm_init);

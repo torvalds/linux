@@ -191,7 +191,7 @@ again:
 	if (wbuf->lnum != -1 && avail >= len) {
 		/*
 		 * Someone else has switched the journal head and we have
-		 * enough space now. This happens when more then one process is
+		 * enough space now. This happens when more than one process is
 		 * trying to write to the same journal head at the same time.
 		 */
 		dbg_jnl("return LEB %d back, already have LEB %d:%d",
@@ -704,7 +704,7 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 	data->size = cpu_to_le32(len);
 	zero_data_node_unused(data);
 
-	if (!(ui->flags && UBIFS_COMPR_FL))
+	if (!(ui->flags & UBIFS_COMPR_FL))
 		/* Compression is disabled for this inode */
 		compr_type = UBIFS_COMPR_NONE;
 	else
@@ -1220,7 +1220,7 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 	data_key_init(c, &key, inum, blk);
 
 	bit = old_size & (UBIFS_BLOCK_SIZE - 1);
-	blk = (old_size >> UBIFS_BLOCK_SHIFT) - (bit ? 0: 1);
+	blk = (old_size >> UBIFS_BLOCK_SHIFT) - (bit ? 0 : 1);
 	data_key_init(c, &to_key, inum, blk);
 
 	err = ubifs_tnc_remove_range(c, &key, &to_key);

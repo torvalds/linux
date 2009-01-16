@@ -3,17 +3,17 @@
  *
  * Copyright (C) 2000 2001, The Delft University of Technology
  *
- * Authors: 
+ * Authors:
  * - Johan Pouwelse (J.A.Pouwelse@its.tudelft.nl): initial version
  * - Erik Mouw (J.A.K.Mouw@its.tudelft.nl):
  *   - major rewrite for linux-2.3.99
- *   - rewritten for the more generic power management scheme in 
+ *   - rewritten for the more generic power management scheme in
  *     linux-2.4.5-rmk1
  *
  * This software has been developed while working on the LART
  * computing board (http://www.lartmaker.nl/), which is
  * sponsored by the Mobile Multi-media Communications
- * (http://www.mmc.tudelft.nl/) and Ubiquitous Communications 
+ * (http://www.mmc.tudelft.nl/) and Ubiquitous Communications
  * (http://www.ubicom.tudelft.nl/) projects.
  *
  * The authors can be reached at:
@@ -36,7 +36,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
@@ -44,7 +44,7 @@
  *
  * Theory of operations
  * ====================
- * 
+ *
  * Clock scaling can be used to lower the power consumption of the CPU
  * core. This will give you a somewhat longer running time.
  *
@@ -58,11 +58,11 @@
  *   MDCNFG    0xA0000000    DRAM config
  *   MDCAS0    0xA0000004    Access waveform
  *   MDCAS1    0xA0000008    Access waveform
- *   MDCAS2    0xA000000C    Access waveform 
+ *   MDCAS2    0xA000000C    Access waveform
  *
  * Care must be taken to change the DRAM parameters the correct way,
  * because otherwise the DRAM becomes unusable and the kernel will
- * crash. 
+ * crash.
  *
  * The simple solution to avoid a kernel crash is to put the actual
  * clock change in ROM and jump to that code from the kernel. The main
@@ -75,7 +75,7 @@
  * as long as all re-configuration steps yield a valid DRAM
  * configuration. The advantages are clear: it will run on all SA-1100
  * platforms, and the code is very simple.
- * 
+ *
  * If you really want to understand what is going on in
  * sa1100_update_dram_timings(), you'll have to read sections 8.2,
  * 9.5.7.3, and 10.2 from the "Intel StrongARM SA-1100 Microprocessor
@@ -97,7 +97,7 @@
 typedef struct {
 	int speed;
 	u32 mdcnfg;
-	u32 mdcas0; 
+	u32 mdcas0;
 	u32 mdcas1;
 	u32 mdcas2;
 } sa1100_dram_regs_t;
@@ -147,7 +147,7 @@ static void sa1100_update_dram_timings(int current_speed, int new_speed)
 	/* No risk, no fun: run with interrupts on! */
 	if (new_speed > current_speed) {
 		/* We're going FASTER, so first relax the memory
-		 * timings before changing the core frequency 
+		 * timings before changing the core frequency
 		 */
 		
 		/* Half the memory access clock */

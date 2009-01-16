@@ -22,6 +22,7 @@ typedef int (*node_filter)(struct lpfc_nodelist *, void *);
 
 struct fc_rport;
 void lpfc_dump_mem(struct lpfc_hba *, LPFC_MBOXQ_t *, uint16_t);
+void lpfc_dump_wakeup_param(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_read_nv(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_config_async(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t);
 
@@ -284,12 +285,24 @@ extern void lpfc_debugfs_slow_ring_trc(struct lpfc_hba *, char *, uint32_t,
 	uint32_t, uint32_t);
 extern struct lpfc_hbq_init *lpfc_hbq_defs[];
 
+/* externs BlockGuard */
+extern char *_dump_buf_data;
+extern unsigned long _dump_buf_data_order;
+extern char *_dump_buf_dif;
+extern unsigned long _dump_buf_dif_order;
+extern spinlock_t _dump_buf_lock;
+extern int _dump_buf_done;
+extern spinlock_t pgcnt_lock;
+extern unsigned int pgcnt;
+extern unsigned int lpfc_prot_mask;
+extern unsigned char lpfc_prot_guard;
+
 /* Interface exported by fabric iocb scheduler */
 void lpfc_fabric_abort_nport(struct lpfc_nodelist *);
 void lpfc_fabric_abort_hba(struct lpfc_hba *);
 void lpfc_fabric_block_timeout(unsigned long);
 void lpfc_unblock_fabric_iocbs(struct lpfc_hba *);
-void lpfc_adjust_queue_depth(struct lpfc_hba *);
+void lpfc_rampdown_queue_depth(struct lpfc_hba *);
 void lpfc_ramp_down_queue_handler(struct lpfc_hba *);
 void lpfc_ramp_up_queue_handler(struct lpfc_hba *);
 void lpfc_scsi_dev_block(struct lpfc_hba *);

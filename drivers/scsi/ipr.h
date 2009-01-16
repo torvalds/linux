@@ -19,7 +19,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Alan Cox <alan@redhat.com> - Removed several careless u32/dma_addr_t errors
+ * Alan Cox <alan@lxorguk.ukuu.org.uk> - Removed several careless u32/dma_addr_t errors
  *				that broke 64bit platforms.
  */
 
@@ -1272,7 +1272,7 @@ struct ipr_dump_entry_header {
 
 struct ipr_dump_location_entry {
 	struct ipr_dump_entry_header hdr;
-	u8 location[BUS_ID_SIZE];
+	u8 location[20];
 }__attribute__((packed));
 
 struct ipr_dump_trace_entry {

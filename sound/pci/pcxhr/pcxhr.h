@@ -27,15 +27,18 @@
 #include <linux/mutex.h>
 #include <sound/pcm.h>
 
-#define PCXHR_DRIVER_VERSION		0x000804	/* 0.8.4 */
-#define PCXHR_DRIVER_VERSION_STRING	"0.8.4"		/* 0.8.4 */
+#define PCXHR_DRIVER_VERSION		0x000905	/* 0.9.5 */
+#define PCXHR_DRIVER_VERSION_STRING	"0.9.5"		/* 0.9.5 */
 
 
-#define PCXHR_MAX_CARDS			6
-#define PCXHR_PLAYBACK_STREAMS		4
+#define PCXHR_MAX_CARDS		6
+#define PCXHR_PLAYBACK_STREAMS	4
 
-#define PCXHR_GRANULARITY		96	/* transfer granularity (should be min 96 and multiple of 48) */
-#define PCXHR_GRANULARITY_MIN		96	/* transfer granularity of pipes and the dsp time (MBOX4) */
+#define PCXHR_GRANULARITY	96	/* min 96 and multiple of 48 */
+/* transfer granularity of pipes and the dsp time (MBOX4) */
+#define PCXHR_GRANULARITY_MIN	96
+/* TODO : granularity could be 64 or 128 */
+#define PCXHR_GRANULARITY_HR22	192	/* granularity for stereo cards */
 
 struct snd_pcxhr;
 struct pcxhr_mgr;
@@ -51,6 +54,11 @@ enum pcxhr_clock_type {
 	PCXHR_CLOCK_TYPE_AES_2,
 	PCXHR_CLOCK_TYPE_AES_3,
 	PCXHR_CLOCK_TYPE_AES_4,
+	PCXHR_CLOCK_TYPE_MAX = PCXHR_CLOCK_TYPE_AES_4,
+	HR22_CLOCK_TYPE_INTERNAL = PCXHR_CLOCK_TYPE_INTERNAL,
+	HR22_CLOCK_TYPE_AES_SYNC,
+	HR22_CLOCK_TYPE_AES_1,
+	HR22_CLOCK_TYPE_MAX = HR22_CLOCK_TYPE_AES_1,
 };
 
 struct pcxhr_mgr {
@@ -60,6 +68,8 @@ struct pcxhr_mgr {
 	struct pci_dev *pci;
 
 	int irq;
+
+	int granularity;
 
 	/* card access with 1 mem bar and 2 io bar's */
 	unsigned long port[3];
@@ -83,11 +93,16 @@ struct pcxhr_mgr {
 	/* hardware interface */
 	unsigned int dsp_loaded;	/* bit flags of loaded dsp indices */
 	unsigned int dsp_version;	/* read from embedded once firmware is loaded */
-	int board_has_analog;		/* if 0 the board is digital only */
-	int mono_capture;		/* if 1 the board does mono capture */
-	int playback_chips;		/* 4 or 6 */
-	int capture_chips;		/* 4 or 1 */
-	int firmware_num;		/* 41 or 42 */
+	int playback_chips;
+	int capture_chips;
+	int fw_file_set;
+	int firmware_num;
+	int is_hr_stereo:1;
+	int board_has_aes1:1;	/* if 1 board has AES1 plug and SRC */
+	int board_has_analog:1;	/* if 0 the board is digital only */
+	int board_has_mic:1;	/* if 1 the board has microphone input */
+	int board_aes_in_192k:1;/* if 1 the aes input plugs do support 192kHz */
+	int mono_capture:1;	/* if 1 the board does mono capture */
 
 	struct snd_dma_buffer hostport;
 
@@ -106,6 +121,9 @@ struct pcxhr_mgr {
 	int async_err_stream_xrun;
 	int async_err_pipe_xrun;
 	int async_err_other_last;
+
+	unsigned char xlx_cfg;		/* copy of PCXHR_XLX_CFG register */
+	unsigned char xlx_selmic;	/* copy of PCXHR_XLX_SELMIC register */
 };
 
 
@@ -155,24 +173,30 @@ struct snd_pcxhr {
 
 	struct snd_pcm *pcm;		/* PCM */
 
-	struct pcxhr_pipe playback_pipe;		/* 1 stereo pipe only */
-	struct pcxhr_pipe capture_pipe[2];		/* 1 stereo pipe or 2 mono pipes */
+	struct pcxhr_pipe playback_pipe;	/* 1 stereo pipe only */
+	struct pcxhr_pipe capture_pipe[2];	/* 1 stereo or 2 mono pipes */
 
 	struct pcxhr_stream playback_stream[PCXHR_PLAYBACK_STREAMS];
-	struct pcxhr_stream capture_stream[2];	/* 1 stereo stream or 2 mono streams */
+	struct pcxhr_stream capture_stream[2];	/* 1 stereo or 2 mono streams */
 	int nb_streams_play;
 	int nb_streams_capt;
 
-	int analog_playback_active[2];		/* Mixer : Master Playback active (!mute) */
-	int analog_playback_volume[2];		/* Mixer : Master Playback Volume */
-	int analog_capture_volume[2];		/* Mixer : Master Capture Volume */
-	int digital_playback_active[PCXHR_PLAYBACK_STREAMS][2];	/* Mixer : Digital Playback Active [streams][stereo]*/
-	int digital_playback_volume[PCXHR_PLAYBACK_STREAMS][2];	/* Mixer : Digital Playback Volume [streams][stereo]*/
-	int digital_capture_volume[2];		/* Mixer : Digital Capture Volume [stereo] */
-	int monitoring_active[2];		/* Mixer : Monitoring Active */
-	int monitoring_volume[2];		/* Mixer : Monitoring Volume */
-	int audio_capture_source;		/* Mixer : Audio Capture Source */
-	unsigned char aes_bits[5];		/* Mixer : IEC958_AES bits */
+	int analog_playback_active[2];	/* Mixer : Master Playback !mute */
+	int analog_playback_volume[2];	/* Mixer : Master Playback Volume */
+	int analog_capture_volume[2];	/* Mixer : Master Capture Volume */
+	int digital_playback_active[PCXHR_PLAYBACK_STREAMS][2];
+	int digital_playback_volume[PCXHR_PLAYBACK_STREAMS][2];
+	int digital_capture_volume[2];	/* Mixer : Digital Capture Volume */
+	int monitoring_active[2];	/* Mixer : Monitoring Active */
+	int monitoring_volume[2];	/* Mixer : Monitoring Volume */
+	int audio_capture_source;	/* Mixer : Audio Capture Source */
+	int mic_volume;			/* used by cards with MIC only */
+	int mic_boost;			/* used by cards with MIC only */
+	int mic_active;			/* used by cards with MIC only */
+	int analog_capture_active;	/* used by cards with MIC only */
+	int phantom_power;		/* used by cards with MIC only */
+
+	unsigned char aes_bits[5];	/* Mixer : IEC958_AES bits */
 };
 
 struct pcxhr_hostport
@@ -184,6 +208,8 @@ struct pcxhr_hostport
 /* exported */
 int pcxhr_create_pcm(struct snd_pcxhr *chip);
 int pcxhr_set_clock(struct pcxhr_mgr *mgr, unsigned int rate);
-int pcxhr_get_external_clock(struct pcxhr_mgr *mgr, enum pcxhr_clock_type clock_type, int *sample_rate);
+int pcxhr_get_external_clock(struct pcxhr_mgr *mgr,
+			     enum pcxhr_clock_type clock_type,
+			     int *sample_rate);
 
 #endif /* __SOUND_PCXHR_H */

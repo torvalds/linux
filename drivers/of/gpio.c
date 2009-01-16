@@ -19,14 +19,17 @@
 #include <asm/prom.h>
 
 /**
- * of_get_gpio - Get a GPIO number from the device tree to use with GPIO API
+ * of_get_gpio_flags - Get a GPIO number and flags to use with GPIO API
  * @np:		device node to get GPIO from
  * @index:	index of the GPIO
+ * @flags:	a flags pointer to fill in
  *
  * Returns GPIO number to use with Linux generic GPIO API, or one of the errno
- * value on the error condition.
+ * value on the error condition. If @flags is not NULL the function also fills
+ * in flags for the GPIO.
  */
-int of_get_gpio(struct device_node *np, int index)
+int of_get_gpio_flags(struct device_node *np, int index,
+		      enum of_gpio_flags *flags)
 {
 	int ret;
 	struct device_node *gc;
@@ -59,7 +62,11 @@ int of_get_gpio(struct device_node *np, int index)
 		goto err1;
 	}
 
-	ret = of_gc->xlate(of_gc, np, gpio_spec);
+	/* .xlate might decide to not fill in the flags, so clear it. */
+	if (flags)
+		*flags = 0;
+
+	ret = of_gc->xlate(of_gc, np, gpio_spec, flags);
 	if (ret < 0)
 		goto err1;
 
@@ -70,25 +77,74 @@ err0:
 	pr_debug("%s exited with status %d\n", __func__, ret);
 	return ret;
 }
-EXPORT_SYMBOL(of_get_gpio);
+EXPORT_SYMBOL(of_get_gpio_flags);
 
 /**
- * of_gpio_simple_xlate - translate gpio_spec to the GPIO number
+ * of_gpio_count - Count GPIOs for a device
+ * @np:		device node to count GPIOs for
+ *
+ * The function returns the count of GPIOs specified for a node.
+ *
+ * Note that the empty GPIO specifiers counts too. For example,
+ *
+ * gpios = <0
+ *          &pio1 1 2
+ *          0
+ *          &pio2 3 4>;
+ *
+ * defines four GPIOs (so this function will return 4), two of which
+ * are not specified.
+ */
+unsigned int of_gpio_count(struct device_node *np)
+{
+	unsigned int cnt = 0;
+
+	do {
+		int ret;
+
+		ret = of_parse_phandles_with_args(np, "gpios", "#gpio-cells",
+						  cnt, NULL, NULL);
+		/* A hole in the gpios = <> counts anyway. */
+		if (ret < 0 && ret != -EEXIST)
+			break;
+	} while (++cnt);
+
+	return cnt;
+}
+EXPORT_SYMBOL(of_gpio_count);
+
+/**
+ * of_gpio_simple_xlate - translate gpio_spec to the GPIO number and flags
  * @of_gc:	pointer to the of_gpio_chip structure
  * @np:		device node of the GPIO chip
  * @gpio_spec:	gpio specifier as found in the device tree
+ * @flags:	a flags pointer to fill in
  *
  * This is simple translation function, suitable for the most 1:1 mapped
  * gpio chips. This function performs only one sanity check: whether gpio
  * is less than ngpios (that is specified in the gpio_chip).
  */
 int of_gpio_simple_xlate(struct of_gpio_chip *of_gc, struct device_node *np,
-			 const void *gpio_spec)
+			 const void *gpio_spec, enum of_gpio_flags *flags)
 {
 	const u32 *gpio = gpio_spec;
 
+	/*
+	 * We're discouraging gpio_cells < 2, since that way you'll have to
+	 * write your own xlate function (that will have to retrive the GPIO
+	 * number and the flags from a single gpio cell -- this is possible,
+	 * but not recommended).
+	 */
+	if (of_gc->gpio_cells < 2) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
 	if (*gpio > of_gc->gc.ngpio)
 		return -EINVAL;
+
+	if (flags)
+		*flags = gpio[1];
 
 	return *gpio;
 }

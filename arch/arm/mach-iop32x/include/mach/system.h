@@ -7,8 +7,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 #include <asm/mach-types.h>
+#include <asm/hardware/iop3xx.h>
+#include <mach/n2100.h>
 
 static inline void arch_idle(void)
 {

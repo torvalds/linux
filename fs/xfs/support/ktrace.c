@@ -113,21 +113,16 @@ ktrace_alloc(int nentries, unsigned int __nocast sleep)
 void
 ktrace_free(ktrace_t *ktp)
 {
-	int     entries_size;
-
 	if (ktp == (ktrace_t *)NULL)
 		return;
 
 	/*
 	 * Special treatment for the Vnode trace buffer.
 	 */
-	if (ktp->kt_nentries == ktrace_zentries) {
+	if (ktp->kt_nentries == ktrace_zentries)
 		kmem_zone_free(ktrace_ent_zone, ktp->kt_entries);
-	} else {
-		entries_size = (int)(ktp->kt_nentries * sizeof(ktrace_entry_t));
-
+	else
 		kmem_free(ktp->kt_entries);
-	}
 
 	kmem_zone_free(ktrace_hdr_zone, ktp);
 }

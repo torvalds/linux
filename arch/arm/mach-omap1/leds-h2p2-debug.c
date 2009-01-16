@@ -65,8 +65,8 @@ void h2p2_dbg_leds_event(led_event_t evt)
 		/* all leds off during suspend or shutdown */
 
 		if (! machine_is_omap_perseus2()) {
-			omap_set_gpio_dataout(GPIO_TIMER, 0);
-			omap_set_gpio_dataout(GPIO_IDLE, 0);
+			gpio_set_value(GPIO_TIMER, 0);
+			gpio_set_value(GPIO_IDLE, 0);
 		}
 
 		__raw_writew(~0, &fpga->leds);
@@ -94,7 +94,7 @@ void h2p2_dbg_leds_event(led_event_t evt)
 		if (machine_is_omap_perseus2())
 			hw_led_state ^= H2P2_DBG_FPGA_P2_LED_TIMER;
 		else {
-			omap_set_gpio_dataout(GPIO_TIMER, led_state & LED_TIMER_ON);
+			gpio_set_value(GPIO_TIMER, led_state & LED_TIMER_ON);
 			goto done;
 		}
 
@@ -106,7 +106,7 @@ void h2p2_dbg_leds_event(led_event_t evt)
 		if (machine_is_omap_perseus2())
 			hw_led_state |= H2P2_DBG_FPGA_P2_LED_IDLE;
 		else {
-			omap_set_gpio_dataout(GPIO_IDLE, 1);
+			gpio_set_value(GPIO_IDLE, 1);
 			goto done;
 		}
 
@@ -116,7 +116,7 @@ void h2p2_dbg_leds_event(led_event_t evt)
 		if (machine_is_omap_perseus2())
 			hw_led_state &= ~H2P2_DBG_FPGA_P2_LED_IDLE;
 		else {
-			omap_set_gpio_dataout(GPIO_IDLE, 0);
+			gpio_set_value(GPIO_IDLE, 0);
 			goto done;
 		}
 

@@ -19,6 +19,7 @@
 #include <linux/atmlec.h>
 #include <linux/mutex.h>
 #include <asm/ioctls.h>
+#include <net/compat.h>
 
 #include "resources.h"
 #include "signaling.h"		/* for WAITING and sigd_attach */
@@ -46,7 +47,7 @@ void deregister_atm_ioctl(struct atm_ioctl *ioctl)
 EXPORT_SYMBOL(register_atm_ioctl);
 EXPORT_SYMBOL(deregister_atm_ioctl);
 
-int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+static int do_vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg, int compat)
 {
 	struct sock *sk = sock->sk;
 	struct atm_vcc *vcc;
@@ -80,13 +81,25 @@ int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 				goto done;
 			}
 		case SIOCGSTAMP: /* borrowed from IP */
-			error = sock_get_timestamp(sk, argp);
+#ifdef CONFIG_COMPAT
+			if (compat)
+				error = compat_sock_get_timestamp(sk, argp);
+			else
+#endif
+				error = sock_get_timestamp(sk, argp);
 			goto done;
 		case SIOCGSTAMPNS: /* borrowed from IP */
-			error = sock_get_timestampns(sk, argp);
+#ifdef CONFIG_COMPAT
+			if (compat)
+				error = compat_sock_get_timestampns(sk, argp);
+			else
+#endif
+				error = sock_get_timestampns(sk, argp);
 			goto done;
 		case ATM_SETSC:
-			printk(KERN_WARNING "ATM_SETSC is obsolete\n");
+			if (net_ratelimit())
+				printk(KERN_WARNING "ATM_SETSC is obsolete; used by %s:%d\n",
+				       current->comm, task_pid_nr(current));
 			error = 0;
 			goto done;
 		case ATMSIGD_CTRL:
@@ -99,12 +112,23 @@ int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			 * info uses kernel pointers as opaque references,
 			 * so the holder of the file descriptor can scribble
 			 * on the kernel... so we should make sure that we
-			 * have the same privledges that /proc/kcore needs
+			 * have the same privileges that /proc/kcore needs
 			 */
 			if (!capable(CAP_SYS_RAWIO)) {
 				error = -EPERM;
 				goto done;
 			}
+#ifdef CONFIG_COMPAT
+			/* WTF? I don't even want to _think_ about making this
+			   work for 32-bit userspace. TBH I don't really want
+			   to think about it at all. dwmw2. */
+			if (compat) {
+				if (net_ratelimit())
+					printk(KERN_WARNING "32-bit task cannot be atmsigd\n");
+				error = -EINVAL;
+				goto done;
+			}
+#endif
 			error = sigd_attach(vcc);
 			if (!error)
 				sock->state = SS_CONNECTED;
@@ -155,8 +179,21 @@ int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	if (error != -ENOIOCTLCMD)
 		goto done;
 
-	error = atm_dev_ioctl(cmd, argp);
+	error = atm_dev_ioctl(cmd, argp, compat);
 
 done:
 	return error;
 }
+
+
+int vcc_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	return do_vcc_ioctl(sock, cmd, arg, 0);
+}
+
+#ifdef CONFIG_COMPAT
+int vcc_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	return do_vcc_ioctl(sock, cmd, arg, 1);
+}
+#endif

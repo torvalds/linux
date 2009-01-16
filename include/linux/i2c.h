@@ -393,11 +393,7 @@ static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 #define I2C_CLASS_TV_ANALOG	(1<<1)	/* bttv + friends */
 #define I2C_CLASS_TV_DIGITAL	(1<<2)	/* dvb cards */
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
-#define I2C_CLASS_CAM_ANALOG	(1<<4)	/* camera with analog CCD */
-#define I2C_CLASS_CAM_DIGITAL	(1<<5)	/* most webcams */
-#define I2C_CLASS_SOUND		(1<<6)	/* sound devices */
 #define I2C_CLASS_SPD		(1<<7)	/* SPD EEPROMs and similar */
-#define I2C_CLASS_ALL		(UINT_MAX) /* all of the above */
 
 /* i2c_client_address_data is the struct for holding default client
  * addresses for a driver and for the parameters supplied on the

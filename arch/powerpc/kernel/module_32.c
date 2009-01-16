@@ -22,6 +22,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/ftrace.h>
 #include <linux/cache.h>
 #include <linux/bug.h>
 #include <linux/sort.h>
@@ -53,6 +54,9 @@ static unsigned int count_relocs(const Elf32_Rela *rela, unsigned int num)
 			r_addend = rela[i].r_addend;
 		}
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+	_count_relocs++;	/* add one for ftrace_caller */
+#endif
 	return _count_relocs;
 }
 
@@ -306,5 +310,11 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			return -ENOEXEC;
 		}
 	}
+#ifdef CONFIG_DYNAMIC_FTRACE
+	module->arch.tramp =
+		do_plt_call(module->module_core,
+			    (unsigned long)ftrace_caller,
+			    sechdrs, module);
+#endif
 	return 0;
 }

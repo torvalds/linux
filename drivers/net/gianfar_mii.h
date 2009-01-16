@@ -49,4 +49,6 @@ int gfar_local_mdio_read(struct gfar_mii __iomem *regs, int mii_id, int regnum);
 struct mii_bus *gfar_get_miibus(const struct gfar_private *priv);
 int __init gfar_mdio_init(void);
 void gfar_mdio_exit(void);
+
+void gfar_mdio_bus_name(char *name, struct device_node *np);
 #endif /* GIANFAR_PHY_H */

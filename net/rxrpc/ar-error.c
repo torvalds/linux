@@ -49,8 +49,7 @@ void rxrpc_UDP_error_report(struct sock *sk)
 	addr = *(__be32 *)(skb_network_header(skb) + serr->addr_offset);
 	port = serr->port;
 
-	_net("Rx UDP Error from "NIPQUAD_FMT":%hu",
-	     NIPQUAD(addr), ntohs(port));
+	_net("Rx UDP Error from %pI4:%hu", &addr, ntohs(port));
 	_debug("Msg l:%d d:%d", skb->len, skb->data_len);
 
 	peer = rxrpc_find_peer(local, addr, port);

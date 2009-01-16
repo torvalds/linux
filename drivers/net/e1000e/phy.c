@@ -744,7 +744,7 @@ static s32 e1000_phy_setup_autoneg(struct e1000_hw *hw)
 	 *  other:  No software override.  The flow control configuration
 	 *	  in the EEPROM is used.
 	 */
-	switch (hw->fc.type) {
+	switch (hw->fc.current_mode) {
 	case e1000_fc_none:
 		/*
 		 * Flow control (Rx & Tx) is completely disabled by a
@@ -1030,14 +1030,14 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 
 	e1000e_phy_force_speed_duplex_setup(hw, &phy_data);
 
-	/* Reset the phy to commit changes. */
-	phy_data |= MII_CR_RESET;
-
 	ret_val = e1e_wphy(hw, PHY_CONTROL, phy_data);
 	if (ret_val)
 		return ret_val;
 
-	udelay(1);
+	/* Reset the phy to commit changes. */
+	ret_val = e1000e_commit_phy(hw);
+	if (ret_val)
+		return ret_val;
 
 	if (phy->autoneg_wait_to_complete) {
 		hw_dbg(hw, "Waiting for forced speed/duplex link on M88 phy.\n");
@@ -1114,7 +1114,7 @@ void e1000e_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl)
 	u32 ctrl;
 
 	/* Turn off flow control when forcing speed/duplex */
-	hw->fc.type = e1000_fc_none;
+	hw->fc.current_mode = e1000_fc_none;
 
 	/* Force speed/duplex on the mac */
 	ctrl = er32(CTRL);

@@ -41,20 +41,35 @@
 #endif
 
 #ifdef XFS_NATIVE_HOST
-#define cpu_to_be16(val)	((__be16)(val))
-#define cpu_to_be32(val)	((__be32)(val))
-#define cpu_to_be64(val)	((__be64)(val))
-#define be16_to_cpu(val)	((__uint16_t)(val))
-#define be32_to_cpu(val)	((__uint32_t)(val))
-#define be64_to_cpu(val)	((__uint64_t)(val))
+#define cpu_to_be16(val)	((__force __be16)(__u16)(val))
+#define cpu_to_be32(val)	((__force __be32)(__u32)(val))
+#define cpu_to_be64(val)	((__force __be64)(__u64)(val))
+#define be16_to_cpu(val)	((__force __u16)(__be16)(val))
+#define be32_to_cpu(val)	((__force __u32)(__be32)(val))
+#define be64_to_cpu(val)	((__force __u64)(__be64)(val))
 #else
-#define cpu_to_be16(val)	(__swab16((__uint16_t)(val)))
-#define cpu_to_be32(val)	(__swab32((__uint32_t)(val)))
-#define cpu_to_be64(val)	(__swab64((__uint64_t)(val)))
-#define be16_to_cpu(val)	(__swab16((__be16)(val)))
-#define be32_to_cpu(val)	(__swab32((__be32)(val)))
-#define be64_to_cpu(val)	(__swab64((__be64)(val)))
+#define cpu_to_be16(val)	((__force __be16)__swab16((__u16)(val)))
+#define cpu_to_be32(val)	((__force __be32)__swab32((__u32)(val)))
+#define cpu_to_be64(val)	((__force __be64)__swab64((__u64)(val)))
+#define be16_to_cpu(val)	(__swab16((__force __u16)(__be16)(val)))
+#define be32_to_cpu(val)	(__swab32((__force __u32)(__be32)(val)))
+#define be64_to_cpu(val)	(__swab64((__force __u64)(__be64)(val)))
 #endif
+
+static inline void be16_add_cpu(__be16 *a, __s16 b)
+{
+	*a = cpu_to_be16(be16_to_cpu(*a) + b);
+}
+
+static inline void be32_add_cpu(__be32 *a, __s32 b)
+{
+	*a = cpu_to_be32(be32_to_cpu(*a) + b);
+}
+
+static inline void be64_add_cpu(__be64 *a, __s64 b)
+{
+	*a = cpu_to_be64(be64_to_cpu(*a) + b);
+}
 
 #endif	/* __KERNEL__ */
 

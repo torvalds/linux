@@ -33,11 +33,19 @@ extern void ei_poll(struct net_device *dev);
 extern void eip_poll(struct net_device *dev);
 #endif
 
+
 /* Without I/O delay - non ISA or later chips */
 extern void NS8390_init(struct net_device *dev, int startp);
 extern int ei_open(struct net_device *dev);
 extern int ei_close(struct net_device *dev);
 extern irqreturn_t ei_interrupt(int irq, void *dev_id);
+extern void ei_tx_timeout(struct net_device *dev);
+extern int ei_start_xmit(struct sk_buff *skb, struct net_device *dev);
+extern void ei_set_multicast_list(struct net_device *dev);
+extern struct net_device_stats *ei_get_stats(struct net_device *dev);
+
+extern const struct net_device_ops ei_netdev_ops;
+
 extern struct net_device *__alloc_ei_netdev(int size);
 static inline struct net_device *alloc_ei_netdev(void)
 {
@@ -49,6 +57,13 @@ extern void NS8390p_init(struct net_device *dev, int startp);
 extern int eip_open(struct net_device *dev);
 extern int eip_close(struct net_device *dev);
 extern irqreturn_t eip_interrupt(int irq, void *dev_id);
+extern void eip_tx_timeout(struct net_device *dev);
+extern int eip_start_xmit(struct sk_buff *skb, struct net_device *dev);
+extern void eip_set_multicast_list(struct net_device *dev);
+extern struct net_device_stats *eip_get_stats(struct net_device *dev);
+
+extern const struct net_device_ops eip_netdev_ops;
+
 extern struct net_device *__alloc_eip_netdev(int size);
 static inline struct net_device *alloc_eip_netdev(void)
 {

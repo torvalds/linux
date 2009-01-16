@@ -401,7 +401,7 @@ static inline void do_040writebacks(struct frame *fp)
  * called from sigreturn(), must ensure userspace code didn't
  * manipulate exception frame to circumvent protection, then complete
  * pending writebacks
- * we just clear TM2 to turn it into an userspace access
+ * we just clear TM2 to turn it into a userspace access
  */
 asmlinkage void berr_040cleanup(struct frame *fp)
 {

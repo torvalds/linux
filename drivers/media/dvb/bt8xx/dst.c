@@ -917,9 +917,7 @@ static int dst_get_mac(struct dst_state *state)
 	}
 	memset(&state->mac_address, '\0', 8);
 	memcpy(&state->mac_address, &state->rxbuffer, 6);
-	dprintk(verbose, DST_ERROR, 1, "MAC Address=[%02x:%02x:%02x:%02x:%02x:%02x]",
-		state->mac_address[0], state->mac_address[1], state->mac_address[2],
-		state->mac_address[4], state->mac_address[5], state->mac_address[6]);
+	dprintk(verbose, DST_ERROR, 1, "MAC Address=[%pM]", state->mac_address);
 
 	return 0;
 }

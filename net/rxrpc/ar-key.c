@@ -287,6 +287,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 			      time_t expiry,
 			      u32 kvno)
 {
+	const struct cred *cred = current_cred();
 	struct key *key;
 	int ret;
 
@@ -297,7 +298,7 @@ int rxrpc_get_server_data_key(struct rxrpc_connection *conn,
 
 	_enter("");
 
-	key = key_alloc(&key_type_rxrpc, "x", 0, 0, current, 0,
+	key = key_alloc(&key_type_rxrpc, "x", 0, 0, cred, 0,
 			KEY_ALLOC_NOT_IN_QUOTA);
 	if (IS_ERR(key)) {
 		_leave(" = -ENOMEM [alloc %ld]", PTR_ERR(key));
@@ -340,10 +341,11 @@ EXPORT_SYMBOL(rxrpc_get_server_data_key);
  */
 struct key *rxrpc_get_null_key(const char *keyname)
 {
+	const struct cred *cred = current_cred();
 	struct key *key;
 	int ret;
 
-	key = key_alloc(&key_type_rxrpc, keyname, 0, 0, current,
+	key = key_alloc(&key_type_rxrpc, keyname, 0, 0, cred,
 			KEY_POS_SEARCH, KEY_ALLOC_NOT_IN_QUOTA);
 	if (IS_ERR(key))
 		return key;

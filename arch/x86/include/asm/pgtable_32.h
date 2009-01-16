@@ -101,15 +101,6 @@ extern unsigned long pg0[];
 #endif
 
 /*
- * Macro to mark a page protection value as "uncacheable".
- * On processors which do not support it, this is a no-op.
- */
-#define pgprot_noncached(prot)					\
-	((boot_cpu_data.x86 > 3)				\
-	 ? (__pgprot(pgprot_val(prot) | _PAGE_PCD | _PAGE_PWT))	\
-	 : (prot))
-
-/*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
  */

@@ -122,7 +122,7 @@
 #endif
 
 #ifndef CPU
-#error Unknown CPU type - This kernel doesn't seem to be configured properly
+#error "Unknown CPU type - This kernel doesn't seem to be configured properly"
 #endif
 
 #endif	/* __MACH_BF48_H__  */

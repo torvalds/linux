@@ -30,21 +30,6 @@ ENTRY(lguest_entry)
 	movl $lguest_data - __PAGE_OFFSET, %edx
 	int $LGUEST_TRAP_ENTRY
 
-	/* The Host put the toplevel pagetable in lguest_data.pgdir.  The movsl
-	 * instruction uses %esi implicitly as the source for the copy we're
-	 * about to do. */
-	movl lguest_data - __PAGE_OFFSET + LGUEST_DATA_pgdir, %esi
-
-	/* Copy first 32 entries of page directory to __PAGE_OFFSET entries.
-	 * This means the first 128M of kernel memory will be mapped at
-	 * PAGE_OFFSET where the kernel expects to run.  This will get it far
-	 * enough through boot to switch to its own pagetables. */
-	movl $32, %ecx
-	movl %esi, %edi
-	addl $((__PAGE_OFFSET >> 22) * 4), %edi
-	rep
-	movsl
-
 	/* Set up the initial stack so we can run C code. */
 	movl $(init_thread_union+THREAD_SIZE),%esp
 

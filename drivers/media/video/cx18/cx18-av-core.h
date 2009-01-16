@@ -4,6 +4,7 @@
  *  Derived from cx25840-core.h
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -302,9 +303,11 @@ struct cx18_av_state {
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value);
 int cx18_av_write4(struct cx18 *cx, u16 addr, u32 value);
 int cx18_av_write4_noretry(struct cx18 *cx, u16 addr, u32 value);
+int cx18_av_write_expect(struct cx18 *cx, u16 addr, u8 value, u8 eval, u8 mask);
+int cx18_av_write4_expect(struct cx18 *cx, u16 addr, u32 value, u32 eval,
+			  u32 mask);
 u8 cx18_av_read(struct cx18 *cx, u16 addr);
 u32 cx18_av_read4(struct cx18 *cx, u16 addr);
-u32 cx18_av_read4_noretry(struct cx18 *cx, u16 addr);
 int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned mask, u8 value);
 int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 mask, u32 value);
 int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg);

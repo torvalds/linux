@@ -18,10 +18,11 @@
 
 #include <linux/module.h>
 #include <linux/mISDNhw.h>
+#include "core.h"
 #include "layer1.h"
 #include "fsm.h"
 
-static int *debug;
+static u_int *debug;
 
 struct layer1 {
 	u_long			Flags;
@@ -100,7 +101,7 @@ l1m_debug(struct FsmInst *fi, char *fmt, ...)
 	va_list va;
 
 	va_start(va, fmt);
-	printk(KERN_DEBUG "%s: ", l1->dch->dev.name);
+	printk(KERN_DEBUG "%s: ", dev_name(&l1->dch->dev.dev));
 	vprintk(fmt, va);
 	printk("\n");
 	va_end(va);

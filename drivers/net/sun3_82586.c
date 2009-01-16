@@ -209,7 +209,7 @@ static int sun3_82586_open(struct net_device *dev)
 static int check586(struct net_device *dev,char *where,unsigned size)
 {
 	struct priv pb;
-	struct priv *p = /* (struct priv *) dev->priv*/ &pb;
+	struct priv *p = &pb;
 	char *iscp_addr;
 	int i;
 
@@ -247,7 +247,7 @@ static int check586(struct net_device *dev,char *where,unsigned size)
  */
 static void alloc586(struct net_device *dev)
 {
-	struct priv *p =	(struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 
 	sun3_reset586();
 	DELAY(1);
@@ -363,17 +363,21 @@ static int __init sun3_82586_probe1(struct net_device *dev,int ioaddr)
 		goto out;
 	}
 
-	((struct priv *) (dev->priv))->memtop = (char *)dvma_btov(dev->mem_start);
-	((struct priv *) (dev->priv))->base = (unsigned long) dvma_btov(0);
+	((struct priv *)netdev_priv(dev))->memtop =
+					(char *)dvma_btov(dev->mem_start);
+	((struct priv *)netdev_priv(dev))->base = (unsigned long) dvma_btov(0);
 	alloc586(dev);
 
 	/* set number of receive-buffs according to memsize */
 	if(size == 0x2000)
-		((struct priv *) dev->priv)->num_recv_buffs = NUM_RECV_BUFFS_8;
+		((struct priv *)netdev_priv(dev))->num_recv_buffs =
+							NUM_RECV_BUFFS_8;
 	else if(size == 0x4000)
-		((struct priv *) dev->priv)->num_recv_buffs = NUM_RECV_BUFFS_16;
+		((struct priv *)netdev_priv(dev))->num_recv_buffs =
+							NUM_RECV_BUFFS_16;
 	else
-		((struct priv *) dev->priv)->num_recv_buffs = NUM_RECV_BUFFS_32;
+		((struct priv *)netdev_priv(dev))->num_recv_buffs =
+							NUM_RECV_BUFFS_32;
 
 	printk("Memaddr: 0x%lx, Memsize: %d, IRQ %d\n",dev->mem_start,size, dev->irq);
 
@@ -397,7 +401,7 @@ static int init586(struct net_device *dev)
 {
 	void *ptr;
 	int i,result=0;
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 	volatile struct configure_cmd_struct	*cfg_cmd;
 	volatile struct iasetup_cmd_struct *ias_cmd;
 	volatile struct tdr_cmd_struct *tdr_cmd;
@@ -631,7 +635,7 @@ static void *alloc_rfa(struct net_device *dev,void *ptr)
 	volatile struct rfd_struct *rfd = (struct rfd_struct *)ptr;
 	volatile struct rbd_struct *rbd;
 	int i;
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 
 	memset((char *) rfd,0,sizeof(struct rfd_struct)*(p->num_recv_buffs+rfdadd));
 	p->rfd_first = rfd;
@@ -683,7 +687,7 @@ static irqreturn_t sun3_82586_interrupt(int irq,void *dev_id)
 		printk ("sun3_82586-interrupt: irq %d for unknown device.\n",irq);
 		return IRQ_NONE;
 	}
-	p = (struct priv *) dev->priv;
+	p = netdev_priv(dev);
 
 	if(debuglevel > 1)
 		printk("I");
@@ -753,7 +757,7 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 	unsigned short totlen;
 	struct sk_buff *skb;
 	struct rbd_struct *rbd;
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 
 	if(debuglevel > 0)
 		printk("R");
@@ -871,7 +875,7 @@ static void sun3_82586_rcv_int(struct net_device *dev)
 
 static void sun3_82586_rnr_int(struct net_device *dev)
 {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 
 	p->stats.rx_errors++;
 
@@ -895,7 +899,7 @@ static void sun3_82586_rnr_int(struct net_device *dev)
 static void sun3_82586_xmt_int(struct net_device *dev)
 {
 	int status;
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 
 	if(debuglevel > 0)
 		printk("X");
@@ -945,7 +949,7 @@ static void sun3_82586_xmt_int(struct net_device *dev)
 
 static void startrecv586(struct net_device *dev)
 {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 
 	WAIT_4_SCB_CMD();
 	WAIT_4_SCB_CMD_RUC();
@@ -957,7 +961,7 @@ static void startrecv586(struct net_device *dev)
 
 static void sun3_82586_timeout(struct net_device *dev)
 {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 #ifndef NO_NOPCOMMANDS
 	if(p->scb->cus & CU_ACTIVE) /* COMMAND-UNIT active? */
 	{
@@ -999,7 +1003,7 @@ static int sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 #ifndef NO_NOPCOMMANDS
 	int next_nop;
 #endif
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 
 	if(skb->len > XMIT_BUFF_SIZE)
 	{
@@ -1108,7 +1112,7 @@ static int sun3_82586_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *sun3_82586_get_stats(struct net_device *dev)
 {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 	unsigned short crc,aln,rsc,ovrn;
 
 	crc = swab16(p->scb->crc_errs); /* get error-statistic from the ni82586 */
@@ -1171,7 +1175,7 @@ void cleanup_module(void)
  */
 void sun3_82586_dump(struct net_device *dev,void *ptr)
 {
-	struct priv *p = (struct priv *) dev->priv;
+	struct priv *p = netdev_priv(dev);
 	struct dump_cmd_struct *dump_cmd = (struct dump_cmd_struct *) ptr;
 	int i;
 

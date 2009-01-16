@@ -31,7 +31,6 @@
 #include <mach/mfp-pxa300.h>
 
 #include <mach/hardware.h>
-#include <mach/gpio.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
@@ -137,6 +136,10 @@ static mfp_cfg_t cm_x300_mfp_cfg[] __initdata = {
 	GPIO82_GPIO | MFP_PULL_HIGH,	/* MMC CD */
 	GPIO85_GPIO,			/* MMC WP */
 	GPIO99_GPIO,			/* Ethernet IRQ */
+
+	/* Standard I2C */
+	GPIO21_I2C_SCL,
+	GPIO22_I2C_SDA,
 };
 
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)

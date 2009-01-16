@@ -844,6 +844,9 @@ static int set_tvaudio(struct cx88_core *core)
 	} else if (V4L2_STD_SECAM_L & norm) {
 		core->tvaudio = WW_L;
 
+	} else if ((V4L2_STD_SECAM_B | V4L2_STD_SECAM_G | V4L2_STD_SECAM_H) & norm) {
+		core->tvaudio = WW_BG;
+
 	} else if (V4L2_STD_SECAM_DK & norm) {
 		core->tvaudio = WW_DK;
 

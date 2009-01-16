@@ -45,7 +45,6 @@
 #include <asm/mmu.h>
 #include <asm/processor.h>
 #include <asm/io.h>
-#include <asm/kexec.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/cputable.h>
@@ -226,9 +225,6 @@ define_machine(celleb_beat) {
 	.pci_setup_phb		= celleb_setup_phb,
 #ifdef CONFIG_KEXEC
 	.kexec_cpu_down		= beat_kexec_cpu_down,
-	.machine_kexec		= default_machine_kexec,
-	.machine_kexec_prepare	= default_machine_kexec_prepare,
-	.machine_crash_shutdown	= default_machine_crash_shutdown,
 #endif
 };
 
@@ -248,9 +244,4 @@ define_machine(celleb_native) {
 	.pci_probe_mode 	= celleb_pci_probe_mode,
 	.pci_setup_phb		= celleb_setup_phb,
 	.init_IRQ		= celleb_init_IRQ_native,
-#ifdef CONFIG_KEXEC
-	.machine_kexec		= default_machine_kexec,
-	.machine_kexec_prepare	= default_machine_kexec_prepare,
-	.machine_crash_shutdown	= default_machine_crash_shutdown,
-#endif
 };

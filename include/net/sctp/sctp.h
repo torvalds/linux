@@ -138,6 +138,7 @@ void sctp_write_space(struct sock *sk);
 unsigned int sctp_poll(struct file *file, struct socket *sock,
 		poll_table *wait);
 void sctp_sock_rfree(struct sk_buff *skb);
+extern struct percpu_counter sctp_sockets_allocated;
 
 /*
  * sctp/primitive.c
@@ -285,15 +286,15 @@ extern int sctp_debug_flag;
 	if (sctp_debug_flag) { \
 		if (saddr->sa.sa_family == AF_INET6) { \
 			printk(KERN_DEBUG \
-			       lead NIP6_FMT trail, \
+			       lead "%pI6" trail, \
 			       leadparm, \
-			       NIP6(saddr->v6.sin6_addr), \
+			       &saddr->v6.sin6_addr, \
 			       otherparms); \
 		} else { \
 			printk(KERN_DEBUG \
-			       lead NIPQUAD_FMT trail, \
+			       lead "%pI4" trail, \
 			       leadparm, \
-			       NIPQUAD(saddr->v4.sin_addr.s_addr), \
+			       &saddr->v4.sin_addr.s_addr, \
 			       otherparms); \
 		} \
 	}

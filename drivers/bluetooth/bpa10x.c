@@ -35,11 +35,6 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#ifndef CONFIG_BT_HCIBPA10X_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 #define VERSION "0.10"
 
 static struct usb_device_id bpa10x_table[] = {
@@ -488,6 +483,8 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	hdev->destruct = bpa10x_destruct;
 
 	hdev->owner = THIS_MODULE;
+
+	set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
 
 	err = hci_register_dev(hdev);
 	if (err < 0) {

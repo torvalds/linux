@@ -37,11 +37,6 @@ extern struct bus_type platform_bus_type;
 					(dma_addr_t)__virt_to_phys(x) : (dma_addr_t)__virt_to_bus(x); })
 #define __arch_page_to_dma(dev, x)	__arch_virt_to_dma(dev, page_address(x))
 
-#else
-
-#define __virt_to_bus(x)	__virt_to_phys(x)
-#define __bus_to_virt(x)	__phys_to_virt(x)
-
 #endif
 
 #endif

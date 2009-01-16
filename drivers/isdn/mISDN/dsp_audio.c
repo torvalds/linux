@@ -30,7 +30,7 @@ EXPORT_SYMBOL(dsp_audio_s16_to_law);
 /* alaw -> ulaw */
 u8 dsp_audio_alaw_to_ulaw[256];
 /* ulaw -> alaw */
-u8 dsp_audio_ulaw_to_alaw[256];
+static u8 dsp_audio_ulaw_to_alaw[256];
 u8 dsp_silence;
 
 

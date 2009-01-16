@@ -263,7 +263,7 @@ int s390_enable_sie(void)
 	/* lets check if we are allowed to replace the mm */
 	task_lock(tsk);
 	if (!tsk->mm || atomic_read(&tsk->mm->mm_users) > 1 ||
-	    tsk->mm != tsk->active_mm || tsk->mm->ioctx_list) {
+	    tsk->mm != tsk->active_mm || !hlist_empty(&tsk->mm->ioctx_list)) {
 		task_unlock(tsk);
 		return -EINVAL;
 	}
@@ -279,7 +279,7 @@ int s390_enable_sie(void)
 	/* Now lets check again if something happened */
 	task_lock(tsk);
 	if (!tsk->mm || atomic_read(&tsk->mm->mm_users) > 1 ||
-	    tsk->mm != tsk->active_mm || tsk->mm->ioctx_list) {
+	    tsk->mm != tsk->active_mm || !hlist_empty(&tsk->mm->ioctx_list)) {
 		mmput(mm);
 		task_unlock(tsk);
 		return -EINVAL;

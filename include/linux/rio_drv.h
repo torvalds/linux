@@ -391,7 +391,6 @@ static inline int rio_add_inb_buffer(struct rio_mport *mport, int mbox,
  * rio_get_inb_message - Get A RIO message from an inbound mailbox queue
  * @mport: Master port containing the inbound mailbox
  * @mbox: The inbound mailbox number
- * @buffer: Pointer to the message buffer
  *
  * Get a RIO message from an inbound mailbox queue. Returns 0 on success.
  */
@@ -427,9 +426,9 @@ void rio_dev_put(struct rio_dev *);
  * Get the unique RIO device identifier. Returns the device
  * identifier string.
  */
-static inline char *rio_name(struct rio_dev *rdev)
+static inline const char *rio_name(struct rio_dev *rdev)
 {
-	return rdev->dev.bus_id;
+	return dev_name(&rdev->dev);
 }
 
 /**

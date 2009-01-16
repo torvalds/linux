@@ -11,14 +11,20 @@
 
 #include <asm/ppc_asm.h>
 #include <asm/processor.h>
+#include <asm/bug.h>
 
 #define DCR_ACCESS_PROLOG(table) \
+	cmpli	cr0,r3,1024;	 \
 	rlwinm  r3,r3,4,18,27;   \
 	lis     r5,table@h;      \
 	ori     r5,r5,table@l;   \
 	add     r3,r3,r5;        \
+	bge-	1f;		 \
 	mtctr   r3;              \
-	bctr
+	bctr;			 \
+1:	trap;			 \
+	EMIT_BUG_ENTRY 1b,__FILE__,__LINE__,0;	\
+	blr
 
 _GLOBAL(__mfdcr)
 	DCR_ACCESS_PROLOG(__mfdcr_table)

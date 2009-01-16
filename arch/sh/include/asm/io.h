@@ -260,6 +260,10 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 
 		return (void __iomem *)P2SEGADDR(offset);
 	}
+
+	/* P4 above the store queues are always mapped. */
+	if (unlikely(offset >= P3_ADDR_MAX))
+		return (void __iomem *)P4SEGADDR(offset);
 #endif
 
 	return __ioremap(offset, size, flags);

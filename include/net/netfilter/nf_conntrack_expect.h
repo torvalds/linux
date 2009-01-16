@@ -100,6 +100,8 @@ void nf_ct_expect_init(struct nf_conntrack_expect *, unsigned int, u_int8_t,
 		       u_int8_t, const __be16 *, const __be16 *);
 void nf_ct_expect_put(struct nf_conntrack_expect *exp);
 int nf_ct_expect_related(struct nf_conntrack_expect *expect);
+int nf_ct_expect_related_report(struct nf_conntrack_expect *expect, 
+				u32 pid, int report);
 
 #endif /*_NF_CONNTRACK_EXPECT_H*/
 

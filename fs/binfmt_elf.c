@@ -152,12 +152,14 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	elf_addr_t __user *sp;
 	elf_addr_t __user *u_platform;
 	elf_addr_t __user *u_base_platform;
+	elf_addr_t __user *u_rand_bytes;
 	const char *k_platform = ELF_PLATFORM;
 	const char *k_base_platform = ELF_BASE_PLATFORM;
+	unsigned char k_rand_bytes[16];
 	int items;
 	elf_addr_t *elf_info;
 	int ei_index = 0;
-	struct task_struct *tsk = current;
+	const struct cred *cred = current_cred();
 	struct vm_area_struct *vma;
 
 	/*
@@ -196,6 +198,15 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 			return -EFAULT;
 	}
 
+	/*
+	 * Generate 16 random bytes for userspace PRNG seeding.
+	 */
+	get_random_bytes(k_rand_bytes, sizeof(k_rand_bytes));
+	u_rand_bytes = (elf_addr_t __user *)
+		       STACK_ALLOC(p, sizeof(k_rand_bytes));
+	if (__copy_to_user(u_rand_bytes, k_rand_bytes, sizeof(k_rand_bytes)))
+		return -EFAULT;
+
 	/* Create the ELF interpreter info */
 	elf_info = (elf_addr_t *)current->mm->saved_auxv;
 	/* update AT_VECTOR_SIZE_BASE if the number of NEW_AUX_ENT() changes */
@@ -223,11 +234,12 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	NEW_AUX_ENT(AT_BASE, interp_load_addr);
 	NEW_AUX_ENT(AT_FLAGS, 0);
 	NEW_AUX_ENT(AT_ENTRY, exec->e_entry);
-	NEW_AUX_ENT(AT_UID, tsk->uid);
-	NEW_AUX_ENT(AT_EUID, tsk->euid);
-	NEW_AUX_ENT(AT_GID, tsk->gid);
-	NEW_AUX_ENT(AT_EGID, tsk->egid);
+	NEW_AUX_ENT(AT_UID, cred->uid);
+	NEW_AUX_ENT(AT_EUID, cred->euid);
+	NEW_AUX_ENT(AT_GID, cred->gid);
+	NEW_AUX_ENT(AT_EGID, cred->egid);
  	NEW_AUX_ENT(AT_SECURE, security_bprm_secureexec(bprm));
+	NEW_AUX_ENT(AT_RANDOM, (elf_addr_t)(unsigned long)u_rand_bytes);
 	NEW_AUX_ENT(AT_EXECFN, bprm->exec);
 	if (k_platform) {
 		NEW_AUX_ENT(AT_PLATFORM,
@@ -949,14 +961,14 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	set_binfmt(&elf_format);
 
 #ifdef ARCH_HAS_SETUP_ADDITIONAL_PAGES
-	retval = arch_setup_additional_pages(bprm, executable_stack);
+	retval = arch_setup_additional_pages(bprm, !!elf_interpreter);
 	if (retval < 0) {
 		send_sig(SIGKILL, current, 0);
 		goto out;
 	}
 #endif /* ARCH_HAS_SETUP_ADDITIONAL_PAGES */
 
-	compute_creds(bprm);
+	install_exec_creds(bprm);
 	current->flags &= ~PF_FORKNOEXEC;
 	retval = create_elf_tables(bprm, &loc->elf_ex,
 			  load_addr, interp_load_addr);
@@ -1361,6 +1373,7 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 		       struct mm_struct *mm)
 {
+	const struct cred *cred;
 	unsigned int i, len;
 	
 	/* first copy the parameters from user space */
@@ -1388,8 +1401,11 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 	psinfo->pr_zomb = psinfo->pr_sname == 'Z';
 	psinfo->pr_nice = task_nice(p);
 	psinfo->pr_flag = p->flags;
-	SET_UID(psinfo->pr_uid, p->uid);
-	SET_GID(psinfo->pr_gid, p->gid);
+	rcu_read_lock();
+	cred = __task_cred(p);
+	SET_UID(psinfo->pr_uid, cred->uid);
+	SET_GID(psinfo->pr_gid, cred->gid);
+	rcu_read_unlock();
 	strncpy(psinfo->pr_fname, p->comm, sizeof(psinfo->pr_fname));
 	
 	return 0;

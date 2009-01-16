@@ -244,14 +244,6 @@
 #define ZC3XX_R1CA_SHARPNESS04         0x01ca
 #define ZC3XX_R1CB_SHARPNESS05         0x01cb
 
-/* Synchronization */
-#define ZC3XX_R190_SYNC00LOW           0x0190
-#define ZC3XX_R191_SYNC00MID           0x0191
-#define ZC3XX_R192_SYNC00HIGH          0x0192
-#define ZC3XX_R195_SYNC01LOW           0x0195
-#define ZC3XX_R196_SYNC01MID           0x0196
-#define ZC3XX_R197_SYNC01HIGH          0x0197
-
 /* Dead pixels */
 #define ZC3XX_R250_DEADPIXELSMODE      0x0250
 

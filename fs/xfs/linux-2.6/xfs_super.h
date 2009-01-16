@@ -20,24 +20,12 @@
 
 #include <linux/exportfs.h>
 
-#ifdef CONFIG_XFS_DMAPI
-# define vfs_insertdmapi(vfs)	vfs_insertops(vfsp, &xfs_dmops)
-# define vfs_initdmapi()	dmapi_init()
-# define vfs_exitdmapi()	dmapi_uninit()
-#else
-# define vfs_insertdmapi(vfs)	do { } while (0)
-# define vfs_initdmapi()	do { } while (0)
-# define vfs_exitdmapi()	do { } while (0)
-#endif
-
 #ifdef CONFIG_XFS_QUOTA
-# define vfs_insertquota(vfs)	vfs_insertops(vfsp, &xfs_qmops)
 extern void xfs_qm_init(void);
 extern void xfs_qm_exit(void);
 # define vfs_initquota()	xfs_qm_init()
 # define vfs_exitquota()	xfs_qm_exit()
 #else
-# define vfs_insertquota(vfs)	do { } while (0)
 # define vfs_initquota()	do { } while (0)
 # define vfs_exitquota()	do { } while (0)
 #endif
@@ -100,9 +88,6 @@ struct xfs_buftarg;
 struct block_device;
 
 extern __uint64_t xfs_max_file_offset(unsigned int);
-
-extern void xfs_flush_inode(struct xfs_inode *);
-extern void xfs_flush_device(struct xfs_inode *);
 
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 

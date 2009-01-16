@@ -53,12 +53,11 @@
 /* ----------------------------------------------------------- */
 /* defines and enums                                           */
 
-/* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
-#define CX88_NORMS (\
-	V4L2_STD_NTSC_M|  V4L2_STD_NTSC_M_JP|  V4L2_STD_NTSC_443 | \
-	V4L2_STD_PAL_BG|  V4L2_STD_PAL_DK   |  V4L2_STD_PAL_I    | \
-	V4L2_STD_PAL_M |  V4L2_STD_PAL_N    |  V4L2_STD_PAL_Nc   | \
-	V4L2_STD_PAL_60|  V4L2_STD_SECAM_L  |  V4L2_STD_SECAM_DK )
+/* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM/LC */
+#define CX88_NORMS (V4L2_STD_ALL 		\
+		    & ~V4L2_STD_PAL_H		\
+		    & ~V4L2_STD_NTSC_M_KR	\
+		    & ~V4L2_STD_SECAM_LC)
 
 #define FORMAT_FLAGS_PACKED       0x01
 #define FORMAT_FLAGS_PLANAR       0x02
@@ -229,6 +228,9 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_TEVII_S420              73
 #define CX88_BOARD_PROLINK_PV_GLOBAL_XTREME 74
 #define CX88_BOARD_PROF_7300               75
+#define CX88_BOARD_SATTRADE_ST4200         76
+#define CX88_BOARD_TBS_8910                77
+#define CX88_BOARD_PROF_6200               78
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -300,6 +302,7 @@ struct cx88_dmaqueue {
 	struct btcx_riscmem    stopper;
 	u32                    count;
 };
+struct cx88_core;
 
 struct cx88_core {
 	struct list_head           devlist;
@@ -332,7 +335,8 @@ struct cx88_core {
 
 	/* config info -- dvb */
 #if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
-	int 			   (*prev_set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
+	int 			   (*prev_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	void			   (*gate_ctrl)(struct cx88_core  *core, int open);
 #endif
 
 	/* state info */
@@ -641,7 +645,7 @@ int cx88_audio_thread(void *data);
 
 int cx8802_register_driver(struct cx8802_driver *drv);
 int cx8802_unregister_driver(struct cx8802_driver *drv);
-struct cx8802_dev * cx8802_get_device(struct inode *inode);
+struct cx8802_dev *cx8802_get_device(int minor);
 struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype);
 
 /* ----------------------------------------------------------- */

@@ -189,6 +189,8 @@ config OCFS2_FS
 	select CONFIGFS_FS
 	select JBD2
 	select CRC32
+	select QUOTA
+	select QUOTA_TREE
 	help
 	  OCFS2 is a general purpose extent based shared disk cluster file
 	  system with many similarities to ext3. It supports 64 bit inode
@@ -258,56 +260,37 @@ config OCFS2_DEBUG_FS
 	  this option for debugging only as it is likely to decrease
 	  performance of the filesystem.
 
-config OCFS2_COMPAT_JBD
-	bool "Use JBD for compatibility"
+config OCFS2_FS_POSIX_ACL
+	bool "OCFS2 POSIX Access Control Lists"
 	depends on OCFS2_FS
+	select FS_POSIX_ACL
 	default n
-	select JBD
 	help
-	  The ocfs2 filesystem now uses JBD2 for its journalling.  JBD2
-	  is backwards compatible with JBD.  It is safe to say N here.
-	  However, if you really want to use the original JBD, say Y here.
+	  Posix Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+config BTRFS_FS
+	tristate "Btrfs filesystem (EXPERIMENTAL) Unstable disk format"
+	depends on EXPERIMENTAL
+	select LIBCRC32C
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
+	help
+	  Btrfs is a new filesystem with extents, writable snapshotting,
+	  support for multiple devices and many more features.
+
+	  Btrfs is highly experimental, and THE DISK FORMAT IS NOT YET
+	  FINALIZED.  You should say N here unless you are interested in
+	  testing Btrfs with non-critical data.
+
+	  To compile this file system support as a module, choose M here. The
+	  module will be called btrfs.
+
+	  If unsure, say N.
 
 endif # BLOCK
 
-config DNOTIFY
-	bool "Dnotify support"
-	default y
-	help
-	  Dnotify is a directory-based per-fd file change notification system
-	  that uses signals to communicate events to user-space.  There exist
-	  superior alternatives, but some applications may still rely on
-	  dnotify.
-
-	  If unsure, say Y.
-
-config INOTIFY
-	bool "Inotify file change notification support"
-	default y
-	---help---
-	  Say Y here to enable inotify support.  Inotify is a file change
-	  notification system and a replacement for dnotify.  Inotify fixes
-	  numerous shortcomings in dnotify and introduces several new features
-	  including multiple file events, one-shot support, and unmount
-	  notification.
-
-	  For more information, see <file:Documentation/filesystems/inotify.txt>
-
-	  If unsure, say Y.
-
-config INOTIFY_USER
-	bool "Inotify support for userspace"
-	depends on INOTIFY
-	default y
-	---help---
-	  Say Y here to enable inotify support for userspace, including the
-	  associated system calls.  Inotify allows monitoring of both files and
-	  directories via a single open fd.  Events are read from the file
-	  descriptor, which is also select()- and poll()-able.
-
-	  For more information, see <file:Documentation/filesystems/inotify.txt>
-
-	  If unsure, say Y.
+source "fs/notify/Kconfig"
 
 config QUOTA
 	bool "Quota support"
@@ -340,6 +323,10 @@ config PRINT_QUOTA_WARNING
 	  Note that this behavior is currently deprecated and may go away in
 	  future. Please use notification via netlink socket instead.
 
+# Generic support for tree structured quota files. Seleted when needed.
+config QUOTA_TREE
+	 tristate
+
 config QFMT_V1
 	tristate "Old quota format support"
 	depends on QUOTA
@@ -351,6 +338,7 @@ config QFMT_V1
 config QFMT_V2
 	tristate "Quota format v2 support"
 	depends on QUOTA
+	select QUOTA_TREE
 	help
 	  This quota format allows using quotas with 32-bit UIDs/GIDs. If you
 	  need this functionality say Y here.
@@ -752,7 +740,20 @@ config CONFIGFS_FS
 
 endmenu
 
-menu "Miscellaneous filesystems"
+menuconfig MISC_FILESYSTEMS
+	bool "Miscellaneous filesystems"
+	default y
+	---help---
+	  Say Y here to get to see options for various miscellaneous
+	  filesystems, such as filesystems that came from other
+	  operating systems.
+
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and
+	  disabled; if unsure, say Y here.
+
+if MISC_FILESYSTEMS
 
 config ADFS_FS
 	tristate "ADFS file system support (EXPERIMENTAL)"
@@ -930,6 +931,58 @@ config CRAMFS
 	  directory /) cannot be compiled as a module.
 
 	  If unsure, say N.
+
+config SQUASHFS
+	tristate "SquashFS 4.0 - Squashed file system support"
+	depends on BLOCK
+	select ZLIB_INFLATE
+	help
+	  Saying Y here includes support for SquashFS 4.0 (a Compressed
+	  Read-Only File System).  Squashfs is a highly compressed read-only
+	  filesystem for Linux.  It uses zlib compression to compress both
+	  files, inodes and directories.  Inodes in the system are very small
+	  and all blocks are packed to minimise data overhead. Block sizes
+	  greater than 4K are supported up to a maximum of 1 Mbytes (default
+	  block size 128K).  SquashFS 4.0 supports 64 bit filesystems and files
+	  (larger than 4GB), full uid/gid information, hard links and
+	  timestamps.  
+
+	  Squashfs is intended for general read-only filesystem use, for
+	  archival use (i.e. in cases where a .tar.gz file may be used), and in
+	  embedded systems where low overhead is needed.  Further information
+	  and tools are available from http://squashfs.sourceforge.net.
+
+	  If you want to compile this as a module ( = code which can be
+	  inserted in and removed from the running kernel whenever you want),
+	  say M here and read <file:Documentation/modules.txt>.  The module
+	  will be called squashfs.  Note that the root file system (the one
+	  containing the directory /) cannot be compiled as a module.
+
+	  If unsure, say N.
+
+config SQUASHFS_EMBEDDED
+
+	bool "Additional option for memory-constrained systems" 
+	depends on SQUASHFS
+	default n
+	help
+	  Saying Y here allows you to specify cache size.
+
+	  If unsure, say N.
+
+config SQUASHFS_FRAGMENT_CACHE_SIZE
+	int "Number of fragments cached" if SQUASHFS_EMBEDDED
+	depends on SQUASHFS
+	default "3"
+	help
+	  By default SquashFS caches the last 3 fragments read from
+	  the filesystem.  Increasing this amount may mean SquashFS
+	  has to re-read fragments less often from disk, at the expense
+	  of extra system memory.  Decreasing this amount will mean
+	  SquashFS uses less memory at the expense of extra reads from disk.
+
+	  Note there must be at least one cached fragment.  Anything
+	  much more than three will probably not make much difference.
 
 config VXFS_FS
 	tristate "FreeVxFS file system support (VERITAS VxFS(TM) compatible)"
@@ -1122,7 +1175,7 @@ config UFS_DEBUG
 	  Y here.  This will result in _many_ additional debugging messages to be
 	  written to the system log.
 
-endmenu
+endif # MISC_FILESYSTEMS
 
 menuconfig NETWORK_FILESYSTEMS
 	bool "Network File Systems"

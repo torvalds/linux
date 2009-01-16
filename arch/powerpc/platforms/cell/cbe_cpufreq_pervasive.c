@@ -54,7 +54,7 @@ int cbe_cpufreq_set_pmode(int cpu, unsigned int pmode)
 {
 	struct cbe_pmd_regs __iomem *pmd_regs;
 	struct cbe_mic_tm_regs __iomem *mic_tm_regs;
-	u64 flags;
+	unsigned long flags;
 	u64 value;
 #ifdef DEBUG
 	long time;

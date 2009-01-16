@@ -16,11 +16,12 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/io.h>
+
+#include <asm/clkdev.h>
 #include <asm/div64.h>
 #include <mach/hardware.h>
 
 struct clk {
-	char		*name;
 	unsigned long	rate;
 	int		users;
 	u32		enable_reg;
@@ -28,53 +29,33 @@ struct clk {
 };
 
 static struct clk clk_uart = {
-	.name		= "UARTCLK",
 	.rate		= 14745600,
 };
-static struct clk clk_pll1 = {
-	.name		= "pll1",
-};
-static struct clk clk_f = {
-	.name		= "fclk",
-};
-static struct clk clk_h = {
-	.name		= "hclk",
-};
-static struct clk clk_p = {
-	.name		= "pclk",
-};
-static struct clk clk_pll2 = {
-	.name		= "pll2",
-};
+static struct clk clk_pll1;
+static struct clk clk_f;
+static struct clk clk_h;
+static struct clk clk_p;
+static struct clk clk_pll2;
 static struct clk clk_usb_host = {
-	.name		= "usb_host",
 	.enable_reg	= EP93XX_SYSCON_CLOCK_CONTROL,
 	.enable_mask	= EP93XX_SYSCON_CLOCK_USH_EN,
 };
 
+#define INIT_CK(dev,con,ck)					\
+	{ .dev_id = dev, .con_id = con, .clk = ck }
 
-static struct clk *clocks[] = {
-	&clk_uart,
-	&clk_pll1,
-	&clk_f,
-	&clk_h,
-	&clk_p,
-	&clk_pll2,
-	&clk_usb_host,
+static struct clk_lookup clocks[] = {
+	INIT_CK("apb:uart1", NULL, &clk_uart),
+	INIT_CK("apb:uart2", NULL, &clk_uart),
+	INIT_CK("apb:uart3", NULL, &clk_uart),
+	INIT_CK(NULL, "pll1", &clk_pll1),
+	INIT_CK(NULL, "fclk", &clk_f),
+	INIT_CK(NULL, "hclk", &clk_h),
+	INIT_CK(NULL, "pclk", &clk_p),
+	INIT_CK(NULL, "pll2", &clk_pll2),
+	INIT_CK(NULL, "usb_host", &clk_usb_host),
 };
 
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(clocks); i++) {
-		if (!strcmp(clocks[i]->name, id))
-			return clocks[i];
-	}
-
-	return ERR_PTR(-ENOENT);
-}
-EXPORT_SYMBOL(clk_get);
 
 int clk_enable(struct clk *clk)
 {
@@ -106,12 +87,6 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
-
-
 
 static char fclk_divisors[] = { 1, 2, 4, 8, 16, 1, 1, 1 };
 static char hclk_divisors[] = { 1, 2, 4, 5, 6, 8, 16, 32 };
@@ -138,6 +113,7 @@ static unsigned long calc_pll_rate(u32 config_word)
 static int __init ep93xx_clock_init(void)
 {
 	u32 value;
+	int i;
 
 	value = __raw_readl(EP93XX_SYSCON_CLOCK_SET1);
 	if (!(value & 0x00800000)) {			/* PLL1 bypassed?  */
@@ -165,6 +141,8 @@ static int __init ep93xx_clock_init(void)
 		clk_f.rate / 1000000, clk_h.rate / 1000000,
 		clk_p.rate / 1000000);
 
+	for (i = 0; i < ARRAY_SIZE(clocks); i++)
+		clkdev_add(&clocks[i]);
 	return 0;
 }
 arch_initcall(ep93xx_clock_init);

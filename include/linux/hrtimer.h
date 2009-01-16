@@ -43,26 +43,6 @@ enum hrtimer_restart {
 };
 
 /*
- * hrtimer callback modes:
- *
- *	HRTIMER_CB_SOFTIRQ:		Callback must run in softirq context
- *	HRTIMER_CB_IRQSAFE_PERCPU:	Callback must run in hardirq context
- *					Special mode for tick emulation and
- *					scheduler timer. Such timers are per
- *					cpu and not allowed to be migrated on
- *					cpu unplug.
- *	HRTIMER_CB_IRQSAFE_UNLOCKED:	Callback should run in hardirq context
- *					with timer->base lock unlocked
- *					used for timers which call wakeup to
- *					avoid lock order problems with rq->lock
- */
-enum hrtimer_cb_mode {
-	HRTIMER_CB_SOFTIRQ,
-	HRTIMER_CB_IRQSAFE_PERCPU,
-	HRTIMER_CB_IRQSAFE_UNLOCKED,
-};
-
-/*
  * Values to track state of the timer
  *
  * Possible states:
@@ -70,7 +50,6 @@ enum hrtimer_cb_mode {
  * 0x00		inactive
  * 0x01		enqueued into rbtree
  * 0x02		callback function running
- * 0x04		callback pending (high resolution mode)
  *
  * Special cases:
  * 0x03		callback function running and enqueued
@@ -92,8 +71,7 @@ enum hrtimer_cb_mode {
 #define HRTIMER_STATE_INACTIVE	0x00
 #define HRTIMER_STATE_ENQUEUED	0x01
 #define HRTIMER_STATE_CALLBACK	0x02
-#define HRTIMER_STATE_PENDING	0x04
-#define HRTIMER_STATE_MIGRATE	0x08
+#define HRTIMER_STATE_MIGRATE	0x04
 
 /**
  * struct hrtimer - the basic hrtimer structure
@@ -109,8 +87,6 @@ enum hrtimer_cb_mode {
  * @function:	timer expiry callback function
  * @base:	pointer to the timer base (per cpu and per clock)
  * @state:	state information (See bit values above)
- * @cb_mode:	high resolution timer feature to select the callback execution
- *		 mode
  * @cb_entry:	list head to enqueue an expired timer into the callback list
  * @start_site:	timer statistics field to store the site where the timer
  *		was started
@@ -129,7 +105,6 @@ struct hrtimer {
 	struct hrtimer_clock_base	*base;
 	unsigned long			state;
 	struct list_head		cb_entry;
-	enum hrtimer_cb_mode		cb_mode;
 #ifdef CONFIG_TIMER_STATS
 	int				start_pid;
 	void				*start_site;
@@ -188,15 +163,11 @@ struct hrtimer_clock_base {
  * @check_clocks:	Indictator, when set evaluate time source and clock
  *			event devices whether high resolution mode can be
  *			activated.
- * @cb_pending:		Expired timers are moved from the rbtree to this
- *			list in the timer interrupt. The list is processed
- *			in the softirq.
  * @nr_events:		Total number of timer interrupt events
  */
 struct hrtimer_cpu_base {
 	spinlock_t			lock;
 	struct hrtimer_clock_base	clock_base[HRTIMER_MAX_CLOCK_BASES];
-	struct list_head		cb_pending;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	ktime_t				expires_next;
 	int				hres_active;
@@ -404,8 +375,7 @@ static inline int hrtimer_active(const struct hrtimer *timer)
  */
 static inline int hrtimer_is_queued(struct hrtimer *timer)
 {
-	return timer->state &
-		(HRTIMER_STATE_ENQUEUED | HRTIMER_STATE_PENDING);
+	return timer->state & HRTIMER_STATE_ENQUEUED;
 }
 
 /*

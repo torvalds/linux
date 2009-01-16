@@ -45,7 +45,11 @@ struct k_itimer {
 	int it_requeue_pending;		/* waiting to requeue this timer */
 #define REQUEUE_PENDING 1
 	int it_sigev_notify;		/* notify word of sigevent struct */
-	struct task_struct *it_process;	/* process to send signal to */
+	struct signal_struct *it_signal;
+	union {
+		struct pid *it_pid;	/* pid of process to send signal to */
+		struct task_struct *it_process;	/* for clock_nanosleep */
+	};
 	struct sigqueue *sigq;		/* signal queue entry. */
 	union {
 		struct {

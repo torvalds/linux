@@ -152,7 +152,6 @@ static int __devinit madgemc_probe(struct device *device)
 	struct card_info *card;
 	struct mca_device *mdev = to_mca_device(device);
 	int ret = 0;
-	DECLARE_MAC_BUF(mac);
 
 	if (versionprinted++ == 0)
 		printk("%s", version);
@@ -323,8 +322,8 @@ static int __devinit madgemc_probe(struct device *device)
 	mca_device_set_name(mdev, (card->cardtype == 0x08)?MADGEMC16_CARDNAME:MADGEMC32_CARDNAME);
 	mca_set_adapter_procfn(mdev->slot, madgemc_mcaproc, dev);
 
-	printk("%s:     Ring Station Address: %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk("%s:     Ring Station Address: %pM\n",
+	       dev->name, dev->dev_addr);
 
 	if (tmsdev_init(dev, device)) {
 		printk("%s: unable to get memory for dev->priv.\n", 
@@ -467,7 +466,7 @@ static irqreturn_t madgemc_interrupt(int irq, void *dev_id)
  * zero to leave the TMS NSELOUT bits unaffected.
  *
  */
-unsigned short madgemc_setnselout_pins(struct net_device *dev)
+static unsigned short madgemc_setnselout_pins(struct net_device *dev)
 {
 	unsigned char reg1;
 	struct net_local *tp = netdev_priv(dev);
@@ -690,7 +689,6 @@ static int madgemc_mcaproc(char *buf, int slot, void *d)
 	struct net_local *tp = netdev_priv(dev);
 	struct card_info *curcard = tp->tmspriv;
 	int len = 0;
-	DECLARE_MAC_BUF(mac);
 	
 	len += sprintf(buf+len, "-------\n");
 	if (curcard) {
@@ -714,8 +712,8 @@ static int madgemc_mcaproc(char *buf, int slot, void *d)
 		}
 		len += sprintf(buf+len, " (%s)\n", (curcard->fairness)?"Unfair":"Fair");
 		
-		len += sprintf(buf+len, "Ring Station Address: %s\n",
-			       print_mac(mac, dev->dev_addr));
+		len += sprintf(buf+len, "Ring Station Address: %pM\n",
+			       dev->dev_addr);
 	} else 
 		len += sprintf(buf+len, "Card not configured\n");
 

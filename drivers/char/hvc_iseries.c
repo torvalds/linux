@@ -575,8 +575,10 @@ static int __init hvc_find_vtys(void)
 		 * of console adapters.
 		 */
 		if ((num_found >= MAX_NR_HVC_CONSOLES) ||
-				(num_found >= VTTY_PORTS))
+				(num_found >= VTTY_PORTS)) {
+			of_node_put(vty);
 			break;
+		}
 
 		vtermno = of_get_property(vty, "reg", NULL);
 		if (!vtermno)

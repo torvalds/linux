@@ -140,8 +140,7 @@ ccw_device_cancel_halt_clear(struct ccw_device *cdev)
 	int ret;
 
 	sch = to_subchannel(cdev->dev.parent);
-	ret = stsch(sch->schid, &sch->schib);
-	if (ret || !sch->schib.pmcw.dnv)
+	if (cio_update_schib(sch))
 		return -ENODEV; 
 	if (!sch->schib.pmcw.ena)
 		/* Not operational -> done. */
@@ -245,11 +244,13 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 	 * through ssch() and the path information is up to date.
 	 */
 	old_lpm = sch->lpm;
-	stsch(sch->schid, &sch->schib);
-	sch->lpm = sch->schib.pmcw.pam & sch->opm;
+
 	/* Check since device may again have become not operational. */
-	if (!sch->schib.pmcw.dnv)
+	if (cio_update_schib(sch))
 		state = DEV_STATE_NOT_OPER;
+	else
+		sch->lpm = sch->schib.pmcw.pam & sch->opm;
+
 	if (cdev->private->state == DEV_STATE_DISCONNECTED_SENSE_ID)
 		/* Force reprobe on all chpids. */
 		old_lpm = 0;
@@ -399,9 +400,6 @@ ccw_device_done(struct ccw_device *cdev, int state)
 		ccw_device_oper_notify(cdev);
 	}
 	wake_up(&cdev->private->wait_q);
-
-	if (css_init_done && state != DEV_STATE_ONLINE)
-		put_device (&cdev->dev);
 }
 
 static int cmp_pgid(struct pgid *p1, struct pgid *p2)
@@ -552,7 +550,11 @@ ccw_device_verify_done(struct ccw_device *cdev, int err)
 
 	sch = to_subchannel(cdev->dev.parent);
 	/* Update schib - pom may have changed. */
-	stsch(sch->schid, &sch->schib);
+	if (cio_update_schib(sch)) {
+		cdev->private->flags.donotify = 0;
+		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
+		return;
+	}
 	/* Update lpm with verified path mask. */
 	sch->lpm = sch->vpm;
 	/* Repeat path verification? */
@@ -611,8 +613,6 @@ ccw_device_online(struct ccw_device *cdev)
 	    (cdev->private->state != DEV_STATE_BOXED))
 		return -EINVAL;
 	sch = to_subchannel(cdev->dev.parent);
-	if (css_init_done && !get_device(&cdev->dev))
-		return -ENODEV;
 	ret = cio_enable_subchannel(sch, (u32)(addr_t)sch);
 	if (ret != 0) {
 		/* Couldn't enable the subchannel for i/o. Sick device. */
@@ -672,7 +672,7 @@ ccw_device_offline(struct ccw_device *cdev)
 		return 0;
 	}
 	sch = to_subchannel(cdev->dev.parent);
-	if (stsch(sch->schid, &sch->schib) || !sch->schib.pmcw.dnv)
+	if (cio_update_schib(sch))
 		return -ENODEV;
 	if (scsw_actl(&sch->schib.scsw) != 0)
 		return -EBUSY;
@@ -750,7 +750,10 @@ ccw_device_online_verify(struct ccw_device *cdev, enum dev_event dev_event)
 	 * Since we might not just be coming from an interrupt from the
 	 * subchannel we have to update the schib.
 	 */
-	stsch(sch->schid, &sch->schib);
+	if (cio_update_schib(sch)) {
+		ccw_device_verify_done(cdev, -ENODEV);
+		return;
+	}
 
 	if (scsw_actl(&sch->schib.scsw) != 0 ||
 	    (scsw_stctl(&sch->schib.scsw) & SCSW_STCTL_STATUS_PEND) ||
@@ -1016,20 +1019,21 @@ void ccw_device_trigger_reprobe(struct ccw_device *cdev)
 
 	sch = to_subchannel(cdev->dev.parent);
 	/* Update some values. */
-	if (stsch(sch->schid, &sch->schib))
-		return;
-	if (!sch->schib.pmcw.dnv)
+	if (cio_update_schib(sch))
 		return;
 	/*
 	 * The pim, pam, pom values may not be accurate, but they are the best
 	 * we have before performing device selection :/
 	 */
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
-	/* Re-set some bits in the pmcw that were lost. */
-	sch->schib.pmcw.csense = 1;
-	sch->schib.pmcw.ena = 0;
-	if ((sch->lpm & (sch->lpm - 1)) != 0)
-		sch->schib.pmcw.mp = 1;
+	/*
+	 * Use the initial configuration since we can't be shure that the old
+	 * paths are valid.
+	 */
+	io_subchannel_init_config(sch);
+	if (cio_commit_config(sch))
+		return;
+
 	/* We should also udate ssd info, but this has to wait. */
 	/* Check if this is another device which appeared on the same sch. */
 	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {

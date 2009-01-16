@@ -68,22 +68,22 @@ static struct hpsb_highlevel csr_highlevel = {
 	.host_reset =	host_reset,
 };
 
-static struct hpsb_address_ops map_ops = {
+const static struct hpsb_address_ops map_ops = {
 	.read = read_maps,
 };
 
-static struct hpsb_address_ops fcp_ops = {
+const static struct hpsb_address_ops fcp_ops = {
 	.write = write_fcp,
 };
 
-static struct hpsb_address_ops reg_ops = {
+const static struct hpsb_address_ops reg_ops = {
 	.read = read_regs,
 	.write = write_regs,
 	.lock = lock_regs,
 	.lock64 = lock64_regs,
 };
 
-static struct hpsb_address_ops config_rom_ops = {
+const static struct hpsb_address_ops config_rom_ops = {
 	.read = read_config_rom,
 };
 
@@ -217,7 +217,7 @@ static void add_host(struct hpsb_host *host)
 
 	host->csr.generation = 2;
 
-	bus_info[1] = __constant_cpu_to_be32(0x31333934);
+	bus_info[1] = IEEE1394_BUSID_MAGIC;
 	bus_info[2] = cpu_to_be32((hpsb_disable_irm ? 0 : 1 << CSR_IRMC_SHIFT) |
 				  (1 << CSR_CMC_SHIFT) |
 				  (1 << CSR_ISC_SHIFT) |
@@ -250,7 +250,7 @@ static void remove_host(struct hpsb_host *host)
 {
 	quadlet_t bus_info[CSR_BUS_INFO_SIZE];
 
-	bus_info[1] = __constant_cpu_to_be32(0x31333934);
+	bus_info[1] = IEEE1394_BUSID_MAGIC;
 	bus_info[2] = cpu_to_be32((0 << CSR_IRMC_SHIFT) |
 				  (0 << CSR_CMC_SHIFT) |
 				  (0 << CSR_ISC_SHIFT) |

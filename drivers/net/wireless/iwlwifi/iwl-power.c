@@ -22,7 +22,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 
@@ -39,7 +39,6 @@
 #include "iwl-commands.h"
 #include "iwl-debug.h"
 #include "iwl-power.h"
-#include "iwl-helpers.h"
 
 /*
  * Setting power level allow the card to go to sleep when not busy
@@ -80,7 +79,7 @@
 #define IWL_REDUCED_POWER_TEMPERATURE	95
 
 /* default power management (not Tx power) table values */
-/* for tim  0-10 */
+/* for TIM  0-10 */
 static struct iwl_power_vec_entry range_0[IWL_POWER_MAX] = {
 	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 2, 2, 0xFF)}, 0},
@@ -91,7 +90,7 @@ static struct iwl_power_vec_entry range_0[IWL_POWER_MAX] = {
 };
 
 
-/* for tim = 3-10 */
+/* for TIM = 3-10 */
 static struct iwl_power_vec_entry range_1[IWL_POWER_MAX] = {
 	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 4)}, 0},
@@ -101,7 +100,7 @@ static struct iwl_power_vec_entry range_1[IWL_POWER_MAX] = {
 	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(2, 4, 7, 10, 10)}, 2}
 };
 
-/* for tim > 11 */
+/* for TIM > 11 */
 static struct iwl_power_vec_entry range_2[IWL_POWER_MAX] = {
 	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
 	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 0xFF)}, 0},
@@ -183,7 +182,7 @@ static int iwl_power_init_handle(struct iwl_priv *priv)
 	return 0;
 }
 
-/* adjust power command according to dtim period and power level*/
+/* adjust power command according to DTIM period and power level*/
 static int iwl_update_power_command(struct iwl_priv *priv,
 				    struct iwl_powertable_cmd *cmd,
 				    u16 mode)
@@ -257,15 +256,11 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 	struct iwl_power_mgr *setting = &(priv->power_data);
 	int ret = 0;
 	u16 uninitialized_var(final_mode);
+	bool update_chains;
 
 	/* Don't update the RX chain when chain noise calibration is running */
-	if (priv->chain_noise_data.state != IWL_CHAIN_NOISE_DONE &&
-	    priv->chain_noise_data.state != IWL_CHAIN_NOISE_ALIVE) {
-		IWL_DEBUG_POWER("Cannot update the power, chain noise "
-			"calibration running: %d\n",
-			priv->chain_noise_data.state);
-		return -EAGAIN;
-	}
+	update_chains = priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE ||
+			priv->chain_noise_data.state == IWL_CHAIN_NOISE_ALIVE;
 
 	/* If on battery, set to 3,
 	 * if plugged into AC power, set to CAM ("continuously aware mode"),
@@ -313,9 +308,12 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 		else
 			set_bit(STATUS_POWER_PMI, &priv->status);
 
-		if (priv->cfg->ops->lib->update_chain_flags)
+		if (priv->cfg->ops->lib->update_chain_flags && update_chains)
 			priv->cfg->ops->lib->update_chain_flags(priv);
-
+		else
+			IWL_DEBUG_POWER("Cannot update the power, chain noise "
+					"calibration running: %d\n",
+					priv->chain_noise_data.state);
 		if (!ret)
 			setting->power_mode = final_mode;
 	}
@@ -325,7 +323,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 EXPORT_SYMBOL(iwl_power_update_mode);
 
 /* Allow other iwl code to disable/enable power management active
- * this will be usefull for rate scale to disable PM during heavy
+ * this will be useful for rate scale to disable PM during heavy
  * Tx/Rx activities
  */
 int iwl_power_disable_management(struct iwl_priv *priv, u32 ms)
@@ -352,8 +350,8 @@ int iwl_power_disable_management(struct iwl_priv *priv, u32 ms)
 EXPORT_SYMBOL(iwl_power_disable_management);
 
 /* Allow other iwl code to disable/enable power management active
- * this will be usefull for rate scale to disable PM during hight
- * valume activities
+ * this will be useful for rate scale to disable PM during high
+ * volume activities
  */
 int iwl_power_enable_management(struct iwl_priv *priv)
 {
@@ -391,7 +389,7 @@ int iwl_power_set_system_mode(struct iwl_priv *priv, u16 mode)
 }
 EXPORT_SYMBOL(iwl_power_set_system_mode);
 
-/* initilize to default */
+/* initialize to default */
 void iwl_power_initialize(struct iwl_priv *priv)
 {
 
@@ -443,7 +441,7 @@ static void iwl_bg_set_power_save(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	/* on starting association we disable power managment
+	/* on starting association we disable power management
 	 * until association, if association failed then this
 	 * timer will expire and enable PM again.
 	 */

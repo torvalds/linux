@@ -3,9 +3,12 @@
  *    Hypervisor filesystem for Linux on s390. Diag 204 and 224
  *    implementation.
  *
- *    Copyright (C) IBM Corp. 2006
+ *    Copyright IBM Corp. 2006, 2008
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
  */
+
+#define KMSG_COMPONENT "hypfs"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -527,13 +530,14 @@ __init int hypfs_diag_init(void)
 	int rc;
 
 	if (diag204_probe()) {
-		printk(KERN_ERR "hypfs: diag 204 not working.");
+		pr_err("The hardware system does not support hypfs\n");
 		return -ENODATA;
 	}
 	rc = diag224_get_name_table();
 	if (rc) {
 		diag204_free_buffer();
-		printk(KERN_ERR "hypfs: could not get name table.\n");
+		pr_err("The hardware system does not provide all "
+		       "functions required by hypfs\n");
 	}
 	return rc;
 }

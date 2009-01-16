@@ -116,7 +116,7 @@ struct sport_device {
 	void *err_data;
 	unsigned char *tx_dma_buf;
 	unsigned char *rx_dma_buf;
-#ifdef CONFIG_SND_MMAP_SUPPORT
+#ifdef CONFIG_SND_BF5XX_MMAP_SUPPORT
 	dma_addr_t tx_dma_phy;
 	dma_addr_t rx_dma_phy;
 	int tx_pos;/*pcm sample count*/

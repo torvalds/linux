@@ -11,7 +11,7 @@
 #define UDPLITE_RECV_CSCOV   11 /* receiver partial coverage (threshold ) */
 
 extern struct proto 		udplite_prot;
-extern struct hlist_head 	udplite_hash[UDP_HTABLE_SIZE];
+extern struct udp_table		udplite_table;
 
 /*
  *	Checksum computation is all in software, hence simpler getfrag.

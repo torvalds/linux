@@ -142,15 +142,15 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 		  ARPT_INV_TGTIP)) {
 		dprintf("Source or target IP address mismatch.\n");
 
-		dprintf("SRC: %u.%u.%u.%u. Mask: %u.%u.%u.%u. Target: %u.%u.%u.%u.%s\n",
-			NIPQUAD(src_ipaddr),
-			NIPQUAD(arpinfo->smsk.s_addr),
-			NIPQUAD(arpinfo->src.s_addr),
+		dprintf("SRC: %pI4. Mask: %pI4. Target: %pI4.%s\n",
+			&src_ipaddr,
+			&arpinfo->smsk.s_addr,
+			&arpinfo->src.s_addr,
 			arpinfo->invflags & ARPT_INV_SRCIP ? " (INV)" : "");
-		dprintf("TGT: %u.%u.%u.%u Mask: %u.%u.%u.%u Target: %u.%u.%u.%u.%s\n",
-			NIPQUAD(tgt_ipaddr),
-			NIPQUAD(arpinfo->tmsk.s_addr),
-			NIPQUAD(arpinfo->tgt.s_addr),
+		dprintf("TGT: %pI4 Mask: %pI4 Target: %pI4.%s\n",
+			&tgt_ipaddr,
+			&arpinfo->tmsk.s_addr,
+			&arpinfo->tgt.s_addr,
 			arpinfo->invflags & ARPT_INV_TGTIP ? " (INV)" : "");
 		return 0;
 	}

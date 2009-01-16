@@ -39,6 +39,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/unistd.h>
+#include <linux/time.h>
 
 #define SYSCALL_MAP_SIZE      ((__NR_syscalls + 31) / 32)
 
@@ -83,6 +84,7 @@ struct vdso_data {
 	__u32 icache_log_block_size;		/* L1 i-cache log block size */
 	__s32 wtom_clock_sec;			/* Wall to monotonic clock */
 	__s32 wtom_clock_nsec;
+	struct timespec stamp_xtime;	/* xtime as at tb_orig_stamp */
    	__u32 syscall_map_64[SYSCALL_MAP_SIZE]; /* map of syscalls  */
    	__u32 syscall_map_32[SYSCALL_MAP_SIZE]; /* map of syscalls */
 };
@@ -102,6 +104,7 @@ struct vdso_data {
 	__u32 tz_dsttime;		/* Type of dst correction	0x5C */
 	__s32 wtom_clock_sec;			/* Wall to monotonic clock */
 	__s32 wtom_clock_nsec;
+	struct timespec stamp_xtime;	/* xtime as at tb_orig_stamp */
    	__u32 syscall_map_32[SYSCALL_MAP_SIZE]; /* map of syscalls */
 	__u32 dcache_block_size;	/* L1 d-cache block size     */
 	__u32 icache_block_size;	/* L1 i-cache block size     */

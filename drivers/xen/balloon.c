@@ -44,13 +44,15 @@
 #include <linux/list.h>
 #include <linux/sysdev.h>
 
-#include <asm/xen/hypervisor.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/tlb.h>
 
+#include <asm/xen/hypervisor.h>
+#include <asm/xen/hypercall.h>
+#include <xen/interface/xen.h>
 #include <xen/interface/memory.h>
 #include <xen/xenbus.h>
 #include <xen/features.h>

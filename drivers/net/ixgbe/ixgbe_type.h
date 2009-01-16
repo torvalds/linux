@@ -36,8 +36,12 @@
 /* Device IDs */
 #define IXGBE_DEV_ID_82598AF_DUAL_PORT   0x10C6
 #define IXGBE_DEV_ID_82598AF_SINGLE_PORT 0x10C7
+#define IXGBE_DEV_ID_82598EB_SFP_LOM     0x10DB
+#define IXGBE_DEV_ID_82598AT             0x10C8
 #define IXGBE_DEV_ID_82598EB_CX4         0x10DD
 #define IXGBE_DEV_ID_82598_CX4_DUAL_PORT 0x10EC
+#define IXGBE_DEV_ID_82598_DA_DUAL_PORT  0x10F1
+#define IXGBE_DEV_ID_82598_SR_DUAL_PORT_EM      0x10E1
 #define IXGBE_DEV_ID_82598EB_XF_LR       0x10F4
 
 /* General Registers */
@@ -452,6 +456,7 @@
 #define IXGBE_MDIO_PHY_XS_DEV_TYPE                0x4
 #define IXGBE_MDIO_AUTO_NEG_DEV_TYPE              0x7
 #define IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE     0x1E   /* Device 30 */
+#define IXGBE_TWINAX_DEV                          1
 
 #define IXGBE_MDIO_COMMAND_TIMEOUT     100 /* PHY Timeout for 1 GB mode */
 
@@ -487,11 +492,26 @@
 #define IXGBE_PHY_REVISION_MASK        0xFFFFFFF0
 #define IXGBE_MAX_PHY_ADDR             32
 
-/* PHY IDs*/
+/* PHY IDs */
+#define TN1010_PHY_ID    0x00A19410
+#define TNX_FW_REV       0xB
 #define QT2022_PHY_ID    0x0043A400
+#define ATH_PHY_ID       0x03429050
 
 /* PHY Types */
 #define IXGBE_M88E1145_E_PHY_ID  0x01410CD0
+
+/* Special PHY Init Routine */
+#define IXGBE_PHY_INIT_OFFSET_NL 0x002B
+#define IXGBE_PHY_INIT_END_NL    0xFFFF
+#define IXGBE_CONTROL_MASK_NL    0xF000
+#define IXGBE_DATA_MASK_NL       0x0FFF
+#define IXGBE_CONTROL_SHIFT_NL   12
+#define IXGBE_DELAY_NL           0
+#define IXGBE_DATA_NL            1
+#define IXGBE_CONTROL_NL         0x000F
+#define IXGBE_CONTROL_EOL_NL     0x0FFF
+#define IXGBE_CONTROL_SOL_NL     0x0000
 
 /* General purpose Interrupt Enable */
 #define IXGBE_SDP0_GPIEN         0x00000001 /* SDP0 */
@@ -1202,8 +1222,10 @@ enum ixgbe_mac_type {
 
 enum ixgbe_phy_type {
 	ixgbe_phy_unknown = 0,
+	ixgbe_phy_tn,
 	ixgbe_phy_qt,
 	ixgbe_phy_xaui,
+	ixgbe_phy_nl,
 	ixgbe_phy_tw_tyco,
 	ixgbe_phy_tw_unknown,
 	ixgbe_phy_sfp_avago,
@@ -1225,6 +1247,7 @@ enum ixgbe_sfp_type {
 	ixgbe_sfp_type_da_cu = 0,
 	ixgbe_sfp_type_sr = 1,
 	ixgbe_sfp_type_lr = 2,
+	ixgbe_sfp_type_not_present = 0xFFFE,
 	ixgbe_sfp_type_unknown = 0xFFFF
 };
 
@@ -1396,6 +1419,8 @@ struct ixgbe_phy_operations {
 	s32 (*setup_link)(struct ixgbe_hw *);
 	s32 (*setup_link_speed)(struct ixgbe_hw *, ixgbe_link_speed, bool,
 	                        bool);
+	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *);
+	s32 (*get_firmware_version)(struct ixgbe_hw *, u16 *);
 	s32 (*read_i2c_byte)(struct ixgbe_hw *, u8, u8, u8 *);
 	s32 (*write_i2c_byte)(struct ixgbe_hw *, u8, u8, u8);
 	s32 (*read_i2c_eeprom)(struct ixgbe_hw *, u8 , u8 *);
@@ -1486,6 +1511,7 @@ struct ixgbe_info {
 #define IXGBE_ERR_PHY_ADDR_INVALID              -17
 #define IXGBE_ERR_I2C                           -18
 #define IXGBE_ERR_SFP_NOT_SUPPORTED             -19
+#define IXGBE_ERR_SFP_NOT_PRESENT               -20
 #define IXGBE_NOT_IMPLEMENTED                   0x7FFFFFFF
 
 #endif /* _IXGBE_TYPE_H_ */

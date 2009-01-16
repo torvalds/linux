@@ -417,7 +417,10 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		/* BB calculate hash with password */
 		/* and copy into bcc */
 
-		calc_lanman_hash(ses, lnm_session_key);
+		calc_lanman_hash(ses->password, ses->server->cryptKey,
+				 ses->server->secMode & SECMODE_PW_ENCRYPT ?
+					true : false, lnm_session_key);
+
 		ses->flags |= CIFS_SES_LANMAN;
 		memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_SESS_KEY_SIZE);
 		bcc_ptr += CIFS_SESS_KEY_SIZE;

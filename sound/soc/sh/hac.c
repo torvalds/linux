@@ -236,7 +236,8 @@ struct snd_ac97_bus_ops soc_ac97_ops = {
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 static int hac_hw_params(struct snd_pcm_substream *substream,
-			 struct snd_pcm_hw_params *params)
+			 struct snd_pcm_hw_params *params,
+			 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct hac_priv *hac = &hac_cpu_data[rtd->dai->cpu_dai->id];
@@ -270,7 +271,7 @@ struct snd_soc_dai sh4_hac_dai[] = {
 {
 	.name			= "HAC0",
 	.id			= 0,
-	.type			= SND_SOC_DAI_AC97,
+	.ac97_control		= 1,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,
@@ -290,8 +291,8 @@ struct snd_soc_dai sh4_hac_dai[] = {
 #ifdef CONFIG_CPU_SUBTYPE_SH7760
 {
 	.name			= "HAC1",
+	.ac97_control		= 1,
 	.id			= 1,
-	.type			= SND_SOC_DAI_AC97,
 	.playback = {
 		.rates		= AC97_RATES,
 		.formats	= AC97_FMTS,
@@ -312,6 +313,18 @@ struct snd_soc_dai sh4_hac_dai[] = {
 #endif
 };
 EXPORT_SYMBOL_GPL(sh4_hac_dai);
+
+static int __init sh4_hac_init(void)
+{
+	return snd_soc_register_dais(sh4_hac_dai, ARRAY_SIZE(sh4_hac_dai));
+}
+module_init(sh4_hac_init);
+
+static void __exit sh4_hac_exit(void)
+{
+	snd_soc_unregister_dais(sh4_hac_dai, ARRAY_SIZE(sh4_hac_dai));
+}
+module_exit(sh4_hac_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SuperH onchip HAC (AC97) audio driver");

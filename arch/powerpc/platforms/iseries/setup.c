@@ -23,6 +23,7 @@
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/kdev_t.h>
+#include <linux/kexec.h>
 #include <linux/major.h>
 #include <linux/root_dev.h>
 #include <linux/kernel.h>
@@ -638,6 +639,13 @@ static int __init iseries_probe(void)
 	return 1;
 }
 
+#ifdef CONFIG_KEXEC
+static int iseries_kexec_prepare(struct kimage *image)
+{
+	return -ENOSYS;
+}
+#endif
+
 define_machine(iseries) {
 	.name			= "iSeries",
 	.setup_arch		= iSeries_setup_arch,
@@ -658,6 +666,9 @@ define_machine(iseries) {
 	.probe			= iseries_probe,
 	.ioremap		= iseries_ioremap,
 	.iounmap		= iseries_iounmap,
+#ifdef CONFIG_KEXEC
+	.machine_kexec_prepare	= iseries_kexec_prepare,
+#endif
 	/* XXX Implement enable_pmcs for iSeries */
 };
 

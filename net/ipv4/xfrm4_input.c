@@ -78,7 +78,6 @@ int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 	struct udphdr *uh;
 	struct iphdr *iph;
 	int iphlen, len;
-	int ret;
 
 	__u8 *udpdata;
 	__be32 *udpdata32;
@@ -152,8 +151,7 @@ int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 	skb_reset_transport_header(skb);
 
 	/* process ESP */
-	ret = xfrm4_rcv_encap(skb, IPPROTO_ESP, 0, encap_type);
-	return ret;
+	return xfrm4_rcv_encap(skb, IPPROTO_ESP, 0, encap_type);
 
 drop:
 	kfree_skb(skb);

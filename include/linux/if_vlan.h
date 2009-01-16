@@ -115,6 +115,11 @@ extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 			     u16 vlan_tci, int polling);
 extern int vlan_hwaccel_do_receive(struct sk_buff *skb);
+extern int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
+			    unsigned int vlan_tci, struct sk_buff *skb);
+extern int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
+			  unsigned int vlan_tci,
+			  struct napi_gro_fraginfo *info);
 
 #else
 static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
@@ -139,6 +144,20 @@ static inline int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 static inline int vlan_hwaccel_do_receive(struct sk_buff *skb)
 {
 	return 0;
+}
+
+static inline int vlan_gro_receive(struct napi_struct *napi,
+				   struct vlan_group *grp,
+				   unsigned int vlan_tci, struct sk_buff *skb)
+{
+	return NET_RX_DROP;
+}
+
+static inline int vlan_gro_frags(struct napi_struct *napi,
+				 struct vlan_group *grp, unsigned int vlan_tci,
+				 struct napi_gro_fraginfo *info)
+{
+	return NET_RX_DROP;
 }
 #endif
 

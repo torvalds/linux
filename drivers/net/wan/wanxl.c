@@ -220,7 +220,6 @@ static inline void wanxl_rx_intr(card_t *card)
 #endif
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += skb->len;
-				dev->last_rx = jiffies;
 				skb->protocol = hdlc_type_trans(skb, dev);
 				netif_rx(skb);
 				skb = NULL;
@@ -411,12 +410,12 @@ static int wanxl_open(struct net_device *dev)
 	writel(1 << (DOORBELL_TO_CARD_OPEN_0 + port->node), dbr);
 
 	timeout = jiffies + HZ;
-	do
+	do {
 		if (get_status(port)->open) {
 			netif_start_queue(dev);
 			return 0;
 		}
-	while (time_after(timeout, jiffies));
+	} while (time_after(timeout, jiffies));
 
 	printk(KERN_ERR "%s: unable to open port\n", dev->name);
 	/* ask the card to close the port, should it be still alive */
@@ -438,10 +437,10 @@ static int wanxl_close(struct net_device *dev)
 	       port->card->plx + PLX_DOORBELL_TO_CARD);
 
 	timeout = jiffies + HZ;
-	do
+	do {
 		if (!get_status(port)->open)
 			break;
-	while (time_after(timeout, jiffies));
+	} while (time_after(timeout, jiffies));
 
 	if (get_status(port)->open)
 		printk(KERN_ERR "%s: unable to close port\n", dev->name);

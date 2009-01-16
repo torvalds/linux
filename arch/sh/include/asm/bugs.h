@@ -25,7 +25,7 @@ static void __init check_bugs(void)
 	case CPU_SH7619:
 		*p++ = '2';
 		break;
-	case CPU_SH7203 ... CPU_MXG:
+	case CPU_SH7201 ... CPU_MXG:
 		*p++ = '2';
 		*p++ = 'a';
 		break;

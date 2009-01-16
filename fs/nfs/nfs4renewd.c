@@ -65,7 +65,6 @@ nfs4_renew_state(struct work_struct *work)
 	long lease, timeout;
 	unsigned long last, now;
 
-	down_read(&clp->cl_sem);
 	dprintk("%s: start\n", __func__);
 	/* Are there any active superblocks? */
 	if (list_empty(&clp->cl_superblocks))
@@ -77,17 +76,19 @@ nfs4_renew_state(struct work_struct *work)
 	timeout = (2 * lease) / 3 + (long)last - (long)now;
 	/* Are we close to a lease timeout? */
 	if (time_after(now, last + lease/3)) {
-		cred = nfs4_get_renew_cred(clp);
-		if (cred == NULL) {
-			set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-			spin_unlock(&clp->cl_lock);
-			nfs_expire_all_delegations(clp);
-			goto out;
-		}
+		cred = nfs4_get_renew_cred_locked(clp);
 		spin_unlock(&clp->cl_lock);
-		/* Queue an asynchronous RENEW. */
-		nfs4_proc_async_renew(clp, cred);
-		put_rpccred(cred);
+		if (cred == NULL) {
+			if (list_empty(&clp->cl_delegations)) {
+				set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+				goto out;
+			}
+			nfs_expire_all_delegations(clp);
+		} else {
+			/* Queue an asynchronous RENEW. */
+			nfs4_proc_async_renew(clp, cred);
+			put_rpccred(cred);
+		}
 		timeout = (2 * lease) / 3;
 		spin_lock(&clp->cl_lock);
 	} else
@@ -100,12 +101,11 @@ nfs4_renew_state(struct work_struct *work)
 	cancel_delayed_work(&clp->cl_renewd);
 	schedule_delayed_work(&clp->cl_renewd, timeout);
 	spin_unlock(&clp->cl_lock);
+	nfs_expire_unreferenced_delegations(clp);
 out:
-	up_read(&clp->cl_sem);
 	dprintk("%s: done\n", __func__);
 }
 
-/* Must be called with clp->cl_sem locked for writes */
 void
 nfs4_schedule_state_renewal(struct nfs_client *clp)
 {

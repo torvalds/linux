@@ -259,6 +259,12 @@ static int tx4939ide_build_dmatable(ide_drive_t *drive, struct request *rq)
 			bcount = 0x10000 - (cur_addr & 0xffff);
 			if (bcount > cur_len)
 				bcount = cur_len;
+			/*
+			 * This workaround for zero count seems required.
+			 * (standard ide_build_dmatable do it too)
+			 */
+			if ((bcount & 0xffff) == 0x0000)
+				bcount = 0x8000;
 			*table++ = bcount & 0xffff;
 			*table++ = cur_addr;
 			cur_addr += bcount;
@@ -287,7 +293,7 @@ static int tx4939ide_dma_setup(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	void __iomem *base = TX4939IDE_BASE(hwif);
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	u8 reading;
 	int nent;
 
@@ -391,6 +397,17 @@ static int tx4939ide_dma_test_irq(ide_drive_t *drive)
 	return found;
 }
 
+#ifdef __BIG_ENDIAN
+static u8 tx4939ide_dma_sff_read_status(ide_hwif_t *hwif)
+{
+	void __iomem *base = TX4939IDE_BASE(hwif);
+
+	return tx4939ide_readb(base, TX4939IDE_DMA_Stat);
+}
+#else
+#define tx4939ide_dma_sff_read_status ide_dma_sff_read_status
+#endif
+
 static void tx4939ide_init_hwif(ide_hwif_t *hwif)
 {
 	void __iomem *base = TX4939IDE_BASE(hwif);
@@ -436,13 +453,6 @@ static void tx4939ide_tf_load_fixup(ide_drive_t *drive, ide_task_t *task)
 }
 
 #ifdef __BIG_ENDIAN
-
-static u8 tx4939ide_read_sff_dma_status(ide_hwif_t *hwif)
-{
-	void __iomem *base = TX4939IDE_BASE(hwif);
-
-	return tx4939ide_readb(base, TX4939IDE_DMA_Stat);
-}
 
 /* custom iops (independent from SWAP_IO_SPACE) */
 static u8 tx4939ide_inb(unsigned long port)
@@ -558,7 +568,7 @@ static void tx4939ide_input_data_swap(ide_drive_t *drive, struct request *rq,
 
 	while (count--)
 		*ptr++ = cpu_to_le16(__raw_readw((void __iomem *)port));
-	__ide_flush_dcache_range((unsigned long)buf, count * 2);
+	__ide_flush_dcache_range((unsigned long)buf, roundup(len, 2));
 }
 
 static void tx4939ide_output_data_swap(ide_drive_t *drive, struct request *rq,
@@ -572,14 +582,13 @@ static void tx4939ide_output_data_swap(ide_drive_t *drive, struct request *rq,
 		__raw_writew(le16_to_cpu(*ptr), (void __iomem *)port);
 		ptr++;
 	}
-	__ide_flush_dcache_range((unsigned long)buf, count * 2);
+	__ide_flush_dcache_range((unsigned long)buf, roundup(len, 2));
 }
 
 static const struct ide_tp_ops tx4939ide_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
-	.read_sff_dma_status	= tx4939ide_read_sff_dma_status,
 
 	.set_irq		= ide_set_irq,
 
@@ -603,7 +612,6 @@ static const struct ide_tp_ops tx4939ide_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
-	.read_sff_dma_status	= ide_read_sff_dma_status,
 
 	.set_irq		= ide_set_irq,
 
@@ -617,33 +625,35 @@ static const struct ide_tp_ops tx4939ide_tp_ops = {
 #endif	/* __LITTLE_ENDIAN */
 
 static const struct ide_port_ops tx4939ide_port_ops = {
-	.set_pio_mode = tx4939ide_set_pio_mode,
-	.set_dma_mode = tx4939ide_set_dma_mode,
-	.clear_irq = tx4939ide_clear_irq,
-	.cable_detect = tx4939ide_cable_detect,
+	.set_pio_mode		= tx4939ide_set_pio_mode,
+	.set_dma_mode		= tx4939ide_set_dma_mode,
+	.clear_irq		= tx4939ide_clear_irq,
+	.cable_detect		= tx4939ide_cable_detect,
 };
 
 static const struct ide_dma_ops tx4939ide_dma_ops = {
-	.dma_host_set = tx4939ide_dma_host_set,
-	.dma_setup = tx4939ide_dma_setup,
-	.dma_exec_cmd = ide_dma_exec_cmd,
-	.dma_start = ide_dma_start,
-	.dma_end = tx4939ide_dma_end,
-	.dma_test_irq = tx4939ide_dma_test_irq,
-	.dma_lost_irq = ide_dma_lost_irq,
-	.dma_timeout = ide_dma_timeout,
+	.dma_host_set		= tx4939ide_dma_host_set,
+	.dma_setup		= tx4939ide_dma_setup,
+	.dma_exec_cmd		= ide_dma_exec_cmd,
+	.dma_start		= ide_dma_start,
+	.dma_end		= tx4939ide_dma_end,
+	.dma_test_irq		= tx4939ide_dma_test_irq,
+	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timeout		= ide_dma_timeout,
+	.dma_sff_read_status	= tx4939ide_dma_sff_read_status,
 };
 
 static const struct ide_port_info tx4939ide_port_info __initdata = {
-	.init_hwif = tx4939ide_init_hwif,
-	.init_dma = tx4939ide_init_dma,
-	.port_ops = &tx4939ide_port_ops,
-	.dma_ops = &tx4939ide_dma_ops,
-	.tp_ops = &tx4939ide_tp_ops,
-	.host_flags = IDE_HFLAG_MMIO,
-	.pio_mask = ATA_PIO4,
-	.mwdma_mask = ATA_MWDMA2,
-	.udma_mask = ATA_UDMA5,
+	.init_hwif		= tx4939ide_init_hwif,
+	.init_dma		= tx4939ide_init_dma,
+	.port_ops		= &tx4939ide_port_ops,
+	.dma_ops		= &tx4939ide_dma_ops,
+	.tp_ops			= &tx4939ide_tp_ops,
+	.host_flags		= IDE_HFLAG_MMIO,
+	.pio_mask		= ATA_PIO4,
+	.mwdma_mask		= ATA_MWDMA2,
+	.udma_mask		= ATA_UDMA5,
+	.chipset		= ide_generic,
 };
 
 static int __init tx4939ide_probe(struct platform_device *pdev)

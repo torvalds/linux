@@ -269,7 +269,7 @@ struct hvcs_struct {
 	unsigned int index;
 
 	struct tty_struct *tty;
-	unsigned int open_count;
+	int open_count;
 
 	/*
 	 * Used to tell the driver kernel_thread what operations need to take

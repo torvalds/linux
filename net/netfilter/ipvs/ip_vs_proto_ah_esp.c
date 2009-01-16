@@ -135,9 +135,8 @@ ah_esp_debug_packet_v4(struct ip_vs_protocol *pp, const struct sk_buff *skb,
 	if (ih == NULL)
 		sprintf(buf, "%s TRUNCATED", pp->name);
 	else
-		sprintf(buf, "%s %u.%u.%u.%u->%u.%u.%u.%u",
-			pp->name, NIPQUAD(ih->saddr),
-			NIPQUAD(ih->daddr));
+		sprintf(buf, "%s %pI4->%pI4",
+			pp->name, &ih->saddr, &ih->daddr);
 
 	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
 }
@@ -154,9 +153,8 @@ ah_esp_debug_packet_v6(struct ip_vs_protocol *pp, const struct sk_buff *skb,
 	if (ih == NULL)
 		sprintf(buf, "%s TRUNCATED", pp->name);
 	else
-		sprintf(buf, "%s " NIP6_FMT "->" NIP6_FMT,
-			pp->name, NIP6(ih->saddr),
-			NIP6(ih->daddr));
+		sprintf(buf, "%s %pI6->%pI6",
+			pp->name, &ih->saddr, &ih->daddr);
 
 	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
 }

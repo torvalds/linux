@@ -1513,7 +1513,7 @@ static int cyberpro_pci_enable_mmio(struct cfb_info *cfb)
 
 	iop = ioremap(0x3000000, 0x5000);
 	if (iop == NULL) {
-		prom_printf("iga5000: cannot map I/O\n");
+		printk(KERN_ERR "iga5000: cannot map I/O\n");
 		return -ENOMEM;
 	}
 
@@ -1583,8 +1583,7 @@ cyberpro_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto failed_release;
 
 	cfb->dev = dev;
-	cfb->region = ioremap(pci_resource_start(dev, 0),
-			      pci_resource_len(dev, 0));
+	cfb->region = pci_ioremap_bar(dev, 0);
 	if (!cfb->region)
 		goto failed_ioremap;
 

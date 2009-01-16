@@ -362,7 +362,7 @@ static inline int refresh_timer(struct nf_conntrack_expect *i)
 	return 1;
 }
 
-int nf_ct_expect_related(struct nf_conntrack_expect *expect)
+static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 {
 	const struct nf_conntrack_expect_policy *p;
 	struct nf_conntrack_expect *i;
@@ -371,11 +371,8 @@ int nf_ct_expect_related(struct nf_conntrack_expect *expect)
 	struct net *net = nf_ct_exp_net(expect);
 	struct hlist_node *n;
 	unsigned int h;
-	int ret;
+	int ret = 0;
 
-	NF_CT_ASSERT(master_help);
-
-	spin_lock_bh(&nf_conntrack_lock);
 	if (!master_help->helper) {
 		ret = -ESHUTDOWN;
 		goto out;
@@ -409,17 +406,49 @@ int nf_ct_expect_related(struct nf_conntrack_expect *expect)
 			printk(KERN_WARNING
 			       "nf_conntrack: expectation table full\n");
 		ret = -EMFILE;
-		goto out;
 	}
+out:
+	return ret;
+}
+
+int nf_ct_expect_related(struct nf_conntrack_expect *expect)
+{
+	int ret;
+
+	spin_lock_bh(&nf_conntrack_lock);
+	ret = __nf_ct_expect_check(expect);
+	if (ret < 0)
+		goto out;
 
 	nf_ct_expect_insert(expect);
+	atomic_inc(&expect->use);
+	spin_unlock_bh(&nf_conntrack_lock);
 	nf_ct_expect_event(IPEXP_NEW, expect);
-	ret = 0;
+	nf_ct_expect_put(expect);
+	return ret;
 out:
 	spin_unlock_bh(&nf_conntrack_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_related);
+
+int nf_ct_expect_related_report(struct nf_conntrack_expect *expect, 
+				u32 pid, int report)
+{
+	int ret;
+
+	spin_lock_bh(&nf_conntrack_lock);
+	ret = __nf_ct_expect_check(expect);
+	if (ret < 0)
+		goto out;
+	nf_ct_expect_insert(expect);
+out:
+	spin_unlock_bh(&nf_conntrack_lock);
+	if (ret == 0)
+		nf_ct_expect_event_report(IPEXP_NEW, expect, pid, report);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_ct_expect_related_report);
 
 #ifdef CONFIG_PROC_FS
 struct ct_expect_iter_state {

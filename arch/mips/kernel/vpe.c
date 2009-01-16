@@ -1085,8 +1085,8 @@ static int vpe_open(struct inode *inode, struct file *filp)
 	v->load_addr = NULL;
 	v->len = 0;
 
-	v->uid = filp->f_uid;
-	v->gid = filp->f_gid;
+	v->uid = filp->f_cred->fsuid;
+	v->gid = filp->f_cred->fsgid;
 
 #ifdef CONFIG_MIPS_APSP_KSPD
 	/* get kspd to tell us when a syscall_exit happens */
@@ -1454,7 +1454,7 @@ static int __init vpe_module_init(void)
 	device_initialize(&vpe_device);
 	vpe_device.class	= &vpe_class,
 	vpe_device.parent	= NULL,
-	strlcpy(vpe_device.bus_id, "vpe1", BUS_ID_SIZE);
+	dev_set_name(&vpe_device, "vpe1");
 	vpe_device.devt = MKDEV(major, minor);
 	err = device_add(&vpe_device);
 	if (err) {

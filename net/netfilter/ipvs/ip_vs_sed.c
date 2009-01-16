@@ -84,6 +84,7 @@ ip_vs_sed_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 			goto nextstage;
 		}
 	}
+	IP_VS_ERR_RL("SED: no destination available\n");
 	return NULL;
 
 	/*
@@ -118,9 +119,6 @@ static struct ip_vs_scheduler ip_vs_sed_scheduler =
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
 	.n_list =		LIST_HEAD_INIT(ip_vs_sed_scheduler.n_list),
-#ifdef CONFIG_IP_VS_IPV6
-	.supports_ipv6 =	1,
-#endif
 	.schedule =		ip_vs_sed_schedule,
 };
 

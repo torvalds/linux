@@ -12,6 +12,25 @@ config DVB_FE_CUSTOMISE
 
 	  If unsure say N.
 
+comment "Multistandard (satellite) frontends"
+	depends on DVB_CORE
+
+config DVB_STB0899
+	tristate "STB0899 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S/S2/DSS Multistandard demodulator. Say Y when you want
+	  to support this demodulator based frontends
+
+config DVB_STB6100
+	tristate "STB6100 based tuners"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A Silicon tuner from ST used in conjunction with the STB0899
+	  demodulator. Say Y when you want to support this tuner.
+
 comment "DVB-S (satellite) frontends"
 	depends on DVB_CORE
 
@@ -78,6 +97,13 @@ config DVB_TDA10086
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_TDA8261
+	tristate "Philips TDA8261 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
 config DVB_VES1X93
 	tristate "VLSI VES1893 or VES1993 based"
 	depends on DVB_CORE && I2C
@@ -91,6 +117,14 @@ config DVB_TUNER_ITD1000
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
+config DVB_TUNER_CX24113
+	tristate "Conexant CX24113/CX24128 tuner for DVB-S/DSS"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module. Say Y when you want to support this frontend.
+
 
 config DVB_TDA826X
 	tristate "Philips TDA826X silicon tuner"
@@ -345,6 +379,14 @@ config DVB_LGDT330X
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
+config DVB_LGDT3304
+	tristate "LG Electronics LGDT3304"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
+	  to support this frontend.
+
 config DVB_S5H1409
 	tristate "Samsung S5H1409 based"
 	depends on DVB_CORE && I2C
@@ -368,6 +410,17 @@ config DVB_S5H1411
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
+
+comment "ISDB-T (terrestrial) frontends"
+	depends on DVB_CORE
+
+config DVB_S921
+	tristate "Sharp S921 tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  AN ISDB-T DQPSK, QPSK, 16QAM and 64QAM 1seg tuner module.
+	  Say Y when you want to support this frontend.
 
 comment "Digital terrestrial only tuners/PLL"
 	depends on DVB_CORE

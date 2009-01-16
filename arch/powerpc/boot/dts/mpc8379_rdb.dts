@@ -117,7 +117,6 @@
 			interrupt-parent = <&ipic>;
 			dfsrr;
 			rtc@68 {
-				device_type = "rtc";
 				compatible = "dallas,ds1339";
 				reg = <0x68>;
 			};
@@ -211,6 +210,22 @@
 				reg = <0x2>;
 				device_type = "ethernet-phy";
 			};
+			tbi0: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
+		};
+
+		mdio@25520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,gianfar-tbi";
+			reg = <0x25520 0x20>;
+
+			tbi1: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet0: ethernet@24000 {
@@ -223,6 +238,7 @@
 			interrupts = <32 0x8 33 0x8 34 0x8>;
 			phy-connection-type = "mii";
 			interrupt-parent = <&ipic>;
+			tbi-handle = <&tbi0>;
 			phy-handle = <&phy2>;
 		};
 
@@ -237,6 +253,7 @@
 			phy-connection-type = "mii";
 			interrupt-parent = <&ipic>;
 			fixed-link = <1 1 1000 0 0>;
+			tbi-handle = <&tbi1>;
 		};
 
 		serial0: serial@4500 {

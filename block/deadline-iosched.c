@@ -334,7 +334,7 @@ static int deadline_queue_empty(struct request_queue *q)
 		&& list_empty(&dd->fifo_list[READ]);
 }
 
-static void deadline_exit_queue(elevator_t *e)
+static void deadline_exit_queue(struct elevator_queue *e)
 {
 	struct deadline_data *dd = e->elevator_data;
 
@@ -387,7 +387,7 @@ deadline_var_store(int *var, const char *page, size_t count)
 }
 
 #define SHOW_FUNCTION(__FUNC, __VAR, __CONV)				\
-static ssize_t __FUNC(elevator_t *e, char *page)			\
+static ssize_t __FUNC(struct elevator_queue *e, char *page)		\
 {									\
 	struct deadline_data *dd = e->elevator_data;			\
 	int __data = __VAR;						\
@@ -403,7 +403,7 @@ SHOW_FUNCTION(deadline_fifo_batch_show, dd->fifo_batch, 0);
 #undef SHOW_FUNCTION
 
 #define STORE_FUNCTION(__FUNC, __PTR, MIN, MAX, __CONV)			\
-static ssize_t __FUNC(elevator_t *e, const char *page, size_t count)	\
+static ssize_t __FUNC(struct elevator_queue *e, const char *page, size_t count)	\
 {									\
 	struct deadline_data *dd = e->elevator_data;			\
 	int __data;							\

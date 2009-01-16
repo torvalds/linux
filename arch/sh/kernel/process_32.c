@@ -32,64 +32,7 @@
 #include <asm/fpu.h>
 #include <asm/syscalls.h>
 
-static int hlt_counter;
 int ubc_usercnt = 0;
-
-void (*pm_idle)(void);
-void (*pm_power_off)(void);
-EXPORT_SYMBOL(pm_power_off);
-
-static int __init nohlt_setup(char *__unused)
-{
-	hlt_counter = 1;
-	return 1;
-}
-__setup("nohlt", nohlt_setup);
-
-static int __init hlt_setup(char *__unused)
-{
-	hlt_counter = 0;
-	return 1;
-}
-__setup("hlt", hlt_setup);
-
-static void default_idle(void)
-{
-	if (!hlt_counter) {
-		clear_thread_flag(TIF_POLLING_NRFLAG);
-		smp_mb__after_clear_bit();
-		set_bl_bit();
-		while (!need_resched())
-			cpu_sleep();
-		clear_bl_bit();
-		set_thread_flag(TIF_POLLING_NRFLAG);
-	} else
-		while (!need_resched())
-			cpu_relax();
-}
-
-void cpu_idle(void)
-{
-	set_thread_flag(TIF_POLLING_NRFLAG);
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		void (*idle)(void) = pm_idle;
-
-		if (!idle)
-			idle = default_idle;
-
-		tick_nohz_stop_sched_tick(1);
-		while (!need_resched())
-			idle();
-		tick_nohz_restart_sched_tick();
-
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
-		check_pgt_cache();
-	}
-}
 
 void machine_restart(char * __unused)
 {
@@ -115,8 +58,8 @@ void machine_power_off(void)
 void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
-	printk("Pid : %d, Comm: %20s\n", task_pid_nr(current), current->comm);
-	printk("CPU : %d    %s  (%s %.*s)\n",
+	printk("Pid : %d, Comm: \t\t%s\n", task_pid_nr(current), current->comm);
+	printk("CPU : %d        \t\t%s  (%s %.*s)\n\n",
 	       smp_processor_id(), print_tainted(), init_utsname()->release,
 	       (int)strcspn(init_utsname()->version, " "),
 	       init_utsname()->version);
@@ -148,26 +91,16 @@ void show_regs(struct pt_regs * regs)
 	       regs->mach, regs->macl, regs->gbr, regs->pr);
 
 	show_trace(NULL, (unsigned long *)regs->regs[15], regs);
+	show_code(regs);
 }
 
 /*
  * Create a kernel thread
  */
-
-/*
- * This is the mechanism for creating a new kernel thread.
- *
- */
-extern void kernel_thread_helper(void);
-__asm__(".align 5\n"
-	"kernel_thread_helper:\n\t"
-	"jsr	@r5\n\t"
-	" nop\n\t"
-	"mov.l	1f, r1\n\t"
-	"jsr	@r1\n\t"
-	" mov	r0, r4\n\t"
-	".align 2\n\t"
-	"1:.long do_exit");
+ATTRIB_NORET void kernel_thread_helper(void *arg, int (*fn)(void *))
+{
+	do_exit(fn(arg));
+}
 
 /* Don't use this in BL=1(cli).  Or else, CPU resets! */
 int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)

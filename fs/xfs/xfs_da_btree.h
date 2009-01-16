@@ -72,27 +72,7 @@ typedef struct xfs_da_intnode {
 typedef struct xfs_da_node_hdr xfs_da_node_hdr_t;
 typedef struct xfs_da_node_entry xfs_da_node_entry_t;
 
-#define XFS_DA_MAXHASH	((xfs_dahash_t)-1) /* largest valid hash value */
-
 #define	XFS_LBSIZE(mp)	(mp)->m_sb.sb_blocksize
-#define	XFS_LBLOG(mp)	(mp)->m_sb.sb_blocklog
-
-#define	XFS_DA_MAKE_BNOENTRY(mp,bno,entry)	\
-	(((bno) << (mp)->m_dircook_elog) | (entry))
-#define	XFS_DA_MAKE_COOKIE(mp,bno,entry,hash)	\
-	(((xfs_off_t)XFS_DA_MAKE_BNOENTRY(mp, bno, entry) << 32) | (hash))
-#define	XFS_DA_COOKIE_HASH(mp,cookie)		((xfs_dahash_t)cookie)
-#define	XFS_DA_COOKIE_BNO(mp,cookie)		\
-	((((xfs_off_t)(cookie) >> 31) == -1LL ? \
-		(xfs_dablk_t)0 : \
-		(xfs_dablk_t)((xfs_off_t)(cookie) >> \
-				((mp)->m_dircook_elog + 32))))
-#define	XFS_DA_COOKIE_ENTRY(mp,cookie)		\
-	((((xfs_off_t)(cookie) >> 31) == -1LL ?	\
-		(xfs_dablk_t)0 : \
-		(xfs_dablk_t)(((xfs_off_t)(cookie) >> 32) & \
-				((1 << (mp)->m_dircook_elog) - 1))))
-
 
 /*========================================================================
  * Btree searching and modification structure definitions.
@@ -226,9 +206,8 @@ struct xfs_nameops {
 };
 
 
-#ifdef __KERNEL__
 /*========================================================================
- * Function prototypes for the kernel.
+ * Function prototypes.
  *========================================================================*/
 
 /*
@@ -289,6 +268,5 @@ xfs_daddr_t xfs_da_blkno(xfs_dabuf_t *dabuf);
 
 extern struct kmem_zone *xfs_da_state_zone;
 extern struct kmem_zone *xfs_dabuf_zone;
-#endif	/* __KERNEL__ */
 
 #endif	/* __XFS_DA_BTREE_H__ */

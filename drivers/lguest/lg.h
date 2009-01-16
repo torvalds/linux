@@ -164,7 +164,7 @@ void copy_gdt(const struct lg_cpu *cpu, struct desc_struct *gdt);
 void copy_gdt_tls(const struct lg_cpu *cpu, struct desc_struct *gdt);
 
 /* page_tables.c: */
-int init_guest_pagetable(struct lguest *lg, unsigned long pgtable);
+int init_guest_pagetable(struct lguest *lg);
 void free_guest_pagetable(struct lguest *lg);
 void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable);
 void guest_set_pmd(struct lguest *lg, unsigned long gpgdir, u32 i);

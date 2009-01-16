@@ -171,6 +171,7 @@ struct zfcp_san_dbf_record_ct_response {
 	u8 reason_code;
 	u8 expl;
 	u8 vendor_unique;
+	u16 max_res_size;
 	u32 len;
 } __attribute__ ((packed));
 

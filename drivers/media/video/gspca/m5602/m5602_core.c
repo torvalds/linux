@@ -24,7 +24,7 @@
 
 /* Kernel module parameters */
 int force_sensor;
-int dump_bridge;
+static int dump_bridge;
 int dump_sensor;
 
 static const __devinitdata struct usb_device_id m5602_table[] = {
@@ -77,6 +77,97 @@ int m5602_write_bridge(struct sd *sd, u8 address, u8 i2c_data)
 
 	/* usb_control_msg(...) returns the number of bytes sent upon success,
 	   mask that and return zero upon success instead */
+	return (err < 0) ? err : 0;
+}
+
+int m5602_read_sensor(struct sd *sd, const u8 address,
+		       u8 *i2c_data, const u8 len)
+{
+	int err, i;
+
+	if (!len || len > sd->sensor->i2c_regW)
+		return -EINVAL;
+
+	do {
+		err = m5602_read_bridge(sd, M5602_XB_I2C_STATUS, i2c_data);
+	} while ((*i2c_data & I2C_BUSY) && !err);
+	if (err < 0)
+		goto out;
+
+	err = m5602_write_bridge(sd, M5602_XB_I2C_DEV_ADDR,
+				 sd->sensor->i2c_slave_id);
+	if (err < 0)
+		goto out;
+
+	err = m5602_write_bridge(sd, M5602_XB_I2C_REG_ADDR, address);
+	if (err < 0)
+		goto out;
+
+	if (sd->sensor->i2c_regW == 1) {
+		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, len);
+		if (err < 0)
+			goto out;
+
+		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x08);
+		if (err < 0)
+			goto out;
+	} else {
+		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x18 + len);
+		if (err < 0)
+			goto out;
+	}
+
+	for (i = 0; (i < len) && !err; i++) {
+		err = m5602_read_bridge(sd, M5602_XB_I2C_DATA, &(i2c_data[i]));
+
+		PDEBUG(D_CONF, "Reading sensor register "
+			       "0x%x containing 0x%x ", address, *i2c_data);
+	}
+out:
+	return err;
+}
+
+int m5602_write_sensor(struct sd *sd, const u8 address,
+			u8 *i2c_data, const u8 len)
+{
+	int err, i;
+	u8 *p;
+	struct usb_device *udev = sd->gspca_dev.dev;
+	__u8 *buf = sd->gspca_dev.usb_buf;
+
+	/* No sensor with a data width larger than 16 bits has yet been seen */
+	if (len > sd->sensor->i2c_regW || !len)
+		return -EINVAL;
+
+	memcpy(buf, sensor_urb_skeleton,
+	       sizeof(sensor_urb_skeleton));
+
+	buf[11] = sd->sensor->i2c_slave_id;
+	buf[15] = address;
+
+	/* Special case larger sensor writes */
+	p = buf + 16;
+
+	/* Copy a four byte write sequence for each byte to be written to */
+	for (i = 0; i < len; i++) {
+		memcpy(p, sensor_urb_skeleton + 16, 4);
+		p[3] = i2c_data[i];
+		p += 4;
+		PDEBUG(D_CONF, "Writing sensor register 0x%x with 0x%x",
+		       address, i2c_data[i]);
+	}
+
+	/* Copy the tailer */
+	memcpy(p, sensor_urb_skeleton + 20, 4);
+
+	/* Set the total length */
+	p[3] = 0x10 + len;
+
+	err = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+			      0x04, 0x40, 0x19,
+			      0x0000, buf,
+			      20 + len * 4, M5602_URB_MSG_TIMEOUT);
+
 	return (err < 0) ? err : 0;
 }
 
@@ -150,11 +241,15 @@ static int m5602_start_transfer(struct gspca_dev *gspca_dev)
 
 	/* Send start command to the camera */
 	const u8 buffer[4] = {0x13, 0xf9, 0x0f, 0x01};
+
+	if (sd->sensor->start)
+		sd->sensor->start(sd);
+
 	memcpy(buf, buffer, sizeof(buffer));
 	err = usb_control_msg(gspca_dev->dev,
 			      usb_sndctrlpipe(gspca_dev->dev, 0),
 			      0x04, 0x40, 0x19, 0x0000, buf,
-			      4, M5602_URB_MSG_TIMEOUT);
+			      sizeof(buffer), M5602_URB_MSG_TIMEOUT);
 
 	PDEBUG(D_STREAM, "Transfer started");
 	return (err < 0) ? err : 0;
@@ -284,6 +379,7 @@ static int __init mod_m5602_init(void)
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
+
 static void __exit mod_m5602_exit(void)
 {
 	usb_deregister(&sd_driver);

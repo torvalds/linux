@@ -26,7 +26,6 @@
  */
 xfs_param_t xfs_params = {
 			  /*	MIN		DFLT		MAX	*/
-	.restrict_chown	= {	0,		1,		1	},
 	.sgid_inherit	= {	0,		0,		1	},
 	.symlink_mode	= {	0,		0,		1	},
 	.panic_mask	= {	0,		0,		255	},
@@ -43,10 +42,3 @@ xfs_param_t xfs_params = {
 	.inherit_nodfrg	= {	0,		1,		1	},
 	.fstrm_timer	= {	1,		30*100,		3600*100},
 };
-
-/*
- * Global system credential structure.
- */
-static cred_t sys_cred_val;
-cred_t *sys_cred = &sys_cred_val;
-

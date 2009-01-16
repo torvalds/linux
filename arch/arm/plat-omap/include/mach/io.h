@@ -42,16 +42,14 @@
  * We don't actually have real ISA nor PCI buses, but there is so many
  * drivers out there that might just work if we fake them...
  */
-#define __io(a)			((void __iomem *)(PCIO_BASE + (a)))
-#define __mem_pci(a)		(a)
+#define __io(a)		__typesafe_io(a)
+#define __mem_pci(a)	(a)
 
 /*
  * ----------------------------------------------------------------------------
  * I/O mapping
  * ----------------------------------------------------------------------------
  */
-
-#define PCIO_BASE	0
 
 #if defined(CONFIG_ARCH_OMAP1)
 

@@ -34,14 +34,12 @@ static int pata_platform_set_mode(struct ata_link *link, struct ata_device **unu
 {
 	struct ata_device *dev;
 
-	ata_link_for_each_dev(dev, link) {
-		if (ata_dev_enabled(dev)) {
-			/* We don't really care */
-			dev->pio_mode = dev->xfer_mode = XFER_PIO_0;
-			dev->xfer_shift = ATA_SHIFT_PIO;
-			dev->flags |= ATA_DFLAG_PIO;
-			ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
-		}
+	ata_for_each_dev(dev, link, ENABLED) {
+		/* We don't really care */
+		dev->pio_mode = dev->xfer_mode = XFER_PIO_0;
+		dev->xfer_shift = ATA_SHIFT_PIO;
+		dev->flags |= ATA_DFLAG_PIO;
+		ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
 	}
 	return 0;
 }
@@ -188,7 +186,7 @@ EXPORT_SYMBOL_GPL(__pata_platform_probe);
  *	A platform bus ATA device has been unplugged. Perform the needed
  *	cleanup. Also called on module unload for any active devices.
  */
-int __devexit __pata_platform_remove(struct device *dev)
+int __pata_platform_remove(struct device *dev)
 {
 	struct ata_host *host = dev_get_drvdata(dev);
 

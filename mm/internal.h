@@ -49,6 +49,7 @@ extern void putback_lru_page(struct page *page);
 /*
  * in mm/page_alloc.c
  */
+extern unsigned long highest_memmap_pfn;
 extern void __free_pages_bootmem(struct page *page, unsigned int order);
 
 /*
@@ -275,6 +276,7 @@ static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
 #define GUP_FLAGS_WRITE                  0x1
 #define GUP_FLAGS_FORCE                  0x2
 #define GUP_FLAGS_IGNORE_VMA_PERMISSIONS 0x4
+#define GUP_FLAGS_IGNORE_SIGKILL         0x8
 
 int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		     unsigned long start, int len, int flags,

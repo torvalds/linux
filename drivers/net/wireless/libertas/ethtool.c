@@ -23,7 +23,7 @@ static const char * mesh_stat_strings[]= {
 static void lbs_ethtool_get_drvinfo(struct net_device *dev,
 					 struct ethtool_drvinfo *info)
 {
-	struct lbs_private *priv = (struct lbs_private *) dev->priv;
+	struct lbs_private *priv = netdev_priv(dev);
 
 	snprintf(info->fw_version, 32, "%u.%u.%u.p%u",
 		priv->fwrelease >> 24 & 0xff,
@@ -47,7 +47,7 @@ static int lbs_ethtool_get_eeprom_len(struct net_device *dev)
 static int lbs_ethtool_get_eeprom(struct net_device *dev,
                                   struct ethtool_eeprom *eeprom, u8 * bytes)
 {
-	struct lbs_private *priv = (struct lbs_private *) dev->priv;
+	struct lbs_private *priv = netdev_priv(dev);
 	struct cmd_ds_802_11_eeprom_access cmd;
 	int ret;
 
@@ -76,7 +76,7 @@ out:
 static void lbs_ethtool_get_stats(struct net_device *dev,
 				  struct ethtool_stats *stats, uint64_t *data)
 {
-	struct lbs_private *priv = dev->priv;
+	struct lbs_private *priv = netdev_priv(dev);
 	struct cmd_ds_mesh_access mesh_access;
 	int ret;
 
@@ -113,7 +113,7 @@ static void lbs_ethtool_get_stats(struct net_device *dev,
 
 static int lbs_ethtool_get_sset_count(struct net_device *dev, int sset)
 {
-	struct lbs_private *priv = dev->priv;
+	struct lbs_private *priv = netdev_priv(dev);
 
 	if (sset == ETH_SS_STATS && dev == priv->mesh_dev)
 		return MESH_STATS_NUM;
@@ -143,7 +143,7 @@ static void lbs_ethtool_get_strings(struct net_device *dev,
 static void lbs_ethtool_get_wol(struct net_device *dev,
 				struct ethtool_wolinfo *wol)
 {
-	struct lbs_private *priv = dev->priv;
+	struct lbs_private *priv = netdev_priv(dev);
 
 	if (priv->wol_criteria == 0xffffffff) {
 		/* Interface driver didn't configure wake */
@@ -166,7 +166,7 @@ static void lbs_ethtool_get_wol(struct net_device *dev,
 static int lbs_ethtool_set_wol(struct net_device *dev,
 			       struct ethtool_wolinfo *wol)
 {
-	struct lbs_private *priv = dev->priv;
+	struct lbs_private *priv = netdev_priv(dev);
 	uint32_t criteria = 0;
 
 	if (priv->wol_criteria == 0xffffffff && wol->wolopts)
@@ -180,7 +180,7 @@ static int lbs_ethtool_set_wol(struct net_device *dev,
 	if (wol->wolopts & WAKE_BCAST) criteria |= EHS_WAKE_ON_BROADCAST_DATA;
 	if (wol->wolopts & WAKE_PHY)   criteria |= EHS_WAKE_ON_MAC_EVENT;
 
-	return lbs_host_sleep_cfg(priv, criteria);
+	return lbs_host_sleep_cfg(priv, criteria, (struct wol_config *)NULL);
 }
 
 struct ethtool_ops lbs_ethtool_ops = {

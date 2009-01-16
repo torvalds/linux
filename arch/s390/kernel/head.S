@@ -461,6 +461,55 @@ start:
 	.byte 0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7
 	.byte 0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff
 
+#
+# startup-code at 0x10000, running in absolute addressing mode
+# this is called either by the ipl loader or directly by PSW restart
+# or linload or SALIPL
+#
+	.org	0x10000
+startup:basr	%r13,0			# get base
+.LPG0:
+
+#ifndef CONFIG_MARCH_G5
+	# check processor version against MARCH_{G5,Z900,Z990,Z9_109,Z10}
+	stidp	__LC_CPUID		# store cpuid
+	lhi	%r0,(3f-2f) / 2
+	la	%r1,2f-.LPG0(%r13)
+0:	clc	__LC_CPUID+4(2),0(%r1)
+	jne	3f
+	lpsw	1f-.LPG0(13)		# machine type not good enough, crash
+	.align 16
+1:	.long	0x000a0000,0x00000000
+2:
+#if defined(CONFIG_MARCH_Z10)
+	.short 0x9672, 0x2064, 0x2066, 0x2084, 0x2086, 0x2094, 0x2096
+#elif defined(CONFIG_MARCH_Z9_109)
+	.short 0x9672, 0x2064, 0x2066, 0x2084, 0x2086
+#elif defined(CONFIG_MARCH_Z990)
+	.short 0x9672, 0x2064, 0x2066
+#elif defined(CONFIG_MARCH_Z900)
+	.short 0x9672
+#endif
+3:	la	%r1,2(%r1)
+	brct	%r0,0b
+#endif
+
+	l	%r13,0f-.LPG0(%r13)
+	b	0(%r13)
+0:	.long	startup_continue
+
+#
+# params at 10400 (setup.h)
+#
+	.org	PARMAREA
+	.long	0,0			# IPL_DEVICE
+	.long	0,0			# INITRD_START
+	.long	0,0			# INITRD_SIZE
+
+	.org	COMMAND_LINE
+	.byte	"root=/dev/ram0 ro"
+	.byte	0
+
 #ifdef CONFIG_64BIT
 #include "head64.S"
 #else

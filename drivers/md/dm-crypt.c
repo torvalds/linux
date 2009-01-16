@@ -1060,7 +1060,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_page_pool;
 	}
 
-	cc->bs = bioset_create(MIN_IOS, MIN_IOS);
+	cc->bs = bioset_create(MIN_IOS, 0);
 	if (!cc->bs) {
 		ti->error = "Cannot allocate crypt bioset";
 		goto bad_bs;
@@ -1322,11 +1322,7 @@ static int __init dm_crypt_init(void)
 
 static void __exit dm_crypt_exit(void)
 {
-	int r = dm_unregister_target(&crypt_target);
-
-	if (r < 0)
-		DMERR("unregister failed %d", r);
-
+	dm_unregister_target(&crypt_target);
 	kmem_cache_destroy(_crypt_io_pool);
 }
 

@@ -19,7 +19,7 @@ Sun Sep 24 21:30 2000 Gerard Roudier (groudier@club-internet.fr)
 
 Wed Jul 26 23:30 2000 Gerard Roudier (groudier@club-internet.fr)
 	* version ncr53c8xx-3.4.1
-	- Provide OpenFirmare path through the proc FS on PPC.
+	- Provide OpenFirmware path through the proc FS on PPC.
 	- Remove trailing argument #2 from a couple of #undefs.
 
 Sun Jul 09 16:30 2000 Gerard Roudier (groudier@club-internet.fr)

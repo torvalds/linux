@@ -174,7 +174,7 @@ xprt_rdma_format_addresses(struct rpc_xprt *xprt)
 
 	buf = kzalloc(20, GFP_KERNEL);
 	if (buf)
-		snprintf(buf, 20, NIPQUAD_FMT, NIPQUAD(addr->sin_addr.s_addr));
+		snprintf(buf, 20, "%pI4", &addr->sin_addr.s_addr);
 	xprt->address_strings[RPC_DISPLAY_ADDR] = buf;
 
 	buf = kzalloc(8, GFP_KERNEL);
@@ -186,8 +186,8 @@ xprt_rdma_format_addresses(struct rpc_xprt *xprt)
 
 	buf = kzalloc(48, GFP_KERNEL);
 	if (buf)
-		snprintf(buf, 48, "addr="NIPQUAD_FMT" port=%u proto=%s",
-			NIPQUAD(addr->sin_addr.s_addr),
+		snprintf(buf, 48, "addr=%pI4 port=%u proto=%s",
+			&addr->sin_addr.s_addr,
 			ntohs(addr->sin_port), "rdma");
 	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
 
@@ -204,8 +204,8 @@ xprt_rdma_format_addresses(struct rpc_xprt *xprt)
 
 	buf = kzalloc(30, GFP_KERNEL);
 	if (buf)
-		snprintf(buf, 30, NIPQUAD_FMT".%u.%u",
-			NIPQUAD(addr->sin_addr.s_addr),
+		snprintf(buf, 30, "%pI4.%u.%u",
+			&addr->sin_addr.s_addr,
 			ntohs(addr->sin_port) >> 8,
 			ntohs(addr->sin_port) & 0xff);
 	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
@@ -369,8 +369,8 @@ xprt_setup_rdma(struct xprt_create *args)
 	if (ntohs(sin->sin_port) != 0)
 		xprt_set_bound(xprt);
 
-	dprintk("RPC:       %s: %u.%u.%u.%u:%u\n", __func__,
-			NIPQUAD(sin->sin_addr.s_addr), ntohs(sin->sin_port));
+	dprintk("RPC:       %s: %pI4:%u\n",
+		__func__, &sin->sin_addr.s_addr, ntohs(sin->sin_port));
 
 	/* Set max requests */
 	cdata.max_requests = xprt->max_reqs;

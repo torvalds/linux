@@ -49,7 +49,7 @@
 
 /* Arithmetic right shift for positive and negative values for ISO C. */
 #define RC_PID_DO_ARITH_RIGHT_SHIFT(x, y) \
-	(x) < 0 ? -((-(x)) >> (y)) : (x) >> (y)
+	((x) < 0 ? -((-(x)) >> (y)) : (x) >> (y))
 
 enum rc_pid_event_type {
 	RC_PID_EVENT_TYPE_TX_STATUS,
@@ -61,6 +61,7 @@ enum rc_pid_event_type {
 union rc_pid_event_data {
 	/* RC_PID_EVENT_TX_STATUS */
 	struct {
+		u32 flags;
 		struct ieee80211_tx_info tx_status;
 	};
 	/* RC_PID_EVENT_TYPE_RATE_CHANGE */

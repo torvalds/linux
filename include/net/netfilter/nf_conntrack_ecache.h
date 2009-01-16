@@ -17,6 +17,13 @@ struct nf_conntrack_ecache {
 	unsigned int events;
 };
 
+/* This structure is passed to event handler */
+struct nf_ct_event {
+	struct nf_conn *ct;
+	u32 pid;
+	int report;
+};
+
 extern struct atomic_notifier_head nf_conntrack_chain;
 extern int nf_conntrack_register_notifier(struct notifier_block *nb);
 extern int nf_conntrack_unregister_notifier(struct notifier_block *nb);
@@ -39,22 +46,56 @@ nf_conntrack_event_cache(enum ip_conntrack_events event, struct nf_conn *ct)
 	local_bh_enable();
 }
 
-static inline void nf_conntrack_event(enum ip_conntrack_events event,
-				      struct nf_conn *ct)
+static inline void
+nf_conntrack_event_report(enum ip_conntrack_events event,
+			  struct nf_conn *ct,
+			  u32 pid,
+			  int report)
 {
+	struct nf_ct_event item = {
+		.ct 	= ct,
+		.pid	= pid,
+		.report = report
+	};
 	if (nf_ct_is_confirmed(ct) && !nf_ct_is_dying(ct))
-		atomic_notifier_call_chain(&nf_conntrack_chain, event, ct);
+		atomic_notifier_call_chain(&nf_conntrack_chain, event, &item);
 }
+
+static inline void
+nf_conntrack_event(enum ip_conntrack_events event, struct nf_conn *ct)
+{
+	nf_conntrack_event_report(event, ct, 0, 0);
+}
+
+struct nf_exp_event {
+	struct nf_conntrack_expect *exp;
+	u32 pid;
+	int report;
+};
 
 extern struct atomic_notifier_head nf_ct_expect_chain;
 extern int nf_ct_expect_register_notifier(struct notifier_block *nb);
 extern int nf_ct_expect_unregister_notifier(struct notifier_block *nb);
 
 static inline void
+nf_ct_expect_event_report(enum ip_conntrack_expect_events event,
+			  struct nf_conntrack_expect *exp,
+			  u32 pid,
+			  int report)
+{
+	struct nf_exp_event item = {
+		.exp	= exp,
+		.pid	= pid,
+		.report = report
+	};
+	atomic_notifier_call_chain(&nf_ct_expect_chain, event, &item);
+}
+
+static inline void
 nf_ct_expect_event(enum ip_conntrack_expect_events event,
 		   struct nf_conntrack_expect *exp)
 {
-	atomic_notifier_call_chain(&nf_ct_expect_chain, event, exp);
+	nf_ct_expect_event_report(event, exp, 0, 0);
 }
 
 extern int nf_conntrack_ecache_init(struct net *net);
@@ -66,9 +107,17 @@ static inline void nf_conntrack_event_cache(enum ip_conntrack_events event,
 					    struct nf_conn *ct) {}
 static inline void nf_conntrack_event(enum ip_conntrack_events event,
 				      struct nf_conn *ct) {}
+static inline void nf_conntrack_event_report(enum ip_conntrack_events event,
+					     struct nf_conn *ct,
+					     u32 pid,
+					     int report) {}
 static inline void nf_ct_deliver_cached_events(const struct nf_conn *ct) {}
 static inline void nf_ct_expect_event(enum ip_conntrack_expect_events event,
 				      struct nf_conntrack_expect *exp) {}
+static inline void nf_ct_expect_event_report(enum ip_conntrack_expect_events e,
+					     struct nf_conntrack_expect *exp,
+ 					     u32 pid,
+ 					     int report) {}
 static inline void nf_ct_event_cache_flush(struct net *net) {}
 
 static inline int nf_conntrack_ecache_init(struct net *net)

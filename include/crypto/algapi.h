@@ -22,9 +22,18 @@ struct seq_file;
 
 struct crypto_type {
 	unsigned int (*ctxsize)(struct crypto_alg *alg, u32 type, u32 mask);
+	unsigned int (*extsize)(struct crypto_alg *alg,
+				const struct crypto_type *frontend);
 	int (*init)(struct crypto_tfm *tfm, u32 type, u32 mask);
-	void (*exit)(struct crypto_tfm *tfm);
+	int (*init_tfm)(struct crypto_tfm *tfm,
+		        const struct crypto_type *frontend);
 	void (*show)(struct seq_file *m, struct crypto_alg *alg);
+	struct crypto_alg *(*lookup)(const char *name, u32 type, u32 mask);
+
+	unsigned int type;
+	unsigned int maskclear;
+	unsigned int maskset;
+	unsigned int tfmsize;
 };
 
 struct crypto_instance {
@@ -237,6 +246,11 @@ static inline struct crypto_hash *crypto_spawn_hash(struct crypto_spawn *spawn)
 	u32 mask = CRYPTO_ALG_TYPE_HASH_MASK;
 
 	return __crypto_hash_cast(crypto_spawn_tfm(spawn, type, mask));
+}
+
+static inline void *crypto_hash_ctx(struct crypto_hash *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
 }
 
 static inline void *crypto_hash_ctx_aligned(struct crypto_hash *tfm)

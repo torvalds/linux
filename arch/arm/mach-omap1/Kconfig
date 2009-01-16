@@ -4,16 +4,19 @@ comment "OMAP Core Type"
 config ARCH_OMAP730
 	depends on ARCH_OMAP1
 	bool "OMAP730 Based System"
+	select CPU_ARM926T
 	select ARCH_OMAP_OTG
 
 config ARCH_OMAP15XX
 	depends on ARCH_OMAP1
 	default y
 	bool "OMAP15xx Based System"
+	select CPU_ARM925T
 
 config ARCH_OMAP16XX
 	depends on ARCH_OMAP1
 	bool "OMAP16xx Based System"
+	select CPU_ARM926T
 	select ARCH_OMAP_OTG
 
 comment "OMAP Board Type"

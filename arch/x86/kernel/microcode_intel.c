@@ -471,7 +471,7 @@ static void microcode_fini_cpu(int cpu)
 	uci->mc = NULL;
 }
 
-struct microcode_ops microcode_intel_ops = {
+static struct microcode_ops microcode_intel_ops = {
 	.request_microcode_user		  = request_microcode_user,
 	.request_microcode_fw             = request_microcode_fw,
 	.collect_cpu_info                 = collect_cpu_info,

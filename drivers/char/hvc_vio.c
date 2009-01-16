@@ -153,8 +153,10 @@ static int hvc_find_vtys(void)
 		/* We have statically defined space for only a certain number
 		 * of console adapters.
 		 */
-		if (num_found >= MAX_NR_HVC_CONSOLES)
+		if (num_found >= MAX_NR_HVC_CONSOLES) {
+			of_node_put(vty);
 			break;
+		}
 
 		vtermno = of_get_property(vty, "reg", NULL);
 		if (!vtermno)

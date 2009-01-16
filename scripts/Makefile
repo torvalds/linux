@@ -2,11 +2,12 @@
 # scripts contains sources for various helper programs used throughout
 # the kernel for the build process.
 # ---------------------------------------------------------------------------
+# ihex2fw:       Parser/loader for IHEX formatted data
 # kallsyms:      Find all symbols in vmlinux
 # pnmttologo:    Convert pnm files to logo files
-# conmakehash:   Create chartable
 # conmakehash:	 Create arrays for initializing the kernel console tables
 
+hostprogs-y                      := ihex2fw
 hostprogs-$(CONFIG_KALLSYMS)     += kallsyms
 hostprogs-$(CONFIG_LOGO)         += pnmtologo
 hostprogs-$(CONFIG_VT)           += conmakehash

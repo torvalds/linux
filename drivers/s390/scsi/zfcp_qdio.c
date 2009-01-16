@@ -6,6 +6,9 @@
  * Copyright IBM Corporation 2002, 2008
  */
 
+#define KMSG_COMPONENT "zfcp"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include "zfcp_ext.h"
 
 /* FIXME(tune): free space should be one max. SBAL chain plus what? */
@@ -109,7 +112,7 @@ static void zfcp_qdio_reqid_check(struct zfcp_adapter *adapter,
 		 * corruption and must stop the machine immediatly.
 		 */
 		panic("error: unknown request id (%lx) on adapter %s.\n",
-		      req_id, zfcp_get_busid_by_adapter(adapter));
+		      req_id, dev_name(&adapter->ccw_device->dev));
 
 	zfcp_reqlist_remove(adapter, fsf_req);
 	spin_unlock_irqrestore(&adapter->req_list_lock, flags);
@@ -389,7 +392,7 @@ int zfcp_qdio_allocate(struct zfcp_adapter *adapter)
 
 	init_data->cdev = adapter->ccw_device;
 	init_data->q_format = QDIO_ZFCP_QFMT;
-	memcpy(init_data->adapter_name, zfcp_get_busid_by_adapter(adapter), 8);
+	memcpy(init_data->adapter_name, dev_name(&adapter->ccw_device->dev), 8);
 	ASCEBC(init_data->adapter_name, 8);
 	init_data->qib_param_field_format = 0;
 	init_data->qib_param_field = NULL;

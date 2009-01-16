@@ -1,0 +1,6 @@
+config USB_RSPI
+	tristate "Princeton Instruments USB camera support"
+	default n
+	depends on USB && BROKEN
+	help
+	  This driver is for the Princeton Instruments USB camera device.

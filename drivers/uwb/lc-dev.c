@@ -22,17 +22,12 @@
  *
  * FIXME: docs
  */
-
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/kdev_t.h>
 #include <linux/random.h>
 #include "uwb-internal.h"
-
-#define D_LOCAL 1
-#include <linux/uwb/debug.h>
-
 
 /* We initialize addresses to 0xff (invalid, as it is bcast) */
 static inline void uwb_dev_addr_init(struct uwb_dev_addr *addr)
@@ -104,12 +99,9 @@ static void uwb_dev_sys_release(struct device *dev)
 {
 	struct uwb_dev *uwb_dev = to_uwb_dev(dev);
 
-	d_fnstart(4, NULL, "(dev %p uwb_dev %p)\n", dev, uwb_dev);
 	uwb_bce_put(uwb_dev->bce);
-	d_printf(0, &uwb_dev->dev, "uwb_dev %p freed\n", uwb_dev);
 	memset(uwb_dev, 0x69, sizeof(*uwb_dev));
 	kfree(uwb_dev);
-	d_fnend(4, NULL, "(dev %p uwb_dev %p) = void\n", dev, uwb_dev);
 }
 
 /*
@@ -275,11 +267,7 @@ static struct attribute_group *groups[] = {
  */
 static int __uwb_dev_sys_add(struct uwb_dev *uwb_dev, struct device *parent_dev)
 {
-	int result;
 	struct device *dev;
-
-	d_fnstart(4, NULL, "(uwb_dev %p parent_dev %p)\n", uwb_dev, parent_dev);
-	BUG_ON(parent_dev == NULL);
 
 	dev = &uwb_dev->dev;
 	/* Device sysfs files are only useful for neighbor devices not
@@ -289,18 +277,14 @@ static int __uwb_dev_sys_add(struct uwb_dev *uwb_dev, struct device *parent_dev)
 	dev->parent = parent_dev;
 	dev_set_drvdata(dev, uwb_dev);
 
-	result = device_add(dev);
-	d_fnend(4, NULL, "(uwb_dev %p parent_dev %p) = %d\n", uwb_dev, parent_dev, result);
-	return result;
+	return device_add(dev);
 }
 
 
 static void __uwb_dev_sys_rm(struct uwb_dev *uwb_dev)
 {
-	d_fnstart(4, NULL, "(uwb_dev %p)\n", uwb_dev);
 	dev_set_drvdata(&uwb_dev->dev, NULL);
 	device_del(&uwb_dev->dev);
-	d_fnend(4, NULL, "(uwb_dev %p) = void\n", uwb_dev);
 }
 
 
@@ -384,7 +368,6 @@ int __uwb_dev_offair(struct uwb_dev *uwb_dev, struct uwb_rc *rc)
 	struct device *dev = &uwb_dev->dev;
 	char macbuf[UWB_ADDR_STRSIZE], devbuf[UWB_ADDR_STRSIZE];
 
-	d_fnstart(3, NULL, "(dev %p [uwb_dev %p], uwb_rc %p)\n", dev, uwb_dev, rc);
 	uwb_mac_addr_print(macbuf, sizeof(macbuf), &uwb_dev->mac_addr);
 	uwb_dev_addr_print(devbuf, sizeof(devbuf), &uwb_dev->dev_addr);
 	dev_info(dev, "uwb device (mac %s dev %s) disconnected from %s %s\n",
@@ -392,8 +375,10 @@ int __uwb_dev_offair(struct uwb_dev *uwb_dev, struct uwb_rc *rc)
 		 rc ? rc->uwb_dev.dev.parent->bus->name : "n/a",
 		 rc ? dev_name(rc->uwb_dev.dev.parent) : "");
 	uwb_dev_rm(uwb_dev);
+	list_del(&uwb_dev->bce->node);
+	uwb_bce_put(uwb_dev->bce);
 	uwb_dev_put(uwb_dev);	/* for the creation in _onair() */
-	d_fnend(3, NULL, "(dev %p [uwb_dev %p], uwb_rc %p) = 0\n", dev, uwb_dev, rc);
+
 	return 0;
 }
 

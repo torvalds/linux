@@ -41,6 +41,7 @@ struct nlmclnt_initdata {
 	size_t			addrlen;
 	unsigned short		protocol;
 	u32			nfs_version;
+	int			noresvport;
 };
 
 /*

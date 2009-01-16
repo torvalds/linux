@@ -77,8 +77,7 @@
  */
 #define REALVIEW_TC11MP_SCU_BASE		0x1F000000	/* IRQ, Test chip */
 #define REALVIEW_TC11MP_GIC_CPU_BASE		0x1F000100	/* Test chip interrupt controller CPU interface */
-#define REALVIEW_TC11MP_TWD_BASE		0x1F000700
-#define REALVIEW_TC11MP_TWD_SIZE		0x00000100
+#define REALVIEW_TC11MP_TWD_BASE		0x1F000600
 #define REALVIEW_TC11MP_GIC_DIST_BASE		0x1F001000	/* Test chip interrupt controller distributor */
 #define REALVIEW_TC11MP_L220_BASE		0x1F002000	/* L220 registers */
 

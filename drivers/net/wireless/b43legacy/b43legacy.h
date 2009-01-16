@@ -145,6 +145,10 @@
 #define B43legacy_SHM_SH_PRMAXTIME	0x0074 /* Probe Response max time */
 #define B43legacy_SHM_SH_PRPHYCTL	0x0188 /* Probe Resp PHY TX control */
 /* SHM_SHARED rate tables */
+#define B43legacy_SHM_SH_OFDMDIRECT	0x0480 /* Pointer to OFDM direct map */
+#define B43legacy_SHM_SH_OFDMBASIC	0x04A0 /* Pointer to OFDM basic rate map */
+#define B43legacy_SHM_SH_CCKDIRECT	0x04C0 /* Pointer to CCK direct map */
+#define B43legacy_SHM_SH_CCKBASIC	0x04E0 /* Pointer to CCK basic rate map */
 /* SHM_SHARED microcode soft registers */
 #define B43legacy_SHM_SH_UCODEREV	0x0000 /* Microcode revision */
 #define B43legacy_SHM_SH_UCODEPATCH	0x0002 /* Microcode patchlevel */
@@ -663,7 +667,6 @@ struct b43legacy_wldev {
 	bool bad_frames_preempt;/* Use "Bad Frames Preemption". */
 	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM). */
 	bool short_preamble;	/* TRUE if using short preamble. */
-	bool short_slot;	/* TRUE if using short slot timing. */
 	bool radio_hw_enable;	/* State of radio hardware enable bit. */
 
 	/* PHY/Radio device. */

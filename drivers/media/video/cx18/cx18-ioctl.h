@@ -4,6 +4,7 @@
  *  Derived from ivtv-ioctl.h
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,5 +29,5 @@ void cx18_set_funcs(struct video_device *vdev);
 int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std);
 int cx18_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf);
 int cx18_s_input(struct file *file, void *fh, unsigned int inp);
-int cx18_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
+long cx18_v4l2_ioctl(struct file *filp, unsigned int cmd,
 		    unsigned long arg);

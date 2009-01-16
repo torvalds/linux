@@ -33,6 +33,7 @@ static struct Qdisc_ops blackhole_qdisc_ops __read_mostly = {
 	.priv_size	= 0,
 	.enqueue	= blackhole_enqueue,
 	.dequeue	= blackhole_dequeue,
+	.peek		= blackhole_dequeue,
 	.owner		= THIS_MODULE,
 };
 

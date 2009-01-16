@@ -128,26 +128,30 @@ static int vcan_tx(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
+static const struct net_device_ops vcan_netdev_ops = {
+	.ndo_start_xmit = vcan_tx,
+};
+
 static void vcan_setup(struct net_device *dev)
 {
-	dev->type              = ARPHRD_CAN;
-	dev->mtu               = sizeof(struct can_frame);
-	dev->hard_header_len   = 0;
-	dev->addr_len          = 0;
-	dev->tx_queue_len      = 0;
-	dev->flags             = IFF_NOARP;
+	dev->type		= ARPHRD_CAN;
+	dev->mtu		= sizeof(struct can_frame);
+	dev->hard_header_len	= 0;
+	dev->addr_len		= 0;
+	dev->tx_queue_len	= 0;
+	dev->flags		= IFF_NOARP;
 
 	/* set flags according to driver capabilities */
 	if (echo)
 		dev->flags |= IFF_ECHO;
 
-	dev->hard_start_xmit   = vcan_tx;
-	dev->destructor        = free_netdev;
+	dev->netdev_ops		= &vcan_netdev_ops;
+	dev->destructor		= free_netdev;
 }
 
 static struct rtnl_link_ops vcan_link_ops __read_mostly = {
-       .kind           = "vcan",
-       .setup          = vcan_setup,
+	.kind	= "vcan",
+	.setup	= vcan_setup,
 };
 
 static __init int vcan_init_module(void)

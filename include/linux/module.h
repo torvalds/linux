@@ -294,9 +294,6 @@ struct module
 	/* The size of the executable code in each section.  */
 	unsigned int init_text_size, core_text_size;
 
-	/* The handle returned from unwind_add_table. */
-	void *unwind_info;
-
 	/* Arch-specific module values */
 	struct mod_arch_specific arch;
 
@@ -367,6 +364,18 @@ static inline int module_is_live(struct module *mod)
 struct module *module_text_address(unsigned long addr);
 struct module *__module_text_address(unsigned long addr);
 int is_module_address(unsigned long addr);
+
+static inline int within_module_core(unsigned long addr, struct module *mod)
+{
+	return (unsigned long)mod->module_core <= addr &&
+	       addr < (unsigned long)mod->module_core + mod->core_size;
+}
+
+static inline int within_module_init(unsigned long addr, struct module *mod)
+{
+	return (unsigned long)mod->module_init <= addr &&
+	       addr < (unsigned long)mod->module_init + mod->init_size;
+}
 
 /* Returns 0 and fills in value, defined and namebuf, or -ERANGE if
    symnum out of range. */

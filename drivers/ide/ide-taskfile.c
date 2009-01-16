@@ -58,7 +58,7 @@ static ide_startstop_t task_in_intr(ide_drive_t *);
 
 ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct ide_taskfile *tf = &task->tf;
 	ide_handler_t *handler = NULL;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
@@ -309,9 +309,9 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 		}
 
 		if (sectors > 0) {
-			ide_driver_t *drv;
+			struct ide_driver *drv;
 
-			drv = *(ide_driver_t **)rq->rq_disk->private_data;
+			drv = *(struct ide_driver **)rq->rq_disk->private_data;
 			drv->end_request(drive, 1, sectors);
 		}
 	}
@@ -328,9 +328,9 @@ void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 	}
 
 	if (rq->rq_disk) {
-		ide_driver_t *drv;
+		struct ide_driver *drv;
 
-		drv = *(ide_driver_t **)rq->rq_disk->private_data;;
+		drv = *(struct ide_driver **)rq->rq_disk->private_data;;
 		drv->end_request(drive, 1, rq->nr_sectors);
 	} else
 		ide_end_request(drive, 1, rq->nr_sectors);
@@ -361,7 +361,7 @@ static ide_startstop_t task_in_unexpected(ide_drive_t *drive, struct request *rq
 static ide_startstop_t task_in_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	u8 stat = hwif->tp_ops->read_status(hwif);
 
 	/* Error? */
@@ -395,7 +395,7 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 static ide_startstop_t task_out_intr (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = HWGROUP(drive)->rq;
+	struct request *rq = hwif->rq;
 	u8 stat = hwif->tp_ops->read_status(hwif);
 
 	if (!OK_STAT(stat, DRIVE_READY, drive->bad_wstat))

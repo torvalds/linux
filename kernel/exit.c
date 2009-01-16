@@ -46,12 +46,18 @@
 #include <linux/blkdev.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/tracehook.h>
+#include <linux/init_task.h>
 #include <trace/sched.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
+#include "cred-internals.h"
+
+DEFINE_TRACE(sched_process_free);
+DEFINE_TRACE(sched_process_exit);
+DEFINE_TRACE(sched_process_wait);
 
 static void exit_mm(struct task_struct * tsk);
 
@@ -164,7 +170,10 @@ void release_task(struct task_struct * p)
 	int zap_leader;
 repeat:
 	tracehook_prepare_release_task(p);
-	atomic_dec(&p->user->processes);
+	/* don't need to get the RCU readlock here - the process is dead and
+	 * can't be modifying its own credentials */
+	atomic_dec(&__task_cred(p)->user->processes);
+
 	proc_flush_task(p);
 	write_lock_irq(&tasklist_lock);
 	tracehook_finish_release_task(p);
@@ -339,12 +348,12 @@ static void reparent_to_kthreadd(void)
 	/* cpus_allowed? */
 	/* rt_priority? */
 	/* signals? */
-	security_task_reparent_to_init(current);
 	memcpy(current->signal->rlim, init_task.signal->rlim,
 	       sizeof(current->signal->rlim));
-	atomic_inc(&(INIT_USER->__count));
+
+	atomic_inc(&init_cred.usage);
+	commit_creds(&init_cred);
 	write_unlock_irq(&tasklist_lock);
-	switch_uid(INIT_USER);
 }
 
 void __set_special_pids(struct pid *pid)
@@ -633,35 +642,31 @@ retry:
 	/*
 	 * We found no owner yet mm_users > 1: this implies that we are
 	 * most likely racing with swapoff (try_to_unuse()) or /proc or
-	 * ptrace or page migration (get_task_mm()).  Mark owner as NULL,
-	 * so that subsystems can understand the callback and take action.
+	 * ptrace or page migration (get_task_mm()).  Mark owner as NULL.
 	 */
-	down_write(&mm->mmap_sem);
-	cgroup_mm_owner_callbacks(mm->owner, NULL);
 	mm->owner = NULL;
-	up_write(&mm->mmap_sem);
 	return;
 
 assign_new_owner:
 	BUG_ON(c == p);
 	get_task_struct(c);
-	read_unlock(&tasklist_lock);
-	down_write(&mm->mmap_sem);
 	/*
 	 * The task_lock protects c->mm from changing.
 	 * We always want mm->owner->mm == mm
 	 */
 	task_lock(c);
+	/*
+	 * Delay read_unlock() till we have the task_lock()
+	 * to ensure that c does not slip away underneath us
+	 */
+	read_unlock(&tasklist_lock);
 	if (c->mm != mm) {
 		task_unlock(c);
-		up_write(&mm->mmap_sem);
 		put_task_struct(c);
 		goto retry;
 	}
-	cgroup_mm_owner_callbacks(mm->owner, c);
 	mm->owner = c;
 	task_unlock(c);
-	up_write(&mm->mmap_sem);
 	put_task_struct(c);
 }
 #endif /* CONFIG_MM_OWNER */
@@ -1028,8 +1033,6 @@ NORET_TYPE void do_exit(long code)
 		 * task into the wait for ever nirwana as well.
 		 */
 		tsk->flags |= PF_EXITPIDONE;
-		if (tsk->io_context)
-			exit_io_context();
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule();
 	}
@@ -1048,10 +1051,7 @@ NORET_TYPE void do_exit(long code)
 				preempt_count());
 
 	acct_update_integrals(tsk);
-	if (tsk->mm) {
-		update_hiwater_rss(tsk->mm);
-		update_hiwater_vm(tsk->mm);
-	}
+
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
 		hrtimer_cancel(&tsk->signal->real_timer);
@@ -1078,7 +1078,6 @@ NORET_TYPE void do_exit(long code)
 	check_stack_usage();
 	exit_thread();
 	cgroup_exit(tsk, 1);
-	exit_keys(tsk);
 
 	if (group_dead && tsk->signal->leader)
 		disassociate_ctty(1);
@@ -1123,7 +1122,6 @@ NORET_TYPE void do_exit(long code)
 	preempt_disable();
 	/* causes final put_task_struct in finish_task_switch(). */
 	tsk->state = TASK_DEAD;
-
 	schedule();
 	BUG();
 	/* Avoid "noreturn function does return".  */
@@ -1143,7 +1141,7 @@ NORET_TYPE void complete_and_exit(struct completion *comp, long code)
 
 EXPORT_SYMBOL(complete_and_exit);
 
-asmlinkage long sys_exit(int error_code)
+SYSCALL_DEFINE1(exit, int, error_code)
 {
 	do_exit((error_code&0xff)<<8);
 }
@@ -1184,9 +1182,11 @@ do_group_exit(int exit_code)
  * wait4()-ing process will get the correct exit code - even if this
  * thread is not the thread group leader.
  */
-asmlinkage void sys_exit_group(int error_code)
+SYSCALL_DEFINE1(exit_group, int, error_code)
 {
 	do_group_exit((error_code & 0xff) << 8);
+	/* NOTREACHED */
+	return 0;
 }
 
 static struct pid *task_pid_type(struct task_struct *task, enum pid_type type)
@@ -1263,12 +1263,12 @@ static int wait_task_zombie(struct task_struct *p, int options,
 	unsigned long state;
 	int retval, status, traced;
 	pid_t pid = task_pid_vnr(p);
+	uid_t uid = __task_cred(p)->uid;
 
 	if (!likely(options & WEXITED))
 		return 0;
 
 	if (unlikely(options & WNOWAIT)) {
-		uid_t uid = p->uid;
 		int exit_code = p->exit_code;
 		int why, status;
 
@@ -1321,10 +1321,10 @@ static int wait_task_zombie(struct task_struct *p, int options,
 		 * group, which consolidates times for all threads in the
 		 * group including the group leader.
 		 */
+		thread_group_cputime(p, &cputime);
 		spin_lock_irq(&p->parent->sighand->siglock);
 		psig = p->parent->signal;
 		sig = p->signal;
-		thread_group_cputime(p, &cputime);
 		psig->cutime =
 			cputime_add(psig->cutime,
 			cputime_add(cputime.utime,
@@ -1389,7 +1389,7 @@ static int wait_task_zombie(struct task_struct *p, int options,
 	if (!retval && infop)
 		retval = put_user(pid, &infop->si_pid);
 	if (!retval && infop)
-		retval = put_user(p->uid, &infop->si_uid);
+		retval = put_user(uid, &infop->si_uid);
 	if (!retval)
 		retval = pid;
 
@@ -1454,7 +1454,8 @@ static int wait_task_stopped(int ptrace, struct task_struct *p,
 	if (!unlikely(options & WNOWAIT))
 		p->exit_code = 0;
 
-	uid = p->uid;
+	/* don't need the RCU readlock here as we're holding a spinlock */
+	uid = __task_cred(p)->uid;
 unlock_sig:
 	spin_unlock_irq(&p->sighand->siglock);
 	if (!exit_code)
@@ -1528,10 +1529,10 @@ static int wait_task_continued(struct task_struct *p, int options,
 	}
 	if (!unlikely(options & WNOWAIT))
 		p->signal->flags &= ~SIGNAL_STOP_CONTINUED;
+	uid = __task_cred(p)->uid;
 	spin_unlock_irq(&p->sighand->siglock);
 
 	pid = task_pid_vnr(p);
-	uid = p->uid;
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);
 
@@ -1753,9 +1754,8 @@ end:
 	return retval;
 }
 
-asmlinkage long sys_waitid(int which, pid_t upid,
-			   struct siginfo __user *infop, int options,
-			   struct rusage __user *ru)
+SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
+		infop, int, options, struct rusage __user *, ru)
 {
 	struct pid *pid = NULL;
 	enum pid_type type;
@@ -1794,8 +1794,8 @@ asmlinkage long sys_waitid(int which, pid_t upid,
 	return ret;
 }
 
-asmlinkage long sys_wait4(pid_t upid, int __user *stat_addr,
-			  int options, struct rusage __user *ru)
+SYSCALL_DEFINE4(wait4, pid_t, upid, int __user *, stat_addr,
+		int, options, struct rusage __user *, ru)
 {
 	struct pid *pid = NULL;
 	enum pid_type type;
@@ -1832,7 +1832,7 @@ asmlinkage long sys_wait4(pid_t upid, int __user *stat_addr,
  * sys_waitpid() remains for compatibility. waitpid() should be
  * implemented by calling sys_wait4() from libc.a.
  */
-asmlinkage long sys_waitpid(pid_t pid, int __user *stat_addr, int options)
+SYSCALL_DEFINE3(waitpid, pid_t, pid, int __user *, stat_addr, int, options)
 {
 	return sys_wait4(pid, stat_addr, options, NULL);
 }

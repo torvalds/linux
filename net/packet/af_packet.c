@@ -872,6 +872,7 @@ static int packet_release(struct socket *sock)
 
 	write_lock_bh(&net->packet.sklist_lock);
 	sk_del_node_init(sk);
+	sock_prot_inuse_add(net, sk->sk_prot, -1);
 	write_unlock_bh(&net->packet.sklist_lock);
 
 	/*
@@ -1084,6 +1085,7 @@ static int packet_create(struct net *net, struct socket *sock, int protocol)
 
 	write_lock_bh(&net->packet.sklist_lock);
 	sk_add_node(sk, &net->packet.sklist);
+	sock_prot_inuse_add(net, &packet_proto, 1);
 	write_unlock_bh(&net->packet.sklist_lock);
 	return(0);
 out:

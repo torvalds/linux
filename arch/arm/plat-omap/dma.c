@@ -29,7 +29,7 @@
 
 #include <asm/system.h>
 #include <mach/hardware.h>
-#include <asm/dma.h>
+#include <mach/dma.h>
 
 #include <mach/tc.h>
 
@@ -1848,9 +1848,22 @@ static int omap2_dma_handle_ch(int ch)
 		printk(KERN_INFO
 		       "DMA synchronization event drop occurred with device "
 		       "%d\n", dma_chan[ch].dev_id);
-	if (unlikely(status & OMAP2_DMA_TRANS_ERR_IRQ))
+	if (unlikely(status & OMAP2_DMA_TRANS_ERR_IRQ)) {
 		printk(KERN_INFO "DMA transaction error with device %d\n",
 		       dma_chan[ch].dev_id);
+		if (cpu_class_is_omap2()) {
+			/* Errata: sDMA Channel is not disabled
+			 * after a transaction error. So we explicitely
+			 * disable the channel
+			 */
+			u32 ccr;
+
+			ccr = dma_read(CCR(ch));
+			ccr &= ~OMAP_DMA_CCR_EN;
+			dma_write(ccr, CCR(ch));
+			dma_chan[ch].flags &= ~OMAP_DMA_ACTIVE;
+		}
+	}
 	if (unlikely(status & OMAP2_DMA_SECURE_ERR_IRQ))
 		printk(KERN_INFO "DMA secure error with device %d\n",
 		       dma_chan[ch].dev_id);

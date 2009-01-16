@@ -33,7 +33,6 @@
 #define AD_TIMER_INTERVAL       100 /*msec*/
 
 #define MULTICAST_LACPDU_ADDR    {0x01, 0x80, 0xC2, 0x00, 0x00, 0x02}
-#define AD_MULTICAST_LACPDU_ADDR    {MULTICAST_LACPDU_ADDR}
 
 #define AD_LACP_SLOW 0
 #define AD_LACP_FAST 1
@@ -42,10 +41,11 @@ typedef struct mac_addr {
 	u8 mac_addr_value[ETH_ALEN];
 } mac_addr_t;
 
-typedef enum {
-	AD_BANDWIDTH = 0,
-	AD_COUNT
-} agg_selection_t;
+enum {
+	BOND_AD_STABLE = 0,
+	BOND_AD_BANDWIDTH = 1,
+	BOND_AD_COUNT = 2,
+};
 
 // rx machine states(43.4.11 in the 802.3ad standard)
 typedef enum {
@@ -105,12 +105,6 @@ typedef enum {
 
 #pragma pack(1)
 
-typedef struct ad_header {
-	struct mac_addr destination_address;
-	struct mac_addr source_address;
-	__be16 length_type;
-} ad_header_t;
-
 // Link Aggregation Control Protocol(LACP) data unit structure(43.4.2.2 in the 802.3ad standard)
 typedef struct lacpdu {
 	u8 subtype;		     // = LACP(= 0x01)
@@ -143,7 +137,7 @@ typedef struct lacpdu {
 } lacpdu_t;
 
 typedef struct lacpdu_header {
-	struct ad_header ad_header;
+	struct ethhdr hdr;
 	struct lacpdu lacpdu;
 } lacpdu_header_t;
 
@@ -164,7 +158,7 @@ typedef struct bond_marker {
 } bond_marker_t;
 
 typedef struct bond_marker_header {
-	struct ad_header ad_header;
+	struct ethhdr hdr;
 	struct bond_marker marker;
 } bond_marker_header_t;
 
@@ -183,7 +177,7 @@ struct port;
 typedef struct aggregator {
 	struct mac_addr aggregator_mac_address;
 	u16 aggregator_identifier;
-	u16 is_individual;		 // BOOLEAN
+	bool is_individual;
 	u16 actor_admin_aggregator_key;
 	u16 actor_oper_aggregator_key;
 	struct mac_addr partner_system;
@@ -198,6 +192,15 @@ typedef struct aggregator {
 	u16 num_of_ports;
 } aggregator_t;
 
+struct port_params {
+	struct mac_addr system;
+	u16 system_priority;
+	u16 key;
+	u16 port_number;
+	u16 port_priority;
+	u16 port_state;
+};
+
 // port structure(43.4.6 in the 802.3ad standard)
 typedef struct port {
 	u16 actor_port_number;
@@ -205,24 +208,17 @@ typedef struct port {
 	struct mac_addr actor_system;	       // This parameter is added here although it is not specified in the standard, just for simplification
 	u16 actor_system_priority;	 // This parameter is added here although it is not specified in the standard, just for simplification
 	u16 actor_port_aggregator_identifier;
-	u16 ntt;			 // BOOLEAN
+	bool ntt;
 	u16 actor_admin_port_key;
 	u16 actor_oper_port_key;
 	u8 actor_admin_port_state;
 	u8 actor_oper_port_state;
-	struct mac_addr partner_admin_system;
-	struct mac_addr partner_oper_system;
-	u16 partner_admin_system_priority;
-	u16 partner_oper_system_priority;
-	u16 partner_admin_key;
-	u16 partner_oper_key;
-	u16 partner_admin_port_number;
-	u16 partner_oper_port_number;
-	u16 partner_admin_port_priority;
-	u16 partner_oper_port_priority;
-	u8 partner_admin_port_state;
-	u8 partner_oper_port_state;
-	u16 is_enabled;	      // BOOLEAN
+
+	struct port_params partner_admin;
+	struct port_params partner_oper;
+
+	bool is_enabled;
+
 	// ****** PRIVATE PARAMETERS ******
 	u16 sm_vars;	      // all state machines variables for this port
 	rx_states_t sm_rx_state;	// state machine rx state
@@ -241,10 +237,10 @@ typedef struct port {
 } port_t;
 
 // system structure
-typedef struct ad_system {
+struct ad_system {
 	u16 sys_priority;
 	struct mac_addr sys_mac_addr;
-} ad_system_t;
+};
 
 #ifdef __ia64__
 #pragma pack()
@@ -255,7 +251,7 @@ typedef struct ad_system {
 #define SLAVE_AD_INFO(slave) ((slave)->ad_info)
 
 struct ad_bond_info {
-	ad_system_t system;	    // 802.3ad system structure
+	struct ad_system system;	    /* 802.3ad system structure */
 	u32 agg_select_timer;	    // Timer to select aggregator after all adapter's hand shakes
 	u32 agg_select_mode;	    // Mode of selection of active aggregator(bandwidth/count)
 	int lacp_fast;		/* whether fast periodic tx should be
@@ -277,6 +273,7 @@ void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution, int lacp_fas
 int  bond_3ad_bind_slave(struct slave *slave);
 void bond_3ad_unbind_slave(struct slave *slave);
 void bond_3ad_state_machine_handler(struct work_struct *);
+void bond_3ad_initiate_agg_selection(struct bonding *bond, int timeout);
 void bond_3ad_adapter_speed_changed(struct slave *slave);
 void bond_3ad_adapter_duplex_changed(struct slave *slave);
 void bond_3ad_handle_link_change(struct slave *slave, char link);

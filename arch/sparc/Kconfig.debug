@@ -15,4 +15,30 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
+config DEBUG_DCFLUSH
+	bool "D-cache flush debugging"
+	depends on SPARC64 && DEBUG_KERNEL
+
+config STACK_DEBUG
+	bool "Stack Overflow Detection Support"
+
+config DEBUG_PAGEALLOC
+	bool "Debug page memory allocations"
+	depends on SPARC64 && DEBUG_KERNEL && !HIBERNATION
+	help
+	  Unmap pages from the kernel linear mapping after free_pages().
+	  This results in a large slowdown, but helps to find certain types
+	  of memory corruptions.
+
+config MCOUNT
+	bool
+	depends on SPARC64
+	depends on STACK_DEBUG || FUNCTION_TRACER
+	default y
+
+config FRAME_POINTER
+	bool
+	depends on MCOUNT
+	default y
+
 endmenu

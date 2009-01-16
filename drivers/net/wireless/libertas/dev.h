@@ -10,7 +10,6 @@
 #include <linux/wireless.h>
 #include <linux/ethtool.h>
 #include <linux/debugfs.h>
-#include <net/ieee80211.h>
 
 #include "defs.h"
 #include "hostcmd.h"
@@ -277,6 +276,12 @@ struct lbs_private {
 	/** WPA keys */
 	struct enc_key wpa_mcast_key;
 	struct enc_key wpa_unicast_key;
+
+/*
+ * In theory, the IE is limited to the IE length, 255,
+ * but in practice 64 bytes are enough.
+ */
+#define MAX_WPA_IE_LEN 64
 
 	/** WPA Information Elements*/
 	u8 wpa_ie[MAX_WPA_IE_LEN];

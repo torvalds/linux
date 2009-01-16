@@ -1312,10 +1312,8 @@ void __init srmmu_paging_init(void)
 #endif
 	poke_srmmu();
 
-#ifdef CONFIG_SUN_IO
 	srmmu_allocate_ptable_skeleton(sparc_iomap.start, IOBASE_END);
 	srmmu_allocate_ptable_skeleton(DVMA_VADDR, DVMA_END);
-#endif
 
 	srmmu_allocate_ptable_skeleton(
 		__fix_to_virt(__end_of_fixed_addresses - 1), FIXADDR_TOP);
@@ -1916,18 +1914,6 @@ static void __cpuinit poke_viking(void)
 	mreg |= VIKING_SBENABLE;
 	mreg &= ~(VIKING_ACENABLE);
 	srmmu_set_mmureg(mreg);
-
-#ifdef CONFIG_SMP
-	/* Avoid unnecessary cross calls. */
-	BTFIXUPCOPY_CALL(flush_cache_all, local_flush_cache_all);
-	BTFIXUPCOPY_CALL(flush_cache_mm, local_flush_cache_mm);
-	BTFIXUPCOPY_CALL(flush_cache_range, local_flush_cache_range);
-	BTFIXUPCOPY_CALL(flush_cache_page, local_flush_cache_page);
-	BTFIXUPCOPY_CALL(__flush_page_to_ram, local_flush_page_to_ram);
-	BTFIXUPCOPY_CALL(flush_sig_insns, local_flush_sig_insns);
-	BTFIXUPCOPY_CALL(flush_page_for_dma, local_flush_page_for_dma);
-	btfixup();
-#endif
 }
 
 static void __init init_viking(void)
@@ -2272,6 +2258,17 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_CALL(__flush_page_to_ram, smp_flush_page_to_ram, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_sig_insns, smp_flush_sig_insns, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_page_for_dma, smp_flush_page_for_dma, BTFIXUPCALL_NORM);
+
+	if (poke_srmmu == poke_viking) {
+		/* Avoid unnecessary cross calls. */
+		BTFIXUPCOPY_CALL(flush_cache_all, local_flush_cache_all);
+		BTFIXUPCOPY_CALL(flush_cache_mm, local_flush_cache_mm);
+		BTFIXUPCOPY_CALL(flush_cache_range, local_flush_cache_range);
+		BTFIXUPCOPY_CALL(flush_cache_page, local_flush_cache_page);
+		BTFIXUPCOPY_CALL(__flush_page_to_ram, local_flush_page_to_ram);
+		BTFIXUPCOPY_CALL(flush_sig_insns, local_flush_sig_insns);
+		BTFIXUPCOPY_CALL(flush_page_for_dma, local_flush_page_for_dma);
+	}
 #endif
 
 	if (sparc_cpu_model == sun4d)

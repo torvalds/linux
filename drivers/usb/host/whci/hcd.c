@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/uwb/umc.h>
@@ -91,8 +90,6 @@ static void whc_stop(struct usb_hcd *usb_hcd)
 	struct whc *whc = wusbhc_to_whc(wusbhc);
 
 	mutex_lock(&wusbhc->mutex);
-
-	wusbhc_stop(wusbhc);
 
 	/* stop HC */
 	le_writel(0, whc->base + WUSBINTR);
@@ -276,6 +273,8 @@ static int whc_probe(struct umc_dev *umc)
 		goto error_wusbhc_b_create;
 	}
 
+	whc_dbg_init(whc);
+
 	return 0;
 
 error_wusbhc_b_create:
@@ -299,6 +298,7 @@ static void whc_remove(struct umc_dev *umc)
 	struct whc *whc = wusbhc_to_whc(wusbhc);
 
 	if (usb_hcd) {
+		whc_dbg_clean_up(whc);
 		wusbhc_b_destroy(wusbhc);
 		usb_remove_hcd(usb_hcd);
 		wusbhc_destroy(wusbhc);

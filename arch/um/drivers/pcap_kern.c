@@ -21,7 +21,7 @@ void pcap_init(struct net_device *dev, void *data)
 	struct pcap_data *ppri;
 	struct pcap_init *init = data;
 
-	pri = dev->priv;
+	pri = netdev_priv(dev);
 	ppri = (struct pcap_data *) pri->user;
 	ppri->host_if = init->host_if;
 	ppri->promisc = init->promisc;

@@ -5,15 +5,18 @@
  * Author(s): Michael Holzheu
  */
 
+#define KMSG_COMPONENT "sclp_sdias"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/sched.h>
 #include <asm/sclp.h>
 #include <asm/debug.h>
 #include <asm/ipl.h>
+
 #include "sclp.h"
 #include "sclp_rw.h"
 
 #define TRACE(x...) debug_sprintf_event(sdias_dbf, 1, x)
-#define ERROR_MSG(x...) printk ( KERN_ALERT "SDIAS: " x )
 
 #define SDIAS_RETRIES 300
 #define SDIAS_SLEEP_TICKS 50
@@ -131,7 +134,7 @@ int sclp_sdias_blk_count(void)
 
 	rc = sdias_sclp_send(&request);
 	if (rc) {
-		ERROR_MSG("sclp_send failed for get_nr_blocks\n");
+		pr_err("sclp_send failed for get_nr_blocks\n");
 		goto out;
 	}
 	if (sccb.hdr.response_code != 0x0020) {
@@ -145,7 +148,8 @@ int sclp_sdias_blk_count(void)
 			rc = sccb.evbuf.blk_cnt;
 			break;
 		default:
-			ERROR_MSG("SCLP error: %x\n", sccb.evbuf.event_status);
+			pr_err("SCLP error: %x\n",
+			       sccb.evbuf.event_status);
 			rc = -EIO;
 			goto out;
 	}
@@ -201,7 +205,7 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 
 	rc = sdias_sclp_send(&request);
 	if (rc) {
-		ERROR_MSG("sclp_send failed: %x\n", rc);
+		pr_err("sclp_send failed: %x\n", rc);
 		goto out;
 	}
 	if (sccb.hdr.response_code != 0x0020) {
@@ -219,9 +223,9 @@ int sclp_sdias_copy(void *dest, int start_blk, int nr_blks)
 		case EVSTATE_NO_DATA:
 			TRACE("no data\n");
 		default:
-			ERROR_MSG("Error from SCLP while copying hsa. "
-				  "Event status = %x\n",
-				sccb.evbuf.event_status);
+			pr_err("Error from SCLP while copying hsa. "
+			       "Event status = %x\n",
+			       sccb.evbuf.event_status);
 			rc = -EIO;
 	}
 out:

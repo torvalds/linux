@@ -307,17 +307,14 @@ static ssize_t show_remote_ip(struct netconsole_target *nt, char *buf)
 static ssize_t show_local_mac(struct netconsole_target *nt, char *buf)
 {
 	struct net_device *dev = nt->np.dev;
+	static const u8 bcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	DECLARE_MAC_BUF(mac);
-	return snprintf(buf, PAGE_SIZE, "%s\n", dev ?
-			print_mac(mac, dev->dev_addr) : "ff:ff:ff:ff:ff:ff");
+	return snprintf(buf, PAGE_SIZE, "%pM\n", dev ? dev->dev_addr : bcast);
 }
 
 static ssize_t show_remote_mac(struct netconsole_target *nt, char *buf)
 {
-	DECLARE_MAC_BUF(mac);
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			print_mac(mac, nt->np.remote_mac));
+	return snprintf(buf, PAGE_SIZE, "%pM\n", nt->np.remote_mac);
 }
 
 /*

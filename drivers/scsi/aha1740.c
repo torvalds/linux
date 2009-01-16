@@ -22,7 +22,7 @@
  * aha1740_makecode may still need even more work
  * if it doesn't work for your devices, take a look.
  *
- * Reworked for new_eh and new locking by Alan Cox <alan@redhat.com>
+ * Reworked for new_eh and new locking by Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * Converted to EISA and generic DMA APIs by Marc Zyngier
  * <maz@wild-wind.fr.eu.org>, 4/2003.

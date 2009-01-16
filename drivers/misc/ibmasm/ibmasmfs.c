@@ -146,8 +146,6 @@ static struct inode *ibmasmfs_make_inode(struct super_block *sb, int mode)
 
 	if (ret) {
 		ret->i_mode = mode;
-		ret->i_uid = ret->i_gid = 0;
-		ret->i_blocks = 0;
 		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
 	}
 	return ret;

@@ -38,8 +38,11 @@
 #include <asm/io.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
+#include <asm/atomic.h>
 #include <asm/apicdef.h>
 #include <mach_mpparse.h>
+#include <asm/genapic.h>
+#include <asm/setup.h>
 
 /*
  * ES7000 chipsets
@@ -161,6 +164,43 @@ es7000_rename_gsi(int ioapic, int gsi)
 	return gsi;
 }
 
+static int wakeup_secondary_cpu_via_mip(int cpu, unsigned long eip)
+{
+	unsigned long vect = 0, psaival = 0;
+
+	if (psai == NULL)
+		return -1;
+
+	vect = ((unsigned long)__pa(eip)/0x1000) << 16;
+	psaival = (0x1000000 | vect | cpu);
+
+	while (*psai & 0x1000000)
+		;
+
+	*psai = psaival;
+
+	return 0;
+}
+
+static void noop_wait_for_deassert(atomic_t *deassert_not_used)
+{
+}
+
+static int __init es7000_update_genapic(void)
+{
+	genapic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
+
+	/* MPENTIUMIII */
+	if (boot_cpu_data.x86 == 6 &&
+	    (boot_cpu_data.x86_model >= 7 || boot_cpu_data.x86_model <= 11)) {
+		es7000_update_genapic_to_cluster();
+		genapic->wait_for_init_deassert = noop_wait_for_deassert;
+		genapic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
+	}
+
+	return 0;
+}
+
 void __init
 setup_unisys(void)
 {
@@ -176,6 +216,8 @@ setup_unisys(void)
 	else
 		es7000_plat = ES7000_CLASSIC;
 	ioapic_renumber_irq = es7000_rename_gsi;
+
+	x86_quirks->update_genapic = es7000_update_genapic;
 }
 
 /*
@@ -315,26 +357,6 @@ es7000_mip_write(struct mip_reg *mip_reg)
 	mip_reg->off_38 = ((unsigned long long)mip_reg->off_38 &
 		(unsigned long long)~MIP_VALID);
 	return status;
-}
-
-int
-es7000_start_cpu(int cpu, unsigned long eip)
-{
-	unsigned long vect = 0, psaival = 0;
-
-	if (psai == NULL)
-		return -1;
-
-	vect = ((unsigned long)__pa(eip)/0x1000) << 16;
-	psaival = (0x1000000 | vect | cpu);
-
-	while (*psai & 0x1000000)
-                ;
-
-	*psai = psaival;
-
-	return 0;
-
 }
 
 void __init

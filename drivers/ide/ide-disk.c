@@ -89,7 +89,7 @@ static void ide_tf_set_cmd(ide_drive_t *drive, ide_task_t *task, u8 dma)
 static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 					sector_t block)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	u16 nsectors		= (u16)rq->nr_sectors;
 	u8 lba48		= !!(drive->dev_flags & IDE_DFLAG_LBA48);
 	u8 dma			= !!(drive->dev_flags & IDE_DFLAG_USING_DMA);
@@ -187,7 +187,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 static ide_startstop_t ide_do_rw_disk(ide_drive_t *drive, struct request *rq,
 				      sector_t block)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 
 	BUG_ON(drive->dev_flags & IDE_DFLAG_BLOCKED);
 
@@ -633,7 +633,7 @@ static void ide_disk_setup(ide_drive_t *drive)
 	printk(KERN_INFO "%s: max request size: %dKiB\n", drive->name,
 		q->max_sectors / 2);
 
-	if (ata_id_is_ssd(id) || ata_id_is_cfa(id))
+	if (ata_id_is_ssd(id))
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
 
 	/* calculate drive capacity, and select LBA if possible */

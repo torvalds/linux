@@ -272,7 +272,7 @@ static void jsm_tty_close(struct uart_port *port)
 	jsm_printk(CLOSE, INFO, &channel->ch_bd->pci_dev, "start\n");
 
 	bd = channel->ch_bd;
-	ts = channel->uart_port.info->port.tty->termios;
+	ts = port->info->port.tty->termios;
 
 	channel->ch_flags &= ~(CH_STOPI);
 

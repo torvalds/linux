@@ -12,10 +12,14 @@ rcuref.txt
 	- Reference-count design for elements of lists/arrays protected by RCU
 rcu.txt
 	- RCU Concepts
+rcubarrier.txt
+	- Unloading modules that use RCU callbacks
 RTFP.txt
 	- List of RCU papers (bibliography) going back to 1980.
 torture.txt
 	- RCU Torture Test Operation (CONFIG_RCU_TORTURE_TEST)
+trace.txt
+	- CONFIG_RCU_TRACE debugfs files and formats
 UP.txt
 	- RCU on Uniprocessor Systems
 whatisRCU.txt

@@ -10,8 +10,8 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
+#include <linux/highmem.h>
 
-#include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/shmparam.h>
 #include <asm/tlbflush.h>
@@ -33,41 +33,56 @@ static DEFINE_SPINLOCK(v6_lock);
  * Copy the user page.  No aliasing to deal with so we can just
  * attack the kernel's existing mapping of these pages.
  */
-static void v6_copy_user_page_nonaliasing(void *kto, const void *kfrom, unsigned long vaddr)
+static void v6_copy_user_highpage_nonaliasing(struct page *to,
+	struct page *from, unsigned long vaddr)
 {
+	void *kto, *kfrom;
+
+	kfrom = kmap_atomic(from, KM_USER0);
+	kto = kmap_atomic(to, KM_USER1);
 	copy_page(kto, kfrom);
+	kunmap_atomic(kto, KM_USER1);
+	kunmap_atomic(kfrom, KM_USER0);
 }
 
 /*
  * Clear the user page.  No aliasing to deal with so we can just
  * attack the kernel's existing mapping of this page.
  */
-static void v6_clear_user_page_nonaliasing(void *kaddr, unsigned long vaddr)
+static void v6_clear_user_highpage_nonaliasing(struct page *page, unsigned long vaddr)
 {
+	void *kaddr = kmap_atomic(page, KM_USER0);
 	clear_page(kaddr);
+	kunmap_atomic(kaddr, KM_USER0);
 }
 
 /*
- * Copy the page, taking account of the cache colour.
+ * Discard data in the kernel mapping for the new page.
+ * FIXME: needs this MCRR to be supported.
  */
-static void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned long vaddr)
+static void discard_old_kernel_data(void *kto)
 {
-	unsigned int offset = CACHE_COLOUR(vaddr);
-	unsigned long from, to;
-	struct page *page = virt_to_page(kfrom);
-
-	if (test_and_clear_bit(PG_dcache_dirty, &page->flags))
-		__flush_dcache_page(page_mapping(page), page);
-
-	/*
-	 * Discard data in the kernel mapping for the new page.
-	 * FIXME: needs this MCRR to be supported.
-	 */
 	__asm__("mcrr	p15, 0, %1, %0, c6	@ 0xec401f06"
 	   :
 	   : "r" (kto),
 	     "r" ((unsigned long)kto + PAGE_SIZE - L1_CACHE_BYTES)
 	   : "cc");
+}
+
+/*
+ * Copy the page, taking account of the cache colour.
+ */
+static void v6_copy_user_highpage_aliasing(struct page *to,
+	struct page *from, unsigned long vaddr)
+{
+	unsigned int offset = CACHE_COLOUR(vaddr);
+	unsigned long kfrom, kto;
+
+	if (test_and_clear_bit(PG_dcache_dirty, &from->flags))
+		__flush_dcache_page(page_mapping(from), from);
+
+	/* FIXME: not highmem safe */
+	discard_old_kernel_data(page_address(to));
 
 	/*
 	 * Now copy the page using the same cache colour as the
@@ -75,16 +90,16 @@ static void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned lo
 	 */
 	spin_lock(&v6_lock);
 
-	set_pte_ext(TOP_PTE(from_address) + offset, pfn_pte(__pa(kfrom) >> PAGE_SHIFT, PAGE_KERNEL), 0);
-	set_pte_ext(TOP_PTE(to_address) + offset, pfn_pte(__pa(kto) >> PAGE_SHIFT, PAGE_KERNEL), 0);
+	set_pte_ext(TOP_PTE(from_address) + offset, pfn_pte(page_to_pfn(from), PAGE_KERNEL), 0);
+	set_pte_ext(TOP_PTE(to_address) + offset, pfn_pte(page_to_pfn(to), PAGE_KERNEL), 0);
 
-	from = from_address + (offset << PAGE_SHIFT);
-	to   = to_address + (offset << PAGE_SHIFT);
+	kfrom = from_address + (offset << PAGE_SHIFT);
+	kto   = to_address + (offset << PAGE_SHIFT);
 
-	flush_tlb_kernel_page(from);
-	flush_tlb_kernel_page(to);
+	flush_tlb_kernel_page(kfrom);
+	flush_tlb_kernel_page(kto);
 
-	copy_page((void *)to, (void *)from);
+	copy_page((void *)kto, (void *)kfrom);
 
 	spin_unlock(&v6_lock);
 }
@@ -94,20 +109,13 @@ static void v6_copy_user_page_aliasing(void *kto, const void *kfrom, unsigned lo
  * so remap the kernel page into the same cache colour as the user
  * page.
  */
-static void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
+static void v6_clear_user_highpage_aliasing(struct page *page, unsigned long vaddr)
 {
 	unsigned int offset = CACHE_COLOUR(vaddr);
 	unsigned long to = to_address + (offset << PAGE_SHIFT);
 
-	/*
-	 * Discard data in the kernel mapping for the new page
-	 * FIXME: needs this MCRR to be supported.
-	 */
-	__asm__("mcrr	p15, 0, %1, %0, c6	@ 0xec401f06"
-	   :
-	   : "r" (kaddr),
-	     "r" ((unsigned long)kaddr + PAGE_SIZE - L1_CACHE_BYTES)
-	   : "cc");
+	/* FIXME: not highmem safe */
+	discard_old_kernel_data(page_address(page));
 
 	/*
 	 * Now clear the page using the same cache colour as
@@ -115,7 +123,7 @@ static void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
 	 */
 	spin_lock(&v6_lock);
 
-	set_pte_ext(TOP_PTE(to_address) + offset, pfn_pte(__pa(kaddr) >> PAGE_SHIFT, PAGE_KERNEL), 0);
+	set_pte_ext(TOP_PTE(to_address) + offset, pfn_pte(page_to_pfn(page), PAGE_KERNEL), 0);
 	flush_tlb_kernel_page(to);
 	clear_page((void *)to);
 
@@ -123,15 +131,15 @@ static void v6_clear_user_page_aliasing(void *kaddr, unsigned long vaddr)
 }
 
 struct cpu_user_fns v6_user_fns __initdata = {
-	.cpu_clear_user_page	= v6_clear_user_page_nonaliasing,
-	.cpu_copy_user_page	= v6_copy_user_page_nonaliasing,
+	.cpu_clear_user_highpage = v6_clear_user_highpage_nonaliasing,
+	.cpu_copy_user_highpage	= v6_copy_user_highpage_nonaliasing,
 };
 
 static int __init v6_userpage_init(void)
 {
 	if (cache_is_vipt_aliasing()) {
-		cpu_user.cpu_clear_user_page = v6_clear_user_page_aliasing;
-		cpu_user.cpu_copy_user_page = v6_copy_user_page_aliasing;
+		cpu_user.cpu_clear_user_highpage = v6_clear_user_highpage_aliasing;
+		cpu_user.cpu_copy_user_highpage = v6_copy_user_highpage_aliasing;
 	}
 
 	return 0;

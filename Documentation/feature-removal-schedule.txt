@@ -120,13 +120,6 @@ Who:	Christoph Hellwig <hch@lst.de>
 
 ---------------------------
 
-What:   eepro100 network driver
-When:   January 2007
-Why:    replaced by the e100 driver
-Who:    Adrian Bunk <bunk@stusta.de>
-
----------------------------
-
 What:	Unused EXPORT_SYMBOL/EXPORT_SYMBOL_GPL exports
 	(temporary transition config option provided until then)
 	The transition config option will also be removed at the same time.
@@ -244,18 +237,6 @@ Who:	Michael Buesch <mb@bu3sch.de>
 
 ---------------------------
 
-What:	init_mm export
-When:	2.6.26
-Why:	Not used in-tree. The current out-of-tree users used it to
-	work around problems in the CPA code which should be resolved
-	by now. One usecase was described to provide verification code
-	of the CPA operation. That's a good idea in general, but such
-	code / infrastructure should be in the kernel and not in some
-	out-of-tree driver.
-Who:	Thomas Gleixner <tglx@linutronix.de>
-
-----------------------------
-
 What:	usedac i386 kernel parameter
 When:	2.6.27
 Why:	replaced by allowdac and no dac combination
@@ -329,17 +310,28 @@ Who:  Krzysztof Piotr Oledzki <ole@ans.pl>
 
 ---------------------------
 
-What: ide-scsi (BLK_DEV_IDESCSI)
-When: 2.6.29
-Why:  The 2.6 kernel supports direct writing to ide CD drives, which
-      eliminates the need for ide-scsi. The new method is more
-      efficient in every way.
-Who:  FUJITA Tomonori <fujita.tomonori@lab.ntt.co.jp>
-
----------------------------
-
 What:	i2c_attach_client(), i2c_detach_client(), i2c_driver->detach_client()
 When:	2.6.29 (ideally) or 2.6.30 (more likely)
 Why:	Deprecated by the new (standard) device driver binding model. Use
 	i2c_driver->probe() and ->remove() instead.
 Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	fscher and fscpos drivers
+When:	June 2009
+Why:	Deprecated by the new fschmd driver.
+Who:	Hans de Goede <hdegoede@redhat.com>
+	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
+
+What:	SELinux "compat_net" functionality
+When:	2.6.30 at the earliest
+Why:	In 2.6.18 the Secmark concept was introduced to replace the "compat_net"
+	network access control functionality of SELinux.  Secmark offers both
+	better performance and greater flexibility than the "compat_net"
+	mechanism.  Now that the major Linux distributions have moved to
+	Secmark, it is time to deprecate the older mechanism and start the
+	process of removing the old code.
+Who:	Paul Moore <paul.moore@hp.com>

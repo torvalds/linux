@@ -61,7 +61,7 @@ static struct ArcProto capmode_proto =
 };
 
 
-void arcnet_cap_init(void)
+static void arcnet_cap_init(void)
 {
 	int count;
 
@@ -103,7 +103,7 @@ MODULE_LICENSE("GPL");
 static void rx(struct net_device *dev, int bufnum,
 	       struct archdr *pkthdr, int length)
 {
-	struct arcnet_local *lp = (struct arcnet_local *) dev->priv;
+	struct arcnet_local *lp = netdev_priv(dev);
 	struct sk_buff *skb;
 	struct archdr *pkt = pkthdr;
 	char *pktbuf, *pkthdrbuf;
@@ -151,7 +151,6 @@ static void rx(struct net_device *dev, int bufnum,
 	skb->protocol = __constant_htons(ETH_P_ARCNET);
 ;
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 }
 
 
@@ -198,7 +197,7 @@ static int build_header(struct sk_buff *skb,
 static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		      int bufnum)
 {
-	struct arcnet_local *lp = (struct arcnet_local *) dev->priv;
+	struct arcnet_local *lp = netdev_priv(dev);
 	struct arc_hardware *hard = &pkt->hard;
 	int ofs;
 
@@ -250,7 +249,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 
 static int ack_tx(struct net_device *dev, int acked)
 {
-  struct arcnet_local *lp = (struct arcnet_local *) dev->priv;
+  struct arcnet_local *lp = netdev_priv(dev);
   struct sk_buff *ackskb;
   struct archdr *ackpkt;
   int length=sizeof(struct arc_cap);

@@ -192,8 +192,6 @@ static struct urb *simple_alloc_urb (
 {
 	struct urb		*urb;
 
-	if (bytes < 0)
-		return NULL;
 	urb = usb_alloc_urb (0, GFP_KERNEL);
 	if (!urb)
 		return urb;

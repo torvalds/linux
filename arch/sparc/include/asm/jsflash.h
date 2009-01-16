@@ -8,7 +8,7 @@
 #define _SPARC_JSFLASH_H
 
 #ifndef _SPARC_TYPES_H
-#include <asm/types.h>
+#include <linux/types.h>
 #endif
 
 /*

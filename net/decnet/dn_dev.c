@@ -885,7 +885,7 @@ static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 	memcpy(msg->tiver, dn_eco_version, 3);
 	dn_dn2eth(msg->id, ifa->ifa_local);
 	msg->iinfo   = DN_RT_INFO_ENDN;
-	msg->blksize = dn_htons(mtu2blksize(dev));
+	msg->blksize = cpu_to_le16(mtu2blksize(dev));
 	msg->area    = 0x00;
 	memset(msg->seed, 0, 8);
 	memcpy(msg->neighbor, dn_hiord, ETH_ALEN);
@@ -895,13 +895,13 @@ static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 		dn_dn2eth(msg->neighbor, dn->addr);
 	}
 
-	msg->timer   = dn_htons((unsigned short)dn_db->parms.t3);
+	msg->timer   = cpu_to_le16((unsigned short)dn_db->parms.t3);
 	msg->mpd     = 0x00;
 	msg->datalen = 0x02;
 	memset(msg->data, 0xAA, 2);
 
 	pktlen = (__le16 *)skb_push(skb,2);
-	*pktlen = dn_htons(skb->len - 2);
+	*pktlen = cpu_to_le16(skb->len - 2);
 
 	skb_reset_network_header(skb);
 
@@ -929,7 +929,7 @@ static int dn_am_i_a_router(struct dn_neigh *dn, struct dn_dev *dn_db, struct dn
 	if (dn->priority != dn_db->parms.priority)
 		return 0;
 
-	if (dn_ntohs(dn->addr) < dn_ntohs(ifa->ifa_local))
+	if (le16_to_cpu(dn->addr) < le16_to_cpu(ifa->ifa_local))
 		return 1;
 
 	return 0;
@@ -973,11 +973,11 @@ static void dn_send_router_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 	ptr += ETH_ALEN;
 	*ptr++ = dn_db->parms.forwarding == 1 ?
 			DN_RT_INFO_L1RT : DN_RT_INFO_L2RT;
-	*((__le16 *)ptr) = dn_htons(mtu2blksize(dev));
+	*((__le16 *)ptr) = cpu_to_le16(mtu2blksize(dev));
 	ptr += 2;
 	*ptr++ = dn_db->parms.priority; /* Priority */
 	*ptr++ = 0; /* Area: Reserved */
-	*((__le16 *)ptr) = dn_htons((unsigned short)dn_db->parms.t3);
+	*((__le16 *)ptr) = cpu_to_le16((unsigned short)dn_db->parms.t3);
 	ptr += 2;
 	*ptr++ = 0; /* MPD: Reserved */
 	i1 = ptr++;
@@ -993,7 +993,7 @@ static void dn_send_router_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 	skb_trim(skb, (27 + *i2));
 
 	pktlen = (__le16 *)skb_push(skb, 2);
-	*pktlen = dn_htons(skb->len - 2);
+	*pktlen = cpu_to_le16(skb->len - 2);
 
 	skb_reset_network_header(skb);
 
@@ -1106,7 +1106,7 @@ static void dn_dev_set_timer(struct net_device *dev)
 	add_timer(&dn_db->timer);
 }
 
-struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
+static struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 {
 	int i;
 	struct dn_dev_parms *p = dn_dev_list;
@@ -1401,8 +1401,8 @@ static int dn_dev_seq_show(struct seq_file *seq, void *v)
 				mtu2blksize(dev),
 				dn_db->parms.priority,
 				dn_db->parms.state, dn_db->parms.name,
-				dn_db->router ? dn_addr2asc(dn_ntohs(*(__le16 *)dn_db->router->primary_key), router_buf) : "",
-				dn_db->peer ? dn_addr2asc(dn_ntohs(*(__le16 *)dn_db->peer->primary_key), peer_buf) : "");
+				dn_db->router ? dn_addr2asc(le16_to_cpu(*(__le16 *)dn_db->router->primary_key), router_buf) : "",
+				dn_db->peer ? dn_addr2asc(le16_to_cpu(*(__le16 *)dn_db->peer->primary_key), peer_buf) : "");
 	}
 	return 0;
 }
@@ -1445,7 +1445,7 @@ void __init dn_dev_init(void)
 		return;
 	}
 
-	decnet_address = dn_htons((addr[0] << 10) | addr[1]);
+	decnet_address = cpu_to_le16((addr[0] << 10) | addr[1]);
 
 	dn_dev_devices_on();
 

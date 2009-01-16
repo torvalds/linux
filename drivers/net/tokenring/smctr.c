@@ -3064,7 +3064,7 @@ static int smctr_load_node_addr(struct net_device *dev)
  * will consequently cause a timeout.
  *
  * NOTE 1: If the monitor_state is MS_BEACON_TEST_STATE, all transmit
- * queues other then the one used for the lobe_media_test should be
+ * queues other than the one used for the lobe_media_test should be
  * disabled.!?
  *
  * NOTE 2: If the monitor_state is MS_BEACON_TEST_STATE and the receive_mask
@@ -3910,7 +3910,6 @@ static int smctr_process_rx_packet(MAC_HEADER *rmf, __u16 size,
                 /* Kick the packet on up. */
                 skb->protocol = tr_type_trans(skb, dev);
                 netif_rx(skb);
-		dev->last_rx = jiffies;
                 err = 0;
         }
 
@@ -4496,7 +4495,6 @@ static int smctr_rx_frame(struct net_device *dev)
                                 	/* Kick the packet on up. */
                                 	skb->protocol = tr_type_trans(skb, dev);
                                 	netif_rx(skb);
-					dev->last_rx = jiffies;
 				} else {
 				}
                         }

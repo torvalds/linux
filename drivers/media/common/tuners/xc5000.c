@@ -36,10 +36,6 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
-static int xc5000_load_fw_on_attach;
-module_param_named(init_fw, xc5000_load_fw_on_attach, int, 0644);
-MODULE_PARM_DESC(init_fw, "Load firmware during driver initialization.");
-
 static DEFINE_MUTEX(xc5000_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
@@ -1016,9 +1012,6 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 
 	memcpy(&fe->ops.tuner_ops, &xc5000_tuner_ops,
 		sizeof(struct dvb_tuner_ops));
-
-	if (xc5000_load_fw_on_attach)
-		xc5000_init(fe);
 
 	return fe;
 fail:

@@ -32,22 +32,22 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	__u16 contrast;			/* rev72a only */
-#define CONTRAST_MIN 0x0000
-#define CONTRAST_DEF 0x2000
-#define CONTRAST_MAX 0x3fff
-
 	__u16 exposure;			/* rev12a only */
 #define EXPOSURE_MIN 1
 #define EXPOSURE_DEF 200
 #define EXPOSURE_MAX (4095 - 900) /* see set_exposure */
 
+	__u8 contrast;			/* rev72a only */
+#define CONTRAST_MIN 0x00
+#define CONTRAST_DEF 0x20
+#define CONTRAST_MAX 0x3f
+
 	__u8 brightness;		/* rev72a only */
 #define BRIGHTNESS_MIN 0
-#define BRIGHTNESS_DEF 32
-#define BRIGHTNESS_MAX 63
+#define BRIGHTNESS_DEF 0x20
+#define BRIGHTNESS_MAX 0x3f
 
-	__u8 white;			/* rev12a only */
+	__u8 white;
 #define WHITE_MIN 1
 #define WHITE_DEF 0x40
 #define WHITE_MAX 0x7f
@@ -73,7 +73,7 @@ struct sd {
 #define AG_CNT_START 13
 };
 
-static struct v4l2_pix_format sif_012a_mode[] = {
+static const struct v4l2_pix_format sif_012a_mode[] = {
 	{160, 120, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
@@ -96,7 +96,7 @@ static struct v4l2_pix_format sif_012a_mode[] = {
 		.priv = 0},
 };
 
-static struct v4l2_pix_format sif_072a_mode[] = {
+static const struct v4l2_pix_format sif_072a_mode[] = {
 	{160, 120, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
@@ -146,98 +146,7 @@ static struct v4l2_pix_format sif_072a_mode[] = {
 #define SPCA561_SNAPBIT 0x20
 #define SPCA561_SNAPCTRL 0x40
 
-static void reg_w_val(struct usb_device *dev, __u16 index, __u8 value)
-{
-	int ret;
-
-	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-			      0,		/* request */
-			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      value, index, NULL, 0, 500);
-	PDEBUG(D_USBO, "reg write: 0x%02x:0x%02x", index, value);
-	if (ret < 0)
-		PDEBUG(D_ERR, "reg write: error %d", ret);
-}
-
-static void write_vector(struct gspca_dev *gspca_dev,
-			const __u16 data[][2])
-{
-	struct usb_device *dev = gspca_dev->dev;
-	int i;
-
-	i = 0;
-	while (data[i][1] != 0) {
-		reg_w_val(dev, data[i][1], data[i][0]);
-		i++;
-	}
-}
-
-/* read 'len' bytes to gspca_dev->usb_buf */
-static void reg_r(struct gspca_dev *gspca_dev,
-		  __u16 index, __u16 length)
-{
-	usb_control_msg(gspca_dev->dev,
-			usb_rcvctrlpipe(gspca_dev->dev, 0),
-			0,			/* request */
-			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0,			/* value */
-			index, gspca_dev->usb_buf, length, 500);
-}
-
-static void reg_w_buf(struct gspca_dev *gspca_dev,
-		      __u16 index, const __u8 *buffer, __u16 len)
-{
-	memcpy(gspca_dev->usb_buf, buffer, len);
-	usb_control_msg(gspca_dev->dev,
-			usb_sndctrlpipe(gspca_dev->dev, 0),
-			0,			/* request */
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0,			/* value */
-			index, gspca_dev->usb_buf, len, 500);
-}
-
-static void i2c_write(struct gspca_dev *gspca_dev, __u16 valeur, __u16 reg)
-{
-	int retry = 60;
-	__u8 DataLow;
-	__u8 DataHight;
-
-	DataLow = valeur;
-	DataHight = valeur >> 8;
-	reg_w_val(gspca_dev->dev, 0x8801, reg);
-	reg_w_val(gspca_dev->dev, 0x8805, DataLow);
-	reg_w_val(gspca_dev->dev, 0x8800, DataHight);
-	while (retry--) {
-		reg_r(gspca_dev, 0x8803, 1);
-		if (!gspca_dev->usb_buf[0])
-			break;
-	}
-}
-
-static int i2c_read(struct gspca_dev *gspca_dev, __u16 reg, __u8 mode)
-{
-	int retry = 60;
-	__u8 value;
-	__u8 vallsb;
-
-	reg_w_val(gspca_dev->dev, 0x8804, 0x92);
-	reg_w_val(gspca_dev->dev, 0x8801, reg);
-	reg_w_val(gspca_dev->dev, 0x8802, (mode | 0x01));
-	do {
-		reg_r(gspca_dev, 0x8803, 1);
-		if (!gspca_dev->usb_buf[0])
-			break;
-	} while (--retry);
-	if (retry == 0)
-		return -1;
-	reg_r(gspca_dev, 0x8800, 1);
-	value = gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8805, 1);
-	vallsb = gspca_dev->usb_buf[0];
-	return ((int) value << 8) | vallsb;
-}
-
-static const __u16 spca561_init_data[][2] = {
+static const __u16 rev72a_init_data1[][2] = {
 	{0x0000, 0x8114},	/* Software GPIO output data */
 	{0x0001, 0x8114},	/* Software GPIO output data */
 	{0x0000, 0x8112},	/* Some kind of reset */
@@ -247,44 +156,26 @@ static const __u16 spca561_init_data[][2] = {
 	{0x0001, 0x8118},	/* Conf sensor */
 	{0x0092, 0x8804},	/* I know nothing about these */
 	{0x0010, 0x8802},	/* 0x88xx registers, so I won't */
-	/***************/
 	{0x000d, 0x8805},	/* sensor default setting */
-	{0x0001, 0x8801},	/* 1 <- 0x0d */
-	{0x0000, 0x8800},
-	{0x0018, 0x8805},
-	{0x0002, 0x8801},	/* 2 <- 0x18 */
-	{0x0000, 0x8800},
-	{0x0065, 0x8805},
-	{0x0004, 0x8801},	/* 4 <- 0x01 0x65 */
-	{0x0001, 0x8800},
-	{0x0021, 0x8805},
-	{0x0005, 0x8801},	/* 5 <- 0x21 */
-	{0x0000, 0x8800},
-	{0x00aa, 0x8805},
-	{0x0007, 0x8801},	/* 7 <- 0xaa */
-	{0x0000, 0x8800},
-	{0x0004, 0x8805},
-	{0x0020, 0x8801},	/* 0x20 <- 0x15 0x04 */
-	{0x0015, 0x8800},
-	{0x0002, 0x8805},
-	{0x0039, 0x8801},	/* 0x39 <- 0x02 */
-	{0x0000, 0x8800},
-	{0x0010, 0x8805},
-	{0x0035, 0x8801},	/* 0x35 <- 0x10 */
-	{0x0000, 0x8800},
-	{0x0049, 0x8805},
-	{0x0009, 0x8801},	/* 0x09 <- 0x10 0x49 */
-	{0x0010, 0x8800},
-	{0x000b, 0x8805},
-	{0x0028, 0x8801},	/* 0x28 <- 0x0b */
-	{0x0000, 0x8800},
-	{0x000f, 0x8805},
-	{0x003b, 0x8801},	/* 0x3b <- 0x0f */
-	{0x0000, 0x8800},
-	{0x0000, 0x8805},
-	{0x003c, 0x8801},	/* 0x3c <- 0x00 */
-	{0x0000, 0x8800},
-	/***************/
+	{}
+};
+static const __u16 rev72a_init_sensor1[][2] = {
+				/* ms-win values */
+	{0x0001, 0x0018},	/* 0x01 <- 0x0d */
+	{0x0002, 0x0065},	/* 0x02 <- 0x18 */
+	{0x0004, 0x0121},	/* 0x04 <- 0x0165 */
+	{0x0005, 0x00aa},	/* 0x05 <- 0x21 */
+	{0x0007, 0x0004},	/* 0x07 <- 0xaa */
+	{0x0020, 0x1502},	/* 0x20 <- 0x1504 */
+	{0x0039, 0x0010},	/* 0x39 <- 0x02 */
+	{0x0035, 0x0049},	/* 0x35 <- 0x10 */
+	{0x0009, 0x100b},	/* 0x09 <- 0x1049 */
+	{0x0028, 0x000f},	/* 0x28 <- 0x0b */
+	{0x003b, 0x003c},	/* 0x3b <- 0x0f */
+	{0x003c, 0x0000},	/* 0x3c <- 0x00 */
+	{}
+};
+static const __u16 rev72a_init_data2[][2] = {
 	{0x0018, 0x8601},	/* Pixel/line selection for color separation */
 	{0x0000, 0x8602},	/* Optical black level for user setting */
 	{0x0060, 0x8604},	/* Optical black horizontal offset */
@@ -309,10 +200,11 @@ static const __u16 spca561_init_data[][2] = {
 	{0x0004, 0x8612},	/* Gr offset for white balance */
 	{0x0007, 0x8613},	/* B offset for white balance */
 	{0x0000, 0x8614},	/* Gb offset for white balance */
-	{0x008c, 0x8651},	/* R gain for white balance */
-	{0x008c, 0x8652},	/* Gr gain for white balance */
-	{0x00b5, 0x8653},	/* B gain for white balance */
-	{0x008c, 0x8654},	/* Gb gain for white balance */
+/* from ms-win */
+	{0x0035, 0x8651},	/* R gain for white balance */
+	{0x0040, 0x8652},	/* Gr gain for white balance */
+	{0x005f, 0x8653},	/* B gain for white balance */
+	{0x0040, 0x8654},	/* Gb gain for white balance */
 	{0x0002, 0x8502},	/* Maximum average bit rate stuff */
 
 	{0x0011, 0x8802},
@@ -324,29 +216,22 @@ static const __u16 spca561_init_data[][2] = {
 
 	{0x0002, 0x865b},	/* Horizontal offset for valid pixels */
 	{0x0003, 0x865c},	/* Vertical offset for valid lines */
-	/***************//* sensor active */
-	{0x0003, 0x8801},	/* 0x03 <- 0x01 0x21 //289 */
-	{0x0021, 0x8805},
-	{0x0001, 0x8800},
-	{0x0004, 0x8801},	/* 0x04 <- 0x01 0x65 //357 */
-	{0x0065, 0x8805},
-	{0x0001, 0x8800},
-	{0x0005, 0x8801},	/* 0x05 <- 0x2f */
-	{0x002f, 0x8805},
-	{0x0000, 0x8800},
-	{0x0006, 0x8801},	/* 0x06 <- 0 */
-	{0x0000, 0x8805},
-	{0x0000, 0x8800},
-	{0x000a, 0x8801},	/* 0x0a <- 2 */
-	{0x0002, 0x8805},
-	{0x0000, 0x8800},
-	{0x0009, 0x8801},	/* 0x09 <- 0x1061 */
-	{0x0061, 0x8805},
-	{0x0010, 0x8800},
-	{0x0035, 0x8801},	/* 0x35 <-0x14 */
-	{0x0014, 0x8805},
-	{0x0000, 0x8800},
+	{}
+};
+static const __u16 rev72a_init_sensor2[][2] = {
+				/* ms-win values */
+	{0x0003, 0x0121},	/* 0x03 <- 0x01 0x21 //289 */
+	{0x0004, 0x0165},	/* 0x04 <- 0x01 0x65 //357 */
+	{0x0005, 0x002f},	/* 0x05 <- 0x2f */
+	{0x0006, 0x0000},	/* 0x06 <- 0 */
+	{0x000a, 0x0002},	/* 0x0a <- 2 */
+	{0x0009, 0x1061},	/* 0x09 <- 0x1061 */
+	{0x0035, 0x0014},	/* 0x35 <- 0x14 */
+	{}
+};
+static const __u16 rev72a_init_data3[][2] = {
 	{0x0030, 0x8112},	/* ISO and drop packet enable */
+/*fixme: should stop here*/
 	{0x0000, 0x8112},	/* Some kind of reset ???? */
 	{0x0009, 0x8118},	/* Enable sensor and set standby */
 	{0x0000, 0x8114},	/* Software GPIO output data */
@@ -434,7 +319,6 @@ static const __u16 spca561_init_data[][2] = {
 	{}
 };
 
-
 /******************** QC Express etch2 stuff ********************/
 static const __u16 Pb100_1map8300[][2] = {
 	/* reg, value */
@@ -515,22 +399,112 @@ static const __u16 spca561_161rev12A_data2[][2] = {
 	{}
 };
 
-static void sensor_mapwrite(struct gspca_dev *gspca_dev,
-			    const __u16 sensormap[][2])
+static void reg_w_val(struct usb_device *dev, __u16 index, __u8 value)
 {
-	int i = 0;
-	__u8 usbval[2];
+	int ret;
 
-	while (sensormap[i][0]) {
-		usbval[0] = sensormap[i][1];
-		usbval[1] = sensormap[i][1] >> 8;
-		reg_w_buf(gspca_dev, sensormap[i][0], usbval, 2);
+	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
+			      0,		/* request */
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      value, index, NULL, 0, 500);
+	PDEBUG(D_USBO, "reg write: 0x%02x:0x%02x", index, value);
+	if (ret < 0)
+		PDEBUG(D_ERR, "reg write: error %d", ret);
+}
+
+static void write_vector(struct gspca_dev *gspca_dev,
+			const __u16 data[][2])
+{
+	struct usb_device *dev = gspca_dev->dev;
+	int i;
+
+	i = 0;
+	while (data[i][1] != 0) {
+		reg_w_val(dev, data[i][1], data[i][0]);
 		i++;
 	}
 }
+
+/* read 'len' bytes to gspca_dev->usb_buf */
+static void reg_r(struct gspca_dev *gspca_dev,
+		  __u16 index, __u16 length)
+{
+	usb_control_msg(gspca_dev->dev,
+			usb_rcvctrlpipe(gspca_dev->dev, 0),
+			0,			/* request */
+			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0,			/* value */
+			index, gspca_dev->usb_buf, length, 500);
+}
+
+/* write 'len' bytes from gspca_dev->usb_buf */
+static void reg_w_buf(struct gspca_dev *gspca_dev,
+		      __u16 index, __u16 len)
+{
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0,			/* request */
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0,			/* value */
+			index, gspca_dev->usb_buf, len, 500);
+}
+
+static void i2c_write(struct gspca_dev *gspca_dev, __u16 value, __u16 reg)
+{
+	int retry = 60;
+
+	reg_w_val(gspca_dev->dev, 0x8801, reg);
+	reg_w_val(gspca_dev->dev, 0x8805, value);
+	reg_w_val(gspca_dev->dev, 0x8800, value >> 8);
+	do {
+		reg_r(gspca_dev, 0x8803, 1);
+		if (!gspca_dev->usb_buf[0])
+			return;
+	} while (--retry);
+}
+
+static int i2c_read(struct gspca_dev *gspca_dev, __u16 reg, __u8 mode)
+{
+	int retry = 60;
+	__u8 value;
+
+	reg_w_val(gspca_dev->dev, 0x8804, 0x92);
+	reg_w_val(gspca_dev->dev, 0x8801, reg);
+	reg_w_val(gspca_dev->dev, 0x8802, mode | 0x01);
+	do {
+		reg_r(gspca_dev, 0x8803, 1);
+		if (!gspca_dev->usb_buf[0]) {
+			reg_r(gspca_dev, 0x8800, 1);
+			value = gspca_dev->usb_buf[0];
+			reg_r(gspca_dev, 0x8805, 1);
+			return ((int) value << 8) | gspca_dev->usb_buf[0];
+		}
+	} while (--retry);
+	return -1;
+}
+
+static void sensor_mapwrite(struct gspca_dev *gspca_dev,
+			    const __u16 (*sensormap)[2])
+{
+	while ((*sensormap)[0]) {
+		gspca_dev->usb_buf[0] = (*sensormap)[1];
+		gspca_dev->usb_buf[1] = (*sensormap)[1] >> 8;
+		reg_w_buf(gspca_dev, (*sensormap)[0], 2);
+		sensormap++;
+	}
+}
+
+static void write_sensor_72a(struct gspca_dev *gspca_dev,
+			    const __u16 (*sensor)[2])
+{
+	while ((*sensor)[0]) {
+		i2c_write(gspca_dev, (*sensor)[1], (*sensor)[0]);
+		sensor++;
+	}
+}
+
 static void init_161rev12A(struct gspca_dev *gspca_dev)
 {
-/*	sensor_reset(gspca_dev);	(not in win) */
 	write_vector(gspca_dev, spca561_161rev12A_data1);
 	sensor_mapwrite(gspca_dev, Pb100_1map8300);
 /*fixme: should be in sd_start*/
@@ -598,49 +572,68 @@ static int sd_init_12a(struct gspca_dev *gspca_dev)
 static int sd_init_72a(struct gspca_dev *gspca_dev)
 {
 	PDEBUG(D_STREAM, "Chip revision: 072a");
-	write_vector(gspca_dev, spca561_init_data);
+	write_vector(gspca_dev, rev72a_init_data1);
+	write_sensor_72a(gspca_dev, rev72a_init_sensor1);
+	write_vector(gspca_dev, rev72a_init_data2);
+	write_sensor_72a(gspca_dev, rev72a_init_sensor2);
+	write_vector(gspca_dev, rev72a_init_data3);
 	return 0;
+}
+
+/* rev 72a only */
+static void setbrightness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct usb_device *dev = gspca_dev->dev;
+	__u8 value;
+
+	value = sd->brightness;
+
+	/* offsets for white balance */
+	reg_w_val(dev, 0x8611, value);		/* R */
+	reg_w_val(dev, 0x8612, value);		/* Gr */
+	reg_w_val(dev, 0x8613, value);		/* B */
+	reg_w_val(dev, 0x8614, value);		/* Gb */
+}
+
+static void setwhite(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u16 white;
+	__u8 blue, red;
+	__u16 reg;
+
+	/* try to emulate MS-win as possible */
+	white = sd->white;
+	red = 0x20 + white * 3 / 8;
+	blue = 0x90 - white * 5 / 8;
+	if (sd->chip_revision == Rev012A) {
+		reg = 0x8614;
+	} else {
+		reg = 0x8651;
+		red += sd->contrast - 0x20;
+		blue += sd->contrast - 0x20;
+	}
+	reg_w_val(gspca_dev->dev, reg, red);
+	reg_w_val(gspca_dev->dev, reg + 2, blue);
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct usb_device *dev = gspca_dev->dev;
-	__u8 lowb;
+	__u8 value;
 
-	switch (sd->chip_revision) {
-	case Rev072A:
-		lowb = sd->contrast >> 8;
-		reg_w_val(dev, 0x8651, lowb);
-		reg_w_val(dev, 0x8652, lowb);
-		reg_w_val(dev, 0x8653, lowb);
-		reg_w_val(dev, 0x8654, lowb);
-		break;
-	default: {
-/*	case Rev012A: { */
-		static const __u8 Reg8391[] =
-			{ 0x92, 0x30, 0x20, 0x00, 0x0c, 0x00, 0x00, 0x00 };
+	if (sd->chip_revision != Rev072A)
+		return;
+	value = sd->contrast + 0x20;
 
-		reg_w_buf(gspca_dev, 0x8391, Reg8391, 8);
-		reg_w_buf(gspca_dev, 0x8390, Reg8391, 8);
-		break;
-	    }
-	}
-}
-
-/* rev12a only */
-static void setwhite(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 white;
-	__u8 reg8614, reg8616;
-
-	white = sd->white;
-	/* try to emulate MS-win as possible */
-	reg8616 = 0x90 - white * 5 / 8;
-	reg_w_val(gspca_dev->dev, 0x8616, reg8616);
-	reg8614 = 0x20 + white * 3 / 8;
-	reg_w_val(gspca_dev->dev, 0x8614, reg8614);
+	/* gains for white balance */
+	setwhite(gspca_dev);
+/*	reg_w_val(dev, 0x8651, value);		 * R - done by setwhite */
+	reg_w_val(dev, 0x8652, value);		/* Gr */
+/*	reg_w_val(dev, 0x8653, value);		 * B - done by setwhite */
+	reg_w_val(dev, 0x8654, value);		/* Gb */
 }
 
 /* rev 12a only */
@@ -649,7 +642,6 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int expo;
 	int clock_divider;
-	__u8 data[2];
 
 	/* Register 0x8309 controls exposure for the spca561,
 	   the basic exposure setting goes from 1-2047, where 1 is completely
@@ -673,20 +665,19 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		clock_divider = 3;
 	}
 	expo |= clock_divider << 11;
-	data[0] = expo;
-	data[1] = expo >> 8;
-	reg_w_buf(gspca_dev, 0x8309, data, 2);
+	gspca_dev->usb_buf[0] = expo;
+	gspca_dev->usb_buf[1] = expo >> 8;
+	reg_w_buf(gspca_dev, 0x8309, 2);
 }
 
 /* rev 12a only */
 static void setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 data[2];
 
-	data[0] = sd->gain;
-	data[1] = 0;
-	reg_w_buf(gspca_dev, 0x8335, data, 2);
+	gspca_dev->usb_buf[0] = sd->gain;
+	gspca_dev->usb_buf[1] = 0;
+	reg_w_buf(gspca_dev, 0x8335, 2);
 }
 
 static void setautogain(struct gspca_dev *gspca_dev)
@@ -702,9 +693,9 @@ static void setautogain(struct gspca_dev *gspca_dev)
 static int sd_start_12a(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	int Clck = 0x8a; /* lower 0x8X values lead to fps > 30 */
-	__u8 Reg8307[] = { 0xaa, 0x00 };
 	int mode;
+	static const __u8 Reg8391[8] =
+		{0x92, 0x30, 0x20, 0x00, 0x0c, 0x00, 0x00, 0x00};
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	if (mode <= 1) {
@@ -716,14 +707,21 @@ static int sd_start_12a(struct gspca_dev *gspca_dev)
 		 * is sufficient to push raw frames at ~20fps */
 		reg_w_val(dev, 0x8500, mode);
 	}		/* -- qq@kuku.eu.org */
-	reg_w_buf(gspca_dev, 0x8307, Reg8307, 2);
-	reg_w_val(gspca_dev->dev, 0x8700, Clck);
+
+	gspca_dev->usb_buf[0] = 0xaa;
+	gspca_dev->usb_buf[1] = 0x00;
+	reg_w_buf(gspca_dev, 0x8307, 2);
+	/* clock - lower 0x8X values lead to fps > 30 */
+	reg_w_val(gspca_dev->dev, 0x8700, 0x8a);
 					/* 0x8f 0x85 0x27 clock */
 	reg_w_val(gspca_dev->dev, 0x8112, 0x1e | 0x20);
 	reg_w_val(gspca_dev->dev, 0x850b, 0x03);
-	setcontrast(gspca_dev);
+	memcpy(gspca_dev->usb_buf, Reg8391, 8);
+	reg_w_buf(gspca_dev, 0x8391, 8);
+	reg_w_buf(gspca_dev, 0x8390, 8);
 	setwhite(gspca_dev);
 	setautogain(gspca_dev);
+/*	setgain(gspca_dev);		*/
 	setexposure(gspca_dev);
 	return 0;
 }
@@ -750,6 +748,9 @@ static int sd_start_72a(struct gspca_dev *gspca_dev)
 	reg_w_val(dev, 0x8500, mode);	/* mode */
 	reg_w_val(dev, 0x8700, Clck);	/* 0x27 clock */
 	reg_w_val(dev, 0x8112, 0x10 | 0x20);
+	setcontrast(gspca_dev);
+/*	setbrightness(gspca_dev);	 * fixme: bad values */
+	setwhite(gspca_dev);
 	setautogain(gspca_dev);
 	return 0;
 }
@@ -791,7 +792,6 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	__u8 luma_mean = 110;
 	__u8 luma_delta = 20;
 	__u8 spring = 4;
-	__u8 reg8339[2];
 
 	if (sd->ag_cnt < 0)
 		return;
@@ -834,13 +834,13 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 
 			if (gainG > 0x3f)
 				gainG = 0x3f;
-			else if (gainG < 4)
+			else if (gainG < 3)
 				gainG = 3;
 			i2c_write(gspca_dev, gainG, 0x35);
 
-			if (expotimes >= 0x0256)
+			if (expotimes > 0x0256)
 				expotimes = 0x0256;
-			else if (expotimes < 4)
+			else if (expotimes < 3)
 				expotimes = 3;
 			i2c_write(gspca_dev, expotimes | pixelclk, 0x09);
 		}
@@ -848,13 +848,13 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	case Rev012A:
 		reg_r(gspca_dev, 0x8330, 2);
 		if (gspca_dev->usb_buf[1] > 0x08) {
-			reg8339[0] = ++sd->expo12a;
-			reg8339[1] = 0;
-			reg_w_buf(gspca_dev, 0x8339, reg8339, 2);
+			gspca_dev->usb_buf[0] = ++sd->expo12a;
+			gspca_dev->usb_buf[1] = 0;
+			reg_w_buf(gspca_dev, 0x8339, 2);
 		} else if (gspca_dev->usb_buf[1] < 0x02) {
-			reg8339[0] = --sd->expo12a;
-			reg8339[1] = 0;
-			reg_w_buf(gspca_dev, 0x8339, reg8339, 2);
+			gspca_dev->usb_buf[0] = --sd->expo12a;
+			gspca_dev->usb_buf[1] = 0;
+			reg_w_buf(gspca_dev, 0x8339, 2);
 		}
 		break;
 	}
@@ -867,8 +867,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	switch (data[0]) {
-	case 0:		/* start of frame */
+	switch (data[0]) {			/* sequence number */
+	case 0:					/* start of frame */
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					data, 0);
 		data += SPCA561_OFFSET_DATA;
@@ -890,62 +890,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 						frame, data, len);
 		}
 		return;
-	case 0xff:		/* drop */
-/*		gspca_dev->last_packet_type = DISCARD_PACKET; */
+	case 0xff:			/* drop (empty mpackets) */
 		return;
 	}
 	data++;
 	len--;
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
-}
-
-/* rev 72a only */
-static void setbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 value;
-
-	value = sd->brightness;
-	reg_w_val(gspca_dev->dev, 0x8611, value);
-	reg_w_val(gspca_dev->dev, 0x8612, value);
-	reg_w_val(gspca_dev->dev, 0x8613, value);
-	reg_w_val(gspca_dev->dev, 0x8614, value);
-}
-
-static void getbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 tot;
-
-	tot = 0;
-	reg_r(gspca_dev, 0x8611, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8612, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8613, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8614, 1);
-	tot += gspca_dev->usb_buf[0];
-	sd->brightness = tot >> 2;
-}
-
-/* rev72a only */
-static void getcontrast(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 tot;
-
-	tot = 0;
-	reg_r(gspca_dev, 0x8651, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8652, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8653, 1);
-	tot += gspca_dev->usb_buf[0];
-	reg_r(gspca_dev, 0x8654, 1);
-	tot += gspca_dev->usb_buf[0];
-	sd->contrast = tot << 6;
-	PDEBUG(D_CONF, "get contrast %d", sd->contrast);
 }
 
 /* rev 72a only */
@@ -963,7 +913,6 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getbrightness(gspca_dev);
 	*val = sd->brightness;
 	return 0;
 }
@@ -983,7 +932,6 @@ static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getcontrast(gspca_dev);
 	*val = sd->contrast;
 	return 0;
 }
@@ -1006,7 +954,6 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-/* rev12a only */
 static int sd_setwhite(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1120,6 +1067,19 @@ static struct ctrl sd_ctrls_12a[] = {
 };
 
 static struct ctrl sd_ctrls_72a[] = {
+	{
+	    {
+		.id = V4L2_CID_DO_WHITE_BALANCE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "White Balance",
+		.minimum = WHITE_MIN,
+		.maximum = WHITE_MAX,
+		.step = 1,
+		.default_value = WHITE_DEF,
+	    },
+	    .set = sd_setwhite,
+	    .get = sd_getwhite,
+	},
 	{
 	   {
 		.id = V4L2_CID_BRIGHTNESS,

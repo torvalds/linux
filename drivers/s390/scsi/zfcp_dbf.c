@@ -6,6 +6,9 @@
  * Copyright IBM Corporation 2002, 2008
  */
 
+#define KMSG_COMPONENT "zfcp"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/ctype.h>
 #include <asm/debug.h>
 #include "zfcp_ext.h"
@@ -519,7 +522,7 @@ static const char *zfcp_rec_dbf_ids[] = {
 	[29]	= "link down",
 	[30]	= "link up status read",
 	[31]	= "open port failed",
-	[32]	= "open port failed",
+	[32]	= "",
 	[33]	= "close port",
 	[34]	= "open unit failed",
 	[35]	= "exclusive open unit failed",
@@ -933,6 +936,7 @@ void zfcp_san_dbf_event_ct_response(struct zfcp_fsf_req *fsf_req)
 	rct->reason_code = hdr->reason_code;
 	rct->expl = hdr->reason_code_expl;
 	rct->vendor_unique = hdr->vendor_unique;
+	rct->max_res_size = hdr->max_res_size;
 	rct->len = min((int)ct->resp->length - (int)sizeof(struct ct_hdr),
 		       ZFCP_DBF_SAN_MAX_PAYLOAD);
 	debug_event(adapter->san_dbf, level, r, sizeof(*r));
@@ -1040,6 +1044,7 @@ static int zfcp_san_dbf_view_format(debug_info_t *id, struct debug_view *view,
 		zfcp_dbf_out(&p, "reason_code", "0x%02x", ct->reason_code);
 		zfcp_dbf_out(&p, "reason_code_expl", "0x%02x", ct->expl);
 		zfcp_dbf_out(&p, "vendor_unique", "0x%02x", ct->vendor_unique);
+		zfcp_dbf_out(&p, "max_res_size", "0x%04x", ct->max_res_size);
 	} else if (strncmp(r->tag, "oels", ZFCP_DBF_TAG_SIZE) == 0 ||
 		   strncmp(r->tag, "rels", ZFCP_DBF_TAG_SIZE) == 0 ||
 		   strncmp(r->tag, "iels", ZFCP_DBF_TAG_SIZE) == 0) {
@@ -1246,7 +1251,7 @@ int zfcp_adapter_debug_register(struct zfcp_adapter *adapter)
 	char dbf_name[DEBUG_MAX_NAME_LEN];
 
 	/* debug feature area which records recovery activity */
-	sprintf(dbf_name, "zfcp_%s_rec", zfcp_get_busid_by_adapter(adapter));
+	sprintf(dbf_name, "zfcp_%s_rec", dev_name(&adapter->ccw_device->dev));
 	adapter->rec_dbf = debug_register(dbf_name, dbfsize, 1,
 					  sizeof(struct zfcp_rec_dbf_record));
 	if (!adapter->rec_dbf)
@@ -1256,7 +1261,7 @@ int zfcp_adapter_debug_register(struct zfcp_adapter *adapter)
 	debug_set_level(adapter->rec_dbf, 3);
 
 	/* debug feature area which records HBA (FSF and QDIO) conditions */
-	sprintf(dbf_name, "zfcp_%s_hba", zfcp_get_busid_by_adapter(adapter));
+	sprintf(dbf_name, "zfcp_%s_hba", dev_name(&adapter->ccw_device->dev));
 	adapter->hba_dbf = debug_register(dbf_name, dbfsize, 1,
 					  sizeof(struct zfcp_hba_dbf_record));
 	if (!adapter->hba_dbf)
@@ -1266,7 +1271,7 @@ int zfcp_adapter_debug_register(struct zfcp_adapter *adapter)
 	debug_set_level(adapter->hba_dbf, 3);
 
 	/* debug feature area which records SAN command failures and recovery */
-	sprintf(dbf_name, "zfcp_%s_san", zfcp_get_busid_by_adapter(adapter));
+	sprintf(dbf_name, "zfcp_%s_san", dev_name(&adapter->ccw_device->dev));
 	adapter->san_dbf = debug_register(dbf_name, dbfsize, 1,
 					  sizeof(struct zfcp_san_dbf_record));
 	if (!adapter->san_dbf)
@@ -1276,7 +1281,7 @@ int zfcp_adapter_debug_register(struct zfcp_adapter *adapter)
 	debug_set_level(adapter->san_dbf, 6);
 
 	/* debug feature area which records SCSI command failures and recovery */
-	sprintf(dbf_name, "zfcp_%s_scsi", zfcp_get_busid_by_adapter(adapter));
+	sprintf(dbf_name, "zfcp_%s_scsi", dev_name(&adapter->ccw_device->dev));
 	adapter->scsi_dbf = debug_register(dbf_name, dbfsize, 1,
 					   sizeof(struct zfcp_scsi_dbf_record));
 	if (!adapter->scsi_dbf)

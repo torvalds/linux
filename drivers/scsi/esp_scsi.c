@@ -1453,7 +1453,7 @@ static void esp_msgin_sdtr(struct esp *esp, struct esp_target_data *tp)
 		offset = 0;
 
 	if (offset) {
-		int rounded_up, one_clock;
+		int one_clock;
 
 		if (period > esp->max_period) {
 			period = offset = 0;
@@ -1463,9 +1463,7 @@ static void esp_msgin_sdtr(struct esp *esp, struct esp_target_data *tp)
 			goto do_reject;
 
 		one_clock = esp->ccycle / 1000;
-		rounded_up = (period << 2);
-		rounded_up = (rounded_up + one_clock - 1) / one_clock;
-		stp = rounded_up;
+		stp = DIV_ROUND_UP(period << 2, one_clock);
 		if (stp && esp->rev >= FAS236) {
 			if (stp >= 50)
 				stp--;

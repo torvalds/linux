@@ -30,9 +30,12 @@
 #include <linux/module.h>
 #include <linux/dmi.h>
 #include <linux/dmar.h>
+#include <linux/ftrace.h>
+#include <linux/smp.h>
+#include <linux/nmi.h>
+#include <linux/timex.h>
 
 #include <asm/atomic.h>
-#include <asm/smp.h>
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
 #include <asm/desc.h>
@@ -40,12 +43,11 @@
 #include <asm/hpet.h>
 #include <asm/pgalloc.h>
 #include <asm/i8253.h>
-#include <asm/nmi.h>
 #include <asm/idle.h>
 #include <asm/proto.h>
-#include <asm/timex.h>
 #include <asm/apic.h>
 #include <asm/i8259.h>
+#include <asm/smp.h>
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
@@ -97,8 +99,8 @@ __setup("apicpmtimer", setup_apicpmtimer);
 #ifdef HAVE_X2APIC
 int x2apic;
 /* x2apic enabled before OS handover */
-int x2apic_preenabled;
-int disable_x2apic;
+static int x2apic_preenabled;
+static int disable_x2apic;
 static __init int setup_nox2apic(char *str)
 {
 	disable_x2apic = 1;
@@ -117,8 +119,6 @@ int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
 
 int first_system_vector = 0xfe;
-
-char system_vectors[NR_VECTORS] = { [0 ... NR_VECTORS-1] = SYS_VECTOR_FREE};
 
 /*
  * Debug level, exported for io_apic.c
@@ -141,7 +141,7 @@ static int lapic_next_event(unsigned long delta,
 			    struct clock_event_device *evt);
 static void lapic_timer_setup(enum clock_event_mode mode,
 			      struct clock_event_device *evt);
-static void lapic_timer_broadcast(cpumask_t mask);
+static void lapic_timer_broadcast(const struct cpumask *mask);
 static void apic_pm_activate(void);
 
 /*
@@ -227,7 +227,7 @@ void xapic_icr_write(u32 low, u32 id)
 	apic_write(APIC_ICR, low);
 }
 
-u64 xapic_icr_read(void)
+static u64 xapic_icr_read(void)
 {
 	u32 icr1, icr2;
 
@@ -267,7 +267,7 @@ void x2apic_icr_write(u32 low, u32 id)
 	wrmsrl(APIC_BASE_MSR + (APIC_ICR >> 4), ((__u64) id) << 32 | low);
 }
 
-u64 x2apic_icr_read(void)
+static u64 x2apic_icr_read(void)
 {
 	unsigned long val;
 
@@ -441,6 +441,7 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 		v = apic_read(APIC_LVTT);
 		v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
 		apic_write(APIC_LVTT, v);
+		apic_write(APIC_TMICT, 0xffffffff);
 		break;
 	case CLOCK_EVT_MODE_RESUME:
 		/* Nothing to do here */
@@ -453,7 +454,7 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 /*
  * Local APIC timer broadcast function
  */
-static void lapic_timer_broadcast(cpumask_t mask)
+static void lapic_timer_broadcast(const struct cpumask *mask)
 {
 #ifdef CONFIG_SMP
 	send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
@@ -469,7 +470,7 @@ static void __cpuinit setup_APIC_timer(void)
 	struct clock_event_device *levt = &__get_cpu_var(lapic_events);
 
 	memcpy(levt, &lapic_clockevent, sizeof(*levt));
-	levt->cpumask = cpumask_of_cpu(smp_processor_id());
+	levt->cpumask = cpumask_of(smp_processor_id());
 
 	clockevents_register_device(levt);
 }
@@ -559,13 +560,13 @@ static int __init calibrate_by_pmtimer(long deltapm, long *delta)
 	} else {
 		res = (((u64)deltapm) *  mult) >> 22;
 		do_div(res, 1000000);
-		printk(KERN_WARNING "APIC calibration not consistent "
+		pr_warning("APIC calibration not consistent "
 			"with PM Timer: %ldms instead of 100ms\n",
 			(long)res);
 		/* Correct the lapic counter value */
 		res = (((u64)(*delta)) * pm_100ms);
 		do_div(res, deltapm);
-		printk(KERN_INFO "APIC delta adjusted to PM-Timer: "
+		pr_info("APIC delta adjusted to PM-Timer: "
 			"%lu (%ld)\n", (unsigned long)res, *delta);
 		*delta = (long)res;
 	}
@@ -645,8 +646,7 @@ static int __init calibrate_APIC_clock(void)
 	 */
 	if (calibration_result < (1000000 / HZ)) {
 		local_irq_enable();
-		printk(KERN_WARNING
-		       "APIC frequency too slow, disabling apic timer\n");
+		pr_warning("APIC frequency too slow, disabling apic timer\n");
 		return -1;
 	}
 
@@ -672,12 +672,8 @@ static int __init calibrate_APIC_clock(void)
 		while (lapic_cal_loops <= LAPIC_CAL_LOOPS)
 			cpu_relax();
 
-		local_irq_disable();
-
 		/* Stop the lapic timer */
 		lapic_timer_setup(CLOCK_EVT_MODE_SHUTDOWN, levt);
-
-		local_irq_enable();
 
 		/* Jiffies delta */
 		deltaj = lapic_cal_j2 - lapic_cal_j1;
@@ -692,8 +688,7 @@ static int __init calibrate_APIC_clock(void)
 		local_irq_enable();
 
 	if (levt->features & CLOCK_EVT_FEAT_DUMMY) {
-		printk(KERN_WARNING
-		       "APIC timer disabled due to verification failure.\n");
+		pr_warning("APIC timer disabled due to verification failure\n");
 			return -1;
 	}
 
@@ -714,7 +709,7 @@ void __init setup_boot_APIC_clock(void)
 	 * broadcast mechanism is used. On UP systems simply ignore it.
 	 */
 	if (disable_apic_timer) {
-		printk(KERN_INFO "Disabling APIC timer\n");
+		pr_info("Disabling APIC timer\n");
 		/* No broadcast on UP ! */
 		if (num_possible_cpus() > 1) {
 			lapic_clockevent.mult = 1;
@@ -741,7 +736,7 @@ void __init setup_boot_APIC_clock(void)
 	if (nmi_watchdog != NMI_IO_APIC)
 		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
 	else
-		printk(KERN_WARNING "APIC timer registered as dummy,"
+		pr_warning("APIC timer registered as dummy,"
 			" due to nmi_watchdog=%d!\n", nmi_watchdog);
 
 	/* Setup the lapic or request the broadcast */
@@ -773,8 +768,7 @@ static void local_apic_timer_interrupt(void)
 	 * spurious.
 	 */
 	if (!evt->event_handler) {
-		printk(KERN_WARNING
-		       "Spurious LAPIC timer interrupt on cpu %d\n", cpu);
+		pr_warning("Spurious LAPIC timer interrupt on cpu %d\n", cpu);
 		/* Switch it off */
 		lapic_timer_setup(CLOCK_EVT_MODE_SHUTDOWN, evt);
 		return;
@@ -783,11 +777,7 @@ static void local_apic_timer_interrupt(void)
 	/*
 	 * the NMI deadlock-detector uses this.
 	 */
-#ifdef CONFIG_X86_64
-	add_pda(apic_timer_irqs, 1);
-#else
-	per_cpu(irq_stat, cpu).apic_timer_irqs++;
-#endif
+	inc_irq_stat(apic_timer_irqs);
 
 	evt->event_handler(evt);
 }
@@ -800,7 +790,7 @@ static void local_apic_timer_interrupt(void)
  * [ if a single-CPU system runs an SMP kernel then we call the local
  *   interrupt as well. Thus we cannot inline the local irq ... ]
  */
-void smp_apic_timer_interrupt(struct pt_regs *regs)
+void __irq_entry smp_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -814,9 +804,7 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 	 * Besides, if we don't timer interrupts ignore the global
 	 * interrupt lock, which is the WrongThing (tm) to do.
 	 */
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 	local_apic_timer_interrupt();
 	irq_exit();
@@ -1093,7 +1081,7 @@ static void __cpuinit lapic_setup_esr(void)
 	unsigned int oldvalue, value, maxlvt;
 
 	if (!lapic_is_integrated()) {
-		printk(KERN_INFO "No ESR for 82489DX.\n");
+		pr_info("No ESR for 82489DX.\n");
 		return;
 	}
 
@@ -1104,7 +1092,7 @@ static void __cpuinit lapic_setup_esr(void)
 		 * ESR disabled - we can't do anything useful with the
 		 * errors anyway - mbligh
 		 */
-		printk(KERN_INFO "Leaving ESR disabled.\n");
+		pr_info("Leaving ESR disabled.\n");
 		return;
 	}
 
@@ -1298,7 +1286,7 @@ void check_x2apic(void)
 	rdmsr(MSR_IA32_APICBASE, msr, msr2);
 
 	if (msr & X2APIC_ENABLE) {
-		printk("x2apic enabled by BIOS, switching to x2apic ops\n");
+		pr_info("x2apic enabled by BIOS, switching to x2apic ops\n");
 		x2apic_preenabled = x2apic = 1;
 		apic_ops = &x2apic_ops;
 	}
@@ -1310,7 +1298,7 @@ void enable_x2apic(void)
 
 	rdmsr(MSR_IA32_APICBASE, msr, msr2);
 	if (!(msr & X2APIC_ENABLE)) {
-		printk("Enabling x2apic\n");
+		pr_info("Enabling x2apic\n");
 		wrmsr(MSR_IA32_APICBASE, msr | X2APIC_ENABLE, 0);
 	}
 }
@@ -1325,9 +1313,8 @@ void __init enable_IR_x2apic(void)
 		return;
 
 	if (!x2apic_preenabled && disable_x2apic) {
-		printk(KERN_INFO
-		       "Skipped enabling x2apic and Interrupt-remapping "
-		       "because of nox2apic\n");
+		pr_info("Skipped enabling x2apic and Interrupt-remapping "
+			"because of nox2apic\n");
 		return;
 	}
 
@@ -1335,22 +1322,19 @@ void __init enable_IR_x2apic(void)
 		panic("Bios already enabled x2apic, can't enforce nox2apic");
 
 	if (!x2apic_preenabled && skip_ioapic_setup) {
-		printk(KERN_INFO
-		       "Skipped enabling x2apic and Interrupt-remapping "
-		       "because of skipping io-apic setup\n");
+		pr_info("Skipped enabling x2apic and Interrupt-remapping "
+			"because of skipping io-apic setup\n");
 		return;
 	}
 
 	ret = dmar_table_init();
 	if (ret) {
-		printk(KERN_INFO
-		       "dmar_table_init() failed with %d:\n", ret);
+		pr_info("dmar_table_init() failed with %d:\n", ret);
 
 		if (x2apic_preenabled)
 			panic("x2apic enabled by bios. But IR enabling failed");
 		else
-			printk(KERN_INFO
-			       "Not enabling x2apic,Intr-remapping\n");
+			pr_info("Not enabling x2apic,Intr-remapping\n");
 		return;
 	}
 
@@ -1359,7 +1343,7 @@ void __init enable_IR_x2apic(void)
 
 	ret = save_mask_IO_APIC_setup();
 	if (ret) {
-		printk(KERN_INFO "Saving IO-APIC state failed: %d\n", ret);
+		pr_info("Saving IO-APIC state failed: %d\n", ret);
 		goto end;
 	}
 
@@ -1394,14 +1378,11 @@ end:
 
 	if (!ret) {
 		if (!x2apic_preenabled)
-			printk(KERN_INFO
-			       "Enabled x2apic and interrupt-remapping\n");
+			pr_info("Enabled x2apic and interrupt-remapping\n");
 		else
-			printk(KERN_INFO
-			       "Enabled Interrupt-remapping\n");
+			pr_info("Enabled Interrupt-remapping\n");
 	} else
-		printk(KERN_ERR
-		       "Failed to enable Interrupt-remapping and x2apic\n");
+		pr_err("Failed to enable Interrupt-remapping and x2apic\n");
 #else
 	if (!cpu_has_x2apic)
 		return;
@@ -1410,8 +1391,8 @@ end:
 		panic("x2apic enabled prior OS handover,"
 		      " enable CONFIG_INTR_REMAP");
 
-	printk(KERN_INFO "Enable CONFIG_INTR_REMAP for enabling intr-remapping "
-	       " and x2apic\n");
+	pr_info("Enable CONFIG_INTR_REMAP for enabling intr-remapping "
+		" and x2apic\n");
 #endif
 
 	return;
@@ -1428,7 +1409,7 @@ end:
 static int __init detect_init_APIC(void)
 {
 	if (!cpu_has_apic) {
-		printk(KERN_INFO "No local APIC present\n");
+		pr_info("No local APIC present\n");
 		return -1;
 	}
 
@@ -1469,8 +1450,8 @@ static int __init detect_init_APIC(void)
 		 * "lapic" specified.
 		 */
 		if (!force_enable_local_apic) {
-			printk(KERN_INFO "Local APIC disabled by BIOS -- "
-			       "you can enable it with \"lapic\"\n");
+			pr_info("Local APIC disabled by BIOS -- "
+				"you can enable it with \"lapic\"\n");
 			return -1;
 		}
 		/*
@@ -1480,8 +1461,7 @@ static int __init detect_init_APIC(void)
 		 */
 		rdmsr(MSR_IA32_APICBASE, l, h);
 		if (!(l & MSR_IA32_APICBASE_ENABLE)) {
-			printk(KERN_INFO
-			       "Local APIC disabled by BIOS -- reenabling.\n");
+			pr_info("Local APIC disabled by BIOS -- reenabling.\n");
 			l &= ~MSR_IA32_APICBASE_BASE;
 			l |= MSR_IA32_APICBASE_ENABLE | APIC_DEFAULT_PHYS_BASE;
 			wrmsr(MSR_IA32_APICBASE, l, h);
@@ -1494,7 +1474,7 @@ static int __init detect_init_APIC(void)
 	 */
 	features = cpuid_edx(1);
 	if (!(features & (1 << X86_FEATURE_APIC))) {
-		printk(KERN_WARNING "Could not enable APIC!\n");
+		pr_warning("Could not enable APIC!\n");
 		return -1;
 	}
 	set_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
@@ -1505,14 +1485,14 @@ static int __init detect_init_APIC(void)
 	if (l & MSR_IA32_APICBASE_ENABLE)
 		mp_lapic_addr = l & MSR_IA32_APICBASE_BASE;
 
-	printk(KERN_INFO "Found and enabled local APIC!\n");
+	pr_info("Found and enabled local APIC!\n");
 
 	apic_pm_activate();
 
 	return 0;
 
 no_apic:
-	printk(KERN_INFO "No local APIC present or hardware disabled\n");
+	pr_info("No local APIC present or hardware disabled\n");
 	return -1;
 }
 #endif
@@ -1588,12 +1568,12 @@ int __init APIC_init_uniprocessor(void)
 {
 #ifdef CONFIG_X86_64
 	if (disable_apic) {
-		printk(KERN_INFO "Apic disabled\n");
+		pr_info("Apic disabled\n");
 		return -1;
 	}
 	if (!cpu_has_apic) {
 		disable_apic = 1;
-		printk(KERN_INFO "Apic disabled by BIOS\n");
+		pr_info("Apic disabled by BIOS\n");
 		return -1;
 	}
 #else
@@ -1605,8 +1585,8 @@ int __init APIC_init_uniprocessor(void)
 	 */
 	if (!cpu_has_apic &&
 	    APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
-		printk(KERN_ERR "BIOS bug, local APIC 0x%x not detected!...\n",
-		       boot_cpu_physical_apicid);
+		pr_err("BIOS bug, local APIC 0x%x not detected!...\n",
+			boot_cpu_physical_apicid);
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 		return -1;
 	}
@@ -1682,9 +1662,7 @@ void smp_spurious_interrupt(struct pt_regs *regs)
 {
 	u32 v;
 
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 	/*
 	 * Check if this really is a spurious interrupt and ACK it
@@ -1695,14 +1673,11 @@ void smp_spurious_interrupt(struct pt_regs *regs)
 	if (v & (1 << (SPURIOUS_APIC_VECTOR & 0x1f)))
 		ack_APIC_irq();
 
-#ifdef CONFIG_X86_64
-	add_pda(irq_spurious_count, 1);
-#else
+	inc_irq_stat(irq_spurious_count);
+
 	/* see sw-dev-man vol 3, chapter 7.4.13.5 */
-	printk(KERN_INFO "spurious APIC interrupt on CPU#%d, "
-	       "should never happen.\n", smp_processor_id());
-	__get_cpu_var(irq_stat).irq_spurious_count++;
-#endif
+	pr_info("spurious APIC interrupt on CPU#%d, "
+		"should never happen.\n", smp_processor_id());
 	irq_exit();
 }
 
@@ -1713,9 +1688,7 @@ void smp_error_interrupt(struct pt_regs *regs)
 {
 	u32 v, v1;
 
-#ifdef CONFIG_X86_64
 	exit_idle();
-#endif
 	irq_enter();
 	/* First tickle the hardware, only then report what went on. -- REW */
 	v = apic_read(APIC_ESR);
@@ -1724,17 +1697,18 @@ void smp_error_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 	atomic_inc(&irq_err_count);
 
-	/* Here is what the APIC error bits mean:
-	   0: Send CS error
-	   1: Receive CS error
-	   2: Send accept error
-	   3: Receive accept error
-	   4: Reserved
-	   5: Send illegal vector
-	   6: Received illegal vector
-	   7: Illegal register address
-	*/
-	printk(KERN_DEBUG "APIC error on CPU%d: %02x(%02x)\n",
+	/*
+	 * Here is what the APIC error bits mean:
+	 * 0: Send CS error
+	 * 1: Receive CS error
+	 * 2: Send accept error
+	 * 3: Receive accept error
+	 * 4: Reserved
+	 * 5: Send illegal vector
+	 * 6: Received illegal vector
+	 * 7: Illegal register address
+	 */
+	pr_debug("APIC error on CPU%d: %02x(%02x)\n",
 		smp_processor_id(), v , v1);
 	irq_exit();
 }
@@ -1832,28 +1806,32 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 void __cpuinit generic_processor_info(int apicid, int version)
 {
 	int cpu;
-	cpumask_t tmp_map;
 
 	/*
 	 * Validate version
 	 */
 	if (version == 0x0) {
-		printk(KERN_WARNING "BIOS bug, APIC version is 0 for CPU#%d! "
-				"fixing up to 0x10. (tell your hw vendor)\n",
+		pr_warning("BIOS bug, APIC version is 0 for CPU#%d! "
+			   "fixing up to 0x10. (tell your hw vendor)\n",
 				version);
 		version = 0x10;
 	}
 	apic_version[apicid] = version;
 
-	if (num_processors >= NR_CPUS) {
-		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
-			"  Processor ignored.\n", NR_CPUS);
+	if (num_processors >= nr_cpu_ids) {
+		int max = nr_cpu_ids;
+		int thiscpu = max + disabled_cpus;
+
+		pr_warning(
+			"ACPI: NR_CPUS/possible_cpus limit of %i reached."
+			"  Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
+
+		disabled_cpus++;
 		return;
 	}
 
 	num_processors++;
-	cpus_complement(tmp_map, cpu_present_map);
-	cpu = first_cpu(tmp_map);
+	cpu = cpumask_next_zero(-1, cpu_present_mask);
 
 	physid_set(apicid, phys_cpu_present_map);
 	if (apicid == boot_cpu_physical_apicid) {
@@ -1903,8 +1881,8 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	}
 #endif
 
-	cpu_set(cpu, cpu_possible_map);
-	cpu_set(cpu, cpu_present_map);
+	set_cpu_possible(cpu, true);
+	set_cpu_present(cpu, true);
 }
 
 #ifdef CONFIG_X86_64
@@ -2106,18 +2084,16 @@ __cpuinit int apic_is_clustered_box(void)
 	bios_cpu_apicid = early_per_cpu_ptr(x86_bios_cpu_apicid);
 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for (i = 0; i < nr_cpu_ids; i++) {
 		/* are we being called early in kernel startup? */
 		if (bios_cpu_apicid) {
 			id = bios_cpu_apicid[i];
-		}
-		else if (i < nr_cpu_ids) {
+		} else if (i < nr_cpu_ids) {
 			if (cpu_present(i))
 				id = per_cpu(x86_bios_cpu_apicid, i);
 			else
 				continue;
-		}
-		else
+		} else
 			break;
 
 		if (id != BAD_APICID)
@@ -2209,7 +2185,7 @@ static int __init apic_set_verbosity(char *arg)
 	else if (strcmp("verbose", arg) == 0)
 		apic_verbosity = APIC_VERBOSE;
 	else {
-		printk(KERN_WARNING "APIC Verbosity level %s not recognised"
+		pr_warning("APIC Verbosity level %s not recognised"
 			" use apic=verbose or apic=debug\n", arg);
 		return -EINVAL;
 	}

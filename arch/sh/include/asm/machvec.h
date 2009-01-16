@@ -14,8 +14,6 @@
 #include <linux/time.h>
 #include <asm/machtypes.h>
 
-struct device;
-
 struct sh_machine_vector {
 	void (*mv_setup)(char **cmdline_p);
 	const char *mv_name;
@@ -45,9 +43,6 @@ struct sh_machine_vector {
 	int (*mv_irq_demux)(int irq);
 
 	void (*mv_init_irq)(void);
-	void (*mv_init_pci)(void);
-
-	void (*mv_heartbeat)(void);
 
 	void __iomem *(*mv_ioport_map)(unsigned long port, unsigned int size);
 	void (*mv_ioport_unmap)(void __iomem *);

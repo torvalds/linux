@@ -540,7 +540,6 @@ static int sh_eth_rx(struct net_device *ndev)
 			skb_put(skb, pkt_len);
 			skb->protocol = eth_type_trans(skb, ndev);
 			netif_rx(skb);
-			ndev->last_rx = jiffies;
 			mdp->stats.rx_packets++;
 			mdp->stats.rx_bytes += pkt_len;
 		}
@@ -800,7 +799,7 @@ static int sh_eth_phy_init(struct net_device *ndev)
 	char phy_id[BUS_ID_SIZE];
 	struct phy_device *phydev = NULL;
 
-	snprintf(phy_id, BUS_ID_SIZE, PHY_ID_FMT,
+	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
 		mdp->mii_bus->id , mdp->phy_id);
 
 	mdp->link = PHY_DOWN;

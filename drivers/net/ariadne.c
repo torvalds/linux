@@ -165,7 +165,6 @@ static int __devinit ariadne_init_one(struct zorro_dev *z,
     struct net_device *dev;
     struct ariadne_private *priv;
     int err;
-    DECLARE_MAC_BUF(mac);
 
     r1 = request_mem_region(base_addr, sizeof(struct Am79C960), "Am79C960");
     if (!r1)
@@ -215,9 +214,8 @@ static int __devinit ariadne_init_one(struct zorro_dev *z,
     }
     zorro_set_drvdata(z, dev);
 
-    printk(KERN_INFO "%s: Ariadne at 0x%08lx, Ethernet Address "
-	   "%s\n", dev->name, board,
-	   print_mac(mac, dev->dev_addr));
+    printk(KERN_INFO "%s: Ariadne at 0x%08lx, Ethernet Address %pM\n",
+           dev->name, board, dev->dev_addr);
 
     return 0;
 }
@@ -613,14 +611,10 @@ static int ariadne_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 #if 0
 {
-    DECLARE_MAC_BUF(mac);
-    DECLARE_MAC_BUF(mac2);
-
-    printk(KERN_DEBUG "TX pkt type 0x%04x from %s to %s "
+    printk(KERN_DEBUG "TX pkt type 0x%04x from %pM to %pM "
 	   " data 0x%08x len %d\n",
 	   ((u_short *)skb->data)[6],
-	   print_mac(mac, ((const u8 *)skb->data)+6),
-	   print_mac(mac, (const u8 *)skb->data),
+	   skb->data + 6, skb->data,
 	   (int)skb->data, (int)skb->len);
 }
 #endif
@@ -743,25 +737,22 @@ static int ariadne_rx(struct net_device *dev)
 	    skb->protocol=eth_type_trans(skb,dev);
 #if 0
 {
-	    DECLARE_MAC_BUF(mac);
-
 	    printk(KERN_DEBUG "RX pkt type 0x%04x from ",
 		   ((u_short *)skb->data)[6]);
 	    {
 		u_char *ptr = &((u_char *)skb->data)[6];
-		printk("%s", print_mac(mac, ptr));
+		printk("%pM", ptr);
 	    }
 	    printk(" to ");
 	    {
 		u_char *ptr = (u_char *)skb->data;
-		printk("%s", print_mac(mac, ptr));
+		printk("%pM", ptr);
 	    }
 	    printk(" data 0x%08x len %d\n", (int)skb->data, (int)skb->len);
 }
 #endif
 
 	    netif_rx(skb);
-	    dev->last_rx = jiffies;
 	    dev->stats.rx_packets++;
 	    dev->stats.rx_bytes += pkt_len;
 	}

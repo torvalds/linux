@@ -239,7 +239,7 @@ static struct platform_device *devices[] __initdata = {
 static int
 palmz71_get_pendown_state(void)
 {
-	return !omap_get_gpio_datain(PALMZ71_PENIRQ_GPIO);
+	return !gpio_get_value(PALMZ71_PENIRQ_GPIO);
 }
 
 static const struct ads7846_platform_data palmz71_ts_info = {
@@ -267,16 +267,6 @@ static struct omap_usb_config palmz71_usb_config __initdata = {
 	.pins[0]	= 2,
 };
 
-static struct omap_mmc_config palmz71_mmc_config __initdata = {
-	.mmc[0] = {
-		.enabled	= 1,
-		.wire4		= 0,
-		.wp_pin		= PALMZ71_MMC_WP_GPIO,
-		.power_pin	= -1,
-		.switch_pin	= PALMZ71_MMC_IN_GPIO,
-	},
-};
-
 static struct omap_lcd_config palmz71_lcd_config __initdata = {
 	.ctrl_name = "internal",
 };
@@ -287,7 +277,6 @@ static struct omap_uart_config palmz71_uart_config __initdata = {
 
 static struct omap_board_config_kernel palmz71_config[] __initdata = {
 	{OMAP_TAG_USB,	&palmz71_usb_config},
-	{OMAP_TAG_MMC,	&palmz71_mmc_config},
 	{OMAP_TAG_LCD,	&palmz71_lcd_config},
 	{OMAP_TAG_UART,	&palmz71_uart_config},
 };
@@ -295,13 +284,13 @@ static struct omap_board_config_kernel palmz71_config[] __initdata = {
 static irqreturn_t
 palmz71_powercable(int irq, void *dev_id)
 {
-	if (omap_get_gpio_datain(PALMZ71_USBDETECT_GPIO)) {
+	if (gpio_get_value(PALMZ71_USBDETECT_GPIO)) {
 		printk(KERN_INFO "PM: Power cable connected\n");
-		set_irq_type(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
+		set_irq_type(gpio_to_irq(PALMZ71_USBDETECT_GPIO),
 				IRQ_TYPE_EDGE_FALLING);
 	} else {
 		printk(KERN_INFO "PM: Power cable disconnected\n");
-		set_irq_type(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
+		set_irq_type(gpio_to_irq(PALMZ71_USBDETECT_GPIO),
 				IRQ_TYPE_EDGE_RISING);
 	}
 	return IRQ_HANDLED;
@@ -323,29 +312,28 @@ palmz71_gpio_setup(int early)
 {
 	if (early) {
 		/* Only set GPIO1 so we have a working serial */
-		omap_set_gpio_dataout(1, 1);
-		omap_set_gpio_direction(1, 0);
+		gpio_direction_output(1, 1);
 	} else {
 		/* Set MMC/SD host WP pin as input */
-		if (omap_request_gpio(PALMZ71_MMC_WP_GPIO)) {
+		if (gpio_request(PALMZ71_MMC_WP_GPIO, "MMC WP") < 0) {
 			printk(KERN_ERR "Could not reserve WP GPIO!\n");
 			return;
 		}
-		omap_set_gpio_direction(PALMZ71_MMC_WP_GPIO, 1);
+		gpio_direction_input(PALMZ71_MMC_WP_GPIO);
 
 		/* Monitor the Power-cable-connected signal */
-		if (omap_request_gpio(PALMZ71_USBDETECT_GPIO)) {
+		if (gpio_request(PALMZ71_USBDETECT_GPIO, "USB detect") < 0) {
 			printk(KERN_ERR
 				"Could not reserve cable signal GPIO!\n");
 			return;
 		}
-		omap_set_gpio_direction(PALMZ71_USBDETECT_GPIO, 1);
-		if (request_irq(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO),
+		gpio_direction_input(PALMZ71_USBDETECT_GPIO);
+		if (request_irq(gpio_to_irq(PALMZ71_USBDETECT_GPIO),
 				palmz71_powercable, IRQF_SAMPLE_RANDOM,
 				"palmz71-cable", 0))
 			printk(KERN_ERR
 					"IRQ request for power cable failed!\n");
-		palmz71_powercable(OMAP_GPIO_IRQ(PALMZ71_USBDETECT_GPIO), 0);
+		palmz71_powercable(gpio_to_irq(PALMZ71_USBDETECT_GPIO), 0);
 	}
 }
 

@@ -826,7 +826,7 @@ static void rxrpc_destroy_connection(struct rxrpc_connection *conn)
 /*
  * reap dead connections
  */
-void rxrpc_connection_reaper(struct work_struct *work)
+static void rxrpc_connection_reaper(struct work_struct *work)
 {
 	struct rxrpc_connection *conn, *_p;
 	unsigned long now, earliest, reap_time;

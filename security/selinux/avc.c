@@ -53,18 +53,20 @@ static const char *class_to_string[] = {
 #undef S_
 
 static const struct av_inherit av_inherit[] = {
-#define S_(c, i, b) { c, common_##i##_perm_to_string, b },
+#define S_(c, i, b) {	.tclass = c,\
+			.common_pts = common_##i##_perm_to_string,\
+			.common_base =  b },
 #include "av_inherit.h"
 #undef S_
 };
 
 const struct selinux_class_perm selinux_class_perm = {
-	av_perm_to_string,
-	ARRAY_SIZE(av_perm_to_string),
-	class_to_string,
-	ARRAY_SIZE(class_to_string),
-	av_inherit,
-	ARRAY_SIZE(av_inherit)
+	.av_perm_to_string = av_perm_to_string,
+	.av_pts_len = ARRAY_SIZE(av_perm_to_string),
+	.class_to_string = class_to_string,
+	.cts_len = ARRAY_SIZE(class_to_string),
+	.av_inherit = av_inherit,
+	.av_inherit_len = ARRAY_SIZE(av_inherit)
 };
 
 #define AVC_CACHE_SLOTS			512
@@ -495,7 +497,7 @@ static inline void avc_print_ipv6_addr(struct audit_buffer *ab,
 				       char *name1, char *name2)
 {
 	if (!ipv6_addr_any(addr))
-		audit_log_format(ab, " %s=" NIP6_FMT, name1, NIP6(*addr));
+		audit_log_format(ab, " %s=%pI6", name1, addr);
 	if (port)
 		audit_log_format(ab, " %s=%d", name2, ntohs(port));
 }
@@ -504,7 +506,7 @@ static inline void avc_print_ipv4_addr(struct audit_buffer *ab, __be32 addr,
 				       __be16 port, char *name1, char *name2)
 {
 	if (addr)
-		audit_log_format(ab, " %s=" NIPQUAD_FMT, name1, NIPQUAD(addr));
+		audit_log_format(ab, " %s=%pI4", name1, &addr);
 	if (port)
 		audit_log_format(ab, " %s=%d", name2, ntohs(port));
 }

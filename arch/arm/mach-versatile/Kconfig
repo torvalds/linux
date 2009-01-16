@@ -3,12 +3,14 @@ menu "Versatile platform type"
 
 config ARCH_VERSATILE_PB
 	bool "Support Versatile/PB platform"
+	select CPU_ARM926T
 	default y
 	help
 	  Include support for the ARM(R) Versatile/PB platform.
 
 config MACH_VERSATILE_AB
 	bool "Support Versatile/AB platform"
+	select CPU_ARM926T
 	help
 	  Include support for the ARM(R) Versatile/AP platform.
 

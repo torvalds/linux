@@ -33,38 +33,9 @@
 #ifndef _ASM_X86_XEN_HYPERVISOR_H
 #define _ASM_X86_XEN_HYPERVISOR_H
 
-#include <linux/types.h>
-#include <linux/kernel.h>
-
-#include <xen/interface/xen.h>
-#include <xen/interface/version.h>
-
-#include <asm/ptrace.h>
-#include <asm/page.h>
-#include <asm/desc.h>
-#if defined(__i386__)
-#  ifdef CONFIG_X86_PAE
-#   include <asm-generic/pgtable-nopud.h>
-#  else
-#   include <asm-generic/pgtable-nopmd.h>
-#  endif
-#endif
-#include <asm/xen/hypercall.h>
-
 /* arch/i386/kernel/setup.c */
 extern struct shared_info *HYPERVISOR_shared_info;
 extern struct start_info *xen_start_info;
-
-/* arch/i386/mach-xen/evtchn.c */
-/* Force a proper event-channel callback from Xen. */
-extern void force_evtchn_callback(void);
-
-/* Turn jiffies into Xen system time. */
-u64 jiffies_to_st(unsigned long jiffies);
-
-
-#define MULTI_UVMFLAGS_INDEX 3
-#define MULTI_UVMDOMID_INDEX 4
 
 enum xen_domain_type {
 	XEN_NATIVE,
@@ -74,9 +45,15 @@ enum xen_domain_type {
 
 extern enum xen_domain_type xen_domain_type;
 
+#ifdef CONFIG_XEN
 #define xen_domain()		(xen_domain_type != XEN_NATIVE)
-#define xen_pv_domain()		(xen_domain_type == XEN_PV_DOMAIN)
+#else
+#define xen_domain()		(0)
+#endif
+
+#define xen_pv_domain()		(xen_domain() && xen_domain_type == XEN_PV_DOMAIN)
+#define xen_hvm_domain()	(xen_domain() && xen_domain_type == XEN_HVM_DOMAIN)
+
 #define xen_initial_domain()	(xen_pv_domain() && xen_start_info->flags & SIF_INITDOMAIN)
-#define xen_hvm_domain()	(xen_domain_type == XEN_HVM_DOMAIN)
 
 #endif /* _ASM_X86_XEN_HYPERVISOR_H */

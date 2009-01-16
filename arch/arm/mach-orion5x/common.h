@@ -51,13 +51,6 @@ int orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys);
 struct pci_bus *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
 int orion5x_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin);
 
-/*
- * Valid GPIO pins according to MPP setup, used by machine-setup.
- * (/mach-orion/gpio.c).
- */
-void orion5x_gpio_set_valid(unsigned pin, int valid);
-void gpio_display(void);	/* debug */
-
 struct machine_desc;
 struct meminfo;
 struct tag;

@@ -69,9 +69,14 @@ void cpu_idle(void)
 				smp_mb();
 				local_irq_disable();
 
+				/* Don't trace irqs off for idle */
+				stop_critical_timings();
+
 				/* check again after disabling irqs */
 				if (!need_resched() && !cpu_should_die())
 					ppc_md.power_save();
+
+				start_critical_timings();
 
 				local_irq_enable();
 				set_thread_flag(TIF_POLLING_NRFLAG);

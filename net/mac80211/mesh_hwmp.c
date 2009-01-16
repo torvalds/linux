@@ -218,12 +218,16 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 
 	if (sta->fail_avg >= 100)
 		return MAX_METRIC;
+
+	if (sta->last_tx_rate.flags & IEEE80211_TX_RC_MCS)
+		return MAX_METRIC;
+
 	err = (sta->fail_avg << ARITH_SHIFT) / 100;
 
 	/* bitrate is in units of 100 Kbps, while we need rate in units of
 	 * 1Mbps. This will be corrected on tx_time computation.
 	 */
-	rate = sband->bitrates[sta->last_txrate_idx].bitrate;
+	rate = sband->bitrates[sta->last_tx_rate.idx].bitrate;
 	tx_time = (device_constant + 10 * test_frame_len / rate);
 	estimated_retx = ((1 << (2 * ARITH_SHIFT)) / (s_unit - err));
 	result = (tx_time * estimated_retx) >> (2 * ARITH_SHIFT) ;
@@ -759,7 +763,6 @@ enddiscovery:
  *
  * @skb: 802.11 frame to be sent
  * @sdata: network subif the frame will be sent through
- * @fwd_frame: true if this frame was originally from a different host
  *
  * Returns: 0 if the next hop was found. Nonzero otherwise. If no next hop is
  * found, the function will start a path discovery and queue the frame so it is

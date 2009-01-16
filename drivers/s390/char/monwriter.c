@@ -8,6 +8,9 @@
  * Author(s): Melissa Howland <Melissa.Howland@us.ibm.com>
  */
 
+#define KMSG_COMPONENT "monwriter"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -64,9 +67,9 @@ static int monwrite_diag(struct monwrite_hdr *myhdr, char *buffer, int fcn)
 	rc = appldata_asm(&id, fcn, (void *) buffer, myhdr->datalen);
 	if (rc <= 0)
 		return rc;
+	pr_err("Writing monitor data failed with rc=%i\n", rc);
 	if (rc == 5)
 		return -EPERM;
-	printk("DIAG X'DC' error with return code: %i\n", rc);
 	return -EINVAL;
 }
 

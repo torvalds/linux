@@ -815,9 +815,6 @@ static int atif_ioctl(int cmd, void __user *arg)
 				return -EPERM;
 			if (sa->sat_family != AF_APPLETALK)
 				return -EINVAL;
-			if (!atif)
-				return -EADDRNOTAVAIL;
-
 			/*
 			 * for now, we only support proxy AARP on ELAP;
 			 * we should be able to do it for LocalTalk, too.
@@ -1284,7 +1281,7 @@ static int handle_ip_over_ddp(struct sk_buff *skb)
 	skb->dev   = dev;
 	skb_reset_transport_header(skb);
 
-	stats = dev->priv;
+	stats = netdev_priv(dev);
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len + 13;
 	netif_rx(skb);  /* Send the SKB up to a higher place. */

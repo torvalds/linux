@@ -38,14 +38,9 @@ __arch_iounmap(void __iomem *addr)
 		__iounmap(addr);
 }
 
-static inline void __iomem *__io(unsigned long addr)
-{
-	return (void __iomem *)addr;
-}
-
 #define __arch_ioremap(p, s, m)	__arch_ioremap(p, s, m)
 #define __arch_iounmap(a)	__arch_iounmap(a)
-#define __io(a)			__io(a)
+#define __io(a)			__typesafe_io(a)
 #define __mem_pci(a)		(a)
 
 

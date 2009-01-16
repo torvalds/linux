@@ -268,7 +268,7 @@ static struct platform_device *palmtt_devices[] __initdata = {
 
 static int palmtt_get_pendown_state(void)
 {
-	return !omap_get_gpio_datain(6);
+	return !gpio_get_value(6);
 }
 
 static const struct ads7846_platform_data palmtt_ts_info = {

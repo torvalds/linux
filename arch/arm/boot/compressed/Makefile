@@ -23,10 +23,6 @@ ifeq ($(CONFIG_ARCH_L7200),y)
 OBJS		+= head-l7200.o
 endif
 
-ifeq ($(CONFIG_ARCH_CLPS7500),y)
-HEAD		= head-clps7500.o
-endif
-
 ifeq ($(CONFIG_ARCH_P720T),y)
 # Borrow this code from SA1100
 OBJS		+= head-sa1100.o

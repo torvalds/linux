@@ -433,7 +433,7 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->chip_delay = 15;
 
 	retval = request_irq(irq, &tmio_irq,
-				IRQF_DISABLED, dev->dev.bus_id, tmio);
+				IRQF_DISABLED, dev_name(&dev->dev), tmio);
 	if (retval) {
 		dev_err(&dev->dev, "request_irq error %d\n", retval);
 		goto err_irq;

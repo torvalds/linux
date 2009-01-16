@@ -475,7 +475,7 @@ int __init omap2_clk_init(void)
 		 * Update this if there are further clock changes between ES2
 		 * and production parts
 		 */
-		if (is_sil_rev_equal_to(OMAP3430_REV_ES1_0)) {
+		if (omap_rev() == OMAP3430_REV_ES1_0) {
 			/* No 3430ES1-only rates exist, so no RATE_IN_3430ES1 */
 			cpu_clkflg |= CLOCK_IN_OMAP3430ES1;
 		} else {

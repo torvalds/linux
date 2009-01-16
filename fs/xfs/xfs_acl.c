@@ -366,7 +366,7 @@ xfs_acl_allow_set(
 		return ENOTDIR;
 	if (vp->i_sb->s_flags & MS_RDONLY)
 		return EROFS;
-	if (XFS_I(vp)->i_d.di_uid != current->fsuid && !capable(CAP_FOWNER))
+	if (XFS_I(vp)->i_d.di_uid != current_fsuid() && !capable(CAP_FOWNER))
 		return EPERM;
 	return 0;
 }
@@ -413,13 +413,13 @@ xfs_acl_access(
 		switch (fap->acl_entry[i].ae_tag) {
 		case ACL_USER_OBJ:
 			seen_userobj = 1;
-			if (fuid != current->fsuid)
+			if (fuid != current_fsuid())
 				continue;
 			matched.ae_tag = ACL_USER_OBJ;
 			matched.ae_perm = allows;
 			break;
 		case ACL_USER:
-			if (fap->acl_entry[i].ae_id != current->fsuid)
+			if (fap->acl_entry[i].ae_id != current_fsuid())
 				continue;
 			matched.ae_tag = ACL_USER;
 			matched.ae_perm = allows;
@@ -758,7 +758,7 @@ xfs_acl_setmode(
 	if (gap && nomask)
 		iattr.ia_mode |= gap->ae_perm << 3;
 
-	return xfs_setattr(XFS_I(vp), &iattr, 0, sys_cred);
+	return xfs_setattr(XFS_I(vp), &iattr, 0);
 }
 
 /*

@@ -178,7 +178,7 @@ static void via_set_drive(ide_drive_t *drive, const u8 speed)
 		ide_timing_merge(&p, &t, &t, IDE_TIMING_8BIT);
 	}
 
-	via_set_speed(HWIF(drive), drive->dn, &t);
+	via_set_speed(hwif, drive->dn, &t);
 }
 
 /**
@@ -432,8 +432,6 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	if (via_clock < 20000 || via_clock > 50000) {
 		printk(KERN_WARNING DRV_NAME ": User given PCI clock speed "
 			"impossible (%d), using 33 MHz instead.\n", via_clock);
-		printk(KERN_WARNING DRV_NAME ": Use ide0=ata66 if you want "
-			"to assume 80-wire cable.\n");
 		via_clock = 33333;
 	}
 

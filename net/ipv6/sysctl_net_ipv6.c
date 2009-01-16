@@ -35,7 +35,7 @@ static ctl_table ipv6_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.bindv6only,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{ .ctl_name = 0 }
 };
@@ -47,7 +47,7 @@ static ctl_table ipv6_table[] = {
 		.data		= &sysctl_mld_max_msf,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{ .ctl_name = 0 }
 };
@@ -128,7 +128,7 @@ static struct ctl_table_header *ip6_header;
 
 int ipv6_sysctl_register(void)
 {
-	int err = -ENOMEM;;
+	int err = -ENOMEM;
 
 	ip6_header = register_net_sysctl_rotable(net_ipv6_ctl_path, ipv6_table);
 	if (ip6_header == NULL)

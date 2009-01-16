@@ -754,7 +754,7 @@ struct atl1_hw {
 struct atl1_adapter {
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
+
 	struct atl1_sft_stats soft_stats;
 	struct vlan_group *vlgrp;
 	u32 rx_buffer_len;
@@ -765,7 +765,7 @@ struct atl1_adapter {
 	struct work_struct tx_timeout_task;
 	struct work_struct link_chg_task;
 	struct work_struct pcie_dma_to_rst_task;
-	struct timer_list watchdog_timer;
+
 	struct timer_list phy_config_timer;
 	bool phy_timer_pending;
 

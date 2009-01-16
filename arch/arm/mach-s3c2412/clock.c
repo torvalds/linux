@@ -93,12 +93,6 @@ static int s3c2412_upll_enable(struct clk *clk, int enable)
 
 /* clock selections */
 
-/* CPU EXTCLK input */
-static struct clk clk_ext = {
-	.name		= "extclk",
-	.id		= -1,
-};
-
 static struct clk clk_erefclk = {
 	.name		= "erefclk",
 	.id		= -1,
@@ -773,5 +767,6 @@ int __init s3c2412_baseclk_add(void)
 		s3c2412_clkcon_enable(clkp, 0);
 	}
 
+	s3c_pwmclk_init();
 	return 0;
 }

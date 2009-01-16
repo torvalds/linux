@@ -102,7 +102,7 @@ static inline void basic_delete_filter(struct tcf_proto *tp,
 
 static void basic_destroy(struct tcf_proto *tp)
 {
-	struct basic_head *head = (struct basic_head *) xchg(&tp->root, NULL);
+	struct basic_head *head = tp->root;
 	struct basic_filter *f, *n;
 
 	list_for_each_entry_safe(f, n, &head->flist, link) {

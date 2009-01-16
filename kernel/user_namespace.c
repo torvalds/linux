@@ -9,60 +9,55 @@
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
 #include <linux/user_namespace.h>
+#include <linux/cred.h>
 
 /*
- * Clone a new ns copying an original user ns, setting refcount to 1
- * @old_ns: namespace to clone
- * Return NULL on error (failure to kmalloc), new ns otherwise
+ * Create a new user namespace, deriving the creator from the user in the
+ * passed credentials, and replacing that user with the new root user for the
+ * new namespace.
+ *
+ * This is called by copy_creds(), which will finish setting the target task's
+ * credentials.
  */
-static struct user_namespace *clone_user_ns(struct user_namespace *old_ns)
+int create_user_ns(struct cred *new)
 {
 	struct user_namespace *ns;
-	struct user_struct *new_user;
+	struct user_struct *root_user;
 	int n;
 
 	ns = kmalloc(sizeof(struct user_namespace), GFP_KERNEL);
 	if (!ns)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 
 	kref_init(&ns->kref);
 
 	for (n = 0; n < UIDHASH_SZ; ++n)
 		INIT_HLIST_HEAD(ns->uidhash_table + n);
 
-	/* Insert new root user.  */
-	ns->root_user = alloc_uid(ns, 0);
-	if (!ns->root_user) {
+	/* Alloc new root user.  */
+	root_user = alloc_uid(ns, 0);
+	if (!root_user) {
 		kfree(ns);
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	}
 
-	/* Reset current->user with a new one */
-	new_user = alloc_uid(ns, current->uid);
-	if (!new_user) {
-		free_uid(ns->root_user);
-		kfree(ns);
-		return ERR_PTR(-ENOMEM);
-	}
+	/* set the new root user in the credentials under preparation */
+	ns->creator = new->user;
+	new->user = root_user;
+	new->uid = new->euid = new->suid = new->fsuid = 0;
+	new->gid = new->egid = new->sgid = new->fsgid = 0;
+	put_group_info(new->group_info);
+	new->group_info = get_group_info(&init_groups);
+#ifdef CONFIG_KEYS
+	key_put(new->request_key_auth);
+	new->request_key_auth = NULL;
+#endif
+	/* tgcred will be cleared in our caller bc CLONE_THREAD won't be set */
 
-	switch_uid(new_user);
-	return ns;
-}
+	/* alloc_uid() incremented the userns refcount.  Just set it to 1 */
+	kref_set(&ns->kref, 1);
 
-struct user_namespace * copy_user_ns(int flags, struct user_namespace *old_ns)
-{
-	struct user_namespace *new_ns;
-
-	BUG_ON(!old_ns);
-	get_user_ns(old_ns);
-
-	if (!(flags & CLONE_NEWUSER))
-		return old_ns;
-
-	new_ns = clone_user_ns(old_ns);
-
-	put_user_ns(old_ns);
-	return new_ns;
+	return 0;
 }
 
 void free_user_ns(struct kref *kref)
@@ -70,7 +65,7 @@ void free_user_ns(struct kref *kref)
 	struct user_namespace *ns;
 
 	ns = container_of(kref, struct user_namespace, kref);
-	release_uids(ns);
+	free_uid(ns->creator);
 	kfree(ns);
 }
 EXPORT_SYMBOL(free_user_ns);

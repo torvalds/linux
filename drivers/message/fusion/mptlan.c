@@ -106,7 +106,6 @@ struct mpt_lan_priv {
 
 	u32 total_posted;
 	u32 total_received;
-	struct net_device_stats stats;	/* Per device statistics */
 
 	struct delayed_work post_buckets_task;
 	struct net_device *dev;
@@ -548,15 +547,6 @@ mpt_lan_close(struct net_device *dev)
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-static struct net_device_stats *
-mpt_lan_get_stats(struct net_device *dev)
-{
-	struct mpt_lan_priv *priv = netdev_priv(dev);
-
-	return (struct net_device_stats *) &priv->stats;
-}
-
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 static int
 mpt_lan_change_mtu(struct net_device *dev, int new_mtu)
 {
@@ -594,8 +584,8 @@ mpt_lan_send_turbo(struct net_device *dev, u32 tmsg)
 	ctx = GET_LAN_BUFFER_CONTEXT(tmsg);
 	sent = priv->SendCtl[ctx].skb;
 
-	priv->stats.tx_packets++;
-	priv->stats.tx_bytes += sent->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += sent->len;
 
 	dioprintk((KERN_INFO MYNAM ": %s/%s: @%s, skb %p sent.\n",
 			IOC_AND_NETDEV_NAMES_s_s(dev),
@@ -636,7 +626,7 @@ mpt_lan_send_reply(struct net_device *dev, LANSendReply_t *pSendRep)
 
 	switch (le16_to_cpu(pSendRep->IOCStatus) & MPI_IOCSTATUS_MASK) {
 	case MPI_IOCSTATUS_SUCCESS:
-		priv->stats.tx_packets += count;
+		dev->stats.tx_packets += count;
 		break;
 
 	case MPI_IOCSTATUS_LAN_CANCELED:
@@ -644,13 +634,13 @@ mpt_lan_send_reply(struct net_device *dev, LANSendReply_t *pSendRep)
 		break;
 
 	case MPI_IOCSTATUS_INVALID_SGL:
-		priv->stats.tx_errors += count;
+		dev->stats.tx_errors += count;
 		printk (KERN_ERR MYNAM ": %s/%s: ERROR - Invalid SGL sent to IOC!\n",
 				IOC_AND_NETDEV_NAMES_s_s(dev));
 		goto out;
 
 	default:
-		priv->stats.tx_errors += count;
+		dev->stats.tx_errors += count;
 		break;
 	}
 
@@ -661,7 +651,7 @@ mpt_lan_send_reply(struct net_device *dev, LANSendReply_t *pSendRep)
 		ctx = GET_LAN_BUFFER_CONTEXT(le32_to_cpu(*pContext));
 
 		sent = priv->SendCtl[ctx].skb;
-		priv->stats.tx_bytes += sent->len;
+		dev->stats.tx_bytes += sent->len;
 
 		dioprintk((KERN_INFO MYNAM ": %s/%s: @%s, skb %p sent.\n",
 				IOC_AND_NETDEV_NAMES_s_s(dev),
@@ -815,7 +805,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
  * @priority: 0 = put it on the timer queue, 1 = put it on the immediate queue
  */
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	
 	if (test_and_set_bit(0, &priv->post_buckets_active) == 0) {
 		if (priority) {
@@ -834,7 +824,7 @@ mpt_lan_wake_post_buckets_task(struct net_device *dev, int priority)
 static int
 mpt_lan_receive_skb(struct net_device *dev, struct sk_buff *skb)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 
 	skb->protocol = mpt_lan_type_trans(skb, dev);
 
@@ -842,8 +832,8 @@ mpt_lan_receive_skb(struct net_device *dev, struct sk_buff *skb)
 		 "delivered to upper level.\n",
 			IOC_AND_NETDEV_NAMES_s_s(dev), skb->len));
 
-	priv->stats.rx_bytes += skb->len;
-	priv->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
+	dev->stats.rx_packets++;
 
 	skb->dev = dev;
 	netif_rx(skb);
@@ -866,7 +856,7 @@ mpt_lan_receive_skb(struct net_device *dev, struct sk_buff *skb)
 static int
 mpt_lan_receive_post_turbo(struct net_device *dev, u32 tmsg)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
 	struct sk_buff *skb, *old_skb;
 	unsigned long flags;
@@ -921,7 +911,7 @@ static int
 mpt_lan_receive_post_free(struct net_device *dev,
 			  LANReceivePostReply_t *pRecvRep)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
 	unsigned long flags;
 	struct sk_buff *skb;
@@ -976,7 +966,7 @@ static int
 mpt_lan_receive_post_reply(struct net_device *dev,
 			   LANReceivePostReply_t *pRecvRep)
 {
-	struct mpt_lan_priv *priv = dev->priv;
+	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
 	struct sk_buff *skb, *old_skb;
 	unsigned long flags;
@@ -1308,6 +1298,14 @@ mpt_lan_post_receive_buckets_work(struct work_struct *work)
 						  post_buckets_task.work));
 }
 
+static const struct net_device_ops mpt_netdev_ops = {
+	.ndo_open       = mpt_lan_open,
+	.ndo_stop       = mpt_lan_close,
+	.ndo_start_xmit = mpt_lan_sdu_send,
+	.ndo_change_mtu = mpt_lan_change_mtu,
+	.ndo_tx_timeout = mpt_lan_tx_timeout,
+};
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 static struct net_device *
 mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
@@ -1372,15 +1370,7 @@ mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
 	priv->tx_max_out = (tx_max_out_p <= MPT_TX_MAX_OUT_LIM) ?
 			    tx_max_out_p : MPT_TX_MAX_OUT_LIM;
 
-	dev->open = mpt_lan_open;
-	dev->stop = mpt_lan_close;
-	dev->get_stats = mpt_lan_get_stats;
-	dev->set_multicast_list = NULL;
-	dev->change_mtu = mpt_lan_change_mtu;
-	dev->hard_start_xmit = mpt_lan_sdu_send;
-
-/* Not in 2.3.42. Need 2.3.45+ */
-	dev->tx_timeout = mpt_lan_tx_timeout;
+	dev->netdev_ops = &mpt_netdev_ops;
 	dev->watchdog_timeo = MPT_LAN_TX_TIMEOUT;
 
 	dlprintk((KERN_INFO MYNAM ": Finished registering dev "
@@ -1427,11 +1417,9 @@ mptlan_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		printk(KERN_INFO MYNAM ": %s: Fusion MPT LAN device "
 		       "registered as '%s'\n", ioc->name, dev->name);
 		printk(KERN_INFO MYNAM ": %s/%s: "
-		       "LanAddr = %02X:%02X:%02X:%02X:%02X:%02X\n",
+		       "LanAddr = %pM\n",
 		       IOC_AND_NETDEV_NAMES_s_s(dev),
-		       dev->dev_addr[0], dev->dev_addr[1],
-		       dev->dev_addr[2], dev->dev_addr[3],
-		       dev->dev_addr[4], dev->dev_addr[5]);
+		       dev->dev_addr);
 	
 		ioc->netdev = dev;
 
@@ -1516,9 +1504,8 @@ mpt_lan_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 		printk (KERN_WARNING MYNAM ": %s: WARNING - Broadcast swap F/W bug detected!\n",
 				NETDEV_PTR_TO_IOC_NAME_s(dev));
-		printk (KERN_WARNING MYNAM ": Please update sender @ MAC_addr = %02x:%02x:%02x:%02x:%02x:%02x\n",
-				fch->saddr[0], fch->saddr[1], fch->saddr[2],
-				fch->saddr[3], fch->saddr[4], fch->saddr[5]);
+		printk (KERN_WARNING MYNAM ": Please update sender @ MAC_addr = %pM\n",
+				fch->saddr);
 	}
 
 	if (*fch->daddr & 1) {
@@ -1536,7 +1523,6 @@ mpt_lan_type_trans(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	fcllc = (struct fcllc *)skb->data;
-
 
 	/* Strip the SNAP header from ARP packets since we don't
 	 * pass them through to the 802.2/SNAP layers.

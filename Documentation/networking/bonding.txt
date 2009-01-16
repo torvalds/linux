@@ -194,6 +194,48 @@ or, for backwards compatibility, the option value.  E.g.,
 
 	The parameters are as follows:
 
+ad_select
+
+	Specifies the 802.3ad aggregation selection logic to use.  The
+	possible values and their effects are:
+
+	stable or 0
+
+		The active aggregator is chosen by largest aggregate
+		bandwidth.
+
+		Reselection of the active aggregator occurs only when all
+		slaves of the active aggregator are down or the active
+		aggregator has no slaves.
+
+		This is the default value.
+
+	bandwidth or 1
+
+		The active aggregator is chosen by largest aggregate
+		bandwidth.  Reselection occurs if:
+
+		- A slave is added to or removed from the bond
+
+		- Any slave's link state changes
+
+		- Any slave's 802.3ad association state changes
+
+		- The bond's adminstrative state changes to up
+
+	count or 2
+
+		The active aggregator is chosen by the largest number of
+		ports (slaves).  Reselection occurs as described under the
+		"bandwidth" setting, above.
+
+	The bandwidth and count selection policies permit failover of
+	802.3ad aggregations when partial failure of the active aggregator
+	occurs.  This keeps the aggregator with the highest availability
+	(either in bandwidth or in number of ports) active at all times.
+
+	This option was added in bonding version 3.4.0.
+
 arp_interval
 
 	Specifies the ARP link monitoring frequency in milliseconds.
@@ -550,6 +592,16 @@ num_grat_arp
 	The valid range is 0 - 255; the default value is 1.  This option
 	affects only the active-backup mode.  This option was added for
 	bonding version 3.3.0.
+
+num_unsol_na
+
+	Specifies the number of unsolicited IPv6 Neighbor Advertisements
+	to be issued after a failover event.  One unsolicited NA is issued
+	immediately after the failover.
+
+	The valid range is 0 - 255; the default value is 1.  This option
+	affects only the active-backup mode.  This option was added for
+	bonding version 3.4.0.
 
 primary
 
@@ -922,17 +974,19 @@ USERCTL=no
 NETMASK, NETWORK and BROADCAST) to match your network configuration.
 
 	For later versions of initscripts, such as that found with Fedora
-7 and Red Hat Enterprise Linux version 5 (or later), it is possible, and,
-indeed, preferable, to specify the bonding options in the ifcfg-bond0
+7 (or later) and Red Hat Enterprise Linux version 5 (or later), it is possible,
+and, indeed, preferable, to specify the bonding options in the ifcfg-bond0
 file, e.g. a line of the format:
 
-BONDING_OPTS="mode=active-backup arp_interval=60 arp_ip_target=+192.168.1.254"
+BONDING_OPTS="mode=active-backup arp_interval=60 arp_ip_target=192.168.1.254"
 
 	will configure the bond with the specified options.  The options
 specified in BONDING_OPTS are identical to the bonding module parameters
-except for the arp_ip_target field.  Each target should be included as a
-separate option and should be preceded by a '+' to indicate it should be
-added to the list of queried targets, e.g.,
+except for the arp_ip_target field when using versions of initscripts older
+than and 8.57 (Fedora 8) and 8.45.19 (Red Hat Enterprise Linux 5.2).  When
+using older versions each target should be included as a separate option and
+should be preceded by a '+' to indicate it should be added to the list of
+queried targets, e.g.,
 
 	arp_ip_target=+192.168.1.1 arp_ip_target=+192.168.1.2
 
@@ -940,7 +994,7 @@ added to the list of queried targets, e.g.,
 options via BONDING_OPTS, it is not necessary to edit /etc/modules.conf or
 /etc/modprobe.conf.
 
-	For older versions of initscripts that do not support
+	For even older versions of initscripts that do not support
 BONDING_OPTS, it is necessary to edit /etc/modules.conf (or
 /etc/modprobe.conf, depending upon your distro) to load the bonding module
 with your desired options when the bond0 interface is brought up.  The

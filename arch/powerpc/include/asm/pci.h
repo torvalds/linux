@@ -38,8 +38,8 @@ struct pci_dev;
  * Set this to 1 if you want the kernel to re-assign all PCI
  * bus numbers (don't do that on ppc64 yet !)
  */
-#define pcibios_assign_all_busses()    	(ppc_pci_flags & \
-					 PPC_PCI_REASSIGN_ALL_BUS)
+#define pcibios_assign_all_busses() \
+	(ppc_pci_has_flag(PPC_PCI_REASSIGN_ALL_BUS))
 #define pcibios_scan_all_fns(a, b)	0
 
 static inline void pcibios_set_master(struct pci_dev *dev)
@@ -204,15 +204,14 @@ static inline struct resource *pcibios_select_root(struct pci_dev *pdev,
 	return root;
 }
 
-extern void pcibios_setup_new_device(struct pci_dev *dev);
-
 extern void pcibios_claim_one_bus(struct pci_bus *b);
 
-extern void pcibios_allocate_bus_resources(struct pci_bus *bus);
+extern void pcibios_finish_adding_to_bus(struct pci_bus *bus);
 
 extern void pcibios_resource_survey(void);
 
 extern struct pci_controller *init_phb_dynamic(struct device_node *dn);
+extern int remove_phb_dynamic(struct pci_controller *phb);
 
 extern struct pci_dev *of_create_pci_dev(struct device_node *node,
 					struct pci_bus *bus, int devfn);
@@ -221,6 +220,7 @@ extern void of_scan_pci_bridge(struct device_node *node,
 				struct pci_dev *dev);
 
 extern void of_scan_bus(struct device_node *node, struct pci_bus *bus);
+extern void of_rescan_bus(struct device_node *node, struct pci_bus *bus);
 
 extern int pci_read_irq_line(struct pci_dev *dev);
 
@@ -235,9 +235,8 @@ extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
 				 const struct resource *rsrc,
 				 resource_size_t *start, resource_size_t *end);
 
-extern void pcibios_do_bus_setup(struct pci_bus *bus);
-extern void pcibios_fixup_of_probed_bus(struct pci_bus *bus);
-
+extern void pcibios_setup_bus_devices(struct pci_bus *bus);
+extern void pcibios_setup_bus_self(struct pci_bus *bus);
 
 #endif	/* __KERNEL__ */
 #endif /* __ASM_POWERPC_PCI_H */

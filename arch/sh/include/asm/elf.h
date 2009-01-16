@@ -108,13 +108,11 @@ typedef struct user_fpu_struct elf_fpregset_t;
 #define elf_check_fdpic(x)		((x)->e_flags & EF_SH_FDPIC)
 #define elf_check_const_displacement(x)	((x)->e_flags & EF_SH_PIC)
 
-#ifdef CONFIG_SUPERH32
 /*
  * Enable dump using regset.
  * This covers all of general/DSP/FPU regs.
  */
 #define CORE_DUMP_USE_REGSET
-#endif
 
 #define USE_ELF_CORE_DUMP
 #define ELF_FDPIC_CORE_EFLAGS	EF_SH_FDPIC
@@ -204,7 +202,7 @@ do {									\
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES
 struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
-				       int executable_stack);
+				       int uses_interp);
 
 extern unsigned int vdso_enabled;
 extern void __kernel_vsyscall;

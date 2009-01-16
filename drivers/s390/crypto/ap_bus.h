@@ -5,6 +5,7 @@
  * Author(s): Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Martin Schwidefsky <schwidefsky@de.ibm.com>
  *	      Ralph Wuerthner <rwuerthn@de.ibm.com>
+ *	      Felix Beck <felix.beck@de.ibm.com>
  *
  * Adjunct processor bus header file.
  *
@@ -67,7 +68,8 @@ struct ap_queue_status {
 	unsigned int queue_empty	: 1;
 	unsigned int replies_waiting	: 1;
 	unsigned int queue_full		: 1;
-	unsigned int pad1		: 5;
+	unsigned int pad1		: 4;
+	unsigned int int_enabled	: 1;
 	unsigned int response_code	: 8;
 	unsigned int pad2		: 16;
 };
@@ -78,6 +80,8 @@ struct ap_queue_status {
 #define AP_RESPONSE_DECONFIGURED	0x03
 #define AP_RESPONSE_CHECKSTOPPED	0x04
 #define AP_RESPONSE_BUSY		0x05
+#define AP_RESPONSE_INVALID_ADDRESS	0x06
+#define AP_RESPONSE_OTHERWISE_CHANGED	0x07
 #define AP_RESPONSE_Q_FULL		0x10
 #define AP_RESPONSE_NO_PENDING_REPLY	0x10
 #define AP_RESPONSE_INDEX_TOO_BIG	0x11

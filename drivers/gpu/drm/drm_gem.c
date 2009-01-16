@@ -64,6 +64,13 @@
  * up at a later date, and as our interface with shmfs for memory allocation.
  */
 
+/*
+ * We make up offsets for buffer objects so we can recognize them at
+ * mmap time.
+ */
+#define DRM_FILE_PAGE_OFFSET_START ((0xFFFFFFFFUL >> PAGE_SHIFT) + 1)
+#define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFFUL >> PAGE_SHIFT) * 16)
+
 /**
  * Initialize the GEM device fields
  */
@@ -71,6 +78,8 @@
 int
 drm_gem_init(struct drm_device *dev)
 {
+	struct drm_gem_mm *mm;
+
 	spin_lock_init(&dev->object_name_lock);
 	idr_init(&dev->object_name_idr);
 	atomic_set(&dev->object_count, 0);
@@ -79,7 +88,39 @@ drm_gem_init(struct drm_device *dev)
 	atomic_set(&dev->pin_memory, 0);
 	atomic_set(&dev->gtt_count, 0);
 	atomic_set(&dev->gtt_memory, 0);
+
+	mm = drm_calloc(1, sizeof(struct drm_gem_mm), DRM_MEM_MM);
+	if (!mm) {
+		DRM_ERROR("out of memory\n");
+		return -ENOMEM;
+	}
+
+	dev->mm_private = mm;
+
+	if (drm_ht_create(&mm->offset_hash, 19)) {
+		drm_free(mm, sizeof(struct drm_gem_mm), DRM_MEM_MM);
+		return -ENOMEM;
+	}
+
+	if (drm_mm_init(&mm->offset_manager, DRM_FILE_PAGE_OFFSET_START,
+			DRM_FILE_PAGE_OFFSET_SIZE)) {
+		drm_free(mm, sizeof(struct drm_gem_mm), DRM_MEM_MM);
+		drm_ht_remove(&mm->offset_hash);
+		return -ENOMEM;
+	}
+
 	return 0;
+}
+
+void
+drm_gem_destroy(struct drm_device *dev)
+{
+	struct drm_gem_mm *mm = dev->mm_private;
+
+	drm_mm_takedown(&mm->offset_manager);
+	drm_ht_remove(&mm->offset_hash);
+	drm_free(mm, sizeof(struct drm_gem_mm), DRM_MEM_MM);
+	dev->mm_private = NULL;
 }
 
 /**
@@ -419,3 +460,73 @@ drm_gem_object_handle_free(struct kref *kref)
 }
 EXPORT_SYMBOL(drm_gem_object_handle_free);
 
+/**
+ * drm_gem_mmap - memory map routine for GEM objects
+ * @filp: DRM file pointer
+ * @vma: VMA for the area to be mapped
+ *
+ * If a driver supports GEM object mapping, mmap calls on the DRM file
+ * descriptor will end up here.
+ *
+ * If we find the object based on the offset passed in (vma->vm_pgoff will
+ * contain the fake offset we created when the GTT map ioctl was called on
+ * the object), we set up the driver fault handler so that any accesses
+ * to the object can be trapped, to perform migration, GTT binding, surface
+ * register allocation, or performance monitoring.
+ */
+int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->minor->dev;
+	struct drm_gem_mm *mm = dev->mm_private;
+	struct drm_map *map = NULL;
+	struct drm_gem_object *obj;
+	struct drm_hash_item *hash;
+	unsigned long prot;
+	int ret = 0;
+
+	mutex_lock(&dev->struct_mutex);
+
+	if (drm_ht_find_item(&mm->offset_hash, vma->vm_pgoff, &hash)) {
+		mutex_unlock(&dev->struct_mutex);
+		return drm_mmap(filp, vma);
+	}
+
+	map = drm_hash_entry(hash, struct drm_map_list, hash)->map;
+	if (!map ||
+	    ((map->flags & _DRM_RESTRICTED) && !capable(CAP_SYS_ADMIN))) {
+		ret =  -EPERM;
+		goto out_unlock;
+	}
+
+	/* Check for valid size. */
+	if (map->size < vma->vm_end - vma->vm_start) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	obj = map->handle;
+	if (!obj->dev->driver->gem_vm_ops) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	vma->vm_flags |= VM_RESERVED | VM_IO | VM_PFNMAP | VM_DONTEXPAND;
+	vma->vm_ops = obj->dev->driver->gem_vm_ops;
+	vma->vm_private_data = map->handle;
+	/* FIXME: use pgprot_writecombine when available */
+	prot = pgprot_val(vma->vm_page_prot);
+#ifdef CONFIG_X86
+	prot |= _PAGE_CACHE_WC;
+#endif
+	vma->vm_page_prot = __pgprot(prot);
+
+	vma->vm_file = filp;	/* Needed for drm_vm_open() */
+	drm_vm_open_locked(vma);
+
+out_unlock:
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_gem_mmap);

@@ -79,12 +79,13 @@
  *
  */
 
-void uvc_queue_init(struct uvc_video_queue *queue)
+void uvc_queue_init(struct uvc_video_queue *queue, enum v4l2_buf_type type)
 {
 	mutex_init(&queue->mutex);
 	spin_lock_init(&queue->irqlock);
 	INIT_LIST_HEAD(&queue->mainqueue);
 	INIT_LIST_HEAD(&queue->irqqueue);
+	queue->type = type;
 }
 
 /*
@@ -132,7 +133,7 @@ int uvc_alloc_buffers(struct uvc_video_queue *queue, unsigned int nbuffers,
 		queue->buffer[i].buf.index = i;
 		queue->buffer[i].buf.m.offset = i * bufsize;
 		queue->buffer[i].buf.length = buflength;
-		queue->buffer[i].buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		queue->buffer[i].buf.type = queue->type;
 		queue->buffer[i].buf.sequence = 0;
 		queue->buffer[i].buf.field = V4L2_FIELD_NONE;
 		queue->buffer[i].buf.memory = V4L2_MEMORY_MMAP;
@@ -226,7 +227,7 @@ int uvc_queue_buffer(struct uvc_video_queue *queue,
 
 	uvc_trace(UVC_TRACE_CAPTURE, "Queuing buffer %u.\n", v4l2_buf->index);
 
-	if (v4l2_buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+	if (v4l2_buf->type != queue->type ||
 	    v4l2_buf->memory != V4L2_MEMORY_MMAP) {
 		uvc_trace(UVC_TRACE_CAPTURE, "[E] Invalid buffer type (%u) "
 			"and/or memory (%u).\n", v4l2_buf->type,
@@ -249,6 +250,13 @@ int uvc_queue_buffer(struct uvc_video_queue *queue,
 		goto done;
 	}
 
+	if (v4l2_buf->type == V4L2_BUF_TYPE_VIDEO_OUTPUT &&
+	    v4l2_buf->bytesused > buf->buf.length) {
+		uvc_trace(UVC_TRACE_CAPTURE, "[E] Bytes used out of bounds.\n");
+		ret = -EINVAL;
+		goto done;
+	}
+
 	spin_lock_irqsave(&queue->irqlock, flags);
 	if (queue->flags & UVC_QUEUE_DISCONNECTED) {
 		spin_unlock_irqrestore(&queue->irqlock, flags);
@@ -256,7 +264,11 @@ int uvc_queue_buffer(struct uvc_video_queue *queue,
 		goto done;
 	}
 	buf->state = UVC_BUF_STATE_QUEUED;
-	buf->buf.bytesused = 0;
+	if (v4l2_buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		buf->buf.bytesused = 0;
+	else
+		buf->buf.bytesused = v4l2_buf->bytesused;
+
 	list_add_tail(&buf->stream, &queue->mainqueue);
 	list_add_tail(&buf->queue, &queue->irqqueue);
 	spin_unlock_irqrestore(&queue->irqlock, flags);
@@ -289,7 +301,7 @@ int uvc_dequeue_buffer(struct uvc_video_queue *queue,
 	struct uvc_buffer *buf;
 	int ret = 0;
 
-	if (v4l2_buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+	if (v4l2_buf->type != queue->type ||
 	    v4l2_buf->memory != V4L2_MEMORY_MMAP) {
 		uvc_trace(UVC_TRACE_CAPTURE, "[E] Invalid buffer type (%u) "
 			"and/or memory (%u).\n", v4l2_buf->type,
@@ -397,6 +409,7 @@ int uvc_queue_enable(struct uvc_video_queue *queue, int enable)
 		}
 		queue->sequence = 0;
 		queue->flags |= UVC_QUEUE_STREAMING;
+		queue->buf_used = 0;
 	} else {
 		uvc_queue_cancel(queue, 0);
 		INIT_LIST_HEAD(&queue->mainqueue);

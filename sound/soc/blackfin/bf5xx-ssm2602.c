@@ -44,7 +44,7 @@
 #include "bf5xx-i2s-pcm.h"
 #include "bf5xx-i2s.h"
 
-static struct snd_soc_machine bf5xx_ssm2602;
+static struct snd_soc_card bf5xx_ssm2602;
 
 static int bf5xx_ssm2602_startup(struct snd_pcm_substream *substream)
 {
@@ -92,17 +92,17 @@ static int bf5xx_ssm2602_hw_params(struct snd_pcm_substream *substream,
 	 */
 
 	/* set codec DAI configuration */
-	ret = codec_dai->dai_ops.set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
 	/* set cpu DAI configuration */
-	ret = cpu_dai->dai_ops.set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
 
-	ret = codec_dai->dai_ops.set_sysclk(codec_dai, SSM2602_SYSCLK, clk,
+	ret = snd_soc_dai_set_sysclk(codec_dai, SSM2602_SYSCLK, clk,
 		SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
@@ -135,15 +135,15 @@ static struct ssm2602_setup_data bf5xx_ssm2602_setup = {
 	.i2c_address = 0x1b,
 };
 
-static struct snd_soc_machine bf5xx_ssm2602 = {
+static struct snd_soc_card bf5xx_ssm2602 = {
 	.name = "bf5xx_ssm2602",
+	.platform = &bf5xx_i2s_soc_platform,
 	.dai_link = &bf5xx_ssm2602_dai,
 	.num_links = 1,
 };
 
 static struct snd_soc_device bf5xx_ssm2602_snd_devdata = {
-	.machine = &bf5xx_ssm2602,
-	.platform = &bf5xx_i2s_soc_platform,
+	.card = &bf5xx_ssm2602,
 	.codec_dev = &soc_codec_dev_ssm2602,
 	.codec_data = &bf5xx_ssm2602_setup,
 };

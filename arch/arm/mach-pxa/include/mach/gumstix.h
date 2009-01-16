@@ -94,3 +94,7 @@ has detected a cable insertion; driven low otherwise. */
 #define GPIO26_PRDY_nBSY_MD		(GPIO26_PRDY_nBSY | GPIO_IN)
 #define GPIO27_PRDY_nBSY_MD		(GPIO27_PRDY_nBSY | GPIO_IN)
 #define GPIO36_nCD_MD			(GPIO36_nCD | GPIO_IN)
+
+/* for expansion boards that can't be programatically detected */
+extern int am200_init(void);
+

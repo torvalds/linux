@@ -96,6 +96,61 @@ lpfc_drvr_version_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, LPFC_MODULE_DESC "\n");
 }
 
+static ssize_t
+lpfc_bg_info_show(struct device *dev, struct device_attribute *attr,
+		  char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	if (phba->cfg_enable_bg)
+		if (phba->sli3_options & LPFC_SLI3_BG_ENABLED)
+			return snprintf(buf, PAGE_SIZE, "BlockGuard Enabled\n");
+		else
+			return snprintf(buf, PAGE_SIZE,
+					"BlockGuard Not Supported\n");
+	else
+			return snprintf(buf, PAGE_SIZE,
+					"BlockGuard Disabled\n");
+}
+
+static ssize_t
+lpfc_bg_guard_err_show(struct device *dev, struct device_attribute *attr,
+		       char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)phba->bg_guard_err_cnt);
+}
+
+static ssize_t
+lpfc_bg_apptag_err_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)phba->bg_apptag_err_cnt);
+}
+
+static ssize_t
+lpfc_bg_reftag_err_show(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+			(unsigned long long)phba->bg_reftag_err_cnt);
+}
+
 /**
  * lpfc_info_show: Return some pci info about the host in ascii.
  * @dev: class converted to a Scsi_host structure.
@@ -1485,6 +1540,10 @@ lpfc_vport_param_store(name)\
 static DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
 		   lpfc_##name##_show, lpfc_##name##_store)
 
+static DEVICE_ATTR(bg_info, S_IRUGO, lpfc_bg_info_show, NULL);
+static DEVICE_ATTR(bg_guard_err, S_IRUGO, lpfc_bg_guard_err_show, NULL);
+static DEVICE_ATTR(bg_apptag_err, S_IRUGO, lpfc_bg_apptag_err_show, NULL);
+static DEVICE_ATTR(bg_reftag_err, S_IRUGO, lpfc_bg_reftag_err_show, NULL);
 static DEVICE_ATTR(info, S_IRUGO, lpfc_info_show, NULL);
 static DEVICE_ATTR(serialnum, S_IRUGO, lpfc_serialnum_show, NULL);
 static DEVICE_ATTR(modeldesc, S_IRUGO, lpfc_modeldesc_show, NULL);
@@ -1970,6 +2029,7 @@ static DEVICE_ATTR(lpfc_devloss_tmo, S_IRUGO | S_IWUSR,
 # LOG_LINK_EVENT                0x10       Link events
 # LOG_FCP                       0x40       FCP traffic history
 # LOG_NODE                      0x80       Node table events
+# LOG_BG                        0x200      BlockBuard events
 # LOG_MISC                      0x400      Miscellaneous events
 # LOG_SLI                       0x800      SLI events
 # LOG_FCP_ERROR                 0x1000     Only log FCP errors
@@ -2769,6 +2829,42 @@ LPFC_ATTR_R(enable_hba_reset, 1, 0, 1, "Enable HBA resets from the driver.");
 LPFC_ATTR_R(enable_hba_heartbeat, 1, 0, 1, "Enable HBA Heartbeat.");
 
 /*
+# lpfc_enable_bg: Enable BlockGuard (Emulex's Implementation of T10-DIF)
+#       0  = BlockGuard disabled (default)
+#       1  = BlockGuard enabled
+# Value range is [0,1]. Default value is 0.
+*/
+LPFC_ATTR_R(enable_bg, 0, 0, 1, "Enable BlockGuard Support");
+
+
+/*
+# lpfc_prot_mask: i
+#	- Bit mask of host protection capabilities used to register with the
+#	  SCSI mid-layer
+# 	- Only meaningful if BG is turned on (lpfc_enable_bg=1).
+#	- Allows you to ultimately specify which profiles to use
+#	- Default will result in registering capabilities for all profiles.
+#
+*/
+unsigned int lpfc_prot_mask =   SHOST_DIX_TYPE0_PROTECTION;
+
+module_param(lpfc_prot_mask, uint, 0);
+MODULE_PARM_DESC(lpfc_prot_mask, "host protection mask");
+
+/*
+# lpfc_prot_guard: i
+#	- Bit mask of protection guard types to register with the SCSI mid-layer
+# 	- Guard types are currently either 1) IP checksum 2) T10-DIF CRC
+#	- Allows you to ultimately specify which profiles to use
+#	- Default will result in registering capabilities for all guard types
+#
+*/
+unsigned char lpfc_prot_guard = SHOST_DIX_GUARD_IP;
+module_param(lpfc_prot_guard, byte, 0);
+MODULE_PARM_DESC(lpfc_prot_guard, "host protection guard type");
+
+
+/*
  * lpfc_sg_seg_cnt: Initial Maximum DMA Segment Count
  * This value can be set to values between 64 and 256. The default value is
  * 64, but may be increased to allow for larger Max I/O sizes. The scsi layer
@@ -2777,7 +2873,15 @@ LPFC_ATTR_R(enable_hba_heartbeat, 1, 0, 1, "Enable HBA Heartbeat.");
 LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_DEFAULT_SG_SEG_CNT,
 	    LPFC_MAX_SG_SEG_CNT, "Max Scatter Gather Segment Count");
 
+LPFC_ATTR_R(prot_sg_seg_cnt, LPFC_DEFAULT_PROT_SG_SEG_CNT,
+		LPFC_DEFAULT_PROT_SG_SEG_CNT, LPFC_MAX_PROT_SG_SEG_CNT,
+		"Max Protection Scatter Gather Segment Count");
+
 struct device_attribute *lpfc_hba_attrs[] = {
+	&dev_attr_bg_info,
+	&dev_attr_bg_guard_err,
+	&dev_attr_bg_apptag_err,
+	&dev_attr_bg_reftag_err,
 	&dev_attr_info,
 	&dev_attr_serialnum,
 	&dev_attr_modeldesc,
@@ -2825,6 +2929,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_poll,
 	&dev_attr_lpfc_poll_tmo,
 	&dev_attr_lpfc_use_msi,
+	&dev_attr_lpfc_enable_bg,
 	&dev_attr_lpfc_soft_wwnn,
 	&dev_attr_lpfc_soft_wwpn,
 	&dev_attr_lpfc_soft_wwn_enable,
@@ -2833,6 +2938,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_sg_seg_cnt,
 	&dev_attr_lpfc_max_scsicmpl_time,
 	&dev_attr_lpfc_stat_data_ctrl,
+	&dev_attr_lpfc_prot_sg_seg_cnt,
 	NULL,
 };
 
@@ -3282,25 +3388,28 @@ lpfc_alloc_sysfs_attr(struct lpfc_vport *vport)
 	int error;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
+				      &sysfs_drvr_stat_data_attr);
+
+	/* Virtual ports do not need ctrl_reg and mbox */
+	if (error || vport->port_type == LPFC_NPIV_PORT)
+		goto out;
+
+	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_ctlreg_attr);
 	if (error)
-		goto out;
+		goto out_remove_stat_attr;
 
 	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
 				      &sysfs_mbox_attr);
 	if (error)
 		goto out_remove_ctlreg_attr;
 
-	error = sysfs_create_bin_file(&shost->shost_dev.kobj,
-				      &sysfs_drvr_stat_data_attr);
-	if (error)
-		goto out_remove_mbox_attr;
-
 	return 0;
-out_remove_mbox_attr:
-	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_mbox_attr);
 out_remove_ctlreg_attr:
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_ctlreg_attr);
+out_remove_stat_attr:
+	sysfs_remove_bin_file(&shost->shost_dev.kobj,
+			&sysfs_drvr_stat_data_attr);
 out:
 	return error;
 }
@@ -3315,6 +3424,9 @@ lpfc_free_sysfs_attr(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	sysfs_remove_bin_file(&shost->shost_dev.kobj,
 		&sysfs_drvr_stat_data_attr);
+	/* Virtual ports do not need ctrl_reg and mbox */
+	if (vport->port_type == LPFC_NPIV_PORT)
+		return;
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_mbox_attr);
 	sysfs_remove_bin_file(&shost->shost_dev.kobj, &sysfs_ctlreg_attr);
 }
@@ -3792,6 +3904,23 @@ lpfc_show_rport_##field (struct device *dev,				\
 	lpfc_rport_show_function(field, format_string, sz, )		\
 static FC_RPORT_ATTR(field, S_IRUGO, lpfc_show_rport_##field, NULL)
 
+/**
+ * lpfc_set_vport_symbolic_name: Set the vport's symbolic name.
+ * @fc_vport: The fc_vport who's symbolic name has been changed.
+ *
+ * Description:
+ * This function is called by the transport after the @fc_vport's symbolic name
+ * has been changed. This function re-registers the symbolic name with the
+ * switch to propogate the change into the fabric if the vport is active.
+ **/
+static void
+lpfc_set_vport_symbolic_name(struct fc_vport *fc_vport)
+{
+	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
+
+	if (vport->port_state == LPFC_VPORT_READY)
+		lpfc_ns_cmd(vport, SLI_CTNS_RSPN_ID, 0, 0);
+}
 
 struct fc_function_template lpfc_transport_functions = {
 	/* fixed attributes the driver supports */
@@ -3801,6 +3930,7 @@ struct fc_function_template lpfc_transport_functions = {
 	.show_host_supported_fc4s = 1,
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
+	.show_host_symbolic_name = 1,
 
 	/* dynamic attributes the driver supports */
 	.get_host_port_id = lpfc_get_host_port_id,
@@ -3850,6 +3980,10 @@ struct fc_function_template lpfc_transport_functions = {
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
 	.dd_fcvport_size = sizeof(struct lpfc_vport *),
+
+	.vport_disable = lpfc_vport_disable,
+
+	.set_vport_symbolic_name = lpfc_set_vport_symbolic_name,
 };
 
 struct fc_function_template lpfc_vport_transport_functions = {
@@ -3860,6 +3994,7 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.show_host_supported_fc4s = 1,
 	.show_host_supported_speeds = 1,
 	.show_host_maxframe_size = 1,
+	.show_host_symbolic_name = 1,
 
 	/* dynamic attributes the driver supports */
 	.get_host_port_id = lpfc_get_host_port_id,
@@ -3908,6 +4043,8 @@ struct fc_function_template lpfc_vport_transport_functions = {
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
 	.vport_disable = lpfc_vport_disable,
+
+	.set_vport_symbolic_name = lpfc_set_vport_symbolic_name,
 };
 
 /**
@@ -3930,13 +4067,12 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_use_msi_init(phba, lpfc_use_msi);
 	lpfc_enable_hba_reset_init(phba, lpfc_enable_hba_reset);
 	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
+	lpfc_enable_bg_init(phba, lpfc_enable_bg);
 	phba->cfg_poll = lpfc_poll;
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
-	/* Also reinitialize the host templates with new values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_prot_sg_seg_cnt_init(phba, lpfc_prot_sg_seg_cnt);
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
@@ -3945,6 +4081,17 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
 			sizeof(struct fcp_rsp) +
 			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
+
+	if (phba->cfg_enable_bg) {
+		phba->cfg_sg_seg_cnt = LPFC_MAX_SG_SEG_CNT;
+		phba->cfg_sg_dma_buf_size +=
+			phba->cfg_prot_sg_seg_cnt * sizeof(struct ulp_bde64);
+	}
+
+	/* Also reinitialize the host templates with new values. */
+	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	return;
 }

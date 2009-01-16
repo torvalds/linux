@@ -108,14 +108,13 @@ int ei_debug = 1;
 /* Index to functions. */
 static void ei_tx_intr(struct net_device *dev);
 static void ei_tx_err(struct net_device *dev);
-static void ei_tx_timeout(struct net_device *dev);
+void ei_tx_timeout(struct net_device *dev);
 static void ei_receive(struct net_device *dev);
 static void ei_rx_overrun(struct net_device *dev);
 
 /* Routines generic to NS8390-based boards. */
 static void NS8390_trigger_send(struct net_device *dev, unsigned int length,
 								int start_page);
-static void set_multicast_list(struct net_device *dev);
 static void do_set_multicast_list(struct net_device *dev);
 static void __NS8390_init(struct net_device *dev, int startp);
 
@@ -206,10 +205,6 @@ static int __ei_open(struct net_device *dev)
 	unsigned long flags;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
 
-	/* The card I/O part of the driver (e.g. 3c503) can hook a Tx timeout
-	    wrapper that does e.g. media check & then calls ei_tx_timeout. */
-	if (dev->tx_timeout == NULL)
-		 dev->tx_timeout = ei_tx_timeout;
 	if (dev->watchdog_timeo <= 0)
 		 dev->watchdog_timeo = TX_TIMEOUT;
 
@@ -258,7 +253,7 @@ static int __ei_close(struct net_device *dev)
  * completed (or failed) - i.e. never posted a Tx related interrupt.
  */
 
-static void ei_tx_timeout(struct net_device *dev)
+static void __ei_tx_timeout(struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
@@ -304,7 +299,7 @@ static void ei_tx_timeout(struct net_device *dev)
  * Sends a packet to an 8390 network device.
  */
 
-static int ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int __ei_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
@@ -764,7 +759,6 @@ static void ei_receive(struct net_device *dev)
 				ei_block_input(dev, pkt_len, skb, current_offset + sizeof(rx_frame));
 				skb->protocol=eth_type_trans(skb,dev);
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += pkt_len;
 				if (pkt_stat & ENRSR_PHY)
@@ -883,7 +877,7 @@ static void ei_rx_overrun(struct net_device *dev)
  *	Collect the stats. This is called unlocked and from several contexts.
  */
 
-static struct net_device_stats *get_stats(struct net_device *dev)
+static struct net_device_stats *__ei_get_stats(struct net_device *dev)
 {
 	unsigned long ioaddr = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
@@ -992,7 +986,7 @@ static void do_set_multicast_list(struct net_device *dev)
  *	not called too often. Must protect against both bh and irq users
  */
 
-static void set_multicast_list(struct net_device *dev)
+static void __ei_set_multicast_list(struct net_device *dev)
 {
 	unsigned long flags;
 	struct ei_device *ei_local = (struct ei_device*)netdev_priv(dev);
@@ -1015,10 +1009,6 @@ static void ethdev_setup(struct net_device *dev)
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
 	if (ei_debug > 1)
 		printk(version);
-
-	dev->hard_start_xmit = &ei_start_xmit;
-	dev->get_stats	= get_stats;
-	dev->set_multicast_list = &set_multicast_list;
 
 	ether_setup(dev);
 

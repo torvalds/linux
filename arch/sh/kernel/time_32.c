@@ -125,11 +125,6 @@ void handle_timer_tick(void)
 	if (current->pid)
 		profile_tick(CPU_PROFILING);
 
-#ifdef CONFIG_HEARTBEAT
-	if (sh_mv.mv_heartbeat != NULL)
-		sh_mv.mv_heartbeat();
-#endif
-
 	/*
 	 * Here we are in the timer irq handler. We just have irqs locally
 	 * disabled but we don't know if the timer_bh is running on the other
@@ -277,11 +272,4 @@ void __init time_init(void)
 		       ((sh_hpt_frequency + 500) / 1000) / 1000,
 		       ((sh_hpt_frequency + 500) / 1000) % 1000);
 
-#if defined(CONFIG_SH_KGDB)
-	/*
-	 * Set up kgdb as requested. We do it here because the serial
-	 * init uses the timer vars we just set up for figuring baud.
-	 */
-	kgdb_init();
-#endif
 }

@@ -255,7 +255,7 @@ load_som_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	kfree(hpuxhdr);
 
 	set_binfmt(&som_format);
-	compute_creds(bprm);
+	install_exec_creds(bprm);
 	setup_arg_pages(bprm, STACK_TOP, EXSTACK_DEFAULT);
 
 	create_som_tables(bprm);

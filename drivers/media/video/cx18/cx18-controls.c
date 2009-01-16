@@ -259,6 +259,7 @@ int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 		return err;
 	}
 	if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
+		struct cx18_api_func_private priv;
 		struct cx2341x_mpeg_params p = cx->params;
 		int err = cx2341x_ext_ctrls(&p, atomic_read(&cx->ana_capturing),
 						c, VIDIOC_S_EXT_CTRLS);
@@ -278,7 +279,9 @@ int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 			fmt.fmt.pix.height = cx->params.height;
 			cx18_av_cmd(cx, VIDIOC_S_FMT, &fmt);
 		}
-		err = cx2341x_update(cx, cx18_api_func, &cx->params, &p);
+		priv.cx = cx;
+		priv.s = &cx->streams[id->type];
+		err = cx2341x_update(&priv, cx18_api_func, &cx->params, &p);
 		if (!err && cx->params.stream_vbi_fmt != p.stream_vbi_fmt)
 			err = cx18_setup_vbi_fmt(cx, p.stream_vbi_fmt);
 		cx->params = p;

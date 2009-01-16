@@ -29,7 +29,7 @@ int ip6_route_me_harder(struct sk_buff *skb)
 #ifdef CONFIG_XFRM
 	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
 	    xfrm_decode_session(skb, &fl, AF_INET6) == 0)
-		if (xfrm_lookup(&skb->dst, &fl, skb->sk, 0))
+		if (xfrm_lookup(net, &skb->dst, &fl, skb->sk, 0))
 			return -1;
 #endif
 
@@ -56,6 +56,7 @@ EXPORT_SYMBOL(ip6_route_me_harder);
 struct ip6_rt_info {
 	struct in6_addr daddr;
 	struct in6_addr saddr;
+	u_int32_t mark;
 };
 
 static void nf_ip6_saveroute(const struct sk_buff *skb,
@@ -68,6 +69,7 @@ static void nf_ip6_saveroute(const struct sk_buff *skb,
 
 		rt_info->daddr = iph->daddr;
 		rt_info->saddr = iph->saddr;
+		rt_info->mark = skb->mark;
 	}
 }
 
@@ -79,7 +81,8 @@ static int nf_ip6_reroute(struct sk_buff *skb,
 	if (entry->hook == NF_INET_LOCAL_OUT) {
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
-		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr))
+		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr) ||
+		    skb->mark != rt_info->mark)
 			return ip6_route_me_harder(skb);
 	}
 	return 0;

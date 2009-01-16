@@ -7,9 +7,9 @@
 
 #define APIC_DFR_VALUE	(APIC_DFR_CLUSTER)
 
-static inline cpumask_t target_cpus(void)
+static inline const cpumask_t *target_cpus(void)
 {
-	return CPU_MASK_ALL;
+	return &CPU_MASK_ALL;
 }
 
 #define NO_BALANCE_IRQ (1)
@@ -63,8 +63,8 @@ static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_map)
 extern u8 cpu_2_logical_apicid[];
 static inline int cpu_to_logical_apicid(int cpu)
 {
-       if (cpu >= NR_CPUS)
-	       return BAD_APICID;
+	if (cpu >= nr_cpu_ids)
+		return BAD_APICID;
 	return (int)cpu_2_logical_apicid[cpu];
 }
 
@@ -122,7 +122,13 @@ static inline void enable_apic_mode(void)
  * We use physical apicids here, not logical, so just return the default
  * physical broadcast to stop people from breaking us
  */
-static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
+static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
+{
+	return (int) 0xF;
+}
+
+static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+						  const struct cpumask *andmask)
 {
 	return (int) 0xF;
 }

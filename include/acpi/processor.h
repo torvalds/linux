@@ -127,7 +127,7 @@ struct acpi_processor_performance {
 	unsigned int state_count;
 	struct acpi_processor_px *states;
 	struct acpi_psd_package domain_info;
-	cpumask_t shared_cpu_map;
+	cpumask_var_t shared_cpu_map;
 	unsigned int shared_type;
 };
 
@@ -172,7 +172,7 @@ struct acpi_processor_throttling {
 	unsigned int state_count;
 	struct acpi_processor_tx_tss *states_tss;
 	struct acpi_tsd_package domain_info;
-	cpumask_t shared_cpu_map;
+	cpumask_var_t shared_cpu_map;
 	int (*acpi_processor_get_throttling) (struct acpi_processor * pr);
 	int (*acpi_processor_set_throttling) (struct acpi_processor * pr,
 					      int state);

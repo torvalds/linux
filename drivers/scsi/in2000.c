@@ -107,7 +107,7 @@
  * this thing into as good a shape as possible, and I'm positive
  * there are lots of lurking bugs and "Stupid Places".
  *
- * Updated for Linux 2.5 by Alan Cox <alan@redhat.com>
+ * Updated for Linux 2.5 by Alan Cox <alan@lxorguk.ukuu.org.uk>
  *	- Using new_eh handler
  *	- Hopefully got all the locking right again
  *	See "FIXME" notes for items that could do with more work

@@ -25,6 +25,7 @@
 #define SPI_WRDI 0x04		/* Reset write enable latch */
 #define SPI_RDSR 0x05		/* Read status register */
 #define SPI_WREN 0x06		/* Set write enable latch */
+#define SPI_SST_EWSR 0x50	/* SST: Enable write to status register */
 
 #define SPI_STATUS_WPEN 0x80	/* Write-protect pin enabled */
 #define SPI_STATUS_BP2 0x10	/* Block protection bit 2 */
@@ -36,6 +37,7 @@
 /**
  * struct efx_spi_device - an Efx SPI (Serial Peripheral Interface) device
  * @efx:		The Efx controller that owns this device
+ * @mtd:		MTD state
  * @device_id:		Controller's id for the device
  * @size:		Size (in bytes)
  * @addr_len:		Number of address bytes in read/write commands
@@ -44,23 +46,51 @@
  *	use bit 3 of the command byte as address bit A8, rather
  *	than having a two-byte address.  If this flag is set, then
  *	commands should be munged in this way.
+ * @erase_command:	Erase command (or 0 if sector erase not needed).
+ * @erase_size:		Erase sector size (in bytes)
+ *	Erase commands affect sectors with this size and alignment.
+ *	This must be a power of two.
  * @block_size:		Write block size (in bytes).
  *	Write commands are limited to blocks with this size and alignment.
- * @read:		Read function for the device
- * @write:		Write function for the device
  */
 struct efx_spi_device {
 	struct efx_nic *efx;
+#ifdef CONFIG_SFC_MTD
+	void *mtd;
+#endif
 	int device_id;
 	unsigned int size;
 	unsigned int addr_len;
 	unsigned int munge_address:1;
+	u8 erase_command;
+	unsigned int erase_size;
 	unsigned int block_size;
 };
 
+int falcon_spi_cmd(const struct efx_spi_device *spi, unsigned int command,
+		   int address, const void* in, void *out, size_t len);
+int falcon_spi_wait_write(const struct efx_spi_device *spi);
 int falcon_spi_read(const struct efx_spi_device *spi, loff_t start,
 		    size_t len, size_t *retlen, u8 *buffer);
 int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,
 		     size_t len, size_t *retlen, const u8 *buffer);
+
+/*
+ * SFC4000 flash is partitioned into:
+ *     0-0x400       chip and board config (see falcon_hwdefs.h)
+ *     0x400-0x8000  unused (or may contain VPD if EEPROM not present)
+ *     0x8000-end    boot code (mapped to PCI expansion ROM)
+ * SFC4000 small EEPROM (size < 0x400) is used for VPD only.
+ * SFC4000 large EEPROM (size >= 0x400) is partitioned into:
+ *     0-0x400       chip and board config
+ *     configurable  VPD
+ *     0x800-0x1800  boot config
+ * Aside from the chip and board config, all of these are optional and may
+ * be absent or truncated depending on the devices used.
+ */
+#define FALCON_NVCONFIG_END 0x400U
+#define FALCON_FLASH_BOOTCODE_START 0x8000U
+#define EFX_EEPROM_BOOTCONFIG_START 0x800U
+#define EFX_EEPROM_BOOTCONFIG_END 0x1800U
 
 #endif /* EFX_SPI_H */

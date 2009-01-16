@@ -5,15 +5,17 @@
  *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "sclp_config"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/cpu.h>
 #include <linux/sysdev.h>
 #include <linux/workqueue.h>
 #include <asm/smp.h>
-#include "sclp.h"
 
-#define TAG	"sclp_config: "
+#include "sclp.h"
 
 struct conf_mgm_data {
 	u8 reserved;
@@ -31,7 +33,7 @@ static void sclp_cpu_capability_notify(struct work_struct *work)
 	int cpu;
 	struct sys_device *sysdev;
 
-	printk(KERN_WARNING TAG "cpu capability changed.\n");
+	pr_warning("cpu capability changed.\n");
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
 		sysdev = get_cpu_sysdev(cpu);
@@ -78,7 +80,7 @@ static int __init sclp_conf_init(void)
 		return rc;
 
 	if (!(sclp_conf_register.sclp_send_mask & EVTYP_CONFMGMDATA_MASK)) {
-		printk(KERN_WARNING TAG "no configuration management.\n");
+		pr_warning("no configuration management.\n");
 		sclp_unregister(&sclp_conf_register);
 		rc = -ENOSYS;
 	}

@@ -754,7 +754,6 @@ static int cosa_net_rx_done(struct channel_data *chan)
 	chan->netdev->stats.rx_bytes += chan->cosa->rxsize;
 	netif_rx(chan->rx_skb);
 	chan->rx_skb = NULL;
-	chan->netdev->last_rx = jiffies;
 	return 0;
 }
 

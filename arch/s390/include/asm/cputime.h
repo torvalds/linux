@@ -11,7 +11,7 @@
 
 #include <asm/div64.h>
 
-/* We want to use micro-second resolution. */
+/* We want to use full resolution of the CPU timer: 2**-12 micro-seconds. */
 
 typedef unsigned long long cputime_t;
 typedef unsigned long long cputime64_t;
@@ -53,9 +53,9 @@ __div(unsigned long long n, unsigned int base)
 #define cputime_ge(__a, __b)		((__a) >= (__b))
 #define cputime_lt(__a, __b)		((__a) <  (__b))
 #define cputime_le(__a, __b)		((__a) <= (__b))
-#define cputime_to_jiffies(__ct)	(__div((__ct), 1000000 / HZ))
+#define cputime_to_jiffies(__ct)	(__div((__ct), 4096000000ULL / HZ))
 #define cputime_to_scaled(__ct)		(__ct)
-#define jiffies_to_cputime(__hz)	((cputime_t)(__hz) * (1000000 / HZ))
+#define jiffies_to_cputime(__hz)	((cputime_t)(__hz) * (4096000000ULL / HZ))
 
 #define cputime64_zero			(0ULL)
 #define cputime64_add(__a, __b)		((__a) + (__b))
@@ -64,7 +64,7 @@ __div(unsigned long long n, unsigned int base)
 static inline u64
 cputime64_to_jiffies64(cputime64_t cputime)
 {
-	do_div(cputime, 1000000 / HZ);
+	do_div(cputime, 4096000000ULL / HZ);
 	return cputime;
 }
 
@@ -74,13 +74,13 @@ cputime64_to_jiffies64(cputime64_t cputime)
 static inline unsigned int
 cputime_to_msecs(const cputime_t cputime)
 {
-	return __div(cputime, 1000);
+	return __div(cputime, 4096000);
 }
 
 static inline cputime_t
 msecs_to_cputime(const unsigned int m)
 {
-	return (cputime_t) m * 1000;
+	return (cputime_t) m * 4096000;
 }
 
 /*
@@ -89,13 +89,13 @@ msecs_to_cputime(const unsigned int m)
 static inline unsigned int
 cputime_to_secs(const cputime_t cputime)
 {
-	return __div(cputime, 1000000);
+	return __div(cputime, 2048000000) >> 1;
 }
 
 static inline cputime_t
 secs_to_cputime(const unsigned int s)
 {
-	return (cputime_t) s * 1000000;
+	return (cputime_t) s * 4096000000ULL;
 }
 
 /*
@@ -104,7 +104,7 @@ secs_to_cputime(const unsigned int s)
 static inline cputime_t
 timespec_to_cputime(const struct timespec *value)
 {
-        return value->tv_nsec / 1000 + (u64) value->tv_sec * 1000000;
+	return value->tv_nsec * 4096 / 1000 + (u64) value->tv_sec * 4096000000ULL;
 }
 
 static inline void
@@ -114,12 +114,12 @@ cputime_to_timespec(const cputime_t cputime, struct timespec *value)
 	register_pair rp;
 
 	rp.pair = cputime >> 1;
-	asm ("dr %0,%1" : "+d" (rp) : "d" (1000000 >> 1));
-	value->tv_nsec = rp.subreg.even * 1000;
+	asm ("dr %0,%1" : "+d" (rp) : "d" (2048000000UL));
+	value->tv_nsec = rp.subreg.even * 1000 / 4096;
 	value->tv_sec = rp.subreg.odd;
 #else
-	value->tv_nsec = (cputime % 1000000) * 1000;
-	value->tv_sec = cputime / 1000000;
+	value->tv_nsec = (cputime % 4096000000ULL) * 1000 / 4096;
+	value->tv_sec = cputime / 4096000000ULL;
 #endif
 }
 
@@ -131,7 +131,7 @@ cputime_to_timespec(const cputime_t cputime, struct timespec *value)
 static inline cputime_t
 timeval_to_cputime(const struct timeval *value)
 {
-        return value->tv_usec + (u64) value->tv_sec * 1000000;
+	return value->tv_usec * 4096 + (u64) value->tv_sec * 4096000000ULL;
 }
 
 static inline void
@@ -141,12 +141,12 @@ cputime_to_timeval(const cputime_t cputime, struct timeval *value)
 	register_pair rp;
 
 	rp.pair = cputime >> 1;
-	asm ("dr %0,%1" : "+d" (rp) : "d" (1000000 >> 1));
-	value->tv_usec = rp.subreg.even;
+	asm ("dr %0,%1" : "+d" (rp) : "d" (2048000000UL));
+	value->tv_usec = rp.subreg.even / 4096;
 	value->tv_sec = rp.subreg.odd;
 #else
-	value->tv_usec = cputime % 1000000;
-	value->tv_sec = cputime / 1000000;
+	value->tv_usec = cputime % 4096000000ULL;
+	value->tv_sec = cputime / 4096000000ULL;
 #endif
 }
 
@@ -156,13 +156,13 @@ cputime_to_timeval(const cputime_t cputime, struct timeval *value)
 static inline clock_t
 cputime_to_clock_t(cputime_t cputime)
 {
-	return __div(cputime, 1000000 / USER_HZ);
+	return __div(cputime, 4096000000ULL / USER_HZ);
 }
 
 static inline cputime_t
 clock_t_to_cputime(unsigned long x)
 {
-	return (cputime_t) x * (1000000 / USER_HZ);
+	return (cputime_t) x * (4096000000ULL / USER_HZ);
 }
 
 /*
@@ -171,7 +171,7 @@ clock_t_to_cputime(unsigned long x)
 static inline clock_t
 cputime64_to_clock_t(cputime64_t cputime)
 {
-       return __div(cputime, 1000000 / USER_HZ);
+       return __div(cputime, 4096000000ULL / USER_HZ);
 }
 
 #endif /* _S390_CPUTIME_H */

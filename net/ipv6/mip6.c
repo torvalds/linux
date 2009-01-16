@@ -205,6 +205,7 @@ static inline int mip6_report_rl_allow(struct timeval *stamp,
 
 static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct flowi *fl)
 {
+	struct net *net = xs_net(x);
 	struct inet6_skb_parm *opt = (struct inet6_skb_parm *)skb->cb;
 	struct ipv6_destopt_hao *hao = NULL;
 	struct xfrm_selector sel;
@@ -247,7 +248,7 @@ static int mip6_destopt_reject(struct xfrm_state *x, struct sk_buff *skb, struct
 		sel.sport_mask = htons(~0);
 	sel.ifindex = fl->oif;
 
-	err = km_report(IPPROTO_DSTOPTS, &sel,
+	err = km_report(net, IPPROTO_DSTOPTS, &sel,
 			(hao ? (xfrm_address_t *)&hao->addr : NULL));
 
  out:

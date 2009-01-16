@@ -4,7 +4,7 @@
  * Copyright (c) 1994-1998 Initio Corporation
  * Copyright (c) 1998 Bas Vermeulen <bvermeul@blackstar.xs4all.nl>
  * Copyright (c) 2004 Christoph Hellwig <hch@lst.de>
- * Copyright (c) 2007 Red Hat <alan@redhat.com>
+ * Copyright (c) 2007 Red Hat
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

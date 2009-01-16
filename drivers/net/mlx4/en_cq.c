@@ -51,10 +51,13 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	int err;
 
 	cq->size = entries;
-	if (mode == RX)
+	if (mode == RX) {
 		cq->buf_size = cq->size * sizeof(struct mlx4_cqe);
-	else
+		cq->vector   = ring % mdev->dev->caps.num_comp_vectors;
+	} else {
 		cq->buf_size = sizeof(struct mlx4_cqe);
+		cq->vector   = 0;
+	}
 
 	cq->ring = ring;
 	cq->is_tx = mode;
@@ -68,6 +71,8 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	err = mlx4_en_map_buffer(&cq->wqres.buf);
 	if (err)
 		mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
+	else
+		cq->buf = (struct mlx4_cqe *) cq->wqres.buf.direct.buf;
 
 	return err;
 }
@@ -82,11 +87,10 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 	cq->mcq.arm_db     = cq->wqres.db.db + 1;
 	*cq->mcq.set_ci_db = 0;
 	*cq->mcq.arm_db    = 0;
-	cq->buf = (struct mlx4_cqe *) cq->wqres.buf.direct.buf;
 	memset(cq->buf, 0, cq->buf_size);
 
 	err = mlx4_cq_alloc(mdev->dev, cq->size, &cq->wqres.mtt, &mdev->priv_uar,
-			    cq->wqres.db.dma, &cq->mcq, cq->is_tx);
+			    cq->wqres.db.dma, &cq->mcq, cq->vector, cq->is_tx);
 	if (err)
 		return err;
 
@@ -136,7 +140,6 @@ int mlx4_en_set_cq_moder(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 
 int mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 {
-	cq->armed = 1;
 	mlx4_cq_arm(&cq->mcq, MLX4_CQ_DB_REQ_NOT, priv->mdev->uar_map,
 		    &priv->mdev->uar_lock);
 

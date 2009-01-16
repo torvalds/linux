@@ -1381,7 +1381,6 @@ static void sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 	st = per_cpu_ptr(sge->port_stats[p->iff], smp_processor_id());
 
 	skb->protocol = eth_type_trans(skb, adapter->port[p->iff].dev);
-	skb->dev->last_rx = jiffies;
 	if ((adapter->flags & RX_CSUM_ENABLED) && p->csum == 0xffff &&
 	    skb->protocol == htons(ETH_P_IP) &&
 	    (skb->data[9] == IPPROTO_TCP || skb->data[9] == IPPROTO_UDP)) {
@@ -1610,11 +1609,10 @@ static int process_pure_responses(struct adapter *adapter)
 int t1_poll(struct napi_struct *napi, int budget)
 {
 	struct adapter *adapter = container_of(napi, struct adapter, napi);
-	struct net_device *dev = adapter->port[0].dev;
 	int work_done = process_responses(adapter, budget);
 
 	if (likely(work_done < budget)) {
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		writel(adapter->sge->respQ.cidx,
 		       adapter->regs + A_SG_SLEEPING);
 	}
@@ -1628,13 +1626,11 @@ irqreturn_t t1_interrupt(int irq, void *data)
 	int handled;
 
 	if (likely(responses_pending(adapter))) {
-		struct net_device *dev = sge->netdev;
-
 		writel(F_PL_INTR_SGE_DATA, adapter->regs + A_PL_CAUSE);
 
 		if (napi_schedule_prep(&adapter->napi)) {
 			if (process_pure_responses(adapter))
-				__netif_rx_schedule(dev, &adapter->napi);
+				__netif_rx_schedule(&adapter->napi);
 			else {
 				/* no data, no NAPI needed */
 				writel(sge->respQ.cidx, adapter->regs + A_SG_SLEEPING);
@@ -1782,7 +1778,7 @@ static inline int eth_hdr_len(const void *data)
  */
 int t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct adapter *adapter = dev->priv;
+	struct adapter *adapter = dev->ml_priv;
 	struct sge *sge = adapter->sge;
 	struct sge_port_stats *st = per_cpu_ptr(sge->port_stats[dev->if_port],
 						smp_processor_id());

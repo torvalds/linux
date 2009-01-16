@@ -875,7 +875,8 @@ static struct snd_kcontrol_new snapper_mixers[] __initdata = {
 	  .put = tumbler_put_master_switch
 	},
 	DEFINE_SNAPPER_MIX("PCM Playback Volume", 0, VOL_IDX_PCM),
-	DEFINE_SNAPPER_MIX("PCM Playback Volume", 1, VOL_IDX_PCM2),
+	/* Alternative PCM is assigned to Mic analog loopback on iBook G4 */
+	DEFINE_SNAPPER_MIX("Mic Playback Volume", 0, VOL_IDX_PCM2),
 	DEFINE_SNAPPER_MIX("Monitor Mix Volume", 0, VOL_IDX_ADC),
 	DEFINE_SNAPPER_MONO("Tone Control - Bass", bass),
 	DEFINE_SNAPPER_MONO("Tone Control - Treble", treble),

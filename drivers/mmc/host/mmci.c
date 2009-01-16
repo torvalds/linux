@@ -500,7 +500,7 @@ static int mmci_probe(struct amba_device *dev, void *id)
 	}
 
 	host = mmc_priv(mmc);
-	host->clk = clk_get(&dev->dev, "MCLK");
+	host->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
 		host->clk = NULL;

@@ -481,3 +481,28 @@ __xsc3_proc_info:
 	.long	xsc3_mc_user_fns
 	.long	xsc3_cache_fns
 	.size	__xsc3_proc_info, . - __xsc3_proc_info
+
+/* Note: PXA935 changed its implementor ID from Intel to Marvell */
+
+	.type	__xsc3_pxa935_proc_info,#object
+__xsc3_pxa935_proc_info:
+	.long	0x56056000
+	.long	0xffffe000
+	.long	PMD_TYPE_SECT | \
+		PMD_SECT_BUFFERABLE | \
+		PMD_SECT_CACHEABLE | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long	PMD_TYPE_SECT | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	b	__xsc3_setup
+	.long	cpu_arch_name
+	.long	cpu_elf_name
+	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP
+	.long	cpu_xsc3_name
+	.long	xsc3_processor_functions
+	.long	v4wbi_tlb_fns
+	.long	xsc3_mc_user_fns
+	.long	xsc3_cache_fns
+	.size	__xsc3_pxa935_proc_info, . - __xsc3_pxa935_proc_info

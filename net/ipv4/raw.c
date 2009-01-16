@@ -247,7 +247,7 @@ static void raw_err(struct sock *sk, struct sk_buff *skb, u32 info)
 	}
 
 	if (inet->recverr) {
-		struct iphdr *iph = (struct iphdr*)skb->data;
+		struct iphdr *iph = (struct iphdr *)skb->data;
 		u8 *payload = skb->data + (iph->ihl << 2);
 
 		if (inet->hdrincl)
@@ -465,7 +465,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	 */
 
 	if (msg->msg_namelen) {
-		struct sockaddr_in *usin = (struct sockaddr_in*)msg->msg_name;
+		struct sockaddr_in *usin = (struct sockaddr_in *)msg->msg_name;
 		err = -EINVAL;
 		if (msg->msg_namelen < sizeof(*usin))
 			goto out;
@@ -572,7 +572,7 @@ back_from_confirm:
 			ipc.addr = rt->rt_dst;
 		lock_sock(sk);
 		err = ip_append_data(sk, ip_generic_getfrag, msg->msg_iov, len, 0,
-					&ipc, rt, msg->msg_flags);
+					&ipc, &rt, msg->msg_flags);
 		if (err)
 			ip_flush_pending_frames(sk);
 		else if (!(msg->msg_flags & MSG_MORE))
@@ -851,7 +851,7 @@ struct proto raw_prot = {
 static struct sock *raw_get_first(struct seq_file *seq)
 {
 	struct sock *sk;
-	struct raw_iter_state* state = raw_seq_private(seq);
+	struct raw_iter_state *state = raw_seq_private(seq);
 
 	for (state->bucket = 0; state->bucket < RAW_HTABLE_SIZE;
 			++state->bucket) {
@@ -868,7 +868,7 @@ found:
 
 static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
 {
-	struct raw_iter_state* state = raw_seq_private(seq);
+	struct raw_iter_state *state = raw_seq_private(seq);
 
 	do {
 		sk = sk_next(sk);

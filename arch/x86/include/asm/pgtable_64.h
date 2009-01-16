@@ -146,7 +146,7 @@ static inline void native_pgd_clear(pgd_t *pgd)
 #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
 
 
-#define MAXMEM		 _AC(0x00003fffffffffff, UL)
+#define MAXMEM		 _AC(__AC(1, UL) << MAX_PHYSMEM_BITS, UL)
 #define VMALLOC_START    _AC(0xffffc20000000000, UL)
 #define VMALLOC_END      _AC(0xffffe1ffffffffff, UL)
 #define VMEMMAP_START	 _AC(0xffffe20000000000, UL)
@@ -175,12 +175,6 @@ static inline int pmd_bad(pmd_t pmd)
 #define pte_present(x)	(pte_val((x)) & (_PAGE_PRESENT | _PAGE_PROTNONE))
 
 #define pages_to_mb(x)	((x) >> (20 - PAGE_SHIFT))   /* FIXME: is this right? */
-
-/*
- * Macro to mark a page protection value as "uncacheable".
- */
-#define pgprot_noncached(prot)					\
-	(__pgprot(pgprot_val((prot)) | _PAGE_PCD | _PAGE_PWT))
 
 /*
  * Conversion functions: convert a page and protection to a page entry,
@@ -250,10 +244,22 @@ static inline int pud_large(pud_t pte)
 extern int direct_gbpages;
 
 /* Encode and de-code a swap entry */
-#define __swp_type(x)			(((x).val >> 1) & 0x3f)
-#define __swp_offset(x)			((x).val >> 8)
-#define __swp_entry(type, offset)	((swp_entry_t) { ((type) << 1) | \
-							 ((offset) << 8) })
+#if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE
+#define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
+#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
+#else
+#define SWP_TYPE_BITS (_PAGE_BIT_PROTNONE - _PAGE_BIT_PRESENT - 1)
+#define SWP_OFFSET_SHIFT (_PAGE_BIT_FILE + 1)
+#endif
+
+#define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
+
+#define __swp_type(x)			(((x).val >> (_PAGE_BIT_PRESENT + 1)) \
+					 & ((1U << SWP_TYPE_BITS) - 1))
+#define __swp_offset(x)			((x).val >> SWP_OFFSET_SHIFT)
+#define __swp_entry(type, offset)	((swp_entry_t) { \
+					 ((type) << (_PAGE_BIT_PRESENT + 1)) \
+					 | ((offset) << SWP_OFFSET_SHIFT) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
 #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
 

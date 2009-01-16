@@ -22,12 +22,14 @@
  * MA 02110-1301, USA.
  */
 
-#include <asm/dma.h>
-
 #ifndef __ASM_ARCH_MXC_DMA_H
 #define __ASM_ARCH_MXC_DMA_H
 
 #define IMX_DMA_CHANNELS  16
+
+#define DMA_MODE_READ		0
+#define DMA_MODE_WRITE		1
+#define DMA_MODE_MASK		1
 
 #define DMA_BASE IO_ADDRESS(DMA_BASE_ADDR)
 
@@ -54,12 +56,12 @@ imx_dma_config_burstlen(int channel, unsigned int burstlen);
 int
 imx_dma_setup_single(int channel, dma_addr_t dma_address,
 		unsigned int dma_length, unsigned int dev_addr,
-		dmamode_t dmamode);
+		unsigned int dmamode);
 
 int
 imx_dma_setup_sg(int channel, struct scatterlist *sg,
 		unsigned int sgcount, unsigned int dma_length,
-		unsigned int dev_addr, dmamode_t dmamode);
+		unsigned int dev_addr, unsigned int dmamode);
 
 int
 imx_dma_setup_handlers(int channel,

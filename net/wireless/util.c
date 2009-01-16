@@ -7,6 +7,25 @@
 #include <asm/bitops.h>
 #include "core.h"
 
+struct ieee80211_rate *
+ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
+			    u64 basic_rates, int bitrate)
+{
+	struct ieee80211_rate *result = &sband->bitrates[0];
+	int i;
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if (!(basic_rates & BIT(i)))
+			continue;
+		if (sband->bitrates[i].bitrate > bitrate)
+			continue;
+		result = &sband->bitrates[i];
+	}
+
+	return result;
+}
+EXPORT_SYMBOL(ieee80211_get_response_rate);
+
 int ieee80211_channel_to_frequency(int chan)
 {
 	if (chan < 14)

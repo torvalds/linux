@@ -77,7 +77,7 @@ static s8 b43_aphy_estimate_power_out(struct b43_wldev *dev, s8 tssi)
 }
 #endif
 
-void b43_radio_set_tx_iq(struct b43_wldev *dev)
+static void b43_radio_set_tx_iq(struct b43_wldev *dev)
 {
 	static const u8 data_high[5] = { 0x00, 0x40, 0x80, 0x90, 0xD0 };
 	static const u8 data_low[5] = { 0x00, 0x01, 0x05, 0x06, 0x0A };
@@ -147,7 +147,7 @@ static void aphy_channel_switch(struct b43_wldev *dev, unsigned int channel)
 //FIXME	b43_phy_xmitpower(dev);
 }
 
-void b43_radio_init2060(struct b43_wldev *dev)
+static void b43_radio_init2060(struct b43_wldev *dev)
 {
 	b43_radio_write16(dev, 0x0004, 0x00C0);
 	b43_radio_write16(dev, 0x0005, 0x0008);

@@ -1,7 +1,7 @@
 /*
  *	Intel SMP support routines.
  *
- *	(c) 1995 Alan Cox, Building #3 <alan@redhat.com>
+ *	(c) 1995 Alan Cox, Building #3 <alan@lxorguk.ukuu.org.uk>
  *	(c) 1998-99, 2000 Ingo Molnar <mingo@redhat.com>
  *      (c) 2002,2003 Andi Kleen, SuSE Labs.
  *
@@ -118,39 +118,33 @@ static void native_smp_send_reschedule(int cpu)
 		WARN_ON(1);
 		return;
 	}
-	send_IPI_mask(cpumask_of_cpu(cpu), RESCHEDULE_VECTOR);
+	send_IPI_mask(cpumask_of(cpu), RESCHEDULE_VECTOR);
 }
 
 void native_send_call_func_single_ipi(int cpu)
 {
-	send_IPI_mask(cpumask_of_cpu(cpu), CALL_FUNCTION_SINGLE_VECTOR);
+	send_IPI_mask(cpumask_of(cpu), CALL_FUNCTION_SINGLE_VECTOR);
 }
 
-void native_send_call_func_ipi(cpumask_t mask)
+void native_send_call_func_ipi(const struct cpumask *mask)
 {
-	cpumask_t allbutself;
+	cpumask_var_t allbutself;
 
-	allbutself = cpu_online_map;
-	cpu_clear(smp_processor_id(), allbutself);
+	if (!alloc_cpumask_var(&allbutself, GFP_ATOMIC)) {
+		send_IPI_mask(mask, CALL_FUNCTION_VECTOR);
+		return;
+	}
 
-	if (cpus_equal(mask, allbutself) &&
-	    cpus_equal(cpu_online_map, cpu_callout_map))
+	cpumask_copy(allbutself, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), allbutself);
+
+	if (cpumask_equal(mask, allbutself) &&
+	    cpumask_equal(cpu_online_mask, cpu_callout_mask))
 		send_IPI_allbutself(CALL_FUNCTION_VECTOR);
 	else
 		send_IPI_mask(mask, CALL_FUNCTION_VECTOR);
-}
 
-static void stop_this_cpu(void *dummy)
-{
-	local_irq_disable();
-	/*
-	 * Remove this CPU:
-	 */
-	cpu_clear(smp_processor_id(), cpu_online_map);
-	disable_local_APIC();
-	if (hlt_works(smp_processor_id()))
-		for (;;) halt();
-	for (;;);
+	free_cpumask_var(allbutself);
 }
 
 /*
@@ -178,11 +172,7 @@ static void native_smp_send_stop(void)
 void smp_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_resched_count++;
-#else
-	add_pda(irq_resched_count, 1);
-#endif
+	inc_irq_stat(irq_resched_count);
 }
 
 void smp_call_function_interrupt(struct pt_regs *regs)
@@ -190,11 +180,7 @@ void smp_call_function_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 	irq_enter();
 	generic_smp_call_function_interrupt();
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_call_count++;
-#else
-	add_pda(irq_call_count, 1);
-#endif
+	inc_irq_stat(irq_call_count);
 	irq_exit();
 }
 
@@ -203,11 +189,7 @@ void smp_call_function_single_interrupt(struct pt_regs *regs)
 	ack_APIC_irq();
 	irq_enter();
 	generic_smp_call_function_single_interrupt();
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_call_count++;
-#else
-	add_pda(irq_call_count, 1);
-#endif
+	inc_irq_stat(irq_call_count);
 	irq_exit();
 }
 

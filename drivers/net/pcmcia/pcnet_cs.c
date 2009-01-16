@@ -554,7 +554,6 @@ static int pcnet_config(struct pcmcia_device *link)
     int last_ret, last_fn, start_pg, stop_pg, cm_offset;
     int has_shmem = 0;
     hw_info_t *local_hw_info;
-    DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "pcnet_config(0x%p)\n", link);
 
@@ -675,7 +674,7 @@ static int pcnet_config(struct pcmcia_device *link)
 	printk (" mem %#5lx,", dev->mem_start);
     if (info->flags & HAS_MISC_REG)
 	printk(" %s xcvr,", if_names[dev->if_port]);
-    printk(" hw_addr %s\n", print_mac(mac, dev->dev_addr));
+    printk(" hw_addr %pM\n", dev->dev_addr);
     return 0;
 
 cs_failed:

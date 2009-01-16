@@ -101,7 +101,7 @@ static LIST_HEAD(br2684_devs);
 
 static inline struct br2684_dev *BRPRIV(const struct net_device *net_dev)
 {
-	return (struct br2684_dev *)net_dev->priv;
+	return (struct br2684_dev *)netdev_priv(net_dev);
 }
 
 static inline struct net_device *list_entry_brdev(const struct list_head *le)
@@ -698,12 +698,11 @@ static int br2684_seq_show(struct seq_file *seq, void *v)
 						    br2684_devs);
 	const struct net_device *net_dev = brdev->net_dev;
 	const struct br2684_vcc *brvcc;
-	DECLARE_MAC_BUF(mac);
 
-	seq_printf(seq, "dev %.16s: num=%d, mac=%s (%s)\n",
+	seq_printf(seq, "dev %.16s: num=%d, mac=%pM (%s)\n",
 		   net_dev->name,
 		   brdev->number,
-		   print_mac(mac, net_dev->dev_addr),
+		   net_dev->dev_addr,
 		   brdev->mac_was_set ? "set" : "auto");
 
 	list_for_each_entry(brvcc, &brdev->brvccs, brvccs) {

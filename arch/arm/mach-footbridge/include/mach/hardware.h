@@ -12,8 +12,6 @@
 #ifndef __ASM_ARCH_HARDWARE_H
 #define __ASM_ARCH_HARDWARE_H
 
-#include <mach/memory.h>
-
 /*   Virtual      Physical	Size
  * 0xff800000	0x40000000	1MB	X-Bus
  * 0xff000000	0x7c000000	1MB	PCI I/O space
@@ -27,9 +25,6 @@
  */
 #define XBUS_SIZE		0x00100000
 #define XBUS_BASE		0xff800000
-
-#define PCIO_SIZE		0x00100000
-#define PCIO_BASE		0xff000000
 
 #define ARMCSR_SIZE		0x00100000
 #define ARMCSR_BASE		0xfe000000
@@ -91,10 +86,11 @@
 #define CPLD_FLASH_WR_ENABLE	1
 
 #ifndef __ASSEMBLY__
-extern void gpio_modify_op(int mask, int set);
-extern void gpio_modify_io(int mask, int in);
-extern int  gpio_read(void);
-extern void cpld_modify(int mask, int set);
+extern spinlock_t nw_gpio_lock;
+extern void nw_gpio_modify_op(unsigned int mask, unsigned int set);
+extern void nw_gpio_modify_io(unsigned int mask, unsigned int in);
+extern unsigned int nw_gpio_read(void);
+extern void nw_cpld_modify(unsigned int mask, unsigned int set);
 #endif
 
 #define pcibios_assign_all_busses()	1

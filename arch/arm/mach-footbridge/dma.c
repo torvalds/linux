@@ -12,6 +12,7 @@
  */
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 
 #include <asm/dma.h>
 #include <asm/scatterlist.h>

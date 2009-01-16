@@ -233,7 +233,7 @@ static int icmpv6_push_pending_frames(struct sock *sk, struct flowi *fl, struct 
 	icmp6h->icmp6_cksum = 0;
 
 	if (skb_queue_len(&sk->sk_write_queue) == 1) {
-		skb->csum = csum_partial((char *)icmp6h,
+		skb->csum = csum_partial(icmp6h,
 					sizeof(struct icmp6hdr), skb->csum);
 		icmp6h->icmp6_cksum = csum_ipv6_magic(&fl->fl6_src,
 						      &fl->fl6_dst,
@@ -246,7 +246,7 @@ static int icmpv6_push_pending_frames(struct sock *sk, struct flowi *fl, struct 
 			tmp_csum = csum_add(tmp_csum, skb->csum);
 		}
 
-		tmp_csum = csum_partial((char *)icmp6h,
+		tmp_csum = csum_partial(icmp6h,
 					sizeof(struct icmp6hdr), tmp_csum);
 		icmp6h->icmp6_cksum = csum_ipv6_magic(&fl->fl6_src,
 						      &fl->fl6_dst,
@@ -427,7 +427,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	/* No need to clone since we're just using its address. */
 	dst2 = dst;
 
-	err = xfrm_lookup(&dst, &fl, sk, 0);
+	err = xfrm_lookup(net, &dst, &fl, sk, 0);
 	switch (err) {
 	case 0:
 		if (dst != dst2)
@@ -446,7 +446,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	if (ip6_dst_lookup(sk, &dst2, &fl))
 		goto relookup_failed;
 
-	err = xfrm_lookup(&dst2, &fl, sk, XFRM_LOOKUP_ICMP);
+	err = xfrm_lookup(net, &dst2, &fl, sk, XFRM_LOOKUP_ICMP);
 	switch (err) {
 	case 0:
 		dst_release(dst);
@@ -552,7 +552,7 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	err = ip6_dst_lookup(sk, &dst, &fl);
 	if (err)
 		goto out;
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+	if ((err = xfrm_lookup(net, &dst, &fl, sk, 0)) < 0)
 		goto out;
 
 	if (ipv6_addr_is_multicast(&fl.fl6_dst))
@@ -646,9 +646,10 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	int type;
 
 	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+		struct sec_path *sp = skb_sec_path(skb);
 		int nh;
 
-		if (!(skb->sp && skb->sp->xvec[skb->sp->len - 1]->props.flags &
+		if (!(sp && sp->xvec[sp->len - 1]->props.flags &
 				 XFRM_STATE_ICMP))
 			goto drop_no_count;
 
@@ -680,8 +681,8 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		skb->csum = ~csum_unfold(csum_ipv6_magic(saddr, daddr, skb->len,
 					     IPPROTO_ICMPV6, 0));
 		if (__skb_checksum_complete(skb)) {
-			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 checksum failed [" NIP6_FMT " > " NIP6_FMT "]\n",
-				       NIP6(*saddr), NIP6(*daddr));
+			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 checksum failed [%pI6 > %pI6]\n",
+				       saddr, daddr);
 			goto discard_it;
 		}
 	}
@@ -955,8 +956,8 @@ ctl_table ipv6_icmp_table_template[] = {
 		.data		= &init_net.ipv6.sysctl.icmpv6_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_ms_jiffies,
-		.strategy	= &sysctl_ms_jiffies
+		.proc_handler	= proc_dointvec_ms_jiffies,
+		.strategy	= sysctl_ms_jiffies
 	},
 	{ .ctl_name = 0 },
 };

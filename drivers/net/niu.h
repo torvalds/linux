@@ -3243,12 +3243,12 @@ struct niu {
 #define NIU_FLAGS_XMAC			0x00010000 /* 0=BMAC 1=XMAC */
 
 	u32				msg_enable;
+	char                            irq_name[NIU_NUM_RXCHAN+NIU_NUM_TXCHAN+3][IFNAMSIZ + 6];
 
 	/* Protects hw programming, and ring state.  */
 	spinlock_t			lock;
 
 	const struct niu_ops		*ops;
-	struct net_device_stats		net_stats;
 	union niu_mac_stats		mac_stats;
 
 	struct rx_ring_info		*rx_rings;

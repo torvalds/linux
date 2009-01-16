@@ -34,7 +34,7 @@ static struct mode_info cga_modes[] = {
 	{ VIDEO_80x25,  80, 25, 0 },
 };
 
-__videocard video_vga;
+static __videocard video_vga;
 
 /* Set basic 80x25 mode */
 static u8 vga_set_basic_mode(void)
@@ -259,7 +259,7 @@ static int vga_probe(void)
 	return mode_count[adapter];
 }
 
-__videocard video_vga = {
+static __videocard video_vga = {
 	.card_name	= "VGA",
 	.probe		= vga_probe,
 	.set_mode	= vga_set_mode,

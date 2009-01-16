@@ -909,7 +909,7 @@ free_urb:
 	 * it might be freed by zd_mac_tx_to_dev or mac80211)
 	 */
 	info = IEEE80211_SKB_CB(skb);
-	usb = &zd_hw_mac(info->driver_data[0])->chip.usb;
+	usb = &zd_hw_mac(info->rate_driver_data[0])->chip.usb;
 	zd_mac_tx_to_dev(skb, urb->status);
 	free_tx_urb(usb, urb);
 	tx_dec_submitted_urbs(usb);
@@ -1065,8 +1065,7 @@ static int eject_installer(struct usb_interface *intf)
 	/* Find bulk out endpoint */
 	endpoint = &iface_desc->endpoint[1].desc;
 	if ((endpoint->bEndpointAddress & USB_TYPE_MASK) == USB_DIR_OUT &&
-	    (endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-	    USB_ENDPOINT_XFER_BULK) {
+	    usb_endpoint_xfer_bulk(endpoint)) {
 		bulk_out_ep = endpoint->bEndpointAddress;
 	} else {
 		dev_err(&udev->dev,

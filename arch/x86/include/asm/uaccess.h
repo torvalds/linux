@@ -157,6 +157,7 @@ extern int __get_user_bad(void);
 	int __ret_gu;							\
 	unsigned long __val_gu;						\
 	__chk_user_ptr(ptr);						\
+	might_fault();							\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
 		__get_user_x(1, __ret_gu, __val_gu, ptr);		\
@@ -241,6 +242,7 @@ extern void __put_user_8(void);
 	int __ret_pu;						\
 	__typeof__(*(ptr)) __pu_val;				\
 	__chk_user_ptr(ptr);					\
+	might_fault();						\
 	__pu_val = x;						\
 	switch (sizeof(*(ptr))) {				\
 	case 1:							\
@@ -350,14 +352,14 @@ do {									\
 
 #define __put_user_nocheck(x, ptr, size)			\
 ({								\
-	long __pu_err;						\
+	int __pu_err;						\
 	__put_user_size((x), (ptr), (size), __pu_err, -EFAULT);	\
 	__pu_err;						\
 })
 
 #define __get_user_nocheck(x, ptr, size)				\
 ({									\
-	long __gu_err;							\
+	int __gu_err;							\
 	unsigned long __gu_val;						\
 	__get_user_size(__gu_val, (ptr), (size), __gu_err, -EFAULT);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\

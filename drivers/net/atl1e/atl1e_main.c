@@ -1326,9 +1326,9 @@ static irqreturn_t atl1e_intr(int irq, void *data)
 			AT_WRITE_REG(hw, REG_IMR,
 				     IMR_NORMAL_MASK & ~ISR_RX_EVENT);
 			AT_WRITE_FLUSH(hw);
-			if (likely(netif_rx_schedule_prep(netdev,
+			if (likely(netif_rx_schedule_prep(
 				   &adapter->napi)))
-				__netif_rx_schedule(netdev, &adapter->napi);
+				__netif_rx_schedule(&adapter->napi);
 		}
 	} while (--max_ints > 0);
 	/* re-enable Interrupt*/
@@ -1460,7 +1460,6 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 				netif_receive_skb(skb);
 			}
 
-			netdev->last_rx = jiffies;
 skip_pkt:
 	/* skip current packet whether it's ok or not. */
 			rx_page->read_offset +=
@@ -1502,7 +1501,6 @@ static int atl1e_clean(struct napi_struct *napi, int budget)
 {
 	struct atl1e_adapter *adapter =
 			container_of(napi, struct atl1e_adapter, napi);
-	struct net_device *netdev  = adapter->netdev;
 	struct pci_dev    *pdev    = adapter->pdev;
 	u32 imr_data;
 	int work_done = 0;
@@ -1516,7 +1514,7 @@ static int atl1e_clean(struct napi_struct *napi, int budget)
 	/* If no Tx and not enough Rx work done, exit the polling mode */
 	if (work_done < budget) {
 quit_polling:
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		imr_data = AT_READ_REG(&adapter->hw, REG_IMR);
 		AT_WRITE_REG(&adapter->hw, REG_IMR, imr_data | ISR_RX_EVENT);
 		/* test debug */
@@ -2254,26 +2252,33 @@ static void atl1e_shutdown(struct pci_dev *pdev)
 	atl1e_suspend(pdev, PMSG_SUSPEND);
 }
 
+static const struct net_device_ops atl1e_netdev_ops = {
+	.ndo_open		= atl1e_open,
+	.ndo_stop		= atl1e_close,
+	.ndo_start_xmit		= atl1e_xmit_frame,
+	.ndo_get_stats		= atl1e_get_stats,
+	.ndo_set_multicast_list	= atl1e_set_multi,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= atl1e_set_mac_addr,
+	.ndo_change_mtu		= atl1e_change_mtu,
+	.ndo_do_ioctl		= atl1e_ioctl,
+	.ndo_tx_timeout		= atl1e_tx_timeout,
+	.ndo_vlan_rx_register	= atl1e_vlan_rx_register,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= atl1e_netpoll,
+#endif
+
+};
+
 static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 {
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	pci_set_drvdata(pdev, netdev);
 
 	netdev->irq  = pdev->irq;
-	netdev->open = &atl1e_open;
-	netdev->stop = &atl1e_close;
-	netdev->hard_start_xmit = &atl1e_xmit_frame;
-	netdev->get_stats = &atl1e_get_stats;
-	netdev->set_multicast_list = &atl1e_set_multi;
-	netdev->set_mac_address = &atl1e_set_mac_addr;
-	netdev->change_mtu = &atl1e_change_mtu;
-	netdev->do_ioctl = &atl1e_ioctl;
-	netdev->tx_timeout = &atl1e_tx_timeout;
+	netdev->netdev_ops = &atl1e_netdev_ops;
+
 	netdev->watchdog_timeo = AT_TX_WATCHDOG;
-	netdev->vlan_rx_register = atl1e_vlan_rx_register;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = atl1e_netpoll;
-#endif
 	atl1e_set_ethtool_ops(netdev);
 
 	netdev->features = NETIF_F_SG | NETIF_F_HW_CSUM |
@@ -2488,7 +2493,7 @@ static pci_ers_result_t
 atl1e_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct atl1e_adapter *adapter = netdev->priv;
+	struct atl1e_adapter *adapter = netdev_priv(netdev);
 
 	netif_device_detach(netdev);
 
@@ -2511,7 +2516,7 @@ atl1e_io_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 static pci_ers_result_t atl1e_io_slot_reset(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct atl1e_adapter *adapter = netdev->priv;
+	struct atl1e_adapter *adapter = netdev_priv(netdev);
 
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev,
@@ -2539,7 +2544,7 @@ static pci_ers_result_t atl1e_io_slot_reset(struct pci_dev *pdev)
 static void atl1e_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
-	struct atl1e_adapter *adapter = netdev->priv;
+	struct atl1e_adapter *adapter = netdev_priv(netdev);
 
 	if (netif_running(netdev)) {
 		if (atl1e_up(adapter)) {

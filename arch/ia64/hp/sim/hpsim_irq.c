@@ -22,7 +22,7 @@ hpsim_irq_noop (unsigned int irq)
 }
 
 static void
-hpsim_set_affinity_noop (unsigned int a, cpumask_t b)
+hpsim_set_affinity_noop(unsigned int a, const struct cpumask *b)
 {
 }
 

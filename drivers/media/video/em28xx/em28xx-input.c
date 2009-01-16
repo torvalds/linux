@@ -38,12 +38,48 @@ static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
-#define dprintk(fmt, arg...) \
+#define i2cdprintk(fmt, arg...) \
 	if (ir_debug) { \
 		printk(KERN_DEBUG "%s/ir: " fmt, ir->c.name , ## arg); \
 	}
 
-/* ----------------------------------------------------------------------- */
+#define dprintk(fmt, arg...) \
+	if (ir_debug) { \
+		printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg); \
+	}
+
+/**********************************************************
+ Polling structure used by em28xx IR's
+ **********************************************************/
+
+struct em28xx_ir_poll_result {
+	unsigned int toggle_bit:1;
+	unsigned int read_count:7;
+	u8 rc_address;
+	u8 rc_data[4]; /* 1 byte on em2860/2880, 4 on em2874 */
+};
+
+struct em28xx_IR {
+	struct em28xx *dev;
+	struct input_dev *input;
+	struct ir_input_state ir;
+	char name[32];
+	char phys[32];
+
+	/* poll external decoder */
+	int polling;
+	struct work_struct work;
+	struct timer_list timer;
+	unsigned int last_toggle:1;
+	unsigned int last_readcount;
+	unsigned int repeat_interval;
+
+	int  (*get_key)(struct em28xx_IR *, struct em28xx_ir_poll_result *);
+};
+
+/**********************************************************
+ I2C IR based get keycodes - should be used with ir-kbd-i2c
+ **********************************************************/
 
 int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
@@ -51,7 +87,7 @@ int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 	/* poll IR chip */
 	if (1 != i2c_master_recv(&ir->c, &b, 1)) {
-		dprintk("read error\n");
+		i2cdprintk("read error\n");
 		return -EIO;
 	}
 
@@ -59,7 +95,7 @@ int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	   down, while 0xff indicates that no button is hold
 	   down. 0xfe sequences are sometimes interrupted by 0xFF */
 
-	dprintk("key %02x\n", b);
+	i2cdprintk("key %02x\n", b);
 
 	if (b == 0xff)
 		return 0;
@@ -72,7 +108,6 @@ int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	*ir_raw = b;
 	return 1;
 }
-
 
 int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
@@ -97,7 +132,7 @@ int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 		 ((buf[0]&0x10)>>3) | /* 0000 0010 */
 		 ((buf[0]&0x20)>>5);  /* 0000 0001 */
 
-	dprintk("ir hauppauge (em2840): code=0x%02x (rcv=0x%02x)\n",
+	i2cdprintk("ir hauppauge (em2840): code=0x%02x (rcv=0x%02x)\n",
 			code, buf[0]);
 
 	/* return key */
@@ -114,11 +149,11 @@ int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 	/* poll IR chip */
 
 	if (3 != i2c_master_recv(&ir->c, buf, 3)) {
-		dprintk("read error\n");
+		i2cdprintk("read error\n");
 		return -EIO;
 	}
 
-	dprintk("key %02x\n", buf[2]&0x3f);
+	i2cdprintk("key %02x\n", buf[2]&0x3f);
 	if (buf[0] != 0x00)
 		return 0;
 
@@ -127,6 +162,260 @@ int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
 
 	return 1;
 }
+
+/**********************************************************
+ Poll based get keycode functions
+ **********************************************************/
+
+/* This is for the em2860/em2880 */
+static int default_polling_getkey(struct em28xx_IR *ir,
+				  struct em28xx_ir_poll_result *poll_result)
+{
+	struct em28xx *dev = ir->dev;
+	int rc;
+	u8 msg[3] = { 0, 0, 0 };
+
+	/* Read key toggle, brand, and key code
+	   on registers 0x45, 0x46 and 0x47
+	 */
+	rc = dev->em28xx_read_reg_req_len(dev, 0, EM28XX_R45_IR,
+					  msg, sizeof(msg));
+	if (rc < 0)
+		return rc;
+
+	/* Infrared toggle (Reg 0x45[7]) */
+	poll_result->toggle_bit = (msg[0] >> 7);
+
+	/* Infrared read count (Reg 0x45[6:0] */
+	poll_result->read_count = (msg[0] & 0x7f);
+
+	/* Remote Control Address (Reg 0x46) */
+	poll_result->rc_address = msg[1];
+
+	/* Remote Control Data (Reg 0x47) */
+	poll_result->rc_data[0] = msg[2];
+
+	return 0;
+}
+
+static int em2874_polling_getkey(struct em28xx_IR *ir,
+				 struct em28xx_ir_poll_result *poll_result)
+{
+	struct em28xx *dev = ir->dev;
+	int rc;
+	u8 msg[5] = { 0, 0, 0, 0, 0 };
+
+	/* Read key toggle, brand, and key code
+	   on registers 0x51-55
+	 */
+	rc = dev->em28xx_read_reg_req_len(dev, 0, EM2874_R51_IR,
+					  msg, sizeof(msg));
+	if (rc < 0)
+		return rc;
+
+	/* Infrared toggle (Reg 0x51[7]) */
+	poll_result->toggle_bit = (msg[0] >> 7);
+
+	/* Infrared read count (Reg 0x51[6:0] */
+	poll_result->read_count = (msg[0] & 0x7f);
+
+	/* Remote Control Address (Reg 0x52) */
+	poll_result->rc_address = msg[1];
+
+	/* Remote Control Data (Reg 0x53-55) */
+	poll_result->rc_data[0] = msg[2];
+	poll_result->rc_data[1] = msg[3];
+	poll_result->rc_data[2] = msg[4];
+
+	return 0;
+}
+
+/**********************************************************
+ Polling code for em28xx
+ **********************************************************/
+
+static void em28xx_ir_handle_key(struct em28xx_IR *ir)
+{
+	int result;
+	int do_sendkey = 0;
+	struct em28xx_ir_poll_result poll_result;
+
+	/* read the registers containing the IR status */
+	result = ir->get_key(ir, &poll_result);
+	if (result < 0) {
+		dprintk("ir->get_key() failed %d\n", result);
+		return;
+	}
+
+	dprintk("ir->get_key result tb=%02x rc=%02x lr=%02x data=%02x\n",
+		poll_result.toggle_bit, poll_result.read_count,
+		ir->last_readcount, poll_result.rc_data[0]);
+
+	if (ir->dev->chip_id == CHIP_ID_EM2874) {
+		/* The em2874 clears the readcount field every time the
+		   register is read.  The em2860/2880 datasheet says that it
+		   is supposed to clear the readcount, but it doesn't.  So with
+		   the em2874, we are looking for a non-zero read count as
+		   opposed to a readcount that is incrementing */
+		ir->last_readcount = 0;
+	}
+
+	if (poll_result.read_count == 0) {
+		/* The button has not been pressed since the last read */
+	} else if (ir->last_toggle != poll_result.toggle_bit) {
+		/* A button has been pressed */
+		dprintk("button has been pressed\n");
+		ir->last_toggle = poll_result.toggle_bit;
+		ir->repeat_interval = 0;
+		do_sendkey = 1;
+	} else if (poll_result.toggle_bit == ir->last_toggle &&
+		   poll_result.read_count > 0 &&
+		   poll_result.read_count != ir->last_readcount) {
+		/* The button is still being held down */
+		dprintk("button being held down\n");
+
+		/* Debouncer for first keypress */
+		if (ir->repeat_interval++ > 9) {
+			/* Start repeating after 1 second */
+			do_sendkey = 1;
+		}
+	}
+
+	if (do_sendkey) {
+		dprintk("sending keypress\n");
+		ir_input_keydown(ir->input, &ir->ir, poll_result.rc_data[0],
+				 poll_result.rc_data[0]);
+		ir_input_nokey(ir->input, &ir->ir);
+	}
+
+	ir->last_readcount = poll_result.read_count;
+	return;
+}
+
+static void ir_timer(unsigned long data)
+{
+	struct em28xx_IR *ir = (struct em28xx_IR *)data;
+
+	schedule_work(&ir->work);
+}
+
+static void em28xx_ir_work(struct work_struct *work)
+{
+	struct em28xx_IR *ir = container_of(work, struct em28xx_IR, work);
+
+	em28xx_ir_handle_key(ir);
+	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
+}
+
+static void em28xx_ir_start(struct em28xx_IR *ir)
+{
+	setup_timer(&ir->timer, ir_timer, (unsigned long)ir);
+	INIT_WORK(&ir->work, em28xx_ir_work);
+	schedule_work(&ir->work);
+}
+
+static void em28xx_ir_stop(struct em28xx_IR *ir)
+{
+	del_timer_sync(&ir->timer);
+	flush_scheduled_work();
+}
+
+int em28xx_ir_init(struct em28xx *dev)
+{
+	struct em28xx_IR *ir;
+	struct input_dev *input_dev;
+	u8 ir_config;
+	int err = -ENOMEM;
+
+	if (dev->board.ir_codes == NULL) {
+		/* No remote control support */
+		return 0;
+	}
+
+	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!ir || !input_dev)
+		goto err_out_free;
+
+	ir->input = input_dev;
+
+	/* Setup the proper handler based on the chip */
+	switch (dev->chip_id) {
+	case CHIP_ID_EM2860:
+	case CHIP_ID_EM2883:
+		ir->get_key = default_polling_getkey;
+		break;
+	case CHIP_ID_EM2874:
+		ir->get_key = em2874_polling_getkey;
+		/* For now we only support RC5, so enable it */
+		ir_config = EM2874_IR_RC5;
+		em28xx_write_regs(dev, EM2874_R50_IR_CONFIG, &ir_config, 1);
+		break;
+	default:
+		printk("Unrecognized em28xx chip id: IR not supported\n");
+		goto err_out_free;
+	}
+
+	/* This is how often we ask the chip for IR information */
+	ir->polling = 100; /* ms */
+
+	/* init input device */
+	snprintf(ir->name, sizeof(ir->name), "em28xx IR (%s)",
+						dev->name);
+
+	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
+	strlcat(ir->phys, "/input0", sizeof(ir->phys));
+
+	ir_input_init(input_dev, &ir->ir, IR_TYPE_OTHER, dev->board.ir_codes);
+	input_dev->name = ir->name;
+	input_dev->phys = ir->phys;
+	input_dev->id.bustype = BUS_USB;
+	input_dev->id.version = 1;
+	input_dev->id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
+	input_dev->id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
+
+	input_dev->dev.parent = &dev->udev->dev;
+	/* record handles to ourself */
+	ir->dev = dev;
+	dev->ir = ir;
+
+	em28xx_ir_start(ir);
+
+	/* all done */
+	err = input_register_device(ir->input);
+	if (err)
+		goto err_out_stop;
+
+	return 0;
+ err_out_stop:
+	em28xx_ir_stop(ir);
+	dev->ir = NULL;
+ err_out_free:
+	input_free_device(input_dev);
+	kfree(ir);
+	return err;
+}
+
+int em28xx_ir_fini(struct em28xx *dev)
+{
+	struct em28xx_IR *ir = dev->ir;
+
+	/* skip detach on non attached boards */
+	if (!ir)
+		return 0;
+
+	em28xx_ir_stop(ir);
+	input_unregister_device(ir->input);
+	kfree(ir);
+
+	/* done */
+	dev->ir = NULL;
+	return 0;
+}
+
+/**********************************************************
+ Handle Webcam snapshot button
+ **********************************************************/
 
 static void em28xx_query_sbutton(struct work_struct *work)
 {
@@ -210,9 +499,3 @@ void em28xx_deregister_snapshot_button(struct em28xx *dev)
 	}
 	return;
 }
-
-/* ----------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

@@ -76,6 +76,10 @@ enum nes_timer_type {
 	NES_TIMER_TYPE_CLOSE,
 };
 
+#define NES_PASSIVE_STATE_INDICATED	0
+#define NES_DO_NOT_SEND_RESET_EVENT	1
+#define NES_SEND_RESET_EVENT		2
+
 #define MAX_NES_IFS 4
 
 #define SET_ACK 1
@@ -161,6 +165,8 @@ struct nes_timer_entry {
 
 #define NES_CM_DEF_SEQ2      0x18ed5740
 #define NES_CM_DEF_LOCAL_ID2 0xb807
+#define	MAX_CM_BUFFER	512
+
 
 typedef u32 nes_addr_t;
 
@@ -254,8 +260,6 @@ struct nes_cm_listener {
 
 /* per connection node and node state information */
 struct nes_cm_node {
-	u32                       hashkey;
-
 	nes_addr_t                loc_addr, rem_addr;
 	u16                       loc_port, rem_port;
 
@@ -292,7 +296,10 @@ struct nes_cm_node {
 	int                       apbvt_set;
 	int                       accept_pend;
 	int			freed;
+	struct list_head	timer_entry;
+	struct list_head	reset_entry;
 	struct nes_qp		*nesqp;
+	atomic_t 		passive_state;
 };
 
 /* structure for client or CM to fill when making CM api calls. */
@@ -350,7 +357,6 @@ struct nes_cm_core {
 	u32                     mtu;
 	u32                     free_tx_pkt_max;
 	u32                     rx_pkt_posted;
-	struct sk_buff_head     tx_free_list;
 	atomic_t                ht_node_cnt;
 	struct list_head        connected_nodes;
 	/* struct list_head hashtable[NES_CM_HASHTABLE_SIZE]; */
@@ -390,7 +396,7 @@ struct nes_cm_ops {
 			struct nes_cm_node *);
 	int (*reject)(struct nes_cm_core *, struct ietf_mpa_frame *,
 			struct nes_cm_node *);
-	void (*recv_pkt)(struct nes_cm_core *, struct nes_vnic *,
+	int (*recv_pkt)(struct nes_cm_core *, struct nes_vnic *,
 			struct sk_buff *);
 	int (*destroy_cm_core)(struct nes_cm_core *);
 	int (*get)(struct nes_cm_core *);

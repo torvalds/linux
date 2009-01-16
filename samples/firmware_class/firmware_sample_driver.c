@@ -100,7 +100,7 @@ static void sample_probe_async(void)
 		       " request_firmware_nowait failed\n");
 }
 
-static int sample_init(void)
+static int __init sample_init(void)
 {
 	device_initialize(&ghost_device);
 	/* since there is no real hardware insertion I just call the

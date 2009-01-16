@@ -13,20 +13,21 @@
 
 #ifdef CONFIG_GUSA_RB
 #include <asm/bitops-grb.h>
+#elif defined(CONFIG_CPU_SH2A)
+#include <asm-generic/bitops/atomic.h>
+#include <asm/bitops-op32.h>
 #elif defined(CONFIG_CPU_SH4A)
 #include <asm/bitops-llsc.h>
 #else
-#include <asm/bitops-irq.h>
+#include <asm-generic/bitops/atomic.h>
+#include <asm-generic/bitops/non-atomic.h>
 #endif
-
 
 /*
  * clear_bit() doesn't provide any barrier for the compiler.
  */
 #define smp_mb__before_clear_bit()	barrier()
 #define smp_mb__after_clear_bit()	barrier()
-
-#include <asm-generic/bitops/non-atomic.h>
 
 #ifdef CONFIG_SUPERH32
 static inline unsigned long ffz(unsigned long word)

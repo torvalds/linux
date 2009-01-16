@@ -151,7 +151,7 @@ static struct ctl_table udplite_sysctl_table[] = {
 		.data		= &nf_ct_udplite_timeout,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -159,7 +159,7 @@ static struct ctl_table udplite_sysctl_table[] = {
 		.data		= &nf_ct_udplite_timeout_stream,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.ctl_name	= 0

@@ -22,8 +22,8 @@
 #include <asm/div64.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+#include <mach/hardware.h>
 #include <mach/pxa-regs.h>
-#include <asm/mach-types.h>
 
 /*
  * This is PXA's sched_clock implementation. This has a resolution
@@ -122,7 +122,6 @@ static struct clock_event_device ckevt_pxa_osmr0 = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.rating		= 200,
-	.cpumask	= CPU_MASK_CPU0,
 	.set_next_event	= pxa_osmr0_set_next_event,
 	.set_mode	= pxa_osmr0_set_mode,
 };
@@ -150,17 +149,10 @@ static struct irqaction pxa_ost0_irq = {
 
 static void __init pxa_timer_init(void)
 {
-	unsigned long clock_tick_rate;
+	unsigned long clock_tick_rate = get_clock_tick_rate();
 
 	OIER = 0;
 	OSSR = OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3;
-
-	if (cpu_is_pxa25x())
-		clock_tick_rate = 3686400;
-	else if (machine_is_mainstone())
-		clock_tick_rate = 3249600;
-	else
-		clock_tick_rate = 3250000;
 
 	set_oscr2ns_scale(clock_tick_rate);
 
@@ -170,6 +162,7 @@ static void __init pxa_timer_init(void)
 		clockevent_delta2ns(0x7fffffff, &ckevt_pxa_osmr0);
 	ckevt_pxa_osmr0.min_delta_ns =
 		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_pxa_osmr0) + 1;
+	ckevt_pxa_osmr0.cpumask = cpumask_of(0);
 
 	cksrc_pxa_oscr0.mult =
 		clocksource_hz2mult(clock_tick_rate, cksrc_pxa_oscr0.shift);

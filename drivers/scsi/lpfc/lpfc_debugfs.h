@@ -21,7 +21,7 @@
 #ifndef _H_LPFC_DEBUG_FS
 #define _H_LPFC_DEBUG_FS
 
-#ifdef CONFIG_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 struct lpfc_debugfs_trc {
 	char *fmt;
 	uint32_t data1;

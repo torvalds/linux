@@ -463,9 +463,19 @@ A partial list of the supported mount options follows:
 		with cifs style mandatory byte range locks (and most
 		cifs servers do not yet support requesting advisory
 		byte range locks).
+ forcemandatorylock Even if the server supports posix (advisory) byte range
+		locking, send only mandatory lock requests.  For some
+		(presumably rare) applications, originally coded for
+		DOS/Windows, which require Windows style mandatory byte range
+		locking, they may be able to take advantage of this option,
+		forcing the cifs client to only send mandatory locks
+		even if the cifs server would support posix advisory locks.
+		"forcemand" is accepted as a shorter form of this mount
+		option.
  nodfs          Disable DFS (global name space support) even if the
 		server claims to support it.  This can help work around
-		a problem with parsing of DFS paths with Samba 3.0.24 server.
+		a problem with parsing of DFS paths with Samba server
+		versions 3.0.24 and 3.0.25.
  remount        remount the share (often used to change from ro to rw mounts
 	        or vice versa)
  cifsacl        Report mode bits (e.g. on stat) based on the Windows ACL for

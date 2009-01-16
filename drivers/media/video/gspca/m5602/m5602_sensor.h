@@ -49,22 +49,20 @@ struct m5602_sensor {
 	/* What i2c address the sensor is connected to */
 	u8 i2c_slave_id;
 
+	/* Width of each i2c register (in bytes) */
+	u8 i2c_regW;
+
 	/* Probes if the sensor is connected */
 	int (*probe)(struct sd *sd);
 
 	/* Performs a initialization sequence */
 	int (*init)(struct sd *sd);
 
+	/* Executed when the camera starts to send data */
+	int (*start)(struct sd *sd);
+
 	/* Performs a power down sequence */
 	int (*power_down)(struct sd *sd);
-
-	/* Reads a sensor register */
-	int (*read_sensor)(struct sd *sd, const u8 address,
-	      u8 *i2c_data, const u8 len);
-
-	/* Writes to a sensor register */
-	int (*write_sensor)(struct sd *sd, const u8 address,
-	      u8 *i2c_data, const u8 len);
 
 	int nctrls;
 	struct ctrl ctrls[M5602_MAX_CTRLS];

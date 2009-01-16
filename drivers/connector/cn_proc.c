@@ -106,6 +106,7 @@ void proc_id_connector(struct task_struct *task, int which_id)
 	struct proc_event *ev;
 	__u8 buffer[CN_PROC_MSG_SIZE];
 	struct timespec ts;
+	const struct cred *cred;
 
 	if (atomic_read(&proc_event_num_listeners) < 1)
 		return;
@@ -115,14 +116,19 @@ void proc_id_connector(struct task_struct *task, int which_id)
 	ev->what = which_id;
 	ev->event_data.id.process_pid = task->pid;
 	ev->event_data.id.process_tgid = task->tgid;
+	rcu_read_lock();
+	cred = __task_cred(task);
 	if (which_id == PROC_EVENT_UID) {
-	 	ev->event_data.id.r.ruid = task->uid;
-	 	ev->event_data.id.e.euid = task->euid;
+		ev->event_data.id.r.ruid = cred->uid;
+		ev->event_data.id.e.euid = cred->euid;
 	} else if (which_id == PROC_EVENT_GID) {
-	   	ev->event_data.id.r.rgid = task->gid;
-	   	ev->event_data.id.e.egid = task->egid;
-	} else
+		ev->event_data.id.r.rgid = cred->gid;
+		ev->event_data.id.e.egid = cred->egid;
+	} else {
+		rcu_read_unlock();
 	     	return;
+	}
+	rcu_read_unlock();
 	get_seq(&msg->seq, &ev->cpu);
 	ktime_get_ts(&ts); /* get high res monotonic timestamp */
 	put_unaligned(timespec_to_ns(&ts), (__u64 *)&ev->timestamp_ns);

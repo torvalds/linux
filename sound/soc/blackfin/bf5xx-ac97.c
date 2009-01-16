@@ -54,71 +54,103 @@
 static int *cmd_count;
 static int sport_num = CONFIG_SND_BF5XX_SPORT_NUM;
 
-#if defined(CONFIG_BF54x)
+static u16 sport_req[][7] = {
+		PIN_REQ_SPORT_0,
+#ifdef PIN_REQ_SPORT_1
+		PIN_REQ_SPORT_1,
+#endif
+#ifdef PIN_REQ_SPORT_2
+		PIN_REQ_SPORT_2,
+#endif
+#ifdef PIN_REQ_SPORT_3
+		PIN_REQ_SPORT_3,
+#endif
+	};
+
 static struct sport_param sport_params[4] = {
-	{
-		.dma_rx_chan	= CH_SPORT0_RX,
-		.dma_tx_chan	= CH_SPORT0_TX,
-		.err_irq	= IRQ_SPORT0_ERR,
-		.regs		= (struct sport_register *)SPORT0_TCR1,
-	},
-	{
-		.dma_rx_chan	= CH_SPORT1_RX,
-		.dma_tx_chan	= CH_SPORT1_TX,
-		.err_irq	= IRQ_SPORT1_ERR,
-		.regs		= (struct sport_register *)SPORT1_TCR1,
-	},
-	{
-		.dma_rx_chan	= CH_SPORT2_RX,
-		.dma_tx_chan	= CH_SPORT2_TX,
-		.err_irq	= IRQ_SPORT2_ERR,
-		.regs		= (struct sport_register *)SPORT2_TCR1,
-	},
-	{
-		.dma_rx_chan	= CH_SPORT3_RX,
-		.dma_tx_chan	= CH_SPORT3_TX,
-		.err_irq	= IRQ_SPORT3_ERR,
-		.regs		= (struct sport_register *)SPORT3_TCR1,
-	}
-};
-#else
-static struct sport_param sport_params[2] = {
 	{
 		.dma_rx_chan	= CH_SPORT0_RX,
 		.dma_tx_chan	= CH_SPORT0_TX,
 		.err_irq	= IRQ_SPORT0_ERROR,
 		.regs		= (struct sport_register *)SPORT0_TCR1,
 	},
+#ifdef PIN_REQ_SPORT_1
 	{
 		.dma_rx_chan	= CH_SPORT1_RX,
 		.dma_tx_chan	= CH_SPORT1_TX,
 		.err_irq	= IRQ_SPORT1_ERROR,
 		.regs		= (struct sport_register *)SPORT1_TCR1,
-	}
-};
+	},
 #endif
+#ifdef PIN_REQ_SPORT_2
+	{
+		.dma_rx_chan	= CH_SPORT2_RX,
+		.dma_tx_chan	= CH_SPORT2_TX,
+		.err_irq	= IRQ_SPORT2_ERROR,
+		.regs		= (struct sport_register *)SPORT2_TCR1,
+	},
+#endif
+#ifdef PIN_REQ_SPORT_3
+	{
+		.dma_rx_chan	= CH_SPORT3_RX,
+		.dma_tx_chan	= CH_SPORT3_TX,
+		.err_irq	= IRQ_SPORT3_ERROR,
+		.regs		= (struct sport_register *)SPORT3_TCR1,
+	}
+#endif
+};
 
-void bf5xx_pcm_to_ac97(struct ac97_frame *dst, const __u32 *src, \
-		size_t count)
+void bf5xx_pcm_to_ac97(struct ac97_frame *dst, const __u16 *src,
+		size_t count, unsigned int chan_mask)
 {
 	while (count--) {
-		dst->ac97_tag = TAG_VALID | TAG_PCM;
-		(dst++)->ac97_pcm = *src++;
+		dst->ac97_tag = TAG_VALID;
+		if (chan_mask & SP_FL) {
+			dst->ac97_pcm_r = *src++;
+			dst->ac97_tag |= TAG_PCM_RIGHT;
+		}
+		if (chan_mask & SP_FR) {
+			dst->ac97_pcm_l = *src++;
+			dst->ac97_tag |= TAG_PCM_LEFT;
+
+		}
+#if defined(CONFIG_SND_BF5XX_MULTICHAN_SUPPORT)
+		if (chan_mask & SP_SR) {
+			dst->ac97_sl = *src++;
+			dst->ac97_tag |= TAG_PCM_SL;
+		}
+		if (chan_mask & SP_SL) {
+			dst->ac97_sr = *src++;
+			dst->ac97_tag |= TAG_PCM_SR;
+		}
+		if (chan_mask & SP_LFE) {
+			dst->ac97_lfe = *src++;
+			dst->ac97_tag |= TAG_PCM_LFE;
+		}
+		if (chan_mask & SP_FC) {
+			dst->ac97_center = *src++;
+			dst->ac97_tag |= TAG_PCM_CENTER;
+		}
+#endif
+		dst++;
 	}
 }
 EXPORT_SYMBOL(bf5xx_pcm_to_ac97);
 
-void bf5xx_ac97_to_pcm(const struct ac97_frame *src, __u32 *dst, \
+void bf5xx_ac97_to_pcm(const struct ac97_frame *src, __u16 *dst,
 		size_t count)
 {
-	while (count--)
-		*(dst++) = (src++)->ac97_pcm;
+	while (count--) {
+		*(dst++) = src->ac97_pcm_l;
+		*(dst++) = src->ac97_pcm_r;
+		src++;
+	}
 }
 EXPORT_SYMBOL(bf5xx_ac97_to_pcm);
 
 static unsigned int sport_tx_curr_frag(struct sport_device *sport)
 {
-	return sport->tx_curr_frag = sport_curr_offset_tx(sport) / \
+	return sport->tx_curr_frag = sport_curr_offset_tx(sport) /
 			sport->tx_fragsize;
 }
 
@@ -130,7 +162,7 @@ static void enqueue_cmd(struct snd_ac97 *ac97, __u16 addr, __u16 data)
 
 	sport_incfrag(sport, &nextfrag, 1);
 
-	nextwrite = (struct ac97_frame *)(sport->tx_buf + \
+	nextwrite = (struct ac97_frame *)(sport->tx_buf +
 			nextfrag * sport->tx_fragsize);
 	pr_debug("sport->tx_buf:%p, nextfrag:0x%x nextwrite:%p, cmd_count:%d\n",
 		sport->tx_buf, nextfrag, nextwrite, cmd_count[nextfrag]);
@@ -237,8 +269,7 @@ struct snd_ac97_bus_ops soc_ac97_ops = {
 EXPORT_SYMBOL_GPL(soc_ac97_ops);
 
 #ifdef CONFIG_PM
-static int bf5xx_ac97_suspend(struct platform_device *pdev,
-	struct snd_soc_dai *dai)
+static int bf5xx_ac97_suspend(struct snd_soc_dai *dai)
 {
 	struct sport_device *sport =
 		(struct sport_device *)dai->private_data;
@@ -253,8 +284,7 @@ static int bf5xx_ac97_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int bf5xx_ac97_resume(struct platform_device *pdev,
-	struct snd_soc_dai *dai)
+static int bf5xx_ac97_resume(struct snd_soc_dai *dai)
 {
 	int ret;
 	struct sport_device *sport =
@@ -297,20 +327,15 @@ static int bf5xx_ac97_resume(struct platform_device *pdev,
 static int bf5xx_ac97_probe(struct platform_device *pdev,
 			    struct snd_soc_dai *dai)
 {
-	int ret;
-#if defined(CONFIG_BF54x)
-	u16 sport_req[][7] = {PIN_REQ_SPORT_0, PIN_REQ_SPORT_1,
-				 PIN_REQ_SPORT_2, PIN_REQ_SPORT_3};
-#else
-	u16 sport_req[][7] = {PIN_REQ_SPORT_0, PIN_REQ_SPORT_1};
-#endif
+	int ret = 0;
 	cmd_count = (int *)get_zeroed_page(GFP_KERNEL);
 	if (cmd_count == NULL)
 		return -ENOMEM;
 
 	if (peripheral_request_list(&sport_req[sport_num][0], "soc-audio")) {
 		pr_err("Requesting Peripherals failed\n");
-		return -EFAULT;
+		ret =  -EFAULT;
+		goto peripheral_err;
 		}
 
 #ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
@@ -318,54 +343,54 @@ static int bf5xx_ac97_probe(struct platform_device *pdev,
 	if (gpio_request(CONFIG_SND_BF5XX_RESET_GPIO_NUM, "SND_AD198x RESET")) {
 		pr_err("Failed to request GPIO_%d for reset\n",
 				CONFIG_SND_BF5XX_RESET_GPIO_NUM);
-		peripheral_free_list(&sport_req[sport_num][0]);
-		return -1;
+		ret =  -1;
+		goto gpio_err;
 	}
 	gpio_direction_output(CONFIG_SND_BF5XX_RESET_GPIO_NUM, 1);
 #endif
 	sport_handle = sport_init(&sport_params[sport_num], 2, \
 			sizeof(struct ac97_frame), NULL);
 	if (!sport_handle) {
-		peripheral_free_list(&sport_req[sport_num][0]);
-#ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
-		gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
-#endif
-		return -ENODEV;
+		ret = -ENODEV;
+		goto sport_err;
 	}
 	/*SPORT works in TDM mode to simulate AC97 transfers*/
 	ret = sport_set_multichannel(sport_handle, 16, 0x1F, 1);
 	if (ret) {
 		pr_err("SPORT is busy!\n");
-		kfree(sport_handle);
-		peripheral_free_list(&sport_req[sport_num][0]);
-#ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
-		gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
-#endif
-		return -EBUSY;
+		ret = -EBUSY;
+		goto sport_config_err;
 	}
 
 	ret = sport_config_rx(sport_handle, IRFS, 0xF, 0, (16*16-1));
 	if (ret) {
 		pr_err("SPORT is busy!\n");
-		kfree(sport_handle);
-		peripheral_free_list(&sport_req[sport_num][0]);
-#ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
-		gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
-#endif
-		return -EBUSY;
+		ret = -EBUSY;
+		goto sport_config_err;
 	}
 
 	ret = sport_config_tx(sport_handle, ITFS, 0xF, 0, (16*16-1));
 	if (ret) {
 		pr_err("SPORT is busy!\n");
-		kfree(sport_handle);
-		peripheral_free_list(&sport_req[sport_num][0]);
-#ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
-		gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
-#endif
-		return -EBUSY;
+		ret = -EBUSY;
+		goto sport_config_err;
 	}
+
 	return 0;
+
+sport_config_err:
+	kfree(sport_handle);
+sport_err:
+#ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
+	gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
+#endif
+gpio_err:
+	peripheral_free_list(&sport_req[sport_num][0]);
+peripheral_err:
+	free_page((unsigned long)cmd_count);
+	cmd_count = NULL;
+
+	return ret;
 }
 
 static void bf5xx_ac97_remove(struct platform_device *pdev,
@@ -373,6 +398,7 @@ static void bf5xx_ac97_remove(struct platform_device *pdev,
 {
 	free_page((unsigned long)cmd_count);
 	cmd_count = NULL;
+	peripheral_free_list(&sport_req[sport_num][0]);
 #ifdef CONFIG_SND_BF5XX_HAVE_COLD_RESET
 	gpio_free(CONFIG_SND_BF5XX_RESET_GPIO_NUM);
 #endif
@@ -381,7 +407,7 @@ static void bf5xx_ac97_remove(struct platform_device *pdev,
 struct snd_soc_dai bfin_ac97_dai = {
 	.name = "bf5xx-ac97",
 	.id = 0,
-	.type = SND_SOC_DAI_AC97,
+	.ac97_control = 1,
 	.probe = bf5xx_ac97_probe,
 	.remove = bf5xx_ac97_remove,
 	.suspend = bf5xx_ac97_suspend,
@@ -389,7 +415,11 @@ struct snd_soc_dai bfin_ac97_dai = {
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 2,
+#if defined(CONFIG_SND_BF5XX_MULTICHAN_SUPPORT)
+		.channels_max = 6,
+#else
 		.channels_max = 2,
+#endif
 		.rates = SNDRV_PCM_RATE_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 	.capture = {
@@ -400,6 +430,18 @@ struct snd_soc_dai bfin_ac97_dai = {
 		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 };
 EXPORT_SYMBOL_GPL(bfin_ac97_dai);
+
+static int __init bfin_ac97_init(void)
+{
+	return snd_soc_register_dai(&bfin_ac97_dai);
+}
+module_init(bfin_ac97_init);
+
+static void __exit bfin_ac97_exit(void)
+{
+	snd_soc_unregister_dai(&bfin_ac97_dai);
+}
+module_exit(bfin_ac97_exit);
 
 MODULE_AUTHOR("Roy Huang");
 MODULE_DESCRIPTION("AC97 driver for ADI Blackfin");

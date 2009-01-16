@@ -203,10 +203,10 @@ static inline int inb_command(unsigned int base_addr)
 static inline void outb_control(unsigned char val, struct net_device *dev)
 {
 	outb(val, dev->base_addr + PORT_CONTROL);
-	((elp_device *)(dev->priv))->hcr_val = val;
+	((elp_device *)(netdev_priv(dev)))->hcr_val = val;
 }
 
-#define HCR_VAL(x)   (((elp_device *)((x)->priv))->hcr_val)
+#define HCR_VAL(x)   (((elp_device *)(netdev_priv(x)))->hcr_val)
 
 static inline void outb_command(unsigned char val, unsigned int base_addr)
 {
@@ -247,7 +247,7 @@ static inline int get_status(unsigned int base_addr)
 
 static inline void set_hsf(struct net_device *dev, int hsf)
 {
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&adapter->lock, flags);
@@ -260,7 +260,7 @@ static bool start_receive(struct net_device *, pcb_struct *);
 static inline void adapter_reset(struct net_device *dev)
 {
 	unsigned long timeout;
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 	unsigned char orig_hcr = adapter->hcr_val;
 
 	outb_control(0, dev);
@@ -293,7 +293,7 @@ static inline void adapter_reset(struct net_device *dev)
  */
 static inline void check_3c505_dma(struct net_device *dev)
 {
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 	if (adapter->dmaing && time_after(jiffies, adapter->current_dma.start_time + 10)) {
 		unsigned long flags, f;
 		printk(KERN_ERR "%s: DMA %s timed out, %d bytes left\n", dev->name, adapter->current_dma.direction ? "download" : "upload", get_dma_residue(dev->dma));
@@ -340,7 +340,7 @@ static inline bool send_pcb_fast(unsigned int base_addr, unsigned char byte)
 /* Check to see if the receiver needs restarting, and kick it if so */
 static inline void prime_rx(struct net_device *dev)
 {
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 	while (adapter->rx_active < ELP_RX_PCBS && netif_running(dev)) {
 		if (!start_receive(dev, &adapter->itx_pcb))
 			break;
@@ -375,7 +375,7 @@ static bool send_pcb(struct net_device *dev, pcb_struct * pcb)
 {
 	int i;
 	unsigned long timeout;
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 	unsigned long flags;
 
 	check_3c505_dma(dev);
@@ -463,7 +463,7 @@ static bool receive_pcb(struct net_device *dev, pcb_struct * pcb)
 	unsigned long timeout;
 	unsigned long flags;
 
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 
 	set_hsf(dev, 0);
 
@@ -543,7 +543,7 @@ static bool receive_pcb(struct net_device *dev, pcb_struct * pcb)
 static bool start_receive(struct net_device *dev, pcb_struct * tx_pcb)
 {
 	bool status;
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 
 	if (elp_debug >= 3)
 		printk(KERN_DEBUG "%s: restarting receiver\n", dev->name);
@@ -571,7 +571,7 @@ static bool start_receive(struct net_device *dev, pcb_struct * tx_pcb)
 static void receive_packet(struct net_device *dev, int len)
 {
 	int rlen;
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 	void *target;
 	struct sk_buff *skb;
 	unsigned long flags;
@@ -638,12 +638,9 @@ static irqreturn_t elp_interrupt(int irq, void *dev_id)
 	int len;
 	int dlen;
 	int icount = 0;
-	struct net_device *dev;
-	elp_device *adapter;
+	struct net_device *dev = dev_id;
+	elp_device *adapter = netdev_priv(dev);
 	unsigned long timeout;
-
-	dev = dev_id;
-	adapter = (elp_device *) dev->priv;
 
 	spin_lock(&adapter->lock);
 
@@ -672,7 +669,6 @@ static irqreturn_t elp_interrupt(int irq, void *dev_id)
 					skb->protocol = eth_type_trans(skb,dev);
 					dev->stats.rx_bytes += skb->len;
 					netif_rx(skb);
-					dev->last_rx = jiffies;
 				}
 			}
 			adapter->dmaing = 0;
@@ -838,10 +834,8 @@ static irqreturn_t elp_interrupt(int irq, void *dev_id)
 
 static int elp_open(struct net_device *dev)
 {
-	elp_device *adapter;
+	elp_device *adapter = netdev_priv(dev);
 	int retval;
-
-	adapter = dev->priv;
 
 	if (elp_debug >= 3)
 		printk(KERN_DEBUG "%s: request to open device\n", dev->name);
@@ -971,7 +965,7 @@ static int elp_open(struct net_device *dev)
 
 static bool send_packet(struct net_device *dev, struct sk_buff *skb)
 {
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 	unsigned long target;
 	unsigned long flags;
 
@@ -1062,7 +1056,7 @@ static void elp_timeout(struct net_device *dev)
 static int elp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned long flags;
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 
 	spin_lock_irqsave(&adapter->lock, flags);
 	check_3c505_dma(dev);
@@ -1104,7 +1098,7 @@ static int elp_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *elp_get_stats(struct net_device *dev)
 {
-	elp_device *adapter = (elp_device *) dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 
 	if (elp_debug >= 3)
 		printk(KERN_DEBUG "%s: request for stats\n", dev->name);
@@ -1166,9 +1160,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 
 static int elp_close(struct net_device *dev)
 {
-	elp_device *adapter;
-
-	adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 
 	if (elp_debug >= 3)
 		printk(KERN_DEBUG "%s: request to close device\n", dev->name);
@@ -1209,7 +1201,7 @@ static int elp_close(struct net_device *dev)
 
 static void elp_set_mc_list(struct net_device *dev)
 {
-	elp_device *adapter = (elp_device *) dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 	struct dev_mc_list *dmi = dev->mc_list;
 	int i;
 	unsigned long flags;
@@ -1380,12 +1372,11 @@ static int __init elp_autodetect(struct net_device *dev)
 
 static int __init elplus_setup(struct net_device *dev)
 {
-	elp_device *adapter = dev->priv;
+	elp_device *adapter = netdev_priv(dev);
 	int i, tries, tries1, okay;
 	unsigned long timeout;
 	unsigned long cookie = 0;
 	int err = -ENODEV;
-	DECLARE_MAC_BUF(mac);
 
 	/*
 	 *  setup adapter structure
@@ -1522,9 +1513,9 @@ static int __init elplus_setup(struct net_device *dev)
 	 * print remainder of startup message
 	 */
 	printk(KERN_INFO "%s: 3c505 at %#lx, irq %d, dma %d, "
-	       "addr %s, ",
+	       "addr %pM, ",
 	       dev->name, dev->base_addr, dev->irq, dev->dma,
-	       print_mac(mac, dev->dev_addr));
+	       dev->dev_addr);
 
 	/*
 	 * read more information from the adapter

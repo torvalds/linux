@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/system.h>

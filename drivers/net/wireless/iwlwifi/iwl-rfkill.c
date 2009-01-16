@@ -22,7 +22,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *****************************************************************************/
 #include <linux/kernel.h>
@@ -34,8 +34,6 @@
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
-#include "iwl-helpers.h"
-
 
 /* software rf-kill from user */
 static int iwl_rfkill_soft_rf_kill(void *data, enum rfkill_state state)
@@ -64,7 +62,7 @@ static int iwl_rfkill_soft_rf_kill(void *data, enum rfkill_state state)
 		iwl_radio_kill_sw_disable_radio(priv);
 		break;
 	default:
-		IWL_WARNING("we recieved unexpected RFKILL state %d\n", state);
+		IWL_WARNING("we received unexpected RFKILL state %d\n", state);
 		break;
 	}
 out_unlock:
@@ -83,7 +81,7 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 	IWL_DEBUG_RF_KILL("Initializing RFKILL.\n");
 	priv->rfkill = rfkill_allocate(device, RFKILL_TYPE_WLAN);
 	if (!priv->rfkill) {
-		IWL_ERROR("Unable to allocate rfkill device.\n");
+		IWL_ERROR("Unable to allocate RFKILL device.\n");
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -99,7 +97,7 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 
 	ret = rfkill_register(priv->rfkill);
 	if (ret) {
-		IWL_ERROR("Unable to register rfkill: %d\n", ret);
+		IWL_ERROR("Unable to register RFKILL: %d\n", ret);
 		goto free_rfkill;
 	}
 
@@ -127,7 +125,7 @@ void iwl_rfkill_unregister(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_rfkill_unregister);
 
-/* set rf-kill to the right state. */
+/* set RFKILL to the right state. */
 void iwl_rfkill_set_hw_state(struct iwl_priv *priv)
 {
 	if (!priv->rfkill)

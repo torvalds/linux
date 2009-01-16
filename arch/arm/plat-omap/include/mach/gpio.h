@@ -71,11 +71,6 @@
 				 IH_GPIO_BASE + (nr))
 
 extern int omap_gpio_init(void);	/* Call from board init only */
-extern int omap_request_gpio(int gpio);
-extern void omap_free_gpio(int gpio);
-extern void omap_set_gpio_direction(int gpio, int is_input);
-extern void omap_set_gpio_dataout(int gpio, int enable);
-extern int omap_get_gpio_datain(int gpio);
 extern void omap2_gpio_prepare_for_retention(void);
 extern void omap2_gpio_resume_after_retention(void);
 extern void omap_set_gpio_debounce(int gpio, int enable);
@@ -91,6 +86,16 @@ extern void omap_set_gpio_debounce_time(int gpio, int enable);
 
 #include <linux/errno.h>
 #include <asm-generic/gpio.h>
+
+static inline int omap_request_gpio(int gpio)
+{
+	return gpio_request(gpio, "FIXME");
+}
+
+static inline void omap_free_gpio(int gpio)
+{
+	gpio_free(gpio);
+}
 
 static inline int gpio_get_value(unsigned gpio)
 {
@@ -109,16 +114,24 @@ static inline int gpio_cansleep(unsigned gpio)
 
 static inline int gpio_to_irq(unsigned gpio)
 {
-	if (gpio < (OMAP_MAX_GPIO_LINES + 16))
-		return OMAP_GPIO_IRQ(gpio);
-	return -EINVAL;
+	return __gpio_to_irq(gpio);
 }
 
 static inline int irq_to_gpio(unsigned irq)
 {
+	int tmp;
+
+	/* omap1 SOC mpuio */
 	if (cpu_class_is_omap1() && (irq < (IH_MPUIO_BASE + 16)))
 		return (irq - IH_MPUIO_BASE) + OMAP_MAX_GPIO_LINES;
-	return irq - IH_GPIO_BASE;
+
+	/* SOC gpio */
+	tmp = irq - IH_GPIO_BASE;
+	if (tmp < OMAP_MAX_GPIO_LINES)
+		return tmp;
+
+	/* we don't supply reverse mappings for non-SOC gpios */
+	return -EIO;
 }
 
 #endif

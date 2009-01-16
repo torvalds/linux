@@ -126,8 +126,6 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev);
 
 /* Fallback tunnel: no source, no destination, no key, no options */
 
-static int ipgre_fb_tunnel_init(struct net_device *dev);
-
 #define HASH_SIZE  16
 
 static int ipgre_net_id;
@@ -371,7 +369,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
    by themself???
  */
 
-	struct iphdr *iph = (struct iphdr*)skb->data;
+	struct iphdr *iph = (struct iphdr *)skb->data;
 	__be16	     *p = (__be16*)(skb->data+(iph->ihl<<2));
 	int grehlen = (iph->ihl<<2) + 4;
 	const int type = icmp_hdr(skb)->type;
@@ -632,7 +630,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (dev->header_ops && dev->type == ARPHRD_IPGRE) {
 		gre_hlen = 0;
-		tiph = (struct iphdr*)skb->data;
+		tiph = (struct iphdr *)skb->data;
 	} else {
 		gre_hlen = tunnel->hlen;
 		tiph = &tunnel->parms.iph;
@@ -660,7 +658,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			if (neigh == NULL)
 				goto tx_error;
 
-			addr6 = (struct in6_addr*)&neigh->primary_key;
+			addr6 = (struct in6_addr *)&neigh->primary_key;
 			addr_type = ipv6_addr_type(addr6);
 
 			if (addr_type == IPV6_ADDR_ANY) {
@@ -726,7 +724,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 #ifdef CONFIG_IPV6
 	else if (skb->protocol == htons(ETH_P_IPV6)) {
-		struct rt6_info *rt6 = (struct rt6_info*)skb->dst;
+		struct rt6_info *rt6 = (struct rt6_info *)skb->dst;
 
 		if (rt6 && mtu < dst_mtu(skb->dst) && mtu >= IPV6_MIN_MTU) {
 			if ((tunnel->parms.iph.daddr &&
@@ -800,7 +798,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			iph->ttl = old_iph->ttl;
 #ifdef CONFIG_IPV6
 		else if (skb->protocol == htons(ETH_P_IPV6))
-			iph->ttl = ((struct ipv6hdr*)old_iph)->hop_limit;
+			iph->ttl = ((struct ipv6hdr *)old_iph)->hop_limit;
 #endif
 		else
 			iph->ttl = dst_metric(&rt->u.dst, RTAX_HOPLIMIT);
@@ -962,7 +960,7 @@ ipgre_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 					break;
 				}
 			} else {
-				unsigned nflags=0;
+				unsigned nflags = 0;
 
 				t = netdev_priv(dev);
 
@@ -1104,7 +1102,7 @@ static int ipgre_header(struct sk_buff *skb, struct net_device *dev,
 
 static int ipgre_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
-	struct iphdr *iph = (struct iphdr*) skb_mac_header(skb);
+	struct iphdr *iph = (struct iphdr *) skb_mac_header(skb);
 	memcpy(haddr, &iph->saddr, 4);
 	return 4;
 }
@@ -1142,6 +1140,7 @@ static int ipgre_open(struct net_device *dev)
 static int ipgre_close(struct net_device *dev)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
+
 	if (ipv4_is_multicast(t->parms.iph.daddr) && t->mlink) {
 		struct in_device *in_dev;
 		in_dev = inetdev_by_index(dev_net(dev), t->mlink);
@@ -1155,14 +1154,22 @@ static int ipgre_close(struct net_device *dev)
 
 #endif
 
+static const struct net_device_ops ipgre_netdev_ops = {
+	.ndo_init		= ipgre_tunnel_init,
+	.ndo_uninit		= ipgre_tunnel_uninit,
+#ifdef CONFIG_NET_IPGRE_BROADCAST
+	.ndo_open		= ipgre_open,
+	.ndo_stop		= ipgre_close,
+#endif
+	.ndo_start_xmit		= ipgre_tunnel_xmit,
+	.ndo_do_ioctl		= ipgre_tunnel_ioctl,
+	.ndo_change_mtu		= ipgre_tunnel_change_mtu,
+};
+
 static void ipgre_tunnel_setup(struct net_device *dev)
 {
-	dev->init		= ipgre_tunnel_init;
-	dev->uninit		= ipgre_tunnel_uninit;
+	dev->netdev_ops		= &ipgre_netdev_ops;
 	dev->destructor 	= free_netdev;
-	dev->hard_start_xmit	= ipgre_tunnel_xmit;
-	dev->do_ioctl		= ipgre_tunnel_ioctl;
-	dev->change_mtu		= ipgre_tunnel_change_mtu;
 
 	dev->type		= ARPHRD_IPGRE;
 	dev->needed_headroom 	= LL_MAX_HEADER + sizeof(struct iphdr) + 4;
@@ -1194,8 +1201,6 @@ static int ipgre_tunnel_init(struct net_device *dev)
 				return -EINVAL;
 			dev->flags = IFF_BROADCAST;
 			dev->header_ops = &ipgre_header_ops;
-			dev->open = ipgre_open;
-			dev->stop = ipgre_close;
 		}
 #endif
 	} else
@@ -1204,7 +1209,7 @@ static int ipgre_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-static int ipgre_fb_tunnel_init(struct net_device *dev)
+static void ipgre_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
@@ -1220,7 +1225,6 @@ static int ipgre_fb_tunnel_init(struct net_device *dev)
 
 	dev_hold(dev);
 	ign->tunnels_wc[0]	= tunnel;
-	return 0;
 }
 
 
@@ -1264,9 +1268,9 @@ static int ipgre_init_net(struct net *net)
 		err = -ENOMEM;
 		goto err_alloc_dev;
 	}
-
-	ign->fb_tunnel_dev->init = ipgre_fb_tunnel_init;
 	dev_net_set(ign->fb_tunnel_dev, net);
+
+	ipgre_fb_tunnel_init(ign->fb_tunnel_dev);
 	ign->fb_tunnel_dev->rtnl_link_ops = &ipgre_link_ops;
 
 	if ((err = register_netdev(ign->fb_tunnel_dev)))
@@ -1397,16 +1401,22 @@ static int ipgre_tap_init(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops ipgre_tap_netdev_ops = {
+	.ndo_init		= ipgre_tap_init,
+	.ndo_uninit		= ipgre_tunnel_uninit,
+	.ndo_start_xmit		= ipgre_tunnel_xmit,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= ipgre_tunnel_change_mtu,
+};
+
 static void ipgre_tap_setup(struct net_device *dev)
 {
 
 	ether_setup(dev);
 
-	dev->init		= ipgre_tap_init;
-	dev->uninit		= ipgre_tunnel_uninit;
+	dev->netdev_ops		= &ipgre_netdev_ops;
 	dev->destructor 	= free_netdev;
-	dev->hard_start_xmit	= ipgre_tunnel_xmit;
-	dev->change_mtu		= ipgre_tunnel_change_mtu;
 
 	dev->iflink		= 0;
 	dev->features		|= NETIF_F_NETNS_LOCAL;

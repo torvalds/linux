@@ -139,7 +139,6 @@ static int __init setup_card(struct net_device *dev, struct device *pdev)
         static int versionprinted;
 	const unsigned *port;
 	int j, err = 0;
-	DECLARE_MAC_BUF(mac);
 
 	if (!dev)
 		return -ENOMEM;
@@ -170,8 +169,8 @@ static int __init setup_card(struct net_device *dev, struct device *pdev)
 		
 	sk_isa_read_eeprom(dev);
 
-	printk(KERN_DEBUG "skisa.c:    Ring Station Address: %s\n",
-	       print_mac(mac, dev->dev_addr));
+	printk(KERN_DEBUG "skisa.c:    Ring Station Address: %pM\n",
+	       dev->dev_addr);
 		
 	tp = netdev_priv(dev);
 	tp->setnselout = sk_isa_setnselout_pins;
@@ -301,7 +300,7 @@ static void sk_isa_read_eeprom(struct net_device *dev)
 		dev->dev_addr[i] = sk_isa_sifreadw(dev, SIFINC) >> 8;
 }
 
-unsigned short sk_isa_setnselout_pins(struct net_device *dev)
+static unsigned short sk_isa_setnselout_pins(struct net_device *dev)
 {
 	return 0;
 }

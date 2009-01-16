@@ -229,14 +229,15 @@ static void catc_rx_done(struct urb *urb)
 	u8 *pkt_start = urb->transfer_buffer;
 	struct sk_buff *skb;
 	int pkt_len, pkt_offset = 0;
+	int status = urb->status;
 
 	if (!catc->is_f5u011) {
 		clear_bit(RX_RUNNING, &catc->flags);
 		pkt_offset = 2;
 	}
 
-	if (urb->status) {
-		dbg("rx_done, status %d, length %d", urb->status, urb->actual_length);
+	if (status) {
+		dbg("rx_done, status %d, length %d", status, urb->actual_length);
 		return;
 	}
 
@@ -271,16 +272,14 @@ static void catc_rx_done(struct urb *urb)
 
 	} while (pkt_start - (u8 *) urb->transfer_buffer < urb->actual_length);
 
-	catc->netdev->last_rx = jiffies;
-
 	if (catc->is_f5u011) {
 		if (atomic_read(&catc->recq_sz)) {
-			int status;
+			int state;
 			atomic_dec(&catc->recq_sz);
 			dbg("getting extra packet");
 			urb->dev = catc->usbdev;
-			if ((status = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
-				dbg("submit(rx_urb) status %d", status);
+			if ((state = usb_submit_urb(urb, GFP_ATOMIC)) < 0) {
+				dbg("submit(rx_urb) status %d", state);
 			}
 		} else {
 			clear_bit(RX_RUNNING, &catc->flags);
@@ -292,8 +291,9 @@ static void catc_irq_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	u8 *data = urb->transfer_buffer;
-	int status;
+	int status = urb->status;
 	unsigned int hasdata = 0, linksts = LinkNoChange;
+	int res;
 
 	if (!catc->is_f5u011) {
 		hasdata = data[1] & 0x80;
@@ -309,7 +309,7 @@ static void catc_irq_done(struct urb *urb)
 			linksts = LinkBad;
 	}
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
@@ -318,7 +318,7 @@ static void catc_irq_done(struct urb *urb)
 		return;
 	/* -EPIPE:  should clear the halt */
 	default:		/* error */
-		dbg("irq_done, status %d, data %02x %02x.", urb->status, data[0], data[1]);
+		dbg("irq_done, status %d, data %02x %02x.", status, data[0], data[1]);
 		goto resubmit;
 	}
 
@@ -338,17 +338,17 @@ static void catc_irq_done(struct urb *urb)
 				atomic_inc(&catc->recq_sz);
 		} else {
 			catc->rx_urb->dev = catc->usbdev;
-			if ((status = usb_submit_urb(catc->rx_urb, GFP_ATOMIC)) < 0) {
-				err("submit(rx_urb) status %d", status);
+			if ((res = usb_submit_urb(catc->rx_urb, GFP_ATOMIC)) < 0) {
+				err("submit(rx_urb) status %d", res);
 			}
 		} 
 	}
 resubmit:
-	status = usb_submit_urb (urb, GFP_ATOMIC);
-	if (status)
+	res = usb_submit_urb (urb, GFP_ATOMIC);
+	if (res)
 		err ("can't resubmit intr, %s-%s, status %d",
 				catc->usbdev->bus->bus_name,
-				catc->usbdev->devpath, status);
+				catc->usbdev->devpath, res);
 }
 
 /*
@@ -380,9 +380,9 @@ static void catc_tx_done(struct urb *urb)
 {
 	struct catc *catc = urb->context;
 	unsigned long flags;
-	int r;
+	int r, status = urb->status;
 
-	if (urb->status == -ECONNRESET) {
+	if (status == -ECONNRESET) {
 		dbg("Tx Reset.");
 		urb->status = 0;
 		catc->netdev->trans_start = jiffies;
@@ -392,8 +392,8 @@ static void catc_tx_done(struct urb *urb)
 		return;
 	}
 
-	if (urb->status) {
-		dbg("tx_done, status %d, length %d", urb->status, urb->actual_length);
+	if (status) {
+		dbg("tx_done, status %d, length %d", status, urb->actual_length);
 		return;
 	}
 
@@ -504,9 +504,10 @@ static void catc_ctrl_done(struct urb *urb)
 	struct catc *catc = urb->context;
 	struct ctrl_queue *q;
 	unsigned long flags;
+	int status = urb->status;
 
-	if (urb->status)
-		dbg("ctrl_done, status %d, len %d.", urb->status, urb->actual_length);
+	if (status)
+		dbg("ctrl_done, status %d, len %d.", status, urb->actual_length);
 
 	spin_lock_irqsave(&catc->ctrl_lock, flags);
 

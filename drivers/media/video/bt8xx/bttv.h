@@ -130,8 +130,8 @@
 #define BTTV_BOARD_XGUARD                  0x67
 #define BTTV_BOARD_NEBULA_DIGITV           0x68
 #define BTTV_BOARD_PV143                   0x69
-#define BTTV_BOARD_VD009X1_MINIDIN         0x6a
-#define BTTV_BOARD_VD009X1_COMBI           0x6b
+#define BTTV_BOARD_VD009X1_VD011_MINIDIN   0x6a
+#define BTTV_BOARD_VD009X1_VD011_COMBI     0x6b
 #define BTTV_BOARD_VD009_MINIDIN           0x6c
 #define BTTV_BOARD_VD009_COMBI             0x6d
 #define BTTV_BOARD_IVC100                  0x6e
@@ -177,6 +177,10 @@
 #define BTTV_BOARD_GEOVISION_GV600	   0x96
 #define BTTV_BOARD_KOZUMI_KTV_01C          0x97
 #define BTTV_BOARD_ENLTV_FM_2		   0x98
+#define BTTV_BOARD_VD012		   0x99
+#define BTTV_BOARD_VD012_X1		   0x9a
+#define BTTV_BOARD_VD012_X2		   0x9b
+
 
 /* more card-specific defines */
 #define PT2254_L_CHANNEL 0x10
@@ -308,7 +312,7 @@ struct bttv_sub_device {
 
 struct bttv_sub_driver {
 	struct device_driver   drv;
-	char                   wanted[BUS_ID_SIZE];
+	char                   wanted[20];
 	int                    (*probe)(struct bttv_sub_device *sub);
 	void                   (*remove)(struct bttv_sub_device *sub);
 };

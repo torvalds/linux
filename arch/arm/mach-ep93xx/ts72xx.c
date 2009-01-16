@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/m48t86.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -117,7 +118,7 @@ static struct physmap_flash_data ts72xx_flash_data = {
 
 static struct resource ts72xx_flash_resource = {
 	.start		= TS72XX_NOR_PHYS_BASE,
-	.end		= TS72XX_NOR_PHYS_BASE + 0x00ffffff,
+	.end		= TS72XX_NOR_PHYS_BASE + SZ_16M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -144,21 +145,21 @@ static void ts72xx_rtc_writebyte(unsigned char value, unsigned long addr)
 }
 
 static struct m48t86_ops ts72xx_rtc_ops = {
-	.readbyte		= ts72xx_rtc_readbyte,
-	.writebyte		= ts72xx_rtc_writebyte,
+	.readbyte	= ts72xx_rtc_readbyte,
+	.writebyte	= ts72xx_rtc_writebyte,
 };
 
 static struct platform_device ts72xx_rtc_device = {
-	.name			= "rtc-m48t86",
-	.id			= -1,
-	.dev			= {
-		.platform_data		= &ts72xx_rtc_ops,
+	.name		= "rtc-m48t86",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &ts72xx_rtc_ops,
 	},
-	.num_resources		= 0,
+	.num_resources	= 0,
 };
 
 static struct ep93xx_eth_data ts72xx_eth_data = {
-	.phy_id			= 1,
+	.phy_id		= 1,
 };
 
 static void __init ts72xx_init_machine(void)
@@ -175,7 +176,7 @@ MACHINE_START(TS72XX, "Technologic Systems TS-72xx SBC")
 	/* Maintainer: Lennert Buytenhek <buytenh@wantstofly.org> */
 	.phys_io	= EP93XX_APB_PHYS_BASE,
 	.io_pg_offst	= ((EP93XX_APB_VIRT_BASE) >> 18) & 0xfffc,
-	.boot_params	= 0x00000100,
+	.boot_params	= EP93XX_SDCE3_PHYS_BASE_SYNC + 0x100,
 	.map_io		= ts72xx_map_io,
 	.init_irq	= ep93xx_init_irq,
 	.timer		= &ep93xx_timer,

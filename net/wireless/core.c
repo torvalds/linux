@@ -19,7 +19,6 @@
 #include "nl80211.h"
 #include "core.h"
 #include "sysfs.h"
-#include "reg.h"
 
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
@@ -236,8 +235,7 @@ struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 	mutex_unlock(&cfg80211_drv_mutex);
 
 	/* give it a proper name */
-	snprintf(drv->wiphy.dev.bus_id, BUS_ID_SIZE,
-		 PHY_NAME "%d", drv->idx);
+	dev_set_name(&drv->wiphy.dev, PHY_NAME "%d", drv->idx);
 
 	mutex_init(&drv->mtx);
 	mutex_init(&drv->devlist_mtx);
@@ -301,12 +299,10 @@ int wiphy_register(struct wiphy *wiphy)
 	/* check and set up bitrates */
 	ieee80211_set_bitrate_flags(wiphy);
 
-	/* set up regulatory info */
-	mutex_lock(&cfg80211_reg_mutex);
-	wiphy_update_regulatory(wiphy, REGDOM_SET_BY_CORE);
-	mutex_unlock(&cfg80211_reg_mutex);
-
 	mutex_lock(&cfg80211_drv_mutex);
+
+	/* set up regulatory info */
+	wiphy_update_regulatory(wiphy, REGDOM_SET_BY_CORE);
 
 	res = device_add(&drv->wiphy.dev);
 	if (res)
@@ -350,6 +346,10 @@ void wiphy_unregister(struct wiphy *wiphy)
 	mutex_lock(&drv->mtx);
 	/* unlock again before freeing */
 	mutex_unlock(&drv->mtx);
+
+	/* If this device got a regulatory hint tell core its
+	 * free to listen now to a new shiny device regulatory hint */
+	reg_device_remove(wiphy);
 
 	list_del(&drv->list);
 	device_del(&drv->wiphy.dev);

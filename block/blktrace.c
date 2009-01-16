@@ -23,9 +23,17 @@
 #include <linux/mutex.h>
 #include <linux/debugfs.h>
 #include <linux/time.h>
+#include <trace/block.h>
 #include <asm/uaccess.h>
 
 static unsigned int blktrace_seq __read_mostly = 1;
+
+/* Global reference count of probes */
+static DEFINE_MUTEX(blk_probe_mutex);
+static atomic_t blk_probes_ref = ATOMIC_INIT(0);
+
+static int blk_register_tracepoints(void);
+static void blk_unregister_tracepoints(void);
 
 /*
  * Send out a notify message.
@@ -119,7 +127,7 @@ static u32 ddir_act[2] __read_mostly = { BLK_TC_ACT(BLK_TC_READ), BLK_TC_ACT(BLK
  * The worker for the various blk_add_trace*() types. Fills out a
  * blk_io_trace structure and places it in a per-cpu subbuffer.
  */
-void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
+static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		     int rw, u32 what, int error, int pdu_len, void *pdu_data)
 {
 	struct task_struct *tsk = current;
@@ -176,8 +184,6 @@ void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 
 	local_irq_restore(flags);
 }
-
-EXPORT_SYMBOL_GPL(__blk_add_trace);
 
 static struct dentry *blk_tree_root;
 static DEFINE_MUTEX(blk_tree_mutex);
@@ -237,6 +243,10 @@ static void blk_trace_cleanup(struct blk_trace *bt)
 	free_percpu(bt->sequence);
 	free_percpu(bt->msg_data);
 	kfree(bt);
+	mutex_lock(&blk_probe_mutex);
+	if (atomic_dec_and_test(&blk_probes_ref))
+		blk_unregister_tracepoints();
+	mutex_unlock(&blk_probe_mutex);
 }
 
 int blk_trace_remove(struct request_queue *q)
@@ -428,6 +438,14 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	bt->pid = buts->pid;
 	bt->trace_state = Blktrace_setup;
 
+	mutex_lock(&blk_probe_mutex);
+	if (atomic_add_return(1, &blk_probes_ref) == 1) {
+		ret = blk_register_tracepoints();
+		if (ret)
+			goto probe_err;
+	}
+	mutex_unlock(&blk_probe_mutex);
+
 	ret = -EBUSY;
 	old_bt = xchg(&q->blk_trace, bt);
 	if (old_bt) {
@@ -436,6 +454,9 @@ int do_blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 	}
 
 	return 0;
+probe_err:
+	atomic_dec(&blk_probes_ref);
+	mutex_unlock(&blk_probe_mutex);
 err:
 	if (dir)
 		blk_remove_tree(dir);
@@ -561,4 +582,309 @@ void blk_trace_shutdown(struct request_queue *q)
 		blk_trace_startstop(q, 0);
 		blk_trace_remove(q);
 	}
+}
+
+/*
+ * blktrace probes
+ */
+
+/**
+ * blk_add_trace_rq - Add a trace for a request oriented action
+ * @q:		queue the io is for
+ * @rq:		the source request
+ * @what:	the action
+ *
+ * Description:
+ *     Records an action against a request. Will log the bio offset + size.
+ *
+ **/
+static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
+				    u32 what)
+{
+	struct blk_trace *bt = q->blk_trace;
+	int rw = rq->cmd_flags & 0x03;
+
+	if (likely(!bt))
+		return;
+
+	if (blk_discard_rq(rq))
+		rw |= (1 << BIO_RW_DISCARD);
+
+	if (blk_pc_request(rq)) {
+		what |= BLK_TC_ACT(BLK_TC_PC);
+		__blk_add_trace(bt, 0, rq->data_len, rw, what, rq->errors,
+				sizeof(rq->cmd), rq->cmd);
+	} else  {
+		what |= BLK_TC_ACT(BLK_TC_FS);
+		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
+				rw, what, rq->errors, 0, NULL);
+	}
+}
+
+static void blk_add_trace_rq_abort(struct request_queue *q, struct request *rq)
+{
+	blk_add_trace_rq(q, rq, BLK_TA_ABORT);
+}
+
+static void blk_add_trace_rq_insert(struct request_queue *q, struct request *rq)
+{
+	blk_add_trace_rq(q, rq, BLK_TA_INSERT);
+}
+
+static void blk_add_trace_rq_issue(struct request_queue *q, struct request *rq)
+{
+	blk_add_trace_rq(q, rq, BLK_TA_ISSUE);
+}
+
+static void blk_add_trace_rq_requeue(struct request_queue *q, struct request *rq)
+{
+	blk_add_trace_rq(q, rq, BLK_TA_REQUEUE);
+}
+
+static void blk_add_trace_rq_complete(struct request_queue *q, struct request *rq)
+{
+	blk_add_trace_rq(q, rq, BLK_TA_COMPLETE);
+}
+
+/**
+ * blk_add_trace_bio - Add a trace for a bio oriented action
+ * @q:		queue the io is for
+ * @bio:	the source bio
+ * @what:	the action
+ *
+ * Description:
+ *     Records an action against a bio. Will log the bio offset + size.
+ *
+ **/
+static void blk_add_trace_bio(struct request_queue *q, struct bio *bio,
+				     u32 what)
+{
+	struct blk_trace *bt = q->blk_trace;
+
+	if (likely(!bt))
+		return;
+
+	__blk_add_trace(bt, bio->bi_sector, bio->bi_size, bio->bi_rw, what,
+			!bio_flagged(bio, BIO_UPTODATE), 0, NULL);
+}
+
+static void blk_add_trace_bio_bounce(struct request_queue *q, struct bio *bio)
+{
+	blk_add_trace_bio(q, bio, BLK_TA_BOUNCE);
+}
+
+static void blk_add_trace_bio_complete(struct request_queue *q, struct bio *bio)
+{
+	blk_add_trace_bio(q, bio, BLK_TA_COMPLETE);
+}
+
+static void blk_add_trace_bio_backmerge(struct request_queue *q, struct bio *bio)
+{
+	blk_add_trace_bio(q, bio, BLK_TA_BACKMERGE);
+}
+
+static void blk_add_trace_bio_frontmerge(struct request_queue *q, struct bio *bio)
+{
+	blk_add_trace_bio(q, bio, BLK_TA_FRONTMERGE);
+}
+
+static void blk_add_trace_bio_queue(struct request_queue *q, struct bio *bio)
+{
+	blk_add_trace_bio(q, bio, BLK_TA_QUEUE);
+}
+
+static void blk_add_trace_getrq(struct request_queue *q, struct bio *bio, int rw)
+{
+	if (bio)
+		blk_add_trace_bio(q, bio, BLK_TA_GETRQ);
+	else {
+		struct blk_trace *bt = q->blk_trace;
+
+		if (bt)
+			__blk_add_trace(bt, 0, 0, rw, BLK_TA_GETRQ, 0, 0, NULL);
+	}
+}
+
+
+static void blk_add_trace_sleeprq(struct request_queue *q, struct bio *bio, int rw)
+{
+	if (bio)
+		blk_add_trace_bio(q, bio, BLK_TA_SLEEPRQ);
+	else {
+		struct blk_trace *bt = q->blk_trace;
+
+		if (bt)
+			__blk_add_trace(bt, 0, 0, rw, BLK_TA_SLEEPRQ, 0, 0, NULL);
+	}
+}
+
+static void blk_add_trace_plug(struct request_queue *q)
+{
+	struct blk_trace *bt = q->blk_trace;
+
+	if (bt)
+		__blk_add_trace(bt, 0, 0, 0, BLK_TA_PLUG, 0, 0, NULL);
+}
+
+static void blk_add_trace_unplug_io(struct request_queue *q)
+{
+	struct blk_trace *bt = q->blk_trace;
+
+	if (bt) {
+		unsigned int pdu = q->rq.count[READ] + q->rq.count[WRITE];
+		__be64 rpdu = cpu_to_be64(pdu);
+
+		__blk_add_trace(bt, 0, 0, 0, BLK_TA_UNPLUG_IO, 0,
+				sizeof(rpdu), &rpdu);
+	}
+}
+
+static void blk_add_trace_unplug_timer(struct request_queue *q)
+{
+	struct blk_trace *bt = q->blk_trace;
+
+	if (bt) {
+		unsigned int pdu = q->rq.count[READ] + q->rq.count[WRITE];
+		__be64 rpdu = cpu_to_be64(pdu);
+
+		__blk_add_trace(bt, 0, 0, 0, BLK_TA_UNPLUG_TIMER, 0,
+				sizeof(rpdu), &rpdu);
+	}
+}
+
+static void blk_add_trace_split(struct request_queue *q, struct bio *bio,
+				unsigned int pdu)
+{
+	struct blk_trace *bt = q->blk_trace;
+
+	if (bt) {
+		__be64 rpdu = cpu_to_be64(pdu);
+
+		__blk_add_trace(bt, bio->bi_sector, bio->bi_size, bio->bi_rw,
+				BLK_TA_SPLIT, !bio_flagged(bio, BIO_UPTODATE),
+				sizeof(rpdu), &rpdu);
+	}
+}
+
+/**
+ * blk_add_trace_remap - Add a trace for a remap operation
+ * @q:		queue the io is for
+ * @bio:	the source bio
+ * @dev:	target device
+ * @from:	source sector
+ * @to:		target sector
+ *
+ * Description:
+ *     Device mapper or raid target sometimes need to split a bio because
+ *     it spans a stripe (or similar). Add a trace for that action.
+ *
+ **/
+static void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
+				       dev_t dev, sector_t from, sector_t to)
+{
+	struct blk_trace *bt = q->blk_trace;
+	struct blk_io_trace_remap r;
+
+	if (likely(!bt))
+		return;
+
+	r.device = cpu_to_be32(dev);
+	r.device_from = cpu_to_be32(bio->bi_bdev->bd_dev);
+	r.sector = cpu_to_be64(to);
+
+	__blk_add_trace(bt, from, bio->bi_size, bio->bi_rw, BLK_TA_REMAP,
+			!bio_flagged(bio, BIO_UPTODATE), sizeof(r), &r);
+}
+
+/**
+ * blk_add_driver_data - Add binary message with driver-specific data
+ * @q:		queue the io is for
+ * @rq:		io request
+ * @data:	driver-specific data
+ * @len:	length of driver-specific data
+ *
+ * Description:
+ *     Some drivers might want to write driver-specific data per request.
+ *
+ **/
+void blk_add_driver_data(struct request_queue *q,
+			 struct request *rq,
+			 void *data, size_t len)
+{
+	struct blk_trace *bt = q->blk_trace;
+
+	if (likely(!bt))
+		return;
+
+	if (blk_pc_request(rq))
+		__blk_add_trace(bt, 0, rq->data_len, 0, BLK_TA_DRV_DATA,
+				rq->errors, len, data);
+	else
+		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
+				0, BLK_TA_DRV_DATA, rq->errors, len, data);
+}
+EXPORT_SYMBOL_GPL(blk_add_driver_data);
+
+static int blk_register_tracepoints(void)
+{
+	int ret;
+
+	ret = register_trace_block_rq_abort(blk_add_trace_rq_abort);
+	WARN_ON(ret);
+	ret = register_trace_block_rq_insert(blk_add_trace_rq_insert);
+	WARN_ON(ret);
+	ret = register_trace_block_rq_issue(blk_add_trace_rq_issue);
+	WARN_ON(ret);
+	ret = register_trace_block_rq_requeue(blk_add_trace_rq_requeue);
+	WARN_ON(ret);
+	ret = register_trace_block_rq_complete(blk_add_trace_rq_complete);
+	WARN_ON(ret);
+	ret = register_trace_block_bio_bounce(blk_add_trace_bio_bounce);
+	WARN_ON(ret);
+	ret = register_trace_block_bio_complete(blk_add_trace_bio_complete);
+	WARN_ON(ret);
+	ret = register_trace_block_bio_backmerge(blk_add_trace_bio_backmerge);
+	WARN_ON(ret);
+	ret = register_trace_block_bio_frontmerge(blk_add_trace_bio_frontmerge);
+	WARN_ON(ret);
+	ret = register_trace_block_bio_queue(blk_add_trace_bio_queue);
+	WARN_ON(ret);
+	ret = register_trace_block_getrq(blk_add_trace_getrq);
+	WARN_ON(ret);
+	ret = register_trace_block_sleeprq(blk_add_trace_sleeprq);
+	WARN_ON(ret);
+	ret = register_trace_block_plug(blk_add_trace_plug);
+	WARN_ON(ret);
+	ret = register_trace_block_unplug_timer(blk_add_trace_unplug_timer);
+	WARN_ON(ret);
+	ret = register_trace_block_unplug_io(blk_add_trace_unplug_io);
+	WARN_ON(ret);
+	ret = register_trace_block_split(blk_add_trace_split);
+	WARN_ON(ret);
+	ret = register_trace_block_remap(blk_add_trace_remap);
+	WARN_ON(ret);
+	return 0;
+}
+
+static void blk_unregister_tracepoints(void)
+{
+	unregister_trace_block_remap(blk_add_trace_remap);
+	unregister_trace_block_split(blk_add_trace_split);
+	unregister_trace_block_unplug_io(blk_add_trace_unplug_io);
+	unregister_trace_block_unplug_timer(blk_add_trace_unplug_timer);
+	unregister_trace_block_plug(blk_add_trace_plug);
+	unregister_trace_block_sleeprq(blk_add_trace_sleeprq);
+	unregister_trace_block_getrq(blk_add_trace_getrq);
+	unregister_trace_block_bio_queue(blk_add_trace_bio_queue);
+	unregister_trace_block_bio_frontmerge(blk_add_trace_bio_frontmerge);
+	unregister_trace_block_bio_backmerge(blk_add_trace_bio_backmerge);
+	unregister_trace_block_bio_complete(blk_add_trace_bio_complete);
+	unregister_trace_block_bio_bounce(blk_add_trace_bio_bounce);
+	unregister_trace_block_rq_complete(blk_add_trace_rq_complete);
+	unregister_trace_block_rq_requeue(blk_add_trace_rq_requeue);
+	unregister_trace_block_rq_issue(blk_add_trace_rq_issue);
+	unregister_trace_block_rq_insert(blk_add_trace_rq_insert);
+	unregister_trace_block_rq_abort(blk_add_trace_rq_abort);
+
+	tracepoint_synchronize_unregister();
 }

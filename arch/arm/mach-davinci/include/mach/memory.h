@@ -52,13 +52,8 @@ __arch_adjust_zones(int node, unsigned long *size, unsigned long *holes)
         if ((meminfo.bank[0].size >> 20) > 128) __arch_adjust_zones(node, zone_size, holes)
 
 #define ISA_DMA_THRESHOLD	(PHYS_OFFSET + (128<<20) - 1)
+#define MAX_DMA_ADDRESS		(PAGE_OFFSET + (128<<20))
 
 #endif
-
-/*
- * Bus address is physical address
- */
-#define __virt_to_bus(x)	__virt_to_phys(x)
-#define __bus_to_virt(x)	__phys_to_virt(x)
 
 #endif /* __ASM_ARCH_MEMORY_H */

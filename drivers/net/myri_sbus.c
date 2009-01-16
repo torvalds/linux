@@ -318,13 +318,10 @@ static void myri_is_not_so_happy(struct myri_eth *mp)
 #ifdef DEBUG_HEADER
 static void dump_ehdr(struct ethhdr *ehdr)
 {
-	DECLARE_MAC_BUF(mac);
-	DECLARE_MAC_BUF(mac2);
-	printk("ehdr[h_dst(%s)"
-	       "h_source(%s)"
+	printk("ehdr[h_dst(%pM)"
+	       "h_source(%pM)"
 	       "h_proto(%04x)]\n",
-	       print_mac(mac, ehdr->h_dest), print_mac(mac2, ehdr->h_source),
-	       ehdr->h_proto);
+	       ehdr->h_dest, ehdr->h_source, ehdr->h_proto);
 }
 
 static void dump_ehdr_and_myripad(unsigned char *stuff)
@@ -528,7 +525,6 @@ static void myri_rx(struct myri_eth *mp, struct net_device *dev)
 		DRX(("prot[%04x] netif_rx ", skb->protocol));
 		netif_rx(skb);
 
-		dev->last_rx = jiffies;
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += len;
 	next:
@@ -540,7 +536,7 @@ static void myri_rx(struct myri_eth *mp, struct net_device *dev)
 static irqreturn_t myri_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev		= (struct net_device *) dev_id;
-	struct myri_eth *mp		= (struct myri_eth *) dev->priv;
+	struct myri_eth *mp		= netdev_priv(dev);
 	void __iomem *lregs		= mp->lregs;
 	struct myri_channel __iomem *chan = &mp->shmem->channel;
 	unsigned long flags;
@@ -579,14 +575,14 @@ static irqreturn_t myri_interrupt(int irq, void *dev_id)
 
 static int myri_open(struct net_device *dev)
 {
-	struct myri_eth *mp = (struct myri_eth *) dev->priv;
+	struct myri_eth *mp = netdev_priv(dev);
 
 	return myri_init(mp, in_interrupt());
 }
 
 static int myri_close(struct net_device *dev)
 {
-	struct myri_eth *mp = (struct myri_eth *) dev->priv;
+	struct myri_eth *mp = netdev_priv(dev);
 
 	myri_clean_rings(mp);
 	return 0;
@@ -594,7 +590,7 @@ static int myri_close(struct net_device *dev)
 
 static void myri_tx_timeout(struct net_device *dev)
 {
-	struct myri_eth *mp = (struct myri_eth *) dev->priv;
+	struct myri_eth *mp = netdev_priv(dev);
 
 	printk(KERN_ERR "%s: transmit timed out, resetting\n", dev->name);
 
@@ -605,7 +601,7 @@ static void myri_tx_timeout(struct net_device *dev)
 
 static int myri_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct myri_eth *mp = (struct myri_eth *) dev->priv;
+	struct myri_eth *mp = netdev_priv(dev);
 	struct sendq __iomem *sq = mp->sq;
 	struct myri_txd __iomem *txd;
 	unsigned long flags;
@@ -905,7 +901,6 @@ static int __devinit myri_sbus_probe(struct of_device *op, const struct of_devic
 	struct device_node *dp = op->node;
 	static unsigned version_printed;
 	struct net_device *dev;
-	DECLARE_MAC_BUF(mac);
 	struct myri_eth *mp;
 	const void *prop;
 	static int num;
@@ -1088,15 +1083,15 @@ static int __devinit myri_sbus_probe(struct of_device *op, const struct of_devic
 
 	num++;
 
-	printk("%s: MyriCOM MyriNET Ethernet %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk("%s: MyriCOM MyriNET Ethernet %pM\n",
+	       dev->name, dev->dev_addr);
 
 	return 0;
 
 err_free_irq:
 	free_irq(dev->irq, dev);
 err:
-	/* This will also free the co-allocated 'dev->priv' */
+	/* This will also free the co-allocated private data*/
 	free_netdev(dev);
 	return -ENODEV;
 }

@@ -4,7 +4,7 @@
  * Copyright (c) 1994-1998 Initio Corporation
  * All rights reserved.
  *
- * Cleanups (c) Copyright 2007 Red Hat <alan@redhat.com>
+ * Cleanups (c) Copyright 2007 Red Hat <alan@lxorguk.ukuu.org.uk>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

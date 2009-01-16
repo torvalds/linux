@@ -196,16 +196,32 @@ static void enc28j60_soft_reset(struct enc28j60_net *priv)
  */
 static void enc28j60_set_bank(struct enc28j60_net *priv, u8 addr)
 {
-	if ((addr & BANK_MASK) != priv->bank) {
-		u8 b = (addr & BANK_MASK) >> 5;
+	u8 b = (addr & BANK_MASK) >> 5;
 
-		if (b != (ECON1_BSEL1 | ECON1_BSEL0))
+	/* These registers (EIE, EIR, ESTAT, ECON2, ECON1)
+	 * are present in all banks, no need to switch bank
+	 */
+	if (addr >= EIE && addr <= ECON1)
+		return;
+
+	/* Clear or set each bank selection bit as needed */
+	if ((b & ECON1_BSEL0) != (priv->bank & ECON1_BSEL0)) {
+		if (b & ECON1_BSEL0)
+			spi_write_op(priv, ENC28J60_BIT_FIELD_SET, ECON1,
+					ECON1_BSEL0);
+		else
 			spi_write_op(priv, ENC28J60_BIT_FIELD_CLR, ECON1,
-				     ECON1_BSEL1 | ECON1_BSEL0);
-		if (b != 0)
-			spi_write_op(priv, ENC28J60_BIT_FIELD_SET, ECON1, b);
-		priv->bank = (addr & BANK_MASK);
+					ECON1_BSEL0);
 	}
+	if ((b & ECON1_BSEL1) != (priv->bank & ECON1_BSEL1)) {
+		if (b & ECON1_BSEL1)
+			spi_write_op(priv, ENC28J60_BIT_FIELD_SET, ECON1,
+					ECON1_BSEL1);
+		else
+			spi_write_op(priv, ENC28J60_BIT_FIELD_CLR, ECON1,
+					ECON1_BSEL1);
+	}
+	priv->bank = b;
 }
 
 /*
@@ -477,12 +493,10 @@ static int enc28j60_set_hw_macaddr(struct net_device *ndev)
 
 	mutex_lock(&priv->lock);
 	if (!priv->hw_enable) {
-		if (netif_msg_drv(priv)) {
-			DECLARE_MAC_BUF(mac);
+		if (netif_msg_drv(priv))
 			printk(KERN_INFO DRV_NAME
-				": %s: Setting MAC address to %s\n",
-				ndev->name, print_mac(mac, ndev->dev_addr));
-		}
+				": %s: Setting MAC address to %pM\n",
+				ndev->name, ndev->dev_addr);
 		/* NOTE: MAC address in ENC28J60 is byte-backward */
 		nolock_regb_write(priv, MAADR5, ndev->dev_addr[0]);
 		nolock_regb_write(priv, MAADR4, ndev->dev_addr[1]);
@@ -930,7 +944,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 	if (netif_msg_rx_status(priv))
 		enc28j60_dump_rsv(priv, __func__, next_packet, len, rxstat);
 
-	if (!RSV_GETBIT(rxstat, RSV_RXOK)) {
+	if (!RSV_GETBIT(rxstat, RSV_RXOK) || len > MAX_FRAMELEN) {
 		if (netif_msg_rx_err(priv))
 			dev_err(&ndev->dev, "Rx Error (%04x)\n", rxstat);
 		ndev->stats.rx_errors++;
@@ -938,6 +952,8 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 			ndev->stats.rx_crc_errors++;
 		if (RSV_GETBIT(rxstat, RSV_LENCHECKERR))
 			ndev->stats.rx_frame_errors++;
+		if (len > MAX_FRAMELEN)
+			ndev->stats.rx_over_errors++;
 	} else {
 		skb = dev_alloc_skb(len + NET_IP_ALIGN);
 		if (!skb) {
@@ -958,7 +974,6 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 			/* update statistics */
 			ndev->stats.rx_packets++;
 			ndev->stats.rx_bytes += len;
-			ndev->last_rx = jiffies;
 			netif_rx_ni(skb);
 		}
 	}
@@ -1340,11 +1355,9 @@ static int enc28j60_net_open(struct net_device *dev)
 		printk(KERN_DEBUG DRV_NAME ": %s() enter\n", __func__);
 
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		if (netif_msg_ifup(priv)) {
-			DECLARE_MAC_BUF(mac);
-			dev_err(&dev->dev, "invalid MAC address %s\n",
-				print_mac(mac, dev->dev_addr));
-		}
+		if (netif_msg_ifup(priv))
+			dev_err(&dev->dev, "invalid MAC address %pM\n",
+				dev->dev_addr);
 		return -EADDRNOTAVAIL;
 	}
 	/* Reset the hardware here (and take it out of low power mode) */
@@ -1465,7 +1478,7 @@ enc28j60_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info,
-		dev->dev.parent->bus_id, sizeof(info->bus_info));
+		dev_name(dev->dev.parent), sizeof(info->bus_info));
 }
 
 static int
@@ -1517,6 +1530,17 @@ static int enc28j60_chipset_init(struct net_device *dev)
 
 	return enc28j60_hw_init(priv);
 }
+
+static const struct net_device_ops enc28j60_netdev_ops = {
+	.ndo_open		= enc28j60_net_open,
+	.ndo_stop		= enc28j60_net_close,
+	.ndo_start_xmit		= enc28j60_send_packet,
+	.ndo_set_multicast_list = enc28j60_set_multicast_list,
+	.ndo_set_mac_address	= enc28j60_set_mac_address,
+	.ndo_tx_timeout		= enc28j60_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 static int __devinit enc28j60_probe(struct spi_device *spi)
 {
@@ -1572,12 +1596,7 @@ static int __devinit enc28j60_probe(struct spi_device *spi)
 
 	dev->if_port = IF_PORT_10BASET;
 	dev->irq = spi->irq;
-	dev->open = enc28j60_net_open;
-	dev->stop = enc28j60_net_close;
-	dev->hard_start_xmit = enc28j60_send_packet;
-	dev->set_multicast_list = &enc28j60_set_multicast_list;
-	dev->set_mac_address = enc28j60_set_mac_address;
-	dev->tx_timeout = &enc28j60_tx_timeout;
+	dev->netdev_ops = &enc28j60_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	SET_ETHTOOL_OPS(dev, &enc28j60_ethtool_ops);
 

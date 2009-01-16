@@ -238,7 +238,7 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 
 	pos = skb_put(skb, 21);
 	*pos++ = WLAN_EID_MESH_CONFIG;
-	*pos++ = MESH_CFG_LEN;
+	*pos++ = IEEE80211_MESH_CONFIG_LEN;
 	/* Version */
 	*pos++ = 1;
 
@@ -473,7 +473,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 					size_t len,
 					struct ieee80211_rx_status *rx_status)
 {
-	struct ieee80211_local *local= sdata->local;
+	struct ieee80211_local *local = sdata->local;
 	struct ieee802_11_elems elems;
 	struct ieee80211_channel *channel;
 	u64 supp_rates = 0;

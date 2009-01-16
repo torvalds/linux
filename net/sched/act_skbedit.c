@@ -104,8 +104,8 @@ static int tcf_skbedit_init(struct nlattr *nla, struct nlattr *est,
 	if (!pc) {
 		pc = tcf_hash_create(parm->index, est, a, sizeof(*d), bind,
 				     &skbedit_idx_gen, &skbedit_hash_info);
-		if (unlikely(!pc))
-			return -ENOMEM;
+		if (IS_ERR(pc))
+		    return PTR_ERR(pc);
 
 		d = to_skbedit(pc);
 		ret = ACT_P_CREATED;

@@ -133,14 +133,12 @@ void __init device_scan(void)
 #endif /* !CONFIG_SMP */
 
 	cpu_probe();
-#ifdef CONFIG_SUN_AUXIO
 	{
 		extern void auxio_probe(void);
 		extern void auxio_power_probe(void);
 		auxio_probe();
 		auxio_power_probe();
 	}
-#endif
 	clock_stop_probe();
 
 	if (ARCH_SUN4C)

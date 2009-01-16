@@ -90,7 +90,7 @@
 #define MKMIBMETASIZE(name)		p80211meta_ ## mib ## _ ## name ## _ ## size
 #define MKGRPMETASIZE(name)		p80211meta_ ## grp ## _ ## name ## _ ## size
 
-#define GETMETASIZE(aptr)		(**((UINT32**)(aptr)))
+#define GETMETASIZE(aptr)		(**((u32**)(aptr)))
 
 /*----------------------------------------------------------------*/
 /* The following ifdef depends on the following defines: */
@@ -114,14 +114,14 @@
 typedef struct p80211meta
 {
 	char			*name;		/* data item name */
-	UINT32			did;		/* partial did */
-	UINT32			flags;		/* set of various flag bits */
-	UINT32			min;		/* min value of a BOUNDEDINT */
-	UINT32			max;		/* max value of a BOUNDEDINT */
+	u32			did;		/* partial did */
+	u32			flags;		/* set of various flag bits */
+	u32			min;		/* min value of a BOUNDEDint */
+	u32			max;		/* max value of a BOUNDEDint */
 
-	UINT32			maxlen;		/* maxlen of a OCTETSTR or DISPLAYSTR */
-	UINT32			minlen;		/* minlen of a OCTETSTR or DISPLAYSTR */
-	p80211enum_t		*enumptr;	/* ptr to the enum type for ENUMINT */
+	u32			maxlen;		/* maxlen of a OCTETSTR or DISPLAYSTR */
+	u32			minlen;		/* minlen of a OCTETSTR or DISPLAYSTR */
+	p80211enum_t		*enumptr;	/* ptr to the enum type for ENUMint */
 	p80211_totext_t		totextptr;	/* ptr to totext conversion function */
 	p80211_fromtext_t	fromtextptr;	/* ptr to totext conversion function */
 	p80211_valid_t		validfunptr;	/* ptr to totext conversion function */
@@ -150,20 +150,20 @@ typedef struct catlistitem
 
 /*----------------------------------------------------------------*/
 /* */
-UINT32 p80211_text2did(catlistitem_t *catlist, char *catname, char *grpname, char *itemname);
-UINT32 p80211_text2catdid(catlistitem_t *list, char *name );
-UINT32 p80211_text2grpdid(grplistitem_t *list, char *name );
-UINT32 p80211_text2itemdid(p80211meta_t *list, char *name );
-UINT32 p80211_isvalid_did( catlistitem_t *catlist, UINT32 did );
-UINT32 p80211_isvalid_catdid( catlistitem_t *catlist, UINT32 did );
-UINT32 p80211_isvalid_grpdid( catlistitem_t *catlist, UINT32 did );
-UINT32 p80211_isvalid_itemdid( catlistitem_t *catlist, UINT32 did );
-catlistitem_t *p80211_did2cat( catlistitem_t *catlist, UINT32 did );
-grplistitem_t *p80211_did2grp( catlistitem_t *catlist, UINT32 did );
-p80211meta_t *p80211_did2item( catlistitem_t *catlist, UINT32 did );
-UINT32 p80211item_maxdatalen( struct catlistitem *metalist, UINT32 did );
-UINT32 p80211_metaname2did(struct catlistitem *metalist, char *itemname);
-UINT32 p80211item_getoffset( struct catlistitem *metalist, UINT32 did );
+u32 p80211_text2did(catlistitem_t *catlist, char *catname, char *grpname, char *itemname);
+u32 p80211_text2catdid(catlistitem_t *list, char *name );
+u32 p80211_text2grpdid(grplistitem_t *list, char *name );
+u32 p80211_text2itemdid(p80211meta_t *list, char *name );
+u32 p80211_isvalid_did( catlistitem_t *catlist, u32 did );
+u32 p80211_isvalid_catdid( catlistitem_t *catlist, u32 did );
+u32 p80211_isvalid_grpdid( catlistitem_t *catlist, u32 did );
+u32 p80211_isvalid_itemdid( catlistitem_t *catlist, u32 did );
+catlistitem_t *p80211_did2cat( catlistitem_t *catlist, u32 did );
+grplistitem_t *p80211_did2grp( catlistitem_t *catlist, u32 did );
+p80211meta_t *p80211_did2item( catlistitem_t *catlist, u32 did );
+u32 p80211item_maxdatalen( struct catlistitem *metalist, u32 did );
+u32 p80211_metaname2did(struct catlistitem *metalist, char *itemname);
+u32 p80211item_getoffset( struct catlistitem *metalist, u32 did );
 int p80211item_gettype(p80211meta_t *meta);
 
 #endif /* _P80211META_H */

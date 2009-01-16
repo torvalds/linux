@@ -1412,7 +1412,8 @@ static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
 		rf_ini = rfregs_2112a;
 		rf_size = ARRAY_SIZE(rfregs_5112a);
 		if (mode < 2) {
-			ATH5K_ERR(ah->ah_sc,"invalid channel mode: %i\n",mode);
+			ATH5K_ERR(ah->ah_sc, "invalid channel mode: %i\n",
+				  mode);
 			return -EINVAL;
 		}
 		mode = mode - 2; /*no a/turboa modes for 2112*/
@@ -1708,7 +1709,7 @@ enum ath5k_rfgain ath5k_hw_get_rf_gain(struct ath5k_hw *ah)
 		if (ah->ah_radio >= AR5K_RF5112) {
 			ath5k_hw_rfregs_gainf_corr(ah);
 			ah->ah_gain.g_current =
-				ah->ah_gain.g_current>=ah->ah_gain.g_f_corr ?
+				ah->ah_gain.g_current >= ah->ah_gain.g_f_corr ?
 				(ah->ah_gain.g_current-ah->ah_gain.g_f_corr) :
 				0;
 		}
@@ -2195,9 +2196,7 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 		return ret;
 	}
 
-	ret = ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
-	if (ret)
-		return ret;
+	ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
 
 	/*
 	 * Re-enable RX/TX and beacons

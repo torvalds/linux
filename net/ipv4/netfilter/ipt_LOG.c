@@ -54,8 +54,8 @@ static void dump_packet(const struct nf_loginfo *info,
 	/* Important fields:
 	 * TOS, len, DF/MF, fragment offset, TTL, src, dst, options. */
 	/* Max length: 40 "SRC=255.255.255.255 DST=255.255.255.255 " */
-	printk("SRC=%u.%u.%u.%u DST=%u.%u.%u.%u ",
-	       NIPQUAD(ih->saddr), NIPQUAD(ih->daddr));
+	printk("SRC=%pI4 DST=%pI4 ",
+	       &ih->saddr, &ih->daddr);
 
 	/* Max length: 46 "LEN=65535 TOS=0xFF PREC=0xFF TTL=255 ID=65535 " */
 	printk("LEN=%u TOS=0x%02X PREC=0x%02X TTL=%u ID=%u ",
@@ -262,8 +262,7 @@ static void dump_packet(const struct nf_loginfo *info,
 			break;
 		case ICMP_REDIRECT:
 			/* Max length: 24 "GATEWAY=255.255.255.255 " */
-			printk("GATEWAY=%u.%u.%u.%u ",
-			       NIPQUAD(ich->un.gateway));
+			printk("GATEWAY=%pI4 ", &ich->un.gateway);
 			/* Fall through */
 		case ICMP_DEST_UNREACH:
 		case ICMP_SOURCE_QUENCH:
@@ -340,8 +339,8 @@ static void dump_packet(const struct nf_loginfo *info,
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file)
 			printk("UID=%u GID=%u ",
-				skb->sk->sk_socket->file->f_uid,
-				skb->sk->sk_socket->file->f_gid);
+				skb->sk->sk_socket->file->f_cred->fsuid,
+				skb->sk->sk_socket->file->f_cred->fsgid);
 		read_unlock_bh(&skb->sk->sk_callback_lock);
 	}
 

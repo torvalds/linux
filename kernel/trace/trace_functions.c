@@ -16,20 +16,10 @@
 
 #include "trace.h"
 
-static void function_reset(struct trace_array *tr)
-{
-	int cpu;
-
-	tr->time_start = ftrace_now(tr->cpu);
-
-	for_each_online_cpu(cpu)
-		tracing_reset(tr, cpu);
-}
-
 static void start_function_trace(struct trace_array *tr)
 {
 	tr->cpu = get_cpu();
-	function_reset(tr);
+	tracing_reset_online_cpus(tr);
 	put_cpu();
 
 	tracing_start_cmdline_record();
@@ -42,24 +32,20 @@ static void stop_function_trace(struct trace_array *tr)
 	tracing_stop_cmdline_record();
 }
 
-static void function_trace_init(struct trace_array *tr)
+static int function_trace_init(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		start_function_trace(tr);
+	start_function_trace(tr);
+	return 0;
 }
 
 static void function_trace_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		stop_function_trace(tr);
+	stop_function_trace(tr);
 }
 
-static void function_trace_ctrl_update(struct trace_array *tr)
+static void function_trace_start(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		start_function_trace(tr);
-	else
-		stop_function_trace(tr);
+	tracing_reset_online_cpus(tr);
 }
 
 static struct tracer function_trace __read_mostly =
@@ -67,7 +53,7 @@ static struct tracer function_trace __read_mostly =
 	.name	     = "function",
 	.init	     = function_trace_init,
 	.reset	     = function_trace_reset,
-	.ctrl_update = function_trace_ctrl_update,
+	.start	     = function_trace_start,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_function,
 #endif

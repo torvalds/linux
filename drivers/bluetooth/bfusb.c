@@ -38,11 +38,6 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#ifndef CONFIG_BT_HCIBFUSB_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 #define VERSION "1.2"
 
 static struct usb_driver bfusb_driver;
@@ -221,7 +216,7 @@ static int bfusb_rx_submit(struct bfusb_data *data, struct urb *urb)
 	struct sk_buff *skb;
 	int err, pipe, size = HCI_MAX_FRAME_SIZE + 32;
 
-	BT_DBG("bfusb %p urb %p", bfusb, urb);
+	BT_DBG("bfusb %p urb %p", data, urb);
 
 	if (!urb && !(urb = usb_alloc_urb(0, GFP_ATOMIC)))
 		return -ENOMEM;
@@ -354,7 +349,7 @@ static void bfusb_rx_complete(struct urb *urb)
 	int count = urb->actual_length;
 	int err, hdr, len;
 
-	BT_DBG("bfusb %p urb %p skb %p len %d", bfusb, urb, skb, skb->len);
+	BT_DBG("bfusb %p urb %p skb %p len %d", data, urb, skb, skb->len);
 
 	read_lock(&data->lock);
 
@@ -691,7 +686,7 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 		goto error;
 	}
 
-	BT_DBG("firmware data %p size %d", firmware->data, firmware->size);
+	BT_DBG("firmware data %p size %zu", firmware->data, firmware->size);
 
 	if (bfusb_load_firmware(data, firmware->data, firmware->size) < 0) {
 		BT_ERR("Firmware loading failed");

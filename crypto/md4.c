@@ -20,8 +20,8 @@
  * (at your option) any later version.
  *
  */
+#include <crypto/internal/hash.h>
 #include <linux/init.h>
-#include <linux/crypto.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -58,7 +58,7 @@ static inline u32 H(u32 x, u32 y, u32 z)
 {
 	return x ^ y ^ z;
 }
-                        
+
 #define ROUND1(a,b,c,d,k,s) (a = lshift(a + F(b,c,d) + k, s))
 #define ROUND2(a,b,c,d,k,s) (a = lshift(a + G(b,c,d) + k + (u32)0x5A827999,s))
 #define ROUND3(a,b,c,d,k,s) (a = lshift(a + H(b,c,d) + k + (u32)0x6ED9EBA1,s))
@@ -148,24 +148,26 @@ static void md4_transform(u32 *hash, u32 const *in)
 
 static inline void md4_transform_helper(struct md4_ctx *ctx)
 {
-	le32_to_cpu_array(ctx->block, sizeof(ctx->block) / sizeof(u32));
+	le32_to_cpu_array(ctx->block, ARRAY_SIZE(ctx->block));
 	md4_transform(ctx->hash, ctx->block);
 }
 
-static void md4_init(struct crypto_tfm *tfm)
+static int md4_init(struct shash_desc *desc)
 {
-	struct md4_ctx *mctx = crypto_tfm_ctx(tfm);
+	struct md4_ctx *mctx = shash_desc_ctx(desc);
 
 	mctx->hash[0] = 0x67452301;
 	mctx->hash[1] = 0xefcdab89;
 	mctx->hash[2] = 0x98badcfe;
 	mctx->hash[3] = 0x10325476;
 	mctx->byte_count = 0;
+
+	return 0;
 }
 
-static void md4_update(struct crypto_tfm *tfm, const u8 *data, unsigned int len)
+static int md4_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 {
-	struct md4_ctx *mctx = crypto_tfm_ctx(tfm);
+	struct md4_ctx *mctx = shash_desc_ctx(desc);
 	const u32 avail = sizeof(mctx->block) - (mctx->byte_count & 0x3f);
 
 	mctx->byte_count += len;
@@ -173,7 +175,7 @@ static void md4_update(struct crypto_tfm *tfm, const u8 *data, unsigned int len)
 	if (avail > len) {
 		memcpy((char *)mctx->block + (sizeof(mctx->block) - avail),
 		       data, len);
-		return;
+		return 0;
 	}
 
 	memcpy((char *)mctx->block + (sizeof(mctx->block) - avail),
@@ -191,11 +193,13 @@ static void md4_update(struct crypto_tfm *tfm, const u8 *data, unsigned int len)
 	}
 
 	memcpy(mctx->block, data, len);
+
+	return 0;
 }
 
-static void md4_final(struct crypto_tfm *tfm, u8 *out)
+static int md4_final(struct shash_desc *desc, u8 *out)
 {
-	struct md4_ctx *mctx = crypto_tfm_ctx(tfm);
+	struct md4_ctx *mctx = shash_desc_ctx(desc);
 	const unsigned int offset = mctx->byte_count & 0x3f;
 	char *p = (char *)mctx->block + offset;
 	int padding = 56 - (offset + 1);
@@ -214,33 +218,35 @@ static void md4_final(struct crypto_tfm *tfm, u8 *out)
 	le32_to_cpu_array(mctx->block, (sizeof(mctx->block) -
 	                  sizeof(u64)) / sizeof(u32));
 	md4_transform(mctx->hash, mctx->block);
-	cpu_to_le32_array(mctx->hash, sizeof(mctx->hash) / sizeof(u32));
+	cpu_to_le32_array(mctx->hash, ARRAY_SIZE(mctx->hash));
 	memcpy(out, mctx->hash, sizeof(mctx->hash));
 	memset(mctx, 0, sizeof(*mctx));
+
+	return 0;
 }
 
-static struct crypto_alg alg = {
-	.cra_name	=	"md4",
-	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
-	.cra_blocksize	=	MD4_HMAC_BLOCK_SIZE,
-	.cra_ctxsize	=	sizeof(struct md4_ctx),
-	.cra_module	=	THIS_MODULE,
-	.cra_list       =       LIST_HEAD_INIT(alg.cra_list),	
-	.cra_u		=	{ .digest = {
-	.dia_digestsize	=	MD4_DIGEST_SIZE,
-	.dia_init   	= 	md4_init,
-	.dia_update 	=	md4_update,
-	.dia_final  	=	md4_final } }
+static struct shash_alg alg = {
+	.digestsize	=	MD4_DIGEST_SIZE,
+	.init		=	md4_init,
+	.update		=	md4_update,
+	.final		=	md4_final,
+	.descsize	=	sizeof(struct md4_ctx),
+	.base		=	{
+		.cra_name	=	"md4",
+		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
+		.cra_blocksize	=	MD4_HMAC_BLOCK_SIZE,
+		.cra_module	=	THIS_MODULE,
+	}
 };
 
 static int __init md4_mod_init(void)
 {
-	return crypto_register_alg(&alg);
+	return crypto_register_shash(&alg);
 }
 
 static void __exit md4_mod_fini(void)
 {
-	crypto_unregister_alg(&alg);
+	crypto_unregister_shash(&alg);
 }
 
 module_init(md4_mod_init);

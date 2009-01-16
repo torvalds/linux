@@ -20,8 +20,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <asm/dma.h>
 
+#include <mach/dma.h>
 #include <mach/pxa-regs.h>
 #include <mach/pxa3xx_nand.h>
 
@@ -298,7 +298,7 @@ static struct pxa3xx_nand_flash *builtin_flash_types[] = {
 #define NDTR1_tAR(c)	(min((c), 15) << 0)
 
 /* convert nano-seconds to nand flash controller clock cycles */
-#define ns2cycle(ns, clk)	(int)(((ns) * (clk / 1000000) / 1000) + 1)
+#define ns2cycle(ns, clk)	(int)(((ns) * (clk / 1000000) / 1000) - 1)
 
 static void pxa3xx_nand_set_timing(struct pxa3xx_nand_info *info,
 				   const struct pxa3xx_nand_timing *t)
@@ -368,14 +368,14 @@ static int prepare_read_prog_cmd(struct pxa3xx_nand_info *info,
 		/* large block, 2 cycles for column address
 		 * row address starts from 3rd cycle
 		 */
-		info->ndcb1 |= (page_addr << 16) | (column & 0xffff);
+		info->ndcb1 |= page_addr << 16;
 		if (info->row_addr_cycles == 3)
 			info->ndcb2 = (page_addr >> 16) & 0xff;
 	} else
 		/* small block, 1 cycles for column address
 		 * row address starts from 2nd cycle
 		 */
-		info->ndcb1 = (page_addr << 8) | (column & 0xff);
+		info->ndcb1 = page_addr << 8;
 
 	if (cmd == cmdset->program)
 		info->ndcb0 |= NDCB0_CMD_TYPE(1) | NDCB0_AUTO_RS;
@@ -1080,7 +1080,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	this = &info->nand_chip;
 	mtd->priv = info;
 
-	info->clk = clk_get(&pdev->dev, "NANDCLK");
+	info->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed to get nand clock\n");
 		ret = PTR_ERR(info->clk);

@@ -236,7 +236,7 @@ static int ma600_change_speed(struct sir_dev *dev, unsigned speed)
  * avoid the state machine complexity before we get things working
  */
 
-int ma600_reset(struct sir_dev *dev)
+static int ma600_reset(struct sir_dev *dev)
 {
 	IRDA_DEBUG(2, "%s()\n", __func__);
 

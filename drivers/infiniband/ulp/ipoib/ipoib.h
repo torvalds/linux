@@ -732,29 +732,6 @@ extern int ipoib_debug_level;
 	do { (void) (priv); } while (0)
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG_DATA */
 
-
-#define IPOIB_GID_FMT		"%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:" \
-				"%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x:%2.2x%2.2x"
-
-#define IPOIB_GID_RAW_ARG(gid)	((u8 *)(gid))[0], \
-				((u8 *)(gid))[1], \
-				((u8 *)(gid))[2], \
-				((u8 *)(gid))[3], \
-				((u8 *)(gid))[4], \
-				((u8 *)(gid))[5], \
-				((u8 *)(gid))[6], \
-				((u8 *)(gid))[7], \
-				((u8 *)(gid))[8], \
-				((u8 *)(gid))[9], \
-				((u8 *)(gid))[10],\
-				((u8 *)(gid))[11],\
-				((u8 *)(gid))[12],\
-				((u8 *)(gid))[13],\
-				((u8 *)(gid))[14],\
-				((u8 *)(gid))[15]
-
-#define IPOIB_GID_ARG(gid)	IPOIB_GID_RAW_ARG((gid).raw)
-
 #define IPOIB_QPN(ha) (be32_to_cpup((__be32 *) ha) & 0xffffff)
 
 #endif /* _IPOIB_H */

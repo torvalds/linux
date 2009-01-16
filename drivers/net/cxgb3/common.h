@@ -714,7 +714,7 @@ int t3_seeprom_read(struct adapter *adapter, u32 addr, __le32 *data);
 int t3_seeprom_write(struct adapter *adapter, u32 addr, __le32 data);
 int t3_seeprom_wp(struct adapter *adapter, int enable);
 int t3_get_tp_version(struct adapter *adapter, u32 *vers);
-int t3_check_tpsram_version(struct adapter *adapter, int *must_load);
+int t3_check_tpsram_version(struct adapter *adapter);
 int t3_check_tpsram(struct adapter *adapter, const u8 *tp_ram,
 		    unsigned int size);
 int t3_set_proto_sram(struct adapter *adap, const u8 *data);
@@ -722,7 +722,7 @@ int t3_read_flash(struct adapter *adapter, unsigned int addr,
 		  unsigned int nwords, u32 *data, int byte_oriented);
 int t3_load_fw(struct adapter *adapter, const u8 * fw_data, unsigned int size);
 int t3_get_fw_version(struct adapter *adapter, u32 *vers);
-int t3_check_fw_version(struct adapter *adapter, int *must_load);
+int t3_check_fw_version(struct adapter *adapter);
 int t3_init_hw(struct adapter *adapter, u32 fw_params);
 void mac_prep(struct cmac *mac, struct adapter *adapter, int index);
 void early_hw_init(struct adapter *adapter, const struct adapter_info *ai);

@@ -1108,8 +1108,7 @@ stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_scsi_host_put;
 	}
 
-	hba->mmio_base = ioremap_nocache(pci_resource_start(pdev, 0),
-		pci_resource_len(pdev, 0));
+	hba->mmio_base = pci_ioremap_bar(pdev, 0);
 	if ( !hba->mmio_base) {
 		printk(KERN_ERR DRV_NAME "(%s): memory map failed\n",
 			pci_name(pdev));

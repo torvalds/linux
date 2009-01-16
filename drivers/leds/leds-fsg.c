@@ -99,62 +99,41 @@ static void fsg_led_ring_set(struct led_classdev *led_cdev,
 }
 
 
-
 static struct led_classdev fsg_wlan_led = {
 	.name			= "fsg:blue:wlan",
 	.brightness_set		= fsg_led_wlan_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev fsg_wan_led = {
 	.name			= "fsg:blue:wan",
 	.brightness_set		= fsg_led_wan_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev fsg_sata_led = {
 	.name			= "fsg:blue:sata",
 	.brightness_set		= fsg_led_sata_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev fsg_usb_led = {
 	.name			= "fsg:blue:usb",
 	.brightness_set		= fsg_led_usb_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev fsg_sync_led = {
 	.name			= "fsg:blue:sync",
 	.brightness_set		= fsg_led_sync_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
 static struct led_classdev fsg_ring_led = {
 	.name			= "fsg:blue:ring",
 	.brightness_set		= fsg_led_ring_set,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
-
-
-
-#ifdef CONFIG_PM
-static int fsg_led_suspend(struct platform_device *dev, pm_message_t state)
-{
-	led_classdev_suspend(&fsg_wlan_led);
-	led_classdev_suspend(&fsg_wan_led);
-	led_classdev_suspend(&fsg_sata_led);
-	led_classdev_suspend(&fsg_usb_led);
-	led_classdev_suspend(&fsg_sync_led);
-	led_classdev_suspend(&fsg_ring_led);
-	return 0;
-}
-
-static int fsg_led_resume(struct platform_device *dev)
-{
-	led_classdev_resume(&fsg_wlan_led);
-	led_classdev_resume(&fsg_wan_led);
-	led_classdev_resume(&fsg_sata_led);
-	led_classdev_resume(&fsg_usb_led);
-	led_classdev_resume(&fsg_sync_led);
-	led_classdev_resume(&fsg_ring_led);
-	return 0;
-}
-#endif
 
 
 static int fsg_led_probe(struct platform_device *pdev)
@@ -232,10 +211,6 @@ static int fsg_led_remove(struct platform_device *pdev)
 static struct platform_driver fsg_led_driver = {
 	.probe		= fsg_led_probe,
 	.remove		= fsg_led_remove,
-#ifdef CONFIG_PM
-	.suspend	= fsg_led_suspend,
-	.resume		= fsg_led_resume,
-#endif
 	.driver		= {
 		.name		= "fsg-led",
 	},

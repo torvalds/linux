@@ -16,7 +16,7 @@
  *
  */
 
-#include <crypto/algapi.h>
+#include <crypto/internal/hash.h>
 #include <crypto/scatterwalk.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -238,9 +238,11 @@ static struct crypto_instance *hmac_alloc(struct rtattr **tb)
 		return ERR_CAST(alg);
 
 	inst = ERR_PTR(-EINVAL);
-	ds = (alg->cra_flags & CRYPTO_ALG_TYPE_MASK) ==
-	     CRYPTO_ALG_TYPE_HASH ? alg->cra_hash.digestsize :
-				    alg->cra_digest.dia_digestsize;
+	ds = alg->cra_type == &crypto_hash_type ?
+	     alg->cra_hash.digestsize :
+	     alg->cra_type ?
+	     __crypto_shash_alg(alg)->digestsize :
+	     alg->cra_digest.dia_digestsize;
 	if (ds > alg->cra_blocksize)
 		goto out_put_alg;
 

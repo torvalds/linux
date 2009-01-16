@@ -49,9 +49,10 @@
 
 /*The following definitions come from  libsmb/smbencrypt.c  */
 
-void SMBencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24);
+void SMBencrypt(unsigned char *passwd, const unsigned char *c8,
+		unsigned char *p24);
 void E_md4hash(const unsigned char *passwd, unsigned char *p16);
-static void SMBOWFencrypt(unsigned char passwd[16], unsigned char *c8,
+static void SMBOWFencrypt(unsigned char passwd[16], const unsigned char *c8,
 		   unsigned char p24[24]);
 void SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24);
 
@@ -61,7 +62,7 @@ void SMBNTencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24);
    encrypted password into p24 */
 /* Note that password must be uppercased and null terminated */
 void
-SMBencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24)
+SMBencrypt(unsigned char *passwd, const unsigned char *c8, unsigned char *p24)
 {
 	unsigned char p14[15], p21[21];
 
@@ -212,7 +213,7 @@ ntv2_owf_gen(const unsigned char owf[16], const char *user_n,
 
 /* Does the des encryption from the NT or LM MD4 hash. */
 static void
-SMBOWFencrypt(unsigned char passwd[16], unsigned char *c8,
+SMBOWFencrypt(unsigned char passwd[16], const unsigned char *c8,
 	      unsigned char p24[24])
 {
 	unsigned char p21[21];

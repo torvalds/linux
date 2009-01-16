@@ -17,6 +17,8 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 
+#include "kernel.h"
+
 /* #define DEBUG_MULDIV */
 
 static inline int has_imm13(int insn)
@@ -58,7 +60,7 @@ static inline void maybe_flush_windows(unsigned int rs1, unsigned int rs2,
 }
 
 #define fetch_reg(reg, regs) ({						\
-	struct reg_window __user *win;					\
+	struct reg_window32 __user *win;					\
 	register unsigned long ret;					\
 									\
 	if (!(reg)) ret = 0;						\
@@ -66,7 +68,7 @@ static inline void maybe_flush_windows(unsigned int rs1, unsigned int rs2,
 		ret = regs->u_regs[(reg)];				\
 	} else {							\
 		/* Ho hum, the slightly complicated case. */		\
-		win = (struct reg_window __user *)regs->u_regs[UREG_FP];\
+		win = (struct reg_window32 __user *)regs->u_regs[UREG_FP];\
 		if (get_user (ret, &win->locals[(reg) - 16])) return -1;\
 	}								\
 	ret;								\
@@ -75,7 +77,7 @@ static inline void maybe_flush_windows(unsigned int rs1, unsigned int rs2,
 static inline int
 store_reg(unsigned int result, unsigned int reg, struct pt_regs *regs)
 {
-	struct reg_window __user *win;
+	struct reg_window32 __user *win;
 
 	if (!reg)
 		return 0;
@@ -84,13 +86,10 @@ store_reg(unsigned int result, unsigned int reg, struct pt_regs *regs)
 		return 0;
 	} else {
 		/* need to use put_user() in this case: */
-		win = (struct reg_window __user *) regs->u_regs[UREG_FP];
+		win = (struct reg_window32 __user *) regs->u_regs[UREG_FP];
 		return (put_user(result, &win->locals[reg - 16]));
 	}
 }
-		
-extern void handle_hw_divzero (struct pt_regs *regs, unsigned long pc,
-			       unsigned long npc, unsigned long psr);
 
 /* Should return 0 if mul/div emulation succeeded and SIGILL should
  * not be issued.

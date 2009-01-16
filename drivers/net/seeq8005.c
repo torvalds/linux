@@ -158,7 +158,6 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 	int old_dmaar;
 	int old_rear;
 	int retval;
-	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, SEEQ8005_IO_EXTENT, "seeq8005"))
 		return -ENODEV;
@@ -303,7 +302,7 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 	/* Retrieve and print the ethernet address. */
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = SA_prom[i+6];
-	printk("%s", print_mac(mac, dev->dev_addr));
+	printk("%pM", dev->dev_addr);
 
 	if (dev->irq == 0xff)
 		;			/* Do nothing: a user-level program will set it. */
@@ -564,7 +563,6 @@ static void seeq8005_rx(struct net_device *dev)
 
 			skb->protocol=eth_type_trans(skb,dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += pkt_len;
 		}
@@ -746,12 +744,3 @@ void __exit cleanup_module(void)
 }
 
 #endif /* MODULE */
-
-/*
- * Local variables:
- *  compile-command: "gcc -D__KERNEL__ -I/usr/src/linux/net/inet -Wall -Wstrict-prototypes -O6 -m486 -c skeleton.c"
- *  version-control: t
- *  kept-new-versions: 5
- *  tab-width: 4
- * End:
- */

@@ -94,31 +94,11 @@ static void ack_cayman_irq(unsigned int irq)
 	disable_cayman_irq(irq);
 }
 
-static void end_cayman_irq(unsigned int irq)
-{
-	if (!(irq_desc[irq].status & (IRQ_DISABLED|IRQ_INPROGRESS)))
-		enable_cayman_irq(irq);
-}
-
-static unsigned int startup_cayman_irq(unsigned int irq)
-{
-	enable_cayman_irq(irq);
-	return 0; /* never anything pending */
-}
-
-static void shutdown_cayman_irq(unsigned int irq)
-{
-	disable_cayman_irq(irq);
-}
-
-struct hw_interrupt_type cayman_irq_type = {
-	.typename	= "Cayman-IRQ",
-	.startup	= startup_cayman_irq,
-	.shutdown	= shutdown_cayman_irq,
-	.enable		= enable_cayman_irq,
-	.disable	= disable_cayman_irq,
-	.ack		= ack_cayman_irq,
-	.end		= end_cayman_irq,
+struct irq_chip cayman_irq_type = {
+	.name		= "Cayman-IRQ",
+	.unmask 	= enable_cayman_irq,
+	.mask		= disable_cayman_irq,
+	.mask_ack	= ack_cayman_irq,
 };
 
 int cayman_irq_demux(int evt)
@@ -187,8 +167,9 @@ void init_cayman_irq(void)
 		return;
 	}
 
-	for (i=0; i<NR_EXT_IRQS; i++) {
-		irq_desc[START_EXT_IRQS + i].chip = &cayman_irq_type;
+	for (i = 0; i < NR_EXT_IRQS; i++) {
+		set_irq_chip_and_handler(START_EXT_IRQS + i, &cayman_irq_type,
+					 handle_level_irq);
 	}
 
 	/* Setup the SMSC interrupt */

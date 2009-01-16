@@ -587,9 +587,8 @@ void b43_pio_handle_txstatus(struct b43_wldev *dev,
 	spin_lock(&q->lock); /* IRQs are already disabled. */
 
 	info = IEEE80211_SKB_CB(pack->skb);
-	memset(&info->status, 0, sizeof(info->status));
 
-	b43_fill_txstatus_report(info, status);
+	b43_fill_txstatus_report(dev, info, status);
 
 	total_len = pack->skb->len + b43_txhdr_size(dev);
 	total_len = roundup(total_len, 4);

@@ -306,7 +306,7 @@ static int hexium_detach(struct saa7146_dev *dev)
 	return 0;
 }
 
-static int hexium_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
+static long hexium_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 {
 	struct saa7146_dev *dev = fh->dev;
 	struct hexium *hexium = (struct hexium *) dev->ext_priv;

@@ -578,7 +578,7 @@ errout:
 	return err;
 }
 
-static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
+static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
@@ -600,7 +600,7 @@ errout:
 	return err;
 }
 
-static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
+static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
 	struct fib_config cfg;
@@ -903,7 +903,7 @@ static void fib_disable_ip(struct net_device *dev, int force)
 
 static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct in_ifaddr *ifa = (struct in_ifaddr*)ptr;
+	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
 	struct net_device *dev = ifa->ifa_dev->dev;
 
 	switch (event) {
@@ -964,11 +964,11 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 }
 
 static struct notifier_block fib_inetaddr_notifier = {
-	.notifier_call =fib_inetaddr_event,
+	.notifier_call = fib_inetaddr_event,
 };
 
 static struct notifier_block fib_netdev_notifier = {
-	.notifier_call =fib_netdev_event,
+	.notifier_call = fib_netdev_event,
 };
 
 static int __net_init ip_fib_net_init(struct net *net)

@@ -82,7 +82,7 @@
 #define _FP_MUL_MEAT_S(R,X,Y)   _FP_MUL_MEAT_1_wide(_FP_WFRACBITS_S,R,X,Y,umul_ppmm)
 #define _FP_MUL_MEAT_D(R,X,Y)   _FP_MUL_MEAT_2_wide(_FP_WFRACBITS_D,R,X,Y,umul_ppmm)
 
-#define _FP_DIV_MEAT_S(R,X,Y)	_FP_DIV_MEAT_1_udiv(S,R,X,Y)
+#define _FP_DIV_MEAT_S(R,X,Y)	_FP_DIV_MEAT_1_udiv_norm(S,R,X,Y)
 #define _FP_DIV_MEAT_D(R,X,Y)	_FP_DIV_MEAT_2_udiv(D,R,X,Y)
 
 /* These macros define what NaN looks like. They're supposed to expand to
@@ -97,6 +97,20 @@
 
 #define _FP_KEEPNANFRACP 1
 
+#ifdef FP_EX_BOOKE_E500_SPE
+#define FP_EX_INEXACT		(1 << 21)
+#define FP_EX_INVALID		(1 << 20)
+#define FP_EX_DIVZERO		(1 << 19)
+#define FP_EX_UNDERFLOW		(1 << 18)
+#define FP_EX_OVERFLOW		(1 << 17)
+#define FP_INHIBIT_RESULTS	0
+
+#define __FPU_FPSCR	(current->thread.spefscr)
+#define __FPU_ENABLED_EXC		\
+({					\
+	(__FPU_FPSCR >> 2) & 0x1f;	\
+})
+#else
 /* Exception flags.  We use the bit positions of the appropriate bits
    in the FPSCR, which also correspond to the FE_* bits.  This makes
    everything easier ;-).  */
@@ -111,22 +125,6 @@
 #define FP_EX_DIVZERO         (1 << (31 - 5))
 #define FP_EX_INEXACT         (1 << (31 - 6))
 
-/* This macro appears to be called when both X and Y are NaNs, and
- * has to choose one and copy it to R. i386 goes for the larger of the
- * two, sparc64 just picks Y. I don't understand this at all so I'll
- * go with sparc64 because it's shorter :->   -- PMM
- */
-#define _FP_CHOOSENAN(fs, wc, R, X, Y, OP)		\
-  do {							\
-    R##_s = Y##_s;					\
-    _FP_FRAC_COPY_##wc(R,Y);				\
-    R##_c = FP_CLS_NAN;					\
-  } while (0)
-
-
-#include <linux/kernel.h>
-#include <linux/sched.h>
-
 #define __FPU_FPSCR	(current->thread.fpscr.val)
 
 /* We only actually write to the destination register
@@ -136,6 +134,32 @@
 ({						\
 	(__FPU_FPSCR >> 3) & 0x1f;	\
 })
+
+#endif
+
+/*
+ * If one NaN is signaling and the other is not,
+ * we choose that one, otherwise we choose X.
+ */
+#define _FP_CHOOSENAN(fs, wc, R, X, Y, OP)			\
+  do {								\
+    if ((_FP_FRAC_HIGH_RAW_##fs(Y) & _FP_QNANBIT_##fs)		\
+	&& !(_FP_FRAC_HIGH_RAW_##fs(X) & _FP_QNANBIT_##fs))	\
+      {								\
+	R##_s = X##_s;						\
+	_FP_FRAC_COPY_##wc(R,X);				\
+      }								\
+    else							\
+      {								\
+	R##_s = Y##_s;						\
+	_FP_FRAC_COPY_##wc(R,Y);				\
+      }								\
+    R##_c = FP_CLS_NAN;						\
+  } while (0)
+
+
+#include <linux/kernel.h>
+#include <linux/sched.h>
 
 #define __FPU_TRAP_P(bits) \
 	((__FPU_ENABLED_EXC & (bits)) != 0)

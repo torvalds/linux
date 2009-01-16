@@ -259,7 +259,7 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 
 		if (final_p)
 			ipv6_addr_copy(&fl.fl6_dst, final_p);
-		if ((xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+		if ((xfrm_lookup(sock_net(sk), &dst, &fl, sk, 0)) < 0)
 			goto out_free;
 	}
 

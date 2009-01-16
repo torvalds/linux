@@ -783,6 +783,10 @@ extern void scom970_write(unsigned int address, unsigned long value);
 #define __get_SP()	({unsigned long sp; \
 			asm volatile("mr %0,1": "=r" (sp)); sp;})
 
+struct pt_regs;
+
+extern void ppc_save_regs(struct pt_regs *regs);
+
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_REG_H */

@@ -46,7 +46,7 @@
 #include "lpfc_compat.h"
 #include "lpfc_debugfs.h"
 
-#ifdef CONFIG_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 /**
  * debugfs interface
  *
@@ -618,7 +618,7 @@ inline void
 lpfc_debugfs_disc_trc(struct lpfc_vport *vport, int mask, char *fmt,
 	uint32_t data1, uint32_t data2, uint32_t data3)
 {
-#ifdef CONFIG_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct lpfc_debugfs_trc *dtp;
 	int index;
 
@@ -659,7 +659,7 @@ inline void
 lpfc_debugfs_slow_ring_trc(struct lpfc_hba *phba, char *fmt,
 	uint32_t data1, uint32_t data2, uint32_t data3)
 {
-#ifdef CONFIG_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct lpfc_debugfs_trc *dtp;
 	int index;
 
@@ -680,7 +680,7 @@ lpfc_debugfs_slow_ring_trc(struct lpfc_hba *phba, char *fmt,
 	return;
 }
 
-#ifdef CONFIG_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 /**
  * lpfc_debugfs_disc_trc_open - Open the discovery trace log.
  * @inode: The inode pointer that contains a vport pointer.
@@ -907,6 +907,91 @@ out:
 	return rc;
 }
 
+static int
+lpfc_debugfs_dumpData_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_debug *debug;
+	int rc = -ENOMEM;
+
+	if (!_dump_buf_data)
+		return -EBUSY;
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	/* Round to page boundry */
+	printk(KERN_ERR "BLKGRD %s: _dump_buf_data=0x%p\n",
+			__func__, _dump_buf_data);
+	debug->buffer = _dump_buf_data;
+	if (!debug->buffer) {
+		kfree(debug);
+		goto out;
+	}
+
+	debug->len = (1 << _dump_buf_data_order) << PAGE_SHIFT;
+	file->private_data = debug;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+static int
+lpfc_debugfs_dumpDif_open(struct inode *inode, struct file *file)
+{
+	struct lpfc_debug *debug;
+	int rc = -ENOMEM;
+
+	if (!_dump_buf_dif)
+		return -EBUSY;
+
+	debug = kmalloc(sizeof(*debug), GFP_KERNEL);
+	if (!debug)
+		goto out;
+
+	/* Round to page boundry */
+	printk(KERN_ERR "BLKGRD %s: _dump_buf_dif=0x%p file=%s\n", __func__,
+	       _dump_buf_dif, file->f_dentry->d_name.name);
+	debug->buffer = _dump_buf_dif;
+	if (!debug->buffer) {
+		kfree(debug);
+		goto out;
+	}
+
+	debug->len = (1 << _dump_buf_dif_order) << PAGE_SHIFT;
+	file->private_data = debug;
+
+	rc = 0;
+out:
+	return rc;
+}
+
+static ssize_t
+lpfc_debugfs_dumpDataDif_write(struct file *file, const char __user *buf,
+		  size_t nbytes, loff_t *ppos)
+{
+	/*
+	 * The Data/DIF buffers only save one failing IO
+	 * The write op is used as a reset mechanism after an IO has
+	 * already been saved to the next one can be saved
+	 */
+	spin_lock(&_dump_buf_lock);
+
+	memset((void *)_dump_buf_data, 0,
+			((1 << PAGE_SHIFT) << _dump_buf_data_order));
+	memset((void *)_dump_buf_dif, 0,
+			((1 << PAGE_SHIFT) << _dump_buf_dif_order));
+
+	_dump_buf_done = 0;
+
+	spin_unlock(&_dump_buf_lock);
+
+	return nbytes;
+}
+
+
+
 /**
  * lpfc_debugfs_nodelist_open - Open the nodelist debugfs file.
  * @inode: The inode pointer that contains a vport pointer.
@@ -1035,6 +1120,17 @@ lpfc_debugfs_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static int
+lpfc_debugfs_dumpDataDif_release(struct inode *inode, struct file *file)
+{
+	struct lpfc_debug *debug = file->private_data;
+
+	debug->buffer = NULL;
+	kfree(debug);
+
+	return 0;
+}
+
 #undef lpfc_debugfs_op_disc_trc
 static struct file_operations lpfc_debugfs_op_disc_trc = {
 	.owner =        THIS_MODULE,
@@ -1080,6 +1176,26 @@ static struct file_operations lpfc_debugfs_op_dumpHostSlim = {
 	.release =      lpfc_debugfs_release,
 };
 
+#undef lpfc_debugfs_op_dumpData
+static struct file_operations lpfc_debugfs_op_dumpData = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_debugfs_dumpData_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_debugfs_read,
+	.write =	lpfc_debugfs_dumpDataDif_write,
+	.release =      lpfc_debugfs_dumpDataDif_release,
+};
+
+#undef lpfc_debugfs_op_dumpDif
+static struct file_operations lpfc_debugfs_op_dumpDif = {
+	.owner =        THIS_MODULE,
+	.open =         lpfc_debugfs_dumpDif_open,
+	.llseek =       lpfc_debugfs_lseek,
+	.read =         lpfc_debugfs_read,
+	.write =	lpfc_debugfs_dumpDataDif_write,
+	.release =      lpfc_debugfs_dumpDataDif_release,
+};
+
 #undef lpfc_debugfs_op_slow_ring_trc
 static struct file_operations lpfc_debugfs_op_slow_ring_trc = {
 	.owner =        THIS_MODULE,
@@ -1106,7 +1222,7 @@ static atomic_t lpfc_debugfs_hba_count;
 inline void
 lpfc_debugfs_initialize(struct lpfc_vport *vport)
 {
-#ifdef CONFIG_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct lpfc_hba   *phba = vport->phba;
 	char name[64];
 	uint32_t num, i;
@@ -1175,6 +1291,32 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 				"0414 Cannot create debugfs dumpHostSlim\n");
 			goto debug_failed;
 		}
+
+		/* Setup dumpData */
+		snprintf(name, sizeof(name), "dumpData");
+		phba->debug_dumpData =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 phba->hba_debugfs_root,
+				 phba, &lpfc_debugfs_op_dumpData);
+		if (!phba->debug_dumpData) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0800 Cannot create debugfs dumpData\n");
+			goto debug_failed;
+		}
+
+		/* Setup dumpDif */
+		snprintf(name, sizeof(name), "dumpDif");
+		phba->debug_dumpDif =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+				 phba->hba_debugfs_root,
+				 phba, &lpfc_debugfs_op_dumpDif);
+		if (!phba->debug_dumpDif) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0801 Cannot create debugfs dumpDif\n");
+			goto debug_failed;
+		}
+
+
 
 		/* Setup slow ring trace */
 		if (lpfc_debugfs_max_slow_ring_trc) {
@@ -1305,7 +1447,7 @@ debug_failed:
 inline void
 lpfc_debugfs_terminate(struct lpfc_vport *vport)
 {
-#ifdef CONFIG_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct lpfc_hba   *phba = vport->phba;
 
 	if (vport->disc_trc) {
@@ -1340,6 +1482,16 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 			debugfs_remove(phba->debug_dumpHostSlim); /* HostSlim */
 			phba->debug_dumpHostSlim = NULL;
 		}
+		if (phba->debug_dumpData) {
+			debugfs_remove(phba->debug_dumpData); /* dumpData */
+			phba->debug_dumpData = NULL;
+		}
+
+		if (phba->debug_dumpDif) {
+			debugfs_remove(phba->debug_dumpDif); /* dumpDif */
+			phba->debug_dumpDif = NULL;
+		}
+
 		if (phba->slow_ring_trc) {
 			kfree(phba->slow_ring_trc);
 			phba->slow_ring_trc = NULL;

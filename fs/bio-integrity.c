@@ -111,7 +111,7 @@ void bio_integrity_free(struct bio *bio, struct bio_set *bs)
 	    && bip->bip_buf != NULL)
 		kfree(bip->bip_buf);
 
-	mempool_free(bip->bip_vec, bs->bvec_pools[bip->bip_pool]);
+	bvec_free_bs(bs, bip->bip_vec, bip->bip_pool);
 	mempool_free(bip, bs->bio_integrity_pool);
 
 	bio->bi_integrity = NULL;

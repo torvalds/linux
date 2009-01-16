@@ -134,7 +134,7 @@
 		};
 
 		USB1: usb@e0000400 {
-			compatible = "ohci-be";
+			compatible = "ibm,usb-ohci-440epx", "ohci-be";
 			reg = <0x00000000 0xe0000400 0x00000060>;
 			interrupt-parent = <&UIC0>;
 			interrupts = <0x15 0x8>;

@@ -36,9 +36,9 @@
 |	depending on their values, the program may run faster or slower --
 |	but no worse than 10% slower even in the extreme cases.
 |
-|	The program setoxm1 takes approximately ???/??? cycles for input
+|	The program setoxm1 takes approximately ??? / ??? cycles for input
 |	argument X, 0.25 <= |X| < 70log2. For |X| < 0.25, it takes
-|	approximately ???/??? cycles. For the less common arguments,
+|	approximately ??? / ??? cycles. For the less common arguments,
 |	depending on their values, the program may run faster or slower --
 |	but no worse than 10% slower even in the extreme cases.
 |

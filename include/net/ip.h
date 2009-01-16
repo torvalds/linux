@@ -110,7 +110,7 @@ extern int		ip_append_data(struct sock *sk,
 						   int odd, struct sk_buff *skb),
 				void *from, int len, int protolen,
 				struct ipcm_cookie *ipc,
-				struct rtable *rt,
+				struct rtable **rt,
 				unsigned int flags);
 extern int		ip_generic_getfrag(void *from, char *to, int offset, int len, int odd, struct sk_buff *skb);
 extern ssize_t		ip_append_page(struct sock *sk, struct page *page,
@@ -187,6 +187,7 @@ extern void inet_get_local_port_range(int *low, int *high);
 extern int sysctl_ip_default_ttl;
 extern int sysctl_ip_nonlocal_bind;
 
+extern struct ctl_path net_core_path[];
 extern struct ctl_path net_ipv4_ctl_path[];
 
 /* From inetpeer.c */

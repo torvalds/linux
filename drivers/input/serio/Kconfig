@@ -79,7 +79,7 @@ config SERIO_PARKBD
 
 config SERIO_RPCKBD
 	tristate "Acorn RiscPC keyboard controller"
-	depends on ARCH_ACORN || ARCH_CLPS7500
+	depends on ARCH_ACORN
 	default y
 	help
 	  Say Y here if you have the Acorn RiscPC and want to use an AT

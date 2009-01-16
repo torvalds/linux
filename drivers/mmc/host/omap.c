@@ -1015,7 +1015,7 @@ static int mmc_omap_get_dma_channel(struct mmc_omap_host *host, struct mmc_data 
 	}
 
 	if (is_read) {
-		if (host->id == 1) {
+		if (host->id == 0) {
 			sync_dev = OMAP_DMA_MMC_RX;
 			dma_dev_name = "MMC1 read";
 		} else {
@@ -1023,7 +1023,7 @@ static int mmc_omap_get_dma_channel(struct mmc_omap_host *host, struct mmc_data 
 			dma_dev_name = "MMC2 read";
 		}
 	} else {
-		if (host->id == 1) {
+		if (host->id == 0) {
 			sync_dev = OMAP_DMA_MMC_TX;
 			dma_dev_name = "MMC1 write";
 		} else {
@@ -1317,7 +1317,7 @@ static int __init mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 	host->slots[id] = slot;
 
 	mmc->caps = 0;
-	if (host->pdata->conf.wire4)
+	if (host->pdata->slots[id].wires >= 4)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	mmc->ops = &mmc_omap_ops;
@@ -1451,6 +1451,7 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 	host->irq = irq;
 
 	host->use_dma = 1;
+	host->dev->dma_mask = &pdata->dma_mask;
 	host->dma_ch = -1;
 
 	host->irq = irq;

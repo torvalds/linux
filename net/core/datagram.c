@@ -209,7 +209,7 @@ struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 {
 	kfree_skb(skb);
-	sk_mem_reclaim(sk);
+	sk_mem_reclaim_partial(sk);
 }
 
 /**
@@ -248,8 +248,7 @@ int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
 	}
 
-	kfree_skb(skb);
-	sk_mem_reclaim(sk);
+	skb_free_datagram(sk, skb);
 	return err;
 }
 

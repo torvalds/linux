@@ -115,9 +115,19 @@ static inline u64 get_jiffies_64(void)
 	 ((long)(a) - (long)(b) >= 0))
 #define time_before_eq(a,b)	time_after_eq(b,a)
 
+/*
+ * Calculate whether a is in the range of [b, c].
+ */
 #define time_in_range(a,b,c) \
 	(time_after_eq(a,b) && \
 	 time_before_eq(a,c))
+
+/*
+ * Calculate whether a is in the range of [b, c).
+ */
+#define time_in_range_open(a,b,c) \
+	(time_after_eq(a,b) && \
+	 time_before(a,c))
 
 /* Same as above, but does so with platform independent 64bit types.
  * These must be used when utilizing jiffies_64 (i.e. return value of

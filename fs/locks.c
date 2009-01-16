@@ -1349,7 +1349,7 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	struct inode *inode = dentry->d_inode;
 	int error, rdlease_count = 0, wrlease_count = 0;
 
-	if ((current->fsuid != inode->i_uid) && !capable(CAP_LEASE))
+	if ((current_fsuid() != inode->i_uid) && !capable(CAP_LEASE))
 		return -EACCES;
 	if (!S_ISREG(inode->i_mode))
 		return -EINVAL;
@@ -1564,7 +1564,7 @@ EXPORT_SYMBOL(flock_lock_file_wait);
  *	%LOCK_MAND can be combined with %LOCK_READ or %LOCK_WRITE to allow other
  *	processes read and write access respectively.
  */
-asmlinkage long sys_flock(unsigned int fd, unsigned int cmd)
+SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 {
 	struct file *filp;
 	struct file_lock *lock;

@@ -88,6 +88,8 @@
 #define NFS4_ACE_GENERIC_EXECUTE              0x001200A0
 #define NFS4_ACE_MASK_ALL                     0x001F01FF
 
+#define NFS4_MAX_UINT64	(~(u64)0)
+
 enum nfs4_acl_whotype {
 	NFS4_ACL_WHO_NAMED = 0,
 	NFS4_ACL_WHO_OWNER,

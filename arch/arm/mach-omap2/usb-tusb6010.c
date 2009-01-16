@@ -12,11 +12,11 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 
 #include <linux/usb/musb.h>
 
 #include <mach/gpmc.h>
-#include <mach/gpio.h>
 #include <mach/mux.h>
 
 
@@ -292,12 +292,12 @@ tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 			);
 
 	/* IRQ */
-	status = omap_request_gpio(irq);
+	status = gpio_request(irq, "TUSB6010 irq");
 	if (status < 0) {
 		printk(error, 3, status);
 		return status;
 	}
-	omap_set_gpio_direction(irq, 1);
+	gpio_direction_input(irq);
 	tusb_resources[2].start = irq + IH_GPIO_BASE;
 
 	/* set up memory timings ... can speed them up later */

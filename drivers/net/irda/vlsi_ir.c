@@ -178,7 +178,7 @@ static void vlsi_proc_pdev(struct seq_file *seq, struct pci_dev *pdev)
 		
 static void vlsi_proc_ndev(struct seq_file *seq, struct net_device *ndev)
 {
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 	u8 byte;
 	u16 word;
 	unsigned delta1, delta2;
@@ -291,14 +291,14 @@ static void vlsi_proc_ndev(struct seq_file *seq, struct net_device *ndev)
 		now.tv_sec - idev->last_rx.tv_sec - delta1, delta2);	
 
 	seq_printf(seq, "RX: packets=%lu / bytes=%lu / errors=%lu / dropped=%lu",
-		idev->stats.rx_packets, idev->stats.rx_bytes, idev->stats.rx_errors,
-		idev->stats.rx_dropped);
+		ndev->stats.rx_packets, ndev->stats.rx_bytes, ndev->stats.rx_errors,
+		ndev->stats.rx_dropped);
 	seq_printf(seq, " / overrun=%lu / length=%lu / frame=%lu / crc=%lu\n",
-		idev->stats.rx_over_errors, idev->stats.rx_length_errors,
-		idev->stats.rx_frame_errors, idev->stats.rx_crc_errors);
+		ndev->stats.rx_over_errors, ndev->stats.rx_length_errors,
+		ndev->stats.rx_frame_errors, ndev->stats.rx_crc_errors);
 	seq_printf(seq, "TX: packets=%lu / bytes=%lu / errors=%lu / dropped=%lu / fifo=%lu\n",
-		idev->stats.tx_packets, idev->stats.tx_bytes, idev->stats.tx_errors,
-		idev->stats.tx_dropped, idev->stats.tx_fifo_errors);
+		ndev->stats.tx_packets, ndev->stats.tx_bytes, ndev->stats.tx_errors,
+		ndev->stats.tx_dropped, ndev->stats.tx_fifo_errors);
 
 }
 		
@@ -346,7 +346,7 @@ static void vlsi_proc_ring(struct seq_file *seq, struct vlsi_ring *r)
 static int vlsi_seq_show(struct seq_file *seq, void *v)
 {
 	struct net_device *ndev = seq->private;
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 	unsigned long flags;
 
 	seq_printf(seq, "\n%s %s\n\n", DRIVER_NAME, DRIVER_VERSION);
@@ -543,7 +543,7 @@ static int vlsi_process_rx(struct vlsi_ring *r, struct ring_descr *rd)
 	struct sk_buff	*skb;
 	int		ret = 0;
 	struct net_device *ndev = (struct net_device *)pci_get_drvdata(r->pdev);
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 
 	pci_dma_sync_single_for_cpu(r->pdev, rd_get_addr(rd), r->len, r->dir);
 	/* dma buffer now owned by the CPU */
@@ -600,7 +600,6 @@ static int vlsi_process_rx(struct vlsi_ring *r, struct ring_descr *rd)
 		netif_rx(skb);
 	else
 		netif_rx_ni(skb);
-	ndev->last_rx = jiffies;
 
 done:
 	rd_set_status(rd, 0);
@@ -638,7 +637,7 @@ static void vlsi_fill_rx(struct vlsi_ring *r)
 
 static void vlsi_rx_interrupt(struct net_device *ndev)
 {
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 	struct vlsi_ring *r = idev->rx_ring;
 	struct ring_descr *rd;
 	int ret;
@@ -652,21 +651,21 @@ static void vlsi_rx_interrupt(struct net_device *ndev)
 
 		if (ret < 0) {
 			ret = -ret;
-			idev->stats.rx_errors++;
+			ndev->stats.rx_errors++;
 			if (ret & VLSI_RX_DROP)  
-				idev->stats.rx_dropped++;
+				ndev->stats.rx_dropped++;
 			if (ret & VLSI_RX_OVER)  
-				idev->stats.rx_over_errors++;
+				ndev->stats.rx_over_errors++;
 			if (ret & VLSI_RX_LENGTH)  
-				idev->stats.rx_length_errors++;
+				ndev->stats.rx_length_errors++;
 			if (ret & VLSI_RX_FRAME)  
-				idev->stats.rx_frame_errors++;
+				ndev->stats.rx_frame_errors++;
 			if (ret & VLSI_RX_CRC)  
-				idev->stats.rx_crc_errors++;
+				ndev->stats.rx_crc_errors++;
 		}
 		else if (ret > 0) {
-			idev->stats.rx_packets++;
-			idev->stats.rx_bytes += ret;
+			ndev->stats.rx_packets++;
+			ndev->stats.rx_bytes += ret;
 		}
 	}
 
@@ -687,6 +686,7 @@ static void vlsi_rx_interrupt(struct net_device *ndev)
 
 static void vlsi_unarm_rx(vlsi_irda_dev_t *idev)
 {
+	struct net_device *ndev = pci_get_drvdata(idev->pdev);
 	struct vlsi_ring *r = idev->rx_ring;
 	struct ring_descr *rd;
 	int ret;
@@ -712,21 +712,21 @@ static void vlsi_unarm_rx(vlsi_irda_dev_t *idev)
 
 		if (ret < 0) {
 			ret = -ret;
-			idev->stats.rx_errors++;
+			ndev->stats.rx_errors++;
 			if (ret & VLSI_RX_DROP)  
-				idev->stats.rx_dropped++;
+				ndev->stats.rx_dropped++;
 			if (ret & VLSI_RX_OVER)  
-				idev->stats.rx_over_errors++;
+				ndev->stats.rx_over_errors++;
 			if (ret & VLSI_RX_LENGTH)  
-				idev->stats.rx_length_errors++;
+				ndev->stats.rx_length_errors++;
 			if (ret & VLSI_RX_FRAME)  
-				idev->stats.rx_frame_errors++;
+				ndev->stats.rx_frame_errors++;
 			if (ret & VLSI_RX_CRC)  
-				idev->stats.rx_crc_errors++;
+				ndev->stats.rx_crc_errors++;
 		}
 		else if (ret > 0) {
-			idev->stats.rx_packets++;
-			idev->stats.rx_bytes += ret;
+			ndev->stats.rx_packets++;
+			ndev->stats.rx_bytes += ret;
 		}
 	}
 }
@@ -856,7 +856,7 @@ static int vlsi_set_baud(vlsi_irda_dev_t *idev, unsigned iobase)
 
 static int vlsi_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 	struct vlsi_ring	*r = idev->tx_ring;
 	struct ring_descr *rd;
 	unsigned long flags;
@@ -1051,8 +1051,8 @@ drop_unlock:
 drop:
 	IRDA_WARNING("%s: dropping packet - %s\n", __func__, msg);
 	dev_kfree_skb_any(skb);
-	idev->stats.tx_errors++;
-	idev->stats.tx_dropped++;
+	ndev->stats.tx_errors++;
+	ndev->stats.tx_dropped++;
 	/* Don't even think about returning NET_XMIT_DROP (=1) here!
 	 * In fact any retval!=0 causes the packet scheduler to requeue the
 	 * packet for later retry of transmission - which isn't exactly
@@ -1063,7 +1063,7 @@ drop:
 
 static void vlsi_tx_interrupt(struct net_device *ndev)
 {
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 	struct vlsi_ring	*r = idev->tx_ring;
 	struct ring_descr	*rd;
 	unsigned	iobase;
@@ -1079,15 +1079,15 @@ static void vlsi_tx_interrupt(struct net_device *ndev)
 
 		if (ret < 0) {
 			ret = -ret;
-			idev->stats.tx_errors++;
+			ndev->stats.tx_errors++;
 			if (ret & VLSI_TX_DROP)
-				idev->stats.tx_dropped++;
+				ndev->stats.tx_dropped++;
 			if (ret & VLSI_TX_FIFO)
-				idev->stats.tx_fifo_errors++;
+				ndev->stats.tx_fifo_errors++;
 		}
 		else if (ret > 0){
-			idev->stats.tx_packets++;
-			idev->stats.tx_bytes += ret;
+			ndev->stats.tx_packets++;
+			ndev->stats.tx_bytes += ret;
 		}
 	}
 
@@ -1123,6 +1123,7 @@ static void vlsi_tx_interrupt(struct net_device *ndev)
 
 static void vlsi_unarm_tx(vlsi_irda_dev_t *idev)
 {
+	struct net_device *ndev = pci_get_drvdata(idev->pdev);
 	struct vlsi_ring *r = idev->tx_ring;
 	struct ring_descr *rd;
 	int ret;
@@ -1146,15 +1147,15 @@ static void vlsi_unarm_tx(vlsi_irda_dev_t *idev)
 
 		if (ret < 0) {
 			ret = -ret;
-			idev->stats.tx_errors++;
+			ndev->stats.tx_errors++;
 			if (ret & VLSI_TX_DROP)
-				idev->stats.tx_dropped++;
+				ndev->stats.tx_dropped++;
 			if (ret & VLSI_TX_FIFO)
-				idev->stats.tx_fifo_errors++;
+				ndev->stats.tx_fifo_errors++;
 		}
 		else if (ret > 0){
-			idev->stats.tx_packets++;
-			idev->stats.tx_bytes += ret;
+			ndev->stats.tx_packets++;
+			ndev->stats.tx_bytes += ret;
 		}
 	}
 
@@ -1262,7 +1263,7 @@ static inline void vlsi_clear_regs(unsigned iobase)
 static int vlsi_init_chip(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 	unsigned	iobase;
 	u16 ptr;
 
@@ -1374,16 +1375,9 @@ static int vlsi_stop_hw(vlsi_irda_dev_t *idev)
 
 /**************************************************************/
 
-static struct net_device_stats * vlsi_get_stats(struct net_device *ndev)
-{
-	vlsi_irda_dev_t *idev = ndev->priv;
-
-	return &idev->stats;
-}
-
 static void vlsi_tx_timeout(struct net_device *ndev)
 {
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 
 
 	vlsi_reg_debug(ndev->base_addr, __func__);
@@ -1408,7 +1402,7 @@ static void vlsi_tx_timeout(struct net_device *ndev)
 
 static int vlsi_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 {
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 	struct if_irda_req *irq = (struct if_irda_req *) rq;
 	unsigned long flags;
 	u16 fifocnt;
@@ -1458,7 +1452,7 @@ static int vlsi_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 static irqreturn_t vlsi_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *ndev = dev_instance;
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 	unsigned	iobase;
 	u8		irintr;
 	int 		boguscount = 5;
@@ -1499,7 +1493,7 @@ static irqreturn_t vlsi_interrupt(int irq, void *dev_instance)
 
 static int vlsi_open(struct net_device *ndev)
 {
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 	int	err = -EAGAIN;
 	char	hwname[32];
 
@@ -1558,7 +1552,7 @@ errout:
 
 static int vlsi_close(struct net_device *ndev)
 {
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 
 	netif_stop_queue(ndev);
 
@@ -1581,7 +1575,7 @@ static int vlsi_close(struct net_device *ndev)
 
 static int vlsi_irda_init(struct net_device *ndev)
 {
-	vlsi_irda_dev_t *idev = ndev->priv;
+	vlsi_irda_dev_t *idev = netdev_priv(ndev);
 	struct pci_dev *pdev = idev->pdev;
 
 	ndev->irq = pdev->irq;
@@ -1616,7 +1610,6 @@ static int vlsi_irda_init(struct net_device *ndev)
  
 	ndev->open	      = vlsi_open;
 	ndev->stop	      = vlsi_close;
-	ndev->get_stats	      = vlsi_get_stats;
 	ndev->hard_start_xmit = vlsi_hard_start_xmit;
 	ndev->do_ioctl	      = vlsi_ioctl;
 	ndev->tx_timeout      = vlsi_tx_timeout;
@@ -1656,7 +1649,7 @@ vlsi_irda_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_disable;
 	}
 
-	idev = ndev->priv;
+	idev = netdev_priv(ndev);
 
 	spin_lock_init(&idev->lock);
 	mutex_init(&idev->mtx);
@@ -1713,7 +1706,7 @@ static void __devexit vlsi_irda_remove(struct pci_dev *pdev)
 
 	unregister_netdev(ndev);
 
-	idev = ndev->priv;
+	idev = netdev_priv(ndev);
 	mutex_lock(&idev->mtx);
 	if (idev->proc_entry) {
 		remove_proc_entry(ndev->name, vlsi_proc_root);
@@ -1748,7 +1741,7 @@ static int vlsi_irda_suspend(struct pci_dev *pdev, pm_message_t state)
 			   __func__, pci_name(pdev));
 		return 0;
 	}
-	idev = ndev->priv;	
+	idev = netdev_priv(ndev);
 	mutex_lock(&idev->mtx);
 	if (pdev->current_state != 0) {			/* already suspended */
 		if (state.event > pdev->current_state) {	/* simply go deeper */
@@ -1787,7 +1780,7 @@ static int vlsi_irda_resume(struct pci_dev *pdev)
 			   __func__, pci_name(pdev));
 		return 0;
 	}
-	idev = ndev->priv;	
+	idev = netdev_priv(ndev);
 	mutex_lock(&idev->mtx);
 	if (pdev->current_state == 0) {
 		mutex_unlock(&idev->mtx);

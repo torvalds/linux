@@ -1953,7 +1953,7 @@ static irqreturn_t snd_es1968_interrupt(int irq, void *dev_id)
 	outw(inw(chip->io_port + 4) & 1, chip->io_port + 4);
 
 	if (event & ESM_HWVOL_IRQ)
-		tasklet_hi_schedule(&chip->hwvol_tq); /* we'll do this later */
+		tasklet_schedule(&chip->hwvol_tq); /* we'll do this later */
 
 	/* else ack 'em all, i imagine */
 	outb(0xFF, chip->io_port + 0x1A);

@@ -143,7 +143,6 @@
 
 		rtc@800 {	// Real time clock
 			compatible = "fsl,mpc5200b-rtc","fsl,mpc5200-rtc";
-			device_type = "rtc";
 			reg = <0x800 0x100>;
 			interrupts = <0x1 0x5 0x0 0x1 0x6 0x0>;
 			interrupt-parent = <&mpc5200_pic>;
@@ -301,7 +300,6 @@
 			interrupt-parent = <&mpc5200_pic>;
 			fsl5200-clocking;
 			rtc@51 {
-				device_type = "rtc";
 				compatible = "nxp,pcf8563";
 				reg = <0x51>;
 			};

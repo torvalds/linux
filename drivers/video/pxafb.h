@@ -54,11 +54,55 @@ enum {
 #define PALETTE_SIZE	(256 * 4)
 #define CMD_BUFF_SIZE	(1024 * 50)
 
+/* NOTE: the palette and frame dma descriptors are doubled to allow
+ * the 2nd set for branch settings (FBRx)
+ */
 struct pxafb_dma_buff {
 	unsigned char palette[PAL_MAX * PALETTE_SIZE];
 	uint16_t cmd_buff[CMD_BUFF_SIZE];
-	struct pxafb_dma_descriptor pal_desc[PAL_MAX];
-	struct pxafb_dma_descriptor dma_desc[DMA_MAX];
+	struct pxafb_dma_descriptor pal_desc[PAL_MAX * 2];
+	struct pxafb_dma_descriptor dma_desc[DMA_MAX * 2];
+};
+
+enum {
+	OVERLAY1,
+	OVERLAY2,
+};
+
+enum {
+	OVERLAY_FORMAT_RGB = 0,
+	OVERLAY_FORMAT_YUV444_PACKED,
+	OVERLAY_FORMAT_YUV444_PLANAR,
+	OVERLAY_FORMAT_YUV422_PLANAR,
+	OVERLAY_FORMAT_YUV420_PLANAR,
+};
+
+#define NONSTD_TO_XPOS(x)	(((x) >> 0)  & 0x3ff)
+#define NONSTD_TO_YPOS(x)	(((x) >> 10) & 0x3ff)
+#define NONSTD_TO_PFOR(x)	(((x) >> 20) & 0x7)
+
+struct pxafb_layer;
+
+struct pxafb_layer_ops {
+	void (*enable)(struct pxafb_layer *);
+	void (*disable)(struct pxafb_layer *);
+	void (*setup)(struct pxafb_layer *);
+};
+
+struct pxafb_layer {
+	struct fb_info		fb;
+	int			id;
+	atomic_t		usage;
+	uint32_t		control[2];
+
+	struct pxafb_layer_ops	*ops;
+
+	void __iomem		*video_mem;
+	unsigned long		video_mem_phys;
+	size_t			video_mem_size;
+	struct completion	branch_done;
+
+	struct pxafb_info	*fbi;
 };
 
 struct pxafb_info {
@@ -69,24 +113,15 @@ struct pxafb_info {
 	void __iomem		*mmio_base;
 
 	struct pxafb_dma_buff	*dma_buff;
+	size_t			dma_buff_size;
 	dma_addr_t		dma_buff_phys;
-	dma_addr_t		fdadr[DMA_MAX];
+	dma_addr_t		fdadr[DMA_MAX * 2];
 
-	/*
-	 * These are the addresses we mapped
-	 * the framebuffer memory region to.
-	 */
-	/* raw memory addresses */
-	dma_addr_t		map_dma;	/* physical */
-	u_char *		map_cpu;	/* virtual */
-	u_int			map_size;
-
-	/* addresses of pieces placed in raw buffer */
-	u_char *		screen_cpu;	/* virtual address of frame buffer */
-	dma_addr_t		screen_dma;	/* physical address of frame buffer */
+	void __iomem		*video_mem;	/* virtual address of frame buffer */
+	unsigned long		video_mem_phys;	/* physical address of frame buffer */
+	size_t			video_mem_size;	/* size of the frame buffer */
 	u16 *			palette_cpu;	/* virtual address of palette memory */
 	u_int			palette_size;
-	ssize_t			video_offset;
 
 	u_int			lccr0;
 	u_int			lccr3;
@@ -120,10 +155,17 @@ struct pxafb_info {
 	struct task_struct	*smart_thread;
 #endif
 
+#ifdef CONFIG_FB_PXA_OVERLAY
+	struct pxafb_layer	overlay[2];
+#endif
+
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
 	struct notifier_block	freq_policy;
 #endif
+
+	void (*lcd_power)(int, struct fb_var_screeninfo *);
+	void (*backlight_power)(int);
 };
 
 #define TO_INF(ptr,member) container_of(ptr,struct pxafb_info,member)
@@ -147,5 +189,11 @@ struct pxafb_info {
  */
 #define MIN_XRES	64
 #define MIN_YRES	64
+
+/* maximum X and Y resolutions - note these are limits from the register
+ * bits length instead of the real ones
+ */
+#define MAX_XRES	1024
+#define MAX_YRES	1024
 
 #endif /* __PXAFB_H__ */

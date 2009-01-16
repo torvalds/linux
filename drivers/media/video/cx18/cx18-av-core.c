@@ -4,6 +4,7 @@
  *  Derived from cx25840-core.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -36,9 +37,28 @@ int cx18_av_write(struct cx18 *cx, u16 addr, u8 value)
 	return 0;
 }
 
+int cx18_av_write_expect(struct cx18 *cx, u16 addr, u8 value, u8 eval, u8 mask)
+{
+	u32 reg = 0xc40000 + (addr & ~3);
+	int shift = (addr & 3) * 8;
+	u32 x = cx18_read_reg(cx, reg);
+
+	x = (x & ~((u32)0xff << shift)) | ((u32)value << shift);
+	cx18_write_reg_expect(cx, x, reg,
+				((u32)eval << shift), ((u32)mask << shift));
+	return 0;
+}
+
 int cx18_av_write4(struct cx18 *cx, u16 addr, u32 value)
 {
 	cx18_write_reg(cx, value, 0xc40000 + addr);
+	return 0;
+}
+
+int
+cx18_av_write4_expect(struct cx18 *cx, u16 addr, u32 value, u32 eval, u32 mask)
+{
+	cx18_write_reg_expect(cx, value, 0xc40000 + addr, eval, mask);
 	return 0;
 }
 
@@ -59,11 +79,6 @@ u8 cx18_av_read(struct cx18 *cx, u16 addr)
 u32 cx18_av_read4(struct cx18 *cx, u16 addr)
 {
 	return cx18_read_reg(cx, 0xc40000 + addr);
-}
-
-u32 cx18_av_read4_noretry(struct cx18 *cx, u16 addr)
-{
-	return cx18_read_reg_noretry(cx, 0xc40000 + addr);
 }
 
 int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned and_mask,
@@ -98,14 +113,16 @@ static void cx18_av_initialize(struct cx18 *cx)
 
 	cx18_av_loadfw(cx);
 	/* Stop 8051 code execution */
-	cx18_av_write4(cx, CXADEC_DL_CTL, 0x03000000);
+	cx18_av_write4_expect(cx, CXADEC_DL_CTL, 0x03000000,
+						 0x03000000, 0x13000000);
 
 	/* initallize the PLL by toggling sleep bit */
 	v = cx18_av_read4(cx, CXADEC_HOST_REG1);
-	/* enable sleep mode */
-	cx18_av_write4(cx, CXADEC_HOST_REG1, v | 1);
+	/* enable sleep mode - register appears to be read only... */
+	cx18_av_write4_expect(cx, CXADEC_HOST_REG1, v | 1, v, 0xfffe);
 	/* disable sleep mode */
-	cx18_av_write4(cx, CXADEC_HOST_REG1, v & 0xfffe);
+	cx18_av_write4_expect(cx, CXADEC_HOST_REG1, v & 0xfffe,
+						    v & 0xfffe, 0xffff);
 
 	/* initialize DLLs */
 	v = cx18_av_read4(cx, CXADEC_DLL1_DIAG_CTRL) & 0xE1FFFEFF;
@@ -125,9 +142,10 @@ static void cx18_av_initialize(struct cx18 *cx)
 
 	v = cx18_av_read4(cx, CXADEC_AFE_DIAG_CTRL3) | 1;
 	/* enable TUNE_FIL_RST */
-	cx18_av_write4(cx, CXADEC_AFE_DIAG_CTRL3, v);
+	cx18_av_write4_expect(cx, CXADEC_AFE_DIAG_CTRL3, v, v, 0x03009F0F);
 	/* disable TUNE_FIL_RST */
-	cx18_av_write4(cx, CXADEC_AFE_DIAG_CTRL3, v & 0xFFFFFFFE);
+	cx18_av_write4_expect(cx, CXADEC_AFE_DIAG_CTRL3,
+			      v & 0xFFFFFFFE, v & 0xFFFFFFFE, 0x03009F0F);
 
 	/* enable 656 output */
 	cx18_av_and_or4(cx, CXADEC_PIN_CTRL1, ~0, 0x040C00);
@@ -251,10 +269,9 @@ void cx18_av_std_setup(struct cx18 *cx)
 			pll_int, pll_frac, pll_post);
 
 	if (pll_post) {
-		int fin, fsc;
-		int pll = 28636363L * ((((u64)pll_int) << 25) + pll_frac);
+		int fin, fsc, pll;
 
-		pll >>= 25;
+		pll = (28636360L * ((((u64)pll_int) << 25) + pll_frac)) >> 25;
 		pll /= pll_post;
 		CX18_DEBUG_INFO("PLL = %d.%06d MHz\n",
 					pll / 1000000, pll % 1000000);
@@ -324,6 +341,7 @@ static void input_change(struct cx18 *cx)
 {
 	struct cx18_av_state *state = &cx->av_state;
 	v4l2_std_id std = state->std;
+	u8 v;
 
 	/* Follow step 8c and 8d of section 3.16 in the cx18_av datasheet */
 	cx18_av_write(cx, 0x49f, (std & V4L2_STD_NTSC) ? 0x14 : 0x11);
@@ -333,31 +351,34 @@ static void input_change(struct cx18 *cx)
 	if (std & V4L2_STD_525_60) {
 		if (std == V4L2_STD_NTSC_M_JP) {
 			/* Japan uses EIAJ audio standard */
-			cx18_av_write(cx, 0x808, 0xf7);
-			cx18_av_write(cx, 0x80b, 0x02);
+			cx18_av_write_expect(cx, 0x808, 0xf7, 0xf7, 0xff);
+			cx18_av_write_expect(cx, 0x80b, 0x02, 0x02, 0x3f);
 		} else if (std == V4L2_STD_NTSC_M_KR) {
 			/* South Korea uses A2 audio standard */
-			cx18_av_write(cx, 0x808, 0xf8);
-			cx18_av_write(cx, 0x80b, 0x03);
+			cx18_av_write_expect(cx, 0x808, 0xf8, 0xf8, 0xff);
+			cx18_av_write_expect(cx, 0x80b, 0x03, 0x03, 0x3f);
 		} else {
 			/* Others use the BTSC audio standard */
-			cx18_av_write(cx, 0x808, 0xf6);
-			cx18_av_write(cx, 0x80b, 0x01);
+			cx18_av_write_expect(cx, 0x808, 0xf6, 0xf6, 0xff);
+			cx18_av_write_expect(cx, 0x80b, 0x01, 0x01, 0x3f);
 		}
 	} else if (std & V4L2_STD_PAL) {
 		/* Follow tuner change procedure for PAL */
-		cx18_av_write(cx, 0x808, 0xff);
-		cx18_av_write(cx, 0x80b, 0x03);
+		cx18_av_write_expect(cx, 0x808, 0xff, 0xff, 0xff);
+		cx18_av_write_expect(cx, 0x80b, 0x03, 0x03, 0x3f);
 	} else if (std & V4L2_STD_SECAM) {
 		/* Select autodetect for SECAM */
-		cx18_av_write(cx, 0x808, 0xff);
-		cx18_av_write(cx, 0x80b, 0x03);
+		cx18_av_write_expect(cx, 0x808, 0xff, 0xff, 0xff);
+		cx18_av_write_expect(cx, 0x80b, 0x03, 0x03, 0x3f);
 	}
 
-	if (cx18_av_read(cx, 0x803) & 0x10) {
+	v = cx18_av_read(cx, 0x803);
+	if (v & 0x10) {
 		/* restart audio decoder microcontroller */
-		cx18_av_and_or(cx, 0x803, ~0x10, 0x00);
-		cx18_av_and_or(cx, 0x803, ~0x10, 0x10);
+		v &= ~0x10;
+		cx18_av_write_expect(cx, 0x803, v, v, 0x1f);
+		v |= 0x10;
+		cx18_av_write_expect(cx, 0x803, v, v, 0x1f);
 	}
 }
 
@@ -368,6 +389,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	u8 is_composite = (vid_input >= CX18_AV_COMPOSITE1 &&
 			   vid_input <= CX18_AV_COMPOSITE8);
 	u8 reg;
+	u8 v;
 
 	CX18_DEBUG_INFO("decoder set video input %d, audio input %d\n",
 			vid_input, aud_input);
@@ -413,16 +435,23 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 		return -EINVAL;
 	}
 
-	cx18_av_write(cx, 0x103, reg);
+	cx18_av_write_expect(cx, 0x103, reg, reg, 0xf7);
 	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
 	cx18_av_and_or(cx, 0x401, ~0x6, is_composite ? 0 : 0x02);
+
 	/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
-	cx18_av_and_or(cx, 0x102, ~0x2, (reg & 0x80) == 0 ? 2 : 0);
+	v = cx18_av_read(cx, 0x102);
+	if (reg & 0x80)
+		v &= ~0x2;
+	else
+		v |= 0x2;
 	/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2 and CH3 */
 	if ((reg & 0xc0) != 0xc0 && (reg & 0x30) != 0x30)
-		cx18_av_and_or(cx, 0x102, ~0x4, 4);
+		v |= 0x4;
 	else
-		cx18_av_and_or(cx, 0x102, ~0x4, 0);
+		v &= ~0x4;
+	cx18_av_write_expect(cx, 0x102, v, v, 0x17);
+
 	/*cx18_av_and_or4(cx, 0x104, ~0x001b4180, 0x00004180);*/
 
 	state->vid_input = vid_input;
@@ -799,40 +828,47 @@ int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg)
 	}
 
 	case VIDIOC_S_TUNER:
+	{
+		u8 v;
+
 		if (state->radio)
 			break;
+
+		v = cx18_av_read(cx, 0x809);
+		v &= ~0xf;
 
 		switch (vt->audmode) {
 		case V4L2_TUNER_MODE_MONO:
 			/* mono      -> mono
 			   stereo    -> mono
 			   bilingual -> lang1 */
-			cx18_av_and_or(cx, 0x809, ~0xf, 0x00);
 			break;
 		case V4L2_TUNER_MODE_STEREO:
 		case V4L2_TUNER_MODE_LANG1:
 			/* mono      -> mono
 			   stereo    -> stereo
 			   bilingual -> lang1 */
-			cx18_av_and_or(cx, 0x809, ~0xf, 0x04);
+			v |= 0x4;
 			break;
 		case V4L2_TUNER_MODE_LANG1_LANG2:
 			/* mono      -> mono
 			   stereo    -> stereo
 			   bilingual -> lang1/lang2 */
-			cx18_av_and_or(cx, 0x809, ~0xf, 0x07);
+			v |= 0x7;
 			break;
 		case V4L2_TUNER_MODE_LANG2:
 			/* mono      -> mono
 			   stereo    -> stereo
 			   bilingual -> lang2 */
-			cx18_av_and_or(cx, 0x809, ~0xf, 0x01);
+			v |= 0x1;
 			break;
 		default:
 			return -EINVAL;
 		}
+		cx18_av_write_expect(cx, 0x809, v, v, 0xff);
 		state->audmode = vt->audmode;
 		break;
+	}
 
 	case VIDIOC_G_FMT:
 		return get_v4lfmt(cx, (struct v4l2_format *)arg);

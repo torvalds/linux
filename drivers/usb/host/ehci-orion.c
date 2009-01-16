@@ -33,8 +33,9 @@
 /*
  * Implement Orion USB controller specification guidelines
  */
-static void orion_usb_setup(struct usb_hcd *hcd)
+static void orion_usb_phy_v1_setup(struct usb_hcd *hcd)
 {
+	/* The below GLs are according to the Orion Errata document */
 	/*
 	 * Clear interrupt cause and mask
 	 */
@@ -258,9 +259,19 @@ static int __init ehci_orion_drv_probe(struct platform_device *pdev)
 		ehci_orion_conf_mbus_windows(hcd, pd->dram);
 
 	/*
-	 * setup Orion USB controller
+	 * setup Orion USB controller.
 	 */
-	orion_usb_setup(hcd);
+	switch (pd->phy_version) {
+	case EHCI_PHY_NA:	/* dont change USB phy settings */
+		break;
+	case EHCI_PHY_ORION:
+		orion_usb_phy_v1_setup(hcd);
+		break;
+	case EHCI_PHY_DD:
+	case EHCI_PHY_KW:
+	default:
+		printk(KERN_WARNING "Orion ehci -USB phy version isn't supported.\n");
+	}
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED | IRQF_DISABLED);
 	if (err)

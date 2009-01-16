@@ -321,6 +321,24 @@ ixgb_reset(struct ixgb_adapter *adapter)
 	}
 }
 
+static const struct net_device_ops ixgb_netdev_ops = {
+	.ndo_open 		= ixgb_open,
+	.ndo_stop		= ixgb_close,
+	.ndo_start_xmit		= ixgb_xmit_frame,
+	.ndo_get_stats		= ixgb_get_stats,
+	.ndo_set_multicast_list	= ixgb_set_multi,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= ixgb_set_mac,
+	.ndo_change_mtu		= ixgb_change_mtu,
+	.ndo_tx_timeout		= ixgb_tx_timeout,
+	.ndo_vlan_rx_register	= ixgb_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= ixgb_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= ixgb_vlan_rx_kill_vid,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ixgb_netpoll,
+#endif
+};
+
 /**
  * ixgb_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -381,8 +399,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->hw.back = adapter;
 	adapter->msg_enable = netif_msg_init(debug, DEFAULT_DEBUG_LEVEL_SHIFT);
 
-	adapter->hw.hw_addr = ioremap(pci_resource_start(pdev, BAR_0),
-	                              pci_resource_len(pdev, BAR_0));
+	adapter->hw.hw_addr = pci_ioremap_bar(pdev, BAR_0);
 	if (!adapter->hw.hw_addr) {
 		err = -EIO;
 		goto err_ioremap;
@@ -397,23 +414,10 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	}
 
-	netdev->open = &ixgb_open;
-	netdev->stop = &ixgb_close;
-	netdev->hard_start_xmit = &ixgb_xmit_frame;
-	netdev->get_stats = &ixgb_get_stats;
-	netdev->set_multicast_list = &ixgb_set_multi;
-	netdev->set_mac_address = &ixgb_set_mac;
-	netdev->change_mtu = &ixgb_change_mtu;
+	netdev->netdev_ops = &ixgb_netdev_ops;
 	ixgb_set_ethtool_ops(netdev);
-	netdev->tx_timeout = &ixgb_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
 	netif_napi_add(netdev, &adapter->napi, ixgb_clean, 64);
-	netdev->vlan_rx_register = ixgb_vlan_rx_register;
-	netdev->vlan_rx_add_vid = ixgb_vlan_rx_add_vid;
-	netdev->vlan_rx_kill_vid = ixgb_vlan_rx_kill_vid;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = ixgb_netpoll;
-#endif
 
 	strncpy(netdev->name, pci_name(pdev), sizeof(netdev->name) - 1);
 
@@ -1106,8 +1110,15 @@ ixgb_watchdog(unsigned long data)
 
 	if (adapter->hw.link_up) {
 		if (!netif_carrier_ok(netdev)) {
-			DPRINTK(LINK, INFO,
-			        "NIC Link is Up 10000 Mbps Full Duplex\n");
+			printk(KERN_INFO "ixgb: %s NIC Link is Up 10 Gbps "
+			       "Full Duplex, Flow Control: %s\n",
+			       netdev->name,
+			       (adapter->hw.fc.type == ixgb_fc_full) ?
+			        "RX/TX" :
+			        ((adapter->hw.fc.type == ixgb_fc_rx_pause) ?
+			         "RX" :
+			         ((adapter->hw.fc.type == ixgb_fc_tx_pause) ?
+			          "TX" : "None")));
 			adapter->link_speed = 10000;
 			adapter->link_duplex = FULL_DUPLEX;
 			netif_carrier_on(netdev);
@@ -1117,7 +1128,8 @@ ixgb_watchdog(unsigned long data)
 		if (netif_carrier_ok(netdev)) {
 			adapter->link_speed = 0;
 			adapter->link_duplex = 0;
-			DPRINTK(LINK, INFO, "NIC Link is Down\n");
+			printk(KERN_INFO "ixgb: %s NIC Link is Down\n",
+			       netdev->name);
 			netif_carrier_off(netdev);
 			netif_stop_queue(netdev);
 
@@ -1709,14 +1721,14 @@ ixgb_intr(int irq, void *data)
 		if (!test_bit(__IXGB_DOWN, &adapter->flags))
 			mod_timer(&adapter->watchdog_timer, jiffies);
 
-	if (netif_rx_schedule_prep(netdev, &adapter->napi)) {
+	if (netif_rx_schedule_prep(&adapter->napi)) {
 
 		/* Disable interrupts and register for poll. The flush
 		  of the posted write is intentionally left out.
 		*/
 
 		IXGB_WRITE_REG(&adapter->hw, IMC, ~0);
-		__netif_rx_schedule(netdev, &adapter->napi);
+		__netif_rx_schedule(&adapter->napi);
 	}
 	return IRQ_HANDLED;
 }
@@ -1730,7 +1742,6 @@ static int
 ixgb_clean(struct napi_struct *napi, int budget)
 {
 	struct ixgb_adapter *adapter = container_of(napi, struct ixgb_adapter, napi);
-	struct net_device *netdev = adapter->netdev;
 	int work_done = 0;
 
 	ixgb_clean_tx_irq(adapter);
@@ -1738,7 +1749,7 @@ ixgb_clean(struct napi_struct *napi, int budget)
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		if (!test_bit(__IXGB_DOWN, &adapter->flags))
 			ixgb_irq_enable(adapter);
 	}
@@ -1981,7 +1992,6 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 		} else {
 			netif_receive_skb(skb);
 		}
-		netdev->last_rx = jiffies;
 
 rxdesc_done:
 		/* clean up descriptor, might be written over by hw */

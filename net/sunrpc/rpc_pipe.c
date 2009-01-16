@@ -113,7 +113,7 @@ out:
 	wake_up(&rpci->waitq);
 	return res;
 }
-EXPORT_SYMBOL(rpc_queue_upcall);
+EXPORT_SYMBOL_GPL(rpc_queue_upcall);
 
 static inline void
 rpc_inode_setowner(struct inode *inode, void *private)
@@ -126,13 +126,14 @@ rpc_close_pipes(struct inode *inode)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
 	struct rpc_pipe_ops *ops;
+	int need_release;
 
 	mutex_lock(&inode->i_mutex);
 	ops = rpci->ops;
 	if (ops != NULL) {
 		LIST_HEAD(free_list);
-
 		spin_lock(&inode->i_lock);
+		need_release = rpci->nreaders != 0 || rpci->nwriters != 0;
 		rpci->nreaders = 0;
 		list_splice_init(&rpci->in_upcall, &free_list);
 		list_splice_init(&rpci->pipe, &free_list);
@@ -141,7 +142,7 @@ rpc_close_pipes(struct inode *inode)
 		spin_unlock(&inode->i_lock);
 		rpc_purge_list(rpci, &free_list, ops->destroy_msg, -EPIPE);
 		rpci->nwriters = 0;
-		if (ops->release_pipe)
+		if (need_release && ops->release_pipe)
 			ops->release_pipe(inode);
 		cancel_delayed_work_sync(&rpci->queue_timeout);
 	}
@@ -169,16 +170,24 @@ static int
 rpc_pipe_open(struct inode *inode, struct file *filp)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
+	int first_open;
 	int res = -ENXIO;
 
 	mutex_lock(&inode->i_mutex);
-	if (rpci->ops != NULL) {
-		if (filp->f_mode & FMODE_READ)
-			rpci->nreaders ++;
-		if (filp->f_mode & FMODE_WRITE)
-			rpci->nwriters ++;
-		res = 0;
+	if (rpci->ops == NULL)
+		goto out;
+	first_open = rpci->nreaders == 0 && rpci->nwriters == 0;
+	if (first_open && rpci->ops->open_pipe) {
+		res = rpci->ops->open_pipe(inode);
+		if (res)
+			goto out;
 	}
+	if (filp->f_mode & FMODE_READ)
+		rpci->nreaders++;
+	if (filp->f_mode & FMODE_WRITE)
+		rpci->nwriters++;
+	res = 0;
+out:
 	mutex_unlock(&inode->i_mutex);
 	return res;
 }
@@ -188,6 +197,7 @@ rpc_pipe_release(struct inode *inode, struct file *filp)
 {
 	struct rpc_inode *rpci = RPC_I(inode);
 	struct rpc_pipe_msg *msg;
+	int last_close;
 
 	mutex_lock(&inode->i_mutex);
 	if (rpci->ops == NULL)
@@ -214,7 +224,8 @@ rpc_pipe_release(struct inode *inode, struct file *filp)
 					rpci->ops->destroy_msg, -EAGAIN);
 		}
 	}
-	if (rpci->ops->release_pipe)
+	last_close = rpci->nwriters == 0 && rpci->nreaders == 0;
+	if (last_close && rpci->ops->release_pipe)
 		rpci->ops->release_pipe(inode);
 out:
 	mutex_unlock(&inode->i_mutex);
@@ -396,6 +407,7 @@ enum {
 	RPCAUTH_nfs,
 	RPCAUTH_portmap,
 	RPCAUTH_statd,
+	RPCAUTH_nfsd4_cb,
 	RPCAUTH_RootEOF
 };
 
@@ -427,6 +439,10 @@ static struct rpc_filelist files[] = {
 	},
 	[RPCAUTH_statd] = {
 		.name = "statd",
+		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
+	},
+	[RPCAUTH_nfsd4_cb] = {
+		.name = "nfsd4_cb",
 		.mode = S_IFDIR | S_IRUGO | S_IXUGO,
 	},
 };
@@ -506,8 +522,6 @@ rpc_get_inode(struct super_block *sb, int mode)
 	if (!inode)
 		return NULL;
 	inode->i_mode = mode;
-	inode->i_uid = inode->i_gid = 0;
-	inode->i_blocks = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	switch(mode & S_IFMT) {
 		case S_IFDIR:
@@ -748,7 +762,7 @@ rpc_rmdir(struct dentry *dentry)
  * @name: name of pipe
  * @private: private data to associate with the pipe, for the caller's use
  * @ops: operations defining the behavior of the pipe: upcall, downcall,
- *	release_pipe, and destroy_msg.
+ *	release_pipe, open_pipe, and destroy_msg.
  * @flags: rpc_inode flags
  *
  * Data is made available for userspace to read by calls to
@@ -808,7 +822,7 @@ err_dput:
 			-ENOMEM);
 	goto out;
 }
-EXPORT_SYMBOL(rpc_mkpipe);
+EXPORT_SYMBOL_GPL(rpc_mkpipe);
 
 /**
  * rpc_unlink - remove a pipe
@@ -839,7 +853,7 @@ rpc_unlink(struct dentry *dentry)
 	dput(parent);
 	return error;
 }
-EXPORT_SYMBOL(rpc_unlink);
+EXPORT_SYMBOL_GPL(rpc_unlink);
 
 /*
  * populate the filesystem

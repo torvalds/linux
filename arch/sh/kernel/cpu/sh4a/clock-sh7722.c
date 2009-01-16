@@ -229,7 +229,7 @@ struct frqcr_context sh7722_get_clk_context(const char *name)
 }
 
 /**
- * sh7722_find_divisors - find divisor for setting rate
+ * sh7722_find_div_index - find divisor for setting rate
  *
  * All sh7722 clocks use the same set of multipliers/divisors. This function
  * chooses correct divisor to set the rate of clock with parent clock that
@@ -238,7 +238,7 @@ struct frqcr_context sh7722_get_clk_context(const char *name)
  * @parent_rate: rate of parent clock
  * @rate: requested rate to be set
  */
-static int sh7722_find_divisors(unsigned long parent_rate, unsigned rate)
+static int sh7722_find_div_index(unsigned long parent_rate, unsigned rate)
 {
 	unsigned div2 = parent_rate * 2 / rate;
 	int index;
@@ -247,12 +247,12 @@ static int sh7722_find_divisors(unsigned long parent_rate, unsigned rate)
 		return -EINVAL;
 
 	for (index = 1; index < ARRAY_SIZE(divisors2); index++) {
-		if (div2 > divisors2[index] && div2 <= divisors2[index])
+		if (div2 > divisors2[index - 1] && div2 <= divisors2[index])
 			break;
 	}
 	if (index >= ARRAY_SIZE(divisors2))
 		index = ARRAY_SIZE(divisors2) - 1;
-	return divisors2[index];
+	return index;
 }
 
 static void sh7722_frqcr_recalc(struct clk *clk)
@@ -279,12 +279,12 @@ static int sh7722_frqcr_set_rate(struct clk *clk, unsigned long rate,
 		return -EINVAL;
 
 	/* look for multiplier/divisor pair */
-	div = sh7722_find_divisors(parent_rate, rate);
+	div = sh7722_find_div_index(parent_rate, rate);
 	if (div<0)
 		return div;
 
 	/* calculate new value of clock rate */
-	clk->rate = parent_rate * 2 / div;
+	clk->rate = parent_rate * 2 / divisors2[div];
 	frqcr = ctrl_inl(FRQCR);
 
 	/* FIXME: adjust as algo_id specifies */
@@ -353,7 +353,7 @@ static int sh7722_frqcr_set_rate(struct clk *clk, unsigned long rate,
 			int part_div;
 
 			if (likely(!err)) {
-				part_div = sh7722_find_divisors(parent_rate,
+				part_div = sh7722_find_div_index(parent_rate,
 								rate);
 				if (part_div > 0) {
 					part_ctx = sh7722_get_clk_context(
@@ -394,12 +394,12 @@ static long sh7722_frqcr_round_rate(struct clk *clk, unsigned long rate)
 	int div;
 
 	/* look for multiplier/divisor pair */
-	div = sh7722_find_divisors(parent_rate, rate);
+	div = sh7722_find_div_index(parent_rate, rate);
 	if (div < 0)
 		return clk->rate;
 
 	/* calculate new value of clock rate */
-	return parent_rate * 2 / div;
+	return parent_rate * 2 / divisors2[div];
 }
 
 static struct clk_ops sh7722_frqcr_clk_ops = {
@@ -421,7 +421,7 @@ static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
 	int div;
 
 	r = ctrl_inl(clk->arch_flags);
-	div = sh7722_find_divisors(clk->parent->rate, rate);
+	div = sh7722_find_div_index(clk->parent->rate, rate);
 	if (div < 0)
 		return div;
 	r = (r & ~0xF) | div;
@@ -516,16 +516,19 @@ static struct clk_ops sh7722_video_clk_ops = {
 static struct clk sh7722_umem_clock = {
 	.name = "umem_clk",
 	.ops = &sh7722_frqcr_clk_ops,
+	.flags = CLK_RATE_PROPAGATES,
 };
 
 static struct clk sh7722_sh_clock = {
 	.name = "sh_clk",
 	.ops = &sh7722_frqcr_clk_ops,
+	.flags = CLK_RATE_PROPAGATES,
 };
 
 static struct clk sh7722_peripheral_clock = {
 	.name = "peripheral_clk",
 	.ops = &sh7722_frqcr_clk_ops,
+	.flags = CLK_RATE_PROPAGATES,
 };
 
 static struct clk sh7722_sdram_clock = {
@@ -533,6 +536,11 @@ static struct clk sh7722_sdram_clock = {
 	.ops = &sh7722_frqcr_clk_ops,
 };
 
+static struct clk sh7722_r_clock = {
+	.name = "r_clk",
+	.rate = 32768,
+	.flags = CLK_RATE_PROPAGATES,
+};
 
 #ifndef CONFIG_CPU_SUBTYPE_SH7343
 
@@ -567,11 +575,29 @@ static struct clk sh7722_video_clock = {
 	.ops = &sh7722_video_clk_ops,
 };
 
-static int sh7722_mstpcr_start_stop(struct clk *clk, unsigned long reg,
-				    int enable)
+#define MSTPCR_ARCH_FLAGS(reg, bit) (((reg) << 8) | (bit))
+#define MSTPCR_ARCH_FLAGS_REG(value) ((value) >> 8)
+#define MSTPCR_ARCH_FLAGS_BIT(value) ((value) & 0xff)
+
+static int sh7722_mstpcr_start_stop(struct clk *clk, int enable)
 {
-	unsigned long bit = clk->arch_flags;
+	unsigned long bit = MSTPCR_ARCH_FLAGS_BIT(clk->arch_flags);
+	unsigned long reg;
 	unsigned long r;
+
+	switch(MSTPCR_ARCH_FLAGS_REG(clk->arch_flags)) {
+	case 0:
+		reg = MSTPCR0;
+		break;
+	case 1:
+		reg = MSTPCR1;
+		break;
+	case 2:
+		reg = MSTPCR2;
+		break;
+	default:
+		return -EINVAL;
+	}  
 
 	r = ctrl_inl(reg);
 
@@ -584,96 +610,175 @@ static int sh7722_mstpcr_start_stop(struct clk *clk, unsigned long reg,
 	return 0;
 }
 
-static void sh7722_mstpcr0_enable(struct clk *clk)
+static void sh7722_mstpcr_enable(struct clk *clk)
 {
-	sh7722_mstpcr_start_stop(clk, MSTPCR0, 1);
+	sh7722_mstpcr_start_stop(clk, 1);
 }
 
-static void sh7722_mstpcr0_disable(struct clk *clk)
+static void sh7722_mstpcr_disable(struct clk *clk)
 {
-	sh7722_mstpcr_start_stop(clk, MSTPCR0, 0);
+	sh7722_mstpcr_start_stop(clk, 0);
 }
 
-static void sh7722_mstpcr1_enable(struct clk *clk)
+static void sh7722_mstpcr_recalc(struct clk *clk)
 {
-	sh7722_mstpcr_start_stop(clk, MSTPCR1, 1);
+	if (clk->parent)
+		clk->rate = clk->parent->rate;
 }
 
-static void sh7722_mstpcr1_disable(struct clk *clk)
-{
-	sh7722_mstpcr_start_stop(clk, MSTPCR1, 0);
-}
-
-static void sh7722_mstpcr2_enable(struct clk *clk)
-{
-	sh7722_mstpcr_start_stop(clk, MSTPCR2, 1);
-}
-
-static void sh7722_mstpcr2_disable(struct clk *clk)
-{
-	sh7722_mstpcr_start_stop(clk, MSTPCR2, 0);
-}
-
-static struct clk_ops sh7722_mstpcr0_clk_ops = {
-	.enable = sh7722_mstpcr0_enable,
-	.disable = sh7722_mstpcr0_disable,
+static struct clk_ops sh7722_mstpcr_clk_ops = {
+	.enable = sh7722_mstpcr_enable,
+	.disable = sh7722_mstpcr_disable,
+	.recalc = sh7722_mstpcr_recalc,
 };
 
-static struct clk_ops sh7722_mstpcr1_clk_ops = {
-	.enable = sh7722_mstpcr1_enable,
-	.disable = sh7722_mstpcr1_disable,
-};
-
-static struct clk_ops sh7722_mstpcr2_clk_ops = {
-	.enable = sh7722_mstpcr2_enable,
-	.disable = sh7722_mstpcr2_disable,
-};
-
-#define DECLARE_MSTPCRN(regnr, bitnr, bitstr)		\
-{							\
-	.name = "mstp" __stringify(regnr) bitstr,	\
-	.arch_flags = bitnr,				\
-	.ops = &sh7722_mstpcr ## regnr ## _clk_ops,	\
+#define MSTPCR(_name, _parent, regnr, bitnr) \
+{						\
+	.name = _name,				\
+	.arch_flags = MSTPCR_ARCH_FLAGS(regnr, bitnr),	\
+	.ops = (void *)_parent,		\
 }
 
-#define DECLARE_MSTPCR(regnr) \
-	DECLARE_MSTPCRN(regnr, 31, "31"), \
-	DECLARE_MSTPCRN(regnr, 30, "30"), \
-	DECLARE_MSTPCRN(regnr, 29, "29"), \
-	DECLARE_MSTPCRN(regnr, 28, "28"), \
-	DECLARE_MSTPCRN(regnr, 27, "27"), \
-	DECLARE_MSTPCRN(regnr, 26, "26"), \
-	DECLARE_MSTPCRN(regnr, 25, "25"), \
-	DECLARE_MSTPCRN(regnr, 24, "24"), \
-	DECLARE_MSTPCRN(regnr, 23, "23"), \
-	DECLARE_MSTPCRN(regnr, 22, "22"), \
-	DECLARE_MSTPCRN(regnr, 21, "21"), \
-	DECLARE_MSTPCRN(regnr, 20, "20"), \
-	DECLARE_MSTPCRN(regnr, 19, "19"), \
-	DECLARE_MSTPCRN(regnr, 18, "18"), \
-	DECLARE_MSTPCRN(regnr, 17, "17"), \
-	DECLARE_MSTPCRN(regnr, 16, "16"), \
-	DECLARE_MSTPCRN(regnr, 15, "15"), \
-	DECLARE_MSTPCRN(regnr, 14, "14"), \
-	DECLARE_MSTPCRN(regnr, 13, "13"), \
-	DECLARE_MSTPCRN(regnr, 12, "12"), \
-	DECLARE_MSTPCRN(regnr, 11, "11"), \
-	DECLARE_MSTPCRN(regnr, 10, "10"), \
-	DECLARE_MSTPCRN(regnr, 9, "09"), \
-	DECLARE_MSTPCRN(regnr, 8, "08"), \
-	DECLARE_MSTPCRN(regnr, 7, "07"), \
-	DECLARE_MSTPCRN(regnr, 6, "06"), \
-	DECLARE_MSTPCRN(regnr, 5, "05"), \
-	DECLARE_MSTPCRN(regnr, 4, "04"), \
-	DECLARE_MSTPCRN(regnr, 3, "03"), \
-	DECLARE_MSTPCRN(regnr, 2, "02"), \
-	DECLARE_MSTPCRN(regnr, 1, "01"), \
-	DECLARE_MSTPCRN(regnr, 0, "00")
-
-static struct clk sh7722_mstpcr[] = {
-	DECLARE_MSTPCR(0),
-	DECLARE_MSTPCR(1),
-	DECLARE_MSTPCR(2),
+static struct clk sh7722_mstpcr_clocks[] = {
+#if defined(CONFIG_CPU_SUBTYPE_SH7722)
+	MSTPCR("uram0", "umem_clk", 0, 28),
+	MSTPCR("xymem0", "bus_clk", 0, 26),
+	MSTPCR("tmu0", "peripheral_clk", 0, 15),
+	MSTPCR("cmt0", "r_clk", 0, 14),
+	MSTPCR("rwdt0", "r_clk", 0, 13),
+	MSTPCR("flctl0", "peripheral_clk", 0, 10),
+	MSTPCR("scif0", "peripheral_clk", 0, 7),
+	MSTPCR("scif1", "peripheral_clk", 0, 6),
+	MSTPCR("scif2", "peripheral_clk", 0, 5),
+	MSTPCR("i2c0", "peripheral_clk", 1, 9),
+	MSTPCR("rtc0", "r_clk", 1, 8),
+	MSTPCR("sdhi0", "peripheral_clk", 2, 18),
+	MSTPCR("keysc0", "r_clk", 2, 14),
+	MSTPCR("usbf0", "peripheral_clk", 2, 11),
+	MSTPCR("2dg0", "bus_clk", 2, 9),
+	MSTPCR("siu0", "bus_clk", 2, 8),
+	MSTPCR("vou0", "bus_clk", 2, 5),
+	MSTPCR("jpu0", "bus_clk", 2, 6),
+	MSTPCR("beu0", "bus_clk", 2, 4),
+	MSTPCR("ceu0", "bus_clk", 2, 3),
+	MSTPCR("veu0", "bus_clk", 2, 2),
+	MSTPCR("vpu0", "bus_clk", 2, 1),
+	MSTPCR("lcdc0", "bus_clk", 2, 0),
+#endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7723)
+	/* See page 60 of Datasheet V1.0: Overview -> Block Diagram */
+	MSTPCR("tlb0", "cpu_clk", 0, 31),
+	MSTPCR("ic0", "cpu_clk", 0, 30),
+	MSTPCR("oc0", "cpu_clk", 0, 29),
+	MSTPCR("l2c0", "sh_clk", 0, 28),
+	MSTPCR("ilmem0", "cpu_clk", 0, 27),
+	MSTPCR("fpu0", "cpu_clk", 0, 24),
+	MSTPCR("intc0", "cpu_clk", 0, 22),
+	MSTPCR("dmac0", "bus_clk", 0, 21),
+	MSTPCR("sh0", "sh_clk", 0, 20),
+	MSTPCR("hudi0", "peripheral_clk", 0, 19),
+	MSTPCR("ubc0", "cpu_clk", 0, 17),
+	MSTPCR("tmu0", "peripheral_clk", 0, 15),
+	MSTPCR("cmt0", "r_clk", 0, 14),
+	MSTPCR("rwdt0", "r_clk", 0, 13),
+	MSTPCR("dmac1", "bus_clk", 0, 12),
+	MSTPCR("tmu1", "peripheral_clk", 0, 11),
+	MSTPCR("flctl0", "peripheral_clk", 0, 10),
+	MSTPCR("scif0", "peripheral_clk", 0, 9),
+	MSTPCR("scif1", "peripheral_clk", 0, 8),
+	MSTPCR("scif2", "peripheral_clk", 0, 7),
+	MSTPCR("scif3", "bus_clk", 0, 6),
+	MSTPCR("scif4", "bus_clk", 0, 5),
+	MSTPCR("scif5", "bus_clk", 0, 4),
+	MSTPCR("msiof0", "bus_clk", 0, 2),
+	MSTPCR("msiof1", "bus_clk", 0, 1),
+	MSTPCR("meram0", "sh_clk", 0, 0),
+	MSTPCR("i2c0", "peripheral_clk", 1, 9),
+	MSTPCR("rtc0", "r_clk", 1, 8),
+	MSTPCR("atapi0", "sh_clk", 2, 28),
+	MSTPCR("adc0", "peripheral_clk", 2, 28),
+	MSTPCR("tpu0", "bus_clk", 2, 25),
+	MSTPCR("irda0", "peripheral_clk", 2, 24),
+	MSTPCR("tsif0", "bus_clk", 2, 22),
+	MSTPCR("icb0", "bus_clk", 2, 21),
+	MSTPCR("sdhi0", "bus_clk", 2, 18),
+	MSTPCR("sdhi1", "bus_clk", 2, 17),
+	MSTPCR("keysc0", "r_clk", 2, 14),
+	MSTPCR("usb0", "bus_clk", 2, 11),
+	MSTPCR("2dg0", "bus_clk", 2, 10),
+	MSTPCR("siu0", "bus_clk", 2, 8),
+	MSTPCR("veu1", "bus_clk", 2, 6),
+	MSTPCR("vou0", "bus_clk", 2, 5),
+	MSTPCR("beu0", "bus_clk", 2, 4),
+	MSTPCR("ceu0", "bus_clk", 2, 3),
+	MSTPCR("veu0", "bus_clk", 2, 2),
+	MSTPCR("vpu0", "bus_clk", 2, 1),
+	MSTPCR("lcdc0", "bus_clk", 2, 0),
+#endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7343)
+	MSTPCR("uram0", "umem_clk", 0, 28),
+	MSTPCR("xymem0", "bus_clk", 0, 26),
+	MSTPCR("tmu0", "peripheral_clk", 0, 15),
+	MSTPCR("cmt0", "r_clk", 0, 14),
+	MSTPCR("rwdt0", "r_clk", 0, 13),
+	MSTPCR("scif0", "peripheral_clk", 0, 7),
+	MSTPCR("scif1", "peripheral_clk", 0, 6),
+	MSTPCR("scif2", "peripheral_clk", 0, 5),
+	MSTPCR("scif3", "peripheral_clk", 0, 4),
+	MSTPCR("i2c0", "peripheral_clk", 1, 9),
+	MSTPCR("i2c1", "peripheral_clk", 1, 8),
+	MSTPCR("sdhi0", "peripheral_clk", 2, 18),
+	MSTPCR("keysc0", "r_clk", 2, 14),
+	MSTPCR("usbf0", "peripheral_clk", 2, 11),
+	MSTPCR("siu0", "bus_clk", 2, 8),
+	MSTPCR("jpu0", "bus_clk", 2, 6),
+	MSTPCR("vou0", "bus_clk", 2, 5),
+	MSTPCR("beu0", "bus_clk", 2, 4),
+	MSTPCR("ceu0", "bus_clk", 2, 3),
+	MSTPCR("veu0", "bus_clk", 2, 2),
+	MSTPCR("vpu0", "bus_clk", 2, 1),
+	MSTPCR("lcdc0", "bus_clk", 2, 0),
+#endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7366)
+	/* See page 52 of Datasheet V0.40: Overview -> Block Diagram */
+	MSTPCR("tlb0", "cpu_clk", 0, 31),
+	MSTPCR("ic0", "cpu_clk", 0, 30),
+	MSTPCR("oc0", "cpu_clk", 0, 29),
+	MSTPCR("rsmem0", "sh_clk", 0, 28),
+	MSTPCR("xymem0", "cpu_clk", 0, 26),
+	MSTPCR("intc30", "peripheral_clk", 0, 23),
+	MSTPCR("intc0", "peripheral_clk", 0, 22),
+	MSTPCR("dmac0", "bus_clk", 0, 21),
+	MSTPCR("sh0", "sh_clk", 0, 20),
+	MSTPCR("hudi0", "peripheral_clk", 0, 19),
+	MSTPCR("ubc0", "cpu_clk", 0, 17),
+	MSTPCR("tmu0", "peripheral_clk", 0, 15),
+	MSTPCR("cmt0", "r_clk", 0, 14),
+	MSTPCR("rwdt0", "r_clk", 0, 13),
+	MSTPCR("flctl0", "peripheral_clk", 0, 10),
+	MSTPCR("scif0", "peripheral_clk", 0, 7),
+	MSTPCR("scif1", "bus_clk", 0, 6),
+	MSTPCR("scif2", "bus_clk", 0, 5),
+	MSTPCR("msiof0", "peripheral_clk", 0, 2),
+	MSTPCR("sbr0", "peripheral_clk", 0, 1),
+	MSTPCR("i2c0", "peripheral_clk", 1, 9),
+	MSTPCR("icb0", "bus_clk", 2, 27),
+	MSTPCR("meram0", "sh_clk", 2, 26),
+	MSTPCR("dacc0", "peripheral_clk", 2, 24),
+	MSTPCR("dacy0", "peripheral_clk", 2, 23),
+	MSTPCR("tsif0", "bus_clk", 2, 22),
+	MSTPCR("sdhi0", "bus_clk", 2, 18),
+	MSTPCR("mmcif0", "bus_clk", 2, 17),
+	MSTPCR("usb0", "bus_clk", 2, 11),
+	MSTPCR("siu0", "bus_clk", 2, 8),
+	MSTPCR("veu1", "bus_clk", 2, 7),
+	MSTPCR("vou0", "bus_clk", 2, 5),
+	MSTPCR("beu0", "bus_clk", 2, 4),
+	MSTPCR("ceu0", "bus_clk", 2, 3),
+	MSTPCR("veu0", "bus_clk", 2, 2),
+	MSTPCR("vpu0", "bus_clk", 2, 1),
+	MSTPCR("lcdc0", "bus_clk", 2, 0),
+#endif
 };
 
 static struct clk *sh7722_clocks[] = {
@@ -710,21 +815,30 @@ arch_init_clk_ops(struct clk_ops **ops, int type)
 
 int __init arch_clk_init(void)
 {
-	struct clk *master;
+	struct clk *clk;
 	int i;
 
-	master = clk_get(NULL, "master_clk");
+	clk = clk_get(NULL, "master_clk");
 	for (i = 0; i < ARRAY_SIZE(sh7722_clocks); i++) {
 		pr_debug( "Registering clock '%s'\n", sh7722_clocks[i]->name);
-		sh7722_clocks[i]->parent = master;
+		sh7722_clocks[i]->parent = clk;
 		clk_register(sh7722_clocks[i]);
 	}
-	clk_put(master);
+	clk_put(clk);
 
-	for (i = 0; i < ARRAY_SIZE(sh7722_mstpcr); i++) {
-		pr_debug( "Registering mstpcr '%s'\n", sh7722_mstpcr[i].name);
-		clk_register(&sh7722_mstpcr[i]);
+	clk_register(&sh7722_r_clock);
+
+	for (i = 0; i < ARRAY_SIZE(sh7722_mstpcr_clocks); i++) {
+		pr_debug( "Registering mstpcr clock '%s'\n",
+			  sh7722_mstpcr_clocks[i].name);
+		clk = clk_get(NULL, (void *) sh7722_mstpcr_clocks[i].ops);
+		sh7722_mstpcr_clocks[i].parent = clk;
+		sh7722_mstpcr_clocks[i].ops = &sh7722_mstpcr_clk_ops;
+		clk_register(&sh7722_mstpcr_clocks[i]);
+		clk_put(clk);
 	}
+
+	clk_recalc_rate(&sh7722_r_clock); /* make sure rate gets propagated */
 
 	return 0;
 }

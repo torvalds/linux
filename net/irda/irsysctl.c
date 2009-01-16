@@ -118,8 +118,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_discovery,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &do_discovery,
-		.strategy       = &sysctl_intvec
+		.proc_handler	= do_discovery,
+		.strategy       = sysctl_intvec
 	},
 	{
 		.ctl_name	= NET_IRDA_DEVNAME,
@@ -127,8 +127,8 @@ static ctl_table irda_table[] = {
 		.data		= sysctl_devname,
 		.maxlen		= 65,
 		.mode		= 0644,
-		.proc_handler	= &do_devname,
-		.strategy	= &sysctl_string
+		.proc_handler	= do_devname,
+		.strategy	= sysctl_string
 	},
 #ifdef CONFIG_IRDA_DEBUG
 	{
@@ -137,7 +137,7 @@ static ctl_table irda_table[] = {
 		.data		= &irda_debug,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 #endif
 #ifdef CONFIG_IRDA_FAST_RR
@@ -147,7 +147,7 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_fast_poll_increase,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 #endif
 	{
@@ -156,8 +156,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_discovery_slots,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &min_discovery_slots,
 		.extra2		= &max_discovery_slots
 	},
@@ -167,7 +167,7 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_discovery_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{
 		.ctl_name	= NET_IRDA_SLOT_TIMEOUT,
@@ -175,8 +175,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_slot_timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &min_slot_timeout,
 		.extra2		= &max_slot_timeout
 	},
@@ -186,8 +186,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_max_baud_rate,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &min_max_baud_rate,
 		.extra2		= &max_max_baud_rate
 	},
@@ -197,8 +197,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_min_tx_turn_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &min_min_tx_turn_time,
 		.extra2		= &max_min_tx_turn_time
 	},
@@ -208,8 +208,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_max_tx_data_size,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &min_max_tx_data_size,
 		.extra2		= &max_max_tx_data_size
 	},
@@ -219,8 +219,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_max_tx_window,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &min_max_tx_window,
 		.extra2		= &max_max_tx_window
 	},
@@ -230,8 +230,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_max_noreply_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &min_max_noreply_time,
 		.extra2		= &max_max_noreply_time
 	},
@@ -241,8 +241,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_warn_noreply_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &min_warn_noreply_time,
 		.extra2		= &max_warn_noreply_time
 	},
@@ -252,8 +252,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_lap_keepalive_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &min_lap_keepalive_time,
 		.extra2		= &max_lap_keepalive_time
 	},

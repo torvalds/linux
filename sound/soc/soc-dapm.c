@@ -37,7 +37,6 @@
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
-#include <linux/debugfs.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -54,30 +53,28 @@
 /* dapm power sequences - make this per codec in the future */
 static int dapm_up_seq[] = {
 	snd_soc_dapm_pre, snd_soc_dapm_micbias, snd_soc_dapm_mic,
-	snd_soc_dapm_mux, snd_soc_dapm_dac, snd_soc_dapm_mixer, snd_soc_dapm_pga,
-	snd_soc_dapm_adc, snd_soc_dapm_hp, snd_soc_dapm_spk, snd_soc_dapm_post
+	snd_soc_dapm_mux, snd_soc_dapm_value_mux, snd_soc_dapm_dac,
+	snd_soc_dapm_mixer, snd_soc_dapm_pga, snd_soc_dapm_adc, snd_soc_dapm_hp,
+	snd_soc_dapm_spk, snd_soc_dapm_post
 };
 static int dapm_down_seq[] = {
 	snd_soc_dapm_pre, snd_soc_dapm_adc, snd_soc_dapm_hp, snd_soc_dapm_spk,
 	snd_soc_dapm_pga, snd_soc_dapm_mixer, snd_soc_dapm_dac, snd_soc_dapm_mic,
-	snd_soc_dapm_micbias, snd_soc_dapm_mux, snd_soc_dapm_post
+	snd_soc_dapm_micbias, snd_soc_dapm_mux, snd_soc_dapm_value_mux,
+	snd_soc_dapm_post
 };
 
 static int dapm_status = 1;
 module_param(dapm_status, int, 0);
 MODULE_PARM_DESC(dapm_status, "enable DPM sysfs entries");
 
-static struct dentry *asoc_debugfs;
-
-static u32 pop_time;
-
-static void pop_wait(void)
+static void pop_wait(u32 pop_time)
 {
 	if (pop_time)
 		schedule_timeout_uninterruptible(msecs_to_jiffies(pop_time));
 }
 
-static void pop_dbg(const char *fmt, ...)
+static void pop_dbg(u32 pop_time, const char *fmt, ...)
 {
 	va_list args;
 
@@ -85,7 +82,7 @@ static void pop_dbg(const char *fmt, ...)
 
 	if (pop_time) {
 		vprintk(fmt, args);
-		pop_wait();
+		pop_wait(pop_time);
 	}
 
 	va_end(args);
@@ -131,6 +128,25 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 		;
 		val = snd_soc_read(w->codec, e->reg);
 		item = (val >> e->shift_l) & (bitmask - 1);
+
+		p->connect = 0;
+		for (i = 0; i < e->max; i++) {
+			if (!(strcmp(p->name, e->texts[i])) && item == i)
+				p->connect = 1;
+		}
+	}
+	break;
+	case snd_soc_dapm_value_mux: {
+		struct soc_enum *e = (struct soc_enum *)
+			w->kcontrols[i].private_value;
+		int val, item;
+
+		val = snd_soc_read(w->codec, e->reg);
+		val = (val >> e->shift_l) & e->mask;
+		for (item = 0; item < e->max; item++) {
+			if (val == e->values[item])
+				break;
+		}
 
 		p->connect = 0;
 		for (i = 0; i < e->max; i++) {
@@ -230,10 +246,11 @@ static int dapm_update_bits(struct snd_soc_dapm_widget *widget)
 
 	change = old != new;
 	if (change) {
-		pop_dbg("pop test %s : %s in %d ms\n", widget->name,
-			widget->power ? "on" : "off", pop_time);
+		pop_dbg(codec->pop_time, "pop test %s : %s in %d ms\n",
+			widget->name, widget->power ? "on" : "off",
+			codec->pop_time);
 		snd_soc_write(codec, widget->reg, new);
-		pop_wait();
+		pop_wait(codec->pop_time);
 	}
 	pr_debug("reg %x old %x new %x change %d\n", widget->reg,
 		 old, new, change);
@@ -293,7 +310,7 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 	struct snd_soc_dapm_widget *w)
 {
 	int i, ret = 0;
-	char name[32];
+	size_t name_len;
 	struct snd_soc_dapm_path *path;
 
 	/* add kcontrol */
@@ -307,10 +324,15 @@ static int dapm_new_mixer(struct snd_soc_codec *codec,
 				continue;
 
 			/* add dapm control with long name */
-			snprintf(name, 32, "%s %s", w->name, w->kcontrols[i].name);
-			path->long_name = kstrdup (name, GFP_KERNEL);
+			name_len = 2 + strlen(w->name)
+				+ strlen(w->kcontrols[i].name);
+			path->long_name = kmalloc(name_len, GFP_KERNEL);
 			if (path->long_name == NULL)
 				return -ENOMEM;
+
+			snprintf(path->long_name, name_len, "%s %s",
+				 w->name, w->kcontrols[i].name);
+			path->long_name[name_len - 1] = '\0';
 
 			path->kcontrol = snd_soc_cnew(&w->kcontrols[i], w,
 				path->long_name);
@@ -652,6 +674,7 @@ static void dbg_dump_dapm(struct snd_soc_codec* codec, const char *action)
 		case snd_soc_dapm_vmid:
 			continue;
 		case snd_soc_dapm_mux:
+		case snd_soc_dapm_value_mux:
 		case snd_soc_dapm_output:
 		case snd_soc_dapm_input:
 		case snd_soc_dapm_switch:
@@ -697,7 +720,8 @@ static int dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 	struct snd_soc_dapm_path *path;
 	int found = 0;
 
-	if (widget->id != snd_soc_dapm_mux)
+	if (widget->id != snd_soc_dapm_mux &&
+	    widget->id != snd_soc_dapm_value_mux)
 		return -ENODEV;
 
 	if (!snd_soc_test_bits(widget->codec, e->reg, mask, val))
@@ -821,23 +845,9 @@ static DEVICE_ATTR(dapm_widget, 0444, dapm_widget_show, NULL);
 
 int snd_soc_dapm_sys_add(struct device *dev)
 {
-	int ret = 0;
-
 	if (!dapm_status)
 		return 0;
-
-	ret = device_create_file(dev, &dev_attr_dapm_widget);
-	if (ret != 0)
-		return ret;
-
-	asoc_debugfs = debugfs_create_dir("asoc", NULL);
-	if (!IS_ERR(asoc_debugfs) && asoc_debugfs)
-		debugfs_create_u32("dapm_pop_time", 0744, asoc_debugfs,
-				   &pop_time);
-	else
-		asoc_debugfs = NULL;
-
-	return 0;
+	return device_create_file(dev, &dev_attr_dapm_widget);
 }
 
 static void snd_soc_dapm_sys_remove(struct device *dev)
@@ -845,9 +855,6 @@ static void snd_soc_dapm_sys_remove(struct device *dev)
 	if (dapm_status) {
 		device_remove_file(dev, &dev_attr_dapm_widget);
 	}
-
-	if (asoc_debugfs)
-		debugfs_remove_recursive(asoc_debugfs);
 }
 
 /* free all dapm widgets and resources */
@@ -976,6 +983,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
 		path->connect = 1;
 		return 0;
 	case snd_soc_dapm_mux:
+	case snd_soc_dapm_value_mux:
 		ret = dapm_connect_mux(codec, wsource, wsink, path, control,
 			&wsink->kcontrols[0]);
 		if (ret != 0)
@@ -1005,28 +1013,6 @@ err:
 	kfree(path);
 	return ret;
 }
-
-/**
- * snd_soc_dapm_connect_input - connect dapm widgets
- * @codec: audio codec
- * @sink: name of target widget
- * @control: mixer control name
- * @source: name of source name
- *
- * Connects 2 dapm widgets together via a named audio path. The sink is
- * the widget receiving the audio signal, whilst the source is the sender
- * of the audio signal.
- *
- * This function has been deprecated in favour of snd_soc_dapm_add_routes().
- *
- * Returns 0 for success else error.
- */
-int snd_soc_dapm_connect_input(struct snd_soc_codec *codec, const char *sink,
-	const char *control, const char *source)
-{
-	return snd_soc_dapm_add_route(codec, sink, control, source);
-}
-EXPORT_SYMBOL_GPL(snd_soc_dapm_connect_input);
 
 /**
  * snd_soc_dapm_add_routes - Add routes between DAPM widgets
@@ -1085,6 +1071,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec)
 			dapm_new_mixer(codec, w);
 			break;
 		case snd_soc_dapm_mux:
+		case snd_soc_dapm_value_mux:
 			dapm_new_mux(codec, w);
 			break;
 		case snd_soc_dapm_adc:
@@ -1115,7 +1102,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_new_widgets);
 /**
  * snd_soc_dapm_get_volsw - dapm mixer get callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to get the value of a dapm mixer control.
  *
@@ -1160,7 +1147,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_get_volsw);
 /**
  * snd_soc_dapm_put_volsw - dapm mixer set callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to set the value of a dapm mixer control.
  *
@@ -1231,7 +1218,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_put_volsw);
 /**
  * snd_soc_dapm_get_enum_double - dapm enumerated double mixer get callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to get the value of a dapm enumerated double mixer control.
  *
@@ -1259,7 +1246,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_get_enum_double);
 /**
  * snd_soc_dapm_put_enum_double - dapm enumerated double mixer set callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to set the value of a dapm enumerated double mixer control.
  *
@@ -1312,6 +1299,103 @@ out:
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_enum_double);
 
 /**
+ * snd_soc_dapm_get_value_enum_double - dapm semi enumerated double mixer get
+ *					callback
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Callback to get the value of a dapm semi enumerated double mixer control.
+ *
+ * Semi enumerated mixer: the enumerated items are referred as values. Can be
+ * used for handling bitfield coded enumeration for example.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_dapm_get_value_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned short reg_val, val, mux;
+
+	reg_val = snd_soc_read(widget->codec, e->reg);
+	val = (reg_val >> e->shift_l) & e->mask;
+	for (mux = 0; mux < e->max; mux++) {
+		if (val == e->values[mux])
+			break;
+	}
+	ucontrol->value.enumerated.item[0] = mux;
+	if (e->shift_l != e->shift_r) {
+		val = (reg_val >> e->shift_r) & e->mask;
+		for (mux = 0; mux < e->max; mux++) {
+			if (val == e->values[mux])
+				break;
+		}
+		ucontrol->value.enumerated.item[1] = mux;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_value_enum_double);
+
+/**
+ * snd_soc_dapm_put_value_enum_double - dapm semi enumerated double mixer set
+ *					callback
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Callback to set the value of a dapm semi enumerated double mixer control.
+ *
+ * Semi enumerated mixer: the enumerated items are referred as values. Can be
+ * used for handling bitfield coded enumeration for example.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned short val, mux;
+	unsigned short mask;
+	int ret = 0;
+
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
+		return -EINVAL;
+	mux = ucontrol->value.enumerated.item[0];
+	val = e->values[ucontrol->value.enumerated.item[0]] << e->shift_l;
+	mask = e->mask << e->shift_l;
+	if (e->shift_l != e->shift_r) {
+		if (ucontrol->value.enumerated.item[1] > e->max - 1)
+			return -EINVAL;
+		val |= e->values[ucontrol->value.enumerated.item[1]] << e->shift_r;
+		mask |= e->mask << e->shift_r;
+	}
+
+	mutex_lock(&widget->codec->mutex);
+	widget->value = val;
+	dapm_mux_update_power(widget, kcontrol, mask, mux, val, e);
+	if (widget->event) {
+		if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
+			ret = widget->event(widget,
+				kcontrol, SND_SOC_DAPM_PRE_REG);
+			if (ret < 0)
+				goto out;
+		}
+		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+		if (widget->event_flags & SND_SOC_DAPM_POST_REG)
+			ret = widget->event(widget,
+				kcontrol, SND_SOC_DAPM_POST_REG);
+	} else
+		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+
+out:
+	mutex_unlock(&widget->codec->mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_put_value_enum_double);
+
+/**
  * snd_soc_dapm_new_control - create new dapm control
  * @codec: audio codec
  * @widget: widget template
@@ -1358,8 +1442,12 @@ int snd_soc_dapm_new_controls(struct snd_soc_codec *codec,
 
 	for (i = 0; i < num; i++) {
 		ret = snd_soc_dapm_new_control(codec, widget);
-		if (ret < 0)
+		if (ret < 0) {
+			printk(KERN_ERR
+			       "ASoC: Failed to create DAPM control %s: %d\n",
+			       widget->name, ret);
 			return ret;
+		}
 		widget++;
 	}
 	return 0;
@@ -1440,11 +1528,11 @@ int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
 				enum snd_soc_bias_level level)
 {
 	struct snd_soc_codec *codec = socdev->codec;
-	struct snd_soc_machine *machine = socdev->machine;
+	struct snd_soc_card *card = socdev->card;
 	int ret = 0;
 
-	if (machine->set_bias_level)
-		ret = machine->set_bias_level(machine, level);
+	if (card->set_bias_level)
+		ret = card->set_bias_level(card, level);
 	if (ret == 0 && codec->set_bias_level)
 		ret = codec->set_bias_level(codec, level);
 
@@ -1453,7 +1541,7 @@ int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
 
 /**
  * snd_soc_dapm_enable_pin - enable pin.
- * @snd_soc_codec: SoC codec
+ * @codec: SoC codec
  * @pin: pin name
  *
  * Enables input/output pin and it's parents or children widgets iff there is

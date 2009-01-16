@@ -26,6 +26,7 @@
  * if_sdio_card_to_host() to pad the data.
  */
 
+#include <linux/kernel.h>
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
@@ -581,7 +582,7 @@ static int if_sdio_prog_real(struct if_sdio_card *card)
 				chunk_size, (chunk_size + 31) / 32 * 32);
 */
 			ret = sdio_writesb(card->func, card->ioport,
-				chunk_buffer, (chunk_size + 31) / 32 * 32);
+				chunk_buffer, roundup(chunk_size, 32));
 			if (ret)
 				goto release;
 

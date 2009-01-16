@@ -554,7 +554,7 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 		__get_user(fontpos, &list->fontpos);
 		if ((err1 = con_insert_unipair(p, unicode,fontpos)) != 0)
 			err = err1;
-			list++;
+		list++;
 	}
 	
 	if (con_unify_unimap(vc, p))

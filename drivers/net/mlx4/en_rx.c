@@ -443,7 +443,8 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		/* Fill Rx buffers */
 		ring->full = 0;
 	}
-	if (mlx4_en_fill_rx_buffers(priv))
+	err = mlx4_en_fill_rx_buffers(priv);
+	if (err)
 		goto err_buffers;
 
 	for (ring_ind = 0; ring_ind < priv->rx_ring_num; ring_ind++) {
@@ -776,8 +777,6 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		} else
 			netif_receive_skb(skb);
 
-		dev->last_rx = jiffies;
-
 next:
 		++cq->mcq.cons_index;
 		index = (cq->mcq.cons_index) & ring->size_mask;
@@ -815,7 +814,7 @@ void mlx4_en_rx_irq(struct mlx4_cq *mcq)
 	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
 
 	if (priv->port_up)
-		netif_rx_schedule(cq->dev, &cq->napi);
+		netif_rx_schedule(&cq->napi);
 	else
 		mlx4_en_arm_cq(priv, cq);
 }
@@ -835,7 +834,7 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
 	else {
 		/* Done for now */
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		mlx4_en_arm_cq(priv, cq);
 	}
 	return done;

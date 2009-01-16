@@ -233,7 +233,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 
 		if (info->flags & AER_TLP_HEADER_VALID_FLAG) {
 			unsigned char *tlp = (unsigned char *) &info->tlp;
-			printk("%sTLB Header:\n", loglevel);
+			printk("%sTLP Header:\n", loglevel);
 			printk("%s%02x%02x%02x%02x %02x%02x%02x%02x"
 				" %02x%02x%02x%02x %02x%02x%02x%02x\n",
 				loglevel,

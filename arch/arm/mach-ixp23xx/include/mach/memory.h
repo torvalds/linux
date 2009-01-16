@@ -19,16 +19,6 @@
  */
 #define PHYS_OFFSET		(0x00000000)
 
-
-/*
- * Virtual view <-> DMA view memory address translations
- * virt_to_bus: Used to translate the virtual address to an
- *		address suitable to be passed to set_dma_addr
- * bus_to_virt: Used to convert an address for DMA operations
- *		to an address that the kernel can use.
- */
-#ifndef __ASSEMBLY__
-
 #define __virt_to_bus(v)						\
 	({ unsigned int ret;						\
 	ret = ((__virt_to_phys(v) - 0x00000000) +			\
@@ -41,8 +31,5 @@
 	 __phys_to_virt((((b - (data & 0xfffffff0)) + 0x00000000))); })
 
 #define arch_is_coherent()	1
-
-#endif
-
 
 #endif

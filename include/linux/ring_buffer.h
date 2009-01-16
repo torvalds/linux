@@ -28,17 +28,19 @@ struct ring_buffer_event {
  *				 size = 8 bytes
  *
  * @RINGBUF_TYPE_TIME_STAMP:	Sync time stamp with external clock
- *				 array[0] = tv_nsec
- *				 array[1] = tv_sec
+ *				 array[0]    = tv_nsec
+ *				 array[1..2] = tv_sec
  *				 size = 16 bytes
  *
  * @RINGBUF_TYPE_DATA:		Data record
  *				 If len is zero:
  *				  array[0] holds the actual length
- *				  array[1..(length+3)/4-1] holds data
+ *				  array[1..(length+3)/4] holds data
+ *				  size = 4 + 4 + length (bytes)
  *				 else
  *				  length = len << 2
- *				  array[0..(length+3)/4] holds data
+ *				  array[0..(length+3)/4-1] holds data
+ *				  size = 4 + length (bytes)
  */
 enum ring_buffer_type {
 	RINGBUF_TYPE_PADDING,
@@ -116,12 +118,20 @@ void ring_buffer_record_enable_cpu(struct ring_buffer *buffer, int cpu);
 
 unsigned long ring_buffer_entries(struct ring_buffer *buffer);
 unsigned long ring_buffer_overruns(struct ring_buffer *buffer);
+unsigned long ring_buffer_entries_cpu(struct ring_buffer *buffer, int cpu);
+unsigned long ring_buffer_overrun_cpu(struct ring_buffer *buffer, int cpu);
 
 u64 ring_buffer_time_stamp(int cpu);
 void ring_buffer_normalize_time_stamp(int cpu, u64 *ts);
 
 void tracing_on(void);
 void tracing_off(void);
+void tracing_off_permanent(void);
+
+void *ring_buffer_alloc_read_page(struct ring_buffer *buffer);
+void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data);
+int ring_buffer_read_page(struct ring_buffer *buffer,
+			  void **data_page, int cpu, int full);
 
 enum ring_buffer_flags {
 	RB_FL_OVERWRITE		= 1 << 0,

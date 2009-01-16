@@ -3,6 +3,7 @@
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/device.h>
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
@@ -14,75 +15,11 @@
 #include <mach/hardware.h>
 
 /*
- * Very simple clock implementation - we only have one clock to
- * deal with at the moment, so we only match using the "name".
+ * Very simple clock implementation - we only have one clock to deal with.
  */
 struct clk {
-	struct list_head	node;
-	unsigned long		rate;
-	const char		*name;
 	unsigned int		enabled;
-	void			(*enable)(void);
-	void			(*disable)(void);
 };
-
-static LIST_HEAD(clocks);
-static DEFINE_MUTEX(clocks_mutex);
-static DEFINE_SPINLOCK(clocks_lock);
-
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	struct clk *p, *clk = ERR_PTR(-ENOENT);
-
-	mutex_lock(&clocks_mutex);
-	list_for_each_entry(p, &clocks, node) {
-		if (strcmp(id, p->name) == 0) {
-			clk = p;
-			break;
-		}
-	}
-	mutex_unlock(&clocks_mutex);
-
-	return clk;
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
-
-int clk_enable(struct clk *clk)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&clocks_lock, flags);
-	if (clk->enabled++ == 0)
-		clk->enable();
-	spin_unlock_irqrestore(&clocks_lock, flags);
-	return 0;
-}
-EXPORT_SYMBOL(clk_enable);
-
-void clk_disable(struct clk *clk)
-{
-	unsigned long flags;
-
-	WARN_ON(clk->enabled == 0);
-
-	spin_lock_irqsave(&clocks_lock, flags);
-	if (--clk->enabled == 0)
-		clk->disable();
-	spin_unlock_irqrestore(&clocks_lock, flags);
-}
-EXPORT_SYMBOL(clk_disable);
-
-unsigned long clk_get_rate(struct clk *clk)
-{
-	return clk->rate;
-}
-EXPORT_SYMBOL(clk_get_rate);
-
 
 static void clk_gpio27_enable(void)
 {
@@ -102,33 +39,50 @@ static void clk_gpio27_disable(void)
 	GAFR &= ~GPIO_32_768kHz;
 }
 
-static struct clk clk_gpio27 = {
-	.name		= "SA1111_CLK",
-	.rate		= 3686400,
-	.enable		= clk_gpio27_enable,
-	.disable	= clk_gpio27_disable,
-};
+static struct clk clk_gpio27;
 
-int clk_register(struct clk *clk)
+static DEFINE_SPINLOCK(clocks_lock);
+
+struct clk *clk_get(struct device *dev, const char *id)
 {
-	mutex_lock(&clocks_mutex);
-	list_add(&clk->node, &clocks);
-	mutex_unlock(&clocks_mutex);
+	const char *devname = dev_name(dev);
+
+	return strcmp(devname, "sa1111.0") ? ERR_PTR(-ENOENT) : &clk_gpio27;
+}
+EXPORT_SYMBOL(clk_get);
+
+void clk_put(struct clk *clk)
+{
+}
+EXPORT_SYMBOL(clk_put);
+
+int clk_enable(struct clk *clk)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&clocks_lock, flags);
+	if (clk->enabled++ == 0)
+		clk_gpio27_enable();
+	spin_unlock_irqrestore(&clocks_lock, flags);
 	return 0;
 }
-EXPORT_SYMBOL(clk_register);
+EXPORT_SYMBOL(clk_enable);
 
-void clk_unregister(struct clk *clk)
+void clk_disable(struct clk *clk)
 {
-	mutex_lock(&clocks_mutex);
-	list_del(&clk->node);
-	mutex_unlock(&clocks_mutex);
-}
-EXPORT_SYMBOL(clk_unregister);
+	unsigned long flags;
 
-static int __init clk_init(void)
-{
-	clk_register(&clk_gpio27);
-	return 0;
+	WARN_ON(clk->enabled == 0);
+
+	spin_lock_irqsave(&clocks_lock, flags);
+	if (--clk->enabled == 0)
+		clk_gpio27_disable();
+	spin_unlock_irqrestore(&clocks_lock, flags);
 }
-arch_initcall(clk_init);
+EXPORT_SYMBOL(clk_disable);
+
+unsigned long clk_get_rate(struct clk *clk)
+{
+	return 3686400;
+}
+EXPORT_SYMBOL(clk_get_rate);

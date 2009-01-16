@@ -267,6 +267,9 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 				dmah.size = map->size;
 				__drm_pci_free(dev, &dmah);
 				break;
+			case _DRM_GEM:
+				DRM_ERROR("tried to rmmap GEM object\n");
+				break;
 			}
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		}
@@ -399,7 +402,7 @@ static struct vm_operations_struct drm_vm_sg_ops = {
  * Create a new drm_vma_entry structure as the \p vma private data entry and
  * add it to drm_device::vmalist.
  */
-static void drm_vm_open_locked(struct vm_area_struct *vma)
+void drm_vm_open_locked(struct vm_area_struct *vma)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->minor->dev;
@@ -540,7 +543,7 @@ EXPORT_SYMBOL(drm_core_get_reg_ofs);
  * according to the mapping type and remaps the pages. Finally sets the file
  * pointer and calls vm_open().
  */
-static int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
+int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;

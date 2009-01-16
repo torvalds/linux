@@ -457,7 +457,7 @@ static inline int wait_cfg(struct net_device *dev, struct i596_cmd *cmd, int del
 
 static void i596_display_data(struct net_device *dev)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 	struct i596_cmd *cmd;
 	struct i596_rfd *rfd;
 	struct i596_rbd *rbd;
@@ -527,7 +527,7 @@ static irqreturn_t i596_error(int irq, void *dev_id)
 
 static inline void init_rx_bufs(struct net_device *dev)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 	int i;
 	struct i596_rfd *rfd;
 	struct i596_rbd *rbd;
@@ -578,7 +578,7 @@ static inline void init_rx_bufs(struct net_device *dev)
 
 static inline void remove_rx_bufs(struct net_device *dev)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 	struct i596_rbd *rbd;
 	int i;
 
@@ -592,7 +592,7 @@ static inline void remove_rx_bufs(struct net_device *dev)
 
 static void rebuild_rx_bufs(struct net_device *dev)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 	int i;
 
 	/* Ensure rx frame/buffer descriptors are tidy */
@@ -611,7 +611,7 @@ static void rebuild_rx_bufs(struct net_device *dev)
 
 static int init_i596_mem(struct net_device *dev)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 #if !defined(ENABLE_MVME16x_NET) && !defined(ENABLE_BVME6000_NET) || defined(ENABLE_APRICOT)
 	short ioaddr = dev->base_addr;
 #endif
@@ -764,7 +764,7 @@ failed:
 
 static inline int i596_rx(struct net_device *dev)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 	struct i596_rfd *rfd;
 	struct i596_rbd *rbd;
 	int frames = 0;
@@ -841,7 +841,6 @@ memory_squeeze:
 						pkt_len);
 #endif
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes+=pkt_len;
 			}
@@ -959,7 +958,7 @@ static void i596_reset(struct net_device *dev, struct i596_private *lp,
 
 static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 	int ioaddr = dev->base_addr;
 	unsigned long flags;
 
@@ -1029,7 +1028,7 @@ static int i596_open(struct net_device *dev)
 
 static void i596_tx_timeout (struct net_device *dev)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 	int ioaddr = dev->base_addr;
 
 	/* Transmitter timeout, serious problems. */
@@ -1058,7 +1057,7 @@ static void i596_tx_timeout (struct net_device *dev)
 
 static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 	struct tx_cmd *tx_cmd;
 	struct i596_tbd *tbd;
 	short length = skb->len;
@@ -1116,12 +1115,8 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static void print_eth(unsigned char *add, char *str)
 {
-	DECLARE_MAC_BUF(mac);
-	DECLARE_MAC_BUF(mac2);
-
-	printk(KERN_DEBUG "i596 0x%p, %s --> %s %02X%02X, %s\n",
-	       add, print_mac(mac, add + 6), print_mac(mac2, add),
-	       add[12], add[13], str);
+	printk(KERN_DEBUG "i596 0x%p, %pM --> %pM %02X%02X, %s\n",
+	       add, add + 6, add, add[12], add[13], str);
 }
 
 static int io = 0x300;
@@ -1244,9 +1239,9 @@ found:
 	dev->tx_timeout = i596_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-	dev->priv = (void *)(dev->mem_start);
+	dev->ml_priv = (void *)(dev->mem_start);
 
-	lp = dev->priv;
+	lp = dev->ml_priv;
 	DEB(DEB_INIT,printk(KERN_DEBUG "%s: lp at 0x%08lx (%zd bytes), "
 			"lp->scb at 0x%08lx\n",
 			dev->name, (unsigned long)lp,
@@ -1307,7 +1302,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 	}
 
 	ioaddr = dev->base_addr;
-	lp = dev->priv;
+	lp = dev->ml_priv;
 
 	spin_lock (&lp->lock);
 
@@ -1450,7 +1445,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 
 static int i596_close(struct net_device *dev)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 	unsigned long flags;
 
 	netif_stop_queue(dev);
@@ -1500,7 +1495,7 @@ static int i596_close(struct net_device *dev)
 
 static void set_multicast_list(struct net_device *dev)
 {
-	struct i596_private *lp = dev->priv;
+	struct i596_private *lp = dev->ml_priv;
 	int config = 0, cnt;
 
 	DEB(DEB_MULTI,printk(KERN_DEBUG "%s: set multicast list, %d entries, promisc %s, allmulti %s\n",
@@ -1544,7 +1539,6 @@ static void set_multicast_list(struct net_device *dev)
 		struct dev_mc_list *dmi;
 		unsigned char *cp;
 		struct mc_cmd *cmd;
-		DECLARE_MAC_BUF(mac);
 
 		if (wait_cfg(dev, &lp->mc_cmd.cmd, 1000, "multicast list change request timed out"))
 			return;
@@ -1555,8 +1549,8 @@ static void set_multicast_list(struct net_device *dev)
 		for (dmi = dev->mc_list; cnt && dmi != NULL; dmi = dmi->next, cnt--, cp += 6) {
 			memcpy(cp, dmi->dmi_addr, 6);
 			if (i596_debug > 1)
-				DEB(DEB_MULTI,printk(KERN_INFO "%s: Adding address %s\n",
-						dev->name, print_mac(mac, cp)));
+				DEB(DEB_MULTI,printk(KERN_INFO "%s: Adding address %pM\n",
+						dev->name, cp));
 		}
 		i596_add_cmd(dev, &cmd->cmd);
 	}
@@ -1604,9 +1598,3 @@ void __exit cleanup_module(void)
 }
 
 #endif				/* MODULE */
-
-/*
- * Local variables:
- *  compile-command: "gcc -D__KERNEL__ -I/usr/src/linux/net/inet -Wall -Wstrict-prototypes -O6 -m486 -c 82596.c"
- * End:
- */

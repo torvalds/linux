@@ -646,8 +646,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	ret = rdma_read_xdr(rdma_xprt, rmsgp, rqstp, ctxt);
 	if (ret > 0) {
 		/* read-list posted, defer until data received from client. */
-		svc_xprt_received(xprt);
-		return 0;
+		goto defer;
 	}
 	if (ret < 0) {
 		/* Post of read-list failed, free context. */
@@ -679,6 +678,7 @@ int svc_rdma_recvfrom(struct svc_rqst *rqstp)
 	 * close bit and call svc_xprt_delete
 	 */
 	set_bit(XPT_CLOSE, &xprt->xpt_flags);
+defer:
 	svc_xprt_received(xprt);
 	return 0;
 }

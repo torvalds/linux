@@ -99,7 +99,6 @@ static int nics_per_function = 1;
 static int nes_netdev_poll(struct napi_struct *napi, int budget)
 {
 	struct nes_vnic *nesvnic = container_of(napi, struct nes_vnic, napi);
-	struct net_device *netdev = nesvnic->netdev;
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_hw_nic_cq *nescq = &nesvnic->nic_cq;
 
@@ -112,7 +111,7 @@ static int nes_netdev_poll(struct napi_struct *napi, int budget)
 	nes_nic_ce_handler(nesdev, nescq);
 
 	if (nescq->cqes_pending == 0) {
-		netif_rx_complete(netdev, napi);
+		netif_rx_complete(napi);
 		/* clear out completed cqes and arm */
 		nes_write32(nesdev->regs+NES_CQE_ALLOC, NES_CQE_ALLOC_NOTIFY_NEXT |
 				nescq->cq_number | (nescq->cqe_allocs_pending << 16));
@@ -797,14 +796,13 @@ static int nes_netdev_set_mac_address(struct net_device *netdev, void *p)
 	int i;
 	u32 macaddr_low;
 	u16 macaddr_high;
-	DECLARE_MAC_BUF(mac);
 
 	if (!is_valid_ether_addr(mac_addr->sa_data))
 		return -EADDRNOTAVAIL;
 
 	memcpy(netdev->dev_addr, mac_addr->sa_data, netdev->addr_len);
-	printk(PFX "%s: Address length = %d, Address = %s\n",
-	       __func__, netdev->addr_len, print_mac(mac, mac_addr->sa_data));
+	printk(PFX "%s: Address length = %d, Address = %pM\n",
+	       __func__, netdev->addr_len, mac_addr->sa_data);
 	macaddr_high  = ((u16)netdev->dev_addr[0]) << 8;
 	macaddr_high += (u16)netdev->dev_addr[1];
 	macaddr_low   = ((u32)netdev->dev_addr[2]) << 24;
@@ -909,9 +907,8 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 			if (mc_index >= max_pft_entries_avaiable)
 				break;
 			if (multicast_addr) {
-				DECLARE_MAC_BUF(mac);
-				nes_debug(NES_DBG_NIC_RX, "Assigning MC Address %s to register 0x%04X nic_idx=%d\n",
-					  print_mac(mac, multicast_addr->dmi_addr),
+				nes_debug(NES_DBG_NIC_RX, "Assigning MC Address %pM to register 0x%04X nic_idx=%d\n",
+					  multicast_addr->dmi_addr,
 					  perfect_filter_register_address+(mc_index * 8),
 					  mc_nic_index);
 				macaddr_high  = ((u16)multicast_addr->dmi_addr[0]) << 8;

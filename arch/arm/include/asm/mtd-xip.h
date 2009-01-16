@@ -15,7 +15,6 @@
 #ifndef __ARM_MTD_XIP_H__
 #define __ARM_MTD_XIP_H__
 
-#include <mach/hardware.h>
 #include <mach/mtd-xip.h>
 
 /* fill instruction prefetch */

@@ -34,6 +34,8 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
+#include <linux/i2c-gpio.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -153,12 +155,14 @@ static unsigned char gpio_int_unmasked[3];
 static unsigned char gpio_int_enabled[3];
 static unsigned char gpio_int_type1[3];
 static unsigned char gpio_int_type2[3];
+static unsigned char gpio_int_debouce[3];
 
 /* Port ordering is: A B F */
 static const u8 int_type1_register_offset[3]	= { 0x90, 0xac, 0x4c };
 static const u8 int_type2_register_offset[3]	= { 0x94, 0xb0, 0x50 };
 static const u8 eoi_register_offset[3]		= { 0x98, 0xb4, 0x54 };
 static const u8 int_en_register_offset[3]	= { 0x9c, 0xb8, 0x58 };
+static const u8 int_debounce_register_offset[3]	= { 0xa8, 0xc4, 0x64 };
 
 void ep93xx_gpio_update_int_params(unsigned port)
 {
@@ -180,6 +184,22 @@ void ep93xx_gpio_int_mask(unsigned line)
 {
 	gpio_int_unmasked[line >> 3] &= ~(1 << (line & 7));
 }
+
+void ep93xx_gpio_int_debounce(unsigned int irq, int enable)
+{
+	int line = irq_to_gpio(irq);
+	int port = line >> 3;
+	int port_mask = 1 << (line & 7);
+
+	if (enable)
+		gpio_int_debouce[port] |= port_mask;
+	else
+		gpio_int_debouce[port] &= ~port_mask;
+
+	__raw_writeb(gpio_int_debouce[port],
+		EP93XX_GPIO_REG(int_debounce_register_offset[port]));
+}
+EXPORT_SYMBOL(ep93xx_gpio_int_debounce);
 
 /*************************************************************************
  * EP93xx IRQ handling
@@ -389,7 +409,7 @@ static struct amba_pl010_data ep93xx_uart_data = {
 
 static struct amba_device uart1_device = {
 	.dev		= {
-		.bus_id		= "apb:uart1",
+		.init_name	= "apb:uart1",
 		.platform_data	= &ep93xx_uart_data,
 	},
 	.res		= {
@@ -403,7 +423,7 @@ static struct amba_device uart1_device = {
 
 static struct amba_device uart2_device = {
 	.dev		= {
-		.bus_id		= "apb:uart2",
+		.init_name	= "apb:uart2",
 		.platform_data	= &ep93xx_uart_data,
 	},
 	.res		= {
@@ -417,7 +437,7 @@ static struct amba_device uart2_device = {
 
 static struct amba_device uart3_device = {
 	.dev		= {
-		.bus_id		= "apb:uart3",
+		.init_name	= "apb:uart3",
 		.platform_data	= &ep93xx_uart_data,
 	},
 	.res		= {
@@ -495,6 +515,26 @@ void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 
 	ep93xx_eth_data = *data;
 	platform_device_register(&ep93xx_eth_device);
+}
+
+static struct i2c_gpio_platform_data ep93xx_i2c_data = {
+	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
+	.sda_is_open_drain	= 0,
+	.scl_pin		= EP93XX_GPIO_LINE_EECLK,
+	.scl_is_open_drain	= 0,
+	.udelay			= 2,
+};
+
+static struct platform_device ep93xx_i2c_device = {
+	.name			= "i2c-gpio",
+	.id			= 0,
+	.dev.platform_data	= &ep93xx_i2c_data,
+};
+
+void __init ep93xx_register_i2c(struct i2c_board_info *devices, int num)
+{
+	i2c_register_board_info(0, devices, num);
+	platform_device_register(&ep93xx_i2c_device);
 }
 
 extern void ep93xx_gpio_init(void);

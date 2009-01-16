@@ -21,12 +21,12 @@ void oprofile_stop(void);
 
 struct oprofile_operations;
 
-extern unsigned long fs_buffer_size;
-extern unsigned long fs_cpu_buffer_size;
-extern unsigned long fs_buffer_watershed;
+extern unsigned long oprofile_buffer_size;
+extern unsigned long oprofile_cpu_buffer_size;
+extern unsigned long oprofile_buffer_watershed;
 extern struct oprofile_operations oprofile_ops;
 extern unsigned long oprofile_started;
-extern unsigned long backtrace_depth;
+extern unsigned long oprofile_backtrace_depth;
 
 struct super_block;
 struct dentry;

@@ -47,6 +47,7 @@
 #include <linux/mount.h>
 #include <linux/audit.h>
 #include <linux/memcontrol.h>
+#include <linux/ftrace.h>
 #include <linux/profile.h>
 #include <linux/rmap.h>
 #include <linux/acct.h>
@@ -79,6 +80,8 @@ int max_threads;		/* tunable limit on nr_threads */
 DEFINE_PER_CPU(unsigned long, process_counts) = 0;
 
 __cacheline_aligned DEFINE_RWLOCK(tasklist_lock);  /* outer */
+
+DEFINE_TRACE(sched_process_fork);
 
 int nr_processes(void)
 {
@@ -137,6 +140,7 @@ void free_task(struct task_struct *tsk)
 	prop_local_destroy_single(&tsk->dirties);
 	free_thread_info(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
+	ftrace_graph_exit_task(tsk);
 	free_task_struct(tsk);
 }
 EXPORT_SYMBOL(free_task);
@@ -147,9 +151,8 @@ void __put_task_struct(struct task_struct *tsk)
 	WARN_ON(atomic_read(&tsk->usage));
 	WARN_ON(tsk == current);
 
-	security_task_free(tsk);
-	free_uid(tsk->user);
-	put_group_info(tsk->group_info);
+	put_cred(tsk->real_cred);
+	put_cred(tsk->cred);
 	delayacct_tsk_free(tsk);
 
 	if (!profile_handoff_task(tsk))
@@ -397,6 +400,18 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(mmlist_lock);
 #define allocate_mm()	(kmem_cache_alloc(mm_cachep, GFP_KERNEL))
 #define free_mm(mm)	(kmem_cache_free(mm_cachep, (mm)))
 
+static unsigned long default_dump_filter = MMF_DUMP_FILTER_DEFAULT;
+
+static int __init coredump_filter_setup(char *s)
+{
+	default_dump_filter =
+		(simple_strtoul(s, NULL, 0) << MMF_DUMP_FILTER_SHIFT) &
+		MMF_DUMP_FILTER_MASK;
+	return 1;
+}
+
+__setup("coredump_filter=", coredump_filter_setup);
+
 #include <linux/init_task.h>
 
 static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
@@ -405,15 +420,14 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
 	atomic_set(&mm->mm_count, 1);
 	init_rwsem(&mm->mmap_sem);
 	INIT_LIST_HEAD(&mm->mmlist);
-	mm->flags = (current->mm) ? current->mm->flags
-				  : MMF_DUMP_FILTER_DEFAULT;
+	mm->flags = (current->mm) ? current->mm->flags : default_dump_filter;
 	mm->core_state = NULL;
 	mm->nr_ptes = 0;
 	set_mm_counter(mm, file_rss, 0);
 	set_mm_counter(mm, anon_rss, 0);
 	spin_lock_init(&mm->page_table_lock);
-	rwlock_init(&mm->ioctx_list_lock);
-	mm->ioctx_list = NULL;
+	spin_lock_init(&mm->ioctx_lock);
+	INIT_HLIST_HEAD(&mm->ioctx_list);
 	mm->free_area_cache = TASK_UNMAPPED_BASE;
 	mm->cached_hole_size = ~0UL;
 	mm_init_owner(mm, p);
@@ -755,7 +769,7 @@ static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct sighand_struct *sig;
 
-	if (clone_flags & (CLONE_SIGHAND | CLONE_THREAD)) {
+	if (clone_flags & CLONE_SIGHAND) {
 		atomic_inc(&current->sighand->count);
 		return 0;
 	}
@@ -818,12 +832,6 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	if (!sig)
 		return -ENOMEM;
 
-	ret = copy_thread_group_keys(tsk);
-	if (ret < 0) {
-		kmem_cache_free(signal_cachep, sig);
-		return ret;
-	}
-
 	atomic_set(&sig->count, 1);
 	atomic_set(&sig->live, 1);
 	init_waitqueue_head(&sig->wait_chldexit);
@@ -868,7 +876,6 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 void __cleanup_signal(struct signal_struct *sig)
 {
 	thread_group_cputime_free(sig);
-	exit_thread_group_keys(sig);
 	tty_kref_put(sig->tty);
 	kmem_cache_free(signal_cachep, sig);
 }
@@ -894,7 +901,7 @@ static void copy_flags(unsigned long clone_flags, struct task_struct *p)
 	clear_freeze_flag(p);
 }
 
-asmlinkage long sys_set_tid_address(int __user *tidptr)
+SYSCALL_DEFINE1(set_tid_address, int __user *, tidptr)
 {
 	current->clear_child_tid = tidptr;
 
@@ -984,16 +991,16 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	DEBUG_LOCKS_WARN_ON(!p->softirqs_enabled);
 #endif
 	retval = -EAGAIN;
-	if (atomic_read(&p->user->processes) >=
+	if (atomic_read(&p->real_cred->user->processes) >=
 			p->signal->rlim[RLIMIT_NPROC].rlim_cur) {
 		if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RESOURCE) &&
-		    p->user != current->nsproxy->user_ns->root_user)
+		    p->real_cred->user != INIT_USER)
 			goto bad_fork_free;
 	}
 
-	atomic_inc(&p->user->__count);
-	atomic_inc(&p->user->processes);
-	get_group_info(p->group_info);
+	retval = copy_creds(p, clone_flags);
+	if (retval < 0)
+		goto bad_fork_free;
 
 	/*
 	 * If multiple threads are within copy_process(), then this check
@@ -1048,10 +1055,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	do_posix_clock_monotonic_gettime(&p->start_time);
 	p->real_start_time = p->start_time;
 	monotonic_to_bootbased(&p->real_start_time);
-#ifdef CONFIG_SECURITY
-	p->security = NULL;
-#endif
-	p->cap_bset = current->cap_bset;
 	p->io_context = NULL;
 	p->audit_context = NULL;
 	cgroup_fork(p);
@@ -1092,14 +1095,14 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #ifdef CONFIG_DEBUG_MUTEXES
 	p->blocked_on = NULL; /* not blocked yet */
 #endif
+	if (unlikely(ptrace_reparented(current)))
+		ptrace_fork(p, clone_flags);
 
 	/* Perform scheduler related setup. Assign this task to a CPU. */
 	sched_fork(p, clone_flags);
 
-	if ((retval = security_task_alloc(p)))
-		goto bad_fork_cleanup_policy;
 	if ((retval = audit_alloc(p)))
-		goto bad_fork_cleanup_security;
+		goto bad_fork_cleanup_policy;
 	/* copy all the process information */
 	if ((retval = copy_semundo(clone_flags, p)))
 		goto bad_fork_cleanup_audit;
@@ -1113,10 +1116,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		goto bad_fork_cleanup_sighand;
 	if ((retval = copy_mm(clone_flags, p)))
 		goto bad_fork_cleanup_signal;
-	if ((retval = copy_keys(clone_flags, p)))
-		goto bad_fork_cleanup_mm;
 	if ((retval = copy_namespaces(clone_flags, p)))
-		goto bad_fork_cleanup_keys;
+		goto bad_fork_cleanup_mm;
 	if ((retval = copy_io(clone_flags, p)))
 		goto bad_fork_cleanup_namespaces;
 	retval = copy_thread(0, clone_flags, stack_start, stack_size, p, regs);
@@ -1125,16 +1126,18 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	if (pid != &init_struct_pid) {
 		retval = -ENOMEM;
-		pid = alloc_pid(task_active_pid_ns(p));
+		pid = alloc_pid(p->nsproxy->pid_ns);
 		if (!pid)
 			goto bad_fork_cleanup_io;
 
 		if (clone_flags & CLONE_NEWPID) {
-			retval = pid_ns_prepare_proc(task_active_pid_ns(p));
+			retval = pid_ns_prepare_proc(p->nsproxy->pid_ns);
 			if (retval < 0)
 				goto bad_fork_free_pid;
 		}
 	}
+
+	ftrace_graph_init_task(p);
 
 	p->pid = pid_nr(pid);
 	p->tgid = p->pid;
@@ -1144,7 +1147,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (current->nsproxy != p->nsproxy) {
 		retval = ns_cgroup_clone(p, pid);
 		if (retval)
-			goto bad_fork_free_pid;
+			goto bad_fork_free_graph;
 	}
 
 	p->set_child_tid = (clone_flags & CLONE_CHILD_SETTID) ? child_tidptr : NULL;
@@ -1237,7 +1240,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		spin_unlock(&current->sighand->siglock);
 		write_unlock_irq(&tasklist_lock);
 		retval = -ERESTARTNOINTR;
-		goto bad_fork_free_pid;
+		goto bad_fork_free_graph;
 	}
 
 	if (clone_flags & CLONE_THREAD) {
@@ -1274,6 +1277,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	cgroup_post_fork(p);
 	return p;
 
+bad_fork_free_graph:
+	ftrace_graph_exit_task(p);
 bad_fork_free_pid:
 	if (pid != &init_struct_pid)
 		free_pid(pid);
@@ -1281,8 +1286,6 @@ bad_fork_cleanup_io:
 	put_io_context(p->io_context);
 bad_fork_cleanup_namespaces:
 	exit_task_namespaces(p);
-bad_fork_cleanup_keys:
-	exit_keys(p);
 bad_fork_cleanup_mm:
 	if (p->mm)
 		mmput(p->mm);
@@ -1298,8 +1301,6 @@ bad_fork_cleanup_semundo:
 	exit_sem(p);
 bad_fork_cleanup_audit:
 	audit_free(p);
-bad_fork_cleanup_security:
-	security_task_free(p);
 bad_fork_cleanup_policy:
 #ifdef CONFIG_NUMA
 	mpol_put(p->mempolicy);
@@ -1312,9 +1313,9 @@ bad_fork_cleanup_cgroup:
 bad_fork_cleanup_put_domain:
 	module_put(task_thread_info(p)->exec_domain->module);
 bad_fork_cleanup_count:
-	put_group_info(p->group_info);
-	atomic_dec(&p->user->processes);
-	free_uid(p->user);
+	atomic_dec(&p->cred->user->processes);
+	put_cred(p->real_cred);
+	put_cred(p->cred);
 bad_fork_free:
 	free_task(p);
 fork_out:
@@ -1356,6 +1357,21 @@ long do_fork(unsigned long clone_flags,
 	struct task_struct *p;
 	int trace = 0;
 	long nr;
+
+	/*
+	 * Do some preliminary argument and permissions checking before we
+	 * actually start allocating stuff
+	 */
+	if (clone_flags & CLONE_NEWUSER) {
+		if (clone_flags & CLONE_THREAD)
+			return -EINVAL;
+		/* hopefully this check will go away when userns support is
+		 * complete
+		 */
+		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SETUID) ||
+				!capable(CAP_SETGID))
+			return -EPERM;
+	}
 
 	/*
 	 * We hope to recycle these flags after 2.6.26
@@ -1465,12 +1481,10 @@ void __init proc_caches_init(void)
 	fs_cachep = kmem_cache_create("fs_cache",
 			sizeof(struct fs_struct), 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-	vm_area_cachep = kmem_cache_create("vm_area_struct",
-			sizeof(struct vm_area_struct), 0,
-			SLAB_PANIC, NULL);
 	mm_cachep = kmem_cache_create("mm_struct",
 			sizeof(struct mm_struct), ARCH_MIN_MMSTRUCT_ALIGN,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+	mmap_init();
 }
 
 /*
@@ -1589,7 +1603,7 @@ static int unshare_fd(unsigned long unshare_flags, struct files_struct **new_fdp
  * constructed. Here we are modifying the current, active,
  * task_struct.
  */
-asmlinkage long sys_unshare(unsigned long unshare_flags)
+SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
 {
 	int err = 0;
 	struct fs_struct *fs, *new_fs = NULL;
@@ -1605,8 +1619,7 @@ asmlinkage long sys_unshare(unsigned long unshare_flags)
 	err = -EINVAL;
 	if (unshare_flags & ~(CLONE_THREAD|CLONE_FS|CLONE_NEWNS|CLONE_SIGHAND|
 				CLONE_VM|CLONE_FILES|CLONE_SYSVSEM|
-				CLONE_NEWUTS|CLONE_NEWIPC|CLONE_NEWUSER|
-				CLONE_NEWNET))
+				CLONE_NEWUTS|CLONE_NEWIPC|CLONE_NEWNET))
 		goto bad_unshare_out;
 
 	/*

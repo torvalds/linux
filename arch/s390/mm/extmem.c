@@ -7,6 +7,9 @@
  * (C) IBM Corporation 2002-2004
  */
 
+#define KMSG_COMPONENT "extmem"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
@@ -23,19 +26,6 @@
 #include <asm/extmem.h>
 #include <asm/cpcmd.h>
 #include <asm/setup.h>
-
-#define DCSS_DEBUG	/* Debug messages on/off */
-
-#define DCSS_NAME "extmem"
-#ifdef DCSS_DEBUG
-#define PRINT_DEBUG(x...)	printk(KERN_DEBUG DCSS_NAME " debug:" x)
-#else
-#define PRINT_DEBUG(x...)   do {} while (0)
-#endif
-#define PRINT_INFO(x...)	printk(KERN_INFO DCSS_NAME " info:" x)
-#define PRINT_WARN(x...)	printk(KERN_WARNING DCSS_NAME " warning:" x)
-#define PRINT_ERR(x...)		printk(KERN_ERR DCSS_NAME " error:" x)
-
 
 #define DCSS_LOADSHR    0x00
 #define DCSS_LOADNSR    0x04
@@ -286,7 +276,7 @@ query_segment_type (struct dcss_segment *seg)
 		goto out_free;
 	}
 	if (diag_cc > 1) {
-		PRINT_WARN ("segment_type: diag returned error %ld\n", vmrc);
+		pr_warning("Querying a DCSS type failed with rc=%ld\n", vmrc);
 		rc = dcss_diag_translate_rc (vmrc);
 		goto out_free;
 	}
@@ -368,7 +358,6 @@ query_segment_type (struct dcss_segment *seg)
  * -EIO     : could not perform query diagnose
  * -ENOENT  : no such segment
  * -ENOTSUPP: multi-part segment cannot be used with linux
- * -ENOSPC  : segment cannot be used (overlaps with storage)
  * -ENOMEM  : out of memory
  * 0 .. 6   : type of segment as defined in include/asm-s390/extmem.h
  */
@@ -480,9 +469,8 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 		goto out_resource;
 	}
 	if (diag_cc > 1) {
-		PRINT_WARN ("segment_load: could not load segment %s - "
-				"diag returned error (%ld)\n",
-				name, end_addr);
+		pr_warning("Loading DCSS %s failed with rc=%ld\n", name,
+			   end_addr);
 		rc = dcss_diag_translate_rc(end_addr);
 		dcss_diag(&purgeseg_scode, seg->dcss_name,
 				&dummy, &dummy);
@@ -496,15 +484,13 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 	*addr = seg->start_addr;
 	*end  = seg->end;
 	if (do_nonshared)
-		PRINT_INFO ("segment_load: loaded segment %s range %p .. %p "
-				"type %s in non-shared mode\n", name,
-				(void*)seg->start_addr, (void*)seg->end,
-				segtype_string[seg->vm_segtype]);
+		pr_info("DCSS %s of range %p to %p and type %s loaded as "
+			"exclusive-writable\n", name, (void*) seg->start_addr,
+			(void*) seg->end, segtype_string[seg->vm_segtype]);
 	else {
-		PRINT_INFO ("segment_load: loaded segment %s range %p .. %p "
-				"type %s in shared mode\n", name,
-				(void*)seg->start_addr, (void*)seg->end,
-				segtype_string[seg->vm_segtype]);
+		pr_info("DCSS %s of range %p to %p and type %s loaded in "
+			"shared access mode\n", name, (void*) seg->start_addr,
+			(void*) seg->end, segtype_string[seg->vm_segtype]);
 	}
 	goto out;
  out_resource:
@@ -593,14 +579,14 @@ segment_modify_shared (char *name, int do_nonshared)
 		goto out_unlock;
 	}
 	if (do_nonshared == seg->do_nonshared) {
-		PRINT_INFO ("segment_modify_shared: not reloading segment %s"
-				" - already in requested mode\n",name);
+		pr_info("DCSS %s is already in the requested access "
+			"mode\n", name);
 		rc = 0;
 		goto out_unlock;
 	}
 	if (atomic_read (&seg->ref_count) != 1) {
-		PRINT_WARN ("segment_modify_shared: not reloading segment %s - "
-				"segment is in use by other driver(s)\n",name);
+		pr_warning("DCSS %s is in use and cannot be reloaded\n",
+			   name);
 		rc = -EAGAIN;
 		goto out_unlock;
 	}
@@ -613,8 +599,8 @@ segment_modify_shared (char *name, int do_nonshared)
 			seg->res->flags |= IORESOURCE_READONLY;
 
 	if (request_resource(&iomem_resource, seg->res)) {
-		PRINT_WARN("segment_modify_shared: could not reload segment %s"
-			   " - overlapping resources\n", name);
+		pr_warning("DCSS %s overlaps with used memory resources "
+			   "and cannot be reloaded\n", name);
 		rc = -EBUSY;
 		kfree(seg->res);
 		goto out_del_mem;
@@ -632,9 +618,8 @@ segment_modify_shared (char *name, int do_nonshared)
 		goto out_del_res;
 	}
 	if (diag_cc > 1) {
-		PRINT_WARN ("segment_modify_shared: could not reload segment %s"
-				" - diag returned error (%ld)\n",
-				name, end_addr);
+		pr_warning("Reloading DCSS %s failed with rc=%ld\n", name,
+			   end_addr);
 		rc = dcss_diag_translate_rc(end_addr);
 		goto out_del_res;
 	}
@@ -673,8 +658,7 @@ segment_unload(char *name)
 	mutex_lock(&dcss_lock);
 	seg = segment_by_name (name);
 	if (seg == NULL) {
-		PRINT_ERR ("could not find segment %s in segment_unload, "
-				"please report to linux390@de.ibm.com\n",name);
+		pr_err("Unloading unknown DCSS %s failed\n", name);
 		goto out_unlock;
 	}
 	if (atomic_dec_return(&seg->ref_count) != 0)
@@ -709,8 +693,7 @@ segment_save(char *name)
 	seg = segment_by_name (name);
 
 	if (seg == NULL) {
-		PRINT_ERR("could not find segment %s in segment_save, please "
-			  "report to linux390@de.ibm.com\n", name);
+		pr_err("Saving unknown DCSS %s failed\n", name);
 		goto out;
 	}
 
@@ -727,14 +710,14 @@ segment_save(char *name)
 	response = 0;
 	cpcmd(cmd1, NULL, 0, &response);
 	if (response) {
-		PRINT_ERR("segment_save: DEFSEG failed with response code %i\n",
-			  response);
+		pr_err("Saving a DCSS failed with DEFSEG response code "
+		       "%i\n", response);
 		goto out;
 	}
 	cpcmd(cmd2, NULL, 0, &response);
 	if (response) {
-		PRINT_ERR("segment_save: SAVESEG failed with response code %i\n",
-			  response);
+		pr_err("Saving a DCSS failed with SAVESEG response code "
+		       "%i\n", response);
 		goto out;
 	}
 out:
@@ -749,44 +732,41 @@ void segment_warning(int rc, char *seg_name)
 {
 	switch (rc) {
 	case -ENOENT:
-		PRINT_WARN("cannot load/query segment %s, "
-			   "does not exist\n", seg_name);
+		pr_err("DCSS %s cannot be loaded or queried\n", seg_name);
 		break;
 	case -ENOSYS:
-		PRINT_WARN("cannot load/query segment %s, "
-			   "not running on VM\n", seg_name);
+		pr_err("DCSS %s cannot be loaded or queried without "
+		       "z/VM\n", seg_name);
 		break;
 	case -EIO:
-		PRINT_WARN("cannot load/query segment %s, "
-			   "hardware error\n", seg_name);
+		pr_err("Loading or querying DCSS %s resulted in a "
+		       "hardware error\n", seg_name);
 		break;
 	case -ENOTSUPP:
-		PRINT_WARN("cannot load/query segment %s, "
-			   "is a multi-part segment\n", seg_name);
+		pr_err("DCSS %s has multiple page ranges and cannot be "
+		       "loaded or queried\n", seg_name);
 		break;
 	case -ENOSPC:
-		PRINT_WARN("cannot load/query segment %s, "
-			   "overlaps with storage\n", seg_name);
+		pr_err("DCSS %s overlaps with used storage and cannot "
+		       "be loaded\n", seg_name);
 		break;
 	case -EBUSY:
-		PRINT_WARN("cannot load/query segment %s, "
-			   "overlaps with already loaded dcss\n", seg_name);
+		pr_err("%s needs used memory resources and cannot be "
+		       "loaded or queried\n", seg_name);
 		break;
 	case -EPERM:
-		PRINT_WARN("cannot load/query segment %s, "
-			   "already loaded in incompatible mode\n", seg_name);
+		pr_err("DCSS %s is already loaded in a different access "
+		       "mode\n", seg_name);
 		break;
 	case -ENOMEM:
-		PRINT_WARN("cannot load/query segment %s, "
-			   "out of memory\n", seg_name);
+		pr_err("There is not enough memory to load or query "
+		       "DCSS %s\n", seg_name);
 		break;
 	case -ERANGE:
-		PRINT_WARN("cannot load/query segment %s, "
-			   "exceeds kernel mapping range\n", seg_name);
+		pr_err("DCSS %s exceeds the kernel mapping range (%lu) "
+		       "and cannot be loaded\n", seg_name, VMEM_MAX_PHYS);
 		break;
 	default:
-		PRINT_WARN("cannot load/query segment %s, "
-			   "return value %i\n", seg_name, rc);
 		break;
 	}
 }

@@ -203,7 +203,7 @@ static void cy82c693_set_dma_mode(ide_drive_t *drive, const u8 mode)
 
 static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	pio_clocks_t pclk;
 	unsigned int addrCtrl;
@@ -292,7 +292,6 @@ static const struct ide_port_info cy82c693_chipset __devinitdata = {
 	.name		= DRV_NAME,
 	.init_iops	= init_iops_cy82c693,
 	.port_ops	= &cy82c693_port_ops,
-	.chipset	= ide_cy82c693,
 	.host_flags	= IDE_HFLAG_SINGLE,
 	.pio_mask	= ATA_PIO4,
 	.swdma_mask	= ATA_SWDMA2,

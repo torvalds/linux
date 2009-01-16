@@ -24,138 +24,318 @@ MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");
 MODULE_DESCRIPTION("Input layer to RF switch connector");
 MODULE_LICENSE("GPL");
 
-struct rfkill_task {
-	struct work_struct work;
-	enum rfkill_type type;
-	struct mutex mutex; /* ensures that task is serialized */
-	spinlock_t lock; /* for accessing last and desired state */
-	unsigned long last; /* last schedule */
-	enum rfkill_state desired_state; /* on/off */
+enum rfkill_input_master_mode {
+	RFKILL_INPUT_MASTER_DONOTHING = 0,
+	RFKILL_INPUT_MASTER_RESTORE = 1,
+	RFKILL_INPUT_MASTER_UNBLOCKALL = 2,
+	RFKILL_INPUT_MASTER_MAX,	/* marker */
 };
+
+/* Delay (in ms) between consecutive switch ops */
+#define RFKILL_OPS_DELAY 200
+
+static enum rfkill_input_master_mode rfkill_master_switch_mode =
+					RFKILL_INPUT_MASTER_UNBLOCKALL;
+module_param_named(master_switch_mode, rfkill_master_switch_mode, uint, 0);
+MODULE_PARM_DESC(master_switch_mode,
+	"SW_RFKILL_ALL ON should: 0=do nothing; 1=restore; 2=unblock all");
+
+enum rfkill_global_sched_op {
+	RFKILL_GLOBAL_OP_EPO = 0,
+	RFKILL_GLOBAL_OP_RESTORE,
+	RFKILL_GLOBAL_OP_UNLOCK,
+	RFKILL_GLOBAL_OP_UNBLOCK,
+};
+
+/*
+ * Currently, the code marked with RFKILL_NEED_SWSET is inactive.
+ * If handling of EV_SW SW_WLAN/WWAN/BLUETOOTH/etc is needed in the
+ * future, when such events are added, that code will be necessary.
+ */
+
+struct rfkill_task {
+	struct delayed_work dwork;
+
+	/* ensures that task is serialized */
+	struct mutex mutex;
+
+	/* protects everything below */
+	spinlock_t lock;
+
+	/* pending regular switch operations (1=pending) */
+	unsigned long sw_pending[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
+
+#ifdef RFKILL_NEED_SWSET
+	/* set operation pending (1=pending) */
+	unsigned long sw_setpending[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
+
+	/* desired state for pending set operation (1=unblock) */
+	unsigned long sw_newstate[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
+#endif
+
+	/* should the state be complemented (1=yes) */
+	unsigned long sw_togglestate[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
+
+	bool global_op_pending;
+	enum rfkill_global_sched_op op;
+
+	/* last time it was scheduled */
+	unsigned long last_scheduled;
+};
+
+static void __rfkill_handle_global_op(enum rfkill_global_sched_op op)
+{
+	unsigned int i;
+
+	switch (op) {
+	case RFKILL_GLOBAL_OP_EPO:
+		rfkill_epo();
+		break;
+	case RFKILL_GLOBAL_OP_RESTORE:
+		rfkill_restore_states();
+		break;
+	case RFKILL_GLOBAL_OP_UNLOCK:
+		rfkill_remove_epo_lock();
+		break;
+	case RFKILL_GLOBAL_OP_UNBLOCK:
+		rfkill_remove_epo_lock();
+		for (i = 0; i < RFKILL_TYPE_MAX; i++)
+			rfkill_switch_all(i, RFKILL_STATE_UNBLOCKED);
+		break;
+	default:
+		/* memory corruption or bug, fail safely */
+		rfkill_epo();
+		WARN(1, "Unknown requested operation %d! "
+			"rfkill Emergency Power Off activated\n",
+			op);
+	}
+}
+
+#ifdef RFKILL_NEED_SWSET
+static void __rfkill_handle_normal_op(const enum rfkill_type type,
+			const bool sp, const bool s, const bool c)
+{
+	enum rfkill_state state;
+
+	if (sp)
+		state = (s) ? RFKILL_STATE_UNBLOCKED :
+			      RFKILL_STATE_SOFT_BLOCKED;
+	else
+		state = rfkill_get_global_state(type);
+
+	if (c)
+		state = rfkill_state_complement(state);
+
+	rfkill_switch_all(type, state);
+}
+#else
+static void __rfkill_handle_normal_op(const enum rfkill_type type,
+			const bool c)
+{
+	enum rfkill_state state;
+
+	state = rfkill_get_global_state(type);
+	if (c)
+		state = rfkill_state_complement(state);
+
+	rfkill_switch_all(type, state);
+}
+#endif
 
 static void rfkill_task_handler(struct work_struct *work)
 {
-	struct rfkill_task *task = container_of(work, struct rfkill_task, work);
+	struct rfkill_task *task = container_of(work,
+					struct rfkill_task, dwork.work);
+	bool doit = true;
 
 	mutex_lock(&task->mutex);
 
-	rfkill_switch_all(task->type, task->desired_state);
+	spin_lock_irq(&task->lock);
+	while (doit) {
+		if (task->global_op_pending) {
+			enum rfkill_global_sched_op op = task->op;
+			task->global_op_pending = false;
+			memset(task->sw_pending, 0, sizeof(task->sw_pending));
+			spin_unlock_irq(&task->lock);
+
+			__rfkill_handle_global_op(op);
+
+			/* make sure we do at least one pass with
+			 * !task->global_op_pending */
+			spin_lock_irq(&task->lock);
+			continue;
+		} else if (!rfkill_is_epo_lock_active()) {
+			unsigned int i = 0;
+
+			while (!task->global_op_pending &&
+						i < RFKILL_TYPE_MAX) {
+				if (test_and_clear_bit(i, task->sw_pending)) {
+					bool c;
+#ifdef RFKILL_NEED_SWSET
+					bool sp, s;
+					sp = test_and_clear_bit(i,
+							task->sw_setpending);
+					s = test_bit(i, task->sw_newstate);
+#endif
+					c = test_and_clear_bit(i,
+							task->sw_togglestate);
+					spin_unlock_irq(&task->lock);
+
+#ifdef RFKILL_NEED_SWSET
+					__rfkill_handle_normal_op(i, sp, s, c);
+#else
+					__rfkill_handle_normal_op(i, c);
+#endif
+
+					spin_lock_irq(&task->lock);
+				}
+				i++;
+			}
+		}
+		doit = task->global_op_pending;
+	}
+	spin_unlock_irq(&task->lock);
 
 	mutex_unlock(&task->mutex);
 }
 
-static void rfkill_task_epo_handler(struct work_struct *work)
+static struct rfkill_task rfkill_task = {
+	.dwork = __DELAYED_WORK_INITIALIZER(rfkill_task.dwork,
+				rfkill_task_handler),
+	.mutex = __MUTEX_INITIALIZER(rfkill_task.mutex),
+	.lock = __SPIN_LOCK_UNLOCKED(rfkill_task.lock),
+};
+
+static unsigned long rfkill_ratelimit(const unsigned long last)
 {
-	rfkill_epo();
+	const unsigned long delay = msecs_to_jiffies(RFKILL_OPS_DELAY);
+	return (time_after(jiffies, last + delay)) ? 0 : delay;
 }
 
-static DECLARE_WORK(epo_work, rfkill_task_epo_handler);
-
-static void rfkill_schedule_epo(void)
+static void rfkill_schedule_ratelimited(void)
 {
-	schedule_work(&epo_work);
+	if (!delayed_work_pending(&rfkill_task.dwork)) {
+		schedule_delayed_work(&rfkill_task.dwork,
+				rfkill_ratelimit(rfkill_task.last_scheduled));
+		rfkill_task.last_scheduled = jiffies;
+	}
 }
 
-static void rfkill_schedule_set(struct rfkill_task *task,
+static void rfkill_schedule_global_op(enum rfkill_global_sched_op op)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rfkill_task.lock, flags);
+	rfkill_task.op = op;
+	rfkill_task.global_op_pending = true;
+	if (op == RFKILL_GLOBAL_OP_EPO && !rfkill_is_epo_lock_active()) {
+		/* bypass the limiter for EPO */
+		cancel_delayed_work(&rfkill_task.dwork);
+		schedule_delayed_work(&rfkill_task.dwork, 0);
+		rfkill_task.last_scheduled = jiffies;
+	} else
+		rfkill_schedule_ratelimited();
+	spin_unlock_irqrestore(&rfkill_task.lock, flags);
+}
+
+#ifdef RFKILL_NEED_SWSET
+/* Use this if you need to add EV_SW SW_WLAN/WWAN/BLUETOOTH/etc handling */
+
+static void rfkill_schedule_set(enum rfkill_type type,
 				enum rfkill_state desired_state)
 {
 	unsigned long flags;
 
-	if (unlikely(work_pending(&epo_work)))
+	if (rfkill_is_epo_lock_active())
 		return;
 
-	spin_lock_irqsave(&task->lock, flags);
-
-	if (time_after(jiffies, task->last + msecs_to_jiffies(200))) {
-		task->desired_state = desired_state;
-		task->last = jiffies;
-		schedule_work(&task->work);
+	spin_lock_irqsave(&rfkill_task.lock, flags);
+	if (!rfkill_task.global_op_pending) {
+		set_bit(type, rfkill_task.sw_pending);
+		set_bit(type, rfkill_task.sw_setpending);
+		clear_bit(type, rfkill_task.sw_togglestate);
+		if (desired_state)
+			set_bit(type,  rfkill_task.sw_newstate);
+		else
+			clear_bit(type, rfkill_task.sw_newstate);
+		rfkill_schedule_ratelimited();
 	}
-
-	spin_unlock_irqrestore(&task->lock, flags);
+	spin_unlock_irqrestore(&rfkill_task.lock, flags);
 }
+#endif
 
-static void rfkill_schedule_toggle(struct rfkill_task *task)
+static void rfkill_schedule_toggle(enum rfkill_type type)
 {
 	unsigned long flags;
 
-	if (unlikely(work_pending(&epo_work)))
+	if (rfkill_is_epo_lock_active())
 		return;
 
-	spin_lock_irqsave(&task->lock, flags);
-
-	if (time_after(jiffies, task->last + msecs_to_jiffies(200))) {
-		task->desired_state =
-				rfkill_state_complement(task->desired_state);
-		task->last = jiffies;
-		schedule_work(&task->work);
+	spin_lock_irqsave(&rfkill_task.lock, flags);
+	if (!rfkill_task.global_op_pending) {
+		set_bit(type, rfkill_task.sw_pending);
+		change_bit(type, rfkill_task.sw_togglestate);
+		rfkill_schedule_ratelimited();
 	}
-
-	spin_unlock_irqrestore(&task->lock, flags);
+	spin_unlock_irqrestore(&rfkill_task.lock, flags);
 }
-
-#define DEFINE_RFKILL_TASK(n, t)				\
-	struct rfkill_task n = {				\
-		.work = __WORK_INITIALIZER(n.work,		\
-				rfkill_task_handler),		\
-		.type = t,					\
-		.mutex = __MUTEX_INITIALIZER(n.mutex),		\
-		.lock = __SPIN_LOCK_UNLOCKED(n.lock),		\
-		.desired_state = RFKILL_STATE_UNBLOCKED,	\
-	}
-
-static DEFINE_RFKILL_TASK(rfkill_wlan, RFKILL_TYPE_WLAN);
-static DEFINE_RFKILL_TASK(rfkill_bt, RFKILL_TYPE_BLUETOOTH);
-static DEFINE_RFKILL_TASK(rfkill_uwb, RFKILL_TYPE_UWB);
-static DEFINE_RFKILL_TASK(rfkill_wimax, RFKILL_TYPE_WIMAX);
-static DEFINE_RFKILL_TASK(rfkill_wwan, RFKILL_TYPE_WWAN);
 
 static void rfkill_schedule_evsw_rfkillall(int state)
 {
-	/* EVERY radio type. state != 0 means radios ON */
-	/* handle EPO (emergency power off) through shortcut */
 	if (state) {
-		rfkill_schedule_set(&rfkill_wwan,
-				    RFKILL_STATE_UNBLOCKED);
-		rfkill_schedule_set(&rfkill_wimax,
-				    RFKILL_STATE_UNBLOCKED);
-		rfkill_schedule_set(&rfkill_uwb,
-				    RFKILL_STATE_UNBLOCKED);
-		rfkill_schedule_set(&rfkill_bt,
-				    RFKILL_STATE_UNBLOCKED);
-		rfkill_schedule_set(&rfkill_wlan,
-				    RFKILL_STATE_UNBLOCKED);
+		switch (rfkill_master_switch_mode) {
+		case RFKILL_INPUT_MASTER_UNBLOCKALL:
+			rfkill_schedule_global_op(RFKILL_GLOBAL_OP_UNBLOCK);
+			break;
+		case RFKILL_INPUT_MASTER_RESTORE:
+			rfkill_schedule_global_op(RFKILL_GLOBAL_OP_RESTORE);
+			break;
+		case RFKILL_INPUT_MASTER_DONOTHING:
+			rfkill_schedule_global_op(RFKILL_GLOBAL_OP_UNLOCK);
+			break;
+		default:
+			/* memory corruption or driver bug! fail safely */
+			rfkill_schedule_global_op(RFKILL_GLOBAL_OP_EPO);
+			WARN(1, "Unknown rfkill_master_switch_mode (%d), "
+				"driver bug or memory corruption detected!\n",
+				rfkill_master_switch_mode);
+			break;
+		}
 	} else
-		rfkill_schedule_epo();
+		rfkill_schedule_global_op(RFKILL_GLOBAL_OP_EPO);
 }
 
 static void rfkill_event(struct input_handle *handle, unsigned int type,
 			unsigned int code, int data)
 {
 	if (type == EV_KEY && data == 1) {
+		enum rfkill_type t;
+
 		switch (code) {
 		case KEY_WLAN:
-			rfkill_schedule_toggle(&rfkill_wlan);
+			t = RFKILL_TYPE_WLAN;
 			break;
 		case KEY_BLUETOOTH:
-			rfkill_schedule_toggle(&rfkill_bt);
+			t = RFKILL_TYPE_BLUETOOTH;
 			break;
 		case KEY_UWB:
-			rfkill_schedule_toggle(&rfkill_uwb);
+			t = RFKILL_TYPE_UWB;
 			break;
 		case KEY_WIMAX:
-			rfkill_schedule_toggle(&rfkill_wimax);
+			t = RFKILL_TYPE_WIMAX;
 			break;
 		default:
-			break;
+			return;
 		}
+		rfkill_schedule_toggle(t);
+		return;
 	} else if (type == EV_SW) {
 		switch (code) {
 		case SW_RFKILL_ALL:
 			rfkill_schedule_evsw_rfkillall(data);
-			break;
+			return;
 		default:
-			break;
+			return;
 		}
 	}
 }
@@ -256,18 +436,23 @@ static struct input_handler rfkill_handler = {
 
 static int __init rfkill_handler_init(void)
 {
-	unsigned long last_run = jiffies - msecs_to_jiffies(500);
-	rfkill_wlan.last = last_run;
-	rfkill_bt.last = last_run;
-	rfkill_uwb.last = last_run;
-	rfkill_wimax.last = last_run;
+	if (rfkill_master_switch_mode >= RFKILL_INPUT_MASTER_MAX)
+		return -EINVAL;
+
+	/*
+	 * The penalty to not doing this is a possible RFKILL_OPS_DELAY delay
+	 * at the first use.  Acceptable, but if we can avoid it, why not?
+	 */
+	rfkill_task.last_scheduled =
+			jiffies - msecs_to_jiffies(RFKILL_OPS_DELAY) - 1;
 	return input_register_handler(&rfkill_handler);
 }
 
 static void __exit rfkill_handler_exit(void)
 {
 	input_unregister_handler(&rfkill_handler);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&rfkill_task.dwork);
+	rfkill_remove_epo_lock();
 }
 
 module_init(rfkill_handler_init);

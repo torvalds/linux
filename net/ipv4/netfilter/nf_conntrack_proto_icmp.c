@@ -20,7 +20,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_log.h>
 
-static unsigned long nf_ct_icmp_timeout __read_mostly = 30*HZ;
+static unsigned int nf_ct_icmp_timeout __read_mostly = 30*HZ;
 
 static bool icmp_pkt_to_tuple(const struct sk_buff *skb, unsigned int dataoff,
 			      struct nf_conntrack_tuple *tuple)
@@ -272,7 +272,7 @@ static struct ctl_table icmp_sysctl_table[] = {
 		.data		= &nf_ct_icmp_timeout,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.ctl_name = 0
@@ -285,7 +285,7 @@ static struct ctl_table icmp_compat_sysctl_table[] = {
 		.data		= &nf_ct_icmp_timeout,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.ctl_name = 0

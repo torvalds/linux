@@ -33,6 +33,8 @@
 #define MDIO_MMD_TC	(6)
 /* Auto negotiation */
 #define MDIO_MMD_AN	(7)
+/* Clause 22 extension */
+#define MDIO_MMD_C22EXT	29
 
 /* Generic register locations */
 #define MDIO_MMDREG_CTRL1	(0)
@@ -54,6 +56,9 @@
 /* Loopback bit for WIS, PCS, PHYSX and DTEXS */
 #define MDIO_MMDREG_CTRL1_LBACK_LBN	(14)
 #define MDIO_MMDREG_CTRL1_LBACK_WIDTH	(1)
+/* Low power */
+#define MDIO_MMDREG_CTRL1_LPOWER_LBN	(11)
+#define MDIO_MMDREG_CTRL1_LPOWER_WIDTH	(1)
 
 /* Bits in MMDREG_STAT1 */
 #define MDIO_MMDREG_STAT1_FAULT_LBN	(7)
@@ -70,14 +75,26 @@
 #define MDIO_ID_MODEL(_id32)	((_id32 >> 4) & 0x3f)
 #define MDIO_ID_OUI(_id32)	(_id32 >> 10)
 
-/* Bits in MMDREG_DEVS0. Someone thoughtfully layed things out
+/* Bits in MMDREG_DEVS0/1. Someone thoughtfully layed things out
  * so the 'bit present' bit number of an MMD is the number of
  * that MMD */
 #define DEV_PRESENT_BIT(_b) (1 << _b)
 
-#define MDIO_MMDREG_DEVS0_PHYXS	 DEV_PRESENT_BIT(MDIO_MMD_PHYXS)
-#define MDIO_MMDREG_DEVS0_PCS	 DEV_PRESENT_BIT(MDIO_MMD_PCS)
-#define MDIO_MMDREG_DEVS0_PMAPMD DEV_PRESENT_BIT(MDIO_MMD_PMAPMD)
+#define MDIO_MMDREG_DEVS_PHYXS	DEV_PRESENT_BIT(MDIO_MMD_PHYXS)
+#define MDIO_MMDREG_DEVS_PCS	DEV_PRESENT_BIT(MDIO_MMD_PCS)
+#define MDIO_MMDREG_DEVS_PMAPMD	DEV_PRESENT_BIT(MDIO_MMD_PMAPMD)
+#define MDIO_MMDREG_DEVS_AN	DEV_PRESENT_BIT(MDIO_MMD_AN)
+#define MDIO_MMDREG_DEVS_C22EXT	DEV_PRESENT_BIT(MDIO_MMD_C22EXT)
+
+/* Bits in MMDREG_SPEED */
+#define MDIO_MMDREG_SPEED_10G_LBN	0
+#define MDIO_MMDREG_SPEED_10G_WIDTH	1
+#define MDIO_MMDREG_SPEED_1000M_LBN	4
+#define MDIO_MMDREG_SPEED_1000M_WIDTH	1
+#define MDIO_MMDREG_SPEED_100M_LBN	5
+#define MDIO_MMDREG_SPEED_100M_WIDTH	1
+#define MDIO_MMDREG_SPEED_10M_LBN	6
+#define MDIO_MMDREG_SPEED_10M_WIDTH	1
 
 /* Bits in MMDREG_STAT2 */
 #define MDIO_MMDREG_STAT2_PRESENT_VAL	(2)
@@ -111,17 +128,34 @@
 #define MDIO_PMAPMD_CTRL2_10_BT		(0xf)
 #define MDIO_PMAPMD_CTRL2_TYPE_MASK	(0xf)
 
+/* PMA 10GBT registers */
+#define MDIO_PMAPMD_10GBT_TXPWR		(131)
+#define MDIO_PMAPMD_10GBT_TXPWR_SHORT_LBN (0)
+#define MDIO_PMAPMD_10GBT_TXPWR_SHORT_WIDTH (1)
+
+/* PHY XGXS Status 2 */
+#define MDIO_PHYXS_STATUS2              (8)
+#define MDIO_PHYXS_STATUS2_RX_FAULT_LBN 10
+
 /* PHY XGXS lane state */
 #define MDIO_PHYXS_LANE_STATE		(0x18)
 #define MDIO_PHYXS_LANE_ALIGNED_LBN	(12)
 
 /* AN registers */
+#define MDIO_AN_CTRL_XNP_LBN		13
 #define MDIO_AN_STATUS			(1)
 #define MDIO_AN_STATUS_XNP_LBN		(7)
 #define MDIO_AN_STATUS_PAGE_LBN		(6)
 #define MDIO_AN_STATUS_AN_DONE_LBN	(5)
 #define MDIO_AN_STATUS_LP_AN_CAP_LBN	(0)
 
+#define MDIO_AN_ADVERTISE		16
+#define MDIO_AN_ADVERTISE_XNP_LBN	12
+#define MDIO_AN_LPA			19
+#define MDIO_AN_XNP			22
+#define MDIO_AN_LPA_XNP			25
+
+#define MDIO_AN_10GBT_ADVERTISE		32
 #define MDIO_AN_10GBT_STATUS		(33)
 #define MDIO_AN_10GBT_STATUS_MS_FLT_LBN (15) /* MASTER/SLAVE config fault */
 #define MDIO_AN_10GBT_STATUS_MS_LBN     (14) /* MASTER/SLAVE config */
@@ -240,16 +274,37 @@ extern void mdio_clause45_transmit_disable(struct efx_nic *efx);
 /* Generic part of reconfigure: set/clear loopback bits */
 extern void mdio_clause45_phy_reconfigure(struct efx_nic *efx);
 
+/* Set the power state of the specified MMDs */
+extern void mdio_clause45_set_mmds_lpower(struct efx_nic *efx,
+					  int low_power, unsigned int mmd_mask);
+
 /* Read (some of) the PHY settings over MDIO */
 extern void mdio_clause45_get_settings(struct efx_nic *efx,
 				       struct ethtool_cmd *ecmd);
+
+/* Read (some of) the PHY settings over MDIO */
+extern void
+mdio_clause45_get_settings_ext(struct efx_nic *efx, struct ethtool_cmd *ecmd,
+			       u32 xnp, u32 xnp_lpa);
 
 /* Set (some of) the PHY settings over MDIO */
 extern int mdio_clause45_set_settings(struct efx_nic *efx,
 				      struct ethtool_cmd *ecmd);
 
+/* Set pause parameters to be advertised through AN (if available) */
+extern void mdio_clause45_set_pause(struct efx_nic *efx);
+
+/* Get pause parameters from AN if available (otherwise return
+ * requested pause parameters)
+ */
+enum efx_fc_type mdio_clause45_get_pause(struct efx_nic *efx);
+
 /* Wait for specified MMDs to exit reset within a timeout */
 extern int mdio_clause45_wait_reset_mmds(struct efx_nic *efx,
 					 unsigned int mmd_mask);
+
+/* Set or clear flag, debouncing */
+extern void mdio_clause45_set_flag(struct efx_nic *efx, u8 prt, u8 dev,
+				   u16 addr, int bit, bool sense);
 
 #endif /* EFX_MDIO_10G_H */

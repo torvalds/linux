@@ -50,8 +50,15 @@ struct udp_skb_cb {
 };
 #define UDP_SKB_CB(__skb)	((struct udp_skb_cb *)((__skb)->cb))
 
-extern struct hlist_head udp_hash[UDP_HTABLE_SIZE];
-extern rwlock_t udp_hash_lock;
+struct udp_hslot {
+	struct hlist_nulls_head	head;
+	spinlock_t		lock;
+} __attribute__((aligned(2 * sizeof(long))));
+struct udp_table {
+	struct udp_hslot	hash[UDP_HTABLE_SIZE];
+};
+extern struct udp_table udp_table;
+extern void udp_table_init(struct udp_table *);
 
 
 /* Note: this must match 'valbool' in sock_setsockopt */
@@ -110,15 +117,7 @@ static inline void udp_lib_hash(struct sock *sk)
 	BUG();
 }
 
-static inline void udp_lib_unhash(struct sock *sk)
-{
-	write_lock_bh(&udp_hash_lock);
-	if (sk_del_node_init(sk)) {
-		inet_sk(sk)->num = 0;
-		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
-	}
-	write_unlock_bh(&udp_hash_lock);
-}
+extern void udp_lib_unhash(struct sock *sk);
 
 static inline void udp_lib_close(struct sock *sk, long timeout)
 {
@@ -187,7 +186,7 @@ extern struct sock *udp4_lib_lookup(struct net *net, __be32 saddr, __be16 sport,
 struct udp_seq_afinfo {
 	char			*name;
 	sa_family_t		family;
-	struct hlist_head	*hashtable;
+	struct udp_table	*udp_table;
 	struct file_operations	seq_fops;
 	struct seq_operations	seq_ops;
 };
@@ -196,7 +195,7 @@ struct udp_iter_state {
 	struct seq_net_private  p;
 	sa_family_t		family;
 	int			bucket;
-	struct hlist_head	*hashtable;
+	struct udp_table	*udp_table;
 };
 
 #ifdef CONFIG_PROC_FS

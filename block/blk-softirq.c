@@ -161,7 +161,7 @@ void blk_complete_request(struct request *req)
 }
 EXPORT_SYMBOL(blk_complete_request);
 
-__init int blk_softirq_init(void)
+static __init int blk_softirq_init(void)
 {
 	int i;
 

@@ -632,6 +632,15 @@ enum omap24xx_index {
 	AC7_2430_USB0HS_DATA7,
 
 	/* 2430 McBSP */
+	AD6_2430_MCBSP_CLKS,
+
+	AB2_2430_MCBSP1_CLKR,
+	AD5_2430_MCBSP1_FSR,
+	AA1_2430_MCBSP1_DX,
+	AF3_2430_MCBSP1_DR,
+	AB3_2430_MCBSP1_FSX,
+	Y9_2430_MCBSP1_CLKX,
+
 	AC10_2430_MCBSP2_FSX,
 	AD16_2430_MCBSP2_CLX,
 	AE13_2430_MCBSP2_DX,
@@ -640,6 +649,30 @@ enum omap24xx_index {
 	AD16_2430_MCBSP2_CLX_OFF,
 	AE13_2430_MCBSP2_DX_OFF,
 	AD13_2430_MCBSP2_DR_OFF,
+
+	AC9_2430_MCBSP3_CLKX,
+	AE4_2430_MCBSP3_FSX,
+	AE2_2430_MCBSP3_DR,
+	AF4_2430_MCBSP3_DX,
+
+	N3_2430_MCBSP4_CLKX,
+	AD23_2430_MCBSP4_DR,
+	AB25_2430_MCBSP4_DX,
+	AC25_2430_MCBSP4_FSX,
+
+	AE16_2430_MCBSP5_CLKX,
+	AF12_2430_MCBSP5_FSX,
+	K7_2430_MCBSP5_DX,
+	M1_2430_MCBSP5_DR,
+
+	/* 2430 McSPI*/
+	Y18_2430_MCSPI1_CLK,
+	AD15_2430_MCSPI1_SIMO,
+	AE17_2430_MCSPI1_SOMI,
+	U1_2430_MCSPI1_CS0,
+
+	/* Touchscreen GPIO */
+	AF19_2430_GPIO_85,
 
 };
 
@@ -749,6 +782,14 @@ enum omap34xx_index {
 	AD2_3430_USB3FS_PHY_MM3_TXDAT,
 	AC1_3430_USB3FS_PHY_MM3_TXEN_N,
 
+	/* 34xx GPIO
+	 *  - normally these are bidirectional, no internal pullup/pulldown
+	 *  - "_UP" suffix (GPIO3_UP) if internal pullup is configured
+	 *  - "_DOWN" suffix (GPIO3_DOWN) with internal pulldown
+	 *  - "_OUT" suffix (GPIO3_OUT) for output-only pins (unlike 24xx)
+	 */
+	AH8_34XX_GPIO29,
+	J25_34XX_GPIO170,
 };
 
 struct omap_mux_cfg {

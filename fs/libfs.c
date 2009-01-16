@@ -231,7 +231,6 @@ int get_sb_pseudo(struct file_system_type *fs_type, char *name,
 	 */
 	root->i_ino = 1;
 	root->i_mode = S_IFDIR | S_IRUSR | S_IWUSR;
-	root->i_uid = root->i_gid = 0;
 	root->i_atime = root->i_mtime = root->i_ctime = CURRENT_TIME;
 	dentry = d_alloc(NULL, &d_name);
 	if (!dentry) {
@@ -360,7 +359,7 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 	index = pos >> PAGE_CACHE_SHIFT;
 	from = pos & (PAGE_CACHE_SIZE - 1);
 
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
 		return -ENOMEM;
 
@@ -436,8 +435,6 @@ int simple_fill_super(struct super_block *s, int magic, struct tree_descr *files
 	 */
 	inode->i_ino = 1;
 	inode->i_mode = S_IFDIR | 0755;
-	inode->i_uid = inode->i_gid = 0;
-	inode->i_blocks = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
@@ -464,8 +461,6 @@ int simple_fill_super(struct super_block *s, int magic, struct tree_descr *files
 		if (!inode)
 			goto out;
 		inode->i_mode = S_IFREG | files->mode;
-		inode->i_uid = inode->i_gid = 0;
-		inode->i_blocks = 0;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 		inode->i_fop = files->ops;
 		inode->i_ino = i;

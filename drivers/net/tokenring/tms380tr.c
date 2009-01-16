@@ -180,10 +180,14 @@ void	 	tms380tr_wait(unsigned long time);
 static void 	tms380tr_write_rpl_status(RPL *rpl, unsigned int Status);
 static void 	tms380tr_write_tpl_status(TPL *tpl, unsigned int Status);
 
-#define SIFREADB(reg) (((struct net_local *)dev->priv)->sifreadb(dev, reg))
-#define SIFWRITEB(val, reg) (((struct net_local *)dev->priv)->sifwriteb(dev, val, reg))
-#define SIFREADW(reg) (((struct net_local *)dev->priv)->sifreadw(dev, reg))
-#define SIFWRITEW(val, reg) (((struct net_local *)dev->priv)->sifwritew(dev, val, reg))
+#define SIFREADB(reg) \
+	(((struct net_local *)netdev_priv(dev))->sifreadb(dev, reg))
+#define SIFWRITEB(val, reg) \
+	(((struct net_local *)netdev_priv(dev))->sifwriteb(dev, val, reg))
+#define SIFREADW(reg) \
+	(((struct net_local *)netdev_priv(dev))->sifreadw(dev, reg))
+#define SIFWRITEW(val, reg) \
+	(((struct net_local *)netdev_priv(dev))->sifwritew(dev, val, reg))
 
 
 
@@ -2186,7 +2190,6 @@ static void tms380tr_rcv_status_irq(struct net_device *dev)
 				skb_trim(skb,Length);
 				skb->protocol = tr_type_trans(skb,dev);
 				netif_rx(skb);
-				dev->last_rx = jiffies;
 			}
 		}
 		else	/* Invalid frame */
@@ -2331,7 +2334,7 @@ int tmsdev_init(struct net_device *dev, struct device *pdev)
 {
 	struct net_local *tms_local;
 
-	memset(dev->priv, 0, sizeof(struct net_local));
+	memset(netdev_priv(dev), 0, sizeof(struct net_local));
 	tms_local = netdev_priv(dev);
 	init_waitqueue_head(&tms_local->wait_for_tok_int);
 	if (pdev->dma_mask)

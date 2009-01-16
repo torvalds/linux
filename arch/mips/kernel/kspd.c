@@ -174,8 +174,8 @@ static unsigned int translate_open_flags(int flags)
 
 static void sp_setfsuidgid( uid_t uid, gid_t gid)
 {
-	current->fsuid = uid;
-	current->fsgid = gid;
+	current->cred->fsuid = uid;
+	current->cred->fsgid = gid;
 
 	key_fsuid_changed(current);
 	key_fsgid_changed(current);

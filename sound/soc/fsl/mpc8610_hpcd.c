@@ -29,7 +29,7 @@
 struct mpc8610_hpcd_data {
 	struct snd_soc_device sound_devdata;
 	struct snd_soc_dai_link dai;
-	struct snd_soc_machine machine;
+	struct snd_soc_card machine;
 	unsigned int dai_format;
 	unsigned int codec_clk_direction;
 	unsigned int cpu_clk_direction;
@@ -185,7 +185,7 @@ static struct snd_soc_ops mpc8610_hpcd_ops = {
 /**
  * mpc8610_hpcd_machine: ASoC machine data
  */
-static struct snd_soc_machine mpc8610_hpcd_machine = {
+static struct snd_soc_card mpc8610_hpcd_machine = {
 	.probe = mpc8610_hpcd_machine_probe,
 	.remove = mpc8610_hpcd_machine_remove,
 	.name = "MPC8610 HPCD",
@@ -465,9 +465,9 @@ static int mpc8610_hpcd_probe(struct of_device *ofdev,
 		goto error;
 	}
 
-	machine_data->sound_devdata.machine = &mpc8610_hpcd_machine;
+	machine_data->sound_devdata.card = &mpc8610_hpcd_machine;
 	machine_data->sound_devdata.codec_dev = &soc_codec_device_cs4270;
-	machine_data->sound_devdata.platform = &fsl_soc_platform;
+	machine_data->machine.platform = &fsl_soc_platform;
 
 	sound_device->dev.platform_data = machine_data;
 

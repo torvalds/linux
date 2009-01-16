@@ -149,12 +149,12 @@ static void rcupreempt_trace_sum(struct rcupreempt_trace *sp)
 		sp->done_length += cp->done_length;
 		sp->done_add += cp->done_add;
 		sp->done_remove += cp->done_remove;
-		atomic_set(&sp->done_invoked, atomic_read(&cp->done_invoked));
+		atomic_add(atomic_read(&cp->done_invoked), &sp->done_invoked);
 		sp->rcu_check_callbacks += cp->rcu_check_callbacks;
-		atomic_set(&sp->rcu_try_flip_1,
-			   atomic_read(&cp->rcu_try_flip_1));
-		atomic_set(&sp->rcu_try_flip_e1,
-			   atomic_read(&cp->rcu_try_flip_e1));
+		atomic_add(atomic_read(&cp->rcu_try_flip_1),
+			   &sp->rcu_try_flip_1);
+		atomic_add(atomic_read(&cp->rcu_try_flip_e1),
+			   &sp->rcu_try_flip_e1);
 		sp->rcu_try_flip_i1 += cp->rcu_try_flip_i1;
 		sp->rcu_try_flip_ie1 += cp->rcu_try_flip_ie1;
 		sp->rcu_try_flip_g1 += cp->rcu_try_flip_g1;

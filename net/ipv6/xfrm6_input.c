@@ -58,6 +58,7 @@ EXPORT_SYMBOL(xfrm6_rcv);
 int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 		     xfrm_address_t *saddr, u8 proto)
 {
+	struct net *net = dev_net(skb->dev);
 	struct xfrm_state *x = NULL;
 	int i = 0;
 
@@ -67,7 +68,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 
 		sp = secpath_dup(skb->sp);
 		if (!sp) {
-			XFRM_INC_STATS(LINUX_MIB_XFRMINERROR);
+			XFRM_INC_STATS(net, LINUX_MIB_XFRMINERROR);
 			goto drop;
 		}
 		if (skb->sp)
@@ -76,7 +77,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 	}
 
 	if (1 + skb->sp->len == XFRM_MAX_DEPTH) {
-		XFRM_INC_STATS(LINUX_MIB_XFRMINBUFFERERROR);
+		XFRM_INC_STATS(net, LINUX_MIB_XFRMINBUFFERERROR);
 		goto drop;
 	}
 
@@ -100,7 +101,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			break;
 		}
 
-		x = xfrm_state_lookup_byaddr(dst, src, proto, AF_INET6);
+		x = xfrm_state_lookup_byaddr(net, dst, src, proto, AF_INET6);
 		if (!x)
 			continue;
 
@@ -122,7 +123,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 	}
 
 	if (!x) {
-		XFRM_INC_STATS(LINUX_MIB_XFRMINNOSTATES);
+		XFRM_INC_STATS(net, LINUX_MIB_XFRMINNOSTATES);
 		xfrm_audit_state_notfound_simple(skb, AF_INET6);
 		goto drop;
 	}

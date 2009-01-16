@@ -2,7 +2,7 @@
     v4l2 chip identifiers header
 
     This header provides a list of chip identifiers that can be returned
-    through the VIDIOC_G_CHIP_IDENT ioctl.
+    through the VIDIOC_DBG_G_CHIP_IDENT ioctl.
 
     Copyright (C) 2007 Hans Verkuil <hverkuil@xs4all.nl>
 
@@ -24,7 +24,7 @@
 #ifndef V4L2_CHIP_IDENT_H_
 #define V4L2_CHIP_IDENT_H_
 
-/* VIDIOC_G_CHIP_IDENT: identifies the actual chip installed on the board */
+/* VIDIOC_DBG_G_CHIP_IDENT: identifies the actual chip installed on the board */
 enum {
 	/* general idents: reserved range 0-49 */
 	V4L2_IDENT_NONE      = 0,       /* No chip matched */
@@ -60,6 +60,8 @@ enum {
 
 	/* OmniVision sensors: reserved range 250-299 */
 	V4L2_IDENT_OV7670 = 250,
+	V4L2_IDENT_OV7720 = 251,
+	V4L2_IDENT_OV7725 = 252,
 
 	/* Conexant MPEG encoder/decoders: reserved range 410-420 */
 	V4L2_IDENT_CX23415 = 415,
@@ -68,6 +70,9 @@ enum {
 
 	/* module vp27smpx: just ident 2700 */
 	V4L2_IDENT_VP27SMPX = 2700,
+
+	/* module tvp5150 */
+	V4L2_IDENT_TVP5150 = 5150,
 
 	/* module cs5345: just ident 5345 */
 	V4L2_IDENT_CS5345 = 5345,
@@ -81,6 +86,9 @@ enum {
 
 	/* module wm8775: just ident 8775 */
 	V4L2_IDENT_WM8775 = 8775,
+
+	/* module tw9910: just ident 9910 */
+	V4L2_IDENT_TW9910 = 9910,
 
 	/* module cs53132a: just ident 53132 */
 	V4L2_IDENT_CS53l32A = 53132,
@@ -166,8 +174,10 @@ enum {
 	V4L2_IDENT_MT9M001C12ST		= 45000,
 	V4L2_IDENT_MT9M001C12STM	= 45005,
 	V4L2_IDENT_MT9M111		= 45007,
+	V4L2_IDENT_MT9M112		= 45008,
 	V4L2_IDENT_MT9V022IX7ATC	= 45010, /* No way to detect "normal" I77ATx */
 	V4L2_IDENT_MT9V022IX7ATM	= 45015, /* and "lead free" IA7ATx chips */
+	V4L2_IDENT_MT9T031		= 45020,
 };
 
 #endif

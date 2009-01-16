@@ -45,10 +45,8 @@ dccp_find_option(u_int8_t option,
 	unsigned int optlen = dh->dccph_doff*4 - __dccp_hdr_len(dh);
 	unsigned int i;
 
-	if (dh->dccph_doff * 4 < __dccp_hdr_len(dh)) {
-		*hotdrop = true;
-		return false;
-	}
+	if (dh->dccph_doff * 4 < __dccp_hdr_len(dh))
+		goto invalid;
 
 	if (!optlen)
 		return false;
@@ -57,9 +55,7 @@ dccp_find_option(u_int8_t option,
 	op = skb_header_pointer(skb, protoff + optoff, optlen, dccp_optbuf);
 	if (op == NULL) {
 		/* If we don't have the whole header, drop packet. */
-		spin_unlock_bh(&dccp_buflock);
-		*hotdrop = true;
-		return false;
+		goto partial;
 	}
 
 	for (i = 0; i < optlen; ) {
@@ -75,6 +71,12 @@ dccp_find_option(u_int8_t option,
 	}
 
 	spin_unlock_bh(&dccp_buflock);
+	return false;
+
+partial:
+	spin_unlock_bh(&dccp_buflock);
+invalid:
+	*hotdrop = true;
 	return false;
 }
 

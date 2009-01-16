@@ -375,7 +375,7 @@ mpc52xx_add_bridge(struct device_node *node)
 
 	pr_debug("Adding MPC52xx PCI host bridge %s\n", node->full_name);
 
-	ppc_pci_flags |= PPC_PCI_REASSIGN_ALL_BUS;
+	ppc_pci_add_flags(PPC_PCI_REASSIGN_ALL_BUS);
 
 	if (of_address_to_resource(node, 0, &rsrc) != 0) {
 		printk(KERN_ERR "Can't get %s resources\n", node->full_name);

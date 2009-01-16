@@ -1,24 +1,21 @@
+#define MMC_REG_STR_STP_CLK		0x00
+#define MMC_REG_STATUS			0x04
+#define MMC_REG_CLK_RATE		0x08
+#define MMC_REG_CMD_DAT_CONT		0x0C
+#define MMC_REG_RES_TO			0x10
+#define MMC_REG_READ_TO			0x14
+#define MMC_REG_BLK_LEN			0x18
+#define MMC_REG_NOB			0x1C
+#define MMC_REG_REV_NO			0x20
+#define MMC_REG_INT_MASK		0x24
+#define MMC_REG_CMD			0x28
+#define MMC_REG_ARGH			0x2C
+#define MMC_REG_ARGL			0x30
+#define MMC_REG_RES_FIFO		0x34
+#define MMC_REG_BUFFER_ACCESS		0x38
 
-# define __REG16(x)	(*((volatile u16 *)IO_ADDRESS(x)))
-
-#define MMC_STR_STP_CLK  __REG16(IMX_MMC_BASE + 0x00)
-#define MMC_STATUS       __REG16(IMX_MMC_BASE + 0x04)
-#define MMC_CLK_RATE     __REG16(IMX_MMC_BASE + 0x08)
-#define MMC_CMD_DAT_CONT __REG16(IMX_MMC_BASE + 0x0C)
-#define MMC_RES_TO       __REG16(IMX_MMC_BASE + 0x10)
-#define MMC_READ_TO      __REG16(IMX_MMC_BASE + 0x14)
-#define MMC_BLK_LEN      __REG16(IMX_MMC_BASE + 0x18)
-#define MMC_NOB          __REG16(IMX_MMC_BASE + 0x1C)
-#define MMC_REV_NO       __REG16(IMX_MMC_BASE + 0x20)
-#define MMC_INT_MASK     __REG16(IMX_MMC_BASE + 0x24)
-#define MMC_CMD          __REG16(IMX_MMC_BASE + 0x28)
-#define MMC_ARGH         __REG16(IMX_MMC_BASE + 0x2C)
-#define MMC_ARGL         __REG16(IMX_MMC_BASE + 0x30)
-#define MMC_RES_FIFO     __REG16(IMX_MMC_BASE + 0x34)
-#define MMC_BUFFER_ACCESS __REG16(IMX_MMC_BASE + 0x38)
-#define MMC_BUFFER_ACCESS_OFS 0x38
-
-
+#define STR_STP_CLK_IPG_CLK_GATE_DIS    (1<<15)
+#define STR_STP_CLK_IPG_PERCLK_GATE_DIS (1<<14)
 #define STR_STP_CLK_ENDIAN              (1<<5)
 #define STR_STP_CLK_RESET               (1<<3)
 #define STR_STP_CLK_ENABLE              (1<<2)

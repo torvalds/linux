@@ -4,7 +4,7 @@
 
 # So far, we only have PCI, ISA, and MCA token ring devices
 menuconfig TR
-	bool "Token Ring driver support"
+	tristate "Token Ring driver support"
 	depends on NETDEVICES && !UML
 	depends on (PCI || ISA || MCA || CCW)
 	select LLC

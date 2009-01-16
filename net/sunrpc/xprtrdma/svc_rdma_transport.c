@@ -61,7 +61,7 @@ static int svc_rdma_has_wspace(struct svc_xprt *xprt);
 static void rq_cq_reap(struct svcxprt_rdma *xprt);
 static void sq_cq_reap(struct svcxprt_rdma *xprt);
 
-DECLARE_TASKLET(dto_tasklet, dto_tasklet_func, 0UL);
+static DECLARE_TASKLET(dto_tasklet, dto_tasklet_func, 0UL);
 static DEFINE_SPINLOCK(dto_lock);
 static LIST_HEAD(dto_xprt_q);
 
@@ -827,7 +827,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct rdma_conn_param conn_param;
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device_attr devattr;
-	int dma_mr_acc;
+	int uninitialized_var(dma_mr_acc);
 	int need_dma_mr;
 	int ret;
 	int i;
@@ -1048,21 +1048,21 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	dprintk("svcrdma: new connection %p accepted with the following "
 		"attributes:\n"
-		"    local_ip        : %d.%d.%d.%d\n"
+		"    local_ip        : %pI4\n"
 		"    local_port	     : %d\n"
-		"    remote_ip       : %d.%d.%d.%d\n"
+		"    remote_ip       : %pI4\n"
 		"    remote_port     : %d\n"
 		"    max_sge         : %d\n"
 		"    sq_depth        : %d\n"
 		"    max_requests    : %d\n"
 		"    ord             : %d\n",
 		newxprt,
-		NIPQUAD(((struct sockaddr_in *)&newxprt->sc_cm_id->
-			 route.addr.src_addr)->sin_addr.s_addr),
+		&((struct sockaddr_in *)&newxprt->sc_cm_id->
+			 route.addr.src_addr)->sin_addr.s_addr,
 		ntohs(((struct sockaddr_in *)&newxprt->sc_cm_id->
 		       route.addr.src_addr)->sin_port),
-		NIPQUAD(((struct sockaddr_in *)&newxprt->sc_cm_id->
-			 route.addr.dst_addr)->sin_addr.s_addr),
+		&((struct sockaddr_in *)&newxprt->sc_cm_id->
+			 route.addr.dst_addr)->sin_addr.s_addr,
 		ntohs(((struct sockaddr_in *)&newxprt->sc_cm_id->
 		       route.addr.dst_addr)->sin_port),
 		newxprt->sc_max_sge,

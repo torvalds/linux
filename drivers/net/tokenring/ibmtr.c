@@ -389,7 +389,6 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
         unsigned long timeout;
 	static int version_printed;
 #endif
-	DECLARE_MAC_BUF(mac);
 
 	/*    Query the adapter PIO base port which will return
 	 *    indication of where MMIO was placed. We also have a
@@ -703,8 +702,7 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 		channel_def[cardpresent - 1], adapter_def(ti->adapter_type));
 	DPRINTK("using irq %d, PIOaddr %hx, %dK shared RAM.\n",
 			irq, PIOaddr, ti->mapped_ram_size / 2);
-	DPRINTK("Hardware address : %s\n",
-		print_mac(mac, dev->dev_addr));
+	DPRINTK("Hardware address : %pM\n", dev->dev_addr);
 	if (ti->page_mask)
 		DPRINTK("Shared RAM paging enabled. "
 			"Page size: %uK Shared Ram size %dK\n",
@@ -1741,8 +1739,6 @@ static void tr_rx(struct net_device *dev)
 		void __iomem *trhhdr = rbuf + offsetof(struct rec_buf, data);
 		u8 saddr[6];
 		u8 daddr[6];
-		DECLARE_MAC_BUF(mac);
-		DECLARE_MAC_BUF(mac2);
 		int i;
 		for (i = 0 ; i < 6 ; i++)
 			saddr[i] = readb(trhhdr + SADDR_OFST + i);
@@ -1750,9 +1746,9 @@ static void tr_rx(struct net_device *dev)
 			daddr[i] = readb(trhhdr + DADDR_OFST + i);
 		DPRINTK("Probably non-IP frame received.\n");
 		DPRINTK("ssap: %02X dsap: %02X "
-			"saddr: %s daddr: %$s\n",
+			"saddr: %pM daddr: %pM\n",
 			readb(llc + SSAP_OFST), readb(llc + DSAP_OFST),
-			print_mac(mac, saddr), print_mac(mac2, daddr));
+			saddr, daddr);
 	}
 #endif
 
@@ -1826,7 +1822,6 @@ static void tr_rx(struct net_device *dev)
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 	netif_rx(skb);
-	dev->last_rx = jiffies;
 }				/*tr_rx */
 
 /*****************************************************************************/
@@ -1842,8 +1837,8 @@ static void ibmtr_reset_timer(struct timer_list *tmr, struct net_device *dev)
 
 /*****************************************************************************/
 
-void tok_rerun(unsigned long dev_addr){
-
+static void tok_rerun(unsigned long dev_addr)
+{
 	struct net_device *dev = (struct net_device *)dev_addr;
 	struct tok_info *ti = netdev_priv(dev);
 

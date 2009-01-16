@@ -175,6 +175,13 @@ struct ehca_queue_map {
 	unsigned int next_wqe_idx;   /* Idx to first wqe to be flushed */
 };
 
+/* function to calculate the next index for the qmap */
+static inline unsigned int next_index(unsigned int cur_index, unsigned int limit)
+{
+	unsigned int temp = cur_index + 1;
+	return (temp == limit) ? 0 : temp;
+}
+
 struct ehca_qp {
 	union {
 		struct ib_qp ib_qp;

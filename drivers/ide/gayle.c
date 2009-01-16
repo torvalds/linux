@@ -117,6 +117,10 @@ static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
 	hw->chipset = ide_generic;
 }
 
+static const struct ide_port_info gayle_port_info = {
+	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_NO_DMA,
+};
+
     /*
      *  Probe for a Gayle IDE interface (and optionally for an IDE doubler)
      */
@@ -178,7 +182,7 @@ found:
 	hws[i] = &hw[i];
     }
 
-    rc = ide_host_add(NULL, hws, NULL);
+    rc = ide_host_add(&gayle_port_info, hws, NULL);
     if (rc)
 	release_mem_region(res_start, res_n);
 

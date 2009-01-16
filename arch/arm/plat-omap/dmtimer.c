@@ -539,10 +539,6 @@ void omap_dm_timer_set_load(struct omap_dm_timer *timer, int autoreload,
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_CTRL_REG, l);
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_LOAD_REG, load);
 
-	/* REVISIT: hw feature, ttgr overtaking tldr? */
-	while (readl(timer->io_base + (OMAP_TIMER_WRITE_PEND_REG & 0xff)))
-		cpu_relax();
-
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_TRIGGER_REG, 0);
 }
 
@@ -553,14 +549,15 @@ void omap_dm_timer_set_load_start(struct omap_dm_timer *timer, int autoreload,
 	u32 l;
 
 	l = omap_dm_timer_read_reg(timer, OMAP_TIMER_CTRL_REG);
-	if (autoreload)
+	if (autoreload) {
 		l |= OMAP_TIMER_CTRL_AR;
-	else
+		omap_dm_timer_write_reg(timer, OMAP_TIMER_LOAD_REG, load);
+	} else {
 		l &= ~OMAP_TIMER_CTRL_AR;
+	}
 	l |= OMAP_TIMER_CTRL_ST;
 
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_COUNTER_REG, load);
-	omap_dm_timer_write_reg(timer, OMAP_TIMER_LOAD_REG, load);
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_CTRL_REG, l);
 }
 

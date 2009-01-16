@@ -108,8 +108,10 @@ static inline int vlan_gvrp_init(void) { return 0; }
 static inline void vlan_gvrp_uninit(void) {}
 #endif
 
-int vlan_netlink_init(void);
-void vlan_netlink_fini(void);
+extern const char vlan_fullname[];
+extern const char vlan_version[];
+extern int vlan_netlink_init(void);
+extern void vlan_netlink_fini(void);
 
 extern struct rtnl_link_ops vlan_link_ops;
 

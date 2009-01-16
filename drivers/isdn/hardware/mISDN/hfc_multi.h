@@ -2,10 +2,6 @@
  * see notice in hfc_multi.c
  */
 
-extern void ztdummy_extern_interrupt(void);
-extern void ztdummy_register_interrupt(void);
-extern int ztdummy_unregister_interrupt(void);
-
 #define DEBUG_HFCMULTI_FIFO	0x00010000
 #define	DEBUG_HFCMULTI_CRC	0x00020000
 #define	DEBUG_HFCMULTI_INIT	0x00040000
@@ -13,6 +9,7 @@ extern int ztdummy_unregister_interrupt(void);
 #define	DEBUG_HFCMULTI_MODE	0x00100000
 #define	DEBUG_HFCMULTI_MSG	0x00200000
 #define	DEBUG_HFCMULTI_STATE	0x00400000
+#define	DEBUG_HFCMULTI_FILL	0x00800000
 #define	DEBUG_HFCMULTI_SYNC	0x01000000
 #define	DEBUG_HFCMULTI_DTMF	0x02000000
 #define	DEBUG_HFCMULTI_LOCK	0x80000000
@@ -162,14 +159,16 @@ struct hfc_multi {
 	void		(*write_fifo)(struct hfc_multi *hc, u_char *data,
 				int len);
 	u_long		pci_origmembase, plx_origmembase, dsp_origmembase;
-	u_char		*pci_membase; /* PCI memory (MUST BE BYTE POINTER) */
-	u_char		*plx_membase; /* PLX memory */
+	void __iomem	*pci_membase; /* PCI memory */
+	void __iomem	*plx_membase; /* PLX memory */
 	u_char		*dsp_membase; /* DSP on PLX */
 	u_long		pci_iobase; /* PCI IO */
 	struct hfcm_hw	hw;	/* remember data of write-only-registers */
 
 	u_long		chip;	/* chip configuration */
 	int		masterclk; /* port that provides master clock -1=off */
+	unsigned char	silence;/* silence byte */
+	unsigned char	silence_data[128];/* silence block */
 	int		dtmf;	/* flag that dtmf is currently in process */
 	int		Flen;	/* F-buffer size */
 	int		Zlen;	/* Z-buffer size (must be int for calculation)*/
@@ -197,6 +196,9 @@ struct hfc_multi {
 	int		e1_resync; /* resync jobs */
 
 	spinlock_t	lock;	/* the lock */
+
+	struct mISDNclock *iclock; /* isdn clock support */
+	int		iclock_on;
 
 	/*
 	 * the channel index is counted from 0, regardless where the channel

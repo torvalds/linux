@@ -51,7 +51,10 @@ static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, 0x2f,
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD_1(w83792d);
-I2C_CLIENT_MODULE_PARM(force_subclients, "List of subclient addresses: "
+
+static unsigned short force_subclients[4];
+module_param_array(force_subclients, short, NULL, 0);
+MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
 			"{bus, clientaddr, subclientaddr1, subclientaddr2}");
 
 static int init;

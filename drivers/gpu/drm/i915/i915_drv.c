@@ -33,10 +33,21 @@
 #include "i915_drv.h"
 
 #include "drm_pciids.h"
+#include <linux/console.h>
+
+static unsigned int i915_modeset = -1;
+module_param_named(modeset, i915_modeset, int, 0400);
+
+unsigned int i915_fbpercrtc = 0;
+module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 
 static struct pci_device_id pciidlist[] = {
 	i915_PCI_IDS
 };
+
+#if defined(CONFIG_DRM_I915_KMS)
+MODULE_DEVICE_TABLE(pci, pciidlist);
+#endif
 
 static int i915_suspend(struct drm_device *dev, pm_message_t state)
 {
@@ -81,6 +92,10 @@ static int i915_resume(struct drm_device *dev)
 	return 0;
 }
 
+static struct vm_operations_struct i915_gem_vm_ops = {
+	.fault = i915_gem_fault,
+};
+
 static struct drm_driver driver = {
 	/* don't use mtrr's here, the Xserver or user space app should
 	 * deal with them for intel hardware.
@@ -107,17 +122,20 @@ static struct drm_driver driver = {
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
+	.master_create = i915_master_create,
+	.master_destroy = i915_master_destroy,
 	.proc_init = i915_gem_proc_init,
 	.proc_cleanup = i915_gem_proc_cleanup,
 	.gem_init_object = i915_gem_init_object,
 	.gem_free_object = i915_gem_free_object,
+	.gem_vm_ops = &i915_gem_vm_ops,
 	.ioctls = i915_ioctls,
 	.fops = {
 		 .owner = THIS_MODULE,
 		 .open = drm_open,
 		 .release = drm_release,
 		 .ioctl = drm_ioctl,
-		 .mmap = drm_mmap,
+		 .mmap = drm_gem_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
 #ifdef CONFIG_COMPAT
@@ -141,6 +159,28 @@ static struct drm_driver driver = {
 static int __init i915_init(void)
 {
 	driver.num_ioctls = i915_max_ioctl;
+
+	/*
+	 * If CONFIG_DRM_I915_KMS is set, default to KMS unless
+	 * explicitly disabled with the module pararmeter.
+	 *
+	 * Otherwise, just follow the parameter (defaulting to off).
+	 *
+	 * Allow optional vga_text_mode_force boot option to override
+	 * the default behavior.
+	 */
+#if defined(CONFIG_DRM_I915_KMS)
+	if (i915_modeset != 0)
+		driver.driver_features |= DRIVER_MODESET;
+#endif
+	if (i915_modeset == 1)
+		driver.driver_features |= DRIVER_MODESET;
+
+#ifdef CONFIG_VGA_CONSOLE
+	if (vgacon_text_force() && i915_modeset == -1)
+		driver.driver_features &= ~DRIVER_MODESET;
+#endif
+
 	return drm_init(&driver);
 }
 

@@ -24,6 +24,19 @@
 #include <linux/rmap.h>
 #include <linux/pagemap.h>
 
+struct page *fb_deferred_io_page(struct fb_info *info, unsigned long offs)
+{
+	void *screen_base = (void __force *) info->screen_base;
+	struct page *page;
+
+	if (is_vmalloc_addr(screen_base + offs))
+		page = vmalloc_to_page(screen_base + offs);
+	else
+		page = pfn_to_page((info->fix.smem_start + offs) >> PAGE_SHIFT);
+
+	return page;
+}
+
 /* this is to find and return the vmalloc-ed fb pages */
 static int fb_deferred_io_fault(struct vm_area_struct *vma,
 				struct vm_fault *vmf)
@@ -31,14 +44,12 @@ static int fb_deferred_io_fault(struct vm_area_struct *vma,
 	unsigned long offset;
 	struct page *page;
 	struct fb_info *info = vma->vm_private_data;
-	/* info->screen_base is virtual memory */
-	void *screen_base = (void __force *) info->screen_base;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
 	if (offset >= info->fix.smem_len)
 		return VM_FAULT_SIGBUS;
 
-	page = vmalloc_to_page(screen_base + offset);
+	page = fb_deferred_io_page(info, offset);
 	if (!page)
 		return VM_FAULT_SIGBUS;
 
@@ -59,6 +70,10 @@ static int fb_deferred_io_fault(struct vm_area_struct *vma,
 int fb_deferred_io_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct fb_info *info = file->private_data;
+
+	/* Skip if deferred io is complied-in but disabled on this fbdev */
+	if (!info->fbdefio)
+		return 0;
 
 	/* Kill off the delayed work */
 	cancel_rearming_delayed_work(&info->deferred_work);
@@ -184,7 +199,6 @@ EXPORT_SYMBOL_GPL(fb_deferred_io_open);
 
 void fb_deferred_io_cleanup(struct fb_info *info)
 {
-	void *screen_base = (void __force *) info->screen_base;
 	struct fb_deferred_io *fbdefio = info->fbdefio;
 	struct page *page;
 	int i;
@@ -195,9 +209,12 @@ void fb_deferred_io_cleanup(struct fb_info *info)
 
 	/* clear out the mapping that we setup */
 	for (i = 0 ; i < info->fix.smem_len; i += PAGE_SIZE) {
-		page = vmalloc_to_page(screen_base + i);
+		page = fb_deferred_io_page(info, i);
 		page->mapping = NULL;
 	}
+
+	info->fbops->fb_mmap = NULL;
+	mutex_destroy(&fbdefio->lock);
 }
 EXPORT_SYMBOL_GPL(fb_deferred_io_cleanup);
 

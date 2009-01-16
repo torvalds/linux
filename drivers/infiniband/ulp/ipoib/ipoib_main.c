@@ -360,9 +360,9 @@ void ipoib_mark_paths_invalid(struct net_device *dev)
 	spin_lock_irq(&priv->lock);
 
 	list_for_each_entry_safe(path, tp, &priv->path_list, list) {
-		ipoib_dbg(priv, "mark path LID 0x%04x GID " IPOIB_GID_FMT " invalid\n",
+		ipoib_dbg(priv, "mark path LID 0x%04x GID %pI6 invalid\n",
 			be16_to_cpu(path->pathrec.dlid),
-			IPOIB_GID_ARG(path->pathrec.dgid));
+			path->pathrec.dgid.raw);
 		path->valid =  0;
 	}
 
@@ -414,11 +414,11 @@ static void path_rec_completion(int status,
 	unsigned long flags;
 
 	if (!status)
-		ipoib_dbg(priv, "PathRec LID 0x%04x for GID " IPOIB_GID_FMT "\n",
-			  be16_to_cpu(pathrec->dlid), IPOIB_GID_ARG(pathrec->dgid));
+		ipoib_dbg(priv, "PathRec LID 0x%04x for GID %pI6\n",
+			  be16_to_cpu(pathrec->dlid), pathrec->dgid.raw);
 	else
-		ipoib_dbg(priv, "PathRec status %d for GID " IPOIB_GID_FMT "\n",
-			  status, IPOIB_GID_ARG(path->pathrec.dgid));
+		ipoib_dbg(priv, "PathRec status %d for GID %pI6\n",
+			  status, path->pathrec.dgid.raw);
 
 	skb_queue_head_init(&skqueue);
 
@@ -528,8 +528,8 @@ static int path_rec_start(struct net_device *dev,
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	ipoib_dbg(priv, "Start path record lookup for " IPOIB_GID_FMT "\n",
-		  IPOIB_GID_ARG(path->pathrec.dgid));
+	ipoib_dbg(priv, "Start path record lookup for %pI6\n",
+		  path->pathrec.dgid.raw);
 
 	init_completion(&path->done);
 
@@ -711,26 +711,26 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		neigh = *to_ipoib_neigh(skb->dst->neighbour);
 
-		if (neigh->ah)
-			if (unlikely((memcmp(&neigh->dgid.raw,
-					    skb->dst->neighbour->ha + 4,
-					    sizeof(union ib_gid))) ||
-					 (neigh->dev != dev))) {
-				spin_lock_irqsave(&priv->lock, flags);
-				/*
-				 * It's safe to call ipoib_put_ah() inside
-				 * priv->lock here, because we know that
-				 * path->ah will always hold one more reference,
-				 * so ipoib_put_ah() will never do more than
-				 * decrement the ref count.
-				 */
+		if (unlikely((memcmp(&neigh->dgid.raw,
+				     skb->dst->neighbour->ha + 4,
+				     sizeof(union ib_gid))) ||
+			     (neigh->dev != dev))) {
+			spin_lock_irqsave(&priv->lock, flags);
+			/*
+			 * It's safe to call ipoib_put_ah() inside
+			 * priv->lock here, because we know that
+			 * path->ah will always hold one more reference,
+			 * so ipoib_put_ah() will never do more than
+			 * decrement the ref count.
+			 */
+			if (neigh->ah)
 				ipoib_put_ah(neigh->ah);
-				list_del(&neigh->list);
-				ipoib_neigh_free(dev, neigh);
-				spin_unlock_irqrestore(&priv->lock, flags);
-				ipoib_path_lookup(skb, dev);
-				return NETDEV_TX_OK;
-			}
+			list_del(&neigh->list);
+			ipoib_neigh_free(dev, neigh);
+			spin_unlock_irqrestore(&priv->lock, flags);
+			ipoib_path_lookup(skb, dev);
+			return NETDEV_TX_OK;
+		}
 
 		if (ipoib_cm_get(neigh)) {
 			if (ipoib_cm_up(neigh)) {
@@ -766,12 +766,11 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 			if ((be16_to_cpup((__be16 *) skb->data) != ETH_P_ARP) &&
 			    (be16_to_cpup((__be16 *) skb->data) != ETH_P_RARP)) {
-				ipoib_warn(priv, "Unicast, no %s: type %04x, QPN %06x "
-					   IPOIB_GID_FMT "\n",
+				ipoib_warn(priv, "Unicast, no %s: type %04x, QPN %06x %pI6\n",
 					   skb->dst ? "neigh" : "dst",
 					   be16_to_cpup((__be16 *) skb->data),
 					   IPOIB_QPN(phdr->hwaddr),
-					   IPOIB_GID_RAW_ARG(phdr->hwaddr + 4));
+					   phdr->hwaddr + 4);
 				dev_kfree_skb_any(skb);
 				++dev->stats.tx_dropped;
 				return NETDEV_TX_OK;
@@ -847,9 +846,9 @@ static void ipoib_neigh_cleanup(struct neighbour *n)
 	else
 		return;
 	ipoib_dbg(priv,
-		  "neigh_cleanup for %06x " IPOIB_GID_FMT "\n",
+		  "neigh_cleanup for %06x %pI6\n",
 		  IPOIB_QPN(n->ha),
-		  IPOIB_GID_RAW_ARG(n->ha + 4));
+		  n->ha + 4);
 
 	spin_lock_irqsave(&priv->lock, flags);
 

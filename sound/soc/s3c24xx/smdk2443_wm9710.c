@@ -23,7 +23,7 @@
 #include "s3c24xx-pcm.h"
 #include "s3c24xx-ac97.h"
 
-static struct snd_soc_machine smdk2443;
+static struct snd_soc_card smdk2443;
 
 static struct snd_soc_dai_link smdk2443_dai[] = {
 {
@@ -34,15 +34,15 @@ static struct snd_soc_dai_link smdk2443_dai[] = {
 },
 };
 
-static struct snd_soc_machine smdk2443 = {
+static struct snd_soc_card smdk2443 = {
 	.name = "SMDK2443",
+	.platform = &s3c24xx_soc_platform,
 	.dai_link = smdk2443_dai,
 	.num_links = ARRAY_SIZE(smdk2443_dai),
 };
 
 static struct snd_soc_device smdk2443_snd_ac97_devdata = {
-	.machine = &smdk2443,
-	.platform = &s3c24xx_soc_platform,
+	.card = &smdk2443,
 	.codec_dev = &soc_codec_dev_ac97,
 };
 

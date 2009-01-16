@@ -38,15 +38,15 @@ static struct snd_soc_dai_link sh7760_ac97_dai = {
 	.ops = NULL,
 };
 
-static struct snd_soc_machine sh7760_ac97_soc_machine  = {
+static struct snd_soc_card sh7760_ac97_soc_machine  = {
 	.name = "SH7760 AC97",
+	.platform = &sh7760_soc_platform,
 	.dai_link = &sh7760_ac97_dai,
 	.num_links = 1,
 };
 
 static struct snd_soc_device sh7760_ac97_snd_devdata = {
-	.machine = &sh7760_ac97_soc_machine,
-	.platform = &sh7760_soc_platform,
+	.card = &sh7760_ac97_soc_machine,
 	.codec_dev = &soc_codec_dev_ac97,
 };
 

@@ -32,7 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 
@@ -54,16 +54,23 @@ enum {
 };
 
 struct wm8775_state {
+	struct v4l2_subdev sd;
 	u8 input;		/* Last selected input (0-0xf) */
 	u8 muted;
 };
 
-static int wm8775_write(struct i2c_client *client, int reg, u16 val)
+static inline struct wm8775_state *to_state(struct v4l2_subdev *sd)
 {
+	return container_of(sd, struct wm8775_state, sd);
+}
+
+static int wm8775_write(struct v4l2_subdev *sd, int reg, u16 val)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int i;
 
 	if (reg < 0 || reg >= TOT_REGS) {
-		v4l_err(client, "Invalid register R%d\n", reg);
+		v4l2_err(sd, "Invalid register R%d\n", reg);
 		return -1;
 	}
 
@@ -71,83 +78,116 @@ static int wm8775_write(struct i2c_client *client, int reg, u16 val)
 		if (i2c_smbus_write_byte_data(client,
 				(reg << 1) | (val >> 8), val & 0xff) == 0)
 			return 0;
-	v4l_err(client, "I2C: cannot write %03x to register R%d\n", val, reg);
+	v4l2_err(sd, "I2C: cannot write %03x to register R%d\n", val, reg);
 	return -1;
+}
+
+static int wm8775_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+{
+	struct wm8775_state *state = to_state(sd);
+
+	/* There are 4 inputs and one output. Zero or more inputs
+	   are multiplexed together to the output. Hence there are
+	   16 combinations.
+	   If only one input is active (the normal case) then the
+	   input values 1, 2, 4 or 8 should be used. */
+	if (route->input > 15) {
+		v4l2_err(sd, "Invalid input %d.\n", route->input);
+		return -EINVAL;
+	}
+	state->input = route->input;
+	if (state->muted)
+		return 0;
+	wm8775_write(sd, R21, 0x0c0);
+	wm8775_write(sd, R14, 0x1d4);
+	wm8775_write(sd, R15, 0x1d4);
+	wm8775_write(sd, R21, 0x100 + state->input);
+	return 0;
+}
+
+static int wm8775_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct wm8775_state *state = to_state(sd);
+
+	if (ctrl->id != V4L2_CID_AUDIO_MUTE)
+		return -EINVAL;
+	ctrl->value = state->muted;
+	return 0;
+}
+
+static int wm8775_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct wm8775_state *state = to_state(sd);
+
+	if (ctrl->id != V4L2_CID_AUDIO_MUTE)
+		return -EINVAL;
+	state->muted = ctrl->value;
+	wm8775_write(sd, R21, 0x0c0);
+	wm8775_write(sd, R14, 0x1d4);
+	wm8775_write(sd, R15, 0x1d4);
+	if (!state->muted)
+		wm8775_write(sd, R21, 0x100 + state->input);
+	return 0;
+}
+
+static int wm8775_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_WM8775, 0);
+}
+
+static int wm8775_log_status(struct v4l2_subdev *sd)
+{
+	struct wm8775_state *state = to_state(sd);
+
+	v4l2_info(sd, "Input: %d%s\n", state->input,
+			state->muted ? " (muted)" : "");
+	return 0;
+}
+
+static int wm8775_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)
+{
+	struct wm8775_state *state = to_state(sd);
+
+	/* If I remove this, then it can happen that I have no
+	   sound the first time I tune from static to a valid channel.
+	   It's difficult to reproduce and is almost certainly related
+	   to the zero cross detect circuit. */
+	wm8775_write(sd, R21, 0x0c0);
+	wm8775_write(sd, R14, 0x1d4);
+	wm8775_write(sd, R15, 0x1d4);
+	wm8775_write(sd, R21, 0x100 + state->input);
+	return 0;
 }
 
 static int wm8775_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
-	struct wm8775_state *state = i2c_get_clientdata(client);
-	struct v4l2_routing *route = arg;
-	struct v4l2_control *ctrl = arg;
-
-	switch (cmd) {
-	case VIDIOC_INT_G_AUDIO_ROUTING:
-		route->input = state->input;
-		route->output = 0;
-		break;
-
-	case VIDIOC_INT_S_AUDIO_ROUTING:
-		/* There are 4 inputs and one output. Zero or more inputs
-		   are multiplexed together to the output. Hence there are
-		   16 combinations.
-		   If only one input is active (the normal case) then the
-		   input values 1, 2, 4 or 8 should be used. */
-		if (route->input > 15) {
-			v4l_err(client, "Invalid input %d.\n", route->input);
-			return -EINVAL;
-		}
-		state->input = route->input;
-		if (state->muted)
-			break;
-		wm8775_write(client, R21, 0x0c0);
-		wm8775_write(client, R14, 0x1d4);
-		wm8775_write(client, R15, 0x1d4);
-		wm8775_write(client, R21, 0x100 + state->input);
-		break;
-
-	case VIDIOC_G_CTRL:
-		if (ctrl->id != V4L2_CID_AUDIO_MUTE)
-			return -EINVAL;
-		ctrl->value = state->muted;
-		break;
-
-	case VIDIOC_S_CTRL:
-		if (ctrl->id != V4L2_CID_AUDIO_MUTE)
-			return -EINVAL;
-		state->muted = ctrl->value;
-		wm8775_write(client, R21, 0x0c0);
-		wm8775_write(client, R14, 0x1d4);
-		wm8775_write(client, R15, 0x1d4);
-		if (!state->muted)
-			wm8775_write(client, R21, 0x100 + state->input);
-		break;
-
-	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client,
-				arg, V4L2_IDENT_WM8775, 0);
-
-	case VIDIOC_LOG_STATUS:
-		v4l_info(client, "Input: %d%s\n", state->input,
-			    state->muted ? " (muted)" : "");
-		break;
-
-	case VIDIOC_S_FREQUENCY:
-		/* If I remove this, then it can happen that I have no
-		   sound the first time I tune from static to a valid channel.
-		   It's difficult to reproduce and is almost certainly related
-		   to the zero cross detect circuit. */
-		wm8775_write(client, R21, 0x0c0);
-		wm8775_write(client, R14, 0x1d4);
-		wm8775_write(client, R15, 0x1d4);
-		wm8775_write(client, R21, 0x100 + state->input);
-		break;
-
-	default:
-		return -EINVAL;
-	}
-	return 0;
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
 }
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops wm8775_core_ops = {
+	.log_status = wm8775_log_status,
+	.g_chip_ident = wm8775_g_chip_ident,
+	.g_ctrl = wm8775_g_ctrl,
+	.s_ctrl = wm8775_s_ctrl,
+};
+
+static const struct v4l2_subdev_tuner_ops wm8775_tuner_ops = {
+	.s_frequency = wm8775_s_frequency,
+};
+
+static const struct v4l2_subdev_audio_ops wm8775_audio_ops = {
+	.s_routing = wm8775_s_routing,
+};
+
+static const struct v4l2_subdev_ops wm8775_ops = {
+	.core = &wm8775_core_ops,
+	.tuner = &wm8775_tuner_ops,
+	.audio = &wm8775_audio_ops,
+};
 
 /* ----------------------------------------------------------------------- */
 
@@ -162,56 +202,61 @@ static int wm8775_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct wm8775_state *state;
+	struct v4l2_subdev *sd;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_info(client, "chip found @ 0x%x (%s)\n",
+	v4l_info(client, "chip found @ 0x%02x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct wm8775_state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
+	sd = &state->sd;
+	v4l2_i2c_subdev_init(sd, client, &wm8775_ops);
 	state->input = 2;
 	state->muted = 0;
-	i2c_set_clientdata(client, state);
 
 	/* Initialize wm8775 */
 
 	/* RESET */
-	wm8775_write(client, R23, 0x000);
+	wm8775_write(sd, R23, 0x000);
 	/* Disable zero cross detect timeout */
-	wm8775_write(client, R7, 0x000);
+	wm8775_write(sd, R7, 0x000);
 	/* Left justified, 24-bit mode */
-	wm8775_write(client, R11, 0x021);
+	wm8775_write(sd, R11, 0x021);
 	/* Master mode, clock ratio 256fs */
-	wm8775_write(client, R12, 0x102);
+	wm8775_write(sd, R12, 0x102);
 	/* Powered up */
-	wm8775_write(client, R13, 0x000);
+	wm8775_write(sd, R13, 0x000);
 	/* ADC gain +2.5dB, enable zero cross */
-	wm8775_write(client, R14, 0x1d4);
+	wm8775_write(sd, R14, 0x1d4);
 	/* ADC gain +2.5dB, enable zero cross */
-	wm8775_write(client, R15, 0x1d4);
+	wm8775_write(sd, R15, 0x1d4);
 	/* ALC Stereo, ALC target level -1dB FS max gain +8dB */
-	wm8775_write(client, R16, 0x1bf);
+	wm8775_write(sd, R16, 0x1bf);
 	/* Enable gain control, use zero cross detection,
 	   ALC hold time 42.6 ms */
-	wm8775_write(client, R17, 0x185);
+	wm8775_write(sd, R17, 0x185);
 	/* ALC gain ramp up delay 34 s, ALC gain ramp down delay 33 ms */
-	wm8775_write(client, R18, 0x0a2);
+	wm8775_write(sd, R18, 0x0a2);
 	/* Enable noise gate, threshold -72dBfs */
-	wm8775_write(client, R19, 0x005);
+	wm8775_write(sd, R19, 0x005);
 	/* Transient window 4ms, lower PGA gain limit -1dB */
-	wm8775_write(client, R20, 0x07a);
+	wm8775_write(sd, R20, 0x07a);
 	/* LRBOTH = 1, use input 2. */
-	wm8775_write(client, R21, 0x102);
+	wm8775_write(sd, R21, 0x102);
 	return 0;
 }
 
 static int wm8775_remove(struct i2c_client *client)
 {
-	kfree(i2c_get_clientdata(client));
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_state(sd));
 	return 0;
 }
 

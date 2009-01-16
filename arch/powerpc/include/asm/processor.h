@@ -69,8 +69,6 @@ extern int _prep_type;
 
 #ifdef __KERNEL__
 
-extern int have_of;
-
 struct task_struct;
 void start_thread(struct pt_regs *regs, unsigned long fdptr, unsigned long sp);
 void release_thread(struct task_struct *);
@@ -207,6 +205,11 @@ struct thread_struct {
 #define INIT_SP_LIMIT \
 	(_ALIGN_UP(sizeof(init_thread_info), 16) + (unsigned long) &init_stack)
 
+#ifdef CONFIG_SPE
+#define SPEFSCR_INIT .spefscr = SPEFSCR_FINVE | SPEFSCR_FDBZE | SPEFSCR_FUNFE | SPEFSCR_FOVFE,
+#else
+#define SPEFSCR_INIT
+#endif
 
 #ifdef CONFIG_PPC32
 #define INIT_THREAD { \
@@ -215,6 +218,7 @@ struct thread_struct {
 	.fs = KERNEL_DS, \
 	.pgdir = swapper_pg_dir, \
 	.fpexc_mode = MSR_FE0 | MSR_FE1, \
+	SPEFSCR_INIT \
 }
 #else
 #define INIT_THREAD  { \

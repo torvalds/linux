@@ -146,7 +146,7 @@ void __init plat_time_init(void)
 
 	BUG_ON(HZ != 100);
 
-	cd->cpumask             = cpumask_of_cpu(cpu);
+	cd->cpumask             = cpumask_of(cpu);
 	clockevents_register_device(cd);
 	action->dev_id = cd;
 	setup_irq(JAZZ_TIMER_IRQ, action);

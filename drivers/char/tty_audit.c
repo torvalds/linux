@@ -67,6 +67,29 @@ static void tty_audit_buf_put(struct tty_audit_buf *buf)
 		tty_audit_buf_free(buf);
 }
 
+static void tty_audit_log(const char *description, struct task_struct *tsk,
+			  uid_t loginuid, unsigned sessionid, int major,
+			  int minor, unsigned char *data, size_t size)
+{
+	struct audit_buffer *ab;
+
+	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_TTY);
+	if (ab) {
+		char name[sizeof(tsk->comm)];
+		uid_t uid = task_uid(tsk);
+
+		audit_log_format(ab, "%s pid=%u uid=%u auid=%u ses=%u "
+				 "major=%d minor=%d comm=", description,
+				 tsk->pid, uid, loginuid, sessionid,
+				 major, minor);
+		get_task_comm(name, tsk);
+		audit_log_untrustedstring(ab, name);
+		audit_log_format(ab, " data=");
+		audit_log_n_hex(ab, data, size);
+		audit_log_end(ab);
+	}
+}
+
 /**
  *	tty_audit_buf_push	-	Push buffered data out
  *
@@ -77,25 +100,12 @@ static void tty_audit_buf_push(struct task_struct *tsk, uid_t loginuid,
 			       unsigned int sessionid,
 			       struct tty_audit_buf *buf)
 {
-	struct audit_buffer *ab;
-
 	if (buf->valid == 0)
 		return;
 	if (audit_enabled == 0)
 		return;
-	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_TTY);
-	if (ab) {
-		char name[sizeof(tsk->comm)];
-
-		audit_log_format(ab, "tty pid=%u uid=%u auid=%u ses=%u "
-				 "major=%d minor=%d comm=", tsk->pid, tsk->uid,
-				 loginuid, sessionid, buf->major, buf->minor);
-		get_task_comm(name, tsk);
-		audit_log_untrustedstring(ab, name);
-		audit_log_format(ab, " data=");
-		audit_log_n_hex(ab, buf->data, buf->valid);
-		audit_log_end(ab);
-	}
+	tty_audit_log("tty", tsk, loginuid, sessionid, buf->major, buf->minor,
+		      buf->data, buf->valid);
 	buf->valid = 0;
 }
 
@@ -147,6 +157,42 @@ void tty_audit_fork(struct signal_struct *sig)
 	sig->audit_tty = current->signal->audit_tty;
 	spin_unlock_irq(&current->sighand->siglock);
 	sig->tty_audit_buf = NULL;
+}
+
+/**
+ *	tty_audit_tiocsti	-	Log TIOCSTI
+ */
+void tty_audit_tiocsti(struct tty_struct *tty, char ch)
+{
+	struct tty_audit_buf *buf;
+	int major, minor, should_audit;
+
+	spin_lock_irq(&current->sighand->siglock);
+	should_audit = current->signal->audit_tty;
+	buf = current->signal->tty_audit_buf;
+	if (buf)
+		atomic_inc(&buf->count);
+	spin_unlock_irq(&current->sighand->siglock);
+
+	major = tty->driver->major;
+	minor = tty->driver->minor_start + tty->index;
+	if (buf) {
+		mutex_lock(&buf->mutex);
+		if (buf->major == major && buf->minor == minor)
+			tty_audit_buf_push_current(buf);
+		mutex_unlock(&buf->mutex);
+		tty_audit_buf_put(buf);
+	}
+
+	if (should_audit && audit_enabled) {
+		uid_t auid;
+		unsigned int sessionid;
+
+		auid = audit_get_loginuid(current);
+		sessionid = audit_get_sessionid(current);
+		tty_audit_log("ioctl=TIOCSTI", current, auid, sessionid, major,
+			      minor, &ch, 1);
+	}
 }
 
 /**

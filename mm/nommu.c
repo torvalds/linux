@@ -6,11 +6,11 @@
  *
  *  See Documentation/nommu-mmap.txt
  *
- *  Copyright (c) 2004-2005 David Howells <dhowells@redhat.com>
+ *  Copyright (c) 2004-2008 David Howells <dhowells@redhat.com>
  *  Copyright (c) 2000-2003 David McCullough <davidm@snapgear.com>
  *  Copyright (c) 2000-2001 D Jeff Dionne <jeff@uClinux.org>
  *  Copyright (c) 2002      Greg Ungerer <gerg@snapgear.com>
- *  Copyright (c) 2007      Paul Mundt <lethal@linux-sh.org>
+ *  Copyright (c) 2007-2008 Paul Mundt <lethal@linux-sh.org>
  */
 
 #include <linux/module.h>
@@ -33,6 +33,28 @@
 #include <asm/uaccess.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
+#include "internal.h"
+
+static inline __attribute__((format(printf, 1, 2)))
+void no_printk(const char *fmt, ...)
+{
+}
+
+#if 0
+#define kenter(FMT, ...) \
+	printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
+#define kleave(FMT, ...) \
+	printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
+#define kdebug(FMT, ...) \
+	printk(KERN_DEBUG "xxx" FMT"yyy\n", ##__VA_ARGS__)
+#else
+#define kenter(FMT, ...) \
+	no_printk(KERN_DEBUG "==> %s("FMT")\n", __func__, ##__VA_ARGS__)
+#define kleave(FMT, ...) \
+	no_printk(KERN_DEBUG "<== %s()"FMT"\n", __func__, ##__VA_ARGS__)
+#define kdebug(FMT, ...) \
+	no_printk(KERN_DEBUG FMT"\n", ##__VA_ARGS__)
+#endif
 
 #include "internal.h"
 
@@ -40,19 +62,22 @@ void *high_memory;
 struct page *mem_map;
 unsigned long max_mapnr;
 unsigned long num_physpages;
-unsigned long askedalloc, realalloc;
 atomic_long_t vm_committed_space = ATOMIC_LONG_INIT(0);
 int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
 int sysctl_overcommit_ratio = 50; /* default is 50% */
 int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
+int sysctl_nr_trim_pages = 1; /* page trimming behaviour */
 int heap_stack_gap = 0;
+
+atomic_t mmap_pages_allocated;
 
 EXPORT_SYMBOL(mem_map);
 EXPORT_SYMBOL(num_physpages);
 
-/* list of shareable VMAs */
-struct rb_root nommu_vma_tree = RB_ROOT;
-DECLARE_RWSEM(nommu_vma_sem);
+/* list of mapped, potentially shareable regions */
+static struct kmem_cache *vm_region_jar;
+struct rb_root nommu_region_tree = RB_ROOT;
+DECLARE_RWSEM(nommu_region_sem);
 
 struct vm_operations_struct generic_file_vm_ops = {
 };
@@ -86,7 +111,7 @@ do_expand:
 	i_size_write(inode, offset);
 
 out_truncate:
-	if (inode->i_op && inode->i_op->truncate)
+	if (inode->i_op->truncate)
 		inode->i_op->truncate(inode);
 	return 0;
 out_sig:
@@ -122,6 +147,20 @@ unsigned int kobjsize(const void *objp)
 	 */
 	if (PageSlab(page))
 		return ksize(objp);
+
+	/*
+	 * If it's not a compound page, see if we have a matching VMA
+	 * region. This test is intentionally done in reverse order,
+	 * so if there's no VMA, we still fall through and hand back
+	 * PAGE_SIZE for 0-order pages.
+	 */
+	if (!PageCompound(page)) {
+		struct vm_area_struct *vma;
+
+		vma = find_vma(current->mm, (unsigned long)objp);
+		if (vma)
+			return vma->vm_end - vma->vm_start;
+	}
 
 	/*
 	 * The ksize() function is only guaranteed to work for pointers
@@ -377,7 +416,7 @@ EXPORT_SYMBOL(vm_insert_page);
  *  to a regular file.  in this case, the unmapping will need
  *  to invoke file system routines that need the global lock.
  */
-asmlinkage unsigned long sys_brk(unsigned long brk)
+SYSCALL_DEFINE1(brk, unsigned long, brk)
 {
 	struct mm_struct *mm = current->mm;
 
@@ -401,39 +440,281 @@ asmlinkage unsigned long sys_brk(unsigned long brk)
 	return mm->brk = brk;
 }
 
-#ifdef DEBUG
-static void show_process_blocks(void)
+/*
+ * initialise the VMA and region record slabs
+ */
+void __init mmap_init(void)
 {
-	struct vm_list_struct *vml;
+	vm_region_jar = kmem_cache_create("vm_region_jar",
+					  sizeof(struct vm_region), 0,
+					  SLAB_PANIC, NULL);
+	vm_area_cachep = kmem_cache_create("vm_area_struct",
+					   sizeof(struct vm_area_struct), 0,
+					   SLAB_PANIC, NULL);
+}
 
-	printk("Process blocks %d:", current->pid);
+/*
+ * validate the region tree
+ * - the caller must hold the region lock
+ */
+#ifdef CONFIG_DEBUG_NOMMU_REGIONS
+static noinline void validate_nommu_regions(void)
+{
+	struct vm_region *region, *last;
+	struct rb_node *p, *lastp;
 
-	for (vml = &current->mm->context.vmlist; vml; vml = vml->next) {
-		printk(" %p: %p", vml, vml->vma);
-		if (vml->vma)
-			printk(" (%d @%lx #%d)",
-			       kobjsize((void *) vml->vma->vm_start),
-			       vml->vma->vm_start,
-			       atomic_read(&vml->vma->vm_usage));
-		printk(vml->next ? " ->" : ".\n");
+	lastp = rb_first(&nommu_region_tree);
+	if (!lastp)
+		return;
+
+	last = rb_entry(lastp, struct vm_region, vm_rb);
+	if (unlikely(last->vm_end <= last->vm_start))
+		BUG();
+	if (unlikely(last->vm_top < last->vm_end))
+		BUG();
+
+	while ((p = rb_next(lastp))) {
+		region = rb_entry(p, struct vm_region, vm_rb);
+		last = rb_entry(lastp, struct vm_region, vm_rb);
+
+		if (unlikely(region->vm_end <= region->vm_start))
+			BUG();
+		if (unlikely(region->vm_top < region->vm_end))
+			BUG();
+		if (unlikely(region->vm_start < last->vm_top))
+			BUG();
+
+		lastp = p;
 	}
 }
-#endif /* DEBUG */
+#else
+#define validate_nommu_regions() do {} while(0)
+#endif
+
+/*
+ * add a region into the global tree
+ */
+static void add_nommu_region(struct vm_region *region)
+{
+	struct vm_region *pregion;
+	struct rb_node **p, *parent;
+
+	validate_nommu_regions();
+
+	BUG_ON(region->vm_start & ~PAGE_MASK);
+
+	parent = NULL;
+	p = &nommu_region_tree.rb_node;
+	while (*p) {
+		parent = *p;
+		pregion = rb_entry(parent, struct vm_region, vm_rb);
+		if (region->vm_start < pregion->vm_start)
+			p = &(*p)->rb_left;
+		else if (region->vm_start > pregion->vm_start)
+			p = &(*p)->rb_right;
+		else if (pregion == region)
+			return;
+		else
+			BUG();
+	}
+
+	rb_link_node(&region->vm_rb, parent, p);
+	rb_insert_color(&region->vm_rb, &nommu_region_tree);
+
+	validate_nommu_regions();
+}
+
+/*
+ * delete a region from the global tree
+ */
+static void delete_nommu_region(struct vm_region *region)
+{
+	BUG_ON(!nommu_region_tree.rb_node);
+
+	validate_nommu_regions();
+	rb_erase(&region->vm_rb, &nommu_region_tree);
+	validate_nommu_regions();
+}
+
+/*
+ * free a contiguous series of pages
+ */
+static void free_page_series(unsigned long from, unsigned long to)
+{
+	for (; from < to; from += PAGE_SIZE) {
+		struct page *page = virt_to_page(from);
+
+		kdebug("- free %lx", from);
+		atomic_dec(&mmap_pages_allocated);
+		if (page_count(page) != 1)
+			kdebug("free page %p [%d]", page, page_count(page));
+		put_page(page);
+	}
+}
+
+/*
+ * release a reference to a region
+ * - the caller must hold the region semaphore, which this releases
+ * - the region may not have been added to the tree yet, in which case vm_top
+ *   will equal vm_start
+ */
+static void __put_nommu_region(struct vm_region *region)
+	__releases(nommu_region_sem)
+{
+	kenter("%p{%d}", region, atomic_read(&region->vm_usage));
+
+	BUG_ON(!nommu_region_tree.rb_node);
+
+	if (atomic_dec_and_test(&region->vm_usage)) {
+		if (region->vm_top > region->vm_start)
+			delete_nommu_region(region);
+		up_write(&nommu_region_sem);
+
+		if (region->vm_file)
+			fput(region->vm_file);
+
+		/* IO memory and memory shared directly out of the pagecache
+		 * from ramfs/tmpfs mustn't be released here */
+		if (region->vm_flags & VM_MAPPED_COPY) {
+			kdebug("free series");
+			free_page_series(region->vm_start, region->vm_top);
+		}
+		kmem_cache_free(vm_region_jar, region);
+	} else {
+		up_write(&nommu_region_sem);
+	}
+}
+
+/*
+ * release a reference to a region
+ */
+static void put_nommu_region(struct vm_region *region)
+{
+	down_write(&nommu_region_sem);
+	__put_nommu_region(region);
+}
 
 /*
  * add a VMA into a process's mm_struct in the appropriate place in the list
+ * and tree and add to the address space's page tree also if not an anonymous
+ * page
  * - should be called with mm->mmap_sem held writelocked
  */
-static void add_vma_to_mm(struct mm_struct *mm, struct vm_list_struct *vml)
+static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 {
-	struct vm_list_struct **ppv;
+	struct vm_area_struct *pvma, **pp;
+	struct address_space *mapping;
+	struct rb_node **p, *parent;
 
-	for (ppv = &current->mm->context.vmlist; *ppv; ppv = &(*ppv)->next)
-		if ((*ppv)->vma->vm_start > vml->vma->vm_start)
+	kenter(",%p", vma);
+
+	BUG_ON(!vma->vm_region);
+
+	mm->map_count++;
+	vma->vm_mm = mm;
+
+	/* add the VMA to the mapping */
+	if (vma->vm_file) {
+		mapping = vma->vm_file->f_mapping;
+
+		flush_dcache_mmap_lock(mapping);
+		vma_prio_tree_insert(vma, &mapping->i_mmap);
+		flush_dcache_mmap_unlock(mapping);
+	}
+
+	/* add the VMA to the tree */
+	parent = NULL;
+	p = &mm->mm_rb.rb_node;
+	while (*p) {
+		parent = *p;
+		pvma = rb_entry(parent, struct vm_area_struct, vm_rb);
+
+		/* sort by: start addr, end addr, VMA struct addr in that order
+		 * (the latter is necessary as we may get identical VMAs) */
+		if (vma->vm_start < pvma->vm_start)
+			p = &(*p)->rb_left;
+		else if (vma->vm_start > pvma->vm_start)
+			p = &(*p)->rb_right;
+		else if (vma->vm_end < pvma->vm_end)
+			p = &(*p)->rb_left;
+		else if (vma->vm_end > pvma->vm_end)
+			p = &(*p)->rb_right;
+		else if (vma < pvma)
+			p = &(*p)->rb_left;
+		else if (vma > pvma)
+			p = &(*p)->rb_right;
+		else
+			BUG();
+	}
+
+	rb_link_node(&vma->vm_rb, parent, p);
+	rb_insert_color(&vma->vm_rb, &mm->mm_rb);
+
+	/* add VMA to the VMA list also */
+	for (pp = &mm->mmap; (pvma = *pp); pp = &(*pp)->vm_next) {
+		if (pvma->vm_start > vma->vm_start)
 			break;
+		if (pvma->vm_start < vma->vm_start)
+			continue;
+		if (pvma->vm_end < vma->vm_end)
+			break;
+	}
 
-	vml->next = *ppv;
-	*ppv = vml;
+	vma->vm_next = *pp;
+	*pp = vma;
+}
+
+/*
+ * delete a VMA from its owning mm_struct and address space
+ */
+static void delete_vma_from_mm(struct vm_area_struct *vma)
+{
+	struct vm_area_struct **pp;
+	struct address_space *mapping;
+	struct mm_struct *mm = vma->vm_mm;
+
+	kenter("%p", vma);
+
+	mm->map_count--;
+	if (mm->mmap_cache == vma)
+		mm->mmap_cache = NULL;
+
+	/* remove the VMA from the mapping */
+	if (vma->vm_file) {
+		mapping = vma->vm_file->f_mapping;
+
+		flush_dcache_mmap_lock(mapping);
+		vma_prio_tree_remove(vma, &mapping->i_mmap);
+		flush_dcache_mmap_unlock(mapping);
+	}
+
+	/* remove from the MM's tree and list */
+	rb_erase(&vma->vm_rb, &mm->mm_rb);
+	for (pp = &mm->mmap; *pp; pp = &(*pp)->vm_next) {
+		if (*pp == vma) {
+			*pp = vma->vm_next;
+			break;
+		}
+	}
+
+	vma->vm_mm = NULL;
+}
+
+/*
+ * destroy a VMA record
+ */
+static void delete_vma(struct mm_struct *mm, struct vm_area_struct *vma)
+{
+	kenter("%p", vma);
+	if (vma->vm_ops && vma->vm_ops->close)
+		vma->vm_ops->close(vma);
+	if (vma->vm_file) {
+		fput(vma->vm_file);
+		if (vma->vm_flags & VM_EXECUTABLE)
+			removed_exe_file_vma(mm);
+	}
+	put_nommu_region(vma->vm_region);
+	kmem_cache_free(vm_area_cachep, vma);
 }
 
 /*
@@ -442,18 +723,25 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_list_struct *vml)
  */
 struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 {
-	struct vm_list_struct *loop, *vml;
+	struct vm_area_struct *vma;
+	struct rb_node *n = mm->mm_rb.rb_node;
 
-	/* search the vm_start ordered list */
-	vml = NULL;
-	for (loop = mm->context.vmlist; loop; loop = loop->next) {
-		if (loop->vma->vm_start > addr)
-			break;
-		vml = loop;
+	/* check the cache first */
+	vma = mm->mmap_cache;
+	if (vma && vma->vm_start <= addr && vma->vm_end > addr)
+		return vma;
+
+	/* trawl the tree (there may be multiple mappings in which addr
+	 * resides) */
+	for (n = rb_first(&mm->mm_rb); n; n = rb_next(n)) {
+		vma = rb_entry(n, struct vm_area_struct, vm_rb);
+		if (vma->vm_start > addr)
+			return NULL;
+		if (vma->vm_end > addr) {
+			mm->mmap_cache = vma;
+			return vma;
+		}
 	}
-
-	if (vml && vml->vma->vm_end > addr)
-		return vml->vma;
 
 	return NULL;
 }
@@ -468,6 +756,10 @@ struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr)
 	return find_vma(mm, addr);
 }
 
+/*
+ * expand a stack to a given address
+ * - not supported under NOMMU conditions
+ */
 int expand_stack(struct vm_area_struct *vma, unsigned long address)
 {
 	return -ENOMEM;
@@ -477,111 +769,34 @@ int expand_stack(struct vm_area_struct *vma, unsigned long address)
  * look up the first VMA exactly that exactly matches addr
  * - should be called with mm->mmap_sem at least held readlocked
  */
-static inline struct vm_area_struct *find_vma_exact(struct mm_struct *mm,
-						    unsigned long addr)
-{
-	struct vm_list_struct *vml;
-
-	/* search the vm_start ordered list */
-	for (vml = mm->context.vmlist; vml; vml = vml->next) {
-		if (vml->vma->vm_start == addr)
-			return vml->vma;
-		if (vml->vma->vm_start > addr)
-			break;
-	}
-
-	return NULL;
-}
-
-/*
- * find a VMA in the global tree
- */
-static inline struct vm_area_struct *find_nommu_vma(unsigned long start)
+static struct vm_area_struct *find_vma_exact(struct mm_struct *mm,
+					     unsigned long addr,
+					     unsigned long len)
 {
 	struct vm_area_struct *vma;
-	struct rb_node *n = nommu_vma_tree.rb_node;
+	struct rb_node *n = mm->mm_rb.rb_node;
+	unsigned long end = addr + len;
 
-	while (n) {
+	/* check the cache first */
+	vma = mm->mmap_cache;
+	if (vma && vma->vm_start == addr && vma->vm_end == end)
+		return vma;
+
+	/* trawl the tree (there may be multiple mappings in which addr
+	 * resides) */
+	for (n = rb_first(&mm->mm_rb); n; n = rb_next(n)) {
 		vma = rb_entry(n, struct vm_area_struct, vm_rb);
-
-		if (start < vma->vm_start)
-			n = n->rb_left;
-		else if (start > vma->vm_start)
-			n = n->rb_right;
-		else
+		if (vma->vm_start < addr)
+			continue;
+		if (vma->vm_start > addr)
+			return NULL;
+		if (vma->vm_end == end) {
+			mm->mmap_cache = vma;
 			return vma;
+		}
 	}
 
 	return NULL;
-}
-
-/*
- * add a VMA in the global tree
- */
-static void add_nommu_vma(struct vm_area_struct *vma)
-{
-	struct vm_area_struct *pvma;
-	struct address_space *mapping;
-	struct rb_node **p = &nommu_vma_tree.rb_node;
-	struct rb_node *parent = NULL;
-
-	/* add the VMA to the mapping */
-	if (vma->vm_file) {
-		mapping = vma->vm_file->f_mapping;
-
-		flush_dcache_mmap_lock(mapping);
-		vma_prio_tree_insert(vma, &mapping->i_mmap);
-		flush_dcache_mmap_unlock(mapping);
-	}
-
-	/* add the VMA to the master list */
-	while (*p) {
-		parent = *p;
-		pvma = rb_entry(parent, struct vm_area_struct, vm_rb);
-
-		if (vma->vm_start < pvma->vm_start) {
-			p = &(*p)->rb_left;
-		}
-		else if (vma->vm_start > pvma->vm_start) {
-			p = &(*p)->rb_right;
-		}
-		else {
-			/* mappings are at the same address - this can only
-			 * happen for shared-mem chardevs and shared file
-			 * mappings backed by ramfs/tmpfs */
-			BUG_ON(!(pvma->vm_flags & VM_SHARED));
-
-			if (vma < pvma)
-				p = &(*p)->rb_left;
-			else if (vma > pvma)
-				p = &(*p)->rb_right;
-			else
-				BUG();
-		}
-	}
-
-	rb_link_node(&vma->vm_rb, parent, p);
-	rb_insert_color(&vma->vm_rb, &nommu_vma_tree);
-}
-
-/*
- * delete a VMA from the global list
- */
-static void delete_nommu_vma(struct vm_area_struct *vma)
-{
-	struct address_space *mapping;
-
-	/* remove the VMA from the mapping */
-	if (vma->vm_file) {
-		mapping = vma->vm_file->f_mapping;
-
-		flush_dcache_mmap_lock(mapping);
-		vma_prio_tree_remove(vma, &mapping->i_mmap);
-		flush_dcache_mmap_unlock(mapping);
-	}
-
-	/* remove from the master list */
-	rb_erase(&vma->vm_rb, &nommu_vma_tree);
 }
 
 /*
@@ -596,7 +811,7 @@ static int validate_mmap_request(struct file *file,
 				 unsigned long pgoff,
 				 unsigned long *_capabilities)
 {
-	unsigned long capabilities;
+	unsigned long capabilities, rlen;
 	unsigned long reqprot = prot;
 	int ret;
 
@@ -616,12 +831,12 @@ static int validate_mmap_request(struct file *file,
 		return -EINVAL;
 
 	/* Careful about overflows.. */
-	len = PAGE_ALIGN(len);
-	if (!len || len > TASK_SIZE)
+	rlen = PAGE_ALIGN(len);
+	if (!rlen || rlen > TASK_SIZE)
 		return -ENOMEM;
 
 	/* offset overflow? */
-	if ((pgoff + (len >> PAGE_SHIFT)) < pgoff)
+	if ((pgoff + (rlen >> PAGE_SHIFT)) < pgoff)
 		return -EOVERFLOW;
 
 	if (file) {
@@ -795,13 +1010,18 @@ static unsigned long determine_vm_flags(struct file *file,
 }
 
 /*
- * set up a shared mapping on a file
+ * set up a shared mapping on a file (the driver or filesystem provides and
+ * pins the storage)
  */
-static int do_mmap_shared_file(struct vm_area_struct *vma, unsigned long len)
+static int do_mmap_shared_file(struct vm_area_struct *vma)
 {
 	int ret;
 
 	ret = vma->vm_file->f_op->mmap(vma->vm_file, vma);
+	if (ret == 0) {
+		vma->vm_region->vm_top = vma->vm_region->vm_end;
+		return ret;
+	}
 	if (ret != -ENOSYS)
 		return ret;
 
@@ -815,10 +1035,14 @@ static int do_mmap_shared_file(struct vm_area_struct *vma, unsigned long len)
 /*
  * set up a private mapping or an anonymous shared mapping
  */
-static int do_mmap_private(struct vm_area_struct *vma, unsigned long len)
+static int do_mmap_private(struct vm_area_struct *vma,
+			   struct vm_region *region,
+			   unsigned long len)
 {
+	struct page *pages;
+	unsigned long total, point, n, rlen;
 	void *base;
-	int ret;
+	int ret, order;
 
 	/* invoke the file's mapping function so that it can keep track of
 	 * shared mappings on devices or memory
@@ -826,34 +1050,63 @@ static int do_mmap_private(struct vm_area_struct *vma, unsigned long len)
 	 */
 	if (vma->vm_file) {
 		ret = vma->vm_file->f_op->mmap(vma->vm_file, vma);
-		if (ret != -ENOSYS) {
+		if (ret == 0) {
 			/* shouldn't return success if we're not sharing */
-			BUG_ON(ret == 0 && !(vma->vm_flags & VM_MAYSHARE));
-			return ret; /* success or a real error */
+			BUG_ON(!(vma->vm_flags & VM_MAYSHARE));
+			vma->vm_region->vm_top = vma->vm_region->vm_end;
+			return ret;
 		}
+		if (ret != -ENOSYS)
+			return ret;
 
 		/* getting an ENOSYS error indicates that direct mmap isn't
 		 * possible (as opposed to tried but failed) so we'll try to
 		 * make a private copy of the data and map that instead */
 	}
 
+	rlen = PAGE_ALIGN(len);
+
 	/* allocate some memory to hold the mapping
 	 * - note that this may not return a page-aligned address if the object
 	 *   we're allocating is smaller than a page
 	 */
-	base = kmalloc(len, GFP_KERNEL|__GFP_COMP);
-	if (!base)
+	order = get_order(rlen);
+	kdebug("alloc order %d for %lx", order, len);
+
+	pages = alloc_pages(GFP_KERNEL, order);
+	if (!pages)
 		goto enomem;
 
-	vma->vm_start = (unsigned long) base;
-	vma->vm_end = vma->vm_start + len;
-	vma->vm_flags |= VM_MAPPED_COPY;
+	total = 1 << order;
+	atomic_add(total, &mmap_pages_allocated);
 
-#ifdef WARN_ON_SLACK
-	if (len + WARN_ON_SLACK <= kobjsize(result))
-		printk("Allocation of %lu bytes from process %d has %lu bytes of slack\n",
-		       len, current->pid, kobjsize(result) - len);
-#endif
+	point = rlen >> PAGE_SHIFT;
+
+	/* we allocated a power-of-2 sized page set, so we may want to trim off
+	 * the excess */
+	if (sysctl_nr_trim_pages && total - point >= sysctl_nr_trim_pages) {
+		while (total > point) {
+			order = ilog2(total - point);
+			n = 1 << order;
+			kdebug("shave %lu/%lu @%lu", n, total - point, total);
+			atomic_sub(n, &mmap_pages_allocated);
+			total -= n;
+			set_page_refcounted(pages + total);
+			__free_pages(pages + total, order);
+		}
+	}
+
+	for (point = 1; point < total; point++)
+		set_page_refcounted(&pages[point]);
+
+	base = page_address(pages);
+	region->vm_flags = vma->vm_flags |= VM_MAPPED_COPY;
+	region->vm_start = (unsigned long) base;
+	region->vm_end   = region->vm_start + rlen;
+	region->vm_top   = region->vm_start + (total << PAGE_SHIFT);
+
+	vma->vm_start = region->vm_start;
+	vma->vm_end   = region->vm_start + len;
 
 	if (vma->vm_file) {
 		/* read the contents of a file into the copy */
@@ -865,26 +1118,28 @@ static int do_mmap_private(struct vm_area_struct *vma, unsigned long len)
 
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
-		ret = vma->vm_file->f_op->read(vma->vm_file, base, len, &fpos);
+		ret = vma->vm_file->f_op->read(vma->vm_file, base, rlen, &fpos);
 		set_fs(old_fs);
 
 		if (ret < 0)
 			goto error_free;
 
 		/* clear the last little bit */
-		if (ret < len)
-			memset(base + ret, 0, len - ret);
+		if (ret < rlen)
+			memset(base + ret, 0, rlen - ret);
 
 	} else {
 		/* if it's an anonymous mapping, then just clear it */
-		memset(base, 0, len);
+		memset(base, 0, rlen);
 	}
 
 	return 0;
 
 error_free:
-	kfree(base);
-	vma->vm_start = 0;
+	free_page_series(region->vm_start, region->vm_end);
+	region->vm_start = vma->vm_start = 0;
+	region->vm_end   = vma->vm_end = 0;
+	region->vm_top   = 0;
 	return ret;
 
 enomem:
@@ -904,12 +1159,13 @@ unsigned long do_mmap_pgoff(struct file *file,
 			    unsigned long flags,
 			    unsigned long pgoff)
 {
-	struct vm_list_struct *vml = NULL;
-	struct vm_area_struct *vma = NULL;
+	struct vm_area_struct *vma;
+	struct vm_region *region;
 	struct rb_node *rb;
-	unsigned long capabilities, vm_flags;
-	void *result;
+	unsigned long capabilities, vm_flags, result;
 	int ret;
+
+	kenter(",%lx,%lx,%lx,%lx,%lx", addr, len, prot, flags, pgoff);
 
 	if (!(flags & MAP_FIXED))
 		addr = round_hint_to_min(addr);
@@ -918,72 +1174,119 @@ unsigned long do_mmap_pgoff(struct file *file,
 	 * mapping */
 	ret = validate_mmap_request(file, addr, len, prot, flags, pgoff,
 				    &capabilities);
-	if (ret < 0)
+	if (ret < 0) {
+		kleave(" = %d [val]", ret);
 		return ret;
+	}
 
 	/* we've determined that we can make the mapping, now translate what we
 	 * now know into VMA flags */
 	vm_flags = determine_vm_flags(file, prot, flags, capabilities);
 
-	/* we're going to need to record the mapping if it works */
-	vml = kzalloc(sizeof(struct vm_list_struct), GFP_KERNEL);
-	if (!vml)
-		goto error_getting_vml;
+	/* we're going to need to record the mapping */
+	region = kmem_cache_zalloc(vm_region_jar, GFP_KERNEL);
+	if (!region)
+		goto error_getting_region;
 
-	down_write(&nommu_vma_sem);
+	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
+	if (!vma)
+		goto error_getting_vma;
 
-	/* if we want to share, we need to check for VMAs created by other
+	atomic_set(&region->vm_usage, 1);
+	region->vm_flags = vm_flags;
+	region->vm_pgoff = pgoff;
+
+	INIT_LIST_HEAD(&vma->anon_vma_node);
+	vma->vm_flags = vm_flags;
+	vma->vm_pgoff = pgoff;
+
+	if (file) {
+		region->vm_file = file;
+		get_file(file);
+		vma->vm_file = file;
+		get_file(file);
+		if (vm_flags & VM_EXECUTABLE) {
+			added_exe_file_vma(current->mm);
+			vma->vm_mm = current->mm;
+		}
+	}
+
+	down_write(&nommu_region_sem);
+
+	/* if we want to share, we need to check for regions created by other
 	 * mmap() calls that overlap with our proposed mapping
-	 * - we can only share with an exact match on most regular files
+	 * - we can only share with a superset match on most regular files
 	 * - shared mappings on character devices and memory backed files are
 	 *   permitted to overlap inexactly as far as we are concerned for in
 	 *   these cases, sharing is handled in the driver or filesystem rather
 	 *   than here
 	 */
 	if (vm_flags & VM_MAYSHARE) {
-		unsigned long pglen = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		unsigned long vmpglen;
+		struct vm_region *pregion;
+		unsigned long pglen, rpglen, pgend, rpgend, start;
 
-		/* suppress VMA sharing for shared regions */
-		if (vm_flags & VM_SHARED &&
-		    capabilities & BDI_CAP_MAP_DIRECT)
-			goto dont_share_VMAs;
+		pglen = (len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		pgend = pgoff + pglen;
 
-		for (rb = rb_first(&nommu_vma_tree); rb; rb = rb_next(rb)) {
-			vma = rb_entry(rb, struct vm_area_struct, vm_rb);
+		for (rb = rb_first(&nommu_region_tree); rb; rb = rb_next(rb)) {
+			pregion = rb_entry(rb, struct vm_region, vm_rb);
 
-			if (!(vma->vm_flags & VM_MAYSHARE))
+			if (!(pregion->vm_flags & VM_MAYSHARE))
 				continue;
 
 			/* search for overlapping mappings on the same file */
-			if (vma->vm_file->f_path.dentry->d_inode != file->f_path.dentry->d_inode)
+			if (pregion->vm_file->f_path.dentry->d_inode !=
+			    file->f_path.dentry->d_inode)
 				continue;
 
-			if (vma->vm_pgoff >= pgoff + pglen)
+			if (pregion->vm_pgoff >= pgend)
 				continue;
 
-			vmpglen = vma->vm_end - vma->vm_start + PAGE_SIZE - 1;
-			vmpglen >>= PAGE_SHIFT;
-			if (pgoff >= vma->vm_pgoff + vmpglen)
+			rpglen = pregion->vm_end - pregion->vm_start;
+			rpglen = (rpglen + PAGE_SIZE - 1) >> PAGE_SHIFT;
+			rpgend = pregion->vm_pgoff + rpglen;
+			if (pgoff >= rpgend)
 				continue;
 
-			/* handle inexactly overlapping matches between mappings */
-			if (vma->vm_pgoff != pgoff || vmpglen != pglen) {
+			/* handle inexactly overlapping matches between
+			 * mappings */
+			if ((pregion->vm_pgoff != pgoff || rpglen != pglen) &&
+			    !(pgoff >= pregion->vm_pgoff && pgend <= rpgend)) {
+				/* new mapping is not a subset of the region */
 				if (!(capabilities & BDI_CAP_MAP_DIRECT))
 					goto sharing_violation;
 				continue;
 			}
 
-			/* we've found a VMA we can share */
-			atomic_inc(&vma->vm_usage);
+			/* we've found a region we can share */
+			atomic_inc(&pregion->vm_usage);
+			vma->vm_region = pregion;
+			start = pregion->vm_start;
+			start += (pgoff - pregion->vm_pgoff) << PAGE_SHIFT;
+			vma->vm_start = start;
+			vma->vm_end = start + len;
 
-			vml->vma = vma;
-			result = (void *) vma->vm_start;
-			goto shared;
+			if (pregion->vm_flags & VM_MAPPED_COPY) {
+				kdebug("share copy");
+				vma->vm_flags |= VM_MAPPED_COPY;
+			} else {
+				kdebug("share mmap");
+				ret = do_mmap_shared_file(vma);
+				if (ret < 0) {
+					vma->vm_region = NULL;
+					vma->vm_start = 0;
+					vma->vm_end = 0;
+					atomic_dec(&pregion->vm_usage);
+					pregion = NULL;
+					goto error_just_free;
+				}
+			}
+			fput(region->vm_file);
+			kmem_cache_free(vm_region_jar, region);
+			region = pregion;
+			result = start;
+			goto share;
 		}
-
-	dont_share_VMAs:
-		vma = NULL;
 
 		/* obtain the address at which to make a shared mapping
 		 * - this is the hook for quasi-memory character devices to
@@ -995,113 +1298,93 @@ unsigned long do_mmap_pgoff(struct file *file,
 			if (IS_ERR((void *) addr)) {
 				ret = addr;
 				if (ret != (unsigned long) -ENOSYS)
-					goto error;
+					goto error_just_free;
 
 				/* the driver refused to tell us where to site
 				 * the mapping so we'll have to attempt to copy
 				 * it */
 				ret = (unsigned long) -ENODEV;
 				if (!(capabilities & BDI_CAP_MAP_COPY))
-					goto error;
+					goto error_just_free;
 
 				capabilities &= ~BDI_CAP_MAP_DIRECT;
+			} else {
+				vma->vm_start = region->vm_start = addr;
+				vma->vm_end = region->vm_end = addr + len;
 			}
 		}
 	}
 
-	/* we're going to need a VMA struct as well */
-	vma = kzalloc(sizeof(struct vm_area_struct), GFP_KERNEL);
-	if (!vma)
-		goto error_getting_vma;
-
-	INIT_LIST_HEAD(&vma->anon_vma_node);
-	atomic_set(&vma->vm_usage, 1);
-	if (file) {
-		get_file(file);
-		if (vm_flags & VM_EXECUTABLE) {
-			added_exe_file_vma(current->mm);
-			vma->vm_mm = current->mm;
-		}
-	}
-	vma->vm_file	= file;
-	vma->vm_flags	= vm_flags;
-	vma->vm_start	= addr;
-	vma->vm_end	= addr + len;
-	vma->vm_pgoff	= pgoff;
-
-	vml->vma = vma;
+	vma->vm_region = region;
 
 	/* set up the mapping */
 	if (file && vma->vm_flags & VM_SHARED)
-		ret = do_mmap_shared_file(vma, len);
+		ret = do_mmap_shared_file(vma);
 	else
-		ret = do_mmap_private(vma, len);
+		ret = do_mmap_private(vma, region, len);
 	if (ret < 0)
-		goto error;
+		goto error_put_region;
+
+	add_nommu_region(region);
 
 	/* okay... we have a mapping; now we have to register it */
-	result = (void *) vma->vm_start;
-
-	if (vma->vm_flags & VM_MAPPED_COPY) {
-		realalloc += kobjsize(result);
-		askedalloc += len;
-	}
-
-	realalloc += kobjsize(vma);
-	askedalloc += sizeof(*vma);
+	result = vma->vm_start;
 
 	current->mm->total_vm += len >> PAGE_SHIFT;
 
-	add_nommu_vma(vma);
+share:
+	add_vma_to_mm(current->mm, vma);
 
- shared:
-	realalloc += kobjsize(vml);
-	askedalloc += sizeof(*vml);
-
-	add_vma_to_mm(current->mm, vml);
-
-	up_write(&nommu_vma_sem);
+	up_write(&nommu_region_sem);
 
 	if (prot & PROT_EXEC)
-		flush_icache_range((unsigned long) result,
-				   (unsigned long) result + len);
+		flush_icache_range(result, result + len);
 
-#ifdef DEBUG
-	printk("do_mmap:\n");
-	show_process_blocks();
-#endif
+	kleave(" = %lx", result);
+	return result;
 
-	return (unsigned long) result;
-
- error:
-	up_write(&nommu_vma_sem);
-	kfree(vml);
+error_put_region:
+	__put_nommu_region(region);
 	if (vma) {
 		if (vma->vm_file) {
 			fput(vma->vm_file);
 			if (vma->vm_flags & VM_EXECUTABLE)
 				removed_exe_file_vma(vma->vm_mm);
 		}
-		kfree(vma);
+		kmem_cache_free(vm_area_cachep, vma);
 	}
+	kleave(" = %d [pr]", ret);
 	return ret;
 
- sharing_violation:
-	up_write(&nommu_vma_sem);
-	printk("Attempt to share mismatched mappings\n");
-	kfree(vml);
-	return -EINVAL;
+error_just_free:
+	up_write(&nommu_region_sem);
+error:
+	fput(region->vm_file);
+	kmem_cache_free(vm_region_jar, region);
+	fput(vma->vm_file);
+	if (vma->vm_flags & VM_EXECUTABLE)
+		removed_exe_file_vma(vma->vm_mm);
+	kmem_cache_free(vm_area_cachep, vma);
+	kleave(" = %d", ret);
+	return ret;
 
- error_getting_vma:
-	up_write(&nommu_vma_sem);
-	kfree(vml);
-	printk("Allocation of vma for %lu byte allocation from process %d failed\n",
+sharing_violation:
+	up_write(&nommu_region_sem);
+	printk(KERN_WARNING "Attempt to share mismatched mappings\n");
+	ret = -EINVAL;
+	goto error;
+
+error_getting_vma:
+	kmem_cache_free(vm_region_jar, region);
+	printk(KERN_WARNING "Allocation of vma for %lu byte allocation"
+	       " from process %d failed\n",
 	       len, current->pid);
 	show_free_areas();
 	return -ENOMEM;
 
- error_getting_vml:
-	printk("Allocation of vml for %lu byte allocation from process %d failed\n",
+error_getting_region:
+	printk(KERN_WARNING "Allocation of vm region for %lu byte allocation"
+	       " from process %d failed\n",
 	       len, current->pid);
 	show_free_areas();
 	return -ENOMEM;
@@ -1109,90 +1392,188 @@ unsigned long do_mmap_pgoff(struct file *file,
 EXPORT_SYMBOL(do_mmap_pgoff);
 
 /*
- * handle mapping disposal for uClinux
+ * split a vma into two pieces at address 'addr', a new vma is allocated either
+ * for the first part or the tail.
  */
-static void put_vma(struct mm_struct *mm, struct vm_area_struct *vma)
+int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
+	      unsigned long addr, int new_below)
 {
-	if (vma) {
-		down_write(&nommu_vma_sem);
+	struct vm_area_struct *new;
+	struct vm_region *region;
+	unsigned long npages;
 
-		if (atomic_dec_and_test(&vma->vm_usage)) {
-			delete_nommu_vma(vma);
+	kenter("");
 
-			if (vma->vm_ops && vma->vm_ops->close)
-				vma->vm_ops->close(vma);
+	/* we're only permitted to split anonymous regions that have a single
+	 * owner */
+	if (vma->vm_file ||
+	    atomic_read(&vma->vm_region->vm_usage) != 1)
+		return -ENOMEM;
 
-			/* IO memory and memory shared directly out of the pagecache from
-			 * ramfs/tmpfs mustn't be released here */
-			if (vma->vm_flags & VM_MAPPED_COPY) {
-				realalloc -= kobjsize((void *) vma->vm_start);
-				askedalloc -= vma->vm_end - vma->vm_start;
-				kfree((void *) vma->vm_start);
-			}
+	if (mm->map_count >= sysctl_max_map_count)
+		return -ENOMEM;
 
-			realalloc -= kobjsize(vma);
-			askedalloc -= sizeof(*vma);
+	region = kmem_cache_alloc(vm_region_jar, GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
 
-			if (vma->vm_file) {
-				fput(vma->vm_file);
-				if (vma->vm_flags & VM_EXECUTABLE)
-					removed_exe_file_vma(mm);
-			}
-			kfree(vma);
-		}
-
-		up_write(&nommu_vma_sem);
+	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
+	if (!new) {
+		kmem_cache_free(vm_region_jar, region);
+		return -ENOMEM;
 	}
+
+	/* most fields are the same, copy all, and then fixup */
+	*new = *vma;
+	*region = *vma->vm_region;
+	new->vm_region = region;
+
+	npages = (addr - vma->vm_start) >> PAGE_SHIFT;
+
+	if (new_below) {
+		region->vm_top = region->vm_end = new->vm_end = addr;
+	} else {
+		region->vm_start = new->vm_start = addr;
+		region->vm_pgoff = new->vm_pgoff += npages;
+	}
+
+	if (new->vm_ops && new->vm_ops->open)
+		new->vm_ops->open(new);
+
+	delete_vma_from_mm(vma);
+	down_write(&nommu_region_sem);
+	delete_nommu_region(vma->vm_region);
+	if (new_below) {
+		vma->vm_region->vm_start = vma->vm_start = addr;
+		vma->vm_region->vm_pgoff = vma->vm_pgoff += npages;
+	} else {
+		vma->vm_region->vm_end = vma->vm_end = addr;
+		vma->vm_region->vm_top = addr;
+	}
+	add_nommu_region(vma->vm_region);
+	add_nommu_region(new->vm_region);
+	up_write(&nommu_region_sem);
+	add_vma_to_mm(mm, vma);
+	add_vma_to_mm(mm, new);
+	return 0;
+}
+
+/*
+ * shrink a VMA by removing the specified chunk from either the beginning or
+ * the end
+ */
+static int shrink_vma(struct mm_struct *mm,
+		      struct vm_area_struct *vma,
+		      unsigned long from, unsigned long to)
+{
+	struct vm_region *region;
+
+	kenter("");
+
+	/* adjust the VMA's pointers, which may reposition it in the MM's tree
+	 * and list */
+	delete_vma_from_mm(vma);
+	if (from > vma->vm_start)
+		vma->vm_end = from;
+	else
+		vma->vm_start = to;
+	add_vma_to_mm(mm, vma);
+
+	/* cut the backing region down to size */
+	region = vma->vm_region;
+	BUG_ON(atomic_read(&region->vm_usage) != 1);
+
+	down_write(&nommu_region_sem);
+	delete_nommu_region(region);
+	if (from > region->vm_start) {
+		to = region->vm_top;
+		region->vm_top = region->vm_end = from;
+	} else {
+		region->vm_start = to;
+	}
+	add_nommu_region(region);
+	up_write(&nommu_region_sem);
+
+	free_page_series(from, to);
+	return 0;
 }
 
 /*
  * release a mapping
- * - under NOMMU conditions the parameters must match exactly to the mapping to
- *   be removed
+ * - under NOMMU conditions the chunk to be unmapped must be backed by a single
+ *   VMA, though it need not cover the whole VMA
  */
-int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
+int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 {
-	struct vm_list_struct *vml, **parent;
-	unsigned long end = addr + len;
+	struct vm_area_struct *vma;
+	struct rb_node *rb;
+	unsigned long end = start + len;
+	int ret;
 
-#ifdef DEBUG
-	printk("do_munmap:\n");
-#endif
+	kenter(",%lx,%zx", start, len);
 
-	for (parent = &mm->context.vmlist; *parent; parent = &(*parent)->next) {
-		if ((*parent)->vma->vm_start > addr)
-			break;
-		if ((*parent)->vma->vm_start == addr &&
-		    ((len == 0) || ((*parent)->vma->vm_end == end)))
-			goto found;
+	if (len == 0)
+		return -EINVAL;
+
+	/* find the first potentially overlapping VMA */
+	vma = find_vma(mm, start);
+	if (!vma) {
+		printk(KERN_WARNING
+		       "munmap of memory not mmapped by process %d (%s):"
+		       " 0x%lx-0x%lx\n",
+		       current->pid, current->comm, start, start + len - 1);
+		return -EINVAL;
 	}
 
-	printk("munmap of non-mmaped memory by process %d (%s): %p\n",
-	       current->pid, current->comm, (void *) addr);
-	return -EINVAL;
+	/* we're allowed to split an anonymous VMA but not a file-backed one */
+	if (vma->vm_file) {
+		do {
+			if (start > vma->vm_start) {
+				kleave(" = -EINVAL [miss]");
+				return -EINVAL;
+			}
+			if (end == vma->vm_end)
+				goto erase_whole_vma;
+			rb = rb_next(&vma->vm_rb);
+			vma = rb_entry(rb, struct vm_area_struct, vm_rb);
+		} while (rb);
+		kleave(" = -EINVAL [split file]");
+		return -EINVAL;
+	} else {
+		/* the chunk must be a subset of the VMA found */
+		if (start == vma->vm_start && end == vma->vm_end)
+			goto erase_whole_vma;
+		if (start < vma->vm_start || end > vma->vm_end) {
+			kleave(" = -EINVAL [superset]");
+			return -EINVAL;
+		}
+		if (start & ~PAGE_MASK) {
+			kleave(" = -EINVAL [unaligned start]");
+			return -EINVAL;
+		}
+		if (end != vma->vm_end && end & ~PAGE_MASK) {
+			kleave(" = -EINVAL [unaligned split]");
+			return -EINVAL;
+		}
+		if (start != vma->vm_start && end != vma->vm_end) {
+			ret = split_vma(mm, vma, start, 1);
+			if (ret < 0) {
+				kleave(" = %d [split]", ret);
+				return ret;
+			}
+		}
+		return shrink_vma(mm, vma, start, end);
+	}
 
- found:
-	vml = *parent;
-
-	put_vma(mm, vml->vma);
-
-	*parent = vml->next;
-	realalloc -= kobjsize(vml);
-	askedalloc -= sizeof(*vml);
-	kfree(vml);
-
-	update_hiwater_vm(mm);
-	mm->total_vm -= len >> PAGE_SHIFT;
-
-#ifdef DEBUG
-	show_process_blocks();
-#endif
-
+erase_whole_vma:
+	delete_vma_from_mm(vma);
+	delete_vma(mm, vma);
+	kleave(" = 0");
 	return 0;
 }
 EXPORT_SYMBOL(do_munmap);
 
-asmlinkage long sys_munmap(unsigned long addr, size_t len)
+SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
 {
 	int ret;
 	struct mm_struct *mm = current->mm;
@@ -1204,32 +1585,26 @@ asmlinkage long sys_munmap(unsigned long addr, size_t len)
 }
 
 /*
- * Release all mappings
+ * release all the mappings made in a process's VM space
  */
-void exit_mmap(struct mm_struct * mm)
+void exit_mmap(struct mm_struct *mm)
 {
-	struct vm_list_struct *tmp;
+	struct vm_area_struct *vma;
 
-	if (mm) {
-#ifdef DEBUG
-		printk("Exit_mmap:\n");
-#endif
+	if (!mm)
+		return;
 
-		mm->total_vm = 0;
+	kenter("");
 
-		while ((tmp = mm->context.vmlist)) {
-			mm->context.vmlist = tmp->next;
-			put_vma(mm, tmp->vma);
+	mm->total_vm = 0;
 
-			realalloc -= kobjsize(tmp);
-			askedalloc -= sizeof(*tmp);
-			kfree(tmp);
-		}
-
-#ifdef DEBUG
-		show_process_blocks();
-#endif
+	while ((vma = mm->mmap)) {
+		mm->mmap = vma->vm_next;
+		delete_vma_from_mm(vma);
+		delete_vma(mm, vma);
 	}
+
+	kleave("");
 }
 
 unsigned long do_brk(unsigned long addr, unsigned long len)
@@ -1242,8 +1617,8 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
  * time (controlled by the MREMAP_MAYMOVE flag and available VM space)
  *
  * under NOMMU conditions, we only permit changing a mapping's size, and only
- * as long as it stays within the hole allocated by the kmalloc() call in
- * do_mmap_pgoff() and the block is not shareable
+ * as long as it stays within the region allocated by do_mmap_private() and the
+ * block is not shareable
  *
  * MREMAP_FIXED is not supported under NOMMU conditions
  */
@@ -1254,13 +1629,16 @@ unsigned long do_mremap(unsigned long addr,
 	struct vm_area_struct *vma;
 
 	/* insanity checks first */
-	if (new_len == 0)
+	if (old_len == 0 || new_len == 0)
 		return (unsigned long) -EINVAL;
+
+	if (addr & ~PAGE_MASK)
+		return -EINVAL;
 
 	if (flags & MREMAP_FIXED && new_addr != addr)
 		return (unsigned long) -EINVAL;
 
-	vma = find_vma_exact(current->mm, addr);
+	vma = find_vma_exact(current->mm, addr, old_len);
 	if (!vma)
 		return (unsigned long) -EINVAL;
 
@@ -1270,22 +1648,18 @@ unsigned long do_mremap(unsigned long addr,
 	if (vma->vm_flags & VM_MAYSHARE)
 		return (unsigned long) -EPERM;
 
-	if (new_len > kobjsize((void *) addr))
+	if (new_len > vma->vm_region->vm_end - vma->vm_region->vm_start)
 		return (unsigned long) -ENOMEM;
 
 	/* all checks complete - do it */
 	vma->vm_end = vma->vm_start + new_len;
-
-	askedalloc -= old_len;
-	askedalloc += new_len;
-
 	return vma->vm_start;
 }
 EXPORT_SYMBOL(do_mremap);
 
-asmlinkage unsigned long sys_mremap(unsigned long addr,
-	unsigned long old_len, unsigned long new_len,
-	unsigned long flags, unsigned long new_addr)
+SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+		unsigned long, new_len, unsigned long, flags,
+		unsigned long, new_addr)
 {
 	unsigned long ret;
 

@@ -580,12 +580,36 @@ struct MrvlIEtype_keyParamSet {
 	u8 key[32];
 };
 
+#define MAX_WOL_RULES 		16
+
+struct host_wol_rule {
+	uint8_t rule_no;
+	uint8_t rule_ops;
+	__le16 sig_offset;
+	__le16 sig_length;
+	__le16 reserve;
+	__be32 sig_mask;
+	__be32 signature;
+};
+
+struct wol_config {
+	uint8_t action;
+	uint8_t pattern;
+	uint8_t no_rules_in_cmd;
+	uint8_t result;
+	struct host_wol_rule rule[MAX_WOL_RULES];
+};
+
+
 struct cmd_ds_host_sleep {
 	struct cmd_header hdr;
 	__le32 criteria;
 	uint8_t gpio;
-	uint8_t gap;
+	uint16_t gap;
+	struct wol_config wol_conf;
 } __attribute__ ((packed));
+
+
 
 struct cmd_ds_802_11_key_material {
 	struct cmd_header hdr;

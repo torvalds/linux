@@ -315,7 +315,7 @@ u_short write_cy_cmd(volatile u_char * base_addr, u_char cmd)
 
 static void cy_stop(struct tty_struct *tty)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	volatile unsigned char *base_addr = (unsigned char *)BASE_ADDR;
 	int channel;
 	unsigned long flags;
@@ -337,7 +337,7 @@ static void cy_stop(struct tty_struct *tty)
 
 static void cy_start(struct tty_struct *tty)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	volatile unsigned char *base_addr = (unsigned char *)BASE_ADDR;
 	int channel;
 	unsigned long flags;
@@ -1062,7 +1062,7 @@ static void config_setup(struct cyclades_port *info)
 
 static int cy_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	unsigned long flags;
 
 #ifdef SERIAL_DEBUG_IO
@@ -1090,7 +1090,7 @@ static int cy_put_char(struct tty_struct *tty, unsigned char ch)
 
 static void cy_flush_chars(struct tty_struct *tty)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	unsigned long flags;
 	volatile unsigned char *base_addr = (u_char *) BASE_ADDR;
 	int channel;
@@ -1122,7 +1122,7 @@ static void cy_flush_chars(struct tty_struct *tty)
  */
 static int cy_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	unsigned long flags;
 	int c, total = 0;
 
@@ -1166,7 +1166,7 @@ static int cy_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 static int cy_write_room(struct tty_struct *tty)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	int ret;
 
 #ifdef SERIAL_DEBUG_IO
@@ -1183,7 +1183,7 @@ static int cy_write_room(struct tty_struct *tty)
 
 static int cy_chars_in_buffer(struct tty_struct *tty)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 
 #ifdef SERIAL_DEBUG_IO
 	printk("cy_chars_in_buffer %s %d\n", tty->name, info->xmit_cnt);	/* */
@@ -1197,7 +1197,7 @@ static int cy_chars_in_buffer(struct tty_struct *tty)
 
 static void cy_flush_buffer(struct tty_struct *tty)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	unsigned long flags;
 
 #ifdef SERIAL_DEBUG_IO
@@ -1218,7 +1218,7 @@ static void cy_flush_buffer(struct tty_struct *tty)
  */
 static void cy_throttle(struct tty_struct *tty)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	unsigned long flags;
 	volatile unsigned char *base_addr = (u_char *) BASE_ADDR;
 	int channel;
@@ -1250,7 +1250,7 @@ static void cy_throttle(struct tty_struct *tty)
 
 static void cy_unthrottle(struct tty_struct *tty)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	unsigned long flags;
 	volatile unsigned char *base_addr = (u_char *) BASE_ADDR;
 	int channel;
@@ -1345,7 +1345,7 @@ check_and_exit:
 
 static int cy_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	int channel;
 	volatile unsigned char *base_addr = (u_char *) BASE_ADDR;
 	unsigned long flags;
@@ -1369,7 +1369,7 @@ static int
 cy_tiocmset(struct tty_struct *tty, struct file *file,
 	    unsigned int set, unsigned int clear)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	int channel;
 	volatile unsigned char *base_addr = (u_char *) BASE_ADDR;
 	unsigned long flags;
@@ -1532,7 +1532,7 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 	 unsigned int cmd, unsigned long arg)
 {
 	unsigned long val;
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 	int ret_val = 0;
 	void __user *argp = (void __user *)arg;
 
@@ -1607,7 +1607,7 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 
 static void cy_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 
 #ifdef SERIAL_DEBUG_OTHER
 	printk("cy_set_termios %s\n", tty->name);
@@ -1631,7 +1631,7 @@ static void cy_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 
 static void cy_close(struct tty_struct *tty, struct file *filp)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 
 /* CP('C'); */
 #ifdef SERIAL_DEBUG_OTHER
@@ -1698,7 +1698,7 @@ static void cy_close(struct tty_struct *tty, struct file *filp)
  */
 void cy_hangup(struct tty_struct *tty)
 {
-	struct cyclades_port *info = (struct cyclades_port *)tty->driver_data;
+	struct cyclades_port *info = tty->driver_data;
 
 #ifdef SERIAL_DEBUG_OTHER
 	printk("cy_hangup %s\n", tty->name);	/* */

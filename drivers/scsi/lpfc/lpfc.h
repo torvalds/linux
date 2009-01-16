@@ -29,8 +29,10 @@ struct lpfc_sli2_slim;
 #define LPFC_MAX_NS_RETRY	3	/* Number of retry attempts to contact
 					   the NameServer  before giving up. */
 #define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
-#define LPFC_DEFAULT_SG_SEG_CNT	64	/* sg element count per scsi cmnd */
-#define LPFC_MAX_SG_SEG_CNT	256	/* sg element count per scsi cmnd */
+#define LPFC_DEFAULT_SG_SEG_CNT 64	/* sg element count per scsi cmnd */
+#define LPFC_DEFAULT_PROT_SG_SEG_CNT 4096 /* sg protection elements count */
+#define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
+#define LPFC_MAX_PROT_SG_SEG_CNT 4096	/* prot sg element count per scsi cmd*/
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
 #define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
 #define LPFC_VNAME_LEN		100	/* vport symbolic name length */
@@ -354,8 +356,6 @@ struct lpfc_vport {
 	uint8_t load_flag;
 #define FC_LOADING		0x1	/* HBA in process of loading drvr */
 #define FC_UNLOADING		0x2	/* HBA in process of unloading drvr */
-	char  *vname;		        /* Application assigned name */
-
 	/* Vport Config Parameters */
 	uint32_t cfg_scan_down;
 	uint32_t cfg_lun_queue_depth;
@@ -376,7 +376,7 @@ struct lpfc_vport {
 
 	struct fc_vport *fc_vport;
 
-#ifdef CONFIG_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *debug_disc_trc;
 	struct dentry *debug_nodelist;
 	struct dentry *vport_debugfs_root;
@@ -428,6 +428,7 @@ struct lpfc_hba {
 #define LPFC_SLI3_VPORT_TEARDOWN	0x04
 #define LPFC_SLI3_CRP_ENABLED		0x08
 #define LPFC_SLI3_INB_ENABLED		0x10
+#define LPFC_SLI3_BG_ENABLED		0x20
 	uint32_t iocb_cmd_size;
 	uint32_t iocb_rsp_size;
 
@@ -501,12 +502,14 @@ struct lpfc_hba {
 	uint32_t cfg_poll_tmo;
 	uint32_t cfg_use_msi;
 	uint32_t cfg_sg_seg_cnt;
+	uint32_t cfg_prot_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
 	uint64_t cfg_soft_wwnn;
 	uint64_t cfg_soft_wwpn;
 	uint32_t cfg_hba_queue_depth;
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
+	uint32_t cfg_enable_bg;
 
 	lpfc_vpd_t vpd;		/* vital product data */
 
@@ -572,6 +575,9 @@ struct lpfc_hba {
 	uint64_t fc4InputRequests;
 	uint64_t fc4OutputRequests;
 	uint64_t fc4ControlRequests;
+	uint64_t bg_guard_err_cnt;
+	uint64_t bg_apptag_err_cnt;
+	uint64_t bg_reftag_err_cnt;
 
 	struct lpfc_sysfs_mbox sysfs_mbox;
 
@@ -594,6 +600,8 @@ struct lpfc_hba {
 
 	struct fc_host_statistics link_stats;
 	enum intr_type_t intr_type;
+	uint32_t intr_mode;
+#define LPFC_INTR_ERROR	0xFFFFFFFF
 	struct msix_entry msix_entries[LPFC_MSIX_VECTORS];
 
 	struct list_head port_list;
@@ -613,12 +621,14 @@ struct lpfc_hba {
 	unsigned long last_rsrc_error_time;
 	unsigned long last_ramp_down_time;
 	unsigned long last_ramp_up_time;
-#ifdef CONFIG_LPFC_DEBUG_FS
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
 	struct dentry *debug_hbqinfo;
 	struct dentry *debug_dumpHostSlim;
 	struct dentry *debug_dumpHBASlim;
+	struct dentry *debug_dumpData;   /* BlockGuard BPL*/
+	struct dentry *debug_dumpDif;    /* BlockGuard BPL*/
 	struct dentry *debug_slow_ring_trc;
 	struct lpfc_debugfs_trc *slow_ring_trc;
 	atomic_t slow_ring_trc_cnt;

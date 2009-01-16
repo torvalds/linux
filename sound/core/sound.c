@@ -152,6 +152,10 @@ static int __snd_open(struct inode *inode, struct file *file)
 	}
 	old_fops = file->f_op;
 	file->f_op = fops_get(mptr->f_ops);
+	if (file->f_op == NULL) {
+		file->f_op = old_fops;
+		return -ENODEV;
+	}
 	if (file->f_op->open)
 		err = file->f_op->open(inode, file);
 	if (err) {

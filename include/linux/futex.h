@@ -25,7 +25,8 @@ union ktime;
 #define FUTEX_WAKE_BITSET	10
 
 #define FUTEX_PRIVATE_FLAG	128
-#define FUTEX_CMD_MASK		~FUTEX_PRIVATE_FLAG
+#define FUTEX_CLOCK_REALTIME	256
+#define FUTEX_CMD_MASK		~(FUTEX_PRIVATE_FLAG | FUTEX_CLOCK_REALTIME)
 
 #define FUTEX_WAIT_PRIVATE	(FUTEX_WAIT | FUTEX_PRIVATE_FLAG)
 #define FUTEX_WAKE_PRIVATE	(FUTEX_WAKE | FUTEX_PRIVATE_FLAG)
@@ -163,6 +164,8 @@ union futex_key {
 		int offset;
 	} both;
 };
+
+#define FUTEX_KEY_INIT (union futex_key) { .both = { .ptr = NULL } }
 
 #ifdef CONFIG_FUTEX
 extern void exit_robust_list(struct task_struct *curr);

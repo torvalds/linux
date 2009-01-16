@@ -120,6 +120,10 @@ typedef s390_compat_regs compat_elf_gregset_t;
 #include <asm/system.h>		/* for save_access_regs */
 #include <asm/mmu_context.h>
 
+#include <asm/vdso.h>
+
+extern unsigned int vdso_enabled;
+
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -190,5 +194,17 @@ do {							\
 		disable_noexec(current->mm, current);	\
 	current->mm->context.noexec == 0;		\
 })
+
+#define ARCH_DLINFO							    \
+do {									    \
+	if (vdso_enabled)						    \
+		NEW_AUX_ENT(AT_SYSINFO_EHDR,				    \
+			    (unsigned long)current->mm->context.vdso_base); \
+} while (0)
+
+struct linux_binprm;
+
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
+int arch_setup_additional_pages(struct linux_binprm *, int);
 
 #endif

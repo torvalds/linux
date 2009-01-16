@@ -1967,8 +1967,8 @@ megaraid_abort_and_reset(adapter_t *adapter, Scsi_Cmnd *cmd, int aor)
 			scb->state |= aor;
 
 			/*
-			 * Check if this command has firmare owenership. If
-			 * yes, we cannot reset this command. Whenever, f/w
+			 * Check if this command has firmware ownership. If
+			 * yes, we cannot reset this command. Whenever f/w
 			 * completes this command, we will return appropriate
 			 * status from ISR.
 			 */

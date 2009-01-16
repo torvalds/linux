@@ -10,7 +10,7 @@
  */
 
 #include <linux/serial_reg.h>
-#include <mach/pxa-regs.h>
+#include <mach/regs-uart.h>
 #include <asm/mach-types.h>
 
 #define __REG(x)       ((volatile unsigned long *)x)
@@ -35,7 +35,7 @@ static inline void flush(void)
 
 static inline void arch_decomp_setup(void)
 {
-	if (machine_is_littleton())
+	if (machine_is_littleton() || machine_is_intelmote2())
 		UART = STUART;
 }
 

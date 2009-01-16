@@ -58,7 +58,7 @@
  * SMP-threaded, sysctl's added
  * (c) 1999 Manfred Spraul <manfred@colorfullife.com>
  * Enforced range limit on SEM_UNDO
- * (c) 2001 Red Hat Inc <alan@redhat.com>
+ * (c) 2001 Red Hat Inc
  * Lockless wakeup
  * (c) 2003 Manfred Spraul <manfred@colorfullife.com>
  *
@@ -308,7 +308,7 @@ static inline int sem_more_checks(struct kern_ipc_perm *ipcp,
 	return 0;
 }
 
-asmlinkage long sys_semget(key_t key, int nsems, int semflg)
+SYSCALL_DEFINE3(semget, key_t, key, int, nsems, int, semflg)
 {
 	struct ipc_namespace *ns;
 	struct ipc_ops sem_ops;
@@ -887,7 +887,7 @@ out_up:
 	return err;
 }
 
-asmlinkage long sys_semctl (int semid, int semnum, int cmd, union semun arg)
+SYSCALL_DEFINE(semctl)(int semid, int semnum, int cmd, union semun arg)
 {
 	int err = -EINVAL;
 	int version;
@@ -923,6 +923,13 @@ asmlinkage long sys_semctl (int semid, int semnum, int cmd, union semun arg)
 		return -EINVAL;
 	}
 }
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+asmlinkage long SyS_semctl(int semid, int semnum, int cmd, union semun arg)
+{
+	return SYSC_semctl((int) semid, (int) semnum, (int) cmd, arg);
+}
+SYSCALL_ALIAS(sys_semctl, SyS_semctl);
+#endif
 
 /* If the task doesn't already have a undo_list, then allocate one
  * here.  We guarantee there is only one thread using this undo list,
@@ -1048,8 +1055,8 @@ out:
 	return un;
 }
 
-asmlinkage long sys_semtimedop(int semid, struct sembuf __user *tsops,
-			unsigned nsops, const struct timespec __user *timeout)
+SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
+		unsigned, nsops, const struct timespec __user *, timeout)
 {
 	int error = -EINVAL;
 	struct sem_array *sma;
@@ -1216,7 +1223,6 @@ asmlinkage long sys_semtimedop(int semid, struct sembuf __user *tsops,
 	if (timeout && jiffies_left == 0)
 		error = -EAGAIN;
 	list_del(&queue.list);
-	goto out_unlock_free;
 
 out_unlock_free:
 	sem_unlock(sma);
@@ -1226,7 +1232,8 @@ out_free:
 	return error;
 }
 
-asmlinkage long sys_semop (int semid, struct sembuf __user *tsops, unsigned nsops)
+SYSCALL_DEFINE3(semop, int, semid, struct sembuf __user *, tsops,
+		unsigned, nsops)
 {
 	return sys_semtimedop(semid, tsops, nsops, NULL);
 }

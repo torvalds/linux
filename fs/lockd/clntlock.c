@@ -14,6 +14,7 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
 #include <linux/smp_lock.h>
+#include <linux/kthread.h>
 
 #define NLMDBG_FACILITY		NLMDBG_CLIENT
 
@@ -60,7 +61,7 @@ struct nlm_host *nlmclnt_init(const struct nlmclnt_initdata *nlm_init)
 
 	host = nlmclnt_lookup_host(nlm_init->address, nlm_init->addrlen,
 				   nlm_init->protocol, nlm_version,
-				   nlm_init->hostname);
+				   nlm_init->hostname, nlm_init->noresvport);
 	if (host == NULL) {
 		lockd_down();
 		return ERR_PTR(-ENOLCK);
@@ -191,11 +192,15 @@ __be32 nlmclnt_grant(const struct sockaddr *addr, const struct nlm_lock *lock)
 void
 nlmclnt_recovery(struct nlm_host *host)
 {
+	struct task_struct *task;
+
 	if (!host->h_reclaiming++) {
 		nlm_get_host(host);
-		__module_get(THIS_MODULE);
-		if (kernel_thread(reclaimer, host, CLONE_FS | CLONE_FILES) < 0)
-			module_put(THIS_MODULE);
+		task = kthread_run(reclaimer, host, "%s-reclaim", host->h_name);
+		if (IS_ERR(task))
+			printk(KERN_ERR "lockd: unable to spawn reclaimer "
+				"thread. Locks for %s won't be reclaimed! "
+				"(%ld)\n", host->h_name, PTR_ERR(task));
 	}
 }
 
@@ -207,7 +212,6 @@ reclaimer(void *ptr)
 	struct file_lock *fl, *next;
 	u32 nsmstate;
 
-	daemonize("%s-reclaim", host->h_name);
 	allow_signal(SIGKILL);
 
 	down_write(&host->h_rwsem);
@@ -233,7 +237,12 @@ restart:
 	list_for_each_entry_safe(fl, next, &host->h_reclaim, fl_u.nfs_fl.list) {
 		list_del_init(&fl->fl_u.nfs_fl.list);
 
-		/* Why are we leaking memory here? --okir */
+		/*
+		 * sending this thread a SIGKILL will result in any unreclaimed
+		 * locks being removed from the h_granted list. This means that
+		 * the kernel will not attempt to reclaim them again if a new
+		 * reclaimer thread is spawned for this host.
+		 */
 		if (signalled())
 			continue;
 		if (nlmclnt_reclaim(host, fl) != 0)
@@ -261,5 +270,5 @@ restart:
 	nlm_release_host(host);
 	lockd_down();
 	unlock_kernel();
-	module_put_and_exit(0);
+	return 0;
 }

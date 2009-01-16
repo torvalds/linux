@@ -11,8 +11,6 @@
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H
 
-#include "kirkwood.h"	/* need GPIO_MAX */
-
 /*
  * Low Interrupt Controller
  */
@@ -51,12 +49,13 @@
 #define IRQ_KIRKWOOD_GPIO_HIGH_8_15	40
 #define IRQ_KIRKWOOD_GPIO_HIGH_16_23	41
 #define IRQ_KIRKWOOD_GE00_ERR	46
+#define IRQ_KIRKWOOD_GE01_ERR	47
 
 /*
  * KIRKWOOD General Purpose Pins
  */
 #define IRQ_KIRKWOOD_GPIO_START	64
-#define NR_GPIO_IRQS		GPIO_MAX
+#define NR_GPIO_IRQS		50
 
 #define NR_IRQS			(IRQ_KIRKWOOD_GPIO_START + NR_GPIO_IRQS)
 

@@ -2,7 +2,7 @@
  * arch/sh/kernel/ptrace_64.c
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2003 - 2007  Paul Mundt
+ * Copyright (C) 2003 - 2008  Paul Mundt
  *
  * Started from SH3/4 version:
  *   SuperH version:   Copyright (C) 1999, 2000  Kaz Kojima & Niibe Yutaka
@@ -29,6 +29,8 @@
 #include <linux/audit.h>
 #include <linux/seccomp.h>
 #include <linux/tracehook.h>
+#include <linux/elf.h>
+#include <linux/regset.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -137,6 +139,165 @@ void user_disable_single_step(struct task_struct *child)
 	regs->sr &= ~SR_SSTEP;
 }
 
+static int genregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
+{
+	const struct pt_regs *regs = task_pt_regs(target);
+	int ret;
+
+	/* PC, SR, SYSCALL */
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  &regs->pc,
+				  0, 3 * sizeof(unsigned long long));
+
+	/* R1 -> R63 */
+	if (!ret)
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					  regs->regs,
+					  offsetof(struct pt_regs, regs[0]),
+					  63 * sizeof(unsigned long long));
+	/* TR0 -> TR7 */
+	if (!ret)
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					  regs->tregs,
+					  offsetof(struct pt_regs, tregs[0]),
+					  8 * sizeof(unsigned long long));
+
+	if (!ret)
+		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					       sizeof(struct pt_regs), -1);
+
+	return ret;
+}
+
+static int genregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+	int ret;
+
+	/* PC, SR, SYSCALL */
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &regs->pc,
+				 0, 3 * sizeof(unsigned long long));
+
+	/* R1 -> R63 */
+	if (!ret && count > 0)
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+					 regs->regs,
+					 offsetof(struct pt_regs, regs[0]),
+					 63 * sizeof(unsigned long long));
+
+	/* TR0 -> TR7 */
+	if (!ret && count > 0)
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+					 regs->tregs,
+					 offsetof(struct pt_regs, tregs[0]),
+					 8 * sizeof(unsigned long long));
+
+	if (!ret)
+		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+						sizeof(struct pt_regs), -1);
+
+	return ret;
+}
+
+#ifdef CONFIG_SH_FPU
+int fpregs_get(struct task_struct *target,
+	       const struct user_regset *regset,
+	       unsigned int pos, unsigned int count,
+	       void *kbuf, void __user *ubuf)
+{
+	int ret;
+
+	ret = init_fpu(target);
+	if (ret)
+		return ret;
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &target->thread.fpu.hard, 0, -1);
+}
+
+static int fpregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+
+	ret = init_fpu(target);
+	if (ret)
+		return ret;
+
+	set_stopped_child_used_math(target);
+
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpu.hard, 0, -1);
+}
+
+static int fpregs_active(struct task_struct *target,
+			 const struct user_regset *regset)
+{
+	return tsk_used_math(target) ? regset->n : 0;
+}
+#endif
+
+/*
+ * These are our native regset flavours.
+ */
+enum sh_regset {
+	REGSET_GENERAL,
+#ifdef CONFIG_SH_FPU
+	REGSET_FPU,
+#endif
+};
+
+static const struct user_regset sh_regsets[] = {
+	/*
+	 * Format is:
+	 *	PC, SR, SYSCALL,
+	 *	R1 --> R63,
+	 *	TR0 --> TR7,
+	 */
+	[REGSET_GENERAL] = {
+		.core_note_type	= NT_PRSTATUS,
+		.n		= ELF_NGREG,
+		.size		= sizeof(long long),
+		.align		= sizeof(long long),
+		.get		= genregs_get,
+		.set		= genregs_set,
+	},
+
+#ifdef CONFIG_SH_FPU
+	[REGSET_FPU] = {
+		.core_note_type	= NT_PRFPREG,
+		.n		= sizeof(struct user_fpu_struct) /
+				  sizeof(long long),
+		.size		= sizeof(long long),
+		.align		= sizeof(long long),
+		.get		= fpregs_get,
+		.set		= fpregs_set,
+		.active		= fpregs_active,
+	},
+#endif
+};
+
+static const struct user_regset_view user_sh64_native_view = {
+	.name		= "sh64",
+	.e_machine	= EM_SH,
+	.regsets	= sh_regsets,
+	.n		= ARRAY_SIZE(sh_regsets),
+};
+
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+	return &user_sh64_native_view;
+}
+
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
@@ -195,10 +356,33 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 		break;
 
+	case PTRACE_GETREGS:
+		return copy_regset_to_user(child, &user_sh64_native_view,
+					   REGSET_GENERAL,
+					   0, sizeof(struct pt_regs),
+					   (void __user *)data);
+	case PTRACE_SETREGS:
+		return copy_regset_from_user(child, &user_sh64_native_view,
+					     REGSET_GENERAL,
+					     0, sizeof(struct pt_regs),
+					     (const void __user *)data);
+#ifdef CONFIG_SH_FPU
+	case PTRACE_GETFPREGS:
+		return copy_regset_to_user(child, &user_sh64_native_view,
+					   REGSET_FPU,
+					   0, sizeof(struct user_fpu_struct),
+					   (void __user *)data);
+	case PTRACE_SETFPREGS:
+		return copy_regset_from_user(child, &user_sh64_native_view,
+					     REGSET_FPU,
+					     0, sizeof(struct user_fpu_struct),
+					     (const void __user *)data);
+#endif
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
+
 	return ret;
 }
 

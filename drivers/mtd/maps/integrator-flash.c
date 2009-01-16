@@ -105,7 +105,7 @@ static int armflash_probe(struct platform_device *dev)
 	info->map.bankwidth	= plat->width;
 	info->map.phys		= res->start;
 	info->map.virt		= base;
-	info->map.name		= dev->dev.bus_id;
+	info->map.name		= dev_name(&dev->dev);
 	info->map.set_vpp	= armflash_set_vpp;
 
 	simple_map_init(&info->map);

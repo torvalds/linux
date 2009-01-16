@@ -3,6 +3,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/cdrom.h>
 #include <linux/delay.h>
 #include <linux/ide.h>
 #include <scsi/scsi.h>
@@ -13,6 +14,13 @@
 #else
 #define debug_log(fmt, args...) do {} while (0)
 #endif
+
+#define ATAPI_MIN_CDB_BYTES	12
+
+static inline int dev_is_idecd(ide_drive_t *drive)
+{
+	return drive->media == ide_cdrom || drive->media == ide_optical;
+}
 
 /*
  * Check whether we can support a device,
@@ -233,18 +241,49 @@ void ide_retry_pc(ide_drive_t *drive, struct gendisk *disk)
 }
 EXPORT_SYMBOL_GPL(ide_retry_pc);
 
-int ide_scsi_expiry(ide_drive_t *drive)
+int ide_cd_expiry(ide_drive_t *drive)
 {
-	struct ide_atapi_pc *pc = drive->pc;
+	struct request *rq = drive->hwif->rq;
+	unsigned long wait = 0;
 
-	debug_log("%s called for %lu at %lu\n", __func__,
-		  pc->scsi_cmd->serial_number, jiffies);
+	debug_log("%s: rq->cmd[0]: 0x%x\n", __func__, rq->cmd[0]);
 
-	pc->flags |= PC_FLAG_TIMEDOUT;
-
-	return 0; /* we do not want the IDE subsystem to retry */
+	/*
+	 * Some commands are *slow* and normally take a long time to complete.
+	 * Usually we can use the ATAPI "disconnect" to bypass this, but not all
+	 * commands/drives support that. Let ide_timer_expiry keep polling us
+	 * for these.
+	 */
+	switch (rq->cmd[0]) {
+	case GPCMD_BLANK:
+	case GPCMD_FORMAT_UNIT:
+	case GPCMD_RESERVE_RZONE_TRACK:
+	case GPCMD_CLOSE_TRACK:
+	case GPCMD_FLUSH_CACHE:
+		wait = ATAPI_WAIT_PC;
+		break;
+	default:
+		if (!(rq->cmd_flags & REQ_QUIET))
+			printk(KERN_INFO "cmd 0x%x timed out\n",
+					 rq->cmd[0]);
+		wait = 0;
+		break;
+	}
+	return wait;
 }
-EXPORT_SYMBOL_GPL(ide_scsi_expiry);
+EXPORT_SYMBOL_GPL(ide_cd_expiry);
+
+int ide_cd_get_xferlen(struct request *rq)
+{
+	if (blk_fs_request(rq))
+		return 32768;
+	else if (blk_sense_request(rq) || blk_pc_request(rq) ||
+			 rq->cmd_type == REQ_TYPE_ATA_PC)
+		return rq->data_len;
+	else
+		return 0;
+}
+EXPORT_SYMBOL_GPL(ide_cd_get_xferlen);
 
 /*
  * This is the usual interrupt handler which will be called during a packet
@@ -255,24 +294,17 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 {
 	struct ide_atapi_pc *pc = drive->pc;
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	xfer_func_t *xferfunc;
-	ide_expiry_t *expiry;
 	unsigned int timeout, temp;
 	u16 bcount;
-	u8 stat, ireason, scsi = !!(drive->dev_flags & IDE_DFLAG_SCSI), dsc = 0;
+	u8 stat, ireason, dsc = 0;
 
 	debug_log("Enter %s - interrupt handler\n", __func__);
 
-	if (scsi) {
-		timeout = ide_scsi_get_timeout(pc);
-		expiry = ide_scsi_expiry;
-	} else {
-		timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
-						       : WAIT_TAPE_CMD;
-		expiry = NULL;
-	}
+	timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
+					       : WAIT_TAPE_CMD;
 
 	if (pc->flags & PC_FLAG_TIMEDOUT) {
 		drive->pc_callback(drive, 0);
@@ -284,8 +316,8 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 	if (pc->flags & PC_FLAG_DMA_IN_PROGRESS) {
 		if (hwif->dma_ops->dma_end(drive) ||
-		    (drive->media == ide_tape && !scsi && (stat & ATA_ERR))) {
-			if (drive->media == ide_floppy && !scsi)
+		    (drive->media == ide_tape && (stat & ATA_ERR))) {
+			if (drive->media == ide_floppy)
 				printk(KERN_ERR "%s: DMA %s error\n",
 					drive->name, rq_data_dir(pc->rq)
 						     ? "write" : "read");
@@ -307,7 +339,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 
 		local_irq_enable_in_hardirq();
 
-		if (drive->media == ide_tape && !scsi &&
+		if (drive->media == ide_tape &&
 		    (stat & ATA_ERR) && rq->cmd[0] == REQUEST_SENSE)
 			stat &= ~ATA_ERR;
 
@@ -315,11 +347,8 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			/* Error detected */
 			debug_log("%s: I/O error\n", drive->name);
 
-			if (drive->media != ide_tape || scsi) {
+			if (drive->media != ide_tape)
 				pc->rq->errors++;
-				if (scsi)
-					goto cmd_finished;
-			}
 
 			if (rq->cmd[0] == REQUEST_SENSE) {
 				printk(KERN_ERR "%s: I/O error in request sense"
@@ -335,7 +364,6 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			/* queued, but not started */
 			return ide_stopped;
 		}
-cmd_finished:
 		pc->error = 0;
 
 		if ((pc->flags & PC_FLAG_WAIT_FOR_DSC) && (stat & ATA_DSC) == 0)
@@ -382,25 +410,8 @@ cmd_finished:
 						"us more data than expected - "
 						"discarding data\n",
 						drive->name);
-				if (scsi)
-					temp = pc->buf_size - pc->xferred;
-				else
-					temp = 0;
-				if (temp) {
-					if (pc->sg)
-						drive->pc_io_buffers(drive, pc,
-								     temp, 0);
-					else
-						tp_ops->input_data(drive, NULL,
-							pc->cur_pos, temp);
-					printk(KERN_ERR "%s: transferred %d of "
-							"%d bytes\n",
-							drive->name,
-							temp, bcount);
-				}
-				pc->xferred += temp;
-				pc->cur_pos += temp;
-				ide_pad_transfer(drive, 0, bcount - temp);
+
+				ide_pad_transfer(drive, 0, bcount);
 				goto next_irq;
 			}
 			debug_log("The device wants to send us more data than "
@@ -410,14 +421,13 @@ cmd_finished:
 	} else
 		xferfunc = tp_ops->output_data;
 
-	if ((drive->media == ide_floppy && !scsi && !pc->buf) ||
-	    (drive->media == ide_tape && !scsi && pc->bh) ||
-	    (scsi && pc->sg)) {
+	if ((drive->media == ide_floppy && !pc->buf) ||
+	    (drive->media == ide_tape && pc->bh)) {
 		int done = drive->pc_io_buffers(drive, pc, bcount,
 				  !!(pc->flags & PC_FLAG_WRITING));
 
 		/* FIXME: don't do partial completions */
-		if (drive->media == ide_floppy && !scsi)
+		if (drive->media == ide_floppy)
 			ide_end_request(drive, 1, done >> 9);
 	} else
 		xferfunc(drive, NULL, pc->cur_pos, bcount);
@@ -430,7 +440,7 @@ cmd_finished:
 		  rq->cmd[0], bcount);
 next_irq:
 	/* And set the interrupt handler again */
-	ide_set_handler(drive, ide_pc_intr, timeout, expiry);
+	ide_set_handler(drive, ide_pc_intr, timeout, NULL);
 	return ide_started;
 }
 
@@ -479,11 +489,12 @@ static int ide_delayed_transfer_pc(ide_drive_t *drive)
 
 static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 {
-	struct ide_atapi_pc *pc = drive->pc;
+	struct ide_atapi_pc *uninitialized_var(pc);
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	ide_expiry_t *expiry;
 	unsigned int timeout;
+	int cmd_len;
 	ide_startstop_t startstop;
 	u8 ireason;
 
@@ -493,101 +504,127 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 		return startstop;
 	}
 
-	ireason = ide_read_ireason(drive);
-	if (drive->media == ide_tape &&
-	    (drive->dev_flags & IDE_DFLAG_SCSI) == 0)
-		ireason = ide_wait_ireason(drive, ireason);
-
-	if ((ireason & ATAPI_COD) == 0 || (ireason & ATAPI_IO)) {
-		printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
-				"a packet command\n", drive->name);
-		return ide_do_reset(drive);
+	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
+		if (drive->dma)
+			drive->waiting_for_dma = 1;
 	}
 
-	/*
-	 * If necessary schedule the packet transfer to occur 'timeout'
-	 * miliseconds later in ide_delayed_transfer_pc() after the device
-	 * says it's ready for a packet.
-	 */
-	if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {
-		timeout = drive->pc_delay;
-		expiry = &ide_delayed_transfer_pc;
+	if (dev_is_idecd(drive)) {
+		/* ATAPI commands get padded out to 12 bytes minimum */
+		cmd_len = COMMAND_SIZE(rq->cmd[0]);
+		if (cmd_len < ATAPI_MIN_CDB_BYTES)
+			cmd_len = ATAPI_MIN_CDB_BYTES;
+
+		timeout = rq->timeout;
+		expiry  = ide_cd_expiry;
 	} else {
-		if (drive->dev_flags & IDE_DFLAG_SCSI) {
-			timeout = ide_scsi_get_timeout(pc);
-			expiry = ide_scsi_expiry;
+		pc = drive->pc;
+
+		cmd_len = ATAPI_MIN_CDB_BYTES;
+
+		/*
+		 * If necessary schedule the packet transfer to occur 'timeout'
+		 * miliseconds later in ide_delayed_transfer_pc() after the
+		 * device says it's ready for a packet.
+		 */
+		if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {
+			timeout = drive->pc_delay;
+			expiry = &ide_delayed_transfer_pc;
 		} else {
 			timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
 							       : WAIT_TAPE_CMD;
 			expiry = NULL;
 		}
+
+		ireason = ide_read_ireason(drive);
+		if (drive->media == ide_tape)
+			ireason = ide_wait_ireason(drive, ireason);
+
+		if ((ireason & ATAPI_COD) == 0 || (ireason & ATAPI_IO)) {
+			printk(KERN_ERR "%s: (IO,CoD) != (0,1) while issuing "
+					"a packet command\n", drive->name);
+
+			return ide_do_reset(drive);
+		}
 	}
 
 	/* Set the interrupt routine */
-	ide_set_handler(drive, ide_pc_intr, timeout, expiry);
+	ide_set_handler(drive,
+			(dev_is_idecd(drive) ? drive->irq_handler
+					     : ide_pc_intr),
+			timeout, expiry);
 
 	/* Begin DMA, if necessary */
-	if (pc->flags & PC_FLAG_DMA_OK) {
-		pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
-		hwif->dma_ops->dma_start(drive);
+	if (dev_is_idecd(drive)) {
+		if (drive->dma)
+			hwif->dma_ops->dma_start(drive);
+	} else {
+		if (pc->flags & PC_FLAG_DMA_OK) {
+			pc->flags |= PC_FLAG_DMA_IN_PROGRESS;
+			hwif->dma_ops->dma_start(drive);
+		}
 	}
 
 	/* Send the actual packet */
 	if ((drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) == 0)
-		hwif->tp_ops->output_data(drive, NULL, rq->cmd, 12);
+		hwif->tp_ops->output_data(drive, NULL, rq->cmd, cmd_len);
 
 	return ide_started;
 }
 
-ide_startstop_t ide_issue_pc(ide_drive_t *drive, unsigned int timeout,
-			     ide_expiry_t *expiry)
+ide_startstop_t ide_issue_pc(ide_drive_t *drive)
 {
-	struct ide_atapi_pc *pc = drive->pc;
+	struct ide_atapi_pc *pc;
 	ide_hwif_t *hwif = drive->hwif;
+	ide_expiry_t *expiry = NULL;
+	unsigned int timeout;
 	u32 tf_flags;
 	u16 bcount;
-	u8 scsi = !!(drive->dev_flags & IDE_DFLAG_SCSI);
 
-	/* We haven't transferred any data yet */
-	pc->xferred = 0;
-	pc->cur_pos = pc->buf;
-
-	/* Request to transfer the entire buffer at once */
-	if (drive->media == ide_tape && scsi == 0)
-		bcount = pc->req_xfer;
-	else
-		bcount = min(pc->req_xfer, 63 * 1024);
-
-	if (pc->flags & PC_FLAG_DMA_ERROR) {
-		pc->flags &= ~PC_FLAG_DMA_ERROR;
-		ide_dma_off(drive);
-	}
-
-	if ((pc->flags & PC_FLAG_DMA_OK) &&
-	    (drive->dev_flags & IDE_DFLAG_USING_DMA)) {
-		if (scsi)
-			hwif->sg_mapped = 1;
-		drive->dma = !hwif->dma_ops->dma_setup(drive);
-		if (scsi)
-			hwif->sg_mapped = 0;
-	}
-
-	if (!drive->dma)
-		pc->flags &= ~PC_FLAG_DMA_OK;
-
-	if (scsi)
-		tf_flags = 0;
-	else if (drive->media == ide_cdrom || drive->media == ide_optical)
+	if (dev_is_idecd(drive)) {
 		tf_flags = IDE_TFLAG_OUT_NSECT | IDE_TFLAG_OUT_LBAL;
-	else
+		bcount = ide_cd_get_xferlen(hwif->rq);
+		expiry = ide_cd_expiry;
+		timeout = ATAPI_WAIT_PC;
+
+		if (drive->dma)
+			drive->dma = !hwif->dma_ops->dma_setup(drive);
+	} else {
+		pc = drive->pc;
+
+		/* We haven't transferred any data yet */
+		pc->xferred = 0;
+		pc->cur_pos = pc->buf;
+
 		tf_flags = IDE_TFLAG_OUT_DEVICE;
+		bcount = ((drive->media == ide_tape) ?
+				pc->req_xfer :
+				min(pc->req_xfer, 63 * 1024));
+
+		if (pc->flags & PC_FLAG_DMA_ERROR) {
+			pc->flags &= ~PC_FLAG_DMA_ERROR;
+			ide_dma_off(drive);
+		}
+
+		if ((pc->flags & PC_FLAG_DMA_OK) &&
+		     (drive->dev_flags & IDE_DFLAG_USING_DMA))
+			drive->dma = !hwif->dma_ops->dma_setup(drive);
+
+		if (!drive->dma)
+			pc->flags &= ~PC_FLAG_DMA_OK;
+
+		timeout = (drive->media == ide_floppy) ? WAIT_FLOPPY_CMD
+						       : WAIT_TAPE_CMD;
+	}
 
 	ide_pktcmd_tf_load(drive, tf_flags, bcount, drive->dma);
 
 	/* Issue the packet command */
 	if (drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT) {
+		if (drive->dma)
+			drive->waiting_for_dma = 0;
 		ide_execute_command(drive, ATA_CMD_PACKET, ide_transfer_pc,
-				    timeout, NULL);
+				    timeout, expiry);
 		return ide_started;
 	} else {
 		ide_execute_pkt_cmd(drive);

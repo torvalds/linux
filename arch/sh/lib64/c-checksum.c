@@ -35,7 +35,7 @@ static inline unsigned short foldto16(unsigned long x)
 
 static inline unsigned short myfoldto16(unsigned long long x)
 {
-	/* Fold down to 32-bits so we don't loose in the typedef-less
+	/* Fold down to 32-bits so we don't lose in the typedef-less
 	   network stack.  */
 	/* 64 to 33 */
 	x = (x & 0xffffffff) + (x >> 32);
@@ -199,7 +199,7 @@ __wsum csum_tcpudp_nofold(__be32 saddr, __be32 daddr,
 	result = (__force u64) saddr + (__force u64) daddr +
 		 (__force u64) sum + ((len + proto) << 8);
 
-	/* Fold down to 32-bits so we don't loose in the typedef-less
+	/* Fold down to 32-bits so we don't lose in the typedef-less
 	   network stack.  */
 	/* 64 to 33 */
 	result = (result & 0xffffffff) + (result >> 32);

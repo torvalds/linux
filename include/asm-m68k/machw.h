@@ -26,28 +26,6 @@
 #include <linux/types.h>
 
 #if 0
-/* Mac SCSI Controller 5380 */
-
-#define	MAC_5380_BAS	(0x50F10000) /* This is definitely wrong!! */
-struct MAC_5380 {
-	u_char	scsi_data;
-	u_char	char_dummy1;
-	u_char	scsi_icr;
-	u_char	char_dummy2;
-	u_char	scsi_mode;
-	u_char	char_dummy3;
-	u_char	scsi_tcr;
-	u_char	char_dummy4;
-	u_char	scsi_idstat;
-	u_char	char_dummy5;
-	u_char	scsi_dmastat;
-	u_char	char_dummy6;
-	u_char	scsi_targrcv;
-	u_char	char_dummy7;
-	u_char	scsi_inircv;
-};
-#define	mac_scsi       ((*(volatile struct MAC_5380 *)MAC_5380_BAS))
-
 /*
 ** SCC Z8530
 */

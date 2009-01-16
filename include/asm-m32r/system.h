@@ -23,7 +23,7 @@
  */
 
 #if defined(CONFIG_FRAME_POINTER) || \
-	!defined(CONFIG_SCHED_NO_NO_OMIT_FRAME_POINTER)
+	!defined(CONFIG_SCHED_OMIT_FRAME_POINTER)
 #define M32R_PUSH_FP "	push fp\n"
 #define M32R_POP_FP  "	pop  fp\n"
 #else

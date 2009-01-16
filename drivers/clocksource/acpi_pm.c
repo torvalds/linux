@@ -57,11 +57,6 @@ u32 acpi_pm_read_verified(void)
 	return v2;
 }
 
-static cycle_t acpi_pm_read_slow(void)
-{
-	return (cycle_t)acpi_pm_read_verified();
-}
-
 static cycle_t acpi_pm_read(void)
 {
 	return (cycle_t)read_pmtmr();
@@ -87,6 +82,11 @@ static int __init acpi_pm_good_setup(char *__str)
 	return 1;
 }
 __setup("acpi_pm_good", acpi_pm_good_setup);
+
+static cycle_t acpi_pm_read_slow(void)
+{
+	return (cycle_t)acpi_pm_read_verified();
+}
 
 static inline void acpi_pm_need_workaround(void)
 {

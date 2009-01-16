@@ -257,8 +257,8 @@ void opregion_enable_asle(struct drm_device *dev)
 
 static struct intel_opregion *system_opregion;
 
-int intel_opregion_video_event(struct notifier_block *nb, unsigned long val,
-			       void *data)
+static int intel_opregion_video_event(struct notifier_block *nb,
+				      unsigned long val, void *data)
 {
 	/* The only video events relevant to opregion are 0x80. These indicate
 	   either a docking event, lid switch or display switch request. In

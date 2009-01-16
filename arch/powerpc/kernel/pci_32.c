@@ -26,12 +26,6 @@
 
 #undef DEBUG
 
-#ifdef DEBUG
-#define DBG(x...) printk(x)
-#else
-#define DBG(x...)
-#endif
-
 unsigned long isa_io_base     = 0;
 unsigned long pci_dram_offset = 0;
 int pcibios_assign_bus_offset = 1;
@@ -272,17 +266,14 @@ pci_busdev_to_OF_node(struct pci_bus *bus, int devfn)
 {
 	struct device_node *parent, *np;
 
-	if (!have_of)
-		return NULL;
-
-	DBG("pci_busdev_to_OF_node(%d,0x%x)\n", bus->number, devfn);
+	pr_debug("pci_busdev_to_OF_node(%d,0x%x)\n", bus->number, devfn);
 	parent = scan_OF_for_pci_bus(bus);
 	if (parent == NULL)
 		return NULL;
-	DBG(" parent is %s\n", parent ? parent->full_name : "<NULL>");
+	pr_debug(" parent is %s\n", parent ? parent->full_name : "<NULL>");
 	np = scan_OF_for_pci_dev(parent, devfn);
 	of_node_put(parent);
-	DBG(" result is %s\n", np ? np->full_name : "<NULL>");
+	pr_debug(" result is %s\n", np ? np->full_name : "<NULL>");
 
 	/* XXX most callers don't release the returned node
 	 * mostly because ppc64 doesn't increase the refcount,
@@ -315,8 +306,6 @@ pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 	struct pci_controller* hose;
 	struct pci_dev* dev = NULL;
 	
-	if (!have_of)
-		return -ENODEV;
 	/* Make sure it's really a PCI device */
 	hose = pci_find_hose_for_OF_device(node);
 	if (!hose || !hose->dn)
@@ -379,10 +368,41 @@ void pcibios_make_OF_bus_map(void)
 }
 #endif /* CONFIG_PPC_OF */
 
+static void __devinit pcibios_scan_phb(struct pci_controller *hose)
+{
+	struct pci_bus *bus;
+	struct device_node *node = hose->dn;
+	unsigned long io_offset;
+	struct resource *res = &hose->io_resource;
+
+	pr_debug("PCI: Scanning PHB %s\n",
+		 node ? node->full_name : "<NO NAME>");
+
+	/* Create an empty bus for the toplevel */
+	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops, hose);
+	if (bus == NULL) {
+		printk(KERN_ERR "Failed to create bus for PCI domain %04x\n",
+		       hose->global_number);
+		return;
+	}
+	bus->secondary = hose->first_busno;
+	hose->bus = bus;
+
+	/* Fixup IO space offset */
+	io_offset = (unsigned long)hose->io_base_virt - isa_io_base;
+	res->start = (res->start + io_offset) & 0xffffffffu;
+	res->end = (res->end + io_offset) & 0xffffffffu;
+
+	/* Wire up PHB bus resources */
+	pcibios_setup_phb_resources(hose);
+
+	/* Scan children */
+	hose->last_busno = bus->subordinate = pci_scan_child_bus(bus);
+}
+
 static int __init pcibios_init(void)
 {
 	struct pci_controller *hose, *tmp;
-	struct pci_bus *bus;
 	int next_busno = 0;
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
@@ -395,12 +415,8 @@ static int __init pcibios_init(void)
 		if (pci_assign_all_buses)
 			hose->first_busno = next_busno;
 		hose->last_busno = 0xff;
-		bus = pci_scan_bus_parented(hose->parent, hose->first_busno,
-					    hose->ops, hose);
-		if (bus) {
-			pci_bus_add_devices(bus);
-			hose->last_busno = bus->subordinate;
-		}
+		pcibios_scan_phb(hose);
+		pci_bus_add_devices(hose->bus);
 		if (pci_assign_all_buses || next_busno <= hose->last_busno)
 			next_busno = hose->last_busno + pcibios_assign_bus_offset;
 	}
@@ -410,7 +426,7 @@ static int __init pcibios_init(void)
 	 * numbers vs. kernel bus numbers since we may have to
 	 * remap them.
 	 */
-	if (pci_assign_all_buses && have_of)
+	if (pci_assign_all_buses)
 		pcibios_make_OF_bus_map();
 
 	/* Call common code to handle resource allocation */
@@ -424,54 +440,6 @@ static int __init pcibios_init(void)
 }
 
 subsys_initcall(pcibios_init);
-
-void __devinit pcibios_do_bus_setup(struct pci_bus *bus)
-{
-	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
-	unsigned long io_offset;
-	struct resource *res;
-	int i;
-	struct pci_dev *dev;
-
-	/* Hookup PHB resources */
-	io_offset = (unsigned long)hose->io_base_virt - isa_io_base;
-	if (bus->parent == NULL) {
-		/* This is a host bridge - fill in its resources */
-		hose->bus = bus;
-
-		bus->resource[0] = res = &hose->io_resource;
-		if (!res->flags) {
-			if (io_offset)
-				printk(KERN_ERR "I/O resource not set for host"
-				       " bridge %d\n", hose->global_number);
-			res->start = 0;
-			res->end = IO_SPACE_LIMIT;
-			res->flags = IORESOURCE_IO;
-		}
-		res->start = (res->start + io_offset) & 0xffffffffu;
-		res->end = (res->end + io_offset) & 0xffffffffu;
-
-		for (i = 0; i < 3; ++i) {
-			res = &hose->mem_resources[i];
-			if (!res->flags) {
-				if (i > 0)
-					continue;
-				printk(KERN_ERR "Memory resource not set for "
-				       "host bridge %d\n", hose->global_number);
-				res->start = hose->pci_mem_offset;
-				res->end = ~0U;
-				res->flags = IORESOURCE_MEM;
-			}
-			bus->resource[i+1] = res;
-		}
-	}
-
-	if (ppc_md.pci_dma_bus_setup)
-		ppc_md.pci_dma_bus_setup(bus);
-
-	list_for_each_entry(dev, &bus->devices, bus_list)
-		pcibios_setup_new_device(dev);
-}
 
 /* the next one is stolen from the alpha port... */
 void __init

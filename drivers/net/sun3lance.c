@@ -303,7 +303,6 @@ static int __init lance_probe( struct net_device *dev)
 	static int 		did_version;
 	volatile unsigned short *ioaddr_probe;
 	unsigned short tmp1, tmp2;
-	DECLARE_MAC_BUF(mac);
 
 #ifdef CONFIG_SUN3
 	ioaddr = (unsigned long)ioremap(LANCE_OBIO, PAGE_SIZE);
@@ -379,7 +378,7 @@ static int __init lance_probe( struct net_device *dev)
 	MEM->init.hwaddr[4] = dev->dev_addr[5];
 	MEM->init.hwaddr[5] = dev->dev_addr[4];
 
-	printk("%s\n", print_mac(mac, dev->dev_addr));
+	printk("%pM\n", dev->dev_addr);
 
 	MEM->init.mode = 0x0000;
 	MEM->init.filter[0] = 0x00000000;
@@ -824,12 +823,10 @@ static int lance_rx( struct net_device *dev )
 #if 0
 				if (lance_debug >= 3) {
 					u_char *data = PKTBUF_ADDR(head);
-					DECLARE_MAC_BUF(mac);
-					DECLARE_MAC_BUF(mac2)
 					printk("%s: RX pkt %d type 0x%04x"
-					       " from %s to %s",
+					       " from %pM to %pM",
 					       dev->name, lp->new_tx, ((u_short *)data)[6],
-					       print_mac(mac, &data[6]), print_mac(mac2, data));
+					       &data[6], data);
 
 					printk(" data %02x %02x %02x %02x %02x %02x %02x %02x "
 					       "len %d at %08x\n",
@@ -852,7 +849,6 @@ static int lance_rx( struct net_device *dev )
 
 				skb->protocol = eth_type_trans( skb, dev );
 				netif_rx( skb );
-				dev->last_rx = jiffies;
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += pkt_len;
 			}

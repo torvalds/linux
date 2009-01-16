@@ -930,8 +930,8 @@ static inline void mangle_address(unsigned char *begin,
 		}
 
 		if (debug)
-			printk(KERN_DEBUG "bsalg: mapped %u.%u.%u.%u to "
-			       "%u.%u.%u.%u\n", NIPQUAD(old), NIPQUAD(*addr));
+			printk(KERN_DEBUG "bsalg: mapped %pI4 to %pI4\n",
+			       &old, addr);
 	}
 }
 
@@ -1267,9 +1267,8 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 	 */
 	if (ntohs(udph->len) != skb->len - (iph->ihl << 2)) {
 		 if (net_ratelimit())
-			 printk(KERN_WARNING "SNMP: dropping malformed packet "
-				"src=%u.%u.%u.%u dst=%u.%u.%u.%u\n",
-				NIPQUAD(iph->saddr), NIPQUAD(iph->daddr));
+			 printk(KERN_WARNING "SNMP: dropping malformed packet src=%pI4 dst=%pI4\n",
+				&iph->saddr, &iph->daddr);
 		 return NF_DROP;
 	}
 

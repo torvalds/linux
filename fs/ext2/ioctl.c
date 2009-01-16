@@ -50,8 +50,7 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto setflags_out;
 		}
 
-		if (!S_ISDIR(inode->i_mode))
-			flags &= ~EXT2_DIRSYNC_FL;
+		flags = ext2_mask_flags(inode->i_mode, flags);
 
 		mutex_lock(&inode->i_mutex);
 		/* Is it quota file? Do not allow user to mess with it */

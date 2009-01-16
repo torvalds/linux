@@ -74,7 +74,7 @@ struct sta_info {
 	u32 tx_since_last_failure;
 	u32 tx_consecutive_exc;
 
-	struct ieee80211_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 
 	int ap; /* whether this station is an AP */
 
@@ -209,7 +209,7 @@ struct ap_data {
 
 	/* WEP operations for generating challenges to be used with shared key
 	 * authentication */
-	struct ieee80211_crypto_ops *crypt;
+	struct lib80211_crypto_ops *crypt;
 	void *crypt_priv;
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 };
@@ -229,7 +229,7 @@ typedef enum {
 struct hostap_tx_data {
 	struct sk_buff *skb;
 	int host_encrypt;
-	struct ieee80211_crypt_data *crypt;
+	struct lib80211_crypt_data *crypt;
 	void *sta_ptr;
 };
 ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx);
@@ -244,7 +244,7 @@ ap_rx_ret hostap_handle_sta_rx(local_info_t *local, struct net_device *dev,
 			       struct hostap_80211_rx_status *rx_stats,
 			       int wds);
 int hostap_handle_sta_crypto(local_info_t *local, struct ieee80211_hdr_4addr *hdr,
-			     struct ieee80211_crypt_data **crypt,
+			     struct lib80211_crypt_data **crypt,
 			     void **sta_ptr);
 int hostap_is_sta_assoc(struct ap_data *ap, u8 *sta_addr);
 int hostap_is_sta_authorized(struct ap_data *ap, u8 *sta_addr);

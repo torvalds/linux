@@ -554,7 +554,7 @@ thermostat_init(void)
 	const u32 *prop;
 	int i = 0, offset = 0;
 	int err;
-	
+
 	np = of_find_node_by_name(NULL, "fan");
 	if (!np)
 		return -ENODEV;
@@ -613,13 +613,13 @@ thermostat_init(void)
 	}
 
 	of_dev = of_platform_device_create(np, "temperatures", NULL);
-	
+	of_node_put(np);
+
 	if (of_dev == NULL) {
 		printk(KERN_ERR "Can't register temperatures device !\n");
-		of_node_put(np);
 		return -ENODEV;
 	}
-	
+
 	err = device_create_file(&of_dev->dev, &dev_attr_sensor1_temperature);
 	err |= device_create_file(&of_dev->dev, &dev_attr_sensor2_temperature);
 	err |= device_create_file(&of_dev->dev, &dev_attr_sensor1_limit);

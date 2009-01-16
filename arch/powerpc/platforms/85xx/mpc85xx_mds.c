@@ -231,7 +231,7 @@ static void __init mpc85xx_mds_setup_arch(void)
 
 static int __init board_fixups(void)
 {
-	char phy_id[BUS_ID_SIZE];
+	char phy_id[20];
 	char *compstrs[2] = {"fsl,gianfar-mdio", "fsl,ucc-mdio"};
 	struct device_node *mdio;
 	struct resource res;
@@ -241,13 +241,15 @@ static int __init board_fixups(void)
 		mdio = of_find_compatible_node(NULL, NULL, compstrs[i]);
 
 		of_address_to_resource(mdio, 0, &res);
-		snprintf(phy_id, BUS_ID_SIZE, "%x:%02x", res.start, 1);
+		snprintf(phy_id, sizeof(phy_id), "%llx:%02x",
+			(unsigned long long)res.start, 1);
 
 		phy_register_fixup_for_id(phy_id, mpc8568_fixup_125_clock);
 		phy_register_fixup_for_id(phy_id, mpc8568_mds_phy_fixups);
 
 		/* Register a workaround for errata */
-		snprintf(phy_id, BUS_ID_SIZE, "%x:%02x", res.start, 7);
+		snprintf(phy_id, sizeof(phy_id), "%llx:%02x",
+			(unsigned long long)res.start, 7);
 		phy_register_fixup_for_id(phy_id, mpc8568_mds_phy_fixups);
 
 		of_node_put(mdio);

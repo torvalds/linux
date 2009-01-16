@@ -111,7 +111,7 @@ static struct ctrl sd_ctrls[] = {
 	},
 };
 
-static struct v4l2_pix_format vga_mode[] = {
+static const struct v4l2_pix_format vga_mode[] = {
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 8 + 590,
@@ -124,7 +124,7 @@ static struct v4l2_pix_format vga_mode[] = {
 		.priv = 0},
 };
 
-static struct v4l2_pix_format sif_mode[] = {
+static const struct v4l2_pix_format sif_mode[] = {
 	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 8 + 590,
@@ -633,10 +633,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->subtype = id->driver_info;
 	if (sd->subtype != LogitechClickSmart310) {
 		cam->cam_mode = vga_mode;
-		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+		cam->nmodes = ARRAY_SIZE(vga_mode);
 	} else {
 		cam->cam_mode = sif_mode;
-		cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
+		cam->nmodes = ARRAY_SIZE(sif_mode);
 	}
 	sd->qindex = 5;
 	sd->brightness = BRIGHTNESS_DEF;

@@ -197,9 +197,6 @@ static void fail_mirror(struct mirror *m, enum dm_raid1_error error_type)
 	struct mirror_set *ms = m->ms;
 	struct mirror *new;
 
-	if (!errors_handled(ms))
-		return;
-
 	/*
 	 * error_count is used for nothing more than a
 	 * simple way to tell if a device has encountered
@@ -208,6 +205,9 @@ static void fail_mirror(struct mirror *m, enum dm_raid1_error error_type)
 	atomic_inc(&m->error_count);
 
 	if (test_and_set_bit(error_type, &m->error_type))
+		return;
+
+	if (!errors_handled(ms))
 		return;
 
 	if (m != get_default_mirror(ms))
@@ -808,12 +808,6 @@ static void free_context(struct mirror_set *ms, struct dm_target *ti,
 	kfree(ms);
 }
 
-static inline int _check_region_size(struct dm_target *ti, uint32_t size)
-{
-	return !(size % (PAGE_SIZE >> 9) || !is_power_of_2(size) ||
-		 size > ti->len);
-}
-
 static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 		      unsigned int mirror, char **argv)
 {
@@ -869,12 +863,6 @@ static struct dm_dirty_log *create_dirty_log(struct dm_target *ti,
 	dl = dm_dirty_log_create(argv[0], ti, param_count, argv + 2);
 	if (!dl) {
 		ti->error = "Error creating mirror dirty log";
-		return NULL;
-	}
-
-	if (!_check_region_size(ti, dl->type->get_region_size(dl))) {
-		ti->error = "Invalid region size";
-		dm_dirty_log_destroy(dl);
 		return NULL;
 	}
 
@@ -1300,11 +1288,7 @@ static int __init dm_mirror_init(void)
 
 static void __exit dm_mirror_exit(void)
 {
-	int r;
-
-	r = dm_unregister_target(&mirror_target);
-	if (r < 0)
-		DMERR("unregister failed %d", r);
+	dm_unregister_target(&mirror_target);
 }
 
 /* Module hooks */

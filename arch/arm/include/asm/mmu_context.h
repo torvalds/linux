@@ -14,6 +14,7 @@
 #define __ASM_ARM_MMU_CONTEXT_H
 
 #include <linux/compiler.h>
+#include <linux/sched.h>
 #include <asm/cacheflush.h>
 #include <asm/cachetype.h>
 #include <asm/proc-fns.h>

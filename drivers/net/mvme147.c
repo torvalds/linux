@@ -67,7 +67,6 @@ struct net_device * __init mvme147lance_probe(int unit)
 	u_long *addr;
 	u_long address;
 	int err;
-	DECLARE_MAC_BUF(mac);
 
 	if (!MACH_IS_MVME147 || called)
 		return ERR_PTR(-ENODEV);
@@ -102,11 +101,11 @@ struct net_device * __init mvme147lance_probe(int unit)
 	dev->dev_addr[3]=address&0xff;
 
 	printk("%s: MVME147 at 0x%08lx, irq %d, "
-	       "Hardware Address %s\n",
+	       "Hardware Address %pM\n",
 	       dev->name, dev->base_addr, MVME147_LANCE_IRQ,
-	       print_mac(mac, dev->dev_addr));
+	       dev->dev_addr);
 
-	lp = (struct m147lance_private *)dev->priv;
+	lp = netdev_priv(dev);
 	lp->ram = __get_dma_pages(GFP_ATOMIC, 3);	/* 16K */
 	if (!lp->ram)
 	{
@@ -190,7 +189,7 @@ int __init init_module(void)
 
 void __exit cleanup_module(void)
 {
-	struct m147lance_private *lp = dev_mvme147_lance->priv;
+	struct m147lance_private *lp = netdev_priv(dev_mvme147_lance);
 	unregister_netdev(dev_mvme147_lance);
 	free_pages(lp->ram, 3);
 	free_netdev(dev_mvme147_lance);

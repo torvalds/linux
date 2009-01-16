@@ -1833,7 +1833,7 @@ static struct pxa25x_udc memory = {
 		.ep0		= &memory.ep[0].ep,
 		.name		= driver_name,
 		.dev = {
-			.bus_id		= "gadget",
+			.init_name	= "gadget",
 			.release	= nop_release,
 		},
 	},
@@ -2145,7 +2145,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return -ENODEV;
 
-	dev->clk = clk_get(&pdev->dev, "UDCCLK");
+	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		retval = PTR_ERR(dev->clk);
 		goto err_clk;
@@ -2198,7 +2198,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	udc_disable(dev);
 	udc_reinit(dev);
 
-	dev->vbus = is_vbus_present();
+	dev->vbus = !!is_vbus_present();
 
 	/* irq setup after old hardware state is cleaned up */
 	retval = request_irq(irq, pxa25x_udc_irq,

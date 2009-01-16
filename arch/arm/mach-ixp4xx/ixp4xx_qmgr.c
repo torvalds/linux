@@ -14,14 +14,16 @@
 #include <linux/module.h>
 #include <mach/qmgr.h>
 
-#define DEBUG		0
-
 struct qmgr_regs __iomem *qmgr_regs;
 static struct resource *mem_res;
 static spinlock_t qmgr_lock;
 static u32 used_sram_bitmap[4]; /* 128 16-dword pages */
 static void (*irq_handlers[HALF_QUEUES])(void *pdev);
 static void *irq_pdevs[HALF_QUEUES];
+
+#if DEBUG_QMGR
+char qmgr_queue_descs[QUEUES][32];
+#endif
 
 void qmgr_set_irq(unsigned int queue, int src,
 		  void (*handler)(void *pdev), void *pdev)
@@ -70,6 +72,7 @@ void qmgr_disable_irq(unsigned int queue)
 	spin_lock_irqsave(&qmgr_lock, flags);
 	__raw_writel(__raw_readl(&qmgr_regs->irqen[0]) & ~(1 << queue),
 		     &qmgr_regs->irqen[0]);
+	__raw_writel(1 << queue, &qmgr_regs->irqstat[0]); /* clear */
 	spin_unlock_irqrestore(&qmgr_lock, flags);
 }
 
@@ -81,9 +84,16 @@ static inline void shift_mask(u32 *mask)
 	mask[0] <<= 1;
 }
 
+#if DEBUG_QMGR
 int qmgr_request_queue(unsigned int queue, unsigned int len /* dwords */,
 		       unsigned int nearly_empty_watermark,
-		       unsigned int nearly_full_watermark)
+		       unsigned int nearly_full_watermark,
+		       const char *desc_format, const char* name)
+#else
+int __qmgr_request_queue(unsigned int queue, unsigned int len /* dwords */,
+			 unsigned int nearly_empty_watermark,
+			 unsigned int nearly_full_watermark)
+#endif
 {
 	u32 cfg, addr = 0, mask[4]; /* in 16-dwords */
 	int err;
@@ -151,12 +161,13 @@ int qmgr_request_queue(unsigned int queue, unsigned int len /* dwords */,
 	used_sram_bitmap[2] |= mask[2];
 	used_sram_bitmap[3] |= mask[3];
 	__raw_writel(cfg | (addr << 14), &qmgr_regs->sram[queue]);
-	spin_unlock_irq(&qmgr_lock);
-
-#if DEBUG
-	printk(KERN_DEBUG "qmgr: requested queue %i, addr = 0x%02X\n",
-	       queue, addr);
+#if DEBUG_QMGR
+	snprintf(qmgr_queue_descs[queue], sizeof(qmgr_queue_descs[0]),
+		 desc_format, name);
+	printk(KERN_DEBUG "qmgr: requested queue %s(%i) addr = 0x%02X\n",
+	       qmgr_queue_descs[queue], queue, addr);
 #endif
+	spin_unlock_irq(&qmgr_lock);
 	return 0;
 
 err:
@@ -189,6 +200,11 @@ void qmgr_release_queue(unsigned int queue)
 	while (addr--)
 		shift_mask(mask);
 
+#if DEBUG_QMGR
+	printk(KERN_DEBUG "qmgr: releasing queue %s(%i)\n",
+	       qmgr_queue_descs[queue], queue);
+	qmgr_queue_descs[queue][0] = '\x0';
+#endif
 	__raw_writel(0, &qmgr_regs->sram[queue]);
 
 	used_sram_bitmap[0] &= ~mask[0];
@@ -199,9 +215,10 @@ void qmgr_release_queue(unsigned int queue)
 	spin_unlock_irq(&qmgr_lock);
 
 	module_put(THIS_MODULE);
-#if DEBUG
-	printk(KERN_DEBUG "qmgr: released queue %i\n", queue);
-#endif
+
+	while ((addr = qmgr_get_entry(queue)))
+		printk(KERN_ERR "qmgr: released queue %i not empty: 0x%08X\n",
+		       queue, addr);
 }
 
 static int qmgr_init(void)
@@ -272,5 +289,10 @@ EXPORT_SYMBOL(qmgr_regs);
 EXPORT_SYMBOL(qmgr_set_irq);
 EXPORT_SYMBOL(qmgr_enable_irq);
 EXPORT_SYMBOL(qmgr_disable_irq);
+#if DEBUG_QMGR
+EXPORT_SYMBOL(qmgr_queue_descs);
 EXPORT_SYMBOL(qmgr_request_queue);
+#else
+EXPORT_SYMBOL(__qmgr_request_queue);
+#endif
 EXPORT_SYMBOL(qmgr_release_queue);

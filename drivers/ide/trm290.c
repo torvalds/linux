@@ -144,7 +144,7 @@
 
 static void trm290_prepare_drive (ide_drive_t *drive, unsigned int use_dma)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	u16 reg = 0;
 	unsigned long flags;
 
@@ -184,7 +184,7 @@ static void trm290_dma_exec_cmd(ide_drive_t *drive, u8 command)
 static int trm290_dma_setup(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct request *rq = hwif->hwgroup->rq;
+	struct request *rq = hwif->rq;
 	unsigned int count, rw;
 
 	if (rq_data_dir(rq)) {
@@ -222,15 +222,15 @@ static int trm290_dma_end(ide_drive_t *drive)
 	drive->waiting_for_dma = 0;
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
-	status = inw(HWIF(drive)->dma_base + 2);
+	status = inw(drive->hwif->dma_base + 2);
+
 	return status != 0x00ff;
 }
 
 static int trm290_dma_test_irq(ide_drive_t *drive)
 {
-	u16 status;
+	u16 status = inw(drive->hwif->dma_base + 2);
 
-	status = inw(HWIF(drive)->dma_base + 2);
 	return status == 0x00ff;
 }
 
@@ -328,10 +328,10 @@ static struct ide_dma_ops trm290_dma_ops = {
 static const struct ide_port_info trm290_chipset __devinitdata = {
 	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_trm290,
-	.chipset	= ide_trm290,
 	.port_ops	= &trm290_port_ops,
 	.dma_ops	= &trm290_dma_ops,
-	.host_flags	= IDE_HFLAG_NO_ATAPI_DMA |
+	.host_flags	= IDE_HFLAG_TRM290 |
+			  IDE_HFLAG_NO_ATAPI_DMA |
 #if 0 /* play it safe for now */
 			  IDE_HFLAG_TRUST_BIOS_FOR_DMA |
 #endif

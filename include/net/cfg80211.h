@@ -5,6 +5,8 @@
 #include <linux/skbuff.h>
 #include <linux/nl80211.h>
 #include <net/genetlink.h>
+/* remove once we remove the wext stuff */
+#include <net/iw_handler.h>
 
 /*
  * 802.11 configuration in-kernel interface
@@ -167,6 +169,9 @@ struct station_parameters {
  * @STATION_INFO_LLID: @llid filled
  * @STATION_INFO_PLID: @plid filled
  * @STATION_INFO_PLINK_STATE: @plink_state filled
+ * @STATION_INFO_SIGNAL: @signal filled
+ * @STATION_INFO_TX_BITRATE: @tx_bitrate fields are filled
+ *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -175,6 +180,39 @@ enum station_info_flags {
 	STATION_INFO_LLID		= 1<<3,
 	STATION_INFO_PLID		= 1<<4,
 	STATION_INFO_PLINK_STATE	= 1<<5,
+	STATION_INFO_SIGNAL		= 1<<6,
+	STATION_INFO_TX_BITRATE		= 1<<7,
+};
+
+/**
+ * enum station_info_rate_flags - bitrate info flags
+ *
+ * Used by the driver to indicate the specific rate transmission
+ * type for 802.11n transmissions.
+ *
+ * @RATE_INFO_FLAGS_MCS: @tx_bitrate_mcs filled
+ * @RATE_INFO_FLAGS_40_MHZ_WIDTH: 40 Mhz width transmission
+ * @RATE_INFO_FLAGS_SHORT_GI: 400ns guard interval
+ */
+enum rate_info_flags {
+	RATE_INFO_FLAGS_MCS		= 1<<0,
+	RATE_INFO_FLAGS_40_MHZ_WIDTH	= 1<<1,
+	RATE_INFO_FLAGS_SHORT_GI	= 1<<2,
+};
+
+/**
+ * struct rate_info - bitrate information
+ *
+ * Information about a receiving or transmitting bitrate
+ *
+ * @flags: bitflag of flags from &enum rate_info_flags
+ * @mcs: mcs index if struct describes a 802.11n bitrate
+ * @legacy: bitrate in 100kbit/s for 802.11abg
+ */
+struct rate_info {
+	u8 flags;
+	u8 mcs;
+	u16 legacy;
 };
 
 /**
@@ -189,6 +227,8 @@ enum station_info_flags {
  * @llid: mesh local link id
  * @plid: mesh peer link id
  * @plink_state: mesh peer link state
+ * @signal: signal strength of last received packet in dBm
+ * @txrate: current unicast bitrate to this station
  */
 struct station_info {
 	u32 filled;
@@ -198,6 +238,8 @@ struct station_info {
 	u16 llid;
 	u16 plid;
 	u8 plink_state;
+	s8 signal;
+	struct rate_info txrate;
 };
 
 /**
@@ -280,11 +322,16 @@ struct mpath_info {
  *	(0 = no, 1 = yes, -1 = do not change)
  * @use_short_slot_time: Whether the use of short slot time is allowed
  *	(0 = no, 1 = yes, -1 = do not change)
+ * @basic_rates: basic rates in IEEE 802.11 format
+ *	(or NULL for no change)
+ * @basic_rates_len: number of basic rates
  */
 struct bss_parameters {
 	int use_cts_prot;
 	int use_short_preamble;
 	int use_short_slot_time;
+	u8 *basic_rates;
+	u8 basic_rates_len;
 };
 
 /**
@@ -331,24 +378,64 @@ struct ieee80211_regdomain {
 	struct ieee80211_reg_rule reg_rules[];
 };
 
-#define MHZ_TO_KHZ(freq) (freq * 1000)
-#define KHZ_TO_MHZ(freq) (freq / 1000)
-#define DBI_TO_MBI(gain) (gain * 100)
-#define MBI_TO_DBI(gain) (gain / 100)
-#define DBM_TO_MBM(gain) (gain * 100)
-#define MBM_TO_DBM(gain) (gain / 100)
+#define MHZ_TO_KHZ(freq) ((freq) * 1000)
+#define KHZ_TO_MHZ(freq) ((freq) / 1000)
+#define DBI_TO_MBI(gain) ((gain) * 100)
+#define MBI_TO_DBI(gain) ((gain) / 100)
+#define DBM_TO_MBM(gain) ((gain) * 100)
+#define MBM_TO_DBM(gain) ((gain) / 100)
 
 #define REG_RULE(start, end, bw, gain, eirp, reg_flags) { \
-	.freq_range.start_freq_khz = (start) * 1000, \
-	.freq_range.end_freq_khz = (end) * 1000, \
-	.freq_range.max_bandwidth_khz = (bw) * 1000, \
-	.power_rule.max_antenna_gain = (gain) * 100, \
-	.power_rule.max_eirp = (eirp) * 100, \
+	.freq_range.start_freq_khz = MHZ_TO_KHZ(start), \
+	.freq_range.end_freq_khz = MHZ_TO_KHZ(end), \
+	.freq_range.max_bandwidth_khz = MHZ_TO_KHZ(bw), \
+	.power_rule.max_antenna_gain = DBI_TO_MBI(gain), \
+	.power_rule.max_eirp = DBM_TO_MBM(eirp), \
 	.flags = reg_flags, \
 	}
 
+struct mesh_config {
+	/* Timeouts in ms */
+	/* Mesh plink management parameters */
+	u16 dot11MeshRetryTimeout;
+	u16 dot11MeshConfirmTimeout;
+	u16 dot11MeshHoldingTimeout;
+	u16 dot11MeshMaxPeerLinks;
+	u8  dot11MeshMaxRetries;
+	u8  dot11MeshTTL;
+	bool auto_open_plinks;
+	/* HWMP parameters */
+	u8  dot11MeshHWMPmaxPREQretries;
+	u32 path_refresh_time;
+	u16 min_discovery_timeout;
+	u32 dot11MeshHWMPactivePathTimeout;
+	u16 dot11MeshHWMPpreqMinInterval;
+	u16 dot11MeshHWMPnetDiameterTraversalTime;
+};
+
+/**
+ * struct ieee80211_txq_params - TX queue parameters
+ * @queue: TX queue identifier (NL80211_TXQ_Q_*)
+ * @txop: Maximum burst time in units of 32 usecs, 0 meaning disabled
+ * @cwmin: Minimum contention window [a value of the form 2^n-1 in the range
+ *	1..32767]
+ * @cwmax: Maximum contention window [a value of the form 2^n-1 in the range
+ *	1..32767]
+ * @aifs: Arbitration interframe space [0..255]
+ */
+struct ieee80211_txq_params {
+	enum nl80211_txq_q queue;
+	u16 txop;
+	u16 cwmin;
+	u16 cwmax;
+	u8 aifs;
+};
+
 /* from net/wireless.h */
 struct wiphy;
+
+/* from net/ieee80211.h */
+struct ieee80211_channel;
 
 /**
  * struct cfg80211_ops - backend description for wireless configuration
@@ -397,9 +484,19 @@ struct wiphy;
  *
  * @change_station: Modify a given station.
  *
+ * @get_mesh_params: Put the current mesh parameters into *params
+ *
+ * @set_mesh_params: Set mesh parameters.
+ *	The mask is a bitfield which tells us which parameters to
+ *	set, and which to leave alone.
+ *
  * @set_mesh_cfg: set mesh parameters (by now, just mesh id)
  *
  * @change_bss: Modify parameters for a given BSS.
+ *
+ * @set_txq_params: Set TX queue parameters
+ *
+ * @set_channel: Set channel
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
@@ -452,9 +549,30 @@ struct cfg80211_ops {
 	int	(*dump_mpath)(struct wiphy *wiphy, struct net_device *dev,
 			       int idx, u8 *dst, u8 *next_hop,
 			       struct mpath_info *pinfo);
-
+	int	(*get_mesh_params)(struct wiphy *wiphy,
+				struct net_device *dev,
+				struct mesh_config *conf);
+	int	(*set_mesh_params)(struct wiphy *wiphy,
+				struct net_device *dev,
+				const struct mesh_config *nconf, u32 mask);
 	int	(*change_bss)(struct wiphy *wiphy, struct net_device *dev,
 			      struct bss_parameters *params);
+
+	int	(*set_txq_params)(struct wiphy *wiphy,
+				  struct ieee80211_txq_params *params);
+
+	int	(*set_channel)(struct wiphy *wiphy,
+			       struct ieee80211_channel *chan,
+			       enum nl80211_channel_type channel_type);
 };
+
+/* temporary wext handlers */
+int cfg80211_wext_giwname(struct net_device *dev,
+			  struct iw_request_info *info,
+			  char *name, char *extra);
+int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
+			  u32 *mode, char *extra);
+int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
+			  u32 *mode, char *extra);
 
 #endif /* __NET_CFG80211_H */

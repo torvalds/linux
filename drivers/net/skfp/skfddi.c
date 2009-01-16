@@ -168,6 +168,17 @@ static int num_boards;	/* total number of adapters configured */
 #define PRINTK(s, args...)
 #endif				// DRIVERDEBUG
 
+static const struct net_device_ops skfp_netdev_ops = {
+	.ndo_open		= skfp_open,
+	.ndo_stop		= skfp_close,
+	.ndo_start_xmit		= skfp_send_pkt,
+	.ndo_get_stats		= skfp_ctl_get_stats,
+	.ndo_change_mtu		= fddi_change_mtu,
+	.ndo_set_multicast_list = skfp_ctl_set_multicast_list,
+	.ndo_set_mac_address	= skfp_ctl_set_mac_address,
+	.ndo_do_ioctl		= skfp_ioctl,
+};
+
 /*
  * =================
  * = skfp_init_one =
@@ -253,13 +264,7 @@ static int skfp_init_one(struct pci_dev *pdev,
 	}
 
 	dev->irq = pdev->irq;
-	dev->get_stats = &skfp_ctl_get_stats;
-	dev->open = &skfp_open;
-	dev->stop = &skfp_close;
-	dev->hard_start_xmit = &skfp_send_pkt;
-	dev->set_multicast_list = &skfp_ctl_set_multicast_list;
-	dev->set_mac_address = &skfp_ctl_set_mac_address;
-	dev->do_ioctl = &skfp_ioctl;
+	dev->netdev_ops = &skfp_netdev_ops;
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -612,7 +617,7 @@ static int skfp_close(struct net_device *dev)
  *   Interrupts are disabled, then reenabled at the adapter.
  */
 
-irqreturn_t skfp_interrupt(int irq, void *dev_id)
+static irqreturn_t skfp_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct s_smc *smc;	/* private board structure pointer */
@@ -679,7 +684,7 @@ irqreturn_t skfp_interrupt(int irq, void *dev_id)
  *   independent.
  *
  */
-struct net_device_stats *skfp_ctl_get_stats(struct net_device *dev)
+static struct net_device_stats *skfp_ctl_get_stats(struct net_device *dev)
 {
 	struct s_smc *bp = netdev_priv(dev);
 
@@ -1224,7 +1229,7 @@ static void send_queued_packets(struct s_smc *smc)
  * Verify if the source address is set. Insert it if necessary.
  *
  ************************/
-void CheckSourceAddress(unsigned char *frame, unsigned char *hw_addr)
+static void CheckSourceAddress(unsigned char *frame, unsigned char *hw_addr)
 {
 	unsigned char SRBit;
 
@@ -1680,7 +1685,6 @@ void mac_drv_rx_complete(struct s_smc *smc, volatile struct s_smt_fp_rxd *rxd,
 	skb->protocol = fddi_type_trans(skb, bp->dev);
 
 	netif_rx(skb);
-	bp->dev->last_rx = jiffies;
 
 	HWM_RX_CHECK(smc, RX_LOW_WATERMARK);
 	return;
@@ -1939,7 +1943,6 @@ int mac_drv_rx_init(struct s_smc *smc, int len, int fc,
 
 	// deliver frame to system
 	skb->protocol = fddi_type_trans(skb, smc->os.dev);
-	skb->dev->last_rx = jiffies;
 	netif_rx(skb);
 
 	return (0);

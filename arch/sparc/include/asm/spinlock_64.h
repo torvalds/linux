@@ -13,17 +13,12 @@
  * and rebuild your kernel.
  */
 
-/* All of these locking primitives are expected to work properly
- * even in an RMO memory model, which currently is what the kernel
- * runs in.
- *
- * There is another issue.  Because we play games to save cycles
- * in the non-contention case, we need to be extra careful about
- * branch targets into the "spinning" code.  They live in their
- * own section, but the newer V9 branches have a shorter range
- * than the traditional 32-bit sparc branch variants.  The rule
- * is that the branches that go into and out of the spinner sections
- * must be pre-V9 branches.
+/* Because we play games to save cycles in the non-contention case, we
+ * need to be extra careful about branch targets into the "spinning"
+ * code.  They live in their own section, but the newer V9 branches
+ * have a shorter range than the traditional 32-bit sparc branch
+ * variants.  The rule is that the branches that go into and out of
+ * the spinner sections must be pre-V9 branches.
  */
 
 #define __raw_spin_is_locked(lp)	((lp)->lock != 0)
@@ -38,12 +33,10 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 
 	__asm__ __volatile__(
 "1:	ldstub		[%1], %0\n"
-"	membar		#StoreLoad | #StoreStore\n"
 "	brnz,pn		%0, 2f\n"
 "	 nop\n"
 "	.subsection	2\n"
 "2:	ldub		[%1], %0\n"
-"	membar		#LoadLoad\n"
 "	brnz,pt		%0, 2b\n"
 "	 nop\n"
 "	ba,a,pt		%%xcc, 1b\n"
@@ -59,7 +52,6 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 
 	__asm__ __volatile__(
 "	ldstub		[%1], %0\n"
-"	membar		#StoreLoad | #StoreStore"
 	: "=r" (result)
 	: "r" (lock)
 	: "memory");
@@ -70,7 +62,6 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	__asm__ __volatile__(
-"	membar		#StoreStore | #LoadStore\n"
 "	stb		%%g0, [%0]"
 	: /* No outputs */
 	: "r" (lock)
@@ -83,14 +74,12 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long fla
 
 	__asm__ __volatile__(
 "1:	ldstub		[%2], %0\n"
-"	membar		#StoreLoad | #StoreStore\n"
 "	brnz,pn		%0, 2f\n"
 "	 nop\n"
 "	.subsection	2\n"
 "2:	rdpr		%%pil, %1\n"
 "	wrpr		%3, %%pil\n"
 "3:	ldub		[%2], %0\n"
-"	membar		#LoadLoad\n"
 "	brnz,pt		%0, 3b\n"
 "	 nop\n"
 "	ba,pt		%%xcc, 1b\n"
@@ -113,12 +102,10 @@ static void inline __read_lock(raw_rwlock_t *lock)
 "4:	 add		%0, 1, %1\n"
 "	cas		[%2], %0, %1\n"
 "	cmp		%0, %1\n"
-"	membar		#StoreLoad | #StoreStore\n"
 "	bne,pn		%%icc, 1b\n"
 "	 nop\n"
 "	.subsection	2\n"
 "2:	ldsw		[%2], %0\n"
-"	membar		#LoadLoad\n"
 "	brlz,pt		%0, 2b\n"
 "	 nop\n"
 "	ba,a,pt		%%xcc, 4b\n"
@@ -139,7 +126,6 @@ static int inline __read_trylock(raw_rwlock_t *lock)
 "	add		%0, 1, %1\n"
 "	cas		[%2], %0, %1\n"
 "	cmp		%0, %1\n"
-"	membar		#StoreLoad | #StoreStore\n"
 "	bne,pn		%%icc, 1b\n"
 "	 mov		1, %0\n"
 "2:"
@@ -155,7 +141,6 @@ static void inline __read_unlock(raw_rwlock_t *lock)
 	unsigned long tmp1, tmp2;
 
 	__asm__ __volatile__(
-"	membar	#StoreLoad | #LoadLoad\n"
 "1:	lduw	[%2], %0\n"
 "	sub	%0, 1, %1\n"
 "	cas	[%2], %0, %1\n"
@@ -179,12 +164,10 @@ static void inline __write_lock(raw_rwlock_t *lock)
 "4:	 or		%0, %3, %1\n"
 "	cas		[%2], %0, %1\n"
 "	cmp		%0, %1\n"
-"	membar		#StoreLoad | #StoreStore\n"
 "	bne,pn		%%icc, 1b\n"
 "	 nop\n"
 "	.subsection	2\n"
 "2:	lduw		[%2], %0\n"
-"	membar		#LoadLoad\n"
 "	brnz,pt		%0, 2b\n"
 "	 nop\n"
 "	ba,a,pt		%%xcc, 4b\n"
@@ -197,7 +180,6 @@ static void inline __write_lock(raw_rwlock_t *lock)
 static void inline __write_unlock(raw_rwlock_t *lock)
 {
 	__asm__ __volatile__(
-"	membar		#LoadStore | #StoreStore\n"
 "	stw		%%g0, [%0]"
 	: /* no outputs */
 	: "r" (lock)
@@ -217,7 +199,6 @@ static int inline __write_trylock(raw_rwlock_t *lock)
 "	 or		%0, %4, %1\n"
 "	cas		[%3], %0, %1\n"
 "	cmp		%0, %1\n"
-"	membar		#StoreLoad | #StoreStore\n"
 "	bne,pn		%%icc, 1b\n"
 "	 nop\n"
 "	mov		1, %2\n"

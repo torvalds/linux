@@ -341,7 +341,7 @@ static int __init nf_ct_proto_gre_init(void)
 	return rv;
 }
 
-static void nf_ct_proto_gre_fini(void)
+static void __exit nf_ct_proto_gre_fini(void)
 {
 	nf_conntrack_l4proto_unregister(&nf_conntrack_l4proto_gre4);
 	unregister_pernet_gen_subsys(proto_gre_net_id, &proto_gre_net_ops);

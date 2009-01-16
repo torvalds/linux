@@ -104,10 +104,10 @@ struct regulator;
 /**
  * struct regulator_bulk_data - Data used for bulk regulator operations.
  *
- * @supply   The name of the supply.  Initialised by the user before
- *           using the bulk regulator APIs.
- * @consumer The regulator consumer for the supply.  This will be managed
- *           by the bulk API.
+ * @supply:   The name of the supply.  Initialised by the user before
+ *            using the bulk regulator APIs.
+ * @consumer: The regulator consumer for the supply.  This will be managed
+ *            by the bulk API.
  *
  * The regulator APIs provide a series of regulator_bulk_() API calls as
  * a convenience to consumers which require multiple supplies.  This

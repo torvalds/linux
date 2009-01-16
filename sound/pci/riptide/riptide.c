@@ -172,7 +172,7 @@ MODULE_PARM_DESC(opl3_port, "OPL3 port # for Riptide driver.");
 
 #define MAX_WRITE_RETRY  10	/* cmd interface limits */
 #define MAX_ERROR_COUNT  10
-#define CMDIF_TIMEOUT    500000
+#define CMDIF_TIMEOUT    50000
 #define RESET_TRIES      5
 
 #define READ_PORT_ULONG(p)     inl((unsigned long)&(p))
@@ -1754,7 +1754,7 @@ snd_riptide_interrupt(int irq, void *dev_id)
 		if (IS_EOBIRQ(cif->hwport) || IS_EOSIRQ(cif->hwport) ||
 		    IS_EOCIRQ(cif->hwport)) {
 			chip->handled_irqs++;
-			tasklet_hi_schedule(&chip->riptide_tq);
+			tasklet_schedule(&chip->riptide_tq);
 		}
 		if (chip->rmidi && IS_MPUIRQ(cif->hwport)) {
 			chip->handled_irqs++;

@@ -231,6 +231,142 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
 					REGISTER_TIMEOUT16(length));
 }
 
+/**
+ * rt2x00usb_regbusy_read - Read 32bit register word
+ * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ * @offset: Register offset
+ * @value: Pointer to where register contents should be stored
+ *
+ * This function is a simple wrapper for 32bit register access
+ * through rt2x00usb_vendor_request_buff().
+ */
+static inline void rt2x00usb_register_read(struct rt2x00_dev *rt2x00dev,
+					   const unsigned int offset,
+					   u32 *value)
+{
+	__le32 reg;
+	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
+				      USB_VENDOR_REQUEST_IN, offset,
+				      &reg, sizeof(reg), REGISTER_TIMEOUT);
+	*value = le32_to_cpu(reg);
+}
+
+/**
+ * rt2x00usb_register_read_lock - Read 32bit register word
+ * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ * @offset: Register offset
+ * @value: Pointer to where register contents should be stored
+ *
+ * This function is a simple wrapper for 32bit register access
+ * through rt2x00usb_vendor_req_buff_lock().
+ */
+static inline void rt2x00usb_register_read_lock(struct rt2x00_dev *rt2x00dev,
+						const unsigned int offset,
+						u32 *value)
+{
+	__le32 reg;
+	rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_READ,
+				       USB_VENDOR_REQUEST_IN, offset,
+				       &reg, sizeof(reg), REGISTER_TIMEOUT);
+	*value = le32_to_cpu(reg);
+}
+
+/**
+ * rt2x00usb_register_multiread - Read 32bit register words
+ * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ * @offset: Register offset
+ * @value: Pointer to where register contents should be stored
+ * @length: Length of the data
+ *
+ * This function is a simple wrapper for 32bit register access
+ * through rt2x00usb_vendor_request_buff().
+ */
+static inline void rt2x00usb_register_multiread(struct rt2x00_dev *rt2x00dev,
+						const unsigned int offset,
+						void *value, const u32 length)
+{
+	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_READ,
+				      USB_VENDOR_REQUEST_IN, offset,
+				      value, length,
+				      REGISTER_TIMEOUT32(length));
+}
+
+/**
+ * rt2x00usb_register_write - Write 32bit register word
+ * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ * @offset: Register offset
+ * @value: Data which should be written
+ *
+ * This function is a simple wrapper for 32bit register access
+ * through rt2x00usb_vendor_request_buff().
+ */
+static inline void rt2x00usb_register_write(struct rt2x00_dev *rt2x00dev,
+					    const unsigned int offset,
+					    u32 value)
+{
+	__le32 reg = cpu_to_le32(value);
+	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
+				      USB_VENDOR_REQUEST_OUT, offset,
+				      &reg, sizeof(reg), REGISTER_TIMEOUT);
+}
+
+/**
+ * rt2x00usb_register_write_lock - Write 32bit register word
+ * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ * @offset: Register offset
+ * @value: Data which should be written
+ *
+ * This function is a simple wrapper for 32bit register access
+ * through rt2x00usb_vendor_req_buff_lock().
+ */
+static inline void rt2x00usb_register_write_lock(struct rt2x00_dev *rt2x00dev,
+						 const unsigned int offset,
+						 u32 value)
+{
+	__le32 reg = cpu_to_le32(value);
+	rt2x00usb_vendor_req_buff_lock(rt2x00dev, USB_MULTI_WRITE,
+				       USB_VENDOR_REQUEST_OUT, offset,
+				       &reg, sizeof(reg), REGISTER_TIMEOUT);
+}
+
+/**
+ * rt2x00usb_register_multiwrite - Write 32bit register words
+ * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ * @offset: Register offset
+ * @value: Data which should be written
+ * @length: Length of the data
+ *
+ * This function is a simple wrapper for 32bit register access
+ * through rt2x00usb_vendor_request_buff().
+ */
+static inline void rt2x00usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
+					       const unsigned int offset,
+					       void *value, const u32 length)
+{
+	rt2x00usb_vendor_request_buff(rt2x00dev, USB_MULTI_WRITE,
+				      USB_VENDOR_REQUEST_OUT, offset,
+				      value, length,
+				      REGISTER_TIMEOUT32(length));
+}
+
+/**
+ * rt2x00usb_regbusy_read - Read from register with busy check
+ * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
+ * @offset: Register offset
+ * @field: Field to check if register is busy
+ * @reg: Pointer to where register contents should be stored
+ *
+ * This function will read the given register, and checks if the
+ * register is busy. If it is, it will sleep for a couple of
+ * microseconds before reading the register again. If the register
+ * is not read after a certain timeout, this function will return
+ * FALSE.
+ */
+int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
+			   const unsigned int offset,
+			   struct rt2x00_field32 field,
+			   u32 *reg);
+
 /*
  * Radio handlers
  */
@@ -286,10 +422,7 @@ void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 /*
  * Device initialization handlers.
  */
-void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
-			    struct queue_entry *entry);
-void rt2x00usb_init_txentry(struct rt2x00_dev *rt2x00dev,
-			    struct queue_entry *entry);
+void rt2x00usb_clear_entry(struct queue_entry *entry);
 int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev);
 void rt2x00usb_uninitialize(struct rt2x00_dev *rt2x00dev);
 

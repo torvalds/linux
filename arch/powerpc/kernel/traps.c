@@ -1160,36 +1160,84 @@ void CacheLockingException(struct pt_regs *regs, unsigned long address,
 #ifdef CONFIG_SPE
 void SPEFloatingPointException(struct pt_regs *regs)
 {
+	extern int do_spe_mathemu(struct pt_regs *regs);
 	unsigned long spefscr;
 	int fpexc_mode;
 	int code = 0;
+	int err;
+
+	preempt_disable();
+	if (regs->msr & MSR_SPE)
+		giveup_spe(current);
+	preempt_enable();
 
 	spefscr = current->thread.spefscr;
 	fpexc_mode = current->thread.fpexc_mode;
 
-	/* Hardware does not neccessarily set sticky
-	 * underflow/overflow/invalid flags */
 	if ((spefscr & SPEFSCR_FOVF) && (fpexc_mode & PR_FP_EXC_OVF)) {
 		code = FPE_FLTOVF;
-		spefscr |= SPEFSCR_FOVFS;
 	}
 	else if ((spefscr & SPEFSCR_FUNF) && (fpexc_mode & PR_FP_EXC_UND)) {
 		code = FPE_FLTUND;
-		spefscr |= SPEFSCR_FUNFS;
 	}
 	else if ((spefscr & SPEFSCR_FDBZ) && (fpexc_mode & PR_FP_EXC_DIV))
 		code = FPE_FLTDIV;
 	else if ((spefscr & SPEFSCR_FINV) && (fpexc_mode & PR_FP_EXC_INV)) {
 		code = FPE_FLTINV;
-		spefscr |= SPEFSCR_FINVS;
 	}
 	else if ((spefscr & (SPEFSCR_FG | SPEFSCR_FX)) && (fpexc_mode & PR_FP_EXC_RES))
 		code = FPE_FLTRES;
 
-	current->thread.spefscr = spefscr;
+	err = do_spe_mathemu(regs);
+	if (err == 0) {
+		regs->nip += 4;		/* skip emulated instruction */
+		emulate_single_step(regs);
+		return;
+	}
 
-	_exception(SIGFPE, regs, code, regs->nip);
+	if (err == -EFAULT) {
+		/* got an error reading the instruction */
+		_exception(SIGSEGV, regs, SEGV_ACCERR, regs->nip);
+	} else if (err == -EINVAL) {
+		/* didn't recognize the instruction */
+		printk(KERN_ERR "unrecognized spe instruction "
+		       "in %s at %lx\n", current->comm, regs->nip);
+	} else {
+		_exception(SIGFPE, regs, code, regs->nip);
+	}
+
 	return;
+}
+
+void SPEFloatingPointRoundException(struct pt_regs *regs)
+{
+	extern int speround_handler(struct pt_regs *regs);
+	int err;
+
+	preempt_disable();
+	if (regs->msr & MSR_SPE)
+		giveup_spe(current);
+	preempt_enable();
+
+	regs->nip -= 4;
+	err = speround_handler(regs);
+	if (err == 0) {
+		regs->nip += 4;		/* skip emulated instruction */
+		emulate_single_step(regs);
+		return;
+	}
+
+	if (err == -EFAULT) {
+		/* got an error reading the instruction */
+		_exception(SIGSEGV, regs, SEGV_ACCERR, regs->nip);
+	} else if (err == -EINVAL) {
+		/* didn't recognize the instruction */
+		printk(KERN_ERR "unrecognized spe instruction "
+		       "in %s at %lx\n", current->comm, regs->nip);
+	} else {
+		_exception(SIGFPE, regs, 0, regs->nip);
+		return;
+	}
 }
 #endif
 

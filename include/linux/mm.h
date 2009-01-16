@@ -56,19 +56,9 @@ extern unsigned long mmap_min_addr;
 
 extern struct kmem_cache *vm_area_cachep;
 
-/*
- * This struct defines the per-mm list of VMAs for uClinux. If CONFIG_MMU is
- * disabled, then there's a single shared list of VMAs maintained by the
- * system, and mm's subscribe to these individually
- */
-struct vm_list_struct {
-	struct vm_list_struct	*next;
-	struct vm_area_struct	*vma;
-};
-
 #ifndef CONFIG_MMU
-extern struct rb_root nommu_vma_tree;
-extern struct rw_semaphore nommu_vma_sem;
+extern struct rb_root nommu_region_tree;
+extern struct rw_semaphore nommu_region_sem;
 
 extern unsigned int kobjsize(const void *objp);
 #endif
@@ -145,6 +135,23 @@ extern pgprot_t protection_map[16];
 #define FAULT_FLAG_WRITE	0x01	/* Fault was a write access */
 #define FAULT_FLAG_NONLINEAR	0x02	/* Fault was via a nonlinear mapping */
 
+/*
+ * This interface is used by x86 PAT code to identify a pfn mapping that is
+ * linear over entire vma. This is to optimize PAT code that deals with
+ * marking the physical region with a particular prot. This is not for generic
+ * mm use. Note also that this check will not work if the pfn mapping is
+ * linear for a vma starting at physical address 0. In which case PAT code
+ * falls back to slow path of reserving physical range page by page.
+ */
+static inline int is_linear_pfn_mapping(struct vm_area_struct *vma)
+{
+	return ((vma->vm_flags & VM_PFNMAP) && vma->vm_pgoff);
+}
+
+static inline int is_pfn_mapping(struct vm_area_struct *vma)
+{
+	return (vma->vm_flags & VM_PFNMAP);
+}
 
 /*
  * vm_fault is filled by the the pagefault handler and passed to the vma's
@@ -253,7 +260,6 @@ static inline int put_page_testzero(struct page *page)
  */
 static inline int get_page_unless_zero(struct page *page)
 {
-	VM_BUG_ON(PageTail(page));
 	return atomic_inc_not_zero(&page->_count);
 }
 
@@ -700,6 +706,11 @@ static inline int page_mapped(struct page *page)
 
 #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
 
+/*
+ * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
+ */
+extern void pagefault_out_of_memory(void);
+
 #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
 
 extern void show_free_areas(void);
@@ -781,6 +792,8 @@ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
 			struct vm_area_struct *vma);
 void unmap_mapping_range(struct address_space *mapping,
 		loff_t const holebegin, loff_t const holelen, int even_cows);
+int follow_phys(struct vm_area_struct *vma, unsigned long address,
+		unsigned int flags, unsigned long *prot, resource_size_t *phys);
 int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 			void *buf, int len, int write);
 
@@ -1037,6 +1050,7 @@ extern void memmap_init_zone(unsigned long, int, unsigned long,
 				unsigned long, enum memmap_context);
 extern void setup_per_zone_pages_min(void);
 extern void mem_init(void);
+extern void __init mmap_init(void);
 extern void show_mem(void);
 extern void si_meminfo(struct sysinfo * val);
 extern void si_meminfo_node(struct sysinfo *val, int nid);
@@ -1047,6 +1061,9 @@ extern void setup_per_cpu_pageset(void);
 #else
 static inline void setup_per_cpu_pageset(void) {}
 #endif
+
+/* nommu.c */
+extern atomic_t mmap_pages_allocated;
 
 /* prio_tree.c */
 void vma_prio_tree_add(struct vm_area_struct *, struct vm_area_struct *old);
@@ -1286,5 +1303,7 @@ int vmemmap_populate_basepages(struct page *start_page,
 int vmemmap_populate(struct page *start_page, unsigned long pages, int node);
 void vmemmap_populate_print_last(void);
 
+extern void *alloc_locked_buffer(size_t size);
+extern void free_locked_buffer(void *buffer, size_t size);
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */

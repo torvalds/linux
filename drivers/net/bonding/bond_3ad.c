@@ -20,13 +20,12 @@
  *
  */
 
-//#define BONDING_DEBUG 1
-
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
+#include <linux/etherdevice.h>
 #include <linux/if_bonding.h>
 #include <linux/pkt_sched.h>
 #include <net/net_namespace.h>
@@ -96,33 +95,7 @@ static struct mac_addr null_mac_addr = {{0, 0, 0, 0, 0, 0}};
 static u16 ad_ticks_per_sec;
 static const int ad_delta_in_ticks = (AD_TIMER_INTERVAL * HZ) / 1000;
 
-// ================= 3AD api to bonding and kernel code ==================
-static u16 __get_link_speed(struct port *port);
-static u8 __get_duplex(struct port *port);
-static inline void __initialize_port_locks(struct port *port);
-//conversions
-static u16 __ad_timer_to_ticks(u16 timer_type, u16 Par);
-
-
-// ================= ad code helper functions ==================
-//needed by ad_rx_machine(...)
-static void __record_pdu(struct lacpdu *lacpdu, struct port *port);
-static void __record_default(struct port *port);
-static void __update_selected(struct lacpdu *lacpdu, struct port *port);
-static void __update_default_selected(struct port *port);
-static void __choose_matched(struct lacpdu *lacpdu, struct port *port);
-static void __update_ntt(struct lacpdu *lacpdu, struct port *port);
-
-//needed for ad_mux_machine(..)
-static void __attach_bond_to_agg(struct port *port);
-static void __detach_bond_from_agg(struct port *port);
-static int __agg_ports_are_ready(struct aggregator *aggregator);
-static void __set_agg_ports_ready(struct aggregator *aggregator, int val);
-
-//needed for ad_agg_selection_logic(...)
-static u32 __get_agg_bandwidth(struct aggregator *aggregator);
-static struct aggregator *__get_active_agg(struct aggregator *aggregator);
-
+static const u8 lacpdu_mcast_addr[ETH_ALEN] = MULTICAST_LACPDU_ADDR;
 
 // ================= main 802.3ad protocol functions ==================
 static int ad_lacpdu_send(struct port *port);
@@ -136,7 +109,6 @@ static void ad_agg_selection_logic(struct aggregator *aggregator);
 static void ad_clear_agg(struct aggregator *aggregator);
 static void ad_initialize_agg(struct aggregator *aggregator);
 static void ad_initialize_port(struct port *port, int lacp_fast);
-static void ad_initialize_lacpdu(struct lacpdu *Lacpdu);
 static void ad_enable_collecting_distributing(struct port *port);
 static void ad_disable_collecting_distributing(struct port *port);
 static void ad_marker_info_received(struct bond_marker *marker_info, struct port *port);
@@ -236,6 +208,17 @@ static inline struct aggregator *__get_next_agg(struct aggregator *aggregator)
 	return &(SLAVE_AD_INFO(slave->next).aggregator);
 }
 
+/*
+ * __agg_has_partner
+ *
+ * Return nonzero if aggregator has a partner (denoted by a non-zero ether
+ * address for the partner).  Return 0 if not.
+ */
+static inline int __agg_has_partner(struct aggregator *agg)
+{
+	return !is_zero_ether_addr(agg->partner_system.mac_addr_value);
+}
+
 /**
  * __disable_port - disable the port's slave
  * @port: the port we're looking at
@@ -274,14 +257,14 @@ static inline int __port_is_enabled(struct port *port)
  * __get_agg_selection_mode - get the aggregator selection mode
  * @port: the port we're looking at
  *
- * Get the aggregator selection mode. Can be %BANDWIDTH or %COUNT.
+ * Get the aggregator selection mode. Can be %STABLE, %BANDWIDTH or %COUNT.
  */
 static inline u32 __get_agg_selection_mode(struct port *port)
 {
 	struct bonding *bond = __get_bond_by_port(port);
 
 	if (bond == NULL) {
-		return AD_BANDWIDTH;
+		return BOND_AD_STABLE;
 	}
 
 	return BOND_AD_INFO(bond).agg_select_mode;
@@ -369,7 +352,7 @@ static u16 __get_link_speed(struct port *port)
 		}
 	}
 
-	dprintk("Port %d Received link speed %d update from adapter\n", port->actor_port_number, speed);
+	pr_debug("Port %d Received link speed %d update from adapter\n", port->actor_port_number, speed);
 	return speed;
 }
 
@@ -395,12 +378,12 @@ static u8 __get_duplex(struct port *port)
 		switch (slave->duplex) {
 		case DUPLEX_FULL:
 			retval=0x1;
-			dprintk("Port %d Received status full duplex update from adapter\n", port->actor_port_number);
+			pr_debug("Port %d Received status full duplex update from adapter\n", port->actor_port_number);
 			break;
 		case DUPLEX_HALF:
 		default:
 			retval=0x0;
-			dprintk("Port %d Received status NOT full duplex update from adapter\n", port->actor_port_number);
+			pr_debug("Port %d Received status NOT full duplex update from adapter\n", port->actor_port_number);
 			break;
 		}
 	}
@@ -473,33 +456,25 @@ static u16 __ad_timer_to_ticks(u16 timer_type, u16 par)
  */
 static void __record_pdu(struct lacpdu *lacpdu, struct port *port)
 {
-	// validate lacpdu and port
 	if (lacpdu && port) {
+		struct port_params *partner = &port->partner_oper;
+
 		// record the new parameter values for the partner operational
-		port->partner_oper_port_number = ntohs(lacpdu->actor_port);
-		port->partner_oper_port_priority = ntohs(lacpdu->actor_port_priority);
-		port->partner_oper_system = lacpdu->actor_system;
-		port->partner_oper_system_priority = ntohs(lacpdu->actor_system_priority);
-		port->partner_oper_key = ntohs(lacpdu->actor_key);
-		// zero partener's lase states
-		port->partner_oper_port_state = 0;
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_LACP_ACTIVITY);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_LACP_TIMEOUT);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_AGGREGATION);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_SYNCHRONIZATION);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_COLLECTING);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_DISTRIBUTING);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_DEFAULTED);
-		port->partner_oper_port_state |= (lacpdu->actor_state & AD_STATE_EXPIRED);
+		partner->port_number = ntohs(lacpdu->actor_port);
+		partner->port_priority = ntohs(lacpdu->actor_port_priority);
+		partner->system = lacpdu->actor_system;
+		partner->system_priority = ntohs(lacpdu->actor_system_priority);
+		partner->key = ntohs(lacpdu->actor_key);
+		partner->port_state = lacpdu->actor_state;
 
 		// set actor_oper_port_state.defaulted to FALSE
 		port->actor_oper_port_state &= ~AD_STATE_DEFAULTED;
 
 		// set the partner sync. to on if the partner is sync. and the port is matched
 		if ((port->sm_vars & AD_PORT_MATCHED) && (lacpdu->actor_state & AD_STATE_SYNCHRONIZATION)) {
-			port->partner_oper_port_state |= AD_STATE_SYNCHRONIZATION;
+			partner->port_state |= AD_STATE_SYNCHRONIZATION;
 		} else {
-			port->partner_oper_port_state &= ~AD_STATE_SYNCHRONIZATION;
+			partner->port_state &= ~AD_STATE_SYNCHRONIZATION;
 		}
 	}
 }
@@ -514,15 +489,10 @@ static void __record_pdu(struct lacpdu *lacpdu, struct port *port)
  */
 static void __record_default(struct port *port)
 {
-	// validate the port
 	if (port) {
 		// record the partner admin parameters
-		port->partner_oper_port_number = port->partner_admin_port_number;
-		port->partner_oper_port_priority = port->partner_admin_port_priority;
-		port->partner_oper_system = port->partner_admin_system;
-		port->partner_oper_system_priority = port->partner_admin_system_priority;
-		port->partner_oper_key = port->partner_admin_key;
-		port->partner_oper_port_state = port->partner_admin_port_state;
+		memcpy(&port->partner_oper, &port->partner_admin,
+		       sizeof(struct port_params));
 
 		// set actor_oper_port_state.defaulted to true
 		port->actor_oper_port_state |= AD_STATE_DEFAULTED;
@@ -544,16 +514,16 @@ static void __record_default(struct port *port)
  */
 static void __update_selected(struct lacpdu *lacpdu, struct port *port)
 {
-	// validate lacpdu and port
 	if (lacpdu && port) {
+		const struct port_params *partner = &port->partner_oper;
+
 		// check if any parameter is different
-		if ((ntohs(lacpdu->actor_port) != port->partner_oper_port_number) ||
-		    (ntohs(lacpdu->actor_port_priority) != port->partner_oper_port_priority) ||
-		    MAC_ADDRESS_COMPARE(&(lacpdu->actor_system), &(port->partner_oper_system)) ||
-		    (ntohs(lacpdu->actor_system_priority) != port->partner_oper_system_priority) ||
-		    (ntohs(lacpdu->actor_key) != port->partner_oper_key) ||
-		    ((lacpdu->actor_state & AD_STATE_AGGREGATION) != (port->partner_oper_port_state & AD_STATE_AGGREGATION))
-		   ) {
+		if (ntohs(lacpdu->actor_port) != partner->port_number
+		    || ntohs(lacpdu->actor_port_priority) != partner->port_priority
+		    || MAC_ADDRESS_COMPARE(&lacpdu->actor_system, &partner->system)
+		    || ntohs(lacpdu->actor_system_priority) != partner->system_priority
+		    || ntohs(lacpdu->actor_key) != partner->key
+		    || (lacpdu->actor_state & AD_STATE_AGGREGATION) != (partner->port_state & AD_STATE_AGGREGATION)) {
 			// update the state machine Selected variable
 			port->sm_vars &= ~AD_PORT_SELECTED;
 		}
@@ -574,16 +544,18 @@ static void __update_selected(struct lacpdu *lacpdu, struct port *port)
  */
 static void __update_default_selected(struct port *port)
 {
-	// validate the port
 	if (port) {
+		const struct port_params *admin = &port->partner_admin;
+		const struct port_params *oper = &port->partner_oper;
+
 		// check if any parameter is different
-		if ((port->partner_admin_port_number != port->partner_oper_port_number) ||
-		    (port->partner_admin_port_priority != port->partner_oper_port_priority) ||
-		    MAC_ADDRESS_COMPARE(&(port->partner_admin_system), &(port->partner_oper_system)) ||
-		    (port->partner_admin_system_priority != port->partner_oper_system_priority) ||
-		    (port->partner_admin_key != port->partner_oper_key) ||
-		    ((port->partner_admin_port_state & AD_STATE_AGGREGATION) != (port->partner_oper_port_state & AD_STATE_AGGREGATION))
-		   ) {
+		if (admin->port_number != oper->port_number
+		    || admin->port_priority != oper->port_priority
+		    || MAC_ADDRESS_COMPARE(&admin->system, &oper->system)
+		    || admin->system_priority != oper->system_priority
+		    || admin->key != oper->key
+		    || (admin->port_state & AD_STATE_AGGREGATION)
+			!= (oper->port_state & AD_STATE_AGGREGATION)) {
 			// update the state machine Selected variable
 			port->sm_vars &= ~AD_PORT_SELECTED;
 		}
@@ -658,8 +630,8 @@ static void __update_ntt(struct lacpdu *lacpdu, struct port *port)
 		    ((lacpdu->partner_state & AD_STATE_SYNCHRONIZATION) != (port->actor_oper_port_state & AD_STATE_SYNCHRONIZATION)) ||
 		    ((lacpdu->partner_state & AD_STATE_AGGREGATION) != (port->actor_oper_port_state & AD_STATE_AGGREGATION))
 		   ) {
-			// set ntt to be TRUE
-			port->ntt = 1;
+
+			port->ntt = true;
 		}
 	}
 }
@@ -798,6 +770,7 @@ static struct aggregator *__get_active_agg(struct aggregator *aggregator)
 static inline void __update_lacpdu_from_port(struct port *port)
 {
 	struct lacpdu *lacpdu = &port->lacpdu;
+	const struct port_params *partner = &port->partner_oper;
 
 	/* update current actual Actor parameters */
 	/* lacpdu->subtype                   initialized
@@ -818,12 +791,12 @@ static inline void __update_lacpdu_from_port(struct port *port)
 	 * lacpdu->partner_information_length initialized
 	 */
 
-	lacpdu->partner_system_priority = htons(port->partner_oper_system_priority);
-	lacpdu->partner_system = port->partner_oper_system;
-	lacpdu->partner_key = htons(port->partner_oper_key);
-	lacpdu->partner_port_priority = htons(port->partner_oper_port_priority);
-	lacpdu->partner_port = htons(port->partner_oper_port_number);
-	lacpdu->partner_state = port->partner_oper_port_state;
+	lacpdu->partner_system_priority = htons(partner->system_priority);
+	lacpdu->partner_system = partner->system;
+	lacpdu->partner_key = htons(partner->key);
+	lacpdu->partner_port_priority = htons(partner->port_priority);
+	lacpdu->partner_port = htons(partner->port_number);
+	lacpdu->partner_state = partner->port_state;
 
 	/* lacpdu->reserved_3_2              initialized
 	 * lacpdu->tlv_type_collector_info   initialized
@@ -853,7 +826,6 @@ static int ad_lacpdu_send(struct port *port)
 	struct sk_buff *skb;
 	struct lacpdu_header *lacpdu_header;
 	int length = sizeof(struct lacpdu_header);
-	struct mac_addr lacpdu_multicast_address = AD_MULTICAST_LACPDU_ADDR;
 
 	skb = dev_alloc_skb(length);
 	if (!skb) {
@@ -868,11 +840,11 @@ static int ad_lacpdu_send(struct port *port)
 
 	lacpdu_header = (struct lacpdu_header *)skb_put(skb, length);
 
-	lacpdu_header->ad_header.destination_address = lacpdu_multicast_address;
-	/* Note: source addres is set to be the member's PERMANENT address, because we use it
-	   to identify loopback lacpdus in receive. */
-	lacpdu_header->ad_header.source_address = *((struct mac_addr *)(slave->perm_hwaddr));
-	lacpdu_header->ad_header.length_type = PKT_TYPE_LACPDU;
+	memcpy(lacpdu_header->hdr.h_dest, lacpdu_mcast_addr, ETH_ALEN);
+	/* Note: source addres is set to be the member's PERMANENT address,
+	   because we use it to identify loopback lacpdus in receive. */
+	memcpy(lacpdu_header->hdr.h_source, slave->perm_hwaddr, ETH_ALEN);
+	lacpdu_header->hdr.h_proto = PKT_TYPE_LACPDU;
 
 	lacpdu_header->lacpdu = port->lacpdu; // struct copy
 
@@ -895,7 +867,6 @@ static int ad_marker_send(struct port *port, struct bond_marker *marker)
 	struct sk_buff *skb;
 	struct bond_marker_header *marker_header;
 	int length = sizeof(struct bond_marker_header);
-	struct mac_addr lacpdu_multicast_address = AD_MULTICAST_LACPDU_ADDR;
 
 	skb = dev_alloc_skb(length + 16);
 	if (!skb) {
@@ -911,11 +882,11 @@ static int ad_marker_send(struct port *port, struct bond_marker *marker)
 
 	marker_header = (struct bond_marker_header *)skb_put(skb, length);
 
-	marker_header->ad_header.destination_address = lacpdu_multicast_address;
-	/* Note: source addres is set to be the member's PERMANENT address, because we use it
-	   to identify loopback MARKERs in receive. */
-	marker_header->ad_header.source_address = *((struct mac_addr *)(slave->perm_hwaddr));
-	marker_header->ad_header.length_type = PKT_TYPE_LACPDU;
+	memcpy(marker_header->hdr.h_dest, lacpdu_mcast_addr, ETH_ALEN);
+	/* Note: source addres is set to be the member's PERMANENT address,
+	   because we use it to identify loopback MARKERs in receive. */
+	memcpy(marker_header->hdr.h_source, slave->perm_hwaddr, ETH_ALEN);
+	marker_header->hdr.h_proto = PKT_TYPE_LACPDU;
 
 	marker_header->marker = *marker; // struct copy
 
@@ -972,7 +943,7 @@ static void ad_mux_machine(struct port *port)
 			break;
 		case AD_MUX_ATTACHED:
 			// check also if agg_select_timer expired(so the edable port will take place only after this timer)
-			if ((port->sm_vars & AD_PORT_SELECTED) && (port->partner_oper_port_state & AD_STATE_SYNCHRONIZATION) && !__check_agg_selection_timer(port)) {
+			if ((port->sm_vars & AD_PORT_SELECTED) && (port->partner_oper.port_state & AD_STATE_SYNCHRONIZATION) && !__check_agg_selection_timer(port)) {
 				port->sm_mux_state = AD_MUX_COLLECTING_DISTRIBUTING;// next state
 			} else if (!(port->sm_vars & AD_PORT_SELECTED) || (port->sm_vars & AD_PORT_STANDBY)) {	  // if UNSELECTED or STANDBY
 				port->sm_vars &= ~AD_PORT_READY_N;
@@ -984,7 +955,7 @@ static void ad_mux_machine(struct port *port)
 			break;
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			if (!(port->sm_vars & AD_PORT_SELECTED) || (port->sm_vars & AD_PORT_STANDBY) ||
-			    !(port->partner_oper_port_state & AD_STATE_SYNCHRONIZATION)
+			    !(port->partner_oper.port_state & AD_STATE_SYNCHRONIZATION)
 			   ) {
 				port->sm_mux_state = AD_MUX_ATTACHED;// next state
 
@@ -1007,7 +978,7 @@ static void ad_mux_machine(struct port *port)
 
 	// check if the state machine was changed
 	if (port->sm_mux_state != last_state) {
-		dprintk("Mux Machine: Port=%d, Last State=%d, Curr State=%d\n", port->actor_port_number, last_state, port->sm_mux_state);
+		pr_debug("Mux Machine: Port=%d, Last State=%d, Curr State=%d\n", port->actor_port_number, last_state, port->sm_mux_state);
 		switch (port->sm_mux_state) {
 		case AD_MUX_DETACHED:
 			__detach_bond_from_agg(port);
@@ -1015,7 +986,7 @@ static void ad_mux_machine(struct port *port)
 			ad_disable_collecting_distributing(port);
 			port->actor_oper_port_state &= ~AD_STATE_COLLECTING;
 			port->actor_oper_port_state &= ~AD_STATE_DISTRIBUTING;
-			port->ntt = 1;
+			port->ntt = true;
 			break;
 		case AD_MUX_WAITING:
 			port->sm_mux_timer_counter = __ad_timer_to_ticks(AD_WAIT_WHILE_TIMER, 0);
@@ -1026,13 +997,13 @@ static void ad_mux_machine(struct port *port)
 			port->actor_oper_port_state &= ~AD_STATE_COLLECTING;
 			port->actor_oper_port_state &= ~AD_STATE_DISTRIBUTING;
 			ad_disable_collecting_distributing(port);
-			port->ntt = 1;
+			port->ntt = true;
 			break;
 		case AD_MUX_COLLECTING_DISTRIBUTING:
 			port->actor_oper_port_state |= AD_STATE_COLLECTING;
 			port->actor_oper_port_state |= AD_STATE_DISTRIBUTING;
 			ad_enable_collecting_distributing(port);
-			port->ntt = 1;
+			port->ntt = true;
 			break;
 		default:    //to silence the compiler
 			break;
@@ -1106,7 +1077,7 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 
 	// check if the State machine was changed or new lacpdu arrived
 	if ((port->sm_rx_state != last_state) || (lacpdu)) {
-		dprintk("Rx Machine: Port=%d, Last State=%d, Curr State=%d\n", port->actor_port_number, last_state, port->sm_rx_state);
+		pr_debug("Rx Machine: Port=%d, Last State=%d, Curr State=%d\n", port->actor_port_number, last_state, port->sm_rx_state);
 		switch (port->sm_rx_state) {
 		case AD_RX_INITIALIZE:
 			if (!(port->actor_oper_port_key & AD_DUPLEX_KEY_BITS)) {
@@ -1128,7 +1099,7 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 		case AD_RX_LACP_DISABLED:
 			port->sm_vars &= ~AD_PORT_SELECTED;
 			__record_default(port);
-			port->partner_oper_port_state &= ~AD_STATE_AGGREGATION;
+			port->partner_oper.port_state &= ~AD_STATE_AGGREGATION;
 			port->sm_vars |= AD_PORT_MATCHED;
 			port->actor_oper_port_state &= ~AD_STATE_EXPIRED;
 			break;
@@ -1136,9 +1107,9 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			//Reset of the Synchronization flag. (Standard 43.4.12)
 			//This reset cause to disable this port in the COLLECTING_DISTRIBUTING state of the
 			//mux machine in case of EXPIRED even if LINK_DOWN didn't arrive for the port.
-			port->partner_oper_port_state &= ~AD_STATE_SYNCHRONIZATION;
+			port->partner_oper.port_state &= ~AD_STATE_SYNCHRONIZATION;
 			port->sm_vars &= ~AD_PORT_MATCHED;
-			port->partner_oper_port_state |= AD_SHORT_TIMEOUT;
+			port->partner_oper.port_state |= AD_SHORT_TIMEOUT;
 			port->sm_rx_timer_counter = __ad_timer_to_ticks(AD_CURRENT_WHILE_TIMER, (u16)(AD_SHORT_TIMEOUT));
 			port->actor_oper_port_state |= AD_STATE_EXPIRED;
 			break;
@@ -1191,11 +1162,13 @@ static void ad_tx_machine(struct port *port)
 		// check if there is something to send
 		if (port->ntt && (port->sm_vars & AD_PORT_LACP_ENABLED)) {
 			__update_lacpdu_from_port(port);
-			// send the lacpdu
+
 			if (ad_lacpdu_send(port) >= 0) {
-				dprintk("Sent LACPDU on port %d\n", port->actor_port_number);
-				// mark ntt as false, so it will not be sent again until demanded
-				port->ntt = 0;
+				pr_debug("Sent LACPDU on port %d\n", port->actor_port_number);
+
+				/* mark ntt as false, so it will not be sent again until
+				   demanded */
+				port->ntt = false;
 			}
 		}
 		// restart tx timer(to verify that we will not exceed AD_MAX_TX_IN_SECOND
@@ -1218,7 +1191,7 @@ static void ad_periodic_machine(struct port *port)
 
 	// check if port was reinitialized
 	if (((port->sm_vars & AD_PORT_BEGIN) || !(port->sm_vars & AD_PORT_LACP_ENABLED) || !port->is_enabled) ||
-	    (!(port->actor_oper_port_state & AD_STATE_LACP_ACTIVITY) && !(port->partner_oper_port_state & AD_STATE_LACP_ACTIVITY))
+	    (!(port->actor_oper_port_state & AD_STATE_LACP_ACTIVITY) && !(port->partner_oper.port_state & AD_STATE_LACP_ACTIVITY))
 	   ) {
 		port->sm_periodic_state = AD_NO_PERIODIC;	     // next state
 	}
@@ -1232,12 +1205,12 @@ static void ad_periodic_machine(struct port *port)
 			// If not expired, check if there is some new timeout parameter from the partner state
 			switch (port->sm_periodic_state) {
 			case AD_FAST_PERIODIC:
-				if (!(port->partner_oper_port_state & AD_STATE_LACP_TIMEOUT)) {
+				if (!(port->partner_oper.port_state & AD_STATE_LACP_TIMEOUT)) {
 					port->sm_periodic_state = AD_SLOW_PERIODIC;  // next state
 				}
 				break;
 			case AD_SLOW_PERIODIC:
-				if ((port->partner_oper_port_state & AD_STATE_LACP_TIMEOUT)) {
+				if ((port->partner_oper.port_state & AD_STATE_LACP_TIMEOUT)) {
 					// stop current timer
 					port->sm_periodic_timer_counter = 0;
 					port->sm_periodic_state = AD_PERIODIC_TX;	 // next state
@@ -1253,7 +1226,7 @@ static void ad_periodic_machine(struct port *port)
 			port->sm_periodic_state = AD_FAST_PERIODIC;	 // next state
 			break;
 		case AD_PERIODIC_TX:
-			if (!(port->partner_oper_port_state & AD_STATE_LACP_TIMEOUT)) {
+			if (!(port->partner_oper.port_state & AD_STATE_LACP_TIMEOUT)) {
 				port->sm_periodic_state = AD_SLOW_PERIODIC;  // next state
 			} else {
 				port->sm_periodic_state = AD_FAST_PERIODIC;  // next state
@@ -1266,7 +1239,7 @@ static void ad_periodic_machine(struct port *port)
 
 	// check if the state machine was changed
 	if (port->sm_periodic_state != last_state) {
-		dprintk("Periodic Machine: Port=%d, Last State=%d, Curr State=%d\n", port->actor_port_number, last_state, port->sm_periodic_state);
+		pr_debug("Periodic Machine: Port=%d, Last State=%d, Curr State=%d\n", port->actor_port_number, last_state, port->sm_periodic_state);
 		switch (port->sm_periodic_state) {
 		case AD_NO_PERIODIC:
 			port->sm_periodic_timer_counter = 0;	   // zero timer
@@ -1278,7 +1251,7 @@ static void ad_periodic_machine(struct port *port)
 			port->sm_periodic_timer_counter = __ad_timer_to_ticks(AD_PERIODIC_TIMER, (u16)(AD_SLOW_PERIODIC_TIME))-1; // decrement 1 tick we lost in the PERIODIC_TX cycle
 			break;
 		case AD_PERIODIC_TX:
-			port->ntt = 1;
+			port->ntt = true;
 			break;
 		default:    //to silence the compiler
 			break;
@@ -1323,7 +1296,7 @@ static void ad_port_selection_logic(struct port *port)
 				port->next_port_in_aggregator=NULL;
 				port->actor_port_aggregator_identifier=0;
 
-				dprintk("Port %d left LAG %d\n", port->actor_port_number, temp_aggregator->aggregator_identifier);
+				pr_debug("Port %d left LAG %d\n", port->actor_port_number, temp_aggregator->aggregator_identifier);
 				// if the aggregator is empty, clear its parameters, and set it ready to be attached
 				if (!temp_aggregator->lag_ports) {
 					ad_clear_agg(temp_aggregator);
@@ -1352,11 +1325,11 @@ static void ad_port_selection_logic(struct port *port)
 		}
 		// check if current aggregator suits us
 		if (((aggregator->actor_oper_aggregator_key == port->actor_oper_port_key) && // if all parameters match AND
-		     !MAC_ADDRESS_COMPARE(&(aggregator->partner_system), &(port->partner_oper_system)) &&
-		     (aggregator->partner_system_priority == port->partner_oper_system_priority) &&
-		     (aggregator->partner_oper_aggregator_key == port->partner_oper_key)
+		     !MAC_ADDRESS_COMPARE(&(aggregator->partner_system), &(port->partner_oper.system)) &&
+		     (aggregator->partner_system_priority == port->partner_oper.system_priority) &&
+		     (aggregator->partner_oper_aggregator_key == port->partner_oper.key)
 		    ) &&
-		    ((MAC_ADDRESS_COMPARE(&(port->partner_oper_system), &(null_mac_addr)) && // partner answers
+		    ((MAC_ADDRESS_COMPARE(&(port->partner_oper.system), &(null_mac_addr)) && // partner answers
 		      !aggregator->is_individual)  // but is not individual OR
 		    )
 		   ) {
@@ -1366,7 +1339,7 @@ static void ad_port_selection_logic(struct port *port)
 			port->next_port_in_aggregator=aggregator->lag_ports;
 			port->aggregator->num_of_ports++;
 			aggregator->lag_ports=port;
-			dprintk("Port %d joined LAG %d(existing LAG)\n", port->actor_port_number, port->aggregator->aggregator_identifier);
+			pr_debug("Port %d joined LAG %d(existing LAG)\n", port->actor_port_number, port->aggregator->aggregator_identifier);
 
 			// mark this port as selected
 			port->sm_vars |= AD_PORT_SELECTED;
@@ -1385,16 +1358,16 @@ static void ad_port_selection_logic(struct port *port)
 			// update the new aggregator's parameters
 			// if port was responsed from the end-user
 			if (port->actor_oper_port_key & AD_DUPLEX_KEY_BITS) {// if port is full duplex
-				port->aggregator->is_individual = 0;
+				port->aggregator->is_individual = false;
 			} else {
-				port->aggregator->is_individual = 1;
+				port->aggregator->is_individual = true;
 			}
 
 			port->aggregator->actor_admin_aggregator_key = port->actor_admin_port_key;
 			port->aggregator->actor_oper_aggregator_key = port->actor_oper_port_key;
-			port->aggregator->partner_system=port->partner_oper_system;
-			port->aggregator->partner_system_priority = port->partner_oper_system_priority;
-			port->aggregator->partner_oper_aggregator_key = port->partner_oper_key;
+			port->aggregator->partner_system=port->partner_oper.system;
+			port->aggregator->partner_system_priority = port->partner_oper.system_priority;
+			port->aggregator->partner_oper_aggregator_key = port->partner_oper.key;
 			port->aggregator->receive_state = 1;
 			port->aggregator->transmit_state = 1;
 			port->aggregator->lag_ports = port;
@@ -1403,7 +1376,7 @@ static void ad_port_selection_logic(struct port *port)
 			// mark this port as selected
 			port->sm_vars |= AD_PORT_SELECTED;
 
-			dprintk("Port %d joined LAG %d(new LAG)\n", port->actor_port_number, port->aggregator->aggregator_identifier);
+			pr_debug("Port %d joined LAG %d(new LAG)\n", port->actor_port_number, port->aggregator->aggregator_identifier);
 		} else {
 			printk(KERN_ERR DRV_NAME ": %s: Port %d (on %s) did not find a suitable aggregator\n",
 			       port->slave->dev->master->name,
@@ -1414,9 +1387,82 @@ static void ad_port_selection_logic(struct port *port)
 	// else set ready=FALSE in all aggregator's ports
 	__set_agg_ports_ready(port->aggregator, __agg_ports_are_ready(port->aggregator));
 
-	if (!__check_agg_selection_timer(port) && (aggregator = __get_first_agg(port))) {
-		ad_agg_selection_logic(aggregator);
+	aggregator = __get_first_agg(port);
+	ad_agg_selection_logic(aggregator);
+}
+
+/*
+ * Decide if "agg" is a better choice for the new active aggregator that
+ * the current best, according to the ad_select policy.
+ */
+static struct aggregator *ad_agg_selection_test(struct aggregator *best,
+						struct aggregator *curr)
+{
+	/*
+	 * 0. If no best, select current.
+	 *
+	 * 1. If the current agg is not individual, and the best is
+	 *    individual, select current.
+	 *
+	 * 2. If current agg is individual and the best is not, keep best.
+	 *
+	 * 3. Therefore, current and best are both individual or both not
+	 *    individual, so:
+	 *
+	 * 3a. If current agg partner replied, and best agg partner did not,
+	 *     select current.
+	 *
+	 * 3b. If current agg partner did not reply and best agg partner
+	 *     did reply, keep best.
+	 *
+	 * 4.  Therefore, current and best both have partner replies or
+	 *     both do not, so perform selection policy:
+	 *
+	 * BOND_AD_COUNT: Select by count of ports.  If count is equal,
+	 *     select by bandwidth.
+	 *
+	 * BOND_AD_STABLE, BOND_AD_BANDWIDTH: Select by bandwidth.
+	 */
+	if (!best)
+		return curr;
+
+	if (!curr->is_individual && best->is_individual)
+		return curr;
+
+	if (curr->is_individual && !best->is_individual)
+		return best;
+
+	if (__agg_has_partner(curr) && !__agg_has_partner(best))
+		return curr;
+
+	if (!__agg_has_partner(curr) && __agg_has_partner(best))
+		return best;
+
+	switch (__get_agg_selection_mode(curr->lag_ports)) {
+	case BOND_AD_COUNT:
+		if (curr->num_of_ports > best->num_of_ports)
+			return curr;
+
+		if (curr->num_of_ports < best->num_of_ports)
+			return best;
+
+		/*FALLTHROUGH*/
+	case BOND_AD_STABLE:
+	case BOND_AD_BANDWIDTH:
+		if (__get_agg_bandwidth(curr) > __get_agg_bandwidth(best))
+			return curr;
+
+		break;
+
+	default:
+		printk(KERN_WARNING DRV_NAME
+		       ": %s: Impossible agg select mode %d\n",
+		       curr->slave->dev->master->name,
+		       __get_agg_selection_mode(curr->lag_ports));
+		break;
 	}
+
+	return best;
 }
 
 /**
@@ -1424,155 +1470,137 @@ static void ad_port_selection_logic(struct port *port)
  * @aggregator: the aggregator we're looking at
  *
  * It is assumed that only one aggregator may be selected for a team.
- * The logic of this function is to select (at first time) the aggregator with
- * the most ports attached to it, and to reselect the active aggregator only if
- * the previous aggregator has no more ports related to it.
+ *
+ * The logic of this function is to select the aggregator according to
+ * the ad_select policy:
+ *
+ * BOND_AD_STABLE: select the aggregator with the most ports attached to
+ * it, and to reselect the active aggregator only if the previous
+ * aggregator has no more ports related to it.
+ *
+ * BOND_AD_BANDWIDTH: select the aggregator with the highest total
+ * bandwidth, and reselect whenever a link state change takes place or the
+ * set of slaves in the bond changes.
+ *
+ * BOND_AD_COUNT: select the aggregator with largest number of ports
+ * (slaves), and reselect whenever a link state change takes place or the
+ * set of slaves in the bond changes.
  *
  * FIXME: this function MUST be called with the first agg in the bond, or
  * __get_active_agg() won't work correctly. This function should be better
  * called with the bond itself, and retrieve the first agg from it.
  */
-static void ad_agg_selection_logic(struct aggregator *aggregator)
+static void ad_agg_selection_logic(struct aggregator *agg)
 {
-	struct aggregator *best_aggregator = NULL, *active_aggregator = NULL;
-	struct aggregator *last_active_aggregator = NULL, *origin_aggregator;
+	struct aggregator *best, *active, *origin;
 	struct port *port;
-	u16 num_of_aggs=0;
 
-	origin_aggregator = aggregator;
+	origin = agg;
 
-	//get current active aggregator
-	last_active_aggregator = __get_active_agg(aggregator);
+	active = __get_active_agg(agg);
+	best = active;
 
-	// search for the aggregator with the most ports attached to it.
 	do {
-		// count how many candidate lag's we have
-		if (aggregator->lag_ports) {
-			num_of_aggs++;
-		}
-		if (aggregator->is_active && !aggregator->is_individual &&   // if current aggregator is the active aggregator
-		    MAC_ADDRESS_COMPARE(&(aggregator->partner_system), &(null_mac_addr))) {   // and partner answers to 802.3ad PDUs
-			if (aggregator->num_of_ports) {	// if any ports attached to the current aggregator
-				best_aggregator=NULL;	 // disregard the best aggregator that was chosen by now
-				break;		 // stop the selection of other aggregator if there are any ports attached to this active aggregator
-			} else { // no ports attached to this active aggregator
-				aggregator->is_active = 0; // mark this aggregator as not active anymore
-			}
-		}
-		if (aggregator->num_of_ports) {	// if any ports attached
-			if (best_aggregator) {	// if there is a candidte aggregator
-				//The reasons for choosing new best aggregator:
-				// 1. if current agg is NOT individual and the best agg chosen so far is individual OR
-				// current and best aggs are both individual or both not individual, AND
-				// 2a.  current agg partner reply but best agg partner do not reply OR
-				// 2b.  current agg partner reply OR current agg partner do not reply AND best agg partner also do not reply AND
-				//      current has more ports/bandwidth, or same amount of ports but current has faster ports, THEN
-				//      current agg become best agg so far
+		agg->is_active = 0;
 
-				//if current agg is NOT individual and the best agg chosen so far is individual change best_aggregator
-				if (!aggregator->is_individual && best_aggregator->is_individual) {
-					best_aggregator=aggregator;
-				}
-				// current and best aggs are both individual or both not individual
-				else if ((aggregator->is_individual && best_aggregator->is_individual) ||
-					 (!aggregator->is_individual && !best_aggregator->is_individual)) {
-					//  current and best aggs are both individual or both not individual AND
-					//  current agg partner reply but best agg partner do not reply
-					if ((MAC_ADDRESS_COMPARE(&(aggregator->partner_system), &(null_mac_addr)) &&
-					     !MAC_ADDRESS_COMPARE(&(best_aggregator->partner_system), &(null_mac_addr)))) {
-						best_aggregator=aggregator;
-					}
-					//  current agg partner reply OR current agg partner do not reply AND best agg partner also do not reply
-					else if (! (!MAC_ADDRESS_COMPARE(&(aggregator->partner_system), &(null_mac_addr)) &&
-						    MAC_ADDRESS_COMPARE(&(best_aggregator->partner_system), &(null_mac_addr)))) {
-						if ((__get_agg_selection_mode(aggregator->lag_ports) == AD_BANDWIDTH)&&
-						    (__get_agg_bandwidth(aggregator) > __get_agg_bandwidth(best_aggregator))) {
-							best_aggregator=aggregator;
-						} else if (__get_agg_selection_mode(aggregator->lag_ports) == AD_COUNT) {
-							if (((aggregator->num_of_ports > best_aggregator->num_of_ports) &&
-							     (aggregator->actor_oper_aggregator_key & AD_SPEED_KEY_BITS))||
-							    ((aggregator->num_of_ports == best_aggregator->num_of_ports) &&
-							     ((u16)(aggregator->actor_oper_aggregator_key & AD_SPEED_KEY_BITS) >
-							      (u16)(best_aggregator->actor_oper_aggregator_key & AD_SPEED_KEY_BITS)))) {
-								best_aggregator=aggregator;
-							}
-						}
-					}
-				}
-			} else {
-				best_aggregator=aggregator;
-			}
-		}
-		aggregator->is_active = 0; // mark all aggregators as not active anymore
-	} while ((aggregator = __get_next_agg(aggregator)));
+		if (agg->num_of_ports)
+			best = ad_agg_selection_test(best, agg);
 
-	// if we have new aggregator selected, don't replace the old aggregator if it has an answering partner,
-	// or if both old aggregator and new aggregator don't have answering partner
-	if (best_aggregator) {
-		if (last_active_aggregator && last_active_aggregator->lag_ports && last_active_aggregator->lag_ports->is_enabled &&
-		    (MAC_ADDRESS_COMPARE(&(last_active_aggregator->partner_system), &(null_mac_addr)) ||   // partner answers OR
-		     (!MAC_ADDRESS_COMPARE(&(last_active_aggregator->partner_system), &(null_mac_addr)) &&	// both old and new
-		      !MAC_ADDRESS_COMPARE(&(best_aggregator->partner_system), &(null_mac_addr))))     // partner do not answer
-		   ) {
-			// if new aggregator has link, and old aggregator does not, replace old aggregator.(do nothing)
-			// -> don't replace otherwise.
-			if (!(!last_active_aggregator->actor_oper_aggregator_key && best_aggregator->actor_oper_aggregator_key)) {
-				best_aggregator=NULL;
-				last_active_aggregator->is_active = 1; // don't replace good old aggregator
+	} while ((agg = __get_next_agg(agg)));
 
+	if (best &&
+	    __get_agg_selection_mode(best->lag_ports) == BOND_AD_STABLE) {
+		/*
+		 * For the STABLE policy, don't replace the old active
+		 * aggregator if it's still active (it has an answering
+		 * partner) or if both the best and active don't have an
+		 * answering partner.
+		 */
+		if (active && active->lag_ports &&
+		    active->lag_ports->is_enabled &&
+		    (__agg_has_partner(active) ||
+		     (!__agg_has_partner(active) && !__agg_has_partner(best)))) {
+			if (!(!active->actor_oper_aggregator_key &&
+			      best->actor_oper_aggregator_key)) {
+				best = NULL;
+				active->is_active = 1;
 			}
 		}
 	}
 
-	// if there is new best aggregator, activate it
-	if (best_aggregator) {
-		for (aggregator = __get_first_agg(best_aggregator->lag_ports);
-		    aggregator;
-		    aggregator = __get_next_agg(aggregator)) {
+	if (best && (best == active)) {
+		best = NULL;
+		active->is_active = 1;
+	}
 
-			dprintk("Agg=%d; Ports=%d; a key=%d; p key=%d; Indiv=%d; Active=%d\n",
-					aggregator->aggregator_identifier, aggregator->num_of_ports,
-					aggregator->actor_oper_aggregator_key, aggregator->partner_oper_aggregator_key,
-					aggregator->is_individual, aggregator->is_active);
+	// if there is new best aggregator, activate it
+	if (best) {
+		pr_debug("best Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
+		       best->aggregator_identifier, best->num_of_ports,
+		       best->actor_oper_aggregator_key,
+		       best->partner_oper_aggregator_key,
+		       best->is_individual, best->is_active);
+		pr_debug("best ports %p slave %p %s\n",
+		       best->lag_ports, best->slave,
+		       best->slave ? best->slave->dev->name : "NULL");
+
+		for (agg = __get_first_agg(best->lag_ports); agg;
+		     agg = __get_next_agg(agg)) {
+
+			pr_debug("Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
+				agg->aggregator_identifier, agg->num_of_ports,
+				agg->actor_oper_aggregator_key,
+				agg->partner_oper_aggregator_key,
+				agg->is_individual, agg->is_active);
 		}
 
 		// check if any partner replys
-		if (best_aggregator->is_individual) {
-			printk(KERN_WARNING DRV_NAME ": %s: Warning: No 802.3ad response from "
-			       "the link partner for any adapters in the bond\n",
-			       best_aggregator->slave->dev->master->name);
+		if (best->is_individual) {
+			printk(KERN_WARNING DRV_NAME ": %s: Warning: No 802.3ad"
+			       " response from the link partner for any"
+			       " adapters in the bond\n",
+			       best->slave->dev->master->name);
 		}
 
-		// check if there are more than one aggregator
-		if (num_of_aggs > 1) {
-			dprintk("Warning: More than one Link Aggregation Group was "
-				"found in the bond. Only one group will function in the bond\n");
-		}
-
-		best_aggregator->is_active = 1;
-		dprintk("LAG %d choosed as the active LAG\n", best_aggregator->aggregator_identifier);
-		dprintk("Agg=%d; Ports=%d; a key=%d; p key=%d; Indiv=%d; Active=%d\n",
-				best_aggregator->aggregator_identifier, best_aggregator->num_of_ports,
-				best_aggregator->actor_oper_aggregator_key, best_aggregator->partner_oper_aggregator_key,
-				best_aggregator->is_individual, best_aggregator->is_active);
+		best->is_active = 1;
+		pr_debug("LAG %d chosen as the active LAG\n",
+			best->aggregator_identifier);
+		pr_debug("Agg=%d; P=%d; a k=%d; p k=%d; Ind=%d; Act=%d\n",
+			best->aggregator_identifier, best->num_of_ports,
+			best->actor_oper_aggregator_key,
+			best->partner_oper_aggregator_key,
+			best->is_individual, best->is_active);
 
 		// disable the ports that were related to the former active_aggregator
-		if (last_active_aggregator) {
-			for (port=last_active_aggregator->lag_ports; port; port=port->next_port_in_aggregator) {
+		if (active) {
+			for (port = active->lag_ports; port;
+			     port = port->next_port_in_aggregator) {
 				__disable_port(port);
 			}
 		}
 	}
 
-	// if the selected aggregator is of join individuals(partner_system is NULL), enable their ports
-	active_aggregator = __get_active_agg(origin_aggregator);
+	/*
+	 * if the selected aggregator is of join individuals
+	 * (partner_system is NULL), enable their ports
+	 */
+	active = __get_active_agg(origin);
 
-	if (active_aggregator) {
-		if (!MAC_ADDRESS_COMPARE(&(active_aggregator->partner_system), &(null_mac_addr))) {
-			for (port=active_aggregator->lag_ports; port; port=port->next_port_in_aggregator) {
+	if (active) {
+		if (!__agg_has_partner(active)) {
+			for (port = active->lag_ports; port;
+			     port = port->next_port_in_aggregator) {
 				__enable_port(port);
 			}
 		}
+	}
+
+	if (origin->slave) {
+		struct bonding *bond;
+
+		bond = bond_get_bond_by_slave(origin->slave);
+		if (bond)
+			bond_3ad_set_carrier(bond);
 	}
 }
 
@@ -1584,7 +1612,7 @@ static void ad_agg_selection_logic(struct aggregator *aggregator)
 static void ad_clear_agg(struct aggregator *aggregator)
 {
 	if (aggregator) {
-		aggregator->is_individual = 0;
+		aggregator->is_individual = false;
 		aggregator->actor_admin_aggregator_key = 0;
 		aggregator->actor_oper_aggregator_key = 0;
 		aggregator->partner_system = null_mac_addr;
@@ -1595,7 +1623,7 @@ static void ad_clear_agg(struct aggregator *aggregator)
 		aggregator->lag_ports = NULL;
 		aggregator->is_active = 0;
 		aggregator->num_of_ports = 0;
-		dprintk("LAG %d was cleared\n", aggregator->aggregator_identifier);
+		pr_debug("LAG %d was cleared\n", aggregator->aggregator_identifier);
 	}
 }
 
@@ -1623,13 +1651,32 @@ static void ad_initialize_agg(struct aggregator *aggregator)
  */
 static void ad_initialize_port(struct port *port, int lacp_fast)
 {
+	static const struct port_params tmpl = {
+		.system_priority = 0xffff,
+		.key             = 1,
+		.port_number     = 1,
+		.port_priority   = 0xff,
+		.port_state      = 1,
+	};
+	static const struct lacpdu lacpdu = {
+		.subtype		= 0x01,
+		.version_number = 0x01,
+		.tlv_type_actor_info = 0x01,
+		.actor_information_length = 0x14,
+		.tlv_type_partner_info = 0x02,
+		.partner_information_length = 0x14,
+		.tlv_type_collector_info = 0x03,
+		.collector_information_length = 0x10,
+		.collector_max_delay = htons(AD_COLLECTOR_MAX_DELAY),
+	};
+
 	if (port) {
 		port->actor_port_number = 1;
 		port->actor_port_priority = 0xff;
 		port->actor_system = null_mac_addr;
 		port->actor_system_priority = 0xffff;
 		port->actor_port_aggregator_identifier = 0;
-		port->ntt = 0;
+		port->ntt = false;
 		port->actor_admin_port_key = 1;
 		port->actor_oper_port_key  = 1;
 		port->actor_admin_port_state = AD_STATE_AGGREGATION | AD_STATE_LACP_ACTIVITY;
@@ -1639,19 +1686,10 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 			port->actor_oper_port_state |= AD_STATE_LACP_TIMEOUT;
 		}
 
-		port->partner_admin_system = null_mac_addr;
-		port->partner_oper_system  = null_mac_addr;
-		port->partner_admin_system_priority = 0xffff;
-		port->partner_oper_system_priority  = 0xffff;
-		port->partner_admin_key = 1;
-		port->partner_oper_key  = 1;
-		port->partner_admin_port_number = 1;
-		port->partner_oper_port_number  = 1;
-		port->partner_admin_port_priority = 0xff;
-		port->partner_oper_port_priority  = 0xff;
-		port->partner_admin_port_state = 1;
-		port->partner_oper_port_state  = 1;
-		port->is_enabled = 1;
+		memcpy(&port->partner_admin, &tmpl, sizeof(tmpl));
+		memcpy(&port->partner_oper, &tmpl, sizeof(tmpl));
+
+		port->is_enabled = true;
 		// ****** private parameters ******
 		port->sm_vars = 0x3;
 		port->sm_rx_state = 0;
@@ -1667,7 +1705,7 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 		port->next_port_in_aggregator = NULL;
 		port->transaction_id = 0;
 
-		ad_initialize_lacpdu(&(port->lacpdu));
+		memcpy(&port->lacpdu, &lacpdu, sizeof(lacpdu));
 	}
 }
 
@@ -1680,7 +1718,7 @@ static void ad_initialize_port(struct port *port, int lacp_fast)
 static void ad_enable_collecting_distributing(struct port *port)
 {
 	if (port->aggregator->is_active) {
-		dprintk("Enabling port %d(LAG %d)\n", port->actor_port_number, port->aggregator->aggregator_identifier);
+		pr_debug("Enabling port %d(LAG %d)\n", port->actor_port_number, port->aggregator->aggregator_identifier);
 		__enable_port(port);
 	}
 }
@@ -1693,7 +1731,7 @@ static void ad_enable_collecting_distributing(struct port *port)
 static void ad_disable_collecting_distributing(struct port *port)
 {
 	if (port->aggregator && MAC_ADDRESS_COMPARE(&(port->aggregator->partner_system), &(null_mac_addr))) {
-		dprintk("Disabling port %d(LAG %d)\n", port->actor_port_number, port->aggregator->aggregator_identifier);
+		pr_debug("Disabling port %d(LAG %d)\n", port->actor_port_number, port->aggregator->aggregator_identifier);
 		__disable_port(port);
 	}
 }
@@ -1731,7 +1769,7 @@ static void ad_marker_info_send(struct port *port)
 
 	// send the marker information
 	if (ad_marker_send(port, &marker) >= 0) {
-		dprintk("Sent Marker Information on port %d\n", port->actor_port_number);
+		pr_debug("Sent Marker Information on port %d\n", port->actor_port_number);
 	}
 }
 #endif
@@ -1755,7 +1793,7 @@ static void ad_marker_info_received(struct bond_marker *marker_info,
 	// send the marker response
 
 	if (ad_marker_send(port, &marker) >= 0) {
-		dprintk("Sent Marker Response on port %d\n", port->actor_port_number);
+		pr_debug("Sent Marker Response on port %d\n", port->actor_port_number);
 	}
 }
 
@@ -1776,59 +1814,25 @@ static void ad_marker_response_received(struct bond_marker *marker,
 	// DO NOTHING, SINCE WE DECIDED NOT TO IMPLEMENT THIS FEATURE FOR NOW
 }
 
-/**
- * ad_initialize_lacpdu - initialize a given lacpdu structure
- * @lacpdu: lacpdu structure to initialize
- *
- */
-static void ad_initialize_lacpdu(struct lacpdu *lacpdu)
-{
-	u16 index;
-
-	// initialize lacpdu data
-	lacpdu->subtype = 0x01;
-	lacpdu->version_number = 0x01;
-	lacpdu->tlv_type_actor_info = 0x01;
-	lacpdu->actor_information_length = 0x14;
-	// lacpdu->actor_system_priority    updated on send
-	// lacpdu->actor_system             updated on send
-	// lacpdu->actor_key                updated on send
-	// lacpdu->actor_port_priority      updated on send
-	// lacpdu->actor_port               updated on send
-	// lacpdu->actor_state              updated on send
-	lacpdu->tlv_type_partner_info = 0x02;
-	lacpdu->partner_information_length = 0x14;
-	for (index=0; index<=2; index++) {
-		lacpdu->reserved_3_1[index]=0;
-	}
-	// lacpdu->partner_system_priority  updated on send
-	// lacpdu->partner_system           updated on send
-	// lacpdu->partner_key              updated on send
-	// lacpdu->partner_port_priority    updated on send
-	// lacpdu->partner_port             updated on send
-	// lacpdu->partner_state            updated on send
-	for (index=0; index<=2; index++) {
-		lacpdu->reserved_3_2[index]=0;
-	}
-	lacpdu->tlv_type_collector_info = 0x03;
-	lacpdu->collector_information_length= 0x10;
-	lacpdu->collector_max_delay = htons(AD_COLLECTOR_MAX_DELAY);
-	for (index=0; index<=11; index++) {
-		lacpdu->reserved_12[index]=0;
-	}
-	lacpdu->tlv_type_terminator = 0x00;
-	lacpdu->terminator_length = 0;
-	for (index=0; index<=49; index++) {
-		lacpdu->reserved_50[index]=0;
-	}
-}
-
 //////////////////////////////////////////////////////////////////////////////////////
 // ================= AD exported functions to the main bonding code ==================
 //////////////////////////////////////////////////////////////////////////////////////
 
 // Check aggregators status in team every T seconds
 #define AD_AGGREGATOR_SELECTION_TIMER  8
+
+/*
+ * bond_3ad_initiate_agg_selection(struct bonding *bond)
+ *
+ * Set the aggregation selection timer, to initiate an agg selection in
+ * the very near future.  Called during first initialization, and during
+ * any down to up transitions of the bond.
+ */
+void bond_3ad_initiate_agg_selection(struct bonding *bond, int timeout)
+{
+	BOND_AD_INFO(bond).agg_select_timer = timeout;
+	BOND_AD_INFO(bond).agg_select_mode = bond->params.ad_select;
+}
 
 static u16 aggregator_identifier;
 
@@ -1854,9 +1858,9 @@ void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution, int lacp_fas
 		// initialize how many times this module is called in one second(should be about every 100ms)
 		ad_ticks_per_sec = tick_resolution;
 
-		// initialize the aggregator selection timer(to activate an aggregation selection after initialize)
-		BOND_AD_INFO(bond).agg_select_timer = (AD_AGGREGATOR_SELECTION_TIMER * ad_ticks_per_sec);
-		BOND_AD_INFO(bond).agg_select_mode = AD_BANDWIDTH;
+		bond_3ad_initiate_agg_selection(bond,
+						AD_AGGREGATOR_SELECTION_TIMER *
+						ad_ticks_per_sec);
 	}
 }
 
@@ -1956,7 +1960,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 		return;
 	}
 
-	dprintk("Unbinding Link Aggregation Group %d\n", aggregator->aggregator_identifier);
+	pr_debug("Unbinding Link Aggregation Group %d\n", aggregator->aggregator_identifier);
 
 	/* Tell the partner that this port is not suitable for aggregation */
 	port->actor_oper_port_state &= ~AD_STATE_AGGREGATION;
@@ -1980,7 +1984,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 			// if new aggregator found, copy the aggregator's parameters
 			// and connect the related lag_ports to the new aggregator
 			if ((new_aggregator) && ((!new_aggregator->lag_ports) || ((new_aggregator->lag_ports == port) && !new_aggregator->lag_ports->next_port_in_aggregator))) {
-				dprintk("Some port(s) related to LAG %d - replaceing with LAG %d\n", aggregator->aggregator_identifier, new_aggregator->aggregator_identifier);
+				pr_debug("Some port(s) related to LAG %d - replaceing with LAG %d\n", aggregator->aggregator_identifier, new_aggregator->aggregator_identifier);
 
 				if ((new_aggregator->lag_ports == port) && new_aggregator->is_active) {
 					printk(KERN_INFO DRV_NAME ": %s: Removing an active aggregator\n",
@@ -2031,7 +2035,7 @@ void bond_3ad_unbind_slave(struct slave *slave)
 		}
 	}
 
-	dprintk("Unbinding port %d\n", port->actor_port_number);
+	pr_debug("Unbinding port %d\n", port->actor_port_number);
 	// find the aggregator that this port is connected to
 	temp_aggregator = __get_first_agg(port);
 	for (; temp_aggregator; temp_aggregator = __get_next_agg(temp_aggregator)) {
@@ -2162,7 +2166,7 @@ static void bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave, u
 
 		switch (lacpdu->subtype) {
 		case AD_TYPE_LACPDU:
-			dprintk("Received LACPDU on port %d\n", port->actor_port_number);
+			pr_debug("Received LACPDU on port %d\n", port->actor_port_number);
 			ad_rx_machine(lacpdu, port);
 			break;
 
@@ -2171,17 +2175,17 @@ static void bond_3ad_rx_indication(struct lacpdu *lacpdu, struct slave *slave, u
 
 			switch (((struct bond_marker *)lacpdu)->tlv_type) {
 			case AD_MARKER_INFORMATION_SUBTYPE:
-				dprintk("Received Marker Information on port %d\n", port->actor_port_number);
+				pr_debug("Received Marker Information on port %d\n", port->actor_port_number);
 				ad_marker_info_received((struct bond_marker *)lacpdu, port);
 				break;
 
 			case AD_MARKER_RESPONSE_SUBTYPE:
-				dprintk("Received Marker Response on port %d\n", port->actor_port_number);
+				pr_debug("Received Marker Response on port %d\n", port->actor_port_number);
 				ad_marker_response_received((struct bond_marker *)lacpdu, port);
 				break;
 
 			default:
-				dprintk("Received an unknown Marker subtype on slot %d\n", port->actor_port_number);
+				pr_debug("Received an unknown Marker subtype on slot %d\n", port->actor_port_number);
 			}
 		}
 	}
@@ -2209,7 +2213,7 @@ void bond_3ad_adapter_speed_changed(struct slave *slave)
 
 	port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS;
 	port->actor_oper_port_key=port->actor_admin_port_key |= (__get_link_speed(port) << 1);
-	dprintk("Port %d changed speed\n", port->actor_port_number);
+	pr_debug("Port %d changed speed\n", port->actor_port_number);
 	// there is no need to reselect a new aggregator, just signal the
 	// state machines to reinitialize
 	port->sm_vars |= AD_PORT_BEGIN;
@@ -2237,7 +2241,7 @@ void bond_3ad_adapter_duplex_changed(struct slave *slave)
 
 	port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
 	port->actor_oper_port_key=port->actor_admin_port_key |= __get_duplex(port);
-	dprintk("Port %d changed duplex\n", port->actor_port_number);
+	pr_debug("Port %d changed duplex\n", port->actor_port_number);
 	// there is no need to reselect a new aggregator, just signal the
 	// state machines to reinitialize
 	port->sm_vars |= AD_PORT_BEGIN;
@@ -2267,14 +2271,14 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 	// on link down we are zeroing duplex and speed since some of the adaptors(ce1000.lan) report full duplex/speed instead of N/A(duplex) / 0(speed)
 	// on link up we are forcing recheck on the duplex and speed since some of he adaptors(ce1000.lan) report
 	if (link == BOND_LINK_UP) {
-		port->is_enabled = 1;
+		port->is_enabled = true;
 		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
 		port->actor_oper_port_key=port->actor_admin_port_key |= __get_duplex(port);
 		port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS;
 		port->actor_oper_port_key=port->actor_admin_port_key |= (__get_link_speed(port) << 1);
 	} else {
 		/* link has failed */
-		port->is_enabled = 0;
+		port->is_enabled = false;
 		port->actor_admin_port_key &= ~AD_DUPLEX_KEY_BITS;
 		port->actor_oper_port_key= (port->actor_admin_port_key &= ~AD_SPEED_KEY_BITS);
 	}
@@ -2346,7 +2350,7 @@ int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
 int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 {
 	struct slave *slave, *start_at;
-	struct bonding *bond = dev->priv;
+	struct bonding *bond = netdev_priv(dev);
 	int slave_agg_no;
 	int slaves_in_agg;
 	int agg_id;
@@ -2426,7 +2430,7 @@ out:
 
 int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type* ptype, struct net_device *orig_dev)
 {
-	struct bonding *bond = dev->priv;
+	struct bonding *bond = netdev_priv(dev);
 	struct slave *slave = NULL;
 	int ret = NET_RX_DROP;
 
@@ -2437,7 +2441,8 @@ int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct pac
 		goto out;
 
 	read_lock(&bond->lock);
-	slave = bond_get_slave_by_dev((struct bonding *)dev->priv, orig_dev);
+	slave = bond_get_slave_by_dev((struct bonding *)netdev_priv(dev),
+					orig_dev);
 	if (!slave)
 		goto out_unlock;
 

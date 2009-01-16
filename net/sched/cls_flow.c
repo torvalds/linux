@@ -260,14 +260,14 @@ static u32 flow_get_rtclassid(const struct sk_buff *skb)
 static u32 flow_get_skuid(const struct sk_buff *skb)
 {
 	if (skb->sk && skb->sk->sk_socket && skb->sk->sk_socket->file)
-		return skb->sk->sk_socket->file->f_uid;
+		return skb->sk->sk_socket->file->f_cred->fsuid;
 	return 0;
 }
 
 static u32 flow_get_skgid(const struct sk_buff *skb)
 {
 	if (skb->sk && skb->sk->sk_socket && skb->sk->sk_socket->file)
-		return skb->sk->sk_socket->file->f_gid;
+		return skb->sk->sk_socket->file->f_cred->fsgid;
 	return 0;
 }
 

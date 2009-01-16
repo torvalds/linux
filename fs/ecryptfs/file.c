@@ -77,27 +77,27 @@ struct ecryptfs_getdents_callback {
 
 /* Inspired by generic filldir in fs/readdir.c */
 static int
-ecryptfs_filldir(void *dirent, const char *name, int namelen, loff_t offset,
-		 u64 ino, unsigned int d_type)
+ecryptfs_filldir(void *dirent, const char *lower_name, int lower_namelen,
+		 loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct ecryptfs_crypt_stat *crypt_stat;
 	struct ecryptfs_getdents_callback *buf =
 	    (struct ecryptfs_getdents_callback *)dirent;
+	size_t name_size;
+	char *name;
 	int rc;
-	int decoded_length;
-	char *decoded_name;
 
-	crypt_stat = ecryptfs_dentry_to_private(buf->dentry)->crypt_stat;
 	buf->filldir_called++;
-	decoded_length = ecryptfs_decode_filename(crypt_stat, name, namelen,
-						  &decoded_name);
-	if (decoded_length < 0) {
-		rc = decoded_length;
+	rc = ecryptfs_decode_and_decrypt_filename(&name, &name_size,
+						  buf->dentry, lower_name,
+						  lower_namelen);
+	if (rc) {
+		printk(KERN_ERR "%s: Error attempting to decode and decrypt "
+		       "filename [%s]; rc = [%d]\n", __func__, lower_name,
+		       rc);
 		goto out;
 	}
-	rc = buf->filldir(buf->dirent, decoded_name, decoded_length, offset,
-			  ino, d_type);
-	kfree(decoded_name);
+	rc = buf->filldir(buf->dirent, name, name_size, offset, ino, d_type);
+	kfree(name);
 	if (rc >= 0)
 		buf->entries_written++;
 out:
@@ -106,8 +106,8 @@ out:
 
 /**
  * ecryptfs_readdir
- * @file: The ecryptfs file struct
- * @dirent: Directory entry
+ * @file: The eCryptfs directory file
+ * @dirent: Directory entry handle
  * @filldir: The filldir callback function
  */
 static int ecryptfs_readdir(struct file *file, void *dirent, filldir_t filldir)
@@ -275,18 +275,9 @@ static int ecryptfs_release(struct inode *inode, struct file *file)
 static int
 ecryptfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
-	struct file *lower_file = ecryptfs_file_to_lower(file);
-	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	struct inode *lower_inode = lower_dentry->d_inode;
-	int rc = -EINVAL;
-
-	if (lower_inode->i_fop->fsync) {
-		mutex_lock(&lower_inode->i_mutex);
-		rc = lower_inode->i_fop->fsync(lower_file, lower_dentry,
-					       datasync);
-		mutex_unlock(&lower_inode->i_mutex);
-	}
-	return rc;
+	return vfs_fsync(ecryptfs_file_to_lower(file),
+			 ecryptfs_dentry_to_lower(dentry),
+			 datasync);
 }
 
 static int ecryptfs_fasync(int fd, struct file *file, int flag)

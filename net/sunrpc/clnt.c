@@ -197,6 +197,12 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 
 	clnt->cl_rtt = &clnt->cl_rtt_default;
 	rpc_init_rtt(&clnt->cl_rtt_default, clnt->cl_timeout->to_initval);
+	clnt->cl_principal = NULL;
+	if (args->client_name) {
+		clnt->cl_principal = kstrdup(args->client_name, GFP_KERNEL);
+		if (!clnt->cl_principal)
+			goto out_no_principal;
+	}
 
 	kref_init(&clnt->cl_kref);
 
@@ -226,6 +232,8 @@ out_no_auth:
 		rpc_put_mount();
 	}
 out_no_path:
+	kfree(clnt->cl_principal);
+out_no_principal:
 	rpc_free_iostats(clnt->cl_metrics);
 out_no_stats:
 	if (clnt->cl_server != clnt->cl_inline_name)
@@ -271,15 +279,15 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		case AF_INET: {
 			struct sockaddr_in *sin =
 					(struct sockaddr_in *)args->address;
-			snprintf(servername, sizeof(servername), NIPQUAD_FMT,
-				 NIPQUAD(sin->sin_addr.s_addr));
+			snprintf(servername, sizeof(servername), "%pI4",
+				 &sin->sin_addr.s_addr);
 			break;
 		}
 		case AF_INET6: {
 			struct sockaddr_in6 *sin =
 					(struct sockaddr_in6 *)args->address;
-			snprintf(servername, sizeof(servername), NIP6_FMT,
-				 NIP6(sin->sin6_addr));
+			snprintf(servername, sizeof(servername), "%pI6",
+				 &sin->sin6_addr);
 			break;
 		}
 		default:
@@ -354,6 +362,11 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new->cl_metrics = rpc_alloc_iostats(clnt);
 	if (new->cl_metrics == NULL)
 		goto out_no_stats;
+	if (clnt->cl_principal) {
+		new->cl_principal = kstrdup(clnt->cl_principal, GFP_KERNEL);
+		if (new->cl_principal == NULL)
+			goto out_no_principal;
+	}
 	kref_init(&new->cl_kref);
 	err = rpc_setup_pipedir(new, clnt->cl_program->pipe_dir_name);
 	if (err != 0)
@@ -366,6 +379,8 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	rpciod_up();
 	return new;
 out_no_path:
+	kfree(new->cl_principal);
+out_no_principal:
 	rpc_free_iostats(new->cl_metrics);
 out_no_stats:
 	kfree(new);
@@ -417,6 +432,7 @@ rpc_free_client(struct kref *kref)
 out_free:
 	rpc_unregister_client(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
+	kfree(clnt->cl_principal);
 	clnt->cl_metrics = NULL;
 	xprt_put(clnt->cl_xprt);
 	rpciod_down();

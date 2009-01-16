@@ -47,14 +47,10 @@
 #include <sound/asoundef.h>
 #include "hda_codec.h"
 #include "hda_local.h"
-#include "hda_patch.h"
 
 /* amp values */
 #define AMP_VAL_IDX_SHIFT	19
 #define AMP_VAL_IDX_MASK	(0x0f<<19)
-
-#define NUM_CONTROL_ALLOC	32
-#define NUM_VERB_ALLOC		32
 
 /* Pin Widget NID */
 #define VT1708_HP_NID		0x13
@@ -145,8 +141,6 @@ enum {
 	AUTO_SEQ_SIDE
 };
 
-#define get_amp_nid(kc)	((kc)->private_value & 0xffff)
-
 /* Some VT1708S based boards gets the micboost setting wrong, so we have
  * to apply some brute-force and re-write the TLV's by software. */
 static int mic_boost_tlv(struct snd_kcontrol *kcontrol, int op_flag,
@@ -227,8 +221,7 @@ struct via_spec {
 
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
-	unsigned int num_kctl_alloc, num_kctl_used;
-	struct snd_kcontrol_new *kctl_alloc;
+	struct snd_array kctls;
 	struct hda_input_mux private_imux[2];
 	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
@@ -272,31 +265,29 @@ static int via_add_control(struct via_spec *spec, int type, const char *name,
 {
 	struct snd_kcontrol_new *knew;
 
-	if (spec->num_kctl_used >= spec->num_kctl_alloc) {
-		int num = spec->num_kctl_alloc + NUM_CONTROL_ALLOC;
-
-		/* array + terminator */
-		knew = kcalloc(num + 1, sizeof(*knew), GFP_KERNEL);
-		if (!knew)
-			return -ENOMEM;
-		if (spec->kctl_alloc) {
-			memcpy(knew, spec->kctl_alloc,
-			       sizeof(*knew) * spec->num_kctl_alloc);
-			kfree(spec->kctl_alloc);
-		}
-		spec->kctl_alloc = knew;
-		spec->num_kctl_alloc = num;
-	}
-
-	knew = &spec->kctl_alloc[spec->num_kctl_used];
+	snd_array_init(&spec->kctls, sizeof(*knew), 32);
+	knew = snd_array_new(&spec->kctls);
+	if (!knew)
+		return -ENOMEM;
 	*knew = vt1708_control_templates[type];
 	knew->name = kstrdup(name, GFP_KERNEL);
-
 	if (!knew->name)
 		return -ENOMEM;
 	knew->private_value = val;
-	spec->num_kctl_used++;
 	return 0;
+}
+
+static void via_free_kctls(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+
+	if (spec->kctls.list) {
+		struct snd_kcontrol_new *kctl = spec->kctls.list;
+		int i;
+		for (i = 0; i < spec->kctls.used; i++)
+			kfree(kctl[i].name);
+	}
+	snd_array_free(&spec->kctls);
 }
 
 /* create input playback/capture controls for the given pin */
@@ -896,6 +887,7 @@ static int via_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
+	via_free_kctls(codec); /* no longer needed */
 	return 0;
 }
 
@@ -941,17 +933,11 @@ static int via_build_pcms(struct hda_codec *codec)
 static void via_free(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
-	unsigned int i;
 
 	if (!spec)
 		return;
 
-	if (spec->kctl_alloc) {
-		for (i = 0; i < spec->num_kctl_used; i++)
-			kfree(spec->kctl_alloc[i].name);
-		kfree(spec->kctl_alloc);
-	}
-
+	via_free_kctls(codec);
 	kfree(codec->spec);
 }
 
@@ -1373,8 +1359,8 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = VT1708_DIGIN_NID;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->init_verbs[spec->num_iverbs++] = vt1708_volume_init_verbs;
 
@@ -1846,8 +1832,8 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = VT1709_DIGIN_NID;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->input_mux = &spec->private_imux[0];
 
@@ -2390,8 +2376,8 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = VT1708B_DIGIN_NID;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->input_mux = &spec->private_imux[0];
 
@@ -2855,8 +2841,8 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 
 	spec->extra_dig_out_nid = 0x15;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->input_mux = &spec->private_imux[0];
 
@@ -3174,8 +3160,8 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 
 	spec->extra_dig_out_nid = 0x1B;
 
-	if (spec->kctl_alloc)
-		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
+	if (spec->kctls.list)
+		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 	spec->input_mux = &spec->private_imux[0];
 
@@ -3262,74 +3248,97 @@ static int patch_vt1702(struct hda_codec *codec)
 /*
  * patch entries
  */
-struct hda_codec_preset snd_hda_preset_via[] = {
-	{ .id = 0x11061708, .name = "VIA VT1708", .patch = patch_vt1708},
-	{ .id = 0x11061709, .name = "VIA VT1708", .patch = patch_vt1708},
-	{ .id = 0x1106170A, .name = "VIA VT1708", .patch = patch_vt1708},
-	{ .id = 0x1106170B, .name = "VIA VT1708", .patch = patch_vt1708},
-	{ .id = 0x1106E710, .name = "VIA VT1709 10-Ch",
+static struct hda_codec_preset snd_hda_preset_via[] = {
+	{ .id = 0x11061708, .name = "VT1708", .patch = patch_vt1708},
+	{ .id = 0x11061709, .name = "VT1708", .patch = patch_vt1708},
+	{ .id = 0x1106170a, .name = "VT1708", .patch = patch_vt1708},
+	{ .id = 0x1106170b, .name = "VT1708", .patch = patch_vt1708},
+	{ .id = 0x1106e710, .name = "VT1709 10-Ch",
 	  .patch = patch_vt1709_10ch},
-	{ .id = 0x1106E711, .name = "VIA VT1709 10-Ch",
+	{ .id = 0x1106e711, .name = "VT1709 10-Ch",
 	  .patch = patch_vt1709_10ch},
-	{ .id = 0x1106E712, .name = "VIA VT1709 10-Ch",
+	{ .id = 0x1106e712, .name = "VT1709 10-Ch",
 	  .patch = patch_vt1709_10ch},
-	{ .id = 0x1106E713, .name = "VIA VT1709 10-Ch",
+	{ .id = 0x1106e713, .name = "VT1709 10-Ch",
 	  .patch = patch_vt1709_10ch},
-	{ .id = 0x1106E714, .name = "VIA VT1709 6-Ch",
+	{ .id = 0x1106e714, .name = "VT1709 6-Ch",
 	  .patch = patch_vt1709_6ch},
-	{ .id = 0x1106E715, .name = "VIA VT1709 6-Ch",
+	{ .id = 0x1106e715, .name = "VT1709 6-Ch",
 	  .patch = patch_vt1709_6ch},
-	{ .id = 0x1106E716, .name = "VIA VT1709 6-Ch",
+	{ .id = 0x1106e716, .name = "VT1709 6-Ch",
 	  .patch = patch_vt1709_6ch},
-	{ .id = 0x1106E717, .name = "VIA VT1709 6-Ch",
+	{ .id = 0x1106e717, .name = "VT1709 6-Ch",
 	  .patch = patch_vt1709_6ch},
-	{ .id = 0x1106E720, .name = "VIA VT1708B 8-Ch",
+	{ .id = 0x1106e720, .name = "VT1708B 8-Ch",
 	  .patch = patch_vt1708B_8ch},
-	{ .id = 0x1106E721, .name = "VIA VT1708B 8-Ch",
+	{ .id = 0x1106e721, .name = "VT1708B 8-Ch",
 	  .patch = patch_vt1708B_8ch},
-	{ .id = 0x1106E722, .name = "VIA VT1708B 8-Ch",
+	{ .id = 0x1106e722, .name = "VT1708B 8-Ch",
 	  .patch = patch_vt1708B_8ch},
-	{ .id = 0x1106E723, .name = "VIA VT1708B 8-Ch",
+	{ .id = 0x1106e723, .name = "VT1708B 8-Ch",
 	  .patch = patch_vt1708B_8ch},
-	{ .id = 0x1106E724, .name = "VIA VT1708B 4-Ch",
+	{ .id = 0x1106e724, .name = "VT1708B 4-Ch",
 	  .patch = patch_vt1708B_4ch},
-	{ .id = 0x1106E725, .name = "VIA VT1708B 4-Ch",
+	{ .id = 0x1106e725, .name = "VT1708B 4-Ch",
 	  .patch = patch_vt1708B_4ch},
-	{ .id = 0x1106E726, .name = "VIA VT1708B 4-Ch",
+	{ .id = 0x1106e726, .name = "VT1708B 4-Ch",
 	  .patch = patch_vt1708B_4ch},
-	{ .id = 0x1106E727, .name = "VIA VT1708B 4-Ch",
+	{ .id = 0x1106e727, .name = "VT1708B 4-Ch",
 	  .patch = patch_vt1708B_4ch},
-	{ .id = 0x11060397, .name = "VIA VT1708S",
+	{ .id = 0x11060397, .name = "VT1708S",
 	  .patch = patch_vt1708S},
-	{ .id = 0x11061397, .name = "VIA VT1708S",
+	{ .id = 0x11061397, .name = "VT1708S",
 	  .patch = patch_vt1708S},
-	{ .id = 0x11062397, .name = "VIA VT1708S",
+	{ .id = 0x11062397, .name = "VT1708S",
 	  .patch = patch_vt1708S},
-	{ .id = 0x11063397, .name = "VIA VT1708S",
+	{ .id = 0x11063397, .name = "VT1708S",
 	  .patch = patch_vt1708S},
-	{ .id = 0x11064397, .name = "VIA VT1708S",
+	{ .id = 0x11064397, .name = "VT1708S",
 	  .patch = patch_vt1708S},
-	{ .id = 0x11065397, .name = "VIA VT1708S",
+	{ .id = 0x11065397, .name = "VT1708S",
 	  .patch = patch_vt1708S},
-	{ .id = 0x11066397, .name = "VIA VT1708S",
+	{ .id = 0x11066397, .name = "VT1708S",
 	  .patch = patch_vt1708S},
-	{ .id = 0x11067397, .name = "VIA VT1708S",
+	{ .id = 0x11067397, .name = "VT1708S",
 	  .patch = patch_vt1708S},
-	{ .id = 0x11060398, .name = "VIA VT1702",
+	{ .id = 0x11060398, .name = "VT1702",
 	  .patch = patch_vt1702},
-	{ .id = 0x11061398, .name = "VIA VT1702",
+	{ .id = 0x11061398, .name = "VT1702",
 	  .patch = patch_vt1702},
-	{ .id = 0x11062398, .name = "VIA VT1702",
+	{ .id = 0x11062398, .name = "VT1702",
 	  .patch = patch_vt1702},
-	{ .id = 0x11063398, .name = "VIA VT1702",
+	{ .id = 0x11063398, .name = "VT1702",
 	  .patch = patch_vt1702},
-	{ .id = 0x11064398, .name = "VIA VT1702",
+	{ .id = 0x11064398, .name = "VT1702",
 	  .patch = patch_vt1702},
-	{ .id = 0x11065398, .name = "VIA VT1702",
+	{ .id = 0x11065398, .name = "VT1702",
 	  .patch = patch_vt1702},
-	{ .id = 0x11066398, .name = "VIA VT1702",
+	{ .id = 0x11066398, .name = "VT1702",
 	  .patch = patch_vt1702},
-	{ .id = 0x11067398, .name = "VIA VT1702",
+	{ .id = 0x11067398, .name = "VT1702",
 	  .patch = patch_vt1702},
 	{} /* terminator */
 };
+
+MODULE_ALIAS("snd-hda-codec-id:1106*");
+
+static struct hda_codec_preset_list via_list = {
+	.preset = snd_hda_preset_via,
+	.owner = THIS_MODULE,
+};
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("VIA HD-audio codec");
+
+static int __init patch_via_init(void)
+{
+	return snd_hda_add_codec_preset(&via_list);
+}
+
+static void __exit patch_via_exit(void)
+{
+	snd_hda_delete_codec_preset(&via_list);
+}
+
+module_init(patch_via_init)
+module_exit(patch_via_exit)

@@ -38,9 +38,24 @@ extern pte_t *pkmap_page_table;
  * easily, subsequent pte tables have to be allocated in one physical
  * chunk of RAM.
  */
-#define LAST_PKMAP 	(1 << PTE_SHIFT)
-#define LAST_PKMAP_MASK (LAST_PKMAP-1)
+/*
+ * We use one full pte table with 4K pages. And with 16K/64K pages pte
+ * table covers enough memory (32MB and 512MB resp.) that both FIXMAP
+ * and PKMAP can be placed in single pte table. We use 1024 pages for
+ * PKMAP in case of 16K/64K pages.
+ */
+#ifdef CONFIG_PPC_4K_PAGES
+#define PKMAP_ORDER	PTE_SHIFT
+#else
+#define PKMAP_ORDER	10
+#endif
+#define LAST_PKMAP	(1 << PKMAP_ORDER)
+#ifndef CONFIG_PPC_4K_PAGES
+#define PKMAP_BASE	(FIXADDR_START - PAGE_SIZE*(LAST_PKMAP + 1))
+#else
 #define PKMAP_BASE	((FIXADDR_START - PAGE_SIZE*(LAST_PKMAP + 1)) & PMD_MASK)
+#endif
+#define LAST_PKMAP_MASK	(LAST_PKMAP-1)
 #define PKMAP_NR(virt)  ((virt-PKMAP_BASE) >> PAGE_SHIFT)
 #define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))
 
@@ -85,7 +100,7 @@ static inline void *kmap_atomic_prot(struct page *page, enum km_type type, pgpro
 	BUG_ON(!pte_none(*(kmap_pte-idx)));
 #endif
 	__set_pte_at(&init_mm, vaddr, kmap_pte-idx, mk_pte(page, prot));
-	flush_tlb_page(NULL, vaddr);
+	local_flush_tlb_page(NULL, vaddr);
 
 	return (void*) vaddr;
 }
@@ -113,7 +128,7 @@ static inline void kunmap_atomic(void *kvaddr, enum km_type type)
 	 * this pte without first remap it
 	 */
 	pte_clear(&init_mm, vaddr, kmap_pte-idx);
-	flush_tlb_page(NULL, vaddr);
+	local_flush_tlb_page(NULL, vaddr);
 #endif
 	pagefault_enable();
 }

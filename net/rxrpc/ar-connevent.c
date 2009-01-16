@@ -126,7 +126,7 @@ static int rxrpc_abort_connection(struct rxrpc_connection *conn,
  * mark a call as being on a now-secured channel
  * - must be called with softirqs disabled
  */
-void rxrpc_call_is_secure(struct rxrpc_call *call)
+static void rxrpc_call_is_secure(struct rxrpc_call *call)
 {
 	_enter("%p", call);
 	if (call) {

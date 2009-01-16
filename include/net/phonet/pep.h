@@ -35,12 +35,12 @@ struct pep_sock {
 	struct sock		*listener;
 	struct sk_buff_head	ctrlreq_queue;
 #define PNPIPE_CTRLREQ_MAX	10
+	atomic_t		tx_credits;
 	int			ifindex;
 	u16			peer_type;	/* peer type/subtype */
 	u8			pipe_handle;
 
 	u8			rx_credits;
-	u8			tx_credits;
 	u8			rx_fc;	/* RX flow control */
 	u8			tx_fc;	/* TX flow control */
 	u8			init_enable;	/* auto-enable at creation */

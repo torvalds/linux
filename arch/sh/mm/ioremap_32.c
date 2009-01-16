@@ -116,9 +116,10 @@ EXPORT_SYMBOL(__ioremap);
 void __iounmap(void __iomem *addr)
 {
 	unsigned long vaddr = (unsigned long __force)addr;
+	unsigned long seg = PXSEG(vaddr);
 	struct vm_struct *p;
 
-	if (PXSEG(vaddr) < P3SEG || is_pci_memaddr(vaddr))
+	if (seg < P3SEG || seg >= P3_ADDR_MAX || is_pci_memaddr(vaddr))
 		return;
 
 #ifdef CONFIG_32BIT

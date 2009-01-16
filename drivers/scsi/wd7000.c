@@ -146,13 +146,13 @@
  *
  * use host->host_lock, not io_request_lock, cleanups
  *
- * 2002/10/04 - Alan Cox <alan@redhat.com>
+ * 2002/10/04 - Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * Use dev_id for interrupts, kill __func__ pasting
  * Add a lock for the scb pool, clean up all other cli/sti usage stuff
  * Use the adapter lock for the other places we had the cli's
  *
- * 2002/10/06 - Alan Cox <alan@redhat.com>
+ * 2002/10/06 - Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  * Switch to new style error handling
  * Clean up delay to udelay, and yielding sleeps

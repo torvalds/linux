@@ -14,11 +14,11 @@
 #endif
 
 struct ide_disk_obj {
-	ide_drive_t	*drive;
-	ide_driver_t	*driver;
-	struct gendisk	*disk;
-	struct kref	kref;
-	unsigned int	openers;	/* protected by BKL for now */
+	ide_drive_t		*drive;
+	struct ide_driver	*driver;
+	struct gendisk		*disk;
+	struct kref		kref;
+	unsigned int		openers;	/* protected by BKL for now */
 
 	/* Last failed packet command */
 	struct ide_atapi_pc *failed_pc;

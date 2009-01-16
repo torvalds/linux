@@ -79,7 +79,6 @@ print_ports(const struct sk_buff *skb, uint8_t protocol, int offset)
 	}
 }
 
-#define myNIPQUAD(a) a[0], a[1], a[2], a[3]
 static void
 ebt_log_packet(u_int8_t pf, unsigned int hooknum,
    const struct sk_buff *skb, const struct net_device *in,
@@ -113,9 +112,8 @@ ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 			printk(" INCOMPLETE IP header");
 			goto out;
 		}
-		printk(" IP SRC=%u.%u.%u.%u IP DST=%u.%u.%u.%u, IP "
-		       "tos=0x%02X, IP proto=%d", NIPQUAD(ih->saddr),
-		       NIPQUAD(ih->daddr), ih->tos, ih->protocol);
+		printk(" IP SRC=%pI4 IP DST=%pI4, IP tos=0x%02X, IP proto=%d",
+		       &ih->saddr, &ih->daddr, ih->tos, ih->protocol);
 		print_ports(skb, ih->protocol, ih->ihl*4);
 		goto out;
 	}
@@ -133,10 +131,8 @@ ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 			printk(" INCOMPLETE IPv6 header");
 			goto out;
 		}
-		printk(" IPv6 SRC=%x:%x:%x:%x:%x:%x:%x:%x "
-		       "IPv6 DST=%x:%x:%x:%x:%x:%x:%x:%x, IPv6 "
-		       "priority=0x%01X, Next Header=%d", NIP6(ih->saddr),
-		       NIP6(ih->daddr), ih->priority, ih->nexthdr);
+		printk(" IPv6 SRC=%pI6 IPv6 DST=%pI6, IPv6 priority=0x%01X, Next Header=%d",
+		       &ih->saddr, &ih->daddr, ih->priority, ih->nexthdr);
 		nexthdr = ih->nexthdr;
 		offset_ph = ipv6_skip_exthdr(skb, sizeof(_iph), &nexthdr);
 		if (offset_ph == -1)
@@ -177,12 +173,10 @@ ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 			}
 			printk(" ARP MAC SRC=");
 			print_MAC(ap->mac_src);
-			printk(" ARP IP SRC=%u.%u.%u.%u",
-			       myNIPQUAD(ap->ip_src));
+			printk(" ARP IP SRC=%pI4", ap->ip_src);
 			printk(" ARP MAC DST=");
 			print_MAC(ap->mac_dst);
-			printk(" ARP IP DST=%u.%u.%u.%u",
-			       myNIPQUAD(ap->ip_dst));
+			printk(" ARP IP DST=%pI4", ap->ip_dst);
 		}
 	}
 out:

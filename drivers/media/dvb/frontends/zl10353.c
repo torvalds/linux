@@ -220,15 +220,18 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 		/* These are extrapolated from the 7 and 8MHz values */
 		zl10353_single_write(fe, MCLK_RATIO, 0x97);
 		zl10353_single_write(fe, 0x64, 0x34);
+		zl10353_single_write(fe, 0xcc, 0xdd);
 		break;
 	case BANDWIDTH_7_MHZ:
 		zl10353_single_write(fe, MCLK_RATIO, 0x86);
 		zl10353_single_write(fe, 0x64, 0x35);
+		zl10353_single_write(fe, 0xcc, 0x73);
 		break;
 	case BANDWIDTH_8_MHZ:
 	default:
 		zl10353_single_write(fe, MCLK_RATIO, 0x75);
 		zl10353_single_write(fe, 0x64, 0x36);
+		zl10353_single_write(fe, 0xcc, 0x73);
 	}
 
 	zl10353_calc_nominal_rate(fe, op->bandwidth, &nominal_rate);
@@ -584,7 +587,14 @@ static int zl10353_init(struct dvb_frontend *fe)
 
 static int zl10353_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 {
+	struct zl10353_state *state = fe->demodulator_priv;
 	u8 val = 0x0a;
+
+	if (state->config.no_tuner) {
+		/* No tuner attached to the internal I2C bus */
+		/* If set enable I2C bridge, the main I2C bus stopped hardly */
+		return 0;
+	}
 
 	if (enable)
 		val |= 0x10;

@@ -57,7 +57,7 @@ static struct  {
  * Find address based on socket address, match only certain fields.
  * Also grab sock if it was found. Remember to sock_put it later.
  */
-struct sock *pn_find_sock_by_sa(const struct sockaddr_pn *spn)
+struct sock *pn_find_sock_by_sa(struct net *net, const struct sockaddr_pn *spn)
 {
 	struct hlist_node *node;
 	struct sock *sknode;
@@ -71,6 +71,8 @@ struct sock *pn_find_sock_by_sa(const struct sockaddr_pn *spn)
 		struct pn_sock *pn = pn_sk(sknode);
 		BUG_ON(!pn->sobject); /* unbound socket */
 
+		if (!net_eq(sock_net(sknode), net))
+			continue;
 		if (pn_port(obj)) {
 			/* Look up socket by port */
 			if (pn_port(pn->sobject) != pn_port(obj))
@@ -130,7 +132,7 @@ static int pn_socket_bind(struct socket *sock, struct sockaddr *addr, int len)
 
 	handle = pn_sockaddr_get_object((struct sockaddr_pn *)addr);
 	saddr = pn_addr(handle);
-	if (saddr && phonet_address_lookup(saddr))
+	if (saddr && phonet_address_lookup(sock_net(sk), saddr))
 		return -EADDRNOTAVAIL;
 
 	lock_sock(sk);
@@ -225,7 +227,7 @@ static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
 	if (!mask && sk->sk_state == TCP_CLOSE_WAIT)
 		return POLLHUP;
 
-	if (sk->sk_state == TCP_ESTABLISHED && pn->tx_credits)
+	if (sk->sk_state == TCP_ESTABLISHED && atomic_read(&pn->tx_credits))
 		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
 
 	return mask;
@@ -361,6 +363,7 @@ static DEFINE_MUTEX(port_mutex);
 int pn_sock_get_port(struct sock *sk, unsigned short sport)
 {
 	static int port_cur;
+	struct net *net = sock_net(sk);
 	struct pn_sock *pn = pn_sk(sk);
 	struct sockaddr_pn try_sa;
 	struct sock *tmpsk;
@@ -381,7 +384,7 @@ int pn_sock_get_port(struct sock *sk, unsigned short sport)
 				port_cur = pmin;
 
 			pn_sockaddr_set_port(&try_sa, port_cur);
-			tmpsk = pn_find_sock_by_sa(&try_sa);
+			tmpsk = pn_find_sock_by_sa(net, &try_sa);
 			if (tmpsk == NULL) {
 				sport = port_cur;
 				goto found;
@@ -391,7 +394,7 @@ int pn_sock_get_port(struct sock *sk, unsigned short sport)
 	} else {
 		/* try to find specific port */
 		pn_sockaddr_set_port(&try_sa, sport);
-		tmpsk = pn_find_sock_by_sa(&try_sa);
+		tmpsk = pn_find_sock_by_sa(net, &try_sa);
 		if (tmpsk == NULL)
 			/* No sock there! We can use that port... */
 			goto found;

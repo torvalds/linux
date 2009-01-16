@@ -116,7 +116,7 @@ static void pseries_cpu_die(unsigned int cpu)
 		cpu_status = query_cpu_stopped(pcpu);
 		if (cpu_status == 0 || cpu_status == -1)
 			break;
-		msleep(200);
+		cpu_relax();
 	}
 	if (cpu_status != 0) {
 		printk("Querying DEAD? cpu %i (%i) shows %i\n",

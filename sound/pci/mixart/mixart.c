@@ -1010,7 +1010,7 @@ static int __devinit snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *
 		.dev_free = snd_mixart_chip_dev_free,
 	};
 
-	mgr->chip[idx] = chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (! chip) {
 		snd_printk(KERN_ERR "cannot allocate chip\n");
 		return -ENOMEM;
@@ -1025,6 +1025,7 @@ static int __devinit snd_mixart_create(struct mixart_mgr *mgr, struct snd_card *
 		return err;
 	}
 
+	mgr->chip[idx] = chip;
 	snd_card_set_dev(card, &mgr->pci->dev);
 
 	return 0;
@@ -1377,6 +1378,7 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 		sprintf(card->longname, "%s [PCM #%d]", mgr->longname, i);
 
 		if ((err = snd_mixart_create(mgr, card, i)) < 0) {
+			snd_card_free(card);
 			snd_mixart_free(mgr);
 			return err;
 		}

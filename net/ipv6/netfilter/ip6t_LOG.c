@@ -61,7 +61,7 @@ static void dump_packet(const struct nf_loginfo *info,
 	}
 
 	/* Max length: 88 "SRC=0000.0000.0000.0000.0000.0000.0000.0000 DST=0000.0000.0000.0000.0000.0000.0000.0000 " */
-	printk("SRC=" NIP6_FMT " DST=" NIP6_FMT " ", NIP6(ih->saddr), NIP6(ih->daddr));
+	printk("SRC=%pI6 DST=%pI6 ", &ih->saddr, &ih->daddr);
 
 	/* Max length: 44 "LEN=65535 TC=255 HOPLIMIT=255 FLOWLBL=FFFFF " */
 	printk("LEN=%Zu TC=%u HOPLIMIT=%u FLOWLBL=%u ",
@@ -364,8 +364,8 @@ static void dump_packet(const struct nf_loginfo *info,
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file)
 			printk("UID=%u GID=%u ",
-				skb->sk->sk_socket->file->f_uid,
-				skb->sk->sk_socket->file->f_gid);
+				skb->sk->sk_socket->file->f_cred->fsuid,
+				skb->sk->sk_socket->file->f_cred->fsgid);
 		read_unlock_bh(&skb->sk->sk_callback_lock);
 	}
 
@@ -424,9 +424,8 @@ ip6t_log_packet(u_int8_t pf,
 			if (skb->dev->type == ARPHRD_SIT) {
 				const struct iphdr *iph =
 					(struct iphdr *)skb_mac_header(skb);
-				printk("TUNNEL=%u.%u.%u.%u->%u.%u.%u.%u ",
-				       NIPQUAD(iph->saddr),
-				       NIPQUAD(iph->daddr));
+				printk("TUNNEL=%pI4->%pI4 ",
+				       &iph->saddr, &iph->daddr);
 			}
 		} else
 			printk(" ");

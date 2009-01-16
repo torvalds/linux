@@ -27,7 +27,6 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
-#include "hda_patch.h"
 
 struct atihdmi_spec {
 	struct hda_multi_out multiout;
@@ -187,13 +186,40 @@ static int patch_atihdmi(struct hda_codec *codec)
 /*
  * patch entries
  */
-struct hda_codec_preset snd_hda_preset_atihdmi[] = {
-	{ .id = 0x1002793c, .name = "ATI RS600 HDMI", .patch = patch_atihdmi },
-	{ .id = 0x10027919, .name = "ATI RS600 HDMI", .patch = patch_atihdmi },
-	{ .id = 0x1002791a, .name = "ATI RS690/780 HDMI", .patch = patch_atihdmi },
-	{ .id = 0x1002aa01, .name = "ATI R6xx HDMI", .patch = patch_atihdmi },
+static struct hda_codec_preset snd_hda_preset_atihdmi[] = {
+	{ .id = 0x1002793c, .name = "RS600 HDMI", .patch = patch_atihdmi },
+	{ .id = 0x10027919, .name = "RS600 HDMI", .patch = patch_atihdmi },
+	{ .id = 0x1002791a, .name = "RS690/780 HDMI", .patch = patch_atihdmi },
+	{ .id = 0x1002aa01, .name = "R6xx HDMI", .patch = patch_atihdmi },
 	{ .id = 0x10951390, .name = "SiI1390 HDMI", .patch = patch_atihdmi },
-	{ .id = 0x10951392, .name = "SiI1392 HDMI", .patch = patch_atihdmi },
 	{ .id = 0x17e80047, .name = "Chrontel HDMI",  .patch = patch_atihdmi },
 	{} /* terminator */
 };
+
+MODULE_ALIAS("snd-hda-codec-id:1002793c");
+MODULE_ALIAS("snd-hda-codec-id:10027919");
+MODULE_ALIAS("snd-hda-codec-id:1002791a");
+MODULE_ALIAS("snd-hda-codec-id:1002aa01");
+MODULE_ALIAS("snd-hda-codec-id:10951390");
+MODULE_ALIAS("snd-hda-codec-id:17e80047");
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ATI HDMI HD-audio codec");
+
+static struct hda_codec_preset_list atihdmi_list = {
+	.preset = snd_hda_preset_atihdmi,
+	.owner = THIS_MODULE,
+};
+
+static int __init patch_atihdmi_init(void)
+{
+	return snd_hda_add_codec_preset(&atihdmi_list);
+}
+
+static void __exit patch_atihdmi_exit(void)
+{
+	snd_hda_delete_codec_preset(&atihdmi_list);
+}
+
+module_init(patch_atihdmi_init)
+module_exit(patch_atihdmi_exit)

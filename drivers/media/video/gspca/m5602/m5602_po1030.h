@@ -10,7 +10,7 @@
  * v4l2 interface modeled after the V4L2 driver
  * for SN9C10x PC Camera Controllers
  *
- * Register defines taken from Pascal Stangs Proxycon Armlib
+ * Register defines taken from Pascal Stangs Procyon Armlib
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -128,13 +128,6 @@ int po1030_probe(struct sd *sd);
 int po1030_init(struct sd *sd);
 int po1030_power_down(struct sd *sd);
 
-void po1030_dump_registers(struct sd *sd);
-
-int po1030_read_sensor(struct sd *sd, const u8 address,
-			      u8 *i2c_data, const u8 len);
-int po1030_write_sensor(struct sd *sd, const u8 address,
-			       u8 *i2c_data, const u8 len);
-
 int po1030_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
 int po1030_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
 int po1030_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
@@ -152,6 +145,7 @@ static struct m5602_sensor po1030 = {
 	.name = "PO1030",
 
 	.i2c_slave_id = 0xdc,
+	.i2c_regW = 1,
 
 	.probe = po1030_probe,
 	.init = po1030_init,

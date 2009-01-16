@@ -44,11 +44,13 @@
 
 static __inline__ int scm_check_creds(struct ucred *creds)
 {
+	const struct cred *cred = current_cred();
+
 	if ((creds->pid == task_tgid_vnr(current) || capable(CAP_SYS_ADMIN)) &&
-	    ((creds->uid == current->uid || creds->uid == current->euid ||
-	      creds->uid == current->suid) || capable(CAP_SETUID)) &&
-	    ((creds->gid == current->gid || creds->gid == current->egid ||
-	      creds->gid == current->sgid) || capable(CAP_SETGID))) {
+	    ((creds->uid == cred->uid   || creds->uid == cred->euid ||
+	      creds->uid == cred->suid) || capable(CAP_SETUID)) &&
+	    ((creds->gid == cred->gid   || creds->gid == cred->egid ||
+	      creds->gid == cred->sgid) || capable(CAP_SETGID))) {
 	       return 0;
 	}
 	return -EPERM;

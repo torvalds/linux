@@ -44,6 +44,7 @@
 
 /* All commands for CPU have the following mask set */
 #define CPU_CMD_MASK                        	0x20000000
+#define CPU_CMD_MASK_DEBUG       		(CPU_CMD_MASK | 0x00000000)
 #define CPU_CMD_MASK_ACK                    	(CPU_CMD_MASK | 0x80000000)
 #define CPU_CMD_MASK_CAPTURE                	(CPU_CMD_MASK | 0x00020000)
 #define CPU_CMD_MASK_TS                     	(CPU_CMD_MASK | 0x00040000)
@@ -70,6 +71,11 @@
    IN[1] - An offset of a string in the MiniMe memory;
 	   0/zero/NULL means "I have nothing to say" */
 #define CX18_EPU_DEBUG 				(EPU_CMD_MASK_DEBUG | 0x0003)
+
+/* Reads memory/registers (32-bit)
+   IN[0] - Address
+   OUT[1] - Value */
+#define CX18_CPU_DEBUG_PEEK32			(CPU_CMD_MASK_DEBUG | 0x0003)
 
 /* Description: This command starts streaming with the set channel type
    IN[0] - Task handle. Handle of the task to start

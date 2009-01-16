@@ -19,7 +19,7 @@
 #include <linux/input.h>
 #include <linux/major.h>
 #include <linux/device.h>
-#include <linux/compat.h>
+#include "input-compat.h"
 
 struct evdev {
 	int exist;
@@ -290,187 +290,6 @@ static int evdev_open(struct inode *inode, struct file *file)
 	return error;
 }
 
-#ifdef CONFIG_COMPAT
-
-struct input_event_compat {
-	struct compat_timeval time;
-	__u16 type;
-	__u16 code;
-	__s32 value;
-};
-
-struct ff_periodic_effect_compat {
-	__u16 waveform;
-	__u16 period;
-	__s16 magnitude;
-	__s16 offset;
-	__u16 phase;
-
-	struct ff_envelope envelope;
-
-	__u32 custom_len;
-	compat_uptr_t custom_data;
-};
-
-struct ff_effect_compat {
-	__u16 type;
-	__s16 id;
-	__u16 direction;
-	struct ff_trigger trigger;
-	struct ff_replay replay;
-
-	union {
-		struct ff_constant_effect constant;
-		struct ff_ramp_effect ramp;
-		struct ff_periodic_effect_compat periodic;
-		struct ff_condition_effect condition[2]; /* One for each axis */
-		struct ff_rumble_effect rumble;
-	} u;
-};
-
-/* Note to the author of this code: did it ever occur to
-   you why the ifdefs are needed? Think about it again. -AK */
-#ifdef CONFIG_X86_64
-#  define COMPAT_TEST is_compat_task()
-#elif defined(CONFIG_IA64)
-#  define COMPAT_TEST IS_IA32_PROCESS(task_pt_regs(current))
-#elif defined(CONFIG_S390)
-#  define COMPAT_TEST test_thread_flag(TIF_31BIT)
-#elif defined(CONFIG_MIPS)
-#  define COMPAT_TEST test_thread_flag(TIF_32BIT_ADDR)
-#else
-#  define COMPAT_TEST test_thread_flag(TIF_32BIT)
-#endif
-
-static inline size_t evdev_event_size(void)
-{
-	return COMPAT_TEST ?
-		sizeof(struct input_event_compat) : sizeof(struct input_event);
-}
-
-static int evdev_event_from_user(const char __user *buffer,
-				 struct input_event *event)
-{
-	if (COMPAT_TEST) {
-		struct input_event_compat compat_event;
-
-		if (copy_from_user(&compat_event, buffer,
-				   sizeof(struct input_event_compat)))
-			return -EFAULT;
-
-		event->time.tv_sec = compat_event.time.tv_sec;
-		event->time.tv_usec = compat_event.time.tv_usec;
-		event->type = compat_event.type;
-		event->code = compat_event.code;
-		event->value = compat_event.value;
-
-	} else {
-		if (copy_from_user(event, buffer, sizeof(struct input_event)))
-			return -EFAULT;
-	}
-
-	return 0;
-}
-
-static int evdev_event_to_user(char __user *buffer,
-				const struct input_event *event)
-{
-	if (COMPAT_TEST) {
-		struct input_event_compat compat_event;
-
-		compat_event.time.tv_sec = event->time.tv_sec;
-		compat_event.time.tv_usec = event->time.tv_usec;
-		compat_event.type = event->type;
-		compat_event.code = event->code;
-		compat_event.value = event->value;
-
-		if (copy_to_user(buffer, &compat_event,
-				 sizeof(struct input_event_compat)))
-			return -EFAULT;
-
-	} else {
-		if (copy_to_user(buffer, event, sizeof(struct input_event)))
-			return -EFAULT;
-	}
-
-	return 0;
-}
-
-static int evdev_ff_effect_from_user(const char __user *buffer, size_t size,
-				     struct ff_effect *effect)
-{
-	if (COMPAT_TEST) {
-		struct ff_effect_compat *compat_effect;
-
-		if (size != sizeof(struct ff_effect_compat))
-			return -EINVAL;
-
-		/*
-		 * It so happens that the pointer which needs to be changed
-		 * is the last field in the structure, so we can copy the
-		 * whole thing and replace just the pointer.
-		 */
-
-		compat_effect = (struct ff_effect_compat *)effect;
-
-		if (copy_from_user(compat_effect, buffer,
-				   sizeof(struct ff_effect_compat)))
-			return -EFAULT;
-
-		if (compat_effect->type == FF_PERIODIC &&
-		    compat_effect->u.periodic.waveform == FF_CUSTOM)
-			effect->u.periodic.custom_data =
-				compat_ptr(compat_effect->u.periodic.custom_data);
-	} else {
-		if (size != sizeof(struct ff_effect))
-			return -EINVAL;
-
-		if (copy_from_user(effect, buffer, sizeof(struct ff_effect)))
-			return -EFAULT;
-	}
-
-	return 0;
-}
-
-#else
-
-static inline size_t evdev_event_size(void)
-{
-	return sizeof(struct input_event);
-}
-
-static int evdev_event_from_user(const char __user *buffer,
-				 struct input_event *event)
-{
-	if (copy_from_user(event, buffer, sizeof(struct input_event)))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int evdev_event_to_user(char __user *buffer,
-				const struct input_event *event)
-{
-	if (copy_to_user(buffer, event, sizeof(struct input_event)))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int evdev_ff_effect_from_user(const char __user *buffer, size_t size,
-				     struct ff_effect *effect)
-{
-	if (size != sizeof(struct ff_effect))
-		return -EINVAL;
-
-	if (copy_from_user(effect, buffer, sizeof(struct ff_effect)))
-		return -EFAULT;
-
-	return 0;
-}
-
-#endif /* CONFIG_COMPAT */
-
 static ssize_t evdev_write(struct file *file, const char __user *buffer,
 			   size_t count, loff_t *ppos)
 {
@@ -490,14 +309,14 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 
 	while (retval < count) {
 
-		if (evdev_event_from_user(buffer + retval, &event)) {
+		if (input_event_from_user(buffer + retval, &event)) {
 			retval = -EFAULT;
 			goto out;
 		}
 
 		input_inject_event(&evdev->handle,
 				   event.type, event.code, event.value);
-		retval += evdev_event_size();
+		retval += input_event_size();
 	}
 
  out:
@@ -531,7 +350,7 @@ static ssize_t evdev_read(struct file *file, char __user *buffer,
 	struct input_event event;
 	int retval;
 
-	if (count < evdev_event_size())
+	if (count < input_event_size())
 		return -EINVAL;
 
 	if (client->head == client->tail && evdev->exist &&
@@ -546,13 +365,13 @@ static ssize_t evdev_read(struct file *file, char __user *buffer,
 	if (!evdev->exist)
 		return -ENODEV;
 
-	while (retval + evdev_event_size() <= count &&
+	while (retval + input_event_size() <= count &&
 	       evdev_fetch_next_event(client, &event)) {
 
-		if (evdev_event_to_user(buffer + retval, &event))
+		if (input_event_to_user(buffer + retval, &event))
 			return -EFAULT;
 
-		retval += evdev_event_size();
+		retval += input_event_size();
 	}
 
 	return retval;
@@ -823,7 +642,7 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 
 			if (_IOC_NR(cmd) == _IOC_NR(EVIOCSFF)) {
 
-				if (evdev_ff_effect_from_user(p, _IOC_SIZE(cmd), &effect))
+				if (input_ff_effect_from_user(p, _IOC_SIZE(cmd), &effect))
 					return -EFAULT;
 
 				error = input_ff_upload(dev, &effect, file);
@@ -1000,7 +819,7 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	evdev->handle.handler = handler;
 	evdev->handle.private = evdev;
 
-	strlcpy(evdev->dev.bus_id, evdev->name, sizeof(evdev->dev.bus_id));
+	dev_set_name(&evdev->dev, evdev->name);
 	evdev->dev.devt = MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor);
 	evdev->dev.class = &input_class;
 	evdev->dev.parent = &dev->dev;

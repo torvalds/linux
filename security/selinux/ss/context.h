@@ -27,9 +27,9 @@ struct context {
 	u32 user;
 	u32 role;
 	u32 type;
+	u32 len;        /* length of string in bytes */
 	struct mls_range range;
 	char *str;	/* string representation if context cannot be mapped. */
-	u32 len;        /* length of string in bytes */
 };
 
 static inline void mls_context_init(struct context *c)

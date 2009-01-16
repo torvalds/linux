@@ -11,6 +11,7 @@
 #include <net/genetlink.h>
 #include <net/wireless.h>
 #include <net/cfg80211.h>
+#include "reg.h"
 
 struct cfg80211_registered_device {
 	struct cfg80211_ops *ops;
@@ -20,6 +21,18 @@ struct cfg80211_registered_device {
 	 * to avoid the deregister call to proceed while
 	 * any call is in progress */
 	struct mutex mtx;
+
+	/* ISO / IEC 3166 alpha2 for which this device is receiving
+	 * country IEs on, this can help disregard country IEs from APs
+	 * on the same alpha2 quickly. The alpha2 may differ from
+	 * cfg80211_regdomain's alpha2 when an intersection has occurred.
+	 * If the AP is reconfigured this can also be used to tell us if
+	 * the country on the country IE changed. */
+	char country_ie_alpha2[2];
+
+	/* If a Country IE has been received this tells us the environment
+	 * which its telling us its in. This defaults to ENVIRON_ANY */
+	enum environment_cap env;
 
 	/* wiphy index, internal only */
 	int idx;

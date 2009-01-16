@@ -928,11 +928,10 @@ static int wm9713_set_dai_fmt(struct snd_soc_dai *codec_dai,
 }
 
 static int wm9713_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	u16 reg = ac97_read(codec, AC97_CENTER_LFE_MASTER) & 0xfff3;
 
 	switch (params_format(params)) {
@@ -954,11 +953,10 @@ static int wm9713_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static void wm9713_voiceshutdown(struct snd_pcm_substream *substream)
+static void wm9713_voiceshutdown(struct snd_pcm_substream *substream,
+				 struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	u16 status;
 
 	/* Gracefully shut down the voice interface. */
@@ -969,12 +967,11 @@ static void wm9713_voiceshutdown(struct snd_pcm_substream *substream)
 	ac97_write(codec, AC97_EXTENDED_MID, status);
 }
 
-static int ac97_hifi_prepare(struct snd_pcm_substream *substream)
+static int ac97_hifi_prepare(struct snd_pcm_substream *substream,
+			     struct snd_soc_dai *dai)
 {
+	struct snd_soc_codec *codec = dai->codec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
 	int reg;
 	u16 vra;
 
@@ -989,12 +986,11 @@ static int ac97_hifi_prepare(struct snd_pcm_substream *substream)
 	return ac97_write(codec, reg, runtime->rate);
 }
 
-static int ac97_aux_prepare(struct snd_pcm_substream *substream)
+static int ac97_aux_prepare(struct snd_pcm_substream *substream,
+			    struct snd_soc_dai *dai)
 {
+	struct snd_soc_codec *codec = dai->codec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
 	u16 vra, xsle;
 
 	vra = ac97_read(codec, AC97_EXTENDED_STATUS);
@@ -1028,7 +1024,7 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream)
 struct snd_soc_dai wm9713_dai[] = {
 {
 	.name = "AC97 HiFi",
-	.type = SND_SOC_DAI_AC97_BUS,
+	.ac97_control = 1,
 	.playback = {
 		.stream_name = "HiFi Playback",
 		.channels_min = 1,
@@ -1042,8 +1038,7 @@ struct snd_soc_dai wm9713_dai[] = {
 		.rates = WM9713_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
-		.prepare = ac97_hifi_prepare,},
-	.dai_ops = {
+		.prepare = ac97_hifi_prepare,
 		.set_clkdiv = wm9713_set_dai_clkdiv,
 		.set_pll = wm9713_set_dai_pll,},
 	},
@@ -1056,8 +1051,7 @@ struct snd_soc_dai wm9713_dai[] = {
 		.rates = WM9713_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = {
-		.prepare = ac97_aux_prepare,},
-	.dai_ops = {
+		.prepare = ac97_aux_prepare,
 		.set_clkdiv = wm9713_set_dai_clkdiv,
 		.set_pll = wm9713_set_dai_pll,},
 	},
@@ -1077,8 +1071,7 @@ struct snd_soc_dai wm9713_dai[] = {
 		.formats = WM9713_PCM_FORMATS,},
 	.ops = {
 		.hw_params = wm9713_pcm_hw_params,
-		.shutdown = wm9713_voiceshutdown,},
-	.dai_ops = {
+		.shutdown = wm9713_voiceshutdown,
 		.set_clkdiv = wm9713_set_dai_clkdiv,
 		.set_pll = wm9713_set_dai_pll,
 		.set_fmt = wm9713_set_dai_fmt,
@@ -1097,6 +1090,8 @@ int wm9713_reset(struct snd_soc_codec *codec, int try_warm)
 	}
 
 	soc_ac97_ops.reset(codec->ac97);
+	if (soc_ac97_ops.warm_reset)
+		soc_ac97_ops.warm_reset(codec->ac97);
 	if (ac97_read(codec, 0) != wm9713_reg[0])
 		return -EIO;
 	return 0;
@@ -1240,7 +1235,7 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	wm9713_reset(codec, 0);
 	ret = wm9713_reset(codec, 1);
 	if (ret < 0) {
-		printk(KERN_ERR "AC97 link error\n");
+		printk(KERN_ERR "Failed to reset WM9713: AC97 link error\n");
 		goto reset_err;
 	}
 
@@ -1252,7 +1247,7 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 
 	wm9713_add_controls(codec);
 	wm9713_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0)
 		goto reset_err;
 	return 0;
@@ -1288,7 +1283,6 @@ static int wm9713_soc_remove(struct platform_device *pdev)
 	snd_soc_free_ac97_codec(codec);
 	kfree(codec->private_data);
 	kfree(codec->reg_cache);
-	kfree(codec->dai);
 	kfree(codec);
 	return 0;
 }

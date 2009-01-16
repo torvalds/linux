@@ -1,0 +1,7 @@
+config BENET
+	tristate "ServerEngines 10Gb NIC - BladeEngine"
+	depends on PCI && INET
+	select INET_LRO
+	help
+	  This driver implements the NIC functionality for ServerEngines
+	  10Gb network adapter BladeEngine (EC 3210).

@@ -2541,7 +2541,7 @@ static void nes_nic_napi_ce_handler(struct nes_device *nesdev, struct nes_hw_nic
 {
 	struct nes_vnic *nesvnic = container_of(cq, struct nes_vnic, nic_cq);
 
-	netif_rx_schedule(nesdev->netdev[nesvnic->netdev_index], &nesvnic->napi);
+	netif_rx_schedule(&nesvnic->napi);
 }
 
 
@@ -2700,27 +2700,33 @@ void nes_nic_ce_handler(struct nes_device *nesdev, struct nes_hw_nic_cq *cq)
 							pkt_type, (pkt_type & NES_PKT_TYPE_APBVT_MASK)); */
 
 				if ((pkt_type & NES_PKT_TYPE_APBVT_MASK) == NES_PKT_TYPE_APBVT_BITS) {
-					nes_cm_recv(rx_skb, nesvnic->netdev);
+					if (nes_cm_recv(rx_skb, nesvnic->netdev))
+						rx_skb = NULL;
+				}
+				if (rx_skb == NULL)
+					goto skip_rx_indicate0;
+
+
+				if ((cqe_misc & NES_NIC_CQE_TAG_VALID) &&
+				    (nesvnic->vlan_grp != NULL)) {
+					vlan_tag = (u16)(le32_to_cpu(
+							cq->cq_vbase[head].cqe_words[NES_NIC_CQE_TAG_PKT_TYPE_IDX])
+							>> 16);
+					nes_debug(NES_DBG_CQ, "%s: Reporting stripped VLAN packet. Tag = 0x%04X\n",
+							nesvnic->netdev->name, vlan_tag);
+					if (nes_use_lro)
+						lro_vlan_hwaccel_receive_skb(&nesvnic->lro_mgr, rx_skb,
+								nesvnic->vlan_grp, vlan_tag, NULL);
+					else
+						nes_vlan_rx(rx_skb, nesvnic->vlan_grp, vlan_tag);
 				} else {
-					if ((cqe_misc & NES_NIC_CQE_TAG_VALID) && (nesvnic->vlan_grp != NULL)) {
-						vlan_tag = (u16)(le32_to_cpu(
-								cq->cq_vbase[head].cqe_words[NES_NIC_CQE_TAG_PKT_TYPE_IDX])
-								>> 16);
-						nes_debug(NES_DBG_CQ, "%s: Reporting stripped VLAN packet. Tag = 0x%04X\n",
-								nesvnic->netdev->name, vlan_tag);
-						if (nes_use_lro)
-							lro_vlan_hwaccel_receive_skb(&nesvnic->lro_mgr, rx_skb,
-									nesvnic->vlan_grp, vlan_tag, NULL);
-						else
-							nes_vlan_rx(rx_skb, nesvnic->vlan_grp, vlan_tag);
-					} else {
-						if (nes_use_lro)
-							lro_receive_skb(&nesvnic->lro_mgr, rx_skb, NULL);
-						else
-							nes_netif_rx(rx_skb);
-					}
+					if (nes_use_lro)
+						lro_receive_skb(&nesvnic->lro_mgr, rx_skb, NULL);
+					else
+						nes_netif_rx(rx_skb);
 				}
 
+skip_rx_indicate0:
 				nesvnic->netdev->last_rx = jiffies;
 				/* nesvnic->netstats.rx_packets++; */
 				/* nesvnic->netstats.rx_bytes += rx_pkt_size; */

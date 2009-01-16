@@ -1010,7 +1010,7 @@ int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb)
 	spin_lock(&hcd_urb_list_lock);
 
 	/* Check that the URB isn't being killed */
-	if (unlikely(urb->reject)) {
+	if (unlikely(atomic_read(&urb->reject))) {
 		rc = -EPERM;
 		goto done;
 	}
@@ -1340,7 +1340,7 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 		INIT_LIST_HEAD(&urb->urb_list);
 		atomic_dec(&urb->use_count);
 		atomic_dec(&urb->dev->urbnum);
-		if (urb->reject)
+		if (atomic_read(&urb->reject))
 			wake_up(&usb_kill_urb_queue);
 		usb_put_urb(urb);
 	}
@@ -1444,7 +1444,7 @@ void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 	urb->status = status;
 	urb->complete (urb);
 	atomic_dec (&urb->use_count);
-	if (unlikely (urb->reject))
+	if (unlikely(atomic_read(&urb->reject)))
 		wake_up (&usb_kill_urb_queue);
 	usb_put_urb (urb);
 }
@@ -1573,14 +1573,14 @@ int usb_hcd_get_frame_number (struct usb_device *udev)
 
 #ifdef	CONFIG_PM
 
-int hcd_bus_suspend(struct usb_device *rhdev)
+int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 {
 	struct usb_hcd	*hcd = container_of(rhdev->bus, struct usb_hcd, self);
 	int		status;
 	int		old_state = hcd->state;
 
 	dev_dbg(&rhdev->dev, "bus %s%s\n",
-			rhdev->auto_pm ? "auto-" : "", "suspend");
+			(msg.event & PM_EVENT_AUTO ? "auto-" : ""), "suspend");
 	if (!hcd->driver->bus_suspend) {
 		status = -ENOENT;
 	} else {
@@ -1598,14 +1598,14 @@ int hcd_bus_suspend(struct usb_device *rhdev)
 	return status;
 }
 
-int hcd_bus_resume(struct usb_device *rhdev)
+int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 {
 	struct usb_hcd	*hcd = container_of(rhdev->bus, struct usb_hcd, self);
 	int		status;
 	int		old_state = hcd->state;
 
 	dev_dbg(&rhdev->dev, "usb %s%s\n",
-			rhdev->auto_pm ? "auto-" : "", "resume");
+			(msg.event & PM_EVENT_AUTO ? "auto-" : ""), "resume");
 	if (!hcd->driver->bus_resume)
 		return -ENOENT;
 	if (hcd->state == HC_STATE_RUNNING)
@@ -1638,7 +1638,7 @@ static void hcd_resume_work(struct work_struct *work)
 
 	usb_lock_device(udev);
 	usb_mark_last_busy(udev);
-	usb_external_resume_device(udev);
+	usb_external_resume_device(udev, PMSG_REMOTE_RESUME);
 	usb_unlock_device(udev);
 }
 
@@ -2028,7 +2028,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_platform_shutdown);
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_USB_MON)
+#if defined(CONFIG_USB_MON) || defined(CONFIG_USB_MON_MODULE)
 
 struct usb_mon_operations *mon_ops;
 
@@ -2064,4 +2064,4 @@ void usb_mon_deregister (void)
 }
 EXPORT_SYMBOL_GPL (usb_mon_deregister);
 
-#endif /* CONFIG_USB_MON */
+#endif /* CONFIG_USB_MON || CONFIG_USB_MON_MODULE */

@@ -431,6 +431,7 @@ struct ipath_qp {
 	u32 s_lsn;		/* limit sequence number (credit) */
 	struct ipath_swqe *s_wq;	/* send work queue */
 	struct ipath_swqe *s_wqe;
+	struct ipath_sge *r_ud_sg_list;
 	struct ipath_rq r_rq;		/* receive work queue */
 	struct ipath_sge r_sg_list[0];	/* verified SGEs */
 };

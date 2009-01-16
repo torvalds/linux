@@ -19,6 +19,13 @@
 /* kernel/ioport.c */
 asmlinkage long sys_ioperm(unsigned long, unsigned long, int);
 
+/* kernel/ldt.c */
+asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
+
+/* kernel/tls.c */
+asmlinkage int sys_set_thread_area(struct user_desc __user *);
+asmlinkage int sys_get_thread_area(struct user_desc __user *);
+
 /* X86_32 only */
 #ifdef CONFIG_X86_32
 /* kernel/process_32.c */
@@ -33,13 +40,10 @@ asmlinkage int sys_sigaction(int, const struct old_sigaction __user *,
 			     struct old_sigaction __user *);
 asmlinkage int sys_sigaltstack(unsigned long);
 asmlinkage unsigned long sys_sigreturn(unsigned long);
-asmlinkage int sys_rt_sigreturn(unsigned long);
+asmlinkage int sys_rt_sigreturn(struct pt_regs);
 
 /* kernel/ioport.c */
 asmlinkage long sys_iopl(unsigned long);
-
-/* kernel/ldt.c */
-asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
 
 /* kernel/sys_i386_32.c */
 asmlinkage long sys_mmap2(unsigned long, unsigned long, unsigned long,
@@ -53,10 +57,6 @@ struct old_utsname;
 asmlinkage int sys_uname(struct old_utsname __user *);
 struct oldold_utsname;
 asmlinkage int sys_olduname(struct oldold_utsname __user *);
-
-/* kernel/tls.c */
-asmlinkage int sys_set_thread_area(struct user_desc __user *);
-asmlinkage int sys_get_thread_area(struct user_desc __user *);
 
 /* kernel/vm86_32.c */
 asmlinkage int sys_vm86old(struct pt_regs);

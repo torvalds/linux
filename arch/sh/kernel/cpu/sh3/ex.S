@@ -26,7 +26,7 @@
 #define	fpu_error_trap_handler		exception_error
 #endif
 
-#if !defined(CONFIG_KGDB_NMI)
+#if !defined(CONFIG_KGDB)
 #define kgdb_handle_exception		exception_error
 #endif
 

@@ -90,11 +90,8 @@ int enic_get_vnic_config(struct enic *enic)
 
 	c->intr_timer = min_t(u16, VNIC_INTR_TIMER_MAX, c->intr_timer);
 
-	printk(KERN_INFO PFX "vNIC MAC addr %02x:%02x:%02x:%02x:%02x:%02x "
-		"wq/rq %d/%d\n",
-		enic->mac_addr[0], enic->mac_addr[1], enic->mac_addr[2],
-		enic->mac_addr[3], enic->mac_addr[4], enic->mac_addr[5],
-		c->wq_desc_count, c->rq_desc_count);
+	printk(KERN_INFO PFX "vNIC MAC addr %pM wq/rq %d/%d\n",
+		enic->mac_addr, c->wq_desc_count, c->rq_desc_count);
 	printk(KERN_INFO PFX "vNIC mtu %d csum tx/rx %d/%d tso/lro %d/%d "
 		"intr timer %d\n",
 		c->mtu, ENIC_SETTING(enic, TXCSUM),

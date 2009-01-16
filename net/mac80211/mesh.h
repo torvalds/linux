@@ -145,9 +145,6 @@ struct mesh_rmc {
 };
 
 
-/* Mesh IEs constants */
-#define MESH_CFG_LEN		19
-
 /*
  * MESH_CFG_COMP_LEN Includes:
  * 	- Active path selection protocol ID.
@@ -157,7 +154,7 @@ struct mesh_rmc {
  * Does not include mesh capabilities, which may vary across nodes in the same
  * mesh
  */
-#define MESH_CFG_CMP_LEN 	17
+#define MESH_CFG_CMP_LEN 	(IEEE80211_MESH_CONFIG_LEN - 2)
 
 /* Default values, timeouts in ms */
 #define MESH_TTL 		5

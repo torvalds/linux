@@ -106,7 +106,7 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 {
 	struct ath5k_hw *ah;
 	struct pci_dev *pdev = sc->pdev;
-	u8 mac[ETH_ALEN];
+	u8 mac[ETH_ALEN] = {};
 	int ret;
 	u32 srev;
 
@@ -317,15 +317,15 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		goto err_free;
 	}
 
-	/* Set MAC address */
-	ret = ath5k_eeprom_read_mac(ah, mac);
-	if (ret) {
-		ATH5K_ERR(sc, "unable to read address from EEPROM: 0x%04x\n",
-			sc->pdev->device);
-		goto err_free;
+	if (srev >= AR5K_SREV_AR2414) {
+		ah->ah_combined_mic = true;
+		AR5K_REG_ENABLE_BITS(ah, AR5K_MISC_MODE,
+			AR5K_MISC_MODE_COMBINED_MIC);
 	}
 
+	/* MAC address is cleared until add_interface */
 	ath5k_hw_set_lladdr(ah, mac);
+
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
 	memset(ah->ah_bssid, 0xff, ETH_ALEN);
 	ath5k_hw_set_associd(ah, ah->ah_bssid, 0);

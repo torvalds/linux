@@ -90,7 +90,7 @@ static int arm_lock(struct hpsb_host *host, int nodeid, quadlet_t * store,
 static int arm_lock64(struct hpsb_host *host, int nodeid, octlet_t * store,
 		      u64 addr, octlet_t data, octlet_t arg, int ext_tcode,
 		      u16 flags);
-static struct hpsb_address_ops arm_ops = {
+const static struct hpsb_address_ops arm_ops = {
 	.read = arm_read,
 	.write = arm_write,
 	.lock = arm_lock,

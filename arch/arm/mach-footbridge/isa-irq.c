@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/spinlock.h>
 
 #include <asm/mach/irq.h>
 
@@ -26,6 +27,8 @@
 #include <asm/hardware/dec21285.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
+
+#include "common.h"
 
 static void isa_mask_pic_lo_irq(unsigned int irq)
 {

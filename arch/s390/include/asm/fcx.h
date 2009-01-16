@@ -248,8 +248,8 @@ struct dcw {
 #define TCCB_MAX_SIZE		(sizeof(struct tccb_tcah) + \
 				 TCCB_MAX_DCW * sizeof(struct dcw) + \
 				 sizeof(struct tccb_tcat))
-#define TCCB_SAC_DEFAULT	0xf901
-#define TCCB_SAC_INTRG		0xf902
+#define TCCB_SAC_DEFAULT	0x1ffe
+#define TCCB_SAC_INTRG		0x1fff
 
 /**
  * struct tccb_tcah - Transport-Command-Area Header (TCAH)

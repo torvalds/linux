@@ -504,7 +504,7 @@ ccw_device_verify_start(struct ccw_device *cdev)
 	sch->vpm = 0;
 
 	/* Get current pam. */
-	if (stsch(sch->schid, &sch->schib)) {
+	if (cio_update_schib(sch)) {
 		ccw_device_verify_done(cdev, -ENODEV);
 		return;
 	}

@@ -46,6 +46,9 @@ struct timespec xtime __attribute__ ((aligned (16)));
 struct timespec wall_to_monotonic __attribute__ ((aligned (16)));
 static unsigned long total_sleep_time;		/* seconds */
 
+/* flag for if timekeeping is suspended */
+int __read_mostly timekeeping_suspended;
+
 static struct timespec xtime_cache __attribute__ ((aligned (16)));
 void update_xtime_cache(u64 nsec)
 {
@@ -91,6 +94,8 @@ void getnstimeofday(struct timespec *ts)
 	cycle_t cycle_now, cycle_delta;
 	unsigned long seq;
 	s64 nsecs;
+
+	WARN_ON(timekeeping_suspended);
 
 	do {
 		seq = read_seqbegin(&xtime_lock);
@@ -299,8 +304,6 @@ void __init timekeeping_init(void)
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 }
 
-/* flag for if timekeeping is suspended */
-static int timekeeping_suspended;
 /* time in seconds when suspend began */
 static unsigned long timekeeping_suspend_time;
 

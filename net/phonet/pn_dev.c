@@ -76,7 +76,7 @@ struct net_device *phonet_device_get(struct net *net)
 		dev = pnd->netdev;
 		BUG_ON(!dev);
 
-		if (dev_net(dev) == net &&
+		if (net_eq(dev_net(dev), net) &&
 			(dev->reg_state == NETREG_REGISTERED) &&
 			((pnd->netdev->flags & IFF_UP)) == IFF_UP)
 			break;
@@ -140,12 +140,14 @@ u8 phonet_address_get(struct net_device *dev, u8 addr)
 	return addr;
 }
 
-int phonet_address_lookup(u8 addr)
+int phonet_address_lookup(struct net *net, u8 addr)
 {
 	struct phonet_device *pnd;
 
 	spin_lock_bh(&pndevs.lock);
 	list_for_each_entry(pnd, &pndevs.list, list) {
+		if (!net_eq(dev_net(pnd->netdev), net))
+			continue;
 		/* Don't allow unregistering devices! */
 		if ((pnd->netdev->reg_state != NETREG_REGISTERED) ||
 				((pnd->netdev->flags & IFF_UP)) != IFF_UP)

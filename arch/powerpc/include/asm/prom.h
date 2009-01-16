@@ -253,6 +253,9 @@ extern void kdump_move_device_tree(void);
 /* CPU OF node matching */
 struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
 
+/* cache lookup */
+struct device_node *of_find_next_cache_node(struct device_node *np);
+
 /* Get the MAC address */
 extern const void *of_get_mac_address(struct device_node *np);
 

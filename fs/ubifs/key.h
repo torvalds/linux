@@ -38,6 +38,22 @@
 #define __UBIFS_KEY_H__
 
 /**
+ * key_mask_hash - mask a valid hash value.
+ * @val: value to be masked
+ *
+ * We use hash values as offset in directories, so values %0 and %1 are
+ * reserved for "." and "..". %2 is reserved for "end of readdir" marker. This
+ * function makes sure the reserved values are not used.
+ */
+static inline uint32_t key_mask_hash(uint32_t hash)
+{
+	hash &= UBIFS_S_KEY_HASH_MASK;
+	if (unlikely(hash <= 2))
+		hash += 3;
+	return hash;
+}
+
+/**
  * key_r5_hash - R5 hash function (borrowed from reiserfs).
  * @s: direntry name
  * @len: name length
@@ -54,16 +70,7 @@ static inline uint32_t key_r5_hash(const char *s, int len)
 		str++;
 	}
 
-	a &= UBIFS_S_KEY_HASH_MASK;
-
-	/*
-	 * We use hash values as offset in directories, so values %0 and %1 are
-	 * reserved for "." and "..". %2 is reserved for "end of readdir"
-	 * marker.
-	 */
-	if (unlikely(a >= 0 && a <= 2))
-		a += 3;
-	return a;
+	return key_mask_hash(a);
 }
 
 /**
@@ -77,10 +84,7 @@ static inline uint32_t key_test_hash(const char *str, int len)
 
 	len = min_t(uint32_t, len, 4);
 	memcpy(&a, str, len);
-	a &= UBIFS_S_KEY_HASH_MASK;
-	if (unlikely(a >= 0 && a <= 2))
-		a += 3;
-	return a;
+	return key_mask_hash(a);
 }
 
 /**

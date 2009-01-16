@@ -4,6 +4,7 @@
  *  Derived from ivtv-gpio.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -47,15 +48,19 @@
 
 static void gpio_write(struct cx18 *cx)
 {
-	u32 dir = cx->gpio_dir;
-	u32 val = cx->gpio_val;
+	u32 dir_lo = cx->gpio_dir & 0xffff;
+	u32 val_lo = cx->gpio_val & 0xffff;
+	u32 dir_hi = cx->gpio_dir >> 16;
+	u32 val_hi = cx->gpio_val >> 16;
 
-	cx18_write_reg(cx, (dir & 0xffff) << 16, CX18_REG_GPIO_DIR1);
-	cx18_write_reg(cx, ((dir & 0xffff) << 16) | (val & 0xffff),
-			CX18_REG_GPIO_OUT1);
-	cx18_write_reg(cx, dir & 0xffff0000, CX18_REG_GPIO_DIR2);
-	cx18_write_reg_sync(cx, (dir & 0xffff0000) | ((val & 0xffff0000) >> 16),
-			CX18_REG_GPIO_OUT2);
+	cx18_write_reg_expect(cx, dir_lo << 16,
+					CX18_REG_GPIO_DIR1, ~dir_lo, dir_lo);
+	cx18_write_reg_expect(cx, (dir_lo << 16) | val_lo,
+					CX18_REG_GPIO_OUT1, val_lo, dir_lo);
+	cx18_write_reg_expect(cx, dir_hi << 16,
+					CX18_REG_GPIO_DIR2, ~dir_hi, dir_hi);
+	cx18_write_reg_expect(cx, (dir_hi << 16) | val_hi,
+					CX18_REG_GPIO_OUT2, val_hi, dir_hi);
 }
 
 void cx18_reset_i2c_slaves_gpio(struct cx18 *cx)

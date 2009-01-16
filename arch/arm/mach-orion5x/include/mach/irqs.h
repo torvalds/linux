@@ -13,8 +13,6 @@
 #ifndef __ASM_ARCH_IRQS_H
 #define __ASM_ARCH_IRQS_H
 
-#include "orion5x.h"	/* need GPIO_MAX */
-
 /*
  * Orion Main Interrupt Controller
  */
@@ -54,7 +52,7 @@
  * Orion General Purpose Pins
  */
 #define IRQ_ORION5X_GPIO_START	32
-#define NR_GPIO_IRQS		GPIO_MAX
+#define NR_GPIO_IRQS		32
 
 #define NR_IRQS			(IRQ_ORION5X_GPIO_START + NR_GPIO_IRQS)
 

@@ -9,6 +9,9 @@
  * Author(s): Michael Holzheu
  */
 
+#define KMSG_COMPONENT "zdump"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/utsname.h>
@@ -24,8 +27,6 @@
 #include "sclp.h"
 
 #define TRACE(x...) debug_sprintf_event(zcore_dbf, 1, x)
-#define MSG(x...) printk( KERN_ALERT x )
-#define ERROR_MSG(x...) printk ( KERN_ALERT "DUMP: " x )
 
 #define TO_USER		0
 #define TO_KERNEL	1
@@ -563,19 +564,19 @@ static int __init sys_info_init(enum arch_id arch)
 
 	switch (arch) {
 	case ARCH_S390X:
-		MSG("DETECTED 'S390X (64 bit) OS'\n");
+		pr_alert("DETECTED 'S390X (64 bit) OS'\n");
 		sys_info.sa_base = SAVE_AREA_BASE_S390X;
 		sys_info.sa_size = sizeof(struct save_area_s390x);
 		set_s390x_lc_mask(&sys_info.lc_mask);
 		break;
 	case ARCH_S390:
-		MSG("DETECTED 'S390 (32 bit) OS'\n");
+		pr_alert("DETECTED 'S390 (32 bit) OS'\n");
 		sys_info.sa_base = SAVE_AREA_BASE_S390;
 		sys_info.sa_size = sizeof(struct save_area_s390);
 		set_s390_lc_mask(&sys_info.lc_mask);
 		break;
 	default:
-		ERROR_MSG("unknown architecture 0x%x.\n",arch);
+		pr_alert("0x%x is an unknown architecture.\n",arch);
 		return -EINVAL;
 	}
 	sys_info.arch = arch;
@@ -674,7 +675,8 @@ static int __init zcore_init(void)
 
 #ifndef __s390x__
 	if (arch == ARCH_S390X) {
-		ERROR_MSG("32 bit dumper can't dump 64 bit system!\n");
+		pr_alert("The 32-bit dump tool cannot be used for a "
+			 "64-bit system\n");
 		rc = -EINVAL;
 		goto fail;
 	}

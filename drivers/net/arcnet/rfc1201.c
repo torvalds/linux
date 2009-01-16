@@ -92,7 +92,7 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct archdr *pkt = (struct archdr *) skb->data;
 	struct arc_rfc1201 *soft = &pkt->soft.rfc1201;
-	struct arcnet_local *lp = dev->priv;
+	struct arcnet_local *lp = netdev_priv(dev);
 	int hdr_size = ARC_HDR_SIZE + RFC1201_HDR_SIZE;
 
 	/* Pull off the arcnet header. */
@@ -134,7 +134,7 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 static void rx(struct net_device *dev, int bufnum,
 	       struct archdr *pkthdr, int length)
 {
-	struct arcnet_local *lp = dev->priv;
+	struct arcnet_local *lp = netdev_priv(dev);
 	struct sk_buff *skb;
 	struct archdr *pkt = pkthdr;
 	struct arc_rfc1201 *soft = &pkthdr->soft.rfc1201;
@@ -230,7 +230,6 @@ static void rx(struct net_device *dev, int bufnum,
 
 		skb->protocol = type_trans(skb, dev);
 		netif_rx(skb);
-		dev->last_rx = jiffies;
 	} else {		/* split packet */
 		/*
 		 * NOTE: MSDOS ARP packet correction should only need to apply to
@@ -366,7 +365,6 @@ static void rx(struct net_device *dev, int bufnum,
 
 			skb->protocol = type_trans(skb, dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 		}
 	}
 }
@@ -376,7 +374,7 @@ static void rx(struct net_device *dev, int bufnum,
 static int build_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned short type, uint8_t daddr)
 {
-	struct arcnet_local *lp = dev->priv;
+	struct arcnet_local *lp = netdev_priv(dev);
 	int hdr_size = ARC_HDR_SIZE + RFC1201_HDR_SIZE;
 	struct archdr *pkt = (struct archdr *) skb_push(skb, hdr_size);
 	struct arc_rfc1201 *soft = &pkt->soft.rfc1201;
@@ -443,7 +441,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 static void load_pkt(struct net_device *dev, struct arc_hardware *hard,
 		     struct arc_rfc1201 *soft, int softlen, int bufnum)
 {
-	struct arcnet_local *lp = dev->priv;
+	struct arcnet_local *lp = netdev_priv(dev);
 	int ofs;
 
 	/* assume length <= XMTU: someone should have handled that by now. */
@@ -476,7 +474,7 @@ static void load_pkt(struct net_device *dev, struct arc_hardware *hard,
 static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		      int bufnum)
 {
-	struct arcnet_local *lp = dev->priv;
+	struct arcnet_local *lp = netdev_priv(dev);
 	const int maxsegsize = XMTU - RFC1201_HDR_SIZE;
 	struct Outgoing *out;
 
@@ -511,7 +509,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 
 static int continue_tx(struct net_device *dev, int bufnum)
 {
-	struct arcnet_local *lp = dev->priv;
+	struct arcnet_local *lp = netdev_priv(dev);
 	struct Outgoing *out = &lp->outgoing;
 	struct arc_hardware *hard = &out->pkt->hard;
 	struct arc_rfc1201 *soft = &out->pkt->soft.rfc1201, *newsoft;

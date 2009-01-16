@@ -13,7 +13,6 @@ fadd(void *frD, void *frA, void *frB)
 	FP_DECL_D(B);
 	FP_DECL_D(R);
 	FP_DECL_EX;
-	int ret = 0;
 
 #ifdef DEBUG
 	printk("%s: %p %p %p\n", __func__, frD, frA, frB);

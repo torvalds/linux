@@ -323,9 +323,7 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		bdi = blk_get_backing_dev_info(bdev);
 		if (bdi == NULL)
 			return -ENOTTY;
-		lock_kernel();
 		bdi->ra_pages = (arg * 512) / PAGE_CACHE_SIZE;
-		unlock_kernel();
 		return 0;
 	case BLKBSZSET:
 		/* set the logical block size */

@@ -126,6 +126,7 @@ struct blk_scsi_cmd_filter {
 struct disk_part_tbl {
 	struct rcu_head rcu_head;
 	int len;
+	struct hd_struct *last_lookup;
 	struct hd_struct *part[];
 };
 

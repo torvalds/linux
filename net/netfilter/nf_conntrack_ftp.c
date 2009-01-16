@@ -29,6 +29,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rusty Russell <rusty@rustcorp.com.au>");
 MODULE_DESCRIPTION("ftp connection tracking helper");
 MODULE_ALIAS("ip_conntrack_ftp");
+MODULE_ALIAS_NFCT_HELPER("ftp");
 
 /* This is slow, but it's simple. --RR */
 static char *ftp_buffer;
@@ -357,7 +358,7 @@ static int help(struct sk_buff *skb,
 	int ret;
 	u32 seq;
 	int dir = CTINFO2DIR(ctinfo);
-	unsigned int matchlen, matchoff;
+	unsigned int uninitialized_var(matchlen), uninitialized_var(matchoff);
 	struct nf_ct_ftp_master *ct_ftp_info = &nfct_help(ct)->help.ct_ftp_info;
 	struct nf_conntrack_expect *exp;
 	union nf_inet_addr *daddr;
@@ -427,10 +428,8 @@ static int help(struct sk_buff *skb,
 		   connection tracking, not packet filtering.
 		   However, it is necessary for accurate tracking in
 		   this case. */
-		if (net_ratelimit())
-			printk("conntrack_ftp: partial %s %u+%u\n",
-			       search[dir][i].pattern,
-			       ntohl(th->seq), datalen);
+		pr_debug("conntrack_ftp: partial %s %u+%u\n",
+			 search[dir][i].pattern,  ntohl(th->seq), datalen);
 		ret = NF_DROP;
 		goto out;
 	} else if (found == 0) { /* No match */
@@ -462,16 +461,13 @@ static int help(struct sk_buff *skb,
 		   different IP address.  Simply don't record it for
 		   NAT. */
 		if (cmd.l3num == PF_INET) {
-			pr_debug("conntrack_ftp: NOT RECORDING: " NIPQUAD_FMT
-				 " != " NIPQUAD_FMT "\n",
-				 NIPQUAD(cmd.u3.ip),
-				 NIPQUAD(ct->tuplehash[dir].tuple.src.u3.ip));
+			pr_debug("conntrack_ftp: NOT RECORDING: %pI4 != %pI4\n",
+				 &cmd.u3.ip,
+				 &ct->tuplehash[dir].tuple.src.u3.ip);
 		} else {
-			pr_debug("conntrack_ftp: NOT RECORDING: " NIP6_FMT
-				 " != " NIP6_FMT "\n",
-				 NIP6(*((struct in6_addr *)cmd.u3.ip6)),
-				 NIP6(*((struct in6_addr *)
-					ct->tuplehash[dir].tuple.src.u3.ip6)));
+			pr_debug("conntrack_ftp: NOT RECORDING: %pI6 != %pI6\n",
+				 cmd.u3.ip6,
+				 ct->tuplehash[dir].tuple.src.u3.ip6);
 		}
 
 		/* Thanks to Cristiano Lincoln Mattos

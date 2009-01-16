@@ -18,6 +18,7 @@ mmu-y			:= tlb-nommu.o pg-nommu.o
 mmu-$(CONFIG_MMU)	:= fault_32.o tlbflush_32.o ioremap_32.o
 
 obj-y			+= $(mmu-y)
+obj-$(CONFIG_DEBUG_FS)	+= asids-debugfs.o
 
 ifdef CONFIG_DEBUG_FS
 obj-$(CONFIG_CPU_SH4)	+= cache-debugfs.o

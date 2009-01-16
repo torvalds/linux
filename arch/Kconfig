@@ -6,6 +6,8 @@ config OPROFILE
 	tristate "OProfile system profiling (EXPERIMENTAL)"
 	depends on PROFILING
 	depends on HAVE_OPROFILE
+	select TRACING
+	select RING_BUFFER
 	help
 	  OProfile is a profiling system capable of profiling the
 	  whole system, include the kernel, kernel modules, libraries,
@@ -59,6 +61,9 @@ config HAVE_EFFICIENT_UNALIGNED_ACCESS
 
 	  See Documentation/unaligned-memory-access.txt for more
 	  information on the topic of unaligned memory accesses.
+
+config HAVE_SYSCALL_WRAPPERS
+	bool
 
 config KRETPROBES
 	def_bool y

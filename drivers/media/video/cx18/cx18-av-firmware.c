@@ -2,6 +2,7 @@
  *  cx18 ADEC firmware functions
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -43,11 +44,13 @@ int cx18_av_loadfw(struct cx18 *cx)
 	/* The firmware load often has byte errors, so allow for several
 	   retries, both at byte level and at the firmware load level. */
 	while (retries1 < 5) {
-		cx18_av_write4(cx, CXADEC_CHIP_CTRL, 0x00010000);
-		cx18_av_write(cx, CXADEC_STD_DET_CTL, 0xf6);
+		cx18_av_write4_expect(cx, CXADEC_CHIP_CTRL, 0x00010000,
+					  0x00008430, 0xffffffff); /* cx25843 */
+		cx18_av_write_expect(cx, CXADEC_STD_DET_CTL, 0xf6, 0xf6, 0xff);
 
-		/* Reset the Mako core (Register is undocumented.) */
-		cx18_av_write4(cx, 0x8100, 0x00010000);
+		/* Reset the Mako core, Register is alias of CXADEC_CHIP_CTRL */
+		cx18_av_write4_expect(cx, 0x8100, 0x00010000,
+					  0x00008430, 0xffffffff); /* cx25843 */
 
 		/* Put the 8051 in reset and enable firmware upload */
 		cx18_av_write4_noretry(cx, CXADEC_DL_CTL, 0x0F000000);
@@ -61,13 +64,12 @@ int cx18_av_loadfw(struct cx18 *cx)
 			int retries2;
 			int unrec_err = 0;
 
-			for (retries2 = 0; retries2 < CX18_MAX_MMIO_RETRIES;
+			for (retries2 = 0; retries2 < CX18_MAX_MMIO_WR_RETRIES;
 			     retries2++) {
 				cx18_av_write4_noretry(cx, CXADEC_DL_CTL,
 						       dl_control);
 				udelay(10);
-				value = cx18_av_read4_noretry(cx,
-							      CXADEC_DL_CTL);
+				value = cx18_av_read4(cx, CXADEC_DL_CTL);
 				if (value == dl_control)
 					break;
 				/* Check if we can correct the byte by changing
@@ -78,9 +80,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 					break;
 				}
 			}
-			cx18_log_write_retries(cx, retries2,
-					cx->reg_mem + 0xc40000 + CXADEC_DL_CTL);
-			if (unrec_err || retries2 >= CX18_MAX_MMIO_RETRIES)
+			if (unrec_err || retries2 >= CX18_MAX_MMIO_WR_RETRIES)
 				break;
 		}
 		if (i == size)
@@ -93,7 +93,8 @@ int cx18_av_loadfw(struct cx18 *cx)
 		return -EIO;
 	}
 
-	cx18_av_write4(cx, CXADEC_DL_CTL, 0x13000000 | fw->size);
+	cx18_av_write4_expect(cx, CXADEC_DL_CTL,
+				0x13000000 | fw->size, 0x13000000, 0x13000000);
 
 	/* Output to the 416 */
 	cx18_av_and_or4(cx, CXADEC_PIN_CTRL1, ~0, 0x78000);
@@ -118,7 +119,8 @@ int cx18_av_loadfw(struct cx18 *cx)
 	   passthrough */
 	cx18_av_write4(cx, CXADEC_PIN_CFG3, 0x5000B687);
 
-	cx18_av_write4(cx, CXADEC_STD_DET_CTL, 0x000000F6);
+	cx18_av_write4_expect(cx, CXADEC_STD_DET_CTL, 0x000000F6, 0x000000F6,
+								  0x3F00FFFF);
 	/* CxDevWrReg(CXADEC_STD_DET_CTL, 0x000000FF); */
 
 	/* Set bit 0 in register 0x9CC to signify that this is MiniMe. */
@@ -136,7 +138,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 	v |= 0xFF;   /* Auto by default */
 	v |= 0x400;  /* Stereo by default */
 	v |= 0x14000000;
-	cx18_av_write4(cx, CXADEC_STD_DET_CTL, v);
+	cx18_av_write4_expect(cx, CXADEC_STD_DET_CTL, v, v, 0x3F00FFFF);
 
 	release_firmware(fw);
 

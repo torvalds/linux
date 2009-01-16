@@ -208,7 +208,6 @@ static int __init jazz_sonic_probe(struct platform_device *pdev)
 	struct sonic_local *lp;
 	struct resource *res;
 	int err = 0;
-	DECLARE_MAC_BUF(mac);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -233,8 +232,7 @@ static int __init jazz_sonic_probe(struct platform_device *pdev)
 	if (err)
 		goto out1;
 
-	printk("%s: MAC %s IRQ %d\n",
-	       dev->name, print_mac(mac, dev->dev_addr), dev->irq);
+	printk("%s: MAC %pM IRQ %d\n", dev->name, dev->dev_addr, dev->irq);
 
 	return 0;
 

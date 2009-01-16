@@ -337,7 +337,7 @@ void netlbl_af4list_audit_addr(struct audit_buffer *audit_buf,
 
 	if (dev != NULL)
 		audit_log_format(audit_buf, " netif=%s", dev);
-	audit_log_format(audit_buf, " %s=" NIPQUAD_FMT, dir, NIPQUAD(addr));
+	audit_log_format(audit_buf, " %s=%pI4", dir, &addr);
 	if (mask_val != 0xffffffff) {
 		u32 mask_len = 0;
 		while (mask_val > 0) {
@@ -371,7 +371,7 @@ void netlbl_af6list_audit_addr(struct audit_buffer *audit_buf,
 
 	if (dev != NULL)
 		audit_log_format(audit_buf, " netif=%s", dev);
-	audit_log_format(audit_buf, " %s=" NIP6_FMT, dir, NIP6(*addr));
+	audit_log_format(audit_buf, " %s=%pI6", dir, addr);
 	if (ntohl(mask->s6_addr32[3]) != 0xffffffff) {
 		u32 mask_len = 0;
 		u32 mask_val;

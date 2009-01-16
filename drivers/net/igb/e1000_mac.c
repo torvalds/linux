@@ -50,13 +50,6 @@ void igb_remove_device(struct e1000_hw *hw)
 	kfree(hw->dev_spec);
 }
 
-static void igb_read_pci_cfg(struct e1000_hw *hw, u32 reg, u16 *value)
-{
-	struct igb_adapter *adapter = hw->back;
-
-	pci_read_config_word(adapter->pdev, reg, value);
-}
-
 static s32 igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
 {
 	struct igb_adapter *adapter = hw->back;
@@ -83,8 +76,8 @@ s32 igb_get_bus_info_pcie(struct e1000_hw *hw)
 {
 	struct e1000_bus_info *bus = &hw->bus;
 	s32 ret_val;
-	u32 status;
-	u16 pcie_link_status, pci_header_type;
+	u32 reg;
+	u16 pcie_link_status;
 
 	bus->type = e1000_bus_type_pci_express;
 	bus->speed = e1000_bus_speed_2500;
@@ -99,14 +92,8 @@ s32 igb_get_bus_info_pcie(struct e1000_hw *hw)
 						     PCIE_LINK_WIDTH_MASK) >>
 						     PCIE_LINK_WIDTH_SHIFT);
 
-	igb_read_pci_cfg(hw, PCI_HEADER_TYPE_REGISTER, &pci_header_type);
-	if (pci_header_type & PCI_HEADER_TYPE_MULTIFUNC) {
-		status = rd32(E1000_STATUS);
-		bus->func = (status & E1000_STATUS_FUNC_MASK)
-			    >> E1000_STATUS_FUNC_SHIFT;
-	} else {
-		bus->func = 0;
-	}
+	reg = rd32(E1000_STATUS);
+	bus->func = (reg & E1000_STATUS_FUNC_MASK) >> E1000_STATUS_FUNC_SHIFT;
 
 	return 0;
 }
@@ -229,8 +216,8 @@ void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 	if (!hw->mac.disable_av)
 		rar_high |= E1000_RAH_AV;
 
-	array_wr32(E1000_RA, (index << 1), rar_low);
-	array_wr32(E1000_RA, ((index << 1) + 1), rar_high);
+	wr32(E1000_RAL(index), rar_low);
+	wr32(E1000_RAH(index), rar_high);
 }
 
 /**

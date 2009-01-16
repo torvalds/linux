@@ -10,6 +10,8 @@
 #ifndef _ASM_IRQFLAGS_H
 #define _ASM_IRQFLAGS_H
 
+#include <asm/pil.h>
+
 #ifndef __ASSEMBLY__
 
 static inline unsigned long __raw_local_save_flags(void)
@@ -40,9 +42,9 @@ static inline void raw_local_irq_restore(unsigned long flags)
 static inline void raw_local_irq_disable(void)
 {
 	__asm__ __volatile__(
-		"wrpr	15, %%pil"
+		"wrpr	%0, %%pil"
 		: /* no outputs */
-		: /* no inputs */
+		: "i" (PIL_NORMAL_MAX)
 		: "memory"
 	);
 }

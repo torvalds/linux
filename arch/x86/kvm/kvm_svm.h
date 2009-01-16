@@ -7,7 +7,7 @@
 #include <linux/kvm_host.h>
 #include <asm/msr.h>
 
-#include "svm.h"
+#include <asm/svm.h>
 
 static const u32 host_save_user_msrs[] = {
 #ifdef CONFIG_X86_64

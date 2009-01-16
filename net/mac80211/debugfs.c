@@ -47,18 +47,14 @@ static const struct file_operations name## _ops = {			\
 
 DEBUGFS_READONLY_FILE(frequency, 20, "%d",
 		      local->hw.conf.channel->center_freq);
-DEBUGFS_READONLY_FILE(antenna_sel_tx, 20, "%d",
-		      local->hw.conf.antenna_sel_tx);
-DEBUGFS_READONLY_FILE(antenna_sel_rx, 20, "%d",
-		      local->hw.conf.antenna_sel_rx);
 DEBUGFS_READONLY_FILE(rts_threshold, 20, "%d",
 		      local->rts_threshold);
 DEBUGFS_READONLY_FILE(fragmentation_threshold, 20, "%d",
 		      local->fragmentation_threshold);
 DEBUGFS_READONLY_FILE(short_retry_limit, 20, "%d",
-		      local->short_retry_limit);
+		      local->hw.conf.short_frame_max_tx_count);
 DEBUGFS_READONLY_FILE(long_retry_limit, 20, "%d",
-		      local->long_retry_limit);
+		      local->hw.conf.long_frame_max_tx_count);
 DEBUGFS_READONLY_FILE(total_ps_buffered, 20, "%d",
 		      local->total_ps_buffered);
 DEBUGFS_READONLY_FILE(wep_iv, 20, "%#06x",
@@ -202,8 +198,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	local->debugfs.keys = debugfs_create_dir("keys", phyd);
 
 	DEBUGFS_ADD(frequency);
-	DEBUGFS_ADD(antenna_sel_tx);
-	DEBUGFS_ADD(antenna_sel_rx);
 	DEBUGFS_ADD(rts_threshold);
 	DEBUGFS_ADD(fragmentation_threshold);
 	DEBUGFS_ADD(short_retry_limit);
@@ -258,8 +252,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 void debugfs_hw_del(struct ieee80211_local *local)
 {
 	DEBUGFS_DEL(frequency);
-	DEBUGFS_DEL(antenna_sel_tx);
-	DEBUGFS_DEL(antenna_sel_rx);
 	DEBUGFS_DEL(rts_threshold);
 	DEBUGFS_DEL(fragmentation_threshold);
 	DEBUGFS_DEL(short_retry_limit);

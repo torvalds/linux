@@ -12,7 +12,6 @@
 #include "ackvec.h"
 #include "dccp.h"
 
-#include <linux/dccp.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -68,7 +67,7 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
 	/* Figure out how many options do we need to represent the ackvec */
-	const u16 nr_opts = DIV_ROUND_UP(av->av_vec_len, DCCP_MAX_ACKVEC_OPT_LEN);
+	const u8 nr_opts = DIV_ROUND_UP(av->av_vec_len, DCCP_SINGLE_OPT_MAXLEN);
 	u16 len = av->av_vec_len + 2 * nr_opts, i;
 	u32 elapsed_time;
 	const unsigned char *tail, *from;
@@ -100,8 +99,8 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	for (i = 0; i < nr_opts; ++i) {
 		int copylen = len;
 
-		if (len > DCCP_MAX_ACKVEC_OPT_LEN)
-			copylen = DCCP_MAX_ACKVEC_OPT_LEN;
+		if (len > DCCP_SINGLE_OPT_MAXLEN)
+			copylen = DCCP_SINGLE_OPT_MAXLEN;
 
 		*to++ = DCCPO_ACK_VECTOR_0;
 		*to++ = copylen + 2;
@@ -432,7 +431,7 @@ found:
 int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
 		      u64 *ackno, const u8 opt, const u8 *value, const u8 len)
 {
-	if (len > DCCP_MAX_ACKVEC_OPT_LEN)
+	if (len > DCCP_SINGLE_OPT_MAXLEN)
 		return -1;
 
 	/* dccp_ackvector_print(DCCP_SKB_CB(skb)->dccpd_ack_seq, value, len); */

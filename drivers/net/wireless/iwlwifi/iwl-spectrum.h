@@ -21,7 +21,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -88,4 +88,5 @@ struct ieee80211_measurement_report {
 		struct ieee80211_basic_report basic[0];
 	} u;
 } __attribute__ ((packed));
+
 #endif

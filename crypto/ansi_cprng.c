@@ -161,7 +161,7 @@ static int _get_more_prng_bytes(struct prng_context *ctx)
 	/*
 	 * Now update our DT value
 	 */
-	for (i = 0; i < DEFAULT_BLK_SZ; i++) {
+	for (i = DEFAULT_BLK_SZ - 1; i >= 0; i--) {
 		ctx->DT[i] += 1;
 		if (ctx->DT[i] != 0)
 			break;
@@ -223,9 +223,10 @@ remainder:
 	}
 
 	/*
-	 * Copy up to the next whole block size
+	 * Copy any data less than an entire block
 	 */
 	if (byte_count < DEFAULT_BLK_SZ) {
+empty_rbuf:
 		for (; ctx->rand_data_valid < DEFAULT_BLK_SZ;
 			ctx->rand_data_valid++) {
 			*ptr = ctx->rand_data[ctx->rand_data_valid];
@@ -240,18 +241,22 @@ remainder:
 	 * Now copy whole blocks
 	 */
 	for (; byte_count >= DEFAULT_BLK_SZ; byte_count -= DEFAULT_BLK_SZ) {
-		if (_get_more_prng_bytes(ctx) < 0) {
-			memset(buf, 0, nbytes);
-			err = -EINVAL;
-			goto done;
+		if (ctx->rand_data_valid == DEFAULT_BLK_SZ) {
+			if (_get_more_prng_bytes(ctx) < 0) {
+				memset(buf, 0, nbytes);
+				err = -EINVAL;
+				goto done;
+			}
 		}
+		if (ctx->rand_data_valid > 0)
+			goto empty_rbuf;
 		memcpy(ptr, ctx->rand_data, DEFAULT_BLK_SZ);
 		ctx->rand_data_valid += DEFAULT_BLK_SZ;
 		ptr += DEFAULT_BLK_SZ;
 	}
 
 	/*
-	 * Now copy any extra partial data
+	 * Now go back and get any remaining partial block
 	 */
 	if (byte_count)
 		goto remainder;
@@ -349,15 +354,25 @@ static int cprng_get_random(struct crypto_rng *tfm, u8 *rdata,
 	return get_prng_bytes(rdata, dlen, prng);
 }
 
+/*
+ *  This is the cprng_registered reset method the seed value is
+ *  interpreted as the tuple { V KEY DT}
+ *  V and KEY are required during reset, and DT is optional, detected
+ *  as being present by testing the length of the seed
+ */
 static int cprng_reset(struct crypto_rng *tfm, u8 *seed, unsigned int slen)
 {
 	struct prng_context *prng = crypto_rng_ctx(tfm);
-	u8 *key = seed + DEFAULT_PRNG_KSZ;
+	u8 *key = seed + DEFAULT_BLK_SZ;
+	u8 *dt = NULL;
 
 	if (slen < DEFAULT_PRNG_KSZ + DEFAULT_BLK_SZ)
 		return -EINVAL;
 
-	reset_prng_context(prng, key, DEFAULT_PRNG_KSZ, seed, NULL);
+	if (slen >= (2 * DEFAULT_BLK_SZ + DEFAULT_PRNG_KSZ))
+		dt = key + DEFAULT_PRNG_KSZ;
+
+	reset_prng_context(prng, key, DEFAULT_PRNG_KSZ, seed, dt);
 
 	if (prng->flags & PRNG_NEED_RESET)
 		return -EINVAL;
@@ -379,7 +394,7 @@ static struct crypto_alg rng_alg = {
 		.rng = {
 			.rng_make_random	= cprng_get_random,
 			.rng_reset		= cprng_reset,
-			.seedsize = DEFAULT_PRNG_KSZ + DEFAULT_BLK_SZ,
+			.seedsize = DEFAULT_PRNG_KSZ + 2*DEFAULT_BLK_SZ,
 		}
 	}
 };

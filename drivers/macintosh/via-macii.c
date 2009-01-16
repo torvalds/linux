@@ -33,7 +33,6 @@
 #include <linux/init.h>
 #include <asm/macintosh.h>
 #include <asm/macints.h>
-#include <asm/machw.h>
 #include <asm/mac_via.h>
 #include <asm/system.h>
 

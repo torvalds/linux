@@ -550,7 +550,7 @@ got:
 
 	sb->s_dirt = 1;
 	mark_buffer_dirty(bh2);
-	inode->i_uid = current->fsuid;
+	inode->i_uid = current_fsuid();
 	if (test_opt (sb, GRPID))
 		inode->i_gid = dir->i_gid;
 	else if (dir->i_mode & S_ISGID) {
@@ -558,19 +558,15 @@ got:
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
 	} else
-		inode->i_gid = current->fsgid;
+		inode->i_gid = current_fsgid();
 	inode->i_mode = mode;
 
 	inode->i_ino = ino;
 	inode->i_blocks = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
 	memset(ei->i_data, 0, sizeof(ei->i_data));
-	ei->i_flags = EXT2_I(dir)->i_flags & ~EXT2_BTREE_FL;
-	if (S_ISLNK(mode))
-		ei->i_flags &= ~(EXT2_IMMUTABLE_FL|EXT2_APPEND_FL);
-	/* dirsync is only applied to directories */
-	if (!S_ISDIR(mode))
-		ei->i_flags &= ~EXT2_DIRSYNC_FL;
+	ei->i_flags =
+		ext2_mask_flags(mode, EXT2_I(dir)->i_flags & EXT2_FL_INHERITED);
 	ei->i_faddr = 0;
 	ei->i_frag_no = 0;
 	ei->i_frag_size = 0;
@@ -585,7 +581,10 @@ got:
 	spin_lock(&sbi->s_next_gen_lock);
 	inode->i_generation = sbi->s_next_generation++;
 	spin_unlock(&sbi->s_next_gen_lock);
-	insert_inode_hash(inode);
+	if (insert_inode_locked(inode) < 0) {
+		err = -EINVAL;
+		goto fail_drop;
+	}
 
 	if (DQUOT_ALLOC_INODE(inode)) {
 		err = -EDQUOT;
@@ -612,6 +611,7 @@ fail_drop:
 	DQUOT_DROP(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
+	unlock_new_inode(inode);
 	iput(inode);
 	return ERR_PTR(err);
 

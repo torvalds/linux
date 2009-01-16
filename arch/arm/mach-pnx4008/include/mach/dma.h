@@ -16,8 +16,6 @@
 
 #include "platform.h"
 
-#define MAX_DMA_ADDRESS		0xffffffff
-
 #define MAX_DMA_CHANNELS	8
 
 #define DMAC_BASE		IO_ADDRESS(PNX4008_DMA_CONFIG_BASE)

@@ -114,31 +114,6 @@ config SENSORS_PCF8591
 	  These devices are hard to detect and rarely found on mainstream
 	  hardware.  If unsure, say N.
 
-config ISP1301_OMAP
-	tristate "Philips ISP1301 with OMAP OTG"
-	depends on ARCH_OMAP_OTG
-	help
-	  If you say yes here you get support for the Philips ISP1301
-	  USB-On-The-Go transceiver working with the OMAP OTG controller.
-	  The ISP1301 is used in products including H2 and H3 development
-	  boards for Texas Instruments OMAP processors.
-	  
-	  This driver can also be built as a module.  If so, the module
-	  will be called isp1301_omap.
-
-config TPS65010
-	tristate "TPS6501x Power Management chips"
-	depends on GPIOLIB
-	default y if MACH_OMAP_H2 || MACH_OMAP_H3 || MACH_OMAP_OSK
-	help
-	  If you say yes here you get support for the TPS6501x series of
-	  Power Management chips.  These include voltage regulators,
-	  lithium ion/polymer battery charging, and other features that
-	  are often used in portable devices like cell phones and cameras.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called tps65010.
-
 config SENSORS_MAX6875
 	tristate "Maxim MAX6875 Power supply supervisor"
 	depends on EXPERIMENTAL
@@ -163,26 +138,5 @@ config SENSORS_TSL2550
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tsl2550.
-
-config MENELAUS
-	bool "TWL92330/Menelaus PM chip"
-	depends on I2C=y && ARCH_OMAP24XX
-	help
-	  If you say yes here you get support for the Texas Instruments
-	  TWL92330/Menelaus Power Management chip. This include voltage
-	  regulators, Dual slot memory card tranceivers, real-time clock
-	  and other features that are often used in portable devices like
-	  cell phones and PDAs.
-
-config MCU_MPC8349EMITX
-	tristate "MPC8349E-mITX MCU driver"
-	depends on I2C && PPC_83xx
-	select GENERIC_GPIO
-	select ARCH_REQUIRE_GPIOLIB
-	help
-	  Say Y here to enable soft power-off functionality on the Freescale
-	  boards with the MPC8349E-mITX-compatible MCU chips. This driver will
-	  also register MCU GPIOs with the generic GPIO API, so you'll able
-	  to use MCU pins as GPIOs.
 
 endmenu

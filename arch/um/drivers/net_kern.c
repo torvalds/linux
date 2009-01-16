@@ -76,7 +76,7 @@ out:
 
 static int uml_net_rx(struct net_device *dev)
 {
-	struct uml_net_private *lp = dev->priv;
+	struct uml_net_private *lp = netdev_priv(dev);
 	int pkt_len;
 	struct sk_buff *skb;
 
@@ -119,7 +119,7 @@ static void uml_dev_close(struct work_struct *work)
 static irqreturn_t uml_net_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
-	struct uml_net_private *lp = dev->priv;
+	struct uml_net_private *lp = netdev_priv(dev);
 	int err;
 
 	if (!netif_running(dev))
@@ -150,7 +150,7 @@ out:
 
 static int uml_net_open(struct net_device *dev)
 {
-	struct uml_net_private *lp = dev->priv;
+	struct uml_net_private *lp = netdev_priv(dev);
 	int err;
 
 	if (lp->fd >= 0) {
@@ -195,7 +195,7 @@ out:
 
 static int uml_net_close(struct net_device *dev)
 {
-	struct uml_net_private *lp = dev->priv;
+	struct uml_net_private *lp = netdev_priv(dev);
 
 	netif_stop_queue(dev);
 
@@ -213,7 +213,7 @@ static int uml_net_close(struct net_device *dev)
 
 static int uml_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct uml_net_private *lp = dev->priv;
+	struct uml_net_private *lp = netdev_priv(dev);
 	unsigned long flags;
 	int len;
 
@@ -250,7 +250,7 @@ static int uml_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *uml_net_get_stats(struct net_device *dev)
 {
-	struct uml_net_private *lp = dev->priv;
+	struct uml_net_private *lp = netdev_priv(dev);
 	return &lp->stats;
 }
 
@@ -267,7 +267,7 @@ static void uml_net_tx_timeout(struct net_device *dev)
 
 static int uml_net_set_mac(struct net_device *dev, void *addr)
 {
-	struct uml_net_private *lp = dev->priv;
+	struct uml_net_private *lp = netdev_priv(dev);
 	struct sockaddr *hwaddr = addr;
 
 	spin_lock_irq(&lp->lock);
@@ -368,7 +368,7 @@ static void net_device_release(struct device *dev)
 {
 	struct uml_net *device = dev->driver_data;
 	struct net_device *netdev = device->dev;
-	struct uml_net_private *lp = netdev->priv;
+	struct uml_net_private *lp = netdev_priv(netdev);
 
 	if (lp->remove != NULL)
 		(*lp->remove)(&lp->user);
@@ -418,14 +418,9 @@ static void eth_configure(int n, void *init, char *mac,
 
 	setup_etheraddr(mac, device->mac, dev->name);
 
-	printk(KERN_INFO "Netdevice %d ", n);
-	printk("(%02x:%02x:%02x:%02x:%02x:%02x) ",
-	       device->mac[0], device->mac[1],
-	       device->mac[2], device->mac[3],
-	       device->mac[4], device->mac[5]);
-	printk(": ");
+	printk(KERN_INFO "Netdevice %d (%pM) : ", n, device->mac);
 
-	lp = dev->priv;
+	lp = netdev_priv(dev);
 	/* This points to the transport private data. It's still clear, but we
 	 * must memset it to 0 *now*. Let's help the drivers. */
 	memset(lp, 0, size);
@@ -735,7 +730,7 @@ static int net_remove(int n, char **error_out)
 		return -ENODEV;
 
 	dev = device->dev;
-	lp = dev->priv;
+	lp = netdev_priv(dev);
 	if (lp->fd > 0)
 		return -EBUSY;
 	unregister_netdev(dev);
@@ -766,7 +761,7 @@ static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
 	if (dev->open != uml_net_open)
 		return NOTIFY_DONE;
 
-	lp = dev->priv;
+	lp = netdev_priv(dev);
 
 	proc = NULL;
 	switch (event) {

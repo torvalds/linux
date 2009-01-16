@@ -121,6 +121,9 @@ extern const char *hpsb_speedto_str[];
 
 #include <asm/byteorder.h>
 
+/* '1' '3' '9' '4' in ASCII */
+#define IEEE1394_BUSID_MAGIC	cpu_to_be32(0x31333934)
+
 #ifdef __BIG_ENDIAN_BITFIELD
 
 struct selfid {

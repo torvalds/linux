@@ -66,7 +66,7 @@
 #define ONEMS 0xb0 /* One Millisecond register */
 #define UTS   0xb4 /* UART Test Register */
 #endif
-#ifdef CONFIG_ARCH_IMX
+#if defined(CONFIG_ARCH_IMX) || defined(CONFIG_ARCH_MX1)
 #define BIPR1 0xb0 /* Incremental Preset Register 1 */
 #define BIPR2 0xb4 /* Incremental Preset Register 2 */
 #define BIPR3 0xb8 /* Incremental Preset Register 3 */
@@ -96,7 +96,7 @@
 #define  UCR1_RTSDEN     (1<<5)	 /* RTS delta interrupt enable */
 #define  UCR1_SNDBRK     (1<<4)	 /* Send break */
 #define  UCR1_TDMAEN     (1<<3)	 /* Transmitter ready DMA enable */
-#ifdef CONFIG_ARCH_IMX
+#if defined(CONFIG_ARCH_IMX) || defined(CONFIG_ARCH_MX1)
 #define  UCR1_UARTCLKEN  (1<<2)	 /* UART clock enabled */
 #endif
 #if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
@@ -187,11 +187,11 @@
 #define MAX_INTERNAL_IRQ	IMX_IRQS
 #endif
 
-#if defined CONFIG_ARCH_MX3 || defined CONFIG_ARCH_MX2
+#ifdef CONFIG_ARCH_MXC
 #define SERIAL_IMX_MAJOR        207
 #define MINOR_START	        16
 #define DEV_NAME		"ttymxc"
-#define MAX_INTERNAL_IRQ	MXC_MAX_INT_LINES
+#define MAX_INTERNAL_IRQ	MXC_INTERNAL_IRQS
 #endif
 
 /*

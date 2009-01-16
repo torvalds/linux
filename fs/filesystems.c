@@ -179,7 +179,7 @@ static int fs_maxindex(void)
 /*
  * Whee.. Weird sysv syscall. 
  */
-asmlinkage long sys_sysfs(int option, unsigned long arg1, unsigned long arg2)
+SYSCALL_DEFINE3(sysfs, int, option, unsigned long, arg1, unsigned long, arg2)
 {
 	int retval = -EINVAL;
 
@@ -253,24 +253,27 @@ static int __init proc_filesystems_init(void)
 module_init(proc_filesystems_init);
 #endif
 
-struct file_system_type *get_fs_type(const char *name)
+static struct file_system_type *__get_fs_type(const char *name, int len)
 {
 	struct file_system_type *fs;
-	const char *dot = strchr(name, '.');
-	unsigned len = dot ? dot - name : strlen(name);
 
 	read_lock(&file_systems_lock);
 	fs = *(find_filesystem(name, len));
 	if (fs && !try_module_get(fs->owner))
 		fs = NULL;
 	read_unlock(&file_systems_lock);
-	if (!fs && (request_module("%.*s", len, name) == 0)) {
-		read_lock(&file_systems_lock);
-		fs = *(find_filesystem(name, len));
-		if (fs && !try_module_get(fs->owner))
-			fs = NULL;
-		read_unlock(&file_systems_lock);
-	}
+	return fs;
+}
+
+struct file_system_type *get_fs_type(const char *name)
+{
+	struct file_system_type *fs;
+	const char *dot = strchr(name, '.');
+	int len = dot ? dot - name : strlen(name);
+
+	fs = __get_fs_type(name, len);
+	if (!fs && (request_module("%.*s", len, name) == 0))
+		fs = __get_fs_type(name, len);
 
 	if (dot && fs && !(fs->fs_flags & FS_HAS_SUBTYPE)) {
 		put_filesystem(fs);

@@ -93,7 +93,7 @@
 /* category metadata list */
 
 extern catlistitem_t msg_catlist[];
-extern UINT32 msg_catlist_size;
+extern u32 msg_catlist_size;
 
 
 /*================================================================*/

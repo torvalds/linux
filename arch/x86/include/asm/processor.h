@@ -110,6 +110,7 @@ struct cpuinfo_x86 {
 	/* Index into per_cpu list: */
 	u16			cpu_index;
 #endif
+	unsigned int		x86_hyper_vendor;
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
 #define X86_VENDOR_INTEL	0
@@ -122,6 +123,9 @@ struct cpuinfo_x86 {
 #define X86_VENDOR_NUM		9
 
 #define X86_VENDOR_UNKNOWN	0xff
+
+#define X86_HYPER_VENDOR_NONE  0
+#define X86_HYPER_VENDOR_VMWARE 1
 
 /*
  * capabilities of CPUs
@@ -751,6 +755,19 @@ extern void cpu_set_gdt(int);
 extern void switch_to_new_gdt(void);
 extern void cpu_init(void);
 extern void init_gdt(int cpu);
+
+static inline unsigned long get_debugctlmsr(void)
+{
+    unsigned long debugctlmsr = 0;
+
+#ifndef CONFIG_X86_DEBUGCTLMSR
+	if (boot_cpu_data.x86 < 6)
+		return 0;
+#endif
+	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
+
+    return debugctlmsr;
+}
 
 static inline void update_debugctlmsr(unsigned long debugctlmsr)
 {

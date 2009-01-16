@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/kthread.h>
 
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <mach/collie.h>
 #include <asm/mach-types.h>
 

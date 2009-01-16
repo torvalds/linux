@@ -219,7 +219,7 @@ static int ipv6_dest_hao(struct sk_buff *skb, int optoff)
 
 	if (!(ipv6_addr_type(&hao->addr) & IPV6_ADDR_UNICAST)) {
 		LIMIT_NETDEBUG(
-			KERN_DEBUG "hao is not an unicast addr: " NIP6_FMT "\n", NIP6(hao->addr));
+			KERN_DEBUG "hao is not an unicast addr: %pI6\n", &hao->addr);
 		goto discard;
 	}
 

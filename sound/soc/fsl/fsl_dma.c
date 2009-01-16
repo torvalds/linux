@@ -284,7 +284,7 @@ static irqreturn_t fsl_dma_isr(int irq, void *dev_id)
  * fsl_dma_new: initialize this PCM driver.
  *
  * This function is called when the codec driver calls snd_soc_new_pcms(),
- * once for each .dai_link in the machine driver's snd_soc_machine
+ * once for each .dai_link in the machine driver's snd_soc_card
  * structure.
  */
 static int fsl_dma_new(struct snd_card *card, struct snd_soc_dai *dai,
@@ -852,6 +852,18 @@ int fsl_dma_configure(struct fsl_dma_info *dma_info)
 	return 1;
 }
 EXPORT_SYMBOL_GPL(fsl_dma_configure);
+
+static int __init fsl_soc_platform_init(void)
+{
+	return snd_soc_register_platform(&fsl_soc_platform);
+}
+module_init(fsl_soc_platform_init);
+
+static void __exit fsl_soc_platform_exit(void)
+{
+	snd_soc_unregister_platform(&fsl_soc_platform);
+}
+module_exit(fsl_soc_platform_exit);
 
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Freescale Elo DMA ASoC PCM module");

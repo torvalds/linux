@@ -70,7 +70,6 @@
 #define DBG(fmt...)
 #endif
 
-int have_of = 1;
 int boot_cpuid = 0;
 u64 ppc64_pft_size;
 
@@ -362,6 +361,8 @@ void __init setup_system(void)
 	 */
 	do_feature_fixups(cur_cpu_spec->cpu_features,
 			  &__start___ftr_fixup, &__stop___ftr_fixup);
+	do_feature_fixups(cur_cpu_spec->mmu_features,
+			  &__start___mmu_ftr_fixup, &__stop___mmu_ftr_fixup);
 	do_feature_fixups(powerpc_firmware_features,
 			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
 	do_lwsync_fixups(cur_cpu_spec->cpu_features,
@@ -433,8 +434,8 @@ void __init setup_system(void)
 	printk("Starting Linux PPC64 %s\n", init_utsname()->version);
 
 	printk("-----------------------------------------------------\n");
-	printk("ppc64_pft_size                = 0x%lx\n", ppc64_pft_size);
-	printk("physicalMemorySize            = 0x%lx\n", lmb_phys_mem_size());
+	printk("ppc64_pft_size                = 0x%llx\n", ppc64_pft_size);
+	printk("physicalMemorySize            = 0x%llx\n", lmb_phys_mem_size());
 	if (ppc64_caches.dline_size != 0x80)
 		printk("ppc64_caches.dcache_line_size = 0x%x\n",
 		       ppc64_caches.dline_size);
@@ -492,7 +493,7 @@ static void __init emergency_stack_init(void)
 	 * bringup, we need to get at them in real mode. This means they
 	 * must also be within the RMO region.
 	 */
-	limit = min(0x10000000UL, lmb.rmo_size);
+	limit = min(0x10000000ULL, lmb.rmo_size);
 
 	for_each_possible_cpu(i) {
 		unsigned long sp;
@@ -606,8 +607,6 @@ void __init setup_per_cpu_areas(void)
 
 	for_each_possible_cpu(i) {
 		ptr = alloc_bootmem_pages_node(NODE_DATA(cpu_to_node(i)), size);
-		if (!ptr)
-			panic("Cannot allocate cpu data for CPU %d\n", i);
 
 		paca[i].data_offset = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);

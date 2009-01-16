@@ -155,7 +155,7 @@ static void gic_unmask_irq(unsigned int irq)
 
 static DEFINE_SPINLOCK(gic_lock);
 
-static void gic_set_affinity(unsigned int irq, cpumask_t cpumask)
+static void gic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 {
 	cpumask_t	tmp = CPU_MASK_NONE;
 	unsigned long	flags;
@@ -164,7 +164,7 @@ static void gic_set_affinity(unsigned int irq, cpumask_t cpumask)
 	pr_debug(KERN_DEBUG "%s called\n", __func__);
 	irq -= _irqbase;
 
-	cpus_and(tmp, cpumask, cpu_online_map);
+	cpumask_and(&tmp, cpumask, cpu_online_mask);
 	if (cpus_empty(tmp))
 		return;
 
@@ -187,7 +187,7 @@ static void gic_set_affinity(unsigned int irq, cpumask_t cpumask)
 		set_bit(irq, pcpu_masks[first_cpu(tmp)].pcpu_mask);
 
 	}
-	irq_desc[irq].affinity = cpumask;
+	irq_desc[irq].affinity = *cpumask;
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 }

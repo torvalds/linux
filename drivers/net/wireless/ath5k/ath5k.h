@@ -507,11 +507,15 @@ enum ath5k_tx_queue_id {
 #define AR5K_TXQ_FLAG_TXEOLINT_ENABLE		0x0004	/* Enable TXEOL interrupt -not used- */
 #define AR5K_TXQ_FLAG_TXDESCINT_ENABLE		0x0008	/* Enable TXDESC interrupt -not used- */
 #define AR5K_TXQ_FLAG_TXURNINT_ENABLE		0x0010	/* Enable TXURN interrupt */
-#define AR5K_TXQ_FLAG_BACKOFF_DISABLE		0x0020	/* Disable random post-backoff */
-#define AR5K_TXQ_FLAG_RDYTIME_EXP_POLICY_ENABLE	0x0040	/* Enable ready time expiry policy (?)*/
-#define AR5K_TXQ_FLAG_FRAG_BURST_BACKOFF_ENABLE	0x0080	/* Enable backoff while bursting */
-#define AR5K_TXQ_FLAG_POST_FR_BKOFF_DIS		0x0100	/* Disable backoff while bursting */
-#define AR5K_TXQ_FLAG_COMPRESSION_ENABLE	0x0200	/* Enable hw compression -not implemented-*/
+#define AR5K_TXQ_FLAG_CBRORNINT_ENABLE		0x0020	/* Enable CBRORN interrupt */
+#define AR5K_TXQ_FLAG_CBRURNINT_ENABLE		0x0040	/* Enable CBRURN interrupt */
+#define AR5K_TXQ_FLAG_QTRIGINT_ENABLE		0x0080	/* Enable QTRIG interrupt */
+#define AR5K_TXQ_FLAG_TXNOFRMINT_ENABLE		0x0100	/* Enable TXNOFRM interrupt */
+#define AR5K_TXQ_FLAG_BACKOFF_DISABLE		0x0200	/* Disable random post-backoff */
+#define AR5K_TXQ_FLAG_RDYTIME_EXP_POLICY_ENABLE	0x0300	/* Enable ready time expiry policy (?)*/
+#define AR5K_TXQ_FLAG_FRAG_BURST_BACKOFF_ENABLE	0x0800	/* Enable backoff while bursting */
+#define AR5K_TXQ_FLAG_POST_FR_BKOFF_DIS		0x1000	/* Disable backoff while bursting */
+#define AR5K_TXQ_FLAG_COMPRESSION_ENABLE	0x2000	/* Enable hw compression -not implemented-*/
 
 /*
  * A struct to hold tx queue's parameters
@@ -817,13 +821,6 @@ struct ath5k_athchan_2ghz {
 		return (false);			\
 } while (0)
 
-enum ath5k_ant_setting {
-	AR5K_ANT_VARIABLE	= 0,	/* variable by programming */
-	AR5K_ANT_FIXED_A	= 1,	/* fixed to 11a frequencies */
-	AR5K_ANT_FIXED_B	= 2,	/* fixed to 11b frequencies */
-	AR5K_ANT_MAX		= 3,
-};
-
 /*
  * Hardware interrupt abstraction
  */
@@ -853,7 +850,7 @@ enum ath5k_ant_setting {
  * 	checked. We should do this with ath5k_hw_update_mib_counters() but
  * 	it seems we should also then do some noise immunity work.
  * @AR5K_INT_RXPHY: RX PHY Error
- * @AR5K_INT_RXKCM: ??
+ * @AR5K_INT_RXKCM: RX Key cache miss
  * @AR5K_INT_SWBA: SoftWare Beacon Alert - indicates its time to send a
  * 	beacon that must be handled in software. The alternative is if you
  * 	have VEOL support, in that case you let the hardware deal with things.
@@ -869,7 +866,7 @@ enum ath5k_ant_setting {
  * @AR5K_INT_FATAL: Fatal errors were encountered, typically caused by DMA
  * 	errors. These types of errors we can enable seem to be of type
  * 	AR5K_SIMR2_MCABT, AR5K_SIMR2_SSERR and AR5K_SIMR2_DPERR.
- * @AR5K_INT_GLOBAL: Seems to be used to clear and set the IER
+ * @AR5K_INT_GLOBAL: Used to clear and set the IER
  * @AR5K_INT_NOCARD: signals the card has been removed
  * @AR5K_INT_COMMON: common interrupts shared amogst MACs with the same
  * 	bit value
@@ -881,36 +878,61 @@ enum ath5k_ant_setting {
  * MACs.
  */
 enum ath5k_int {
-	AR5K_INT_RX	= 0x00000001, /* Not common */
+	AR5K_INT_RXOK	= 0x00000001,
 	AR5K_INT_RXDESC	= 0x00000002,
+	AR5K_INT_RXERR	= 0x00000004,
 	AR5K_INT_RXNOFRM = 0x00000008,
 	AR5K_INT_RXEOL	= 0x00000010,
 	AR5K_INT_RXORN	= 0x00000020,
-	AR5K_INT_TX	= 0x00000040, /* Not common */
+	AR5K_INT_TXOK	= 0x00000040,
 	AR5K_INT_TXDESC	= 0x00000080,
+	AR5K_INT_TXERR	= 0x00000100,
+	AR5K_INT_TXNOFRM = 0x00000200,
+	AR5K_INT_TXEOL	= 0x00000400,
 	AR5K_INT_TXURN	= 0x00000800,
 	AR5K_INT_MIB	= 0x00001000,
+	AR5K_INT_SWI	= 0x00002000,
 	AR5K_INT_RXPHY	= 0x00004000,
 	AR5K_INT_RXKCM	= 0x00008000,
 	AR5K_INT_SWBA	= 0x00010000,
+	AR5K_INT_BRSSI	= 0x00020000,
 	AR5K_INT_BMISS	= 0x00040000,
-	AR5K_INT_BNR	= 0x00100000, /* Not common */
-	AR5K_INT_GPIO	= 0x01000000,
-	AR5K_INT_FATAL	= 0x40000000, /* Not common */
-	AR5K_INT_GLOBAL	= 0x80000000,
+	AR5K_INT_FATAL	= 0x00080000, /* Non common */
+	AR5K_INT_BNR	= 0x00100000, /* Non common */
+	AR5K_INT_TIM	= 0x00200000, /* Non common */
+	AR5K_INT_DTIM	= 0x00400000, /* Non common */
+	AR5K_INT_DTIM_SYNC =	0x00800000, /* Non common */
+	AR5K_INT_GPIO	=	0x01000000,
+	AR5K_INT_BCN_TIMEOUT =	0x02000000, /* Non common */
+	AR5K_INT_CAB_TIMEOUT =	0x04000000, /* Non common */
+	AR5K_INT_RX_DOPPLER =	0x08000000, /* Non common */
+	AR5K_INT_QCBRORN =	0x10000000, /* Non common */
+	AR5K_INT_QCBRURN =	0x20000000, /* Non common */
+	AR5K_INT_QTRIG	=	0x40000000, /* Non common */
+	AR5K_INT_GLOBAL =	0x80000000,
 
-	AR5K_INT_COMMON  = AR5K_INT_RXNOFRM
-			| AR5K_INT_RXDESC
-			| AR5K_INT_RXEOL
-			| AR5K_INT_RXORN
-			| AR5K_INT_TXURN
-			| AR5K_INT_TXDESC
-			| AR5K_INT_MIB
-			| AR5K_INT_RXPHY
-			| AR5K_INT_RXKCM
-			| AR5K_INT_SWBA
-			| AR5K_INT_BMISS
-			| AR5K_INT_GPIO,
+	AR5K_INT_COMMON  = AR5K_INT_RXOK
+		| AR5K_INT_RXDESC
+		| AR5K_INT_RXERR
+		| AR5K_INT_RXNOFRM
+		| AR5K_INT_RXEOL
+		| AR5K_INT_RXORN
+		| AR5K_INT_TXOK
+		| AR5K_INT_TXDESC
+		| AR5K_INT_TXERR
+		| AR5K_INT_TXNOFRM
+		| AR5K_INT_TXEOL
+		| AR5K_INT_TXURN
+		| AR5K_INT_MIB
+		| AR5K_INT_SWI
+		| AR5K_INT_RXPHY
+		| AR5K_INT_RXKCM
+		| AR5K_INT_SWBA
+		| AR5K_INT_BRSSI
+		| AR5K_INT_BMISS
+		| AR5K_INT_GPIO
+		| AR5K_INT_GLOBAL,
+
 	AR5K_INT_NOCARD	= 0xffffffff
 };
 
@@ -1030,6 +1052,7 @@ struct ath5k_hw {
 	bool			ah_calibration;
 	bool			ah_running;
 	bool			ah_single_chip;
+	bool			ah_combined_mic;
 	enum ath5k_rfgain	ah_rf_gain;
 
 	u32			ah_mac_srev;
@@ -1064,10 +1087,11 @@ struct ath5k_hw {
 
 	u8			ah_sta_id[ETH_ALEN];
 
-	/* Current BSSID we are trying to assoc to / creating.
+	/* Current BSSID we are trying to assoc to / create.
 	 * This is passed by mac80211 on config_interface() and cached here for
 	 * use in resets */
 	u8			ah_bssid[ETH_ALEN];
+	u8			ah_bssid_mask[ETH_ALEN];
 
 	u32			ah_gpio[AR5K_MAX_GPIO];
 	int			ah_gpio_npins;
@@ -1081,6 +1105,11 @@ struct ath5k_hw {
 	u32			ah_txq_imr_txurn;
 	u32			ah_txq_imr_txdesc;
 	u32			ah_txq_imr_txeol;
+	u32			ah_txq_imr_cbrorn;
+	u32			ah_txq_imr_cbrurn;
+	u32			ah_txq_imr_qtrig;
+	u32			ah_txq_imr_nofrm;
+	u32			ah_txq_isr;
 	u32			*ah_rf_banks;
 	size_t			ah_rf_banks_size;
 	struct ath5k_gain	ah_gain;
@@ -1319,6 +1348,11 @@ static inline u32 ath5k_hw_bitswap(u32 val, unsigned int bits)
 	}
 
 	return retval;
+}
+
+static inline int ath5k_pad_size(int hdrlen)
+{
+	return (hdrlen < 24) ? 0 : hdrlen & 3;
 }
 
 #endif

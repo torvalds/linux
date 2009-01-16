@@ -240,26 +240,6 @@ congestion_drop:
 	return NET_XMIT_CN;
 }
 
-static int gred_requeue(struct sk_buff *skb, struct Qdisc* sch)
-{
-	struct gred_sched *t = qdisc_priv(sch);
-	struct gred_sched_data *q;
-	u16 dp = tc_index_to_dp(skb);
-
-	if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
-		if (net_ratelimit())
-			printk(KERN_WARNING "GRED: Unable to relocate VQ 0x%x "
-			       "for requeue, screwing up backlog.\n",
-			       tc_index_to_dp(skb));
-	} else {
-		if (red_is_idling(&q->parms))
-			red_end_of_idle_period(&q->parms);
-		q->backlog += qdisc_pkt_len(skb);
-	}
-
-	return qdisc_requeue(skb, sch);
-}
-
 static struct sk_buff *gred_dequeue(struct Qdisc* sch)
 {
 	struct sk_buff *skb;
@@ -602,7 +582,7 @@ static struct Qdisc_ops gred_qdisc_ops __read_mostly = {
 	.priv_size	=	sizeof(struct gred_sched),
 	.enqueue	=	gred_enqueue,
 	.dequeue	=	gred_dequeue,
-	.requeue	=	gred_requeue,
+	.peek		=	qdisc_peek_head,
 	.drop		=	gred_drop,
 	.init		=	gred_init,
 	.reset		=	gred_reset,

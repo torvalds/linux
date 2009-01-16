@@ -4,6 +4,7 @@ obj-$(CONFIG_USB_GSPCA_ETOMS)	+= gspca_etoms.o
 obj-$(CONFIG_USB_GSPCA_FINEPIX)	+= gspca_finepix.o
 obj-$(CONFIG_USB_GSPCA_MARS)	+= gspca_mars.o
 obj-$(CONFIG_USB_GSPCA_OV519)	+= gspca_ov519.o
+obj-$(CONFIG_USB_GSPCA_OV534)	+= gspca_ov534.o
 obj-$(CONFIG_USB_GSPCA_PAC207)	+= gspca_pac207.o
 obj-$(CONFIG_USB_GSPCA_PAC7311) += gspca_pac7311.o
 obj-$(CONFIG_USB_GSPCA_SONIXB)	+= gspca_sonixb.o
@@ -27,6 +28,7 @@ gspca_etoms-objs		:= etoms.o
 gspca_finepix-objs		:= finepix.o
 gspca_mars-objs			:= mars.o
 gspca_ov519-objs		:= ov519.o
+gspca_ov534-objs		:= ov534.o
 gspca_pac207-objs		:= pac207.o
 gspca_pac7311-objs		:= pac7311.o
 gspca_sonixb-objs		:= sonixb.o
@@ -45,4 +47,4 @@ gspca_vc032x-objs		:= vc032x.o
 gspca_zc3xx-objs		:= zc3xx.o
 
 obj-$(CONFIG_USB_M5602)		+= m5602/
-
+obj-$(CONFIG_USB_STV06XX) 	+= stv06xx/

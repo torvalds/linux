@@ -348,6 +348,7 @@ bail:
  */
 static int get_pkeys(struct ipath_devdata *dd, u16 * pkeys)
 {
+	/* always a kernel port, no locking needed */
 	struct ipath_portdata *pd = dd->ipath_pd[0];
 
 	memcpy(pkeys, pd->port_pkeys, sizeof(pd->port_pkeys));
@@ -730,6 +731,7 @@ static int set_pkeys(struct ipath_devdata *dd, u16 *pkeys)
 	int i;
 	int changed = 0;
 
+	/* always a kernel port, no locking needed */
 	pd = dd->ipath_pd[0];
 
 	for (i = 0; i < ARRAY_SIZE(pd->port_pkeys); i++) {

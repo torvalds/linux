@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <mach/cpu.h>
 
 #define OMAP_DIE_ID_0		0xfffe1800
 #define OMAP_DIE_ID_1		0xfffe1804
@@ -29,6 +30,8 @@ struct omap_id {
 	u32	omap_id;	/* OMAP revision */
 	u32	type;		/* Cpu id bits [31:08], cpu class bits [07:00] */
 };
+
+static unsigned int omap_revision;
 
 /* Register values to detect the OMAP version */
 static struct omap_id omap_ids[] __initdata = {
@@ -52,6 +55,12 @@ static struct omap_id omap_ids[] __initdata = {
 	{ .jtag_id = 0xb5f7, .die_rev = 0x1, .omap_id = 0x03330100, .type = 0x17100000},
 	{ .jtag_id = 0xb5f7, .die_rev = 0x2, .omap_id = 0x03330100, .type = 0x17100000},
 };
+
+unsigned int omap_rev(void)
+{
+	return omap_revision;
+}
+EXPORT_SYMBOL(omap_rev);
 
 /*
  * Get OMAP type from PROD_ID.
@@ -121,17 +130,18 @@ void __init omap_check_revision(void)
 	omap_id = omap_readl(OMAP32_ID_0);
 
 #ifdef DEBUG
-	printk("OMAP_DIE_ID_0: 0x%08x\n", omap_readl(OMAP_DIE_ID_0));
-	printk("OMAP_DIE_ID_1: 0x%08x DIE_REV: %i\n",
+	printk(KERN_DEBUG "OMAP_DIE_ID_0: 0x%08x\n", omap_readl(OMAP_DIE_ID_0));
+	printk(KERN_DEBUG "OMAP_DIE_ID_1: 0x%08x DIE_REV: %i\n",
 		omap_readl(OMAP_DIE_ID_1),
 	       (omap_readl(OMAP_DIE_ID_1) >> 17) & 0xf);
-	printk("OMAP_PRODUCTION_ID_0: 0x%08x\n", omap_readl(OMAP_PRODUCTION_ID_0));
-	printk("OMAP_PRODUCTION_ID_1: 0x%08x JTAG_ID: 0x%04x\n",
+	printk(KERN_DEBUG "OMAP_PRODUCTION_ID_0: 0x%08x\n",
+		omap_readl(OMAP_PRODUCTION_ID_0));
+	printk(KERN_DEBUG "OMAP_PRODUCTION_ID_1: 0x%08x JTAG_ID: 0x%04x\n",
 		omap_readl(OMAP_PRODUCTION_ID_1),
 		omap_readl(OMAP_PRODUCTION_ID_1) & 0xffff);
-	printk("OMAP32_ID_0: 0x%08x\n", omap_readl(OMAP32_ID_0));
-	printk("OMAP32_ID_1: 0x%08x\n", omap_readl(OMAP32_ID_1));
-	printk("JTAG_ID: 0x%04x DIE_REV: %i\n", jtag_id, die_rev);
+	printk(KERN_DEBUG "OMAP32_ID_0: 0x%08x\n", omap_readl(OMAP32_ID_0));
+	printk(KERN_DEBUG "OMAP32_ID_1: 0x%08x\n", omap_readl(OMAP32_ID_1));
+	printk(KERN_DEBUG "JTAG_ID: 0x%04x DIE_REV: %i\n", jtag_id, die_rev);
 #endif
 
 	system_serial_high = omap_readl(OMAP_DIE_ID_0);
@@ -140,7 +150,7 @@ void __init omap_check_revision(void)
 	/* First check only the major version in a safe way */
 	for (i = 0; i < ARRAY_SIZE(omap_ids); i++) {
 		if (jtag_id == (omap_ids[i].jtag_id)) {
-			system_rev = omap_ids[i].type;
+			omap_revision = omap_ids[i].type;
 			break;
 		}
 	}
@@ -148,7 +158,7 @@ void __init omap_check_revision(void)
 	/* Check if we can find the die revision */
 	for (i = 0; i < ARRAY_SIZE(omap_ids); i++) {
 		if (jtag_id == omap_ids[i].jtag_id && die_rev == omap_ids[i].die_rev) {
-			system_rev = omap_ids[i].type;
+			omap_revision = omap_ids[i].type;
 			break;
 		}
 	}
@@ -158,38 +168,35 @@ void __init omap_check_revision(void)
 		if (jtag_id == omap_ids[i].jtag_id
 		    && die_rev == omap_ids[i].die_rev
 		    && omap_id == omap_ids[i].omap_id) {
-			system_rev = omap_ids[i].type;
+			omap_revision = omap_ids[i].type;
 			break;
 		}
 	}
 
 	/* Add the cpu class info (7xx, 15xx, 16xx, 24xx) */
-	cpu_type = system_rev >> 24;
+	cpu_type = omap_revision >> 24;
 
 	switch (cpu_type) {
 	case 0x07:
-		system_rev |= 0x07;
+		omap_revision |= 0x07;
 		break;
 	case 0x03:
 	case 0x15:
-		system_rev |= 0x15;
+		omap_revision |= 0x15;
 		break;
 	case 0x16:
 	case 0x17:
-		system_rev |= 0x16;
-		break;
-	case 0x24:
-		system_rev |= 0x24;
+		omap_revision |= 0x16;
 		break;
 	default:
-		printk("Unknown OMAP cpu type: 0x%02x\n", cpu_type);
+		printk(KERN_INFO "Unknown OMAP cpu type: 0x%02x\n", cpu_type);
 	}
 
-	printk("OMAP%04x", system_rev >> 16);
-	if ((system_rev >> 8) & 0xff)
-		printk("%x", (system_rev >> 8) & 0xff);
-	printk(" revision %i handled as %02xxx id: %08x%08x\n",
-	       die_rev, system_rev & 0xff, system_serial_low,
+	printk(KERN_INFO "OMAP%04x", omap_revision >> 16);
+	if ((omap_revision >> 8) & 0xff)
+		printk(KERN_INFO "%x", (omap_revision >> 8) & 0xff);
+	printk(KERN_INFO " revision %i handled as %02xxx id: %08x%08x\n",
+	       die_rev, omap_revision & 0xff, system_serial_low,
 	       system_serial_high);
 }
 

@@ -37,6 +37,7 @@ enum { LCDC_CLK_BUS, LCDC_CLK_PERIPHERAL, LCDC_CLK_EXTERNAL };
 struct sh_mobile_lcdc_sys_bus_cfg {
 	unsigned long ldmt2r;
 	unsigned long ldmt3r;
+	unsigned long deferred_io_msec;
 };
 
 struct sh_mobile_lcdc_sys_bus_ops {

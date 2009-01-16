@@ -6,19 +6,6 @@
 
 /* IEEE 802.11 defines */
 
-/* Information Element IDs */
-#define WLAN_EID_SSID 0
-#define WLAN_EID_SUPP_RATES 1
-#define WLAN_EID_FH_PARAMS 2
-#define WLAN_EID_DS_PARAMS 3
-#define WLAN_EID_CF_PARAMS 4
-#define WLAN_EID_TIM 5
-#define WLAN_EID_IBSS_PARAMS 6
-#define WLAN_EID_CHALLENGE 16
-#define WLAN_EID_RSN 48
-#define WLAN_EID_GENERIC 221
-
-
 /* HFA384X Configuration RIDs */
 #define HFA384X_RID_CNFPORTTYPE 0xFC00
 #define HFA384X_RID_CNFOWNMACADDR 0xFC01

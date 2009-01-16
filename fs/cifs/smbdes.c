@@ -318,7 +318,8 @@ str_to_key(unsigned char *str, unsigned char *key)
 }
 
 static void
-smbhash(unsigned char *out, unsigned char *in, unsigned char *key, int forw)
+smbhash(unsigned char *out, const unsigned char *in, unsigned char *key,
+	int forw)
 {
 	int i;
 	char *outb; /* outb[64] */
@@ -363,7 +364,7 @@ E_P16(unsigned char *p14, unsigned char *p16)
 }
 
 void
-E_P24(unsigned char *p21, unsigned char *c8, unsigned char *p24)
+E_P24(unsigned char *p21, const unsigned char *c8, unsigned char *p24)
 {
 	smbhash(p24, c8, p21, 1);
 	smbhash(p24 + 8, c8, p21 + 7, 1);

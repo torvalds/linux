@@ -2,6 +2,63 @@
 #define _ASM_POWERPC_MMU_H_
 #ifdef __KERNEL__
 
+#include <asm/asm-compat.h>
+#include <asm/feature-fixups.h>
+
+/*
+ * MMU features bit definitions
+ */
+
+/*
+ * First half is MMU families
+ */
+#define MMU_FTR_HPTE_TABLE		ASM_CONST(0x00000001)
+#define MMU_FTR_TYPE_8xx		ASM_CONST(0x00000002)
+#define MMU_FTR_TYPE_40x		ASM_CONST(0x00000004)
+#define MMU_FTR_TYPE_44x		ASM_CONST(0x00000008)
+#define MMU_FTR_TYPE_FSL_E		ASM_CONST(0x00000010)
+
+/*
+ * This is individual features
+ */
+
+/* Enable use of high BAT registers */
+#define MMU_FTR_USE_HIGH_BATS		ASM_CONST(0x00010000)
+
+/* Enable >32-bit physical addresses on 32-bit processor, only used
+ * by CONFIG_6xx currently as BookE supports that from day 1
+ */
+#define MMU_FTR_BIG_PHYS		ASM_CONST(0x00020000)
+
+/* Enable use of broadcast TLB invalidations. We don't always set it
+ * on processors that support it due to other constraints with the
+ * use of such invalidations
+ */
+#define MMU_FTR_USE_TLBIVAX_BCAST	ASM_CONST(0x00040000)
+
+/* Enable use of tlbilx invalidate-by-PID variant.
+ */
+#define MMU_FTR_USE_TLBILX_PID		ASM_CONST(0x00080000)
+
+/* This indicates that the processor cannot handle multiple outstanding
+ * broadcast tlbivax or tlbsync. This makes the code use a spinlock
+ * around such invalidate forms.
+ */
+#define MMU_FTR_LOCK_BCAST_INVAL	ASM_CONST(0x00100000)
+
+#ifndef __ASSEMBLY__
+#include <asm/cputable.h>
+
+static inline int mmu_has_feature(unsigned long feature)
+{
+	return (cur_cpu_spec->mmu_features & feature);
+}
+
+extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
+
+#endif /* !__ASSEMBLY__ */
+
+
 #ifdef CONFIG_PPC64
 /* 64-bit classic hash table MMU */
 #  include <asm/mmu-hash64.h>

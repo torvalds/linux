@@ -619,7 +619,7 @@ static struct mtd_partition lart_partitions[] = {
 };
 #endif
 
-int __init lart_flash_init (void)
+static int __init lart_flash_init (void)
 {
    int result;
    memset (&mtd,0,sizeof (mtd));
@@ -690,7 +690,7 @@ int __init lart_flash_init (void)
    return (result);
 }
 
-void __exit lart_flash_exit (void)
+static void __exit lart_flash_exit (void)
 {
 #ifndef HAVE_PARTITIONS
    del_mtd_device (&mtd);
@@ -705,5 +705,3 @@ module_exit (lart_flash_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Abraham vd Merwe <abraham@2d3d.co.za>");
 MODULE_DESCRIPTION("MTD driver for Intel 28F160F3 on LART board");
-
-

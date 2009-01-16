@@ -49,6 +49,8 @@
 #include "lnbp21.h"
 #include "tuner-simple.h"
 
+#include "zl10353.h"
+
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
 
@@ -854,6 +856,12 @@ static struct tda1004x_config ads_tech_duo_config = {
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
+static struct zl10353_config behold_h6_config = {
+	.demod_address = 0x1e>>1,
+	.no_tuner      = 1,
+	.parallel_ts   = 1,
+};
+
 /* ==================================================================
  * tda10086 based DVB-S cards, helper functions
  */
@@ -954,19 +962,13 @@ static int dvb_init(struct saa7134_dev *dev)
 	/* FIXME: add support for multi-frontend */
 	mutex_init(&dev->frontends.lock);
 	INIT_LIST_HEAD(&dev->frontends.felist);
-	dev->frontends.active_fe_id = 0;
 
 	printk(KERN_INFO "%s() allocating 1 frontend\n", __func__);
-
-	if (videobuf_dvb_alloc_frontend(&dev->frontends, 1) == NULL) {
+	fe0 = videobuf_dvb_alloc_frontend(&dev->frontends, 1);
+	if (!fe0) {
 		printk(KERN_ERR "%s() failed to alloc\n", __func__);
 		return -ENOMEM;
 	}
-
-	/* Get the first frontend */
-	fe0 = videobuf_dvb_get_frontend(&dev->frontends, 1);
-	if (!fe0)
-		return -EINVAL;
 
 	/* init struct videobuf_dvb */
 	dev->ts.nr_bufs    = 32;
@@ -1363,6 +1365,16 @@ static int dvb_init(struct saa7134_dev *dev)
 					 &tda827x_cfg_0) < 0)
 			goto dettach_frontend;
 		break;
+	case SAA7134_BOARD_BEHOLD_H6:
+		fe0->dvb.frontend = dvb_attach(zl10353_attach,
+						&behold_h6_config,
+						&dev->i2c_adap);
+		if (fe0->dvb.frontend) {
+			dvb_attach(simple_tuner_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, 0x61,
+				   TUNER_PHILIPS_FMD1216ME_MK3);
+		}
+		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
 		break;
@@ -1376,7 +1388,7 @@ static int dvb_init(struct saa7134_dev *dev)
 		};
 
 		if (!fe0->dvb.frontend)
-			return -1;
+			goto dettach_frontend;
 
 		fe = dvb_attach(xc2028_attach, fe0->dvb.frontend, &cfg);
 		if (!fe) {
@@ -1388,7 +1400,7 @@ static int dvb_init(struct saa7134_dev *dev)
 
 	if (NULL == fe0->dvb.frontend) {
 		printk(KERN_ERR "%s/dvb: frontend initialization failed\n", dev->name);
-		return -1;
+		goto dettach_frontend;
 	}
 	/* define general-purpose callback pointer */
 	fe0->dvb.frontend->callback = saa7134_tuner_callback;
@@ -1411,11 +1423,8 @@ static int dvb_init(struct saa7134_dev *dev)
 	return ret;
 
 dettach_frontend:
-	if (fe0->dvb.frontend)
-		dvb_frontend_detach(fe0->dvb.frontend);
-	fe0->dvb.frontend = NULL;
-
-	return -1;
+	videobuf_dvb_dealloc_frontends(&dev->frontends);
+	return -EINVAL;
 }
 
 static int dvb_fini(struct saa7134_dev *dev)
@@ -1454,8 +1463,7 @@ static int dvb_fini(struct saa7134_dev *dev)
 			}
 		}
 	}
-	if (fe0->dvb.frontend)
-		videobuf_dvb_unregister_bus(&dev->frontends);
+	videobuf_dvb_unregister_bus(&dev->frontends);
 	return 0;
 }
 

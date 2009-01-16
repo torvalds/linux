@@ -41,6 +41,7 @@
 #include <linux/pm_qos_params.h>
 #include <linux/clockchips.h>
 #include <linux/cpuidle.h>
+#include <linux/irqflags.h>
 
 /*
  * Include the apic definitions for x86 to have the APIC timer related defines
@@ -374,15 +375,15 @@ static int tsc_halts_in_c(int state)
 {
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
+	case X86_VENDOR_INTEL:
 		/*
 		 * AMD Fam10h TSC will tick in all
 		 * C/P/S0/S1 states when this bit is set.
 		 */
-		if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+		if (boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 			return 0;
+
 		/*FALL THROUGH*/
-	case X86_VENDOR_INTEL:
-		/* Several cases known where TSC halts in C2 too */
 	default:
 		return state > ACPI_STATE_C1;
 	}

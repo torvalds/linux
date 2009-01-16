@@ -60,7 +60,7 @@ static int scsi_get_bus(struct request_queue *q, int __user *p)
 
 static int sg_get_timeout(struct request_queue *q)
 {
-	return q->sg_timeout / (HZ / USER_HZ);
+	return jiffies_to_clock_t(q->sg_timeout);
 }
 
 static int sg_set_timeout(struct request_queue *q, int __user *p)
@@ -68,7 +68,7 @@ static int sg_set_timeout(struct request_queue *q, int __user *p)
 	int timeout, err = get_user(timeout, p);
 
 	if (!err)
-		q->sg_timeout = timeout * (HZ / USER_HZ);
+		q->sg_timeout = clock_t_to_jiffies(timeout);
 
 	return err;
 }

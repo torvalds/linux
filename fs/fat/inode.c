@@ -749,6 +749,8 @@ static struct dentry *fat_get_parent(struct dentry *child)
 	brelse(bh);
 
 	parent = d_obtain_alias(inode);
+	if (!IS_ERR(parent))
+		parent->d_op = sb->s_root->d_op;
 out:
 	unlock_super(sb);
 
@@ -926,8 +928,8 @@ static int parse_options(char *options, int is_vfat, int silent, int *debug,
 
 	opts->isvfat = is_vfat;
 
-	opts->fs_uid = current->uid;
-	opts->fs_gid = current->gid;
+	opts->fs_uid = current_uid();
+	opts->fs_gid = current_gid();
 	opts->fs_fmask = opts->fs_dmask = current->fs->umask;
 	opts->allow_utime = -1;
 	opts->codepage = fat_default_codepage;

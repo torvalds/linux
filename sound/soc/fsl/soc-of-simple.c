@@ -31,7 +31,7 @@ struct of_snd_soc_device {
 	int id;
 	struct list_head list;
 	struct snd_soc_device device;
-	struct snd_soc_machine machine;
+	struct snd_soc_card card;
 	struct snd_soc_dai_link dai_link;
 	struct platform_device *pdev;
 	struct device_node *platform_node;
@@ -58,9 +58,9 @@ of_snd_soc_get_device(struct device_node *codec_node)
 	/* Initialize the structure and add it to the global list */
 	of_soc->codec_node = codec_node;
 	of_soc->id = of_snd_soc_next_index++;
-	of_soc->machine.dai_link = &of_soc->dai_link;
-	of_soc->machine.num_links = 1;
-	of_soc->device.machine = &of_soc->machine;
+	of_soc->card.dai_link = &of_soc->dai_link;
+	of_soc->card.num_links = 1;
+	of_soc->device.card = &of_soc->card;
 	of_soc->dai_link.ops = &of_snd_soc_ops;
 	list_add(&of_soc->list, &of_snd_soc_device_list);
 
@@ -158,8 +158,8 @@ int of_snd_soc_register_platform(struct snd_soc_platform *platform,
 
 	of_soc->platform_node = node;
 	of_soc->dai_link.cpu_dai = cpu_dai;
-	of_soc->device.platform = platform;
-	of_soc->machine.name = of_soc->dai_link.cpu_dai->name;
+	of_soc->card.platform = platform;
+	of_soc->card.name = of_soc->dai_link.cpu_dai->name;
 
 	/* Now try to register the SoC device */
 	of_snd_soc_register_device(of_soc);

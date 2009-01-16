@@ -914,7 +914,7 @@ I/O scheduler, a.k.a. elevator, is implemented in two layers.  Generic dispatch
 queue and specific I/O schedulers.  Unless stated otherwise, elevator is used
 to refer to both parts and I/O scheduler to specific I/O schedulers.
 
-Block layer implements generic dispatch queue in ll_rw_blk.c and elevator.c.
+Block layer implements generic dispatch queue in block/*.c.
 The generic dispatch queue is responsible for properly ordering barrier
 requests, requeueing, handling non-fs requests and all other subtleties.
 
@@ -926,8 +926,8 @@ be built inside the kernel.  Each queue can choose different one and can also
 change to another one dynamically.
 
 A block layer call to the i/o scheduler follows the convention elv_xxx(). This
-calls elevator_xxx_fn in the elevator switch (drivers/block/elevator.c). Oh,
-xxx and xxx might not match exactly, but use your imagination. If an elevator
+calls elevator_xxx_fn in the elevator switch (block/elevator.c). Oh, xxx
+and xxx might not match exactly, but use your imagination. If an elevator
 doesn't implement a function, the switch does nothing or some minimal house
 keeping work.
 

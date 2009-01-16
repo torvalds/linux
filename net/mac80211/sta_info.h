@@ -160,18 +160,17 @@ struct sta_ampdu_mlme {
  * @list: global linked list entry
  * @hnext: hash table linked list pointer
  * @local: pointer to the global information
- * @sdata: TBD
- * @key: TBD
- * @rate_ctrl: TBD
- * @rate_ctrl_priv: TBD
+ * @sdata: virtual interface this station belongs to
+ * @key: peer key negotiated with this station, if any
+ * @rate_ctrl: rate control algorithm reference
+ * @rate_ctrl_priv: rate control private per-STA pointer
+ * @last_tx_rate: rate used for last transmit, to report to userspace as
+ *	"the" transmit rate
  * @lock: used for locking all fields that require locking, see comments
  *	in the header file.
  * @flaglock: spinlock for flags accesses
- * @addr: MAC address of this STA
- * @aid: STA's unique AID (1..2007, 0 = not assigned yet),
- *	only used in AP (and IBSS?) mode
- * @listen_interval: TBD
- * @pin_status: TBD
+ * @listen_interval: listen interval of this station, when we're acting as AP
+ * @pin_status: used internally for pinning a STA struct into memory
  * @flags: STA flags, see &enum ieee80211_sta_info_flags
  * @ps_tx_buf: buffer of frames to transmit to this station
  *	when it leaves power saving state
@@ -180,8 +179,8 @@ struct sta_ampdu_mlme {
  *	power saving state
  * @rx_packets: Number of MSDUs received from this STA
  * @rx_bytes: Number of bytes received from this STA
- * @wep_weak_iv_count: TBD
- * @last_rx: TBD
+ * @wep_weak_iv_count: number of weak WEP IVs received from this station
+ * @last_rx: time (in jiffies) when last frame was received from this STA
  * @num_duplicates: number of duplicate frames received from this STA
  * @rx_fragments: number of received MPDUs
  * @rx_dropped: number of dropped MPDUs from this STA
@@ -189,26 +188,26 @@ struct sta_ampdu_mlme {
  * @last_qual: qual of last received frame from this STA
  * @last_noise: noise of last received frame from this STA
  * @last_seq_ctrl: last received seq/frag number from this STA (per RX queue)
- * @tx_filtered_count: TBD
- * @tx_retry_failed: TBD
- * @tx_retry_count: TBD
+ * @tx_filtered_count: number of frames the hardware filtered for this STA
+ * @tx_retry_failed: number of frames that failed retry
+ * @tx_retry_count: total number of retries for frames to this STA
  * @fail_avg: moving percentage of failed MSDUs
  * @tx_packets: number of RX/TX MSDUs
- * @tx_bytes: TBD
+ * @tx_bytes: number of bytes transmitted to this STA
  * @tx_fragments: number of transmitted MPDUs
- * @last_txrate_idx: Index of the last used transmit rate
- * @tid_seq: TBD
- * @ampdu_mlme: TBD
+ * @last_txrate: description of the last used transmit rate
+ * @tid_seq: per-TID sequence numbers for sending to this STA
+ * @ampdu_mlme: A-MPDU state machine state
  * @timer_to_tid: identity mapping to ID timers
  * @tid_to_tx_q: map tid to tx queue
  * @llid: Local link ID
  * @plid: Peer link ID
  * @reason: Cancel reason on PLINK_HOLDING state
  * @plink_retries: Retries in establishment
- * @ignore_plink_timer: TBD
- * @plink_state plink_state: TBD
- * @plink_timeout: TBD
- * @plink_timer: TBD
+ * @ignore_plink_timer: ignore the peer-link timer (used internally)
+ * @plink_state: peer link state
+ * @plink_timeout: timeout of peer link
+ * @plink_timer: peer link watch timer
  * @debugfs: debug filesystem info
  * @sta: station information we share with the driver
  */
@@ -267,7 +266,7 @@ struct sta_info {
 	unsigned long tx_packets;
 	unsigned long tx_bytes;
 	unsigned long tx_fragments;
-	unsigned int last_txrate_idx;
+	struct ieee80211_tx_rate last_tx_rate;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
 
 	/*

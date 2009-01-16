@@ -2347,7 +2347,7 @@ static int cas_rx_ringN(struct cas *cp, int ring, int budget)
 	drops = 0;
 	while (1) {
 		struct cas_rx_comp *rxc = rxcs + entry;
-		struct sk_buff *skb;
+		struct sk_buff *uninitialized_var(skb);
 		int type, len;
 		u64 words[4];
 		int i, dring;
@@ -2405,7 +2405,6 @@ static int cas_rx_ringN(struct cas *cp, int ring, int budget)
 		cp->net_stats[ring].rx_packets++;
 		cp->net_stats[ring].rx_bytes += len;
 		spin_unlock(&cp->stat_lock[ring]);
-		cp->dev->last_rx = jiffies;
 
 	next:
 		npackets++;
@@ -2507,7 +2506,7 @@ static irqreturn_t cas_interruptN(int irq, void *dev_id)
 	if (status & INTR_RX_DONE_ALT) { /* handle rx separately */
 #ifdef USE_NAPI
 		cas_mask_intr(cp);
-		netif_rx_schedule(dev, &cp->napi);
+		netif_rx_schedule(&cp->napi);
 #else
 		cas_rx_ringN(cp, ring, 0);
 #endif
@@ -2558,7 +2557,7 @@ static irqreturn_t cas_interrupt1(int irq, void *dev_id)
 	if (status & INTR_RX_DONE_ALT) { /* handle rx separately */
 #ifdef USE_NAPI
 		cas_mask_intr(cp);
-		netif_rx_schedule(dev, &cp->napi);
+		netif_rx_schedule(&cp->napi);
 #else
 		cas_rx_ringN(cp, 1, 0);
 #endif
@@ -2614,7 +2613,7 @@ static irqreturn_t cas_interrupt(int irq, void *dev_id)
 	if (status & INTR_RX_DONE) {
 #ifdef USE_NAPI
 		cas_mask_intr(cp);
-		netif_rx_schedule(dev, &cp->napi);
+		netif_rx_schedule(&cp->napi);
 #else
 		cas_rx_ringN(cp, 0, 0);
 #endif
@@ -2692,7 +2691,7 @@ rx_comp:
 #endif
 	spin_unlock_irqrestore(&cp->lock, flags);
 	if (enable_intr) {
-		netif_rx_complete(dev, napi);
+		netif_rx_complete(napi);
 		cas_unmask_intr(cp);
 	}
 	return credits;
@@ -4978,6 +4977,22 @@ static void __devinit cas_program_bridge(struct pci_dev *cas_pdev)
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0xff);
 }
 
+static const struct net_device_ops cas_netdev_ops = {
+	.ndo_open		= cas_open,
+	.ndo_stop		= cas_close,
+	.ndo_start_xmit		= cas_start_xmit,
+	.ndo_get_stats 		= cas_get_stats,
+	.ndo_set_multicast_list = cas_set_multicast,
+	.ndo_do_ioctl		= cas_ioctl,
+	.ndo_tx_timeout		= cas_tx_timeout,
+	.ndo_change_mtu		= cas_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= cas_netpoll,
+#endif
+};
+
 static int __devinit cas_init_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
@@ -4988,7 +5003,6 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	int i, err, pci_using_dac;
 	u16 pci_cmd;
 	u8 orig_cacheline_size = 0, cas_cacheline_size = 0;
-	DECLARE_MAC_BUF(mac);
 
 	if (cas_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -5168,21 +5182,12 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 	for (i = 0; i < N_RX_FLOWS; i++)
 		skb_queue_head_init(&cp->rx_flows[i]);
 
-	dev->open = cas_open;
-	dev->stop = cas_close;
-	dev->hard_start_xmit = cas_start_xmit;
-	dev->get_stats = cas_get_stats;
-	dev->set_multicast_list = cas_set_multicast;
-	dev->do_ioctl = cas_ioctl;
+	dev->netdev_ops = &cas_netdev_ops;
 	dev->ethtool_ops = &cas_ethtool_ops;
-	dev->tx_timeout = cas_tx_timeout;
 	dev->watchdog_timeo = CAS_TX_TIMEOUT;
-	dev->change_mtu = cas_change_mtu;
+
 #ifdef USE_NAPI
 	netif_napi_add(dev, &cp->napi, cas_poll, 64);
-#endif
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = cas_netpoll;
 #endif
 	dev->irq = pdev->irq;
 	dev->dma = 0;
@@ -5201,12 +5206,12 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 
 	i = readl(cp->regs + REG_BIM_CFG);
 	printk(KERN_INFO "%s: Sun Cassini%s (%sbit/%sMHz PCI/%s) "
-	       "Ethernet[%d] %s\n",  dev->name,
+	       "Ethernet[%d] %pM\n",  dev->name,
 	       (cp->cas_flags & CAS_FLAG_REG_PLUS) ? "+" : "",
 	       (i & BIM_CFG_32BIT) ? "32" : "64",
 	       (i & BIM_CFG_66MHZ) ? "66" : "33",
 	       (cp->phy_type == CAS_PHY_SERDES) ? "Fi" : "Cu", pdev->irq,
-	       print_mac(mac, dev->dev_addr));
+	       dev->dev_addr);
 
 	pci_set_drvdata(pdev, dev);
 	cp->hw_running = 1;

@@ -21,26 +21,6 @@
 #include <linux/init.h>
 #include <asm/io.h>
 
-static inline u8 bridge_swizzle(u8 pin, u8 slot)
-{
-	return (((pin - 1) + slot) % 4) + 1;
-}
-
-static u8 __init simple_swizzle(struct pci_dev *dev, u8 *pinp)
-{
-	u8 pin = *pinp;
-
-	while (dev->bus->parent) {
-		pin = bridge_swizzle(pin, PCI_SLOT(dev->devfn));
-		/* Move up the chain of bridges. */
-		dev = dev->bus->self;
-	}
-	*pinp = pin;
-
-	/* The slot is the slot of the last bridge. */
-	return PCI_SLOT(dev->devfn);
-}
-
 static int __init pcibios_init(void)
 {
 	struct pci_channel *p;
@@ -61,7 +41,7 @@ static int __init pcibios_init(void)
 		busno = bus->subordinate + 1;
 	}
 
-	pci_fixup_irqs(simple_swizzle, pcibios_map_platform_irq);
+	pci_fixup_irqs(pci_common_swizzle, pcibios_map_platform_irq);
 
 	return 0;
 }

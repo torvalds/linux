@@ -6,11 +6,6 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#ifndef CONFIG_BT_HCI_CORE_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 struct class *bt_class = NULL;
 EXPORT_SYMBOL_GPL(bt_class);
 
@@ -113,8 +108,7 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 	conn->dev.class = bt_class;
 	conn->dev.parent = &hdev->dev;
 
-	snprintf(conn->dev.bus_id, BUS_ID_SIZE, "%s:%d",
-					hdev->name, conn->handle);
+	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
 
 	dev_set_drvdata(&conn->dev, conn);
 
@@ -132,7 +126,7 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
  */
 static int __match_tty(struct device *dev, void *data)
 {
-	return !strncmp(dev->bus_id, "rfcomm", 6);
+	return !strncmp(dev_name(dev), "rfcomm", 6);
 }
 
 static void del_conn(struct work_struct *work)
@@ -421,7 +415,7 @@ int hci_register_sysfs(struct hci_dev *hdev)
 	dev->class = bt_class;
 	dev->parent = hdev->parent;
 
-	strlcpy(dev->bus_id, hdev->name, BUS_ID_SIZE);
+	dev_set_name(dev, "%s", hdev->name);
 
 	dev_set_drvdata(dev, hdev);
 

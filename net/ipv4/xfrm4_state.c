@@ -13,8 +13,6 @@
 #include <linux/ipsec.h>
 #include <linux/netfilter_ipv4.h>
 
-static struct xfrm_state_afinfo xfrm4_state_afinfo;
-
 static int xfrm4_init_flags(struct xfrm_state *x)
 {
 	if (ipv4_config.no_pmtu_disc)

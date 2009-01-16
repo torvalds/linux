@@ -26,6 +26,7 @@ config BLACKFIN
 	default y
 	select HAVE_IDE
 	select HAVE_OPROFILE
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config ZONE_DMA
 	bool
@@ -59,10 +60,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config HARDWARE_PM
-	def_bool y
-	depends on OPROFILE
-
 source "init/Kconfig"
 
 source "kernel/Kconfig.preempt"
@@ -76,6 +73,26 @@ comment "Processor and Board Settings"
 choice
 	prompt "CPU"
 	default BF533
+
+config BF512
+	bool "BF512"
+	help
+	  BF512 Processor Support.
+
+config BF514
+	bool "BF514"
+	help
+	  BF514 Processor Support.
+
+config BF516
+	bool "BF516"
+	help
+	  BF516 Processor Support.
+
+config BF518
+	bool "BF518"
+	help
+	  BF518 Processor Support.
 
 config BF522
 	bool "BF522"
@@ -137,6 +154,16 @@ config BF537
 	help
 	  BF537 Processor Support.
 
+config BF538
+	bool "BF538"
+	help
+	  BF538 Processor Support.
+
+config BF539
+	bool "BF539"
+	help
+	  BF539 Processor Support.
+
 config BF542
 	bool "BF542"
 	help
@@ -169,28 +196,55 @@ config BF561
 
 endchoice
 
+config SMP
+	depends on BF561
+	bool "Symmetric multi-processing support"
+	---help---
+	  This enables support for systems with more than one CPU,
+	  like the dual core BF561. If you have a system with only one
+	  CPU, say N. If you have a system with more than one CPU, say Y.
+
+	  If you don't know what to do here, say N.
+
+config NR_CPUS
+	int
+	depends on SMP
+	default 2 if BF561
+
+config IRQ_PER_CPU
+	bool
+	depends on SMP
+	default y
+
+config TICK_SOURCE_SYSTMR0
+	bool
+	select BFIN_GPTIMERS
+	depends on SMP
+	default y
+
 config BF_REV_MIN
 	int
-	default 0 if (BF52x || BF54x)
+	default 0 if (BF51x || BF52x || BF54x)
 	default 2 if (BF537 || BF536 || BF534)
 	default 3 if (BF561 ||BF533 || BF532 || BF531)
+	default 4 if (BF538 || BF539)
 
 config BF_REV_MAX
 	int
-	default 2 if (BF52x || BF54x)
+	default 2 if (BF51x || BF52x || BF54x)
 	default 3 if (BF537 || BF536 || BF534)
-	default 5 if (BF561)
+	default 5 if (BF561 || BF538 || BF539)
 	default 6 if (BF533 || BF532 || BF531)
 
 choice
 	prompt "Silicon Rev"
-	default BF_REV_0_1 if (BF52x || BF54x)
+	default BF_REV_0_1 if (BF51x || BF52x || BF54x)
 	default BF_REV_0_2 if (BF534 || BF536 || BF537)
 	default BF_REV_0_3 if (BF531 || BF532 || BF533 || BF561)
 
 config BF_REV_0_0
 	bool "0.0"
-	depends on (BF52x || BF54x)
+	depends on (BF51x || BF52x || BF54x)
 
 config BF_REV_0_1
 	bool "0.1"
@@ -206,11 +260,11 @@ config BF_REV_0_3
 
 config BF_REV_0_4
 	bool "0.4"
-	depends on (BF561 || BF533 || BF532 || BF531)
+	depends on (BF561 || BF533 || BF532 || BF531 || BF538 || BF539)
 
 config BF_REV_0_5
 	bool "0.5"
-	depends on (BF561 || BF533 || BF532 || BF531)
+	depends on (BF561 || BF533 || BF532 || BF531 || BF538 || BF539)
 
 config BF_REV_0_6
 	bool "0.6"
@@ -223,6 +277,11 @@ config BF_REV_NONE
 	bool "none"
 
 endchoice
+
+config BF51x
+	bool
+	depends on (BF512 || BF514 || BF516 || BF518)
+	default y
 
 config BF52x
 	bool
@@ -258,7 +317,7 @@ config MEM_MT48LC16M16A2TG_75
 
 config MEM_MT48LC32M8A2_75
 	bool
-	depends on (BFIN537_STAMP || PNAV10)
+	depends on (BFIN537_STAMP || PNAV10 || BFIN538_EZKIT)
 	default y
 
 config MEM_MT48LC8M32B2B5_7
@@ -271,10 +330,17 @@ config MEM_MT48LC32M16A2TG_75
 	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP || BFIN526_EZBRD)
 	default y
 
+config MEM_MT48LC32M8A2_75
+	bool
+	depends on (BFIN518F_EZBRD)
+	default y
+
+source "arch/blackfin/mach-bf518/Kconfig"
 source "arch/blackfin/mach-bf527/Kconfig"
 source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
 source "arch/blackfin/mach-bf537/Kconfig"
+source "arch/blackfin/mach-bf538/Kconfig"
 source "arch/blackfin/mach-bf548/Kconfig"
 
 menu "Board customizations"
@@ -307,6 +373,7 @@ config BOOT_LOAD
 
 config ROM_BASE
 	hex "Kernel ROM Base"
+	depends on ROMKERNEL
 	default "0x20040000"
 	range 0x20000000 0x20400000 if !(BF54x || BF561)
 	range 0x20000000 0x30000000 if (BF54x || BF561)
@@ -318,7 +385,7 @@ config CLKIN_HZ
 	int "Frequency of the crystal on the board in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
-	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD)
+	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN538_EZKIT || BFIN518F-EZBRD)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
 	default "10000000" if BFIN532_IP0X
@@ -354,11 +421,11 @@ config VCO_MULT
 	range 1 64
 	default "22" if BFIN533_EZKIT
 	default "45" if BFIN533_STAMP
-	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM)
+	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM || BFIN538_EZKIT)
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if (BFIN537_BLUETECHNIX_CM || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
-	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD)
+	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP || BFIN526_EZBRD || BFIN518F_EZBRD)
 	help
 	  This controls the frequency of the on-chip PLL. This can be between 1 and 64.
 	  PLL Frequency = (Crystal Frequency) * (this setting)
@@ -407,19 +474,70 @@ config MEM_MT46V32M16_5B
 	bool "MT46V32M16_5B"
 endchoice
 
-config MAX_MEM_SIZE
-	int "Max SDRAM Memory Size in MBytes"
-	depends on !MPU
-	default 512
+choice
+	prompt "DDR/SDRAM Timing"
+	depends on BFIN_KERNEL_CLOCK
+	default BFIN_KERNEL_CLOCK_MEMINIT_CALC
 	help
-	  This is the max memory size that the kernel will create CPLB
-	  tables for.  Your system will not be able to handle any more.
+	  This option allows you to specify Blackfin SDRAM/DDR Timing parameters
+	  The calculated SDRAM timing parameters may not be 100%
+	  accurate - This option is therefore marked experimental.
+
+config BFIN_KERNEL_CLOCK_MEMINIT_CALC
+	bool "Calculate Timings (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+
+config BFIN_KERNEL_CLOCK_MEMINIT_SPEC
+	bool "Provide accurate Timings based on target SCLK"
+	help
+	  Please consult the Blackfin Hardware Reference Manuals as well
+	  as the memory device datasheet.
+	  http://docs.blackfin.uclinux.org/doku.php?id=bfin:sdram
+endchoice
+
+menu "Memory Init Control"
+	depends on BFIN_KERNEL_CLOCK_MEMINIT_SPEC
+
+config MEM_DDRCTL0
+	depends on BF54x
+	hex "DDRCTL0"
+	default 0x0
+
+config MEM_DDRCTL1
+	depends on BF54x
+	hex "DDRCTL1"
+	default 0x0
+
+config MEM_DDRCTL2
+	depends on BF54x
+	hex "DDRCTL2"
+	default 0x0
+
+config MEM_EBIU_DDRQUE
+	depends on BF54x
+	hex "DDRQUE"
+	default 0x0
+
+config MEM_SDRRC
+	depends on !BF54x
+	hex "SDRRC"
+	default 0x0
+
+config MEM_SDGCTL
+	depends on !BF54x
+	hex "SDGCTL"
+	default 0x0
+endmenu
 
 #
 # Max & Min Speeds for various Chips
 #
 config MAX_VCO_HZ
 	int
+	default 400000000 if BF512
+	default 400000000 if BF514
+	default 400000000 if BF516
+	default 400000000 if BF518
 	default 600000000 if BF522
 	default 400000000 if BF523
 	default 400000000 if BF524
@@ -459,6 +577,7 @@ source kernel/Kconfig.hz
 
 config GENERIC_TIME
 	bool "Generic time"
+	depends on !SMP
 	default y
 
 config GENERIC_CLOCKEVENTS
@@ -533,6 +652,7 @@ endmenu
 
 
 menu "Blackfin Kernel Optimizations"
+	depends on !SMP
 
 comment "Memory Optimizations"
 
@@ -655,6 +775,17 @@ config APP_STACK_L1
 
 	  Currently only works with FLAT binaries.
 
+config EXCEPTION_L1_SCRATCH
+	bool "Locate exception stack in L1 Scratch Memory"
+	default n
+	depends on !APP_STACK_L1 && !SYSCALL_TAB_L1
+	help
+	  Whenever an exception occurs, use the L1 Scratch memory for
+	  stack storage.  You cannot place the stacks of FLAT binaries
+	  in L1 when using this option.
+
+	  If you don't use L1 Scratch, then you should say Y here.
+
 comment "Speed Optimizations"
 config BFIN_INS_LOWOVERHEAD
 	bool "ins[bwl] low overhead, higher interrupt latency"
@@ -683,7 +814,6 @@ config BFIN_INS_LOWOVERHEAD
 	  interrupt latency issues, it is safe and OK to turn this off.
 
 endmenu
-
 
 choice
 	prompt "Kernel executes from"
@@ -714,17 +844,9 @@ config BFIN_GPTIMERS
 	  To compile this driver as a module, choose M here: the module
 	  will be called gptimers.ko.
 
-config BFIN_DMA_5XX
-	bool "Enable DMA Support"
-	depends on (BF52x || BF53x || BF561 || BF54x)
-	default y
-	help
-	  DMA driver for BF5xx.
-
 choice
-	prompt "Uncached SDRAM region"
+	prompt "Uncached DMA region"
 	default DMA_UNCACHED_1M
-	depends on BFIN_DMA_5XX
 config DMA_UNCACHED_4M
 	bool "Enable 4M DMA region"
 config DMA_UNCACHED_2M
@@ -751,9 +873,11 @@ config BFIN_ICACHE_LOCK
 choice
 	prompt "Policy"
 	depends on BFIN_DCACHE
-	default BFIN_WB
+	default BFIN_WB if !SMP
+	default BFIN_WT if SMP
 config BFIN_WB
 	bool "Write back"
+	depends on !SMP
 	help
 	  Write Back Policy:
 	    Cached data will be written back to SDRAM only when needed.
@@ -790,7 +914,7 @@ endchoice
 
 config BFIN_L2_CACHEABLE
 	bool "Cache L2 SRAM"
-	depends on (BFIN_DCACHE || BFIN_ICACHE) && (BF54x || BF561)
+	depends on (BFIN_DCACHE || BFIN_ICACHE) && (BF54x || (BF561 && !SMP))
 	default n
 	help
 	  Select to make L2 SRAM cacheable in L1 data and instruction cache.
@@ -980,7 +1104,7 @@ config PM_WAKEUP_GPIO_NUMBER
 	int "GPIO number"
 	range 0 47
 	depends on PM_WAKEUP_BY_GPIO
-	default 2 if BFIN537_STAMP
+	default 2
 
 choice
 	prompt "GPIO Polarity"
@@ -1003,7 +1127,7 @@ comment "Possible Suspend Mem / Hibernate Wake-Up Sources"
 
 config PM_BFIN_WAKE_PH6
 	bool "Allow Wake-Up from on-chip PHY or PH6 GP"
-	depends on PM && (BF52x || BF534 || BF536 || BF537)
+	depends on PM && (BF51x || BF52x || BF534 || BF536 || BF537)
 	default n
 	help
 	  Enable PHY and PH6 GP Wake-Up (Voltage Regulator Power-Up)
@@ -1020,15 +1144,21 @@ menu "CPU Frequency scaling"
 
 source "drivers/cpufreq/Kconfig"
 
+config BFIN_CPU_FREQ
+	bool
+	depends on CPU_FREQ
+	select CPU_FREQ_TABLE
+	default y
+
 config CPU_VOLTAGE
 	bool "CPU Voltage scaling"
-	depends on EXPERIMENTAL	
+	depends on EXPERIMENTAL
 	depends on CPU_FREQ
 	default n
 	help
 	  Say Y here if you want CPU voltage scaling according to the CPU frequency.
 	  This option violates the PLL BYPASS recommendation in the Blackfin Processor
-	  manuals. There is a theoretical risk that during VDDINT transitions 
+	  manuals. There is a theoretical risk that during VDDINT transitions
 	  the PLL may unlock.
 
 endmenu

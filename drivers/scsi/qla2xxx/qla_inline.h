@@ -32,45 +32,13 @@ qla2x00_debounce_register(volatile uint16_t __iomem *addr)
 }
 
 static inline void
-qla2x00_poll(scsi_qla_host_t *ha)
+qla2x00_poll(struct rsp_que *rsp)
 {
 	unsigned long flags;
-
+	struct qla_hw_data *ha = rsp->hw;
 	local_irq_save(flags);
-	ha->isp_ops->intr_handler(0, ha);
+	ha->isp_ops->intr_handler(0, rsp);
 	local_irq_restore(flags);
-}
-
-static __inline__ scsi_qla_host_t *
-to_qla_parent(scsi_qla_host_t *ha)
-{
-	return ha->parent ? ha->parent : ha;
-}
-
-/**
- * qla2x00_issue_marker() - Issue a Marker IOCB if necessary.
- * @ha: HA context
- * @ha_locked: is function called with the hardware lock
- *
- * Returns non-zero if a failure occurred, else zero.
- */
-static inline int
-qla2x00_issue_marker(scsi_qla_host_t *ha, int ha_locked)
-{
-	/* Send marker if required */
-	if (ha->marker_needed != 0) {
-		if (ha_locked) {
-			if (__qla2x00_marker(ha, 0, 0, MK_SYNC_ALL) !=
-			    QLA_SUCCESS)
-				return (QLA_FUNCTION_FAILED);
-		} else {
-			if (qla2x00_marker(ha, 0, 0, MK_SYNC_ALL) !=
-			    QLA_SUCCESS)
-				return (QLA_FUNCTION_FAILED);
-		}
-		ha->marker_needed = 0;
-	}
-	return (QLA_SUCCESS);
 }
 
 static inline uint8_t *
@@ -87,11 +55,12 @@ host_to_fcp_swap(uint8_t *fcp, uint32_t bsize)
 }
 
 static inline int
-qla2x00_is_reserved_id(scsi_qla_host_t *ha, uint16_t loop_id)
+qla2x00_is_reserved_id(scsi_qla_host_t *vha, uint16_t loop_id)
 {
+	struct qla_hw_data *ha = vha->hw;
 	if (IS_FWI2_CAPABLE(ha))
 		return (loop_id > NPH_LAST_HANDLE);
 
-	return ((loop_id > ha->last_loop_id && loop_id < SNS_FIRST_LOOP_ID) ||
+	return ((loop_id > ha->max_loop_id && loop_id < SNS_FIRST_LOOP_ID) ||
 	    loop_id == MANAGEMENT_SERVER || loop_id == BROADCAST);
-};
+}

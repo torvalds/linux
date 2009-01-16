@@ -167,23 +167,27 @@ __be16 fddi_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 EXPORT_SYMBOL(fddi_type_trans);
 
-static int fddi_change_mtu(struct net_device *dev, int new_mtu)
+int fddi_change_mtu(struct net_device *dev, int new_mtu)
 {
 	if ((new_mtu < FDDI_K_SNAP_HLEN) || (new_mtu > FDDI_K_SNAP_DLEN))
 		return(-EINVAL);
 	dev->mtu = new_mtu;
 	return(0);
 }
+EXPORT_SYMBOL(fddi_change_mtu);
 
 static const struct header_ops fddi_header_ops = {
 	.create		= fddi_header,
 	.rebuild	= fddi_rebuild_header,
 };
 
+
 static void fddi_setup(struct net_device *dev)
 {
-	dev->change_mtu		= fddi_change_mtu;
 	dev->header_ops		= &fddi_header_ops;
+#ifdef CONFIG_COMPAT_NET_DEV_OPS
+	dev->change_mtu		= fddi_change_mtu,
+#endif
 
 	dev->type		= ARPHRD_FDDI;
 	dev->hard_header_len	= FDDI_K_SNAP_HLEN+3;	/* Assume 802.2 SNAP hdr len + 3 pad bytes */

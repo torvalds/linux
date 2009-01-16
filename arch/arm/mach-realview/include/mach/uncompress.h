@@ -23,6 +23,7 @@
 #include <mach/board-eb.h>
 #include <mach/board-pb11mp.h>
 #include <mach/board-pb1176.h>
+#include <mach/board-pba8.h>
 
 #define AMBA_UART_DR(base)	(*(volatile unsigned char *)((base) + 0x00))
 #define AMBA_UART_LCRH(base)	(*(volatile unsigned char *)((base) + 0x2c))
@@ -40,6 +41,8 @@ static inline unsigned long get_uart_base(void)
 		return REALVIEW_PB11MP_UART0_BASE;
 	else if (machine_is_realview_pb1176())
 		return REALVIEW_PB1176_UART0_BASE;
+	else if (machine_is_realview_pba8())
+		return REALVIEW_PBA8_UART0_BASE;
 	else
 		return 0;
 }

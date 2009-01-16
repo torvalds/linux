@@ -425,14 +425,14 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define fromreal(rd)	tovirt(rd,rd)
 
 #define tophys(rd,rs)				\
-0:	addis	rd,rs,-KERNELBASE@h;		\
+0:	addis	rd,rs,-PAGE_OFFSET@h;		\
 	.section ".vtop_fixup","aw";		\
 	.align  1;				\
 	.long   0b;				\
 	.previous
 
 #define tovirt(rd,rs)				\
-0:	addis	rd,rs,KERNELBASE@h;		\
+0:	addis	rd,rs,PAGE_OFFSET@h;		\
 	.section ".ptov_fixup","aw";		\
 	.align  1;				\
 	.long   0b;				\

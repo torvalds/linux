@@ -16,6 +16,9 @@
 #ifndef GIGASET_H
 #define GIGASET_H
 
+/* define global prefix for pr_ macros in linux/kernel.h */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
@@ -96,23 +99,6 @@ enum debuglevel {
 	DEBUG_ANY	  = 0x3fffff, /* print message if any of the others is
 					 activated */
 };
-
-/* Kernel message macros for situations where dev_printk and friends cannot be
- * used for lack of reliable access to a device structure.
- * linux/usb.h already contains these but in an obsolete form which clutters
- * the log needlessly, and according to the USB maintainer those should be
- * removed rather than fixed anyway.
- */
-#undef err
-#undef info
-#undef warn
-
-#define err(format, arg...) printk(KERN_ERR KBUILD_MODNAME ": " \
-	format "\n" , ## arg)
-#define info(format, arg...) printk(KERN_INFO KBUILD_MODNAME ": " \
-	format "\n" , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING KBUILD_MODNAME ": " \
-	format "\n" , ## arg)
 
 #ifdef CONFIG_GIGASET_DEBUG
 

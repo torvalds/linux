@@ -151,4 +151,6 @@ static inline void mmc_claim_host(struct mmc_host *host)
 	__mmc_claim_host(host, NULL);
 }
 
+extern u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max);
+
 #endif

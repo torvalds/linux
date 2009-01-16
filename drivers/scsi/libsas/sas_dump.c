@@ -56,7 +56,7 @@ void sas_dprint_phye(int phyid, enum phy_event pe)
 
 void sas_dprint_hae(struct sas_ha_struct *sas_ha, enum ha_event he)
 {
-	SAS_DPRINTK("ha %s: %s event\n", sas_ha->dev->bus_id,
+	SAS_DPRINTK("ha %s: %s event\n", dev_name(sas_ha->dev),
 		    sas_hae_str[he]);
 }
 

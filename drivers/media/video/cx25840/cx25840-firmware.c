@@ -91,7 +91,7 @@ static int fw_write(struct i2c_client *client, const u8 *data, int size)
 
 int cx25840_loadfw(struct i2c_client *client)
 {
-	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	const struct firmware *fw = NULL;
 	u8 buffer[FWSEND];
 	const u8 *ptr;

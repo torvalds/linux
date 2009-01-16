@@ -21,7 +21,7 @@
  * file called LICENSE.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
@@ -40,6 +40,13 @@ do { if ((priv->debug_level & (level)) && net_ratelimit()) \
   dev_printk(KERN_ERR, &(priv->hw->wiphy->dev), "%c %s " fmt, \
 	 in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
 
+#define iwl_print_hex_dump(priv, level, p, len) 			\
+do {                                            			\
+	if (priv->debug_level & level)          			\
+		print_hex_dump(KERN_DEBUG, "iwl data: ",		\
+			       DUMP_PREFIX_OFFSET, 16, 1, p, len, 1);	\
+} while (0)
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 struct iwl_debugfs {
 	const char *name;
@@ -53,6 +60,7 @@ struct iwl_debugfs {
 		struct dentry *file_rx_statistics;
 		struct dentry *file_tx_statistics;
 		struct dentry *file_log_event;
+		struct dentry *file_channels;
 	} dbgfs_data_files;
 	struct dir_rf_files {
 		struct dentry *file_disable_sensitivity;
@@ -70,6 +78,9 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv);
 #else
 #define IWL_DEBUG(level, fmt, args...)
 #define IWL_DEBUG_LIMIT(level, fmt, args...)
+static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
+				      void *p, u32 len)
+{}
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
 
@@ -85,29 +96,25 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #endif				/* CONFIG_IWLWIFI_DEBUGFS */
 
 /*
- * To use the debug system;
+ * To use the debug system:
  *
  * If you are defining a new debug classification, simply add it to the #define
- * list here in the form of:
+ * list here in the form of
  *
  * #define IWL_DL_xxxx VALUE
  *
- * shifting value to the left one bit from the previous entry.  xxxx should be
- * the name of the classification (for example, WEP)
+ * where xxxx should be the name of the classification (for example, WEP).
  *
  * You then need to either add a IWL_xxxx_DEBUG() macro definition for your
  * classification, or use IWL_DEBUG(IWL_DL_xxxx, ...) whenever you want
  * to send output to that classification.
  *
- * To add your debug level to the list of levels seen when you perform
+ * The active debug levels can be accessed via files
  *
- * % cat /proc/net/iwl/debug_level
+ * 	/sys/module/iwlagn/parameters/debug{50}
+ * 	/sys/class/net/wlan0/device/debug_level
  *
- * you simply need to add your entry to the iwl_debug_levels array.
- *
- * If you do not see debug_level in /proc/net/iwl then you do not have
- * CONFIG_IWLWIFI_DEBUG defined in your kernel configuration
- *
+ * when CONFIG_IWLWIFI_DEBUG=y.
  */
 
 #define IWL_DL_INFO		(1 << 0)
@@ -183,6 +190,8 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DEBUG_STATS(f, a...) IWL_DEBUG(IWL_DL_STATS, f, ## a)
 #define IWL_DEBUG_STATS_LIMIT(f, a...) IWL_DEBUG_LIMIT(IWL_DL_STATS, f, ## a)
 #define IWL_DEBUG_TX_REPLY(f, a...) IWL_DEBUG(IWL_DL_TX_REPLY, f, ## a)
+#define IWL_DEBUG_TX_REPLY_LIMIT(f, a...) \
+	IWL_DEBUG_LIMIT(IWL_DL_TX_REPLY, f, ## a)
 #define IWL_DEBUG_QOS(f, a...)   IWL_DEBUG(IWL_DL_QOS, f, ## a)
 #define IWL_DEBUG_RADIO(f, a...)  IWL_DEBUG(IWL_DL_RADIO, f, ## a)
 #define IWL_DEBUG_POWER(f, a...)  IWL_DEBUG(IWL_DL_POWER, f, ## a)

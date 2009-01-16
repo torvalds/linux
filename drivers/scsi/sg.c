@@ -1669,6 +1669,8 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 		md->pages = req_schp->pages;
 		md->page_order = req_schp->page_order;
 		md->nr_entries = req_schp->k_use_sg;
+		md->offset = 0;
+		md->null_mapped = hp->dxferp ? 0 : 1;
 	}
 
 	if (iov_count)

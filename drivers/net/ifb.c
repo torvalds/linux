@@ -137,18 +137,23 @@ resched:
 
 }
 
+static const struct net_device_ops ifb_netdev_ops = {
+	.ndo_open	= ifb_open,
+	.ndo_stop	= ifb_close,
+	.ndo_start_xmit	= ifb_xmit,
+	.ndo_validate_addr = eth_validate_addr,
+};
+
 static void ifb_setup(struct net_device *dev)
 {
 	/* Initialize the device structure. */
-	dev->hard_start_xmit = ifb_xmit;
-	dev->open = &ifb_open;
-	dev->stop = &ifb_close;
 	dev->destructor = free_netdev;
+	dev->netdev_ops = &ifb_netdev_ops;
 
 	/* Fill in device structure with ethernet-generic values. */
 	ether_setup(dev);
 	dev->tx_queue_len = TX_Q_LIMIT;
-	dev->change_mtu = NULL;
+
 	dev->flags |= IFF_NOARP;
 	dev->flags &= ~IFF_MULTICAST;
 	random_ether_addr(dev->dev_addr);

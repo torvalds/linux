@@ -823,7 +823,7 @@ static int vx_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
 		 * we trigger the pipe using tasklet, so that the interrupts are
 		 * issued surely after the trigger is completed.
 		 */ 
-		tasklet_hi_schedule(&pipe->start_tq);
+		tasklet_schedule(&pipe->start_tq);
 		chip->pcm_running++;
 		pipe->running = 1;
 		break;

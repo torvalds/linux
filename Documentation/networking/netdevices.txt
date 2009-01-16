@@ -18,7 +18,7 @@ There are routines in net_init.c to handle the common cases of
 alloc_etherdev, alloc_netdev.  These reserve extra space for driver
 private data which gets freed when the network device is freed. If
 separately allocated data is attached to the network device
-(dev->priv) then it is up to the module exit handler to free that.
+(netdev_priv(dev)) then it is up to the module exit handler to free that.
 
 MTU
 ===

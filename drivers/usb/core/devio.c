@@ -574,6 +574,7 @@ static int usbdev_open(struct inode *inode, struct file *file)
 {
 	struct usb_device *dev = NULL;
 	struct dev_state *ps;
+	const struct cred *cred = current_cred();
 	int ret;
 
 	lock_kernel();
@@ -617,8 +618,8 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&ps->wait);
 	ps->discsignr = 0;
 	ps->disc_pid = get_pid(task_pid(current));
-	ps->disc_uid = current->uid;
-	ps->disc_euid = current->euid;
+	ps->disc_uid = cred->uid;
+	ps->disc_euid = cred->euid;
 	ps->disccontext = NULL;
 	ps->ifclaimed = 0;
 	security_task_getsecid(current, &ps->secid);
@@ -967,6 +968,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	struct usb_host_endpoint *ep;
 	struct async *as;
 	struct usb_ctrlrequest *dr = NULL;
+	const struct cred *cred = current_cred();
 	unsigned int u, totlen, isofrmlen;
 	int ret, ifnum = -1;
 	int is_in;
@@ -978,9 +980,6 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 				USBDEVFS_URB_NO_INTERRUPT))
 		return -EINVAL;
 	if (!uurb->buffer)
-		return -EINVAL;
-	if (uurb->signr != 0 && (uurb->signr < SIGRTMIN ||
-				 uurb->signr > SIGRTMAX))
 		return -EINVAL;
 	if (!(uurb->type == USBDEVFS_URB_TYPE_CONTROL &&
 	    (uurb->endpoint & ~USB_ENDPOINT_DIR_MASK) == 0)) {
@@ -1174,8 +1173,8 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	as->signr = uurb->signr;
 	as->ifnum = ifnum;
 	as->pid = get_pid(task_pid(current));
-	as->uid = current->uid;
-	as->euid = current->euid;
+	as->uid = cred->uid;
+	as->euid = cred->euid;
 	security_task_getsecid(current, &as->secid);
 	if (!is_in) {
 		if (copy_from_user(as->urb->transfer_buffer, uurb->buffer,
@@ -1318,7 +1317,7 @@ static int get_urb32(struct usbdevfs_urb *kurb,
 	if (__get_user(uptr, &uurb->buffer))
 		return -EFAULT;
 	kurb->buffer = compat_ptr(uptr);
-	if (__get_user(uptr, &uurb->buffer))
+	if (__get_user(uptr, &uurb->usercontext))
 		return -EFAULT;
 	kurb->usercontext = compat_ptr(uptr);
 
@@ -1399,8 +1398,6 @@ static int proc_disconnectsignal(struct dev_state *ps, void __user *arg)
 
 	if (copy_from_user(&ds, arg, sizeof(ds)))
 		return -EFAULT;
-	if (ds.signr != 0 && (ds.signr < SIGRTMIN || ds.signr > SIGRTMAX))
-		return -EINVAL;
 	ps->discsignr = ds.signr;
 	ps->disccontext = ds.context;
 	return 0;

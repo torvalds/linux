@@ -62,7 +62,7 @@ static struct resource usbf_resources[] = {
 
 static struct platform_device usbf_device = {
 	.name		= "m66592_udc",
-	.id		= -1,
+	.id             = 0, /* "usbf0" clock */
 	.dev = {
 		.dma_mask		= NULL,
 		.coherent_dma_mask	= 0xffffffff,
@@ -87,6 +87,7 @@ static struct resource iic_resources[] = {
 
 static struct platform_device iic_device = {
 	.name           = "i2c-sh_mobile",
+	.id             = 0, /* "i2c0" clock */
 	.num_resources  = ARRAY_SIZE(iic_resources),
 	.resource       = iic_resources,
 };
@@ -147,6 +148,34 @@ static struct platform_device veu_device = {
 	.num_resources	= ARRAY_SIZE(veu_resources),
 };
 
+static struct uio_info jpu_platform_data = {
+	.name = "JPU",
+	.version = "0",
+	.irq = 27,
+};
+
+static struct resource jpu_resources[] = {
+	[0] = {
+		.name	= "JPU",
+		.start	= 0xfea00000,
+		.end	= 0xfea102d0,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* place holder for contiguous memory */
+	},
+};
+
+static struct platform_device jpu_device = {
+	.name		= "uio_pdrv_genirq",
+	.id		= 2,
+	.dev = {
+		.platform_data	= &jpu_platform_data,
+	},
+	.resource	= jpu_resources,
+	.num_resources	= ARRAY_SIZE(jpu_resources),
+};
+
 static struct plat_sci_port sci_platform_data[] = {
 	{
 		.mapbase	= 0xffe00000,
@@ -186,24 +215,21 @@ static struct platform_device *sh7722_devices[] __initdata = {
 	&sci_device,
 	&vpu_device,
 	&veu_device,
+	&jpu_device,
 };
 
 static int __init sh7722_devices_setup(void)
 {
-	clk_always_enable("mstp031"); /* TLB */
-	clk_always_enable("mstp030"); /* IC */
-	clk_always_enable("mstp029"); /* OC */
-	clk_always_enable("mstp028"); /* URAM */
-	clk_always_enable("mstp026"); /* XYMEM */
-	clk_always_enable("mstp022"); /* INTC */
-	clk_always_enable("mstp020"); /* SuperHyway */
-	clk_always_enable("mstp109"); /* I2C */
-	clk_always_enable("mstp211"); /* USB */
-	clk_always_enable("mstp202"); /* VEU */
-	clk_always_enable("mstp201"); /* VPU */
+	clk_always_enable("uram0"); /* URAM */
+	clk_always_enable("xymem0"); /* XYMEM */
+	clk_always_enable("rtc0"); /* RTC */
+	clk_always_enable("veu0"); /* VEU */
+	clk_always_enable("vpu0"); /* VPU */
+	clk_always_enable("jpu0"); /* JPU */
 
 	platform_resource_setup_memory(&vpu_device, "vpu", 1 << 20);
 	platform_resource_setup_memory(&veu_device, "veu", 2 << 20);
+	platform_resource_setup_memory(&jpu_device, "jpu", 2 << 20);
 
 	return platform_add_devices(sh7722_devices,
 				    ARRAY_SIZE(sh7722_devices));

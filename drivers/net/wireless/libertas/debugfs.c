@@ -5,6 +5,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <net/iw_handler.h>
+#include <net/lib80211.h>
 
 #include "dev.h"
 #include "decl.h"
@@ -65,7 +66,7 @@ static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 	int numscansdone = 0, res;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
-	DECLARE_MAC_BUF(mac);
+	DECLARE_SSID_BUF(ssid);
 	struct bss_descriptor * iter_bss;
 
 	pos += snprintf(buf+pos, len-pos,
@@ -77,17 +78,17 @@ static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 		u16 privacy = (iter_bss->capability & WLAN_CAPABILITY_PRIVACY);
 		u16 spectrum_mgmt = (iter_bss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT);
 
-		pos += snprintf(buf+pos, len-pos,
-			"%02u| %03d | %04d | %s |",
+		pos += snprintf(buf+pos, len-pos, "%02u| %03d | %04d | %pM |",
 			numscansdone, iter_bss->channel, iter_bss->rssi,
-			print_mac(mac, iter_bss->bssid));
+			iter_bss->bssid);
 		pos += snprintf(buf+pos, len-pos, " %04x-", iter_bss->capability);
 		pos += snprintf(buf+pos, len-pos, "%c%c%c |",
 				ibss ? 'A' : 'I', privacy ? 'P' : ' ',
 				spectrum_mgmt ? 'S' : ' ');
 		pos += snprintf(buf+pos, len-pos, " %04d |", SCAN_RSSI(iter_bss->rssi));
 		pos += snprintf(buf+pos, len-pos, " %s\n",
-		                escape_essid(iter_bss->ssid, iter_bss->ssid_len));
+		                print_ssid(ssid, iter_bss->ssid,
+					   iter_bss->ssid_len));
 
 		numscansdone++;
 	}

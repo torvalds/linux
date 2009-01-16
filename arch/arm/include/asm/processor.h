@@ -64,7 +64,7 @@ struct thread_struct {
 ({									\
 	unsigned long *stack = (unsigned long *)sp;			\
 	set_fs(USER_DS);						\
-	memzero(regs->uregs, sizeof(regs->uregs));			\
+	memset(regs->uregs, 0, sizeof(regs->uregs));			\
 	if (current->personality & ADDR_LIMIT_32BIT)			\
 		regs->ARM_cpsr = USR_MODE;				\
 	else								\

@@ -118,6 +118,8 @@ enum sctp_optname {
 #define SCTP_PEER_AUTH_CHUNKS SCTP_PEER_AUTH_CHUNKS
 	SCTP_LOCAL_AUTH_CHUNKS,		/* Read only */
 #define SCTP_LOCAL_AUTH_CHUNKS SCTP_LOCAL_AUTH_CHUNKS
+	SCTP_GET_ASSOC_NUMBER,		/* Read only */
+#define SCTP_GET_ASSOC_NUMBER SCTP_GET_ASSOC_NUMBER
 
 
 	/* Internal Socket Options. Some of the sctp library functions are 

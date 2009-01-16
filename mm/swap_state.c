@@ -17,6 +17,7 @@
 #include <linux/backing-dev.h>
 #include <linux/pagevec.h>
 #include <linux/migrate.h>
+#include <linux/page_cgroup.h>
 
 #include <asm/pgtable.h>
 
@@ -72,10 +73,10 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
 {
 	int error;
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(PageSwapCache(page));
-	BUG_ON(PagePrivate(page));
-	BUG_ON(!PageSwapBacked(page));
+	VM_BUG_ON(!PageLocked(page));
+	VM_BUG_ON(PageSwapCache(page));
+	VM_BUG_ON(!PageSwapBacked(page));
+
 	error = radix_tree_preload(gfp_mask);
 	if (!error) {
 		page_cache_get(page);
@@ -108,10 +109,11 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
  */
 void __delete_from_swap_cache(struct page *page)
 {
-	BUG_ON(!PageLocked(page));
-	BUG_ON(!PageSwapCache(page));
-	BUG_ON(PageWriteback(page));
-	BUG_ON(PagePrivate(page));
+	swp_entry_t ent = {.val = page_private(page)};
+
+	VM_BUG_ON(!PageLocked(page));
+	VM_BUG_ON(!PageSwapCache(page));
+	VM_BUG_ON(PageWriteback(page));
 
 	radix_tree_delete(&swapper_space.page_tree, page_private(page));
 	set_page_private(page, 0);
@@ -119,6 +121,7 @@ void __delete_from_swap_cache(struct page *page)
 	total_swapcache_pages--;
 	__dec_zone_page_state(page, NR_FILE_PAGES);
 	INC_CACHE_INFO(del_total);
+	mem_cgroup_uncharge_swapcache(page, ent);
 }
 
 /**
@@ -129,13 +132,13 @@ void __delete_from_swap_cache(struct page *page)
  * Allocate swap space for the page and add the page to the
  * swap cache.  Caller needs to hold the page lock. 
  */
-int add_to_swap(struct page * page, gfp_t gfp_mask)
+int add_to_swap(struct page *page)
 {
 	swp_entry_t entry;
 	int err;
 
-	BUG_ON(!PageLocked(page));
-	BUG_ON(!PageUptodate(page));
+	VM_BUG_ON(!PageLocked(page));
+	VM_BUG_ON(!PageUptodate(page));
 
 	for (;;) {
 		entry = get_swap_page();
@@ -154,7 +157,7 @@ int add_to_swap(struct page * page, gfp_t gfp_mask)
 		 * Add it to the swap cache and mark it dirty
 		 */
 		err = add_to_swap_cache(page, entry,
-				gfp_mask|__GFP_NOMEMALLOC|__GFP_NOWARN);
+				__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
 
 		switch (err) {
 		case 0:				/* Success */
@@ -196,14 +199,14 @@ void delete_from_swap_cache(struct page *page)
  * If we are the only user, then try to free up the swap cache. 
  * 
  * Its ok to check for PageSwapCache without the page lock
- * here because we are going to recheck again inside 
- * exclusive_swap_page() _with_ the lock. 
+ * here because we are going to recheck again inside
+ * try_to_free_swap() _with_ the lock.
  * 					- Marcelo
  */
 static inline void free_swap_cache(struct page *page)
 {
-	if (PageSwapCache(page) && trylock_page(page)) {
-		remove_exclusive_swap_page(page);
+	if (PageSwapCache(page) && !page_mapped(page) && trylock_page(page)) {
+		try_to_free_swap(page);
 		unlock_page(page);
 	}
 }

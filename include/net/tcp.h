@@ -46,7 +46,7 @@
 
 extern struct inet_hashinfo tcp_hashinfo;
 
-extern atomic_t tcp_orphan_count;
+extern struct percpu_counter tcp_orphan_count;
 extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 
 #define MAX_TCP_HEADER	(128 + MAX_HEADER)
@@ -238,7 +238,7 @@ extern int sysctl_tcp_slow_start_after_idle;
 extern int sysctl_tcp_max_ssthresh;
 
 extern atomic_t tcp_memory_allocated;
-extern atomic_t tcp_sockets_allocated;
+extern struct percpu_counter tcp_sockets_allocated;
 extern int tcp_memory_pressure;
 
 /*
@@ -472,8 +472,6 @@ extern void tcp_send_delayed_ack(struct sock *sk);
 
 /* tcp_input.c */
 extern void tcp_cwnd_application_limited(struct sock *sk);
-extern void tcp_skb_mark_lost_uncond_verify(struct tcp_sock *tp,
-					    struct sk_buff *skb);
 
 /* tcp_timer.c */
 extern void tcp_init_xmit_timers(struct sock *);
@@ -590,7 +588,6 @@ struct tcp_skb_cb {
 #define TCPCB_EVER_RETRANS	0x80	/* Ever retransmitted frame	*/
 #define TCPCB_RETRANS		(TCPCB_SACKED_RETRANS|TCPCB_EVER_RETRANS)
 
-	__u16		urg_ptr;	/* Valid w/URG flags is set.	*/
 	__u32		ack_seq;	/* Sequence number ACK'd	*/
 };
 
@@ -763,8 +760,6 @@ static inline unsigned int tcp_packets_in_flight(const struct tcp_sock *tp)
 {
 	return tp->packets_out - tcp_left_out(tp) + tp->retrans_out;
 }
-
-extern int tcp_limit_reno_sacked(struct tcp_sock *tp);
 
 /* If cwnd > ssthresh, we may raise ssthresh to be half-way to cwnd.
  * The exception is rate halving phase, when cwnd is decreasing towards
@@ -1195,6 +1190,11 @@ static inline struct sk_buff *tcp_write_queue_next(struct sock *sk, struct sk_bu
 	return skb_queue_next(&sk->sk_write_queue, skb);
 }
 
+static inline struct sk_buff *tcp_write_queue_prev(struct sock *sk, struct sk_buff *skb)
+{
+	return skb_queue_prev(&sk->sk_write_queue, skb);
+}
+
 #define tcp_for_write_queue(skb, sk)					\
 	skb_queue_walk(&(sk)->sk_write_queue, skb)
 
@@ -1358,6 +1358,12 @@ extern void tcp_v4_destroy_sock(struct sock *sk);
 
 extern int tcp_v4_gso_send_check(struct sk_buff *skb);
 extern struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features);
+extern struct sk_buff **tcp_gro_receive(struct sk_buff **head,
+					struct sk_buff *skb);
+extern struct sk_buff **tcp4_gro_receive(struct sk_buff **head,
+					 struct sk_buff *skb);
+extern int tcp_gro_complete(struct sk_buff *skb);
+extern int tcp4_gro_complete(struct sk_buff *skb);
 
 #ifdef CONFIG_PROC_FS
 extern int  tcp4_proc_init(void);

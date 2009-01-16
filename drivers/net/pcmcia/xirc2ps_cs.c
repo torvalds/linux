@@ -772,7 +772,6 @@ xirc2ps_config(struct pcmcia_device * link)
     int err, i;
     u_char buf[64];
     cistpl_lan_node_id_t *node_id = (cistpl_lan_node_id_t*)parse.funce.data;
-    DECLARE_MAC_BUF(mac);
 
     local->dingo_ccr = NULL;
 
@@ -1051,9 +1050,9 @@ xirc2ps_config(struct pcmcia_device * link)
     strcpy(local->node.dev_name, dev->name);
 
     /* give some infos about the hardware */
-    printk(KERN_INFO "%s: %s: port %#3lx, irq %d, hwaddr %s\n",
+    printk(KERN_INFO "%s: %s: port %#3lx, irq %d, hwaddr %pM\n",
 	   dev->name, local->manf_str,(u_long)dev->base_addr, (int)dev->irq,
-	   print_mac(mac, dev->dev_addr));
+	   dev->dev_addr);
 
     return 0;
 
@@ -1243,7 +1242,6 @@ xirc2ps_interrupt(int irq, void *dev_id)
 		}
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
-		dev->last_rx = jiffies;
 		lp->stats.rx_packets++;
 		lp->stats.rx_bytes += pktlen;
 		if (!(rsr & PhyPkt))

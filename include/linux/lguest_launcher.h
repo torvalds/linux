@@ -54,9 +54,13 @@ struct lguest_vqconfig {
 /* Write command first word is a request. */
 enum lguest_req
 {
-	LHREQ_INITIALIZE, /* + base, pfnlimit, pgdir, start */
+	LHREQ_INITIALIZE, /* + base, pfnlimit, start */
 	LHREQ_GETDMA, /* No longer used */
 	LHREQ_IRQ, /* + irq */
 	LHREQ_BREAK, /* + on/off flag (on blocks until someone does off) */
 };
+
+/* The alignment to use between consumer and producer parts of vring.
+ * x86 pagesize for historical reasons. */
+#define LGUEST_VRING_ALIGN	4096
 #endif /* _LINUX_LGUEST_LAUNCHER */

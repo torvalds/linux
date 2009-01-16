@@ -28,7 +28,6 @@
 #include "xfs_mount.h"
 #include "xfs_quota.h"
 #include "xfs_error.h"
-#include "xfs_clnt.h"
 
 
 STATIC struct xfs_dquot *
@@ -131,9 +130,9 @@ static struct xfs_qmops xfs_qmcore_stub = {
 };
 
 int
-xfs_qmops_get(struct xfs_mount *mp, struct xfs_mount_args *args)
+xfs_qmops_get(struct xfs_mount *mp)
 {
-	if (args->flags & (XFSMNT_UQUOTA | XFSMNT_PQUOTA | XFSMNT_GQUOTA)) {
+	if (XFS_IS_QUOTA_RUNNING(mp)) {
 #ifdef CONFIG_XFS_QUOTA
 		mp->m_qm_ops = &xfs_qmcore_xfs;
 #else

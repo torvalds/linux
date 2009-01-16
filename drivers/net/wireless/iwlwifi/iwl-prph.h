@@ -25,7 +25,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -158,9 +158,9 @@
  *
  * 4)  Point (via BSM_DRAM_*) to the "runtime" uCode data and instruction
  *     images in host DRAM.  The last register loaded must be the instruction
- *     bytecount register ("1" in MSbit tells initialization uCode to load
+ *     byte count register ("1" in MSbit tells initialization uCode to load
  *     the runtime uCode):
- *     BSM_DRAM_INST_BYTECOUNT_REG = bytecount | BSM_DRAM_INST_LOAD
+ *     BSM_DRAM_INST_BYTECOUNT_REG = byte count | BSM_DRAM_INST_LOAD
  *
  * 5)  Wait for "alive" notification, then issue normal runtime commands.
  *
@@ -244,7 +244,7 @@
 /**
  * Tx Scheduler
  *
- * The Tx Scheduler selects the next frame to be transmitted, chosing TFDs
+ * The Tx Scheduler selects the next frame to be transmitted, choosing TFDs
  * (Transmit Frame Descriptors) from up to 16 circular Tx queues resident in
  * host DRAM.  It steers each frame's Tx command (which contains the frame
  * data) into one of up to 7 prioritized Tx DMA FIFO channels within the

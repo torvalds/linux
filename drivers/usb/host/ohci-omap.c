@@ -18,6 +18,7 @@
 #include <linux/jiffies.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/gpio.h>
 
 #include <mach/hardware.h>
 #include <asm/io.h>
@@ -25,7 +26,6 @@
 
 #include <mach/mux.h>
 #include <mach/irqs.h>
-#include <mach/gpio.h>
 #include <mach/fpga.h>
 #include <mach/usb.h>
 
@@ -254,8 +254,8 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 
 			/* gpio9 for overcurrent detction */
 			omap_cfg_reg(W8_1610_GPIO9);
-			omap_request_gpio(9);
-			omap_set_gpio_direction(9, 1 /* IN */);
+			gpio_request(9, "OHCI overcurrent");
+			gpio_direction_input(9);
 
 			/* for paranoia's sake:  disable USB.PUEN */
 			omap_cfg_reg(W4_USB_HIGHZ);
@@ -407,7 +407,7 @@ usb_hcd_omap_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 		put_device(ohci->transceiver->dev);
 	}
 	if (machine_is_omap_osk())
-		omap_free_gpio(9);
+		gpio_free(9);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);

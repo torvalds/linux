@@ -32,7 +32,6 @@
 
 /* debug */
 int dvb_usb_cinergyt2_debug;
-int disable_remote;
 
 module_param_named(debug, dvb_usb_cinergyt2_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info, xfer=2, rc=4 "
@@ -45,7 +44,7 @@ struct cinergyt2_state {
 };
 
 /* We are missing a release hook with usb_device data */
-struct dvb_usb_device *cinergyt2_usb_device;
+static struct dvb_usb_device *cinergyt2_usb_device;
 
 static struct dvb_usb_device_properties cinergyt2_properties;
 

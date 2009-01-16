@@ -87,17 +87,7 @@ static int find_mgm(struct mthca_dev *dev,
 	}
 
 	if (0)
-		mthca_dbg(dev, "Hash for %04x:%04x:%04x:%04x:"
-			  "%04x:%04x:%04x:%04x is %04x\n",
-			  be16_to_cpu(((__be16 *) gid)[0]),
-			  be16_to_cpu(((__be16 *) gid)[1]),
-			  be16_to_cpu(((__be16 *) gid)[2]),
-			  be16_to_cpu(((__be16 *) gid)[3]),
-			  be16_to_cpu(((__be16 *) gid)[4]),
-			  be16_to_cpu(((__be16 *) gid)[5]),
-			  be16_to_cpu(((__be16 *) gid)[6]),
-			  be16_to_cpu(((__be16 *) gid)[7]),
-			  *hash);
+		mthca_dbg(dev, "Hash for %pI6 is %04x\n", gid, *hash);
 
 	*index = *hash;
 	*prev  = -1;
@@ -264,16 +254,7 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		goto out;
 
 	if (index == -1) {
-		mthca_err(dev, "MGID %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x "
-			  "not found\n",
-			  be16_to_cpu(((__be16 *) gid->raw)[0]),
-			  be16_to_cpu(((__be16 *) gid->raw)[1]),
-			  be16_to_cpu(((__be16 *) gid->raw)[2]),
-			  be16_to_cpu(((__be16 *) gid->raw)[3]),
-			  be16_to_cpu(((__be16 *) gid->raw)[4]),
-			  be16_to_cpu(((__be16 *) gid->raw)[5]),
-			  be16_to_cpu(((__be16 *) gid->raw)[6]),
-			  be16_to_cpu(((__be16 *) gid->raw)[7]));
+		mthca_err(dev, "MGID %pI6 not found\n", gid->raw);
 		err = -EINVAL;
 		goto out;
 	}

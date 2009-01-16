@@ -23,6 +23,10 @@
 #ifndef __M66592_UDC_H__
 #define __M66592_UDC_H__
 
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592) && defined(CONFIG_HAVE_CLK)
+#include <linux/clk.h>
+#endif
+
 #define M66592_SYSCFG		0x00
 #define M66592_XTAL		0xC000	/* b15-14: Crystal selection */
 #define   M66592_XTAL48		 0x8000		/* 48MHz */
@@ -476,6 +480,9 @@ struct m66592_ep {
 struct m66592 {
 	spinlock_t		lock;
 	void __iomem		*reg;
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592) && defined(CONFIG_HAVE_CLK)
+	struct clk *clk;
+#endif
 
 	struct usb_gadget		gadget;
 	struct usb_gadget_driver	*driver;
@@ -603,26 +610,6 @@ static inline void m66592_mdfy(struct m66592 *m66592, u16 val, u16 pat,
 			m66592_mdfy(m66592, 0, val, offset)
 #define m66592_bset(m66592, val, offset)	\
 			m66592_mdfy(m66592, val, 0, offset)
-
-#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
-#include <asm/io.h>
-#define MSTPCR2		0xA4150038	/* for SH7722 */
-#define MSTPCR2_USB	0x00000800
-
-static inline void usbf_start_clock(void)
-{
-	ctrl_outl(ctrl_inl(MSTPCR2) & ~MSTPCR2_USB, MSTPCR2);
-}
-
-static inline void usbf_stop_clock(void)
-{
-	ctrl_outl(ctrl_inl(MSTPCR2) | MSTPCR2_USB, MSTPCR2);
-}
-
-#else
-#define usbf_start_clock(x)
-#define usbf_stop_clock(x)
-#endif	/* if defined(CONFIG_SUPERH_BUILT_IN_M66592) */
 
 #endif	/* ifndef __M66592_UDC_H__ */
 

@@ -49,8 +49,6 @@ extern int ixp4xx_pci_write(u32 addr, u32 cmd, u32 data);
 
 #else
 
-#include <linux/mm.h>
-
 /*
  * In the case of using indirect PCI, we simply return the actual PCI
  * address and our read/write implementation use that to drive the 
@@ -241,7 +239,7 @@ __ixp4xx_readsl(const volatile void __iomem *bus_addr, u32 *vaddr, u32 count)
 
 #ifndef CONFIG_PCI
 
-#define	__io(v)		v
+#define	__io(v)		__typesafe_io(v)
 
 #else
 

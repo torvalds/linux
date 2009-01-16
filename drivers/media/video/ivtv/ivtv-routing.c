@@ -47,13 +47,13 @@ void ivtv_audio_set_io(struct ivtv *itv)
 	route.output = 0;
 	if (itv->card->hw_muxer & IVTV_HW_M52790)
 		route.output = M52790_OUT_STEREO;
-	ivtv_i2c_hw(itv, itv->card->hw_muxer, VIDIOC_INT_S_AUDIO_ROUTING, &route);
+	v4l2_subdev_call(itv->sd_muxer, audio, s_routing, &route);
 
 	route.input = in->audio_input;
 	route.output = 0;
 	if (itv->card->hw_audio & IVTV_HW_MSP34XX)
 		route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
-	ivtv_i2c_hw(itv, itv->card->hw_audio, VIDIOC_INT_S_AUDIO_ROUTING, &route);
+	ivtv_call_hw(itv, itv->card->hw_audio, audio, s_routing, &route);
 }
 
 /* Selects the video input and output according to the current
@@ -66,7 +66,7 @@ void ivtv_video_set_io(struct ivtv *itv)
 
 	route.input = itv->card->video_inputs[inp].video_input;
 	route.output = 0;
-	itv->video_dec_func(itv, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+	v4l2_subdev_call(itv->sd_video, video, s_routing, &route);
 
 	type = itv->card->video_inputs[inp].video_type;
 
@@ -79,7 +79,7 @@ void ivtv_video_set_io(struct ivtv *itv)
 	}
 
 	if (itv->card->hw_video & IVTV_HW_GPIO)
-		ivtv_gpio(itv, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+		ivtv_call_hw(itv, IVTV_HW_GPIO, video, s_routing, &route);
 
 	if (itv->card->hw_video & IVTV_HW_UPD64031A) {
 		if (type == IVTV_CARD_INPUT_VID_TUNER ||
@@ -92,7 +92,7 @@ void ivtv_video_set_io(struct ivtv *itv)
 		}
 		route.input |= itv->card->gr_config;
 
-		ivtv_upd64031a(itv, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+		ivtv_call_hw(itv, IVTV_HW_UPD64031A, video, s_routing, &route);
 	}
 
 	if (itv->card->hw_video & IVTV_HW_UPD6408X) {
@@ -110,6 +110,6 @@ void ivtv_video_set_io(struct ivtv *itv)
 		    route.input |= UPD64083_EXT_Y_ADC;
 		  }
 		}
-		ivtv_upd64083(itv, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+		ivtv_call_hw(itv, IVTV_HW_UPD6408X, video, s_routing, &route);
 	}
 }

@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/threads.h>
+#include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -17,6 +18,9 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/hardirq.h>
+#include <linux/timer.h>
+#include <linux/proc_fs.h>
+#include <asm/current.h>
 #include <asm/smp.h>
 #include <asm/ipi.h>
 #include <asm/genapic.h>
@@ -75,16 +79,15 @@ EXPORT_SYMBOL(sn_rtc_cycles_per_second);
 
 /* Start with all IRQs pointing to boot CPU.  IRQ balancing will shift them. */
 
-static cpumask_t uv_target_cpus(void)
+static const struct cpumask *uv_target_cpus(void)
 {
-	return cpumask_of_cpu(0);
+	return cpumask_of(0);
 }
 
-static cpumask_t uv_vector_allocation_domain(int cpu)
+static void uv_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
-	cpumask_t domain = CPU_MASK_NONE;
-	cpu_set(cpu, domain);
-	return domain;
+	cpumask_clear(retmask);
+	cpumask_set_cpu(cpu, retmask);
 }
 
 int uv_wakeup_secondary(int phys_apicid, unsigned int start_rip)
@@ -123,28 +126,37 @@ static void uv_send_IPI_one(int cpu, int vector)
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 }
 
-static void uv_send_IPI_mask(cpumask_t mask, int vector)
+static void uv_send_IPI_mask(const struct cpumask *mask, int vector)
 {
 	unsigned int cpu;
 
-	for_each_possible_cpu(cpu)
-		if (cpu_isset(cpu, mask))
+	for_each_cpu(cpu, mask)
+		uv_send_IPI_one(cpu, vector);
+}
+
+static void uv_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
+{
+	unsigned int cpu;
+	unsigned int this_cpu = smp_processor_id();
+
+	for_each_cpu(cpu, mask)
+		if (cpu != this_cpu)
 			uv_send_IPI_one(cpu, vector);
 }
 
 static void uv_send_IPI_allbutself(int vector)
 {
-	cpumask_t mask = cpu_online_map;
+	unsigned int cpu;
+	unsigned int this_cpu = smp_processor_id();
 
-	cpu_clear(smp_processor_id(), mask);
-
-	if (!cpus_empty(mask))
-		uv_send_IPI_mask(mask, vector);
+	for_each_online_cpu(cpu)
+		if (cpu != this_cpu)
+			uv_send_IPI_one(cpu, vector);
 }
 
 static void uv_send_IPI_all(int vector)
 {
-	uv_send_IPI_mask(cpu_online_map, vector);
+	uv_send_IPI_mask(cpu_online_mask, vector);
 }
 
 static int uv_apic_id_registered(void)
@@ -156,7 +168,7 @@ static void uv_init_apic_ldr(void)
 {
 }
 
-static unsigned int uv_cpu_mask_to_apicid(cpumask_t cpumask)
+static unsigned int uv_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
 	int cpu;
 
@@ -164,11 +176,28 @@ static unsigned int uv_cpu_mask_to_apicid(cpumask_t cpumask)
 	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
 	 * May as well be the first.
 	 */
-	cpu = first_cpu(cpumask);
+	cpu = cpumask_first(cpumask);
 	if ((unsigned)cpu < nr_cpu_ids)
 		return per_cpu(x86_cpu_to_apicid, cpu);
 	else
 		return BAD_APICID;
+}
+
+static unsigned int uv_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+					      const struct cpumask *andmask)
+{
+	int cpu;
+
+	/*
+	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
+	 * May as well be the first.
+	 */
+	for_each_cpu_and(cpu, cpumask, andmask)
+		if (cpumask_test_cpu(cpu, cpu_online_mask))
+			break;
+	if (cpu < nr_cpu_ids)
+		return per_cpu(x86_cpu_to_apicid, cpu);
+	return BAD_APICID;
 }
 
 static unsigned int get_apic_id(unsigned long x)
@@ -218,8 +247,10 @@ struct genapic apic_x2apic_uv_x = {
 	.send_IPI_all = uv_send_IPI_all,
 	.send_IPI_allbutself = uv_send_IPI_allbutself,
 	.send_IPI_mask = uv_send_IPI_mask,
+	.send_IPI_mask_allbutself = uv_send_IPI_mask_allbutself,
 	.send_IPI_self = uv_send_IPI_self,
 	.cpu_mask_to_apicid = uv_cpu_mask_to_apicid,
+	.cpu_mask_to_apicid_and = uv_cpu_mask_to_apicid_and,
 	.phys_pkg_id = phys_pkg_id,
 	.get_apic_id = get_apic_id,
 	.set_apic_id = set_apic_id,
@@ -356,6 +387,103 @@ static __init void uv_rtc_init(void)
 }
 
 /*
+ * percpu heartbeat timer
+ */
+static void uv_heartbeat(unsigned long ignored)
+{
+	struct timer_list *timer = &uv_hub_info->scir.timer;
+	unsigned char bits = uv_hub_info->scir.state;
+
+	/* flip heartbeat bit */
+	bits ^= SCIR_CPU_HEARTBEAT;
+
+	/* is this cpu idle? */
+	if (idle_cpu(raw_smp_processor_id()))
+		bits &= ~SCIR_CPU_ACTIVITY;
+	else
+		bits |= SCIR_CPU_ACTIVITY;
+
+	/* update system controller interface reg */
+	uv_set_scir_bits(bits);
+
+	/* enable next timer period */
+	mod_timer(timer, jiffies + SCIR_CPU_HB_INTERVAL);
+}
+
+static void __cpuinit uv_heartbeat_enable(int cpu)
+{
+	if (!uv_cpu_hub_info(cpu)->scir.enabled) {
+		struct timer_list *timer = &uv_cpu_hub_info(cpu)->scir.timer;
+
+		uv_set_cpu_scir_bits(cpu, SCIR_CPU_HEARTBEAT|SCIR_CPU_ACTIVITY);
+		setup_timer(timer, uv_heartbeat, cpu);
+		timer->expires = jiffies + SCIR_CPU_HB_INTERVAL;
+		add_timer_on(timer, cpu);
+		uv_cpu_hub_info(cpu)->scir.enabled = 1;
+	}
+
+	/* check boot cpu */
+	if (!uv_cpu_hub_info(0)->scir.enabled)
+		uv_heartbeat_enable(0);
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+static void __cpuinit uv_heartbeat_disable(int cpu)
+{
+	if (uv_cpu_hub_info(cpu)->scir.enabled) {
+		uv_cpu_hub_info(cpu)->scir.enabled = 0;
+		del_timer(&uv_cpu_hub_info(cpu)->scir.timer);
+	}
+	uv_set_cpu_scir_bits(cpu, 0xff);
+}
+
+/*
+ * cpu hotplug notifier
+ */
+static __cpuinit int uv_scir_cpu_notify(struct notifier_block *self,
+				       unsigned long action, void *hcpu)
+{
+	long cpu = (long)hcpu;
+
+	switch (action) {
+	case CPU_ONLINE:
+		uv_heartbeat_enable(cpu);
+		break;
+	case CPU_DOWN_PREPARE:
+		uv_heartbeat_disable(cpu);
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static __init void uv_scir_register_cpu_notifier(void)
+{
+	hotcpu_notifier(uv_scir_cpu_notify, 0);
+}
+
+#else /* !CONFIG_HOTPLUG_CPU */
+
+static __init void uv_scir_register_cpu_notifier(void)
+{
+}
+
+static __init int uv_init_heartbeat(void)
+{
+	int cpu;
+
+	if (is_uv_system())
+		for_each_online_cpu(cpu)
+			uv_heartbeat_enable(cpu);
+	return 0;
+}
+
+late_initcall(uv_init_heartbeat);
+
+#endif /* !CONFIG_HOTPLUG_CPU */
+
+/*
  * Called on each cpu to initialize the per_cpu UV data area.
  * 	ZZZ hotplug not supported yet
  */
@@ -428,7 +556,7 @@ void __init uv_system_init(void)
 
 	uv_bios_init();
 	uv_bios_get_sn_info(0, &uv_type, &sn_partition_id,
-			    &uv_coherency_id, &uv_region_size);
+			    &sn_coherency_id, &sn_region_size);
 	uv_rtc_init();
 
 	for_each_present_cpu(cpu) {
@@ -439,8 +567,7 @@ void __init uv_system_init(void)
 		uv_blade_info[blade].nr_possible_cpus++;
 
 		uv_cpu_hub_info(cpu)->lowmem_remap_base = lowmem_redir_base;
-		uv_cpu_hub_info(cpu)->lowmem_remap_top =
-					lowmem_redir_base + lowmem_redir_size;
+		uv_cpu_hub_info(cpu)->lowmem_remap_top = lowmem_redir_size;
 		uv_cpu_hub_info(cpu)->m_val = m_val;
 		uv_cpu_hub_info(cpu)->n_val = m_val;
 		uv_cpu_hub_info(cpu)->numa_blade_id = blade;
@@ -450,7 +577,8 @@ void __init uv_system_init(void)
 		uv_cpu_hub_info(cpu)->gpa_mask = (1 << (m_val + n_val)) - 1;
 		uv_cpu_hub_info(cpu)->gnode_upper = gnode_upper;
 		uv_cpu_hub_info(cpu)->global_mmr_base = mmr_base;
-		uv_cpu_hub_info(cpu)->coherency_domain_number = uv_coherency_id;
+		uv_cpu_hub_info(cpu)->coherency_domain_number = sn_coherency_id;
+		uv_cpu_hub_info(cpu)->scir.offset = SCIR_LOCAL_MMR_BASE + lcpu;
 		uv_node_to_blade[nid] = blade;
 		uv_cpu_to_blade[cpu] = blade;
 		max_pnode = max(pnode, max_pnode);
@@ -467,4 +595,6 @@ void __init uv_system_init(void)
 	map_mmioh_high(max_pnode);
 
 	uv_cpu_init();
+	uv_scir_register_cpu_notifier();
+	proc_mkdir("sgi_uv", NULL);
 }

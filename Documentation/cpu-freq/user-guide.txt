@@ -93,10 +93,8 @@ Several "PowerBook" and "iBook2" notebooks are supported.
 1.5 SuperH
 ----------
 
-The following SuperH processors are supported by cpufreq:
-
-SH-3
-SH-4
+All SuperH processors supporting rate rounding through the clock
+framework are supported by cpufreq.
 
 1.6 Blackfin
 ------------

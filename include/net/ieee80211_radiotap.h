@@ -1,7 +1,4 @@
-/* $FreeBSD: src/sys/net80211/ieee80211_radiotap.h,v 1.5 2005/01/22 20:12:05 sam Exp $ */
-/* $NetBSD: ieee80211_radiotap.h,v 1.11 2005/06/22 06:16:02 dyoung Exp $ */
-
-/*-
+/*
  * Copyright (c) 2003, 2004 David Young.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,8 +39,6 @@
 #include <linux/kernel.h>
 #include <asm/unaligned.h>
 
-/* Radiotap header version (from official NetBSD feed) */
-#define IEEE80211RADIOTAP_VERSION	"1.5"
 /* Base version of the radiotap packet header data */
 #define PKTHDR_RADIOTAP_VERSION		0
 
@@ -62,12 +57,8 @@
  * readers.
  */
 
-/* XXX tcpdump/libpcap do not tolerate variable-length headers,
- * yet, so we pad every radiotap header to 64 bytes. Ugh.
- */
-#define IEEE80211_RADIOTAP_HDRLEN	64
-
-/* The radio capture header precedes the 802.11 header.
+/*
+ * The radio capture header precedes the 802.11 header.
  * All data in the header is little endian on all platforms.
  */
 struct ieee80211_radiotap_header {

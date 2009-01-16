@@ -698,10 +698,8 @@ retry:
 
 	addr = dma_map_single(&dd->pcidev->dev, tx->txreq.map_addr,
 			      tx->map_len, DMA_TO_DEVICE);
-	if (dma_mapping_error(&dd->pcidev->dev, addr)) {
-		ret = -EIO;
-		goto unlock;
-	}
+	if (dma_mapping_error(&dd->pcidev->dev, addr))
+		goto ioerr;
 
 	dwoffset = tx->map_len >> 2;
 	make_sdma_desc(dd, sdmadesc, (u64) addr, dwoffset, 0);
@@ -741,6 +739,8 @@ retry:
 		dw = (len + 3) >> 2;
 		addr = dma_map_single(&dd->pcidev->dev, sge->vaddr, dw << 2,
 				      DMA_TO_DEVICE);
+		if (dma_mapping_error(&dd->pcidev->dev, addr))
+			goto unmap;
 		make_sdma_desc(dd, sdmadesc, (u64) addr, dw, dwoffset);
 		/* SDmaUseLargeBuf has to be set in every descriptor */
 		if (tx->txreq.flags & IPATH_SDMA_TXREQ_F_USELARGEBUF)
@@ -798,7 +798,18 @@ retry:
 	list_add_tail(&tx->txreq.list, &dd->ipath_sdma_activelist);
 	if (tx->txreq.flags & IPATH_SDMA_TXREQ_F_VL15)
 		vl15_watchdog_enq(dd);
+	goto unlock;
 
+unmap:
+	while (tail != dd->ipath_sdma_descq_tail) {
+		if (!tail)
+			tail = dd->ipath_sdma_descq_cnt - 1;
+		else
+			tail--;
+		unmap_desc(dd, tail);
+	}
+ioerr:
+	ret = -EIO;
 unlock:
 	spin_unlock_irqrestore(&dd->ipath_sdma_lock, flags);
 fail:

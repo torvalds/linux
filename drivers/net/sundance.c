@@ -449,6 +449,19 @@ static void sundance_reset(struct net_device *dev, unsigned long reset_cmd)
 	}
 }
 
+static const struct net_device_ops netdev_ops = {
+	.ndo_open		= netdev_open,
+	.ndo_stop		= netdev_close,
+	.ndo_start_xmit		= start_tx,
+	.ndo_get_stats 		= get_stats,
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_do_ioctl 		= netdev_ioctl,
+	.ndo_tx_timeout		= tx_timeout,
+	.ndo_change_mtu		= change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __devinit sundance_probe1 (struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
@@ -468,7 +481,6 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	int bar = 1;
 #endif
 	int phy, phy_end, phy_idx = 0;
-	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -531,25 +543,19 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	np->mii_if.reg_num_mask = 0x1f;
 
 	/* The chip-specific entries in the device structure. */
-	dev->open = &netdev_open;
-	dev->hard_start_xmit = &start_tx;
-	dev->stop = &netdev_close;
-	dev->get_stats = &get_stats;
-	dev->set_multicast_list = &set_rx_mode;
-	dev->do_ioctl = &netdev_ioctl;
+	dev->netdev_ops = &netdev_ops;
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
-	dev->tx_timeout = &tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	dev->change_mtu = &change_mtu;
+
 	pci_set_drvdata(pdev, dev);
 
 	i = register_netdev(dev);
 	if (i)
 		goto err_out_unmap_rx;
 
-	printk(KERN_INFO "%s: %s at %p, %s, IRQ %d.\n",
+	printk(KERN_INFO "%s: %s at %p, %pM, IRQ %d.\n",
 	       dev->name, pci_id_tbl[chip_idx].name, ioaddr,
-	       print_mac(mac, dev->dev_addr), irq);
+	       dev->dev_addr, irq);
 
 	np->phys[0] = 1;		/* Default setting */
 	np->mii_preamble_required++;
@@ -1351,7 +1357,6 @@ static void rx_poll(unsigned long data)
 			skb->protocol = eth_type_trans(skb, dev);
 			/* Note: checksum -> skb->ip_summed = CHECKSUM_UNNECESSARY; */
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 		}
 		entry = (entry + 1) % RX_RING_SIZE;
 		received++;

@@ -157,7 +157,7 @@ static int tweak_set_configuration_cmd(struct urb *urb)
 	 * A user may need to set a special configuration value before
 	 * exporting the device.
 	 */
-	uinfo("set_configuration (%d) to %s\n", config, urb->dev->dev.bus_id);
+	uinfo("set_configuration (%d) to %s\n", config, dev_name(&urb->dev->dev));
 	uinfo("but, skip!\n");
 
 	return 0;
@@ -175,7 +175,7 @@ static int tweak_reset_device_cmd(struct urb *urb)
 	value = le16_to_cpu(req->wValue);
 	index = le16_to_cpu(req->wIndex);
 
-	uinfo("reset_device (port %d) to %s\n", index, urb->dev->dev.bus_id);
+	uinfo("reset_device (port %d) to %s\n", index, dev_name(&urb->dev->dev));
 
 	/* all interfaces should be owned by usbip driver, so just reset it.  */
 	ret = usb_lock_device_for_reset(urb->dev, NULL);
@@ -234,8 +234,6 @@ static void tweak_special_requests(struct urb *urb)
 static int stub_recv_cmd_unlink(struct stub_device *sdev,
 						struct usbip_header *pdu)
 {
-	struct list_head *listhead = &sdev->priv_init;
-	struct list_head *ptr;
 	unsigned long flags;
 
 	struct stub_priv *priv;
@@ -243,8 +241,7 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 
-	for (ptr = listhead->next; ptr != listhead; ptr = ptr->next) {
-		priv = list_entry(ptr, struct stub_priv, list);
+	list_for_each_entry(priv, &sdev->priv_init, list) {
 		if (priv->seqnum == pdu->u.cmd_unlink.seqnum) {
 			int ret;
 

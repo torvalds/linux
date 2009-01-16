@@ -58,8 +58,6 @@ static inline void enic_queue_wq_desc_ex(struct vnic_wq *wq,
 		(u16)vlan_tag,
 		0 /* loopback */);
 
-	wmb();
-
 	vnic_wq_post(wq, os_buf, dma_addr, len, sop, eop);
 }
 
@@ -126,8 +124,6 @@ static inline void enic_queue_rq_desc(struct vnic_rq *rq,
 	rq_enet_desc_enc(desc,
 		(u64)dma_addr | VNIC_PADDR_TARGET,
 		type, (u16)len);
-
-	wmb();
 
 	vnic_rq_post(rq, os_buf, os_buf_index, dma_addr, len);
 }

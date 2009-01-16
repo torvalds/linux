@@ -49,6 +49,11 @@
 #define MECR_NOS	(1 << 0)	/* Number Of Sockets: 0 -> 1 sock, 1 -> 2 sock */
 #define MECR_CIT	(1 << 1)	/* Card Is There: 0 -> no card, 1 -> card inserted */
 
+#define MDCNFG_DE0	(1 << 0)	/* SDRAM Bank 0 Enable */
+#define MDCNFG_DE1	(1 << 1)	/* SDRAM Bank 1 Enable */
+#define MDCNFG_DE2	(1 << 16)	/* SDRAM Bank 2 Enable */
+#define MDCNFG_DE3	(1 << 17)	/* SDRAM Bank 3 Enable */
+
 #define MDREFR_K0DB4	(1 << 29)	/* SDCLK0 Divide by 4 Control/Status */
 #define MDREFR_K2FREE	(1 << 25)	/* SDRAM Free-Running Control */
 #define MDREFR_K1FREE	(1 << 24)	/* SDRAM Free-Running Control */
@@ -242,5 +247,12 @@
 
 #define OSCC_OON	(1 << 1)	/* 32.768kHz OON (write-once only bit) */
 #define OSCC_OOK	(1 << 0)	/* 32.768kHz OOK (read-only bit) */
+
+/* PWRMODE register M field values */
+
+#define PWRMODE_IDLE		0x1
+#define PWRMODE_STANDBY		0x2
+#define PWRMODE_SLEEP		0x3
+#define PWRMODE_DEEPSLEEP	0x7
 
 #endif

@@ -218,8 +218,7 @@ void proc_device_tree_add_node(struct device_node *np,
 void __init proc_device_tree_init(void)
 {
 	struct device_node *root;
-	if ( !have_of )
-		return;
+
 	proc_device_tree = proc_mkdir("device-tree", NULL);
 	if (proc_device_tree == 0)
 		return;

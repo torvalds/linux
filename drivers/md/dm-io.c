@@ -56,7 +56,7 @@ struct dm_io_client *dm_io_client_create(unsigned num_pages)
 	if (!client->pool)
 		goto bad;
 
-	client->bios = bioset_create(16, 16);
+	client->bios = bioset_create(16, 0);
 	if (!client->bios)
 		goto bad;
 

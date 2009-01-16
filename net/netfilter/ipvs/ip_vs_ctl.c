@@ -1168,15 +1168,9 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 	}
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (u->af == AF_INET6) {
-		if (!sched->supports_ipv6) {
-			ret = -EAFNOSUPPORT;
-			goto out_err;
-		}
-		if ((u->netmask < 1) || (u->netmask > 128)) {
-			ret = -EINVAL;
-			goto out_err;
-		}
+	if (u->af == AF_INET6 && (u->netmask < 1 || u->netmask > 128)) {
+		ret = -EINVAL;
+		goto out_err;
 	}
 #endif
 
@@ -1272,15 +1266,9 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 	old_sched = sched;
 
 #ifdef CONFIG_IP_VS_IPV6
-	if (u->af == AF_INET6) {
-		if (!sched->supports_ipv6) {
-			ret = -EAFNOSUPPORT;
-			goto out;
-		}
-		if ((u->netmask < 1) || (u->netmask > 128)) {
-			ret = -EINVAL;
-			goto out;
-		}
+	if (u->af == AF_INET6 && (u->netmask < 1 || u->netmask > 128)) {
+		ret = -EINVAL;
+		goto out;
 	}
 #endif
 
@@ -1557,7 +1545,7 @@ static struct ctl_table vs_vars[] = {
 		.data		= &sysctl_ip_vs_amemthresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 #ifdef CONFIG_IP_VS_DEBUG
 	{
@@ -1565,7 +1553,7 @@ static struct ctl_table vs_vars[] = {
 		.data		= &sysctl_ip_vs_debug_level,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 #endif
 	{
@@ -1573,28 +1561,28 @@ static struct ctl_table vs_vars[] = {
 		.data		= &sysctl_ip_vs_am_droprate,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "drop_entry",
 		.data		= &sysctl_ip_vs_drop_entry,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_do_defense_mode,
+		.proc_handler	= proc_do_defense_mode,
 	},
 	{
 		.procname	= "drop_packet",
 		.data		= &sysctl_ip_vs_drop_packet,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_do_defense_mode,
+		.proc_handler	= proc_do_defense_mode,
 	},
 	{
 		.procname	= "secure_tcp",
 		.data		= &sysctl_ip_vs_secure_tcp,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_do_defense_mode,
+		.proc_handler	= proc_do_defense_mode,
 	},
 #if 0
 	{
@@ -1602,84 +1590,84 @@ static struct ctl_table vs_vars[] = {
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_ESTABLISHED],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_synsent",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_SYN_SENT],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_synrecv",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_SYN_RECV],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_finwait",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_FIN_WAIT],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_timewait",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_TIME_WAIT],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_close",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_CLOSE],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_closewait",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_CLOSE_WAIT],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_lastack",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_LAST_ACK],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_listen",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_LISTEN],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_synack",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_SYNACK],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_udp",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_UDP],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 	{
 		.procname	= "timeout_icmp",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_ICMP],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
+		.proc_handler	= proc_dointvec_jiffies,
 	},
 #endif
 	{
@@ -1687,35 +1675,35 @@ static struct ctl_table vs_vars[] = {
 		.data		= &sysctl_ip_vs_cache_bypass,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "expire_nodest_conn",
 		.data		= &sysctl_ip_vs_expire_nodest_conn,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "expire_quiescent_template",
 		.data		= &sysctl_ip_vs_expire_quiescent_template,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "sync_threshold",
 		.data		= &sysctl_ip_vs_sync_threshold,
 		.maxlen		= sizeof(sysctl_ip_vs_sync_threshold),
 		.mode		= 0644,
-		.proc_handler	= &proc_do_sync_threshold,
+		.proc_handler	= proc_do_sync_threshold,
 	},
 	{
 		.procname	= "nat_icmp_send",
 		.data		= &sysctl_ip_vs_nat_icmp_send,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{ .ctl_name = 0 }
 };
@@ -1867,9 +1855,9 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 		if (iter->table == ip_vs_svc_table) {
 #ifdef CONFIG_IP_VS_IPV6
 			if (svc->af == AF_INET6)
-				seq_printf(seq, "%s  [" NIP6_FMT "]:%04X %s ",
+				seq_printf(seq, "%s  [%pI6]:%04X %s ",
 					   ip_vs_proto_name(svc->protocol),
-					   NIP6(svc->addr.in6),
+					   &svc->addr.in6,
 					   ntohs(svc->port),
 					   svc->scheduler->name);
 			else
@@ -1895,9 +1883,9 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 #ifdef CONFIG_IP_VS_IPV6
 			if (dest->af == AF_INET6)
 				seq_printf(seq,
-					   "  -> [" NIP6_FMT "]:%04X"
+					   "  -> [%pI6]:%04X"
 					   "      %-7s %-6d %-10d %-10d\n",
-					   NIP6(dest->addr.in6),
+					   &dest->addr.in6,
 					   ntohs(dest->port),
 					   ip_vs_fwd_name(atomic_read(&dest->conn_flags)),
 					   atomic_read(&dest->weight),
@@ -2141,8 +2129,8 @@ do_ip_vs_set_ctl(struct sock *sk, int cmd, void __user *user, unsigned int len)
 
 	/* Check for valid protocol: TCP or UDP, even for fwmark!=0 */
 	if (usvc.protocol != IPPROTO_TCP && usvc.protocol != IPPROTO_UDP) {
-		IP_VS_ERR("set_ctl: invalid protocol: %d %d.%d.%d.%d:%d %s\n",
-			  usvc.protocol, NIPQUAD(usvc.addr.ip),
+		IP_VS_ERR("set_ctl: invalid protocol: %d %pI4:%d %s\n",
+			  usvc.protocol, &usvc.addr.ip,
 			  ntohs(usvc.port), usvc.sched_name);
 		ret = -EFAULT;
 		goto out_unlock;

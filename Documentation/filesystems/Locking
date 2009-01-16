@@ -97,8 +97,8 @@ prototypes:
 	void (*put_super) (struct super_block *);
 	void (*write_super) (struct super_block *);
 	int (*sync_fs)(struct super_block *sb, int wait);
-	void (*write_super_lockfs) (struct super_block *);
-	void (*unlockfs) (struct super_block *);
+	int (*freeze_fs) (struct super_block *);
+	int (*unfreeze_fs) (struct super_block *);
 	int (*statfs) (struct dentry *, struct kstatfs *);
 	int (*remount_fs) (struct super_block *, int *, char *);
 	void (*clear_inode) (struct inode *);
@@ -119,8 +119,8 @@ delete_inode:		no
 put_super:		yes	yes	no
 write_super:		no	yes	read
 sync_fs:		no	no	read
-write_super_lockfs:	?
-unlockfs:		?
+freeze_fs:		?
+unfreeze_fs:		?
 statfs:			no	no	no
 remount_fs:		yes	yes	maybe		(see below)
 clear_inode:		no
@@ -394,11 +394,10 @@ prototypes:
 	unsigned long (*get_unmapped_area)(struct file *, unsigned long,
 			unsigned long, unsigned long, unsigned long);
 	int (*check_flags)(int);
-	int (*dir_notify)(struct file *, unsigned long);
 };
 
 locking rules:
-	All except ->poll() may block.
+	All may block.
 			BKL
 llseek:			no	(see below)
 read:			no
@@ -424,7 +423,6 @@ sendfile:		no
 sendpage:		no
 get_unmapped_area:	no
 check_flags:		no
-dir_notify:		no
 
 ->llseek() locking has moved from llseek to the individual llseek
 implementations.  If your fs is not using generic_file_llseek, you

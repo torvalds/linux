@@ -36,7 +36,6 @@
 #include <asm/irq.h>
 #include <asm/macintosh.h>
 #include <asm/io.h>
-#include <asm/machw.h>
 
 /* Common DAC base address for the LC, RBV, Valkyrie, and IIvx */
 #define DAC_BASE 0x50f24000
@@ -78,34 +77,34 @@ static int csc_setpalette (unsigned int regno, unsigned int red,
 			   unsigned int green, unsigned int blue,
 			   struct fb_info *fb_info);
 
-static volatile struct {
+static struct {
 	unsigned char addr;
 	/* Note: word-aligned */
 	char pad[3];
 	unsigned char lut;
-} *valkyrie_cmap_regs;
+} __iomem *valkyrie_cmap_regs;
 
-static volatile struct {
+static struct {
 	unsigned char addr;
 	unsigned char lut;
-} *v8_brazil_cmap_regs;
+} __iomem *v8_brazil_cmap_regs;
 
-static volatile struct {
+static struct {
 	unsigned char addr;
 	char pad1[3]; /* word aligned */
 	unsigned char lut;
 	char pad2[3]; /* word aligned */
 	unsigned char cntl; /* a guess as to purpose */
-} *rbv_cmap_regs;
+} __iomem *rbv_cmap_regs;
 
-static volatile struct {
+static struct {
 	unsigned long reset;
 	unsigned long pad1[3];
 	unsigned char pad2[3];
 	unsigned char lut;
-} *dafb_cmap_regs;
+} __iomem *dafb_cmap_regs;
 
-static volatile struct {
+static struct {
 	unsigned char addr;	/* OFFSET: 0x00 */
 	unsigned char pad1[15];
 	unsigned char lut;	/* OFFSET: 0x10 */
@@ -114,16 +113,16 @@ static volatile struct {
 	unsigned char pad3[7];
 	unsigned long vbl_addr;	/* OFFSET: 0x28 */
 	unsigned int  status2;	/* OFFSET: 0x2C */
-} *civic_cmap_regs;
+} __iomem *civic_cmap_regs;
 
-static volatile struct {
+static struct {
 	char    pad1[0x40];
         unsigned char	clut_waddr;	/* 0x40 */
         char    pad2;
         unsigned char	clut_data;	/* 0x42 */
         char	pad3[0x3];
         unsigned char	clut_raddr;	/* 0x46 */
-} *csc_cmap_regs;
+} __iomem *csc_cmap_regs;
 
 /* We will leave these the way they are for the time being */
 struct mdc_cmap_regs {
@@ -507,10 +506,10 @@ static int csc_setpalette (unsigned int regno, unsigned int red,
 			   struct fb_info *info)
 {
 	mdelay(1);
-	csc_cmap_regs->clut_waddr = regno;
-	csc_cmap_regs->clut_data = red;
-	csc_cmap_regs->clut_data = green;
-	csc_cmap_regs->clut_data = blue;
+	nubus_writeb(regno, &csc_cmap_regs->clut_waddr);
+	nubus_writeb(red,   &csc_cmap_regs->clut_data);
+	nubus_writeb(green, &csc_cmap_regs->clut_data);
+	nubus_writeb(blue,  &csc_cmap_regs->clut_data);
 	return 0;
 }
 

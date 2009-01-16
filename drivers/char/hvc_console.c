@@ -318,7 +318,8 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	} /* else count == 0 */
 
 	tty->driver_data = hp;
-	tty->low_latency = 1; /* Makes flushes to ldisc synchronous. */
+	if (!hp->irq_requested)
+		tty->low_latency = 1; /* Makes flushes to ldisc synchronous. */
 
 	hp->tty = tty;
 
@@ -529,7 +530,7 @@ static void hvc_set_winsz(struct work_struct *work)
 	tty = tty_kref_get(hp->tty);
 	spin_unlock_irqrestore(&hp->lock, hvc_flags);
 
-	tty_do_resize(tty, tty, &ws);
+	tty_do_resize(tty, &ws);
 	tty_kref_put(tty);
 }
 
@@ -642,8 +643,11 @@ int hvc_poll(struct hvc_struct *hp)
 				/* Handle the SysRq Hack */
 				/* XXX should support a sequence */
 				if (buf[i] == '\x0f') {	/* ^O */
-					sysrq_pressed = 1;
-					continue;
+					/* if ^O is pressed again, reset
+					 * sysrq_pressed and flip ^O char */
+					sysrq_pressed = !sysrq_pressed;
+					if (sysrq_pressed)
+						continue;
 				} else if (sysrq_pressed) {
 					handle_sysrq(buf[i], tty);
 					sysrq_pressed = 0;
@@ -689,11 +693,10 @@ EXPORT_SYMBOL_GPL(hvc_poll);
  */
 void hvc_resize(struct hvc_struct *hp, struct winsize ws)
 {
-	if ((hp->ws.ws_row != ws.ws_row) || (hp->ws.ws_col != ws.ws_col)) {
-		hp->ws = ws;
-		schedule_work(&hp->tty_resize);
-	}
+	hp->ws = ws;
+	schedule_work(&hp->tty_resize);
 }
+EXPORT_SYMBOL_GPL(hvc_resize);
 
 /*
  * This kthread is either polling or interrupt driven.  This is determined by
@@ -762,12 +765,10 @@ struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int data,
 			return ERR_PTR(err);
 	}
 
-	hp = kmalloc(ALIGN(sizeof(*hp), sizeof(long)) + outbuf_size,
+	hp = kzalloc(ALIGN(sizeof(*hp), sizeof(long)) + outbuf_size,
 			GFP_KERNEL);
 	if (!hp)
 		return ERR_PTR(-ENOMEM);
-
-	memset(hp, 0x00, sizeof(*hp));
 
 	hp->vtermno = vtermno;
 	hp->data = data;
@@ -874,8 +875,11 @@ static int hvc_init(void)
 		goto stop_thread;
 	}
 
-	/* FIXME: This mb() seems completely random.  Remove it. */
-	mb();
+	/*
+	 * Make sure tty is fully registered before allowing it to be
+	 * found by hvc_console_device.
+	 */
+	smp_mb();
 	hvc_driver = drv;
 	return 0;
 

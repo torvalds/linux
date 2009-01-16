@@ -292,7 +292,7 @@ int __cpuinit mips_clockevent_init(void)
 
 	cd->rating		= 300;
 	cd->irq			= irq;
-	cd->cpumask		= cpumask_of_cpu(cpu);
+	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= mips_next_event;
 	cd->set_mode		= mips_set_clock_mode;
 	cd->event_handler	= mips_event_handler;

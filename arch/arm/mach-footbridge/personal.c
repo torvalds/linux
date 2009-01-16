@@ -4,6 +4,7 @@
  * Personal server (Skiff) machine fixup
  */
 #include <linux/init.h>
+#include <linux/spinlock.h>
 
 #include <asm/hardware/dec21285.h>
 #include <asm/mach-types.h>

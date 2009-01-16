@@ -102,6 +102,7 @@ __init void plat_time_init(void)
 	unsigned int p;
 	unsigned int pow2p;
 
+	pnx8xxx_clockevent.cpumask = cpu_none_mask;
 	clockevents_register_device(&pnx8xxx_clockevent);
 	clocksource_register(&pnx_clocksource);
 

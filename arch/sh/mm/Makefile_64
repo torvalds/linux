@@ -13,6 +13,7 @@ obj-y			+= cache-sh5.o
 endif
 
 obj-y			+= $(mmu-y)
+obj-$(CONFIG_DEBUG_FS)	+= asids-debugfs.o
 
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_NUMA)		+= numa.o

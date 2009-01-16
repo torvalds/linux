@@ -52,12 +52,6 @@
 #define WM8900_DAC_CLKDIV_5_5 0x14
 #define WM8900_DAC_CLKDIV_6   0x18
 
-#define WM8900_
-
-struct wm8900_setup_data {
-	unsigned short i2c_address;
-};
-
 extern struct snd_soc_dai wm8900_dai;
 extern struct snd_soc_codec_device soc_codec_dev_wm8900;
 

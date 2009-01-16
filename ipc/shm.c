@@ -75,7 +75,7 @@ void shm_init_ns(struct ipc_namespace *ns)
 	ns->shm_ctlall = SHMALL;
 	ns->shm_ctlmni = SHMMNI;
 	ns->shm_tot = 0;
-	ipc_init_ids(&ns->ids[IPC_SHM_IDS]);
+	ipc_init_ids(&shm_ids(ns));
 }
 
 /*
@@ -366,7 +366,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	if (shmflg & SHM_HUGETLB) {
 		/* hugetlb_file_setup takes care of mlock user accounting */
 		file = hugetlb_file_setup(name, size);
-		shp->mlock_user = current->user;
+		shp->mlock_user = current_user();
 	} else {
 		int acctflag = VM_ACCOUNT;
 		/*
@@ -440,7 +440,7 @@ static inline int shm_more_checks(struct kern_ipc_perm *ipcp,
 	return 0;
 }
 
-asmlinkage long sys_shmget (key_t key, size_t size, int shmflg)
+SYSCALL_DEFINE3(shmget, key_t, key, size_t, size, int, shmflg)
 {
 	struct ipc_namespace *ns;
 	struct ipc_ops shm_ops;
@@ -621,7 +621,7 @@ out_up:
 	return err;
 }
 
-asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
+SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 {
 	struct shmid_kernel *shp;
 	int err, version;
@@ -644,7 +644,7 @@ asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
 		if (err)
 			return err;
 
-		memset(&shminfo,0,sizeof(shminfo));
+		memset(&shminfo, 0, sizeof(shminfo));
 		shminfo.shmmni = shminfo.shmseg = ns->shm_ctlmni;
 		shminfo.shmmax = ns->shm_ctlmax;
 		shminfo.shmall = ns->shm_ctlall;
@@ -669,7 +669,7 @@ asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
 		if (err)
 			return err;
 
-		memset(&shm_info,0,sizeof(shm_info));
+		memset(&shm_info, 0, sizeof(shm_info));
 		down_read(&shm_ids(ns).rw_mutex);
 		shm_info.used_ids = shm_ids(ns).in_use;
 		shm_get_stat (ns, &shm_info.shm_rss, &shm_info.shm_swp);
@@ -678,7 +678,7 @@ asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
 		shm_info.swap_successes = 0;
 		err = ipc_get_maxid(&shm_ids(ns));
 		up_read(&shm_ids(ns).rw_mutex);
-		if(copy_to_user (buf, &shm_info, sizeof(shm_info))) {
+		if (copy_to_user(buf, &shm_info, sizeof(shm_info))) {
 			err = -EFAULT;
 			goto out;
 		}
@@ -691,11 +691,6 @@ asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
 	{
 		struct shmid64_ds tbuf;
 		int result;
-
-		if (!buf) {
-			err = -EFAULT;
-			goto out;
-		}
 
 		if (cmd == SHM_STAT) {
 			shp = shm_lock(ns, shmid);
@@ -712,7 +707,7 @@ asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
 			}
 			result = 0;
 		}
-		err=-EACCES;
+		err = -EACCES;
 		if (ipcperms (&shp->shm_perm, S_IRUGO))
 			goto out_unlock;
 		err = security_shm_shmctl(shp, cmd);
@@ -747,14 +742,13 @@ asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
 			goto out;
 		}
 
-		err = audit_ipc_obj(&(shp->shm_perm));
-		if (err)
-			goto out_unlock;
+		audit_ipc_obj(&(shp->shm_perm));
 
 		if (!capable(CAP_IPC_LOCK)) {
+			uid_t euid = current_euid();
 			err = -EPERM;
-			if (current->euid != shp->shm_perm.uid &&
-			    current->euid != shp->shm_perm.cuid)
+			if (euid != shp->shm_perm.uid &&
+			    euid != shp->shm_perm.cuid)
 				goto out_unlock;
 			if (cmd == SHM_LOCK &&
 			    !current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur)
@@ -766,7 +760,7 @@ asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
 			goto out_unlock;
 		
 		if(cmd==SHM_LOCK) {
-			struct user_struct * user = current->user;
+			struct user_struct *user = current_user();
 			if (!is_file_hugepages(shp->shm_file)) {
 				err = shmem_lock(shp->shm_file, 1, user);
 				if (!err && !(shp->shm_perm.mode & SHM_LOCKED)){
@@ -945,7 +939,7 @@ out_put_dentry:
 	goto out_nattch;
 }
 
-asmlinkage long sys_shmat(int shmid, char __user *shmaddr, int shmflg)
+SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
 {
 	unsigned long ret;
 	long err;
@@ -961,7 +955,7 @@ asmlinkage long sys_shmat(int shmid, char __user *shmaddr, int shmflg)
  * detach and kill segment if marked destroyed.
  * The work is done in shm_close.
  */
-asmlinkage long sys_shmdt(char __user *shmaddr)
+SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *next;
@@ -996,6 +990,7 @@ asmlinkage long sys_shmdt(char __user *shmaddr)
 	 */
 	vma = find_vma(mm, addr);
 
+#ifdef CONFIG_MMU
 	while (vma) {
 		next = vma->vm_next;
 
@@ -1039,6 +1034,17 @@ asmlinkage long sys_shmdt(char __user *shmaddr)
 			do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
 		vma = next;
 	}
+
+#else /* CONFIG_MMU */
+	/* under NOMMU conditions, the exact address to be destroyed must be
+	 * given */
+	retval = -EINVAL;
+	if (vma->vm_start == addr && vma->vm_ops == &shm_vm_ops) {
+		do_munmap(mm, vma->vm_start, vma->vm_end - vma->vm_start);
+		retval = 0;
+	}
+
+#endif
 
 	up_write(&mm->mmap_sem);
 	return retval;

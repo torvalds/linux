@@ -18,8 +18,8 @@
  */
 
 #ifdef _FW_ENTRY
-	_FW_ENTRY("drx397xD.A2.fw",	DRXD_FW_A2 = 0		),
-	_FW_ENTRY("drx397xD.B1.fw",	DRXD_FW_B1		),
+	_FW_ENTRY("drx397xD.A2.fw",	DRXD_FW_A2 = 0,	DRXD_FW_A2	),
+	_FW_ENTRY("drx397xD.B1.fw",	DRXD_FW_B1,	DRXD_FW_B1	),
 #undef _FW_ENTRY
 #endif /* _FW_ENTRY */
 

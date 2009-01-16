@@ -31,7 +31,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 	if (!new_pgd)
 		goto no_pgd;
 
-	memzero(new_pgd, FIRST_KERNEL_PGD_NR * sizeof(pgd_t));
+	memset(new_pgd, 0, FIRST_KERNEL_PGD_NR * sizeof(pgd_t));
 
 	/*
 	 * Copy over the kernel and IO PGD entries

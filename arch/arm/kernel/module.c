@@ -21,6 +21,7 @@
 #include <linux/string.h>
 
 #include <asm/pgtable.h>
+#include <asm/sections.h>
 
 #ifdef CONFIG_XIP_KERNEL
 /*
@@ -29,9 +30,8 @@
  * MODULES_VADDR is redefined here and not in asm/memory.h to avoid
  * recompiling the whole kernel when CONFIG_XIP_KERNEL is turned on/off.
  */
-extern void _etext;
 #undef MODULES_VADDR
-#define MODULES_VADDR	(((unsigned long)&_etext + ~PGDIR_MASK) & PGDIR_MASK)
+#define MODULES_VADDR	(((unsigned long)_etext + ~PGDIR_MASK) & PGDIR_MASK)
 #endif
 
 #ifdef CONFIG_MMU

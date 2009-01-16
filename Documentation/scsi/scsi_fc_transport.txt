@@ -191,7 +191,7 @@ Vport States:
       This is equivalent to a driver "attach" on an adapter, which is
       independent of the adapter's link state.
     - Instantiation of the vport on the FC link via ELS traffic, etc.
-      This is equivalent to a "link up" and successfull link initialization.
+      This is equivalent to a "link up" and successful link initialization.
   Further information can be found in the interfaces section below for
   Vport Creation.
 
@@ -320,7 +320,7 @@ Vport Creation:
       This is equivalent to a driver "attach" on an adapter, which is
       independent of the adapter's link state.
     - Instantiation of the vport on the FC link via ELS traffic, etc.
-      This is equivalent to a "link up" and successfull link initialization.
+      This is equivalent to a "link up" and successful link initialization.
 
   The LLDD's vport_create() function will not synchronously wait for both
   parts to be fully completed before returning. It must validate that the

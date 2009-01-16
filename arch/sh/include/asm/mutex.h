@@ -5,5 +5,8 @@
  * implementation in place, or pick the atomic_xchg() based generic
  * implementation. (see asm-generic/mutex-xchg.h for details)
  */
-
+#if defined(CONFIG_CPU_SH4A)
+#include <asm/mutex-llsc.h>
+#else
 #include <asm-generic/mutex-dec.h>
+#endif

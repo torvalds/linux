@@ -117,7 +117,7 @@ gss_mech_register(struct gss_api_mech *gm)
 	return 0;
 }
 
-EXPORT_SYMBOL(gss_mech_register);
+EXPORT_SYMBOL_GPL(gss_mech_register);
 
 void
 gss_mech_unregister(struct gss_api_mech *gm)
@@ -129,7 +129,7 @@ gss_mech_unregister(struct gss_api_mech *gm)
 	gss_mech_free(gm);
 }
 
-EXPORT_SYMBOL(gss_mech_unregister);
+EXPORT_SYMBOL_GPL(gss_mech_unregister);
 
 struct gss_api_mech *
 gss_mech_get(struct gss_api_mech *gm)
@@ -138,7 +138,7 @@ gss_mech_get(struct gss_api_mech *gm)
 	return gm;
 }
 
-EXPORT_SYMBOL(gss_mech_get);
+EXPORT_SYMBOL_GPL(gss_mech_get);
 
 struct gss_api_mech *
 gss_mech_get_by_name(const char *name)
@@ -158,7 +158,7 @@ gss_mech_get_by_name(const char *name)
 
 }
 
-EXPORT_SYMBOL(gss_mech_get_by_name);
+EXPORT_SYMBOL_GPL(gss_mech_get_by_name);
 
 static inline int
 mech_supports_pseudoflavor(struct gss_api_mech *gm, u32 pseudoflavor)
@@ -191,7 +191,7 @@ gss_mech_get_by_pseudoflavor(u32 pseudoflavor)
 	return gm;
 }
 
-EXPORT_SYMBOL(gss_mech_get_by_pseudoflavor);
+EXPORT_SYMBOL_GPL(gss_mech_get_by_pseudoflavor);
 
 u32
 gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 service)
@@ -205,7 +205,7 @@ gss_svc_to_pseudoflavor(struct gss_api_mech *gm, u32 service)
 	}
 	return RPC_AUTH_MAXFLAVOR; /* illegal value */
 }
-EXPORT_SYMBOL(gss_svc_to_pseudoflavor);
+EXPORT_SYMBOL_GPL(gss_svc_to_pseudoflavor);
 
 u32
 gss_pseudoflavor_to_service(struct gss_api_mech *gm, u32 pseudoflavor)
@@ -219,7 +219,7 @@ gss_pseudoflavor_to_service(struct gss_api_mech *gm, u32 pseudoflavor)
 	return 0;
 }
 
-EXPORT_SYMBOL(gss_pseudoflavor_to_service);
+EXPORT_SYMBOL_GPL(gss_pseudoflavor_to_service);
 
 char *
 gss_service_to_auth_domain_name(struct gss_api_mech *gm, u32 service)
@@ -233,7 +233,7 @@ gss_service_to_auth_domain_name(struct gss_api_mech *gm, u32 service)
 	return NULL;
 }
 
-EXPORT_SYMBOL(gss_service_to_auth_domain_name);
+EXPORT_SYMBOL_GPL(gss_service_to_auth_domain_name);
 
 void
 gss_mech_put(struct gss_api_mech * gm)
@@ -242,7 +242,7 @@ gss_mech_put(struct gss_api_mech * gm)
 		module_put(gm->gm_owner);
 }
 
-EXPORT_SYMBOL(gss_mech_put);
+EXPORT_SYMBOL_GPL(gss_mech_put);
 
 /* The mech could probably be determined from the token instead, but it's just
  * as easy for now to pass it in. */

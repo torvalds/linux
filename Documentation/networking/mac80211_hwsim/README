@@ -50,10 +50,6 @@ associates with the AP. hostapd and wpa_supplicant are used to take
 care of WPA2-PSK authentication. In addition, hostapd is also
 processing access point side of association.
 
-Please note that the current Linux kernel does not enable AP mode, so a
-simple patch is needed to enable AP mode selection:
-http://johannes.sipsolutions.net/patches/kernel/all/LATEST/006-allow-ap-vlan-modes.patch
-
 
 # Build mac80211_hwsim as part of kernel configuration
 
@@ -65,3 +61,8 @@ hostapd hostapd.conf
 
 # Run wpa_supplicant (station) for wlan1
 wpa_supplicant -Dwext -iwlan1 -c wpa_supplicant.conf
+
+
+More test cases are available in hostap.git:
+git://w1.fi/srv/git/hostap.git and mac80211_hwsim/tests subdirectory
+(http://w1.fi/gitweb/gitweb.cgi?p=hostap.git;a=tree;f=mac80211_hwsim/tests)

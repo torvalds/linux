@@ -142,7 +142,6 @@ void lmc_proto_netif(lmc_softc_t *sc, struct sk_buff *skb) /*FOLD00*/
     case LMC_PPP:
     case LMC_NET:
     default:
-        skb->dev->last_rx = jiffies;
         netif_rx(skb);
         break;
     case LMC_RAW:

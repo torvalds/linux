@@ -30,10 +30,11 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/wireless.h>
+#include <linux/ieee80211.h>
+#include <linux/if_arp.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <net/iw_handler.h>
-#include <net/ieee80211.h>
 
 #include <linux/dma-mapping.h>
 #include <net/checksum.h>
@@ -449,9 +450,9 @@ static size_t gelic_wl_synthesize_ie(u8 *buf,
 
 	/* element id */
 	if (rsn)
-		*buf++ = MFIE_TYPE_RSN;
+		*buf++ = WLAN_EID_RSN;
 	else
-		*buf++ = MFIE_TYPE_GENERIC;
+		*buf++ = WLAN_EID_GENERIC;
 
 	/* length filed; set later */
 	buf++;
@@ -539,7 +540,7 @@ static void gelic_wl_parse_ie(u8 *data, size_t len,
 			break;
 
 		switch (item_id) {
-		case MFIE_TYPE_GENERIC:
+		case WLAN_EID_GENERIC:
 			if ((OUI_LEN + 1 <= item_len) &&
 			    !memcmp(pos, wpa_oui, OUI_LEN) &&
 			    pos[OUI_LEN] == 0x01) {
@@ -547,7 +548,7 @@ static void gelic_wl_parse_ie(u8 *data, size_t len,
 				ie_info->wpa.len = item_len + 2;
 			}
 			break;
-		case MFIE_TYPE_RSN:
+		case WLAN_EID_RSN:
 			ie_info->rsn.data = pos - 2;
 			/* length includes the header */
 			ie_info->rsn.len = item_len + 2;
@@ -581,7 +582,7 @@ static char *gelic_wl_translate_scan(struct net_device *netdev,
 	char *tmp;
 	u8 rate;
 	unsigned int i, j, len;
-	u8 buf[MAX_WPA_IE_LEN];
+	u8 buf[64]; /* arbitrary size large enough */
 
 	pr_debug("%s: <-\n", __func__);
 
@@ -763,7 +764,6 @@ static void scan_list_dump(struct gelic_wl_info *wl)
 {
 	struct gelic_wl_scan_info *scan_info;
 	int i;
-	DECLARE_MAC_BUF(mac);
 
 	i = 0;
 	list_for_each_entry(scan_info, &wl->network_list, list) {
@@ -775,8 +775,7 @@ static void scan_list_dump(struct gelic_wl_info *wl)
 			 scan_info->rate_len, scan_info->rate_ext_len,
 			 scan_info->essid_len);
 		/* -- */
-		pr_debug("bssid=%s\n",
-			 print_mac(mac, &scan_info->hwinfo->bssid[2]));
+		pr_debug("bssid=%pM\n", &scan_info->hwinfo->bssid[2]);
 		pr_debug("essid=%s\n", scan_info->hwinfo->essid);
 	}
 }
@@ -1167,11 +1166,7 @@ static int gelic_wl_set_ap(struct net_device *netdev,
 		       ETH_ALEN);
 		set_bit(GELIC_WL_STAT_BSSID_SET, &wl->stat);
 		set_bit(GELIC_WL_STAT_CONFIGURED, &wl->stat);
-		pr_debug("%s: bss=%02x:%02x:%02x:%02x:%02x:%02x\n",
-			 __func__,
-			 wl->bssid[0], wl->bssid[1],
-			 wl->bssid[2], wl->bssid[3],
-			 wl->bssid[4], wl->bssid[5]);
+		pr_debug("%s: bss=%pM\n", __func__, wl->bssid);
 	} else {
 		pr_debug("%s: clear bssid\n", __func__);
 		clear_bit(GELIC_WL_STAT_BSSID_SET, &wl->stat);
@@ -1632,7 +1627,6 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 	unsigned long this_time = jiffies;
 	unsigned int data_len, i, found, r;
 	void *buf;
-	DECLARE_MAC_BUF(mac);
 
 	pr_debug("%s:start\n", __func__);
 	mutex_lock(&wl->scan_lock);
@@ -1684,9 +1678,9 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 	     scan_info_size < data_len;
 	     i++, scan_info_size += be16_to_cpu(scan_info->size),
 	     scan_info = (void *)scan_info + be16_to_cpu(scan_info->size)) {
-		pr_debug("%s:size=%d bssid=%s scan_info=%p\n", __func__,
+		pr_debug("%s:size=%d bssid=%pM scan_info=%p\n", __func__,
 			 be16_to_cpu(scan_info->size),
-			 print_mac(mac, &scan_info->bssid[2]), scan_info);
+			 &scan_info->bssid[2], scan_info);
 
 		/*
 		 * The wireless firmware may return invalid channel 0 and/or
@@ -1741,14 +1735,14 @@ static void gelic_wl_scan_complete_event(struct gelic_wl_info *wl)
 		target->essid_len = strnlen(scan_info->essid,
 					    sizeof(scan_info->essid));
 		target->rate_len = 0;
-		for (r = 0; r < MAX_RATES_LENGTH; r++)
+		for (r = 0; r < 12; r++)
 			if (scan_info->rate[r])
 				target->rate_len++;
 		if (8 < target->rate_len)
 			pr_info("%s: AP returns %d rates\n", __func__,
 				target->rate_len);
 		target->rate_ext_len = 0;
-		for (r = 0; r < MAX_RATES_EX_LENGTH; r++)
+		for (r = 0; r < 16; r++)
 			if (scan_info->ext_rate[r])
 				target->rate_ext_len++;
 		list_move_tail(&target->list, &wl->network_list);
@@ -1787,7 +1781,6 @@ struct gelic_wl_scan_info *gelic_wl_find_best_bss(struct gelic_wl_info *wl)
 	struct gelic_wl_scan_info *best_bss;
 	int weight, best_weight;
 	u16 security;
-	DECLARE_MAC_BUF(mac);
 
 	pr_debug("%s: <-\n", __func__);
 
@@ -1857,8 +1850,8 @@ struct gelic_wl_scan_info *gelic_wl_find_best_bss(struct gelic_wl_info *wl)
 #ifdef DEBUG
 	pr_debug("%s: -> bss=%p\n", __func__, best_bss);
 	if (best_bss) {
-		pr_debug("%s:addr=%s\n", __func__,
-			 print_mac(mac, &best_bss->hwinfo->bssid[2]));
+		pr_debug("%s:addr=%pM\n", __func__,
+			 &best_bss->hwinfo->bssid[2]);
 	}
 #endif
 	return best_bss;

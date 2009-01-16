@@ -59,20 +59,9 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 			     : : : "memory"); \
 } while (0)
 
-#define mb()	\
-	membar_safe("#LoadLoad | #LoadStore | #StoreStore | #StoreLoad")
-#define rmb()	\
-	membar_safe("#LoadLoad")
-#define wmb()	\
-	membar_safe("#StoreStore")
-#define membar_storeload() \
-	membar_safe("#StoreLoad")
-#define membar_storeload_storestore() \
-	membar_safe("#StoreLoad | #StoreStore")
-#define membar_storeload_loadload() \
-	membar_safe("#StoreLoad | #LoadLoad")
-#define membar_storestore_loadstore() \
-	membar_safe("#StoreStore | #LoadStore")
+#define mb()	membar_safe("#StoreLoad")
+#define rmb()	__asm__ __volatile__("":::"memory")
+#define wmb()	__asm__ __volatile__("":::"memory")
 
 #endif
 
@@ -80,19 +69,19 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
 
 #define read_barrier_depends()		do { } while(0)
 #define set_mb(__var, __value) \
-	do { __var = __value; membar_storeload_storestore(); } while(0)
+	do { __var = __value; membar_safe("#StoreLoad"); } while(0)
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
 #define smp_wmb()	wmb()
-#define smp_read_barrier_depends()	read_barrier_depends()
 #else
 #define smp_mb()	__asm__ __volatile__("":::"memory")
 #define smp_rmb()	__asm__ __volatile__("":::"memory")
 #define smp_wmb()	__asm__ __volatile__("":::"memory")
-#define smp_read_barrier_depends()	do { } while(0)
 #endif
+
+#define smp_read_barrier_depends()	do { } while(0)
 
 #define flushi(addr)	__asm__ __volatile__ ("flush %0" : : "r" (addr) : "memory")
 
@@ -107,11 +96,12 @@ do {	__asm__ __volatile__("ba,pt	%%xcc, 1f\n\t" \
  * arch/sparc64/kernel/smp.c:smp_percpu_timer_interrupt()
  * for more information.
  */
-#define reset_pic()    						\
-	__asm__ __volatile__("ba,pt	%xcc, 99f\n\t"		\
+#define write_pic(__p)  					\
+	__asm__ __volatile__("ba,pt	%%xcc, 99f\n\t"		\
 			     ".align	64\n"			\
-			  "99:wr	%g0, 0x0, %pic\n\t"	\
-			     "rd	%pic, %g0")
+			  "99:wr	%0, 0x0, %%pic\n\t"	\
+			     "rd	%%pic, %%g0" : : "r" (__p))
+#define reset_pic()	write_pic(0)
 
 #ifndef __ASSEMBLY__
 
@@ -170,6 +160,7 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	"stb	%%o5, [%%g6 + %5]\n\t"					\
 	"rdpr	%%cwp, %%o5\n\t"					\
 	"stb	%%o5, [%%g6 + %8]\n\t"					\
+	"wrpr	%%g0, 15, %%pil\n\t"					\
 	"mov	%4, %%g6\n\t"						\
 	"ldub	[%4 + %8], %%g1\n\t"					\
 	"wrpr	%%g1, %%cwp\n\t"					\
@@ -180,6 +171,7 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	"ldx	[%%sp + 2047 + 0x70], %%i6\n\t"				\
 	"ldx	[%%sp + 2047 + 0x78], %%i7\n\t"				\
 	"ldx	[%%g6 + %9], %%g4\n\t"					\
+	"wrpr	%%g0, 14, %%pil\n\t"					\
 	"brz,pt %%o7, switch_to_pc\n\t"					\
 	" mov	%%g7, %0\n\t"						\
 	"sethi	%%hi(ret_from_syscall), %%g1\n\t"			\
@@ -209,14 +201,12 @@ static inline unsigned long xchg32(__volatile__ unsigned int *m, unsigned int va
 	unsigned long tmp1, tmp2;
 
 	__asm__ __volatile__(
-"	membar		#StoreLoad | #LoadLoad\n"
 "	mov		%0, %1\n"
 "1:	lduw		[%4], %2\n"
 "	cas		[%4], %2, %0\n"
 "	cmp		%2, %0\n"
 "	bne,a,pn	%%icc, 1b\n"
 "	 mov		%1, %0\n"
-"	membar		#StoreLoad | #StoreStore\n"
 	: "=&r" (val), "=&r" (tmp1), "=&r" (tmp2)
 	: "0" (val), "r" (m)
 	: "cc", "memory");
@@ -228,14 +218,12 @@ static inline unsigned long xchg64(__volatile__ unsigned long *m, unsigned long 
 	unsigned long tmp1, tmp2;
 
 	__asm__ __volatile__(
-"	membar		#StoreLoad | #LoadLoad\n"
 "	mov		%0, %1\n"
 "1:	ldx		[%4], %2\n"
 "	casx		[%4], %2, %0\n"
 "	cmp		%2, %0\n"
 "	bne,a,pn	%%xcc, 1b\n"
 "	 mov		%1, %0\n"
-"	membar		#StoreLoad | #StoreStore\n"
 	: "=&r" (val), "=&r" (tmp1), "=&r" (tmp2)
 	: "0" (val), "r" (m)
 	: "cc", "memory");
@@ -272,9 +260,7 @@ extern void die_if_kernel(char *str, struct pt_regs *regs) __attribute__ ((noret
 static inline unsigned long
 __cmpxchg_u32(volatile int *m, int old, int new)
 {
-	__asm__ __volatile__("membar #StoreLoad | #LoadLoad\n"
-			     "cas [%2], %3, %0\n\t"
-			     "membar #StoreLoad | #StoreStore"
+	__asm__ __volatile__("cas [%2], %3, %0"
 			     : "=&r" (new)
 			     : "0" (new), "r" (m), "r" (old)
 			     : "memory");
@@ -285,9 +271,7 @@ __cmpxchg_u32(volatile int *m, int old, int new)
 static inline unsigned long
 __cmpxchg_u64(volatile long *m, unsigned long old, unsigned long new)
 {
-	__asm__ __volatile__("membar #StoreLoad | #LoadLoad\n"
-			     "casx [%2], %3, %0\n\t"
-			     "membar #StoreLoad | #StoreStore"
+	__asm__ __volatile__("casx [%2], %3, %0"
 			     : "=&r" (new)
 			     : "0" (new), "r" (m), "r" (old)
 			     : "memory");

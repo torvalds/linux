@@ -16,11 +16,6 @@
 #include <linux/sysdev.h>
 #include <mach/hardware.h>
 
-/*
- * This is the maximum DMA address(physical address) that can be DMAd to.
- *
- */
-#define MAX_DMA_ADDRESS		0x40000000
 #define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
 
 /* We use `virtual` dma channels to hide the fact we have only a limited
@@ -254,7 +249,7 @@ typedef unsigned long dma_device_t;
  * request a dma channel exclusivley
 */
 
-extern int s3c2410_dma_request(dmach_t channel,
+extern int s3c2410_dma_request(unsigned int channel,
 			       struct s3c2410_dma_client *, void *dev);
 
 
@@ -263,14 +258,14 @@ extern int s3c2410_dma_request(dmach_t channel,
  * change the state of the dma channel
 */
 
-extern int s3c2410_dma_ctrl(dmach_t channel, enum s3c2410_chan_op op);
+extern int s3c2410_dma_ctrl(unsigned int channel, enum s3c2410_chan_op op);
 
 /* s3c2410_dma_setflags
  *
  * set the channel's flags to a given state
 */
 
-extern int s3c2410_dma_setflags(dmach_t channel,
+extern int s3c2410_dma_setflags(unsigned int channel,
 				unsigned int flags);
 
 /* s3c2410_dma_free
@@ -278,7 +273,7 @@ extern int s3c2410_dma_setflags(dmach_t channel,
  * free the dma channel (will also abort any outstanding operations)
 */
 
-extern int s3c2410_dma_free(dmach_t channel, struct s3c2410_dma_client *);
+extern int s3c2410_dma_free(unsigned int channel, struct s3c2410_dma_client *);
 
 /* s3c2410_dma_enqueue
  *
@@ -287,7 +282,7 @@ extern int s3c2410_dma_free(dmach_t channel, struct s3c2410_dma_client *);
  * drained before the buffer is given to the DMA system.
 */
 
-extern int s3c2410_dma_enqueue(dmach_t channel, void *id,
+extern int s3c2410_dma_enqueue(unsigned int channel, void *id,
 			       dma_addr_t data, int size);
 
 /* s3c2410_dma_config
@@ -295,7 +290,7 @@ extern int s3c2410_dma_enqueue(dmach_t channel, void *id,
  * configure the dma channel
 */
 
-extern int s3c2410_dma_config(dmach_t channel, int xferunit, int dcon);
+extern int s3c2410_dma_config(unsigned int channel, int xferunit, int dcon);
 
 /* s3c2410_dma_devconfig
  *
@@ -310,11 +305,11 @@ extern int s3c2410_dma_devconfig(int channel, enum s3c2410_dmasrc source,
  * get the position that the dma transfer is currently at
 */
 
-extern int s3c2410_dma_getposition(dmach_t channel,
+extern int s3c2410_dma_getposition(unsigned int channel,
 				   dma_addr_t *src, dma_addr_t *dest);
 
-extern int s3c2410_dma_set_opfn(dmach_t, s3c2410_dma_opfn_t rtn);
-extern int s3c2410_dma_set_buffdone_fn(dmach_t, s3c2410_dma_cbfn_t rtn);
+extern int s3c2410_dma_set_opfn(unsigned int, s3c2410_dma_opfn_t rtn);
+extern int s3c2410_dma_set_buffdone_fn(unsigned int, s3c2410_dma_cbfn_t rtn);
 
 /* DMA Register definitions */
 

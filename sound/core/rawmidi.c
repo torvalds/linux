@@ -151,7 +151,7 @@ static inline void snd_rawmidi_output_trigger(struct snd_rawmidi_substream *subs
 	if (!substream->opened)
 		return;
 	if (up) {
-		tasklet_hi_schedule(&substream->runtime->tasklet);
+		tasklet_schedule(&substream->runtime->tasklet);
 	} else {
 		tasklet_kill(&substream->runtime->tasklet);
 		substream->ops->trigger(substream, 0);
@@ -908,7 +908,7 @@ int snd_rawmidi_receive(struct snd_rawmidi_substream *substream,
 	}
 	if (result > 0) {
 		if (runtime->event)
-			tasklet_hi_schedule(&runtime->tasklet);
+			tasklet_schedule(&runtime->tasklet);
 		else if (snd_rawmidi_ready(substream))
 			wake_up(&runtime->sleep);
 	}

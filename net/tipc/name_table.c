@@ -555,7 +555,7 @@ static struct name_seq *nametbl_find_seq(u32 type)
 	struct name_seq *ns;
 
 	dbg("find_seq %u,(%u,0x%x) table = %p, hash[type] = %u\n",
-	    type, ntohl(type), type, table.types, hash(type));
+	    type, htonl(type), type, table.types, hash(type));
 
 	seq_head = &table.types[hash(type)];
 	hlist_for_each_entry(ns, seq_node, seq_head, ns_list) {

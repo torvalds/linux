@@ -120,9 +120,17 @@ void __cpuinit detect_extended_topology(struct cpuinfo_x86 *c)
 	c->cpu_core_id = phys_pkg_id(c->initial_apicid, ht_mask_width)
 						 & core_select_mask;
 	c->phys_proc_id = phys_pkg_id(c->initial_apicid, core_plus_mask_width);
+	/*
+	 * Reinit the apicid, now that we have extended initial_apicid.
+	 */
+	c->apicid = phys_pkg_id(c->initial_apicid, 0);
 #else
 	c->cpu_core_id = phys_pkg_id(ht_mask_width) & core_select_mask;
 	c->phys_proc_id = phys_pkg_id(core_plus_mask_width);
+	/*
+	 * Reinit the apicid, now that we have extended initial_apicid.
+	 */
+	c->apicid = phys_pkg_id(0);
 #endif
 	c->x86_max_cores = (core_level_siblings / smp_num_siblings);
 

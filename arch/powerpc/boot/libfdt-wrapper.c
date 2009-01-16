@@ -185,7 +185,7 @@ void fdt_init(void *blob)
 
 	/* Make sure the dt blob is the right version and so forth */
 	fdt = blob;
-	bufsize = fdt_totalsize(fdt) + 4;
+	bufsize = fdt_totalsize(fdt) + EXPAND_GRANULARITY;
 	buf = malloc(bufsize);
 	if(!buf)
 		fatal("malloc failed. can't relocate the device tree\n\r");

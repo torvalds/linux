@@ -85,7 +85,9 @@
 /* AMD64 MSRs. Not complete. See the architecture manual for a more
    complete list. */
 
+#define MSR_AMD64_PATCH_LEVEL		0x0000008b
 #define MSR_AMD64_NB_CFG		0xc001001f
+#define MSR_AMD64_PATCH_LOADER		0xc0010020
 #define MSR_AMD64_IBSFETCHCTL		0xc0011030
 #define MSR_AMD64_IBSFETCHLINAD		0xc0011031
 #define MSR_AMD64_IBSFETCHPHYSAD	0xc0011032

@@ -11,7 +11,8 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
+#include <linux/string.h>
+#include <linux/thread_info.h>
 #include <asm/errno.h>
 #include <asm/memory.h>
 #include <asm/domain.h>
@@ -400,7 +401,7 @@ static inline unsigned long __must_check copy_from_user(void *to, const void __u
 	if (access_ok(VERIFY_READ, from, n))
 		n = __copy_from_user(to, from, n);
 	else /* security hole - plug it */
-		memzero(to, n);
+		memset(to, 0, n);
 	return n;
 }
 

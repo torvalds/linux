@@ -407,6 +407,7 @@ out:
 static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		    int type, int code, int offset, __be32 info)
 {
+	struct net *net = dev_net(skb->dev);
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
 	struct ip_auth_hdr *ah = (struct ip_auth_hdr*)(skb->data+offset);
 	struct xfrm_state *x;
@@ -415,12 +416,12 @@ static void ah6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	    type != ICMPV6_PKT_TOOBIG)
 		return;
 
-	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, ah->spi, IPPROTO_AH, AF_INET6);
+	x = xfrm_state_lookup(net, (xfrm_address_t *)&iph->daddr, ah->spi, IPPROTO_AH, AF_INET6);
 	if (!x)
 		return;
 
-	NETDEBUG(KERN_DEBUG "pmtu discovery on SA AH/%08x/" NIP6_FMT "\n",
-		 ntohl(ah->spi), NIP6(iph->daddr));
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA AH/%08x/%pI6\n",
+		 ntohl(ah->spi), &iph->daddr);
 
 	xfrm_state_put(x);
 }
@@ -509,9 +510,7 @@ static void ah6_destroy(struct xfrm_state *x)
 		return;
 
 	kfree(ahp->work_icv);
-	ahp->work_icv = NULL;
 	crypto_free_hash(ahp->tfm);
-	ahp->tfm = NULL;
 	kfree(ahp);
 }
 

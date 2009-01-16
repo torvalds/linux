@@ -226,9 +226,13 @@ struct radeon_virt_surface {
 #define RADEON_FLUSH_EMITED	(1 < 0)
 #define RADEON_PURGE_EMITED	(1 < 1)
 
+struct drm_radeon_master_private {
+	drm_local_map_t *sarea;
+	drm_radeon_sarea_t *sarea_priv;
+};
+
 typedef struct drm_radeon_private {
 	drm_radeon_ring_buffer_t ring;
-	drm_radeon_sarea_t *sarea_priv;
 
 	u32 fb_location;
 	u32 fb_size;
@@ -409,6 +413,9 @@ extern int radeon_driver_open(struct drm_device *dev,
 extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
 
+extern int radeon_master_create(struct drm_device *dev, struct drm_master *master);
+extern void radeon_master_destroy(struct drm_device *dev, struct drm_master *master);
+extern void radeon_cp_dispatch_flip(struct drm_device *dev, struct drm_master *master);
 /* r300_cmdbuf.c */
 extern void r300_init_reg_flags(struct drm_device *dev);
 
@@ -1335,8 +1342,9 @@ do {									\
 } while (0)
 
 #define VB_AGE_TEST_WITH_RETURN( dev_priv )				\
-do {									\
-	drm_radeon_sarea_t *sarea_priv = dev_priv->sarea_priv;		\
+do {								\
+	struct drm_radeon_master_private *master_priv = file_priv->master->driver_priv;	\
+	drm_radeon_sarea_t *sarea_priv = master_priv->sarea_priv;	\
 	if ( sarea_priv->last_dispatch >= RADEON_MAX_VB_AGE ) {		\
 		int __ret = radeon_do_cp_idle( dev_priv );		\
 		if ( __ret ) return __ret;				\

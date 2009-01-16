@@ -172,6 +172,12 @@ xfs_dir_ialloc(
 			*ipp = NULL;
 			return code;
 		}
+
+		/*
+		 * transaction commit worked ok so we can drop the extra ticket
+		 * reference that we gained in xfs_trans_dup()
+		 */
+		xfs_log_ticket_put(tp->t_ticket);
 		code = xfs_trans_reserve(tp, 0, log_res, 0,
 					 XFS_TRANS_PERM_LOG_RES, log_count);
 		/*
@@ -268,9 +274,9 @@ xfs_bump_ino_vers2(
 	xfs_mount_t	*mp;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	ASSERT(ip->i_d.di_version == XFS_DINODE_VERSION_1);
+	ASSERT(ip->i_d.di_version == 1);
 
-	ip->i_d.di_version = XFS_DINODE_VERSION_2;
+	ip->i_d.di_version = 2;
 	ip->i_d.di_onlink = 0;
 	memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 	mp = tp->t_mountp;
@@ -302,7 +308,7 @@ xfs_bumplink(
 	ASSERT(ip->i_d.di_nlink > 0);
 	ip->i_d.di_nlink++;
 	inc_nlink(VFS_I(ip));
-	if ((ip->i_d.di_version == XFS_DINODE_VERSION_1) &&
+	if ((ip->i_d.di_version == 1) &&
 	    (ip->i_d.di_nlink > XFS_MAXLINK_1)) {
 		/*
 		 * The inode has increased its number of links beyond

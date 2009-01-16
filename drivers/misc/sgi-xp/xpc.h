@@ -181,6 +181,18 @@ struct xpc_vars_part_sn2 {
 				  xpc_nasid_mask_nlongs))
 
 /*
+ * Info pertinent to a GRU message queue using a watch list for irq generation.
+ */
+struct xpc_gru_mq_uv {
+	void *address;		/* address of GRU message queue */
+	unsigned int order;	/* size of GRU message queue as a power of 2 */
+	int irq;		/* irq raised when message is received in mq */
+	int mmr_blade;		/* blade where watchlist was allocated from */
+	unsigned long mmr_offset; /* offset of irq mmr located on mmr_blade */
+	int watchlist_num;	/* number of watchlist allocatd by BIOS */
+};
+
+/*
  * The activate_mq is used to send/receive GRU messages that affect XPC's
  * heartbeat, partition active state, and channel state. This is UV only.
  */

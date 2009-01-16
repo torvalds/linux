@@ -113,7 +113,30 @@ typedef struct _drm_i915_sarea {
 	int pipeB_y;
 	int pipeB_w;
 	int pipeB_h;
+
+	/* fill out some space for old userspace triple buffer */
+	drm_handle_t unused_handle;
+	uint32_t unused1, unused2, unused3;
+
+	/* buffer object handles for static buffers. May change
+	 * over the lifetime of the client.
+	 */
+	uint32_t front_bo_handle;
+	uint32_t back_bo_handle;
+	uint32_t unused_bo_handle;
+	uint32_t depth_bo_handle;
+
 } drm_i915_sarea_t;
+
+/* due to userspace building against these headers we need some compat here */
+#define planeA_x pipeA_x
+#define planeA_y pipeA_y
+#define planeA_w pipeA_w
+#define planeA_h pipeA_h
+#define planeB_x pipeB_x
+#define planeB_y pipeB_y
+#define planeB_w pipeB_w
+#define planeB_h pipeB_h
 
 /* Flags for perf_boxes
  */
@@ -160,6 +183,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_SET_TILING	0x21
 #define DRM_I915_GEM_GET_TILING	0x22
 #define DRM_I915_GEM_GET_APERTURE 0x23
+#define DRM_I915_GEM_MMAP_GTT	0x24
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -177,6 +201,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_SET_VBLANK_PIPE	DRM_IOW( DRM_COMMAND_BASE + DRM_I915_SET_VBLANK_PIPE, drm_i915_vblank_pipe_t)
 #define DRM_IOCTL_I915_GET_VBLANK_PIPE	DRM_IOR( DRM_COMMAND_BASE + DRM_I915_GET_VBLANK_PIPE, drm_i915_vblank_pipe_t)
 #define DRM_IOCTL_I915_VBLANK_SWAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_VBLANK_SWAP, drm_i915_vblank_swap_t)
+#define DRM_IOCTL_I915_GEM_INIT		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_INIT, struct drm_i915_gem_init)
+#define DRM_IOCTL_I915_GEM_EXECBUFFER	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER, struct drm_i915_gem_execbuffer)
 #define DRM_IOCTL_I915_GEM_PIN		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_PIN, struct drm_i915_gem_pin)
 #define DRM_IOCTL_I915_GEM_UNPIN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_UNPIN, struct drm_i915_gem_unpin)
 #define DRM_IOCTL_I915_GEM_BUSY		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_BUSY, struct drm_i915_gem_busy)
@@ -187,6 +213,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_PREAD	DRM_IOW (DRM_COMMAND_BASE + DRM_I915_GEM_PREAD, struct drm_i915_gem_pread)
 #define DRM_IOCTL_I915_GEM_PWRITE	DRM_IOW (DRM_COMMAND_BASE + DRM_I915_GEM_PWRITE, struct drm_i915_gem_pwrite)
 #define DRM_IOCTL_I915_GEM_MMAP		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_MMAP, struct drm_i915_gem_mmap)
+#define DRM_IOCTL_I915_GEM_MMAP_GTT	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_MMAP_GTT, struct drm_i915_gem_mmap_gtt)
 #define DRM_IOCTL_I915_GEM_SET_DOMAIN	DRM_IOW (DRM_COMMAND_BASE + DRM_I915_GEM_SET_DOMAIN, struct drm_i915_gem_set_domain)
 #define DRM_IOCTL_I915_GEM_SW_FINISH	DRM_IOW (DRM_COMMAND_BASE + DRM_I915_GEM_SW_FINISH, struct drm_i915_gem_sw_finish)
 #define DRM_IOCTL_I915_GEM_SET_TILING	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_SET_TILING, struct drm_i915_gem_set_tiling)
@@ -196,7 +223,7 @@ typedef struct _drm_i915_sarea {
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
  */
-typedef struct _drm_i915_batchbuffer {
+typedef struct drm_i915_batchbuffer {
 	int start;		/* agp offset */
 	int used;		/* nr bytes in use */
 	int DR1;		/* hw flags for GFX_OP_DRAWRECT_INFO */
@@ -380,6 +407,18 @@ struct drm_i915_gem_mmap {
 	 * This is a fixed-size type for 32/64 compatibility.
 	 */
 	uint64_t addr_ptr;
+};
+
+struct drm_i915_gem_mmap_gtt {
+	/** Handle for the object being mapped. */
+	uint32_t handle;
+	uint32_t pad;
+	/**
+	 * Fake offset to use for subsequent mmap call
+	 *
+	 * This is a fixed-size type for 32/64 compatibility.
+	 */
+	uint64_t offset;
 };
 
 struct drm_i915_gem_set_domain {

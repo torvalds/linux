@@ -116,7 +116,6 @@ static void oldpiix_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	oldpiix_set_dmamode - Initialize host controller PATA DMA timings
  *	@ap: Port whose timings we are configuring
  *	@adev: Device to program
- *	@isich: True if the device is an ICH and has IOCFG registers
  *
  *	Set MWDMA mode for device, in host controller PCI config space.
  *

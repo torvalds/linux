@@ -48,6 +48,7 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <mach/pxa-regs.h>
+#include <mach/regs-uart.h>
 
 
 struct uart_pxa_port {
@@ -766,7 +767,7 @@ static int serial_pxa_probe(struct platform_device *dev)
 	if (!sport)
 		return -ENOMEM;
 
-	sport->clk = clk_get(&dev->dev, "UARTCLK");
+	sport->clk = clk_get(&dev->dev, NULL);
 	if (IS_ERR(sport->clk)) {
 		ret = PTR_ERR(sport->clk);
 		goto err_free;

@@ -84,7 +84,7 @@ static int decode_vps(u8 * dst, u8 * p)
 
 int cx25840_vbi(struct i2c_client *client, unsigned int cmd, void *arg)
 {
-	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
 	struct v4l2_format *fmt;
 	struct v4l2_sliced_vbi_format *svbi;
 

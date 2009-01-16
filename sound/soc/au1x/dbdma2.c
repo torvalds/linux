@@ -187,7 +187,7 @@ static int au1x_pcm_dbdma_realloc(struct au1xpsc_audio_dmadata *pcd,
 					au1x_pcm_dmatx_cb, (void *)pcd);
 
 	if (!pcd->ddma_chan)
-		return -ENOMEM;;
+		return -ENOMEM;
 
 	au1xxx_dbdma_set_devwidth(pcd->ddma_chan, msbits);
 	au1xxx_dbdma_ring_alloc(pcd->ddma_chan, 2);
@@ -406,11 +406,12 @@ static int __init au1xpsc_audio_dbdma_init(void)
 {
 	au1xpsc_audio_pcmdma[PCM_TX] = NULL;
 	au1xpsc_audio_pcmdma[PCM_RX] = NULL;
-	return 0;
+	return snd_soc_register_platform(&au1xpsc_soc_platform);
 }
 
 static void __exit au1xpsc_audio_dbdma_exit(void)
 {
+	snd_soc_unregister_platform(&au1xpsc_soc_platform);
 }
 
 module_init(au1xpsc_audio_dbdma_init);

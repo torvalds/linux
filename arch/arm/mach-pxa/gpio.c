@@ -25,6 +25,18 @@
 
 #include "generic.h"
 
+#define GPIO0_BASE	((void __iomem *)io_p2v(0x40E00000))
+#define GPIO1_BASE	((void __iomem *)io_p2v(0x40E00004))
+#define GPIO2_BASE	((void __iomem *)io_p2v(0x40E00008))
+#define GPIO3_BASE	((void __iomem *)io_p2v(0x40E00100))
+
+#define GPLR_OFFSET	0x00
+#define GPDR_OFFSET	0x0C
+#define GPSR_OFFSET	0x18
+#define GPCR_OFFSET	0x24
+#define GRER_OFFSET	0x30
+#define GFER_OFFSET	0x3C
+#define GEDR_OFFSET	0x48
 
 struct pxa_gpio_chip {
 	struct gpio_chip chip;
@@ -32,6 +44,18 @@ struct pxa_gpio_chip {
 };
 
 int pxa_last_gpio;
+
+#ifdef CONFIG_CPU_PXA26x
+/* GPIO86/87/88/89 on PXA26x have their direction bits in GPDR2 inverted,
+ * as well as their Alternate Function value being '1' for GPIO in GAFRx.
+ */
+static int __gpio_is_inverted(unsigned gpio)
+{
+	return cpu_is_pxa25x() && gpio > 85;
+}
+#else
+#define __gpio_is_inverted(gpio)	(0)
+#endif
 
 /*
  * Configure pins for GPIO or other functions
@@ -75,7 +99,10 @@ static int pxa_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	gpdr = pxa->regbase + GPDR_OFFSET;
 	local_irq_save(flags);
 	value = __raw_readl(gpdr);
-	value &= ~mask;
+	if (__gpio_is_inverted(chip->base + offset))
+		value |= mask;
+	else
+		value &= ~mask;
 	__raw_writel(value, gpdr);
 	local_irq_restore(flags);
 
@@ -97,7 +124,10 @@ static int pxa_gpio_direction_output(struct gpio_chip *chip,
 	gpdr = pxa->regbase + GPDR_OFFSET;
 	local_irq_save(flags);
 	tmp = __raw_readl(gpdr);
-	tmp |= mask;
+	if (__gpio_is_inverted(chip->base + offset))
+		tmp &= ~mask;
+	else
+		tmp |= mask;
 	__raw_writel(tmp, gpdr);
 	local_irq_restore(flags);
 
@@ -173,10 +203,17 @@ static unsigned long GPIO_IRQ_mask[4];
  */
 static int __gpio_is_occupied(unsigned gpio)
 {
-	if (cpu_is_pxa25x() || cpu_is_pxa27x())
-		return GAFR(gpio) & (0x3 << (((gpio) & 0xf) * 2));
-	else
-		return 0;
+	if (cpu_is_pxa27x() || cpu_is_pxa25x()) {
+		int af = (GAFR(gpio) >> ((gpio & 0xf) * 2)) & 0x3;
+		int dir = GPDR(gpio) & GPIO_bit(gpio);
+
+		if (__gpio_is_inverted(gpio))
+			return af != 1 || dir == 0;
+		else
+			return af != 0 || dir != 0;
+	}
+
+	return 0;
 }
 
 static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
@@ -190,9 +227,8 @@ static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 		/* Don't mess with enabled GPIOs using preconfigured edges or
 		 * GPIOs set to alternate function or to output during probe
 		 */
-		if ((GPIO_IRQ_rising_edge[idx] |
-		     GPIO_IRQ_falling_edge[idx] |
-		     GPDR(gpio)) & GPIO_bit(gpio))
+		if ((GPIO_IRQ_rising_edge[idx] & GPIO_bit(gpio)) ||
+		    (GPIO_IRQ_falling_edge[idx] & GPIO_bit(gpio)))
 			return 0;
 
 		if (__gpio_is_occupied(gpio))
@@ -201,7 +237,10 @@ static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
 
-	GPDR(gpio) &= ~GPIO_bit(gpio);
+	if (__gpio_is_inverted(gpio))
+		GPDR(gpio) |= GPIO_bit(gpio);
+	else
+		GPDR(gpio) &= ~GPIO_bit(gpio);
 
 	if (type & IRQ_TYPE_EDGE_RISING)
 		__set_bit(gpio, GPIO_IRQ_rising_edge);

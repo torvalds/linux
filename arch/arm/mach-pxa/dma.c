@@ -21,7 +21,7 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <asm/dma.h>
+#include <mach/dma.h>
 
 #include <mach/pxa-regs.h>
 

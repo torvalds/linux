@@ -24,6 +24,7 @@
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
+#include <asm/mach-types.h>
 
 #include <mach/pxa-regs.h>
 #include <mach/reset.h>
@@ -38,6 +39,21 @@ void clear_reset_status(unsigned int mask)
 	if (cpu_is_pxa3xx())
 		pxa3xx_clear_reset_status(mask);
 }
+
+unsigned long get_clock_tick_rate(void)
+{
+	unsigned long clock_tick_rate;
+
+	if (cpu_is_pxa25x())
+		clock_tick_rate = 3686400;
+	else if (machine_is_mainstone())
+		clock_tick_rate = 3249600;
+	else
+		clock_tick_rate = 3250000;
+
+	return clock_tick_rate;
+}
+EXPORT_SYMBOL(get_clock_tick_rate);
 
 /*
  * Get the clock frequency as reflected by CCCR and the turbo flag.

@@ -77,6 +77,12 @@
 #define S3C2440_UCON_FCLK	  (3<<10)
 #define S3C2443_UCON_EPLL	  (3<<10)
 
+#define S3C6400_UCON_CLKMASK	(3<<10)
+#define S3C6400_UCON_PCLK	(0<<10)
+#define S3C6400_UCON_PCLK2	(2<<10)
+#define S3C6400_UCON_UCLK0	(1<<10)
+#define S3C6400_UCON_UCLK1	(3<<10)
+
 #define S3C2440_UCON2_FCLK_EN	  (1<<15)
 #define S3C2440_UCON0_DIVMASK	  (15 << 12)
 #define S3C2440_UCON1_DIVMASK	  (15 << 12)
@@ -148,6 +154,14 @@
 #define S3C2410_UFSTAT_TXSHIFT	  (4)
 #define S3C2410_UFSTAT_RXMASK	  (15<<0)
 #define S3C2410_UFSTAT_RXSHIFT	  (0)
+
+/* UFSTAT S3C24A0 */
+#define S3C24A0_UFSTAT_TXFULL	  (1 << 14)
+#define S3C24A0_UFSTAT_RXFULL	  (1 << 6)
+#define S3C24A0_UFSTAT_TXMASK	  (63 << 8)
+#define S3C24A0_UFSTAT_TXSHIFT	  (8)
+#define S3C24A0_UFSTAT_RXMASK	  (63)
+#define S3C24A0_UFSTAT_RXSHIFT	  (0)
 
 /* UFSTAT S3C2443 same as S3C2440 */
 #define S3C2440_UFSTAT_TXFULL	  (1<<14)
@@ -224,7 +238,7 @@ struct s3c2410_uartcfg {
  * or platform_add_device() before the console_initcall()
 */
 
-extern struct platform_device *s3c24xx_uart_devs[3];
+extern struct platform_device *s3c24xx_uart_devs[4];
 
 #endif /* __ASSEMBLY__ */
 

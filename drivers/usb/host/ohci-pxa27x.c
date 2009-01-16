@@ -296,7 +296,7 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 		return -ENXIO;
 	}
 
-	usb_clk = clk_get(&pdev->dev, "USBCLK");
+	usb_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usb_clk))
 		return PTR_ERR(usb_clk);
 

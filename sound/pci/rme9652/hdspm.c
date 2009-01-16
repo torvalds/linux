@@ -1293,7 +1293,7 @@ static int __devinit snd_hdspm_create_midi (struct snd_card *card,
 	if (err < 0)
 		return err;
 
-	sprintf (hdspm->midi[id].rmidi->name, "%s MIDI %d", card->id, id+1);
+	sprintf(hdspm->midi[id].rmidi->name, "HDSPM MIDI %d", id+1);
 	hdspm->midi[id].rmidi->private_data = &hdspm->midi[id];
 
 	snd_rawmidi_set_ops(hdspm->midi[id].rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT,
@@ -3476,7 +3476,7 @@ static irqreturn_t snd_hdspm_interrupt(int irq, void *dev_id)
 		schedule = 1;
 	}
 	if (schedule)
-		tasklet_hi_schedule(&hdspm->midi_tasklet);
+		tasklet_schedule(&hdspm->midi_tasklet);
 	return IRQ_HANDLED;
 }
 

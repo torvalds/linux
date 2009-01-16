@@ -8,9 +8,8 @@ obj-$(CONFIG_X86_PTDUMP)	+= dump_pagetables.o
 
 obj-$(CONFIG_HIGHMEM)		+= highmem_32.o
 
-obj-$(CONFIG_MMIOTRACE_HOOKS)	+= kmmio.o
 obj-$(CONFIG_MMIOTRACE)		+= mmiotrace.o
-mmiotrace-y			:= pf_in.o mmio-mod.o
+mmiotrace-y			:= kmmio.o pf_in.o mmio-mod.o
 obj-$(CONFIG_MMIOTRACE_TEST)	+= testmmiotrace.o
 
 obj-$(CONFIG_NUMA)		+= numa_$(BITS).o

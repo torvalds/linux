@@ -308,15 +308,19 @@ ENTRY(system_call)
 	mov.l	1f, r9
 	mov.l	@r9, r8		! Read from TRA (Trap Address) Register
 #endif
+
+	mov	#OFF_TRA, r10
+	add	r15, r10
+	mov.l	r8, @r10		! set TRA value to tra
+
 	/*
 	 * Check the trap type
 	 */
 	mov	#((0x20 << 2) - 1), r9
 	cmp/hi	r9, r8
 	bt/s	debug_trap		! it's a debug trap..
-	 mov	#OFF_TRA, r9
-	add	r15, r9
-	mov.l	r8, @r9			! set TRA value to tra
+	 nop
+
 #ifdef CONFIG_TRACE_IRQFLAGS
 	mov.l	5f, r10
 	jsr	@r10
@@ -371,47 +375,3 @@ syscall_exit:
 #endif
 7:	.long	do_syscall_trace_enter
 8:	.long	do_syscall_trace_leave
-
-#ifdef CONFIG_FUNCTION_TRACER
-	.align 2
-	.globl	_mcount
-	.type	_mcount,@function
-	.globl	mcount
-	.type	mcount,@function
-_mcount:
-mcount:
-	mov.l	r4, @-r15
-	mov.l	r5, @-r15
-	mov.l	r6, @-r15
-	mov.l	r7, @-r15
-	sts.l	pr, @-r15
-
-	mov.l	@(20,r15),r4
-	sts	pr, r5
-
-	mov.l	1f, r6
-	mov.l	ftrace_stub, r7	
-	cmp/eq	r6, r7
-	bt	skip_trace
-
-	mov.l	@r6, r6
-	jsr	@r6
-	 nop
-
-skip_trace:
-
-	lds.l	@r15+, pr
-	mov.l	@r15+, r7
-	mov.l	@r15+, r6
-	mov.l	@r15+, r5
-	rts
-	 mov.l	@r15+, r4
-
-	.align 2
-1:	.long	ftrace_trace_function
-
-	.globl	ftrace_stub
-ftrace_stub:
-	rts
-	 nop
-#endif /* CONFIG_FUNCTION_TRACER */

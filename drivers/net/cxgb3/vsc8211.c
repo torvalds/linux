@@ -262,6 +262,7 @@ static int vsc8211_get_link_status_fiber(struct cphy *cphy, int *link_ok,
 	return 0;
 }
 
+#ifdef UNUSED
 /*
  * Enable/disable auto MDI/MDI-X in forced link speed mode.
  */
@@ -301,6 +302,7 @@ int vsc8211_set_speed_duplex(struct cphy *phy, int speed, int duplex)
 		err = vsc8211_set_automdi(phy, 1);
 	return err;
 }
+#endif /* UNUSED */
 
 static int vsc8211_power_down(struct cphy *cphy, int enable)
 {

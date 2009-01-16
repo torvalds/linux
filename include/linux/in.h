@@ -80,6 +80,10 @@ struct in_addr {
 /* BSD compatibility */
 #define IP_RECVRETOPTS	IP_RETOPTS
 
+/* TProxy original addresses */
+#define IP_ORIGDSTADDR       20
+#define IP_RECVORIGDSTADDR   IP_ORIGDSTADDR
+
 /* IP_MTU_DISCOVER values */
 #define IP_PMTUDISC_DONT		0	/* Never send DF frames */
 #define IP_PMTUDISC_WANT		1	/* Use per route hints	*/

@@ -24,32 +24,32 @@
  */
 
 #define PMC_OBPNAME	"SUNW,pmc"
-#define PMC_DEVNAME "pmc"
+#define PMC_DEVNAME	"pmc"
 
 #define PMC_IDLE_REG	0x00
-#define PMC_IDLE_ON		0x01
+#define PMC_IDLE_ON	0x01
 
 static u8 __iomem *regs;
 
 #define pmc_readb(offs)		(sbus_readb(regs+offs))
-#define pmc_writeb(val, offs) 	(sbus_writeb(val, regs+offs))
+#define pmc_writeb(val, offs)	(sbus_writeb(val, regs+offs))
 
-/* 
+/*
  * CPU idle callback function
  * See .../arch/sparc/kernel/process.c
  */
-void pmc_swift_idle(void)
+static void pmc_swift_idle(void)
 {
 #ifdef PMC_DEBUG_LED
-	set_auxio(0x00, AUXIO_LED); 
+	set_auxio(0x00, AUXIO_LED);
 #endif
 
 	pmc_writeb(pmc_readb(PMC_IDLE_REG) | PMC_IDLE_ON, PMC_IDLE_REG);
 
 #ifdef PMC_DEBUG_LED
-	set_auxio(AUXIO_LED, 0x00); 
+	set_auxio(AUXIO_LED, 0x00);
 #endif
-} 
+}
 
 static int __devinit pmc_probe(struct of_device *op,
 			       const struct of_device_id *match)
@@ -63,7 +63,7 @@ static int __devinit pmc_probe(struct of_device *op,
 
 #ifndef PMC_NO_IDLE
 	/* Assign power management IDLE handler */
-	pm_idle = pmc_swift_idle;	
+	pm_idle = pmc_swift_idle;
 #endif
 
 	printk(KERN_INFO "%s: power management initialized\n", PMC_DEVNAME);

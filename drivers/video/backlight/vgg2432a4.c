@@ -137,7 +137,7 @@ static int vgg2432a4_lcd_init(struct ili9320 *lcd,
 
 	ili9320_write(lcd, ILI9320_RGB_IF1, cfg->rgb_if1);
 	ili9320_write(lcd, ILI9320_FRAMEMAKER, 0x0);
-	ili9320_write(lcd, ILI9320_RGB_IF2, ILI9320_RGBIF2_DPL);
+	ili9320_write(lcd, ILI9320_RGB_IF2, cfg->rgb_if2);
 
 	ret = ili9320_write_regs(lcd, vgg_init1, ARRAY_SIZE(vgg_init1));
 	if (ret != 0)

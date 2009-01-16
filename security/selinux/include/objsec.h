@@ -77,17 +77,6 @@ struct ipc_security_struct {
 	u32 sid;	/* SID of IPC resource */
 };
 
-struct bprm_security_struct {
-	u32 sid;		/* SID for transformed process */
-	unsigned char set;
-
-	/*
-	 * unsafe is used to share failure information from bprm_apply_creds()
-	 * to bprm_post_apply_creds().
-	 */
-	char unsafe;
-};
-
 struct netif_security_struct {
 	int ifindex;			/* device index */
 	u32 sid;			/* SID for this interface */

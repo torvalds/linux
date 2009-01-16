@@ -53,9 +53,6 @@
 #define NFSPROC4_CB_NULL 0
 #define NFSPROC4_CB_COMPOUND 1
 
-/* declarations */
-static const struct rpc_call_ops nfs4_cb_null_ops;
-
 /* Index of predefined Linux callback client operations */
 
 enum {
@@ -358,6 +355,7 @@ static struct rpc_program cb_program = {
 		.nrvers		= ARRAY_SIZE(nfs_cb_version),
 		.version	= nfs_cb_version,
 		.stats		= &cb_stats,
+		.pipe_dir_name  = "/nfsd4_cb",
 };
 
 /* Reference counting, callback cleanup, etc., all look racy as heck.
@@ -382,8 +380,9 @@ static int do_probe_callback(void *data)
 		.program	= &cb_program,
 		.prognumber	= cb->cb_prog,
 		.version	= nfs_cb_version[1]->number,
-		.authflavor	= RPC_AUTH_UNIX, /* XXX: need AUTH_GSS... */
+		.authflavor	= clp->cl_flavor,
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
+		.client_name    = clp->cl_principal,
 	};
 	struct rpc_message msg = {
 		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
@@ -391,6 +390,11 @@ static int do_probe_callback(void *data)
 	};
 	struct rpc_clnt *client;
 	int status;
+
+	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5)) {
+		status = nfserr_cb_path_down;
+		goto out_err;
+	}
 
 	/* Initialize address */
 	memset(&addr, 0, sizeof(addr));

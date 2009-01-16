@@ -46,11 +46,6 @@
 
 #include "hci_uart.h"
 
-#ifndef CONFIG_BT_HCIUART_DEBUG
-#undef  BT_DBG
-#define BT_DBG( A... )
-#endif
-
 #define VERSION "1.2"
 
 struct h4_struct {

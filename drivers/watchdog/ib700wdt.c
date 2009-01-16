@@ -91,32 +91,16 @@ static char expect_close;
  *
  */
 
-static int wd_times[] = {
-	30,	/* 0x0 */
-	28,	/* 0x1 */
-	26,	/* 0x2 */
-	24,	/* 0x3 */
-	22,	/* 0x4 */
-	20,	/* 0x5 */
-	18,	/* 0x6 */
-	16,	/* 0x7 */
-	14,	/* 0x8 */
-	12,	/* 0x9 */
-	10,	/* 0xA */
-	8,	/* 0xB */
-	6,	/* 0xC */
-	4,	/* 0xD */
-	2,	/* 0xE */
-	0,	/* 0xF */
-};
-
 #define WDT_STOP 0x441
 #define WDT_START 0x443
 
 /* Default timeout */
-#define WD_TIMO 0		/* 30 seconds +/- 20%, from table */
-
-static int wd_margin = WD_TIMO;
+#define WATCHDOG_TIMEOUT 30		/* 30 seconds +/- 20% */
+static int timeout = WATCHDOG_TIMEOUT;	/* in seconds */
+module_param(timeout, int, 0);
+MODULE_PARM_DESC(timeout,
+	"Watchdog timeout in seconds. 0<= timeout <=30, default="
+		__MODULE_STRING(WATCHDOG_TIMEOUT) ".");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
@@ -131,6 +115,8 @@ MODULE_PARM_DESC(nowayout,
 
 static void ibwdt_ping(void)
 {
+	int wd_margin = 15 - ((timeout + 1) / 2);
+
 	spin_lock(&ibwdt_lock);
 
 	/* Write a watchdog value */
@@ -148,15 +134,10 @@ static void ibwdt_disable(void)
 
 static int ibwdt_set_heartbeat(int t)
 {
-	int i;
-
-	if ((t < 0) || (t > 30))
+	if (t < 0 || t > 30)
 		return -EINVAL;
 
-	for (i = 0x0F; i > -1; i--)
-		if (wd_times[i] >= t)
-			break;
-	wd_margin = i;
+	timeout = t;
 	return 0;
 }
 
@@ -240,7 +221,7 @@ static long ibwdt_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		/* Fall */
 
 	case WDIOC_GETTIMEOUT:
-		return put_user(wd_times[wd_margin], p);
+		return put_user(timeout, p);
 
 	default:
 		return -ENOTTY;
@@ -315,6 +296,14 @@ static int __devinit ibwdt_probe(struct platform_device *dev)
 								WDT_START);
 		res = -EIO;
 		goto out_nostartreg;
+	}
+
+	/* Check that the heartbeat value is within it's range ;
+	 * if not reset to the default */
+	if (ibwdt_set_heartbeat(timeout)) {
+		ibwdt_set_heartbeat(WATCHDOG_TIMEOUT);
+		printk(KERN_INFO PFX
+			"timeout value must be 0<=x<=30, using %d\n", timeout);
 	}
 
 	res = misc_register(&ibwdt_miscdev);

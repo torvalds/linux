@@ -31,6 +31,7 @@
 
 #include "drmP.h"
 #include "drm.h"
+#include "drm_sarea.h"
 #include "radeon_drm.h"
 #include "radeon_drv.h"
 #include "r300_reg.h"
@@ -667,15 +668,14 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 		RADEON_WRITE(RADEON_BUS_CNTL, tmp);
 	} /* PCIE cards appears to not need this */
 
-	dev_priv->sarea_priv->last_frame = dev_priv->scratch[0] = 0;
-	RADEON_WRITE(RADEON_LAST_FRAME_REG, dev_priv->sarea_priv->last_frame);
+	dev_priv->scratch[0] = 0;
+	RADEON_WRITE(RADEON_LAST_FRAME_REG, 0);
 
-	dev_priv->sarea_priv->last_dispatch = dev_priv->scratch[1] = 0;
-	RADEON_WRITE(RADEON_LAST_DISPATCH_REG,
-		     dev_priv->sarea_priv->last_dispatch);
+	dev_priv->scratch[1] = 0;
+	RADEON_WRITE(RADEON_LAST_DISPATCH_REG, 0);
 
-	dev_priv->sarea_priv->last_clear = dev_priv->scratch[2] = 0;
-	RADEON_WRITE(RADEON_LAST_CLEAR_REG, dev_priv->sarea_priv->last_clear);
+	dev_priv->scratch[2] = 0;
+	RADEON_WRITE(RADEON_LAST_CLEAR_REG, 0);
 
 	radeon_do_wait_for_idle(dev_priv);
 
@@ -871,9 +871,11 @@ static void radeon_set_pcigart(drm_radeon_private_t * dev_priv, int on)
 	}
 }
 
-static int radeon_do_init_cp(struct drm_device * dev, drm_radeon_init_t * init)
+static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
+			     struct drm_file *file_priv)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
+	struct drm_radeon_master_private *master_priv = file_priv->master->driver_priv;
 
 	DRM_DEBUG("\n");
 
@@ -998,8 +1000,8 @@ static int radeon_do_init_cp(struct drm_device * dev, drm_radeon_init_t * init)
 	dev_priv->buffers_offset = init->buffers_offset;
 	dev_priv->gart_textures_offset = init->gart_textures_offset;
 
-	dev_priv->sarea = drm_getsarea(dev);
-	if (!dev_priv->sarea) {
+	master_priv->sarea = drm_getsarea(dev);
+	if (!master_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
 		radeon_do_cleanup_cp(dev);
 		return -EINVAL;
@@ -1034,10 +1036,6 @@ static int radeon_do_init_cp(struct drm_device * dev, drm_radeon_init_t * init)
 			return -EINVAL;
 		}
 	}
-
-	dev_priv->sarea_priv =
-	    (drm_radeon_sarea_t *) ((u8 *) dev_priv->sarea->handle +
-				    init->sarea_priv_offset);
 
 #if __OS_HAS_AGP
 	if (dev_priv->flags & RADEON_IS_AGP) {
@@ -1329,7 +1327,7 @@ int radeon_cp_init(struct drm_device *dev, void *data, struct drm_file *file_pri
 	case RADEON_INIT_CP:
 	case RADEON_INIT_R200_CP:
 	case RADEON_INIT_R300_CP:
-		return radeon_do_init_cp(dev, init);
+		return radeon_do_init_cp(dev, init, file_priv);
 	case RADEON_CLEANUP_CP:
 		return radeon_do_cleanup_cp(dev);
 	}
@@ -1766,6 +1764,51 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 	DRM_DEBUG("%s card detected\n",
 		  ((dev_priv->flags & RADEON_IS_AGP) ? "AGP" : (((dev_priv->flags & RADEON_IS_PCIE) ? "PCIE" : "PCI"))));
 	return ret;
+}
+
+int radeon_master_create(struct drm_device *dev, struct drm_master *master)
+{
+	struct drm_radeon_master_private *master_priv;
+	unsigned long sareapage;
+	int ret;
+
+	master_priv = drm_calloc(1, sizeof(*master_priv), DRM_MEM_DRIVER);
+	if (!master_priv)
+		return -ENOMEM;
+
+	/* prebuild the SAREA */
+	sareapage = max_t(unsigned long, SAREA_MAX, PAGE_SIZE);
+	ret = drm_addmap(dev, 0, sareapage, _DRM_SHM, _DRM_CONTAINS_LOCK|_DRM_DRIVER,
+			 &master_priv->sarea);
+	if (ret) {
+		DRM_ERROR("SAREA setup failed\n");
+		return ret;
+	}
+	master_priv->sarea_priv = master_priv->sarea->handle + sizeof(struct drm_sarea);
+	master_priv->sarea_priv->pfCurrentPage = 0;
+
+	master->driver_priv = master_priv;
+	return 0;
+}
+
+void radeon_master_destroy(struct drm_device *dev, struct drm_master *master)
+{
+	struct drm_radeon_master_private *master_priv = master->driver_priv;
+
+	if (!master_priv)
+		return;
+
+	if (master_priv->sarea_priv &&
+	    master_priv->sarea_priv->pfCurrentPage != 0)
+		radeon_cp_dispatch_flip(dev, master);
+
+	master_priv->sarea_priv = NULL;
+	if (master_priv->sarea)
+		drm_rmmap_locked(dev, master_priv->sarea);
+
+	drm_free(master_priv, sizeof(*master_priv), DRM_MEM_DRIVER);
+
+	master->driver_priv = NULL;
 }
 
 /* Create mappings for registers and framebuffer so userland doesn't necessarily

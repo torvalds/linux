@@ -527,9 +527,8 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 			lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
 			if (lip->li_type == XFS_LI_BUF) {
 				bip = XFS_BUF_FSPRIVATE(bp,xfs_buf_log_item_t*);
-				xfs_trans_unlocked_item(
-						bip->bli_item.li_mountp,
-						lip);
+				xfs_trans_unlocked_item(bip->bli_item.li_ailp,
+							lip);
 			}
 		}
 		xfs_buf_relse(bp);
@@ -626,7 +625,7 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 	 * tell the AIL that the buffer is being unlocked.
 	 */
 	if (bip != NULL) {
-		xfs_trans_unlocked_item(bip->bli_item.li_mountp,
+		xfs_trans_unlocked_item(bip->bli_item.li_ailp,
 					(xfs_log_item_t*)bip);
 	}
 

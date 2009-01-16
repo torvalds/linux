@@ -82,8 +82,8 @@ __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
 static __always_inline unsigned long __must_check
 __copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-       might_sleep();
-       return __copy_to_user_inatomic(to, from, n);
+	might_fault();
+	return __copy_to_user_inatomic(to, from, n);
 }
 
 static __always_inline unsigned long
@@ -137,7 +137,7 @@ __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
 static __always_inline unsigned long
 __copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	might_sleep();
+	might_fault();
 	if (__builtin_constant_p(n)) {
 		unsigned long ret;
 
@@ -159,7 +159,7 @@ __copy_from_user(void *to, const void __user *from, unsigned long n)
 static __always_inline unsigned long __copy_from_user_nocache(void *to,
 				const void __user *from, unsigned long n)
 {
-	might_sleep();
+	might_fault();
 	if (__builtin_constant_p(n)) {
 		unsigned long ret;
 

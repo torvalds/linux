@@ -168,9 +168,6 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	struct elf_fdpic_params exec_params, interp_params;
 	struct elf_phdr *phdr;
 	unsigned long stack_size, entryaddr;
-#ifndef CONFIG_MMU
-	unsigned long fullsize;
-#endif
 #ifdef ELF_FDPIC_PLAT_INIT
 	unsigned long dynaddr;
 #endif
@@ -390,11 +387,6 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 		goto error_kill;
 	}
 
-	/* expand the stack mapping to use up the entire allocation granule */
-	fullsize = kobjsize((char *) current->mm->start_brk);
-	if (!IS_ERR_VALUE(do_mremap(current->mm->start_brk, stack_size,
-				    fullsize, 0, 0)))
-		stack_size = fullsize;
 	up_write(&current->mm->mmap_sem);
 
 	current->mm->brk = current->mm->start_brk;
@@ -404,7 +396,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	current->mm->start_stack = current->mm->start_brk + stack_size;
 #endif
 
-	compute_creds(bprm);
+	install_exec_creds(bprm);
 	current->flags &= ~PF_FORKNOEXEC;
 	if (create_elf_fdpic_tables(bprm, current->mm,
 				    &exec_params, &interp_params) < 0)
@@ -475,6 +467,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 				   struct elf_fdpic_params *exec_params,
 				   struct elf_fdpic_params *interp_params)
 {
+	const struct cred *cred = current_cred();
 	unsigned long sp, csp, nitems;
 	elf_caddr_t __user *argv, *envp;
 	size_t platform_len = 0, len;
@@ -623,10 +616,10 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	NEW_AUX_ENT(AT_BASE,	interp_params->elfhdr_addr);
 	NEW_AUX_ENT(AT_FLAGS,	0);
 	NEW_AUX_ENT(AT_ENTRY,	exec_params->entry_addr);
-	NEW_AUX_ENT(AT_UID,	(elf_addr_t) current->uid);
-	NEW_AUX_ENT(AT_EUID,	(elf_addr_t) current->euid);
-	NEW_AUX_ENT(AT_GID,	(elf_addr_t) current->gid);
-	NEW_AUX_ENT(AT_EGID,	(elf_addr_t) current->egid);
+	NEW_AUX_ENT(AT_UID,	(elf_addr_t) cred->uid);
+	NEW_AUX_ENT(AT_EUID,	(elf_addr_t) cred->euid);
+	NEW_AUX_ENT(AT_GID,	(elf_addr_t) cred->gid);
+	NEW_AUX_ENT(AT_EGID,	(elf_addr_t) cred->egid);
 	NEW_AUX_ENT(AT_SECURE,	security_bprm_secureexec(bprm));
 	NEW_AUX_ENT(AT_EXECFN,	bprm->exec);
 
@@ -1413,6 +1406,7 @@ static void fill_prstatus(struct elf_prstatus *prstatus,
 static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 		       struct mm_struct *mm)
 {
+	const struct cred *cred;
 	unsigned int i, len;
 
 	/* first copy the parameters from user space */
@@ -1440,8 +1434,11 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 	psinfo->pr_zomb = psinfo->pr_sname == 'Z';
 	psinfo->pr_nice = task_nice(p);
 	psinfo->pr_flag = p->flags;
-	SET_UID(psinfo->pr_uid, p->uid);
-	SET_GID(psinfo->pr_gid, p->gid);
+	rcu_read_lock();
+	cred = __task_cred(p);
+	SET_UID(psinfo->pr_uid, cred->uid);
+	SET_GID(psinfo->pr_gid, cred->gid);
+	rcu_read_unlock();
 	strncpy(psinfo->pr_fname, p->comm, sizeof(psinfo->pr_fname));
 
 	return 0;
@@ -1562,11 +1559,9 @@ end_coredump:
 static int elf_fdpic_dump_segments(struct file *file, size_t *size,
 			   unsigned long *limit, unsigned long mm_flags)
 {
-	struct vm_list_struct *vml;
+	struct vm_area_struct *vma;
 
-	for (vml = current->mm->context.vmlist; vml; vml = vml->next) {
-	struct vm_area_struct *vma = vml->vma;
-
+	for (vma = current->mm->mmap; vma; vma = vma->vm_next) {
 		if (!maydump(vma, mm_flags))
 			continue;
 
@@ -1612,9 +1607,6 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 	elf_fpxregset_t *xfpu = NULL;
 #endif
 	int thread_status_size = 0;
-#ifndef CONFIG_MMU
-	struct vm_list_struct *vml;
-#endif
 	elf_addr_t *auxv;
 	unsigned long mm_flags;
 
@@ -1680,13 +1672,7 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 	fill_prstatus(prstatus, current, signr);
 	elf_core_copy_regs(&prstatus->pr_reg, regs);
 
-#ifdef CONFIG_MMU
 	segs = current->mm->map_count;
-#else
-	segs = 0;
-	for (vml = current->mm->context.vmlist; vml; vml = vml->next)
-	    segs++;
-#endif
 #ifdef ELF_CORE_EXTRA_PHDRS
 	segs += ELF_CORE_EXTRA_PHDRS;
 #endif
@@ -1761,19 +1747,9 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 	mm_flags = current->mm->flags;
 
 	/* write program headers for segments dump */
-	for (
-#ifdef CONFIG_MMU
-		vma = current->mm->mmap; vma; vma = vma->vm_next
-#else
-			vml = current->mm->context.vmlist; vml; vml = vml->next
-#endif
-	     ) {
+	for (vma = current->mm->mmap; vma; vma = vma->vm_next) {
 		struct elf_phdr phdr;
 		size_t sz;
-
-#ifndef CONFIG_MMU
-		vma = vml->vma;
-#endif
 
 		sz = vma->vm_end - vma->vm_start;
 

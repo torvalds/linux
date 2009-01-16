@@ -201,15 +201,16 @@ out:
 
 static void ah4_err(struct sk_buff *skb, u32 info)
 {
-	struct iphdr *iph = (struct iphdr*)skb->data;
-	struct ip_auth_hdr *ah = (struct ip_auth_hdr*)(skb->data+(iph->ihl<<2));
+	struct net *net = dev_net(skb->dev);
+	struct iphdr *iph = (struct iphdr *)skb->data;
+	struct ip_auth_hdr *ah = (struct ip_auth_hdr *)(skb->data+(iph->ihl<<2));
 	struct xfrm_state *x;
 
 	if (icmp_hdr(skb)->type != ICMP_DEST_UNREACH ||
 	    icmp_hdr(skb)->code != ICMP_FRAG_NEEDED)
 		return;
 
-	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, ah->spi, IPPROTO_AH, AF_INET);
+	x = xfrm_state_lookup(net, (xfrm_address_t *)&iph->daddr, ah->spi, IPPROTO_AH, AF_INET);
 	if (!x)
 		return;
 	printk(KERN_DEBUG "pmtu discovery on SA AH/%08x/%08x\n",
@@ -293,9 +294,7 @@ static void ah_destroy(struct xfrm_state *x)
 		return;
 
 	kfree(ahp->work_icv);
-	ahp->work_icv = NULL;
 	crypto_free_hash(ahp->tfm);
-	ahp->tfm = NULL;
 	kfree(ahp);
 }
 
@@ -316,6 +315,7 @@ static struct net_protocol ah4_protocol = {
 	.handler	=	xfrm4_rcv,
 	.err_handler	=	ah4_err,
 	.no_policy	=	1,
+	.netns_ok	=	1,
 };
 
 static int __init ah4_init(void)

@@ -151,7 +151,8 @@ int sn_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *entry)
 }
 
 #ifdef CONFIG_SMP
-static void sn_set_msi_irq_affinity(unsigned int irq, cpumask_t cpu_mask)
+static void sn_set_msi_irq_affinity(unsigned int irq,
+				    const struct cpumask *cpu_mask)
 {
 	struct msi_msg msg;
 	int slice;
@@ -164,7 +165,7 @@ static void sn_set_msi_irq_affinity(unsigned int irq, cpumask_t cpu_mask)
 	struct sn_pcibus_provider *provider;
 	unsigned int cpu;
 
-	cpu = first_cpu(cpu_mask);
+	cpu = cpumask_first(cpu_mask);
 	sn_irq_info = sn_msi_info[irq].sn_irq_info;
 	if (sn_irq_info == NULL || sn_irq_info->irq_int_bit >= 0)
 		return;
@@ -204,7 +205,7 @@ static void sn_set_msi_irq_affinity(unsigned int irq, cpumask_t cpu_mask)
 	msg.address_lo = (u32)(bus_addr & 0x00000000ffffffff);
 
 	write_msi_msg(irq, &msg);
-	irq_desc[irq].affinity = cpu_mask;
+	irq_desc[irq].affinity = *cpu_mask;
 }
 #endif /* CONFIG_SMP */
 

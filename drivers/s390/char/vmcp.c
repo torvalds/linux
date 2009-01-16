@@ -11,12 +11,14 @@
  * The idea of this driver is based on cpint from Neale Ferguson and #CP in CMS
  */
 
+#define KMSG_COMPONENT "vmcp"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
-#include <linux/smp_lock.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
 #include <asm/uaccess.h>
@@ -25,8 +27,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Borntraeger <borntraeger@de.ibm.com>");
 MODULE_DESCRIPTION("z/VM CP interface");
-
-#define PRINTK_HEADER "vmcp: "
 
 static debug_info_t *vmcp_debug;
 
@@ -41,13 +41,11 @@ static int vmcp_open(struct inode *inode, struct file *file)
 	if (!session)
 		return -ENOMEM;
 
-	lock_kernel();
 	session->bufsize = PAGE_SIZE;
 	session->response = NULL;
 	session->resp_size = 0;
 	mutex_init(&session->mutex);
 	file->private_data = session;
-	unlock_kernel();
 	return nonseekable_open(inode, file);
 }
 
@@ -193,7 +191,8 @@ static int __init vmcp_init(void)
 	int ret;
 
 	if (!MACHINE_IS_VM) {
-		PRINT_WARN("z/VM CP interface is only available under z/VM\n");
+		pr_warning("The z/VM CP interface device driver cannot be "
+			   "loaded without z/VM\n");
 		return -ENODEV;
 	}
 

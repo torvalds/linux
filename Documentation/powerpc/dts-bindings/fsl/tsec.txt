@@ -2,8 +2,8 @@
 
 The MDIO is a bus to which the PHY devices are connected.  For each
 device that exists on this bus, a child node should be created.  See
-the definition of the PHY node below for an example of how to define
-a PHY.
+the definition of the PHY node in booting-without-of.txt for an example
+of how to define a PHY.
 
 Required properties:
   - reg : Offset and length of the register set for the device
@@ -21,6 +21,14 @@ Example:
 		};
 	};
 
+* TBI Internal MDIO bus
+
+As of this writing, every tsec is associated with an internal TBI PHY.
+This PHY is accessed through the local MDIO bus.  These buses are defined
+similarly to the mdio buses, except they are compatible with "fsl,gianfar-tbi".
+The TBI PHYs underneath them are similar to normal PHYs, but the reg property
+is considered instructive, rather than descriptive.  The reg property should
+be chosen so it doesn't interfere with other PHYs on the bus.
 
 * Gianfar-compatible ethernet nodes
 

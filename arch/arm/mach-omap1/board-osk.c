@@ -188,7 +188,8 @@ static struct gpio_led tps_leds[] = {
 	/* NOTE:  D9 and D2 have hardware blink support.
 	 * Also, D9 requires non-battery power.
 	 */
-	{ .gpio = OSK_TPS_GPIO_LED_D9, .name = "d9", },
+	{ .gpio = OSK_TPS_GPIO_LED_D9, .name = "d9",
+			.default_trigger = "ide-disk", },
 	{ .gpio = OSK_TPS_GPIO_LED_D2, .name = "d2", },
 	{ .gpio = OSK_TPS_GPIO_LED_D3, .name = "d3", .active_low = 1,
 			.default_trigger = "heartbeat", },
@@ -260,7 +261,6 @@ static struct i2c_board_info __initdata osk_i2c_board_info[] = {
 	},
 	/* TODO when driver support is ready:
 	 *  - aic23 audio chip at 0x1a
-	 *  - on Mistral, 24c04 eeprom at 0x50
 	 *  - optionally on Mistral, ov9640 camera sensor at 0x30
 	 */
 };
@@ -288,7 +288,7 @@ static void __init osk_init_cf(void)
 		return;
 	}
 	/* the CF I/O IRQ is really active-low */
-	set_irq_type(OMAP_GPIO_IRQ(62), IRQ_TYPE_EDGE_FALLING);
+	set_irq_type(gpio_to_irq(62), IRQ_TYPE_EDGE_FALLING);
 }
 
 static void __init osk_init_irq(void)
@@ -337,10 +337,27 @@ static struct omap_board_config_kernel osk_config[] __initdata = {
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 
 #include <linux/input.h>
+#include <linux/i2c/at24.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
 #include <mach/keypad.h>
+
+static struct at24_platform_data at24c04 = {
+	.byte_len	= SZ_4K / 8,
+	.page_size	= 16,
+};
+
+static struct i2c_board_info __initdata mistral_i2c_board_info[] = {
+	{
+		/* NOTE:  powered from LCD supply */
+		I2C_BOARD_INFO("24c04", 0x50),
+		.platform_data	= &at24c04,
+	},
+	/* TODO when driver support is ready:
+	 *  - optionally ov9640 camera sensor at 0x30
+	 */
+};
 
 static const int osk_keymap[] = {
 	/* KEY(col, row, code) */
@@ -483,23 +500,30 @@ static void __init osk_mistral_init(void)
 	omap_cfg_reg(P20_1610_GPIO4);	/* PENIRQ */
 	gpio_request(4, "ts_int");
 	gpio_direction_input(4);
-	set_irq_type(OMAP_GPIO_IRQ(4), IRQ_TYPE_EDGE_FALLING);
+	set_irq_type(gpio_to_irq(4), IRQ_TYPE_EDGE_FALLING);
 
 	spi_register_board_info(mistral_boardinfo,
 			ARRAY_SIZE(mistral_boardinfo));
 
-	/* the sideways button (SW1) is for use as a "wakeup" button */
+	/* the sideways button (SW1) is for use as a "wakeup" button
+	 *
+	 * NOTE:  The Mistral board has the wakeup button (SW1) wired
+	 * to the LCD 3.3V rail, which is powered down during suspend.
+	 * To allow this button to wake up the omap, work around this
+	 * HW bug by rewiring SW1 to use the main 3.3V rail.
+	 */
 	omap_cfg_reg(N15_1610_MPUIO2);
 	if (gpio_request(OMAP_MPUIO(2), "wakeup") == 0) {
 		int ret = 0;
+		int irq = gpio_to_irq(OMAP_MPUIO(2));
 
 		gpio_direction_input(OMAP_MPUIO(2));
-		set_irq_type(OMAP_GPIO_IRQ(OMAP_MPUIO(2)), IRQ_TYPE_EDGE_RISING);
+		set_irq_type(irq, IRQ_TYPE_EDGE_RISING);
 #ifdef	CONFIG_PM
 		/* share the IRQ in case someone wants to use the
 		 * button for more than wakeup from system sleep.
 		 */
-		ret = request_irq(OMAP_GPIO_IRQ(OMAP_MPUIO(2)),
+		ret = request_irq(irq,
 				&osk_mistral_wake_interrupt,
 				IRQF_SHARED, "mistral_wakeup",
 				&osk_mistral_wake_interrupt);
@@ -508,7 +532,7 @@ static void __init osk_mistral_init(void)
 			printk(KERN_ERR "OSK+Mistral: no wakeup irq, %d?\n",
 				ret);
 		} else
-			enable_irq_wake(OMAP_GPIO_IRQ(OMAP_MPUIO(2)));
+			enable_irq_wake(irq);
 #endif
 	} else
 		printk(KERN_ERR "OSK+Mistral: wakeup button is awol\n");
@@ -519,6 +543,9 @@ static void __init osk_mistral_init(void)
 	omap_cfg_reg(PWL);
 	if (gpio_request(2, "lcd_pwr") == 0)
 		gpio_direction_output(2, 1);
+
+	i2c_register_board_info(1, mistral_i2c_board_info,
+			ARRAY_SIZE(mistral_i2c_board_info));
 
 	platform_add_devices(mistral_devices, ARRAY_SIZE(mistral_devices));
 }

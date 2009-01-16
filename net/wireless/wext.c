@@ -64,7 +64,7 @@
  *	o Remove spy_offset from struct iw_handler_def
  *	o Start deprecating dev->get_wireless_stats, output a warning
  *	o If IW_QUAL_DBM is set, show dBm values in /proc/net/wireless
- *	o Don't loose INVALID/DBM flags when clearing UPDATED flags (iwstats)
+ *	o Don't lose INVALID/DBM flags when clearing UPDATED flags (iwstats)
  *
  * v8 - 17.02.06 - Jean II
  *	o RtNetlink requests support (SET/GET)
@@ -1055,8 +1055,8 @@ static int wireless_process_ioctl(struct net *net, struct ifreq *ifr,
 			return private(dev, iwr, cmd, info, handler);
 	}
 	/* Old driver API : call driver ioctl handler */
-	if (dev->do_ioctl)
-		return dev->do_ioctl(dev, ifr, cmd);
+	if (dev->netdev_ops->ndo_do_ioctl)
+		return dev->netdev_ops->ndo_do_ioctl(dev, ifr, cmd);
 	return -EOPNOTSUPP;
 }
 

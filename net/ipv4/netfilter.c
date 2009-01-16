@@ -66,7 +66,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 #ifdef CONFIG_XFRM
 	if (!(IPCB(skb)->flags & IPSKB_XFRM_TRANSFORMED) &&
 	    xfrm_decode_session(skb, &fl, AF_INET) == 0)
-		if (xfrm_lookup(&skb->dst, &fl, skb->sk, 0))
+		if (xfrm_lookup(net, &skb->dst, &fl, skb->sk, 0))
 			return -1;
 #endif
 
@@ -97,7 +97,7 @@ int ip_xfrm_me_harder(struct sk_buff *skb)
 		dst = ((struct xfrm_dst *)dst)->route;
 	dst_hold(dst);
 
-	if (xfrm_lookup(&dst, &fl, skb->sk, 0) < 0)
+	if (xfrm_lookup(dev_net(dst->dev), &dst, &fl, skb->sk, 0) < 0)
 		return -1;
 
 	dst_release(skb->dst);
@@ -125,6 +125,7 @@ struct ip_rt_info {
 	__be32 daddr;
 	__be32 saddr;
 	u_int8_t tos;
+	u_int32_t mark;
 };
 
 static void nf_ip_saveroute(const struct sk_buff *skb,
@@ -138,6 +139,7 @@ static void nf_ip_saveroute(const struct sk_buff *skb,
 		rt_info->tos = iph->tos;
 		rt_info->daddr = iph->daddr;
 		rt_info->saddr = iph->saddr;
+		rt_info->mark = skb->mark;
 	}
 }
 
@@ -150,6 +152,7 @@ static int nf_ip_reroute(struct sk_buff *skb,
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (!(iph->tos == rt_info->tos
+		      && skb->mark == rt_info->mark
 		      && iph->daddr == rt_info->daddr
 		      && iph->saddr == rt_info->saddr))
 			return ip_route_me_harder(skb, RTN_UNSPEC);

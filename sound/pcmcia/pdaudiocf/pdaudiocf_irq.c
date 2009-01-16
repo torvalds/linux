@@ -41,7 +41,7 @@ irqreturn_t pdacf_interrupt(int irq, void *dev)
 		if (stat & PDAUDIOCF_IRQOVR)	/* should never happen */
 			snd_printk(KERN_ERR "PDAUDIOCF SRAM buffer overrun detected!\n");
 		if (chip->pcm_substream)
-			tasklet_hi_schedule(&chip->tq);
+			tasklet_schedule(&chip->tq);
 		if (!(stat & PDAUDIOCF_IRQAKM))
 			stat |= PDAUDIOCF_IRQAKM;	/* check rate */
 	}

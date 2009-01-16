@@ -85,6 +85,19 @@ static int mii_write (struct net_device *dev, int phy_addr, int reg_num,
 
 static const struct ethtool_ops ethtool_ops;
 
+static const struct net_device_ops netdev_ops = {
+	.ndo_open		= rio_open,
+	.ndo_start_xmit	= start_xmit,
+	.ndo_stop		= rio_close,
+	.ndo_get_stats		= get_stats,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_multicast_list = set_multicast,
+	.ndo_do_ioctl		= rio_ioctl,
+	.ndo_tx_timeout		= rio_tx_timeout,
+	.ndo_change_mtu		= change_mtu,
+};
+
 static int __devinit
 rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -97,7 +110,6 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int version_printed;
 	void *ring_space;
 	dma_addr_t ring_dma;
-	DECLARE_MAC_BUF(mac);
 
 	if (!version_printed++)
 		printk ("%s", version);
@@ -198,15 +210,8 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 		else if (tx_coalesce > TX_RING_SIZE-1)
 			tx_coalesce = TX_RING_SIZE - 1;
 	}
-	dev->open = &rio_open;
-	dev->hard_start_xmit = &start_xmit;
-	dev->stop = &rio_close;
-	dev->get_stats = &get_stats;
-	dev->set_multicast_list = &set_multicast;
-	dev->do_ioctl = &rio_ioctl;
-	dev->tx_timeout = &rio_tx_timeout;
+	dev->netdev_ops = &netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	dev->change_mtu = &change_mtu;
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 #if 0
 	dev->features = NETIF_F_IP_CSUM;
@@ -257,8 +262,8 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	card_idx++;
 
-	printk (KERN_INFO "%s: %s, %s, IRQ %d\n",
-		dev->name, np->name, print_mac(mac, dev->dev_addr), irq);
+	printk (KERN_INFO "%s: %s, %pM, IRQ %d\n",
+		dev->name, np->name, dev->dev_addr, irq);
 	if (tx_coalesce > 1)
 		printk(KERN_INFO "tx_coalesce:\t%d packets\n",
 				tx_coalesce);
@@ -892,7 +897,6 @@ receive_packet (struct net_device *dev)
 			}
 #endif
 			netif_rx (skb);
-			dev->last_rx = jiffies;
 		}
 		entry = (entry + 1) % RX_RING_SIZE;
 	}

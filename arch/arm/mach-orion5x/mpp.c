@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/mbus.h>
 #include <linux/io.h>
+#include <asm/gpio.h>
 #include <mach/hardware.h>
 #include "common.h"
 #include "mpp.h"
@@ -152,7 +153,10 @@ void __init orion5x_mpp_conf(struct orion5x_mpp_mode *mode)
 		*reg &= ~(0xf << shift);
 		*reg |= (num_type & 0xf) << shift;
 
-		orion5x_gpio_set_valid(mode->mpp, !!(mode->type == MPP_GPIO));
+		if (mode->type == MPP_UNUSED && (mode->mpp < 16 || is_5182()))
+			orion_gpio_set_unused(mode->mpp);
+
+		orion_gpio_set_valid(mode->mpp, !!(mode->type == MPP_GPIO));
 
 		mode++;
 	}

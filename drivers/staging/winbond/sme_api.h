@@ -13,6 +13,10 @@
 #ifndef __SME_API_H__
 #define __SME_API_H__
 
+#include <linux/types.h>
+
+#include "localpara.h"
+
 /****************** INCLUDE FILES SECTION ***********************************/
 //#include "GL\gl_core.h"
 
@@ -51,9 +55,6 @@ s8 sme_set_fragment_threshold(void *pcore_data, u32 threshold);
 // OID_802_11_RTS_THRESHOLD
 s8 sme_get_rts_threshold(void *pcore_data, u32 *pthreshold);
 s8 sme_set_rts_threshold(void *pcore_data, u32 threshold);
-
-// OID_802_11_RSSI
-s8 sme_get_rssi(void *pcore_data, s32 *prssi);
 
 // OID_802_11_CONFIGURATION
 s8 sme_get_beacon_period(void *pcore_data, u16 *pbeacon_period);

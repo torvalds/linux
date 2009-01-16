@@ -206,6 +206,7 @@ struct mlx4_caps {
 	int			reserved_cqs;
 	int			num_eqs;
 	int			reserved_eqs;
+	int			num_comp_vectors;
 	int			num_mpts;
 	int			num_mtt_segs;
 	int			fmr_reserved_mtts;
@@ -328,6 +329,7 @@ struct mlx4_cq {
 	int			arm_sn;
 
 	int			cqn;
+	unsigned		vector;
 
 	atomic_t		refcount;
 	struct completion	free;
@@ -437,7 +439,7 @@ void mlx4_free_hwq_res(struct mlx4_dev *mdev, struct mlx4_hwq_resources *wqres,
 
 int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq,
-		  int collapsed);
+		  unsigned vector, int collapsed);
 void mlx4_cq_free(struct mlx4_dev *dev, struct mlx4_cq *cq);
 
 int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align, int *base);

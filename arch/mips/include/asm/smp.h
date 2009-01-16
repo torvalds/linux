@@ -37,9 +37,9 @@ extern int __cpu_logical_map[NR_CPUS];
 
 #define SMP_RESCHEDULE_YOURSELF	0x1	/* XXX braindead */
 #define SMP_CALL_FUNCTION	0x2
+/* Octeon - Tell another core to flush its icache */
+#define SMP_ICACHE_FLUSH	0x4
 
-extern cpumask_t phys_cpu_present_map;
-#define cpu_possible_map	phys_cpu_present_map
 
 extern void asmlinkage smp_bootstrap(void);
 

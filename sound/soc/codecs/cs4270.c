@@ -360,13 +360,14 @@ static int cs4270_i2c_write(struct snd_soc_codec *codec, unsigned int reg,
 /*
  * Program the CS4270 with the given hardware parameters.
  *
- * The .dai_ops functions are used to provide board-specific data, like
+ * The .ops functions are used to provide board-specific data, like
  * input frequencies, to this driver.  This function takes that information,
  * combines it with the hardware parameters provided, and programs the
  * hardware accordingly.
  */
 static int cs4270_hw_params(struct snd_pcm_substream *substream,
-			    struct snd_pcm_hw_params *params)
+			    struct snd_pcm_hw_params *params,
+			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -447,6 +448,19 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_write(codec, CS4270_MUTE, reg);
 	if (ret < 0) {
 		printk(KERN_ERR "cs4270: I2C write failed\n");
+		return ret;
+	}
+
+	/* Disable automatic volume control.  It's enabled by default, and
+	 * it causes volume change commands to be delayed, sometimes until
+	 * after playback has started.
+	 */
+
+	reg = cs4270_read_reg_cache(codec, CS4270_TRANS);
+	reg &= ~(CS4270_TRANS_SOFT | CS4270_TRANS_ZERO);
+	ret = cs4270_i2c_write(codec, CS4270_TRANS, reg);
+	if (ret < 0) {
+		printk(KERN_ERR "I2C write failed\n");
 		return ret;
 	}
 
@@ -697,10 +711,10 @@ static int cs4270_probe(struct platform_device *pdev)
 	if (codec->control_data) {
 		/* Initialize codec ops */
 		cs4270_dai.ops.hw_params = cs4270_hw_params;
-		cs4270_dai.dai_ops.set_sysclk = cs4270_set_dai_sysclk;
-		cs4270_dai.dai_ops.set_fmt = cs4270_set_dai_fmt;
+		cs4270_dai.ops.set_sysclk = cs4270_set_dai_sysclk;
+		cs4270_dai.ops.set_fmt = cs4270_set_dai_fmt;
 #ifdef CONFIG_SND_SOC_CS4270_HWMUTE
-		cs4270_dai.dai_ops.digital_mute = cs4270_mute;
+		cs4270_dai.ops.digital_mute = cs4270_mute;
 #endif
 	} else
 		printk(KERN_INFO "cs4270: no I2C device found, "
@@ -709,7 +723,7 @@ static int cs4270_probe(struct platform_device *pdev)
 	printk(KERN_INFO "cs4270: I2C disabled, using stand-alone mode\n");
 #endif
 
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "cs4270: failed to register card\n");
 		goto error_del_driver;
@@ -759,6 +773,18 @@ struct snd_soc_codec_device soc_codec_device_cs4270 = {
 	.remove = 	cs4270_remove
 };
 EXPORT_SYMBOL_GPL(soc_codec_device_cs4270);
+
+static int __init cs4270_init(void)
+{
+	return snd_soc_register_dai(&cs4270_dai);
+}
+module_init(cs4270_init);
+
+static void __exit cs4270_exit(void)
+{
+	snd_soc_unregister_dai(&cs4270_dai);
+}
+module_exit(cs4270_exit);
 
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Cirrus Logic CS4270 ALSA SoC Codec Driver");

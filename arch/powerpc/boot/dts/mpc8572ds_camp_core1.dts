@@ -1,0 +1,234 @@
+/*
+ * MPC8572 DS Core1 Device Tree Source in CAMP mode.
+ *
+ * In CAMP mode, each core needs to have its own dts. Only mpic and L2 cache
+ * can be shared, all the other devices must be assigned to one core only.
+ * This dts allows core1 to have l2, dma2, eth2, eth3, pci2, msi.
+ *
+ * Please note to add "-b 1" for core1's dts compiling.
+ *
+ * Copyright 2007, 2008 Freescale Semiconductor Inc.
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/dts-v1/;
+/ {
+	model = "fsl,MPC8572DS";
+	compatible = "fsl,MPC8572DS", "fsl,MPC8572DS-CAMP";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		serial0 = &serial0;
+		pci2 = &pci2;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		PowerPC,8572@1 {
+			device_type = "cpu";
+			reg = <0x1>;
+			d-cache-line-size = <32>;	// 32 bytes
+			i-cache-line-size = <32>;	// 32 bytes
+			d-cache-size = <0x8000>;		// L1, 32K
+			i-cache-size = <0x8000>;		// L1, 32K
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+			next-level-cache = <&L2>;
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;	// Filled by U-Boot
+	};
+
+	soc8572@ffe00000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		device_type = "soc";
+		compatible = "simple-bus";
+		ranges = <0x0 0xffe00000 0x100000>;
+		reg = <0xffe00000 0x1000>;	// CCSRBAR & soc regs, remove once parse code for immrbase fixed
+		bus-frequency = <0>;		// Filled out by uboot.
+
+		L2: l2-cache-controller@20000 {
+			compatible = "fsl,mpc8572-l2-cache-controller";
+			reg = <0x20000 0x1000>;
+			cache-line-size = <32>; // 32 bytes
+			cache-size = <0x80000>; // L2, 512K
+			interrupt-parent = <&mpic>;
+		};
+
+		dma@c300 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8572-dma", "fsl,eloplus-dma";
+			reg = <0xc300 0x4>;
+			ranges = <0x0 0xc100 0x200>;
+			cell-index = <0>;
+			dma-channel@0 {
+				compatible = "fsl,mpc8572-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x0 0x80>;
+				cell-index = <0>;
+				interrupt-parent = <&mpic>;
+				interrupts = <76 2>;
+			};
+			dma-channel@80 {
+				compatible = "fsl,mpc8572-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x80 0x80>;
+				cell-index = <1>;
+				interrupt-parent = <&mpic>;
+				interrupts = <77 2>;
+			};
+			dma-channel@100 {
+				compatible = "fsl,mpc8572-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x100 0x80>;
+				cell-index = <2>;
+				interrupt-parent = <&mpic>;
+				interrupts = <78 2>;
+			};
+			dma-channel@180 {
+				compatible = "fsl,mpc8572-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x180 0x80>;
+				cell-index = <3>;
+				interrupt-parent = <&mpic>;
+				interrupts = <79 2>;
+			};
+		};
+
+		mdio@24520 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,gianfar-mdio";
+			reg = <0x24520 0x20>;
+
+			phy2: ethernet-phy@2 {
+				interrupt-parent = <&mpic>;
+				reg = <0x2>;
+			};
+			phy3: ethernet-phy@3 {
+				interrupt-parent = <&mpic>;
+				reg = <0x3>;
+			};
+		};
+
+		enet2: ethernet@26000 {
+			cell-index = <2>;
+			device_type = "network";
+			model = "eTSEC";
+			compatible = "gianfar";
+			reg = <0x26000 0x1000>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <31 2 32 2 33 2>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy2>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		enet3: ethernet@27000 {
+			cell-index = <3>;
+			device_type = "network";
+			model = "eTSEC";
+			compatible = "gianfar";
+			reg = <0x27000 0x1000>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupts = <37 2 38 2 39 2>;
+			interrupt-parent = <&mpic>;
+			phy-handle = <&phy3>;
+			phy-connection-type = "rgmii-id";
+		};
+
+		msi@41600 {
+			compatible = "fsl,mpc8572-msi", "fsl,mpic-msi";
+			reg = <0x41600 0x80>;
+			msi-available-ranges = <0 0x100>;
+			interrupts = <
+				0xe0 0
+				0xe1 0
+				0xe2 0
+				0xe3 0
+				0xe4 0
+				0xe5 0
+				0xe6 0
+				0xe7 0>;
+			interrupt-parent = <&mpic>;
+		};
+
+		serial0: serial@4600 {
+			cell-index = <1>;
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x4600 0x100>;
+			clock-frequency = <0>;
+		};
+
+		mpic: pic@40000 {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			reg = <0x40000 0x40000>;
+			compatible = "chrp,open-pic";
+			device_type = "open-pic";
+			protected-sources = <
+			18 16 10 42 45 58	/* MEM L2 mdio serial crypto */
+			29 30 34 35 36 40	/* enet0 enet1 */
+			24 26 20 21 22 23	/* pcie0 pcie1 dma1 */
+			43			/* i2c */
+			0x1 0x2 0x3 0x4         /* pci slot */
+			0x9 0xa 0xb 0xc         /* usb */
+			0x6 0x7 0xe 0x5         /* Audio elgacy SATA */
+			>;
+		};
+	};
+
+	pci2: pcie@ffe0a000 {
+		cell-index = <2>;
+		compatible = "fsl,mpc8548-pcie";
+		device_type = "pci";
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0xffe0a000 0x1000>;
+		bus-range = <0 255>;
+		ranges = <0x2000000 0x0 0xc0000000 0xc0000000 0x0 0x20000000
+			  0x1000000 0x0 0x0 0xffc20000 0x0 0x10000>;
+		clock-frequency = <33333333>;
+		interrupt-parent = <&mpic>;
+		interrupts = <26 2>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+			/* IDSEL 0x0 */
+			0000 0x0 0x0 0x1 &mpic 0x0 0x1
+			0000 0x0 0x0 0x2 &mpic 0x1 0x1
+			0000 0x0 0x0 0x3 &mpic 0x2 0x1
+			0000 0x0 0x0 0x4 &mpic 0x3 0x1
+			>;
+		pcie@0 {
+			reg = <0x0 0x0 0x0 0x0 0x0>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			device_type = "pci";
+			ranges = <0x2000000 0x0 0xc0000000
+				  0x2000000 0x0 0xc0000000
+				  0x0 0x20000000
+
+				  0x1000000 0x0 0x0
+				  0x1000000 0x0 0x0
+				  0x0 0x100000>;
+		};
+	};
+};

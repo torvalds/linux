@@ -19,6 +19,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
+#include <linux/i2c/twl4030.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -35,6 +36,7 @@
 #include <mach/common.h>
 #include <mach/gpmc.h>
 
+#include "mmc-twl4030.h"
 
 #define	SDP2430_FLASH_CS	0
 #define	SDP2430_SMC91X_CS	5
@@ -168,13 +170,13 @@ static inline void __init sdp2430_init_smc91x(void)
 	sdp2430_smc91x_resources[0].end = cs_mem_base + 0x30f;
 	udelay(100);
 
-	if (omap_request_gpio(OMAP24XX_ETHR_GPIO_IRQ) < 0) {
+	if (gpio_request(OMAP24XX_ETHR_GPIO_IRQ, "SMC91x irq") < 0) {
 		printk(KERN_ERR "Failed to request GPIO%d for smc91x IRQ\n",
 			OMAP24XX_ETHR_GPIO_IRQ);
 		gpmc_cs_free(eth_cs);
 		goto out;
 	}
-	omap_set_gpio_direction(OMAP24XX_ETHR_GPIO_IRQ, 1);
+	gpio_direction_input(OMAP24XX_ETHR_GPIO_IRQ);
 
 out:
 	clk_disable(gpmc_fck);
@@ -197,12 +199,58 @@ static struct omap_board_config_kernel sdp2430_config[] = {
 	{OMAP_TAG_UART, &sdp2430_uart_config},
 };
 
+
+static struct twl4030_gpio_platform_data sdp2430_gpio_data = {
+	.gpio_base	= OMAP_MAX_GPIO_LINES,
+	.irq_base	= TWL4030_GPIO_IRQ_BASE,
+	.irq_end	= TWL4030_GPIO_IRQ_END,
+};
+
+static struct twl4030_platform_data sdp2430_twldata = {
+	.irq_base	= TWL4030_IRQ_BASE,
+	.irq_end	= TWL4030_IRQ_END,
+
+	/* platform_data for children goes here */
+	.gpio		= &sdp2430_gpio_data,
+};
+
+static struct i2c_board_info __initdata sdp2430_i2c_boardinfo[] = {
+	{
+		I2C_BOARD_INFO("twl4030", 0x48),
+		.flags = I2C_CLIENT_WAKE,
+		.irq = INT_24XX_SYS_NIRQ,
+		.platform_data = &sdp2430_twldata,
+	},
+};
+
+static int __init omap2430_i2c_init(void)
+{
+	omap_register_i2c_bus(1, 400, NULL, 0);
+	omap_register_i2c_bus(2, 2600, sdp2430_i2c_boardinfo,
+			ARRAY_SIZE(sdp2430_i2c_boardinfo));
+	return 0;
+}
+
+static struct twl4030_hsmmc_info mmc[] __initdata = {
+	{
+		.mmc		= 1,
+		.wires		= 4,
+		.gpio_cd	= -EINVAL,
+		.gpio_wp	= -EINVAL,
+		.ext_clock	= 1,
+	},
+	{}	/* Terminator */
+};
+
 static void __init omap_2430sdp_init(void)
 {
+	omap2430_i2c_init();
+
 	platform_add_devices(sdp2430_devices, ARRAY_SIZE(sdp2430_devices));
 	omap_board_config = sdp2430_config;
 	omap_board_config_size = ARRAY_SIZE(sdp2430_config);
 	omap_serial_init();
+	twl4030_mmc_init(mmc);
 }
 
 static void __init omap_2430sdp_map_io(void)

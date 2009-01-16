@@ -168,18 +168,12 @@
 #define E1000_RCTL_RDMTS_HALF     0x00000000    /* rx desc min threshold size */
 #define E1000_RCTL_MO_SHIFT       12            /* multicast offset shift */
 #define E1000_RCTL_BAM            0x00008000    /* broadcast enable */
-/* these buffer sizes are valid if E1000_RCTL_BSEX is 0 */
 #define E1000_RCTL_SZ_2048        0x00000000    /* rx buffer size 2048 */
 #define E1000_RCTL_SZ_1024        0x00010000    /* rx buffer size 1024 */
 #define E1000_RCTL_SZ_512         0x00020000    /* rx buffer size 512 */
 #define E1000_RCTL_SZ_256         0x00030000    /* rx buffer size 256 */
-/* these buffer sizes are valid if E1000_RCTL_BSEX is 1 */
-#define E1000_RCTL_SZ_16384       0x00010000    /* rx buffer size 16384 */
-#define E1000_RCTL_SZ_8192        0x00020000    /* rx buffer size 8192 */
-#define E1000_RCTL_SZ_4096        0x00030000    /* rx buffer size 4096 */
 #define E1000_RCTL_VFE            0x00040000    /* vlan filter enable */
 #define E1000_RCTL_CFIEN          0x00080000    /* canonical form enable */
-#define E1000_RCTL_BSEX           0x02000000    /* Buffer size extension */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
 
 /*
@@ -329,6 +323,7 @@
 #define E1000_TXD_CMD_IFCS   0x02000000 /* Insert FCS (Ethernet CRC) */
 #define E1000_TXD_CMD_RS     0x08000000 /* Report Status */
 #define E1000_TXD_CMD_DEXT   0x20000000 /* Descriptor extension (0 = legacy) */
+#define E1000_TXD_STAT_DD    0x00000001 /* Descriptor Done */
 /* Extended desc bits for Linksec and timesync */
 
 /* Transmit Control */

@@ -91,7 +91,6 @@ static struct clock_event_device pit_clkevt = {
 	.features	= CLOCK_EVT_FEAT_PERIODIC,
 	.shift		= 32,
 	.rating		= 100,
-	.cpumask	= CPU_MASK_CPU0,
 	.set_mode	= pit_clkevt_mode,
 };
 
@@ -173,6 +172,7 @@ static void __init at91sam926x_pit_init(void)
 
 	/* Set up and register clockevents */
 	pit_clkevt.mult = div_sc(pit_rate, NSEC_PER_SEC, pit_clkevt.shift);
+	pit_clkevt.cpumask = cpumask_of(0);
 	clockevents_register_device(&pit_clkevt);
 }
 

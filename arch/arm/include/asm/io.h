@@ -80,6 +80,14 @@ extern void __iounmap(volatile void __iomem *addr);
 extern void __readwrite_bug(const char *fn);
 
 /*
+ * A typesafe __io() helper
+ */
+static inline void __iomem *__typesafe_io(unsigned long addr)
+{
+	return (void __iomem *)addr;
+}
+
+/*
  * Now, pick up the machine-defined IO definitions
  */
 #include <mach/io.h>

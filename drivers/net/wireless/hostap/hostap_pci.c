@@ -312,7 +312,7 @@ static int prism2_pci_probe(struct pci_dev *pdev,
 		goto err_out_disable;
 	}
 
-	mem = ioremap(phymem, pci_resource_len(pdev, 0));
+	mem = pci_ioremap_bar(pdev, 0);
 	if (mem == NULL) {
 		printk(KERN_ERR "prism2: Cannot remap PCI memory region\n") ;
 		goto fail;

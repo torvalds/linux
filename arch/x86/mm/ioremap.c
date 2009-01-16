@@ -223,7 +223,8 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	 * Check if the request spans more than any BAR in the iomem resource
 	 * tree.
 	 */
-	WARN_ON(iomem_map_sanity_check(phys_addr, size));
+	WARN_ONCE(iomem_map_sanity_check(phys_addr, size),
+		  KERN_INFO "Info: mapping multiple BARs. Your kernel is fine.");
 
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..

@@ -467,11 +467,10 @@ static void program_drive_counts(ide_drive_t *drive, unsigned int index)
 	 * so we merge the timings, using the slowest value for each timing.
 	 */
 	if (index > 1) {
-		ide_hwif_t *hwif = drive->hwif;
-		ide_drive_t *peer = &hwif->drives[!(drive->dn & 1)];
+		ide_drive_t *peer = ide_get_pair_dev(drive);
 		unsigned int mate = index ^ 1;
 
-		if (peer->dev_flags & IDE_DFLAG_PRESENT) {
+		if (peer) {
 			if (setup_count < setup_counts[mate])
 				setup_count = setup_counts[mate];
 			if (active_count < active_counts[mate])

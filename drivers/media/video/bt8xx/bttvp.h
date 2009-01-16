@@ -459,7 +459,7 @@ struct bttv {
 };
 
 /* our devices */
-#define BTTV_MAX 16
+#define BTTV_MAX 32
 extern unsigned int bttv_num;
 extern struct bttv bttvs[BTTV_MAX];
 

@@ -150,8 +150,8 @@ static int cbe_nr_iommus;
 static void invalidate_tce_cache(struct cbe_iommu *iommu, unsigned long *pte,
 		long n_ptes)
 {
-	unsigned long __iomem *reg;
-	unsigned long val;
+	u64 __iomem *reg;
+	u64 val;
 	long n;
 
 	reg = iommu->xlate_regs + IOC_IOPT_CacheInvd;
@@ -855,7 +855,7 @@ static int __init cell_iommu_init_disabled(void)
 	 */
 	if (np && size < lmb_end_of_DRAM()) {
 		printk(KERN_WARNING "iommu: force-enabled, dma window"
-		       " (%ldMB) smaller than total memory (%ldMB)\n",
+		       " (%ldMB) smaller than total memory (%lldMB)\n",
 		       size >> 20, lmb_end_of_DRAM() >> 20);
 		return -ENODEV;
 	}
@@ -985,7 +985,7 @@ static void cell_dma_dev_setup_fixed(struct device *dev)
 	addr = cell_iommu_get_fixed_address(dev) + dma_iommu_fixed_base;
 	archdata->dma_data = (void *)addr;
 
-	dev_dbg(dev, "iommu: fixed addr = %lx\n", addr);
+	dev_dbg(dev, "iommu: fixed addr = %llx\n", addr);
 }
 
 static void insert_16M_pte(unsigned long addr, unsigned long *ptab,
@@ -1053,10 +1053,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	}
 
 	/* We must have dma-ranges properties for fixed mapping to work */
-	for (np = NULL; (np = of_find_all_nodes(np));) {
-		if (of_find_property(np, "dma-ranges", NULL))
-			break;
-	}
+	np = of_find_node_with_property(NULL, "dma-ranges");
 	of_node_put(np);
 
 	if (!np) {

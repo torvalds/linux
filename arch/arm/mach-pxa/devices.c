@@ -4,13 +4,12 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
-#include <mach/gpio.h>
+#include <mach/pxa-regs.h>
 #include <mach/udc.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
 #include <mach/irda.h>
 #include <mach/i2c.h>
-#include <mach/mfp-pxa27x.h>
 #include <mach/ohci.h>
 #include <mach/pxa27x_keypad.h>
 #include <mach/pxa2xx_spi.h>
@@ -156,8 +155,8 @@ void __init set_pxa_fb_parent(struct device *parent_dev)
 
 static struct resource pxa_resource_ffuart[] = {
 	{
-		.start	= __PREG(FFUART),
-		.end	= __PREG(FFUART) + 35,
+		.start	= 0x40100000,
+		.end	= 0x40100023,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_FFUART,
@@ -175,8 +174,8 @@ struct platform_device pxa_device_ffuart= {
 
 static struct resource pxa_resource_btuart[] = {
 	{
-		.start	= __PREG(BTUART),
-		.end	= __PREG(BTUART) + 35,
+		.start	= 0x40200000,
+		.end	= 0x40200023,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_BTUART,
@@ -194,8 +193,8 @@ struct platform_device pxa_device_btuart = {
 
 static struct resource pxa_resource_stuart[] = {
 	{
-		.start	= __PREG(STUART),
-		.end	= __PREG(STUART) + 35,
+		.start	= 0x40700000,
+		.end	= 0x40700023,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_STUART,
@@ -213,8 +212,8 @@ struct platform_device pxa_device_stuart = {
 
 static struct resource pxa_resource_hwuart[] = {
 	{
-		.start	= __PREG(HWUART),
-		.end	= __PREG(HWUART) + 47,
+		.start	= 0x41600000,
+		.end	= 0x4160002F,
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.start	= IRQ_HWUART,
@@ -249,17 +248,52 @@ struct platform_device pxa_device_i2c = {
 	.num_resources	= ARRAY_SIZE(pxai2c_resources),
 };
 
-static unsigned long pxa27x_i2c_mfp_cfg[] = {
-	GPIO117_I2C_SCL,
-	GPIO118_I2C_SDA,
-};
-
 void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 {
-	if (cpu_is_pxa27x())
-		pxa2xx_mfp_config(ARRAY_AND_SIZE(pxa27x_i2c_mfp_cfg));
 	pxa_register_device(&pxa_device_i2c, info);
 }
+
+#ifdef CONFIG_PXA27x
+static struct resource pxa27x_resources_i2c_power[] = {
+	{
+		.start	= 0x40f00180,
+		.end	= 0x40f001a3,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_PWRI2C,
+		.end	= IRQ_PWRI2C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device pxa27x_device_i2c_power = {
+	.name		= "pxa2xx-i2c",
+	.id		= 1,
+	.resource	= pxa27x_resources_i2c_power,
+	.num_resources	= ARRAY_SIZE(pxa27x_resources_i2c_power),
+};
+#endif
+
+#ifdef CONFIG_PXA3xx
+static struct resource pxa3xx_resources_i2c_power[] = {
+	{
+		.start  = 0x40f500c0,
+		.end    = 0x40f500d3,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_PWRI2C,
+		.end	= IRQ_PWRI2C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device pxa3xx_device_i2c_power = {
+	.name		= "pxa2xx-i2c",
+	.id		= 1,
+	.resource	= pxa3xx_resources_i2c_power,
+	.num_resources	= ARRAY_SIZE(pxa3xx_resources_i2c_power),
+};
+#endif
 
 static struct resource pxai2s_resources[] = {
 	{
@@ -296,9 +330,34 @@ void __init pxa_set_ficp_info(struct pxaficp_platform_data *info)
 	pxa_register_device(&pxa_device_ficp, info);
 }
 
-struct platform_device pxa_device_rtc = {
+static struct resource pxa_rtc_resources[] = {
+	[0] = {
+		.start  = 0x40900000,
+		.end	= 0x40900000 + 0x3b,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_RTC1Hz,
+		.end    = IRQ_RTC1Hz,
+		.flags  = IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start  = IRQ_RTCAlrm,
+		.end    = IRQ_RTCAlrm,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device sa1100_device_rtc = {
 	.name		= "sa1100-rtc",
 	.id		= -1,
+};
+
+struct platform_device pxa_device_rtc = {
+	.name		= "pxa-rtc",
+	.id		= -1,
+	.num_resources  = ARRAY_SIZE(pxa_rtc_resources),
+	.resource       = pxa_rtc_resources,
 };
 
 static struct resource pxa_ac97_resources[] = {

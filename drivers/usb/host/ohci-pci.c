@@ -355,9 +355,9 @@ static int __devinit ohci_pci_start (struct usb_hcd *hcd)
 
 		/* RWC may not be set for add-in PCI cards, since boot
 		 * firmware probably ignored them.  This transfers PCI
-		 * PM wakeup capabilities (once the PCI layer is fixed).
+		 * PM wakeup capabilities.
 		 */
-		if (device_may_wakeup(&pdev->dev))
+		if (device_can_wakeup(&pdev->dev))
 			ohci->hc_control |= OHCI_CTRL_RWC;
 	}
 #endif /* CONFIG_PM */
@@ -487,6 +487,8 @@ static struct pci_driver ohci_pci_driver = {
 
 #ifdef	CONFIG_PM
 	.suspend =	usb_hcd_pci_suspend,
+	.suspend_late =	usb_hcd_pci_suspend_late,
+	.resume_early =	usb_hcd_pci_resume_early,
 	.resume =	usb_hcd_pci_resume,
 #endif
 

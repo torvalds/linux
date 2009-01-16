@@ -130,8 +130,8 @@ struct ipip_net {
 	struct net_device *fb_tunnel_dev;
 };
 
-static int ipip_fb_tunnel_init(struct net_device *dev);
-static int ipip_tunnel_init(struct net_device *dev);
+static void ipip_fb_tunnel_init(struct net_device *dev);
+static void ipip_tunnel_init(struct net_device *dev);
 static void ipip_tunnel_setup(struct net_device *dev);
 
 static DEFINE_RWLOCK(ipip_lock);
@@ -245,8 +245,9 @@ static struct ip_tunnel * ipip_tunnel_locate(struct net *net,
 	}
 
 	nt = netdev_priv(dev);
-	dev->init = ipip_tunnel_init;
 	nt->parms = *parms;
+
+	ipip_tunnel_init(dev);
 
 	if (register_netdevice(dev) < 0)
 		goto failed_free;
@@ -281,7 +282,7 @@ static int ipip_err(struct sk_buff *skb, u32 info)
    8 bytes of packet payload. It means, that precise relaying of
    ICMP in the real Internet is absolutely infeasible.
  */
-	struct iphdr *iph = (struct iphdr*)skb->data;
+	struct iphdr *iph = (struct iphdr *)skb->data;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
 	struct ip_tunnel *t;
@@ -691,12 +692,17 @@ static int ipip_tunnel_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static const struct net_device_ops ipip_netdev_ops = {
+	.ndo_uninit	= ipip_tunnel_uninit,
+	.ndo_start_xmit	= ipip_tunnel_xmit,
+	.ndo_do_ioctl	= ipip_tunnel_ioctl,
+	.ndo_change_mtu	= ipip_tunnel_change_mtu,
+
+};
+
 static void ipip_tunnel_setup(struct net_device *dev)
 {
-	dev->uninit		= ipip_tunnel_uninit;
-	dev->hard_start_xmit	= ipip_tunnel_xmit;
-	dev->do_ioctl		= ipip_tunnel_ioctl;
-	dev->change_mtu		= ipip_tunnel_change_mtu;
+	dev->netdev_ops		= &ipip_netdev_ops;
 	dev->destructor		= free_netdev;
 
 	dev->type		= ARPHRD_TUNNEL;
@@ -708,11 +714,9 @@ static void ipip_tunnel_setup(struct net_device *dev)
 	dev->features		|= NETIF_F_NETNS_LOCAL;
 }
 
-static int ipip_tunnel_init(struct net_device *dev)
+static void ipip_tunnel_init(struct net_device *dev)
 {
-	struct ip_tunnel *tunnel;
-
-	tunnel = netdev_priv(dev);
+	struct ip_tunnel *tunnel = netdev_priv(dev);
 
 	tunnel->dev = dev;
 	strcpy(tunnel->parms.name, dev->name);
@@ -721,11 +725,9 @@ static int ipip_tunnel_init(struct net_device *dev)
 	memcpy(dev->broadcast, &tunnel->parms.iph.daddr, 4);
 
 	ipip_tunnel_bind_dev(dev);
-
-	return 0;
 }
 
-static int ipip_fb_tunnel_init(struct net_device *dev)
+static void ipip_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
@@ -740,7 +742,6 @@ static int ipip_fb_tunnel_init(struct net_device *dev)
 
 	dev_hold(dev);
 	ipn->tunnels_wc[0]	= tunnel;
-	return 0;
 }
 
 static struct xfrm_tunnel ipip_handler = {
@@ -792,9 +793,9 @@ static int ipip_init_net(struct net *net)
 		err = -ENOMEM;
 		goto err_alloc_dev;
 	}
-
-	ipn->fb_tunnel_dev->init = ipip_fb_tunnel_init;
 	dev_net_set(ipn->fb_tunnel_dev, net);
+
+	ipip_fb_tunnel_init(ipn->fb_tunnel_dev);
 
 	if ((err = register_netdev(ipn->fb_tunnel_dev)))
 		goto err_reg_dev;

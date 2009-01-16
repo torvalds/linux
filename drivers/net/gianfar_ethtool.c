@@ -121,7 +121,7 @@ static void gfar_gstrings(struct net_device *dev, u32 stringset, u8 * buf)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
 		memcpy(buf, stat_gstrings, GFAR_STATS_LEN * ETH_GSTRING_LEN);
 	else
 		memcpy(buf, stat_gstrings,
@@ -138,7 +138,7 @@ static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
 	struct gfar_private *priv = netdev_priv(dev);
 	u64 *extra = (u64 *) & priv->extra_stats;
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON) {
 		u32 __iomem *rmon = (u32 __iomem *) & priv->regs->rmon;
 		struct gfar_stats *stats = (struct gfar_stats *) buf;
 
@@ -158,7 +158,7 @@ static int gfar_sset_count(struct net_device *dev, int sset)
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
+		if (priv->device_flags & FSL_GIANFAR_DEV_HAS_RMON)
 			return GFAR_STATS_LEN;
 		else
 			return GFAR_EXTRA_STATS_LEN;
@@ -201,8 +201,8 @@ static int gfar_gsettings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (NULL == phydev)
 		return -ENODEV;
 
-	cmd->maxtxpkt = priv->txcount;
-	cmd->maxrxpkt = priv->rxcount;
+	cmd->maxtxpkt = get_icft_value(priv->txic);
+	cmd->maxrxpkt = get_icft_value(priv->rxic);
 
 	return phy_ethtool_gset(phydev, cmd);
 }
@@ -279,18 +279,26 @@ static unsigned int gfar_ticks2usecs(struct gfar_private *priv, unsigned int tic
 static int gfar_gcoalesce(struct net_device *dev, struct ethtool_coalesce *cvals)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	unsigned long rxtime;
+	unsigned long rxcount;
+	unsigned long txtime;
+	unsigned long txcount;
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
 	if (NULL == priv->phydev)
 		return -ENODEV;
 
-	cvals->rx_coalesce_usecs = gfar_ticks2usecs(priv, priv->rxtime);
-	cvals->rx_max_coalesced_frames = priv->rxcount;
+	rxtime  = get_ictt_value(priv->rxic);
+	rxcount = get_icft_value(priv->rxic);
+	txtime  = get_ictt_value(priv->txic);
+	txcount = get_icft_value(priv->txic);;
+	cvals->rx_coalesce_usecs = gfar_ticks2usecs(priv, rxtime);
+	cvals->rx_max_coalesced_frames = rxcount;
 
-	cvals->tx_coalesce_usecs = gfar_ticks2usecs(priv, priv->txtime);
-	cvals->tx_max_coalesced_frames = priv->txcount;
+	cvals->tx_coalesce_usecs = gfar_ticks2usecs(priv, txtime);
+	cvals->tx_max_coalesced_frames = txcount;
 
 	cvals->use_adaptive_rx_coalesce = 0;
 	cvals->use_adaptive_tx_coalesce = 0;
@@ -332,7 +340,7 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
 	/* Set up rx coalescing */
@@ -358,8 +366,9 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 		return -EINVAL;
 	}
 
-	priv->rxtime = gfar_usecs2ticks(priv, cvals->rx_coalesce_usecs);
-	priv->rxcount = cvals->rx_max_coalesced_frames;
+	priv->rxic = mk_ic_value(
+		gfar_usecs2ticks(priv, cvals->rx_coalesce_usecs),
+		cvals->rx_max_coalesced_frames);
 
 	/* Set up tx coalescing */
 	if ((cvals->tx_coalesce_usecs == 0) ||
@@ -381,20 +390,17 @@ static int gfar_scoalesce(struct net_device *dev, struct ethtool_coalesce *cvals
 		return -EINVAL;
 	}
 
-	priv->txtime = gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs);
-	priv->txcount = cvals->tx_max_coalesced_frames;
+	priv->txic = mk_ic_value(
+		gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs),
+		cvals->tx_max_coalesced_frames);
 
+	gfar_write(&priv->regs->rxic, 0);
 	if (priv->rxcoalescing)
-		gfar_write(&priv->regs->rxic,
-			   mk_ic_value(priv->rxcount, priv->rxtime));
-	else
-		gfar_write(&priv->regs->rxic, 0);
+		gfar_write(&priv->regs->rxic, priv->rxic);
 
+	gfar_write(&priv->regs->txic, 0);
 	if (priv->txcoalescing)
-		gfar_write(&priv->regs->txic,
-			   mk_ic_value(priv->txcount, priv->txtime));
-	else
-		gfar_write(&priv->regs->txic, 0);
+		gfar_write(&priv->regs->txic, priv->txic);
 
 	return 0;
 }
@@ -456,10 +462,11 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 		spin_lock(&priv->rxlock);
 
 		gfar_halt(dev);
-		gfar_clean_rx_ring(dev, priv->rx_ring_size);
 
 		spin_unlock(&priv->rxlock);
 		spin_unlock_irqrestore(&priv->txlock, flags);
+
+		gfar_clean_rx_ring(dev, priv->rx_ring_size);
 
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
@@ -468,11 +475,13 @@ static int gfar_sringparam(struct net_device *dev, struct ethtool_ringparam *rva
 	/* Change the size */
 	priv->rx_ring_size = rvals->rx_pending;
 	priv->tx_ring_size = rvals->tx_pending;
+	priv->num_txbdfree = priv->tx_ring_size;
 
 	/* Rebuild the rings with the new size */
-	if (dev->flags & IFF_UP)
+	if (dev->flags & IFF_UP) {
 		err = startup_gfar(dev);
-
+		netif_wake_queue(dev);
+	}
 	return err;
 }
 
@@ -482,7 +491,7 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 	unsigned long flags;
 	int err = 0;
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return -EOPNOTSUPP;
 
 	if (dev->flags & IFF_UP) {
@@ -492,10 +501,11 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 		spin_lock(&priv->rxlock);
 
 		gfar_halt(dev);
-		gfar_clean_rx_ring(dev, priv->rx_ring_size);
 
 		spin_unlock(&priv->rxlock);
 		spin_unlock_irqrestore(&priv->txlock, flags);
+
+		gfar_clean_rx_ring(dev, priv->rx_ring_size);
 
 		/* Now we take down the rings to rebuild them */
 		stop_gfar(dev);
@@ -505,9 +515,10 @@ static int gfar_set_rx_csum(struct net_device *dev, uint32_t data)
 	priv->rx_csum_enable = data;
 	spin_unlock_irqrestore(&priv->bflock, flags);
 
-	if (dev->flags & IFF_UP)
+	if (dev->flags & IFF_UP) {
 		err = startup_gfar(dev);
-
+		netif_wake_queue(dev);
+	}
 	return err;
 }
 
@@ -515,7 +526,7 @@ static uint32_t gfar_get_rx_csum(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return 0;
 
 	return priv->rx_csum_enable;
@@ -523,22 +534,19 @@ static uint32_t gfar_get_rx_csum(struct net_device *dev)
 
 static int gfar_set_tx_csum(struct net_device *dev, uint32_t data)
 {
-	unsigned long flags;
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return -EOPNOTSUPP;
 
-	spin_lock_irqsave(&priv->txlock, flags);
-	gfar_halt(dev);
+	netif_tx_lock_bh(dev);
 
 	if (data)
 		dev->features |= NETIF_F_IP_CSUM;
 	else
 		dev->features &= ~NETIF_F_IP_CSUM;
 
-	gfar_start(dev);
-	spin_unlock_irqrestore(&priv->txlock, flags);
+	netif_tx_unlock_bh(dev);
 
 	return 0;
 }
@@ -547,7 +555,7 @@ static uint32_t gfar_get_tx_csum(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_CSUM))
 		return 0;
 
 	return (dev->features & NETIF_F_IP_CSUM) != 0;
@@ -570,7 +578,7 @@ static void gfar_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 
-	if (priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) {
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) {
 		wol->supported = WAKE_MAGIC;
 		wol->wolopts = priv->wol_en ? WAKE_MAGIC : 0;
 	} else {
@@ -583,7 +591,7 @@ static int gfar_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
 
-	if (!(priv->einfo->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET) &&
 	    wol->wolopts != 0)
 		return -EINVAL;
 
@@ -616,6 +624,7 @@ const struct ethtool_ops gfar_ethtool_ops = {
 	.get_tx_csum = gfar_get_tx_csum,
 	.set_rx_csum = gfar_set_rx_csum,
 	.set_tx_csum = gfar_set_tx_csum,
+	.set_sg = ethtool_op_set_sg,
 	.get_msglevel = gfar_get_msglevel,
 	.set_msglevel = gfar_set_msglevel,
 #ifdef CONFIG_PM

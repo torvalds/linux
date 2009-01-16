@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/param.h>
 #include <linux/string.h>
+#include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/bootmem.h>
@@ -38,6 +39,8 @@ static void qe_snums_init(void);
 static int qe_sdma_init(void);
 
 static DEFINE_SPINLOCK(qe_lock);
+DEFINE_SPINLOCK(cmxgcr_lock);
+EXPORT_SYMBOL(cmxgcr_lock);
 
 /* QE snum state */
 enum qe_snum_state {

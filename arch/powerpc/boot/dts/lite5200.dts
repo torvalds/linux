@@ -130,7 +130,6 @@
 
 		rtc@800 {	// Real time clock
 			compatible = "fsl,mpc5200-rtc";
-			device_type = "rtc";
 			reg = <0x800 0x100>;
 			interrupts = <1 5 0 1 6 0>;
 			interrupt-parent = <&mpc5200_pic>;

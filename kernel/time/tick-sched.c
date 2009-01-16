@@ -144,7 +144,7 @@ void tick_nohz_update_jiffies(void)
 	if (!ts->tick_stopped)
 		return;
 
-	cpu_clear(cpu, nohz_cpu_mask);
+	cpumask_clear_cpu(cpu, nohz_cpu_mask);
 	now = ktime_get();
 	ts->idle_waketime = now;
 
@@ -247,7 +247,7 @@ void tick_nohz_stop_sched_tick(int inidle)
 	if (need_resched())
 		goto end;
 
-	if (unlikely(local_softirq_pending())) {
+	if (unlikely(local_softirq_pending() && cpu_online(cpu))) {
 		static int ratelimit;
 
 		if (ratelimit < 10) {
@@ -282,8 +282,31 @@ void tick_nohz_stop_sched_tick(int inidle)
 	/* Schedule the tick, if we are at least one jiffie off */
 	if ((long)delta_jiffies >= 1) {
 
+		/*
+		* calculate the expiry time for the next timer wheel
+		* timer
+		*/
+		expires = ktime_add_ns(last_update, tick_period.tv64 *
+				   delta_jiffies);
+
+		/*
+		 * If this cpu is the one which updates jiffies, then
+		 * give up the assignment and let it be taken by the
+		 * cpu which runs the tick timer next, which might be
+		 * this cpu as well. If we don't drop this here the
+		 * jiffies might be stale and do_timer() never
+		 * invoked.
+		 */
+		if (cpu == tick_do_timer_cpu)
+			tick_do_timer_cpu = TICK_DO_TIMER_NONE;
+
 		if (delta_jiffies > 1)
-			cpu_set(cpu, nohz_cpu_mask);
+			cpumask_set_cpu(cpu, nohz_cpu_mask);
+
+		/* Skip reprogram of event if its not changed */
+		if (ts->tick_stopped && ktime_equal(expires, dev->next_event))
+			goto out;
+
 		/*
 		 * nohz_stop_sched_tick can be called several times before
 		 * the nohz_restart_sched_tick is called. This happens when
@@ -296,7 +319,7 @@ void tick_nohz_stop_sched_tick(int inidle)
 				/*
 				 * sched tick not stopped!
 				 */
-				cpu_clear(cpu, nohz_cpu_mask);
+				cpumask_clear_cpu(cpu, nohz_cpu_mask);
 				goto out;
 			}
 
@@ -305,17 +328,6 @@ void tick_nohz_stop_sched_tick(int inidle)
 			ts->idle_jiffies = last_jiffies;
 			rcu_enter_nohz();
 		}
-
-		/*
-		 * If this cpu is the one which updates jiffies, then
-		 * give up the assignment and let it be taken by the
-		 * cpu which runs the tick timer next, which might be
-		 * this cpu as well. If we don't drop this here the
-		 * jiffies might be stale and do_timer() never
-		 * invoked.
-		 */
-		if (cpu == tick_do_timer_cpu)
-			tick_do_timer_cpu = TICK_DO_TIMER_NONE;
 
 		ts->idle_sleeps++;
 
@@ -332,12 +344,7 @@ void tick_nohz_stop_sched_tick(int inidle)
 			goto out;
 		}
 
-		/*
-		 * calculate the expiry time for the next timer wheel
-		 * timer
-		 */
-		expires = ktime_add_ns(last_update, tick_period.tv64 *
-				       delta_jiffies);
+		/* Mark expiries */
 		ts->idle_expires = expires;
 
 		if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
@@ -354,7 +361,7 @@ void tick_nohz_stop_sched_tick(int inidle)
 		 * softirq.
 		 */
 		tick_do_update_jiffies64(ktime_get());
-		cpu_clear(cpu, nohz_cpu_mask);
+		cpumask_clear_cpu(cpu, nohz_cpu_mask);
 	}
 	raise_softirq_irqoff(TIMER_SOFTIRQ);
 out:
@@ -412,7 +419,9 @@ void tick_nohz_restart_sched_tick(void)
 {
 	int cpu = smp_processor_id();
 	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING
 	unsigned long ticks;
+#endif
 	ktime_t now;
 
 	local_irq_disable();
@@ -432,8 +441,9 @@ void tick_nohz_restart_sched_tick(void)
 	select_nohz_load_balancer(0);
 	now = ktime_get();
 	tick_do_update_jiffies64(now);
-	cpu_clear(cpu, nohz_cpu_mask);
+	cpumask_clear_cpu(cpu, nohz_cpu_mask);
 
+#ifndef CONFIG_VIRT_CPU_ACCOUNTING
 	/*
 	 * We stopped the tick in idle. Update process times would miss the
 	 * time we slept as update_process_times does only a 1 tick
@@ -443,12 +453,9 @@ void tick_nohz_restart_sched_tick(void)
 	/*
 	 * We might be one off. Do not randomly account a huge number of ticks!
 	 */
-	if (ticks && ticks < LONG_MAX) {
-		add_preempt_count(HARDIRQ_OFFSET);
-		account_system_time(current, HARDIRQ_OFFSET,
-				    jiffies_to_cputime(ticks));
-		sub_preempt_count(HARDIRQ_OFFSET);
-	}
+	if (ticks && ticks < LONG_MAX)
+		account_idle_ticks(ticks);
+#endif
 
 	touch_softlockup_watchdog();
 	/*
@@ -681,7 +688,6 @@ void tick_setup_sched_timer(void)
 	 */
 	hrtimer_init(&ts->sched_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	ts->sched_timer.function = tick_sched_timer;
-	ts->sched_timer.cb_mode = HRTIMER_CB_IRQSAFE_PERCPU;
 
 	/* Get the next period (per cpu) */
 	hrtimer_set_expires(&ts->sched_timer, tick_init_jiffy_update());

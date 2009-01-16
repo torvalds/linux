@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2007 Solarflare Communications Inc.
+ * Copyright 2007-2008 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -13,22 +13,24 @@
 /**
  * enum efx_loopback_mode - loopback modes
  * @LOOPBACK_NONE: no loopback
- * @LOOPBACK_XGMII: loopback within MAC at XGMII level
- * @LOOPBACK_XGXS: loopback within MAC at XGXS level
- * @LOOPBACK_XAUI: loopback within MAC at XAUI level
- * @LOOPBACK_PHYXS: loopback within PHY at PHYXS level
- * @LOOPBACK_PCS: loopback within PHY at PCS level
- * @LOOPBACK_PMAPMD: loopback within PHY at PMAPMD level
+ * @LOOPBACK_GMAC: loopback within GMAC at unspecified level
+ * @LOOPBACK_XGMII: loopback within XMAC at XGMII level
+ * @LOOPBACK_XGXS: loopback within XMAC at XGXS level
+ * @LOOPBACK_XAUI: loopback within XMAC at XAUI level
+ * @LOOPBACK_GPHY: loopback within 1G PHY at unspecified level
+ * @LOOPBACK_PHYXS: loopback within 10G PHY at PHYXS level
+ * @LOOPBACK_PCS: loopback within 10G PHY at PCS level
+ * @LOOPBACK_PMAPMD: loopback within 10G PHY at PMAPMD level
  * @LOOPBACK_NETWORK: reflecting loopback (even further than furthest!)
  */
 /* Please keep in order and up-to-date w.r.t the following two #defines */
 enum efx_loopback_mode {
 	LOOPBACK_NONE = 0,
-	LOOPBACK_MAC = 1,
+	LOOPBACK_GMAC = 1,
 	LOOPBACK_XGMII = 2,
 	LOOPBACK_XGXS = 3,
 	LOOPBACK_XAUI = 4,
-	LOOPBACK_PHY = 5,
+	LOOPBACK_GPHY = 5,
 	LOOPBACK_PHYXS = 6,
 	LOOPBACK_PCS = 7,
 	LOOPBACK_PMAPMD = 8,
@@ -45,15 +47,19 @@ extern const char *efx_loopback_mode_names[];
 	LOOPBACK_MODE_NAME(efx->loopback_mode)
 
 /* These loopbacks occur within the controller */
-#define LOOPBACKS_10G_INTERNAL ((1 << LOOPBACK_XGMII)| \
-				(1 << LOOPBACK_XGXS) | \
-				(1 << LOOPBACK_XAUI))
+#define LOOPBACKS_INTERNAL ((1 << LOOPBACK_GMAC) |     \
+			    (1 << LOOPBACK_XGMII)|     \
+			    (1 << LOOPBACK_XGXS) |     \
+			    (1 << LOOPBACK_XAUI))
 
 #define LOOPBACK_MASK(_efx)			\
 	(1 << (_efx)->loopback_mode)
 
 #define LOOPBACK_INTERNAL(_efx)				\
-	(!!(LOOPBACKS_10G_INTERNAL & LOOPBACK_MASK(_efx)))
+	(!!(LOOPBACKS_INTERNAL & LOOPBACK_MASK(_efx)))
+
+#define LOOPBACK_CHANGED(_from, _to, _mask)				\
+	(!!((LOOPBACK_MASK(_from) ^ LOOPBACK_MASK(_to)) & (_mask)))
 
 #define LOOPBACK_OUT_OF(_from, _to, _mask)				\
 	((LOOPBACK_MASK(_from) & (_mask)) && !(LOOPBACK_MASK(_to) & (_mask)))
@@ -72,7 +78,7 @@ extern const char *efx_loopback_mode_names[];
  * @RESET_TYPE_ALL: reset everything but PCI core blocks
  * @RESET_TYPE_WORLD: reset everything, save & restore PCI config
  * @RESET_TYPE_DISABLE: disable NIC
- * @RESET_TYPE_MONITOR: reset due to hardware monitor
+ * @RESET_TYPE_TX_WATCHDOG: reset due to TX watchdog
  * @RESET_TYPE_INT_ERROR: reset due to internal error
  * @RESET_TYPE_RX_RECOVERY: reset to recover from RX datapath errors
  * @RESET_TYPE_RX_DESC_FETCH: pcie error during rx descriptor fetch
@@ -86,7 +92,7 @@ enum reset_type {
 	RESET_TYPE_WORLD = 2,
 	RESET_TYPE_DISABLE = 3,
 	RESET_TYPE_MAX_METHOD,
-	RESET_TYPE_MONITOR,
+	RESET_TYPE_TX_WATCHDOG,
 	RESET_TYPE_INT_ERROR,
 	RESET_TYPE_RX_RECOVERY,
 	RESET_TYPE_RX_DESC_FETCH,

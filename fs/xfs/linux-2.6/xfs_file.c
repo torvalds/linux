@@ -36,30 +36,14 @@
 #include "xfs_inode.h"
 #include "xfs_error.h"
 #include "xfs_rw.h"
-#include "xfs_ioctl32.h"
 #include "xfs_vnodeops.h"
+#include "xfs_da_btree.h"
+#include "xfs_ioctl.h"
 
 #include <linux/dcache.h>
 #include <linux/smp_lock.h>
 
 static struct vm_operations_struct xfs_file_vm_ops;
-
-STATIC_INLINE ssize_t
-__xfs_file_read(
-	struct kiocb		*iocb,
-	const struct iovec	*iov,
-	unsigned long		nr_segs,
-	int			ioflags,
-	loff_t			pos)
-{
-	struct file		*file = iocb->ki_filp;
-
-	BUG_ON(iocb->ki_pos != pos);
-	if (unlikely(file->f_flags & O_DIRECT))
-		ioflags |= IO_ISDIRECT;
-	return xfs_read(XFS_I(file->f_path.dentry->d_inode), iocb, iov,
-				nr_segs, &iocb->ki_pos, ioflags);
-}
 
 STATIC ssize_t
 xfs_file_aio_read(
@@ -68,34 +52,16 @@ xfs_file_aio_read(
 	unsigned long		nr_segs,
 	loff_t			pos)
 {
-	return __xfs_file_read(iocb, iov, nr_segs, IO_ISAIO, pos);
-}
-
-STATIC ssize_t
-xfs_file_aio_read_invis(
-	struct kiocb		*iocb,
-	const struct iovec	*iov,
-	unsigned long		nr_segs,
-	loff_t			pos)
-{
-	return __xfs_file_read(iocb, iov, nr_segs, IO_ISAIO|IO_INVIS, pos);
-}
-
-STATIC_INLINE ssize_t
-__xfs_file_write(
-	struct kiocb		*iocb,
-	const struct iovec	*iov,
-	unsigned long		nr_segs,
-	int			ioflags,
-	loff_t			pos)
-{
-	struct file	*file = iocb->ki_filp;
+	struct file		*file = iocb->ki_filp;
+	int			ioflags = IO_ISAIO;
 
 	BUG_ON(iocb->ki_pos != pos);
 	if (unlikely(file->f_flags & O_DIRECT))
 		ioflags |= IO_ISDIRECT;
-	return xfs_write(XFS_I(file->f_mapping->host), iocb, iov, nr_segs,
-				&iocb->ki_pos, ioflags);
+	if (file->f_mode & FMODE_NOCMTIME)
+		ioflags |= IO_INVIS;
+	return xfs_read(XFS_I(file->f_path.dentry->d_inode), iocb, iov,
+				nr_segs, &iocb->ki_pos, ioflags);
 }
 
 STATIC ssize_t
@@ -105,17 +71,16 @@ xfs_file_aio_write(
 	unsigned long		nr_segs,
 	loff_t			pos)
 {
-	return __xfs_file_write(iocb, iov, nr_segs, IO_ISAIO, pos);
-}
+	struct file		*file = iocb->ki_filp;
+	int			ioflags = IO_ISAIO;
 
-STATIC ssize_t
-xfs_file_aio_write_invis(
-	struct kiocb		*iocb,
-	const struct iovec	*iov,
-	unsigned long		nr_segs,
-	loff_t			pos)
-{
-	return __xfs_file_write(iocb, iov, nr_segs, IO_ISAIO|IO_INVIS, pos);
+	BUG_ON(iocb->ki_pos != pos);
+	if (unlikely(file->f_flags & O_DIRECT))
+		ioflags |= IO_ISDIRECT;
+	if (file->f_mode & FMODE_NOCMTIME)
+		ioflags |= IO_INVIS;
+	return xfs_write(XFS_I(file->f_mapping->host), iocb, iov, nr_segs,
+				&iocb->ki_pos, ioflags);
 }
 
 STATIC ssize_t
@@ -126,20 +91,13 @@ xfs_file_splice_read(
 	size_t			len,
 	unsigned int		flags)
 {
-	return xfs_splice_read(XFS_I(infilp->f_path.dentry->d_inode),
-				   infilp, ppos, pipe, len, flags, 0);
-}
+	int			ioflags = 0;
 
-STATIC ssize_t
-xfs_file_splice_read_invis(
-	struct file		*infilp,
-	loff_t			*ppos,
-	struct pipe_inode_info	*pipe,
-	size_t			len,
-	unsigned int		flags)
-{
+	if (infilp->f_mode & FMODE_NOCMTIME)
+		ioflags |= IO_INVIS;
+
 	return xfs_splice_read(XFS_I(infilp->f_path.dentry->d_inode),
-				   infilp, ppos, pipe, len, flags, IO_INVIS);
+				   infilp, ppos, pipe, len, flags, ioflags);
 }
 
 STATIC ssize_t
@@ -150,30 +108,49 @@ xfs_file_splice_write(
 	size_t			len,
 	unsigned int		flags)
 {
-	return xfs_splice_write(XFS_I(outfilp->f_path.dentry->d_inode),
-				    pipe, outfilp, ppos, len, flags, 0);
-}
+	int			ioflags = 0;
 
-STATIC ssize_t
-xfs_file_splice_write_invis(
-	struct pipe_inode_info	*pipe,
-	struct file		*outfilp,
-	loff_t			*ppos,
-	size_t			len,
-	unsigned int		flags)
-{
+	if (outfilp->f_mode & FMODE_NOCMTIME)
+		ioflags |= IO_INVIS;
+
 	return xfs_splice_write(XFS_I(outfilp->f_path.dentry->d_inode),
-				    pipe, outfilp, ppos, len, flags, IO_INVIS);
+				    pipe, outfilp, ppos, len, flags, ioflags);
 }
 
 STATIC int
 xfs_file_open(
 	struct inode	*inode,
-	struct file	*filp)
+	struct file	*file)
 {
-	if (!(filp->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
+	if (!(file->f_flags & O_LARGEFILE) && i_size_read(inode) > MAX_NON_LFS)
 		return -EFBIG;
-	return -xfs_open(XFS_I(inode));
+	if (XFS_FORCED_SHUTDOWN(XFS_M(inode->i_sb)))
+		return -EIO;
+	return 0;
+}
+
+STATIC int
+xfs_dir_open(
+	struct inode	*inode,
+	struct file	*file)
+{
+	struct xfs_inode *ip = XFS_I(inode);
+	int		mode;
+	int		error;
+
+	error = xfs_file_open(inode, file);
+	if (error)
+		return error;
+
+	/*
+	 * If there are any blocks, read-ahead block 0 as we're almost
+	 * certain to have the next operation be a read there.
+	 */
+	mode = xfs_ilock_map_shared(ip);
+	if (ip->i_d.di_nextents > 0)
+		xfs_da_reada_buf(NULL, ip, 0, XFS_DATA_FORK);
+	xfs_iunlock(ip, mode);
+	return 0;
 }
 
 STATIC int
@@ -227,7 +204,7 @@ xfs_file_readdir(
 	 * point we can change the ->readdir prototype to include the
 	 * buffer size.
 	 */
-	bufsize = (size_t)min_t(loff_t, PAGE_SIZE, inode->i_size);
+	bufsize = (size_t)min_t(loff_t, PAGE_SIZE, ip->i_d.di_size);
 
 	error = xfs_readdir(ip, dirent, bufsize,
 				(xfs_off_t *)&filp->f_pos, filldir);
@@ -246,48 +223,6 @@ xfs_file_mmap(
 
 	file_accessed(filp);
 	return 0;
-}
-
-STATIC long
-xfs_file_ioctl(
-	struct file	*filp,
-	unsigned int	cmd,
-	unsigned long	p)
-{
-	int		error;
-	struct inode	*inode = filp->f_path.dentry->d_inode;
-
-	error = xfs_ioctl(XFS_I(inode), filp, 0, cmd, (void __user *)p);
-	xfs_iflags_set(XFS_I(inode), XFS_IMODIFIED);
-
-	/* NOTE:  some of the ioctl's return positive #'s as a
-	 *	  byte count indicating success, such as
-	 *	  readlink_by_handle.  So we don't "sign flip"
-	 *	  like most other routines.  This means true
-	 *	  errors need to be returned as a negative value.
-	 */
-	return error;
-}
-
-STATIC long
-xfs_file_ioctl_invis(
-	struct file	*filp,
-	unsigned int	cmd,
-	unsigned long	p)
-{
-	int		error;
-	struct inode	*inode = filp->f_path.dentry->d_inode;
-
-	error = xfs_ioctl(XFS_I(inode), filp, IO_INVIS, cmd, (void __user *)p);
-	xfs_iflags_set(XFS_I(inode), XFS_IMODIFIED);
-
-	/* NOTE:  some of the ioctl's return positive #'s as a
-	 *	  byte count indicating success, such as
-	 *	  readlink_by_handle.  So we don't "sign flip"
-	 *	  like most other routines.  This means true
-	 *	  errors need to be returned as a negative value.
-	 */
-	return error;
 }
 
 /*
@@ -325,26 +260,8 @@ const struct file_operations xfs_file_operations = {
 #endif
 };
 
-const struct file_operations xfs_invis_file_operations = {
-	.llseek		= generic_file_llseek,
-	.read		= do_sync_read,
-	.write		= do_sync_write,
-	.aio_read	= xfs_file_aio_read_invis,
-	.aio_write	= xfs_file_aio_write_invis,
-	.splice_read	= xfs_file_splice_read_invis,
-	.splice_write	= xfs_file_splice_write_invis,
-	.unlocked_ioctl	= xfs_file_ioctl_invis,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= xfs_file_compat_invis_ioctl,
-#endif
-	.mmap		= xfs_file_mmap,
-	.open		= xfs_file_open,
-	.release	= xfs_file_release,
-	.fsync		= xfs_file_fsync,
-};
-
-
 const struct file_operations xfs_dir_file_operations = {
+	.open		= xfs_dir_open,
 	.read		= generic_read_dir,
 	.readdir	= xfs_file_readdir,
 	.llseek		= generic_file_llseek,

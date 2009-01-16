@@ -17,6 +17,7 @@
 
 #include <asm/cputype.h>
 #include <asm/mach-types.h>
+#include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>
 #include <asm/tlb.h>
@@ -646,61 +647,79 @@ static void __init early_vmalloc(char **arg)
 			"vmalloc area too small, limiting to %luMB\n",
 			vmalloc_reserve >> 20);
 	}
+
+	if (vmalloc_reserve > VMALLOC_END - (PAGE_OFFSET + SZ_32M)) {
+		vmalloc_reserve = VMALLOC_END - (PAGE_OFFSET + SZ_32M);
+		printk(KERN_WARNING
+			"vmalloc area is too big, limiting to %luMB\n",
+			vmalloc_reserve >> 20);
+	}
 }
 __early_param("vmalloc=", early_vmalloc);
 
 #define VMALLOC_MIN	(void *)(VMALLOC_END - vmalloc_reserve)
 
-static int __init check_membank_valid(struct membank *mb)
-{
-	/*
-	 * Check whether this memory region has non-zero size or
-	 * invalid node number.
-	 */
-	if (mb->size == 0 || mb->node >= MAX_NUMNODES)
-		return 0;
-
-	/*
-	 * Check whether this memory region would entirely overlap
-	 * the vmalloc area.
-	 */
-	if (phys_to_virt(mb->start) >= VMALLOC_MIN) {
-		printk(KERN_NOTICE "Ignoring RAM at %.8lx-%.8lx "
-			"(vmalloc region overlap).\n",
-			mb->start, mb->start + mb->size - 1);
-		return 0;
-	}
-
-	/*
-	 * Check whether this memory region would partially overlap
-	 * the vmalloc area.
-	 */
-	if (phys_to_virt(mb->start + mb->size) < phys_to_virt(mb->start) ||
-	    phys_to_virt(mb->start + mb->size) > VMALLOC_MIN) {
-		unsigned long newsize = VMALLOC_MIN - phys_to_virt(mb->start);
-
-		printk(KERN_NOTICE "Truncating RAM at %.8lx-%.8lx "
-			"to -%.8lx (vmalloc region overlap).\n",
-			mb->start, mb->start + mb->size - 1,
-			mb->start + newsize - 1);
-		mb->size = newsize;
-	}
-
-	return 1;
-}
-
-static void __init sanity_check_meminfo(struct meminfo *mi)
+static void __init sanity_check_meminfo(void)
 {
 	int i, j;
 
-	for (i = 0, j = 0; i < mi->nr_banks; i++) {
-		if (check_membank_valid(&mi->bank[i]))
-			mi->bank[j++] = mi->bank[i];
+	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
+		struct membank *bank = &meminfo.bank[j];
+		*bank = meminfo.bank[i];
+
+#ifdef CONFIG_HIGHMEM
+		/*
+		 * Split those memory banks which are partially overlapping
+		 * the vmalloc area greatly simplifying things later.
+		 */
+		if (__va(bank->start) < VMALLOC_MIN &&
+		    bank->size > VMALLOC_MIN - __va(bank->start)) {
+			if (meminfo.nr_banks >= NR_BANKS) {
+				printk(KERN_CRIT "NR_BANKS too low, "
+						 "ignoring high memory\n");
+			} else {
+				memmove(bank + 1, bank,
+					(meminfo.nr_banks - i) * sizeof(*bank));
+				meminfo.nr_banks++;
+				i++;
+				bank[1].size -= VMALLOC_MIN - __va(bank->start);
+				bank[1].start = __pa(VMALLOC_MIN - 1) + 1;
+				j++;
+			}
+			bank->size = VMALLOC_MIN - __va(bank->start);
+		}
+#else
+		/*
+		 * Check whether this memory bank would entirely overlap
+		 * the vmalloc area.
+		 */
+		if (__va(bank->start) >= VMALLOC_MIN) {
+			printk(KERN_NOTICE "Ignoring RAM at %.8lx-%.8lx "
+			       "(vmalloc region overlap).\n",
+			       bank->start, bank->start + bank->size - 1);
+			continue;
+		}
+
+		/*
+		 * Check whether this memory bank would partially overlap
+		 * the vmalloc area.
+		 */
+		if (__va(bank->start + bank->size) > VMALLOC_MIN ||
+		    __va(bank->start + bank->size) < __va(bank->start)) {
+			unsigned long newsize = VMALLOC_MIN - __va(bank->start);
+			printk(KERN_NOTICE "Truncating RAM at %.8lx-%.8lx "
+			       "to -%.8lx (vmalloc region overlap).\n",
+			       bank->start, bank->start + bank->size - 1,
+			       bank->start + newsize - 1);
+			bank->size = newsize;
+		}
+#endif
+		j++;
 	}
-	mi->nr_banks = j;
+	meminfo.nr_banks = j;
 }
 
-static inline void prepare_page_table(struct meminfo *mi)
+static inline void prepare_page_table(void)
 {
 	unsigned long addr;
 
@@ -712,7 +731,7 @@ static inline void prepare_page_table(struct meminfo *mi)
 
 #ifdef CONFIG_XIP_KERNEL
 	/* The XIP kernel is mapped in the module area -- skip over it */
-	addr = ((unsigned long)&_etext + PGDIR_SIZE - 1) & PGDIR_MASK;
+	addr = ((unsigned long)_etext + PGDIR_SIZE - 1) & PGDIR_MASK;
 #endif
 	for ( ; addr < PAGE_OFFSET; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
@@ -721,7 +740,7 @@ static inline void prepare_page_table(struct meminfo *mi)
 	 * Clear out all the kernel space mappings, except for the first
 	 * memory bank, up to the end of the vmalloc region.
 	 */
-	for (addr = __phys_to_virt(mi->bank[0].start + mi->bank[0].size);
+	for (addr = __phys_to_virt(bank_phys_end(&meminfo.bank[0]));
 	     addr < VMALLOC_END; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
 }
@@ -738,10 +757,10 @@ void __init reserve_node_zero(pg_data_t *pgdat)
 	 * Note that this can only be in node 0.
 	 */
 #ifdef CONFIG_XIP_KERNEL
-	reserve_bootmem_node(pgdat, __pa(&__data_start), &_end - &__data_start,
+	reserve_bootmem_node(pgdat, __pa(_data), _end - _data,
 			BOOTMEM_DEFAULT);
 #else
-	reserve_bootmem_node(pgdat, __pa(&_stext), &_end - &_stext,
+	reserve_bootmem_node(pgdat, __pa(_stext), _end - _stext,
 			BOOTMEM_DEFAULT);
 #endif
 
@@ -808,7 +827,6 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 	 * Allocate the vector page early.
 	 */
 	vectors = alloc_bootmem_low_pages(PAGE_SIZE);
-	BUG_ON(!vectors);
 
 	for (addr = VMALLOC_END; addr; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
@@ -820,7 +838,7 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 #ifdef CONFIG_XIP_KERNEL
 	map.pfn = __phys_to_pfn(CONFIG_XIP_PHYS_ADDR & SECTION_MASK);
 	map.virtual = MODULES_VADDR;
-	map.length = ((unsigned long)&_etext - map.virtual + ~SECTION_MASK) & SECTION_MASK;
+	map.length = ((unsigned long)_etext - map.virtual + ~SECTION_MASK) & SECTION_MASK;
 	map.type = MT_ROM;
 	create_mapping(&map);
 #endif
@@ -880,23 +898,23 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
  * paging_init() sets up the page tables, initialises the zone memory
  * maps, and sets up the zero page, bad page and bad page tables.
  */
-void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
+void __init paging_init(struct machine_desc *mdesc)
 {
 	void *zero_page;
 
 	build_mem_type_table();
-	sanity_check_meminfo(mi);
-	prepare_page_table(mi);
-	bootmem_init(mi);
+	sanity_check_meminfo();
+	prepare_page_table();
+	bootmem_init();
 	devicemaps_init(mdesc);
 
 	top_pmd = pmd_off_k(0xffff0000);
 
 	/*
-	 * allocate the zero page.  Note that we count on this going ok.
+	 * allocate the zero page.  Note that this always succeeds and
+	 * returns a zeroed result.
 	 */
 	zero_page = alloc_bootmem_low_pages(PAGE_SIZE);
-	memzero(zero_page, PAGE_SIZE);
 	empty_zero_page = virt_to_page(zero_page);
 	flush_dcache_page(empty_zero_page);
 }

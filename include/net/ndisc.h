@@ -108,6 +108,20 @@ extern void			ndisc_send_redirect(struct sk_buff *skb,
 
 extern int			ndisc_mc_map(struct in6_addr *addr, char *buf, struct net_device *dev, int dir);
 
+extern struct sk_buff		*ndisc_build_skb(struct net_device *dev,
+						 const struct in6_addr *daddr,
+						 const struct in6_addr *saddr,
+						 struct icmp6hdr *icmp6h,
+						 const struct in6_addr *target,
+						 int llinfo);
+
+extern void			ndisc_send_skb(struct sk_buff *skb,
+					       struct net_device *dev,
+					       struct neighbour *neigh,
+					       const struct in6_addr *daddr,
+					       const struct in6_addr *saddr,
+					       struct icmp6hdr *icmp6h);
+
 
 
 /*
@@ -141,9 +155,9 @@ static inline struct neighbour * ndisc_get_neigh(struct net_device *dev, const s
 {
 
 	if (dev)
-		return __neigh_lookup(&nd_tbl, addr, dev, 1);
+		return __neigh_lookup_errno(&nd_tbl, addr, dev);
 
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 

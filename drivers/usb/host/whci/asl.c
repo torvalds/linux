@@ -19,31 +19,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/uwb/umc.h>
 #include <linux/usb.h>
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
 
 #include "../../wusbcore/wusbhc.h"
 
 #include "whcd.h"
-
-#if D_LOCAL >= 4
-static void dump_asl(struct whc *whc, const char *tag)
-{
-	struct device *dev = &whc->umc->dev;
-	struct whc_qset *qset;
-
-	d_printf(4, dev, "ASL %s\n", tag);
-
-	list_for_each_entry(qset, &whc->async_list, list_node) {
-		dump_qset(qset, dev);
-	}
-}
-#else
-static inline void dump_asl(struct whc *whc, const char *tag)
-{
-}
-#endif
-
 
 static void qset_get_next_prev(struct whc *whc, struct whc_qset *qset,
 			       struct whc_qset **next, struct whc_qset **prev)
@@ -179,11 +158,26 @@ void asl_stop(struct whc *whc)
 		      1000, "stop ASL");
 }
 
+/**
+ * asl_update - request an ASL update and wait for the hardware to be synced
+ * @whc: the WHCI HC
+ * @wusbcmd: WUSBCMD value to start the update.
+ *
+ * If the WUSB HC is inactive (i.e., the ASL is stopped) then the
+ * update must be skipped as the hardware may not respond to update
+ * requests.
+ */
 void asl_update(struct whc *whc, uint32_t wusbcmd)
 {
-	whc_write_wusbcmd(whc, wusbcmd, wusbcmd);
-	wait_event(whc->async_list_wq,
-		   (le_readl(whc->base + WUSBCMD) & WUSBCMD_ASYNC_UPDATED) == 0);
+	struct wusbhc *wusbhc = &whc->wusbhc;
+
+	mutex_lock(&wusbhc->mutex);
+	if (wusbhc->active) {
+		whc_write_wusbcmd(whc, wusbcmd, wusbcmd);
+		wait_event(whc->async_list_wq,
+			   (le_readl(whc->base + WUSBCMD) & WUSBCMD_ASYNC_UPDATED) == 0);
+	}
+	mutex_unlock(&wusbhc->mutex);
 }
 
 /**
@@ -202,8 +196,6 @@ void scan_async_work(struct work_struct *work)
 
 	spin_lock_irq(&whc->lock);
 
-	dump_asl(whc, "before processing");
-
 	/*
 	 * Transerve the software list backwards so new qsets can be
 	 * safely inserted into the ASL without making it non-circular.
@@ -216,8 +208,6 @@ void scan_async_work(struct work_struct *work)
 
 		update |= process_qset(whc, qset);
 	}
-
-	dump_asl(whc, "after processing");
 
 	spin_unlock_irq(&whc->lock);
 

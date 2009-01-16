@@ -10,6 +10,9 @@
 /* The feature bitmap for virtio balloon */
 #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
 
+/* Size of a PFN in the balloon interface. */
+#define VIRTIO_BALLOON_PFN_SHIFT 12
+
 struct virtio_balloon_config
 {
 	/* Number of pages host wants Guest to give up. */

@@ -580,7 +580,7 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	} else if ((bcs->skb = dev_alloc_skb(SBUFSIZE + HW_HDR_LEN)) != NULL)
 		skb_reserve(bcs->skb, HW_HDR_LEN);
 	else {
-		warn("could not allocate skb");
+		pr_err("out of memory\n");
 		bcs->inputstate |= INS_skip_frame;
 	}
 
@@ -634,20 +634,20 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 
 	gig_dbg(DEBUG_INIT, "allocating cs");
 	if (!(cs = alloc_cs(drv))) {
-		err("maximum number of devices exceeded");
+		pr_err("maximum number of devices exceeded\n");
 		return NULL;
 	}
 
 	gig_dbg(DEBUG_INIT, "allocating bcs[0..%d]", channels - 1);
 	cs->bcs = kmalloc(channels * sizeof(struct bc_state), GFP_KERNEL);
 	if (!cs->bcs) {
-		err("out of memory");
+		pr_err("out of memory\n");
 		goto error;
 	}
 	gig_dbg(DEBUG_INIT, "allocating inbuf");
 	cs->inbuf = kmalloc(sizeof(struct inbuf_t), GFP_KERNEL);
 	if (!cs->inbuf) {
-		err("out of memory");
+		pr_err("out of memory\n");
 		goto error;
 	}
 
@@ -690,7 +690,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	for (i = 0; i < channels; ++i) {
 		gig_dbg(DEBUG_INIT, "setting up bcs[%d].read", i);
 		if (!gigaset_initbcs(cs->bcs + i, cs, i)) {
-			err("could not allocate channel %d data", i);
+			pr_err("could not allocate channel %d data\n", i);
 			goto error;
 		}
 	}
@@ -720,17 +720,15 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 
 	gig_dbg(DEBUG_INIT, "setting up iif");
 	if (!gigaset_register_to_LL(cs, modulename)) {
-		err("register_isdn failed");
+		pr_err("error registering ISDN device\n");
 		goto error;
 	}
 
 	make_valid(cs, VALID_ID);
 	++cs->cs_init;
 	gig_dbg(DEBUG_INIT, "setting up hw");
-	if (!cs->ops->initcshw(cs)) {
-		err("could not allocate device specific data");
+	if (!cs->ops->initcshw(cs))
 		goto error;
-	}
 
 	++cs->cs_init;
 
@@ -836,7 +834,7 @@ static void cleanup_cs(struct cardstate *cs)
 	for (i = 0; i < cs->channels; ++i) {
 		gigaset_freebcs(cs->bcs + i);
 		if (!gigaset_initbcs(cs->bcs + i, cs, i))
-			break;			//FIXME error handling
+			pr_err("could not allocate channel %d data\n", i);
 	}
 
 	if (cs->waiting) {
@@ -1120,8 +1118,7 @@ static int __init gigaset_init_module(void)
 	if (gigaset_debuglevel == 1)
 		gigaset_debuglevel = DEBUG_DEFAULT;
 
-	info(DRIVER_AUTHOR);
-	info(DRIVER_DESC);
+	pr_info(DRIVER_DESC "\n");
 	return 0;
 }
 

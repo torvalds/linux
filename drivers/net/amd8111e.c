@@ -809,7 +809,6 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 			lp->coal_conf.rx_packets++;
 			lp->coal_conf.rx_bytes += pkt_len;
 			num_rx_pkt++;
-			dev->last_rx = jiffies;
 
 		err_next_pkt:
 			lp->rx_ring[rx_index].buff_phy_addr
@@ -832,7 +831,7 @@ static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 	if (rx_pkt_limit > 0) {
 		/* Receive descriptor is empty now */
 		spin_lock_irqsave(&lp->lock, flags);
-		__netif_rx_complete(dev, napi);
+		__netif_rx_complete(napi);
 		writel(VAL0|RINTEN0, mmio + INTEN0);
 		writel(VAL2 | RDMD0, mmio + CMD0);
 		spin_unlock_irqrestore(&lp->lock, flags);
@@ -1171,11 +1170,11 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 
 	/* Check if Receive Interrupt has occurred. */
 	if (intr0 & RINT0) {
-		if (netif_rx_schedule_prep(dev, &lp->napi)) {
+		if (netif_rx_schedule_prep(&lp->napi)) {
 			/* Disable receive interupts */
 			writel(RINTEN0, mmio + INTEN0);
 			/* Schedule a polling routine */
-			__netif_rx_schedule(dev, &lp->napi);
+			__netif_rx_schedule(&lp->napi);
 		} else if (intren0 & RINTEN0) {
 			printk("************Driver bug! \
 				interrupt while in poll\n");
@@ -1814,6 +1813,25 @@ static void __devinit amd8111e_probe_ext_phy(struct net_device* dev)
 	lp->ext_phy_addr = 1;
 }
 
+static const struct net_device_ops amd8111e_netdev_ops = {
+	.ndo_open		= amd8111e_open,
+	.ndo_stop		= amd8111e_close,
+	.ndo_start_xmit		= amd8111e_start_xmit,
+	.ndo_tx_timeout		= amd8111e_tx_timeout,
+	.ndo_get_stats		= amd8111e_get_stats,
+	.ndo_set_multicast_list = amd8111e_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= amd8111e_set_mac_address,
+	.ndo_do_ioctl		= amd8111e_ioctl,
+	.ndo_change_mtu		= amd8111e_change_mtu,
+#if AMD8111E_VLAN_TAG_USED
+	.ndo_vlan_rx_register	= amd8111e_vlan_rx_register,
+#endif
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	 = amd8111e_poll,
+#endif
+};
+
 static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 				  const struct pci_device_id *ent)
 {
@@ -1821,7 +1839,6 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 	unsigned long reg_addr,reg_len;
 	struct amd8111e_priv* lp;
 	struct net_device* dev;
-	DECLARE_MAC_BUF(mac);
 
 	err = pci_enable_device(pdev);
 	if(err){
@@ -1874,7 +1891,6 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 
 #if AMD8111E_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX ;
-	dev->vlan_rx_register =amd8111e_vlan_rx_register;
 #endif
 
 	lp = netdev_priv(dev);
@@ -1903,27 +1919,16 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 	if(dynamic_ipg[card_idx++])
 		lp->options |= OPTION_DYN_IPG_ENABLE;
 
+
 	/* Initialize driver entry points */
-	dev->open = amd8111e_open;
-	dev->hard_start_xmit = amd8111e_start_xmit;
-	dev->stop = amd8111e_close;
-	dev->get_stats = amd8111e_get_stats;
-	dev->set_multicast_list = amd8111e_set_multicast_list;
-	dev->set_mac_address = amd8111e_set_mac_address;
-	dev->do_ioctl = amd8111e_ioctl;
-	dev->change_mtu = amd8111e_change_mtu;
+	dev->netdev_ops = &amd8111e_netdev_ops;
 	SET_ETHTOOL_OPS(dev, &ops);
 	dev->irq =pdev->irq;
-	dev->tx_timeout = amd8111e_tx_timeout;
 	dev->watchdog_timeo = AMD8111E_TX_TIMEOUT;
 	netif_napi_add(dev, &lp->napi, amd8111e_rx_poll, 32);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = amd8111e_poll;
-#endif
 
 #if AMD8111E_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	dev->vlan_rx_register =amd8111e_vlan_rx_register;
 #endif
 	/* Probe the external PHY */
 	amd8111e_probe_ext_phy(dev);
@@ -1963,8 +1968,8 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
     	chip_version = (readl(lp->mmio + CHIPID) & 0xf0000000)>>28;
 	printk(KERN_INFO "%s: AMD-8111e Driver Version: %s\n",
 	       dev->name,MODULE_VERS);
-	printk(KERN_INFO "%s: [ Rev %x ] PCI 10/100BaseT Ethernet %s\n",
-	       dev->name, chip_version, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: [ Rev %x ] PCI 10/100BaseT Ethernet %pM\n",
+	       dev->name, chip_version, dev->dev_addr);
 	if (lp->ext_phy_id)
 		printk(KERN_INFO "%s: Found MII PHY ID 0x%08x at address 0x%02x\n",
 		       dev->name, lp->ext_phy_id, lp->ext_phy_addr);

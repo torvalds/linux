@@ -535,8 +535,8 @@ static int dasd_eer_open(struct inode *inp, struct file *filp)
 	    eerb->buffer_page_count > INT_MAX / PAGE_SIZE) {
 		kfree(eerb);
 		MESSAGE(KERN_WARNING, "can't open device since module "
-			"parameter eer_pages is smaller then 1 or"
-			" bigger then %d", (int)(INT_MAX / PAGE_SIZE));
+			"parameter eer_pages is smaller than 1 or"
+			" bigger than %d", (int)(INT_MAX / PAGE_SIZE));
 		unlock_kernel();
 		return -EINVAL;
 	}

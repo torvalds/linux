@@ -276,7 +276,8 @@ static void subs_set_complete(struct urb **urbs, void (*complete)(struct urb *))
 	}
 }
 
-int usb_stream_prepare_playback(struct usb_stream_kernel *sk, struct urb *inurb)
+static int usb_stream_prepare_playback(struct usb_stream_kernel *sk,
+		struct urb *inurb)
 {
 	struct usb_stream *s = sk->s;
 	struct urb *io;

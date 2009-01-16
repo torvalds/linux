@@ -730,9 +730,9 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related)
 	if (ic == NULL)
 		return NF_DROP;
 
-	IP_VS_DBG(12, "Outgoing ICMP (%d,%d) %u.%u.%u.%u->%u.%u.%u.%u\n",
+	IP_VS_DBG(12, "Outgoing ICMP (%d,%d) %pI4->%pI4\n",
 		  ic->type, ntohs(icmp_id(ic)),
-		  NIPQUAD(iph->saddr), NIPQUAD(iph->daddr));
+		  &iph->saddr, &iph->daddr);
 
 	/*
 	 * Work through seeing if this is for us.
@@ -805,9 +805,9 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related)
 	if (ic == NULL)
 		return NF_DROP;
 
-	IP_VS_DBG(12, "Outgoing ICMPv6 (%d,%d) " NIP6_FMT "->" NIP6_FMT "\n",
+	IP_VS_DBG(12, "Outgoing ICMPv6 (%d,%d) %pI6->%pI6\n",
 		  ic->icmp6_type, ntohs(icmpv6_id(ic)),
-		  NIP6(iph->saddr), NIP6(iph->daddr));
+		  &iph->saddr, &iph->daddr);
 
 	/*
 	 * Work through seeing if this is for us.
@@ -1070,9 +1070,9 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	if (ic == NULL)
 		return NF_DROP;
 
-	IP_VS_DBG(12, "Incoming ICMP (%d,%d) %u.%u.%u.%u->%u.%u.%u.%u\n",
+	IP_VS_DBG(12, "Incoming ICMP (%d,%d) %pI4->%pI4\n",
 		  ic->type, ntohs(icmp_id(ic)),
-		  NIPQUAD(iph->saddr), NIPQUAD(iph->daddr));
+		  &iph->saddr, &iph->daddr);
 
 	/*
 	 * Work through seeing if this is for us.
@@ -1127,8 +1127,8 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	/* Ensure the checksum is correct */
 	if (!skb_csum_unnecessary(skb) && ip_vs_checksum_complete(skb, ihl)) {
 		/* Failed checksum! */
-		IP_VS_DBG(1, "Incoming ICMP: failed checksum from %d.%d.%d.%d!\n",
-			  NIPQUAD(iph->saddr));
+		IP_VS_DBG(1, "Incoming ICMP: failed checksum from %pI4!\n",
+			  &iph->saddr);
 		goto out;
 	}
 
@@ -1175,9 +1175,9 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 	if (ic == NULL)
 		return NF_DROP;
 
-	IP_VS_DBG(12, "Incoming ICMPv6 (%d,%d) " NIP6_FMT "->" NIP6_FMT "\n",
+	IP_VS_DBG(12, "Incoming ICMPv6 (%d,%d) %pI6->%pI6\n",
 		  ic->icmp6_type, ntohs(icmpv6_id(ic)),
-		  NIP6(iph->saddr), NIP6(iph->daddr));
+		  &iph->saddr, &iph->daddr);
 
 	/*
 	 * Work through seeing if this is for us.

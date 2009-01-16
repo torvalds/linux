@@ -24,6 +24,7 @@ void of_register_i2c_devices(struct i2c_adapter *adap,
 
 	for_each_child_of_node(adap_node, node) {
 		struct i2c_board_info info = {};
+		struct dev_archdata dev_ad = {};
 		const u32 *addr;
 		int len;
 
@@ -41,6 +42,9 @@ void of_register_i2c_devices(struct i2c_adapter *adap,
 
 		info.addr = *addr;
 
+		dev_archdata_set_node(&dev_ad, node);
+		info.archdata = &dev_ad;
+
 		request_module("%s", info.type);
 
 		result = i2c_new_device(adap, &info);
@@ -51,8 +55,34 @@ void of_register_i2c_devices(struct i2c_adapter *adap,
 			irq_dispose_mapping(info.irq);
 			continue;
 		}
+
+		/*
+		 * Get the node to not lose the dev_archdata->of_node.
+		 * Currently there is no way to put it back, as well as no
+		 * of_unregister_i2c_devices() call.
+		 */
+		of_node_get(node);
 	}
 }
 EXPORT_SYMBOL(of_register_i2c_devices);
+
+static int of_dev_node_match(struct device *dev, void *data)
+{
+        return dev_archdata_get_node(&dev->archdata) == data;
+}
+
+/* must call put_device() when done with returned i2c_client device */
+struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&i2c_bus_type, NULL, node,
+					 of_dev_node_match);
+	if (!dev)
+		return NULL;
+
+	return to_i2c_client(dev);
+}
+EXPORT_SYMBOL(of_find_i2c_device_by_node);
 
 MODULE_LICENSE("GPL");

@@ -337,7 +337,7 @@ int __devinit tulip_read_eeprom(struct net_device *dev, int location, int addr_l
 {
 	int i;
 	unsigned retval = 0;
-	struct tulip_private *tp = dev->priv;
+	struct tulip_private *tp = netdev_priv(dev);
 	void __iomem *ee_addr = tp->base_addr + CSR9;
 	int read_cmd = location | (EE_READ_CMD << addr_len);
 

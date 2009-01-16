@@ -34,6 +34,7 @@ struct seq_operations {
 
 #define SEQ_SKIP 1
 
+char *mangle_path(char *s, char *p, char *esc);
 int seq_open(struct file *, const struct seq_operations *);
 ssize_t seq_read(struct file *, char __user *, size_t, loff_t *);
 loff_t seq_lseek(struct file *, loff_t, int);
@@ -49,10 +50,11 @@ int seq_path(struct seq_file *, struct path *, char *);
 int seq_dentry(struct seq_file *, struct dentry *, char *);
 int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
 		  char *esc);
-int seq_bitmap(struct seq_file *m, unsigned long *bits, unsigned int nr_bits);
-static inline int seq_cpumask(struct seq_file *m, cpumask_t *mask)
+int seq_bitmap(struct seq_file *m, const unsigned long *bits,
+				   unsigned int nr_bits);
+static inline int seq_cpumask(struct seq_file *m, const struct cpumask *mask)
 {
-	return seq_bitmap(m, mask->bits, NR_CPUS);
+	return seq_bitmap(m, mask->bits, nr_cpu_ids);
 }
 
 static inline int seq_nodemask(struct seq_file *m, nodemask_t *mask)

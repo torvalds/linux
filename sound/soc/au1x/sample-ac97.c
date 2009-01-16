@@ -42,14 +42,14 @@ static struct snd_soc_dai_link au1xpsc_sample_ac97_dai = {
 	.ops		= NULL,
 };
 
-static struct snd_soc_machine au1xpsc_sample_ac97_machine = {
+static struct snd_soc_card au1xpsc_sample_ac97_machine = {
 	.name		= "Au1xxx PSC AC97 Audio",
 	.dai_link	= &au1xpsc_sample_ac97_dai,
 	.num_links	= 1,
 };
 
 static struct snd_soc_device au1xpsc_sample_ac97_devdata = {
-	.machine	= &au1xpsc_sample_ac97_machine,
+	.card		= &au1xpsc_sample_ac97_machine,
 	.platform	= &au1xpsc_soc_platform, /* see dbdma2.c */
 	.codec_dev	= &soc_codec_dev_ac97,
 };

@@ -32,23 +32,15 @@ typedef struct sv_s {
 	wait_queue_head_t waiters;
 } sv_t;
 
-#define SV_FIFO		0x0		/* sv_t is FIFO type */
-#define SV_LIFO		0x2		/* sv_t is LIFO type */
-#define SV_PRIO		0x4		/* sv_t is PRIO type */
-#define SV_KEYED	0x6		/* sv_t is KEYED type */
-#define SV_DEFAULT      SV_FIFO
-
-
-static inline void _sv_wait(sv_t *sv, spinlock_t *lock, int state,
-			     unsigned long timeout)
+static inline void _sv_wait(sv_t *sv, spinlock_t *lock)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
 	add_wait_queue_exclusive(&sv->waiters, &wait);
-	__set_current_state(state);
+	__set_current_state(TASK_UNINTERRUPTIBLE);
 	spin_unlock(lock);
 
-	schedule_timeout(timeout);
+	schedule();
 
 	remove_wait_queue(&sv->waiters, &wait);
 }
@@ -58,13 +50,7 @@ static inline void _sv_wait(sv_t *sv, spinlock_t *lock, int state,
 #define sv_destroy(sv) \
 	/*NOTHING*/
 #define sv_wait(sv, pri, lock, s) \
-	_sv_wait(sv, lock, TASK_UNINTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT)
-#define sv_wait_sig(sv, pri, lock, s)   \
-	_sv_wait(sv, lock, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT)
-#define sv_timedwait(sv, pri, lock, s, svf, ts, rts) \
-	_sv_wait(sv, lock, TASK_UNINTERRUPTIBLE, timespec_to_jiffies(ts))
-#define sv_timedwait_sig(sv, pri, lock, s, svf, ts, rts) \
-	_sv_wait(sv, lock, TASK_INTERRUPTIBLE, timespec_to_jiffies(ts))
+	_sv_wait(sv, lock)
 #define sv_signal(sv) \
 	wake_up(&(sv)->waiters)
 #define sv_broadcast(sv) \

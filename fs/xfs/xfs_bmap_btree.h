@@ -21,9 +21,10 @@
 #define XFS_BMAP_MAGIC	0x424d4150	/* 'BMAP' */
 
 struct xfs_btree_cur;
-struct xfs_btree_lblock;
+struct xfs_btree_block;
 struct xfs_mount;
 struct xfs_inode;
+struct xfs_trans;
 
 /*
  * Bmap root header, on-disk form only.
@@ -145,71 +146,60 @@ typedef struct xfs_bmbt_key {
 /* btree pointer type */
 typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
 
-/* btree block header type */
-typedef struct xfs_btree_lblock xfs_bmbt_block_t;
+/*
+ * Btree block header size depends on a superblock flag.
+ *
+ * (not quite yet, but soon)
+ */
+#define XFS_BMBT_BLOCK_LEN(mp)	XFS_BTREE_LBLOCK_LEN
 
-#define XFS_BUF_TO_BMBT_BLOCK(bp)	((xfs_bmbt_block_t *)XFS_BUF_PTR(bp))
+#define XFS_BMBT_REC_ADDR(mp, block, index) \
+	((xfs_bmbt_rec_t *) \
+		((char *)(block) + \
+		 XFS_BMBT_BLOCK_LEN(mp) + \
+		 ((index) - 1) * sizeof(xfs_bmbt_rec_t)))
 
-#define XFS_BMAP_RBLOCK_DSIZE(lev,cur)	((cur)->bc_private.b.forksize)
-#define XFS_BMAP_RBLOCK_ISIZE(lev,cur)	\
-	((int)XFS_IFORK_PTR((cur)->bc_private.b.ip, \
-		    (cur)->bc_private.b.whichfork)->if_broot_bytes)
+#define XFS_BMBT_KEY_ADDR(mp, block, index) \
+	((xfs_bmbt_key_t *) \
+		((char *)(block) + \
+		 XFS_BMBT_BLOCK_LEN(mp) + \
+		 ((index) - 1) * sizeof(xfs_bmbt_key_t)))
 
-#define XFS_BMAP_BLOCK_DMAXRECS(lev,cur) \
-	(((lev) == (cur)->bc_nlevels - 1 ? \
-		XFS_BTREE_BLOCK_MAXRECS(XFS_BMAP_RBLOCK_DSIZE(lev,cur), \
-			xfs_bmdr, (lev) == 0) : \
-		((cur)->bc_mp->m_bmap_dmxr[(lev) != 0])))
-#define XFS_BMAP_BLOCK_IMAXRECS(lev,cur) \
-	(((lev) == (cur)->bc_nlevels - 1 ? \
-			XFS_BTREE_BLOCK_MAXRECS(XFS_BMAP_RBLOCK_ISIZE(lev,cur),\
-				xfs_bmbt, (lev) == 0) : \
-			((cur)->bc_mp->m_bmap_dmxr[(lev) != 0])))
+#define XFS_BMBT_PTR_ADDR(mp, block, index, maxrecs) \
+	((xfs_bmbt_ptr_t *) \
+		((char *)(block) + \
+		 XFS_BMBT_BLOCK_LEN(mp) + \
+		 (maxrecs) * sizeof(xfs_bmbt_key_t) + \
+		 ((index) - 1) * sizeof(xfs_bmbt_ptr_t)))
 
-#define XFS_BMAP_BLOCK_DMINRECS(lev,cur) \
-	(((lev) == (cur)->bc_nlevels - 1 ? \
-			XFS_BTREE_BLOCK_MINRECS(XFS_BMAP_RBLOCK_DSIZE(lev,cur),\
-				xfs_bmdr, (lev) == 0) : \
-			((cur)->bc_mp->m_bmap_dmnr[(lev) != 0])))
-#define XFS_BMAP_BLOCK_IMINRECS(lev,cur) \
-	(((lev) == (cur)->bc_nlevels - 1 ? \
-			XFS_BTREE_BLOCK_MINRECS(XFS_BMAP_RBLOCK_ISIZE(lev,cur),\
-				xfs_bmbt, (lev) == 0) : \
-			((cur)->bc_mp->m_bmap_dmnr[(lev) != 0])))
+#define XFS_BMDR_REC_ADDR(block, index) \
+	((xfs_bmdr_rec_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_bmdr_block) + \
+	         ((index) - 1) * sizeof(xfs_bmdr_rec_t)))
 
-#define XFS_BMAP_REC_DADDR(bb,i,cur)	(XFS_BTREE_REC_ADDR(xfs_bmbt, bb, i))
+#define XFS_BMDR_KEY_ADDR(block, index) \
+	((xfs_bmdr_key_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_bmdr_block) + \
+		 ((index) - 1) * sizeof(xfs_bmdr_key_t)))
 
-#define XFS_BMAP_REC_IADDR(bb,i,cur)	(XFS_BTREE_REC_ADDR(xfs_bmbt, bb, i))
-
-#define XFS_BMAP_KEY_DADDR(bb,i,cur)	\
-	(XFS_BTREE_KEY_ADDR(xfs_bmbt, bb, i))
-
-#define XFS_BMAP_KEY_IADDR(bb,i,cur)	\
-	(XFS_BTREE_KEY_ADDR(xfs_bmbt, bb, i))
-
-#define XFS_BMAP_PTR_DADDR(bb,i,cur)	\
-	(XFS_BTREE_PTR_ADDR(xfs_bmbt, bb, i, XFS_BMAP_BLOCK_DMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
-#define XFS_BMAP_PTR_IADDR(bb,i,cur)	\
-	(XFS_BTREE_PTR_ADDR(xfs_bmbt, bb, i, XFS_BMAP_BLOCK_IMAXRECS(	\
-				be16_to_cpu((bb)->bb_level), cur)))
+#define XFS_BMDR_PTR_ADDR(block, index, maxrecs) \
+	((xfs_bmdr_ptr_t *) \
+		((char *)(block) + \
+		 sizeof(struct xfs_bmdr_block) + \
+		 (maxrecs) * sizeof(xfs_bmdr_key_t) + \
+		 ((index) - 1) * sizeof(xfs_bmdr_ptr_t)))
 
 /*
  * These are to be used when we know the size of the block and
  * we don't have a cursor.
  */
-#define XFS_BMAP_BROOT_REC_ADDR(bb,i,sz) \
-	(XFS_BTREE_REC_ADDR(xfs_bmbt,bb,i))
-#define XFS_BMAP_BROOT_KEY_ADDR(bb,i,sz) \
-	(XFS_BTREE_KEY_ADDR(xfs_bmbt,bb,i))
-#define XFS_BMAP_BROOT_PTR_ADDR(bb,i,sz) \
-	(XFS_BTREE_PTR_ADDR(xfs_bmbt,bb,i,XFS_BMAP_BROOT_MAXRECS(sz)))
-
-#define XFS_BMAP_BROOT_NUMRECS(bb)	be16_to_cpu((bb)->bb_numrecs)
-#define XFS_BMAP_BROOT_MAXRECS(sz)	XFS_BTREE_BLOCK_MAXRECS(sz,xfs_bmbt,0)
+#define XFS_BMAP_BROOT_PTR_ADDR(mp, bb, i, sz) \
+	XFS_BMBT_PTR_ADDR(mp, bb, i, xfs_bmbt_maxrecs(mp, sz, 0))
 
 #define XFS_BMAP_BROOT_SPACE_CALC(nrecs) \
-	(int)(sizeof(xfs_bmbt_block_t) + \
+	(int)(XFS_BTREE_LBLOCK_LEN + \
 	       ((nrecs) * (sizeof(xfs_bmbt_key_t) + sizeof(xfs_bmbt_ptr_t))))
 
 #define XFS_BMAP_BROOT_SPACE(bb) \
@@ -223,42 +213,12 @@ typedef struct xfs_btree_lblock xfs_bmbt_block_t;
  */
 #define XFS_BM_MAXLEVELS(mp,w)		((mp)->m_bm_maxlevels[(w)])
 
-#define XFS_BMAP_SANITY_CHECK(mp,bb,level) \
-	(be32_to_cpu((bb)->bb_magic) == XFS_BMAP_MAGIC && \
-	 be16_to_cpu((bb)->bb_level) == level && \
-	 be16_to_cpu((bb)->bb_numrecs) > 0 && \
-	 be16_to_cpu((bb)->bb_numrecs) <= (mp)->m_bmap_dmxr[(level) != 0])
-
-
-#ifdef __KERNEL__
-
-#if defined(XFS_BMBT_TRACE)
-/*
- * Trace buffer entry types.
- */
-#define XFS_BMBT_KTRACE_ARGBI	1
-#define XFS_BMBT_KTRACE_ARGBII	2
-#define XFS_BMBT_KTRACE_ARGFFFI 3
-#define XFS_BMBT_KTRACE_ARGI	4
-#define XFS_BMBT_KTRACE_ARGIFK	5
-#define XFS_BMBT_KTRACE_ARGIFR	6
-#define XFS_BMBT_KTRACE_ARGIK	7
-#define XFS_BMBT_KTRACE_CUR	8
-
-#define XFS_BMBT_TRACE_SIZE	4096	/* size of global trace buffer */
-#define XFS_BMBT_KTRACE_SIZE	32	/* size of per-inode trace buffer */
-extern ktrace_t	*xfs_bmbt_trace_buf;
-#endif
-
 /*
  * Prototypes for xfs_bmap.c to call.
  */
-extern void xfs_bmdr_to_bmbt(xfs_bmdr_block_t *, int, xfs_bmbt_block_t *, int);
-extern int xfs_bmbt_decrement(struct xfs_btree_cur *, int, int *);
-extern int xfs_bmbt_delete(struct xfs_btree_cur *, int *);
+extern void xfs_bmdr_to_bmbt(struct xfs_mount *, xfs_bmdr_block_t *, int,
+			struct xfs_btree_block *, int);
 extern void xfs_bmbt_get_all(xfs_bmbt_rec_host_t *r, xfs_bmbt_irec_t *s);
-extern xfs_bmbt_block_t *xfs_bmbt_get_block(struct xfs_btree_cur *cur,
-						int, struct xfs_buf **bpp);
 extern xfs_filblks_t xfs_bmbt_get_blockcount(xfs_bmbt_rec_host_t *r);
 extern xfs_fsblock_t xfs_bmbt_get_startblock(xfs_bmbt_rec_host_t *r);
 extern xfs_fileoff_t xfs_bmbt_get_startoff(xfs_bmbt_rec_host_t *r);
@@ -267,22 +227,6 @@ extern xfs_exntst_t xfs_bmbt_get_state(xfs_bmbt_rec_host_t *r);
 extern void xfs_bmbt_disk_get_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
 extern xfs_filblks_t xfs_bmbt_disk_get_blockcount(xfs_bmbt_rec_t *r);
 extern xfs_fileoff_t xfs_bmbt_disk_get_startoff(xfs_bmbt_rec_t *r);
-
-extern int xfs_bmbt_increment(struct xfs_btree_cur *, int, int *);
-extern int xfs_bmbt_insert(struct xfs_btree_cur *, int *);
-extern void xfs_bmbt_log_block(struct xfs_btree_cur *, struct xfs_buf *, int);
-extern void xfs_bmbt_log_recs(struct xfs_btree_cur *, struct xfs_buf *, int,
-				int);
-extern int xfs_bmbt_lookup_eq(struct xfs_btree_cur *, xfs_fileoff_t,
-				xfs_fsblock_t, xfs_filblks_t, int *);
-extern int xfs_bmbt_lookup_ge(struct xfs_btree_cur *, xfs_fileoff_t,
-				xfs_fsblock_t, xfs_filblks_t, int *);
-
-/*
- * Give the bmap btree a new root block.  Copy the old broot contents
- * down into a real block and make the broot point to it.
- */
-extern int xfs_bmbt_newroot(struct xfs_btree_cur *cur, int *lflags, int *stat);
 
 extern void xfs_bmbt_set_all(xfs_bmbt_rec_host_t *r, xfs_bmbt_irec_t *s);
 extern void xfs_bmbt_set_allf(xfs_bmbt_rec_host_t *r, xfs_fileoff_t o,
@@ -296,10 +240,15 @@ extern void xfs_bmbt_disk_set_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
 extern void xfs_bmbt_disk_set_allf(xfs_bmbt_rec_t *r, xfs_fileoff_t o,
 			xfs_fsblock_t b, xfs_filblks_t c, xfs_exntst_t v);
 
-extern void xfs_bmbt_to_bmdr(xfs_bmbt_block_t *, int, xfs_bmdr_block_t *, int);
-extern int xfs_bmbt_update(struct xfs_btree_cur *, xfs_fileoff_t,
-				xfs_fsblock_t, xfs_filblks_t, xfs_exntst_t);
+extern void xfs_bmbt_to_bmdr(struct xfs_mount *, struct xfs_btree_block *, int,
+			xfs_bmdr_block_t *, int);
 
-#endif	/* __KERNEL__ */
+extern int xfs_bmbt_get_maxrecs(struct xfs_btree_cur *, int level);
+extern int xfs_bmdr_maxrecs(struct xfs_mount *, int blocklen, int leaf);
+extern int xfs_bmbt_maxrecs(struct xfs_mount *, int blocklen, int leaf);
+
+extern struct xfs_btree_cur *xfs_bmbt_init_cursor(struct xfs_mount *,
+		struct xfs_trans *, struct xfs_inode *, int);
+
 
 #endif	/* __XFS_BMAP_BTREE_H__ */

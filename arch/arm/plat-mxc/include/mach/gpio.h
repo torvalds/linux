@@ -27,8 +27,8 @@
 #define gpio_set_value		__gpio_set_value
 #define gpio_cansleep		__gpio_cansleep
 
-#define gpio_to_irq(gpio)	(MXC_MAX_INT_LINES + (gpio))
-#define irq_to_gpio(irq)	((irq) - MXC_MAX_INT_LINES)
+#define gpio_to_irq(gpio)	(MXC_GPIO_IRQ_START + (gpio))
+#define irq_to_gpio(irq)	((irq) - MXC_GPIO_IRQ_START)
 
 struct mxc_gpio_port {
 	void __iomem *base;

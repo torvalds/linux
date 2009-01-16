@@ -200,7 +200,7 @@ static void *ct_cpu_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for (cpu = *pos-1; cpu < NR_CPUS; ++cpu) {
+	for (cpu = *pos-1; cpu < nr_cpu_ids; ++cpu) {
 		if (!cpu_possible(cpu))
 			continue;
 		*pos = cpu + 1;
@@ -215,7 +215,7 @@ static void *ct_cpu_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	struct net *net = seq_file_net(seq);
 	int cpu;
 
-	for (cpu = *pos; cpu < NR_CPUS; ++cpu) {
+	for (cpu = *pos; cpu < nr_cpu_ids; ++cpu) {
 		if (!cpu_possible(cpu))
 			continue;
 		*pos = cpu + 1;
@@ -336,7 +336,7 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.data		= &nf_conntrack_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_NF_CONNTRACK_COUNT,
@@ -344,7 +344,7 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.data		= &init_net.ct.count,
 		.maxlen		= sizeof(int),
 		.mode		= 0444,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name       = NET_NF_CONNTRACK_BUCKETS,
@@ -352,7 +352,7 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.data           = &nf_conntrack_htable_size,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0444,
-		.proc_handler   = &proc_dointvec,
+		.proc_handler   = proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_NF_CONNTRACK_CHECKSUM,
@@ -360,7 +360,7 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.data		= &init_net.ct.sysctl_checksum,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.ctl_name	= NET_NF_CONNTRACK_LOG_INVALID,
@@ -368,8 +368,8 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.data		= &init_net.ct.sysctl_log_invalid,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.strategy	= &sysctl_intvec,
+		.proc_handler	= proc_dointvec_minmax,
+		.strategy	= sysctl_intvec,
 		.extra1		= &log_invalid_proto_min,
 		.extra2		= &log_invalid_proto_max,
 	},
@@ -379,7 +379,7 @@ static ctl_table nf_ct_sysctl_table[] = {
 		.data		= &nf_ct_expect_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{ .ctl_name = 0 }
 };
@@ -393,7 +393,7 @@ static ctl_table nf_ct_netfilter_table[] = {
 		.data		= &nf_conntrack_max,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{ .ctl_name = 0 }
 };

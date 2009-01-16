@@ -120,6 +120,38 @@ xp_cpu_to_nasid_sn2(int cpuid)
 	return cpuid_to_nasid(cpuid);
 }
 
+static enum xp_retval
+xp_expand_memprotect_sn2(unsigned long phys_addr, unsigned long size)
+{
+	u64 nasid_array = 0;
+	int ret;
+
+	ret = sn_change_memprotect(phys_addr, size, SN_MEMPROT_ACCESS_CLASS_1,
+				   &nasid_array);
+	if (ret != 0) {
+		dev_err(xp, "sn_change_memprotect(,, "
+			"SN_MEMPROT_ACCESS_CLASS_1,) failed ret=%d\n", ret);
+		return xpSalError;
+	}
+	return xpSuccess;
+}
+
+static enum xp_retval
+xp_restrict_memprotect_sn2(unsigned long phys_addr, unsigned long size)
+{
+	u64 nasid_array = 0;
+	int ret;
+
+	ret = sn_change_memprotect(phys_addr, size, SN_MEMPROT_ACCESS_CLASS_0,
+				   &nasid_array);
+	if (ret != 0) {
+		dev_err(xp, "sn_change_memprotect(,, "
+			"SN_MEMPROT_ACCESS_CLASS_0,) failed ret=%d\n", ret);
+		return xpSalError;
+	}
+	return xpSuccess;
+}
+
 enum xp_retval
 xp_init_sn2(void)
 {
@@ -132,6 +164,8 @@ xp_init_sn2(void)
 	xp_pa = xp_pa_sn2;
 	xp_remote_memcpy = xp_remote_memcpy_sn2;
 	xp_cpu_to_nasid = xp_cpu_to_nasid_sn2;
+	xp_expand_memprotect = xp_expand_memprotect_sn2;
+	xp_restrict_memprotect = xp_restrict_memprotect_sn2;
 
 	return xp_register_nofault_code_sn2();
 }

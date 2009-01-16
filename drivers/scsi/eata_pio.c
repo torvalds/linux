@@ -14,8 +14,8 @@
  *             neuffer@goofy.zdv.uni-mainz.de               *
  *             a.arnold@kfa-juelich.de                      * 
  *                                                          *
- *  Updated 2002 by Alan Cox <alan@redhat.com> for Linux    *
- *  2.5.x and the newer locking and error handling          *
+ *  Updated 2002 by Alan Cox <alan@lxorguk.ukuu.org.uk> for *
+ *   Linux 2.5.x and the newer locking and error handling   *
  *                                                          *
  *  This program is free software; you can redistribute it  *
  *  and/or modify it under the terms of the GNU General     *

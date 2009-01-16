@@ -75,47 +75,75 @@ static int radio[CX18_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1 };
-static int mmio_ndelay[CX18_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
-					   -1, -1, -1, -1, -1, -1, -1, -1,
-					   -1, -1, -1, -1, -1, -1, -1, -1,
-					   -1, -1, -1, -1, -1, -1, -1, -1 };
 static unsigned cardtype_c = 1;
 static unsigned tuner_c = 1;
 static unsigned radio_c = 1;
-static unsigned mmio_ndelay_c = 1;
 static char pal[] = "--";
 static char secam[] = "--";
 static char ntsc[] = "-";
 
 /* Buffers */
-static int enc_mpg_buffers = CX18_DEFAULT_ENC_MPG_BUFFERS;
 static int enc_ts_buffers = CX18_DEFAULT_ENC_TS_BUFFERS;
+static int enc_mpg_buffers = CX18_DEFAULT_ENC_MPG_BUFFERS;
+static int enc_idx_buffers = CX18_DEFAULT_ENC_IDX_BUFFERS;
 static int enc_yuv_buffers = CX18_DEFAULT_ENC_YUV_BUFFERS;
 static int enc_vbi_buffers = CX18_DEFAULT_ENC_VBI_BUFFERS;
 static int enc_pcm_buffers = CX18_DEFAULT_ENC_PCM_BUFFERS;
 
+static int enc_ts_bufsize = CX18_DEFAULT_ENC_TS_BUFSIZE;
+static int enc_mpg_bufsize = CX18_DEFAULT_ENC_MPG_BUFSIZE;
+static int enc_idx_bufsize = CX18_DEFAULT_ENC_IDX_BUFSIZE;
+static int enc_yuv_bufsize = CX18_DEFAULT_ENC_YUV_BUFSIZE;
+/* VBI bufsize based on standards supported by card tuner for now */
+static int enc_pcm_bufsize = CX18_DEFAULT_ENC_PCM_BUFSIZE;
+
+static int enc_ts_bufs = -1;
+static int enc_mpg_bufs = -1;
+static int enc_idx_bufs = -1;
+static int enc_yuv_bufs = -1;
+static int enc_vbi_bufs = -1;
+static int enc_pcm_bufs = -1;
+
+
 static int cx18_pci_latency = 1;
 
-int cx18_retry_mmio = 1;
+static int mmio_ndelay;
+static int retry_mmio = 1;
+
 int cx18_debug;
 
 module_param_array(tuner, int, &tuner_c, 0644);
 module_param_array(radio, bool, &radio_c, 0644);
 module_param_array(cardtype, int, &cardtype_c, 0644);
-module_param_array(mmio_ndelay, int, &mmio_ndelay_c, 0644);
 module_param_string(pal, pal, sizeof(pal), 0644);
 module_param_string(secam, secam, sizeof(secam), 0644);
 module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
 module_param_named(debug, cx18_debug, int, 0644);
-module_param_named(retry_mmio, cx18_retry_mmio, int, 0644);
+module_param(mmio_ndelay, int, 0644);
+module_param(retry_mmio, int, 0644);
 module_param(cx18_pci_latency, int, 0644);
 module_param(cx18_first_minor, int, 0644);
 
-module_param(enc_mpg_buffers, int, 0644);
 module_param(enc_ts_buffers, int, 0644);
+module_param(enc_mpg_buffers, int, 0644);
+module_param(enc_idx_buffers, int, 0644);
 module_param(enc_yuv_buffers, int, 0644);
 module_param(enc_vbi_buffers, int, 0644);
 module_param(enc_pcm_buffers, int, 0644);
+
+module_param(enc_ts_bufsize, int, 0644);
+module_param(enc_mpg_bufsize, int, 0644);
+module_param(enc_idx_bufsize, int, 0644);
+module_param(enc_yuv_bufsize, int, 0644);
+/* VBI bufsize based on standards supported by card tuner for now */
+module_param(enc_pcm_bufsize, int, 0644);
+
+module_param(enc_ts_bufs, int, 0644);
+module_param(enc_mpg_bufs, int, 0644);
+module_param(enc_idx_bufs, int, 0644);
+module_param(enc_yuv_bufs, int, 0644);
+module_param(enc_vbi_bufs, int, 0644);
+module_param(enc_pcm_bufs, int, 0644);
 
 MODULE_PARM_DESC(tuner, "Tuner type selection,\n"
 			"\t\t\tsee tuner.h for values");
@@ -152,28 +180,62 @@ MODULE_PARM_DESC(cx18_pci_latency,
 		 "Change the PCI latency to 64 if lower: 0 = No, 1 = Yes,\n"
 		 "\t\t\tDefault: Yes");
 MODULE_PARM_DESC(retry_mmio,
-		 "Check and retry memory mapped IO accesses\n"
-		 "\t\t\tDefault: 1 [Yes]");
+		 "(Deprecated) MMIO writes are now always checked and retried\n"
+		 "\t\t\tEffectively: 1 [Yes]");
 MODULE_PARM_DESC(mmio_ndelay,
-		 "Delay (ns) for each CX23418 memory mapped IO access.\n"
-		 "\t\t\tTry larger values that are close to a multiple of the\n"
-		 "\t\t\tPCI clock period, 30.3 ns, if your card doesn't work.\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_MMIO_NDELAY));
-MODULE_PARM_DESC(enc_mpg_buffers,
-		 "Encoder MPG Buffers (in MB)\n"
-		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_MPG_BUFFERS));
+		 "(Deprecated) MMIO accesses are now never purposely delayed\n"
+		 "\t\t\tEffectively: 0 ns");
 MODULE_PARM_DESC(enc_ts_buffers,
-		 "Encoder TS Buffers (in MB)\n"
+		 "Encoder TS buffer memory (MB). (enc_ts_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_TS_BUFFERS));
+MODULE_PARM_DESC(enc_ts_bufsize,
+		 "Size of an encoder TS buffer (kB)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_TS_BUFSIZE));
+MODULE_PARM_DESC(enc_ts_bufs,
+		 "Number of encoder TS buffers\n"
+		 "\t\t\tDefault is computed from other enc_ts_* parameters");
+MODULE_PARM_DESC(enc_mpg_buffers,
+		 "Encoder MPG buffer memory (MB). (enc_mpg_bufs can override)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_MPG_BUFFERS));
+MODULE_PARM_DESC(enc_mpg_bufsize,
+		 "Size of an encoder MPG buffer (kB)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_MPG_BUFSIZE));
+MODULE_PARM_DESC(enc_mpg_bufs,
+		 "Number of encoder MPG buffers\n"
+		 "\t\t\tDefault is computed from other enc_mpg_* parameters");
+MODULE_PARM_DESC(enc_idx_buffers,
+		 "Encoder IDX buffer memory (MB). (enc_idx_bufs can override)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_IDX_BUFFERS));
+MODULE_PARM_DESC(enc_idx_bufsize,
+		 "Size of an encoder IDX buffer (kB)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_IDX_BUFSIZE));
+MODULE_PARM_DESC(enc_idx_bufs,
+		 "Number of encoder IDX buffers\n"
+		 "\t\t\tDefault is computed from other enc_idx_* parameters");
 MODULE_PARM_DESC(enc_yuv_buffers,
-		 "Encoder YUV Buffers (in MB)\n"
+		 "Encoder YUV buffer memory (MB). (enc_yuv_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_YUV_BUFFERS));
+MODULE_PARM_DESC(enc_yuv_bufsize,
+		 "Size of an encoder YUV buffer (kB)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_YUV_BUFSIZE));
+MODULE_PARM_DESC(enc_yuv_bufs,
+		 "Number of encoder YUV buffers\n"
+		 "\t\t\tDefault is computed from other enc_yuv_* parameters");
 MODULE_PARM_DESC(enc_vbi_buffers,
-		 "Encoder VBI Buffers (in MB)\n"
+		 "Encoder VBI buffer memory (MB). (enc_vbi_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_VBI_BUFFERS));
+MODULE_PARM_DESC(enc_vbi_bufs,
+		 "Number of encoder VBI buffers\n"
+		 "\t\t\tDefault is computed from enc_vbi_buffers & tuner std");
 MODULE_PARM_DESC(enc_pcm_buffers,
-		 "Encoder PCM buffers (in MB)\n"
+		 "Encoder PCM buffer memory (MB). (enc_pcm_bufs can override)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_PCM_BUFFERS));
+MODULE_PARM_DESC(enc_pcm_bufsize,
+		 "Size of an encoder PCM buffer (kB)\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_PCM_BUFSIZE));
+MODULE_PARM_DESC(enc_pcm_bufs,
+		 "Number of encoder PCM buffers\n"
+		 "\t\t\tDefault is computed from other enc_pcm_* parameters");
 
 MODULE_PARM_DESC(cx18_first_minor, "Set kernel number assigned to first card");
 
@@ -187,7 +249,7 @@ MODULE_VERSION(CX18_VERSION);
 /* Generic utility functions */
 int cx18_msleep_timeout(unsigned int msecs, int intr)
 {
-	int timeout = msecs_to_jiffies(msecs);
+	long int timeout = msecs_to_jiffies(msecs);
 	int sig;
 
 	do {
@@ -366,19 +428,68 @@ static void cx18_process_options(struct cx18 *cx)
 {
 	int i, j;
 
-	cx->options.megabytes[CX18_ENC_STREAM_TYPE_MPG] = enc_mpg_buffers;
 	cx->options.megabytes[CX18_ENC_STREAM_TYPE_TS] = enc_ts_buffers;
+	cx->options.megabytes[CX18_ENC_STREAM_TYPE_MPG] = enc_mpg_buffers;
+	cx->options.megabytes[CX18_ENC_STREAM_TYPE_IDX] = enc_idx_buffers;
 	cx->options.megabytes[CX18_ENC_STREAM_TYPE_YUV] = enc_yuv_buffers;
 	cx->options.megabytes[CX18_ENC_STREAM_TYPE_VBI] = enc_vbi_buffers;
 	cx->options.megabytes[CX18_ENC_STREAM_TYPE_PCM] = enc_pcm_buffers;
+	cx->options.megabytes[CX18_ENC_STREAM_TYPE_RAD] = 0; /* control only */
+
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_TS] = enc_ts_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_MPG] = enc_mpg_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_IDX] = enc_idx_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_YUV] = enc_yuv_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] = enc_vbi_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_PCM] = enc_pcm_bufs;
+	cx->stream_buffers[CX18_ENC_STREAM_TYPE_RAD] = 0; /* control, no data */
+
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_TS] = enc_ts_bufsize;
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_MPG] = enc_mpg_bufsize;
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_IDX] = enc_idx_bufsize;
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_YUV] = enc_yuv_bufsize;
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_VBI] = 0; /* computed later */
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_PCM] = enc_pcm_bufsize;
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_RAD] = 0; /* control no data */
+
+	/* Except for VBI ensure stream_buffers & stream_buf_size are valid */
+	for (i = 0; i < CX18_MAX_STREAMS; i++) {
+		/* User said to use 0 buffers */
+		if (cx->stream_buffers[i] == 0) {
+			cx->options.megabytes[i] = 0;
+			cx->stream_buf_size[i] = 0;
+			continue;
+		}
+		/* User said to use 0 MB total */
+		if (cx->options.megabytes[i] <= 0) {
+			cx->options.megabytes[i] = 0;
+			cx->stream_buffers[i] = 0;
+			cx->stream_buf_size[i] = 0;
+			continue;
+		}
+		/* VBI is computed later or user said buffer has size 0 */
+		if (cx->stream_buf_size[i] <= 0) {
+			if (i != CX18_ENC_STREAM_TYPE_VBI) {
+				cx->options.megabytes[i] = 0;
+				cx->stream_buffers[i] = 0;
+				cx->stream_buf_size[i] = 0;
+			}
+			continue;
+		}
+		if (cx->stream_buffers[i] < 0) {
+			cx->stream_buffers[i] = cx->options.megabytes[i] * 1024
+						/ cx->stream_buf_size[i];
+		} else {
+			/* N.B. This might round down to 0 */
+			cx->options.megabytes[i] =
+			  cx->stream_buffers[i] * cx->stream_buf_size[i] / 1024;
+		}
+		cx->stream_buf_size[i] *= 1024; /* convert from kB to bytes */
+	}
+
 	cx->options.cardtype = cardtype[cx->num];
 	cx->options.tuner = tuner[cx->num];
 	cx->options.radio = radio[cx->num];
-
-	if (mmio_ndelay[cx->num] < 0)
-		cx->options.mmio_ndelay = CX18_DEFAULT_MMIO_NDELAY;
-	else
-		cx->options.mmio_ndelay = mmio_ndelay[cx->num];
 
 	cx->std = cx18_parse_std(cx);
 	if (cx->options.cardtype == -1) {
@@ -440,22 +551,30 @@ done:
  */
 static int __devinit cx18_init_struct1(struct cx18 *cx)
 {
+	int i;
+
 	cx->base_addr = pci_resource_start(cx->dev, 0);
 
 	mutex_init(&cx->serialize_lock);
 	mutex_init(&cx->i2c_bus_lock[0]);
 	mutex_init(&cx->i2c_bus_lock[1]);
 	mutex_init(&cx->gpio_lock);
+	mutex_init(&cx->epu2apu_mb_lock);
+	mutex_init(&cx->epu2cpu_mb_lock);
 
 	spin_lock_init(&cx->lock);
 
 	cx->work_queue = create_singlethread_workqueue(cx->name);
 	if (cx->work_queue == NULL) {
-		CX18_ERR("Could not create work queue\n");
-		return -1;
+		CX18_ERR("Unable to create work hander thread\n");
+		return -ENOMEM;
 	}
 
-	INIT_WORK(&cx->work, cx18_work_handler);
+	for (i = 0; i < CX18_MAX_EPU_WORK_ORDERS; i++) {
+		cx->epu_work_order[i].cx = cx;
+		cx->epu_work_order[i].str = cx->epu_debug_str;
+		INIT_WORK(&cx->epu_work_order[i].work, cx18_epu_work_handler);
+	}
 
 	/* start counting open_id at 1 */
 	cx->open_id = 1;
@@ -472,20 +591,55 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	init_waitqueue_head(&cx->cap_w);
 	init_waitqueue_head(&cx->mb_apu_waitq);
 	init_waitqueue_head(&cx->mb_cpu_waitq);
-	init_waitqueue_head(&cx->mb_epu_waitq);
-	init_waitqueue_head(&cx->mb_hpu_waitq);
 	init_waitqueue_head(&cx->dma_waitq);
 
 	/* VBI */
-	cx->vbi.in.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+	cx->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	cx->vbi.sliced_in = &cx->vbi.in.fmt.sliced;
-	cx->vbi.raw_size = 1456;
-	cx->vbi.raw_decoder_line_size = 1456;
-	cx->vbi.raw_decoder_sav_odd_field = 0x20;
-	cx->vbi.raw_decoder_sav_even_field = 0x60;
-	cx->vbi.sliced_decoder_line_size = 272;
-	cx->vbi.sliced_decoder_sav_odd_field = 0xB0;
-	cx->vbi.sliced_decoder_sav_even_field = 0xF0;
+
+	/*
+	 * The VBI line sizes depend on the pixel clock and the horiz rate
+	 *
+	 * (1/Fh)*(2*Fp) = Samples/line
+	 *     = 4 bytes EAV + Anc data in hblank + 4 bytes SAV + active samples
+	 *
+	 *  Sliced VBI is sent as ancillary data during horizontal blanking
+	 *  Raw VBI is sent as active video samples during vertcal blanking
+	 *
+	 *  We use a  BT.656 pxiel clock of 13.5 MHz and a BT.656 active line
+	 *  length of 720 pixels @ 4:2:2 sampling.  Thus...
+	 *
+	 *  For systems that use a 15.734 kHz horizontal rate, such as
+	 *  NTSC-M, PAL-M, PAL-60, and other 60 Hz/525 line systems, we have:
+	 *
+	 *  (1/15.734 kHz) * 2 * 13.5 MHz = 1716 samples/line =
+	 *  4 bytes SAV + 268 bytes anc data + 4 bytes SAV + 1440 active samples
+	 *
+	 *  For systems that use a 15.625 kHz horizontal rate, such as
+	 *  PAL-B/G/H, PAL-I, SECAM-L and other 50 Hz/625 line systems, we have:
+	 *
+	 *  (1/15.625 kHz) * 2 * 13.5 MHz = 1728 samples/line =
+	 *  4 bytes SAV + 280 bytes anc data + 4 bytes SAV + 1440 active samples
+	 *
+	 */
+
+	/* FIXME: init these based on tuner std & modify when std changes */
+	/* CX18-AV-Core number of VBI samples output per horizontal line */
+	cx->vbi.raw_decoder_line_size = 1444;   /* 4 byte SAV + 2 * 720 */
+	cx->vbi.sliced_decoder_line_size = 272; /* 60 Hz: 268+4, 50 Hz: 280+4 */
+
+	/* CX18-AV-Core VBI samples/line possibly rounded up */
+	cx->vbi.raw_size = 1444;   /* Real max size is 1444 */
+	cx->vbi.sliced_size = 284; /* Real max size is  284 */
+
+	/*
+	 * CX18-AV-Core SAV/EAV RP codes in VIP 1.x mode
+	 * Task Field VerticalBlank HorizontalBlank 0 0 0 0
+	 */
+	cx->vbi.raw_decoder_sav_odd_field = 0x20;     /*   V  */
+	cx->vbi.raw_decoder_sav_even_field = 0x60;    /*  FV  */
+	cx->vbi.sliced_decoder_sav_odd_field = 0xB0;  /* T VH - actually EAV */
+	cx->vbi.sliced_decoder_sav_even_field = 0xF0; /* TFVH - actually EAV */
 	return 0;
 }
 
@@ -518,6 +672,7 @@ static void __devinit cx18_init_struct2(struct cx18 *cx)
 	cx->av_state.aud_input = CX18_AV_AUDIO8;
 	cx->av_state.audclk_freq = 48000;
 	cx->av_state.audmode = V4L2_TUNER_MODE_LANG1;
+	/* FIXME - 8 is NTSC value, investigate */
 	cx->av_state.vbi_line_offset = 8;
 }
 
@@ -662,12 +817,9 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 
 	/* PCI Device Setup */
 	retval = cx18_setup_pci(cx, dev, pci_id);
-	if (retval != 0) {
-		if (retval == -EIO)
-			goto free_workqueue;
-		else if (retval == -ENXIO)
-			goto free_mem;
-	}
+	if (retval != 0)
+		goto free_workqueue;
+
 	/* save cx in the pci struct for later use */
 	pci_set_drvdata(dev, cx);
 
@@ -726,6 +878,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 		goto free_i2c;
 	}
 	cx18_init_memory(cx);
+	cx18_init_scb(cx);
 
 	/* Register IRQ */
 	retval = request_irq(cx->dev->irq, cx18_irq_handler,
@@ -739,8 +892,6 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 		cx->std = V4L2_STD_NTSC_M;
 
 	if (cx->options.tuner == -1) {
-		int i;
-
 		for (i = 0; i < CX18_CARD_MAX_TUNERS; i++) {
 			if ((cx->std & cx->card->tuners[i].std) == 0)
 				continue;
@@ -777,12 +928,22 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 	}
 	cx->params.video_gop_size = cx->is_60hz ? 15 : 12;
 
-	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_MPG] = 0x08000;
-	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_TS] = 0x08000;
-	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_PCM] = 0x01200;
-	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_YUV] = 0x20000;
+	/*
+	 * FIXME: setting the buffer size based on the tuner standard is
+	 * suboptimal, as the CVBS and SVideo inputs could use a different std
+	 * and the buffer could end up being too small in that case.
+	 */
 	vbi_buf_size = cx->vbi.raw_size * (cx->is_60hz ? 24 : 36) / 2;
 	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_VBI] = vbi_buf_size;
+
+	if (cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] < 0)
+		cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] =
+		   cx->options.megabytes[CX18_ENC_STREAM_TYPE_VBI] * 1024 * 1024
+		   / vbi_buf_size;
+	else
+		cx->options.megabytes[CX18_ENC_STREAM_TYPE_VBI] =
+		     cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] * vbi_buf_size
+		     / (1024 * 1024);
 
 	if (cx->options.radio > 0)
 		cx->v4l2_cap |= V4L2_CAP_RADIO;
@@ -844,7 +1005,6 @@ err:
 	if (retval == 0)
 		retval = -ENODEV;
 	CX18_ERR("Error %d on initialization\n", retval);
-	cx18_log_statistics(cx);
 
 	i = cx->num;
 	spin_lock(&cx18_cards_lock);
@@ -923,6 +1083,13 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	return 0;
 }
 
+static void cx18_cancel_epu_work_orders(struct cx18 *cx)
+{
+	int i;
+	for (i = 0; i < CX18_MAX_EPU_WORK_ORDERS; i++)
+		cancel_work_sync(&cx->epu_work_order[i].work);
+}
+
 static void cx18_remove(struct pci_dev *pci_dev)
 {
 	struct cx18 *cx = pci_get_drvdata(pci_dev);
@@ -940,7 +1107,8 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	cx18_halt_firmware(cx);
 
-	flush_workqueue(cx->work_queue);
+	cx18_cancel_epu_work_orders(cx);
+
 	destroy_workqueue(cx->work_queue);
 
 	cx18_streams_cleanup(cx, 1);
@@ -955,7 +1123,6 @@ static void cx18_remove(struct pci_dev *pci_dev)
 
 	pci_disable_device(cx->dev);
 
-	cx18_log_statistics(cx);
 	CX18_INFO("Removed %s, card #%d\n", cx->card_name, cx->num);
 }
 
@@ -1004,6 +1171,7 @@ static void module_cleanup(void)
 			continue;
 		kfree(cx18_cards[i]);
 	}
+
 }
 
 module_init(module_start);

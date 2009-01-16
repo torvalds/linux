@@ -319,9 +319,9 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask, b->seg_boundary_mask);
 
-	t->max_phys_segments = min(t->max_phys_segments, b->max_phys_segments);
-	t->max_hw_segments = min(t->max_hw_segments, b->max_hw_segments);
-	t->max_segment_size = min(t->max_segment_size, b->max_segment_size);
+	t->max_phys_segments = min_not_zero(t->max_phys_segments, b->max_phys_segments);
+	t->max_hw_segments = min_not_zero(t->max_hw_segments, b->max_hw_segments);
+	t->max_segment_size = min_not_zero(t->max_segment_size, b->max_segment_size);
 	t->hardsect_size = max(t->hardsect_size, b->hardsect_size);
 	if (!t->queue_lock)
 		WARN_ON_ONCE(1);

@@ -38,7 +38,7 @@ enum vnic_res_type {
 	RES_TYPE_INTR_CTRL,		/* Interrupt ctrl table */
 	RES_TYPE_INTR_TABLE,		/* MSI/MSI-X Interrupt table */
 	RES_TYPE_INTR_PBA,		/* MSI/MSI-X PBA table */
-	RES_TYPE_INTR_PBA_LEGACY,	/* Legacy intr status, r2c */
+	RES_TYPE_INTR_PBA_LEGACY,	/* Legacy intr status */
 	RES_TYPE_RSVD6,
 	RES_TYPE_RSVD7,
 	RES_TYPE_DEVCMD,		/* Device command region */

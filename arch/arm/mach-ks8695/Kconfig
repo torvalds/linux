@@ -8,6 +8,12 @@ config MACH_KS8695
 	  Say 'Y' here if you want your kernel to run on the original
 	  Kendin-Micrel KS8695 development board.
 
+config MACH_DSM320
+	bool "DSM-320 Wireless Media Player"
+	help
+	  Say 'Y' here if you want your kernel to run on the D-Link
+	  DSM-320 Wireless Media Player.
+
 endmenu
 
 endif

@@ -166,6 +166,7 @@ static inline int pte_none(pte_t pte)
 #define PTE_FILE_MAX_BITS       32
 
 /* Encode and de-code a swap entry */
+#define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > 5)
 #define __swp_type(x)			(((x).val) & 0x1f)
 #define __swp_offset(x)			((x).val >> 5)
 #define __swp_entry(type, offset)	((swp_entry_t){(type) | (offset) << 5})

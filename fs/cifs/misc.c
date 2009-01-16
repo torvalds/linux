@@ -97,7 +97,10 @@ sesInfoFree(struct cifsSesInfo *buf_to_free)
 	kfree(buf_to_free->serverOS);
 	kfree(buf_to_free->serverDomain);
 	kfree(buf_to_free->serverNOS);
-	kfree(buf_to_free->password);
+	if (buf_to_free->password) {
+		memset(buf_to_free->password, 0, strlen(buf_to_free->password));
+		kfree(buf_to_free->password);
+	}
 	kfree(buf_to_free->domainName);
 	kfree(buf_to_free);
 }
@@ -129,6 +132,10 @@ tconInfoFree(struct cifsTconInfo *buf_to_free)
 	}
 	atomic_dec(&tconInfoAllocCount);
 	kfree(buf_to_free->nativeFileSystem);
+	if (buf_to_free->password) {
+		memset(buf_to_free->password, 0, strlen(buf_to_free->password));
+		kfree(buf_to_free->password);
+	}
 	kfree(buf_to_free);
 }
 
@@ -338,13 +345,13 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		/*  BB Add support for establishing new tCon and SMB Session  */
 		/*      with userid/password pairs found on the smb session   */
 		/*	for other target tcp/ip addresses 		BB    */
-				if (current->fsuid != treeCon->ses->linux_uid) {
+				if (current_fsuid() != treeCon->ses->linux_uid) {
 					cFYI(1, ("Multiuser mode and UID "
 						 "did not match tcon uid"));
 					read_lock(&cifs_tcp_ses_lock);
 					list_for_each(temp_item, &treeCon->ses->server->smb_ses_list) {
 						ses = list_entry(temp_item, struct cifsSesInfo, smb_ses_list);
-						if (ses->linux_uid == current->fsuid) {
+						if (ses->linux_uid == current_fsuid()) {
 							if (ses->server == treeCon->ses->server) {
 								cFYI(1, ("found matching uid substitute right smb_uid"));
 								buffer->Uid = ses->Suid;

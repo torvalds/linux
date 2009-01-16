@@ -533,7 +533,6 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 {
 	int ret;
 
-
 	/* Set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
 		ret = setup_rt_frame(sig, ka, info, oldset, regs);

@@ -18,7 +18,15 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/err.h>
 #include <asm/uv/uv_hub.h>
+#if defined CONFIG_X86_64
+#include <asm/uv/bios.h>
+#include <asm/uv/uv_irq.h>
+#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+#include <asm/sn/intr.h>
+#include <asm/sn/sn_sal.h>
+#endif
 #include "../sgi-gru/gru.h"
 #include "../sgi-gru/grukservices.h"
 #include "xpc.h"
@@ -27,15 +35,17 @@ static atomic64_t xpc_heartbeat_uv;
 static DECLARE_BITMAP(xpc_heartbeating_to_mask_uv, XP_MAX_NPARTITIONS_UV);
 
 #define XPC_ACTIVATE_MSG_SIZE_UV	(1 * GRU_CACHE_LINE_BYTES)
+#define XPC_ACTIVATE_MQ_SIZE_UV		(4 * XP_MAX_NPARTITIONS_UV * \
+					 XPC_ACTIVATE_MSG_SIZE_UV)
+#define XPC_ACTIVATE_IRQ_NAME		"xpc_activate"
+
 #define XPC_NOTIFY_MSG_SIZE_UV		(2 * GRU_CACHE_LINE_BYTES)
+#define XPC_NOTIFY_MQ_SIZE_UV		(4 * XP_MAX_NPARTITIONS_UV * \
+					 XPC_NOTIFY_MSG_SIZE_UV)
+#define XPC_NOTIFY_IRQ_NAME		"xpc_notify"
 
-#define XPC_ACTIVATE_MQ_SIZE_UV	(4 * XP_MAX_NPARTITIONS_UV * \
-				 XPC_ACTIVATE_MSG_SIZE_UV)
-#define XPC_NOTIFY_MQ_SIZE_UV	(4 * XP_MAX_NPARTITIONS_UV * \
-				 XPC_NOTIFY_MSG_SIZE_UV)
-
-static void *xpc_activate_mq_uv;
-static void *xpc_notify_mq_uv;
+static struct xpc_gru_mq_uv *xpc_activate_mq_uv;
+static struct xpc_gru_mq_uv *xpc_notify_mq_uv;
 
 static int
 xpc_setup_partitions_sn_uv(void)
@@ -52,62 +62,209 @@ xpc_setup_partitions_sn_uv(void)
 	return 0;
 }
 
-static void *
-xpc_create_gru_mq_uv(unsigned int mq_size, int cpuid, unsigned int irq,
-		     irq_handler_t irq_handler)
+static int
+xpc_get_gru_mq_irq_uv(struct xpc_gru_mq_uv *mq, int cpu, char *irq_name)
 {
-	int ret;
-	int nid;
-	int mq_order;
-	struct page *page;
-	void *mq;
-
-	nid = cpu_to_node(cpuid);
-	mq_order = get_order(mq_size);
-	page = alloc_pages_node(nid, GFP_KERNEL | __GFP_ZERO | GFP_THISNODE,
-				mq_order);
-	if (page == NULL) {
-		dev_err(xpc_part, "xpc_create_gru_mq_uv() failed to alloc %d "
-			"bytes of memory on nid=%d for GRU mq\n", mq_size, nid);
-		return NULL;
+#if defined CONFIG_X86_64
+	mq->irq = uv_setup_irq(irq_name, cpu, mq->mmr_blade, mq->mmr_offset);
+	if (mq->irq < 0) {
+		dev_err(xpc_part, "uv_setup_irq() returned error=%d\n",
+			mq->irq);
 	}
 
-	mq = page_address(page);
-	ret = gru_create_message_queue(mq, mq_size);
-	if (ret != 0) {
-		dev_err(xpc_part, "gru_create_message_queue() returned "
-			"error=%d\n", ret);
-		free_pages((unsigned long)mq, mq_order);
-		return NULL;
-	}
+#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+	int mmr_pnode;
+	unsigned long mmr_value;
 
-	/* !!! Need to do some other things to set up IRQ */
+	if (strcmp(irq_name, XPC_ACTIVATE_IRQ_NAME) == 0)
+		mq->irq = SGI_XPC_ACTIVATE;
+	else if (strcmp(irq_name, XPC_NOTIFY_IRQ_NAME) == 0)
+		mq->irq = SGI_XPC_NOTIFY;
+	else
+		return -EINVAL;
 
-	ret = request_irq(irq, irq_handler, 0, "xpc", NULL);
-	if (ret != 0) {
-		dev_err(xpc_part, "request_irq(irq=%d) returned error=%d\n",
-			irq, ret);
-		free_pages((unsigned long)mq, mq_order);
-		return NULL;
-	}
+	mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
+	mmr_value = (unsigned long)cpu_physical_id(cpu) << 32 | mq->irq;
 
-	/* !!! enable generation of irq when GRU mq op occurs to this mq */
+	uv_write_global_mmr64(mmr_pnode, mq->mmr_offset, mmr_value);
+#else
+	#error not a supported configuration
+#endif
 
-	/* ??? allow other partitions to access GRU mq? */
-
-	return mq;
+	return 0;
 }
 
 static void
-xpc_destroy_gru_mq_uv(void *mq, unsigned int mq_size, unsigned int irq)
+xpc_release_gru_mq_irq_uv(struct xpc_gru_mq_uv *mq)
 {
-	/* ??? disallow other partitions to access GRU mq? */
+#if defined CONFIG_X86_64
+	uv_teardown_irq(mq->irq, mq->mmr_blade, mq->mmr_offset);
 
-	/* !!! disable generation of irq when GRU mq op occurs to this mq */
+#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+	int mmr_pnode;
+	unsigned long mmr_value;
 
-	free_irq(irq, NULL);
+	mmr_pnode = uv_blade_to_pnode(mq->mmr_blade);
+	mmr_value = 1UL << 16;
 
-	free_pages((unsigned long)mq, get_order(mq_size));
+	uv_write_global_mmr64(mmr_pnode, mq->mmr_offset, mmr_value);
+#else
+	#error not a supported configuration
+#endif
+}
+
+static int
+xpc_gru_mq_watchlist_alloc_uv(struct xpc_gru_mq_uv *mq)
+{
+	int ret;
+
+#if defined CONFIG_X86_64
+	ret = uv_bios_mq_watchlist_alloc(mq->mmr_blade, uv_gpa(mq->address),
+					 mq->order, &mq->mmr_offset);
+	if (ret < 0) {
+		dev_err(xpc_part, "uv_bios_mq_watchlist_alloc() failed, "
+			"ret=%d\n", ret);
+		return ret;
+	}
+#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+	ret = sn_mq_watchlist_alloc(mq->mmr_blade, uv_gpa(mq->address),
+				    mq->order, &mq->mmr_offset);
+	if (ret < 0) {
+		dev_err(xpc_part, "sn_mq_watchlist_alloc() failed, ret=%d\n",
+			ret);
+		return -EBUSY;
+	}
+#else
+	#error not a supported configuration
+#endif
+
+	mq->watchlist_num = ret;
+	return 0;
+}
+
+static void
+xpc_gru_mq_watchlist_free_uv(struct xpc_gru_mq_uv *mq)
+{
+	int ret;
+
+#if defined CONFIG_X86_64
+	ret = uv_bios_mq_watchlist_free(mq->mmr_blade, mq->watchlist_num);
+	BUG_ON(ret != BIOS_STATUS_SUCCESS);
+#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+	ret = sn_mq_watchlist_free(mq->mmr_blade, mq->watchlist_num);
+	BUG_ON(ret != SALRET_OK);
+#else
+	#error not a supported configuration
+#endif
+}
+
+static struct xpc_gru_mq_uv *
+xpc_create_gru_mq_uv(unsigned int mq_size, int cpu, char *irq_name,
+		     irq_handler_t irq_handler)
+{
+	enum xp_retval xp_ret;
+	int ret;
+	int nid;
+	int pg_order;
+	struct page *page;
+	struct xpc_gru_mq_uv *mq;
+
+	mq = kmalloc(sizeof(struct xpc_gru_mq_uv), GFP_KERNEL);
+	if (mq == NULL) {
+		dev_err(xpc_part, "xpc_create_gru_mq_uv() failed to kmalloc() "
+			"a xpc_gru_mq_uv structure\n");
+		ret = -ENOMEM;
+		goto out_1;
+	}
+
+	pg_order = get_order(mq_size);
+	mq->order = pg_order + PAGE_SHIFT;
+	mq_size = 1UL << mq->order;
+
+	mq->mmr_blade = uv_cpu_to_blade_id(cpu);
+
+	nid = cpu_to_node(cpu);
+	page = alloc_pages_node(nid, GFP_KERNEL | __GFP_ZERO | GFP_THISNODE,
+				pg_order);
+	if (page == NULL) {
+		dev_err(xpc_part, "xpc_create_gru_mq_uv() failed to alloc %d "
+			"bytes of memory on nid=%d for GRU mq\n", mq_size, nid);
+		ret = -ENOMEM;
+		goto out_2;
+	}
+	mq->address = page_address(page);
+
+	ret = gru_create_message_queue(mq->address, mq_size);
+	if (ret != 0) {
+		dev_err(xpc_part, "gru_create_message_queue() returned "
+			"error=%d\n", ret);
+		ret = -EINVAL;
+		goto out_3;
+	}
+
+	/* enable generation of irq when GRU mq operation occurs to this mq */
+	ret = xpc_gru_mq_watchlist_alloc_uv(mq);
+	if (ret != 0)
+		goto out_3;
+
+	ret = xpc_get_gru_mq_irq_uv(mq, cpu, irq_name);
+	if (ret != 0)
+		goto out_4;
+
+	ret = request_irq(mq->irq, irq_handler, 0, irq_name, NULL);
+	if (ret != 0) {
+		dev_err(xpc_part, "request_irq(irq=%d) returned error=%d\n",
+			mq->irq, ret);
+		goto out_5;
+	}
+
+	/* allow other partitions to access this GRU mq */
+	xp_ret = xp_expand_memprotect(xp_pa(mq->address), mq_size);
+	if (xp_ret != xpSuccess) {
+		ret = -EACCES;
+		goto out_6;
+	}
+
+	return mq;
+
+	/* something went wrong */
+out_6:
+	free_irq(mq->irq, NULL);
+out_5:
+	xpc_release_gru_mq_irq_uv(mq);
+out_4:
+	xpc_gru_mq_watchlist_free_uv(mq);
+out_3:
+	free_pages((unsigned long)mq->address, pg_order);
+out_2:
+	kfree(mq);
+out_1:
+	return ERR_PTR(ret);
+}
+
+static void
+xpc_destroy_gru_mq_uv(struct xpc_gru_mq_uv *mq)
+{
+	unsigned int mq_size;
+	int pg_order;
+	int ret;
+
+	/* disallow other partitions to access GRU mq */
+	mq_size = 1UL << mq->order;
+	ret = xp_restrict_memprotect(xp_pa(mq->address), mq_size);
+	BUG_ON(ret != xpSuccess);
+
+	/* unregister irq handler and release mq irq/vector mapping */
+	free_irq(mq->irq, NULL);
+	xpc_release_gru_mq_irq_uv(mq);
+
+	/* disable generation of irq when GRU mq op occurs to this mq */
+	xpc_gru_mq_watchlist_free_uv(mq);
+
+	pg_order = mq->order - PAGE_SHIFT;
+	free_pages((unsigned long)mq->address, pg_order);
+
+	kfree(mq);
 }
 
 static enum xp_retval
@@ -402,7 +559,10 @@ xpc_handle_activate_IRQ_uv(int irq, void *dev_id)
 	struct xpc_partition *part;
 	int wakeup_hb_checker = 0;
 
-	while ((msg_hdr = gru_get_next_message(xpc_activate_mq_uv)) != NULL) {
+	while (1) {
+		msg_hdr = gru_get_next_message(xpc_activate_mq_uv->address);
+		if (msg_hdr == NULL)
+			break;
 
 		partid = msg_hdr->partid;
 		if (partid < 0 || partid >= XP_MAX_NPARTITIONS_UV) {
@@ -418,7 +578,7 @@ xpc_handle_activate_IRQ_uv(int irq, void *dev_id)
 			}
 		}
 
-		gru_free_message(xpc_activate_mq_uv, msg_hdr);
+		gru_free_message(xpc_activate_mq_uv->address, msg_hdr);
 	}
 
 	if (wakeup_hb_checker)
@@ -482,7 +642,7 @@ xpc_send_local_activate_IRQ_uv(struct xpc_partition *part, int act_state_req)
 	struct xpc_partition_uv *part_uv = &part->sn.uv;
 
 	/*
-	 * !!! Make our side think that the remote parition sent an activate
+	 * !!! Make our side think that the remote partition sent an activate
 	 * !!! message our way by doing what the activate IRQ handler would
 	 * !!! do had one really been sent.
 	 */
@@ -500,14 +660,39 @@ static enum xp_retval
 xpc_get_partition_rsvd_page_pa_uv(void *buf, u64 *cookie, unsigned long *rp_pa,
 				  size_t *len)
 {
-	/* !!! call the UV version of sn_partition_reserved_page_pa() */
-	return xpUnsupported;
+	s64 status;
+	enum xp_retval ret;
+
+#if defined CONFIG_X86_64
+	status = uv_bios_reserved_page_pa((u64)buf, cookie, (u64 *)rp_pa,
+					  (u64 *)len);
+	if (status == BIOS_STATUS_SUCCESS)
+		ret = xpSuccess;
+	else if (status == BIOS_STATUS_MORE_PASSES)
+		ret = xpNeedMoreInfo;
+	else
+		ret = xpBiosError;
+
+#elif defined CONFIG_IA64_GENERIC || defined CONFIG_IA64_SGI_UV
+	status = sn_partition_reserved_page_pa((u64)buf, cookie, rp_pa, len);
+	if (status == SALRET_OK)
+		ret = xpSuccess;
+	else if (status == SALRET_MORE_PASSES)
+		ret = xpNeedMoreInfo;
+	else
+		ret = xpSalError;
+
+#else
+	#error not a supported configuration
+#endif
+
+	return ret;
 }
 
 static int
 xpc_setup_rsvd_page_sn_uv(struct xpc_rsvd_page *rp)
 {
-	rp->sn.activate_mq_gpa = uv_gpa(xpc_activate_mq_uv);
+	rp->sn.activate_mq_gpa = uv_gpa(xpc_activate_mq_uv->address);
 	return 0;
 }
 
@@ -1411,22 +1596,18 @@ xpc_init_uv(void)
 		return -E2BIG;
 	}
 
-	/* ??? The cpuid argument's value is 0, is that what we want? */
-	/* !!! The irq argument's value isn't correct. */
-	xpc_activate_mq_uv = xpc_create_gru_mq_uv(XPC_ACTIVATE_MQ_SIZE_UV, 0, 0,
+	xpc_activate_mq_uv = xpc_create_gru_mq_uv(XPC_ACTIVATE_MQ_SIZE_UV, 0,
+						  XPC_ACTIVATE_IRQ_NAME,
 						  xpc_handle_activate_IRQ_uv);
-	if (xpc_activate_mq_uv == NULL)
-		return -ENOMEM;
+	if (IS_ERR(xpc_activate_mq_uv))
+		return PTR_ERR(xpc_activate_mq_uv);
 
-	/* ??? The cpuid argument's value is 0, is that what we want? */
-	/* !!! The irq argument's value isn't correct. */
-	xpc_notify_mq_uv = xpc_create_gru_mq_uv(XPC_NOTIFY_MQ_SIZE_UV, 0, 0,
+	xpc_notify_mq_uv = xpc_create_gru_mq_uv(XPC_NOTIFY_MQ_SIZE_UV, 0,
+						XPC_NOTIFY_IRQ_NAME,
 						xpc_handle_notify_IRQ_uv);
-	if (xpc_notify_mq_uv == NULL) {
-		/* !!! The irq argument's value isn't correct. */
-		xpc_destroy_gru_mq_uv(xpc_activate_mq_uv,
-				      XPC_ACTIVATE_MQ_SIZE_UV, 0);
-		return -ENOMEM;
+	if (IS_ERR(xpc_notify_mq_uv)) {
+		xpc_destroy_gru_mq_uv(xpc_activate_mq_uv);
+		return PTR_ERR(xpc_notify_mq_uv);
 	}
 
 	return 0;
@@ -1435,9 +1616,6 @@ xpc_init_uv(void)
 void
 xpc_exit_uv(void)
 {
-	/* !!! The irq argument's value isn't correct. */
-	xpc_destroy_gru_mq_uv(xpc_notify_mq_uv, XPC_NOTIFY_MQ_SIZE_UV, 0);
-
-	/* !!! The irq argument's value isn't correct. */
-	xpc_destroy_gru_mq_uv(xpc_activate_mq_uv, XPC_ACTIVATE_MQ_SIZE_UV, 0);
+	xpc_destroy_gru_mq_uv(xpc_notify_mq_uv);
+	xpc_destroy_gru_mq_uv(xpc_activate_mq_uv);
 }

@@ -67,7 +67,7 @@ static __inline__ long local_inc_return(local_t *l)
 	bne-	1b"
 	: "=&r" (t)
 	: "r" (&(l->a.counter))
-	: "cc", "memory");
+	: "cc", "xer", "memory");
 
 	return t;
 }
@@ -94,7 +94,7 @@ static __inline__ long local_dec_return(local_t *l)
 	bne-	1b"
 	: "=&r" (t)
 	: "r" (&(l->a.counter))
-	: "cc", "memory");
+	: "cc", "xer", "memory");
 
 	return t;
 }

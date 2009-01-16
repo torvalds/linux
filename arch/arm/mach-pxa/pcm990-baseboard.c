@@ -55,6 +55,10 @@ static unsigned long pcm990_pin_config[] __initdata = {
 	GPIO89_USBH1_PEN,
 	/* PWM0 */
 	GPIO16_PWM0_OUT,
+
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
 };
 
 /*
@@ -100,8 +104,7 @@ static struct pxafb_mode_info fb_info_sharp_lq084v1dg21 = {
 static struct pxafb_mach_info pcm990_fbinfo __initdata = {
 	.modes			= &fb_info_sharp_lq084v1dg21,
 	.num_modes		= 1,
-	.lccr0			= LCCR0_PAS,
-	.lccr3			= LCCR3_PCP,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
 	.pxafb_lcd_power	= pcm990_lcd_power,
 };
 #elif defined(CONFIG_PCM990_DISPLAY_NEC)
@@ -123,8 +126,7 @@ struct pxafb_mode_info fb_info_nec_nl6448bc20_18d = {
 static struct pxafb_mach_info pcm990_fbinfo __initdata = {
 	.modes			= &fb_info_nec_nl6448bc20_18d,
 	.num_modes		= 1,
-	.lccr0			= LCCR0_Act,
-	.lccr3			= LCCR3_PixFlEdg,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
 	.pxafb_lcd_power	= pcm990_lcd_power,
 };
 #endif

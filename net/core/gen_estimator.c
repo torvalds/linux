@@ -31,6 +31,7 @@
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
+#include <linux/rbtree.h>
 #include <net/sock.h>
 #include <net/gen_stats.h>
 
@@ -89,6 +90,7 @@ struct gen_estimator
 	u32			avpps;
 	u32			avbps;
 	struct rcu_head		e_rcu;
+	struct rb_node		node;
 };
 
 struct gen_estimator_head
@@ -101,6 +103,9 @@ static struct gen_estimator_head elist[EST_MAX_INTERVAL+1];
 
 /* Protects against NULL dereference */
 static DEFINE_RWLOCK(est_lock);
+
+/* Protects against soft lockup during large deletion */
+static struct rb_root est_root = RB_ROOT;
 
 static void est_timer(unsigned long arg)
 {
@@ -137,6 +142,46 @@ skip:
 	if (!list_empty(&elist[idx].list))
 		mod_timer(&elist[idx].timer, jiffies + ((HZ/4) << idx));
 	rcu_read_unlock();
+}
+
+static void gen_add_node(struct gen_estimator *est)
+{
+	struct rb_node **p = &est_root.rb_node, *parent = NULL;
+
+	while (*p) {
+		struct gen_estimator *e;
+
+		parent = *p;
+		e = rb_entry(parent, struct gen_estimator, node);
+
+		if (est->bstats > e->bstats)
+			p = &parent->rb_right;
+		else
+			p = &parent->rb_left;
+	}
+	rb_link_node(&est->node, parent, p);
+	rb_insert_color(&est->node, &est_root);
+}
+
+static
+struct gen_estimator *gen_find_node(const struct gnet_stats_basic *bstats,
+				    const struct gnet_stats_rate_est *rate_est)
+{
+	struct rb_node *p = est_root.rb_node;
+
+	while (p) {
+		struct gen_estimator *e;
+
+		e = rb_entry(p, struct gen_estimator, node);
+
+		if (bstats > e->bstats)
+			p = p->rb_right;
+		else if (bstats < e->bstats || rate_est != e->rate_est)
+			p = p->rb_left;
+		else
+			return e;
+	}
+	return NULL;
 }
 
 /**
@@ -194,8 +239,11 @@ int gen_new_estimator(struct gnet_stats_basic *bstats,
 		mod_timer(&elist[idx].timer, jiffies + ((HZ/4) << idx));
 
 	list_add_rcu(&est->list, &elist[idx].list);
+	gen_add_node(est);
+
 	return 0;
 }
+EXPORT_SYMBOL(gen_new_estimator);
 
 static void __gen_kill_estimator(struct rcu_head *head)
 {
@@ -209,36 +257,27 @@ static void __gen_kill_estimator(struct rcu_head *head)
  * @bstats: basic statistics
  * @rate_est: rate estimator statistics
  *
- * Removes the rate estimator specified by &bstats and &rate_est
- * and deletes the timer.
+ * Removes the rate estimator specified by &bstats and &rate_est.
  *
  * NOTE: Called under rtnl_mutex
  */
 void gen_kill_estimator(struct gnet_stats_basic *bstats,
-	struct gnet_stats_rate_est *rate_est)
+			struct gnet_stats_rate_est *rate_est)
 {
-	int idx;
-	struct gen_estimator *e, *n;
+	struct gen_estimator *e;
 
-	for (idx=0; idx <= EST_MAX_INTERVAL; idx++) {
+	while ((e = gen_find_node(bstats, rate_est))) {
+		rb_erase(&e->node, &est_root);
 
-		/* Skip non initialized indexes */
-		if (!elist[idx].timer.function)
-			continue;
+		write_lock_bh(&est_lock);
+		e->bstats = NULL;
+		write_unlock_bh(&est_lock);
 
-		list_for_each_entry_safe(e, n, &elist[idx].list, list) {
-			if (e->rate_est != rate_est || e->bstats != bstats)
-				continue;
-
-			write_lock_bh(&est_lock);
-			e->bstats = NULL;
-			write_unlock_bh(&est_lock);
-
-			list_del_rcu(&e->list);
-			call_rcu(&e->e_rcu, __gen_kill_estimator);
-		}
+		list_del_rcu(&e->list);
+		call_rcu(&e->e_rcu, __gen_kill_estimator);
 	}
 }
+EXPORT_SYMBOL(gen_kill_estimator);
 
 /**
  * gen_replace_estimator - replace rate estimator configuration
@@ -259,8 +298,20 @@ int gen_replace_estimator(struct gnet_stats_basic *bstats,
 	gen_kill_estimator(bstats, rate_est);
 	return gen_new_estimator(bstats, rate_est, stats_lock, opt);
 }
-
-
-EXPORT_SYMBOL(gen_kill_estimator);
-EXPORT_SYMBOL(gen_new_estimator);
 EXPORT_SYMBOL(gen_replace_estimator);
+
+/**
+ * gen_estimator_active - test if estimator is currently in use
+ * @bstats: basic statistics
+ * @rate_est: rate estimator statistics
+ *
+ * Returns true if estimator is active, and false if not.
+ */
+bool gen_estimator_active(const struct gnet_stats_basic *bstats,
+			  const struct gnet_stats_rate_est *rate_est)
+{
+	ASSERT_RTNL();
+
+	return gen_find_node(bstats, rate_est) != NULL;
+}
+EXPORT_SYMBOL(gen_estimator_active);

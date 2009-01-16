@@ -335,7 +335,6 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 		"82586 initialisation failure",
 		"Adapter list configuration error"
 	};
-	DECLARE_MAC_BUF(mac);
 
 	/* Time to play MCA games */
 
@@ -405,7 +404,7 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 		dev->dev_addr[i] = mca_read_pos(slot,3);
 	}
 
-	printk("%s: Address %s", dev->name, print_mac(mac, dev->dev_addr));
+	printk("%s: Address %pM", dev->name, dev->dev_addr);
 
 	mca_write_pos(slot, 6, 0);
 	mca_write_pos(slot, 7, 0);
@@ -1187,7 +1186,6 @@ static void mc32_rx_ring(struct net_device *dev)
 			}
 
 			skb->protocol=eth_type_trans(skb,dev);
-			dev->last_rx = jiffies;
  			dev->stats.rx_packets++;
  			dev->stats.rx_bytes += length;
 			netif_rx(skb);

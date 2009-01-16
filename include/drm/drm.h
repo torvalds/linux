@@ -173,6 +173,7 @@ enum drm_map_type {
 	_DRM_AGP = 3,		  /**< AGP/GART */
 	_DRM_SCATTER_GATHER = 4,  /**< Scatter/gather memory for PCI DMA */
 	_DRM_CONSISTENT = 5,	  /**< Consistent memory for PCI DMA */
+	_DRM_GEM = 6,		  /**< GEM object */
 };
 
 /**
@@ -598,6 +599,8 @@ struct drm_gem_open {
 	uint64_t size;
 };
 
+#include "drm_mode.h"
+
 #define DRM_IOCTL_BASE			'd'
 #define DRM_IO(nr)			_IO(DRM_IOCTL_BASE,nr)
 #define DRM_IOR(nr,type)		_IOR(DRM_IOCTL_BASE,nr,type)
@@ -634,6 +637,9 @@ struct drm_gem_open {
 #define DRM_IOCTL_SET_SAREA_CTX		DRM_IOW( 0x1c, struct drm_ctx_priv_map)
 #define DRM_IOCTL_GET_SAREA_CTX 	DRM_IOWR(0x1d, struct drm_ctx_priv_map)
 
+#define DRM_IOCTL_SET_MASTER            DRM_IO(0x1e)
+#define DRM_IOCTL_DROP_MASTER           DRM_IO(0x1f)
+
 #define DRM_IOCTL_ADD_CTX		DRM_IOWR(0x20, struct drm_ctx)
 #define DRM_IOCTL_RM_CTX		DRM_IOWR(0x21, struct drm_ctx)
 #define DRM_IOCTL_MOD_CTX		DRM_IOW( 0x22, struct drm_ctx)
@@ -663,6 +669,24 @@ struct drm_gem_open {
 #define DRM_IOCTL_WAIT_VBLANK		DRM_IOWR(0x3a, union drm_wait_vblank)
 
 #define DRM_IOCTL_UPDATE_DRAW		DRM_IOW(0x3f, struct drm_update_draw)
+
+#define DRM_IOCTL_MODE_GETRESOURCES	DRM_IOWR(0xA0, struct drm_mode_card_res)
+#define DRM_IOCTL_MODE_GETCRTC		DRM_IOWR(0xA1, struct drm_mode_crtc)
+#define DRM_IOCTL_MODE_SETCRTC		DRM_IOWR(0xA2, struct drm_mode_crtc)
+#define DRM_IOCTL_MODE_CURSOR		DRM_IOWR(0xA3, struct drm_mode_cursor)
+#define DRM_IOCTL_MODE_GETGAMMA		DRM_IOWR(0xA4, struct drm_mode_crtc_lut)
+#define DRM_IOCTL_MODE_SETGAMMA		DRM_IOWR(0xA5, struct drm_mode_crtc_lut)
+#define DRM_IOCTL_MODE_GETENCODER	DRM_IOWR(0xA6, struct drm_mode_get_encoder)
+#define DRM_IOCTL_MODE_GETCONNECTOR	DRM_IOWR(0xA7, struct drm_mode_get_connector)
+#define DRM_IOCTL_MODE_ATTACHMODE	DRM_IOWR(0xA8, struct drm_mode_mode_cmd)
+#define DRM_IOCTL_MODE_DETACHMODE	DRM_IOWR(0xA9, struct drm_mode_mode_cmd)
+
+#define DRM_IOCTL_MODE_GETPROPERTY	DRM_IOWR(0xAA, struct drm_mode_get_property)
+#define DRM_IOCTL_MODE_SETPROPERTY	DRM_IOWR(0xAB, struct drm_mode_connector_set_property)
+#define DRM_IOCTL_MODE_GETPROPBLOB	DRM_IOWR(0xAC, struct drm_mode_get_blob)
+#define DRM_IOCTL_MODE_GETFB		DRM_IOWR(0xAD, struct drm_mode_fb_cmd)
+#define DRM_IOCTL_MODE_ADDFB		DRM_IOWR(0xAE, struct drm_mode_fb_cmd)
+#define DRM_IOCTL_MODE_RMFB		DRM_IOWR(0xAF, unsigned int)
 
 /**
  * Device specific ioctls should only be in their respective headers

@@ -12,3 +12,11 @@ config SFC
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called sfc.
+config SFC_MTD
+	bool "Solarflare Solarstorm SFC4000 flash MTD support"
+	depends on SFC && MTD && !(SFC=y && MTD=m)
+	default y
+	help
+	  This exposes the on-board flash memory as an MTD device (e.g.
+          /dev/mtd1).  This makes it possible to upload new boot code
+          to the NIC.

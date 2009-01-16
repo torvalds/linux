@@ -56,23 +56,55 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 #define pte_none(x)		(!(x).pte_low)
 
 /*
- * Bits 0, 6 and 7 are taken, split up the 29 bits of offset
- * into this range:
+ * Bits _PAGE_BIT_PRESENT, _PAGE_BIT_FILE and _PAGE_BIT_PROTNONE are taken,
+ * split up the 29 bits of offset into this range:
  */
 #define PTE_FILE_MAX_BITS	29
+#define PTE_FILE_SHIFT1		(_PAGE_BIT_PRESENT + 1)
+#if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE
+#define PTE_FILE_SHIFT2		(_PAGE_BIT_FILE + 1)
+#define PTE_FILE_SHIFT3		(_PAGE_BIT_PROTNONE + 1)
+#else
+#define PTE_FILE_SHIFT2		(_PAGE_BIT_PROTNONE + 1)
+#define PTE_FILE_SHIFT3		(_PAGE_BIT_FILE + 1)
+#endif
+#define PTE_FILE_BITS1		(PTE_FILE_SHIFT2 - PTE_FILE_SHIFT1 - 1)
+#define PTE_FILE_BITS2		(PTE_FILE_SHIFT3 - PTE_FILE_SHIFT2 - 1)
 
 #define pte_to_pgoff(pte)						\
-	((((pte).pte_low >> 1) & 0x1f) + (((pte).pte_low >> 8) << 5))
+	((((pte).pte_low >> PTE_FILE_SHIFT1)				\
+	  & ((1U << PTE_FILE_BITS1) - 1))				\
+	 + ((((pte).pte_low >> PTE_FILE_SHIFT2)				\
+	     & ((1U << PTE_FILE_BITS2) - 1)) << PTE_FILE_BITS1)		\
+	 + (((pte).pte_low >> PTE_FILE_SHIFT3)				\
+	    << (PTE_FILE_BITS1 + PTE_FILE_BITS2)))
 
 #define pgoff_to_pte(off)						\
-	((pte_t) { .pte_low = (((off) & 0x1f) << 1) +			\
-			(((off) >> 5) << 8) + _PAGE_FILE })
+	((pte_t) { .pte_low =						\
+	 (((off) & ((1U << PTE_FILE_BITS1) - 1)) << PTE_FILE_SHIFT1)	\
+	 + ((((off) >> PTE_FILE_BITS1) & ((1U << PTE_FILE_BITS2) - 1))	\
+	    << PTE_FILE_SHIFT2)						\
+	 + (((off) >> (PTE_FILE_BITS1 + PTE_FILE_BITS2))		\
+	    << PTE_FILE_SHIFT3)						\
+	 + _PAGE_FILE })
 
 /* Encode and de-code a swap entry */
-#define __swp_type(x)			(((x).val >> 1) & 0x1f)
-#define __swp_offset(x)			((x).val >> 8)
-#define __swp_entry(type, offset)				\
-	((swp_entry_t) { ((type) << 1) | ((offset) << 8) })
+#if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE
+#define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
+#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
+#else
+#define SWP_TYPE_BITS (_PAGE_BIT_PROTNONE - _PAGE_BIT_PRESENT - 1)
+#define SWP_OFFSET_SHIFT (_PAGE_BIT_FILE + 1)
+#endif
+
+#define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
+
+#define __swp_type(x)			(((x).val >> (_PAGE_BIT_PRESENT + 1)) \
+					 & ((1U << SWP_TYPE_BITS) - 1))
+#define __swp_offset(x)			((x).val >> SWP_OFFSET_SHIFT)
+#define __swp_entry(type, offset)	((swp_entry_t) { \
+					 ((type) << (_PAGE_BIT_PRESENT + 1)) \
+					 | ((offset) << SWP_OFFSET_SHIFT) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte_low })
 #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
 

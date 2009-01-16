@@ -23,7 +23,7 @@ static struct ctl_table ipx_table[] = {
 		.data		= &sysctl_ipx_pprop_broadcasting,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
+		.proc_handler	= proc_dointvec,
 	},
 	{ 0 },
 };

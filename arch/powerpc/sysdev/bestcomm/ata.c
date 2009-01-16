@@ -61,6 +61,9 @@ bcom_ata_init(int queue_len, int maxbufsize)
 	struct bcom_ata_var *var;
 	struct bcom_ata_inc *inc;
 
+	/* Prefetch breaks ATA DMA.  Turn it off for ATA DMA */
+	bcom_disable_prefetch();
+
 	tsk = bcom_task_alloc(queue_len, sizeof(struct bcom_ata_bd), 0);
 	if (!tsk)
 		return NULL;

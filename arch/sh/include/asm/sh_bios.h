@@ -10,7 +10,6 @@
 
 extern void sh_bios_console_write(const char *buf, unsigned int len);
 extern void sh_bios_char_out(char ch);
-extern int sh_bios_in_gdb_mode(void);
 extern void sh_bios_gdb_detach(void);
 
 extern void sh_bios_get_node_addr(unsigned char *node_addr);

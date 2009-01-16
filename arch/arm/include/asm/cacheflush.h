@@ -10,11 +10,11 @@
 #ifndef _ASMARM_CACHEFLUSH_H
 #define _ASMARM_CACHEFLUSH_H
 
-#include <linux/sched.h>
 #include <linux/mm.h>
 
 #include <asm/glue.h>
 #include <asm/shmparam.h>
+#include <asm/cachetype.h>
 
 #define CACHE_COLOUR(vaddr)	((vaddr & (SHMLBA - 1)) >> PAGE_SHIFT)
 
@@ -296,16 +296,6 @@ static inline void outer_flush_range(unsigned long start, unsigned long end)
 #endif
 
 /*
- * flush_cache_vmap() is used when creating mappings (eg, via vmap,
- * vmalloc, ioremap etc) in kernel space for pages.  Since the
- * direct-mappings of these pages may contain cached data, we need
- * to do a full cache flush to ensure that writebacks don't corrupt
- * data placed into these pages via the new mappings.
- */
-#define flush_cache_vmap(start, end)		flush_cache_all()
-#define flush_cache_vunmap(start, end)		flush_cache_all()
-
-/*
  * Copy user data from/to a page which is mapped into a different
  * processes address space.  Really, we want to allow our "user
  * space" model to handle this.
@@ -442,6 +432,31 @@ static inline void flush_ioremap_region(unsigned long phys, void __iomem *virt,
 {
 	const void *start = (void __force *)virt + offset;
 	dmac_inv_range(start, start + size);
+}
+
+/*
+ * flush_cache_vmap() is used when creating mappings (eg, via vmap,
+ * vmalloc, ioremap etc) in kernel space for pages.  On non-VIPT
+ * caches, since the direct-mappings of these pages may contain cached
+ * data, we need to do a full cache flush to ensure that writebacks
+ * don't corrupt data placed into these pages via the new mappings.
+ */
+static inline void flush_cache_vmap(unsigned long start, unsigned long end)
+{
+	if (!cache_is_vipt_nonaliasing())
+		flush_cache_all();
+	else
+		/*
+		 * set_pte_at() called from vmap_pte_range() does not
+		 * have a DSB after cleaning the cache line.
+		 */
+		dsb();
+}
+
+static inline void flush_cache_vunmap(unsigned long start, unsigned long end)
+{
+	if (!cache_is_vipt_nonaliasing())
+		flush_cache_all();
 }
 
 #endif

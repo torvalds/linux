@@ -50,6 +50,7 @@ int whc_do_gencmd(struct whc *whc, u32 cmd, u32 params, void *addr, size_t len)
 	unsigned long flags;
 	dma_addr_t dma_addr;
 	int t;
+	int ret = 0;
 
 	mutex_lock(&whc->mutex);
 
@@ -61,7 +62,8 @@ int whc_do_gencmd(struct whc *whc, u32 cmd, u32 params, void *addr, size_t len)
 		dev_err(&whc->umc->dev, "generic command timeout (%04x/%04x)\n",
 			le_readl(whc->base + WUSBGENCMDSTS),
 			le_readl(whc->base + WUSBGENCMDPARAMS));
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+		goto out;
 	}
 
 	if (addr) {
@@ -80,8 +82,8 @@ int whc_do_gencmd(struct whc *whc, u32 cmd, u32 params, void *addr, size_t len)
 		  whc->base + WUSBGENCMDSTS);
 
 	spin_unlock_irqrestore(&whc->lock, flags);
-
+out:
 	mutex_unlock(&whc->mutex);
 
-	return 0;
+	return ret;
 }

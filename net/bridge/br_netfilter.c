@@ -58,11 +58,11 @@ static struct ctl_table_header *brnf_sysctl_header;
 static int brnf_call_iptables __read_mostly = 1;
 static int brnf_call_ip6tables __read_mostly = 1;
 static int brnf_call_arptables __read_mostly = 1;
-static int brnf_filter_vlan_tagged __read_mostly = 1;
-static int brnf_filter_pppoe_tagged __read_mostly = 1;
+static int brnf_filter_vlan_tagged __read_mostly = 0;
+static int brnf_filter_pppoe_tagged __read_mostly = 0;
 #else
-#define brnf_filter_vlan_tagged 1
-#define brnf_filter_pppoe_tagged 1
+#define brnf_filter_vlan_tagged 0
+#define brnf_filter_pppoe_tagged 0
 #endif
 
 static inline __be16 vlan_proto(const struct sk_buff *skb)
@@ -109,7 +109,6 @@ static struct dst_ops fake_dst_ops = {
 	.family =		AF_INET,
 	.protocol =		__constant_htons(ETH_P_IP),
 	.update_pmtu =		fake_update_pmtu,
-	.entry_size =		sizeof(struct rtable),
 	.entries =		ATOMIC_INIT(0),
 };
 
@@ -370,7 +369,7 @@ static int br_nf_pre_routing_finish(struct sk_buff *skb)
 			if (err != -EHOSTUNREACH || !in_dev || IN_DEV_FORWARD(in_dev))
 				goto free_skb;
 
-			if (!ip_route_output_key(&init_net, &rt, &fl)) {
+			if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
 				/* - Bridged-and-DNAT'ed traffic doesn't
 				 *   require ip_forwarding. */
 				if (((struct dst_entry *)rt)->dev == dev) {
@@ -687,8 +686,11 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb) ||
 	    IS_PPPOE_IP(skb))
 		pf = PF_INET;
-	else
+	else if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
+		 IS_PPPOE_IPV6(skb))
 		pf = PF_INET6;
+	else
+		return NF_ACCEPT;
 
 	nf_bridge_pull_encap_header(skb);
 
@@ -829,8 +831,11 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb) ||
 	    IS_PPPOE_IP(skb))
 		pf = PF_INET;
-	else
+	else if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
+		 IS_PPPOE_IPV6(skb))
 		pf = PF_INET6;
+	else
+		return NF_ACCEPT;
 
 #ifdef CONFIG_NETFILTER_DEBUG
 	if (skb->dst == NULL) {
@@ -951,35 +956,35 @@ static ctl_table brnf_table[] = {
 		.data		= &brnf_call_arptables,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &brnf_sysctl_call_tables,
+		.proc_handler	= brnf_sysctl_call_tables,
 	},
 	{
 		.procname	= "bridge-nf-call-iptables",
 		.data		= &brnf_call_iptables,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &brnf_sysctl_call_tables,
+		.proc_handler	= brnf_sysctl_call_tables,
 	},
 	{
 		.procname	= "bridge-nf-call-ip6tables",
 		.data		= &brnf_call_ip6tables,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &brnf_sysctl_call_tables,
+		.proc_handler	= brnf_sysctl_call_tables,
 	},
 	{
 		.procname	= "bridge-nf-filter-vlan-tagged",
 		.data		= &brnf_filter_vlan_tagged,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &brnf_sysctl_call_tables,
+		.proc_handler	= brnf_sysctl_call_tables,
 	},
 	{
 		.procname	= "bridge-nf-filter-pppoe-tagged",
 		.data		= &brnf_filter_pppoe_tagged,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &brnf_sysctl_call_tables,
+		.proc_handler	= brnf_sysctl_call_tables,
 	},
 	{ .ctl_name = 0 }
 };

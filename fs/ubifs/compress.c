@@ -33,7 +33,7 @@
 /* Fake description object for the "none" compressor */
 static struct ubifs_compressor none_compr = {
 	.compr_type = UBIFS_COMPR_NONE,
-	.name = "no compression",
+	.name = "none",
 	.capi_name = "",
 };
 
@@ -43,13 +43,13 @@ static DEFINE_MUTEX(lzo_mutex);
 static struct ubifs_compressor lzo_compr = {
 	.compr_type = UBIFS_COMPR_LZO,
 	.comp_mutex = &lzo_mutex,
-	.name = "LZO",
+	.name = "lzo",
 	.capi_name = "lzo",
 };
 #else
 static struct ubifs_compressor lzo_compr = {
 	.compr_type = UBIFS_COMPR_LZO,
-	.name = "LZO",
+	.name = "lzo",
 };
 #endif
 
@@ -108,7 +108,7 @@ void ubifs_compress(const void *in_buf, int in_len, void *out_buf, int *out_len,
 	if (compr->comp_mutex)
 		mutex_lock(compr->comp_mutex);
 	err = crypto_comp_compress(compr->cc, in_buf, in_len, out_buf,
-				   out_len);
+				   (unsigned int *)out_len);
 	if (compr->comp_mutex)
 		mutex_unlock(compr->comp_mutex);
 	if (unlikely(err)) {
@@ -119,10 +119,10 @@ void ubifs_compress(const void *in_buf, int in_len, void *out_buf, int *out_len,
 	}
 
 	/*
-	 * Presently, we just require that compression results in less data,
-	 * rather than any defined minimum compression ratio or amount.
+	 * If the data compressed only slightly, it is better to leave it
+	 * uncompressed to improve read speed.
 	 */
-	if (ALIGN(*out_len, 8) >= ALIGN(in_len, 8))
+	if (in_len - *out_len < UBIFS_MIN_COMPRESS_DIFF)
 		goto no_compr;
 
 	return;
@@ -172,7 +172,7 @@ int ubifs_decompress(const void *in_buf, int in_len, void *out_buf,
 	if (compr->decomp_mutex)
 		mutex_lock(compr->decomp_mutex);
 	err = crypto_comp_decompress(compr->cc, in_buf, in_len, out_buf,
-				     out_len);
+				     (unsigned int *)out_len);
 	if (compr->decomp_mutex)
 		mutex_unlock(compr->decomp_mutex);
 	if (err)
@@ -244,7 +244,7 @@ out_lzo:
 /**
  * ubifs_compressors_exit - de-initialize UBIFS compressors.
  */
-void __exit ubifs_compressors_exit(void)
+void ubifs_compressors_exit(void)
 {
 	compr_exit(&lzo_compr);
 	compr_exit(&zlib_compr);

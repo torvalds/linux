@@ -53,7 +53,6 @@ struct Qdisc
 	atomic_t		refcnt;
 	unsigned long		state;
 	struct sk_buff		*gso_skb;
-	struct sk_buff_head	requeue;
 	struct sk_buff_head	q;
 	struct netdev_queue	*dev_queue;
 	struct Qdisc		*next_sched;
@@ -111,7 +110,7 @@ struct Qdisc_ops
 
 	int 			(*enqueue)(struct sk_buff *, struct Qdisc *);
 	struct sk_buff *	(*dequeue)(struct Qdisc *);
-	int 			(*requeue)(struct sk_buff *, struct Qdisc *);
+	struct sk_buff *	(*peek)(struct Qdisc *);
 	unsigned int		(*drop)(struct Qdisc *);
 
 	int			(*init)(struct Qdisc *, struct nlattr *arg);
@@ -432,19 +431,38 @@ static inline struct sk_buff *qdisc_dequeue_tail(struct Qdisc *sch)
 	return __qdisc_dequeue_tail(sch, &sch->q);
 }
 
-static inline int __qdisc_requeue(struct sk_buff *skb, struct Qdisc *sch,
-				  struct sk_buff_head *list)
+static inline struct sk_buff *qdisc_peek_head(struct Qdisc *sch)
 {
-	__skb_queue_head(list, skb);
-	sch->qstats.backlog += qdisc_pkt_len(skb);
-	sch->qstats.requeues++;
-
-	return NET_XMIT_SUCCESS;
+	return skb_peek(&sch->q);
 }
 
-static inline int qdisc_requeue(struct sk_buff *skb, struct Qdisc *sch)
+/* generic pseudo peek method for non-work-conserving qdisc */
+static inline struct sk_buff *qdisc_peek_dequeued(struct Qdisc *sch)
 {
-	return __qdisc_requeue(skb, sch, &sch->q);
+	/* we can reuse ->gso_skb because peek isn't called for root qdiscs */
+	if (!sch->gso_skb) {
+		sch->gso_skb = sch->dequeue(sch);
+		if (sch->gso_skb)
+			/* it's still part of the queue */
+			sch->q.qlen++;
+	}
+
+	return sch->gso_skb;
+}
+
+/* use instead of qdisc->dequeue() for all qdiscs queried with ->peek() */
+static inline struct sk_buff *qdisc_dequeue_peeked(struct Qdisc *sch)
+{
+	struct sk_buff *skb = sch->gso_skb;
+
+	if (skb) {
+		sch->gso_skb = NULL;
+		sch->q.qlen--;
+	} else {
+		skb = sch->dequeue(sch);
+	}
+
+	return skb;
 }
 
 static inline void __qdisc_reset_queue(struct Qdisc *sch,

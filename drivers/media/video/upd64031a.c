@@ -26,7 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv.h>
 #include <media/upd64031a.h>
@@ -62,12 +62,18 @@ enum {
 };
 
 struct upd64031a_state {
+	struct v4l2_subdev sd;
 	u8 regs[TOT_REGS];
 	u8 gr_mode;
 	u8 direct_3dycs_connect;
 	u8 ext_comp_sync;
 	u8 ext_vert_sync;
 };
+
+static inline struct upd64031a_state *to_state(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct upd64031a_state, sd);
+}
 
 static u8 upd64031a_init[] = {
 	0x00, 0xb8, 0x48, 0xd2, 0xe6,
@@ -78,8 +84,9 @@ static u8 upd64031a_init[] = {
 
 /* ------------------------------------------------------------------------ */
 
-static u8 upd64031a_read(struct i2c_client *client, u8 reg)
+static u8 upd64031a_read(struct v4l2_subdev *sd, u8 reg)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u8 buf[2];
 
 	if (reg >= sizeof(buf))
@@ -90,106 +97,126 @@ static u8 upd64031a_read(struct i2c_client *client, u8 reg)
 
 /* ------------------------------------------------------------------------ */
 
-static void upd64031a_write(struct i2c_client *client, u8 reg, u8 val)
+static void upd64031a_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u8 buf[2];
 
 	buf[0] = reg;
 	buf[1] = val;
-	v4l_dbg(1, debug, client, "write reg: %02X val: %02X\n", reg, val);
+	v4l2_dbg(1, debug, sd, "write reg: %02X val: %02X\n", reg, val);
 	if (i2c_master_send(client, buf, 2) != 2)
-		v4l_err(client, "I/O error write 0x%02x/0x%02x\n", reg, val);
+		v4l2_err(sd, "I/O error write 0x%02x/0x%02x\n", reg, val);
 }
 
 /* ------------------------------------------------------------------------ */
 
 /* The input changed due to new input or channel changed */
-static void upd64031a_change(struct i2c_client *client)
+static int upd64031a_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)
 {
-	struct upd64031a_state *state = i2c_get_clientdata(client);
+	struct upd64031a_state *state = to_state(sd);
 	u8 reg = state->regs[R00];
 
-	v4l_dbg(1, debug, client, "changed input or channel\n");
-	upd64031a_write(client, R00, reg | 0x10);
-	upd64031a_write(client, R00, reg & ~0x10);
+	v4l2_dbg(1, debug, sd, "changed input or channel\n");
+	upd64031a_write(sd, R00, reg | 0x10);
+	upd64031a_write(sd, R00, reg & ~0x10);
+	return 0;
 }
 
 /* ------------------------------------------------------------------------ */
 
-static int upd64031a_command(struct i2c_client *client, unsigned cmd, void *arg)
+static int upd64031a_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
 {
-	struct upd64031a_state *state = i2c_get_clientdata(client);
-	struct v4l2_routing *route = arg;
+	struct upd64031a_state *state = to_state(sd);
+	u8 r00, r05, r08;
 
-	switch (cmd) {
-	case VIDIOC_S_FREQUENCY:
-		upd64031a_change(client);
-		break;
+	state->gr_mode = (route->input & 3) << 6;
+	state->direct_3dycs_connect = (route->input & 0xc) << 4;
+	state->ext_comp_sync =
+		(route->input & UPD64031A_COMPOSITE_EXTERNAL) << 1;
+	state->ext_vert_sync =
+		(route->input & UPD64031A_VERTICAL_EXTERNAL) << 2;
+	r00 = (state->regs[R00] & ~GR_MODE_MASK) | state->gr_mode;
+	r05 = (state->regs[R00] & ~SYNC_CIRCUIT_MASK) |
+		state->ext_comp_sync | state->ext_vert_sync;
+	r08 = (state->regs[R08] & ~DIRECT_3DYCS_CONNECT_MASK) |
+		state->direct_3dycs_connect;
+	upd64031a_write(sd, R00, r00);
+	upd64031a_write(sd, R05, r05);
+	upd64031a_write(sd, R08, r08);
+	return upd64031a_s_frequency(sd, NULL);
+}
 
-	case VIDIOC_INT_G_VIDEO_ROUTING:
-		route->input = (state->gr_mode >> 6) |
-			(state->direct_3dycs_connect >> 4) |
-			(state->ext_comp_sync >> 1) |
-			(state->ext_vert_sync >> 2);
-		route->output = 0;
-		break;
+static int upd64031a_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	case VIDIOC_INT_S_VIDEO_ROUTING:
-	{
-		u8 r00, r05, r08;
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_UPD64031A, 0);
+}
 
-		state->gr_mode = (route->input & 3) << 6;
-		state->direct_3dycs_connect = (route->input & 0xc) << 4;
-		state->ext_comp_sync =
-			(route->input & UPD64031A_COMPOSITE_EXTERNAL) << 1;
-		state->ext_vert_sync =
-			(route->input & UPD64031A_VERTICAL_EXTERNAL) << 2;
-		r00 = (state->regs[R00] & ~GR_MODE_MASK) | state->gr_mode;
-		r05 = (state->regs[R00] & ~SYNC_CIRCUIT_MASK) |
-			state->ext_comp_sync | state->ext_vert_sync;
-		r08 = (state->regs[R08] & ~DIRECT_3DYCS_CONNECT_MASK) |
-			state->direct_3dycs_connect;
-		upd64031a_write(client, R00, r00);
-		upd64031a_write(client, R05, r05);
-		upd64031a_write(client, R08, r08);
-		upd64031a_change(client);
-		break;
-	}
-
-	case VIDIOC_LOG_STATUS:
-		v4l_info(client, "Status: SA00=0x%02x SA01=0x%02x\n",
-			upd64031a_read(client, 0), upd64031a_read(client, 1));
-		break;
-
-#ifdef CONFIG_VIDEO_ADV_DEBUG
-	case VIDIOC_DBG_G_REGISTER:
-	case VIDIOC_DBG_S_REGISTER:
-	{
-		struct v4l2_register *reg = arg;
-
-		if (!v4l2_chip_match_i2c_client(client,
-					reg->match_type, reg->match_chip))
-			return -EINVAL;
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		if (cmd == VIDIOC_DBG_G_REGISTER) {
-			reg->val = upd64031a_read(client, reg->reg & 0xff);
-			break;
-		}
-		upd64031a_write(client, reg->reg & 0xff, reg->val & 0xff);
-		break;
-	}
-#endif
-
-	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client, arg,
-				V4L2_IDENT_UPD64031A, 0);
-
-	default:
-		break;
-	}
+static int upd64031a_log_status(struct v4l2_subdev *sd)
+{
+	v4l2_info(sd, "Status: SA00=0x%02x SA01=0x%02x\n",
+			upd64031a_read(sd, 0), upd64031a_read(sd, 1));
 	return 0;
 }
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+static int upd64031a_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	reg->val = upd64031a_read(sd, reg->reg & 0xff);
+	reg->size = 1;
+	return 0;
+}
+
+static int upd64031a_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
+		return -EINVAL;
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	upd64031a_write(sd, reg->reg & 0xff, reg->val & 0xff);
+	return 0;
+}
+#endif
+
+static int upd64031a_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+}
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops upd64031a_core_ops = {
+	.log_status = upd64031a_log_status,
+	.g_chip_ident = upd64031a_g_chip_ident,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	.g_register = upd64031a_g_register,
+	.s_register = upd64031a_s_register,
+#endif
+};
+
+static const struct v4l2_subdev_tuner_ops upd64031a_tuner_ops = {
+	.s_frequency = upd64031a_s_frequency,
+};
+
+static const struct v4l2_subdev_video_ops upd64031a_video_ops = {
+	.s_routing = upd64031a_s_routing,
+};
+
+static const struct v4l2_subdev_ops upd64031a_ops = {
+	.core = &upd64031a_core_ops,
+	.tuner = &upd64031a_tuner_ops,
+	.video = &upd64031a_video_ops,
+};
 
 /* ------------------------------------------------------------------------ */
 
@@ -199,6 +226,7 @@ static int upd64031a_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id)
 {
 	struct upd64031a_state *state;
+	struct v4l2_subdev *sd;
 	int i;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -210,19 +238,23 @@ static int upd64031a_probe(struct i2c_client *client,
 	state = kmalloc(sizeof(struct upd64031a_state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
-	i2c_set_clientdata(client, state);
+	sd = &state->sd;
+	v4l2_i2c_subdev_init(sd, client, &upd64031a_ops);
 	memcpy(state->regs, upd64031a_init, sizeof(state->regs));
 	state->gr_mode = UPD64031A_GR_ON << 6;
 	state->direct_3dycs_connect = UPD64031A_3DYCS_COMPOSITE << 4;
 	state->ext_comp_sync = state->ext_vert_sync = 0;
 	for (i = 0; i < TOT_REGS; i++)
-		upd64031a_write(client, i, state->regs[i]);
+		upd64031a_write(sd, i, state->regs[i]);
 	return 0;
 }
 
 static int upd64031a_remove(struct i2c_client *client)
 {
-	kfree(i2c_get_clientdata(client));
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_state(sd));
 	return 0;
 }
 

@@ -161,11 +161,10 @@ struct bnep_session {
 	struct msghdr msg;
 
 	struct bnep_proto_filter proto_filter[BNEP_MAX_PROTO_FILTERS];
-	u64    mc_filter;
+	unsigned long long mc_filter;
 
 	struct socket    *sock;
 	struct net_device *dev;
-	struct net_device_stats stats;
 };
 
 void bnep_net_setup(struct net_device *dev);

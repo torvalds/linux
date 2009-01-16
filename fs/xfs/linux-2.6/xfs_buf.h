@@ -168,7 +168,7 @@ typedef struct xfs_buf {
 	struct completion	b_iowait;	/* queue for I/O waiters */
 	void			*b_fspriv;
 	void			*b_fspriv2;
-	void			*b_fspriv3;
+	struct xfs_mount	*b_mount;
 	unsigned short		b_error;	/* error code on I/O */
 	unsigned int		b_page_count;	/* size of page array */
 	unsigned int		b_offset;	/* page offset in first page */
@@ -214,9 +214,10 @@ extern void xfs_buf_lock(xfs_buf_t *);
 extern void xfs_buf_unlock(xfs_buf_t *);
 
 /* Buffer Read and Write Routines */
+extern int xfs_bawrite(void *mp, xfs_buf_t *bp);
+extern void xfs_bdwrite(void *mp, xfs_buf_t *bp);
 extern void xfs_buf_ioend(xfs_buf_t *,	int);
 extern void xfs_buf_ioerror(xfs_buf_t *, int);
-extern int xfs_buf_iostart(xfs_buf_t *, xfs_buf_flags_t);
 extern int xfs_buf_iorequest(xfs_buf_t *);
 extern int xfs_buf_iowait(xfs_buf_t *);
 extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, xfs_caddr_t,
@@ -311,10 +312,6 @@ extern void xfs_buf_trace(xfs_buf_t *, char *, void *, void *);
 #define XFS_BUF_UNORDERED(bp)	((bp)->b_flags &= ~XBF_ORDERED)
 #define XFS_BUF_ISORDERED(bp)	((bp)->b_flags & XBF_ORDERED)
 
-#define XFS_BUF_SHUT(bp)	do { } while (0)
-#define XFS_BUF_UNSHUT(bp)	do { } while (0)
-#define XFS_BUF_ISSHUT(bp)	(0)
-
 #define XFS_BUF_HOLD(bp)	xfs_buf_hold(bp)
 #define XFS_BUF_READ(bp)	((bp)->b_flags |= XBF_READ)
 #define XFS_BUF_UNREAD(bp)	((bp)->b_flags &= ~XBF_READ)
@@ -334,8 +331,6 @@ extern void xfs_buf_trace(xfs_buf_t *, char *, void *, void *);
 #define XFS_BUF_SET_FSPRIVATE(bp, val)		((bp)->b_fspriv = (void*)(val))
 #define XFS_BUF_FSPRIVATE2(bp, type)		((type)(bp)->b_fspriv2)
 #define XFS_BUF_SET_FSPRIVATE2(bp, val)		((bp)->b_fspriv2 = (void*)(val))
-#define XFS_BUF_FSPRIVATE3(bp, type)		((type)(bp)->b_fspriv3)
-#define XFS_BUF_SET_FSPRIVATE3(bp, val)		((bp)->b_fspriv3 = (void*)(val))
 #define XFS_BUF_SET_START(bp)			do { } while (0)
 #define XFS_BUF_SET_BRELSE_FUNC(bp, func)	((bp)->b_relse = (func))
 
@@ -365,14 +360,6 @@ extern void xfs_buf_trace(xfs_buf_t *, char *, void *, void *);
 #define XFS_BUF_SET_TARGET(bp, target)	((bp)->b_target = (target))
 #define XFS_BUF_TARGET(bp)		((bp)->b_target)
 #define XFS_BUFTARG_NAME(target)	xfs_buf_target_name(target)
-
-static inline int xfs_bawrite(void *mp, xfs_buf_t *bp)
-{
-	bp->b_fspriv3 = mp;
-	bp->b_strat = xfs_bdstrat_cb;
-	xfs_buf_delwri_dequeue(bp);
-	return xfs_buf_iostart(bp, XBF_WRITE | XBF_ASYNC | _XBF_RUN_QUEUES);
-}
 
 static inline void xfs_buf_relse(xfs_buf_t *bp)
 {
@@ -412,17 +399,6 @@ static inline int XFS_bwrite(xfs_buf_t *bp)
 		xfs_buf_relse(bp);
 	}
 	return error;
-}
-
-/*
- * No error can be returned from xfs_buf_iostart for delwri
- * buffers as they are queued and no I/O is issued.
- */
-static inline void xfs_bdwrite(void *mp, xfs_buf_t *bp)
-{
-	bp->b_strat = xfs_bdstrat_cb;
-	bp->b_fspriv3 = mp;
-	(void)xfs_buf_iostart(bp, XBF_DELWRI | XBF_ASYNC);
 }
 
 #define XFS_bdstrat(bp) xfs_buf_iorequest(bp)

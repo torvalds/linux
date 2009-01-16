@@ -1,6 +1,7 @@
 #ifndef __ARCH_BLACKFIN_ATOMIC__
 #define __ARCH_BLACKFIN_ATOMIC__
 
+#include <linux/types.h>
 #include <asm/system.h>	/* local_irq_XXX() */
 
 /*
@@ -13,69 +14,173 @@
  * Tony Kou (tonyko@lineo.ca)   Lineo Inc.   2001
  */
 
-typedef struct {
-	int counter;
-} atomic_t;
 #define ATOMIC_INIT(i)	{ (i) }
-
-#define atomic_read(v)		((v)->counter)
 #define atomic_set(v, i)	(((v)->counter) = i)
 
-static __inline__ void atomic_add(int i, atomic_t * v)
+#ifdef CONFIG_SMP
+
+#define atomic_read(v)	__raw_uncached_fetch_asm(&(v)->counter)
+
+asmlinkage int __raw_uncached_fetch_asm(const volatile int *ptr);
+
+asmlinkage int __raw_atomic_update_asm(volatile int *ptr, int value);
+
+asmlinkage int __raw_atomic_clear_asm(volatile int *ptr, int value);
+
+asmlinkage int __raw_atomic_set_asm(volatile int *ptr, int value);
+
+asmlinkage int __raw_atomic_xor_asm(volatile int *ptr, int value);
+
+asmlinkage int __raw_atomic_test_asm(const volatile int *ptr, int value);
+
+static inline void atomic_add(int i, atomic_t *v)
+{
+	__raw_atomic_update_asm(&v->counter, i);
+}
+
+static inline void atomic_sub(int i, atomic_t *v)
+{
+	__raw_atomic_update_asm(&v->counter, -i);
+}
+
+static inline int atomic_add_return(int i, atomic_t *v)
+{
+	return __raw_atomic_update_asm(&v->counter, i);
+}
+
+static inline int atomic_sub_return(int i, atomic_t *v)
+{
+	return __raw_atomic_update_asm(&v->counter, -i);
+}
+
+static inline void atomic_inc(volatile atomic_t *v)
+{
+	__raw_atomic_update_asm(&v->counter, 1);
+}
+
+static inline void atomic_dec(volatile atomic_t *v)
+{
+	__raw_atomic_update_asm(&v->counter, -1);
+}
+
+static inline void atomic_clear_mask(int mask, atomic_t *v)
+{
+	__raw_atomic_clear_asm(&v->counter, mask);
+}
+
+static inline void atomic_set_mask(int mask, atomic_t *v)
+{
+	__raw_atomic_set_asm(&v->counter, mask);
+}
+
+static inline int atomic_test_mask(int mask, atomic_t *v)
+{
+	return __raw_atomic_test_asm(&v->counter, mask);
+}
+
+/* Atomic operations are already serializing */
+#define smp_mb__before_atomic_dec()    barrier()
+#define smp_mb__after_atomic_dec() barrier()
+#define smp_mb__before_atomic_inc()    barrier()
+#define smp_mb__after_atomic_inc() barrier()
+
+#else /* !CONFIG_SMP */
+
+#define atomic_read(v)	((v)->counter)
+
+static inline void atomic_add(int i, atomic_t *v)
 {
 	long flags;
 
-	local_irq_save(flags);
+	local_irq_save_hw(flags);
 	v->counter += i;
-	local_irq_restore(flags);
+	local_irq_restore_hw(flags);
 }
 
-static __inline__ void atomic_sub(int i, atomic_t * v)
+static inline void atomic_sub(int i, atomic_t *v)
 {
 	long flags;
 
-	local_irq_save(flags);
+	local_irq_save_hw(flags);
 	v->counter -= i;
-	local_irq_restore(flags);
+	local_irq_restore_hw(flags);
 
 }
 
-static inline int atomic_add_return(int i, atomic_t * v)
+static inline int atomic_add_return(int i, atomic_t *v)
 {
 	int __temp = 0;
 	long flags;
 
-	local_irq_save(flags);
+	local_irq_save_hw(flags);
 	v->counter += i;
 	__temp = v->counter;
-	local_irq_restore(flags);
+	local_irq_restore_hw(flags);
 
 
 	return __temp;
 }
+
+static inline int atomic_sub_return(int i, atomic_t *v)
+{
+	int __temp = 0;
+	long flags;
+
+	local_irq_save_hw(flags);
+	v->counter -= i;
+	__temp = v->counter;
+	local_irq_restore_hw(flags);
+
+	return __temp;
+}
+
+static inline void atomic_inc(volatile atomic_t *v)
+{
+	long flags;
+
+	local_irq_save_hw(flags);
+	v->counter++;
+	local_irq_restore_hw(flags);
+}
+
+static inline void atomic_dec(volatile atomic_t *v)
+{
+	long flags;
+
+	local_irq_save_hw(flags);
+	v->counter--;
+	local_irq_restore_hw(flags);
+}
+
+static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
+{
+	long flags;
+
+	local_irq_save_hw(flags);
+	v->counter &= ~mask;
+	local_irq_restore_hw(flags);
+}
+
+static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
+{
+	long flags;
+
+	local_irq_save_hw(flags);
+	v->counter |= mask;
+	local_irq_restore_hw(flags);
+}
+
+/* Atomic operations are already serializing */
+#define smp_mb__before_atomic_dec()    barrier()
+#define smp_mb__after_atomic_dec() barrier()
+#define smp_mb__before_atomic_inc()    barrier()
+#define smp_mb__after_atomic_inc() barrier()
+
+#endif /* !CONFIG_SMP */
 
 #define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
-static inline int atomic_sub_return(int i, atomic_t * v)
-{
-	int __temp = 0;
-	long flags;
-
-	local_irq_save(flags);
-	v->counter -= i;
-	__temp = v->counter;
-	local_irq_restore(flags);
-
-	return __temp;
-}
-
-static __inline__ void atomic_inc(volatile atomic_t * v)
-{
-	long flags;
-
-	local_irq_save(flags);
-	v->counter++;
-	local_irq_restore(flags);
-}
+#define atomic_dec_return(v) atomic_sub_return(1,(v))
+#define atomic_inc_return(v) atomic_add_return(1,(v))
 
 #define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
@@ -89,42 +194,6 @@ static __inline__ void atomic_inc(volatile atomic_t * v)
 	c != (u);						\
 })
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
-
-static __inline__ void atomic_dec(volatile atomic_t * v)
-{
-	long flags;
-
-	local_irq_save(flags);
-	v->counter--;
-	local_irq_restore(flags);
-}
-
-static __inline__ void atomic_clear_mask(unsigned int mask, atomic_t * v)
-{
-	long flags;
-
-	local_irq_save(flags);
-	v->counter &= ~mask;
-	local_irq_restore(flags);
-}
-
-static __inline__ void atomic_set_mask(unsigned int mask, atomic_t * v)
-{
-	long flags;
-
-	local_irq_save(flags);
-	v->counter |= mask;
-	local_irq_restore(flags);
-}
-
-/* Atomic operations are already serializing */
-#define smp_mb__before_atomic_dec()    barrier()
-#define smp_mb__after_atomic_dec() barrier()
-#define smp_mb__before_atomic_inc()    barrier()
-#define smp_mb__after_atomic_inc() barrier()
-
-#define atomic_dec_return(v) atomic_sub_return(1,(v))
-#define atomic_inc_return(v) atomic_add_return(1,(v))
 
 /*
  * atomic_inc_and_test - increment and test

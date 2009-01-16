@@ -95,8 +95,10 @@ ip_vs_nq_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 		}
 	}
 
-	if (!least)
+	if (!least) {
+		IP_VS_ERR_RL("NQ: no destination available\n");
 		return NULL;
+	}
 
   out:
 	IP_VS_DBG_BUF(6, "NQ: server %s:%u "
@@ -116,9 +118,6 @@ static struct ip_vs_scheduler ip_vs_nq_scheduler =
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
 	.n_list =		LIST_HEAD_INIT(ip_vs_nq_scheduler.n_list),
-#ifdef CONFIG_IP_VS_IPV6
-	.supports_ipv6 =	1,
-#endif
 	.schedule =		ip_vs_nq_schedule,
 };
 

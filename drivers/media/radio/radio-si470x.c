@@ -96,6 +96,8 @@
  * 2008-10-20	Alexey Klimov <klimov.linux@gmail.com>
  * 		- add support for KWorld USB FM Radio FM700
  * 		- blacklisted KWorld radio in hid-core.c and hid-ids.h
+ * 2008-12-03	Mark Lord <mlord@pobox.com>
+ *		- add support for DealExtreme USB Radio
  *
  * ToDo:
  * - add firmware download/update support
@@ -138,6 +140,8 @@ static struct usb_device_id si470x_usb_driver_id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x06e1, 0xa155, USB_CLASS_HID, 0, 0) },
 	/* KWorld USB FM Radio SnapMusic Mobile 700 (FM700) */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1b80, 0xd700, USB_CLASS_HID, 0, 0) },
+	/* DealExtreme USB Radio */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c5, 0x819a, USB_CLASS_HID, 0, 0) },
 	/* Terminating entry */
 	{ }
 };
@@ -1075,7 +1079,7 @@ static unsigned int si470x_fops_poll(struct file *file,
 /*
  * si470x_fops_open - file open
  */
-static int si470x_fops_open(struct inode *inode, struct file *file)
+static int si470x_fops_open(struct file *file)
 {
 	struct si470x_device *radio = video_drvdata(file);
 	int retval;
@@ -1105,7 +1109,7 @@ done:
 /*
  * si470x_fops_release - file release
  */
-static int si470x_fops_release(struct inode *inode, struct file *file)
+static int si470x_fops_release(struct file *file)
 {
 	struct si470x_device *radio = video_drvdata(file);
 	int retval = 0;
@@ -1147,15 +1151,11 @@ done:
 /*
  * si470x_fops - file operations interface
  */
-static const struct file_operations si470x_fops = {
+static const struct v4l2_file_operations si470x_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.read		= si470x_fops_read,
 	.poll		= si470x_fops_poll,
 	.ioctl		= video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
 	.open		= si470x_fops_open,
 	.release	= si470x_fops_release,
 };

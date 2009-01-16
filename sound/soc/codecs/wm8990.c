@@ -106,6 +106,7 @@ static const u16 wm8990_reg[] = {
 	0x0008,     /* R60 - PLL1 */
 	0x0031,     /* R61 - PLL2 */
 	0x0026,     /* R62 - PLL3 */
+	0x0000,	    /* R63 - Driver internal */
 };
 
 /*
@@ -126,10 +127,9 @@ static inline void wm8990_write_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg, unsigned int value)
 {
 	u16 *cache = codec->reg_cache;
-	BUG_ON(reg > (ARRAY_SIZE(wm8990_reg)) - 1);
 
-	/* Reset register is uncached */
-	if (reg == 0)
+	/* Reset register and reserved registers are uncached */
+	if (reg == 0 || reg > ARRAY_SIZE(wm8990_reg) - 1)
 		return;
 
 	cache[reg] = value;
@@ -1172,7 +1172,8 @@ static int wm8990_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
  * Set PCM DAI bit size and sample rate.
  */
 static int wm8990_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+			    struct snd_pcm_hw_params *params,
+			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -1222,8 +1223,14 @@ static int wm8990_set_bias_level(struct snd_soc_codec *codec,
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
+
 	case SND_SOC_BIAS_PREPARE:
+		/* VMID=2*50k */
+		val = wm8990_read_reg_cache(codec, WM8990_POWER_MANAGEMENT_1) &
+			~WM8990_VMID_MODE_MASK;
+		wm8990_write(codec, WM8990_POWER_MANAGEMENT_1, val | 0x2);
 		break;
+
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->bias_level == SND_SOC_BIAS_OFF) {
 			/* Enable all output discharge bits */
@@ -1272,10 +1279,17 @@ static int wm8990_set_bias_level(struct snd_soc_codec *codec,
 
 			/* disable POBCTRL, SOFT_ST and BUFDCOPEN */
 			wm8990_write(codec, WM8990_ANTIPOP2, WM8990_BUFIOEN);
-		} else {
-			/* ON -> standby */
 
+			/* Enable workaround for ADC clocking issue. */
+			wm8990_write(codec, WM8990_EXT_ACCESS_ENA, 0x2);
+			wm8990_write(codec, WM8990_EXT_CTL1, 0xa003);
+			wm8990_write(codec, WM8990_EXT_ACCESS_ENA, 0);
 		}
+
+		/* VMID=2*250k */
+		val = wm8990_read_reg_cache(codec, WM8990_POWER_MANAGEMENT_1) &
+			~WM8990_VMID_MODE_MASK;
+		wm8990_write(codec, WM8990_POWER_MANAGEMENT_1, val | 0x4);
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -1349,8 +1363,7 @@ struct snd_soc_dai wm8990_dai = {
 		.rates = WM8990_RATES,
 		.formats = WM8990_FORMATS,},
 	.ops = {
-		.hw_params = wm8990_hw_params,},
-	.dai_ops = {
+		.hw_params = wm8990_hw_params,
 		.digital_mute = wm8990_mute,
 		.set_fmt = wm8990_set_dai_fmt,
 		.set_clkdiv = wm8990_set_dai_clkdiv,
@@ -1449,7 +1462,7 @@ static int wm8990_init(struct snd_soc_device *socdev)
 
 	wm8990_add_controls(codec);
 	wm8990_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8990: failed to register card\n");
 		goto card_err;
@@ -1629,6 +1642,18 @@ struct snd_soc_codec_device soc_codec_dev_wm8990 = {
 	.resume =	wm8990_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8990);
+
+static int __init wm8990_modinit(void)
+{
+	return snd_soc_register_dai(&wm8990_dai);
+}
+module_init(wm8990_modinit);
+
+static void __exit wm8990_exit(void)
+{
+	snd_soc_unregister_dai(&wm8990_dai);
+}
+module_exit(wm8990_exit);
 
 MODULE_DESCRIPTION("ASoC WM8990 driver");
 MODULE_AUTHOR("Liam Girdwood");

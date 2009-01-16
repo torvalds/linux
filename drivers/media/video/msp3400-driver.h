@@ -5,6 +5,7 @@
 #define MSP3400_DRIVER_H
 
 #include <media/msp3400.h>
+#include <media/v4l2-device.h>
 
 /* ---------------------------------------------------------------------- */
 
@@ -49,6 +50,7 @@ extern int msp_dolby;
 extern int msp_stereo_thresh;
 
 struct msp_state {
+	struct v4l2_subdev sd;
 	int rev1, rev2;
 	int ident;
 	u8 has_nicam;
@@ -95,6 +97,11 @@ struct msp_state {
 	unsigned int         restart:1;
 	unsigned int         watch_stereo:1;
 };
+
+static inline struct msp_state *to_state(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct msp_state, sd);
+}
 
 /* msp3400-driver.c */
 int msp_write_dem(struct i2c_client *client, int addr, int val);

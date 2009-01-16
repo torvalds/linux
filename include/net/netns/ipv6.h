@@ -55,5 +55,17 @@ struct netns_ipv6 {
 	struct sock             *ndisc_sk;
 	struct sock             *tcp_sk;
 	struct sock             *igmp_sk;
+#ifdef CONFIG_IPV6_MROUTE
+	struct sock		*mroute6_sk;
+	struct mfc6_cache	**mfc6_cache_array;
+	struct mif_device	*vif6_table;
+	int			maxvif;
+	atomic_t		cache_resolve_queue_len;
+	int			mroute_do_assert;
+	int			mroute_do_pim;
+#ifdef CONFIG_IPV6_PIMSM_V2
+	int			mroute_reg_vif_num;
+#endif
+#endif
 };
 #endif

@@ -57,7 +57,9 @@
 #define CSR_REG_SIZE			0x0174
 #define EEPROM_BASE			0x0000
 #define EEPROM_SIZE			0x0200
+#define BBP_BASE			0x0000
 #define BBP_SIZE			0x0040
+#define RF_BASE				0x0000
 #define RF_SIZE				0x0014
 
 /*

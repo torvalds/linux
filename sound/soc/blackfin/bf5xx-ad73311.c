@@ -65,7 +65,7 @@
 
 #define GPIO_SE CONFIG_SND_BFIN_AD73311_SE
 
-static struct snd_soc_machine bf5xx_ad73311;
+static struct snd_soc_card bf5xx_ad73311;
 
 static int snd_ad73311_startup(void)
 {
@@ -168,7 +168,7 @@ static int bf5xx_ad73311_hw_params(struct snd_pcm_substream *substream,
 		params_format(params));
 
 	/* set cpu DAI configuration */
-	ret = cpu_dai->dai_ops.set_fmt(cpu_dai, SND_SOC_DAIFMT_DSP_A |
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_DSP_A |
 		SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	if (ret < 0)
 		return ret;
@@ -190,16 +190,16 @@ static struct snd_soc_dai_link bf5xx_ad73311_dai = {
 	.ops = &bf5xx_ad73311_ops,
 };
 
-static struct snd_soc_machine bf5xx_ad73311 = {
+static struct snd_soc_card bf5xx_ad73311 = {
 	.name = "bf5xx_ad73311",
+	.platform = &bf5xx_i2s_soc_platform,
 	.probe = bf5xx_probe,
 	.dai_link = &bf5xx_ad73311_dai,
 	.num_links = 1,
 };
 
 static struct snd_soc_device bf5xx_ad73311_snd_devdata = {
-	.machine = &bf5xx_ad73311,
-	.platform = &bf5xx_i2s_soc_platform,
+	.card = &bf5xx_ad73311,
 	.codec_dev = &soc_codec_dev_ad73311,
 };
 

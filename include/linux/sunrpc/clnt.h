@@ -58,6 +58,7 @@ struct rpc_clnt {
 	struct rpc_timeout	cl_timeout_default;
 	struct rpc_program *	cl_program;
 	char			cl_inline_name[32];
+	char			*cl_principal;	/* target to authenticate to */
 };
 
 /*
@@ -108,6 +109,7 @@ struct rpc_create_args {
 	u32			version;
 	rpc_authflavor_t	authflavor;
 	unsigned long		flags;
+	char			*client_name;
 };
 
 /* Values for "flags" field */

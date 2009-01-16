@@ -59,8 +59,14 @@ struct inode *jfs_iget(struct super_block *sb, unsigned long ino)
 		if (inode->i_size >= IDATASIZE) {
 			inode->i_op = &page_symlink_inode_operations;
 			inode->i_mapping->a_ops = &jfs_aops;
-		} else
+		} else {
 			inode->i_op = &jfs_symlink_inode_operations;
+			/*
+			 * The inline data should be null-terminated, but
+			 * don't let on-disk corruption crash the kernel
+			 */
+			JFS_IP(inode)->i_inline[inode->i_size] = '\0';
+		}
 	} else {
 		inode->i_op = &jfs_file_inode_operations;
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);

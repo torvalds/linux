@@ -80,7 +80,7 @@
 
 
 #define DRV_NAME "pata_it821x"
-#define DRV_VERSION "0.4.0"
+#define DRV_VERSION "0.4.2"
 
 struct it821x_dev
 {
@@ -465,24 +465,22 @@ static int it821x_smart_set_mode(struct ata_link *link, struct ata_device **unus
 {
 	struct ata_device *dev;
 
-	ata_link_for_each_dev(dev, link) {
-		if (ata_dev_enabled(dev)) {
-			/* We don't really care */
-			dev->pio_mode = XFER_PIO_0;
-			dev->dma_mode = XFER_MW_DMA_0;
-			/* We do need the right mode information for DMA or PIO
-			   and this comes from the current configuration flags */
-			if (ata_id_has_dma(dev->id)) {
-				ata_dev_printk(dev, KERN_INFO, "configured for DMA\n");
-				dev->xfer_mode = XFER_MW_DMA_0;
-				dev->xfer_shift = ATA_SHIFT_MWDMA;
-				dev->flags &= ~ATA_DFLAG_PIO;
-			} else {
-				ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
-				dev->xfer_mode = XFER_PIO_0;
-				dev->xfer_shift = ATA_SHIFT_PIO;
-				dev->flags |= ATA_DFLAG_PIO;
-			}
+	ata_for_each_dev(dev, link, ENABLED) {
+		/* We don't really care */
+		dev->pio_mode = XFER_PIO_0;
+		dev->dma_mode = XFER_MW_DMA_0;
+		/* We do need the right mode information for DMA or PIO
+		   and this comes from the current configuration flags */
+		if (ata_id_has_dma(dev->id)) {
+			ata_dev_printk(dev, KERN_INFO, "configured for DMA\n");
+			dev->xfer_mode = XFER_MW_DMA_0;
+			dev->xfer_shift = ATA_SHIFT_MWDMA;
+			dev->flags &= ~ATA_DFLAG_PIO;
+		} else {
+			ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
+			dev->xfer_mode = XFER_PIO_0;
+			dev->xfer_shift = ATA_SHIFT_PIO;
+			dev->flags |= ATA_DFLAG_PIO;
 		}
 	}
 	return 0;
@@ -496,8 +494,6 @@ static int it821x_smart_set_mode(struct ata_link *link, struct ata_device **unus
  *	special. In our case we need to lock the sector count to avoid
  *	blowing the brains out of the firmware with large LBA48 requests
  *
- *	FIXME: When FUA appears we need to block FUA too. And SMART and
- *	basically we need to filter commands for this chip.
  */
 
 static void it821x_dev_config(struct ata_device *adev)
@@ -892,6 +888,13 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		.flags = ATA_FLAG_SLAVE_POSS,
 		.pio_mask = 0x1f,
 		.mwdma_mask = 0x07,
+		.udma_mask = ATA_UDMA6,
+		.port_ops = &it821x_rdc_port_ops
+	};
+	static const struct ata_port_info info_rdc_11 = {
+		.flags = ATA_FLAG_SLAVE_POSS,
+		.pio_mask = 0x1f,
+		.mwdma_mask = 0x07,
 		/* No UDMA */
 		.port_ops = &it821x_rdc_port_ops
 	};
@@ -905,7 +908,11 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		return rc;
 		
 	if (pdev->vendor == PCI_VENDOR_ID_RDC) {
-		ppi[0] = &info_rdc;
+		/* Deal with Vortex86SX */
+		if (pdev->revision == 0x11)
+			ppi[0] = &info_rdc_11;
+		else
+			ppi[0] = &info_rdc;
 	} else {
 		/* Force the card into bypass mode if so requested */
 		if (it8212_noraid) {

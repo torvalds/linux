@@ -55,8 +55,8 @@ static __inline__ int scm_send(struct socket *sock, struct msghdr *msg,
 			       struct scm_cookie *scm)
 {
 	struct task_struct *p = current;
-	scm->creds.uid = p->uid;
-	scm->creds.gid = p->gid;
+	scm->creds.uid = current_uid();
+	scm->creds.gid = current_gid();
 	scm->creds.pid = task_tgid_vnr(p);
 	scm->fp = NULL;
 	scm->seq = 0;

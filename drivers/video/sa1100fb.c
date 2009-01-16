@@ -114,7 +114,7 @@
  *	- convert dma address types to dma_addr_t
  *	- remove unused 'montype' stuff
  *	- remove redundant zero inits of init_var after the initial
- *	  memzero.
+ *	  memset.
  *	- remove allow_modeset (acornfb idea does not belong here)
  *
  * 2001/05/28: <rmk@arm.linux.org.uk>

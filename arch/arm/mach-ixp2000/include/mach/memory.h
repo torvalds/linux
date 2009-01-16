@@ -15,13 +15,6 @@
 
 #define PHYS_OFFSET	UL(0x00000000)
 
-/*
- * Virtual view <-> DMA view memory address translations
- * virt_to_bus: Used to translate the virtual address to an
- *		address suitable to be passed to set_dma_addr
- * bus_to_virt: Used to convert an address for DMA operations
- *		to an address that the kernel can use.
- */
 #include <mach/ixp2000-regs.h>
 
 #define __virt_to_bus(v) \

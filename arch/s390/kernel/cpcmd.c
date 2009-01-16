@@ -7,6 +7,9 @@
  *               Christian Borntraeger (cborntra@de.ibm.com),
  */
 
+#define KMSG_COMPONENT "cpcmd"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -104,8 +107,8 @@ int cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 			(((unsigned long)response + rlen) >> 31)) {
 		lowbuf = kmalloc(rlen, GFP_KERNEL | GFP_DMA);
 		if (!lowbuf) {
-			printk(KERN_WARNING
-				"cpcmd: could not allocate response buffer\n");
+			pr_warning("The cpcmd kernel function failed to "
+				   "allocate a response buffer\n");
 			return -ENOMEM;
 		}
 		spin_lock_irqsave(&cpcmd_lock, flags);

@@ -233,7 +233,7 @@ extern int		nla_parse(struct nlattr *tb[], int maxtype,
 extern struct nlattr *	nla_find(struct nlattr *head, int len, int attrtype);
 extern size_t		nla_strlcpy(char *dst, const struct nlattr *nla,
 				    size_t dstsize);
-extern int		nla_memcpy(void *dest, struct nlattr *src, int count);
+extern int		nla_memcpy(void *dest, const struct nlattr *src, int count);
 extern int		nla_memcmp(const struct nlattr *nla, const void *data,
 				   size_t size);
 extern int		nla_strcmp(const struct nlattr *nla, const char *str);
@@ -332,7 +332,7 @@ static inline int nlmsg_attrlen(const struct nlmsghdr *nlh, int hdrlen)
  */
 static inline int nlmsg_ok(const struct nlmsghdr *nlh, int remaining)
 {
-	return (remaining >= sizeof(struct nlmsghdr) &&
+	return (remaining >= (int) sizeof(struct nlmsghdr) &&
 		nlh->nlmsg_len >= sizeof(struct nlmsghdr) &&
 		nlh->nlmsg_len <= remaining);
 }
@@ -741,7 +741,7 @@ static inline struct nlattr *nla_find_nested(struct nlattr *nla, int attrtype)
  * See nla_parse()
  */
 static inline int nla_parse_nested(struct nlattr *tb[], int maxtype,
-				   struct nlattr *nla,
+				   const struct nlattr *nla,
 				   const struct nla_policy *policy)
 {
 	return nla_parse(tb, maxtype, nla_data(nla), nla_len(nla), policy);
@@ -875,7 +875,7 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
  * nla_get_u32 - return payload of u32 attribute
  * @nla: u32 netlink attribute
  */
-static inline u32 nla_get_u32(struct nlattr *nla)
+static inline u32 nla_get_u32(const struct nlattr *nla)
 {
 	return *(u32 *) nla_data(nla);
 }
@@ -884,7 +884,7 @@ static inline u32 nla_get_u32(struct nlattr *nla)
  * nla_get_be32 - return payload of __be32 attribute
  * @nla: __be32 netlink attribute
  */
-static inline __be32 nla_get_be32(struct nlattr *nla)
+static inline __be32 nla_get_be32(const struct nlattr *nla)
 {
 	return *(__be32 *) nla_data(nla);
 }
@@ -893,7 +893,7 @@ static inline __be32 nla_get_be32(struct nlattr *nla)
  * nla_get_u16 - return payload of u16 attribute
  * @nla: u16 netlink attribute
  */
-static inline u16 nla_get_u16(struct nlattr *nla)
+static inline u16 nla_get_u16(const struct nlattr *nla)
 {
 	return *(u16 *) nla_data(nla);
 }
@@ -902,7 +902,7 @@ static inline u16 nla_get_u16(struct nlattr *nla)
  * nla_get_be16 - return payload of __be16 attribute
  * @nla: __be16 netlink attribute
  */
-static inline __be16 nla_get_be16(struct nlattr *nla)
+static inline __be16 nla_get_be16(const struct nlattr *nla)
 {
 	return *(__be16 *) nla_data(nla);
 }
@@ -911,7 +911,7 @@ static inline __be16 nla_get_be16(struct nlattr *nla)
  * nla_get_le16 - return payload of __le16 attribute
  * @nla: __le16 netlink attribute
  */
-static inline __le16 nla_get_le16(struct nlattr *nla)
+static inline __le16 nla_get_le16(const struct nlattr *nla)
 {
 	return *(__le16 *) nla_data(nla);
 }
@@ -920,7 +920,7 @@ static inline __le16 nla_get_le16(struct nlattr *nla)
  * nla_get_u8 - return payload of u8 attribute
  * @nla: u8 netlink attribute
  */
-static inline u8 nla_get_u8(struct nlattr *nla)
+static inline u8 nla_get_u8(const struct nlattr *nla)
 {
 	return *(u8 *) nla_data(nla);
 }
@@ -929,7 +929,7 @@ static inline u8 nla_get_u8(struct nlattr *nla)
  * nla_get_u64 - return payload of u64 attribute
  * @nla: u64 netlink attribute
  */
-static inline u64 nla_get_u64(struct nlattr *nla)
+static inline u64 nla_get_u64(const struct nlattr *nla)
 {
 	u64 tmp;
 
@@ -942,7 +942,7 @@ static inline u64 nla_get_u64(struct nlattr *nla)
  * nla_get_flag - return payload of flag attribute
  * @nla: flag netlink attribute
  */
-static inline int nla_get_flag(struct nlattr *nla)
+static inline int nla_get_flag(const struct nlattr *nla)
 {
 	return !!nla;
 }
@@ -953,7 +953,7 @@ static inline int nla_get_flag(struct nlattr *nla)
  *
  * Returns the number of milliseconds in jiffies.
  */
-static inline unsigned long nla_get_msecs(struct nlattr *nla)
+static inline unsigned long nla_get_msecs(const struct nlattr *nla)
 {
 	u64 msecs = nla_get_u64(nla);
 

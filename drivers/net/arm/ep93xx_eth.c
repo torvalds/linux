@@ -259,8 +259,6 @@ static int ep93xx_rx(struct net_device *dev, int processed, int budget)
 			skb_put(skb, length);
 			skb->protocol = eth_type_trans(skb, dev);
 
-			dev->last_rx = jiffies;
-
 			netif_receive_skb(skb);
 
 			ep->stats.rx_packets++;
@@ -300,7 +298,7 @@ poll_some_more:
 		int more = 0;
 
 		spin_lock_irq(&ep->rx_lock);
-		__netif_rx_complete(dev, napi);
+		__netif_rx_complete(napi);
 		wrl(ep, REG_INTEN, REG_INTEN_TX | REG_INTEN_RX);
 		if (ep93xx_have_more_rx(ep)) {
 			wrl(ep, REG_INTEN, REG_INTEN_TX);
@@ -309,7 +307,7 @@ poll_some_more:
 		}
 		spin_unlock_irq(&ep->rx_lock);
 
-		if (more && netif_rx_reschedule(dev, napi))
+		if (more && netif_rx_reschedule(napi))
 			goto poll_some_more;
 	}
 
@@ -417,9 +415,9 @@ static irqreturn_t ep93xx_irq(int irq, void *dev_id)
 
 	if (status & REG_INTSTS_RX) {
 		spin_lock(&ep->rx_lock);
-		if (likely(netif_rx_schedule_prep(dev, &ep->napi))) {
+		if (likely(netif_rx_schedule_prep(&ep->napi))) {
 			wrl(ep, REG_INTEN, REG_INTEN_TX);
-			__netif_rx_schedule(dev, &ep->napi);
+			__netif_rx_schedule(&ep->napi);
 		}
 		spin_unlock(&ep->rx_lock);
 	}

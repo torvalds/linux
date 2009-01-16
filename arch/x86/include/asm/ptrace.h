@@ -6,7 +6,6 @@
 #include <asm/processor-flags.h>
 
 #ifdef __KERNEL__
-#include <asm/ds.h>		/* the DS BTS struct is used for ptrace too */
 #include <asm/segment.h>
 #endif
 
@@ -128,47 +127,12 @@ struct pt_regs {
 #endif /* !__i386__ */
 
 
-#ifdef CONFIG_X86_PTRACE_BTS
-/* a branch trace record entry
- *
- * In order to unify the interface between various processor versions,
- * we use the below data structure for all processors.
- */
-enum bts_qualifier {
-	BTS_INVALID = 0,
-	BTS_BRANCH,
-	BTS_TASK_ARRIVES,
-	BTS_TASK_DEPARTS
-};
-
-struct bts_struct {
-	__u64 qualifier;
-	union {
-		/* BTS_BRANCH */
-		struct {
-			__u64 from_ip;
-			__u64 to_ip;
-		} lbr;
-		/* BTS_TASK_ARRIVES or
-		   BTS_TASK_DEPARTS */
-		__u64 jiffies;
-	} variant;
-};
-#endif /* CONFIG_X86_PTRACE_BTS */
-
 #ifdef __KERNEL__
 
 #include <linux/init.h>
 
 struct cpuinfo_x86;
 struct task_struct;
-
-#ifdef CONFIG_X86_PTRACE_BTS
-extern void __cpuinit ptrace_bts_init_intel(struct cpuinfo_x86 *);
-extern void ptrace_bts_take_timestamp(struct task_struct *, enum bts_qualifier);
-#else
-#define ptrace_bts_init_intel(config) do {} while (0)
-#endif /* CONFIG_X86_PTRACE_BTS */
 
 extern unsigned long profile_pc(struct pt_regs *regs);
 
@@ -270,6 +234,13 @@ extern int do_get_thread_area(struct task_struct *p, int idx,
 			      struct user_desc __user *info);
 extern int do_set_thread_area(struct task_struct *p, int idx,
 			      struct user_desc __user *info, int can_allocate);
+
+extern void x86_ptrace_untrace(struct task_struct *);
+extern void x86_ptrace_fork(struct task_struct *child,
+			    unsigned long clone_flags);
+
+#define arch_ptrace_untrace(tsk) x86_ptrace_untrace(tsk)
+#define arch_ptrace_fork(child, flags) x86_ptrace_fork(child, flags)
 
 #endif /* __KERNEL__ */
 

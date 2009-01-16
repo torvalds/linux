@@ -213,7 +213,7 @@ static int find_range(u32 *reg, u32 *ranges, int nregaddr,
 		u32 range_addr[MAX_ADDR_CELLS];
 		u32 range_size[MAX_ADDR_CELLS];
 
-		copy_val(range_addr, ranges + i, naddr);
+		copy_val(range_addr, ranges + i, nregaddr);
 		copy_val(range_size, ranges + i + nregaddr + naddr, nsize);
 
 		if (compare_reg(reg, range_addr, range_size))

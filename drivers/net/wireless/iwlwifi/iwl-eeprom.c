@@ -25,7 +25,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- * Tomas Winkler <tomas.winkler@intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -169,10 +169,9 @@ int iwlcore_eeprom_acquire_semaphore(struct iwl_priv *priv)
 			    CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
 
 		/* See if we got it */
-		ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
-				   CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-				   CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
-				   EEPROM_SEM_TIMEOUT);
+		ret = iwl_poll_direct_bit(priv, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
+				EEPROM_SEM_TIMEOUT);
 		if (ret >= 0) {
 			IWL_DEBUG_IO("Acquired semaphore after %d tries.\n",
 				count+1);
@@ -210,10 +209,8 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 {
 	u16 *e;
 	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
-	u32 r;
 	int sz = priv->cfg->eeprom_size;
 	int ret;
-	int i;
 	u16 addr;
 
 	/* allocate eeprom */
@@ -241,22 +238,19 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 
 	/* eeprom is an array of 16bit values */
 	for (addr = 0; addr < sz; addr += sizeof(u16)) {
-		_iwl_write32(priv, CSR_EEPROM_REG, addr << 1);
-		_iwl_clear_bit(priv, CSR_EEPROM_REG, CSR_EEPROM_REG_BIT_CMD);
+		u32 r;
 
-		for (i = 0; i < IWL_EEPROM_ACCESS_TIMEOUT;
-					i += IWL_EEPROM_ACCESS_DELAY) {
-			r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
-			if (r & CSR_EEPROM_REG_READ_VALID_MSK)
-				break;
-			udelay(IWL_EEPROM_ACCESS_DELAY);
-		}
+		_iwl_write32(priv, CSR_EEPROM_REG,
+			     CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
-		if (!(r & CSR_EEPROM_REG_READ_VALID_MSK)) {
+		ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
+					  CSR_EEPROM_REG_READ_VALID_MSK,
+					  IWL_EEPROM_ACCESS_TIMEOUT);
+		if (ret < 0) {
 			IWL_ERROR("Time out reading EEPROM[%d]\n", addr);
-			ret = -ETIMEDOUT;
 			goto done;
 		}
+		r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
 		e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
 	}
 	ret = 0;
@@ -279,7 +273,23 @@ EXPORT_SYMBOL(iwl_eeprom_free);
 
 int iwl_eeprom_check_version(struct iwl_priv *priv)
 {
-	return priv->cfg->ops->lib->eeprom_ops.check_version(priv);
+	u16 eeprom_ver;
+	u16 calib_ver;
+
+	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
+	calib_ver = priv->cfg->ops->lib->eeprom_ops.calib_version(priv);
+
+	if (eeprom_ver < priv->cfg->eeprom_ver ||
+	    calib_ver < priv->cfg->eeprom_calib_ver)
+		goto err;
+
+	return 0;
+err:
+	IWL_ERROR("Unsupported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
+		  eeprom_ver, priv->cfg->eeprom_ver,
+		  calib_ver,  priv->cfg->eeprom_calib_ver);
+	return -EINVAL;
+
 }
 EXPORT_SYMBOL(iwl_eeprom_check_version);
 

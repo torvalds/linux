@@ -12,8 +12,9 @@
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <asm/machvec.h>
 #include <mach-se/mach/se7721.h>
+#include <mach-se/mach/mrshpc.h>
+#include <asm/machvec.h>
 #include <asm/io.h>
 #include <asm/heartbeat.h>
 
@@ -74,8 +75,8 @@ static struct platform_device *se7721_devices[] __initdata = {
 
 static int __init se7721_devices_setup(void)
 {
-	return platform_add_devices(se7721_devices,
-		ARRAY_SIZE(se7721_devices));
+	mrshpc_setup_windows();
+	return platform_add_devices(se7721_devices, ARRAY_SIZE(se7721_devices));
 }
 device_initcall(se7721_devices_setup);
 

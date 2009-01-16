@@ -137,14 +137,12 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_local *local, int idx,
 static void __sta_info_free(struct ieee80211_local *local,
 			    struct sta_info *sta)
 {
-	DECLARE_MAC_BUF(mbuf);
-
 	rate_control_free_sta(sta);
 	rate_control_put(sta->rate_ctrl);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Destroyed STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->sta.addr));
+	printk(KERN_DEBUG "%s: Destroyed STA %pM\n",
+	       wiphy_name(local->hw.wiphy), sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	kfree(sta);
@@ -222,7 +220,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	int i;
-	DECLARE_MAC_BUF(mbuf);
 
 	sta = kzalloc(sizeof(*sta) + local->hw.sta_data_size, gfp);
 	if (!sta)
@@ -263,8 +260,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	skb_queue_head_init(&sta->tx_filtered);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Allocated STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->sta.addr));
+	printk(KERN_DEBUG "%s: Allocated STA %pM\n",
+	       wiphy_name(local->hw.wiphy), sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 #ifdef CONFIG_MAC80211_MESH
@@ -281,7 +278,6 @@ int sta_info_insert(struct sta_info *sta)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	unsigned long flags;
 	int err = 0;
-	DECLARE_MAC_BUF(mac);
 
 	/*
 	 * Can't be a WARN_ON because it can be triggered through a race:
@@ -294,7 +290,7 @@ int sta_info_insert(struct sta_info *sta)
 	}
 
 	if (WARN_ON(compare_ether_addr(sta->sta.addr, sdata->dev->dev_addr) == 0 ||
-	            is_multicast_ether_addr(sta->sta.addr))) {
+		    is_multicast_ether_addr(sta->sta.addr))) {
 		err = -EINVAL;
 		goto out_free;
 	}
@@ -322,8 +318,8 @@ int sta_info_insert(struct sta_info *sta)
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Inserted STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mac, sta->sta.addr));
+	printk(KERN_DEBUG "%s: Inserted STA %pM\n",
+	       wiphy_name(local->hw.wiphy), sta->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	spin_unlock_irqrestore(&local->sta_lock, flags);
@@ -423,9 +419,6 @@ static void __sta_info_unlink(struct sta_info **sta)
 {
 	struct ieee80211_local *local = (*sta)->local;
 	struct ieee80211_sub_if_data *sdata = (*sta)->sdata;
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	DECLARE_MAC_BUF(mbuf);
-#endif
 	/*
 	 * pull caller's reference if we're already gone.
 	 */
@@ -468,8 +461,8 @@ static void __sta_info_unlink(struct sta_info **sta)
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Removed STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mbuf, (*sta)->sta.addr));
+	printk(KERN_DEBUG "%s: Removed STA %pM\n",
+	       wiphy_name(local->hw.wiphy), (*sta)->sta.addr);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	/*
@@ -544,7 +537,6 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	unsigned long flags;
 	struct sk_buff *skb;
 	struct ieee80211_sub_if_data *sdata;
-	DECLARE_MAC_BUF(mac);
 
 	if (skb_queue_empty(&sta->ps_tx_buf))
 		return;
@@ -564,8 +556,8 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 		sdata = sta->sdata;
 		local->total_ps_buffered--;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "Buffered frame expired (STA "
-		       "%s)\n", print_mac(mac, sta->sta.addr));
+		printk(KERN_DEBUG "Buffered frame expired (STA %pM)\n",
+		       sta->sta.addr);
 #endif
 		dev_kfree_skb(skb);
 
@@ -809,15 +801,14 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta, *tmp;
 	LIST_HEAD(tmp_list);
-	DECLARE_MAC_BUF(mac);
 	unsigned long flags;
 
 	spin_lock_irqsave(&local->sta_lock, flags);
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list)
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
-			printk(KERN_DEBUG "%s: expiring inactive STA %s\n",
-			       sdata->dev->name, print_mac(mac, sta->sta.addr));
+			printk(KERN_DEBUG "%s: expiring inactive STA %pM\n",
+			       sdata->dev->name, sta->sta.addr);
 #endif
 			__sta_info_unlink(&sta);
 			if (sta)
@@ -830,7 +821,7 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 }
 
 struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
-                                         const u8 *addr)
+					 const u8 *addr)
 {
 	struct sta_info *sta = sta_info_get(hw_to_local(hw), addr);
 

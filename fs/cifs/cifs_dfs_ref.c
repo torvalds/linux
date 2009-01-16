@@ -122,7 +122,7 @@ static char *compose_mount_options(const char *sb_mountdata,
 				   char **devname)
 {
 	int rc;
-	char *mountdata;
+	char *mountdata = NULL;
 	int md_len;
 	char *tkn_e;
 	char *srvIP = NULL;
@@ -136,10 +136,9 @@ static char *compose_mount_options(const char *sb_mountdata,
 	*devname = cifs_get_share_name(ref->node_name);
 	rc = dns_resolve_server_name_to_ip(*devname, &srvIP);
 	if (rc != 0) {
-		cERROR(1, ("%s: Failed to resolve server part of %s to IP",
-			  __func__, *devname));
-		mountdata = ERR_PTR(rc);
-		goto compose_mount_options_out;
+		cERROR(1, ("%s: Failed to resolve server part of %s to IP: %d",
+			  __func__, *devname, rc));;
+		goto compose_mount_options_err;
 	}
 	/* md_len = strlen(...) + 12 for 'sep+prefixpath='
 	 * assuming that we have 'unc=' and 'ip=' in
@@ -149,8 +148,8 @@ static char *compose_mount_options(const char *sb_mountdata,
 		strlen(ref->node_name) + 12;
 	mountdata = kzalloc(md_len+1, GFP_KERNEL);
 	if (mountdata == NULL) {
-		mountdata = ERR_PTR(-ENOMEM);
-		goto compose_mount_options_out;
+		rc = -ENOMEM;
+		goto compose_mount_options_err;
 	}
 
 	/* copy all options except of unc,ip,prefixpath */
@@ -197,18 +196,32 @@ static char *compose_mount_options(const char *sb_mountdata,
 
 	/* find & copy prefixpath */
 	tkn_e = strchr(ref->node_name + 2, '\\');
-	if (tkn_e == NULL) /* invalid unc, missing share name*/
-		goto compose_mount_options_out;
+	if (tkn_e == NULL) {
+		/* invalid unc, missing share name*/
+		rc = -EINVAL;
+		goto compose_mount_options_err;
+	}
 
+	/*
+	 * this function gives us a path with a double backslash prefix. We
+	 * require a single backslash for DFS. Temporarily increment fullpath
+	 * to put it in the proper form and decrement before freeing it.
+	 */
 	fullpath = build_path_from_dentry(dentry);
+	if (!fullpath) {
+		rc = -ENOMEM;
+		goto compose_mount_options_err;
+	}
+	++fullpath;
 	tkn_e = strchr(tkn_e + 1, '\\');
-	if (tkn_e || strlen(fullpath) - (ref->path_consumed)) {
+	if (tkn_e || (strlen(fullpath) - ref->path_consumed)) {
 		strncat(mountdata, &sep, 1);
 		strcat(mountdata, "prefixpath=");
 		if (tkn_e)
 			strcat(mountdata, tkn_e + 1);
-		strcat(mountdata, fullpath + (ref->path_consumed));
+		strcat(mountdata, fullpath + ref->path_consumed);
 	}
+	--fullpath;
 	kfree(fullpath);
 
 	/*cFYI(1,("%s: parent mountdata: %s", __func__,sb_mountdata));*/
@@ -217,6 +230,11 @@ static char *compose_mount_options(const char *sb_mountdata,
 compose_mount_options_out:
 	kfree(srvIP);
 	return mountdata;
+
+compose_mount_options_err:
+	kfree(mountdata);
+	mountdata = ERR_PTR(rc);
+	goto compose_mount_options_out;
 }
 
 
@@ -309,13 +327,19 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		goto out_err;
 	}
 
+	/*
+	 * The MSDFS spec states that paths in DFS referral requests and
+	 * responses must be prefixed by a single '\' character instead of
+	 * the double backslashes usually used in the UNC. This function
+	 * gives us the latter, so we must adjust the result.
+	 */
 	full_path = build_path_from_dentry(dentry);
 	if (full_path == NULL) {
 		rc = -ENOMEM;
 		goto out_err;
 	}
 
-	rc = get_dfs_path(xid, ses , full_path, cifs_sb->local_nls,
+	rc = get_dfs_path(xid, ses , full_path + 1, cifs_sb->local_nls,
 		&num_referrals, &referrals,
 		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 

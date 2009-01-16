@@ -34,16 +34,6 @@
 #include <asm/ptrace.h>
 
 /*
- * bitmask of present and online CPUs.
- * The present bitmask indicates that the CPU is physically present.
- * The online bitmask indicates that the CPU is up and running.
- */
-cpumask_t cpu_possible_map;
-EXPORT_SYMBOL(cpu_possible_map);
-cpumask_t cpu_online_map;
-EXPORT_SYMBOL(cpu_online_map);
-
-/*
  * as from 2.5, kernels no longer have an init_tasks structure
  * so we need some other way of telling a new secondary core
  * where to place its SVC stack
@@ -181,7 +171,7 @@ int __cpuexit __cpu_disable(void)
 	/*
 	 * Stop the local timer for this CPU.
 	 */
-	local_timer_stop(cpu);
+	local_timer_stop();
 
 	/*
 	 * Flush user cache and TLB mappings, and then remove this CPU
@@ -284,7 +274,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	/*
 	 * Setup local timer for this CPU.
 	 */
-	local_timer_setup(cpu);
+	local_timer_setup();
 
 	calibrate_delay();
 

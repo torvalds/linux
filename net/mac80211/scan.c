@@ -159,7 +159,7 @@ ieee80211_rx_mesh_bss_add(struct ieee80211_local *local, u8 *mesh_id, int mesh_i
 {
 	struct ieee80211_bss *bss;
 
-	if (mesh_config_len != MESH_CFG_LEN)
+	if (mesh_config_len != IEEE80211_MESH_CONFIG_LEN)
 		return NULL;
 
 	bss = kzalloc(sizeof(*bss), GFP_ATOMIC);
@@ -448,18 +448,17 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 	if (local->hw_scanning) {
 		local->hw_scanning = false;
-		if (ieee80211_hw_config(local))
-			printk(KERN_DEBUG "%s: failed to restore operational "
-			       "channel after scan\n", wiphy_name(local->hw.wiphy));
-
+		/*
+		 * Somebody might have requested channel change during scan
+		 * that we won't have acted upon, try now. ieee80211_hw_config
+		 * will set the flag based on actual changes.
+		 */
+		ieee80211_hw_config(local, 0);
 		goto done;
 	}
 
 	local->sw_scanning = false;
-	if (ieee80211_hw_config(local))
-		printk(KERN_DEBUG "%s: failed to restore operational "
-		       "channel after scan\n", wiphy_name(local->hw.wiphy));
-
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 
 	netif_tx_lock_bh(local->mdev);
 	netif_addr_lock(local->mdev);
@@ -546,12 +545,9 @@ void ieee80211_scan_work(struct work_struct *work)
 
 		if (!skip) {
 			local->scan_channel = chan;
-			if (ieee80211_hw_config(local)) {
-				printk(KERN_DEBUG "%s: failed to set freq to "
-				       "%d MHz for scan\n", wiphy_name(local->hw.wiphy),
-				       chan->center_freq);
+			if (ieee80211_hw_config(local,
+						IEEE80211_CONF_CHANGE_CHANNEL))
 				skip = 1;
-			}
 		}
 
 		/* advance state machine to next channel/band */

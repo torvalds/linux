@@ -1,6 +1,6 @@
 /*
  *	Adaptec AAC series RAID controller driver
- *	(c) Copyright 2001 Red Hat Inc.	<alan@redhat.com>
+ *	(c) Copyright 2001 Red Hat Inc.
  *
  * based on the old aacraid driver that is..
  * Adaptec aacraid device driver for Linux.
@@ -90,14 +90,24 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 	if (size < le16_to_cpu(kfib->header.SenderSize))
 		size = le16_to_cpu(kfib->header.SenderSize);
 	if (size > dev->max_fib_size) {
+		dma_addr_t daddr;
+
 		if (size > 2048) {
 			retval = -EINVAL;
 			goto cleanup;
 		}
+
+		kfib = pci_alloc_consistent(dev->pdev, size, &daddr);
+		if (!kfib) {
+			retval = -ENOMEM;
+			goto cleanup;
+		}
+
 		/* Highjack the hw_fib */
 		hw_fib = fibptr->hw_fib_va;
 		hw_fib_pa = fibptr->hw_fib_pa;
-		fibptr->hw_fib_va = kfib = pci_alloc_consistent(dev->pdev, size, &fibptr->hw_fib_pa);
+		fibptr->hw_fib_va = kfib;
+		fibptr->hw_fib_pa = daddr;
 		memset(((char *)kfib) + dev->max_fib_size, 0, size - dev->max_fib_size);
 		memcpy(kfib, hw_fib, dev->max_fib_size);
 	}

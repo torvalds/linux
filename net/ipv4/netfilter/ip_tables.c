@@ -94,15 +94,11 @@ ip_packet_match(const struct iphdr *ip,
 		     IPT_INV_DSTIP)) {
 		dprintf("Source or dest mismatch.\n");
 
-		dprintf("SRC: %u.%u.%u.%u. Mask: %u.%u.%u.%u. Target: %u.%u.%u.%u.%s\n",
-			NIPQUAD(ip->saddr),
-			NIPQUAD(ipinfo->smsk.s_addr),
-			NIPQUAD(ipinfo->src.s_addr),
+		dprintf("SRC: %pI4. Mask: %pI4. Target: %pI4.%s\n",
+			&ip->saddr, &ipinfo->smsk.s_addr, &ipinfo->src.s_addr,
 			ipinfo->invflags & IPT_INV_SRCIP ? " (INV)" : "");
-		dprintf("DST: %u.%u.%u.%u Mask: %u.%u.%u.%u Target: %u.%u.%u.%u.%s\n",
-			NIPQUAD(ip->daddr),
-			NIPQUAD(ipinfo->dmsk.s_addr),
-			NIPQUAD(ipinfo->dst.s_addr),
+		dprintf("DST: %pI4 Mask: %pI4 Target: %pI4.%s\n",
+			&ip->daddr, &ipinfo->dmsk.s_addr, &ipinfo->dst.s_addr,
 			ipinfo->invflags & IPT_INV_DSTIP ? " (INV)" : "");
 		return false;
 	}

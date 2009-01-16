@@ -777,7 +777,9 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 	/* Fill in fsl_elbc_mtd structure */
 	priv->mtd.priv = chip;
 	priv->mtd.owner = THIS_MODULE;
-	priv->fmr = 0; /* rest filled in later */
+
+	/* Set the ECCM according to the settings in bootloader.*/
+	priv->fmr = in_be32(&lbc->fmr) & FMR_ECCM;
 
 	/* fill in nand_chip structure */
 	/* set up function call table */

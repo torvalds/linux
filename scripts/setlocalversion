@@ -19,6 +19,11 @@ if head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
 		fi
 	fi
 
+	# Is this git on svn?
+	if git config --get svn-remote.svn.url >/dev/null; then
+	        printf -- '-svn%s' "`git-svn find-rev $head`"
+	fi
+
 	# Are there uncommitted changes?
 	git update-index --refresh --unmerged > /dev/null
 	if git diff-index --name-only HEAD | grep -v "^scripts/package" \
@@ -51,7 +56,7 @@ if hgid=`hg id 2>/dev/null`; then
 fi
 
 # Check for svn and a svn repo.
-if rev=`svn info 2>/dev/null | grep '^Revision'`; then
+if rev=`svn info 2>/dev/null | grep '^Last Changed Rev'`; then
 	rev=`echo $rev | awk '{print $NF}'`
 	changes=`svn status 2>/dev/null | grep '^[AMD]' | wc -l`
 

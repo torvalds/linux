@@ -348,6 +348,18 @@ struct snd_soc_platform sh7760_soc_platform = {
 };
 EXPORT_SYMBOL_GPL(sh7760_soc_platform);
 
+static int __init sh7760_soc_platform_init(void)
+{
+	return snd_soc_register_platform(&sh7760_soc_platform);
+}
+module_init(sh7760_soc_platform_init);
+
+static void __exit sh7760_soc_platform_exit(void)
+{
+	snd_soc_unregister_platform(&sh7760_soc_platform);
+}
+module_exit(sh7760_soc_platform_exit);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SH7760 Audio DMA (DMABRG) driver");
 MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");

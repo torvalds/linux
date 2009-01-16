@@ -560,18 +560,25 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		irsp->ulpStatus, irsp->un.ulpWord[4], vport->fc_ns_retry);
 
 	/* Don't bother processing response if vport is being torn down. */
-	if (vport->load_flag & FC_UNLOADING)
+	if (vport->load_flag & FC_UNLOADING) {
+		if (vport->fc_flag & FC_RSCN_MODE)
+			lpfc_els_flush_rscn(vport);
 		goto out;
+	}
 
 	if (lpfc_els_chk_latt(vport)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0216 Link event during NS query\n");
+		if (vport->fc_flag & FC_RSCN_MODE)
+			lpfc_els_flush_rscn(vport);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out;
 	}
 	if (lpfc_error_lost_link(irsp)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0226 NS query failed due to link event\n");
+		if (vport->fc_flag & FC_RSCN_MODE)
+			lpfc_els_flush_rscn(vport);
 		goto out;
 	}
 	if (irsp->ulpStatus) {
@@ -587,6 +594,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			if (rc == 0)
 				goto out;
 		}
+		if (vport->fc_flag & FC_RSCN_MODE)
+			lpfc_els_flush_rscn(vport);
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 				 "0257 GID_FT Query error: 0x%x 0x%x\n",
@@ -1008,8 +1017,10 @@ lpfc_vport_symbolic_port_name(struct lpfc_vport *vport, char *symbol,
 	if (n < size)
 		n += snprintf(symbol + n, size - n, " VPort-%d", vport->vpi);
 
-	if (n < size && vport->vname)
-		n += snprintf(symbol + n, size - n, " VName-%s", vport->vname);
+	if (n < size &&
+	    strlen(vport->fc_vport->symbolic_name))
+		n += snprintf(symbol + n, size - n, " VName-%s",
+			      vport->fc_vport->symbolic_name);
 	return n;
 }
 

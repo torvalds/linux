@@ -141,8 +141,8 @@ void sctp_auth_destroy_keys(struct list_head *keys)
 /* Compare two byte vectors as numbers.  Return values
  * are:
  * 	  0 - vectors are equal
- * 	< 0 - vector 1 is smaller then vector2
- * 	> 0 - vector 1 is greater then vector2
+ * 	< 0 - vector 1 is smaller than vector2
+ * 	> 0 - vector 1 is greater than vector2
  *
  * Algorithm is:
  * 	This is performed by selecting the numerically smaller key vector...
@@ -489,7 +489,7 @@ int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 	return 0;
 
 out_err:
-	/* Clean up any successfull allocations */
+	/* Clean up any successful allocations */
 	sctp_auth_destroy_hmacs(ep->auth_hmacs);
 	return -ENOMEM;
 }

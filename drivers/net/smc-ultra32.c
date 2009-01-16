@@ -163,7 +163,6 @@ static int __init ultra32_probe1(struct net_device *dev, int ioaddr)
 	unsigned char idreg;
 	unsigned char reg4;
 	const char *ifmap[] = {"UTP No Link", "", "UTP/AUI", "UTP/BNC"};
-	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, ULTRA32_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -207,8 +206,8 @@ static int __init ultra32_probe1(struct net_device *dev, int ioaddr)
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = inb(ioaddr + 8 + i);
 
-	printk("%s: %s at 0x%X, %s",
-	       dev->name, model_name, ioaddr, print_mac(mac, dev->dev_addr));
+	printk("%s: %s at 0x%X, %pM",
+	       dev->name, model_name, ioaddr, dev->dev_addr);
 
 	/* Switch from the station address to the alternate register set and
 	   read the useful registers there. */

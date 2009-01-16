@@ -74,6 +74,7 @@ struct dvb_device {
 	struct file_operations *fops;
 	struct dvb_adapter *adapter;
 	int type;
+	int minor;
 	u32 id;
 
 	/* in theory, 'users' can vanish now,

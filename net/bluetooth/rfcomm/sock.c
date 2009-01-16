@@ -50,11 +50,6 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/rfcomm.h>
 
-#ifndef CONFIG_BT_RFCOMM_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 static const struct proto_ops rfcomm_sock_ops;
 
 static struct bt_sock_list rfcomm_sk_list = {
@@ -644,7 +639,7 @@ static int rfcomm_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	msg->msg_namelen = 0;
 
-	BT_DBG("sk %p size %d", sk, size);
+	BT_DBG("sk %p size %zu", sk, size);
 
 	lock_sock(sk);
 
@@ -792,7 +787,7 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 
 static int rfcomm_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
-	struct sock *sk = sock->sk;
+	struct sock *sk __maybe_unused = sock->sk;
 	int err;
 
 	BT_DBG("sk %p cmd %x arg %lx", sk, cmd, arg);

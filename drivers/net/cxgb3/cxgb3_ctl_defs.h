@@ -57,6 +57,9 @@ enum {
 	RDMA_GET_MIB		= 19,
 
 	GET_RX_PAGE_INFO	= 50,
+	GET_ISCSI_IPV4ADDR	= 51,
+
+	GET_EMBEDDED_INFO	= 70,
 };
 
 /*
@@ -84,6 +87,12 @@ struct iff_mac {
 	struct net_device *dev;	/* the net_device */
 	const unsigned char *mac_addr;	/* MAC address to lookup */
 	u16 vlan_tag;
+};
+
+/* Structure used to request a port's iSCSI IPv4 address */
+struct iscsi_ipv4addr {
+	struct net_device *dev;	/* the net_device */
+	__be32 ipv4addr;	/* the return iSCSI IPv4 address */
 };
 
 struct pci_dev;
@@ -168,5 +177,13 @@ struct rdma_ctrlqp_setup {
 struct ofld_page_info {
 	unsigned int page_size;  /* Page size, should be a power of 2 */
 	unsigned int num;        /* Number of pages */
+};
+
+/*
+ * Structure used to get firmware and protocol engine versions.
+ */
+struct ch_embedded_info {
+	u32 fw_vers;
+	u32 tp_vers;
 };
 #endif				/* _CXGB3_OFFLOAD_CTL_DEFS_H */

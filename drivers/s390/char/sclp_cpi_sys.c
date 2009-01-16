@@ -7,6 +7,9 @@
  *		 Michael Ernst <mernst@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "sclp_cpi"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/stat.h>
@@ -20,6 +23,7 @@
 #include <linux/completion.h>
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
+
 #include "sclp.h"
 #include "sclp_rw.h"
 #include "sclp_cpi_sys.h"
@@ -150,16 +154,16 @@ static int cpi_req(void)
 	wait_for_completion(&completion);
 
 	if (req->status != SCLP_REQ_DONE) {
-		printk(KERN_WARNING "cpi: request failed (status=0x%02x)\n",
-			req->status);
+		pr_warning("request failed (status=0x%02x)\n",
+			   req->status);
 		rc = -EIO;
 		goto out_free_req;
 	}
 
 	response = ((struct cpi_sccb *) req->sccb)->header.response_code;
 	if (response != 0x0020) {
-		printk(KERN_WARNING "cpi: failed with "
-			"response code 0x%x\n", response);
+		pr_warning("request failed with response code 0x%x\n",
+			   response);
 		rc = -EIO;
 	}
 

@@ -37,21 +37,6 @@ struct xdr_netobj {
 typedef int	(*kxdrproc_t)(void *rqstp, __be32 *data, void *obj);
 
 /*
- * We're still requiring the BKL in the xdr code until it's been
- * more carefully audited, at which point this wrapper will become
- * unnecessary.
- */
-static inline int rpc_call_xdrproc(kxdrproc_t xdrproc, void *rqstp, __be32 *data, void *obj)
-{
-	int ret;
-
-	lock_kernel();
-	ret = xdrproc(rqstp, data, obj);
-	unlock_kernel();
-	return ret;
-}
-
-/*
  * Basic structure for transmission/reception of a client XDR message.
  * Features a header (for a linear buffer containing RPC headers
  * and the data payload for short messages), and then an array of

@@ -285,7 +285,7 @@ exit:
 }
 
 static unsigned int rt2x00debug_poll_queue_dump(struct file *file,
-					        poll_table *wait)
+						poll_table *wait)
 {
 	struct rt2x00debug_intf *intf = file->private_data;
 
@@ -377,7 +377,7 @@ static ssize_t rt2x00debug_read_crypto_stats(struct file *file,
 	if (*offset)
 		return 0;
 
-	data = kzalloc((1 + CIPHER_MAX)* MAX_LINE_LENGTH, GFP_KERNEL);
+	data = kzalloc((1 + CIPHER_MAX) * MAX_LINE_LENGTH, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -424,16 +424,21 @@ static ssize_t rt2x00debug_read_##__name(struct file *file,	\
 	const struct rt2x00debug *debug = intf->debug;		\
 	char line[16];						\
 	size_t size;						\
+	unsigned int index = intf->offset_##__name;		\
 	__type value;						\
 								\
 	if (*offset)						\
 		return 0;					\
 								\
-	if (intf->offset_##__name >= debug->__name.word_count)	\
+	if (index >= debug->__name.word_count)			\
 		return -EINVAL;					\
 								\
-	debug->__name.read(intf->rt2x00dev,			\
-			   intf->offset_##__name, &value);	\
+	if (debug->__name.flags & RT2X00DEBUGFS_OFFSET)		\
+		index *= debug->__name.word_size;		\
+								\
+	index += debug->__name.word_base;			\
+								\
+	debug->__name.read(intf->rt2x00dev, index, &value);	\
 								\
 	size = sprintf(line, __format, value);			\
 								\
@@ -454,12 +459,13 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 	const struct rt2x00debug *debug = intf->debug;		\
 	char line[16];						\
 	size_t size;						\
+	unsigned int index = intf->offset_##__name;		\
 	__type value;						\
 								\
 	if (*offset)						\
 		return 0;					\
 								\
-	if (intf->offset_##__name >= debug->__name.word_count)	\
+	if (index >= debug->__name.word_count)			\
 		return -EINVAL;					\
 								\
 	if (copy_from_user(line, buf, length))			\
@@ -468,8 +474,12 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 	size = strlen(line);					\
 	value = simple_strtoul(line, NULL, 0);			\
 								\
-	debug->__name.write(intf->rt2x00dev,			\
-			    intf->offset_##__name, value);	\
+	if (debug->__name.flags & RT2X00DEBUGFS_OFFSET)		\
+		index *= debug->__name.word_size;		\
+								\
+	index += debug->__name.word_base;			\
+								\
+	debug->__name.write(intf->rt2x00dev, index, value);	\
 								\
 	*offset += size;					\
 	return size;						\
@@ -587,29 +597,29 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 	intf->driver_folder =
 	    debugfs_create_dir(intf->rt2x00dev->ops->name,
 			       rt2x00dev->hw->wiphy->debugfsdir);
-	if (IS_ERR(intf->driver_folder))
+	if (IS_ERR(intf->driver_folder) || !intf->driver_folder)
 		goto exit;
 
 	intf->driver_entry =
 	    rt2x00debug_create_file_driver("driver", intf, &intf->driver_blob);
-	if (IS_ERR(intf->driver_entry))
+	if (IS_ERR(intf->driver_entry) || !intf->driver_entry)
 		goto exit;
 
 	intf->chipset_entry =
 	    rt2x00debug_create_file_chipset("chipset",
 					    intf, &intf->chipset_blob);
-	if (IS_ERR(intf->chipset_entry))
+	if (IS_ERR(intf->chipset_entry) || !intf->chipset_entry)
 		goto exit;
 
 	intf->dev_flags = debugfs_create_file("dev_flags", S_IRUSR,
 					      intf->driver_folder, intf,
 					      &rt2x00debug_fop_dev_flags);
-	if (IS_ERR(intf->dev_flags))
+	if (IS_ERR(intf->dev_flags) || !intf->dev_flags)
 		goto exit;
 
 	intf->register_folder =
 	    debugfs_create_dir("register", intf->driver_folder);
-	if (IS_ERR(intf->register_folder))
+	if (IS_ERR(intf->register_folder) || !intf->register_folder)
 		goto exit;
 
 #define RT2X00DEBUGFS_CREATE_REGISTER_ENTRY(__intf, __name)	\
@@ -619,7 +629,8 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 			       S_IRUSR | S_IWUSR,		\
 			       (__intf)->register_folder,	\
 			       &(__intf)->offset_##__name);	\
-	if (IS_ERR((__intf)->__name##_off_entry))		\
+	if (IS_ERR((__intf)->__name##_off_entry)		\
+			|| !(__intf)->__name##_off_entry)	\
 		goto exit;					\
 								\
 	(__intf)->__name##_val_entry =				\
@@ -627,7 +638,8 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 				S_IRUSR | S_IWUSR,		\
 				(__intf)->register_folder,	\
 				(__intf), &rt2x00debug_fop_##__name);\
-	if (IS_ERR((__intf)->__name##_val_entry))		\
+	if (IS_ERR((__intf)->__name##_val_entry)		\
+			|| !(__intf)->__name##_val_entry)	\
 		goto exit;					\
 })
 
@@ -640,13 +652,14 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 
 	intf->queue_folder =
 	    debugfs_create_dir("queue", intf->driver_folder);
-	if (IS_ERR(intf->queue_folder))
+	if (IS_ERR(intf->queue_folder) || !intf->queue_folder)
 		goto exit;
 
 	intf->queue_frame_dump_entry =
 	    debugfs_create_file("dump", S_IRUSR, intf->queue_folder,
 				intf, &rt2x00debug_fop_queue_dump);
-	if (IS_ERR(intf->queue_frame_dump_entry))
+	if (IS_ERR(intf->queue_frame_dump_entry)
+		|| !intf->queue_frame_dump_entry)
 		goto exit;
 
 	skb_queue_head_init(&intf->frame_dump_skbqueue);

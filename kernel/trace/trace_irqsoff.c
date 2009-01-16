@@ -353,15 +353,28 @@ void trace_preempt_off(unsigned long a0, unsigned long a1)
 }
 #endif /* CONFIG_PREEMPT_TRACER */
 
+/*
+ * save_tracer_enabled is used to save the state of the tracer_enabled
+ * variable when we disable it when we open a trace output file.
+ */
+static int save_tracer_enabled;
+
 static void start_irqsoff_tracer(struct trace_array *tr)
 {
 	register_ftrace_function(&trace_ops);
-	tracer_enabled = 1;
+	if (tracing_is_enabled()) {
+		tracer_enabled = 1;
+		save_tracer_enabled = 1;
+	} else {
+		tracer_enabled = 0;
+		save_tracer_enabled = 0;
+	}
 }
 
 static void stop_irqsoff_tracer(struct trace_array *tr)
 {
 	tracer_enabled = 0;
+	save_tracer_enabled = 0;
 	unregister_ftrace_function(&trace_ops);
 }
 
@@ -370,53 +383,55 @@ static void __irqsoff_tracer_init(struct trace_array *tr)
 	irqsoff_trace = tr;
 	/* make sure that the tracer is visible */
 	smp_wmb();
-
-	if (tr->ctrl)
-		start_irqsoff_tracer(tr);
+	start_irqsoff_tracer(tr);
 }
 
 static void irqsoff_tracer_reset(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		stop_irqsoff_tracer(tr);
+	stop_irqsoff_tracer(tr);
 }
 
-static void irqsoff_tracer_ctrl_update(struct trace_array *tr)
+static void irqsoff_tracer_start(struct trace_array *tr)
 {
-	if (tr->ctrl)
-		start_irqsoff_tracer(tr);
-	else
-		stop_irqsoff_tracer(tr);
+	tracer_enabled = 1;
+	save_tracer_enabled = 1;
+}
+
+static void irqsoff_tracer_stop(struct trace_array *tr)
+{
+	tracer_enabled = 0;
+	save_tracer_enabled = 0;
 }
 
 static void irqsoff_tracer_open(struct trace_iterator *iter)
 {
 	/* stop the trace while dumping */
-	if (iter->tr->ctrl)
-		stop_irqsoff_tracer(iter->tr);
+	tracer_enabled = 0;
 }
 
 static void irqsoff_tracer_close(struct trace_iterator *iter)
 {
-	if (iter->tr->ctrl)
-		start_irqsoff_tracer(iter->tr);
+	/* restart tracing */
+	tracer_enabled = save_tracer_enabled;
 }
 
 #ifdef CONFIG_IRQSOFF_TRACER
-static void irqsoff_tracer_init(struct trace_array *tr)
+static int irqsoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_IRQS_OFF;
 
 	__irqsoff_tracer_init(tr);
+	return 0;
 }
 static struct tracer irqsoff_tracer __read_mostly =
 {
 	.name		= "irqsoff",
 	.init		= irqsoff_tracer_init,
 	.reset		= irqsoff_tracer_reset,
+	.start		= irqsoff_tracer_start,
+	.stop		= irqsoff_tracer_stop,
 	.open		= irqsoff_tracer_open,
 	.close		= irqsoff_tracer_close,
-	.ctrl_update	= irqsoff_tracer_ctrl_update,
 	.print_max	= 1,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_irqsoff,
@@ -428,11 +443,12 @@ static struct tracer irqsoff_tracer __read_mostly =
 #endif
 
 #ifdef CONFIG_PREEMPT_TRACER
-static void preemptoff_tracer_init(struct trace_array *tr)
+static int preemptoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_PREEMPT_OFF;
 
 	__irqsoff_tracer_init(tr);
+	return 0;
 }
 
 static struct tracer preemptoff_tracer __read_mostly =
@@ -440,9 +456,10 @@ static struct tracer preemptoff_tracer __read_mostly =
 	.name		= "preemptoff",
 	.init		= preemptoff_tracer_init,
 	.reset		= irqsoff_tracer_reset,
+	.start		= irqsoff_tracer_start,
+	.stop		= irqsoff_tracer_stop,
 	.open		= irqsoff_tracer_open,
 	.close		= irqsoff_tracer_close,
-	.ctrl_update	= irqsoff_tracer_ctrl_update,
 	.print_max	= 1,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_preemptoff,
@@ -456,11 +473,12 @@ static struct tracer preemptoff_tracer __read_mostly =
 #if defined(CONFIG_IRQSOFF_TRACER) && \
 	defined(CONFIG_PREEMPT_TRACER)
 
-static void preemptirqsoff_tracer_init(struct trace_array *tr)
+static int preemptirqsoff_tracer_init(struct trace_array *tr)
 {
 	trace_type = TRACER_IRQS_OFF | TRACER_PREEMPT_OFF;
 
 	__irqsoff_tracer_init(tr);
+	return 0;
 }
 
 static struct tracer preemptirqsoff_tracer __read_mostly =
@@ -468,9 +486,10 @@ static struct tracer preemptirqsoff_tracer __read_mostly =
 	.name		= "preemptirqsoff",
 	.init		= preemptirqsoff_tracer_init,
 	.reset		= irqsoff_tracer_reset,
+	.start		= irqsoff_tracer_start,
+	.stop		= irqsoff_tracer_stop,
 	.open		= irqsoff_tracer_open,
 	.close		= irqsoff_tracer_close,
-	.ctrl_update	= irqsoff_tracer_ctrl_update,
 	.print_max	= 1,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_preemptirqsoff,

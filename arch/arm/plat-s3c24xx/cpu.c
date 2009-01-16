@@ -30,7 +30,6 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/delay.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -54,16 +53,6 @@
 #include <plat/s3c2440.h>
 #include <plat/s3c2442.h>
 #include <plat/s3c2443.h>
-
-struct cpu_table {
-	unsigned long	idcode;
-	unsigned long	idmask;
-	void		(*map_io)(struct map_desc *mach_desc, int size);
-	void		(*init_uarts)(struct s3c2410_uartcfg *cfg, int no);
-	void		(*init_clocks)(int xtal);
-	int		(*init)(void);
-	const char	*name;
-};
 
 /* table of supported CPUs */
 
@@ -169,23 +158,7 @@ static struct map_desc s3c_iodesc[] __initdata = {
 	IODESC_ENT(UART)
 };
 
-static struct cpu_table * __init s3c_lookup_cpu(unsigned long idcode)
-{
-	struct cpu_table *tab;
-	int count;
-
-	tab = cpu_ids;
-	for (count = 0; count < ARRAY_SIZE(cpu_ids); count++, tab++) {
-		if ((idcode & tab->idmask) == tab->idcode)
-			return tab;
-	}
-
-	return NULL;
-}
-
-/* cpu information */
-
-static struct cpu_table *cpu;
+/* read cpu identificaiton code */
 
 static unsigned long s3c24xx_read_idcode_v5(void)
 {
@@ -231,6 +204,7 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 	unsigned long idcode = 0x0;
 
 	/* initialise the io descriptors we need for initialisation */
+	iotable_init(mach_desc, size);
 	iotable_init(s3c_iodesc, ARRAY_SIZE(s3c_iodesc));
 
 	if (cpu_architecture() >= CPU_ARCH_ARMv5) {
@@ -239,117 +213,7 @@ void __init s3c24xx_init_io(struct map_desc *mach_desc, int size)
 		idcode = s3c24xx_read_idcode_v4();
 	}
 
-	cpu = s3c_lookup_cpu(idcode);
-
-	if (cpu == NULL) {
-		printk(KERN_ERR "Unknown CPU type 0x%08lx\n", idcode);
-		panic("Unknown S3C24XX CPU");
-	}
-
-	printk("CPU %s (id 0x%08lx)\n", cpu->name, idcode);
-
-	if (cpu->map_io == NULL || cpu->init == NULL) {
-		printk(KERN_ERR "CPU %s support not enabled\n", cpu->name);
-		panic("Unsupported S3C24XX CPU");
-	}
-
 	arm_pm_restart = s3c24xx_pm_restart;
 
-	(cpu->map_io)(mach_desc, size);
+	s3c_init_cpu(idcode, cpu_ids, ARRAY_SIZE(cpu_ids));
 }
-
-/* s3c24xx_init_clocks
- *
- * Initialise the clock subsystem and associated information from the
- * given master crystal value.
- *
- * xtal  = 0 -> use default PLL crystal value (normally 12MHz)
- *      != 0 -> PLL crystal value in Hz
-*/
-
-void __init s3c24xx_init_clocks(int xtal)
-{
-	if (xtal == 0)
-		xtal = 12*1000*1000;
-
-	if (cpu == NULL)
-		panic("s3c24xx_init_clocks: no cpu setup?\n");
-
-	if (cpu->init_clocks == NULL)
-		panic("s3c24xx_init_clocks: cpu has no clock init\n");
-	else
-		(cpu->init_clocks)(xtal);
-}
-
-/* uart management */
-
-static int nr_uarts __initdata = 0;
-
-static struct s3c2410_uartcfg uart_cfgs[3];
-
-/* s3c24xx_init_uartdevs
- *
- * copy the specified platform data and configuration into our central
- * set of devices, before the data is thrown away after the init process.
- *
- * This also fills in the array passed to the serial driver for the
- * early initialisation of the console.
-*/
-
-void __init s3c24xx_init_uartdevs(char *name,
-				  struct s3c24xx_uart_resources *res,
-				  struct s3c2410_uartcfg *cfg, int no)
-{
-	struct platform_device *platdev;
-	struct s3c2410_uartcfg *cfgptr = uart_cfgs;
-	struct s3c24xx_uart_resources *resp;
-	int uart;
-
-	memcpy(cfgptr, cfg, sizeof(struct s3c2410_uartcfg) * no);
-
-	for (uart = 0; uart < no; uart++, cfg++, cfgptr++) {
-		platdev = s3c24xx_uart_src[cfgptr->hwport];
-
-		resp = res + cfgptr->hwport;
-
-		s3c24xx_uart_devs[uart] = platdev;
-
-		platdev->name = name;
-		platdev->resource = resp->resources;
-		platdev->num_resources = resp->nr_resources;
-
-		platdev->dev.platform_data = cfgptr;
-	}
-
-	nr_uarts = no;
-}
-
-void __init s3c24xx_init_uarts(struct s3c2410_uartcfg *cfg, int no)
-{
-	if (cpu == NULL)
-		return;
-
-	if (cpu->init_uarts == NULL) {
-		printk(KERN_ERR "s3c24xx_init_uarts: cpu has no uart init\n");
-	} else
-		(cpu->init_uarts)(cfg, no);
-}
-
-static int __init s3c_arch_init(void)
-{
-	int ret;
-
-	// do the correct init for cpu
-
-	if (cpu == NULL)
-		panic("s3c_arch_init: NULL cpu\n");
-
-	ret = (cpu->init)();
-	if (ret != 0)
-		return ret;
-
-	ret = platform_add_devices(s3c24xx_uart_devs, nr_uarts);
-	return ret;
-}
-
-arch_initcall(s3c_arch_init);

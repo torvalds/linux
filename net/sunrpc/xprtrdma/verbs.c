@@ -276,7 +276,9 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	struct rpcrdma_xprt *xprt = id->context;
 	struct rpcrdma_ia *ia = &xprt->rx_ia;
 	struct rpcrdma_ep *ep = &xprt->rx_ep;
+#ifdef RPC_DEBUG
 	struct sockaddr_in *addr = (struct sockaddr_in *) &ep->rep_remote_addr;
+#endif
 	struct ib_qp_attr attr;
 	struct ib_qp_init_attr iattr;
 	int connstate = 0;
@@ -323,12 +325,11 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		connstate = -ENODEV;
 connected:
-		dprintk("RPC:       %s: %s: %u.%u.%u.%u:%u"
-			" (ep 0x%p event 0x%x)\n",
+		dprintk("RPC:       %s: %s: %pI4:%u (ep 0x%p event 0x%x)\n",
 			__func__,
 			(event->event <= 11) ? conn[event->event] :
 						"unknown connection error",
-			NIPQUAD(addr->sin_addr.s_addr),
+			&addr->sin_addr.s_addr,
 			ntohs(addr->sin_port),
 			ep, event->event);
 		atomic_set(&rpcx_to_rdmax(ep->rep_xprt)->rx_buf.rb_credits, 1);
@@ -348,18 +349,17 @@ connected:
 	if (connstate == 1) {
 		int ird = attr.max_dest_rd_atomic;
 		int tird = ep->rep_remote_cma.responder_resources;
-		printk(KERN_INFO "rpcrdma: connection to %u.%u.%u.%u:%u "
+		printk(KERN_INFO "rpcrdma: connection to %pI4:%u "
 			"on %s, memreg %d slots %d ird %d%s\n",
-			NIPQUAD(addr->sin_addr.s_addr),
+			&addr->sin_addr.s_addr,
 			ntohs(addr->sin_port),
 			ia->ri_id->device->name,
 			ia->ri_memreg_strategy,
 			xprt->rx_buf.rb_max_requests,
 			ird, ird < 4 && ird < tird / 2 ? " (low!)" : "");
 	} else if (connstate < 0) {
-		printk(KERN_INFO "rpcrdma: connection to %u.%u.%u.%u:%u "
-			"closed (%d)\n",
-			NIPQUAD(addr->sin_addr.s_addr),
+		printk(KERN_INFO "rpcrdma: connection to %pI4:%u closed (%d)\n",
+			&addr->sin_addr.s_addr,
 			ntohs(addr->sin_port),
 			connstate);
 	}

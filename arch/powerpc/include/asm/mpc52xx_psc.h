@@ -68,11 +68,19 @@
 #define MPC52xx_PSC_IMR_ORERR		0x1000
 #define MPC52xx_PSC_IMR_IPC		0x8000
 
-/* PSC input port change bit */
+/* PSC input port change bits */
 #define MPC52xx_PSC_CTS			0x01
 #define MPC52xx_PSC_DCD			0x02
 #define MPC52xx_PSC_D_CTS		0x10
 #define MPC52xx_PSC_D_DCD		0x20
+
+/* PSC acr bits */
+#define MPC52xx_PSC_IEC_CTS		0x01
+#define MPC52xx_PSC_IEC_DCD		0x02
+
+/* PSC output port bits */
+#define MPC52xx_PSC_OP_RTS		0x01
+#define MPC52xx_PSC_OP_RES		0x02
 
 /* PSC mode fields */
 #define MPC52xx_PSC_MODE_5_BITS			0x00
@@ -91,6 +99,7 @@
 #define MPC52xx_PSC_MODE_ONE_STOP_5_BITS	0x00
 #define MPC52xx_PSC_MODE_ONE_STOP		0x07
 #define MPC52xx_PSC_MODE_TWO_STOP		0x0f
+#define MPC52xx_PSC_MODE_TXCTS			0x10
 
 #define MPC52xx_PSC_RFNUM_MASK	0x01ff
 

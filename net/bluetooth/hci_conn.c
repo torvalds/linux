@@ -45,11 +45,6 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#ifndef CONFIG_BT_HCI_CORE_DEBUG
-#undef  BT_DBG
-#define BT_DBG(D...)
-#endif
-
 void hci_acl_connect(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;

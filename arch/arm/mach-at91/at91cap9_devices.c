@@ -13,6 +13,7 @@
  */
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/irq.h>
 
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -21,6 +22,7 @@
 #include <video/atmel_lcdc.h>
 
 #include <mach/board.h>
+#include <mach/cpu.h>
 #include <mach/gpio.h>
 #include <mach/at91cap9.h>
 #include <mach/at91cap9_matrix.h>
@@ -68,6 +70,9 @@ void __init at91_add_device_usbh(struct at91_usbh_data *data)
 
 	if (!data)
 		return;
+
+	if (cpu_is_at91cap9_revB())
+		set_irq_type(AT91CAP9_ID_UHP, IRQ_TYPE_LEVEL_HIGH);
 
 	/* Enable VBus control for UHP ports */
 	for (i = 0; i < data->ports; i++) {
@@ -151,8 +156,13 @@ static struct platform_device at91_usba_udc_device = {
 
 void __init at91_add_device_usba(struct usba_platform_data *data)
 {
-	at91_sys_write(AT91_MATRIX_UDPHS, AT91_MATRIX_SELECT_UDPHS |
-					  AT91_MATRIX_UDPHS_BYPASS_LOCK);
+	if (cpu_is_at91cap9_revB()) {
+		set_irq_type(AT91CAP9_ID_UDPHS, IRQ_TYPE_LEVEL_HIGH);
+		at91_sys_write(AT91_MATRIX_UDPHS, AT91_MATRIX_SELECT_UDPHS |
+						  AT91_MATRIX_UDPHS_BYPASS_LOCK);
+	}
+	else
+		at91_sys_write(AT91_MATRIX_UDPHS, AT91_MATRIX_SELECT_UDPHS);
 
 	/*
 	 * Invalid pins are 0 on AT91, but the usba driver is shared
@@ -406,28 +416,13 @@ static struct platform_device at91cap9_nand_device = {
 
 void __init at91_add_device_nand(struct atmel_nand_data *data)
 {
-	unsigned long csa, mode;
+	unsigned long csa;
 
 	if (!data)
 		return;
 
 	csa = at91_sys_read(AT91_MATRIX_EBICSA);
-	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_EBI_CS3A_SMC_SMARTMEDIA | AT91_MATRIX_EBI_VDDIOMSEL_3_3V);
-
-	/* set the bus interface characteristics */
-	at91_sys_write(AT91_SMC_SETUP(3), AT91_SMC_NWESETUP_(2) | AT91_SMC_NCS_WRSETUP_(1)
-			| AT91_SMC_NRDSETUP_(2) | AT91_SMC_NCS_RDSETUP_(1));
-
-	at91_sys_write(AT91_SMC_PULSE(3), AT91_SMC_NWEPULSE_(4) | AT91_SMC_NCS_WRPULSE_(6)
-			| AT91_SMC_NRDPULSE_(4) | AT91_SMC_NCS_RDPULSE_(6));
-
-	at91_sys_write(AT91_SMC_CYCLE(3), AT91_SMC_NWECYCLE_(8) | AT91_SMC_NRDCYCLE_(8));
-
-	if (data->bus_width_16)
-		mode = AT91_SMC_DBW_16;
-	else
-		mode = AT91_SMC_DBW_8;
-	at91_sys_write(AT91_SMC_MODE(3), mode | AT91_SMC_READMODE | AT91_SMC_WRITEMODE | AT91_SMC_EXNWMODE_DISABLE | AT91_SMC_TDF_(1));
+	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_EBI_CS3A_SMC_SMARTMEDIA);
 
 	/* enable pin */
 	if (data->enable_pin)
@@ -864,6 +859,9 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 {
 	if (!data)
 		return;
+
+	if (cpu_is_at91cap9_revB())
+		set_irq_type(AT91CAP9_ID_LCDC, IRQ_TYPE_LEVEL_HIGH);
 
 	at91_set_A_periph(AT91_PIN_PC1, 0);	/* LCDHSYNC */
 	at91_set_A_periph(AT91_PIN_PC2, 0);	/* LCDDOTCK */

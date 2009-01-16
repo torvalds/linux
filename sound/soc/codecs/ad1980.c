@@ -85,6 +85,9 @@ SOC_DOUBLE("Line HP Swap Switch", AC97_AD_MISC, 10, 5, 1, 0),
 SOC_DOUBLE("Surround Playback Volume", AC97_SURROUND_MASTER, 8, 0, 31, 1),
 SOC_DOUBLE("Surround Playback Switch", AC97_SURROUND_MASTER, 15, 7, 1, 1),
 
+SOC_DOUBLE("Center/LFE Playback Volume", AC97_CENTER_LFE_MASTER, 8, 0, 31, 1),
+SOC_DOUBLE("Center/LFE Playback Switch", AC97_CENTER_LFE_MASTER, 15, 7, 1, 1),
+
 SOC_ENUM("Capture Source", ad1980_cap_src),
 
 SOC_SINGLE("Mic Boost Switch", AC97_MIC, 6, 1, 0),
@@ -142,10 +145,11 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 
 struct snd_soc_dai ad1980_dai = {
 	.name = "AC97",
+	.ac97_control = 1,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
-		.channels_max = 2,
+		.channels_max = 6,
 		.rates = SNDRV_PCM_RATE_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE, },
 	.capture = {
@@ -192,6 +196,7 @@ static int ad1980_soc_probe(struct platform_device *pdev)
 	struct snd_soc_codec *codec;
 	int ret = 0;
 	u16 vendor_id2;
+	u16 ext_status;
 
 	printk(KERN_INFO "AD1980 SoC Audio Codec\n");
 
@@ -234,7 +239,7 @@ static int ad1980_soc_probe(struct platform_device *pdev)
 
 	ret = ad1980_reset(codec, 0);
 	if (ret < 0) {
-		printk(KERN_ERR "AC97 link error\n");
+		printk(KERN_ERR "Failed to reset AD1980: AC97 link error\n");
 		goto reset_err;
 	}
 
@@ -253,12 +258,19 @@ static int ad1980_soc_probe(struct platform_device *pdev)
 				"supported\n");
 	}
 
-	ac97_write(codec, AC97_MASTER, 0x0000); /* unmute line out volume */
-	ac97_write(codec, AC97_PCM, 0x0000);	/* unmute PCM out volume */
-	ac97_write(codec, AC97_REC_GAIN, 0x0000);/* unmute record volume */
+	/* unmute captures and playbacks volume */
+	ac97_write(codec, AC97_MASTER, 0x0000);
+	ac97_write(codec, AC97_PCM, 0x0000);
+	ac97_write(codec, AC97_REC_GAIN, 0x0000);
+	ac97_write(codec, AC97_CENTER_LFE_MASTER, 0x0000);
+	ac97_write(codec, AC97_SURROUND_MASTER, 0x0000);
+
+	/*power on LFE/CENTER/Surround DACs*/
+	ext_status = ac97_read(codec, AC97_EXTENDED_STATUS);
+	ac97_write(codec, AC97_EXTENDED_STATUS, ext_status&~0x3800);
 
 	ad1980_add_controls(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "ad1980: failed to register card\n");
 		goto reset_err;

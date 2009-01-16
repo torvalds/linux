@@ -3,16 +3,32 @@
 #  select HAVE_FUNCTION_TRACER:
 #
 
+config USER_STACKTRACE_SUPPORT
+	bool
+
 config NOP_TRACER
 	bool
 
 config HAVE_FUNCTION_TRACER
 	bool
 
+config HAVE_FUNCTION_GRAPH_TRACER
+	bool
+
+config HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	bool
+	help
+	 This gets selected when the arch tests the function_trace_stop
+	 variable at the mcount call site. Otherwise, this variable
+	 is tested by the called function.
+
 config HAVE_DYNAMIC_FTRACE
 	bool
 
 config HAVE_FTRACE_MCOUNT_RECORD
+	bool
+
+config HAVE_HW_BRANCH_TRACER
 	bool
 
 config TRACER_MAX_TRACE
@@ -46,6 +62,20 @@ config FUNCTION_TRACER
 	  tracing is enabled by the administrator. If it's runtime disabled
 	  (the bootup default), then the overhead of the instructions is very
 	  small and not measurable even in micro-benchmarks.
+
+config FUNCTION_GRAPH_TRACER
+	bool "Kernel Function Graph Tracer"
+	depends on HAVE_FUNCTION_GRAPH_TRACER
+	depends on FUNCTION_TRACER
+	default y
+	help
+	  Enable the kernel to trace a function at both its return
+	  and its entry.
+	  It's first purpose is to trace the duration of functions and
+	  draw a call graph for each thread with some informations like
+	  the return value.
+	  This is done by setting the current return address on the current
+	  task structure into a stack of calls.
 
 config IRQSOFF_TRACER
 	bool "Interrupts-off Latency Tracer"
@@ -138,6 +168,70 @@ config BOOT_TRACER
 	    selected, because the self-tests are an initcall as well and that
 	    would invalidate the boot trace. )
 
+config TRACE_BRANCH_PROFILING
+	bool "Trace likely/unlikely profiler"
+	depends on DEBUG_KERNEL
+	select TRACING
+	help
+	  This tracer profiles all the the likely and unlikely macros
+	  in the kernel. It will display the results in:
+
+	  /debugfs/tracing/profile_annotated_branch
+
+	  Note: this will add a significant overhead, only turn this
+	  on if you need to profile the system's use of these macros.
+
+	  Say N if unsure.
+
+config PROFILE_ALL_BRANCHES
+	bool "Profile all if conditionals"
+	depends on TRACE_BRANCH_PROFILING
+	help
+	  This tracer profiles all branch conditions. Every if ()
+	  taken in the kernel is recorded whether it hit or miss.
+	  The results will be displayed in:
+
+	  /debugfs/tracing/profile_branch
+
+	  This configuration, when enabled, will impose a great overhead
+	  on the system. This should only be enabled when the system
+	  is to be analyzed
+
+	  Say N if unsure.
+
+config TRACING_BRANCHES
+	bool
+	help
+	  Selected by tracers that will trace the likely and unlikely
+	  conditions. This prevents the tracers themselves from being
+	  profiled. Profiling the tracing infrastructure can only happen
+	  when the likelys and unlikelys are not being traced.
+
+config BRANCH_TRACER
+	bool "Trace likely/unlikely instances"
+	depends on TRACE_BRANCH_PROFILING
+	select TRACING_BRANCHES
+	help
+	  This traces the events of likely and unlikely condition
+	  calls in the kernel.  The difference between this and the
+	  "Trace likely/unlikely profiler" is that this is not a
+	  histogram of the callers, but actually places the calling
+	  events into a running trace buffer to see when and where the
+	  events happened, as well as their results.
+
+	  Say N if unsure.
+
+config POWER_TRACER
+	bool "Trace power consumption behavior"
+	depends on DEBUG_KERNEL
+	depends on X86
+	select TRACING
+	help
+	  This tracer helps developers to analyze and optimize the kernels
+	  power management decisions, specifically the C-state and P-state
+	  behavior.
+
+
 config STACK_TRACER
 	bool "Trace max stack"
 	depends on HAVE_FUNCTION_TRACER
@@ -150,12 +244,25 @@ config STACK_TRACER
 
 	  This tracer works by hooking into every function call that the
 	  kernel executes, and keeping a maximum stack depth value and
-	  stack-trace saved. Because this logic has to execute in every
-	  kernel function, all the time, this option can slow down the
-	  kernel measurably and is generally intended for kernel
-	  developers only.
+	  stack-trace saved.  If this is configured with DYNAMIC_FTRACE
+	  then it will not have any overhead while the stack tracer
+	  is disabled.
+
+	  To enable the stack tracer on bootup, pass in 'stacktrace'
+	  on the kernel command line.
+
+	  The stack tracer can also be enabled or disabled via the
+	  sysctl kernel.stack_tracer_enabled
 
 	  Say N if unsure.
+
+config HW_BRANCH_TRACER
+	depends on HAVE_HW_BRANCH_TRACER
+	bool "Trace hw branches"
+	select TRACING
+	help
+	  This tracer records all branches on the system in a circular
+	  buffer giving access to the last N branches for each cpu.
 
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"

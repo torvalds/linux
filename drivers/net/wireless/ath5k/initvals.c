@@ -1681,7 +1681,7 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 	 */
 
 	/* For AR5212 and combatible */
-	if (ah->ah_version == AR5K_AR5212){
+	if (ah->ah_version == AR5K_AR5212) {
 
 		/* First set of mode-specific settings */
 		ath5k_hw_ini_mode_registers(ah,
@@ -1695,7 +1695,7 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 					ar5212_ini, change_channel);
 
 		/* Second set of mode-specific settings */
-		if (ah->ah_radio == AR5K_RF5111){
+		if (ah->ah_radio == AR5K_RF5111) {
 
 			ath5k_hw_ini_mode_registers(ah,
 					ARRAY_SIZE(ar5212_rf5111_ini_mode_end),
@@ -1706,7 +1706,7 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 					ARRAY_SIZE(rf5111_ini_bbgain),
 					rf5111_ini_bbgain, change_channel);
 
-		} else if (ah->ah_radio == AR5K_RF5112){
+		} else if (ah->ah_radio == AR5K_RF5112) {
 
 			ath5k_hw_ini_mode_registers(ah,
 					ARRAY_SIZE(ar5212_rf5112_ini_mode_end),
@@ -1716,7 +1716,7 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel)
 					ARRAY_SIZE(rf5112_ini_bbgain),
 					rf5112_ini_bbgain, change_channel);
 
-		} else if (ah->ah_radio == AR5K_RF5413){
+		} else if (ah->ah_radio == AR5K_RF5413) {
 
 			ath5k_hw_ini_mode_registers(ah,
 					ARRAY_SIZE(rf5413_ini_mode_end),

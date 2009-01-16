@@ -12,4 +12,5 @@
 
 #define irq_canonicalize(irq)	(irq)
 
+extern void __init init_IRQ(void);
 #endif

@@ -646,7 +646,7 @@ static int afs_proc_cell_vlservers_show(struct seq_file *m, void *v)
 	}
 
 	/* display one cell per line on subsequent lines */
-	seq_printf(m, "%u.%u.%u.%u\n", NIPQUAD(addr->s_addr));
+	seq_printf(m, "%pI4\n", &addr->s_addr);
 	return 0;
 }
 
@@ -737,7 +737,7 @@ static int afs_proc_cell_servers_show(struct seq_file *m, void *v)
 	}
 
 	/* display one cell per line on subsequent lines */
-	sprintf(ipaddr, "%u.%u.%u.%u", NIPQUAD(server->addr));
+	sprintf(ipaddr, "%pI4", &server->addr);
 	seq_printf(m, "%3d %-15.15s %5d\n",
 		   atomic_read(&server->usage), ipaddr, server->fs_state);
 

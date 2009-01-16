@@ -160,7 +160,7 @@ int c0_compare_int_usable(void)
 
 #ifndef CONFIG_MIPS_MT_SMTC
 
-int __cpuinit mips_clockevent_init(void)
+int __cpuinit r4k_clockevent_init(void)
 {
 	uint64_t mips_freq = mips_hpt_frequency;
 	unsigned int cpu = smp_processor_id();
@@ -195,7 +195,7 @@ int __cpuinit mips_clockevent_init(void)
 
 	cd->rating		= 300;
 	cd->irq			= irq;
-	cd->cpumask		= cpumask_of_cpu(cpu);
+	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= mips_next_event;
 	cd->set_mode		= mips_set_clock_mode;
 	cd->event_handler	= mips_event_handler;

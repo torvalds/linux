@@ -19,6 +19,9 @@
 #undef DEBUGDATA
 #undef DEBUGCCW
 
+#define KMSG_COMPONENT "ctcm"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -386,7 +389,7 @@ int ctc_mpc_alloc_channel(int port_num, void (*callback)(int, int))
 		if (grp->allocchan_callback_retries < 4) {
 			if (grp->allochanfunc)
 				grp->allochanfunc(grp->port_num,
-					      grp->group_max_buflen);
+						  grp->group_max_buflen);
 		} else {
 			/* there are problems...bail out	    */
 			/* there may be a state mismatch so restart */
@@ -1232,8 +1235,9 @@ done:
 
 	dev_kfree_skb_any(pskb);
 	if (sendrc == NET_RX_DROP) {
-		printk(KERN_WARNING "%s %s() NETWORK BACKLOG EXCEEDED"
-		       " - PACKET DROPPED\n", dev->name, __func__);
+		dev_warn(&dev->dev,
+			"The network backlog for %s is exceeded, "
+			"package dropped\n", __func__);
 		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
 	}
 
@@ -1670,10 +1674,11 @@ static int mpc_validate_xid(struct mpcg_info *mpcginfo)
 					CTCM_FUNTAIL, ch->id);
 		}
 	}
-
 done:
 	if (rc) {
-		ctcm_pr_info("ctcmpc	   :  %s() failed\n", __func__);
+		dev_warn(&dev->dev,
+			"The XID used in the MPC protocol is not valid, "
+			"rc = %d\n", rc);
 		priv->xid->xid2_flag2 = 0x40;
 		grp->saved_xid2->xid2_flag2 = 0x40;
 	}

@@ -555,7 +555,6 @@ static void lance_rx_dvma(struct net_device *dev)
 					 len);
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			dev->stats.rx_packets++;
 		}
 
@@ -726,7 +725,6 @@ static void lance_rx_pio(struct net_device *dev)
 			lance_piocopy_to_skb(skb, &(ib->rx_buf[entry][0]), len);
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			dev->stats.rx_packets++;
 		}
 
@@ -1321,7 +1319,6 @@ static int __devinit sparc_lance_probe_one(struct of_device *op,
 	static unsigned version_printed;
 	struct lance_private *lp;
 	struct net_device *dev;
-	DECLARE_MAC_BUF(mac);
 	int    i;
 
 	dev = alloc_etherdev(sizeof(struct lance_private) + 8);
@@ -1491,8 +1488,8 @@ no_link_test:
 
 	dev_set_drvdata(&op->dev, lp);
 
-	printk(KERN_INFO "%s: LANCE %s\n",
-	       dev->name, print_mac(mac, dev->dev_addr));
+	printk(KERN_INFO "%s: LANCE %pM\n",
+	       dev->name, dev->dev_addr);
 
 	return 0;
 

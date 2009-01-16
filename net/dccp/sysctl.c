@@ -41,27 +41,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "ack_ratio",
-		.data		= &sysctl_dccp_feat_ack_ratio,
-		.maxlen		= sizeof(sysctl_dccp_feat_ack_ratio),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "send_ackvec",
-		.data		= &sysctl_dccp_feat_send_ack_vector,
-		.maxlen		= sizeof(sysctl_dccp_feat_send_ack_vector),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "send_ndp",
-		.data		= &sysctl_dccp_feat_send_ndp_count,
-		.maxlen		= sizeof(sysctl_dccp_feat_send_ndp_count),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
 		.procname	= "request_retries",
 		.data		= &sysctl_dccp_request_retries,
 		.maxlen		= sizeof(sysctl_dccp_request_retries),

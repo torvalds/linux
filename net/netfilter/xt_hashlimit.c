@@ -893,23 +893,21 @@ static int dl_seq_real_show(struct dsthash_ent *ent, u_int8_t family,
 
 	switch (family) {
 	case NFPROTO_IPV4:
-		return seq_printf(s, "%ld %u.%u.%u.%u:%u->"
-				     "%u.%u.%u.%u:%u %u %u %u\n",
+		return seq_printf(s, "%ld %pI4:%u->%pI4:%u %u %u %u\n",
 				 (long)(ent->expires - jiffies)/HZ,
-				 NIPQUAD(ent->dst.ip.src),
+				 &ent->dst.ip.src,
 				 ntohs(ent->dst.src_port),
-				 NIPQUAD(ent->dst.ip.dst),
+				 &ent->dst.ip.dst,
 				 ntohs(ent->dst.dst_port),
 				 ent->rateinfo.credit, ent->rateinfo.credit_cap,
 				 ent->rateinfo.cost);
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	case NFPROTO_IPV6:
-		return seq_printf(s, "%ld " NIP6_FMT ":%u->"
-				     NIP6_FMT ":%u %u %u %u\n",
+		return seq_printf(s, "%ld %pI6:%u->%pI6:%u %u %u %u\n",
 				 (long)(ent->expires - jiffies)/HZ,
-				 NIP6(*(struct in6_addr *)&ent->dst.ip6.src),
+				 &ent->dst.ip6.src,
 				 ntohs(ent->dst.src_port),
-				 NIP6(*(struct in6_addr *)&ent->dst.ip6.dst),
+				 &ent->dst.ip6.dst,
 				 ntohs(ent->dst.dst_port),
 				 ent->rateinfo.credit, ent->rateinfo.credit_cap,
 				 ent->rateinfo.cost);

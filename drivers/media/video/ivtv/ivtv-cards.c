@@ -877,19 +877,27 @@ static const struct ivtv_card_pci_info ivtv_pci_pg600v2[] = {
 static const struct ivtv_card ivtv_card_pg600v2 = {
 	.type = IVTV_CARD_PG600V2,
 	.name = "Yuan PG600-2, GotView PCI DVD Lite",
-	.comment = "only Composite and S-Video inputs are supported, not the tuner\n",
 	.v4l2_capabilities = IVTV_CAP_ENCODER,
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
 	.hw_audio_ctrl = IVTV_HW_CX25840,
-	.hw_all = IVTV_HW_CX25840,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER,
+	/* XC2028 support apparently works for the Yuan, it's still
+	   uncertain whether it also works with the GotView. */
 	.video_inputs = {
-		{ IVTV_CARD_INPUT_SVIDEO1,    0,
+		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
+		{ IVTV_CARD_INPUT_SVIDEO1,    1,
 		  CX25840_SVIDEO_LUMA3 | CX25840_SVIDEO_CHROMA4 },
-		{ IVTV_CARD_INPUT_COMPOSITE1, 0, CX25840_COMPOSITE1 },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 1, CX25840_COMPOSITE1 },
 	},
 	.audio_inputs = {
+		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5       },
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL },
+	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO5 },
+	.xceive_pin = 12,
+	.tuners = {
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
 	.pci_list = ivtv_pci_pg600v2,
 	.i2c = &ivtv_i2c_std,

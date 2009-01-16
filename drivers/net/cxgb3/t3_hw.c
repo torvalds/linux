@@ -925,11 +925,10 @@ int t3_get_tp_version(struct adapter *adapter, u32 *vers)
 /**
  *	t3_check_tpsram_version - read the tp sram version
  *	@adapter: the adapter
- *	@must_load: set to 1 if loading a new microcode image is required
  *
  *	Reads the protocol sram version from flash.
  */
-int t3_check_tpsram_version(struct adapter *adapter, int *must_load)
+int t3_check_tpsram_version(struct adapter *adapter)
 {
 	int ret;
 	u32 vers;
@@ -938,7 +937,6 @@ int t3_check_tpsram_version(struct adapter *adapter, int *must_load)
 	if (adapter->params.rev == T3_REV_A)
 		return 0;
 
-	*must_load = 1;
 
 	ret = t3_get_tp_version(adapter, &vers);
 	if (ret)
@@ -949,13 +947,7 @@ int t3_check_tpsram_version(struct adapter *adapter, int *must_load)
 
 	if (major == TP_VERSION_MAJOR && minor == TP_VERSION_MINOR)
 		return 0;
-
-	if (major != TP_VERSION_MAJOR)
-		CH_ERR(adapter, "found wrong TP version (%u.%u), "
-		       "driver needs version %d.%d\n", major, minor,
-		       TP_VERSION_MAJOR, TP_VERSION_MINOR);
 	else {
-		*must_load = 0;
 		CH_ERR(adapter, "found wrong TP version (%u.%u), "
 		       "driver compiled for version %d.%d\n", major, minor,
 		       TP_VERSION_MAJOR, TP_VERSION_MINOR);
@@ -1012,18 +1004,16 @@ int t3_get_fw_version(struct adapter *adapter, u32 *vers)
 /**
  *	t3_check_fw_version - check if the FW is compatible with this driver
  *	@adapter: the adapter
- *	@must_load: set to 1 if loading a new FW image is required
-
+ *
  *	Checks if an adapter's FW is compatible with the driver.  Returns 0
  *	if the versions are compatible, a negative error otherwise.
  */
-int t3_check_fw_version(struct adapter *adapter, int *must_load)
+int t3_check_fw_version(struct adapter *adapter)
 {
 	int ret;
 	u32 vers;
 	unsigned int type, major, minor;
 
-	*must_load = 1;
 	ret = t3_get_fw_version(adapter, &vers);
 	if (ret)
 		return ret;
@@ -1035,17 +1025,11 @@ int t3_check_fw_version(struct adapter *adapter, int *must_load)
 	if (type == FW_VERSION_T3 && major == FW_VERSION_MAJOR &&
 	    minor == FW_VERSION_MINOR)
 		return 0;
-
-	if (major != FW_VERSION_MAJOR)
-		CH_ERR(adapter, "found wrong FW version(%u.%u), "
-		       "driver needs version %u.%u\n", major, minor,
-		       FW_VERSION_MAJOR, FW_VERSION_MINOR);
-	else if (minor < FW_VERSION_MINOR) {
-		*must_load = 0;
+	else if (major != FW_VERSION_MAJOR || minor < FW_VERSION_MINOR)
 		CH_WARN(adapter, "found old FW minor version(%u.%u), "
 		        "driver compiled for version %u.%u\n", major, minor,
 			FW_VERSION_MAJOR, FW_VERSION_MINOR);
-	} else {
+	else {
 		CH_WARN(adapter, "found newer FW version(%u.%u), "
 		        "driver compiled for version %u.%u\n", major, minor,
 			FW_VERSION_MAJOR, FW_VERSION_MINOR);

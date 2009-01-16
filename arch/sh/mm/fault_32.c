@@ -20,7 +20,6 @@
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
-#include <asm/kgdb.h>
 
 /*
  * This routine handles page faults.  It determines the address,
@@ -265,17 +264,6 @@ static inline int notify_page_fault(struct pt_regs *regs, int trap)
 	return ret;
 }
 
-#ifdef CONFIG_SH_STORE_QUEUES
-/*
- * This is a special case for the SH-4 store queues, as pages for this
- * space still need to be faulted in before it's possible to flush the
- * store queue cache for writeout to the remapped region.
- */
-#define P3_ADDR_MAX		(P4SEG_STORE_QUE + 0x04000000)
-#else
-#define P3_ADDR_MAX		P4SEG
-#endif
-
 /*
  * Called with interrupts disabled.
  */
@@ -292,11 +280,6 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 
 	if (notify_page_fault(regs, lookup_exception_vector()))
 		goto out;
-
-#ifdef CONFIG_SH_KGDB
-	if (kgdb_nofault && kgdb_bus_err_hook)
-		kgdb_bus_err_hook();
-#endif
 
 	ret = 1;
 

@@ -10,6 +10,10 @@
  *		   Stefan Weinhuber <wein@de.ibm.com>
  *
  */
+
+#define KMSG_COMPONENT "vmlogrdr"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -27,8 +31,6 @@
 #include <linux/device.h>
 #include <linux/smp_lock.h>
 #include <linux/string.h>
-
-
 
 MODULE_AUTHOR
 	("(C) 2004 IBM Corporation by Xenia Tkatschow (xenia@us.ibm.com)\n"
@@ -174,8 +176,7 @@ static void vmlogrdr_iucv_path_severed(struct iucv_path *path, u8 ipuser[16])
 	struct vmlogrdr_priv_t * logptr = path->private;
 	u8 reason = (u8) ipuser[8];
 
-	printk (KERN_ERR "vmlogrdr: connection severed with"
-		" reason %i\n", reason);
+	pr_err("vmlogrdr: connection severed with reason %i\n", reason);
 
 	iucv_path_sever(path, NULL);
 	kfree(path);
@@ -333,8 +334,8 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 	if (logptr->autorecording) {
 		ret = vmlogrdr_recording(logptr,1,logptr->autopurge);
 		if (ret)
-			printk (KERN_WARNING "vmlogrdr: failed to start "
-				"recording automatically\n");
+			pr_warning("vmlogrdr: failed to start "
+				   "recording automatically\n");
 	}
 
 	/* create connection to the system service */
@@ -345,9 +346,9 @@ static int vmlogrdr_open (struct inode *inode, struct file *filp)
 				       logptr->system_service, NULL, NULL,
 				       logptr);
 	if (connect_rc) {
-		printk (KERN_ERR "vmlogrdr: iucv connection to %s "
-			"failed with rc %i \n", logptr->system_service,
-			connect_rc);
+		pr_err("vmlogrdr: iucv connection to %s "
+		       "failed with rc %i \n",
+		       logptr->system_service, connect_rc);
 		goto out_path;
 	}
 
@@ -388,8 +389,8 @@ static int vmlogrdr_release (struct inode *inode, struct file *filp)
 	if (logptr->autorecording) {
 		ret = vmlogrdr_recording(logptr,0,logptr->autopurge);
 		if (ret)
-			printk (KERN_WARNING "vmlogrdr: failed to stop "
-				"recording automatically\n");
+			pr_warning("vmlogrdr: failed to stop "
+				   "recording automatically\n");
 	}
 	logptr->dev_in_use = 0;
 
@@ -426,7 +427,7 @@ static int vmlogrdr_receive_data(struct vmlogrdr_priv_t *priv)
 			buffer = priv->buffer + sizeof(int);
 		}
 		/*
-		 * If the record is bigger then our buffer, we receive only
+		 * If the record is bigger than our buffer, we receive only
 		 * a part of it. We can get the rest later.
 		 */
 		if (iucv_data_count > NET_BUFFER_SIZE)
@@ -436,7 +437,7 @@ static int vmlogrdr_receive_data(struct vmlogrdr_priv_t *priv)
 					  0, buffer, iucv_data_count,
 					  &priv->residual_length);
 		spin_unlock_bh(&priv->priv_lock);
-		/* An rc of 5 indicates that the record was bigger then
+		/* An rc of 5 indicates that the record was bigger than
 		 * the buffer, which is OK for us. A 9 indicates that the
 		 * record was purged befor we could receive it.
 		 */
@@ -823,8 +824,7 @@ static int __init vmlogrdr_init(void)
 	dev_t dev;
 
 	if (! MACHINE_IS_VM) {
-		printk (KERN_ERR "vmlogrdr: not running under VM, "
-				"driver not loaded.\n");
+		pr_err("not running under VM, driver not loaded.\n");
 		return -ENODEV;
 	}
 

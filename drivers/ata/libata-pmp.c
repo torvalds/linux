@@ -321,7 +321,7 @@ static void sata_pmp_quirks(struct ata_port *ap)
 
 	if (vendor == 0x1095 && devid == 0x3726) {
 		/* sil3726 quirks */
-		ata_port_for_each_link(link, ap) {
+		ata_for_each_link(link, ap, EDGE) {
 			/* Class code report is unreliable and SRST
 			 * times out under certain configurations.
 			 */
@@ -336,7 +336,7 @@ static void sata_pmp_quirks(struct ata_port *ap)
 		}
 	} else if (vendor == 0x1095 && devid == 0x4723) {
 		/* sil4723 quirks */
-		ata_port_for_each_link(link, ap) {
+		ata_for_each_link(link, ap, EDGE) {
 			/* class code report is unreliable */
 			if (link->pmp < 2)
 				link->flags |= ATA_LFLAG_ASSUME_ATA;
@@ -348,7 +348,7 @@ static void sata_pmp_quirks(struct ata_port *ap)
 		}
 	} else if (vendor == 0x1095 && devid == 0x4726) {
 		/* sil4726 quirks */
-		ata_port_for_each_link(link, ap) {
+		ata_for_each_link(link, ap, EDGE) {
 			/* Class code report is unreliable and SRST
 			 * times out under certain configurations.
 			 * Config device can be at port 0 or 5 and
@@ -450,7 +450,7 @@ int sata_pmp_attach(struct ata_device *dev)
 	if (ap->ops->pmp_attach)
 		ap->ops->pmp_attach(ap);
 
-	ata_port_for_each_link(tlink, ap)
+	ata_for_each_link(tlink, ap, EDGE)
 		sata_link_init_spd(tlink);
 
 	ata_acpi_associate_sata_port(ap);
@@ -487,7 +487,7 @@ static void sata_pmp_detach(struct ata_device *dev)
 	if (ap->ops->pmp_detach)
 		ap->ops->pmp_detach(ap);
 
-	ata_port_for_each_link(tlink, ap)
+	ata_for_each_link(tlink, ap, EDGE)
 		ata_eh_detach_dev(tlink->device);
 
 	spin_lock_irqsave(ap->lock, flags);
@@ -700,7 +700,7 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 		}
 
 		/* PMP is reset, SErrors cannot be trusted, scan all */
-		ata_port_for_each_link(tlink, ap) {
+		ata_for_each_link(tlink, ap, EDGE) {
 			struct ata_eh_context *ehc = &tlink->eh_context;
 
 			ehc->i.probe_mask |= ATA_ALL_DEVICES;
@@ -768,7 +768,7 @@ static int sata_pmp_eh_handle_disabled_links(struct ata_port *ap)
 
 	spin_lock_irqsave(ap->lock, flags);
 
-	ata_port_for_each_link(link, ap) {
+	ata_for_each_link(link, ap, EDGE) {
 		if (!(link->flags & ATA_LFLAG_DISABLED))
 			continue;
 
@@ -852,7 +852,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 	int cnt, rc;
 
 	pmp_tries = ATA_EH_PMP_TRIES;
-	ata_port_for_each_link(link, ap)
+	ata_for_each_link(link, ap, EDGE)
 		link_tries[link->pmp] = ATA_EH_PMP_LINK_TRIES;
 
  retry:
@@ -861,7 +861,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 		rc = ata_eh_recover(ap, ops->prereset, ops->softreset,
 				    ops->hardreset, ops->postreset, NULL);
 		if (rc) {
-			ata_link_for_each_dev(dev, &ap->link)
+			ata_for_each_dev(dev, &ap->link, ALL)
 				ata_dev_disable(dev);
 			return rc;
 		}
@@ -870,7 +870,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 			return 0;
 
 		/* new PMP online */
-		ata_port_for_each_link(link, ap)
+		ata_for_each_link(link, ap, EDGE)
 			link_tries[link->pmp] = ATA_EH_PMP_LINK_TRIES;
 
 		/* fall through */
@@ -942,7 +942,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap)
 	}
 
 	cnt = 0;
-	ata_port_for_each_link(link, ap) {
+	ata_for_each_link(link, ap, EDGE) {
 		if (!(gscr_error & (1 << link->pmp)))
 			continue;
 

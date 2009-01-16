@@ -3,15 +3,15 @@ Krzysztof Halasa <khc@pm.waw.pl>
 
 
 Generic HDLC layer currently supports:
-1. Frame Relay (ANSI, CCITT, Cisco and no LMI).
+1. Frame Relay (ANSI, CCITT, Cisco and no LMI)
    - Normal (routed) and Ethernet-bridged (Ethernet device emulation)
      interfaces can share a single PVC.
    - ARP support (no InARP support in the kernel - there is an
      experimental InARP user-space daemon available on:
      http://www.kernel.org/pub/linux/utils/net/hdlc/).
-2. raw HDLC - either IP (IPv4) interface or Ethernet device emulation.
-3. Cisco HDLC.
-4. PPP (uses syncppp.c).
+2. raw HDLC - either IP (IPv4) interface or Ethernet device emulation
+3. Cisco HDLC
+4. PPP
 5. X.25 (uses X.25 routines).
 
 Generic HDLC is a protocol driver only - it needs a low-level driver

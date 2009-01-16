@@ -1325,6 +1325,7 @@ int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct irlap_cb *self;
 	int command;
 	__u8 control;
+	int ret = -1;
 
 	if (!net_eq(dev_net(dev), &init_net))
 		goto out;
@@ -1333,25 +1334,21 @@ int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
 	self = (struct irlap_cb *) dev->atalk_ptr;
 
 	/* If the net device is down, then IrLAP is gone! */
-	if (!self || self->magic != LAP_MAGIC) {
-		dev_kfree_skb(skb);
-		return -1;
-	}
+	if (!self || self->magic != LAP_MAGIC)
+		goto err;
 
 	/* We are no longer an "old" protocol, so we need to handle
 	 * share and non linear skbs. This should never happen, so
 	 * we don't need to be clever about it. Jean II */
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
 		IRDA_ERROR("%s: can't clone shared skb!\n", __func__);
-		dev_kfree_skb(skb);
-		return -1;
+		goto err;
 	}
 
 	/* Check if frame is large enough for parsing */
 	if (!pskb_may_pull(skb, 2)) {
 		IRDA_ERROR("%s: frame too short!\n", __func__);
-		dev_kfree_skb(skb);
-		return -1;
+		goto err;
 	}
 
 	command    = skb->data[0] & CMD_FRAME;
@@ -1442,7 +1439,9 @@ int irlap_driver_rcv(struct sk_buff *skb, struct net_device *dev,
 		break;
 	}
 out:
+	ret = 0;
+err:
 	/* Always drop our reference on the skb */
 	dev_kfree_skb(skb);
-	return 0;
+	return ret;
 }

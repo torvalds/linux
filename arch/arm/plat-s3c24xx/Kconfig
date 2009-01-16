@@ -6,14 +6,27 @@
 
 config PLAT_S3C24XX
 	bool
-	depends on ARCH_S3C2410
-	default y if ARCH_S3C2410
+	depends on ARCH_S3C2410 || ARCH_S3C24A0
+	default y
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Base platform code for any Samsung S3C24XX device
 
 if PLAT_S3C24XX
+
+# code that is shared between a number of the s3c24xx implementations
+
+config S3C2410_CLOCK
+	bool
+	help
+	  Clock code for the S3C2410, and similar processors which
+	  is currently includes the S3C2410, S3C2440, S3C2442.
+
+config S3C24XX_DCLK
+	bool
+	help
+	  Clock code for supporting DCLK/CLKOUT on S3C24XX architectures
 
 config CPU_S3C244X
 	bool
@@ -27,6 +40,27 @@ config S3C24XX_PWM
 	help
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system.
+
+
+# gpio configurations
+
+config S3C24XX_GPIO_EXTRA
+	int
+	default 128 if S3C24XX_GPIO_EXTRA128
+	default 64 if S3C24XX_GPIO_EXTRA64
+	default 0
+
+config S3C24XX_GPIO_EXTRA64
+	bool
+	help
+	  Add an extra 64 gpio numbers to the available GPIO pool. This is
+	  available for boards that need extra gpios for external devices.
+
+config S3C24XX_GPIO_EXTRA128
+	bool
+	help
+	  Add an extra 128 gpio numbers to the available GPIO pool. This is
+	  available for boards that need extra gpios for external devices.
 
 config PM_SIMTEC
 	bool
@@ -48,6 +82,29 @@ config S3C2410_DMA_DEBUG
 	help
 	  Enable debugging output for the DMA code. This option sends info
 	  to the kernel log, at priority KERN_DEBUG.
+
+config S3C24XX_ADC
+	bool "ADC common driver support"
+	help
+	  Core support for the ADC block found in the S3C24XX SoC systems
+	  for drivers such as the touchscreen and hwmon to use to share
+	  this resource.
+
+# SPI default pin configuration code
+
+config S3C24XX_SPI_BUS0_GPE11_GPE12_GPE13
+	bool
+	help
+	  SPI GPIO configuration code for BUS0 when connected to
+	  GPE11, GPE12 and GPE13.
+
+config S3C24XX_SPI_BUS1_GPG5_GPG6_GPG7
+	bool
+	help
+	  SPI GPIO configuration code for BUS 1 when connected to
+	  GPG5, GPG6 and GPG7.
+
+# common code for s3c24xx based machines, such as the SMDKs.
 
 config MACH_SMDK
 	bool

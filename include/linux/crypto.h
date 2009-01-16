@@ -36,7 +36,8 @@
 #define CRYPTO_ALG_TYPE_ABLKCIPHER	0x00000005
 #define CRYPTO_ALG_TYPE_GIVCIPHER	0x00000006
 #define CRYPTO_ALG_TYPE_DIGEST		0x00000008
-#define CRYPTO_ALG_TYPE_HASH		0x00000009
+#define CRYPTO_ALG_TYPE_HASH		0x00000008
+#define CRYPTO_ALG_TYPE_SHASH		0x00000009
 #define CRYPTO_ALG_TYPE_AHASH		0x0000000a
 #define CRYPTO_ALG_TYPE_RNG		0x0000000c
 
@@ -220,6 +221,7 @@ struct ablkcipher_alg {
 
 struct ahash_alg {
 	int (*init)(struct ahash_request *req);
+	int (*reinit)(struct ahash_request *req);
 	int (*update)(struct ahash_request *req);
 	int (*final)(struct ahash_request *req);
 	int (*digest)(struct ahash_request *req);
@@ -480,6 +482,8 @@ struct crypto_tfm {
 		struct compress_tfm compress;
 		struct rng_tfm rng;
 	} crt_u;
+
+	void (*exit)(struct crypto_tfm *tfm);
 	
 	struct crypto_alg *__crt_alg;
 
@@ -544,7 +548,9 @@ struct crypto_attr_u32 {
  * Transform user interface.
  */
  
-struct crypto_tfm *crypto_alloc_tfm(const char *alg_name, u32 tfm_flags);
+struct crypto_tfm *crypto_alloc_tfm(const char *alg_name,
+				    const struct crypto_type *frontend,
+				    u32 type, u32 mask);
 struct crypto_tfm *crypto_alloc_base(const char *alg_name, u32 type, u32 mask);
 void crypto_free_tfm(struct crypto_tfm *tfm);
 

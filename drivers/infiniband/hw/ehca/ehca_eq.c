@@ -113,7 +113,7 @@ int ehca_create_eq(struct ehca_shca *shca,
 			if (h_ret != H_SUCCESS || vpage)
 				goto create_eq_exit2;
 		} else {
-			if (h_ret != H_PAGE_REGISTERED || !vpage)
+			if (h_ret != H_PAGE_REGISTERED)
 				goto create_eq_exit2;
 		}
 	}

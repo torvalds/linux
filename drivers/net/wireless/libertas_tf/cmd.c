@@ -79,7 +79,6 @@ int lbtf_update_hw_spec(struct lbtf_private *priv)
 	struct cmd_ds_get_hw_spec cmd;
 	int ret = -1;
 	u32 i;
-	DECLARE_MAC_BUF(mac);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
@@ -96,8 +95,8 @@ int lbtf_update_hw_spec(struct lbtf_private *priv)
 	priv->fwrelease = (priv->fwrelease << 8) |
 		(priv->fwrelease >> 24 & 0xff);
 
-	printk(KERN_INFO "libertastf: %s, fw %u.%u.%up%u, cap 0x%08x\n",
-		print_mac(mac, cmd.permanentaddr),
+	printk(KERN_INFO "libertastf: %pM, fw %u.%u.%up%u, cap 0x%08x\n",
+		cmd.permanentaddr,
 		priv->fwrelease >> 24 & 0xff,
 		priv->fwrelease >> 16 & 0xff,
 		priv->fwrelease >>  8 & 0xff,

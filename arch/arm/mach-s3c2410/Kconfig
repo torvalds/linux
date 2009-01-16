@@ -7,6 +7,7 @@
 config CPU_S3C2410
 	bool
 	depends on ARCH_S3C2410
+	select CPU_ARM920T
 	select S3C2410_CLOCK
 	select S3C2410_GPIO
 	select CPU_LLSERIAL_S3C2410
@@ -31,11 +32,6 @@ config S3C2410_GPIO
 	bool
 	help
 	  GPIO code for S3C2410 and similar processors
-
-config S3C2410_CLOCK
-	bool
-	help
-	  Clock code for the S3C2410, and similar processors
 
 config SIMTEC_NOR
 	bool
@@ -84,6 +80,7 @@ config ARCH_BAST
 	select PM_SIMTEC if PM
 	select SIMTEC_NOR
 	select MACH_BAST_IDE
+	select S3C24XX_DCLK
 	select ISA
 	help
 	  Say Y here if you are using the Simtec Electronics EB2410ITX
@@ -121,6 +118,7 @@ config MACH_TCT_HAMMER
 config MACH_VR1000
 	bool "Thorcom VR1000"
 	select PM_SIMTEC if PM
+	select S3C24XX_DCLK
 	select SIMTEC_NOR
 	select MACH_BAST_IDE
 	select CPU_S3C2410

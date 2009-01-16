@@ -35,9 +35,17 @@ static inline void
 __nf_ct_deliver_cached_events(struct nf_conntrack_ecache *ecache)
 {
 	if (nf_ct_is_confirmed(ecache->ct) && !nf_ct_is_dying(ecache->ct)
-	    && ecache->events)
-		atomic_notifier_call_chain(&nf_conntrack_chain, ecache->events,
-				    ecache->ct);
+	    && ecache->events) {
+		struct nf_ct_event item = {
+			.ct 	= ecache->ct,
+			.pid	= 0,
+			.report	= 0
+		};
+
+		atomic_notifier_call_chain(&nf_conntrack_chain,
+					   ecache->events,
+					   &item);
+	}
 
 	ecache->events = 0;
 	nf_ct_put(ecache->ct);

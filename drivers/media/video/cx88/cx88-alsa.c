@@ -742,7 +742,6 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	core = cx88_core_get(pci);
 	if (NULL == core) {
 		err = -EINVAL;
-		kfree (chip);
 		return err;
 	}
 
@@ -812,7 +811,7 @@ static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 
 	err = snd_cx88_create(card, pci, &chip);
 	if (err < 0)
-		return (err);
+		goto error;
 
 	err = snd_cx88_pcm(chip, 0, "CX88 Digital");
 	if (err < 0)

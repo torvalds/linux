@@ -23,9 +23,6 @@
 #include <linux/mm.h>
 #include <linux/suspend.h>
 #include <linux/hrtimer.h>
-#ifdef CONFIG_KVM
-#include <linux/kvm_host.h>
-#endif
 #ifdef CONFIG_PPC64
 #include <linux/time.h>
 #include <linux/hardirq.h>
@@ -51,15 +48,23 @@
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/iseries/alpaca.h>
 #endif
+#ifdef CONFIG_KVM
+#include <asm/kvm_44x.h>
+#endif
 
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 #include "head_booke.h"
+#endif
+
+#if defined(CONFIG_FSL_BOOKE)
+#include "../mm/mmu_decl.h"
 #endif
 
 int main(void)
 {
 	DEFINE(THREAD, offsetof(struct task_struct, thread));
 	DEFINE(MM, offsetof(struct task_struct, mm));
+	DEFINE(MMCONTEXTID, offsetof(struct mm_struct, context.id));
 #ifdef CONFIG_PPC64
 	DEFINE(AUDITCONTEXT, offsetof(struct task_struct, audit_context));
 #else
@@ -306,6 +311,7 @@ int main(void)
 	DEFINE(CFG_SYSCALL_MAP32, offsetof(struct vdso_data, syscall_map_32));
 	DEFINE(WTOM_CLOCK_SEC, offsetof(struct vdso_data, wtom_clock_sec));
 	DEFINE(WTOM_CLOCK_NSEC, offsetof(struct vdso_data, wtom_clock_nsec));
+	DEFINE(STAMP_XTIME, offsetof(struct vdso_data, stamp_xtime));
 	DEFINE(CFG_ICACHE_BLOCKSZ, offsetof(struct vdso_data, icache_block_size));
 	DEFINE(CFG_DCACHE_BLOCKSZ, offsetof(struct vdso_data, dcache_block_size));
 	DEFINE(CFG_ICACHE_LOGBLOCKSZ, offsetof(struct vdso_data, icache_log_block_size));
@@ -355,12 +361,10 @@ int main(void)
 	DEFINE(PTE_SIZE, sizeof(pte_t));
 
 #ifdef CONFIG_KVM
-	DEFINE(TLBE_BYTES, sizeof(struct tlbe));
+	DEFINE(TLBE_BYTES, sizeof(struct kvmppc_44x_tlbe));
 
 	DEFINE(VCPU_HOST_STACK, offsetof(struct kvm_vcpu, arch.host_stack));
 	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
-	DEFINE(VCPU_SHADOW_TLB, offsetof(struct kvm_vcpu, arch.shadow_tlb));
-	DEFINE(VCPU_SHADOW_MOD, offsetof(struct kvm_vcpu, arch.shadow_tlb_mod));
 	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
 	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
 	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
@@ -377,6 +381,24 @@ int main(void)
 	DEFINE(VCPU_LAST_INST, offsetof(struct kvm_vcpu, arch.last_inst));
 	DEFINE(VCPU_FAULT_DEAR, offsetof(struct kvm_vcpu, arch.fault_dear));
 	DEFINE(VCPU_FAULT_ESR, offsetof(struct kvm_vcpu, arch.fault_esr));
+#endif
+#ifdef CONFIG_44x
+	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
+	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
+#endif
+#ifdef CONFIG_FSL_BOOKE
+	DEFINE(TLBCAM_SIZE, sizeof(struct tlbcam));
+#endif
+
+#ifdef CONFIG_KVM_EXIT_TIMING
+	DEFINE(VCPU_TIMING_EXIT_TBU, offsetof(struct kvm_vcpu,
+						arch.timing_exit.tv32.tbu));
+	DEFINE(VCPU_TIMING_EXIT_TBL, offsetof(struct kvm_vcpu,
+						arch.timing_exit.tv32.tbl));
+	DEFINE(VCPU_TIMING_LAST_ENTER_TBU, offsetof(struct kvm_vcpu,
+					arch.timing_last_enter.tv32.tbu));
+	DEFINE(VCPU_TIMING_LAST_ENTER_TBL, offsetof(struct kvm_vcpu,
+					arch.timing_last_enter.tv32.tbl));
 #endif
 
 	return 0;

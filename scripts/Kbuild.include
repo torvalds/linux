@@ -25,6 +25,13 @@ basetarget = $(basename $(notdir $@))
 escsq = $(subst $(squote),'\$(squote)',$1)
 
 ###
+# Easy method for doing a status message
+       kecho := :
+ quiet_kecho := echo
+silent_kecho := :
+kecho := $($(quiet)kecho)
+
+###
 # filechk is used to check if the content of a generated file is updated.
 # Sample usage:
 # define filechk_sample
@@ -39,22 +46,15 @@ escsq = $(subst $(squote),'\$(squote)',$1)
 # - If they are equal no change, and no timestamp update
 # - stdin is piped in from the first prerequisite ($<) so one has
 #   to specify a valid file as first prerequisite (often the kbuild file)
-       chk_filechk = :
- quiet_chk_filechk = echo '  CHK     $@'
-silent_chk_filechk = :
-       upd_filechk = :
- quiet_upd_filechk = echo '  UPD     $@'
-silent_upd_filechk = :
-
 define filechk
 	$(Q)set -e;				\
-	$($(quiet)chk_filechk);			\
+	$(kecho) '  CHK     $@';		\
 	mkdir -p $(dir $@);			\
 	$(filechk_$(1)) < $< > $@.tmp;		\
 	if [ -r $@ ] && cmp -s $@ $@.tmp; then	\
 		rm -f $@.tmp;			\
 	else					\
-		$($(quiet)upd_filechk);		\
+		$(kecho) '  UPD     $@';	\
 		mv -f $@.tmp $@;		\
 	fi
 endef
@@ -144,7 +144,9 @@ ld-option = $(call try-run,\
 build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
 
 # Prefix -I with $(srctree) if it is not an absolute path.
-addtree = $(if $(filter-out -I/%,$(1)),$(patsubst -I%,-I$(srctree)/%,$(1))) $(1)
+# skip if -I has no parameter
+addtree = $(if $(patsubst -I%,%,$(1)), \
+$(if $(filter-out -I/%,$(1)),$(patsubst -I%,-I$(srctree)/%,$(1))) $(1))
 
 # Find all -I options and call addtree
 flags = $(foreach o,$($(1)),$(if $(filter -I%,$(o)),$(call addtree,$(o)),$(o)))

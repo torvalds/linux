@@ -18,7 +18,8 @@
  */
 int __init pcibios_init_platform(void)
 {
-   return 1;
+	__set_io_port_base(SH7751_PCI_IO_BASE);
+	return 1;
 }
 
 static struct resource sh7751_io_resource = {

@@ -500,4 +500,20 @@ struct tc_netem_corrupt
 
 #define NETEM_DIST_SCALE	8192
 
+/* DRR */
+
+enum
+{
+	TCA_DRR_UNSPEC,
+	TCA_DRR_QUANTUM,
+	__TCA_DRR_MAX
+};
+
+#define TCA_DRR_MAX	(__TCA_DRR_MAX - 1)
+
+struct tc_drr_stats
+{
+	u32	deficit;
+};
+
 #endif

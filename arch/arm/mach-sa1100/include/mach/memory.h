@@ -23,21 +23,10 @@ void sa1111_adjust_zones(int node, unsigned long *size, unsigned long *holes);
 	sa1111_adjust_zones(node, size, holes)
 
 #define ISA_DMA_THRESHOLD	(PHYS_OFFSET + SZ_1M - 1)
+#define MAX_DMA_ADDRESS		(PAGE_OFFSET + SZ_1M)
 
 #endif
 #endif
-
-/*
- * Virtual view <-> DMA view memory address translations
- * virt_to_bus: Used to translate the virtual address to an
- *		address suitable to be passed to set_dma_addr
- * bus_to_virt: Used to convert an address for DMA operations
- *		to an address that the kernel can use.
- *
- * On the SA1100, bus addresses are equivalent to physical addresses.
- */
-#define __virt_to_bus(x)	 __virt_to_phys(x)
-#define __bus_to_virt(x)	 __phys_to_virt(x)
 
 /*
  * Because of the wide memory address space between physical RAM banks on the

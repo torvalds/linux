@@ -71,6 +71,8 @@ ENTRY(cpu_v6_reset)
  *	IRQs are already disabled.
  */
 ENTRY(cpu_v6_do_idle)
+	mov	r1, #0
+	mcr	p15, 0, r1, c7, c10, 4		@ DWB - WFI may enter a low-power mode
 	mcr	p15, 0, r1, c7, c0, 4		@ wait for interrupt
 	mov	pc, lr
 

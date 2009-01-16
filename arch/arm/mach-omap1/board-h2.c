@@ -250,11 +250,8 @@ static struct platform_device h2_kp_device = {
 #if defined(CONFIG_OMAP_IR) || defined(CONFIG_OMAP_IR_MODULE)
 static int h2_transceiver_mode(struct device *dev, int state)
 {
-	if (state & IR_SIRMODE)
-		omap_set_gpio_dataout(H2_IRDA_FIRSEL_GPIO_PIN, 0);
-	else    /* MIR/FIR */
-		omap_set_gpio_dataout(H2_IRDA_FIRSEL_GPIO_PIN, 1);
-
+	/* SIR when low, else MIR/FIR when HIGH */
+	gpio_set_value(H2_IRDA_FIRSEL_GPIO_PIN, !(state & IR_SIRMODE));
 	return 0;
 }
 #endif
@@ -342,16 +339,31 @@ static struct platform_device *h2_devices[] __initdata = {
 
 static void __init h2_init_smc91x(void)
 {
-	if ((omap_request_gpio(0)) < 0) {
+	if (gpio_request(0, "SMC91x irq") < 0) {
 		printk("Error requesting gpio 0 for smc91x irq\n");
 		return;
 	}
 }
 
+static int tps_setup(struct i2c_client *client, void *context)
+{
+	tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V |
+				TPS_LDO1_ENABLE | TPS_VLDO1_3_0V);
+
+	return 0;
+}
+
+static struct tps65010_board tps_board = {
+	.base		= H2_TPS_GPIO_BASE,
+	.outmask	= 0x0f,
+	.setup		= tps_setup,
+};
+
 static struct i2c_board_info __initdata h2_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("tps65010", 0x48),
 		.irq            = OMAP_GPIO_IRQ(58),
+		.platform_data	= &tps_board,
 	}, {
 		I2C_BOARD_INFO("isp1301_omap", 0x2d),
 		.irq		= OMAP_GPIO_IRQ(2),
@@ -381,15 +393,6 @@ static struct omap_usb_config h2_usb_config __initdata = {
 	.pins[1]	= 3,
 };
 
-static struct omap_mmc_config h2_mmc_config __initdata = {
-	.mmc[0] = {
-		.enabled	= 1,
-		.wire4		= 1,
-	},
-};
-
-extern struct omap_mmc_platform_data h2_mmc_data;
-
 static struct omap_uart_config h2_uart_config __initdata = {
 	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
 };
@@ -400,7 +403,6 @@ static struct omap_lcd_config h2_lcd_config __initdata = {
 
 static struct omap_board_config_kernel h2_config[] __initdata = {
 	{ OMAP_TAG_USB,		&h2_usb_config },
-	{ OMAP_TAG_MMC,		&h2_mmc_config },
 	{ OMAP_TAG_UART,	&h2_uart_config },
 	{ OMAP_TAG_LCD,		&h2_lcd_config },
 };
@@ -409,7 +411,7 @@ static struct omap_board_config_kernel h2_config[] __initdata = {
 
 static int h2_nand_dev_ready(struct omap_nand_platform_data *data)
 {
-	return omap_get_gpio_datain(H2_NAND_RB_GPIO_PIN);
+	return gpio_get_value(H2_NAND_RB_GPIO_PIN);
 }
 
 static void __init h2_init(void)
@@ -428,8 +430,9 @@ static void __init h2_init(void)
 
 	h2_nand_resource.end = h2_nand_resource.start = OMAP_CS2B_PHYS;
 	h2_nand_resource.end += SZ_4K - 1;
-	if (!(omap_request_gpio(H2_NAND_RB_GPIO_PIN)))
-		h2_nand_data.dev_ready = h2_nand_dev_ready;
+	if (gpio_request(H2_NAND_RB_GPIO_PIN, "NAND ready") < 0)
+		BUG();
+	gpio_direction_input(H2_NAND_RB_GPIO_PIN);
 
 	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);
 	omap_cfg_reg(M8_1610_FLASH_CS2B_WE);
@@ -441,10 +444,10 @@ static void __init h2_init(void)
 	/* Irda */
 #if defined(CONFIG_OMAP_IR) || defined(CONFIG_OMAP_IR_MODULE)
 	omap_writel(omap_readl(FUNC_MUX_CTRL_A) | 7, FUNC_MUX_CTRL_A);
-	if (!(omap_request_gpio(H2_IRDA_FIRSEL_GPIO_PIN))) {
-		omap_set_gpio_direction(H2_IRDA_FIRSEL_GPIO_PIN, 0);
-		h2_irda_data.transceiver_mode = h2_transceiver_mode;
-	}
+	if (gpio_request(H2_IRDA_FIRSEL_GPIO_PIN, "IRDA mode") < 0)
+		BUG();
+	gpio_direction_output(H2_IRDA_FIRSEL_GPIO_PIN, 0);
+	h2_irda_data.transceiver_mode = h2_transceiver_mode;
 #endif
 
 	platform_add_devices(h2_devices, ARRAY_SIZE(h2_devices));

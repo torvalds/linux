@@ -89,7 +89,8 @@ struct ssi_priv {
  * track usage of the SSI; it is simplex-only so prevent attempts of
  * concurrent playback + capture. FIXME: any locking required?
  */
-static int ssi_startup(struct snd_pcm_substream *substream)
+static int ssi_startup(struct snd_pcm_substream *substream,
+		       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct ssi_priv *ssi = &ssi_cpu_data[rtd->dai->cpu_dai->id];
@@ -101,7 +102,8 @@ static int ssi_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static void ssi_shutdown(struct snd_pcm_substream *substream)
+static void ssi_shutdown(struct snd_pcm_substream *substream,
+			 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct ssi_priv *ssi = &ssi_cpu_data[rtd->dai->cpu_dai->id];
@@ -109,7 +111,8 @@ static void ssi_shutdown(struct snd_pcm_substream *substream)
 	ssi->inuse = 0;
 }
 
-static int ssi_trigger(struct snd_pcm_substream *substream, int cmd)
+static int ssi_trigger(struct snd_pcm_substream *substream, int cmd,
+		       struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct ssi_priv *ssi = &ssi_cpu_data[rtd->dai->cpu_dai->id];
@@ -129,7 +132,8 @@ static int ssi_trigger(struct snd_pcm_substream *substream, int cmd)
 }
 
 static int ssi_hw_params(struct snd_pcm_substream *substream,
-			 struct snd_pcm_hw_params *params)
+			 struct snd_pcm_hw_params *params,
+			 struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct ssi_priv *ssi = &ssi_cpu_data[rtd->dai->cpu_dai->id];
@@ -336,7 +340,6 @@ struct snd_soc_dai sh4_ssi_dai[] = {
 {
 	.name			= "SSI0",
 	.id			= 0,
-	.type			= SND_SOC_DAI_I2S,
 	.playback = {
 		.rates		= SSI_RATES,
 		.formats	= SSI_FMTS,
@@ -354,8 +357,6 @@ struct snd_soc_dai sh4_ssi_dai[] = {
 		.shutdown	= ssi_shutdown,
 		.trigger	= ssi_trigger,
 		.hw_params	= ssi_hw_params,
-	},
-	.dai_ops = {
 		.set_sysclk	= ssi_set_sysclk,
 		.set_clkdiv	= ssi_set_clkdiv,
 		.set_fmt	= ssi_set_fmt,
@@ -365,7 +366,6 @@ struct snd_soc_dai sh4_ssi_dai[] = {
 {
 	.name			= "SSI1",
 	.id			= 1,
-	.type			= SND_SOC_DAI_I2S,
 	.playback = {
 		.rates		= SSI_RATES,
 		.formats	= SSI_FMTS,
@@ -383,8 +383,6 @@ struct snd_soc_dai sh4_ssi_dai[] = {
 		.shutdown	= ssi_shutdown,
 		.trigger	= ssi_trigger,
 		.hw_params	= ssi_hw_params,
-	},
-	.dai_ops = {
 		.set_sysclk	= ssi_set_sysclk,
 		.set_clkdiv	= ssi_set_clkdiv,
 		.set_fmt	= ssi_set_fmt,
@@ -393,6 +391,18 @@ struct snd_soc_dai sh4_ssi_dai[] = {
 #endif
 };
 EXPORT_SYMBOL_GPL(sh4_ssi_dai);
+
+static int __init sh4_ssi_init(void)
+{
+	return snd_soc_register_dais(sh4_ssi_dai, ARRAY_SIZE(sh4_ssi_dai));
+}
+module_init(sh4_ssi_init);
+
+static void __exit sh4_ssi_exit(void)
+{
+	snd_soc_unregister_dais(sh4_ssi_dai, ARRAY_SIZE(sh4_ssi_dai));
+}
+module_exit(sh4_ssi_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SuperH onchip SSI (I2S) audio driver");

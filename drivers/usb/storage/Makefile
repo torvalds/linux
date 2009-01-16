@@ -14,7 +14,6 @@ usb-storage-obj-$(CONFIG_USB_STORAGE_USBAT)	+= shuttle_usbat.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_SDDR09)	+= sddr09.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_SDDR55)	+= sddr55.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_FREECOM)	+= freecom.o
-usb-storage-obj-$(CONFIG_USB_STORAGE_DPCM)	+= dpcm.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_ISD200)	+= isd200.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_DATAFAB)	+= datafab.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_JUMPSHOT)	+= jumpshot.o
@@ -24,7 +23,7 @@ usb-storage-obj-$(CONFIG_USB_STORAGE_KARMA)	+= karma.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_CYPRESS_ATACB) += cypress_atacb.o
 
 usb-storage-objs :=	scsiglue.o protocol.o transport.o usb.o \
-			initializers.o sierra_ms.o $(usb-storage-obj-y)
+			initializers.o sierra_ms.o option_ms.o $(usb-storage-obj-y)
 
 ifneq ($(CONFIG_USB_LIBUSUAL),)
 	obj-$(CONFIG_USB)	+= libusual.o

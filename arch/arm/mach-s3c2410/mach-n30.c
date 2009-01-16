@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-#include <linux/delay.h>
 #include <linux/gpio_keys.h>
 #include <linux/init.h>
 #include <linux/input.h>
@@ -40,14 +39,14 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include <asm/plat-s3c/iic.h>
+#include <plat/iic.h>
 #include <plat/regs-serial.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/s3c2410.h>
-#include <asm/plat-s3c24xx/udc.h>
+#include <plat/udc.h>
 
 static struct map_desc n30_iodesc[] __initdata = {
 	/* nothing here yet */
@@ -320,7 +319,7 @@ static struct s3c2410fb_mach_info n30_fb_info __initdata = {
 static struct platform_device *n30_devices[] __initdata = {
 	&s3c_device_lcd,
 	&s3c_device_wdt,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
 	&s3c_device_iis,
 	&s3c_device_usb,
 	&s3c_device_usbgadget,
@@ -332,7 +331,7 @@ static struct platform_device *n30_devices[] __initdata = {
 static struct platform_device *n35_devices[] __initdata = {
 	&s3c_device_lcd,
 	&s3c_device_wdt,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
 	&s3c_device_iis,
 	&s3c_device_usbgadget,
 	&n35_button_device,
@@ -501,7 +500,7 @@ static void __init n30_init_irq(void)
 static void __init n30_init(void)
 {
 	s3c24xx_fb_set_platdata(&n30_fb_info);
-	s3c_device_i2c.dev.platform_data = &n30_i2ccfg;
+	s3c_device_i2c0.dev.platform_data = &n30_i2ccfg;
 	s3c24xx_udc_set_platdata(&n30_udc_cfg);
 
 	/* Turn off suspend on both USB ports, and switch the

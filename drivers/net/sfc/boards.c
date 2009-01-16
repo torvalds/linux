@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare Solarstorm network controllers and boards
- * Copyright 2007 Solarflare Communications Inc.
+ * Copyright 2007-2008 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -11,6 +11,7 @@
 #include "phy.h"
 #include "boards.h"
 #include "efx.h"
+#include "workarounds.h"
 
 /* Macros for unpacking the board revision */
 /* The revision info is in host byte order. */
@@ -52,9 +53,128 @@ static void board_blink(struct efx_nic *efx, bool blink)
 }
 
 /*****************************************************************************
+ * Support for LM87 sensor chip used on several boards
+ */
+#define LM87_REG_ALARMS1		0x41
+#define LM87_REG_ALARMS2		0x42
+#define LM87_IN_LIMITS(nr, _min, _max)			\
+	0x2B + (nr) * 2, _max, 0x2C + (nr) * 2, _min
+#define LM87_AIN_LIMITS(nr, _min, _max)			\
+	0x3B + (nr), _max, 0x1A + (nr), _min
+#define LM87_TEMP_INT_LIMITS(_min, _max)		\
+	0x39, _max, 0x3A, _min
+#define LM87_TEMP_EXT1_LIMITS(_min, _max)		\
+	0x37, _max, 0x38, _min
+
+#define LM87_ALARM_TEMP_INT		0x10
+#define LM87_ALARM_TEMP_EXT1		0x20
+
+#if defined(CONFIG_SENSORS_LM87) || defined(CONFIG_SENSORS_LM87_MODULE)
+
+static int efx_init_lm87(struct efx_nic *efx, struct i2c_board_info *info,
+			 const u8 *reg_values)
+{
+	struct i2c_client *client = i2c_new_device(&efx->i2c_adap, info);
+	int rc;
+
+	if (!client)
+		return -EIO;
+
+	while (*reg_values) {
+		u8 reg = *reg_values++;
+		u8 value = *reg_values++;
+		rc = i2c_smbus_write_byte_data(client, reg, value);
+		if (rc)
+			goto err;
+	}
+
+	efx->board_info.hwmon_client = client;
+	return 0;
+
+err:
+	i2c_unregister_device(client);
+	return rc;
+}
+
+static void efx_fini_lm87(struct efx_nic *efx)
+{
+	i2c_unregister_device(efx->board_info.hwmon_client);
+}
+
+static int efx_check_lm87(struct efx_nic *efx, unsigned mask)
+{
+	struct i2c_client *client = efx->board_info.hwmon_client;
+	s32 alarms1, alarms2;
+
+	/* If link is up then do not monitor temperature */
+	if (EFX_WORKAROUND_7884(efx) && efx->link_up)
+		return 0;
+
+	alarms1 = i2c_smbus_read_byte_data(client, LM87_REG_ALARMS1);
+	alarms2 = i2c_smbus_read_byte_data(client, LM87_REG_ALARMS2);
+	if (alarms1 < 0)
+		return alarms1;
+	if (alarms2 < 0)
+		return alarms2;
+	alarms1 &= mask;
+	alarms2 &= mask >> 8;
+	if (alarms1 || alarms2) {
+		EFX_ERR(efx,
+			"LM87 detected a hardware failure (status %02x:%02x)"
+			"%s%s\n",
+			alarms1, alarms2,
+			(alarms1 & LM87_ALARM_TEMP_INT) ? " INTERNAL" : "",
+			(alarms1 & LM87_ALARM_TEMP_EXT1) ? " EXTERNAL" : "");
+		return -ERANGE;
+	}
+
+	return 0;
+}
+
+#else /* !CONFIG_SENSORS_LM87 */
+
+static inline int
+efx_init_lm87(struct efx_nic *efx, struct i2c_board_info *info,
+	      const u8 *reg_values)
+{
+	return 0;
+}
+static inline void efx_fini_lm87(struct efx_nic *efx)
+{
+}
+static inline int efx_check_lm87(struct efx_nic *efx, unsigned mask)
+{
+	return 0;
+}
+
+#endif /* CONFIG_SENSORS_LM87 */
+
+/*****************************************************************************
  * Support for the SFE4002
  *
  */
+static u8 sfe4002_lm87_channel = 0x03; /* use AIN not FAN inputs */
+
+static const u8 sfe4002_lm87_regs[] = {
+	LM87_IN_LIMITS(0, 0x83, 0x91),		/* 2.5V:  1.8V +/- 5% */
+	LM87_IN_LIMITS(1, 0x51, 0x5a),		/* Vccp1: 1.2V +/- 5% */
+	LM87_IN_LIMITS(2, 0xb6, 0xca),		/* 3.3V:  3.3V +/- 5% */
+	LM87_IN_LIMITS(3, 0xb0, 0xc9),		/* 5V:    4.6-5.2V */
+	LM87_IN_LIMITS(4, 0xb0, 0xe0),		/* 12V:   11-14V */
+	LM87_IN_LIMITS(5, 0x44, 0x4b),		/* Vccp2: 1.0V +/- 5% */
+	LM87_AIN_LIMITS(0, 0xa0, 0xb2),		/* AIN1:  1.66V +/- 5% */
+	LM87_AIN_LIMITS(1, 0x91, 0xa1),		/* AIN2:  1.5V +/- 5% */
+	LM87_TEMP_INT_LIMITS(10, 60),		/* board */
+	LM87_TEMP_EXT1_LIMITS(10, 70),		/* Falcon */
+	0
+};
+
+static struct i2c_board_info sfe4002_hwmon_info = {
+	I2C_BOARD_INFO("lm87", 0x2e),
+	.platform_data	= &sfe4002_lm87_channel,
+	.irq		= -1,
+};
+
 /****************************************************************************/
 /* LED allocations. Note that on rev A0 boards the schematic and the reality
  * differ: red and green are swapped. Below is the fixed (A1) layout (there
@@ -84,81 +204,67 @@ static void sfe4002_fault_led(struct efx_nic *efx, bool state)
 			QUAKE_LED_OFF);
 }
 
+static int sfe4002_check_hw(struct efx_nic *efx)
+{
+	/* A0 board rev. 4002s report a temperature fault the whole time
+	 * (bad sensor) so we mask it out. */
+	unsigned alarm_mask =
+		(efx->board_info.major == 0 && efx->board_info.minor == 0) ?
+		~LM87_ALARM_TEMP_EXT1 : ~0;
+
+	return efx_check_lm87(efx, alarm_mask);
+}
+
 static int sfe4002_init(struct efx_nic *efx)
 {
+	int rc = efx_init_lm87(efx, &sfe4002_hwmon_info, sfe4002_lm87_regs);
+	if (rc)
+		return rc;
+	efx->board_info.monitor = sfe4002_check_hw;
 	efx->board_info.init_leds = sfe4002_init_leds;
 	efx->board_info.set_fault_led = sfe4002_fault_led;
 	efx->board_info.blink = board_blink;
+	efx->board_info.fini = efx_fini_lm87;
 	return 0;
 }
 
 /* This will get expanded as board-specific details get moved out of the
  * PHY drivers. */
 struct efx_board_data {
+	enum efx_board_type type;
 	const char *ref_model;
 	const char *gen_type;
 	int (*init) (struct efx_nic *nic);
 };
 
-static int dummy_init(struct efx_nic *nic)
-{
-	return 0;
-}
 
 static struct efx_board_data board_data[] = {
-	[EFX_BOARD_INVALID] =
-	{NULL,	    NULL,                  dummy_init},
-	[EFX_BOARD_SFE4001] =
-	{"SFE4001", "10GBASE-T adapter",   sfe4001_init},
-	[EFX_BOARD_SFE4002] =
-	{"SFE4002", "XFP adapter",         sfe4002_init},
+	{ EFX_BOARD_SFE4001, "SFE4001", "10GBASE-T adapter", sfe4001_init },
+	{ EFX_BOARD_SFE4002, "SFE4002", "XFP adapter", sfe4002_init },
+	{ EFX_BOARD_SFN4111T, "SFN4111T", "100/1000/10GBASE-T adapter",
+	  sfn4111t_init },
 };
 
-int efx_set_board_info(struct efx_nic *efx, u16 revision_info)
+void efx_set_board_info(struct efx_nic *efx, u16 revision_info)
 {
-	int rc = 0;
-	struct efx_board_data *data;
+	struct efx_board_data *data = NULL;
+	int i;
 
-	if (BOARD_TYPE(revision_info) >= EFX_BOARD_MAX) {
-		EFX_ERR(efx, "squashing unknown board type %d\n",
-			BOARD_TYPE(revision_info));
-		revision_info = 0;
-	}
+	efx->board_info.type = BOARD_TYPE(revision_info);
+	efx->board_info.major = BOARD_MAJOR(revision_info);
+	efx->board_info.minor = BOARD_MINOR(revision_info);
 
-	if (BOARD_TYPE(revision_info) == 0) {
-		efx->board_info.major = 0;
-		efx->board_info.minor = 0;
-		/* For early boards that don't have revision info. there is
-		 * only 1 board for each PHY type, so we can work it out, with
-		 * the exception of the PHY-less boards. */
-		switch (efx->phy_type) {
-		case PHY_TYPE_10XPRESS:
-			efx->board_info.type = EFX_BOARD_SFE4001;
-			break;
-		case PHY_TYPE_XFP:
-			efx->board_info.type = EFX_BOARD_SFE4002;
-			break;
-		default:
-			efx->board_info.type = 0;
-			break;
-		}
-	} else {
-		efx->board_info.type = BOARD_TYPE(revision_info);
-		efx->board_info.major = BOARD_MAJOR(revision_info);
-		efx->board_info.minor = BOARD_MINOR(revision_info);
-	}
+	for (i = 0; i < ARRAY_SIZE(board_data); i++)
+		if (board_data[i].type == efx->board_info.type)
+			data = &board_data[i];
 
-	data = &board_data[efx->board_info.type];
-
-	/* Report the board model number or generic type for recognisable
-	 * boards. */
-	if (efx->board_info.type != 0)
+	if (data) {
 		EFX_INFO(efx, "board is %s rev %c%d\n",
 			 (efx->pci_dev->subsystem_vendor == EFX_VENDID_SFC)
 			 ? data->ref_model : data->gen_type,
 			 'A' + efx->board_info.major, efx->board_info.minor);
-
-	efx->board_info.init = data->init;
-
-	return rc;
+		efx->board_info.init = data->init;
+	} else {
+		EFX_ERR(efx, "unknown board type %d\n", efx->board_info.type);
+	}
 }

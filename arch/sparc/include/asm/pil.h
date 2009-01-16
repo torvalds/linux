@@ -10,7 +10,12 @@
  *
  * In fact any XCALL which has to etrap/rtrap has a problem because
  * it is difficult to prevent rtrap from running BH's, and that would
- * need to be done if the XCALL arrived while %pil==15.
+ * need to be done if the XCALL arrived while %pil==PIL_NORMAL_MAX.
+ *
+ * Finally, in order to handle profiling events even when a
+ * local_irq_disable() is in progress, we only disable up to level 14
+ * interrupts.  Profile counter overflow interrupts arrive at level
+ * 15.
  */
 #define PIL_SMP_CALL_FUNC	1
 #define PIL_SMP_RECEIVE_SIGNAL	2
@@ -18,5 +23,7 @@
 #define PIL_SMP_CTX_NEW_VERSION	4
 #define PIL_DEVICE_IRQ		5
 #define PIL_SMP_CALL_FUNC_SNGL	6
+#define PIL_NORMAL_MAX		14
+#define PIL_NMI			15
 
 #endif /* !(_SPARC64_PIL_H) */

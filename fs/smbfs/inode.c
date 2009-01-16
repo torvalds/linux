@@ -586,7 +586,7 @@ static int smb_fill_super(struct super_block *sb, void *raw_data, int silent)
 		if (parse_options(mnt, raw_data))
 			goto out_bad_option;
 	}
-	mnt->mounted_uid = current->uid;
+	mnt->mounted_uid = current_uid();
 	smb_setcodepage(server, &mnt->codepage);
 
 	/*

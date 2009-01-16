@@ -7,29 +7,31 @@ DECLARE_WAIT_QUEUE_HEAD(ide_park_wq);
 
 static void issue_park_cmd(ide_drive_t *drive, unsigned long timeout)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	struct request_queue *q = drive->queue;
 	struct request *rq;
 	int rc;
 
 	timeout += jiffies;
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwif->lock);
 	if (drive->dev_flags & IDE_DFLAG_PARKED) {
-		ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
-		int reset_timer;
+		int reset_timer = time_before(timeout, drive->sleep);
+		int start_queue = 0;
 
-		reset_timer = time_before(timeout, drive->sleep);
 		drive->sleep = timeout;
 		wake_up_all(&ide_park_wq);
-		if (reset_timer && hwgroup->sleeping &&
-		    del_timer(&hwgroup->timer)) {
-			hwgroup->sleeping = 0;
-			hwgroup->busy = 0;
+		if (reset_timer && del_timer(&hwif->timer))
+			start_queue = 1;
+		spin_unlock_irq(&hwif->lock);
+
+		if (start_queue) {
+			spin_lock_irq(q->queue_lock);
 			blk_start_queueing(q);
+			spin_unlock_irq(q->queue_lock);
 		}
-		spin_unlock_irq(&ide_lock);
 		return;
 	}
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwif->lock);
 
 	rq = blk_get_request(q, READ, __GFP_WAIT);
 	rq->cmd[0] = REQ_PARK_HEADS;
@@ -62,20 +64,21 @@ ssize_t ide_park_show(struct device *dev, struct device_attribute *attr,
 		      char *buf)
 {
 	ide_drive_t *drive = to_ide_device(dev);
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long now;
 	unsigned int msecs;
 
 	if (drive->dev_flags & IDE_DFLAG_NO_UNLOAD)
 		return -EOPNOTSUPP;
 
-	spin_lock_irq(&ide_lock);
+	spin_lock_irq(&hwif->lock);
 	now = jiffies;
 	if (drive->dev_flags & IDE_DFLAG_PARKED &&
 	    time_after(drive->sleep, now))
 		msecs = jiffies_to_msecs(drive->sleep - now);
 	else
 		msecs = 0;
-	spin_unlock_irq(&ide_lock);
+	spin_unlock_irq(&hwif->lock);
 
 	return snprintf(buf, 20, "%u\n", msecs);
 }

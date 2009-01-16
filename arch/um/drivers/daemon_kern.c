@@ -22,7 +22,7 @@ static void daemon_init(struct net_device *dev, void *data)
 	struct daemon_data *dpri;
 	struct daemon_init *init = data;
 
-	pri = dev->priv;
+	pri = netdev_priv(dev);
 	dpri = (struct daemon_data *) pri->user;
 	dpri->sock_type = init->sock_type;
 	dpri->ctl_sock = init->ctl_sock;

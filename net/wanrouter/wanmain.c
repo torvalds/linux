@@ -60,6 +60,8 @@
 
 #define KMEM_SAFETYZONE 8
 
+#define DEV_TO_SLAVE(dev)	(*((struct net_device **)netdev_priv(dev)))
+
 /*
  * 	Function Prototypes
  */
@@ -511,7 +513,7 @@ static int wanrouter_device_shutdown(struct wan_device *wandev)
 		if (err)
 			return err;
 		/* The above function deallocates the current dev
-		 * structure. Therefore, we cannot use dev->priv
+		 * structure. Therefore, we cannot use netdev_priv(dev)
 		 * as the next element: wandev->dev points to the
 		 * next element */
 		dev = wandev->dev;
@@ -589,10 +591,6 @@ static int wanrouter_device_new_if(struct wan_device *wandev,
 		err = -EPROTONOSUPPORT;
 		goto out;
 	} else {
-		dev = kzalloc(sizeof(struct net_device), GFP_KERNEL);
-		err = -ENOBUFS;
-		if (dev == NULL)
-			goto out;
 		err = wandev->new_if(wandev, dev, cnf);
 	}
 
@@ -622,10 +620,9 @@ static int wanrouter_device_new_if(struct wan_device *wandev,
 					wandev->dev = dev;
 				} else {
 					for (slave=wandev->dev;
-					 *((struct net_device **)slave->priv);
-				 slave = *((struct net_device **)slave->priv));
-
-				     *((struct net_device **)slave->priv) = dev;
+					     DEV_TO_SLAVE(slave);
+					     slave = DEV_TO_SLAVE(slave))
+						DEV_TO_SLAVE(slave) = dev;
 				}
 				++wandev->ndev;
 
@@ -636,15 +633,9 @@ static int wanrouter_device_new_if(struct wan_device *wandev,
 		}
 		if (wandev->del_if)
 			wandev->del_if(wandev, dev);
+		free_netdev(dev);
 	}
 
-	/* This code has moved from del_if() function */
-	kfree(dev->priv);
-	dev->priv = NULL;
-
-	/* Sync PPP is disabled */
-	if (cnf->config_id != WANCONFIG_MPPP)
-		kfree(dev);
 out:
 	kfree(cnf);
 	return err;
@@ -734,7 +725,7 @@ static int wanrouter_delete_interface(struct wan_device *wandev, char *name)
 	dev = wandev->dev;
 	prev = NULL;
 	while (dev && strcmp(name, dev->name)) {
-		struct net_device **slave = dev->priv;
+		struct net_device **slave = netdev_priv(dev);
 		prev = dev;
 		dev = *slave;
 	}
@@ -751,23 +742,18 @@ static int wanrouter_delete_interface(struct wan_device *wandev, char *name)
 
 	lock_adapter_irq(&wandev->lock, &smp_flags);
 	if (prev) {
-		struct net_device **prev_slave = prev->priv;
-		struct net_device **slave = dev->priv;
+		struct net_device **prev_slave = netdev_priv(prev);
+		struct net_device **slave = netdev_priv(dev);
 
 		*prev_slave = *slave;
 	} else {
-		struct net_device **slave = dev->priv;
+		struct net_device **slave = netdev_priv(dev);
 		wandev->dev = *slave;
 	}
 	--wandev->ndev;
 	unlock_adapter_irq(&wandev->lock, &smp_flags);
 
 	printk(KERN_INFO "%s: unregistering '%s'\n", wandev->name, dev->name);
-
-	/* Due to new interface linking method using dev->priv,
-	 * this code has moved from del_if() function.*/
-	kfree(dev->priv);
-	dev->priv=NULL;
 
 	unregister_netdev(dev);
 

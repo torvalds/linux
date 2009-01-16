@@ -21,7 +21,7 @@ static ctl_table unix_table[] = {
 		.data		= &init_net.unx.sysctl_max_dgram_qlen,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= proc_dointvec
 	},
 	{ .ctl_name = 0 }
 };
@@ -61,4 +61,3 @@ void unix_sysctl_unregister(struct net *net)
 	unregister_sysctl_table(net->unx.ctl);
 	kfree(table);
 }
-

@@ -779,6 +779,22 @@ static void __devinit natsemi_init_media (struct net_device *dev)
 
 }
 
+static const struct net_device_ops natsemi_netdev_ops = {
+	.ndo_open		= netdev_open,
+	.ndo_stop		= netdev_close,
+	.ndo_start_xmit		= start_tx,
+	.ndo_get_stats		= get_stats,
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_change_mtu		= natsemi_change_mtu,
+	.ndo_do_ioctl		= netdev_ioctl,
+	.ndo_tx_timeout 	= ns_tx_timeout,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= natsemi_poll_controller,
+#endif
+};
+
 static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
@@ -792,7 +808,6 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	const int pcibar = 1; /* PCI base address register */
 	int prev_eedata;
 	u32 tmp;
-	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -912,20 +927,9 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	if (find_cnt < MAX_UNITS  &&  full_duplex[find_cnt])
 		np->full_duplex = 1;
 
-	/* The chip-specific entries in the device structure. */
-	dev->open = &netdev_open;
-	dev->hard_start_xmit = &start_tx;
-	dev->stop = &netdev_close;
-	dev->get_stats = &get_stats;
-	dev->set_multicast_list = &set_rx_mode;
-	dev->change_mtu = &natsemi_change_mtu;
-	dev->do_ioctl = &netdev_ioctl;
-	dev->tx_timeout = &ns_tx_timeout;
+	dev->netdev_ops = &natsemi_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = &natsemi_poll_controller;
-#endif
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 
 	if (mtu)
@@ -948,10 +952,10 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 
 	if (netif_msg_drv(np)) {
 		printk(KERN_INFO "natsemi %s: %s at %#08llx "
-		       "(%s), %s, IRQ %d",
+		       "(%s), %pM, IRQ %d",
 		       dev->name, natsemi_pci_info[chip_idx].name,
 		       (unsigned long long)iostart, pci_name(np->pci_dev),
-		       print_mac(mac, dev->dev_addr), irq);
+		       dev->dev_addr, irq);
 		if (dev->if_port == PORT_TP)
 			printk(", port TP.\n");
 		else if (np->ignore_phy)
@@ -2194,10 +2198,10 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 
 	prefetch(&np->rx_skbuff[np->cur_rx % RX_RING_SIZE]);
 
-	if (netif_rx_schedule_prep(dev, &np->napi)) {
+	if (netif_rx_schedule_prep(&np->napi)) {
 		/* Disable interrupts and register for poll */
 		natsemi_irq_disable(dev);
-		__netif_rx_schedule(dev, &np->napi);
+		__netif_rx_schedule(&np->napi);
 	} else
 		printk(KERN_WARNING
 	       	       "%s: Ignoring interrupt, status %#08x, mask %#08x.\n",
@@ -2249,7 +2253,7 @@ static int natsemi_poll(struct napi_struct *napi, int budget)
 		np->intr_status = readl(ioaddr + IntrStatus);
 	} while (np->intr_status);
 
-	netif_rx_complete(dev, napi);
+	netif_rx_complete(napi);
 
 	/* Reenable interrupts providing nothing is trying to shut
 	 * the chip down. */
@@ -2362,7 +2366,6 @@ static void netdev_rx(struct net_device *dev, int *work_done, int work_to_do)
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_receive_skb(skb);
-			dev->last_rx = jiffies;
 			np->stats.rx_packets++;
 			np->stats.rx_bytes += pkt_len;
 		}

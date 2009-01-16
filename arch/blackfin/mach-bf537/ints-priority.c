@@ -55,15 +55,15 @@ void __init program_IAR(void)
 	bfin_write_SIC_IAR2(((CONFIG_IRQ_CAN_TX - 7) << IRQ_CAN_TX_POS) |
 			    ((CONFIG_IRQ_MAC_RX - 7) << IRQ_MAC_RX_POS) |
 			    ((CONFIG_IRQ_MAC_TX - 7) << IRQ_MAC_TX_POS) |
-			    ((CONFIG_IRQ_TMR0 - 7) << IRQ_TMR0_POS) |
-			    ((CONFIG_IRQ_TMR1 - 7) << IRQ_TMR1_POS) |
-			    ((CONFIG_IRQ_TMR2 - 7) << IRQ_TMR2_POS) |
-			    ((CONFIG_IRQ_TMR3 - 7) << IRQ_TMR3_POS) |
-			    ((CONFIG_IRQ_TMR4 - 7) << IRQ_TMR4_POS));
+			    ((CONFIG_IRQ_TIMER0 - 7) << IRQ_TIMER0_POS) |
+			    ((CONFIG_IRQ_TIMER1 - 7) << IRQ_TIMER1_POS) |
+			    ((CONFIG_IRQ_TIMER2 - 7) << IRQ_TIMER2_POS) |
+			    ((CONFIG_IRQ_TIMER3 - 7) << IRQ_TIMER3_POS) |
+			    ((CONFIG_IRQ_TIMER4 - 7) << IRQ_TIMER4_POS));
 
-	bfin_write_SIC_IAR3(((CONFIG_IRQ_TMR5 - 7) << IRQ_TMR5_POS) |
-			    ((CONFIG_IRQ_TMR6 - 7) << IRQ_TMR6_POS) |
-			    ((CONFIG_IRQ_TMR7 - 7) << IRQ_TMR7_POS) |
+	bfin_write_SIC_IAR3(((CONFIG_IRQ_TIMER5 - 7) << IRQ_TIMER5_POS) |
+			    ((CONFIG_IRQ_TIMER6 - 7) << IRQ_TIMER6_POS) |
+			    ((CONFIG_IRQ_TIMER7 - 7) << IRQ_TIMER7_POS) |
 			    ((CONFIG_IRQ_PROG_INTA - 7) << IRQ_PROG_INTA_POS) |
 			    ((CONFIG_IRQ_PORTG_INTB - 7) << IRQ_PORTG_INTB_POS) |
 			    ((CONFIG_IRQ_MEM_DMA0 - 7) << IRQ_MEM_DMA0_POS) |

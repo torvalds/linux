@@ -35,6 +35,7 @@
 #include <plat/s3c2410.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
+#include <plat/iic.h>
 #include <plat/cpu.h>
 
 static struct map_desc otom11_iodesc[] __initdata = {
@@ -94,7 +95,7 @@ static struct platform_device *otom11_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
-	&s3c_device_i2c,
+	&s3c_device_i2c0,
 	&s3c_device_iis,
  	&s3c_device_rtc,
 	&otom_device_nor,
@@ -109,6 +110,7 @@ static void __init otom11_map_io(void)
 
 static void __init otom11_init(void)
 {
+	s3c_i2c0_set_platdata(NULL);
 	platform_add_devices(otom11_devices, ARRAY_SIZE(otom11_devices));
 }
 

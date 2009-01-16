@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <sound/core.h>
 
 #ifdef CONFIG_SOUND_OSS_CORE
 static int __init init_oss_soundcore(void);

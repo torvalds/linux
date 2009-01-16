@@ -5,9 +5,6 @@
 #include <asm/cacheflush.h>
 #include <asm/mpc52xx.h>
 
-#include "mpc52xx_pic.h"
-
-
 /* these are defined in mpc52xx_sleep.S, and only used here */
 extern void mpc52xx_deep_sleep(void __iomem *sram, void __iomem *sdram_regs,
 		struct mpc52xx_cdm __iomem *, struct mpc52xx_intr __iomem*);

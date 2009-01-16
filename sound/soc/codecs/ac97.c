@@ -24,7 +24,8 @@
 
 #define AC97_VERSION "0.6"
 
-static int ac97_prepare(struct snd_pcm_substream *substream)
+static int ac97_prepare(struct snd_pcm_substream *substream,
+			struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -42,7 +43,7 @@ static int ac97_prepare(struct snd_pcm_substream *substream)
 
 struct snd_soc_dai ac97_dai = {
 	.name = "AC97 HiFi",
-	.type = SND_SOC_DAI_AC97,
+	.ac97_control = 1,
 	.playback = {
 		.stream_name = "AC97 Playback",
 		.channels_min = 1,
@@ -113,7 +114,7 @@ static int ac97_soc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto bus_err;
 
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0)
 		goto bus_err;
 	return 0;

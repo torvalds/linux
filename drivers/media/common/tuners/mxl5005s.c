@@ -3598,7 +3598,7 @@ static u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
 		76, 77, 91, 134, 135, 137, 147,
 		156, 166, 167, 168, 25 };
 
-	*count = sizeof(RegAddr) / sizeof(u8);
+	*count = ARRAY_SIZE(RegAddr);
 
 	status += MXL_BlockInit(fe);
 
@@ -3630,7 +3630,7 @@ static u16 MXL_GetCHRegister(struct dvb_frontend *fe, u8 *RegNum, u8 *RegVal,
 	*/
 #endif
 
-	*count = sizeof(RegAddr) / sizeof(u8);
+	*count = ARRAY_SIZE(RegAddr);
 
 	for (i = 0 ; i < *count; i++) {
 		RegNum[i] = RegAddr[i];
@@ -3648,7 +3648,7 @@ static u16 MXL_GetCHRegister_ZeroIF(struct dvb_frontend *fe, u8 *RegNum,
 
 	u8 RegAddr[] = {43, 136};
 
-	*count = sizeof(RegAddr) / sizeof(u8);
+	*count = ARRAY_SIZE(RegAddr);
 
 	for (i = 0; i < *count; i++) {
 		RegNum[i] = RegAddr[i];

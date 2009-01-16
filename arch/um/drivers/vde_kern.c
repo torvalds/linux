@@ -19,7 +19,7 @@ static void vde_init(struct net_device *dev, void *data)
 	struct uml_net_private *pri;
 	struct vde_data *vpri;
 
-	pri = dev->priv;
+	pri = netdev_priv(dev);
 	vpri = (struct vde_data *) pri->user;
 
 	vpri->vde_switch = init->vde_switch;

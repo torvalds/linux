@@ -265,7 +265,6 @@ static int __init at1700_probe1(struct net_device *dev, int ioaddr)
 	unsigned int i, irq, is_fmv18x = 0, is_at1700 = 0;
 	int slot, ret = -ENODEV;
 	struct net_local *lp = netdev_priv(dev);
-	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, AT1700_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -397,7 +396,7 @@ found:
 			dev->dev_addr[i] = val;
 		}
 	}
-	printk("%s", print_mac(mac, dev->dev_addr));
+	printk("%pM", dev->dev_addr);
 
 	/* The EEPROM word 12 bit 0x0400 means use regular 100 ohm 10baseT signals,
 	   rather than 150 ohm shielded twisted pair compensation.
@@ -768,7 +767,6 @@ net_rx(struct net_device *dev)
 			insw(ioaddr + DATAPORT, skb_put(skb,pkt_len), (pkt_len + 1) >> 1);
 			skb->protocol=eth_type_trans(skb, dev);
 			netif_rx(skb);
-			dev->last_rx = jiffies;
 			dev->stats.rx_packets++;
 			dev->stats.rx_bytes += pkt_len;
 		}
@@ -901,15 +899,3 @@ module_init(at1700_module_init);
 module_exit(at1700_module_exit);
 #endif /* MODULE */
 MODULE_LICENSE("GPL");
-
-
-/*
- * Local variables:
- *  compile-command: "gcc -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -c at1700.c"
- *  alt-compile-command: "gcc -DMODVERSIONS -DMODULE -D__KERNEL__ -Wall -Wstrict-prototypes -O6 -c at1700.c"
- *  tab-width: 4
- *  c-basic-offset: 4
- *  c-indent-level: 4
- * End:
- */
-

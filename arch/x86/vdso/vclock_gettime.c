@@ -9,6 +9,9 @@
  * Also alternative() doesn't work.
  */
 
+/* Disable profiling for userspace code: */
+#define DISABLE_BRANCH_PROFILING
+
 #include <linux/kernel.h>
 #include <linux/posix-timers.h>
 #include <linux/time.h>

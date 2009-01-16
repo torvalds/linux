@@ -167,6 +167,7 @@ void __init mv78xx0_map_io(void)
  ****************************************************************************/
 static struct orion_ehci_data mv78xx0_ehci_data = {
 	.dram		= &mv78xx0_mbus_dram_info,
+	.phy_version	= EHCI_PHY_NA,
 };
 
 static u64 ehci_dmamask = 0xffffffffUL;

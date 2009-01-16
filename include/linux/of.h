@@ -57,6 +57,12 @@ extern struct device_node *of_get_next_child(const struct device_node *node,
 	for (child = of_get_next_child(parent, NULL); child != NULL; \
 	     child = of_get_next_child(parent, child))
 
+extern struct device_node *of_find_node_with_property(
+	struct device_node *from, const char *prop_name);
+#define for_each_node_with_property(dn, prop_name) \
+	for (dn = of_find_node_with_property(NULL, prop_name); dn; \
+	     dn = of_find_node_with_property(dn, prop_name))
+
 extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);

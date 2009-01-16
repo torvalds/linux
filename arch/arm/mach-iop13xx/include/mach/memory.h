@@ -16,18 +16,6 @@
 #define IOP13XX_PMMR_P_START (IOP13XX_PMMR_PHYS_MEM_BASE)
 #define IOP13XX_PMMR_P_END   (IOP13XX_PMMR_PHYS_MEM_BASE + IOP13XX_PMMR_SIZE)
 
-/*
- * Virtual view <-> PCI DMA view memory address translations
- * virt_to_bus: Used to translate the virtual address to an
- *		address suitable to be passed to set_dma_addr
- * bus_to_virt: Used to convert an address for DMA operations
- *		to an address that the kernel can use.
- */
-
-/* RAM has 1:1 mapping on the PCIe/x Busses */
-#define __virt_to_bus(x)	(__virt_to_phys(x))
-#define __bus_to_virt(x)	(__phys_to_virt(x))
-
 static inline dma_addr_t __virt_to_lbus(unsigned long x)
 {
 	return x + IOP13XX_PMMR_PHYS_MEM_BASE - IOP13XX_PMMR_VIRT_MEM_BASE;
@@ -55,7 +43,7 @@ static inline unsigned long __lbus_to_virt(dma_addr_t x)
 		if (is_lbus_device(dev) && __is_lbus_dma(__dma))	\
 			__virt = __lbus_to_virt(__dma);			\
 		else							\
-			__virt = __bus_to_virt(__dma);			\
+			__virt = __phys_to_virt(__dma);			\
 		(void *)__virt;						\
 	})
 
@@ -66,7 +54,7 @@ static inline unsigned long __lbus_to_virt(dma_addr_t x)
 		if (is_lbus_device(dev) && __is_lbus_virt(__virt))	\
 			__dma = __virt_to_lbus(__virt);			\
 		else							\
-			__dma = __virt_to_bus(__virt);			\
+			__dma = __virt_to_phys(__virt);			\
 		__dma;							\
 	})
 

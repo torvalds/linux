@@ -153,4 +153,8 @@ void vcs_remove_sysfs(struct tty_struct *tty);
 #define VESA_HSYNC_SUSPEND      2
 #define VESA_POWERDOWN          3
 
+#ifdef CONFIG_VGA_CONSOLE
+extern bool vgacon_text_force(void);
+#endif
+
 #endif /* _LINUX_CONSOLE_H */

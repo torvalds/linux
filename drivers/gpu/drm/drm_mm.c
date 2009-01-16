@@ -296,3 +296,4 @@ void drm_mm_takedown(struct drm_mm * mm)
 
 	drm_free(entry, sizeof(*entry), DRM_MEM_MM);
 }
+EXPORT_SYMBOL(drm_mm_takedown);

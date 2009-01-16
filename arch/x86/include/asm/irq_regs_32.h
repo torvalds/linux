@@ -9,6 +9,8 @@
 
 #include <asm/percpu.h>
 
+#define ARCH_HAS_OWN_IRQ_REGS
+
 DECLARE_PER_CPU(struct pt_regs *, irq_regs);
 
 static inline struct pt_regs *get_irq_regs(void)

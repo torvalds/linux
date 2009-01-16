@@ -541,7 +541,8 @@ static int wm8971_set_dai_fmt(struct snd_soc_dai *codec_dai,
 }
 
 static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params)
+	struct snd_pcm_hw_params *params,
+	struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -634,8 +635,6 @@ struct snd_soc_dai wm8971_dai = {
 		.formats = WM8971_FORMATS,},
 	.ops = {
 		.hw_params = wm8971_pcm_hw_params,
-	},
-	.dai_ops = {
 		.digital_mute = wm8971_mute,
 		.set_fmt = wm8971_set_dai_fmt,
 		.set_sysclk = wm8971_set_dai_sysclk,
@@ -748,7 +747,7 @@ static int wm8971_init(struct snd_soc_device *socdev)
 
 	wm8971_add_controls(codec);
 	wm8971_add_widgets(codec);
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "wm8971: failed to register card\n");
 		goto card_err;
@@ -935,6 +934,18 @@ struct snd_soc_codec_device soc_codec_dev_wm8971 = {
 };
 
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8971);
+
+static int __init wm8971_modinit(void)
+{
+	return snd_soc_register_dai(&wm8971_dai);
+}
+module_init(wm8971_modinit);
+
+static void __exit wm8971_exit(void)
+{
+	snd_soc_unregister_dai(&wm8971_dai);
+}
+module_exit(wm8971_exit);
 
 MODULE_DESCRIPTION("ASoC WM8971 driver");
 MODULE_AUTHOR("Lab126");

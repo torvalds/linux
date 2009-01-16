@@ -12,9 +12,12 @@
 #include <asm/sections.h>
 #include <asm/e820.h>
 #include <asm/bios_ebda.h>
+#include <asm/trampoline.h>
 
 void __init i386_start_kernel(void)
 {
+	reserve_trampoline_memory();
+
 	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
 
 #ifdef CONFIG_BLK_DEV_INITRD

@@ -106,64 +106,33 @@ extern int ocpi_enable(void);
 
 static struct clk *usb_clk;
 
-static int isp1301_probe(struct i2c_adapter *adap);
-static int isp1301_detach(struct i2c_client *client);
-
 static const unsigned short normal_i2c[] =
     { ISP1301_I2C_ADDR, ISP1301_I2C_ADDR + 1, I2C_CLIENT_END };
-static const unsigned short dummy_i2c_addrlist[] = { I2C_CLIENT_END };
 
-static struct i2c_client_address_data addr_data = {
-	.normal_i2c = normal_i2c,
-	.probe = dummy_i2c_addrlist,
-	.ignore = dummy_i2c_addrlist,
+static int isp1301_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	return 0;
+}
+
+static int isp1301_remove(struct i2c_client *client)
+{
+	return 0;
+}
+
+const struct i2c_device_id isp1301_id[] = {
+	{ "isp1301_pnx", 0 },
+	{ }
 };
 
 struct i2c_driver isp1301_driver = {
 	.driver = {
 		.name = "isp1301_pnx",
 	},
-	.attach_adapter = isp1301_probe,
-	.detach_client = isp1301_detach,
+	.probe = isp1301_probe,
+	.remove = isp1301_remove,
+	.id_table = isp1301_id,
 };
-
-static int isp1301_attach(struct i2c_adapter *adap, int addr, int kind)
-{
-	struct i2c_client *c;
-	int err;
-
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
-	if (!c)
-		return -ENOMEM;
-
-	strlcpy(c->name, "isp1301_pnx", I2C_NAME_SIZE);
-	c->flags = 0;
-	c->addr = addr;
-	c->adapter = adap;
-	c->driver = &isp1301_driver;
-
-	err = i2c_attach_client(c);
-	if (err) {
-		kfree(c);
-		return err;
-	}
-
-	isp1301_i2c_client = c;
-
-	return 0;
-}
-
-static int isp1301_probe(struct i2c_adapter *adap)
-{
-	return i2c_probe(adap, &addr_data, isp1301_attach);
-}
-
-static int isp1301_detach(struct i2c_client *client)
-{
-	i2c_detach_client(client);
-	kfree(isp1301_i2c_client);
-	return 0;
-}
 
 static void i2c_write(u8 buf, u8 subaddr)
 {
@@ -328,6 +297,8 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	struct usb_hcd *hcd = 0;
 	struct ohci_hcd *ohci;
 	const struct hc_driver *driver = &ohci_pnx4008_hc_driver;
+	struct i2c_adapter *i2c_adap;
+	struct i2c_board_info i2c_info;
 
 	int ret = 0, irq;
 
@@ -351,8 +322,19 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 
 	ret = i2c_add_driver(&isp1301_driver);
 	if (ret < 0) {
-		err("failed to connect I2C to ISP1301 USB Transceiver");
+		err("failed to add ISP1301 driver");
 		goto out;
+	}
+	i2c_adap = i2c_get_adapter(2);
+	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
+	strlcpy(i2c_info.name, "isp1301_pnx", I2C_NAME_SIZE);
+	isp1301_i2c_client = i2c_new_probed_device(i2c_adap, &i2c_info,
+						   normal_i2c);
+	i2c_put_adapter(i2c_adap);
+	if (!isp1301_i2c_client) {
+		err("failed to connect I2C to ISP1301 USB Transceiver");
+		ret = -ENODEV;
+		goto out_i2c_driver;
 	}
 
 	isp1301_configure();
@@ -429,6 +411,9 @@ out3:
 out2:
 	clk_put(usb_clk);
 out1:
+	i2c_unregister_client(isp1301_i2c_client);
+	isp1301_i2c_client = NULL;
+out_i2c_driver:
 	i2c_del_driver(&isp1301_driver);
 out:
 	return ret;
@@ -445,6 +430,8 @@ static int usb_hcd_pnx4008_remove(struct platform_device *pdev)
 	pnx4008_unset_usb_bits();
 	clk_disable(usb_clk);
 	clk_put(usb_clk);
+	i2c_unregister_client(isp1301_i2c_client);
+	isp1301_i2c_client = NULL;
 	i2c_del_driver(&isp1301_driver);
 
 	platform_set_drvdata(pdev, NULL);

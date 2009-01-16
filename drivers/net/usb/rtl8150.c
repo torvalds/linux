@@ -212,8 +212,9 @@ static int set_registers(rtl8150_t * dev, u16 indx, u16 size, void *data)
 static void ctrl_callback(struct urb *urb)
 {
 	rtl8150_t *dev;
+	int status = urb->status;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		break;
 	case -EINPROGRESS:
@@ -221,7 +222,7 @@ static void ctrl_callback(struct urb *urb)
 	case -ENOENT:
 		break;
 	default:
-		dev_warn(&urb->dev->dev, "ctrl urb status %d\n", urb->status);
+		dev_warn(&urb->dev->dev, "ctrl urb status %d\n", status);
 	}
 	dev = urb->context;
 	clear_bit(RX_REG_SET, &dev->flags);
@@ -424,7 +425,8 @@ static void read_bulk_callback(struct urb *urb)
 	struct sk_buff *skb;
 	struct net_device *netdev;
 	u16 rx_stat;
-	int status;
+	int status = urb->status;
+	int result;
 
 	dev = urb->context;
 	if (!dev)
@@ -435,7 +437,7 @@ static void read_bulk_callback(struct urb *urb)
 	if (!netif_device_present(netdev))
 		return;
 
-	switch (urb->status) {
+	switch (status) {
 	case 0:
 		break;
 	case -ENOENT:
@@ -444,7 +446,7 @@ static void read_bulk_callback(struct urb *urb)
 		dev_warn(&urb->dev->dev, "may be reset is needed?..\n");
 		goto goon;
 	default:
-		dev_warn(&urb->dev->dev, "Rx status %d\n", urb->status);
+		dev_warn(&urb->dev->dev, "Rx status %d\n", status);
 		goto goon;
 	}
 
@@ -474,10 +476,10 @@ static void read_bulk_callback(struct urb *urb)
 goon:
 	usb_fill_bulk_urb(dev->rx_urb, dev->udev, usb_rcvbulkpipe(dev->udev, 1),
 		      dev->rx_skb->data, RTL8150_MTU, read_bulk_callback, dev);
-	status = usb_submit_urb(dev->rx_urb, GFP_ATOMIC);
-	if (status == -ENODEV)
+	result = usb_submit_urb(dev->rx_urb, GFP_ATOMIC);
+	if (result == -ENODEV)
 		netif_device_detach(dev->netdev);
-	else if (status) {
+	else if (result) {
 		set_bit(RX_URB_FAIL, &dev->flags);
 		goto resched;
 	} else {
@@ -530,6 +532,7 @@ tlsched:
 static void write_bulk_callback(struct urb *urb)
 {
 	rtl8150_t *dev;
+	int status = urb->status;
 
 	dev = urb->context;
 	if (!dev)
@@ -537,9 +540,9 @@ static void write_bulk_callback(struct urb *urb)
 	dev_kfree_skb_irq(dev->tx_skb);
 	if (!netif_device_present(dev->netdev))
 		return;
-	if (urb->status)
+	if (status)
 		dev_info(&urb->dev->dev, "%s: Tx status %d\n",
-			 dev->netdev->name, urb->status);
+			 dev->netdev->name, status);
 	dev->netdev->trans_start = jiffies;
 	netif_wake_queue(dev->netdev);
 }
@@ -548,12 +551,13 @@ static void intr_callback(struct urb *urb)
 {
 	rtl8150_t *dev;
 	__u8 *d;
-	int status;
+	int status = urb->status;
+	int res;
 
 	dev = urb->context;
 	if (!dev)
 		return;
-	switch (urb->status) {
+	switch (status) {
 	case 0:			/* success */
 		break;
 	case -ECONNRESET:	/* unlink */
@@ -563,7 +567,7 @@ static void intr_callback(struct urb *urb)
 	/* -EPIPE:  should clear the halt */
 	default:
 		dev_info(&urb->dev->dev, "%s: intr status %d\n",
-			 dev->netdev->name, urb->status);
+			 dev->netdev->name, status);
 		goto resubmit;
 	}
 
@@ -591,13 +595,13 @@ static void intr_callback(struct urb *urb)
 	}
 
 resubmit:
-	status = usb_submit_urb (urb, GFP_ATOMIC);
-	if (status == -ENODEV)
+	res = usb_submit_urb (urb, GFP_ATOMIC);
+	if (res == -ENODEV)
 		netif_device_detach(dev->netdev);
-	else if (status)
+	else if (res)
 		err ("can't resubmit intr, %s-%s/input0, status %d",
 				dev->udev->bus->bus_name,
-				dev->udev->devpath, status);
+				dev->udev->devpath, res);
 }
 
 static int rtl8150_suspend(struct usb_interface *intf, pm_message_t message)

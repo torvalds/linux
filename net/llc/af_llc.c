@@ -103,7 +103,6 @@ static inline u8 llc_ui_header_len(struct sock *sk, struct sockaddr_llc *addr)
  *	llc_ui_send_data - send data via reliable llc2 connection
  *	@sk: Connection the socket is using.
  *	@skb: Data the user wishes to send.
- *	@addr: Source and destination fields provided by the user.
  *	@noblock: can we block waiting for data?
  *
  *	Send data via reliable llc2 connection.

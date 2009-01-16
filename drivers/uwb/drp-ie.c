@@ -16,12 +16,101 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
 #include <linux/uwb.h>
 
 #include "uwb-internal.h"
+
+
+/*
+ * Return the reason code for a reservations's DRP IE.
+ */
+int uwb_rsv_reason_code(struct uwb_rsv *rsv)
+{
+	static const int reason_codes[] = {
+		[UWB_RSV_STATE_O_INITIATED]          = UWB_DRP_REASON_ACCEPTED,
+		[UWB_RSV_STATE_O_PENDING]            = UWB_DRP_REASON_ACCEPTED,
+		[UWB_RSV_STATE_O_MODIFIED]           = UWB_DRP_REASON_MODIFIED,
+		[UWB_RSV_STATE_O_ESTABLISHED]        = UWB_DRP_REASON_ACCEPTED,
+		[UWB_RSV_STATE_O_TO_BE_MOVED]        = UWB_DRP_REASON_ACCEPTED,
+		[UWB_RSV_STATE_O_MOVE_COMBINING]     = UWB_DRP_REASON_MODIFIED,
+		[UWB_RSV_STATE_O_MOVE_REDUCING]      = UWB_DRP_REASON_MODIFIED,
+		[UWB_RSV_STATE_O_MOVE_EXPANDING]     = UWB_DRP_REASON_ACCEPTED,
+		[UWB_RSV_STATE_T_ACCEPTED]           = UWB_DRP_REASON_ACCEPTED,
+		[UWB_RSV_STATE_T_CONFLICT]           = UWB_DRP_REASON_CONFLICT,
+		[UWB_RSV_STATE_T_PENDING]            = UWB_DRP_REASON_PENDING,
+		[UWB_RSV_STATE_T_DENIED]             = UWB_DRP_REASON_DENIED,
+		[UWB_RSV_STATE_T_RESIZED]            = UWB_DRP_REASON_ACCEPTED,
+		[UWB_RSV_STATE_T_EXPANDING_ACCEPTED] = UWB_DRP_REASON_ACCEPTED,
+		[UWB_RSV_STATE_T_EXPANDING_CONFLICT] = UWB_DRP_REASON_CONFLICT,
+		[UWB_RSV_STATE_T_EXPANDING_PENDING]  = UWB_DRP_REASON_PENDING,
+		[UWB_RSV_STATE_T_EXPANDING_DENIED]   = UWB_DRP_REASON_DENIED,
+	};
+
+	return reason_codes[rsv->state];
+}
+
+/*
+ * Return the reason code for a reservations's companion DRP IE .
+ */
+int uwb_rsv_companion_reason_code(struct uwb_rsv *rsv)
+{
+	static const int companion_reason_codes[] = {
+		[UWB_RSV_STATE_O_MOVE_EXPANDING]     = UWB_DRP_REASON_ACCEPTED,
+		[UWB_RSV_STATE_T_EXPANDING_ACCEPTED] = UWB_DRP_REASON_ACCEPTED,
+		[UWB_RSV_STATE_T_EXPANDING_CONFLICT] = UWB_DRP_REASON_CONFLICT,
+		[UWB_RSV_STATE_T_EXPANDING_PENDING]  = UWB_DRP_REASON_PENDING,
+		[UWB_RSV_STATE_T_EXPANDING_DENIED]   = UWB_DRP_REASON_DENIED,
+	};
+
+	return companion_reason_codes[rsv->state];
+}
+
+/*
+ * Return the status bit for a reservations's DRP IE.
+ */
+int uwb_rsv_status(struct uwb_rsv *rsv)
+{
+	static const int statuses[] = {
+		[UWB_RSV_STATE_O_INITIATED]          = 0,
+		[UWB_RSV_STATE_O_PENDING]            = 0,
+		[UWB_RSV_STATE_O_MODIFIED]           = 1,
+		[UWB_RSV_STATE_O_ESTABLISHED]        = 1,
+		[UWB_RSV_STATE_O_TO_BE_MOVED]        = 0,
+		[UWB_RSV_STATE_O_MOVE_COMBINING]     = 1,
+		[UWB_RSV_STATE_O_MOVE_REDUCING]      = 1,
+		[UWB_RSV_STATE_O_MOVE_EXPANDING]     = 1,
+		[UWB_RSV_STATE_T_ACCEPTED]           = 1,
+		[UWB_RSV_STATE_T_CONFLICT]           = 0,
+		[UWB_RSV_STATE_T_PENDING]            = 0,
+		[UWB_RSV_STATE_T_DENIED]             = 0,
+		[UWB_RSV_STATE_T_RESIZED]            = 1,
+		[UWB_RSV_STATE_T_EXPANDING_ACCEPTED] = 1,
+		[UWB_RSV_STATE_T_EXPANDING_CONFLICT] = 1,
+		[UWB_RSV_STATE_T_EXPANDING_PENDING]  = 1,
+		[UWB_RSV_STATE_T_EXPANDING_DENIED]   = 1,
+
+	};
+
+	return statuses[rsv->state];
+}
+
+/*
+ * Return the status bit for a reservations's companion DRP IE .
+ */
+int uwb_rsv_companion_status(struct uwb_rsv *rsv)
+{
+	static const int companion_statuses[] = {
+		[UWB_RSV_STATE_O_MOVE_EXPANDING]     = 0,
+		[UWB_RSV_STATE_T_EXPANDING_ACCEPTED] = 1,
+		[UWB_RSV_STATE_T_EXPANDING_CONFLICT] = 0,
+		[UWB_RSV_STATE_T_EXPANDING_PENDING]  = 0,
+		[UWB_RSV_STATE_T_EXPANDING_DENIED]   = 0,
+	};
+
+	return companion_statuses[rsv->state];
+}
 
 /*
  * Allocate a DRP IE.
@@ -34,16 +123,12 @@
 static struct uwb_ie_drp *uwb_drp_ie_alloc(void)
 {
 	struct uwb_ie_drp *drp_ie;
-	unsigned tiebreaker;
 
 	drp_ie = kzalloc(sizeof(struct uwb_ie_drp) +
 			UWB_NUM_ZONES * sizeof(struct uwb_drp_alloc),
 			GFP_KERNEL);
 	if (drp_ie) {
 		drp_ie->hdr.element_id = UWB_IE_DRP;
-
-		get_random_bytes(&tiebreaker, sizeof(unsigned));
-		uwb_ie_drp_set_tiebreaker(drp_ie, tiebreaker & 1);
 	}
 	return drp_ie;
 }
@@ -104,43 +189,17 @@ static void uwb_drp_ie_from_bm(struct uwb_ie_drp *drp_ie,
  */
 int uwb_drp_ie_update(struct uwb_rsv *rsv)
 {
-	struct device *dev = &rsv->rc->uwb_dev.dev;
 	struct uwb_ie_drp *drp_ie;
-	int reason_code, status;
+	struct uwb_rsv_move *mv;
+	int unsafe;
 
-	switch (rsv->state) {
-	case UWB_RSV_STATE_NONE:
+	if (rsv->state == UWB_RSV_STATE_NONE) {
 		kfree(rsv->drp_ie);
 		rsv->drp_ie = NULL;
 		return 0;
-	case UWB_RSV_STATE_O_INITIATED:
-		reason_code = UWB_DRP_REASON_ACCEPTED;
-		status = 0;
-		break;
-	case UWB_RSV_STATE_O_PENDING:
-		reason_code = UWB_DRP_REASON_ACCEPTED;
-		status = 0;
-		break;
-	case UWB_RSV_STATE_O_MODIFIED:
-		reason_code = UWB_DRP_REASON_MODIFIED;
-		status = 1;
-		break;
-	case UWB_RSV_STATE_O_ESTABLISHED:
-		reason_code = UWB_DRP_REASON_ACCEPTED;
-		status = 1;
-		break;
-	case UWB_RSV_STATE_T_ACCEPTED:
-		reason_code = UWB_DRP_REASON_ACCEPTED;
-		status = 1;
-		break;
-	case UWB_RSV_STATE_T_DENIED:
-		reason_code = UWB_DRP_REASON_DENIED;
-		status = 0;
-		break;
-	default:
-		dev_dbg(dev, "rsv with unhandled state (%d)\n", rsv->state);
-		return -EINVAL;
 	}
+	
+	unsafe = rsv->mas.unsafe ? 1 : 0;
 
 	if (rsv->drp_ie == NULL) {
 		rsv->drp_ie = uwb_drp_ie_alloc();
@@ -149,9 +208,11 @@ int uwb_drp_ie_update(struct uwb_rsv *rsv)
 	}
 	drp_ie = rsv->drp_ie;
 
+	uwb_ie_drp_set_unsafe(drp_ie,       unsafe);
+	uwb_ie_drp_set_tiebreaker(drp_ie,   rsv->tiebreaker);
 	uwb_ie_drp_set_owner(drp_ie,        uwb_rsv_is_owner(rsv));
-	uwb_ie_drp_set_status(drp_ie,       status);
-	uwb_ie_drp_set_reason_code(drp_ie,  reason_code);
+	uwb_ie_drp_set_status(drp_ie,       uwb_rsv_status(rsv));
+	uwb_ie_drp_set_reason_code(drp_ie,  uwb_rsv_reason_code(rsv));
 	uwb_ie_drp_set_stream_index(drp_ie, rsv->stream);
 	uwb_ie_drp_set_type(drp_ie,         rsv->type);
 
@@ -168,6 +229,27 @@ int uwb_drp_ie_update(struct uwb_rsv *rsv)
 		drp_ie->dev_addr = rsv->owner->dev_addr;
 
 	uwb_drp_ie_from_bm(drp_ie, &rsv->mas);
+
+	if (uwb_rsv_has_two_drp_ies(rsv)) {
+		mv = &rsv->mv; 
+		if (mv->companion_drp_ie == NULL) {
+			mv->companion_drp_ie = uwb_drp_ie_alloc();
+			if (mv->companion_drp_ie == NULL)
+				return -ENOMEM;
+		}
+		drp_ie = mv->companion_drp_ie;
+		
+		/* keep all the same configuration of the main drp_ie */
+		memcpy(drp_ie, rsv->drp_ie, sizeof(struct uwb_ie_drp));
+		
+
+		/* FIXME: handle properly the unsafe bit */
+		uwb_ie_drp_set_unsafe(drp_ie,       1);
+		uwb_ie_drp_set_status(drp_ie,       uwb_rsv_companion_status(rsv));
+		uwb_ie_drp_set_reason_code(drp_ie,  uwb_rsv_companion_reason_code(rsv));
+	
+		uwb_drp_ie_from_bm(drp_ie, &mv->companion_mas);
+	}
 
 	rsv->ie_valid = true;
 	return 0;
@@ -219,6 +301,8 @@ void uwb_drp_ie_to_bm(struct uwb_mas_bm *bm, const struct uwb_ie_drp *drp_ie)
 	u8 zone;
 	u16 zone_mask;
 
+	bitmap_zero(bm->bm, UWB_NUM_MAS);
+
 	for (cnt = 0; cnt < numallocs; cnt++) {
 		alloc = &drp_ie->allocs[cnt];
 		zone_bm = le16_to_cpu(alloc->zone_bm);
@@ -230,3 +314,4 @@ void uwb_drp_ie_to_bm(struct uwb_mas_bm *bm, const struct uwb_ie_drp *drp_ie)
 		}
 	}
 }
+

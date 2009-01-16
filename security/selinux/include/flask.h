@@ -52,6 +52,7 @@
 #define SECCLASS_MEMPROTECT                              61
 #define SECCLASS_PEER                                    68
 #define SECCLASS_CAPABILITY2                             69
+#define SECCLASS_KERNEL_SERVICE                          74
 
 /*
  * Security identifier indices for initial entities

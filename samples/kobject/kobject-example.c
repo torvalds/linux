@@ -101,7 +101,7 @@ static struct attribute_group attr_group = {
 
 static struct kobject *example_kobj;
 
-static int example_init(void)
+static int __init example_init(void)
 {
 	int retval;
 
@@ -126,7 +126,7 @@ static int example_init(void)
 	return retval;
 }
 
-static void example_exit(void)
+static void __exit example_exit(void)
 {
 	kobject_put(example_kobj);
 }

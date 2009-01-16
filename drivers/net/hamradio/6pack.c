@@ -373,7 +373,6 @@ static void sp_bump(struct sixpack *sp, char cmd)
 	memcpy(ptr, sp->cooked_buf + 1, count);
 	skb->protocol = ax25_type_trans(skb, sp->dev);
 	netif_rx(skb);
-	sp->dev->last_rx = jiffies;
 	sp->dev->stats.rx_packets++;
 
 	return;
@@ -718,11 +717,12 @@ static int sixpack_ioctl(struct tty_struct *tty, struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
 	struct sixpack *sp = sp_get(tty);
-	struct net_device *dev = sp->dev;
+	struct net_device *dev;
 	unsigned int tmp, err;
 
 	if (!sp)
 		return -ENXIO;
+	dev = sp->dev;
 
 	switch(cmd) {
 	case SIOCGIFNAME:

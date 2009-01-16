@@ -269,6 +269,16 @@ ioc4_variant(struct ioc4_driver_data *idd)
 	return IOC4_VARIANT_PCI_RT;
 }
 
+static void
+ioc4_load_modules(struct work_struct *work)
+{
+	/* arg just has to be freed */
+
+	request_module("sgiioc4");
+
+	kfree(work);
+}
+
 /* Adds a new instance of an IOC4 card */
 static int
 ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
@@ -378,6 +388,30 @@ ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	}
 	mutex_unlock(&ioc4_mutex);
 
+	/* Request sgiioc4 IDE driver on boards that bring that functionality
+	 * off of IOC4.  The root filesystem may be hosted on a drive connected
+	 * to IOC4, so we need to make sure the sgiioc4 driver is loaded as it
+	 * won't be picked up by modprobes due to the ioc4 module owning the
+	 * PCI device.
+	 */
+	if (idd->idd_variant != IOC4_VARIANT_PCI_RT) {
+		struct work_struct *work;
+		work = kzalloc(sizeof(struct work_struct), GFP_KERNEL);
+		if (!work) {
+			printk(KERN_WARNING
+			       "%s: IOC4 unable to allocate memory for "
+			       "load of sub-modules.\n", __func__);
+		} else {
+			/* Request the module from a work procedure as the
+			 * modprobe goes out to a userland helper and that
+			 * will hang if done directly from ioc4_probe().
+			 */
+			printk(KERN_INFO "IOC4 loading sgiioc4 submodule\n");
+			INIT_WORK(work, ioc4_load_modules);
+			schedule_work(work);
+		}
+	}
+
 	return 0;
 
 out_misc_region:
@@ -462,6 +496,8 @@ ioc4_init(void)
 static void __devexit
 ioc4_exit(void)
 {
+	/* Ensure ioc4_load_modules() has completed before exiting */
+	flush_scheduled_work();
 	pci_unregister_driver(&ioc4_driver);
 }
 

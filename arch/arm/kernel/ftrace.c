@@ -95,7 +95,7 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ret;
 }
 
-/* run from kstop_machine */
+/* run from ftrace_init with irqs disabled */
 int __init ftrace_dyn_arch_init(void *data)
 {
 	ftrace_mcount_set(data);

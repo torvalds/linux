@@ -128,6 +128,10 @@ static unsigned long mainstone_pin_config[] = {
 	GPIO108_KP_MKOUT_5,
 	GPIO96_KP_MKOUT_6,
 
+	/* I2C */
+	GPIO117_I2C_SCL,
+	GPIO118_I2C_SDA,
+
 	/* GPIO */
 	GPIO1_GPIO | WAKEUP_ON_EDGE_BOTH,
 };

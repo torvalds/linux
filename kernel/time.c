@@ -37,6 +37,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/math64.h>
+#include <linux/ptrace.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -59,14 +60,15 @@ EXPORT_SYMBOL(sys_tz);
  * why not move it into the appropriate arch directory (for those
  * architectures that need it).
  */
-asmlinkage long sys_time(time_t __user * tloc)
+SYSCALL_DEFINE1(time, time_t __user *, tloc)
 {
 	time_t i = get_seconds();
 
 	if (tloc) {
 		if (put_user(i,tloc))
-			i = -EFAULT;
+			return -EFAULT;
 	}
+	force_successful_syscall_return();
 	return i;
 }
 
@@ -77,7 +79,7 @@ asmlinkage long sys_time(time_t __user * tloc)
  * architectures that need it).
  */
 
-asmlinkage long sys_stime(time_t __user *tptr)
+SYSCALL_DEFINE1(stime, time_t __user *, tptr)
 {
 	struct timespec tv;
 	int err;
@@ -97,8 +99,8 @@ asmlinkage long sys_stime(time_t __user *tptr)
 
 #endif /* __ARCH_WANT_SYS_TIME */
 
-asmlinkage long sys_gettimeofday(struct timeval __user *tv,
-				 struct timezone __user *tz)
+SYSCALL_DEFINE2(gettimeofday, struct timeval __user *, tv,
+		struct timezone __user *, tz)
 {
 	if (likely(tv != NULL)) {
 		struct timeval ktv;
@@ -182,8 +184,8 @@ int do_sys_settimeofday(struct timespec *tv, struct timezone *tz)
 	return 0;
 }
 
-asmlinkage long sys_settimeofday(struct timeval __user *tv,
-				struct timezone __user *tz)
+SYSCALL_DEFINE2(settimeofday, struct timeval __user *, tv,
+		struct timezone __user *, tz)
 {
 	struct timeval user_tv;
 	struct timespec	new_ts;
@@ -203,7 +205,7 @@ asmlinkage long sys_settimeofday(struct timeval __user *tv,
 	return do_sys_settimeofday(tv ? &new_ts : NULL, tz ? &new_tz : NULL);
 }
 
-asmlinkage long sys_adjtimex(struct timex __user *txc_p)
+SYSCALL_DEFINE1(adjtimex, struct timex __user *, txc_p)
 {
 	struct timex txc;		/* Local copy of parameter */
 	int ret;

@@ -49,7 +49,7 @@
 	for_each_online_node(node)			\
 		if (nr_cpus_node(node))
 
-void arch_update_cpu_topology(void);
+int arch_update_cpu_topology(void);
 
 /* Conform to ACPI 2.0 SLIT distance definitions */
 #define LOCAL_DISTANCE		10
@@ -125,7 +125,8 @@ void arch_update_cpu_topology(void);
 				| SD_WAKE_AFFINE	\
 				| SD_WAKE_BALANCE	\
 				| SD_SHARE_PKG_RESOURCES\
-				| BALANCE_FOR_MC_POWER,	\
+				| sd_balance_for_mc_power()\
+				| sd_power_saving_flags(),\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
 }
@@ -150,7 +151,8 @@ void arch_update_cpu_topology(void);
 				| SD_BALANCE_FORK	\
 				| SD_WAKE_AFFINE	\
 				| SD_WAKE_BALANCE	\
-				| BALANCE_FOR_PKG_POWER,\
+				| sd_balance_for_package_power()\
+				| sd_power_saving_flags(),\
 	.last_balance		= jiffies,		\
 	.balance_interval	= 1,			\
 }

@@ -25,7 +25,7 @@
  * in the file called LICENSE.GPL.
  *
  * Contact Information:
- * Tomas Winkler <tomas.winkler@intel.com>
+ *  Intel Linux Wireless <ilw@linux.intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
@@ -71,9 +71,33 @@
 #define IWL_SKU_G       0x1
 #define IWL_SKU_A       0x2
 
+/**
+ * struct iwl_3945_cfg
+ * @fw_name_pre: Firmware filename prefix. The api version and extension
+ * 	(.ucode) will be added to filename before loading from disk. The
+ * 	filename is constructed as fw_name_pre<api>.ucode.
+ * @ucode_api_max: Highest version of uCode API supported by driver.
+ * @ucode_api_min: Lowest version of uCode API supported by driver.
+ *
+ * We enable the driver to be backward compatible wrt API version. The
+ * driver specifies which APIs it supports (with @ucode_api_max being the
+ * highest and @ucode_api_min the lowest). Firmware will only be loaded if
+ * it has a supported API version. The firmware's API version will be
+ * stored in @iwl_priv, enabling the driver to make runtime changes based
+ * on firmware version used.
+ *
+ * For example,
+ * if (IWL_UCODE_API(priv->ucode_ver) >= 2) {
+ * 	Driver interacts with Firmware API version >= 2.
+ * } else {
+ * 	Driver interacts with Firmware API version 1.
+ * }
+ */
 struct iwl_3945_cfg {
 	const char *name;
-	const char *fw_name;
+	const char *fw_name_pre;
+	const unsigned int ucode_api_max;
+	const unsigned int ucode_api_min;
 	unsigned int sku;
 };
 
