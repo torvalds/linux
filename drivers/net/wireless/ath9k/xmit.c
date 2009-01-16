@@ -1576,27 +1576,21 @@ static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 
 	bf->bf_frmlen = skb->len + FCS_LEN - (hdrlen & 3);
 
-	ieee80211_is_data(fc) ?
-		(bf->bf_state.bf_type |= BUF_DATA) :
-		(bf->bf_state.bf_type &= ~BUF_DATA);
-	ieee80211_is_back_req(fc) ?
-		(bf->bf_state.bf_type |= BUF_BAR) :
-		(bf->bf_state.bf_type &= ~BUF_BAR);
-	ieee80211_is_pspoll(fc) ?
-		(bf->bf_state.bf_type |= BUF_PSPOLL) :
-		(bf->bf_state.bf_type &= ~BUF_PSPOLL);
-	(sc->sc_flags & SC_OP_PREAMBLE_SHORT) ?
-		(bf->bf_state.bf_type |= BUF_SHORT_PREAMBLE) :
-		(bf->bf_state.bf_type &= ~BUF_SHORT_PREAMBLE);
-	(conf_is_ht(&sc->hw->conf) && !is_pae(skb) &&
-	 (tx_info->flags & IEEE80211_TX_CTL_AMPDU)) ?
-		(bf->bf_state.bf_type |= BUF_HT) :
-		(bf->bf_state.bf_type &= ~BUF_HT);
+	if (ieee80211_is_data(fc))
+		bf->bf_state.bf_type |= BUF_DATA;
+	if (ieee80211_is_back_req(fc))
+		bf->bf_state.bf_type |= BUF_BAR;
+	if (ieee80211_is_pspoll(fc))
+		bf->bf_state.bf_type |= BUF_PSPOLL;
+	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
+		bf->bf_state.bf_type |= BUF_SHORT_PREAMBLE;
+	if ((conf_is_ht(&sc->hw->conf) && !is_pae(skb) &&
+	     (tx_info->flags & IEEE80211_TX_CTL_AMPDU)))
+		bf->bf_state.bf_type |= BUF_HT;
 
 	bf->bf_flags = setup_tx_flags(sc, skb, txctl->txq);
 
 	bf->bf_keytype = get_hw_crypto_keytype(skb);
-
 	if (bf->bf_keytype != ATH9K_KEY_TYPE_CLEAR) {
 		bf->bf_frmlen += tx_info->control.hw_key->icv_len;
 		bf->bf_keyix = tx_info->control.hw_key->hw_key_idx;
