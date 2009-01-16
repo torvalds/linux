@@ -24,6 +24,7 @@
 
 #include "pvrusb2-i2c-core.h"
 
+extern const struct pvr2_i2c_op pvr2_i2c_op_v4l2_init;
 extern const struct pvr2_i2c_op pvr2_i2c_op_v4l2_standard;
 extern const struct pvr2_i2c_op pvr2_i2c_op_v4l2_radio;
 extern const struct pvr2_i2c_op pvr2_i2c_op_v4l2_bcsh;

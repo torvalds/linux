@@ -25,6 +25,20 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 
+static void execute_init(struct pvr2_hdw *hdw)
+{
+	u32 dummy = 0;
+	pvr2_trace(PVR2_TRACE_CHIPS, "i2c v4l2 init");
+	pvr2_i2c_core_cmd(hdw, VIDIOC_INT_INIT, &dummy);
+}
+
+
+const struct pvr2_i2c_op pvr2_i2c_op_v4l2_init = {
+	.update = execute_init,
+	.name = "v4l2_init",
+};
+
+
 static void set_standard(struct pvr2_hdw *hdw)
 {
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 set_standard");

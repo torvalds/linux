@@ -31,17 +31,19 @@
 
 #define trace_i2c(...) pvr2_trace(PVR2_TRACE_I2C,__VA_ARGS__)
 
-#define OP_STANDARD 0
-#define OP_AUDIOMODE 1
-#define OP_BCSH 2
-#define OP_VOLUME 3
-#define OP_FREQ 4
-#define OP_AUDIORATE 5
-#define OP_CROP 6
-#define OP_SIZE 7
-#define OP_LOG 8
+#define OP_INIT 0 /* MUST come first so it is run first */
+#define OP_STANDARD 1
+#define OP_AUDIOMODE 2
+#define OP_BCSH 3
+#define OP_VOLUME 4
+#define OP_FREQ 5
+#define OP_AUDIORATE 6
+#define OP_CROP 7
+#define OP_SIZE 8
+#define OP_LOG 9
 
 static const struct pvr2_i2c_op * const ops[] = {
+	[OP_INIT] = &pvr2_i2c_op_v4l2_init,
 	[OP_STANDARD] = &pvr2_i2c_op_v4l2_standard,
 	[OP_AUDIOMODE] = &pvr2_i2c_op_v4l2_audiomode,
 	[OP_BCSH] = &pvr2_i2c_op_v4l2_bcsh,
@@ -56,7 +58,8 @@ void pvr2_i2c_probe(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
 {
 	int id;
 	id = cp->client->driver->id;
-	cp->ctl_mask = ((1 << OP_STANDARD) |
+	cp->ctl_mask = ((1 << OP_INIT) |
+			(1 << OP_STANDARD) |
 			(1 << OP_AUDIOMODE) |
 			(1 << OP_BCSH) |
 			(1 << OP_VOLUME) |

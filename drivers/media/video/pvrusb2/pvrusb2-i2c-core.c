@@ -763,7 +763,7 @@ int pvr2_i2c_core_check_stale(struct pvr2_hdw *hdw)
 		if (!(msk & pm)) continue;
 		pm &= ~msk;
 		opf = pvr2_i2c_get_op(idx);
-		if (!opf) continue;
+		if (!(opf && opf->check)) continue;
 		if (opf->check(hdw)) {
 			sm |= msk;
 		}
