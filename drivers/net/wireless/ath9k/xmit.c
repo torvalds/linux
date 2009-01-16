@@ -2031,6 +2031,22 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds, int nbad)
 	}
 }
 
+static void ath_wake_mac80211_queue(struct ath_softc *sc, struct ath_txq *txq)
+{
+	int qnum;
+
+	spin_lock_bh(&txq->axq_lock);
+	if (txq->stopped &&
+	    ath_txq_depth(sc, txq->axq_qnum) <= (ATH_TXBUF - 20)) {
+		qnum = ath_get_mac80211_qnum(txq->axq_qnum, sc);
+		if (qnum != -1) {
+			ieee80211_wake_queue(sc->hw, qnum);
+			txq->stopped = 0;
+		}
+	}
+	spin_unlock_bh(&txq->axq_lock);
+}
+
 static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
@@ -2140,18 +2156,9 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		else
 			ath_tx_complete_buf(sc, bf, &bf_head, txok, 0);
 
+		ath_wake_mac80211_queue(sc, txq);
+
 		spin_lock_bh(&txq->axq_lock);
-		if (txq->stopped && ath_txq_depth(sc, txq->axq_qnum) <=
-				(ATH_TXBUF - 20)) {
-			int qnum;
-			qnum = ath_get_mac80211_qnum(txq->axq_qnum, sc);
-			if (qnum != -1) {
-				ieee80211_wake_queue(sc->hw, qnum);
-				txq->stopped = 0;
-			}
-
-		}
-
 		if (sc->sc_flags & SC_OP_TXAGGR)
 			ath_txq_schedule(sc, txq);
 		spin_unlock_bh(&txq->axq_lock);
