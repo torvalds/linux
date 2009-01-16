@@ -778,10 +778,18 @@ static int rfcomm_sock_setsockopt(struct socket *sock, int level, int optname, c
 	if (level == SOL_RFCOMM)
 		return rfcomm_sock_setsockopt_old(sock, optname, optval, optlen);
 
+	if (level != SOL_BLUETOOTH)
+		return -ENOPROTOOPT;
+
 	lock_sock(sk);
 
 	switch (optname) {
 	case BT_SECURITY:
+		if (sk->sk_type != SOCK_STREAM) {
+			err = -EINVAL;
+			break;
+		}
+
 		sec.level = BT_SECURITY_LOW;
 
 		len = min_t(unsigned int, sizeof(sec), optlen);
@@ -899,6 +907,9 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 	if (level == SOL_RFCOMM)
 		return rfcomm_sock_getsockopt_old(sock, optname, optval, optlen);
 
+	if (level != SOL_BLUETOOTH)
+		return -ENOPROTOOPT;
+
 	if (get_user(len, optlen))
 		return -EFAULT;
 
@@ -906,6 +917,11 @@ static int rfcomm_sock_getsockopt(struct socket *sock, int level, int optname, c
 
 	switch (optname) {
 	case BT_SECURITY:
+		if (sk->sk_type != SOCK_STREAM) {
+			err = -EINVAL;
+			break;
+		}
+
 		sec.level = rfcomm_pi(sk)->sec_level;
 
 		len = min_t(unsigned int, len, sizeof(sec));
