@@ -40,7 +40,7 @@
 
 #define TRACE_BUFFER_FLAGS	(RB_FL_OVERWRITE)
 
-unsigned long __read_mostly	tracing_max_latency = (cycle_t)ULONG_MAX;
+unsigned long __read_mostly	tracing_max_latency;
 unsigned long __read_mostly	tracing_thresh;
 
 /*
