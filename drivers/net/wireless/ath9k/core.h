@@ -187,7 +187,6 @@ struct ath_config {
 #define ATH_TXBUF_RESET(_bf) do {				\
 		(_bf)->bf_status = 0;				\
 		(_bf)->bf_lastbf = NULL;			\
-		(_bf)->bf_lastfrm = NULL;			\
 		(_bf)->bf_next = NULL;				\
 		memset(&((_bf)->bf_state), 0,			\
 			    sizeof(struct ath_buf_state));	\
@@ -245,10 +244,8 @@ struct ath_buf_state {
  */
 struct ath_buf {
 	struct list_head list;
-	struct list_head *last;
 	struct ath_buf *bf_lastbf;	/* last buf of this unit (a frame or
 					   an aggregate) */
-	struct ath_buf *bf_lastfrm;	/* last buf of this frame */
 	struct ath_buf *bf_next;	/* next subframe in the aggregate */
 	void *bf_mpdu;			/* enclosing frame structure */
 	struct ath_desc *bf_desc;	/* virtual addr of desc */
@@ -261,13 +258,7 @@ struct ath_buf {
 };
 
 #define ATH_RXBUF_RESET(_bf)    ((_bf)->bf_status = 0)
-
-/* hw processing complete, desc processed by hal */
-#define ATH_BUFSTATUS_DONE      0x00000001
-/* hw processing complete, desc hold for hw */
 #define ATH_BUFSTATUS_STALE     0x00000002
-/* Rx-only: OS is done with this packet and it's ok to queued it to hw */
-#define ATH_BUFSTATUS_FREE      0x00000004
 
 /* DMA state for tx/rx descriptors */
 
@@ -360,7 +351,6 @@ struct ath_txq {
 	u32 *axq_link;			/* link ptr in last TX desc */
 	struct list_head axq_q;		/* transmit queue */
 	spinlock_t axq_lock;
-	unsigned long axq_lockflags;	/* intr state when must cli */
 	u32 axq_depth;			/* queue depth */
 	u8 axq_aggr_depth;		/* aggregates queued */
 	u32 axq_totalqueued;		/* total ever queued */
