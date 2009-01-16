@@ -39,14 +39,15 @@ static int control_info(struct snd_kcontrol *kcontrol,
 	struct snd_usb_caiaqdev *dev = caiaqdev(chip->card);
 	int pos = kcontrol->private_value;
 	int is_intval = pos & CNT_INTVAL;
+	unsigned int id = dev->chip.usb_id;
 
 	uinfo->count = 1;
 	pos &= ~CNT_INTVAL;
 
-	if (dev->chip.usb_id ==
-		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ)
+	if (((id == USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ)) ||
+	     (id == USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ)))
 		&& (pos == 0)) {
-		/* current input mode of A8DJ */
+		/* current input mode of A8DJ and A4DJ */
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 		uinfo->value.integer.min = 0;
 		uinfo->value.integer.max = 2;
@@ -247,6 +248,10 @@ static struct caiaq_controller a8dj_controller[] = {
 	{ "Software lock", 			40 		}
 };
 
+static struct caiaq_controller a4dj_controller[] = {
+	{ "Current input mode",	0 | CNT_INTVAL 	}
+};
+
 static int __devinit add_controls(struct caiaq_controller *c, int num,
 				  struct snd_usb_caiaqdev *dev)
 {
@@ -294,6 +299,10 @@ int __devinit snd_usb_caiaq_control_init(struct snd_usb_caiaqdev *dev)
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ):
 		ret = add_controls(a8dj_controller,
 			ARRAY_SIZE(a8dj_controller), dev);
+		break;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ):
+		ret = add_controls(a4dj_controller,
+			ARRAY_SIZE(a4dj_controller), dev);
 		break;
 	}
 
