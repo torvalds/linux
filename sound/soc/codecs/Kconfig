@@ -34,6 +34,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8903 if I2C
 	select SND_SOC_WM8971 if I2C
 	select SND_SOC_WM8990 if I2C
+	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9713 if SND_SOC_AC97_BUS
         help
@@ -142,6 +143,9 @@ config SND_SOC_WM8971
 	tristate
 
 config SND_SOC_WM8990
+	tristate
+
+config SND_SOC_WM9705
 	tristate
 
 config SND_SOC_WM9712
