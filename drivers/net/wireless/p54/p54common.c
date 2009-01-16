@@ -2077,7 +2077,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			algo = P54_CRYPTO_AESCCMP;
 			break;
 		default:
-			return -EINVAL;
+			return -EOPNOTSUPP;
 		}
 	}
 
