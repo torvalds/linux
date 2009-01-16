@@ -464,16 +464,6 @@ void __trace_stack(struct trace_array *tr,
 
 extern cycle_t ftrace_now(int cpu);
 
-#ifdef CONFIG_FUNCTION_TRACER
-void tracing_start_function_trace(void);
-void tracing_stop_function_trace(void);
-#else
-# define tracing_start_function_trace()		do { } while (0)
-# define tracing_stop_function_trace()		do { } while (0)
-#endif
-
-extern int ftrace_function_enabled;
-
 #ifdef CONFIG_CONTEXT_SWITCH_TRACER
 typedef void
 (*tracer_switch_func_t)(void *private,

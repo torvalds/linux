@@ -187,9 +187,6 @@ int tracing_is_enabled(void)
 	return tracer_enabled;
 }
 
-/* function tracing enabled */
-int				ftrace_function_enabled;
-
 /*
  * trace_buf_size is the size in bytes that is allocated
  * for a buffer. Note, the number of bytes is always rounded

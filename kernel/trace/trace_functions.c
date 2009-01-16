@@ -16,7 +16,13 @@
 
 #include "trace.h"
 
+/* function tracing enabled */
+static int			ftrace_function_enabled;
+
 static struct trace_array	*func_trace;
+
+static void tracing_start_function_trace(void);
+static void tracing_stop_function_trace(void);
 
 static void start_function_trace(struct trace_array *tr)
 {
@@ -177,7 +183,7 @@ static struct tracer_flags func_flags = {
 	.opts = func_opts
 };
 
-void tracing_start_function_trace(void)
+static void tracing_start_function_trace(void)
 {
 	ftrace_function_enabled = 0;
 
@@ -194,7 +200,7 @@ void tracing_start_function_trace(void)
 	ftrace_function_enabled = 1;
 }
 
-void tracing_stop_function_trace(void)
+static void tracing_stop_function_trace(void)
 {
 	ftrace_function_enabled = 0;
 	/* OK if they are not registered */
