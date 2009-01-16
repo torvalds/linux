@@ -835,19 +835,16 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
 		trace_function(tr, data, ip, parent_ip, flags, pc);
 }
 
-static void ftrace_trace_stack(struct trace_array *tr,
-			       struct trace_array_cpu *data,
-			       unsigned long flags,
-			       int skip, int pc)
+static void __ftrace_trace_stack(struct trace_array *tr,
+				 struct trace_array_cpu *data,
+				 unsigned long flags,
+				 int skip, int pc)
 {
 #ifdef CONFIG_STACKTRACE
 	struct ring_buffer_event *event;
 	struct stack_entry *entry;
 	struct stack_trace trace;
 	unsigned long irq_flags;
-
-	if (!(trace_flags & TRACE_ITER_STACKTRACE))
-		return;
 
 	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
 					 &irq_flags);
@@ -869,12 +866,23 @@ static void ftrace_trace_stack(struct trace_array *tr,
 #endif
 }
 
+static void ftrace_trace_stack(struct trace_array *tr,
+			       struct trace_array_cpu *data,
+			       unsigned long flags,
+			       int skip, int pc)
+{
+	if (!(trace_flags & TRACE_ITER_STACKTRACE))
+		return;
+
+	__ftrace_trace_stack(tr, data, flags, skip, pc);
+}
+
 void __trace_stack(struct trace_array *tr,
 		   struct trace_array_cpu *data,
 		   unsigned long flags,
-		   int skip)
+		   int skip, int pc)
 {
-	ftrace_trace_stack(tr, data, flags, skip, preempt_count());
+	__ftrace_trace_stack(tr, data, flags, skip, pc);
 }
 
 static void ftrace_trace_userstack(struct trace_array *tr,

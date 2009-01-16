@@ -457,6 +457,11 @@ void update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu);
 void update_max_tr_single(struct trace_array *tr,
 			  struct task_struct *tsk, int cpu);
 
+void __trace_stack(struct trace_array *tr,
+		   struct trace_array_cpu *data,
+		   unsigned long flags,
+		   int skip, int pc);
+
 extern cycle_t ftrace_now(int cpu);
 
 #ifdef CONFIG_FUNCTION_TRACER
@@ -466,6 +471,8 @@ void tracing_stop_function_trace(void);
 # define tracing_start_function_trace()		do { } while (0)
 # define tracing_stop_function_trace()		do { } while (0)
 #endif
+
+extern int ftrace_function_enabled;
 
 #ifdef CONFIG_CONTEXT_SWITCH_TRACER
 typedef void

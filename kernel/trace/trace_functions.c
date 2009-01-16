@@ -16,6 +16,8 @@
 
 #include "trace.h"
 
+static struct trace_array	*func_trace;
+
 static void start_function_trace(struct trace_array *tr)
 {
 	tr->cpu = get_cpu();
@@ -34,6 +36,7 @@ static void stop_function_trace(struct trace_array *tr)
 
 static int function_trace_init(struct trace_array *tr)
 {
+	func_trace = tr;
 	start_function_trace(tr);
 	return 0;
 }
@@ -48,12 +51,93 @@ static void function_trace_start(struct trace_array *tr)
 	tracing_reset_online_cpus(tr);
 }
 
+static void
+function_stack_trace_call(unsigned long ip, unsigned long parent_ip)
+{
+	struct trace_array *tr = func_trace;
+	struct trace_array_cpu *data;
+	unsigned long flags;
+	long disabled;
+	int cpu;
+	int pc;
+
+	if (unlikely(!ftrace_function_enabled))
+		return;
+
+	/*
+	 * Need to use raw, since this must be called before the
+	 * recursive protection is performed.
+	 */
+	local_irq_save(flags);
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+	disabled = atomic_inc_return(&data->disabled);
+
+	if (likely(disabled == 1)) {
+		pc = preempt_count();
+		/*
+		 * skip over 5 funcs:
+		 *    __ftrace_trace_stack,
+		 *    __trace_stack,
+		 *    function_stack_trace_call
+		 *    ftrace_list_func
+		 *    ftrace_call
+		 */
+		__trace_stack(tr, data, flags, 5, pc);
+	}
+
+	atomic_dec(&data->disabled);
+	local_irq_restore(flags);
+}
+
+static struct ftrace_ops trace_stack_ops __read_mostly =
+{
+	.func = function_stack_trace_call,
+};
+
+/* Our two options */
+enum {
+	TRACE_FUNC_OPT_STACK = 0x1,
+};
+
+static struct tracer_opt func_opts[] = {
+#ifdef CONFIG_STACKTRACE
+	{ TRACER_OPT(func_stack_trace, TRACE_FUNC_OPT_STACK) },
+#endif
+	{ } /* Always set a last empty entry */
+};
+
+static struct tracer_flags func_flags = {
+	.val = 0, /* By default: all flags disabled */
+	.opts = func_opts
+};
+
+static int func_set_flag(u32 old_flags, u32 bit, int set)
+{
+	if (bit == TRACE_FUNC_OPT_STACK) {
+		/* do nothing if already set */
+		if (!!set == !!(func_flags.val & TRACE_FUNC_OPT_STACK))
+			return 0;
+
+		if (set)
+			register_ftrace_function(&trace_stack_ops);
+		else
+			unregister_ftrace_function(&trace_stack_ops);
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static struct tracer function_trace __read_mostly =
 {
 	.name	     = "function",
 	.init	     = function_trace_init,
 	.reset	     = function_trace_reset,
 	.start	     = function_trace_start,
+	.flags		= &func_flags,
+	.set_flag	= func_set_flag,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_function,
 #endif
