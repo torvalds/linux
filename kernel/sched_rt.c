@@ -114,14 +114,23 @@ static void dequeue_pushable_task(struct rq *rq, struct task_struct *p)
 
 #else
 
+static inline void enqueue_pushable_task(struct rq *rq, struct task_struct *p)
+{
+}
+
+static inline void dequeue_pushable_task(struct rq *rq, struct task_struct *p)
+{
+}
+
 static inline
-void enqueue_pushable_task(struct rq *rq, struct task_struct *p) {}
+void inc_rt_migration(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
+{
+}
+
 static inline
-void dequeue_pushable_task(struct rq *rq, struct task_struct *p) {}
-static inline
-void inc_rt_migration(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq) {}
-static inline
-void dec_rt_migration(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq) {}
+void dec_rt_migration(struct sched_rt_entity *rt_se, struct rt_rq *rt_rq)
+{
+}
 
 #endif /* CONFIG_SMP */
 
