@@ -141,7 +141,6 @@ static const struct v4l2_pix_format sif_072a_mode[] = {
 #define SPCA561_OFFSET_WIN1GBAVE 14
 #define SPCA561_OFFSET_FREQ 15
 #define SPCA561_OFFSET_VSYNC 16
-#define SPCA561_OFFSET_DATA 1
 #define SPCA561_INDEX_I2C_BASE 0x8800
 #define SPCA561_SNAPBIT 0x20
 #define SPCA561_SNAPCTRL 0x40
@@ -866,12 +865,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	switch (data[0]) {			/* sequence number */
+	len--;
+	switch (*data++) {			/* sequence number */
 	case 0:					/* start of frame */
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					data, 0);
-		data += SPCA561_OFFSET_DATA;
-		len -= SPCA561_OFFSET_DATA;
 		if (data[1] & 0x10) {
 			/* compressed bayer */
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
@@ -892,8 +890,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	case 0xff:			/* drop (empty mpackets) */
 		return;
 	}
-	data++;
-	len--;
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
