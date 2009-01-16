@@ -1031,6 +1031,10 @@ struct sched_entity {
 	u64			last_wakeup;
 	u64			avg_overlap;
 
+	u64			start_runtime;
+	u64			avg_wakeup;
+	u64			nr_migrations;
+
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
 	u64			wait_max;
@@ -1046,10 +1050,6 @@ struct sched_entity {
 	u64			exec_max;
 	u64			slice_max;
 
-	u64			start_runtime;
-	u64			avg_wakeup;
-
-	u64			nr_migrations;
 	u64			nr_migrations_cold;
 	u64			nr_failed_migrations_affine;
 	u64			nr_failed_migrations_running;
