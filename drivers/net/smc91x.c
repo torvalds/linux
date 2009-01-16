@@ -1643,6 +1643,117 @@ static void smc_ethtool_setmsglevel(struct net_device *dev, u32 level)
 	lp->msg_enable = level;
 }
 
+static int smc_write_eeprom_word(struct net_device *dev, u16 addr, u16 word)
+{
+	u16 ctl;
+	struct smc_local *lp = netdev_priv(dev);
+	void __iomem *ioaddr = lp->base;
+
+	spin_lock_irq(&lp->lock);
+	/* load word into GP register */
+	SMC_SELECT_BANK(lp, 1);
+	SMC_SET_GP(lp, word);
+	/* set the address to put the data in EEPROM */
+	SMC_SELECT_BANK(lp, 2);
+	SMC_SET_PTR(lp, addr);
+	/* tell it to write */
+	SMC_SELECT_BANK(lp, 1);
+	ctl = SMC_GET_CTL(lp);
+	SMC_SET_CTL(lp, ctl | (CTL_EEPROM_SELECT | CTL_STORE));
+	/* wait for it to finish */
+	do {
+		udelay(1);
+	} while (SMC_GET_CTL(lp) & CTL_STORE);
+	/* clean up */
+	SMC_SET_CTL(lp, ctl);
+	SMC_SELECT_BANK(lp, 2);
+	spin_unlock_irq(&lp->lock);
+	return 0;
+}
+
+static int smc_read_eeprom_word(struct net_device *dev, u16 addr, u16 *word)
+{
+	u16 ctl;
+	struct smc_local *lp = netdev_priv(dev);
+	void __iomem *ioaddr = lp->base;
+
+	spin_lock_irq(&lp->lock);
+	/* set the EEPROM address to get the data from */
+	SMC_SELECT_BANK(lp, 2);
+	SMC_SET_PTR(lp, addr | PTR_READ);
+	/* tell it to load */
+	SMC_SELECT_BANK(lp, 1);
+	SMC_SET_GP(lp, 0xffff);	/* init to known */
+	ctl = SMC_GET_CTL(lp);
+	SMC_SET_CTL(lp, ctl | (CTL_EEPROM_SELECT | CTL_RELOAD));
+	/* wait for it to finish */
+	do {
+		udelay(1);
+	} while (SMC_GET_CTL(lp) & CTL_RELOAD);
+	/* read word from GP register */
+	*word = SMC_GET_GP(lp);
+	/* clean up */
+	SMC_SET_CTL(lp, ctl);
+	SMC_SELECT_BANK(lp, 2);
+	spin_unlock_irq(&lp->lock);
+	return 0;
+}
+
+static int smc_ethtool_geteeprom_len(struct net_device *dev)
+{
+	return 0x23 * 2;
+}
+
+static int smc_ethtool_geteeprom(struct net_device *dev,
+		struct ethtool_eeprom *eeprom, u8 *data)
+{
+	int i;
+	int imax;
+
+	DBG(1, "Reading %d bytes at %d(0x%x)\n",
+		eeprom->len, eeprom->offset, eeprom->offset);
+	imax = smc_ethtool_geteeprom_len(dev);
+	for (i = 0; i < eeprom->len; i += 2) {
+		int ret;
+		u16 wbuf;
+		int offset = i + eeprom->offset;
+		if (offset > imax)
+			break;
+		ret = smc_read_eeprom_word(dev, offset >> 1, &wbuf);
+		if (ret != 0)
+			return ret;
+		DBG(2, "Read 0x%x from 0x%x\n", wbuf, offset >> 1);
+		data[i] = (wbuf >> 8) & 0xff;
+		data[i+1] = wbuf & 0xff;
+	}
+	return 0;
+}
+
+static int smc_ethtool_seteeprom(struct net_device *dev,
+		struct ethtool_eeprom *eeprom, u8 *data)
+{
+	int i;
+	int imax;
+
+	DBG(1, "Writing %d bytes to %d(0x%x)\n",
+			eeprom->len, eeprom->offset, eeprom->offset);
+	imax = smc_ethtool_geteeprom_len(dev);
+	for (i = 0; i < eeprom->len; i += 2) {
+		int ret;
+		u16 wbuf;
+		int offset = i + eeprom->offset;
+		if (offset > imax)
+			break;
+		wbuf = (data[i] << 8) | data[i + 1];
+		DBG(2, "Writing 0x%x to 0x%x\n", wbuf, offset >> 1);
+		ret = smc_write_eeprom_word(dev, offset >> 1, wbuf);
+		if (ret != 0)
+			return ret;
+	}
+	return 0;
+}
+
+
 static const struct ethtool_ops smc_ethtool_ops = {
 	.get_settings	= smc_ethtool_getsettings,
 	.set_settings	= smc_ethtool_setsettings,
@@ -1652,8 +1763,9 @@ static const struct ethtool_ops smc_ethtool_ops = {
 	.set_msglevel	= smc_ethtool_setmsglevel,
 	.nway_reset	= smc_ethtool_nwayreset,
 	.get_link	= ethtool_op_get_link,
-//	.get_eeprom	= smc_ethtool_geteeprom,
-//	.set_eeprom	= smc_ethtool_seteeprom,
+	.get_eeprom_len = smc_ethtool_geteeprom_len,
+	.get_eeprom	= smc_ethtool_geteeprom,
+	.set_eeprom	= smc_ethtool_seteeprom,
 };
 
 /*
