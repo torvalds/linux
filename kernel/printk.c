@@ -297,6 +297,45 @@ static inline void boot_delay_msec(void)
 }
 #endif
 
+/*
+ * Return the number of unread characters in the log buffer.
+ */
+static int log_buf_get_len(void)
+{
+	return logged_chars;
+}
+
+/*
+ * Copy a range of characters from the log buffer.
+ */
+int log_buf_copy(char *dest, int idx, int len)
+{
+	int ret, max;
+	bool took_lock = false;
+
+	if (!oops_in_progress) {
+		spin_lock_irq(&logbuf_lock);
+		took_lock = true;
+	}
+
+	max = log_buf_get_len();
+	if (idx < 0 || idx >= max) {
+		ret = -1;
+	} else {
+		if (len > max)
+			len = max;
+		ret = len;
+		idx += (log_end - max);
+		while (len-- > 0)
+			dest[len] = LOG_BUF(idx + len);
+	}
+
+	if (took_lock)
+		spin_unlock_irq(&logbuf_lock);
+
+	return ret;
+}
+
 #ifdef CONFIG_SECURITY_DMESG_RESTRICT
 int dmesg_restrict = 1;
 #else
