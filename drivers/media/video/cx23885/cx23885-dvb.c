@@ -43,6 +43,7 @@
 #include "dib7000p.h"
 #include "dibx000_common.h"
 #include "zl10353.h"
+#include "cx24116.h"
 
 static unsigned int debug;
 
@@ -308,6 +309,24 @@ static struct zl10353_config dvico_fusionhdtv_xc3028 = {
 	.no_tuner      = 1,
 };
 
+static int tbs_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
+{
+	struct cx23885_tsport *port = fe->dvb->priv;
+	struct cx23885_dev *dev = port->dev;
+
+	if (voltage == SEC_VOLTAGE_18)
+		cx_write(MC417_RWD, 0x00001e00);/* GPIO-13 high */
+	else if (voltage == SEC_VOLTAGE_13)
+		cx_write(MC417_RWD, 0x00001a00);/* GPIO-13 low */
+	else
+		cx_write(MC417_RWD, 0x00001800);/* GPIO-12 low */
+	return 0;
+}
+
+static struct cx24116_config tbs_cx24116_config = {
+	.demod_address = 0x05,
+};
+
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
@@ -525,6 +544,16 @@ static int dvb_register(struct cx23885_tsport *port)
 			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
+		break;
+	case CX23885_BOARD_TBS_6920:
+		i2c_bus = &dev->i2c_bus[0];
+
+		fe0->dvb.frontend = dvb_attach(cx24116_attach,
+			&tbs_cx24116_config,
+			&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL)
+			fe0->dvb.frontend->ops.set_voltage = tbs_set_voltage;
+
 		break;
 	default:
 		printk(KERN_INFO "%s: The frontend of your DVB/ATSC card "
