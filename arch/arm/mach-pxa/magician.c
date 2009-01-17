@@ -153,22 +153,31 @@ static struct pxaficp_platform_data magician_ficp_info = {
  * GPIO Keys
  */
 
+#define INIT_KEY(_code, _gpio, _desc)	\
+	{				\
+		.code   = KEY_##_code,	\
+		.gpio   = _gpio,	\
+		.desc   = _desc,	\
+		.type   = EV_KEY,	\
+		.wakeup = 1,		\
+	}
+
 static struct gpio_keys_button magician_button_table[] = {
-	{KEY_POWER,      GPIO0_MAGICIAN_KEY_POWER,      0, "Power button"},
-	{KEY_ESC,        GPIO37_MAGICIAN_KEY_HANGUP,    0, "Hangup button"},
-	{KEY_F10,        GPIO38_MAGICIAN_KEY_CONTACTS,  0, "Contacts button"},
-	{KEY_CALENDAR,   GPIO90_MAGICIAN_KEY_CALENDAR,  0, "Calendar button"},
-	{KEY_CAMERA,     GPIO91_MAGICIAN_KEY_CAMERA,    0, "Camera button"},
-	{KEY_UP,         GPIO93_MAGICIAN_KEY_UP,        0, "Up button"},
-	{KEY_DOWN,       GPIO94_MAGICIAN_KEY_DOWN,      0, "Down button"},
-	{KEY_LEFT,       GPIO95_MAGICIAN_KEY_LEFT,      0, "Left button"},
-	{KEY_RIGHT,      GPIO96_MAGICIAN_KEY_RIGHT,     0, "Right button"},
-	{KEY_KPENTER,    GPIO97_MAGICIAN_KEY_ENTER,     0, "Action button"},
-	{KEY_RECORD,     GPIO98_MAGICIAN_KEY_RECORD,    0, "Record button"},
-	{KEY_VOLUMEUP,   GPIO100_MAGICIAN_KEY_VOL_UP,   0, "Volume up"},
-	{KEY_VOLUMEDOWN, GPIO101_MAGICIAN_KEY_VOL_DOWN, 0, "Volume down"},
-	{KEY_PHONE,      GPIO102_MAGICIAN_KEY_PHONE,    0, "Phone button"},
-	{KEY_PLAY,       GPIO99_MAGICIAN_HEADPHONE_IN,  0, "Headset button"},
+	INIT_KEY(POWER,      GPIO0_MAGICIAN_KEY_POWER,      "Power button"),
+	INIT_KEY(ESC,        GPIO37_MAGICIAN_KEY_HANGUP,    "Hangup button"),
+	INIT_KEY(F10,        GPIO38_MAGICIAN_KEY_CONTACTS,  "Contacts button"),
+	INIT_KEY(CALENDAR,   GPIO90_MAGICIAN_KEY_CALENDAR,  "Calendar button"),
+	INIT_KEY(CAMERA,     GPIO91_MAGICIAN_KEY_CAMERA,    "Camera button"),
+	INIT_KEY(UP,         GPIO93_MAGICIAN_KEY_UP,        "Up button"),
+	INIT_KEY(DOWN,       GPIO94_MAGICIAN_KEY_DOWN,      "Down button"),
+	INIT_KEY(LEFT,       GPIO95_MAGICIAN_KEY_LEFT,      "Left button"),
+	INIT_KEY(RIGHT,      GPIO96_MAGICIAN_KEY_RIGHT,     "Right button"),
+	INIT_KEY(KPENTER,    GPIO97_MAGICIAN_KEY_ENTER,     "Action button"),
+	INIT_KEY(RECORD,     GPIO98_MAGICIAN_KEY_RECORD,    "Record button"),
+	INIT_KEY(VOLUMEUP,   GPIO100_MAGICIAN_KEY_VOL_UP,   "Volume up"),
+	INIT_KEY(VOLUMEDOWN, GPIO101_MAGICIAN_KEY_VOL_DOWN, "Volume down"),
+	INIT_KEY(PHONE,      GPIO102_MAGICIAN_KEY_PHONE,    "Phone button"),
+	INIT_KEY(PLAY,       GPIO99_MAGICIAN_HEADPHONE_IN,  "Headset button"),
 };
 
 static struct gpio_keys_platform_data gpio_keys_data = {
