@@ -2657,6 +2657,7 @@ static int rt61pci_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	struct rt2x00_field32 field;
 	int retval;
 	u32 reg;
+	u32 offset;
 
 	/*
 	 * First pass the configuration through rt2x00lib, that will
@@ -2668,24 +2669,23 @@ static int rt61pci_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	if (retval)
 		return retval;
 
+	/*
+	 * We only need to perform additional register initialization
+	 * for WMM queues/
+	 */
+	if (queue_idx >= 4)
+		return 0;
+
 	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
 
 	/* Update WMM TXOP register */
-	if (queue_idx < 2) {
-		field.bit_offset = queue_idx * 16;
-		field.bit_mask = 0xffff << field.bit_offset;
+	offset = AC_TXOP_CSR0 + (sizeof(u32) * (!!(queue_idx & 2)));
+	field.bit_offset = (queue_idx & 1) * 16;
+	field.bit_mask = 0xffff << field.bit_offset;
 
-		rt2x00pci_register_read(rt2x00dev, AC_TXOP_CSR0, &reg);
-		rt2x00_set_field32(&reg, field, queue->txop);
-		rt2x00pci_register_write(rt2x00dev, AC_TXOP_CSR0, reg);
-	} else if (queue_idx < 4) {
-		field.bit_offset = (queue_idx - 2) * 16;
-		field.bit_mask = 0xffff << field.bit_offset;
-
-		rt2x00pci_register_read(rt2x00dev, AC_TXOP_CSR1, &reg);
-		rt2x00_set_field32(&reg, field, queue->txop);
-		rt2x00pci_register_write(rt2x00dev, AC_TXOP_CSR1, reg);
-	}
+	rt2x00pci_register_read(rt2x00dev, offset, &reg);
+	rt2x00_set_field32(&reg, field, queue->txop);
+	rt2x00pci_register_write(rt2x00dev, offset, reg);
 
 	/* Update WMM registers */
 	field.bit_offset = queue_idx * 4;
