@@ -321,7 +321,7 @@ enum em28xx_aout {
 	EM28XX_AOUT_PCM_PHONE	= 7 << 8,
 };
 
-static int ac97_return_record_select(int a_out)
+static inline int ac97_return_record_select(int a_out)
 {
 	return (a_out & 0x700) >> 8;
 }
