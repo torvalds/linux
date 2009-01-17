@@ -2536,6 +2536,7 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 
 	if (!pskb_may_pull(skb, ETH_HLEN)) {
 		napi_reuse_skb(napi, skb);
+		skb = NULL;
 		goto out;
 	}
 
