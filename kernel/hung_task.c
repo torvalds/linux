@@ -72,7 +72,8 @@ static unsigned long get_timestamp(void)
 	return cpu_clock(this_cpu) >> 30LL;  /* 2^30 ~= 10^9 */
 }
 
-static void check_hung_task(struct task_struct *t, unsigned long now)
+static void check_hung_task(struct task_struct *t, unsigned long now,
+			    unsigned long timeout)
 {
 	unsigned long switch_count = t->nvcsw + t->nivcsw;
 
@@ -84,8 +85,7 @@ static void check_hung_task(struct task_struct *t, unsigned long now)
 		t->last_switch_timestamp = now;
 		return;
 	}
-	if ((long)(now - t->last_switch_timestamp) <
-					sysctl_hung_task_timeout_secs)
+	if ((long)(now - t->last_switch_timestamp) < timeout)
 		return;
 	if (!sysctl_hung_task_warnings)
 		return;
@@ -96,8 +96,7 @@ static void check_hung_task(struct task_struct *t, unsigned long now)
 	 * complain:
 	 */
 	printk(KERN_ERR "INFO: task %s:%d blocked for more than "
-			"%ld seconds.\n", t->comm, t->pid,
-			sysctl_hung_task_timeout_secs);
+			"%ld seconds.\n", t->comm, t->pid, timeout);
 	printk(KERN_ERR "\"echo 0 > /proc/sys/kernel/hung_task_timeout_secs\""
 			" disables this message.\n");
 	sched_show_task(t);
@@ -115,7 +114,7 @@ static void check_hung_task(struct task_struct *t, unsigned long now)
  * a really long time (120 seconds). If that happens, print out
  * a warning.
  */
-static void check_hung_uninterruptible_tasks(void)
+static void check_hung_uninterruptible_tasks(unsigned long timeout)
 {
 	int max_count = sysctl_hung_task_check_count;
 	unsigned long now = get_timestamp();
@@ -134,7 +133,7 @@ static void check_hung_uninterruptible_tasks(void)
 			goto unlock;
 		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
 		if (t->state == TASK_UNINTERRUPTIBLE)
-			check_hung_task(t, now);
+			check_hung_task(t, now, timeout);
 	} while_each_thread(g, t);
  unlock:
 	read_unlock(&tasklist_lock);
@@ -180,8 +179,17 @@ static int watchdog(void *dummy)
 	update_poll_jiffies();
 
 	for ( ; ; ) {
+		unsigned long timeout;
+
 		while (schedule_timeout_interruptible(hung_task_poll_jiffies));
-		check_hung_uninterruptible_tasks();
+
+		/*
+		 * Need to cache timeout here to avoid timeout being set
+		 * to 0 via sysctl while inside check_hung_*_tasks().
+		 */
+		timeout = sysctl_hung_task_timeout_secs;
+		if (timeout)
+			check_hung_uninterruptible_tasks(timeout);
 	}
 
 	return 0;
