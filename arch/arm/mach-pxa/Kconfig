@@ -295,6 +295,7 @@ config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
 	select PXA27x
 	select IWMMXT
+	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
 
 config MACH_MIOA701
