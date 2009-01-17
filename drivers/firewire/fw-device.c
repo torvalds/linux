@@ -892,7 +892,7 @@ static int reread_bus_info_block(struct fw_device *device, int generation)
 		if (i == 0 && q == 0)
 			return REREAD_BIB_GONE;
 
-		if (i > device->config_rom_length || q != device->config_rom[i])
+		if (q != device->config_rom[i])
 			return REREAD_BIB_CHANGED;
 	}
 
