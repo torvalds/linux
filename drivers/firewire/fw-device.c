@@ -155,27 +155,6 @@ struct bus_type fw_bus_type = {
 };
 EXPORT_SYMBOL(fw_bus_type);
 
-static void fw_device_release(struct device *dev)
-{
-	struct fw_device *device = fw_device(dev);
-	struct fw_card *card = device->card;
-	unsigned long flags;
-
-	/*
-	 * Take the card lock so we don't set this to NULL while a
-	 * FW_NODE_UPDATED callback is being handled or while the
-	 * bus manager work looks at this node.
-	 */
-	spin_lock_irqsave(&card->lock, flags);
-	device->node->data = NULL;
-	spin_unlock_irqrestore(&card->lock, flags);
-
-	fw_node_put(device->node);
-	kfree(device->config_rom);
-	kfree(device);
-	fw_card_put(card);
-}
-
 int fw_device_enable_phys_dma(struct fw_device *device)
 {
 	int generation = device->generation;
@@ -679,11 +658,53 @@ static void fw_device_shutdown(struct work_struct *work)
 	fw_device_put(device);
 }
 
+static void fw_device_release(struct device *dev)
+{
+	struct fw_device *device = fw_device(dev);
+	struct fw_card *card = device->card;
+	unsigned long flags;
+
+	/*
+	 * Take the card lock so we don't set this to NULL while a
+	 * FW_NODE_UPDATED callback is being handled or while the
+	 * bus manager work looks at this node.
+	 */
+	spin_lock_irqsave(&card->lock, flags);
+	device->node->data = NULL;
+	spin_unlock_irqrestore(&card->lock, flags);
+
+	fw_node_put(device->node);
+	kfree(device->config_rom);
+	kfree(device);
+	fw_card_put(card);
+}
+
 static struct device_type fw_device_type = {
-	.release	= fw_device_release,
+	.release = fw_device_release,
 };
 
-static void fw_device_update(struct work_struct *work);
+static int update_unit(struct device *dev, void *data)
+{
+	struct fw_unit *unit = fw_unit(dev);
+	struct fw_driver *driver = (struct fw_driver *)dev->driver;
+
+	if (is_fw_unit(dev) && driver != NULL && driver->update != NULL) {
+		down(&dev->sem);
+		driver->update(unit);
+		up(&dev->sem);
+	}
+
+	return 0;
+}
+
+static void fw_device_update(struct work_struct *work)
+{
+	struct fw_device *device =
+		container_of(work, struct fw_device, work.work);
+
+	fw_device_cdev_update(device);
+	device_for_each_child(&device->device, NULL, update_unit);
+}
 
 /*
  * If a device was pending for deletion because its node went away but its
@@ -849,29 +870,6 @@ static void fw_device_init(struct work_struct *work)
 	fw_device_put(device);		/* fw_device_idr's reference */
 
 	put_device(&device->device);	/* our reference */
-}
-
-static int update_unit(struct device *dev, void *data)
-{
-	struct fw_unit *unit = fw_unit(dev);
-	struct fw_driver *driver = (struct fw_driver *)dev->driver;
-
-	if (is_fw_unit(dev) && driver != NULL && driver->update != NULL) {
-		down(&dev->sem);
-		driver->update(unit);
-		up(&dev->sem);
-	}
-
-	return 0;
-}
-
-static void fw_device_update(struct work_struct *work)
-{
-	struct fw_device *device =
-		container_of(work, struct fw_device, work.work);
-
-	fw_device_cdev_update(device);
-	device_for_each_child(&device->device, NULL, update_unit);
 }
 
 enum {
