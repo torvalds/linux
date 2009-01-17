@@ -327,6 +327,10 @@ static struct cx24116_config tbs_cx24116_config = {
 	.demod_address = 0x05,
 };
 
+static struct cx24116_config tevii_cx24116_config = {
+	.demod_address = 0x55,
+};
+
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
@@ -550,6 +554,16 @@ static int dvb_register(struct cx23885_tsport *port)
 
 		fe0->dvb.frontend = dvb_attach(cx24116_attach,
 			&tbs_cx24116_config,
+			&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL)
+			fe0->dvb.frontend->ops.set_voltage = tbs_set_voltage;
+
+		break;
+	case CX23885_BOARD_TEVII_S470:
+		i2c_bus = &dev->i2c_bus[1];
+
+		fe0->dvb.frontend = dvb_attach(cx24116_attach,
+			&tevii_cx24116_config,
 			&i2c_bus->i2c_adap);
 		if (fe0->dvb.frontend != NULL)
 			fe0->dvb.frontend->ops.set_voltage = tbs_set_voltage;

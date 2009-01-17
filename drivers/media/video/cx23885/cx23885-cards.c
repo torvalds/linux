@@ -166,6 +166,10 @@ struct cx23885_board cx23885_boards[] = {
 		.name		= "TurboSight TBS 6920",
 		.portb		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_TEVII_S470] = {
+		.name		= "TeVii S470",
+		.portb		= CX23885_MPEG_DVB,
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -253,6 +257,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x6920,
 		.subdevice = 0x8888,
 		.card      = CX23885_BOARD_TBS_6920,
+	}, {
+		.subvendor = 0xd470,
+		.subdevice = 0x9022,
+		.card      = CX23885_BOARD_TEVII_S470,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -561,6 +569,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx_set(GP0_IO, 0x00040004);
 		break;
 	case CX23885_BOARD_TBS_6920:
+	case CX23885_BOARD_TEVII_S470:
 		cx_write(MC417_CTL, 0x00000036);
 		cx_write(MC417_OEN, 0x00001000);
 		cx_write(MC417_RWD, 0x00001800);
@@ -645,6 +654,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
 		break;
+	case CX23885_BOARD_TEVII_S470:
 	case CX23885_BOARD_TBS_6920:
 		ts1->gen_ctrl_val  = 0x5; /* Parallel */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */

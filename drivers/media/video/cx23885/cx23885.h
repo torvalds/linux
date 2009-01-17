@@ -68,6 +68,7 @@
 #define CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H 12
 #define CX23885_BOARD_COMPRO_VIDEOMATE_E650F   13
 #define CX23885_BOARD_TBS_6920                 14
+#define CX23885_BOARD_TEVII_S470               15
 
 /* Currently unsupported by the driver: PAL/H, NTSC/Kr, SECAM B/G/H/LC */
 #define CX23885_NORMS (\
