@@ -18,24 +18,26 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/module.h>
-#include <linux/wait.h>
-#include <linux/errno.h>
-#include <linux/kthread.h>
-#include <linux/device.h>
+#include <linux/ctype.h>
 #include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/errno.h>
 #include <linux/idr.h>
 #include <linux/jiffies.h>
-#include <linux/string.h>
+#include <linux/kobject.h>
+#include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/workqueue.h>
+
 #include <asm/system.h>
-#include <linux/ctype.h>
-#include "fw-transaction.h"
-#include "fw-topology.h"
+
 #include "fw-device.h"
+#include "fw-topology.h"
+#include "fw-transaction.h"
 
 void fw_csr_iterator_init(struct fw_csr_iterator *ci, u32 * p)
 {

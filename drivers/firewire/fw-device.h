@@ -19,11 +19,17 @@
 #ifndef __fw_device_h
 #define __fw_device_h
 
+#include <linux/device.h>
 #include <linux/fs.h>
-#include <linux/cdev.h>
 #include <linux/idr.h>
-#include <linux/rwsem.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+
 #include <asm/atomic.h>
 
 enum fw_device_state {
@@ -38,6 +44,9 @@ struct fw_attribute_group {
 	struct attribute_group group;
 	struct attribute *attrs[11];
 };
+
+struct fw_node;
+struct fw_card;
 
 /*
  * Note, fw_device.generation always has to be read before fw_device.node_id.
