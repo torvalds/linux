@@ -189,7 +189,7 @@ static int mt352_pinnacle_tuner_set_params(struct dvb_frontend* fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	i2c_transfer(&dev->i2c_adap, &msg, 1);
-	saa7134_i2c_call_clients(dev,VIDIOC_S_FREQUENCY,&f);
+	saa_call_all(dev, tuner, s_frequency, &f);
 	msg.buf = on;
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -1449,7 +1449,7 @@ static int dvb_fini(struct saa7134_dev *dev)
 		tda9887_cfg.priv  = &on;
 
 		/* otherwise we don't detect the tuner on next insmod */
-		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &tda9887_cfg);
+		saa_call_all(dev, tuner, s_config, &tda9887_cfg);
 	} else if (dev->board == SAA7134_BOARD_MEDION_MD8800_QUADRO) {
 		if ((dev->eedata[2] == 0x07) && use_frontend) {
 			/* turn off the 2nd lnb supply */

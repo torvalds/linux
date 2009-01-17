@@ -35,6 +35,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-device.h>
 #include <media/tuner.h>
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
@@ -482,6 +483,7 @@ struct saa7134_dev {
 	struct mutex               lock;
 	spinlock_t                 slock;
 	struct v4l2_prio_state     prio;
+	struct v4l2_device         v4l2_dev;
 	/* workstruct for loading modules */
 	struct work_struct request_module_wk;
 
@@ -572,7 +574,6 @@ struct saa7134_dev {
 	enum saa7134_ts_status 	   ts_state;
 	unsigned int 		   buff_cnt;
 	struct saa7134_mpeg_ops    *mops;
-	struct i2c_client 	   *mpeg_i2c_client;
 
 	/* SAA7134_MPEG_EMPRESS only */
 	struct video_device        *empress_dev;
@@ -615,6 +616,12 @@ struct saa7134_dev {
 		V4L2_STD_PAL_Nc | V4L2_STD_SECAM | \
 		V4L2_STD_NTSC   | V4L2_STD_PAL_M | \
 		V4L2_STD_PAL_60)
+
+#define GRP_EMPRESS (1)
+#define saa_call_all(dev, o, f, args...) \
+	v4l2_device_call_all(&(dev)->v4l2_dev, 0, o, f , ##args)
+#define saa_call_empress(dev, o, f, args...) \
+	v4l2_device_call_until_err(&(dev)->v4l2_dev, GRP_EMPRESS, o, f , ##args)
 
 /* ----------------------------------------------------------- */
 /* saa7134-core.c                                              */
@@ -668,10 +675,6 @@ int saa7134_tuner_callback(void *priv, int component, int command, int arg);
 
 int saa7134_i2c_register(struct saa7134_dev *dev);
 int saa7134_i2c_unregister(struct saa7134_dev *dev);
-void saa7134_i2c_call_clients(struct saa7134_dev *dev,
-			      unsigned int cmd, void *arg);
-int saa7134_i2c_call_saa6752(struct saa7134_dev *dev,
-			      unsigned int cmd, void *arg);
 
 
 /* ----------------------------------------------------------- */

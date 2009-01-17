@@ -851,6 +851,10 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (NULL == dev)
 		return -ENOMEM;
 
+	err = v4l2_device_register(&pci_dev->dev, &dev->v4l2_dev);
+	if (err)
+		goto fail0;
+
 	/* pci init */
 	dev->pci = pci_dev;
 	if (pci_enable_device(pci_dev)) {
@@ -927,6 +931,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	dev->autodetected = card[dev->nr] != dev->board;
 	dev->tuner_type = saa7134_boards[dev->board].tuner_type;
 	dev->tuner_addr = saa7134_boards[dev->board].tuner_addr;
+	dev->radio_type = saa7134_boards[dev->board].radio_type;
+	dev->radio_addr = saa7134_boards[dev->board].radio_addr;
 	dev->tda9887_conf = saa7134_boards[dev->board].tda9887_conf;
 	if (UNSET != tuner[dev->nr])
 		dev->tuner_type = tuner[dev->nr];
@@ -973,15 +979,50 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	saa7134_i2c_register(dev);
 
 	/* initialize hardware #2 */
-	if (TUNER_ABSENT != dev->tuner_type)
-		request_module("tuner");
+	if (TUNER_ABSENT != dev->tuner_type) {
+		if (dev->radio_type != UNSET) {
+			v4l2_i2c_new_subdev(&dev->i2c_adap, "tuner", "tuner",
+					dev->radio_addr);
+		}
+		if (dev->tda9887_conf & TDA9887_PRESENT) {
+			unsigned short addrs[] = { 0x42, 0x43, 0x4a, 0x4b,
+						   I2C_CLIENT_END };
+
+			v4l2_i2c_new_probed_subdev(&dev->i2c_adap,
+					"tuner", "tuner", addrs);
+		}
+		if (dev->tuner_addr != ADDR_UNSET) {
+			v4l2_i2c_new_subdev(&dev->i2c_adap,
+					"tuner", "tuner", dev->tuner_addr);
+		} else {
+			unsigned short addrs[] = {
+				0x42, 0x43, 0x4a, 0x4b,		/* tda8290 */
+				0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
+				0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
+				I2C_CLIENT_END
+			};
+
+			if (dev->tda9887_conf & TDA9887_PRESENT) {
+				v4l2_i2c_new_probed_subdev(&dev->i2c_adap,
+						"tuner", "tuner", addrs + 4);
+			} else {
+				v4l2_i2c_new_probed_subdev(&dev->i2c_adap,
+						"tuner", "tuner", addrs);
+			}
+		}
+	}
 	saa7134_board_init2(dev);
 
 	saa7134_hwinit2(dev);
 
 	/* load i2c helpers */
 	if (card_is_empress(dev)) {
-		request_module("saa6752hs");
+		struct v4l2_subdev *sd =
+			v4l2_i2c_new_subdev(&dev->i2c_adap, "saa6752hs",
+				"saa6752hs", 0x20);
+
+		if (sd)
+			sd->grp_id = GRP_EMPRESS;
 	}
 
 	request_submodules(dev);
@@ -1023,7 +1064,6 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	}
 
 	/* everything worked */
-	pci_set_drvdata(pci_dev,dev);
 	saa7134_devcount++;
 
 	mutex_lock(&devlist_lock);
@@ -1040,7 +1080,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	}
 
 	if (TUNER_ABSENT != dev->tuner_type)
-		saa7134_i2c_call_clients(dev, TUNER_SET_STANDBY, NULL);
+		saa_call_all(dev, core, s_standby, 0);
 
 	return 0;
 
@@ -1055,13 +1095,16 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	release_mem_region(pci_resource_start(pci_dev,0),
 			   pci_resource_len(pci_dev,0));
  fail1:
+	v4l2_device_unregister(&dev->v4l2_dev);
+ fail0:
 	kfree(dev);
 	return err;
 }
 
 static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 {
-	struct saa7134_dev *dev = pci_get_drvdata(pci_dev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
+	struct saa7134_dev *dev = container_of(v4l2_dev, struct saa7134_dev, v4l2_dev);
 	struct saa7134_mpeg_ops *mops;
 
 	/* Release DMA sound modules if present */
@@ -1113,7 +1156,8 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 	release_mem_region(pci_resource_start(pci_dev,0),
 			   pci_resource_len(pci_dev,0));
 
-	pci_set_drvdata(pci_dev, NULL);
+
+	v4l2_device_unregister(&dev->v4l2_dev);
 
 	/* free memory */
 	kfree(dev);
@@ -1148,8 +1192,8 @@ static int saa7134_buffer_requeue(struct saa7134_dev *dev,
 
 static int saa7134_suspend(struct pci_dev *pci_dev , pm_message_t state)
 {
-
-	struct saa7134_dev *dev = pci_get_drvdata(pci_dev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
+	struct saa7134_dev *dev = container_of(v4l2_dev, struct saa7134_dev, v4l2_dev);
 
 	/* disable overlay - apps should enable it explicitly on resume*/
 	dev->ovenable = 0;
@@ -1185,7 +1229,8 @@ static int saa7134_suspend(struct pci_dev *pci_dev , pm_message_t state)
 
 static int saa7134_resume(struct pci_dev *pci_dev)
 {
-	struct saa7134_dev *dev = pci_get_drvdata(pci_dev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
+	struct saa7134_dev *dev = container_of(v4l2_dev, struct saa7134_dev, v4l2_dev);
 	unsigned long flags;
 
 	pci_set_power_state(pci_dev, PCI_D0);
@@ -1307,7 +1352,6 @@ module_exit(saa7134_fini);
 /* ----------------------------------------------------------- */
 
 EXPORT_SYMBOL(saa7134_set_gpio);
-EXPORT_SYMBOL(saa7134_i2c_call_clients);
 EXPORT_SYMBOL(saa7134_devlist);
 EXPORT_SYMBOL(saa7134_boards);
 

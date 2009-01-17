@@ -4611,7 +4611,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_type     = TUNER_YMEC_TVF_5533MF,
 		.radio_type     = TUNER_TEA5767,
 		.tuner_addr     = ADDR_UNSET,
-		.radio_addr     = ADDR_UNSET,
+		.radio_addr     = 0x60,
 		.gpiomask       = 0x80000700,
 		.inputs = { {
 			.name   = name_tv,
@@ -6109,7 +6109,7 @@ static void saa7134_tuner_setup(struct saa7134_dev *dev)
 
 		tun_setup.mode_mask = T_RADIO;
 
-		saa7134_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
+		saa_call_all(dev, tuner, s_type_addr, &tun_setup);
 		mode_mask &= ~T_RADIO;
 	}
 
@@ -6121,7 +6121,7 @@ static void saa7134_tuner_setup(struct saa7134_dev *dev)
 
 		tun_setup.mode_mask = mode_mask;
 
-		saa7134_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
+		saa_call_all(dev, tuner, s_type_addr, &tun_setup);
 	}
 
 	if (dev->tda9887_conf) {
@@ -6130,8 +6130,7 @@ static void saa7134_tuner_setup(struct saa7134_dev *dev)
 		tda9887_cfg.tuner = TUNER_TDA9887;
 		tda9887_cfg.priv = &dev->tda9887_conf;
 
-		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG,
-					 &tda9887_cfg);
+		saa_call_all(dev, tuner, s_config, &tda9887_cfg);
 	}
 
 	if (dev->tuner_type == TUNER_XC2028) {
@@ -6158,7 +6157,7 @@ static void saa7134_tuner_setup(struct saa7134_dev *dev)
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
 
-		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+		saa_call_all(dev, tuner, s_config, &xc2028_cfg);
 	}
 }
 
@@ -6401,7 +6400,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		ctl.xtal_freq = TEA5767_HIGH_LO_13MHz;
 		tea5767_cfg.tuner = TUNER_TEA5767;
 		tea5767_cfg.priv  = &ctl;
-		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &tea5767_cfg);
+		saa_call_all(dev, tuner, s_config, &tea5767_cfg);
 		break;
 	}
 	} /* switch() */

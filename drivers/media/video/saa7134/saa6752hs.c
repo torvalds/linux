@@ -36,7 +36,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
 
@@ -45,10 +45,6 @@
 #define MPEG_TOTAL_TARGET_BITRATE_MAX  27000
 #define MPEG_PID_MAX ((1 << 14) - 1)
 
-/* Addresses to scan */
-static unsigned short normal_i2c[] = {0x20, I2C_CLIENT_END};
-
-I2C_CLIENT_INSMOD;
 
 MODULE_DESCRIPTION("device driver for saa6752hs MPEG2 encoder");
 MODULE_AUTHOR("Andrew de Quincey");
@@ -914,11 +910,6 @@ static int saa6752hs_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_i
 			chip, h->chip, h->revision);
 }
 
-static int saa6752hs_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops saa6752hs_core_ops = {
@@ -993,8 +984,6 @@ MODULE_DEVICE_TABLE(i2c, saa6752hs_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa6752hs",
-	.driverid = I2C_DRIVERID_SAA6752HS,
-	.command = saa6752hs_command,
 	.probe = saa6752hs_probe,
 	.remove = saa6752hs_remove,
 	.id_table = saa6752hs_id,
