@@ -45,6 +45,11 @@
 /* e7xx IrDA power control */
 #define GPIO_E7XX_IR_OFF         38
 
+/* e740 audio control GPIOs */
+#define GPIO_E740_WM9705_nAVDD2  16
+#define GPIO_E740_MIC_ON         40
+#define GPIO_E740_AMP_ON         41
+
 /* e750 audio control GPIOs */
 #define GPIO_E750_HP_AMP_OFF      4
 #define GPIO_E750_SPK_AMP_OFF     7
