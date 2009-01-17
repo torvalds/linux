@@ -109,7 +109,7 @@ static unsigned int ac97_read(struct snd_soc_codec *codec,
 	default:
 		reg = reg >> 1;
 
-		if (reg >= (ARRAY_SIZE(ad1980_reg)))
+		if (reg >= ARRAY_SIZE(ad1980_reg))
 			return -EINVAL;
 
 		return cache[reg];
@@ -123,7 +123,7 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	soc_ac97_ops.write(codec->ac97, reg, val);
 	reg = reg >> 1;
-	if (reg < (ARRAY_SIZE(ad1980_reg)))
+	if (reg < ARRAY_SIZE(ad1980_reg))
 		cache[reg] = val;
 
 	return 0;

@@ -123,7 +123,6 @@ bus_err:
 	snd_soc_free_pcms(socdev);
 
 err:
-	kfree(socdev->codec->reg_cache);
 	kfree(socdev->codec);
 	socdev->codec = NULL;
 	return ret;
@@ -138,7 +137,6 @@ static int ac97_soc_remove(struct platform_device *pdev)
 		return 0;
 
 	snd_soc_free_pcms(socdev);
-	kfree(socdev->codec->reg_cache);
 	kfree(socdev->codec);
 
 	return 0;

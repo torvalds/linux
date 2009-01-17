@@ -97,7 +97,7 @@ static inline unsigned int wm8753_read_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
 	u16 *cache = codec->reg_cache;
-	if (reg < 1 || reg > (ARRAY_SIZE(wm8753_reg) + 1))
+	if (reg < 1 || reg >= (ARRAY_SIZE(wm8753_reg) + 1))
 		return -1;
 	return cache[reg - 1];
 }
@@ -109,7 +109,7 @@ static inline void wm8753_write_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg, unsigned int value)
 {
 	u16 *cache = codec->reg_cache;
-	if (reg < 1 || reg > 0x3f)
+	if (reg < 1 || reg >= (ARRAY_SIZE(wm8753_reg) + 1))
 		return;
 	cache[reg - 1] = value;
 }

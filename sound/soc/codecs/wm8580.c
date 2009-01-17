@@ -200,7 +200,7 @@ static inline unsigned int wm8580_read_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
 	u16 *cache = codec->reg_cache;
-	BUG_ON(reg > ARRAY_SIZE(wm8580_reg));
+	BUG_ON(reg >= ARRAY_SIZE(wm8580_reg));
 	return cache[reg];
 }
 
@@ -223,7 +223,7 @@ static int wm8580_write(struct snd_soc_codec *codec, unsigned int reg,
 {
 	u8 data[2];
 
-	BUG_ON(reg > ARRAY_SIZE(wm8580_reg));
+	BUG_ON(reg >= ARRAY_SIZE(wm8580_reg));
 
 	/* Registers are 9 bits wide */
 	value &= 0x1ff;

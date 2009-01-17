@@ -47,7 +47,7 @@ static inline unsigned int wm8728_read_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
 	u16 *cache = codec->reg_cache;
-	BUG_ON(reg > ARRAY_SIZE(wm8728_reg_defaults));
+	BUG_ON(reg >= ARRAY_SIZE(wm8728_reg_defaults));
 	return cache[reg];
 }
 
@@ -55,7 +55,7 @@ static inline void wm8728_write_reg_cache(struct snd_soc_codec *codec,
 	u16 reg, unsigned int value)
 {
 	u16 *cache = codec->reg_cache;
-	BUG_ON(reg > ARRAY_SIZE(wm8728_reg_defaults));
+	BUG_ON(reg >= ARRAY_SIZE(wm8728_reg_defaults));
 	cache[reg] = value;
 }
 

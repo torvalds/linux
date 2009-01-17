@@ -116,7 +116,7 @@ static inline unsigned int wm8990_read_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
 	u16 *cache = codec->reg_cache;
-	BUG_ON(reg > (ARRAY_SIZE(wm8990_reg)) - 1);
+	BUG_ON(reg >= ARRAY_SIZE(wm8990_reg));
 	return cache[reg];
 }
 
@@ -129,7 +129,7 @@ static inline void wm8990_write_reg_cache(struct snd_soc_codec *codec,
 	u16 *cache = codec->reg_cache;
 
 	/* Reset register and reserved registers are uncached */
-	if (reg == 0 || reg > ARRAY_SIZE(wm8990_reg) - 1)
+	if (reg == 0 || reg >= ARRAY_SIZE(wm8990_reg))
 		return;
 
 	cache[reg] = value;

@@ -125,6 +125,9 @@ static inline unsigned int twl4030_read_reg_cache(struct snd_soc_codec *codec,
 {
 	u8 *cache = codec->reg_cache;
 
+	if (reg >= TWL4030_CACHEREGNUM)
+		return -EIO;
+
 	return cache[reg];
 }
 
