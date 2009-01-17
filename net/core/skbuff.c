@@ -2585,8 +2585,9 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	struct sk_buff *nskb;
 	unsigned int headroom;
 	unsigned int hlen = p->data - skb_mac_header(p);
+	unsigned int len = skb->len;
 
-	if (hlen + p->len + skb->len >= 65536)
+	if (hlen + p->len + len >= 65536)
 		return -E2BIG;
 
 	if (skb_shinfo(p)->frag_list)
@@ -2648,9 +2649,9 @@ merge:
 
 done:
 	NAPI_GRO_CB(p)->count++;
-	p->data_len += skb->len;
-	p->truesize += skb->len;
-	p->len += skb->len;
+	p->data_len += len;
+	p->truesize += len;
+	p->len += len;
 
 	NAPI_GRO_CB(skb)->same_flow = 1;
 	return 0;
