@@ -693,11 +693,9 @@ static void magician_set_vpp(struct map_info *map, int vpp)
 	gpio_set_value(EGPIO_MAGICIAN_FLASH_VPP, vpp);
 }
 
-#define PXA_CS_SIZE		0x04000000
-
 static struct resource strataflash_resource = {
 	.start = PXA_CS0_PHYS,
-	.end   = PXA_CS0_PHYS + PXA_CS_SIZE - 1,
+	.end   = PXA_CS0_PHYS + SZ_64M - 1,
 	.flags = IORESOURCE_MEM,
 };
 
