@@ -128,6 +128,7 @@ void do_BUG(const char *file, int line)
 	bust_spinlocks(1);
 	printk("kernel BUG at %s:%d!\n", file, line);
 }
+EXPORT_SYMBOL(do_BUG);
 #endif
 
 static DEFINE_SPINLOCK(dimm_handler_lock);
@@ -1168,20 +1169,20 @@ static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *in
 	}
 
 	/* Now dump the cache snapshots. */
-	printk("%s" "ERROR(%d): D-cache idx[%x] tag[%016lx] utag[%016lx] stag[%016lx]\n",
+	printk("%s" "ERROR(%d): D-cache idx[%x] tag[%016llx] utag[%016llx] stag[%016llx]\n",
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
 	       (int) info->dcache_index,
 	       info->dcache_tag,
 	       info->dcache_utag,
 	       info->dcache_stag);
-	printk("%s" "ERROR(%d): D-cache data0[%016lx] data1[%016lx] data2[%016lx] data3[%016lx]\n",
+	printk("%s" "ERROR(%d): D-cache data0[%016llx] data1[%016llx] data2[%016llx] data3[%016llx]\n",
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
 	       info->dcache_data[0],
 	       info->dcache_data[1],
 	       info->dcache_data[2],
 	       info->dcache_data[3]);
-	printk("%s" "ERROR(%d): I-cache idx[%x] tag[%016lx] utag[%016lx] stag[%016lx] "
-	       "u[%016lx] l[%016lx]\n",
+	printk("%s" "ERROR(%d): I-cache idx[%x] tag[%016llx] utag[%016llx] stag[%016llx] "
+	       "u[%016llx] l[%016llx]\n",
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
 	       (int) info->icache_index,
 	       info->icache_tag,
@@ -1189,22 +1190,22 @@ static void cheetah_log_errors(struct pt_regs *regs, struct cheetah_err_info *in
 	       info->icache_stag,
 	       info->icache_upper,
 	       info->icache_lower);
-	printk("%s" "ERROR(%d): I-cache INSN0[%016lx] INSN1[%016lx] INSN2[%016lx] INSN3[%016lx]\n",
+	printk("%s" "ERROR(%d): I-cache INSN0[%016llx] INSN1[%016llx] INSN2[%016llx] INSN3[%016llx]\n",
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
 	       info->icache_data[0],
 	       info->icache_data[1],
 	       info->icache_data[2],
 	       info->icache_data[3]);
-	printk("%s" "ERROR(%d): I-cache INSN4[%016lx] INSN5[%016lx] INSN6[%016lx] INSN7[%016lx]\n",
+	printk("%s" "ERROR(%d): I-cache INSN4[%016llx] INSN5[%016llx] INSN6[%016llx] INSN7[%016llx]\n",
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
 	       info->icache_data[4],
 	       info->icache_data[5],
 	       info->icache_data[6],
 	       info->icache_data[7]);
-	printk("%s" "ERROR(%d): E-cache idx[%x] tag[%016lx]\n",
+	printk("%s" "ERROR(%d): E-cache idx[%x] tag[%016llx]\n",
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
 	       (int) info->ecache_index, info->ecache_tag);
-	printk("%s" "ERROR(%d): E-cache data0[%016lx] data1[%016lx] data2[%016lx] data3[%016lx]\n",
+	printk("%s" "ERROR(%d): E-cache data0[%016llx] data1[%016llx] data2[%016llx] data3[%016llx]\n",
 	       (recoverable ? KERN_WARNING : KERN_CRIT), smp_processor_id(),
 	       info->ecache_data[0],
 	       info->ecache_data[1],
@@ -1794,7 +1795,7 @@ static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent,
 	int cnt;
 
 	printk("%s: Reporting on cpu %d\n", pfx, cpu);
-	printk("%s: err_handle[%lx] err_stick[%lx] err_type[%08x:%s]\n",
+	printk("%s: err_handle[%llx] err_stick[%llx] err_type[%08x:%s]\n",
 	       pfx,
 	       ent->err_handle, ent->err_stick,
 	       ent->err_type,
@@ -1818,7 +1819,7 @@ static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent,
 		"privileged" : ""),
 	       ((ent->err_attrs & SUN4V_ERR_ATTRS_RES_QUEUE_FULL) ?
 		"queue-full" : ""));
-	printk("%s: err_raddr[%016lx] err_size[%u] err_cpu[%u]\n",
+	printk("%s: err_raddr[%016llx] err_size[%u] err_cpu[%u]\n",
 	       pfx,
 	       ent->err_raddr, ent->err_size, ent->err_cpu);
 
@@ -2261,6 +2262,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 		do_exit(SIGKILL);
 	do_exit(SIGSEGV);
 }
+EXPORT_SYMBOL(die_if_kernel);
 
 #define VIS_OPCODE_MASK	((0x3 << 30) | (0x3f << 19))
 #define VIS_OPCODE_VAL	((0x2 << 30) | (0x36 << 19))

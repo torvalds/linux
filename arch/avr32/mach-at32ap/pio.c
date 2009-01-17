@@ -167,22 +167,29 @@ void at32_deselect_pin(unsigned int pin)
 }
 
 /* Reserve a pin, preventing anyone else from changing its configuration. */
-void __init at32_reserve_pin(unsigned int pin)
+void __init at32_reserve_pin(unsigned int port, u32 pin_mask)
 {
 	struct pio_device *pio;
-	unsigned int pin_index = pin & 0x1f;
 
-	pio = gpio_to_pio(pin);
+	/* assign and verify pio */
+	pio = gpio_to_pio(port);
 	if (unlikely(!pio)) {
-		printk("pio: invalid pin %u\n", pin);
+		printk(KERN_WARNING "pio: invalid port %u\n", port);
 		goto fail;
 	}
 
-	if (unlikely(test_and_set_bit(pin_index, &pio->pinmux_mask))) {
-		printk("%s: pin %u is busy\n", pio->name, pin_index);
+	/* Test if any of the requested pins is already muxed */
+	spin_lock(&pio_lock);
+	if (unlikely(pio->pinmux_mask & pin_mask)) {
+		printk(KERN_WARNING "%s: pin(s) busy (req. 0x%x, busy 0x%x)\n",
+		       pio->name, pin_mask, pio->pinmux_mask & pin_mask);
+		spin_unlock(&pio_lock);
 		goto fail;
 	}
 
+	/* Reserve pins */
+	pio->pinmux_mask |= pin_mask;
+	spin_unlock(&pio_lock);
 	return;
 
 fail:

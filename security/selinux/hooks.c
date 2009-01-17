@@ -1433,12 +1433,13 @@ static int current_has_perm(const struct task_struct *tsk,
 
 /* Check whether a task is allowed to use a capability. */
 static int task_has_capability(struct task_struct *tsk,
+			       const struct cred *cred,
 			       int cap, int audit)
 {
 	struct avc_audit_data ad;
 	struct av_decision avd;
 	u16 sclass;
-	u32 sid = task_sid(tsk);
+	u32 sid = cred_sid(cred);
 	u32 av = CAP_TO_MASK(cap);
 	int rc;
 
@@ -1865,15 +1866,16 @@ static int selinux_capset(struct cred *new, const struct cred *old,
 	return cred_has_perm(old, new, PROCESS__SETCAP);
 }
 
-static int selinux_capable(struct task_struct *tsk, int cap, int audit)
+static int selinux_capable(struct task_struct *tsk, const struct cred *cred,
+			   int cap, int audit)
 {
 	int rc;
 
-	rc = secondary_ops->capable(tsk, cap, audit);
+	rc = secondary_ops->capable(tsk, cred, cap, audit);
 	if (rc)
 		return rc;
 
-	return task_has_capability(tsk, cap, audit);
+	return task_has_capability(tsk, cred, cap, audit);
 }
 
 static int selinux_sysctl_get_sid(ctl_table *table, u16 tclass, u32 *sid)
@@ -2037,7 +2039,8 @@ static int selinux_vm_enough_memory(struct mm_struct *mm, long pages)
 {
 	int rc, cap_sys_admin = 0;
 
-	rc = selinux_capable(current, CAP_SYS_ADMIN, SECURITY_CAP_NOAUDIT);
+	rc = selinux_capable(current, current_cred(), CAP_SYS_ADMIN,
+			     SECURITY_CAP_NOAUDIT);
 	if (rc == 0)
 		cap_sys_admin = 1;
 
@@ -2880,7 +2883,8 @@ static int selinux_inode_getsecurity(const struct inode *inode, const char *name
 	 * and lack of permission just means that we fall back to the
 	 * in-core context value, not a denial.
 	 */
-	error = selinux_capable(current, CAP_MAC_ADMIN, SECURITY_CAP_NOAUDIT);
+	error = selinux_capable(current, current_cred(), CAP_MAC_ADMIN,
+				SECURITY_CAP_NOAUDIT);
 	if (!error)
 		error = security_sid_to_context_force(isec->sid, &context,
 						      &size);
@@ -4185,7 +4189,7 @@ static int selinux_sock_rcv_skb_iptables_compat(struct sock *sk,
 static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
 				       u16 family)
 {
-	int err;
+	int err = 0;
 	struct sk_security_struct *sksec = sk->sk_security;
 	u32 peer_sid;
 	u32 sk_sid = sksec->sid;
@@ -4202,7 +4206,7 @@ static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
 	if (selinux_compat_net)
 		err = selinux_sock_rcv_skb_iptables_compat(sk, skb, &ad,
 							   family, addrp);
-	else
+	else if (selinux_secmark_enabled())
 		err = avc_has_perm(sk_sid, skb->secmark, SECCLASS_PACKET,
 				   PACKET__RECV, &ad);
 	if (err)
@@ -4705,7 +4709,7 @@ static unsigned int selinux_ip_postroute_compat(struct sk_buff *skb,
 		if (selinux_ip_postroute_iptables_compat(skb->sk, ifindex,
 							 &ad, family, addrp))
 			return NF_DROP;
-	} else {
+	} else if (selinux_secmark_enabled()) {
 		if (avc_has_perm(sksec->sid, skb->secmark,
 				 SECCLASS_PACKET, PACKET__SEND, &ad))
 			return NF_DROP;

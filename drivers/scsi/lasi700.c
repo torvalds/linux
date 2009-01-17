@@ -103,8 +103,7 @@ lasi700_probe(struct parisc_device *dev)
 
 	hostdata = kzalloc(sizeof(*hostdata), GFP_KERNEL);
 	if (!hostdata) {
-		printk(KERN_ERR "%s: Failed to allocate host data\n",
-		       dev->dev.bus_id);
+		dev_printk(KERN_ERR, dev, "Failed to allocate host data\n");
 		return -ENOMEM;
 	}
 

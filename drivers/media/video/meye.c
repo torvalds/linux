@@ -841,7 +841,7 @@ again:
 /* video4linux integration                                                  */
 /****************************************************************************/
 
-static int meye_open(struct inode *inode, struct file *file)
+static int meye_open(struct file *file)
 {
 	int i;
 
@@ -863,7 +863,7 @@ static int meye_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int meye_release(struct inode *inode, struct file *file)
+static int meye_release(struct file *file)
 {
 	mchip_hic_stop();
 	mchip_dma_free();
@@ -1577,7 +1577,7 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 	return 0;
 }
 
-static int vidioc_default(struct file *file, void *fh, int cmd, void *arg)
+static long vidioc_default(struct file *file, void *fh, int cmd, void *arg)
 {
 	switch (cmd) {
 	case MEYEIOC_G_PARAMS:
@@ -1684,17 +1684,13 @@ static int meye_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static const struct file_operations meye_fops = {
+static const struct v4l2_file_operations meye_fops = {
 	.owner		= THIS_MODULE,
 	.open		= meye_open,
 	.release	= meye_release,
 	.mmap		= meye_mmap,
 	.ioctl		= video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
 	.poll		= meye_poll,
-	.llseek		= no_llseek,
 };
 
 static const struct v4l2_ioctl_ops meye_ioctl_ops = {

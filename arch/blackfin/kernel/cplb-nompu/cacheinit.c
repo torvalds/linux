@@ -25,19 +25,15 @@
 #include <asm/cplbinit.h>
 
 #if defined(CONFIG_BFIN_ICACHE)
-void __init bfin_icache_init(void)
+void __cpuinit bfin_icache_init(struct cplb_entry *icplb_tbl)
 {
-	unsigned long *table = icplb_table;
 	unsigned long ctrl;
 	int i;
 
+	SSYNC();
 	for (i = 0; i < MAX_CPLBS; i++) {
-		unsigned long addr = *table++;
-		unsigned long data = *table++;
-		if (addr == (unsigned long)-1)
-			break;
-		bfin_write32(ICPLB_ADDR0 + i * 4, addr);
-		bfin_write32(ICPLB_DATA0 + i * 4, data);
+		bfin_write32(ICPLB_ADDR0 + i * 4, icplb_tbl[i].addr);
+		bfin_write32(ICPLB_DATA0 + i * 4, icplb_tbl[i].data);
 	}
 	ctrl = bfin_read_IMEM_CONTROL();
 	ctrl |= IMC | ENICPLB;
@@ -47,20 +43,17 @@ void __init bfin_icache_init(void)
 #endif
 
 #if defined(CONFIG_BFIN_DCACHE)
-void __init bfin_dcache_init(void)
+void __cpuinit bfin_dcache_init(struct cplb_entry *dcplb_tbl)
 {
-	unsigned long *table = dcplb_table;
 	unsigned long ctrl;
 	int i;
 
+	SSYNC();
 	for (i = 0; i < MAX_CPLBS; i++) {
-		unsigned long addr = *table++;
-		unsigned long data = *table++;
-		if (addr == (unsigned long)-1)
-			break;
-		bfin_write32(DCPLB_ADDR0 + i * 4, addr);
-		bfin_write32(DCPLB_DATA0 + i * 4, data);
+		bfin_write32(DCPLB_ADDR0 + i * 4, dcplb_tbl[i].addr);
+		bfin_write32(DCPLB_DATA0 + i * 4, dcplb_tbl[i].data);
 	}
+
 	ctrl = bfin_read_DMEM_CONTROL();
 	ctrl |= DMEM_CNTR;
 	bfin_write_DMEM_CONTROL(ctrl);

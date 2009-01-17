@@ -50,6 +50,14 @@ generic_file_llseek_unlocked(struct file *file, loff_t offset, int origin)
 		offset += inode->i_size;
 		break;
 	case SEEK_CUR:
+		/*
+		 * Here we special-case the lseek(fd, 0, SEEK_CUR)
+		 * position-querying operation.  Avoid rewriting the "same"
+		 * f_pos value back to the file because a concurrent read(),
+		 * write() or lseek() might have altered it
+		 */
+		if (offset == 0)
+			return file->f_pos;
 		offset += file->f_pos;
 		break;
 	}
@@ -105,6 +113,10 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 			offset += i_size_read(file->f_path.dentry->d_inode);
 			break;
 		case SEEK_CUR:
+			if (offset == 0) {
+				retval = file->f_pos;
+				goto out;
+			}
 			offset += file->f_pos;
 	}
 	retval = -EINVAL;
@@ -115,6 +127,7 @@ loff_t default_llseek(struct file *file, loff_t offset, int origin)
 		}
 		retval = offset;
 	}
+out:
 	unlock_kernel();
 	return retval;
 }

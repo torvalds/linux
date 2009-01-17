@@ -157,6 +157,8 @@
 #define ANOMALY_05000429 (__SILICON_REVISION__ < 2)
 /* Software System Reset Corrupts PLL_LOCKCNT Register */
 #define ANOMALY_05000430 (__SILICON_REVISION__ >= 2)
+/* IFLUSH Instruction at End of Hardware Loop Causes Infinite Stall */
+#define ANOMALY_05000443 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000125 (0)
@@ -173,5 +175,8 @@
 #define ANOMALY_05000311 (0)
 #define ANOMALY_05000323 (0)
 #define ANOMALY_05000363 (0)
+#define ANOMALY_05000412 (0)
+#define ANOMALY_05000432 (0)
+#define ANOMALY_05000435 (0)
 
 #endif

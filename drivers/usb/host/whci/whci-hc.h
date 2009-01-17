@@ -410,6 +410,8 @@ struct dn_buf_entry {
 #  define WUSBDNTSCTRL_SLOTS(s)    ((s) << 0)
 
 #define WUSBTIME             0x68
+#  define WUSBTIME_CHANNEL_TIME_MASK 0x00ffffff
+
 #define WUSBBPST             0x6c
 #define WUSBDIBUPDATED       0x70
 

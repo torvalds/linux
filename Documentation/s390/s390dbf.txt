@@ -2,7 +2,7 @@ S390 Debug Feature
 ==================
 
 files: arch/s390/kernel/debug.c
-       include/asm-s390/debug.h
+       arch/s390/include/asm/debug.h
 
 Description:
 ------------

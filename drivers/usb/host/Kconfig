@@ -96,6 +96,19 @@ config USB_EHCI_HCD_PPC_OF
 	  Enables support for the USB controller present on the PowerPC
 	  OpenFirmware platform bus.
 
+config USB_OXU210HP_HCD
+	tristate "OXU210HP HCD support"
+	depends on USB
+	---help---
+	  The OXU210HP is an USB host/OTG/device controller. Enable this
+	  option if your board has this chip. If unsure, say N.
+
+	  This driver does not support isochronous transfers and doesn't
+	  implement OTG nor USB device controllers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called oxu210hp-hcd.
+
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
 	depends on USB

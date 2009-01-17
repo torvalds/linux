@@ -89,6 +89,8 @@ struct umc_driver {
 	void (*remove)(struct umc_dev *);
 	int  (*suspend)(struct umc_dev *, pm_message_t state);
 	int  (*resume)(struct umc_dev *);
+	int  (*pre_reset)(struct umc_dev *);
+	int  (*post_reset)(struct umc_dev *);
 
 	struct device_driver driver;
 };

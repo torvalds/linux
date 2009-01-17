@@ -86,8 +86,6 @@
 #include <linux/err.h>
 
 #include "uwb-internal.h"
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
 
 /*
  * UWB Radio Controller Notification/Event Handle
@@ -254,7 +252,6 @@ error_kzalloc:
 
 static void __uwb_rc_neh_rm(struct uwb_rc *rc, struct uwb_rc_neh *neh)
 {
-	del_timer(&neh->timer);
 	__uwb_rc_ctx_put(rc, neh);
 	list_del(&neh->list_node);
 }
@@ -275,6 +272,7 @@ void uwb_rc_neh_rm(struct uwb_rc *rc, struct uwb_rc_neh *neh)
 	__uwb_rc_neh_rm(rc, neh);
 	spin_unlock_irqrestore(&rc->neh_lock, flags);
 
+	del_timer_sync(&neh->timer);
 	uwb_rc_neh_put(neh);
 }
 
@@ -349,7 +347,7 @@ struct uwb_rc_neh *uwb_rc_neh_lookup(struct uwb_rc *rc,
 }
 
 
-/**
+/*
  * Process notifications coming from the radio control interface
  *
  * @rc:    UWB Radio Control Interface descriptor
@@ -401,23 +399,6 @@ void uwb_rc_notif(struct uwb_rc *rc, struct uwb_rceb *rceb, ssize_t size)
 	uwb_evt->notif.size = size;
 	uwb_evt->notif.rceb = rceb;
 
-	switch (le16_to_cpu(rceb->wEvent)) {
-		/* Trap some vendor specific events
-		 *
-		 * FIXME: move this to handling in ptc-est, where we
-		 * register a NULL event handler for these two guys
-		 * using the Intel IDs.
-		 */
-	case 0x0103:
-		dev_info(dev, "FIXME: DEVICE ADD\n");
-		return;
-	case 0x0104:
-		dev_info(dev, "FIXME: DEVICE RM\n");
-		return;
-	default:
-		break;
-	}
-
 	uwbd_event_queue(uwb_evt);
 }
 
@@ -438,9 +419,10 @@ static void uwb_rc_neh_grok_event(struct uwb_rc *rc, struct uwb_rceb *rceb, size
 				rceb->bEventContext, size);
 	} else {
 		neh = uwb_rc_neh_lookup(rc, rceb);
-		if (neh)
+		if (neh) {
+			del_timer_sync(&neh->timer);
 			uwb_rc_neh_cb(neh, rceb, size);
-		else
+		} else
 			dev_warn(dev, "event 0x%02x/%04x/%02x (%zu bytes): nobody cared\n",
 				 rceb->bEventType, le16_to_cpu(rceb->wEvent),
 				 rceb->bEventContext, size);
@@ -495,8 +477,6 @@ void uwb_rc_neh_grok(struct uwb_rc *rc, void *buf, size_t buf_size)
 	size_t size, real_size, event_size;
 	int needtofree;
 
-	d_fnstart(3, dev, "(rc %p buf %p %zu buf_size)\n", rc, buf, buf_size);
-	d_printf(2, dev, "groking event block: %zu bytes\n", buf_size);
 	itr = buf;
 	size = buf_size;
 	while (size > 0) {
@@ -544,10 +524,7 @@ void uwb_rc_neh_grok(struct uwb_rc *rc, void *buf, size_t buf_size)
 
 		itr += real_size;
 		size -= real_size;
-		d_printf(2, dev, "consumed %zd bytes, %zu left\n",
-			 event_size, size);
 	}
-	d_fnend(3, dev, "(rc %p buf %p %zu buf_size) = void\n", rc, buf, buf_size);
 }
 EXPORT_SYMBOL_GPL(uwb_rc_neh_grok);
 
@@ -562,16 +539,22 @@ EXPORT_SYMBOL_GPL(uwb_rc_neh_grok);
  */
 void uwb_rc_neh_error(struct uwb_rc *rc, int error)
 {
-	struct uwb_rc_neh *neh, *next;
+	struct uwb_rc_neh *neh;
 	unsigned long flags;
 
-	BUG_ON(error >= 0);
-	spin_lock_irqsave(&rc->neh_lock, flags);
-	list_for_each_entry_safe(neh, next, &rc->neh_list, list_node) {
+	for (;;) {
+		spin_lock_irqsave(&rc->neh_lock, flags);
+		if (list_empty(&rc->neh_list)) {
+			spin_unlock_irqrestore(&rc->neh_lock, flags);
+			break;
+		}
+		neh = list_first_entry(&rc->neh_list, struct uwb_rc_neh, list_node);
 		__uwb_rc_neh_rm(rc, neh);
+		spin_unlock_irqrestore(&rc->neh_lock, flags);
+
+		del_timer_sync(&neh->timer);
 		uwb_rc_neh_cb(neh, NULL, error);
 	}
-	spin_unlock_irqrestore(&rc->neh_lock, flags);
 }
 EXPORT_SYMBOL_GPL(uwb_rc_neh_error);
 
@@ -583,10 +566,14 @@ static void uwb_rc_neh_timer(unsigned long arg)
 	unsigned long flags;
 
 	spin_lock_irqsave(&rc->neh_lock, flags);
-	__uwb_rc_neh_rm(rc, neh);
+	if (neh->context)
+		__uwb_rc_neh_rm(rc, neh);
+	else
+		neh = NULL;
 	spin_unlock_irqrestore(&rc->neh_lock, flags);
 
-	uwb_rc_neh_cb(neh, NULL, -ETIMEDOUT);
+	if (neh)
+		uwb_rc_neh_cb(neh, NULL, -ETIMEDOUT);
 }
 
 /** Initializes the @rc's neh subsystem
@@ -605,12 +592,19 @@ void uwb_rc_neh_create(struct uwb_rc *rc)
 void uwb_rc_neh_destroy(struct uwb_rc *rc)
 {
 	unsigned long flags;
-	struct uwb_rc_neh *neh, *next;
+	struct uwb_rc_neh *neh;
 
-	spin_lock_irqsave(&rc->neh_lock, flags);
-	list_for_each_entry_safe(neh, next, &rc->neh_list, list_node) {
+	for (;;) {
+		spin_lock_irqsave(&rc->neh_lock, flags);
+		if (list_empty(&rc->neh_list)) {
+			spin_unlock_irqrestore(&rc->neh_lock, flags);
+			break;
+		}
+		neh = list_first_entry(&rc->neh_list, struct uwb_rc_neh, list_node);
 		__uwb_rc_neh_rm(rc, neh);
+		spin_unlock_irqrestore(&rc->neh_lock, flags);
+
+		del_timer_sync(&neh->timer);
 		uwb_rc_neh_put(neh);
 	}
-	spin_unlock_irqrestore(&rc->neh_lock, flags);
 }

@@ -164,7 +164,7 @@ static void tifm_7xx1_switch_media(struct work_struct *work)
 		if (sock) {
 			printk(KERN_INFO
 			       "%s : demand removing card from socket %u:%u\n",
-			       fm->dev.bus_id, fm->id, cnt);
+			       dev_name(&fm->dev), fm->id, cnt);
 			fm->sockets[cnt] = NULL;
 			sock_addr = sock->addr;
 			spin_unlock_irqrestore(&fm->lock, flags);
@@ -354,8 +354,7 @@ static int tifm_7xx1_probe(struct pci_dev *dev,
 	fm->has_ms_pif = tifm_7xx1_has_ms_pif;
 	pci_set_drvdata(dev, fm);
 
-	fm->addr = ioremap(pci_resource_start(dev, 0),
-			   pci_resource_len(dev, 0));
+	fm->addr = pci_ioremap_bar(dev, 0);
 	if (!fm->addr)
 		goto err_out_free;
 

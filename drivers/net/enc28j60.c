@@ -944,7 +944,7 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 	if (netif_msg_rx_status(priv))
 		enc28j60_dump_rsv(priv, __func__, next_packet, len, rxstat);
 
-	if (!RSV_GETBIT(rxstat, RSV_RXOK)) {
+	if (!RSV_GETBIT(rxstat, RSV_RXOK) || len > MAX_FRAMELEN) {
 		if (netif_msg_rx_err(priv))
 			dev_err(&ndev->dev, "Rx Error (%04x)\n", rxstat);
 		ndev->stats.rx_errors++;
@@ -952,6 +952,8 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 			ndev->stats.rx_crc_errors++;
 		if (RSV_GETBIT(rxstat, RSV_LENCHECKERR))
 			ndev->stats.rx_frame_errors++;
+		if (len > MAX_FRAMELEN)
+			ndev->stats.rx_over_errors++;
 	} else {
 		skb = dev_alloc_skb(len + NET_IP_ALIGN);
 		if (!skb) {
@@ -1529,6 +1531,17 @@ static int enc28j60_chipset_init(struct net_device *dev)
 	return enc28j60_hw_init(priv);
 }
 
+static const struct net_device_ops enc28j60_netdev_ops = {
+	.ndo_open		= enc28j60_net_open,
+	.ndo_stop		= enc28j60_net_close,
+	.ndo_start_xmit		= enc28j60_send_packet,
+	.ndo_set_multicast_list = enc28j60_set_multicast_list,
+	.ndo_set_mac_address	= enc28j60_set_mac_address,
+	.ndo_tx_timeout		= enc28j60_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __devinit enc28j60_probe(struct spi_device *spi)
 {
 	struct net_device *dev;
@@ -1583,12 +1596,7 @@ static int __devinit enc28j60_probe(struct spi_device *spi)
 
 	dev->if_port = IF_PORT_10BASET;
 	dev->irq = spi->irq;
-	dev->open = enc28j60_net_open;
-	dev->stop = enc28j60_net_close;
-	dev->hard_start_xmit = enc28j60_send_packet;
-	dev->set_multicast_list = &enc28j60_set_multicast_list;
-	dev->set_mac_address = enc28j60_set_mac_address;
-	dev->tx_timeout = &enc28j60_tx_timeout;
+	dev->netdev_ops = &enc28j60_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 	SET_ETHTOOL_OPS(dev, &enc28j60_ethtool_ops);
 

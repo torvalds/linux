@@ -242,23 +242,21 @@ static int __init gxfb_map_video_memory(struct fb_info *info, struct pci_dev *de
 	ret = pci_request_region(dev, 3, "gxfb (video processor)");
 	if (ret < 0)
 		return ret;
-	par->vid_regs = ioremap(pci_resource_start(dev, 3),
-				pci_resource_len(dev, 3));
+	par->vid_regs = pci_ioremap_bar(dev, 3);
 	if (!par->vid_regs)
 		return -ENOMEM;
 
 	ret = pci_request_region(dev, 2, "gxfb (display controller)");
 	if (ret < 0)
 		return ret;
-	par->dc_regs = ioremap(pci_resource_start(dev, 2), pci_resource_len(dev, 2));
+	par->dc_regs = pci_ioremap_bar(dev, 2);
 	if (!par->dc_regs)
 		return -ENOMEM;
 
 	ret = pci_request_region(dev, 1, "gxfb (graphics processor)");
 	if (ret < 0)
 		return ret;
-	par->gp_regs = ioremap(pci_resource_start(dev, 1),
-	pci_resource_len(dev, 1));
+	par->gp_regs = pci_ioremap_bar(dev, 1);
 
 	if (!par->gp_regs)
 		return -ENOMEM;

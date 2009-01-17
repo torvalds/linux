@@ -170,7 +170,7 @@ static __inline__ void rtsdtr_ctrl(int bits)
  */
 static void rs_stop(struct tty_struct *tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct async_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_stop"))
@@ -190,7 +190,7 @@ static void rs_stop(struct tty_struct *tty)
 
 static void rs_start(struct tty_struct *tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct async_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_start"))
@@ -861,7 +861,7 @@ static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 
 static void rs_flush_chars(struct tty_struct *tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct async_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_flush_chars"))
@@ -934,7 +934,7 @@ static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count
 
 static int rs_write_room(struct tty_struct *tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct async_struct *info = tty->driver_data;
 
 	if (serial_paranoia_check(info, tty->name, "rs_write_room"))
 		return 0;
@@ -943,7 +943,7 @@ static int rs_write_room(struct tty_struct *tty)
 
 static int rs_chars_in_buffer(struct tty_struct *tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct async_struct *info = tty->driver_data;
 
 	if (serial_paranoia_check(info, tty->name, "rs_chars_in_buffer"))
 		return 0;
@@ -952,7 +952,7 @@ static int rs_chars_in_buffer(struct tty_struct *tty)
 
 static void rs_flush_buffer(struct tty_struct *tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct async_struct *info = tty->driver_data;
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_flush_buffer"))
@@ -969,7 +969,7 @@ static void rs_flush_buffer(struct tty_struct *tty)
  */
 static void rs_send_xchar(struct tty_struct *tty, char ch)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct async_struct *info = tty->driver_data;
         unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_send_char"))
@@ -1004,7 +1004,7 @@ static void rs_send_xchar(struct tty_struct *tty, char ch)
  */
 static void rs_throttle(struct tty_struct * tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct async_struct *info = tty->driver_data;
 	unsigned long flags;
 #ifdef SERIAL_DEBUG_THROTTLE
 	char	buf[64];
@@ -1029,7 +1029,7 @@ static void rs_throttle(struct tty_struct * tty)
 
 static void rs_unthrottle(struct tty_struct * tty)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct async_struct *info = tty->driver_data;
 	unsigned long flags;
 #ifdef SERIAL_DEBUG_THROTTLE
 	char	buf[64];
@@ -1194,7 +1194,7 @@ static int get_lsr_info(struct async_struct * info, unsigned int __user *value)
 
 static int rs_tiocmget(struct tty_struct *tty, struct file *file)
 {
-	struct async_struct * info = (struct async_struct *)tty->driver_data;
+	struct async_struct * info = tty->driver_data;
 	unsigned char control, status;
 	unsigned long flags;
 
@@ -1217,7 +1217,7 @@ static int rs_tiocmget(struct tty_struct *tty, struct file *file)
 static int rs_tiocmset(struct tty_struct *tty, struct file *file,
 		       unsigned int set, unsigned int clear)
 {
-	struct async_struct * info = (struct async_struct *)tty->driver_data;
+	struct async_struct * info = tty->driver_data;
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_ioctl"))
@@ -1244,7 +1244,7 @@ static int rs_tiocmset(struct tty_struct *tty, struct file *file,
  */
 static int rs_break(struct tty_struct *tty, int break_state)
 {
-	struct async_struct * info = (struct async_struct *)tty->driver_data;
+	struct async_struct * info = tty->driver_data;
 	unsigned long flags;
 
 	if (serial_paranoia_check(info, tty->name, "rs_break"))
@@ -1264,7 +1264,7 @@ static int rs_break(struct tty_struct *tty, int break_state)
 static int rs_ioctl(struct tty_struct *tty, struct file * file,
 		    unsigned int cmd, unsigned long arg)
 {
-	struct async_struct * info = (struct async_struct *)tty->driver_data;
+	struct async_struct * info = tty->driver_data;
 	struct async_icount cprev, cnow;	/* kernel counter temps */
 	struct serial_icounter_struct icount;
 	void __user *argp = (void __user *)arg;
@@ -1368,7 +1368,7 @@ static int rs_ioctl(struct tty_struct *tty, struct file * file,
 
 static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 {
-	struct async_struct *info = (struct async_struct *)tty->driver_data;
+	struct async_struct *info = tty->driver_data;
 	unsigned long flags;
 	unsigned int cflag = tty->termios->c_cflag;
 
@@ -1428,7 +1428,7 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
  */
 static void rs_close(struct tty_struct *tty, struct file * filp)
 {
-	struct async_struct * info = (struct async_struct *)tty->driver_data;
+	struct async_struct * info = tty->driver_data;
 	struct serial_state *state;
 	unsigned long flags;
 
@@ -1523,7 +1523,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
  */
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 {
-	struct async_struct * info = (struct async_struct *)tty->driver_data;
+	struct async_struct * info = tty->driver_data;
 	unsigned long orig_jiffies, char_time;
 	int lsr;
 
@@ -1587,7 +1587,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
  */
 static void rs_hangup(struct tty_struct *tty)
 {
-	struct async_struct * info = (struct async_struct *)tty->driver_data;
+	struct async_struct * info = tty->driver_data;
 	struct serial_state *state = info->state;
 
 	if (serial_paranoia_check(info, tty->name, "rs_hangup"))
@@ -1963,6 +1963,7 @@ static int __init rs_init(void)
 {
 	unsigned long flags;
 	struct serial_state * state;
+	int error;
 
 	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(AMI_SERIAL))
 		return -ENODEV;
@@ -1975,8 +1976,11 @@ static int __init rs_init(void)
 	 *  We request SERDAT and SERPER only, because the serial registers are
 	 *  too spreaded over the custom register space
 	 */
-	if (!request_mem_region(CUSTOM_PHYSADDR+0x30, 4, "amiserial [Paula]"))
-		return -EBUSY;
+	if (!request_mem_region(CUSTOM_PHYSADDR+0x30, 4,
+				"amiserial [Paula]")) {
+		error = -EBUSY;
+		goto fail_put_tty_driver;
+	}
 
 	IRQ_ports = NULL;
 
@@ -1997,8 +2001,9 @@ static int __init rs_init(void)
 	serial_driver->flags = TTY_DRIVER_REAL_RAW;
 	tty_set_operations(serial_driver, &serial_ops);
 
-	if (tty_register_driver(serial_driver))
-		panic("Couldn't register serial driver\n");
+	error = tty_register_driver(serial_driver);
+	if (error)
+		goto fail_release_mem_region;
 
 	state = rs_table;
 	state->magic = SSTATE_MAGIC;
@@ -2024,8 +2029,14 @@ static int __init rs_init(void)
 	local_irq_save(flags);
 
 	/* set ISRs, and then disable the rx interrupts */
-	request_irq(IRQ_AMIGA_TBE, ser_tx_int, 0, "serial TX", state);
-	request_irq(IRQ_AMIGA_RBF, ser_rx_int, IRQF_DISABLED, "serial RX", state);
+	error = request_irq(IRQ_AMIGA_TBE, ser_tx_int, 0, "serial TX", state);
+	if (error)
+		goto fail_unregister;
+
+	error = request_irq(IRQ_AMIGA_RBF, ser_rx_int, IRQF_DISABLED,
+			    "serial RX", state);
+	if (error)
+		goto fail_free_irq;
 
 	/* turn off Rx and Tx interrupts */
 	custom.intena = IF_RBF | IF_TBE;
@@ -2045,6 +2056,16 @@ static int __init rs_init(void)
 	ciab.ddra &= ~(SER_DCD | SER_CTS | SER_DSR);  /* inputs */
 
 	return 0;
+
+fail_free_irq:
+	free_irq(IRQ_AMIGA_TBE, state);
+fail_unregister:
+	tty_unregister_driver(serial_driver);
+fail_release_mem_region:
+	release_mem_region(CUSTOM_PHYSADDR+0x30, 4);
+fail_put_tty_driver:
+	put_tty_driver(serial_driver);
+	return error;
 }
 
 static __exit void rs_exit(void) 
@@ -2063,6 +2084,9 @@ static __exit void rs_exit(void)
 	  rs_table[0].info = NULL;
 	  kfree(info);
 	}
+
+	free_irq(IRQ_AMIGA_TBE, rs_table);
+	free_irq(IRQ_AMIGA_RBF, rs_table);
 
 	release_mem_region(CUSTOM_PHYSADDR+0x30, 4);
 }

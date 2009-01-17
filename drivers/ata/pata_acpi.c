@@ -13,12 +13,6 @@
 #include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include <acpi/acpi_bus.h>
-#include <acpi/acnames.h>
-#include <acpi/acnamesp.h>
-#include <acpi/acparser.h>
-#include <acpi/acexcep.h>
-#include <acpi/acmacros.h>
-#include <acpi/actypes.h>
 
 #include <linux/libata.h>
 #include <linux/ata.h>

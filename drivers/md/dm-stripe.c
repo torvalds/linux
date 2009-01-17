@@ -337,9 +337,7 @@ int __init dm_stripe_init(void)
 
 void dm_stripe_exit(void)
 {
-	if (dm_unregister_target(&stripe_target))
-		DMWARN("target unregistration failed");
-
+	dm_unregister_target(&stripe_target);
 	destroy_workqueue(kstriped);
 
 	return;

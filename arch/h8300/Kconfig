@@ -220,6 +220,8 @@ source "drivers/uwb/Kconfig"
 
 endmenu
 
+source "drivers/staging/Kconfig"
+
 source "fs/Kconfig"
 
 source "arch/h8300/Kconfig.debug"

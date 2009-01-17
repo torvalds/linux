@@ -54,7 +54,6 @@
 /* System Includes */
 
 
-#include <linux/version.h>
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -68,7 +67,6 @@
 #include <net/sock.h>
 #include <linux/netlink.h>
 
-#include "version.h"
 #include "wlan_compat.h"
 
 /*================================================================*/
@@ -126,7 +124,7 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev, p80211msg_dot11req_mib
 *	Potentially blocks the caller, so it's a good idea to
 *	not call this function from an interrupt context.
 ----------------------------------------------------------------*/
-int p80211req_dorequest( wlandevice_t *wlandev, UINT8 *msgbuf)
+int p80211req_dorequest( wlandevice_t *wlandev, u8 *msgbuf)
 {
 	int		result = 0;
 	p80211msg_t	*msg = (p80211msg_t*)msgbuf;
@@ -224,38 +222,11 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 {
 	p80211itemd_t   *mibitem = (p80211itemd_t *) mib_msg->mibattribute.data;
 	p80211pstrd_t  *pstr = (p80211pstrd_t*) mibitem->data;
-	UINT8 *key = mibitem->data + sizeof(p80211pstrd_t);
+	u8 *key = mibitem->data + sizeof(p80211pstrd_t);
 
 	DBFENTER;
 
 	switch (mibitem->did) {
-	case DIDmib_dot11smt_p80211Table_p80211_ifstate: {
-		UINT32 *data = (UINT32 *) mibitem->data;
-		if (isget)
-			switch (wlandev->msdstate) {
-			case WLAN_MSD_HWPRESENT:
-				*data = P80211ENUM_ifstate_disable;
-				break;
-			case WLAN_MSD_FWLOAD:
-				*data = P80211ENUM_ifstate_fwload;
-				break;
-			case WLAN_MSD_RUNNING:
-				*data = P80211ENUM_ifstate_enable;
-				break;
-			default:
-				*data = P80211ENUM_ifstate_enable;
-			}
-		break;
-	}
-	case DIDmib_dot11phy_dot11PhyOperationTable_dot11ShortPreambleEnabled: {
-		UINT32 *data = (UINT32 *) mibitem->data;
-
-		if (isget)
-			*data = wlandev->shortpreamble;
-		else
-			wlandev->shortpreamble = *data;
-		break;
-	}
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0: {
 		if (!isget)
 			wep_change_key(wlandev, 0, key, pstr->len);
@@ -277,7 +248,7 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 		break;
 	}
 	case DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID: {
-		UINT32 *data = (UINT32 *) mibitem->data;
+		u32 *data = (u32 *) mibitem->data;
 
 		if (isget) {
 			*data = wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK;
@@ -289,7 +260,7 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 		break;
 	}
 	case DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked: {
-		UINT32 *data = (UINT32 *) mibitem->data;
+		u32 *data = (u32 *) mibitem->data;
 
 		if (isget) {
 			if (wlandev->hostwep & HOSTWEP_PRIVACYINVOKED)
@@ -304,7 +275,7 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 		break;
 	}
 	case DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted: {
-		UINT32 *data = (UINT32 *) mibitem->data;
+		u32 *data = (u32 *) mibitem->data;
 
 		if (isget) {
 			if (wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED)

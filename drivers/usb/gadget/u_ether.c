@@ -716,6 +716,14 @@ static int __init get_ether_addr(const char *str, u8 *dev_addr)
 
 static struct eth_dev *the_dev;
 
+static const struct net_device_ops eth_netdev_ops = {
+	.ndo_open		= eth_open,
+	.ndo_stop		= eth_stop,
+	.ndo_start_xmit		= eth_start_xmit,
+	.ndo_change_mtu		= ueth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 /**
  * gether_setup - initialize one ethernet-over-usb link
@@ -764,12 +772,8 @@ int __init gether_setup(struct usb_gadget *g, u8 ethaddr[ETH_ALEN])
 	if (ethaddr)
 		memcpy(ethaddr, dev->host_mac, ETH_ALEN);
 
-	net->change_mtu = ueth_change_mtu;
-	net->hard_start_xmit = eth_start_xmit;
-	net->open = eth_open;
-	net->stop = eth_stop;
-	/* watchdog_timeo, tx_timeout ... */
-	/* set_multicast_list */
+	net->netdev_ops = &eth_netdev_ops;
+
 	SET_ETHTOOL_OPS(net, &ops);
 
 	/* two kinds of host-initiated state changes:

@@ -71,7 +71,7 @@ static DEFINE_SPINLOCK(consistent_lock);
  * the amount of RAM found at boot time.)  I would imagine that get_vm_area()
  * would have to initialise this each time prior to calling vm_region_alloc().
  */
-struct vm_region {
+struct arm_vm_region {
 	struct list_head	vm_list;
 	unsigned long		vm_start;
 	unsigned long		vm_end;
@@ -79,20 +79,20 @@ struct vm_region {
 	int			vm_active;
 };
 
-static struct vm_region consistent_head = {
+static struct arm_vm_region consistent_head = {
 	.vm_list	= LIST_HEAD_INIT(consistent_head.vm_list),
 	.vm_start	= CONSISTENT_BASE,
 	.vm_end		= CONSISTENT_END,
 };
 
-static struct vm_region *
-vm_region_alloc(struct vm_region *head, size_t size, gfp_t gfp)
+static struct arm_vm_region *
+arm_vm_region_alloc(struct arm_vm_region *head, size_t size, gfp_t gfp)
 {
 	unsigned long addr = head->vm_start, end = head->vm_end - size;
 	unsigned long flags;
-	struct vm_region *c, *new;
+	struct arm_vm_region *c, *new;
 
-	new = kmalloc(sizeof(struct vm_region), gfp);
+	new = kmalloc(sizeof(struct arm_vm_region), gfp);
 	if (!new)
 		goto out;
 
@@ -127,9 +127,9 @@ vm_region_alloc(struct vm_region *head, size_t size, gfp_t gfp)
 	return NULL;
 }
 
-static struct vm_region *vm_region_find(struct vm_region *head, unsigned long addr)
+static struct arm_vm_region *arm_vm_region_find(struct arm_vm_region *head, unsigned long addr)
 {
-	struct vm_region *c;
+	struct arm_vm_region *c;
 	
 	list_for_each_entry(c, &head->vm_list, vm_list) {
 		if (c->vm_active && c->vm_start == addr)
@@ -149,7 +149,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	    pgprot_t prot)
 {
 	struct page *page;
-	struct vm_region *c;
+	struct arm_vm_region *c;
 	unsigned long order;
 	u64 mask = ISA_DMA_THRESHOLD, limit;
 
@@ -214,7 +214,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	/*
 	 * Allocate a virtual address in the consistent mapping region.
 	 */
-	c = vm_region_alloc(&consistent_head, size,
+	c = arm_vm_region_alloc(&consistent_head, size,
 			    gfp & ~(__GFP_DMA | __GFP_HIGHMEM));
 	if (c) {
 		pte_t *pte;
@@ -311,13 +311,13 @@ static int dma_mmap(struct device *dev, struct vm_area_struct *vma,
 		    void *cpu_addr, dma_addr_t dma_addr, size_t size)
 {
 	unsigned long flags, user_size, kern_size;
-	struct vm_region *c;
+	struct arm_vm_region *c;
 	int ret = -ENXIO;
 
 	user_size = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 
 	spin_lock_irqsave(&consistent_lock, flags);
-	c = vm_region_find(&consistent_head, (unsigned long)cpu_addr);
+	c = arm_vm_region_find(&consistent_head, (unsigned long)cpu_addr);
 	spin_unlock_irqrestore(&consistent_lock, flags);
 
 	if (c) {
@@ -359,7 +359,7 @@ EXPORT_SYMBOL(dma_mmap_writecombine);
  */
 void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr_t handle)
 {
-	struct vm_region *c;
+	struct arm_vm_region *c;
 	unsigned long flags, addr;
 	pte_t *ptep;
 	int idx;
@@ -378,7 +378,7 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	size = PAGE_ALIGN(size);
 
 	spin_lock_irqsave(&consistent_lock, flags);
-	c = vm_region_find(&consistent_head, (unsigned long)cpu_addr);
+	c = arm_vm_region_find(&consistent_head, (unsigned long)cpu_addr);
 	if (!c)
 		goto no_area;
 

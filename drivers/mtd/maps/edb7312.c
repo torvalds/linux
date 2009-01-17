@@ -71,7 +71,7 @@ static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
 static int                   mtd_parts_nb = 0;
 static struct mtd_partition *mtd_parts    = 0;
 
-int __init init_edb7312nor(void)
+static int __init init_edb7312nor(void)
 {
 	static const char *rom_probe_types[] = PROBETYPES;
 	const char **type;

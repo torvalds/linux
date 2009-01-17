@@ -27,7 +27,7 @@ static DECLARE_WORK(poweroff_work, do_poweroff);
 static void handle_poweroff(int key, struct tty_struct *tty)
 {
 	/* run sysrq poweroff on boot cpu */
-	schedule_work_on(first_cpu(cpu_online_map), &poweroff_work);
+	schedule_work_on(cpumask_first(cpu_online_mask), &poweroff_work);
 }
 
 static struct sysrq_key_op	sysrq_poweroff_op = {

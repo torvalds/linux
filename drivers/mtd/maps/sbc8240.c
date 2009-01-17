@@ -136,7 +136,7 @@ static struct mtd_part_def sbc8240_part_banks[NUM_FLASH_BANKS];
 #endif	/* CONFIG_MTD_PARTITIONS */
 
 
-int __init init_sbc8240_mtd (void)
+static int __init init_sbc8240_mtd (void)
 {
 	static struct _cjs {
 		u_long addr;

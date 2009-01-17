@@ -94,10 +94,21 @@
 	SOC_ENUM_DOUBLE(xreg, xshift, xshift, xmax, xtexts)
 #define SOC_ENUM_SINGLE_EXT(xmax, xtexts) \
 {	.max = xmax, .texts = xtexts }
+#define SOC_VALUE_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, xmax, xtexts, xvalues) \
+{	.reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
+	.mask = xmask, .max = xmax, .texts = xtexts, .values = xvalues}
+#define SOC_VALUE_ENUM_SINGLE(xreg, xshift, xmask, xmax, xtexts, xvalues) \
+	SOC_VALUE_ENUM_DOUBLE(xreg, xshift, xshift, xmask, xmax, xtexts, xvalues)
 #define SOC_ENUM(xname, xenum) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
 	.info = snd_soc_info_enum_double, \
 	.get = snd_soc_get_enum_double, .put = snd_soc_put_enum_double, \
+	.private_value = (unsigned long)&xenum }
+#define SOC_VALUE_ENUM(xname, xenum) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
+	.info = snd_soc_info_enum_double, \
+	.get = snd_soc_get_value_enum_double, \
+	.put = snd_soc_put_value_enum_double, \
 	.private_value = (unsigned long)&xenum }
 #define SOC_SINGLE_EXT(xname, xreg, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put) \
@@ -199,6 +210,10 @@ int snd_soc_info_enum_ext(struct snd_kcontrol *kcontrol,
 int snd_soc_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_get_value_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
@@ -402,7 +417,9 @@ struct soc_enum {
 	unsigned char shift_l;
 	unsigned char shift_r;
 	unsigned int max;
+	unsigned int mask;
 	const char **texts;
+	const unsigned int *values;
 	void *dapm;
 };
 

@@ -192,9 +192,9 @@ void saa7146_buffer_timeout(unsigned long data)
 /********************************************************************************/
 /* file operations */
 
-static int fops_open(struct inode *inode, struct file *file)
+static int fops_open(struct file *file)
 {
-	unsigned int minor = iminor(inode);
+	unsigned int minor = video_devdata(file)->minor;
 	struct saa7146_dev *h = NULL, *dev = NULL;
 	struct list_head *list;
 	struct saa7146_fh *fh = NULL;
@@ -202,7 +202,7 @@ static int fops_open(struct inode *inode, struct file *file)
 
 	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-	DEB_EE(("inode:%p, file:%p, minor:%d\n",inode,file,minor));
+	DEB_EE(("file:%p, minor:%d\n", file, minor));
 
 	if (mutex_lock_interruptible(&saa7146_devices_lock))
 		return -ERESTARTSYS;
@@ -255,7 +255,7 @@ static int fops_open(struct inode *inode, struct file *file)
 		if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
 			result = saa7146_vbi_uops.open(dev,file);
 		if (dev->ext_vv_data->vbi_fops.open)
-			dev->ext_vv_data->vbi_fops.open(inode, file);
+			dev->ext_vv_data->vbi_fops.open(file);
 	} else {
 		DEB_S(("initializing video...\n"));
 		result = saa7146_video_uops.open(dev,file);
@@ -280,12 +280,12 @@ out:
 	return result;
 }
 
-static int fops_release(struct inode *inode, struct file *file)
+static int fops_release(struct file *file)
 {
 	struct saa7146_fh  *fh  = file->private_data;
 	struct saa7146_dev *dev = fh->dev;
 
-	DEB_EE(("inode:%p, file:%p\n",inode,file));
+	DEB_EE(("file:%p\n", file));
 
 	if (mutex_lock_interruptible(&saa7146_devices_lock))
 		return -ERESTARTSYS;
@@ -294,7 +294,7 @@ static int fops_release(struct inode *inode, struct file *file)
 		if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
 			saa7146_vbi_uops.release(dev,file);
 		if (dev->ext_vv_data->vbi_fops.release)
-			dev->ext_vv_data->vbi_fops.release(inode, file);
+			dev->ext_vv_data->vbi_fops.release(file);
 	} else {
 		saa7146_video_uops.release(dev,file);
 	}
@@ -308,10 +308,10 @@ static int fops_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int fops_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long fops_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 /*
-	DEB_EE(("inode:%p, file:%p, cmd:%d, arg:%li\n",inode, file, cmd, arg));
+	DEB_EE(("file:%p, cmd:%d, arg:%li\n", file, cmd, arg));
 */
 	return video_usercopy(file, cmd, arg, saa7146_video_do_ioctl);
 }
@@ -416,7 +416,7 @@ static ssize_t fops_write(struct file *file, const char __user *data, size_t cou
 	}
 }
 
-static const struct file_operations video_fops =
+static const struct v4l2_file_operations video_fops =
 {
 	.owner		= THIS_MODULE,
 	.open		= fops_open,
@@ -426,7 +426,6 @@ static const struct file_operations video_fops =
 	.poll		= fops_poll,
 	.mmap		= fops_mmap,
 	.ioctl		= fops_ioctl,
-	.llseek		= no_llseek,
 };
 
 static void vv_callback(struct saa7146_dev *dev, unsigned long status)

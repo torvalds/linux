@@ -1210,7 +1210,7 @@ static void __init prom_initialize_tce_table(void)
 		/* Initialize the table to have a one-to-one mapping
 		 * over the allocated size.
 		 */
-		tce_entryp = (unsigned long *)base;
+		tce_entryp = (u64 *)base;
 		for (i = 0; i < (minsize >> 3) ;tce_entryp++, i++) {
 			tce_entry = (i << PAGE_SHIFT);
 			tce_entry |= 0x3;

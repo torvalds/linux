@@ -15,6 +15,7 @@
 #define __LINUX_PCA9532_H
 
 #include <linux/leds.h>
+#include <linux/workqueue.h>
 
 enum pca9532_state {
 	PCA9532_OFF  = 0x0,
@@ -31,6 +32,7 @@ struct pca9532_led {
 	struct i2c_client *client;
 	char *name;
 	struct led_classdev ldev;
+       struct work_struct work;
 	enum pca9532_type type;
 	enum pca9532_state state;
 };

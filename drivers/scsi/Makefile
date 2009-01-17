@@ -105,7 +105,6 @@ obj-$(CONFIG_SCSI_GDTH)		+= gdth.o
 obj-$(CONFIG_SCSI_INITIO)	+= initio.o
 obj-$(CONFIG_SCSI_INIA100)	+= a100u2w.o
 obj-$(CONFIG_SCSI_QLOGICPTI)	+= qlogicpti.o
-obj-$(CONFIG_BLK_DEV_IDESCSI)	+= ide-scsi.o
 obj-$(CONFIG_SCSI_MESH)		+= mesh.o
 obj-$(CONFIG_SCSI_MAC53C94)	+= mac53c94.o
 obj-$(CONFIG_BLK_DEV_3W_XXXX_RAID) += 3w-xxxx.o

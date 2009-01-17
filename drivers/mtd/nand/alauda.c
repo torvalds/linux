@@ -676,11 +676,11 @@ static int alauda_probe(struct usb_interface *interface,
 		goto error;
 
 	al->write_out = usb_sndbulkpipe(al->dev,
-			ep_wr->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+			usb_endpoint_num(ep_wr));
 	al->bulk_in = usb_rcvbulkpipe(al->dev,
-			ep_in->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+			usb_endpoint_num(ep_in));
 	al->bulk_out = usb_sndbulkpipe(al->dev,
-			ep_out->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+			usb_endpoint_num(ep_out));
 
 	/* second device is identical up to now */
 	memcpy(al+1, al, sizeof(*al));

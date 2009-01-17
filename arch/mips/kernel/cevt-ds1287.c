@@ -88,7 +88,6 @@ static void ds1287_event_handler(struct clock_event_device *dev)
 static struct clock_event_device ds1287_clockevent = {
 	.name		= "ds1287",
 	.features	= CLOCK_EVT_FEAT_PERIODIC,
-	.cpumask	= CPU_MASK_CPU0,
 	.set_next_event	= ds1287_set_next_event,
 	.set_mode	= ds1287_set_mode,
 	.event_handler	= ds1287_event_handler,
@@ -122,6 +121,7 @@ int __init ds1287_clockevent_init(int irq)
 	clockevent_set_clock(cd, 32768);
 	cd->max_delta_ns = clockevent_delta2ns(0x7fffffff, cd);
 	cd->min_delta_ns = clockevent_delta2ns(0x300, cd);
+	cd->cpumask = cpumask_of(0);
 
 	clockevents_register_device(&ds1287_clockevent);
 

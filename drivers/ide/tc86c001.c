@@ -15,7 +15,7 @@
 
 static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	unsigned long scr_port	= hwif->config_data + (drive->dn ? 0x02 : 0x00);
 	u16 mode, scr		= inw(scr_port);
 
@@ -62,13 +62,12 @@ static void tc86c001_set_pio_mode(ide_drive_t *drive, const u8 pio)
  */
 static int tc86c001_timer_expiry(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	ide_expiry_t *expiry	= ide_get_hwifdata(hwif);
-	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
 	u8 dma_stat		= inb(hwif->dma_base + ATA_DMA_STATUS);
 
 	/* Restore a higher level driver's expiry handler first. */
-	hwgroup->expiry	= expiry;
+	hwif->expiry = expiry;
 
 	if ((dma_stat & 5) == 1) {	/* DMA active and no interrupt */
 		unsigned long sc_base	= hwif->config_data;
@@ -110,11 +109,10 @@ static int tc86c001_timer_expiry(ide_drive_t *drive)
 
 static void tc86c001_dma_start(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
-	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	unsigned long sc_base	= hwif->config_data;
 	unsigned long twcr_port	= sc_base + (drive->dn ? 0x06 : 0x04);
-	unsigned long nsectors	= hwgroup->rq->nr_sectors;
+	unsigned long nsectors	= hwif->rq->nr_sectors;
 
 	/*
 	 * We have to manually load the sector count and size into
@@ -125,8 +123,8 @@ static void tc86c001_dma_start(ide_drive_t *drive)
 	outw(SECTOR_SIZE / 2, twcr_port); /* Transfer Word Count 1/2 */
 
 	/* Install our timeout expiry hook, saving the current handler... */
-	ide_set_hwifdata(hwif, hwgroup->expiry);
-	hwgroup->expiry = &tc86c001_timer_expiry;
+	ide_set_hwifdata(hwif, hwif->expiry);
+	hwif->expiry = &tc86c001_timer_expiry;
 
 	ide_dma_start(drive);
 }
@@ -190,6 +188,7 @@ static const struct ide_dma_ops tc86c001_dma_ops = {
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timeout		= ide_dma_timeout,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_port_info tc86c001_chipset __devinitdata = {

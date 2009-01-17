@@ -60,7 +60,7 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 			out += sprintf(out, "%03u %08x ",
 					vdev->speed, vdev->devid);
 			out += sprintf(out, "%16p ", vdev->ud.tcp_socket);
-			out += sprintf(out, "%s", vdev->udev->dev.bus_id);
+			out += sprintf(out, "%s", dev_name(&vdev->udev->dev));
 
 		} else
 			out += sprintf(out, "000 000 000 0000000000000000 0-0");

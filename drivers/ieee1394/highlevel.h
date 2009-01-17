@@ -15,7 +15,7 @@ struct hpsb_host;
 struct hpsb_address_serve {
 	struct list_head host_list;	/* per host list */
 	struct list_head hl_list;	/* hpsb_highlevel list */
-	struct hpsb_address_ops *op;
+	const struct hpsb_address_ops *op;
 	struct hpsb_host *host;
 	u64 start;	/* first address handled, quadlet aligned */
 	u64 end;	/* first address behind, quadlet aligned */
@@ -119,11 +119,12 @@ void hpsb_unregister_highlevel(struct hpsb_highlevel *hl);
 
 u64 hpsb_allocate_and_register_addrspace(struct hpsb_highlevel *hl,
 					 struct hpsb_host *host,
-					 struct hpsb_address_ops *ops,
+					 const struct hpsb_address_ops *ops,
 					 u64 size, u64 alignment,
 					 u64 start, u64 end);
 int hpsb_register_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
-			    struct hpsb_address_ops *ops, u64 start, u64 end);
+			    const struct hpsb_address_ops *ops,
+			    u64 start, u64 end);
 int hpsb_unregister_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
 			      u64 start);
 

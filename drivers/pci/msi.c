@@ -776,28 +776,19 @@ void pci_no_msi(void)
 	pci_msi_enable = 0;
 }
 
+/**
+ * pci_msi_enabled - is MSI enabled?
+ *
+ * Returns true if MSI has not been disabled by the command-line option
+ * pci=nomsi.
+ **/
+int pci_msi_enabled(void)
+{
+	return pci_msi_enable;
+}
+EXPORT_SYMBOL(pci_msi_enabled);
+
 void pci_msi_init_pci_dev(struct pci_dev *dev)
 {
 	INIT_LIST_HEAD(&dev->msi_list);
-}
-
-#ifdef CONFIG_ACPI
-#include <linux/acpi.h>
-#include <linux/pci-acpi.h>
-static void __devinit msi_acpi_init(void)
-{
-	if (acpi_pci_disabled)
-		return;
-	pci_osc_support_set(OSC_MSI_SUPPORT);
-	pcie_osc_support_set(OSC_MSI_SUPPORT);
-}
-#else
-static inline void msi_acpi_init(void) { }
-#endif /* CONFIG_ACPI */
-
-void __devinit msi_init(void)
-{
-	if (!pci_msi_enable)
-		return;
-	msi_acpi_init();
 }

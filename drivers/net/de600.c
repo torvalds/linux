@@ -378,6 +378,16 @@ static void de600_rx_intr(struct net_device *dev)
 	 */
 }
 
+static const struct net_device_ops de600_netdev_ops = {
+	.ndo_open		= de600_open,
+	.ndo_stop		= de600_close,
+	.ndo_start_xmit		= de600_start_xmit,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
+
 static struct net_device * __init de600_probe(void)
 {
 	int	i;
@@ -439,9 +449,7 @@ static struct net_device * __init de600_probe(void)
 
 	printk(", Ethernet Address: %pM\n", dev->dev_addr);
 
-	dev->open = de600_open;
-	dev->stop = de600_close;
-	dev->hard_start_xmit = &de600_start_xmit;
+	dev->netdev_ops = &de600_netdev_ops;
 
 	dev->flags&=~IFF_MULTICAST;
 

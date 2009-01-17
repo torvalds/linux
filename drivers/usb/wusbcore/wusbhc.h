@@ -64,6 +64,13 @@
 #include <linux/uwb.h>
 #include <linux/usb/wusb.h>
 
+/*
+ * Time from a WUSB channel stop request to the last transmitted MMC.
+ *
+ * This needs to be > 4.096 ms in case no MMCs can be transmitted in
+ * zone 0.
+ */
+#define WUSB_CHANNEL_STOP_DELAY_MS 8
 
 /**
  * Wireless USB device
@@ -147,7 +154,6 @@ struct wusb_port {
 	u16 status;
 	u16 change;
 	struct wusb_dev *wusb_dev;	/* connected device's info */
-	unsigned reset_count;
 	u32 ptk_tkid;
 };
 
@@ -198,20 +204,17 @@ struct wusb_port {
  * @mmcies_max	   Max number of Information Elements this HC can send
  *                 in its MMC. Read-only.
  *
+ * @start          Start the WUSB channel.
+ *
+ * @stop           Stop the WUSB channel after the specified number of
+ *                 milliseconds.  Channel Stop IEs should be transmitted
+ *                 as required by [WUSB] 4.16.2.1.
+ *
  * @mmcie_add	   HC specific operation (WHCI or HWA) for adding an
  *                 MMCIE.
  *
  * @mmcie_rm	   HC specific operation (WHCI or HWA) for removing an
  *                 MMCIE.
- *
- * @enc_types	   Array which describes the encryptions methods
- *                 supported by the host as described in WUSB1.0 --
- *                 one entry per supported method. As of WUSB1.0 there
- *                 is only four methods, we make space for eight just in
- *                 case they decide to add some more (and pray they do
- *                 it in sequential order). if 'enc_types[enc_method]
- *                 != 0', then it is supported by the host. enc_method
- *                 is USB_ENC_TYPE*.
  *
  * @set_ptk:       Set the PTK and enable encryption for a device. Or, if
  *                 the supplied key is NULL, disable encryption for that
@@ -249,7 +252,8 @@ struct wusbhc {
 	struct uwb_pal pal;
 
 	unsigned trust_timeout;			/* in jiffies */
-	struct wuie_host_info *wuie_host_info;	/* Includes CHID */
+	struct wusb_ckhdid chid;
+	struct wuie_host_info *wuie_host_info;
 
 	struct mutex mutex;			/* locks everything else */
 	u16 cluster_id;				/* Wireless USB Cluster ID */
@@ -269,7 +273,7 @@ struct wusbhc {
 	u8 mmcies_max;
 	/* FIXME: make wusbhc_ops? */
 	int (*start)(struct wusbhc *wusbhc);
-	void (*stop)(struct wusbhc *wusbhc);
+	void (*stop)(struct wusbhc *wusbhc, int delay);
 	int (*mmcie_add)(struct wusbhc *wusbhc, u8 interval, u8 repeat_cnt,
 			 u8 handle, struct wuie_hdr *wuie);
 	int (*mmcie_rm)(struct wusbhc *wusbhc, u8 handle);
@@ -373,20 +377,17 @@ static inline void wusbhc_put(struct wusbhc *wusbhc)
 	usb_put_hcd(&wusbhc->usb_hcd);
 }
 
-int wusbhc_start(struct wusbhc *wusbhc, const struct wusb_ckhdid *chid);
+int wusbhc_start(struct wusbhc *wusbhc);
 void wusbhc_stop(struct wusbhc *wusbhc);
 extern int wusbhc_chid_set(struct wusbhc *, const struct wusb_ckhdid *);
 
 /* Device connect handling */
 extern int wusbhc_devconnect_create(struct wusbhc *);
 extern void wusbhc_devconnect_destroy(struct wusbhc *);
-extern int wusbhc_devconnect_start(struct wusbhc *wusbhc,
-				   const struct wusb_ckhdid *chid);
+extern int wusbhc_devconnect_start(struct wusbhc *wusbhc);
 extern void wusbhc_devconnect_stop(struct wusbhc *wusbhc);
-extern int wusbhc_devconnect_auth(struct wusbhc *, u8);
 extern void wusbhc_handle_dn(struct wusbhc *, u8 srcaddr,
 			     struct wusb_dn_hdr *dn_hdr, size_t size);
-extern int wusbhc_dev_reset(struct wusbhc *wusbhc, u8 port);
 extern void __wusbhc_dev_disable(struct wusbhc *wusbhc, u8 port);
 extern int wusb_usb_ncb(struct notifier_block *nb, unsigned long val,
 			void *priv);
@@ -432,6 +433,7 @@ extern void wusb_dev_sec_rm(struct wusb_dev *) ;
 extern int wusb_dev_4way_handshake(struct wusbhc *, struct wusb_dev *,
 				   struct wusb_ckhdid *ck);
 void wusbhc_gtk_rekey(struct wusbhc *wusbhc);
+int wusb_dev_update_address(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev);
 
 
 /* WUSB Cluster ID handling */

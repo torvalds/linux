@@ -1310,7 +1310,7 @@ static int ov7670_command(struct i2c_client *client, unsigned int cmd,
 		void *arg)
 {
 	switch (cmd) {
-	case VIDIOC_G_CHIP_IDENT:
+	case VIDIOC_DBG_G_CHIP_IDENT:
 		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_OV7670, 0);
 
 	case VIDIOC_INT_RESET:
@@ -1347,7 +1347,6 @@ static struct i2c_driver ov7670_driver = {
 		.name = "ov7670",
 	},
 	.id 		= I2C_DRIVERID_OV7670,
-	.class 		= I2C_CLASS_CAM_DIGITAL,
 	.attach_adapter = ov7670_attach,
 	.detach_client	= ov7670_detach,
 	.command	= ov7670_command,

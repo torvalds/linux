@@ -2407,8 +2407,12 @@ fc_rport_final_delete(struct work_struct *work)
 	/*
 	 * Notify the driver that the rport is now dead. The LLDD will
 	 * also guarantee that any communication to the rport is terminated
+	 *
+	 * Avoid this call if we already called it when we preserved the
+	 * rport for the binding.
 	 */
-	if (i->f->dev_loss_tmo_callbk)
+	if (!(rport->flags & FC_RPORT_DEVLOSS_CALLBK_DONE) &&
+	    (i->f->dev_loss_tmo_callbk))
 		i->f->dev_loss_tmo_callbk(rport);
 
 	transport_remove_device(dev);
@@ -2486,8 +2490,8 @@ fc_rport_create(struct Scsi_Host *shost, int channel,
 	device_initialize(dev);			/* takes self reference */
 	dev->parent = get_device(&shost->shost_gendev); /* parent reference */
 	dev->release = fc_rport_dev_release;
-	sprintf(dev->bus_id, "rport-%d:%d-%d",
-		shost->host_no, channel, rport->number);
+	dev_set_name(dev, "rport-%d:%d-%d",
+		     shost->host_no, channel, rport->number);
 	transport_setup_device(dev);
 
 	error = device_add(dev);
@@ -2647,7 +2651,8 @@ fc_remote_port_add(struct Scsi_Host *shost, int channel,
 				spin_lock_irqsave(shost->host_lock, flags);
 
 				rport->flags &= ~(FC_RPORT_FAST_FAIL_TIMEDOUT |
-						  FC_RPORT_DEVLOSS_PENDING);
+						  FC_RPORT_DEVLOSS_PENDING |
+						  FC_RPORT_DEVLOSS_CALLBK_DONE);
 
 				/* if target, initiate a scan */
 				if (rport->scsi_target_id != -1) {
@@ -2944,6 +2949,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	struct fc_rport *rport =
 		container_of(work, struct fc_rport, dev_loss_work.work);
 	struct Scsi_Host *shost = rport_to_shost(rport);
+	struct fc_internal *i = to_fc_internal(shost->transportt);
 	struct fc_host_attrs *fc_host = shost_to_fc_host(shost);
 	unsigned long flags;
 
@@ -3011,6 +3017,7 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	rport->roles = FC_PORT_ROLE_UNKNOWN;
 	rport->port_state = FC_PORTSTATE_NOTPRESENT;
 	rport->flags &= ~FC_RPORT_FAST_FAIL_TIMEDOUT;
+	rport->flags |= FC_RPORT_DEVLOSS_CALLBK_DONE;
 
 	/*
 	 * Pre-emptively kill I/O rather than waiting for the work queue
@@ -3046,7 +3053,17 @@ fc_timeout_deleted_rport(struct work_struct *work)
 	 * all attached scsi devices.
 	 */
 	fc_queue_work(shost, &rport->stgt_delete_work);
+
+	/*
+	 * Notify the driver that the rport is now dead. The LLDD will
+	 * also guarantee that any communication to the rport is terminated
+	 *
+	 * Note: we set the CALLBK_DONE flag above to correspond
+	 */
+	if (i->f->dev_loss_tmo_callbk)
+		i->f->dev_loss_tmo_callbk(rport);
 }
+
 
 /**
  * fc_timeout_fail_rport_io - Timeout handler for a fast io failing on a disconnected SCSI target.
@@ -3164,8 +3181,8 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	device_initialize(dev);			/* takes self reference */
 	dev->parent = get_device(pdev);		/* takes parent reference */
 	dev->release = fc_vport_dev_release;
-	sprintf(dev->bus_id, "vport-%d:%d-%d",
-		shost->host_no, channel, vport->number);
+	dev_set_name(dev, "vport-%d:%d-%d",
+		     shost->host_no, channel, vport->number);
 	transport_setup_device(dev);
 
 	error = device_add(dev);
@@ -3188,19 +3205,19 @@ fc_vport_setup(struct Scsi_Host *shost, int channel, struct device *pdev,
 	 */
 	if (pdev != &shost->shost_gendev) {
 		error = sysfs_create_link(&shost->shost_gendev.kobj,
-				 &dev->kobj, dev->bus_id);
+				 &dev->kobj, dev_name(dev));
 		if (error)
 			printk(KERN_ERR
 				"%s: Cannot create vport symlinks for "
 				"%s, err=%d\n",
-				__func__, dev->bus_id, error);
+				__func__, dev_name(dev), error);
 	}
 	spin_lock_irqsave(shost->host_lock, flags);
 	vport->flags &= ~FC_VPORT_CREATING;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	dev_printk(KERN_NOTICE, pdev,
-			"%s created via shost%d channel %d\n", dev->bus_id,
+			"%s created via shost%d channel %d\n", dev_name(dev),
 			shost->host_no, channel);
 
 	*ret_vport = vport;
@@ -3297,7 +3314,7 @@ fc_vport_terminate(struct fc_vport *vport)
 		return stat;
 
 	if (dev->parent != &shost->shost_gendev)
-		sysfs_remove_link(&shost->shost_gendev.kobj, dev->bus_id);
+		sysfs_remove_link(&shost->shost_gendev.kobj, dev_name(dev));
 	transport_remove_device(dev);
 	device_del(dev);
 	transport_destroy_device(dev);
@@ -3329,7 +3346,7 @@ fc_vport_sched_delete(struct work_struct *work)
 		dev_printk(KERN_ERR, vport->dev.parent,
 			"%s: %s could not be deleted created via "
 			"shost%d channel %d - error %d\n", __func__,
-			vport->dev.bus_id, vport->shost->host_no,
+			dev_name(&vport->dev), vport->shost->host_no,
 			vport->channel, stat);
 }
 

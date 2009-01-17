@@ -279,7 +279,7 @@ static void sx_disable_tx_interrupts(void *ptr);
 static void sx_enable_tx_interrupts(void *ptr);
 static void sx_disable_rx_interrupts(void *ptr);
 static void sx_enable_rx_interrupts(void *ptr);
-static int sx_get_CD(void *ptr);
+static int sx_carrier_raised(struct tty_port *port);
 static void sx_shutdown_port(void *ptr);
 static int sx_set_real_termios(void *ptr);
 static void sx_close(void *ptr);
@@ -360,7 +360,6 @@ static struct real_driver sx_real_driver = {
 	sx_enable_tx_interrupts,
 	sx_disable_rx_interrupts,
 	sx_enable_rx_interrupts,
-	sx_get_CD,
 	sx_shutdown_port,
 	sx_set_real_termios,
 	sx_chars_in_buffer,
@@ -791,7 +790,7 @@ static int sx_getsignals(struct sx_port *port)
 	sx_dprintk(SX_DEBUG_MODEMSIGNALS, "getsignals: %d/%d  (%d/%d) "
 			"%02x/%02x\n",
 			(o_stat & OP_DTR) != 0, (o_stat & OP_RTS) != 0,
-			port->c_dcd, sx_get_CD(port),
+			port->c_dcd, tty_port_carrier_raised(&port->gs.port),
 			sx_read_channel_byte(port, hi_ip),
 			sx_read_channel_byte(port, hi_state));
 
@@ -1190,7 +1189,7 @@ static inline void sx_check_modem_signals(struct sx_port *port)
 
 	hi_state = sx_read_channel_byte(port, hi_state);
 	sx_dprintk(SX_DEBUG_MODEMSIGNALS, "Checking modem signals (%d/%d)\n",
-			port->c_dcd, sx_get_CD(port));
+			port->c_dcd, tty_port_carrier_raised(&port->gs.port));
 
 	if (hi_state & ST_BREAK) {
 		hi_state &= ~ST_BREAK;
@@ -1202,11 +1201,11 @@ static inline void sx_check_modem_signals(struct sx_port *port)
 		hi_state &= ~ST_DCD;
 		sx_dprintk(SX_DEBUG_MODEMSIGNALS, "got a DCD change.\n");
 		sx_write_channel_byte(port, hi_state, hi_state);
-		c_dcd = sx_get_CD(port);
+		c_dcd = tty_port_carrier_raised(&port->gs.port);
 		sx_dprintk(SX_DEBUG_MODEMSIGNALS, "DCD is now %d\n", c_dcd);
 		if (c_dcd != port->c_dcd) {
 			port->c_dcd = c_dcd;
-			if (sx_get_CD(port)) {
+			if (tty_port_carrier_raised(&port->gs.port)) {
 				/* DCD went UP */
 				if ((sx_read_channel_byte(port, hi_hstat) !=
 						HS_IDLE_CLOSED) &&
@@ -1415,13 +1414,10 @@ static void sx_enable_rx_interrupts(void *ptr)
 }
 
 /* Jeez. Isn't this simple? */
-static int sx_get_CD(void *ptr)
+static int sx_carrier_raised(struct tty_port *port)
 {
-	struct sx_port *port = ptr;
-	func_enter2();
-
-	func_exit();
-	return ((sx_read_channel_byte(port, hi_ip) & IP_DCD) != 0);
+	struct sx_port *sp = container_of(port, struct sx_port, gs.port);
+	return ((sx_read_channel_byte(sp, hi_ip) & IP_DCD) != 0);
 }
 
 /* Jeez. Isn't this simple? */
@@ -1536,7 +1532,7 @@ static int sx_open(struct tty_struct *tty, struct file *filp)
 	}
 	/* tty->low_latency = 1; */
 
-	port->c_dcd = sx_get_CD(port);
+	port->c_dcd = sx_carrier_raised(&port->gs.port);
 	sx_dprintk(SX_DEBUG_OPEN, "at open: cd=%d\n", port->c_dcd);
 
 	func_exit();
@@ -1945,7 +1941,7 @@ static int sx_ioctl(struct tty_struct *tty, struct file *filp,
 
 static void sx_throttle(struct tty_struct *tty)
 {
-	struct sx_port *port = (struct sx_port *)tty->driver_data;
+	struct sx_port *port = tty->driver_data;
 
 	func_enter2();
 	/* If the port is using any type of input flow
@@ -1959,7 +1955,7 @@ static void sx_throttle(struct tty_struct *tty)
 
 static void sx_unthrottle(struct tty_struct *tty)
 {
-	struct sx_port *port = (struct sx_port *)tty->driver_data;
+	struct sx_port *port = tty->driver_data;
 
 	func_enter2();
 	/* Always unthrottle even if flow control is not enabled on
@@ -2354,6 +2350,10 @@ static const struct tty_operations sx_ops = {
 	.tiocmset = sx_tiocmset,
 };
 
+static const struct tty_port_operations sx_port_ops = {
+	.carrier_raised = sx_carrier_raised,
+};
+
 static int sx_init_drivers(void)
 {
 	int error;
@@ -2410,6 +2410,7 @@ static int sx_init_portstructs(int nboards, int nports)
 		for (j = 0; j < boards[i].nports; j++) {
 			sx_dprintk(SX_DEBUG_INIT, "initing port %d\n", j);
 			tty_port_init(&port->gs.port);
+			port->gs.port.ops = &sx_port_ops;
 			port->gs.magic = SX_MAGIC;
 			port->gs.close_delay = HZ / 2;
 			port->gs.closing_wait = 30 * HZ;

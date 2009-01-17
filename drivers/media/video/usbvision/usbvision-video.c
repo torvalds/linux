@@ -355,7 +355,7 @@ static void usbvision_remove_sysfs(struct video_device *vdev)
  * then allocates buffers needed for video processing.
  *
  */
-static int usbvision_v4l2_open(struct inode *inode, struct file *file)
+static int usbvision_v4l2_open(struct file *file)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode = 0;
@@ -432,7 +432,7 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
  * allocated in usbvision_v4l2_open().
  *
  */
-static int usbvision_v4l2_close(struct inode *inode, struct file *file)
+static int usbvision_v4l2_close(struct file *file)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
@@ -477,12 +477,12 @@ static int usbvision_v4l2_close(struct inode *inode, struct file *file)
  */
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register (struct file *file, void *priv,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 	/* NT100x has a 8-bit register space */
 	errCode = usbvision_read_reg(usbvision, reg->reg&0xff);
@@ -492,16 +492,17 @@ static int vidioc_g_register (struct file *file, void *priv,
 		return errCode;
 	}
 	reg->val = errCode;
+	reg->size = 1;
 	return 0;
 }
 
 static int vidioc_s_register (struct file *file, void *priv,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 	/* NT100x has a 8-bit register space */
 	errCode = usbvision_write_reg(usbvision, reg->reg&0xff, reg->val);
@@ -1178,7 +1179,7 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
  * Here comes the stuff for radio on usbvision based devices
  *
  */
-static int usbvision_radio_open(struct inode *inode, struct file *file)
+static int usbvision_radio_open(struct file *file)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode = 0;
@@ -1228,7 +1229,7 @@ out:
 }
 
 
-static int usbvision_radio_close(struct inode *inode, struct file *file)
+static int usbvision_radio_close(struct file *file)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode = 0;
@@ -1266,26 +1267,26 @@ static int usbvision_radio_close(struct inode *inode, struct file *file)
  * Here comes the stuff for vbi on usbvision based devices
  *
  */
-static int usbvision_vbi_open(struct inode *inode, struct file *file)
+static int usbvision_vbi_open(struct file *file)
 {
 	/* TODO */
 	return -ENODEV;
 }
 
-static int usbvision_vbi_close(struct inode *inode, struct file *file)
+static int usbvision_vbi_close(struct file *file)
 {
 	/* TODO */
 	return -ENODEV;
 }
 
-static int usbvision_do_vbi_ioctl(struct file *file,
+static long usbvision_do_vbi_ioctl(struct file *file,
 				 unsigned int cmd, void *arg)
 {
 	/* TODO */
 	return -ENOIOCTLCMD;
 }
 
-static int usbvision_vbi_ioctl(struct inode *inode, struct file *file,
+static long usbvision_vbi_ioctl(struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, usbvision_do_vbi_ioctl);
@@ -1297,16 +1298,14 @@ static int usbvision_vbi_ioctl(struct inode *inode, struct file *file,
 //
 
 // Video template
-static const struct file_operations usbvision_fops = {
+static const struct v4l2_file_operations usbvision_fops = {
 	.owner             = THIS_MODULE,
 	.open		= usbvision_v4l2_open,
 	.release	= usbvision_v4l2_close,
 	.read		= usbvision_v4l2_read,
 	.mmap		= usbvision_v4l2_mmap,
 	.ioctl		= video_ioctl2,
-	.llseek		= no_llseek,
 /* 	.poll          = video_poll, */
-	.compat_ioctl  = v4l_compat_ioctl32,
 };
 
 static const struct v4l2_ioctl_ops usbvision_ioctl_ops = {
@@ -1355,13 +1354,11 @@ static struct video_device usbvision_video_template = {
 
 
 // Radio template
-static const struct file_operations usbvision_radio_fops = {
+static const struct v4l2_file_operations usbvision_radio_fops = {
 	.owner             = THIS_MODULE,
 	.open		= usbvision_radio_open,
 	.release	= usbvision_radio_close,
 	.ioctl		= video_ioctl2,
-	.llseek		= no_llseek,
-	.compat_ioctl  = v4l_compat_ioctl32,
 };
 
 static const struct v4l2_ioctl_ops usbvision_radio_ioctl_ops = {
@@ -1392,13 +1389,11 @@ static struct video_device usbvision_radio_template = {
 };
 
 // vbi template
-static const struct file_operations usbvision_vbi_fops = {
+static const struct v4l2_file_operations usbvision_vbi_fops = {
 	.owner             = THIS_MODULE,
 	.open		= usbvision_vbi_open,
 	.release	= usbvision_vbi_close,
 	.ioctl		= usbvision_vbi_ioctl,
-	.llseek		= no_llseek,
-	.compat_ioctl  = v4l_compat_ioctl32,
 };
 
 static struct video_device usbvision_vbi_template=
@@ -1679,8 +1674,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 		interface = &dev->actconfig->interface[ifnum]->altsetting[0];
 	}
 	endpoint = &interface->endpoint[1].desc;
-	if (usb_endpoint_type(endpoint) !=
-	    USB_ENDPOINT_XFER_ISOC) {
+	if (!usb_endpoint_xfer_isoc(endpoint)) {
 		err("%s: interface %d. has non-ISO endpoint!",
 		    __func__, ifnum);
 		err("%s: Endpoint attributes %d",

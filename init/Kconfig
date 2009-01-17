@@ -271,11 +271,75 @@ config LOG_BUF_SHIFT
 		     13 =>  8 KB
 		     12 =>  4 KB
 
+#
+# Architectures with an unreliable sched_clock() should select this:
+#
+config HAVE_UNSTABLE_SCHED_CLOCK
+	bool
+
+config GROUP_SCHED
+	bool "Group CPU scheduler"
+	depends on EXPERIMENTAL
+	default n
+	help
+	  This feature lets CPU scheduler recognize task groups and control CPU
+	  bandwidth allocation to such task groups.
+	  In order to create a group from arbitrary set of processes, use
+	  CONFIG_CGROUPS. (See Control Group support.)
+
+config FAIR_GROUP_SCHED
+	bool "Group scheduling for SCHED_OTHER"
+	depends on GROUP_SCHED
+	default GROUP_SCHED
+
+config RT_GROUP_SCHED
+	bool "Group scheduling for SCHED_RR/FIFO"
+	depends on EXPERIMENTAL
+	depends on GROUP_SCHED
+	default n
+	help
+	  This feature lets you explicitly allocate real CPU bandwidth
+	  to users or control groups (depending on the "Basis for grouping tasks"
+	  setting below. If enabled, it will also make it impossible to
+	  schedule realtime tasks for non-root users until you allocate
+	  realtime bandwidth for them.
+	  See Documentation/scheduler/sched-rt-group.txt for more information.
+
+choice
+	depends on GROUP_SCHED
+	prompt "Basis for grouping tasks"
+	default USER_SCHED
+
+config USER_SCHED
+	bool "user id"
+	help
+	  This option will choose userid as the basis for grouping
+	  tasks, thus providing equal CPU bandwidth to each user.
+
+config CGROUP_SCHED
+	bool "Control groups"
+ 	depends on CGROUPS
+ 	help
+	  This option allows you to create arbitrary task groups
+	  using the "cgroup" pseudo filesystem and control
+	  the cpu bandwidth allocated to each such task group.
+	  Refer to Documentation/cgroups.txt for more information
+	  on "cgroup" pseudo filesystem.
+
+endchoice
+
+menu "Control Group support"
 config CGROUPS
 	bool "Control Group support"
 	help
-	  This option will let you use process cgroup subsystems
-	  such as Cpusets
+	  This option add support for grouping sets of processes together, for
+	  use with process control subsystems such as Cpusets, CFS, memory
+	  controls or device isolation.
+	  See
+		- Documentation/cpusets.txt	(Cpusets)
+		- Documentation/scheduler/sched-design-CFS.txt	(CFS)
+		- Documentation/cgroups/ (features for grouping, isolation)
+		- Documentation/controllers/ (features for resource control)
 
 	  Say N if unsure.
 
@@ -324,61 +388,6 @@ config CPUSETS
 
 	  Say N if unsure.
 
-#
-# Architectures with an unreliable sched_clock() should select this:
-#
-config HAVE_UNSTABLE_SCHED_CLOCK
-	bool
-
-config GROUP_SCHED
-	bool "Group CPU scheduler"
-	depends on EXPERIMENTAL
-	default n
-	help
-	  This feature lets CPU scheduler recognize task groups and control CPU
-	  bandwidth allocation to such task groups.
-
-config FAIR_GROUP_SCHED
-	bool "Group scheduling for SCHED_OTHER"
-	depends on GROUP_SCHED
-	default GROUP_SCHED
-
-config RT_GROUP_SCHED
-	bool "Group scheduling for SCHED_RR/FIFO"
-	depends on EXPERIMENTAL
-	depends on GROUP_SCHED
-	default n
-	help
-	  This feature lets you explicitly allocate real CPU bandwidth
-	  to users or control groups (depending on the "Basis for grouping tasks"
-	  setting below. If enabled, it will also make it impossible to
-	  schedule realtime tasks for non-root users until you allocate
-	  realtime bandwidth for them.
-	  See Documentation/scheduler/sched-rt-group.txt for more information.
-
-choice
-	depends on GROUP_SCHED
-	prompt "Basis for grouping tasks"
-	default USER_SCHED
-
-config USER_SCHED
-	bool "user id"
-	help
-	  This option will choose userid as the basis for grouping
-	  tasks, thus providing equal CPU bandwidth to each user.
-
-config CGROUP_SCHED
-	bool "Control groups"
- 	depends on CGROUPS
- 	help
-	  This option allows you to create arbitrary task groups
-	  using the "cgroup" pseudo filesystem and control
-	  the cpu bandwidth allocated to each such task group.
-	  Refer to Documentation/cgroups.txt for more information
-	  on "cgroup" pseudo filesystem.
-
-endchoice
-
 config CGROUP_CPUACCT
 	bool "Simple CPU accounting cgroup subsystem"
 	depends on CGROUPS
@@ -392,9 +401,6 @@ config RESOURCE_COUNTERS
 	  This option enables controller independent resource accounting
           infrastructure that works with cgroups
 	depends on CGROUPS
-
-config MM_OWNER
-	bool
 
 config CGROUP_MEM_RES_CTLR
 	bool "Memory Resource Controller for Control Groups"
@@ -414,36 +420,68 @@ config CGROUP_MEM_RES_CTLR
 	  sure you need the memory resource controller. Even when you enable
 	  this, you can set "cgroup_disable=memory" at your boot option to
 	  disable memory resource controller and you can avoid overheads.
-	  (and lose benefits of memory resource contoller)
+	  (and lose benefits of memory resource controller)
 
 	  This config option also selects MM_OWNER config option, which
 	  could in turn add some fork/exit overhead.
+
+config MM_OWNER
+	bool
+
+config CGROUP_MEM_RES_CTLR_SWAP
+	bool "Memory Resource Controller Swap Extension(EXPERIMENTAL)"
+	depends on CGROUP_MEM_RES_CTLR && SWAP && EXPERIMENTAL
+	help
+	  Add swap management feature to memory resource controller. When you
+	  enable this, you can limit mem+swap usage per cgroup. In other words,
+	  when you disable this, memory resource controller has no cares to
+	  usage of swap...a process can exhaust all of the swap. This extension
+	  is useful when you want to avoid exhaustion swap but this itself
+	  adds more overheads and consumes memory for remembering information.
+	  Especially if you use 32bit system or small memory system, please
+	  be careful about enabling this. When memory resource controller
+	  is disabled by boot option, this will be automatically disabled and
+	  there will be no overhead from this. Even when you set this config=y,
+	  if boot option "noswapaccount" is set, swap will not be accounted.
+
+
+endmenu
 
 config SYSFS_DEPRECATED
 	bool
 
 config SYSFS_DEPRECATED_V2
-	bool "Create deprecated sysfs files"
+	bool "Create deprecated sysfs layout for older userspace tools"
 	depends on SYSFS
 	default y
 	select SYSFS_DEPRECATED
 	help
-	  This option creates deprecated symlinks such as the
-	  "device"-link, the <subsystem>:<name>-link, and the
-	  "bus"-link. It may also add deprecated key in the
-	  uevent environment.
-	  None of these features or values should be used today, as
-	  they export driver core implementation details to userspace
-	  or export properties which can't be kept stable across kernel
-	  releases.
+	  This option switches the layout of sysfs to the deprecated
+	  version.
 
-	  If enabled, this option will also move any device structures
-	  that belong to a class, back into the /sys/class hierarchy, in
-	  order to support older versions of udev and some userspace
-	  programs.
+	  The current sysfs layout features a unified device tree at
+	  /sys/devices/, which is able to express a hierarchy between
+	  class devices. If the deprecated option is set to Y, the
+	  unified device tree is split into a bus device tree at
+	  /sys/devices/ and several individual class device trees at
+	  /sys/class/. The class and bus devices will be connected by
+	  "<subsystem>:<name>" and the "device" links. The "block"
+	  class devices, will not show up in /sys/class/block/. Some
+	  subsystems will suppress the creation of some devices which
+	  depend on the unified device tree.
 
-	  If you are using a distro with the most recent userspace
-	  packages, it should be safe to say N here.
+	  This option is not a pure compatibility option that can
+	  be safely enabled on newer distributions. It will change the
+	  layout of sysfs to the non-extensible deprecated version,
+	  and disable some features, which can not be exported without
+	  confusing older userspace tools. Since 2007/2008 all major
+	  distributions do not enable this option, and ship no tools which
+	  depend on the deprecated layout or this option.
+
+	  If you are using a new kernel on an older distribution, or use
+	  older userspace tools, you might need to say Y here. Do not say Y,
+	  if the original kernel, that came with your distribution, has
+	  this option set to N.
 
 config PROC_PID_CPUSET
 	bool "Include legacy /proc/<pid>/cpuset file"
@@ -838,10 +876,6 @@ config RT_MUTEXES
 	boolean
 	select PLIST
 
-config TINY_SHMEM
-	default !SHMEM
-	bool
-
 config BASE_SMALL
 	int
 	default 0 if BASE_FULL
@@ -916,13 +950,16 @@ config MODULE_SRCVERSION_ALL
 	  the version).  With this option, such a "srcversion" field
 	  will be created for all modules.  If unsure, say N.
 
-config KMOD
-	def_bool y
-	help
-	  This is being removed soon.  These days, CONFIG_MODULES
-	  implies CONFIG_KMOD, so use that instead.
-
 endif # MODULES
+
+config INIT_ALL_POSSIBLE
+	bool
+	help
+	  Back when each arch used to define their own cpu_online_map and
+	  cpu_possible_map, some of them chose to initialize cpu_possible_map
+	  with all 1s, and others with all 0s.  When they were centralised,
+	  it was better to provide this option than to break all the archs
+	  and have several arch maintainers persuing me down dark alleys.
 
 config STOP_MACHINE
 	bool

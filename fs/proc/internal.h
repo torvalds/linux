@@ -41,8 +41,6 @@ do {						\
 	(vmi)->used = 0;			\
 	(vmi)->largest_chunk = 0;		\
 } while(0)
-
-extern int nommu_vma_show(struct seq_file *, struct vm_area_struct *);
 #endif
 
 extern int proc_tid_stat(struct seq_file *m, struct pid_namespace *ns,

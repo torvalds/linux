@@ -29,7 +29,6 @@ struct tcp_info;
  *  @ccid_id: numerical CCID ID (up to %CCID_MAX, cf. table 5 in RFC 4340, 10.)
  *  @ccid_ccmps: the CCMPS including network/transport headers (0 when disabled)
  *  @ccid_name: alphabetical identifier string for @ccid_id
- *  @ccid_owner: module which implements/owns this CCID
  *  @ccid_hc_{r,t}x_slab: memory pool for the receiver/sender half-connection
  *  @ccid_hc_{r,t}x_obj_size: size of the receiver/sender half-connection socket
  *
@@ -48,7 +47,6 @@ struct ccid_operations {
 	unsigned char		ccid_id;
 	__u32			ccid_ccmps;
 	const char		*ccid_name;
-	struct module		*ccid_owner;
 	struct kmem_cache	*ccid_hc_rx_slab,
 				*ccid_hc_tx_slab;
 	__u32			ccid_hc_rx_obj_size,
@@ -90,8 +88,13 @@ struct ccid_operations {
 						 int __user *optlen);
 };
 
-extern int ccid_register(struct ccid_operations *ccid_ops);
-extern int ccid_unregister(struct ccid_operations *ccid_ops);
+extern struct ccid_operations ccid2_ops;
+#ifdef CONFIG_IP_DCCP_CCID3
+extern struct ccid_operations ccid3_ops;
+#endif
+
+extern int  ccid_initialize_builtins(void);
+extern void ccid_cleanup_builtins(void);
 
 struct ccid {
 	struct ccid_operations *ccid_ops;
@@ -108,8 +111,7 @@ extern int  ccid_get_builtin_ccids(u8 **ccid_array, u8 *array_len);
 extern int  ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
 					  char __user *, int __user *);
 
-extern struct ccid *ccid_new(unsigned char id, struct sock *sk, int rx,
-			     gfp_t gfp);
+extern struct ccid *ccid_new(const u8 id, struct sock *sk, bool rx);
 
 static inline int ccid_get_current_rx_ccid(struct dccp_sock *dp)
 {

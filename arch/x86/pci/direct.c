@@ -5,7 +5,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
-#include "pci.h"
+#include <asm/pci_x86.h>
 
 /*
  * Functions for accessing PCI base (first 256 bytes) and extended

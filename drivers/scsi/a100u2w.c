@@ -633,7 +633,7 @@ static int orc_device_reset(struct orc_host * host, struct scsi_cmnd *cmd, unsig
 		return FAILED;
 	}
 
-	/* Reset device is handled by the firmare, we fill in an SCB and
+	/* Reset device is handled by the firmware, we fill in an SCB and
 	   fire it at the controller, it does the rest */
 	scb->opcode = ORC_BUSDEVRST;
 	scb->target = target;

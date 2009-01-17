@@ -468,7 +468,8 @@ int seq_dentry(struct seq_file *m, struct dentry *dentry, char *esc)
 	return -1;
 }
 
-int seq_bitmap(struct seq_file *m, unsigned long *bits, unsigned int nr_bits)
+int seq_bitmap(struct seq_file *m, const unsigned long *bits,
+				   unsigned int nr_bits)
 {
 	if (m->count < m->size) {
 		int len = bitmap_scnprintf(m->buf + m->count,

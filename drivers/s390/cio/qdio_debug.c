@@ -169,6 +169,8 @@ static void setup_debugfs_entry(struct qdio_q *q, struct ccw_device *cdev)
 		 q->nr);
 	debugfs_queues[i] = debugfs_create_file(name, S_IFREG | S_IRUGO | S_IWUSR,
 						debugfs_root, q, &debugfs_fops);
+	if (IS_ERR(debugfs_queues[i]))
+		debugfs_queues[i] = NULL;
 }
 
 void qdio_setup_debug_entries(struct qdio_irq *irq_ptr, struct ccw_device *cdev)

@@ -36,7 +36,7 @@
 
 static void triflex_set_mode(ide_drive_t *drive, const u8 speed)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u32 triflex_timings = 0;
 	u16 timing = 0;

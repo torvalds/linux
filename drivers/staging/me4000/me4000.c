@@ -536,25 +536,19 @@ module_init(me4000_init_module);
 
 static void clear_board_info_list(void)
 {
-	struct list_head *board_p;
-	struct list_head *dac_p;
-	struct me4000_info *board_info;
-	struct me4000_ao_context *ao_context;
+	struct me4000_info *board_info, *board_info_safe;
+	struct me4000_ao_context *ao_context, *ao_context_safe;
 
 	/* Clear context lists */
-	for (board_p = me4000_board_info_list.next;
-	     board_p != &me4000_board_info_list; board_p = board_p->next) {
-		board_info = list_entry(board_p, struct me4000_info, list);
+	list_for_each_entry(board_info, &me4000_board_info_list, list) {
 		/* Clear analog output context list */
-		while (!list_empty(&board_info->ao_context_list)) {
-			dac_p = board_info->ao_context_list.next;
-			ao_context =
-			    list_entry(dac_p, struct me4000_ao_context, list);
+		list_for_each_entry_safe(ao_context, ao_context_safe,
+				&board_info->ao_context_list, list) {
 			me4000_ao_reset(ao_context);
 			free_irq(ao_context->irq, ao_context);
 			if (ao_context->circ_buf.buf)
 				kfree(ao_context->circ_buf.buf);
-			list_del(dac_p);
+			list_del(&ao_context->list);
 			kfree(ao_context);
 		}
 
@@ -574,11 +568,10 @@ static void clear_board_info_list(void)
 	}
 
 	/* Clear the board info list */
-	while (!list_empty(&me4000_board_info_list)) {
-		board_p = me4000_board_info_list.next;
-		board_info = list_entry(board_p, struct me4000_info, list);
+	list_for_each_entry_safe(board_info, board_info_safe,
+			&me4000_board_info_list, list) {
 		pci_release_regions(board_info->pci_dev_p);
-		list_del(board_p);
+		list_del(&board_info->list);
 		kfree(board_info);
 	}
 }
@@ -663,16 +656,17 @@ static int init_board_info(struct pci_dev *pci_dev_p,
 	}
 
 	/* Get the index of the board in the global list */
-	for (board_p = me4000_board_info_list.next, i = 0;
-	     board_p != &me4000_board_info_list; board_p = board_p->next, i++) {
+	i = 0;
+	list_for_each(board_p, &me4000_board_info_list) {
 		if (board_p == &board_info->list) {
 			board_info->board_count = i;
 			break;
 		}
+		i++;
 	}
 	if (board_p == &me4000_board_info_list) {
 		printk(KERN_ERR
-		       "ME4000:init_board_info():Cannot get index of baord\n");
+		       "ME4000:init_board_info():Cannot get index of board\n");
 		return -ENODEV;
 	}
 
@@ -863,16 +857,14 @@ static int alloc_ao_contexts(struct me4000_info *info)
 
 static void release_ao_contexts(struct me4000_info *board_info)
 {
-	struct list_head *dac_p;
-	struct me4000_ao_context *ao_context;
+	struct me4000_ao_context *ao_context, *ao_context_safe;
 
 	/* Clear analog output context list */
-	while (!list_empty(&board_info->ao_context_list)) {
-		dac_p = board_info->ao_context_list.next;
-		ao_context = list_entry(dac_p, struct me4000_ao_context, list);
+	list_for_each_entry_safe(ao_context, ao_context_safe,
+			&board_info->ao_context_list, list) {
 		free_irq(ao_context->irq, ao_context);
 		kfree(ao_context->circ_buf.buf);
-		list_del(dac_p);
+		list_del(&ao_context->list);
 		kfree(ao_context);
 	}
 }
@@ -1180,7 +1172,7 @@ static int me4000_xilinx_download(struct me4000_info *info)
 
 	/* Wait until /INIT pin is set */
 	udelay(20);
-	if (!inl(info->plx_regbase + PLX_INTCSR) & 0x20) {
+	if (!(inl(info->plx_regbase + PLX_INTCSR) & 0x20)) {
 		printk(KERN_ERR "%s:Can't init Xilinx\n", __func__);
 		return -EIO;
 	}
@@ -1303,12 +1295,13 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		       dev, mode);
 
 		/* Search for the board context */
-		for (ptr = me4000_board_info_list.next, i = 0;
-		     ptr != &me4000_board_info_list; ptr = ptr->next, i++) {
-			board_info = list_entry(ptr, struct me4000_info, list);
+		i = 0;
+		list_for_each(ptr, &me4000_board_info_list) {
 			if (i == board)
 				break;
+			i++;
 		}
+		board_info = list_entry(ptr, struct me4000_info, list);
 
 		if (ptr == &me4000_board_info_list) {
 			printk(KERN_ERR
@@ -1318,14 +1311,13 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		}
 
 		/* Search for the dac context */
-		for (ptr = board_info->ao_context_list.next, i = 0;
-		     ptr != &board_info->ao_context_list;
-		     ptr = ptr->next, i++) {
-			ao_context = list_entry(ptr, struct me4000_ao_context,
-									list);
+		i = 0;
+		list_for_each(ptr, &board_info->ao_context_list) {
 			if (i == dev)
 				break;
+			i++;
 		}
+		ao_context = list_entry(ptr, struct me4000_ao_context, list);
 
 		if (ptr == &board_info->ao_context_list) {
 			printk(KERN_ERR
@@ -1384,12 +1376,13 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		PDEBUG("me4000_open():ai board = %d mode = %d\n", board, mode);
 
 		/* Search for the board context */
-		for (ptr = me4000_board_info_list.next, i = 0;
-		     ptr != &me4000_board_info_list; ptr = ptr->next, i++) {
-			board_info = list_entry(ptr, struct me4000_info, list);
+		i = 0;
+		list_for_each(ptr, &me4000_board_info_list) {
 			if (i == board)
 				break;
+			i++;
 		}
+		board_info = list_entry(ptr, struct me4000_info, list);
 
 		if (ptr == &me4000_board_info_list) {
 			printk(KERN_ERR
@@ -1438,14 +1431,12 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		PDEBUG("me4000_open():board = %d\n", board);
 
 		/* Search for the board context */
-		for (ptr = me4000_board_info_list.next;
-		     ptr != &me4000_board_info_list; ptr = ptr->next) {
-			board_info = list_entry(ptr, struct me4000_info, list);
+		list_for_each_entry(board_info, &me4000_board_info_list, list) {
 			if (board_info->board_count == board)
 				break;
 		}
 
-		if (ptr == &me4000_board_info_list) {
+		if (&board_info->list == &me4000_board_info_list) {
 			printk(KERN_ERR
 			       "ME4000:me4000_open():Board %d not in device list\n",
 			       board);
@@ -1483,14 +1474,12 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		PDEBUG("me4000_open():board = %d\n", board);
 
 		/* Search for the board context */
-		for (ptr = me4000_board_info_list.next;
-		     ptr != &me4000_board_info_list; ptr = ptr->next) {
-			board_info = list_entry(ptr, struct me4000_info, list);
+		list_for_each_entry(board_info, &me4000_board_info_list, list) {
 			if (board_info->board_count == board)
 				break;
 		}
 
-		if (ptr == &me4000_board_info_list) {
+		if (&board_info->list == &me4000_board_info_list) {
 			printk(KERN_ERR
 			       "ME4000:me4000_open():Board %d not in device list\n",
 			       board);
@@ -1526,14 +1515,12 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		PDEBUG("me4000_open():board = %d\n", board);
 
 		/* Search for the board context */
-		for (ptr = me4000_board_info_list.next;
-		     ptr != &me4000_board_info_list; ptr = ptr->next) {
-			board_info = list_entry(ptr, struct me4000_info, list);
+		list_for_each_entry(board_info, &me4000_board_info_list, list) {
 			if (board_info->board_count == board)
 				break;
 		}
 
-		if (ptr == &me4000_board_info_list) {
+		if (&board_info->list == &me4000_board_info_list) {
 			printk(KERN_ERR
 			       "ME4000:me4000_open():Board %d not in device list\n",
 			       board);
@@ -5955,7 +5942,6 @@ static irqreturn_t me4000_ext_int_isr(int irq, void *dev_id)
 
 static void __exit me4000_module_exit(void)
 {
-	struct list_head *board_p;
 	struct me4000_info *board_info;
 
 	CALL_PDEBUG("cleanup_module() is executed\n");
@@ -5975,9 +5961,7 @@ static void __exit me4000_module_exit(void)
 	pci_unregister_driver(&me4000_driver);
 
 	/* Reset the boards */
-	for (board_p = me4000_board_info_list.next;
-	     board_p != &me4000_board_info_list; board_p = board_p->next) {
-		board_info = list_entry(board_p, struct me4000_info, list);
+	list_for_each_entry(board_info, &me4000_board_info_list, list) {
 		me4000_reset_board(board_info);
 	}
 
@@ -5992,7 +5976,6 @@ static int me4000_read_procmem(char *buf, char **start, off_t offset, int count,
 	int len = 0;
 	int limit = count - 1000;
 	struct me4000_info *board_info;
-	struct list_head *ptr;
 
 	len += sprintf(buf + len, "\nME4000 DRIVER VERSION %X.%X.%X\n\n",
 		       (ME4000_DRIVER_VERSION & 0xFF0000) >> 16,
@@ -6000,11 +5983,7 @@ static int me4000_read_procmem(char *buf, char **start, off_t offset, int count,
 		       (ME4000_DRIVER_VERSION & 0xFF));
 
 	/* Search for the board context */
-	for (ptr = me4000_board_info_list.next;
-	     (ptr != &me4000_board_info_list) && (len < limit);
-	     ptr = ptr->next) {
-		board_info = list_entry(ptr, struct me4000_info, list);
-
+	list_for_each_entry(board_info, &me4000_board_info_list, list) {
 		len +=
 		    sprintf(buf + len, "Board number %d:\n",
 			    board_info->board_count);
@@ -6110,6 +6089,8 @@ static int me4000_read_procmem(char *buf, char **start, off_t offset, int count,
 		    sprintf(buf + len, "AO 3 status register = 0x%08X\n",
 			    inl(board_info->me4000_regbase +
 				ME4000_AO_03_STATUS_REG));
+		if (len >= limit)
+			break;
 	}
 
 	*eof = 1;

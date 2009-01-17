@@ -99,7 +99,7 @@ static inline void restore_access_regs(unsigned int *acrs)
 	prev = __switch_to(prev,next);					     \
 } while (0)
 
-extern void account_vtime(struct task_struct *);
+extern void account_vtime(struct task_struct *, struct task_struct *);
 extern void account_tick_vtime(struct task_struct *);
 extern void account_system_vtime(struct task_struct *);
 
@@ -121,7 +121,7 @@ static inline void cmma_init(void) { }
 
 #define finish_arch_switch(prev) do {					     \
 	set_fs(current->thread.mm_segment);				     \
-	account_vtime(prev);						     \
+	account_vtime(prev, current);					     \
 } while (0)
 
 #define nop() asm volatile("nop")

@@ -79,7 +79,10 @@ struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh_state);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
 #ifdef CONFIG_NO_HZ
-DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks);
+DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
+	.dynticks_nesting = 1,
+	.dynticks = 1,
+};
 #endif /* #ifdef CONFIG_NO_HZ */
 
 static int blimit = 10;		/* Maximum callbacks per softirq. */
@@ -572,6 +575,7 @@ rcu_start_gp(struct rcu_state *rsp, unsigned long flags)
 	/* Special-case the common single-level case. */
 	if (NUM_RCU_NODES == 1) {
 		rnp->qsmask = rnp->qsmaskinit;
+		rsp->signaled = RCU_SIGNAL_INIT; /* force_quiescent_state OK. */
 		spin_unlock_irqrestore(&rnp->lock, flags);
 		return;
 	}
@@ -1379,13 +1383,6 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 
 static void __cpuinit rcu_online_cpu(int cpu)
 {
-#ifdef CONFIG_NO_HZ
-	struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
-
-	rdtp->dynticks_nesting = 1;
-	rdtp->dynticks |= 1; 	/* need consecutive #s even for hotplug. */
-	rdtp->dynticks_nmi = (rdtp->dynticks_nmi + 1) & ~0x1;
-#endif /* #ifdef CONFIG_NO_HZ */
 	rcu_init_percpu_data(cpu, &rcu_state);
 	rcu_init_percpu_data(cpu, &rcu_bh_state);
 	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);

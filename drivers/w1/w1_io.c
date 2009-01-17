@@ -238,7 +238,6 @@ EXPORT_SYMBOL_GPL(w1_read_8);
  * @param dev     the master device
  * @param buf     pointer to the data to write
  * @param len     the number of bytes to write
- * @return        the byte read
  */
 void w1_write_block(struct w1_master *dev, const u8 *buf, int len)
 {
@@ -254,6 +253,31 @@ void w1_write_block(struct w1_master *dev, const u8 *buf, int len)
 	w1_post_write(dev);
 }
 EXPORT_SYMBOL_GPL(w1_write_block);
+
+/**
+ * Touches a series of bytes.
+ *
+ * @param dev     the master device
+ * @param buf     pointer to the data to write
+ * @param len     the number of bytes to write
+ */
+void w1_touch_block(struct w1_master *dev, u8 *buf, int len)
+{
+	int i, j;
+	u8 tmp;
+
+	for (i = 0; i < len; ++i) {
+		tmp = 0;
+		for (j = 0; j < 8; ++j) {
+			if (j == 7)
+				w1_pre_write(dev);
+			tmp |= w1_touch_bit(dev, (buf[i] >> j) & 0x1) << j;
+		}
+
+		buf[i] = tmp;
+	}
+}
+EXPORT_SYMBOL_GPL(w1_touch_block);
 
 /**
  * Reads a series of bytes.

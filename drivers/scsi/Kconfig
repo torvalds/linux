@@ -21,7 +21,7 @@ config SCSI
 	  You also need to say Y here if you have a device which speaks
 	  the SCSI protocol.  Examples of this include the parallel port
 	  version of the IOMEGA ZIP drive, USB storage devices, Fibre
-	  Channel, FireWire storage and the IDE-SCSI emulation driver.
+	  Channel, and FireWire storage.
 
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/scsi/scsi.txt>.
@@ -101,9 +101,9 @@ config CHR_DEV_OSST
 	---help---
 	  The OnStream SC-x0 SCSI tape drives cannot be driven by the
 	  standard st driver, but instead need this special osst driver and
-	  use the  /dev/osstX char device nodes (major 206).  Via usb-storage
-	  and ide-scsi, you may be able to drive the USB-x0 and DI-x0 drives
-	  as well.  Note that there is also a second generation of OnStream
+	  use the  /dev/osstX char device nodes (major 206).  Via usb-storage,
+	  you may be able to drive the USB-x0 and DI-x0 drives as well.
+	  Note that there is also a second generation of OnStream
 	  tape drives (ADR-x0) that supports the standard SCSI-2 commands for
 	  tapes (QIC-157) and can be driven by the standard driver st.
 	  For more information, you may have a look at the SCSI-HOWTO
@@ -884,6 +884,7 @@ config SCSI_IBMVSCSI
 	tristate "IBM Virtual SCSI support"
 	depends on PPC_PSERIES || PPC_ISERIES
 	select SCSI_SRP_ATTRS
+	select VIOPATH if PPC_ISERIES
 	help
 	  This is the IBM POWER Virtual SCSI Client
 

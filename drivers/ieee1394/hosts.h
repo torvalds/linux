@@ -154,7 +154,7 @@ struct hpsb_host_driver {
 	 * to set the hardware ConfigROM if the hardware supports handling
 	 * reads to the ConfigROM on its own. */
 	void (*set_hw_config_rom)(struct hpsb_host *host,
-				  quadlet_t *config_rom);
+				  __be32 *config_rom);
 
 	/* This function shall implement packet transmission based on
 	 * packet->type.  It shall CRC both parts of the packet (unless

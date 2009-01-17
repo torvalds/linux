@@ -27,6 +27,14 @@
 #define SAVE_ALL_SYS		save_context_no_interrupts
 /* This is used for all normal interrupts.  It saves a minimum of registers
    to the stack, loads the IRQ number, and jumps to common code.  */
+#ifdef CONFIG_IPIPE
+# define LOAD_IPIPE_IPEND \
+	P0.l = lo(IPEND); \
+	P0.h = hi(IPEND); \
+	R1 = [P0];
+#else
+# define LOAD_IPIPE_IPEND
+#endif
 #define INTERRUPT_ENTRY(N)						\
     [--sp] = SYSCFG;							\
 									\
@@ -34,6 +42,7 @@
     [--sp] = R0;	/*orig_r0*/					\
     [--sp] = (R7:0,P5:0);						\
     R0 = (N);								\
+    LOAD_IPIPE_IPEND							\
     jump __common_int_entry;
 
 /* For timer interrupts, we need to save IPEND, since the user_mode
@@ -53,9 +62,11 @@
 /* This one pushes RETI without using CLI.  Interrupts are enabled.  */
 #define SAVE_CONTEXT_SYSCALL	save_context_syscall
 #define SAVE_CONTEXT		save_context_with_interrupts
+#define SAVE_CONTEXT_CPLB	save_context_cplb
 
 #define RESTORE_ALL_SYS		restore_context_no_interrupts
 #define RESTORE_CONTEXT		restore_context_with_interrupts
+#define RESTORE_CONTEXT_CPLB	restore_context_cplb
 
 #endif				/* __ASSEMBLY__ */
 #endif				/* __BFIN_ENTRY_H */

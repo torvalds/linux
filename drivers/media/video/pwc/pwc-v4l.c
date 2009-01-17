@@ -337,7 +337,7 @@ static int pwc_vidioc_set_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 
 }
 
-int pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+long pwc_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct pwc_device *pdev;

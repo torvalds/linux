@@ -1294,7 +1294,7 @@ asmlinkage long sys_keyctl(int option, unsigned long arg2, unsigned long arg3,
 
 	case KEYCTL_GET_SECURITY:
 		return keyctl_get_security((key_serial_t) arg2,
-					   (char *) arg3,
+					   (char __user *) arg3,
 					   (size_t) arg4);
 
 	default:

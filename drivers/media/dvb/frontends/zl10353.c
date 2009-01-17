@@ -587,7 +587,14 @@ static int zl10353_init(struct dvb_frontend *fe)
 
 static int zl10353_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
 {
+	struct zl10353_state *state = fe->demodulator_priv;
 	u8 val = 0x0a;
+
+	if (state->config.no_tuner) {
+		/* No tuner attached to the internal I2C bus */
+		/* If set enable I2C bridge, the main I2C bus stopped hardly */
+		return 0;
+	}
 
 	if (enable)
 		val |= 0x10;

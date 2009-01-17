@@ -1,0 +1,6 @@
+config RT2870
+	tristate "Ralink 2870 wireless support"
+	depends on USB && X86 && WLAN_80211
+	---help---
+	  This is an experimental driver for the Ralink 2870 wireless chip.
+

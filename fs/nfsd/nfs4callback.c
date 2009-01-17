@@ -53,9 +53,6 @@
 #define NFSPROC4_CB_NULL 0
 #define NFSPROC4_CB_COMPOUND 1
 
-/* declarations */
-static const struct rpc_call_ops nfs4_cb_null_ops;
-
 /* Index of predefined Linux callback client operations */
 
 enum {

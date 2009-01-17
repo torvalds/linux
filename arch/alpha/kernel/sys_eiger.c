@@ -204,7 +204,7 @@ eiger_swizzle(struct pci_dev *dev, u8 *pinp)
 			break;
 		}
 		/* Must be a card-based bridge.  */
-		pin = bridge_swizzle(pin, PCI_SLOT(dev->devfn));
+		pin = pci_swizzle_interrupt_pin(dev, pin);
 
 		/* Move up the chain of bridges.  */
 		dev = dev->bus->self;

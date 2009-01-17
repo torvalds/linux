@@ -48,7 +48,8 @@ struct audit_krule;
  * These functions are in security/capability.c and are used
  * as the default capabilities functions
  */
-extern int cap_capable(struct task_struct *tsk, int cap, int audit);
+extern int cap_capable(struct task_struct *tsk, const struct cred *cred,
+		       int cap, int audit);
 extern int cap_settime(struct timespec *ts, struct timezone *tz);
 extern int cap_ptrace_may_access(struct task_struct *child, unsigned int mode);
 extern int cap_ptrace_traceme(struct task_struct *parent);
@@ -1251,9 +1252,12 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	@permitted contains the permitted capability set.
  *	Return 0 and update @new if permission is granted.
  * @capable:
- *	Check whether the @tsk process has the @cap capability.
+ *	Check whether the @tsk process has the @cap capability in the indicated
+ *	credentials.
  *	@tsk contains the task_struct for the process.
+ *	@cred contains the credentials to use.
  *	@cap contains the capability <include/linux/capability.h>.
+ *	@audit: Whether to write an audit message or not
  *	Return 0 if the capability is granted for @tsk.
  * @acct:
  *	Check permission before enabling or disabling process accounting.  If
@@ -1346,7 +1350,8 @@ struct security_operations {
 		       const kernel_cap_t *effective,
 		       const kernel_cap_t *inheritable,
 		       const kernel_cap_t *permitted);
-	int (*capable) (struct task_struct *tsk, int cap, int audit);
+	int (*capable) (struct task_struct *tsk, const struct cred *cred,
+			int cap, int audit);
 	int (*acct) (struct file *file);
 	int (*sysctl) (struct ctl_table *table, int op);
 	int (*quotactl) (int cmds, int type, int id, struct super_block *sb);
@@ -1628,8 +1633,9 @@ int security_capset(struct cred *new, const struct cred *old,
 		    const kernel_cap_t *effective,
 		    const kernel_cap_t *inheritable,
 		    const kernel_cap_t *permitted);
-int security_capable(struct task_struct *tsk, int cap);
-int security_capable_noaudit(struct task_struct *tsk, int cap);
+int security_capable(int cap);
+int security_real_capable(struct task_struct *tsk, int cap);
+int security_real_capable_noaudit(struct task_struct *tsk, int cap);
 int security_acct(struct file *file);
 int security_sysctl(struct ctl_table *table, int op);
 int security_quotactl(int cmds, int type, int id, struct super_block *sb);
@@ -1826,14 +1832,31 @@ static inline int security_capset(struct cred *new,
 	return cap_capset(new, old, effective, inheritable, permitted);
 }
 
-static inline int security_capable(struct task_struct *tsk, int cap)
+static inline int security_capable(int cap)
 {
-	return cap_capable(tsk, cap, SECURITY_CAP_AUDIT);
+	return cap_capable(current, current_cred(), cap, SECURITY_CAP_AUDIT);
 }
 
-static inline int security_capable_noaudit(struct task_struct *tsk, int cap)
+static inline int security_real_capable(struct task_struct *tsk, int cap)
 {
-	return cap_capable(tsk, cap, SECURITY_CAP_NOAUDIT);
+	int ret;
+
+	rcu_read_lock();
+	ret = cap_capable(tsk, __task_cred(tsk), cap, SECURITY_CAP_AUDIT);
+	rcu_read_unlock();
+	return ret;
+}
+
+static inline
+int security_real_capable_noaudit(struct task_struct *tsk, int cap)
+{
+	int ret;
+
+	rcu_read_lock();
+	ret = cap_capable(tsk, __task_cred(tsk), cap,
+			       SECURITY_CAP_NOAUDIT);
+	rcu_read_unlock();
+	return ret;
 }
 
 static inline int security_acct(struct file *file)

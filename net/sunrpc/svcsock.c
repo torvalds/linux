@@ -59,6 +59,7 @@ static void		svc_udp_data_ready(struct sock *, int);
 static int		svc_udp_recvfrom(struct svc_rqst *);
 static int		svc_udp_sendto(struct svc_rqst *);
 static void		svc_sock_detach(struct svc_xprt *);
+static void		svc_tcp_sock_detach(struct svc_xprt *);
 static void		svc_sock_free(struct svc_xprt *);
 
 static struct svc_xprt *svc_create_socket(struct svc_serv *, int,
@@ -102,7 +103,6 @@ static void svc_reclassify_socket(struct socket *sock)
 static void svc_release_skb(struct svc_rqst *rqstp)
 {
 	struct sk_buff *skb = rqstp->rq_xprt_ctxt;
-	struct svc_deferred_req *dr = rqstp->rq_deferred;
 
 	if (skb) {
 		struct svc_sock *svsk =
@@ -111,10 +111,6 @@ static void svc_release_skb(struct svc_rqst *rqstp)
 
 		dprintk("svc: service %p, releasing skb %p\n", rqstp, skb);
 		skb_free_datagram(svsk->sk_sk, skb);
-	}
-	if (dr) {
-		rqstp->rq_deferred = NULL;
-		kfree(dr);
 	}
 }
 
@@ -289,7 +285,7 @@ svc_sock_names(char *buf, struct svc_serv *serv, char *toclose)
 		return -ENOENT;
 	return len;
 }
-EXPORT_SYMBOL(svc_sock_names);
+EXPORT_SYMBOL_GPL(svc_sock_names);
 
 /*
  * Check input queue length
@@ -1017,7 +1013,7 @@ static struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_recvfrom = svc_tcp_recvfrom,
 	.xpo_sendto = svc_tcp_sendto,
 	.xpo_release_rqst = svc_release_skb,
-	.xpo_detach = svc_sock_detach,
+	.xpo_detach = svc_tcp_sock_detach,
 	.xpo_free = svc_sock_free,
 	.xpo_prep_reply_hdr = svc_tcp_prep_reply_hdr,
 	.xpo_has_wspace = svc_tcp_has_wspace,
@@ -1101,7 +1097,7 @@ void svc_sock_update_bufs(struct svc_serv *serv)
 	}
 	spin_unlock_bh(&serv->sv_lock);
 }
-EXPORT_SYMBOL(svc_sock_update_bufs);
+EXPORT_SYMBOL_GPL(svc_sock_update_bufs);
 
 /*
  * Initialize socket for RPC use and create svc_sock struct
@@ -1287,6 +1283,24 @@ static void svc_sock_detach(struct svc_xprt *xprt)
 	sk->sk_state_change = svsk->sk_ostate;
 	sk->sk_data_ready = svsk->sk_odata;
 	sk->sk_write_space = svsk->sk_owspace;
+
+	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+		wake_up_interruptible(sk->sk_sleep);
+}
+
+/*
+ * Disconnect the socket, and reset the callbacks
+ */
+static void svc_tcp_sock_detach(struct svc_xprt *xprt)
+{
+	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
+
+	dprintk("svc: svc_tcp_sock_detach(%p)\n", svsk);
+
+	svc_sock_detach(xprt);
+
+	if (!test_bit(XPT_LISTENER, &xprt->xpt_flags))
+		kernel_sock_shutdown(svsk->sk_sock, SHUT_RDWR);
 }
 
 /*

@@ -1,10 +1,11 @@
 /**
  * @file cpu_buffer.h
  *
- * @remark Copyright 2002 OProfile authors
+ * @remark Copyright 2002-2009 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon <levon@movementarian.org>
+ * @author Robert Richter <robert.richter@amd.com>
  */
 
 #ifndef OPROFILE_CPU_BUFFER_H
@@ -31,17 +32,12 @@ void end_cpu_work(void);
 struct op_sample {
 	unsigned long eip;
 	unsigned long event;
+	unsigned long data[0];
 };
 
-struct op_entry {
-	struct ring_buffer_event *event;
-	struct op_sample *sample;
-	unsigned long irq_flags;
-};
+struct op_entry;
 
 struct oprofile_cpu_buffer {
-	volatile unsigned long head_pos;
-	volatile unsigned long tail_pos;
 	unsigned long buffer_size;
 	struct task_struct *last_task;
 	int last_is_kernel;
@@ -54,8 +50,6 @@ struct oprofile_cpu_buffer {
 	struct delayed_work work;
 };
 
-extern struct ring_buffer *op_ring_buffer_read;
-extern struct ring_buffer *op_ring_buffer_write;
 DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 
 /*
@@ -64,7 +58,7 @@ DECLARE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
  * reset these to invalid values; the next sample collected will
  * populate the buffer with proper values to initialize the buffer
  */
-static inline void cpu_buffer_reset(int cpu)
+static inline void op_cpu_buffer_reset(int cpu)
 {
 	struct oprofile_cpu_buffer *cpu_buf = &per_cpu(cpu_buffer, cpu);
 
@@ -72,55 +66,48 @@ static inline void cpu_buffer_reset(int cpu)
 	cpu_buf->last_task = NULL;
 }
 
-static inline int cpu_buffer_write_entry(struct op_entry *entry)
+struct op_sample
+*op_cpu_buffer_write_reserve(struct op_entry *entry, unsigned long size);
+int op_cpu_buffer_write_commit(struct op_entry *entry);
+struct op_sample *op_cpu_buffer_read_entry(struct op_entry *entry, int cpu);
+unsigned long op_cpu_buffer_entries(int cpu);
+
+/* returns the remaining free size of data in the entry */
+static inline
+int op_cpu_buffer_add_data(struct op_entry *entry, unsigned long val)
 {
-	entry->event = ring_buffer_lock_reserve(op_ring_buffer_write,
-						sizeof(struct op_sample),
-						&entry->irq_flags);
-	if (entry->event)
-		entry->sample = ring_buffer_event_data(entry->event);
-	else
-		entry->sample = NULL;
-
-	if (!entry->sample)
-		return -ENOMEM;
-
-	return 0;
+	if (!entry->size)
+		return 0;
+	*entry->data = val;
+	entry->size--;
+	entry->data++;
+	return entry->size;
 }
 
-static inline int cpu_buffer_write_commit(struct op_entry *entry)
+/* returns the size of data in the entry */
+static inline
+int op_cpu_buffer_get_size(struct op_entry *entry)
 {
-	return ring_buffer_unlock_commit(op_ring_buffer_write, entry->event,
-					 entry->irq_flags);
+	return entry->size;
 }
 
-static inline struct op_sample *cpu_buffer_read_entry(int cpu)
+/* returns 0 if empty or the size of data including the current value */
+static inline
+int op_cpu_buffer_get_data(struct op_entry *entry, unsigned long *val)
 {
-	struct ring_buffer_event *e;
-	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
-	if (e)
-		return ring_buffer_event_data(e);
-	if (ring_buffer_swap_cpu(op_ring_buffer_read,
-				 op_ring_buffer_write,
-				 cpu))
-		return NULL;
-	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
-	if (e)
-		return ring_buffer_event_data(e);
-	return NULL;
+	int size = entry->size;
+	if (!size)
+		return 0;
+	*val = *entry->data;
+	entry->size--;
+	entry->data++;
+	return size;
 }
 
-/* "acquire" as many cpu buffer slots as we can */
-static inline unsigned long cpu_buffer_entries(int cpu)
-{
-	return ring_buffer_entries_cpu(op_ring_buffer_read, cpu)
-		+ ring_buffer_entries_cpu(op_ring_buffer_write, cpu);
-}
-
-/* transient events for the CPU buffer -> event buffer */
-#define CPU_IS_KERNEL 1
-#define CPU_TRACE_BEGIN 2
-#define IBS_FETCH_BEGIN 3
-#define IBS_OP_BEGIN    4
+/* extra data flags */
+#define KERNEL_CTX_SWITCH	(1UL << 0)
+#define IS_KERNEL		(1UL << 1)
+#define TRACE_BEGIN		(1UL << 2)
+#define USER_CTX_SWITCH		(1UL << 3)
 
 #endif /* OPROFILE_CPU_BUFFER_H */

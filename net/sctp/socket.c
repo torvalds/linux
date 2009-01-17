@@ -2717,7 +2717,7 @@ static int sctp_setsockopt_associnfo(struct sock *sk, char __user *optval, int o
 				paths++;
 			}
 
-			/* Only validate asocmaxrxt if we have more then
+			/* Only validate asocmaxrxt if we have more than
 			 * one path/transport.  We do this because path
 			 * retransmissions are only counted when we have more
 			 * then one path.

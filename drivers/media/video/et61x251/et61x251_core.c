@@ -1206,7 +1206,7 @@ static void et61x251_release_resources(struct kref *kref)
 }
 
 
-static int et61x251_open(struct inode* inode, struct file* filp)
+static int et61x251_open(struct file *filp)
 {
 	struct et61x251_device* cam;
 	int err = 0;
@@ -1291,7 +1291,7 @@ out:
 }
 
 
-static int et61x251_release(struct inode* inode, struct file* filp)
+static int et61x251_release(struct file *filp)
 {
 	struct et61x251_device* cam;
 
@@ -2392,8 +2392,8 @@ et61x251_vidioc_s_parm(struct et61x251_device* cam, void __user * arg)
 }
 
 
-static int et61x251_ioctl_v4l2(struct inode* inode, struct file* filp,
-			       unsigned int cmd, void __user * arg)
+static long et61x251_ioctl_v4l2(struct file *filp,
+			       unsigned int cmd, void __user *arg)
 {
 	struct et61x251_device *cam = video_drvdata(filp);
 
@@ -2487,11 +2487,11 @@ static int et61x251_ioctl_v4l2(struct inode* inode, struct file* filp,
 }
 
 
-static int et61x251_ioctl(struct inode* inode, struct file* filp,
+static long et61x251_ioctl(struct file *filp,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct et61x251_device *cam = video_drvdata(filp);
-	int err = 0;
+	long err = 0;
 
 	if (mutex_lock_interruptible(&cam->fileop_mutex))
 		return -ERESTARTSYS;
@@ -2511,7 +2511,7 @@ static int et61x251_ioctl(struct inode* inode, struct file* filp,
 
 	V4LDBG(3, "et61x251", cmd);
 
-	err = et61x251_ioctl_v4l2(inode, filp, cmd, (void __user *)arg);
+	err = et61x251_ioctl_v4l2(filp, cmd, (void __user *)arg);
 
 	mutex_unlock(&cam->fileop_mutex);
 
@@ -2519,18 +2519,14 @@ static int et61x251_ioctl(struct inode* inode, struct file* filp,
 }
 
 
-static const struct file_operations et61x251_fops = {
+static const struct v4l2_file_operations et61x251_fops = {
 	.owner = THIS_MODULE,
 	.open =    et61x251_open,
 	.release = et61x251_release,
 	.ioctl =   et61x251_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
-#endif
 	.read =    et61x251_read,
 	.poll =    et61x251_poll,
 	.mmap =    et61x251_mmap,
-	.llseek =  no_llseek,
 };
 
 /*****************************************************************************/

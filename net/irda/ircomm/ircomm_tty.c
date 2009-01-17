@@ -371,9 +371,8 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 	IRDA_DEBUG(2, "%s()\n", __func__ );
 
 	line = tty->index;
-	if ((line < 0) || (line >= IRCOMM_TTY_PORTS)) {
+	if (line >= IRCOMM_TTY_PORTS)
 		return -ENODEV;
-	}
 
 	/* Check if instance already exists */
 	self = hashbin_lock_find(ircomm_tty, line, NULL);
@@ -405,6 +404,8 @@ static int ircomm_tty_open(struct tty_struct *tty, struct file *filp)
 		 * Force TTY into raw mode by default which is usually what
 		 * we want for IrCOMM and IrLPT. This way applications will
 		 * not have to twiddle with printcap etc.
+		 *
+		 * Note this is completely usafe and doesn't work properly
 		 */
 		tty->termios->c_iflag = 0;
 		tty->termios->c_oflag = 0;

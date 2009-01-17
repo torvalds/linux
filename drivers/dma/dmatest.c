@@ -35,7 +35,7 @@ MODULE_PARM_DESC(threads_per_chan,
 
 static unsigned int max_channels;
 module_param(max_channels, uint, S_IRUGO);
-MODULE_PARM_DESC(nr_channels,
+MODULE_PARM_DESC(max_channels,
 		"Maximum number of channels to use (default: all)");
 
 /*
@@ -71,7 +71,7 @@ struct dmatest_chan {
 
 /*
  * These are protected by dma_list_mutex since they're only used by
- * the DMA client event callback
+ * the DMA filter function callback
  */
 static LIST_HEAD(dmatest_channels);
 static unsigned int nr_channels;
@@ -80,7 +80,7 @@ static bool dmatest_match_channel(struct dma_chan *chan)
 {
 	if (test_channel[0] == '\0')
 		return true;
-	return strcmp(dev_name(&chan->dev), test_channel) == 0;
+	return strcmp(dma_chan_name(chan), test_channel) == 0;
 }
 
 static bool dmatest_match_device(struct dma_device *device)
@@ -215,7 +215,6 @@ static int dmatest_func(void *data)
 
 	smp_rmb();
 	chan = thread->chan;
-	dma_chan_get(chan);
 
 	while (!kthread_should_stop()) {
 		total_tests++;
@@ -293,7 +292,6 @@ static int dmatest_func(void *data)
 	}
 
 	ret = 0;
-	dma_chan_put(chan);
 	kfree(thread->dstbuf);
 err_dstbuf:
 	kfree(thread->srcbuf);
@@ -319,21 +317,16 @@ static void dmatest_cleanup_channel(struct dmatest_chan *dtc)
 	kfree(dtc);
 }
 
-static enum dma_state_client dmatest_add_channel(struct dma_chan *chan)
+static int dmatest_add_channel(struct dma_chan *chan)
 {
 	struct dmatest_chan	*dtc;
 	struct dmatest_thread	*thread;
 	unsigned int		i;
 
-	/* Have we already been told about this channel? */
-	list_for_each_entry(dtc, &dmatest_channels, node)
-		if (dtc->chan == chan)
-			return DMA_DUP;
-
 	dtc = kmalloc(sizeof(struct dmatest_chan), GFP_KERNEL);
 	if (!dtc) {
-		pr_warning("dmatest: No memory for %s\n", dev_name(&chan->dev));
-		return DMA_NAK;
+		pr_warning("dmatest: No memory for %s\n", dma_chan_name(chan));
+		return -ENOMEM;
 	}
 
 	dtc->chan = chan;
@@ -343,16 +336,16 @@ static enum dma_state_client dmatest_add_channel(struct dma_chan *chan)
 		thread = kzalloc(sizeof(struct dmatest_thread), GFP_KERNEL);
 		if (!thread) {
 			pr_warning("dmatest: No memory for %s-test%u\n",
-				   dev_name(&chan->dev), i);
+				   dma_chan_name(chan), i);
 			break;
 		}
 		thread->chan = dtc->chan;
 		smp_wmb();
 		thread->task = kthread_run(dmatest_func, thread, "%s-test%u",
-				dev_name(&chan->dev), i);
+				dma_chan_name(chan), i);
 		if (IS_ERR(thread->task)) {
 			pr_warning("dmatest: Failed to run thread %s-test%u\n",
-					dev_name(&chan->dev), i);
+					dma_chan_name(chan), i);
 			kfree(thread);
 			break;
 		}
@@ -362,86 +355,62 @@ static enum dma_state_client dmatest_add_channel(struct dma_chan *chan)
 		list_add_tail(&thread->node, &dtc->threads);
 	}
 
-	pr_info("dmatest: Started %u threads using %s\n", i, dev_name(&chan->dev));
+	pr_info("dmatest: Started %u threads using %s\n", i, dma_chan_name(chan));
 
 	list_add_tail(&dtc->node, &dmatest_channels);
 	nr_channels++;
 
-	return DMA_ACK;
+	return 0;
 }
 
-static enum dma_state_client dmatest_remove_channel(struct dma_chan *chan)
+static bool filter(struct dma_chan *chan, void *param)
 {
-	struct dmatest_chan	*dtc, *_dtc;
-
-	list_for_each_entry_safe(dtc, _dtc, &dmatest_channels, node) {
-		if (dtc->chan == chan) {
-			list_del(&dtc->node);
-			dmatest_cleanup_channel(dtc);
-			pr_debug("dmatest: lost channel %s\n",
-					dev_name(&chan->dev));
-			return DMA_ACK;
-		}
-	}
-
-	return DMA_DUP;
+	if (!dmatest_match_channel(chan) || !dmatest_match_device(chan->device))
+		return false;
+	else
+		return true;
 }
-
-/*
- * Start testing threads as new channels are assigned to us, and kill
- * them when the channels go away.
- *
- * When we unregister the client, all channels are removed so this
- * will also take care of cleaning things up when the module is
- * unloaded.
- */
-static enum dma_state_client
-dmatest_event(struct dma_client *client, struct dma_chan *chan,
-		enum dma_state state)
-{
-	enum dma_state_client	ack = DMA_NAK;
-
-	switch (state) {
-	case DMA_RESOURCE_AVAILABLE:
-		if (!dmatest_match_channel(chan)
-				|| !dmatest_match_device(chan->device))
-			ack = DMA_DUP;
-		else if (max_channels && nr_channels >= max_channels)
-			ack = DMA_NAK;
-		else
-			ack = dmatest_add_channel(chan);
-		break;
-
-	case DMA_RESOURCE_REMOVED:
-		ack = dmatest_remove_channel(chan);
-		break;
-
-	default:
-		pr_info("dmatest: Unhandled event %u (%s)\n",
-				state, dev_name(&chan->dev));
-		break;
-	}
-
-	return ack;
-}
-
-static struct dma_client dmatest_client = {
-	.event_callback	= dmatest_event,
-};
 
 static int __init dmatest_init(void)
 {
-	dma_cap_set(DMA_MEMCPY, dmatest_client.cap_mask);
-	dma_async_client_register(&dmatest_client);
-	dma_async_client_chan_request(&dmatest_client);
+	dma_cap_mask_t mask;
+	struct dma_chan *chan;
+	int err = 0;
 
-	return 0;
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_MEMCPY, mask);
+	for (;;) {
+		chan = dma_request_channel(mask, filter, NULL);
+		if (chan) {
+			err = dmatest_add_channel(chan);
+			if (err == 0)
+				continue;
+			else {
+				dma_release_channel(chan);
+				break; /* add_channel failed, punt */
+			}
+		} else
+			break; /* no more channels available */
+		if (max_channels && nr_channels >= max_channels)
+			break; /* we have all we need */
+	}
+
+	return err;
 }
-module_init(dmatest_init);
+/* when compiled-in wait for drivers to load first */
+late_initcall(dmatest_init);
 
 static void __exit dmatest_exit(void)
 {
-	dma_async_client_unregister(&dmatest_client);
+	struct dmatest_chan *dtc, *_dtc;
+
+	list_for_each_entry_safe(dtc, _dtc, &dmatest_channels, node) {
+		list_del(&dtc->node);
+		dmatest_cleanup_channel(dtc);
+		pr_debug("dmatest: dropped channel %s\n",
+			 dma_chan_name(dtc->chan));
+		dma_release_channel(dtc->chan);
+	}
 }
 module_exit(dmatest_exit);
 

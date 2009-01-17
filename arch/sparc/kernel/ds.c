@@ -286,7 +286,7 @@ static void md_update_data(struct ds_info *dp,
 
 	rp = (struct ds_md_update_req *) (dpkt + 1);
 
-	printk(KERN_INFO "ds-%lu: Machine description update.\n", dp->id);
+	printk(KERN_INFO "ds-%llu: Machine description update.\n", dp->id);
 
 	mdesc_update();
 
@@ -325,7 +325,7 @@ static void domain_shutdown_data(struct ds_info *dp,
 
 	rp = (struct ds_shutdown_req *) (dpkt + 1);
 
-	printk(KERN_ALERT "ds-%lu: Shutdown request from "
+	printk(KERN_ALERT "ds-%llu: Shutdown request from "
 	       "LDOM manager received.\n", dp->id);
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -365,7 +365,7 @@ static void domain_panic_data(struct ds_info *dp,
 
 	rp = (struct ds_panic_req *) (dpkt + 1);
 
-	printk(KERN_ALERT "ds-%lu: Panic request from "
+	printk(KERN_ALERT "ds-%llu: Panic request from "
 	       "LDOM manager received.\n", dp->id);
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -549,7 +549,7 @@ static int __cpuinit dr_cpu_configure(struct ds_info *dp,
 	for_each_cpu_mask(cpu, *mask) {
 		int err;
 
-		printk(KERN_INFO "ds-%lu: Starting cpu %d...\n",
+		printk(KERN_INFO "ds-%llu: Starting cpu %d...\n",
 		       dp->id, cpu);
 		err = cpu_up(cpu);
 		if (err) {
@@ -565,7 +565,7 @@ static int __cpuinit dr_cpu_configure(struct ds_info *dp,
 				res = DR_CPU_RES_CPU_NOT_RESPONDING;
 			}
 
-			printk(KERN_INFO "ds-%lu: CPU startup failed err=%d\n",
+			printk(KERN_INFO "ds-%llu: CPU startup failed err=%d\n",
 			       dp->id, err);
 			dr_cpu_mark(resp, cpu, ncpus, res, stat);
 		}
@@ -605,7 +605,7 @@ static int dr_cpu_unconfigure(struct ds_info *dp,
 	for_each_cpu_mask(cpu, *mask) {
 		int err;
 
-		printk(KERN_INFO "ds-%lu: Shutting down cpu %d...\n",
+		printk(KERN_INFO "ds-%llu: Shutting down cpu %d...\n",
 		       dp->id, cpu);
 		err = cpu_down(cpu);
 		if (err)
@@ -684,7 +684,7 @@ static void ds_pri_data(struct ds_info *dp,
 
 	rp = (struct ds_pri_msg *) (dpkt + 1);
 
-	printk(KERN_INFO "ds-%lu: PRI REQ [%lx:%lx], len=%d\n",
+	printk(KERN_INFO "ds-%llu: PRI REQ [%llx:%llx], len=%d\n",
 	       dp->id, rp->req_num, rp->type, len);
 }
 
@@ -816,7 +816,7 @@ void ldom_set_var(const char *var, const char *value)
 
 		if (ds_var_doorbell == 0 ||
 		    ds_var_response != DS_VAR_SUCCESS)
-			printk(KERN_ERR "ds-%lu: var-config [%s:%s] "
+			printk(KERN_ERR "ds-%llu: var-config [%s:%s] "
 			       "failed, response(%d).\n",
 			       dp->id, var, value,
 			       ds_var_response);
@@ -850,7 +850,7 @@ void ldom_power_off(void)
 
 static void ds_conn_reset(struct ds_info *dp)
 {
-	printk(KERN_ERR "ds-%lu: ds_conn_reset() from %p\n",
+	printk(KERN_ERR "ds-%llu: ds_conn_reset() from %p\n",
 	       dp->id, __builtin_return_address(0));
 }
 
@@ -912,11 +912,11 @@ static int ds_handshake(struct ds_info *dp, struct ds_msg_tag *pkt)
 		struct ds_cap_state *cp = find_cap(dp, ap->handle);
 
 		if (!cp) {
-			printk(KERN_ERR "ds-%lu: REG ACK for unknown "
-			       "handle %lx\n", dp->id, ap->handle);
+			printk(KERN_ERR "ds-%llu: REG ACK for unknown "
+			       "handle %llx\n", dp->id, ap->handle);
 			return 0;
 		}
-		printk(KERN_INFO "ds-%lu: Registered %s service.\n",
+		printk(KERN_INFO "ds-%llu: Registered %s service.\n",
 		       dp->id, cp->service_id);
 		cp->state = CAP_STATE_REGISTERED;
 	} else if (pkt->type == DS_REG_NACK) {
@@ -924,8 +924,8 @@ static int ds_handshake(struct ds_info *dp, struct ds_msg_tag *pkt)
 		struct ds_cap_state *cp = find_cap(dp, np->handle);
 
 		if (!cp) {
-			printk(KERN_ERR "ds-%lu: REG NACK for "
-			       "unknown handle %lx\n",
+			printk(KERN_ERR "ds-%llu: REG NACK for "
+			       "unknown handle %llx\n",
 			       dp->id, np->handle);
 			return 0;
 		}
@@ -982,8 +982,8 @@ static void process_ds_work(void)
 		int req_len = qp->req_len;
 
 		if (!cp) {
-			printk(KERN_ERR "ds-%lu: Data for unknown "
-			       "handle %lu\n",
+			printk(KERN_ERR "ds-%llu: Data for unknown "
+			       "handle %llu\n",
 			       dp->id, dpkt->handle);
 
 			spin_lock_irqsave(&ds_lock, flags);
@@ -1085,7 +1085,7 @@ static void ds_event(void *arg, int event)
 	}
 
 	if (event != LDC_EVENT_DATA_READY) {
-		printk(KERN_WARNING "ds-%lu: Unexpected LDC event %d\n",
+		printk(KERN_WARNING "ds-%llu: Unexpected LDC event %d\n",
 		       dp->id, event);
 		spin_unlock_irqrestore(&ds_lock, flags);
 		return;

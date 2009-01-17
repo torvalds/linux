@@ -18,7 +18,6 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/async_tx.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
@@ -340,7 +339,7 @@ mv_xor_run_tx_complete_actions(struct mv_xor_desc_slot *desc,
 	}
 
 	/* run dependent operations */
-	async_tx_run_dependencies(&desc->async_tx);
+	dma_run_dependencies(&desc->async_tx);
 
 	return cookie;
 }
@@ -607,8 +606,7 @@ submit_done:
 }
 
 /* returns the number of allocated descriptors */
-static int mv_xor_alloc_chan_resources(struct dma_chan *chan,
-				       struct dma_client *client)
+static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 {
 	char *hw_desc;
 	int idx;
@@ -958,7 +956,7 @@ static int __devinit mv_xor_memcpy_self_test(struct mv_xor_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (mv_xor_alloc_chan_resources(dma_chan, NULL) < 1) {
+	if (mv_xor_alloc_chan_resources(dma_chan) < 1) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -1053,7 +1051,7 @@ mv_xor_xor_self_test(struct mv_xor_device *device)
 	dma_chan = container_of(device->common.channels.next,
 				struct dma_chan,
 				device_node);
-	if (mv_xor_alloc_chan_resources(dma_chan, NULL) < 1) {
+	if (mv_xor_alloc_chan_resources(dma_chan) < 1) {
 		err = -ENODEV;
 		goto out;
 	}
@@ -1221,7 +1219,6 @@ static int __devinit mv_xor_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&mv_chan->chain);
 	INIT_LIST_HEAD(&mv_chan->completed_slots);
 	INIT_LIST_HEAD(&mv_chan->all_slots);
-	INIT_RCU_HEAD(&mv_chan->common.rcu);
 	mv_chan->common.device = dma_dev;
 
 	list_add_tail(&mv_chan->common.device_node, &dma_dev->channels);

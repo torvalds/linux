@@ -42,3 +42,4 @@ lib-$(CONFIG_SPARC64) += mcount.o ipcsum.o xor.o
 
 obj-y                 += iomap.o
 obj-$(CONFIG_SPARC32) += atomic32.o
+obj-y                 += ksyms.o

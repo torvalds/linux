@@ -598,7 +598,7 @@ static void tusb_source_power(struct musb *musb, int is_on)
  * and peripheral modes in non-OTG configurations by reconfiguring hardware
  * and then setting musb->board_mode. For now, only support OTG mode.
  */
-void musb_platform_set_mode(struct musb *musb, u8 musb_mode)
+int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 {
 	void __iomem	*tbase = musb->ctrl_base;
 	u32		otg_stat, phy_otg_ctrl, phy_otg_ena, dev_conf;
@@ -641,7 +641,8 @@ void musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 #endif
 
 	default:
-		DBG(2, "Trying to set unknown mode %i\n", musb_mode);
+		DBG(2, "Trying to set mode %i\n", musb_mode);
+		return -EINVAL;
 	}
 
 	musb_writel(tbase, TUSB_PHY_OTG_CTRL,
@@ -655,6 +656,8 @@ void musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 		!(otg_stat & TUSB_DEV_OTG_STAT_ID_STATUS))
 			INFO("Cannot be peripheral with mini-A cable "
 			"otg_stat: %08x\n", otg_stat);
+
+	return 0;
 }
 
 static inline unsigned long

@@ -102,7 +102,7 @@ static int cs53l32a_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
-static int cs53l32a_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip)
+static int cs53l32a_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

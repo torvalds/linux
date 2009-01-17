@@ -175,7 +175,7 @@ static int lkb_is_endoflife(struct dlm_lkb *lkb, int sb_status, int type)
 /* we could possibly check if the cancel of an orphan has resulted in the lkb
    being removed and then remove that lkb from the orphans list and free it */
 
-void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
+void dlm_user_add_ast(struct dlm_lkb *lkb, int type, int bastmode)
 {
 	struct dlm_ls *ls;
 	struct dlm_user_args *ua;
@@ -208,6 +208,8 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 
 	ast_type = lkb->lkb_ast_type;
 	lkb->lkb_ast_type |= type;
+	if (bastmode)
+		lkb->lkb_bastmode = bastmode;
 
 	if (!ast_type) {
 		kref_get(&lkb->lkb_ref);

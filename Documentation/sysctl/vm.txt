@@ -38,10 +38,12 @@ Currently, these files are in /proc/sys/vm:
 - numa_zonelist_order
 - nr_hugepages
 - nr_overcommit_hugepages
+- nr_trim_pages		(only if CONFIG_MMU=n)
 
 ==============================================================
 
-dirty_ratio, dirty_background_ratio, dirty_expire_centisecs,
+dirty_bytes, dirty_ratio, dirty_background_bytes,
+dirty_background_ratio, dirty_expire_centisecs,
 dirty_writeback_centisecs, highmem_is_dirtyable,
 vfs_cache_pressure, laptop_mode, block_dump, swap_token_timeout,
 drop-caches, hugepages_treat_as_movable:
@@ -347,3 +349,20 @@ Change the maximum size of the hugepage pool. The maximum is
 nr_hugepages + nr_overcommit_hugepages.
 
 See Documentation/vm/hugetlbpage.txt
+
+==============================================================
+
+nr_trim_pages
+
+This is available only on NOMMU kernels.
+
+This value adjusts the excess page trimming behaviour of power-of-2 aligned
+NOMMU mmap allocations.
+
+A value of 0 disables trimming of allocations entirely, while a value of 1
+trims excess pages aggressively. Any value >= 1 acts as the watermark where
+trimming of allocations is initiated.
+
+The default value is 1.
+
+See Documentation/nommu-mmap.txt for more information.

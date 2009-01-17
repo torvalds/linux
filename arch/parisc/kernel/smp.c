@@ -56,31 +56,17 @@ static int smp_debug_lvl = 0;
 		if (lvl >= smp_debug_lvl)	\
 			printk(printargs);
 #else
-#define smp_debug(lvl, ...)
+#define smp_debug(lvl, ...)	do { } while(0)
 #endif /* DEBUG_SMP */
 
 DEFINE_SPINLOCK(smp_lock);
 
 volatile struct task_struct *smp_init_current_idle_task;
 
-static volatile int cpu_now_booting __read_mostly = 0;	/* track which CPU is booting */
+/* track which CPU is booting */
+static volatile int cpu_now_booting __cpuinitdata;
 
-static int parisc_max_cpus __read_mostly = 1;
-
-/* online cpus are ones that we've managed to bring up completely
- * possible cpus are all valid cpu 
- * present cpus are all detected cpu
- *
- * On startup we bring up the "possible" cpus. Since we discover
- * CPUs later, we add them as hotplug, so the possible cpu mask is
- * empty in the beginning.
- */
-
-cpumask_t cpu_online_map   __read_mostly = CPU_MASK_NONE;	/* Bitmap of online CPUs */
-cpumask_t cpu_possible_map __read_mostly = CPU_MASK_ALL;	/* Bitmap of Present CPUs */
-
-EXPORT_SYMBOL(cpu_online_map);
-EXPORT_SYMBOL(cpu_possible_map);
+static int parisc_max_cpus __cpuinitdata = 1;
 
 DEFINE_PER_CPU(spinlock_t, ipi_lock) = SPIN_LOCK_UNLOCKED;
 
@@ -138,7 +124,7 @@ irqreturn_t
 ipi_interrupt(int irq, void *dev_id) 
 {
 	int this_cpu = smp_processor_id();
-	struct cpuinfo_parisc *p = &cpu_data[this_cpu];
+	struct cpuinfo_parisc *p = &per_cpu(cpu_data, this_cpu);
 	unsigned long ops;
 	unsigned long flags;
 
@@ -217,13 +203,13 @@ ipi_interrupt(int irq, void *dev_id)
 static inline void
 ipi_send(int cpu, enum ipi_message_type op)
 {
-	struct cpuinfo_parisc *p = &cpu_data[cpu];
+	struct cpuinfo_parisc *p = &per_cpu(cpu_data, cpu);
 	spinlock_t *lock = &per_cpu(ipi_lock, cpu);
 	unsigned long flags;
 
 	spin_lock_irqsave(lock, flags);
 	p->pending_ipi |= 1 << op;
-	gsc_writel(IPI_IRQ - CPU_IRQ_BASE, cpu_data[cpu].hpa);
+	gsc_writel(IPI_IRQ - CPU_IRQ_BASE, p->hpa);
 	spin_unlock_irqrestore(lock, flags);
 }
 
@@ -239,10 +225,7 @@ send_IPI_mask(cpumask_t mask, enum ipi_message_type op)
 static inline void
 send_IPI_single(int dest_cpu, enum ipi_message_type op)
 {
-	if (dest_cpu == NO_PROC_ID) {
-		BUG();
-		return;
-	}
+	BUG_ON(dest_cpu == NO_PROC_ID);
 
 	ipi_send(dest_cpu, op);
 }
@@ -324,8 +307,7 @@ smp_cpu_init(int cpunum)
 	/* Initialise the idle task for this CPU */
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
-	if(current->mm)
-		BUG();
+	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
 
 	init_IRQ();   /* make sure no IRQs are enabled or pending */
@@ -360,6 +342,7 @@ void __init smp_callin(void)
  */
 int __cpuinit smp_boot_one_cpu(int cpuid)
 {
+	const struct cpuinfo_parisc *p = &per_cpu(cpu_data, cpuid);
 	struct task_struct *idle;
 	long timeout;
 
@@ -391,7 +374,7 @@ int __cpuinit smp_boot_one_cpu(int cpuid)
 	smp_init_current_idle_task = idle ;
 	mb();
 
-	printk("Releasing cpu %d now, hpa=%lx\n", cpuid, cpu_data[cpuid].hpa);
+	printk(KERN_INFO "Releasing cpu %d now, hpa=%lx\n", cpuid, p->hpa);
 
 	/*
 	** This gets PDC to release the CPU from a very tight loop.
@@ -402,7 +385,7 @@ int __cpuinit smp_boot_one_cpu(int cpuid)
 	** EIR{0}). MEM_RENDEZ is valid only when it is nonzero and the 
 	** contents of memory are valid."
 	*/
-	gsc_writel(TIMER_IRQ - CPU_IRQ_BASE, cpu_data[cpuid].hpa);
+	gsc_writel(TIMER_IRQ - CPU_IRQ_BASE, p->hpa);
 	mb();
 
 	/* 
@@ -434,12 +417,12 @@ alive:
 	return 0;
 }
 
-void __devinit smp_prepare_boot_cpu(void)
+void __init smp_prepare_boot_cpu(void)
 {
-	int bootstrap_processor=cpu_data[0].cpuid;	/* CPU ID of BSP */
+	int bootstrap_processor = per_cpu(cpu_data, 0).cpuid;
 
 	/* Setup BSP mappings */
-	printk("SMP: bootstrap CPU ID is %d\n",bootstrap_processor);
+	printk(KERN_INFO "SMP: bootstrap CPU ID is %d\n", bootstrap_processor);
 
 	cpu_set(bootstrap_processor, cpu_online_map);
 	cpu_set(bootstrap_processor, cpu_present_map);

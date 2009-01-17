@@ -39,7 +39,7 @@ struct rocket_version {
 /*
  * Rocketport flags
  */
-#define ROCKET_CALLOUT_NOHUP    0x00000001
+/*#define ROCKET_CALLOUT_NOHUP    0x00000001 */
 #define ROCKET_FORCE_CD		0x00000002
 #define ROCKET_HUP_NOTIFY	0x00000004
 #define ROCKET_SPLIT_TERMIOS	0x00000008

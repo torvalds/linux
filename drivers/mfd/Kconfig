@@ -34,6 +34,14 @@ config MFD_ASIC3
 	  This driver supports the ASIC3 multifunction chip found on many
 	  PDAs (mainly iPAQ and HTC based ones)
 
+config MFD_DM355EVM_MSP
+	bool "DaVinci DM355 EVM microcontroller"
+	depends on I2C && MACH_DAVINCI_DM355_EVM
+	help
+	  This driver supports the MSP430 microcontroller used on these
+	  boards.  MSP430 firmware manages resets and power sequencing,
+	  inputs from buttons and the IR remote, LEDs, an RTC, and more.
+
 config HTC_EGPIO
 	bool "HTC EGPIO support"
 	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
@@ -61,9 +69,32 @@ config UCB1400_CORE
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_core.
 
+config TPS65010
+	tristate "TPS6501x Power Management chips"
+	depends on I2C && GPIOLIB
+	default y if MACH_OMAP_H2 || MACH_OMAP_H3 || MACH_OMAP_OSK
+	help
+	  If you say yes here you get support for the TPS6501x series of
+	  Power Management chips.  These include voltage regulators,
+	  lithium ion/polymer battery charging, and other features that
+	  are often used in portable devices like cell phones and cameras.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tps65010.
+
+config MENELAUS
+	bool "Texas Instruments TWL92330/Menelaus PM chip"
+	depends on I2C=y && ARCH_OMAP24XX
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  TWL92330/Menelaus Power Management chip. This include voltage
+	  regulators, Dual slot memory card tranceivers, real-time clock
+	  and other features that are often used in portable devices like
+	  cell phones and PDAs.
+
 config TWL4030_CORE
 	bool "Texas Instruments TWL4030/TPS659x0 Support"
-	depends on I2C=y && GENERIC_HARDIRQS && (ARCH_OMAP2 || ARCH_OMAP3)
+	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  Say yes here if you have TWL4030 family chip on your board.
 	  This core driver provides register access and IRQ handling
@@ -116,6 +147,7 @@ config PMIC_DA903X
 
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"
+	select MFD_CORE
 	depends on I2C
 	help
 	  Support for the Wolfson Microelecronics WM8400 PMIC and audio
@@ -142,6 +174,38 @@ config MFD_WM8350_CONFIG_MODE_3
 	bool
 	depends on MFD_WM8350
 
+config MFD_WM8351_CONFIG_MODE_0
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8351_CONFIG_MODE_1
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8351_CONFIG_MODE_2
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8351_CONFIG_MODE_3
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8352_CONFIG_MODE_0
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8352_CONFIG_MODE_1
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8352_CONFIG_MODE_2
+	bool
+	depends on MFD_WM8350
+
+config MFD_WM8352_CONFIG_MODE_3
+	bool
+	depends on MFD_WM8350
+
 config MFD_WM8350_I2C
 	tristate "Support Wolfson Microelectronics WM8350 with I2C"
 	select MFD_WM8350
@@ -152,6 +216,29 @@ config MFD_WM8350_I2C
 	  systems.  This option enables core support for the WM8350 with
 	  I2C as the control interface.  Additional options must be
 	  selected to enable support for the functionality of the chip.
+
+config MFD_PCF50633
+	tristate "Support for NXP PCF50633"
+	depends on I2C
+	help
+	  Say yes here if you have NXP PCF50633 chip on your board.
+	  This core driver provides register access and IRQ handling
+	  facilities, and registers devices for the various functions
+	  so that function-specific drivers can bind to them.
+
+config PCF50633_ADC
+	tristate "Support for NXP PCF50633 ADC"
+	depends on MFD_PCF50633
+	help
+	 Say yes here if you want to include support for ADC in the
+	 NXP PCF50633 chip.
+
+config PCF50633_GPIO
+	tristate "Support for NXP PCF50633 GPIO"
+	depends on MFD_PCF50633
+	help
+	 Say yes here if you want to include support GPIO for pins on
+	 the PCF50633 chip.
 
 endmenu
 

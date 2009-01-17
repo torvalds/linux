@@ -28,6 +28,7 @@
 
 #include "ubifs.h"
 #include <linux/random.h>
+#include <linux/math64.h>
 
 /*
  * Default journal size in logical eraseblocks as a percent of total
@@ -80,7 +81,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	int err, tmp, jnl_lebs, log_lebs, max_buds, main_lebs, main_first;
 	int lpt_lebs, lpt_first, orph_lebs, big_lpt, ino_waste, sup_flags = 0;
 	int min_leb_cnt = UBIFS_MIN_LEB_CNT;
-	uint64_t tmp64, main_bytes;
+	long long tmp64, main_bytes;
 	__le64 tmp_le64;
 
 	/* Some functions called from here depend on the @c->key_len filed */
@@ -160,7 +161,7 @@ static int create_default_filesystem(struct ubifs_info *c)
 	if (!sup)
 		return -ENOMEM;
 
-	tmp64 = (uint64_t)max_buds * c->leb_size;
+	tmp64 = (long long)max_buds * c->leb_size;
 	if (big_lpt)
 		sup_flags |= UBIFS_FLG_BIGLPT;
 
@@ -179,14 +180,16 @@ static int create_default_filesystem(struct ubifs_info *c)
 	sup->fanout        = cpu_to_le32(DEFAULT_FANOUT);
 	sup->lsave_cnt     = cpu_to_le32(c->lsave_cnt);
 	sup->fmt_version   = cpu_to_le32(UBIFS_FORMAT_VERSION);
-	sup->default_compr = cpu_to_le16(UBIFS_COMPR_LZO);
 	sup->time_gran     = cpu_to_le32(DEFAULT_TIME_GRAN);
+	if (c->mount_opts.override_compr)
+		sup->default_compr = cpu_to_le16(c->mount_opts.compr_type);
+	else
+		sup->default_compr = cpu_to_le16(UBIFS_COMPR_LZO);
 
 	generate_random_uuid(sup->uuid);
 
-	main_bytes = (uint64_t)main_lebs * c->leb_size;
-	tmp64 = main_bytes * DEFAULT_RP_PERCENT;
-	do_div(tmp64, 100);
+	main_bytes = (long long)main_lebs * c->leb_size;
+	tmp64 = div_u64(main_bytes * DEFAULT_RP_PERCENT, 100);
 	if (tmp64 > DEFAULT_MAX_RP_SIZE)
 		tmp64 = DEFAULT_MAX_RP_SIZE;
 	sup->rp_size = cpu_to_le64(tmp64);
@@ -582,16 +585,15 @@ int ubifs_read_superblock(struct ubifs_info *c)
 	c->jhead_cnt     = le32_to_cpu(sup->jhead_cnt) + NONDATA_JHEADS_CNT;
 	c->fanout        = le32_to_cpu(sup->fanout);
 	c->lsave_cnt     = le32_to_cpu(sup->lsave_cnt);
-	c->default_compr = le16_to_cpu(sup->default_compr);
 	c->rp_size       = le64_to_cpu(sup->rp_size);
 	c->rp_uid        = le32_to_cpu(sup->rp_uid);
 	c->rp_gid        = le32_to_cpu(sup->rp_gid);
 	sup_flags        = le32_to_cpu(sup->flags);
+	if (!c->mount_opts.override_compr)
+		c->default_compr = le16_to_cpu(sup->default_compr);
 
 	c->vfs_sb->s_time_gran = le32_to_cpu(sup->time_gran);
-
 	memcpy(&c->uuid, &sup->uuid, 16);
-
 	c->big_lpt = !!(sup_flags & UBIFS_FLG_BIGLPT);
 
 	/* Automatically increase file system size to the maximum size */

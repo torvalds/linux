@@ -107,7 +107,6 @@ struct au1k_private {
 	iobuff_t rx_buff;
 
 	struct net_device *netdev;
-	struct net_device_stats stats;
 	
 	struct timeval stamp;
 	struct timeval now;

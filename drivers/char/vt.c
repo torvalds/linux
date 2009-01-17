@@ -819,8 +819,8 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  *	ctrl_lock of the tty IFF a tty is passed.
  */
 
-static int vc_do_resize(struct tty_struct *tty, struct tty_struct *real_tty,
-		struct vc_data *vc, unsigned int cols, unsigned int lines)
+static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
+				unsigned int cols, unsigned int lines)
 {
 	unsigned long old_origin, new_origin, new_scr_end, rlth, rrem, err = 0;
 	unsigned int old_cols, old_rows, old_row_size, old_screen_size;
@@ -932,7 +932,7 @@ static int vc_do_resize(struct tty_struct *tty, struct tty_struct *real_tty,
 		ws.ws_row = vc->vc_rows;
 		ws.ws_col = vc->vc_cols;
 		ws.ws_ypixel = vc->vc_scan_lines;
-		tty_do_resize(tty, real_tty, &ws);
+		tty_do_resize(tty, &ws);
 	}
 
 	if (CON_IS_VISIBLE(vc))
@@ -954,13 +954,12 @@ static int vc_do_resize(struct tty_struct *tty, struct tty_struct *real_tty,
 
 int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
 {
-	return vc_do_resize(vc->vc_tty, vc->vc_tty, vc, cols, rows);
+	return vc_do_resize(vc->vc_tty, vc, cols, rows);
 }
 
 /**
  *	vt_resize		-	resize a VT
  *	@tty: tty to resize
- *	@real_tty: tty if a pty/tty pair
  *	@ws: winsize attributes
  *
  *	Resize a virtual terminal. This is called by the tty layer as we
@@ -970,15 +969,13 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
  *	Takes the console sem and the called methods then take the tty
  *	termios_mutex and the tty ctrl_lock in that order.
  */
-
-int vt_resize(struct tty_struct *tty, struct tty_struct *real_tty,
-	struct winsize *ws)
+static int vt_resize(struct tty_struct *tty, struct winsize *ws)
 {
 	struct vc_data *vc = tty->driver_data;
 	int ret;
 
 	acquire_console_sem();
-	ret = vc_do_resize(tty, real_tty, vc, ws->ws_col, ws->ws_row);
+	ret = vc_do_resize(tty, vc, ws->ws_col, ws->ws_row);
 	release_console_sem();
 	return ret;
 }
@@ -2679,7 +2676,7 @@ static int con_write_room(struct tty_struct *tty)
 {
 	if (tty->stopped)
 		return 0;
-	return 4096;		/* No limit, really; we're not buffering */
+	return 32768;		/* No limit, really; we're not buffering */
 }
 
 static int con_chars_in_buffer(struct tty_struct *tty)

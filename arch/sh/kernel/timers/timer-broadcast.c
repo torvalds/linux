@@ -51,7 +51,7 @@ void __cpuinit local_timer_setup(unsigned int cpu)
 	clk->mult		= 1;
 	clk->set_mode		= dummy_timer_set_mode;
 	clk->broadcast		= smp_timer_broadcast;
-	clk->cpumask		= cpumask_of_cpu(cpu);
+	clk->cpumask		= cpumask_of(cpu);
 
 	clockevents_register_device(clk);
 }

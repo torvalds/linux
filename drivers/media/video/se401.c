@@ -932,7 +932,7 @@ static void usb_se401_remove_disconnected (struct usb_se401 *se401)
  ***************************************************************************/
 
 
-static int se401_open(struct inode *inode, struct file *file)
+static int se401_open(struct file *file)
 {
 	struct video_device *dev = video_devdata(file);
 	struct usb_se401 *se401 = (struct usb_se401 *)dev;
@@ -954,7 +954,7 @@ static int se401_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int se401_close(struct inode *inode, struct file *file)
+static int se401_close(struct file *file)
 {
 	struct video_device *dev = file->private_data;
 	struct usb_se401 *se401 = (struct usb_se401 *)dev;
@@ -975,7 +975,7 @@ static int se401_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int se401_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long se401_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = file->private_data;
 	struct usb_se401 *se401 = (struct usb_se401 *)vdev;
@@ -1138,7 +1138,7 @@ static int se401_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int se401_ioctl(struct inode *inode, struct file *file,
+static long se401_ioctl(struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, se401_do_ioctl);
@@ -1222,17 +1222,13 @@ static int se401_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static const struct file_operations se401_fops = {
+static const struct v4l2_file_operations se401_fops = {
 	.owner =	THIS_MODULE,
 	.open =         se401_open,
 	.release =      se401_close,
 	.read =         se401_read,
 	.mmap =         se401_mmap,
 	.ioctl =        se401_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
-#endif
-	.llseek =       no_llseek,
 };
 static struct video_device se401_template = {
 	.name =         "se401 USB camera",

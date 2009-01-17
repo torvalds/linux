@@ -50,57 +50,46 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "GENERIC Board";
+const char bfin_board_name[] = "UNKNOWN BOARD";
 
 /*
  *  Driver needs to know address, irq and flag pin.
  */
 
-#define ISP1761_BASE       0x203C0000
-#define ISP1761_IRQ        IRQ_PF7
-
 #if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
-static struct resource bfin_isp1761_resources[] = {
+#include <linux/usb/isp1760.h>
+static struct resource bfin_isp1760_resources[] = {
 	[0] = {
-		.name	= "isp1761-regs",
-		.start  = ISP1761_BASE + 0x00000000,
-		.end    = ISP1761_BASE + 0x000fffff,
+		.start  = 0x203C0000,
+		.end    = 0x203C0000 + 0x000fffff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = ISP1761_IRQ,
-		.end    = ISP1761_IRQ,
+		.start  = IRQ_PF7,
+		.end    = IRQ_PF7,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
 
-static struct platform_device bfin_isp1761_device = {
-	.name           = "isp1761",
+static struct isp1760_platform_data isp1760_priv = {
+	.is_isp1761 = 0,
+	.port1_disable = 0,
+	.bus_width_16 = 1,
+	.port1_otg = 0,
+	.analog_oc = 0,
+	.dack_polarity_high = 0,
+	.dreq_polarity_high = 0,
+};
+
+static struct platform_device bfin_isp1760_device = {
+	.name           = "isp1760-hcd",
 	.id             = 0,
-	.num_resources  = ARRAY_SIZE(bfin_isp1761_resources),
-	.resource       = bfin_isp1761_resources,
+	.dev = {
+		.platform_data = &isp1760_priv,
+	},
+	.num_resources  = ARRAY_SIZE(bfin_isp1760_resources),
+	.resource       = bfin_isp1760_resources,
 };
-
-static struct platform_device *bfin_isp1761_devices[] = {
-	&bfin_isp1761_device,
-};
-
-int __init bfin_isp1761_init(void)
-{
-	unsigned int num_devices = ARRAY_SIZE(bfin_isp1761_devices);
-
-	printk(KERN_INFO "%s(): registering device resources\n", __func__);
-	set_irq_type(ISP1761_IRQ, IRQF_TRIGGER_FALLING);
-
-	return platform_add_devices(bfin_isp1761_devices, num_devices);
-}
-
-void __exit bfin_isp1761_exit(void)
-{
-	platform_device_unregister(&bfin_isp1761_device);
-}
-
-arch_initcall(bfin_isp1761_init);
 #endif
 
 #if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
@@ -559,29 +548,58 @@ static struct platform_device bfin_uart_device = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-static struct resource bfin_sir_resources[] = {
 #ifdef CONFIG_BFIN_SIR0
+static struct resource bfin_sir0_resources[] = {
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device bfin_sir0_device = {
+	.name = "bfin_sir",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sir0_resources),
+	.resource = bfin_sir0_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR1
+static struct resource bfin_sir1_resources[] = {
 	{
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
 	},
-#endif
+	{
+		.start = IRQ_UART1_RX,
+		.end = IRQ_UART1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART1_RX,
+		.end = CH_UART1_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
 };
 
-static struct platform_device bfin_sir_device = {
+static struct platform_device bfin_sir1_device = {
 	.name = "bfin_sir",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(bfin_sir_resources),
-	.resource = bfin_sir_resources,
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_sir1_resources),
+	.resource = bfin_sir1_resources,
 };
+#endif
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
@@ -651,6 +669,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&net2272_bfin_device,
 #endif
 
+#if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
+	&bfin_isp1760_device,
+#endif
+
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	&bfin_spi0_device,
 #endif
@@ -668,7 +690,12 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-	&bfin_sir_device,
+#ifdef CONFIG_BFIN_SIR0
+	&bfin_sir0_device,
+#endif
+#ifdef CONFIG_BFIN_SIR1
+	&bfin_sir1_device,
+#endif
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)

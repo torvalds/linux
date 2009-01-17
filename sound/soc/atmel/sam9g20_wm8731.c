@@ -221,8 +221,8 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_add_routes(codec, intercon, ARRAY_SIZE(intercon));
 
 	/* not connected */
-	snd_soc_dapm_disable_pin(codec, "RLINEIN");
-	snd_soc_dapm_disable_pin(codec, "LLINEIN");
+	snd_soc_dapm_nc_pin(codec, "RLINEIN");
+	snd_soc_dapm_nc_pin(codec, "LLINEIN");
 
 	/* always connected */
 	snd_soc_dapm_enable_pin(codec, "Int Mic");

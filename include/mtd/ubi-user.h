@@ -253,7 +253,7 @@ struct ubi_mkvol_req {
  *
  * Re-sizing is possible for both dynamic and static volumes. But while dynamic
  * volumes may be re-sized arbitrarily, static volumes cannot be made to be
- * smaller then the number of bytes they bear. To arbitrarily shrink a static
+ * smaller than the number of bytes they bear. To arbitrarily shrink a static
  * volume, it must be wiped out first (by means of volume update operation with
  * zero number of bytes).
  */

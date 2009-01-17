@@ -297,7 +297,7 @@ out:
 	return err;
 }
 
-static void __exit sgiwd93_remove(struct platform_device *pdev)
+static int __exit sgiwd93_remove(struct platform_device *pdev)
 {
 	struct Scsi_Host *host = platform_get_drvdata(pdev);
 	struct ip22_hostdata *hdata = (struct ip22_hostdata *) host->hostdata;
@@ -307,6 +307,7 @@ static void __exit sgiwd93_remove(struct platform_device *pdev)
 	free_irq(pd->irq, host);
 	dma_free_noncoherent(&pdev->dev, HPC_DMA_SIZE, hdata->cpu, hdata->dma);
 	scsi_host_put(host);
+	return 0;
 }
 
 static struct platform_driver sgiwd93_driver = {

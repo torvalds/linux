@@ -70,7 +70,7 @@ static unsigned int __init smvp_vpe_init(unsigned int tc, unsigned int mvpconf0,
 		write_vpe_c0_vpeconf0(tmp);
 
 		/* Record this as available CPU */
-		cpu_set(tc, phys_cpu_present_map);
+		cpu_set(tc, cpu_possible_map);
 		__cpu_number_map[tc]	= ++ncpu;
 		__cpu_logical_map[ncpu]	= tc;
 	}

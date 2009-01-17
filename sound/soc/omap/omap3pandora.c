@@ -180,6 +180,19 @@ static int omap3pandora_in_init(struct snd_soc_codec *codec)
 {
 	int ret;
 
+	/* All TWL4030 output pins are floating */
+	snd_soc_dapm_nc_pin(codec, "OUTL"),
+	snd_soc_dapm_nc_pin(codec, "OUTR"),
+	snd_soc_dapm_nc_pin(codec, "EARPIECE"),
+	snd_soc_dapm_nc_pin(codec, "PREDRIVEL"),
+	snd_soc_dapm_nc_pin(codec, "PREDRIVER"),
+	snd_soc_dapm_nc_pin(codec, "HSOL"),
+	snd_soc_dapm_nc_pin(codec, "HSOR"),
+	snd_soc_dapm_nc_pin(codec, "CARKITL"),
+	snd_soc_dapm_nc_pin(codec, "CARKITR"),
+	snd_soc_dapm_nc_pin(codec, "HFL"),
+	snd_soc_dapm_nc_pin(codec, "HFR"),
+
 	ret = snd_soc_dapm_new_controls(codec, omap3pandora_in_dapm_widgets,
 				ARRAY_SIZE(omap3pandora_in_dapm_widgets));
 	if (ret < 0)

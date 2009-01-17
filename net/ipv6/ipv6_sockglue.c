@@ -404,7 +404,7 @@ sticky_done:
 		else if (optlen < sizeof(struct in6_pktinfo) || optval == NULL)
 			goto e_inval;
 
-		if (copy_from_user(&pkt, optval, optlen)) {
+		if (copy_from_user(&pkt, optval, sizeof(struct in6_pktinfo))) {
 				retv = -EFAULT;
 				break;
 		}

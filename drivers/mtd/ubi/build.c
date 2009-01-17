@@ -280,7 +280,7 @@ static int ubi_sysfs_init(struct ubi_device *ubi)
 	ubi->dev.release = dev_release;
 	ubi->dev.devt = ubi->cdev.dev;
 	ubi->dev.class = ubi_class;
-	sprintf(&ubi->dev.bus_id[0], UBI_NAME_STR"%d", ubi->ubi_num);
+	dev_set_name(&ubi->dev, UBI_NAME_STR"%d", ubi->ubi_num);
 	err = device_register(&ubi->dev);
 	if (err)
 		return err;
@@ -561,7 +561,7 @@ static int io_init(struct ubi_device *ubi)
 	 */
 
 	ubi->peb_size   = ubi->mtd->erasesize;
-	ubi->peb_count  = ubi->mtd->size / ubi->mtd->erasesize;
+	ubi->peb_count  = mtd_div_by_eb(ubi->mtd->size, ubi->mtd);
 	ubi->flash_size = ubi->mtd->size;
 
 	if (ubi->mtd->block_isbad && ubi->mtd->block_markbad)
@@ -815,19 +815,20 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	if (err)
 		goto out_free;
 
+	err = -ENOMEM;
 	ubi->peb_buf1 = vmalloc(ubi->peb_size);
 	if (!ubi->peb_buf1)
 		goto out_free;
 
 	ubi->peb_buf2 = vmalloc(ubi->peb_size);
 	if (!ubi->peb_buf2)
-		 goto out_free;
+		goto out_free;
 
 #ifdef CONFIG_MTD_UBI_DEBUG
 	mutex_init(&ubi->dbg_buf_mutex);
 	ubi->dbg_peb_buf = vmalloc(ubi->peb_size);
 	if (!ubi->dbg_peb_buf)
-		 goto out_free;
+		goto out_free;
 #endif
 
 	err = attach_by_scanning(ubi);

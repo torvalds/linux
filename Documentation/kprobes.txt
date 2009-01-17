@@ -497,7 +497,10 @@ The first column provides the kernel address where the probe is inserted.
 The second column identifies the type of probe (k - kprobe, r - kretprobe
 and j - jprobe), while the third column specifies the symbol+offset of
 the probe. If the probed function belongs to a module, the module name
-is also specified.
+is also specified. Following columns show probe status. If the probe is on
+a virtual address that is no longer valid (module init sections, module
+virtual addresses that correspond to modules that've been unloaded),
+such probes are marked with [GONE].
 
 /debug/kprobes/enabled: Turn kprobes ON/OFF
 

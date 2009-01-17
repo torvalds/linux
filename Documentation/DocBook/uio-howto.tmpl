@@ -42,6 +42,12 @@ GPL version 2.
 
 <revhistory>
 	<revision>
+	<revnumber>0.6</revnumber>
+	<date>2008-12-05</date>
+	<authorinitials>hjk</authorinitials>
+	<revremark>Added description of portio sysfs attributes.</revremark>
+	</revision>
+	<revision>
 	<revnumber>0.5</revnumber>
 	<date>2008-05-22</date>
 	<authorinitials>hjk</authorinitials>
@@ -318,6 +324,54 @@ interested in translating it, please email me
 offset = N * getpagesize();
 </programlisting>
 
+<para>
+	Sometimes there is hardware with memory-like regions that can not be
+	mapped with the technique described here, but there are still ways to
+	access them from userspace. The most common example are x86 ioports.
+	On x86 systems, userspace can access these ioports using
+	<function>ioperm()</function>, <function>iopl()</function>,
+	<function>inb()</function>, <function>outb()</function>, and similar
+	functions.
+</para>
+<para>
+	Since these ioport regions can not be mapped, they will not appear under
+	<filename>/sys/class/uio/uioX/maps/</filename> like the normal memory
+	described above. Without information about the port regions a hardware
+	has to offer, it becomes difficult for the userspace part of the
+	driver to find out which ports belong to which UIO device.
+</para>
+<para>
+	To address this situation, the new directory
+	<filename>/sys/class/uio/uioX/portio/</filename> was added. It only
+	exists if the driver wants to pass information about one or more port
+	regions to userspace. If that is the case, subdirectories named
+	<filename>port0</filename>, <filename>port1</filename>, and so on,
+	will appear underneath
+	<filename>/sys/class/uio/uioX/portio/</filename>.
+</para>
+<para>
+	Each <filename>portX/</filename> directory contains three read-only
+	files that show start, size, and type of the port region:
+</para>
+<itemizedlist>
+<listitem>
+	<para>
+	<filename>start</filename>: The first port of this region.
+	</para>
+</listitem>
+<listitem>
+	<para>
+	<filename>size</filename>: The number of ports in this region.
+	</para>
+</listitem>
+<listitem>
+	<para>
+	<filename>porttype</filename>: A string describing the type of port.
+	</para>
+</listitem>
+</itemizedlist>
+
+
 </sect1>
 </chapter>
 
@@ -339,12 +393,12 @@ offset = N * getpagesize();
 
 <itemizedlist>
 <listitem><para>
-<varname>char *name</varname>: Required. The name of your driver as
+<varname>const char *name</varname>: Required. The name of your driver as
 it will appear in sysfs. I recommend using the name of your module for this.
 </para></listitem>
 
 <listitem><para>
-<varname>char *version</varname>: Required. This string appears in
+<varname>const char *version</varname>: Required. This string appears in
 <filename>/sys/class/uio/uioX/version</filename>.
 </para></listitem>
 
@@ -352,6 +406,13 @@ it will appear in sysfs. I recommend using the name of your module for this.
 <varname>struct uio_mem mem[ MAX_UIO_MAPS ]</varname>: Required if you
 have memory that can be mapped with <function>mmap()</function>. For each
 mapping you need to fill one of the <varname>uio_mem</varname> structures.
+See the description below for details.
+</para></listitem>
+
+<listitem><para>
+<varname>struct uio_port port[ MAX_UIO_PORTS_REGIONS ]</varname>: Required
+if you want to pass information about ioports to userspace. For each port
+region you need to fill one of the <varname>uio_port</varname> structures.
 See the description below for details.
 </para></listitem>
 
@@ -448,6 +509,42 @@ Please do not touch the <varname>kobj</varname> element of
 <varname>struct uio_mem</varname>! It is used by the UIO framework
 to set up sysfs files for this mapping. Simply leave it alone.
 </para>
+
+<para>
+Sometimes, your device can have one or more port regions which can not be
+mapped to userspace. But if there are other possibilities for userspace to
+access these ports, it makes sense to make information about the ports
+available in sysfs. For each region, you have to set up a
+<varname>struct uio_port</varname> in the <varname>port[]</varname> array.
+Here's a description of the fields of <varname>struct uio_port</varname>:
+</para>
+
+<itemizedlist>
+<listitem><para>
+<varname>char *porttype</varname>: Required. Set this to one of the predefined
+constants. Use <varname>UIO_PORT_X86</varname> for the ioports found in x86
+architectures.
+</para></listitem>
+
+<listitem><para>
+<varname>unsigned long start</varname>: Required if the port region is used.
+Fill in the number of the first port of this region.
+</para></listitem>
+
+<listitem><para>
+<varname>unsigned long size</varname>: Fill in the number of ports in this
+region. If <varname>size</varname> is zero, the region is considered unused.
+Note that you <emphasis>must</emphasis> initialize <varname>size</varname>
+with zero for all unused regions.
+</para></listitem>
+</itemizedlist>
+
+<para>
+Please do not touch the <varname>portio</varname> element of
+<varname>struct uio_port</varname>! It is used internally by the UIO
+framework to set up sysfs files for this region. Simply leave it alone.
+</para>
+
 </sect1>
 
 <sect1 id="adding_irq_handler">

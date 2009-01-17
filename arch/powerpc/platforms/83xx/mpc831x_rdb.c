@@ -42,7 +42,7 @@ static void __init mpc831x_rdb_setup_arch(void)
 	mpc831x_usb_cfg();
 }
 
-void __init mpc831x_rdb_init_IRQ(void)
+static void __init mpc831x_rdb_init_IRQ(void)
 {
 	struct device_node *np;
 

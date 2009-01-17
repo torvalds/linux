@@ -379,7 +379,7 @@ int cio_commit_config(struct subchannel *sch)
 		if (ccode < 0) /* -EIO if msch gets a program check. */
 			return ccode;
 		switch (ccode) {
-		case 0: /* successfull */
+		case 0: /* successful */
 			if (stsch(sch->schid, &schib) ||
 			    !css_sch_is_valid(&schib))
 				return -ENODEV;
@@ -632,8 +632,8 @@ do_IRQ (struct pt_regs *regs)
 	struct pt_regs *old_regs;
 
 	old_regs = set_irq_regs(regs);
-	irq_enter();
 	s390_idle_check();
+	irq_enter();
 	if (S390_lowcore.int_clock >= S390_lowcore.clock_comparator)
 		/* Serve timer interrupts first. */
 		clock_comparator_work();

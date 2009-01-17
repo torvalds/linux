@@ -403,15 +403,6 @@ struct hid_output_fifo {
 #define HID_STAT_ADDED		1
 #define HID_STAT_PARSED		2
 
-#define HID_CTRL_RUNNING	1
-#define HID_OUT_RUNNING		2
-#define HID_IN_RUNNING		3
-#define HID_RESET_PENDING	4
-#define HID_SUSPENDED		5
-#define HID_CLEAR_HALT		6
-#define HID_DISCONNECTED	7
-#define HID_STARTED		8
-
 struct hid_input {
 	struct list_head list;
 	struct hid_report *report;
@@ -540,6 +531,8 @@ struct hid_usage_id {
  * @name: driver name (e.g. "Footech_bar-wheel")
  * @id_table: which devices is this driver for (must be non-NULL for probe
  * 	      to be called)
+ * @dyn_list: list of dynamically added device ids
+ * @dyn_lock: lock protecting @dyn_list
  * @probe: new device inserted
  * @remove: device removed (NULL if not a hot-plug capable driver)
  * @report_table: on which reports to call raw_event (NULL means all)
@@ -566,6 +559,9 @@ struct hid_usage_id {
 struct hid_driver {
 	char *name;
 	const struct hid_device_id *id_table;
+
+	struct list_head dyn_list;
+	spinlock_t dyn_lock;
 
 	int (*probe)(struct hid_device *dev, const struct hid_device_id *id);
 	void (*remove)(struct hid_device *dev);
@@ -797,6 +793,8 @@ dbg_hid(const char *fmt, ...)
 
 #ifdef CONFIG_HID_COMPAT
 #define HID_COMPAT_LOAD_DRIVER(name)	\
+/* prototype to avoid sparse warning */	\
+extern void hid_compat_##name(void);	\
 void hid_compat_##name(void) { }	\
 EXPORT_SYMBOL(hid_compat_##name)
 #else

@@ -306,7 +306,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
  */
 int paste_selection(struct tty_struct *tty)
 {
-	struct vc_data *vc = (struct vc_data *)tty->driver_data;
+	struct vc_data *vc = tty->driver_data;
 	int	pasted = 0;
 	unsigned int count;
 	struct  tty_ldisc *ld;

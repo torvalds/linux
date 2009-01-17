@@ -38,6 +38,14 @@
 #include "go7007-priv.h"
 #include "wis-i2c.h"
 
+/* Temporary defines until accepted in v4l-dvb */
+#ifndef V4L2_MPEG_STREAM_TYPE_MPEG_ELEM
+#define	V4L2_MPEG_STREAM_TYPE_MPEG_ELEM   6 /* MPEG elementary stream */
+#endif
+#ifndef V4L2_MPEG_VIDEO_ENCODING_MPEG_4
+#define	V4L2_MPEG_VIDEO_ENCODING_MPEG_4   3
+#endif
+
 static void deactivate_buffer(struct go7007_buffer *gobuf)
 {
 	int i;
@@ -81,7 +89,7 @@ static int go7007_streamoff(struct go7007 *go)
 	return 0;
 }
 
-static int go7007_open(struct inode *inode, struct file *file)
+static int go7007_open(struct file *file)
 {
 	struct go7007 *go = video_get_drvdata(video_devdata(file));
 	struct go7007_file *gofh;
@@ -99,7 +107,7 @@ static int go7007_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int go7007_release(struct inode *inode, struct file *file)
+static int go7007_release(struct file *file)
 {
 	struct go7007_file *gofh = file->private_data;
 	struct go7007 *go = gofh->go;
@@ -319,6 +327,7 @@ static int set_capture_size(struct go7007 *go, struct v4l2_format *fmt, int try)
 	return 0;
 }
 
+#if 0
 static int clip_to_modet_map(struct go7007 *go, int region,
 		struct v4l2_clip *clip_list)
 {
@@ -375,499 +384,801 @@ static int clip_to_modet_map(struct go7007 *go, int region,
 	return 0;
 }
 
-static int go7007_do_ioctl(struct inode *inode, struct file *file,
-		unsigned int cmd, void *arg)
+static int mpeg_queryctrl(u32 id, struct v4l2_queryctrl *ctrl)
 {
-	struct go7007_file *gofh = file->private_data;
-	struct go7007 *go = gofh->go;
-	unsigned long flags;
-	int retval = 0;
+	static const u32 user_ctrls[] = {
+		V4L2_CID_USER_CLASS,
+		0
+	};
+	static const u32 mpeg_ctrls[] = {
+		V4L2_CID_MPEG_CLASS,
+		V4L2_CID_MPEG_STREAM_TYPE,
+		V4L2_CID_MPEG_VIDEO_ENCODING,
+		V4L2_CID_MPEG_VIDEO_ASPECT,
+		V4L2_CID_MPEG_VIDEO_GOP_SIZE,
+		V4L2_CID_MPEG_VIDEO_GOP_CLOSURE,
+		V4L2_CID_MPEG_VIDEO_BITRATE,
+		0
+	};
+	static const u32 *ctrl_classes[] = {
+		user_ctrls,
+		mpeg_ctrls,
+		NULL
+	};
 
-	switch (cmd) {
-	case VIDIOC_QUERYCAP:
-	{
-		struct v4l2_capability *cap = arg;
-
-		memset(cap, 0, sizeof(*cap));
-		strcpy(cap->driver, "go7007");
-		strncpy(cap->card, go->name, sizeof(cap->card));
-		cap->version = KERNEL_VERSION(0, 9, 8);
-		cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
-				V4L2_CAP_STREAMING; /* | V4L2_CAP_AUDIO; */
-		if (go->board_info->flags & GO7007_BOARD_HAS_TUNER)
-			cap->capabilities |= V4L2_CAP_TUNER;
+	/* The ctrl may already contain the queried i2c controls,
+	 * query the mpeg controls if the existing ctrl id is
+	 * greater than the next mpeg ctrl id.
+	 */
+	id = v4l2_ctrl_next(ctrl_classes, id);
+	if (id >= ctrl->id && ctrl->name[0])
 		return 0;
-	}
-	case VIDIOC_ENUM_FMT:
-	{
-		struct v4l2_fmtdesc *fmt = arg;
-		unsigned int index;
-		char *desc;
-		u32 pixelformat;
 
-		if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		switch (fmt->index) {
-		case 0:
-			pixelformat = V4L2_PIX_FMT_MJPEG;
-			desc = "Motion-JPEG";
+	memset(ctrl, 0, sizeof(*ctrl));
+	ctrl->id = id;
+
+	switch (ctrl->id) {
+	case V4L2_CID_USER_CLASS:
+	case V4L2_CID_MPEG_CLASS:
+		return v4l2_ctrl_query_fill_std(ctrl);
+	case V4L2_CID_MPEG_STREAM_TYPE:
+		return v4l2_ctrl_query_fill(ctrl,
+				V4L2_MPEG_STREAM_TYPE_MPEG2_DVD,
+				V4L2_MPEG_STREAM_TYPE_MPEG_ELEM, 1,
+				V4L2_MPEG_STREAM_TYPE_MPEG_ELEM);
+	case V4L2_CID_MPEG_VIDEO_ENCODING:
+		return v4l2_ctrl_query_fill(ctrl,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_1,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_4, 1,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_2);
+	case V4L2_CID_MPEG_VIDEO_ASPECT:
+		return v4l2_ctrl_query_fill(ctrl,
+				V4L2_MPEG_VIDEO_ASPECT_1x1,
+				V4L2_MPEG_VIDEO_ASPECT_16x9, 1,
+				V4L2_MPEG_VIDEO_ASPECT_1x1);
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
+		return v4l2_ctrl_query_fill_std(ctrl);
+	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		return v4l2_ctrl_query_fill(ctrl,
+				64000,
+				10000000, 1,
+				9800000);
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+static int mpeg_s_control(struct v4l2_control *ctrl, struct go7007 *go)
+{
+	/* pretty sure we can't change any of these while streaming */
+	if (go->streaming)
+		return -EBUSY;
+
+	switch (ctrl->id) {
+	case V4L2_CID_MPEG_STREAM_TYPE:
+		switch (ctrl->value) {
+		case V4L2_MPEG_STREAM_TYPE_MPEG2_DVD:
+			go->format = GO7007_FORMAT_MPEG2;
+			go->bitrate = 9800000;
+			go->gop_size = 15;
+			go->pali = 0x48;
+			go->closed_gop = 1;
+			go->repeat_seqhead = 0;
+			go->seq_header_enable = 1;
+			go->gop_header_enable = 1;
+			go->dvd_mode = 1;
 			break;
-		case 1:
-			pixelformat = V4L2_PIX_FMT_MPEG;
-			desc = "MPEG1/MPEG2/MPEG4";
+		case V4L2_MPEG_STREAM_TYPE_MPEG_ELEM:
+			/* todo: */
 			break;
 		default:
 			return -EINVAL;
 		}
-		index = fmt->index;
-		memset(fmt, 0, sizeof(*fmt));
-		fmt->index = index;
-		fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		fmt->flags = V4L2_FMT_FLAG_COMPRESSED;
-		strncpy(fmt->description, desc, sizeof(fmt->description));
-		fmt->pixelformat = pixelformat;
-
-		return 0;
-	}
-	case VIDIOC_TRY_FMT:
-	{
-		struct v4l2_format *fmt = arg;
-
-		if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		break;
+	case V4L2_CID_MPEG_VIDEO_ENCODING:
+		switch (ctrl->value) {
+		case V4L2_MPEG_VIDEO_ENCODING_MPEG_1:
+			go->format = GO7007_FORMAT_MPEG1;
+			go->pali = 0;
+			break;
+		case V4L2_MPEG_VIDEO_ENCODING_MPEG_2:
+			go->format = GO7007_FORMAT_MPEG2;
+			/*if (mpeg->pali >> 24 == 2)
+				go->pali = mpeg->pali & 0xff;
+			else*/
+				go->pali = 0x48;
+			break;
+		case V4L2_MPEG_VIDEO_ENCODING_MPEG_4:
+			go->format = GO7007_FORMAT_MPEG4;
+			/*if (mpeg->pali >> 24 == 4)
+				go->pali = mpeg->pali & 0xff;
+			else*/
+				go->pali = 0xf5;
+			break;
+		default:
 			return -EINVAL;
-		return set_capture_size(go, fmt, 1);
-	}
-	case VIDIOC_G_FMT:
-	{
-		struct v4l2_format *fmt = arg;
-
-		if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		}
+		go->gop_header_enable =
+			/*mpeg->flags & GO7007_MPEG_OMIT_GOP_HEADER
+			? 0 :*/ 1;
+		/*if (mpeg->flags & GO7007_MPEG_REPEAT_SEQHEADER)
+			go->repeat_seqhead = 1;
+		else*/
+			go->repeat_seqhead = 0;
+		go->dvd_mode = 0;
+		break;
+	case V4L2_CID_MPEG_VIDEO_ASPECT:
+		if (go->format == GO7007_FORMAT_MJPEG)
 			return -EINVAL;
-		memset(fmt, 0, sizeof(*fmt));
-		fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		fmt->fmt.pix.width = go->width;
-		fmt->fmt.pix.height = go->height;
-		fmt->fmt.pix.pixelformat = go->format == GO7007_FORMAT_MJPEG ?
-			V4L2_PIX_FMT_MJPEG : V4L2_PIX_FMT_MPEG;
-		fmt->fmt.pix.field = V4L2_FIELD_NONE;
-		fmt->fmt.pix.bytesperline = 0;
-		fmt->fmt.pix.sizeimage = GO7007_BUF_SIZE;
-		fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M; /* ?? */
-		return 0;
-	}
-	case VIDIOC_S_FMT:
-	{
-		struct v4l2_format *fmt = arg;
-
-		if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		switch (ctrl->value) {
+		case V4L2_MPEG_VIDEO_ASPECT_1x1:
+			go->aspect_ratio = GO7007_RATIO_1_1;
+			break;
+		case V4L2_MPEG_VIDEO_ASPECT_4x3:
+			go->aspect_ratio = GO7007_RATIO_4_3;
+			break;
+		case V4L2_MPEG_VIDEO_ASPECT_16x9:
+			go->aspect_ratio = GO7007_RATIO_16_9;
+			break;
+		case V4L2_MPEG_VIDEO_ASPECT_221x100:
+		default:
 			return -EINVAL;
-		if (go->streaming)
-			return -EBUSY;
-		return set_capture_size(go, fmt, 0);
-	}
-	case VIDIOC_G_FBUF:
-	case VIDIOC_S_FBUF:
+		}
+		break;
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+		go->gop_size = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
+		if (ctrl->value != 0 && ctrl->value != 1)
+			return -EINVAL;
+		go->closed_gop = ctrl->value;
+		break;
+	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		/* Upper bound is kind of arbitrary here */
+		if (ctrl->value < 64000 || ctrl->value > 10000000)
+			return -EINVAL;
+		go->bitrate = ctrl->value;
+		break;
+	default:
 		return -EINVAL;
-	case VIDIOC_REQBUFS:
-	{
-		struct v4l2_requestbuffers *req = arg;
-		unsigned int count, i;
+	}
+	return 0;
+}
 
-		if (go->streaming)
-			return -EBUSY;
-		if (req->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-				req->memory != V4L2_MEMORY_MMAP)
+static int mpeg_g_control(struct v4l2_control *ctrl, struct go7007 *go)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_MPEG_STREAM_TYPE:
+		if (go->dvd_mode)
+			ctrl->value = V4L2_MPEG_STREAM_TYPE_MPEG2_DVD;
+		else
+			ctrl->value = V4L2_MPEG_STREAM_TYPE_MPEG_ELEM;
+		break;
+	case V4L2_CID_MPEG_VIDEO_ENCODING:
+		switch (go->format) {
+		case GO7007_FORMAT_MPEG1:
+			ctrl->value = V4L2_MPEG_VIDEO_ENCODING_MPEG_1;
+			break;
+		case GO7007_FORMAT_MPEG2:
+			ctrl->value = V4L2_MPEG_VIDEO_ENCODING_MPEG_2;
+			break;
+		case GO7007_FORMAT_MPEG4:
+			ctrl->value = V4L2_MPEG_VIDEO_ENCODING_MPEG_4;
+			break;
+		default:
 			return -EINVAL;
+		}
+		break;
+	case V4L2_CID_MPEG_VIDEO_ASPECT:
+		switch (go->aspect_ratio) {
+		case GO7007_RATIO_1_1:
+			ctrl->value = V4L2_MPEG_VIDEO_ASPECT_1x1;
+			break;
+		case GO7007_RATIO_4_3:
+			ctrl->value = V4L2_MPEG_VIDEO_ASPECT_4x3;
+			break;
+		case GO7007_RATIO_16_9:
+			ctrl->value = V4L2_MPEG_VIDEO_ASPECT_16x9;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE:
+		ctrl->value = go->gop_size;
+		break;
+	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
+		ctrl->value = go->closed_gop;
+		break;
+	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		ctrl->value = go->bitrate;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+#endif
 
-		down(&gofh->lock);
-		retval = -EBUSY;
-		for (i = 0; i < gofh->buf_count; ++i)
-			if (gofh->bufs[i].mapped > 0)
-				goto unlock_and_return;
-		down(&go->hw_lock);
-		if (go->in_use > 0 && gofh->buf_count == 0) {
+static int vidioc_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *cap)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	strlcpy(cap->driver, "go7007", sizeof(cap->driver));
+	strlcpy(cap->card, go->name, sizeof(cap->card));
+#if 0
+	strlcpy(cap->bus_info, dev_name(&dev->udev->dev), sizeof(cap->bus_info));
+#endif
+
+	cap->version = KERNEL_VERSION(0, 9, 8);
+
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
+			    V4L2_CAP_STREAMING; /* | V4L2_CAP_AUDIO; */
+
+	if (go->board_info->flags & GO7007_BOARD_HAS_TUNER)
+		cap->capabilities |= V4L2_CAP_TUNER;
+
+	return 0;
+}
+
+static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
+					struct v4l2_fmtdesc *fmt)
+{
+	char *desc = NULL;
+
+	switch (fmt->index) {
+	case 0:
+		fmt->pixelformat = V4L2_PIX_FMT_MJPEG;
+		desc = "Motion-JPEG";
+		break;
+	case 1:
+		fmt->pixelformat = V4L2_PIX_FMT_MPEG;
+		desc = "MPEG1/MPEG2/MPEG4";
+		break;
+	default:
+		return -EINVAL;
+	}
+	fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	fmt->flags = V4L2_FMT_FLAG_COMPRESSED;
+
+	strncpy(fmt->description, desc, sizeof(fmt->description));
+
+	return 0;
+}
+
+static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
+					struct v4l2_format *fmt)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	fmt->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	fmt->fmt.pix.width = go->width;
+	fmt->fmt.pix.height = go->height;
+	fmt->fmt.pix.pixelformat = (go->format == GO7007_FORMAT_MJPEG) ?
+				   V4L2_PIX_FMT_MJPEG : V4L2_PIX_FMT_MPEG;
+	fmt->fmt.pix.field = V4L2_FIELD_NONE;
+	fmt->fmt.pix.bytesperline = 0;
+	fmt->fmt.pix.sizeimage = GO7007_BUF_SIZE;
+	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+
+	return 0;
+}
+
+static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
+			struct v4l2_format *fmt)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	return set_capture_size(go, fmt, 1);
+}
+
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
+			struct v4l2_format *fmt)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (go->streaming)
+		return -EBUSY;
+
+	return set_capture_size(go, fmt, 0);
+}
+
+static int vidioc_reqbufs(struct file *file, void *priv,
+			  struct v4l2_requestbuffers *req)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+	int retval = -EBUSY;
+	unsigned int count, i;
+
+	if (go->streaming)
+		return retval;
+
+	if (req->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+			req->memory != V4L2_MEMORY_MMAP)
+		return -EINVAL;
+
+	down(&gofh->lock);
+	for (i = 0; i < gofh->buf_count; ++i)
+		if (gofh->bufs[i].mapped > 0)
+			goto unlock_and_return;
+
+	down(&go->hw_lock);
+	if (go->in_use > 0 && gofh->buf_count == 0) {
+		up(&go->hw_lock);
+		goto unlock_and_return;
+	}
+
+	if (gofh->buf_count > 0)
+		kfree(gofh->bufs);
+
+	retval = -ENOMEM;
+	count = req->count;
+	if (count > 0) {
+		if (count < 2)
+			count = 2;
+		if (count > 32)
+			count = 32;
+
+		gofh->bufs = kmalloc(count * sizeof(struct go7007_buffer),
+				     GFP_KERNEL);
+
+		if (!gofh->bufs) {
 			up(&go->hw_lock);
 			goto unlock_and_return;
 		}
-		if (gofh->buf_count > 0)
-			kfree(gofh->bufs);
-		retval = -ENOMEM;
-		count = req->count;
-		if (count > 0) {
-			if (count < 2)
-				count = 2;
-			if (count > 32)
-				count = 32;
-			gofh->bufs = kmalloc(count *
-						sizeof(struct go7007_buffer),
-					GFP_KERNEL);
-			if (gofh->bufs == NULL) {
-				up(&go->hw_lock);
-				goto unlock_and_return;
-			}
-			memset(gofh->bufs, 0,
-					count * sizeof(struct go7007_buffer));
-			for (i = 0; i < count; ++i) {
-				gofh->bufs[i].go = go;
-				gofh->bufs[i].index = i;
-				gofh->bufs[i].state = BUF_STATE_IDLE;
-				gofh->bufs[i].mapped = 0;
-			}
-			go->in_use = 1;
-		} else {
-			go->in_use = 0;
+
+		memset(gofh->bufs, 0, count * sizeof(struct go7007_buffer));
+
+		for (i = 0; i < count; ++i) {
+			gofh->bufs[i].go = go;
+			gofh->bufs[i].index = i;
+			gofh->bufs[i].state = BUF_STATE_IDLE;
+			gofh->bufs[i].mapped = 0;
 		}
-		gofh->buf_count = count;
-		up(&go->hw_lock);
-		up(&gofh->lock);
-		memset(req, 0, sizeof(*req));
-		req->count = count;
-		req->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		req->memory = V4L2_MEMORY_MMAP;
-		return 0;
+
+		go->in_use = 1;
+	} else {
+		go->in_use = 0;
 	}
-	case VIDIOC_QUERYBUF:
-	{
-		struct v4l2_buffer *buf = arg;
-		unsigned int index;
 
-		retval = -EINVAL;
-		if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		index = buf->index;
-		down(&gofh->lock);
-		if (index >= gofh->buf_count)
-			goto unlock_and_return;
-		memset(buf, 0, sizeof(*buf));
-		buf->index = index;
-		buf->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		switch (gofh->bufs[index].state) {
-		case BUF_STATE_QUEUED:
-			buf->flags = V4L2_BUF_FLAG_QUEUED;
-			break;
-		case BUF_STATE_DONE:
-			buf->flags = V4L2_BUF_FLAG_DONE;
-			break;
-		default:
-			buf->flags = 0;
-		}
-		if (gofh->bufs[index].mapped)
-			buf->flags |= V4L2_BUF_FLAG_MAPPED;
-		buf->memory = V4L2_MEMORY_MMAP;
-		buf->m.offset = index * GO7007_BUF_SIZE;
-		buf->length = GO7007_BUF_SIZE;
-		up(&gofh->lock);
+	gofh->buf_count = count;
+	up(&go->hw_lock);
+	up(&gofh->lock);
 
-		return 0;
-	}
-	case VIDIOC_QBUF:
-	{
-		struct v4l2_buffer *buf = arg;
-		struct go7007_buffer *gobuf;
-		int ret;
+	memset(req, 0, sizeof(*req));
 
-		retval = -EINVAL;
-		if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-				buf->memory != V4L2_MEMORY_MMAP)
-			return -EINVAL;
-		down(&gofh->lock);
-		if (buf->index < 0 || buf->index >= gofh->buf_count)
-			goto unlock_and_return;
-		gobuf = &gofh->bufs[buf->index];
-		if (gobuf->mapped == 0)
-			goto unlock_and_return;
-		retval = -EBUSY;
-		if (gobuf->state != BUF_STATE_IDLE)
-			goto unlock_and_return;
-		/* offset will be 0 until we really support USERPTR streaming */
-		gobuf->offset = gobuf->user_addr & ~PAGE_MASK;
-		gobuf->bytesused = 0;
-		gobuf->frame_offset = 0;
-		gobuf->modet_active = 0;
-		if (gobuf->offset > 0)
-			gobuf->page_count = GO7007_BUF_PAGES + 1;
-		else
-			gobuf->page_count = GO7007_BUF_PAGES;
-		retval = -ENOMEM;
-		down_read(&current->mm->mmap_sem);
-		ret = get_user_pages(current, current->mm,
-				gobuf->user_addr & PAGE_MASK, gobuf->page_count,
-				1, 1, gobuf->pages, NULL);
-		up_read(&current->mm->mmap_sem);
-		if (ret != gobuf->page_count) {
-			int i;
-			for (i = 0; i < ret; ++i)
-				page_cache_release(gobuf->pages[i]);
-			gobuf->page_count = 0;
-			goto unlock_and_return;
-		}
-		gobuf->state = BUF_STATE_QUEUED;
-		spin_lock_irqsave(&go->spinlock, flags);
-		list_add_tail(&gobuf->stream, &go->stream);
-		spin_unlock_irqrestore(&go->spinlock, flags);
-		up(&gofh->lock);
-		return 0;
-	}
-	case VIDIOC_DQBUF:
-	{
-		struct v4l2_buffer *buf = arg;
-		struct go7007_buffer *gobuf;
-		u32 frame_type_flag;
-		DEFINE_WAIT(wait);
+	req->count = count;
+	req->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	req->memory = V4L2_MEMORY_MMAP;
 
-		if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		if (buf->memory != V4L2_MEMORY_MMAP)
-			return -EINVAL;
-		down(&gofh->lock);
-		retval = -EINVAL;
-		if (list_empty(&go->stream))
-			goto unlock_and_return;
-		gobuf = list_entry(go->stream.next,
-				struct go7007_buffer, stream);
-		retval = -EAGAIN;
-		if (gobuf->state != BUF_STATE_DONE &&
-				!(file->f_flags & O_NONBLOCK)) {
-			for (;;) {
-				prepare_to_wait(&go->frame_waitq, &wait,
-						TASK_INTERRUPTIBLE);
-				if (gobuf->state == BUF_STATE_DONE)
-					break;
-				if (signal_pending(current)) {
-					retval = -ERESTARTSYS;
-					break;
-				}
-				schedule();
-			}
-			finish_wait(&go->frame_waitq, &wait);
-		}
-		if (gobuf->state != BUF_STATE_DONE)
-			goto unlock_and_return;
-		spin_lock_irqsave(&go->spinlock, flags);
-		deactivate_buffer(gobuf);
-		spin_unlock_irqrestore(&go->spinlock, flags);
-		frame_type_flag = get_frame_type_flag(gobuf, go->format);
-		gobuf->state = BUF_STATE_IDLE;
-		memset(buf, 0, sizeof(*buf));
-		buf->index = gobuf->index;
-		buf->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		buf->bytesused = gobuf->bytesused;
-		buf->flags = V4L2_BUF_FLAG_MAPPED | frame_type_flag;
-		buf->field = V4L2_FIELD_NONE;
-		buf->timestamp = gobuf->timestamp;
-		buf->sequence = gobuf->seq;
-		buf->memory = V4L2_MEMORY_MMAP;
-		buf->m.offset = gobuf->index * GO7007_BUF_SIZE;
-		buf->length = GO7007_BUF_SIZE;
-		buf->reserved = gobuf->modet_active;
-		up(&gofh->lock);
-		return 0;
-	}
-	case VIDIOC_STREAMON:
-	{
-		unsigned int *type = arg;
+	return 0;
 
-		if (*type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		down(&gofh->lock);
-		down(&go->hw_lock);
-		if (!go->streaming) {
-			go->streaming = 1;
-			go->next_seq = 0;
-			go->active_buf = NULL;
-			if (go7007_start_encoder(go) < 0)
-				retval = -EIO;
-			else
-				retval = 0;
-		}
-		up(&go->hw_lock);
-		up(&gofh->lock);
+unlock_and_return:
+	up(&gofh->lock);
+	return retval;
+}
+
+static int vidioc_querybuf(struct file *file, void *priv,
+			   struct v4l2_buffer *buf)
+{
+	struct go7007_file *gofh = priv;
+	int retval = -EINVAL;
+	unsigned int index;
+
+	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return retval;
-	}
-	case VIDIOC_STREAMOFF:
-	{
-		unsigned int *type = arg;
 
-		if (*type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		down(&gofh->lock);
-		go7007_streamoff(go);
-		up(&gofh->lock);
-		return 0;
-	}
-	case VIDIOC_QUERYCTRL:
-	{
-		struct v4l2_queryctrl *ctrl = arg;
-		u32 id;
+	index = buf->index;
 
-		if (!go->i2c_adapter_online)
-			return -EIO;
-		id = ctrl->id;
-		memset(ctrl, 0, sizeof(*ctrl));
-		ctrl->id = id;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, arg);
-		return ctrl->name[0] == 0 ? -EINVAL : 0;
-	}
-	case VIDIOC_G_CTRL:
-	{
-		struct v4l2_control *ctrl = arg;
-		struct v4l2_queryctrl query;
+	down(&gofh->lock);
+	if (index >= gofh->buf_count)
+		goto unlock_and_return;
 
-		if (!go->i2c_adapter_online)
-			return -EIO;
-		memset(&query, 0, sizeof(query));
-		query.id = ctrl->id;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, &query);
-		if (query.name[0] == 0)
-			return -EINVAL;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_G_CTRL, arg);
-		return 0;
-	}
-	case VIDIOC_S_CTRL:
-	{
-		struct v4l2_control *ctrl = arg;
-		struct v4l2_queryctrl query;
+	memset(buf, 0, sizeof(*buf));
+	buf->index = index;
+	buf->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
-		if (!go->i2c_adapter_online)
-			return -EIO;
-		memset(&query, 0, sizeof(query));
-		query.id = ctrl->id;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, &query);
-		if (query.name[0] == 0)
-			return -EINVAL;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_S_CTRL, arg);
-		return 0;
+	switch (gofh->bufs[index].state) {
+	case BUF_STATE_QUEUED:
+		buf->flags = V4L2_BUF_FLAG_QUEUED;
+		break;
+	case BUF_STATE_DONE:
+		buf->flags = V4L2_BUF_FLAG_DONE;
+		break;
+	default:
+		buf->flags = 0;
 	}
-	case VIDIOC_G_PARM:
-	{
-		struct v4l2_streamparm *parm = arg;
-		struct v4l2_fract timeperframe = {
-			.numerator = 1001 *  go->fps_scale,
-			.denominator = go->sensor_framerate,
-		};
 
-		if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		memset(parm, 0, sizeof(*parm));
-		parm->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		parm->parm.capture.capability |= V4L2_CAP_TIMEPERFRAME;
-		parm->parm.capture.timeperframe = timeperframe;
-		return 0;
+	if (gofh->bufs[index].mapped)
+		buf->flags |= V4L2_BUF_FLAG_MAPPED;
+	buf->memory = V4L2_MEMORY_MMAP;
+	buf->m.offset = index * GO7007_BUF_SIZE;
+	buf->length = GO7007_BUF_SIZE;
+	up(&gofh->lock);
+
+	return 0;
+
+unlock_and_return:
+	up(&gofh->lock);
+	return retval;
+}
+
+static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+	struct go7007_buffer *gobuf;
+	unsigned long flags;
+	int retval = -EINVAL;
+	int ret;
+
+	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+			buf->memory != V4L2_MEMORY_MMAP)
+		return retval;
+
+	down(&gofh->lock);
+	if (buf->index < 0 || buf->index >= gofh->buf_count)
+		goto unlock_and_return;
+
+	gobuf = &gofh->bufs[buf->index];
+	if (!gobuf->mapped)
+		goto unlock_and_return;
+
+	retval = -EBUSY;
+	if (gobuf->state != BUF_STATE_IDLE)
+		goto unlock_and_return;
+
+	/* offset will be 0 until we really support USERPTR streaming */
+	gobuf->offset = gobuf->user_addr & ~PAGE_MASK;
+	gobuf->bytesused = 0;
+	gobuf->frame_offset = 0;
+	gobuf->modet_active = 0;
+	if (gobuf->offset > 0)
+		gobuf->page_count = GO7007_BUF_PAGES + 1;
+	else
+		gobuf->page_count = GO7007_BUF_PAGES;
+
+	retval = -ENOMEM;
+	down_read(&current->mm->mmap_sem);
+	ret = get_user_pages(current, current->mm,
+			gobuf->user_addr & PAGE_MASK, gobuf->page_count,
+			1, 1, gobuf->pages, NULL);
+	up_read(&current->mm->mmap_sem);
+
+	if (ret != gobuf->page_count) {
+		int i;
+		for (i = 0; i < ret; ++i)
+			page_cache_release(gobuf->pages[i]);
+		gobuf->page_count = 0;
+		goto unlock_and_return;
 	}
-	case VIDIOC_S_PARM:
-	{
-		struct v4l2_streamparm *parm = arg;
-		unsigned int n, d;
 
-		if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		if (parm->parm.capture.capturemode != 0)
-			return -EINVAL;
-		n = go->sensor_framerate *
-			parm->parm.capture.timeperframe.numerator;
-		d = 1001 * parm->parm.capture.timeperframe.denominator;
-		if (n != 0 && d != 0 && n > d)
-			go->fps_scale = (n + d/2) / d;
-		else
-			go->fps_scale = 1;
-		return 0;
-	}
-	case VIDIOC_ENUMSTD:
-	{
-		struct v4l2_standard *std = arg;
+	gobuf->state = BUF_STATE_QUEUED;
+	spin_lock_irqsave(&go->spinlock, flags);
+	list_add_tail(&gobuf->stream, &go->stream);
+	spin_unlock_irqrestore(&go->spinlock, flags);
+	up(&gofh->lock);
 
-		if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) &&
-				go->input == go->board_info->num_inputs - 1) {
-			if (!go->i2c_adapter_online)
-				return -EIO;
-			i2c_clients_command(&go->i2c_adapter,
-						VIDIOC_ENUMSTD, arg);
-			if (!std->id) /* hack to indicate EINVAL from tuner */
-				return -EINVAL;
-		} else if (go->board_info->sensor_flags & GO7007_SENSOR_TV) {
-			switch (std->index) {
-			case 0:
-				v4l2_video_std_construct(std,
-						V4L2_STD_NTSC, "NTSC");
+	return 0;
+
+unlock_and_return:
+	up(&gofh->lock);
+	return retval;
+}
+
+
+static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+	struct go7007_buffer *gobuf;
+	int retval = -EINVAL;
+	unsigned long flags;
+	u32 frame_type_flag;
+	DEFINE_WAIT(wait);
+
+	if (buf->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return retval;
+	if (buf->memory != V4L2_MEMORY_MMAP)
+		return retval;
+
+	down(&gofh->lock);
+	if (list_empty(&go->stream))
+		goto unlock_and_return;
+	gobuf = list_entry(go->stream.next,
+			struct go7007_buffer, stream);
+
+	retval = -EAGAIN;
+	if (gobuf->state != BUF_STATE_DONE &&
+			!(file->f_flags & O_NONBLOCK)) {
+		for (;;) {
+			prepare_to_wait(&go->frame_waitq, &wait,
+					TASK_INTERRUPTIBLE);
+			if (gobuf->state == BUF_STATE_DONE)
 				break;
-			case 1:
-				v4l2_video_std_construct(std,
-						V4L2_STD_PAL | V4L2_STD_SECAM,
-						"PAL/SECAM");
+			if (signal_pending(current)) {
+				retval = -ERESTARTSYS;
 				break;
-			default:
-				return -EINVAL;
 			}
-		} else {
-			if (std->index != 0)
-				return -EINVAL;
-			memset(std, 0, sizeof(*std));
-			snprintf(std->name, sizeof(std->name), "%dx%d, %dfps",
-				go->board_info->sensor_width,
-				go->board_info->sensor_height,
-				go->board_info->sensor_framerate / 1000);
-			std->frameperiod.numerator = 1001;
-			std->frameperiod.denominator =
-					go->board_info->sensor_framerate;
+			schedule();
 		}
-		return 0;
+		finish_wait(&go->frame_waitq, &wait);
 	}
-	case VIDIOC_G_STD:
-	{
-		v4l2_std_id *std = arg;
+	if (gobuf->state != BUF_STATE_DONE)
+		goto unlock_and_return;
 
-		if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) &&
-				go->input == go->board_info->num_inputs - 1) {
-			if (!go->i2c_adapter_online)
-				return -EIO;
-			i2c_clients_command(&go->i2c_adapter,
-						VIDIOC_G_STD, arg);
-		} else if (go->board_info->sensor_flags & GO7007_SENSOR_TV) {
-			if (go->standard == GO7007_STD_NTSC)
-				*std = V4L2_STD_NTSC;
-			else
-				*std = V4L2_STD_PAL | V4L2_STD_SECAM;
-		} else
-			*std = 0;
-		return 0;
-	}
-	case VIDIOC_S_STD:
-	{
-		v4l2_std_id *std = arg;
+	spin_lock_irqsave(&go->spinlock, flags);
+	deactivate_buffer(gobuf);
+	spin_unlock_irqrestore(&go->spinlock, flags);
+	frame_type_flag = get_frame_type_flag(gobuf, go->format);
+	gobuf->state = BUF_STATE_IDLE;
 
-		if (go->streaming)
-			return -EBUSY;
-		if (!(go->board_info->sensor_flags & GO7007_SENSOR_TV) &&
-				*std != 0)
-			return -EINVAL;
-		if (*std == 0)
-			return -EINVAL;
-		if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) &&
-				go->input == go->board_info->num_inputs - 1) {
-			if (!go->i2c_adapter_online)
-				return -EIO;
-			i2c_clients_command(&go->i2c_adapter,
-						VIDIOC_S_STD, arg);
-			if (!*std) /* hack to indicate EINVAL from tuner */
-				return -EINVAL;
-		}
-		if (*std & V4L2_STD_NTSC) {
-			go->standard = GO7007_STD_NTSC;
-			go->sensor_framerate = 30000;
-		} else if (*std & V4L2_STD_PAL) {
-			go->standard = GO7007_STD_PAL;
-			go->sensor_framerate = 25025;
-		} else if (*std & V4L2_STD_SECAM) {
-			go->standard = GO7007_STD_PAL;
-			go->sensor_framerate = 25025;
-		} else
-			return -EINVAL;
-		if (go->i2c_adapter_online)
-			i2c_clients_command(&go->i2c_adapter,
-					    VIDIOC_S_STD, std);
-		set_capture_size(go, NULL, 0);
-		return 0;
+	memset(buf, 0, sizeof(*buf));
+	buf->index = gobuf->index;
+	buf->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	buf->bytesused = gobuf->bytesused;
+	buf->flags = V4L2_BUF_FLAG_MAPPED | frame_type_flag;
+	buf->field = V4L2_FIELD_NONE;
+	buf->timestamp = gobuf->timestamp;
+	buf->sequence = gobuf->seq;
+	buf->memory = V4L2_MEMORY_MMAP;
+	buf->m.offset = gobuf->index * GO7007_BUF_SIZE;
+	buf->length = GO7007_BUF_SIZE;
+	buf->reserved = gobuf->modet_active;
+
+	up(&gofh->lock);
+	return 0;
+
+unlock_and_return:
+	up(&gofh->lock);
+	return retval;
+}
+
+static int vidioc_streamon(struct file *file, void *priv,
+					enum v4l2_buf_type type)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+	int retval = 0;
+
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	down(&gofh->lock);
+	down(&go->hw_lock);
+
+	if (!go->streaming) {
+		go->streaming = 1;
+		go->next_seq = 0;
+		go->active_buf = NULL;
+		if (go7007_start_encoder(go) < 0)
+			retval = -EIO;
+		else
+			retval = 0;
 	}
+	up(&go->hw_lock);
+	up(&gofh->lock);
+
+	return retval;
+}
+
+static int vidioc_streamoff(struct file *file, void *priv,
+					enum v4l2_buf_type type)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	down(&gofh->lock);
+	go7007_streamoff(go);
+	up(&gofh->lock);
+
+	return 0;
+}
+
+static int vidioc_queryctrl(struct file *file, void *priv,
+			   struct v4l2_queryctrl *query)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (!go->i2c_adapter_online)
+		return -EIO;
+
+	i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, query);
+
+	return (!query->name[0]) ? -EINVAL : 0;
+}
+
+static int vidioc_g_ctrl(struct file *file, void *priv,
+				struct v4l2_control *ctrl)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+	struct v4l2_queryctrl query;
+
+	if (!go->i2c_adapter_online)
+		return -EIO;
+
+	memset(&query, 0, sizeof(query));
+	query.id = ctrl->id;
+	i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, &query);
+	if (query.name[0] == 0)
+		return -EINVAL;
+	i2c_clients_command(&go->i2c_adapter, VIDIOC_G_CTRL, ctrl);
+
+	return 0;
+}
+
+static int vidioc_s_ctrl(struct file *file, void *priv,
+				struct v4l2_control *ctrl)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+	struct v4l2_queryctrl query;
+
+	if (!go->i2c_adapter_online)
+		return -EIO;
+
+	memset(&query, 0, sizeof(query));
+	query.id = ctrl->id;
+	i2c_clients_command(&go->i2c_adapter, VIDIOC_QUERYCTRL, &query);
+	if (query.name[0] == 0)
+		return -EINVAL;
+	i2c_clients_command(&go->i2c_adapter, VIDIOC_S_CTRL, ctrl);
+
+	return 0;
+}
+
+static int vidioc_g_parm(struct file *filp, void *priv,
+		struct v4l2_streamparm *parm)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+	struct v4l2_fract timeperframe = {
+		.numerator = 1001 *  go->fps_scale,
+		.denominator = go->sensor_framerate,
+	};
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	parm->parm.capture.capability |= V4L2_CAP_TIMEPERFRAME;
+	parm->parm.capture.timeperframe = timeperframe;
+
+	return 0;
+}
+
+static int vidioc_s_parm(struct file *filp, void *priv,
+		struct v4l2_streamparm *parm)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+	unsigned int n, d;
+
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	if (parm->parm.capture.capturemode != 0)
+		return -EINVAL;
+
+	n = go->sensor_framerate *
+		parm->parm.capture.timeperframe.numerator;
+	d = 1001 * parm->parm.capture.timeperframe.denominator;
+	if (n != 0 && d != 0 && n > d)
+		go->fps_scale = (n + d/2) / d;
+	else
+		go->fps_scale = 1;
+
+	return 0;
+}
+
+/* VIDIOC_ENUMSTD on go7007 were used for enumberating the supported fps and
+   its resolution, when the device is not connected to TV.
+   This were an API abuse, probably used by the lack of specific IOCTL's to
+   enumberate it, by the time the driver were written.
+
+   However, since kernel 2.6.19, two new ioctls (VIDIOC_ENUM_FRAMEINTERVALS
+   and VIDIOC_ENUM_FRAMESIZES) were added for this purpose.
+
+   The two functions bellow implements the newer ioctls
+*/
+static int vidioc_enum_framesizes(struct file *filp, void *priv,
+				  struct v4l2_frmsizeenum *fsize)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	/* Return -EINVAL, if it is a TV board */
+	if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) ||
+	    (go->board_info->sensor_flags & GO7007_SENSOR_TV))
+		return -EINVAL;
+
+	if (fsize->index > 0)
+		return -EINVAL;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+	fsize->discrete.width = go->board_info->sensor_width;
+	fsize->discrete.height = go->board_info->sensor_height;
+
+	return 0;
+}
+
+static int vidioc_enum_frameintervals(struct file *filp, void *priv,
+				      struct v4l2_frmivalenum *fival)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	/* Return -EINVAL, if it is a TV board */
+	if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) ||
+	    (go->board_info->sensor_flags & GO7007_SENSOR_TV))
+		return -EINVAL;
+
+	if (fival->index > 0)
+		return -EINVAL;
+
+	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	fival->discrete.numerator = 1001;
+	fival->discrete.denominator = go->board_info->sensor_framerate;
+
+	return 0;
+}
+
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *std)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (go->streaming)
+		return -EBUSY;
+
+	if (!(go->board_info->sensor_flags & GO7007_SENSOR_TV) &&
+			*std != 0)
+		return -EINVAL;
+
+	if (*std == 0)
+		return -EINVAL;
+
+	if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) &&
+			go->input == go->board_info->num_inputs - 1) {
+		if (!go->i2c_adapter_online)
+			return -EIO;
+		i2c_clients_command(&go->i2c_adapter,
+					VIDIOC_S_STD, std);
+		if (!*std) /* hack to indicate EINVAL from tuner */
+			return -EINVAL;
+	}
+
+	if (*std & V4L2_STD_NTSC) {
+		go->standard = GO7007_STD_NTSC;
+		go->sensor_framerate = 30000;
+	} else if (*std & V4L2_STD_PAL) {
+		go->standard = GO7007_STD_PAL;
+		go->sensor_framerate = 25025;
+	} else if (*std & V4L2_STD_SECAM) {
+		go->standard = GO7007_STD_PAL;
+		go->sensor_framerate = 25025;
+	} else
+		return -EINVAL;
+
+	if (go->i2c_adapter_online)
+		i2c_clients_command(&go->i2c_adapter,
+					VIDIOC_S_STD, std);
+	set_capture_size(go, NULL, 0);
+
+	return 0;
+}
+
+#if 0
 	case VIDIOC_QUERYSTD:
 	{
 		v4l2_std_id *std = arg;
@@ -884,219 +1195,269 @@ static int go7007_do_ioctl(struct inode *inode, struct file *file,
 			*std = 0;
 		return 0;
 	}
-	case VIDIOC_ENUMINPUT:
-	{
-		struct v4l2_input *inp = arg;
-		int index;
+#endif
 
-		if (inp->index >= go->board_info->num_inputs)
-			return -EINVAL;
-		index = inp->index;
-		memset(inp, 0, sizeof(*inp));
-		inp->index = index;
-		strncpy(inp->name, go->board_info->inputs[index].name,
-				sizeof(inp->name));
-		/* If this board has a tuner, it will be the last input */
-		if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) &&
-				index == go->board_info->num_inputs - 1)
-			inp->type = V4L2_INPUT_TYPE_TUNER;
-		else
-			inp->type = V4L2_INPUT_TYPE_CAMERA;
-		inp->audioset = 0;
-		inp->tuner = 0;
-		if (go->board_info->sensor_flags & GO7007_SENSOR_TV)
-			inp->std = V4L2_STD_NTSC | V4L2_STD_PAL |
-							V4L2_STD_SECAM;
-		else
-			inp->std = 0;
-		return 0;
+static int vidioc_enum_input(struct file *file, void *priv,
+				struct v4l2_input *inp)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (inp->index >= go->board_info->num_inputs)
+		return -EINVAL;
+
+	strncpy(inp->name, go->board_info->inputs[inp->index].name,
+			sizeof(inp->name));
+
+	/* If this board has a tuner, it will be the last input */
+	if ((go->board_info->flags & GO7007_BOARD_HAS_TUNER) &&
+			inp->index == go->board_info->num_inputs - 1)
+		inp->type = V4L2_INPUT_TYPE_TUNER;
+	else
+		inp->type = V4L2_INPUT_TYPE_CAMERA;
+
+	inp->audioset = 0;
+	inp->tuner = 0;
+	if (go->board_info->sensor_flags & GO7007_SENSOR_TV)
+		inp->std = V4L2_STD_NTSC | V4L2_STD_PAL |
+						V4L2_STD_SECAM;
+	else
+		inp->std = 0;
+
+	return 0;
+}
+
+
+static int vidioc_g_input(struct file *file, void *priv, unsigned int *input)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	*input = go->input;
+
+	return 0;
+}
+
+static int vidioc_s_input(struct file *file, void *priv, unsigned int input)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (input >= go->board_info->num_inputs)
+		return -EINVAL;
+	if (go->streaming)
+		return -EBUSY;
+
+	go->input = input;
+	if (go->i2c_adapter_online) {
+		i2c_clients_command(&go->i2c_adapter, VIDIOC_S_INPUT,
+			&go->board_info->inputs[input].video_input);
+		i2c_clients_command(&go->i2c_adapter, VIDIOC_S_AUDIO,
+			&go->board_info->inputs[input].audio_input);
 	}
-	case VIDIOC_G_INPUT:
-	{
-		int *input = arg;
 
-		*input = go->input;
-		return 0;
-	}
-	case VIDIOC_S_INPUT:
-	{
-		int *input = arg;
+	return 0;
+}
 
-		if (*input >= go->board_info->num_inputs)
+static int vidioc_g_tuner(struct file *file, void *priv,
+				struct v4l2_tuner *t)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
+		return -EINVAL;
+	if (t->index != 0)
+		return -EINVAL;
+	if (!go->i2c_adapter_online)
+		return -EIO;
+
+	i2c_clients_command(&go->i2c_adapter, VIDIOC_G_TUNER, t);
+
+	t->index = 0;
+	return 0;
+}
+
+static int vidioc_s_tuner(struct file *file, void *priv,
+				struct v4l2_tuner *t)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
+		return -EINVAL;
+	if (t->index != 0)
+		return -EINVAL;
+	if (!go->i2c_adapter_online)
+		return -EIO;
+
+	switch (go->board_id) {
+	case GO7007_BOARDID_PX_TV402U_NA:
+	case GO7007_BOARDID_PX_TV402U_JP:
+		/* No selectable options currently */
+		if (t->audmode != V4L2_TUNER_MODE_STEREO)
 			return -EINVAL;
-		if (go->streaming)
-			return -EBUSY;
-		go->input = *input;
-		if (go->i2c_adapter_online) {
-			i2c_clients_command(&go->i2c_adapter, VIDIOC_S_INPUT,
-				&go->board_info->inputs[*input].video_input);
-			i2c_clients_command(&go->i2c_adapter, VIDIOC_S_AUDIO,
-				&go->board_info->inputs[*input].audio_input);
-		}
-		return 0;
+		break;
 	}
-	case VIDIOC_G_TUNER:
-	{
-		struct v4l2_tuner *t = arg;
 
-		if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
-			return -EINVAL;
-		if (t->index != 0)
-			return -EINVAL;
-		if (!go->i2c_adapter_online)
-			return -EIO;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_G_TUNER, arg);
-		t->index = 0;
-		return 0;
+	i2c_clients_command(&go->i2c_adapter, VIDIOC_S_TUNER, t);
+
+	return 0;
+}
+
+static int vidioc_g_frequency(struct file *file, void *priv,
+				struct v4l2_frequency *f)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
+		return -EINVAL;
+	if (!go->i2c_adapter_online)
+		return -EIO;
+
+	f->type = V4L2_TUNER_ANALOG_TV;
+	i2c_clients_command(&go->i2c_adapter, VIDIOC_G_FREQUENCY, f);
+	return 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+				struct v4l2_frequency *f)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
+		return -EINVAL;
+	if (!go->i2c_adapter_online)
+		return -EIO;
+
+	i2c_clients_command(&go->i2c_adapter, VIDIOC_S_FREQUENCY, f);
+
+	return 0;
+}
+
+static int vidioc_cropcap(struct file *file, void *priv,
+					struct v4l2_cropcap *cropcap)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	/* These specify the raw input of the sensor */
+	switch (go->standard) {
+	case GO7007_STD_NTSC:
+		cropcap->bounds.top = 0;
+		cropcap->bounds.left = 0;
+		cropcap->bounds.width = 720;
+		cropcap->bounds.height = 480;
+		cropcap->defrect.top = 0;
+		cropcap->defrect.left = 0;
+		cropcap->defrect.width = 720;
+		cropcap->defrect.height = 480;
+		break;
+	case GO7007_STD_PAL:
+		cropcap->bounds.top = 0;
+		cropcap->bounds.left = 0;
+		cropcap->bounds.width = 720;
+		cropcap->bounds.height = 576;
+		cropcap->defrect.top = 0;
+		cropcap->defrect.left = 0;
+		cropcap->defrect.width = 720;
+		cropcap->defrect.height = 576;
+		break;
+	case GO7007_STD_OTHER:
+		cropcap->bounds.top = 0;
+		cropcap->bounds.left = 0;
+		cropcap->bounds.width = go->board_info->sensor_width;
+		cropcap->bounds.height = go->board_info->sensor_height;
+		cropcap->defrect.top = 0;
+		cropcap->defrect.left = 0;
+		cropcap->defrect.width = go->board_info->sensor_width;
+		cropcap->defrect.height = go->board_info->sensor_height;
+		break;
 	}
-	case VIDIOC_S_TUNER:
-	{
-		struct v4l2_tuner *t = arg;
 
-		if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
-			return -EINVAL;
-		if (t->index != 0)
-			return -EINVAL;
-		if (!go->i2c_adapter_online)
-			return -EIO;
-		switch (go->board_id) {
-		case GO7007_BOARDID_PX_TV402U_NA:
-		case GO7007_BOARDID_PX_TV402U_JP:
-			/* No selectable options currently */
-			if (t->audmode != V4L2_TUNER_MODE_STEREO)
-				return -EINVAL;
-			break;
-		}
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_S_TUNER, arg);
-		return 0;
+	return 0;
+}
+
+static int vidioc_g_crop(struct file *file, void *priv, struct v4l2_crop *crop)
+{
+	struct go7007_file *gofh = priv;
+	struct go7007 *go = gofh->go;
+
+	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	crop->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+
+	/* These specify the raw input of the sensor */
+	switch (go->standard) {
+	case GO7007_STD_NTSC:
+		crop->c.top = 0;
+		crop->c.left = 0;
+		crop->c.width = 720;
+		crop->c.height = 480;
+		break;
+	case GO7007_STD_PAL:
+		crop->c.top = 0;
+		crop->c.left = 0;
+		crop->c.width = 720;
+		crop->c.height = 576;
+		break;
+	case GO7007_STD_OTHER:
+		crop->c.top = 0;
+		crop->c.left = 0;
+		crop->c.width = go->board_info->sensor_width;
+		crop->c.height = go->board_info->sensor_height;
+		break;
 	}
-	case VIDIOC_G_FREQUENCY:
-	{
-		struct v4l2_frequency *f = arg;
 
-		if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
-			return -EINVAL;
-		if (!go->i2c_adapter_online)
-			return -EIO;
-		memset(f, 0, sizeof(*f));
-		f->type = V4L2_TUNER_ANALOG_TV;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_G_FREQUENCY, arg);
-		return 0;
-	}
-	case VIDIOC_S_FREQUENCY:
-	{
-		if (!(go->board_info->flags & GO7007_BOARD_HAS_TUNER))
-			return -EINVAL;
-		if (!go->i2c_adapter_online)
-			return -EIO;
-		i2c_clients_command(&go->i2c_adapter, VIDIOC_S_FREQUENCY, arg);
-		return 0;
-	}
-	case VIDIOC_CROPCAP:
-	{
-		struct v4l2_cropcap *cropcap = arg;
+	return 0;
+}
 
-		if (cropcap->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		memset(cropcap, 0, sizeof(*cropcap));
-		cropcap->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		/* These specify the raw input of the sensor */
-		switch (go->standard) {
-		case GO7007_STD_NTSC:
-			cropcap->bounds.top = 0;
-			cropcap->bounds.left = 0;
-			cropcap->bounds.width = 720;
-			cropcap->bounds.height = 480;
-			cropcap->defrect.top = 0;
-			cropcap->defrect.left = 0;
-			cropcap->defrect.width = 720;
-			cropcap->defrect.height = 480;
-			break;
-		case GO7007_STD_PAL:
-			cropcap->bounds.top = 0;
-			cropcap->bounds.left = 0;
-			cropcap->bounds.width = 720;
-			cropcap->bounds.height = 576;
-			cropcap->defrect.top = 0;
-			cropcap->defrect.left = 0;
-			cropcap->defrect.width = 720;
-			cropcap->defrect.height = 576;
-			break;
-		case GO7007_STD_OTHER:
-			cropcap->bounds.top = 0;
-			cropcap->bounds.left = 0;
-			cropcap->bounds.width = go->board_info->sensor_width;
-			cropcap->bounds.height = go->board_info->sensor_height;
-			cropcap->defrect.top = 0;
-			cropcap->defrect.left = 0;
-			cropcap->defrect.width = go->board_info->sensor_width;
-			cropcap->defrect.height = go->board_info->sensor_height;
-			break;
-		}
+/* FIXME: vidioc_s_crop is not really implemented!!!
+ */
+static int vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
+{
+	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
 
-		return 0;
-	}
-	case VIDIOC_G_CROP:
-	{
-		struct v4l2_crop *crop = arg;
+	return 0;
+}
 
-		if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		memset(crop, 0, sizeof(*crop));
-		crop->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		/* These specify the raw input of the sensor */
-		switch (go->standard) {
-		case GO7007_STD_NTSC:
-			crop->c.top = 0;
-			crop->c.left = 0;
-			crop->c.width = 720;
-			crop->c.height = 480;
-			break;
-		case GO7007_STD_PAL:
-			crop->c.top = 0;
-			crop->c.left = 0;
-			crop->c.width = 720;
-			crop->c.height = 576;
-			break;
-		case GO7007_STD_OTHER:
-			crop->c.top = 0;
-			crop->c.left = 0;
-			crop->c.width = go->board_info->sensor_width;
-			crop->c.height = go->board_info->sensor_height;
-			break;
-		}
+static int vidioc_g_jpegcomp(struct file *file, void *priv,
+			 struct v4l2_jpegcompression *params)
+{
+	memset(params, 0, sizeof(*params));
+	params->quality = 50; /* ?? */
+	params->jpeg_markers = V4L2_JPEG_MARKER_DHT |
+				V4L2_JPEG_MARKER_DQT;
 
-		return 0;
-	}
-	case VIDIOC_S_CROP:
-	{
-		struct v4l2_crop *crop = arg;
+	return 0;
+}
 
-		if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		return 0;
-	}
-	case VIDIOC_G_JPEGCOMP:
-	{
-		struct v4l2_jpegcompression *params = arg;
+static int vidioc_s_jpegcomp(struct file *file, void *priv,
+			 struct v4l2_jpegcompression *params)
+{
+	if (params->quality != 50 ||
+			params->jpeg_markers != (V4L2_JPEG_MARKER_DHT |
+						V4L2_JPEG_MARKER_DQT))
+		return -EINVAL;
 
-		memset(params, 0, sizeof(*params));
-		params->quality = 50; /* ?? */
-		params->jpeg_markers = V4L2_JPEG_MARKER_DHT |
-					V4L2_JPEG_MARKER_DQT;
+	return 0;
+}
 
-		return 0;
-	}
-	case VIDIOC_S_JPEGCOMP:
-	{
-		struct v4l2_jpegcompression *params = arg;
+/* FIXME:
+	Those ioctls are private, and not needed, since several standard
+	extended controls already provide streaming control.
+	So, those ioctls should be converted into vidioc_g_ext_ctrls()
+	and vidioc_s_ext_ctrls()
+ */
 
-		if (params->quality != 50 ||
-				params->jpeg_markers != (V4L2_JPEG_MARKER_DHT |
-							V4L2_JPEG_MARKER_DQT))
-			return -EINVAL;
-		return 0;
-	}
+#if 0
 	/* Temporary ioctls for controlling compression characteristics */
 	case GO7007IOC_S_BITRATE:
 	{
@@ -1316,27 +1677,7 @@ static int go7007_do_ioctl(struct inode *inode, struct file *file,
 			return -EINVAL;
 		return clip_to_modet_map(go, region->region, region->clips);
 	}
-	default:
-		printk(KERN_DEBUG "go7007: unsupported ioctl %d\n", cmd);
-		return -ENOIOCTLCMD;
-	}
-	return 0;
-
-unlock_and_return:
-	up(&gofh->lock);
-	return retval;
-}
-
-static int go7007_ioctl(struct inode *inode, struct file *file,
-		unsigned int cmd, unsigned long arg)
-{
-	struct go7007_file *gofh = file->private_data;
-
-	if (gofh->go->status != STATUS_ONLINE)
-		return -EIO;
-
-	return video_usercopy(inode, file, cmd, arg, go7007_do_ioctl);
-}
+#endif
 
 static ssize_t go7007_read(struct file *file, char __user *data,
 		size_t count, loff_t *ppos)
@@ -1371,8 +1712,7 @@ static int go7007_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	page = alloc_page(GFP_USER | __GFP_DMA32);
 	if (!page)
 		return VM_FAULT_OOM;
-	clear_user_page(page_address(page), (unsigned long)vmf->virtual_address,
-			page);
+	clear_user_highpage(page, (unsigned long)vmf->virtual_address);
 	vmf->page = page;
 	return 0;
 }
@@ -1441,15 +1781,48 @@ static void go7007_vfl_release(struct video_device *vfd)
 		kfree(go);
 }
 
-static struct file_operations go7007_fops = {
+static struct v4l2_file_operations go7007_fops = {
 	.owner		= THIS_MODULE,
 	.open		= go7007_open,
 	.release	= go7007_release,
-	.ioctl		= go7007_ioctl,
-	.llseek		= no_llseek,
+	.ioctl		= video_ioctl2,
 	.read		= go7007_read,
 	.mmap		= go7007_mmap,
 	.poll		= go7007_poll,
+};
+
+static const struct v4l2_ioctl_ops video_ioctl_ops = {
+	.vidioc_querycap          = vidioc_querycap,
+	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap   = vidioc_try_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap     = vidioc_s_fmt_vid_cap,
+	.vidioc_reqbufs           = vidioc_reqbufs,
+	.vidioc_querybuf          = vidioc_querybuf,
+	.vidioc_qbuf              = vidioc_qbuf,
+	.vidioc_dqbuf             = vidioc_dqbuf,
+	.vidioc_s_std             = vidioc_s_std,
+	.vidioc_enum_input        = vidioc_enum_input,
+	.vidioc_g_input           = vidioc_g_input,
+	.vidioc_s_input           = vidioc_s_input,
+	.vidioc_queryctrl         = vidioc_queryctrl,
+	.vidioc_g_ctrl            = vidioc_g_ctrl,
+	.vidioc_s_ctrl            = vidioc_s_ctrl,
+	.vidioc_streamon          = vidioc_streamon,
+	.vidioc_streamoff         = vidioc_streamoff,
+	.vidioc_g_tuner           = vidioc_g_tuner,
+	.vidioc_s_tuner           = vidioc_s_tuner,
+	.vidioc_g_frequency       = vidioc_g_frequency,
+	.vidioc_s_frequency       = vidioc_s_frequency,
+	.vidioc_g_parm            = vidioc_g_parm,
+	.vidioc_s_parm            = vidioc_s_parm,
+	.vidioc_enum_framesizes   = vidioc_enum_framesizes,
+	.vidioc_enum_frameintervals = vidioc_enum_frameintervals,
+	.vidioc_cropcap           = vidioc_cropcap,
+	.vidioc_g_crop            = vidioc_g_crop,
+	.vidioc_s_crop            = vidioc_s_crop,
+	.vidioc_g_jpegcomp        = vidioc_g_jpegcomp,
+	.vidioc_s_jpegcomp        = vidioc_s_jpegcomp,
 };
 
 static struct video_device go7007_template = {
@@ -1458,6 +1831,9 @@ static struct video_device go7007_template = {
 	.fops		= &go7007_fops,
 	.minor		= -1,
 	.release	= go7007_vfl_release,
+	.ioctl_ops	= &video_ioctl_ops,
+	.tvnorms	= V4L2_STD_ALL,
+	.current_norm	= V4L2_STD_NTSC,
 };
 
 int go7007_v4l2_init(struct go7007 *go)
@@ -1477,6 +1853,8 @@ int go7007_v4l2_init(struct go7007 *go)
 	}
 	video_set_drvdata(go->video_dev, go);
 	++go->ref_count;
+	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
+	       go->video_dev->name, go->video_dev->num);
 
 	return 0;
 }

@@ -115,7 +115,6 @@ static void fill_data(struct dlm_lock_data *data, struct dlm_lkb *lkb)
 	data->status = lkb->lkb_status;
 	data->grmode = lkb->lkb_grmode;
 	data->rqmode = lkb->lkb_rqmode;
-	data->timestamp = lkb->lkb_timestamp;
 	if (lkb->lkb_ua)
 		data->xid = lkb->lkb_ua->xid;
 	if (r) {

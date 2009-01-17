@@ -175,8 +175,8 @@ out:
  *
  * Returns zero on success; non-zero on error.
  */
-static int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
-			      loff_t offset)
+int ecryptfs_derive_iv(char *iv, struct ecryptfs_crypt_stat *crypt_stat,
+		       loff_t offset)
 {
 	int rc = 0;
 	char dst[MD5_DIGEST_SIZE];
@@ -924,6 +924,15 @@ static void ecryptfs_copy_mount_wide_flags_to_inode_flags(
 		crypt_stat->flags |= ECRYPTFS_METADATA_IN_XATTR;
 	if (mount_crypt_stat->flags & ECRYPTFS_ENCRYPTED_VIEW_ENABLED)
 		crypt_stat->flags |= ECRYPTFS_VIEW_AS_ENCRYPTED;
+	if (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES) {
+		crypt_stat->flags |= ECRYPTFS_ENCRYPT_FILENAMES;
+		if (mount_crypt_stat->flags
+		    & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK)
+			crypt_stat->flags |= ECRYPTFS_ENCFN_USE_MOUNT_FNEK;
+		else if (mount_crypt_stat->flags
+			 & ECRYPTFS_GLOBAL_ENCFN_USE_FEK)
+			crypt_stat->flags |= ECRYPTFS_ENCFN_USE_FEK;
+	}
 }
 
 static int ecryptfs_copy_mount_wide_sigs_to_inode_sigs(
@@ -1060,7 +1069,8 @@ struct ecryptfs_flag_map_elem {
 static struct ecryptfs_flag_map_elem ecryptfs_flag_map[] = {
 	{0x00000001, ECRYPTFS_ENABLE_HMAC},
 	{0x00000002, ECRYPTFS_ENCRYPTED},
-	{0x00000004, ECRYPTFS_METADATA_IN_XATTR}
+	{0x00000004, ECRYPTFS_METADATA_IN_XATTR},
+	{0x00000008, ECRYPTFS_ENCRYPT_FILENAMES}
 };
 
 /**
@@ -1149,19 +1159,20 @@ ecryptfs_cipher_code_str_map[] = {
 
 /**
  * ecryptfs_code_for_cipher_string
- * @crypt_stat: The cryptographic context
+ * @cipher_name: The string alias for the cipher
+ * @key_bytes: Length of key in bytes; used for AES code selection
  *
  * Returns zero on no match, or the cipher code on match
  */
-u8 ecryptfs_code_for_cipher_string(struct ecryptfs_crypt_stat *crypt_stat)
+u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes)
 {
 	int i;
 	u8 code = 0;
 	struct ecryptfs_cipher_code_str_map_elem *map =
 		ecryptfs_cipher_code_str_map;
 
-	if (strcmp(crypt_stat->cipher, "aes") == 0) {
-		switch (crypt_stat->key_size) {
+	if (strcmp(cipher_name, "aes") == 0) {
+		switch (key_bytes) {
 		case 16:
 			code = RFC2440_CIPHER_AES_128;
 			break;
@@ -1173,7 +1184,7 @@ u8 ecryptfs_code_for_cipher_string(struct ecryptfs_crypt_stat *crypt_stat)
 		}
 	} else {
 		for (i = 0; i < ARRAY_SIZE(ecryptfs_cipher_code_str_map); i++)
-			if (strcmp(crypt_stat->cipher, map[i].cipher_str) == 0){
+			if (strcmp(cipher_name, map[i].cipher_str) == 0) {
 				code = map[i].cipher_code;
 				break;
 			}
@@ -1212,6 +1223,8 @@ int ecryptfs_read_and_validate_header_region(char *data,
 		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
 	int rc;
 
+	if (crypt_stat->extent_size == 0)
+		crypt_stat->extent_size = ECRYPTFS_DEFAULT_EXTENT_SIZE;
 	rc = ecryptfs_read_lower(data, 0, crypt_stat->extent_size,
 				 ecryptfs_inode);
 	if (rc) {
@@ -1221,7 +1234,6 @@ int ecryptfs_read_and_validate_header_region(char *data,
 	}
 	if (!contains_ecryptfs_marker(data + ECRYPTFS_FILE_SIZE_BYTES)) {
 		rc = -EINVAL;
-		ecryptfs_printk(KERN_DEBUG, "Valid marker not found\n");
 	}
 out:
 	return rc;
@@ -1628,95 +1640,95 @@ out:
 }
 
 /**
- * ecryptfs_encode_filename - converts a plaintext file name to cipher text
- * @crypt_stat: The crypt_stat struct associated with the file anem to encode
- * @name: The plaintext name
- * @length: The length of the plaintext
- * @encoded_name: The encypted name
+ * ecryptfs_encrypt_filename - encrypt filename
  *
- * Encrypts and encodes a filename into something that constitutes a
- * valid filename for a filesystem, with printable characters.
+ * CBC-encrypts the filename. We do not want to encrypt the same
+ * filename with the same key and IV, which may happen with hard
+ * links, so we prepend random bits to each filename.
  *
- * We assume that we have a properly initialized crypto context,
- * pointed to by crypt_stat->tfm.
- *
- * TODO: Implement filename decoding and decryption here, in place of
- * memcpy. We are keeping the framework around for now to (1)
- * facilitate testing of the components needed to implement filename
- * encryption and (2) to provide a code base from which other
- * developers in the community can easily implement this feature.
- *
- * Returns the length of encoded filename; negative if error
+ * Returns zero on success; non-zero otherwise
  */
-int
-ecryptfs_encode_filename(struct ecryptfs_crypt_stat *crypt_stat,
-			 const char *name, int length, char **encoded_name)
+static int
+ecryptfs_encrypt_filename(struct ecryptfs_filename *filename,
+			  struct ecryptfs_crypt_stat *crypt_stat,
+			  struct ecryptfs_mount_crypt_stat *mount_crypt_stat)
 {
-	int error = 0;
+	int rc = 0;
 
-	(*encoded_name) = kmalloc(length + 2, GFP_KERNEL);
-	if (!(*encoded_name)) {
-		error = -ENOMEM;
+	filename->encrypted_filename = NULL;
+	filename->encrypted_filename_size = 0;
+	if ((crypt_stat && (crypt_stat->flags & ECRYPTFS_ENCFN_USE_MOUNT_FNEK))
+	    || (mount_crypt_stat && (mount_crypt_stat->flags
+				     & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK))) {
+		size_t packet_size;
+		size_t remaining_bytes;
+
+		rc = ecryptfs_write_tag_70_packet(
+			NULL, NULL,
+			&filename->encrypted_filename_size,
+			mount_crypt_stat, NULL,
+			filename->filename_size);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to get packet "
+			       "size for tag 72; rc = [%d]\n", __func__,
+			       rc);
+			filename->encrypted_filename_size = 0;
+			goto out;
+		}
+		filename->encrypted_filename =
+			kmalloc(filename->encrypted_filename_size, GFP_KERNEL);
+		if (!filename->encrypted_filename) {
+			printk(KERN_ERR "%s: Out of memory whilst attempting "
+			       "to kmalloc [%zd] bytes\n", __func__,
+			       filename->encrypted_filename_size);
+			rc = -ENOMEM;
+			goto out;
+		}
+		remaining_bytes = filename->encrypted_filename_size;
+		rc = ecryptfs_write_tag_70_packet(filename->encrypted_filename,
+						  &remaining_bytes,
+						  &packet_size,
+						  mount_crypt_stat,
+						  filename->filename,
+						  filename->filename_size);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to generate "
+			       "tag 70 packet; rc = [%d]\n", __func__,
+			       rc);
+			kfree(filename->encrypted_filename);
+			filename->encrypted_filename = NULL;
+			filename->encrypted_filename_size = 0;
+			goto out;
+		}
+		filename->encrypted_filename_size = packet_size;
+	} else {
+		printk(KERN_ERR "%s: No support for requested filename "
+		       "encryption method in this release\n", __func__);
+		rc = -ENOTSUPP;
 		goto out;
 	}
-	/* TODO: Filename encryption is a scheduled feature for a
-	 * future version of eCryptfs. This function is here only for
-	 * the purpose of providing a framework for other developers
-	 * to easily implement filename encryption. Hint: Replace this
-	 * memcpy() with a call to encrypt and encode the
-	 * filename, the set the length accordingly. */
-	memcpy((void *)(*encoded_name), (void *)name, length);
-	(*encoded_name)[length] = '\0';
-	error = length + 1;
 out:
-	return error;
+	return rc;
 }
 
-/**
- * ecryptfs_decode_filename - converts the cipher text name to plaintext
- * @crypt_stat: The crypt_stat struct associated with the file
- * @name: The filename in cipher text
- * @length: The length of the cipher text name
- * @decrypted_name: The plaintext name
- *
- * Decodes and decrypts the filename.
- *
- * We assume that we have a properly initialized crypto context,
- * pointed to by crypt_stat->tfm.
- *
- * TODO: Implement filename decoding and decryption here, in place of
- * memcpy. We are keeping the framework around for now to (1)
- * facilitate testing of the components needed to implement filename
- * encryption and (2) to provide a code base from which other
- * developers in the community can easily implement this feature.
- *
- * Returns the length of decoded filename; negative if error
- */
-int
-ecryptfs_decode_filename(struct ecryptfs_crypt_stat *crypt_stat,
-			 const char *name, int length, char **decrypted_name)
+static int ecryptfs_copy_filename(char **copied_name, size_t *copied_name_size,
+				  const char *name, size_t name_size)
 {
-	int error = 0;
+	int rc = 0;
 
-	(*decrypted_name) = kmalloc(length + 2, GFP_KERNEL);
-	if (!(*decrypted_name)) {
-		error = -ENOMEM;
+	(*copied_name) = kmalloc((name_size + 2), GFP_KERNEL);
+	if (!(*copied_name)) {
+		rc = -ENOMEM;
 		goto out;
 	}
-	/* TODO: Filename encryption is a scheduled feature for a
-	 * future version of eCryptfs. This function is here only for
-	 * the purpose of providing a framework for other developers
-	 * to easily implement filename encryption. Hint: Replace this
-	 * memcpy() with a call to decode and decrypt the
-	 * filename, the set the length accordingly. */
-	memcpy((void *)(*decrypted_name), (void *)name, length);
-	(*decrypted_name)[length + 1] = '\0';	/* Only for convenience
+	memcpy((void *)(*copied_name), (void *)name, name_size);
+	(*copied_name)[(name_size)] = '\0';	/* Only for convenience
 						 * in printing out the
 						 * string in debug
 						 * messages */
-	error = length;
+	(*copied_name_size) = (name_size + 1);
 out:
-	return error;
+	return rc;
 }
 
 /**
@@ -1740,7 +1752,7 @@ ecryptfs_process_key_cipher(struct crypto_blkcipher **key_tfm,
 	*key_tfm = NULL;
 	if (*key_size > ECRYPTFS_MAX_KEY_BYTES) {
 		rc = -EINVAL;
-		printk(KERN_ERR "Requested key size is [%Zd] bytes; maximum "
+		printk(KERN_ERR "Requested key size is [%zd] bytes; maximum "
 		      "allowable is [%d]\n", *key_size, ECRYPTFS_MAX_KEY_BYTES);
 		goto out;
 	}
@@ -1765,7 +1777,7 @@ ecryptfs_process_key_cipher(struct crypto_blkcipher **key_tfm,
 	get_random_bytes(dummy_key, *key_size);
 	rc = crypto_blkcipher_setkey(*key_tfm, dummy_key, *key_size);
 	if (rc) {
-		printk(KERN_ERR "Error attempting to set key of size [%Zd] for "
+		printk(KERN_ERR "Error attempting to set key of size [%zd] for "
 		       "cipher [%s]; rc = [%d]\n", *key_size, cipher_name, rc);
 		rc = -EINVAL;
 		goto out;
@@ -1908,5 +1920,343 @@ int ecryptfs_get_tfm_and_mutex_for_cipher_name(struct crypto_blkcipher **tfm,
 	(*tfm_mutex) = &key_tfm->key_tfm_mutex;
 out:
 	mutex_unlock(&key_tfm_list_mutex);
+	return rc;
+}
+
+/* 64 characters forming a 6-bit target field */
+static unsigned char *portable_filename_chars = ("-.0123456789ABCD"
+						 "EFGHIJKLMNOPQRST"
+						 "UVWXYZabcdefghij"
+						 "klmnopqrstuvwxyz");
+
+/* We could either offset on every reverse map or just pad some 0x00's
+ * at the front here */
+static const unsigned char filename_rev_map[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 7 */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 15 */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 23 */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 31 */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 39 */
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, /* 47 */
+	0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, /* 55 */
+	0x0A, 0x0B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* 63 */
+	0x00, 0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, /* 71 */
+	0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, /* 79 */
+	0x1B, 0x1C, 0x1D, 0x1E, 0x1F, 0x20, 0x21, 0x22, /* 87 */
+	0x23, 0x24, 0x25, 0x00, 0x00, 0x00, 0x00, 0x00, /* 95 */
+	0x00, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, /* 103 */
+	0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x32, 0x33, 0x34, /* 111 */
+	0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, /* 119 */
+	0x3D, 0x3E, 0x3F
+};
+
+/**
+ * ecryptfs_encode_for_filename
+ * @dst: Destination location for encoded filename
+ * @dst_size: Size of the encoded filename in bytes
+ * @src: Source location for the filename to encode
+ * @src_size: Size of the source in bytes
+ */
+void ecryptfs_encode_for_filename(unsigned char *dst, size_t *dst_size,
+				  unsigned char *src, size_t src_size)
+{
+	size_t num_blocks;
+	size_t block_num = 0;
+	size_t dst_offset = 0;
+	unsigned char last_block[3];
+
+	if (src_size == 0) {
+		(*dst_size) = 0;
+		goto out;
+	}
+	num_blocks = (src_size / 3);
+	if ((src_size % 3) == 0) {
+		memcpy(last_block, (&src[src_size - 3]), 3);
+	} else {
+		num_blocks++;
+		last_block[2] = 0x00;
+		switch (src_size % 3) {
+		case 1:
+			last_block[0] = src[src_size - 1];
+			last_block[1] = 0x00;
+			break;
+		case 2:
+			last_block[0] = src[src_size - 2];
+			last_block[1] = src[src_size - 1];
+		}
+	}
+	(*dst_size) = (num_blocks * 4);
+	if (!dst)
+		goto out;
+	while (block_num < num_blocks) {
+		unsigned char *src_block;
+		unsigned char dst_block[4];
+
+		if (block_num == (num_blocks - 1))
+			src_block = last_block;
+		else
+			src_block = &src[block_num * 3];
+		dst_block[0] = ((src_block[0] >> 2) & 0x3F);
+		dst_block[1] = (((src_block[0] << 4) & 0x30)
+				| ((src_block[1] >> 4) & 0x0F));
+		dst_block[2] = (((src_block[1] << 2) & 0x3C)
+				| ((src_block[2] >> 6) & 0x03));
+		dst_block[3] = (src_block[2] & 0x3F);
+		dst[dst_offset++] = portable_filename_chars[dst_block[0]];
+		dst[dst_offset++] = portable_filename_chars[dst_block[1]];
+		dst[dst_offset++] = portable_filename_chars[dst_block[2]];
+		dst[dst_offset++] = portable_filename_chars[dst_block[3]];
+		block_num++;
+	}
+out:
+	return;
+}
+
+/**
+ * ecryptfs_decode_from_filename
+ * @dst: If NULL, this function only sets @dst_size and returns. If
+ *       non-NULL, this function decodes the encoded octets in @src
+ *       into the memory that @dst points to.
+ * @dst_size: Set to the size of the decoded string.
+ * @src: The encoded set of octets to decode.
+ * @src_size: The size of the encoded set of octets to decode.
+ */
+static void
+ecryptfs_decode_from_filename(unsigned char *dst, size_t *dst_size,
+			      const unsigned char *src, size_t src_size)
+{
+	u8 current_bit_offset = 0;
+	size_t src_byte_offset = 0;
+	size_t dst_byte_offset = 0;
+
+	if (dst == NULL) {
+		/* Not exact; conservatively long. Every block of 4
+		 * encoded characters decodes into a block of 3
+		 * decoded characters. This segment of code provides
+		 * the caller with the maximum amount of allocated
+		 * space that @dst will need to point to in a
+		 * subsequent call. */
+		(*dst_size) = (((src_size + 1) * 3) / 4);
+		goto out;
+	}
+	while (src_byte_offset < src_size) {
+		unsigned char src_byte =
+				filename_rev_map[(int)src[src_byte_offset]];
+
+		switch (current_bit_offset) {
+		case 0:
+			dst[dst_byte_offset] = (src_byte << 2);
+			current_bit_offset = 6;
+			break;
+		case 6:
+			dst[dst_byte_offset++] |= (src_byte >> 4);
+			dst[dst_byte_offset] = ((src_byte & 0xF)
+						 << 4);
+			current_bit_offset = 4;
+			break;
+		case 4:
+			dst[dst_byte_offset++] |= (src_byte >> 2);
+			dst[dst_byte_offset] = (src_byte << 6);
+			current_bit_offset = 2;
+			break;
+		case 2:
+			dst[dst_byte_offset++] |= (src_byte);
+			dst[dst_byte_offset] = 0;
+			current_bit_offset = 0;
+			break;
+		}
+		src_byte_offset++;
+	}
+	(*dst_size) = dst_byte_offset;
+out:
+	return;
+}
+
+/**
+ * ecryptfs_encrypt_and_encode_filename - converts a plaintext file name to cipher text
+ * @crypt_stat: The crypt_stat struct associated with the file anem to encode
+ * @name: The plaintext name
+ * @length: The length of the plaintext
+ * @encoded_name: The encypted name
+ *
+ * Encrypts and encodes a filename into something that constitutes a
+ * valid filename for a filesystem, with printable characters.
+ *
+ * We assume that we have a properly initialized crypto context,
+ * pointed to by crypt_stat->tfm.
+ *
+ * Returns zero on success; non-zero on otherwise
+ */
+int ecryptfs_encrypt_and_encode_filename(
+	char **encoded_name,
+	size_t *encoded_name_size,
+	struct ecryptfs_crypt_stat *crypt_stat,
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat,
+	const char *name, size_t name_size)
+{
+	size_t encoded_name_no_prefix_size;
+	int rc = 0;
+
+	(*encoded_name) = NULL;
+	(*encoded_name_size) = 0;
+	if ((crypt_stat && (crypt_stat->flags & ECRYPTFS_ENCRYPT_FILENAMES))
+	    || (mount_crypt_stat && (mount_crypt_stat->flags
+				     & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES))) {
+		struct ecryptfs_filename *filename;
+
+		filename = kzalloc(sizeof(*filename), GFP_KERNEL);
+		if (!filename) {
+			printk(KERN_ERR "%s: Out of memory whilst attempting "
+			       "to kzalloc [%zd] bytes\n", __func__,
+			       sizeof(*filename));
+			rc = -ENOMEM;
+			goto out;
+		}
+		filename->filename = (char *)name;
+		filename->filename_size = name_size;
+		rc = ecryptfs_encrypt_filename(filename, crypt_stat,
+					       mount_crypt_stat);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to encrypt "
+			       "filename; rc = [%d]\n", __func__, rc);
+			kfree(filename);
+			goto out;
+		}
+		ecryptfs_encode_for_filename(
+			NULL, &encoded_name_no_prefix_size,
+			filename->encrypted_filename,
+			filename->encrypted_filename_size);
+		if ((crypt_stat && (crypt_stat->flags
+				    & ECRYPTFS_ENCFN_USE_MOUNT_FNEK))
+		    || (mount_crypt_stat
+			&& (mount_crypt_stat->flags
+			    & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK)))
+			(*encoded_name_size) =
+				(ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE
+				 + encoded_name_no_prefix_size);
+		else
+			(*encoded_name_size) =
+				(ECRYPTFS_FEK_ENCRYPTED_FILENAME_PREFIX_SIZE
+				 + encoded_name_no_prefix_size);
+		(*encoded_name) = kmalloc((*encoded_name_size) + 1, GFP_KERNEL);
+		if (!(*encoded_name)) {
+			printk(KERN_ERR "%s: Out of memory whilst attempting "
+			       "to kzalloc [%zd] bytes\n", __func__,
+			       (*encoded_name_size));
+			rc = -ENOMEM;
+			kfree(filename->encrypted_filename);
+			kfree(filename);
+			goto out;
+		}
+		if ((crypt_stat && (crypt_stat->flags
+				    & ECRYPTFS_ENCFN_USE_MOUNT_FNEK))
+		    || (mount_crypt_stat
+			&& (mount_crypt_stat->flags
+			    & ECRYPTFS_GLOBAL_ENCFN_USE_MOUNT_FNEK))) {
+			memcpy((*encoded_name),
+			       ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX,
+			       ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE);
+			ecryptfs_encode_for_filename(
+			    ((*encoded_name)
+			     + ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE),
+			    &encoded_name_no_prefix_size,
+			    filename->encrypted_filename,
+			    filename->encrypted_filename_size);
+			(*encoded_name_size) =
+				(ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE
+				 + encoded_name_no_prefix_size);
+			(*encoded_name)[(*encoded_name_size)] = '\0';
+			(*encoded_name_size)++;
+		} else {
+			rc = -ENOTSUPP;
+		}
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to encode "
+			       "encrypted filename; rc = [%d]\n", __func__,
+			       rc);
+			kfree((*encoded_name));
+			(*encoded_name) = NULL;
+			(*encoded_name_size) = 0;
+		}
+		kfree(filename->encrypted_filename);
+		kfree(filename);
+	} else {
+		rc = ecryptfs_copy_filename(encoded_name,
+					    encoded_name_size,
+					    name, name_size);
+	}
+out:
+	return rc;
+}
+
+/**
+ * ecryptfs_decode_and_decrypt_filename - converts the encoded cipher text name to decoded plaintext
+ * @plaintext_name: The plaintext name
+ * @plaintext_name_size: The plaintext name size
+ * @ecryptfs_dir_dentry: eCryptfs directory dentry
+ * @name: The filename in cipher text
+ * @name_size: The cipher text name size
+ *
+ * Decrypts and decodes the filename.
+ *
+ * Returns zero on error; non-zero otherwise
+ */
+int ecryptfs_decode_and_decrypt_filename(char **plaintext_name,
+					 size_t *plaintext_name_size,
+					 struct dentry *ecryptfs_dir_dentry,
+					 const char *name, size_t name_size)
+{
+	char *decoded_name;
+	size_t decoded_name_size;
+	size_t packet_size;
+	int rc = 0;
+
+	if ((name_size > ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE)
+	    && (strncmp(name, ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX,
+			ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE) == 0)) {
+		struct ecryptfs_mount_crypt_stat *mount_crypt_stat =
+			&ecryptfs_superblock_to_private(
+				ecryptfs_dir_dentry->d_sb)->mount_crypt_stat;
+		const char *orig_name = name;
+		size_t orig_name_size = name_size;
+
+		name += ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE;
+		name_size -= ECRYPTFS_FNEK_ENCRYPTED_FILENAME_PREFIX_SIZE;
+		ecryptfs_decode_from_filename(NULL, &decoded_name_size,
+					      name, name_size);
+		decoded_name = kmalloc(decoded_name_size, GFP_KERNEL);
+		if (!decoded_name) {
+			printk(KERN_ERR "%s: Out of memory whilst attempting "
+			       "to kmalloc [%zd] bytes\n", __func__,
+			       decoded_name_size);
+			rc = -ENOMEM;
+			goto out;
+		}
+		ecryptfs_decode_from_filename(decoded_name, &decoded_name_size,
+					      name, name_size);
+		rc = ecryptfs_parse_tag_70_packet(plaintext_name,
+						  plaintext_name_size,
+						  &packet_size,
+						  mount_crypt_stat,
+						  decoded_name,
+						  decoded_name_size);
+		if (rc) {
+			printk(KERN_INFO "%s: Could not parse tag 70 packet "
+			       "from filename; copying through filename "
+			       "as-is\n", __func__);
+			rc = ecryptfs_copy_filename(plaintext_name,
+						    plaintext_name_size,
+						    orig_name, orig_name_size);
+			goto out_free;
+		}
+	} else {
+		rc = ecryptfs_copy_filename(plaintext_name,
+					    plaintext_name_size,
+					    name, name_size);
+		goto out;
+	}
+out_free:
+	kfree(decoded_name);
+out:
 	return rc;
 }

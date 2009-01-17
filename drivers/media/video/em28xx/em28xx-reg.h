@@ -160,7 +160,7 @@
 
 /* FIXME: Need to be populated with the other chip ID's */
 enum em28xx_chip_id {
-	CHIP_ID_EM2820 = 18,
+	CHIP_ID_EM2820 = 18,	/* Also used by em2710 */
 	CHIP_ID_EM2840 = 20,
 	CHIP_ID_EM2750 = 33,
 	CHIP_ID_EM2860 = 34,

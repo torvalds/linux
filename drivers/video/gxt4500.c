@@ -648,7 +648,7 @@ static int __devinit gxt4500_probe(struct pci_dev *pdev,
 	info->pseudo_palette = par->pseudo_palette;
 
 	info->fix.mmio_start = reg_phys;
-	par->regs = ioremap(reg_phys, pci_resource_len(pdev, 0));
+	par->regs = pci_ioremap_bar(pdev, 0);
 	if (!par->regs) {
 		dev_err(&pdev->dev, "gxt4500: cannot map registers\n");
 		goto err_free_all;
@@ -656,7 +656,7 @@ static int __devinit gxt4500_probe(struct pci_dev *pdev,
 
 	info->fix.smem_start = fb_phys;
 	info->fix.smem_len = pci_resource_len(pdev, 1);
-	info->screen_base = ioremap(fb_phys, pci_resource_len(pdev, 1));
+	info->screen_base = pci_ioremap_bar(pdev, 1);
 	if (!info->screen_base) {
 		dev_err(&pdev->dev, "gxt4500: cannot map framebuffer\n");
 		goto err_unmap_regs;

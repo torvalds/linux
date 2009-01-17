@@ -1,0 +1,32 @@
+config OTUS
+	tristate "Atheros OTUS 802.11n USB wireless support"
+	depends on USB && WLAN_80211 && MAC80211
+	default N
+	---help---
+	  Enable support for Atheros 802.11n USB hardware:
+	    * UB81 - 2x2 2.4 GHz
+	    * UB82 - 2x2 2.4 GHz and 5 GHz
+	    * UB83 - 1x2 2.4 GHz
+
+	  This includes the following devices currently on the market:
+	  Dlink DWA-160A1, Netgear WNDA3100 and WN111v2, TP-Link
+	  TL-WN821N, and AVM FRITZ!WLAN N USB Stick.
+
+	  This driver requires its own supplicant driver for
+	  wpa_supplicant 0.4.8. For your convenience you can find the
+	  tarball here:
+
+	  http://www.kernel.org/pub/linux/kernel/people/mcgrof/otus/wpa_supplicant-0.4.8_otus.tar.bz2
+
+	  Before compiling wpa_supplicant, ensure your .config has at
+	  least the following:
+		CONFIG_WIRELESS_EXTENSION=y
+		CONFIG_EAP_WSC=y
+		CONFIG_WSC_IE=y
+		CONFIG_DRIVER_WEXT=y
+		CONFIG_DRIVER_OTUS=y
+
+	  After a successful compile, you can use the Atheros device as
+	  shown in the example:
+	  $ wpa_supplicant -Dotus -i <atheros device from ifconfig> -c /path/to/wpa_supplicant.conf -d
+

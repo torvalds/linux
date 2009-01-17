@@ -51,9 +51,7 @@
  * the tag and address of the transmitting neighbor.
  */
 
-#define D_LOCAL 5
 #include <linux/netdevice.h>
-#include <linux/uwb/debug.h>
 #include <linux/etherdevice.h>
 #include <linux/wlp.h>
 #include "wlp-internal.h"
@@ -304,7 +302,6 @@ int wlp_eda_for_virtual(struct wlp_eda *eda,
 {
 	int result = 0;
 	struct wlp *wlp = container_of(eda, struct wlp, eda);
-	struct device *dev = &wlp->rc->uwb_dev.dev;
 	struct wlp_eda_node *itr;
 	unsigned long flags;
 	int found = 0;
@@ -313,26 +310,14 @@ int wlp_eda_for_virtual(struct wlp_eda *eda,
 	list_for_each_entry(itr, &eda->cache, list_node) {
 		if (!memcmp(itr->virt_addr, virt_addr,
 			   sizeof(itr->virt_addr))) {
-			d_printf(6, dev, "EDA: looking for %pM hit %02x:%02x "
-			       "wss %p tag 0x%02x state %u\n",
-			       virt_addr,
-			       itr->dev_addr.data[1],
-			       itr->dev_addr.data[0], itr->wss,
-			       itr->tag, itr->state);
 			result = (*function)(wlp, itr, priv);
 			*dev_addr = itr->dev_addr;
 			found = 1;
 			break;
-		} else
-			d_printf(6, dev, "EDA: looking for %pM against %pM miss\n",
-			         virt_addr, itr->virt_addr);
+		}
 	}
-	if (!found) {
-		if (printk_ratelimit())
-			dev_err(dev, "EDA: Eth addr %pM not found.\n",
-				virt_addr);
+	if (!found)
 		result = -ENODEV;
-	}
 	spin_unlock_irqrestore(&eda->lock, flags);
 	return result;
 }

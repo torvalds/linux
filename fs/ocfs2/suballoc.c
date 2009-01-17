@@ -35,6 +35,7 @@
 #include "ocfs2.h"
 
 #include "alloc.h"
+#include "blockcheck.h"
 #include "dlmglue.h"
 #include "inode.h"
 #include "journal.h"
@@ -145,62 +146,183 @@ static u32 ocfs2_bits_per_group(struct ocfs2_chain_list *cl)
 	return (u32)le16_to_cpu(cl->cl_cpg) * (u32)le16_to_cpu(cl->cl_bpc);
 }
 
-/* somewhat more expensive than our other checks, so use sparingly. */
-int ocfs2_check_group_descriptor(struct super_block *sb,
-				 struct ocfs2_dinode *di,
-				 struct ocfs2_group_desc *gd)
+#define do_error(fmt, ...)						\
+	do{								\
+		if (clean_error)					\
+			mlog(ML_ERROR, fmt "\n", ##__VA_ARGS__);	\
+		else							\
+			ocfs2_error(sb, fmt, ##__VA_ARGS__);		\
+	} while (0)
+
+static int ocfs2_validate_gd_self(struct super_block *sb,
+				  struct buffer_head *bh,
+				  int clean_error)
 {
-	unsigned int max_bits;
+	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
 
 	if (!OCFS2_IS_VALID_GROUP_DESC(gd)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(sb, gd);
-		return -EIO;
+		do_error("Group descriptor #%llu has bad signature %.*s",
+			 (unsigned long long)bh->b_blocknr, 7,
+			 gd->bg_signature);
+		return -EINVAL;
 	}
 
+	if (le64_to_cpu(gd->bg_blkno) != bh->b_blocknr) {
+		do_error("Group descriptor #%llu has an invalid bg_blkno "
+			 "of %llu",
+			 (unsigned long long)bh->b_blocknr,
+			 (unsigned long long)le64_to_cpu(gd->bg_blkno));
+		return -EINVAL;
+	}
+
+	if (le32_to_cpu(gd->bg_generation) != OCFS2_SB(sb)->fs_generation) {
+		do_error("Group descriptor #%llu has an invalid "
+			 "fs_generation of #%u",
+			 (unsigned long long)bh->b_blocknr,
+			 le32_to_cpu(gd->bg_generation));
+		return -EINVAL;
+	}
+
+	if (le16_to_cpu(gd->bg_free_bits_count) > le16_to_cpu(gd->bg_bits)) {
+		do_error("Group descriptor #%llu has bit count %u but "
+			 "claims that %u are free",
+			 (unsigned long long)bh->b_blocknr,
+			 le16_to_cpu(gd->bg_bits),
+			 le16_to_cpu(gd->bg_free_bits_count));
+		return -EINVAL;
+	}
+
+	if (le16_to_cpu(gd->bg_bits) > (8 * le16_to_cpu(gd->bg_size))) {
+		do_error("Group descriptor #%llu has bit count %u but "
+			 "max bitmap bits of %u",
+			 (unsigned long long)bh->b_blocknr,
+			 le16_to_cpu(gd->bg_bits),
+			 8 * le16_to_cpu(gd->bg_size));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ocfs2_validate_gd_parent(struct super_block *sb,
+				    struct ocfs2_dinode *di,
+				    struct buffer_head *bh,
+				    int clean_error)
+{
+	unsigned int max_bits;
+	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
+
 	if (di->i_blkno != gd->bg_parent_dinode) {
-		ocfs2_error(sb, "Group descriptor # %llu has bad parent "
-			    "pointer (%llu, expected %llu)",
-			    (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			    (unsigned long long)le64_to_cpu(gd->bg_parent_dinode),
-			    (unsigned long long)le64_to_cpu(di->i_blkno));
-		return -EIO;
+		do_error("Group descriptor #%llu has bad parent "
+			 "pointer (%llu, expected %llu)",
+			 (unsigned long long)bh->b_blocknr,
+			 (unsigned long long)le64_to_cpu(gd->bg_parent_dinode),
+			 (unsigned long long)le64_to_cpu(di->i_blkno));
+		return -EINVAL;
 	}
 
 	max_bits = le16_to_cpu(di->id2.i_chain.cl_cpg) * le16_to_cpu(di->id2.i_chain.cl_bpc);
 	if (le16_to_cpu(gd->bg_bits) > max_bits) {
-		ocfs2_error(sb, "Group descriptor # %llu has bit count of %u",
-			    (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			    le16_to_cpu(gd->bg_bits));
-		return -EIO;
+		do_error("Group descriptor #%llu has bit count of %u",
+			 (unsigned long long)bh->b_blocknr,
+			 le16_to_cpu(gd->bg_bits));
+		return -EINVAL;
 	}
 
 	if (le16_to_cpu(gd->bg_chain) >=
 	    le16_to_cpu(di->id2.i_chain.cl_next_free_rec)) {
-		ocfs2_error(sb, "Group descriptor # %llu has bad chain %u",
-			    (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			    le16_to_cpu(gd->bg_chain));
-		return -EIO;
-	}
-
-	if (le16_to_cpu(gd->bg_free_bits_count) > le16_to_cpu(gd->bg_bits)) {
-		ocfs2_error(sb, "Group descriptor # %llu has bit count %u but "
-			    "claims that %u are free",
-			    (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			    le16_to_cpu(gd->bg_bits),
-			    le16_to_cpu(gd->bg_free_bits_count));
-		return -EIO;
-	}
-
-	if (le16_to_cpu(gd->bg_bits) > (8 * le16_to_cpu(gd->bg_size))) {
-		ocfs2_error(sb, "Group descriptor # %llu has bit count %u but "
-			    "max bitmap bits of %u",
-			    (unsigned long long)le64_to_cpu(gd->bg_blkno),
-			    le16_to_cpu(gd->bg_bits),
-			    8 * le16_to_cpu(gd->bg_size));
-		return -EIO;
+		do_error("Group descriptor #%llu has bad chain %u",
+			 (unsigned long long)bh->b_blocknr,
+			 le16_to_cpu(gd->bg_chain));
+		return -EINVAL;
 	}
 
 	return 0;
+}
+
+#undef do_error
+
+/*
+ * This version only prints errors.  It does not fail the filesystem, and
+ * exists only for resize.
+ */
+int ocfs2_check_group_descriptor(struct super_block *sb,
+				 struct ocfs2_dinode *di,
+				 struct buffer_head *bh)
+{
+	int rc;
+	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
+
+	BUG_ON(!buffer_uptodate(bh));
+
+	/*
+	 * If the ecc fails, we return the error but otherwise
+	 * leave the filesystem running.  We know any error is
+	 * local to this block.
+	 */
+	rc = ocfs2_validate_meta_ecc(sb, bh->b_data, &gd->bg_check);
+	if (rc) {
+		mlog(ML_ERROR,
+		     "Checksum failed for group descriptor %llu\n",
+		     (unsigned long long)bh->b_blocknr);
+	} else
+		rc = ocfs2_validate_gd_self(sb, bh, 1);
+	if (!rc)
+		rc = ocfs2_validate_gd_parent(sb, di, bh, 1);
+
+	return rc;
+}
+
+static int ocfs2_validate_group_descriptor(struct super_block *sb,
+					   struct buffer_head *bh)
+{
+	int rc;
+	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *)bh->b_data;
+
+	mlog(0, "Validating group descriptor %llu\n",
+	     (unsigned long long)bh->b_blocknr);
+
+	BUG_ON(!buffer_uptodate(bh));
+
+	/*
+	 * If the ecc fails, we return the error but otherwise
+	 * leave the filesystem running.  We know any error is
+	 * local to this block.
+	 */
+	rc = ocfs2_validate_meta_ecc(sb, bh->b_data, &gd->bg_check);
+	if (rc)
+		return rc;
+
+	/*
+	 * Errors after here are fatal.
+	 */
+
+	return ocfs2_validate_gd_self(sb, bh, 0);
+}
+
+int ocfs2_read_group_descriptor(struct inode *inode, struct ocfs2_dinode *di,
+				u64 gd_blkno, struct buffer_head **bh)
+{
+	int rc;
+	struct buffer_head *tmp = *bh;
+
+	rc = ocfs2_read_block(inode, gd_blkno, &tmp,
+			      ocfs2_validate_group_descriptor);
+	if (rc)
+		goto out;
+
+	rc = ocfs2_validate_gd_parent(inode->i_sb, di, tmp, 0);
+	if (rc) {
+		brelse(tmp);
+		goto out;
+	}
+
+	/* If ocfs2_read_block() got us a new bh, pass it up. */
+	if (!*bh)
+		*bh = tmp;
+
+out:
+	return rc;
 }
 
 static int ocfs2_block_group_fill(handle_t *handle,
@@ -225,10 +347,10 @@ static int ocfs2_block_group_fill(handle_t *handle,
 		goto bail;
 	}
 
-	status = ocfs2_journal_access(handle,
-				      alloc_inode,
-				      bg_bh,
-				      OCFS2_JOURNAL_ACCESS_CREATE);
+	status = ocfs2_journal_access_gd(handle,
+					 alloc_inode,
+					 bg_bh,
+					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -358,8 +480,8 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 
 	bg = (struct ocfs2_group_desc *) bg_bh->b_data;
 
-	status = ocfs2_journal_access(handle, alloc_inode,
-				      bh, OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_di(handle, alloc_inode,
+					 bh, OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -441,11 +563,11 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 	ac->ac_alloc_slot = slot;
 
 	fe = (struct ocfs2_dinode *) bh->b_data;
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		OCFS2_RO_ON_INVALID_DINODE(alloc_inode->i_sb, fe);
-		status = -EIO;
-		goto bail;
-	}
+
+	/* The bh was validated by the inode read inside
+	 * ocfs2_inode_lock().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
+
 	if (!(fe->i_flags & cpu_to_le32(OCFS2_CHAIN_FL))) {
 		ocfs2_error(alloc_inode->i_sb, "Invalid chain allocator %llu",
 			    (unsigned long long)le64_to_cpu(fe->i_blkno));
@@ -790,10 +912,9 @@ static int ocfs2_block_group_find_clear_bits(struct ocfs2_super *osb,
 	int offset, start, found, status = 0;
 	struct ocfs2_group_desc *bg = (struct ocfs2_group_desc *) bg_bh->b_data;
 
-	if (!OCFS2_IS_VALID_GROUP_DESC(bg)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(osb->sb, bg);
-		return -EIO;
-	}
+	/* Callers got this descriptor from
+	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
 
 	found = start = best_offset = best_size = 0;
 	bitmap = bg->bg_bitmap;
@@ -858,11 +979,9 @@ static inline int ocfs2_block_group_set_bits(handle_t *handle,
 
 	mlog_entry_void();
 
-	if (!OCFS2_IS_VALID_GROUP_DESC(bg)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, bg);
-		status = -EIO;
-		goto bail;
-	}
+	/* All callers get the descriptor via
+	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
 	BUG_ON(le16_to_cpu(bg->bg_free_bits_count) < num_bits);
 
 	mlog(0, "block_group_set_bits: off = %u, num = %u\n", bit_off,
@@ -871,10 +990,10 @@ static inline int ocfs2_block_group_set_bits(handle_t *handle,
 	if (ocfs2_is_cluster_bitmap(alloc_inode))
 		journal_type = OCFS2_JOURNAL_ACCESS_UNDO;
 
-	status = ocfs2_journal_access(handle,
-				      alloc_inode,
-				      group_bh,
-				      journal_type);
+	status = ocfs2_journal_access_gd(handle,
+					 alloc_inode,
+					 group_bh,
+					 journal_type);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -931,21 +1050,10 @@ static int ocfs2_relink_block_group(handle_t *handle,
 	struct ocfs2_group_desc *bg = (struct ocfs2_group_desc *) bg_bh->b_data;
 	struct ocfs2_group_desc *prev_bg = (struct ocfs2_group_desc *) prev_bg_bh->b_data;
 
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		OCFS2_RO_ON_INVALID_DINODE(alloc_inode->i_sb, fe);
-		status = -EIO;
-		goto out;
-	}
-	if (!OCFS2_IS_VALID_GROUP_DESC(bg)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, bg);
-		status = -EIO;
-		goto out;
-	}
-	if (!OCFS2_IS_VALID_GROUP_DESC(prev_bg)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, prev_bg);
-		status = -EIO;
-		goto out;
-	}
+	/* The caller got these descriptors from
+	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
+	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(prev_bg));
 
 	mlog(0, "Suballoc %llu, chain %u, move group %llu to top, prev = %llu\n",
 	     (unsigned long long)le64_to_cpu(fe->i_blkno), chain,
@@ -956,8 +1064,8 @@ static int ocfs2_relink_block_group(handle_t *handle,
 	bg_ptr = le64_to_cpu(bg->bg_next_group);
 	prev_bg_ptr = le64_to_cpu(prev_bg->bg_next_group);
 
-	status = ocfs2_journal_access(handle, alloc_inode, prev_bg_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_gd(handle, alloc_inode, prev_bg_bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_rollback;
@@ -971,8 +1079,8 @@ static int ocfs2_relink_block_group(handle_t *handle,
 		goto out_rollback;
 	}
 
-	status = ocfs2_journal_access(handle, alloc_inode, bg_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_gd(handle, alloc_inode, bg_bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_rollback;
@@ -986,8 +1094,8 @@ static int ocfs2_relink_block_group(handle_t *handle,
 		goto out_rollback;
 	}
 
-	status = ocfs2_journal_access(handle, alloc_inode, fe_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_di(handle, alloc_inode, fe_bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_rollback;
@@ -1008,7 +1116,7 @@ out_rollback:
 		bg->bg_next_group = cpu_to_le64(bg_ptr);
 		prev_bg->bg_next_group = cpu_to_le64(prev_bg_ptr);
 	}
-out:
+
 	mlog_exit(status);
 	return status;
 }
@@ -1138,8 +1246,8 @@ static int ocfs2_alloc_dinode_update_counts(struct inode *inode,
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *) di_bh->b_data;
 	struct ocfs2_chain_list *cl = (struct ocfs2_chain_list *) &di->id2.i_chain;
 
-	ret = ocfs2_journal_access(handle, inode, di_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = ocfs2_journal_access_di(handle, inode, di_bh,
+				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
@@ -1170,21 +1278,17 @@ static int ocfs2_search_one_group(struct ocfs2_alloc_context *ac,
 	u16 found;
 	struct buffer_head *group_bh = NULL;
 	struct ocfs2_group_desc *gd;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)ac->ac_bh->b_data;
 	struct inode *alloc_inode = ac->ac_inode;
 
-	ret = ocfs2_read_block(alloc_inode, gd_blkno, &group_bh);
+	ret = ocfs2_read_group_descriptor(alloc_inode, di, gd_blkno,
+					  &group_bh);
 	if (ret < 0) {
 		mlog_errno(ret);
 		return ret;
 	}
 
 	gd = (struct ocfs2_group_desc *) group_bh->b_data;
-	if (!OCFS2_IS_VALID_GROUP_DESC(gd)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, gd);
-		ret = -EIO;
-		goto out;
-	}
-
 	ret = ac->ac_group_search(alloc_inode, group_bh, bits_wanted, min_bits,
 				  ac->ac_max_block, bit_off, &found);
 	if (ret < 0) {
@@ -1241,19 +1345,14 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	     bits_wanted, chain,
 	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno);
 
-	status = ocfs2_read_block(alloc_inode,
-				  le64_to_cpu(cl->cl_recs[chain].c_blkno),
-				  &group_bh);
+	status = ocfs2_read_group_descriptor(alloc_inode, fe,
+					     le64_to_cpu(cl->cl_recs[chain].c_blkno),
+					     &group_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
 	bg = (struct ocfs2_group_desc *) group_bh->b_data;
-	status = ocfs2_check_group_descriptor(alloc_inode->i_sb, fe, bg);
-	if (status) {
-		mlog_errno(status);
-		goto bail;
-	}
 
 	status = -ENOSPC;
 	/* for now, the chain search is a bit simplistic. We just use
@@ -1271,18 +1370,13 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 		next_group = le64_to_cpu(bg->bg_next_group);
 		prev_group_bh = group_bh;
 		group_bh = NULL;
-		status = ocfs2_read_block(alloc_inode,
-					  next_group, &group_bh);
+		status = ocfs2_read_group_descriptor(alloc_inode, fe,
+						     next_group, &group_bh);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
 		}
 		bg = (struct ocfs2_group_desc *) group_bh->b_data;
-		status = ocfs2_check_group_descriptor(alloc_inode->i_sb, fe, bg);
-		if (status) {
-			mlog_errno(status);
-			goto bail;
-		}
 	}
 	if (status < 0) {
 		if (status != -ENOSPC)
@@ -1324,10 +1418,10 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 
 	/* Ok, claim our bits now: set the info on dinode, chainlist
 	 * and then the group */
-	status = ocfs2_journal_access(handle,
-				      alloc_inode,
-				      ac->ac_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_di(handle,
+					 alloc_inode,
+					 ac->ac_bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -1392,11 +1486,11 @@ static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 	BUG_ON(!ac->ac_bh);
 
 	fe = (struct ocfs2_dinode *) ac->ac_bh->b_data;
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		OCFS2_RO_ON_INVALID_DINODE(osb->sb, fe);
-		status = -EIO;
-		goto bail;
-	}
+
+	/* The bh was validated by the inode read during
+	 * ocfs2_reserve_suballoc_bits().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
+
 	if (le32_to_cpu(fe->id1.bitmap1.i_used) >=
 	    le32_to_cpu(fe->id1.bitmap1.i_total)) {
 		ocfs2_error(osb->sb, "Chain allocator dinode %llu has %u used "
@@ -1725,19 +1819,17 @@ static inline int ocfs2_block_group_clear_bits(handle_t *handle,
 
 	mlog_entry_void();
 
-	if (!OCFS2_IS_VALID_GROUP_DESC(bg)) {
-		OCFS2_RO_ON_INVALID_GROUP_DESC(alloc_inode->i_sb, bg);
-		status = -EIO;
-		goto bail;
-	}
+	/* The caller got this descriptor from
+	 * ocfs2_read_group_descriptor().  Any corruption is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_GROUP_DESC(bg));
 
 	mlog(0, "off = %u, num = %u\n", bit_off, num_bits);
 
 	if (ocfs2_is_cluster_bitmap(alloc_inode))
 		journal_type = OCFS2_JOURNAL_ACCESS_UNDO;
 
-	status = ocfs2_journal_access(handle, alloc_inode, group_bh,
-				      journal_type);
+	status = ocfs2_journal_access_gd(handle, alloc_inode, group_bh,
+					 journal_type);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -1782,29 +1874,26 @@ int ocfs2_free_suballoc_bits(handle_t *handle,
 
 	mlog_entry_void();
 
-	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		OCFS2_RO_ON_INVALID_DINODE(alloc_inode->i_sb, fe);
-		status = -EIO;
-		goto bail;
-	}
+	/* The alloc_bh comes from ocfs2_free_dinode() or
+	 * ocfs2_free_clusters().  The callers have all locked the
+	 * allocator and gotten alloc_bh from the lock call.  This
+	 * validates the dinode buffer.  Any corruption that has happended
+	 * is a code bug. */
+	BUG_ON(!OCFS2_IS_VALID_DINODE(fe));
 	BUG_ON((count + start_bit) > ocfs2_bits_per_group(cl));
 
 	mlog(0, "%llu: freeing %u bits from group %llu, starting at %u\n",
 	     (unsigned long long)OCFS2_I(alloc_inode)->ip_blkno, count,
 	     (unsigned long long)bg_blkno, start_bit);
 
-	status = ocfs2_read_block(alloc_inode, bg_blkno, &group_bh);
+	status = ocfs2_read_group_descriptor(alloc_inode, fe, bg_blkno,
+					     &group_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
-
 	group = (struct ocfs2_group_desc *) group_bh->b_data;
-	status = ocfs2_check_group_descriptor(alloc_inode->i_sb, fe, group);
-	if (status) {
-		mlog_errno(status);
-		goto bail;
-	}
+
 	BUG_ON((count + start_bit) > le16_to_cpu(group->bg_bits));
 
 	status = ocfs2_block_group_clear_bits(handle, alloc_inode,
@@ -1815,8 +1904,8 @@ int ocfs2_free_suballoc_bits(handle_t *handle,
 		goto bail;
 	}
 
-	status = ocfs2_journal_access(handle, alloc_inode, alloc_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
+	status = ocfs2_journal_access_di(handle, alloc_inode, alloc_bh,
+					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;

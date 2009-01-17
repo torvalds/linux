@@ -44,8 +44,8 @@
 #include <asm/types.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
-#include <asm/ia32.h>
 #include <asm/vgtod.h>
+#include <asm/sys_ia32.h>
 
 #define AA(__x)		((unsigned long)(__x))
 

@@ -55,7 +55,6 @@ struct platform_driver {
 	int (*suspend_late)(struct platform_device *, pm_message_t state);
 	int (*resume_early)(struct platform_device *);
 	int (*resume)(struct platform_device *);
-	struct pm_ext_ops *pm;
 	struct device_driver driver;
 };
 

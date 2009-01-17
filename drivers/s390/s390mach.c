@@ -18,6 +18,7 @@
 #include <asm/etr.h>
 #include <asm/lowcore.h>
 #include <asm/cio.h>
+#include <asm/cpu.h>
 #include "s390mach.h"
 
 static struct semaphore m_sem;
@@ -368,6 +369,8 @@ s390_do_machine_check(struct pt_regs *regs)
 	int umode;
 
 	lockdep_off();
+
+	s390_idle_check();
 
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
 	mcck = &__get_cpu_var(cpu_mcck);

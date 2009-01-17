@@ -1,0 +1,5 @@
+config RTL8187SE
+	tristate "RealTek RTL8187SE Wireless LAN NIC driver"
+	depends on PCI
+	default N
+	---help---

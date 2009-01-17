@@ -233,7 +233,7 @@ static int wm8739_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	return -EINVAL;
 }
 
-static int wm8739_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip)
+static int wm8739_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

@@ -283,7 +283,7 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 		return 0;
 
 	DCSR(host->dma) = 0;
-	dma_unmap_sg(mmc_dev(host->mmc), data->sg, host->dma_len,
+	dma_unmap_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
 		     host->dma_dir);
 
 	if (stat & STAT_READ_TIME_OUT)

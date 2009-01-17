@@ -13,6 +13,7 @@
 #include <asm/cachectl.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
+#include <asm/syscalls.h>
 
 /*
  * If you attempt to flush anything more than this, you need superuser

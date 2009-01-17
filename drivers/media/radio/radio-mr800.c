@@ -127,8 +127,8 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 static int usb_amradio_probe(struct usb_interface *intf,
 			     const struct usb_device_id *id);
 static void usb_amradio_disconnect(struct usb_interface *intf);
-static int usb_amradio_open(struct inode *inode, struct file *file);
-static int usb_amradio_close(struct inode *inode, struct file *file);
+static int usb_amradio_open(struct file *file);
+static int usb_amradio_close(struct file *file);
 static int usb_amradio_suspend(struct usb_interface *intf,
 				pm_message_t message);
 static int usb_amradio_resume(struct usb_interface *intf);
@@ -500,7 +500,7 @@ static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 }
 
 /* open device - amradio_start() and amradio_setfreq() */
-static int usb_amradio_open(struct inode *inode, struct file *file)
+static int usb_amradio_open(struct file *file)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
 
@@ -525,7 +525,7 @@ static int usb_amradio_open(struct inode *inode, struct file *file)
 }
 
 /*close device */
-static int usb_amradio_close(struct inode *inode, struct file *file)
+static int usb_amradio_close(struct file *file)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
 	int retval;
@@ -572,15 +572,11 @@ static int usb_amradio_resume(struct usb_interface *intf)
 }
 
 /* File system interface */
-static const struct file_operations usb_amradio_fops = {
+static const struct v4l2_file_operations usb_amradio_fops = {
 	.owner		= THIS_MODULE,
 	.open		= usb_amradio_open,
 	.release	= usb_amradio_close,
 	.ioctl		= video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek		= no_llseek,
 };
 
 static const struct v4l2_ioctl_ops usb_amradio_ioctl_ops = {

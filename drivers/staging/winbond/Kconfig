@@ -1,7 +1,11 @@
 config W35UND
-	tristate "Winbond driver"
-	depends on MAC80211 && WLAN_80211 && USB && EXPERIMENTAL && !4KSTACKS
+	tristate "IS89C35 WLAN USB driver"
+	depends on MAC80211 && WLAN_80211 && USB && EXPERIMENTAL
 	default n
 	---help---
-	  This is highly experimental driver for winbond wifi card on some Kohjinsha notebooks
-	  Check http://code.google.com/p/winbondport/ for new version
+	  This is highly experimental driver for Winbond WIFI card.
+
+	  Hardware is present in some Kohjinsha subnotebooks, and in some
+	  stand-alone USB modules. Chipset name seems to be w89c35d.
+
+	  Check http://code.google.com/p/winbondport/ for new version.

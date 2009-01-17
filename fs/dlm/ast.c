@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -33,10 +33,10 @@ void dlm_del_ast(struct dlm_lkb *lkb)
 	spin_unlock(&ast_queue_lock);
 }
 
-void dlm_add_ast(struct dlm_lkb *lkb, int type)
+void dlm_add_ast(struct dlm_lkb *lkb, int type, int bastmode)
 {
 	if (lkb->lkb_flags & DLM_IFL_USER) {
-		dlm_user_add_ast(lkb, type);
+		dlm_user_add_ast(lkb, type, bastmode);
 		return;
 	}
 
@@ -46,6 +46,8 @@ void dlm_add_ast(struct dlm_lkb *lkb, int type)
 		list_add_tail(&lkb->lkb_astqueue, &ast_queue);
 	}
 	lkb->lkb_ast_type |= type;
+	if (bastmode)
+		lkb->lkb_bastmode = bastmode;
 	spin_unlock(&ast_queue_lock);
 
 	set_bit(WAKE_ASTS, &astd_wakeflags);
@@ -59,50 +61,40 @@ static void process_asts(void)
 	struct dlm_lkb *lkb;
 	void (*cast) (void *astparam);
 	void (*bast) (void *astparam, int mode);
-	int type = 0, found, bmode;
+	int type = 0, bastmode;
 
-	for (;;) {
-		found = 0;
-		spin_lock(&ast_queue_lock);
-		list_for_each_entry(lkb, &ast_queue, lkb_astqueue) {
-			r = lkb->lkb_resource;
-			ls = r->res_ls;
+repeat:
+	spin_lock(&ast_queue_lock);
+	list_for_each_entry(lkb, &ast_queue, lkb_astqueue) {
+		r = lkb->lkb_resource;
+		ls = r->res_ls;
 
-			if (dlm_locking_stopped(ls))
-				continue;
+		if (dlm_locking_stopped(ls))
+			continue;
 
-			list_del(&lkb->lkb_astqueue);
-			type = lkb->lkb_ast_type;
-			lkb->lkb_ast_type = 0;
-			found = 1;
-			break;
-		}
+		list_del(&lkb->lkb_astqueue);
+		type = lkb->lkb_ast_type;
+		lkb->lkb_ast_type = 0;
+		bastmode = lkb->lkb_bastmode;
+
 		spin_unlock(&ast_queue_lock);
-
-		if (!found)
-			break;
-
 		cast = lkb->lkb_astfn;
 		bast = lkb->lkb_bastfn;
-		bmode = lkb->lkb_bastmode;
 
 		if ((type & AST_COMP) && cast)
 			cast(lkb->lkb_astparam);
 
-		/* FIXME: Is it safe to look at lkb_grmode here
-		   without doing a lock_rsb() ?
-		   Look at other checks in v1 to avoid basts. */
-
 		if ((type & AST_BAST) && bast)
-			if (!dlm_modes_compat(lkb->lkb_grmode, bmode))
-				bast(lkb->lkb_astparam, bmode);
+			bast(lkb->lkb_astparam, bastmode);
 
 		/* this removes the reference added by dlm_add_ast
 		   and may result in the lkb being freed */
 		dlm_put_lkb(lkb);
 
-		schedule();
+		cond_resched();
+		goto repeat;
 	}
+	spin_unlock(&ast_queue_lock);
 }
 
 static inline int no_asts(void)

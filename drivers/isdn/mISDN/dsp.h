@@ -15,6 +15,7 @@
 #define DEBUG_DSP_TONE		0x0020
 #define DEBUG_DSP_BLOWFISH	0x0040
 #define DEBUG_DSP_DELAY		0x0100
+#define DEBUG_DSP_CLOCK		0x0200
 #define DEBUG_DSP_DTMFCOEFF	0x8000 /* heavy output */
 
 /* options may be:
@@ -198,6 +199,7 @@ struct dsp {
 	/* hardware stuff */
 	struct dsp_features features;
 	int		features_rx_off; /* set if rx_off is featured */
+	int		features_fill_empty; /* set if fill_empty is featured */
 	int		pcm_slot_rx; /* current PCM slot (or -1) */
 	int		pcm_bank_rx;
 	int		pcm_slot_tx;

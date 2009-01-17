@@ -82,11 +82,11 @@
 #define DBG_LVL	3
 #endif /* DBG_LVL */
 
-#define DBG_DEFAULTS		(DBG_ERROR_ON | DBG_WARNING_ON | DBG_BREAK_ON )
+#define DBG_DEFAULTS		(DBG_ERROR_ON | DBG_WARNING_ON | DBG_BREAK_ON)
 
-#define DBG_FLAGS(A)		(A)->dbgFlags
-#define DBG_NAME(A)		(A)->dbgName
-#define DBG_LEVEL(A)		(A)->dbgLevel
+#define DBG_FLAGS(A)		((A)->dbgFlags)
+#define DBG_NAME(A)		((A)->dbgName)
+#define DBG_LEVEL(A)		((A)->dbgLevel)
 
 #ifndef DBG_PRINT
 #define DBG_PRINT(S...)		printk(KERN_DEBUG S)
@@ -108,56 +108,110 @@
 #define _DBG_LEAVE(A)	printk(KERN_DEBUG "%s:%.*s:%s\n", DBG_NAME(A),	\
 				DBG_LEVEL(A)--, _LEAVE_STR, __func__)
 
-#define DBG_ENTER(A)        {if (DBG_FLAGS(A) & DBG_TRACE_ON) \
-                                _DBG_ENTER(A);}
+#define DBG_ENTER(A)							\
+	do {								\
+		if (DBG_FLAGS(A) & DBG_TRACE_ON)			\
+			_DBG_ENTER(A);					\
+	} while (0)
 
-#define DBG_LEAVE(A)        {if (DBG_FLAGS(A) & DBG_TRACE_ON) \
-                                _DBG_LEAVE(A);}
+#define DBG_LEAVE(A)							\
+	do {								\
+		if (DBG_FLAGS(A) & DBG_TRACE_ON)			\
+			_DBG_LEAVE(A);					\
+	} while (0)
 
-#define DBG_PARAM(A,N,F,S...)   {if (DBG_FLAGS(A) & DBG_PARAM_ON) \
-                                    DBG_PRINT("  %s -- "F"\n",N,S);}
+#define DBG_PARAM(A, N, F, S...)					\
+	do {								\
+		if (DBG_FLAGS(A) & DBG_PARAM_ON)			\
+			DBG_PRINT("  %s -- "F" ", N, S);		\
+	} while (0)
 
-#define DBG_ERROR(A,S...)	\
-	if (DBG_FLAGS(A) & DBG_ERROR_ON) {				\
-		DBG_PRINT("%s:ERROR:%s ",DBG_NAME(A), __func__);	\
-		DBG_PRINTC(S);						\
-		DBG_TRAP;						\
-	}
+#define DBG_ERROR(A, S...)						 \
+	do {								 \
+		if (DBG_FLAGS(A) & DBG_ERROR_ON) {			 \
+			DBG_PRINT("%s:ERROR:%s ", DBG_NAME(A), __func__);\
+			DBG_PRINTC(S);					 \
+			DBG_TRAP;					 \
+		}							 \
+	} while (0)
 
-#define DBG_WARNING(A,S...) {if (DBG_FLAGS(A) & DBG_WARNING_ON) \
-                                {DBG_PRINT("%s:WARNING:%s ",DBG_NAME(A),__func__);DBG_PRINTC(S);}}
+#define DBG_WARNING(A, S...)						    \
+	do {								    \
+		if (DBG_FLAGS(A) & DBG_WARNING_ON) {			    \
+			DBG_PRINT("%s:WARNING:%s ", DBG_NAME(A), __func__); \
+			DBG_PRINTC(S);					    \
+		}							    \
+	} while (0)
 
-#define DBG_NOTICE(A,S...)  {if (DBG_FLAGS(A) & DBG_NOTICE_ON) \
-                                {DBG_PRINT("%s:NOTICE:%s ",DBG_NAME(A),__func__);DBG_PRINTC(S);}}
+#define DBG_NOTICE(A, S...)						   \
+	do {								   \
+		if (DBG_FLAGS(A) & DBG_NOTICE_ON) {			   \
+			DBG_PRINT("%s:NOTICE:%s ", DBG_NAME(A), __func__); \
+			DBG_PRINTC(S);					   \
+		}							   \
+	} while (0)
 
-#define DBG_TRACE(A,S...)   {if (DBG_FLAGS(A) & DBG_TRACE_ON) \
-                                {DBG_PRINT("%s:TRACE:%s ",DBG_NAME(A), __func__);DBG_PRINTC(S);}}
+#define DBG_TRACE(A, S...)						  \
+	do {								  \
+		if (DBG_FLAGS(A) & DBG_TRACE_ON) {			  \
+			DBG_PRINT("%s:TRACE:%s ", DBG_NAME(A), __func__); \
+			DBG_PRINTC(S);					  \
+		}							  \
+	} while (0)
 
-#define DBG_VERBOSE(A,S...) {if (DBG_FLAGS(A) & DBG_VERBOSE_ON) \
-                                {DBG_PRINT("%s:VERBOSE:%s ",DBG_NAME(A), __func__);DBG_PRINTC(S);}}
+#define DBG_VERBOSE(A, S...)						    \
+	do {								    \
+		if (DBG_FLAGS(A) & DBG_VERBOSE_ON) {			    \
+			DBG_PRINT("%s:VERBOSE:%s ", DBG_NAME(A), __func__); \
+			DBG_PRINTC(S);					    \
+		}							    \
+	} while (0)
 
-#define DBG_RX(A,S...)      {if (DBG_FLAGS(A) & DBG_RX_ON) \
-                                {DBG_PRINT(S);}}
+#define DBG_RX(A, S...)				\
+	do {					\
+		if (DBG_FLAGS(A) & DBG_RX_ON)	\
+			DBG_PRINT(S);		\
+	} while (0)
 
-#define DBG_RX_ENTER(A)     {if (DBG_FLAGS(A) & DBG_RX_ON) \
-                                _DBG_ENTER(A);}
+#define DBG_RX_ENTER(A)				\
+	do {					\
+		if (DBG_FLAGS(A) & DBG_RX_ON)	\
+			_DBG_ENTER(A);		\
+	} while (0)
 
-#define DBG_RX_LEAVE(A)     {if (DBG_FLAGS(A) & DBG_RX_ON) \
-                                _DBG_LEAVE(A);}
+#define DBG_RX_LEAVE(A)				\
+	do {					\
+		if (DBG_FLAGS(A) & DBG_RX_ON)	\
+			_DBG_LEAVE(A);		\
+	} while (0)
 
-#define DBG_TX(A,S...)      {if (DBG_FLAGS(A) & DBG_TX_ON) \
-                                {DBG_PRINT(S);}}
+#define DBG_TX(A, S...)				\
+	do {					\
+		if (DBG_FLAGS(A) & DBG_TX_ON)	\
+			DBG_PRINT(S);		\
+	} while (0)
 
-#define DBG_TX_ENTER(A)     {if (DBG_FLAGS(A) & DBG_TX_ON) \
-                                _DBG_ENTER(A);}
+#define DBG_TX_ENTER(A)				\
+	do {					\
+		if (DBG_FLAGS(A) & DBG_TX_ON)	\
+			_DBG_ENTER(A);		\
+	} while (0)
 
-#define DBG_TX_LEAVE(A)     {if (DBG_FLAGS(A) & DBG_TX_ON) \
-                                _DBG_LEAVE(A);}
+#define DBG_TX_LEAVE(A)				\
+	do {					\
+		if (DBG_FLAGS(A) & DBG_TX_ON)	\
+			_DBG_LEAVE(A);		\
+	} while (0)
 
-#define DBG_ASSERT(C)       {if (!(C)) \
-                                {DBG_PRINT("ASSERT(%s) -- %s#%d (%s)\n", \
-                                    #C,__FILE__,__LINE__,__func__); \
-                                DBG_TRAP;}}
+#define DBG_ASSERT(C)						\
+	do {							\
+		if (!(C)) {					\
+			DBG_PRINT("ASSERT(%s) -- %s#%d (%s) ",  \
+			     #C, __FILE__, __LINE__, __func__); \
+			DBG_TRAP;				\
+		}						\
+	} while (0)
+
 #define STATIC
 
 typedef struct {

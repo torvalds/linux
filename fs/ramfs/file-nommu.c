@@ -262,11 +262,11 @@ unsigned long ramfs_nommu_get_unmapped_area(struct file *file,
 	ret = -ENOMEM;
 	pages = kzalloc(lpages * sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
-		goto out;
+		goto out_free;
 
 	nr = find_get_pages(inode->i_mapping, pgoff, lpages, pages);
 	if (nr != lpages)
-		goto out; /* leave if some pages were missing */
+		goto out_free_pages; /* leave if some pages were missing */
 
 	/* check the pages for physical adjacency */
 	ptr = pages;
@@ -274,19 +274,18 @@ unsigned long ramfs_nommu_get_unmapped_area(struct file *file,
 	page++;
 	for (loop = lpages; loop > 1; loop--)
 		if (*ptr++ != page++)
-			goto out;
+			goto out_free_pages;
 
 	/* okay - all conditions fulfilled */
 	ret = (unsigned long) page_address(pages[0]);
 
- out:
-	if (pages) {
-		ptr = pages;
-		for (loop = lpages; loop > 0; loop--)
-			put_page(*ptr++);
-		kfree(pages);
-	}
-
+out_free_pages:
+	ptr = pages;
+	for (loop = nr; loop > 0; loop--)
+		put_page(*ptr++);
+out_free:
+	kfree(pages);
+out:
 	return ret;
 }
 

@@ -154,14 +154,32 @@ int security_capset(struct cred *new, const struct cred *old,
 				    effective, inheritable, permitted);
 }
 
-int security_capable(struct task_struct *tsk, int cap)
+int security_capable(int cap)
 {
-	return security_ops->capable(tsk, cap, SECURITY_CAP_AUDIT);
+	return security_ops->capable(current, current_cred(), cap,
+				     SECURITY_CAP_AUDIT);
 }
 
-int security_capable_noaudit(struct task_struct *tsk, int cap)
+int security_real_capable(struct task_struct *tsk, int cap)
 {
-	return security_ops->capable(tsk, cap, SECURITY_CAP_NOAUDIT);
+	const struct cred *cred;
+	int ret;
+
+	cred = get_task_cred(tsk);
+	ret = security_ops->capable(tsk, cred, cap, SECURITY_CAP_AUDIT);
+	put_cred(cred);
+	return ret;
+}
+
+int security_real_capable_noaudit(struct task_struct *tsk, int cap)
+{
+	const struct cred *cred;
+	int ret;
+
+	cred = get_task_cred(tsk);
+	ret = security_ops->capable(tsk, cred, cap, SECURITY_CAP_NOAUDIT);
+	put_cred(cred);
+	return ret;
 }
 
 int security_acct(struct file *file)

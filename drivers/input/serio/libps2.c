@@ -262,8 +262,16 @@ int ps2_handle_ack(struct ps2dev *ps2dev, unsigned char data)
 			break;
 
 		case PS2_RET_NAK:
-			ps2dev->nak = 1;
+			ps2dev->flags |= PS2_FLAG_NAK;
+			ps2dev->nak = PS2_RET_NAK;
 			break;
+
+		case PS2_RET_ERR:
+			if (ps2dev->flags & PS2_FLAG_NAK) {
+				ps2dev->flags &= ~PS2_FLAG_NAK;
+				ps2dev->nak = PS2_RET_ERR;
+				break;
+			}
 
 		/*
 		 * Workaround for mice which don't ACK the Get ID command.
@@ -282,8 +290,11 @@ int ps2_handle_ack(struct ps2dev *ps2dev, unsigned char data)
 	}
 
 
-	if (!ps2dev->nak && ps2dev->cmdcnt)
-		ps2dev->flags |= PS2_FLAG_CMD | PS2_FLAG_CMD1;
+	if (!ps2dev->nak) {
+		ps2dev->flags &= ~PS2_FLAG_NAK;
+		if (ps2dev->cmdcnt)
+			ps2dev->flags |= PS2_FLAG_CMD | PS2_FLAG_CMD1;
+	}
 
 	ps2dev->flags &= ~PS2_FLAG_ACK;
 	wake_up(&ps2dev->wait);
@@ -329,6 +340,7 @@ void ps2_cmd_aborted(struct ps2dev *ps2dev)
 	if (ps2dev->flags & (PS2_FLAG_ACK | PS2_FLAG_CMD))
 		wake_up(&ps2dev->wait);
 
-	ps2dev->flags = 0;
+	/* reset all flags except last nack */
+	ps2dev->flags &= PS2_FLAG_NAK;
 }
 EXPORT_SYMBOL(ps2_cmd_aborted);

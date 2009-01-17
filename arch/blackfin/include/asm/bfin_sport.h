@@ -120,9 +120,6 @@ struct sport_register {
 #define SPORT_IOC_MAGIC		'P'
 #define SPORT_IOC_CONFIG	_IOWR('P', 0x01, struct sport_config)
 
-/* Test purpose */
-#define ENABLE_AD73311		_IOWR('P', 0x02, int)
-
 struct sport_dev {
 	struct cdev cdev;	/* Char device structure */
 

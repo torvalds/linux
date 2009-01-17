@@ -312,7 +312,8 @@ static void sun4u_irq_enable(unsigned int virt_irq)
 	}
 }
 
-static void sun4u_set_affinity(unsigned int virt_irq, cpumask_t mask)
+static void sun4u_set_affinity(unsigned int virt_irq,
+			       const struct cpumask *mask)
 {
 	sun4u_irq_enable(virt_irq);
 }
@@ -362,7 +363,8 @@ static void sun4v_irq_enable(unsigned int virt_irq)
 		       ino, err);
 }
 
-static void sun4v_set_affinity(unsigned int virt_irq, cpumask_t mask)
+static void sun4v_set_affinity(unsigned int virt_irq,
+			       const struct cpumask *mask)
 {
 	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
 	unsigned long cpuid = irq_choose_cpu(virt_irq);
@@ -429,7 +431,8 @@ static void sun4v_virq_enable(unsigned int virt_irq)
 		       dev_handle, dev_ino, err);
 }
 
-static void sun4v_virt_set_affinity(unsigned int virt_irq, cpumask_t mask)
+static void sun4v_virt_set_affinity(unsigned int virt_irq,
+				    const struct cpumask *mask)
 {
 	unsigned long cpuid, dev_handle, dev_ino;
 	int err;
@@ -851,7 +854,7 @@ void fixup_irqs(void)
 		    !(irq_desc[irq].status & IRQ_PER_CPU)) {
 			if (irq_desc[irq].chip->set_affinity)
 				irq_desc[irq].chip->set_affinity(irq,
-					irq_desc[irq].affinity);
+					&irq_desc[irq].affinity);
 		}
 		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
 	}

@@ -1,6 +1,6 @@
 config GFS2_FS
 	tristate "GFS2 file system support"
-	depends on EXPERIMENTAL && (64BIT || (LSF && LBD))
+	depends on EXPERIMENTAL && (64BIT || LBD)
 	select FS_POSIX_ACL
 	select CRC32
 	help

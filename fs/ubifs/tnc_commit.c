@@ -553,8 +553,8 @@ static int layout_in_empty_space(struct ubifs_info *c)
 	}
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
-	c->new_ihead_lnum = lnum;
-	c->new_ihead_offs = buf_offs;
+	c->dbg->new_ihead_lnum = lnum;
+	c->dbg->new_ihead_offs = buf_offs;
 #endif
 
 	return 0;
@@ -802,8 +802,10 @@ int ubifs_tnc_start_commit(struct ubifs_info *c, struct ubifs_zbranch *zroot)
 	 * budgeting subsystem to assume the index is already committed,
 	 * even though it is not.
 	 */
+	ubifs_assert(c->min_idx_lebs == ubifs_calc_min_idx_lebs(c));
 	c->old_idx_sz = c->calc_idx_sz;
 	c->budg_uncommitted_idx = 0;
+	c->min_idx_lebs = ubifs_calc_min_idx_lebs(c);
 	spin_unlock(&c->space_lock);
 	mutex_unlock(&c->tnc_mutex);
 
@@ -1002,7 +1004,8 @@ static int write_index(struct ubifs_info *c)
 	}
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
-	if (lnum != c->new_ihead_lnum || buf_offs != c->new_ihead_offs) {
+	if (lnum != c->dbg->new_ihead_lnum ||
+	    buf_offs != c->dbg->new_ihead_offs) {
 		ubifs_err("inconsistent ihead");
 		return -EINVAL;
 	}

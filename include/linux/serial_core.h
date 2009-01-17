@@ -40,7 +40,8 @@
 #define PORT_NS16550A	14
 #define PORT_XSCALE	15
 #define PORT_RM9000	16	/* PMC-Sierra RM9xxx internal UART */
-#define PORT_MAX_8250	16	/* max port ID */
+#define PORT_OCTEON	17	/* Cavium OCTEON internal UART */
+#define PORT_MAX_8250	17	/* max port ID */
 
 /*
  * ARM specific type numbers.  These are not currently guaranteed
@@ -160,6 +161,9 @@
 
 #define PORT_S3C6400	84
 
+/* NWPSERIAL */
+#define PORT_NWPSERIAL	85
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
@@ -248,6 +252,8 @@ struct uart_port {
 	spinlock_t		lock;			/* port lock */
 	unsigned long		iobase;			/* in/out[bwl] */
 	unsigned char __iomem	*membase;		/* read/write[bwl] */
+	unsigned int		(*serial_in)(struct uart_port *, int);
+	void			(*serial_out)(struct uart_port *, int, int);
 	unsigned int		irq;			/* irq number */
 	unsigned int		uartclk;		/* base uart clock */
 	unsigned int		fifosize;		/* tx fifo size */
@@ -293,6 +299,8 @@ struct uart_port {
 #define UPF_MAGIC_MULTIPLIER	((__force upf_t) (1 << 16))
 #define UPF_CONS_FLOW		((__force upf_t) (1 << 23))
 #define UPF_SHARE_IRQ		((__force upf_t) (1 << 24))
+/* The exact UART type is known and should not be probed.  */
+#define UPF_FIXED_TYPE		((__force upf_t) (1 << 27))
 #define UPF_BOOT_AUTOCONF	((__force upf_t) (1 << 28))
 #define UPF_FIXED_PORT		((__force upf_t) (1 << 29))
 #define UPF_DEAD		((__force upf_t) (1 << 30))
@@ -316,35 +324,13 @@ struct uart_port {
 };
 
 /*
- * This is the state information which is persistent across opens.
- * The low level driver must not to touch any elements contained
- * within.
- */
-struct uart_state {
-	unsigned int		close_delay;		/* msec */
-	unsigned int		closing_wait;		/* msec */
-
-#define USF_CLOSING_WAIT_INF	(0)
-#define USF_CLOSING_WAIT_NONE	(~0U)
-
-	int			count;
-	int			pm_state;
-	struct uart_info	*info;
-	struct uart_port	*port;
-
-	struct mutex		mutex;
-};
-
-#define UART_XMIT_SIZE	PAGE_SIZE
-
-typedef unsigned int __bitwise__ uif_t;
-
-/*
  * This is the state information which is only valid when the port
- * is open; it may be freed by the core driver once the device has
+ * is open; it may be cleared the core driver once the device has
  * been closed.  Either the low level driver or the core can modify
  * stuff here.
  */
+typedef unsigned int __bitwise__ uif_t;
+
 struct uart_info {
 	struct tty_port		port;
 	struct circ_buf		xmit;
@@ -365,6 +351,29 @@ struct uart_info {
 	struct tasklet_struct	tlet;
 	wait_queue_head_t	delta_msr_wait;
 };
+
+/*
+ * This is the state information which is persistent across opens.
+ * The low level driver must not to touch any elements contained
+ * within.
+ */
+struct uart_state {
+	unsigned int		close_delay;		/* msec */
+	unsigned int		closing_wait;		/* msec */
+
+#define USF_CLOSING_WAIT_INF	(0)
+#define USF_CLOSING_WAIT_NONE	(~0U)
+
+	int			count;
+	int			pm_state;
+	struct uart_info	info;
+	struct uart_port	*port;
+
+	struct mutex		mutex;
+};
+
+#define UART_XMIT_SIZE	PAGE_SIZE
+
 
 /* number of characters left in xmit buffer before we ask for more */
 #define WAKEUP_CHARS		256
@@ -439,8 +448,13 @@ int uart_resume_port(struct uart_driver *reg, struct uart_port *port);
 #define uart_circ_chars_free(circ)	\
 	(CIRC_SPACE((circ)->head, (circ)->tail, UART_XMIT_SIZE))
 
-#define uart_tx_stopped(portp)		\
-	((portp)->info->port.tty->stopped || (portp)->info->port.tty->hw_stopped)
+static inline int uart_tx_stopped(struct uart_port *port)
+{
+	struct tty_struct *tty = port->info->port.tty;
+	if(tty->stopped || tty->hw_stopped)
+		return 1;
+	return 0;
+}
 
 /*
  * The following are helper functions for the low level drivers.
@@ -451,7 +465,7 @@ uart_handle_sysrq_char(struct uart_port *port, unsigned int ch)
 #ifdef SUPPORT_SYSRQ
 	if (port->sysrq) {
 		if (ch && time_before(jiffies, port->sysrq)) {
-			handle_sysrq(ch, port->info ? port->info->port.tty : NULL);
+			handle_sysrq(ch, port->info->port.tty);
 			port->sysrq = 0;
 			return 1;
 		}

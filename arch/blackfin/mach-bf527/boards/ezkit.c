@@ -54,57 +54,46 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "ADDS-BF527-EZKIT";
+const char bfin_board_name[] = "ADI BF527-EZKIT";
 
 /*
  *  Driver needs to know address, irq and flag pin.
  */
 
-#define ISP1761_BASE       0x203C0000
-#define ISP1761_IRQ        IRQ_PF7
-
 #if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
-static struct resource bfin_isp1761_resources[] = {
+#include <linux/usb/isp1760.h>
+static struct resource bfin_isp1760_resources[] = {
 	[0] = {
-		.name	= "isp1761-regs",
-		.start  = ISP1761_BASE + 0x00000000,
-		.end    = ISP1761_BASE + 0x000fffff,
+		.start  = 0x203C0000,
+		.end    = 0x203C0000 + 0x000fffff,
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = ISP1761_IRQ,
-		.end    = ISP1761_IRQ,
+		.start  = IRQ_PF7,
+		.end    = IRQ_PF7,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
 
-static struct platform_device bfin_isp1761_device = {
-	.name           = "isp1761",
+static struct isp1760_platform_data isp1760_priv = {
+	.is_isp1761 = 0,
+	.port1_disable = 0,
+	.bus_width_16 = 1,
+	.port1_otg = 0,
+	.analog_oc = 0,
+	.dack_polarity_high = 0,
+	.dreq_polarity_high = 0,
+};
+
+static struct platform_device bfin_isp1760_device = {
+	.name           = "isp1760-hcd",
 	.id             = 0,
-	.num_resources  = ARRAY_SIZE(bfin_isp1761_resources),
-	.resource       = bfin_isp1761_resources,
+	.dev = {
+		.platform_data = &isp1760_priv,
+	},
+	.num_resources  = ARRAY_SIZE(bfin_isp1760_resources),
+	.resource       = bfin_isp1760_resources,
 };
-
-static struct platform_device *bfin_isp1761_devices[] = {
-	&bfin_isp1761_device,
-};
-
-int __init bfin_isp1761_init(void)
-{
-	unsigned int num_devices = ARRAY_SIZE(bfin_isp1761_devices);
-
-	printk(KERN_INFO "%s(): registering device resources\n", __func__);
-	set_irq_type(ISP1761_IRQ, IRQF_TRIGGER_FALLING);
-
-	return platform_add_devices(bfin_isp1761_devices, num_devices);
-}
-
-void __exit bfin_isp1761_exit(void)
-{
-	platform_device_unregister(&bfin_isp1761_device);
-}
-
-arch_initcall(bfin_isp1761_init);
 #endif
 
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
@@ -131,8 +120,8 @@ static struct musb_hdrc_config musb_config = {
 	.dyn_fifo	= 0,
 	.soft_con	= 1,
 	.dma		= 1,
-	.num_eps	= 7,
-	.dma_channels	= 7,
+	.num_eps	= 8,
+	.dma_channels	= 8,
 	.gpio_vrsel	= GPIO_PG13,
 };
 
@@ -515,13 +504,6 @@ static struct bfin5xx_spi_chip ad9960_spi_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
-static struct bfin5xx_spi_chip spi_mmc_chip_info = {
-	.enable_dma = 1,
-	.bits_per_word = 8,
-};
-#endif
-
 #if defined(CONFIG_PBX)
 static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
 	.ctl_reg	= 0x4, /* send zero */
@@ -549,6 +531,30 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.acquisition_time 	= 1,
 	.averaging 		= 1,
 	.pen_down_acc_interval 	= 1,
+};
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_AD7879) || defined(CONFIG_TOUCHSCREEN_AD7879_MODULE)
+#include <linux/spi/ad7879.h>
+static const struct ad7879_platform_data bfin_ad7879_ts_info = {
+	.model			= 7879,	/* Model = AD7879 */
+	.x_plate_ohms		= 620,	/* 620 Ohm from the touch datasheet */
+	.pressure_max		= 10000,
+	.pressure_min		= 0,
+	.first_conversion_delay = 3,	/* wait 512us before do a first conversion */
+	.acquisition_time 	= 1,	/* 4us acquisition time per sample */
+	.median			= 2,	/* do 8 measurements */
+	.averaging 		= 1,	/* take the average of 4 middle samples */
+	.pen_down_acc_interval 	= 255,	/* 9.4 ms */
+	.gpio_output		= 1,	/* configure AUX/VBAT/GPIO as GPIO output */
+	.gpio_default 		= 1,	/* During initialization set GPIO = HIGH */
+};
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_AD7879_SPI) || defined(CONFIG_TOUCHSCREEN_AD7879_SPI_MODULE)
+static struct bfin5xx_spi_chip spi_ad7879_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
 };
 #endif
 
@@ -613,26 +619,6 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data = &ad9960_spi_chip_info,
 	},
 #endif
-#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
-	{
-		.modalias = "spi_mmc_dummy",
-		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = 0,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
-		.mode = SPI_MODE_3,
-	},
-	{
-		.modalias = "spi_mmc",
-		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = CONFIG_SPI_MMC_CS_CHAN,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
-		.mode = SPI_MODE_3,
-	},
-#endif
 #if defined(CONFIG_PBX)
 	{
 		.modalias = "fxs-spi",
@@ -660,6 +646,18 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.bus_num	= 0,
 		.chip_select  = 2,
 		.controller_data = &spi_ad7877_chip_info,
+	},
+#endif
+#if defined(CONFIG_TOUCHSCREEN_AD7879_SPI) || defined(CONFIG_TOUCHSCREEN_AD7879_SPI_MODULE)
+	{
+		.modalias = "ad7879",
+		.platform_data = &bfin_ad7879_ts_info,
+		.irq = IRQ_PF8,
+		.max_speed_hz = 5000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 3,
+		.controller_data = &spi_ad7879_chip_info,
+		.mode = SPI_CPHA | SPI_CPOL,
 	},
 #endif
 #if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_SND_SOC_WM8731_MODULE) \
@@ -756,29 +754,58 @@ static struct platform_device bfin_uart_device = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-static struct resource bfin_sir_resources[] = {
 #ifdef CONFIG_BFIN_SIR0
+static struct resource bfin_sir0_resources[] = {
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device bfin_sir0_device = {
+	.name = "bfin_sir",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sir0_resources),
+	.resource = bfin_sir0_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR1
+static struct resource bfin_sir1_resources[] = {
 	{
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
 	},
-#endif
+	{
+		.start = IRQ_UART1_RX,
+		.end = IRQ_UART1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART1_RX,
+		.end = CH_UART1_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
 };
 
-static struct platform_device bfin_sir_device = {
+static struct platform_device bfin_sir1_device = {
 	.name = "bfin_sir",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(bfin_sir_resources),
-	.resource = bfin_sir_resources,
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_sir1_resources),
+	.resource = bfin_sir1_resources,
 };
+#endif
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
@@ -944,6 +971,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&isp1362_hcd_device,
 #endif
 
+#if defined(CONFIG_USB_ISP1760_HCD) || defined(CONFIG_USB_ISP1760_HCD_MODULE)
+	&bfin_isp1760_device,
+#endif
+
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 	&musb_device,
 #endif
@@ -985,7 +1016,12 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-	&bfin_sir_device,
+#ifdef CONFIG_BFIN_SIR0
+	&bfin_sir0_device,
+#endif
+#ifdef CONFIG_BFIN_SIR1
+	&bfin_sir1_device,
+#endif
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)

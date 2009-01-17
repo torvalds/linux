@@ -10,7 +10,7 @@
 #include <linux/init.h>
 
 struct sparc64_tick_ops {
-	unsigned long (*get_tick)(void);
+	unsigned long long (*get_tick)(void);
 	int (*add_compare)(unsigned long);
 	unsigned long softint_mask;
 	void (*disable_irq)(void);

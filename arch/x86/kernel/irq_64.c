@@ -14,10 +14,10 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/ftrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/smp.h>
 #include <asm/io_apic.h>
 #include <asm/idle.h>
-#include <asm/smp.h>
 
 /*
  * Probabilistic stack overflow check:
@@ -80,16 +80,17 @@ asmlinkage unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-void fixup_irqs(cpumask_t map)
+/* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
+void fixup_irqs(void)
 {
 	unsigned int irq;
 	static int warned;
 	struct irq_desc *desc;
 
 	for_each_irq_desc(irq, desc) {
-		cpumask_t mask;
 		int break_affinity = 0;
 		int set_affinity = 1;
+		const struct cpumask *affinity;
 
 		if (!desc)
 			continue;
@@ -99,23 +100,23 @@ void fixup_irqs(cpumask_t map)
 		/* interrupt's are disabled at this point */
 		spin_lock(&desc->lock);
 
+		affinity = &desc->affinity;
 		if (!irq_has_action(irq) ||
-		    cpus_equal(desc->affinity, map)) {
+		    cpumask_equal(affinity, cpu_online_mask)) {
 			spin_unlock(&desc->lock);
 			continue;
 		}
 
-		cpus_and(mask, desc->affinity, map);
-		if (cpus_empty(mask)) {
+		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 			break_affinity = 1;
-			mask = map;
+			affinity = cpu_all_mask;
 		}
 
 		if (desc->chip->mask)
 			desc->chip->mask(irq);
 
 		if (desc->chip->set_affinity)
-			desc->chip->set_affinity(irq, mask);
+			desc->chip->set_affinity(irq, affinity);
 		else if (!(warned++))
 			set_affinity = 0;
 
@@ -141,18 +142,18 @@ extern void call_softirq(void);
 
 asmlinkage void do_softirq(void)
 {
- 	__u32 pending;
- 	unsigned long flags;
+	__u32 pending;
+	unsigned long flags;
 
- 	if (in_interrupt())
- 		return;
+	if (in_interrupt())
+		return;
 
- 	local_irq_save(flags);
- 	pending = local_softirq_pending();
- 	/* Switch to interrupt stack */
- 	if (pending) {
+	local_irq_save(flags);
+	pending = local_softirq_pending();
+	/* Switch to interrupt stack */
+	if (pending) {
 		call_softirq();
 		WARN_ON_ONCE(softirq_count());
 	}
- 	local_irq_restore(flags);
+	local_irq_restore(flags);
 }

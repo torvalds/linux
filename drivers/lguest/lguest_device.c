@@ -321,10 +321,7 @@ static struct virtio_config_ops lguest_config_ops = {
 
 /* The root device for the lguest virtio devices.  This makes them appear as
  * /sys/devices/lguest/0,1,2 not /sys/devices/0,1,2. */
-static struct device lguest_root = {
-	.parent = NULL,
-	.bus_id = "lguest",
-};
+static struct device *lguest_root;
 
 /*D:120 This is the core of the lguest bus: actually adding a new device.
  * It's a separate function because it's neater that way, and because an
@@ -351,7 +348,7 @@ static void add_lguest_device(struct lguest_device_desc *d,
 	}
 
 	/* This devices' parent is the lguest/ dir. */
-	ldev->vdev.dev.parent = &lguest_root;
+	ldev->vdev.dev.parent = lguest_root;
 	/* We have a unique device index thanks to the dev_index counter. */
 	ldev->vdev.id.device = d->type;
 	/* We have a simple set of routines for querying the device's
@@ -407,7 +404,8 @@ static int __init lguest_devices_init(void)
 	if (strcmp(pv_info.name, "lguest") != 0)
 		return 0;
 
-	if (device_register(&lguest_root) != 0)
+	lguest_root = root_device_register("lguest");
+	if (IS_ERR(lguest_root))
 		panic("Could not register lguest root");
 
 	/* Devices are in a single page above top of "normal" mem */

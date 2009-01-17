@@ -95,8 +95,7 @@ static int ide_set_nice_ioctl(ide_drive_t *drive, unsigned long arg)
 		return -EPERM;
 
 	if (((arg >> IDE_NICE_DSC_OVERLAP) & 1) &&
-	    (drive->media != ide_tape ||
-	     (drive->dev_flags & IDE_DFLAG_SCSI)))
+	    (drive->media != ide_tape))
 		return -EPERM;
 
 	if ((arg >> IDE_NICE_DSC_OVERLAP) & 1)

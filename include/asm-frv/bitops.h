@@ -339,6 +339,19 @@ int __ffs(unsigned long x)
 	return 31 - bit;
 }
 
+/**
+ * __fls - find last (most-significant) set bit in a long word
+ * @word: the word to search
+ *
+ * Undefined if no set bit exists, so code should check against 0 first.
+ */
+static inline unsigned long __fls(unsigned long word)
+{
+	unsigned long bit;
+	asm("scan %1,gr0,%0" : "=r"(bit) : "r"(word));
+	return bit;
+}
+
 /*
  * special slimline version of fls() for calculating ilog2_u32()
  * - note: no protection against n == 0

@@ -72,8 +72,8 @@ static int read_block(struct inode *inode, void *addr, unsigned int block,
 		return err;
 	}
 
-	ubifs_assert(le64_to_cpu(dn->ch.sqnum) > ubifs_inode(inode)->creat_sqnum);
-
+	ubifs_assert(le64_to_cpu(dn->ch.sqnum) >
+		     ubifs_inode(inode)->creat_sqnum);
 	len = le32_to_cpu(dn->size);
 	if (len <= 0 || len > UBIFS_BLOCK_SIZE)
 		goto dump;
@@ -219,7 +219,8 @@ static void release_existing_page_budget(struct ubifs_info *c)
 }
 
 static int write_begin_slow(struct address_space *mapping,
-			    loff_t pos, unsigned len, struct page **pagep)
+			    loff_t pos, unsigned len, struct page **pagep,
+			    unsigned flags)
 {
 	struct inode *inode = mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -247,14 +248,14 @@ static int write_begin_slow(struct address_space *mapping,
 	if (unlikely(err))
 		return err;
 
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (unlikely(!page)) {
 		ubifs_release_budget(c, &req);
 		return -ENOMEM;
 	}
 
 	if (!PageUptodate(page)) {
-		if (!(pos & PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
+		if (!(pos & ~PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
 			SetPageChecked(page);
 		else {
 			err = do_readpage(page);
@@ -438,13 +439,13 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		return -EROFS;
 
 	/* Try out the fast-path part first */
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (unlikely(!page))
 		return -ENOMEM;
 
 	if (!PageUptodate(page)) {
 		/* The page is not loaded from the flash */
-		if (!(pos & PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
+		if (!(pos & ~PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
 			/*
 			 * We change whole page so no need to load it. But we
 			 * have to set the @PG_checked flag to make the further
@@ -483,7 +484,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		page_cache_release(page);
 
-		return write_begin_slow(mapping, pos, len, pagep);
+		return write_begin_slow(mapping, pos, len, pagep, flags);
 	}
 
 	/*

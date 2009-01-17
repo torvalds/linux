@@ -19,91 +19,15 @@
 
 extern int pcie_mch_quirk;	/* MSI-quirk Indicator */
 
-static int pcie_port_probe_service(struct device *dev)
-{
-	struct pcie_device *pciedev;
-	struct pcie_port_service_driver *driver;
-	int status;
-
-	if (!dev || !dev->driver)
-		return -ENODEV;
-
- 	driver = to_service_driver(dev->driver);
-	if (!driver || !driver->probe)
-		return -ENODEV;
-
-	pciedev = to_pcie_device(dev);
-	status = driver->probe(pciedev, driver->id_table);
-	if (!status) {
-		dev_printk(KERN_DEBUG, dev, "service driver %s loaded\n",
-			driver->name);
-		get_device(dev);
-	}
-	return status;
-}
-
-static int pcie_port_remove_service(struct device *dev)
-{
-	struct pcie_device *pciedev;
-	struct pcie_port_service_driver *driver;
-
-	if (!dev || !dev->driver)
-		return 0;
-
-	pciedev = to_pcie_device(dev);
- 	driver = to_service_driver(dev->driver);
-	if (driver && driver->remove) { 
-		dev_printk(KERN_DEBUG, dev, "unloading service driver %s\n",
-			driver->name);
-		driver->remove(pciedev);
-		put_device(dev);
-	}
-	return 0;
-}
-
-static void pcie_port_shutdown_service(struct device *dev) {}
-
-static int pcie_port_suspend_service(struct device *dev, pm_message_t state)
-{
-	struct pcie_device *pciedev;
-	struct pcie_port_service_driver *driver;
-
-	if (!dev || !dev->driver)
-		return 0;
-
-	pciedev = to_pcie_device(dev);
- 	driver = to_service_driver(dev->driver);
-	if (driver && driver->suspend)
-		driver->suspend(pciedev, state);
-	return 0;
-}
-
-static int pcie_port_resume_service(struct device *dev)
-{
-	struct pcie_device *pciedev;
-	struct pcie_port_service_driver *driver;
-
-	if (!dev || !dev->driver)
-		return 0;
-
-	pciedev = to_pcie_device(dev);
- 	driver = to_service_driver(dev->driver);
-
-	if (driver && driver->resume)
-		driver->resume(pciedev);
-	return 0;
-}
-
-/*
- * release_pcie_device
- *	
- *	Being invoked automatically when device is being removed 
- *	in response to device_unregister(dev) call.
- *	Release all resources being claimed.
+/**
+ * release_pcie_device - free PCI Express port service device structure
+ * @dev: Port service device to release
+ *
+ * Invoked automatically when device is being removed in response to
+ * device_unregister(dev).  Release all resources being claimed.
  */
 static void release_pcie_device(struct device *dev)
 {
-	dev_printk(KERN_DEBUG, dev, "free port service\n");
 	kfree(to_pcie_device(dev));			
 }
 
@@ -128,7 +52,16 @@ static int is_msi_quirked(struct pci_dev *dev)
 	}
 	return quirk;
 }
-	
+
+/**
+ * assign_interrupt_mode - choose interrupt mode for PCI Express port services
+ *                         (INTx, MSI-X, MSI) and set up vectors
+ * @dev: PCI Express port to handle
+ * @vectors: Array of interrupt vectors to populate
+ * @mask: Bitmask of port capabilities returned by get_port_device_capability()
+ *
+ * Return value: Interrupt mode associated with the port
+ */
 static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 {
 	int i, pos, nvec, status = -EINVAL;
@@ -150,7 +83,6 @@ static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 	if (pos) {
 		struct msix_entry msix_entries[PCIE_PORT_DEVICE_MAXSERVICES] = 
 			{{0, 0}, {0, 1}, {0, 2}, {0, 3}};
-		dev_info(&dev->dev, "found MSI-X capability\n");
 		status = pci_enable_msix(dev, msix_entries, nvec);
 		if (!status) {
 			int j = 0;
@@ -165,7 +97,6 @@ static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 	if (status) {
 		pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 		if (pos) {
-			dev_info(&dev->dev, "found MSI capability\n");
 			status = pci_enable_msi(dev);
 			if (!status) {
 				interrupt_mode = PCIE_PORT_MSI_MODE;
@@ -177,6 +108,16 @@ static int assign_interrupt_mode(struct pci_dev *dev, int *vectors, int mask)
 	return interrupt_mode;
 }
 
+/**
+ * get_port_device_capability - discover capabilities of a PCI Express port
+ * @dev: PCI Express port to examine
+ *
+ * The capabilities are read from the port's PCI Express configuration registers
+ * as described in PCI Express Base Specification 1.0a sections 7.8.2, 7.8.9 and
+ * 7.9 - 7.11.
+ *
+ * Return value: Bitmask of discovered port capabilities
+ */
 static int get_port_device_capability(struct pci_dev *dev)
 {
 	int services = 0, pos;
@@ -204,6 +145,15 @@ static int get_port_device_capability(struct pci_dev *dev)
 	return services;
 }
 
+/**
+ * pcie_device_init - initialize PCI Express port service device
+ * @dev: Port service device to initialize
+ * @parent: PCI Express port to associate the service device with
+ * @port_type: Type of the port
+ * @service_type: Type of service to associate with the service device
+ * @irq: Interrupt vector to associate with the service device
+ * @irq_mode: Interrupt mode of the service (INTx, MSI-X, MSI)
+ */
 static void pcie_device_init(struct pci_dev *parent, struct pcie_device *dev, 
 	int port_type, int service_type, int irq, int irq_mode)
 {
@@ -224,11 +174,19 @@ static void pcie_device_init(struct pci_dev *parent, struct pcie_device *dev,
 	device->driver = NULL;
 	device->driver_data = NULL;
 	device->release = release_pcie_device;	/* callback to free pcie dev */
-	snprintf(device->bus_id, sizeof(device->bus_id), "%s:pcie%02x",
+	dev_set_name(device, "%s:pcie%02x",
 		 pci_name(parent), get_descriptor_id(port_type, service_type));
 	device->parent = &parent->dev;
 }
 
+/**
+ * alloc_pcie_device - allocate PCI Express port service device structure
+ * @parent: PCI Express port to associate the service device with
+ * @port_type: Type of the port
+ * @service_type: Type of service to associate with the service device
+ * @irq: Interrupt vector to associate with the service device
+ * @irq_mode: Interrupt mode of the service (INTx, MSI-X, MSI)
+ */
 static struct pcie_device* alloc_pcie_device(struct pci_dev *parent,
 	int port_type, int service_type, int irq, int irq_mode)
 {
@@ -239,10 +197,13 @@ static struct pcie_device* alloc_pcie_device(struct pci_dev *parent,
 		return NULL;
 
 	pcie_device_init(parent, device, port_type, service_type, irq,irq_mode);
-	dev_printk(KERN_DEBUG, &device->device, "allocate port service\n");
 	return device;
 }
 
+/**
+ * pcie_port_device_probe - check if device is a PCI Express port
+ * @dev: Device to check
+ */
 int pcie_port_device_probe(struct pci_dev *dev)
 {
 	int pos, type;
@@ -260,6 +221,13 @@ int pcie_port_device_probe(struct pci_dev *dev)
 	return -ENODEV;
 }
 
+/**
+ * pcie_port_device_register - register PCI Express port
+ * @dev: PCI Express port to register
+ *
+ * Allocate the port extension structure and register services associated with
+ * the port.
+ */
 int pcie_port_device_register(struct pci_dev *dev)
 {
 	struct pcie_port_device_ext *p_ext;
@@ -323,6 +291,11 @@ static int suspend_iter(struct device *dev, void *data)
 	return 0;
 }
 
+/**
+ * pcie_port_device_suspend - suspend port services associated with a PCIe port
+ * @dev: PCI Express port to handle
+ * @state: Representation of system power management transition in progress
+ */
 int pcie_port_device_suspend(struct pci_dev *dev, pm_message_t state)
 {
 	return device_for_each_child(&dev->dev, &state, suspend_iter);
@@ -341,6 +314,10 @@ static int resume_iter(struct device *dev, void *data)
 	return 0;
 }
 
+/**
+ * pcie_port_device_suspend - resume port services associated with a PCIe port
+ * @dev: PCI Express port to handle
+ */
 int pcie_port_device_resume(struct pci_dev *dev)
 {
 	return device_for_each_child(&dev->dev, NULL, resume_iter);
@@ -363,6 +340,13 @@ static int remove_iter(struct device *dev, void *data)
 	return 0;
 }
 
+/**
+ * pcie_port_device_remove - unregister PCI Express port service devices
+ * @dev: PCI Express port the service devices to unregister are associated with
+ *
+ * Remove PCI Express port service devices associated with given port and
+ * disable MSI-X or MSI for the port.
+ */
 void pcie_port_device_remove(struct pci_dev *dev)
 {
 	struct device *device;
@@ -386,16 +370,80 @@ void pcie_port_device_remove(struct pci_dev *dev)
 		pci_disable_msi(dev);
 }
 
-int pcie_port_bus_register(void)
+/**
+ * pcie_port_probe_service - probe driver for given PCI Express port service
+ * @dev: PCI Express port service device to probe against
+ *
+ * If PCI Express port service driver is registered with
+ * pcie_port_service_register(), this function will be called by the driver core
+ * whenever match is found between the driver and a port service device.
+ */
+static int pcie_port_probe_service(struct device *dev)
 {
-	return bus_register(&pcie_port_bus_type);
+	struct pcie_device *pciedev;
+	struct pcie_port_service_driver *driver;
+	int status;
+
+	if (!dev || !dev->driver)
+		return -ENODEV;
+
+	driver = to_service_driver(dev->driver);
+	if (!driver || !driver->probe)
+		return -ENODEV;
+
+	pciedev = to_pcie_device(dev);
+	status = driver->probe(pciedev, driver->id_table);
+	if (!status) {
+		dev_printk(KERN_DEBUG, dev, "service driver %s loaded\n",
+			driver->name);
+		get_device(dev);
+	}
+	return status;
 }
 
-void pcie_port_bus_unregister(void)
+/**
+ * pcie_port_remove_service - detach driver from given PCI Express port service
+ * @dev: PCI Express port service device to handle
+ *
+ * If PCI Express port service driver is registered with
+ * pcie_port_service_register(), this function will be called by the driver core
+ * when device_unregister() is called for the port service device associated
+ * with the driver.
+ */
+static int pcie_port_remove_service(struct device *dev)
 {
-	bus_unregister(&pcie_port_bus_type);
+	struct pcie_device *pciedev;
+	struct pcie_port_service_driver *driver;
+
+	if (!dev || !dev->driver)
+		return 0;
+
+	pciedev = to_pcie_device(dev);
+	driver = to_service_driver(dev->driver);
+	if (driver && driver->remove) {
+		dev_printk(KERN_DEBUG, dev, "unloading service driver %s\n",
+			driver->name);
+		driver->remove(pciedev);
+		put_device(dev);
+	}
+	return 0;
 }
 
+/**
+ * pcie_port_shutdown_service - shut down given PCI Express port service
+ * @dev: PCI Express port service device to handle
+ *
+ * If PCI Express port service driver is registered with
+ * pcie_port_service_register(), this function will be called by the driver core
+ * when device_shutdown() is called for the port service device associated
+ * with the driver.
+ */
+static void pcie_port_shutdown_service(struct device *dev) {}
+
+/**
+ * pcie_port_service_register - register PCI Express port service driver
+ * @new: PCI Express port service driver to register
+ */
 int pcie_port_service_register(struct pcie_port_service_driver *new)
 {
 	new->driver.name = (char *)new->name;
@@ -403,15 +451,17 @@ int pcie_port_service_register(struct pcie_port_service_driver *new)
 	new->driver.probe = pcie_port_probe_service;
 	new->driver.remove = pcie_port_remove_service;
 	new->driver.shutdown = pcie_port_shutdown_service;
-	new->driver.suspend = pcie_port_suspend_service;
-	new->driver.resume = pcie_port_resume_service;
 
 	return driver_register(&new->driver);
 }
 
-void pcie_port_service_unregister(struct pcie_port_service_driver *new)
+/**
+ * pcie_port_service_unregister - unregister PCI Express port service driver
+ * @drv: PCI Express port service driver to unregister
+ */
+void pcie_port_service_unregister(struct pcie_port_service_driver *drv)
 {
-	driver_unregister(&new->driver);
+	driver_unregister(&drv->driver);
 }
 
 EXPORT_SYMBOL(pcie_port_service_register);

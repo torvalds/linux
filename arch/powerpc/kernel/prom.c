@@ -824,11 +824,11 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif
 
 #ifdef CONFIG_KEXEC
-	lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
+	lprop = of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
 	if (lprop)
 		crashk_res.start = *lprop;
 
-	lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
+	lprop = of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
 	if (lprop)
 		crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
@@ -893,12 +893,12 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 	u64 base, size, lmb_size;
 	unsigned int is_kexec_kdump = 0, rngs;
 
-	ls = (cell_t *)of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
+	ls = of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
 	if (ls == NULL || l < dt_root_size_cells * sizeof(cell_t))
 		return 0;
 	lmb_size = dt_mem_next_cell(dt_root_size_cells, &ls);
 
-	dm = (cell_t *)of_get_flat_dt_prop(node, "ibm,dynamic-memory", &l);
+	dm = of_get_flat_dt_prop(node, "ibm,dynamic-memory", &l);
 	if (dm == NULL || l < sizeof(cell_t))
 		return 0;
 
@@ -907,7 +907,7 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 		return 0;
 
 	/* check if this is a kexec/kdump kernel. */
-	usm = (cell_t *)of_get_flat_dt_prop(node, "linux,drconf-usable-memory",
+	usm = of_get_flat_dt_prop(node, "linux,drconf-usable-memory",
 						 &l);
 	if (usm != NULL)
 		is_kexec_kdump = 1;
@@ -981,9 +981,9 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 	} else if (strcmp(type, "memory") != 0)
 		return 0;
 
-	reg = (cell_t *)of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
 	if (reg == NULL)
-		reg = (cell_t *)of_get_flat_dt_prop(node, "reg", &l);
+		reg = of_get_flat_dt_prop(node, "reg", &l);
 	if (reg == NULL)
 		return 0;
 

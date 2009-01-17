@@ -831,6 +831,21 @@ static void TLan_Poll(struct net_device *dev)
 }
 #endif
 
+static const struct net_device_ops TLan_netdev_ops = {
+	.ndo_open 		= TLan_Open,
+	.ndo_stop		= TLan_Close,
+	.ndo_start_xmit		= TLan_StartTx,
+	.ndo_tx_timeout		= TLan_tx_timeout,
+	.ndo_get_stats		= TLan_GetStats,
+	.ndo_set_multicast_list = TLan_SetMulticastList,
+	.ndo_do_ioctl		= TLan_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	 = TLan_Poll,
+#endif
+};
 
 
 
@@ -892,16 +907,7 @@ static int TLan_Init( struct net_device *dev )
 	netif_carrier_off(dev);
 
 	/* Device methods */
-	dev->open = &TLan_Open;
-	dev->hard_start_xmit = &TLan_StartTx;
-	dev->stop = &TLan_Close;
-	dev->get_stats = &TLan_GetStats;
-	dev->set_multicast_list = &TLan_SetMulticastList;
-	dev->do_ioctl = &TLan_ioctl;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = &TLan_Poll;
-#endif
-	dev->tx_timeout = &TLan_tx_timeout;
+	dev->netdev_ops = &TLan_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
 	return 0;

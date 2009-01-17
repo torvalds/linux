@@ -78,7 +78,7 @@ config SPI_AU1550
 	  will be called au1550_spi.
 
 config SPI_BITBANG
-	tristate "Bitbanging SPI master"
+	tristate "Utilities for Bitbanging SPI masters"
 	help
 	  With a few GPIO pins, your system can bitbang the SPI protocol.
 	  Select this to get SPI support through I/O pins (GPIO, parallel
@@ -99,6 +99,22 @@ config SPI_BUTTERFLY
 	  Butterfly <http://www.atmel.com/products/avr/butterfly>, an
 	  inexpensive battery powered microcontroller evaluation board.
 	  This same cable can be used to flash new firmware.
+
+config SPI_GPIO
+	tristate "GPIO-based bitbanging SPI Master"
+	depends on GENERIC_GPIO
+	select SPI_BITBANG
+	help
+	  This simple GPIO bitbanging SPI master uses the arch-neutral GPIO
+	  interface to manage MOSI, MISO, SCK, and chipselect signals.  SPI
+	  slaves connected to a bus using this driver are configured as usual,
+	  except that the spi_board_info.controller_data holds the GPIO number
+	  for the chipselect used by this controller driver.
+
+	  Note that this driver often won't achieve even 1 Mbit/sec speeds,
+	  making it unusually slow for SPI.  If your platform can inline
+	  GPIO operations, you should be able to leverage that for better
+	  speed with a custom version of this driver; see the source code.
 
 config SPI_IMX
 	tristate "Freescale iMX SPI controller"

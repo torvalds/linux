@@ -75,8 +75,7 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	mutex_init(&dev->mutex);
 
 	memcpy(&dev->dev, device, sizeof(struct device));
-	snprintf(dev->dev.bus_id, sizeof(dev->dev.bus_id),
-		  "w1_bus_master%u", dev->id);
+	dev_set_name(&dev->dev, "w1_bus_master%u", dev->id);
 	snprintf(dev->name, sizeof(dev->name), "w1_bus_master%u", dev->id);
 
 	dev->driver = driver;

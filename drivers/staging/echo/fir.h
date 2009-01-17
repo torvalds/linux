@@ -72,37 +72,37 @@
     16 bit integer FIR descriptor. This defines the working state for a single
     instance of an FIR filter using 16 bit integer coefficients.
 */
-typedef struct {
+struct fir16_state_t {
 	int taps;
 	int curr_pos;
 	const int16_t *coeffs;
 	int16_t *history;
-} fir16_state_t;
+};
 
 /*!
     32 bit integer FIR descriptor. This defines the working state for a single
     instance of an FIR filter using 32 bit integer coefficients, and filtering
     16 bit integer data.
 */
-typedef struct {
+struct fir32_state_t {
 	int taps;
 	int curr_pos;
 	const int32_t *coeffs;
 	int16_t *history;
-} fir32_state_t;
+};
 
 /*!
     Floating point FIR descriptor. This defines the working state for a single
     instance of an FIR filter using floating point coefficients and data.
 */
-typedef struct {
+struct fir_float_state_t {
 	int taps;
 	int curr_pos;
 	const float *coeffs;
 	float *history;
-} fir_float_state_t;
+};
 
-static __inline__ const int16_t *fir16_create(fir16_state_t * fir,
+static __inline__ const int16_t *fir16_create(struct fir16_state_t *fir,
 					      const int16_t * coeffs, int taps)
 {
 	fir->taps = taps;
@@ -116,7 +116,7 @@ static __inline__ const int16_t *fir16_create(fir16_state_t * fir,
 	return fir->history;
 }
 
-static __inline__ void fir16_flush(fir16_state_t * fir)
+static __inline__ void fir16_flush(struct fir16_state_t *fir)
 {
 #if defined(USE_MMX)  ||  defined(USE_SSE2) || defined(__bfin__)
 	memset(fir->history, 0, 2 * fir->taps * sizeof(int16_t));
@@ -125,7 +125,7 @@ static __inline__ void fir16_flush(fir16_state_t * fir)
 #endif
 }
 
-static __inline__ void fir16_free(fir16_state_t * fir)
+static __inline__ void fir16_free(struct fir16_state_t *fir)
 {
 	kfree(fir->history);
 }
@@ -157,19 +157,19 @@ static inline int32_t dot_asm(short *x, short *y, int len)
 }
 #endif
 
-static __inline__ int16_t fir16(fir16_state_t * fir, int16_t sample)
+static __inline__ int16_t fir16(struct fir16_state_t *fir, int16_t sample)
 {
 	int32_t y;
 #if defined(USE_MMX)
 	int i;
-	mmx_t *mmx_coeffs;
-	mmx_t *mmx_hist;
+	union mmx_t *mmx_coeffs;
+	union mmx_t *mmx_hist;
 
 	fir->history[fir->curr_pos] = sample;
 	fir->history[fir->curr_pos + fir->taps] = sample;
 
-	mmx_coeffs = (mmx_t *) fir->coeffs;
-	mmx_hist = (mmx_t *) & fir->history[fir->curr_pos];
+	mmx_coeffs = (union mmx_t *)fir->coeffs;
+	mmx_hist = (union mmx_t *)&fir->history[fir->curr_pos];
 	i = fir->taps;
 	pxor_r2r(mm4, mm4);
 	/* 8 samples per iteration, so the filter must be a multiple of 8 long. */
@@ -193,14 +193,14 @@ static __inline__ int16_t fir16(fir16_state_t * fir, int16_t sample)
 	emms();
 #elif defined(USE_SSE2)
 	int i;
-	xmm_t *xmm_coeffs;
-	xmm_t *xmm_hist;
+	union xmm_t *xmm_coeffs;
+	union xmm_t *xmm_hist;
 
 	fir->history[fir->curr_pos] = sample;
 	fir->history[fir->curr_pos + fir->taps] = sample;
 
-	xmm_coeffs = (xmm_t *) fir->coeffs;
-	xmm_hist = (xmm_t *) & fir->history[fir->curr_pos];
+	xmm_coeffs = (union xmm_t *)fir->coeffs;
+	xmm_hist = (union xmm_t *)&fir->history[fir->curr_pos];
 	i = fir->taps;
 	pxor_r2r(xmm4, xmm4);
 	/* 16 samples per iteration, so the filter must be a multiple of 16 long. */
@@ -250,7 +250,7 @@ static __inline__ int16_t fir16(fir16_state_t * fir, int16_t sample)
 	return (int16_t) (y >> 15);
 }
 
-static __inline__ const int16_t *fir32_create(fir32_state_t * fir,
+static __inline__ const int16_t *fir32_create(struct fir32_state_t *fir,
 					      const int32_t * coeffs, int taps)
 {
 	fir->taps = taps;
@@ -260,17 +260,17 @@ static __inline__ const int16_t *fir32_create(fir32_state_t * fir,
 	return fir->history;
 }
 
-static __inline__ void fir32_flush(fir32_state_t * fir)
+static __inline__ void fir32_flush(struct fir32_state_t *fir)
 {
 	memset(fir->history, 0, fir->taps * sizeof(int16_t));
 }
 
-static __inline__ void fir32_free(fir32_state_t * fir)
+static __inline__ void fir32_free(struct fir32_state_t *fir)
 {
 	kfree(fir->history);
 }
 
-static __inline__ int16_t fir32(fir32_state_t * fir, int16_t sample)
+static __inline__ int16_t fir32(struct fir32_state_t *fir, int16_t sample)
 {
 	int i;
 	int32_t y;

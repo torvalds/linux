@@ -104,7 +104,6 @@ struct mcs_cb {
 	struct usb_device *usbdev;	/* init: probe_irda */
 	struct net_device *netdev;	/* network layer */
 	struct irlap_cb *irlap;	/* The link layer we are binded to */
-	struct net_device_stats stats;	/* network statistics */
 	struct qos_info qos;
 	unsigned int speed;	/* Current speed */
 	unsigned int new_speed;	/* new speed */
@@ -154,7 +153,6 @@ static int mcs_speed_change(struct mcs_cb *mcs);
 static int mcs_net_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd);
 static int mcs_net_close(struct net_device *netdev);
 static int mcs_net_open(struct net_device *netdev);
-static struct net_device_stats *mcs_net_get_stats(struct net_device *netdev);
 
 static void mcs_receive_irq(struct urb *urb);
 static void mcs_send_irq(struct urb *urb);

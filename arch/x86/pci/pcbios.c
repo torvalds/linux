@@ -6,9 +6,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
-#include "pci.h"
-#include "pci-functions.h"
-
+#include <asm/pci_x86.h>
+#include <asm/mach-default/pci-functions.h>
 
 /* BIOS32 signature: "_32_" */
 #define BIOS32_SIGNATURE	(('_' << 0) + ('3' << 8) + ('2' << 16) + ('_' << 24))

@@ -1782,6 +1782,12 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		goto out_bad_inode;
 	}
 	args.objectid = inode->i_ino = le32_to_cpu(ih.ih_key.k_objectid);
+	if (old_format_only(sb))
+		make_le_item_head(&ih, NULL, KEY_FORMAT_3_5, SD_OFFSET,
+				  TYPE_STAT_DATA, SD_V1_SIZE, MAX_US_INT);
+	else
+		make_le_item_head(&ih, NULL, KEY_FORMAT_3_6, SD_OFFSET,
+				  TYPE_STAT_DATA, SD_SIZE, MAX_US_INT);
 	memcpy(INODE_PKEY(inode), &(ih.ih_key), KEY_SIZE);
 	args.dirid = le32_to_cpu(ih.ih_key.k_dir_id);
 	if (insert_inode_locked4(inode, args.objectid,
@@ -1833,13 +1839,6 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	reiserfs_init_acl_access(inode);
 	reiserfs_init_acl_default(inode);
 	reiserfs_init_xattr_rwsem(inode);
-
-	if (old_format_only(sb))
-		make_le_item_head(&ih, NULL, KEY_FORMAT_3_5, SD_OFFSET,
-				  TYPE_STAT_DATA, SD_V1_SIZE, MAX_US_INT);
-	else
-		make_le_item_head(&ih, NULL, KEY_FORMAT_3_6, SD_OFFSET,
-				  TYPE_STAT_DATA, SD_SIZE, MAX_US_INT);
 
 	/* key to search for correct place for new stat data */
 	_make_cpu_key(&key, KEY_FORMAT_3_6, le32_to_cpu(ih.ih_key.k_dir_id),
@@ -2561,7 +2560,7 @@ static int reiserfs_write_begin(struct file *file,
 	}
 
 	index = pos >> PAGE_CACHE_SHIFT;
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
 		return -ENOMEM;
 	*pagep = page;

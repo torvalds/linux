@@ -215,7 +215,6 @@ static struct page *read_sb_page(mddev_t *mddev, long offset,
 	/* choose a good rdev and read the page from there */
 
 	mdk_rdev_t *rdev;
-	struct list_head *tmp;
 	sector_t target;
 
 	if (!page)
@@ -223,7 +222,7 @@ static struct page *read_sb_page(mddev_t *mddev, long offset,
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	rdev_for_each(rdev, tmp, mddev) {
+	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		if (! test_bit(In_sync, &rdev->flags)
 		    || test_bit(Faulty, &rdev->flags))
 			continue;
@@ -964,9 +963,11 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 				 */
 				page = bitmap->sb_page;
 				offset = sizeof(bitmap_super_t);
-				read_sb_page(bitmap->mddev, bitmap->offset,
-					     page,
-					     index, count);
+				if (!file)
+					read_sb_page(bitmap->mddev,
+						     bitmap->offset,
+						     page,
+						     index, count);
 			} else if (file) {
 				page = read_page(file, index, bitmap, count);
 				offset = 0;

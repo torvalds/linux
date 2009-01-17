@@ -13,9 +13,19 @@ Description
 This driver provides glue code connecting a National Semiconductor LM70 LLP
 temperature sensor evaluation board to the kernel's SPI core subsystem.
 
+This is a SPI master controller driver. It can be used in conjunction with
+(layered under) the LM70 logical driver (a "SPI protocol driver").
 In effect, this driver turns the parallel port interface on the eval board
 into a SPI bus with a single device, which will be driven by the generic
 LM70 driver (drivers/hwmon/lm70.c).
+
+
+Hardware Interfacing
+--------------------
+The schematic for this particular board (the LM70EVAL-LLP) is
+available (on page 4) here:
+
+  http://www.national.com/appinfo/tempsensors/files/LM70LLPEVALmanual.pdf
 
 The hardware interfacing on the LM70 LLP eval board is as follows:
 

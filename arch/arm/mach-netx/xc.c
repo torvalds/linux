@@ -24,6 +24,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <mach/netx-regs.h>
 
 #include <mach/xc.h>

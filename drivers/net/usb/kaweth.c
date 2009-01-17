@@ -251,7 +251,6 @@ struct kaweth_device
 	struct net_device_stats stats;
 };
 
-
 /****************************************************************
  *     kaweth_control
  ****************************************************************/
@@ -283,9 +282,9 @@ static int kaweth_control(struct kaweth_device *kaweth,
 
 	dr->bRequestType= requesttype;
 	dr->bRequest = request;
-	dr->wValue = cpu_to_le16p(&value);
-	dr->wIndex = cpu_to_le16p(&index);
-	dr->wLength = cpu_to_le16p(&size);
+	dr->wValue = cpu_to_le16(value);
+	dr->wIndex = cpu_to_le16(index);
+	dr->wLength = cpu_to_le16(size);
 
 	return kaweth_internal_control_msg(kaweth->dev,
 					pipe,
@@ -975,6 +974,17 @@ static int kaweth_resume(struct usb_interface *intf)
 /****************************************************************
  *     kaweth_probe
  ****************************************************************/
+
+
+static const struct net_device_ops kaweth_netdev_ops = {
+	.ndo_open =			kaweth_open,
+	.ndo_stop =			kaweth_close,
+	.ndo_start_xmit =		kaweth_start_xmit,
+	.ndo_tx_timeout =		kaweth_tx_timeout,
+	.ndo_set_multicast_list =	kaweth_set_rx_mode,
+	.ndo_get_stats =		kaweth_netdev_stats,
+};
+
 static int kaweth_probe(
 		struct usb_interface *intf,
 		const struct usb_device_id *id      /* from id_table */
@@ -1147,22 +1157,13 @@ err_fw:
 	memcpy(netdev->dev_addr, &kaweth->configuration.hw_addr,
                sizeof(kaweth->configuration.hw_addr));
 
-	netdev->open = kaweth_open;
-	netdev->stop = kaweth_close;
-
+	netdev->netdev_ops = &kaweth_netdev_ops;
 	netdev->watchdog_timeo = KAWETH_TX_TIMEOUT;
-	netdev->tx_timeout = kaweth_tx_timeout;
-
-	netdev->hard_start_xmit = kaweth_start_xmit;
-	netdev->set_multicast_list = kaweth_set_rx_mode;
-	netdev->get_stats = kaweth_netdev_stats;
 	netdev->mtu = le16_to_cpu(kaweth->configuration.segment_size);
 	SET_ETHTOOL_OPS(netdev, &ops);
 
 	/* kaweth is zeroed as part of alloc_netdev */
-
 	INIT_DELAYED_WORK(&kaweth->lowmem_work, kaweth_resubmit_tl);
-
 	usb_set_intfdata(intf, kaweth);
 
 #if 0

@@ -109,20 +109,40 @@ EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
 int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 				       dma_addr_t *dma_handle, void **ret)
 {
-	struct dma_coherent_mem *mem = dev ? dev->dma_mem : NULL;
+	struct dma_coherent_mem *mem;
 	int order = get_order(size);
+	int pageno;
 
-	if (mem) {
-		int page = bitmap_find_free_region(mem->bitmap, mem->size,
-						     order);
-		if (page >= 0) {
-			*dma_handle = mem->device_base + (page << PAGE_SHIFT);
-			*ret = mem->virt_base + (page << PAGE_SHIFT);
-			memset(*ret, 0, size);
-		} else if (mem->flags & DMA_MEMORY_EXCLUSIVE)
-			*ret = NULL;
+	if (!dev)
+		return 0;
+	mem = dev->dma_mem;
+	if (!mem)
+		return 0;
+	if (unlikely(size > mem->size))
+ 		return 0;
+
+	pageno = bitmap_find_free_region(mem->bitmap, mem->size, order);
+	if (pageno >= 0) {
+		/*
+		 * Memory was found in the per-device arena.
+		 */
+		*dma_handle = mem->device_base + (pageno << PAGE_SHIFT);
+		*ret = mem->virt_base + (pageno << PAGE_SHIFT);
+		memset(*ret, 0, size);
+	} else if (mem->flags & DMA_MEMORY_EXCLUSIVE) {
+		/*
+		 * The per-device arena is exhausted and we are not
+		 * permitted to fall back to generic memory.
+		 */
+		*ret = NULL;
+	} else {
+		/*
+		 * The per-device arena is exhausted and we are
+		 * permitted to fall back to generic memory.
+		 */
+		 return 0;
 	}
-	return (mem != NULL);
+	return 1;
 }
 EXPORT_SYMBOL(dma_alloc_from_coherent);
 

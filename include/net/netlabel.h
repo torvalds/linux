@@ -33,6 +33,8 @@
 #include <linux/types.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <net/netlink.h>
 #include <asm/atomic.h>
 
@@ -353,13 +355,37 @@ static inline void netlbl_secattr_free(struct netlbl_lsm_secattr *secattr)
 /*
  * LSM configuration operations
  */
-int netlbl_cfg_map_del(const char *domain, struct netlbl_audit *audit_info);
-int netlbl_cfg_unlbl_add_map(const char *domain,
+int netlbl_cfg_map_del(const char *domain,
+		       u16 family,
+		       const void *addr,
+		       const void *mask,
+		       struct netlbl_audit *audit_info);
+int netlbl_cfg_unlbl_map_add(const char *domain,
+			     u16 family,
+			     const void *addr,
+			     const void *mask,
 			     struct netlbl_audit *audit_info);
-int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
+int netlbl_cfg_unlbl_static_add(struct net *net,
+				const char *dev_name,
+				const void *addr,
+				const void *mask,
+				u16 family,
+				u32 secid,
+				struct netlbl_audit *audit_info);
+int netlbl_cfg_unlbl_static_del(struct net *net,
+				const char *dev_name,
+				const void *addr,
+				const void *mask,
+				u16 family,
+				struct netlbl_audit *audit_info);
+int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
+			   struct netlbl_audit *audit_info);
+void netlbl_cfg_cipsov4_del(u32 doi, struct netlbl_audit *audit_info);
+int netlbl_cfg_cipsov4_map_add(u32 doi,
 			       const char *domain,
+			       const struct in_addr *addr,
+			       const struct in_addr *mask,
 			       struct netlbl_audit *audit_info);
-
 /*
  * LSM security attribute operations
  */
@@ -401,19 +427,62 @@ void netlbl_skbuff_err(struct sk_buff *skb, int error, int gateway);
 void netlbl_cache_invalidate(void);
 int netlbl_cache_add(const struct sk_buff *skb,
 		     const struct netlbl_lsm_secattr *secattr);
+
+/*
+ * Protocol engine operations
+ */
+struct audit_buffer *netlbl_audit_start(int type,
+					struct netlbl_audit *audit_info);
 #else
 static inline int netlbl_cfg_map_del(const char *domain,
+				     u16 family,
+				     const void *addr,
+				     const void *mask,
 				     struct netlbl_audit *audit_info)
 {
 	return -ENOSYS;
 }
-static inline int netlbl_cfg_unlbl_add_map(const char *domain,
+static inline int netlbl_cfg_unlbl_map_add(const char *domain,
+					   u16 family,
+					   void *addr,
+					   void *mask,
 					   struct netlbl_audit *audit_info)
 {
 	return -ENOSYS;
 }
-static inline int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
+static inline int netlbl_cfg_unlbl_static_add(struct net *net,
+					      const char *dev_name,
+					      const void *addr,
+					      const void *mask,
+					      u16 family,
+					      u32 secid,
+					      struct netlbl_audit *audit_info)
+{
+	return -ENOSYS;
+}
+static inline int netlbl_cfg_unlbl_static_del(struct net *net,
+					      const char *dev_name,
+					      const void *addr,
+					      const void *mask,
+					      u16 family,
+					      struct netlbl_audit *audit_info)
+{
+	return -ENOSYS;
+}
+static inline int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
+					 struct netlbl_audit *audit_info)
+{
+	return -ENOSYS;
+}
+static inline void netlbl_cfg_cipsov4_del(u32 doi,
+					  struct netlbl_audit *audit_info)
+{
+	return;
+}
+static inline int netlbl_cfg_cipsov4_map_add(u32 doi,
 					     const char *domain,
+					     const struct in_addr *addr,
+					     const struct in_addr *mask,
 					     struct netlbl_audit *audit_info)
 {
 	return -ENOSYS;
@@ -494,6 +563,11 @@ static inline int netlbl_cache_add(const struct sk_buff *skb,
 				   const struct netlbl_lsm_secattr *secattr)
 {
 	return 0;
+}
+static inline struct audit_buffer *netlbl_audit_start(int type,
+						struct netlbl_audit *audit_info)
+{
+	return NULL;
 }
 #endif /* CONFIG_NETLABEL */
 

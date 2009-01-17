@@ -236,7 +236,7 @@ struct strip {
 	unsigned long tx_errors;	/* Planned stuff                */
 	unsigned long rx_dropped;	/* No memory for skb            */
 	unsigned long tx_dropped;	/* When MTU change              */
-	unsigned long rx_over_errors;	/* Frame bigger then STRIP buf. */
+	unsigned long rx_over_errors;	/* Frame bigger than STRIP buf. */
 
 	unsigned long pps_timer;	/* Timer to determine pps       */
 	unsigned long rx_pps_count;	/* Counter to determine pps     */

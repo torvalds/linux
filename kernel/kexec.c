@@ -1116,7 +1116,7 @@ void crash_save_cpu(struct pt_regs *regs, int cpu)
 	struct elf_prstatus prstatus;
 	u32 *buf;
 
-	if ((cpu < 0) || (cpu >= NR_CPUS))
+	if ((cpu < 0) || (cpu >= nr_cpu_ids))
 		return;
 
 	/* Using ELF notes here is opportunistic.

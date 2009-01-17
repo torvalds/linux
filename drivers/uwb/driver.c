@@ -53,7 +53,7 @@
 #include <linux/err.h>
 #include <linux/kdev_t.h>
 #include <linux/random.h>
-#include <linux/uwb/debug.h>
+
 #include "uwb-internal.h"
 
 
@@ -118,7 +118,6 @@ static int __init uwb_subsys_init(void)
 	result = class_register(&uwb_rc_class);
 	if (result < 0)
 		goto error_uwb_rc_class_register;
-	uwbd_start();
 	uwb_dbg_init();
 	return 0;
 
@@ -132,7 +131,6 @@ module_init(uwb_subsys_init);
 static void __exit uwb_subsys_exit(void)
 {
 	uwb_dbg_exit();
-	uwbd_stop();
 	class_unregister(&uwb_rc_class);
 	uwb_est_destroy();
 	return;

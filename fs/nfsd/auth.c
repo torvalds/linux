@@ -76,10 +76,10 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 
 	ret = set_groups(new, gi);
 	put_group_info(gi);
-	if (!ret)
+	if (ret < 0)
 		goto error;
 
-	if (new->uid)
+	if (new->fsuid)
 		new->cap_effective = cap_drop_nfsd_set(new->cap_effective);
 	else
 		new->cap_effective = cap_raise_nfsd_set(new->cap_effective,

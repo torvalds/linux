@@ -70,11 +70,6 @@ enum ipi_message_type {
 /* Set to a secondary's cpuid when it comes online.  */
 static int smp_secondary_alive __devinitdata = 0;
 
-/* Which cpus ids came online.  */
-cpumask_t cpu_online_map;
-
-EXPORT_SYMBOL(cpu_online_map);
-
 int smp_num_probed;		/* Internal processor count */
 int smp_num_cpus = 1;		/* Number that came online.  */
 EXPORT_SYMBOL(smp_num_cpus);
@@ -440,6 +435,7 @@ setup_smp(void)
 				((char *)cpubase + i*hwrpb->processor_size);
 			if ((cpu->flags & 0x1cc) == 0x1cc) {
 				smp_num_probed++;
+				cpu_set(i, cpu_possible_map);
 				cpu_set(i, cpu_present_map);
 				cpu->pal_revision = boot_cpu_palrev;
 			}
@@ -473,6 +469,7 @@ smp_prepare_cpus(unsigned int max_cpus)
 
 	/* Nothing to do on a UP box, or when told not to.  */
 	if (smp_num_probed == 1 || max_cpus == 0) {
+		cpu_possible_map = cpumask_of_cpu(boot_cpuid);
 		cpu_present_map = cpumask_of_cpu(boot_cpuid);
 		printk(KERN_INFO "SMP mode deactivated.\n");
 		return;

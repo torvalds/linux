@@ -90,19 +90,19 @@ Core        Emulation               **
 #define	IRQ_SPORT0_ERROR	10	/*SPORT0 Error Interrupt */
 #define	IRQ_SPORT1_ERROR	11	/*SPORT1 Error Interrupt */
 #define	IRQ_SPI_ERROR		12	/*SPI Error Interrupt */
-#define	IRQ_UART_ERROR		13	/*UART Error Interrupt */
+#define	IRQ_UART0_ERROR		13	/*UART Error Interrupt */
 #define	IRQ_RTC			14	/*RTC Interrupt */
 #define	IRQ_PPI			15	/*DMA0 Interrupt (PPI) */
 #define	IRQ_SPORT0_RX		16	/*DMA1 Interrupt (SPORT0 RX) */
 #define	IRQ_SPORT0_TX		17	/*DMA2 Interrupt (SPORT0 TX) */
 #define	IRQ_SPORT1_RX		18	/*DMA3 Interrupt (SPORT1 RX) */
 #define	IRQ_SPORT1_TX		19	/*DMA4 Interrupt (SPORT1 TX) */
-#define 	IRQ_SPI			20	/*DMA5 Interrupt (SPI) */
-#define	IRQ_UART_RX		21	/*DMA6 Interrupt (UART RX) */
-#define	IRQ_UART_TX		22	/*DMA7 Interrupt (UART TX) */
-#define	IRQ_TMR0		23	/*Timer 0 */
-#define	IRQ_TMR1		24	/*Timer 1 */
-#define	IRQ_TMR2		25	/*Timer 2 */
+#define	IRQ_SPI			20	/*DMA5 Interrupt (SPI) */
+#define	IRQ_UART0_RX		21	/*DMA6 Interrupt (UART RX) */
+#define	IRQ_UART0_TX		22	/*DMA7 Interrupt (UART TX) */
+#define	IRQ_TIMER0		23	/*Timer 0 */
+#define	IRQ_TIMER1		24	/*Timer 1 */
+#define	IRQ_TIMER2		25	/*Timer 2 */
 #define	IRQ_PROG_INTA		26	/*Programmable Flags A (8) */
 #define	IRQ_PROG_INTB		27	/*Programmable Flags B (8) */
 #define	IRQ_MEM_DMA0		28	/*DMA8/9 Interrupt (Memory DMA Stream 0) */

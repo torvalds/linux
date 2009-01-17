@@ -374,7 +374,7 @@ void dlm_copy_master_names(struct dlm_ls *ls, char *inbuf, int inlen,
 	struct list_head *list;
 	struct dlm_rsb *r;
 	int offset = 0, dir_nodeid;
-	uint16_t be_namelen;
+	__be16 be_namelen;
 
 	down_read(&ls->ls_root_sem);
 
@@ -410,15 +410,15 @@ void dlm_copy_master_names(struct dlm_ls *ls, char *inbuf, int inlen,
 
 		if (offset + sizeof(uint16_t)*2 + r->res_length > outlen) {
 			/* Write end-of-block record */
-			be_namelen = 0;
-			memcpy(outbuf + offset, &be_namelen, sizeof(uint16_t));
-			offset += sizeof(uint16_t);
+			be_namelen = cpu_to_be16(0);
+			memcpy(outbuf + offset, &be_namelen, sizeof(__be16));
+			offset += sizeof(__be16);
 			goto out;
 		}
 
 		be_namelen = cpu_to_be16(r->res_length);
-		memcpy(outbuf + offset, &be_namelen, sizeof(uint16_t));
-		offset += sizeof(uint16_t);
+		memcpy(outbuf + offset, &be_namelen, sizeof(__be16));
+		offset += sizeof(__be16);
 		memcpy(outbuf + offset, r->res_name, r->res_length);
 		offset += r->res_length;
 	}
@@ -430,9 +430,9 @@ void dlm_copy_master_names(struct dlm_ls *ls, char *inbuf, int inlen,
 
 	if ((list == &ls->ls_root_list) &&
 	    (offset + sizeof(uint16_t) <= outlen)) {
-		be_namelen = 0xFFFF;
-		memcpy(outbuf + offset, &be_namelen, sizeof(uint16_t));
-		offset += sizeof(uint16_t);
+		be_namelen = cpu_to_be16(0xFFFF);
+		memcpy(outbuf + offset, &be_namelen, sizeof(__be16));
+		offset += sizeof(__be16);
 	}
 
  out:

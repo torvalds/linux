@@ -53,18 +53,20 @@ static const char *class_to_string[] = {
 #undef S_
 
 static const struct av_inherit av_inherit[] = {
-#define S_(c, i, b) { c, common_##i##_perm_to_string, b },
+#define S_(c, i, b) {	.tclass = c,\
+			.common_pts = common_##i##_perm_to_string,\
+			.common_base =  b },
 #include "av_inherit.h"
 #undef S_
 };
 
 const struct selinux_class_perm selinux_class_perm = {
-	av_perm_to_string,
-	ARRAY_SIZE(av_perm_to_string),
-	class_to_string,
-	ARRAY_SIZE(class_to_string),
-	av_inherit,
-	ARRAY_SIZE(av_inherit)
+	.av_perm_to_string = av_perm_to_string,
+	.av_pts_len = ARRAY_SIZE(av_perm_to_string),
+	.class_to_string = class_to_string,
+	.cts_len = ARRAY_SIZE(class_to_string),
+	.av_inherit = av_inherit,
+	.av_inherit_len = ARRAY_SIZE(av_inherit)
 };
 
 #define AVC_CACHE_SLOTS			512

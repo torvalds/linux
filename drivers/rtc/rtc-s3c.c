@@ -94,6 +94,9 @@ static int s3c_rtc_setfreq(struct device *dev, int freq)
 {
 	unsigned int tmp;
 
+	if (!is_power_of_2(freq))
+		return -EINVAL;
+
 	spin_lock_irq(&s3c_rtc_pie_lock);
 
 	tmp = readb(s3c_rtc_base + S3C2410_TICNT) & S3C2410_TICNT_ENABLE;

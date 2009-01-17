@@ -232,11 +232,6 @@ int of_pci_address_to_resource(struct device_node *dev, int bar,
 }
 EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
 
-static u8 of_irq_pci_swizzle(u8 slot, u8 pin)
-{
-	return (((pin - 1) + slot) % 4) + 1;
-}
-
 int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
 {
 	struct device_node *dn, *ppnode;
@@ -306,7 +301,7 @@ int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
 		/* We can only get here if we hit a P2P bridge with no node,
 		 * let's do standard swizzling and try again
 		 */
-		lspec = of_irq_pci_swizzle(PCI_SLOT(pdev->devfn), lspec);
+		lspec = pci_swizzle_interrupt_pin(pdev, lspec);
 		pdev = ppdev;
 	}
 

@@ -50,6 +50,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/ioport.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 #include "lm75.h"
 
@@ -1792,6 +1793,10 @@ static int __init w83627hf_device_add(unsigned short address,
 		.flags	= IORESOURCE_IO,
 	};
 	int err;
+
+	err = acpi_check_resource_conflict(&res);
+	if (err)
+		goto exit;
 
 	pdev = platform_device_alloc(DRVNAME, address);
 	if (!pdev) {

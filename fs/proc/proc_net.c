@@ -18,7 +18,6 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
-#include <linux/smp_lock.h>
 #include <linux/mount.h>
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
@@ -172,6 +171,7 @@ static int proc_tgid_net_readdir(struct file *filp, void *dirent,
 }
 
 const struct file_operations proc_net_operations = {
+	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= proc_tgid_net_readdir,
 };

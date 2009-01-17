@@ -51,9 +51,17 @@
 #include <linux/uwb.h>
 #include <linux/usb/wusb.h>
 #include <linux/scatterlist.h>
-#define D_LOCAL 0
-#include <linux/uwb/debug.h>
 
+static int debug_crypto_verify = 0;
+
+module_param(debug_crypto_verify, int, 0);
+MODULE_PARM_DESC(debug_crypto_verify, "verify the key generation algorithms");
+
+static void wusb_key_dump(const void *buf, size_t len)
+{
+	print_hex_dump(KERN_ERR, "  ", DUMP_PREFIX_OFFSET, 16, 1,
+		       buf, len, 0);
+}
 
 /*
  * Block of data, as understood by AES-CCM
@@ -203,9 +211,6 @@ static int wusb_ccm_mac(struct crypto_blkcipher *tfm_cbc,
 	const u8 bzero[16] = { 0 };
 	size_t zero_padding;
 
-	d_fnstart(3, NULL, "(tfm_cbc %p, tfm_aes %p, mic %p, "
-		  "n %p, a %p, b %p, blen %zu)\n",
-		  tfm_cbc, tfm_aes, mic, n, a, b, blen);
 	/*
 	 * These checks should be compile time optimized out
 	 * ensure @a fills b1's mac_header and following fields
@@ -247,16 +252,6 @@ static int wusb_ccm_mac(struct crypto_blkcipher *tfm_cbc,
 	b1.la = cpu_to_be16(blen + 14);
 	memcpy(&b1.mac_header, a, sizeof(*a));
 
-	d_printf(4, NULL, "I: B0 (%zu bytes)\n", sizeof(b0));
-	d_dump(4, NULL, &b0, sizeof(b0));
-	d_printf(4, NULL, "I: B1 (%zu bytes)\n", sizeof(b1));
-	d_dump(4, NULL, &b1, sizeof(b1));
-	d_printf(4, NULL, "I: B (%zu bytes)\n", blen);
-	d_dump(4, NULL, b, blen);
-	d_printf(4, NULL, "I: B 0-padding (%zu bytes)\n", zero_padding);
-	d_printf(4, NULL, "D: IV before crypto (%zu)\n", ivsize);
-	d_dump(4, NULL, iv, ivsize);
-
 	sg_init_table(sg, ARRAY_SIZE(sg));
 	sg_set_buf(&sg[0], &b0, sizeof(b0));
 	sg_set_buf(&sg[1], &b1, sizeof(b1));
@@ -273,8 +268,6 @@ static int wusb_ccm_mac(struct crypto_blkcipher *tfm_cbc,
 		       result);
 		goto error_cbc_crypt;
 	}
-	d_printf(4, NULL, "D: MIC tag\n");
-	d_dump(4, NULL, iv, ivsize);
 
 	/* Now we crypt the MIC Tag (*iv) with Ax -- values per WUSB1.0[6.5]
 	 * The procedure is to AES crypt the A0 block and XOR the MIC
@@ -289,17 +282,10 @@ static int wusb_ccm_mac(struct crypto_blkcipher *tfm_cbc,
 	ax.counter = 0;
 	crypto_cipher_encrypt_one(tfm_aes, (void *)&ax, (void *)&ax);
 	bytewise_xor(mic, &ax, iv, 8);
-	d_printf(4, NULL, "D: CTR[MIC]\n");
-	d_dump(4, NULL, &ax, 8);
-	d_printf(4, NULL, "D: CCM-MIC tag\n");
-	d_dump(4, NULL, mic, 8);
 	result = 8;
 error_cbc_crypt:
 	kfree(dst_buf);
 error_dst_buf:
-	d_fnend(3, NULL, "(tfm_cbc %p, tfm_aes %p, mic %p, "
-		"n %p, a %p, b %p, blen %zu)\n",
-		tfm_cbc, tfm_aes, mic, n, a, b, blen);
 	return result;
 }
 
@@ -320,10 +306,6 @@ ssize_t wusb_prf(void *out, size_t out_size,
 	struct crypto_cipher *tfm_aes;
 	u64 sfn = 0;
 	__le64 sfn_le;
-
-	d_fnstart(3, NULL, "(out %p, out_size %zu, key %p, _n %p, "
-		  "a %p, b %p, blen %zu, len %zu)\n", out, out_size,
-		  key, _n, a, b, blen, len);
 
 	tfm_cbc = crypto_alloc_blkcipher("cbc(aes)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm_cbc)) {
@@ -366,9 +348,6 @@ error_alloc_aes:
 error_setkey_cbc:
 	crypto_free_blkcipher(tfm_cbc);
 error_alloc_cbc:
-	d_fnend(3, NULL, "(out %p, out_size %zu, key %p, _n %p, "
-		"a %p, b %p, blen %zu, len %zu) = %d\n", out, out_size,
-		key, _n, a, b, blen, len, (int)bytes);
 	return result;
 }
 
@@ -422,14 +401,14 @@ static int wusb_oob_mic_verify(void)
 		       "mismatch between MIC result and WUSB1.0[A2]\n");
 		hs_size = sizeof(stv_hsmic_hs) - sizeof(stv_hsmic_hs.MIC);
 		printk(KERN_ERR "E: Handshake2 in: (%zu bytes)\n", hs_size);
-		dump_bytes(NULL, &stv_hsmic_hs, hs_size);
+		wusb_key_dump(&stv_hsmic_hs, hs_size);
 		printk(KERN_ERR "E: CCM Nonce in: (%zu bytes)\n",
 		       sizeof(stv_hsmic_n));
-		dump_bytes(NULL, &stv_hsmic_n, sizeof(stv_hsmic_n));
+		wusb_key_dump(&stv_hsmic_n, sizeof(stv_hsmic_n));
 		printk(KERN_ERR "E: MIC out:\n");
-		dump_bytes(NULL, mic, sizeof(mic));
+		wusb_key_dump(mic, sizeof(mic));
 		printk(KERN_ERR "E: MIC out (from WUSB1.0[A.2]):\n");
-		dump_bytes(NULL, stv_hsmic_hs.MIC, sizeof(stv_hsmic_hs.MIC));
+		wusb_key_dump(stv_hsmic_hs.MIC, sizeof(stv_hsmic_hs.MIC));
 		result = -EINVAL;
 	} else
 		result = 0;
@@ -497,19 +476,16 @@ static int wusb_key_derive_verify(void)
 		printk(KERN_ERR "E: WUSB key derivation test: "
 		       "mismatch between key derivation result "
 		       "and WUSB1.0[A1] Errata 2006/12\n");
-		printk(KERN_ERR "E: keydvt in: key (%zu bytes)\n",
-		       sizeof(stv_key_a1));
-		dump_bytes(NULL, stv_key_a1, sizeof(stv_key_a1));
-		printk(KERN_ERR "E: keydvt in: nonce (%zu bytes)\n",
-		       sizeof(stv_keydvt_n_a1));
-		dump_bytes(NULL, &stv_keydvt_n_a1, sizeof(stv_keydvt_n_a1));
-		printk(KERN_ERR "E: keydvt in: hnonce & dnonce (%zu bytes)\n",
-		       sizeof(stv_keydvt_in_a1));
-		dump_bytes(NULL, &stv_keydvt_in_a1, sizeof(stv_keydvt_in_a1));
+		printk(KERN_ERR "E: keydvt in: key\n");
+		wusb_key_dump(stv_key_a1, sizeof(stv_key_a1));
+		printk(KERN_ERR "E: keydvt in: nonce\n");
+		wusb_key_dump( &stv_keydvt_n_a1, sizeof(stv_keydvt_n_a1));
+		printk(KERN_ERR "E: keydvt in: hnonce & dnonce\n");
+		wusb_key_dump(&stv_keydvt_in_a1, sizeof(stv_keydvt_in_a1));
 		printk(KERN_ERR "E: keydvt out: KCK\n");
-		dump_bytes(NULL, &keydvt_out.kck, sizeof(keydvt_out.kck));
+		wusb_key_dump(&keydvt_out.kck, sizeof(keydvt_out.kck));
 		printk(KERN_ERR "E: keydvt out: PTK\n");
-		dump_bytes(NULL, &keydvt_out.ptk, sizeof(keydvt_out.ptk));
+		wusb_key_dump(&keydvt_out.ptk, sizeof(keydvt_out.ptk));
 		result = -EINVAL;
 	} else
 		result = 0;
@@ -526,10 +502,13 @@ int wusb_crypto_init(void)
 {
 	int result;
 
-	result = wusb_key_derive_verify();
-	if (result < 0)
-		return result;
-	return wusb_oob_mic_verify();
+	if (debug_crypto_verify) {
+		result = wusb_key_derive_verify();
+		if (result < 0)
+			return result;
+		return wusb_oob_mic_verify();
+	}
+	return 0;
 }
 
 void wusb_crypto_exit(void)

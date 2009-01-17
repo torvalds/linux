@@ -221,6 +221,21 @@ int netlbl_unlabel_genl_init(void);
 /* General Unlabeled init function */
 int netlbl_unlabel_init(u32 size);
 
+/* Static/Fallback label management functions */
+int netlbl_unlhsh_add(struct net *net,
+		      const char *dev_name,
+		      const void *addr,
+		      const void *mask,
+		      u32 addr_len,
+		      u32 secid,
+		      struct netlbl_audit *audit_info);
+int netlbl_unlhsh_remove(struct net *net,
+			 const char *dev_name,
+			 const void *addr,
+			 const void *mask,
+			 u32 addr_len,
+			 struct netlbl_audit *audit_info);
+
 /* Process Unlabeled incoming network packets */
 int netlbl_unlabel_getattr(const struct sk_buff *skb,
 			   u16 family,

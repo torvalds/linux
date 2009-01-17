@@ -19,7 +19,7 @@
  *		Changed ioctl_swdl(), implemented ioctl_swul() and ioctl_swdel()
  *	Deepak Saxena (11/18/1999):
  *		Added event managmenet support
- *	Alan Cox <alan@redhat.com>:
+ *	Alan Cox <alan@lxorguk.ukuu.org.uk>:
  *		2.4 rewrite ported to 2.5
  *	Markus Lidel <Markus.Lidel@shadowconnect.com>:
  *		Added pass-thru support for Adaptec's raidutils

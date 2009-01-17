@@ -190,16 +190,23 @@
 /* FIXME: move this macro to <linux/pci.h> */
 #define PCI_BUS(x) (((x) >> 8) & 0xff)
 
+/* Protection domain flags */
+#define PD_DMA_OPS_MASK		(1UL << 0) /* domain used for dma_ops */
+#define PD_DEFAULT_MASK		(1UL << 1) /* domain is a default dma_ops
+					      domain for an IOMMU */
+
 /*
  * This structure contains generic data for  IOMMU protection domains
  * independent of their use.
  */
 struct protection_domain {
-	spinlock_t lock; /* mostly used to lock the page table*/
-	u16 id;		 /* the domain id written to the device table */
-	int mode;	 /* paging mode (0-6 levels) */
-	u64 *pt_root;	 /* page table root pointer */
-	void *priv;	 /* private data */
+	spinlock_t lock;	/* mostly used to lock the page table*/
+	u16 id;			/* the domain id written to the device table */
+	int mode;		/* paging mode (0-6 levels) */
+	u64 *pt_root;		/* page table root pointer */
+	unsigned long flags;	/* flags to find out type of domain */
+	unsigned dev_cnt;	/* devices assigned to this domain */
+	void *priv;		/* private data */
 };
 
 /*
@@ -295,7 +302,7 @@ struct amd_iommu {
 	bool int_enabled;
 
 	/* if one, we need to send a completion wait command */
-	int need_sync;
+	bool need_sync;
 
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;
@@ -374,7 +381,7 @@ extern struct protection_domain **amd_iommu_pd_table;
 extern unsigned long *amd_iommu_pd_alloc_bitmap;
 
 /* will be 1 if device isolation is enabled */
-extern int amd_iommu_isolate;
+extern bool amd_iommu_isolate;
 
 /*
  * If true, the addresses will be flushed on unmap time, not when
@@ -382,23 +389,39 @@ extern int amd_iommu_isolate;
  */
 extern bool amd_iommu_unmap_flush;
 
-/* takes a PCI device id and prints it out in a readable form */
-static inline void print_devid(u16 devid, int nl)
-{
-	int bus = devid >> 8;
-	int dev = devid >> 3 & 0x1f;
-	int fn  = devid & 0x07;
-
-	printk("%02x:%02x.%x", bus, dev, fn);
-	if (nl)
-		printk("\n");
-}
-
 /* takes bus and device/function and returns the device id
  * FIXME: should that be in generic PCI code? */
 static inline u16 calc_devid(u8 bus, u8 devfn)
 {
 	return (((u16)bus) << 8) | devfn;
 }
+
+#ifdef CONFIG_AMD_IOMMU_STATS
+
+struct __iommu_counter {
+	char *name;
+	struct dentry *dent;
+	u64 value;
+};
+
+#define DECLARE_STATS_COUNTER(nm) \
+	static struct __iommu_counter nm = {	\
+		.name = #nm,			\
+	}
+
+#define INC_STATS_COUNTER(name)		name.value += 1
+#define ADD_STATS_COUNTER(name, x)	name.value += (x)
+#define SUB_STATS_COUNTER(name, x)	name.value -= (x)
+
+#else /* CONFIG_AMD_IOMMU_STATS */
+
+#define DECLARE_STATS_COUNTER(name)
+#define INC_STATS_COUNTER(name)
+#define ADD_STATS_COUNTER(name, x)
+#define SUB_STATS_COUNTER(name, x)
+
+static inline void amd_iommu_stats_init(void) { }
+
+#endif /* CONFIG_AMD_IOMMU_STATS */
 
 #endif /* _ASM_X86_AMD_IOMMU_TYPES_H */

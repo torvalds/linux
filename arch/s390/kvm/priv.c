@@ -118,7 +118,7 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	VCPU_EVENT(vcpu, 5, "storing cpu address to %lx", useraddr);
+	VCPU_EVENT(vcpu, 5, "storing cpu address to %llx", useraddr);
 out:
 	return 0;
 }

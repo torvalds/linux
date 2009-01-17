@@ -834,13 +834,14 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
  * copying is done already, arg is a kernel pointer.
  */
 
-int saa7146_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+long saa7146_video_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct saa7146_fh *fh  = file->private_data;
 	struct saa7146_dev *dev = fh->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 
-	int err = 0, result = 0, ee = 0;
+	long err = 0;
+	int result = 0, ee = 0;
 
 	struct saa7146_use_ops *ops;
 	struct videobuf_queue *q;

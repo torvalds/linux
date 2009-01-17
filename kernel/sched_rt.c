@@ -15,7 +15,7 @@ static inline void rt_set_overload(struct rq *rq)
 	if (!rq->online)
 		return;
 
-	cpu_set(rq->cpu, rq->rd->rto_mask);
+	cpumask_set_cpu(rq->cpu, rq->rd->rto_mask);
 	/*
 	 * Make sure the mask is visible before we set
 	 * the overload count. That is checked to determine
@@ -34,7 +34,7 @@ static inline void rt_clear_overload(struct rq *rq)
 
 	/* the order here really doesn't matter */
 	atomic_dec(&rq->rd->rto_count);
-	cpu_clear(rq->cpu, rq->rd->rto_mask);
+	cpumask_clear_cpu(rq->cpu, rq->rd->rto_mask);
 }
 
 static void update_rt_migration(struct rq *rq)
@@ -139,14 +139,14 @@ static int rt_se_boosted(struct sched_rt_entity *rt_se)
 }
 
 #ifdef CONFIG_SMP
-static inline cpumask_t sched_rt_period_mask(void)
+static inline const struct cpumask *sched_rt_period_mask(void)
 {
 	return cpu_rq(smp_processor_id())->rd->span;
 }
 #else
-static inline cpumask_t sched_rt_period_mask(void)
+static inline const struct cpumask *sched_rt_period_mask(void)
 {
-	return cpu_online_map;
+	return cpu_online_mask;
 }
 #endif
 
@@ -212,9 +212,9 @@ static inline int rt_rq_throttled(struct rt_rq *rt_rq)
 	return rt_rq->rt_throttled;
 }
 
-static inline cpumask_t sched_rt_period_mask(void)
+static inline const struct cpumask *sched_rt_period_mask(void)
 {
-	return cpu_online_map;
+	return cpu_online_mask;
 }
 
 static inline
@@ -241,11 +241,11 @@ static int do_balance_runtime(struct rt_rq *rt_rq)
 	int i, weight, more = 0;
 	u64 rt_period;
 
-	weight = cpus_weight(rd->span);
+	weight = cpumask_weight(rd->span);
 
 	spin_lock(&rt_b->rt_runtime_lock);
 	rt_period = ktime_to_ns(rt_b->rt_period);
-	for_each_cpu_mask_nr(i, rd->span) {
+	for_each_cpu(i, rd->span) {
 		struct rt_rq *iter = sched_rt_period_rt_rq(rt_b, i);
 		s64 diff;
 
@@ -324,7 +324,7 @@ static void __disable_runtime(struct rq *rq)
 		/*
 		 * Greedy reclaim, take back as much as we can.
 		 */
-		for_each_cpu_mask(i, rd->span) {
+		for_each_cpu(i, rd->span) {
 			struct rt_rq *iter = sched_rt_period_rt_rq(rt_b, i);
 			s64 diff;
 
@@ -429,13 +429,13 @@ static inline int balance_runtime(struct rt_rq *rt_rq)
 static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 {
 	int i, idle = 1;
-	cpumask_t span;
+	const struct cpumask *span;
 
 	if (!rt_bandwidth_enabled() || rt_b->rt_runtime == RUNTIME_INF)
 		return 1;
 
 	span = sched_rt_period_mask();
-	for_each_cpu_mask(i, span) {
+	for_each_cpu(i, span) {
 		int enqueue = 0;
 		struct rt_rq *rt_rq = sched_rt_period_rt_rq(rt_b, i);
 		struct rq *rq = rq_of_rt_rq(rt_rq);
@@ -805,17 +805,20 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 
 static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
 {
-	cpumask_t mask;
+	cpumask_var_t mask;
 
 	if (rq->curr->rt.nr_cpus_allowed == 1)
 		return;
 
-	if (p->rt.nr_cpus_allowed != 1
-	    && cpupri_find(&rq->rd->cpupri, p, &mask))
+	if (!alloc_cpumask_var(&mask, GFP_ATOMIC))
 		return;
 
-	if (!cpupri_find(&rq->rd->cpupri, rq->curr, &mask))
-		return;
+	if (p->rt.nr_cpus_allowed != 1
+	    && cpupri_find(&rq->rd->cpupri, p, mask))
+		goto free;
+
+	if (!cpupri_find(&rq->rd->cpupri, rq->curr, mask))
+		goto free;
 
 	/*
 	 * There appears to be other cpus that can accept
@@ -824,6 +827,8 @@ static void check_preempt_equal_prio(struct rq *rq, struct task_struct *p)
 	 */
 	requeue_task_rt(rq, p, 1);
 	resched_task(rq->curr);
+free:
+	free_cpumask_var(mask);
 }
 
 #endif /* CONFIG_SMP */
@@ -914,7 +919,7 @@ static void deactivate_task(struct rq *rq, struct task_struct *p, int sleep);
 static int pick_rt_task(struct rq *rq, struct task_struct *p, int cpu)
 {
 	if (!task_running(rq, p) &&
-	    (cpu < 0 || cpu_isset(cpu, p->cpus_allowed)) &&
+	    (cpu < 0 || cpumask_test_cpu(cpu, &p->cpus_allowed)) &&
 	    (p->rt.nr_cpus_allowed > 1))
 		return 1;
 	return 0;
@@ -953,7 +958,7 @@ static struct task_struct *pick_next_highest_task_rt(struct rq *rq, int cpu)
 	return next;
 }
 
-static DEFINE_PER_CPU(cpumask_t, local_cpu_mask);
+static DEFINE_PER_CPU(cpumask_var_t, local_cpu_mask);
 
 static inline int pick_optimal_cpu(int this_cpu, cpumask_t *mask)
 {
@@ -973,7 +978,7 @@ static inline int pick_optimal_cpu(int this_cpu, cpumask_t *mask)
 static int find_lowest_rq(struct task_struct *task)
 {
 	struct sched_domain *sd;
-	cpumask_t *lowest_mask = &__get_cpu_var(local_cpu_mask);
+	struct cpumask *lowest_mask = __get_cpu_var(local_cpu_mask);
 	int this_cpu = smp_processor_id();
 	int cpu      = task_cpu(task);
 
@@ -988,7 +993,7 @@ static int find_lowest_rq(struct task_struct *task)
 	 * I guess we might want to change cpupri_find() to ignore those
 	 * in the first place.
 	 */
-	cpus_and(*lowest_mask, *lowest_mask, cpu_active_map);
+	cpumask_and(lowest_mask, lowest_mask, cpu_active_mask);
 
 	/*
 	 * At this point we have built a mask of cpus representing the
@@ -998,7 +1003,7 @@ static int find_lowest_rq(struct task_struct *task)
 	 * We prioritize the last cpu that the task executed on since
 	 * it is most likely cache-hot in that location.
 	 */
-	if (cpu_isset(cpu, *lowest_mask))
+	if (cpumask_test_cpu(cpu, lowest_mask))
 		return cpu;
 
 	/*
@@ -1013,7 +1018,8 @@ static int find_lowest_rq(struct task_struct *task)
 			cpumask_t domain_mask;
 			int       best_cpu;
 
-			cpus_and(domain_mask, sd->span, *lowest_mask);
+			cpumask_and(&domain_mask, sched_domain_span(sd),
+				    lowest_mask);
 
 			best_cpu = pick_optimal_cpu(this_cpu,
 						    &domain_mask);
@@ -1054,8 +1060,8 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 			 * Also make sure that it wasn't scheduled on its rq.
 			 */
 			if (unlikely(task_rq(task) != rq ||
-				     !cpu_isset(lowest_rq->cpu,
-						task->cpus_allowed) ||
+				     !cpumask_test_cpu(lowest_rq->cpu,
+						       &task->cpus_allowed) ||
 				     task_running(rq, task) ||
 				     !task->se.on_rq)) {
 
@@ -1176,7 +1182,7 @@ static int pull_rt_task(struct rq *this_rq)
 
 	next = pick_next_task_rt(this_rq);
 
-	for_each_cpu_mask_nr(cpu, this_rq->rd->rto_mask) {
+	for_each_cpu(cpu, this_rq->rd->rto_mask) {
 		if (this_cpu == cpu)
 			continue;
 
@@ -1305,9 +1311,9 @@ move_one_task_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 }
 
 static void set_cpus_allowed_rt(struct task_struct *p,
-				const cpumask_t *new_mask)
+				const struct cpumask *new_mask)
 {
-	int weight = cpus_weight(*new_mask);
+	int weight = cpumask_weight(new_mask);
 
 	BUG_ON(!rt_task(p));
 
@@ -1328,7 +1334,7 @@ static void set_cpus_allowed_rt(struct task_struct *p,
 		update_rt_migration(rq);
 	}
 
-	p->cpus_allowed    = *new_mask;
+	cpumask_copy(&p->cpus_allowed, new_mask);
 	p->rt.nr_cpus_allowed = weight;
 }
 
@@ -1370,6 +1376,15 @@ static void switched_from_rt(struct rq *rq, struct task_struct *p,
 	 */
 	if (!rq->rt.rt_nr_running)
 		pull_rt_task(rq);
+}
+
+static inline void init_sched_rt_class(void)
+{
+	unsigned int i;
+
+	for_each_possible_cpu(i)
+		alloc_cpumask_var_node(&per_cpu(local_cpu_mask, i),
+					GFP_KERNEL, cpu_to_node(i));
 }
 #endif /* CONFIG_SMP */
 
@@ -1541,3 +1556,4 @@ static void print_rt_stats(struct seq_file *m, int cpu)
 	rcu_read_unlock();
 }
 #endif /* CONFIG_SCHED_DEBUG */
+

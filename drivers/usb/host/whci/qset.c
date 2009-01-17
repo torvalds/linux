@@ -24,46 +24,6 @@
 
 #include "whcd.h"
 
-void dump_qset(struct whc_qset *qset, struct device *dev)
-{
-	struct whc_std *std;
-	struct urb *urb = NULL;
-	int i;
-
-	dev_dbg(dev, "qset %08x\n", (u32)qset->qset_dma);
-	dev_dbg(dev, "  -> %08x\n", (u32)qset->qh.link);
-	dev_dbg(dev, "  info: %08x %08x %08x\n",
-		qset->qh.info1, qset->qh.info2,  qset->qh.info3);
-	dev_dbg(dev, "  sts: %04x errs: %d\n", qset->qh.status, qset->qh.err_count);
-	dev_dbg(dev, "  TD: sts: %08x opts: %08x\n",
-		qset->qh.overlay.qtd.status, qset->qh.overlay.qtd.options);
-
-	for (i = 0; i < WHCI_QSET_TD_MAX; i++) {
-		dev_dbg(dev, "  %c%c TD[%d]: sts: %08x opts: %08x ptr: %08x\n",
-			i == qset->td_start ? 'S' : ' ',
-			i == qset->td_end ? 'E' : ' ',
-			i, qset->qtd[i].status, qset->qtd[i].options,
-			(u32)qset->qtd[i].page_list_ptr);
-	}
-	dev_dbg(dev, "  ntds: %d\n", qset->ntds);
-	list_for_each_entry(std, &qset->stds, list_node) {
-		if (urb != std->urb) {
-			urb = std->urb;
-			dev_dbg(dev, "  urb %p transferred: %d bytes\n", urb,
-				urb->actual_length);
-		}
-		if (std->qtd)
-			dev_dbg(dev, "    sTD[%td]: %zu bytes @ %08x\n",
-				std->qtd - &qset->qtd[0],
-				std->len, std->num_pointers ?
-				(u32)(std->pl_virt[0].buf_ptr) : (u32)std->dma_addr);
-		else
-			dev_dbg(dev, "    sTD[-]: %zd bytes @ %08x\n",
-				std->len, std->num_pointers ?
-				(u32)(std->pl_virt[0].buf_ptr) : (u32)std->dma_addr);
-	}
-}
-
 struct whc_qset *qset_alloc(struct whc *whc, gfp_t mem_flags)
 {
 	struct whc_qset *qset;

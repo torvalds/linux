@@ -164,7 +164,7 @@ struct stir_cb {
         struct usb_device *usbdev;      /* init: probe_irda */
         struct net_device *netdev;      /* network layer */
         struct irlap_cb   *irlap;       /* The link layer we are binded to */
-        struct net_device_stats stats;	/* network statistics */
+
         struct qos_info   qos;
 	unsigned 	  speed;	/* Current speed */
 
@@ -323,16 +323,16 @@ static void fir_eof(struct stir_cb *stir)
 		pr_debug("%s: short frame len %d\n",
 			 stir->netdev->name, len);
 
-		++stir->stats.rx_errors;
-		++stir->stats.rx_length_errors;
+		++stir->netdev->stats.rx_errors;
+		++stir->netdev->stats.rx_length_errors;
 		return;
 	}
 
 	fcs = ~(crc32_le(~0, rx_buff->data, len));
 	if (fcs != get_unaligned_le32(rx_buff->data + len)) {
 		pr_debug("crc error calc 0x%x len %d\n", fcs, len);
-		stir->stats.rx_errors++;
-		stir->stats.rx_crc_errors++;
+		stir->netdev->stats.rx_errors++;
+		stir->netdev->stats.rx_crc_errors++;
 		return;
 	}
 
@@ -340,7 +340,7 @@ static void fir_eof(struct stir_cb *stir)
 	if (len < IRDA_RX_COPY_THRESHOLD) {
 		nskb = dev_alloc_skb(len + 1);
 		if (unlikely(!nskb)) {
-			++stir->stats.rx_dropped;
+			++stir->netdev->stats.rx_dropped;
 			return;
 		}
 		skb_reserve(nskb, 1);
@@ -349,7 +349,7 @@ static void fir_eof(struct stir_cb *stir)
 	} else {
 		nskb = dev_alloc_skb(rx_buff->truesize);
 		if (unlikely(!nskb)) {
-			++stir->stats.rx_dropped;
+			++stir->netdev->stats.rx_dropped;
 			return;
 		}
 		skb_reserve(nskb, 1);
@@ -366,8 +366,8 @@ static void fir_eof(struct stir_cb *stir)
 
 	netif_rx(skb);
 
-	stir->stats.rx_packets++;
-	stir->stats.rx_bytes += len;
+	stir->netdev->stats.rx_packets++;
+	stir->netdev->stats.rx_bytes += len;
 
 	rx_buff->data = rx_buff->head;
 	rx_buff->len = 0;
@@ -437,7 +437,7 @@ static void stir_fir_chars(struct stir_cb *stir,
 		if (unlikely(rx_buff->len >= rx_buff->truesize)) {
 			pr_debug("%s: fir frame exceeds %d\n",
 				 stir->netdev->name, rx_buff->truesize);
-			++stir->stats.rx_over_errors;
+			++stir->netdev->stats.rx_over_errors;
 			goto error_recovery;
 		}
 
@@ -445,10 +445,10 @@ static void stir_fir_chars(struct stir_cb *stir,
 		continue;
 
 	frame_error:
-		++stir->stats.rx_frame_errors;
+		++stir->netdev->stats.rx_frame_errors;
 
 	error_recovery:
-		++stir->stats.rx_errors;
+		++stir->netdev->stats.rx_errors;
 		rx_buff->state = OUTSIDE_FRAME;
 		rx_buff->in_frame = FALSE;
 	}
@@ -461,7 +461,7 @@ static void stir_sir_chars(struct stir_cb *stir,
 	int i;
 
 	for (i = 0; i < len; i++)
-		async_unwrap_char(stir->netdev, &stir->stats,
+		async_unwrap_char(stir->netdev, &stir->netdev->stats,
 				  &stir->rx_buff, bytes[i]);
 }
 
@@ -692,7 +692,7 @@ static void receive_stop(struct stir_cb *stir)
 	usb_kill_urb(stir->rx_urb);
 
 	if (stir->rx_buff.in_frame) 
-		stir->stats.collisions++;
+		stir->netdev->stats.collisions++;
 }
 /*
  * Wrap data in socket buffer and send it.
@@ -718,15 +718,15 @@ static void stir_send(struct stir_cb *stir, struct sk_buff *skb)
 	if (!first_frame)
 		fifo_txwait(stir, wraplen);
 
-	stir->stats.tx_packets++;
-	stir->stats.tx_bytes += skb->len;
+	stir->netdev->stats.tx_packets++;
+	stir->netdev->stats.tx_bytes += skb->len;
 	stir->netdev->trans_start = jiffies;
 	pr_debug("send %d (%d)\n", skb->len, wraplen);
 
 	if (usb_bulk_msg(stir->usbdev, usb_sndbulkpipe(stir->usbdev, 1),
 			 stir->io_buf, wraplen,
 			 NULL, TRANSMIT_TIMEOUT))
-		stir->stats.tx_errors++;
+		stir->netdev->stats.tx_errors++;
 }
 
 /*
@@ -1008,15 +1008,6 @@ static int stir_net_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 }
 
 /*
- * Get device stats (for /proc/net/dev and ifconfig)
- */
-static struct net_device_stats *stir_net_get_stats(struct net_device *netdev)
-{
-	struct stir_cb *stir = netdev_priv(netdev);
-	return &stir->stats;
-}
-
-/*
  * This routine is called by the USB subsystem for each new device
  * in the system. We need to check if the device is ours, and in
  * this case start handling it.
@@ -1066,7 +1057,6 @@ static int stir_probe(struct usb_interface *intf,
 	net->hard_start_xmit = stir_hard_xmit;
 	net->open            = stir_net_open;
 	net->stop            = stir_net_close;
-	net->get_stats	     = stir_net_get_stats;
 	net->do_ioctl        = stir_net_ioctl;
 
 	ret = register_netdev(net);

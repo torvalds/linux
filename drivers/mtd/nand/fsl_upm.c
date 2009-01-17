@@ -222,7 +222,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 
 	fun->rnb_gpio = of_get_gpio(ofdev->node, 0);
 	if (fun->rnb_gpio >= 0) {
-		ret = gpio_request(fun->rnb_gpio, ofdev->dev.bus_id);
+		ret = gpio_request(fun->rnb_gpio, dev_name(&ofdev->dev));
 		if (ret) {
 			dev_err(&ofdev->dev, "can't request RNB gpio\n");
 			goto err2;

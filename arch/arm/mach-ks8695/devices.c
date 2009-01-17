@@ -22,6 +22,7 @@
 
 #include <linux/platform_device.h>
 
+#include <mach/irqs.h>
 #include <mach/regs-wan.h>
 #include <mach/regs-lan.h>
 #include <mach/regs-hpna.h>

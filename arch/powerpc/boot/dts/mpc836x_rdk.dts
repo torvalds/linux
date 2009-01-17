@@ -218,8 +218,23 @@
 				reg = <0x440 0x40>;
 				interrupts = <12 13 14 15>;
 				interrupt-parent = <&qeic>;
-				/* filled by u-boot */
-				clock-frequency = <0>;
+				clock-frequency = <166666666>;
+			};
+
+			usb@6c0 {
+				compatible = "fsl,mpc8360-qe-usb",
+					     "fsl,mpc8323-qe-usb";
+				reg = <0x6c0 0x40 0x8b00 0x100>;
+				interrupts = <11>;
+				interrupt-parent = <&qeic>;
+				fsl,fullspeed-clock = "clk21";
+				gpios = <&qe_pio_b  2 0 /* USBOE */
+					 &qe_pio_b  3 0 /* USBTP */
+					 &qe_pio_b  8 0 /* USBTN */
+					 &qe_pio_b  9 0 /* USBRP */
+					 &qe_pio_b 11 0 /* USBRN */
+					 &qe_pio_e 20 0 /* SPEED */
+					 &qe_pio_e 21 1 /* POWER */>;
 			};
 
 			spi@4c0 {

@@ -263,6 +263,11 @@ static inline int fls(unsigned long word)
 	return 32 - result;
 }
 
+static inline int __fls(unsigned long word)
+{
+	return fls(word) - 1;
+}
+
 unsigned long find_first_zero_bit(const unsigned long *addr,
 				  unsigned long size);
 unsigned long find_next_zero_bit(const unsigned long *addr,
