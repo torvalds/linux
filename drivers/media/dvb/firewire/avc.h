@@ -402,31 +402,31 @@ typedef struct
 
 struct dvb_diseqc_master_cmd;
 struct dvb_frontend_parameters;
-struct firesat;
+struct firedtv;
 
-int avc_recv(struct firesat *firesat, u8 *data, size_t length);
+int avc_recv(struct firedtv *fdtv, u8 *data, size_t length);
 
-int AVCTuner_DSIT(struct firesat *firesat, int Source_Plug,
+int AVCTuner_DSIT(struct firedtv *fdtv, int Source_Plug,
 		struct dvb_frontend_parameters *params, __u8 *status);
 
-int avc_tuner_status(struct firesat *firesat,
+int avc_tuner_status(struct firedtv *fdtv,
 		ANTENNA_INPUT_INFO *antenna_input_info);
-int avc_tuner_dsd(struct firesat *firesat,
+int avc_tuner_dsd(struct firedtv *fdtv,
 		struct dvb_frontend_parameters *params);
-int avc_tuner_set_pids(struct firesat *firesat, unsigned char pidc, u16 pid[]);
-int avc_tuner_get_ts(struct firesat *firesat);
-int avc_identify_subunit(struct firesat *firesat);
-int avc_lnb_control(struct firesat *firesat, char voltage, char burst,
+int avc_tuner_set_pids(struct firedtv *fdtv, unsigned char pidc, u16 pid[]);
+int avc_tuner_get_ts(struct firedtv *fdtv);
+int avc_identify_subunit(struct firedtv *fdtv);
+int avc_lnb_control(struct firedtv *fdtv, char voltage, char burst,
 		char conttone, char nrdiseq,
 		struct dvb_diseqc_master_cmd *diseqcmd);
 void avc_remote_ctrl_work(struct work_struct *work);
-int avc_register_remote_control(struct firesat *firesat);
-int avc_ca_app_info(struct firesat *firesat, char *app_info, unsigned int *len);
-int avc_ca_info(struct firesat *firesat, char *app_info, unsigned int *len);
-int avc_ca_reset(struct firesat *firesat);
-int avc_ca_pmt(struct firesat *firesat, char *app_info, int length);
-int avc_ca_get_time_date(struct firesat *firesat, int *interval);
-int avc_ca_enter_menu(struct firesat *firesat);
-int avc_ca_get_mmi(struct firesat *firesat, char *mmi_object, unsigned int *len);
+int avc_register_remote_control(struct firedtv *fdtv);
+int avc_ca_app_info(struct firedtv *fdtv, char *app_info, unsigned int *len);
+int avc_ca_info(struct firedtv *fdtv, char *app_info, unsigned int *len);
+int avc_ca_reset(struct firedtv *fdtv);
+int avc_ca_pmt(struct firedtv *fdtv, char *app_info, int length);
+int avc_ca_get_time_date(struct firedtv *fdtv, int *interval);
+int avc_ca_enter_menu(struct firedtv *fdtv);
+int avc_ca_get_mmi(struct firedtv *fdtv, char *mmi_object, unsigned int *len);
 
 #endif /* _AVC_API_H */

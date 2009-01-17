@@ -15,8 +15,8 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
-#include "firesat-rc.h"
-#include "firesat.h"
+#include "firedtv-rc.h"
+#include "firedtv.h"
 
 /* fixed table with older keycodes, geared towards MythTV */
 const static u16 oldtable[] = {
@@ -125,7 +125,7 @@ const static u16 keytable[] = {
 	[0x34] = KEY_EXIT,
 };
 
-int firesat_register_rc(struct firesat *firesat, struct device *dev)
+int fdtv_register_rc(struct firedtv *fdtv, struct device *dev)
 {
 	struct input_dev *idev;
 	int i, err;
@@ -134,7 +134,7 @@ int firesat_register_rc(struct firesat *firesat, struct device *dev)
 	if (!idev)
 		return -ENOMEM;
 
-	firesat->remote_ctrl_dev = idev;
+	fdtv->remote_ctrl_dev = idev;
 	idev->name = "FireDTV remote control";
 	idev->dev.parent = dev;
 	idev->evbit[0] = BIT_MASK(EV_KEY);
@@ -162,15 +162,15 @@ fail:
 	return err;
 }
 
-void firesat_unregister_rc(struct firesat *firesat)
+void fdtv_unregister_rc(struct firedtv *fdtv)
 {
-	kfree(firesat->remote_ctrl_dev->keycode);
-	input_unregister_device(firesat->remote_ctrl_dev);
+	kfree(fdtv->remote_ctrl_dev->keycode);
+	input_unregister_device(fdtv->remote_ctrl_dev);
 }
 
-void firesat_handle_rc(struct firesat *firesat, unsigned int code)
+void fdtv_handle_rc(struct firedtv *fdtv, unsigned int code)
 {
-	u16 *keycode = firesat->remote_ctrl_dev->keycode;
+	u16 *keycode = fdtv->remote_ctrl_dev->keycode;
 
 	if (code >= 0x0300 && code <= 0x031f)
 		code = keycode[code - 0x0300];
@@ -186,6 +186,6 @@ void firesat_handle_rc(struct firesat *firesat, unsigned int code)
 		return;
 	}
 
-	input_report_key(firesat->remote_ctrl_dev, code, 1);
-	input_report_key(firesat->remote_ctrl_dev, code, 0);
+	input_report_key(fdtv->remote_ctrl_dev, code, 1);
+	input_report_key(fdtv->remote_ctrl_dev, code, 0);
 }

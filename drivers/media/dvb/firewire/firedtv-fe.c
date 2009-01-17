@@ -17,77 +17,77 @@
 
 #include <dvb_frontend.h>
 
-#include "avc_api.h"
+#include "avc.h"
 #include "cmp.h"
-#include "firesat.h"
+#include "firedtv.h"
 
-static int firesat_dvb_init(struct dvb_frontend *fe)
+static int fdtv_dvb_init(struct dvb_frontend *fe)
 {
-	struct firesat *firesat = fe->sec_priv;
+	struct firedtv *fdtv = fe->sec_priv;
 	int err;
 
 	/* FIXME - allocate free channel at IRM */
-	firesat->isochannel = firesat->adapter.num;
+	fdtv->isochannel = fdtv->adapter.num;
 
-	err = cmp_establish_pp_connection(firesat, firesat->subunit,
-					  firesat->isochannel);
+	err = cmp_establish_pp_connection(fdtv, fdtv->subunit,
+					  fdtv->isochannel);
 	if (err) {
 		printk(KERN_ERR "Could not establish point to point "
 		       "connection.\n");
 		return err;
 	}
 
-	return setup_iso_channel(firesat);
+	return setup_iso_channel(fdtv);
 }
 
-static int firesat_sleep(struct dvb_frontend *fe)
+static int fdtv_sleep(struct dvb_frontend *fe)
 {
-	struct firesat *firesat = fe->sec_priv;
+	struct firedtv *fdtv = fe->sec_priv;
 
-	tear_down_iso_channel(firesat);
-	cmp_break_pp_connection(firesat, firesat->subunit, firesat->isochannel);
-	firesat->isochannel = -1;
+	tear_down_iso_channel(fdtv);
+	cmp_break_pp_connection(fdtv, fdtv->subunit, fdtv->isochannel);
+	fdtv->isochannel = -1;
 	return 0;
 }
 
-static int firesat_diseqc_send_master_cmd(struct dvb_frontend *fe,
+static int fdtv_diseqc_send_master_cmd(struct dvb_frontend *fe,
 					  struct dvb_diseqc_master_cmd *cmd)
 {
-	struct firesat *firesat = fe->sec_priv;
+	struct firedtv *fdtv = fe->sec_priv;
 
-	return avc_lnb_control(firesat, LNBCONTROL_DONTCARE,
+	return avc_lnb_control(fdtv, LNBCONTROL_DONTCARE,
 			LNBCONTROL_DONTCARE, LNBCONTROL_DONTCARE, 1, cmd);
 }
 
-static int firesat_diseqc_send_burst(struct dvb_frontend *fe,
+static int fdtv_diseqc_send_burst(struct dvb_frontend *fe,
 				     fe_sec_mini_cmd_t minicmd)
 {
 	return 0;
 }
 
-static int firesat_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
+static int fdtv_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 {
-	struct firesat *firesat = fe->sec_priv;
+	struct firedtv *fdtv = fe->sec_priv;
 
-	firesat->tone = tone;
+	fdtv->tone = tone;
 	return 0;
 }
 
-static int firesat_set_voltage(struct dvb_frontend *fe,
+static int fdtv_set_voltage(struct dvb_frontend *fe,
 			       fe_sec_voltage_t voltage)
 {
-	struct firesat *firesat = fe->sec_priv;
+	struct firedtv *fdtv = fe->sec_priv;
 
-	firesat->voltage = voltage;
+	fdtv->voltage = voltage;
 	return 0;
 }
 
-static int firesat_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int fdtv_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
-	struct firesat *firesat = fe->sec_priv;
+	struct firedtv *fdtv = fe->sec_priv;
 	ANTENNA_INPUT_INFO info;
 
-	if (avc_tuner_status(firesat, &info))
+	if (avc_tuner_status(fdtv, &info))
 		return -EINVAL;
 
 	if (info.NoRF)
@@ -98,12 +98,12 @@ static int firesat_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
-static int firesat_read_ber(struct dvb_frontend *fe, u32 *ber)
+static int fdtv_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	struct firesat *firesat = fe->sec_priv;
+	struct firedtv *fdtv = fe->sec_priv;
 	ANTENNA_INPUT_INFO info;
 
-	if (avc_tuner_status(firesat, &info))
+	if (avc_tuner_status(fdtv, &info))
 		return -EINVAL;
 
 	*ber = info.BER[0] << 24 | info.BER[1] << 16 |
@@ -111,24 +111,24 @@ static int firesat_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int firesat_read_signal_strength (struct dvb_frontend *fe, u16 *strength)
+static int fdtv_read_signal_strength (struct dvb_frontend *fe, u16 *strength)
 {
-	struct firesat *firesat = fe->sec_priv;
+	struct firedtv *fdtv = fe->sec_priv;
 	ANTENNA_INPUT_INFO info;
 
-	if (avc_tuner_status(firesat, &info))
+	if (avc_tuner_status(fdtv, &info))
 		return -EINVAL;
 
 	*strength = info.SignalStrength << 8;
 	return 0;
 }
 
-static int firesat_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int fdtv_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	struct firesat *firesat = fe->sec_priv;
+	struct firedtv *fdtv = fe->sec_priv;
 	ANTENNA_INPUT_INFO info;
 
-	if (avc_tuner_status(firesat, &info))
+	if (avc_tuner_status(fdtv, &info))
 		return -EINVAL;
 
 	/* C/N[dB] = -10 * log10(snr / 65535) */
@@ -137,53 +137,53 @@ static int firesat_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
-static int firesat_read_uncorrected_blocks(struct dvb_frontend *fe, u32 *ucblocks)
+static int fdtv_read_uncorrected_blocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	return -EOPNOTSUPP;
 }
 
-static int firesat_set_frontend(struct dvb_frontend *fe,
+static int fdtv_set_frontend(struct dvb_frontend *fe,
 				struct dvb_frontend_parameters *params)
 {
-	struct firesat *firesat = fe->sec_priv;
+	struct firedtv *fdtv = fe->sec_priv;
 
 	/* FIXME: avc_tuner_dsd never returns ACCEPTED. Check status? */
-	if (avc_tuner_dsd(firesat, params) != ACCEPTED)
+	if (avc_tuner_dsd(fdtv, params) != ACCEPTED)
 		return -EINVAL;
 	else
 		return 0; /* not sure of this... */
 }
 
-static int firesat_get_frontend(struct dvb_frontend *fe,
+static int fdtv_get_frontend(struct dvb_frontend *fe,
 				struct dvb_frontend_parameters *params)
 {
 	return -EOPNOTSUPP;
 }
 
-void firesat_frontend_init(struct firesat *firesat)
+void fdtv_frontend_init(struct firedtv *fdtv)
 {
-	struct dvb_frontend_ops *ops = &firesat->fe.ops;
+	struct dvb_frontend_ops *ops = &fdtv->fe.ops;
 	struct dvb_frontend_info *fi = &ops->info;
 
-	ops->init			= firesat_dvb_init;
-	ops->sleep			= firesat_sleep;
+	ops->init			= fdtv_dvb_init;
+	ops->sleep			= fdtv_sleep;
 
-	ops->set_frontend		= firesat_set_frontend;
-	ops->get_frontend		= firesat_get_frontend;
+	ops->set_frontend		= fdtv_set_frontend;
+	ops->get_frontend		= fdtv_get_frontend;
 
-	ops->read_status		= firesat_read_status;
-	ops->read_ber			= firesat_read_ber;
-	ops->read_signal_strength	= firesat_read_signal_strength;
-	ops->read_snr			= firesat_read_snr;
-	ops->read_ucblocks		= firesat_read_uncorrected_blocks;
+	ops->read_status		= fdtv_read_status;
+	ops->read_ber			= fdtv_read_ber;
+	ops->read_signal_strength	= fdtv_read_signal_strength;
+	ops->read_snr			= fdtv_read_snr;
+	ops->read_ucblocks		= fdtv_read_uncorrected_blocks;
 
-	ops->diseqc_send_master_cmd 	= firesat_diseqc_send_master_cmd;
-	ops->diseqc_send_burst		= firesat_diseqc_send_burst;
-	ops->set_tone			= firesat_set_tone;
-	ops->set_voltage		= firesat_set_voltage;
+	ops->diseqc_send_master_cmd 	= fdtv_diseqc_send_master_cmd;
+	ops->diseqc_send_burst		= fdtv_diseqc_send_burst;
+	ops->set_tone			= fdtv_set_tone;
+	ops->set_voltage		= fdtv_set_voltage;
 
-	switch (firesat->type) {
-	case FireSAT_DVB_S:
+	switch (fdtv->type) {
+	case FIREDTV_DVB_S:
 		fi->type		= FE_QPSK;
 
 		fi->frequency_min	= 950000;
@@ -202,7 +202,7 @@ void firesat_frontend_init(struct firesat *firesat)
 					  FE_CAN_QPSK;
 		break;
 
-	case FireSAT_DVB_C:
+	case FIREDTV_DVB_C:
 		fi->type		= FE_QAM;
 
 		fi->frequency_min	= 47000000;
@@ -220,7 +220,7 @@ void firesat_frontend_init(struct firesat *firesat)
 					  FE_CAN_QAM_AUTO;
 		break;
 
-	case FireSAT_DVB_T:
+	case FIREDTV_DVB_T:
 		fi->type		= FE_OFDM;
 
 		fi->frequency_min	= 49000000;
@@ -236,10 +236,10 @@ void firesat_frontend_init(struct firesat *firesat)
 
 	default:
 		printk(KERN_ERR "FireDTV: no frontend for model type %d\n",
-		       firesat->type);
+		       fdtv->type);
 	}
-	strcpy(fi->name, firedtv_model_names[firesat->type]);
+	strcpy(fi->name, fdtv_model_names[fdtv->type]);
 
-	firesat->fe.dvb = &firesat->adapter;
-	firesat->fe.sec_priv = firesat;
+	fdtv->fe.dvb = &fdtv->adapter;
+	fdtv->fe.sec_priv = fdtv;
 }

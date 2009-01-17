@@ -1,11 +1,11 @@
-firedtv-objs := firesat_1394.o	\
-		firesat_dvb.o	\
-		firesat_fe.o	\
-		firesat_iso.o	\
-		avc_api.o	\
+firedtv-objs := firedtv-1394.o	\
+		firedtv-dvb.o	\
+		firedtv-fe.o	\
+		firedtv-iso.o	\
+		avc.o		\
 		cmp.o		\
-		firesat-rc.o	\
-		firesat-ci.o
+		firedtv-rc.o	\
+		firedtv-ci.o
 
 obj-$(CONFIG_DVB_FIREDTV) += firedtv.o
 

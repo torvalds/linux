@@ -19,65 +19,65 @@
 #include <dvb_frontend.h>
 #include <dvbdev.h>
 
-#include "avc_api.h"
-#include "firesat.h"
-#include "firesat-ci.h"
+#include "avc.h"
+#include "firedtv.h"
+#include "firedtv-ci.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-static struct firesat_channel *firesat_channel_allocate(struct firesat *firesat)
+static struct firedtv_channel *fdtv_channel_allocate(struct firedtv *fdtv)
 {
-	struct firesat_channel *c = NULL;
+	struct firedtv_channel *c = NULL;
 	int k;
 
-	if (mutex_lock_interruptible(&firesat->demux_mutex))
+	if (mutex_lock_interruptible(&fdtv->demux_mutex))
 		return NULL;
 
 	for (k = 0; k < 16; k++)
-		if (!firesat->channel[k].active) {
-			firesat->channel[k].active = true;
-			c = &firesat->channel[k];
+		if (!fdtv->channel[k].active) {
+			fdtv->channel[k].active = true;
+			c = &fdtv->channel[k];
 			break;
 		}
 
-	mutex_unlock(&firesat->demux_mutex);
+	mutex_unlock(&fdtv->demux_mutex);
 	return c;
 }
 
-static int firesat_channel_collect(struct firesat *firesat, int *pidc, u16 pid[])
+static int fdtv_channel_collect(struct firedtv *fdtv, int *pidc, u16 pid[])
 {
 	int k, l = 0;
 
-	if (mutex_lock_interruptible(&firesat->demux_mutex))
+	if (mutex_lock_interruptible(&fdtv->demux_mutex))
 		return -EINTR;
 
 	for (k = 0; k < 16; k++)
-		if (firesat->channel[k].active)
-			pid[l++] = firesat->channel[k].pid;
+		if (fdtv->channel[k].active)
+			pid[l++] = fdtv->channel[k].pid;
 
-	mutex_unlock(&firesat->demux_mutex);
+	mutex_unlock(&fdtv->demux_mutex);
 
 	*pidc = l;
 
 	return 0;
 }
 
-static int firesat_channel_release(struct firesat *firesat,
-				   struct firesat_channel *channel)
+static int fdtv_channel_release(struct firedtv *fdtv,
+				   struct firedtv_channel *channel)
 {
-	if (mutex_lock_interruptible(&firesat->demux_mutex))
+	if (mutex_lock_interruptible(&fdtv->demux_mutex))
 		return -EINTR;
 
 	channel->active = false;
 
-	mutex_unlock(&firesat->demux_mutex);
+	mutex_unlock(&fdtv->demux_mutex);
 	return 0;
 }
 
-int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed)
+int fdtv_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
-	struct firesat *firesat = (struct firesat*)dvbdmxfeed->demux->priv;
-	struct firesat_channel *channel;
+	struct firedtv *fdtv = (struct firedtv*)dvbdmxfeed->demux->priv;
+	struct firedtv_channel *channel;
 	int pidc,k;
 	u16 pids[16];
 
@@ -98,14 +98,14 @@ int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 		case DMX_TS_PES_TELETEXT:
 		case DMX_TS_PES_PCR:
 		case DMX_TS_PES_OTHER:
-			//Dirty fix to keep firesat->channel pid-list up to date
+			//Dirty fix to keep fdtv->channel pid-list up to date
 			for(k=0;k<16;k++){
-				if (!firesat->channel[k].active)
-					firesat->channel[k].pid =
+				if (!fdtv->channel[k].active)
+					fdtv->channel[k].pid =
 						dvbdmxfeed->pid;
 					break;
 			}
-			channel = firesat_channel_allocate(firesat);
+			channel = fdtv_channel_allocate(fdtv);
 			break;
 		default:
 			printk(KERN_ERR "%s: invalid pes type %u\n",
@@ -113,7 +113,7 @@ int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 			return -EINVAL;
 		}
 	} else {
-		channel = firesat_channel_allocate(firesat);
+		channel = fdtv_channel_allocate(fdtv);
 	}
 
 	if (!channel) {
@@ -124,24 +124,24 @@ int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	dvbdmxfeed->priv = channel;
 	channel->pid = dvbdmxfeed->pid;
 
-	if (firesat_channel_collect(firesat, &pidc, pids)) {
-		firesat_channel_release(firesat, channel);
+	if (fdtv_channel_collect(fdtv, &pidc, pids)) {
+		fdtv_channel_release(fdtv, channel);
 		printk(KERN_ERR "%s: could not collect pids!\n", __func__);
 		return -EINTR;
 	}
 
 	if (dvbdmxfeed->pid == 8192) {
-		k = avc_tuner_get_ts(firesat);
+		k = avc_tuner_get_ts(fdtv);
 		if (k) {
-			firesat_channel_release(firesat, channel);
+			fdtv_channel_release(fdtv, channel);
 			printk("%s: AVCTuner_GetTS failed with error %d\n",
 			       __func__, k);
 			return k;
 		}
 	} else {
-		k = avc_tuner_set_pids(firesat, pidc, pids);
+		k = avc_tuner_set_pids(fdtv, pidc, pids);
 		if (k) {
-			firesat_channel_release(firesat, channel);
+			fdtv_channel_release(fdtv, channel);
 			printk("%s: AVCTuner_SetPIDs failed with error %d\n",
 			       __func__, k);
 			return k;
@@ -151,11 +151,11 @@ int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	return 0;
 }
 
-int firesat_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
+int fdtv_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct dvb_demux *demux = dvbdmxfeed->demux;
-	struct firesat *firesat = (struct firesat*)demux->priv;
-	struct firesat_channel *c = dvbdmxfeed->priv;
+	struct firedtv *fdtv = (struct firedtv*)demux->priv;
+	struct firedtv_channel *c = dvbdmxfeed->priv;
 	int k, l;
 	u16 pids[16];
 
@@ -179,95 +179,95 @@ int firesat_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 			return 0;
 	}
 
-	if (mutex_lock_interruptible(&firesat->demux_mutex))
+	if (mutex_lock_interruptible(&fdtv->demux_mutex))
 		return -EINTR;
 
 	/* list except channel to be removed */
 	for (k = 0, l = 0; k < 16; k++)
-		if (firesat->channel[k].active) {
-			if (&firesat->channel[k] != c)
-				pids[l++] = firesat->channel[k].pid;
+		if (fdtv->channel[k].active) {
+			if (&fdtv->channel[k] != c)
+				pids[l++] = fdtv->channel[k].pid;
 			else
-				firesat->channel[k].active = false;
+				fdtv->channel[k].active = false;
 		}
 
-	k = avc_tuner_set_pids(firesat, l, pids);
+	k = avc_tuner_set_pids(fdtv, l, pids);
 	if (!k)
 		c->active = false;
 
-	mutex_unlock(&firesat->demux_mutex);
+	mutex_unlock(&fdtv->demux_mutex);
 	return k;
 }
 
-int firesat_dvbdev_init(struct firesat *firesat, struct device *dev)
+int fdtv_dvbdev_init(struct firedtv *fdtv, struct device *dev)
 {
 	int err;
 
-	err = DVB_REGISTER_ADAPTER(&firesat->adapter,
-				   firedtv_model_names[firesat->type],
+	err = DVB_REGISTER_ADAPTER(&fdtv->adapter,
+				   fdtv_model_names[fdtv->type],
 				   THIS_MODULE, dev, adapter_nr);
 	if (err < 0)
 		goto fail_log;
 
 	/*DMX_TS_FILTERING | DMX_SECTION_FILTERING*/
-	firesat->demux.dmx.capabilities = 0;
+	fdtv->demux.dmx.capabilities = 0;
 
-	firesat->demux.priv		= (void *)firesat;
-	firesat->demux.filternum	= 16;
-	firesat->demux.feednum		= 16;
-	firesat->demux.start_feed	= firesat_start_feed;
-	firesat->demux.stop_feed	= firesat_stop_feed;
-	firesat->demux.write_to_decoder	= NULL;
+	fdtv->demux.priv	= fdtv;
+	fdtv->demux.filternum	= 16;
+	fdtv->demux.feednum	= 16;
+	fdtv->demux.start_feed	= fdtv_start_feed;
+	fdtv->demux.stop_feed	= fdtv_stop_feed;
+	fdtv->demux.write_to_decoder = NULL;
 
-	err = dvb_dmx_init(&firesat->demux);
+	err = dvb_dmx_init(&fdtv->demux);
 	if (err)
 		goto fail_unreg_adapter;
 
-	firesat->dmxdev.filternum	= 16;
-	firesat->dmxdev.demux		= &firesat->demux.dmx;
-	firesat->dmxdev.capabilities	= 0;
+	fdtv->dmxdev.filternum	= 16;
+	fdtv->dmxdev.demux		= &fdtv->demux.dmx;
+	fdtv->dmxdev.capabilities	= 0;
 
-	err = dvb_dmxdev_init(&firesat->dmxdev, &firesat->adapter);
+	err = dvb_dmxdev_init(&fdtv->dmxdev, &fdtv->adapter);
 	if (err)
 		goto fail_dmx_release;
 
-	firesat->frontend.source = DMX_FRONTEND_0;
+	fdtv->frontend.source = DMX_FRONTEND_0;
 
-	err = firesat->demux.dmx.add_frontend(&firesat->demux.dmx,
-					      &firesat->frontend);
+	err = fdtv->demux.dmx.add_frontend(&fdtv->demux.dmx,
+					      &fdtv->frontend);
 	if (err)
 		goto fail_dmxdev_release;
 
-	err = firesat->demux.dmx.connect_frontend(&firesat->demux.dmx,
-						  &firesat->frontend);
+	err = fdtv->demux.dmx.connect_frontend(&fdtv->demux.dmx,
+						  &fdtv->frontend);
 	if (err)
 		goto fail_rem_frontend;
 
-	dvb_net_init(&firesat->adapter, &firesat->dvbnet, &firesat->demux.dmx);
+	dvb_net_init(&fdtv->adapter, &fdtv->dvbnet, &fdtv->demux.dmx);
 
-	firesat_frontend_init(firesat);
-	err = dvb_register_frontend(&firesat->adapter, &firesat->fe);
+	fdtv_frontend_init(fdtv);
+	err = dvb_register_frontend(&fdtv->adapter, &fdtv->fe);
 	if (err)
 		goto fail_net_release;
 
-	err = firesat_ca_register(firesat);
+	err = fdtv_ca_register(fdtv);
 	if (err)
 		dev_info(dev, "Conditional Access Module not enabled\n");
 
 	return 0;
 
 fail_net_release:
-	dvb_net_release(&firesat->dvbnet);
-	firesat->demux.dmx.close(&firesat->demux.dmx);
+	dvb_net_release(&fdtv->dvbnet);
+	fdtv->demux.dmx.close(&fdtv->demux.dmx);
 fail_rem_frontend:
-	firesat->demux.dmx.remove_frontend(&firesat->demux.dmx,
-					   &firesat->frontend);
+	fdtv->demux.dmx.remove_frontend(&fdtv->demux.dmx,
+					   &fdtv->frontend);
 fail_dmxdev_release:
-	dvb_dmxdev_release(&firesat->dmxdev);
+	dvb_dmxdev_release(&fdtv->dmxdev);
 fail_dmx_release:
-	dvb_dmx_release(&firesat->demux);
+	dvb_dmx_release(&fdtv->demux);
 fail_unreg_adapter:
-	dvb_unregister_adapter(&firesat->adapter);
+	dvb_unregister_adapter(&fdtv->adapter);
 fail_log:
 	dev_err(dev, "DVB initialization failed\n");
 	return err;

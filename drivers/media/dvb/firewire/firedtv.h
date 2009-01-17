@@ -120,18 +120,18 @@
 
 
 enum model_type {
-	FireSAT_UNKNOWN = 0,
-	FireSAT_DVB_S   = 1,
-	FireSAT_DVB_C   = 2,
-	FireSAT_DVB_T   = 3,
-	FireSAT_DVB_S2  = 4,
+	FIREDTV_UNKNOWN = 0,
+	FIREDTV_DVB_S   = 1,
+	FIREDTV_DVB_C   = 2,
+	FIREDTV_DVB_T   = 3,
+	FIREDTV_DVB_S2  = 4,
 };
 
 struct input_dev;
 struct hpsb_iso;
 struct unit_directory;
 
-struct firesat {
+struct firedtv {
 	struct dvb_adapter	adapter;
 	struct dmxdev		dmxdev;
 	struct dvb_demux	demux;
@@ -149,7 +149,7 @@ struct firesat {
 	struct work_struct	remote_ctrl_work;
 	struct input_dev	*remote_ctrl_dev;
 
-	struct firesat_channel {
+	struct firedtv_channel {
 		bool active;
 		int pid;
 	} channel[16];
@@ -206,22 +206,22 @@ struct CIPHeader {
 	};
 };
 
-extern const char *firedtv_model_names[];
-extern struct list_head firesat_list;
-extern spinlock_t firesat_list_lock;
+extern const char *fdtv_model_names[];
+extern struct list_head fdtv_list;
+extern spinlock_t fdtv_list_lock;
 
 struct device;
 
-/* firesat_dvb.c */
-int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed);
-int firesat_stop_feed(struct dvb_demux_feed *dvbdmxfeed);
-int firesat_dvbdev_init(struct firesat *firesat, struct device *dev);
+/* firedtv-dvb.c */
+int fdtv_start_feed(struct dvb_demux_feed *dvbdmxfeed);
+int fdtv_stop_feed(struct dvb_demux_feed *dvbdmxfeed);
+int fdtv_dvbdev_init(struct firedtv *fdtv, struct device *dev);
 
-/* firesat_fe.c */
-void firesat_frontend_init(struct firesat *firesat);
+/* firedtv-fe.c */
+void fdtv_frontend_init(struct firedtv *fdtv);
 
-/* firesat_iso.c */
-int setup_iso_channel(struct firesat *firesat);
-void tear_down_iso_channel(struct firesat *firesat);
+/* firedtv-iso.c */
+int setup_iso_channel(struct firedtv *fdtv);
+void tear_down_iso_channel(struct firedtv *fdtv);
 
 #endif /* _FIREDTV_H */

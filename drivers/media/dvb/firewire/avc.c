@@ -25,26 +25,26 @@
 #include <ieee1394_transactions.h>
 #include <nodemgr.h>
 
-#include "avc_api.h"
-#include "firesat.h"
-#include "firesat-rc.h"
+#include "avc.h"
+#include "firedtv.h"
+#include "firedtv-rc.h"
 
 #define FCP_COMMAND_REGISTER	0xfffff0000b00ULL
 
-static int __avc_write(struct firesat *firesat,
+static int __avc_write(struct firedtv *fdtv,
 		       const AVCCmdFrm *CmdFrm, AVCRspFrm *RspFrm)
 {
 	int err, retry;
 
 	if (RspFrm)
-		firesat->avc_reply_received = false;
+		fdtv->avc_reply_received = false;
 
 	for (retry = 0; retry < 6; retry++) {
-		err = hpsb_node_write(firesat->ud->ne, FCP_COMMAND_REGISTER,
+		err = hpsb_node_write(fdtv->ud->ne, FCP_COMMAND_REGISTER,
 				      (quadlet_t *)CmdFrm, CmdFrm->length);
 		if (err) {
-			firesat->avc_reply_received = true;
-			dev_err(&firesat->ud->device,
+			fdtv->avc_reply_received = true;
+			dev_err(&fdtv->ud->device,
 				"FCP command write failed\n");
 			return err;
 		}
@@ -56,34 +56,34 @@ static int __avc_write(struct firesat *firesat,
 		 * AV/C specs say that answers should be sent within 150 ms.
 		 * Time out after 200 ms.
 		 */
-		if (wait_event_timeout(firesat->avc_wait,
-				       firesat->avc_reply_received,
+		if (wait_event_timeout(fdtv->avc_wait,
+				       fdtv->avc_reply_received,
 				       HZ / 5) != 0) {
-			memcpy(RspFrm, firesat->respfrm, firesat->resp_length);
-			RspFrm->length = firesat->resp_length;
+			memcpy(RspFrm, fdtv->respfrm, fdtv->resp_length);
+			RspFrm->length = fdtv->resp_length;
 
 			return 0;
 		}
 	}
-	dev_err(&firesat->ud->device, "FCP response timed out\n");
+	dev_err(&fdtv->ud->device, "FCP response timed out\n");
 	return -ETIMEDOUT;
 }
 
-static int avc_write(struct firesat *firesat,
+static int avc_write(struct firedtv *fdtv,
 		     const AVCCmdFrm *CmdFrm, AVCRspFrm *RspFrm)
 {
 	int ret;
 
-	if (mutex_lock_interruptible(&firesat->avc_mutex))
+	if (mutex_lock_interruptible(&fdtv->avc_mutex))
 		return -EINTR;
 
-	ret = __avc_write(firesat, CmdFrm, RspFrm);
+	ret = __avc_write(fdtv, CmdFrm, RspFrm);
 
-	mutex_unlock(&firesat->avc_mutex);
+	mutex_unlock(&fdtv->avc_mutex);
 	return ret;
 }
 
-int avc_recv(struct firesat *firesat, u8 *data, size_t length)
+int avc_recv(struct firedtv *fdtv, u8 *data, size_t length)
 {
 	AVCRspFrm *RspFrm = (AVCRspFrm *)data;
 
@@ -93,27 +93,27 @@ int avc_recv(struct firesat *firesat, u8 *data, size_t length)
 	    RspFrm->operand[2] == SFE_VENDOR_DE_COMPANYID_2 &&
 	    RspFrm->operand[3] == SFE_VENDOR_OPCODE_REGISTER_REMOTE_CONTROL) {
 		if (RspFrm->resp == CHANGED) {
-			firesat_handle_rc(firesat,
+			fdtv_handle_rc(fdtv,
 			    RspFrm->operand[4] << 8 | RspFrm->operand[5]);
-			schedule_work(&firesat->remote_ctrl_work);
+			schedule_work(&fdtv->remote_ctrl_work);
 		} else if (RspFrm->resp != INTERIM) {
-			dev_info(&firesat->ud->device,
+			dev_info(&fdtv->ud->device,
 				 "remote control result = %d\n", RspFrm->resp);
 		}
 		return 0;
 	}
 
-	if (firesat->avc_reply_received) {
-		dev_err(&firesat->ud->device,
+	if (fdtv->avc_reply_received) {
+		dev_err(&fdtv->ud->device,
 			"received out-of-order AVC response, ignored\n");
 		return -EIO;
 	}
 
-	memcpy(firesat->respfrm, data, length);
-	firesat->resp_length = length;
+	memcpy(fdtv->respfrm, data, length);
+	fdtv->resp_length = length;
 
-	firesat->avc_reply_received = true;
-	wake_up(&firesat->avc_wait);
+	fdtv->avc_reply_received = true;
+	wake_up(&fdtv->avc_wait);
 
 	return 0;
 }
@@ -122,7 +122,7 @@ int avc_recv(struct firesat *firesat, u8 *data, size_t length)
  * tuning command for setting the relative LNB frequency
  * (not supported by the AVC standard)
  */
-static void avc_tuner_tuneqpsk(struct firesat *firesat,
+static void avc_tuner_tuneqpsk(struct firedtv *fdtv,
 		struct dvb_frontend_parameters *params, AVCCmdFrm *CmdFrm)
 {
 	CmdFrm->opcode = VENDOR;
@@ -158,21 +158,21 @@ static void avc_tuner_tuneqpsk(struct firesat *firesat,
 		CmdFrm->operand[10] = 0x0;
 	}
 
-	if (firesat->voltage == 0xff)
+	if (fdtv->voltage == 0xff)
 		CmdFrm->operand[11] = 0xff;
-	else if (firesat->voltage == SEC_VOLTAGE_18) /* polarisation */
+	else if (fdtv->voltage == SEC_VOLTAGE_18) /* polarisation */
 		CmdFrm->operand[11] = 0;
 	else
 		CmdFrm->operand[11] = 1;
 
-	if (firesat->tone == 0xff)
+	if (fdtv->tone == 0xff)
 		CmdFrm->operand[12] = 0xff;
-	else if (firesat->tone == SEC_TONE_ON) /* band */
+	else if (fdtv->tone == SEC_TONE_ON) /* band */
 		CmdFrm->operand[12] = 1;
 	else
 		CmdFrm->operand[12] = 0;
 
-	if (firesat->type == FireSAT_DVB_S2) {
+	if (fdtv->type == FIREDTV_DVB_S2) {
 		CmdFrm->operand[13] = 0x1;
 		CmdFrm->operand[14] = 0xff;
 		CmdFrm->operand[15] = 0xff;
@@ -394,7 +394,7 @@ static void avc_tuner_dsd_dvb_t(struct dvb_frontend_parameters *params,
 	CmdFrm->length = 24;
 }
 
-int avc_tuner_dsd(struct firesat *firesat,
+int avc_tuner_dsd(struct firedtv *fdtv,
 		  struct dvb_frontend_parameters *params)
 {
 	AVCCmdFrm CmdFrm;
@@ -405,21 +405,21 @@ int avc_tuner_dsd(struct firesat *firesat,
 	CmdFrm.cts	= AVC;
 	CmdFrm.ctype	= CONTROL;
 	CmdFrm.sutyp	= 0x5;
-	CmdFrm.suid	= firesat->subunit;
+	CmdFrm.suid	= fdtv->subunit;
 
-	switch (firesat->type) {
-	case FireSAT_DVB_S:
-	case FireSAT_DVB_S2:
-		avc_tuner_tuneqpsk(firesat, params, &CmdFrm); break;
-	case FireSAT_DVB_C:
+	switch (fdtv->type) {
+	case FIREDTV_DVB_S:
+	case FIREDTV_DVB_S2:
+		avc_tuner_tuneqpsk(fdtv, params, &CmdFrm); break;
+	case FIREDTV_DVB_C:
 		avc_tuner_dsd_dvb_c(params, &CmdFrm); break;
-	case FireSAT_DVB_T:
+	case FIREDTV_DVB_T:
 		avc_tuner_dsd_dvb_t(params, &CmdFrm); break;
 	default:
 		BUG();
 	}
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	msleep(500);
@@ -432,7 +432,7 @@ int avc_tuner_dsd(struct firesat *firesat,
 	return 0;
 }
 
-int avc_tuner_set_pids(struct firesat *firesat, unsigned char pidc, u16 pid[])
+int avc_tuner_set_pids(struct firedtv *fdtv, unsigned char pidc, u16 pid[])
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -446,7 +446,7 @@ int avc_tuner_set_pids(struct firesat *firesat, unsigned char pidc, u16 pid[])
 	CmdFrm.cts	= AVC;
 	CmdFrm.ctype	= CONTROL;
 	CmdFrm.sutyp	= 0x5;
-	CmdFrm.suid	= firesat->subunit;
+	CmdFrm.suid	= fdtv->subunit;
 	CmdFrm.opcode	= DSD;
 
 	CmdFrm.operand[0]  = 0; // source plug
@@ -469,14 +469,14 @@ int avc_tuner_set_pids(struct firesat *firesat, unsigned char pidc, u16 pid[])
 
 	CmdFrm.length = ALIGN(3 + pos, 4);
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	msleep(50);
 	return 0;
 }
 
-int avc_tuner_get_ts(struct firesat *firesat)
+int avc_tuner_get_ts(struct firedtv *fdtv)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -486,7 +486,7 @@ int avc_tuner_get_ts(struct firesat *firesat)
 	CmdFrm.cts		= AVC;
 	CmdFrm.ctype	= CONTROL;
 	CmdFrm.sutyp	= 0x5;
-	CmdFrm.suid		= firesat->subunit;
+	CmdFrm.suid		= fdtv->subunit;
 	CmdFrm.opcode	= DSIT;
 
 	CmdFrm.operand[0]  = 0; // source plug
@@ -495,21 +495,21 @@ int avc_tuner_get_ts(struct firesat *firesat)
 	CmdFrm.operand[3]  = 0x20; // system id = DVB
 	CmdFrm.operand[4]  = 0x00; // antenna number
 	CmdFrm.operand[5]  = 0x0;  // system_specific_search_flags
-	CmdFrm.operand[6]  = (firesat->type == FireSAT_DVB_T)?0x0c:0x11; // system_specific_multiplex selection_length
+	CmdFrm.operand[6]  = (fdtv->type == FIREDTV_DVB_T)?0x0c:0x11; // system_specific_multiplex selection_length
 	CmdFrm.operand[7]  = 0x00; // valid_flags [0]
 	CmdFrm.operand[8]  = 0x00; // valid_flags [1]
-	CmdFrm.operand[7 + (firesat->type == FireSAT_DVB_T)?0x0c:0x11] = 0x00; // nr_of_dsit_sel_specs (always 0)
+	CmdFrm.operand[7 + (fdtv->type == FIREDTV_DVB_T)?0x0c:0x11] = 0x00; // nr_of_dsit_sel_specs (always 0)
 
-	CmdFrm.length = (firesat->type == FireSAT_DVB_T)?24:28;
+	CmdFrm.length = (fdtv->type == FIREDTV_DVB_T)?24:28;
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	msleep(250);
 	return 0;
 }
 
-int avc_identify_subunit(struct firesat *firesat)
+int avc_identify_subunit(struct firedtv *fdtv)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -519,7 +519,7 @@ int avc_identify_subunit(struct firesat *firesat)
 	CmdFrm.cts = AVC;
 	CmdFrm.ctype = CONTROL;
 	CmdFrm.sutyp = 0x5; // tuner
-	CmdFrm.suid = firesat->subunit;
+	CmdFrm.suid = fdtv->subunit;
 	CmdFrm.opcode = READ_DESCRIPTOR;
 
 	CmdFrm.operand[0]=DESCRIPTOR_SUBUNIT_IDENTIFIER;
@@ -532,19 +532,19 @@ int avc_identify_subunit(struct firesat *firesat)
 
 	CmdFrm.length=12;
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	if ((RspFrm.resp != STABLE && RspFrm.resp != ACCEPTED) ||
 	    (RspFrm.operand[3] << 8) + RspFrm.operand[4] != 8) {
-		dev_err(&firesat->ud->device,
+		dev_err(&fdtv->ud->device,
 			"cannot read subunit identifier\n");
 		return -EINVAL;
 	}
 	return 0;
 }
 
-int avc_tuner_status(struct firesat *firesat,
+int avc_tuner_status(struct firedtv *fdtv,
 		     ANTENNA_INPUT_INFO *antenna_input_info)
 {
 	AVCCmdFrm CmdFrm;
@@ -556,7 +556,7 @@ int avc_tuner_status(struct firesat *firesat,
 	CmdFrm.cts=AVC;
 	CmdFrm.ctype=CONTROL;
 	CmdFrm.sutyp=0x05; // tuner
-	CmdFrm.suid=firesat->subunit;
+	CmdFrm.suid=fdtv->subunit;
 	CmdFrm.opcode=READ_DESCRIPTOR;
 
 	CmdFrm.operand[0]=DESCRIPTOR_TUNER_STATUS;
@@ -568,17 +568,17 @@ int avc_tuner_status(struct firesat *firesat,
 	CmdFrm.operand[6]=0x00;
 	CmdFrm.length=12;
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	if (RspFrm.resp != STABLE && RspFrm.resp != ACCEPTED) {
-		dev_err(&firesat->ud->device, "cannot read tuner status\n");
+		dev_err(&fdtv->ud->device, "cannot read tuner status\n");
 		return -EINVAL;
 	}
 
 	length = RspFrm.operand[9];
 	if (RspFrm.operand[1] != 0x10 || length != sizeof(ANTENNA_INPUT_INFO)) {
-		dev_err(&firesat->ud->device, "got invalid tuner status\n");
+		dev_err(&fdtv->ud->device, "got invalid tuner status\n");
 		return -EINVAL;
 	}
 
@@ -586,7 +586,7 @@ int avc_tuner_status(struct firesat *firesat,
 	return 0;
 }
 
-int avc_lnb_control(struct firesat *firesat, char voltage, char burst,
+int avc_lnb_control(struct firedtv *fdtv, char voltage, char burst,
 		    char conttone, char nrdiseq,
 		    struct dvb_diseqc_master_cmd *diseqcmd)
 {
@@ -599,7 +599,7 @@ int avc_lnb_control(struct firesat *firesat, char voltage, char burst,
 	CmdFrm.cts=AVC;
 	CmdFrm.ctype=CONTROL;
 	CmdFrm.sutyp=0x05;
-	CmdFrm.suid=firesat->subunit;
+	CmdFrm.suid=fdtv->subunit;
 	CmdFrm.opcode=VENDOR;
 
 	CmdFrm.operand[0]=SFE_VENDOR_DE_COMPANYID_0;
@@ -624,18 +624,18 @@ int avc_lnb_control(struct firesat *firesat, char voltage, char burst,
 
 	CmdFrm.length = ALIGN(3 + i, 4);
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	if (RspFrm.resp != ACCEPTED) {
-		dev_err(&firesat->ud->device, "LNB control failed\n");
+		dev_err(&fdtv->ud->device, "LNB control failed\n");
 		return -EINVAL;
 	}
 
 	return 0;
 }
 
-int avc_register_remote_control(struct firesat *firesat)
+int avc_register_remote_control(struct firedtv *fdtv)
 {
 	AVCCmdFrm CmdFrm;
 
@@ -654,20 +654,20 @@ int avc_register_remote_control(struct firesat *firesat)
 
 	CmdFrm.length = 8;
 
-	return avc_write(firesat, &CmdFrm, NULL);
+	return avc_write(fdtv, &CmdFrm, NULL);
 }
 
 void avc_remote_ctrl_work(struct work_struct *work)
 {
-	struct firesat *firesat =
-			container_of(work, struct firesat, remote_ctrl_work);
+	struct firedtv *fdtv =
+			container_of(work, struct firedtv, remote_ctrl_work);
 
 	/* Should it be rescheduled in failure cases? */
-	avc_register_remote_control(firesat);
+	avc_register_remote_control(fdtv);
 }
 
 #if 0 /* FIXME: unused */
-int avc_tuner_host2ca(struct firesat *firesat)
+int avc_tuner_host2ca(struct firedtv *fdtv)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -676,7 +676,7 @@ int avc_tuner_host2ca(struct firesat *firesat)
 	CmdFrm.cts = AVC;
 	CmdFrm.ctype = CONTROL;
 	CmdFrm.sutyp = 0x5;
-	CmdFrm.suid = firesat->subunit;
+	CmdFrm.suid = fdtv->subunit;
 	CmdFrm.opcode = VENDOR;
 
 	CmdFrm.operand[0]=SFE_VENDOR_DE_COMPANYID_0;
@@ -689,7 +689,7 @@ int avc_tuner_host2ca(struct firesat *firesat)
 	CmdFrm.operand[7] = 0; // length
 	CmdFrm.length = 12;
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	return 0;
@@ -721,7 +721,7 @@ static int get_ca_object_length(AVCRspFrm *RspFrm)
 	return RspFrm->operand[7];
 }
 
-int avc_ca_app_info(struct firesat *firesat, char *app_info, unsigned int *len)
+int avc_ca_app_info(struct firedtv *fdtv, char *app_info, unsigned int *len)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -731,7 +731,7 @@ int avc_ca_app_info(struct firesat *firesat, char *app_info, unsigned int *len)
 	CmdFrm.cts = AVC;
 	CmdFrm.ctype = STATUS;
 	CmdFrm.sutyp = 0x5;
-	CmdFrm.suid = firesat->subunit;
+	CmdFrm.suid = fdtv->subunit;
 	CmdFrm.opcode = VENDOR;
 
 	CmdFrm.operand[0]=SFE_VENDOR_DE_COMPANYID_0;
@@ -742,7 +742,7 @@ int avc_ca_app_info(struct firesat *firesat, char *app_info, unsigned int *len)
 	CmdFrm.operand[5] = SFE_VENDOR_TAG_CA_APPLICATION_INFO; // ca tag
 	CmdFrm.length = 12;
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	/* FIXME: check response code and validate response data */
@@ -759,7 +759,7 @@ int avc_ca_app_info(struct firesat *firesat, char *app_info, unsigned int *len)
 	return 0;
 }
 
-int avc_ca_info(struct firesat *firesat, char *app_info, unsigned int *len)
+int avc_ca_info(struct firedtv *fdtv, char *app_info, unsigned int *len)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -769,7 +769,7 @@ int avc_ca_info(struct firesat *firesat, char *app_info, unsigned int *len)
 	CmdFrm.cts = AVC;
 	CmdFrm.ctype = STATUS;
 	CmdFrm.sutyp = 0x5;
-	CmdFrm.suid = firesat->subunit;
+	CmdFrm.suid = fdtv->subunit;
 	CmdFrm.opcode = VENDOR;
 
 	CmdFrm.operand[0]=SFE_VENDOR_DE_COMPANYID_0;
@@ -780,7 +780,7 @@ int avc_ca_info(struct firesat *firesat, char *app_info, unsigned int *len)
 	CmdFrm.operand[5] = SFE_VENDOR_TAG_CA_APPLICATION_INFO; // ca tag
 	CmdFrm.length = 12;
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	pos = get_ca_object_pos(&RspFrm);
@@ -795,7 +795,7 @@ int avc_ca_info(struct firesat *firesat, char *app_info, unsigned int *len)
 	return 0;
 }
 
-int avc_ca_reset(struct firesat *firesat)
+int avc_ca_reset(struct firedtv *fdtv)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -804,7 +804,7 @@ int avc_ca_reset(struct firesat *firesat)
 	CmdFrm.cts = AVC;
 	CmdFrm.ctype = CONTROL;
 	CmdFrm.sutyp = 0x5;
-	CmdFrm.suid = firesat->subunit;
+	CmdFrm.suid = fdtv->subunit;
 	CmdFrm.opcode = VENDOR;
 
 	CmdFrm.operand[0]=SFE_VENDOR_DE_COMPANYID_0;
@@ -818,13 +818,13 @@ int avc_ca_reset(struct firesat *firesat)
 	CmdFrm.operand[8] = 0; // force hardware reset
 	CmdFrm.length = 12;
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	return 0;
 }
 
-int avc_ca_pmt(struct firesat *firesat, char *msg, int length)
+int avc_ca_pmt(struct firedtv *fdtv, char *msg, int length)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -840,11 +840,11 @@ int avc_ca_pmt(struct firesat *firesat, char *msg, int length)
 	CmdFrm.cts = AVC;
 	CmdFrm.ctype = CONTROL;
 	CmdFrm.sutyp = 0x5;
-	CmdFrm.suid = firesat->subunit;
+	CmdFrm.suid = fdtv->subunit;
 	CmdFrm.opcode = VENDOR;
 
 	if (msg[0] != LIST_MANAGEMENT_ONLY) {
-		dev_info(&firesat->ud->device,
+		dev_info(&fdtv->ud->device,
 			 "forcing list_management to ONLY\n");
 		msg[0] = LIST_MANAGEMENT_ONLY;
 	}
@@ -894,7 +894,7 @@ int avc_ca_pmt(struct firesat *firesat, char *msg, int length)
 	if (program_info_length > 0) {
 		pmt_cmd_id = msg[read_pos++];
 		if (pmt_cmd_id != 1 && pmt_cmd_id != 4)
-			dev_err(&firesat->ud->device,
+			dev_err(&fdtv->ud->device,
 				"invalid pmt_cmd_id %d\n", pmt_cmd_id);
 
 		memcpy(&CmdFrm.operand[write_pos], &msg[read_pos],
@@ -916,7 +916,7 @@ int avc_ca_pmt(struct firesat *firesat, char *msg, int length)
 		if (es_info_length > 0) {
 			pmt_cmd_id = msg[read_pos++];
 			if (pmt_cmd_id != 1 && pmt_cmd_id != 4)
-				dev_err(&firesat->ud->device,
+				dev_err(&fdtv->ud->device,
 					"invalid pmt_cmd_id %d "
 					"at stream level\n", pmt_cmd_id);
 
@@ -945,11 +945,11 @@ int avc_ca_pmt(struct firesat *firesat, char *msg, int length)
 
 	CmdFrm.length = ALIGN(3 + write_pos, 4);
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	if (RspFrm.resp != ACCEPTED) {
-		dev_err(&firesat->ud->device,
+		dev_err(&fdtv->ud->device,
 			"CA PMT failed with response 0x%x\n", RspFrm.resp);
 		return -EFAULT;
 	}
@@ -957,7 +957,7 @@ int avc_ca_pmt(struct firesat *firesat, char *msg, int length)
 	return 0;
 }
 
-int avc_ca_get_time_date(struct firesat *firesat, int *interval)
+int avc_ca_get_time_date(struct firedtv *fdtv, int *interval)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -966,7 +966,7 @@ int avc_ca_get_time_date(struct firesat *firesat, int *interval)
 	CmdFrm.cts = AVC;
 	CmdFrm.ctype = STATUS;
 	CmdFrm.sutyp = 0x5;
-	CmdFrm.suid = firesat->subunit;
+	CmdFrm.suid = fdtv->subunit;
 	CmdFrm.opcode = VENDOR;
 
 	CmdFrm.operand[0]=SFE_VENDOR_DE_COMPANYID_0;
@@ -979,7 +979,7 @@ int avc_ca_get_time_date(struct firesat *firesat, int *interval)
 	CmdFrm.operand[7] = 0; // length
 	CmdFrm.length = 12;
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	/* FIXME: check response code and validate response data */
@@ -989,7 +989,7 @@ int avc_ca_get_time_date(struct firesat *firesat, int *interval)
 	return 0;
 }
 
-int avc_ca_enter_menu(struct firesat *firesat)
+int avc_ca_enter_menu(struct firedtv *fdtv)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -998,7 +998,7 @@ int avc_ca_enter_menu(struct firesat *firesat)
 	CmdFrm.cts = AVC;
 	CmdFrm.ctype = STATUS;
 	CmdFrm.sutyp = 0x5;
-	CmdFrm.suid = firesat->subunit;
+	CmdFrm.suid = fdtv->subunit;
 	CmdFrm.opcode = VENDOR;
 
 	CmdFrm.operand[0]=SFE_VENDOR_DE_COMPANYID_0;
@@ -1011,13 +1011,13 @@ int avc_ca_enter_menu(struct firesat *firesat)
 	CmdFrm.operand[7] = 0; // length
 	CmdFrm.length = 12;
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	return 0;
 }
 
-int avc_ca_get_mmi(struct firesat *firesat, char *mmi_object, unsigned int *len)
+int avc_ca_get_mmi(struct firedtv *fdtv, char *mmi_object, unsigned int *len)
 {
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
@@ -1026,7 +1026,7 @@ int avc_ca_get_mmi(struct firesat *firesat, char *mmi_object, unsigned int *len)
 	CmdFrm.cts = AVC;
 	CmdFrm.ctype = STATUS;
 	CmdFrm.sutyp = 0x5;
-	CmdFrm.suid = firesat->subunit;
+	CmdFrm.suid = fdtv->subunit;
 	CmdFrm.opcode = VENDOR;
 
 	CmdFrm.operand[0]=SFE_VENDOR_DE_COMPANYID_0;
@@ -1039,7 +1039,7 @@ int avc_ca_get_mmi(struct firesat *firesat, char *mmi_object, unsigned int *len)
 	CmdFrm.operand[7] = 0; // length
 	CmdFrm.length = 12;
 
-	if (avc_write(firesat, &CmdFrm, &RspFrm) < 0)
+	if (avc_write(fdtv, &CmdFrm, &RspFrm) < 0)
 		return -EIO;
 
 	/* FIXME: check response code and validate response data */

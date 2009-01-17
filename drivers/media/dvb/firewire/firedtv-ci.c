@@ -16,11 +16,11 @@
 
 #include <dvbdev.h>
 
-#include "avc_api.h"
-#include "firesat.h"
-#include "firesat-ci.h"
+#include "avc.h"
+#include "firedtv.h"
+#include "firedtv-ci.h"
 
-static int firesat_ca_ready(ANTENNA_INPUT_INFO *info)
+static int fdtv_ca_ready(ANTENNA_INPUT_INFO *info)
 {
 	return info->CaInitializationStatus == 1 &&
 	       info->CaErrorFlag == 0 &&
@@ -28,7 +28,7 @@ static int firesat_ca_ready(ANTENNA_INPUT_INFO *info)
 	       info->CaModulePresentStatus == 1;
 }
 
-static int firesat_get_ca_flags(ANTENNA_INPUT_INFO *info)
+static int fdtv_get_ca_flags(ANTENNA_INPUT_INFO *info)
 {
 	int flags = 0;
 
@@ -41,12 +41,12 @@ static int firesat_get_ca_flags(ANTENNA_INPUT_INFO *info)
 	return flags;
 }
 
-static int firesat_ca_reset(struct firesat *firesat)
+static int fdtv_ca_reset(struct firedtv *fdtv)
 {
-	return avc_ca_reset(firesat) ? -EFAULT : 0;
+	return avc_ca_reset(fdtv) ? -EFAULT : 0;
 }
 
-static int firesat_ca_get_caps(void *arg)
+static int fdtv_ca_get_caps(void *arg)
 {
 	struct ca_caps *cap = arg;
 
@@ -57,73 +57,73 @@ static int firesat_ca_get_caps(void *arg)
 	return 0;
 }
 
-static int firesat_ca_get_slot_info(struct firesat *firesat, void *arg)
+static int fdtv_ca_get_slot_info(struct firedtv *fdtv, void *arg)
 {
 	ANTENNA_INPUT_INFO info;
 	struct ca_slot_info *slot = arg;
 
-	if (avc_tuner_status(firesat, &info))
+	if (avc_tuner_status(fdtv, &info))
 		return -EFAULT;
 
 	if (slot->num != 0)
 		return -EFAULT;
 
 	slot->type = CA_CI;
-	slot->flags = firesat_get_ca_flags(&info);
+	slot->flags = fdtv_get_ca_flags(&info);
 	return 0;
 }
 
-static int firesat_ca_app_info(struct firesat *firesat, void *arg)
+static int fdtv_ca_app_info(struct firedtv *fdtv, void *arg)
 {
 	struct ca_msg *reply = arg;
 
 	return
-	    avc_ca_app_info(firesat, reply->msg, &reply->length) ? -EFAULT : 0;
+	    avc_ca_app_info(fdtv, reply->msg, &reply->length) ? -EFAULT : 0;
 }
 
-static int firesat_ca_info(struct firesat *firesat, void *arg)
+static int fdtv_ca_info(struct firedtv *fdtv, void *arg)
 {
 	struct ca_msg *reply = arg;
 
-	return avc_ca_info(firesat, reply->msg, &reply->length) ? -EFAULT : 0;
+	return avc_ca_info(fdtv, reply->msg, &reply->length) ? -EFAULT : 0;
 }
 
-static int firesat_ca_get_mmi(struct firesat *firesat, void *arg)
+static int fdtv_ca_get_mmi(struct firedtv *fdtv, void *arg)
 {
 	struct ca_msg *reply = arg;
 
 	return
-	    avc_ca_get_mmi(firesat, reply->msg, &reply->length) ? -EFAULT : 0;
+	    avc_ca_get_mmi(fdtv, reply->msg, &reply->length) ? -EFAULT : 0;
 }
 
-static int firesat_ca_get_msg(struct firesat *firesat, void *arg)
+static int fdtv_ca_get_msg(struct firedtv *fdtv, void *arg)
 {
 	ANTENNA_INPUT_INFO info;
 	int err;
 
-	switch (firesat->ca_last_command) {
+	switch (fdtv->ca_last_command) {
 	case TAG_APP_INFO_ENQUIRY:
-		err = firesat_ca_app_info(firesat, arg);
+		err = fdtv_ca_app_info(fdtv, arg);
 		break;
 	case TAG_CA_INFO_ENQUIRY:
-		err = firesat_ca_info(firesat, arg);
+		err = fdtv_ca_info(fdtv, arg);
 		break;
 	default:
-		if (avc_tuner_status(firesat, &info))
+		if (avc_tuner_status(fdtv, &info))
 			err = -EFAULT;
 		else if (info.CaMmi == 1)
-			err = firesat_ca_get_mmi(firesat, arg);
+			err = fdtv_ca_get_mmi(fdtv, arg);
 		else {
 			printk(KERN_INFO "%s: Unhandled message 0x%08X\n",
-			       __func__, firesat->ca_last_command);
+			       __func__, fdtv->ca_last_command);
 			err = -EFAULT;
 		}
 	}
-	firesat->ca_last_command = 0;
+	fdtv->ca_last_command = 0;
 	return err;
 }
 
-static int firesat_ca_pmt(struct firesat *firesat, void *arg)
+static int fdtv_ca_pmt(struct firedtv *fdtv, void *arg)
 {
 	struct ca_msg *msg = arg;
 	int data_pos;
@@ -139,21 +139,21 @@ static int firesat_ca_pmt(struct firesat *firesat, void *arg)
 		data_length = msg->msg[3];
 	}
 
-	return avc_ca_pmt(firesat, &msg->msg[data_pos], data_length) ?
+	return avc_ca_pmt(fdtv, &msg->msg[data_pos], data_length) ?
 	       -EFAULT : 0;
 }
 
-static int firesat_ca_send_msg(struct firesat *firesat, void *arg)
+static int fdtv_ca_send_msg(struct firedtv *fdtv, void *arg)
 {
 	struct ca_msg *msg = arg;
 	int err;
 
 	/* Do we need a semaphore for this? */
-	firesat->ca_last_command =
+	fdtv->ca_last_command =
 		(msg->msg[0] << 16) + (msg->msg[1] << 8) + msg->msg[2];
-	switch (firesat->ca_last_command) {
+	switch (fdtv->ca_last_command) {
 	case TAG_CA_PMT:
-		err = firesat_ca_pmt(firesat, arg);
+		err = fdtv_ca_pmt(fdtv, arg);
 		break;
 	case TAG_APP_INFO_ENQUIRY:
 		/* handled in ca_get_msg */
@@ -164,39 +164,39 @@ static int firesat_ca_send_msg(struct firesat *firesat, void *arg)
 		err = 0;
 		break;
 	case TAG_ENTER_MENU:
-		err = avc_ca_enter_menu(firesat);
+		err = avc_ca_enter_menu(fdtv);
 		break;
 	default:
 		printk(KERN_ERR "%s: Unhandled unknown message 0x%08X\n",
-		       __func__, firesat->ca_last_command);
+		       __func__, fdtv->ca_last_command);
 		err = -EFAULT;
 	}
 	return err;
 }
 
-static int firesat_ca_ioctl(struct inode *inode, struct file *file,
+static int fdtv_ca_ioctl(struct inode *inode, struct file *file,
 			    unsigned int cmd, void *arg)
 {
 	struct dvb_device *dvbdev = file->private_data;
-	struct firesat *firesat = dvbdev->priv;
+	struct firedtv *fdtv = dvbdev->priv;
 	ANTENNA_INPUT_INFO info;
 	int err;
 
 	switch(cmd) {
 	case CA_RESET:
-		err = firesat_ca_reset(firesat);
+		err = fdtv_ca_reset(fdtv);
 		break;
 	case CA_GET_CAP:
-		err = firesat_ca_get_caps(arg);
+		err = fdtv_ca_get_caps(arg);
 		break;
 	case CA_GET_SLOT_INFO:
-		err = firesat_ca_get_slot_info(firesat, arg);
+		err = fdtv_ca_get_slot_info(fdtv, arg);
 		break;
 	case CA_GET_MSG:
-		err = firesat_ca_get_msg(firesat, arg);
+		err = fdtv_ca_get_msg(fdtv, arg);
 		break;
 	case CA_SEND_MSG:
-		err = firesat_ca_send_msg(firesat, arg);
+		err = fdtv_ca_send_msg(fdtv, arg);
 		break;
 	default:
 		printk(KERN_INFO "%s: Unhandled ioctl, command: %u\n",__func__,
@@ -205,57 +205,57 @@ static int firesat_ca_ioctl(struct inode *inode, struct file *file,
 	}
 
 	/* FIXME Is this necessary? */
-	avc_tuner_status(firesat, &info);
+	avc_tuner_status(fdtv, &info);
 
 	return err;
 }
 
-static unsigned int firesat_ca_io_poll(struct file *file, poll_table *wait)
+static unsigned int fdtv_ca_io_poll(struct file *file, poll_table *wait)
 {
 	return POLLIN;
 }
 
-static struct file_operations firesat_ca_fops = {
+static struct file_operations fdtv_ca_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= dvb_generic_ioctl,
 	.open		= dvb_generic_open,
 	.release	= dvb_generic_release,
-	.poll		= firesat_ca_io_poll,
+	.poll		= fdtv_ca_io_poll,
 };
 
-static struct dvb_device firesat_ca = {
+static struct dvb_device fdtv_ca = {
 	.users		= 1,
 	.readers	= 1,
 	.writers	= 1,
-	.fops		= &firesat_ca_fops,
-	.kernel_ioctl	= firesat_ca_ioctl,
+	.fops		= &fdtv_ca_fops,
+	.kernel_ioctl	= fdtv_ca_ioctl,
 };
 
-int firesat_ca_register(struct firesat *firesat)
+int fdtv_ca_register(struct firedtv *fdtv)
 {
 	ANTENNA_INPUT_INFO info;
 	int err;
 
-	if (avc_tuner_status(firesat, &info))
+	if (avc_tuner_status(fdtv, &info))
 		return -EINVAL;
 
-	if (!firesat_ca_ready(&info))
+	if (!fdtv_ca_ready(&info))
 		return -EFAULT;
 
-	err = dvb_register_device(&firesat->adapter, &firesat->cadev,
-				  &firesat_ca, firesat, DVB_DEVICE_CA);
+	err = dvb_register_device(&fdtv->adapter, &fdtv->cadev,
+				  &fdtv_ca, fdtv, DVB_DEVICE_CA);
 
 	if (info.CaApplicationInfo == 0)
 		printk(KERN_ERR "%s: CaApplicationInfo is not set.\n",
 		       __func__);
 	if (info.CaDateTimeRequest == 1)
-		avc_ca_get_time_date(firesat, &firesat->ca_time_interval);
+		avc_ca_get_time_date(fdtv, &fdtv->ca_time_interval);
 
 	return err;
 }
 
-void firesat_ca_release(struct firesat *firesat)
+void fdtv_ca_release(struct firedtv *fdtv)
 {
-	if (firesat->cadev)
-		dvb_unregister_device(firesat->cadev);
+	if (fdtv->cadev)
+		dvb_unregister_device(fdtv->cadev);
 }

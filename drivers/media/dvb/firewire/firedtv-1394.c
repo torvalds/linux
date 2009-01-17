@@ -33,17 +33,17 @@
 #include <ieee1394_hotplug.h>
 #include <nodemgr.h>
 
-#include "avc_api.h"
+#include "avc.h"
 #include "cmp.h"
-#include "firesat.h"
-#include "firesat-ci.h"
-#include "firesat-rc.h"
+#include "firedtv.h"
+#include "firedtv-ci.h"
+#include "firedtv-rc.h"
 
 #define MATCH_FLAGS	IEEE1394_MATCH_VENDOR_ID | IEEE1394_MATCH_MODEL_ID | \
 			IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION
 #define DIGITAL_EVERYWHERE_OUI   0x001287
 
-static struct ieee1394_device_id firesat_id_table[] = {
+static struct ieee1394_device_id fdtv_id_table[] = {
 
 	{
 		/* FloppyDTV S/CI and FloppyDTV S2 */
@@ -90,11 +90,11 @@ static struct ieee1394_device_id firesat_id_table[] = {
 	}, { }
 };
 
-MODULE_DEVICE_TABLE(ieee1394, firesat_id_table);
+MODULE_DEVICE_TABLE(ieee1394, fdtv_id_table);
 
-/* list of all firesat devices */
-LIST_HEAD(firesat_list);
-DEFINE_SPINLOCK(firesat_list_lock);
+/* list of all firedtv devices */
+LIST_HEAD(fdtv_list);
+DEFINE_SPINLOCK(fdtv_list_lock);
 
 static void fcp_request(struct hpsb_host *host,
 			int nodeid,
@@ -103,186 +103,186 @@ static void fcp_request(struct hpsb_host *host,
 			u8 *data,
 			size_t length)
 {
-	struct firesat *firesat = NULL;
-	struct firesat *firesat_entry;
+	struct firedtv *fdtv = NULL;
+	struct firedtv *fdtv_entry;
 	unsigned long flags;
 
 	if (length > 0 && ((data[0] & 0xf0) >> 4) == 0) {
 
-		spin_lock_irqsave(&firesat_list_lock, flags);
-		list_for_each_entry(firesat_entry,&firesat_list,list) {
-			if (firesat_entry->ud->ne->host == host &&
-			    firesat_entry->ud->ne->nodeid == nodeid &&
-			    (firesat_entry->subunit == (data[1]&0x7) ||
-			     (firesat_entry->subunit == 0 &&
+		spin_lock_irqsave(&fdtv_list_lock, flags);
+		list_for_each_entry(fdtv_entry,&fdtv_list,list) {
+			if (fdtv_entry->ud->ne->host == host &&
+			    fdtv_entry->ud->ne->nodeid == nodeid &&
+			    (fdtv_entry->subunit == (data[1]&0x7) ||
+			     (fdtv_entry->subunit == 0 &&
 			      (data[1]&0x7) == 0x7))) {
-				firesat=firesat_entry;
+				fdtv=fdtv_entry;
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&firesat_list_lock, flags);
+		spin_unlock_irqrestore(&fdtv_list_lock, flags);
 
-		if (firesat)
-			avc_recv(firesat, data, length);
+		if (fdtv)
+			avc_recv(fdtv, data, length);
 	}
 }
 
-const char *firedtv_model_names[] = {
-	[FireSAT_UNKNOWN] = "unknown type",
-	[FireSAT_DVB_S]   = "FireDTV S/CI",
-	[FireSAT_DVB_C]   = "FireDTV C/CI",
-	[FireSAT_DVB_T]   = "FireDTV T/CI",
-	[FireSAT_DVB_S2]  = "FireDTV S2  ",
+const char *fdtv_model_names[] = {
+	[FIREDTV_UNKNOWN] = "unknown type",
+	[FIREDTV_DVB_S]   = "FireDTV S/CI",
+	[FIREDTV_DVB_C]   = "FireDTV C/CI",
+	[FIREDTV_DVB_T]   = "FireDTV T/CI",
+	[FIREDTV_DVB_S2]  = "FireDTV S2  ",
 };
 
-static int firesat_probe(struct device *dev)
+static int fdtv_probe(struct device *dev)
 {
 	struct unit_directory *ud =
 			container_of(dev, struct unit_directory, device);
-	struct firesat *firesat;
+	struct firedtv *fdtv;
 	unsigned long flags;
 	int kv_len;
 	void *kv_str;
 	int i;
 	int err = -ENOMEM;
 
-	firesat = kzalloc(sizeof(*firesat), GFP_KERNEL);
-	if (!firesat)
+	fdtv = kzalloc(sizeof(*fdtv), GFP_KERNEL);
+	if (!fdtv)
 		return -ENOMEM;
 
-	dev->driver_data = firesat;
-	firesat->ud		= ud;
-	firesat->subunit	= 0;
-	firesat->isochannel	= -1;
-	firesat->tone		= 0xff;
-	firesat->voltage	= 0xff;
+	dev->driver_data	= fdtv;
+	fdtv->ud		= ud;
+	fdtv->subunit		= 0;
+	fdtv->isochannel	= -1;
+	fdtv->tone		= 0xff;
+	fdtv->voltage		= 0xff;
 
-	mutex_init(&firesat->avc_mutex);
-	init_waitqueue_head(&firesat->avc_wait);
-	firesat->avc_reply_received = true;
-	mutex_init(&firesat->demux_mutex);
-	INIT_WORK(&firesat->remote_ctrl_work, avc_remote_ctrl_work);
+	mutex_init(&fdtv->avc_mutex);
+	init_waitqueue_head(&fdtv->avc_wait);
+	fdtv->avc_reply_received = true;
+	mutex_init(&fdtv->demux_mutex);
+	INIT_WORK(&fdtv->remote_ctrl_work, avc_remote_ctrl_work);
 
 	/* Reading device model from ROM */
 	kv_len = (ud->model_name_kv->value.leaf.len - 2) * sizeof(quadlet_t);
 	kv_str = CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(ud->model_name_kv);
-	for (i = ARRAY_SIZE(firedtv_model_names); --i;)
-		if (strlen(firedtv_model_names[i]) <= kv_len &&
-		    strncmp(kv_str, firedtv_model_names[i], kv_len) == 0)
+	for (i = ARRAY_SIZE(fdtv_model_names); --i;)
+		if (strlen(fdtv_model_names[i]) <= kv_len &&
+		    strncmp(kv_str, fdtv_model_names[i], kv_len) == 0)
 			break;
-	firesat->type = i;
+	fdtv->type = i;
 
 	/*
 	 * Work around a bug in udev's path_id script:  Use the fw-host's dev
 	 * instead of the unit directory's dev as parent of the input device.
 	 */
-	err = firesat_register_rc(firesat, dev->parent->parent);
+	err = fdtv_register_rc(fdtv, dev->parent->parent);
 	if (err)
 		goto fail_free;
 
-	INIT_LIST_HEAD(&firesat->list);
-	spin_lock_irqsave(&firesat_list_lock, flags);
-	list_add_tail(&firesat->list, &firesat_list);
-	spin_unlock_irqrestore(&firesat_list_lock, flags);
+	INIT_LIST_HEAD(&fdtv->list);
+	spin_lock_irqsave(&fdtv_list_lock, flags);
+	list_add_tail(&fdtv->list, &fdtv_list);
+	spin_unlock_irqrestore(&fdtv_list_lock, flags);
 
-	err = avc_identify_subunit(firesat);
+	err = avc_identify_subunit(fdtv);
 	if (err)
 		goto fail;
 
-	err = firesat_dvbdev_init(firesat, dev);
+	err = fdtv_dvbdev_init(fdtv, dev);
 	if (err)
 		goto fail;
 
-	avc_register_remote_control(firesat);
+	avc_register_remote_control(fdtv);
 	return 0;
 
 fail:
-	spin_lock_irqsave(&firesat_list_lock, flags);
-	list_del(&firesat->list);
-	spin_unlock_irqrestore(&firesat_list_lock, flags);
-	firesat_unregister_rc(firesat);
+	spin_lock_irqsave(&fdtv_list_lock, flags);
+	list_del(&fdtv->list);
+	spin_unlock_irqrestore(&fdtv_list_lock, flags);
+	fdtv_unregister_rc(fdtv);
 fail_free:
-	kfree(firesat);
+	kfree(fdtv);
 	return err;
 }
 
-static int firesat_remove(struct device *dev)
+static int fdtv_remove(struct device *dev)
 {
-	struct firesat *firesat = dev->driver_data;
+	struct firedtv *fdtv = dev->driver_data;
 	unsigned long flags;
 
-	firesat_ca_release(firesat);
-	dvb_unregister_frontend(&firesat->fe);
-	dvb_net_release(&firesat->dvbnet);
-	firesat->demux.dmx.close(&firesat->demux.dmx);
-	firesat->demux.dmx.remove_frontend(&firesat->demux.dmx,
-					   &firesat->frontend);
-	dvb_dmxdev_release(&firesat->dmxdev);
-	dvb_dmx_release(&firesat->demux);
-	dvb_unregister_adapter(&firesat->adapter);
+	fdtv_ca_release(fdtv);
+	dvb_unregister_frontend(&fdtv->fe);
+	dvb_net_release(&fdtv->dvbnet);
+	fdtv->demux.dmx.close(&fdtv->demux.dmx);
+	fdtv->demux.dmx.remove_frontend(&fdtv->demux.dmx,
+					   &fdtv->frontend);
+	dvb_dmxdev_release(&fdtv->dmxdev);
+	dvb_dmx_release(&fdtv->demux);
+	dvb_unregister_adapter(&fdtv->adapter);
 
-	spin_lock_irqsave(&firesat_list_lock, flags);
-	list_del(&firesat->list);
-	spin_unlock_irqrestore(&firesat_list_lock, flags);
+	spin_lock_irqsave(&fdtv_list_lock, flags);
+	list_del(&fdtv->list);
+	spin_unlock_irqrestore(&fdtv_list_lock, flags);
 
-	cancel_work_sync(&firesat->remote_ctrl_work);
-	firesat_unregister_rc(firesat);
+	cancel_work_sync(&fdtv->remote_ctrl_work);
+	fdtv_unregister_rc(fdtv);
 
-	kfree(firesat);
+	kfree(fdtv);
 	return 0;
 }
 
-static int firesat_update(struct unit_directory *ud)
+static int fdtv_update(struct unit_directory *ud)
 {
-	struct firesat *firesat = ud->device.driver_data;
+	struct firedtv *fdtv = ud->device.driver_data;
 
-	if (firesat->isochannel >= 0)
-		cmp_establish_pp_connection(firesat, firesat->subunit,
-					    firesat->isochannel);
+	if (fdtv->isochannel >= 0)
+		cmp_establish_pp_connection(fdtv, fdtv->subunit,
+					    fdtv->isochannel);
 	return 0;
 }
 
-static struct hpsb_protocol_driver firesat_driver = {
+static struct hpsb_protocol_driver fdtv_driver = {
 
 	.name		= "firedtv",
-	.id_table	= firesat_id_table,
-	.update		= firesat_update,
+	.id_table	= fdtv_id_table,
+	.update		= fdtv_update,
 
 	.driver         = {
 		//.name and .bus are filled in for us in more recent linux versions
-		//.name	= "FireSAT",
+		//.name	= "FireDTV",
 		//.bus	= &ieee1394_bus_type,
-		.probe  = firesat_probe,
-		.remove = firesat_remove,
+		.probe  = fdtv_probe,
+		.remove = fdtv_remove,
 	},
 };
 
-static struct hpsb_highlevel firesat_highlevel = {
+static struct hpsb_highlevel fdtv_highlevel = {
 	.name		= "firedtv",
 	.fcp_request	= fcp_request,
 };
 
-static int __init firesat_init(void)
+static int __init fdtv_init(void)
 {
 	int ret;
 
-	hpsb_register_highlevel(&firesat_highlevel);
-	ret = hpsb_register_protocol(&firesat_driver);
+	hpsb_register_highlevel(&fdtv_highlevel);
+	ret = hpsb_register_protocol(&fdtv_driver);
 	if (ret) {
 		printk(KERN_ERR "firedtv: failed to register protocol\n");
-		hpsb_unregister_highlevel(&firesat_highlevel);
+		hpsb_unregister_highlevel(&fdtv_highlevel);
 	}
 	return ret;
 }
 
-static void __exit firesat_exit(void)
+static void __exit fdtv_exit(void)
 {
-	hpsb_unregister_protocol(&firesat_driver);
-	hpsb_unregister_highlevel(&firesat_highlevel);
+	hpsb_unregister_protocol(&fdtv_driver);
+	hpsb_unregister_highlevel(&fdtv_highlevel);
 }
 
-module_init(firesat_init);
-module_exit(firesat_exit);
+module_init(fdtv_init);
+module_exit(fdtv_exit);
 
 MODULE_AUTHOR("Andreas Monitzer <andy@monitzer.com>");
 MODULE_AUTHOR("Ben Backx <ben@bbackx.com>");
