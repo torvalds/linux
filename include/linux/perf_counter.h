@@ -14,6 +14,7 @@
 #define _LINUX_PERF_COUNTER_H
 
 #include <asm/atomic.h>
+#include <asm/ioctl.h>
 
 #ifdef CONFIG_PERF_COUNTERS
 # include <asm/perf_counter.h>
@@ -95,6 +96,12 @@ struct perf_counter_hw_event {
 };
 
 /*
+ * Ioctls that can be done on a perf counter fd:
+ */
+#define PERF_COUNTER_IOC_ENABLE		_IO('$', 0)
+#define PERF_COUNTER_IOC_DISABLE	_IO('$', 1)
+
+/*
  * Kernel-internal data types:
  */
 
@@ -173,8 +180,10 @@ struct perf_counter {
 	struct file			*filp;
 
 	struct perf_counter		*parent;
+	struct list_head		child_list;
+
 	/*
-	 * Protect attach/detach:
+	 * Protect attach/detach and child_list:
 	 */
 	struct mutex			mutex;
 
@@ -199,13 +208,21 @@ struct perf_counter {
 struct perf_counter_context {
 #ifdef CONFIG_PERF_COUNTERS
 	/*
-	 * Protect the list of counters:
+	 * Protect the states of the counters in the list,
+	 * nr_active, and the list:
 	 */
 	spinlock_t		lock;
+	/*
+	 * Protect the list of counters.  Locking either mutex or lock
+	 * is sufficient to ensure the list doesn't change; to change
+	 * the list you need to lock both the mutex and the spinlock.
+	 */
+	struct mutex		mutex;
 
 	struct list_head	counter_list;
 	int			nr_counters;
 	int			nr_active;
+	int			is_active;
 	struct task_struct	*task;
 #endif
 };
