@@ -728,7 +728,7 @@ static u32 cx18_request_module(struct cx18 *cx, u32 hw,
 {
 	if ((hw & id) == 0)
 		return hw;
-	if (request_module(name) != 0) {
+	if (request_module("%s", name) != 0) {
 		CX18_ERR("Failed to load module %s\n", name);
 		return hw & ~id;
 	}
