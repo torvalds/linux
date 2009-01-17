@@ -555,7 +555,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	qctrl->step = step;
 	qctrl->default_value = def;
 	qctrl->reserved[0] = qctrl->reserved[1] = 0;
-	snprintf(qctrl->name, sizeof(qctrl->name), name);
+	strlcpy(qctrl->name, name, sizeof(qctrl->name));
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_ctrl_query_fill);
@@ -720,7 +720,7 @@ int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qc
 	for (i = 0; i < qmenu->index && menu_items[i]; i++) ;
 	if (menu_items[i] == NULL || menu_items[i][0] == '\0')
 		return -EINVAL;
-	snprintf(qmenu->name, sizeof(qmenu->name), menu_items[qmenu->index]);
+	strlcpy(qmenu->name, menu_items[qmenu->index], sizeof(qmenu->name));
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_ctrl_query_menu);
@@ -737,8 +737,8 @@ int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *id
 		return -EINVAL;
 	while (*ids != V4L2_CTRL_MENU_IDS_END) {
 		if (*ids++ == qmenu->index) {
-			snprintf(qmenu->name, sizeof(qmenu->name),
-				       menu_items[qmenu->index]);
+			strlcpy(qmenu->name, menu_items[qmenu->index],
+					sizeof(qmenu->name));
 			return 0;
 		}
 	}
