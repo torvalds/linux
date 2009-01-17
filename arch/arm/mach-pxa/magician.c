@@ -66,6 +66,11 @@ static unsigned long magician_pin_config[] __initdata = {
 	GPIO31_I2S_SYNC,
 	GPIO113_I2S_SYSCLK,
 
+	/* SSP 1 */
+	GPIO23_SSP1_SCLK,
+	GPIO24_SSP1_SFRM,
+	GPIO25_SSP1_TXD,
+
 	/* SSP 2 */
 	GPIO19_SSP2_SCLK,
 	GPIO14_SSP2_SFRM,
