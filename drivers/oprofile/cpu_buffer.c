@@ -393,16 +393,21 @@ oprofile_write_reserve(struct op_entry *entry, struct pt_regs * const regs,
 	return;
 
 fail:
+	entry->event = NULL;
 	cpu_buf->sample_lost_overflow++;
 }
 
 int oprofile_add_data(struct op_entry *entry, unsigned long val)
 {
+	if (!entry->event)
+		return 0;
 	return op_cpu_buffer_add_data(entry, val);
 }
 
 int oprofile_write_commit(struct op_entry *entry)
 {
+	if (!entry->event)
+		return -EINVAL;
 	return op_cpu_buffer_write_commit(entry);
 }
 
