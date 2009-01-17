@@ -101,7 +101,7 @@ $P =~ s@.*/@@g;
 my $V = '0.1';
 
 if ($#ARGV < 7) {
-	print "usage: $P arch objdump objcopy cc ld nm rm mv is_module inputfile\n";
+	print "usage: $P arch bits objdump objcopy cc ld nm rm mv is_module inputfile\n";
 	print "version: $V\n";
 	exit(1);
 }
@@ -275,7 +275,6 @@ if (!$found_version) {
 	"\tDisabling local function references.\n";
 }
 
-
 #
 # Step 1: find all the local (static functions) and weak symbols.
 #        't' is local, 'w/W' is weak (we never use a weak function)
@@ -343,13 +342,16 @@ sub update_funcs
 #
 # Step 2: find the sections and mcount call sites
 #
-open(IN, "$objdump -dr $inputfile|") || die "error running $objdump";
+open(IN, "$objdump -hdr $inputfile|") || die "error running $objdump";
 
 my $text;
+
+my $read_headers = 1;
 
 while (<IN>) {
     # is it a section?
     if (/$section_regex/) {
+	$read_headers = 0;
 
 	# Only record text sections that we know are safe
 	if (defined($text_sections{$1})) {
@@ -383,6 +385,19 @@ while (<IN>) {
 		$ref_func = $text;
 	    }
 	}
+    } elsif ($read_headers && /$mcount_section/) {
+	#
+	# Somehow the make process can execute this script on an
+	# object twice. If it does, we would duplicate the mcount
+	# section and it will cause the function tracer self test
+	# to fail. Check if the mcount section exists, and if it does,
+	# warn and exit.
+	#
+	print STDERR "ERROR: $mcount_section already in $inputfile\n" .
+	    "\tThis may be an indication that your build is corrupted.\n" .
+	    "\tDelete $inputfile and try again. If the same object file\n" .
+	    "\tstill causes an issue, then disable CONFIG_DYNAMIC_FTRACE.\n";
+	exit(-1);
     }
 
     # is this a call site to mcount? If so, record it to print later
