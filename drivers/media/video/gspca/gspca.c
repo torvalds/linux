@@ -38,7 +38,10 @@
 #include "gspca.h"
 
 /* global values */
-#define DEF_NURBS 2		/* default number of URBs */
+#define DEF_NURBS 3		/* default number of URBs */
+#if DEF_NURBS > MAX_NURBS
+#error "DEF_NURBS too big"
+#endif
 
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
