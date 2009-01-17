@@ -247,8 +247,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	data[5] = 0x00;
 	data[6] = 0x70;
 	data[7] = 0x00;
-	data[8] = 0x01;
-	err_code = reg_w(gspca_dev, 10);
+	data[8] = 0x00;
+	err_code = reg_w(gspca_dev, 9);
 	if (err_code < 0)
 		return err_code;
 
