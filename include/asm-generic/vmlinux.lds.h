@@ -432,13 +432,14 @@
 
 #define PERCPU_PROLOG(vaddr)						\
 	VMLINUX_SYMBOL(__per_cpu_load) = .;				\
-	.data.percpu vaddr : AT(__per_cpu_load - LOAD_OFFSET) {		\
+	.data.percpu vaddr : AT(VMLINUX_SYMBOL(__per_cpu_load)		\
+				- LOAD_OFFSET) {			\
 		VMLINUX_SYMBOL(__per_cpu_start) = .;
 
 #define PERCPU_EPILOG(phdr)						\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
 	} phdr								\
-	. = __per_cpu_load + SIZEOF(.data.percpu);
+	. = VMLINUX_SYMBOL(__per_cpu_load) + SIZEOF(.data.percpu);
 
 /**
  * PERCPU_VADDR_PREALLOC - define output section for percpu area with prealloc
