@@ -748,6 +748,7 @@ static void __init magician_init(void)
 		gpio_direction_output(GPIO83_MAGICIAN_nIR_EN, 1);
 		pxa_set_ficp_info(&magician_ficp_info);
 	}
+	pxa27x_set_i2c_power_info(NULL);
 	pxa_set_i2c_info(NULL);
 	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
