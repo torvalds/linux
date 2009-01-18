@@ -36,6 +36,7 @@ static struct clk_functions *arch_clock;
  * Standard clock functions defined in include/linux/clk.h
  *-------------------------------------------------------------------------*/
 
+#ifndef CONFIG_COMMON_CLKDEV
 /*
  * Returns a clock. Note that we first try to use device id on the bus
  * and clock name. If this fails, we try to use clock name only.
@@ -72,6 +73,7 @@ found:
 	return clk;
 }
 EXPORT_SYMBOL(clk_get);
+#endif
 
 int clk_enable(struct clk *clk)
 {
@@ -145,10 +147,12 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
+#ifndef CONFIG_COMMON_CLKDEV
 void clk_put(struct clk *clk)
 {
 }
 EXPORT_SYMBOL(clk_put);
+#endif
 
 /*-------------------------------------------------------------------------
  * Optional clock functions defined in include/linux/clk.h

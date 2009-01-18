@@ -20,6 +20,7 @@
 #include <linux/io.h>
 
 #include <asm/mach-types.h>
+#include <asm/clkdev.h>
 
 #include <mach/cpu.h>
 #include <mach/usb.h>
@@ -31,6 +32,83 @@ static const struct clkops clkops_uart;
 static const struct clkops clkops_dspck;
 
 #include "clock.h"
+
+struct omap_clk {
+	u32		cpu;
+	struct clk_lookup lk;
+};
+
+#define CLK(dev, con, ck, cp) 		\
+	{				\
+		 .cpu = cp,		\
+		.lk = {			\
+			.dev_id = dev,	\
+			.con_id = con,	\
+			.clk = ck,	\
+		},			\
+	}
+
+#define CK_310	(1 << 0)
+#define CK_730	(1 << 1)
+#define CK_1510	(1 << 2)
+#define CK_16XX	(1 << 3)
+
+static struct omap_clk omap_clks[] = {
+	/* non-ULPD clocks */
+	CLK(NULL,	"ck_ref",	&ck_ref,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"ck_dpll1",	&ck_dpll1,	CK_16XX | CK_1510 | CK_310),
+	/* CK_GEN1 clocks */
+	CLK(NULL,	"ck_dpll1out",	&ck_dpll1out.clk, CK_16XX),
+	CLK(NULL,	"ck_sossi",	&sossi_ck,	CK_16XX),
+	CLK(NULL,	"arm_ck",	&arm_ck,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"armper_ck",	&armper_ck.clk,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"arm_gpio_ck",	&arm_gpio_ck,	CK_1510 | CK_310),
+	CLK(NULL,	"armxor_ck",	&armxor_ck.clk,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"armtim_ck",	&armtim_ck.clk,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"armwdt_ck",	&armwdt_ck.clk,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"arminth_ck",	&arminth_ck1510, CK_1510 | CK_310),
+	CLK(NULL,	"arminth_ck",	&arminth_ck16xx, CK_16XX),
+	/* CK_GEN2 clocks */
+	CLK(NULL,	"dsp_ck",	&dsp_ck,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"dspmmu_ck",	&dspmmu_ck,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"dspper_ck",	&dspper_ck,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"dspxor_ck",	&dspxor_ck,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"dsptim_ck",	&dsptim_ck,	CK_16XX | CK_1510 | CK_310),
+	/* CK_GEN3 clocks */
+	CLK(NULL,	"tc_ck",	&tc_ck.clk,	CK_16XX | CK_1510 | CK_310 | CK_730),
+	CLK(NULL,	"tipb_ck",	&tipb_ck,	CK_1510 | CK_310),
+	CLK(NULL,	"l3_ocpi_ck",	&l3_ocpi_ck,	CK_16XX),
+	CLK(NULL,	"tc1_ck",	&tc1_ck,	CK_16XX),
+	CLK(NULL,	"tc2_ck",	&tc2_ck,	CK_16XX),
+	CLK(NULL,	"dma_ck",	&dma_ck,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"dma_lcdfree_ck", &dma_lcdfree_ck, CK_16XX),
+	CLK(NULL,	"api_ck",	&api_ck.clk,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"lb_ck",	&lb_ck.clk,	CK_1510 | CK_310),
+	CLK(NULL,	"rhea1_ck",	&rhea1_ck,	CK_16XX),
+	CLK(NULL,	"rhea2_ck",	&rhea2_ck,	CK_16XX),
+	CLK(NULL,	"lcd_ck",	&lcd_ck_16xx,	CK_16XX | CK_730),
+	CLK(NULL,	"lcd_ck",	&lcd_ck_1510.clk, CK_1510 | CK_310),
+	/* ULPD clocks */
+	CLK(NULL,	"uart1_ck",	&uart1_1510,	CK_1510 | CK_310),
+	CLK(NULL,	"uart1_ck",	&uart1_16xx.clk, CK_16XX),
+	CLK(NULL,	"uart2_ck",	&uart2_ck,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"uart3_ck",	&uart3_1510,	CK_1510 | CK_310),
+	CLK(NULL,	"uart3_ck",	&uart3_16xx.clk, CK_16XX),
+	CLK(NULL,	"usb_clko",	&usb_clko,	CK_16XX | CK_1510 | CK_310),
+	CLK(NULL,	"usb_hhc_ck",	&usb_hhc_ck1510, CK_1510 | CK_310),
+	CLK(NULL,	"usb_hhc_ck",	&usb_hhc_ck16xx, CK_16XX),
+	CLK(NULL,	"usb_dc_ck",	&usb_dc_ck,	CK_16XX),
+	CLK(NULL,	"mclk",		&mclk_1510,	CK_1510 | CK_310),
+	CLK(NULL,	"mclk",		&mclk_16xx,	CK_16XX),
+	CLK(NULL,	"bclk",		&bclk_1510,	CK_1510 | CK_310),
+	CLK(NULL,	"bclk",		&bclk_16xx,	CK_16XX),
+	CLK("mmci-omap.0", "mmc_ck",	&mmc1_ck,	CK_16XX | CK_1510 | CK_310),
+	CLK("mmci-omap.1", "mmc_ck",	&mmc2_ck,	CK_16XX),
+	/* Virtual clocks */
+	CLK(NULL,	"mpu",		&virtual_ck_mpu, CK_16XX | CK_1510 | CK_310),
+	CLK("i2c_omap.1", "i2c_fck",	&i2c_fck,	CK_16XX | CK_1510 | CK_310),
+	CLK("i2c_omap.1", "i2c_ick",	&i2c_ick,	CK_16XX),
+};
 
 static int omap1_clk_enable_generic(struct clk * clk);
 static int omap1_clk_enable(struct clk *clk);
@@ -677,10 +755,10 @@ static struct clk_functions omap1_clk_functions = {
 
 int __init omap1_clk_init(void)
 {
-	struct clk ** clkp;
+	struct omap_clk *c;
 	const struct omap_clock_config *info;
 	int crystal_type = 0; /* Default 12 MHz */
-	u32 reg;
+	u32 reg, cpu_mask;
 
 #ifdef CONFIG_DEBUG_LL
 	/* Resets some clocks that may be left on from bootloader,
@@ -700,27 +778,21 @@ int __init omap1_clk_init(void)
 	/* By default all idlect1 clocks are allowed to idle */
 	arm_idlect1_mask = ~0;
 
-	for (clkp = onchip_clks; clkp < onchip_clks+ARRAY_SIZE(onchip_clks); clkp++) {
-		if (((*clkp)->flags &CLOCK_IN_OMAP1510) && cpu_is_omap1510()) {
-			clk_register(*clkp);
-			continue;
-		}
+	cpu_mask = 0;
+	if (cpu_is_omap16xx())
+		cpu_mask |= CK_16XX;
+	if (cpu_is_omap1510())
+		cpu_mask |= CK_1510;
+	if (cpu_is_omap730())
+		cpu_mask |= CK_730;
+	if (cpu_is_omap310())
+		cpu_mask |= CK_310;
 
-		if (((*clkp)->flags &CLOCK_IN_OMAP16XX) && cpu_is_omap16xx()) {
-			clk_register(*clkp);
-			continue;
+	for (c = omap_clks; c < omap_clks + ARRAY_SIZE(omap_clks); c++)
+		if (c->cpu & cpu_mask) {
+			clkdev_add(&c->lk);
+			clk_register(c->lk.clk);
 		}
-
-		if (((*clkp)->flags &CLOCK_IN_OMAP730) && cpu_is_omap730()) {
-			clk_register(*clkp);
-			continue;
-		}
-
-		if (((*clkp)->flags &CLOCK_IN_OMAP310) && cpu_is_omap310()) {
-			clk_register(*clkp);
-			continue;
-		}
-	}
 
 	info = omap_get_config(OMAP_TAG_CLOCK, struct omap_clock_config);
 	if (info != NULL) {
@@ -831,4 +903,3 @@ int __init omap1_clk_init(void)
 
 	return 0;
 }
-
