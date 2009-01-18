@@ -12,6 +12,7 @@
 
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
+#include <crypto/cryptd.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -536,6 +537,40 @@ static struct crypto_template cryptd_tmpl = {
 	.free = cryptd_free,
 	.module = THIS_MODULE,
 };
+
+struct cryptd_ablkcipher *cryptd_alloc_ablkcipher(const char *alg_name,
+						  u32 type, u32 mask)
+{
+	char cryptd_alg_name[CRYPTO_MAX_ALG_NAME];
+	struct crypto_ablkcipher *tfm;
+
+	if (snprintf(cryptd_alg_name, CRYPTO_MAX_ALG_NAME,
+		     "cryptd(%s)", alg_name) >= CRYPTO_MAX_ALG_NAME)
+		return ERR_PTR(-EINVAL);
+	tfm = crypto_alloc_ablkcipher(cryptd_alg_name, type, mask);
+	if (IS_ERR(tfm))
+		return ERR_CAST(tfm);
+	if (crypto_ablkcipher_tfm(tfm)->__crt_alg->cra_module != THIS_MODULE) {
+		crypto_free_ablkcipher(tfm);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return __cryptd_ablkcipher_cast(tfm);
+}
+EXPORT_SYMBOL_GPL(cryptd_alloc_ablkcipher);
+
+struct crypto_blkcipher *cryptd_ablkcipher_child(struct cryptd_ablkcipher *tfm)
+{
+	struct cryptd_blkcipher_ctx *ctx = crypto_ablkcipher_ctx(&tfm->base);
+	return ctx->child;
+}
+EXPORT_SYMBOL_GPL(cryptd_ablkcipher_child);
+
+void cryptd_free_ablkcipher(struct cryptd_ablkcipher *tfm)
+{
+	crypto_free_ablkcipher(&tfm->base);
+}
+EXPORT_SYMBOL_GPL(cryptd_free_ablkcipher);
 
 static inline int cryptd_create_thread(struct cryptd_state *state,
 				       int (*fn)(void *data), const char *name)
