@@ -99,8 +99,8 @@ static int build_rdma_write(union t3_wr *wqe, struct ib_send_wr *wr,
 	if (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM) {
 		plen = 4;
 		wqe->write.sgl[0].stag = wr->ex.imm_data;
-		wqe->write.sgl[0].len = __constant_cpu_to_be32(0);
-		wqe->write.num_sgle = __constant_cpu_to_be32(0);
+		wqe->write.sgl[0].len = cpu_to_be32(0);
+		wqe->write.num_sgle = cpu_to_be32(0);
 		*flit_cnt = 6;
 	} else {
 		plen = 0;

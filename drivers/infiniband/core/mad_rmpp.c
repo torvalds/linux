@@ -735,7 +735,7 @@ process_rmpp_data(struct ib_mad_agent_private *agent,
 		goto bad;
 	}
 
-	if (rmpp_hdr->seg_num == __constant_htonl(1)) {
+	if (rmpp_hdr->seg_num == cpu_to_be32(1)) {
 		if (!(ib_get_rmpp_flags(rmpp_hdr) & IB_MGMT_RMPP_FLAG_FIRST)) {
 			rmpp_status = IB_MGMT_RMPP_STATUS_BAD_SEG;
 			goto bad;

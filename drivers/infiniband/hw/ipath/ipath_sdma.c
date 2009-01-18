@@ -781,10 +781,10 @@ retry:
 		descqp = &dd->ipath_sdma_descq[dd->ipath_sdma_descq_cnt].qw[0];
 	descqp -= 2;
 	/* SDmaLastDesc */
-	descqp[0] |= __constant_cpu_to_le64(1ULL << 11);
+	descqp[0] |= cpu_to_le64(1ULL << 11);
 	if (tx->txreq.flags & IPATH_SDMA_TXREQ_F_INTREQ) {
 		/* SDmaIntReq */
-		descqp[0] |= __constant_cpu_to_le64(1ULL << 15);
+		descqp[0] |= cpu_to_le64(1ULL << 15);
 	}
 
 	/* Commit writes to memory and advance the tail on the chip */

@@ -37,10 +37,10 @@
 #include "ipath_verbs.h"
 #include "ipath_common.h"
 
-#define IB_SMP_UNSUP_VERSION	__constant_htons(0x0004)
-#define IB_SMP_UNSUP_METHOD	__constant_htons(0x0008)
-#define IB_SMP_UNSUP_METH_ATTR	__constant_htons(0x000C)
-#define IB_SMP_INVALID_FIELD	__constant_htons(0x001C)
+#define IB_SMP_UNSUP_VERSION	cpu_to_be16(0x0004)
+#define IB_SMP_UNSUP_METHOD	cpu_to_be16(0x0008)
+#define IB_SMP_UNSUP_METH_ATTR	cpu_to_be16(0x000C)
+#define IB_SMP_INVALID_FIELD	cpu_to_be16(0x001C)
 
 static int reply(struct ib_smp *smp)
 {
@@ -789,12 +789,12 @@ static int recv_subn_set_pkeytable(struct ib_smp *smp,
 	return recv_subn_get_pkeytable(smp, ibdev);
 }
 
-#define IB_PMA_CLASS_PORT_INFO		__constant_htons(0x0001)
-#define IB_PMA_PORT_SAMPLES_CONTROL	__constant_htons(0x0010)
-#define IB_PMA_PORT_SAMPLES_RESULT	__constant_htons(0x0011)
-#define IB_PMA_PORT_COUNTERS		__constant_htons(0x0012)
-#define IB_PMA_PORT_COUNTERS_EXT	__constant_htons(0x001D)
-#define IB_PMA_PORT_SAMPLES_RESULT_EXT	__constant_htons(0x001E)
+#define IB_PMA_CLASS_PORT_INFO		cpu_to_be16(0x0001)
+#define IB_PMA_PORT_SAMPLES_CONTROL	cpu_to_be16(0x0010)
+#define IB_PMA_PORT_SAMPLES_RESULT	cpu_to_be16(0x0011)
+#define IB_PMA_PORT_COUNTERS		cpu_to_be16(0x0012)
+#define IB_PMA_PORT_COUNTERS_EXT	cpu_to_be16(0x001D)
+#define IB_PMA_PORT_SAMPLES_RESULT_EXT	cpu_to_be16(0x001E)
 
 struct ib_perf {
 	u8 base_version;
@@ -884,19 +884,19 @@ struct ib_pma_portcounters {
 	__be32 port_rcv_packets;
 } __attribute__ ((packed));
 
-#define IB_PMA_SEL_SYMBOL_ERROR			__constant_htons(0x0001)
-#define IB_PMA_SEL_LINK_ERROR_RECOVERY		__constant_htons(0x0002)
-#define IB_PMA_SEL_LINK_DOWNED			__constant_htons(0x0004)
-#define IB_PMA_SEL_PORT_RCV_ERRORS		__constant_htons(0x0008)
-#define IB_PMA_SEL_PORT_RCV_REMPHYS_ERRORS	__constant_htons(0x0010)
-#define IB_PMA_SEL_PORT_XMIT_DISCARDS		__constant_htons(0x0040)
-#define IB_PMA_SEL_LOCAL_LINK_INTEGRITY_ERRORS	__constant_htons(0x0200)
-#define IB_PMA_SEL_EXCESSIVE_BUFFER_OVERRUNS	__constant_htons(0x0400)
-#define IB_PMA_SEL_PORT_VL15_DROPPED		__constant_htons(0x0800)
-#define IB_PMA_SEL_PORT_XMIT_DATA		__constant_htons(0x1000)
-#define IB_PMA_SEL_PORT_RCV_DATA		__constant_htons(0x2000)
-#define IB_PMA_SEL_PORT_XMIT_PACKETS		__constant_htons(0x4000)
-#define IB_PMA_SEL_PORT_RCV_PACKETS		__constant_htons(0x8000)
+#define IB_PMA_SEL_SYMBOL_ERROR			cpu_to_be16(0x0001)
+#define IB_PMA_SEL_LINK_ERROR_RECOVERY		cpu_to_be16(0x0002)
+#define IB_PMA_SEL_LINK_DOWNED			cpu_to_be16(0x0004)
+#define IB_PMA_SEL_PORT_RCV_ERRORS		cpu_to_be16(0x0008)
+#define IB_PMA_SEL_PORT_RCV_REMPHYS_ERRORS	cpu_to_be16(0x0010)
+#define IB_PMA_SEL_PORT_XMIT_DISCARDS		cpu_to_be16(0x0040)
+#define IB_PMA_SEL_LOCAL_LINK_INTEGRITY_ERRORS	cpu_to_be16(0x0200)
+#define IB_PMA_SEL_EXCESSIVE_BUFFER_OVERRUNS	cpu_to_be16(0x0400)
+#define IB_PMA_SEL_PORT_VL15_DROPPED		cpu_to_be16(0x0800)
+#define IB_PMA_SEL_PORT_XMIT_DATA		cpu_to_be16(0x1000)
+#define IB_PMA_SEL_PORT_RCV_DATA		cpu_to_be16(0x2000)
+#define IB_PMA_SEL_PORT_XMIT_PACKETS		cpu_to_be16(0x4000)
+#define IB_PMA_SEL_PORT_RCV_PACKETS		cpu_to_be16(0x8000)
 
 struct ib_pma_portcounters_ext {
 	u8 reserved;
@@ -913,14 +913,14 @@ struct ib_pma_portcounters_ext {
 	__be64 port_multicast_rcv_packets;
 } __attribute__ ((packed));
 
-#define IB_PMA_SELX_PORT_XMIT_DATA		__constant_htons(0x0001)
-#define IB_PMA_SELX_PORT_RCV_DATA		__constant_htons(0x0002)
-#define IB_PMA_SELX_PORT_XMIT_PACKETS		__constant_htons(0x0004)
-#define IB_PMA_SELX_PORT_RCV_PACKETS		__constant_htons(0x0008)
-#define IB_PMA_SELX_PORT_UNI_XMIT_PACKETS	__constant_htons(0x0010)
-#define IB_PMA_SELX_PORT_UNI_RCV_PACKETS	__constant_htons(0x0020)
-#define IB_PMA_SELX_PORT_MULTI_XMIT_PACKETS	__constant_htons(0x0040)
-#define IB_PMA_SELX_PORT_MULTI_RCV_PACKETS	__constant_htons(0x0080)
+#define IB_PMA_SELX_PORT_XMIT_DATA		cpu_to_be16(0x0001)
+#define IB_PMA_SELX_PORT_RCV_DATA		cpu_to_be16(0x0002)
+#define IB_PMA_SELX_PORT_XMIT_PACKETS		cpu_to_be16(0x0004)
+#define IB_PMA_SELX_PORT_RCV_PACKETS		cpu_to_be16(0x0008)
+#define IB_PMA_SELX_PORT_UNI_XMIT_PACKETS	cpu_to_be16(0x0010)
+#define IB_PMA_SELX_PORT_UNI_RCV_PACKETS	cpu_to_be16(0x0020)
+#define IB_PMA_SELX_PORT_MULTI_XMIT_PACKETS	cpu_to_be16(0x0040)
+#define IB_PMA_SELX_PORT_MULTI_RCV_PACKETS	cpu_to_be16(0x0080)
 
 static int recv_pma_get_classportinfo(struct ib_perf *pmp)
 {
@@ -933,7 +933,7 @@ static int recv_pma_get_classportinfo(struct ib_perf *pmp)
 		pmp->status |= IB_SMP_INVALID_FIELD;
 
 	/* Indicate AllPortSelect is valid (only one port anyway) */
-	p->cap_mask = __constant_cpu_to_be16(1 << 8);
+	p->cap_mask = cpu_to_be16(1 << 8);
 	p->base_version = 1;
 	p->class_version = 1;
 	/*
@@ -951,12 +951,11 @@ static int recv_pma_get_classportinfo(struct ib_perf *pmp)
  * We support 5 counters which only count the mandatory quantities.
  */
 #define COUNTER_MASK(q, n) (q << ((9 - n) * 3))
-#define COUNTER_MASK0_9 \
-	__constant_cpu_to_be32(COUNTER_MASK(1, 0) | \
-			       COUNTER_MASK(1, 1) | \
-			       COUNTER_MASK(1, 2) | \
-			       COUNTER_MASK(1, 3) | \
-			       COUNTER_MASK(1, 4))
+#define COUNTER_MASK0_9 cpu_to_be32(COUNTER_MASK(1, 0) | \
+				    COUNTER_MASK(1, 1) | \
+				    COUNTER_MASK(1, 2) | \
+				    COUNTER_MASK(1, 3) | \
+				    COUNTER_MASK(1, 4))
 
 static int recv_pma_get_portsamplescontrol(struct ib_perf *pmp,
 					   struct ib_device *ibdev, u8 port)
@@ -1137,7 +1136,7 @@ static int recv_pma_get_portsamplesresult_ext(struct ib_perf *pmp,
 		status = dev->pma_sample_status;
 	p->sample_status = cpu_to_be16(status);
 	/* 64 bits */
-	p->extended_width = __constant_cpu_to_be32(0x80000000);
+	p->extended_width = cpu_to_be32(0x80000000);
 	for (i = 0; i < ARRAY_SIZE(dev->pma_counter_select); i++)
 		p->counter[i] = (status != IB_PMA_SAMPLE_STATUS_DONE) ? 0 :
 		    cpu_to_be64(
@@ -1185,7 +1184,7 @@ static int recv_pma_get_portcounters(struct ib_perf *pmp,
 		pmp->status |= IB_SMP_INVALID_FIELD;
 
 	if (cntrs.symbol_error_counter > 0xFFFFUL)
-		p->symbol_error_counter = __constant_cpu_to_be16(0xFFFF);
+		p->symbol_error_counter = cpu_to_be16(0xFFFF);
 	else
 		p->symbol_error_counter =
 			cpu_to_be16((u16)cntrs.symbol_error_counter);
@@ -1199,17 +1198,17 @@ static int recv_pma_get_portcounters(struct ib_perf *pmp,
 	else
 		p->link_downed_counter = (u8)cntrs.link_downed_counter;
 	if (cntrs.port_rcv_errors > 0xFFFFUL)
-		p->port_rcv_errors = __constant_cpu_to_be16(0xFFFF);
+		p->port_rcv_errors = cpu_to_be16(0xFFFF);
 	else
 		p->port_rcv_errors =
 			cpu_to_be16((u16) cntrs.port_rcv_errors);
 	if (cntrs.port_rcv_remphys_errors > 0xFFFFUL)
-		p->port_rcv_remphys_errors = __constant_cpu_to_be16(0xFFFF);
+		p->port_rcv_remphys_errors = cpu_to_be16(0xFFFF);
 	else
 		p->port_rcv_remphys_errors =
 			cpu_to_be16((u16)cntrs.port_rcv_remphys_errors);
 	if (cntrs.port_xmit_discards > 0xFFFFUL)
-		p->port_xmit_discards = __constant_cpu_to_be16(0xFFFF);
+		p->port_xmit_discards = cpu_to_be16(0xFFFF);
 	else
 		p->port_xmit_discards =
 			cpu_to_be16((u16)cntrs.port_xmit_discards);
@@ -1220,24 +1219,24 @@ static int recv_pma_get_portcounters(struct ib_perf *pmp,
 	p->lli_ebor_errors = (cntrs.local_link_integrity_errors << 4) |
 		cntrs.excessive_buffer_overrun_errors;
 	if (cntrs.vl15_dropped > 0xFFFFUL)
-		p->vl15_dropped = __constant_cpu_to_be16(0xFFFF);
+		p->vl15_dropped = cpu_to_be16(0xFFFF);
 	else
 		p->vl15_dropped = cpu_to_be16((u16)cntrs.vl15_dropped);
 	if (cntrs.port_xmit_data > 0xFFFFFFFFUL)
-		p->port_xmit_data = __constant_cpu_to_be32(0xFFFFFFFF);
+		p->port_xmit_data = cpu_to_be32(0xFFFFFFFF);
 	else
 		p->port_xmit_data = cpu_to_be32((u32)cntrs.port_xmit_data);
 	if (cntrs.port_rcv_data > 0xFFFFFFFFUL)
-		p->port_rcv_data = __constant_cpu_to_be32(0xFFFFFFFF);
+		p->port_rcv_data = cpu_to_be32(0xFFFFFFFF);
 	else
 		p->port_rcv_data = cpu_to_be32((u32)cntrs.port_rcv_data);
 	if (cntrs.port_xmit_packets > 0xFFFFFFFFUL)
-		p->port_xmit_packets = __constant_cpu_to_be32(0xFFFFFFFF);
+		p->port_xmit_packets = cpu_to_be32(0xFFFFFFFF);
 	else
 		p->port_xmit_packets =
 			cpu_to_be32((u32)cntrs.port_xmit_packets);
 	if (cntrs.port_rcv_packets > 0xFFFFFFFFUL)
-		p->port_rcv_packets = __constant_cpu_to_be32(0xFFFFFFFF);
+		p->port_rcv_packets = cpu_to_be32(0xFFFFFFFF);
 	else
 		p->port_rcv_packets =
 			cpu_to_be32((u32) cntrs.port_rcv_packets);

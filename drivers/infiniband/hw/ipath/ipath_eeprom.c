@@ -772,8 +772,8 @@ void ipath_get_eeprom_info(struct ipath_devdata *dd)
 			 "0x%x, not 0x%x\n", csum, ifp->if_csum);
 		goto done;
 	}
-	if (*(__be64 *) ifp->if_guid == 0ULL ||
-	    *(__be64 *) ifp->if_guid == __constant_cpu_to_be64(-1LL)) {
+	if (*(__be64 *) ifp->if_guid == cpu_to_be64(0) ||
+	    *(__be64 *) ifp->if_guid == ~cpu_to_be64(0)) {
 		ipath_dev_err(dd, "Invalid GUID %llx from flash; "
 			      "ignoring\n",
 			      *(unsigned long long *) ifp->if_guid);

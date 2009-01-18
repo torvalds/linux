@@ -1585,7 +1585,7 @@ static int ipath_query_port(struct ib_device *ibdev,
 	u64 ibcstat;
 
 	memset(props, 0, sizeof(*props));
-	props->lid = lid ? lid : __constant_be16_to_cpu(IB_LID_PERMISSIVE);
+	props->lid = lid ? lid : be16_to_cpu(IB_LID_PERMISSIVE);
 	props->lmc = dd->ipath_lmc;
 	props->sm_lid = dev->sm_lid;
 	props->sm_sl = dev->sm_sl;
