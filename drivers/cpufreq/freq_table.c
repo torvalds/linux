@@ -28,7 +28,7 @@ int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 	unsigned int max_freq = 0;
 	unsigned int i;
 
-	for (i=0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
+	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		unsigned int freq = table[i].frequency;
 		if (freq == CPUFREQ_ENTRY_INVALID) {
 			dprintk("table entry %u is invalid, skipping\n", i);
@@ -70,7 +70,7 @@ int cpufreq_frequency_table_verify(struct cpufreq_policy *policy,
 	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
 				     policy->cpuinfo.max_freq);
 
-	for (i=0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
+	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		unsigned int freq = table[i].frequency;
 		if (freq == CPUFREQ_ENTRY_INVALID)
 			continue;
@@ -125,13 +125,13 @@ int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 	if (!cpu_online(policy->cpu))
 		return -EINVAL;
 
-	for (i=0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
+	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		unsigned int freq = table[i].frequency;
 		if (freq == CPUFREQ_ENTRY_INVALID)
 			continue;
 		if ((freq < policy->min) || (freq > policy->max))
 			continue;
-		switch(relation) {
+		switch (relation) {
 		case CPUFREQ_RELATION_H:
 			if (freq <= target_freq) {
 				if (freq >= optimal.frequency) {
@@ -178,7 +178,7 @@ static DEFINE_PER_CPU(struct cpufreq_frequency_table *, show_table);
 /**
  * show_available_freqs - show available frequencies for the specified CPU
  */
-static ssize_t show_available_freqs (struct cpufreq_policy *policy, char *buf)
+static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf)
 {
 	unsigned int i = 0;
 	unsigned int cpu = policy->cpu;
@@ -190,7 +190,7 @@ static ssize_t show_available_freqs (struct cpufreq_policy *policy, char *buf)
 
 	table = per_cpu(show_table, cpu);
 
-	for (i=0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
+	for (i = 0; (table[i].frequency != CPUFREQ_TABLE_END); i++) {
 		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
 			continue;
 		count += sprintf(&buf[count], "%d ", table[i].frequency);
@@ -234,6 +234,6 @@ struct cpufreq_frequency_table *cpufreq_frequency_get_table(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(cpufreq_frequency_get_table);
 
-MODULE_AUTHOR ("Dominik Brodowski <linux@brodo.de>");
-MODULE_DESCRIPTION ("CPUfreq frequency table helpers");
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>");
+MODULE_DESCRIPTION("CPUfreq frequency table helpers");
+MODULE_LICENSE("GPL");
