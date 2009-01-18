@@ -194,25 +194,21 @@ static inline struct thread_info *current_thread_info(void)
 
 #else /* X86_32 */
 
-#include <asm/pda.h>
+#include <asm/percpu.h>
+#define KERNEL_STACK_OFFSET (5*8)
 
 /*
  * macros/functions for gaining access to the thread information structure
  * preempt_count needs to be 1 initially, until the scheduler is functional.
  */
 #ifndef __ASSEMBLY__
+DECLARE_PER_CPU(unsigned long, kernel_stack);
+
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-	ti = (void *)(read_pda(kernelstack) + PDA_STACKOFFSET - THREAD_SIZE);
-	return ti;
-}
-
-/* do not use in interrupt context */
-static inline struct thread_info *stack_thread_info(void)
-{
-	struct thread_info *ti;
-	asm("andq %%rsp,%0; " : "=r" (ti) : "0" (~(THREAD_SIZE - 1)));
+	ti = (void *)(percpu_read(kernel_stack) +
+		      KERNEL_STACK_OFFSET - THREAD_SIZE);
 	return ti;
 }
 
@@ -220,8 +216,8 @@ static inline struct thread_info *stack_thread_info(void)
 
 /* how to get the thread information struct from ASM */
 #define GET_THREAD_INFO(reg) \
-	movq %gs:pda_kernelstack,reg ; \
-	subq $(THREAD_SIZE-PDA_STACKOFFSET),reg
+	movq PER_CPU_VAR(kernel_stack),reg ; \
+	subq $(THREAD_SIZE-KERNEL_STACK_OFFSET),reg
 
 #endif
 

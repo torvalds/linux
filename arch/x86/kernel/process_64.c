@@ -620,9 +620,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	write_pda(oldrsp, next->usersp);
 	percpu_write(current_task, next_p);
 
-	write_pda(kernelstack,
+	percpu_write(kernel_stack,
 		  (unsigned long)task_stack_page(next_p) +
-		  THREAD_SIZE - PDA_STACKOFFSET);
+		  THREAD_SIZE - KERNEL_STACK_OFFSET);
 #ifdef CONFIG_CC_STACKPROTECTOR
 	write_pda(stack_canary, next_p->stack_canary);
 	/*

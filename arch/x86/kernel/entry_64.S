@@ -468,7 +468,7 @@ END(ret_from_fork)
 ENTRY(system_call)
 	CFI_STARTPROC	simple
 	CFI_SIGNAL_FRAME
-	CFI_DEF_CFA	rsp,PDA_STACKOFFSET
+	CFI_DEF_CFA	rsp,KERNEL_STACK_OFFSET
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
 	SWAPGS_UNSAFE_STACK
@@ -480,7 +480,7 @@ ENTRY(system_call)
 ENTRY(system_call_after_swapgs)
 
 	movq	%rsp,%gs:pda_oldrsp
-	movq	%gs:pda_kernelstack,%rsp
+	movq	PER_CPU_VAR(kernel_stack),%rsp
 	/*
 	 * No need to follow this irqs off/on section - it's straight
 	 * and short:

@@ -13,7 +13,7 @@
 struct x8664_pda {
 	unsigned long unused1;
 	unsigned long unused2;
-	unsigned long kernelstack;	/* 16 top of kernel stack for current */
+	unsigned long unused3;
 	unsigned long oldrsp;		/* 24 user rsp for system call */
 	int irqcount;			/* 32 Irq nesting counter. Starts -1 */
 	unsigned int unused6;		/* 36 was cpunumber */
@@ -43,7 +43,5 @@ extern void pda_init(int);
 	x86_test_and_clear_bit_percpu(bit, __pda.field)
 
 #endif
-
-#define PDA_STACKOFFSET (5*8)
 
 #endif /* _ASM_X86_PDA_H */
