@@ -367,6 +367,11 @@ int po1030_start(struct sd *sd)
 		break;
 
 	case 640:
+		data = 0;
+		err = m5602_write_sensor(sd, PO1030_CONTROL3, &data, 1);
+		if (err < 0)
+			return err;
+
 		data = ((width + 7) >> 8) & 0xff;
 		err = m5602_write_sensor(sd, PO1030_WINDOWWIDTH_H, &data, 1);
 		if (err < 0)
