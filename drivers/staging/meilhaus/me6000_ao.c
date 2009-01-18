@@ -2825,10 +2825,11 @@ int inline ao_stop_immediately(me6000_ao_subdevice_t * instance)
 	int i;
 	uint32_t single_mask;
 
-	single_mask =
-	    (instance->ao_idx - ME6000_AO_SINGLE_STATUS_OFFSET <
-	     0) ? 0x0000 : (0x0001 << (instance->ao_idx -
-				       ME6000_AO_SINGLE_STATUS_OFFSET));
+	if (instance->ao_idx < ME6000_AO_SINGLE_STATUS_OFFSET)
+		single_mask = 0x0000;
+	else
+		single_mask = 0x0001 << (instance->ao_idx -
+				ME6000_AO_SINGLE_STATUS_OFFSET);
 
 	timeout =
 	    (instance->hardware_stop_delay >
