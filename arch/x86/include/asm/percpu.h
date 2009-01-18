@@ -39,10 +39,10 @@
 #include <linux/stringify.h>
 
 #ifdef CONFIG_SMP
-#define __percpu_seg_str	"%%"__stringify(__percpu_seg)":"
+#define __percpu_arg(x)		"%%"__stringify(__percpu_seg)":%P" #x
 #define __my_cpu_offset		percpu_read(this_cpu_off)
 #else
-#define __percpu_seg_str
+#define __percpu_arg(x)		"%" #x
 #endif
 
 /* For arch-specific code, we can use direct single-insn ops (they
@@ -58,22 +58,22 @@ do {							\
 	}						\
 	switch (sizeof(var)) {				\
 	case 1:						\
-		asm(op "b %1,"__percpu_seg_str"%0"	\
+		asm(op "b %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
 		    : "ri" ((T__)val));			\
 		break;					\
 	case 2:						\
-		asm(op "w %1,"__percpu_seg_str"%0"	\
+		asm(op "w %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
 		    : "ri" ((T__)val));			\
 		break;					\
 	case 4:						\
-		asm(op "l %1,"__percpu_seg_str"%0"	\
+		asm(op "l %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
 		    : "ri" ((T__)val));			\
 		break;					\
 	case 8:						\
-		asm(op "q %1,"__percpu_seg_str"%0"	\
+		asm(op "q %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
 		    : "r" ((T__)val));			\
 		break;					\
@@ -86,22 +86,22 @@ do {							\
 	typeof(var) ret__;				\
 	switch (sizeof(var)) {				\
 	case 1:						\
-		asm(op "b "__percpu_seg_str"%1,%0"	\
+		asm(op "b "__percpu_arg(1)",%0"		\
 		    : "=r" (ret__)			\
 		    : "m" (var));			\
 		break;					\
 	case 2:						\
-		asm(op "w "__percpu_seg_str"%1,%0"	\
+		asm(op "w "__percpu_arg(1)",%0"		\
 		    : "=r" (ret__)			\
 		    : "m" (var));			\
 		break;					\
 	case 4:						\
-		asm(op "l "__percpu_seg_str"%1,%0"	\
+		asm(op "l "__percpu_arg(1)",%0"		\
 		    : "=r" (ret__)			\
 		    : "m" (var));			\
 		break;					\
 	case 8:						\
-		asm(op "q "__percpu_seg_str"%1,%0"	\
+		asm(op "q "__percpu_arg(1)",%0"		\
 		    : "=r" (ret__)			\
 		    : "m" (var));			\
 		break;					\
@@ -122,9 +122,9 @@ do {							\
 #define x86_test_and_clear_bit_percpu(bit, var)				\
 ({									\
 	int old__;							\
-	asm volatile("btr %1,"__percpu_seg_str"%c2\n\tsbbl %0,%0"	\
-		     : "=r" (old__)					\
-		     : "dIr" (bit), "i" (&per_cpu__##var) : "memory");	\
+	asm volatile("btr %2,"__percpu_arg(1)"\n\tsbbl %0,%0"		\
+		     : "=r" (old__), "+m" (per_cpu__##var)		\
+		     : "dIr" (bit));					\
 	old__;								\
 })
 
