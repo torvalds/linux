@@ -120,6 +120,10 @@
 #define OV9650_SOFT_SLEEP		(1 << 4)
 #define OV9650_OUTPUT_DRIVE_2X		(1 << 0)
 
+#define OV9650_DENOISE_ENABLE		(1 << 5)
+#define OV9650_WHITE_PIXEL_ENABLE	(1 << 1)
+#define OV9650_WHITE_PIXEL_OPTION	(1 << 0)
+
 #define OV9650_LEFT_OFFSET		0x62
 
 #define GAIN_DEFAULT			0x14
@@ -198,7 +202,7 @@ static const unsigned char init_ov9650[][3] =
 	/* Reset chip */
 	{SENSOR, OV9650_COM7, OV9650_REGISTER_RESET},
 	/* One extra reset is needed in order to make the sensor behave
-	   properly when resuming from ram */
+	   properly when resuming from ram, could be a timing issue */
 	{SENSOR, OV9650_COM7, OV9650_REGISTER_RESET},
 
 	/* Enable double clock */
@@ -208,8 +212,7 @@ static const unsigned char init_ov9650[][3] =
 
 	/* Set fast AGC/AEC algorithm with unlimited step size */
 	{SENSOR, OV9650_COM8, OV9650_FAST_AGC_AEC |
-			      OV9650_AEC_UNLIM_STEP_SIZE |
-			      OV9650_AWB_EN | OV9650_AGC_EN},
+			      OV9650_AEC_UNLIM_STEP_SIZE},
 
 	{SENSOR, OV9650_CHLF, 0x10},
 	{SENSOR, OV9650_ARBLM, 0xbf},
@@ -280,8 +283,11 @@ static const unsigned char init_ov9650[][3] =
 	{SENSOR, OV9650_VREF, 0x10},
 	{SENSOR, OV9650_ADC, 0x04},
 	{SENSOR, OV9650_HV, 0x40},
+
 	/* Enable denoise, and white-pixel erase */
-	{SENSOR, OV9650_COM22, 0x23},
+	{SENSOR, OV9650_COM22, OV9650_DENOISE_ENABLE |
+		 OV9650_WHITE_PIXEL_ENABLE |
+		 OV9650_WHITE_PIXEL_OPTION},
 
 	/* Enable VARIOPIXEL */
 	{SENSOR, OV9650_COM3, OV9650_VARIOPIXEL},
