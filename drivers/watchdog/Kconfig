@@ -55,6 +55,13 @@ config SOFT_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
+config WM8350_WATCHDOG
+	tristate "WM8350 watchdog"
+	depends on MFD_WM8350
+	help
+	  Support for the watchdog in the WM8350 AudioPlus PMIC.  When
+	  the watchdog triggers the system will be reset.
+
 # ALPHA Architecture
 
 # ARM Architecture
@@ -551,6 +558,18 @@ config CPU5_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called cpu5wdt.
 
+config SMSC_SCH311X_WDT
+	tristate "SMSC SCH311X Watchdog Timer"
+	depends on X86
+	---help---
+	  This is the driver for the hardware watchdog timer on the
+	  SMSC SCH3112, SCH3114 and SCH3116 Super IO chipset
+	  (LPC IO with 8042 KBC, Reset Generation, HWM and multiple
+	  serial ports).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sch311x_wdt.
+
 config SMSC37B787_WDT
 	tristate "Winbond SMsC37B787 Watchdog Timer"
 	depends on X86
@@ -751,6 +770,12 @@ config TXX9_WDT
 
 # POWERPC Architecture
 
+config GEF_WDT
+	tristate "GE Fanuc Watchdog Timer"
+	depends on GEF_SBC610
+	---help---
+	  Watchdog timer found in a number of GE Fanuc single board computers.
+
 config MPC5200_WDT
 	tristate "MPC5200 Watchdog Timer"
 	depends on PPC_MPC52xx
@@ -770,6 +795,14 @@ config 8xxx_WDT
 config MV64X60_WDT
 	tristate "MV64X60 (Marvell Discovery) Watchdog Timer"
 	depends on MV64X60
+
+config PIKA_WDT
+	tristate "PIKA FPGA Watchdog"
+	depends on WARP
+	default y
+	help
+	  This enables the watchdog in the PIKA FPGA. Currently used on
+	  the Warp platform.
 
 config BOOKE_WDT
 	bool "PowerPC Book-E Watchdog Timer"

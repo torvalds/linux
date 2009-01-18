@@ -34,12 +34,13 @@ enum w1_netlink_message_types {
 	W1_MASTER_REMOVE,
 	W1_MASTER_CMD,
 	W1_SLAVE_CMD,
+	W1_LIST_MASTERS,
 };
 
 struct w1_netlink_msg
 {
 	__u8				type;
-	__u8				reserved;
+	__u8				status;
 	__u16				len;
 	union {
 		__u8			id[8];
@@ -51,10 +52,15 @@ struct w1_netlink_msg
 	__u8				data[0];
 };
 
-#define W1_CMD_READ		0x0
-#define W1_CMD_WRITE		0x1
-#define W1_CMD_SEARCH		0x2
-#define W1_CMD_ALARM_SEARCH	0x3
+enum w1_commands {
+	W1_CMD_READ = 0,
+	W1_CMD_WRITE,
+	W1_CMD_SEARCH,
+	W1_CMD_ALARM_SEARCH,
+	W1_CMD_TOUCH,
+	W1_CMD_RESET,
+	W1_CMD_MAX,
+};
 
 struct w1_netlink_cmd
 {

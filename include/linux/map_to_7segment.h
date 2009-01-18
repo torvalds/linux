@@ -75,7 +75,7 @@ struct seg7_conversion_map {
 	unsigned char	table[128];
 };
 
-static inline int map_to_seg7(struct seg7_conversion_map *map, int c)
+static __inline__ int map_to_seg7(struct seg7_conversion_map *map, int c)
 {
 	return c >= 0 && c < sizeof(map->table) ? map->table[c] : -EINVAL;
 }

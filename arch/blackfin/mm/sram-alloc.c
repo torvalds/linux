@@ -39,10 +39,13 @@
 #include <linux/spinlock.h>
 #include <linux/rtc.h>
 #include <asm/blackfin.h>
+#include <asm/mem_map.h>
 #include "blackfin_sram.h"
 
-static spinlock_t l1sram_lock, l1_data_sram_lock, l1_inst_sram_lock;
-static spinlock_t l2_sram_lock;
+static DEFINE_PER_CPU(spinlock_t, l1sram_lock) ____cacheline_aligned_in_smp;
+static DEFINE_PER_CPU(spinlock_t, l1_data_sram_lock) ____cacheline_aligned_in_smp;
+static DEFINE_PER_CPU(spinlock_t, l1_inst_sram_lock) ____cacheline_aligned_in_smp;
+static spinlock_t l2_sram_lock ____cacheline_aligned_in_smp;
 
 /* the data structure for L1 scratchpad and DATA SRAM */
 struct sram_piece {
@@ -52,18 +55,22 @@ struct sram_piece {
 	struct sram_piece *next;
 };
 
-static struct sram_piece free_l1_ssram_head, used_l1_ssram_head;
+static DEFINE_PER_CPU(struct sram_piece, free_l1_ssram_head);
+static DEFINE_PER_CPU(struct sram_piece, used_l1_ssram_head);
 
 #if L1_DATA_A_LENGTH != 0
-static struct sram_piece free_l1_data_A_sram_head, used_l1_data_A_sram_head;
+static DEFINE_PER_CPU(struct sram_piece, free_l1_data_A_sram_head);
+static DEFINE_PER_CPU(struct sram_piece, used_l1_data_A_sram_head);
 #endif
 
 #if L1_DATA_B_LENGTH != 0
-static struct sram_piece free_l1_data_B_sram_head, used_l1_data_B_sram_head;
+static DEFINE_PER_CPU(struct sram_piece, free_l1_data_B_sram_head);
+static DEFINE_PER_CPU(struct sram_piece, used_l1_data_B_sram_head);
 #endif
 
 #if L1_CODE_LENGTH != 0
-static struct sram_piece free_l1_inst_sram_head, used_l1_inst_sram_head;
+static DEFINE_PER_CPU(struct sram_piece, free_l1_inst_sram_head);
+static DEFINE_PER_CPU(struct sram_piece, used_l1_inst_sram_head);
 #endif
 
 #if L2_LENGTH != 0
@@ -75,102 +82,117 @@ static struct kmem_cache *sram_piece_cache;
 /* L1 Scratchpad SRAM initialization function */
 static void __init l1sram_init(void)
 {
-	free_l1_ssram_head.next =
-		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
-	if (!free_l1_ssram_head.next) {
-		printk(KERN_INFO "Failed to initialize Scratchpad data SRAM\n");
-		return;
+	unsigned int cpu;
+	for (cpu = 0; cpu < num_possible_cpus(); ++cpu) {
+		per_cpu(free_l1_ssram_head, cpu).next =
+			kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
+		if (!per_cpu(free_l1_ssram_head, cpu).next) {
+			printk(KERN_INFO "Fail to initialize Scratchpad data SRAM.\n");
+			return;
+		}
+
+		per_cpu(free_l1_ssram_head, cpu).next->paddr = (void *)get_l1_scratch_start_cpu(cpu);
+		per_cpu(free_l1_ssram_head, cpu).next->size = L1_SCRATCH_LENGTH;
+		per_cpu(free_l1_ssram_head, cpu).next->pid = 0;
+		per_cpu(free_l1_ssram_head, cpu).next->next = NULL;
+
+		per_cpu(used_l1_ssram_head, cpu).next = NULL;
+
+		/* mutex initialize */
+		spin_lock_init(&per_cpu(l1sram_lock, cpu));
+		printk(KERN_INFO "Blackfin Scratchpad data SRAM: %d KB\n",
+			L1_SCRATCH_LENGTH >> 10);
 	}
-
-	free_l1_ssram_head.next->paddr = (void *)L1_SCRATCH_START;
-	free_l1_ssram_head.next->size = L1_SCRATCH_LENGTH;
-	free_l1_ssram_head.next->pid = 0;
-	free_l1_ssram_head.next->next = NULL;
-
-	used_l1_ssram_head.next = NULL;
-
-	/* mutex initialize */
-	spin_lock_init(&l1sram_lock);
-
-	printk(KERN_INFO "Blackfin Scratchpad data SRAM: %d KB\n",
-	       L1_SCRATCH_LENGTH >> 10);
 }
 
 static void __init l1_data_sram_init(void)
 {
+#if L1_DATA_A_LENGTH != 0 || L1_DATA_B_LENGTH != 0
+	unsigned int cpu;
+#endif
 #if L1_DATA_A_LENGTH != 0
-	free_l1_data_A_sram_head.next =
-		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
-	if (!free_l1_data_A_sram_head.next) {
-		printk(KERN_INFO "Failed to initialize L1 Data A SRAM\n");
-		return;
+	for (cpu = 0; cpu < num_possible_cpus(); ++cpu) {
+		per_cpu(free_l1_data_A_sram_head, cpu).next =
+			kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
+		if (!per_cpu(free_l1_data_A_sram_head, cpu).next) {
+			printk(KERN_INFO "Fail to initialize L1 Data A SRAM.\n");
+			return;
+		}
+
+		per_cpu(free_l1_data_A_sram_head, cpu).next->paddr =
+			(void *)get_l1_data_a_start_cpu(cpu) + (_ebss_l1 - _sdata_l1);
+		per_cpu(free_l1_data_A_sram_head, cpu).next->size =
+			L1_DATA_A_LENGTH - (_ebss_l1 - _sdata_l1);
+		per_cpu(free_l1_data_A_sram_head, cpu).next->pid = 0;
+		per_cpu(free_l1_data_A_sram_head, cpu).next->next = NULL;
+
+		per_cpu(used_l1_data_A_sram_head, cpu).next = NULL;
+
+		printk(KERN_INFO "Blackfin L1 Data A SRAM: %d KB (%d KB free)\n",
+			L1_DATA_A_LENGTH >> 10,
+			per_cpu(free_l1_data_A_sram_head, cpu).next->size >> 10);
 	}
-
-	free_l1_data_A_sram_head.next->paddr =
-		(void *)L1_DATA_A_START + (_ebss_l1 - _sdata_l1);
-	free_l1_data_A_sram_head.next->size =
-		L1_DATA_A_LENGTH - (_ebss_l1 - _sdata_l1);
-	free_l1_data_A_sram_head.next->pid = 0;
-	free_l1_data_A_sram_head.next->next = NULL;
-
-	used_l1_data_A_sram_head.next = NULL;
-
-	printk(KERN_INFO "Blackfin L1 Data A SRAM: %d KB (%d KB free)\n",
-		L1_DATA_A_LENGTH >> 10,
-		free_l1_data_A_sram_head.next->size >> 10);
 #endif
 #if L1_DATA_B_LENGTH != 0
-	free_l1_data_B_sram_head.next =
-		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
-	if (!free_l1_data_B_sram_head.next) {
-		printk(KERN_INFO "Failed to initialize L1 Data B SRAM\n");
-		return;
+	for (cpu = 0; cpu < num_possible_cpus(); ++cpu) {
+		per_cpu(free_l1_data_B_sram_head, cpu).next =
+			kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
+		if (!per_cpu(free_l1_data_B_sram_head, cpu).next) {
+			printk(KERN_INFO "Fail to initialize L1 Data B SRAM.\n");
+			return;
+		}
+
+		per_cpu(free_l1_data_B_sram_head, cpu).next->paddr =
+			(void *)get_l1_data_b_start_cpu(cpu) + (_ebss_b_l1 - _sdata_b_l1);
+		per_cpu(free_l1_data_B_sram_head, cpu).next->size =
+			L1_DATA_B_LENGTH - (_ebss_b_l1 - _sdata_b_l1);
+		per_cpu(free_l1_data_B_sram_head, cpu).next->pid = 0;
+		per_cpu(free_l1_data_B_sram_head, cpu).next->next = NULL;
+
+		per_cpu(used_l1_data_B_sram_head, cpu).next = NULL;
+
+		printk(KERN_INFO "Blackfin L1 Data B SRAM: %d KB (%d KB free)\n",
+			L1_DATA_B_LENGTH >> 10,
+			per_cpu(free_l1_data_B_sram_head, cpu).next->size >> 10);
+		/* mutex initialize */
 	}
-
-	free_l1_data_B_sram_head.next->paddr =
-		(void *)L1_DATA_B_START + (_ebss_b_l1 - _sdata_b_l1);
-	free_l1_data_B_sram_head.next->size =
-		L1_DATA_B_LENGTH - (_ebss_b_l1 - _sdata_b_l1);
-	free_l1_data_B_sram_head.next->pid = 0;
-	free_l1_data_B_sram_head.next->next = NULL;
-
-	used_l1_data_B_sram_head.next = NULL;
-
-	printk(KERN_INFO "Blackfin L1 Data B SRAM: %d KB (%d KB free)\n",
-		L1_DATA_B_LENGTH >> 10,
-		free_l1_data_B_sram_head.next->size >> 10);
 #endif
 
-	/* mutex initialize */
-	spin_lock_init(&l1_data_sram_lock);
+#if L1_DATA_A_LENGTH != 0 || L1_DATA_B_LENGTH != 0
+	for (cpu = 0; cpu < num_possible_cpus(); ++cpu)
+		spin_lock_init(&per_cpu(l1_data_sram_lock, cpu));
+#endif
 }
 
 static void __init l1_inst_sram_init(void)
 {
 #if L1_CODE_LENGTH != 0
-	free_l1_inst_sram_head.next =
-		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
-	if (!free_l1_inst_sram_head.next) {
-		printk(KERN_INFO "Failed to initialize L1 Instruction SRAM\n");
-		return;
+	unsigned int cpu;
+	for (cpu = 0; cpu < num_possible_cpus(); ++cpu) {
+		per_cpu(free_l1_inst_sram_head, cpu).next =
+			kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
+		if (!per_cpu(free_l1_inst_sram_head, cpu).next) {
+			printk(KERN_INFO "Failed to initialize L1 Instruction SRAM\n");
+			return;
+		}
+
+		per_cpu(free_l1_inst_sram_head, cpu).next->paddr =
+			(void *)get_l1_code_start_cpu(cpu) + (_etext_l1 - _stext_l1);
+		per_cpu(free_l1_inst_sram_head, cpu).next->size =
+			L1_CODE_LENGTH - (_etext_l1 - _stext_l1);
+		per_cpu(free_l1_inst_sram_head, cpu).next->pid = 0;
+		per_cpu(free_l1_inst_sram_head, cpu).next->next = NULL;
+
+		per_cpu(used_l1_inst_sram_head, cpu).next = NULL;
+
+		printk(KERN_INFO "Blackfin L1 Instruction SRAM: %d KB (%d KB free)\n",
+			L1_CODE_LENGTH >> 10,
+			per_cpu(free_l1_inst_sram_head, cpu).next->size >> 10);
+
+		/* mutex initialize */
+		spin_lock_init(&per_cpu(l1_inst_sram_lock, cpu));
 	}
-
-	free_l1_inst_sram_head.next->paddr =
-		(void *)L1_CODE_START + (_etext_l1 - _stext_l1);
-	free_l1_inst_sram_head.next->size =
-		L1_CODE_LENGTH - (_etext_l1 - _stext_l1);
-	free_l1_inst_sram_head.next->pid = 0;
-	free_l1_inst_sram_head.next->next = NULL;
-
-	used_l1_inst_sram_head.next = NULL;
-
-	printk(KERN_INFO "Blackfin L1 Instruction SRAM: %d KB (%d KB free)\n",
-		L1_CODE_LENGTH >> 10,
-		free_l1_inst_sram_head.next->size >> 10);
 #endif
-
-	/* mutex initialize */
-	spin_lock_init(&l1_inst_sram_lock);
 }
 
 static void __init l2_sram_init(void)
@@ -179,7 +201,7 @@ static void __init l2_sram_init(void)
 	free_l2_sram_head.next =
 		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
 	if (!free_l2_sram_head.next) {
-		printk(KERN_INFO "Failed to initialize L2 SRAM\n");
+		printk(KERN_INFO "Fail to initialize L2 SRAM.\n");
 		return;
 	}
 
@@ -200,6 +222,7 @@ static void __init l2_sram_init(void)
 	/* mutex initialize */
 	spin_lock_init(&l2_sram_lock);
 }
+
 void __init bfin_sram_init(void)
 {
 	sram_piece_cache = kmem_cache_create("sram_piece_cache",
@@ -353,20 +376,20 @@ int sram_free(const void *addr)
 {
 
 #if L1_CODE_LENGTH != 0
-	if (addr >= (void *)L1_CODE_START
-		 && addr < (void *)(L1_CODE_START + L1_CODE_LENGTH))
+	if (addr >= (void *)get_l1_code_start()
+		 && addr < (void *)(get_l1_code_start() + L1_CODE_LENGTH))
 		return l1_inst_sram_free(addr);
 	else
 #endif
 #if L1_DATA_A_LENGTH != 0
-	if (addr >= (void *)L1_DATA_A_START
-		 && addr < (void *)(L1_DATA_A_START + L1_DATA_A_LENGTH))
+	if (addr >= (void *)get_l1_data_a_start()
+		 && addr < (void *)(get_l1_data_a_start() + L1_DATA_A_LENGTH))
 		return l1_data_A_sram_free(addr);
 	else
 #endif
 #if L1_DATA_B_LENGTH != 0
-	if (addr >= (void *)L1_DATA_B_START
-		 && addr < (void *)(L1_DATA_B_START + L1_DATA_B_LENGTH))
+	if (addr >= (void *)get_l1_data_b_start()
+		 && addr < (void *)(get_l1_data_b_start() + L1_DATA_B_LENGTH))
 		return l1_data_B_sram_free(addr);
 	else
 #endif
@@ -384,17 +407,20 @@ void *l1_data_A_sram_alloc(size_t size)
 {
 	unsigned long flags;
 	void *addr = NULL;
+	unsigned int cpu;
 
+	cpu = get_cpu();
 	/* add mutex operation */
-	spin_lock_irqsave(&l1_data_sram_lock, flags);
+	spin_lock_irqsave(&per_cpu(l1_data_sram_lock, cpu), flags);
 
 #if L1_DATA_A_LENGTH != 0
-	addr = _sram_alloc(size, &free_l1_data_A_sram_head,
-			&used_l1_data_A_sram_head);
+	addr = _sram_alloc(size, &per_cpu(free_l1_data_A_sram_head, cpu),
+			&per_cpu(used_l1_data_A_sram_head, cpu));
 #endif
 
 	/* add mutex operation */
-	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
+	spin_unlock_irqrestore(&per_cpu(l1_data_sram_lock, cpu), flags);
+	put_cpu();
 
 	pr_debug("Allocated address in l1_data_A_sram_alloc is 0x%lx+0x%lx\n",
 		 (long unsigned int)addr, size);
@@ -407,19 +433,22 @@ int l1_data_A_sram_free(const void *addr)
 {
 	unsigned long flags;
 	int ret;
+	unsigned int cpu;
 
+	cpu = get_cpu();
 	/* add mutex operation */
-	spin_lock_irqsave(&l1_data_sram_lock, flags);
+	spin_lock_irqsave(&per_cpu(l1_data_sram_lock, cpu), flags);
 
 #if L1_DATA_A_LENGTH != 0
-	ret = _sram_free(addr, &free_l1_data_A_sram_head,
-			&used_l1_data_A_sram_head);
+	ret = _sram_free(addr, &per_cpu(free_l1_data_A_sram_head, cpu),
+			&per_cpu(used_l1_data_A_sram_head, cpu));
 #else
 	ret = -1;
 #endif
 
 	/* add mutex operation */
-	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
+	spin_unlock_irqrestore(&per_cpu(l1_data_sram_lock, cpu), flags);
+	put_cpu();
 
 	return ret;
 }
@@ -430,15 +459,18 @@ void *l1_data_B_sram_alloc(size_t size)
 #if L1_DATA_B_LENGTH != 0
 	unsigned long flags;
 	void *addr;
+	unsigned int cpu;
+
+	cpu = get_cpu();
+	/* add mutex operation */
+	spin_lock_irqsave(&per_cpu(l1_data_sram_lock, cpu), flags);
+
+	addr = _sram_alloc(size, &per_cpu(free_l1_data_B_sram_head, cpu),
+			&per_cpu(used_l1_data_B_sram_head, cpu));
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1_data_sram_lock, flags);
-
-	addr = _sram_alloc(size, &free_l1_data_B_sram_head,
-			&used_l1_data_B_sram_head);
-
-	/* add mutex operation */
-	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
+	spin_unlock_irqrestore(&per_cpu(l1_data_sram_lock, cpu), flags);
+	put_cpu();
 
 	pr_debug("Allocated address in l1_data_B_sram_alloc is 0x%lx+0x%lx\n",
 		 (long unsigned int)addr, size);
@@ -455,15 +487,18 @@ int l1_data_B_sram_free(const void *addr)
 #if L1_DATA_B_LENGTH != 0
 	unsigned long flags;
 	int ret;
+	unsigned int cpu;
+
+	cpu = get_cpu();
+	/* add mutex operation */
+	spin_lock_irqsave(&per_cpu(l1_data_sram_lock, cpu), flags);
+
+	ret = _sram_free(addr, &per_cpu(free_l1_data_B_sram_head, cpu),
+			&per_cpu(used_l1_data_B_sram_head, cpu));
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1_data_sram_lock, flags);
-
-	ret = _sram_free(addr, &free_l1_data_B_sram_head,
-			&used_l1_data_B_sram_head);
-
-	/* add mutex operation */
-	spin_unlock_irqrestore(&l1_data_sram_lock, flags);
+	spin_unlock_irqrestore(&per_cpu(l1_data_sram_lock, cpu), flags);
+	put_cpu();
 
 	return ret;
 #else
@@ -509,15 +544,18 @@ void *l1_inst_sram_alloc(size_t size)
 #if L1_CODE_LENGTH != 0
 	unsigned long flags;
 	void *addr;
+	unsigned int cpu;
+
+	cpu = get_cpu();
+	/* add mutex operation */
+	spin_lock_irqsave(&per_cpu(l1_inst_sram_lock, cpu), flags);
+
+	addr = _sram_alloc(size, &per_cpu(free_l1_inst_sram_head, cpu),
+			&per_cpu(used_l1_inst_sram_head, cpu));
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1_inst_sram_lock, flags);
-
-	addr = _sram_alloc(size, &free_l1_inst_sram_head,
-			&used_l1_inst_sram_head);
-
-	/* add mutex operation */
-	spin_unlock_irqrestore(&l1_inst_sram_lock, flags);
+	spin_unlock_irqrestore(&per_cpu(l1_inst_sram_lock, cpu), flags);
+	put_cpu();
 
 	pr_debug("Allocated address in l1_inst_sram_alloc is 0x%lx+0x%lx\n",
 		 (long unsigned int)addr, size);
@@ -534,15 +572,18 @@ int l1_inst_sram_free(const void *addr)
 #if L1_CODE_LENGTH != 0
 	unsigned long flags;
 	int ret;
+	unsigned int cpu;
+
+	cpu = get_cpu();
+	/* add mutex operation */
+	spin_lock_irqsave(&per_cpu(l1_inst_sram_lock, cpu), flags);
+
+	ret = _sram_free(addr, &per_cpu(free_l1_inst_sram_head, cpu),
+			&per_cpu(used_l1_inst_sram_head, cpu));
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1_inst_sram_lock, flags);
-
-	ret = _sram_free(addr, &free_l1_inst_sram_head,
-			&used_l1_inst_sram_head);
-
-	/* add mutex operation */
-	spin_unlock_irqrestore(&l1_inst_sram_lock, flags);
+	spin_unlock_irqrestore(&per_cpu(l1_inst_sram_lock, cpu), flags);
+	put_cpu();
 
 	return ret;
 #else
@@ -556,15 +597,18 @@ void *l1sram_alloc(size_t size)
 {
 	unsigned long flags;
 	void *addr;
+	unsigned int cpu;
+
+	cpu = get_cpu();
+	/* add mutex operation */
+	spin_lock_irqsave(&per_cpu(l1sram_lock, cpu), flags);
+
+	addr = _sram_alloc(size, &per_cpu(free_l1_ssram_head, cpu),
+			&per_cpu(used_l1_ssram_head, cpu));
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1sram_lock, flags);
-
-	addr = _sram_alloc(size, &free_l1_ssram_head,
-			&used_l1_ssram_head);
-
-	/* add mutex operation */
-	spin_unlock_irqrestore(&l1sram_lock, flags);
+	spin_unlock_irqrestore(&per_cpu(l1sram_lock, cpu), flags);
+	put_cpu();
 
 	return addr;
 }
@@ -574,15 +618,18 @@ void *l1sram_alloc_max(size_t *psize)
 {
 	unsigned long flags;
 	void *addr;
+	unsigned int cpu;
+
+	cpu = get_cpu();
+	/* add mutex operation */
+	spin_lock_irqsave(&per_cpu(l1sram_lock, cpu), flags);
+
+	addr = _sram_alloc_max(&per_cpu(free_l1_ssram_head, cpu),
+			&per_cpu(used_l1_ssram_head, cpu), psize);
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1sram_lock, flags);
-
-	addr = _sram_alloc_max(&free_l1_ssram_head,
-			&used_l1_ssram_head, psize);
-
-	/* add mutex operation */
-	spin_unlock_irqrestore(&l1sram_lock, flags);
+	spin_unlock_irqrestore(&per_cpu(l1sram_lock, cpu), flags);
+	put_cpu();
 
 	return addr;
 }
@@ -592,15 +639,18 @@ int l1sram_free(const void *addr)
 {
 	unsigned long flags;
 	int ret;
+	unsigned int cpu;
+
+	cpu = get_cpu();
+	/* add mutex operation */
+	spin_lock_irqsave(&per_cpu(l1sram_lock, cpu), flags);
+
+	ret = _sram_free(addr, &per_cpu(free_l1_ssram_head, cpu),
+			&per_cpu(used_l1_ssram_head, cpu));
 
 	/* add mutex operation */
-	spin_lock_irqsave(&l1sram_lock, flags);
-
-	ret = _sram_free(addr, &free_l1_ssram_head,
-			&used_l1_ssram_head);
-
-	/* add mutex operation */
-	spin_unlock_irqrestore(&l1sram_lock, flags);
+	spin_unlock_irqrestore(&per_cpu(l1sram_lock, cpu), flags);
+	put_cpu();
 
 	return ret;
 }
@@ -761,33 +811,36 @@ static int sram_proc_read(char *buf, char **start, off_t offset, int count,
 		int *eof, void *data)
 {
 	int len = 0;
+	unsigned int cpu;
 
-	if (_sram_proc_read(buf, &len, count, "Scratchpad",
-			&free_l1_ssram_head, &used_l1_ssram_head))
-		goto not_done;
+	for (cpu = 0; cpu < num_possible_cpus(); ++cpu) {
+		if (_sram_proc_read(buf, &len, count, "Scratchpad",
+			&per_cpu(free_l1_ssram_head, cpu), &per_cpu(used_l1_ssram_head, cpu)))
+			goto not_done;
 #if L1_DATA_A_LENGTH != 0
-	if (_sram_proc_read(buf, &len, count, "L1 Data A",
-			&free_l1_data_A_sram_head,
-			&used_l1_data_A_sram_head))
-		goto not_done;
+		if (_sram_proc_read(buf, &len, count, "L1 Data A",
+			&per_cpu(free_l1_data_A_sram_head, cpu),
+			&per_cpu(used_l1_data_A_sram_head, cpu)))
+			goto not_done;
 #endif
 #if L1_DATA_B_LENGTH != 0
-	if (_sram_proc_read(buf, &len, count, "L1 Data B",
-			&free_l1_data_B_sram_head,
-			&used_l1_data_B_sram_head))
-		goto not_done;
+		if (_sram_proc_read(buf, &len, count, "L1 Data B",
+			&per_cpu(free_l1_data_B_sram_head, cpu),
+			&per_cpu(used_l1_data_B_sram_head, cpu)))
+			goto not_done;
 #endif
 #if L1_CODE_LENGTH != 0
-	if (_sram_proc_read(buf, &len, count, "L1 Instruction",
-			&free_l1_inst_sram_head, &used_l1_inst_sram_head))
-		goto not_done;
+		if (_sram_proc_read(buf, &len, count, "L1 Instruction",
+			&per_cpu(free_l1_inst_sram_head, cpu),
+			&per_cpu(used_l1_inst_sram_head, cpu)))
+			goto not_done;
 #endif
+	}
 #if L2_LENGTH != 0
-	if (_sram_proc_read(buf, &len, count, "L2",
-			&free_l2_sram_head, &used_l2_sram_head))
+	if (_sram_proc_read(buf, &len, count, "L2", &free_l2_sram_head,
+		&used_l2_sram_head))
 		goto not_done;
 #endif
-
 	*eof = 1;
  not_done:
 	return len;

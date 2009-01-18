@@ -253,7 +253,7 @@ following files:
 
 		# Module specific targets
 		genbin:
-			echo "X" > 8123_bin_shipped
+			echo "X" > 8123_bin.o_shipped
 
 
 	In example 2, we are down to two fairly simple files and for simple
@@ -279,7 +279,7 @@ following files:
 
 		# Module specific targets
 		genbin:
-			echo "X" > 8123_bin_shipped
+			echo "X" > 8123_bin.o_shipped
 
 		endif
 

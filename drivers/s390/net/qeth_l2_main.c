@@ -20,8 +20,6 @@
 #include <linux/mii.h>
 #include <linux/ip.h>
 
-#include <asm/s390_rdev.h>
-
 #include "qeth_core.h"
 #include "qeth_core_offl.h"
 
@@ -918,6 +916,21 @@ static struct ethtool_ops qeth_l2_osn_ops = {
 	.get_drvinfo = qeth_core_get_drvinfo,
 };
 
+static const struct net_device_ops qeth_l2_netdev_ops = {
+	.ndo_open		= qeth_l2_open,
+	.ndo_stop		= qeth_l2_stop,
+	.ndo_get_stats		= qeth_get_stats,
+	.ndo_start_xmit		= qeth_l2_hard_start_xmit,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_multicast_list = qeth_l2_set_multicast_list,
+	.ndo_do_ioctl	   	= qeth_l2_do_ioctl,
+	.ndo_set_mac_address    = qeth_l2_set_mac_address,
+	.ndo_change_mtu	   	= qeth_change_mtu,
+	.ndo_vlan_rx_add_vid	= qeth_l2_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid   = qeth_l2_vlan_rx_kill_vid,
+	.ndo_tx_timeout	   	= qeth_tx_timeout,
+};
+
 static int qeth_l2_setup_netdev(struct qeth_card *card)
 {
 	switch (card->info.type) {
@@ -939,19 +952,9 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		return -ENODEV;
 
 	card->dev->ml_priv = card;
-	card->dev->tx_timeout = &qeth_tx_timeout;
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
-	card->dev->open = qeth_l2_open;
-	card->dev->stop = qeth_l2_stop;
-	card->dev->hard_start_xmit = qeth_l2_hard_start_xmit;
-	card->dev->do_ioctl = qeth_l2_do_ioctl;
-	card->dev->get_stats = qeth_get_stats;
-	card->dev->change_mtu = qeth_change_mtu;
-	card->dev->set_multicast_list = qeth_l2_set_multicast_list;
-	card->dev->vlan_rx_kill_vid = qeth_l2_vlan_rx_kill_vid;
-	card->dev->vlan_rx_add_vid = qeth_l2_vlan_rx_add_vid;
-	card->dev->set_mac_address = qeth_l2_set_mac_address;
 	card->dev->mtu = card->info.initial_mtu;
+	card->dev->netdev_ops = &qeth_l2_netdev_ops;
 	if (card->info.type != QETH_CARD_TYPE_OSN)
 		SET_ETHTOOL_OPS(card->dev, &qeth_l2_ethtool_ops);
 	else
@@ -1126,9 +1129,11 @@ static int qeth_l2_recover(void *ptr)
 		dev_info(&card->gdev->dev,
 			"Device successfully recovered!\n");
 	else {
-		rtnl_lock();
-		dev_close(card->dev);
-		rtnl_unlock();
+		if (card->dev) {
+			rtnl_lock();
+			dev_close(card->dev);
+			rtnl_unlock();
+		}
 		dev_warn(&card->gdev->dev, "The qeth device driver "
 			"failed to recover an error on the device\n");
 	}

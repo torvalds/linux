@@ -62,9 +62,9 @@ static int em28xx_isoc_audio_deinit(struct em28xx *dev)
 
 	dprintk("Stopping isoc\n");
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
-		usb_unlink_urb(dev->adev->urb[i]);
-		usb_free_urb(dev->adev->urb[i]);
-		dev->adev->urb[i] = NULL;
+		usb_unlink_urb(dev->adev.urb[i]);
+		usb_free_urb(dev->adev.urb[i]);
+		dev->adev.urb[i] = NULL;
 	}
 
 	return 0;
@@ -81,8 +81,8 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	unsigned int             stride;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime   *runtime;
-	if (dev->adev->capture_pcm_substream) {
-		substream = dev->adev->capture_pcm_substream;
+	if (dev->adev.capture_pcm_substream) {
+		substream = dev->adev.capture_pcm_substream;
 		runtime = substream->runtime;
 		stride = runtime->frame_bits >> 3;
 
@@ -95,7 +95,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 			if (!length)
 				continue;
 
-			oldptr = dev->adev->hwptr_done_capture;
+			oldptr = dev->adev.hwptr_done_capture;
 			if (oldptr + length >= runtime->buffer_size) {
 				unsigned int cnt =
 				    runtime->buffer_size - oldptr;
@@ -110,16 +110,16 @@ static void em28xx_audio_isocirq(struct urb *urb)
 
 			snd_pcm_stream_lock(substream);
 
-			dev->adev->hwptr_done_capture += length;
-			if (dev->adev->hwptr_done_capture >=
+			dev->adev.hwptr_done_capture += length;
+			if (dev->adev.hwptr_done_capture >=
 			    runtime->buffer_size)
-				dev->adev->hwptr_done_capture -=
+				dev->adev.hwptr_done_capture -=
 				    runtime->buffer_size;
 
-			dev->adev->capture_transfer_done += length;
-			if (dev->adev->capture_transfer_done >=
+			dev->adev.capture_transfer_done += length;
+			if (dev->adev.capture_transfer_done >=
 			    runtime->period_size) {
-				dev->adev->capture_transfer_done -=
+				dev->adev.capture_transfer_done -=
 				    runtime->period_size;
 				period_elapsed = 1;
 			}
@@ -131,7 +131,7 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	}
 	urb->status = 0;
 
-	if (dev->adev->shutdown)
+	if (dev->adev.shutdown)
 		return;
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -154,17 +154,17 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 		struct urb *urb;
 		int j, k;
 
-		dev->adev->transfer_buffer[i] = kmalloc(sb_size, GFP_ATOMIC);
-		if (!dev->adev->transfer_buffer[i])
+		dev->adev.transfer_buffer[i] = kmalloc(sb_size, GFP_ATOMIC);
+		if (!dev->adev.transfer_buffer[i])
 			return -ENOMEM;
 
-		memset(dev->adev->transfer_buffer[i], 0x80, sb_size);
+		memset(dev->adev.transfer_buffer[i], 0x80, sb_size);
 		urb = usb_alloc_urb(EM28XX_NUM_AUDIO_PACKETS, GFP_ATOMIC);
 		if (!urb) {
 			em28xx_errdev("usb_alloc_urb failed!\n");
 			for (j = 0; j < i; j++) {
-				usb_free_urb(dev->adev->urb[j]);
-				kfree(dev->adev->transfer_buffer[j]);
+				usb_free_urb(dev->adev.urb[j]);
+				kfree(dev->adev.transfer_buffer[j]);
 			}
 			return -ENOMEM;
 		}
@@ -173,7 +173,7 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 		urb->context = dev;
 		urb->pipe = usb_rcvisocpipe(dev->udev, 0x83);
 		urb->transfer_flags = URB_ISO_ASAP;
-		urb->transfer_buffer = dev->adev->transfer_buffer[i];
+		urb->transfer_buffer = dev->adev.transfer_buffer[i];
 		urb->interval = 1;
 		urb->complete = em28xx_audio_isocirq;
 		urb->number_of_packets = EM28XX_NUM_AUDIO_PACKETS;
@@ -185,11 +185,11 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 			urb->iso_frame_desc[j].length =
 			    EM28XX_AUDIO_MAX_PACKET_SIZE;
 		}
-		dev->adev->urb[i] = urb;
+		dev->adev.urb[i] = urb;
 	}
 
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
-		errCode = usb_submit_urb(dev->adev->urb[i], GFP_ATOMIC);
+		errCode = usb_submit_urb(dev->adev.urb[i], GFP_ATOMIC);
 		if (errCode) {
 			em28xx_isoc_audio_deinit(dev);
 
@@ -202,16 +202,16 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 
 static int em28xx_cmd(struct em28xx *dev, int cmd, int arg)
 {
-	dprintk("%s transfer\n", (dev->adev->capture_stream == STREAM_ON)?
+	dprintk("%s transfer\n", (dev->adev.capture_stream == STREAM_ON) ?
 				 "stop" : "start");
 
 	switch (cmd) {
 	case EM28XX_CAPTURE_STREAM_EN:
-		if (dev->adev->capture_stream == STREAM_OFF && arg == 1) {
-			dev->adev->capture_stream = STREAM_ON;
+		if (dev->adev.capture_stream == STREAM_OFF && arg == 1) {
+			dev->adev.capture_stream = STREAM_ON;
 			em28xx_init_audio_isoc(dev);
-		} else if (dev->adev->capture_stream == STREAM_ON && arg == 0) {
-			dev->adev->capture_stream = STREAM_OFF;
+		} else if (dev->adev.capture_stream == STREAM_ON && arg == 0) {
+			dev->adev.capture_stream = STREAM_OFF;
 			em28xx_isoc_audio_deinit(dev);
 		} else {
 			printk(KERN_ERR "An underrun very likely occurred. "
@@ -289,17 +289,17 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 		goto err;
 
 	runtime->hw = snd_em28xx_hw_capture;
-	if (dev->alt == 0 && dev->adev->users == 0) {
+	if (dev->alt == 0 && dev->adev.users == 0) {
 		int errCode;
 		dev->alt = 7;
 		errCode = usb_set_interface(dev->udev, 0, 7);
 		dprintk("changing alternate number to 7\n");
 	}
 
-	dev->adev->users++;
+	dev->adev.users++;
 
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
-	dev->adev->capture_pcm_substream = substream;
+	dev->adev.capture_pcm_substream = substream;
 	runtime->private_data = dev;
 
 	return 0;
@@ -311,7 +311,7 @@ err:
 static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
-	dev->adev->users--;
+	dev->adev.users--;
 
 	dprintk("closing device\n");
 
@@ -320,10 +320,10 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 	em28xx_audio_analog_set(dev);
 	mutex_unlock(&dev->lock);
 
-	if (dev->adev->users == 0 && dev->adev->shutdown == 1) {
-		dprintk("audio users: %d\n", dev->adev->users);
+	if (dev->adev.users == 0 && dev->adev.shutdown == 1) {
+		dprintk("audio users: %d\n", dev->adev.users);
 		dprintk("disabling audio stream!\n");
-		dev->adev->shutdown = 0;
+		dev->adev.shutdown = 0;
 		dprintk("released lock\n");
 		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 0);
 	}
@@ -356,7 +356,7 @@ static int snd_em28xx_hw_capture_free(struct snd_pcm_substream *substream)
 
 	dprintk("Stop capture, if needed\n");
 
-	if (dev->adev->capture_stream == STREAM_ON)
+	if (dev->adev.capture_stream == STREAM_ON)
 		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 0);
 
 	return 0;
@@ -379,7 +379,7 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 1);
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
-		dev->adev->shutdown = 1;
+		dev->adev.shutdown = 1;
 		return 0;
 	default:
 		return -EINVAL;
@@ -393,7 +393,7 @@ static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
 
 	snd_pcm_uframes_t hwptr_done;
 	dev = snd_pcm_substream_chip(substream);
-	hwptr_done = dev->adev->hwptr_done_capture;
+	hwptr_done = dev->adev.hwptr_done_capture;
 
 	return hwptr_done;
 }
@@ -420,7 +420,7 @@ static struct snd_pcm_ops snd_em28xx_pcm_capture = {
 
 static int em28xx_audio_init(struct em28xx *dev)
 {
-	struct em28xx_audio *adev;
+	struct em28xx_audio *adev = &dev->adev;
 	struct snd_pcm      *pcm;
 	struct snd_card     *card;
 	static int          devnr;
@@ -438,16 +438,9 @@ static int em28xx_audio_init(struct em28xx *dev)
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
 			 "Rechberger\n");
 
-	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
-	if (!adev) {
-		printk(KERN_ERR "em28xx-audio.c: out of memory\n");
-		return -1;
-	}
 	card = snd_card_new(index[devnr], "Em28xx Audio", THIS_MODULE, 0);
-	if (card == NULL) {
-		kfree(adev);
+	if (card == NULL)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&adev->slock);
 	err = snd_pcm_new(card, "Em28xx Audio", 0, 0, 1, &pcm);
@@ -471,7 +464,6 @@ static int em28xx_audio_init(struct em28xx *dev)
 	}
 	adev->sndcard = card;
 	adev->udev = dev->udev;
-	dev->adev = adev;
 
 	return 0;
 }
@@ -488,10 +480,9 @@ static int em28xx_audio_fini(struct em28xx *dev)
 		return 0;
 	}
 
-	if (dev->adev) {
-		snd_card_free(dev->adev->sndcard);
-		kfree(dev->adev);
-		dev->adev = NULL;
+	if (dev->adev.sndcard) {
+		snd_card_free(dev->adev.sndcard);
+		dev->adev.sndcard = NULL;
 	}
 
 	return 0;

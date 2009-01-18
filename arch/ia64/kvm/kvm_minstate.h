@@ -24,6 +24,8 @@
 #include <asm/asmmacro.h>
 #include <asm/types.h>
 #include <asm/kregs.h>
+#include <asm/kvm_host.h>
+
 #include "asm-offsets.h"
 
 #define KVM_MINSTATE_START_SAVE_MIN	     					\
@@ -33,7 +35,7 @@
 	addl r22 = VMM_RBS_OFFSET,r1;            /* compute base of RBS */	\
 	;;									\
 	lfetch.fault.excl.nt1 [r22];						\
-	addl r1 = IA64_STK_OFFSET-VMM_PT_REGS_SIZE,r1;  /* compute base of memory stack */  \
+	addl r1 = KVM_STK_OFFSET-VMM_PT_REGS_SIZE, r1;  \
 	mov r23 = ar.bspstore;			/* save ar.bspstore */          \
 	;;									\
 	mov ar.bspstore = r22;				/* switch to kernel RBS */\

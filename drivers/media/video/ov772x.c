@@ -724,7 +724,7 @@ static unsigned long ov772x_query_bus_param(struct soc_camera_device *icd)
 }
 
 static int ov772x_get_chip_id(struct soc_camera_device *icd,
-			      struct v4l2_chip_ident   *id)
+			      struct v4l2_dbg_chip_ident   *id)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
 
@@ -736,11 +736,12 @@ static int ov772x_get_chip_id(struct soc_camera_device *icd,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int ov772x_get_register(struct soc_camera_device *icd,
-			       struct v4l2_register *reg)
+			       struct v4l2_dbg_register *reg)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
 	int                 ret;
 
+	reg->size = 1;
 	if (reg->reg > 0xff)
 		return -EINVAL;
 
@@ -754,7 +755,7 @@ static int ov772x_get_register(struct soc_camera_device *icd,
 }
 
 static int ov772x_set_register(struct soc_camera_device *icd,
-			       struct v4l2_register *reg)
+			       struct v4l2_dbg_register *reg)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
 

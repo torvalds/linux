@@ -5,10 +5,11 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
+#include <linux/smp.h>
 
 #include <asm/apic.h>
 #include <asm/io_apic.h>
-#include <asm/smp.h>
+#include <asm/irq.h>
 
 atomic_t irq_err_count;
 
@@ -35,11 +36,7 @@ void ack_bad_irq(unsigned int irq)
 #endif
 }
 
-#ifdef CONFIG_X86_32
-# define irq_stats(x)		(&per_cpu(irq_stat, x))
-#else
-# define irq_stats(x)		cpu_pda(x)
-#endif
+#define irq_stats(x)		(&per_cpu(irq_stat, x))
 /*
  * /proc/interrupts printing:
  */
@@ -190,3 +187,5 @@ u64 arch_irq_stat(void)
 #endif
 	return sum;
 }
+
+EXPORT_SYMBOL_GPL(vector_used_by_percpu_irq);

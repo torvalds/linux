@@ -40,7 +40,7 @@
 
 static inline u16 extract_value(const char *data, int offset)
 {
-	return be16_to_cpup((u16 *)&data[offset]);
+	return be16_to_cpup((__be16 *)&data[offset]);
 }
 
 #define TEMP_SENSOR		1

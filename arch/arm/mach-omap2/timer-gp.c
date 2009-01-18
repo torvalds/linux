@@ -120,7 +120,7 @@ static void __init omap2_gp_clockevent_init(void)
 	clockevent_gpt.min_delta_ns =
 		clockevent_delta2ns(1, &clockevent_gpt);
 
-	clockevent_gpt.cpumask = cpumask_of_cpu(0);
+	clockevent_gpt.cpumask = cpumask_of(0);
 	clockevents_register_device(&clockevent_gpt);
 }
 

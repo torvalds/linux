@@ -1970,7 +1970,7 @@ static DEFINE_PER_CPU(struct kmem_cache_cpu,
 				kmem_cache_cpu)[NR_KMEM_CACHE_CPU];
 
 static DEFINE_PER_CPU(struct kmem_cache_cpu *, kmem_cache_cpu_free);
-static cpumask_t kmem_cach_cpu_free_init_once = CPU_MASK_NONE;
+static DECLARE_BITMAP(kmem_cach_cpu_free_init_once, CONFIG_NR_CPUS);
 
 static struct kmem_cache_cpu *alloc_kmem_cache_cpu(struct kmem_cache *s,
 							int cpu, gfp_t flags)
@@ -2045,13 +2045,13 @@ static void init_alloc_cpu_cpu(int cpu)
 {
 	int i;
 
-	if (cpu_isset(cpu, kmem_cach_cpu_free_init_once))
+	if (cpumask_test_cpu(cpu, to_cpumask(kmem_cach_cpu_free_init_once)))
 		return;
 
 	for (i = NR_KMEM_CACHE_CPU - 1; i >= 0; i--)
 		free_kmem_cache_cpu(&per_cpu(kmem_cache_cpu, cpu)[i], cpu);
 
-	cpu_set(cpu, kmem_cach_cpu_free_init_once);
+	cpumask_set_cpu(cpu, to_cpumask(kmem_cach_cpu_free_init_once));
 }
 
 static void __init init_alloc_cpu(void)
@@ -2254,7 +2254,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
 		 * Add some empty padding so that we can catch
 		 * overwrites from earlier objects rather than let
 		 * tracking information or the free pointer be
-		 * corrupted if an user writes before the start
+		 * corrupted if a user writes before the start
 		 * of the object.
 		 */
 		size += sizeof(void *);
@@ -3451,7 +3451,7 @@ struct location {
 	long max_time;
 	long min_pid;
 	long max_pid;
-	cpumask_t cpus;
+	DECLARE_BITMAP(cpus, NR_CPUS);
 	nodemask_t nodes;
 };
 
@@ -3526,7 +3526,8 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 				if (track->pid > l->max_pid)
 					l->max_pid = track->pid;
 
-				cpu_set(track->cpu, l->cpus);
+				cpumask_set_cpu(track->cpu,
+						to_cpumask(l->cpus));
 			}
 			node_set(page_to_nid(virt_to_page(track)), l->nodes);
 			return 1;
@@ -3556,8 +3557,8 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 	l->max_time = age;
 	l->min_pid = track->pid;
 	l->max_pid = track->pid;
-	cpus_clear(l->cpus);
-	cpu_set(track->cpu, l->cpus);
+	cpumask_clear(to_cpumask(l->cpus));
+	cpumask_set_cpu(track->cpu, to_cpumask(l->cpus));
 	nodes_clear(l->nodes);
 	node_set(page_to_nid(virt_to_page(track)), l->nodes);
 	return 1;
@@ -3638,11 +3639,12 @@ static int list_locations(struct kmem_cache *s, char *buf,
 			len += sprintf(buf + len, " pid=%ld",
 				l->min_pid);
 
-		if (num_online_cpus() > 1 && !cpus_empty(l->cpus) &&
+		if (num_online_cpus() > 1 &&
+				!cpumask_empty(to_cpumask(l->cpus)) &&
 				len < PAGE_SIZE - 60) {
 			len += sprintf(buf + len, " cpus=");
 			len += cpulist_scnprintf(buf + len, PAGE_SIZE - len - 50,
-					l->cpus);
+						 to_cpumask(l->cpus));
 		}
 
 		if (num_online_nodes() > 1 && !nodes_empty(l->nodes) &&

@@ -52,8 +52,7 @@ static void unlock_dir(struct dentry *dir)
 /**
  * ecryptfs_create_underlying_file
  * @lower_dir_inode: inode of the parent in the lower fs of the new file
- * @lower_dentry: New file's dentry in the lower fs
- * @ecryptfs_dentry: New file's dentry in ecryptfs
+ * @dentry: New file's dentry
  * @mode: The mode of the new file
  * @nd: nameidata of ecryptfs' parent's dentry & vfsmount
  *
@@ -228,8 +227,7 @@ ecryptfs_create(struct inode *directory_inode, struct dentry *ecryptfs_dentry,
 {
 	int rc;
 
-	/* ecryptfs_do_create() calls ecryptfs_interpose(), which opens
-	 * the crypt_stat->lower_file (persistent file) */
+	/* ecryptfs_do_create() calls ecryptfs_interpose() */
 	rc = ecryptfs_do_create(directory_inode, ecryptfs_dentry, mode, nd);
 	if (unlikely(rc)) {
 		ecryptfs_printk(KERN_WARNING, "Failed to create file in"
@@ -244,141 +242,91 @@ out:
 }
 
 /**
- * ecryptfs_lookup
- * @dir: inode
- * @dentry: The dentry
- * @nd: nameidata, may be NULL
- *
- * Find a file on disk. If the file does not exist, then we'll add it to the
- * dentry cache and continue on to read it from the disk.
+ * ecryptfs_lookup_and_interpose_lower - Perform a lookup
  */
-static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
-				      struct nameidata *nd)
+int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
+					struct dentry *lower_dentry,
+					struct ecryptfs_crypt_stat *crypt_stat,
+					struct inode *ecryptfs_dir_inode,
+					struct nameidata *ecryptfs_nd)
 {
-	int rc = 0;
 	struct dentry *lower_dir_dentry;
-	struct dentry *lower_dentry;
 	struct vfsmount *lower_mnt;
-	char *encoded_name;
-	int encoded_namelen;
-	struct ecryptfs_crypt_stat *crypt_stat = NULL;
+	struct inode *lower_inode;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	char *page_virt = NULL;
-	struct inode *lower_inode;
 	u64 file_size;
+	int rc = 0;
 
-	lower_dir_dentry = ecryptfs_dentry_to_lower(dentry->d_parent);
-	dentry->d_op = &ecryptfs_dops;
-	if ((dentry->d_name.len == 1 && !strcmp(dentry->d_name.name, "."))
-	    || (dentry->d_name.len == 2
-		&& !strcmp(dentry->d_name.name, ".."))) {
-		d_drop(dentry);
-		goto out;
-	}
-	encoded_namelen = ecryptfs_encode_filename(crypt_stat,
-						   dentry->d_name.name,
-						   dentry->d_name.len,
-						   &encoded_name);
-	if (encoded_namelen < 0) {
-		rc = encoded_namelen;
-		d_drop(dentry);
-		goto out;
-	}
-	ecryptfs_printk(KERN_DEBUG, "encoded_name = [%s]; encoded_namelen "
-			"= [%d]\n", encoded_name, encoded_namelen);
-	lower_dentry = lookup_one_len(encoded_name, lower_dir_dentry,
-				      encoded_namelen - 1);
-	kfree(encoded_name);
-	if (IS_ERR(lower_dentry)) {
-		ecryptfs_printk(KERN_ERR, "ERR from lower_dentry\n");
-		rc = PTR_ERR(lower_dentry);
-		d_drop(dentry);
-		goto out;
-	}
-	lower_mnt = mntget(ecryptfs_dentry_to_lower_mnt(dentry->d_parent));
-	ecryptfs_printk(KERN_DEBUG, "lower_dentry = [%p]; lower_dentry->"
-       		"d_name.name = [%s]\n", lower_dentry,
-		lower_dentry->d_name.name);
+	lower_dir_dentry = lower_dentry->d_parent;
+	lower_mnt = mntget(ecryptfs_dentry_to_lower_mnt(
+				   ecryptfs_dentry->d_parent));
 	lower_inode = lower_dentry->d_inode;
-	fsstack_copy_attr_atime(dir, lower_dir_dentry->d_inode);
+	fsstack_copy_attr_atime(ecryptfs_dir_inode, lower_dir_dentry->d_inode);
 	BUG_ON(!atomic_read(&lower_dentry->d_count));
-	ecryptfs_set_dentry_private(dentry,
+	ecryptfs_set_dentry_private(ecryptfs_dentry,
 				    kmem_cache_alloc(ecryptfs_dentry_info_cache,
 						     GFP_KERNEL));
-	if (!ecryptfs_dentry_to_private(dentry)) {
+	if (!ecryptfs_dentry_to_private(ecryptfs_dentry)) {
 		rc = -ENOMEM;
-		ecryptfs_printk(KERN_ERR, "Out of memory whilst attempting "
-				"to allocate ecryptfs_dentry_info struct\n");
+		printk(KERN_ERR "%s: Out of memory whilst attempting "
+		       "to allocate ecryptfs_dentry_info struct\n",
+			__func__);
 		goto out_dput;
 	}
-	ecryptfs_set_dentry_lower(dentry, lower_dentry);
-	ecryptfs_set_dentry_lower_mnt(dentry, lower_mnt);
+	ecryptfs_set_dentry_lower(ecryptfs_dentry, lower_dentry);
+	ecryptfs_set_dentry_lower_mnt(ecryptfs_dentry, lower_mnt);
 	if (!lower_dentry->d_inode) {
 		/* We want to add because we couldn't find in lower */
-		d_add(dentry, NULL);
+		d_add(ecryptfs_dentry, NULL);
 		goto out;
 	}
-	rc = ecryptfs_interpose(lower_dentry, dentry, dir->i_sb,
-				ECRYPTFS_INTERPOSE_FLAG_D_ADD);
+	rc = ecryptfs_interpose(lower_dentry, ecryptfs_dentry,
+				ecryptfs_dir_inode->i_sb, 1);
 	if (rc) {
-		ecryptfs_printk(KERN_ERR, "Error interposing\n");
+		printk(KERN_ERR "%s: Error interposing; rc = [%d]\n",
+		       __func__, rc);
 		goto out;
 	}
-	if (S_ISDIR(lower_inode->i_mode)) {
-		ecryptfs_printk(KERN_DEBUG, "Is a directory; returning\n");
+	if (S_ISDIR(lower_inode->i_mode))
 		goto out;
-	}
-	if (S_ISLNK(lower_inode->i_mode)) {
-		ecryptfs_printk(KERN_DEBUG, "Is a symlink; returning\n");
+	if (S_ISLNK(lower_inode->i_mode))
 		goto out;
-	}
-	if (special_file(lower_inode->i_mode)) {
-		ecryptfs_printk(KERN_DEBUG, "Is a special file; returning\n");
+	if (special_file(lower_inode->i_mode))
 		goto out;
-	}
-	if (!nd) {
-		ecryptfs_printk(KERN_DEBUG, "We have a NULL nd, just leave"
-				"as we *think* we are about to unlink\n");
+	if (!ecryptfs_nd)
 		goto out;
-	}
 	/* Released in this function */
-	page_virt = kmem_cache_zalloc(ecryptfs_header_cache_2,
-				      GFP_USER);
+	page_virt = kmem_cache_zalloc(ecryptfs_header_cache_2, GFP_USER);
 	if (!page_virt) {
+		printk(KERN_ERR "%s: Cannot kmem_cache_zalloc() a page\n",
+		       __func__);
 		rc = -ENOMEM;
-		ecryptfs_printk(KERN_ERR,
-				"Cannot ecryptfs_kmalloc a page\n");
 		goto out;
 	}
-	crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
-	if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED))
-		ecryptfs_set_default_sizes(crypt_stat);
-	if (!ecryptfs_inode_to_private(dentry->d_inode)->lower_file) {
-		rc = ecryptfs_init_persistent_file(dentry);
+	if (!ecryptfs_inode_to_private(ecryptfs_dentry->d_inode)->lower_file) {
+		rc = ecryptfs_init_persistent_file(ecryptfs_dentry);
 		if (rc) {
 			printk(KERN_ERR "%s: Error attempting to initialize "
 			       "the persistent file for the dentry with name "
 			       "[%s]; rc = [%d]\n", __func__,
-			       dentry->d_name.name, rc);
-			goto out;
+			       ecryptfs_dentry->d_name.name, rc);
+			goto out_free_kmem;
 		}
 	}
 	rc = ecryptfs_read_and_validate_header_region(page_virt,
-						      dentry->d_inode);
+						      ecryptfs_dentry->d_inode);
 	if (rc) {
-		rc = ecryptfs_read_and_validate_xattr_region(page_virt, dentry);
+		rc = ecryptfs_read_and_validate_xattr_region(page_virt,
+							     ecryptfs_dentry);
 		if (rc) {
-			printk(KERN_DEBUG "Valid metadata not found in header "
-			       "region or xattr region; treating file as "
-			       "unencrypted\n");
 			rc = 0;
-			kmem_cache_free(ecryptfs_header_cache_2, page_virt);
-			goto out;
+			goto out_free_kmem;
 		}
 		crypt_stat->flags |= ECRYPTFS_METADATA_IN_XATTR;
 	}
 	mount_crypt_stat = &ecryptfs_superblock_to_private(
-		dentry->d_sb)->mount_crypt_stat;
+		ecryptfs_dentry->d_sb)->mount_crypt_stat;
 	if (mount_crypt_stat->flags & ECRYPTFS_ENCRYPTED_VIEW_ENABLED) {
 		if (crypt_stat->flags & ECRYPTFS_METADATA_IN_XATTR)
 			file_size = (crypt_stat->num_header_bytes_at_front
@@ -388,14 +336,103 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 	} else {
 		file_size = get_unaligned_be64(page_virt);
 	}
-	i_size_write(dentry->d_inode, (loff_t)file_size);
+	i_size_write(ecryptfs_dentry->d_inode, (loff_t)file_size);
+out_free_kmem:
 	kmem_cache_free(ecryptfs_header_cache_2, page_virt);
 	goto out;
-
 out_dput:
 	dput(lower_dentry);
-	d_drop(dentry);
+	d_drop(ecryptfs_dentry);
 out:
+	return rc;
+}
+
+/**
+ * ecryptfs_lookup
+ * @ecryptfs_dir_inode: The eCryptfs directory inode
+ * @ecryptfs_dentry: The eCryptfs dentry that we are looking up
+ * @ecryptfs_nd: nameidata; may be NULL
+ *
+ * Find a file on disk. If the file does not exist, then we'll add it to the
+ * dentry cache and continue on to read it from the disk.
+ */
+static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
+				      struct dentry *ecryptfs_dentry,
+				      struct nameidata *ecryptfs_nd)
+{
+	char *encrypted_and_encoded_name = NULL;
+	size_t encrypted_and_encoded_name_size;
+	struct ecryptfs_crypt_stat *crypt_stat = NULL;
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat = NULL;
+	struct ecryptfs_inode_info *inode_info;
+	struct dentry *lower_dir_dentry, *lower_dentry;
+	int rc = 0;
+
+	ecryptfs_dentry->d_op = &ecryptfs_dops;
+	if ((ecryptfs_dentry->d_name.len == 1
+	     && !strcmp(ecryptfs_dentry->d_name.name, "."))
+	    || (ecryptfs_dentry->d_name.len == 2
+		&& !strcmp(ecryptfs_dentry->d_name.name, ".."))) {
+		goto out_d_drop;
+	}
+	lower_dir_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry->d_parent);
+	lower_dentry = lookup_one_len(ecryptfs_dentry->d_name.name,
+				      lower_dir_dentry,
+				      ecryptfs_dentry->d_name.len);
+	if (IS_ERR(lower_dentry)) {
+		rc = PTR_ERR(lower_dentry);
+		printk(KERN_ERR "%s: lookup_one_len() returned [%d] on "
+		       "lower_dentry = [%s]\n", __func__, rc,
+		       ecryptfs_dentry->d_name.name);
+		goto out_d_drop;
+	}
+	if (lower_dentry->d_inode)
+		goto lookup_and_interpose;
+	inode_info =  ecryptfs_inode_to_private(ecryptfs_dentry->d_inode);
+	if (inode_info) {
+		crypt_stat = &inode_info->crypt_stat;
+		/* TODO: lock for crypt_stat comparison */
+		if (!(crypt_stat->flags & ECRYPTFS_POLICY_APPLIED))
+			ecryptfs_set_default_sizes(crypt_stat);
+	}
+	if (crypt_stat)
+		mount_crypt_stat = crypt_stat->mount_crypt_stat;
+	else
+		mount_crypt_stat = &ecryptfs_superblock_to_private(
+			ecryptfs_dentry->d_sb)->mount_crypt_stat;
+	if (!(crypt_stat && (crypt_stat->flags & ECRYPTFS_ENCRYPT_FILENAMES))
+	    && !(mount_crypt_stat && (mount_crypt_stat->flags
+				     & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)))
+		goto lookup_and_interpose;
+	dput(lower_dentry);
+	rc = ecryptfs_encrypt_and_encode_filename(
+		&encrypted_and_encoded_name, &encrypted_and_encoded_name_size,
+		crypt_stat, mount_crypt_stat, ecryptfs_dentry->d_name.name,
+		ecryptfs_dentry->d_name.len);
+	if (rc) {
+		printk(KERN_ERR "%s: Error attempting to encrypt and encode "
+		       "filename; rc = [%d]\n", __func__, rc);
+		goto out_d_drop;
+	}
+	lower_dentry = lookup_one_len(encrypted_and_encoded_name,
+				      lower_dir_dentry,
+				      encrypted_and_encoded_name_size - 1);
+	if (IS_ERR(lower_dentry)) {
+		rc = PTR_ERR(lower_dentry);
+		printk(KERN_ERR "%s: lookup_one_len() returned [%d] on "
+		       "lower_dentry = [%s]\n", __func__, rc,
+		       encrypted_and_encoded_name);
+		goto out_d_drop;
+	}
+lookup_and_interpose:
+	rc = ecryptfs_lookup_and_interpose_lower(ecryptfs_dentry, lower_dentry,
+						 crypt_stat, ecryptfs_dir_inode,
+						 ecryptfs_nd);
+	goto out;
+out_d_drop:
+	d_drop(ecryptfs_dentry);
+out:
+	kfree(encrypted_and_encoded_name);
 	return ERR_PTR(rc);
 }
 
@@ -466,19 +503,21 @@ static int ecryptfs_symlink(struct inode *dir, struct dentry *dentry,
 	struct dentry *lower_dentry;
 	struct dentry *lower_dir_dentry;
 	char *encoded_symname;
-	int encoded_symlen;
-	struct ecryptfs_crypt_stat *crypt_stat = NULL;
+	size_t encoded_symlen;
+	struct ecryptfs_mount_crypt_stat *mount_crypt_stat = NULL;
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	dget(lower_dentry);
 	lower_dir_dentry = lock_parent(lower_dentry);
-	encoded_symlen = ecryptfs_encode_filename(crypt_stat, symname,
-						  strlen(symname),
-						  &encoded_symname);
-	if (encoded_symlen < 0) {
-		rc = encoded_symlen;
+	mount_crypt_stat = &ecryptfs_superblock_to_private(
+		dir->i_sb)->mount_crypt_stat;
+	rc = ecryptfs_encrypt_and_encode_filename(&encoded_symname,
+						  &encoded_symlen,
+						  NULL,
+						  mount_crypt_stat, symname,
+						  strlen(symname));
+	if (rc)
 		goto out_lock;
-	}
 	rc = vfs_symlink(lower_dir_dentry->d_inode, lower_dentry,
 			 encoded_symname);
 	kfree(encoded_symname);
@@ -602,53 +641,54 @@ out_lock:
 }
 
 static int
-ecryptfs_readlink(struct dentry *dentry, char __user * buf, int bufsiz)
+ecryptfs_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
 {
-	int rc;
-	struct dentry *lower_dentry;
-	char *decoded_name;
 	char *lower_buf;
-	mm_segment_t old_fs;
+	struct dentry *lower_dentry;
 	struct ecryptfs_crypt_stat *crypt_stat;
+	char *plaintext_name;
+	size_t plaintext_name_size;
+	mm_segment_t old_fs;
+	int rc;
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	if (!lower_dentry->d_inode->i_op ||
-	    !lower_dentry->d_inode->i_op->readlink) {
+	if (!lower_dentry->d_inode->i_op->readlink) {
 		rc = -EINVAL;
 		goto out;
 	}
+	crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
 	/* Released in this function */
 	lower_buf = kmalloc(bufsiz, GFP_KERNEL);
 	if (lower_buf == NULL) {
-		ecryptfs_printk(KERN_ERR, "Out of memory\n");
+		printk(KERN_ERR "%s: Out of memory whilst attempting to "
+		       "kmalloc [%d] bytes\n", __func__, bufsiz);
 		rc = -ENOMEM;
 		goto out;
 	}
 	old_fs = get_fs();
 	set_fs(get_ds());
-	ecryptfs_printk(KERN_DEBUG, "Calling readlink w/ "
-			"lower_dentry->d_name.name = [%s]\n",
-			lower_dentry->d_name.name);
 	rc = lower_dentry->d_inode->i_op->readlink(lower_dentry,
 						   (char __user *)lower_buf,
 						   bufsiz);
 	set_fs(old_fs);
 	if (rc >= 0) {
-		crypt_stat = NULL;
-		rc = ecryptfs_decode_filename(crypt_stat, lower_buf, rc,
-					      &decoded_name);
-		if (rc == -ENOMEM)
+		rc = ecryptfs_decode_and_decrypt_filename(&plaintext_name,
+							  &plaintext_name_size,
+							  dentry, lower_buf,
+							  rc);
+		if (rc) {
+			printk(KERN_ERR "%s: Error attempting to decode and "
+			       "decrypt filename; rc = [%d]\n", __func__,
+				rc);
 			goto out_free_lower_buf;
-		if (rc > 0) {
-			ecryptfs_printk(KERN_DEBUG, "Copying [%d] bytes "
-					"to userspace: [%*s]\n", rc,
-					decoded_name);
-			if (copy_to_user(buf, decoded_name, rc))
-				rc = -EFAULT;
 		}
-		kfree(decoded_name);
-		fsstack_copy_attr_atime(dentry->d_inode,
-					lower_dentry->d_inode);
+		rc = copy_to_user(buf, plaintext_name, plaintext_name_size);
+		if (rc)
+			rc = -EFAULT;
+		else
+			rc = plaintext_name_size;
+		kfree(plaintext_name);
+		fsstack_copy_attr_atime(dentry->d_inode, lower_dentry->d_inode);
 	}
 out_free_lower_buf:
 	kfree(lower_buf);
@@ -670,13 +710,12 @@ static void *ecryptfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	}
 	old_fs = get_fs();
 	set_fs(get_ds());
-	ecryptfs_printk(KERN_DEBUG, "Calling readlink w/ "
-			"dentry->d_name.name = [%s]\n", dentry->d_name.name);
 	rc = dentry->d_inode->i_op->readlink(dentry, (char __user *)buf, len);
-	buf[rc] = '\0';
 	set_fs(old_fs);
 	if (rc < 0)
 		goto out_free;
+	else
+		buf[rc] = '\0';
 	rc = 0;
 	nd_set_link(nd, buf);
 	goto out;

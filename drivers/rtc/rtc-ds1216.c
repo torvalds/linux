@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/bcd.h>
 
-#define DRV_VERSION "0.1"
+#define DRV_VERSION "0.2"
 
 struct ds1216_regs {
 	u8 tsec;
@@ -101,7 +101,8 @@ static int ds1216_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_year = bcd2bin(regs.year);
 	if (tm->tm_year < 70)
 		tm->tm_year += 100;
-	return 0;
+
+	return rtc_valid_tm(tm);
 }
 
 static int ds1216_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -138,9 +139,8 @@ static const struct rtc_class_ops ds1216_rtc_ops = {
 	.set_time	= ds1216_rtc_set_time,
 };
 
-static int __devinit ds1216_rtc_probe(struct platform_device *pdev)
+static int __init ds1216_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_device *rtc;
 	struct resource *res;
 	struct ds1216_priv *priv;
 	int ret = 0;
@@ -152,7 +152,10 @@ static int __devinit ds1216_rtc_probe(struct platform_device *pdev)
 	priv = kzalloc(sizeof *priv, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-	priv->size = res->end - res->start + 1;
+
+	platform_set_drvdata(pdev, priv);
+
+	priv->size = resource_size(res);
 	if (!request_mem_region(res->start, priv->size, pdev->name)) {
 		ret = -EBUSY;
 		goto out;
@@ -163,22 +166,18 @@ static int __devinit ds1216_rtc_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto out;
 	}
-	rtc = rtc_device_register("ds1216", &pdev->dev,
+	priv->rtc = rtc_device_register("ds1216", &pdev->dev,
 				  &ds1216_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
+	if (IS_ERR(priv->rtc)) {
+		ret = PTR_ERR(priv->rtc);
 		goto out;
 	}
-	priv->rtc = rtc;
-	platform_set_drvdata(pdev, priv);
 
 	/* dummy read to get clock into a known state */
 	ds1216_read(priv->ioaddr, dummy);
 	return 0;
 
 out:
-	if (priv->rtc)
-		rtc_device_unregister(priv->rtc);
 	if (priv->ioaddr)
 		iounmap(priv->ioaddr);
 	if (priv->baseaddr)
@@ -187,7 +186,7 @@ out:
 	return ret;
 }
 
-static int __devexit ds1216_rtc_remove(struct platform_device *pdev)
+static int __exit ds1216_rtc_remove(struct platform_device *pdev)
 {
 	struct ds1216_priv *priv = platform_get_drvdata(pdev);
 
@@ -203,13 +202,12 @@ static struct platform_driver ds1216_rtc_platform_driver = {
 		.name	= "rtc-ds1216",
 		.owner	= THIS_MODULE,
 	},
-	.probe		= ds1216_rtc_probe,
-	.remove		= __devexit_p(ds1216_rtc_remove),
+	.remove		= __exit_p(ds1216_rtc_remove),
 };
 
 static int __init ds1216_rtc_init(void)
 {
-	return platform_driver_register(&ds1216_rtc_platform_driver);
+	return platform_driver_probe(&ds1216_rtc_platform_driver, ds1216_rtc_probe);
 }
 
 static void __exit ds1216_rtc_exit(void)

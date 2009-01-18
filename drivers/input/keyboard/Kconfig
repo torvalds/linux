@@ -268,6 +268,15 @@ config KEYBOARD_PXA27x
 	  To compile this driver as a module, choose M here: the
 	  module will be called pxa27x_keypad.
 
+config KEYBOARD_PXA930_ROTARY
+	tristate "PXA930/PXA935 Enhanced Rotary Controller Support"
+	depends on CPU_PXA930 || CPU_PXA935
+	help
+	  Enable support for PXA930/PXA935 Enhanced Rotary Controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pxa930_rotary.
+
 config KEYBOARD_AAED2000
 	tristate "AAED-2000 keyboard"
 	depends on MACH_AAED2000

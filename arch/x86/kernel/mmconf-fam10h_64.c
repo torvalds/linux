@@ -13,8 +13,7 @@
 #include <asm/msr.h>
 #include <asm/acpi.h>
 #include <asm/mmconfig.h>
-
-#include "../pci/pci.h"
+#include <asm/pci_x86.h>
 
 struct pci_hostbridge_probe {
 	u32 bus;

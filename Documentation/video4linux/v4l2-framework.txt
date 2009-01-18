@@ -184,7 +184,7 @@ may be NULL if the subdev driver does not support anything from that category.
 It looks like this:
 
 struct v4l2_subdev_core_ops {
-	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip);
+	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
 	int (*init)(struct v4l2_subdev *sd, u32 val);
 	...
@@ -390,16 +390,18 @@ allocated memory.
 
 You should also set these fields:
 
-- parent: set to the parent device (same device as was used to register
-  v4l2_device).
+- v4l2_dev: set to the v4l2_device parent device.
 - name: set to something descriptive and unique.
-- fops: set to the file_operations struct.
+- fops: set to the v4l2_file_operations struct.
 - ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
   (highly recommended to use this and it might become compulsory in the
   future!), then set this to your v4l2_ioctl_ops struct.
 
-If you use v4l2_ioctl_ops, then you should set .unlocked_ioctl to
-__video_ioctl2 or .ioctl to video_ioctl2 in your file_operations struct.
+If you use v4l2_ioctl_ops, then you should set either .unlocked_ioctl or
+.ioctl to video_ioctl2 in your v4l2_file_operations struct.
+
+The v4l2_file_operations struct is a subset of file_operations. The main
+difference is that the inode argument is omitted since it is never used.
 
 
 video_device registration
@@ -410,7 +412,7 @@ for you.
 
 	err = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
 	if (err) {
-		video_device_release(vdev); // or kfree(my_vdev);
+		video_device_release(vdev); /* or kfree(my_vdev); */
 		return err;
 	}
 
@@ -516,5 +518,4 @@ void *video_drvdata(struct file *file);
 
 You can go from a video_device struct to the v4l2_device struct using:
 
-struct v4l2_device *v4l2_dev = dev_get_drvdata(vdev->parent);
-
+struct v4l2_device *v4l2_dev = vdev->v4l2_dev;

@@ -19,6 +19,7 @@
 #include <asm/msr.h>
 #include <asm/cache.h>
 #include <asm/processor-flags.h>
+#include <asm/percpu.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/asm-offsets.h>
@@ -204,6 +205,23 @@ ENTRY(secondary_startup_64)
 	pushq $0
 	popfq
 
+#ifdef CONFIG_SMP
+	/*
+	 * early_gdt_base should point to the gdt_page in static percpu init
+	 * data area.  Computing this requires two symbols - __per_cpu_load
+	 * and per_cpu__gdt_page.  As linker can't do no such relocation, do
+	 * it by hand.  As early_gdt_descr is manipulated by C code for
+	 * secondary CPUs, this should be done only once for the boot CPU
+	 * when early_gdt_descr_base contains zero.
+	 */
+	movq	early_gdt_descr_base(%rip), %rax
+	testq	%rax, %rax
+	jnz	1f
+	movq	$__per_cpu_load, %rax
+	addq	$per_cpu__gdt_page, %rax
+	movq	%rax, early_gdt_descr_base(%rip)
+1:
+#endif
 	/*
 	 * We must switch to a new descriptor in kernel space for the GDT
 	 * because soon the kernel won't have access anymore to the userspace
@@ -226,12 +244,18 @@ ENTRY(secondary_startup_64)
 	movl %eax,%fs
 	movl %eax,%gs
 
-	/* 
-	 * Setup up a dummy PDA. this is just for some early bootup code
-	 * that does in_interrupt() 
-	 */ 
+	/* Set up %gs.
+	 *
+	 * On SMP, %gs should point to the per-cpu area.  For initial
+	 * boot, make %gs point to the init data section.  For a
+	 * secondary CPU,initial_gs should be set to its pda address
+	 * before the CPU runs this code.
+	 *
+	 * On UP, initial_gs points to PER_CPU_VAR(__pda) and doesn't
+	 * change.
+	 */
 	movl	$MSR_GS_BASE,%ecx
-	movq	$empty_zero_page,%rax
+	movq	initial_gs(%rip),%rax
 	movq    %rax,%rdx
 	shrq	$32,%rdx
 	wrmsr	
@@ -257,6 +281,12 @@ ENTRY(secondary_startup_64)
 	.align	8
 	ENTRY(initial_code)
 	.quad	x86_64_start_kernel
+	ENTRY(initial_gs)
+#ifdef CONFIG_SMP
+	.quad	__per_cpu_load
+#else
+	.quad	PER_CPU_VAR(__pda)
+#endif
 	__FINITDATA
 
 	ENTRY(stack_start)
@@ -305,7 +335,7 @@ ENTRY(early_idt_handler)
 	call dump_stack
 #ifdef CONFIG_KALLSYMS	
 	leaq early_idt_ripmsg(%rip),%rdi
-	movq 8(%rsp),%rsi	# get rip again
+	movq 0(%rsp),%rsi	# get rip again
 	call __print_symbol
 #endif
 #endif /* EARLY_PRINTK */
@@ -401,7 +431,12 @@ NEXT_PAGE(level2_spare_pgt)
 	.globl early_gdt_descr
 early_gdt_descr:
 	.word	GDT_ENTRIES*8-1
-	.quad   per_cpu__gdt_page
+#ifdef CONFIG_SMP
+early_gdt_descr_base:
+	.quad   0x0000000000000000
+#else
+	.quad	per_cpu__gdt_page
+#endif
 
 ENTRY(phys_base)
 	/* This must match the first entry in level2_kernel_pgt */

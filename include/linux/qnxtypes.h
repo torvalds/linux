@@ -2,15 +2,14 @@
  *  Name                         : qnxtypes.h
  *  Author                       : Richard Frowijn
  *  Function                     : standard qnx types
- *  Version                      : 1.0.2
- *  Last modified                : 2000-01-06
- *
  *  History                      : 22-03-1998 created
  *
  */
 
 #ifndef _QNX4TYPES_H
 #define _QNX4TYPES_H
+
+#include <linux/types.h>
 
 typedef __le16 qnx4_nxtnt_t;
 typedef __u8  qnx4_ftype_t;

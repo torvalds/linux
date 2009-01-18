@@ -72,7 +72,7 @@ extern void __offline_isolated_pages(unsigned long, unsigned long);
 extern int offline_pages(unsigned long, unsigned long, unsigned long);
 
 /* reasonably generic interface to expand the physical pages in a zone  */
-extern int __add_pages(struct zone *zone, unsigned long start_pfn,
+extern int __add_pages(int nid, struct zone *zone, unsigned long start_pfn,
 	unsigned long nr_pages);
 extern int __remove_pages(struct zone *zone, unsigned long start_pfn,
 	unsigned long nr_pages);

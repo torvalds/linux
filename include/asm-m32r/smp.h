@@ -63,8 +63,6 @@ extern volatile int cpu_2_physid[NR_CPUS];
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 
 extern cpumask_t cpu_callout_map;
-extern cpumask_t cpu_possible_map;
-extern cpumask_t cpu_present_map;
 
 static __inline__ int hard_smp_processor_id(void)
 {

@@ -122,7 +122,8 @@ u16 amd_iommu_last_bdf;			/* largest PCI device id we have
 LIST_HEAD(amd_iommu_unity_map);		/* a list of required unity mappings
 					   we find in ACPI */
 unsigned amd_iommu_aperture_order = 26; /* size of aperture in power of 2 */
-int amd_iommu_isolate = 1;		/* if 1, device isolation is enabled */
+bool amd_iommu_isolate = true;		/* if true, device isolation is
+					   enabled */
 bool amd_iommu_unmap_flush;		/* if true, flush on every unmap */
 
 LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
@@ -243,20 +244,16 @@ static void __init iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 }
 
 /* Function to enable the hardware */
-void __init iommu_enable(struct amd_iommu *iommu)
+static void __init iommu_enable(struct amd_iommu *iommu)
 {
-	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU "
-	       "at %02x:%02x.%x cap 0x%hx\n",
-	       iommu->dev->bus->number,
-	       PCI_SLOT(iommu->dev->devfn),
-	       PCI_FUNC(iommu->dev->devfn),
-	       iommu->cap_ptr);
+	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU at %s cap 0x%hx\n",
+	       dev_name(&iommu->dev->dev), iommu->cap_ptr);
 
 	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
 }
 
 /* Function to enable IOMMU event logging and event interrupts */
-void __init iommu_enable_event_logging(struct amd_iommu *iommu)
+static void __init iommu_enable_event_logging(struct amd_iommu *iommu)
 {
 	iommu_feature_enable(iommu, CONTROL_EVT_LOG_EN);
 	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
@@ -1218,9 +1215,9 @@ static int __init parse_amd_iommu_options(char *str)
 {
 	for (; *str; ++str) {
 		if (strncmp(str, "isolate", 7) == 0)
-			amd_iommu_isolate = 1;
+			amd_iommu_isolate = true;
 		if (strncmp(str, "share", 5) == 0)
-			amd_iommu_isolate = 0;
+			amd_iommu_isolate = false;
 		if (strncmp(str, "fullflush", 9) == 0)
 			amd_iommu_unmap_flush = true;
 	}

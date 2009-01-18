@@ -1842,7 +1842,7 @@ void em28xx_release_resources(struct em28xx *dev)
  * em28xx_init_dev()
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
-int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
+static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			   int minor)
 {
 	struct em28xx *dev = *devhandle;
@@ -1990,8 +1990,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		int check_interface = 1;
 		isoc_pipe = 1;
 		endpoint = &interface->cur_altsetting->endpoint[1].desc;
-		if (usb_endpoint_type(endpoint) !=
-		    USB_ENDPOINT_XFER_ISOC)
+		if (!usb_endpoint_xfer_isoc(endpoint))
 			check_interface = 0;
 
 		if (usb_endpoint_dir_out(endpoint))

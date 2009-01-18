@@ -24,12 +24,12 @@
 #error "Please contact <greg@kroah.com> for details on how to fix it properly."
 
 static struct device iop_spu_device[2] = {
-	{ .bus_id =     "iop-spu0", },
-	{ .bus_id =     "iop-spu1", },
+	{ .init_name =     "iop-spu0", },
+	{ .init_name =     "iop-spu1", },
 };
 
 static struct device iop_mpu_device = {
-	.bus_id =       "iop-mpu",
+	.init_name =       "iop-mpu",
 };
 
 static int wait_mpu_idle(void)

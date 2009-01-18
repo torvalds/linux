@@ -838,7 +838,7 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		h->standard = *((v4l2_std_id *) arg);
 		break;
 
-	case VIDIOC_G_CHIP_IDENT:
+	case VIDIOC_DBG_G_CHIP_IDENT:
 		return v4l2_chip_ident_i2c_client(client,
 				arg, h->chip, h->revision);
 

@@ -191,7 +191,7 @@ enum musb_g_ep0_state {
  */
 
 #if defined(CONFIG_ARCH_DAVINCI) || defined(CONFIG_ARCH_OMAP2430) \
-		|| defined(CONFIG_ARCH_OMAP3430)
+		|| defined(CONFIG_ARCH_OMAP3430) || defined(CONFIG_BLACKFIN)
 /* REVISIT indexed access seemed to
  * misbehave (on DaVinci) for at least peripheral IN ...
  */
@@ -359,6 +359,7 @@ struct musb {
 	struct otg_transceiver	xceiv;
 
 	int nIrq;
+	unsigned		irq_wake:1;
 
 	struct musb_hw_ep	 endpoints[MUSB_C_NUM_EPS];
 #define control_ep		endpoints
@@ -447,6 +448,70 @@ static inline struct musb *gadget_to_musb(struct usb_gadget *g)
 }
 #endif
 
+#ifdef CONFIG_BLACKFIN
+static inline int musb_read_fifosize(struct musb *musb,
+		struct musb_hw_ep *hw_ep, u8 epnum)
+{
+	musb->nr_endpoints++;
+	musb->epmask |= (1 << epnum);
+
+	if (epnum < 5) {
+		hw_ep->max_packet_sz_tx = 128;
+		hw_ep->max_packet_sz_rx = 128;
+	} else {
+		hw_ep->max_packet_sz_tx = 1024;
+		hw_ep->max_packet_sz_rx = 1024;
+	}
+	hw_ep->is_shared_fifo = false;
+
+	return 0;
+}
+
+static inline void musb_configure_ep0(struct musb *musb)
+{
+	musb->endpoints[0].max_packet_sz_tx = MUSB_EP0_FIFOSIZE;
+	musb->endpoints[0].max_packet_sz_rx = MUSB_EP0_FIFOSIZE;
+	musb->endpoints[0].is_shared_fifo = true;
+}
+
+#else
+
+static inline int musb_read_fifosize(struct musb *musb,
+		struct musb_hw_ep *hw_ep, u8 epnum)
+{
+	u8 reg = 0;
+
+	/* read from core using indexed model */
+	reg = musb_readb(hw_ep->regs, 0x10 + MUSB_FIFOSIZE);
+	/* 0's returned when no more endpoints */
+	if (!reg)
+		return -ENODEV;
+
+	musb->nr_endpoints++;
+	musb->epmask |= (1 << epnum);
+
+	hw_ep->max_packet_sz_tx = 1 << (reg & 0x0f);
+
+	/* shared TX/RX FIFO? */
+	if ((reg & 0xf0) == 0xf0) {
+		hw_ep->max_packet_sz_rx = hw_ep->max_packet_sz_tx;
+		hw_ep->is_shared_fifo = true;
+		return 0;
+	} else {
+		hw_ep->max_packet_sz_rx = 1 << ((reg & 0xf0) >> 4);
+		hw_ep->is_shared_fifo = false;
+	}
+
+	return 0;
+}
+
+static inline void musb_configure_ep0(struct musb *musb)
+{
+	musb->endpoints[0].max_packet_sz_tx = MUSB_EP0_FIFOSIZE;
+	musb->endpoints[0].max_packet_sz_rx = MUSB_EP0_FIFOSIZE;
+}
+#endif /* CONFIG_BLACKFIN */
+
 
 /***************************** Glue it together *****************************/
 
@@ -467,16 +532,16 @@ extern void musb_platform_disable(struct musb *musb);
 
 extern void musb_hnp_stop(struct musb *musb);
 
-extern void musb_platform_set_mode(struct musb *musb, u8 musb_mode);
+extern int musb_platform_set_mode(struct musb *musb, u8 musb_mode);
 
-#if defined(CONFIG_USB_TUSB6010) || \
+#if defined(CONFIG_USB_TUSB6010) || defined(CONFIG_BLACKFIN) || \
 	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP34XX)
 extern void musb_platform_try_idle(struct musb *musb, unsigned long timeout);
 #else
 #define musb_platform_try_idle(x, y)		do {} while (0)
 #endif
 
-#ifdef CONFIG_USB_TUSB6010
+#if defined(CONFIG_USB_TUSB6010) || defined(CONFIG_BLACKFIN)
 extern int musb_platform_get_vbus_status(struct musb *musb);
 #else
 #define musb_platform_get_vbus_status(x)	0

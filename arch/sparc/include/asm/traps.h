@@ -10,7 +10,7 @@
 #define NUM_SPARC_TRAPS  255
 
 #ifndef __ASSEMBLY__
-
+#ifdef __KERNEL__
 /* This is for V8 compliant Sparc CPUS */
 struct tt_entry {
 	unsigned long inst_one;
@@ -22,14 +22,7 @@ struct tt_entry {
 /* We set this to _start in system setup. */
 extern struct tt_entry *sparc_ttable;
 
-static inline unsigned long get_tbr(void)
-{
-	unsigned long tbr;
-
-	__asm__ __volatile__("rd %%tbr, %0\n\t" : "=r" (tbr));
-	return tbr;
-}
-
+#endif /* (__KERNEL__) */
 #endif /* !(__ASSEMBLY__) */
 
 /* For patching the trap table at boot time, we need to know how to

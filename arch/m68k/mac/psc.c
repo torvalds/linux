@@ -117,10 +117,14 @@ void __init psc_init(void)
 
 void __init psc_register_interrupts(void)
 {
-	request_irq(IRQ_AUTO_3, psc_irq, 0, "psc3", (void *) 0x30);
-	request_irq(IRQ_AUTO_4, psc_irq, 0, "psc4", (void *) 0x40);
-	request_irq(IRQ_AUTO_5, psc_irq, 0, "psc5", (void *) 0x50);
-	request_irq(IRQ_AUTO_6, psc_irq, 0, "psc6", (void *) 0x60);
+	if (request_irq(IRQ_AUTO_3, psc_irq, 0, "psc3", (void *) 0x30))
+		pr_err("Couldn't register psc%d interrupt\n", 3);
+	if (request_irq(IRQ_AUTO_4, psc_irq, 0, "psc4", (void *) 0x40))
+		pr_err("Couldn't register psc%d interrupt\n", 4);
+	if (request_irq(IRQ_AUTO_5, psc_irq, 0, "psc5", (void *) 0x50))
+		pr_err("Couldn't register psc%d interrupt\n", 5);
+	if (request_irq(IRQ_AUTO_6, psc_irq, 0, "psc6", (void *) 0x60))
+		pr_err("Couldn't register psc%d interrupt\n", 6);
 }
 
 /*

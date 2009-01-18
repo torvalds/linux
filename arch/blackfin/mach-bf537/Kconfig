@@ -64,29 +64,29 @@ config IRQ_MAC_RX
 config IRQ_MAC_TX
 	int "IRQ_MAC_TX"
 	default 11
-config IRQ_TMR0
-	int "IRQ_TMR0"
+config IRQ_TIMER0
+	int "IRQ_TIMER0"
+	default 8
+config IRQ_TIMER1
+	int "IRQ_TIMER1"
 	default 12
-config IRQ_TMR1
-	int "IRQ_TMR1"
+config IRQ_TIMER2
+	int "IRQ_TIMER2"
 	default 12
-config IRQ_TMR2
-	int "IRQ_TMR2"
+config IRQ_TIMER3
+	int "IRQ_TIMER3"
 	default 12
-config IRQ_TMR3
-	int "IRQ_TMR3"
+config IRQ_TIMER4
+	int "IRQ_TIMER4"
 	default 12
-config IRQ_TMR4
-	int "IRQ_TMR4"
+config IRQ_TIMER5
+	int "IRQ_TIMER5"
 	default 12
-config IRQ_TMR5
-	int "IRQ_TMR5"
+config IRQ_TIMER6
+	int "IRQ_TIMER6"
 	default 12
-config IRQ_TMR6
-	int "IRQ_TMR6"
-	default 12
-config IRQ_TMR7
-	int "IRQ_TMR7"
+config IRQ_TIMER7
+	int "IRQ_TIMER7"
 	default 12
 config IRQ_PROG_INTA
 	int "IRQ_PROG_INTA"

@@ -23,7 +23,7 @@
 struct oprofile_operations oprofile_ops;
 
 unsigned long oprofile_started;
-unsigned long backtrace_depth;
+unsigned long oprofile_backtrace_depth;
 static unsigned long is_setup;
 static DEFINE_MUTEX(start_mutex);
 
@@ -172,7 +172,7 @@ int oprofile_set_backtrace(unsigned long val)
 		goto out;
 	}
 
-	backtrace_depth = val;
+	oprofile_backtrace_depth = val;
 
 out:
 	mutex_unlock(&start_mutex);
@@ -183,6 +183,10 @@ static int __init oprofile_init(void)
 {
 	int err;
 
+	err = buffer_sync_init();
+	if (err)
+		return err;
+
 	err = oprofile_arch_init(&oprofile_ops);
 
 	if (err < 0 || timer) {
@@ -191,8 +195,10 @@ static int __init oprofile_init(void)
 	}
 
 	err = oprofilefs_register();
-	if (err)
+	if (err) {
 		oprofile_arch_exit();
+		buffer_sync_cleanup();
+	}
 
 	return err;
 }
@@ -202,6 +208,7 @@ static void __exit oprofile_exit(void)
 {
 	oprofilefs_unregister();
 	oprofile_arch_exit();
+	buffer_sync_cleanup();
 }
 
 

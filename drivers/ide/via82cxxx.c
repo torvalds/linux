@@ -178,7 +178,7 @@ static void via_set_drive(ide_drive_t *drive, const u8 speed)
 		ide_timing_merge(&p, &t, &t, IDE_TIMING_8BIT);
 	}
 
-	via_set_speed(HWIF(drive), drive->dn, &t);
+	via_set_speed(hwif, drive->dn, &t);
 }
 
 /**

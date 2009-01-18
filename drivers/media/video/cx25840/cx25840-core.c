@@ -1120,25 +1120,24 @@ static int cx25840_init(struct v4l2_subdev *sd, u32 val)
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-static int cx25840_g_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
+static int cx25840_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!v4l2_chip_match_i2c_client(client,
-				reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+	reg->size = 1;
 	reg->val = cx25840_read(client, reg->reg & 0x0fff);
 	return 0;
 }
 
-static int cx25840_s_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
+static int cx25840_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!v4l2_chip_match_i2c_client(client,
-				reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -1362,7 +1361,7 @@ static int cx25840_reset(struct v4l2_subdev *sd, u32 val)
 	return 0;
 }
 
-static int cx25840_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_chip_ident *chip)
+static int cx25840_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);

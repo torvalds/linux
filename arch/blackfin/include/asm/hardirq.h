@@ -42,4 +42,6 @@ typedef struct {
 
 #define __ARCH_IRQ_EXIT_IRQS_DISABLED	1
 
+extern void ack_bad_irq(unsigned int irq);
+
 #endif

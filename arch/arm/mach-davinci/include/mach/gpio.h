@@ -16,6 +16,7 @@
 #include <linux/io.h>
 #include <asm-generic/gpio.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 
 /*
  * basic gpio routines

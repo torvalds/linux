@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #include <linux/irq.h>
@@ -42,6 +43,7 @@
 #include <asm/gpio.h>
 #include <asm/nand.h>
 #include <asm/portmux.h>
+#include <asm/bfin_sdh.h>
 #include <mach/bf54x_keys.h>
 #include <asm/dpmc.h>
 #include <linux/input.h>
@@ -186,43 +188,106 @@ static struct platform_device bfin_uart_device = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-static struct resource bfin_sir_resources[] = {
 #ifdef CONFIG_BFIN_SIR0
+static struct resource bfin_sir0_resources[] = {
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART0_RX,
+		.end = IRQ_UART0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART0_RX,
+		.end = CH_UART0_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+static struct platform_device bfin_sir0_device = {
+	.name = "bfin_sir",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sir0_resources),
+	.resource = bfin_sir0_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR1
+static struct resource bfin_sir1_resources[] = {
 	{
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART1_RX,
+		.end = IRQ_UART1_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART1_RX,
+		.end = CH_UART1_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+static struct platform_device bfin_sir1_device = {
+	.name = "bfin_sir",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(bfin_sir1_resources),
+	.resource = bfin_sir1_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR2
+static struct resource bfin_sir2_resources[] = {
 	{
 		.start = 0xFFC02100,
 		.end = 0xFFC021FF,
 		.flags = IORESOURCE_MEM,
 	},
+	{
+		.start = IRQ_UART2_RX,
+		.end = IRQ_UART2_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART2_RX,
+		.end = CH_UART2_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
+};
+static struct platform_device bfin_sir2_device = {
+	.name = "bfin_sir",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(bfin_sir2_resources),
+	.resource = bfin_sir2_resources,
+};
 #endif
 #ifdef CONFIG_BFIN_SIR3
+static struct resource bfin_sir3_resources[] = {
 	{
 		.start = 0xFFC03100,
 		.end = 0xFFC031FF,
 		.flags = IORESOURCE_MEM,
 	},
-#endif
+	{
+		.start = IRQ_UART3_RX,
+		.end = IRQ_UART3_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_UART3_RX,
+		.end = CH_UART3_RX+1,
+		.flags = IORESOURCE_DMA,
+	},
 };
-
-static struct platform_device bfin_sir_device = {
+static struct platform_device bfin_sir3_device = {
 	.name = "bfin_sir",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(bfin_sir_resources),
-	.resource = bfin_sir_resources,
+	.id = 3,
+	.num_resources = ARRAY_SIZE(bfin_sir3_resources),
+	.resource = bfin_sir3_resources,
 };
+#endif
 #endif
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
@@ -271,8 +336,8 @@ static struct musb_hdrc_config musb_config = {
 	.dyn_fifo	= 0,
 	.soft_con	= 1,
 	.dma		= 1,
-	.num_eps	= 7,
-	.dma_channels	= 7,
+	.num_eps	= 8,
+	.dma_channels	= 8,
 	.gpio_vrsel	= GPIO_PH6,
 };
 
@@ -301,6 +366,19 @@ static struct platform_device musb_device = {
 	.resource	= musb_resources,
 };
 #endif
+
+static struct resource bfin_gpios_resources = {
+	.start = 0,
+	.end   = MAX_BLACKFIN_GPIOS - 1,
+	.flags = IORESOURCE_IRQ,
+};
+
+static struct platform_device bfin_gpios_device = {
+	.name = "simple-gpio",
+	.id = -1,
+	.num_resources = 1,
+	.resource = &bfin_gpios_resources,
+};
 
 #if defined(CONFIG_PATA_BF54X) || defined(CONFIG_PATA_BF54X_MODULE)
 static struct resource bfin_atapi_resources[] = {
@@ -372,9 +450,58 @@ static struct platform_device bf5xx_nand_device = {
 #endif
 
 #if defined(CONFIG_SDH_BFIN) || defined(CONFIG_SDH_BFIN_MODULE)
+static struct bfin_sd_host bfin_sdh_data = {
+	.dma_chan = CH_SDH,
+	.irq_int0 = IRQ_SDH_MASK0,
+	.pin_req = {P_SD_D0, P_SD_D1, P_SD_D2, P_SD_D3, P_SD_CLK, P_SD_CMD, 0},
+};
+
 static struct platform_device bf54x_sdh_device = {
 	.name = "bfin-sdh",
 	.id = 0,
+	.dev = {
+		.platform_data = &bfin_sdh_data,
+	},
+};
+#endif
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+static struct mtd_partition para_partitions[] = {
+	{
+		.name       = "bootloader(nor)",
+		.size       = 0x40000,
+		.offset     = 0,
+	}, {
+		.name       = "linux kernel(nor)",
+		.size       = 0x400000,
+		.offset     = MTDPART_OFS_APPEND,
+	}, {
+		.name       = "file system(nor)",
+		.size       = MTDPART_SIZ_FULL,
+		.offset     = MTDPART_OFS_APPEND,
+	}
+};
+
+static struct physmap_flash_data para_flash_data = {
+	.width      = 2,
+	.parts      = para_partitions,
+	.nr_parts   = ARRAY_SIZE(para_partitions),
+};
+
+static struct resource para_flash_resource = {
+	.start = 0x20000000,
+	.end   = 0x207fffff,
+	.flags = IORESOURCE_MEM,
+};
+
+static struct platform_device para_flash_device = {
+	.name          = "physmap-flash",
+	.id            = 0,
+	.dev = {
+		.platform_data = &para_flash_data,
+	},
+	.num_resources = 1,
+	.resource      = &para_flash_resource,
 };
 #endif
 
@@ -642,7 +769,18 @@ static struct platform_device *cm_bf548_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_BFIN_SIR) || defined(CONFIG_BFIN_SIR_MODULE)
-	&bfin_sir_device,
+#ifdef CONFIG_BFIN_SIR0
+	&bfin_sir0_device,
+#endif
+#ifdef CONFIG_BFIN_SIR1
+	&bfin_sir1_device,
+#endif
+#ifdef CONFIG_BFIN_SIR2
+	&bfin_sir2_device,
+#endif
+#ifdef CONFIG_BFIN_SIR3
+	&bfin_sir3_device,
+#endif
 #endif
 
 #if defined(CONFIG_FB_BF54X_LQ043) || defined(CONFIG_FB_BF54X_LQ043_MODULE)
@@ -679,7 +817,7 @@ static struct platform_device *cm_bf548_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
-/*	&i2c_bfin_twi0_device, */
+	&i2c_bfin_twi0_device,
 #if !defined(CONFIG_BF542)
 	&i2c_bfin_twi1_device,
 #endif
@@ -688,6 +826,12 @@ static struct platform_device *cm_bf548_devices[] __initdata = {
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 	&bfin_device_gpiokeys,
 #endif
+
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+	&para_flash_device,
+#endif
+
+	&bfin_gpios_device,
 };
 
 static int __init cm_bf548_init(void)

@@ -308,7 +308,6 @@ struct OboeRing
 struct toshoboe_cb
 {
   struct net_device *netdev;    /* Yes! we are some kind of netdevice */
-  struct net_device_stats stats;
   struct tty_driver ttydev;
 
   struct irlap_cb *irlap;       /* The link layer we are binded to */

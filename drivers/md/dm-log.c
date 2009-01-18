@@ -326,8 +326,6 @@ static void header_from_disk(struct log_header *core, struct log_header *disk)
 static int rw_header(struct log_c *lc, int rw)
 {
 	lc->io_req.bi_rw = rw;
-	lc->io_req.mem.ptr.vma = lc->disk_header;
-	lc->io_req.notify.fn = NULL;
 
 	return dm_io(&lc->io_req, 1, &lc->header_location, NULL);
 }
@@ -362,10 +360,15 @@ static int read_header(struct log_c *log)
 	return 0;
 }
 
-static inline int write_header(struct log_c *log)
+static int _check_region_size(struct dm_target *ti, uint32_t region_size)
 {
-	header_to_disk(&log->header, log->disk_header);
-	return rw_header(log, WRITE);
+	if (region_size < 2 || region_size > ti->len)
+		return 0;
+
+	if (!is_power_of_2(region_size))
+		return 0;
+
+	return 1;
 }
 
 /*----------------------------------------------------------------
@@ -403,8 +406,9 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		}
 	}
 
-	if (sscanf(argv[0], "%u", &region_size) != 1) {
-		DMWARN("invalid region size string");
+	if (sscanf(argv[0], "%u", &region_size) != 1 ||
+	    !_check_region_size(ti, region_size)) {
+		DMWARN("invalid region size %s", argv[0]);
 		return -EINVAL;
 	}
 
@@ -453,8 +457,18 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		 */
 		buf_size = dm_round_up((LOG_OFFSET << SECTOR_SHIFT) +
 				       bitset_size, ti->limits.hardsect_size);
+
+		if (buf_size > dev->bdev->bd_inode->i_size) {
+			DMWARN("log device %s too small: need %llu bytes",
+				dev->name, (unsigned long long)buf_size);
+			kfree(lc);
+			return -EINVAL;
+		}
+
 		lc->header_location.count = buf_size >> SECTOR_SHIFT;
+
 		lc->io_req.mem.type = DM_IO_VMA;
+		lc->io_req.notify.fn = NULL;
 		lc->io_req.client = dm_io_client_create(dm_div_up(buf_size,
 								   PAGE_SIZE));
 		if (IS_ERR(lc->io_req.client)) {
@@ -467,10 +481,12 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		lc->disk_header = vmalloc(buf_size);
 		if (!lc->disk_header) {
 			DMWARN("couldn't allocate disk log buffer");
+			dm_io_client_destroy(lc->io_req.client);
 			kfree(lc);
 			return -ENOMEM;
 		}
 
+		lc->io_req.mem.ptr.vma = lc->disk_header;
 		lc->clean_bits = (void *)lc->disk_header +
 				 (LOG_OFFSET << SECTOR_SHIFT);
 	}
@@ -482,6 +498,8 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		DMWARN("couldn't allocate sync bitset");
 		if (!dev)
 			vfree(lc->clean_bits);
+		else
+			dm_io_client_destroy(lc->io_req.client);
 		vfree(lc->disk_header);
 		kfree(lc);
 		return -ENOMEM;
@@ -495,6 +513,8 @@ static int create_log_context(struct dm_dirty_log *log, struct dm_target *ti,
 		vfree(lc->sync_bits);
 		if (!dev)
 			vfree(lc->clean_bits);
+		else
+			dm_io_client_destroy(lc->io_req.client);
 		vfree(lc->disk_header);
 		kfree(lc);
 		return -ENOMEM;
@@ -631,8 +651,10 @@ static int disk_resume(struct dm_dirty_log *log)
 	/* set the correct number of regions in the header */
 	lc->header.nr_regions = lc->region_count;
 
+	header_to_disk(&lc->header, lc->disk_header);
+
 	/* write the new header */
-	r = write_header(lc);
+	r = rw_header(lc, WRITE);
 	if (r) {
 		DMWARN("%s: Failed to write header on dirty region log device",
 		       lc->log_dev->name);
@@ -682,7 +704,7 @@ static int disk_flush(struct dm_dirty_log *log)
 	if (!lc->touched)
 		return 0;
 
-	r = write_header(lc);
+	r = rw_header(lc, WRITE);
 	if (r)
 		fail_log_device(lc);
 	else

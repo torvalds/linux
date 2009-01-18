@@ -817,7 +817,7 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 	ec->dma = NO_DMA;
 	ec->ops = &ecard_default_ops;
 
-	snprintf(ec->dev.bus_id, sizeof(ec->dev.bus_id), "ecard%d", slot);
+	dev_set_name(&ec->dev, "ecard%d", slot);
 	ec->dev.parent = NULL;
 	ec->dev.bus = &ecard_bus_type;
 	ec->dev.dma_mask = &ec->dma_mask;

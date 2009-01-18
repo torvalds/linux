@@ -130,14 +130,14 @@ static const struct ppc_pci_io __devinitconst iowa_pci_io = {
 
 };
 
-static void __iomem *iowa_ioremap(unsigned long addr, unsigned long size,
+static void __iomem *iowa_ioremap(phys_addr_t addr, unsigned long size,
 						unsigned long flags)
 {
 	struct iowa_bus *bus;
 	void __iomem *res = __ioremap(addr, size, flags);
 	int busno;
 
-	bus = iowa_pci_find(0, addr);
+	bus = iowa_pci_find(0, (unsigned long)addr);
 	if (bus != NULL) {
 		busno = bus - iowa_busses;
 		PCI_SET_ADDR_TOKEN(res, busno + 1);

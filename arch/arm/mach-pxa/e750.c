@@ -29,6 +29,7 @@
 #include <mach/eseries-gpio.h>
 #include <mach/udc.h>
 #include <mach/irda.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 #include "eseries.h"
@@ -105,6 +106,57 @@ static struct platform_device e750_fb_device = {
 	.resource       = e750_fb_resources,
 };
 
+/* -------------------- e750 MFP parameters -------------------- */
+
+static unsigned long e750_pin_config[] __initdata = {
+	/* Chip selects */
+	GPIO15_nCS_1,   /* CS1 - Flash */
+	GPIO79_nCS_3,   /* CS3 - IMAGEON */
+	GPIO80_nCS_4,   /* CS4 - TMIO */
+
+	/* Clocks */
+	GPIO11_3_6MHz,
+
+	/* BTUART */
+	GPIO42_BTUART_RXD,
+	GPIO43_BTUART_TXD,
+	GPIO44_BTUART_CTS,
+
+	/* TMIO controller */
+	GPIO19_GPIO, /* t7l66xb #PCLR */
+	GPIO45_GPIO, /* t7l66xb #SUSPEND (NOT BTUART!) */
+
+	/* UDC */
+	GPIO13_GPIO,
+	GPIO3_GPIO,
+
+	/* IrDA */
+	GPIO38_GPIO | MFP_LPM_DRIVE_HIGH,
+
+	/* PC Card */
+	GPIO8_GPIO,   /* CD0 */
+	GPIO44_GPIO,  /* CD1 */
+	GPIO11_GPIO,  /* IRQ0 */
+	GPIO6_GPIO,   /* IRQ1 */
+	GPIO27_GPIO,  /* RST0 */
+	GPIO24_GPIO,  /* RST1 */
+	GPIO20_GPIO,  /* PWR0 */
+	GPIO23_GPIO,  /* PWR1 */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO52_nPCE_1,
+	GPIO53_nPCE_2,
+	GPIO54_nPSKTSEL,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
+
+	/* wakeup */
+	GPIO0_GPIO | WAKEUP_ON_EDGE_RISE,
+};
+
 /* ----------------- e750 tc6393xb parameters ------------------ */
 
 static struct tc6393xb_platform_data e750_tc6393xb_info = {
@@ -137,6 +189,7 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init e750_init(void)
 {
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(e750_pin_config));
 	clk_add_alias("CLK_CK3P6MI", &e750_tc6393xb_device.dev,
 			"GPIO11_CLK", NULL),
 	eseries_get_tmio_gpios();

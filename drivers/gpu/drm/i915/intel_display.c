@@ -751,6 +751,7 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 			is_lvds = true;
 			break;
 		case INTEL_OUTPUT_SDVO:
+		case INTEL_OUTPUT_HDMI:
 			is_sdvo = true;
 			break;
 		case INTEL_OUTPUT_DVO:
@@ -986,19 +987,17 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	uint32_t base = (pipe == 0) ? CURABASE : CURBBASE;
 	uint32_t temp;
 	size_t addr;
+	int ret;
 
 	DRM_DEBUG("\n");
 
 	/* if we want to turn off the cursor ignore width and height */
 	if (!handle) {
 		DRM_DEBUG("cursor off\n");
-		/* turn of the cursor */
-		temp = 0;
-		temp |= CURSOR_MODE_DISABLE;
-
-		I915_WRITE(control, temp);
-		I915_WRITE(base, 0);
-		return 0;
+		temp = CURSOR_MODE_DISABLE;
+		addr = 0;
+		bo = NULL;
+		goto finish;
 	}
 
 	/* Currently we only support 64x64 cursors */
@@ -1025,14 +1024,29 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 		addr = obj_priv->gtt_offset;
 	}
 
-	intel_crtc->cursor_addr = addr;
+	ret = i915_gem_object_pin(bo, PAGE_SIZE);
+	if (ret) {
+		DRM_ERROR("failed to pin cursor bo\n");
+		drm_gem_object_unreference(bo);
+		return ret;
+	}
+
 	temp = 0;
 	/* set the pipe for the cursor */
 	temp |= (pipe << 28);
 	temp |= CURSOR_MODE_64_ARGB_AX | MCURSOR_GAMMA_ENABLE;
 
+ finish:
 	I915_WRITE(control, temp);
 	I915_WRITE(base, addr);
+
+	if (intel_crtc->cursor_bo) {
+		i915_gem_object_unpin(intel_crtc->cursor_bo);
+		drm_gem_object_unreference(intel_crtc->cursor_bo);
+	}
+
+	intel_crtc->cursor_addr = addr;
+	intel_crtc->cursor_bo = bo;
 
 	return 0;
 }
@@ -1430,12 +1444,19 @@ static void intel_setup_outputs(struct drm_device *dev)
 		intel_lvds_init(dev);
 
 	if (IS_I9XX(dev)) {
-		intel_sdvo_init(dev, SDVOB);
-		intel_sdvo_init(dev, SDVOC);
+		int found;
+
+		found = intel_sdvo_init(dev, SDVOB);
+		if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+			intel_hdmi_init(dev, SDVOB);
+
+		found = intel_sdvo_init(dev, SDVOC);
+		if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+			intel_hdmi_init(dev, SDVOC);
 	} else
 		intel_dvo_init(dev);
 
-	if (IS_I9XX(dev) && !IS_I915G(dev))
+	if (IS_I9XX(dev) && IS_MOBILE(dev))
 		intel_tv_init(dev);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -1445,6 +1466,11 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		/* valid crtcs */
 		switch(intel_output->type) {
+		case INTEL_OUTPUT_HDMI:
+			crtc_mask = ((1 << 0)|
+				     (1 << 1));
+			clone_mask = ((1 << INTEL_OUTPUT_HDMI));
+			break;
 		case INTEL_OUTPUT_DVO:
 		case INTEL_OUTPUT_SDVO:
 			crtc_mask = ((1 << 0)|

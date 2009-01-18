@@ -25,7 +25,7 @@ struct device_driver xp_dbg_name = {
 };
 
 struct device xp_dbg_subname = {
-	.bus_id = {0},		/* set to "" */
+	.init_name = "",		/* set to "" */
 	.driver = &xp_dbg_name
 };
 

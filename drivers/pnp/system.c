@@ -26,7 +26,7 @@ static void reserve_range(struct pnp_dev *dev, resource_size_t start,
 			  resource_size_t end, int port)
 {
 	char *regionid;
-	const char *pnpid = dev->dev.bus_id;
+	const char *pnpid = dev_name(&dev->dev);
 	struct resource *res;
 
 	regionid = kmalloc(16, GFP_KERNEL);

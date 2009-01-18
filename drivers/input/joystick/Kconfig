@@ -294,4 +294,28 @@ config JOYSTICK_XPAD_LEDS
 	  This option enables support for the LED which surrounds the Big X on
 	  XBox 360 controller.
 
+config JOYSTICK_WALKERA0701
+	tristate "Walkera WK-0701 RC transmitter"
+	depends on HIGH_RES_TIMERS && PARPORT
+	help
+	  Say Y or M here if you have a Walkera WK-0701 transmitter which is
+	  supplied with a ready to fly Walkera helicopters such as HM36,
+	  HM37, HM60 and want to use it via parport as a joystick. More
+	  information is available: <file:Documentation/input/walkera0701.txt>
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called walkera0701.
+
+config JOYSTICK_MAPLE
+	tristate "Dreamcast control pad"
+	depends on MAPLE
+	help
+	  Say Y here if you have a SEGA Dreamcast and want to use your
+	  controller as a joystick.
+
+	  Most Dreamcast users will say Y.
+
+	  To compile this as a module choose M here: the module will be called
+	  maplecontrol.
+
 endif

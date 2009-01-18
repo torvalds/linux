@@ -219,15 +219,19 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	/* Serial Bus Release Number is at PCI 0x60 offset */
 	pci_read_config_byte(pdev, 0x60, &ehci->sbrn);
 
-	/* Workaround current PCI init glitch:  wakeup bits aren't
-	 * being set from PCI PM capability.
+	/* Keep this around for a while just in case some EHCI
+	 * implementation uses legacy PCI PM support.  This test
+	 * can be removed on 17 Dec 2009 if the dev_warn() hasn't
+	 * been triggered by then.
 	 */
 	if (!device_can_wakeup(&pdev->dev)) {
 		u16	port_wake;
 
 		pci_read_config_word(pdev, 0x62, &port_wake);
-		if (port_wake & 0x0001)
+		if (port_wake & 0x0001) {
+			dev_warn(&pdev->dev, "Enabling legacy PCI PM\n");
 			device_init_wakeup(&pdev->dev, 1);
+		}
 	}
 
 #ifdef	CONFIG_USB_SUSPEND
@@ -428,6 +432,8 @@ static struct pci_driver ehci_pci_driver = {
 
 #ifdef	CONFIG_PM
 	.suspend =	usb_hcd_pci_suspend,
+	.suspend_late =	usb_hcd_pci_suspend_late,
+	.resume_early =	usb_hcd_pci_resume_early,
 	.resume =	usb_hcd_pci_resume,
 #endif
 	.shutdown = 	usb_hcd_pci_shutdown,

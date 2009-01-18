@@ -34,7 +34,7 @@ extern void fpload(unsigned long *fpregs, unsigned long *fsr);
 
 struct signal_frame {
 	struct sparc_stackf	ss;
-	__siginfo_t		info;
+	__siginfo32_t		info;
 	__siginfo_fpu_t __user	*fpu_save;
 	unsigned long		insns[2] __attribute__ ((aligned (8)));
 	unsigned int		extramask[_NSIG_WORDS - 1];
@@ -351,7 +351,7 @@ static void setup_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	err |= __copy_to_user(sf->extramask, &oldset->sig[1],
 			      (_NSIG_WORDS - 1) * sizeof(unsigned int));
 	err |= __copy_to_user(sf, (char *) regs->u_regs[UREG_FP],
-			      sizeof(struct reg_window));
+			      sizeof(struct reg_window32));
 	if (err)
 		goto sigsegv;
 	
@@ -433,7 +433,7 @@ static void setup_rt_frame(struct k_sigaction *ka, struct pt_regs *regs,
 	err |= __put_user(current->sas_ss_size, &sf->stack.ss_size);
 	
 	err |= __copy_to_user(sf, (char *) regs->u_regs[UREG_FP],
-			      sizeof(struct reg_window));	
+			      sizeof(struct reg_window32));
 
 	err |= copy_siginfo_to_user(&sf->info, info);
 

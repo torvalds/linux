@@ -274,7 +274,7 @@ static void sis_program_timings(ide_drive_t *drive, const u8 mode)
 
 static void config_drive_art_rwp(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 reg4bh		= 0;
 	u8 rw_prefetch		= 0;

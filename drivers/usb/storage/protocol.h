@@ -40,8 +40,7 @@
 #define _PROTOCOL_H_
 
 /* Protocol handling routines */
-extern void usb_stor_ATAPI_command(struct scsi_cmnd*, struct us_data*);
-extern void usb_stor_qic157_command(struct scsi_cmnd*, struct us_data*);
+extern void usb_stor_pad12_command(struct scsi_cmnd*, struct us_data*);
 extern void usb_stor_ufi_command(struct scsi_cmnd*, struct us_data*);
 extern void usb_stor_transparent_scsi_command(struct scsi_cmnd*,
 		struct us_data*);

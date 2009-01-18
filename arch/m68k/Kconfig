@@ -280,7 +280,6 @@ config M68060
 
 config MMU_MOTOROLA
 	bool
-	depends on MMU && !MMU_SUN3
 
 config MMU_SUN3
 	bool
@@ -304,7 +303,7 @@ config M68KFPU_EMU_EXTRAPREC
 	  correct rounding, the emulator can (often) do the same but this
 	  extra calculation can cost quite some time, so you can disable
 	  it here. The emulator will then "only" calculate with a 64 bit
-	  mantissa and round slightly incorrect, what is more then enough
+	  mantissa and round slightly incorrect, what is more than enough
 	  for normal usage.
 
 config M68KFPU_EMU_ONLY

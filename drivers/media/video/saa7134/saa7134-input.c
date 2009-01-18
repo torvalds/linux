@@ -449,6 +449,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_507:
 	case SAA7134_BOARD_AVERMEDIA_GO_007_FM:
 	case SAA7134_BOARD_AVERMEDIA_M102:
+	case SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS:
 		ir_codes     = ir_codes_avermedia;
 		mask_keycode = 0x0007C8;
 		mask_keydown = 0x000010;

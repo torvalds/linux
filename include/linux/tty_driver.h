@@ -196,8 +196,7 @@
  *	Optional: If not provided then the write method is called under
  *	the atomic write lock to keep it serialized with the ldisc.
  *
- * int (*resize)(struct tty_struct *tty, struct tty_struct *real_tty,
- *				unsigned int rows, unsigned int cols);
+ * int (*resize)(struct tty_struct *tty, struct winsize *ws)
  *
  *	Called when a termios request is issued which changes the
  *	requested terminal geometry.
@@ -258,8 +257,7 @@ struct tty_operations {
 	int (*tiocmget)(struct tty_struct *tty, struct file *file);
 	int (*tiocmset)(struct tty_struct *tty, struct file *file,
 			unsigned int set, unsigned int clear);
-	int (*resize)(struct tty_struct *tty, struct tty_struct *real_tty,
-				struct winsize *ws);
+	int (*resize)(struct tty_struct *tty, struct winsize *ws);
 	int (*set_termiox)(struct tty_struct *tty, struct termiox *tnew);
 #ifdef CONFIG_CONSOLE_POLL
 	int (*poll_init)(struct tty_driver *driver, int line, char *options);

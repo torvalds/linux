@@ -124,7 +124,7 @@ static void __cpuinit sb1250_boot_secondary(int cpu, struct task_struct *idle)
 
 /*
  * Use CFE to find out how many CPUs are available, setting up
- * phys_cpu_present_map and the logical/physical mappings.
+ * cpu_possible_map and the logical/physical mappings.
  * XXXKW will the boot CPU ever not be physical 0?
  *
  * Common setup before any secondaries are started
@@ -133,14 +133,14 @@ static void __init sb1250_smp_setup(void)
 {
 	int i, num;
 
-	cpus_clear(phys_cpu_present_map);
-	cpu_set(0, phys_cpu_present_map);
+	cpus_clear(cpu_possible_map);
+	cpu_set(0, cpu_possible_map);
 	__cpu_number_map[0] = 0;
 	__cpu_logical_map[0] = 0;
 
 	for (i = 1, num = 0; i < NR_CPUS; i++) {
 		if (cfe_cpu_stop(i) == 0) {
-			cpu_set(i, phys_cpu_present_map);
+			cpu_set(i, cpu_possible_map);
 			__cpu_number_map[i] = ++num;
 			__cpu_logical_map[num] = i;
 		}
@@ -166,9 +166,10 @@ struct plat_smp_ops sb_smp_ops = {
 void sb1250_mailbox_interrupt(void)
 {
 	int cpu = smp_processor_id();
+	int irq = K_INT_MBOX_0;
 	unsigned int action;
 
-	kstat_this_cpu.irqs[K_INT_MBOX_0]++;
+	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
 	/* Load the mailbox register to figure out what we're supposed to do */
 	action = (____raw_readq(mailbox_regs[cpu]) >> 48) & 0xffff;
 

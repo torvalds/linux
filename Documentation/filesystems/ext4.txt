@@ -58,13 +58,22 @@ Note: More extensive information for getting started with ext4 can be
 
 	# mount -t ext4 /dev/hda1 /wherever
 
-  - When comparing performance with other filesystems, remember that
-    ext3/4 by default offers higher data integrity guarantees than most.
-    So when comparing with a metadata-only journalling filesystem, such
-    as ext3, use `mount -o data=writeback'.  And you might as well use
-    `mount -o nobh' too along with it.  Making the journal larger than
-    the mke2fs default often helps performance with metadata-intensive
-    workloads.
+  - When comparing performance with other filesystems, it's always
+    important to try multiple workloads; very often a subtle change in a
+    workload parameter can completely change the ranking of which
+    filesystems do well compared to others.  When comparing versus ext3,
+    note that ext4 enables write barriers by default, while ext3 does
+    not enable write barriers by default.  So it is useful to use
+    explicitly specify whether barriers are enabled or not when via the
+    '-o barriers=[0|1]' mount option for both ext3 and ext4 filesystems
+    for a fair comparison.  When tuning ext3 for best benchmark numbers,
+    it is often worthwhile to try changing the data journaling mode; '-o
+    data=writeback,nobh' can be faster for some workloads.  (Note
+    however that running mounted with data=writeback can potentially
+    leave stale data exposed in recently written files in case of an
+    unclean shutdown, which could be a security exposure in some
+    situations.)  Configuring the filesystem with a large journal can
+    also be helpful for metadata-intensive workloads.
 
 2. Features
 ===========
@@ -74,7 +83,7 @@ Note: More extensive information for getting started with ext4 can be
 * ability to use filesystems > 16TB (e2fsprogs support not available yet)
 * extent format reduces metadata overhead (RAM, IO for access, transactions)
 * extent format more robust in face of on-disk corruption due to magics,
-* internal redunancy in tree
+* internal redundancy in tree
 * improved file allocation (multi-block alloc)
 * fix 32000 subdirectory limit
 * nsec timestamps for mtime, atime, ctime, create time
@@ -116,10 +125,11 @@ grouping of bitmaps and inode tables.  Some test results available here:
 When mounting an ext4 filesystem, the following option are accepted:
 (*) == default
 
-extents		(*)	ext4 will use extents to address file data.  The
-			file system will no longer be mountable by ext3.
-
-noextents		ext4 will not use extents for newly created files
+ro                   	Mount filesystem read only. Note that ext4 will
+                     	replay the journal (and thus write to the
+                     	partition) even when mounted "read only". The
+                     	mount options "ro,noload" can be used to prevent
+		     	writes to the filesystem.
 
 journal_checksum	Enable checksumming of the journal transactions.
 			This will allow the recovery code in e2fsck and the
@@ -134,17 +144,17 @@ journal_async_commit	Commit block can be written to disk without waiting
 journal=update		Update the ext4 file system's journal to the current
 			format.
 
-journal=inum		When a journal already exists, this option is ignored.
-			Otherwise, it specifies the number of the inode which
-			will represent the ext4 file system's journal file.
-
 journal_dev=devnum	When the external journal device's major/minor numbers
 			have changed, this option allows the user to specify
 			the new journal location.  The journal device is
 			identified through its new major/minor numbers encoded
 			in devnum.
 
-noload			Don't load the journal on mounting.
+noload			Don't load the journal on mounting.  Note that
+                     	if the filesystem was not unmounted cleanly,
+                     	skipping the journal replay will lead to the
+                     	filesystem containing inconsistencies that can
+                     	lead to any number of problems.
 
 data=journal		All data are committed into the journal prior to being
 			written into the main file system.
@@ -219,9 +229,12 @@ minixdf			Make 'df' act like Minix.
 
 debug			Extra debugging information is sent to syslog.
 
-errors=remount-ro(*)	Remount the filesystem read-only on an error.
+errors=remount-ro	Remount the filesystem read-only on an error.
 errors=continue		Keep going on a filesystem error.
 errors=panic		Panic and halt the machine if an error occurs.
+                        (These mount options override the errors behavior
+                        specified in the superblock, which can be configured
+                        using tune2fs)
 
 data_err=ignore(*)	Just print an error message if an error occurs
 			in a file data buffer in ordered mode.
@@ -260,6 +273,42 @@ stripe=n		Number of filesystem blocks that mballoc will try
 delalloc	(*)	Deferring block allocation until write-out time.
 nodelalloc		Disable delayed allocation. Blocks are allocation
 			when data is copied from user to page cache.
+
+max_batch_time=usec	Maximum amount of time ext4 should wait for
+			additional filesystem operations to be batch
+			together with a synchronous write operation.
+			Since a synchronous write operation is going to
+			force a commit and then a wait for the I/O
+			complete, it doesn't cost much, and can be a
+			huge throughput win, we wait for a small amount
+			of time to see if any other transactions can
+			piggyback on the synchronous write.   The
+			algorithm used is designed to automatically tune
+			for the speed of the disk, by measuring the
+			amount of time (on average) that it takes to
+			finish committing a transaction.  Call this time
+			the "commit time".  If the time that the
+			transactoin has been running is less than the
+			commit time, ext4 will try sleeping for the
+			commit time to see if other operations will join
+			the transaction.   The commit time is capped by
+			the max_batch_time, which defaults to 15000us
+			(15ms).   This optimization can be turned off
+			entirely by setting max_batch_time to 0.
+
+min_batch_time=usec	This parameter sets the commit time (as
+			described above) to be at least min_batch_time.
+			It defaults to zero microseconds.  Increasing
+			this parameter may improve the throughput of
+			multi-threaded, synchronous workloads on very
+			fast disks, at the cost of increasing latency.
+
+journal_ioprio=prio	The I/O priority (from 0 to 7, where 0 is the
+			highest priorty) which should be used for I/O
+			operations submitted by kjournald2 during a
+			commit operation.  This defaults to 3, which is
+			a slightly higher priority than the default I/O
+			priority.
 
 Data Mode
 =========

@@ -882,7 +882,7 @@ CONFIG_DMA_ENGINE=y
 # DMA Clients
 #
 # CONFIG_NET_DMA is not set
-CONFIG_DMATEST=m
+# CONFIG_DMATEST is not set
 # CONFIG_UIO is not set
 
 #

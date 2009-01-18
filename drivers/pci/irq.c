@@ -15,7 +15,7 @@ static void pci_note_irq_problem(struct pci_dev *pdev, const char *reason)
 
 	dev_printk(KERN_ERR, &pdev->dev,
 		   "Potentially misrouted IRQ (Bridge %s %04x:%04x)\n",
-		   parent->dev.bus_id, parent->vendor, parent->device);
+		   dev_name(&parent->dev), parent->vendor, parent->device);
 	dev_printk(KERN_ERR, &pdev->dev, "%s\n", reason);
 	dev_printk(KERN_ERR, &pdev->dev, "Please report to linux-kernel@vger.kernel.org\n");
 	WARN_ON(1);

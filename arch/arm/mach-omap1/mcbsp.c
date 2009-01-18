@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 
 #include <mach/dma.h>
+#include <mach/irqs.h>
 #include <mach/mux.h>
 #include <mach/cpu.h>
 #include <mach/mcbsp.h>

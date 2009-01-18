@@ -217,8 +217,7 @@ static int __init gx1fb_map_video_memory(struct fb_info *info, struct pci_dev *d
 	ret = pci_request_region(dev, 0, "gx1fb (video)");
 	if (ret < 0)
 		return ret;
-	par->vid_regs = ioremap(pci_resource_start(dev, 0),
-				pci_resource_len(dev, 0));
+	par->vid_regs = pci_ioremap_bar(dev, 0);
 	if (!par->vid_regs)
 		return -ENOMEM;
 

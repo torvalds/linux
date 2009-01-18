@@ -22,7 +22,12 @@ __kernel_clock_getres:
 	cghi	%r2,CLOCK_REALTIME
 	je	0f
 	cghi	%r2,CLOCK_MONOTONIC
+	je	0f
+	cghi	%r2,-2		/* CLOCK_THREAD_CPUTIME_ID for this thread */
 	jne	2f
+	larl	%r5,_vdso_data
+	icm	%r0,15,__LC_ECTG_OK(%r5)
+	jz	2f
 0:	ltgr	%r3,%r3
 	jz	1f				/* res == NULL */
 	larl	%r1,3f

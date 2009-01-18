@@ -293,7 +293,7 @@ static int ocfs2_last_eb_is_empty(struct inode *inode,
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list *el;
 
-	ret = ocfs2_read_block(inode, last_eb_blk, &eb_bh);
+	ret = ocfs2_read_extent_block(inode, last_eb_blk, &eb_bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -301,12 +301,6 @@ static int ocfs2_last_eb_is_empty(struct inode *inode,
 
 	eb = (struct ocfs2_extent_block *) eb_bh->b_data;
 	el = &eb->h_list;
-
-	if (!OCFS2_IS_VALID_EXTENT_BLOCK(eb)) {
-		ret = -EROFS;
-		OCFS2_RO_ON_INVALID_EXTENT_BLOCK(inode->i_sb, eb);
-		goto out;
-	}
 
 	if (el->l_tree_depth) {
 		ocfs2_error(inode->i_sb,
@@ -381,23 +375,16 @@ static int ocfs2_figure_hole_clusters(struct inode *inode,
 		if (le64_to_cpu(eb->h_next_leaf_blk) == 0ULL)
 			goto no_more_extents;
 
-		ret = ocfs2_read_block(inode,
-				       le64_to_cpu(eb->h_next_leaf_blk),
-				       &next_eb_bh);
+		ret = ocfs2_read_extent_block(inode,
+					      le64_to_cpu(eb->h_next_leaf_blk),
+					      &next_eb_bh);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
+
 		next_eb = (struct ocfs2_extent_block *)next_eb_bh->b_data;
-
-		if (!OCFS2_IS_VALID_EXTENT_BLOCK(next_eb)) {
-			ret = -EROFS;
-			OCFS2_RO_ON_INVALID_EXTENT_BLOCK(inode->i_sb, next_eb);
-			goto out;
-		}
-
 		el = &next_eb->h_list;
-
 		i = ocfs2_search_for_hole_index(el, v_cluster);
 	}
 
@@ -630,7 +617,7 @@ int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 	if (ret == 0)
 		goto out;
 
-	ret = ocfs2_read_block(inode, OCFS2_I(inode)->ip_blkno, &di_bh);
+	ret = ocfs2_read_inode_block(inode, &di_bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -819,3 +806,74 @@ out:
 
 	return ret;
 }
+
+int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
+			   struct buffer_head *bhs[], int flags,
+			   int (*validate)(struct super_block *sb,
+					   struct buffer_head *bh))
+{
+	int rc = 0;
+	u64 p_block, p_count;
+	int i, count, done = 0;
+
+	mlog_entry("(inode = %p, v_block = %llu, nr = %d, bhs = %p, "
+		   "flags = %x, validate = %p)\n",
+		   inode, (unsigned long long)v_block, nr, bhs, flags,
+		   validate);
+
+	if (((v_block + nr - 1) << inode->i_sb->s_blocksize_bits) >=
+	    i_size_read(inode)) {
+		BUG_ON(!(flags & OCFS2_BH_READAHEAD));
+		goto out;
+	}
+
+	while (done < nr) {
+		down_read(&OCFS2_I(inode)->ip_alloc_sem);
+		rc = ocfs2_extent_map_get_blocks(inode, v_block + done,
+						 &p_block, &p_count, NULL);
+		up_read(&OCFS2_I(inode)->ip_alloc_sem);
+		if (rc) {
+			mlog_errno(rc);
+			break;
+		}
+
+		if (!p_block) {
+			rc = -EIO;
+			mlog(ML_ERROR,
+			     "Inode #%llu contains a hole at offset %llu\n",
+			     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+			     (unsigned long long)(v_block + done) <<
+			     inode->i_sb->s_blocksize_bits);
+			break;
+		}
+
+		count = nr - done;
+		if (p_count < count)
+			count = p_count;
+
+		/*
+		 * If the caller passed us bhs, they should have come
+		 * from a previous readahead call to this function.  Thus,
+		 * they should have the right b_blocknr.
+		 */
+		for (i = 0; i < count; i++) {
+			if (!bhs[done + i])
+				continue;
+			BUG_ON(bhs[done + i]->b_blocknr != (p_block + i));
+		}
+
+		rc = ocfs2_read_blocks(inode, p_block, count, bhs + done,
+				       flags, validate);
+		if (rc) {
+			mlog_errno(rc);
+			break;
+		}
+		done += count;
+	}
+
+out:
+	mlog_exit(rc);
+	return rc;
+}
+
+

@@ -26,6 +26,10 @@ Supported chips:
     Datasheet: Publicly available at the ITE website
                http://www.ite.com.tw/product_info/file/pc/IT8718F_V0.2.zip
                http://www.ite.com.tw/product_info/file/pc/IT8718F_V0%203_(for%20C%20version).zip
+  * IT8720F
+    Prefix: 'it8720'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Not yet publicly available.
   * SiS950   [clone of IT8705F]
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
@@ -71,7 +75,7 @@ Description
 -----------
 
 This driver implements support for the IT8705F, IT8712F, IT8716F,
-IT8718F, IT8726F and SiS950 chips.
+IT8718F, IT8720F, IT8726F and SiS950 chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they
@@ -84,19 +88,19 @@ the IT8716F and late IT8712F have 6. They are shared with other functions
 though, so the functionality may not be available on a given system.
 The driver dumbly assume it is there.
 
-The IT8718F also features VID inputs (up to 8 pins) but the value is
-stored in the Super-I/O configuration space. Due to technical limitations,
+The IT8718F and IT8720F also features VID inputs (up to 8 pins) but the value
+is stored in the Super-I/O configuration space. Due to technical limitations,
 this value can currently only be read once at initialization time, so
 the driver won't notice and report changes in the VID value. The two
 upper VID bits share their pins with voltage inputs (in5 and in6) so you
 can't have both on a given board.
 
-The IT8716F, IT8718F and later IT8712F revisions have support for
+The IT8716F, IT8718F, IT8720F and later IT8712F revisions have support for
 2 additional fans. The additional fans are supported by the driver.
 
-The IT8716F and IT8718F, and late IT8712F and IT8705F also have optional
-16-bit tachometer counters for fans 1 to 3. This is better (no more fan
-clock divider mess) but not compatible with the older chips and
+The IT8716F, IT8718F and IT8720F, and late IT8712F and IT8705F also have
+optional 16-bit tachometer counters for fans 1 to 3. This is better (no more
+fan clock divider mess) but not compatible with the older chips and
 revisions. The 16-bit tachometer mode is enabled by the driver when one
 of the above chips is detected.
 
@@ -122,7 +126,7 @@ zero'; this is important for negative voltage measurements. All voltage
 inputs can measure voltages between 0 and 4.08 volts, with a resolution of
 0.016 volt. The battery voltage in8 does not have limit registers.
 
-The VID lines (IT8712F/IT8716F/IT8718F) encode the core voltage value:
+The VID lines (IT8712F/IT8716F/IT8718F/IT8720F) encode the core voltage value:
 the voltage level your processor should work with. This is hardcoded by
 the mainboard and/or processor itself. It is a value in volts.
 

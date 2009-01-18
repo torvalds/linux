@@ -34,7 +34,8 @@ static int parisc_get_time(struct device *dev, struct rtc_time *tm)
 static int parisc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct parisc_rtc *p = dev_get_drvdata(dev);
-	unsigned long flags, ret;
+	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&p->lock, flags);
 	ret = set_rtc_time(tm);

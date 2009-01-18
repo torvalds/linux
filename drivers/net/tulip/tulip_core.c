@@ -1225,6 +1225,22 @@ static int tulip_uli_dm_quirk(struct pci_dev *pdev)
 	return 0;
 }
 
+static const struct net_device_ops tulip_netdev_ops = {
+	.ndo_open		= tulip_open,
+	.ndo_start_xmit		= tulip_start_xmit,
+	.ndo_tx_timeout		= tulip_tx_timeout,
+	.ndo_stop		= tulip_close,
+	.ndo_get_stats		= tulip_get_stats,
+	.ndo_do_ioctl 		= private_ioctl,
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	 = poll_tulip,
+#endif
+};
+
 static int __devinit tulip_init_one (struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
@@ -1601,19 +1617,10 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	}
 
 	/* The Tulip-specific entries in the device structure. */
-	dev->open = tulip_open;
-	dev->hard_start_xmit = tulip_start_xmit;
-	dev->tx_timeout = tulip_tx_timeout;
+	dev->netdev_ops = &tulip_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 #ifdef CONFIG_TULIP_NAPI
 	netif_napi_add(dev, &tp->napi, tulip_poll, 16);
-#endif
-	dev->stop = tulip_close;
-	dev->get_stats = tulip_get_stats;
-	dev->do_ioctl = private_ioctl;
-	dev->set_multicast_list = set_rx_mode;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = &poll_tulip;
 #endif
 	SET_ETHTOOL_OPS(dev, &ops);
 

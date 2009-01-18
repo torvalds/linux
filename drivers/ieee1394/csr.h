@@ -50,11 +50,11 @@
 #define CSR_MAX_ROM_SHIFT		8
 #define CSR_GENERATION_SHIFT		4
 
-#define CSR_SET_BUS_INFO_GENERATION(csr, gen)				\
-	((csr)->bus_info_data[2] =					\
-		cpu_to_be32((be32_to_cpu((csr)->bus_info_data[2]) &	\
-			     ~(0xf << CSR_GENERATION_SHIFT)) |		\
-			    (gen) << CSR_GENERATION_SHIFT))
+static inline void csr_set_bus_info_generation(struct csr1212_csr *csr, u8 gen)
+{
+	csr->bus_info_data[2] &= ~cpu_to_be32(0xf << CSR_GENERATION_SHIFT);
+	csr->bus_info_data[2] |= cpu_to_be32((u32)gen << CSR_GENERATION_SHIFT);
+}
 
 struct csr_control {
 	spinlock_t lock;

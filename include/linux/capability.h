@@ -529,8 +529,21 @@ extern const kernel_cap_t __cap_init_eff_set;
  *
  * Note that this does not set PF_SUPERPRIV on the task.
  */
-#define has_capability(t, cap) (security_capable((t), (cap)) == 0)
-#define has_capability_noaudit(t, cap) (security_capable_noaudit((t), (cap)) == 0)
+#define has_capability(t, cap) (security_real_capable((t), (cap)) == 0)
+
+/**
+ * has_capability_noaudit - Determine if a task has a superior capability available (unaudited)
+ * @t: The task in question
+ * @cap: The capability to be tested for
+ *
+ * Return true if the specified task has the given superior capability
+ * currently in effect, false if not, but don't write an audit message for the
+ * check.
+ *
+ * Note that this does not set PF_SUPERPRIV on the task.
+ */
+#define has_capability_noaudit(t, cap) \
+	(security_real_capable_noaudit((t), (cap)) == 0)
 
 extern int capable(int cap);
 

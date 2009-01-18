@@ -290,7 +290,7 @@ static void smtc_configure_tlb(void)
  * possibly leave some TCs/VPEs as "slave" processors.
  *
  * Use c0_MVPConf0 to find out how many TCs are available, setting up
- * phys_cpu_present_map and the logical/physical mappings.
+ * cpu_possible_map and the logical/physical mappings.
  */
 
 int __init smtc_build_cpu_map(int start_cpu_slot)
@@ -304,7 +304,7 @@ int __init smtc_build_cpu_map(int start_cpu_slot)
 	 */
 	ntcs = ((read_c0_mvpconf0() & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT) + 1;
 	for (i=start_cpu_slot; i<NR_CPUS && i<ntcs; i++) {
-		cpu_set(i, phys_cpu_present_map);
+		cpu_set(i, cpu_possible_map);
 		__cpu_number_map[i] = i;
 		__cpu_logical_map[i] = i;
 	}
@@ -521,7 +521,7 @@ void smtc_prepare_cpus(int cpus)
 	 * Pull any physically present but unused TCs out of circulation.
 	 */
 	while (tc < (((val & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT) + 1)) {
-		cpu_clear(tc, phys_cpu_present_map);
+		cpu_clear(tc, cpu_possible_map);
 		cpu_clear(tc, cpu_present_map);
 		tc++;
 	}
@@ -686,7 +686,7 @@ void smtc_forward_irq(unsigned int irq)
 	 * and efficiency, we just pick the easiest one to find.
 	 */
 
-	target = first_cpu(irq_desc[irq].affinity);
+	target = cpumask_first(irq_desc[irq].affinity);
 
 	/*
 	 * We depend on the platform code to have correctly processed
@@ -921,11 +921,13 @@ void ipi_decode(struct smtc_ipi *pipi)
 	struct clock_event_device *cd;
 	void *arg_copy = pipi->arg;
 	int type_copy = pipi->type;
+	int irq = MIPS_CPU_IRQ_BASE + 1;
+
 	smtc_ipi_nq(&freeIPIq, pipi);
 	switch (type_copy) {
 	case SMTC_CLOCK_TICK:
 		irq_enter();
-		kstat_this_cpu.irqs[MIPS_CPU_IRQ_BASE + 1]++;
+		kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
 		cd = &per_cpu(mips_clockevent_device, cpu);
 		cd->event_handler(cd);
 		irq_exit();

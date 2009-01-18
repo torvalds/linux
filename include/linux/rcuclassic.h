@@ -59,8 +59,8 @@ struct rcu_ctrlblk {
 	int	signaled;
 
 	spinlock_t	lock	____cacheline_internodealigned_in_smp;
-	cpumask_t	cpumask; /* CPUs that need to switch in order    */
-				 /* for current batch to proceed.        */
+	DECLARE_BITMAP(cpumask, NR_CPUS); /* CPUs that need to switch for */
+					  /* current batch to proceed.     */
 } ____cacheline_internodealigned_in_smp;
 
 /* Is batch a before batch b ? */

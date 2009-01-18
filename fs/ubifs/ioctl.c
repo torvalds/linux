@@ -154,6 +154,7 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case FS_IOC_GETFLAGS:
 		flags = ubifs2ioctl(ubifs_inode(inode)->flags);
 
+		dbg_gen("get flags: %#x, i_flags %#x", flags, inode->i_flags);
 		return put_user(flags, (int __user *) arg);
 
 	case FS_IOC_SETFLAGS: {
@@ -176,6 +177,7 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		err = mnt_want_write(file->f_path.mnt);
 		if (err)
 			return err;
+		dbg_gen("set flags: %#x, i_flags %#x", flags, inode->i_flags);
 		err = setflags(inode, flags);
 		mnt_drop_write(file->f_path.mnt);
 		return err;

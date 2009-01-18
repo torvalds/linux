@@ -157,7 +157,7 @@
 
    Started Fri Mar 17 16:13:18 MET 1995
 
-   v0.1 (ALPHA, was an user-level program called AudioExcelDSP16.c)
+   v0.1 (ALPHA, was a user-level program called AudioExcelDSP16.c)
    - Initial code.
    v0.2 (ALPHA)
    - Cleanups.

@@ -136,8 +136,6 @@ struct xenbus_transaction
 /* Nil transaction ID. */
 #define XBT_NIL ((struct xenbus_transaction) { 0 })
 
-int __init xenbus_dev_init(void);
-
 char **xenbus_directory(struct xenbus_transaction t,
 			const char *dir, const char *node, unsigned int *num);
 void *xenbus_read(struct xenbus_transaction t,

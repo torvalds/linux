@@ -394,26 +394,22 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 	}
 };
 
-static int gemtek_exclusive_open(struct inode *inode, struct file *file)
+static int gemtek_exclusive_open(struct file *file)
 {
 	return test_and_set_bit(0, &in_use) ? -EBUSY : 0;
 }
 
-static int gemtek_exclusive_release(struct inode *inode, struct file *file)
+static int gemtek_exclusive_release(struct file *file)
 {
 	clear_bit(0, &in_use);
 	return 0;
 }
 
-static const struct file_operations gemtek_fops = {
+static const struct v4l2_file_operations gemtek_fops = {
 	.owner		= THIS_MODULE,
 	.open		= gemtek_exclusive_open,
 	.release	= gemtek_exclusive_release,
 	.ioctl		= video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek		= no_llseek
 };
 
 static int vidioc_querycap(struct file *file, void *priv,

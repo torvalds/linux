@@ -15,12 +15,11 @@
 #define _ASM_ATOMIC_H
 
 #include <linux/irqflags.h>
+#include <linux/types.h>
 #include <asm/barrier.h>
 #include <asm/cpu-features.h>
 #include <asm/war.h>
 #include <asm/system.h>
-
-typedef struct { volatile int counter; } atomic_t;
 
 #define ATOMIC_INIT(i)    { (i) }
 
@@ -403,8 +402,6 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 #define atomic_add_negative(i, v) (atomic_add_return(i, (v)) < 0)
 
 #ifdef CONFIG_64BIT
-
-typedef struct { volatile long counter; } atomic64_t;
 
 #define ATOMIC64_INIT(i)    { (i) }
 

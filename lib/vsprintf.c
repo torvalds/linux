@@ -170,6 +170,8 @@ int strict_strtoul(const char *cp, unsigned int base, unsigned long *res)
 		return -EINVAL;
 
 	val = simple_strtoul(cp, &tail, base);
+	if (tail == cp)
+		return -EINVAL;
 	if ((*tail == '\0') ||
 		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {
 		*res = val;
@@ -241,6 +243,8 @@ int strict_strtoull(const char *cp, unsigned int base, unsigned long long *res)
 		return -EINVAL;
 
 	val = simple_strtoull(cp, &tail, base);
+	if (tail == cp)
+		return -EINVAL;
 	if ((*tail == '\0') ||
 		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {
 		*res = val;
@@ -661,6 +665,9 @@ static char *ip4_addr_string(char *buf, char *end, u8 *addr, int field_width,
  */
 static char *pointer(const char *fmt, char *buf, char *end, void *ptr, int field_width, int precision, int flags)
 {
+	if (!ptr)
+		return string(buf, end, "(null)", field_width, precision, flags);
+
 	switch (*fmt) {
 	case 'F':
 		ptr = dereference_function_descriptor(ptr);

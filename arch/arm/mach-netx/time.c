@@ -163,7 +163,7 @@ static void __init netx_timer_init(void)
 	 * Adding some safety ... */
 	netx_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xa00, &netx_clockevent);
-	netx_clockevent.cpumask = cpumask_of_cpu(0);
+	netx_clockevent.cpumask = cpumask_of(0);
 	clockevents_register_device(&netx_clockevent);
 }
 

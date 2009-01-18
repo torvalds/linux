@@ -77,38 +77,6 @@
 
 /*-------------------------------------------------------------------------*/
 
-#if	defined(CONFIG_ARCH_OMAP_OTG) || defined(CONFIG_USB_MUSB_OTG)
-
-static struct otg_transceiver *xceiv;
-
-/**
- * otg_get_transceiver - find the (single) OTG transceiver driver
- *
- * Returns the transceiver driver, after getting a refcount to it; or
- * null if there is no such transceiver.  The caller is responsible for
- * releasing that count.
- */
-struct otg_transceiver *otg_get_transceiver(void)
-{
-	if (xceiv)
-		get_device(xceiv->dev);
-	return xceiv;
-}
-EXPORT_SYMBOL(otg_get_transceiver);
-
-int otg_set_transceiver(struct otg_transceiver *x)
-{
-	if (xceiv && x)
-		return -EBUSY;
-	xceiv = x;
-	return 0;
-}
-EXPORT_SYMBOL(otg_set_transceiver);
-
-#endif
-
-/*-------------------------------------------------------------------------*/
-
 #if defined(CONFIG_ARCH_OMAP_OTG) || defined(CONFIG_ARCH_OMAP15XX)
 
 static void omap2_usb_devconf_clear(u8 port, u32 mask)

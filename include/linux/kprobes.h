@@ -69,9 +69,6 @@ struct kprobe {
 	/* list of kprobes for multi-handler support */
 	struct list_head list;
 
-	/* Indicates that the corresponding module has been ref counted */
-	unsigned int mod_refcounted;
-
 	/*count the number of times this probe was temporarily disarmed */
 	unsigned long nmissed;
 
@@ -103,7 +100,18 @@ struct kprobe {
 
 	/* copy of the original instruction */
 	struct arch_specific_insn ainsn;
+
+	/* Indicates various status flags.  Protected by kprobe_mutex. */
+	u32 flags;
 };
+
+/* Kprobe status flags */
+#define KPROBE_FLAG_GONE	1 /* breakpoint has already gone */
+
+static inline int kprobe_gone(struct kprobe *p)
+{
+	return p->flags & KPROBE_FLAG_GONE;
+}
 
 /*
  * Special probe type that uses setjmp-longjmp type tricks to resume
@@ -201,7 +209,6 @@ static inline int init_test_probes(void)
 }
 #endif /* CONFIG_KPROBES_SANITY_TEST */
 
-extern struct mutex kprobe_mutex;
 extern int arch_prepare_kprobe(struct kprobe *p);
 extern void arch_arm_kprobe(struct kprobe *p);
 extern void arch_disarm_kprobe(struct kprobe *p);

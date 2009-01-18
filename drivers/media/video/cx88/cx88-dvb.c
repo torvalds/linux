@@ -138,6 +138,28 @@ static int cx88_dvb_bus_ctrl(struct dvb_frontend* fe, int acquire)
 	return ret;
 }
 
+static void cx88_dvb_gate_ctrl(struct cx88_core  *core, int open)
+{
+	struct videobuf_dvb_frontends *f;
+	struct videobuf_dvb_frontend *fe;
+
+	if (!core->dvbdev)
+		return;
+
+	f = &core->dvbdev->frontends;
+
+	if (!f)
+		return;
+
+	if (f->gate <= 1) /* undefined or fe0 */
+		fe = videobuf_dvb_get_frontend(f, 1);
+	else
+		fe = videobuf_dvb_get_frontend(f, f->gate);
+
+	if (fe && fe->dvb.frontend && fe->dvb.frontend->ops.i2c_gate_ctrl)
+		fe->dvb.frontend->ops.i2c_gate_ctrl(fe->dvb.frontend, open);
+}
+
 /* ------------------------------------------------------------------ */
 
 static int dvico_fusionhdtv_demod_init(struct dvb_frontend* fe)
@@ -597,10 +619,28 @@ static int dvb_register(struct cx8802_dev *dev)
 	struct cx88_core *core = dev->core;
 	struct videobuf_dvb_frontend *fe0, *fe1 = NULL;
 	int mfe_shared = 0; /* bus not shared by default */
+	int i;
 
 	if (0 != core->i2c_rc) {
 		printk(KERN_ERR "%s/2: no i2c-bus available, cannot attach dvb drivers\n", core->name);
 		goto frontend_detach;
+	}
+
+	if (!core->board.num_frontends)
+		return -EINVAL;
+
+	mutex_init(&dev->frontends.lock);
+	INIT_LIST_HEAD(&dev->frontends.felist);
+
+	printk(KERN_INFO "%s() allocating %d frontend(s)\n", __func__,
+			 core->board.num_frontends);
+	for (i = 1; i <= core->board.num_frontends; i++) {
+		fe0 = videobuf_dvb_alloc_frontend(&dev->frontends, i);
+		if (!fe0) {
+			printk(KERN_ERR "%s() failed to alloc\n", __func__);
+			videobuf_dvb_dealloc_frontends(&dev->frontends);
+			goto frontend_detach;
+		}
 	}
 
 	/* Get the first frontend */
@@ -610,6 +650,9 @@ static int dvb_register(struct cx8802_dev *dev)
 
 	/* multi-frontend gate control is undefined or defaults to fe0 */
 	dev->frontends.gate = 0;
+
+	/* Sets the gate control callback to be used by i2c command calls */
+	core->gate_ctrl = cx88_dvb_gate_ctrl;
 
 	/* init frontend(s) */
 	switch (core->boardnr) {
@@ -1109,6 +1152,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		&dev->pci->dev, adapter_nr, mfe_shared);
 
 frontend_detach:
+	core->gate_ctrl = NULL;
 	videobuf_dvb_dealloc_frontends(&dev->frontends);
 	return -EINVAL;
 }
@@ -1269,6 +1313,8 @@ static int cx8802_dvb_remove(struct cx8802_driver *drv)
 	videobuf_dvb_unregister_bus(&dev->frontends);
 
 	vp3054_i2c_remove(dev);
+
+	core->gate_ctrl = NULL;
 
 	return 0;
 }

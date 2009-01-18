@@ -10,6 +10,7 @@
  */
 #ifndef __ASM_S390_QETH_IOCTL_H__
 #define __ASM_S390_QETH_IOCTL_H__
+#include <linux/types.h>
 #include <linux/ioctl.h>
 
 #define SIOC_QETH_ARP_SET_NO_ENTRIES    (SIOCDEVPRIVATE)

@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
+#include <linux/debugfs.h>
 #include <linux/uwb.h>
 
 #include "uwb-internal.h"
@@ -32,13 +33,13 @@ EXPORT_SYMBOL_GPL(uwb_pal_init);
 
 /**
  * uwb_pal_register - register a UWB PAL
- * @rc: the radio controller the PAL will be using
  * @pal: the PAL
  *
  * The PAL must be initialized with uwb_pal_init().
  */
-int uwb_pal_register(struct uwb_rc *rc, struct uwb_pal *pal)
+int uwb_pal_register(struct uwb_pal *pal)
 {
+	struct uwb_rc *rc = pal->rc;
 	int ret;
 
 	if (pal->device) {
@@ -54,9 +55,11 @@ int uwb_pal_register(struct uwb_rc *rc, struct uwb_pal *pal)
 		}
 	}
 
-	spin_lock(&rc->pal_lock);
+	pal->debugfs_dir = uwb_dbg_create_pal_dir(pal);
+
+	mutex_lock(&rc->uwb_dev.mutex);
 	list_add(&pal->node, &rc->pals);
-	spin_unlock(&rc->pal_lock);
+	mutex_unlock(&rc->uwb_dev.mutex);
 
 	return 0;
 }
@@ -64,14 +67,19 @@ EXPORT_SYMBOL_GPL(uwb_pal_register);
 
 /**
  * uwb_pal_register - unregister a UWB PAL
- * @rc: the radio controller the PAL was using
  * @pal: the PAL
  */
-void uwb_pal_unregister(struct uwb_rc *rc, struct uwb_pal *pal)
+void uwb_pal_unregister(struct uwb_pal *pal)
 {
-	spin_lock(&rc->pal_lock);
+	struct uwb_rc *rc = pal->rc;
+
+	uwb_radio_stop(pal);
+
+	mutex_lock(&rc->uwb_dev.mutex);
 	list_del(&pal->node);
-	spin_unlock(&rc->pal_lock);
+	mutex_unlock(&rc->uwb_dev.mutex);
+
+	debugfs_remove(pal->debugfs_dir);
 
 	if (pal->device) {
 		sysfs_remove_link(&rc->uwb_dev.dev.kobj, pal->name);
@@ -86,6 +94,5 @@ EXPORT_SYMBOL_GPL(uwb_pal_unregister);
  */
 void uwb_rc_pal_init(struct uwb_rc *rc)
 {
-	spin_lock_init(&rc->pal_lock);
 	INIT_LIST_HEAD(&rc->pals);
 }

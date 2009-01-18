@@ -554,7 +554,7 @@ static void __init build_device_resources(struct of_device *op,
 		memset(r, 0, sizeof(*r));
 
 		if (of_resource_verbose)
-			printk("%s reg[%d] -> %lx\n",
+			printk("%s reg[%d] -> %llx\n",
 			       op->node->full_name, index,
 			       result);
 
@@ -778,9 +778,9 @@ static unsigned int __init build_one_device_irq(struct of_device *op,
 out:
 	nid = of_node_to_nid(dp);
 	if (nid != -1) {
-		cpumask_t numa_mask = node_to_cpumask(nid);
+		cpumask_t numa_mask = *cpumask_of_node(nid);
 
-		irq_set_affinity(irq, numa_mask);
+		irq_set_affinity(irq, &numa_mask);
 	}
 
 	return irq;

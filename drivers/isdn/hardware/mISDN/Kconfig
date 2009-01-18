@@ -23,3 +23,10 @@ config MISDN_HFCMULTI
 	   * HFC-8S (8 S/T interfaces on one chip)
 	   * HFC-E1 (E1 interface for 2Mbit ISDN)
 
+config MISDN_HFCUSB
+	tristate "Support for HFC-S USB based TAs"
+	depends on USB
+	help
+	  Enable support for USB ISDN TAs with Cologne Chip AG's
+	  HFC-S USB ISDN Controller
+

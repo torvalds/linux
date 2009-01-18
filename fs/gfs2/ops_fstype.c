@@ -22,20 +22,18 @@
 #include "gfs2.h"
 #include "incore.h"
 #include "bmap.h"
-#include "daemon.h"
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
 #include "mount.h"
-#include "ops_fstype.h"
-#include "ops_dentry.h"
-#include "ops_super.h"
 #include "recovery.h"
 #include "rgrp.h"
 #include "super.h"
 #include "sys.h"
 #include "util.h"
 #include "log.h"
+#include "quota.h"
+#include "dir.h"
 
 #define DO 0
 #define UNDO 1
@@ -58,12 +56,10 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 {
 	spin_lock_init(&gt->gt_spin);
 
-	gt->gt_demote_secs = 300;
 	gt->gt_incore_log_blocks = 1024;
 	gt->gt_log_flush_secs = 60;
 	gt->gt_recoverd_secs = 60;
 	gt->gt_logd_secs = 1;
-	gt->gt_quotad_secs = 5;
 	gt->gt_quota_simul_sync = 64;
 	gt->gt_quota_warn_period = 10;
 	gt->gt_quota_scale_num = 1;
@@ -91,10 +87,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	gfs2_tune_init(&sdp->sd_tune);
 
-	INIT_LIST_HEAD(&sdp->sd_reclaim_list);
-	spin_lock_init(&sdp->sd_reclaim_lock);
-	init_waitqueue_head(&sdp->sd_reclaim_wq);
-
 	mutex_init(&sdp->sd_inum_mutex);
 	spin_lock_init(&sdp->sd_statfs_spin);
 
@@ -110,6 +102,9 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_quota_list);
 	spin_lock_init(&sdp->sd_quota_spin);
 	mutex_init(&sdp->sd_quota_mutex);
+	init_waitqueue_head(&sdp->sd_quota_wait);
+	INIT_LIST_HEAD(&sdp->sd_trunc_list);
+	spin_lock_init(&sdp->sd_trunc_lock);
 
 	spin_lock_init(&sdp->sd_log_lock);
 
@@ -443,23 +438,10 @@ out:
 static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 			int undo)
 {
-	struct task_struct *p;
 	int error = 0;
 
 	if (undo)
 		goto fail_trans;
-
-	for (sdp->sd_glockd_num = 0;
-	     sdp->sd_glockd_num < sdp->sd_args.ar_num_glockd;
-	     sdp->sd_glockd_num++) {
-		p = kthread_run(gfs2_glockd, sdp, "gfs2_glockd");
-		error = IS_ERR(p);
-		if (error) {
-			fs_err(sdp, "can't start glockd thread: %d\n", error);
-			goto fail;
-		}
-		sdp->sd_glockd_process[sdp->sd_glockd_num] = p;
-	}
 
 	error = gfs2_glock_nq_num(sdp,
 				  GFS2_MOUNT_LOCK, &gfs2_nondisk_glops,
@@ -493,7 +475,6 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 		fs_err(sdp, "can't create transaction glock: %d\n", error);
 		goto fail_rename;
 	}
-	set_bit(GLF_STICKY, &sdp->sd_trans_gl->gl_flags);
 
 	return 0;
 
@@ -506,9 +487,6 @@ fail_live:
 fail_mount:
 	gfs2_glock_dq_uninit(mount_gh);
 fail:
-	while (sdp->sd_glockd_num--)
-		kthread_stop(sdp->sd_glockd_process[sdp->sd_glockd_num]);
-
 	return error;
 }
 
@@ -620,7 +598,7 @@ static int map_journal_extents(struct gfs2_sbd *sdp)
 
 	prev_db = 0;
 
-	for (lb = 0; lb < ip->i_di.di_size >> sdp->sd_sb.sb_bsize_shift; lb++) {
+	for (lb = 0; lb < ip->i_disksize >> sdp->sd_sb.sb_bsize_shift; lb++) {
 		bh.b_state = 0;
 		bh.b_blocknr = 0;
 		bh.b_size = 1 << ip->i_inode.i_blkbits;
@@ -661,6 +639,72 @@ static void gfs2_lm_others_may_mount(struct gfs2_sbd *sdp)
 					sdp->sd_lockstruct.ls_lockspace);
 }
 
+/**
+ * gfs2_jindex_hold - Grab a lock on the jindex
+ * @sdp: The GFS2 superblock
+ * @ji_gh: the holder for the jindex glock
+ *
+ * Returns: errno
+ */
+
+static int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
+{
+	struct gfs2_inode *dip = GFS2_I(sdp->sd_jindex);
+	struct qstr name;
+	char buf[20];
+	struct gfs2_jdesc *jd;
+	int error;
+
+	name.name = buf;
+
+	mutex_lock(&sdp->sd_jindex_mutex);
+
+	for (;;) {
+		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, ji_gh);
+		if (error)
+			break;
+
+		name.len = sprintf(buf, "journal%u", sdp->sd_journals);
+		name.hash = gfs2_disk_hash(name.name, name.len);
+
+		error = gfs2_dir_check(sdp->sd_jindex, &name, NULL);
+		if (error == -ENOENT) {
+			error = 0;
+			break;
+		}
+
+		gfs2_glock_dq_uninit(ji_gh);
+
+		if (error)
+			break;
+
+		error = -ENOMEM;
+		jd = kzalloc(sizeof(struct gfs2_jdesc), GFP_KERNEL);
+		if (!jd)
+			break;
+
+		INIT_LIST_HEAD(&jd->extent_list);
+		jd->jd_inode = gfs2_lookupi(sdp->sd_jindex, &name, 1);
+		if (!jd->jd_inode || IS_ERR(jd->jd_inode)) {
+			if (!jd->jd_inode)
+				error = -ENOENT;
+			else
+				error = PTR_ERR(jd->jd_inode);
+			kfree(jd);
+			break;
+		}
+
+		spin_lock(&sdp->sd_jindex_spin);
+		jd->jd_jid = sdp->sd_journals++;
+		list_add_tail(&jd->jd_list, &sdp->sd_jindex_list);
+		spin_unlock(&sdp->sd_jindex_spin);
+	}
+
+	mutex_unlock(&sdp->sd_jindex_mutex);
+
+	return error;
+}
+
 static int init_journal(struct gfs2_sbd *sdp, int undo)
 {
 	struct inode *master = sdp->sd_master_dir->d_inode;
@@ -681,7 +725,6 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		return PTR_ERR(sdp->sd_jindex);
 	}
 	ip = GFS2_I(sdp->sd_jindex);
-	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
 
 	/* Load in the journal index special file */
 
@@ -832,7 +875,6 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		goto fail_statfs;
 	}
 	ip = GFS2_I(sdp->sd_rindex);
-	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
 	sdp->sd_rindex_uptodate = 0;
 
 	/* Read in the quota inode */
@@ -972,9 +1014,6 @@ static int init_threads(struct gfs2_sbd *sdp, int undo)
 		return error;
 	}
 	sdp->sd_logd_process = p;
-
-	sdp->sd_statfs_sync_time = jiffies;
-	sdp->sd_quota_sync_time = jiffies;
 
 	p = kthread_run(gfs2_quotad, sdp, "gfs2_quotad");
 	error = IS_ERR(p);
@@ -1224,17 +1263,21 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 static void gfs2_kill_sb(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	if (sdp) {
-		gfs2_meta_syncfs(sdp);
-		dput(sdp->sd_root_dir);
-		dput(sdp->sd_master_dir);
-		sdp->sd_root_dir = NULL;
-		sdp->sd_master_dir = NULL;
+
+	if (sdp == NULL) {
+		kill_block_super(sb);
+		return;
 	}
+
+	gfs2_meta_syncfs(sdp);
+	dput(sdp->sd_root_dir);
+	dput(sdp->sd_master_dir);
+	sdp->sd_root_dir = NULL;
+	sdp->sd_master_dir = NULL;
 	shrink_dcache_sb(sb);
 	kill_block_super(sb);
-	if (sdp)
-		gfs2_delete_debugfs_file(sdp);
+	gfs2_delete_debugfs_file(sdp);
+	kfree(sdp);
 }
 
 struct file_system_type gfs2_fs_type = {

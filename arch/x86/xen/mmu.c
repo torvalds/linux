@@ -1063,18 +1063,14 @@ static void drop_other_mm_ref(void *info)
 	struct mm_struct *mm = info;
 	struct mm_struct *active_mm;
 
-#ifdef CONFIG_X86_64
-	active_mm = read_pda(active_mm);
-#else
-	active_mm = __get_cpu_var(cpu_tlbstate).active_mm;
-#endif
+	active_mm = percpu_read(cpu_tlbstate.active_mm);
 
 	if (active_mm == mm)
 		leave_mm(smp_processor_id());
 
 	/* If this cpu still has a stale cr3 reference, then make sure
 	   it has been flushed. */
-	if (x86_read_percpu(xen_current_cr3) == __pa(mm->pgd)) {
+	if (percpu_read(xen_current_cr3) == __pa(mm->pgd)) {
 		load_cr3(swapper_pg_dir);
 		arch_flush_lazy_cpu_mode();
 	}
@@ -1082,7 +1078,7 @@ static void drop_other_mm_ref(void *info)
 
 static void xen_drop_mm_ref(struct mm_struct *mm)
 {
-	cpumask_t mask;
+	cpumask_var_t mask;
 	unsigned cpu;
 
 	if (current->active_mm == mm) {
@@ -1094,7 +1090,16 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
 	}
 
 	/* Get the "official" set of cpus referring to our pagetable. */
-	mask = mm->cpu_vm_mask;
+	if (!alloc_cpumask_var(&mask, GFP_ATOMIC)) {
+		for_each_online_cpu(cpu) {
+			if (!cpumask_test_cpu(cpu, &mm->cpu_vm_mask)
+			    && per_cpu(xen_current_cr3, cpu) != __pa(mm->pgd))
+				continue;
+			smp_call_function_single(cpu, drop_other_mm_ref, mm, 1);
+		}
+		return;
+	}
+	cpumask_copy(mask, &mm->cpu_vm_mask);
 
 	/* It's possible that a vcpu may have a stale reference to our
 	   cr3, because its in lazy mode, and it hasn't yet flushed
@@ -1103,11 +1108,12 @@ static void xen_drop_mm_ref(struct mm_struct *mm)
 	   if needed. */
 	for_each_online_cpu(cpu) {
 		if (per_cpu(xen_current_cr3, cpu) == __pa(mm->pgd))
-			cpu_set(cpu, mask);
+			cpumask_set_cpu(cpu, mask);
 	}
 
-	if (!cpus_empty(mask))
-		smp_call_function_mask(mask, drop_other_mm_ref, mm, 1);
+	if (!cpumask_empty(mask))
+		smp_call_function_many(mask, drop_other_mm_ref, mm, 1);
+	free_cpumask_var(mask);
 }
 #else
 static void xen_drop_mm_ref(struct mm_struct *mm)

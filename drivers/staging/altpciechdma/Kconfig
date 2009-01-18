@@ -1,0 +1,10 @@
+config ALTERA_PCIE_CHDMA
+	tristate "Altera PCI Express Chaining DMA driver"
+	depends on PCI
+	default N
+	---help---
+	  A reference driver that exercises the Chaining DMA logic reference
+	  design generated along the Altera FPGA PCI Express soft or hard core,
+	  only if instantiated using the MegaWizard, not the SOPC builder, of
+	  Quartus 8.1.
+

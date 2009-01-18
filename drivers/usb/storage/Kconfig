@@ -61,13 +61,6 @@ config USB_STORAGE_ISD200
 	  - CyQ've CQ8060A CDRW drive
 	  - Planex eXtreme Drive RX-25HU USB-IDE cable (not model RX-25U)
 
-config USB_STORAGE_DPCM
-	bool "Microtech/ZiO! CompactFlash/SmartMedia support"
-	depends on USB_STORAGE
-	help
-	  Say Y here to support the Microtech/ZiO! CompactFlash reader.
-	  There is a web page at <http://www.ziocorp.com/products/>.
-
 config USB_STORAGE_USBAT
 	bool "USBAT/USBAT02-based storage support"
 	depends on USB_STORAGE
@@ -90,12 +83,12 @@ config USB_STORAGE_USBAT
 	  - Sandisk ImageMate SDDR-05b
 
 config USB_STORAGE_SDDR09
-	bool "SanDisk SDDR-09 (and other SmartMedia) support"
+	bool "SanDisk SDDR-09 (and other SmartMedia, including DPCM) support"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Sandisk SDDR-09
 	  SmartMedia reader in the USB Mass Storage driver.
-	  Also works for the Microtech Zio! SmartMedia reader.
+	  Also works for the Microtech Zio! CompactFlash/SmartMedia reader.
 
 config USB_STORAGE_SDDR55
 	bool "SanDisk SDDR-55 SmartMedia support"

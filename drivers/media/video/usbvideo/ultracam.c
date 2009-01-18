@@ -556,7 +556,7 @@ static int ultracam_probe(struct usb_interface *intf, const struct usb_device_id
 			err("Alternate settings have different endpoint addresses!");
 			return -ENODEV;
 		}
-		if (usb_endpoint_type(endpoint) != USB_ENDPOINT_XFER_ISOC) {
+		if (!usb_endpoint_xfer_isoc(endpoint)) {
 			err("Interface %d. has non-ISO endpoint!",
 			    interface->desc.bInterfaceNumber);
 			return -ENODEV;

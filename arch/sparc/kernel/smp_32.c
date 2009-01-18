@@ -39,8 +39,6 @@ volatile unsigned long cpu_callin_map[NR_CPUS] __cpuinitdata = {0,};
 unsigned char boot_cpu_id = 0;
 unsigned char boot_cpu_id4 = 0; /* boot_cpu_id << 2 */
 
-cpumask_t cpu_online_map = CPU_MASK_NONE;
-cpumask_t phys_cpu_present_map = CPU_MASK_NONE;
 cpumask_t smp_commenced_mask = CPU_MASK_NONE;
 
 /* The only guaranteed locking primitive available on all Sparc
@@ -334,7 +332,7 @@ void __init smp_setup_cpu_possible_map(void)
 	instance = 0;
 	while (!cpu_find_by_instance(instance, NULL, &mid)) {
 		if (mid < NR_CPUS) {
-			cpu_set(mid, phys_cpu_present_map);
+			cpu_set(mid, cpu_possible_map);
 			cpu_set(mid, cpu_present_map);
 		}
 		instance++;
@@ -354,7 +352,7 @@ void __init smp_prepare_boot_cpu(void)
 
 	current_thread_info()->cpu = cpuid;
 	cpu_set(cpuid, cpu_online_map);
-	cpu_set(cpuid, phys_cpu_present_map);
+	cpu_set(cpuid, cpu_possible_map);
 }
 
 int __cpuinit __cpu_up(unsigned int cpu)

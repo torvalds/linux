@@ -173,7 +173,7 @@ static void __init ns9360_timer_init(void)
 	ns9360_clockevent_device.min_delta_ns =
 		clockevent_delta2ns(1, &ns9360_clockevent_device);
 
-	ns9360_clockevent_device.cpumask = cpumask_of_cpu(0);
+	ns9360_clockevent_device.cpumask = cpumask_of(0);
 	clockevents_register_device(&ns9360_clockevent_device);
 
 	setup_irq(IRQ_NS9360_TIMER0 + TIMER_CLOCKEVENT,

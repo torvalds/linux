@@ -94,7 +94,7 @@ do {									\
 	     "call __switch_to\n\t"					  \
 	     ".globl thread_return\n"					  \
 	     "thread_return:\n\t"					  \
-	     "movq %%gs:%P[pda_pcurrent],%%rsi\n\t"			  \
+	     "movq "__percpu_arg([current_task])",%%rsi\n\t"		  \
 	     "movq %P[task_canary](%%rsi),%%r8\n\t"			  \
 	     "movq %%r8,%%gs:%P[pda_canary]\n\t"			  \
 	     "movq %P[thread_info](%%rsi),%%r8\n\t"			  \
@@ -109,7 +109,7 @@ do {									\
 	       [tif_fork] "i" (TIF_FORK),			  	  \
 	       [thread_info] "i" (offsetof(struct task_struct, stack)),   \
 	       [task_canary] "i" (offsetof(struct task_struct, stack_canary)),\
-	       [pda_pcurrent] "i" (offsetof(struct x8664_pda, pcurrent)), \
+	       [current_task] "m" (per_cpu_var(current_task)),		  \
 	       [pda_canary] "i" (offsetof(struct x8664_pda, stack_canary))\
 	     : "memory", "cc" __EXTRA_CLOBBER)
 #endif

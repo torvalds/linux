@@ -564,7 +564,7 @@ EXPORT_SYMBOL_GPL(ubi_leb_unmap);
  * @dtype: expected data type
  *
  * This function maps an un-mapped logical eraseblock @lnum to a physical
- * eraseblock. This means, that after a successfull invocation of this
+ * eraseblock. This means, that after a successful invocation of this
  * function the logical eraseblock @lnum will be empty (contain only %0xFF
  * bytes) and be mapped to a physical eraseblock, even if an unclean reboot
  * happens.

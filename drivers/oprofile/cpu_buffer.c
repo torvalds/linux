@@ -1,11 +1,12 @@
 /**
  * @file cpu_buffer.c
  *
- * @remark Copyright 2002 OProfile authors
+ * @remark Copyright 2002-2009 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon <levon@movementarian.org>
  * @author Barry Kasindorf <barry.kasindorf@amd.com>
+ * @author Robert Richter <robert.richter@amd.com>
  *
  * Each CPU has a local buffer that stores PC value/event
  * pairs. We also log context switches when we notice them.
@@ -45,14 +46,27 @@
  * can be changed to a single buffer solution when the ring buffer
  * access is implemented as non-locking atomic code.
  */
-struct ring_buffer *op_ring_buffer_read;
-struct ring_buffer *op_ring_buffer_write;
+static struct ring_buffer *op_ring_buffer_read;
+static struct ring_buffer *op_ring_buffer_write;
 DEFINE_PER_CPU(struct oprofile_cpu_buffer, cpu_buffer);
 
 static void wq_sync_buffer(struct work_struct *work);
 
 #define DEFAULT_TIMER_EXPIRE (HZ / 10)
 static int work_enabled;
+
+unsigned long oprofile_get_cpu_buffer_size(void)
+{
+	return oprofile_cpu_buffer_size;
+}
+
+void oprofile_cpu_buffer_inc_smpl_lost(void)
+{
+	struct oprofile_cpu_buffer *cpu_buf
+		= &__get_cpu_var(cpu_buffer);
+
+	cpu_buf->sample_lost_overflow++;
+}
 
 void free_cpu_buffers(void)
 {
@@ -64,24 +78,11 @@ void free_cpu_buffers(void)
 	op_ring_buffer_write = NULL;
 }
 
-unsigned long oprofile_get_cpu_buffer_size(void)
-{
-	return fs_cpu_buffer_size;
-}
-
-void oprofile_cpu_buffer_inc_smpl_lost(void)
-{
-	struct oprofile_cpu_buffer *cpu_buf
-		= &__get_cpu_var(cpu_buffer);
-
-	cpu_buf->sample_lost_overflow++;
-}
-
 int alloc_cpu_buffers(void)
 {
 	int i;
 
-	unsigned long buffer_size = fs_cpu_buffer_size;
+	unsigned long buffer_size = oprofile_cpu_buffer_size;
 
 	op_ring_buffer_read = ring_buffer_alloc(buffer_size, OP_BUFFER_FLAGS);
 	if (!op_ring_buffer_read)
@@ -97,8 +98,6 @@ int alloc_cpu_buffers(void)
 		b->last_is_kernel = -1;
 		b->tracing = 0;
 		b->buffer_size = buffer_size;
-		b->tail_pos = 0;
-		b->head_pos = 0;
 		b->sample_received = 0;
 		b->sample_lost_overflow = 0;
 		b->backtrace_aborted = 0;
@@ -145,47 +144,156 @@ void end_cpu_work(void)
 	flush_scheduled_work();
 }
 
-static inline int
-add_sample(struct oprofile_cpu_buffer *cpu_buf,
-	   unsigned long pc, unsigned long event)
+/*
+ * This function prepares the cpu buffer to write a sample.
+ *
+ * Struct op_entry is used during operations on the ring buffer while
+ * struct op_sample contains the data that is stored in the ring
+ * buffer. Struct entry can be uninitialized. The function reserves a
+ * data array that is specified by size. Use
+ * op_cpu_buffer_write_commit() after preparing the sample. In case of
+ * errors a null pointer is returned, otherwise the pointer to the
+ * sample.
+ *
+ */
+struct op_sample
+*op_cpu_buffer_write_reserve(struct op_entry *entry, unsigned long size)
+{
+	entry->event = ring_buffer_lock_reserve
+		(op_ring_buffer_write, sizeof(struct op_sample) +
+		 size * sizeof(entry->sample->data[0]), &entry->irq_flags);
+	if (entry->event)
+		entry->sample = ring_buffer_event_data(entry->event);
+	else
+		entry->sample = NULL;
+
+	if (!entry->sample)
+		return NULL;
+
+	entry->size = size;
+	entry->data = entry->sample->data;
+
+	return entry->sample;
+}
+
+int op_cpu_buffer_write_commit(struct op_entry *entry)
+{
+	return ring_buffer_unlock_commit(op_ring_buffer_write, entry->event,
+					 entry->irq_flags);
+}
+
+struct op_sample *op_cpu_buffer_read_entry(struct op_entry *entry, int cpu)
+{
+	struct ring_buffer_event *e;
+	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
+	if (e)
+		goto event;
+	if (ring_buffer_swap_cpu(op_ring_buffer_read,
+				 op_ring_buffer_write,
+				 cpu))
+		return NULL;
+	e = ring_buffer_consume(op_ring_buffer_read, cpu, NULL);
+	if (e)
+		goto event;
+	return NULL;
+
+event:
+	entry->event = e;
+	entry->sample = ring_buffer_event_data(e);
+	entry->size = (ring_buffer_event_length(e) - sizeof(struct op_sample))
+		/ sizeof(entry->sample->data[0]);
+	entry->data = entry->sample->data;
+	return entry->sample;
+}
+
+unsigned long op_cpu_buffer_entries(int cpu)
+{
+	return ring_buffer_entries_cpu(op_ring_buffer_read, cpu)
+		+ ring_buffer_entries_cpu(op_ring_buffer_write, cpu);
+}
+
+static int
+op_add_code(struct oprofile_cpu_buffer *cpu_buf, unsigned long backtrace,
+	    int is_kernel, struct task_struct *task)
 {
 	struct op_entry entry;
-	int ret;
+	struct op_sample *sample;
+	unsigned long flags;
+	int size;
 
-	ret = cpu_buffer_write_entry(&entry);
-	if (ret)
-		return ret;
+	flags = 0;
 
-	entry.sample->eip = pc;
-	entry.sample->event = event;
+	if (backtrace)
+		flags |= TRACE_BEGIN;
 
-	ret = cpu_buffer_write_commit(&entry);
-	if (ret)
-		return ret;
+	/* notice a switch from user->kernel or vice versa */
+	is_kernel = !!is_kernel;
+	if (cpu_buf->last_is_kernel != is_kernel) {
+		cpu_buf->last_is_kernel = is_kernel;
+		flags |= KERNEL_CTX_SWITCH;
+		if (is_kernel)
+			flags |= IS_KERNEL;
+	}
+
+	/* notice a task switch */
+	if (cpu_buf->last_task != task) {
+		cpu_buf->last_task = task;
+		flags |= USER_CTX_SWITCH;
+	}
+
+	if (!flags)
+		/* nothing to do */
+		return 0;
+
+	if (flags & USER_CTX_SWITCH)
+		size = 1;
+	else
+		size = 0;
+
+	sample = op_cpu_buffer_write_reserve(&entry, size);
+	if (!sample)
+		return -ENOMEM;
+
+	sample->eip = ESCAPE_CODE;
+	sample->event = flags;
+
+	if (size)
+		op_cpu_buffer_add_data(&entry, (unsigned long)task);
+
+	op_cpu_buffer_write_commit(&entry);
 
 	return 0;
 }
 
 static inline int
-add_code(struct oprofile_cpu_buffer *buffer, unsigned long value)
+op_add_sample(struct oprofile_cpu_buffer *cpu_buf,
+	      unsigned long pc, unsigned long event)
 {
-	return add_sample(buffer, ESCAPE_CODE, value);
+	struct op_entry entry;
+	struct op_sample *sample;
+
+	sample = op_cpu_buffer_write_reserve(&entry, 0);
+	if (!sample)
+		return -ENOMEM;
+
+	sample->eip = pc;
+	sample->event = event;
+
+	return op_cpu_buffer_write_commit(&entry);
 }
 
-/* This must be safe from any context. It's safe writing here
- * because of the head/tail separation of the writer and reader
- * of the CPU buffer.
+/*
+ * This must be safe from any context.
  *
  * is_kernel is needed because on some architectures you cannot
  * tell if you are in kernel or user space simply by looking at
  * pc. We tag this in the buffer by generating kernel enter/exit
  * events whenever is_kernel changes
  */
-static int log_sample(struct oprofile_cpu_buffer *cpu_buf, unsigned long pc,
-		      int is_kernel, unsigned long event)
+static int
+log_sample(struct oprofile_cpu_buffer *cpu_buf, unsigned long pc,
+	   unsigned long backtrace, int is_kernel, unsigned long event)
 {
-	struct task_struct *task;
-
 	cpu_buf->sample_received++;
 
 	if (pc == ESCAPE_CODE) {
@@ -193,25 +301,10 @@ static int log_sample(struct oprofile_cpu_buffer *cpu_buf, unsigned long pc,
 		return 0;
 	}
 
-	is_kernel = !!is_kernel;
+	if (op_add_code(cpu_buf, backtrace, is_kernel, current))
+		goto fail;
 
-	task = current;
-
-	/* notice a switch from user->kernel or vice versa */
-	if (cpu_buf->last_is_kernel != is_kernel) {
-		cpu_buf->last_is_kernel = is_kernel;
-		if (add_code(cpu_buf, is_kernel))
-			goto fail;
-	}
-
-	/* notice a task switch */
-	if (cpu_buf->last_task != task) {
-		cpu_buf->last_task = task;
-		if (add_code(cpu_buf, (unsigned long)task))
-			goto fail;
-	}
-
-	if (add_sample(cpu_buf, pc, event))
+	if (op_add_sample(cpu_buf, pc, event))
 		goto fail;
 
 	return 1;
@@ -221,38 +314,43 @@ fail:
 	return 0;
 }
 
-static int oprofile_begin_trace(struct oprofile_cpu_buffer *cpu_buf)
+static inline void oprofile_begin_trace(struct oprofile_cpu_buffer *cpu_buf)
 {
-	add_code(cpu_buf, CPU_TRACE_BEGIN);
 	cpu_buf->tracing = 1;
-	return 1;
 }
 
-static void oprofile_end_trace(struct oprofile_cpu_buffer *cpu_buf)
+static inline void oprofile_end_trace(struct oprofile_cpu_buffer *cpu_buf)
 {
 	cpu_buf->tracing = 0;
 }
 
-void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
-				unsigned long event, int is_kernel)
+static inline void
+__oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
+			  unsigned long event, int is_kernel)
 {
 	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
-
-	if (!backtrace_depth) {
-		log_sample(cpu_buf, pc, is_kernel, event);
-		return;
-	}
-
-	if (!oprofile_begin_trace(cpu_buf))
-		return;
+	unsigned long backtrace = oprofile_backtrace_depth;
 
 	/*
 	 * if log_sample() fail we can't backtrace since we lost the
 	 * source of this event
 	 */
-	if (log_sample(cpu_buf, pc, is_kernel, event))
-		oprofile_ops.backtrace(regs, backtrace_depth);
+	if (!log_sample(cpu_buf, pc, backtrace, is_kernel, event))
+		/* failed */
+		return;
+
+	if (!backtrace)
+		return;
+
+	oprofile_begin_trace(cpu_buf);
+	oprofile_ops.backtrace(regs, backtrace);
 	oprofile_end_trace(cpu_buf);
+}
+
+void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
+			     unsigned long event, int is_kernel)
+{
+	__oprofile_add_ext_sample(pc, regs, event, is_kernel);
 }
 
 void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
@@ -260,70 +358,58 @@ void oprofile_add_sample(struct pt_regs * const regs, unsigned long event)
 	int is_kernel = !user_mode(regs);
 	unsigned long pc = profile_pc(regs);
 
-	oprofile_add_ext_sample(pc, regs, event, is_kernel);
+	__oprofile_add_ext_sample(pc, regs, event, is_kernel);
 }
 
-#ifdef CONFIG_OPROFILE_IBS
-
-#define MAX_IBS_SAMPLE_SIZE 14
-
-void oprofile_add_ibs_sample(struct pt_regs * const regs,
-			     unsigned int * const ibs_sample, int ibs_code)
+/*
+ * Add samples with data to the ring buffer.
+ *
+ * Use oprofile_add_data(&entry, val) to add data and
+ * oprofile_write_commit(&entry) to commit the sample.
+ */
+void
+oprofile_write_reserve(struct op_entry *entry, struct pt_regs * const regs,
+		       unsigned long pc, int code, int size)
 {
+	struct op_sample *sample;
 	int is_kernel = !user_mode(regs);
 	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
-	struct task_struct *task;
-	int fail = 0;
 
 	cpu_buf->sample_received++;
 
-	/* notice a switch from user->kernel or vice versa */
-	if (cpu_buf->last_is_kernel != is_kernel) {
-		if (add_code(cpu_buf, is_kernel))
-			goto fail;
-		cpu_buf->last_is_kernel = is_kernel;
-	}
-
-	/* notice a task switch */
-	if (!is_kernel) {
-		task = current;
-		if (cpu_buf->last_task != task) {
-			if (add_code(cpu_buf, (unsigned long)task))
-				goto fail;
-			cpu_buf->last_task = task;
-		}
-	}
-
-	fail = fail || add_code(cpu_buf, ibs_code);
-	fail = fail || add_sample(cpu_buf, ibs_sample[0], ibs_sample[1]);
-	fail = fail || add_sample(cpu_buf, ibs_sample[2], ibs_sample[3]);
-	fail = fail || add_sample(cpu_buf, ibs_sample[4], ibs_sample[5]);
-
-	if (ibs_code == IBS_OP_BEGIN) {
-		fail = fail || add_sample(cpu_buf, ibs_sample[6], ibs_sample[7]);
-		fail = fail || add_sample(cpu_buf, ibs_sample[8], ibs_sample[9]);
-		fail = fail || add_sample(cpu_buf, ibs_sample[10], ibs_sample[11]);
-	}
-
-	if (fail)
+	/* no backtraces for samples with data */
+	if (op_add_code(cpu_buf, 0, is_kernel, current))
 		goto fail;
 
-	if (backtrace_depth)
-		oprofile_ops.backtrace(regs, backtrace_depth);
+	sample = op_cpu_buffer_write_reserve(entry, size + 2);
+	if (!sample)
+		goto fail;
+	sample->eip = ESCAPE_CODE;
+	sample->event = 0;		/* no flags */
+
+	op_cpu_buffer_add_data(entry, code);
+	op_cpu_buffer_add_data(entry, pc);
 
 	return;
 
 fail:
 	cpu_buf->sample_lost_overflow++;
-	return;
 }
 
-#endif
+int oprofile_add_data(struct op_entry *entry, unsigned long val)
+{
+	return op_cpu_buffer_add_data(entry, val);
+}
+
+int oprofile_write_commit(struct op_entry *entry)
+{
+	return op_cpu_buffer_write_commit(entry);
+}
 
 void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event)
 {
 	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
-	log_sample(cpu_buf, pc, is_kernel, event);
+	log_sample(cpu_buf, pc, 0, is_kernel, event);
 }
 
 void oprofile_add_trace(unsigned long pc)
@@ -340,7 +426,7 @@ void oprofile_add_trace(unsigned long pc)
 	if (pc == ESCAPE_CODE)
 		goto fail;
 
-	if (add_sample(cpu_buf, pc, 0))
+	if (op_add_sample(cpu_buf, pc, 0))
 		goto fail;
 
 	return;

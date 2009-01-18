@@ -625,22 +625,23 @@ static int process_ver_ack(struct ldc_channel *lp, struct ldc_version *vp)
 static int process_ver_nack(struct ldc_channel *lp, struct ldc_version *vp)
 {
 	struct ldc_version *vap;
+	struct ldc_packet *p;
+	unsigned long new_tail;
 
-	if ((vp->major == 0 && vp->minor == 0) ||
-	    !(vap = find_by_major(vp->major))) {
+	if (vp->major == 0 && vp->minor == 0)
 		return ldc_abort(lp);
-	} else {
-		struct ldc_packet *p;
-		unsigned long new_tail;
 
-		p = handshake_compose_ctrl(lp, LDC_INFO, LDC_VERS,
+	vap = find_by_major(vp->major);
+	if (!vap)
+		return ldc_abort(lp);
+
+	p = handshake_compose_ctrl(lp, LDC_INFO, LDC_VERS,
 					   vap, sizeof(*vap),
 					   &new_tail);
-		if (p)
-			return send_tx_packet(lp, p, new_tail);
-		else
-			return ldc_abort(lp);
-	}
+	if (!p)
+		return ldc_abort(lp);
+
+	return send_tx_packet(lp, p, new_tail);
 }
 
 static int process_version(struct ldc_channel *lp,

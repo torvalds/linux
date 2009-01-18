@@ -180,9 +180,14 @@ static struct completion irq_event;
 static int twl4030_irq_thread(void *data)
 {
 	long irq = (long)data;
-	irq_desc_t *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 	static unsigned i2c_errors;
 	const static unsigned max_i2c_errors = 100;
+
+	if (!desc) {
+		pr_err("twl4030: Invalid IRQ: %ld\n", irq);
+		return -EINVAL;
+	}
 
 	current->flags |= PF_NOFREEZE;
 
@@ -215,7 +220,13 @@ static int twl4030_irq_thread(void *data)
 				pih_isr;
 				pih_isr >>= 1, module_irq++) {
 			if (pih_isr & 0x1) {
-				irq_desc_t *d = irq_desc + module_irq;
+				struct irq_desc *d = irq_to_desc(module_irq);
+
+				if (!d) {
+					pr_err("twl4030: Invalid SIH IRQ: %d\n",
+					       module_irq);
+					return -EINVAL;
+				}
 
 				/* These can't be masked ... always warn
 				 * if we get any surprises.
@@ -452,9 +463,15 @@ static void twl4030_sih_do_edge(struct work_struct *work)
 	/* Modify only the bits we know must change */
 	while (edge_change) {
 		int		i = fls(edge_change) - 1;
-		struct irq_desc	*d = irq_desc + i + agent->irq_base;
+		struct irq_desc	*d = irq_to_desc(i + agent->irq_base);
 		int		byte = 1 + (i >> 2);
 		int		off = (i & 0x3) * 2;
+
+		if (!d) {
+			pr_err("twl4030: Invalid IRQ: %d\n",
+			       i + agent->irq_base);
+			return;
+		}
 
 		bytes[byte] &= ~(0x03 << off);
 
@@ -512,8 +529,13 @@ static void twl4030_sih_unmask(unsigned irq)
 static int twl4030_sih_set_type(unsigned irq, unsigned trigger)
 {
 	struct sih_agent *sih = get_irq_chip_data(irq);
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned long flags;
+
+	if (!desc) {
+		pr_err("twl4030: Invalid IRQ: %d\n", irq);
+		return -EINVAL;
+	}
 
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
 		return -EINVAL;

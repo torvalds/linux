@@ -49,14 +49,10 @@
 
 int sparc64_multi_core __read_mostly;
 
-cpumask_t cpu_possible_map __read_mostly = CPU_MASK_NONE;
-cpumask_t cpu_online_map __read_mostly = CPU_MASK_NONE;
 DEFINE_PER_CPU(cpumask_t, cpu_sibling_map) = CPU_MASK_NONE;
 cpumask_t cpu_core_map[NR_CPUS] __read_mostly =
 	{ [0 ... NR_CPUS-1] = CPU_MASK_NONE };
 
-EXPORT_SYMBOL(cpu_possible_map);
-EXPORT_SYMBOL(cpu_online_map);
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 EXPORT_SYMBOL(cpu_core_map);
 
@@ -453,7 +449,7 @@ again:
 	__asm__ __volatile__("wrpr %0, 0x0, %%pstate"
 			     : : "r" (pstate));
 	if (stuck == 0) {
-		printk("CPU[%d]: mondo stuckage result[%016lx]\n",
+		printk("CPU[%d]: mondo stuckage result[%016llx]\n",
 		       smp_processor_id(), result);
 	} else {
 		udelay(2);
@@ -588,7 +584,7 @@ retry:
 			/* Busy bits will not clear, continue instead
 			 * of freezing up on this cpu.
 			 */
-			printk("CPU[%d]: mondo stuckage result[%016lx]\n",
+			printk("CPU[%d]: mondo stuckage result[%016llx]\n",
 			       smp_processor_id(), dispatch_stat);
 		} else {
 			int i, this_busy_nack = 0;

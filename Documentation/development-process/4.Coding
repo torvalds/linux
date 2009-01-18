@@ -375,10 +375,10 @@ say, this can be a large job, so it is best to be sure that the
 justification is solid.
 
 When making an incompatible API change, one should, whenever possible,
-ensure that code which has not been updated is caught by the compiler.  
+ensure that code which has not been updated is caught by the compiler.
 This will help you to be sure that you have found all in-tree uses of that
 interface.  It will also alert developers of out-of-tree code that there is
 a change that they need to respond to.  Supporting out-of-tree code is not
 something that kernel developers need to be worried about, but we also do
-not have to make life harder for out-of-tree developers than it it needs to
-be. 
+not have to make life harder for out-of-tree developers than it needs to
+be.

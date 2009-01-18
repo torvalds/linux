@@ -321,10 +321,6 @@ int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 {
 	int ret;
 
-	ret = request_irq(IRQ_AC97, pxa2xx_ac97_irq, 0, "AC97", NULL);
-	if (ret < 0)
-		goto err;
-
 	if (cpu_is_pxa25x() || cpu_is_pxa27x()) {
 		pxa_gpio_mode(GPIO31_SYNC_AC97_MD);
 		pxa_gpio_mode(GPIO30_SDATA_OUT_AC97_MD);
@@ -339,7 +335,7 @@ int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 		if (IS_ERR(ac97conf_clk)) {
 			ret = PTR_ERR(ac97conf_clk);
 			ac97conf_clk = NULL;
-			goto err_irq;
+			goto err_conf;
 		}
 	}
 
@@ -347,19 +343,30 @@ int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 	if (IS_ERR(ac97_clk)) {
 		ret = PTR_ERR(ac97_clk);
 		ac97_clk = NULL;
-		goto err_irq;
+		goto err_clk;
 	}
 
-	return clk_enable(ac97_clk);
+	ret = clk_enable(ac97_clk);
+	if (ret)
+		goto err_clk2;
+
+	ret = request_irq(IRQ_AC97, pxa2xx_ac97_irq, IRQF_DISABLED, "AC97", NULL);
+	if (ret < 0)
+		goto err_irq;
+
+	return 0;
 
 err_irq:
 	GCR |= GCR_ACLINK_OFF;
+err_clk2:
+	clk_put(ac97_clk);
+	ac97_clk = NULL;
+err_clk:
 	if (ac97conf_clk) {
 		clk_put(ac97conf_clk);
 		ac97conf_clk = NULL;
 	}
-	free_irq(IRQ_AC97, NULL);
-err:
+err_conf:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_probe);

@@ -4019,7 +4019,7 @@ out:
 
 /* File operations */
 
-static int vino_open(struct inode *inode, struct file *file)
+static int vino_open(struct file *file)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
 	int ret = 0;
@@ -4050,7 +4050,7 @@ static int vino_open(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static int vino_close(struct inode *inode, struct file *file)
+static int vino_close(struct file *file)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
 	dprintk("close():\n");
@@ -4237,7 +4237,7 @@ error:
 	return ret;
 }
 
-static int vino_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long vino_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
 
@@ -4343,11 +4343,11 @@ static int vino_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int vino_ioctl(struct inode *inode, struct file *file,
+static long vino_ioctl(struct file *file,
 		      unsigned int cmd, unsigned long arg)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
-	int ret;
+	long ret;
 
 	if (mutex_lock_interruptible(&vcs->mutex))
 		return -EINTR;
@@ -4364,14 +4364,13 @@ static int vino_ioctl(struct inode *inode, struct file *file,
 /* __initdata */
 static int vino_init_stage;
 
-static const struct file_operations vino_fops = {
+static const struct v4l2_file_operations vino_fops = {
 	.owner		= THIS_MODULE,
 	.open		= vino_open,
 	.release	= vino_close,
 	.ioctl		= vino_ioctl,
 	.mmap		= vino_mmap,
 	.poll		= vino_poll,
-	.llseek		= no_llseek,
 };
 
 static struct video_device v4l_device_template = {

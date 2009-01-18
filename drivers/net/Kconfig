@@ -830,7 +830,7 @@ config ULTRA32
 
 config BFIN_MAC
 	tristate "Blackfin on-chip MAC support"
-	depends on NET_ETHERNET && (BF526 || BF527 || BF536 || BF537)
+	depends on NET_ETHERNET && (BF516 || BF518 || BF526 || BF527 || BF536 || BF537)
 	select CRC32
 	select MII
 	select PHYLIB
@@ -1600,7 +1600,7 @@ config 8139_OLD_RX_RESET
 	  old RX-reset behavior.  If unsure, say N.
 
 config R6040
-	tristate "RDC R6040 Fast Ethernet Adapter support (EXPERIMENTAL)"
+	tristate "RDC R6040 Fast Ethernet Adapter support"
 	depends on NET_PCI && PCI
 	select CRC32
 	select MII
@@ -2613,6 +2613,8 @@ endif # NETDEV_10000
 source "drivers/net/tokenring/Kconfig"
 
 source "drivers/net/wireless/Kconfig"
+
+source "drivers/net/wimax/Kconfig"
 
 source "drivers/net/usb/Kconfig"
 

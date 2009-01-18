@@ -1049,16 +1049,16 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 
 /* FIXME: cx88_ioctl_hook not implemented */
 
-static int mpeg_open(struct inode *inode, struct file *file)
+static int mpeg_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct cx8802_dev *dev = NULL;
 	struct cx8802_fh *fh;
 	struct cx8802_driver *drv = NULL;
 	int err;
 
 	lock_kernel();
-	dev = cx8802_get_device(inode);
+	dev = cx8802_get_device(minor);
 
 	dprintk( 1, "%s\n", __func__);
 
@@ -1114,7 +1114,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int mpeg_release(struct inode *inode, struct file *file)
+static int mpeg_release(struct file *file)
 {
 	struct cx8802_fh  *fh  = file->private_data;
 	struct cx8802_dev *dev = fh->dev;
@@ -1132,7 +1132,7 @@ static int mpeg_release(struct inode *inode, struct file *file)
 	kfree(fh);
 
 	/* Make sure we release the hardware */
-	dev = cx8802_get_device(inode);
+	dev = cx8802_get_device(video_devdata(file)->minor);
 	if (dev == NULL)
 		return -ENODEV;
 
@@ -1178,7 +1178,7 @@ mpeg_mmap(struct file *file, struct vm_area_struct * vma)
 	return videobuf_mmap_mapper(&fh->mpegq, vma);
 }
 
-static const struct file_operations mpeg_fops =
+static const struct v4l2_file_operations mpeg_fops =
 {
 	.owner	       = THIS_MODULE,
 	.open	       = mpeg_open,
@@ -1187,7 +1187,6 @@ static const struct file_operations mpeg_fops =
 	.poll          = mpeg_poll,
 	.mmap	       = mpeg_mmap,
 	.ioctl	       = video_ioctl2,
-	.llseek        = no_llseek,
 };
 
 static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {

@@ -457,7 +457,7 @@ config SERIAL_SAMSUNG
 
 config SERIAL_SAMSUNG_UARTS
 	int
-	depends on SERIAL_SAMSUNG
+	depends on ARM && PLAT_S3C
 	default 2 if ARCH_S3C2400
 	default 4 if ARCH_S3C64XX || CPU_S3C2443
 	default 3
@@ -1320,12 +1320,29 @@ config SERIAL_NETX_CONSOLE
 config SERIAL_OF_PLATFORM
 	tristate "Serial port on Open Firmware platform bus"
 	depends on PPC_OF
-	depends on SERIAL_8250
+	depends on SERIAL_8250 || SERIAL_OF_PLATFORM_NWPSERIAL
 	help
 	  If you have a PowerPC based system that has serial ports
 	  on a platform specific bus, you should enable this option.
 	  Currently, only 8250 compatible ports are supported, but
 	  others can easily be added.
+
+config SERIAL_OF_PLATFORM_NWPSERIAL
+	tristate "NWP serial port driver"
+	depends on PPC_OF && PPC_DCR
+	select SERIAL_OF_PLATFORM
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_CORE
+	help
+	  This driver supports the cell network processor nwp serial
+	  device.
+
+config SERIAL_OF_PLATFORM_NWPSERIAL_CONSOLE
+	bool "Console on NWP serial port"
+	depends on SERIAL_OF_PLATFORM_NWPSERIAL=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Support for Console on the NWP serial ports.
 
 config SERIAL_QE
 	tristate "Freescale QUICC Engine serial port support"

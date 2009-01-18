@@ -212,11 +212,11 @@ static int uv_wait_completion(struct bau_desc *bau_desc,
  * The cpumaskp mask contains the cpus the broadcast was sent to.
  *
  * Returns 1 if all remote flushing was done. The mask is zeroed.
- * Returns 0 if some remote flushing remains to be done. The mask is left
- * unchanged.
+ * Returns 0 if some remote flushing remains to be done. The mask will have
+ * some bits still set.
  */
 int uv_flush_send_and_wait(int cpu, int this_blade, struct bau_desc *bau_desc,
-			   cpumask_t *cpumaskp)
+			   struct cpumask *cpumaskp)
 {
 	int completion_status = 0;
 	int right_shift;
@@ -263,13 +263,13 @@ int uv_flush_send_and_wait(int cpu, int this_blade, struct bau_desc *bau_desc,
 	 * Success, so clear the remote cpu's from the mask so we don't
 	 * use the IPI method of shootdown on them.
 	 */
-	for_each_cpu_mask(bit, *cpumaskp) {
+	for_each_cpu(bit, cpumaskp) {
 		blade = uv_cpu_to_blade_id(bit);
 		if (blade == this_blade)
 			continue;
-		cpu_clear(bit, *cpumaskp);
+		cpumask_clear_cpu(bit, cpumaskp);
 	}
-	if (!cpus_empty(*cpumaskp))
+	if (!cpumask_empty(cpumaskp))
 		return 0;
 	return 1;
 }
@@ -296,7 +296,7 @@ int uv_flush_send_and_wait(int cpu, int this_blade, struct bau_desc *bau_desc,
  * Returns 1 if all remote flushing was done.
  * Returns 0 if some remote flushing remains to be done.
  */
-int uv_flush_tlb_others(cpumask_t *cpumaskp, struct mm_struct *mm,
+int uv_flush_tlb_others(struct cpumask *cpumaskp, struct mm_struct *mm,
 			unsigned long va)
 {
 	int i;
@@ -315,7 +315,7 @@ int uv_flush_tlb_others(cpumask_t *cpumaskp, struct mm_struct *mm,
 	bau_nodes_clear(&bau_desc->distribution, UV_DISTRIBUTION_SIZE);
 
 	i = 0;
-	for_each_cpu_mask(bit, *cpumaskp) {
+	for_each_cpu(bit, cpumaskp) {
 		blade = uv_cpu_to_blade_id(bit);
 		BUG_ON(blade > (UV_DISTRIBUTION_SIZE - 1));
 		if (blade == this_blade) {
@@ -582,7 +582,6 @@ static int __init uv_ptc_init(void)
 static struct bau_control * __init uv_table_bases_init(int blade, int node)
 {
 	int i;
-	int *ip;
 	struct bau_msg_status *msp;
 	struct bau_control *bau_tabp;
 
@@ -598,13 +597,6 @@ static struct bau_control * __init uv_table_bases_init(int blade, int node)
 	for (i = 0, msp = bau_tabp->msg_statuses; i < DEST_Q_SIZE; i++, msp++)
 		bau_cpubits_clear(&msp->seen_by, (int)
 				  uv_blade_nr_possible_cpus(blade));
-
-	bau_tabp->watching =
-	    kmalloc_node(sizeof(int) * DEST_NUM_RESOURCES, GFP_KERNEL, node);
-	BUG_ON(!bau_tabp->watching);
-
-	for (i = 0, ip = bau_tabp->watching; i < DEST_Q_SIZE; i++, ip++)
-		*ip = 0;
 
 	uv_bau_table_bases[blade] = bau_tabp;
 
@@ -628,7 +620,6 @@ uv_table_bases_finish(int blade, int node, int cur_cpu,
 		bcp->bau_msg_head	= bau_tablesp->va_queue_first;
 		bcp->va_queue_first	= bau_tablesp->va_queue_first;
 		bcp->va_queue_last	= bau_tablesp->va_queue_last;
-		bcp->watching		= bau_tablesp->watching;
 		bcp->msg_statuses	= bau_tablesp->msg_statuses;
 		bcp->descriptor_base	= adp;
 	}

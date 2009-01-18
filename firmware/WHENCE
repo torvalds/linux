@@ -191,7 +191,7 @@ Original licence information: None
 
 --------------------------------------------------------------------------
 
-Driver: tu_usb_3410_5052 -- USB TI 3410/5052 serial device
+Driver: ti_usb_3410_5052 -- USB TI 3410/5052 serial device
 
 File: ti_3410.fw
 Info: firmware 9/10/04 FW3410_Special_StartWdogOnStartPort
@@ -203,6 +203,20 @@ Licence: Allegedly GPLv2+, but no source visible. Marked:
 	 Copyright (C) 2004 Texas Instruments
 
 Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ti_usb_3410_5052 -- Multi-Tech USB cell modems
+
+File: mts_cdma.fw
+File: mts_gsm.fw
+File: mts_edge.fw
+
+Licence: "all firmware components are redistributable in binary form"
+         per support@multitech.com
+	 Copyright (C) 2005 Multi-Tech Systems, Inc.
+
+Found in hex form in ftp://ftp.multitech.com/wireless/wireless_linux.zip
 
 --------------------------------------------------------------------------
 
@@ -360,3 +374,64 @@ License: GPLv2 or OpenIB.org BSD license, no source visible
 
 --------------------------------------------------------------------------
 
+Driver: e100 -- Intel PRO/100 Ethernet NIC
+
+File: e100/d101m_ucode.bin
+File: e100/d101s_ucode.bin
+File: e100/d102e_ucode.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: acenic -- Alteon AceNIC Gigabit Ethernet card
+
+File: acenic/tg1.bin
+File: acenic/tg2.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source, but source allegedly available at
+http://alteon.shareable.org/
+
+--------------------------------------------------------------------------
+
+Driver: tigon3 -- Broadcom Tigon3 based gigabit Ethernet cards
+
+File: tigon/tg3.bin
+File: tigon/tg3_tso.bin
+File: tigon/tg3_tso5.bin
+
+Licence:
+ * Firmware is:
+ *	Derived from proprietary unpublished source code,
+ *	Copyright (C) 2000-2003 Broadcom Corporation.
+ *
+ *	Permission is hereby granted for the distribution of this firmware
+ *	data in hexadecimal or equivalent format, provided this copyright
+ *	notice is accompanying it.
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ADAPTEC_STARFIRE - Adaptec Starfire/DuraLAN support
+
+File: adaptec/starfire_rx.bin
+File: adaptec/starfire_tx.bin
+
+Licence: Allegedly GPLv2, but no source visible.
+
+Found in hex form in kernel source, with the following notice:
+
+ BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE IT IS LICENSED "AS IS" AND
+ THERE IS NO WARRANTY FOR THE PROGRAM, INCLUDING BUT NOT LIMITED TO THE
+ IMPLIED WARRANTIES OF MERCHANTIBILITY OR FITNESS FOR A PARTICULAR PURPOSE
+ (TO THE EXTENT PERMITTED BY APPLICABLE LAW). USE OF THE PROGRAM IS AT YOUR
+ OWN RISK. IN NO EVENT WILL ADAPTEC OR ITS LICENSORS BE LIABLE TO YOU FOR
+ DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES
+ ARISING OUT OF THE USE OR INABILITY TO USE THE PROGRAM.
+
+--------------------------------------------------------------------------

@@ -62,10 +62,11 @@ typedef enum fe_caps {
 	FE_CAN_HIERARCHY_AUTO		= 0x100000,
 	FE_CAN_8VSB			= 0x200000,
 	FE_CAN_16VSB			= 0x400000,
-	FE_HAS_EXTENDED_CAPS		= 0x800000,   // We need more bitspace for newer APIs, indicate this.
-	FE_NEEDS_BENDING		= 0x20000000, // not supported anymore, don't use (frontend requires frequency bending)
-	FE_CAN_RECOVER			= 0x40000000, // frontend can recover from a cable unplug automatically
-	FE_CAN_MUTE_TS			= 0x80000000  // frontend can stop spurious TS data output
+	FE_HAS_EXTENDED_CAPS		= 0x800000,   /* We need more bitspace for newer APIs, indicate this. */
+	FE_CAN_2G_MODULATION		= 0x10000000, /* frontend supports "2nd generation modulation" (DVB-S2) */
+	FE_NEEDS_BENDING		= 0x20000000, /* not supported anymore, don't use (frontend requires frequency bending) */
+	FE_CAN_RECOVER			= 0x40000000, /* frontend can recover from a cable unplug automatically */
+	FE_CAN_MUTE_TS			= 0x80000000  /* frontend can stop spurious TS data output */
 } fe_caps_t;
 
 
@@ -121,15 +122,15 @@ typedef enum fe_sec_mini_cmd {
 
 
 typedef enum fe_status {
-	FE_HAS_SIGNAL	= 0x01,   /*  found something above the noise level */
-	FE_HAS_CARRIER	= 0x02,   /*  found a DVB signal  */
-	FE_HAS_VITERBI	= 0x04,   /*  FEC is stable  */
-	FE_HAS_SYNC	= 0x08,   /*  found sync bytes  */
-	FE_HAS_LOCK	= 0x10,   /*  everything's working... */
-	FE_TIMEDOUT	= 0x20,   /*  no lock within the last ~2 seconds */
-	FE_REINIT	= 0x40    /*  frontend was reinitialized,  */
-} fe_status_t;			  /*  application is recommended to reset */
-				  /*  DiSEqC, tone and parameters */
+	FE_HAS_SIGNAL	= 0x01,   /* found something above the noise level */
+	FE_HAS_CARRIER	= 0x02,   /* found a DVB signal  */
+	FE_HAS_VITERBI	= 0x04,   /* FEC is stable  */
+	FE_HAS_SYNC	= 0x08,   /* found sync bytes  */
+	FE_HAS_LOCK	= 0x10,   /* everything's working... */
+	FE_TIMEDOUT	= 0x20,   /* no lock within the last ~2 seconds */
+	FE_REINIT	= 0x40    /* frontend was reinitialized,  */
+} fe_status_t;			  /* application is recommended to reset */
+				  /* DiSEqC, tone and parameters */
 
 typedef enum fe_spectral_inversion {
 	INVERSION_OFF,

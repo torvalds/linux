@@ -32,6 +32,7 @@ enum {
 	DA9030_ID_LDO18,
 	DA9030_ID_LDO19,
 	DA9030_ID_LDO_INT,	/* LDO Internal */
+	DA9030_ID_BAT,		/* battery charger */
 
 	DA9034_ID_LED_1,
 	DA9034_ID_LED_2,
@@ -91,6 +92,43 @@ struct da9034_touch_pdata {
 	int	interval_ms;	/* sampling interval while pen down */
 	int	x_inverted;
 	int	y_inverted;
+};
+
+/* DA9030 battery charger data */
+struct power_supply_info;
+
+struct da9030_battery_info {
+	/* battery parameters */
+	struct power_supply_info *battery_info;
+
+	/* current and voltage to use for battery charging */
+	unsigned int charge_milliamp;
+	unsigned int charge_millivolt;
+
+	/* voltage thresholds (in millivolts) */
+	int vbat_low;
+	int vbat_crit;
+	int vbat_charge_start;
+	int vbat_charge_stop;
+	int vbat_charge_restart;
+
+	/* battery nominal minimal and maximal voltages in millivolts */
+	int vcharge_min;
+	int vcharge_max;
+
+	/* Temperature thresholds. These are DA9030 register values
+	   "as is" and should be measured for each battery type */
+	int tbat_low;
+	int tbat_high;
+	int tbat_restart;
+
+
+	/* battery monitor interval (seconds) */
+	unsigned int batmon_interval;
+
+	/* platform callbacks for battery low and critical events */
+	void (*battery_low)(void);
+	void (*battery_critical)(void);
 };
 
 struct da903x_subdev_info {
@@ -190,11 +228,13 @@ extern int da903x_unregister_notifier(struct device *dev,
 extern int da903x_query_status(struct device *dev, unsigned int status);
 
 
-/* NOTE: the two functions below are not intended for use outside
- * of the DA9034 sub-device drivers
+/* NOTE: the functions below are not intended for use outside
+ * of the DA903x sub-device drivers
  */
 extern int da903x_write(struct device *dev, int reg, uint8_t val);
+extern int da903x_writes(struct device *dev, int reg, int len, uint8_t *val);
 extern int da903x_read(struct device *dev, int reg, uint8_t *val);
+extern int da903x_reads(struct device *dev, int reg, int len, uint8_t *val);
 extern int da903x_update(struct device *dev, int reg, uint8_t val, uint8_t mask);
 extern int da903x_set_bits(struct device *dev, int reg, uint8_t bit_mask);
 extern int da903x_clr_bits(struct device *dev, int reg, uint8_t bit_mask);

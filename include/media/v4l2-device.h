@@ -80,7 +80,7 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd);
 #define __v4l2_device_call_subdevs_until_err(dev, cond, o, f, args...)  \
 ({ 									\
 	struct v4l2_subdev *sd; 					\
-	int err = 0; 							\
+	long err = 0; 							\
 									\
 	list_for_each_entry(sd, &(dev)->subdevs, list) { 		\
 		if ((cond) && sd->ops->o && sd->ops->o->f) 		\

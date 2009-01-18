@@ -238,7 +238,7 @@ static void i_usX2Y_In04Int(struct urb *urb)
 					send = 0;
 				for (j = 0; j < URBS_AsyncSeq  &&  !err; ++j)
 					if (0 == usX2Y->AS04.urb[j]->status) {
-						struct us428_p4out *p4out = us428ctls->p4out + send;	// FIXME if more then 1 p4out is new, 1 gets lost.
+						struct us428_p4out *p4out = us428ctls->p4out + send;	// FIXME if more than 1 p4out is new, 1 gets lost.
 						usb_fill_bulk_urb(usX2Y->AS04.urb[j], usX2Y->chip.dev,
 								  usb_sndbulkpipe(usX2Y->chip.dev, 0x04), &p4out->val.vol, 
 								  p4out->type == eLT_Light ? sizeof(struct us428_lights) : 5,
@@ -392,7 +392,7 @@ static int snd_usX2Y_probe(struct usb_interface *intf, const struct usb_device_i
 	void *chip;
 	chip = usX2Y_usb_probe(interface_to_usbdev(intf), intf, id);
 	if (chip) {
-		dev_set_drvdata(&intf->dev, chip);
+		usb_set_intfdata(intf, chip);
 		return 0;
 	} else
 		return -EIO;
@@ -401,7 +401,7 @@ static int snd_usX2Y_probe(struct usb_interface *intf, const struct usb_device_i
 static void snd_usX2Y_disconnect(struct usb_interface *intf)
 {
 	usX2Y_usb_disconnect(interface_to_usbdev(intf),
-				 dev_get_drvdata(&intf->dev));
+				 usb_get_intfdata(intf));
 }
 
 MODULE_DEVICE_TABLE(usb, snd_usX2Y_usb_id_table);

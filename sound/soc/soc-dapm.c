@@ -53,13 +53,15 @@
 /* dapm power sequences - make this per codec in the future */
 static int dapm_up_seq[] = {
 	snd_soc_dapm_pre, snd_soc_dapm_micbias, snd_soc_dapm_mic,
-	snd_soc_dapm_mux, snd_soc_dapm_dac, snd_soc_dapm_mixer, snd_soc_dapm_pga,
-	snd_soc_dapm_adc, snd_soc_dapm_hp, snd_soc_dapm_spk, snd_soc_dapm_post
+	snd_soc_dapm_mux, snd_soc_dapm_value_mux, snd_soc_dapm_dac,
+	snd_soc_dapm_mixer, snd_soc_dapm_pga, snd_soc_dapm_adc, snd_soc_dapm_hp,
+	snd_soc_dapm_spk, snd_soc_dapm_post
 };
 static int dapm_down_seq[] = {
 	snd_soc_dapm_pre, snd_soc_dapm_adc, snd_soc_dapm_hp, snd_soc_dapm_spk,
 	snd_soc_dapm_pga, snd_soc_dapm_mixer, snd_soc_dapm_dac, snd_soc_dapm_mic,
-	snd_soc_dapm_micbias, snd_soc_dapm_mux, snd_soc_dapm_post
+	snd_soc_dapm_micbias, snd_soc_dapm_mux, snd_soc_dapm_value_mux,
+	snd_soc_dapm_post
 };
 
 static int dapm_status = 1;
@@ -126,6 +128,25 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 		;
 		val = snd_soc_read(w->codec, e->reg);
 		item = (val >> e->shift_l) & (bitmask - 1);
+
+		p->connect = 0;
+		for (i = 0; i < e->max; i++) {
+			if (!(strcmp(p->name, e->texts[i])) && item == i)
+				p->connect = 1;
+		}
+	}
+	break;
+	case snd_soc_dapm_value_mux: {
+		struct soc_enum *e = (struct soc_enum *)
+			w->kcontrols[i].private_value;
+		int val, item;
+
+		val = snd_soc_read(w->codec, e->reg);
+		val = (val >> e->shift_l) & e->mask;
+		for (item = 0; item < e->max; item++) {
+			if (val == e->values[item])
+				break;
+		}
 
 		p->connect = 0;
 		for (i = 0; i < e->max; i++) {
@@ -653,6 +674,7 @@ static void dbg_dump_dapm(struct snd_soc_codec* codec, const char *action)
 		case snd_soc_dapm_vmid:
 			continue;
 		case snd_soc_dapm_mux:
+		case snd_soc_dapm_value_mux:
 		case snd_soc_dapm_output:
 		case snd_soc_dapm_input:
 		case snd_soc_dapm_switch:
@@ -960,6 +982,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
 		path->connect = 1;
 		return 0;
 	case snd_soc_dapm_mux:
+	case snd_soc_dapm_value_mux:
 		ret = dapm_connect_mux(codec, wsource, wsink, path, control,
 			&wsink->kcontrols[0]);
 		if (ret != 0)
@@ -1047,6 +1070,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec)
 			dapm_new_mixer(codec, w);
 			break;
 		case snd_soc_dapm_mux:
+		case snd_soc_dapm_value_mux:
 			dapm_new_mux(codec, w);
 			break;
 		case snd_soc_dapm_adc:
@@ -1077,7 +1101,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_new_widgets);
 /**
  * snd_soc_dapm_get_volsw - dapm mixer get callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to get the value of a dapm mixer control.
  *
@@ -1122,7 +1146,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_get_volsw);
 /**
  * snd_soc_dapm_put_volsw - dapm mixer set callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to set the value of a dapm mixer control.
  *
@@ -1193,7 +1217,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_put_volsw);
 /**
  * snd_soc_dapm_get_enum_double - dapm enumerated double mixer get callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to get the value of a dapm enumerated double mixer control.
  *
@@ -1221,7 +1245,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_get_enum_double);
 /**
  * snd_soc_dapm_put_enum_double - dapm enumerated double mixer set callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to set the value of a dapm enumerated double mixer control.
  *
@@ -1272,6 +1296,103 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_enum_double);
+
+/**
+ * snd_soc_dapm_get_value_enum_double - dapm semi enumerated double mixer get
+ *					callback
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Callback to get the value of a dapm semi enumerated double mixer control.
+ *
+ * Semi enumerated mixer: the enumerated items are referred as values. Can be
+ * used for handling bitfield coded enumeration for example.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_dapm_get_value_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned short reg_val, val, mux;
+
+	reg_val = snd_soc_read(widget->codec, e->reg);
+	val = (reg_val >> e->shift_l) & e->mask;
+	for (mux = 0; mux < e->max; mux++) {
+		if (val == e->values[mux])
+			break;
+	}
+	ucontrol->value.enumerated.item[0] = mux;
+	if (e->shift_l != e->shift_r) {
+		val = (reg_val >> e->shift_r) & e->mask;
+		for (mux = 0; mux < e->max; mux++) {
+			if (val == e->values[mux])
+				break;
+		}
+		ucontrol->value.enumerated.item[1] = mux;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_get_value_enum_double);
+
+/**
+ * snd_soc_dapm_put_value_enum_double - dapm semi enumerated double mixer set
+ *					callback
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Callback to set the value of a dapm semi enumerated double mixer control.
+ *
+ * Semi enumerated mixer: the enumerated items are referred as values. Can be
+ * used for handling bitfield coded enumeration for example.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned short val, mux;
+	unsigned short mask;
+	int ret = 0;
+
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
+		return -EINVAL;
+	mux = ucontrol->value.enumerated.item[0];
+	val = e->values[ucontrol->value.enumerated.item[0]] << e->shift_l;
+	mask = e->mask << e->shift_l;
+	if (e->shift_l != e->shift_r) {
+		if (ucontrol->value.enumerated.item[1] > e->max - 1)
+			return -EINVAL;
+		val |= e->values[ucontrol->value.enumerated.item[1]] << e->shift_r;
+		mask |= e->mask << e->shift_r;
+	}
+
+	mutex_lock(&widget->codec->mutex);
+	widget->value = val;
+	dapm_mux_update_power(widget, kcontrol, mask, mux, val, e);
+	if (widget->event) {
+		if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
+			ret = widget->event(widget,
+				kcontrol, SND_SOC_DAPM_PRE_REG);
+			if (ret < 0)
+				goto out;
+		}
+		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+		if (widget->event_flags & SND_SOC_DAPM_POST_REG)
+			ret = widget->event(widget,
+				kcontrol, SND_SOC_DAPM_POST_REG);
+	} else
+		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
+
+out:
+	mutex_unlock(&widget->codec->mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_put_value_enum_double);
 
 /**
  * snd_soc_dapm_new_control - create new dapm control
@@ -1419,7 +1540,7 @@ int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
 
 /**
  * snd_soc_dapm_enable_pin - enable pin.
- * @snd_soc_codec: SoC codec
+ * @codec: SoC codec
  * @pin: pin name
  *
  * Enables input/output pin and it's parents or children widgets iff there is

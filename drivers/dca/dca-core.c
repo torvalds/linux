@@ -270,6 +270,6 @@ static void __exit dca_exit(void)
 	dca_sysfs_exit();
 }
 
-subsys_initcall(dca_init);
+arch_initcall(dca_init);
 module_exit(dca_exit);
 

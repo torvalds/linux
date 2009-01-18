@@ -140,6 +140,7 @@ struct dlm_ctxt
 	unsigned int purge_count;
 	spinlock_t spinlock;
 	spinlock_t ast_lock;
+	spinlock_t track_lock;
 	char *name;
 	u8 node_num;
 	u32 key;
@@ -315,6 +316,8 @@ struct dlm_lock_resource
 	/* unused lock resources have their last_used stamped and are
 	 * put on a list for the dlm thread to run. */
 	unsigned long    last_used;
+
+	struct dlm_ctxt *dlm;
 
 	unsigned migration_pending:1;
 	atomic_t asts_reserved;

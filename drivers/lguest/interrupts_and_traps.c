@@ -222,11 +222,16 @@ bool check_syscall_vector(struct lguest *lg)
 int init_interrupts(void)
 {
 	/* If they want some strange system call vector, reserve it now */
-	if (syscall_vector != SYSCALL_VECTOR
-	    && test_and_set_bit(syscall_vector, used_vectors)) {
-		printk("lg: couldn't reserve syscall %u\n", syscall_vector);
-		return -EBUSY;
+	if (syscall_vector != SYSCALL_VECTOR) {
+		if (test_bit(syscall_vector, used_vectors) ||
+		    vector_used_by_percpu_irq(syscall_vector)) {
+			printk(KERN_ERR "lg: couldn't reserve syscall %u\n",
+				 syscall_vector);
+			return -EBUSY;
+		}
+		set_bit(syscall_vector, used_vectors);
 	}
+
 	return 0;
 }
 

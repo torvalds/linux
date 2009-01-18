@@ -27,7 +27,8 @@
  */
 static inline uint64_t *kvm_host_get_pmt(struct kvm *kvm)
 {
-	return (uint64_t *)(kvm->arch.vm_base + KVM_P2M_OFS);
+	return (uint64_t *)(kvm->arch.vm_base +
+				offsetof(struct kvm_vm_data, kvm_p2m));
 }
 
 static inline void kvm_set_pmt_entry(struct kvm *kvm, gfn_t gfn,

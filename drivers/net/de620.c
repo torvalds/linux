@@ -784,6 +784,17 @@ static int adapter_init(struct net_device *dev)
 	return 0; /* all ok */
 }
 
+static const struct net_device_ops de620_netdev_ops = {
+	.ndo_open 		= de620_open,
+	.ndo_stop 		= de620_close,
+	.ndo_start_xmit 	= de620_start_xmit,
+	.ndo_tx_timeout 	= de620_timeout,
+	.ndo_set_multicast_list = de620_set_multicast_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /******************************************************************************
  *
  * Only start-up code below
@@ -861,12 +872,8 @@ struct net_device * __init de620_probe(int unit)
 	else
 		printk(" UTP)\n");
 
-	dev->open 		= de620_open;
-	dev->stop 		= de620_close;
-	dev->hard_start_xmit 	= de620_start_xmit;
-	dev->tx_timeout 	= de620_timeout;
+	dev->netdev_ops = &de620_netdev_ops;
 	dev->watchdog_timeo	= HZ*2;
-	dev->set_multicast_list = de620_set_multicast_list;
 
 	/* base_addr and irq are already set, see above! */
 

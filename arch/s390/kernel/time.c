@@ -160,7 +160,7 @@ void init_cpu_timer(void)
 	cd->min_delta_ns	= 1;
 	cd->max_delta_ns	= LONG_MAX;
 	cd->rating		= 400;
-	cd->cpumask		= cpumask_of_cpu(cpu);
+	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= s390_next_event;
 	cd->set_mode		= s390_set_mode;
 

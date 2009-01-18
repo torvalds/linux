@@ -54,7 +54,6 @@ void stub_enqueue_ret_unlink(struct stub_device *sdev, __u32 seqnum,
 /**
  * stub_complete - completion handler of a usbip urb
  * @urb: pointer to the urb completed
- * @regs:
  *
  * When a urb has completed, the USB core driver calls this function mostly in
  * the interrupt context. To return the result of a urb, the completed urb is

@@ -589,7 +589,7 @@ static int snd_us122l_suspend(struct usb_interface *intf, pm_message_t message)
 	struct us122l *us122l;
 	struct list_head *p;
 
-	card = dev_get_drvdata(&intf->dev);
+	card = usb_get_intfdata(intf);
 	if (!card)
 		return 0;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
@@ -615,7 +615,7 @@ static int snd_us122l_resume(struct usb_interface *intf)
 	struct list_head *p;
 	int err;
 
-	card = dev_get_drvdata(&intf->dev);
+	card = usb_get_intfdata(intf);
 	if (!card)
 		return 0;
 

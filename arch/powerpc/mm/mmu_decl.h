@@ -30,11 +30,11 @@
 #if defined(CONFIG_40x) || defined(CONFIG_8xx)
 static inline void _tlbil_all(void)
 {
-	asm volatile ("sync; tlbia; isync" : : : "memory")
+	asm volatile ("sync; tlbia; isync" : : : "memory");
 }
 static inline void _tlbil_pid(unsigned int pid)
 {
-	asm volatile ("sync; tlbia; isync" : : : "memory")
+	asm volatile ("sync; tlbia; isync" : : : "memory");
 }
 #else /* CONFIG_40x || CONFIG_8xx */
 extern void _tlbil_all(void);
@@ -47,7 +47,7 @@ extern void _tlbil_pid(unsigned int pid);
 #ifdef CONFIG_8xx
 static inline void _tlbil_va(unsigned long address, unsigned int pid)
 {
-	asm volatile ("tlbie %0; sync" : : "r" (address) : "memory")
+	asm volatile ("tlbie %0; sync" : : "r" (address) : "memory");
 }
 #else /* CONFIG_8xx */
 extern void _tlbil_va(unsigned long address, unsigned int pid);

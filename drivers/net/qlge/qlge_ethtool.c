@@ -56,9 +56,9 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 		for (i = 1; i < qdev->rss_ring_first_cq_id; i++, rx_ring++) {
 			rx_ring = &qdev->rx_ring[i];
 			cqicb = (struct cqicb *)rx_ring;
-			cqicb->irq_delay = le16_to_cpu(qdev->tx_coalesce_usecs);
+			cqicb->irq_delay = cpu_to_le16(qdev->tx_coalesce_usecs);
 			cqicb->pkt_delay =
-			    le16_to_cpu(qdev->tx_max_coalesced_frames);
+			    cpu_to_le16(qdev->tx_max_coalesced_frames);
 			cqicb->flags = FLAGS_LI;
 			status = ql_write_cfg(qdev, cqicb, sizeof(cqicb),
 						CFG_LCQ, rx_ring->cq_id);
@@ -79,9 +79,9 @@ static int ql_update_ring_coalescing(struct ql_adapter *qdev)
 		     i++) {
 			rx_ring = &qdev->rx_ring[i];
 			cqicb = (struct cqicb *)rx_ring;
-			cqicb->irq_delay = le16_to_cpu(qdev->rx_coalesce_usecs);
+			cqicb->irq_delay = cpu_to_le16(qdev->rx_coalesce_usecs);
 			cqicb->pkt_delay =
-			    le16_to_cpu(qdev->rx_max_coalesced_frames);
+			    cpu_to_le16(qdev->rx_max_coalesced_frames);
 			cqicb->flags = FLAGS_LI;
 			status = ql_write_cfg(qdev, cqicb, sizeof(cqicb),
 						CFG_LCQ, rx_ring->cq_id);

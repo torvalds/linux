@@ -12,7 +12,10 @@ omap2cam-objs	:=	omap24xxcam.o omap24xxcam-dma.o
 
 videodev-objs	:=	v4l2-dev.o v4l2-ioctl.o v4l2-device.o v4l2-subdev.o
 
-obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-compat-ioctl32.o v4l2-int-device.o
+obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-int-device.o
+ifeq ($(CONFIG_COMPAT),y)
+  obj-$(CONFIG_VIDEO_DEV) += v4l2-compat-ioctl32.o
+endif
 
 obj-$(CONFIG_VIDEO_V4L2_COMMON) += v4l2-common.o
 

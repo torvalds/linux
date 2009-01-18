@@ -1519,7 +1519,7 @@ static int decodeFVteln(char *teln, unsigned long *bmaskp, int *activep)
 		int digit2 = 0;
 		if (!isdigit(*s)) return -3;
 		while (isdigit(*s)) { digit1 = digit1*10 + (*s - '0'); s++; }
-		if (digit1 <= 0 && digit1 > 30) return -4;
+		if (digit1 <= 0 || digit1 > 30) return -4;
 		if (*s == 0 || *s == ',' || *s == ' ') {
 			bmask |= (1 << digit1);
 			digit1 = 0;
@@ -1530,7 +1530,7 @@ static int decodeFVteln(char *teln, unsigned long *bmaskp, int *activep)
 		s++;
 		if (!isdigit(*s)) return -3;
 		while (isdigit(*s)) { digit2 = digit2*10 + (*s - '0'); s++; }
-		if (digit2 <= 0 && digit2 > 30) return -4;
+		if (digit2 <= 0 || digit2 > 30) return -4;
 		if (*s == 0 || *s == ',' || *s == ' ') {
 			if (digit1 > digit2)
 				for (i = digit2; i <= digit1 ; i++)

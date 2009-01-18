@@ -28,6 +28,17 @@ struct bug_entry {
 #define BUGFLAG_WARNING	(1<<0)
 #endif	/* CONFIG_GENERIC_BUG */
 
+/*
+ * Don't use BUG() or BUG_ON() unless there's really no way out; one
+ * example might be detecting data structure corruption in the middle
+ * of an operation that can't be backed out of.  If the (sub)system
+ * can somehow continue operating, perhaps with reduced functionality,
+ * it's probably not BUG-worthy.
+ *
+ * If you're tempted to BUG(), think again:  is completely giving up
+ * really the *only* solution?  There are usually better options, where
+ * users don't need to reboot ASAP and can mostly shut down cleanly.
+ */
 #ifndef HAVE_ARCH_BUG
 #define BUG() do { \
 	printk("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __func__); \
@@ -39,6 +50,12 @@ struct bug_entry {
 #define BUG_ON(condition) do { if (unlikely(condition)) BUG(); } while(0)
 #endif
 
+/*
+ * WARN(), WARN_ON(), WARN_ON_ONCE, and so on can be used to report
+ * significant issues that need prompt attention if they should ever
+ * appear at runtime.  Use the versions with printk format strings
+ * to provide better diagnostics.
+ */
 #ifndef __WARN
 #ifndef __ASSEMBLY__
 extern void warn_slowpath(const char *file, const int line,

@@ -30,13 +30,6 @@
  * The core SPI transfer engine just talks to a register bank to set up
  * DMA transfers; transfer queue progress is driven by IRQs.  The clock
  * framework provides the base clock, subdivided for each spi_device.
- *
- * Newer controllers, marked with "new_1" flag, have:
- *  - CR.LASTXFER
- *  - SPI_MR.DIV32 may become FDIV or must-be-zero (here: always zero)
- *  - SPI_SR.TXEMPTY, SPI_SR.NSSR (and corresponding irqs)
- *  - SPI_CSRx.CSAAT
- *  - SPI_CSRx.SBCR allows faster clocking
  */
 struct atmel_spi {
 	spinlock_t		lock;
@@ -45,7 +38,6 @@ struct atmel_spi {
 	int			irq;
 	struct clk		*clk;
 	struct platform_device	*pdev;
-	unsigned		new_1:1;
 	struct spi_device	*stay;
 
 	u8			stopping;
@@ -59,8 +51,31 @@ struct atmel_spi {
 	dma_addr_t		buffer_dma;
 };
 
+/* Controller-specific per-slave state */
+struct atmel_spi_device {
+	unsigned int		npcs_pin;
+	u32			csr;
+};
+
 #define BUFFER_SIZE		PAGE_SIZE
 #define INVALID_DMA_ADDRESS	0xffffffff
+
+/*
+ * Version 2 of the SPI controller has
+ *  - CR.LASTXFER
+ *  - SPI_MR.DIV32 may become FDIV or must-be-zero (here: always zero)
+ *  - SPI_SR.TXEMPTY, SPI_SR.NSSR (and corresponding irqs)
+ *  - SPI_CSRx.CSAAT
+ *  - SPI_CSRx.SBCR allows faster clocking
+ *
+ * We can determine the controller version by reading the VERSION
+ * register, but I haven't checked that it exists on all chips, and
+ * this is cheaper anyway.
+ */
+static bool atmel_spi_is_v2(void)
+{
+	return !cpu_is_at91rm9200();
+}
 
 /*
  * Earlier SPI controllers (e.g. on at91rm9200) have a design bug whereby
@@ -80,39 +95,58 @@ struct atmel_spi {
  * Master on Chip Select 0.")  No workaround exists for that ... so for
  * nCS0 on that chip, we (a) don't use the GPIO, (b) can't support CS_HIGH,
  * and (c) will trigger that first erratum in some cases.
+ *
+ * TODO: Test if the atmel_spi_is_v2() branch below works on
+ * AT91RM9200 if we use some other register than CSR0. However, don't
+ * do this unconditionally since AP7000 has an errata where the BITS
+ * field in CSR0 overrides all other CSRs.
  */
 
 static void cs_activate(struct atmel_spi *as, struct spi_device *spi)
 {
-	unsigned gpio = (unsigned) spi->controller_data;
+	struct atmel_spi_device *asd = spi->controller_state;
 	unsigned active = spi->mode & SPI_CS_HIGH;
 	u32 mr;
-	int i;
-	u32 csr;
-	u32 cpol = (spi->mode & SPI_CPOL) ? SPI_BIT(CPOL) : 0;
 
-	/* Make sure clock polarity is correct */
-	for (i = 0; i < spi->master->num_chipselect; i++) {
-		csr = spi_readl(as, CSR0 + 4 * i);
-		if ((csr ^ cpol) & SPI_BIT(CPOL))
-			spi_writel(as, CSR0 + 4 * i, csr ^ SPI_BIT(CPOL));
+	if (atmel_spi_is_v2()) {
+		/*
+		 * Always use CSR0. This ensures that the clock
+		 * switches to the correct idle polarity before we
+		 * toggle the CS.
+		 */
+		spi_writel(as, CSR0, asd->csr);
+		spi_writel(as, MR, SPI_BF(PCS, 0x0e) | SPI_BIT(MODFDIS)
+				| SPI_BIT(MSTR));
+		mr = spi_readl(as, MR);
+		gpio_set_value(asd->npcs_pin, active);
+	} else {
+		u32 cpol = (spi->mode & SPI_CPOL) ? SPI_BIT(CPOL) : 0;
+		int i;
+		u32 csr;
+
+		/* Make sure clock polarity is correct */
+		for (i = 0; i < spi->master->num_chipselect; i++) {
+			csr = spi_readl(as, CSR0 + 4 * i);
+			if ((csr ^ cpol) & SPI_BIT(CPOL))
+				spi_writel(as, CSR0 + 4 * i,
+						csr ^ SPI_BIT(CPOL));
+		}
+
+		mr = spi_readl(as, MR);
+		mr = SPI_BFINS(PCS, ~(1 << spi->chip_select), mr);
+		if (spi->chip_select != 0)
+			gpio_set_value(asd->npcs_pin, active);
+		spi_writel(as, MR, mr);
 	}
 
-	mr = spi_readl(as, MR);
-	mr = SPI_BFINS(PCS, ~(1 << spi->chip_select), mr);
-
 	dev_dbg(&spi->dev, "activate %u%s, mr %08x\n",
-			gpio, active ? " (high)" : "",
+			asd->npcs_pin, active ? " (high)" : "",
 			mr);
-
-	if (!(cpu_is_at91rm9200() && spi->chip_select == 0))
-		gpio_set_value(gpio, active);
-	spi_writel(as, MR, mr);
 }
 
 static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 {
-	unsigned gpio = (unsigned) spi->controller_data;
+	struct atmel_spi_device *asd = spi->controller_state;
 	unsigned active = spi->mode & SPI_CS_HIGH;
 	u32 mr;
 
@@ -126,11 +160,11 @@ static void cs_deactivate(struct atmel_spi *as, struct spi_device *spi)
 	}
 
 	dev_dbg(&spi->dev, "DEactivate %u%s, mr %08x\n",
-			gpio, active ? " (low)" : "",
+			asd->npcs_pin, active ? " (low)" : "",
 			mr);
 
-	if (!(cpu_is_at91rm9200() && spi->chip_select == 0))
-		gpio_set_value(gpio, !active);
+	if (atmel_spi_is_v2() || spi->chip_select != 0)
+		gpio_set_value(asd->npcs_pin, !active);
 }
 
 static inline int atmel_spi_xfer_is_last(struct spi_message *msg,
@@ -502,6 +536,7 @@ atmel_spi_interrupt(int irq, void *dev_id)
 static int atmel_spi_setup(struct spi_device *spi)
 {
 	struct atmel_spi	*as;
+	struct atmel_spi_device	*asd;
 	u32			scbr, csr;
 	unsigned int		bits = spi->bits_per_word;
 	unsigned long		bus_hz;
@@ -536,19 +571,16 @@ static int atmel_spi_setup(struct spi_device *spi)
 	}
 
 	/* see notes above re chipselect */
-	if (cpu_is_at91rm9200()
+	if (!atmel_spi_is_v2()
 			&& spi->chip_select == 0
 			&& (spi->mode & SPI_CS_HIGH)) {
 		dev_dbg(&spi->dev, "setup: can't be active-high\n");
 		return -EINVAL;
 	}
 
-	/*
-	 * Pre-new_1 chips start out at half the peripheral
-	 * bus speed.
-	 */
+	/* v1 chips start out at half the peripheral bus speed. */
 	bus_hz = clk_get_rate(as->clk);
-	if (!as->new_1)
+	if (!atmel_spi_is_v2())
 		bus_hz /= 2;
 
 	if (spi->max_speed_hz) {
@@ -589,11 +621,20 @@ static int atmel_spi_setup(struct spi_device *spi)
 
 	/* chipselect must have been muxed as GPIO (e.g. in board setup) */
 	npcs_pin = (unsigned int)spi->controller_data;
-	if (!spi->controller_state) {
+	asd = spi->controller_state;
+	if (!asd) {
+		asd = kzalloc(sizeof(struct atmel_spi_device), GFP_KERNEL);
+		if (!asd)
+			return -ENOMEM;
+
 		ret = gpio_request(npcs_pin, spi->dev.bus_id);
-		if (ret)
+		if (ret) {
+			kfree(asd);
 			return ret;
-		spi->controller_state = (void *)npcs_pin;
+		}
+
+		asd->npcs_pin = npcs_pin;
+		spi->controller_state = asd;
 		gpio_direction_output(npcs_pin, !(spi->mode & SPI_CS_HIGH));
 	} else {
 		unsigned long		flags;
@@ -605,11 +646,14 @@ static int atmel_spi_setup(struct spi_device *spi)
 		spin_unlock_irqrestore(&as->lock, flags);
 	}
 
+	asd->csr = csr;
+
 	dev_dbg(&spi->dev,
 		"setup: %lu Hz bpw %u mode 0x%x -> csr%d %08x\n",
 		bus_hz / scbr, bits, spi->mode, spi->chip_select, csr);
 
-	spi_writel(as, CSR0 + 4 * spi->chip_select, csr);
+	if (!atmel_spi_is_v2())
+		spi_writel(as, CSR0 + 4 * spi->chip_select, csr);
 
 	return 0;
 }
@@ -684,10 +728,11 @@ static int atmel_spi_transfer(struct spi_device *spi, struct spi_message *msg)
 static void atmel_spi_cleanup(struct spi_device *spi)
 {
 	struct atmel_spi	*as = spi_master_get_devdata(spi->master);
+	struct atmel_spi_device	*asd = spi->controller_state;
 	unsigned		gpio = (unsigned) spi->controller_data;
 	unsigned long		flags;
 
-	if (!spi->controller_state)
+	if (!asd)
 		return;
 
 	spin_lock_irqsave(&as->lock, flags);
@@ -697,7 +742,9 @@ static void atmel_spi_cleanup(struct spi_device *spi)
 	}
 	spin_unlock_irqrestore(&as->lock, flags);
 
+	spi->controller_state = NULL;
 	gpio_free(gpio);
+	kfree(asd);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -755,8 +802,6 @@ static int __init atmel_spi_probe(struct platform_device *pdev)
 		goto out_free_buffer;
 	as->irq = irq;
 	as->clk = clk;
-	if (!cpu_is_at91rm9200())
-		as->new_1 = 1;
 
 	ret = request_irq(irq, atmel_spi_interrupt, 0,
 			pdev->dev.bus_id, master);

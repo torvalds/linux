@@ -20,6 +20,7 @@
 
 #include <mach/hardware.h>
 #include <mach/i2c.h>
+#include <mach/irqs.h>
 
 static struct resource i2c_resources[] = {
 	{

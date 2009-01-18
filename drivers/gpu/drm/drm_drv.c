@@ -314,13 +314,13 @@ static void drm_cleanup(struct drm_device * dev)
 		DRM_DEBUG("mtrr_del=%d\n", retval);
 	}
 
+	if (dev->driver->unload)
+		dev->driver->unload(dev);
+
 	if (drm_core_has_AGP(dev) && dev->agp) {
 		drm_free(dev->agp, sizeof(*dev->agp), DRM_MEM_AGPLISTS);
 		dev->agp = NULL;
 	}
-
-	if (dev->driver->unload)
-		dev->driver->unload(dev);
 
 	drm_ht_remove(&dev->map_hash);
 	drm_ctxbitmap_cleanup(dev);

@@ -61,10 +61,9 @@ void kvm_register_irq_ack_notifier(struct kvm *kvm,
 	hlist_add_head(&kian->link, &kvm->arch.irq_ack_notifier_list);
 }
 
-void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
-				     struct kvm_irq_ack_notifier *kian)
+void kvm_unregister_irq_ack_notifier(struct kvm_irq_ack_notifier *kian)
 {
-	hlist_del(&kian->link);
+	hlist_del_init(&kian->link);
 }
 
 /* The caller must hold kvm->lock mutex */
@@ -73,11 +72,15 @@ int kvm_request_irq_source_id(struct kvm *kvm)
 	unsigned long *bitmap = &kvm->arch.irq_sources_bitmap;
 	int irq_source_id = find_first_zero_bit(bitmap,
 				sizeof(kvm->arch.irq_sources_bitmap));
+
 	if (irq_source_id >= sizeof(kvm->arch.irq_sources_bitmap)) {
 		printk(KERN_WARNING "kvm: exhaust allocatable IRQ sources!\n");
-		irq_source_id = -EFAULT;
-	} else
-		set_bit(irq_source_id, bitmap);
+		return -EFAULT;
+	}
+
+	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
+	set_bit(irq_source_id, bitmap);
+
 	return irq_source_id;
 }
 
@@ -85,7 +88,9 @@ void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id)
 {
 	int i;
 
-	if (irq_source_id <= 0 ||
+	ASSERT(irq_source_id != KVM_USERSPACE_IRQ_SOURCE_ID);
+
+	if (irq_source_id < 0 ||
 	    irq_source_id >= sizeof(kvm->arch.irq_sources_bitmap)) {
 		printk(KERN_ERR "kvm: IRQ source ID out of range!\n");
 		return;

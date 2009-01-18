@@ -69,7 +69,7 @@ static void scc_disable_tx_interrupts(void * ptr);
 static void scc_enable_tx_interrupts(void * ptr);
 static void scc_disable_rx_interrupts(void * ptr);
 static void scc_enable_rx_interrupts(void * ptr);
-static int  scc_get_CD(void * ptr);
+static int  scc_carrier_raised(struct tty_port *port);
 static void scc_shutdown_port(void * ptr);
 static int scc_set_real_termios(void  *ptr);
 static void scc_hungup(void  *ptr);
@@ -100,7 +100,6 @@ static struct real_driver scc_real_driver = {
         scc_enable_tx_interrupts,
         scc_disable_rx_interrupts,
         scc_enable_rx_interrupts,
-        scc_get_CD,
         scc_shutdown_port,
         scc_set_real_termios,
         scc_chars_in_buffer,
@@ -127,6 +126,10 @@ static const struct tty_operations scc_ops = {
 	.start = gs_start,
 	.hangup = gs_hangup,
 	.break_ctl = scc_break_ctl,
+};
+
+static const struct tty_port_operations scc_port_ops = {
+	.carrier_raised = scc_carrier_raised,
 };
 
 /*----------------------------------------------------------------------------
@@ -176,6 +179,8 @@ static void scc_init_portstructs(void)
 
 	for (i = 0; i < 2; i++) {
 		port = scc_ports + i;
+		tty_port_init(&port->gs.port);
+		port->gs.port.ops = &scc_port_ops;
 		port->gs.magic = SCC_MAGIC;
 		port->gs.close_delay = HZ/2;
 		port->gs.closing_wait = 30 * HZ;
@@ -193,6 +198,7 @@ static void scc_init_portstructs(void)
 static int mvme147_scc_init(void)
 {
 	struct scc_port *port;
+	int error;
 
 	printk(KERN_INFO "SCC: MVME147 Serial Driver\n");
 	/* Init channel A */
@@ -202,14 +208,23 @@ static int mvme147_scc_init(void)
 	port->datap = port->ctrlp + 1;
 	port->port_a = &scc_ports[0];
 	port->port_b = &scc_ports[1];
-	request_irq(MVME147_IRQ_SCCA_TX, scc_tx_int, IRQF_DISABLED,
+	error = request_irq(MVME147_IRQ_SCCA_TX, scc_tx_int, IRQF_DISABLED,
 		            "SCC-A TX", port);
-	request_irq(MVME147_IRQ_SCCA_STAT, scc_stat_int, IRQF_DISABLED,
+	if (error)
+		goto fail;
+	error = request_irq(MVME147_IRQ_SCCA_STAT, scc_stat_int, IRQF_DISABLED,
 		            "SCC-A status", port);
-	request_irq(MVME147_IRQ_SCCA_RX, scc_rx_int, IRQF_DISABLED,
+	if (error)
+		goto fail_free_a_tx;
+	error = request_irq(MVME147_IRQ_SCCA_RX, scc_rx_int, IRQF_DISABLED,
 		            "SCC-A RX", port);
-	request_irq(MVME147_IRQ_SCCA_SPCOND, scc_spcond_int, IRQF_DISABLED,
-		            "SCC-A special cond", port);
+	if (error)
+		goto fail_free_a_stat;
+	error = request_irq(MVME147_IRQ_SCCA_SPCOND, scc_spcond_int,
+			    IRQF_DISABLED, "SCC-A special cond", port);
+	if (error)
+		goto fail_free_a_rx;
+
 	{
 		SCC_ACCESS_INIT(port);
 
@@ -229,14 +244,23 @@ static int mvme147_scc_init(void)
 	port->datap = port->ctrlp + 1;
 	port->port_a = &scc_ports[0];
 	port->port_b = &scc_ports[1];
-	request_irq(MVME147_IRQ_SCCB_TX, scc_tx_int, IRQF_DISABLED,
+	error = request_irq(MVME147_IRQ_SCCB_TX, scc_tx_int, IRQF_DISABLED,
 		            "SCC-B TX", port);
-	request_irq(MVME147_IRQ_SCCB_STAT, scc_stat_int, IRQF_DISABLED,
+	if (error)
+		goto fail_free_a_spcond;
+	error = request_irq(MVME147_IRQ_SCCB_STAT, scc_stat_int, IRQF_DISABLED,
 		            "SCC-B status", port);
-	request_irq(MVME147_IRQ_SCCB_RX, scc_rx_int, IRQF_DISABLED,
+	if (error)
+		goto fail_free_b_tx;
+	error = request_irq(MVME147_IRQ_SCCB_RX, scc_rx_int, IRQF_DISABLED,
 		            "SCC-B RX", port);
-	request_irq(MVME147_IRQ_SCCB_SPCOND, scc_spcond_int, IRQF_DISABLED,
-		            "SCC-B special cond", port);
+	if (error)
+		goto fail_free_b_stat;
+	error = request_irq(MVME147_IRQ_SCCB_SPCOND, scc_spcond_int,
+			    IRQF_DISABLED, "SCC-B special cond", port);
+	if (error)
+		goto fail_free_b_rx;
+
 	{
 		SCC_ACCESS_INIT(port);
 
@@ -252,6 +276,23 @@ static int mvme147_scc_init(void)
 	scc_init_drivers();
 
 	return 0;
+
+fail_free_b_rx:
+	free_irq(MVME147_IRQ_SCCB_RX, port);
+fail_free_b_stat:
+	free_irq(MVME147_IRQ_SCCB_STAT, port);
+fail_free_b_tx:
+	free_irq(MVME147_IRQ_SCCB_TX, port);
+fail_free_a_spcond:
+	free_irq(MVME147_IRQ_SCCA_SPCOND, port);
+fail_free_a_rx:
+	free_irq(MVME147_IRQ_SCCA_RX, port);
+fail_free_a_stat:
+	free_irq(MVME147_IRQ_SCCA_STAT, port);
+fail_free_a_tx:
+	free_irq(MVME147_IRQ_SCCA_TX, port);
+fail:
+	return error;
 }
 #endif
 
@@ -260,6 +301,7 @@ static int mvme147_scc_init(void)
 static int mvme162_scc_init(void)
 {
 	struct scc_port *port;
+	int error;
 
 	if (!(mvme16x_config & MVME16x_CONFIG_GOT_SCCA))
 		return (-ENODEV);
@@ -272,14 +314,23 @@ static int mvme162_scc_init(void)
 	port->datap = port->ctrlp + 2;
 	port->port_a = &scc_ports[0];
 	port->port_b = &scc_ports[1];
-	request_irq(MVME162_IRQ_SCCA_TX, scc_tx_int, IRQF_DISABLED,
+	error = request_irq(MVME162_IRQ_SCCA_TX, scc_tx_int, IRQF_DISABLED,
 		            "SCC-A TX", port);
-	request_irq(MVME162_IRQ_SCCA_STAT, scc_stat_int, IRQF_DISABLED,
+	if (error)
+		goto fail;
+	error = request_irq(MVME162_IRQ_SCCA_STAT, scc_stat_int, IRQF_DISABLED,
 		            "SCC-A status", port);
-	request_irq(MVME162_IRQ_SCCA_RX, scc_rx_int, IRQF_DISABLED,
+	if (error)
+		goto fail_free_a_tx;
+	error = request_irq(MVME162_IRQ_SCCA_RX, scc_rx_int, IRQF_DISABLED,
 		            "SCC-A RX", port);
-	request_irq(MVME162_IRQ_SCCA_SPCOND, scc_spcond_int, IRQF_DISABLED,
-		            "SCC-A special cond", port);
+	if (error)
+		goto fail_free_a_stat;
+	error = request_irq(MVME162_IRQ_SCCA_SPCOND, scc_spcond_int,
+			    IRQF_DISABLED, "SCC-A special cond", port);
+	if (error)
+		goto fail_free_a_rx;
+
 	{
 		SCC_ACCESS_INIT(port);
 
@@ -299,14 +350,22 @@ static int mvme162_scc_init(void)
 	port->datap = port->ctrlp + 2;
 	port->port_a = &scc_ports[0];
 	port->port_b = &scc_ports[1];
-	request_irq(MVME162_IRQ_SCCB_TX, scc_tx_int, IRQF_DISABLED,
+	error = request_irq(MVME162_IRQ_SCCB_TX, scc_tx_int, IRQF_DISABLED,
 		            "SCC-B TX", port);
-	request_irq(MVME162_IRQ_SCCB_STAT, scc_stat_int, IRQF_DISABLED,
+	if (error)
+		goto fail_free_a_spcond;
+	error = request_irq(MVME162_IRQ_SCCB_STAT, scc_stat_int, IRQF_DISABLED,
 		            "SCC-B status", port);
-	request_irq(MVME162_IRQ_SCCB_RX, scc_rx_int, IRQF_DISABLED,
+	if (error)
+		goto fail_free_b_tx;
+	error = request_irq(MVME162_IRQ_SCCB_RX, scc_rx_int, IRQF_DISABLED,
 		            "SCC-B RX", port);
-	request_irq(MVME162_IRQ_SCCB_SPCOND, scc_spcond_int, IRQF_DISABLED,
-		            "SCC-B special cond", port);
+	if (error)
+		goto fail_free_b_stat;
+	error = request_irq(MVME162_IRQ_SCCB_SPCOND, scc_spcond_int,
+			    IRQF_DISABLED, "SCC-B special cond", port);
+	if (error)
+		goto fail_free_b_rx;
 
 	{
 		SCC_ACCESS_INIT(port);	/* Either channel will do */
@@ -323,6 +382,23 @@ static int mvme162_scc_init(void)
 	scc_init_drivers();
 
 	return 0;
+
+fail_free_b_rx:
+	free_irq(MVME162_IRQ_SCCB_RX, port);
+fail_free_b_stat:
+	free_irq(MVME162_IRQ_SCCB_STAT, port);
+fail_free_b_tx:
+	free_irq(MVME162_IRQ_SCCB_TX, port);
+fail_free_a_spcond:
+	free_irq(MVME162_IRQ_SCCA_SPCOND, port);
+fail_free_a_rx:
+	free_irq(MVME162_IRQ_SCCA_RX, port);
+fail_free_a_stat:
+	free_irq(MVME162_IRQ_SCCA_STAT, port);
+fail_free_a_tx:
+	free_irq(MVME162_IRQ_SCCA_TX, port);
+fail:
+	return error;
 }
 #endif
 
@@ -331,6 +407,7 @@ static int mvme162_scc_init(void)
 static int bvme6000_scc_init(void)
 {
 	struct scc_port *port;
+	int error;
 
 	printk(KERN_INFO "SCC: BVME6000 Serial Driver\n");
 	/* Init channel A */
@@ -340,14 +417,23 @@ static int bvme6000_scc_init(void)
 	port->datap = port->ctrlp + 4;
 	port->port_a = &scc_ports[0];
 	port->port_b = &scc_ports[1];
-	request_irq(BVME_IRQ_SCCA_TX, scc_tx_int, IRQF_DISABLED,
+	error = request_irq(BVME_IRQ_SCCA_TX, scc_tx_int, IRQF_DISABLED,
 		            "SCC-A TX", port);
-	request_irq(BVME_IRQ_SCCA_STAT, scc_stat_int, IRQF_DISABLED,
+	if (error)
+		goto fail;
+	error = request_irq(BVME_IRQ_SCCA_STAT, scc_stat_int, IRQF_DISABLED,
 		            "SCC-A status", port);
-	request_irq(BVME_IRQ_SCCA_RX, scc_rx_int, IRQF_DISABLED,
+	if (error)
+		goto fail_free_a_tx;
+	error = request_irq(BVME_IRQ_SCCA_RX, scc_rx_int, IRQF_DISABLED,
 		            "SCC-A RX", port);
-	request_irq(BVME_IRQ_SCCA_SPCOND, scc_spcond_int, IRQF_DISABLED,
-		            "SCC-A special cond", port);
+	if (error)
+		goto fail_free_a_stat;
+	error = request_irq(BVME_IRQ_SCCA_SPCOND, scc_spcond_int,
+			    IRQF_DISABLED, "SCC-A special cond", port);
+	if (error)
+		goto fail_free_a_rx;
+
 	{
 		SCC_ACCESS_INIT(port);
 
@@ -367,14 +453,22 @@ static int bvme6000_scc_init(void)
 	port->datap = port->ctrlp + 4;
 	port->port_a = &scc_ports[0];
 	port->port_b = &scc_ports[1];
-	request_irq(BVME_IRQ_SCCB_TX, scc_tx_int, IRQF_DISABLED,
+	error = request_irq(BVME_IRQ_SCCB_TX, scc_tx_int, IRQF_DISABLED,
 		            "SCC-B TX", port);
-	request_irq(BVME_IRQ_SCCB_STAT, scc_stat_int, IRQF_DISABLED,
+	if (error)
+		goto fail_free_a_spcond;
+	error = request_irq(BVME_IRQ_SCCB_STAT, scc_stat_int, IRQF_DISABLED,
 		            "SCC-B status", port);
-	request_irq(BVME_IRQ_SCCB_RX, scc_rx_int, IRQF_DISABLED,
+	if (error)
+		goto fail_free_b_tx;
+	error = request_irq(BVME_IRQ_SCCB_RX, scc_rx_int, IRQF_DISABLED,
 		            "SCC-B RX", port);
-	request_irq(BVME_IRQ_SCCB_SPCOND, scc_spcond_int, IRQF_DISABLED,
-		            "SCC-B special cond", port);
+	if (error)
+		goto fail_free_b_stat;
+	error = request_irq(BVME_IRQ_SCCB_SPCOND, scc_spcond_int,
+			    IRQF_DISABLED, "SCC-B special cond", port);
+	if (error)
+		goto fail_free_b_rx;
 
 	{
 		SCC_ACCESS_INIT(port);	/* Either channel will do */
@@ -388,6 +482,23 @@ static int bvme6000_scc_init(void)
 	scc_init_drivers();
 
 	return 0;
+
+fail:
+	free_irq(BVME_IRQ_SCCA_STAT, port);
+fail_free_a_tx:
+	free_irq(BVME_IRQ_SCCA_RX, port);
+fail_free_a_stat:
+	free_irq(BVME_IRQ_SCCA_SPCOND, port);
+fail_free_a_rx:
+	free_irq(BVME_IRQ_SCCB_TX, port);
+fail_free_a_spcond:
+	free_irq(BVME_IRQ_SCCB_STAT, port);
+fail_free_b_tx:
+	free_irq(BVME_IRQ_SCCB_RX, port);
+fail_free_b_stat:
+	free_irq(BVME_IRQ_SCCB_SPCOND, port);
+fail_free_b_rx:
+	return error;
 }
 #endif
 
@@ -624,10 +735,10 @@ static void scc_enable_rx_interrupts(void *ptr)
 }
 
 
-static int scc_get_CD(void *ptr)
+static int scc_carrier_raised(struct tty_port *port)
 {
-	struct scc_port *port = ptr;
-	unsigned channel = port->channel;
+	struct scc_port *sc = container_of(port, struct scc_port, gs.port);
+	unsigned channel = sc->channel;
 
 	return !!(scc_last_status_reg[channel] & SR_DCD);
 }
@@ -638,7 +749,7 @@ static void scc_shutdown_port(void *ptr)
 	struct scc_port *port = ptr;
 
 	port->gs.port.flags &= ~ GS_ACTIVE;
-	if (port->gs.port.tty && port->gs.port.tty->termios->c_cflag & HUPCL) {
+	if (port->gs.port.tty && (port->gs.port.tty->termios->c_cflag & HUPCL)) {
 		scc_setsignals (port, 0, 0);
 	}
 }
@@ -779,7 +890,7 @@ static void scc_setsignals(struct scc_port *port, int dtr, int rts)
 
 static void scc_send_xchar(struct tty_struct *tty, char ch)
 {
-	struct scc_port *port = (struct scc_port *)tty->driver_data;
+	struct scc_port *port = tty->driver_data;
 
 	port->x_char = ch;
 	if (ch)
@@ -896,7 +1007,7 @@ static int scc_open (struct tty_struct * tty, struct file * filp)
 		return retval;
 	}
 
-	port->c_dcd = scc_get_CD (port);
+	port->c_dcd = tty_port_carrier_raised(&port->gs.port);
 
 	scc_enable_rx_interrupts(port);
 
@@ -906,7 +1017,7 @@ static int scc_open (struct tty_struct * tty, struct file * filp)
 
 static void scc_throttle (struct tty_struct * tty)
 {
-	struct scc_port *port = (struct scc_port *)tty->driver_data;
+	struct scc_port *port = tty->driver_data;
 	unsigned long	flags;
 	SCC_ACCESS_INIT(port);
 
@@ -922,7 +1033,7 @@ static void scc_throttle (struct tty_struct * tty)
 
 static void scc_unthrottle (struct tty_struct * tty)
 {
-	struct scc_port *port = (struct scc_port *)tty->driver_data;
+	struct scc_port *port = tty->driver_data;
 	unsigned long	flags;
 	SCC_ACCESS_INIT(port);
 
@@ -945,7 +1056,7 @@ static int scc_ioctl(struct tty_struct *tty, struct file *file,
 
 static int scc_break_ctl(struct tty_struct *tty, int break_state)
 {
-	struct scc_port *port = (struct scc_port *)tty->driver_data;
+	struct scc_port *port = tty->driver_data;
 	unsigned long	flags;
 	SCC_ACCESS_INIT(port);
 

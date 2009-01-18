@@ -79,12 +79,12 @@ static unsigned long in_use;
 
 static int maestro_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
-static int maestro_exclusive_open(struct inode *inode, struct file *file)
+static int maestro_exclusive_open(struct file *file)
 {
 	return test_and_set_bit(0, &in_use) ? -EBUSY : 0;
 }
 
-static int maestro_exclusive_release(struct inode *inode, struct file *file)
+static int maestro_exclusive_release(struct file *file)
 {
 	clear_bit(0, &in_use);
 	return 0;
@@ -110,15 +110,11 @@ static struct pci_driver maestro_r_driver = {
 	.remove		= __devexit_p(maestro_remove),
 };
 
-static const struct file_operations maestro_fops = {
+static const struct v4l2_file_operations maestro_fops = {
 	.owner		= THIS_MODULE,
 	.open           = maestro_exclusive_open,
 	.release        = maestro_exclusive_release,
 	.ioctl		= video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek         = no_llseek,
 };
 
 struct radio_device {

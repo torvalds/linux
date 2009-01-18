@@ -38,11 +38,16 @@
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 unsigned long *sparc_valid_addr_bitmap;
+EXPORT_SYMBOL(sparc_valid_addr_bitmap);
 
 unsigned long phys_base;
+EXPORT_SYMBOL(phys_base);
+
 unsigned long pfn_base;
+EXPORT_SYMBOL(pfn_base);
 
 unsigned long page_kernel;
+EXPORT_SYMBOL(page_kernel);
 
 struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
 unsigned long sparc_unmapped_base;
@@ -522,3 +527,4 @@ void sparc_flush_page_to_ram(struct page *page)
 	if (vaddr)
 		__flush_page_to_ram(vaddr);
 }
+EXPORT_SYMBOL(sparc_flush_page_to_ram);

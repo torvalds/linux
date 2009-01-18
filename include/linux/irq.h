@@ -113,7 +113,8 @@ struct irq_chip {
 	void		(*eoi)(unsigned int irq);
 
 	void		(*end)(unsigned int irq);
-	void		(*set_affinity)(unsigned int irq, cpumask_t dest);
+	void		(*set_affinity)(unsigned int irq,
+					const struct cpumask *dest);
 	int		(*retrigger)(unsigned int irq);
 	int		(*set_type)(unsigned int irq, unsigned int flow_type);
 	int		(*set_wake)(unsigned int irq, unsigned int on);
@@ -181,11 +182,11 @@ struct irq_desc {
 	unsigned int		irqs_unhandled;
 	spinlock_t		lock;
 #ifdef CONFIG_SMP
-	cpumask_t		affinity;
+	cpumask_var_t		affinity;
 	unsigned int		cpu;
-#endif
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	cpumask_t		pending_mask;
+	cpumask_var_t		pending_mask;
+#endif
 #endif
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry	*dir;
@@ -193,42 +194,23 @@ struct irq_desc {
 	const char		*name;
 } ____cacheline_internodealigned_in_smp;
 
-extern void early_irq_init(void);
-extern void arch_early_irq_init(void);
-extern void arch_init_chip_data(struct irq_desc *desc, int cpu);
 extern void arch_init_copy_chip_data(struct irq_desc *old_desc,
 					struct irq_desc *desc, int cpu);
 extern void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc);
 
 #ifndef CONFIG_SPARSE_IRQ
 extern struct irq_desc irq_desc[NR_IRQS];
-
-static inline struct irq_desc *irq_to_desc(unsigned int irq)
-{
-	return (irq < NR_IRQS) ? irq_desc + irq : NULL;
-}
-static inline struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
-{
-	return irq_to_desc(irq);
-}
-
-#else
-
-extern struct irq_desc *irq_to_desc(unsigned int irq);
-extern struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu);
+#else /* CONFIG_SPARSE_IRQ */
 extern struct irq_desc *move_irq_desc(struct irq_desc *old_desc, int cpu);
-
-# define for_each_irq_desc(irq, desc)		\
-	for (irq = 0, desc = irq_to_desc(irq); irq < nr_irqs; irq++, desc = irq_to_desc(irq))
-# define for_each_irq_desc_reverse(irq, desc)                          \
-	for (irq = nr_irqs - 1, desc = irq_to_desc(irq); irq >= 0; irq--, desc = irq_to_desc(irq))
 
 #define kstat_irqs_this_cpu(DESC) \
 	((DESC)->kstat_irqs[smp_processor_id()])
 #define kstat_incr_irqs_this_cpu(irqno, DESC) \
 	((DESC)->kstat_irqs[smp_processor_id()]++)
 
-#endif
+#endif /* CONFIG_SPARSE_IRQ */
+
+extern struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu);
 
 static inline struct irq_desc *
 irq_remap_to_desc(unsigned int irq, struct irq_desc *desc)
@@ -439,5 +421,85 @@ extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
 #endif /* CONFIG_GENERIC_HARDIRQS */
 
 #endif /* !CONFIG_S390 */
+
+#ifdef CONFIG_SMP
+/**
+ * init_alloc_desc_masks - allocate cpumasks for irq_desc
+ * @desc:	pointer to irq_desc struct
+ * @cpu:	cpu which will be handling the cpumasks
+ * @boot:	true if need bootmem
+ *
+ * Allocates affinity and pending_mask cpumask if required.
+ * Returns true if successful (or not required).
+ * Side effect: affinity has all bits set, pending_mask has all bits clear.
+ */
+static inline bool init_alloc_desc_masks(struct irq_desc *desc, int cpu,
+								bool boot)
+{
+	int node;
+
+	if (boot) {
+		alloc_bootmem_cpumask_var(&desc->affinity);
+		cpumask_setall(desc->affinity);
+
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+		alloc_bootmem_cpumask_var(&desc->pending_mask);
+		cpumask_clear(desc->pending_mask);
+#endif
+		return true;
+	}
+
+	node = cpu_to_node(cpu);
+
+	if (!alloc_cpumask_var_node(&desc->affinity, GFP_ATOMIC, node))
+		return false;
+	cpumask_setall(desc->affinity);
+
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+	if (!alloc_cpumask_var_node(&desc->pending_mask, GFP_ATOMIC, node)) {
+		free_cpumask_var(desc->affinity);
+		return false;
+	}
+	cpumask_clear(desc->pending_mask);
+#endif
+	return true;
+}
+
+/**
+ * init_copy_desc_masks - copy cpumasks for irq_desc
+ * @old_desc:	pointer to old irq_desc struct
+ * @new_desc:	pointer to new irq_desc struct
+ *
+ * Insures affinity and pending_masks are copied to new irq_desc.
+ * If !CONFIG_CPUMASKS_OFFSTACK the cpumasks are embedded in the
+ * irq_desc struct so the copy is redundant.
+ */
+
+static inline void init_copy_desc_masks(struct irq_desc *old_desc,
+					struct irq_desc *new_desc)
+{
+#ifdef CONFIG_CPUMASKS_OFFSTACK
+	cpumask_copy(new_desc->affinity, old_desc->affinity);
+
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+	cpumask_copy(new_desc->pending_mask, old_desc->pending_mask);
+#endif
+#endif
+}
+
+#else /* !CONFIG_SMP */
+
+static inline bool init_alloc_desc_masks(struct irq_desc *desc, int cpu,
+								bool boot)
+{
+	return true;
+}
+
+static inline void init_copy_desc_masks(struct irq_desc *old_desc,
+					struct irq_desc *new_desc)
+{
+}
+
+#endif	/* CONFIG_SMP */
 
 #endif /* _LINUX_IRQ_H */

@@ -1076,10 +1076,10 @@ static int i2c_pxa_probe(struct platform_device *dev)
 
 #ifdef CONFIG_I2C_PXA_SLAVE
 	printk(KERN_INFO "I2C: %s: PXA I2C adapter, slave address %d\n",
-	       i2c->adap.dev.bus_id, i2c->slave_addr);
+	       dev_name(&i2c->adap.dev), i2c->slave_addr);
 #else
 	printk(KERN_INFO "I2C: %s: PXA I2C adapter\n",
-	       i2c->adap.dev.bus_id);
+	       dev_name(&i2c->adap.dev));
 #endif
 	return 0;
 

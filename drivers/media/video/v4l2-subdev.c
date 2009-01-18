@@ -37,7 +37,7 @@ int v4l2_subdev_command(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 		return v4l2_subdev_call(sd, core, queryctrl, arg);
 	case VIDIOC_LOG_STATUS:
 		return v4l2_subdev_call(sd, core, log_status);
-	case VIDIOC_G_CHIP_IDENT:
+	case VIDIOC_DBG_G_CHIP_IDENT:
 		return v4l2_subdev_call(sd, core, g_chip_ident, arg);
 	case VIDIOC_INT_S_STANDBY:
 		return v4l2_subdev_call(sd, core, s_standby, arg ? (*(u32 *)arg) : 0);

@@ -114,7 +114,7 @@ static inline int qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
  * @count: count of buffers to examine
  * @auto_ack: automatically acknowledge buffers
  *
- * Returns the number of successfull extracted equal buffer states.
+ * Returns the number of successfully extracted equal buffer states.
  * Stops processing if a state is different from the last buffers state.
  */
 static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,

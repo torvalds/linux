@@ -4268,9 +4268,9 @@ nomem:
 
 /*
  * Handle a protocol violation when the chunk length is invalid.
- * "Invalid" length is identified as smaller then the minimal length a
+ * "Invalid" length is identified as smaller than the minimal length a
  * given chunk can be.  For example, a SACK chunk has invalid length
- * if it's length is set to be smaller then the size of sctp_sack_chunk_t.
+ * if its length is set to be smaller than the size of sctp_sack_chunk_t.
  *
  * We inform the other end by sending an ABORT with a Protocol Violation
  * error code.
@@ -4300,7 +4300,7 @@ static sctp_disposition_t sctp_sf_violation_chunklen(
 
 /*
  * Handle a protocol violation when the parameter length is invalid.
- * "Invalid" length is identified as smaller then the minimal length a
+ * "Invalid" length is identified as smaller than the minimal length a
  * given parameter can be.
  */
 static sctp_disposition_t sctp_sf_violation_paramlen(

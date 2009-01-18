@@ -72,10 +72,14 @@ static struct irq_controller amiga_irq_controller = {
 
 void __init amiga_init_IRQ(void)
 {
-	request_irq(IRQ_AUTO_1, ami_int1, 0, "int1", NULL);
-	request_irq(IRQ_AUTO_3, ami_int3, 0, "int3", NULL);
-	request_irq(IRQ_AUTO_4, ami_int4, 0, "int4", NULL);
-	request_irq(IRQ_AUTO_5, ami_int5, 0, "int5", NULL);
+	if (request_irq(IRQ_AUTO_1, ami_int1, 0, "int1", NULL))
+		pr_err("Couldn't register int%d\n", 1);
+	if (request_irq(IRQ_AUTO_3, ami_int3, 0, "int3", NULL))
+		pr_err("Couldn't register int%d\n", 3);
+	if (request_irq(IRQ_AUTO_4, ami_int4, 0, "int4", NULL))
+		pr_err("Couldn't register int%d\n", 4);
+	if (request_irq(IRQ_AUTO_5, ami_int5, 0, "int5", NULL))
+		pr_err("Couldn't register int%d\n", 5);
 
 	m68k_setup_irq_controller(&amiga_irq_controller, IRQ_USER, AMI_STD_IRQS);
 

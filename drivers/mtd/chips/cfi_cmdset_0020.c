@@ -42,8 +42,8 @@ static int cfi_staa_writev(struct mtd_info *mtd, const struct kvec *vecs,
 		unsigned long count, loff_t to, size_t *retlen);
 static int cfi_staa_erase_varsize(struct mtd_info *, struct erase_info *);
 static void cfi_staa_sync (struct mtd_info *);
-static int cfi_staa_lock(struct mtd_info *mtd, loff_t ofs, size_t len);
-static int cfi_staa_unlock(struct mtd_info *mtd, loff_t ofs, size_t len);
+static int cfi_staa_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
+static int cfi_staa_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 static int cfi_staa_suspend (struct mtd_info *);
 static void cfi_staa_resume (struct mtd_info *);
 
@@ -221,8 +221,8 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 		}
 
 		for (i=0; i<mtd->numeraseregions;i++){
-			printk(KERN_DEBUG "%d: offset=0x%x,size=0x%x,blocks=%d\n",
-			       i,mtd->eraseregions[i].offset,
+			printk(KERN_DEBUG "%d: offset=0x%llx,size=0x%x,blocks=%d\n",
+			       i, (unsigned long long)mtd->eraseregions[i].offset,
 			       mtd->eraseregions[i].erasesize,
 			       mtd->eraseregions[i].numblocks);
 		}
@@ -964,7 +964,7 @@ static int cfi_staa_erase_varsize(struct mtd_info *mtd,
 		adr += regions[i].erasesize;
 		len -= regions[i].erasesize;
 
-		if (adr % (1<< cfi->chipshift) == ((regions[i].offset + (regions[i].erasesize * regions[i].numblocks)) %( 1<< cfi->chipshift)))
+		if (adr % (1<< cfi->chipshift) == (((unsigned long)regions[i].offset + (regions[i].erasesize * regions[i].numblocks)) %( 1<< cfi->chipshift)))
 			i++;
 
 		if (adr >> cfi->chipshift) {
@@ -1135,7 +1135,7 @@ retry:
 	spin_unlock_bh(chip->mutex);
 	return 0;
 }
-static int cfi_staa_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int cfi_staa_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -1284,7 +1284,7 @@ retry:
 	spin_unlock_bh(chip->mutex);
 	return 0;
 }
-static int cfi_staa_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int cfi_staa_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;

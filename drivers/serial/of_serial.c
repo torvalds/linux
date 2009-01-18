@@ -14,6 +14,7 @@
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 #include <linux/of_platform.h>
+#include <linux/nwpserial.h>
 
 #include <asm/prom.h>
 
@@ -99,9 +100,16 @@ static int __devinit of_platform_serial_probe(struct of_device *ofdev,
 		goto out;
 
 	switch (port_type) {
+#ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
 		ret = serial8250_register_port(&port);
 		break;
+#endif
+#ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
+	case PORT_NWPSERIAL:
+		ret = nwpserial_register_port(&port);
+		break;
+#endif
 	default:
 		/* need to add code for these */
 	case PORT_UNKNOWN:
@@ -129,9 +137,16 @@ static int of_platform_serial_remove(struct of_device *ofdev)
 {
 	struct of_serial_info *info = ofdev->dev.driver_data;
 	switch (info->type) {
+#ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
 		serial8250_unregister_port(info->line);
 		break;
+#endif
+#ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
+	case PORT_NWPSERIAL:
+		nwpserial_unregister_port(info->line);
+		break;
+#endif
 	default:
 		/* need to add code for these */
 		break;
@@ -148,6 +163,10 @@ static struct of_device_id __devinitdata of_platform_serial_table[] = {
 	{ .type = "serial", .compatible = "ns16450",  .data = (void *)PORT_16450, },
 	{ .type = "serial", .compatible = "ns16550",  .data = (void *)PORT_16550, },
 	{ .type = "serial", .compatible = "ns16750",  .data = (void *)PORT_16750, },
+#ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
+	{ .type = "serial", .compatible = "ibm,qpace-nwp-serial",
+					.data = (void *)PORT_NWPSERIAL, },
+#endif
 	{ .type = "serial",			      .data = (void *)PORT_UNKNOWN, },
 	{ /* end of list */ },
 };

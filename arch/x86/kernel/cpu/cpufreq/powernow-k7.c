@@ -310,6 +310,12 @@ static int powernow_acpi_init(void)
 		goto err0;
 	}
 
+	if (!alloc_cpumask_var(&acpi_processor_perf->shared_cpu_map,
+								GFP_KERNEL)) {
+		retval = -ENOMEM;
+		goto err05;
+	}
+
 	if (acpi_processor_register_performance(acpi_processor_perf, 0)) {
 		retval = -EIO;
 		goto err1;
@@ -412,6 +418,8 @@ static int powernow_acpi_init(void)
 err2:
 	acpi_processor_unregister_performance(acpi_processor_perf, 0);
 err1:
+	free_cpumask_var(acpi_processor_perf->shared_cpu_map);
+err05:
 	kfree(acpi_processor_perf);
 err0:
 	printk(KERN_WARNING PFX "ACPI perflib can not be used in this platform\n");
@@ -652,6 +660,7 @@ static int powernow_cpu_exit (struct cpufreq_policy *policy) {
 #ifdef CONFIG_X86_POWERNOW_K7_ACPI
 	if (acpi_processor_perf) {
 		acpi_processor_unregister_performance(acpi_processor_perf, 0);
+		free_cpumask_var(acpi_processor_perf->shared_cpu_map);
 		kfree(acpi_processor_perf);
 	}
 #endif

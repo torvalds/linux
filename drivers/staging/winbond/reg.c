@@ -1,4 +1,5 @@
 #include "os_common.h"
+#include "wbhal_f.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Original Phy.h
@@ -976,9 +977,9 @@ void Uxx_power_on_procedure(  phw_data_t pHwData )
 
 		// 20060511.1 Fix the following 4 steps for Rx of RF 2230 initial fail
 		Wb35Reg_WriteSync( pHwData, 0x03d4, 0x80 );// regulator on only
-		OS_SLEEP(10000); // Modify 20051221.1.b
+		msleep(10); // Modify 20051221.1.b
 		Wb35Reg_WriteSync( pHwData, 0x03d4, 0xb8 );// REG_ON RF_RSTN on, and
-		OS_SLEEP(10000); // Modify 20051221.1.b
+		msleep(10); // Modify 20051221.1.b
 
 		ltmp = 0x4968;
 		if( (pHwData->phy_type == RF_WB_242) ||
@@ -988,12 +989,12 @@ void Uxx_power_on_procedure(  phw_data_t pHwData )
 
 		Wb35Reg_WriteSync( pHwData, 0x03d4, 0xa0 );// PLL_PD REF_PD set to 0
 
-		OS_SLEEP(20000); // Modify 20051221.1.b
+		msleep(20); // Modify 20051221.1.b
 		Wb35Reg_ReadSync( pHwData, 0x03d0, &ltmp );
 		loop = 500; // Wait for 5 second 20061101
 		while( !(ltmp & 0x20) && loop-- )
 		{
-			OS_SLEEP(10000); // Modify 20051221.1.b
+			msleep(10); // Modify 20051221.1.b
 			if( !Wb35Reg_ReadSync( pHwData, 0x03d0, &ltmp ) )
 				break;
 		}
@@ -1002,7 +1003,7 @@ void Uxx_power_on_procedure(  phw_data_t pHwData )
 	}
 
 	Wb35Reg_WriteSync( pHwData, 0x03b0, 1 );// Reset hardware first
-	OS_SLEEP(10000); // Add this 20051221.1.b
+	msleep(10); // Add this 20051221.1.b
 
 	// Set burst write delay
 	Wb35Reg_WriteSync( pHwData, 0x03f8, 0x7ff );
@@ -1167,23 +1168,23 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			// 20060511.1 --- Modifying the follow step for Rx issue-----------------
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( (0x07<<20)|0xE168E, 20);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(10000);
+			msleep(10);
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( al2230_rf_data[7], 20);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(10000);
+			msleep(10);
 
 		case RF_AIROHA_2230S: // 20060420 Add this
 
 			// 20060511.1 --- Modifying the follow step for Rx issue-----------------
 			Wb35Reg_WriteSync( pHwData, 0x03d4, 0x80 );// regulator on only
-			OS_SLEEP(10000); // Modify 20051221.1.b
+			msleep(10); // Modify 20051221.1.b
 
 			Wb35Reg_WriteSync( pHwData, 0x03d4, 0xa0 );// PLL_PD REF_PD set to 0
-			OS_SLEEP(10000); // Modify 20051221.1.b
+			msleep(10); // Modify 20051221.1.b
 
 			Wb35Reg_WriteSync( pHwData, 0x03d4, 0xe0 );// MLK_EN
 			Wb35Reg_WriteSync( pHwData, 0x03b0, 1 );// Reset hardware first
-			OS_SLEEP(10000); // Add this 20051221.1.b
+			msleep(10); // Add this 20051221.1.b
 			//------------------------------------------------------------------------
 
 			// The follow code doesn't use the burst-write mode
@@ -1191,30 +1192,30 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( (0x0F<<20) | 0xF01A0, 20);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
 
-			ltmp = pHwData->Wb35Reg.BB5C & 0xfffff000;
+			ltmp = pHwData->reg.BB5C & 0xfffff000;
 			Wb35Reg_WriteSync( pHwData, 0x105c, ltmp );
-			pHwData->Wb35Reg.BB50 |= 0x13;//(MASK_IQCAL_MODE|MASK_CALIB_START);//20060315.1 modify
-        	Wb35Reg_WriteSync( pHwData, 0x1050, pHwData->Wb35Reg.BB50);
-			OS_SLEEP(5000);
+			pHwData->reg.BB50 |= 0x13;//(MASK_IQCAL_MODE|MASK_CALIB_START);//20060315.1 modify
+	        	Wb35Reg_WriteSync(pHwData, 0x1050, pHwData->reg.BB50);
+			msleep(5);
 
 			//phy_set_rf_data(phw_data, 0x0F, (0x0F<<20) | 0xF01B0); //Activate Filter Cal.
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( (0x0F<<20) | 0xF01B0, 20);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 
 			//phy_set_rf_data(phw_data, 0x0F, (0x0F<<20) | 0xF01e0); //Activate TX DCC
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( (0x0F<<20) | 0xF01E0, 20);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 
 			//phy_set_rf_data(phw_data, 0x0F, (0x0F<<20) | 0xF01A0); //Resotre Initial Setting
 			ltmp = (1 << 31) | (0 << 30) | (20 << 24) | BitReverse( (0x0F<<20) | 0xF01A0, 20);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
 
 //			//Force TXI(Q)P(N) to normal control
-			Wb35Reg_WriteSync( pHwData, 0x105c, pHwData->Wb35Reg.BB5C );
-			pHwData->Wb35Reg.BB50 &= ~0x13;//(MASK_IQCAL_MODE|MASK_CALIB_START);
-        	Wb35Reg_WriteSync( pHwData, 0x1050, pHwData->Wb35Reg.BB50);
+			Wb35Reg_WriteSync( pHwData, 0x105c, pHwData->reg.BB5C );
+			pHwData->reg.BB50 &= ~0x13;//(MASK_IQCAL_MODE|MASK_CALIB_START);
+        	Wb35Reg_WriteSync( pHwData, 0x1050, pHwData->reg.BB50);
 			break;
 
 		case RF_AIROHA_7230:
@@ -1229,16 +1230,16 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//2.4GHz
 			//ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x1ABA8F;
 			//Wb35Reg_WriteSync pHwData, 0x0864, ltmp );
-			//OS_SLEEP(1000); // Sleep 1 ms
+			//msleep(1); // Sleep 1 ms
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x9ABA8F;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x3ABA8F;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x1ABA8F;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 
 			//5GHz
 			Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000000 );
@@ -1251,7 +1252,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			// Write to register. number must less and equal than 16
 			for( i=0; i<number; i++ )
 				Wb35Reg_WriteSync( pHwData, 0x0864, pltmp[i] );
-			OS_SLEEP(5000);
+			msleep(5);
 
 			Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000080 );
 			#ifdef _PE_STATE_DUMP_
@@ -1262,13 +1263,13 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x9ABA8F;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x3ABA8F;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | 0x12BACF;
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000);
+			msleep(5);
 
 			//Wb35Reg_WriteSync( pHwData, 0x03dc, 0x00000080 );
 			//WBDEBUG(("* PLL_ON    high\n"));
@@ -1280,21 +1281,21 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//
 			// ; Version 1.3B revision items: for FA5976A , October 3, 2005 by HTHo
 			//
-			ltmp = pHwData->Wb35Reg.BB5C & 0xfffff000;
+			ltmp = pHwData->reg.BB5C & 0xfffff000;
 			Wb35Reg_WriteSync( pHwData, 0x105c, ltmp );
 			Wb35Reg_WriteSync( pHwData, 0x1058, 0 );
-			pHwData->Wb35Reg.BB50 |= 0x3;//(MASK_IQCAL_MODE|MASK_CALIB_START);//20060630
-	      	Wb35Reg_WriteSync( pHwData, 0x1050, pHwData->Wb35Reg.BB50);
+			pHwData->reg.BB50 |= 0x3;//(MASK_IQCAL_MODE|MASK_CALIB_START);//20060630
+		      	Wb35Reg_WriteSync(pHwData, 0x1050, pHwData->reg.BB50);
 
 			//----- Calibration (1). VCO frequency calibration
 			//Calibration (1a.0). Synthesizer reset (HTHo corrected 2005/05/10)
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x0F<<24) | 0x00101E, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP( 5000 ); // Sleep 5ms
+			msleep(5); // Sleep 5ms
 			//Calibration (1a). VCO frequency calibration mode ; waiting 2msec VCO calibration time
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFE69c0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP( 2000 ); // Sleep 2ms
+			msleep(2); // Sleep 2ms
 
 			//----- Calibration (2). TX baseband Gm-C filter auto-tuning
 			//Calibration (2a). turn off ENCAL signal
@@ -1309,7 +1310,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (2c). turn-on TX Gm-C filter auto-tuning
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFCEBC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP( 150 ); // Sleep 150 us
+			udelay(150); // Sleep 150 us
 			//turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xF8EBC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1327,7 +1328,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (3c). turn-on RX Gm-C filter auto-tuning
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFEEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP( 150 ); // Sleep 150 us
+			udelay(150); // Sleep 150 us
 			//Calibration (3e). turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFAEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1336,7 +1337,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (4a). TX LO leakage calibration
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFD6BC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP( 150 ); // Sleep 150 us
+			udelay(150); // Sleep 150 us
 
 			//----- Calibration (5). RX DC offset calibration
 			//Calibration (5a). turn off ENCAL signal and set to RX SW DC caliration mode
@@ -1353,7 +1354,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (5d). turn on RX DC offset cal function; and waiting 2 msec cal time
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFF6DC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(2000); // Sleep 2ms
+			msleep(2); // Sleep 2ms
 			//Calibration (5f). turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFAEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1365,7 +1366,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (5d). turn on RX DC offset cal function; and waiting 2 msec cal time
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFF6DC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(2000); // Sleep 2ms
+			msleep(2); // Sleep 2ms
 			//Calibration (5f). turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFAEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1377,7 +1378,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (5d). turn on RX DC offset cal function; and waiting 2 msec cal time
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFF6DC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(2000); // Sleep 2ms
+			msleep(2); // Sleep 2ms
 			//Calibration (5f). turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFAEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1389,7 +1390,7 @@ RFSynthesizer_initial(phw_data_t pHwData)
 			//Calibration (5d). turn on RX DC offset cal function; and waiting 2 msec cal time
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFF6DC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(2000); // Sleep 2ms
+			msleep(2); // Sleep 2ms
 			//Calibration (5f). turn off ENCAL signal
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xFAEDC0, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
@@ -1399,30 +1400,30 @@ RFSynthesizer_initial(phw_data_t pHwData)
 
 			//; ----- Calibration (7). Switch RF chip to normal mode
 			//0x00 0xF86100 ; 3E184   ; Switch RF chip to normal mode
-//			OS_SLEEP(10000); // @@ 20060721
+//			msleep(10); // @@ 20060721
 			ltmp = (1 << 31) | (0 << 30) | (24 << 24) | BitReverse( (0x00<<24) | 0xF86100, 24);
 			Wb35Reg_WriteSync( pHwData, 0x0864, ltmp );
-			OS_SLEEP(5000); // Sleep 5 ms
+			msleep(5); // Sleep 5 ms
 
 //			//write back
-//			Wb35Reg_WriteSync( pHwData, 0x105c, pHwData->Wb35Reg.BB5C );
-//			pHwData->Wb35Reg.BB50 &= ~0x13;//(MASK_IQCAL_MODE|MASK_CALIB_START); // 20060315.1 fix
-//      	Wb35Reg_WriteSync( pHwData, 0x1050, pHwData->Wb35Reg.BB50);
-//			OS_SLEEP(1000); // Sleep 1 ms
+//			Wb35Reg_WriteSync(pHwData, 0x105c, pHwData->reg.BB5C);
+//			pHwData->reg.BB50 &= ~0x13;//(MASK_IQCAL_MODE|MASK_CALIB_START); // 20060315.1 fix
+//		      	Wb35Reg_WriteSync(pHwData, 0x1050, pHwData->reg.BB50);
+//			msleep(1); // Sleep 1 ms
 			break;
 	}
 }
 
 void BBProcessor_AL7230_2400(  phw_data_t pHwData)
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	u32	pltmp[12];
 
 	pltmp[0] = 0x16A8337A; // 0x16a5215f; // 0x1000 AGC_Ctrl1
 	pltmp[1] = 0x9AFF9AA6; // 0x9aff9ca6; // 0x1004 AGC_Ctrl2
 	pltmp[2] = 0x55D00A04; // 0x55d00a04; // 0x1008 AGC_Ctrl3
 	pltmp[3] = 0xFFF72031; // 0xFfFf2138; // 0x100c AGC_Ctrl4
-	pWb35Reg->BB0C = 0xFFF72031;
+	reg->BB0C = 0xFFF72031;
 	pltmp[4] = 0x0FacDCC5; // 0x1010 AGC_Ctrl5 // 20050927 0x0FacDCB7
 	pltmp[5] = 0x00CAA333; // 0x00eaa333; // 0x1014 AGC_Ctrl6
 	pltmp[6] = 0xF2211111; // 0x11111111; // 0x1018 AGC_Ctrl7
@@ -1431,25 +1432,25 @@ void BBProcessor_AL7230_2400(  phw_data_t pHwData)
 	pltmp[9] = 0xA8002A79; // 0xa9002A79; // 0x1024 AGC_Ctrl10
 	pltmp[10] = 0x40000528; // 20050927 0x40000228
 	pltmp[11] = 0x232D7F30; // 0x23457f30;// 0x102c A_ACQ_Ctrl
-	pWb35Reg->BB2C = 0x232D7F30;
+	reg->BB2C = 0x232D7F30;
 	Wb35Reg_BurstWrite( pHwData, 0x1000, pltmp, 12, AUTO_INCREMENT );
 
 	pltmp[0] = 0x00002c54; // 0x1030 B_ACQ_Ctrl
-	pWb35Reg->BB30 = 0x00002c54;
+	reg->BB30 = 0x00002c54;
 	pltmp[1] = 0x00C0D6C5; // 0x1034 A_TXRX_Ctrl
 	pltmp[2] = 0x5B2C8769; // 0x1038 B_TXRX_Ctrl
 	pltmp[3] = 0x00000000; // 0x103c 11a TX LS filter
-	pWb35Reg->BB3C = 0x00000000;
+	reg->BB3C = 0x00000000;
 	pltmp[4] = 0x00003F29; // 0x1040 11a TX LS filter
 	pltmp[5] = 0x0EFEFBFE; // 0x1044 11a TX LS filter
 	pltmp[6] = 0x00332C1B; // 0x00453B24; // 0x1048 11b TX RC filter
 	pltmp[7] = 0x0A00FEFF; // 0x0E00FEFF; // 0x104c 11b TX RC filter
 	pltmp[8] = 0x2B106208; // 0x1050 MODE_Ctrl
-	pWb35Reg->BB50 = 0x2B106208;
+	reg->BB50 = 0x2B106208;
 	pltmp[9] = 0; // 0x1054
-	pWb35Reg->BB54 = 0x00000000;
+	reg->BB54 = 0x00000000;
 	pltmp[10] = 0x52524242; // 0x64645252; // 0x1058 IQ_Alpha
-	pWb35Reg->BB58 = 0x52524242;
+	reg->BB58 = 0x52524242;
 	pltmp[11] = 0xAA0AC000; // 0x105c DC_Cancel
 	Wb35Reg_BurstWrite( pHwData, 0x1030, pltmp, 12, AUTO_INCREMENT );
 
@@ -1457,14 +1458,14 @@ void BBProcessor_AL7230_2400(  phw_data_t pHwData)
 
 void BBProcessor_AL7230_5000(  phw_data_t pHwData)
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	u32	pltmp[12];
 
 	pltmp[0] = 0x16AA6678; // 0x1000 AGC_Ctrl1
 	pltmp[1] = 0x9AFFA0B2; // 0x1004 AGC_Ctrl2
 	pltmp[2] = 0x55D00A04; // 0x1008 AGC_Ctrl3
 	pltmp[3] = 0xEFFF233E; // 0x100c AGC_Ctrl4
-	pWb35Reg->BB0C = 0xEFFF233E;
+	reg->BB0C = 0xEFFF233E;
 	pltmp[4] = 0x0FacDCC5; // 0x1010 AGC_Ctrl5 // 20050927 0x0FacDCB7
 	pltmp[5] = 0x00CAA333; // 0x1014 AGC_Ctrl6
 	pltmp[6] = 0xF2432111; // 0x1018 AGC_Ctrl7
@@ -1473,24 +1474,24 @@ void BBProcessor_AL7230_5000(  phw_data_t pHwData)
 	pltmp[9] = 0x00002A79; // 0x1024 AGC_Ctrl10
 	pltmp[10] = 0x40000528; // 20050927 0x40000228
 	pltmp[11] = 0x232FDF30;// 0x102c A_ACQ_Ctrl
-	pWb35Reg->BB2C = 0x232FDF30;
+	reg->BB2C = 0x232FDF30;
 	Wb35Reg_BurstWrite( pHwData, 0x1000, pltmp, 12, AUTO_INCREMENT );
 
 	pltmp[0] = 0x80002C7C; // 0x1030 B_ACQ_Ctrl
 	pltmp[1] = 0x00C0D6C5; // 0x1034 A_TXRX_Ctrl
 	pltmp[2] = 0x5B2C8769; // 0x1038 B_TXRX_Ctrl
 	pltmp[3] = 0x00000000; // 0x103c 11a TX LS filter
-	pWb35Reg->BB3C = 0x00000000;
+	reg->BB3C = 0x00000000;
 	pltmp[4] = 0x00003F29; // 0x1040 11a TX LS filter
 	pltmp[5] = 0x0EFEFBFE; // 0x1044 11a TX LS filter
 	pltmp[6] = 0x00332C1B; // 0x1048 11b TX RC filter
 	pltmp[7] = 0x0A00FEFF; // 0x104c 11b TX RC filter
 	pltmp[8] = 0x2B107208; // 0x1050 MODE_Ctrl
-	pWb35Reg->BB50 = 0x2B107208;
+	reg->BB50 = 0x2B107208;
 	pltmp[9] = 0; // 0x1054
-	pWb35Reg->BB54 = 0x00000000;
+	reg->BB54 = 0x00000000;
 	pltmp[10] = 0x52524242; // 0x1058 IQ_Alpha
-	pWb35Reg->BB58 = 0x52524242;
+	reg->BB58 = 0x52524242;
 	pltmp[11] = 0xAA0AC000; // 0x105c DC_Cancel
 	Wb35Reg_BurstWrite( pHwData, 0x1030, pltmp, 12, AUTO_INCREMENT );
 
@@ -1511,7 +1512,7 @@ void BBProcessor_AL7230_5000(  phw_data_t pHwData)
 void
 BBProcessor_initial(  phw_data_t pHwData )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	u32	i, pltmp[12];
 
     switch( pHwData->phy_type )
@@ -1522,7 +1523,7 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[1] = 0x9AFFAEA4; // 0x1004 AGC_Ctrl2
 			pltmp[2] = 0x55D00A04; // 0x1008 AGC_Ctrl3
 			pltmp[3] = 0xEFFF1A34; // 0x100c AGC_Ctrl4
-			pWb35Reg->BB0C = 0xEFFF1A34;
+			reg->BB0C = 0xEFFF1A34;
 			pltmp[4] = 0x0FABE0B7; // 0x1010 AGC_Ctrl5
 			pltmp[5] = 0x00CAA332; // 0x1014 AGC_Ctrl6
 			pltmp[6] = 0xF6632111; // 0x1018 AGC_Ctrl7
@@ -1531,25 +1532,25 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[9] = 0x00002A79; // 0x1024 AGC_Ctrl10
 			pltmp[10] = (pHwData->phy_type==3) ? 0x40000a28 : 0x40000228; // 0x1028 MAXIM_331(b31=0) + WBRF_V1(b11=1) : MAXIM_331(b31=0) + WBRF_V2(b11=0)
 			pltmp[11] = 0x232FDF30; // 0x102c A_ACQ_Ctrl
-			pWb35Reg->BB2C = 0x232FDF30; //Modify for 33's 1.0.95.xxx version, antenna 1
+			reg->BB2C = 0x232FDF30; //Modify for 33's 1.0.95.xxx version, antenna 1
 			Wb35Reg_BurstWrite( pHwData, 0x1000, pltmp, 12, AUTO_INCREMENT );
 
 			pltmp[0] = 0x00002C54; // 0x1030 B_ACQ_Ctrl
-			pWb35Reg->BB30 = 0x00002C54;
+			reg->BB30 = 0x00002C54;
 			pltmp[1] = 0x00C0D6C5; // 0x1034 A_TXRX_Ctrl
 			pltmp[2] = 0x5B6C8769; // 0x1038 B_TXRX_Ctrl
 			pltmp[3] = 0x00000000; // 0x103c 11a TX LS filter
-			pWb35Reg->BB3C = 0x00000000;
+			reg->BB3C = 0x00000000;
 			pltmp[4] = 0x00003F29; // 0x1040 11a TX LS filter
 			pltmp[5] = 0x0EFEFBFE; // 0x1044 11a TX LS filter
 			pltmp[6] = 0x00453B24; // 0x1048 11b TX RC filter
 			pltmp[7] = 0x0E00FEFF; // 0x104c 11b TX RC filter
 			pltmp[8] = 0x27106208; // 0x1050 MODE_Ctrl
-			pWb35Reg->BB50 = 0x27106208;
+			reg->BB50 = 0x27106208;
 			pltmp[9] = 0; // 0x1054
-			pWb35Reg->BB54 = 0x00000000;
+			reg->BB54 = 0x00000000;
 			pltmp[10] = 0x64646464; // 0x1058 IQ_Alpha
-			pWb35Reg->BB58 = 0x64646464;
+			reg->BB58 = 0x64646464;
 			pltmp[11] = 0xAA0AC000; // 0x105c DC_Cancel
 			Wb35Reg_BurstWrite( pHwData, 0x1030, pltmp, 12, AUTO_INCREMENT );
 
@@ -1568,7 +1569,7 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[1] = 0x9affaea4; // 0x1004 AGC_Ctrl2
 			pltmp[2] = 0x55d00a04; // 0x1008 AGC_Ctrl3
 			pltmp[3] = 0xefff1a34; // 0x100c AGC_Ctrl4
-			pWb35Reg->BB0C = 0xefff1a34;
+			reg->BB0C = 0xefff1a34;
 			pltmp[4] = 0x0fabe0b7; // 0x1010 AGC_Ctrl5
 			pltmp[5] = 0x00caa332; // 0x1014 AGC_Ctrl6
 			pltmp[6] = 0xf6632111; // 0x1018 AGC_Ctrl7
@@ -1577,25 +1578,25 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[9] = 0x00002A79; // 0x1024 AGC_Ctrl10
 			pltmp[10] = 0x40000528; // 0x40000128; Modify for 33's 1.0.95
 			pltmp[11] = 0x232fdf30; // 0x102c A_ACQ_Ctrl
-			pWb35Reg->BB2C = 0x232fdf30; //Modify for 33's 1.0.95.xxx version, antenna 1
+			reg->BB2C = 0x232fdf30; //Modify for 33's 1.0.95.xxx version, antenna 1
 			Wb35Reg_BurstWrite( pHwData, 0x1000, pltmp, 12, AUTO_INCREMENT );
 
 			pltmp[0] = 0x00002C54; // 0x1030 B_ACQ_Ctrl
-			pWb35Reg->BB30 = 0x00002C54;
+			reg->BB30 = 0x00002C54;
 			pltmp[1] = 0x00C0D6C5; // 0x1034 A_TXRX_Ctrl
 			pltmp[2] = 0x5B6C8769; // 0x1038 B_TXRX_Ctrl
 			pltmp[3] = 0x00000000; // 0x103c 11a TX LS filter
-			pWb35Reg->BB3C = 0x00000000;
+			reg->BB3C = 0x00000000;
 			pltmp[4] = 0x00003F29; // 0x1040 11a TX LS filter
 			pltmp[5] = 0x0EFEFBFE; // 0x1044 11a TX LS filter
 			pltmp[6] = 0x00453B24; // 0x1048 11b TX RC filter
 			pltmp[7] = 0x0D00FDFF; // 0x104c 11b TX RC filter
 			pltmp[8] = 0x27106208; // 0x1050 MODE_Ctrl
-			pWb35Reg->BB50 = 0x27106208;
+			reg->BB50 = 0x27106208;
 			pltmp[9] = 0; // 0x1054
-			pWb35Reg->BB54 = 0x00000000;
+			reg->BB54 = 0x00000000;
 			pltmp[10] = 0x64646464; // 0x1058 IQ_Alpha
-			pWb35Reg->BB58 = 0x64646464;
+			reg->BB58 = 0x64646464;
 			pltmp[11] = 0xAA28C000; // 0x105c DC_Cancel
 			Wb35Reg_BurstWrite( pHwData, 0x1030, pltmp, 12, AUTO_INCREMENT );
 
@@ -1608,7 +1609,7 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[1] = 0x9affaea4; // 0x1004 AGC_Ctrl2
 			pltmp[2] = 0x55d00a04; // 0x1008 AGC_Ctrl3
 			pltmp[3] = 0xf4ff1632; // 0xefff1a34; // 0x100c AGC_Ctrl4 Modify for 33's 1.0.95
-			pWb35Reg->BB0C = 0xf4ff1632; // 0xefff1a34; Modify for 33's 1.0.95
+			reg->BB0C = 0xf4ff1632; // 0xefff1a34; Modify for 33's 1.0.95
 			pltmp[4] = 0x0fabe0b7; // 0x1010 AGC_Ctrl5
 			pltmp[5] = 0x00caa332; // 0x1014 AGC_Ctrl6
 			pltmp[6] = 0xf8632112; // 0xf6632111; // 0x1018 AGC_Ctrl7 Modify for 33's 1.0.95
@@ -1617,25 +1618,25 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[9] = 0x00002A79; // 0x1024 AGC_Ctrl10
 			pltmp[10] = 0x40000528; // 0x40000128; modify for 33's 1.0.95
 			pltmp[11] = 0x232fdf30; // 0x102c A_ACQ_Ctrl
-			pWb35Reg->BB2C = 0x232fdf30; //Modify for 33's 1.0.95.xxx version, antenna 1
+			reg->BB2C = 0x232fdf30; //Modify for 33's 1.0.95.xxx version, antenna 1
 			Wb35Reg_BurstWrite( pHwData, 0x1000, pltmp, 12, AUTO_INCREMENT );
 
 			pltmp[0] = 0x00002C54; // 0x1030 B_ACQ_Ctrl
-			pWb35Reg->BB30 = 0x00002C54;
+			reg->BB30 = 0x00002C54;
 			pltmp[1] = 0x00C0D6C5; // 0x1034 A_TXRX_Ctrl
 			pltmp[2] = 0x5b2c8769; // 0x5B6C8769; // 0x1038 B_TXRX_Ctrl Modify for 33's 1.0.95
 			pltmp[3] = 0x00000000; // 0x103c 11a TX LS filter
-			pWb35Reg->BB3C = 0x00000000;
+			reg->BB3C = 0x00000000;
 			pltmp[4] = 0x00003F29; // 0x1040 11a TX LS filter
 			pltmp[5] = 0x0EFEFBFE; // 0x1044 11a TX LS filter
 			pltmp[6] = 0x002c2617; // 0x00453B24; // 0x1048 11b TX RC filter Modify for 33's 1.0.95
 			pltmp[7] = 0x0800feff; // 0x0D00FDFF; // 0x104c 11b TX RC filter Modify for 33's 1.0.95
 			pltmp[8] = 0x27106208; // 0x1050 MODE_Ctrl
-			pWb35Reg->BB50 = 0x27106208;
+			reg->BB50 = 0x27106208;
 			pltmp[9] = 0; // 0x1054
-			pWb35Reg->BB54 = 0x00000000;
+			reg->BB54 = 0x00000000;
 			pltmp[10] = 0x64644a4a; // 0x64646464; // 0x1058 IQ_Alpha Modify for 33's 1.0.95
-			pWb35Reg->BB58 = 0x64646464;
+			reg->BB58 = 0x64646464;
 			pltmp[11] = 0xAA28C000; // 0x105c DC_Cancel
 			Wb35Reg_BurstWrite( pHwData, 0x1030, pltmp, 12, AUTO_INCREMENT );
 
@@ -1648,7 +1649,7 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[1] = 0x9affafb2; // 0x1004 AGC_Ctrl2
 			pltmp[2] = 0x55d00a04; // 0x1008 AGC_Ctrl3
 			pltmp[3] = 0xFFFd203c; // 0xFFFb203a; // 0x100c AGC_Ctrl4 Modify for 33's 1.0.95.xxx version
-			pWb35Reg->BB0C = 0xFFFd203c;
+			reg->BB0C = 0xFFFd203c;
 			pltmp[4] = 0X0FBFDCc5; // 0X0FBFDCA0; // 0x1010 AGC_Ctrl5 //0x0FB2E0B7 Modify for 33's 1.0.95.xxx version
 			pltmp[5] = 0x00caa332; // 0x00caa333; // 0x1014 AGC_Ctrl6 Modify for 33's 1.0.95.xxx version
 			pltmp[6] = 0XF6632111; // 0XF1632112; // 0x1018 AGC_Ctrl7		//0xf6632112 Modify for 33's 1.0.95.xxx version
@@ -1657,27 +1658,27 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[9] = 0x00002A79; // 0x1024 AGC_Ctrl10
 			pltmp[10] = 0X40000528;							//0x40000228
 			pltmp[11] = 0x232dfF30; // 0x232A9F30; // 0x102c A_ACQ_Ctrl	//0x232a9730
-			pWb35Reg->BB2C = 0x232dfF30; //Modify for 33's 1.0.95.xxx version, antenna 1
+			reg->BB2C = 0x232dfF30; //Modify for 33's 1.0.95.xxx version, antenna 1
 			Wb35Reg_BurstWrite( pHwData, 0x1000, pltmp, 12, AUTO_INCREMENT );
 
 			pltmp[0] = 0x00002C54; // 0x1030 B_ACQ_Ctrl
-			pWb35Reg->BB30 = 0x00002C54;
+			reg->BB30 = 0x00002C54;
 			pltmp[1] = 0x00C0D6C5; // 0x1034 A_TXRX_Ctrl
 			pltmp[2] = 0x5B2C8769; // 0x1038 B_TXRX_Ctrl	//0x5B6C8769
 			pltmp[3] = 0x00000000; // 0x103c 11a TX LS filter
-			pWb35Reg->BB3C = 0x00000000;
+			reg->BB3C = 0x00000000;
 			pltmp[4] = 0x00003F29; // 0x1040 11a TX LS filter
 			pltmp[5] = 0x0EFEFBFE; // 0x1044 11a TX LS filter
 			pltmp[6] = BB48_DEFAULT_AL2230_11G; // 0x1048 11b TX RC filter 20060613.2
-			pWb35Reg->BB48 = BB48_DEFAULT_AL2230_11G; // 20051221 ch14 20060613.2
+			reg->BB48 = BB48_DEFAULT_AL2230_11G; // 20051221 ch14 20060613.2
 			pltmp[7] = BB4C_DEFAULT_AL2230_11G; // 0x104c 11b TX RC filter 20060613.2
-			pWb35Reg->BB4C = BB4C_DEFAULT_AL2230_11G; // 20060613.1 20060613.2
+			reg->BB4C = BB4C_DEFAULT_AL2230_11G; // 20060613.1 20060613.2
 			pltmp[8] = 0x27106200; // 0x1050 MODE_Ctrl
-			pWb35Reg->BB50 = 0x27106200;
+			reg->BB50 = 0x27106200;
 			pltmp[9] = 0; // 0x1054
-			pWb35Reg->BB54 = 0x00000000;
+			reg->BB54 = 0x00000000;
 			pltmp[10] = 0x52524242; // 0x1058 IQ_Alpha
-			pWb35Reg->BB58 = 0x52524242;
+			reg->BB58 = 0x52524242;
 			pltmp[11] = 0xAA0AC000; // 0x105c DC_Cancel
 			Wb35Reg_BurstWrite( pHwData, 0x1030, pltmp, 12, AUTO_INCREMENT );
 
@@ -1690,7 +1691,7 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[1] = 0x9affafb2; // 0x1004 AGC_Ctrl2
 			pltmp[2] = 0x55d00a04; // 0x1008 AGC_Ctrl3
 			pltmp[3] = 0xFFFd203c; // 0xFFFb203a; // 0x100c AGC_Ctrl4 Modify for 33's 1.0.95.xxx version
-			pWb35Reg->BB0C = 0xFFFd203c;
+			reg->BB0C = 0xFFFd203c;
 			pltmp[4] = 0X0FBFDCc5; // 0X0FBFDCA0; // 0x1010 AGC_Ctrl5 //0x0FB2E0B7 Modify for 33's 1.0.95.xxx version
 			pltmp[5] = 0x00caa332; // 0x00caa333; // 0x1014 AGC_Ctrl6 Modify for 33's 1.0.95.xxx version
 			pltmp[6] = 0XF6632111; // 0XF1632112; // 0x1018 AGC_Ctrl7		//0xf6632112 Modify for 33's 1.0.95.xxx version
@@ -1699,27 +1700,27 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[9] = 0x00002A79; // 0x1024 AGC_Ctrl10
 			pltmp[10] = 0X40000528;							//0x40000228
 			pltmp[11] = 0x232dfF30; // 0x232A9F30; // 0x102c A_ACQ_Ctrl	//0x232a9730
-			pWb35Reg->BB2C = 0x232dfF30; //Modify for 33's 1.0.95.xxx version, antenna 1
+			reg->BB2C = 0x232dfF30; //Modify for 33's 1.0.95.xxx version, antenna 1
 			Wb35Reg_BurstWrite( pHwData, 0x1000, pltmp, 12, AUTO_INCREMENT );
 
 			pltmp[0] = 0x00002C54; // 0x1030 B_ACQ_Ctrl
-			pWb35Reg->BB30 = 0x00002C54;
+			reg->BB30 = 0x00002C54;
 			pltmp[1] = 0x00C0D6C5; // 0x1034 A_TXRX_Ctrl
 			pltmp[2] = 0x5B2C8769; // 0x1038 B_TXRX_Ctrl	//0x5B6C8769
 			pltmp[3] = 0x00000000; // 0x103c 11a TX LS filter
-			pWb35Reg->BB3C = 0x00000000;
+			reg->BB3C = 0x00000000;
 			pltmp[4] = 0x00003F29; // 0x1040 11a TX LS filter
 			pltmp[5] = 0x0EFEFBFE; // 0x1044 11a TX LS filter
 			pltmp[6] = BB48_DEFAULT_AL2230_11G; // 0x1048 11b TX RC filter 20060613.2
-			pWb35Reg->BB48 = BB48_DEFAULT_AL2230_11G; // 20051221 ch14 20060613.2
+			reg->BB48 = BB48_DEFAULT_AL2230_11G; // 20051221 ch14 20060613.2
 			pltmp[7] = BB4C_DEFAULT_AL2230_11G; // 0x104c 11b TX RC filter 20060613.2
-			pWb35Reg->BB4C = BB4C_DEFAULT_AL2230_11G; // 20060613.1
+			reg->BB4C = BB4C_DEFAULT_AL2230_11G; // 20060613.1
 			pltmp[8] = 0x27106200; // 0x1050 MODE_Ctrl
-			pWb35Reg->BB50 = 0x27106200;
+			reg->BB50 = 0x27106200;
 			pltmp[9] = 0; // 0x1054
-			pWb35Reg->BB54 = 0x00000000;
+			reg->BB54 = 0x00000000;
 			pltmp[10] = 0x52523232; // 20060419 0x52524242; // 0x1058 IQ_Alpha
-			pWb35Reg->BB58 = 0x52523232; // 20060419 0x52524242;
+			reg->BB58 = 0x52523232; // 20060419 0x52524242;
 			pltmp[11] = 0xAA0AC000; // 0x105c DC_Cancel
 			Wb35Reg_BurstWrite( pHwData, 0x1030, pltmp, 12, AUTO_INCREMENT );
 
@@ -1732,7 +1733,7 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[1] = 0x9affafb2; // 0x1004 AGC_Ctrl2
 			pltmp[2] = 0x55d00a04; // 0x1008 AGC_Ctrl3
 			pltmp[3] = 0xFFFb203a; // 0x100c AGC_Ctrl4
-			pWb35Reg->BB0c = 0xFFFb203a;
+			reg->BB0c = 0xFFFb203a;
 			pltmp[4] = 0x0FBFDCB7; // 0x1010 AGC_Ctrl5
 			pltmp[5] = 0x00caa333; // 0x1014 AGC_Ctrl6
 			pltmp[6] = 0xf6632112; // 0x1018 AGC_Ctrl7
@@ -1741,25 +1742,25 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[9] = 0x00002A79; // 0x1024 AGC_Ctrl10
 			pltmp[10] = 0x40000228;
 			pltmp[11] = 0x232A9F30;// 0x102c A_ACQ_Ctrl
-			pWb35Reg->BB2c = 0x232A9F30;
+			reg->BB2c = 0x232A9F30;
 			Wb35Reg_BurstWrite( pHwData, 0x1000, pltmp, 12, AUTO_INCREMENT );
 
 			pltmp[0] = 0x00002C54; // 0x1030 B_ACQ_Ctrl
-			pWb35Reg->BB30 = 0x00002C54;
+			reg->BB30 = 0x00002C54;
 			pltmp[1] = 0x00C0D6C5; // 0x1034 A_TXRX_Ctrl
 			pltmp[2] = 0x5B2C8769; // 0x1038 B_TXRX_Ctrl
 			pltmp[3] = 0x00000000; // 0x103c 11a TX LS filter
-			pWb35Reg->BB3c = 0x00000000;
+			reg->BB3c = 0x00000000;
 			pltmp[4] = 0x00003F29; // 0x1040 11a TX LS filter
 			pltmp[5] = 0x0EFEFBFE; // 0x1044 11a TX LS filter
 			pltmp[6] = 0x00453B24; // 0x1048 11b TX RC filter
 			pltmp[7] = 0x0E00FEFF; // 0x104c 11b TX RC filter
 			pltmp[8] = 0x27106200; // 0x1050 MODE_Ctrl
-			pWb35Reg->BB50 = 0x27106200;
+			reg->BB50 = 0x27106200;
 			pltmp[9] = 0; // 0x1054
-			pWb35Reg->BB54 = 0x00000000;
+			reg->BB54 = 0x00000000;
 			pltmp[10] = 0x64645252; // 0x1058 IQ_Alpha
-			pWb35Reg->BB58 = 0x64645252;
+			reg->BB58 = 0x64645252;
 			pltmp[11] = 0xAA0AC000; // 0x105c DC_Cancel
 			Wb35Reg_BurstWrite( pHwData, 0x1030, pltmp, 12, AUTO_INCREMENT );
 */
@@ -1775,7 +1776,7 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[1] = 0x9AFF9ABA; // 0x1004 AGC_Ctrl2
 			pltmp[2] = 0x55D00A04; // 0x1008 AGC_Ctrl3
 			pltmp[3] = 0xEEE91C32; // 0x100c AGC_Ctrl4
-			pWb35Reg->BB0C = 0xEEE91C32;
+			reg->BB0C = 0xEEE91C32;
 			pltmp[4] = 0x0FACDCC5; // 0x1010 AGC_Ctrl5
 			pltmp[5] = 0x000AA344; // 0x1014 AGC_Ctrl6
 			pltmp[6] = 0x22222221; // 0x1018 AGC_Ctrl7
@@ -1784,27 +1785,27 @@ BBProcessor_initial(  phw_data_t pHwData )
 			pltmp[9] = 0xA9002A79; // 0x1024 AGC_Ctrl10
 			pltmp[10] = 0x40000528; // 0x1028
 			pltmp[11] = 0x23457F30; // 0x102c A_ACQ_Ctrl
-			pWb35Reg->BB2C = 0x23457F30;
+			reg->BB2C = 0x23457F30;
 			Wb35Reg_BurstWrite( pHwData, 0x1000, pltmp, 12, AUTO_INCREMENT );
 
 			pltmp[0] = 0x00002C54; // 0x1030 B_ACQ_Ctrl
-			pWb35Reg->BB30 = 0x00002C54;
+			reg->BB30 = 0x00002C54;
 			pltmp[1] = 0x00C0D6C5; // 0x1034 A_TXRX_Ctrl
 			pltmp[2] = 0x5B2C8769; // 0x1038 B_TXRX_Ctrl
 			pltmp[3] = pHwData->BB3c_cal; // 0x103c 11a TX LS filter
-			pWb35Reg->BB3C = pHwData->BB3c_cal;
+			reg->BB3C = pHwData->BB3c_cal;
 			pltmp[4] = 0x00003F29; // 0x1040 11a TX LS filter
 			pltmp[5] = 0x0EFEFBFE; // 0x1044 11a TX LS filter
 			pltmp[6] = BB48_DEFAULT_WB242_11G; // 0x1048 11b TX RC filter 20060613.2
-			pWb35Reg->BB48 = BB48_DEFAULT_WB242_11G; // 20060613.1 20060613.2
+			reg->BB48 = BB48_DEFAULT_WB242_11G; // 20060613.1 20060613.2
 			pltmp[7] = BB4C_DEFAULT_WB242_11G; // 0x104c 11b TX RC filter 20060613.2
-			pWb35Reg->BB4C = BB4C_DEFAULT_WB242_11G; // 20060613.1 20060613.2
+			reg->BB4C = BB4C_DEFAULT_WB242_11G; // 20060613.1 20060613.2
 			pltmp[8] = 0x27106208; // 0x1050 MODE_Ctrl
-			pWb35Reg->BB50 = 0x27106208;
+			reg->BB50 = 0x27106208;
 			pltmp[9] = pHwData->BB54_cal; // 0x1054
-			pWb35Reg->BB54 = pHwData->BB54_cal;
+			reg->BB54 = pHwData->BB54_cal;
 			pltmp[10] = 0x52523131; // 0x1058 IQ_Alpha
-			pWb35Reg->BB58 = 0x52523131;
+			reg->BB58 = 0x52523131;
 			pltmp[11] = 0xAA0AC000; // 20060825 0xAA2AC000; // 0x105c DC_Cancel
 			Wb35Reg_BurstWrite( pHwData, 0x1030, pltmp, 12, AUTO_INCREMENT );
 
@@ -1813,14 +1814,14 @@ BBProcessor_initial(  phw_data_t pHwData )
     }
 
 	// Fill the LNA table
-	pWb35Reg->LNAValue[0] = (u8)(pWb35Reg->BB0C & 0xff);
-	pWb35Reg->LNAValue[1] = 0;
-	pWb35Reg->LNAValue[2] = (u8)((pWb35Reg->BB0C & 0xff00)>>8);
-	pWb35Reg->LNAValue[3] = 0;
+	reg->LNAValue[0] = (u8)(reg->BB0C & 0xff);
+	reg->LNAValue[1] = 0;
+	reg->LNAValue[2] = (u8)((reg->BB0C & 0xff00)>>8);
+	reg->LNAValue[3] = 0;
 
 	// Fill SQ3 table
 	for( i=0; i<MAX_SQ3_FILTER_SIZE; i++ )
-		pWb35Reg->SQ3_filter[i] = 0x2f; // half of Bit 0 ~ 6
+		reg->SQ3_filter[i] = 0x2f; // half of Bit 0 ~ 6
 }
 
 void set_tx_power_per_channel_max2829(  phw_data_t pHwData,  ChanInfo Channel)
@@ -1903,7 +1904,7 @@ void set_tx_power_per_channel_wb242(  phw_data_t pHwData,  ChanInfo Channel)
 void
 RFSynthesizer_SwitchingChannel(  phw_data_t pHwData,  ChanInfo Channel )
 {
-	PWB35REG pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	u32	pltmp[16]; // The 16 is the maximum capability of hardware
 	u32	count, ltmp;
 	u8	i, j, number;
@@ -2090,40 +2091,40 @@ RFSynthesizer_SwitchingChannel(  phw_data_t pHwData,  ChanInfo Channel )
 	if( Channel.band <= BAND_TYPE_OFDM_24 )
 	{
         // BB: select 2.4 GHz, bit[12-11]=00
-		pWb35Reg->BB50 &= ~(BIT(11)|BIT(12));
-		Wb35Reg_Write( pHwData, 0x1050, pWb35Reg->BB50 ); // MODE_Ctrl
+		reg->BB50 &= ~(BIT(11)|BIT(12));
+		Wb35Reg_Write( pHwData, 0x1050, reg->BB50 ); // MODE_Ctrl
         // MAC: select 2.4 GHz, bit[5]=0
-		pWb35Reg->M78_ERPInformation &= ~BIT(5);
-		Wb35Reg_Write( pHwData, 0x0878, pWb35Reg->M78_ERPInformation );
+		reg->M78_ERPInformation &= ~BIT(5);
+		Wb35Reg_Write( pHwData, 0x0878, reg->M78_ERPInformation );
         // enable 11b Baseband
-		pWb35Reg->BB30 &= ~BIT(31);
-		Wb35Reg_Write( pHwData, 0x1030, pWb35Reg->BB30 );
+		reg->BB30 &= ~BIT(31);
+		Wb35Reg_Write( pHwData, 0x1030, reg->BB30 );
 	}
 	else if( (Channel.band == BAND_TYPE_OFDM_5) )
 	{
         // BB: select 5 GHz
-		pWb35Reg->BB50 &= ~(BIT(11)|BIT(12));
+		reg->BB50 &= ~(BIT(11)|BIT(12));
 		if (Channel.ChanNo <=64 )
-			pWb35Reg->BB50 |= BIT(12);				// 10-5.25GHz
+			reg->BB50 |= BIT(12);				// 10-5.25GHz
 		else if ((Channel.ChanNo >= 100) && (Channel.ChanNo <= 124))
-			pWb35Reg->BB50 |= BIT(11);				// 01-5.48GHz
+			reg->BB50 |= BIT(11);				// 01-5.48GHz
 		else if ((Channel.ChanNo >=128) && (Channel.ChanNo <= 161))
-			pWb35Reg->BB50 |= (BIT(12)|BIT(11));	// 11-5.775GHz
+			reg->BB50 |= (BIT(12)|BIT(11));	// 11-5.775GHz
 		else	//Chan 184 ~ 196 will use bit[12-11] = 10 in version sh-src-1.2.25
-			pWb35Reg->BB50 |= BIT(12);
-		Wb35Reg_Write( pHwData, 0x1050, pWb35Reg->BB50 ); // MODE_Ctrl
+			reg->BB50 |= BIT(12);
+		Wb35Reg_Write( pHwData, 0x1050, reg->BB50 ); // MODE_Ctrl
 
 		//(1) M78 should alway use 2.4G setting when using RF_AIROHA_7230
 		//(2) BB30 has been updated previously.
 		if (pHwData->phy_type != RF_AIROHA_7230)
 		{
     	    // MAC: select 5 GHz, bit[5]=1
-			pWb35Reg->M78_ERPInformation |= BIT(5);
-			Wb35Reg_Write( pHwData, 0x0878, pWb35Reg->M78_ERPInformation );
+			reg->M78_ERPInformation |= BIT(5);
+			Wb35Reg_Write( pHwData, 0x0878, reg->M78_ERPInformation );
 
     	    // disable 11b Baseband
-			pWb35Reg->BB30 |= BIT(31);
-			Wb35Reg_Write( pHwData, 0x1030, pWb35Reg->BB30 );
+			reg->BB30 |= BIT(31);
+			Wb35Reg_Write( pHwData, 0x1030, reg->BB30 );
 		}
 	}
 }
@@ -2313,21 +2314,21 @@ u8 RFSynthesizer_SetWinbond242Power(  phw_data_t pHwData, u8 index )
 //===========================================================================================================
 void Dxx_initial(  phw_data_t pHwData )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 
 	// Old IC:Single mode only.
 	// New IC: operation decide by Software set bit[4]. 1:multiple 0: single
-	pWb35Reg->D00_DmaControl = 0xc0000004;	//Txon, Rxon, multiple Rx for new 4k DMA
+	reg->D00_DmaControl = 0xc0000004;	//Txon, Rxon, multiple Rx for new 4k DMA
 											//Txon, Rxon, single Rx for old 8k ASIC
 	if( !HAL_USB_MODE_BURST( pHwData ) )
-		pWb35Reg->D00_DmaControl = 0xc0000000;//Txon, Rxon, single Rx for new 4k DMA
+		reg->D00_DmaControl = 0xc0000000;//Txon, Rxon, single Rx for new 4k DMA
 
-	Wb35Reg_WriteSync( pHwData, 0x0400, pWb35Reg->D00_DmaControl );
+	Wb35Reg_WriteSync( pHwData, 0x0400, reg->D00_DmaControl );
 }
 
 void Mxx_initial(  phw_data_t pHwData )
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	u32		tmp;
 	u32		pltmp[11];
 	u16	i;
@@ -2339,23 +2340,23 @@ void Mxx_initial(  phw_data_t pHwData )
 
 	// M00 bit set
 #ifdef _IBSS_BEACON_SEQ_STICK_
-	pWb35Reg->M00_MacControl = 0; // Solve beacon sequence number stop by software
+	reg->M00_MacControl = 0; // Solve beacon sequence number stop by software
 #else
-	pWb35Reg->M00_MacControl = 0x80000000; // Solve beacon sequence number stop by hardware
+	reg->M00_MacControl = 0x80000000; // Solve beacon sequence number stop by hardware
 #endif
 
 	// M24 disable enter power save, BB RxOn and enable NAV attack
-	pWb35Reg->M24_MacControl = 0x08040042;
-	pltmp[0] = pWb35Reg->M24_MacControl;
+	reg->M24_MacControl = 0x08040042;
+	pltmp[0] = reg->M24_MacControl;
 
 	pltmp[1] = 0; // Skip M28, because no initialize value is required.
 
 	// M2C CWmin and CWmax setting
 	pHwData->cwmin = DEFAULT_CWMIN;
 	pHwData->cwmax = DEFAULT_CWMAX;
-	pWb35Reg->M2C_MacControl = DEFAULT_CWMIN << 10;
-	pWb35Reg->M2C_MacControl |= DEFAULT_CWMAX;
-	pltmp[2] = pWb35Reg->M2C_MacControl;
+	reg->M2C_MacControl = DEFAULT_CWMIN << 10;
+	reg->M2C_MacControl |= DEFAULT_CWMAX;
+	pltmp[2] = reg->M2C_MacControl;
 
 	// M30 BSSID
 	pltmp[3] = *(u32 *)pHwData->bssid;
@@ -2367,35 +2368,35 @@ void Mxx_initial(  phw_data_t pHwData )
 	pltmp[4] = tmp;
 
 	// M38
-	pWb35Reg->M38_MacControl = (DEFAULT_RATE_RETRY_LIMIT<<8) | (DEFAULT_LONG_RETRY_LIMIT << 4) | DEFAULT_SHORT_RETRY_LIMIT;
-	pltmp[5] = pWb35Reg->M38_MacControl;
+	reg->M38_MacControl = (DEFAULT_RATE_RETRY_LIMIT<<8) | (DEFAULT_LONG_RETRY_LIMIT << 4) | DEFAULT_SHORT_RETRY_LIMIT;
+	pltmp[5] = reg->M38_MacControl;
 
 	// M3C
 	tmp = (DEFAULT_PIFST << 26) | (DEFAULT_EIFST << 16) | (DEFAULT_DIFST << 8) | (DEFAULT_SIFST << 4) | DEFAULT_OSIFST ;
-	pWb35Reg->M3C_MacControl = tmp;
+	reg->M3C_MacControl = tmp;
 	pltmp[6] = tmp;
 
 	// M40
 	pHwData->slot_time_select = DEFAULT_SLOT_TIME;
 	tmp = (DEFAULT_ATIMWD << 16) | DEFAULT_SLOT_TIME;
-	pWb35Reg->M40_MacControl = tmp;
+	reg->M40_MacControl = tmp;
 	pltmp[7] = tmp;
 
 	// M44
 	tmp = DEFAULT_MAX_TX_MSDU_LIFE_TIME << 10; // *1024
-	pWb35Reg->M44_MacControl = tmp;
+	reg->M44_MacControl = tmp;
 	pltmp[8] = tmp;
 
 	// M48
 	pHwData->BeaconPeriod = DEFAULT_BEACON_INTERVAL;
 	pHwData->ProbeDelay = DEFAULT_PROBE_DELAY_TIME;
 	tmp = (DEFAULT_BEACON_INTERVAL << 16) | DEFAULT_PROBE_DELAY_TIME;
-	pWb35Reg->M48_MacControl = tmp;
+	reg->M48_MacControl = tmp;
 	pltmp[9] = tmp;
 
 	//M4C
-	pWb35Reg->M4C_MacStatus = (DEFAULT_PROTOCOL_VERSION << 30) | (DEFAULT_MAC_POWER_STATE << 28) | (DEFAULT_DTIM_ALERT_TIME << 24);
-	pltmp[10] = pWb35Reg->M4C_MacStatus;
+	reg->M4C_MacStatus = (DEFAULT_PROTOCOL_VERSION << 30) | (DEFAULT_MAC_POWER_STATE << 28) | (DEFAULT_DTIM_ALERT_TIME << 24);
+	pltmp[10] = reg->M4C_MacStatus;
 
 	// Burst write
 	//Wb35Reg_BurstWrite( pHwData, 0x0824, pltmp, 11, AUTO_INCREMENT );
@@ -2404,15 +2405,15 @@ void Mxx_initial(  phw_data_t pHwData )
 
 	// M60
 	Wb35Reg_WriteSync( pHwData, 0x0860, 0x12481248 );
-	pWb35Reg->M60_MacControl = 0x12481248;
+	reg->M60_MacControl = 0x12481248;
 
 	// M68
 	Wb35Reg_WriteSync( pHwData, 0x0868, 0x00050900 ); // 20051018 0x000F0F00 ); // 940930 0x00131300
-	pWb35Reg->M68_MacControl = 0x00050900;
+	reg->M68_MacControl = 0x00050900;
 
 	// M98
 	Wb35Reg_WriteSync( pHwData, 0x0898, 0xffff8888 );
-	pWb35Reg->M98_MacControl = 0xffff8888;
+	reg->M98_MacControl = 0xffff8888;
 }
 
 
@@ -2620,7 +2621,7 @@ void EEPROMTxVgaAdjust(  phw_data_t pHwData ) // 20060619.5 Add
 
 void BBProcessor_RateChanging(  phw_data_t pHwData,  u8 rate ) // 20060613.1
 {
-	PWB35REG	pWb35Reg = &pHwData->Wb35Reg;
+	struct wb35_reg *reg = &pHwData->reg;
 	unsigned char		Is11bRate;
 
 	Is11bRate = (rate % 6) ? 1 : 0;
@@ -2630,8 +2631,8 @@ void BBProcessor_RateChanging(  phw_data_t pHwData,  u8 rate ) // 20060613.1
 		case RF_AIROHA_2230S: // 20060420 Add this
 			if( Is11bRate )
 			{
-				if( (pWb35Reg->BB48 != BB48_DEFAULT_AL2230_11B) &&
-					(pWb35Reg->BB4C != BB4C_DEFAULT_AL2230_11B) )
+				if( (reg->BB48 != BB48_DEFAULT_AL2230_11B) &&
+					(reg->BB4C != BB4C_DEFAULT_AL2230_11B) )
 				{
 					Wb35Reg_Write( pHwData, 0x1048, BB48_DEFAULT_AL2230_11B );
 					Wb35Reg_Write( pHwData, 0x104c, BB4C_DEFAULT_AL2230_11B );
@@ -2639,8 +2640,8 @@ void BBProcessor_RateChanging(  phw_data_t pHwData,  u8 rate ) // 20060613.1
 			}
 			else
 			{
-				if( (pWb35Reg->BB48 != BB48_DEFAULT_AL2230_11G) &&
-					(pWb35Reg->BB4C != BB4C_DEFAULT_AL2230_11G) )
+				if( (reg->BB48 != BB48_DEFAULT_AL2230_11G) &&
+					(reg->BB4C != BB4C_DEFAULT_AL2230_11G) )
 				{
 					Wb35Reg_Write( pHwData, 0x1048, BB48_DEFAULT_AL2230_11G );
 					Wb35Reg_Write( pHwData, 0x104c, BB4C_DEFAULT_AL2230_11G );
@@ -2651,22 +2652,22 @@ void BBProcessor_RateChanging(  phw_data_t pHwData,  u8 rate ) // 20060613.1
 		case RF_WB_242: // 20060623 The fix only for old TxVGA setting
 			if( Is11bRate )
 			{
-				if( (pWb35Reg->BB48 != BB48_DEFAULT_WB242_11B) &&
-					(pWb35Reg->BB4C != BB4C_DEFAULT_WB242_11B) )
+				if( (reg->BB48 != BB48_DEFAULT_WB242_11B) &&
+					(reg->BB4C != BB4C_DEFAULT_WB242_11B) )
 				{
-					pWb35Reg->BB48 = BB48_DEFAULT_WB242_11B;
-					pWb35Reg->BB4C = BB4C_DEFAULT_WB242_11B;
+					reg->BB48 = BB48_DEFAULT_WB242_11B;
+					reg->BB4C = BB4C_DEFAULT_WB242_11B;
 					Wb35Reg_Write( pHwData, 0x1048, BB48_DEFAULT_WB242_11B );
 					Wb35Reg_Write( pHwData, 0x104c, BB4C_DEFAULT_WB242_11B );
 				}
 			}
 			else
 			{
-				if( (pWb35Reg->BB48 != BB48_DEFAULT_WB242_11G) &&
-					(pWb35Reg->BB4C != BB4C_DEFAULT_WB242_11G) )
+				if( (reg->BB48 != BB48_DEFAULT_WB242_11G) &&
+					(reg->BB4C != BB4C_DEFAULT_WB242_11G) )
 				{
-					pWb35Reg->BB48 = BB48_DEFAULT_WB242_11G;
-					pWb35Reg->BB4C = BB4C_DEFAULT_WB242_11G;
+					reg->BB48 = BB48_DEFAULT_WB242_11G;
+					reg->BB4C = BB4C_DEFAULT_WB242_11G;
 					Wb35Reg_Write( pHwData, 0x1048, BB48_DEFAULT_WB242_11G );
 					Wb35Reg_Write( pHwData, 0x104c, BB4C_DEFAULT_WB242_11G );
 				}

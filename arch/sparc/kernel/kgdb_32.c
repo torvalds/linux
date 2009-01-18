@@ -14,14 +14,14 @@ extern unsigned long trapbase;
 
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
-	struct reg_window *win;
+	struct reg_window32 *win;
 	int i;
 
 	gdb_regs[GDB_G0] = 0;
 	for (i = 0; i < 15; i++)
 		gdb_regs[GDB_G1 + i] = regs->u_regs[UREG_G1 + i];
 
-	win = (struct reg_window *) regs->u_regs[UREG_FP];
+	win = (struct reg_window32 *) regs->u_regs[UREG_FP];
 	for (i = 0; i < 8; i++)
 		gdb_regs[GDB_L0 + i] = win->locals[i];
 	for (i = 0; i < 8; i++)
@@ -43,7 +43,7 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 {
 	struct thread_info *t = task_thread_info(p);
-	struct reg_window *win;
+	struct reg_window32 *win;
 	int i;
 
 	for (i = GDB_G0; i < GDB_G6; i++)
@@ -55,7 +55,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	gdb_regs[GDB_SP] = t->ksp;
 	gdb_regs[GDB_O7] = 0;
 
-	win = (struct reg_window *) t->ksp;
+	win = (struct reg_window32 *) t->ksp;
 	for (i = 0; i < 8; i++)
 		gdb_regs[GDB_L0 + i] = win->locals[i];
 	for (i = 0; i < 8; i++)
@@ -77,7 +77,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 
 void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
-	struct reg_window *win;
+	struct reg_window32 *win;
 	int i;
 
 	for (i = 0; i < 15; i++)
@@ -96,7 +96,7 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	regs->npc = gdb_regs[GDB_NPC];
 	regs->y = gdb_regs[GDB_Y];
 
-	win = (struct reg_window *) regs->u_regs[UREG_FP];
+	win = (struct reg_window32 *) regs->u_regs[UREG_FP];
 	for (i = 0; i < 8; i++)
 		win->locals[i] = gdb_regs[GDB_L0 + i];
 	for (i = 0; i < 8; i++)

@@ -359,19 +359,19 @@ set_level(struct device *dev, struct device_attribute *attr,
 			strncmp(buf, on_string, len) == 0) {
 		udev->autosuspend_disabled = 1;
 		udev->autoresume_disabled = 0;
-		rc = usb_external_resume_device(udev);
+		rc = usb_external_resume_device(udev, PMSG_USER_RESUME);
 
 	} else if (len == sizeof auto_string - 1 &&
 			strncmp(buf, auto_string, len) == 0) {
 		udev->autosuspend_disabled = 0;
 		udev->autoresume_disabled = 0;
-		rc = usb_external_resume_device(udev);
+		rc = usb_external_resume_device(udev, PMSG_USER_RESUME);
 
 	} else if (len == sizeof suspend_string - 1 &&
 			strncmp(buf, suspend_string, len) == 0) {
 		udev->autosuspend_disabled = 0;
 		udev->autoresume_disabled = 1;
-		rc = usb_external_suspend_device(udev, PMSG_SUSPEND);
+		rc = usb_external_suspend_device(udev, PMSG_USER_SUSPEND);
 
 	} else
 		rc = -EINVAL;
@@ -629,9 +629,6 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	struct device *dev = &udev->dev;
 	int retval;
 
-	/* Unforunately these attributes cannot be created before
-	 * the uevent is broadcast.
-	 */
 	retval = device_create_bin_file(dev, &dev_bin_attr_descriptors);
 	if (retval)
 		goto error;
@@ -643,11 +640,7 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	retval = add_power_attributes(dev);
 	if (retval)
 		goto error;
-
-	retval = usb_create_ep_files(dev, &udev->ep0, udev);
-	if (retval)
-		goto error;
-	return 0;
+	return retval;
 error:
 	usb_remove_sysfs_dev_files(udev);
 	return retval;
@@ -657,7 +650,6 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 {
 	struct device *dev = &udev->dev;
 
-	usb_remove_ep_files(&udev->ep0);
 	remove_power_attributes(dev);
 	remove_persist_attributes(dev);
 	device_remove_bin_file(dev, &dev_bin_attr_descriptors);
@@ -812,28 +804,6 @@ struct attribute_group *usb_interface_groups[] = {
 	NULL
 };
 
-static inline void usb_create_intf_ep_files(struct usb_interface *intf,
-		struct usb_device *udev)
-{
-	struct usb_host_interface *iface_desc;
-	int i;
-
-	iface_desc = intf->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i)
-		usb_create_ep_files(&intf->dev, &iface_desc->endpoint[i],
-				udev);
-}
-
-static inline void usb_remove_intf_ep_files(struct usb_interface *intf)
-{
-	struct usb_host_interface *iface_desc;
-	int i;
-
-	iface_desc = intf->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i)
-		usb_remove_ep_files(&iface_desc->endpoint[i]);
-}
-
 int usb_create_sysfs_intf_files(struct usb_interface *intf)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -843,26 +813,19 @@ int usb_create_sysfs_intf_files(struct usb_interface *intf)
 	if (intf->sysfs_files_created || intf->unregistering)
 		return 0;
 
-	/* The interface string may be present in some altsettings
-	 * and missing in others.  Hence its attribute cannot be created
-	 * before the uevent is broadcast.
-	 */
 	if (alt->string == NULL)
 		alt->string = usb_cache_string(udev, alt->desc.iInterface);
 	if (alt->string)
 		retval = device_create_file(&intf->dev, &dev_attr_interface);
-	usb_create_intf_ep_files(intf, udev);
 	intf->sysfs_files_created = 1;
 	return 0;
 }
 
 void usb_remove_sysfs_intf_files(struct usb_interface *intf)
 {
-	struct device *dev = &intf->dev;
-
 	if (!intf->sysfs_files_created)
 		return;
-	usb_remove_intf_ep_files(intf);
-	device_remove_file(dev, &dev_attr_interface);
+
+	device_remove_file(&intf->dev, &dev_attr_interface);
 	intf->sysfs_files_created = 0;
 }

@@ -955,7 +955,7 @@ void ehca_poll_eqs(unsigned long data)
 			struct ehca_eq *eq = &shca->eq;
 			int max = 3;
 			volatile u64 q_ofs, q_ofs2;
-			u64 flags;
+			unsigned long flags;
 			spin_lock_irqsave(&eq->spinlock, flags);
 			q_ofs = eq->ipz_queue.current_q_offset;
 			spin_unlock_irqrestore(&eq->spinlock, flags);

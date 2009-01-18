@@ -150,7 +150,7 @@ static void set_audio(struct dvb_frontend *fe,
 	}
 }
 
-struct {
+static struct {
 	unsigned char seq[2];
 } fm_mode[] = {
 	{ { 0x01, 0x81} },	/* Put device into expert mode */
@@ -207,7 +207,6 @@ static void tda8290_set_params(struct dvb_frontend *fe,
 	msleep(1);
 
 	if (params->mode == V4L2_TUNER_RADIO) {
-		int i;
 		unsigned char deemphasis[]  = { 0x13, 1 };
 
 		/* FIXME: allow using a different deemphasis */
@@ -767,7 +766,8 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 	fe->ops.analog_ops.info.name = name;
 
 	if (priv->ver & TDA8290) {
-		tda8290_init_tuner(fe);
+		if (priv->ver & (TDA8275 | TDA8275A))
+			tda8290_init_tuner(fe);
 		tda8290_init_if(fe);
 	} else if (priv->ver & TDA8295)
 		tda8295_init_if(fe);

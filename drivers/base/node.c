@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/mm.h>
+#include <linux/memory.h>
 #include <linux/node.h>
 #include <linux/hugetlb.h>
 #include <linux/cpumask.h>
@@ -30,8 +31,8 @@ static ssize_t node_read_cpumap(struct sys_device *dev, int type, char *buf)
 	BUILD_BUG_ON((NR_CPUS/32 * 9) > (PAGE_SIZE-1));
 
 	len = type?
-		cpulist_scnprintf(buf, PAGE_SIZE-2, *mask):
-		cpumask_scnprintf(buf, PAGE_SIZE-2, *mask);
+		cpulist_scnprintf(buf, PAGE_SIZE-2, mask) :
+		cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
  	buf[len++] = '\n';
  	buf[len] = '\0';
 	return len;
@@ -248,6 +249,105 @@ int unregister_cpu_under_node(unsigned int cpu, unsigned int nid)
 	return 0;
 }
 
+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+#define page_initialized(page)  (page->lru.next)
+
+static int get_nid_for_pfn(unsigned long pfn)
+{
+	struct page *page;
+
+	if (!pfn_valid_within(pfn))
+		return -1;
+	page = pfn_to_page(pfn);
+	if (!page_initialized(page))
+		return -1;
+	return pfn_to_nid(pfn);
+}
+
+/* register memory section under specified node if it spans that node */
+int register_mem_sect_under_node(struct memory_block *mem_blk, int nid)
+{
+	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+
+	if (!mem_blk)
+		return -EFAULT;
+	if (!node_online(nid))
+		return 0;
+	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
+	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+		int page_nid;
+
+		page_nid = get_nid_for_pfn(pfn);
+		if (page_nid < 0)
+			continue;
+		if (page_nid != nid)
+			continue;
+		return sysfs_create_link_nowarn(&node_devices[nid].sysdev.kobj,
+					&mem_blk->sysdev.kobj,
+					kobject_name(&mem_blk->sysdev.kobj));
+	}
+	/* mem section does not span the specified node */
+	return 0;
+}
+
+/* unregister memory section under all nodes that it spans */
+int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
+{
+	nodemask_t unlinked_nodes;
+	unsigned long pfn, sect_start_pfn, sect_end_pfn;
+
+	if (!mem_blk)
+		return -EFAULT;
+	nodes_clear(unlinked_nodes);
+	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
+	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
+	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
+		unsigned int nid;
+
+		nid = get_nid_for_pfn(pfn);
+		if (nid < 0)
+			continue;
+		if (!node_online(nid))
+			continue;
+		if (node_test_and_set(nid, unlinked_nodes))
+			continue;
+		sysfs_remove_link(&node_devices[nid].sysdev.kobj,
+			 kobject_name(&mem_blk->sysdev.kobj));
+	}
+	return 0;
+}
+
+static int link_mem_sections(int nid)
+{
+	unsigned long start_pfn = NODE_DATA(nid)->node_start_pfn;
+	unsigned long end_pfn = start_pfn + NODE_DATA(nid)->node_spanned_pages;
+	unsigned long pfn;
+	int err = 0;
+
+	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+		unsigned long section_nr = pfn_to_section_nr(pfn);
+		struct mem_section *mem_sect;
+		struct memory_block *mem_blk;
+		int ret;
+
+		if (!present_section_nr(section_nr))
+			continue;
+		mem_sect = __nr_to_section(section_nr);
+		mem_blk = find_memory_block(mem_sect);
+		ret = register_mem_sect_under_node(mem_blk, nid);
+		if (!err)
+			err = ret;
+
+		/* discard ref obtained in find_memory_block() */
+		kobject_put(&mem_blk->sysdev.kobj);
+	}
+	return err;
+}
+#else
+static int link_mem_sections(int nid) { return 0; }
+#endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
+
 int register_one_node(int nid)
 {
 	int error = 0;
@@ -267,6 +367,9 @@ int register_one_node(int nid)
 			if (cpu_to_node(cpu) == nid)
 				register_cpu_under_node(cpu, nid);
 		}
+
+		/* link memory sections under this node */
+		error = link_mem_sections(nid);
 	}
 
 	return error;

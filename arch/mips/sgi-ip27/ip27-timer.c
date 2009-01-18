@@ -134,7 +134,7 @@ void __cpuinit hub_rt_clock_event_init(void)
 	cd->min_delta_ns        = clockevent_delta2ns(0x300, cd);
 	cd->rating		= 200;
 	cd->irq			= irq;
-	cd->cpumask		= cpumask_of_cpu(cpu);
+	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= rt_next_event;
 	cd->set_mode		= rt_set_mode;
 	clockevents_register_device(cd);

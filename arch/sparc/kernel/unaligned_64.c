@@ -589,7 +589,6 @@ void handle_lddfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr
 	unsigned long pc = regs->tpc;
 	unsigned long tstate = regs->tstate;
 	u32 insn;
-	u32 first, second;
 	u64 value;
 	u8 freg;
 	int flag;
@@ -601,15 +600,20 @@ void handle_lddfmna(struct pt_regs *regs, unsigned long sfar, unsigned long sfsr
 		pc = (u32)pc;
 	if (get_user(insn, (u32 __user *) pc) != -EFAULT) {
 		int asi = decode_asi(insn, regs);
+		u32 first, second;
+		int err;
+
 		if ((asi > ASI_SNFL) ||
 		    (asi < ASI_P))
 			goto daex;
-		if (get_user(first, (u32 __user *)sfar) ||
-		     get_user(second, (u32 __user *)(sfar + 4))) {
-			if (asi & 0x2) /* NF */ {
-				first = 0; second = 0;
-			} else
+		first = second = 0;
+		err = get_user(first, (u32 __user *)sfar);
+		if (!err)
+			err = get_user(second, (u32 __user *)(sfar + 4));
+		if (err) {
+			if (!(asi & 0x2))
 				goto daex;
+			first = second = 0;
 		}
 		save_and_clear_fpu();
 		freg = ((insn >> 25) & 0x1e) | ((insn >> 20) & 0x20);

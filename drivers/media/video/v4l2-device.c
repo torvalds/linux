@@ -29,7 +29,7 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 	if (dev == NULL || v4l2_dev == NULL)
 		return -EINVAL;
 	/* Warn if we apparently re-register a device */
-	WARN_ON(dev_get_drvdata(dev));
+	WARN_ON(dev_get_drvdata(dev) != NULL);
 	INIT_LIST_HEAD(&v4l2_dev->subdevs);
 	spin_lock_init(&v4l2_dev->lock);
 	v4l2_dev->dev = dev;
@@ -61,7 +61,7 @@ int v4l2_device_register_subdev(struct v4l2_device *dev, struct v4l2_subdev *sd)
 	if (dev == NULL || sd == NULL || !sd->name[0])
 		return -EINVAL;
 	/* Warn if we apparently re-register a subdev */
-	WARN_ON(sd->dev);
+	WARN_ON(sd->dev != NULL);
 	if (!try_module_get(sd->owner))
 		return -ENODEV;
 	sd->dev = dev;

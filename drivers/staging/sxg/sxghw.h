@@ -48,7 +48,7 @@
 #define SXG_HWREG_MEMSIZE	0x4000		// 16k
 
 #pragma pack(push, 1)
-typedef struct _SXG_HW_REGS {
+struct SXG_HW_REGS {
 	u32		Reset;				// Write 0xdead to invoke soft reset
 	u32		Pad1;				// No register defined at offset 4
 	u32		InterruptMask0;		// Deassert legacy interrupt on function 0
@@ -113,7 +113,7 @@ typedef struct _SXG_HW_REGS {
 	u32		Software[1920];		// 0x200 - 0x2000 - Software defined (not used)
 	u32		MsixTable[1024];	// 0x2000 - 0x3000 - MSIX Table
 	u32		MsixBitArray[1024];	// 0x3000 - 0x4000 - MSIX Pending Bit Array
-} SXG_HW_REGS, *PSXG_HW_REGS;
+};
 #pragma pack(pop)
 
 // Microcode Address Flags
@@ -519,10 +519,10 @@ typedef struct _SXG_HW_REGS {
 #define	XS_LANE_ALIGN			0x1000			// XS transmit lanes aligned
 
 // PHY Microcode download data structure
-typedef struct _PHY_UCODE {
+struct PHY_UCODE {
 	ushort	Addr;
 	ushort	Data;
-} PHY_UCODE, *PPHY_UCODE;
+};
 
 
 /*****************************************************************************
@@ -537,7 +537,7 @@ typedef struct _PHY_UCODE {
 // all commands - see the Sahara spec for details.  Note that this structure is
 // only valid when compiled on a little endian machine.
 #pragma pack(push, 1)
-typedef struct _XMT_DESC {
+struct XMT_DESC {
 	ushort	XmtLen;			// word 0, bits [15:0] -  transmit length
 	unsigned char	XmtCtl;			// word 0, bits [23:16] - transmit control byte
 	unsigned char	Cmd;			// word 0, bits [31:24] - transmit command plus misc.
@@ -551,7 +551,7 @@ typedef struct _XMT_DESC {
 	u32	Rsvd3;			// word 5, bits [31:0] -  PAD
 	u32	Rsvd4;		    // word 6, bits [31:0] -  PAD
 	u32	Rsvd5;		    // word 7, bits [31:0] -  PAD
-} XMT_DESC, *PXMT_DESC;
+};
 #pragma pack(pop)
 
 // XMT_DESC Cmd byte definitions
@@ -600,7 +600,7 @@ typedef struct _XMT_DESC {
 // Format of the 18 byte Receive Buffer returned by the
 // Receive Sequencer for received packets
 #pragma pack(push, 1)
-typedef struct _RCV_BUF_HDR {
+struct RCV_BUF_HDR {
 	u32	Status;				// Status word from Rcv Seq Parser
 	ushort	Length;				// Rcv packet byte count
 	union {
@@ -615,7 +615,7 @@ typedef struct _RCV_BUF_HDR {
 	unsigned char	IpHdrOffset;		// IP header offset into packet
 	u32	TpzHash;			// Toeplitz hash
 	ushort	Reserved;			// Reserved
-} RCV_BUF_HDR, *PRCV_BUF_HDR;
+};
 #pragma pack(pop)
 
 
@@ -665,28 +665,28 @@ typedef struct _RCV_BUF_HDR {
 #pragma pack(push, 1)
 
 /* */
-typedef struct _HW_CFG_DATA {
+struct HW_CFG_DATA {
 	ushort		Addr;
 	union {
 		ushort	Data;
 		ushort	Checksum;
 	};
-} HW_CFG_DATA, *PHW_CFG_DATA;
+};
 
 /* */
-#define	NUM_HW_CFG_ENTRIES	((128/sizeof(HW_CFG_DATA)) - 4)
+#define	NUM_HW_CFG_ENTRIES	((128/sizeof(struct HW_CFG_DATA)) - 4)
 
 /* MAC address */
-typedef struct _SXG_CONFIG_MAC {
+struct SXG_CONFIG_MAC {
 	unsigned char		MacAddr[6];			/* MAC Address */
-} SXG_CONFIG_MAC, *PSXG_CONFIG_MAC;
+};
 
 /* */
-typedef struct _ATK_FRU {
+struct ATK_FRU {
 	unsigned char		PartNum[6];
 	unsigned char		Revision[2];
 	unsigned char		Serial[14];
-} ATK_FRU, *PATK_FRU;
+};
 
 /* OEM FRU Format types */
 #define	ATK_FRU_FORMAT		0x0000
@@ -698,24 +698,24 @@ typedef struct _ATK_FRU {
 #define NO_FRU_FORMAT		0xFFFF
 
 /* EEPROM/Flash Format */
-typedef struct _SXG_CONFIG {
+struct SXG_CONFIG {
 	/* */
 	/* Section 1 (128 bytes) */
 	/* */
 	ushort			MagicWord;			/* EEPROM/FLASH Magic code 'A5A5' */
 	ushort			SpiClks;			/* SPI bus clock dividers */
-	HW_CFG_DATA		HwCfg[NUM_HW_CFG_ENTRIES];
+	struct HW_CFG_DATA		HwCfg[NUM_HW_CFG_ENTRIES];
 	/* */
 	/* */
 	/* */
 	ushort			Version;			/* EEPROM format version */
-	SXG_CONFIG_MAC	MacAddr[4];			/* space for 4 MAC addresses */
-	ATK_FRU			AtkFru;				/* FRU information */
+	struct SXG_CONFIG_MAC	MacAddr[4];			/* space for 4 MAC addresses */
+	struct ATK_FRU			AtkFru;				/* FRU information */
 	ushort			OemFruFormat;		/* OEM FRU format type */
 	unsigned char			OemFru[76];			/* OEM FRU information (optional) */
 	ushort			Checksum;			/* Checksum of section 2 */
 	/* CS info XXXTODO */
-} SXG_CONFIG, *PSXG_CONFIG;
+};
 #pragma pack(pop)
 
 /*****************************************************************************

@@ -131,7 +131,8 @@ extern int cipso_v4_rbm_strictvalid;
  */
 
 #ifdef CONFIG_NETLABEL
-int cipso_v4_doi_add(struct cipso_v4_doi *doi_def);
+int cipso_v4_doi_add(struct cipso_v4_doi *doi_def,
+		     struct netlbl_audit *audit_info);
 void cipso_v4_doi_free(struct cipso_v4_doi *doi_def);
 int cipso_v4_doi_remove(u32 doi, struct netlbl_audit *audit_info);
 struct cipso_v4_doi *cipso_v4_doi_getdef(u32 doi);
@@ -140,7 +141,8 @@ int cipso_v4_doi_walk(u32 *skip_cnt,
 		     int (*callback) (struct cipso_v4_doi *doi_def, void *arg),
 	             void *cb_arg);
 #else
-static inline int cipso_v4_doi_add(struct cipso_v4_doi *doi_def)
+static inline int cipso_v4_doi_add(struct cipso_v4_doi *doi_def,
+				   struct netlbl_audit *audit_info)
 {
 	return -ENOSYS;
 }

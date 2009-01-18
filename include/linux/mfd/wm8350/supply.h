@@ -13,7 +13,8 @@
 #ifndef __LINUX_MFD_WM8350_SUPPLY_H_
 #define __LINUX_MFD_WM8350_SUPPLY_H_
 
-#include <linux/platform_device.h>
+#include <linux/mutex.h>
+#include <linux/power_supply.h>
 
 /*
  * Charger registers
@@ -104,8 +105,30 @@
 #define WM8350_IRQ_EXT_WALL_FB			37
 #define WM8350_IRQ_EXT_BAT_FB			38
 
+/*
+ * Policy to control charger state machine.
+ */
+struct wm8350_charger_policy {
+
+	/* charger state machine policy  - set in machine driver */
+	int eoc_mA;		/* end of charge current (mA)  */
+	int charge_mV;		/* charge voltage */
+	int fast_limit_mA;	/* fast charge current limit */
+	int fast_limit_USB_mA;	/* USB fast charge current limit */
+	int charge_timeout;	/* charge timeout (mins) */
+	int trickle_start_mV;	/* trickle charge starts at mV */
+	int trickle_charge_mA;	/* trickle charge current */
+	int trickle_charge_USB_mA;	/* USB trickle charge current */
+};
+
 struct wm8350_power {
 	struct platform_device *pdev;
+	struct power_supply battery;
+	struct power_supply usb;
+	struct power_supply ac;
+	struct wm8350_charger_policy *policy;
+
+	int rev_g_coeff;
 };
 
 #endif

@@ -15,8 +15,8 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
+#include <linux/atmel-mci.h>
 
-#include <asm/atmel-mci.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -421,7 +421,7 @@ static unsigned long hsb_clk_get_rate(struct clk *clk)
 	return bus_clk_get_rate(clk, shift);
 }
 
-static void pba_clk_mode(struct clk *clk, int enabled)
+void pba_clk_mode(struct clk *clk, int enabled)
 {
 	unsigned long flags;
 	u32 mask;
@@ -436,7 +436,7 @@ static void pba_clk_mode(struct clk *clk, int enabled)
 	spin_unlock_irqrestore(&pm_lock, flags);
 }
 
-static unsigned long pba_clk_get_rate(struct clk *clk)
+unsigned long pba_clk_get_rate(struct clk *clk)
 {
 	unsigned long cksel, shift = 0;
 
@@ -1305,7 +1305,7 @@ struct platform_device *__init
 at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 {
 	struct platform_device		*pdev;
-	struct dw_dma_slave		*dws;
+	struct dw_dma_slave		*dws = &data->dma_slave;
 	u32				pioa_mask;
 	u32				piob_mask;
 
@@ -1324,21 +1324,12 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 				ARRAY_SIZE(atmel_mci0_resource)))
 		goto fail;
 
-	if (data->dma_slave)
-		dws = kmemdup(to_dw_dma_slave(data->dma_slave),
-				sizeof(struct dw_dma_slave), GFP_KERNEL);
-	else
-		dws = kzalloc(sizeof(struct dw_dma_slave), GFP_KERNEL);
-
-	dws->slave.dev = &pdev->dev;
-	dws->slave.dma_dev = &dw_dmac0_device.dev;
-	dws->slave.reg_width = DMA_SLAVE_WIDTH_32BIT;
+	dws->dma_dev = &dw_dmac0_device.dev;
+	dws->reg_width = DW_DMA_SLAVE_WIDTH_32BIT;
 	dws->cfg_hi = (DWC_CFGH_SRC_PER(0)
 				| DWC_CFGH_DST_PER(1));
 	dws->cfg_lo &= ~(DWC_CFGL_HS_DST_POL
 				| DWC_CFGL_HS_SRC_POL);
-
-	data->dma_slave = &dws->slave;
 
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct mci_platform_data)))

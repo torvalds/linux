@@ -59,12 +59,12 @@ struct device_driver xpc_dbg_name = {
 };
 
 struct device xpc_part_dbg_subname = {
-	.bus_id = {0},		/* set to "part" at xpc_init() time */
+	.init_name = "",	/* set to "part" at xpc_init() time */
 	.driver = &xpc_dbg_name
 };
 
 struct device xpc_chan_dbg_subname = {
-	.bus_id = {0},		/* set to "chan" at xpc_init() time */
+	.init_name = "",	/* set to "chan" at xpc_init() time */
 	.driver = &xpc_dbg_name
 };
 
@@ -318,7 +318,7 @@ xpc_hb_checker(void *ignore)
 
 	/* this thread was marked active by xpc_hb_init() */
 
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(XPC_HB_CHECK_CPU));
+	set_cpus_allowed_ptr(current, cpumask_of(XPC_HB_CHECK_CPU));
 
 	/* set our heartbeating to other partitions into motion */
 	xpc_hb_check_timeout = jiffies + (xpc_hb_check_interval * HZ);
@@ -1258,8 +1258,8 @@ xpc_init(void)
 	int ret;
 	struct task_struct *kthread;
 
-	snprintf(xpc_part->bus_id, BUS_ID_SIZE, "part");
-	snprintf(xpc_chan->bus_id, BUS_ID_SIZE, "chan");
+	dev_set_name(xpc_part, "part");
+	dev_set_name(xpc_chan, "chan");
 
 	if (is_shub()) {
 		/*

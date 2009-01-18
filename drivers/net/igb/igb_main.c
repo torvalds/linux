@@ -1457,8 +1457,8 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 
 	/* Number of supported queues. */
 	/* Having more queues than CPUs doesn't make sense. */
-	adapter->num_rx_queues = min((u32)IGB_MAX_RX_QUEUES, (u32)num_online_cpus());
-	adapter->num_tx_queues = min(IGB_MAX_TX_QUEUES, num_online_cpus());
+	adapter->num_rx_queues = min_t(u32, IGB_MAX_RX_QUEUES, num_online_cpus());
+	adapter->num_tx_queues = min_t(u32, IGB_MAX_TX_QUEUES, num_online_cpus());
 
 	/* This call may decrease the number of queues depending on
 	 * interrupt mode. */

@@ -366,9 +366,6 @@ void jffs2_free_ino_caches(struct jffs2_sb_info *c);
 void jffs2_free_raw_node_refs(struct jffs2_sb_info *c);
 struct jffs2_node_frag *jffs2_lookup_node_frag(struct rb_root *fragtree, uint32_t offset);
 void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c_delete);
-struct rb_node *rb_next(struct rb_node *);
-struct rb_node *rb_prev(struct rb_node *);
-void rb_replace_node(struct rb_node *victim, struct rb_node *new, struct rb_root *root);
 int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_full_dnode *fn);
 uint32_t jffs2_truncate_fragtree (struct jffs2_sb_info *c, struct rb_root *list, uint32_t size);
 struct jffs2_raw_node_ref *jffs2_link_node_ref(struct jffs2_sb_info *c,

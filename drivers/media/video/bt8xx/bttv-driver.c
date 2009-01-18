@@ -2039,7 +2039,7 @@ static int bttv_log_status(struct file *file, void *f)
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int bttv_g_register(struct file *file, void *f,
-					struct v4l2_register *reg)
+					struct v4l2_dbg_register *reg)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -2047,18 +2047,19 @@ static int bttv_g_register(struct file *file, void *f,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 
 	/* bt848 has a 12-bit register space */
 	reg->reg &= 0xfff;
 	reg->val = btread(reg->reg);
+	reg->size = 1;
 
 	return 0;
 }
 
 static int bttv_s_register(struct file *file, void *f,
-					struct v4l2_register *reg)
+					struct v4l2_dbg_register *reg)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -2066,7 +2067,7 @@ static int bttv_s_register(struct file *file, void *f,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_host(&reg->match))
 		return -EINVAL;
 
 	/* bt848 has a 12-bit register space */
@@ -3208,9 +3209,9 @@ err:
 	return POLLERR;
 }
 
-static int bttv_open(struct inode *inode, struct file *file)
+static int bttv_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct bttv *btv = NULL;
 	struct bttv_fh *fh;
 	enum v4l2_buf_type type = 0;
@@ -3291,7 +3292,7 @@ static int bttv_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int bttv_release(struct inode *inode, struct file *file)
+static int bttv_release(struct file *file)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
@@ -3346,14 +3347,12 @@ bttv_mmap(struct file *file, struct vm_area_struct *vma)
 	return videobuf_mmap_mapper(bttv_queue(fh),vma);
 }
 
-static const struct file_operations bttv_fops =
+static const struct v4l2_file_operations bttv_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = bttv_open,
 	.release  = bttv_release,
 	.ioctl	  = video_ioctl2,
-	.compat_ioctl	= v4l_compat_ioctl32,
-	.llseek	  = no_llseek,
 	.read	  = bttv_read,
 	.mmap	  = bttv_mmap,
 	.poll     = bttv_poll,
@@ -3422,9 +3421,9 @@ static struct video_device bttv_video_template = {
 /* ----------------------------------------------------------------------- */
 /* radio interface                                                         */
 
-static int radio_open(struct inode *inode, struct file *file)
+static int radio_open(struct file *file)
 {
-	int minor = iminor(inode);
+	int minor = video_devdata(file)->minor;
 	struct bttv *btv = NULL;
 	struct bttv_fh *fh;
 	unsigned int i;
@@ -3467,12 +3466,13 @@ static int radio_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int radio_release(struct inode *inode, struct file *file)
+static int radio_release(struct file *file)
 {
 	struct bttv_fh *fh = file->private_data;
 	struct bttv *btv = fh->btv;
 	struct rds_command cmd;
 
+	v4l2_prio_close(&btv->prio,&fh->prio);
 	file->private_data = NULL;
 	kfree(fh);
 
@@ -3633,15 +3633,13 @@ static unsigned int radio_poll(struct file *file, poll_table *wait)
 	return cmd.result;
 }
 
-static const struct file_operations radio_fops =
+static const struct v4l2_file_operations radio_fops =
 {
 	.owner	  = THIS_MODULE,
 	.open	  = radio_open,
 	.read     = radio_read,
 	.release  = radio_release,
-	.compat_ioctl	= v4l_compat_ioctl32,
 	.ioctl	  = video_ioctl2,
-	.llseek	  = no_llseek,
 	.poll     = radio_poll,
 };
 

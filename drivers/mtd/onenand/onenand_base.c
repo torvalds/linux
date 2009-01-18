@@ -1772,7 +1772,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	int len;
 	int ret = 0;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "onenand_erase: start = 0x%08x, len = %i\n", (unsigned int) instr->addr, (unsigned int) instr->len);
+	DEBUG(MTD_DEBUG_LEVEL3, "onenand_erase: start = 0x%012llx, len = %llu\n", (unsigned long long) instr->addr, (unsigned long long) instr->len);
 
 	block_size = (1 << this->erase_shift);
 
@@ -1810,7 +1810,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 		/* Check if we have a bad block, we do not erase bad blocks */
 		if (onenand_block_isbad_nolock(mtd, addr, 0)) {
-			printk (KERN_WARNING "onenand_erase: attempt to erase a bad block at addr 0x%08x\n", (unsigned int) addr);
+			printk (KERN_WARNING "onenand_erase: attempt to erase a bad block at addr 0x%012llx\n", (unsigned long long) addr);
 			instr->state = MTD_ERASE_FAILED;
 			goto erase_exit;
 		}
@@ -2029,7 +2029,7 @@ static int onenand_do_lock_cmd(struct mtd_info *mtd, loff_t ofs, size_t len, int
  *
  * Lock one or more blocks
  */
-static int onenand_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int onenand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	int ret;
 
@@ -2047,7 +2047,7 @@ static int onenand_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
  *
  * Unlock one or more blocks
  */
-static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	int ret;
 

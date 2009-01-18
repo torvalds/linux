@@ -1380,6 +1380,13 @@ int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
 	if (wm8350->pmic.pdev[reg])
 		return -EBUSY;
 
+	if (reg >= WM8350_DCDC_1 && reg <= WM8350_DCDC_6 &&
+	    reg > wm8350->pmic.max_dcdc)
+		return -ENODEV;
+	if (reg >= WM8350_ISINK_A && reg <= WM8350_ISINK_B &&
+	    reg > wm8350->pmic.max_isink)
+		return -ENODEV;
+
 	pdev = platform_device_alloc("wm8350-regulator", reg);
 	if (!pdev)
 		return -ENOMEM;
@@ -1404,6 +1411,97 @@ int wm8350_register_regulator(struct wm8350 *wm8350, int reg,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm8350_register_regulator);
+
+/**
+ * wm8350_register_led - Register a WM8350 LED output
+ *
+ * @param wm8350 The WM8350 device to configure.
+ * @param lednum LED device index to create.
+ * @param dcdc The DCDC to use for the LED.
+ * @param isink The ISINK to use for the LED.
+ * @param pdata Configuration for the LED.
+ *
+ * The WM8350 supports the use of an ISINK together with a DCDC to
+ * provide a power-efficient LED driver.  This function registers the
+ * regulators and instantiates the platform device for a LED.  The
+ * operating modes for the LED regulators must be configured using
+ * wm8350_isink_set_flash(), wm8350_dcdc25_set_mode() and
+ * wm8350_dcdc_set_slot() prior to calling this function.
+ */
+int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
+			struct wm8350_led_platform_data *pdata)
+{
+	struct wm8350_led *led;
+	struct platform_device *pdev;
+	int ret;
+
+	if (lednum > ARRAY_SIZE(wm8350->pmic.led) || lednum < 0) {
+		dev_err(wm8350->dev, "Invalid LED index %d\n", lednum);
+		return -ENODEV;
+	}
+
+	led = &wm8350->pmic.led[lednum];
+
+	if (led->pdev) {
+		dev_err(wm8350->dev, "LED %d already allocated\n", lednum);
+		return -EINVAL;
+	}
+
+	pdev = platform_device_alloc("wm8350-led", lednum);
+	if (pdev == NULL) {
+		dev_err(wm8350->dev, "Failed to allocate LED %d\n", lednum);
+		return -ENOMEM;
+	}
+
+	led->isink_consumer.dev = &pdev->dev;
+	led->isink_consumer.supply = "led_isink";
+	led->isink_init.num_consumer_supplies = 1;
+	led->isink_init.consumer_supplies = &led->isink_consumer;
+	led->isink_init.constraints.min_uA = 0;
+	led->isink_init.constraints.max_uA = pdata->max_uA;
+	led->isink_init.constraints.valid_ops_mask = REGULATOR_CHANGE_CURRENT;
+	led->isink_init.constraints.valid_modes_mask = REGULATOR_MODE_NORMAL;
+	ret = wm8350_register_regulator(wm8350, isink, &led->isink_init);
+	if (ret != 0) {
+		platform_device_put(pdev);
+		return ret;
+	}
+
+	led->dcdc_consumer.dev = &pdev->dev;
+	led->dcdc_consumer.supply = "led_vcc";
+	led->dcdc_init.num_consumer_supplies = 1;
+	led->dcdc_init.consumer_supplies = &led->dcdc_consumer;
+	led->dcdc_init.constraints.valid_modes_mask = REGULATOR_MODE_NORMAL;
+	ret = wm8350_register_regulator(wm8350, dcdc, &led->dcdc_init);
+	if (ret != 0) {
+		platform_device_put(pdev);
+		return ret;
+	}
+
+	switch (isink) {
+	case WM8350_ISINK_A:
+		wm8350->pmic.isink_A_dcdc = dcdc;
+		break;
+	case WM8350_ISINK_B:
+		wm8350->pmic.isink_B_dcdc = dcdc;
+		break;
+	}
+
+	pdev->dev.platform_data = pdata;
+	pdev->dev.parent = wm8350->dev;
+	ret = platform_device_add(pdev);
+	if (ret != 0) {
+		dev_err(wm8350->dev, "Failed to register LED %d: %d\n",
+			lednum, ret);
+		platform_device_put(pdev);
+		return ret;
+	}
+
+	led->pdev = pdev;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm8350_register_led);
 
 static struct platform_driver wm8350_regulator_driver = {
 	.probe = wm8350_regulator_probe,

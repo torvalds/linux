@@ -766,7 +766,7 @@ static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data, unsigned 
 static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 {
 	struct cpufreq_frequency_table *powernow_table;
-	int ret_val;
+	int ret_val = -ENODEV;
 
 	if (acpi_processor_register_performance(&data->acpi_data, data->cpu)) {
 		dprintk("register performance failed: bad ACPI data\n");
@@ -815,6 +815,13 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 	/* notify BIOS that we exist */
 	acpi_processor_notify_smm(THIS_MODULE);
 
+	if (!alloc_cpumask_var(&data->acpi_data.shared_cpu_map, GFP_KERNEL)) {
+		printk(KERN_ERR PFX
+				"unable to alloc powernow_k8_data cpumask\n");
+		ret_val = -ENOMEM;
+		goto err_out_mem;
+	}
+
 	return 0;
 
 err_out_mem:
@@ -826,7 +833,7 @@ err_out:
 	/* data->acpi_data.state_count informs us at ->exit() whether ACPI was used */
 	data->acpi_data.state_count = 0;
 
-	return -ENODEV;
+	return ret_val;
 }
 
 static int fill_powernow_table_pstate(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table)
@@ -929,6 +936,7 @@ static void powernow_k8_cpu_exit_acpi(struct powernow_k8_data *data)
 {
 	if (data->acpi_data.state_count)
 		acpi_processor_unregister_performance(&data->acpi_data, data->cpu);
+	free_cpumask_var(data->acpi_data.shared_cpu_map);
 }
 
 #else
@@ -1134,7 +1142,8 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	data->cpu = pol->cpu;
 	data->currpstate = HW_PSTATE_INVALID;
 
-	if (powernow_k8_cpu_init_acpi(data)) {
+	rc = powernow_k8_cpu_init_acpi(data);
+	if (rc) {
 		/*
 		 * Use the PSB BIOS structure. This is only availabe on
 		 * an UP version, and is deprecated by AMD.
@@ -1152,20 +1161,17 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 			       "ACPI maintainers and complain to your BIOS "
 			       "vendor.\n");
 #endif
-			kfree(data);
-			return -ENODEV;
+			goto err_out;
 		}
 		if (pol->cpu != 0) {
 			printk(KERN_ERR FW_BUG PFX "No ACPI _PSS objects for "
 			       "CPU other than CPU0. Complain to your BIOS "
 			       "vendor.\n");
-			kfree(data);
-			return -ENODEV;
+			goto err_out;
 		}
 		rc = find_psb_table(data);
 		if (rc) {
-			kfree(data);
-			return -ENODEV;
+			goto err_out;
 		}
 	}
 
@@ -1193,10 +1199,10 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	set_cpus_allowed_ptr(current, &oldmask);
 
 	if (cpu_family == CPU_HW_PSTATE)
-		pol->cpus = cpumask_of_cpu(pol->cpu);
+		cpumask_copy(pol->cpus, cpumask_of(pol->cpu));
 	else
-		pol->cpus = per_cpu(cpu_core_map, pol->cpu);
-	data->available_cores = &(pol->cpus);
+		cpumask_copy(pol->cpus, &per_cpu(cpu_core_map, pol->cpu));
+	data->available_cores = pol->cpus;
 
 	/* Take a crude guess here.
 	 * That guess was in microseconds, so multiply with 1000 */

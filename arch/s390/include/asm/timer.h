@@ -23,20 +23,18 @@ struct vtimer_list {
 	__u64 expires;
 	__u64 interval;
 
-	spinlock_t lock;
-	unsigned long magic;
-
 	void (*function)(unsigned long);
 	unsigned long data;
 };
 
-/* the offset value will wrap after ca. 71 years */
+/* the vtimer value will wrap after ca. 71 years */
 struct vtimer_queue {
 	struct list_head list;
 	spinlock_t lock;
-	__u64 to_expire;	  /* current event expire time */
-	__u64 offset;		  /* list offset to zero */
-	__u64 idle;		  /* temp var for idle */
+	__u64 timer;		/* last programmed timer */
+	__u64 elapsed;		/* elapsed time of timer expire values */
+	__u64 idle;		/* temp var for idle */
+	int do_spt;		/* =1: reprogram cpu timer in idle */
 };
 
 extern void init_virt_timer(struct vtimer_list *timer);
@@ -48,8 +46,8 @@ extern int del_virt_timer(struct vtimer_list *timer);
 extern void init_cpu_vtimer(void);
 extern void vtime_init(void);
 
-extern void vtime_start_cpu_timer(void);
-extern void vtime_stop_cpu_timer(void);
+extern void vtime_stop_cpu(void);
+extern void vtime_start_leave(void);
 
 #endif /* __KERNEL__ */
 

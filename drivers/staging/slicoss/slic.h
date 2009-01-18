@@ -41,6 +41,40 @@
 #ifndef __SLIC_DRIVER_H__
 #define __SLIC_DRIVER_H__
 
+/* firmware stuff */
+#define OASIS_UCODE_VERS_STRING	"1.2"
+#define OASIS_UCODE_VERS_DATE  	"2006/03/27 15:10:37"
+#define OASIS_UCODE_HOSTIF_ID  	3
+
+static s32 ONumSections = 0x2;
+static u32 OSectionSize[] = {
+	0x00004000, 0x00010000,
+};
+
+static u32 OSectionStart[] = {
+	0x00000000, 0x00008000,
+};
+
+#define MOJAVE_UCODE_VERS_STRING	"1.2"
+#define MOJAVE_UCODE_VERS_DATE  	"2006/03/27 15:12:22"
+#define MOJAVE_UCODE_HOSTIF_ID  	3
+
+static s32 MNumSections = 0x2;
+static u32 MSectionSize[] =
+{
+	0x00008000, 0x00010000,
+};
+
+static u32 MSectionStart[] =
+{
+	0x00000000, 0x00008000,
+};
+
+#define GB_RCVUCODE_VERS_STRING	"1.2"
+#define GB_RCVUCODE_VERS_DATE  	"2006/03/27 15:12:15"
+static u32 OasisRcvUCodeLen = 512;
+static u32 GBRcvUCodeLen = 512;
+#define SECTION_SIZE 65536
 
 struct slic_spinlock {
 	spinlock_t	lock;

@@ -226,7 +226,7 @@ static int ns558_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *did)
 	ns558->gameport = port;
 
 	gameport_set_name(port, "NS558 PnP Gameport");
-	gameport_set_phys(port, "pnp%s/gameport0", dev->dev.bus_id);
+	gameport_set_phys(port, "pnp%s/gameport0", dev_name(&dev->dev));
 	port->dev.parent = &dev->dev;
 	port->io = ioport;
 

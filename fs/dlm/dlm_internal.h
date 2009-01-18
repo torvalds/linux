@@ -105,7 +105,7 @@ struct dlm_dirtable {
 struct dlm_rsbtable {
 	struct list_head	list;
 	struct list_head	toss;
-	rwlock_t		lock;
+	spinlock_t		lock;
 };
 
 struct dlm_lkbtable {
@@ -245,7 +245,8 @@ struct dlm_lkb {
 	struct list_head	lkb_astqueue;	/* need ast to be sent */
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
 	struct list_head	lkb_time_list;
-	unsigned long		lkb_timestamp;
+	ktime_t			lkb_time_bast;	/* for debugging */
+	ktime_t			lkb_timestamp;
 	unsigned long		lkb_timeout_cs;
 
 	char			*lkb_lvbptr;
@@ -481,6 +482,7 @@ struct dlm_ls {
 	struct dentry		*ls_debug_rsb_dentry; /* debugfs */
 	struct dentry		*ls_debug_waiters_dentry; /* debugfs */
 	struct dentry		*ls_debug_locks_dentry; /* debugfs */
+	struct dentry		*ls_debug_all_dentry; /* debugfs */
 
 	wait_queue_head_t	ls_uevent_wait;	/* user part of join/leave */
 	int			ls_uevent_result;

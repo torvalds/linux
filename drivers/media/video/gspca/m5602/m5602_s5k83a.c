@@ -113,7 +113,7 @@ int s5k83a_power_down(struct sd *sd)
 	return 0;
 }
 
-void s5k83a_dump_registers(struct sd *sd)
+static void s5k83a_dump_registers(struct sd *sd)
 {
 	int address;
 	u8 page, old_page;

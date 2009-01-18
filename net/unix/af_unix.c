@@ -836,7 +836,11 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		err = mnt_want_write(nd.path.mnt);
 		if (err)
 			goto out_mknod_dput;
+		err = security_path_mknod(&nd.path, dentry, mode, 0);
+		if (err)
+			goto out_mknod_drop_write;
 		err = vfs_mknod(nd.path.dentry->d_inode, dentry, mode, 0);
+out_mknod_drop_write:
 		mnt_drop_write(nd.path.mnt);
 		if (err)
 			goto out_mknod_dput;

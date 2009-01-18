@@ -1,80 +1,51 @@
 menu "DCCP CCIDs Configuration (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 
-config IP_DCCP_CCID2
-	tristate "CCID2 (TCP-Like) (EXPERIMENTAL)"
-	def_tristate IP_DCCP
-	select IP_DCCP_ACKVEC
-	---help---
-	  CCID 2, TCP-like Congestion Control, denotes Additive Increase,
-	  Multiplicative Decrease (AIMD) congestion control with behavior
-	  modelled directly on TCP, including congestion window, slow start,
-	  timeouts, and so forth [RFC 2581].  CCID 2 achieves maximum
-	  bandwidth over the long term, consistent with the use of end-to-end
-	  congestion control, but halves its congestion window in response to
-	  each congestion event.  This leads to the abrupt rate changes
-	  typical of TCP.  Applications should use CCID 2 if they prefer
-	  maximum bandwidth utilization to steadiness of rate.  This is often
-	  the case for applications that are not playing their data directly
-	  to the user.  For example, a hypothetical application that
-	  transferred files over DCCP, using application-level retransmissions
-	  for lost packets, would prefer CCID 2 to CCID 3.  On-line games may
-	  also prefer CCID 2.  See RFC 4341 for further details.
-
-	  CCID2 is the default CCID used by DCCP.
-
 config IP_DCCP_CCID2_DEBUG
-	  bool "CCID2 debugging messages"
-	  depends on IP_DCCP_CCID2
-	  ---help---
-	    Enable CCID2-specific debugging messages.
+	bool "CCID-2 debugging messages"
+	---help---
+	  Enable CCID-2 specific debugging messages.
 
-	    When compiling CCID2 as a module, this debugging output can
-	    additionally be toggled by setting the ccid2_debug module
-	    parameter to 0 or 1.
+	  The debugging output can additionally be toggled by setting the
+	  ccid2_debug parameter to 0 or 1.
 
-	    If in doubt, say N.
+	  If in doubt, say N.
 
 config IP_DCCP_CCID3
-	tristate "CCID3 (TCP-Friendly) (EXPERIMENTAL)"
-	def_tristate IP_DCCP
-	select IP_DCCP_TFRC_LIB
+	bool "CCID-3 (TCP-Friendly) (EXPERIMENTAL)"
+	def_bool y if (IP_DCCP = y || IP_DCCP = m)
 	---help---
-	  CCID 3 denotes TCP-Friendly Rate Control (TFRC), an equation-based
+	  CCID-3 denotes TCP-Friendly Rate Control (TFRC), an equation-based
 	  rate-controlled congestion control mechanism.  TFRC is designed to
 	  be reasonably fair when competing for bandwidth with TCP-like flows,
 	  where a flow is "reasonably fair" if its sending rate is generally
 	  within a factor of two of the sending rate of a TCP flow under the
 	  same conditions.  However, TFRC has a much lower variation of
-	  throughput over time compared with TCP, which makes CCID 3 more
-	  suitable than CCID 2 for applications such streaming media where a
+	  throughput over time compared with TCP, which makes CCID-3 more
+	  suitable than CCID-2 for applications such streaming media where a
 	  relatively smooth sending rate is of importance.
 
-	  CCID 3 is further described in RFC 4342,
+	  CCID-3 is further described in RFC 4342,
 	  http://www.ietf.org/rfc/rfc4342.txt
 
 	  The TFRC congestion control algorithms were initially described in
-	  RFC 3448.
+	  RFC 5348.
 
 	  This text was extracted from RFC 4340 (sec. 10.2),
 	  http://www.ietf.org/rfc/rfc4340.txt
-	  
-	  To compile this CCID as a module, choose M here: the module will be
-	  called dccp_ccid3.
 
-	  If in doubt, say M.
+	  If in doubt, say N.
 
 config IP_DCCP_CCID3_DEBUG
-	  bool "CCID3 debugging messages"
-	  depends on IP_DCCP_CCID3
-	  ---help---
-	    Enable CCID3-specific debugging messages.
+	bool "CCID-3 debugging messages"
+	depends on IP_DCCP_CCID3
+	---help---
+	  Enable CCID-3 specific debugging messages.
 
-	    When compiling CCID3 as a module, this debugging output can
-	    additionally be toggled by setting the ccid3_debug module
-	    parameter to 0 or 1.
+	  The debugging output can additionally be toggled by setting the
+	  ccid3_debug parameter to 0 or 1.
 
-	    If in doubt, say N.
+	  If in doubt, say N.
 
 config IP_DCCP_CCID3_RTO
 	  int "Use higher bound for nofeedback timer"
@@ -108,12 +79,8 @@ config IP_DCCP_CCID3_RTO
 	    therefore not be performed on WANs.
 
 config IP_DCCP_TFRC_LIB
-	tristate
-	default n
+	def_bool y if IP_DCCP_CCID3
 
 config IP_DCCP_TFRC_DEBUG
-	bool
-	depends on IP_DCCP_TFRC_LIB
-	default y if IP_DCCP_CCID3_DEBUG
-
+	def_bool y if IP_DCCP_CCID3_DEBUG
 endmenu

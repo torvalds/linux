@@ -54,7 +54,5 @@ long sys_sigreturn(void);
 long sys_rt_sigreturn(void);
 long sys32_sigreturn(void);
 long sys32_rt_sigreturn(void);
-long old_select(struct sel_arg_struct __user *arg);
-long sys_ptrace(long request, long pid, long addr, long data);
 
 #endif /* _ENTRY_H */

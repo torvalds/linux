@@ -31,7 +31,10 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/audit.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <net/ip.h>
+#include <net/ipv6.h>
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <asm/bug.h>
@@ -42,6 +45,7 @@
 #include "netlabel_cipso_v4.h"
 #include "netlabel_user.h"
 #include "netlabel_mgmt.h"
+#include "netlabel_addrlist.h"
 
 /*
  * Configuration Functions
@@ -50,6 +54,9 @@
 /**
  * netlbl_cfg_map_del - Remove a NetLabel/LSM domain mapping
  * @domain: the domain mapping to remove
+ * @family: address family
+ * @addr: IP address
+ * @mask: IP address mask
  * @audit_info: NetLabel audit information
  *
  * Description:
@@ -58,14 +65,32 @@
  * values on failure.
  *
  */
-int netlbl_cfg_map_del(const char *domain, struct netlbl_audit *audit_info)
+int netlbl_cfg_map_del(const char *domain,
+		       u16 family,
+		       const void *addr,
+		       const void *mask,
+		       struct netlbl_audit *audit_info)
 {
-	return netlbl_domhsh_remove(domain, audit_info);
+	if (addr == NULL && mask == NULL) {
+		return netlbl_domhsh_remove(domain, audit_info);
+	} else if (addr != NULL && mask != NULL) {
+		switch (family) {
+		case AF_INET:
+			return netlbl_domhsh_remove_af4(domain, addr, mask,
+							audit_info);
+		default:
+			return -EPFNOSUPPORT;
+		}
+	} else
+		return -EINVAL;
 }
 
 /**
- * netlbl_cfg_unlbl_add_map - Add an unlabeled NetLabel/LSM domain mapping
+ * netlbl_cfg_unlbl_map_add - Add a new unlabeled mapping
  * @domain: the domain mapping to add
+ * @family: address family
+ * @addr: IP address
+ * @mask: IP address mask
  * @audit_info: NetLabel audit information
  *
  * Description:
@@ -74,11 +99,19 @@ int netlbl_cfg_map_del(const char *domain, struct netlbl_audit *audit_info)
  * negative values on failure.
  *
  */
-int netlbl_cfg_unlbl_add_map(const char *domain,
+int netlbl_cfg_unlbl_map_add(const char *domain,
+			     u16 family,
+			     const void *addr,
+			     const void *mask,
 			     struct netlbl_audit *audit_info)
 {
 	int ret_val = -ENOMEM;
 	struct netlbl_dom_map *entry;
+	struct netlbl_domaddr_map *addrmap = NULL;
+	struct netlbl_domaddr4_map *map4 = NULL;
+	struct netlbl_domaddr6_map *map6 = NULL;
+	const struct in_addr *addr4, *mask4;
+	const struct in6_addr *addr6, *mask6;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
@@ -86,49 +119,225 @@ int netlbl_cfg_unlbl_add_map(const char *domain,
 	if (domain != NULL) {
 		entry->domain = kstrdup(domain, GFP_ATOMIC);
 		if (entry->domain == NULL)
-			goto cfg_unlbl_add_map_failure;
+			goto cfg_unlbl_map_add_failure;
 	}
-	entry->type = NETLBL_NLTYPE_UNLABELED;
+
+	if (addr == NULL && mask == NULL)
+		entry->type = NETLBL_NLTYPE_UNLABELED;
+	else if (addr != NULL && mask != NULL) {
+		addrmap = kzalloc(sizeof(*addrmap), GFP_ATOMIC);
+		if (addrmap == NULL)
+			goto cfg_unlbl_map_add_failure;
+		INIT_LIST_HEAD(&addrmap->list4);
+		INIT_LIST_HEAD(&addrmap->list6);
+
+		switch (family) {
+		case AF_INET:
+			addr4 = addr;
+			mask4 = mask;
+			map4 = kzalloc(sizeof(*map4), GFP_ATOMIC);
+			if (map4 == NULL)
+				goto cfg_unlbl_map_add_failure;
+			map4->type = NETLBL_NLTYPE_UNLABELED;
+			map4->list.addr = addr4->s_addr & mask4->s_addr;
+			map4->list.mask = mask4->s_addr;
+			map4->list.valid = 1;
+			ret_val = netlbl_af4list_add(&map4->list,
+						     &addrmap->list4);
+			if (ret_val != 0)
+				goto cfg_unlbl_map_add_failure;
+			break;
+		case AF_INET6:
+			addr6 = addr;
+			mask6 = mask;
+			map6 = kzalloc(sizeof(*map6), GFP_ATOMIC);
+			if (map4 == NULL)
+				goto cfg_unlbl_map_add_failure;
+			map6->type = NETLBL_NLTYPE_UNLABELED;
+			ipv6_addr_copy(&map6->list.addr, addr6);
+			map6->list.addr.s6_addr32[0] &= mask6->s6_addr32[0];
+			map6->list.addr.s6_addr32[1] &= mask6->s6_addr32[1];
+			map6->list.addr.s6_addr32[2] &= mask6->s6_addr32[2];
+			map6->list.addr.s6_addr32[3] &= mask6->s6_addr32[3];
+			ipv6_addr_copy(&map6->list.mask, mask6);
+			map6->list.valid = 1;
+			ret_val = netlbl_af4list_add(&map4->list,
+						     &addrmap->list4);
+			if (ret_val != 0)
+				goto cfg_unlbl_map_add_failure;
+			break;
+		default:
+			goto cfg_unlbl_map_add_failure;
+			break;
+		}
+
+		entry->type_def.addrsel = addrmap;
+		entry->type = NETLBL_NLTYPE_ADDRSELECT;
+	} else {
+		ret_val = -EINVAL;
+		goto cfg_unlbl_map_add_failure;
+	}
 
 	ret_val = netlbl_domhsh_add(entry, audit_info);
 	if (ret_val != 0)
-		goto cfg_unlbl_add_map_failure;
+		goto cfg_unlbl_map_add_failure;
 
 	return 0;
 
-cfg_unlbl_add_map_failure:
+cfg_unlbl_map_add_failure:
 	if (entry != NULL)
 		kfree(entry->domain);
 	kfree(entry);
+	kfree(addrmap);
+	kfree(map4);
+	kfree(map6);
 	return ret_val;
 }
 
+
 /**
- * netlbl_cfg_cipsov4_add_map - Add a new CIPSOv4 DOI definition and mapping
- * @doi_def: the DOI definition
- * @domain: the domain mapping to add
+ * netlbl_cfg_unlbl_static_add - Adds a new static label
+ * @net: network namespace
+ * @dev_name: interface name
+ * @addr: IP address in network byte order (struct in[6]_addr)
+ * @mask: address mask in network byte order (struct in[6]_addr)
+ * @family: address family
+ * @secid: LSM secid value for the entry
  * @audit_info: NetLabel audit information
  *
  * Description:
- * Add a new CIPSOv4 DOI definition and NetLabel/LSM domain mapping for this
- * new DOI definition to the NetLabel subsystem.  A @domain value of NULL adds
- * a new default domain mapping.  Returns zero on success, negative values on
- * failure.
+ * Adds a new NetLabel static label to be used when protocol provided labels
+ * are not present on incoming traffic.  If @dev_name is NULL then the default
+ * interface will be used.  Returns zero on success, negative values on failure.
  *
  */
-int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
+int netlbl_cfg_unlbl_static_add(struct net *net,
+				const char *dev_name,
+				const void *addr,
+				const void *mask,
+				u16 family,
+				u32 secid,
+				struct netlbl_audit *audit_info)
+{
+	u32 addr_len;
+
+	switch (family) {
+	case AF_INET:
+		addr_len = sizeof(struct in_addr);
+		break;
+	case AF_INET6:
+		addr_len = sizeof(struct in6_addr);
+		break;
+	default:
+		return -EPFNOSUPPORT;
+	}
+
+	return netlbl_unlhsh_add(net,
+				 dev_name, addr, mask, addr_len,
+				 secid, audit_info);
+}
+
+/**
+ * netlbl_cfg_unlbl_static_del - Removes an existing static label
+ * @net: network namespace
+ * @dev_name: interface name
+ * @addr: IP address in network byte order (struct in[6]_addr)
+ * @mask: address mask in network byte order (struct in[6]_addr)
+ * @family: address family
+ * @secid: LSM secid value for the entry
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Removes an existing NetLabel static label used when protocol provided labels
+ * are not present on incoming traffic.  If @dev_name is NULL then the default
+ * interface will be used.  Returns zero on success, negative values on failure.
+ *
+ */
+int netlbl_cfg_unlbl_static_del(struct net *net,
+				const char *dev_name,
+				const void *addr,
+				const void *mask,
+				u16 family,
+				struct netlbl_audit *audit_info)
+{
+	u32 addr_len;
+
+	switch (family) {
+	case AF_INET:
+		addr_len = sizeof(struct in_addr);
+		break;
+	case AF_INET6:
+		addr_len = sizeof(struct in6_addr);
+		break;
+	default:
+		return -EPFNOSUPPORT;
+	}
+
+	return netlbl_unlhsh_remove(net,
+				    dev_name, addr, mask, addr_len,
+				    audit_info);
+}
+
+/**
+ * netlbl_cfg_cipsov4_add - Add a new CIPSOv4 DOI definition
+ * @doi_def: CIPSO DOI definition
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Add a new CIPSO DOI definition as defined by @doi_def.  Returns zero on
+ * success and negative values on failure.
+ *
+ */
+int netlbl_cfg_cipsov4_add(struct cipso_v4_doi *doi_def,
+			   struct netlbl_audit *audit_info)
+{
+	return cipso_v4_doi_add(doi_def, audit_info);
+}
+
+/**
+ * netlbl_cfg_cipsov4_del - Remove an existing CIPSOv4 DOI definition
+ * @doi: CIPSO DOI
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Remove an existing CIPSO DOI definition matching @doi.  Returns zero on
+ * success and negative values on failure.
+ *
+ */
+void netlbl_cfg_cipsov4_del(u32 doi, struct netlbl_audit *audit_info)
+{
+	cipso_v4_doi_remove(doi, audit_info);
+}
+
+/**
+ * netlbl_cfg_cipsov4_map_add - Add a new CIPSOv4 DOI mapping
+ * @doi: the CIPSO DOI
+ * @domain: the domain mapping to add
+ * @addr: IP address
+ * @mask: IP address mask
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Add a new NetLabel/LSM domain mapping for the given CIPSO DOI to the NetLabel
+ * subsystem.  A @domain value of NULL adds a new default domain mapping.
+ * Returns zero on success, negative values on failure.
+ *
+ */
+int netlbl_cfg_cipsov4_map_add(u32 doi,
 			       const char *domain,
+			       const struct in_addr *addr,
+			       const struct in_addr *mask,
 			       struct netlbl_audit *audit_info)
 {
 	int ret_val = -ENOMEM;
-	u32 doi;
-	u32 doi_type;
+	struct cipso_v4_doi *doi_def;
 	struct netlbl_dom_map *entry;
-	const char *type_str;
-	struct audit_buffer *audit_buf;
+	struct netlbl_domaddr_map *addrmap = NULL;
+	struct netlbl_domaddr4_map *addrinfo = NULL;
 
-	doi = doi_def->doi;
-	doi_type = doi_def->type;
+	doi_def = cipso_v4_doi_getdef(doi);
+	if (doi_def == NULL)
+		return -ENOENT;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (entry == NULL)
@@ -136,56 +345,52 @@ int netlbl_cfg_cipsov4_add_map(struct cipso_v4_doi *doi_def,
 	if (domain != NULL) {
 		entry->domain = kstrdup(domain, GFP_ATOMIC);
 		if (entry->domain == NULL)
-			goto cfg_cipsov4_add_map_failure;
+			goto cfg_cipsov4_map_add_failure;
 	}
 
-	ret_val = cipso_v4_doi_add(doi_def);
-	if (ret_val != 0)
-		goto cfg_cipsov4_add_map_failure_remove_doi;
-	entry->type = NETLBL_NLTYPE_CIPSOV4;
-	entry->type_def.cipsov4 = cipso_v4_doi_getdef(doi);
-	if (entry->type_def.cipsov4 == NULL) {
-		ret_val = -ENOENT;
-		goto cfg_cipsov4_add_map_failure_remove_doi;
+	if (addr == NULL && mask == NULL) {
+		entry->type_def.cipsov4 = doi_def;
+		entry->type = NETLBL_NLTYPE_CIPSOV4;
+	} else if (addr != NULL && mask != NULL) {
+		addrmap = kzalloc(sizeof(*addrmap), GFP_ATOMIC);
+		if (addrmap == NULL)
+			goto cfg_cipsov4_map_add_failure;
+		INIT_LIST_HEAD(&addrmap->list4);
+		INIT_LIST_HEAD(&addrmap->list6);
+
+		addrinfo = kzalloc(sizeof(*addrinfo), GFP_ATOMIC);
+		if (addrinfo == NULL)
+			goto cfg_cipsov4_map_add_failure;
+		addrinfo->type_def.cipsov4 = doi_def;
+		addrinfo->type = NETLBL_NLTYPE_CIPSOV4;
+		addrinfo->list.addr = addr->s_addr & mask->s_addr;
+		addrinfo->list.mask = mask->s_addr;
+		addrinfo->list.valid = 1;
+		ret_val = netlbl_af4list_add(&addrinfo->list, &addrmap->list4);
+		if (ret_val != 0)
+			goto cfg_cipsov4_map_add_failure;
+
+		entry->type_def.addrsel = addrmap;
+		entry->type = NETLBL_NLTYPE_ADDRSELECT;
+	} else {
+		ret_val = -EINVAL;
+		goto cfg_cipsov4_map_add_failure;
 	}
+
 	ret_val = netlbl_domhsh_add(entry, audit_info);
 	if (ret_val != 0)
-		goto cfg_cipsov4_add_map_failure_release_doi;
+		goto cfg_cipsov4_map_add_failure;
 
-cfg_cipsov4_add_map_return:
-	audit_buf = netlbl_audit_start_common(AUDIT_MAC_CIPSOV4_ADD,
-					      audit_info);
-	if (audit_buf != NULL) {
-		switch (doi_type) {
-		case CIPSO_V4_MAP_TRANS:
-			type_str = "trans";
-			break;
-		case CIPSO_V4_MAP_PASS:
-			type_str = "pass";
-			break;
-		case CIPSO_V4_MAP_LOCAL:
-			type_str = "local";
-			break;
-		default:
-			type_str = "(unknown)";
-		}
-		audit_log_format(audit_buf,
-				 " cipso_doi=%u cipso_type=%s res=%u",
-				 doi, type_str, ret_val == 0 ? 1 : 0);
-		audit_log_end(audit_buf);
-	}
+	return 0;
 
-	return ret_val;
-
-cfg_cipsov4_add_map_failure_release_doi:
+cfg_cipsov4_map_add_failure:
 	cipso_v4_doi_putdef(doi_def);
-cfg_cipsov4_add_map_failure_remove_doi:
-	cipso_v4_doi_remove(doi, audit_info);
-cfg_cipsov4_add_map_failure:
 	if (entry != NULL)
 		kfree(entry->domain);
 	kfree(entry);
-	goto cfg_cipsov4_add_map_return;
+	kfree(addrmap);
+	kfree(addrinfo);
+	return ret_val;
 }
 
 /*
@@ -688,6 +893,28 @@ int netlbl_cache_add(const struct sk_buff *skb,
 		return cipso_v4_cache_add(skb, secattr);
 
 	return -ENOMSG;
+}
+
+/*
+ * Protocol Engine Functions
+ */
+
+/**
+ * netlbl_audit_start - Start an audit message
+ * @type: audit message type
+ * @audit_info: NetLabel audit information
+ *
+ * Description:
+ * Start an audit message using the type specified in @type and fill the audit
+ * message with some fields common to all NetLabel audit messages.  This
+ * function should only be used by protocol engines, not LSMs.  Returns a
+ * pointer to the audit buffer on success, NULL on failure.
+ *
+ */
+struct audit_buffer *netlbl_audit_start(int type,
+					struct netlbl_audit *audit_info)
+{
+	return netlbl_audit_start_common(type, audit_info);
 }
 
 /*

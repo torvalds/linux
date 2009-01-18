@@ -1,0 +1,375 @@
+#
+# X86 Platform Specific Drivers
+#
+
+menuconfig X86_PLATFORM_DEVICES
+	bool "X86 Platform Specific Device Drivers"
+	default y
+	---help---
+	  Say Y here to get to see options for device drivers for various
+	  x86 platforms, including vendor-specific laptop extension drivers.
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if X86_PLATFORM_DEVICES
+
+config ACER_WMI
+	tristate "Acer WMI Laptop Extras (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	depends on ACPI
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on SERIO_I8042
+	depends on RFKILL
+	select ACPI_WMI
+	---help---
+	  This is a driver for newer Acer (and Wistron) laptops. It adds
+	  wireless radio and bluetooth control, and on some laptops,
+	  exposes the mail LED and LCD backlight.
+
+	  For more information about this driver see
+	  <file:Documentation/laptops/acer-wmi.txt>
+
+	  If you have an ACPI-WMI compatible Acer/ Wistron laptop, say Y or M
+	  here.
+
+config ASUS_LAPTOP
+	tristate "Asus Laptop Extras (EXPERIMENTAL)"
+	depends on ACPI
+	depends on EXPERIMENTAL && !ACPI_ASUS
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This is the new Linux driver for Asus laptops. It may also support some
+	  MEDION, JVC or VICTOR laptops. It makes all the extra buttons generate
+	  standard ACPI events that go through /proc/acpi/events. It also adds
+	  support for video output switching, LCD backlight control, Bluetooth and
+	  Wlan control, and most importantly, allows you to blink those fancy LEDs.
+
+	  For more information and a userspace daemon for handling the extra
+	  buttons see <http://acpi4asus.sf.net/>.
+
+	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
+
+config FUJITSU_LAPTOP
+	tristate "Fujitsu Laptop Extras"
+	depends on ACPI
+	depends on INPUT
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This is a driver for laptops built by Fujitsu:
+
+	    * P2xxx/P5xxx/S6xxx/S7xxx series Lifebooks
+	    * Possibly other Fujitsu laptop models
+	    * Tested with S6410 and S7020
+
+	  It adds support for LCD brightness control and some hotkeys.
+
+	  If you have a Fujitsu laptop, say Y or M here.
+
+config FUJITSU_LAPTOP_DEBUG
+	bool "Verbose debug mode for Fujitsu Laptop Extras"
+	depends on FUJITSU_LAPTOP
+	default n
+	---help---
+	  Enables extra debug output from the fujitsu extras driver, at the
+	  expense of a slight increase in driver size.
+
+	  If you are not sure, say N here.
+
+config TC1100_WMI
+	tristate "HP Compaq TC1100 Tablet WMI Extras (EXPERIMENTAL)"
+	depends on !X86_64
+	depends on EXPERIMENTAL
+	depends on ACPI
+	select ACPI_WMI
+	---help---
+	  This is a driver for the WMI extensions (wireless and bluetooth power
+	  control) of the HP Compaq TC1100 tablet.
+
+config HP_WMI
+	tristate "HP WMI extras"
+	depends on ACPI_WMI
+	depends on INPUT
+	depends on RFKILL
+	help
+	 Say Y here if you want to support WMI-based hotkeys on HP laptops and
+	 to read data from WMI such as docking or ambient light sensor state.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called hp-wmi.
+
+config MSI_LAPTOP
+	tristate "MSI Laptop Extras"
+	depends on ACPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This is a driver for laptops built by MSI (MICRO-STAR
+	  INTERNATIONAL):
+
+	  MSI MegaBook S270 (MS-1013)
+	  Cytron/TCM/Medion/Tchibo MD96100/SAM2000
+
+	  It adds support for Bluetooth, WLAN and LCD brightness control.
+
+	  More information about this driver is available at
+	  <http://0pointer.de/lennart/tchibo.html>.
+
+	  If you have an MSI S270 laptop, say Y or M here.
+
+config PANASONIC_LAPTOP
+	tristate "Panasonic Laptop Extras"
+	depends on INPUT && ACPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This driver adds support for access to backlight control and hotkeys
+	  on Panasonic Let's Note laptops.
+
+	  If you have a Panasonic Let's note laptop (such as the R1(N variant),
+	  R2, R3, R5, T2, W2 and Y2 series), say Y.
+
+config COMPAL_LAPTOP
+	tristate "Compal Laptop Extras"
+	depends on ACPI
+	depends on BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This is a driver for laptops built by Compal:
+
+	  Compal FL90/IFL90
+	  Compal FL91/IFL91
+	  Compal FL92/JFL92
+	  Compal FT00/IFT00
+
+	  It adds support for Bluetooth, WLAN and LCD brightness control.
+
+	  If you have an Compal FL9x/IFL9x/FT00 laptop, say Y or M here.
+
+config SONY_LAPTOP
+	tristate "Sony Laptop Extras"
+	depends on ACPI
+	select BACKLIGHT_CLASS_DEVICE
+	depends on INPUT
+	  ---help---
+	  This mini-driver drives the SNC and SPIC devices present in the ACPI
+	  BIOS of the Sony Vaio laptops.
+
+	  It gives access to some extra laptop functionalities like Bluetooth,
+	  screen brightness control, Fn keys and allows powering on/off some
+	  devices.
+
+	  Read <file:Documentation/laptops/sony-laptop.txt> for more information.
+
+config SONYPI_COMPAT
+	bool "Sonypi compatibility"
+	depends on SONY_LAPTOP
+	  ---help---
+	  Build the sonypi driver compatibility code into the sony-laptop driver.
+
+config THINKPAD_ACPI
+	tristate "ThinkPad ACPI Laptop Extras"
+	depends on ACPI
+	select BACKLIGHT_LCD_SUPPORT
+	select BACKLIGHT_CLASS_DEVICE
+	select HWMON
+	select NVRAM
+	select INPUT
+	select NEW_LEDS
+	select LEDS_CLASS
+	select NET
+	select RFKILL
+	---help---
+	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
+	  support for Fn-Fx key combinations, Bluetooth control, video
+	  output switching, ThinkLight control, UltraBay eject and more.
+	  For more information about this driver see
+	  <file:Documentation/laptops/thinkpad-acpi.txt> and
+	  <http://ibm-acpi.sf.net/> .
+
+	  This driver was formerly known as ibm-acpi.
+
+	  If you have an IBM or Lenovo ThinkPad laptop, say Y or M here.
+
+config THINKPAD_ACPI_DEBUG
+	bool "Verbose debug mode"
+	depends on THINKPAD_ACPI
+	default n
+	---help---
+	  Enables extra debugging information, at the expense of a slightly
+	  increase in driver size.
+
+	  If you are not sure, say N here.
+
+config THINKPAD_ACPI_DOCK
+	bool "Legacy Docking Station Support"
+	depends on THINKPAD_ACPI
+	depends on ACPI_DOCK=n
+	default n
+	---help---
+	  Allows the thinkpad_acpi driver to handle docking station events.
+	  This support was made obsolete by the generic ACPI docking station
+	  support (CONFIG_ACPI_DOCK).  It will allow locking and removing the
+	  laptop from the docking station, but will not properly connect PCI
+	  devices.
+
+	  If you are not sure, say N here.
+
+config THINKPAD_ACPI_BAY
+	bool "Legacy Removable Bay Support"
+	depends on THINKPAD_ACPI
+	default y
+	---help---
+	  Allows the thinkpad_acpi driver to handle removable bays.  It will
+	  electrically disable the device in the bay, and also generate
+	  notifications when the bay lever is ejected or inserted.
+
+	  If you are not sure, say Y here.
+
+config THINKPAD_ACPI_VIDEO
+	bool "Video output control support"
+	depends on THINKPAD_ACPI
+	default y
+	---help---
+	  Allows the thinkpad_acpi driver to provide an interface to control
+	  the various video output ports.
+
+	  This feature often won't work well, depending on ThinkPad model,
+	  display state, video output devices in use, whether there is a X
+	  server running, phase of the moon, and the current mood of
+	  Schroedinger's cat.  If you can use X.org's RandR to control
+	  your ThinkPad's video output ports instead of this feature,
+	  don't think twice: do it and say N here to save some memory.
+
+	  If you are not sure, say Y here.
+
+config THINKPAD_ACPI_HOTKEY_POLL
+	bool "Support NVRAM polling for hot keys"
+	depends on THINKPAD_ACPI
+	default y
+	---help---
+	  Some thinkpad models benefit from NVRAM polling to detect a few of
+	  the hot key press events.  If you know your ThinkPad model does not
+	  need to do NVRAM polling to support any of the hot keys you use,
+	  unselecting this option will save about 1kB of memory.
+
+	  ThinkPads T40 and newer, R52 and newer, and X31 and newer are
+	  unlikely to need NVRAM polling in their latest BIOS versions.
+
+	  NVRAM polling can detect at most the following keys: ThinkPad/Access
+	  IBM, Zoom, Switch Display (fn+F7), ThinkLight, Volume up/down/mute,
+	  Brightness up/down, Display Expand (fn+F8), Hibernate (fn+F12).
+
+	  If you are not sure, say Y here.  The driver enables polling only if
+	  it is strictly necessary to do so.
+
+config INTEL_MENLOW
+	tristate "Thermal Management driver for Intel menlow platform"
+	depends on ACPI_THERMAL
+	select THERMAL
+	---help---
+	  ACPI thermal management enhancement driver on
+	  Intel Menlow platform.
+
+	  If unsure, say N.
+
+config EEEPC_LAPTOP
+	tristate "Eee PC Hotkey Driver (EXPERIMENTAL)"
+	depends on ACPI
+	depends on EXPERIMENTAL
+	select BACKLIGHT_CLASS_DEVICE
+	select HWMON
+	select RFKILL
+	---help---
+	  This driver supports the Fn-Fx keys on Eee PC laptops.
+	  It also adds the ability to switch camera/wlan on/off.
+
+	  If you have an Eee PC laptop, say Y or M here.
+
+
+config ACPI_WMI
+	tristate "WMI (EXPERIMENTAL)"
+	depends on ACPI
+	depends on EXPERIMENTAL
+	help
+	  This driver adds support for the ACPI-WMI (Windows Management
+	  Instrumentation) mapper device (PNP0C14) found on some systems.
+
+	  ACPI-WMI is a proprietary extension to ACPI to expose parts of the
+	  ACPI firmware to userspace - this is done through various vendor
+	  defined methods and data blocks in a PNP0C14 device, which are then
+	  made available for userspace to call.
+
+	  The implementation of this in Linux currently only exposes this to
+	  other kernel space drivers.
+
+	  This driver is a required dependency to build the firmware specific
+	  drivers needed on many machines, including Acer and HP laptops.
+
+	  It is safe to enable this driver even if your DSDT doesn't define
+	  any ACPI-WMI devices.
+
+config ACPI_ASUS
+	tristate "ASUS/Medion Laptop Extras"
+	depends on ACPI
+	select BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This driver provides support for extra features of ACPI-compatible
+	  ASUS laptops. As some of Medion laptops are made by ASUS, it may also
+	  support some Medion laptops (such as 9675 for example).  It makes all
+	  the extra buttons generate standard ACPI events that go through
+	  /proc/acpi/events, and (on some models) adds support for changing the
+	  display brightness and output, switching the LCD backlight on and off,
+	  and most importantly, allows you to blink those fancy LEDs intended
+	  for reporting mail and wireless status.
+
+	  Note: display switching code is currently considered EXPERIMENTAL,
+	  toying with these values may even lock your machine.
+
+	  All settings are changed via /proc/acpi/asus directory entries. Owner
+	  and group for these entries can be set with asus_uid and asus_gid
+	  parameters.
+
+	  More information and a userspace daemon for handling the extra buttons
+	  at <http://sourceforge.net/projects/acpi4asus/>.
+
+	  If you have an ACPI-compatible ASUS laptop, say Y or M here. This
+	  driver is still under development, so if your laptop is unsupported or
+	  something works not quite as expected, please use the mailing list
+	  available on the above page (acpi4asus-user@lists.sourceforge.net).
+
+	  NOTE: This driver is deprecated and will probably be removed soon,
+	  use asus-laptop instead.
+
+config ACPI_TOSHIBA
+	tristate "Toshiba Laptop Extras"
+	depends on ACPI
+	depends on INPUT
+	select INPUT_POLLDEV
+	select NET
+	select RFKILL
+	select BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This driver adds support for access to certain system settings
+	  on "legacy free" Toshiba laptops.  These laptops can be recognized by
+	  their lack of a BIOS setup menu and APM support.
+
+	  On these machines, all system configuration is handled through the
+	  ACPI.  This driver is required for access to controls not covered
+	  by the general ACPI drivers, such as LCD brightness, video output,
+	  etc.
+
+	  This driver differs from the non-ACPI Toshiba laptop driver (located
+	  under "Processor type and features") in several aspects.
+	  Configuration is accessed by reading and writing text files in the
+	  /proc tree instead of by program interface to /dev.  Furthermore, no
+	  power management functions are exposed, as those are handled by the
+	  general ACPI drivers.
+
+	  More information about this driver is available at
+	  <http://memebeam.org/toys/ToshibaAcpiDriver>.
+
+	  If you have a legacy free Toshiba laptop (such as the Libretto L1
+	  series), say Y.
+endif # X86_PLATFORM_DEVICES

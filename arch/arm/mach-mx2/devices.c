@@ -32,6 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 
+#include <mach/irqs.h>
 #include <mach/hardware.h>
 
 /*

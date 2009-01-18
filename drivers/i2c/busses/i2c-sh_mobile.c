@@ -500,7 +500,7 @@ static int sh_mobile_i2c_hook_irqs(struct platform_device *dev, int hook)
 	while ((res = platform_get_resource(dev, IORESOURCE_IRQ, k))) {
 		for (n = res->start; hook && n <= res->end; n++) {
 			if (request_irq(n, sh_mobile_i2c_isr, IRQF_DISABLED,
-					dev->dev.bus_id, dev))
+					dev_name(&dev->dev), dev))
 				goto rollback;
 		}
 		k++;

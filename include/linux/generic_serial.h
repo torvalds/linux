@@ -21,7 +21,6 @@ struct real_driver {
   void                    (*enable_tx_interrupts) (void *);
   void                    (*disable_rx_interrupts) (void *);
   void                    (*enable_rx_interrupts) (void *);
-  int                     (*get_CD) (void *);
   void                    (*shutdown_port) (void*);
   int                     (*set_real_termios) (void*);
   int                     (*chars_in_buffer) (void*);

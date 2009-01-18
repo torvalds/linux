@@ -9,14 +9,6 @@
  *
  * Driver for MAX6902 spi RTC
  *
- * Changelog:
- *
- * 24-May-2006: Raphael Assenat <raph@8d.com>
- *                - Major rework
- *				Converted to rtc_device and uses the SPI layer.
- *
- * ??-???-2005: Someone at Compulab
- *                - Initial driver creation.
  */
 
 #include <linux/module.h>
@@ -26,7 +18,6 @@
 #include <linux/rtc.h>
 #include <linux/spi/spi.h>
 #include <linux/bcd.h>
-#include <linux/delay.h>
 
 #define MAX6902_REG_SECONDS		0x01
 #define MAX6902_REG_MINUTES		0x03
@@ -38,16 +29,7 @@
 #define MAX6902_REG_CONTROL		0x0F
 #define MAX6902_REG_CENTURY		0x13
 
-#undef MAX6902_DEBUG
-
-struct max6902 {
-	struct rtc_device *rtc;
-	u8 buf[9]; /* Burst read cmd + 8 registers */
-	u8 tx_buf[2];
-	u8 rx_buf[2];
-};
-
-static void max6902_set_reg(struct device *dev, unsigned char address,
+static int max6902_set_reg(struct device *dev, unsigned char address,
 				unsigned char data)
 {
 	struct spi_device *spi = to_spi_device(dev);
@@ -57,113 +39,58 @@ static void max6902_set_reg(struct device *dev, unsigned char address,
 	buf[0] = address & 0x7f;
 	buf[1] = data;
 
-	spi_write(spi, buf, 2);
+	return spi_write_then_read(spi, buf, 2, NULL, 0);
 }
 
 static int max6902_get_reg(struct device *dev, unsigned char address,
 				unsigned char *data)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct max6902 *chip = dev_get_drvdata(dev);
-	struct spi_message message;
-	struct spi_transfer xfer;
-	int status;
-
-	if (!data)
-		return -EINVAL;
-
-	/* Build our spi message */
-	spi_message_init(&message);
-	memset(&xfer, 0, sizeof(xfer));
-	xfer.len = 2;
-	/* Can tx_buf and rx_buf be equal? The doc in spi.h is not sure... */
-	xfer.tx_buf = chip->tx_buf;
-	xfer.rx_buf = chip->rx_buf;
 
 	/* Set MSB to indicate read */
-	chip->tx_buf[0] = address | 0x80;
+	*data = address | 0x80;
 
-	spi_message_add_tail(&xfer, &message);
-
-	/* do the i/o */
-	status = spi_sync(spi, &message);
-
-	if (status == 0)
-		*data = chip->rx_buf[1];
-	return status;
+	return spi_write_then_read(spi, data, 1, data, 1);
 }
 
-static int max6902_get_datetime(struct device *dev, struct rtc_time *dt)
+static int max6902_read_time(struct device *dev, struct rtc_time *dt)
 {
-	unsigned char tmp;
-	int century;
-	int err;
+	int err, century;
 	struct spi_device *spi = to_spi_device(dev);
-	struct max6902 *chip = dev_get_drvdata(dev);
-	struct spi_message message;
-	struct spi_transfer xfer;
-	int status;
+	unsigned char buf[8];
 
-	err = max6902_get_reg(dev, MAX6902_REG_CENTURY, &tmp);
-	if (err)
+	buf[0] = 0xbf;	/* Burst read */
+
+	err = spi_write_then_read(spi, buf, 1, buf, 8);
+	if (err != 0)
 		return err;
-
-	/* build the message */
-	spi_message_init(&message);
-	memset(&xfer, 0, sizeof(xfer));
-	xfer.len = 1 + 7;	/* Burst read command + 7 registers */
-	xfer.tx_buf = chip->buf;
-	xfer.rx_buf = chip->buf;
-	chip->buf[0] = 0xbf;	/* Burst read */
-	spi_message_add_tail(&xfer, &message);
-
-	/* do the i/o */
-	status = spi_sync(spi, &message);
-	if (status)
-		return status;
 
 	/* The chip sends data in this order:
 	 * Seconds, Minutes, Hours, Date, Month, Day, Year */
-	dt->tm_sec	= bcd2bin(chip->buf[1]);
-	dt->tm_min	= bcd2bin(chip->buf[2]);
-	dt->tm_hour	= bcd2bin(chip->buf[3]);
-	dt->tm_mday	= bcd2bin(chip->buf[4]);
-	dt->tm_mon	= bcd2bin(chip->buf[5]) - 1;
-	dt->tm_wday	= bcd2bin(chip->buf[6]);
-	dt->tm_year = bcd2bin(chip->buf[7]);
+	dt->tm_sec	= bcd2bin(buf[0]);
+	dt->tm_min	= bcd2bin(buf[1]);
+	dt->tm_hour	= bcd2bin(buf[2]);
+	dt->tm_mday	= bcd2bin(buf[3]);
+	dt->tm_mon	= bcd2bin(buf[4]) - 1;
+	dt->tm_wday	= bcd2bin(buf[5]);
+	dt->tm_year	= bcd2bin(buf[6]);
 
-	century = bcd2bin(tmp) * 100;
+	/* Read century */
+	err = max6902_get_reg(dev, MAX6902_REG_CENTURY, &buf[0]);
+	if (err != 0)
+		return err;
+
+	century = bcd2bin(buf[0]) * 100;
 
 	dt->tm_year += century;
 	dt->tm_year -= 1900;
 
-#ifdef MAX6902_DEBUG
-	printk("\n%s : Read RTC values\n",__func__);
-	printk("tm_hour: %i\n",dt->tm_hour);
-	printk("tm_min : %i\n",dt->tm_min);
-	printk("tm_sec : %i\n",dt->tm_sec);
-	printk("tm_year: %i\n",dt->tm_year);
-	printk("tm_mon : %i\n",dt->tm_mon);
-	printk("tm_mday: %i\n",dt->tm_mday);
-	printk("tm_wday: %i\n",dt->tm_wday);
-#endif
-
-	return 0;
+	return rtc_valid_tm(dt);
 }
 
-static int max6902_set_datetime(struct device *dev, struct rtc_time *dt)
+static int max6902_set_time(struct device *dev, struct rtc_time *dt)
 {
-	dt->tm_year = dt->tm_year+1900;
-
-#ifdef MAX6902_DEBUG
-	printk("\n%s : Setting RTC values\n",__func__);
-	printk("tm_sec : %i\n",dt->tm_sec);
-	printk("tm_min : %i\n",dt->tm_min);
-	printk("tm_hour: %i\n",dt->tm_hour);
-	printk("tm_mday: %i\n",dt->tm_mday);
-	printk("tm_wday: %i\n",dt->tm_wday);
-	printk("tm_year: %i\n",dt->tm_year);
-#endif
+	dt->tm_year = dt->tm_year + 1900;
 
 	/* Remove write protection */
 	max6902_set_reg(dev, 0xF, 0);
@@ -173,10 +100,10 @@ static int max6902_set_datetime(struct device *dev, struct rtc_time *dt)
 	max6902_set_reg(dev, 0x05, bin2bcd(dt->tm_hour));
 
 	max6902_set_reg(dev, 0x07, bin2bcd(dt->tm_mday));
-	max6902_set_reg(dev, 0x09, bin2bcd(dt->tm_mon+1));
+	max6902_set_reg(dev, 0x09, bin2bcd(dt->tm_mon + 1));
 	max6902_set_reg(dev, 0x0B, bin2bcd(dt->tm_wday));
-	max6902_set_reg(dev, 0x0D, bin2bcd(dt->tm_year%100));
-	max6902_set_reg(dev, 0x13, bin2bcd(dt->tm_year/100));
+	max6902_set_reg(dev, 0x0D, bin2bcd(dt->tm_year % 100));
+	max6902_set_reg(dev, 0x13, bin2bcd(dt->tm_year / 100));
 
 	/* Compulab used a delay here. However, the datasheet
 	 * does not mention a delay being required anywhere... */
@@ -188,16 +115,6 @@ static int max6902_set_datetime(struct device *dev, struct rtc_time *dt)
 	return 0;
 }
 
-static int max6902_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return max6902_get_datetime(dev, tm);
-}
-
-static int max6902_set_time(struct device *dev, struct rtc_time *tm)
-{
-	return max6902_set_datetime(dev, tm);
-}
-
 static const struct rtc_class_ops max6902_rtc_ops = {
 	.read_time	= max6902_read_time,
 	.set_time	= max6902_set_time,
@@ -207,45 +124,29 @@ static int __devinit max6902_probe(struct spi_device *spi)
 {
 	struct rtc_device *rtc;
 	unsigned char tmp;
-	struct max6902 *chip;
 	int res;
+
+	spi->mode = SPI_MODE_3;
+	spi->bits_per_word = 8;
+	spi_setup(spi);
+
+	res = max6902_get_reg(&spi->dev, MAX6902_REG_SECONDS, &tmp);
+	if (res != 0)
+		return res;
 
 	rtc = rtc_device_register("max6902",
 				&spi->dev, &max6902_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	spi->mode = SPI_MODE_3;
-	spi->bits_per_word = 8;
-	spi_setup(spi);
-
-	chip = kzalloc(sizeof *chip, GFP_KERNEL);
-	if (!chip) {
-		rtc_device_unregister(rtc);
-		return -ENOMEM;
-	}
-	chip->rtc = rtc;
-	dev_set_drvdata(&spi->dev, chip);
-
-	res = max6902_get_reg(&spi->dev, MAX6902_REG_SECONDS, &tmp);
-	if (res) {
-		rtc_device_unregister(rtc);
-		return res;
-	}
-
 	return 0;
 }
 
 static int __devexit max6902_remove(struct spi_device *spi)
 {
-	struct max6902 *chip = platform_get_drvdata(spi);
-	struct rtc_device *rtc = chip->rtc;
+	struct rtc_device *rtc = platform_get_drvdata(spi);
 
-	if (rtc)
-		rtc_device_unregister(rtc);
-
-	kfree(chip);
-
+	rtc_device_unregister(rtc);
 	return 0;
 }
 
@@ -261,7 +162,6 @@ static struct spi_driver max6902_driver = {
 
 static __init int max6902_init(void)
 {
-	printk("max6902 spi driver\n");
 	return spi_register_driver(&max6902_driver);
 }
 module_init(max6902_init);

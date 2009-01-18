@@ -21,6 +21,8 @@
 #include <asm/asm.h>
 #include <asm/numa.h>
 #include <asm/smp.h>
+#include <asm/cpu.h>
+#include <asm/cpumask.h>
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
@@ -39,6 +41,26 @@
 #include <asm/hypervisor.h>
 
 #include "cpu.h"
+
+#ifdef CONFIG_X86_64
+
+/* all of these masks are initialized in setup_cpu_local_masks() */
+cpumask_var_t cpu_callin_mask;
+cpumask_var_t cpu_callout_mask;
+cpumask_var_t cpu_initialized_mask;
+
+/* representing cpus for which sibling maps can be computed */
+cpumask_var_t cpu_sibling_setup_mask;
+
+#else /* CONFIG_X86_32 */
+
+cpumask_t cpu_callin_map;
+cpumask_t cpu_callout_map;
+cpumask_t cpu_initialized;
+cpumask_t cpu_sibling_setup_map;
+
+#endif /* CONFIG_X86_32 */
+
 
 static struct cpu_dev *this_cpu __cpuinitdata;
 
@@ -355,7 +377,7 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		printk(KERN_INFO  "CPU: Hyper-Threading is disabled\n");
 	} else if (smp_num_siblings > 1) {
 
-		if (smp_num_siblings > NR_CPUS) {
+		if (smp_num_siblings > nr_cpu_ids) {
 			printk(KERN_WARNING "CPU: Unsupported number of siblings %d",
 					smp_num_siblings);
 			smp_num_siblings = 1;
@@ -856,57 +878,35 @@ static __init int setup_disablecpuid(char *arg)
 }
 __setup("clearcpuid=", setup_disablecpuid);
 
-cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
-
 #ifdef CONFIG_X86_64
-struct x8664_pda **_cpu_pda __read_mostly;
-EXPORT_SYMBOL(_cpu_pda);
-
 struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 
-static char boot_cpu_stack[IRQSTACKSIZE] __page_aligned_bss;
+DEFINE_PER_CPU_PAGE_ALIGNED(char[IRQ_STACK_SIZE], irq_stack);
+#ifdef CONFIG_SMP
+DEFINE_PER_CPU(char *, irq_stack_ptr);	/* will be set during per cpu init */
+#else
+DEFINE_PER_CPU(char *, irq_stack_ptr) =
+	per_cpu_var(irq_stack) + IRQ_STACK_SIZE - 64;
+#endif
+
+DEFINE_PER_CPU(unsigned long, kernel_stack) =
+	(unsigned long)&init_thread_union - KERNEL_STACK_OFFSET + THREAD_SIZE;
+EXPORT_PER_CPU_SYMBOL(kernel_stack);
+
+DEFINE_PER_CPU(unsigned int, irq_count) = -1;
 
 void __cpuinit pda_init(int cpu)
 {
-	struct x8664_pda *pda = cpu_pda(cpu);
-
 	/* Setup up data that may be needed in __get_free_pages early */
 	loadsegment(fs, 0);
 	loadsegment(gs, 0);
-	/* Memory clobbers used to order PDA accessed */
-	mb();
-	wrmsrl(MSR_GS_BASE, pda);
-	mb();
 
-	pda->cpunumber = cpu;
-	pda->irqcount = -1;
-	pda->kernelstack = (unsigned long)stack_thread_info() -
-				 PDA_STACKOFFSET + THREAD_SIZE;
-	pda->active_mm = &init_mm;
-	pda->mmu_state = 0;
-
-	if (cpu == 0) {
-		/* others are initialized in smpboot.c */
-		pda->pcurrent = &init_task;
-		pda->irqstackptr = boot_cpu_stack;
-		pda->irqstackptr += IRQSTACKSIZE - 64;
-	} else {
-		if (!pda->irqstackptr) {
-			pda->irqstackptr = (char *)
-				__get_free_pages(GFP_ATOMIC, IRQSTACK_ORDER);
-			if (!pda->irqstackptr)
-				panic("cannot allocate irqstack for cpu %d",
-				      cpu);
-			pda->irqstackptr += IRQSTACKSIZE - 64;
-		}
-
-		if (pda->nodenumber == 0 && cpu_to_node(cpu) != NUMA_NO_NODE)
-			pda->nodenumber = cpu_to_node(cpu);
-	}
+	load_pda_offset(cpu);
 }
 
-static char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ +
-				  DEBUG_STKSZ] __page_aligned_bss;
+static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
+	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ])
+	__aligned(PAGE_SIZE);
 
 extern asmlinkage void ignore_sysret(void);
 
@@ -964,19 +964,22 @@ void __cpuinit cpu_init(void)
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
 	struct orig_ist *orig_ist = &per_cpu(orig_ist, cpu);
 	unsigned long v;
-	char *estacks = NULL;
 	struct task_struct *me;
 	int i;
 
 	/* CPU 0 is initialised in head64.c */
 	if (cpu != 0)
 		pda_init(cpu);
-	else
-		estacks = boot_exception_stacks;
+
+#ifdef CONFIG_NUMA
+	if (cpu != 0 && percpu_read(node_number) == 0 &&
+	    cpu_to_node(cpu) != NUMA_NO_NODE)
+		percpu_write(node_number, cpu_to_node(cpu));
+#endif
 
 	me = current;
 
-	if (cpu_test_and_set(cpu, cpu_initialized))
+	if (cpumask_test_and_set_cpu(cpu, cpu_initialized_mask))
 		panic("CPU#%d already initialized!\n", cpu);
 
 	printk(KERN_INFO "Initializing CPU#%d\n", cpu);
@@ -1006,18 +1009,13 @@ void __cpuinit cpu_init(void)
 	 * set up and load the per-CPU TSS
 	 */
 	if (!orig_ist->ist[0]) {
-		static const unsigned int order[N_EXCEPTION_STACKS] = {
-		  [0 ... N_EXCEPTION_STACKS - 1] = EXCEPTION_STACK_ORDER,
-		  [DEBUG_STACK - 1] = DEBUG_STACK_ORDER
+		static const unsigned int sizes[N_EXCEPTION_STACKS] = {
+		  [0 ... N_EXCEPTION_STACKS - 1] = EXCEPTION_STKSZ,
+		  [DEBUG_STACK - 1] = DEBUG_STKSZ
 		};
+		char *estacks = per_cpu(exception_stacks, cpu);
 		for (v = 0; v < N_EXCEPTION_STACKS; v++) {
-			if (cpu) {
-				estacks = (char *)__get_free_pages(GFP_ATOMIC, order[v]);
-				if (!estacks)
-					panic("Cannot allocate exception "
-					      "stack %ld %d\n", v, cpu);
-			}
-			estacks += PAGE_SIZE << order[v];
+			estacks += sizes[v];
 			orig_ist->ist[v] = t->x86_tss.ist[v] =
 					(unsigned long)estacks;
 		}
@@ -1085,7 +1083,7 @@ void __cpuinit cpu_init(void)
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
 	struct thread_struct *thread = &curr->thread;
 
-	if (cpu_test_and_set(cpu, cpu_initialized)) {
+	if (cpumask_test_and_set_cpu(cpu, cpu_initialized_mask)) {
 		printk(KERN_WARNING "CPU#%d already initialized!\n", cpu);
 		for (;;) local_irq_enable();
 	}

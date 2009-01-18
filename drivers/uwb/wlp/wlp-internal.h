@@ -42,10 +42,6 @@ enum wlp_wss_connect {
 extern struct kobj_type wss_ktype;
 extern struct attribute_group wss_attr_group;
 
-extern int uwb_rc_ie_add(struct uwb_rc *, const struct uwb_ie_hdr *, size_t);
-extern int uwb_rc_ie_rm(struct uwb_rc *, enum uwb_ie);
-
-
 /* This should be changed to a dynamic array where entries are sorted
  * by eth_addr and search is done in a binary form
  *

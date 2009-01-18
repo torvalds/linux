@@ -159,11 +159,8 @@ static inline int audit_signal_info(int sig, struct task_struct *t)
 		return __audit_signal_info(sig, t);
 	return 0;
 }
-extern enum audit_state audit_filter_inodes(struct task_struct *,
-					    struct audit_context *);
-extern void audit_set_auditable(struct audit_context *);
+extern void audit_filter_inodes(struct task_struct *, struct audit_context *);
 #else
 #define audit_signal_info(s,t) AUDIT_DISABLED
 #define audit_filter_inodes(t,c) AUDIT_DISABLED
-#define audit_set_auditable(c)
 #endif

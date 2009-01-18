@@ -39,7 +39,7 @@ int iommu_detected __read_mostly;
    be probably a smaller DMA mask, but this is bug-to-bug compatible
    to i386. */
 struct device fallback_dev = {
-	.bus_id = "fallback device",
+	.init_name = "fallback device",
 	.coherent_dma_mask = DMA_32BIT_MASK,
 	.dma_mask = &fallback_dev.coherent_dma_mask,
 };

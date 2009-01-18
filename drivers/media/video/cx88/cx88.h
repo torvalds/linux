@@ -302,6 +302,7 @@ struct cx88_dmaqueue {
 	struct btcx_riscmem    stopper;
 	u32                    count;
 };
+struct cx88_core;
 
 struct cx88_core {
 	struct list_head           devlist;
@@ -334,7 +335,8 @@ struct cx88_core {
 
 	/* config info -- dvb */
 #if defined(CONFIG_VIDEO_CX88_DVB) || defined(CONFIG_VIDEO_CX88_DVB_MODULE)
-	int 			   (*prev_set_voltage)(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
+	int 			   (*prev_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
+	void			   (*gate_ctrl)(struct cx88_core  *core, int open);
 #endif
 
 	/* state info */
@@ -643,7 +645,7 @@ int cx88_audio_thread(void *data);
 
 int cx8802_register_driver(struct cx8802_driver *drv);
 int cx8802_unregister_driver(struct cx8802_driver *drv);
-struct cx8802_dev * cx8802_get_device(struct inode *inode);
+struct cx8802_dev *cx8802_get_device(int minor);
 struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype);
 
 /* ----------------------------------------------------------- */

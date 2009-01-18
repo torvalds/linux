@@ -102,9 +102,9 @@ extern void pci_iommu_alloc(void);
 
 #ifdef CONFIG_NUMA
 /* Returns the node based on pci bus */
-static inline int __pcibus_to_node(struct pci_bus *bus)
+static inline int __pcibus_to_node(const struct pci_bus *bus)
 {
-	struct pci_sysdata *sd = bus->sysdata;
+	const struct pci_sysdata *sd = bus->sysdata;
 
 	return sd->node;
 }
@@ -112,6 +112,12 @@ static inline int __pcibus_to_node(struct pci_bus *bus)
 static inline cpumask_t __pcibus_to_cpumask(struct pci_bus *bus)
 {
 	return node_to_cpumask(__pcibus_to_node(bus));
+}
+
+static inline const struct cpumask *
+cpumask_of_pcibus(const struct pci_bus *bus)
+{
+	return cpumask_of_node(__pcibus_to_node(bus));
 }
 #endif
 

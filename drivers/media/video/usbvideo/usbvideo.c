@@ -41,13 +41,13 @@ module_param(video_nr, int, 0);
 static void usbvideo_Disconnect(struct usb_interface *intf);
 static void usbvideo_CameraRelease(struct uvd *uvd);
 
-static int usbvideo_v4l_ioctl(struct inode *inode, struct file *file,
+static long usbvideo_v4l_ioctl(struct file *file,
 			      unsigned int cmd, unsigned long arg);
 static int usbvideo_v4l_mmap(struct file *file, struct vm_area_struct *vma);
-static int usbvideo_v4l_open(struct inode *inode, struct file *file);
+static int usbvideo_v4l_open(struct file *file);
 static ssize_t usbvideo_v4l_read(struct file *file, char __user *buf,
 			     size_t count, loff_t *ppos);
-static int usbvideo_v4l_close(struct inode *inode, struct file *file);
+static int usbvideo_v4l_close(struct file *file);
 
 static int usbvideo_StartDataPump(struct uvd *uvd);
 static void usbvideo_StopDataPump(struct uvd *uvd);
@@ -942,17 +942,13 @@ static int usbvideo_find_struct(struct usbvideo *cams)
 	return rv;
 }
 
-static const struct file_operations usbvideo_fops = {
+static const struct v4l2_file_operations usbvideo_fops = {
 	.owner =  THIS_MODULE,
 	.open =   usbvideo_v4l_open,
 	.release =usbvideo_v4l_close,
 	.read =   usbvideo_v4l_read,
 	.mmap =   usbvideo_v4l_mmap,
 	.ioctl =  usbvideo_v4l_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
-#endif
-	.llseek = no_llseek,
 };
 static const struct video_device usbvideo_template = {
 	.fops =       &usbvideo_fops,
@@ -1113,7 +1109,7 @@ static int usbvideo_v4l_mmap(struct file *file, struct vm_area_struct *vma)
  * 27-Jan-2000 Used USBVIDEO_NUMSBUF as number of URB buffers.
  * 24-May-2000 Corrected to prevent race condition (MOD_xxx_USE_COUNT).
  */
-static int usbvideo_v4l_open(struct inode *inode, struct file *file)
+static int usbvideo_v4l_open(struct file *file)
 {
 	struct video_device *dev = video_devdata(file);
 	struct uvd *uvd = (struct uvd *) dev;
@@ -1233,7 +1229,7 @@ static int usbvideo_v4l_open(struct inode *inode, struct file *file)
  * 27-Jan-2000 Used USBVIDEO_NUMSBUF as number of URB buffers.
  * 24-May-2000 Moved MOD_DEC_USE_COUNT outside of code that can sleep.
  */
-static int usbvideo_v4l_close(struct inode *inode, struct file *file)
+static int usbvideo_v4l_close(struct file *file)
 {
 	struct video_device *dev = file->private_data;
 	struct uvd *uvd = (struct uvd *) dev;
@@ -1281,7 +1277,7 @@ static int usbvideo_v4l_close(struct inode *inode, struct file *file)
  * History:
  * 22-Jan-2000 Corrected VIDIOCSPICT to reject unsupported settings.
  */
-static int usbvideo_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long usbvideo_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct uvd *uvd = file->private_data;
 
@@ -1501,7 +1497,7 @@ static int usbvideo_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int usbvideo_v4l_ioctl(struct inode *inode, struct file *file,
+static long usbvideo_v4l_ioctl(struct file *file,
 		       unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, usbvideo_v4l_do_ioctl);

@@ -132,6 +132,9 @@
 /* Instead of increasing this, you should create a hash table. */
 #define MAX_GRO_SKBS 8
 
+/* This should be increased if a protocol with a bigger head is added. */
+#define GRO_MAX_HEAD (MAX_HEADER + 128)
+
 /*
  *	The list of packet types we will receive (as opposed to discard)
  *	and the routines to invoke.
@@ -166,25 +169,6 @@
 static DEFINE_SPINLOCK(ptype_lock);
 static struct list_head ptype_base[PTYPE_HASH_SIZE] __read_mostly;
 static struct list_head ptype_all __read_mostly;	/* Taps */
-
-#ifdef CONFIG_NET_DMA
-struct net_dma {
-	struct dma_client client;
-	spinlock_t lock;
-	cpumask_t channel_mask;
-	struct dma_chan **channels;
-};
-
-static enum dma_state_client
-netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
-	enum dma_state state);
-
-static struct net_dma net_dma = {
-	.client = {
-		.event_callback = netdev_dma_event,
-	},
-};
-#endif
 
 /*
  * The @dev_base_head list is protected by @dev_base_lock and the rtnl
@@ -1104,6 +1088,11 @@ int dev_open(struct net_device *dev)
 		dev->flags |= IFF_UP;
 
 		/*
+		 *	Enable NET_DMA
+		 */
+		dmaengine_get();
+
+		/*
 		 *	Initialize multicasting status
 		 */
 		dev_set_rx_mode(dev);
@@ -1179,6 +1168,11 @@ int dev_close(struct net_device *dev)
 	 * Tell people we are down
 	 */
 	call_netdevice_notifiers(NETDEV_DOWN, dev);
+
+	/*
+	 *	Shutdown NET_DMA
+	 */
+	dmaengine_put();
 
 	return 0;
 }
@@ -2345,7 +2339,7 @@ static int napi_gro_complete(struct sk_buff *skb)
 	struct list_head *head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
 	int err = -ENOENT;
 
-	if (!skb_shinfo(skb)->frag_list)
+	if (NAPI_GRO_CB(skb)->count == 1)
 		goto out;
 
 	rcu_read_lock();
@@ -2365,6 +2359,7 @@ static int napi_gro_complete(struct sk_buff *skb)
 	}
 
 out:
+	skb_shinfo(skb)->gso_size = 0;
 	__skb_push(skb, -skb_network_offset(skb));
 	return netif_receive_skb(skb);
 }
@@ -2383,7 +2378,7 @@ void napi_gro_flush(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(napi_gro_flush);
 
-int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
 	struct sk_buff **pp = NULL;
 	struct packet_type *ptype;
@@ -2392,6 +2387,7 @@ int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	int count = 0;
 	int same_flow;
 	int mac_len;
+	int free;
 
 	if (!(skb->dev->features & NETIF_F_GRO))
 		goto normal;
@@ -2408,14 +2404,18 @@ int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 		skb->mac_len = mac_len;
 		NAPI_GRO_CB(skb)->same_flow = 0;
 		NAPI_GRO_CB(skb)->flush = 0;
+		NAPI_GRO_CB(skb)->free = 0;
 
 		for (p = napi->gro_list; p; p = p->next) {
 			count++;
-			NAPI_GRO_CB(p)->same_flow =
-				p->mac_len == mac_len &&
-				!memcmp(skb_mac_header(p), skb_mac_header(skb),
-					mac_len);
-			NAPI_GRO_CB(p)->flush = 0;
+
+			if (!NAPI_GRO_CB(p)->same_flow)
+				continue;
+
+			if (p->mac_len != mac_len ||
+			    memcmp(skb_mac_header(p), skb_mac_header(skb),
+				   mac_len))
+				NAPI_GRO_CB(p)->same_flow = 0;
 		}
 
 		pp = ptype->gro_receive(&napi->gro_list, skb);
@@ -2427,6 +2427,7 @@ int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 		goto normal;
 
 	same_flow = NAPI_GRO_CB(skb)->same_flow;
+	free = NAPI_GRO_CB(skb)->free;
 
 	if (pp) {
 		struct sk_buff *nskb = *pp;
@@ -2446,16 +2447,123 @@ int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	}
 
 	NAPI_GRO_CB(skb)->count = 1;
+	skb_shinfo(skb)->gso_size = skb->len;
 	skb->next = napi->gro_list;
 	napi->gro_list = skb;
 
 ok:
-	return NET_RX_SUCCESS;
+	return free;
 
 normal:
-	return netif_receive_skb(skb);
+	return -1;
+}
+EXPORT_SYMBOL(dev_gro_receive);
+
+static int __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+{
+	struct sk_buff *p;
+
+	for (p = napi->gro_list; p; p = p->next) {
+		NAPI_GRO_CB(p)->same_flow = 1;
+		NAPI_GRO_CB(p)->flush = 0;
+	}
+
+	return dev_gro_receive(napi, skb);
+}
+
+int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+{
+	switch (__napi_gro_receive(napi, skb)) {
+	case -1:
+		return netif_receive_skb(skb);
+
+	case 1:
+		kfree_skb(skb);
+		break;
+	}
+
+	return NET_RX_SUCCESS;
 }
 EXPORT_SYMBOL(napi_gro_receive);
+
+void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
+{
+	skb_shinfo(skb)->nr_frags = 0;
+
+	skb->len -= skb->data_len;
+	skb->truesize -= skb->data_len;
+	skb->data_len = 0;
+
+	__skb_pull(skb, skb_headlen(skb));
+	skb_reserve(skb, NET_IP_ALIGN - skb_headroom(skb));
+
+	napi->skb = skb;
+}
+EXPORT_SYMBOL(napi_reuse_skb);
+
+struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
+				  struct napi_gro_fraginfo *info)
+{
+	struct net_device *dev = napi->dev;
+	struct sk_buff *skb = napi->skb;
+
+	napi->skb = NULL;
+
+	if (!skb) {
+		skb = netdev_alloc_skb(dev, GRO_MAX_HEAD + NET_IP_ALIGN);
+		if (!skb)
+			goto out;
+
+		skb_reserve(skb, NET_IP_ALIGN);
+	}
+
+	BUG_ON(info->nr_frags > MAX_SKB_FRAGS);
+	skb_shinfo(skb)->nr_frags = info->nr_frags;
+	memcpy(skb_shinfo(skb)->frags, info->frags, sizeof(info->frags));
+
+	skb->data_len = info->len;
+	skb->len += info->len;
+	skb->truesize += info->len;
+
+	if (!pskb_may_pull(skb, ETH_HLEN)) {
+		napi_reuse_skb(napi, skb);
+		goto out;
+	}
+
+	skb->protocol = eth_type_trans(skb, dev);
+
+	skb->ip_summed = info->ip_summed;
+	skb->csum = info->csum;
+
+out:
+	return skb;
+}
+EXPORT_SYMBOL(napi_fraginfo_skb);
+
+int napi_gro_frags(struct napi_struct *napi, struct napi_gro_fraginfo *info)
+{
+	struct sk_buff *skb = napi_fraginfo_skb(napi, info);
+	int err = NET_RX_DROP;
+
+	if (!skb)
+		goto out;
+
+	err = NET_RX_SUCCESS;
+
+	switch (__napi_gro_receive(napi, skb)) {
+	case -1:
+		return netif_receive_skb(skb);
+
+	case 0:
+		goto out;
+	}
+
+	napi_reuse_skb(napi, skb);
+
+out:
+	return err;
+}
+EXPORT_SYMBOL(napi_gro_frags);
 
 static int process_backlog(struct napi_struct *napi, int quota)
 {
@@ -2535,11 +2643,12 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 {
 	INIT_LIST_HEAD(&napi->poll_list);
 	napi->gro_list = NULL;
+	napi->skb = NULL;
 	napi->poll = poll;
 	napi->weight = weight;
 	list_add(&napi->dev_list, &dev->napi_list);
-#ifdef CONFIG_NETPOLL
 	napi->dev = dev;
+#ifdef CONFIG_NETPOLL
 	spin_lock_init(&napi->poll_lock);
 	napi->poll_owner = -1;
 #endif
@@ -2552,6 +2661,7 @@ void netif_napi_del(struct napi_struct *napi)
 	struct sk_buff *skb, *next;
 
 	list_del_init(&napi->dev_list);
+	kfree(napi->skb);
 
 	for (skb = napi->gro_list; skb; skb = next) {
 		next = skb->next;
@@ -2635,14 +2745,7 @@ out:
 	 * There may not be any more sk_buffs coming right now, so push
 	 * any pending DMA copies to hardware
 	 */
-	if (!cpus_empty(net_dma.channel_mask)) {
-		int chan_idx;
-		for_each_cpu_mask_nr(chan_idx, net_dma.channel_mask) {
-			struct dma_chan *chan = net_dma.channels[chan_idx];
-			if (chan)
-				dma_async_memcpy_issue_pending(chan);
-		}
-	}
+	dma_issue_pending_all();
 #endif
 
 	return;
@@ -4833,122 +4936,6 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-#ifdef CONFIG_NET_DMA
-/**
- * net_dma_rebalance - try to maintain one DMA channel per CPU
- * @net_dma: DMA client and associated data (lock, channels, channel_mask)
- *
- * This is called when the number of channels allocated to the net_dma client
- * changes.  The net_dma client tries to have one DMA channel per CPU.
- */
-
-static void net_dma_rebalance(struct net_dma *net_dma)
-{
-	unsigned int cpu, i, n, chan_idx;
-	struct dma_chan *chan;
-
-	if (cpus_empty(net_dma->channel_mask)) {
-		for_each_online_cpu(cpu)
-			rcu_assign_pointer(per_cpu(softnet_data, cpu).net_dma, NULL);
-		return;
-	}
-
-	i = 0;
-	cpu = first_cpu(cpu_online_map);
-
-	for_each_cpu_mask_nr(chan_idx, net_dma->channel_mask) {
-		chan = net_dma->channels[chan_idx];
-
-		n = ((num_online_cpus() / cpus_weight(net_dma->channel_mask))
-		   + (i < (num_online_cpus() %
-			cpus_weight(net_dma->channel_mask)) ? 1 : 0));
-
-		while(n) {
-			per_cpu(softnet_data, cpu).net_dma = chan;
-			cpu = next_cpu(cpu, cpu_online_map);
-			n--;
-		}
-		i++;
-	}
-}
-
-/**
- * netdev_dma_event - event callback for the net_dma_client
- * @client: should always be net_dma_client
- * @chan: DMA channel for the event
- * @state: DMA state to be handled
- */
-static enum dma_state_client
-netdev_dma_event(struct dma_client *client, struct dma_chan *chan,
-	enum dma_state state)
-{
-	int i, found = 0, pos = -1;
-	struct net_dma *net_dma =
-		container_of(client, struct net_dma, client);
-	enum dma_state_client ack = DMA_DUP; /* default: take no action */
-
-	spin_lock(&net_dma->lock);
-	switch (state) {
-	case DMA_RESOURCE_AVAILABLE:
-		for (i = 0; i < nr_cpu_ids; i++)
-			if (net_dma->channels[i] == chan) {
-				found = 1;
-				break;
-			} else if (net_dma->channels[i] == NULL && pos < 0)
-				pos = i;
-
-		if (!found && pos >= 0) {
-			ack = DMA_ACK;
-			net_dma->channels[pos] = chan;
-			cpu_set(pos, net_dma->channel_mask);
-			net_dma_rebalance(net_dma);
-		}
-		break;
-	case DMA_RESOURCE_REMOVED:
-		for (i = 0; i < nr_cpu_ids; i++)
-			if (net_dma->channels[i] == chan) {
-				found = 1;
-				pos = i;
-				break;
-			}
-
-		if (found) {
-			ack = DMA_ACK;
-			cpu_clear(pos, net_dma->channel_mask);
-			net_dma->channels[i] = NULL;
-			net_dma_rebalance(net_dma);
-		}
-		break;
-	default:
-		break;
-	}
-	spin_unlock(&net_dma->lock);
-
-	return ack;
-}
-
-/**
- * netdev_dma_register - register the networking subsystem as a DMA client
- */
-static int __init netdev_dma_register(void)
-{
-	net_dma.channels = kzalloc(nr_cpu_ids * sizeof(struct net_dma),
-								GFP_KERNEL);
-	if (unlikely(!net_dma.channels)) {
-		printk(KERN_NOTICE
-				"netdev_dma: no memory for net_dma.channels\n");
-		return -ENOMEM;
-	}
-	spin_lock_init(&net_dma.lock);
-	dma_cap_set(DMA_MEMCPY, net_dma.client.cap_mask);
-	dma_async_client_register(&net_dma.client);
-	dma_async_client_chan_request(&net_dma.client);
-	return 0;
-}
-
-#else
-static int __init netdev_dma_register(void) { return -ENODEV; }
-#endif /* CONFIG_NET_DMA */
 
 /**
  *	netdev_increment_features - increment feature set by one
@@ -5167,8 +5154,6 @@ static int __init net_dev_init(void)
 
 	if (register_pernet_device(&default_device_ops))
 		goto out;
-
-	netdev_dma_register();
 
 	open_softirq(NET_TX_SOFTIRQ, net_tx_action);
 	open_softirq(NET_RX_SOFTIRQ, net_rx_action);

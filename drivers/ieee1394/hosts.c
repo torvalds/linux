@@ -34,18 +34,18 @@ static void delayed_reset_bus(struct work_struct *work)
 {
 	struct hpsb_host *host =
 		container_of(work, struct hpsb_host, delayed_reset.work);
-	int generation = host->csr.generation + 1;
+	u8 generation = host->csr.generation + 1;
 
 	/* The generation field rolls over to 2 rather than 0 per IEEE
 	 * 1394a-2000. */
 	if (generation > 0xf || generation < 2)
 		generation = 2;
 
-	CSR_SET_BUS_INFO_GENERATION(host->csr.rom, generation);
+	csr_set_bus_info_generation(host->csr.rom, generation);
 	if (csr1212_generate_csr_image(host->csr.rom) != CSR1212_SUCCESS) {
 		/* CSR image creation failed.
 		 * Reset generation field and do not issue a bus reset. */
-		CSR_SET_BUS_INFO_GENERATION(host->csr.rom,
+		csr_set_bus_info_generation(host->csr.rom,
 					    host->csr.generation);
 		return;
 	}

@@ -7,7 +7,6 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 
-static struct fs_struct init_fs = INIT_FS;
 static struct signal_struct init_signals = INIT_SIGNALS(init_signals);
 static struct sighand_struct init_sighand = INIT_SIGHAND(init_sighand);
 struct pt_regs fake_swapper_regs;
