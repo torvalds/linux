@@ -94,7 +94,7 @@ static struct cpufreq_frequency_table *powernow_table;
 
 static unsigned int can_scale_bus;
 static unsigned int can_scale_vid;
-static unsigned int minimum_speed=-1;
+static unsigned int minimum_speed = -1;
 static unsigned int maximum_speed;
 static unsigned int number_scales;
 static unsigned int fsb;
