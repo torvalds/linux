@@ -150,6 +150,19 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
 void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops);
 
+enum v4l2_i2c_tuner_type {
+	ADDRS_RADIO,	/* Radio tuner addresses */
+	ADDRS_DEMOD,	/* Demod tuner addresses */
+	ADDRS_TV,	/* TV tuner addresses */
+	/* TV tuner addresses if demod is present, this excludes
+	   addresses used by the demodulator from the list of
+	   candidates. */
+	ADDRS_TV_WITH_DEMOD,
+};
+/* Return a list of I2C tuner addresses to probe. Use only if the tuner
+   addresses are unknown. */
+const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type);
+
 /* ------------------------------------------------------------------------- */
 
 /* Internal ioctls */

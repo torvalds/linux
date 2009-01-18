@@ -991,4 +991,40 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev);
 
+/* Return a list of I2C tuner addresses to probe. Use only if the tuner
+   addresses are unknown. */
+const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
+{
+	static const unsigned short radio_addrs[] = {
+#if defined(CONFIG_MEDIA_TUNER_TEA5761) || defined(CONFIG_MEDIA_TUNER_TEA5761_MODULE)
+		0x10,
+#endif
+		0x60,
+		I2C_CLIENT_END
+	};
+	static const unsigned short demod_addrs[] = {
+		0x42, 0x43, 0x4a, 0x4b,
+		I2C_CLIENT_END
+	};
+	static const unsigned short tv_addrs[] = {
+		0x42, 0x43, 0x4a, 0x4b,		/* tda8290 */
+		0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
+		0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
+		I2C_CLIENT_END
+	};
+
+	switch (type) {
+	case ADDRS_RADIO:
+		return radio_addrs;
+	case ADDRS_DEMOD:
+		return demod_addrs;
+	case ADDRS_TV:
+		return tv_addrs;
+	case ADDRS_TV_WITH_DEMOD:
+		return tv_addrs + 4;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_tuner_addrs);
+
 #endif
