@@ -25,9 +25,7 @@ struct x8664_pda {
 	char *irqstackptr;
 	short nodenumber;		/* number of current node (32k max) */
 	short in_bootmem;		/* pda lives in bootmem */
-	short mmu_state;
 	short isidle;
-	struct mm_struct *active_mm;
 } ____cacheline_aligned_in_smp;
 
 DECLARE_PER_CPU(struct x8664_pda, __pda);

@@ -4,8 +4,8 @@
 
 #include <asm/tlbflush.h>
 
-DEFINE_PER_CPU(struct tlb_state, cpu_tlbstate)
-			____cacheline_aligned = { &init_mm, 0, };
+DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
+			= { &init_mm, 0, };
 
 /* must come after the send_IPI functions above for inlining */
 #include <mach_ipi.h>
@@ -229,14 +229,6 @@ static void do_flush_tlb_all(void *info)
 void flush_tlb_all(void)
 {
 	on_each_cpu(do_flush_tlb_all, NULL, 1);
-}
-
-void reset_lazy_tlbstate(void)
-{
-	int cpu = raw_smp_processor_id();
-
-	per_cpu(cpu_tlbstate, cpu).state = 0;
-	per_cpu(cpu_tlbstate, cpu).active_mm = &init_mm;
 }
 
 static int init_flush_cpumask(void)

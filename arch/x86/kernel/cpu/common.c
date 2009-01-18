@@ -897,8 +897,6 @@ void __cpuinit pda_init(int cpu)
 	pda->irqcount = -1;
 	pda->kernelstack = (unsigned long)stack_thread_info() -
 				 PDA_STACKOFFSET + THREAD_SIZE;
-	pda->active_mm = &init_mm;
-	pda->mmu_state = 0;
 
 	if (cpu == 0) {
 		/* others are initialized in smpboot.c */
