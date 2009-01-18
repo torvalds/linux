@@ -242,7 +242,7 @@ void show_registers(struct pt_regs *regs)
 	int i;
 	unsigned long sp;
 	const int cpu = smp_processor_id();
-	struct task_struct *cur = cpu_pda(cpu)->pcurrent;
+	struct task_struct *cur = current;
 
 	sp = regs->sp;
 	printk("CPU %d ", cpu);
