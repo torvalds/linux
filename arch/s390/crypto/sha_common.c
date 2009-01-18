@@ -13,14 +13,14 @@
  *
  */
 
-#include <linux/crypto.h>
+#include <crypto/internal/hash.h>
 #include "sha.h"
 #include "crypt_s390.h"
 
-void s390_sha_update(struct crypto_tfm *tfm, const u8 *data, unsigned int len)
+int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 {
-	struct s390_sha_ctx *ctx = crypto_tfm_ctx(tfm);
-	unsigned int bsize = crypto_tfm_alg_blocksize(tfm);
+	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
+	unsigned int bsize = crypto_shash_blocksize(desc->tfm);
 	unsigned int index;
 	int ret;
 
@@ -51,13 +51,15 @@ void s390_sha_update(struct crypto_tfm *tfm, const u8 *data, unsigned int len)
 store:
 	if (len)
 		memcpy(ctx->buf + index , data, len);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(s390_sha_update);
 
-void s390_sha_final(struct crypto_tfm *tfm, u8 *out)
+int s390_sha_final(struct shash_desc *desc, u8 *out)
 {
-	struct s390_sha_ctx *ctx = crypto_tfm_ctx(tfm);
-	unsigned int bsize = crypto_tfm_alg_blocksize(tfm);
+	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
+	unsigned int bsize = crypto_shash_blocksize(desc->tfm);
 	u64 bits;
 	unsigned int index, end, plen;
 	int ret;
@@ -87,9 +89,11 @@ void s390_sha_final(struct crypto_tfm *tfm, u8 *out)
 	BUG_ON(ret != end);
 
 	/* copy digest to out */
-	memcpy(out, ctx->state, crypto_hash_digestsize(crypto_hash_cast(tfm)));
+	memcpy(out, ctx->state, crypto_shash_digestsize(desc->tfm));
 	/* wipe context */
 	memset(ctx, 0, sizeof *ctx);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(s390_sha_final);
 

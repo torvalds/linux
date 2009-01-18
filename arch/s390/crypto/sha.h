@@ -29,7 +29,9 @@ struct s390_sha_ctx {
 	int func;		/* KIMD function to use */
 };
 
-void s390_sha_update(struct crypto_tfm *tfm, const u8 *data, unsigned int len);
-void s390_sha_final(struct crypto_tfm *tfm, u8 *out);
+struct shash_desc;
+
+int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len);
+int s390_sha_final(struct shash_desc *desc, u8 *out);
 
 #endif
