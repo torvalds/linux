@@ -53,7 +53,6 @@ int main(void)
 	ENTRY(oldrsp); 
 	ENTRY(pcurrent); 
 	ENTRY(irqcount);
-	ENTRY(cpunumber);
 	DEFINE(pda_size, sizeof(struct x8664_pda));
 	BLANK();
 #undef ENTRY

@@ -899,7 +899,6 @@ void __cpuinit pda_init(int cpu)
 
 	load_pda_offset(cpu);
 
-	pda->cpunumber = cpu;
 	pda->irqcount = -1;
 	pda->kernelstack = (unsigned long)stack_thread_info() -
 				 PDA_STACKOFFSET + THREAD_SIZE;

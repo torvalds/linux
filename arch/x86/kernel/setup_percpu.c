@@ -22,6 +22,15 @@
 # define DBG(x...)
 #endif
 
+/*
+ * Could be inside CONFIG_HAVE_SETUP_PER_CPU_AREA with other stuff but
+ * voyager wants cpu_number too.
+ */
+#ifdef CONFIG_SMP
+DEFINE_PER_CPU(int, cpu_number);
+EXPORT_PER_CPU_SYMBOL(cpu_number);
+#endif
+
 #ifdef CONFIG_X86_LOCAL_APIC
 unsigned int num_processors;
 unsigned disabled_cpus __cpuinitdata;
@@ -193,6 +202,7 @@ void __init setup_per_cpu_areas(void)
 		memcpy(ptr, __per_cpu_load, __per_cpu_end - __per_cpu_start);
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		per_cpu(this_cpu_off, cpu) = per_cpu_offset(cpu);
+		per_cpu(cpu_number, cpu) = cpu;
 #ifdef CONFIG_X86_64
 		per_cpu(irq_stack_ptr, cpu) =
 			(char *)per_cpu(irq_stack, cpu) + IRQ_STACK_SIZE - 64;
