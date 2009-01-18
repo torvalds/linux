@@ -28,7 +28,5 @@ __cpuinit void init_gdt(int cpu)
 
 	write_gdt_entry(get_cpu_gdt_table(cpu),
 			GDT_ENTRY_PERCPU, &gdt, DESCTYPE_S);
-
-	per_cpu(cpu_number, cpu) = cpu;
 }
 #endif
