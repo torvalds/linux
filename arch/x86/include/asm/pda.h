@@ -23,7 +23,6 @@ struct x8664_pda {
 					   offset 40!!! */
 #endif
 	short in_bootmem;		/* pda lives in bootmem */
-	short isidle;
 } ____cacheline_aligned_in_smp;
 
 DECLARE_PER_CPU(struct x8664_pda, __pda);

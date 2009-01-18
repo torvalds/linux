@@ -61,6 +61,7 @@ DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
 
 DEFINE_PER_CPU(unsigned long, old_rsp);
+static DEFINE_PER_CPU(unsigned char, is_idle);
 
 unsigned long kernel_thread_flags = CLONE_VM | CLONE_UNTRACED;
 
@@ -80,13 +81,13 @@ EXPORT_SYMBOL_GPL(idle_notifier_unregister);
 
 void enter_idle(void)
 {
-	write_pda(isidle, 1);
+	percpu_write(is_idle, 1);
 	atomic_notifier_call_chain(&idle_notifier, IDLE_START, NULL);
 }
 
 static void __exit_idle(void)
 {
-	if (test_and_clear_bit_pda(0, isidle) == 0)
+	if (x86_test_and_clear_bit_percpu(0, is_idle) == 0)
 		return;
 	atomic_notifier_call_chain(&idle_notifier, IDLE_END, NULL);
 }
