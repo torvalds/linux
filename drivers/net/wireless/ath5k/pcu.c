@@ -1044,7 +1044,7 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 	__le32 key_v[5] = {};
 	__le32 key0 = 0, key1 = 0;
 	__le32 *rxmic, *txmic;
-	u32 keytype;
+	int keytype;
 	u16 micentry = entry + AR5K_KEYTABLE_MIC_OFFSET;
 	bool is_tkip;
 	const u8 *key_ptr;
