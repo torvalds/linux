@@ -19,17 +19,19 @@
 
 #include <linux/delay.h>
 #include <linux/cpufreq.h>
+#include <linux/timex.h>
+#include <linux/io.h>
 
 #include <asm/msr.h>
-#include <asm/timex.h>
-#include <asm/io.h>
 
 #define MMCR_BASE	0xfffef000	/* The default base address */
 #define OFFS_CPUCTL	0x2   /* CPU Control Register */
 
 static __u8 __iomem *cpuctl;
 
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "sc520_freq", msg)
+#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
+		"sc520_freq", msg)
+#define PFX "sc520_freq: "
 
 static struct cpufreq_frequency_table sc520_freq_table[] = {
 	{0x01,	100000},
@@ -43,7 +45,8 @@ static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
 
 	switch (clockspeed_reg & 0x03) {
 	default:
-		printk(KERN_ERR "sc520_freq: error: cpuctl register has unexpected value %02x\n", clockspeed_reg);
+		printk(KERN_ERR PFX "error: cpuctl register has unexpected "
+				"value %02x\n", clockspeed_reg);
 	case 0x01:
 		return 100000;
 	case 0x02:
@@ -51,7 +54,7 @@ static unsigned int sc520_freq_get_cpu_frequency(unsigned int cpu)
 	}
 }
 
-static void sc520_freq_set_cpu_state (unsigned int state)
+static void sc520_freq_set_cpu_state(unsigned int state)
 {
 
 	struct cpufreq_freqs	freqs;
@@ -76,18 +79,19 @@ static void sc520_freq_set_cpu_state (unsigned int state)
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 };
 
-static int sc520_freq_verify (struct cpufreq_policy *policy)
+static int sc520_freq_verify(struct cpufreq_policy *policy)
 {
 	return cpufreq_frequency_table_verify(policy, &sc520_freq_table[0]);
 }
 
-static int sc520_freq_target (struct cpufreq_policy *policy,
+static int sc520_freq_target(struct cpufreq_policy *policy,
 			    unsigned int target_freq,
 			    unsigned int relation)
 {
 	unsigned int newstate = 0;
 
-	if (cpufreq_frequency_table_target(policy, sc520_freq_table, target_freq, relation, &newstate))
+	if (cpufreq_frequency_table_target(policy, sc520_freq_table,
+				target_freq, relation, &newstate))
 		return -EINVAL;
 
 	sc520_freq_set_cpu_state(newstate);
@@ -116,7 +120,7 @@ static int sc520_freq_cpu_init(struct cpufreq_policy *policy)
 
 	result = cpufreq_frequency_table_cpuinfo(policy, sc520_freq_table);
 	if (result)
-		return (result);
+		return result;
 
 	cpufreq_frequency_table_get_attr(sc520_freq_table, policy->cpu);
 
@@ -131,7 +135,7 @@ static int sc520_freq_cpu_exit(struct cpufreq_policy *policy)
 }
 
 
-static struct freq_attr* sc520_freq_attr[] = {
+static struct freq_attr *sc520_freq_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
 };
@@ -155,13 +159,13 @@ static int __init sc520_freq_init(void)
 	int err;
 
 	/* Test if we have the right hardware */
-	if(c->x86_vendor != X86_VENDOR_AMD ||
-				c->x86 != 4 || c->x86_model != 9) {
+	if (c->x86_vendor != X86_VENDOR_AMD ||
+	    c->x86 != 4 || c->x86_model != 9) {
 		dprintk("no Elan SC520 processor found!\n");
 		return -ENODEV;
 	}
 	cpuctl = ioremap((unsigned long)(MMCR_BASE + OFFS_CPUCTL), 1);
-	if(!cpuctl) {
+	if (!cpuctl) {
 		printk(KERN_ERR "sc520_freq: error: failed to remap memory\n");
 		return -ENOMEM;
 	}
