@@ -14,7 +14,7 @@ struct x8664_pda {
 	unsigned long unused1;
 	unsigned long unused2;
 	unsigned long unused3;
-	unsigned long oldrsp;		/* 24 user rsp for system call */
+	unsigned long unused4;
 	int irqcount;			/* 32 Irq nesting counter. Starts -1 */
 	unsigned int unused6;		/* 36 was cpunumber */
 #ifdef CONFIG_CC_STACKPROTECTOR

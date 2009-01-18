@@ -194,11 +194,11 @@ RELOC(xen_sysexit, 1b+1)
 ENTRY(xen_sysret64)
 	/* We're already on the usermode stack at this point, but still
 	   with the kernel gs, so we can easily switch back */
-	movq %rsp, %gs:pda_oldrsp
+	movq %rsp, PER_CPU_VAR(old_rsp)
 	movq PER_CPU_VAR(kernel_stack),%rsp
 
 	pushq $__USER_DS
-	pushq %gs:pda_oldrsp
+	pushq PER_CPU_VAR(old_rsp)
 	pushq %r11
 	pushq $__USER_CS
 	pushq %rcx
@@ -211,11 +211,11 @@ RELOC(xen_sysret64, 1b+1)
 ENTRY(xen_sysret32)
 	/* We're already on the usermode stack at this point, but still
 	   with the kernel gs, so we can easily switch back */
-	movq %rsp, %gs:pda_oldrsp
+	movq %rsp, PER_CPU_VAR(old_rsp)
 	movq PER_CPU_VAR(kernel_stack), %rsp
 
 	pushq $__USER32_DS
-	pushq %gs:pda_oldrsp
+	pushq PER_CPU_VAR(old_rsp)
 	pushq %r11
 	pushq $__USER32_CS
 	pushq %rcx
