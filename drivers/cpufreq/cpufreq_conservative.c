@@ -82,7 +82,7 @@ static unsigned int dbs_enable;	/* number of CPUs using this policy */
  * cpu_hotplug lock should be taken before that. Note that cpu_hotplug lock
  * is recursive for the same process. -Venki
  */
-static DEFINE_MUTEX (dbs_mutex);
+static DEFINE_MUTEX(dbs_mutex);
 static DECLARE_DELAYED_WORK(dbs_work, do_dbs_timer);
 
 struct dbs_tuners {
@@ -140,12 +140,12 @@ static struct notifier_block dbs_cpufreq_notifier_block = {
 /************************** sysfs interface ************************/
 static ssize_t show_sampling_rate_max(struct cpufreq_policy *policy, char *buf)
 {
-	return sprintf (buf, "%u\n", MAX_SAMPLING_RATE);
+	return sprintf(buf, "%u\n", MAX_SAMPLING_RATE);
 }
 
 static ssize_t show_sampling_rate_min(struct cpufreq_policy *policy, char *buf)
 {
-	return sprintf (buf, "%u\n", MIN_SAMPLING_RATE);
+	return sprintf(buf, "%u\n", MIN_SAMPLING_RATE);
 }
 
 #define define_one_ro(_name)				\
@@ -174,7 +174,7 @@ static ssize_t store_sampling_down_factor(struct cpufreq_policy *unused,
 {
 	unsigned int input;
 	int ret;
-	ret = sscanf (buf, "%u", &input);
+	ret = sscanf(buf, "%u", &input);
 	if (ret != 1 || input > MAX_SAMPLING_DOWN_FACTOR || input < 1)
 		return -EINVAL;
 
@@ -190,10 +190,11 @@ static ssize_t store_sampling_rate(struct cpufreq_policy *unused,
 {
 	unsigned int input;
 	int ret;
-	ret = sscanf (buf, "%u", &input);
+	ret = sscanf(buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
-	if (ret != 1 || input > MAX_SAMPLING_RATE || input < MIN_SAMPLING_RATE) {
+	if (ret != 1 || input > MAX_SAMPLING_RATE ||
+	    input < MIN_SAMPLING_RATE) {
 		mutex_unlock(&dbs_mutex);
 		return -EINVAL;
 	}
@@ -209,10 +210,11 @@ static ssize_t store_up_threshold(struct cpufreq_policy *unused,
 {
 	unsigned int input;
 	int ret;
-	ret = sscanf (buf, "%u", &input);
+	ret = sscanf(buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
-	if (ret != 1 || input > 100 || input <= dbs_tuners_ins.down_threshold) {
+	if (ret != 1 || input > 100 ||
+	    input <= dbs_tuners_ins.down_threshold) {
 		mutex_unlock(&dbs_mutex);
 		return -EINVAL;
 	}
@@ -228,7 +230,7 @@ static ssize_t store_down_threshold(struct cpufreq_policy *unused,
 {
 	unsigned int input;
 	int ret;
-	ret = sscanf (buf, "%u", &input);
+	ret = sscanf(buf, "%u", &input);
 
 	mutex_lock(&dbs_mutex);
 	if (ret != 1 || input > 100 || input >= dbs_tuners_ins.up_threshold) {
@@ -310,7 +312,7 @@ define_one_rw(down_threshold);
 define_one_rw(ignore_nice_load);
 define_one_rw(freq_step);
 
-static struct attribute * dbs_attributes[] = {
+static struct attribute *dbs_attributes[] = {
 	&sampling_rate_max.attr,
 	&sampling_rate_min.attr,
 	&sampling_rate.attr,
@@ -600,11 +602,11 @@ static void __exit cpufreq_gov_dbs_exit(void)
 }
 
 
-MODULE_AUTHOR ("Alexander Clouter <alex-kernel@digriz.org.uk>");
-MODULE_DESCRIPTION ("'cpufreq_conservative' - A dynamic cpufreq governor for "
+MODULE_AUTHOR("Alexander Clouter <alex-kernel@digriz.org.uk>");
+MODULE_DESCRIPTION("'cpufreq_conservative' - A dynamic cpufreq governor for "
 		"Low Latency Frequency Transition capable processors "
 		"optimised for use in a battery environment");
-MODULE_LICENSE ("GPL");
+MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_CONSERVATIVE
 fs_initcall(cpufreq_gov_dbs_init);
