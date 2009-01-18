@@ -1,4 +1,4 @@
-/* Copyright 2008 Broadcom Corporation
+/* Copyright 2008-2009 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
