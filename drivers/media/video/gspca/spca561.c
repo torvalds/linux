@@ -648,8 +648,10 @@ static int sd_start_72a(struct gspca_dev *gspca_dev)
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	switch (mode) {
 	default:
-/*	case 0:
-	case 1: */
+	case 0:
+		Clck = 0x27;		/* ms-win 0x87 */
+		break;
+	case 1:
 		Clck = 0x25;
 		break;
 	case 2:
@@ -659,8 +661,9 @@ static int sd_start_72a(struct gspca_dev *gspca_dev)
 		Clck = 0x21;
 		break;
 	}
-	reg_w_val(dev, 0x8500, mode);	/* mode */
 	reg_w_val(dev, 0x8700, Clck);	/* 0x27 clock */
+	reg_w_val(dev, 0x8702, 0x81);
+	reg_w_val(dev, 0x8500, mode);	/* mode */
 	write_sensor_72a(gspca_dev, rev72a_init_sensor2);
 	setcontrast(gspca_dev);
 /*	setbrightness(gspca_dev);	 * fixme: bad values */
