@@ -378,6 +378,9 @@ union thread_xstate {
 
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(struct orig_ist, orig_ist);
+
+DECLARE_PER_CPU(char[IRQ_STACK_SIZE], irq_stack);
+DECLARE_PER_CPU(char *, irq_stack_ptr);
 #endif
 
 extern void print_cpu_info(struct cpuinfo_x86 *);

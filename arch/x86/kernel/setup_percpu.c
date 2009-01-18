@@ -192,7 +192,10 @@ void __init setup_per_cpu_areas(void)
 
 		memcpy(ptr, __per_cpu_load, __per_cpu_end - __per_cpu_start);
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
+		per_cpu(this_cpu_off, cpu) = per_cpu_offset(cpu);
 #ifdef CONFIG_X86_64
+		per_cpu(irq_stack_ptr, cpu) =
+			(char *)per_cpu(irq_stack, cpu) + IRQ_STACK_SIZE - 64;
 		/*
 		 * CPU0 modified pda in the init data area, reload pda
 		 * offset for CPU0 and clear the area for others.
@@ -202,7 +205,6 @@ void __init setup_per_cpu_areas(void)
 		else
 			memset(cpu_pda(cpu), 0, sizeof(*cpu_pda(cpu)));
 #endif
-		per_cpu(this_cpu_off, cpu) = per_cpu_offset(cpu);
 
 		DBG("PERCPU: cpu %4d %p\n", cpu, ptr);
 	}

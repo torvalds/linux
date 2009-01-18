@@ -54,7 +54,6 @@ int main(void)
 	ENTRY(pcurrent); 
 	ENTRY(irqcount);
 	ENTRY(cpunumber);
-	ENTRY(irqstackptr);
 	DEFINE(pda_size, sizeof(struct x8664_pda));
 	BLANK();
 #undef ENTRY

@@ -345,7 +345,7 @@ ENTRY(save_args)
 1:	incl %gs:pda_irqcount
 	jne 2f
 	popq_cfi %rax			/* move return address... */
-	mov %gs:pda_irqstackptr,%rsp
+	mov PER_CPU_VAR(irq_stack_ptr),%rsp
 	EMPTY_FRAME 0
 	pushq_cfi %rax			/* ... to the new stack */
 	/*
@@ -1261,7 +1261,7 @@ ENTRY(call_softirq)
 	mov  %rsp,%rbp
 	CFI_DEF_CFA_REGISTER rbp
 	incl %gs:pda_irqcount
-	cmove %gs:pda_irqstackptr,%rsp
+	cmove PER_CPU_VAR(irq_stack_ptr),%rsp
 	push  %rbp			# backlink for old unwinder
 	call __do_softirq
 	leaveq
@@ -1300,7 +1300,7 @@ ENTRY(xen_do_hypervisor_callback)   # do_hypervisor_callback(struct *pt_regs)
 11:	incl %gs:pda_irqcount
 	movq %rsp,%rbp
 	CFI_DEF_CFA_REGISTER rbp
-	cmovzq %gs:pda_irqstackptr,%rsp
+	cmovzq PER_CPU_VAR(irq_stack_ptr),%rsp
 	pushq %rbp			# backlink for old unwinder
 	call xen_evtchn_do_upcall
 	popq %rsp

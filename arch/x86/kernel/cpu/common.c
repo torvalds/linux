@@ -881,7 +881,13 @@ __setup("clearcpuid=", setup_disablecpuid);
 #ifdef CONFIG_X86_64
 struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 
-static char boot_cpu_stack[IRQSTACKSIZE] __page_aligned_bss;
+DEFINE_PER_CPU_PAGE_ALIGNED(char[IRQ_STACK_SIZE], irq_stack);
+#ifdef CONFIG_SMP
+DEFINE_PER_CPU(char *, irq_stack_ptr);	/* will be set during per cpu init */
+#else
+DEFINE_PER_CPU(char *, irq_stack_ptr) =
+	per_cpu_var(irq_stack) + IRQ_STACK_SIZE - 64;
+#endif
 
 void __cpuinit pda_init(int cpu)
 {
@@ -901,18 +907,7 @@ void __cpuinit pda_init(int cpu)
 	if (cpu == 0) {
 		/* others are initialized in smpboot.c */
 		pda->pcurrent = &init_task;
-		pda->irqstackptr = boot_cpu_stack;
-		pda->irqstackptr += IRQSTACKSIZE - 64;
 	} else {
-		if (!pda->irqstackptr) {
-			pda->irqstackptr = (char *)
-				__get_free_pages(GFP_ATOMIC, IRQSTACK_ORDER);
-			if (!pda->irqstackptr)
-				panic("cannot allocate irqstack for cpu %d",
-				      cpu);
-			pda->irqstackptr += IRQSTACKSIZE - 64;
-		}
-
 		if (pda->nodenumber == 0 && cpu_to_node(cpu) != NUMA_NO_NODE)
 			pda->nodenumber = cpu_to_node(cpu);
 	}
