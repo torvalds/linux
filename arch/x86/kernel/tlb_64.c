@@ -18,6 +18,9 @@
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/uv_bau.h>
 
+DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
+			= { &init_mm, 0, };
+
 #include <mach_ipi.h>
 /*
  *	Smarter SMP flushing macros.
@@ -43,10 +46,10 @@
 
 union smp_flush_state {
 	struct {
-		cpumask_t flush_cpumask;
 		struct mm_struct *flush_mm;
 		unsigned long flush_va;
 		spinlock_t tlbstate_lock;
+		DECLARE_BITMAP(flush_cpumask, NR_CPUS);
 	};
 	char pad[SMP_CACHE_BYTES];
 } ____cacheline_aligned;
@@ -62,9 +65,9 @@ static DEFINE_PER_CPU(union smp_flush_state, flush_state);
  */
 void leave_mm(int cpu)
 {
-	if (read_pda(mmu_state) == TLBSTATE_OK)
+	if (percpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
 		BUG();
-	cpu_clear(cpu, read_pda(active_mm)->cpu_vm_mask);
+	cpu_clear(cpu, percpu_read(cpu_tlbstate.active_mm)->cpu_vm_mask);
 	load_cr3(swapper_pg_dir);
 }
 EXPORT_SYMBOL_GPL(leave_mm);
@@ -131,7 +134,7 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 	sender = ~regs->orig_ax - INVALIDATE_TLB_VECTOR_START;
 	f = &per_cpu(flush_state, sender);
 
-	if (!cpu_isset(cpu, f->flush_cpumask))
+	if (!cpumask_test_cpu(cpu, to_cpumask(f->flush_cpumask)))
 		goto out;
 		/*
 		 * This was a BUG() but until someone can quote me the
@@ -142,8 +145,8 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 		 * BUG();
 		 */
 
-	if (f->flush_mm == read_pda(active_mm)) {
-		if (read_pda(mmu_state) == TLBSTATE_OK) {
+	if (f->flush_mm == percpu_read(cpu_tlbstate.active_mm)) {
+		if (percpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
 			if (f->flush_va == TLB_FLUSH_ALL)
 				local_flush_tlb();
 			else
@@ -153,19 +156,15 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 	}
 out:
 	ack_APIC_irq();
-	cpu_clear(cpu, f->flush_cpumask);
+	cpumask_clear_cpu(cpu, to_cpumask(f->flush_cpumask));
 	inc_irq_stat(irq_tlb_count);
 }
 
-void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
-			     unsigned long va)
+static void flush_tlb_others_ipi(const struct cpumask *cpumask,
+				 struct mm_struct *mm, unsigned long va)
 {
 	int sender;
 	union smp_flush_state *f;
-	cpumask_t cpumask = *cpumaskp;
-
-	if (is_uv_system() && uv_flush_tlb_others(&cpumask, mm, va))
-		return;
 
 	/* Caller has disabled preemption */
 	sender = smp_processor_id() % NUM_INVALIDATE_TLB_VECTORS;
@@ -180,7 +179,8 @@ void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
 
 	f->flush_mm = mm;
 	f->flush_va = va;
-	cpus_or(f->flush_cpumask, cpumask, f->flush_cpumask);
+	cpumask_andnot(to_cpumask(f->flush_cpumask),
+		       cpumask, cpumask_of(smp_processor_id()));
 
 	/*
 	 * Make the above memory operations globally visible before
@@ -191,14 +191,34 @@ void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
 	 * We have to send the IPI only to
 	 * CPUs affected.
 	 */
-	send_IPI_mask(&cpumask, INVALIDATE_TLB_VECTOR_START + sender);
+	send_IPI_mask(to_cpumask(f->flush_cpumask),
+		      INVALIDATE_TLB_VECTOR_START + sender);
 
-	while (!cpus_empty(f->flush_cpumask))
+	while (!cpumask_empty(to_cpumask(f->flush_cpumask)))
 		cpu_relax();
 
 	f->flush_mm = NULL;
 	f->flush_va = 0;
 	spin_unlock(&f->tlbstate_lock);
+}
+
+void native_flush_tlb_others(const struct cpumask *cpumask,
+			     struct mm_struct *mm, unsigned long va)
+{
+	if (is_uv_system()) {
+		/* FIXME: could be an percpu_alloc'd thing */
+		static DEFINE_PER_CPU(cpumask_t, flush_tlb_mask);
+		struct cpumask *after_uv_flush = &get_cpu_var(flush_tlb_mask);
+
+		cpumask_andnot(after_uv_flush, cpumask,
+			       cpumask_of(smp_processor_id()));
+		if (!uv_flush_tlb_others(after_uv_flush, mm, va))
+			flush_tlb_others_ipi(after_uv_flush, mm, va);
+
+		put_cpu_var(flush_tlb_uv_cpumask);
+		return;
+	}
+	flush_tlb_others_ipi(cpumask, mm, va);
 }
 
 static int __cpuinit init_smp_flush(void)
@@ -215,25 +235,18 @@ core_initcall(init_smp_flush);
 void flush_tlb_current_task(void)
 {
 	struct mm_struct *mm = current->mm;
-	cpumask_t cpu_mask;
 
 	preempt_disable();
-	cpu_mask = mm->cpu_vm_mask;
-	cpu_clear(smp_processor_id(), cpu_mask);
 
 	local_flush_tlb();
-	if (!cpus_empty(cpu_mask))
-		flush_tlb_others(cpu_mask, mm, TLB_FLUSH_ALL);
+	if (cpumask_any_but(&mm->cpu_vm_mask, smp_processor_id()) < nr_cpu_ids)
+		flush_tlb_others(&mm->cpu_vm_mask, mm, TLB_FLUSH_ALL);
 	preempt_enable();
 }
 
 void flush_tlb_mm(struct mm_struct *mm)
 {
-	cpumask_t cpu_mask;
-
 	preempt_disable();
-	cpu_mask = mm->cpu_vm_mask;
-	cpu_clear(smp_processor_id(), cpu_mask);
 
 	if (current->active_mm == mm) {
 		if (current->mm)
@@ -241,8 +254,8 @@ void flush_tlb_mm(struct mm_struct *mm)
 		else
 			leave_mm(smp_processor_id());
 	}
-	if (!cpus_empty(cpu_mask))
-		flush_tlb_others(cpu_mask, mm, TLB_FLUSH_ALL);
+	if (cpumask_any_but(&mm->cpu_vm_mask, smp_processor_id()) < nr_cpu_ids)
+		flush_tlb_others(&mm->cpu_vm_mask, mm, TLB_FLUSH_ALL);
 
 	preempt_enable();
 }
@@ -250,11 +263,8 @@ void flush_tlb_mm(struct mm_struct *mm)
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 {
 	struct mm_struct *mm = vma->vm_mm;
-	cpumask_t cpu_mask;
 
 	preempt_disable();
-	cpu_mask = mm->cpu_vm_mask;
-	cpu_clear(smp_processor_id(), cpu_mask);
 
 	if (current->active_mm == mm) {
 		if (current->mm)
@@ -263,8 +273,8 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 			leave_mm(smp_processor_id());
 	}
 
-	if (!cpus_empty(cpu_mask))
-		flush_tlb_others(cpu_mask, mm, va);
+	if (cpumask_any_but(&mm->cpu_vm_mask, smp_processor_id()) < nr_cpu_ids)
+		flush_tlb_others(&mm->cpu_vm_mask, mm, va);
 
 	preempt_enable();
 }
@@ -274,7 +284,7 @@ static void do_flush_tlb_all(void *info)
 	unsigned long cpu = smp_processor_id();
 
 	__flush_tlb_all();
-	if (read_pda(mmu_state) == TLBSTATE_LAZY)
+	if (percpu_read(cpu_tlbstate.state) == TLBSTATE_LAZY)
 		leave_mm(cpu);
 }
 

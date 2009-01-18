@@ -854,20 +854,27 @@ static void efx_fini_io(struct efx_nic *efx)
  * interrupts across them. */
 static int efx_wanted_rx_queues(void)
 {
-	cpumask_t core_mask;
+	cpumask_var_t core_mask;
 	int count;
 	int cpu;
 
-	cpus_clear(core_mask);
+	if (!alloc_cpumask_var(&core_mask, GFP_KERNEL)) {
+		printk(KERN_WARNING
+		       "efx.c: allocation failure, irq balancing hobbled\n");
+		return 1;
+	}
+
+	cpumask_clear(core_mask);
 	count = 0;
 	for_each_online_cpu(cpu) {
-		if (!cpu_isset(cpu, core_mask)) {
+		if (!cpumask_test_cpu(cpu, core_mask)) {
 			++count;
-			cpus_or(core_mask, core_mask,
-				topology_core_siblings(cpu));
+			cpumask_or(core_mask, core_mask,
+				   topology_core_cpumask(cpu));
 		}
 	}
 
+	free_cpumask_var(core_mask);
 	return count;
 }
 

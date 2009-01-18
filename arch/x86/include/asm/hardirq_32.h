@@ -20,6 +20,9 @@ typedef struct {
 
 DECLARE_PER_CPU(irq_cpustat_t, irq_stat);
 
+/* We can have at most NR_VECTORS irqs routed to a cpu at a time */
+#define MAX_HARDIRQS_PER_CPU NR_VECTORS
+
 #define __ARCH_IRQ_STAT
 #define __IRQ_STAT(cpu, member) (per_cpu(irq_stat, cpu).member)
 

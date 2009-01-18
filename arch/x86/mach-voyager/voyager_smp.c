@@ -402,7 +402,7 @@ void __init find_smp_config(void)
 	     VOYAGER_SUS_IN_CONTROL_PORT);
 
 	current_thread_info()->cpu = boot_cpu_id;
-	x86_write_percpu(cpu_number, boot_cpu_id);
+	percpu_write(cpu_number, boot_cpu_id);
 }
 
 /*
@@ -531,6 +531,7 @@ static void __init do_boot_cpu(__u8 cpu)
 	stack_start.sp = (void *)idle->thread.sp;
 
 	init_gdt(cpu);
+	per_cpu(this_cpu_off, cpu) = __per_cpu_offset[cpu];
 	per_cpu(current_task, cpu) = idle;
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	irq_ctx_init(cpu);
@@ -1748,6 +1749,7 @@ static void __init voyager_smp_prepare_cpus(unsigned int max_cpus)
 static void __cpuinit voyager_smp_prepare_boot_cpu(void)
 {
 	init_gdt(smp_processor_id());
+	per_cpu(this_cpu_off, cpu) = __per_cpu_offset[cpu];
 	switch_to_new_gdt();
 
 	cpu_set(smp_processor_id(), cpu_online_map);
@@ -1780,7 +1782,7 @@ static void __init voyager_smp_cpus_done(unsigned int max_cpus)
 void __init smp_setup_processor_id(void)
 {
 	current_thread_info()->cpu = hard_smp_processor_id();
-	x86_write_percpu(cpu_number, hard_smp_processor_id());
+	percpu_write(cpu_number, hard_smp_processor_id());
 }
 
 static void voyager_send_call_func(cpumask_t callmask)

@@ -1600,7 +1600,7 @@ config 8139_OLD_RX_RESET
 	  old RX-reset behavior.  If unsure, say N.
 
 config R6040
-	tristate "RDC R6040 Fast Ethernet Adapter support (EXPERIMENTAL)"
+	tristate "RDC R6040 Fast Ethernet Adapter support"
 	depends on NET_PCI && PCI
 	select CRC32
 	select MII

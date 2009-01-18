@@ -176,6 +176,7 @@ static struct sparc64_tick_ops tick_operations __read_mostly = {
 };
 
 struct sparc64_tick_ops *tick_ops __read_mostly = &tick_operations;
+EXPORT_SYMBOL(tick_ops);
 
 static void stick_disable_irq(void)
 {
@@ -639,6 +640,7 @@ unsigned long sparc64_get_clock_tick(unsigned int cpu)
 		return ft->clock_tick_ref;
 	return cpu_data(cpu).clock_tick;
 }
+EXPORT_SYMBOL(sparc64_get_clock_tick);
 
 #ifdef CONFIG_CPU_FREQ
 
@@ -727,7 +729,7 @@ void timer_interrupt(int irq, struct pt_regs *regs)
 
 	irq_enter();
 
-	kstat_this_cpu.irqs[0]++;
+	kstat_incr_irqs_this_cpu(0, irq_to_desc(0));
 
 	if (unlikely(!evt->event_handler)) {
 		printk(KERN_WARNING

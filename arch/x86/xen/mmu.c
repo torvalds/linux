@@ -1063,18 +1063,14 @@ static void drop_other_mm_ref(void *info)
 	struct mm_struct *mm = info;
 	struct mm_struct *active_mm;
 
-#ifdef CONFIG_X86_64
-	active_mm = read_pda(active_mm);
-#else
-	active_mm = __get_cpu_var(cpu_tlbstate).active_mm;
-#endif
+	active_mm = percpu_read(cpu_tlbstate.active_mm);
 
 	if (active_mm == mm)
 		leave_mm(smp_processor_id());
 
 	/* If this cpu still has a stale cr3 reference, then make sure
 	   it has been flushed. */
-	if (x86_read_percpu(xen_current_cr3) == __pa(mm->pgd)) {
+	if (percpu_read(xen_current_cr3) == __pa(mm->pgd)) {
 		load_cr3(swapper_pg_dir);
 		arch_flush_lazy_cpu_mode();
 	}

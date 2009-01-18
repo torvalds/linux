@@ -1088,6 +1088,11 @@ int dev_open(struct net_device *dev)
 		dev->flags |= IFF_UP;
 
 		/*
+		 *	Enable NET_DMA
+		 */
+		dmaengine_get();
+
+		/*
 		 *	Initialize multicasting status
 		 */
 		dev_set_rx_mode(dev);
@@ -1163,6 +1168,11 @@ int dev_close(struct net_device *dev)
 	 * Tell people we are down
 	 */
 	call_netdevice_notifiers(NETDEV_DOWN, dev);
+
+	/*
+	 *	Shutdown NET_DMA
+	 */
+	dmaengine_put();
 
 	return 0;
 }
@@ -5151,9 +5161,6 @@ static int __init net_dev_init(void)
 	hotcpu_notifier(dev_cpu_callback, 0);
 	dst_init();
 	dev_mcast_init();
-	#ifdef CONFIG_NET_DMA
-	dmaengine_get();
-	#endif
 	rc = 0;
 out:
 	return rc;
