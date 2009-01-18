@@ -184,7 +184,8 @@ static int elanfreq_target(struct cpufreq_policy *policy,
 {
 	unsigned int newstate = 0;
 
-	if (cpufreq_frequency_table_target(policy, &elanfreq_table[0], target_freq, relation, &newstate))
+	if (cpufreq_frequency_table_target(policy, &elanfreq_table[0],
+				target_freq, relation, &newstate))
 		return -EINVAL;
 
 	elanfreq_set_cpu_state(newstate);
@@ -301,7 +302,8 @@ static void __exit elanfreq_exit(void)
 module_param(max_freq, int, 0444);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Robert Schwebel <r.schwebel@pengutronix.de>, Sven Geggus <sven@geggus.net>");
+MODULE_AUTHOR("Robert Schwebel <r.schwebel@pengutronix.de>, "
+		"Sven Geggus <sven@geggus.net>");
 MODULE_DESCRIPTION("cpufreq driver for AMD's Elan CPUs");
 
 module_init(elanfreq_init);
