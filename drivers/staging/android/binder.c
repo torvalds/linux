@@ -319,6 +319,7 @@ int task_get_unused_fd_flags(struct task_struct *tsk, int flags)
 	int fd, error;
 	struct fdtable *fdt;
 	unsigned long rlim_cur;
+	unsigned long irqs;
 
 	if (files == NULL)
 		return -ESRCH;
@@ -335,12 +336,11 @@ repeat:
 	 * N.B. For clone tasks sharing a files structure, this test
 	 * will limit the total number of files that can be opened.
 	 */
-	rcu_read_lock();
-	if (tsk->signal)
+	rlim_cur = 0;
+	if (lock_task_sighand(tsk, &irqs)) {
 		rlim_cur = tsk->signal->rlim[RLIMIT_NOFILE].rlim_cur;
-	else
-		rlim_cur = 0;
-	rcu_read_unlock();
+		unlock_task_sighand(tsk, &irqs);
+	}
 	if (fd >= rlim_cur)
 		goto out;
 
