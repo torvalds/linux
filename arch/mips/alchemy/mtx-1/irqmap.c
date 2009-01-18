@@ -27,7 +27,7 @@
  */
 
 #include <linux/init.h>
-
+#include <linux/interrupt.h>
 #include <asm/mach-au1x00/au1000.h>
 
 char irq_tab_alchemy[][5] __initdata = {
@@ -42,11 +42,15 @@ char irq_tab_alchemy[][5] __initdata = {
 };
 
 struct au1xxx_irqmap __initdata au1xxx_irq_map[] = {
-       { AU1500_GPIO_204, INTC_INT_HIGH_LEVEL, 0 },
-       { AU1500_GPIO_201, INTC_INT_LOW_LEVEL, 0 },
-       { AU1500_GPIO_202, INTC_INT_LOW_LEVEL, 0 },
-       { AU1500_GPIO_203, INTC_INT_LOW_LEVEL, 0 },
-       { AU1500_GPIO_205, INTC_INT_LOW_LEVEL, 0 },
+       { AU1500_GPIO_204, IRQF_TRIGGER_HIGH, 0 },
+       { AU1500_GPIO_201, IRQF_TRIGGER_LOW, 0 },
+       { AU1500_GPIO_202, IRQF_TRIGGER_LOW, 0 },
+       { AU1500_GPIO_203, IRQF_TRIGGER_LOW, 0 },
+       { AU1500_GPIO_205, IRQF_TRIGGER_LOW, 0 },
 };
 
-int __initdata au1xxx_nr_irqs = ARRAY_SIZE(au1xxx_irq_map);
+
+void __init board_init_irq(void)
+{
+	au1xxx_setup_irqmap(au1xxx_irq_map, ARRAY_SIZE(au1xxx_irq_map));
+}

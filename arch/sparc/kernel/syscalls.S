@@ -20,7 +20,7 @@ execve_merge:
 	 add	%sp, PTREGS_OFF, %o0
 
 	.align	32
-sys_pipe:
+sys_sparc_pipe:
 	ba,pt	%xcc, sparc_pipe
 	 add	%sp, PTREGS_OFF, %o0
 sys_nis_syscall:

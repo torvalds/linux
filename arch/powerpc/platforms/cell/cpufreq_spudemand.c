@@ -110,7 +110,7 @@ static int spu_gov_govern(struct cpufreq_policy *policy, unsigned int event)
 		}
 
 		/* initialize spu_gov_info for all affected cpus */
-		for_each_cpu_mask(i, policy->cpus) {
+		for_each_cpu(i, policy->cpus) {
 			affected_info = &per_cpu(spu_gov_info, i);
 			affected_info->policy = policy;
 		}
@@ -127,7 +127,7 @@ static int spu_gov_govern(struct cpufreq_policy *policy, unsigned int event)
 		spu_gov_cancel_work(info);
 
 		/* clean spu_gov_info for all affected cpus */
-		for_each_cpu_mask (i, policy->cpus) {
+		for_each_cpu (i, policy->cpus) {
 			info = &per_cpu(spu_gov_info, i);
 			info->policy = NULL;
 		}

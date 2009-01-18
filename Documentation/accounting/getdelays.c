@@ -392,6 +392,10 @@ int main(int argc, char *argv[])
 			goto err;
 		}
 	}
+	if (!maskset && !tid && !containerset) {
+		usage();
+		goto err;
+	}
 
 	do {
 		int i;

@@ -996,10 +996,11 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 				spin_unlock(&chip->reg_lock);
 				snd_pcm_period_elapsed(azx_dev->substream);
 				spin_lock(&chip->reg_lock);
-			} else {
+			} else if (chip->bus && chip->bus->workq) {
 				/* bogus IRQ, process it later */
 				azx_dev->irq_pending = 1;
-				schedule_work(&chip->irq_pending_work);
+				queue_work(chip->bus->workq,
+					   &chip->irq_pending_work);
 			}
 		}
 	}
@@ -1741,7 +1742,6 @@ static void azx_clear_irq_pending(struct azx *chip)
 	for (i = 0; i < chip->num_streams; i++)
 		chip->azx_dev[i].irq_pending = 0;
 	spin_unlock_irq(&chip->reg_lock);
-	flush_scheduled_work();
 }
 
 static struct snd_pcm_ops azx_pcm_ops = {

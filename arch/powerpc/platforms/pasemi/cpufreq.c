@@ -213,7 +213,7 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	pr_debug("current astate is at %d\n",cur_astate);
 
 	policy->cur = pas_freqs[cur_astate].frequency;
-	policy->cpus = cpu_online_map;
+	cpumask_copy(policy->cpus, &cpu_online_map);
 
 	ppc_proc_freq = policy->cur * 1000ul;
 

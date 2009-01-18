@@ -55,7 +55,8 @@ enum {
 	STAC_9200_DELL_M25,
 	STAC_9200_DELL_M26,
 	STAC_9200_DELL_M27,
-	STAC_9200_GATEWAY,
+	STAC_9200_M4,
+	STAC_9200_M4_2,
 	STAC_9200_PANASONIC,
 	STAC_9200_MODELS
 };
@@ -89,14 +90,19 @@ enum {
 	STAC_DELL_M4_2,
 	STAC_DELL_M4_3,
 	STAC_HP_M4,
+	STAC_HP_DV5,
 	STAC_92HD71BXX_MODELS
 };
 
 enum {
 	STAC_925x_REF,
+	STAC_M1,
+	STAC_M1_2,
+	STAC_M2,
 	STAC_M2_2,
-	STAC_MA6,
-	STAC_PA6,
+	STAC_M3,
+	STAC_M5,
+	STAC_M6,
 	STAC_925x_MODELS
 };
 
@@ -329,6 +335,10 @@ static hda_nid_t stac92hd83xxx_slave_dig_outs[2] = {
 
 static unsigned int stac92hd83xxx_pwr_mapping[4] = {
 	0x03, 0x0c, 0x10, 0x40,
+};
+
+static hda_nid_t stac92hd83xxx_amp_nids[1] = {
+	0xc,
 };
 
 static hda_nid_t stac92hd71bxx_pwr_nids[3] = {
@@ -875,6 +885,8 @@ static struct hda_verb stac92hd71bxx_analog_core_init[] = {
 static struct hda_verb stac925x_core_init[] = {
 	/* set dac0mux for dac converter */
 	{ 0x06, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* unmute and set max the selector */
+	{ 0x0e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb01f },
 	{}
 };
 
@@ -1334,7 +1346,16 @@ static unsigned int ref9200_pin_configs[8] = {
 	0x02a19020, 0x01a19021, 0x90100140, 0x01813122,
 };
 
-/* 
+static unsigned int gateway9200_m4_pin_configs[8] = {
+	0x400000fe, 0x404500f4, 0x400100f0, 0x90110010,
+	0x400100f1, 0x02a1902e, 0x500000f2, 0x500000f3,
+};
+static unsigned int gateway9200_m4_2_pin_configs[8] = {
+	0x400000fe, 0x404500f4, 0x400100f0, 0x90110010,
+	0x400100f1, 0x02a1902e, 0x500000f2, 0x500000f3,
+};
+
+/*
     STAC 9200 pin configs for
     102801A8
     102801DE
@@ -1464,6 +1485,8 @@ static unsigned int *stac9200_brd_tbl[STAC_9200_MODELS] = {
 	[STAC_9200_DELL_M25] = dell9200_m25_pin_configs,
 	[STAC_9200_DELL_M26] = dell9200_m26_pin_configs,
 	[STAC_9200_DELL_M27] = dell9200_m27_pin_configs,
+	[STAC_9200_M4] = gateway9200_m4_pin_configs,
+	[STAC_9200_M4_2] = gateway9200_m4_2_pin_configs,
 	[STAC_9200_PANASONIC] = ref9200_pin_configs,
 };
 
@@ -1480,7 +1503,8 @@ static const char *stac9200_models[STAC_9200_MODELS] = {
 	[STAC_9200_DELL_M25] = "dell-m25",
 	[STAC_9200_DELL_M26] = "dell-m26",
 	[STAC_9200_DELL_M27] = "dell-m27",
-	[STAC_9200_GATEWAY] = "gateway",
+	[STAC_9200_M4] = "gateway-m4",
+	[STAC_9200_M4_2] = "gateway-m4-2",
 	[STAC_9200_PANASONIC] = "panasonic",
 };
 
@@ -1550,11 +1574,9 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 	/* Panasonic */
 	SND_PCI_QUIRK(0x10f7, 0x8338, "Panasonic CF-74", STAC_9200_PANASONIC),
 	/* Gateway machines needs EAPD to be set on resume */
-	SND_PCI_QUIRK(0x107b, 0x0205, "Gateway S-7110M", STAC_9200_GATEWAY),
-	SND_PCI_QUIRK(0x107b, 0x0317, "Gateway MT3423, MX341*",
-		      STAC_9200_GATEWAY),
-	SND_PCI_QUIRK(0x107b, 0x0318, "Gateway ML3019, MT3707",
-		      STAC_9200_GATEWAY),
+	SND_PCI_QUIRK(0x107b, 0x0205, "Gateway S-7110M", STAC_9200_M4),
+	SND_PCI_QUIRK(0x107b, 0x0317, "Gateway MT3423, MX341*", STAC_9200_M4_2),
+	SND_PCI_QUIRK(0x107b, 0x0318, "Gateway ML3019, MT3707", STAC_9200_M4_2),
 	/* OQO Mobile */
 	SND_PCI_QUIRK(0x1106, 0x3288, "OQO Model 2", STAC_9200_OQO),
 	{} /* terminator */
@@ -1565,44 +1587,85 @@ static unsigned int ref925x_pin_configs[8] = {
 	0x90a70320, 0x02214210, 0x01019020, 0x9033032e,
 };
 
-static unsigned int stac925x_MA6_pin_configs[8] = {
-	0x40c003f0, 0x424503f2, 0x01813022, 0x02a19021,
-	0x90a70320, 0x90100211, 0x400003f1, 0x9033032e,
+static unsigned int stac925xM1_pin_configs[8] = {
+	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
+	0x40a000f0, 0x90100210, 0x400003f1, 0x9033032e,
 };
 
-static unsigned int stac925x_PA6_pin_configs[8] = {
-	0x40c003f0, 0x424503f2, 0x01813022, 0x02a19021,
-	0x50a103f0, 0x90100211, 0x400003f1, 0x9033032e,
+static unsigned int stac925xM1_2_pin_configs[8] = {
+	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
+	0x40a000f0, 0x90100210, 0x400003f1, 0x9033032e,
+};
+
+static unsigned int stac925xM2_pin_configs[8] = {
+	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
+	0x40a000f0, 0x90100210, 0x400003f1, 0x9033032e,
 };
 
 static unsigned int stac925xM2_2_pin_configs[8] = {
-	0x40c003f3, 0x424503f2, 0x04180011, 0x02a19020,
-	0x50a103f0, 0x90100212, 0x400003f1, 0x9033032e,
+	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
+	0x40a000f0, 0x90100210, 0x400003f1, 0x9033032e,
+};
+
+static unsigned int stac925xM3_pin_configs[8] = {
+	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
+	0x40a000f0, 0x90100210, 0x400003f1, 0x503303f3,
+};
+
+static unsigned int stac925xM5_pin_configs[8] = {
+	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
+	0x40a000f0, 0x90100210, 0x400003f1, 0x9033032e,
+};
+
+static unsigned int stac925xM6_pin_configs[8] = {
+	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
+	0x40a000f0, 0x90100210, 0x400003f1, 0x90330320,
 };
 
 static unsigned int *stac925x_brd_tbl[STAC_925x_MODELS] = {
 	[STAC_REF] = ref925x_pin_configs,
+	[STAC_M1] = stac925xM1_pin_configs,
+	[STAC_M1_2] = stac925xM1_2_pin_configs,
+	[STAC_M2] = stac925xM2_pin_configs,
 	[STAC_M2_2] = stac925xM2_2_pin_configs,
-	[STAC_MA6] = stac925x_MA6_pin_configs,
-	[STAC_PA6] = stac925x_PA6_pin_configs,
+	[STAC_M3] = stac925xM3_pin_configs,
+	[STAC_M5] = stac925xM5_pin_configs,
+	[STAC_M6] = stac925xM6_pin_configs,
 };
 
 static const char *stac925x_models[STAC_925x_MODELS] = {
 	[STAC_REF] = "ref",
+	[STAC_M1] = "m1",
+	[STAC_M1_2] = "m1-2",
+	[STAC_M2] = "m2",
 	[STAC_M2_2] = "m2-2",
-	[STAC_MA6] = "m6",
-	[STAC_PA6] = "pa6",
+	[STAC_M3] = "m3",
+	[STAC_M5] = "m5",
+	[STAC_M6] = "m6",
+};
+
+static struct snd_pci_quirk stac925x_codec_id_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x107b, 0x0316, "Gateway M255", STAC_M2),
+	SND_PCI_QUIRK(0x107b, 0x0366, "Gateway MP6954", STAC_M5),
+	SND_PCI_QUIRK(0x107b, 0x0461, "Gateway NX560XL", STAC_M1),
+	SND_PCI_QUIRK(0x107b, 0x0681, "Gateway NX860", STAC_M2),
+	SND_PCI_QUIRK(0x107b, 0x0367, "Gateway MX6453", STAC_M1_2),
+	/* Not sure about the brand name for those */
+	SND_PCI_QUIRK(0x107b, 0x0281, "Gateway mobile", STAC_M1),
+	SND_PCI_QUIRK(0x107b, 0x0507, "Gateway mobile", STAC_M3),
+	SND_PCI_QUIRK(0x107b, 0x0281, "Gateway mobile", STAC_M6),
+	SND_PCI_QUIRK(0x107b, 0x0685, "Gateway mobile", STAC_M2_2),
+	{} /* terminator */
 };
 
 static struct snd_pci_quirk stac925x_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668, "DFI LanParty", STAC_REF),
 	SND_PCI_QUIRK(0x8384, 0x7632, "Stac9202 Reference Board", STAC_REF),
-	SND_PCI_QUIRK(0x107b, 0x0316, "Gateway M255", STAC_REF),
-	SND_PCI_QUIRK(0x107b, 0x0366, "Gateway MP6954", STAC_REF),
-	SND_PCI_QUIRK(0x107b, 0x0461, "Gateway NX560XL", STAC_MA6),
-	SND_PCI_QUIRK(0x107b, 0x0681, "Gateway NX860", STAC_PA6),
-	SND_PCI_QUIRK(0x1002, 0x437b, "Gateway MX6453", STAC_M2_2),
+
+	/* Default table for unknown ID */
+	SND_PCI_QUIRK(0x1002, 0x437b, "Gateway mobile", STAC_M2_2),
+
 	{} /* terminator */
 };
 
@@ -1682,7 +1745,7 @@ static const char *stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 static struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
-		      "DFI LanParty", STAC_92HD71BXX_REF),
+		      "DFI LanParty", STAC_92HD83XXX_REF),
 	{} /* terminator */
 };
 
@@ -1716,6 +1779,7 @@ static unsigned int *stac92hd71bxx_brd_tbl[STAC_92HD71BXX_MODELS] = {
 	[STAC_DELL_M4_2]	= dell_m4_2_pin_configs,
 	[STAC_DELL_M4_3]	= dell_m4_3_pin_configs,
 	[STAC_HP_M4]		= NULL,
+	[STAC_HP_DV5]		= NULL,
 };
 
 static const char *stac92hd71bxx_models[STAC_92HD71BXX_MODELS] = {
@@ -1724,6 +1788,7 @@ static const char *stac92hd71bxx_models[STAC_92HD71BXX_MODELS] = {
 	[STAC_DELL_M4_2] = "dell-m4-2",
 	[STAC_DELL_M4_3] = "dell-m4-3",
 	[STAC_HP_M4] = "hp-m4",
+	[STAC_HP_DV5] = "hp-dv5",
 };
 
 static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
@@ -1736,6 +1801,8 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 		      "HP dv7", STAC_HP_M4),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x30fc,
 		      "HP dv7", STAC_HP_M4),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3603,
+		      "HP dv5", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x361a,
 				"unknown HP", STAC_HP_M4),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0233,
@@ -4163,8 +4230,19 @@ static void stac92xx_hp_detect(struct hda_codec *codec)
 			continue;
 		if (presence)
 			stac92xx_set_pinctl(codec, cfg->hp_pins[i], val);
+#if 0 /* FIXME */
+/* Resetting the pinctl like below may lead to (a sort of) regressions
+ * on some devices since they use the HP pin actually for line/speaker
+ * outs although the default pin config shows a different pin (that is
+ * wrong and useless).
+ *
+ * So, it's basically a problem of default pin configs, likely a BIOS issue.
+ * But, disabling the code below just works around it, and I'm too tired of
+ * bug reports with such devices... 
+ */
 		else
 			stac92xx_reset_pinctl(codec, cfg->hp_pins[i], val);
+#endif /* FIXME */
 	}
 } 
 
@@ -4390,7 +4468,8 @@ static int patch_stac9200(struct hda_codec *codec)
 	spec->num_adcs = 1;
 	spec->num_pwrs = 0;
 
-	if (spec->board_config == STAC_9200_GATEWAY ||
+	if (spec->board_config == STAC_9200_M4 ||
+	    spec->board_config == STAC_9200_M4_2 ||
 	    spec->board_config == STAC_9200_OQO)
 		spec->init = stac9200_eapd_init;
 	else
@@ -4407,6 +4486,12 @@ static int patch_stac9200(struct hda_codec *codec)
 		stac92xx_free(codec);
 		return err;
 	}
+
+	/* CF-74 has no headphone detection, and the driver should *NOT*
+	 * do detection and HP/speaker toggle because the hardware does it.
+	 */
+	if (spec->board_config == STAC_9200_PANASONIC)
+		spec->hp_detect = 0;
 
 	codec->patch_ops = stac92xx_patch_ops;
 
@@ -4425,12 +4510,22 @@ static int patch_stac925x(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->num_pins = ARRAY_SIZE(stac925x_pin_nids);
 	spec->pin_nids = stac925x_pin_nids;
-	spec->board_config = snd_hda_check_board_config(codec, STAC_925x_MODELS,
+
+	/* Check first for codec ID */
+	spec->board_config = snd_hda_check_board_codec_sid_config(codec,
+							STAC_925x_MODELS,
+							stac925x_models,
+							stac925x_codec_id_cfg_tbl);
+
+	/* Now checks for PCI ID, if codec ID is not found */
+	if (spec->board_config < 0)
+		spec->board_config = snd_hda_check_board_config(codec,
+							STAC_925x_MODELS,
 							stac925x_models,
 							stac925x_cfg_tbl);
  again:
 	if (spec->board_config < 0) {
-		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC925x," 
+		snd_printdd(KERN_INFO "hda_codec: Unknown model for STAC925x,"
 				      "using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
 	} else
@@ -4672,6 +4767,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->dmux_nids = stac92hd83xxx_dmux_nids;
 	spec->adc_nids = stac92hd83xxx_adc_nids;
 	spec->pwr_nids = stac92hd83xxx_pwr_nids;
+	spec->amp_nids = stac92hd83xxx_amp_nids;
 	spec->pwr_mapping = stac92hd83xxx_pwr_mapping;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
 	spec->multiout.dac_nids = spec->dac_nids;
@@ -4689,6 +4785,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->num_pins = ARRAY_SIZE(stac92hd83xxx_pin_nids);
 	spec->num_dmuxes = ARRAY_SIZE(stac92hd83xxx_dmux_nids);
 	spec->num_adcs = ARRAY_SIZE(stac92hd83xxx_adc_nids);
+	spec->num_amps = ARRAY_SIZE(stac92hd83xxx_amp_nids);
 	spec->num_dmics = STAC92HD83XXX_NUM_DMICS;
 	spec->dinput_mux = &stac92hd83xxx_dmux;
 	spec->pin_nids = stac92hd83xxx_pin_nids;
