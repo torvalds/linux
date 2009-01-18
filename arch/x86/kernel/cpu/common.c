@@ -897,18 +897,11 @@ DEFINE_PER_CPU(unsigned int, irq_count) = -1;
 
 void __cpuinit pda_init(int cpu)
 {
-	struct x8664_pda *pda = cpu_pda(cpu);
-
 	/* Setup up data that may be needed in __get_free_pages early */
 	loadsegment(fs, 0);
 	loadsegment(gs, 0);
 
 	load_pda_offset(cpu);
-
-	if (cpu != 0) {
-		if (pda->nodenumber == 0 && cpu_to_node(cpu) != NUMA_NO_NODE)
-			pda->nodenumber = cpu_to_node(cpu);
-	}
 }
 
 static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
@@ -977,6 +970,12 @@ void __cpuinit cpu_init(void)
 	/* CPU 0 is initialised in head64.c */
 	if (cpu != 0)
 		pda_init(cpu);
+
+#ifdef CONFIG_NUMA
+	if (cpu != 0 && percpu_read(node_number) == 0 &&
+	    cpu_to_node(cpu) != NUMA_NO_NODE)
+		percpu_write(node_number, cpu_to_node(cpu));
+#endif
 
 	me = current;
 

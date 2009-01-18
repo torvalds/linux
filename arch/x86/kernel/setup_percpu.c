@@ -53,6 +53,8 @@ EXPORT_EARLY_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_64)
 #define	X86_64_NUMA	1	/* (used later) */
+DEFINE_PER_CPU(int, node_number) = 0;
+EXPORT_PER_CPU_SYMBOL(node_number);
 
 /*
  * Map cpu index to node index
@@ -283,7 +285,7 @@ void __cpuinit numa_set_node(int cpu, int node)
 	per_cpu(x86_cpu_to_node_map, cpu) = node;
 
 	if (node != NUMA_NO_NODE)
-		cpu_pda(cpu)->nodenumber = node;
+		per_cpu(node_number, cpu) = node;
 }
 
 void __cpuinit numa_clear_node(int cpu)
