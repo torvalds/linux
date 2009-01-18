@@ -498,8 +498,8 @@ static ssize_t store_##name(struct device *dev, struct device_attribute *attr, c
 #define BUILD_STORE_FUNC_INT(name, data)			\
 static ssize_t store_##name(struct device *dev, struct device_attribute *attr, const char *buf, size_t n) \
 {								\
-	u32 val;						\
-	val = simple_strtoul(buf, NULL, 10);			\
+	int val;						\
+	val = simple_strtol(buf, NULL, 10);			\
 	if (val < 0 || val > 255)				\
 		return -EINVAL;					\
 	printk(KERN_INFO "Setting specified fan speed to %d\n", val);	\
