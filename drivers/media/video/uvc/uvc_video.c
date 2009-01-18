@@ -699,27 +699,47 @@ static void uvc_free_urb_buffers(struct uvc_video_device *video)
  * already allocated when resuming from suspend, in which case it will
  * return without touching the buffers.
  *
- * Return 0 on success or -ENOMEM when out of memory.
+ * Limit the buffer size to UVC_MAX_PACKETS bulk/isochronous packets. If the
+ * system is too low on memory try successively smaller numbers of packets
+ * until allocation succeeds.
+ *
+ * Return the number of allocated packets on success or 0 when out of memory.
  */
 static int uvc_alloc_urb_buffers(struct uvc_video_device *video,
-	unsigned int size)
+	unsigned int size, unsigned int psize, gfp_t gfp_flags)
 {
+	unsigned int npackets;
 	unsigned int i;
 
 	/* Buffers are already allocated, bail out. */
 	if (video->urb_size)
 		return 0;
 
-	for (i = 0; i < UVC_URBS; ++i) {
-		video->urb_buffer[i] = usb_buffer_alloc(video->dev->udev,
-			size, GFP_KERNEL, &video->urb_dma[i]);
-		if (video->urb_buffer[i] == NULL) {
-			uvc_free_urb_buffers(video);
-			return -ENOMEM;
+	/* Compute the number of packets. Bulk endpoints might transfer UVC
+	 * payloads accross multiple URBs.
+	 */
+	npackets = DIV_ROUND_UP(size, psize);
+	if (npackets > UVC_MAX_PACKETS)
+		npackets = UVC_MAX_PACKETS;
+
+	/* Retry allocations until one succeed. */
+	for (; npackets > 1; npackets /= 2) {
+		for (i = 0; i < UVC_URBS; ++i) {
+			video->urb_buffer[i] = usb_buffer_alloc(
+				video->dev->udev, psize * npackets,
+				gfp_flags | __GFP_NOWARN, &video->urb_dma[i]);
+			if (!video->urb_buffer[i]) {
+				uvc_free_urb_buffers(video);
+				break;
+			}
+		}
+
+		if (i == UVC_URBS) {
+			video->urb_size = psize * npackets;
+			return npackets;
 		}
 	}
 
-	video->urb_size = size;
 	return 0;
 }
 
@@ -753,28 +773,18 @@ static int uvc_init_video_isoc(struct uvc_video_device *video,
 {
 	struct urb *urb;
 	unsigned int npackets, i, j;
-	__u16 psize;
-	__u32 size;
+	u16 psize;
+	u32 size;
 
-	/* Compute the number of isochronous packets to allocate by dividing
-	 * the maximum video frame size by the packet size. Limit the result
-	 * to UVC_MAX_ISO_PACKETS.
-	 */
 	psize = le16_to_cpu(ep->desc.wMaxPacketSize);
 	psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
-
 	size = video->streaming->ctrl.dwMaxVideoFrameSize;
-	if (size > UVC_MAX_FRAME_SIZE)
-		return -EINVAL;
 
-	npackets = DIV_ROUND_UP(size, psize);
-	if (npackets > UVC_MAX_ISO_PACKETS)
-		npackets = UVC_MAX_ISO_PACKETS;
+	npackets = uvc_alloc_urb_buffers(video, size, psize, gfp_flags);
+	if (npackets == 0)
+		return -ENOMEM;
 
 	size = npackets * psize;
-
-	if (uvc_alloc_urb_buffers(video, size) < 0)
-		return -ENOMEM;
 
 	for (i = 0; i < UVC_URBS; ++i) {
 		urb = usb_alloc_urb(npackets, gfp_flags);
@@ -814,24 +824,19 @@ static int uvc_init_video_bulk(struct uvc_video_device *video,
 	struct usb_host_endpoint *ep, gfp_t gfp_flags)
 {
 	struct urb *urb;
-	unsigned int pipe, i;
-	__u16 psize;
-	__u32 size;
+	unsigned int npackets, pipe, i;
+	u16 psize;
+	u32 size;
 
-	/* Compute the bulk URB size. Some devices set the maximum payload
-	 * size to a value too high for memory-constrained devices. We must
-	 * then transfer the payload accross multiple URBs. To be consistant
-	 * with isochronous mode, allocate maximum UVC_MAX_ISO_PACKETS per bulk
-	 * URB.
-	 */
 	psize = le16_to_cpu(ep->desc.wMaxPacketSize) & 0x07ff;
 	size = video->streaming->ctrl.dwMaxPayloadTransferSize;
 	video->bulk.max_payload_size = size;
-	if (size > psize * UVC_MAX_ISO_PACKETS)
-		size = psize * UVC_MAX_ISO_PACKETS;
 
-	if (uvc_alloc_urb_buffers(video, size) < 0)
+	npackets = uvc_alloc_urb_buffers(video, size, psize, gfp_flags);
+	if (npackets == 0)
 		return -ENOMEM;
+
+	size = npackets * psize;
 
 	if (usb_endpoint_dir_in(&ep->desc))
 		pipe = usb_rcvbulkpipe(video->dev->udev,
