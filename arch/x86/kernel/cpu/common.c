@@ -893,6 +893,8 @@ DEFINE_PER_CPU(unsigned long, kernel_stack) =
 	(unsigned long)&init_thread_union - KERNEL_STACK_OFFSET + THREAD_SIZE;
 EXPORT_PER_CPU_SYMBOL(kernel_stack);
 
+DEFINE_PER_CPU(unsigned int, irq_count) = -1;
+
 void __cpuinit pda_init(int cpu)
 {
 	struct x8664_pda *pda = cpu_pda(cpu);
@@ -902,8 +904,6 @@ void __cpuinit pda_init(int cpu)
 	loadsegment(gs, 0);
 
 	load_pda_offset(cpu);
-
-	pda->irqcount = -1;
 
 	if (cpu != 0) {
 		if (pda->nodenumber == 0 && cpu_to_node(cpu) != NUMA_NO_NODE)

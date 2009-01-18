@@ -337,12 +337,12 @@ ENTRY(save_args)
 	je 1f
 	SWAPGS
 	/*
-	 * irqcount is used to check if a CPU is already on an interrupt stack
+	 * irq_count is used to check if a CPU is already on an interrupt stack
 	 * or not. While this is essentially redundant with preempt_count it is
 	 * a little cheaper to use a separate counter in the PDA (short of
 	 * moving irq_enter into assembly, which would be too much work)
 	 */
-1:	incl %gs:pda_irqcount
+1:	incl PER_CPU_VAR(irq_count)
 	jne 2f
 	popq_cfi %rax			/* move return address... */
 	mov PER_CPU_VAR(irq_stack_ptr),%rsp
@@ -837,7 +837,7 @@ common_interrupt:
 ret_from_intr:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
-	decl %gs:pda_irqcount
+	decl PER_CPU_VAR(irq_count)
 	leaveq
 	CFI_DEF_CFA_REGISTER	rsp
 	CFI_ADJUST_CFA_OFFSET	-8
@@ -1260,14 +1260,14 @@ ENTRY(call_softirq)
 	CFI_REL_OFFSET rbp,0
 	mov  %rsp,%rbp
 	CFI_DEF_CFA_REGISTER rbp
-	incl %gs:pda_irqcount
+	incl PER_CPU_VAR(irq_count)
 	cmove PER_CPU_VAR(irq_stack_ptr),%rsp
 	push  %rbp			# backlink for old unwinder
 	call __do_softirq
 	leaveq
 	CFI_DEF_CFA_REGISTER	rsp
 	CFI_ADJUST_CFA_OFFSET   -8
-	decl %gs:pda_irqcount
+	decl PER_CPU_VAR(irq_count)
 	ret
 	CFI_ENDPROC
 END(call_softirq)
@@ -1297,7 +1297,7 @@ ENTRY(xen_do_hypervisor_callback)   # do_hypervisor_callback(struct *pt_regs)
 	movq %rdi, %rsp            # we don't return, adjust the stack frame
 	CFI_ENDPROC
 	DEFAULT_FRAME
-11:	incl %gs:pda_irqcount
+11:	incl PER_CPU_VAR(irq_count)
 	movq %rsp,%rbp
 	CFI_DEF_CFA_REGISTER rbp
 	cmovzq PER_CPU_VAR(irq_stack_ptr),%rsp
@@ -1305,7 +1305,7 @@ ENTRY(xen_do_hypervisor_callback)   # do_hypervisor_callback(struct *pt_regs)
 	call xen_evtchn_do_upcall
 	popq %rsp
 	CFI_DEF_CFA_REGISTER rsp
-	decl %gs:pda_irqcount
+	decl PER_CPU_VAR(irq_count)
 	jmp  error_exit
 	CFI_ENDPROC
 END(do_hypervisor_callback)

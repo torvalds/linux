@@ -15,7 +15,7 @@ struct x8664_pda {
 	unsigned long unused2;
 	unsigned long unused3;
 	unsigned long unused4;
-	int irqcount;			/* 32 Irq nesting counter. Starts -1 */
+	int unused5;
 	unsigned int unused6;		/* 36 was cpunumber */
 #ifdef CONFIG_CC_STACKPROTECTOR
 	unsigned long stack_canary;	/* 40 stack canary value */
