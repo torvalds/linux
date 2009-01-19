@@ -30,6 +30,8 @@
  * are those of the authors and should not be interpreted as representing
  * official policies, either expressed or implied, of Alacritech, Inc.
  *
+ * Parts developed by LinSysSoft Sahara team
+ *
  **************************************************************************/
 
 /*
@@ -61,6 +63,10 @@
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
 #include <linux/mii.h>
+#include <linux/ip.h>
+#include <linux/in.h>
+#include <linux/tcp.h>
+#include <linux/ipv6.h>
 
 #define SLIC_GET_STATS_ENABLED		0
 #define LINUX_FREES_ADAPTER_RESOURCES	1
@@ -87,7 +93,7 @@
 
 static int sxg_allocate_buffer_memory(struct adapter_t *adapter, u32 Size,
 				      enum sxg_buffer_type BufferType);
-static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
+static int sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 						void *RcvBlock,
 						dma_addr_t PhysicalAddress,
 						u32 Length);
@@ -98,6 +104,7 @@ static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
 
 static void sxg_mcast_init_crc32(void);
 static int sxg_entry_open(struct net_device *dev);
+static int sxg_second_open(struct net_device * dev);
 static int sxg_entry_halt(struct net_device *dev);
 static int sxg_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int sxg_send_packets(struct sk_buff *skb, struct net_device *dev);
@@ -566,9 +573,11 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 	 */
 	for (i = 0; i < SXG_INITIAL_RCV_DATA_BUFFERS;
 				i += SXG_RCV_DESCRIPTORS_PER_BLOCK) {
-			sxg_allocate_buffer_memory(adapter,
+			status = sxg_allocate_buffer_memory(adapter,
 				SXG_RCV_BLOCK_SIZE(SXG_RCV_DATA_HDR_SIZE),
 					   SXG_BUFFER_TYPE_RCV);
+			if (status != STATUS_SUCCESS)
+				return status;
 	}
 	/*
 	 * NBL resource allocation can fail in the 'AllocateComplete' routine,
@@ -634,8 +643,7 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAlcResS",
 		  adapter, SXG_MAX_ENTRIES, 0, 0);
 
-	DBG_ERROR("%s EXIT\n", __func__);
-	return (STATUS_SUCCESS);
+	return status;
 }
 
 /*
@@ -826,7 +834,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	if (!memmapped_ioaddr) {
 		DBG_ERROR("%s cannot remap MMIO region %lx @ %lx\n",
 			  __func__, mmio_len, mmio_start);
-		goto err_out_free_mmio_region;
+		goto err_out_free_mmio_region_0;
 	}
 
 	DBG_ERROR("sxg: %s found Alacritech SXG PCI, MMIO at %p, start[%lx] \
@@ -848,7 +856,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	if (!memmapped_ioaddr) {
 		DBG_ERROR("%s cannot remap MMIO region %lx @ %lx\n",
 			  __func__, mmio_len, mmio_start);
-		goto err_out_free_mmio_region;
+		goto err_out_free_mmio_region_2;
 	}
 
 	DBG_ERROR("sxg: %s found Alacritech SXG PCI, MMIO at %p, "
@@ -963,15 +971,30 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	return status;
 
       err_out_unmap:
-	iounmap((void *)memmapped_ioaddr);
+	sxg_free_resources(adapter);
 
-      err_out_free_mmio_region:
+      err_out_free_mmio_region_2:
+
+	mmio_start = pci_resource_start(pcidev, 2);
+        mmio_len = pci_resource_len(pcidev, 2);
+	release_mem_region(mmio_start, mmio_len);
+
+      err_out_free_mmio_region_0:
+
+        mmio_start = pci_resource_start(pcidev, 0);
+        mmio_len = pci_resource_len(pcidev, 0);
+
 	release_mem_region(mmio_start, mmio_len);
 
       err_out_exit_sxg_probe:
 
 	DBG_ERROR("%s EXIT jiffies[%lx] cpu %d\n", __func__, jiffies,
 		  smp_processor_id());
+
+	pci_disable_device(pcidev);
+        DBG_ERROR("sxg: %s deallocate device\n", __FUNCTION__);
+        kfree(netdev);
+	printk("Exit %s, Sxg driver loading failed..\n", __FUNCTION__);
 
 	return -ENODEV;
 }
@@ -1267,7 +1290,6 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 	struct sxg_event_ring *EventRing = &adapter->EventRings[RssId];
 	struct sxg_event *Event = &EventRing->Ring[adapter->NextEvent[RssId]];
 	u32 EventsProcessed = 0, Batches = 0;
-	u32 num_skbs = 0;
 	struct sk_buff *skb;
 #ifdef LINUX_HANDLES_RCV_INDICATION_LISTS
 	struct sk_buff *prev_skb = NULL;
@@ -1904,6 +1926,15 @@ static int sxg_entry_open(struct net_device *dev)
 {
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 	int status;
+	static int turn;
+
+	if (turn) {
+		sxg_second_open(adapter->netdev);
+
+		return STATUS_SUCCESS;
+	}
+
+	turn++;
 
 	ASSERT(adapter);
 	DBG_ERROR("sxg: %s adapter->activated[%d]\n", __func__,
@@ -1953,11 +1984,31 @@ static int sxg_entry_open(struct net_device *dev)
 	return STATUS_SUCCESS;
 }
 
+int sxg_second_open(struct net_device * dev)
+{
+	struct adapter_t *adapter = (struct adapter_t*) netdev_priv(dev);
+
+	spin_lock_irqsave(&sxg_global.driver_lock, sxg_global.flags);
+	netif_start_queue(adapter->netdev);
+        adapter->state = ADAPT_UP;
+        adapter->linkstate = LINK_UP;
+
+        /* Re-enable interrupts */
+        SXG_ENABLE_ALL_INTERRUPTS(adapter);
+
+	netif_carrier_on(dev);
+        spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
+        sxg_register_interrupt(adapter);
+	return (STATUS_SUCCESS);
+
+}
+
 static void __devexit sxg_entry_remove(struct pci_dev *pcidev)
 {
+        u32 mmio_start = 0;
+        u32 mmio_len = 0;
+
 	struct net_device *dev = pci_get_drvdata(pcidev);
-	u32 mmio_start = 0;
-	unsigned int mmio_len = 0;
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 
 	flush_scheduled_work();
@@ -1967,15 +2018,13 @@ static void __devexit sxg_entry_remove(struct pci_dev *pcidev)
 	sxg_free_resources(adapter);
 
 	ASSERT(adapter);
-	DBG_ERROR("sxg: %s ENTER dev[%p] adapter[%p]\n", __func__, dev,
-		  adapter);
 
-	mmio_start = pci_resource_start(pcidev, 0);
-	mmio_len = pci_resource_len(pcidev, 0);
+        mmio_start = pci_resource_start(pcidev, 0);
+        mmio_len = pci_resource_len(pcidev, 0);
 
-	DBG_ERROR("sxg: %s rel_region(0) start[%x] len[%x]\n", __func__,
-		  mmio_start, mmio_len);
-	release_mem_region(mmio_start, mmio_len);
+        DBG_ERROR("sxg: %s rel_region(0) start[%x] len[%x]\n", __FUNCTION__,
+                  mmio_start, mmio_len);
+        release_mem_region(mmio_start, mmio_len);
 
         mmio_start = pci_resource_start(pcidev, 2);
         mmio_len = pci_resource_len(pcidev, 2);
@@ -2011,6 +2060,7 @@ static int sxg_entry_halt(struct net_device *dev)
         /* Disable interrupts */
         SXG_DISABLE_ALL_INTERRUPTS(adapter);
 
+	netif_carrier_off(dev);
 	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
 
 	sxg_deregister_interrupt(adapter);
@@ -2195,6 +2245,7 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 	/* u32 SglOffset; */
 	u64 phys_addr;
 	unsigned long flags;
+	unsigned long queue_id=0;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DumbSgl",
 		  pSgl, SxgSgl, 0, 0);
@@ -2214,6 +2265,43 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 	 */
 
 	SxgSgl->Sgl.NumberOfElements = 1;
+	/*
+	 * Set ucode Queue ID based on bottom bits of destination TCP port.
+	 * This Queue ID splits slowpath/dumb-nic packet processing across
+	 * multiple threads on the card to improve performance.  It is split
+	 * using the TCP port to avoid out-of-order packets that can result
+         * from multithreaded processing.  We use the destination port because
+         * we expect to be run on a server, so in nearly all cases the local
+         * port is likely to be constant (well-known server port) and the
+         * remote port is likely to be random.  The exception to this is iSCSI,
+         * in which case we use the sport instead.  Note
+         * that original attempt at XOR'ing source and dest port resulted in
+         * poor balance on NTTTCP/iometer applications since they tend to
+         * line up (even-even, odd-odd..).
+         */
+
+	if (skb->protocol == htons(ETH_P_IP)) {
+                struct iphdr *ip;
+
+                ip = ip_hdr(skb);
+		if ((ip->protocol == IPPROTO_TCP)&&(DataLength >= sizeof(
+							struct tcphdr))){
+			queue_id = ((ntohs(tcp_hdr(skb)->dest) == ISCSI_PORT) ?
+					(ntohs (tcp_hdr(skb)->source) &
+						SXG_LARGE_SEND_QUEUE_MASK):
+						(ntohs(tcp_hdr(skb)->dest) &
+						SXG_LARGE_SEND_QUEUE_MASK));
+		}
+	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+		if ( (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) && (DataLength >=
+						 sizeof(struct tcphdr)) ) {
+			queue_id = ((ntohs(tcp_hdr(skb)->dest) == ISCSI_PORT) ?
+					(ntohs (tcp_hdr(skb)->source) &
+					SXG_LARGE_SEND_QUEUE_MASK):
+                                        (ntohs(tcp_hdr(skb)->dest) &
+					SXG_LARGE_SEND_QUEUE_MASK));
+		}
+	}
 
 	/* Grab the spinlock and acquire a command */
 	spin_lock_irqsave(&adapter->XmtZeroLock, flags);
@@ -2270,8 +2358,11 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 	 * NOTE - See comments in SxgTcpOutput where we write
 	 * to the XmtCmd register regarding CPU ID values and/or
 	 * multiple commands.
+	 * Top 16 bits specify queue_id.  See comments about queue_id above
 	 */
-	WRITE_REG(adapter->UcodeRegs[0].XmtCmd, 1, TRUE);
+	/* Four queues at the moment */
+	ASSERT((queue_id & ~SXG_LARGE_SEND_QUEUE_MASK) == 0);
+	WRITE_REG(adapter->UcodeRegs[0].XmtCmd, ((queue_id << 16) | 1), TRUE);
 	adapter->Stats.XmtQLen++;	/* Stats within lock */
 	spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XDumSgl2",
@@ -2560,6 +2651,7 @@ static int sxg_phy_init(struct adapter_t *adapter)
 static void sxg_link_event(struct adapter_t *adapter)
 {
 	struct sxg_hw_regs *HwRegs = adapter->HwRegs;
+	struct net_device *netdev = adapter->netdev;
 	enum SXG_LINK_STATE LinkState;
 	int status;
 	u32 Value;
@@ -2595,6 +2687,10 @@ static void sxg_link_event(struct adapter_t *adapter)
 		sxg_link_state(adapter, LinkState);
 		DBG_ERROR("SXG: Link Alarm occurred.  Link is %s\n",
 			  ((LinkState == SXG_LINK_UP) ? "UP" : "DOWN"));
+		if (LinkState == SXG_LINK_UP)
+			netif_carrier_on(netdev);
+		else
+			netif_carrier_off(netdev);
 	} else {
 		/*
 	 	 * XXXTODO - Assuming Link Attention is only being generated
@@ -3282,11 +3378,12 @@ void sxg_free_resources(struct adapter_t *adapter)
  * Return
  *	None.
  */
-static void sxg_allocate_complete(struct adapter_t *adapter,
+static int sxg_allocate_complete(struct adapter_t *adapter,
 				  void *VirtualAddress,
 				  dma_addr_t PhysicalAddress,
 				  u32 Length, enum sxg_buffer_type Context)
 {
+	int status = 0;
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "AllocCmp",
 		  adapter, VirtualAddress, Length, Context);
 	ASSERT(atomic_read(&adapter->pending_allocations));
@@ -3295,7 +3392,7 @@ static void sxg_allocate_complete(struct adapter_t *adapter,
 	switch (Context) {
 
 	case SXG_BUFFER_TYPE_RCV:
-		sxg_allocate_rcvblock_complete(adapter,
+		status = sxg_allocate_rcvblock_complete(adapter,
 					       VirtualAddress,
 					       PhysicalAddress, Length);
 		break;
@@ -3307,6 +3404,8 @@ static void sxg_allocate_complete(struct adapter_t *adapter,
 	}
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAlocCmp",
 		  adapter, VirtualAddress, Length, Context);
+
+	return status;
 }
 
 /*
@@ -3354,12 +3453,11 @@ static int sxg_allocate_buffer_memory(struct adapter_t *adapter,
 			  adapter, Size, BufferType, 0);
 		return (STATUS_RESOURCES);
 	}
-	sxg_allocate_complete(adapter, Buffer, pBuffer, Size, BufferType);
-	status = STATUS_SUCCESS;
+	status = sxg_allocate_complete(adapter, Buffer, pBuffer, Size, BufferType);
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAlocMem",
 		  adapter, Size, BufferType, status);
-	return (status);
+	return status;
 }
 
 /*
@@ -3374,7 +3472,7 @@ static int sxg_allocate_buffer_memory(struct adapter_t *adapter,
  *
  * Return
  */
-static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
+static int sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 					   void *RcvBlock,
 					   dma_addr_t PhysicalAddress,
 					   u32 Length)
@@ -3460,7 +3558,7 @@ static void sxg_allocate_rcvblock_complete(struct adapter_t *adapter,
 	spin_unlock(&adapter->RcvQLock);
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAlRBlk",
 		  adapter, RcvBlock, Length, 0);
-	return;
+	return STATUS_SUCCESS;
 fail:
 	/* Free any allocated resources */
 	if (RcvBlock) {
@@ -3479,6 +3577,10 @@ fail:
 		  adapter, adapter->FreeRcvBufferCount,
 		  adapter->FreeRcvBlockCount, adapter->AllRcvBlockCount);
 	adapter->Stats.NoMem++;
+	/* As allocation failed, free all previously allocated blocks..*/
+	//sxg_free_rcvblocks(adapter);
+
+	return STATUS_RESOURCES;
 }
 
 /*

@@ -525,7 +525,7 @@ static inline int sxg_ring_get_forward_diff (struct sxg_ring_info *ringinfo,
  ****************************************************************/
 #pragma pack(push, 1)
 struct sxg_cmd {
-	dma_addr_t      Sgl;			/* Physical address of SGL */
+	dma64_addr_t	Sgl;		/* Physical address of SGL */
 	union {
 		struct {
 			dma64_addr_t FirstSgeAddress; /* Address of first SGE */
@@ -716,7 +716,7 @@ enum sxg_buffer_type {
 
 /* Receive buffer header */
 struct sxg_rcv_data_buffer_hdr {
-	dma_addr_t      PhysicalAddress;	/* Buffer physical address */
+	dma64_addr_t	PhysicalAddress;	/* Buffer physical address */
 	/*
 	 * Note - DO NOT USE the VirtualAddress field to locate data.
 	 * Use the sxg.h:SXG_RECEIVE_DATA_LOCATION macro instead.
@@ -745,7 +745,7 @@ struct sxg_rcv_data_descriptor {
 		struct sk_buff *VirtualAddress;	/* Host handle */
 		u64		ForceTo8Bytes;	/*Force x86 to 8-byte boundary*/
 	};
-	dma_addr_t PhysicalAddress;
+	dma64_addr_t PhysicalAddress;
 };
 
 /* Receive descriptor block */
@@ -759,7 +759,7 @@ struct sxg_rcv_descriptor_block {
 /* Receive descriptor block header */
 struct sxg_rcv_descriptor_block_hdr {
 	void 		*VirtualAddress;	/* start of 2k buffer */
-	dma_addr_t	PhysicalAddress;	/* ..and it's physical address */
+	dma64_addr_t		PhysicalAddress;/* and it's physical address */
 	struct list_entry	FreeList;/* free queue of descriptor blocks */
 	unsigned char	State;	/* see sxg_buffer state above */
 };
@@ -767,7 +767,7 @@ struct sxg_rcv_descriptor_block_hdr {
 /* Receive block header */
 struct sxg_rcv_block_hdr {
 	void		*VirtualAddress;	/* Start of virtual memory */
-	dma_addr_t	PhysicalAddress;	/* ..and it's physical address*/
+	dma64_addr_t		PhysicalAddress;/* ..and it's physical address*/
 	struct list_entry	AllList;	/* Queue of all SXG_RCV_BLOCKS*/
 };
 
@@ -945,7 +945,7 @@ struct sxg_scatter_gather {
 	struct list_entry	FreeList;
 	/* All struct sxg_scatter_gather blocks */
 	struct list_entry	AllList;
-	dma_addr_t		PhysicalAddress;/* physical address */
+	dma64_addr_t		PhysicalAddress;/* physical address */
 	unsigned char		State;		/* See SXG_BUFFER state above */
 	unsigned char		CmdIndex;	/* Command ring index */
 	struct sk_buff         	*DumbPacket;	/* Associated Packet */

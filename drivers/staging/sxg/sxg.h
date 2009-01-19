@@ -497,6 +497,13 @@ struct ether_header {
 #define NUM_CFG_SPACES      2
 #define NUM_CFG_REGS        64
 
+/*
+ * We split LSS sends across four microcode queues derived from
+ * destination TCP port (if TCP/IP).
+ */
+#define SXG_LARGE_SEND_QUEUE_MASK    0x3
+#define ISCSI_PORT 	             0xbc0c                  /* 3260 */
+
 struct physcard {
     struct adapter_t		*adapter[SLIC_MAX_PORTS];
     struct physcard		*next;
