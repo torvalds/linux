@@ -63,13 +63,6 @@ unsigned char get_latch_u5(void)
 }
 EXPORT_SYMBOL(get_latch_u5);
 
-static struct resource rb532_dev3_ctl_res[] = {
-	{
-		.name	= "dev3_ctl",
-		.flags	= IORESOURCE_MEM,
-	}
-};
-
 static struct resource korina_dev0_res[] = {
 	{
 		.name = "korina_regs",
@@ -342,11 +335,8 @@ static int __init plat_setup_devices(void)
 	nand_slot0_res[0].start = readl(IDT434_REG_BASE + DEV2BASE);
 	nand_slot0_res[0].end = nand_slot0_res[0].start + 0x1000;
 
-	/* Read the third (multi purpose) resources from the DC */
-	rb532_dev3_ctl_res[0].start = readl(IDT434_REG_BASE + DEV3BASE);
-	rb532_dev3_ctl_res[0].end = rb532_dev3_ctl_res[0].start + 0x1000;
-
-	dev3.base = ioremap_nocache(rb532_dev3_ctl_res[0].start, 0x1000);
+	/* Read and map device controller 3 */
+	dev3.base = ioremap_nocache(readl(IDT434_REG_BASE + DEV3BASE), 1);
 
 	if (!dev3.base) {
 		printk(KERN_ERR "rb532: cannot remap device controller 3\n");
