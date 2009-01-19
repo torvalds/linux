@@ -160,8 +160,10 @@ static void enable_oled(struct asus_oled_dev *odev, uint8_t enabl)
 
 	SETUP_PACKET_HEADER(packet, 0x20, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00);
 
-	if (enabl) packet->bitmap[0] = 0xaf;
-	else packet->bitmap[0] = 0xae;
+	if (enabl)
+		packet->bitmap[0] = 0xaf;
+	else
+		packet->bitmap[0] = 0xae;
 
 	for (a=0; a<1; a++) {
 		retval = usb_bulk_msg(odev->udev,
@@ -377,7 +379,8 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 {
 	size_t offs = 0, max_offs;
 
-	if (count < 1) return 0;
+	if (count < 1)
+		return 0;
 
 	if (tolower(buf[0]) == 'b'){
 	    // binary mode, set the entire memory
@@ -386,7 +389,8 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 
 	    odev->buf_size = (odev->dev_width * ASUS_OLED_DISP_HEIGHT) / 8;
 
-	    if (odev->buf) kfree(odev->buf);
+	    if (odev->buf)
+		    kfree(odev->buf);
 	    odev->buf = kmalloc(odev->buf_size, GFP_KERNEL);
 
 	    memset(odev->buf, 0xff, odev->buf_size);
@@ -432,27 +436,36 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 			if (buf[i] >= '0' && buf[i] <= '9') {
 				w = 10*w + (buf[i] - '0');
 
-				if (w > ASUS_OLED_MAX_WIDTH) goto error_width;
+				if (w > ASUS_OLED_MAX_WIDTH)
+					goto error_width;
 			}
-			else if (tolower(buf[i]) == 'x') break;
-			else goto error_width;
+			else if (tolower(buf[i]) == 'x')
+				break;
+			else
+				goto error_width;
 		}
 
 		for (++i; i < count; ++i) {
 			if (buf[i] >= '0' && buf[i] <= '9') {
 				h = 10*h + (buf[i] - '0');
 
-				if (h > ASUS_OLED_DISP_HEIGHT) goto error_height;
+				if (h > ASUS_OLED_DISP_HEIGHT)
+					goto error_height;
 			}
-			else if (tolower(buf[i]) == '>') break;
-			else goto error_height;
+			else if (tolower(buf[i]) == '>')
+				break;
+			else
+				goto error_height;
 		}
 
-		if (w < 1 || w > ASUS_OLED_MAX_WIDTH) goto error_width;
+		if (w < 1 || w > ASUS_OLED_MAX_WIDTH)
+			goto error_width;
 
-		if (h < 1 || h > ASUS_OLED_DISP_HEIGHT) goto error_height;
+		if (h < 1 || h > ASUS_OLED_DISP_HEIGHT)
+			goto error_height;
 
-		if (i >= count || buf[i] != '>') goto error_header;
+		if (i >= count || buf[i] != '>')
+			goto error_header;
 
 		offs = i+1;
 
@@ -468,7 +481,8 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 
 		odev->buf_size = w_mem * h_mem / 8;
 
-		if (odev->buf) kfree(odev->buf);
+		if (odev->buf)
+			kfree(odev->buf);
 		odev->buf = kmalloc(odev->buf_size, GFP_KERNEL);
 
 		if (odev->buf == NULL) {
@@ -505,23 +519,27 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 		int ret;
 
 		if (buf[offs] == '1' || buf[offs] == '#') {
-			if ( (ret = append_values(odev, 1, 1)) < 0) return ret;
+			if ( (ret = append_values(odev, 1, 1)) < 0)
+				return ret;
 		}
 		else if (buf[offs] == '0' || buf[offs] == ' ') {
-			if ( (ret = append_values(odev, 0, 1)) < 0) return ret;
+			if ( (ret = append_values(odev, 0, 1)) < 0)
+				return ret;
 		}
 		else if (buf[offs] == '\n') {
 			// New line detected. Lets assume, that all characters till the end of the
 			// line were equal to the last character in this line.
 			if (odev->buf_offs % odev->width != 0)
 				if ( (ret = append_values(odev, odev->last_val,
-				      odev->width - (odev->buf_offs % odev->width))) < 0) return ret;
+				      odev->width - (odev->buf_offs % odev->width))) < 0)
+					return ret;
 		}
 
 		offs++;
 	}
 
-	if (odev->buf_offs >= max_offs) send_data(odev);
+	if (odev->buf_offs >= max_offs)
+		send_data(odev);
 
 	return count;
 
@@ -682,7 +700,8 @@ static void asus_oled_disconnect(struct usb_interface *interface)
 
 	usb_put_dev(odev->udev);
 
-	if (odev->buf) kfree(odev->buf);
+	if (odev->buf)
+		kfree(odev->buf);
 
 	kfree(odev);
 
