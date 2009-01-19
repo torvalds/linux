@@ -653,9 +653,9 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 			elems->pwr_constr_elem = pos;
 			elems->pwr_constr_elem_len = elen;
 			break;
-		case WLAN_EID_ASSOC_COMEBACK_TIME:
-			elems->assoc_comeback = pos;
-			elems->assoc_comeback_len = elen;
+		case WLAN_EID_TIMEOUT_INTERVAL:
+			elems->timeout_int = pos;
+			elems->timeout_int_len = elen;
 			break;
 		default:
 			break;

@@ -1036,8 +1036,8 @@ enum ieee80211_eid {
 	WLAN_EID_HT_INFORMATION = 61,
 	/* 802.11i */
 	WLAN_EID_RSN = 48,
+	WLAN_EID_TIMEOUT_INTERVAL = 56,
 	WLAN_EID_MMIE = 76 /* 802.11w */,
-	WLAN_EID_ASSOC_COMEBACK_TIME = 77,
 	WLAN_EID_WPA = 221,
 	WLAN_EID_GENERIC = 221,
 	WLAN_EID_VENDOR_SPECIFIC = 221,
@@ -1125,6 +1125,12 @@ struct ieee80211_country_ie_triplet {
 		} __attribute__ ((packed)) ext;
 	};
 } __attribute__ ((packed));
+
+enum ieee80211_timeout_interval_type {
+	WLAN_TIMEOUT_REASSOC_DEADLINE = 1 /* 802.11r */,
+	WLAN_TIMEOUT_KEY_LIFETIME = 2 /* 802.11r */,
+	WLAN_TIMEOUT_ASSOC_COMEBACK = 3 /* 802.11w */,
+};
 
 /* BACK action code */
 enum ieee80211_back_actioncode {
