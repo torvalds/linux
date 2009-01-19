@@ -27,20 +27,15 @@ static int pci_msi_enable = 1;
 
 /* Arch hooks */
 
-int __attribute__ ((weak))
-arch_msi_check_device(struct pci_dev *dev, int nvec, int type)
+#ifndef arch_msi_check_device
+int arch_msi_check_device(struct pci_dev *dev, int nvec, int type)
 {
 	return 0;
 }
+#endif
 
-int __attribute__ ((weak))
-arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *entry)
-{
-	return 0;
-}
-
-int __attribute__ ((weak))
-arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+#ifndef arch_setup_msi_irqs
+int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	struct msi_desc *entry;
 	int ret;
@@ -53,14 +48,10 @@ arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	return 0;
 }
+#endif
 
-void __attribute__ ((weak)) arch_teardown_msi_irq(unsigned int irq)
-{
-	return;
-}
-
-void __attribute__ ((weak))
-arch_teardown_msi_irqs(struct pci_dev *dev)
+#ifndef arch_teardown_msi_irqs
+void arch_teardown_msi_irqs(struct pci_dev *dev)
 {
 	struct msi_desc *entry;
 
@@ -69,6 +60,7 @@ arch_teardown_msi_irqs(struct pci_dev *dev)
 			arch_teardown_msi_irq(entry->irq);
 	}
 }
+#endif
 
 static void __msi_set_enable(struct pci_dev *dev, int pos, int enable)
 {
