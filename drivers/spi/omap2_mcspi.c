@@ -1021,13 +1021,13 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 	spin_lock_init(&mcspi->lock);
 	INIT_LIST_HEAD(&mcspi->msg_queue);
 
-	mcspi->ick = clk_get(&pdev->dev, "mcspi_ick");
+	mcspi->ick = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(mcspi->ick)) {
 		dev_dbg(&pdev->dev, "can't get mcspi_ick\n");
 		status = PTR_ERR(mcspi->ick);
 		goto err1a;
 	}
-	mcspi->fck = clk_get(&pdev->dev, "mcspi_fck");
+	mcspi->fck = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(mcspi->fck)) {
 		dev_dbg(&pdev->dev, "can't get mcspi_fck\n");
 		status = PTR_ERR(mcspi->fck);
