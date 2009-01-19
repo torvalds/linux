@@ -1879,17 +1879,18 @@ static int add_regulator_attributes(struct regulator_dev *rdev)
  * regulator_register - register regulator
  * @regulator_desc: regulator to register
  * @dev: struct device for the regulator
+ * @init_data: platform provided init data, passed through by driver
  * @driver_data: private regulator data
  *
  * Called by regulator drivers to register a regulator.
  * Returns 0 on success.
  */
 struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
-	struct device *dev, void *driver_data)
+	struct device *dev, struct regulator_init_data *init_data,
+	void *driver_data)
 {
 	static atomic_t regulator_no = ATOMIC_INIT(0);
 	struct regulator_dev *rdev;
-	struct regulator_init_data *init_data = dev->platform_data;
 	int ret, i;
 
 	if (regulator_desc == NULL)

@@ -294,7 +294,7 @@ static int __devinit wm8400_regulator_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 
 	rdev = regulator_register(&regulators[pdev->id], &pdev->dev,
-		pdev->dev.driver_data);
+		pdev->dev.platform_data, pdev->dev.driver_data);
 
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);

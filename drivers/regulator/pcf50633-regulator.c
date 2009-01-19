@@ -284,7 +284,8 @@ static int __devinit pcf50633_regulator_probe(struct platform_device *pdev)
 	/* Already set by core driver */
 	pcf = platform_get_drvdata(pdev);
 
-	rdev = regulator_register(&regulators[pdev->id], &pdev->dev, pcf);
+	rdev = regulator_register(&regulators[pdev->id], &pdev->dev,
+				  pdev->dev.platform_data, pcf);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 

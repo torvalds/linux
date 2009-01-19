@@ -138,7 +138,8 @@ struct regulator_desc {
 };
 
 struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
-	struct device *dev, void *driver_data);
+	struct device *dev, struct regulator_init_data *init_data,
+	void *driver_data);
 void regulator_unregister(struct regulator_dev *rdev);
 
 int regulator_notifier_call_chain(struct regulator_dev *rdev,
