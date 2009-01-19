@@ -85,7 +85,7 @@ static struct omap_clk omap_clks[] = {
 	CLK(NULL,	"arm_gpio_ck",	&arm_gpio_ck,	CK_1510 | CK_310),
 	CLK(NULL,	"armxor_ck",	&armxor_ck.clk,	CK_16XX | CK_1510 | CK_310),
 	CLK(NULL,	"armtim_ck",	&armtim_ck.clk,	CK_16XX | CK_1510 | CK_310),
-	CLK(NULL,	"armwdt_ck",	&armwdt_ck.clk,	CK_16XX | CK_1510 | CK_310),
+	CLK("omap_wdt",	"fck",		&armwdt_ck.clk,	CK_16XX | CK_1510 | CK_310),
 	CLK(NULL,	"arminth_ck",	&arminth_ck1510, CK_1510 | CK_310),
 	CLK(NULL,	"arminth_ck",	&arminth_ck16xx, CK_16XX),
 	/* CK_GEN2 clocks */
