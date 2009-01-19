@@ -36,12 +36,6 @@
 
 struct igb_adapter;
 
-#ifdef CONFIG_IGB_LRO
-#include <linux/inet_lro.h>
-#define MAX_LRO_AGGR                      32
-#define MAX_LRO_DESCRIPTORS                8
-#endif
-
 /* Interrupt defines */
 #define IGB_MIN_DYN_ITR 3000
 #define IGB_MAX_DYN_ITR 96000
@@ -176,10 +170,6 @@ struct igb_ring {
 			struct napi_struct napi;
 			int set_itr;
 			struct igb_ring *buddy;
-#ifdef CONFIG_IGB_LRO
-			struct net_lro_mgr lro_mgr;
-			bool lro_used;
-#endif
 		};
 	};
 
@@ -288,12 +278,6 @@ struct igb_adapter {
 	int need_ioport;
 
 	struct igb_ring *multi_tx_table[IGB_MAX_TX_QUEUES];
-#ifdef CONFIG_IGB_LRO
-	unsigned int lro_max_aggr;
-	unsigned int lro_aggregated;
-	unsigned int lro_flushed;
-	unsigned int lro_no_desc;
-#endif
 	unsigned int tx_ring_count;
 	unsigned int rx_ring_count;
 };

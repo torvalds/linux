@@ -93,11 +93,6 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	{ "tx_smbus", IGB_STAT(stats.mgptc) },
 	{ "rx_smbus", IGB_STAT(stats.mgprc) },
 	{ "dropped_smbus", IGB_STAT(stats.mgpdc) },
-#ifdef CONFIG_IGB_LRO
-	{ "lro_aggregated", IGB_STAT(lro_aggregated) },
-	{ "lro_flushed", IGB_STAT(lro_flushed) },
-	{ "lro_no_desc", IGB_STAT(lro_no_desc) },
-#endif
 };
 
 #define IGB_QUEUE_STATS_LEN \
@@ -1921,18 +1916,6 @@ static void igb_get_ethtool_stats(struct net_device *netdev,
 	int stat_count = sizeof(struct igb_queue_stats) / sizeof(u64);
 	int j;
 	int i;
-#ifdef CONFIG_IGB_LRO
-	int aggregated = 0, flushed = 0, no_desc = 0;
-
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		aggregated += adapter->rx_ring[i].lro_mgr.stats.aggregated;
-		flushed += adapter->rx_ring[i].lro_mgr.stats.flushed;
-		no_desc += adapter->rx_ring[i].lro_mgr.stats.no_desc;
-	}
-	adapter->lro_aggregated = aggregated;
-	adapter->lro_flushed = flushed;
-	adapter->lro_no_desc = no_desc;
-#endif
 
 	igb_update_stats(adapter);
 	for (i = 0; i < IGB_GLOBAL_STATS_LEN; i++) {
