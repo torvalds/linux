@@ -1210,6 +1210,7 @@ static void hid_cease_io(struct usbhid_device *usbhid)
 	flush_scheduled_work();
 }
 
+#ifdef CONFIG_PM
 static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct hid_device *hid = usb_get_intfdata(intf);
@@ -1292,6 +1293,8 @@ static int hid_resume(struct usb_interface *intf)
 	return 0;
 }
 
+#endif /* CONFIG_PM */
+
 /* Treat USB reset pretty much the same as suspend/resume */
 static int hid_pre_reset(struct usb_interface *intf)
 {
@@ -1353,9 +1356,11 @@ static struct usb_driver hid_driver = {
 	.name =		"usbhid",
 	.probe =	hid_probe,
 	.disconnect =	hid_disconnect,
+#ifdef CONFIG_PM
 	.suspend =	hid_suspend,
 	.resume =	hid_resume,
 	.reset_resume =	hid_post_reset,
+#endif
 	.pre_reset =	hid_pre_reset,
 	.post_reset =	hid_post_reset,
 	.id_table =	hid_usb_ids,
