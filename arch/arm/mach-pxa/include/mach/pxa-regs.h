@@ -28,44 +28,6 @@
 
 
 /*
- * Personal Computer Memory Card International Association (PCMCIA) sockets
- */
-
-#define PCMCIAPrtSp	0x04000000	/* PCMCIA Partition Space [byte]   */
-#define PCMCIASp	(4*PCMCIAPrtSp)	/* PCMCIA Space [byte]             */
-#define PCMCIAIOSp	PCMCIAPrtSp	/* PCMCIA I/O Space [byte]         */
-#define PCMCIAAttrSp	PCMCIAPrtSp	/* PCMCIA Attribute Space [byte]   */
-#define PCMCIAMemSp	PCMCIAPrtSp	/* PCMCIA Memory Space [byte]      */
-
-#define PCMCIA0Sp	PCMCIASp	/* PCMCIA 0 Space [byte]           */
-#define PCMCIA0IOSp	PCMCIAIOSp	/* PCMCIA 0 I/O Space [byte]       */
-#define PCMCIA0AttrSp	PCMCIAAttrSp	/* PCMCIA 0 Attribute Space [byte] */
-#define PCMCIA0MemSp	PCMCIAMemSp	/* PCMCIA 0 Memory Space [byte]    */
-
-#define PCMCIA1Sp	PCMCIASp	/* PCMCIA 1 Space [byte]           */
-#define PCMCIA1IOSp	PCMCIAIOSp	/* PCMCIA 1 I/O Space [byte]       */
-#define PCMCIA1AttrSp	PCMCIAAttrSp	/* PCMCIA 1 Attribute Space [byte] */
-#define PCMCIA1MemSp	PCMCIAMemSp	/* PCMCIA 1 Memory Space [byte]    */
-
-#define _PCMCIA(Nb)	        	/* PCMCIA [0..1]                   */ \
-                	(0x20000000 + (Nb)*PCMCIASp)
-#define _PCMCIAIO(Nb)	_PCMCIA (Nb)	/* PCMCIA I/O [0..1]               */
-#define _PCMCIAAttr(Nb)	        	/* PCMCIA Attribute [0..1]         */ \
-                	(_PCMCIA (Nb) + 2*PCMCIAPrtSp)
-#define _PCMCIAMem(Nb)	        	/* PCMCIA Memory [0..1]            */ \
-                	(_PCMCIA (Nb) + 3*PCMCIAPrtSp)
-
-#define _PCMCIA0	_PCMCIA (0)	/* PCMCIA 0                        */
-#define _PCMCIA0IO	_PCMCIAIO (0)	/* PCMCIA 0 I/O                    */
-#define _PCMCIA0Attr	_PCMCIAAttr (0)	/* PCMCIA 0 Attribute              */
-#define _PCMCIA0Mem	_PCMCIAMem (0)	/* PCMCIA 0 Memory                 */
-
-#define _PCMCIA1	_PCMCIA (1)	/* PCMCIA 1                        */
-#define _PCMCIA1IO	_PCMCIAIO (1)	/* PCMCIA 1 I/O                    */
-#define _PCMCIA1Attr	_PCMCIAAttr (1)	/* PCMCIA 1 Attribute              */
-#define _PCMCIA1Mem	_PCMCIAMem (1)	/* PCMCIA 1 Memory                 */
-
-/*
  * Real Time Clock
  */
 

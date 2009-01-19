@@ -953,7 +953,7 @@ static struct map_desc viper_io_desc[] __initdata = {
 	},
 	{
 		.virtual = VIPER_PC104IO_BASE,
-		.pfn     = __phys_to_pfn(_PCMCIA1IO),
+		.pfn     = __phys_to_pfn(0x30000000),
 		.length  = 0x00800000,
 		.type    = MT_DEVICE,
 	},
