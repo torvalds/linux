@@ -348,6 +348,7 @@ static void __init omap_hsmmc_reset(void)
 		}
 
 		dummy_pdev.id = i;
+		dev_set_name(&dummy_pdev.dev, "mmci-omap-hs.%d", i);
 		iclk = clk_get(dev, "mmchs_ick");
 		if (iclk && clk_enable(iclk))
 			iclk = NULL;
