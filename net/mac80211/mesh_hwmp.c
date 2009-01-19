@@ -759,7 +759,7 @@ enddiscovery:
 }
 
 /**
- * ieee80211s_lookup_nexthop - put the appropriate next hop on a mesh frame
+ * mesh_nexthop_lookup - put the appropriate next hop on a mesh frame
  *
  * @skb: 802.11 frame to be sent
  * @sdata: network subif the frame will be sent through
