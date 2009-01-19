@@ -908,6 +908,7 @@ static const struct oxygen_model model_xonar_hdav = {
 	.dac_channels = 8,
 	.dac_volume_min = 0x0f,
 	.dac_volume_max = 0xff,
+	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
