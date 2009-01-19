@@ -35,8 +35,6 @@
  *
  * --> Investigate problems with PCI Message Signalled Interrupts (MSI).
  *
- * --> Cache frequently-accessed registers in mv_port_priv to reduce overhead.
- *
  * --> Develop a low-power-consumption strategy, and implement it.
  *
  * --> [Experiment, low priority] Investigate interrupt coalescing.
@@ -884,18 +882,14 @@ static void mv_start_dma(struct ata_port *ap, void __iomem *port_mmio,
 		int hardport = mv_hardport_from_port(ap->port_no);
 		void __iomem *hc_mmio = mv_hc_base_from_port(
 					mv_host_base(ap->host), ap->port_no);
-		u32 hc_irq_cause, ipending;
+		u32 hc_irq_cause;
 
 		/* clear EDMA event indicators, if any */
 		writelfl(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 
-		/* clear EDMA interrupt indicator, if any */
-		hc_irq_cause = readl(hc_mmio + HC_IRQ_CAUSE_OFS);
-		ipending = (DEV_IRQ | DMA_IRQ) << hardport;
-		if (hc_irq_cause & ipending) {
-			writelfl(hc_irq_cause & ~ipending,
-				 hc_mmio + HC_IRQ_CAUSE_OFS);
-		}
+		/* clear pending irq events */
+		hc_irq_cause = ~((DEV_IRQ | DMA_IRQ) << hardport);
+		writelfl(hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
 
 		mv_edma_cfg(ap, want_ncq);
 
@@ -2821,8 +2815,7 @@ static void mv_eh_thaw(struct ata_port *ap)
 	writel(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 
 	/* clear pending irq events */
-	hc_irq_cause = readl(hc_mmio + HC_IRQ_CAUSE_OFS);
-	hc_irq_cause &= ~((DEV_IRQ | DMA_IRQ) << hardport);
+	hc_irq_cause = ~((DEV_IRQ | DMA_IRQ) << hardport);
 	writelfl(hc_irq_cause, hc_mmio + HC_IRQ_CAUSE_OFS);
 
 	mv_enable_port_irqs(ap, ERR_IRQ);
