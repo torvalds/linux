@@ -1673,7 +1673,7 @@ static void print_linkstatus(struct net_device *dev, u16 status)
 		s = "UNKNOWN";
 	}
 	
-	printk(KERN_INFO "%s: New link status: %s (%04x)\n",
+	printk(KERN_DEBUG "%s: New link status: %s (%04x)\n",
 	       dev->name, s, status);
 }
 
