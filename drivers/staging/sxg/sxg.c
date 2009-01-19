@@ -76,7 +76,14 @@
 #include "sxgdbg.h"
 
 #include "sxgphycode.h"
-#include "saharadbgdownload.h"
+#define SXG_UCODE_DBG			0	/* Turn on for debugging */
+#ifdef SXG_UCODE_DBG
+#include "saharadbgdownload.c"
+#include "saharadbgdownloadB.c"
+#else
+#include "saharadownload.c"
+#include "saharadownloadB.c"
+#endif
 
 static int sxg_allocate_buffer_memory(struct adapter_t *adapter, u32 Size,
 				      enum sxg_buffer_type BufferType);
