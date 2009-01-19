@@ -195,8 +195,6 @@ struct e1000_adapter {
 	u16 link_duplex;
 	u16 eeprom_vers;
 
-	spinlock_t tx_queue_lock; /* prevent concurrent tail updates */
-
 	/* track device up/down/testing state */
 	unsigned long state;
 
