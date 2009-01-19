@@ -54,52 +54,28 @@ extern char sxg_driver_name[];
  */
 struct sxg_stats {
 	/* Xmt */
-	u32	XmtNBL;			/* Offload send NBL count */
-	u64	DumbXmtBytes;		/* Dumbnic send bytes */
-	u64	SlowXmtBytes;		/* Slowpath send bytes */
-	u64	FastXmtBytes;		/* Fastpath send bytes */
-	u64	DumbXmtPkts;		/* Dumbnic send packets */
-	u64	SlowXmtPkts;		/* Slowpath send packets */
-	u64	FastXmtPkts;		/* Fastpath send packets */
 	u64	DumbXmtUcastPkts;	/* directed packets */
 	u64	DumbXmtMcastPkts;	/* Multicast packets */
 	u64	DumbXmtBcastPkts;	/* OID_GEN_BROADCAST_FRAMES_RCV */
 	u64	DumbXmtUcastBytes;	/* OID_GEN_DIRECTED_BYTES_XMIT */
 	u64	DumbXmtMcastBytes;	/* OID_GEN_MULTICAST_BYTES_XMIT */
 	u64	DumbXmtBcastBytes;	/* OID_GEN_BROADCAST_BYTES_XMIT */
-	u64	XmtErrors;		/* OID_GEN_XMIT_ERROR */
-	u64	XmtDiscards;		/* OID_GEN_XMIT_DISCARDS */
-	u64	XmtOk;			/* OID_GEN_XMIT_OK */
 	u64	XmtQLen;		/* OID_GEN_TRANSMIT_QUEUE_LENGTH */
 	u64	XmtZeroFull;		/* Transmit ring zero full */
 	/* Rcv */
-	u32	RcvNBL;			/* Offload recieve NBL count */
-	u64	DumbRcvBytes;		/* dumbnic recv bytes */
 	u64  	DumbRcvUcastBytes;	/* OID_GEN_DIRECTED_BYTES_RCV */
 	u64    	DumbRcvMcastBytes;	/* OID_GEN_MULTICAST_BYTES_RCV */
 	u64   	DumbRcvBcastBytes;	/* OID_GEN_BROADCAST_BYTES_RCV */
-	u64	SlowRcvBytes;		/* Slowpath recv bytes */
-	u64	FastRcvBytes;		/* Fastpath recv bytes */
-	u64	DumbRcvPkts;		/* OID_GEN_DIRECTED_FRAMES_RCV */
-	u64	DumbRcvTcpPkts;		/* See SxgCollectStats */
 	u64	DumbRcvUcastPkts;	/* directed packets */
 	u64	DumbRcvMcastPkts;	/* Multicast packets */
 	u64	DumbRcvBcastPkts;	/* OID_GEN_BROADCAST_FRAMES_RCV */
-	u64	SlowRcvPkts;		/* OID_GEN_DIRECTED_FRAMES_RCV */
-	u64	RcvErrors;		/* OID_GEN_RCV_ERROR */
-	u64	RcvDiscards;		/* OID_GEN_RCV_DISCARDS */
-	u64	RcvNoBuffer;		/* OID_GEN_RCV_NO_BUFFER */
 	u64 	PdqFull;		/* Processed Data Queue Full */
 	u64	EventRingFull;		/* Event ring full */
 	/* Verbose stats */
-	u64	MaxSends;		/* Max sends outstanding */
 	u64	NoSglBuf;		/* SGL buffer allocation failure */
-	u64	SglFail;		/* NDIS SGL failure */
-	u64	SglAsync;		/* NDIS SGL failure */
 	u64	NoMem;			/* Memory allocation failure */
 	u64	NumInts;		/* Interrupts */
 	u64	FalseInts;		/* Interrupt with ISR == 0 */
-	u64	XmtDrops;		/* No sahara DRAM buffer for xmt */
 	/* Sahara receive status */
 	u64	TransportCsum;		/* SXG_RCV_STATUS_TRANSPORT_CSUM */
 	u64	TransportUflow;		/* SXG_RCV_STATUS_TRANSPORT_UFLOW */

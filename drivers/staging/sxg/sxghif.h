@@ -968,9 +968,9 @@ struct sxg_scatter_gather {
 				sizeof(struct sxg_x64_sge)))
 
 /* Force NDIS to give us it's own buffer so we can reformat to our own */
-#define SXG_SGL_BUFFER(_SxgSgl)                 NULL	//VSS change this value and test
-#define SXG_SGL_BUFFER_LENGTH(_SxgSgl)          0	//VSS change this value and test
-#define SXG_SGL_BUF_SIZE                        0	//VSS change this value and test
+#define SXG_SGL_BUFFER(_SxgSgl)                 NULL
+#define SXG_SGL_BUFFER_LENGTH(_SxgSgl)          0
+#define SXG_SGL_BUF_SIZE                        0
 
 /*
 #if defined(CONFIG_X86_64)

@@ -105,9 +105,10 @@ static void sxg_complete_slow_send(struct adapter_t *adapter, int irq_context);
 static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter,
 					struct sxg_event *Event);
 static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus);
+/* See if we need sxg_mac_filter() in future. If not remove it
 static bool sxg_mac_filter(struct adapter_t *adapter,
 			   struct ether_header *EtherHdr, ushort length);
-
+*/
 static struct net_device_stats *sxg_get_stats(struct net_device * dev);
 void sxg_free_resources(struct adapter_t *adapter);
 void sxg_free_rcvblocks(struct adapter_t *adapter);
@@ -121,7 +122,7 @@ void sxg_collect_statistics(struct adapter_t *adapter);
 static int sxg_mac_set_address(struct net_device *dev, void *ptr);
 static void sxg_mcast_set_list(struct net_device *dev);
 
-static void sxg_adapter_set_hwaddr(struct adapter_t *adapter);
+static int sxg_adapter_set_hwaddr(struct adapter_t *adapter);
 
 static void sxg_unmap_mmio_space(struct adapter_t *adapter);
 
@@ -155,7 +156,7 @@ static struct sxgbase_driver sxg_global = {
 static int intagg_delay = 100;
 static u32 dynamic_intagg = 0;
 
-char sxg_driver_name[] = "sxg";
+char sxg_driver_name[] = "sxg_nic";
 #define DRV_AUTHOR	"Alacritech, Inc. Engineering"
 #define DRV_DESCRIPTION							\
 	"Alacritech SLIC Techonology(tm) Non-Accelerated 10Gbe Driver"
@@ -911,7 +912,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 		DBG_ERROR("sxg: %s ENTER sxg_adapter_set_hwaddr\n",
 			  __func__);
 		sxg_read_config(adapter);
-		sxg_adapter_set_hwaddr(adapter);
+		status = sxg_adapter_set_hwaddr(adapter);
 	} else {
 		adapter->state = ADAPT_FAIL;
 		adapter->linkstate = LINK_DOWN;
@@ -1102,17 +1103,11 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-int debug_inthandler = 0;
-
 static void sxg_handle_interrupt(struct adapter_t *adapter)
 {
 	/* unsigned char           RssId   = 0; */
 	u32 NewIsr;
 
-	if (++debug_inthandler  < 20) {
-		DBG_ERROR("Enter sxg_handle_interrupt ISR[%x]\n",
-			  adapter->IsrCopy[0]);
-	}
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "HndlIntr",
 		  adapter, adapter->IsrCopy[0], 0, 0);
 	/* For now, RSS is disabled with line based interrupts */
@@ -1140,11 +1135,6 @@ static void sxg_handle_interrupt(struct adapter_t *adapter)
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "ClearIsr",
 		  adapter, NewIsr, 0, 0);
 
-	if (debug_inthandler < 20) {
-		DBG_ERROR
-		    ("Exit sxg_handle_interrupt2 after enabling interrupt\n");
-	}
-
 	WRITE_REG(adapter->UcodeRegs[0].Isr, NewIsr, TRUE);
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XHndlInt",
@@ -1170,7 +1160,6 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "ProcIsr",
 		  adapter, Isr, 0, 0);
 
-	DBG_ERROR("%s: Entering with %d ISR value\n", __FUNCTION__, Isr);
 	/* Error */
 	if (Isr & SXG_ISR_ERR) {
 		if (Isr & SXG_ISR_PDQF) {
@@ -1187,9 +1176,8 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 			 * off for now.  I don't want to make the code more
 			 * complicated than strictly needed.
 			 */
-			adapter->Stats.RcvNoBuffer++;
 			adapter->stats.rx_missed_errors++;
-			if (adapter->Stats.RcvNoBuffer < 5) {
+ 			if (adapter->stats.rx_missed_errors< 5) {
 				DBG_ERROR("%s: SXG_ISR_ERR  RMISS!!\n",
 					  __func__);
 			}
@@ -1221,8 +1209,6 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 		}
 		/* Transmit drop - no DRAM buffers or XMT error */
 		if (Isr & SXG_ISR_XDROP) {
-			adapter->Stats.XmtDrops++;
-			adapter->Stats.XmtErrors++;
 			DBG_ERROR("%s: SXG_ISR_ERR  XDROP!!\n", __func__);
 		}
 	}
@@ -1233,7 +1219,7 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 	/* Dump */
 	if (Isr & SXG_ISR_UPC) {
 		/* Maybe change when debug is added.. */
-		ASSERT(adapter->DumpCmdRunning);
+//		ASSERT(adapter->DumpCmdRunning);
 		adapter->DumpCmdRunning = FALSE;
 	}
 	/* Link event */
@@ -1425,8 +1411,8 @@ static void sxg_complete_slow_send(struct adapter_t *adapter, int irq_context)
 	struct sxg_ring_info *XmtRingInfo = &adapter->XmtRingZeroInfo;
 	u32 *ContextType;
 	struct sxg_cmd *XmtCmd;
-	unsigned long flags;
-	unsigned long sgl_flags;
+	unsigned long flags = 0;
+	unsigned long sgl_flags = 0;
 	unsigned int processed_count = 0;
 
 	/*
@@ -1476,8 +1462,6 @@ static void sxg_complete_slow_send(struct adapter_t *adapter, int irq_context)
 					  TRACE_IMPORTANT, "DmSndCmp", skb, 0,
 					  0, 0);
 				ASSERT(adapter->Stats.XmtQLen);
-				adapter->Stats.XmtQLen--;/* within XmtZeroLock */
-				adapter->Stats.XmtOk++;
 				/*
 				 * Now drop the lock and complete the send
 				 * back to Microsoft.  We need to drop the lock
@@ -1614,7 +1598,7 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter,
 		  RcvDataBufferHdr, Packet, Event->Length, 0);
 	/* Lastly adjust the receive packet length. */
 	RcvDataBufferHdr->SxgDumbRcvPacket = NULL;
-	RcvDataBufferHdr->PhysicalAddress = NULL;
+	RcvDataBufferHdr->PhysicalAddress = (dma_addr_t)NULL;
 	SXG_ALLOCATE_RCV_PACKET(adapter, RcvDataBufferHdr, BufferSize);
 	if (RcvDataBufferHdr->skb)
 	{
@@ -1628,7 +1612,8 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter,
       drop:
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DropRcv",
 		  RcvDataBufferHdr, Event->Length, 0, 0);
-	adapter->Stats.RcvDiscards++;
+	adapter->stats.rx_dropped++;
+//	adapter->Stats.RcvDiscards++;
 	spin_lock(&adapter->RcvQLock);
 	SXG_FREE_RCV_DATA_BUFFER(adapter, RcvDataBufferHdr);
 	spin_unlock(&adapter->RcvQLock);
@@ -1649,7 +1634,7 @@ static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus)
 {
 	u32 Error;
 
-	adapter->Stats.RcvErrors++;
+	adapter->stats.rx_errors++;
 
 	if (ErrorStatus & SXG_RCV_STATUS_TRANSPORT_ERROR) {
 		Error = ErrorStatus & SXG_RCV_STATUS_TRANSPORT_MASK;
@@ -1713,6 +1698,7 @@ static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus)
 	}
 }
 
+#if 0		/* Find out if this code will be needed in future */
 /*
  * sxg_mac_filter
  *
@@ -1789,7 +1775,7 @@ static bool sxg_mac_filter(struct adapter_t *adapter,
 	adapter->Stats.RcvDiscards++;
 	return (FALSE);
 }
-
+#endif
 static int sxg_register_interrupt(struct adapter_t *adapter)
 {
 	if (!adapter->intrregistered) {
@@ -2159,7 +2145,7 @@ static int sxg_transmit_packet(struct adapter_t *adapter, struct sk_buff *skb)
 	SXG_GET_SGL_BUFFER(adapter, SxgSgl, 0);
 	if (!SxgSgl) {
 		adapter->Stats.NoSglBuf++;
-		adapter->Stats.XmtErrors++;
+		adapter->stats.tx_errors++;
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "SndPktF1",
 			  adapter, skb, 0, 0);
 		return (STATUS_RESOURCES);
@@ -2243,9 +2229,7 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "DumbCmd",
 		  XmtCmd, XmtRingInfo->Head, XmtRingInfo->Tail, 0);
 	/* Update stats */
-	adapter->Stats.DumbXmtPkts++;
 	adapter->stats.tx_packets++;
-	adapter->Stats.DumbXmtBytes += DataLength;
 	adapter->stats.tx_bytes += DataLength;
 #if XXXTODO			/* Stats stuff */
 	if (SXG_MULTICAST_PACKET(EtherHdr)) {
@@ -2297,19 +2281,19 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 		SXG_ABORT_CMD(XmtRingInfo);
 	}
 	spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
-	return STATUS_FAILURE;
 
 /*
  * failsgl:
  * 	Jump to this label if failure occurs before the
  *	XmtZeroLock is grabbed
  */
-	adapter->Stats.XmtErrors++;
 	adapter->stats.tx_errors++;
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_IMPORTANT, "DumSGFal",
 		  pSgl, SxgSgl, XmtRingInfo->Head, XmtRingInfo->Tail);
 	/* SxgSgl->DumbPacket is the skb */
 	// SXG_COMPLETE_DUMB_SEND(adapter, SxgSgl->DumbPacket);
+
+ 	return STATUS_FAILURE;
 }
 
 /*
@@ -3204,7 +3188,6 @@ void sxg_unmap_resources(struct adapter_t *adapter)
 void sxg_free_resources(struct adapter_t *adapter)
 {
 	u32 RssIds, IsrCount;
-	u32 i;
 	struct net_device *netdev = adapter->netdev;
 	RssIds = SXG_RSS_CPU_COUNT(adapter);
 	IsrCount = adapter->MsiEnabled ? RssIds : 1;
@@ -3219,7 +3202,6 @@ void sxg_free_resources(struct adapter_t *adapter)
 
 	/* Free Irq */
 	free_irq(adapter->netdev->irq, netdev);
-
 
 	if (!(IsListEmpty(&adapter->AllRcvBlocks))) {
 		sxg_free_rcvblocks(adapter);
@@ -3353,7 +3335,7 @@ static int sxg_allocate_buffer_memory(struct adapter_t *adapter,
 		Buffer = pci_alloc_consistent(adapter->pcidev, Size, &pBuffer);
 	else {
 		Buffer = kzalloc(Size, GFP_ATOMIC);
-		pBuffer = NULL;
+		pBuffer = (dma_addr_t)NULL;
 	}
 	if (Buffer == NULL) {
 		/*
@@ -3532,7 +3514,7 @@ static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
 }
 
 
-static void sxg_adapter_set_hwaddr(struct adapter_t *adapter)
+static int sxg_adapter_set_hwaddr(struct adapter_t *adapter)
 {
 	/*
 	 *  DBG_ERROR ("%s ENTER card->config_set[%x] port[%d] physport[%d] \
@@ -3576,6 +3558,7 @@ static void sxg_adapter_set_hwaddr(struct adapter_t *adapter)
 	/* DBG_ERROR ("%s EXIT port %d\n", __func__, adapter->port); */
 	sxg_dbg_macaddrs(adapter);
 
+	return 0;
 }
 
 #if XXXTODO
@@ -3933,7 +3916,8 @@ static void sxg_complete_descriptor_blocks(struct adapter_t *adapter,
 void sxg_collect_statistics(struct adapter_t *adapter)
 {
 	if(adapter->ucode_stats)
-		WRITE_REG64(adapter, adapter->UcodeRegs[0].GetUcodeStats, adapter->pucode_stats, 0);
+		WRITE_REG64(adapter, adapter->UcodeRegs[0].GetUcodeStats,
+				adapter->pucode_stats, 0);
 	adapter->stats.rx_fifo_errors = adapter->ucode_stats->ERDrops;
 	adapter->stats.rx_over_errors = adapter->ucode_stats->NBDrops;
 	adapter->stats.tx_fifo_errors = adapter->ucode_stats->XDrops;

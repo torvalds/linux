@@ -44,7 +44,7 @@
 #define _SXG_DEBUG_H_
 
 #define ATKDBG  1
-#define ATK_TRACE_ENABLED 1
+#define ATK_TRACE_ENABLED 0
 
 #define DBG_ERROR(n, args...)	printk(KERN_WARNING n, ##args)
 
