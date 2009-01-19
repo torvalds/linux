@@ -137,7 +137,7 @@ sxg_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	struct adapter_t *adapter = netdev_priv(dev);
 	strncpy(drvinfo->driver, sxg_driver_name, 32);
 	strncpy(drvinfo->version, SXG_DRV_VERSION, 32);
-	strncpy(drvinfo->fw_version, SAHARA_UCODE_VERS_STRING, 32);
+//	strncpy(drvinfo->fw_version, SAHARA_UCODE_VERS_STRING, 32);
 	strncpy(drvinfo->bus_info, pci_name(adapter->pcidev), 32);
 	/* TODO : Read the major and minor number of firmware. Is this
  	 * from the FLASH/EEPROM or download file ?

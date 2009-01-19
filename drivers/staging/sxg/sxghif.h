@@ -486,6 +486,20 @@ struct sxg_ring_info {
 	SXG_RING_ADVANCE_TAIL(_ringinfo);				\
 }
 
+/*
+ * For a given ring find out how much the first pointer is ahead of
+ * the second pointer. "ahead" recognises the fact that the ring can wrap
+ */
+static inline int sxg_ring_get_forward_diff (struct sxg_ring_info *ringinfo,
+						int a, int b) {
+	if ((a < 0 || a > ringinfo->Size ) || (b < 0 || b > ringinfo->Size))
+		return -1;
+	if (a > b)	/* _a is lagging _b and _b has not wrapped around */
+		return (a - b);
+	else
+		return ((ringinfo->Size - (b - a)));
+}
+
 /***************************************************************
  * Host Command Buffer - commands to INIC via the Cmd Rings
  *

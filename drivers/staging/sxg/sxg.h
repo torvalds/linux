@@ -121,9 +121,10 @@ struct sxg_stats {
 
 /* DUMB-NIC Send path definitions */
 
-#define SXG_COMPLETE_DUMB_SEND(_pAdapt, _skb) {                     	\
-	ASSERT(_skb);							\
-    dev_kfree_skb_irq(_skb);                                            \
+#define SXG_COMPLETE_DUMB_SEND(_pAdapt, _skb, _phys_addr, _size) {		\
+	ASSERT(_skb);								\
+	pci_unmap_single(_pAdapt->pcidev, _size, _phys_addr, PCI_DMA_TODEVICE);	\
+	dev_kfree_skb_irq(_skb);                    				\
 }
 
 #define SXG_DROP_DUMB_SEND(_pAdapt, _skb) {                            	\
@@ -262,14 +263,20 @@ struct sxg_stats {
 }
 
 /* SGL macros */
-#define SXG_FREE_SGL_BUFFER(_pAdapt, _Sgl, _NB) {				\
-	spin_lock(&(_pAdapt)->SglQLock);					\
+#define SXG_FREE_SGL_BUFFER(_pAdapt, _Sgl, _NB, _irq) {				\
+	if(!_irq)								\
+		spin_lock_irqsave(&(_pAdapt)->SglQLock, sgl_flags);		\
+	else									\
+		spin_lock(&(_pAdapt)->SglQLock);				\
 	(_pAdapt)->FreeSglBufferCount++;					\
 	ASSERT((_pAdapt)->AllSglBufferCount >= (_pAdapt)->FreeSglBufferCount);	\
 	ASSERT(!((_Sgl)->State & SXG_BUFFER_FREE));				\
 	(_Sgl)->State = SXG_BUFFER_FREE;					\
 	InsertTailList(&(_pAdapt)->FreeSglBuffers, &(_Sgl)->FreeList);		\
-	spin_unlock(&(_pAdapt)->SglQLock);					\
+	if(!_irq)								\
+		spin_unlock_irqrestore(&(_pAdapt)->SglQLock, sgl_flags);	\
+	else									\
+		spin_unlock(&(_pAdapt)->SglQLock);				\
 }
 
 /*
@@ -279,7 +286,7 @@ struct sxg_stats {
  * until after that.  We're dealing with round numbers here, so we don't need to,
  * and not grabbing it avoids a possible double-trip.
  */
-#define SXG_GET_SGL_BUFFER(_pAdapt, _Sgl) {				\
+#define SXG_GET_SGL_BUFFER(_pAdapt, _Sgl, _irq) {			\
 	struct list_entry *_ple;					\
 	if ((_pAdapt->FreeSglBufferCount < SXG_MIN_SGL_BUFFERS) &&	\
 	   (_pAdapt->AllSglBufferCount < SXG_MAX_SGL_BUFFERS) &&	\
@@ -289,7 +296,10 @@ struct sxg_stats {
 			SXG_BUFFER_TYPE_SGL);				\
 	}								\
 	_Sgl = NULL;							\
-	spin_lock(&(_pAdapt)->SglQLock);				\
+	if(!_irq)							\
+		spin_lock_irqsave(&(_pAdapt)->SglQLock, sgl_flags);	\
+	else								\
+		spin_lock(&(_pAdapt)->SglQLock);			\
 	if((_pAdapt)->FreeSglBufferCount) {				\
 		ASSERT(!(IsListEmpty(&(_pAdapt)->FreeSglBuffers)));	\
 		_ple = RemoveHeadList(&(_pAdapt)->FreeSglBuffers);	\
@@ -300,7 +310,10 @@ struct sxg_stats {
 		(_Sgl)->State = SXG_BUFFER_BUSY;			\
 		(_Sgl)->pSgl = NULL;					\
 	}								\
-	spin_unlock(&(_pAdapt)->SglQLock);				\
+	if(!_irq)							\
+		spin_unlock_irqrestore(&(_pAdapt)->SglQLock, sgl_flags);\
+	else								\
+		spin_unlock(&(_pAdapt)->SglQLock);			\
 }
 
 /*
@@ -416,6 +429,7 @@ struct sxg_driver {
 #undef STATUS_SUCCESS
 #endif
 
+/* TODO: We need to try and use NETDEV_TX_* before posting this out */
 #define STATUS_SUCCESS              0
 #define STATUS_PENDING              0
 #define STATUS_FAILURE             -1
@@ -631,6 +645,10 @@ struct adapter_t {
 
 	struct sxg_rcv_ring	*RcvRings;	/* Receive rings */
 	dma_addr_t	PRcvRings;		/* Receive rings - physical address */
+	struct sxg_ucode_stats	*ucode_stats;		/* Ucode Stats  */
+	/* Ucode Stats - physical address */
+	dma_addr_t	        pucode_stats;
+
 	struct sxg_ring_info	RcvRingZeroInfo;	/* Receive ring 0 info */
 
 	u32 *		Isr;		/* Interrupt status register */
@@ -765,4 +783,5 @@ struct slic_crash_info {
 #define SIOCSLICTRACEDUMP        (SIOCDEVPRIVATE+11)
 
 extern struct ethtool_ops sxg_nic_ethtool_ops;
+#define SXG_COMPLETE_SLOW_SEND_LIMIT	128
 #endif /*  __SXG_DRIVER_H__ */
