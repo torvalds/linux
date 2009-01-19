@@ -573,15 +573,8 @@ static int init_constants_early(struct ubifs_info *c)
 	c->ranges[UBIFS_IDX_NODE].max_len = INT_MAX;
 
 	/*
-	 * Initialize dead and dark LEB space watermarks.
-	 *
-	 * Dead space is the space which cannot be used. Its watermark is
-	 * equivalent to min. I/O unit or minimum node size if it is greater
-	 * then min. I/O unit.
-	 *
-	 * Dark space is the space which might be used, or might not, depending
-	 * on which node should be written to the LEB. Its watermark is
-	 * equivalent to maximum UBIFS node size.
+	 * Initialize dead and dark LEB space watermarks. See gc.c for comments
+	 * about these values.
 	 */
 	c->dead_wm = ALIGN(MIN_WRITE_SZ, c->min_io_size);
 	c->dark_wm = ALIGN(UBIFS_MAX_NODE_SZ, c->min_io_size);

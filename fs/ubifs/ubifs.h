@@ -426,9 +426,9 @@ struct ubifs_unclean_leb {
  * LEB properties flags.
  *
  * LPROPS_UNCAT: not categorized
- * LPROPS_DIRTY: dirty > 0, not index
+ * LPROPS_DIRTY: dirty > free, dirty >= @c->dead_wm, not index
  * LPROPS_DIRTY_IDX: dirty + free > @c->min_idx_node_sze and index
- * LPROPS_FREE: free > 0, not empty, not index
+ * LPROPS_FREE: free > 0, dirty < @c->dead_wm, not empty, not index
  * LPROPS_HEAP_CNT: number of heaps used for storing categorized LEBs
  * LPROPS_EMPTY: LEB is empty, not taken
  * LPROPS_FREEABLE: free + dirty == leb_size, not index, not taken
