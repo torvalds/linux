@@ -1461,16 +1461,13 @@ static int __init mmc_omap_probe(struct platform_device *pdev)
 		goto err_ioremap;
 
 	if (cpu_is_omap24xx()) {
-		host->iclk = clk_get(&pdev->dev, "mmc_ick");
+		host->iclk = clk_get(&pdev->dev, "ick");
 		if (IS_ERR(host->iclk))
 			goto err_free_mmc_host;
 		clk_enable(host->iclk);
 	}
 
-	if (!cpu_is_omap24xx())
-		host->fclk = clk_get(&pdev->dev, "mmc_ck");
-	else
-		host->fclk = clk_get(&pdev->dev, "mmc_fck");
+	host->fclk = clk_get(&pdev->dev, "fck");
 
 	if (IS_ERR(host->fclk)) {
 		ret = PTR_ERR(host->fclk);
