@@ -54,6 +54,7 @@ asynchronous and synchronous parts of the kernel.
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/kthread.h>
+#include <linux/delay.h>
 #include <asm/atomic.h>
 
 static async_cookie_t next_cookie = 1;
@@ -319,7 +320,11 @@ static int async_manager_thread(void *unused)
 		ec = atomic_read(&entry_count);
 
 		while (tc < ec && tc < MAX_THREADS) {
-			kthread_run(async_thread, NULL, "async/%i", tc);
+			if (IS_ERR(kthread_run(async_thread, NULL, "async/%i",
+					       tc))) {
+				msleep(100);
+				continue;
+			}
 			atomic_inc(&thread_count);
 			tc++;
 		}
@@ -334,7 +339,9 @@ static int async_manager_thread(void *unused)
 static int __init async_init(void)
 {
 	if (async_enabled)
-		kthread_run(async_manager_thread, NULL, "async/mgr");
+		if (IS_ERR(kthread_run(async_manager_thread, NULL,
+				       "async/mgr")))
+			async_enabled = 0;
 	return 0;
 }
 
