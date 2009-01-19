@@ -88,6 +88,7 @@
  * FAIL           Regulator output has failed.
  * OVER_TEMP      Regulator over temp.
  * FORCE_DISABLE  Regulator shut down by software.
+ * VOLTAGE_CHANGE Regulator voltage changed.
  *
  * NOTE: These events can be OR'ed together when passed into handler.
  */
@@ -98,6 +99,7 @@
 #define REGULATOR_EVENT_FAIL			0x08
 #define REGULATOR_EVENT_OVER_TEMP		0x10
 #define REGULATOR_EVENT_FORCE_DISABLE		0x20
+#define REGULATOR_EVENT_VOLTAGE_CHANGE		0x40
 
 struct regulator;
 

@@ -1284,6 +1284,7 @@ int regulator_set_voltage(struct regulator *regulator, int min_uV, int max_uV)
 	ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV);
 
 out:
+	_notifier_call_chain(rdev, REGULATOR_EVENT_VOLTAGE_CHANGE, NULL);
 	mutex_unlock(&rdev->mutex);
 	return ret;
 }
@@ -1584,20 +1585,23 @@ int regulator_unregister_notifier(struct regulator *regulator,
 }
 EXPORT_SYMBOL_GPL(regulator_unregister_notifier);
 
-/* notify regulator consumers and downstream regulator consumers */
+/* notify regulator consumers and downstream regulator consumers.
+ * Note mutex must be held by caller.
+ */
 static void _notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data)
 {
 	struct regulator_dev *_rdev;
 
 	/* call rdev chain first */
-	mutex_lock(&rdev->mutex);
 	blocking_notifier_call_chain(&rdev->notifier, event, NULL);
-	mutex_unlock(&rdev->mutex);
 
 	/* now notify regulator we supply */
-	list_for_each_entry(_rdev, &rdev->supply_list, slist)
-		_notifier_call_chain(_rdev, event, data);
+	list_for_each_entry(_rdev, &rdev->supply_list, slist) {
+	  mutex_lock(&_rdev->mutex);
+	  _notifier_call_chain(_rdev, event, data);
+	  mutex_unlock(&_rdev->mutex);
+	}
 }
 
 /**
@@ -1744,6 +1748,7 @@ EXPORT_SYMBOL_GPL(regulator_bulk_free);
  *
  * Called by regulator drivers to notify clients a regulator event has
  * occurred. We also notify regulator clients downstream.
+ * Note lock must be held by caller.
  */
 int regulator_notifier_call_chain(struct regulator_dev *rdev,
 				  unsigned long event, void *data)
