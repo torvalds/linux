@@ -1,6 +1,6 @@
 config DST
 	tristate "Distributed storage"
-	depends on NET && CRYPTO && SYSFS
+	depends on NET && CRYPTO && SYSFS && BLK_DEV
 	select CONNECTOR
 	---help---
 	DST is a network block device storage, which can be used to organize
