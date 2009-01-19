@@ -881,12 +881,13 @@ __setup("clearcpuid=", setup_disablecpuid);
 #ifdef CONFIG_X86_64
 struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 
-DEFINE_PER_CPU_PAGE_ALIGNED(char[IRQ_STACK_SIZE], irq_stack);
+DEFINE_PER_CPU_FIRST(union irq_stack_union,
+		     irq_stack_union) __aligned(PAGE_SIZE);
 #ifdef CONFIG_SMP
 DEFINE_PER_CPU(char *, irq_stack_ptr);	/* will be set during per cpu init */
 #else
 DEFINE_PER_CPU(char *, irq_stack_ptr) =
-	per_cpu_var(irq_stack) + IRQ_STACK_SIZE - 64;
+	per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
 #endif
 
 DEFINE_PER_CPU(unsigned long, kernel_stack) =
@@ -960,7 +961,7 @@ void __cpuinit cpu_init(void)
 
 	loadsegment(fs, 0);
 	loadsegment(gs, 0);
-	load_pda_offset(cpu);
+	load_gs_base(cpu);
 
 #ifdef CONFIG_NUMA
 	if (cpu != 0 && percpu_read(node_number) == 0 &&

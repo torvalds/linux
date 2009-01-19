@@ -2,7 +2,7 @@
 #define _ASM_STACKPROTECTOR_H 1
 
 #include <asm/tsc.h>
-#include <asm/pda.h>
+#include <asm/processor.h>
 
 /*
  * Initialize the stackprotector canary value.
@@ -19,7 +19,7 @@ static __always_inline void boot_init_stack_canary(void)
 	 * Build time only check to make sure the stack_canary is at
 	 * offset 40 in the pda; this is a gcc ABI requirement
 	 */
-	BUILD_BUG_ON(offsetof(struct x8664_pda, stack_canary) != 40);
+	BUILD_BUG_ON(offsetof(union irq_stack_union, stack_canary) != 40);
 
 	/*
 	 * We both use the random pool and the current TSC as a source
@@ -32,7 +32,7 @@ static __always_inline void boot_init_stack_canary(void)
 	canary += tsc + (tsc << 32UL);
 
 	current->stack_canary = canary;
-	write_pda(stack_canary, canary);
+	percpu_write(irq_stack_union.stack_canary, canary);
 }
 
 #endif

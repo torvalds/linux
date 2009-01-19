@@ -17,9 +17,6 @@ struct x8664_pda {
 	unsigned long unused4;
 	int unused5;
 	unsigned int unused6;		/* 36 was cpunumber */
-	unsigned long stack_canary;	/* 40 stack canary value */
-					/* gcc-ABI: this canary MUST be at
-					   offset 40!!! */
 	short in_bootmem;		/* pda lives in bootmem */
 } ____cacheline_aligned_in_smp;
 

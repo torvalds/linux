@@ -242,13 +242,10 @@ ENTRY(secondary_startup_64)
 
 	/* Set up %gs.
 	 *
-	 * On SMP, %gs should point to the per-cpu area.  For initial
-	 * boot, make %gs point to the init data section.  For a
-	 * secondary CPU,initial_gs should be set to its pda address
-	 * before the CPU runs this code.
-	 *
-	 * On UP, initial_gs points to PER_CPU_VAR(__pda) and doesn't
-	 * change.
+	 * The base of %gs always points to the bottom of the irqstack
+	 * union.  If the stack protector canary is enabled, it is
+	 * located at %gs:40.  Note that, on SMP, the boot cpu uses
+	 * init data section till per cpu areas are set up.
 	 */
 	movl	$MSR_GS_BASE,%ecx
 	movq	initial_gs(%rip),%rax
@@ -281,7 +278,7 @@ ENTRY(secondary_startup_64)
 #ifdef CONFIG_SMP
 	.quad	__per_cpu_load
 #else
-	.quad	PER_CPU_VAR(__pda)
+	.quad	PER_CPU_VAR(irq_stack_union)
 #endif
 	__FINITDATA
 

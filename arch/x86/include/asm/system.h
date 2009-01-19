@@ -89,10 +89,10 @@ do {									\
 #ifdef CONFIG_CC_STACKPROTECTOR
 #define __switch_canary							  \
 	"movq %P[task_canary](%%rsi),%%r8\n\t"				  \
-	"movq %%r8,%%gs:%P[pda_canary]\n\t"
+	"movq %%r8,%%gs:%P[gs_canary]\n\t"
 #define __switch_canary_param						  \
 	, [task_canary] "i" (offsetof(struct task_struct, stack_canary))  \
-	, [pda_canary] "i" (offsetof(struct x8664_pda, stack_canary))
+	, [gs_canary] "i" (offsetof(union irq_stack_union, stack_canary))
 #else	/* CC_STACKPROTECTOR */
 #define __switch_canary
 #define __switch_canary_param

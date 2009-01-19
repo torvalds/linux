@@ -379,8 +379,29 @@ union thread_xstate {
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(struct orig_ist, orig_ist);
 
-DECLARE_PER_CPU(char[IRQ_STACK_SIZE], irq_stack);
+union irq_stack_union {
+	char irq_stack[IRQ_STACK_SIZE];
+	/*
+	 * GCC hardcodes the stack canary as %gs:40.  Since the
+	 * irq_stack is the object at %gs:0, we reserve the bottom
+	 * 48 bytes of the irq stack for the canary.
+	 */
+	struct {
+		char gs_base[40];
+		unsigned long stack_canary;
+	};
+};
+
+DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
 DECLARE_PER_CPU(char *, irq_stack_ptr);
+
+static inline void load_gs_base(int cpu)
+{
+	/* Memory clobbers used to order pda/percpu accesses */
+	mb();
+	wrmsrl(MSR_GS_BASE, (unsigned long)per_cpu(irq_stack_union.gs_base, cpu));
+	mb();
+}
 #endif
 
 extern void print_cpu_info(struct cpuinfo_x86 *);

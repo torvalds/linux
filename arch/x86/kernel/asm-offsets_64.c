@@ -48,10 +48,6 @@ int main(void)
 #endif
 	BLANK();
 #undef ENTRY
-#define ENTRY(entry) DEFINE(pda_ ## entry, offsetof(struct x8664_pda, entry))
-	DEFINE(pda_size, sizeof(struct x8664_pda));
-	BLANK();
-#undef ENTRY
 #ifdef CONFIG_PARAVIRT
 	BLANK();
 	OFFSET(PARAVIRT_enabled, pv_info, paravirt_enabled);
