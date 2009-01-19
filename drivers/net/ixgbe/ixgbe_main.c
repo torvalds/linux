@@ -403,23 +403,20 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
  * @rx_ring: rx descriptor ring (for a specific queue) to setup
  * @rx_desc: rx descriptor
  **/
-static void ixgbe_receive_skb(struct ixgbe_adapter *adapter,
+static void ixgbe_receive_skb(struct ixgbe_q_vector *q_vector,
                               struct sk_buff *skb, u8 status,
-                              struct ixgbe_ring *ring,
                               union ixgbe_adv_rx_desc *rx_desc)
 {
+	struct ixgbe_adapter *adapter = q_vector->adapter;
+	struct napi_struct *napi = &q_vector->napi;
 	bool is_vlan = (status & IXGBE_RXD_STAT_VP);
 	u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
 
-	if (adapter->netdev->features & NETIF_F_LRO &&
-	    skb->ip_summed == CHECKSUM_UNNECESSARY) {
+	if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
 		if (adapter->vlgrp && is_vlan && (tag != 0))
-			lro_vlan_hwaccel_receive_skb(&ring->lro_mgr, skb,
-			                             adapter->vlgrp, tag,
-			                             rx_desc);
+			vlan_gro_receive(napi, adapter->vlgrp, tag, skb);
 		else
-			lro_receive_skb(&ring->lro_mgr, skb, rx_desc);
-		ring->lro_used = true;
+			napi_gro_receive(napi, skb);
 	} else {
 		if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
 			if (adapter->vlgrp && is_vlan && (tag != 0))
@@ -574,10 +571,11 @@ static inline u16 ixgbe_get_pkt_info(union ixgbe_adv_rx_desc *rx_desc)
 	return rx_desc->wb.lower.lo_dword.hs_rss.pkt_info;
 }
 
-static bool ixgbe_clean_rx_irq(struct ixgbe_adapter *adapter,
+static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
                                struct ixgbe_ring *rx_ring,
                                int *work_done, int work_to_do)
 {
+	struct ixgbe_adapter *adapter = q_vector->adapter;
 	struct pci_dev *pdev = adapter->pdev;
 	union ixgbe_adv_rx_desc *rx_desc, *next_rxd;
 	struct ixgbe_rx_buffer *rx_buffer_info, *next_buffer;
@@ -678,7 +676,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_adapter *adapter,
 		total_rx_packets++;
 
 		skb->protocol = eth_type_trans(skb, adapter->netdev);
-		ixgbe_receive_skb(adapter, skb, staterr, rx_ring, rx_desc);
+		ixgbe_receive_skb(q_vector, skb, staterr, rx_desc);
 
 next_desc:
 		rx_desc->wb.upper.status_error = 0;
@@ -694,11 +692,6 @@ next_desc:
 		rx_buffer_info = next_buffer;
 
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
-	}
-
-	if (rx_ring->lro_used) {
-		lro_flush_all(&rx_ring->lro_mgr);
-		rx_ring->lro_used = false;
 	}
 
 	rx_ring->next_to_clean = i;
@@ -1052,7 +1045,7 @@ static int ixgbe_clean_rxonly(struct napi_struct *napi, int budget)
 		ixgbe_update_rx_dca(adapter, rx_ring);
 #endif
 
-	ixgbe_clean_rx_irq(adapter, rx_ring, &work_done, budget);
+	ixgbe_clean_rx_irq(q_vector, rx_ring, &work_done, budget);
 
 	/* If all Rx work done, exit the polling mode */
 	if (work_done < budget) {
@@ -1095,7 +1088,7 @@ static int ixgbe_clean_rxonly_many(struct napi_struct *napi, int budget)
 		if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
 			ixgbe_update_rx_dca(adapter, rx_ring);
 #endif
-		ixgbe_clean_rx_irq(adapter, rx_ring, &work_done, budget);
+		ixgbe_clean_rx_irq(q_vector, rx_ring, &work_done, budget);
 		enable_mask |= rx_ring->v_idx;
 		r_idx = find_next_bit(q_vector->rxr_idx, adapter->num_rx_queues,
 		                      r_idx + 1);
@@ -1568,33 +1561,6 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter, int index)
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_SRRCTL(index), srrctl);
 }
 
-/**
- * ixgbe_get_skb_hdr - helper function for LRO header processing
- * @skb: pointer to sk_buff to be added to LRO packet
- * @iphdr: pointer to ip header structure
- * @tcph: pointer to tcp header structure
- * @hdr_flags: pointer to header flags
- * @priv: private data
- **/
-static int ixgbe_get_skb_hdr(struct sk_buff *skb, void **iphdr, void **tcph,
-                             u64 *hdr_flags, void *priv)
-{
-	union ixgbe_adv_rx_desc *rx_desc = priv;
-
-	/* Verify that this is a valid IPv4 TCP packet */
-	if (!((ixgbe_get_pkt_info(rx_desc) & IXGBE_RXDADV_PKTTYPE_IPV4) &&
-	     (ixgbe_get_pkt_info(rx_desc) & IXGBE_RXDADV_PKTTYPE_TCP)))
-		return -1;
-
-	/* Set network headers */
-	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, ip_hdrlen(skb));
-	*iphdr = ip_hdr(skb);
-	*tcph = tcp_hdr(skb);
-	*hdr_flags = LRO_IPV4 | LRO_TCP;
-	return 0;
-}
-
 #define PAGE_USE_COUNT(S) (((S) >> PAGE_SHIFT) + \
                            (((S) & (PAGE_SIZE - 1)) ? 1 : 0))
 
@@ -1666,16 +1632,6 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		adapter->rx_ring[i].head = IXGBE_RDH(j);
 		adapter->rx_ring[i].tail = IXGBE_RDT(j);
 		adapter->rx_ring[i].rx_buf_len = rx_buf_len;
-		/* Intitial LRO Settings */
-		adapter->rx_ring[i].lro_mgr.max_aggr = IXGBE_MAX_LRO_AGGREGATE;
-		adapter->rx_ring[i].lro_mgr.max_desc = IXGBE_MAX_LRO_DESCRIPTORS;
-		adapter->rx_ring[i].lro_mgr.get_skb_header = ixgbe_get_skb_hdr;
-		adapter->rx_ring[i].lro_mgr.features = LRO_F_EXTRACT_VLAN_ID;
-		if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL))
-			adapter->rx_ring[i].lro_mgr.features |= LRO_F_NAPI;
-		adapter->rx_ring[i].lro_mgr.dev = adapter->netdev;
-		adapter->rx_ring[i].lro_mgr.ip_summed = CHECKSUM_UNNECESSARY;
-		adapter->rx_ring[i].lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
 
 		ixgbe_configure_srrctl(adapter, j);
 	}
@@ -2310,7 +2266,7 @@ static int ixgbe_poll(struct napi_struct *napi, int budget)
 #endif
 
 	tx_cleaned = ixgbe_clean_tx_irq(adapter, adapter->tx_ring);
-	ixgbe_clean_rx_irq(adapter, adapter->rx_ring, &work_done, budget);
+	ixgbe_clean_rx_irq(q_vector, adapter->rx_ring, &work_done, budget);
 
 	if (tx_cleaned)
 		work_done = budget;
@@ -2926,12 +2882,6 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	int size;
 
-	size = sizeof(struct net_lro_desc) * IXGBE_MAX_LRO_DESCRIPTORS;
-	rx_ring->lro_mgr.lro_arr = vmalloc(size);
-	if (!rx_ring->lro_mgr.lro_arr)
-		return -ENOMEM;
-	memset(rx_ring->lro_mgr.lro_arr, 0, size);
-
 	size = sizeof(struct ixgbe_rx_buffer) * rx_ring->count;
 	rx_ring->rx_buffer_info = vmalloc(size);
 	if (!rx_ring->rx_buffer_info) {
@@ -2960,8 +2910,6 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 	return 0;
 
 alloc_failed:
-	vfree(rx_ring->lro_mgr.lro_arr);
-	rx_ring->lro_mgr.lro_arr = NULL;
 	return -ENOMEM;
 }
 
@@ -3038,9 +2986,6 @@ void ixgbe_free_rx_resources(struct ixgbe_adapter *adapter,
                              struct ixgbe_ring *rx_ring)
 {
 	struct pci_dev *pdev = adapter->pdev;
-
-	vfree(rx_ring->lro_mgr.lro_arr);
-	rx_ring->lro_mgr.lro_arr = NULL;
 
 	ixgbe_clean_rx_ring(adapter, rx_ring);
 
@@ -4141,7 +4086,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_IPV6_CSUM;
 	netdev->features |= NETIF_F_TSO;
 	netdev->features |= NETIF_F_TSO6;
-	netdev->features |= NETIF_F_LRO;
+	netdev->features |= NETIF_F_GRO;
 
 	netdev->vlan_features |= NETIF_F_TSO;
 	netdev->vlan_features |= NETIF_F_TSO6;

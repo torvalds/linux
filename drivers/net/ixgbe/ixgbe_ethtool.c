@@ -89,8 +89,6 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_header_split", IXGBE_STAT(rx_hdr_split)},
 	{"alloc_rx_page_failed", IXGBE_STAT(alloc_rx_page_failed)},
 	{"alloc_rx_buff_failed", IXGBE_STAT(alloc_rx_buff_failed)},
-	{"lro_aggregated", IXGBE_STAT(lro_aggregated)},
-	{"lro_flushed", IXGBE_STAT(lro_flushed)},
 };
 
 #define IXGBE_QUEUE_STATS_LEN \
@@ -808,15 +806,6 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 	int stat_count = sizeof(struct ixgbe_queue_stats) / sizeof(u64);
 	int j, k;
 	int i;
-	u64 aggregated = 0, flushed = 0, no_desc = 0;
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		aggregated += adapter->rx_ring[i].lro_mgr.stats.aggregated;
-		flushed += adapter->rx_ring[i].lro_mgr.stats.flushed;
-		no_desc += adapter->rx_ring[i].lro_mgr.stats.no_desc;
-	}
-	adapter->lro_aggregated = aggregated;
-	adapter->lro_flushed = flushed;
-	adapter->lro_no_desc = no_desc;
 
 	ixgbe_update_stats(adapter);
 	for (i = 0; i < IXGBE_GLOBAL_STATS_LEN; i++) {
