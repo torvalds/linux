@@ -49,6 +49,7 @@
 #include <mach/irda.h>
 #include <mach/pxafb.h>
 #include <mach/mmc.h>
+#include <mach/pm.h>
 
 #include "generic.h"
 #include "clock.h"
@@ -112,7 +113,13 @@ static unsigned long lubbock_pin_config[] __initdata = {
 	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
 };
 
+#define LUB_HEXLED		__LUB_REG(LUBBOCK_FPGA_PHYS + 0x010)
 #define LUB_MISC_WR		__LUB_REG(LUBBOCK_FPGA_PHYS + 0x080)
+
+void lubbock_set_hexled(uint32_t value)
+{
+	LUB_HEXLED = value;
+}
 
 void lubbock_set_misc_wr(unsigned int mask, unsigned int set)
 {
