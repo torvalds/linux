@@ -519,19 +519,22 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev, const char *buf, siz
 		int ret;
 
 		if (buf[offs] == '1' || buf[offs] == '#') {
-			if ((ret = append_values(odev, 1, 1)) < 0)
+			ret = append_values(odev, 1, 1);
+			if (ret < 0)
 				return ret;
 		}
 		else if (buf[offs] == '0' || buf[offs] == ' ') {
-			if ((ret = append_values(odev, 0, 1)) < 0)
+			ret = append_values(odev, 0, 1);
+			if (ret < 0)
 				return ret;
 		}
 		else if (buf[offs] == '\n') {
 			// New line detected. Lets assume, that all characters till the end of the
 			// line were equal to the last character in this line.
 			if (odev->buf_offs % odev->width != 0)
-				if ((ret = append_values(odev, odev->last_val,
-				      odev->width - (odev->buf_offs % odev->width))) < 0)
+				ret = append_values(odev, odev->last_val,
+				      odev->width - (odev->buf_offs % odev->width));
+				if (ret < 0)
 					return ret;
 		}
 
@@ -633,13 +636,13 @@ static int asus_oled_probe(struct usb_interface *interface, const struct usb_dev
 
 	usb_set_intfdata(interface, odev);
 
-	if ((retval = device_create_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(enabled)))) {
+	retval = device_create_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(enabled));
+	if (retval)
 		goto err_files;
-	}
 
-	if ((retval = device_create_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(picture)))) {
+	retval = device_create_file(&interface->dev, &ASUS_OLED_DEVICE_ATTR(picture));
+	if (retval)
 		goto err_files;
-	}
 
 	odev->dev = device_create(oled_class, &interface->dev, MKDEV(0, 0),
 				NULL, "oled_%d", ++oled_num);
@@ -651,13 +654,13 @@ static int asus_oled_probe(struct usb_interface *interface, const struct usb_dev
 
 	dev_set_drvdata(odev->dev, odev);
 
-	if ((retval = device_create_file(odev->dev, &dev_attr_enabled))) {
+	retval = device_create_file(odev->dev, &dev_attr_enabled);
+	if (retval)
 		goto err_class_enabled;
-	}
 
-	if ((retval = device_create_file(odev->dev, &dev_attr_picture))) {
+	retval = device_create_file(odev->dev, &dev_attr_picture);
+	if (retval)
 		goto err_class_picture;
-	}
 
 	dev_info(&interface->dev, "Attached Asus OLED device: %s [width %u, pack_mode %d]\n", desc, odev->dev_width, odev->pack_mode);
 
@@ -732,7 +735,8 @@ static int __init asus_oled_init(void)
 		return PTR_ERR(oled_class);
 	}
 
-	if ((retval = class_create_file(oled_class, &class_attr_version))) {
+	retval = class_create_file(oled_class, &class_attr_version);
+	if (retval) {
 		err("Error creating class version file");
 		goto error;
 	}
