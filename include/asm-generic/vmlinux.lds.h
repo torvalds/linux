@@ -486,6 +486,7 @@
  */
 #define PERCPU_VADDR(vaddr, phdr)					\
 	PERCPU_PROLOG(vaddr)						\
+		*(.data.percpu.first)					\
 		*(.data.percpu.page_aligned)				\
 		*(.data.percpu)						\
 		*(.data.percpu.shared_aligned)				\
