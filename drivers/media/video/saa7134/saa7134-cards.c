@@ -5896,6 +5896,32 @@ static void hauppauge_eeprom(struct saa7134_dev *dev, u8 *eeprom_data)
 
 /* ----------------------------------------------------------- */
 
+static void nxt200x_gate_ctrl(struct saa7134_dev *dev, int open)
+{
+	/* enable tuner */
+	int i;
+	static const u8 buffer [][2] = {
+		{ 0x10, 0x12 },
+		{ 0x13, 0x04 },
+		{ 0x16, 0x00 },
+		{ 0x14, 0x04 },
+		{ 0x17, 0x00 },
+	};
+
+	dev->i2c_client.addr = 0x0a;
+
+	/* FIXME: don't know how to close the i2c gate on NXT200x */
+	if (!open)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(buffer); i++)
+		if (2 != i2c_master_send(&dev->i2c_client,
+					 &buffer[i][0], ARRAY_SIZE(buffer[0])))
+			printk(KERN_WARNING
+			       "%s: Unable to enable tuner(%i).\n",
+			       dev->name, i);
+}
+
 int saa7134_board_init1(struct saa7134_dev *dev)
 {
 	/* Always print gpio, often manufacturers encode tuner type and other info. */
@@ -6088,6 +6114,10 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		       "%s: Sorry, only analog s-video and composite input "
 		       "are supported for now.\n",
 			dev->name, card(dev).name, dev->name);
+		break;
+	case SAA7134_BOARD_ADS_INSTANT_HDTV_PCI:
+	case SAA7134_BOARD_KWORLD_ATSC110:
+		dev->gate_ctrl = nxt200x_gate_ctrl;
 		break;
 	}
 	return 0;
@@ -6348,22 +6378,6 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		u8 data[] = { 0x3c, 0x33, 0x68};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
-		break;
-	}
-	case SAA7134_BOARD_ADS_INSTANT_HDTV_PCI:
-	case SAA7134_BOARD_KWORLD_ATSC110:
-	{
-		/* enable tuner */
-		int i;
-		static const u8 buffer [] = { 0x10, 0x12, 0x13, 0x04, 0x16,
-					      0x00, 0x14, 0x04, 0x17, 0x00 };
-		dev->i2c_client.addr = 0x0a;
-		for (i = 0; i < 5; i++)
-			if (2 != i2c_master_send(&dev->i2c_client,
-						 &buffer[i*2], 2))
-				printk(KERN_WARNING
-				       "%s: Unable to enable tuner(%i).\n",
-				       dev->name, i);
 		break;
 	}
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:

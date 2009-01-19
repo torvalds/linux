@@ -589,6 +589,7 @@ struct saa7134_dev {
 	int (*original_set_voltage)(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
 	int (*original_set_high_voltage)(struct dvb_frontend *fe, long arg);
 #endif
+	void (*gate_ctrl)(struct saa7134_dev *dev, int open);
 };
 
 /* ----------------------------------------------------------- */
@@ -618,10 +619,24 @@ struct saa7134_dev {
 		V4L2_STD_PAL_60)
 
 #define GRP_EMPRESS (1)
-#define saa_call_all(dev, o, f, args...) \
-	v4l2_device_call_all(&(dev)->v4l2_dev, 0, o, f , ##args)
-#define saa_call_empress(dev, o, f, args...) \
-	v4l2_device_call_until_err(&(dev)->v4l2_dev, GRP_EMPRESS, o, f , ##args)
+#define saa_call_all(dev, o, f, args...) do {				\
+	if (dev->gate_ctrl)						\
+		dev->gate_ctrl(dev, 1);					\
+	v4l2_device_call_all(&(dev)->v4l2_dev, 0, o, f , ##args);	\
+	if (dev->gate_ctrl)						\
+		dev->gate_ctrl(dev, 0);					\
+} while (0)
+
+#define saa_call_empress(dev, o, f, args...) ({				\
+	long _rc;							\
+	if (dev->gate_ctrl)						\
+		dev->gate_ctrl(dev, 1);					\
+	_rc = v4l2_device_call_until_err(&(dev)->v4l2_dev,		\
+					 GRP_EMPRESS, o, f , ##args);	\
+	if (dev->gate_ctrl)						\
+		dev->gate_ctrl(dev, 0);					\
+	_rc;								\
+})
 
 /* ----------------------------------------------------------- */
 /* saa7134-core.c                                              */
