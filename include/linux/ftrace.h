@@ -496,4 +496,17 @@ static inline int test_tsk_trace_graph(struct task_struct *tsk)
 
 #endif /* CONFIG_TRACING */
 
+
+#ifdef CONFIG_HW_BRANCH_TRACER
+
+void trace_hw_branch(u64 from, u64 to);
+void trace_hw_branch_oops(void);
+
+#else /* CONFIG_HW_BRANCH_TRACER */
+
+static inline void trace_hw_branch(u64 from, u64 to) {}
+static inline void trace_hw_branch_oops(void) {}
+
+#endif /* CONFIG_HW_BRANCH_TRACER */
+
 #endif /* _LINUX_FTRACE_H */

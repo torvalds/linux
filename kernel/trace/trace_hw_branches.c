@@ -40,6 +40,7 @@ static DEFINE_PER_CPU(unsigned char[SIZEOF_BTS], buffer);
 #define this_buffer per_cpu(buffer, smp_processor_id())
 
 static int __read_mostly trace_hw_branches_enabled;
+static struct trace_array *hw_branch_trace __read_mostly;
 
 
 /*
@@ -128,6 +129,8 @@ static struct notifier_block bts_hotcpu_notifier __cpuinitdata = {
 
 static int bts_trace_init(struct trace_array *tr)
 {
+	hw_branch_trace = tr;
+
 	register_hotcpu_notifier(&bts_hotcpu_notifier);
 	tracing_reset_online_cpus(tr);
 	bts_trace_start(tr);
@@ -170,8 +173,9 @@ static enum print_line_t bts_trace_print_line(struct trace_iterator *iter)
 	return TRACE_TYPE_UNHANDLED;
 }
 
-void trace_hw_branch(struct trace_array *tr, u64 from, u64 to)
+void trace_hw_branch(u64 from, u64 to)
 {
+	struct trace_array *tr = hw_branch_trace;
 	struct ring_buffer_event *event;
 	struct hw_branch_entry *entry;
 	unsigned long irq1, irq2;
@@ -204,8 +208,7 @@ void trace_hw_branch(struct trace_array *tr, u64 from, u64 to)
 	local_irq_restore(irq1);
 }
 
-static void trace_bts_at(struct trace_array *tr,
-			 const struct bts_trace *trace, void *at)
+static void trace_bts_at(const struct bts_trace *trace, void *at)
 {
 	struct bts_struct bts;
 	int err = 0;
@@ -220,7 +223,7 @@ static void trace_bts_at(struct trace_array *tr,
 
 	switch (bts.qualifier) {
 	case BTS_BRANCH:
-		trace_hw_branch(tr, bts.variant.lbr.from, bts.variant.lbr.to);
+		trace_hw_branch(bts.variant.lbr.from, bts.variant.lbr.to);
 		break;
 	}
 }
@@ -236,10 +239,13 @@ static void trace_bts_cpu(void *arg)
 	const struct bts_trace *trace;
 	unsigned char *at;
 
-	if (!this_tracer)
+	if (unlikely(!tr))
 		return;
 
 	if (unlikely(atomic_read(&tr->data[raw_smp_processor_id()]->disabled)))
+		return;
+
+	if (unlikely(!this_tracer))
 		return;
 
 	ds_suspend_bts(this_tracer);
@@ -249,11 +255,11 @@ static void trace_bts_cpu(void *arg)
 
 	for (at = trace->ds.top; (void *)at < trace->ds.end;
 	     at += trace->ds.size)
-		trace_bts_at(tr, trace, at);
+		trace_bts_at(trace, at);
 
 	for (at = trace->ds.begin; (void *)at < trace->ds.top;
 	     at += trace->ds.size)
-		trace_bts_at(tr, trace, at);
+		trace_bts_at(trace, at);
 
 out:
 	ds_resume_bts(this_tracer);
@@ -264,6 +270,15 @@ static void trace_bts_prepare(struct trace_iterator *iter)
 	mutex_lock(&bts_tracer_mutex);
 
 	on_each_cpu(trace_bts_cpu, iter->tr, 1);
+
+	mutex_unlock(&bts_tracer_mutex);
+}
+
+void trace_hw_branch_oops(void)
+{
+	mutex_lock(&bts_tracer_mutex);
+
+	trace_bts_cpu(hw_branch_trace);
 
 	mutex_unlock(&bts_tracer_mutex);
 }
