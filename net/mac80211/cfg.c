@@ -1256,6 +1256,21 @@ static int ieee80211_set_mgmt_extra_ie(struct wiphy *wiphy,
 	return ret;
 }
 
+#ifdef CONFIG_PM
+static int ieee80211_suspend(struct wiphy *wiphy)
+{
+	return __ieee80211_suspend(wiphy_priv(wiphy));
+}
+
+static int ieee80211_resume(struct wiphy *wiphy)
+{
+	return __ieee80211_resume(wiphy_priv(wiphy));
+}
+#else
+#define ieee80211_suspend NULL
+#define ieee80211_resume NULL
+#endif
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1286,4 +1301,6 @@ struct cfg80211_ops mac80211_config_ops = {
 	.set_txq_params = ieee80211_set_txq_params,
 	.set_channel = ieee80211_set_channel,
 	.set_mgmt_extra_ie = ieee80211_set_mgmt_extra_ie,
+	.suspend = ieee80211_suspend,
+	.resume = ieee80211_resume,
 };

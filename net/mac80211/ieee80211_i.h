@@ -1006,6 +1006,10 @@ void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 				 u16 capab_info, u8 *pwr_constr_elem,
 				 u8 pwr_constr_elem_len);
 
+/* Suspend/resume */
+int __ieee80211_suspend(struct ieee80211_hw *hw);
+int __ieee80211_resume(struct ieee80211_hw *hw);
+
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */
 extern const unsigned char rfc1042_header[6];
