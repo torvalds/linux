@@ -1802,7 +1802,7 @@ ipv4_connect(struct TCP_Server_Info *server)
 	 *  user space buffer
 	 */
 	socket->sk->sk_rcvtimeo = 7 * HZ;
-	socket->sk->sk_sndtimeo = 3 * HZ;
+	socket->sk->sk_sndtimeo = 5 * HZ;
 
 	/* make the bufsizes depend on wsize/rsize and max requests */
 	if (server->noautotune) {
@@ -1953,7 +1953,7 @@ ipv6_connect(struct TCP_Server_Info *server)
 	 * user space buffer
 	 */
 	socket->sk->sk_rcvtimeo = 7 * HZ;
-	socket->sk->sk_sndtimeo = 3 * HZ;
+	socket->sk->sk_sndtimeo = 5 * HZ;
 	server->ssocket = socket;
 
 	return rc;

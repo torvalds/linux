@@ -199,7 +199,25 @@ smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 				    n_vec - first_vec, total_len);
 		if ((rc == -ENOSPC) || (rc == -EAGAIN)) {
 			i++;
-			if (i >= 14) {
+			/* if blocking send we try 3 times, since each can block
+			   for 5 seconds. For nonblocking  we have to try more
+			   but wait increasing amounts of time allowing time for
+			   socket to clear.  The overall time we wait in either
+			   case to send on the socket is about 15 seconds.
+			   Similarly we wait for 15 seconds for
+			   a response from the server in SendReceive[2]
+			   for the server to send a response back for
+			   most types of requests (except SMB Write
+			   past end of file which can be slow, and
+			   blocking lock operations). NFS waits slightly longer
+			   than CIFS, but this can make it take longer for
+			   nonresponsive servers to be detected and 15 seconds
+			   is more than enough time for modern networks to
+			   send a packet.  In most cases if we fail to send
+			   after the retries we will kill the socket and
+			   reconnect which may clear the network problem.
+			*/
+			if ((i >= 14) || (!server->noblocksnd && (i > 2))) {
 				cERROR(1,
 				   ("sends on sock %p stuck for 15 seconds",
 				    ssocket));
