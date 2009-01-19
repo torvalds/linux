@@ -110,6 +110,12 @@ struct iwl_lib_ops {
 	void (*txq_inval_byte_cnt_tbl)(struct iwl_priv *priv,
 				       struct iwl_tx_queue *txq);
 	void (*txq_set_sched)(struct iwl_priv *priv, u32 mask);
+	int (*txq_attach_buf_to_tfd)(struct iwl_priv *priv,
+				     struct iwl_tx_queue *txq,
+				     dma_addr_t addr,
+				     u16 len, u8 reset, u8 pad);
+	void (*txq_free_tfd)(struct iwl_priv *priv,
+			     struct iwl_tx_queue *txq);
 	/* aggregations */
 	int (*txq_agg_enable)(struct iwl_priv *priv, int txq_id, int tx_fifo,
 			      int sta_id, int tid, u16 ssn_idx);
@@ -252,6 +258,10 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 * TX
 ******************************************************/
 int iwl_txq_ctx_reset(struct iwl_priv *priv);
+void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+				 struct iwl_tx_queue *txq,
+				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
 int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
 void iwl_hw_txq_ctx_free(struct iwl_priv *priv);
 int iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);

@@ -274,7 +274,7 @@ void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	/* first, empty all BD's */
 	for (; q->write_ptr != q->read_ptr;
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
-		iwl3945_hw_txq_free_tfd(priv, txq);
+		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
 
 	len = sizeof(struct iwl_cmd) * q->n_window;
 	if (q->id == IWL_CMD_QUEUE_NUM)
@@ -453,12 +453,10 @@ static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 	struct iwl_queue *q = &txq->q;
-	struct iwl3945_tfd *tfd;
 	struct iwl_cmd *out_cmd;
 	u32 idx;
 	u16 fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
 	dma_addr_t phys_addr;
-	int pad;
 	int ret, len;
 	unsigned long flags;
 
@@ -480,9 +478,6 @@ static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	}
 
 	spin_lock_irqsave(&priv->hcmd_lock, flags);
-
-	tfd = &txq->tfds39[q->write_ptr];
-	memset(tfd, 0, sizeof(*tfd));
 
 	idx = get_cmd_index(q, q->write_ptr, cmd->meta.flags & CMD_SIZE_HUGE);
 	out_cmd = txq->cmd[idx];
@@ -509,10 +504,9 @@ static int iwl3945_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	pci_unmap_len_set(&out_cmd->meta, len, len);
 	phys_addr += offsetof(struct iwl_cmd, hdr);
 
-	iwl3945_hw_txq_attach_buf_to_tfd(priv, tfd, phys_addr, fix_size);
-
-	pad = U32_PAD(cmd->len);
-	tfd->control_flags |= cpu_to_le32(TFD_CTL_PAD_SET(pad));
+	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
+						   phys_addr, fix_size,
+						   1, U32_PAD(cmd->len));
 
 	IWL_DEBUG_HC("Sending command %s (#%x), seq: 0x%04X, "
 		     "%d bytes at %d[%d]:%d\n",
@@ -2158,7 +2152,6 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct iwl3945_tfd *tfd;
 	struct iwl3945_tx_cmd *tx;
 	struct iwl_tx_queue *txq = NULL;
 	struct iwl_queue *q = NULL;
@@ -2243,9 +2236,6 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	/* Set up first empty TFD within this queue's circular TFD buffer */
-	tfd = &txq->tfds39[q->write_ptr];
-	memset(tfd, 0, sizeof(*tfd));
 	idx = get_cmd_index(q, q->write_ptr, 0);
 
 	/* Set up driver data for this TFD */
@@ -2304,7 +2294,8 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
-	iwl3945_hw_txq_attach_buf_to_tfd(priv, tfd, txcmd_phys, len);
+	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
+						   txcmd_phys, len, 1, 0);
 
 	if (info->control.hw_key)
 		iwl3945_build_tx_cmd_hwcrypto(priv, info, out_cmd, skb, 0);
@@ -2315,17 +2306,10 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (len) {
 		phys_addr = pci_map_single(priv->pci_dev, skb->data + hdr_len,
 					   len, PCI_DMA_TODEVICE);
-		iwl3945_hw_txq_attach_buf_to_tfd(priv, tfd, phys_addr, len);
+		priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
+							   phys_addr, len,
+							   0, U32_PAD(len));
 	}
-
-	if (!len)
-		/* If there is no payload, then we use only one Tx buffer */
-		tfd->control_flags = cpu_to_le32(TFD_CTL_COUNT_SET(1));
-	else
-		/* Else use 2 buffers.
-		 * Tell 3945 about any padding after MAC header */
-		tfd->control_flags = cpu_to_le32(TFD_CTL_COUNT_SET(2) |
-			TFD_CTL_PAD_SET(U32_PAD(len)));
 
 	/* Total # bytes to be transmitted */
 	len = (u16)skb->len;

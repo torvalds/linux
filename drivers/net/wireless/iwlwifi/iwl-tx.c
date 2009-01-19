@@ -76,116 +76,6 @@ static inline void iwl_free_dma_ptr(struct iwl_priv *priv,
 	memset(ptr, 0, sizeof(*ptr));
 }
 
-static inline dma_addr_t iwl_tfd_tb_get_addr(struct iwl_tfd *tfd, u8 idx)
-{
-	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
-
-	dma_addr_t addr = get_unaligned_le32(&tb->lo);
-	if (sizeof(dma_addr_t) > sizeof(u32))
-		addr |=
-		((dma_addr_t)(le16_to_cpu(tb->hi_n_len) & 0xF) << 16) << 16;
-
-	return addr;
-}
-
-static inline u16 iwl_tfd_tb_get_len(struct iwl_tfd *tfd, u8 idx)
-{
-	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
-
-	return le16_to_cpu(tb->hi_n_len) >> 4;
-}
-
-static inline void iwl_tfd_set_tb(struct iwl_tfd *tfd, u8 idx,
-				  dma_addr_t addr, u16 len)
-{
-	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
-	u16 hi_n_len = len << 4;
-
-	put_unaligned_le32(addr, &tb->lo);
-	if (sizeof(dma_addr_t) > sizeof(u32))
-		hi_n_len |= ((addr >> 16) >> 16) & 0xF;
-
-	tb->hi_n_len = cpu_to_le16(hi_n_len);
-
-	tfd->num_tbs = idx + 1;
-}
-
-static inline u8 iwl_tfd_get_num_tbs(struct iwl_tfd *tfd)
-{
-	return tfd->num_tbs & 0x1f;
-}
-
-/**
- * iwl_hw_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
- * @priv - driver private data
- * @txq - tx queue
- *
- * Does NOT advance any TFD circular buffer read/write indexes
- * Does NOT free the TFD itself (which is within circular buffer)
- */
-static void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
-{
-	struct iwl_tfd *tfd_tmp = (struct iwl_tfd *)&txq->tfds[0];
-	struct iwl_tfd *tfd;
-	struct pci_dev *dev = priv->pci_dev;
-	int index = txq->q.read_ptr;
-	int i;
-	int num_tbs;
-
-	tfd = &tfd_tmp[index];
-
-	/* Sanity check on number of chunks */
-	num_tbs = iwl_tfd_get_num_tbs(tfd);
-
-	if (num_tbs >= IWL_NUM_OF_TBS) {
-		IWL_ERR(priv, "Too many chunks: %i\n", num_tbs);
-		/* @todo issue fatal error, it is quite serious situation */
-		return;
-	}
-
-	/* Unmap tx_cmd */
-	if (num_tbs)
-		pci_unmap_single(dev,
-				pci_unmap_addr(&txq->cmd[index]->meta, mapping),
-				pci_unmap_len(&txq->cmd[index]->meta, len),
-				PCI_DMA_TODEVICE);
-
-	/* Unmap chunks, if any. */
-	for (i = 1; i < num_tbs; i++) {
-		pci_unmap_single(dev, iwl_tfd_tb_get_addr(tfd, i),
-				iwl_tfd_tb_get_len(tfd, i), PCI_DMA_TODEVICE);
-
-		if (txq->txb) {
-			dev_kfree_skb(txq->txb[txq->q.read_ptr].skb[i - 1]);
-			txq->txb[txq->q.read_ptr].skb[i - 1] = NULL;
-		}
-	}
-}
-
-static int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
-					struct iwl_tfd *tfd,
-					dma_addr_t addr, u16 len)
-{
-
-	u32 num_tbs = iwl_tfd_get_num_tbs(tfd);
-
-	/* Each TFD can point to a maximum 20 Tx buffers */
-	if (num_tbs >= IWL_NUM_OF_TBS) {
-		IWL_ERR(priv, "Error can not send more than %d chunks\n",
-			  IWL_NUM_OF_TBS);
-		return -EINVAL;
-	}
-
-	BUG_ON(addr & ~DMA_BIT_MASK(36));
-	if (unlikely(addr & ~IWL_TX_DMA_MASK))
-		IWL_ERR(priv, "Unaligned address = %llx\n",
-			  (unsigned long long)addr);
-
-	iwl_tfd_set_tb(tfd, num_tbs, addr, len);
-
-	return 0;
-}
-
 /**
  * iwl_txq_update_write_ptr - Send new write index to hardware
  */
@@ -254,7 +144,7 @@ static void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 	/* first, empty all BD's */
 	for (; q->write_ptr != q->read_ptr;
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
-		iwl_hw_txq_free_tfd(priv, txq);
+		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
 
 	len = sizeof(struct iwl_cmd) * q->n_window;
 
@@ -822,7 +712,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct iwl_tfd *tfd;
 	struct iwl_tx_queue *txq;
 	struct iwl_queue *q;
 	struct iwl_cmd *out_cmd;
@@ -913,10 +802,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	/* Set up first empty TFD within this queue's circular TFD buffer */
-	tfd = &txq->tfds[q->write_ptr];
-	memset(tfd, 0, sizeof(*tfd));
-
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl_tx_info));
 	txq->txb[q->write_ptr].skb[0] = skb;
@@ -970,7 +855,8 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
 	txcmd_phys += offsetof(struct iwl_cmd, hdr);
-	iwl_hw_txq_attach_buf_to_tfd(priv, tfd, txcmd_phys, len);
+	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
+						   txcmd_phys, len, 1, 0);
 
 	if (info->control.hw_key)
 		iwl_tx_cmd_build_hwcrypto(priv, info, tx_cmd, skb, sta_id);
@@ -981,7 +867,9 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (len) {
 		phys_addr = pci_map_single(priv->pci_dev, skb->data + hdr_len,
 					   len, PCI_DMA_TODEVICE);
-		iwl_hw_txq_attach_buf_to_tfd(priv, tfd, phys_addr, len);
+		priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
+							   phys_addr, len,
+							   0, 0);
 	}
 
 	/* Tell NIC about any 2-byte padding after MAC header */
@@ -1063,7 +951,6 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 	struct iwl_queue *q = &txq->q;
-	struct iwl_tfd *tfd;
 	struct iwl_cmd *out_cmd;
 	dma_addr_t phys_addr;
 	unsigned long flags;
@@ -1092,10 +979,6 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	spin_lock_irqsave(&priv->hcmd_lock, flags);
 
-	tfd = &txq->tfds[q->write_ptr];
-	memset(tfd, 0, sizeof(*tfd));
-
-
 	idx = get_cmd_index(q, q->write_ptr, cmd->meta.flags & CMD_SIZE_HUGE);
 	out_cmd = txq->cmd[idx];
 
@@ -1120,7 +1003,8 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	pci_unmap_len_set(&out_cmd->meta, len, len);
 	phys_addr += offsetof(struct iwl_cmd, hdr);
 
-	iwl_hw_txq_attach_buf_to_tfd(priv, tfd, phys_addr, fix_size);
+	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
+						   phys_addr, fix_size, 1, 0);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	switch (out_cmd->hdr.cmd) {
@@ -1180,7 +1064,7 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 		if (priv->cfg->ops->lib->txq_inval_byte_cnt_tbl)
 			priv->cfg->ops->lib->txq_inval_byte_cnt_tbl(priv, txq);
 
-		iwl_hw_txq_free_tfd(priv, txq);
+		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
 		nfreed++;
 	}
 	return nfreed;

@@ -318,7 +318,7 @@ static void iwl3945_tx_queue_reclaim(struct iwl_priv *priv,
 		tx_info = &txq->txb[txq->q.read_ptr];
 		ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb[0]);
 		tx_info->skb[0] = NULL;
-		iwl3945_hw_txq_free_tfd(priv, txq);
+		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
 	}
 
 	if (iwl_queue_space(q) > q->low_mark && (txq_id >= 0) &&
@@ -724,15 +724,21 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 	iwl3945_pass_packet_to_mac80211(priv, rxb, &rx_status);
 }
 
-int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
-				 dma_addr_t addr, u16 len)
+int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+				     struct iwl_tx_queue *txq,
+				     dma_addr_t addr, u16 len, u8 reset, u8 pad)
 {
 	int count;
-	u32 pad;
-	struct iwl3945_tfd *tfd = (struct iwl3945_tfd *)ptr;
+	struct iwl_queue *q;
+	struct iwl3945_tfd *tfd;
+
+	q = &txq->q;
+	tfd = &txq->tfds39[q->write_ptr];
+
+	if (reset)
+		memset(tfd, 0, sizeof(*tfd));
 
 	count = TFD_CTL_COUNT_GET(le32_to_cpu(tfd->control_flags));
-	pad = TFD_CTL_PAD_GET(le32_to_cpu(tfd->control_flags));
 
 	if ((count >= NUM_TFD_CHUNKS) || (count < 0)) {
 		IWL_ERR(priv, "Error can not send more than %d chunks\n",
@@ -756,7 +762,7 @@ int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
  *
  * Does NOT advance any indexes
  */
-int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
+void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
 	struct iwl3945_tfd *tfd_tmp = (struct iwl3945_tfd *)&txq->tfds39[0];
 	struct iwl3945_tfd *tfd = &tfd_tmp[txq->q.read_ptr];
@@ -767,14 +773,14 @@ int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	/* classify bd */
 	if (txq->q.id == IWL_CMD_QUEUE_NUM)
 		/* nothing to cleanup after for host commands */
-		return 0;
+		return;
 
 	/* sanity check */
 	counter = TFD_CTL_COUNT_GET(le32_to_cpu(tfd->control_flags));
 	if (counter > NUM_TFD_CHUNKS) {
 		IWL_ERR(priv, "Too many chunks: %i\n", counter);
 		/* @todo issue fatal error, it is quite serious situation */
-		return 0;
+		return;
 	}
 
 	/* unmap chunks if any */
@@ -791,7 +797,7 @@ int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 			}
 		}
 	}
-	return 0;
+	return ;
 }
 
 u8 iwl3945_hw_find_station(struct iwl_priv *priv, const u8 *addr)
@@ -2697,6 +2703,8 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 }
 
 static struct iwl_lib_ops iwl3945_lib = {
+	.txq_attach_buf_to_tfd = iwl3945_hw_txq_attach_buf_to_tfd,
+	.txq_free_tfd = iwl3945_hw_txq_free_tfd,
 	.load_ucode = iwl3945_load_bsm,
 	.apm_ops = {
 		.init = iwl3945_apm_init,

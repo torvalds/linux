@@ -260,9 +260,12 @@ extern int iwl3945_hw_nic_stop_master(struct iwl_priv *priv);
 extern void iwl3945_hw_txq_ctx_free(struct iwl_priv *priv);
 extern void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv);
 extern int iwl3945_hw_nic_reset(struct iwl_priv *priv);
-extern int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *tfd,
-					dma_addr_t addr, u16 len);
-extern int iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+extern int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+					    struct iwl_tx_queue *txq,
+					    dma_addr_t addr, u16 len,
+					    u8 reset, u8 pad);
+extern void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv,
+				    struct iwl_tx_queue *txq);
 extern int iwl3945_hw_get_temperature(struct iwl_priv *priv);
 extern int iwl3945_hw_tx_queue_init(struct iwl_priv *priv,
 				struct iwl_tx_queue *txq);
