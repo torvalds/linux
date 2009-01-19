@@ -290,7 +290,7 @@ struct sxg_stats {
 	struct list_entry *_ple;					\
 	if ((_pAdapt->FreeSglBufferCount < SXG_MIN_SGL_BUFFERS) &&	\
 	   (_pAdapt->AllSglBufferCount < SXG_MAX_SGL_BUFFERS) &&	\
-	   (_pAdapt->AllocationsPending == 0)) {			\
+	   (atomic_read(&_pAdapt->pending_allocations) == 0)) {		\
 		sxg_allocate_buffer_memory(_pAdapt,			\
 			(sizeof(struct sxg_scatter_gather) + SXG_SGL_BUF_SIZE),\
 			SXG_BUFFER_TYPE_SGL);				\
@@ -670,6 +670,9 @@ struct adapter_t {
 	ushort		FreeRcvBlockCount;	/* # of free rcv descriptor blocks */
 	ushort		AllRcvBlockCount;	/* Number of total receive blocks */
 	ushort		ReceiveBufferSize;	/* SXG_RCV_DATA/JUMBO_BUFFER_SIZE only */
+	/* Converted this to a atomic variable
+	u32			AllocationsPending;	*/
+	atomic_t		pending_allocations;
 	u32		AllocationsPending;	/* Receive allocation pending */
 	u32		RcvBuffersOnCard;	/* SXG_DATA_BUFFERS owned by card */
 	/* SGL buffers */

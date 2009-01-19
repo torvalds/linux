@@ -108,10 +108,7 @@ static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus);
 static bool sxg_mac_filter(struct adapter_t *adapter,
 			   struct ether_header *EtherHdr, ushort length);
 
-#if SLIC_GET_STATS_ENABLED
-static struct net_device_stats *sxg_get_stats(struct net_device *dev);
-#endif
-
+static struct net_device_stats *sxg_get_stats(struct net_device * dev);
 void sxg_free_resources(struct adapter_t *adapter);
 void sxg_free_rcvblocks(struct adapter_t *adapter);
 void sxg_free_sgl_buffers(struct adapter_t *adapter);
@@ -456,6 +453,7 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 	spin_lock_init(&adapter->XmtZeroLock);
 	spin_lock_init(&adapter->Bit64RegLock);
 	spin_lock_init(&adapter->AdapterLock);
+	atomic_set(&adapter->pending_allocations, 0);
 
 	DBG_ERROR("%s Setup the lists\n", __func__);
 
@@ -928,10 +926,8 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	netdev->do_ioctl = sxg_ioctl;
 #if XXXTODO
 	netdev->set_mac_address = sxg_mac_set_address;
-#if SLIC_GET_STATS_ENABLED
+#endif
 	netdev->get_stats = sxg_get_stats;
-#endif
-#endif
 	netdev->set_multicast_list = sxg_mcast_set_list;
 	SET_ETHTOOL_OPS(netdev, &sxg_nic_ethtool_ops);
 
@@ -1044,8 +1040,9 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
-	/* u32 CpuMask = 0, i; */
 
+	if(adapter->state != ADAPT_UP)
+		return IRQ_NONE;
 	adapter->Stats.NumInts++;
 	if (adapter->Isr[0] == 0) {
 		/*
@@ -1191,6 +1188,7 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 			 * complicated than strictly needed.
 			 */
 			adapter->Stats.RcvNoBuffer++;
+			adapter->stats.rx_missed_errors++;
 			if (adapter->Stats.RcvNoBuffer < 5) {
 				DBG_ERROR("%s: SXG_ISR_ERR  RMISS!!\n",
 					  __func__);
@@ -1968,9 +1966,8 @@ static void __devexit sxg_entry_remove(struct pci_dev *pcidev)
 	u32 mmio_start = 0;
 	unsigned int mmio_len = 0;
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
-/*
-	set_bit(ADAPT_DOWN, &adapter->state);
-*/	flush_scheduled_work();
+
+	flush_scheduled_work();
 
 	/* Deallocate Resources */
 	unregister_netdev(dev);
@@ -2247,7 +2244,9 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 		  XmtCmd, XmtRingInfo->Head, XmtRingInfo->Tail, 0);
 	/* Update stats */
 	adapter->Stats.DumbXmtPkts++;
+	adapter->stats.tx_packets++;
 	adapter->Stats.DumbXmtBytes += DataLength;
+	adapter->stats.tx_bytes += DataLength;
 #if XXXTODO			/* Stats stuff */
 	if (SXG_MULTICAST_PACKET(EtherHdr)) {
 		if (SXG_BROADCAST_PACKET(EtherHdr)) {
@@ -2306,6 +2305,7 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
  *	XmtZeroLock is grabbed
  */
 	adapter->Stats.XmtErrors++;
+	adapter->stats.tx_errors++;
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_IMPORTANT, "DumSGFal",
 		  pSgl, SxgSgl, XmtRingInfo->Head, XmtRingInfo->Tail);
 	/* SxgSgl->DumbPacket is the skb */
@@ -2730,10 +2730,11 @@ static void sxg_link_state(struct adapter_t *adapter,
 	 * Hold the adapter lock during this routine.  Maybe move
 	 * the lock to the caller.
 	 */
-	spin_lock(&adapter->AdapterLock);
+	/* IMP TODO : Check if we can survive without taking this lock */
+//	spin_lock(&adapter->AdapterLock);
 	if (LinkState == adapter->LinkState) {
 		/* Nothing changed.. */
-		spin_unlock(&adapter->AdapterLock);
+//		spin_unlock(&adapter->AdapterLock);
 		DBG_ERROR("EXIT #0 %s. Link status = %d\n",
 					 __func__, LinkState);
 		return;
@@ -2742,7 +2743,7 @@ static void sxg_link_state(struct adapter_t *adapter,
 	adapter->LinkState = LinkState;
 
 	/* Drop the lock and indicate link state */
-	spin_unlock(&adapter->AdapterLock);
+//	spin_unlock(&adapter->AdapterLock);
 	DBG_ERROR("EXIT #1 %s\n", __func__);
 
 	sxg_indicate_link_state(adapter, LinkState);
@@ -3121,9 +3122,9 @@ void sxg_free_sgl_buffers(struct adapter_t *adapter)
         struct sxg_scatter_gather       *Sgl;
 
         while(!(IsListEmpty(&adapter->AllSglBuffers))) {
-                 ple = RemoveHeadList(&adapter->AllSglBuffers);
-                 Sgl = container_of(ple, struct sxg_scatter_gather, AllList);
-                kfree(Sgl);
+ 		ple = RemoveHeadList(&adapter->AllSglBuffers);
+ 		Sgl = container_of(ple, struct sxg_scatter_gather, AllList);
+ 		kfree(Sgl);
                 adapter->AllSglBufferCount--;
         }
 }
@@ -3204,6 +3205,7 @@ void sxg_free_resources(struct adapter_t *adapter)
 {
 	u32 RssIds, IsrCount;
 	u32 i;
+	struct net_device *netdev = adapter->netdev;
 	RssIds = SXG_RSS_CPU_COUNT(adapter);
 	IsrCount = adapter->MsiEnabled ? RssIds : 1;
 
@@ -3214,6 +3216,10 @@ void sxg_free_resources(struct adapter_t *adapter)
 		 */
 		return;
 	}
+
+	/* Free Irq */
+	free_irq(adapter->netdev->irq, netdev);
+
 
 	if (!(IsListEmpty(&adapter->AllRcvBlocks))) {
 		sxg_free_rcvblocks(adapter);
@@ -3294,8 +3300,8 @@ static void sxg_allocate_complete(struct adapter_t *adapter,
 {
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "AllocCmp",
 		  adapter, VirtualAddress, Length, Context);
-	ASSERT(adapter->AllocationsPending);
-	--adapter->AllocationsPending;
+	ASSERT(atomic_read(&adapter->pending_allocations));
+	atomic_dec(&adapter->pending_allocations);
 
 	switch (Context) {
 
@@ -3340,14 +3346,8 @@ static int sxg_allocate_buffer_memory(struct adapter_t *adapter,
 	 * than INITIALIZING or RUNNING state, fail.  This is to prevent
 	 * allocations in an improper driver state
 	 */
-	spin_lock(&adapter->AdapterLock);
 
-	/*
-	 * Increment the AllocationsPending count while holding
-	 * the lock.  Pause processing relies on this
-	 */
-	++adapter->AllocationsPending;
-	spin_unlock(&adapter->AdapterLock);
+ 	atomic_inc(&adapter->pending_allocations);
 
 	if(BufferType != SXG_BUFFER_TYPE_SGL)
 		Buffer = pci_alloc_consistent(adapter->pcidev, Size, &pBuffer);
@@ -3356,13 +3356,11 @@ static int sxg_allocate_buffer_memory(struct adapter_t *adapter,
 		pBuffer = NULL;
 	}
 	if (Buffer == NULL) {
-		spin_lock(&adapter->AdapterLock);
 		/*
 		 * Decrement the AllocationsPending count while holding
 		 * the lock.  Pause processing relies on this
 		 */
-		--adapter->AllocationsPending;
-		spin_unlock(&adapter->AdapterLock);
+ 		atomic_dec(&adapter->pending_allocations);
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "AlcMemF1",
 			  adapter, Size, BufferType, 0);
 		return (STATUS_RESOURCES);
@@ -3514,9 +3512,9 @@ static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "AlSglCmp",
 		  adapter, SxgSgl, Length, 0);
 	if(!in_irq())
-		spin_unlock_irqrestore(&adapter->SglQLock, sgl_flags);
+		spin_lock_irqsave(&adapter->SglQLock, sgl_flags);
 	else
-		spin_unlock(&adapter->SglQLock);
+		spin_lock(&adapter->SglQLock);
 	adapter->AllSglBufferCount++;
 	/* PhysicalAddress; */
 	SxgSgl->PhysicalAddress = PhysicalAddress;
@@ -3548,6 +3546,21 @@ static void sxg_adapter_set_hwaddr(struct adapter_t *adapter)
 	 */
 
 	/* sxg_dbg_macaddrs(adapter); */
+
+	struct net_device * dev = adapter->netdev;
+	if(!dev)
+	{
+		printk("sxg: Dev is Null\n");
+	}
+
+        DBG_ERROR("%s ENTER (%s)\n", __FUNCTION__, adapter->netdev->name);
+
+        if (netif_running(dev)) {
+                return -EBUSY;
+        }
+        if (!adapter) {
+                return -EBUSY;
+        }
 
 	if (!(adapter->currmacaddr[0] ||
 	      adapter->currmacaddr[1] ||
@@ -3749,7 +3762,7 @@ static int sxg_fill_descriptor_block(struct adapter_t *adapter,
 	for (i = 0; i < SXG_RCV_DESCRIPTORS_PER_BLOCK; i++) {
 		SXG_GET_RCV_DATA_BUFFER(adapter, RcvDataBufferHdr);
 		ASSERT(RcvDataBufferHdr);
-		ASSERT(RcvDataBufferHdr->SxgDumbRcvPacket);
+//		ASSERT(RcvDataBufferHdr->SxgDumbRcvPacket);
 		if (!RcvDataBufferHdr->SxgDumbRcvPacket) {
 			SXG_ALLOCATE_RCV_PACKET(adapter, RcvDataBufferHdr,
 						adapter->ReceiveBufferSize);
@@ -3815,7 +3828,7 @@ static void sxg_stock_rcv_buffers(struct adapter_t *adapter)
 	 */
 	if ((adapter->FreeRcvBufferCount < SXG_MIN_RCV_DATA_BUFFERS) &&
 	    (adapter->AllRcvBlockCount < SXG_MAX_RCV_BLOCKS) &&
-	    (adapter->AllocationsPending == 0)) {
+	    (atomic_read(&adapter->pending_allocations) == 0)) {
 		sxg_allocate_buffer_memory(adapter,
 					   SXG_RCV_BLOCK_SIZE
 					   (SXG_RCV_DATA_HDR_SIZE),
@@ -3921,6 +3934,17 @@ void sxg_collect_statistics(struct adapter_t *adapter)
 {
 	if(adapter->ucode_stats)
 		WRITE_REG64(adapter, adapter->UcodeRegs[0].GetUcodeStats, adapter->pucode_stats, 0);
+	adapter->stats.rx_fifo_errors = adapter->ucode_stats->ERDrops;
+	adapter->stats.rx_over_errors = adapter->ucode_stats->NBDrops;
+	adapter->stats.tx_fifo_errors = adapter->ucode_stats->XDrops;
+}
+
+static struct net_device_stats *sxg_get_stats(struct net_device * dev)
+{
+	struct adapter_t *adapter = netdev_priv(dev);
+
+	sxg_collect_statistics(adapter);
+	return (&adapter->stats);
 }
 
 static struct pci_driver sxg_driver = {

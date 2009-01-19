@@ -150,30 +150,30 @@ struct sxg_trace_buffer {
                 unsigned int            trace_len;                          \
                 struct trace_entry	*trace_entry;			    \
                 struct timeval  timev;                                      \
-                                                                            \
-                spin_lock(&(buffer)->lock);                       	    \
-                trace_entry = &(buffer)->entries[(buffer)->in];             \
-                do_gettimeofday(&timev);                                    \
-                                                                            \
-                memset(trace_entry->name, 0, 8);                            \
-                trace_len = strlen(tname);                                  \
-                trace_len = trace_len > 8 ? 8 : trace_len;                  \
-                memcpy(trace_entry->name, (tname), trace_len);              \
-                trace_entry->time = timev.tv_usec;                          \
-                trace_entry->cpu = (unsigned char)(smp_processor_id() & 0xFF);\
-                trace_entry->driver = (tdriver);                             \
-                trace_entry->irql = trace_irql;                              \
-                trace_entry->arg1 = (ulong)(a1);                             \
-                trace_entry->arg2 = (ulong)(a2);                             \
-                trace_entry->arg3 = (ulong)(a3);                             \
-                trace_entry->arg4 = (ulong)(a4);                             \
-                                                                             \
-                (buffer)->in++;                                              \
-                if ((buffer)->in == TRACE_ENTRIES)                           \
-                        (buffer)->in = 0;                                    \
-                                                                             \
-                spin_unlock(&(buffer)->lock);                       \
-        }                                                                    \
+		if(spin_trylock(&(buffer)->lock))	{		     \
+	                trace_entry = &(buffer)->entries[(buffer)->in];      \
+        	        do_gettimeofday(&timev);                             \
+                	                                                     \
+	                memset(trace_entry->name, 0, 8);                     \
+        	        trace_len = strlen(tname);                           \
+	                trace_len = trace_len > 8 ? 8 : trace_len;           \
+        	        memcpy(trace_entry->name, (tname), trace_len);       \
+	                trace_entry->time = timev.tv_usec;                   \
+			trace_entry->cpu = (unsigned char)(smp_processor_id() & 0xFF);\
+	                trace_entry->driver = (tdriver);                     \
+        	        trace_entry->irql = trace_irql;                      \
+	                trace_entry->arg1 = (ulong)(a1);                     \
+        	        trace_entry->arg2 = (ulong)(a2);                     \
+	                trace_entry->arg3 = (ulong)(a3);                     \
+        	        trace_entry->arg4 = (ulong)(a4);                     \
+	                                                                     \
+        	        (buffer)->in++;                                      \
+                	if ((buffer)->in == TRACE_ENTRIES)                   \
+	                        (buffer)->in = 0;                            \
+        	                                                             \
+			spin_unlock(&(buffer)->lock);                        \
+ 	       	}                                                            \
+	}								     \
 }
 #else
 #define SXG_TRACE(tdriver, buffer, tlevel, tname, a1, a2, a3, a4)
