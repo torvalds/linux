@@ -1383,6 +1383,12 @@ xfs_dqunlock_nonotify(
 	mutex_unlock(&(dqp->q_qlock));
 }
 
+/*
+ * Lock two xfs_dquot structures.
+ *
+ * To avoid deadlocks we always lock the quota structure with
+ * the lowerd id first.
+ */
 void
 xfs_dqlock2(
 	xfs_dquot_t	*d1,
@@ -1392,18 +1398,16 @@ xfs_dqlock2(
 		ASSERT(d1 != d2);
 		if (be32_to_cpu(d1->q_core.d_id) >
 		    be32_to_cpu(d2->q_core.d_id)) {
-			xfs_dqlock(d2);
-			xfs_dqlock(d1);
+			mutex_lock(&d2->q_qlock);
+			mutex_lock_nested(&d1->q_qlock, XFS_QLOCK_NESTED);
 		} else {
-			xfs_dqlock(d1);
-			xfs_dqlock(d2);
+			mutex_lock(&d1->q_qlock);
+			mutex_lock_nested(&d2->q_qlock, XFS_QLOCK_NESTED);
 		}
-	} else {
-		if (d1) {
-			xfs_dqlock(d1);
-		} else if (d2) {
-			xfs_dqlock(d2);
-		}
+	} else if (d1) {
+		mutex_lock(&d1->q_qlock);
+	} else if (d2) {
+		mutex_lock(&d2->q_qlock);
 	}
 }
 
