@@ -1766,8 +1766,9 @@ int iwl3945_hw_reg_send_txpower(struct iwl_priv *priv)
 				txpower.power[i].rate);
 	}
 
-	return iwl3945_send_cmd_pdu(priv, REPLY_TX_PWR_TABLE_CMD,
-			sizeof(struct iwl3945_txpowertable_cmd), &txpower);
+	return iwl_send_cmd_pdu(priv, REPLY_TX_PWR_TABLE_CMD,
+				sizeof(struct iwl3945_txpowertable_cmd),
+				&txpower);
 
 }
 
@@ -2463,14 +2464,14 @@ int iwl3945_init_hw_rate_table(struct iwl_priv *priv)
 
 	/* Update the rate scaling for control frame Tx */
 	rate_cmd.table_id = 0;
-	rc = iwl3945_send_cmd_pdu(priv, REPLY_RATE_SCALE, sizeof(rate_cmd),
+	rc = iwl_send_cmd_pdu(priv, REPLY_RATE_SCALE, sizeof(rate_cmd),
 			      &rate_cmd);
 	if (rc)
 		return rc;
 
 	/* Update the rate scaling for data frame Tx */
 	rate_cmd.table_id = 1;
-	return iwl3945_send_cmd_pdu(priv, REPLY_RATE_SCALE, sizeof(rate_cmd),
+	return iwl_send_cmd_pdu(priv, REPLY_RATE_SCALE, sizeof(rate_cmd),
 				&rate_cmd);
 }
 
