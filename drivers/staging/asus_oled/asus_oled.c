@@ -56,7 +56,7 @@ MODULE_AUTHOR("Jakub Schmidtke, sjakub@gmail.com");
 MODULE_DESCRIPTION("Asus OLED Driver v" ASUS_OLED_VERSION);
 MODULE_LICENSE("GPL");
 
-static struct class *oled_class = 0;
+static struct class *oled_class = NULL;
 static int oled_num = 0;
 
 static uint start_off = 0;
@@ -566,9 +566,9 @@ static int asus_oled_probe(struct usb_interface *interface, const struct usb_dev
 	uint16_t dev_width = 0;
 	oled_pack_mode_t pack_mode = PACK_MODE_LAST;
 	const struct oled_dev_desc_str * dev_desc = oled_dev_desc_table;
-	const char *desc = 0;
+	const char *desc = NULL;
 
-	if (id == 0) {
+	if (!id) {
 		// Even possible? Just to make sure...
 		dev_err(&interface->dev, "No usb_device_id provided!\n");
 		return -ENODEV;
@@ -611,7 +611,7 @@ static int asus_oled_probe(struct usb_interface *interface, const struct usb_dev
 	odev->last_val = 0;
 	odev->buf = NULL;
 	odev->enabled = 1;
-	odev->dev = 0;
+	odev->dev = NULL;
 
 	usb_set_intfdata (interface, odev);
 
