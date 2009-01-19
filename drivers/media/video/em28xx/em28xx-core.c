@@ -438,6 +438,10 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	if (dev->audio_mode.ac97 != EM28XX_NO_AC97) {
 		int vol;
 
+		em28xx_write_ac97(dev, AC97_POWER_DOWN_CTRL, 0x4200);
+		em28xx_write_ac97(dev, AC97_EXT_AUD_CTRL, 0x0031);
+		em28xx_write_ac97(dev, AC97_PCM_IN_SRATE, 0xbb80);
+
 		/* LSB: left channel - both channels with the same level */
 		vol = (0x1f - dev->volume) | ((0x1f - dev->volume) << 8);
 
