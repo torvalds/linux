@@ -349,8 +349,6 @@ enum {
 
 	EDMA_HALTCOND_OFS	= 0x60,		/* GenIIe halt conditions */
 
-	GEN_II_NCQ_MAX_SECTORS	= 256,		/* max sects/io on Gen2 w/NCQ */
-
 	/* Host private flags (hp_flags) */
 	MV_HP_FLAG_MSI		= (1 << 0),
 	MV_HP_ERRATA_50XXB0	= (1 << 1),
@@ -1093,20 +1091,12 @@ static void mv6_dev_config(struct ata_device *adev)
 	 *
 	 * Gen-II does not support NCQ over a port multiplier
 	 *  (no FIS-based switching).
-	 *
-	 * We don't have hob_nsect when doing NCQ commands on Gen-II.
-	 * See mv_qc_prep() for more info.
 	 */
 	if (adev->flags & ATA_DFLAG_NCQ) {
 		if (sata_pmp_attached(adev->link->ap)) {
 			adev->flags &= ~ATA_DFLAG_NCQ;
 			ata_dev_printk(adev, KERN_INFO,
 				"NCQ disabled for command-based switching\n");
-		} else if (adev->max_sectors > GEN_II_NCQ_MAX_SECTORS) {
-			adev->max_sectors = GEN_II_NCQ_MAX_SECTORS;
-			ata_dev_printk(adev, KERN_INFO,
-				"max_sectors limited to %u for NCQ\n",
-				adev->max_sectors);
 		}
 	}
 }
@@ -1444,7 +1434,8 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	 * only 11 bytes...so we must pick and choose required
 	 * registers based on the command.  So, we drop feature and
 	 * hob_feature for [RW] DMA commands, but they are needed for
-	 * NCQ.  NCQ will drop hob_nsect.
+	 * NCQ.  NCQ will drop hob_nsect, which is not needed there
+	 * (nsect is used only for the tag; feat/hob_feat hold true nsect).
 	 */
 	switch (tf->command) {
 	case ATA_CMD_READ:
