@@ -519,7 +519,8 @@ static int vidioc_g_sliced_vbi_cap(struct file *file, void *fh,
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
 
 	dprintk(2, "VIDIOC_G_SLICED_VBI_CAP\n");
-	memset(cap, 0, sizeof(*cap));
+	if (cap->type != V4L2_BUF_TYPE_SLICED_VBI_OUTPUT)
+		return -EINVAL;
 	if (FW_VERSION(av7110->arm_app) >= 0x2623) {
 		cap->service_set = V4L2_SLICED_WSS_625;
 		cap->service_lines[0][23] = V4L2_SLICED_WSS_625;
