@@ -5270,15 +5270,15 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
-	if (!priv->scan39) {
-		priv->scan39 = kmalloc(sizeof(struct iwl3945_scan_cmd) +
+	if (!priv->scan) {
+		priv->scan = kmalloc(sizeof(struct iwl3945_scan_cmd) +
 				     IWL_MAX_SCAN_SIZE, GFP_KERNEL);
-		if (!priv->scan39) {
+		if (!priv->scan) {
 			rc = -ENOMEM;
 			goto done;
 		}
 	}
-	scan = priv->scan39;
+	scan = priv->scan;
 	memset(scan, 0, sizeof(struct iwl3945_scan_cmd) + IWL_MAX_SCAN_SIZE);
 
 	scan->quiet_plcp_th = IWL_PLCP_QUIET_THRESH;
@@ -7298,7 +7298,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 
 	iwl3945_free_channel_map(priv);
 	iwl3945_free_geos(priv);
-	kfree(priv->scan39);
+	kfree(priv->scan);
 	if (priv->ibss_beacon)
 		dev_kfree_skb(priv->ibss_beacon);
 

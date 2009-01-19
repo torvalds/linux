@@ -848,7 +848,7 @@ struct iwl_priv {
 	unsigned long scan_start;
 	unsigned long scan_pass_start;
 	unsigned long scan_start_tsf;
-	struct iwl_scan_cmd *scan;
+	void *scan;
 	int scan_bands;
 	int one_direct_scan;
 	u8 direct_ssid_len;
@@ -1070,8 +1070,6 @@ struct iwl_priv {
 #define IWL_DEFAULT_TX_POWER 0x0F
 	s8 user_txpower_limit;
 	s8 max_channel_txpower_limit;
-
-	struct iwl3945_scan_cmd *scan39;
 
 	/* We declare this const so it can only be
 	 * changed via explicit cast within the
