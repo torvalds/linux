@@ -8,6 +8,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/rtnetlink.h>
 #include <linux/seq_file.h>
 #include "efx.h"
 #include "mdio_10g.h"

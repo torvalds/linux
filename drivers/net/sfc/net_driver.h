@@ -25,14 +25,10 @@
 #include <linux/device.h>
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
-#include <linux/inet_lro.h>
 #include <linux/i2c.h>
 
 #include "enum.h"
 #include "bitfield.h"
-
-#define EFX_MAX_LRO_DESCRIPTORS 8
-#define EFX_MAX_LRO_AGGR MAX_SKB_FRAGS
 
 /**************************************************************************
  *
@@ -340,12 +336,9 @@ enum efx_rx_alloc_method {
  * @eventq_read_ptr: Event queue read pointer
  * @last_eventq_read_ptr: Last event queue read pointer value.
  * @eventq_magic: Event queue magic value for driver-generated test events
- * @lro_mgr: LRO state
  * @rx_alloc_level: Watermark based heuristic counter for pushing descriptors
  *	and diagnostic counters
  * @rx_alloc_push_pages: RX allocation method currently in use for pushing
- *	descriptors
- * @rx_alloc_pop_pages: RX allocation method currently in use for popping
  *	descriptors
  * @n_rx_tobe_disc: Count of RX_TOBE_DISC errors
  * @n_rx_ip_frag_err: Count of RX IP fragment errors
@@ -371,10 +364,8 @@ struct efx_channel {
 	unsigned int last_eventq_read_ptr;
 	unsigned int eventq_magic;
 
-	struct net_lro_mgr lro_mgr;
 	int rx_alloc_level;
 	int rx_alloc_push_pages;
-	int rx_alloc_pop_pages;
 
 	unsigned n_rx_tobe_disc;
 	unsigned n_rx_ip_frag_err;

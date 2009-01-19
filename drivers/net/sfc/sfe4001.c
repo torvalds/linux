@@ -24,6 +24,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/rtnetlink.h>
 #include "net_driver.h"
 #include "efx.h"
 #include "phy.h"
