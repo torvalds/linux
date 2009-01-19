@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.29-rc3
-# Wed Jan 28 23:04:04 2009
+# Wed Jan 28 23:05:34 2009
 #
 # CONFIG_PPC64 is not set
 
@@ -905,7 +905,7 @@ CONFIG_DS1682=y
 CONFIG_ARCH_WANT_OPTIONAL_GPIOLIB=y
 CONFIG_ARCH_REQUIRE_GPIOLIB=y
 CONFIG_GPIOLIB=y
-# CONFIG_GPIO_SYSFS is not set
+CONFIG_GPIO_SYSFS=y
 
 #
 # Memory mapped GPIO expanders:
