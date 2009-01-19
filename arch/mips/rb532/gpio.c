@@ -93,7 +93,7 @@ void set_latch_u5(unsigned char or_mask, unsigned char nand_mask)
 	spin_lock_irqsave(&dev3.lock, flags);
 
 	dev3.state = (dev3.state | or_mask) & ~nand_mask;
-	writel(dev3.state, &dev3.base);
+	writeb(dev3.state, dev3.base);
 
 	spin_unlock_irqrestore(&dev3.lock, flags);
 }
