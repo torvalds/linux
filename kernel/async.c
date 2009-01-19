@@ -133,7 +133,7 @@ static void run_one_entry(void)
 
 	/* 2) move it to the running queue */
 	list_del(&entry->list);
-	list_add_tail(&entry->list, &async_running);
+	list_add_tail(&entry->list, entry->running);
 	spin_unlock_irqrestore(&async_lock, flags);
 
 	/* 3) run it (and print duration)*/
@@ -210,7 +210,7 @@ static async_cookie_t __async_schedule(async_func_ptr *ptr, void *data, struct l
 
 async_cookie_t async_schedule(async_func_ptr *ptr, void *data)
 {
-	return __async_schedule(ptr, data, &async_pending);
+	return __async_schedule(ptr, data, &async_running);
 }
 EXPORT_SYMBOL_GPL(async_schedule);
 
