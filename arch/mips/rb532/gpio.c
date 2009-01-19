@@ -41,21 +41,12 @@ struct rb532_gpio_chip {
 	void __iomem	 *regbase;
 };
 
-struct mpmc_device dev3;
-
 static struct resource rb532_gpio_reg0_res[] = {
 	{
 		.name 	= "gpio_reg0",
 		.start 	= REGBASE + GPIOBASE,
 		.end 	= REGBASE + GPIOBASE + sizeof(struct rb532_gpio_reg) - 1,
 		.flags 	= IORESOURCE_MEM,
-	}
-};
-
-static struct resource rb532_dev3_ctl_res[] = {
-	{
-		.name	= "dev3_ctl",
-		.flags	= IORESOURCE_MEM,
 	}
 };
 
@@ -85,25 +76,6 @@ unsigned get_434_reg(unsigned reg_offs)
 	return readl(IDT434_REG_BASE + reg_offs);
 }
 EXPORT_SYMBOL(get_434_reg);
-
-void set_latch_u5(unsigned char or_mask, unsigned char nand_mask)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev3.lock, flags);
-
-	dev3.state = (dev3.state | or_mask) & ~nand_mask;
-	writeb(dev3.state, dev3.base);
-
-	spin_unlock_irqrestore(&dev3.lock, flags);
-}
-EXPORT_SYMBOL(set_latch_u5);
-
-unsigned char get_latch_u5(void)
-{
-	return dev3.state;
-}
-EXPORT_SYMBOL(get_latch_u5);
 
 /* rb532_set_bit - sanely set a bit
  *
@@ -248,17 +220,6 @@ int __init rb532_gpio_init(void)
 
 	/* Register our GPIO chip */
 	gpiochip_add(&rb532_gpio_chip->chip);
-
-	rb532_dev3_ctl_res[0].start = readl(IDT434_REG_BASE + DEV3BASE);
-	rb532_dev3_ctl_res[0].end = rb532_dev3_ctl_res[0].start + 0x1000;
-
-	r = rb532_dev3_ctl_res;
-	dev3.base = ioremap_nocache(r->start, r->end - r->start);
-
-	if (!dev3.base) {
-		printk(KERN_ERR "rb532: cannot remap device controller 3\n");
-		return -ENXIO;
-	}
 
 	return 0;
 }
