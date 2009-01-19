@@ -339,13 +339,14 @@ static const struct cx18_card cx18_card_toshiba_qosmio_dvbt = {
 /* Leadtek WinFast PVR2100 */
 
 static const struct cx18_card_pci_info cx18_pci_leadtek_pvr2100[] = {
-	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_LEADTEK, 0x6f27 },
+	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_LEADTEK, 0x6f27 }, /* PVR2100   */
+	{ PCI_DEVICE_ID_CX23418, CX18_PCI_ID_LEADTEK, 0x6690 }, /* DVR3100 H */
 	{ 0, 0, 0 }
 };
 
 static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 	.type = CX18_CARD_LEADTEK_PVR2100,
-	.name = "Leadtek WinFast PVR2100",
+	.name = "Leadtek WinFast PVR2100/DVR3100 H",
 	.comment = "Experimenters and photos needed for device to work well.\n"
 		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
