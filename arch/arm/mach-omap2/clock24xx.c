@@ -200,7 +200,7 @@ static struct omap_clk omap24xx_clks[] = {
 	CLK(NULL,	"sdrc_ick",	&sdrc_ick,	CK_243X),
 	CLK(NULL,	"des_ick",	&des_ick,	CK_243X | CK_242X),
 	CLK(NULL,	"sha_ick",	&sha_ick,	CK_243X | CK_242X),
-	CLK(NULL,	"rng_ick",	&rng_ick,	CK_243X | CK_242X),
+	CLK("omap_rng",	"ick",		&rng_ick,	CK_243X | CK_242X),
 	CLK(NULL,	"aes_ick",	&aes_ick,	CK_243X | CK_242X),
 	CLK(NULL,	"pka_ick",	&pka_ick,	CK_243X | CK_242X),
 	CLK(NULL,	"usb_fck",	&usb_fck,	CK_243X | CK_242X),
