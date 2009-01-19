@@ -33,7 +33,7 @@ int __init dst_export_init(void)
 {
 	int err = -ENOMEM;
 
-	dst_bio_set = bioset_create(32, 32);
+	dst_bio_set = bioset_create(32, sizeof(struct dst_export_priv));
 	if (!dst_bio_set)
 		goto err_out_exit;
 
@@ -424,12 +424,8 @@ static void dst_bio_destructor(struct bio *bio)
 		__free_page(bv->bv_page);
 	}
 
-	if (priv) {
-		struct dst_node *n = priv->state->node;
-
+	if (priv)
 		dst_state_put(priv->state);
-		mempool_free(priv, n->trans_pool);
-	}
 	bio_free(bio, dst_bio_set);
 }
 
@@ -555,11 +551,8 @@ int dst_process_io(struct dst_state *st)
 			dst_bio_set);
 	if (!bio)
 		goto err_out_exit;
-	bio->bi_private = NULL;
 
-	priv = mempool_alloc(st->node->trans_pool, GFP_KERNEL);
-	if (!priv)
-		goto err_out_free;
+	priv = (struct dst_export_priv *)(((void *)bio) - sizeof (struct dst_export_priv));
 
 	priv->state = dst_state_get(st);
 	priv->bio = bio;
