@@ -15,7 +15,6 @@
 #  include <asm/io_apic.h>
 # endif
 #endif
-#include <asm/pda.h>
 #include <asm/thread_info.h>
 #include <asm/cpumask.h>
 

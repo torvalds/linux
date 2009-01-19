@@ -30,7 +30,6 @@
 #include <asm/genapic.h>
 #endif
 
-#include <asm/pda.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/desc.h>
