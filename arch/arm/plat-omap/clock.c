@@ -36,45 +36,6 @@ static struct clk_functions *arch_clock;
  * Standard clock functions defined in include/linux/clk.h
  *-------------------------------------------------------------------------*/
 
-#ifndef CONFIG_COMMON_CLKDEV
-/*
- * Returns a clock. Note that we first try to use device id on the bus
- * and clock name. If this fails, we try to use clock name only.
- */
-struct clk * clk_get(struct device *dev, const char *id)
-{
-	struct clk *p, *clk = ERR_PTR(-ENOENT);
-	int idno;
-
-	if (dev == NULL || dev->bus != &platform_bus_type)
-		idno = -1;
-	else
-		idno = to_platform_device(dev)->id;
-
-	mutex_lock(&clocks_mutex);
-
-	list_for_each_entry(p, &clocks, node) {
-		if (p->id == idno && strcmp(id, p->name) == 0) {
-			clk = p;
-			goto found;
-		}
-	}
-
-	list_for_each_entry(p, &clocks, node) {
-		if (strcmp(id, p->name) == 0) {
-			clk = p;
-			break;
-		}
-	}
-
-found:
-	mutex_unlock(&clocks_mutex);
-
-	return clk;
-}
-EXPORT_SYMBOL(clk_get);
-#endif
-
 int clk_enable(struct clk *clk)
 {
 	unsigned long flags;
@@ -146,13 +107,6 @@ unsigned long clk_get_rate(struct clk *clk)
 	return ret;
 }
 EXPORT_SYMBOL(clk_get_rate);
-
-#ifndef CONFIG_COMMON_CLKDEV
-void clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_put);
-#endif
 
 /*-------------------------------------------------------------------------
  * Optional clock functions defined in include/linux/clk.h
