@@ -50,33 +50,6 @@ static struct resource rb532_gpio_reg0_res[] = {
 	}
 };
 
-void set_434_reg(unsigned reg_offs, unsigned bit, unsigned len, unsigned val)
-{
-	unsigned long flags;
-	unsigned data;
-	unsigned i = 0;
-
-	spin_lock_irqsave(&dev3.lock, flags);
-
-	data = readl(IDT434_REG_BASE + reg_offs);
-	for (i = 0; i != len; ++i) {
-		if (val & (1 << i))
-			data |= (1 << (i + bit));
-		else
-			data &= ~(1 << (i + bit));
-	}
-	writel(data, (IDT434_REG_BASE + reg_offs));
-
-	spin_unlock_irqrestore(&dev3.lock, flags);
-}
-EXPORT_SYMBOL(set_434_reg);
-
-unsigned get_434_reg(unsigned reg_offs)
-{
-	return readl(IDT434_REG_BASE + reg_offs);
-}
-EXPORT_SYMBOL(get_434_reg);
-
 /* rb532_set_bit - sanely set a bit
  *
  * bitval: new value for the bit
