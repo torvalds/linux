@@ -57,6 +57,4 @@ obj-$(CONFIG_MACH_NOKIA_RX51)		+= board-rx51.o \
 					   mmc-twl4030.o
 
 # Platform specific device init code
-ifeq ($(CONFIG_USB_MUSB_SOC),y)
 obj-y					+= usb-musb.o
-endif
