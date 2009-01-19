@@ -209,18 +209,43 @@ static async_cookie_t __async_schedule(async_func_ptr *ptr, void *data, struct l
 	return newcookie;
 }
 
+/**
+ * async_schedule - schedule a function for asynchronous execution
+ * @ptr: function to execute asynchronously
+ * @data: data pointer to pass to the function
+ *
+ * Returns an async_cookie_t that may be used for checkpointing later.
+ * Note: This function may be called from atomic or non-atomic contexts.
+ */
 async_cookie_t async_schedule(async_func_ptr *ptr, void *data)
 {
 	return __async_schedule(ptr, data, &async_running);
 }
 EXPORT_SYMBOL_GPL(async_schedule);
 
+/**
+ * async_schedule_special - schedule a function for asynchronous execution with a special running queue
+ * @ptr: function to execute asynchronously
+ * @data: data pointer to pass to the function
+ * @running: list head to add to while running
+ *
+ * Returns an async_cookie_t that may be used for checkpointing later.
+ * @running may be used in the async_synchronize_*_special() functions
+ * to wait on a special running queue rather than on the global running
+ * queue.
+ * Note: This function may be called from atomic or non-atomic contexts.
+ */
 async_cookie_t async_schedule_special(async_func_ptr *ptr, void *data, struct list_head *running)
 {
 	return __async_schedule(ptr, data, running);
 }
 EXPORT_SYMBOL_GPL(async_schedule_special);
 
+/**
+ * async_synchronize_full - synchronize all asynchronous function calls
+ *
+ * This function waits until all asynchronous function calls have been done.
+ */
 void async_synchronize_full(void)
 {
 	do {
@@ -229,12 +254,27 @@ void async_synchronize_full(void)
 }
 EXPORT_SYMBOL_GPL(async_synchronize_full);
 
+/**
+ * async_synchronize_full_special - synchronize all asynchronous function calls for a running list
+ * @list: running list to synchronize on
+ *
+ * This function waits until all asynchronous function calls for the running
+ * list @list have been done.
+ */
 void async_synchronize_full_special(struct list_head *list)
 {
 	async_synchronize_cookie_special(next_cookie, list);
 }
 EXPORT_SYMBOL_GPL(async_synchronize_full_special);
 
+/**
+ * async_synchronize_cookie_special - synchronize asynchronous function calls on a running list with cookie checkpointing
+ * @cookie: async_cookie_t to use as checkpoint
+ * @running: running list to synchronize on
+ *
+ * This function waits until all asynchronous function calls for the running
+ * list @list submitted prior to @cookie have been done.
+ */
 void async_synchronize_cookie_special(async_cookie_t cookie, struct list_head *running)
 {
 	ktime_t starttime, delta, endtime;
@@ -257,6 +297,13 @@ void async_synchronize_cookie_special(async_cookie_t cookie, struct list_head *r
 }
 EXPORT_SYMBOL_GPL(async_synchronize_cookie_special);
 
+/**
+ * async_synchronize_cookie - synchronize asynchronous function calls with cookie checkpointing
+ * @cookie: async_cookie_t to use as checkpoint
+ *
+ * This function waits until all asynchronous function calls prior to @cookie
+ * have been done.
+ */
 void async_synchronize_cookie(async_cookie_t cookie)
 {
 	async_synchronize_cookie_special(cookie, &async_running);
