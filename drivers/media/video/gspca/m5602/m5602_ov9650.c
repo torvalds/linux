@@ -449,6 +449,14 @@ int ov9650_start(struct sd *sd)
 	if (err < 0)
 		return err;
 
+	err = m5602_write_bridge(sd, M5602_XB_SIG_INI, 0);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_SIG_INI, 2);
+	if (err < 0)
+		return err;
+
 	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA,
 				 (hor_offs >> 8) & 0xff);
 	if (err < 0)
@@ -465,6 +473,10 @@ int ov9650_start(struct sd *sd)
 
 	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA,
 				 ((width + hor_offs) & 0xff));
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_SIG_INI, 0);
 	if (err < 0)
 		return err;
 
