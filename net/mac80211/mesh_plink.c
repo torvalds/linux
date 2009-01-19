@@ -361,36 +361,6 @@ void mesh_plink_block(struct sta_info *sta)
 	spin_unlock_bh(&sta->lock);
 }
 
-int mesh_plink_close(struct sta_info *sta)
-{
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	__le16 llid, plid, reason;
-
-	mpl_dbg("Mesh plink: closing link with %pM\n", sta->sta.addr);
-	spin_lock_bh(&sta->lock);
-	sta->reason = cpu_to_le16(MESH_LINK_CANCELLED);
-	reason = sta->reason;
-
-	if (sta->plink_state == PLINK_LISTEN ||
-	    sta->plink_state == PLINK_BLOCKED) {
-		mesh_plink_fsm_restart(sta);
-		spin_unlock_bh(&sta->lock);
-		return 0;
-	} else if (sta->plink_state == PLINK_ESTAB) {
-		__mesh_plink_deactivate(sta);
-		/* The timer should not be running */
-		mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata));
-	} else if (!mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata)))
-		sta->ignore_plink_timer = true;
-
-	sta->plink_state = PLINK_HOLDING;
-	llid = sta->llid;
-	plid = sta->plid;
-	spin_unlock_bh(&sta->lock);
-	mesh_plink_frame_tx(sta->sdata, PLINK_CLOSE, sta->sta.addr, llid,
-			    plid, reason);
-	return 0;
-}
 
 void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_mgmt *mgmt,
 			 size_t len, struct ieee80211_rx_status *rx_status)
