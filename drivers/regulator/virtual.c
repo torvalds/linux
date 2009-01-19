@@ -260,7 +260,7 @@ static DEVICE_ATTR(min_microamps, 0666, show_min_uA, set_min_uA);
 static DEVICE_ATTR(max_microamps, 0666, show_max_uA, set_max_uA);
 static DEVICE_ATTR(mode, 0666, show_mode, set_mode);
 
-struct device_attribute *attributes[] = {
+static struct device_attribute *attributes[] = {
 	&dev_attr_min_microvolts,
 	&dev_attr_max_microvolts,
 	&dev_attr_min_microamps,
