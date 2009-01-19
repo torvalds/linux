@@ -1324,55 +1324,41 @@ static void iwl3945_activate_qos(struct iwl_priv *priv, u8 force)
 #define MSEC_TO_USEC 1024
 
 
-#define NOSLP __constant_cpu_to_le16(0), 0, 0
-#define SLP IWL_POWER_DRIVER_ALLOW_SLEEP_MSK, 0, 0
-#define SLP_TIMEOUT(T) __constant_cpu_to_le32((T) * MSEC_TO_USEC)
-#define SLP_VEC(X0, X1, X2, X3, X4) {__constant_cpu_to_le32(X0), \
-				     __constant_cpu_to_le32(X1), \
-				     __constant_cpu_to_le32(X2), \
-				     __constant_cpu_to_le32(X3), \
-				     __constant_cpu_to_le32(X4)}
-
 /* default power management (not Tx power) table values */
 /* for TIM  0-10 */
-static struct iwl_power_vec_entry range_0[IWL39_POWER_AC] = {
-	{{NOSLP, SLP_TIMEOUT(0), SLP_TIMEOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
-	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(500), SLP_VEC(1, 2, 3, 4, 4)}, 0},
-	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(300), SLP_VEC(2, 4, 6, 7, 7)}, 0},
-	{{SLP, SLP_TIMEOUT(50), SLP_TIMEOUT(100), SLP_VEC(2, 6, 9, 9, 10)}, 0},
-	{{SLP, SLP_TIMEOUT(50), SLP_TIMEOUT(25), SLP_VEC(2, 7, 9, 9, 10)}, 1},
-	{{SLP, SLP_TIMEOUT(25), SLP_TIMEOUT(25), SLP_VEC(4, 7, 10, 10, 10)}, 1}
+static struct iwl_power_vec_entry range_0[IWL_POWER_MAX] = {
+	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
+	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 4)}, 0},
+	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(2, 4, 6, 7, 7)}, 0},
+	{{SLP, SLP_TOUT(50), SLP_TOUT(100), SLP_VEC(2, 6, 9, 9, 10)}, 0},
+	{{SLP, SLP_TOUT(50), SLP_TOUT(25), SLP_VEC(2, 7, 9, 9, 10)}, 1},
+	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(4, 7, 10, 10, 10)}, 1}
 };
 
 /* for TIM > 10 */
-static struct iwl_power_vec_entry range_1[IWL39_POWER_AC] = {
-	{{NOSLP, SLP_TIMEOUT(0), SLP_TIMEOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
-	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(500),
-		 SLP_VEC(1, 2, 3, 4, 0xFF)}, 0},
-	{{SLP, SLP_TIMEOUT(200), SLP_TIMEOUT(300),
-		 SLP_VEC(2, 4, 6, 7, 0xFF)}, 0},
-	{{SLP, SLP_TIMEOUT(50), SLP_TIMEOUT(100),
-		 SLP_VEC(2, 6, 9, 9, 0xFF)}, 0},
-	{{SLP, SLP_TIMEOUT(50), SLP_TIMEOUT(25), SLP_VEC(2, 7, 9, 9, 0xFF)}, 0},
-	{{SLP, SLP_TIMEOUT(25), SLP_TIMEOUT(25),
-		 SLP_VEC(4, 7, 10, 10, 0xFF)}, 0}
+static struct iwl_power_vec_entry range_1[IWL_POWER_MAX] = {
+	{{NOSLP, SLP_TOUT(0), SLP_TOUT(0), SLP_VEC(0, 0, 0, 0, 0)}, 0},
+	{{SLP, SLP_TOUT(200), SLP_TOUT(500), SLP_VEC(1, 2, 3, 4, 0xFF)}, 0},
+	{{SLP, SLP_TOUT(200), SLP_TOUT(300), SLP_VEC(2, 4, 6, 7, 0xFF)}, 0},
+	{{SLP, SLP_TOUT(50), SLP_TOUT(100), SLP_VEC(2, 6, 9, 9, 0xFF)}, 0},
+	{{SLP, SLP_TOUT(50), SLP_TOUT(25), SLP_VEC(2, 7, 9, 9, 0xFF)}, 0},
+	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(4, 7, 10, 10, 0xFF)}, 0}
 };
 
 int iwl3945_power_init_handle(struct iwl_priv *priv)
 {
 	int rc = 0, i;
-	struct iwl3945_power_mgr *pow_data;
-	int size = sizeof(struct iwl_power_vec_entry) * IWL39_POWER_AC;
+	struct iwl_power_mgr *pow_data;
+	int size = sizeof(struct iwl_power_vec_entry) * IWL_POWER_MAX;
 	u16 pci_pm;
 
 	IWL_DEBUG_POWER("Initialize power \n");
 
-	pow_data = &(priv->power_data_39);
+	pow_data = &priv->power_data;
 
 	memset(pow_data, 0, sizeof(*pow_data));
 
-	pow_data->active_index = IWL_POWER_RANGE_0;
-	pow_data->dtim_val = 0xffff;
+	pow_data->dtim_period = 1;
 
 	memcpy(&pow_data->pwr_range_0[0], &range_0[0], size);
 	memcpy(&pow_data->pwr_range_1[0], &range_1[0], size);
@@ -1385,7 +1371,7 @@ int iwl3945_power_init_handle(struct iwl_priv *priv)
 
 		IWL_DEBUG_POWER("adjust power command flags\n");
 
-		for (i = 0; i < IWL39_POWER_AC; i++) {
+		for (i = 0; i < IWL_POWER_MAX; i++) {
 			cmd = &pow_data->pwr_range_0[i].cmd;
 
 			if (pci_pm & 0x1)
@@ -1400,53 +1386,46 @@ int iwl3945_power_init_handle(struct iwl_priv *priv)
 static int iwl3945_update_power_cmd(struct iwl_priv *priv,
 				struct iwl_powertable_cmd *cmd, u32 mode)
 {
-	int rc = 0, i;
-	u8 skip;
-	u32 max_sleep = 0;
+	struct iwl_power_mgr *pow_data;
 	struct iwl_power_vec_entry *range;
+	u32 max_sleep = 0;
+	int i;
 	u8 period = 0;
-	struct iwl3945_power_mgr *pow_data;
+	bool skip;
 
 	if (mode > IWL_POWER_INDEX_5) {
 		IWL_DEBUG_POWER("Error invalid power mode \n");
-		return -1;
+		return -EINVAL;
 	}
-	pow_data = &(priv->power_data_39);
+	pow_data = &priv->power_data;
 
-	if (pow_data->active_index == IWL_POWER_RANGE_0)
+	if (pow_data->dtim_period < 10)
 		range = &pow_data->pwr_range_0[0];
 	else
 		range = &pow_data->pwr_range_1[1];
 
 	memcpy(cmd, &range[mode].cmd, sizeof(struct iwl3945_powertable_cmd));
 
-#ifdef IWL_MAC80211_DISABLE
-	if (priv->assoc_network != NULL) {
-		unsigned long flags;
-
-		period = priv->assoc_network->tim.tim_period;
-	}
-#endif	/*IWL_MAC80211_DISABLE */
-	skip = range[mode].no_dtim;
 
 	if (period == 0) {
 		period = 1;
-		skip = 0;
+		skip = false;
+	} else {
+		skip = !!range[mode].no_dtim;
 	}
 
-	if (skip == 0) {
-		max_sleep = period;
-		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
-	} else {
+	if (skip) {
 		__le32 slp_itrvl = cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1];
 		max_sleep = (le32_to_cpu(slp_itrvl) / period) * period;
 		cmd->flags |= IWL_POWER_SLEEP_OVER_DTIM_MSK;
+	} else {
+		max_sleep = period;
+		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
 	}
 
-	for (i = 0; i < IWL_POWER_VEC_SIZE; i++) {
+	for (i = 0; i < IWL_POWER_VEC_SIZE; i++)
 		if (le32_to_cpu(cmd->sleep_interval[i]) > max_sleep)
 			cmd->sleep_interval[i] = cpu_to_le32(max_sleep);
-	}
 
 	IWL_DEBUG_POWER("Flags value = 0x%08X\n", cmd->flags);
 	IWL_DEBUG_POWER("Tx timeout = %u\n", le32_to_cpu(cmd->tx_data_timeout));
@@ -1458,7 +1437,7 @@ static int iwl3945_update_power_cmd(struct iwl_priv *priv,
 			le32_to_cpu(cmd->sleep_interval[3]),
 			le32_to_cpu(cmd->sleep_interval[4]));
 
-	return rc;
+	return 0;
 }
 
 static int iwl3945_send_power_mode(struct iwl_priv *priv, u32 mode)
@@ -6086,6 +6065,7 @@ static void iwl3945_bss_info_changed(struct ieee80211_hw *hw,
 			priv->beacon_int = bss_conf->beacon_int;
 			priv->timestamp = bss_conf->timestamp;
 			priv->assoc_capability = bss_conf->assoc_capability;
+			priv->power_data.dtim_period = bss_conf->dtim_period;
 			priv->next_scan_jiffies = jiffies +
 					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
 			mutex_lock(&priv->mutex);
@@ -6947,7 +6927,7 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->ibss_beacon = NULL;
 
 	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->power_data_39.lock);
+	spin_lock_init(&priv->power_data.lock);
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 

@@ -1076,7 +1076,6 @@ struct iwl_priv {
 	struct iwl3945_rxon_cmd staging39_rxon;
 	struct iwl3945_rxon_cmd recovery39_rxon;
 
-	struct iwl3945_power_mgr power_data_39;
 	struct iwl3945_notif_statistics statistics_39;
 
 	struct iwl3945_station_entry stations_39[IWL_STATION_COUNT];
