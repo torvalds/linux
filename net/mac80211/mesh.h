@@ -24,15 +24,15 @@
  *
  *
  *
- * @MESH_PATH_ACTIVE: the mesh path is can be used for forwarding
- * @MESH_PATH_RESOLVED: the discovery process is running for this mesh path
+ * @MESH_PATH_ACTIVE: the mesh path can be used for forwarding
+ * @MESH_PATH_RESOLVING: the discovery process is running for this mesh path
  * @MESH_PATH_DSN_VALID: the mesh path contains a valid destination sequence
  * 	number
  * @MESH_PATH_FIXED: the mesh path has been manually set and should not be
  * 	modified
  * @MESH_PATH_RESOLVED: the mesh path can has been resolved
  *
- * MESH_PATH_RESOLVED and MESH_PATH_DELETE are used by the mesh path timer to
+ * MESH_PATH_RESOLVED is used by the mesh path timer to
  * decide when to stop or cancel the mesh path discovery.
  */
 enum mesh_path_flags {
