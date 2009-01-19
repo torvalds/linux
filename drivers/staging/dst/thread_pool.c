@@ -115,7 +115,7 @@ void thread_pool_del_worker(struct thread_pool *p)
 {
 	struct thread_pool_worker *w = NULL;
 
-	while (!w) {
+	while (!w && p->thread_num) {
 		wait_event(p->wait, !list_empty(&p->ready_list) || !p->thread_num);
 
 		dprintk("%s: locking list_empty: %d, thread_num: %d.\n",
