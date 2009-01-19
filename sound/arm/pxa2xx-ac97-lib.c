@@ -21,7 +21,6 @@
 #include <sound/pxa2xx-lib.h>
 
 #include <asm/irq.h>
-#include <mach/hardware.h>
 #include <mach/regs-ac97.h>
 #include <mach/pxa2xx-gpio.h>
 #include <mach/audio.h>

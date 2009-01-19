@@ -21,8 +21,6 @@
 #include <linux/slab.h>
 
 #include <mach/corgi.h>
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 #include <mach/pxa2xx-gpio.h>
 #include <asm/hardware/scoop.h>
 

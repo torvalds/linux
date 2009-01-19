@@ -494,8 +494,6 @@ struct smc_local {
  */
 #include <linux/dma-mapping.h>
 #include <mach/dma.h>
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 
 #ifdef SMC_insl
 #undef SMC_insl

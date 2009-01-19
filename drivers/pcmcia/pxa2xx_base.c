@@ -28,7 +28,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
 #include <asm/mach-types.h>
 
