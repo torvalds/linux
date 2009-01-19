@@ -56,10 +56,10 @@ MODULE_AUTHOR("Jakub Schmidtke, sjakub@gmail.com");
 MODULE_DESCRIPTION("Asus OLED Driver v" ASUS_OLED_VERSION);
 MODULE_LICENSE("GPL");
 
-static struct class *oled_class = NULL;
-static int oled_num = 0;
+static struct class *oled_class;
+static int oled_num;
 
-static uint start_off = 0;
+static uint start_off;
 
 module_param(start_off, uint, 0644);
 
