@@ -1197,6 +1197,7 @@ xfs_fs_remount(
 	struct xfs_mount	*mp = XFS_M(sb);
 	substring_t		args[MAX_OPT_ARGS];
 	char			*p;
+	int			error;
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -1247,11 +1248,25 @@ xfs_fs_remount(
 		}
 	}
 
-	/* rw/ro -> rw */
+	/* ro -> rw */
 	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !(*flags & MS_RDONLY)) {
 		mp->m_flags &= ~XFS_MOUNT_RDONLY;
 		if (mp->m_flags & XFS_MOUNT_BARRIER)
 			xfs_mountfs_check_barriers(mp);
+
+		/*
+		 * If this is the first remount to writeable state we
+		 * might have some superblock changes to update.
+		 */
+		if (mp->m_update_flags) {
+			error = xfs_mount_log_sb(mp, mp->m_update_flags);
+			if (error) {
+				cmn_err(CE_WARN,
+					"XFS: failed to write sb changes");
+				return error;
+			}
+			mp->m_update_flags = 0;
+		}
 	}
 
 	/* rw -> ro */
