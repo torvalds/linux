@@ -29,8 +29,12 @@ config REGULATOR_DEBUG
 	  Say yes here to enable debugging support.
 
 config REGULATOR_FIXED_VOLTAGE
-	tristate
+	tristate "Fixed voltage regulator support"
 	default n
+	help
+	  This driver provides support for fixed voltage regulators,
+	  useful for systems which use a combination of software
+	  managed regulators and simple non-configurable regulators.
 
 config REGULATOR_VIRTUAL_CONSUMER
 	tristate "Virtual regulator consumer support"
