@@ -91,7 +91,7 @@ MODULE_LICENSE("GPL");
 MODULE_PARM_DESC(debug, "Enable Loopback");
 MODULE_PARM_DESC(atmdebug, "Print ATM data");
 module_param(debug, int, 0444);
-module_param(atmdebug, int, 0444);
+module_param(atmdebug, int, 0644);
 
 static int opens;
 
@@ -541,6 +541,7 @@ static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 
 		ret = pskb_expand_head(skb, expand_by, 0, GFP_ATOMIC);
 		if (ret) {
+			dev_warn(&card->dev->dev, "pskb_expand_head failed.\n");
 			solos_pop(vcc, skb);
 			return ret;
 		}
