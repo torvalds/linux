@@ -424,6 +424,19 @@ xfs_iformat(
 	case XFS_DINODE_FMT_LOCAL:
 		atp = (xfs_attr_shortform_t *)XFS_DFORK_APTR(dip);
 		size = be16_to_cpu(atp->hdr.totsize);
+
+		if (unlikely(size < sizeof(struct xfs_attr_sf_hdr))) {
+			xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
+				"corrupt inode %Lu "
+				"(bad attr fork size %Ld).",
+				(unsigned long long) ip->i_ino,
+				(long long) size);
+			XFS_CORRUPTION_ERROR("xfs_iformat(8)",
+					     XFS_ERRLEVEL_LOW,
+					     ip->i_mount, dip);
+			return XFS_ERROR(EFSCORRUPTED);
+		}
+
 		error = xfs_iformat_local(ip, dip, XFS_ATTR_FORK, size);
 		break;
 	case XFS_DINODE_FMT_EXTENTS:
