@@ -24,7 +24,6 @@ struct x8664_pda {
 } ____cacheline_aligned_in_smp;
 
 DECLARE_PER_CPU(struct x8664_pda, __pda);
-extern void pda_init(int);
 
 #define cpu_pda(cpu)		(&per_cpu(__pda, cpu))
 

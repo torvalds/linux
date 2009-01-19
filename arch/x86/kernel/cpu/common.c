@@ -895,15 +895,6 @@ EXPORT_PER_CPU_SYMBOL(kernel_stack);
 
 DEFINE_PER_CPU(unsigned int, irq_count) = -1;
 
-void __cpuinit pda_init(int cpu)
-{
-	/* Setup up data that may be needed in __get_free_pages early */
-	loadsegment(fs, 0);
-	loadsegment(gs, 0);
-
-	load_pda_offset(cpu);
-}
-
 static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
 	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ])
 	__aligned(PAGE_SIZE);
@@ -967,9 +958,9 @@ void __cpuinit cpu_init(void)
 	struct task_struct *me;
 	int i;
 
-	/* CPU 0 is initialised in head64.c */
-	if (cpu != 0)
-		pda_init(cpu);
+	loadsegment(fs, 0);
+	loadsegment(gs, 0);
+	load_pda_offset(cpu);
 
 #ifdef CONFIG_NUMA
 	if (cpu != 0 && percpu_read(node_number) == 0 &&
