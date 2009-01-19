@@ -17,6 +17,7 @@
  */
 #include <linux/compat.h>
 #include <linux/ioctl.h>
+#include <linux/mount.h>
 #include <asm/uaccess.h>
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -458,15 +459,23 @@ xfs_compat_attrmulti_by_handle(
 					&ops[i].am_length, ops[i].am_flags);
 			break;
 		case ATTR_OP_SET:
+			ops[i].am_error = mnt_want_write(parfilp->f_path.mnt);
+			if (ops[i].am_error)
+				break;
 			ops[i].am_error = xfs_attrmulti_attr_set(
 					dentry->d_inode, attr_name,
 					compat_ptr(ops[i].am_attrvalue),
 					ops[i].am_length, ops[i].am_flags);
+			mnt_drop_write(parfilp->f_path.mnt);
 			break;
 		case ATTR_OP_REMOVE:
+			ops[i].am_error = mnt_want_write(parfilp->f_path.mnt);
+			if (ops[i].am_error)
+				break;
 			ops[i].am_error = xfs_attrmulti_attr_remove(
 					dentry->d_inode, attr_name,
 					ops[i].am_flags);
+			mnt_drop_write(parfilp->f_path.mnt);
 			break;
 		default:
 			ops[i].am_error = EINVAL;
