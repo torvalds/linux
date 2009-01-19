@@ -55,8 +55,6 @@ static struct resource rb532_gpio_reg0_res[] = {
 static struct resource rb532_dev3_ctl_res[] = {
 	{
 		.name	= "dev3_ctl",
-		.start	= REGBASE + DEV3BASE,
-		.end	= REGBASE + DEV3BASE + sizeof(struct dev_reg) - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
@@ -250,6 +248,9 @@ int __init rb532_gpio_init(void)
 
 	/* Register our GPIO chip */
 	gpiochip_add(&rb532_gpio_chip->chip);
+
+	rb532_dev3_ctl_res[0].start = readl(IDT434_REG_BASE + DEV3BASE);
+	rb532_dev3_ctl_res[0].end = rb532_dev3_ctl_res[0].start + 0x1000;
 
 	r = rb532_dev3_ctl_res;
 	dev3.base = ioremap_nocache(r->start, r->end - r->start);
