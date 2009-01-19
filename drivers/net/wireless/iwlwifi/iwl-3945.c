@@ -1675,7 +1675,7 @@ static void iwl3945_hw_reg_set_scan_power(struct iwl_priv *priv, u32 scan_tbl_in
 	/* further limit to user's max power preference.
 	 * FIXME:  Other spectrum management power limitations do not
 	 *   seem to apply?? */
-	power = min(power, priv->user_txpower_limit);
+	power = min(power, priv->tx_power_user_lmt);
 	scan_power_info->requested_power = power;
 
 	/* find difference between new scan *power* and current "normal"
@@ -1947,14 +1947,14 @@ int iwl3945_hw_reg_set_txpower(struct iwl_priv *priv, s8 power)
 	u8 a_band;
 	u8 i;
 
-	if (priv->user_txpower_limit == power) {
+	if (priv->tx_power_user_lmt == power) {
 		IWL_DEBUG_POWER("Requested Tx power same as current "
 				"limit: %ddBm.\n", power);
 		return 0;
 	}
 
 	IWL_DEBUG_POWER("Setting upper limit clamp to %ddBm.\n", power);
-	priv->user_txpower_limit = power;
+	priv->tx_power_user_lmt = power;
 
 	/* set up new Tx powers for each and every channel, 2.4 and 5.x */
 

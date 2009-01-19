@@ -1068,9 +1068,6 @@ struct iwl_priv {
 
 	/*For 3945*/
 #define IWL_DEFAULT_TX_POWER 0x0F
-	s8 user_txpower_limit;
-	s8 max_channel_txpower_limit;
-
 	/* We declare this const so it can only be
 	 * changed via explicit cast within the
 	 * routines that actually update the physical
@@ -1088,8 +1085,6 @@ struct iwl_priv {
 	struct iwl3945_eeprom eeprom39;
 
 	u32 sta_supp_rates;
-	u8 call_post_assoc_from_beacon;
-
 }; /*iwl_priv */
 
 static inline void iwl_txq_ctx_activate(struct iwl_priv *priv, int txq_id)

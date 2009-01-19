@@ -1306,7 +1306,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	s32 factory_actual_pwr[2];
 	s32 power_index;
 
-	/* user_txpower_limit is in dBm, convert to half-dBm (half-dB units
+	/* tx_power_user_lmt is in dBm, convert to half-dBm (half-dB units
 	 *   are used for indexing into txpower table) */
 	user_target_power = 2 * priv->tx_power_user_lmt;
 

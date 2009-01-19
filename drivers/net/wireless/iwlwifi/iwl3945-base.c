@@ -3949,11 +3949,11 @@ static int iwl3945_init_channel_map(struct iwl_priv *priv)
 					     flags & EEPROM_CHANNEL_RADAR))
 				       ? "" : "not ");
 
-			/* Set the user_txpower_limit to the highest power
+			/* Set the tx_power_user_lmt to the highest power
 			 * supported by any channel */
 			if (eeprom_ch_info[ch].max_power_avg >
-			    priv->user_txpower_limit)
-				priv->user_txpower_limit =
+			    priv->tx_power_user_lmt)
+				priv->tx_power_user_lmt =
 				    eeprom_ch_info[ch].max_power_avg;
 
 			ch_info++;
@@ -4228,8 +4228,8 @@ static int iwl3945_init_geos(struct iwl_priv *priv)
 			if (ch->flags & EEPROM_CHANNEL_RADAR)
 				geo_ch->flags |= IEEE80211_CHAN_RADAR;
 
-			if (ch->max_power_avg > priv->max_channel_txpower_limit)
-				priv->max_channel_txpower_limit =
+			if (ch->max_power_avg > priv->tx_power_channel_lmt)
+				priv->tx_power_channel_lmt =
 				    ch->max_power_avg;
 		} else {
 			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
@@ -6307,7 +6307,6 @@ static void iwl3945_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->assoc_id = 0;
 	priv->assoc_capability = 0;
-	priv->call_post_assoc_from_beacon = 0;
 
 	/* new association get rid of ibss beacon skb */
 	if (priv->ibss_beacon)
@@ -6451,7 +6450,7 @@ static ssize_t show_tx_power(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
-	return sprintf(buf, "%d\n", priv->user_txpower_limit);
+	return sprintf(buf, "%d\n", priv->tx_power_user_lmt);
 }
 
 static ssize_t store_tx_power(struct device *d,
@@ -6974,7 +6973,7 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->rates_mask = IWL_RATES_MASK;
 	/* If power management is turned on, default to AC mode */
 	priv->power_mode = IWL39_POWER_AC;
-	priv->user_txpower_limit = IWL_DEFAULT_TX_POWER;
+	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
 
 	ret = iwl3945_init_channel_map(priv);
 	if (ret) {
