@@ -4,17 +4,17 @@ config DST
 	select CONNECTOR
 	---help---
 	DST is a network block device storage, which can be used to organize
-	exported storages on the remote nodes into the local block device.
+	exported storage on the remote nodes into the local block device.
 
-	DST works on top of any network media and protocol, it is just a matter
+	DST works on top of any network media and protocol; it is just a matter
 	of configuration utility to understand the correct addresses. The most
-	common example is TCP over IP allows to pass through firewalls and
-	created remote backup storage in the different datacenter. DST requires
+	common example is TCP over IP, which allows to pass through firewalls and
+	create remote backup storage in a different datacenter. DST requires
 	single port to be enabled on the exporting node and outgoing connections
 	on the local node.
 
-	DST works with in-kernel client and server, which improves the performance
-	eliminating unneded data copies and allows not to depend on the version
+	DST works with in-kernel client and server, which improves performance by
+	eliminating unneded data copies and by not depending on the version
 	of the external IO components. It requires userspace configuration utility
 	though.
 
@@ -23,7 +23,7 @@ config DST
 	may be lots of in-flight transactions. When remote host does not ack
 	the transaction it will be resent predefined number of times with specified
 	timeouts between them. All those parameters are configurable. Transactions
-	are marked as failed after all resends completed unsuccessfully, having
+	are marked as failed after all resends complete unsuccessfully; having
 	long enough resend timeout and/or large number of resends allows not to
 	return error to the higher (FS usually) layer in case of short network
 	problems or remote node outages. In case of network RAID setup this means
@@ -38,7 +38,7 @@ config DST
 
 	DST may fully encrypt the data channel in case of untrusted channel and implement
 	strong checksum of the transferred data. It is possible to configure algorithms
-	and crypto keys, they should match on both sides of the network channel.
+	and crypto keys; they should match on both sides of the network channel.
 	Crypto processing does not introduce noticeble performance overhead, since DST
 	uses configurable pool of threads to perform crypto processing.
 
@@ -63,5 +63,5 @@ config DST_DEBUG
 	bool "DST debug"
 	depends on DST
 	---help---
-	This option will turn HEAVY debugging of the DST.
+	This option will enable HEAVY debugging of the DST.
 	Turn it on ONLY if you have to debug some really obscure problem.
