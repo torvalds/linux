@@ -576,7 +576,7 @@ static const struct inotify_operations inotify_user_ops = {
 	.destroy_watch	= free_inotify_user_watch,
 };
 
-asmlinkage long sys_inotify_init1(int flags)
+SYSCALL_DEFINE1(inotify_init1, int, flags)
 {
 	struct inotify_device *dev;
 	struct inotify_handle *ih;
@@ -655,12 +655,13 @@ out_put_fd:
 	return ret;
 }
 
-asmlinkage long sys_inotify_init(void)
+SYSCALL_DEFINE0(inotify_init)
 {
 	return sys_inotify_init1(0);
 }
 
-asmlinkage long sys_inotify_add_watch(int fd, const char __user *pathname, u32 mask)
+SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
+		u32, mask)
 {
 	struct inode *inode;
 	struct inotify_device *dev;
@@ -704,7 +705,7 @@ fput_and_out:
 	return ret;
 }
 
-asmlinkage long sys_inotify_rm_watch(int fd, __s32 wd)
+SYSCALL_DEFINE2(inotify_rm_watch, int, fd, __s32, wd)
 {
 	struct file *filp;
 	struct inotify_device *dev;

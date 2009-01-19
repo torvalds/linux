@@ -1610,6 +1610,16 @@ static void orinoco_rx_isr_tasklet(unsigned long data)
 	struct orinoco_rx_data *rx_data, *temp;
 	struct hermes_rx_descriptor *desc;
 	struct sk_buff *skb;
+	unsigned long flags;
+
+	/* orinoco_rx requires the driver lock, and we also need to
+	 * protect priv->rx_list, so just hold the lock over the
+	 * lot.
+	 *
+	 * If orinoco_lock fails, we've unplugged the card. In this
+	 * case just abort. */
+	if (orinoco_lock(priv, &flags) != 0)
+		return;
 
 	/* extract desc and skb from queue */
 	list_for_each_entry_safe(rx_data, temp, &priv->rx_list, list) {
@@ -1622,6 +1632,8 @@ static void orinoco_rx_isr_tasklet(unsigned long data)
 
 		kfree(desc);
 	}
+
+	orinoco_unlock(priv, &flags);
 }
 
 /********************************************************************/
@@ -3645,11 +3657,21 @@ struct net_device
 void free_orinocodev(struct net_device *dev)
 {
 	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_rx_data *rx_data, *temp;
 
-	/* No need to empty priv->rx_list: if the tasklet is scheduled
-	 * when we call tasklet_kill it will run one final time,
-	 * emptying the list */
+	/* If the tasklet is scheduled when we call tasklet_kill it
+	 * will run one final time. However the tasklet will only
+	 * drain priv->rx_list if the hw is still available. */
 	tasklet_kill(&priv->rx_tasklet);
+
+	/* Explicitly drain priv->rx_list */
+	list_for_each_entry_safe(rx_data, temp, &priv->rx_list, list) {
+		list_del(&rx_data->list);
+
+		dev_kfree_skb(rx_data->skb);
+		kfree(rx_data->desc);
+		kfree(rx_data);
+	}
 
 	unregister_pm_notifier(&priv->pm_notifier);
 	orinoco_uncache_fw(priv);

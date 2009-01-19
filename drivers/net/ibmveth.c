@@ -602,7 +602,7 @@ static int ibmveth_open(struct net_device *netdev)
 
 	if(lpar_rc != H_SUCCESS) {
 		ibmveth_error_printk("h_register_logical_lan failed with %ld\n", lpar_rc);
-		ibmveth_error_printk("buffer TCE:0x%lx filter TCE:0x%lx rxq desc:0x%lx MAC:0x%lx\n",
+		ibmveth_error_printk("buffer TCE:0x%llx filter TCE:0x%llx rxq desc:0x%llx MAC:0x%llx\n",
 				     adapter->buffer_list_dma,
 				     adapter->filter_list_dma,
 				     rxq_desc.desc,
@@ -1378,13 +1378,13 @@ static int ibmveth_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "Firmware MAC:    %pM\n", firmware_mac);
 
 	seq_printf(seq, "\nAdapter Statistics:\n");
-	seq_printf(seq, "  TX:  vio_map_single failres:      %ld\n", adapter->tx_map_failed);
-	seq_printf(seq, "       send failures:               %ld\n", adapter->tx_send_failed);
-	seq_printf(seq, "  RX:  replenish task cycles:       %ld\n", adapter->replenish_task_cycles);
-	seq_printf(seq, "       alloc_skb_failures:          %ld\n", adapter->replenish_no_mem);
-	seq_printf(seq, "       add buffer failures:         %ld\n", adapter->replenish_add_buff_failure);
-	seq_printf(seq, "       invalid buffers:             %ld\n", adapter->rx_invalid_buffer);
-	seq_printf(seq, "       no buffers:                  %ld\n", adapter->rx_no_buffer);
+	seq_printf(seq, "  TX:  vio_map_single failres:      %lld\n", adapter->tx_map_failed);
+	seq_printf(seq, "       send failures:               %lld\n", adapter->tx_send_failed);
+	seq_printf(seq, "  RX:  replenish task cycles:       %lld\n", adapter->replenish_task_cycles);
+	seq_printf(seq, "       alloc_skb_failures:          %lld\n", adapter->replenish_no_mem);
+	seq_printf(seq, "       add buffer failures:         %lld\n", adapter->replenish_add_buff_failure);
+	seq_printf(seq, "       invalid buffers:             %lld\n", adapter->rx_invalid_buffer);
+	seq_printf(seq, "       no buffers:                  %lld\n", adapter->rx_no_buffer);
 
 	return 0;
 }

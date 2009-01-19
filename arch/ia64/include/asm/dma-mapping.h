@@ -9,6 +9,8 @@
 #include <linux/scatterlist.h>
 #include <asm/swiotlb.h>
 
+#define ARCH_HAS_DMA_GET_REQUIRED_MASK
+
 struct dma_mapping_ops {
 	int             (*mapping_error)(struct device *dev,
 					 dma_addr_t dma_addr);

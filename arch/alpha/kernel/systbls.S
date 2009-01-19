@@ -52,7 +52,7 @@ sys_call_table:
 	.quad sys_setpgid
 	.quad alpha_ni_syscall			/* 40 */
 	.quad sys_dup
-	.quad sys_pipe
+	.quad sys_alpha_pipe
 	.quad osf_set_program_attributes
 	.quad alpha_ni_syscall
 	.quad sys_open				/* 45 */

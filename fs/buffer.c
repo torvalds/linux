@@ -3243,7 +3243,7 @@ void block_sync_page(struct page *page)
  * Use of bdflush() is deprecated and will be removed in a future kernel.
  * The `pdflush' kernel threads fully replace bdflush daemons and this call.
  */
-asmlinkage long sys_bdflush(int func, long data)
+SYSCALL_DEFINE2(bdflush, int, func, long, data)
 {
 	static int msg_count;
 

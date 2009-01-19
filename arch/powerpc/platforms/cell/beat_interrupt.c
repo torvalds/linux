@@ -99,7 +99,7 @@ static void beatic_end_irq(unsigned int irq_plug)
 	err = beat_downcount_of_interrupt(irq_plug);
 	if (err != 0) {
 		if ((err & 0xFFFFFFFF) != 0xFFFFFFF5) /* -11: wrong state */
-			panic("Failed to downcount IRQ! Error = %16lx", err);
+			panic("Failed to downcount IRQ! Error = %16llx", err);
 
 		printk(KERN_ERR "IRQ over-downcounted, plug %d\n", irq_plug);
 	}

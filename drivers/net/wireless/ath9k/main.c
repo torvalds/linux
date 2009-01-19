@@ -2164,13 +2164,13 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 						    conf->ht.channel_type);
 		}
 
+		ath_update_chainmask(sc, conf->ht.enabled);
+
 		if (ath_set_channel(sc, &sc->sc_ah->ah_channels[pos]) < 0) {
 			DPRINTF(sc, ATH_DBG_FATAL, "Unable to set channel\n");
 			mutex_unlock(&sc->mutex);
 			return -EINVAL;
 		}
-
-		ath_update_chainmask(sc, conf->ht.enabled);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER)

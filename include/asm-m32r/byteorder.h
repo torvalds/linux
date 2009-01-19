@@ -1,8 +1,6 @@
 #ifndef _ASM_M32R_BYTEORDER_H
 #define _ASM_M32R_BYTEORDER_H
 
-#include <asm/swab.h>
-
 #if defined(__LITTLE_ENDIAN__)
 #  include <linux/byteorder/little_endian.h>
 #else

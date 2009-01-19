@@ -3786,14 +3786,11 @@ S: The Netherlands
 
 N: David Woodhouse
 E: dwmw2@infradead.org
-D: ARCnet stuff, Applicom board driver, SO_BINDTODEVICE,
-D: some Alpha platform porting from 2.0, Memory Technology Devices,
-D: Acquire watchdog timer, PC speaker driver maintenance,
+D: JFFS2 file system, Memory Technology Device subsystem,
 D: various other stuff that annoyed me by not working.
-S: c/o Red Hat Engineering
-S: Rustat House
-S: 60 Clifton Road
-S: Cambridge. CB1 7EG
+S: c/o Intel Corporation
+S: Pipers Way
+S: Swindon. SN3 1RJ
 S: England
 
 N: Chris Wright
