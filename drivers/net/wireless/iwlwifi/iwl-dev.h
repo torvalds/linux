@@ -58,6 +58,10 @@ extern struct iwl_cfg iwl5100_bg_cfg;
 extern struct iwl_cfg iwl5100_abg_cfg;
 extern struct iwl_cfg iwl5150_agn_cfg;
 
+/* shared structures from iwl-5000.c */
+extern struct iwl_mod_params iwl50_mod_params;
+extern struct iwl_ops iwl5000_ops;
+
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD	110 /* in Celsius */
 

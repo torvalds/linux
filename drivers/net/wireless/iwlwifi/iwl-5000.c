@@ -1528,13 +1528,13 @@ static struct iwl_lib_ops iwl5000_lib = {
 	},
 };
 
-static struct iwl_ops iwl5000_ops = {
+struct iwl_ops iwl5000_ops = {
 	.lib = &iwl5000_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
 };
 
-static struct iwl_mod_params iwl50_mod_params = {
+struct iwl_mod_params iwl50_mod_params = {
 	.num_of_queues = IWL50_NUM_QUEUES,
 	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
 	.amsdu_size_8K = 1,
