@@ -115,8 +115,8 @@
  */
 static int sbp2_max_speed = IEEE1394_SPEED_MAX;
 module_param_named(max_speed, sbp2_max_speed, int, 0644);
-MODULE_PARM_DESC(max_speed, "Force max speed "
-		 "(3 = 800Mb/s, 2 = 400Mb/s, 1 = 200Mb/s, 0 = 100Mb/s)");
+MODULE_PARM_DESC(max_speed, "Limit data transfer speed (5 <= 3200, "
+		 "4 <= 1600, 3 <= 800, 2 <= 400, 1 <= 200, 0 = 100 Mb/s)");
 
 /*
  * Set serialize_io to 0 or N to use dynamically appended lists of command ORBs.
