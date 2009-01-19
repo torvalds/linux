@@ -327,6 +327,8 @@ typedef struct xfs_mount {
 	spinlock_t		m_sync_lock;	/* work item list lock */
 	int			m_sync_seq;	/* sync thread generation no. */
 	wait_queue_head_t	m_wait_single_sync_task;
+	__int64_t		m_update_flags;	/* sb flags we need to update
+						   on the next remount,rw */
 } xfs_mount_t;
 
 /*
@@ -514,6 +516,7 @@ extern int	xfs_mod_incore_sb_unlocked(xfs_mount_t *, xfs_sb_field_t,
 			int64_t, int);
 extern int	xfs_mod_incore_sb_batch(xfs_mount_t *, xfs_mod_sb_t *,
 			uint, int);
+extern int	xfs_mount_log_sb(xfs_mount_t *, __int64_t);
 extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);
