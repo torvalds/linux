@@ -16,6 +16,7 @@ config ARCH_OMAP1
 config ARCH_OMAP2
 	bool "TI OMAP2"
 	select CPU_V6
+	select COMMON_CLKDEV
 
 config ARCH_OMAP3
 	bool "TI OMAP3"
