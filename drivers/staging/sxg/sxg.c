@@ -62,13 +62,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/mii.h>
 
-#define SLIC_DUMP_ENABLED		0
 #define SLIC_GET_STATS_ENABLED		0
 #define LINUX_FREES_ADAPTER_RESOURCES	1
 #define SXG_OFFLOAD_IP_CHECKSUM		0
 #define SXG_POWER_MANAGEMENT_ENABLED	0
 #define VPCI				0
-#define DBG				1
 #define ATK_DEBUG			1
 
 #include "sxg_os.h"
@@ -156,8 +154,7 @@ static struct sxgbase_driver sxg_global = {
 static int intagg_delay = 100;
 static u32 dynamic_intagg = 0;
 
-#define DRV_NAME	"sxg"
-#define DRV_VERSION	"1.0.1"
+char sxg_driver_name[] = "sxg";
 #define DRV_AUTHOR	"Alacritech, Inc. Engineering"
 #define DRV_DESCRIPTION							\
 	"Alacritech SLIC Techonology(tm) Non-Accelerated 10Gbe Driver"
@@ -753,7 +750,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 
 	if (sxg_debug > 0 && did_version++ == 0) {
 		printk(KERN_INFO "%s\n", sxg_banner);
-		printk(KERN_INFO "%s\n", DRV_VERSION);
+		printk(KERN_INFO "%s\n", SXG_DRV_VERSION);
 	}
 
 	if (!(err = pci_set_dma_mask(pcidev, DMA_64BIT_MASK))) {
@@ -770,7 +767,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 
 	DBG_ERROR("Call pci_request_regions\n");
 
-	err = pci_request_regions(pcidev, DRV_NAME);
+	err = pci_request_regions(pcidev, sxg_driver_name);
 	if (err) {
 		DBG_ERROR("pci_request_regions FAILED err[%x]\n", err);
 		return err;
@@ -919,6 +916,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 #endif
 #endif
 	netdev->set_multicast_list = sxg_mcast_set_list;
+	SET_ETHTOOL_OPS(netdev, &sxg_nic_ethtool_ops);
 
 	strcpy(netdev->name, "eth%d");
 	/*  strcpy(netdev->name, pci_name(pcidev)); */
@@ -3857,7 +3855,7 @@ static void sxg_complete_descriptor_blocks(struct adapter_t *adapter,
 }
 
 static struct pci_driver sxg_driver = {
-	.name = DRV_NAME,
+	.name = sxg_driver_name,
 	.id_table = sxg_pci_tbl,
 	.probe = sxg_entry_probe,
 	.remove = sxg_entry_remove,

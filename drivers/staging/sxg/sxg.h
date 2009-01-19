@@ -42,7 +42,12 @@
 #ifndef __SXG_DRIVER_H__
 #define __SXG_DRIVER_H__
 
-#define p_net_device struct net_device *
+#define SLIC_DUMP_ENABLED		0
+
+#define SXG_DRV_NAME	"sxg"		/* TBD: This might be removed eventually */
+#define SXG_DRV_VERSION	"1.0.1"
+
+extern char sxg_driver_name[];
 /*
  * struct sxg_stats - Probably move these to someplace where
  * the slicstat (sxgstat?) program can get them.
@@ -759,4 +764,5 @@ struct slic_crash_info {
 #define SIOCSLICSETINTAGG        (SIOCDEVPRIVATE+10)
 #define SIOCSLICTRACEDUMP        (SIOCDEVPRIVATE+11)
 
+extern struct ethtool_ops sxg_nic_ethtool_ops;
 #endif /*  __SXG_DRIVER_H__ */

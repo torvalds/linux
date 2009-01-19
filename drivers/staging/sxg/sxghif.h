@@ -9,6 +9,8 @@
  * Alacritech Sahara host interface
  ******************************************************************/
 
+#define DBG				1
+
 /* UCODE Registers */
 struct sxg_ucode_regs {
 	/* Address 0 - 0x3F = Command codes 0-15 for TCB 0.  Excode 0 */
