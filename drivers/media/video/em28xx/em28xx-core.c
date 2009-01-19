@@ -424,7 +424,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 
 	xclk = dev->board.xclk & 0x7f;
 	if (!dev->mute)
-		xclk |= 0x80;
+		xclk |= EM28XX_XCLK_AUDIO_UNMUTE;
 
 	ret = em28xx_write_reg(dev, EM28XX_R0F_XCLK, xclk);
 	if (ret < 0)
