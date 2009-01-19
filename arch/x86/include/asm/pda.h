@@ -17,11 +17,9 @@ struct x8664_pda {
 	unsigned long unused4;
 	int unused5;
 	unsigned int unused6;		/* 36 was cpunumber */
-#ifdef CONFIG_CC_STACKPROTECTOR
 	unsigned long stack_canary;	/* 40 stack canary value */
 					/* gcc-ABI: this canary MUST be at
 					   offset 40!!! */
-#endif
 	short in_bootmem;		/* pda lives in bootmem */
 } ____cacheline_aligned_in_smp;
 
@@ -41,5 +39,7 @@ extern void pda_init(int);
 	x86_test_and_clear_bit_percpu(bit, __pda.field)
 
 #endif
+
+#define refresh_stack_canary() write_pda(stack_canary, current->stack_canary)
 
 #endif /* _ASM_X86_PDA_H */
