@@ -3364,13 +3364,15 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_HAUPPAUGE_HVR1110R3] = {
-		.name           = "Hauppauge WinTV-HVR1110r3",
+		.name           = "Hauppauge WinTV-HVR1110r3 DVB-T/Hybrid",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.tuner_config   = 3,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.ts_type	= SAA7134_MPEG_TS_SERIAL,
 		.gpiomask       = 0x0800100, /* GPIO 21 is an INPUT */
 		.inputs         = {{
 			.name = name_tv,
