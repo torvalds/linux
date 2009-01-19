@@ -329,9 +329,6 @@ struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
 	struct dma_chan *chan;
 	int cpu;
 
-	WARN_ONCE(dmaengine_ref_count == 0,
-		  "client called %s without a reference", __func__);
-
 	cpu = get_cpu();
 	chan = per_cpu_ptr(channel_table[tx_type], cpu)->chan;
 	put_cpu();
@@ -347,9 +344,6 @@ void dma_issue_pending_all(void)
 {
 	struct dma_device *device;
 	struct dma_chan *chan;
-
-	WARN_ONCE(dmaengine_ref_count == 0,
-		  "client called %s without a reference", __func__);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(device, &dma_device_list, global_node) {
