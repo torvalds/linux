@@ -6500,10 +6500,8 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 {
 	struct iwl_priv *priv = hw->priv;
 	const u8 *addr;
-	int rc = 0;
+	int ret;
 	u8 sta_id;
-	static const u8 bcast_addr[ETH_ALEN] =
-		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	IWL_DEBUG_MAC80211("enter\n");
 
@@ -6512,8 +6510,7 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		return -EOPNOTSUPP;
 	}
 
-	addr = sta ? sta->addr : bcast_addr;
-
+	addr = sta ? sta->addr : iwl_bcast_addr;
 	sta_id = iwl3945_hw_find_station(priv, addr);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_MAC80211("leave - %pM not in station map.\n",
@@ -6527,8 +6524,8 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	switch (cmd) {
 	case  SET_KEY:
-		rc = iwl3945_update_sta_key_info(priv, key, sta_id);
-		if (!rc) {
+		ret = iwl3945_update_sta_key_info(priv, key, sta_id);
+		if (!ret) {
 			iwl3945_set_rxon_hwcrypto(priv, 1);
 			iwl3945_commit_rxon(priv);
 			key->hw_key_idx = sta_id;
@@ -6537,21 +6534,21 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		}
 		break;
 	case DISABLE_KEY:
-		rc = iwl3945_clear_sta_key_info(priv, sta_id);
-		if (!rc) {
+		ret = iwl3945_clear_sta_key_info(priv, sta_id);
+		if (!ret) {
 			iwl3945_set_rxon_hwcrypto(priv, 0);
 			iwl3945_commit_rxon(priv);
 			IWL_DEBUG_MAC80211("disable hwcrypto key\n");
 		}
 		break;
 	default:
-		rc = -EINVAL;
+		ret = -EINVAL;
 	}
 
 	IWL_DEBUG_MAC80211("leave\n");
 	mutex_unlock(&priv->mutex);
 
-	return rc;
+	return ret;
 }
 
 static int iwl3945_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
