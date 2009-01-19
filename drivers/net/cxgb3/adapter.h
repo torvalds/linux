@@ -230,6 +230,7 @@ struct adapter {
 	unsigned int slow_intr_mask;
 	unsigned long irq_stats[IRQ_NUM_STATS];
 
+	int msix_nvectors;
 	struct {
 		unsigned short vec;
 		char desc[22];

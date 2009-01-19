@@ -338,7 +338,7 @@ static void free_irq_resources(struct adapter *adapter)
 
 		free_irq(adapter->msix_info[0].vec, adapter);
 		for_each_port(adapter, i)
-		    n += adap2pinfo(adapter, i)->nqsets;
+			n += adap2pinfo(adapter, i)->nqsets;
 
 		for (i = 0; i < n; ++i)
 			free_irq(adapter->msix_info[i + 1].vec,
@@ -2752,7 +2752,7 @@ static void set_nqsets(struct adapter *adap)
 	int i, j = 0;
 	int num_cpus = num_online_cpus();
 	int hwports = adap->params.nports;
-	int nqsets = SGE_QSETS;
+	int nqsets = adap->msix_nvectors - 1;
 
 	if (adap->params.rev > 0 && adap->flags & USING_MSIX) {
 		if (hwports == 2 &&
@@ -2781,18 +2781,25 @@ static void set_nqsets(struct adapter *adap)
 static int __devinit cxgb_enable_msix(struct adapter *adap)
 {
 	struct msix_entry entries[SGE_QSETS + 1];
+	int vectors;
 	int i, err;
 
-	for (i = 0; i < ARRAY_SIZE(entries); ++i)
+	vectors = ARRAY_SIZE(entries);
+	for (i = 0; i < vectors; ++i)
 		entries[i].entry = i;
 
-	err = pci_enable_msix(adap->pdev, entries, ARRAY_SIZE(entries));
+	while ((err = pci_enable_msix(adap->pdev, entries, vectors)) > 0)
+		vectors = err;
+
+	if (!err && vectors < (adap->params.nports + 1))
+		err = -1;
+
 	if (!err) {
-		for (i = 0; i < ARRAY_SIZE(entries); ++i)
+		for (i = 0; i < vectors; ++i)
 			adap->msix_info[i].vec = entries[i].vector;
-	} else if (err > 0)
-		dev_info(&adap->pdev->dev,
-		       "only %d MSI-X vectors left, not using MSI-X\n", err);
+		adap->msix_nvectors = vectors;
+	}
+
 	return err;
 }
 
