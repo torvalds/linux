@@ -274,6 +274,11 @@ static void trace_bts_prepare(struct trace_iterator *iter)
 	mutex_unlock(&bts_tracer_mutex);
 }
 
+static void trace_bts_close(struct trace_iterator *iter)
+{
+	tracing_reset_online_cpus(iter->tr);
+}
+
 void trace_hw_branch_oops(void)
 {
 	mutex_lock(&bts_tracer_mutex);
@@ -292,7 +297,8 @@ struct tracer bts_tracer __read_mostly =
 	.print_line	= bts_trace_print_line,
 	.start		= bts_trace_start,
 	.stop		= bts_trace_stop,
-	.open		= trace_bts_prepare
+	.open		= trace_bts_prepare,
+	.close		= trace_bts_close
 };
 
 __init static int init_bts_trace(void)
