@@ -48,6 +48,9 @@
 #include "isl6405.h"
 #include "lnbp21.h"
 #include "tuner-simple.h"
+#include "tda18271.h"
+#include "lgdt3305.h"
+#include "tda8290.h"
 
 #include "zl10353.h"
 
@@ -964,6 +967,34 @@ static struct zl10036_config avertv_a700_tuner = {
 	.tuner_address = 0x60,
 };
 
+static struct lgdt3305_config hcw_lgdt3305_config = {
+	.i2c_addr           = 0x0e,
+	.mpeg_mode          = LGDT3305_MPEG_SERIAL,
+	.tpclk_edge         = LGDT3305_TPCLK_RISING_EDGE,
+	.tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
+	.deny_i2c_rptr      = 1,
+	.spectral_inversion = 1,
+	.qam_if_khz         = 4000,
+	.vsb_if_khz         = 3250,
+};
+
+static struct tda18271_std_map hauppauge_tda18271_std_map = {
+	.atsc_6   = { .if_freq = 3250, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x58, },
+	.qam_6    = { .if_freq = 4000, .agc_mode = 3, .std = 5,
+		      .if_lvl = 1, .rfagc_top = 0x58, },
+};
+
+static struct tda18271_config hcw_tda18271_config = {
+	.std_map = &hauppauge_tda18271_std_map,
+	.gate    = TDA18271_GATE_ANALOG,
+	.config  = 3,
+};
+
+static struct tda829x_config tda829x_no_probe = {
+	.probe_tuner = TDA829X_DONT_PROBE,
+};
+
 /* ==================================================================
  * Core code
  */
@@ -1089,6 +1120,19 @@ static int dvb_init(struct saa7134_dev *dev)
 		if (configure_tda827x_fe(dev, &hauppauge_hvr_1110_config,
 					 &tda827x_cfg_1) < 0)
 			goto dettach_frontend;
+		break;
+	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
+		fe0->dvb.frontend = dvb_attach(lgdt3305_attach,
+					       &hcw_lgdt3305_config,
+					       &dev->i2c_adap);
+		if (fe0->dvb.frontend) {
+			dvb_attach(tda829x_attach, fe0->dvb.frontend,
+				   &dev->i2c_adap, 0x4b,
+				   &tda829x_no_probe);
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_adap,
+				   &hcw_tda18271_config);
+		}
 		break;
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 		if (configure_tda827x_fe(dev, &asus_p7131_dual_config,
