@@ -451,8 +451,8 @@ static int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			}
 			if (err)
 				goto err;
-
-		}
+			}
+			break;
 		case PDR_PRISM_ZIF_TX_IQ_CALIBRATION:
 			priv->iq_autocal = kmalloc(data_len, GFP_KERNEL);
 			if (!priv->iq_autocal) {
