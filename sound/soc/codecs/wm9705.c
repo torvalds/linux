@@ -57,8 +57,8 @@ static const struct snd_kcontrol_new wm9705_snd_ac97_controls[] = {
 	SOC_DOUBLE("CD Playback Volume", AC97_CD, 8, 0, 31, 1),
 	SOC_SINGLE("Mic Playback Volume", AC97_MIC, 0, 31, 1),
 	SOC_SINGLE("Mic 20dB Boost Switch", AC97_MIC, 6, 1, 0),
-	SOC_DOUBLE("PCM Capture Volume", AC97_REC_GAIN, 8, 0, 15, 0),
-	SOC_SINGLE("PCM Capture Switch", AC97_REC_GAIN, 15, 1, 1),
+	SOC_DOUBLE("Capture Volume", AC97_REC_GAIN, 8, 0, 15, 0),
+	SOC_SINGLE("Capture Switch", AC97_REC_GAIN, 15, 1, 1),
 };
 
 static const char *wm9705_mic[] = {"Mic 1", "Mic 2"};
