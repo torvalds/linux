@@ -269,6 +269,7 @@ struct alc_spec {
 					 * dig_out_nid and hp_nid are optional
 					 */
 	hda_nid_t alt_dac_nid;
+	int dig_out_type;
 
 	/* capture */
 	unsigned int num_adc_nids;
@@ -3087,7 +3088,10 @@ static int alc_build_pcms(struct hda_codec *codec)
 		codec->num_pcms = 2;
 		info = spec->pcm_rec + 1;
 		info->name = spec->stream_name_digital;
-		info->pcm_type = HDA_PCM_TYPE_SPDIF;
+		if (spec->dig_out_type)
+			info->pcm_type = spec->dig_out_type;
+		else
+			info->pcm_type = HDA_PCM_TYPE_SPDIF;
 		if (spec->multiout.dig_out_nid &&
 		    spec->stream_digital_playback) {
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK] = *(spec->stream_digital_playback);
