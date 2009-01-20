@@ -2613,7 +2613,7 @@ int snd_hda_codec_build_pcms(struct hda_codec *codec)
 		int dev;
 
 		if (!cpcm->stream[0].substreams && !cpcm->stream[1].substreams)
-			return 0; /* no substreams assigned */
+			continue; /* no substreams assigned */
 
 		if (!cpcm->pcm) {
 			dev = get_empty_pcm_device(codec->bus, cpcm->pcm_type);
