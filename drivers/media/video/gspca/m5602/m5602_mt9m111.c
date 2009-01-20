@@ -265,6 +265,26 @@ int mt9m111_init(struct sd *sd)
 	return mt9m111_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
 }
 
+int mt9m111_start(struct sd *sd)
+{
+	int i, err = 0;
+	u8 data[2];
+
+	for (i = 0; i < ARRAY_SIZE(start_mt9m111) && !err; i++) {
+		if (start_mt9m111[i][0] == BRIDGE) {
+			err = m5602_write_bridge(sd,
+				start_mt9m111[i][1],
+				start_mt9m111[i][2]);
+		} else {
+			data[0] = start_mt9m111[i][2];
+			data[1] = start_mt9m111[i][3];
+			err = m5602_write_sensor(sd,
+				start_mt9m111[i][1], data, 2);
+		}
+	}
+	return err;
+}
+
 void mt9m111_disconnect(struct sd *sd)
 {
 	sd->sensor = NULL;

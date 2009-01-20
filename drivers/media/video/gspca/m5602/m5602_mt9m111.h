@@ -109,6 +109,7 @@ extern int dump_sensor;
 
 int mt9m111_probe(struct sd *sd);
 int mt9m111_init(struct sd *sd);
+int mt9m111_start(struct sd *sd);
 void mt9m111_disconnect(struct sd *sd);
 
 const static struct m5602_sensor mt9m111 = {
@@ -120,6 +121,7 @@ const static struct m5602_sensor mt9m111 = {
 	.probe = mt9m111_probe,
 	.init = mt9m111_init,
 	.disconnect = mt9m111_disconnect,
+	.start = mt9m111_start,
 };
 
 static const unsigned char preinit_mt9m111[][4] =
@@ -258,7 +260,10 @@ static const unsigned char init_mt9m111[][4] =
 	{SENSOR, 0x30, 0x04, 0x00},
 	/* Set number of blank rows chosen to 400 */
 	{SENSOR, MT9M111_SC_SHUTTER_WIDTH, 0x01, 0x90},
+};
 
+static const unsigned char start_mt9m111[][4] =
+{
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x06, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0, 0x00},
 	{BRIDGE, M5602_XB_ADC_CTRL, 0xc0, 0x00},
@@ -284,5 +289,6 @@ static const unsigned char init_mt9m111[][4] =
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xb0, 0x00},
 };
+
 
 #endif
