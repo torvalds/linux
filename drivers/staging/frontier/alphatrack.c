@@ -46,8 +46,6 @@
 #include <linux/usb.h>
 #include <linux/poll.h>
 
-#include "surface_sysfs.h"
-
 #include "alphatrack.h"
 
 #define VENDOR_ID	0x165b

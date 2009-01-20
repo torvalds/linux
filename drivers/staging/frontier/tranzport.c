@@ -51,7 +51,7 @@
 
 #ifdef CONFIG_USB_DYNAMIC_MINORS
 #define USB_TRANZPORT_MINOR_BASE	0
-#else  /* FIXME 176 - is the ldusb driver's minor - apply for a minor soon */
+#else  /* FIXME 177- is the another driver's minor - apply for a minor soon */
 #define USB_TRANZPORT_MINOR_BASE	177
 #endif
 
@@ -62,7 +62,7 @@ static struct usb_device_id usb_tranzport_table[] = {
 };
 
 MODULE_DEVICE_TABLE(usb, usb_tranzport_table);
-MODULE_VERSION("0.34");
+MODULE_VERSION("0.35");
 MODULE_AUTHOR("Mike Taht <m@taht.net>");
 MODULE_DESCRIPTION("Tranzport USB Driver");
 MODULE_LICENSE("GPL");
@@ -121,16 +121,6 @@ struct tranzport_cmd {
 	unsigned char cmd[8];
 };
 
-enum LightID {
-	LightRecord = 0,
-	LightTrackrec,
-	LightTrackmute,
-	LightTracksolo,
-	LightAnysolo,
-	LightLoop,
-	LightPunch
-};
-
 /* Structure to hold all of our device specific stuff */
 
 struct usb_tranzport {
@@ -156,19 +146,11 @@ struct usb_tranzport {
 	size_t interrupt_out_endpoint_size;
 	int interrupt_out_busy;
 
-	/* Sysfs and translation support */
+	/* Sysfs support */
 
-	int event;		/* alternate interface to events */
-	int wheel;		/* - for negative, 0 for none, + for positive */
-	unsigned char dump_state;	/* 0 if disabled 1 if enabled */
 	unsigned char enable;	/* 0 if disabled 1 if enabled */
 	unsigned char offline;	/* if the device is out of range or asleep */
 	unsigned char compress_wheel;	/* flag to compress wheel events */
-	unsigned char light;	/* 7 bits used */
-	unsigned char last_cmd[8];
-	unsigned char last_input[8];
-	unsigned char screen[40];	/* We'll also have cells */
-
 };
 
 /* prevent races between open() and disconnect() */
@@ -193,38 +175,15 @@ static void usb_tranzport_abort_transfers(struct usb_tranzport *dev)
 			usb_kill_urb(dev->interrupt_out_urb);
 }
 
-/* FIXME ~light not good enough or correct - need atomic set_bit */
-
-#define show_set_light(value)						\
-  static ssize_t show_##value(						\
-	  struct device *dev, struct device_attribute *attr, char *buf) \
+#define show_int(value)							\
+  static ssize_t show_##value(struct device *dev,			\
+			      struct device_attribute *attr, char *buf)	\
   {									\
     struct usb_interface *intf = to_usb_interface(dev);			\
     struct usb_tranzport *t = usb_get_intfdata(intf);			\
-    enum LightID light = value;						\
-    int temp = (1 && (t->light & (1 << light)));			\
-    return sprintf(buf, "%d\n", temp);					\
+    return sprintf(buf, "%d\n", t->value);			        \
   }									\
-  static ssize_t set_##value(						\
-	  struct device *dev, struct device_attribute *attr,		\
-			     const char *buf, size_t count)		\
-  {									\
-    struct usb_interface *intf = to_usb_interface(dev);			\
-    struct usb_tranzport *t = usb_get_intfdata(intf);			\
-    int temp = simple_strtoul(buf, NULL, 10);				\
-    enum LightID light = (temp << value) & (t->light << value);		\
-    t->light = (t->light & ~light) ;					\
-    return count;							\
-  }									\
-  static DEVICE_ATTR(value, S_IWUGO | S_IRUGO, show_##value, set_##value);
-
-show_set_light(LightRecord);
-show_set_light(LightTrackrec);
-show_set_light(LightTrackmute);
-show_set_light(LightTracksolo);
-show_set_light(LightAnysolo);
-show_set_light(LightLoop);
-show_set_light(LightPunch);
+  static DEVICE_ATTR(value, S_IRUGO, show_##value, NULL);
 
 #define show_set_int(value)						\
   static ssize_t show_##value(struct device *dev,			\
@@ -246,34 +205,9 @@ show_set_light(LightPunch);
   }									\
   static DEVICE_ATTR(value, S_IWUGO | S_IRUGO, show_##value, set_##value);
 
-show_set_int(enable);
-show_set_int(offline);
+show_int(enable);
+show_int(offline);
 show_set_int(compress_wheel);
-show_set_int(dump_state);
-show_set_int(wheel);
-show_set_int(event);
-
-#define show_set_cmd(value)						\
-  static ssize_t show_##value(struct device *dev,			\
-			      struct device_attribute *attr, char *buf)	\
-  {									\
-    struct usb_interface *intf = to_usb_interface(dev);			\
-    struct usb_tranzport *t = usb_get_intfdata(intf);			\
-									\
-    return sprintf(buf, "%d\n", t->value);				\
-  }									\
-  static ssize_t set_##value(struct device *dev,			\
-			     struct device_attribute *attr,		\
-			     const char *buf, size_t count)		\
-  {									\
-    struct usb_interface *intf = to_usb_interface(dev);			\
-    struct usb_tranzport *t = usb_get_intfdata(intf);			\
-    int temp = simple_strtoul(buf, NULL, 10);				\
-									\
-    t->value = temp;							\
-    return count;							\
-  }									\
-  static DEVICE_ATTR(value, S_IWUGO | S_IRUGO, show_##value, set_##value);
 
 /**
  *	usb_tranzport_delete
@@ -281,22 +215,10 @@ show_set_int(event);
 static void usb_tranzport_delete(struct usb_tranzport *dev)
 {
 	usb_tranzport_abort_transfers(dev);
-	/*  This is just too twisted to be correct */
 	if (dev->intf != NULL) {
-		device_remove_file(&dev->intf->dev, &dev_attr_LightRecord);
-		device_remove_file(&dev->intf->dev, &dev_attr_LightTrackrec);
-		device_remove_file(&dev->intf->dev, &dev_attr_LightTrackmute);
-		device_remove_file(&dev->intf->dev, &dev_attr_LightTracksolo);
-		device_remove_file(&dev->intf->dev, &dev_attr_LightTrackmute);
-		device_remove_file(&dev->intf->dev, &dev_attr_LightAnysolo);
-		device_remove_file(&dev->intf->dev, &dev_attr_LightLoop);
-		device_remove_file(&dev->intf->dev, &dev_attr_LightPunch);
-		device_remove_file(&dev->intf->dev, &dev_attr_wheel);
 		device_remove_file(&dev->intf->dev, &dev_attr_enable);
-		device_remove_file(&dev->intf->dev, &dev_attr_event);
 		device_remove_file(&dev->intf->dev, &dev_attr_offline);
 		device_remove_file(&dev->intf->dev, &dev_attr_compress_wheel);
-		device_remove_file(&dev->intf->dev, &dev_attr_dump_state);
 	}
 
 	/* free data structures */
@@ -983,36 +905,6 @@ static int usb_tranzport_probe(struct usb_interface *intf,
 		goto error;
 	}
 
-	retval = device_create_file(&intf->dev, &dev_attr_LightRecord);
-	if (retval)
-		goto error;
-	retval = device_create_file(&intf->dev, &dev_attr_LightTrackrec);
-	if (retval)
-		goto error;
-	retval = device_create_file(&intf->dev, &dev_attr_LightTrackmute);
-	if (retval)
-		goto error;
-	retval = device_create_file(&intf->dev, &dev_attr_LightTracksolo);
-	if (retval)
-		goto error;
-	retval = device_create_file(&intf->dev, &dev_attr_LightAnysolo);
-	if (retval)
-		goto error;
-	retval = device_create_file(&intf->dev, &dev_attr_LightLoop);
-	if (retval)
-		goto error;
-	retval = device_create_file(&intf->dev, &dev_attr_LightPunch);
-	if (retval)
-		goto error;
-	retval = device_create_file(&intf->dev, &dev_attr_wheel);
-	if (retval)
-		goto error;
-	retval = device_create_file(&intf->dev, &dev_attr_event);
-	if (retval)
-		goto error;
-	retval = device_create_file(&intf->dev, &dev_attr_dump_state);
-	if (retval)
-		goto error;
 	retval = device_create_file(&intf->dev, &dev_attr_compress_wheel);
 	if (retval)
 		goto error;
