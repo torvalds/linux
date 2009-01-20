@@ -400,7 +400,7 @@ static int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 
-	data[0] = (data[0] & 0xfe) | val;
+	data[1] = (data[1] & 0xfe) | val;
 	err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 				   data, 2);
 	return err;
@@ -436,7 +436,7 @@ static int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 
-	data[0] = (data[0] & 0xfd) | ((val << 1) & 0x02);
+	data[1] = (data[1] & 0xfd) | ((val << 1) & 0x02);
 	err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B,
 					data, 2);
 	return err;
@@ -466,7 +466,7 @@ static int mt9m111_set_auto_white_balance(struct gspca_dev *gspca_dev,
 		return err;
 
 	sensor_settings[AUTO_WHITE_BALANCE_IDX] = val & 0x01;
-	data[0] = ((data[0] & 0xfd) | ((val & 0x01) << 1));
+	data[1] = ((data[1] & 0xfd) | ((val & 0x01) << 1));
 
 	err = m5602_write_sensor(sd, MT9M111_CP_OPERATING_MODE_CTL, data, 2);
 
@@ -514,8 +514,8 @@ static int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	else
 		tmp = val;
 
-	data[1] = (tmp & 0xff00) >> 8;
-	data[0] = (tmp & 0xff);
+	data[1] = (tmp & 0xff);
+	data[0] = (tmp & 0xff00) >> 8;
 	PDEBUG(D_V4L2, "tmp=%d, data[1]=%d, data[0]=%d", tmp,
 	       data[1], data[0]);
 
@@ -533,8 +533,8 @@ static int mt9m111_set_green_balance(struct gspca_dev *gspca_dev, __s32 val)
 	s32 *sensor_settings = sd->sensor_priv;
 
 	sensor_settings[GREEN_BALANCE_IDX] = val;
-	data[0] = (val & 0xff);
-	data[1] = (val & 0xff00) >> 8;
+	data[1] = (val & 0xff);
+	data[0] = (val & 0xff00) >> 8;
 
 	PDEBUG(D_V4L2, "Set green balance %d", val);
 	err = m5602_write_sensor(sd, MT9M111_SC_GREEN_1_GAIN,
@@ -563,8 +563,8 @@ static int mt9m111_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 	s32 *sensor_settings = sd->sensor_priv;
 
 	sensor_settings[BLUE_BALANCE_IDX] = val;
-	data[0] = (val & 0xff);
-	data[1] = (val & 0xff00) >> 8;
+	data[1] = (val & 0xff);
+	data[0] = (val & 0xff00) >> 8;
 
 	PDEBUG(D_V4L2, "Set blue balance %d", val);
 
@@ -589,8 +589,8 @@ static int mt9m111_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 	s32 *sensor_settings = sd->sensor_priv;
 
 	sensor_settings[RED_BALANCE_IDX] = val;
-	data[0] = (val & 0xff);
-	data[1] = (val & 0xff00) >> 8;
+	data[1] = (val & 0xff);
+	data[0] = (val & 0xff00) >> 8;
 
 	PDEBUG(D_V4L2, "Set red balance %d", val);
 
