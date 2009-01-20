@@ -1147,7 +1147,7 @@ static int p54_set_tim(struct ieee80211_hw *dev, struct ieee80211_sta *sta,
 
 	skb = p54_alloc_skb(dev, P54_HDR_FLAG_CONTROL_OPSET,
 		      sizeof(struct p54_hdr) + sizeof(*tim),
-		      P54_CONTROL_TYPE_TIM, GFP_KERNEL);
+		      P54_CONTROL_TYPE_TIM, GFP_ATOMIC);
 	if (!skb)
 		return -ENOMEM;
 
@@ -1610,7 +1610,7 @@ static int p54_scan(struct ieee80211_hw *dev, u16 mode, u16 dwell)
 
  err:
 	printk(KERN_ERR "%s: frequency change failed\n", wiphy_name(dev->wiphy));
-	kfree_skb(skb);
+	p54_free_skb(dev, skb);
 	return -EINVAL;
 }
 
@@ -2077,7 +2077,7 @@ static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			algo = P54_CRYPTO_AESCCMP;
 			break;
 		default:
-			return -EINVAL;
+			return -EOPNOTSUPP;
 		}
 	}
 
