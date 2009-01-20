@@ -846,8 +846,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 	struct s2255_dev *dev = fh->dev;
 	strlcpy(cap->driver, "s2255", sizeof(cap->driver));
 	strlcpy(cap->card, "s2255", sizeof(cap->card));
-	strlcpy(cap->bus_info, dev_name(&dev->udev->dev),
-		sizeof(cap->bus_info));
+	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
 	cap->version = S2255_VERSION;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	return 0;
