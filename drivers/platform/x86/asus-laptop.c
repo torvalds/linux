@@ -738,8 +738,9 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 		lcd_blank(FB_BLANK_POWERDOWN);
 	}
 
-	acpi_bus_generate_proc_event(hotk->device, event,
-				hotk->event_count[event % 128]++);
+	acpi_bus_generate_netlink_event(hotk->device->pnp.device_class,
+					dev_name(&hotk->device->dev), event,
+					hotk->event_count[event % 128]++);
 
 	return;
 }
