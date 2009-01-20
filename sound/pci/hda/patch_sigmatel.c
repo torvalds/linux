@@ -166,6 +166,7 @@ struct sigmatel_spec {
 	unsigned int alt_switch: 1;
 	unsigned int hp_detect: 1;
 	unsigned int spdif_mute: 1;
+	unsigned int check_volume_offset:1;
 
 	/* gpio lines */
 	unsigned int eapd_mask;
@@ -201,6 +202,8 @@ struct sigmatel_spec {
 	hda_nid_t dac_nids[5];
 	hda_nid_t hp_dacs[5];
 	hda_nid_t speaker_dacs[5];
+
+	int volume_offset;
 
 	/* capture */
 	hda_nid_t *adc_nids;
@@ -1297,6 +1300,8 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 		unsigned int vmaster_tlv[4];
 		snd_hda_set_vmaster_tlv(codec, spec->multiout.dac_nids[0],
 					HDA_OUTPUT, vmaster_tlv);
+		/* correct volume offset */
+		vmaster_tlv[2] += vmaster_tlv[3] * spec->volume_offset;
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
 					  vmaster_tlv, slave_vols);
 		if (err < 0)
@@ -2980,14 +2985,34 @@ static int stac92xx_auto_fill_dac_nids(struct hda_codec *codec)
 }
 
 /* create volume control/switch for the given prefx type */
-static int create_controls(struct sigmatel_spec *spec, const char *pfx, hda_nid_t nid, int chs)
+static int create_controls(struct hda_codec *codec, const char *pfx,
+			   hda_nid_t nid, int chs)
 {
+	struct sigmatel_spec *spec = codec->spec;
 	char name[32];
 	int err;
 
+	if (!spec->check_volume_offset) {
+		unsigned int caps, step, nums, db_scale;
+		caps = query_amp_caps(codec, nid, HDA_OUTPUT);
+		step = (caps & AC_AMPCAP_STEP_SIZE) >>
+			AC_AMPCAP_STEP_SIZE_SHIFT;
+		step = (step + 1) * 25; /* in .01dB unit */
+		nums = (caps & AC_AMPCAP_NUM_STEPS) >>
+			AC_AMPCAP_NUM_STEPS_SHIFT;
+		db_scale = nums * step;
+		/* if dB scale is over -64dB, and finer enough,
+		 * let's reduce it to half
+		 */
+		if (db_scale > 6400 && nums >= 0x1f)
+			spec->volume_offset = nums / 2;
+		spec->check_volume_offset = 1;
+	}
+
 	sprintf(name, "%s Playback Volume", pfx);
 	err = stac92xx_add_control(spec, STAC_CTL_WIDGET_VOL, name,
-				   HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT));
+		HDA_COMPOSE_AMP_VAL_OFS(nid, chs, 0, HDA_OUTPUT,
+					spec->volume_offset));
 	if (err < 0)
 		return err;
 	sprintf(name, "%s Playback Switch", pfx);
@@ -3053,10 +3078,10 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 		nid = spec->multiout.dac_nids[i];
 		if (i == 2) {
 			/* Center/LFE */
-			err = create_controls(spec, "Center", nid, 1);
+			err = create_controls(codec, "Center", nid, 1);
 			if (err < 0)
 				return err;
-			err = create_controls(spec, "LFE", nid, 2);
+			err = create_controls(codec, "LFE", nid, 2);
 			if (err < 0)
 				return err;
 
@@ -3084,7 +3109,7 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 					break;
 				}
 			}
-			err = create_controls(spec, name, nid, 3);
+			err = create_controls(codec, name, nid, 3);
 			if (err < 0)
 				return err;
 		}
@@ -3139,7 +3164,7 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 		nid = spec->hp_dacs[i];
 		if (!nid)
 			continue;
-		err = create_controls(spec, pfxs[nums++], nid, 3);
+		err = create_controls(codec, pfxs[nums++], nid, 3);
 		if (err < 0)
 			return err;
 	}
@@ -3153,7 +3178,7 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 		nid = spec->speaker_dacs[i];
 		if (!nid)
 			continue;
-		err = create_controls(spec, pfxs[nums++], nid, 3);
+		err = create_controls(codec, pfxs[nums++], nid, 3);
 		if (err < 0)
 			return err;
 	}
@@ -3729,7 +3754,7 @@ static int stac9200_auto_create_lfe_ctls(struct hda_codec *codec,
 	}
 
 	if (lfe_pin) {
-		err = create_controls(spec, "LFE", lfe_pin, 1);
+		err = create_controls(codec, "LFE", lfe_pin, 1);
 		if (err < 0)
 			return err;
 	}
