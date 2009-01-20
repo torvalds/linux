@@ -5511,24 +5511,62 @@ static struct snd_pci_quirk stac9872_cfg_tbl[] = {
 	{}
 };
 
+static struct snd_kcontrol_new stac9872_mixer[] = {
+	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x09, 0, HDA_INPUT),
+	STAC_INPUT_SOURCE(1),
+	{ } /* end */
+};
+
+static hda_nid_t stac9872_pin_nids[] = {
+	0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+	0x11, 0x13, 0x14,
+};
+
+static hda_nid_t stac9872_adc_nids[] = {
+	0x8 /*,0x6*/
+};
+
+static hda_nid_t stac9872_mux_nids[] = {
+	0x15
+};
+
 static int patch_stac9872(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
-	int board_config;
 
-	board_config = snd_hda_check_board_config(codec, STAC_9872_MODELS,
-						  stac9872_models,
-						  stac9872_cfg_tbl);
-	if (board_config < 0)
-		/* unknown config, let generic-parser do its job... */
-		return snd_hda_parse_generic_codec(codec);
-	
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
-
 	codec->spec = spec;
-	switch (board_config) {
+
+	spec->board_config = snd_hda_check_board_config(codec, STAC_9872_MODELS,
+							stac9872_models,
+							stac9872_cfg_tbl);
+	if (spec->board_config < 0) {
+		int err;
+
+		spec->num_pins = ARRAY_SIZE(stac9872_pin_nids);
+		spec->pin_nids = stac9872_pin_nids;
+		spec->multiout.dac_nids = spec->dac_nids;
+		spec->num_adcs = ARRAY_SIZE(stac9872_adc_nids);
+		spec->adc_nids = stac9872_adc_nids;
+		spec->num_muxes = ARRAY_SIZE(stac9872_mux_nids);
+		spec->mux_nids = stac9872_mux_nids;
+		spec->mixer = stac9872_mixer;
+		spec->init = vaio_init;
+
+		err = stac92xx_parse_auto_config(codec, 0x10, 0x12);
+		if (err < 0) {
+			stac92xx_free(codec);
+			return -EINVAL;
+		}
+		spec->input_mux = &spec->private_imux;
+		codec->patch_ops = stac92xx_patch_ops;
+		return 0;
+	}
+	
+	switch (spec->board_config) {
 	case CXD9872RD_VAIO:
 	case STAC9872AK_VAIO:
 	case STAC9872K_VAIO:
