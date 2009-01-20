@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/io.h>
 #include <linux/clk.h>
 
 #include <asm/mach/time.h>
@@ -19,15 +20,33 @@
 #include <mach/cputype.h>
 #include <mach/regs-apbc.h>
 #include <mach/irqs.h>
+#include <mach/gpio.h>
 #include <mach/dma.h>
 #include <mach/devices.h>
 
 #include "common.h"
 #include "clock.h"
 
+#define APMASK(i)	(GPIO_REGS_VIRT + BANK_OFF(i) + 0x09c)
+
+static void __init pxa168_init_gpio(void)
+{
+	int i;
+
+	/* enable GPIO clock */
+	__raw_writel(APBC_APBCLK | APBC_FNCLK, APBC_PXA168_GPIO);
+
+	/* unmask GPIO edge detection for all 4 banks - APMASKx */
+	for (i = 0; i < 4; i++)
+		__raw_writel(0xffffffff, APMASK(i));
+
+	pxa_init_gpio(IRQ_PXA168_GPIOX, 0, 127, NULL);
+}
+
 void __init pxa168_init_irq(void)
 {
 	icu_init_irq();
+	pxa168_init_gpio();
 }
 
 /* APB peripheral clocks */
