@@ -340,6 +340,17 @@ config CPU_XSC3
 	select CPU_TLB_V4WBI if MMU
 	select IO_36
 
+# Marvell PJ1 (Mohawk)
+config CPU_MOHAWK
+	bool
+	select CPU_32v5
+	select CPU_ABRT_EV5T
+	select CPU_PABRT_NOIFAR
+	select CPU_CACHE_VIVT
+	select CPU_CP15_MMU
+	select CPU_TLB_V4WBI if MMU
+	select CPU_COPY_V4WB if MMU
+
 # Feroceon
 config CPU_FEROCEON
 	bool
@@ -569,7 +580,7 @@ comment "Processor Features"
 
 config ARM_THUMB
 	bool "Support Thumb user binaries"
-	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_V6 || CPU_V7 || CPU_FEROCEON
+	depends on CPU_ARM720T || CPU_ARM740T || CPU_ARM920T || CPU_ARM922T || CPU_ARM925T || CPU_ARM926T || CPU_ARM940T || CPU_ARM946E || CPU_ARM1020 || CPU_ARM1020E || CPU_ARM1022 || CPU_ARM1026 || CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK || CPU_V6 || CPU_V7 || CPU_FEROCEON
 	default y
 	help
 	  Say Y if you want to include kernel support for running user space
@@ -653,7 +664,7 @@ config CPU_CACHE_ROUND_ROBIN
 
 config CPU_BPREDICT_DISABLE
 	bool "Disable branch prediction"
-	depends on CPU_ARM1020 || CPU_V6 || CPU_XSC3 || CPU_V7
+	depends on CPU_ARM1020 || CPU_V6 || CPU_MOHAWK || CPU_XSC3 || CPU_V7
 	help
 	  Say Y here to disable branch prediction.  If unsure, say N.
 

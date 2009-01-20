@@ -1,0 +1,27 @@
+if ARCH_MMP
+
+menu "Marvell PXA168 Implmentations"
+
+config MACH_ASPENITE
+	bool "Marvell's PXA168 Aspenite Development Board"
+	select CPU_PXA168
+	help
+	  Say 'Y' here if you want to support the Marvell PXA168-based
+	  Aspenite Development Board.
+
+config MACH_ZYLONITE2
+	bool "Marvell's PXA168 Zylonite2 Development Board"
+	select CPU_PXA168
+	help
+	  Say 'Y' here if you want to support the Marvell PXA168-based
+	  Zylonite2 Development Board.
+
+endmenu
+
+config CPU_PXA168
+	bool
+	select CPU_MOHAWK
+	help
+	  Select code specific to PXA168
+
+endif
