@@ -382,7 +382,7 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 	unsigned int mask = POLLOUT | POLLWRNORM;
 
 	if (!tun)
-		return -EBADFD;
+		return POLLERR;
 
 	DBG(KERN_INFO "%s: tun_chr_poll\n", tun->dev->name);
 
