@@ -125,9 +125,8 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 			     struct mm_struct *mm, unsigned long va)
 {
 	/*
-	 * - mask must exist :)
+	 * mm must exist :)
 	 */
-	BUG_ON(cpumask_empty(cpumask));
 	BUG_ON(!mm);
 
 	/*
@@ -138,14 +137,18 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 	spin_lock(&tlbstate_lock);
 
 	cpumask_andnot(flush_cpumask, cpumask, cpumask_of(smp_processor_id()));
-#ifdef CONFIG_HOTPLUG_CPU
-	/* If a CPU which we ran on has gone down, OK. */
 	cpumask_and(flush_cpumask, flush_cpumask, cpu_online_mask);
+
+	/*
+	 * If a task whose mm mask we are looking at has descheduled and
+	 * has cleared its presence from the mask, or if a CPU which we ran
+	 * on has gone down then there might be no flush work left:
+	 */
 	if (unlikely(cpumask_empty(flush_cpumask))) {
 		spin_unlock(&tlbstate_lock);
 		return;
 	}
-#endif
+
 	flush_mm = mm;
 	flush_va = va;
 
