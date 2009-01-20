@@ -263,8 +263,12 @@ static ssize_t dev_attribute_show(struct device *dev,
 	return ret;
 }
 
-/* Fake "release" method for UBI devices */
-static void dev_release(struct device *dev) { }
+static void dev_release(struct device *dev)
+{
+	struct ubi_device *ubi = container_of(dev, struct ubi_device, dev);
+
+	kfree(ubi);
+}
 
 /**
  * ubi_sysfs_init - initialize sysfs for an UBI device.
@@ -944,6 +948,12 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	if (ubi->bgt_thread)
 		kthread_stop(ubi->bgt_thread);
 
+	/*
+	 * Get a reference to the device in order to prevent 'dev_release()'
+	 * from freeing @ubi object.
+	 */
+	get_device(&ubi->dev);
+
 	uif_close(ubi);
 	ubi_wl_close(ubi);
 	free_internal_volumes(ubi);
@@ -955,7 +965,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	vfree(ubi->dbg_peb_buf);
 #endif
 	ubi_msg("mtd%d is detached from ubi%d", ubi->mtd->index, ubi->ubi_num);
-	kfree(ubi);
+	put_device(&ubi->dev);
 	return 0;
 }
 
