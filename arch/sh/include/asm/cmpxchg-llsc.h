@@ -8,14 +8,14 @@ static inline unsigned long xchg_u32(volatile u32 *m, unsigned long val)
 
 	__asm__ __volatile__ (
 		"1:					\n\t"
-		"movli.l	@%1, %0	! xchg_u32	\n\t"
-		"mov		%0, %2			\n\t"
-		"mov		%4, %0			\n\t"
-		"movco.l	%0, @%1			\n\t"
+		"movli.l	@%2, %0	! xchg_u32	\n\t"
+		"mov		%0, %1			\n\t"
+		"mov		%3, %0			\n\t"
+		"movco.l	%0, @%2			\n\t"
 		"bf		1b			\n\t"
 		"synco					\n\t"
-		: "=&z"(tmp), "=r" (m), "=&r" (retval)
-		: "1" (m), "r" (val)
+		: "=&z"(tmp), "=&r" (retval)
+		: "r" (m), "r" (val)
 		: "t", "memory"
 	);
 
@@ -29,14 +29,14 @@ static inline unsigned long xchg_u8(volatile u8 *m, unsigned long val)
 
 	__asm__ __volatile__ (
 		"1:					\n\t"
-		"movli.l	@%1, %0	! xchg_u8	\n\t"
-		"mov		%0, %2			\n\t"
-		"mov		%4, %0			\n\t"
-		"movco.l	%0, @%1			\n\t"
+		"movli.l	@%2, %0	! xchg_u8	\n\t"
+		"mov		%0, %1			\n\t"
+		"mov		%3, %0			\n\t"
+		"movco.l	%0, @%2			\n\t"
 		"bf		1b			\n\t"
 		"synco					\n\t"
-		: "=&z"(tmp), "=r" (m), "=&r" (retval)
-		: "1" (m), "r" (val & 0xff)
+		: "=&z"(tmp), "=&r" (retval)
+		: "r" (m), "r" (val & 0xff)
 		: "t", "memory"
 	);
 
@@ -51,17 +51,17 @@ __cmpxchg_u32(volatile int *m, unsigned long old, unsigned long new)
 
 	__asm__ __volatile__ (
 		"1:						\n\t"
-		"movli.l	@%1, %0	! __cmpxchg_u32		\n\t"
-		"mov		%0, %2				\n\t"
-		"cmp/eq		%2, %4				\n\t"
+		"movli.l	@%2, %0	! __cmpxchg_u32		\n\t"
+		"mov		%0, %1				\n\t"
+		"cmp/eq		%1, %3				\n\t"
 		"bf		2f				\n\t"
-		"mov		%5, %0				\n\t"
+		"mov		%3, %0				\n\t"
 		"2:						\n\t"
-		"movco.l	%0, @%1				\n\t"
+		"movco.l	%0, @%2				\n\t"
 		"bf		1b				\n\t"
 		"synco						\n\t"
-		: "=&z" (tmp), "=r" (m), "=&r" (retval)
-		: "1" (m), "r" (old), "r" (new)
+		: "=&z" (tmp), "=&r" (retval)
+		: "r" (m), "r" (old), "r" (new)
 		: "t", "memory"
 	);
 
