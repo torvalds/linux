@@ -121,7 +121,7 @@ extern int __get_user_bad(void);
 
 #define __get_user_x(size, ret, x, ptr)		      \
 	asm volatile("call __get_user_" #size	      \
-		     : "=a" (ret),"=d" (x)	      \
+		     : "=a" (ret), "=d" (x)	      \
 		     : "0" (ptr))		      \
 
 /* Careful: we have to cast the result to the type of the pointer
@@ -181,7 +181,7 @@ extern int __get_user_bad(void);
 
 #define __put_user_x(size, x, ptr, __ret_pu)			\
 	asm volatile("call __put_user_" #size : "=a" (__ret_pu)	\
-		     :"0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
+		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 
 
 
@@ -276,7 +276,7 @@ do {									\
 		__put_user_asm(x, ptr, retval, "w", "w", "ir", errret);	\
 		break;							\
 	case 4:								\
-		__put_user_asm(x, ptr, retval, "l", "k",  "ir", errret);\
+		__put_user_asm(x, ptr, retval, "l", "k", "ir", errret);	\
 		break;							\
 	case 8:								\
 		__put_user_u64((__typeof__(*ptr))(x), ptr, retval);	\
