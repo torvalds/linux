@@ -94,13 +94,13 @@ const static struct ctrl s5k83a_ctrls[] = {
 #define HFLIP_IDX 3
 	{
 		{
-			.id         = V4L2_CID_HFLIP,
-			.type       = V4L2_CTRL_TYPE_BOOLEAN,
-			.name       = "horizontal flip",
-			.minimum    = 0,
-			.maximum    = 1,
-			.step       = 1,
-			.default_value  = 0
+			.id = V4L2_CID_HFLIP,
+			.type = V4L2_CTRL_TYPE_BOOLEAN,
+			.name = "horizontal flip",
+			.minimum = 0,
+			.maximum = 1,
+			.step = 1,
+			.default_value = 0
 		},
 			.set = s5k83a_set_hflip,
 			.get = s5k83a_get_hflip
@@ -108,13 +108,13 @@ const static struct ctrl s5k83a_ctrls[] = {
 #define VFLIP_IDX 4
 	{
 		{
-		 .id         = V4L2_CID_VFLIP,
-		.type       = V4L2_CTRL_TYPE_BOOLEAN,
-		.name       = "vertical flip",
-		.minimum    = 0,
-		.maximum    = 1,
-		.step       = 1,
-		.default_value  = 0
+			.id = V4L2_CID_VFLIP,
+			.type = V4L2_CTRL_TYPE_BOOLEAN,
+			.name = "vertical flip",
+			.minimum = 0,
+			.maximum = 1,
+			.step = 1,
+			.default_value = 0
 		},
 		.set = s5k83a_set_vflip,
 		.get = s5k83a_get_vflip
