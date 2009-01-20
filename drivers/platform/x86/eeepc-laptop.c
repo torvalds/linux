@@ -737,13 +737,21 @@ static void eeepc_backlight_exit(void)
 {
 	if (eeepc_backlight_device)
 		backlight_device_unregister(eeepc_backlight_device);
-	if (ehotk->inputdev)
-		input_unregister_device(ehotk->inputdev);
+	eeepc_backlight_device = NULL;
+}
+
+static void eeepc_rfkill_exit(void)
+{
 	if (ehotk->eeepc_wlan_rfkill)
 		rfkill_unregister(ehotk->eeepc_wlan_rfkill);
 	if (ehotk->eeepc_bluetooth_rfkill)
 		rfkill_unregister(ehotk->eeepc_bluetooth_rfkill);
-	eeepc_backlight_device = NULL;
+}
+
+static void eeepc_input_exit(void)
+{
+	if (ehotk->inputdev)
+		input_unregister_device(ehotk->inputdev);
 }
 
 static void eeepc_hwmon_exit(void)
@@ -762,6 +770,8 @@ static void eeepc_hwmon_exit(void)
 static void __exit eeepc_laptop_exit(void)
 {
 	eeepc_backlight_exit();
+	eeepc_rfkill_exit();
+	eeepc_input_exit();
 	eeepc_hwmon_exit();
 	acpi_bus_unregister_driver(&eeepc_hotk_driver);
 	sysfs_remove_group(&platform_device->dev.kobj,
@@ -865,6 +875,8 @@ fail_platform_driver:
 fail_hwmon:
 	eeepc_backlight_exit();
 fail_backlight:
+	eeepc_input_exit();
+	eeepc_rfkill_exit();
 	return result;
 }
 
