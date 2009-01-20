@@ -1184,7 +1184,7 @@ static int asus_hotk_add(struct acpi_device *device)
 	/* GPS is on by default */
 	write_status(NULL, 1, GPS_ON);
 
-      end:
+end:
 	if (result) {
 		kfree(hotk->name);
 		kfree(hotk);
@@ -1393,25 +1393,25 @@ static int __init asus_laptop_init(void)
 
 	return 0;
 
-      fail_sysfs:
+fail_sysfs:
 	platform_device_del(asuspf_device);
 
-      fail_platform_device2:
+fail_platform_device2:
 	platform_device_put(asuspf_device);
 
-      fail_platform_device1:
+fail_platform_device1:
 	platform_driver_unregister(&asuspf_driver);
 
-      fail_platform_driver:
+fail_platform_driver:
 	asus_led_exit();
 
-      fail_led:
+fail_led:
 	asus_input_exit();
 
-      fail_input:
+fail_input:
 	asus_backlight_exit();
 
-      fail_backlight:
+fail_backlight:
 
 	return result;
 }
