@@ -368,24 +368,6 @@ static const unsigned char init_s5k83a[][4] =
 	/* normal colors
 	   (this is value after boot, but after tries can be different) */
 	{SENSOR, 0x00, 0x06, 0x00},
-
-	/* set default gain */
-	{SENSOR_LONG, 0x14, 0x00, 0x20},
-	{SENSOR_LONG, 0x0d, 0x01, 0x00},
-	{SENSOR_LONG, 0x1b, S5K83A_DEFAULT_GAIN >> 3,
-		S5K83A_DEFAULT_GAIN >> 1},
-
-	/* set default brightness */
-	{SENSOR, S5K83A_BRIGHTNESS, S5K83A_DEFAULT_BRIGHTNESS, 0x00},
-
-	/* set default exposure */
-	{SENSOR_LONG, 0x18, 0x00, S5K83A_DEFAULT_EXPOSURE},
-
-	/* set default flip */
-	{SENSOR, S5K83A_PAGE_MAP, 0x05, 0x00},
-	{SENSOR, S5K83A_FLIP, 0x00 | S5K83A_FLIP_MASK, 0x00},
-	{SENSOR, S5K83A_HFLIP_TUNE, 0x0b, 0x00},
-	{SENSOR, S5K83A_VFLIP_TUNE, 0x0a, 0x00}
 };
 
 #endif
