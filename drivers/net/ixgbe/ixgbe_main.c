@@ -1744,38 +1744,6 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_RXCSUM, rxcsum);
 }
 
-static void ixgbe_vlan_rx_register(struct net_device *netdev,
-                                   struct vlan_group *grp)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	u32 ctrl;
-
-	if (!test_bit(__IXGBE_DOWN, &adapter->state))
-		ixgbe_irq_disable(adapter);
-	adapter->vlgrp = grp;
-
-	/*
-	 * For a DCB driver, always enable VLAN tag stripping so we can
-	 * still receive traffic from a DCB-enabled host even if we're
-	 * not in DCB mode.
-	 */
-	ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
-	ctrl |= IXGBE_VLNCTRL_VME;
-	ctrl &= ~IXGBE_VLNCTRL_CFIEN;
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
-
-	if (grp) {
-		/* enable VLAN tag insert/strip */
-		ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
-		ctrl |= IXGBE_VLNCTRL_VME;
-		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
-	}
-
-	if (!test_bit(__IXGBE_DOWN, &adapter->state))
-		ixgbe_irq_enable(adapter);
-}
-
 static void ixgbe_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
@@ -1800,6 +1768,39 @@ static void ixgbe_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 
 	/* remove VID from filter table */
 	hw->mac.ops.set_vfta(&adapter->hw, vid, 0, false);
+}
+
+static void ixgbe_vlan_rx_register(struct net_device *netdev,
+                                   struct vlan_group *grp)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	u32 ctrl;
+
+	if (!test_bit(__IXGBE_DOWN, &adapter->state))
+		ixgbe_irq_disable(adapter);
+	adapter->vlgrp = grp;
+
+	/*
+	 * For a DCB driver, always enable VLAN tag stripping so we can
+	 * still receive traffic from a DCB-enabled host even if we're
+	 * not in DCB mode.
+	 */
+	ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
+	ctrl |= IXGBE_VLNCTRL_VME;
+	ctrl &= ~IXGBE_VLNCTRL_CFIEN;
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
+	ixgbe_vlan_rx_add_vid(netdev, 0);
+
+	if (grp) {
+		/* enable VLAN tag insert/strip */
+		ctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_VLNCTRL);
+		ctrl |= IXGBE_VLNCTRL_VME;
+		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_VLNCTRL, ctrl);
+	}
+
+	if (!test_bit(__IXGBE_DOWN, &adapter->state))
+		ixgbe_irq_enable(adapter);
 }
 
 static void ixgbe_restore_vlan(struct ixgbe_adapter *adapter)
