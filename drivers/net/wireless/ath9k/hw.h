@@ -844,7 +844,6 @@ struct ath_hal_5416 {
 	bool ah_chipFullSleep;
 	u32 ah_atimWindow;
 	u16 ah_antennaSwitchSwap;
-	enum ath9k_power_mode ah_powerMode;
 	enum ath9k_ant_setting ah_diversityControl;
 
 	/* Calibration */

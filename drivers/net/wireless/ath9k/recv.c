@@ -628,6 +628,12 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		} else {
 			sc->rx.rxotherant = 0;
 		}
+
+		if (ieee80211_is_beacon(hdr->frame_control) &&
+				(sc->sc_flags & SC_OP_WAIT_FOR_BEACON)) {
+			sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
+			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
+		}
 requeue:
 		list_move_tail(&bf->list, &sc->rx.rxbuf);
 		ath_rx_buf_link(sc, bf);

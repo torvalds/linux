@@ -793,6 +793,8 @@ struct ath_hal {
 	u16 ah_currentRD5G;
 	u16 ah_currentRD2G;
 	char ah_iso[4];
+	enum ath9k_power_mode ah_power_mode;
+	enum ath9k_power_mode ah_restore_mode;
 
 	struct ath9k_channel ah_channels[150];
 	struct ath9k_channel *ah_curchan;

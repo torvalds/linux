@@ -676,6 +676,7 @@ enum PROT_MODE {
 #define SC_OP_RFKILL_REGISTERED	BIT(11)
 #define SC_OP_RFKILL_SW_BLOCKED	BIT(12)
 #define SC_OP_RFKILL_HW_BLOCKED	BIT(13)
+#define SC_OP_WAIT_FOR_BEACON	BIT(14)
 
 struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
@@ -709,6 +710,7 @@ struct ath_softc {
 	u32 sc_keymax;
 	DECLARE_BITMAP(sc_keymap, ATH_KEYMAX);
 	u8 sc_splitmic;
+	atomic_t ps_usecount;
 	enum ath9k_int sc_imask;
 	enum PROT_MODE sc_protmode;
 	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
@@ -777,4 +779,20 @@ static inline int ath_ahb_init(void) { return 0; };
 static inline void ath_ahb_exit(void) {};
 #endif
 
+static inline void ath9k_ps_wakeup(struct ath_softc *sc)
+{
+	if (atomic_inc_return(&sc->ps_usecount) == 1)
+		if (sc->sc_ah->ah_power_mode !=  ATH9K_PM_AWAKE) {
+			sc->sc_ah->ah_restore_mode = sc->sc_ah->ah_power_mode;
+			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
+		}
+}
+
+static inline void ath9k_ps_restore(struct ath_softc *sc)
+{
+	if (atomic_dec_and_test(&sc->ps_usecount))
+		if (sc->hw->conf.flags & IEEE80211_CONF_PS)
+			ath9k_hw_setpower(sc->sc_ah,
+					  sc->sc_ah->ah_restore_mode);
+}
 #endif /* CORE_H */

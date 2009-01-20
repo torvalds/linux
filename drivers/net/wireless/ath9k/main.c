@@ -237,6 +237,8 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
 
+	ath9k_ps_wakeup(sc);
+
 	/*
 	 * This is only performed if the channel settings have
 	 * actually changed.
@@ -287,6 +289,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 	ath_cache_conf_rate(sc, &hw->conf);
 	ath_update_txpow(sc);
 	ath9k_hw_set_interrupts(ah, sc->sc_imask);
+	ath9k_ps_restore(sc);
 	return 0;
 }
 
@@ -559,8 +562,10 @@ irqreturn_t ath_isr(int irq, void *dev)
 				      ATH9K_HW_CAP_AUTOSLEEP)) {
 					/* Clear RxAbort bit so that we can
 					 * receive frames */
+					ath9k_hw_setpower(ah, ATH9K_PM_AWAKE);
 					ath9k_hw_setrxabort(ah, 0);
 					sched = true;
+					sc->sc_flags |= SC_OP_WAIT_FOR_BEACON;
 				}
 			}
 		}
@@ -1044,6 +1049,7 @@ static void ath_radio_enable(struct ath_softc *sc)
 	struct ieee80211_channel *channel = sc->hw->conf.channel;
 	int r;
 
+	ath9k_ps_wakeup(sc);
 	spin_lock_bh(&sc->sc_resetlock);
 
 	r = ath9k_hw_reset(ah, ah->ah_curchan, false);
@@ -1075,6 +1081,7 @@ static void ath_radio_enable(struct ath_softc *sc)
 	ath9k_hw_set_gpio(ah, ATH_LED_PIN, 0);
 
 	ieee80211_wake_queues(sc->hw);
+	ath9k_ps_restore(sc);
 }
 
 static void ath_radio_disable(struct ath_softc *sc)
@@ -1083,6 +1090,7 @@ static void ath_radio_disable(struct ath_softc *sc)
 	struct ieee80211_channel *channel = sc->hw->conf.channel;
 	int r;
 
+	ath9k_ps_wakeup(sc);
 	ieee80211_stop_queues(sc->hw);
 
 	/* Disable LED */
@@ -1108,6 +1116,7 @@ static void ath_radio_disable(struct ath_softc *sc)
 
 	ath9k_hw_phy_disable(ah);
 	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
+	ath9k_ps_restore(sc);
 }
 
 static bool ath_is_rfkill_set(struct ath_softc *sc)
@@ -1259,6 +1268,8 @@ void ath_detach(struct ath_softc *sc)
 	struct ieee80211_hw *hw = sc->hw;
 	int i = 0;
 
+	ath9k_ps_wakeup(sc);
+
 	DPRINTF(sc, ATH_DBG_CONFIG, "Detach ATH hw\n");
 
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
@@ -1283,6 +1294,7 @@ void ath_detach(struct ath_softc *sc)
 
 	ath9k_hw_detach(sc->sc_ah);
 	ath9k_exit_debug(sc);
+	ath9k_ps_restore(sc);
 }
 
 static int ath_init(u16 devid, struct ath_softc *sc)
@@ -1526,7 +1538,9 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_AMPDU_AGGREGATION;
+		IEEE80211_HW_AMPDU_AGGREGATION |
+		IEEE80211_HW_SUPPORTS_PS |
+		IEEE80211_HW_PS_NULLFUNC_STACK;
 
 	if (AR_SREV_9160_10_OR_LATER(sc->sc_ah))
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
@@ -2090,6 +2104,27 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 
 	mutex_lock(&sc->mutex);
+	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		if (conf->flags & IEEE80211_CONF_PS) {
+			if ((sc->sc_imask & ATH9K_INT_TIM_TIMER) == 0) {
+				sc->sc_imask |= ATH9K_INT_TIM_TIMER;
+				ath9k_hw_set_interrupts(sc->sc_ah,
+						sc->sc_imask);
+			}
+			ath9k_hw_setrxabort(sc->sc_ah, 1);
+			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
+		} else {
+			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
+			ath9k_hw_setrxabort(sc->sc_ah, 0);
+			sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
+			if (sc->sc_imask & ATH9K_INT_TIM_TIMER) {
+				sc->sc_imask &= ~ATH9K_INT_TIM_TIMER;
+				ath9k_hw_set_interrupts(sc->sc_ah,
+						sc->sc_imask);
+			}
+		}
+	}
+
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos;
@@ -2310,6 +2345,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	int ret = 0;
 
+	ath9k_ps_wakeup(sc);
 	DPRINTF(sc, ATH_DBG_KEYCACHE, "Set HW Key\n");
 
 	switch (cmd) {
@@ -2333,6 +2369,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 		ret = -EINVAL;
 	}
 
+	ath9k_ps_restore(sc);
 	return ret;
 }
 
