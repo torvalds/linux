@@ -946,7 +946,8 @@ static void __devexit remove(struct pci_dev *dev)
 	struct ape_dev *ape;
 	printk(KERN_DEBUG "remove(0x%p)\n", dev);
 	if ((dev == 0) || (dev->dev.driver_data == 0)) {
-		printk(KERN_DEBUG "remove(dev = 0x%p) dev->dev.driver_data = 0x%p\n", dev, dev->dev.driver_data);
+		printk(KERN_DEBUG "remove(dev = 0x%p) dev->dev.driver_data = 0x%p\n",
+			dev, (dev? dev->dev.driver_data: NULL));
 		return;
 	}
 	ape = (struct ape_dev *)dev->dev.driver_data;
