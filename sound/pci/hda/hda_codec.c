@@ -3390,9 +3390,11 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			cfg->input_pins[AUTO_PIN_AUX] = nid;
 			break;
 		case AC_JACK_SPDIF_OUT:
+		case AC_JACK_DIG_OTHER_OUT:
 			cfg->dig_out_pin = nid;
 			break;
 		case AC_JACK_SPDIF_IN:
+		case AC_JACK_DIG_OTHER_IN:
 			cfg->dig_in_pin = nid;
 			break;
 		}
