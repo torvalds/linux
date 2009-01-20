@@ -810,7 +810,6 @@ static void tun_setup(struct net_device *dev)
 
 	dev->ethtool_ops = &tun_ethtool_ops;
 	dev->destructor = free_netdev;
-	dev->features |= NETIF_F_NETNS_LOCAL;
 }
 
 static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
