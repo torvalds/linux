@@ -666,7 +666,8 @@ static void gspca_stream_off(struct gspca_dev *gspca_dev)
 	    && gspca_dev->sd_desc->stopN)
 		gspca_dev->sd_desc->stopN(gspca_dev);
 	destroy_urbs(gspca_dev);
-	gspca_set_alt0(gspca_dev);
+	if (gspca_dev->present)
+		gspca_set_alt0(gspca_dev);
 	if (gspca_dev->sd_desc->stop0)
 		gspca_dev->sd_desc->stop0(gspca_dev);
 	PDEBUG(D_STREAM, "stream off OK");
