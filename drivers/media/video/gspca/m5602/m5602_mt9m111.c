@@ -270,8 +270,9 @@ int mt9m111_start(struct sd *sd)
 	int i, err = 0;
 	u8 data[2];
 	struct cam *cam = &sd->gspca_dev.cam;
+	s32 *sensor_settings = sd->sensor_priv;
 
-	int width = cam->cam_mode[sd->gspca_dev.curr_mode].width;
+	int width = cam->cam_mode[sd->gspca_dev.curr_mode].width - 1;
 	int height = cam->cam_mode[sd->gspca_dev.curr_mode].height;
 
 	for (i = 0; i < ARRAY_SIZE(start_mt9m111) && !err; i++) {
@@ -331,6 +332,13 @@ int mt9m111_start(struct sd *sd)
 	switch (width) {
 	case 640:
 		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
+		data[0] = MT9M111_RMB_OVER_SIZED;
+		data[1] = MT9M111_RMB_ROW_SKIP_2X |
+			  MT9M111_RMB_COLUMN_SKIP_2X |
+			  (sensor_settings[VFLIP_IDX] << 0) |
+			  (sensor_settings[HFLIP_IDX] << 1);
+
+		err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
 		break;
 	}
 	return err;
