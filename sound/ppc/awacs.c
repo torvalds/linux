@@ -767,6 +767,7 @@ static void snd_pmac_awacs_resume(struct snd_pmac *chip)
 #endif /* CONFIG_PM */
 
 #define IS_PM7500 (machine_is_compatible("AAPL,7500"))
+#define IS_PM5500 (machine_is_compatible("AAPL,e411"))
 #define IS_BEIGE (machine_is_compatible("AAPL,Gossamer"))
 #define IS_IMAC1 (machine_is_compatible("PowerMac2,1"))
 #define IS_IMAC2 (machine_is_compatible("PowerMac2,2") \
@@ -858,6 +859,7 @@ int __init
 snd_pmac_awacs_init(struct snd_pmac *chip)
 {
 	int pm7500 = IS_PM7500;
+	int pm5500 = IS_PM5500;
 	int beige = IS_BEIGE;
 	int g4agp = IS_G4AGP;
 	int imac;
@@ -915,7 +917,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 		/* set headphone-jack detection bit */
 		switch (chip->model) {
 		case PMAC_AWACS:
-			chip->hp_stat_mask = pm7500 ? MASK_HDPCONN
+			chip->hp_stat_mask = pm7500 || pm5500 ? MASK_HDPCONN
 				: MASK_LOCONN;
 			break;
 		case PMAC_SCREAMER:
@@ -954,7 +956,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 		return err;
 	if (beige || g4agp)
 		;
-	else if (chip->model == PMAC_SCREAMER)
+	else if (chip->model == PMAC_SCREAMER || pm5500)
 		err = build_mixers(chip, ARRAY_SIZE(snd_pmac_screamer_mixers2),
 				   snd_pmac_screamer_mixers2);
 	else if (!pm7500)
