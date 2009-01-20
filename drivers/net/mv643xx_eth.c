@@ -1596,7 +1596,7 @@ oom:
 			entry = addr_crc(a);
 		}
 
-		table[entry >> 2] |= 1 << (entry & 3);
+		table[entry >> 2] |= 1 << (8 * (entry & 3));
 	}
 
 	for (i = 0; i < 0x100; i += 4) {
