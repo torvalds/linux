@@ -560,8 +560,9 @@ static void eeepc_hotk_notify(acpi_handle handle, u32 event, void *data)
 		return;
 	if (event >= NOTIFY_BRN_MIN && event <= NOTIFY_BRN_MAX)
 		notify_brn();
-	acpi_bus_generate_proc_event(ehotk->device, event,
-				     ehotk->event_count[event % 128]++);
+	acpi_bus_generate_netlink_event(ehotk->device->pnp.device_class,
+					dev_name(&ehotk->device->dev), event,
+					ehotk->event_count[event % 128]++);
 	if (ehotk->inputdev) {
 		key = eepc_get_entry_by_scancode(event);
 		if (key) {
