@@ -82,6 +82,7 @@ struct inet_bind_bucket {
 #endif
 	unsigned short		port;
 	signed short		fastreuse;
+	int			num_owners;
 	struct hlist_node	node;
 	struct hlist_head	owners;
 };
@@ -133,7 +134,7 @@ struct inet_hashinfo {
 	struct inet_bind_hashbucket	*bhash;
 
 	unsigned int			bhash_size;
-	/* Note : 4 bytes padding on 64 bit arches */
+	int				bsockets;
 
 	struct kmem_cache		*bind_bucket_cachep;
 
