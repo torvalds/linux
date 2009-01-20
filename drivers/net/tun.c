@@ -90,6 +90,7 @@ struct tap_filter {
 struct tun_file {
 	struct tun_struct *tun;
 	struct net *net;
+	wait_queue_head_t	read_wait;
 };
 
 struct tun_struct {
@@ -98,7 +99,6 @@ struct tun_struct {
 	uid_t			owner;
 	gid_t			group;
 
-	wait_queue_head_t	read_wait;
 	struct sk_buff_head	readq;
 
 	struct net_device	*dev;
@@ -335,7 +335,7 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Notify and wake up reader process */
 	if (tun->flags & TUN_FASYNC)
 		kill_fasync(&tun->fasync, SIGIO, POLL_IN);
-	wake_up_interruptible(&tun->read_wait);
+	wake_up_interruptible(&tun->tfile->read_wait);
 	return 0;
 
 drop:
@@ -420,7 +420,8 @@ static void tun_net_init(struct net_device *dev)
 /* Poll */
 static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 {
-	struct tun_struct *tun = tun_get(file);
+	struct tun_file *tfile = file->private_data;
+	struct tun_struct *tun = __tun_get(tfile);
 	unsigned int mask = POLLOUT | POLLWRNORM;
 
 	if (!tun)
@@ -428,7 +429,7 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 
 	DBG(KERN_INFO "%s: tun_chr_poll\n", tun->dev->name);
 
-	poll_wait(file, &tun->read_wait, wait);
+	poll_wait(file, &tfile->read_wait, wait);
 
 	if (!skb_queue_empty(&tun->readq))
 		mask |= POLLIN | POLLRDNORM;
@@ -702,7 +703,8 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 			    unsigned long count, loff_t pos)
 {
 	struct file *file = iocb->ki_filp;
-	struct tun_struct *tun = tun_get(file);
+	struct tun_file *tfile = file->private_data;
+	struct tun_struct *tun = __tun_get(tfile);
 	DECLARE_WAITQUEUE(wait, current);
 	struct sk_buff *skb;
 	ssize_t len, ret = 0;
@@ -718,7 +720,7 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 		goto out;
 	}
 
-	add_wait_queue(&tun->read_wait, &wait);
+	add_wait_queue(&tfile->read_wait, &wait);
 	while (len) {
 		current->state = TASK_INTERRUPTIBLE;
 
@@ -745,7 +747,7 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 	}
 
 	current->state = TASK_RUNNING;
-	remove_wait_queue(&tun->read_wait, &wait);
+	remove_wait_queue(&tfile->read_wait, &wait);
 
 out:
 	tun_put(tun);
@@ -757,7 +759,6 @@ static void tun_setup(struct net_device *dev)
 	struct tun_struct *tun = netdev_priv(dev);
 
 	skb_queue_head_init(&tun->readq);
-	init_waitqueue_head(&tun->read_wait);
 
 	tun->owner = -1;
 	tun->group = -1;
@@ -1136,6 +1137,7 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 		return -ENOMEM;
 	tfile->tun = NULL;
 	tfile->net = get_net(current->nsproxy->net_ns);
+	init_waitqueue_head(&tfile->read_wait);
 	file->private_data = tfile;
 	return 0;
 }
