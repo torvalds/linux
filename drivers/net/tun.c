@@ -89,6 +89,7 @@ struct tap_filter {
 
 struct tun_file {
 	struct tun_struct *tun;
+	struct net *net;
 };
 
 struct tun_struct {
@@ -131,7 +132,6 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 
 	tfile->tun = tun;
 	tun->tfile = tfile;
-	get_net(dev_net(tun->dev));
 
 	return 0;
 }
@@ -143,7 +143,6 @@ static void __tun_detach(struct tun_struct *tun)
 	/* Detach from net device */
 	tfile->tun = NULL;
 	tun->tfile = NULL;
-	put_net(dev_net(tun->dev));
 
 	/* Drop read queue */
 	skb_queue_purge(&tun->readq);
@@ -936,6 +935,7 @@ static int set_offload(struct net_device *dev, unsigned long arg)
 static int tun_chr_ioctl(struct inode *inode, struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
+	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun;
 	void __user* argp = (void __user*)arg;
 	struct ifreq ifr;
@@ -954,14 +954,14 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 				(unsigned int __user*)argp);
 	}
 
-	tun = tun_get(file);
+	tun = __tun_get(tfile);
 	if (cmd == TUNSETIFF && !tun) {
 		int err;
 
 		ifr.ifr_name[IFNAMSIZ-1] = '\0';
 
 		rtnl_lock();
-		err = tun_set_iff(current->nsproxy->net_ns, file, &ifr);
+		err = tun_set_iff(tfile->net, file, &ifr);
 		rtnl_unlock();
 
 		if (err)
@@ -1125,6 +1125,7 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	if (!tfile)
 		return -ENOMEM;
 	tfile->tun = NULL;
+	tfile->net = get_net(current->nsproxy->net_ns);
 	file->private_data = tfile;
 	return 0;
 }
@@ -1148,6 +1149,7 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 		rtnl_unlock();
 	}
 
+	put_net(tfile->net);
 	kfree(tfile);
 
 	return 0;
