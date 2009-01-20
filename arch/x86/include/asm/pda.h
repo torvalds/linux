@@ -40,6 +40,4 @@ extern void pda_init(int);
 
 #endif
 
-#define refresh_stack_canary() write_pda(stack_canary, current->stack_canary)
-
 #endif /* _ASM_X86_PDA_H */

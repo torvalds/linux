@@ -16,13 +16,12 @@ static __always_inline void boot_init_stack_canary(void)
 	u64 tsc;
 
 	/*
-	 * If we're the non-boot CPU, nothing set the PDA stack
-	 * canary up for us - and if we are the boot CPU we have
-	 * a 0 stack canary. This is a good place for updating
-	 * it, as we wont ever return from this function (so the
-	 * invalid canaries already on the stack wont ever
-	 * trigger).
-	 *
+	 * Build time only check to make sure the stack_canary is at
+	 * offset 40 in the pda; this is a gcc ABI requirement
+	 */
+	BUILD_BUG_ON(offsetof(struct x8664_pda, stack_canary) != 40);
+
+	/*
 	 * We both use the random pool and the current TSC as a source
 	 * of randomness. The TSC only matters for very early init,
 	 * there it already has some randomness on most systems. Later

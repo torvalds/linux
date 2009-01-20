@@ -638,13 +638,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	percpu_write(kernel_stack,
 		  (unsigned long)task_stack_page(next_p) +
 		  THREAD_SIZE - KERNEL_STACK_OFFSET);
-#ifdef CONFIG_CC_STACKPROTECTOR
-	/*
-	 * Build time only check to make sure the stack_canary is at
-	 * offset 40 in the pda; this is a gcc ABI requirement
-	 */
-	BUILD_BUG_ON(offsetof(struct x8664_pda, stack_canary) != 40);
-#endif
 
 	/*
 	 * Now maybe reload the debug registers and handle I/O bitmaps
