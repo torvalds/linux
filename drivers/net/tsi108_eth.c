@@ -888,7 +888,7 @@ static int tsi108_poll(struct napi_struct *napi, int budget)
 
 	if (num_received < budget) {
 		data->rxpending = 0;
-		netif_rx_complete(napi);
+		napi_complete(napi);
 
 		TSI_WRITE(TSI108_EC_INTMASK,
 				     TSI_READ(TSI108_EC_INTMASK)
@@ -915,11 +915,11 @@ static void tsi108_rx_int(struct net_device *dev)
 	 *
 	 * This can happen if this code races with tsi108_poll(), which masks
 	 * the interrupts after tsi108_irq_one() read the mask, but before
-	 * netif_rx_schedule is called.  It could also happen due to calls
+	 * napi_schedule is called.  It could also happen due to calls
 	 * from tsi108_check_rxring().
 	 */
 
-	if (netif_rx_schedule_prep(&data->napi)) {
+	if (napi_schedule_prep(&data->napi)) {
 		/* Mask, rather than ack, the receive interrupts.  The ack
 		 * will happen in tsi108_poll().
 		 */
@@ -930,7 +930,7 @@ static void tsi108_rx_int(struct net_device *dev)
 				     | TSI108_INT_RXTHRESH |
 				     TSI108_INT_RXOVERRUN | TSI108_INT_RXERROR |
 				     TSI108_INT_RXWAIT);
-		__netif_rx_schedule(&data->napi);
+		__napi_schedule(&data->napi);
 	} else {
 		if (!netif_running(dev)) {
 			/* This can happen if an interrupt occurs while the

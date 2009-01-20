@@ -984,7 +984,7 @@ static int smsc911x_poll(struct napi_struct *napi, int budget)
 			/* We processed all packets available.  Tell NAPI it can
 			 * stop polling then re-enable rx interrupts */
 			smsc911x_reg_write(pdata, INT_STS, INT_STS_RSFL_);
-			netif_rx_complete(napi);
+			napi_complete(napi);
 			temp = smsc911x_reg_read(pdata, INT_EN);
 			temp |= INT_EN_RSFL_EN_;
 			smsc911x_reg_write(pdata, INT_EN, temp);
@@ -1485,16 +1485,16 @@ static irqreturn_t smsc911x_irqhandler(int irq, void *dev_id)
 	}
 
 	if (likely(intsts & inten & INT_STS_RSFL_)) {
-		if (likely(netif_rx_schedule_prep(&pdata->napi))) {
+		if (likely(napi_schedule_prep(&pdata->napi))) {
 			/* Disable Rx interrupts */
 			temp = smsc911x_reg_read(pdata, INT_EN);
 			temp &= (~INT_EN_RSFL_EN_);
 			smsc911x_reg_write(pdata, INT_EN, temp);
 			/* Schedule a NAPI poll */
-			__netif_rx_schedule(&pdata->napi);
+			__napi_schedule(&pdata->napi);
 		} else {
 			SMSC_WARNING(RX_ERR,
-				"netif_rx_schedule_prep failed");
+				"napi_schedule_prep failed");
 		}
 		serviced = IRQ_HANDLED;
 	}

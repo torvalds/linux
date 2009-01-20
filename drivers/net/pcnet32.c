@@ -1397,7 +1397,7 @@ static int pcnet32_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		spin_lock_irqsave(&lp->lock, flags);
 
-		__netif_rx_complete(napi);
+		__napi_complete(napi);
 
 		/* clear interrupt masks */
 		val = lp->a.read_csr(ioaddr, CSR3);
@@ -2592,14 +2592,14 @@ pcnet32_interrupt(int irq, void *dev_id)
 				       dev->name, csr0);
 			/* unlike for the lance, there is no restart needed */
 		}
-		if (netif_rx_schedule_prep(&lp->napi)) {
+		if (napi_schedule_prep(&lp->napi)) {
 			u16 val;
 			/* set interrupt masks */
 			val = lp->a.read_csr(ioaddr, CSR3);
 			val |= 0x5f00;
 			lp->a.write_csr(ioaddr, CSR3, val);
 			mmiowb();
-			__netif_rx_schedule(&lp->napi);
+			__napi_schedule(&lp->napi);
 			break;
 		}
 		csr0 = lp->a.read_csr(ioaddr, CSR0);

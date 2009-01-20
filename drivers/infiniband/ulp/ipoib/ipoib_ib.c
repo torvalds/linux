@@ -446,11 +446,11 @@ poll_more:
 		if (dev->features & NETIF_F_LRO)
 			lro_flush_all(&priv->lro.lro_mgr);
 
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		if (unlikely(ib_req_notify_cq(priv->recv_cq,
 					      IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
-		    netif_rx_reschedule(napi))
+		    napi_reschedule(napi))
 			goto poll_more;
 	}
 
@@ -462,7 +462,7 @@ void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 	struct net_device *dev = dev_ptr;
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	netif_rx_schedule(&priv->napi);
+	napi_schedule(&priv->napi);
 }
 
 static void drain_tx_cq(struct net_device *dev)

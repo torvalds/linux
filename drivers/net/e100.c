@@ -1944,9 +1944,9 @@ static irqreturn_t e100_intr(int irq, void *dev_id)
 	if (stat_ack & stat_ack_rnr)
 		nic->ru_running = RU_SUSPENDED;
 
-	if (likely(netif_rx_schedule_prep(&nic->napi))) {
+	if (likely(napi_schedule_prep(&nic->napi))) {
 		e100_disable_irq(nic);
-		__netif_rx_schedule(&nic->napi);
+		__napi_schedule(&nic->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -1962,7 +1962,7 @@ static int e100_poll(struct napi_struct *napi, int budget)
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		e100_enable_irq(nic);
 	}
 

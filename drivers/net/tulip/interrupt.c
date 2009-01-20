@@ -103,7 +103,7 @@ void oom_timer(unsigned long data)
 {
         struct net_device *dev = (struct net_device *)data;
 	struct tulip_private *tp = netdev_priv(dev);
-	netif_rx_schedule(&tp->napi);
+	napi_schedule(&tp->napi);
 }
 
 int tulip_poll(struct napi_struct *napi, int budget)
@@ -300,7 +300,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
 
          /* Remove us from polling list and enable RX intr. */
 
-         netif_rx_complete(napi);
+         napi_complete(napi);
          iowrite32(tulip_tbl[tp->chip_id].valid_intrs, tp->base_addr+CSR7);
 
          /* The last op happens after poll completion. Which means the following:
@@ -333,10 +333,10 @@ int tulip_poll(struct napi_struct *napi, int budget)
 
          /* Think: timer_pending() was an explicit signature of bug.
           * Timer can be pending now but fired and completed
-          * before we did netif_rx_complete(). See? We would lose it. */
+          * before we did napi_complete(). See? We would lose it. */
 
          /* remove ourselves from the polling list */
-         netif_rx_complete(napi);
+         napi_complete(napi);
 
          return work_done;
 }
@@ -519,7 +519,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 			rxd++;
 			/* Mask RX intrs and add the device to poll list. */
 			iowrite32(tulip_tbl[tp->chip_id].valid_intrs&~RxPollInt, ioaddr + CSR7);
-			netif_rx_schedule(&tp->napi);
+			napi_schedule(&tp->napi);
 
 			if (!(csr5&~(AbnormalIntr|NormalIntr|RxPollInt|TPLnkPass)))
                                break;

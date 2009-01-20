@@ -1760,7 +1760,7 @@ static void nv_do_rx_refill(unsigned long data)
 	struct fe_priv *np = netdev_priv(dev);
 
 	/* Just reschedule NAPI rx processing */
-	netif_rx_schedule(&np->napi);
+	napi_schedule(&np->napi);
 }
 #else
 static void nv_do_rx_refill(unsigned long data)
@@ -3406,7 +3406,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 #ifdef CONFIG_FORCEDETH_NAPI
 		if (events & NVREG_IRQ_RX_ALL) {
 			spin_lock(&np->lock);
-			netif_rx_schedule(&np->napi);
+			napi_schedule(&np->napi);
 
 			/* Disable furthur receive irq's */
 			np->irqmask &= ~NVREG_IRQ_RX_ALL;
@@ -3523,7 +3523,7 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 #ifdef CONFIG_FORCEDETH_NAPI
 		if (events & NVREG_IRQ_RX_ALL) {
 			spin_lock(&np->lock);
-			netif_rx_schedule(&np->napi);
+			napi_schedule(&np->napi);
 
 			/* Disable furthur receive irq's */
 			np->irqmask &= ~NVREG_IRQ_RX_ALL;
@@ -3680,7 +3680,7 @@ static int nv_napi_poll(struct napi_struct *napi, int budget)
 		/* re-enable receive interrupts */
 		spin_lock_irqsave(&np->lock, flags);
 
-		__netif_rx_complete(napi);
+		__napi_complete(napi);
 
 		np->irqmask |= NVREG_IRQ_RX_ALL;
 		if (np->msi_flags & NV_MSI_X_ENABLED)
@@ -3706,7 +3706,7 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 	writel(NVREG_IRQ_RX_ALL, base + NvRegMSIXIrqStatus);
 
 	if (events) {
-		netif_rx_schedule(&np->napi);
+		napi_schedule(&np->napi);
 		/* disable receive interrupts on the nic */
 		writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
 		pci_push(base);

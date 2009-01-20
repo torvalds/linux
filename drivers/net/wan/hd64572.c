@@ -341,7 +341,7 @@ static int sca_poll(struct napi_struct *napi, int budget)
 		received = sca_rx_done(port, budget);
 
 	if (received < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		enable_intr(port);
 	}
 
@@ -359,7 +359,7 @@ static irqreturn_t sca_intr(int irq, void *dev_id)
 		if (port && (isr0 & (i ? 0x08002200 : 0x00080022))) {
 			handled = 1;
 			disable_intr(port);
-			netif_rx_schedule(&port->napi);
+			napi_schedule(&port->napi);
 		}
 	}
 

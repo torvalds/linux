@@ -1627,9 +1627,9 @@ static void gfar_schedule_cleanup(struct net_device *dev)
 	spin_lock_irqsave(&priv->txlock, flags);
 	spin_lock(&priv->rxlock);
 
-	if (netif_rx_schedule_prep(&priv->napi)) {
+	if (napi_schedule_prep(&priv->napi)) {
 		gfar_write(&priv->regs->imask, IMASK_RTX_DISABLED);
-		__netif_rx_schedule(&priv->napi);
+		__napi_schedule(&priv->napi);
 	}
 
 	spin_unlock(&priv->rxlock);
@@ -1886,7 +1886,7 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 		return budget;
 
 	if (rx_cleaned < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 
 		/* Clear the halt bit in RSTAT */
 		gfar_write(&priv->regs->rstat, RSTAT_CLEAR_RHALT);

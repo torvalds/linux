@@ -622,7 +622,7 @@ static void hss_hdlc_rx_irq(void *pdev)
 	printk(KERN_DEBUG "%s: hss_hdlc_rx_irq\n", dev->name);
 #endif
 	qmgr_disable_irq(queue_ids[port->id].rx);
-	netif_rx_schedule(&port->napi);
+	napi_schedule(&port->napi);
 }
 
 static int hss_hdlc_poll(struct napi_struct *napi, int budget)
@@ -649,15 +649,15 @@ static int hss_hdlc_poll(struct napi_struct *napi, int budget)
 		if ((n = queue_get_desc(rxq, port, 0)) < 0) {
 #if DEBUG_RX
 			printk(KERN_DEBUG "%s: hss_hdlc_poll"
-			       " netif_rx_complete\n", dev->name);
+			       " napi_complete\n", dev->name);
 #endif
-			netif_rx_complete(napi);
+			napi_complete(napi);
 			qmgr_enable_irq(rxq);
 			if (!qmgr_stat_empty(rxq) &&
-			    netif_rx_reschedule(napi)) {
+			    napi_reschedule(napi)) {
 #if DEBUG_RX
 				printk(KERN_DEBUG "%s: hss_hdlc_poll"
-				       " netif_rx_reschedule succeeded\n",
+				       " napi_reschedule succeeded\n",
 				       dev->name);
 #endif
 				qmgr_disable_irq(rxq);
@@ -1069,7 +1069,7 @@ static int hss_hdlc_open(struct net_device *dev)
 	hss_start_hdlc(port);
 
 	/* we may already have RX data, enables IRQ */
-	netif_rx_schedule(&port->napi);
+	napi_schedule(&port->napi);
 	return 0;
 
 err_unlock:

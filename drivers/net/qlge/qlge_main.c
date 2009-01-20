@@ -1642,7 +1642,7 @@ static int ql_napi_poll_msix(struct napi_struct *napi, int budget)
 		rx_ring->cq_id);
 
 	if (work_done < budget) {
-		__netif_rx_complete(napi);
+		__napi_complete(napi);
 		ql_enable_completion_interrupt(qdev, rx_ring->irq);
 	}
 	return work_done;
@@ -1727,7 +1727,7 @@ static irqreturn_t qlge_msix_tx_isr(int irq, void *dev_id)
 static irqreturn_t qlge_msix_rx_isr(int irq, void *dev_id)
 {
 	struct rx_ring *rx_ring = dev_id;
-	netif_rx_schedule(&rx_ring->napi);
+	napi_schedule(&rx_ring->napi);
 	return IRQ_HANDLED;
 }
 
@@ -1813,7 +1813,7 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 							      &rx_ring->rx_work,
 							      0);
 				else
-					netif_rx_schedule(&rx_ring->napi);
+					napi_schedule(&rx_ring->napi);
 				work_done++;
 			}
 		}

@@ -225,11 +225,11 @@ static int efx_poll(struct napi_struct *napi, int budget)
 
 	if (rx_packets < budget) {
 		/* There is no race here; although napi_disable() will
-		 * only wait for netif_rx_complete(), this isn't a problem
+		 * only wait for napi_complete(), this isn't a problem
 		 * since efx_channel_processed() will have no effect if
 		 * interrupts have already been disabled.
 		 */
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		efx_channel_processed(channel);
 	}
 
