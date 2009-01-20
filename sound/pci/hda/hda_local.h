@@ -26,8 +26,10 @@
 /*
  * for mixer controls
  */
+#define HDA_COMPOSE_AMP_VAL_OFS(nid,chs,idx,dir,ofs)		\
+	((nid) | ((chs)<<16) | ((dir)<<18) | ((idx)<<19) | ((ofs)<<23))
 #define HDA_COMPOSE_AMP_VAL(nid,chs,idx,dir) \
-	((nid) | ((chs)<<16) | ((dir)<<18) | ((idx)<<19))
+	HDA_COMPOSE_AMP_VAL_OFS(nid, chs, idx, dir, 0)
 /* mono volume with index (index=0,1,...) (channel=1,2) */
 #define HDA_CODEC_VOLUME_MONO_IDX(xname, xcidx, nid, channel, xindex, direction) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xcidx,  \
@@ -456,6 +458,7 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 #define get_amp_channels(kc)	(((kc)->private_value >> 16) & 0x3)
 #define get_amp_direction(kc)	(((kc)->private_value >> 18) & 0x1)
 #define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)
+#define get_amp_offset(kc)	(((kc)->private_value >> 23) & 0x3f)
 
 /*
  * CEA Short Audio Descriptor data
