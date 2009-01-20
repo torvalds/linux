@@ -860,7 +860,7 @@ static int tg3_bmcr_reset(struct tg3 *tp)
 
 static int tg3_mdio_read(struct mii_bus *bp, int mii_id, int reg)
 {
-	struct tg3 *tp = (struct tg3 *)bp->priv;
+	struct tg3 *tp = bp->priv;
 	u32 val;
 
 	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_PAUSED)
@@ -874,7 +874,7 @@ static int tg3_mdio_read(struct mii_bus *bp, int mii_id, int reg)
 
 static int tg3_mdio_write(struct mii_bus *bp, int mii_id, int reg, u16 val)
 {
-	struct tg3 *tp = (struct tg3 *)bp->priv;
+	struct tg3 *tp = bp->priv;
 
 	if (tp->tg3_flags3 & TG3_FLG3_MDIOBUS_PAUSED)
 		return -EAGAIN;
