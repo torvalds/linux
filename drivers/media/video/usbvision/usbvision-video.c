@@ -526,8 +526,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	strlcpy(vc->card,
 		usbvision_device_data[usbvision->DevModel].ModelString,
 		sizeof(vc->card));
-	strlcpy(vc->bus_info, dev_name(&usbvision->dev->dev),
-		sizeof(vc->bus_info));
+	usb_make_path(usbvision->dev, vc->bus_info, sizeof(vc->bus_info));
 	vc->version = USBVISION_DRIVER_VERSION;
 	vc->capabilities = V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_AUDIO |
