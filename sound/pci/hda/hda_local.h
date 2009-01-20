@@ -355,6 +355,8 @@ struct auto_pin_cfg {
 	hda_nid_t dig_out_pin;
 	hda_nid_t dig_in_pin;
 	hda_nid_t mono_out_pin;
+	int dig_out_type; /* HDA_PCM_TYPE_XXX */
+	int dig_in_type; /* HDA_PCM_TYPE_XXX */
 };
 
 #define get_defcfg_connect(cfg) \

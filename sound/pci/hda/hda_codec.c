@@ -3392,10 +3392,18 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		case AC_JACK_SPDIF_OUT:
 		case AC_JACK_DIG_OTHER_OUT:
 			cfg->dig_out_pin = nid;
+			if (loc == AC_JACK_LOC_HDMI)
+				cfg->dig_out_type = HDA_PCM_TYPE_HDMI;
+			else
+				cfg->dig_out_type = HDA_PCM_TYPE_SPDIF;
 			break;
 		case AC_JACK_SPDIF_IN:
 		case AC_JACK_DIG_OTHER_IN:
 			cfg->dig_in_pin = nid;
+			if (loc == AC_JACK_LOC_HDMI)
+				cfg->dig_in_type = HDA_PCM_TYPE_HDMI;
+			else
+				cfg->dig_in_type = HDA_PCM_TYPE_SPDIF;
 			break;
 		}
 	}
