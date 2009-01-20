@@ -109,6 +109,7 @@ ifeq ($(CONFIG_ARCH_SA1100),y)
  textofs-$(CONFIG_SA1111)	   := 0x00208000
 endif
  machine-$(CONFIG_ARCH_PXA)	   := pxa
+    plat-$(CONFIG_PLAT_PXA)	   := pxa
  machine-$(CONFIG_ARCH_L7200)	   := l7200
  machine-$(CONFIG_ARCH_INTEGRATOR) := integrator
  textofs-$(CONFIG_ARCH_CLPS711X)   := 0x00028000
