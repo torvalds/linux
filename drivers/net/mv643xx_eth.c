@@ -136,21 +136,23 @@ static char mv643xx_eth_driver_version[] = "1.4";
 /*
  * SDMA configuration register.
  */
+#define RX_BURST_SIZE_4_64BIT		(2 << 1)
 #define RX_BURST_SIZE_16_64BIT		(4 << 1)
 #define BLM_RX_NO_SWAP			(1 << 4)
 #define BLM_TX_NO_SWAP			(1 << 5)
+#define TX_BURST_SIZE_4_64BIT		(2 << 22)
 #define TX_BURST_SIZE_16_64BIT		(4 << 22)
 
 #if defined(__BIG_ENDIAN)
 #define PORT_SDMA_CONFIG_DEFAULT_VALUE		\
-		(RX_BURST_SIZE_16_64BIT	|	\
-		TX_BURST_SIZE_16_64BIT)
+		(RX_BURST_SIZE_4_64BIT	|	\
+		 TX_BURST_SIZE_4_64BIT)
 #elif defined(__LITTLE_ENDIAN)
 #define PORT_SDMA_CONFIG_DEFAULT_VALUE		\
-		(RX_BURST_SIZE_16_64BIT	|	\
-		BLM_RX_NO_SWAP		|	\
-		BLM_TX_NO_SWAP		|	\
-		TX_BURST_SIZE_16_64BIT)
+		(RX_BURST_SIZE_4_64BIT	|	\
+		 BLM_RX_NO_SWAP		|	\
+		 BLM_TX_NO_SWAP		|	\
+		 TX_BURST_SIZE_4_64BIT)
 #else
 #error One of __BIG_ENDIAN or __LITTLE_ENDIAN must be defined
 #endif
