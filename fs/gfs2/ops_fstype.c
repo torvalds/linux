@@ -1258,6 +1258,8 @@ fail_sb:
 		dput(sdp->sd_root_dir);
 	if (sdp->sd_master_dir)
 		dput(sdp->sd_master_dir);
+	if (sb->s_root)
+		dput(sb->s_root);
 	sb->s_root = NULL;
 fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
