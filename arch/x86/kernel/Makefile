@@ -115,10 +115,11 @@ obj-$(CONFIG_SWIOTLB)			+= pci-swiotlb_64.o # NB rename without _64
 ###
 # 64 bit specific files
 ifeq ($(CONFIG_X86_64),y)
-        obj-y				+= genapic_64.o genapic_flat_64.o genx2apic_uv_x.o tlb_uv.o
-	obj-y				+= bios_uv.o uv_irq.o uv_sysfs.o
+        obj-y				+= genapic_64.o genapic_flat_64.o
         obj-y				+= genx2apic_cluster.o
         obj-y				+= genx2apic_phys.o
+	obj-$(CONFIG_X86_UV)		+= genx2apic_uv_x.o tlb_uv.o
+	obj-$(CONFIG_X86_UV)		+= bios_uv.o uv_irq.o uv_sysfs.o
         obj-$(CONFIG_X86_PM_TIMER)	+= pmtimer_64.o
         obj-$(CONFIG_AUDIT)		+= audit_64.o
 
