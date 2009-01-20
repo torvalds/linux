@@ -7084,6 +7084,7 @@ static const struct sensor_by_chipset_revision chipset_revision_sensor[] = {
 	{0x8001, 0x13},
 	{0x8000, 0x14},		/* CS2102K */
 	{0x8400, 0x15},		/* TAS5130K */
+	{0x4001, 0x16},		/* ADCM2700 */
 };
 
 static int vga_3wr_probe(struct gspca_dev *gspca_dev)
@@ -7200,7 +7201,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	retword = i2c_read(gspca_dev, 0x01);
 	if (retword != 0) {
 		PDEBUG(D_PROBE, "probe 3wr vga type 0a ? ret: %04x", retword);
-		return retword;			/* 0x6200/0x6100?? */
+		return retword;
 	}
 	return -1;
 }
@@ -7348,6 +7349,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 				sd->chip_revision);
 			sd->sensor = SENSOR_TAS5130CK;
 			break;
+		case 0x16:
+			PDEBUG(D_PROBE, "Find Sensor ADCM2700");
+			sd->sensor = SENSOR_ADCM2700;
+			break;
 		case 0x29:
 			PDEBUG(D_PROBE, "Find Sensor GC0305");
 			sd->sensor = SENSOR_GC0305;
@@ -7361,12 +7366,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor = SENSOR_PO2030;
 			sd->sharpness = 0;		/* from win traces */
 			break;
-		case 0x6100:
-		case 0x6200:
-			PDEBUG(D_PROBE, "Find Sensor ADCM2700");
-			sd->sensor = SENSOR_ADCM2700;
-			send_unknown(gspca_dev->dev, sd->sensor);
-			break;
 		case 0x7620:
 			PDEBUG(D_PROBE, "Find Sensor OV7620");
 			sd->sensor = SENSOR_OV7620;
@@ -7376,7 +7375,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->sensor = SENSOR_OV7620;	/* same sensor (?) */
 			break;
 		default:
-			PDEBUG(D_ERR|D_PROBE, "Unknown sensor %02x", sensor);
+			PDEBUG(D_ERR|D_PROBE, "Unknown sensor %04x", sensor);
 			return -EINVAL;
 		}
 	}
