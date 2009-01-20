@@ -694,7 +694,12 @@ static int af9015_read_config(struct usb_device *udev)
 
 	/* IR remote controller */
 	req.addr = AF9015_EEPROM_IR_MODE;
-	ret = af9015_rw_udev(udev, &req);
+	/* first message will timeout often due to possible hw bug */
+	for (i = 0; i < 4; i++) {
+		ret = af9015_rw_udev(udev, &req);
+		if (!ret)
+			break;
+	}
 	if (ret)
 		goto error;
 	deb_info("%s: IR mode:%d\n", __func__, val);
