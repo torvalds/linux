@@ -2078,6 +2078,9 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 
 	ixgbe_irq_enable(adapter);
 
+	/* enable transmits */
+	netif_tx_start_all_queues(netdev);
+
 	/* bring the link up in the watchdog, this could race with our first
 	 * link up interrupt but shouldn't be a problem */
 	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
@@ -3479,7 +3482,6 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 			        (FLOW_TX ? "TX" : "None"))));
 
 			netif_carrier_on(netdev);
-			netif_tx_wake_all_queues(netdev);
 		} else {
 			/* Force detection of hung controller */
 			adapter->detect_tx_hung = true;
@@ -3491,7 +3493,6 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 			printk(KERN_INFO "ixgbe: %s NIC Link is Down\n",
 			       netdev->name);
 			netif_carrier_off(netdev);
-			netif_tx_stop_all_queues(netdev);
 		}
 	}
 
@@ -4222,7 +4223,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	}
 
 	netif_carrier_off(netdev);
-	netif_tx_stop_all_queues(netdev);
 
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);
