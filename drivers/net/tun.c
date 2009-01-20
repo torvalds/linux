@@ -115,14 +115,9 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 {
 	struct tun_file *tfile = file->private_data;
 	const struct cred *cred = current_cred();
+	int err;
 
 	ASSERT_RTNL();
-
-	if (tfile->tun)
-		return -EINVAL;
-
-	if (tun->tfile)
-		return -EBUSY;
 
 	/* Check permissions */
 	if (((tun->owner != -1 && cred->euid != tun->owner) ||
@@ -130,10 +125,23 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 		!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
+	netif_tx_lock_bh(tun->dev);
+
+	err = -EINVAL;
+	if (tfile->tun)
+		goto out;
+
+	err = -EBUSY;
+	if (tun->tfile)
+		goto out;
+
+	err = 0;
 	tfile->tun = tun;
 	tun->tfile = tfile;
 
-	return 0;
+out:
+	netif_tx_unlock_bh(tun->dev);
+	return err;
 }
 
 static void __tun_detach(struct tun_struct *tun)
@@ -141,8 +149,10 @@ static void __tun_detach(struct tun_struct *tun)
 	struct tun_file *tfile = tun->tfile;
 
 	/* Detach from net device */
+	netif_tx_lock_bh(tun->dev);
 	tfile->tun = NULL;
 	tun->tfile = NULL;
+	netif_tx_unlock_bh(tun->dev);
 
 	/* Drop read queue */
 	skb_queue_purge(&tun->readq);
