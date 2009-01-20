@@ -67,7 +67,7 @@ const static struct ctrl mt9m111_ctrls[] = {
 			.minimum        = 0,
 			.maximum        = 1,
 			.step           = 1,
-			.default_value  = 0
+			.default_value  = 1
 		},
 		.set = mt9m111_set_vflip,
 		.get = mt9m111_get_vflip
@@ -81,7 +81,7 @@ const static struct ctrl mt9m111_ctrls[] = {
 			.minimum        = 0,
 			.maximum        = 1,
 			.step           = 1,
-			.default_value  = 0
+			.default_value  = 1
 		},
 		.set = mt9m111_set_hflip,
 		.get = mt9m111_get_hflip
