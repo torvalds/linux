@@ -1599,6 +1599,13 @@ UNUSUAL_DEV(  0x0fce, 0xd008, 0x0000, 0x0000,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_NO_WP_DETECT ),
 
+/* Reported by The Solutor <thesolutor@gmail.com> */
+UNUSUAL_DEV(  0x0fce, 0xd0e1, 0x0000, 0x0000,
+		"Sony Ericsson",
+		"MD400",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_DEVICE),
+
 /* Reported by Jan Mate <mate@fiit.stuba.sk>
  * and by Soeren Sonnenburg <kernel@nn7.de> */
 UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
