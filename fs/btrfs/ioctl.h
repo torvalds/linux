@@ -22,11 +22,18 @@
 
 #define BTRFS_IOCTL_MAGIC 0x94
 #define BTRFS_VOL_NAME_MAX 255
-#define BTRFS_PATH_NAME_MAX 3072
+#define BTRFS_PATH_NAME_MAX 4087
 
+/* this should be 4k */
 struct btrfs_ioctl_vol_args {
 	__s64 fd;
 	char name[BTRFS_PATH_NAME_MAX + 1];
+};
+
+struct btrfs_ioctl_clone_range_args {
+  __s64 src_fd;
+  __u64 src_offset, src_length;
+  __u64 dest_offset;
 };
 
 #define BTRFS_IOC_SNAP_CREATE _IOW(BTRFS_IOCTL_MAGIC, 1, \
@@ -52,11 +59,6 @@ struct btrfs_ioctl_vol_args {
 				   struct btrfs_ioctl_vol_args)
 #define BTRFS_IOC_BALANCE _IOW(BTRFS_IOCTL_MAGIC, 12, \
 				   struct btrfs_ioctl_vol_args)
-struct btrfs_ioctl_clone_range_args {
-  __s64 src_fd;
-  __u64 src_offset, src_length;
-  __u64 dest_offset;
-};
 
 #define BTRFS_IOC_CLONE_RANGE _IOW(BTRFS_IOCTL_MAGIC, 13, \
 				  struct btrfs_ioctl_clone_range_args)

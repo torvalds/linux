@@ -72,6 +72,7 @@ void auxio_set_led(int on)
 	bit = (ebus ? AUXIO_PCIO_LED : AUXIO_AUX1_LED);
 	__auxio_set_bit(bit, on, ebus);
 }
+EXPORT_SYMBOL(auxio_set_led);
 
 static void __auxio_sbus_set_lte(int on)
 {
@@ -90,6 +91,7 @@ void auxio_set_lte(int on)
 		break;
 	}
 }
+EXPORT_SYMBOL(auxio_set_lte);
 
 static struct of_device_id __initdata auxio_match[] = {
 	{

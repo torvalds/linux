@@ -5,6 +5,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/smp.h>
 #include <linux/threads.h>
@@ -20,6 +21,7 @@
 #include "kernel.h"
 
 DEFINE_PER_CPU(cpuinfo_sparc, __cpu_data) = { 0 };
+EXPORT_PER_CPU_SYMBOL(__cpu_data);
 
 struct cpu_info {
 	int psr_vers;

@@ -135,7 +135,6 @@ void snd_hda_detach_beep_device(struct hda_codec *codec)
 	struct hda_beep *beep = codec->beep;
 	if (beep) {
 		cancel_work_sync(&beep->beep_work);
-		flush_scheduled_work();
 
 		input_unregister_device(beep->dev);
 		kfree(beep);

@@ -38,9 +38,7 @@
 #include <linux/time.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
-#ifdef NETIF_F_HW_VLAN_TX
-	#include <linux/if_vlan.h>
-#endif
+#include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/checksum.h>
@@ -95,6 +93,7 @@ MODULE_PARM_DESC(debug, "default debug msglevel");
 module_param(use_multi, int, 0);
 MODULE_PARM_DESC(use_multi, "use per-CPU queues");
 #endif
+static struct workqueue_struct *bnx2x_wq;
 
 enum bnx2x_board_type {
 	BCM57710 = 0,
@@ -671,7 +670,8 @@ static void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
 		synchronize_irq(bp->pdev->irq);
 
 	/* make sure sp_task is not running */
-	cancel_work_sync(&bp->sp_task);
+	cancel_delayed_work(&bp->sp_task);
+	flush_workqueue(bnx2x_wq);
 }
 
 /* fast path */
@@ -972,7 +972,7 @@ static inline void bnx2x_free_rx_sge(struct bnx2x *bp,
 		return;
 
 	pci_unmap_page(bp->pdev, pci_unmap_addr(sw_buf, mapping),
-		       BCM_PAGE_SIZE*PAGES_PER_SGE, PCI_DMA_FROMDEVICE);
+		       SGE_PAGE_SIZE*PAGES_PER_SGE, PCI_DMA_FROMDEVICE);
 	__free_pages(page, PAGES_PER_SGE_SHIFT);
 
 	sw_buf->page = NULL;
@@ -1000,7 +1000,7 @@ static inline int bnx2x_alloc_rx_sge(struct bnx2x *bp,
 	if (unlikely(page == NULL))
 		return -ENOMEM;
 
-	mapping = pci_map_page(bp->pdev, page, 0, BCM_PAGE_SIZE*PAGES_PER_SGE,
+	mapping = pci_map_page(bp->pdev, page, 0, SGE_PAGE_SIZE*PAGES_PER_SGE,
 			       PCI_DMA_FROMDEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		__free_pages(page, PAGES_PER_SGE_SHIFT);
@@ -1096,9 +1096,9 @@ static void bnx2x_update_sge_prod(struct bnx2x_fastpath *fp,
 				  struct eth_fast_path_rx_cqe *fp_cqe)
 {
 	struct bnx2x *bp = fp->bp;
-	u16 sge_len = BCM_PAGE_ALIGN(le16_to_cpu(fp_cqe->pkt_len) -
+	u16 sge_len = SGE_PAGE_ALIGN(le16_to_cpu(fp_cqe->pkt_len) -
 				     le16_to_cpu(fp_cqe->len_on_bd)) >>
-		      BCM_PAGE_SHIFT;
+		      SGE_PAGE_SHIFT;
 	u16 last_max, last_elem, first_elem;
 	u16 delta = 0;
 	u16 i;
@@ -1203,22 +1203,22 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			       u16 cqe_idx)
 {
 	struct sw_rx_page *rx_pg, old_rx_pg;
-	struct page *sge;
 	u16 len_on_bd = le16_to_cpu(fp_cqe->len_on_bd);
 	u32 i, frag_len, frag_size, pages;
 	int err;
 	int j;
 
 	frag_size = le16_to_cpu(fp_cqe->pkt_len) - len_on_bd;
-	pages = BCM_PAGE_ALIGN(frag_size) >> BCM_PAGE_SHIFT;
+	pages = SGE_PAGE_ALIGN(frag_size) >> SGE_PAGE_SHIFT;
 
 	/* This is needed in order to enable forwarding support */
 	if (frag_size)
-		skb_shinfo(skb)->gso_size = min((u32)BCM_PAGE_SIZE,
+		skb_shinfo(skb)->gso_size = min((u32)SGE_PAGE_SIZE,
 					       max(frag_size, (u32)len_on_bd));
 
 #ifdef BNX2X_STOP_ON_ERROR
-	if (pages > 8*PAGES_PER_SGE) {
+	if (pages >
+	    min((u32)8, (u32)MAX_SKB_FRAGS) * SGE_PAGE_SIZE * PAGES_PER_SGE) {
 		BNX2X_ERR("SGL length is too long: %d. CQE index is %d\n",
 			  pages, cqe_idx);
 		BNX2X_ERR("fp_cqe->pkt_len = %d  fp_cqe->len_on_bd = %d\n",
@@ -1234,9 +1234,8 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 		/* FW gives the indices of the SGE as if the ring is an array
 		   (meaning that "next" element will consume 2 indices) */
-		frag_len = min(frag_size, (u32)(BCM_PAGE_SIZE*PAGES_PER_SGE));
+		frag_len = min(frag_size, (u32)(SGE_PAGE_SIZE*PAGES_PER_SGE));
 		rx_pg = &fp->rx_page_ring[sge_idx];
-		sge = rx_pg->page;
 		old_rx_pg = *rx_pg;
 
 		/* If we fail to allocate a substitute page, we simply stop
@@ -1249,7 +1248,7 @@ static int bnx2x_fill_frag_skb(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 		/* Unmap the page as we r going to pass it to the stack */
 		pci_unmap_page(bp->pdev, pci_unmap_addr(&old_rx_pg, mapping),
-			      BCM_PAGE_SIZE*PAGES_PER_SGE, PCI_DMA_FROMDEVICE);
+			      SGE_PAGE_SIZE*PAGES_PER_SGE, PCI_DMA_FROMDEVICE);
 
 		/* Add one frag and update the appropriate fields in the skb */
 		skb_fill_page_desc(skb, j, old_rx_pg.page, 0, frag_len);
@@ -1282,6 +1281,13 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	if (likely(new_skb)) {
 		/* fix ip xsum and give it to the stack */
 		/* (no need to map the new skb) */
+#ifdef BCM_VLAN
+		int is_vlan_cqe =
+			(le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
+			 PARSING_FLAGS_VLAN);
+		int is_not_hwaccel_vlan_cqe =
+			(is_vlan_cqe && (!(bp->flags & HW_VLAN_RX_FLAG)));
+#endif
 
 		prefetch(skb);
 		prefetch(((char *)(skb)) + 128);
@@ -1306,6 +1312,12 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			struct iphdr *iph;
 
 			iph = (struct iphdr *)skb->data;
+#ifdef BCM_VLAN
+			/* If there is no Rx VLAN offloading -
+			   take VLAN tag into an account */
+			if (unlikely(is_not_hwaccel_vlan_cqe))
+				iph = (struct iphdr *)((u8 *)iph + VLAN_HLEN);
+#endif
 			iph->check = 0;
 			iph->check = ip_fast_csum((u8 *)iph, iph->ihl);
 		}
@@ -1313,9 +1325,8 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		if (!bnx2x_fill_frag_skb(bp, fp, skb,
 					 &cqe->fast_path_cqe, cqe_idx)) {
 #ifdef BCM_VLAN
-			if ((bp->vlgrp != NULL) &&
-			    (le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
-			     PARSING_FLAGS_VLAN))
+			if ((bp->vlgrp != NULL) && is_vlan_cqe &&
+			    (!is_not_hwaccel_vlan_cqe))
 				vlan_hwaccel_receive_skb(skb, bp->vlgrp,
 						le16_to_cpu(cqe->fast_path_cqe.
 							    vlan_tag));
@@ -1355,10 +1366,22 @@ static inline void bnx2x_update_rx_prod(struct bnx2x *bp,
 	rx_prods.cqe_prod = rx_comp_prod;
 	rx_prods.sge_prod = rx_sge_prod;
 
+	/*
+	 * Make sure that the BD and SGE data is updated before updating the
+	 * producers since FW might read the BD/SGE right after the producer
+	 * is updated.
+	 * This is only applicable for weak-ordered memory model archs such
+	 * as IA-64. The following barrier is also mandatory since FW will
+	 * assumes BDs must have buffers.
+	 */
+	wmb();
+
 	for (i = 0; i < sizeof(struct tstorm_eth_rx_producers)/4; i++)
 		REG_WR(bp, BAR_TSTRORM_INTMEM +
 		       TSTORM_RX_PRODS_OFFSET(BP_PORT(bp), FP_CL_ID(fp)) + i*4,
 		       ((u32 *)&rx_prods)[i]);
+
+	mmiowb(); /* keep prod updates ordered */
 
 	DP(NETIF_MSG_RX_STATUS,
 	   "Wrote: bd_prod %u  cqe_prod %u  sge_prod %u\n",
@@ -1415,7 +1438,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 		DP(NETIF_MSG_RX_STATUS, "CQE type %x  err %x  status %x"
 		   "  queue %x  vlan %x  len %u\n", CQE_TYPE(cqe_fp_flags),
 		   cqe_fp_flags, cqe->fast_path_cqe.status_flags,
-		   cqe->fast_path_cqe.rss_hash_result,
+		   le32_to_cpu(cqe->fast_path_cqe.rss_hash_result),
 		   le16_to_cpu(cqe->fast_path_cqe.vlan_tag),
 		   le16_to_cpu(cqe->fast_path_cqe.pkt_len));
 
@@ -1547,7 +1570,7 @@ reuse_rx:
 		}
 
 #ifdef BCM_VLAN
-		if ((bp->vlgrp != NULL) &&
+		if ((bp->vlgrp != NULL) && (bp->flags & HW_VLAN_RX_FLAG) &&
 		    (le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) &
 		     PARSING_FLAGS_VLAN))
 			vlan_hwaccel_receive_skb(skb, bp->vlgrp,
@@ -1580,7 +1603,6 @@ next_cqe:
 	/* Update producers */
 	bnx2x_update_rx_prod(bp, fp, bd_prod_fw, sw_comp_prod,
 			     fp->rx_sge_prod);
-	mmiowb(); /* keep prod updates ordered */
 
 	fp->rx_pkt += rx_pkt;
 	fp->rx_calls++;
@@ -1660,7 +1682,7 @@ static irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 
 
 	if (unlikely(status & 0x1)) {
-		schedule_work(&bp->sp_task);
+		queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
 
 		status &= ~0x1;
 		if (!status)
@@ -1887,7 +1909,8 @@ static int bnx2x_set_spio(struct bnx2x *bp, int spio_num, u32 mode)
 
 static void bnx2x_calc_fc_adv(struct bnx2x *bp)
 {
-	switch (bp->link_vars.ieee_fc) {
+	switch (bp->link_vars.ieee_fc &
+		MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK) {
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_NONE:
 		bp->port.advertising &= ~(ADVERTISED_Asym_Pause |
 					  ADVERTISED_Pause);
@@ -1957,10 +1980,11 @@ static u8 bnx2x_initial_phy_init(struct bnx2x *bp)
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
 		bnx2x_release_phy_lock(bp);
 
+		bnx2x_calc_fc_adv(bp);
+
 		if (bp->link_vars.link_up)
 			bnx2x_link_report(bp);
 
-		bnx2x_calc_fc_adv(bp);
 
 		return rc;
 	}
@@ -2220,9 +2244,7 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 	/* Make sure that we are synced with the current statistics */
 	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
-	bnx2x_acquire_phy_lock(bp);
 	bnx2x_link_update(&bp->link_params, &bp->link_vars);
-	bnx2x_release_phy_lock(bp);
 
 	if (bp->link_vars.link_up) {
 
@@ -2471,6 +2493,8 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 	if (asserted & ATTN_HARD_WIRED_MASK) {
 		if (asserted & ATTN_NIG_FOR_FUNC) {
 
+			bnx2x_acquire_phy_lock(bp);
+
 			/* save nig interrupt mask */
 			bp->nig_mask = REG_RD(bp, nig_int_mask_addr);
 			REG_WR(bp, nig_int_mask_addr, 0);
@@ -2526,8 +2550,10 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 	REG_WR(bp, hc_addr, asserted);
 
 	/* now set back the mask */
-	if (asserted & ATTN_NIG_FOR_FUNC)
+	if (asserted & ATTN_NIG_FOR_FUNC) {
 		REG_WR(bp, nig_int_mask_addr, bp->nig_mask);
+		bnx2x_release_phy_lock(bp);
+	}
 }
 
 static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
@@ -2795,8 +2821,10 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 static void bnx2x_attn_int(struct bnx2x *bp)
 {
 	/* read local copy of bits */
-	u32 attn_bits = bp->def_status_blk->atten_status_block.attn_bits;
-	u32 attn_ack = bp->def_status_blk->atten_status_block.attn_bits_ack;
+	u32 attn_bits = le32_to_cpu(bp->def_status_blk->atten_status_block.
+								attn_bits);
+	u32 attn_ack = le32_to_cpu(bp->def_status_blk->atten_status_block.
+								attn_bits_ack);
 	u32 attn_state = bp->attn_state;
 
 	/* look for changed bits */
@@ -2820,7 +2848,7 @@ static void bnx2x_attn_int(struct bnx2x *bp)
 
 static void bnx2x_sp_task(struct work_struct *work)
 {
-	struct bnx2x *bp = container_of(work, struct bnx2x, sp_task);
+	struct bnx2x *bp = container_of(work, struct bnx2x, sp_task.work);
 	u16 status;
 
 
@@ -2844,7 +2872,7 @@ static void bnx2x_sp_task(struct work_struct *work)
 	if (status & 0x2)
 		bp->stats_pending = 0;
 
-	bnx2x_ack_sb(bp, DEF_SB_ID, ATTENTION_ID, bp->def_att_idx,
+	bnx2x_ack_sb(bp, DEF_SB_ID, ATTENTION_ID, le16_to_cpu(bp->def_att_idx),
 		     IGU_INT_NOP, 1);
 	bnx2x_ack_sb(bp, DEF_SB_ID, USTORM_ID, le16_to_cpu(bp->def_u_idx),
 		     IGU_INT_NOP, 1);
@@ -2875,7 +2903,7 @@ static irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 		return IRQ_HANDLED;
 #endif
 
-	schedule_work(&bp->sp_task);
+	queue_delayed_work(bnx2x_wq, &bp->sp_task, 0);
 
 	return IRQ_HANDLED;
 }
@@ -2892,7 +2920,7 @@ static irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 #define ADD_64(s_hi, a_hi, s_lo, a_lo) \
 	do { \
 		s_lo += a_lo; \
-		s_hi += a_hi + (s_lo < a_lo) ? 1 : 0; \
+		s_hi += a_hi + ((s_lo < a_lo) ? 1 : 0); \
 	} while (0)
 
 /* difference = minuend - subtrahend */
@@ -4496,7 +4524,7 @@ static void bnx2x_init_context(struct bnx2x *bp)
 
 static void bnx2x_init_ind_table(struct bnx2x *bp)
 {
-	int port = BP_PORT(bp);
+	int func = BP_FUNC(bp);
 	int i;
 
 	if (!is_multi(bp))
@@ -4505,10 +4533,8 @@ static void bnx2x_init_ind_table(struct bnx2x *bp)
 	DP(NETIF_MSG_IFUP, "Initializing indirection table\n");
 	for (i = 0; i < TSTORM_INDIRECTION_TABLE_SIZE; i++)
 		REG_WR8(bp, BAR_TSTRORM_INTMEM +
-			TSTORM_INDIRECTION_TABLE_OFFSET(port) + i,
-			i % bp->num_queues);
-
-	REG_WR(bp, PRS_REG_A_PRSU_20, 0xf);
+			TSTORM_INDIRECTION_TABLE_OFFSET(func) + i,
+			BP_CL_ID(bp) + (i % bp->num_queues));
 }
 
 static void bnx2x_set_client_config(struct bnx2x *bp)
@@ -4517,12 +4543,12 @@ static void bnx2x_set_client_config(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 	int i;
 
-	tstorm_client.mtu = bp->dev->mtu + ETH_OVREHEAD;
+	tstorm_client.mtu = bp->dev->mtu;
 	tstorm_client.statistics_counter_id = BP_CL_ID(bp);
 	tstorm_client.config_flags =
 				TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE;
 #ifdef BCM_VLAN
-	if (bp->rx_mode && bp->vlgrp) {
+	if (bp->rx_mode && bp->vlgrp && (bp->flags & HW_VLAN_RX_FLAG)) {
 		tstorm_client.config_flags |=
 				TSTORM_ETH_CLIENT_CONFIG_VLAN_REMOVAL_ENABLE;
 		DP(NETIF_MSG_IFUP, "vlan removal enabled\n");
@@ -4531,7 +4557,7 @@ static void bnx2x_set_client_config(struct bnx2x *bp)
 
 	if (bp->flags & TPA_ENABLE_FLAG) {
 		tstorm_client.max_sges_for_packet =
-			BCM_PAGE_ALIGN(tstorm_client.mtu) >> BCM_PAGE_SHIFT;
+			SGE_PAGE_ALIGN(tstorm_client.mtu) >> SGE_PAGE_SHIFT;
 		tstorm_client.max_sges_for_packet =
 			((tstorm_client.max_sges_for_packet +
 			  PAGES_PER_SGE - 1) & (~(PAGES_PER_SGE - 1))) >>
@@ -4714,10 +4740,11 @@ static void bnx2x_init_internal_func(struct bnx2x *bp)
 			 bp->e1hov);
 	}
 
-	/* Init CQ ring mapping and aggregation size */
-	max_agg_size = min((u32)(bp->rx_buf_size +
-				 8*BCM_PAGE_SIZE*PAGES_PER_SGE),
-			   (u32)0xffff);
+	/* Init CQ ring mapping and aggregation size, the FW limit is 8 frags */
+	max_agg_size =
+		min((u32)(min((u32)8, (u32)MAX_SKB_FRAGS) *
+			  SGE_PAGE_SIZE * PAGES_PER_SGE),
+		    (u32)0xffff);
 	for_each_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 
@@ -4785,6 +4812,15 @@ static void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 	bnx2x_init_context(bp);
 	bnx2x_init_internal(bp, load_code);
 	bnx2x_init_ind_table(bp);
+	bnx2x_stats_init(bp);
+
+	/* At this point, we are ready for interrupts */
+	atomic_set(&bp->intr_sem, 0);
+
+	/* flush all before enabling interrupts */
+	mb();
+	mmiowb();
+
 	bnx2x_int_enable(bp);
 }
 
@@ -5134,7 +5170,6 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	REG_WR(bp, PXP2_REG_RQ_SRC_ENDIAN_M, 1);
 	REG_WR(bp, PXP2_REG_RQ_CDU_ENDIAN_M, 1);
 	REG_WR(bp, PXP2_REG_RQ_DBG_ENDIAN_M, 1);
-	REG_WR(bp, PXP2_REG_RQ_HC_ENDIAN_M, 1);
 
 /*	REG_WR(bp, PXP2_REG_RD_PBF_SWAP_MODE, 1); */
 	REG_WR(bp, PXP2_REG_RD_QM_SWAP_MODE, 1);
@@ -5212,6 +5247,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	}
 
 	bnx2x_init_block(bp, PRS_COMMON_START, PRS_COMMON_END);
+	REG_WR(bp, PRS_REG_A_PRSU_20, 0xf);
 	/* set NIC mode */
 	REG_WR(bp, PRS_REG_NIC_MODE, 1);
 	if (CHIP_IS_E1H(bp))
@@ -6393,16 +6429,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		}
 	}
 
-	bnx2x_stats_init(bp);
-
 	bp->state = BNX2X_STATE_OPENING_WAIT4_PORT;
-
-	/* Enable Rx interrupt handling before sending the ramrod
-	   as it's completed on Rx FP queue */
-	bnx2x_napi_enable(bp);
-
-	/* Enable interrupt handling */
-	atomic_set(&bp->intr_sem, 0);
 
 	rc = bnx2x_setup_leading(bp);
 	if (rc) {
@@ -7501,7 +7528,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 
 	mutex_init(&bp->port.phy_mutex);
 
-	INIT_WORK(&bp->sp_task, bnx2x_sp_task);
+	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
 	INIT_WORK(&bp->reset_task, bnx2x_reset_task);
 
 	rc = bnx2x_get_hwinfo(bp);
@@ -8727,6 +8754,8 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 	tx_bd->general_data = ((UNICAST_ADDRESS <<
 				ETH_TX_BD_ETH_ADDR_TYPE_SHIFT) | 1);
 
+	wmb();
+
 	fp->hw_tx_prods->bds_prod =
 		cpu_to_le16(le16_to_cpu(fp->hw_tx_prods->bds_prod) + 1);
 	mb(); /* FW restriction: must not reorder writing nbd and packets */
@@ -8778,7 +8807,6 @@ test_loopback_rx_exit:
 	/* Update producers */
 	bnx2x_update_rx_prod(bp, fp, fp->rx_bd_prod, fp->rx_comp_prod,
 			     fp->rx_sge_prod);
-	mmiowb(); /* keep prod updates ordered */
 
 test_loopback_exit:
 	bp->link_params.loopback_mode = LOOPBACK_NONE;
@@ -9549,11 +9577,14 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   "sending pkt %u @%p  next_idx %u  bd %u @%p\n",
 	   pkt_prod, tx_buf, fp->tx_pkt_prod, bd_prod, tx_bd);
 
-	if ((bp->vlgrp != NULL) && vlan_tx_tag_present(skb)) {
+#ifdef BCM_VLAN
+	if ((bp->vlgrp != NULL) && vlan_tx_tag_present(skb) &&
+	    (bp->flags & HW_VLAN_TX_FLAG)) {
 		tx_bd->vlan = cpu_to_le16(vlan_tx_tag_get(skb));
 		tx_bd->bd_flags.as_bitfield |= ETH_TX_BD_FLAGS_VLAN_TAG;
 		vlan_off += 4;
 	} else
+#endif
 		tx_bd->vlan = cpu_to_le16(pkt_prod);
 
 	if (xmit_type) {
@@ -9705,6 +9736,15 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	DP(NETIF_MSG_TX_QUEUED, "doorbell: nbd %d  bd %u\n", nbd, bd_prod);
 
+	/*
+	 * Make sure that the BD data is updated before updating the producer
+	 * since FW might read the BD right after the producer is updated.
+	 * This is only applicable for weak-ordered memory model archs such
+	 * as IA-64. The following barrier is also mandatory since FW will
+	 * assumes packets must have BDs.
+	 */
+	wmb();
+
 	fp->hw_tx_prods->bds_prod =
 		cpu_to_le16(le16_to_cpu(fp->hw_tx_prods->bds_prod) + nbd);
 	mb(); /* FW restriction: must not reorder writing nbd and packets */
@@ -9718,6 +9758,9 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->trans_start = jiffies;
 
 	if (unlikely(bnx2x_tx_avail(fp) < MAX_SKB_FRAGS + 3)) {
+		/* We want bnx2x_tx_int to "see" the updated tx_bd_prod
+		   if we put Tx into XOFF state. */
+		smp_mb();
 		netif_stop_queue(dev);
 		bp->eth_stats.driver_xoff++;
 		if (bnx2x_tx_avail(fp) >= MAX_SKB_FRAGS + 3)
@@ -9987,6 +10030,16 @@ static void bnx2x_vlan_rx_register(struct net_device *dev,
 	struct bnx2x *bp = netdev_priv(dev);
 
 	bp->vlgrp = vlgrp;
+
+	/* Set flags according to the required capabilities */
+	bp->flags &= ~(HW_VLAN_RX_FLAG | HW_VLAN_TX_FLAG);
+
+	if (dev->features & NETIF_F_HW_VLAN_TX)
+		bp->flags |= HW_VLAN_TX_FLAG;
+
+	if (dev->features & NETIF_F_HW_VLAN_RX)
+		bp->flags |= HW_VLAN_RX_FLAG;
+
 	if (netif_running(dev))
 		bnx2x_set_client_config(bp);
 }
@@ -10143,6 +10196,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		dev->features |= NETIF_F_HIGHDMA;
 #ifdef BCM_VLAN
 	dev->features |= (NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
+	bp->flags |= (HW_VLAN_RX_FLAG | HW_VLAN_TX_FLAG);
 #endif
 	dev->features |= (NETIF_F_TSO | NETIF_F_TSO_ECN);
 	dev->features |= NETIF_F_TSO6;
@@ -10519,12 +10573,20 @@ static struct pci_driver bnx2x_pci_driver = {
 
 static int __init bnx2x_init(void)
 {
+	bnx2x_wq = create_singlethread_workqueue("bnx2x");
+	if (bnx2x_wq == NULL) {
+		printk(KERN_ERR PFX "Cannot create workqueue\n");
+		return -ENOMEM;
+	}
+
 	return pci_register_driver(&bnx2x_pci_driver);
 }
 
 static void __exit bnx2x_cleanup(void)
 {
 	pci_unregister_driver(&bnx2x_pci_driver);
+
+	destroy_workqueue(bnx2x_wq);
 }
 
 module_init(bnx2x_init);

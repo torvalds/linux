@@ -59,6 +59,7 @@ dump (const char *str, void *vp, size_t len)
  *  (i.e. don't allow attacker to fill up logs with unaligned accesses).
  */
 int no_unaligned_warning;
+int unaligned_dump_stack;
 static int noprint_warning;
 
 /*
@@ -1371,9 +1372,12 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 			}
 		}
 	} else {
-		if (within_logging_rate_limit())
+		if (within_logging_rate_limit()) {
 			printk(KERN_WARNING "kernel unaligned access to 0x%016lx, ip=0x%016lx\n",
 			       ifa, regs->cr_iip + ipsr->ri);
+			if (unaligned_dump_stack)
+				dump_stack();
+		}
 		set_fs(KERNEL_DS);
 	}
 

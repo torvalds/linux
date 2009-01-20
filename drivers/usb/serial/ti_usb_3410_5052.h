@@ -34,6 +34,14 @@
 #define TI_5052_EEPROM_PRODUCT_ID	0x505A	/* EEPROM, no firmware */
 #define TI_5052_FIRMWARE_PRODUCT_ID	0x505F	/* firmware is running */
 
+/* Multi-Tech vendor and product ids */
+#define MTS_VENDOR_ID			0x06E0
+#define MTS_GSM_NO_FW_PRODUCT_ID	0xF108
+#define MTS_CDMA_NO_FW_PRODUCT_ID	0xF109
+#define MTS_CDMA_PRODUCT_ID		0xF110
+#define MTS_GSM_PRODUCT_ID		0xF111
+#define MTS_EDGE_PRODUCT_ID		0xF112
+
 /* Commands */
 #define TI_GET_VERSION			0x01
 #define TI_GET_PORT_STATUS		0x02

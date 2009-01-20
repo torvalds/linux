@@ -58,6 +58,7 @@
  * operations in asm/ns87303.h
  */
 DEFINE_SPINLOCK(ns87303_lock);
+EXPORT_SYMBOL(ns87303_lock);
 
 struct screen_info screen_info = {
 	0, 0,			/* orig-x, orig-y */
@@ -425,5 +426,7 @@ void sun_do_break(void)
 
 	prom_cmdline();
 }
+EXPORT_SYMBOL(sun_do_break);
 
 int stop_a_enabled = 1;
+EXPORT_SYMBOL(stop_a_enabled);

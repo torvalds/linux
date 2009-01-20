@@ -279,7 +279,7 @@ static struct miscdevice wm8350_wdt_miscdev = {
 	.fops = &wm8350_wdt_fops,
 };
 
-static int wm8350_wdt_probe(struct platform_device *pdev)
+static int __devinit wm8350_wdt_probe(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 
@@ -296,7 +296,7 @@ static int wm8350_wdt_probe(struct platform_device *pdev)
 	return misc_register(&wm8350_wdt_miscdev);
 }
 
-static int __exit wm8350_wdt_remove(struct platform_device *pdev)
+static int __devexit wm8350_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&wm8350_wdt_miscdev);
 
@@ -305,7 +305,7 @@ static int __exit wm8350_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver wm8350_wdt_driver = {
 	.probe = wm8350_wdt_probe,
-	.remove = wm8350_wdt_remove,
+	.remove = __devexit_p(wm8350_wdt_remove),
 	.driver = {
 		.name = "wm8350-wdt",
 	},

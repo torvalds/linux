@@ -73,4 +73,11 @@ config REGULATOR_DA903X
 	  Say y here to support the BUCKs and LDOs regulators found on
 	  Dialog Semiconductor DA9030/DA9034 PMIC.
 
+config REGULATOR_PCF50633
+	tristate "PCF50633 regulator driver"
+        depends on MFD_PCF50633
+	help
+	 Say Y here to support the voltage regulators and convertors
+	 on PCF50633
+
 endif

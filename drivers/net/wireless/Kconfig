@@ -111,7 +111,7 @@ config WLAN_80211
 	  lets you choose drivers.
 
 config PCMCIA_RAYCS
-	tristate "Aviator/Raytheon 2.4MHz wireless support"
+	tristate "Aviator/Raytheon 2.4GHz wireless support"
 	depends on PCMCIA && WLAN_80211
 	select WIRELESS_EXT
 	---help---

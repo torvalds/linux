@@ -79,10 +79,10 @@ static int dma_iommu_dma_supported(struct device *dev, u64 mask)
 		       "Warning: IOMMU offset too big for device mask\n");
 		if (tbl)
 			printk(KERN_INFO
-			       "mask: 0x%08lx, table offset: 0x%08lx\n",
+			       "mask: 0x%08llx, table offset: 0x%08lx\n",
 				mask, tbl->it_offset);
 		else
-			printk(KERN_INFO "mask: 0x%08lx, table unavailable\n",
+			printk(KERN_INFO "mask: 0x%08llx, table unavailable\n",
 				mask);
 		return 0;
 	} else

@@ -395,13 +395,15 @@ minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
 {
 	struct minstrel_sta_info *mi = priv_sta;
 	struct minstrel_priv *mp = priv;
-	struct minstrel_rate *mr_ctl;
+	struct ieee80211_local *local = hw_to_local(mp->hw);
+	struct ieee80211_rate *ctl_rate;
 	unsigned int i, n = 0;
 	unsigned int t_slot = 9; /* FIXME: get real slot time */
 
 	mi->lowest_rix = rate_lowest_index(sband, sta);
-	mr_ctl = &mi->r[rix_to_ndx(mi, mi->lowest_rix)];
-	mi->sp_ack_dur = mr_ctl->ack_time;
+	ctl_rate = &sband->bitrates[mi->lowest_rix];
+	mi->sp_ack_dur = ieee80211_frame_duration(local, 10, ctl_rate->bitrate,
+				!!(ctl_rate->flags & IEEE80211_RATE_ERP_G), 1);
 
 	for (i = 0; i < sband->n_bitrates; i++) {
 		struct minstrel_rate *mr = &mi->r[n];
@@ -416,7 +418,7 @@ minstrel_rate_init(void *priv, struct ieee80211_supported_band *sband,
 
 		mr->rix = i;
 		mr->bitrate = sband->bitrates[i].bitrate / 5;
-		calc_rate_durations(mi, hw_to_local(mp->hw), mr,
+		calc_rate_durations(mi, local, mr,
 				&sband->bitrates[i]);
 
 		/* calculate maximum number of retransmissions before

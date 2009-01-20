@@ -423,9 +423,9 @@ int ata_std_bios_param(struct scsi_device *sdev, struct block_device *bdev,
  *	RETURNS:
  *	Zero on success, negative errno on error.
  */
-static int ata_get_identity(struct scsi_device *sdev, void __user *arg)
+static int ata_get_identity(struct ata_port *ap, struct scsi_device *sdev,
+			    void __user *arg)
 {
-	struct ata_port *ap = ata_shost_to_port(sdev->host);
 	struct ata_device *dev = ata_scsi_find_dev(ap, sdev);
 	u16 __user *dst = arg;
 	char buf[40];
@@ -645,7 +645,8 @@ int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg)
 	return rc;
 }
 
-int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
+int ata_sas_scsi_ioctl(struct ata_port *ap, struct scsi_device *scsidev,
+		     int cmd, void __user *arg)
 {
 	int val = -EINVAL, rc = -EINVAL;
 
@@ -663,7 +664,7 @@ int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
 		return 0;
 
 	case HDIO_GET_IDENTITY:
-		return ata_get_identity(scsidev, arg);
+		return ata_get_identity(ap, scsidev, arg);
 
 	case HDIO_DRIVE_CMD:
 		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
@@ -682,6 +683,14 @@ int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ata_sas_scsi_ioctl);
+
+int ata_scsi_ioctl(struct scsi_device *scsidev, int cmd, void __user *arg)
+{
+	return ata_sas_scsi_ioctl(ata_shost_to_port(scsidev->host),
+				scsidev, cmd, arg);
+}
+EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 
 /**
  *	ata_scsi_qc_new - acquire new ata_queued_cmd reference
