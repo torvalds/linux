@@ -306,6 +306,9 @@ struct alc_spec {
 	unsigned int jack_present: 1;
 	unsigned int master_sw: 1;
 
+	/* other flags */
+	unsigned int no_analog :1; /* digital I/O only */
+
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -2019,11 +2022,13 @@ static int alc_build_controls(struct hda_codec *codec)
 						    spec->multiout.dig_out_nid);
 		if (err < 0)
 			return err;
-		err = snd_hda_create_spdif_share_sw(codec,
-						    &spec->multiout);
-		if (err < 0)
-			return err;
-		spec->multiout.share_spdif = 1;
+		if (!spec->no_analog) {
+			err = snd_hda_create_spdif_share_sw(codec,
+							    &spec->multiout);
+			if (err < 0)
+				return err;
+			spec->multiout.share_spdif = 1;
+		}
 	}
 	if (spec->dig_in_nid) {
 		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in_nid);
@@ -2032,7 +2037,8 @@ static int alc_build_controls(struct hda_codec *codec)
 	}
 
 	/* if we have no master control, let's create it */
-	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
+	if (!spec->no_analog &&
+	    !snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
 		unsigned int vmaster_tlv[4];
 		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
 					HDA_OUTPUT, vmaster_tlv);
@@ -2041,7 +2047,8 @@ static int alc_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
-	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
+	if (!spec->no_analog &&
+	    !snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
 		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
 					  NULL, alc_slave_sws);
 		if (err < 0)
@@ -3060,6 +3067,9 @@ static int alc_build_pcms(struct hda_codec *codec)
 	codec->num_pcms = 1;
 	codec->pcm_info = info;
 
+	if (spec->no_analog)
+		goto skip_analog;
+
 	info->name = spec->stream_name_analog;
 	if (spec->stream_analog_playback) {
 		if (snd_BUG_ON(!spec->multiout.dac_nids))
@@ -3083,6 +3093,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 		}
 	}
 
+ skip_analog:
 	/* SPDIF for stream index #1 */
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
 		codec->num_pcms = 2;
@@ -3105,6 +3116,9 @@ static int alc_build_pcms(struct hda_codec *codec)
 		/* FIXME: do we need this for all Realtek codec models? */
 		codec->spdif_status_reset = 1;
 	}
+
+	if (spec->no_analog)
+		return 0;
 
 	/* If the use of more than one ADC is requested for the current
 	 * model, configure a second analog capture-only PCM.
@@ -10468,8 +10482,14 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 					   alc262_ignore);
 	if (err < 0)
 		return err;
-	if (!spec->autocfg.line_outs)
+	if (!spec->autocfg.line_outs) {
+		if (spec->autocfg.dig_out_pin || spec->autocfg.dig_in_pin) {
+			spec->multiout.max_channels = 2;
+			spec->no_analog = 1;
+			goto dig_only;
+		}
 		return 0; /* can't find valid BIOS pin config */
+	}
 	err = alc262_auto_create_multi_out_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
@@ -10479,8 +10499,11 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+ dig_only:
+	if (spec->autocfg.dig_out_pin) {
 		spec->multiout.dig_out_nid = ALC262_DIGOUT_NID;
+		spec->dig_out_type = spec->autocfg.dig_out_type;
+	}
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = ALC262_DIGIN_NID;
 
@@ -10875,7 +10898,7 @@ static int patch_alc262(struct hda_codec *codec)
 			spec->capsrc_nids = alc262_capsrc_nids;
 		}
 	}
-	if (!spec->cap_mixer)
+	if (!spec->cap_mixer && !spec->no_analog)
 		set_capture_mixer(spec);
 
 	spec->vmaster_nid = 0x0c;
