@@ -88,6 +88,7 @@ struct tap_filter {
 };
 
 struct tun_file {
+	atomic_t count;
 	struct tun_struct *tun;
 	struct net *net;
 	wait_queue_head_t	read_wait;
@@ -138,6 +139,8 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 	err = 0;
 	tfile->tun = tun;
 	tun->tfile = tfile;
+	dev_hold(tun->dev);
+	atomic_inc(&tfile->count);
 
 out:
 	netif_tx_unlock_bh(tun->dev);
@@ -156,11 +159,26 @@ static void __tun_detach(struct tun_struct *tun)
 
 	/* Drop read queue */
 	skb_queue_purge(&tun->readq);
+
+	/* Drop the extra count on the net device */
+	dev_put(tun->dev);
+}
+
+static void tun_detach(struct tun_struct *tun)
+{
+	rtnl_lock();
+	__tun_detach(tun);
+	rtnl_unlock();
 }
 
 static struct tun_struct *__tun_get(struct tun_file *tfile)
 {
-	return tfile->tun;
+	struct tun_struct *tun = NULL;
+
+	if (atomic_inc_not_zero(&tfile->count))
+		tun = tfile->tun;
+
+	return tun;
 }
 
 static struct tun_struct *tun_get(struct file *file)
@@ -170,7 +188,10 @@ static struct tun_struct *tun_get(struct file *file)
 
 static void tun_put(struct tun_struct *tun)
 {
-	/* Noop for now */
+	struct tun_file *tfile = tun->tfile;
+
+	if (atomic_dec_and_test(&tfile->count))
+		tun_detach(tfile->tun);
 }
 
 /* TAP filterting */
@@ -281,6 +302,21 @@ static int check_filter(struct tap_filter *filter, const struct sk_buff *skb)
 
 static const struct ethtool_ops tun_ethtool_ops;
 
+/* Net device detach from fd. */
+static void tun_net_uninit(struct net_device *dev)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+	struct tun_file *tfile = tun->tfile;
+
+	/* Inform the methods they need to stop using the dev.
+	 */
+	if (tfile) {
+		wake_up_all(&tfile->read_wait);
+		if (atomic_dec_and_test(&tfile->count))
+			__tun_detach(tun);
+	}
+}
+
 /* Net device open. */
 static int tun_net_open(struct net_device *dev)
 {
@@ -367,6 +403,7 @@ tun_net_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 static const struct net_device_ops tun_netdev_ops = {
+	.ndo_uninit		= tun_net_uninit,
 	.ndo_open		= tun_net_open,
 	.ndo_stop		= tun_net_close,
 	.ndo_start_xmit		= tun_net_xmit,
@@ -374,6 +411,7 @@ static const struct net_device_ops tun_netdev_ops = {
 };
 
 static const struct net_device_ops tap_netdev_ops = {
+	.ndo_uninit		= tun_net_uninit,
 	.ndo_open		= tun_net_open,
 	.ndo_stop		= tun_net_close,
 	.ndo_start_xmit		= tun_net_xmit,
@@ -433,6 +471,9 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 
 	if (!skb_queue_empty(&tun->readq))
 		mask |= POLLIN | POLLRDNORM;
+
+	if (tun->dev->reg_state != NETREG_REGISTERED)
+		mask = POLLERR;
 
 	tun_put(tun);
 	return mask;
@@ -732,6 +773,10 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 			}
 			if (signal_pending(current)) {
 				ret = -ERESTARTSYS;
+				break;
+			}
+			if (tun->dev->reg_state != NETREG_REGISTERED) {
+				ret = -EIO;
 				break;
 			}
 
@@ -1135,6 +1180,7 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	tfile = kmalloc(sizeof(*tfile), GFP_KERNEL);
 	if (!tfile)
 		return -ENOMEM;
+	atomic_set(&tfile->count, 0);
 	tfile->tun = NULL;
 	tfile->net = get_net(current->nsproxy->net_ns);
 	init_waitqueue_head(&tfile->read_wait);
