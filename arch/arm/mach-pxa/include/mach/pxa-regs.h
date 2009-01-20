@@ -16,18 +16,6 @@
 #include <mach/hardware.h>
 
 /*
- * PXA Chip selects
- */
-
-#define PXA_CS0_PHYS	0x00000000
-#define PXA_CS1_PHYS	0x04000000
-#define PXA_CS2_PHYS	0x08000000
-#define PXA_CS3_PHYS	0x0C000000
-#define PXA_CS4_PHYS	0x10000000
-#define PXA_CS5_PHYS	0x14000000
-
-
-/*
  * Real Time Clock
  */
 
