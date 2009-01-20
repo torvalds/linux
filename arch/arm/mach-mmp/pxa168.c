@@ -23,9 +23,22 @@
 #include <mach/gpio.h>
 #include <mach/dma.h>
 #include <mach/devices.h>
+#include <mach/mfp.h>
 
 #include "common.h"
 #include "clock.h"
+
+#define MFPR_VIRT_BASE	(APB_VIRT_BASE + 0x1e000)
+
+static struct mfp_addr_map pxa168_mfp_addr_map[] __initdata =
+{
+	MFP_ADDR_X(GPIO0,   GPIO36,  0x04c),
+	MFP_ADDR_X(GPIO37,  GPIO55,  0x000),
+	MFP_ADDR_X(GPIO56,  GPIO123, 0x0e0),
+	MFP_ADDR_X(GPIO124, GPIO127, 0x0f4),
+
+	MFP_ADDR_END,
+};
 
 #define APMASK(i)	(GPIO_REGS_VIRT + BANK_OFF(i) + 0x09c)
 
@@ -62,6 +75,8 @@ static struct clk_lookup pxa168_clkregs[] = {
 static int __init pxa168_init(void)
 {
 	if (cpu_is_pxa168()) {
+		mfp_init_base(MFPR_VIRT_BASE);
+		mfp_init_addr(pxa168_mfp_addr_map);
 		pxa_init_dma(IRQ_PXA168_DMA_INT0, 32);
 		clks_register(ARRAY_AND_SIZE(pxa168_clkregs));
 	}
