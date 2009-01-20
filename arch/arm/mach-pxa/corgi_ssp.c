@@ -20,7 +20,6 @@
 #include <asm/mach-types.h>
 
 #include <mach/ssp.h>
-#include <mach/pxa-regs.h>
 #include <mach/pxa2xx-gpio.h>
 #include <mach/regs-ssp.h>
 #include "sharpsl.h"

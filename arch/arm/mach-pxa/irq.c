@@ -20,8 +20,8 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
-#include <mach/pxa-regs.h>
 #include <mach/gpio.h>
+#include <mach/regs-intc.h>
 
 #include "generic.h"
 

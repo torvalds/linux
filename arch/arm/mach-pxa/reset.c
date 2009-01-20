@@ -10,7 +10,7 @@
 #include <linux/io.h>
 #include <asm/proc-fns.h>
 
-#include <mach/pxa-regs.h>
+#include <mach/regs-ost.h>
 #include <mach/reset.h>
 
 unsigned int reset_status;
