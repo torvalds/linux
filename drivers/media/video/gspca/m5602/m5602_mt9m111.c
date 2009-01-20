@@ -269,6 +269,10 @@ int mt9m111_start(struct sd *sd)
 {
 	int i, err = 0;
 	u8 data[2];
+	struct cam *cam = &sd->gspca_dev.cam;
+
+	int width = cam->cam_mode[sd->gspca_dev.curr_mode].width;
+	int height = cam->cam_mode[sd->gspca_dev.curr_mode].height;
 
 	for (i = 0; i < ARRAY_SIZE(start_mt9m111) && !err; i++) {
 		if (start_mt9m111[i][0] == BRIDGE) {
@@ -281,6 +285,53 @@ int mt9m111_start(struct sd *sd)
 			err = m5602_write_sensor(sd,
 				start_mt9m111[i][1], data, 2);
 		}
+	}
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, (height >> 8) & 0xff);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, (height & 0xff));
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < 2 && !err; i++)
+		err = m5602_write_bridge(sd, M5602_XB_VSYNC_PARA, 0);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_SIG_INI, 0);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_SIG_INI, 2);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < 2 && !err; i++)
+		err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA, 0);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA,
+				 (width >> 8) & 0xff);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_HSYNC_PARA, width & 0xff);
+	if (err < 0)
+		return err;
+
+	err = m5602_write_bridge(sd, M5602_XB_SIG_INI, 0);
+	if (err < 0)
+		return err;
+
+	switch (width) {
+	case 640:
+		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
+		break;
 	}
 	return err;
 }
