@@ -4,3 +4,4 @@
 
 obj-y	:= dma.o
 
+obj-$(CONFIG_GENERIC_GPIO)	+= gpio.o

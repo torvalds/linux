@@ -99,39 +99,11 @@
 #define GAFR(x)		GPIO_REG(0x54 + (((x) & 0x70) >> 2))
 
 
-/* NOTE: some PXAs have fewer on-chip GPIOs (like PXA255, with 85).
- * Those cases currently cause holes in the GPIO number space, the
- * actual number of the last GPIO is recorded by 'pxa_last_gpio'.
- */
-extern int pxa_last_gpio;
-
 #define NR_BUILTIN_GPIO 128
 
-static inline int gpio_get_value(unsigned gpio)
-{
-	if (__builtin_constant_p(gpio) && (gpio < NR_BUILTIN_GPIO))
-		return GPLR(gpio) & GPIO_bit(gpio);
-	else
-		return __gpio_get_value(gpio);
-}
-
-static inline void gpio_set_value(unsigned gpio, int value)
-{
-	if (__builtin_constant_p(gpio) && (gpio < NR_BUILTIN_GPIO)) {
-		if (value)
-			GPSR(gpio) = GPIO_bit(gpio);
-		else
-			GPCR(gpio) = GPIO_bit(gpio);
-	} else {
-		__gpio_set_value(gpio, value);
-	}
-}
-
-#define gpio_cansleep		__gpio_cansleep
 #define gpio_to_bank(gpio)	((gpio) >> 5)
 #define gpio_to_irq(gpio)	IRQ_GPIO(gpio)
 #define irq_to_gpio(irq)	IRQ_TO_GPIO(irq)
-
 
 #ifdef CONFIG_CPU_PXA26x
 /* GPIO86/87/88/89 on PXA26x have their direction bits in GPDR2 inverted,
@@ -165,7 +137,5 @@ static inline int __gpio_is_occupied(unsigned gpio)
 		return GPDR(gpio) & GPIO_bit(gpio);
 }
 
-typedef int (*set_wake_t)(unsigned int irq, unsigned int on);
-
-extern void pxa_init_gpio(int mux_irq, int start, int end, set_wake_t fn);
+#include <plat/gpio.h>
 #endif
