@@ -773,6 +773,7 @@ static void snd_pmac_awacs_resume(struct snd_pmac *chip)
 #define IS_IMAC2 (machine_is_compatible("PowerMac2,2") \
 		|| machine_is_compatible("PowerMac4,1"))
 #define IS_G4AGP (machine_is_compatible("PowerMac3,1"))
+#define IS_LOMBARD (machine_is_compatible("PowerBook1,1"))
 
 static int imac1, imac2;
 
@@ -862,6 +863,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 	int pm5500 = IS_PM5500;
 	int beige = IS_BEIGE;
 	int g4agp = IS_G4AGP;
+	int lombard = IS_LOMBARD;
 	int imac;
 	int err, vol;
 
@@ -972,7 +974,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 		err = build_mixers(chip,
 				   ARRAY_SIZE(snd_pmac_screamer_mixers_beige),
 				   snd_pmac_screamer_mixers_beige);
-	else if (imac)
+	else if (imac || lombard)
 		err = build_mixers(chip,
 				   ARRAY_SIZE(snd_pmac_screamer_mixers_imac),
 				   snd_pmac_screamer_mixers_imac);
@@ -986,7 +988,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 				   snd_pmac_awacs_mixers_pmac);
 	if (err < 0)
 		return err;
-	chip->master_sw_ctl = snd_ctl_new1((pm7500 || imac || g4agp)
+	chip->master_sw_ctl = snd_ctl_new1((pm7500 || imac || g4agp || lombard)
 			? &snd_pmac_awacs_master_sw_imac
 			: &snd_pmac_awacs_master_sw, chip);
 	err = snd_ctl_add(chip->card, chip->master_sw_ctl);
