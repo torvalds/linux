@@ -381,19 +381,6 @@ static const struct usb_action adcm2700_50HZ[] = {
 	{0xaa, 0x28, 0x0002},				/* 00,28,02,aa */
 	{}
 };
-static const struct usb_action adcm2700_50HZScale[] = {
-	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
-	{0xaa, 0xfe, 0x0002},				/* 00,fe,02,aa */
-	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,0a,cc */
-	{0xbb, 0x05, 0x8400},				/* 84,05,00,bb */
-	{0xbb, 0xd0, 0xb007},				/* b0,d0,07,bb */
-	{0xbb, 0xa0, 0xb80f},				/* b8,a0,0f,bb */
-	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
-	{0xaa, 0xfe, 0x0010},				/* 00,fe,10,aa */
-	{0xaa, 0x26, 0x00d0},				/* 00,26,d0,aa */
-	{0xaa, 0x28, 0x0002},				/* 00,28,02,aa */
-	{}
-};
 static const struct usb_action adcm2700_60HZ[] = {
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
 	{0xaa, 0xfe, 0x0002},				/* 00,fe,02,aa */
@@ -407,31 +394,7 @@ static const struct usb_action adcm2700_60HZ[] = {
 	{0xaa, 0x28, 0x0002},				/* 00,28,02,aa */
 	{}
 };
-static const struct usb_action adcm2700_60HZScale[] = {
-	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
-	{0xaa, 0xfe, 0x0002},				/* 00,fe,02,aa */
-	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,0a,cc */
-	{0xbb, 0x07, 0x8400},				/* 84,07,00,bb */
-	{0xbb, 0x82, 0xb006},				/* b0,82,06,bb */
-	{0xbb, 0x04, 0xb80d},				/* b8,04,0d,bb */
-	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
-	{0xaa, 0xfe, 0x0010},				/* 00,fe,10,aa */
-	{0xaa, 0x26, 0x0057},				/* 00,26,57,aa */
-	{0xaa, 0x28, 0x0002},				/* 00,28,02,aa */
-	{}
-};
 static const struct usb_action adcm2700_NoFliker[] = {
-	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
-	{0xaa, 0xfe, 0x0002},				/* 00,fe,02,aa */
-	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,0a,cc */
-	{0xbb, 0x07, 0x8400},				/* 84,07,00,bb */
-	{0xbb, 0x05, 0xb000},				/* b0,05,00,bb */
-	{0xbb, 0xa0, 0xb801},				/* b8,a0,01,bb */
-	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
-	{0xaa, 0xfe, 0x0010},				/* 00,fe,10,aa */
-	{}
-};
-static const struct usb_action adcm2700_NoFlikerScale[] = {
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
 	{0xaa, 0xfe, 0x0002},				/* 00,fe,02,aa */
 	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,0a,cc */
@@ -6622,9 +6585,9 @@ static int setlightfreq(struct gspca_dev *gspca_dev)
 	const struct usb_action *zc3_freq;
 	static const struct usb_action *freq_tb[SENSOR_MAX][6] = {
 /* SENSOR_ADCM2700 0 */
-		{adcm2700_NoFlikerScale, adcm2700_NoFliker,
-		 adcm2700_50HZScale, adcm2700_50HZ,
-		 adcm2700_60HZScale, adcm2700_60HZ},
+		{adcm2700_NoFliker, adcm2700_NoFliker,
+		 adcm2700_50HZ, adcm2700_50HZ,
+		 adcm2700_60HZ, adcm2700_60HZ},
 /* SENSOR_CS2102 1 */
 		{cs2102_NoFliker, cs2102_NoFlikerScale,
 		 cs2102_50HZ, cs2102_50HZScale,
