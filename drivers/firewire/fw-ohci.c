@@ -226,7 +226,7 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define CONTEXT_DEAD	0x0800
 #define CONTEXT_ACTIVE	0x0400
 
-#define OHCI1394_MAX_AT_REQ_RETRIES	0x2
+#define OHCI1394_MAX_AT_REQ_RETRIES	0xf
 #define OHCI1394_MAX_AT_RESP_RETRIES	0x2
 #define OHCI1394_MAX_PHYS_RESP_RETRIES	0x8
 
