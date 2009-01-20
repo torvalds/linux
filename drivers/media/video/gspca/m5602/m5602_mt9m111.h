@@ -85,6 +85,8 @@
 #define MT9M111_RMB_MIRROR_COLS			(1 << 1)
 #define MT9M111_RMB_ROW_SKIP_2X			(1 << 2)
 #define MT9M111_RMB_COLUMN_SKIP_2X		(1 << 3)
+#define MT9M111_RMB_ROW_SKIP_4X			(1 << 4)
+#define MT9M111_RMB_COLUMN_SKIP_4X		(1 << 5)
 
 #define MT9M111_COLOR_MATRIX_BYPASS		(1 << 4)
 #define MT9M111_SEL_CONTEXT_B			(1 << 3)

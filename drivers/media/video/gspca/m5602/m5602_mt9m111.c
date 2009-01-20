@@ -37,6 +37,15 @@ static int mt9m111_set_red_balance(struct gspca_dev *gspca_dev, __s32 val);
 
 static struct v4l2_pix_format mt9m111_modes[] = {
 	{
+		320,
+		240,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage = 320 * 240,
+		.bytesperline = 320,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}, {
 		640,
 		480,
 		V4L2_PIX_FMT_SBGGR8,
@@ -338,6 +347,16 @@ int mt9m111_start(struct sd *sd)
 			  (sensor_settings[VFLIP_IDX] << 0) |
 			  (sensor_settings[HFLIP_IDX] << 1);
 
+		err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
+		break;
+
+	case 320:
+		PDEBUG(D_V4L2, "Configuring camera for QVGA mode");
+		data[0] = MT9M111_RMB_OVER_SIZED;
+		data[1] = MT9M111_RMB_ROW_SKIP_4X |
+				MT9M111_RMB_COLUMN_SKIP_4X |
+				(sensor_settings[VFLIP_IDX] << 0) |
+				(sensor_settings[HFLIP_IDX] << 1);
 		err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
 		break;
 	}
