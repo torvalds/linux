@@ -766,7 +766,9 @@ static void snd_pmac_awacs_resume(struct snd_pmac *chip)
 }
 #endif /* CONFIG_PM */
 
-#define IS_PM7500 (machine_is_compatible("AAPL,7500"))
+#define IS_PM7500 (machine_is_compatible("AAPL,7500") \
+		|| machine_is_compatible("AAPL,8500") \
+		|| machine_is_compatible("AAPL,9500"))
 #define IS_PM5500 (machine_is_compatible("AAPL,e411"))
 #define IS_BEIGE (machine_is_compatible("AAPL,Gossamer"))
 #define IS_IMAC1 (machine_is_compatible("PowerMac2,1"))
