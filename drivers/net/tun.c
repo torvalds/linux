@@ -106,6 +106,31 @@ struct tun_struct {
 #endif
 };
 
+static int tun_attach(struct tun_struct *tun, struct file *file)
+{
+	const struct cred *cred = current_cred();
+
+	ASSERT_RTNL();
+
+	if (file->private_data)
+		return -EINVAL;
+
+	if (tun->attached)
+		return -EBUSY;
+
+	/* Check permissions */
+	if (((tun->owner != -1 && cred->euid != tun->owner) ||
+	     (tun->group != -1 && cred->egid != tun->group)) &&
+		!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	file->private_data = tun;
+	tun->attached = 1;
+	get_net(dev_net(tun->dev));
+
+	return 0;
+}
+
 /* TAP filterting */
 static void addr_hash_set(u32 *mask, const u8 *addr)
 {
@@ -695,7 +720,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 {
 	struct tun_struct *tun;
 	struct net_device *dev;
-	const struct cred *cred = current_cred();
 	int err;
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
@@ -707,17 +731,9 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		else
 			return -EINVAL;
 
-		if (tun->attached)
-			return -EBUSY;
-
-		/* Check permissions */
-		if (((tun->owner != -1 &&
-		      cred->euid != tun->owner) ||
-		     (tun->group != -1 &&
-		      cred->egid != tun->group)) &&
-		    !capable(CAP_NET_ADMIN)) {
-			return -EPERM;
-		}
+		err = tun_attach(tun, file);
+		if (err < 0)
+			return err;
 	}
 	else {
 		char *name;
@@ -766,6 +782,10 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		err = register_netdevice(tun->dev);
 		if (err < 0)
 			goto err_free_dev;
+
+		err = tun_attach(tun, file);
+		if (err < 0)
+			goto err_free_dev;
 	}
 
 	DBG(KERN_INFO "%s: tun_set_iff\n", tun->dev->name);
@@ -784,10 +804,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		tun->flags |= TUN_VNET_HDR;
 	else
 		tun->flags &= ~TUN_VNET_HDR;
-
-	file->private_data = tun;
-	tun->attached = 1;
-	get_net(dev_net(tun->dev));
 
 	/* Make sure persistent devices do not get stuck in
 	 * xoff state.
