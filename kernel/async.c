@@ -224,22 +224,23 @@ async_cookie_t async_schedule(async_func_ptr *ptr, void *data)
 EXPORT_SYMBOL_GPL(async_schedule);
 
 /**
- * async_schedule_special - schedule a function for asynchronous execution with a special running queue
+ * async_schedule_domain - schedule a function for asynchronous execution within a certain domain
  * @ptr: function to execute asynchronously
  * @data: data pointer to pass to the function
- * @running: list head to add to while running
+ * @running: running list for the domain
  *
  * Returns an async_cookie_t that may be used for checkpointing later.
- * @running may be used in the async_synchronize_*_special() functions
- * to wait on a special running queue rather than on the global running
- * queue.
+ * @running may be used in the async_synchronize_*_domain() functions
+ * to wait within a certain synchronization domain rather than globally.
+ * A synchronization domain is specified via the running queue @running to use.
  * Note: This function may be called from atomic or non-atomic contexts.
  */
-async_cookie_t async_schedule_special(async_func_ptr *ptr, void *data, struct list_head *running)
+async_cookie_t async_schedule_domain(async_func_ptr *ptr, void *data,
+				     struct list_head *running)
 {
 	return __async_schedule(ptr, data, running);
 }
-EXPORT_SYMBOL_GPL(async_schedule_special);
+EXPORT_SYMBOL_GPL(async_schedule_domain);
 
 /**
  * async_synchronize_full - synchronize all asynchronous function calls
@@ -255,27 +256,29 @@ void async_synchronize_full(void)
 EXPORT_SYMBOL_GPL(async_synchronize_full);
 
 /**
- * async_synchronize_full_special - synchronize all asynchronous function calls for a running list
+ * async_synchronize_full_domain - synchronize all asynchronous function within a certain domain
  * @list: running list to synchronize on
  *
- * This function waits until all asynchronous function calls for the running
- * list @list have been done.
+ * This function waits until all asynchronous function calls for the
+ * synchronization domain specified by the running list @list have been done.
  */
-void async_synchronize_full_special(struct list_head *list)
+void async_synchronize_full_domain(struct list_head *list)
 {
-	async_synchronize_cookie_special(next_cookie, list);
+	async_synchronize_cookie_domain(next_cookie, list);
 }
-EXPORT_SYMBOL_GPL(async_synchronize_full_special);
+EXPORT_SYMBOL_GPL(async_synchronize_full_domain);
 
 /**
- * async_synchronize_cookie_special - synchronize asynchronous function calls on a running list with cookie checkpointing
+ * async_synchronize_cookie_domain - synchronize asynchronous function calls within a certain domain with cookie checkpointing
  * @cookie: async_cookie_t to use as checkpoint
  * @running: running list to synchronize on
  *
- * This function waits until all asynchronous function calls for the running
- * list @list submitted prior to @cookie have been done.
+ * This function waits until all asynchronous function calls for the
+ * synchronization domain specified by the running list @list submitted
+ * prior to @cookie have been done.
  */
-void async_synchronize_cookie_special(async_cookie_t cookie, struct list_head *running)
+void async_synchronize_cookie_domain(async_cookie_t cookie,
+				     struct list_head *running)
 {
 	ktime_t starttime, delta, endtime;
 
@@ -295,7 +298,7 @@ void async_synchronize_cookie_special(async_cookie_t cookie, struct list_head *r
 			(long long)ktime_to_ns(delta) >> 10);
 	}
 }
-EXPORT_SYMBOL_GPL(async_synchronize_cookie_special);
+EXPORT_SYMBOL_GPL(async_synchronize_cookie_domain);
 
 /**
  * async_synchronize_cookie - synchronize asynchronous function calls with cookie checkpointing
@@ -306,7 +309,7 @@ EXPORT_SYMBOL_GPL(async_synchronize_cookie_special);
  */
 void async_synchronize_cookie(async_cookie_t cookie)
 {
-	async_synchronize_cookie_special(cookie, &async_running);
+	async_synchronize_cookie_domain(cookie, &async_running);
 }
 EXPORT_SYMBOL_GPL(async_synchronize_cookie);
 
