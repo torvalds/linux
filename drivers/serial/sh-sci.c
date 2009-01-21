@@ -47,6 +47,7 @@
 #include <linux/clk.h>
 #include <linux/ctype.h>
 #include <linux/err.h>
+#include <linux/list.h>
 
 #ifdef CONFIG_SUPERH
 #include <asm/clock.h>
@@ -77,6 +78,16 @@ struct sci_port {
 #ifdef CONFIG_HAVE_CLK
 	/* Port clock */
 	struct clk		*clk;
+#endif
+	struct list_head	node;
+};
+
+struct sh_sci_priv {
+	spinlock_t lock;
+	struct list_head ports;
+
+#ifdef CONFIG_HAVE_CLK
+	struct notifier_block clk_nb;
 #endif
 };
 
@@ -726,19 +737,22 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 static int sci_notifier(struct notifier_block *self,
 			unsigned long phase, void *p)
 {
-	int i;
+	struct sh_sci_priv *priv = container_of(self,
+						struct sh_sci_priv, clk_nb);
+	struct sci_port *sci_port;
+	unsigned long flags;
 
 	if ((phase == CPUFREQ_POSTCHANGE) ||
-	    (phase == CPUFREQ_RESUMECHANGE))
-		for (i = 0; i < SCI_NPORTS; i++) {
-			struct sci_port *s = &sci_ports[i];
-			s->port.uartclk = clk_get_rate(s->clk);
-		}
+	    (phase == CPUFREQ_RESUMECHANGE)) {
+		spin_lock_irqsave(&priv->lock, flags);
+		list_for_each_entry(sci_port, &priv->ports, node)
+			sci_port->port.uartclk = clk_get_rate(sci_port->clk);
+
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
 
 	return NOTIFY_OK;
 }
-
-static struct notifier_block sci_nb = { &sci_notifier, NULL, 0 };
 #endif
 
 static int sci_request_irq(struct sci_port *port)
@@ -1201,6 +1215,27 @@ static struct uart_driver sci_uart_driver = {
 	.cons		= SCI_CONSOLE,
 };
 
+
+static int __devexit sci_remove(struct platform_device *dev)
+{
+	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	struct sci_port *p;
+	unsigned long flags;
+
+#ifdef CONFIG_HAVE_CLK
+	cpufreq_unregister_notifier(&priv->clk_nb, CPUFREQ_TRANSITION_NOTIFIER);
+#endif
+
+	spin_lock_irqsave(&priv->lock, flags);
+	list_for_each_entry(p, &priv->ports, node)
+		uart_remove_one_port(&sci_uart_driver, &p->port);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	kfree(priv);
+	return 0;
+}
+
 /*
  * Register a set of serial devices attached to a platform device.  The
  * list is terminated with a zero flags entry, which means we expect
@@ -1210,7 +1245,22 @@ static struct uart_driver sci_uart_driver = {
 static int __devinit sci_probe(struct platform_device *dev)
 {
 	struct plat_sci_port *p = dev->dev.platform_data;
+	struct sh_sci_priv *priv;
 	int i, ret = -EINVAL;
+	unsigned long flags;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&priv->ports);
+	spin_lock_init(&priv->lock);
+	platform_set_drvdata(dev, priv);
+
+#ifdef CONFIG_HAVE_CLK
+	priv->clk_nb.notifier_call = sci_notifier;
+	cpufreq_register_notifier(&priv->clk_nb, CPUFREQ_TRANSITION_NOTIFIER);
+#endif
 
 	for (i = 0; p && p->flags != 0; p++, i++) {
 		struct sci_port *sciport = &sci_ports[i];
@@ -1254,12 +1304,19 @@ static int __devinit sci_probe(struct platform_device *dev)
 
 		memcpy(&sciport->irqs, &p->irqs, sizeof(p->irqs));
 
-		uart_add_one_port(&sci_uart_driver, &sciport->port);
-	}
+		ret = uart_add_one_port(&sci_uart_driver, &sciport->port);
 
-#ifdef CONFIG_HAVE_CLK
-	cpufreq_register_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);
-#endif
+		if (ret && (p->flags & UPF_IOREMAP)) {
+			iounmap(p->membase);
+			goto err_unreg;
+		}
+
+		INIT_LIST_HEAD(&sciport->node);
+
+		spin_lock_irqsave(&priv->lock, flags);
+		list_add(&sciport->node, &priv->ports);
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
 
 #ifdef CONFIG_SH_STANDARD_BIOS
 	sh_bios_gdb_detach();
@@ -1268,50 +1325,36 @@ static int __devinit sci_probe(struct platform_device *dev)
 	return 0;
 
 err_unreg:
-	for (i = i - 1; i >= 0; i--)
-		uart_remove_one_port(&sci_uart_driver, &sci_ports[i].port);
-
+	sci_remove(dev);
 	return ret;
-}
-
-static int __devexit sci_remove(struct platform_device *dev)
-{
-	int i;
-
-#ifdef CONFIG_HAVE_CLK
-	cpufreq_unregister_notifier(&sci_nb, CPUFREQ_TRANSITION_NOTIFIER);
-#endif
-
-	for (i = 0; i < SCI_NPORTS; i++)
-		uart_remove_one_port(&sci_uart_driver, &sci_ports[i].port);
-
-	return 0;
 }
 
 static int sci_suspend(struct platform_device *dev, pm_message_t state)
 {
-	int i;
+	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	struct sci_port *p;
+	unsigned long flags;
 
-	for (i = 0; i < SCI_NPORTS; i++) {
-		struct sci_port *p = &sci_ports[i];
+	spin_lock_irqsave(&priv->lock, flags);
+	list_for_each_entry(p, &priv->ports, node)
+		uart_suspend_port(&sci_uart_driver, &p->port);
 
-		if (p->type != PORT_UNKNOWN && p->port.dev == &dev->dev)
-			uart_suspend_port(&sci_uart_driver, &p->port);
-	}
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
 
 static int sci_resume(struct platform_device *dev)
 {
-	int i;
+	struct sh_sci_priv *priv = platform_get_drvdata(dev);
+	struct sci_port *p;
+	unsigned long flags;
 
-	for (i = 0; i < SCI_NPORTS; i++) {
-		struct sci_port *p = &sci_ports[i];
+	spin_lock_irqsave(&priv->lock, flags);
+	list_for_each_entry(p, &priv->ports, node)
+		uart_resume_port(&sci_uart_driver, &p->port);
 
-		if (p->type != PORT_UNKNOWN && p->port.dev == &dev->dev)
-			uart_resume_port(&sci_uart_driver, &p->port);
-	}
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
