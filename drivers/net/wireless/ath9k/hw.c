@@ -2255,18 +2255,8 @@ int ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 		return -EINVAL;
 	}
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
-		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
-			    AR_GPIO_JTAG_DISABLE);
-
-		if (test_bit(ATH9K_MODE_11A, ah->ah_caps.wireless_modes)) {
-			if (IS_CHAN_5GHZ(chan))
-				ath9k_hw_set_gpio(ah, 9, 0);
-			else
-				ath9k_hw_set_gpio(ah, 9, 1);
-		}
-		ath9k_hw_cfg_output(ah, 9, AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-	}
+	if (AR_SREV_9280_10_OR_LATER(ah))
+		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
 
 	r = ath9k_hw_process_ini(ah, chan, sc->tx_chan_width);
 	if (r)
