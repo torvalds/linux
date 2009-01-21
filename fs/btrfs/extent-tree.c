@@ -29,7 +29,6 @@
 #include "volumes.h"
 #include "locking.h"
 #include "ref-cache.h"
-#include "compat.h"
 
 #define PENDING_EXTENT_INSERT 0
 #define PENDING_EXTENT_DELETE 1
