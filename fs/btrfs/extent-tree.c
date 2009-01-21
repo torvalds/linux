@@ -2156,7 +2156,8 @@ again:
 		ret = find_first_extent_bit(&info->extent_ins, search, &start,
 					    &end, EXTENT_WRITEBACK);
 		if (ret) {
-			if (skipped && all && !num_inserts) {
+			if (skipped && all && !num_inserts &&
+			    list_empty(&update_list)) {
 				skipped = 0;
 				search = 0;
 				continue;
@@ -2544,6 +2545,7 @@ again:
 		if (ret) {
 			if (all && skipped && !nr) {
 				search = 0;
+				skipped = 0;
 				continue;
 			}
 			mutex_unlock(&info->extent_ins_mutex);
