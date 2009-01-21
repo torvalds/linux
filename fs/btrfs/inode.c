@@ -1323,12 +1323,11 @@ static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 			     struct inode *inode, u64 file_offset,
 			     struct list_head *list)
 {
-	struct list_head *cur;
 	struct btrfs_ordered_sum *sum;
 
 	btrfs_set_trans_block_group(trans, inode);
-	list_for_each(cur, list) {
-		sum = list_entry(cur, struct btrfs_ordered_sum, list);
+
+	list_for_each_entry(sum, list, list) {
 		btrfs_csum_file_blocks(trans,
 		       BTRFS_I(inode)->root->fs_info->csum_root, sum);
 	}

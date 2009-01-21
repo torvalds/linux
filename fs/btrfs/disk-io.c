@@ -1135,7 +1135,6 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 {
 	struct btrfs_fs_info *info = (struct btrfs_fs_info *)congested_data;
 	int ret = 0;
-	struct list_head *cur;
 	struct btrfs_device *device;
 	struct backing_dev_info *bdi;
 #if 0
@@ -1143,8 +1142,7 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	    btrfs_congested_async(info, 0))
 		return 1;
 #endif
-	list_for_each(cur, &info->fs_devices->devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(device, &info->fs_devices->devices, dev_list) {
 		if (!device->bdev)
 			continue;
 		bdi = blk_get_backing_dev_info(device->bdev);
@@ -1162,13 +1160,11 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
  */
 static void __unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 {
-	struct list_head *cur;
 	struct btrfs_device *device;
 	struct btrfs_fs_info *info;
 
 	info = (struct btrfs_fs_info *)bdi->unplug_io_data;
-	list_for_each(cur, &info->fs_devices->devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(device, &info->fs_devices->devices, dev_list) {
 		if (!device->bdev)
 			continue;
 
@@ -1994,7 +1990,6 @@ static int write_dev_supers(struct btrfs_device *device,
 
 int write_all_supers(struct btrfs_root *root, int max_mirrors)
 {
-	struct list_head *cur;
 	struct list_head *head = &root->fs_info->fs_devices->devices;
 	struct btrfs_device *dev;
 	struct btrfs_super_block *sb;
@@ -2010,8 +2005,7 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 
 	sb = &root->fs_info->super_for_commit;
 	dev_item = &sb->dev_item;
-	list_for_each(cur, head) {
-		dev = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(dev, head, dev_list) {
 		if (!dev->bdev) {
 			total_errors++;
 			continue;
@@ -2044,8 +2038,7 @@ int write_all_supers(struct btrfs_root *root, int max_mirrors)
 	}
 
 	total_errors = 0;
-	list_for_each(cur, head) {
-		dev = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(dev, head, dev_list) {
 		if (!dev->bdev)
 			continue;
 		if (!dev->in_fs_metadata || !dev->writeable)

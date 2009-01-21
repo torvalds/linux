@@ -325,10 +325,8 @@ static struct btrfs_space_info *__find_space_info(struct btrfs_fs_info *info,
 						  u64 flags)
 {
 	struct list_head *head = &info->space_info;
-	struct list_head *cur;
 	struct btrfs_space_info *found;
-	list_for_each(cur, head) {
-		found = list_entry(cur, struct btrfs_space_info, list);
+	list_for_each_entry(found, head, list) {
 		if (found->flags == flags)
 			return found;
 	}
@@ -3013,7 +3011,6 @@ loop_check:
 static void dump_space_info(struct btrfs_space_info *info, u64 bytes)
 {
 	struct btrfs_block_group_cache *cache;
-	struct list_head *l;
 
 	printk(KERN_INFO "space_info has %llu free, is %sfull\n",
 	       (unsigned long long)(info->total_bytes - info->bytes_used -
@@ -3021,8 +3018,7 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes)
 	       (info->full) ? "" : "not ");
 
 	down_read(&info->groups_sem);
-	list_for_each(l, &info->block_groups) {
-		cache = list_entry(l, struct btrfs_block_group_cache, list);
+	list_for_each_entry(cache, &info->block_groups, list) {
 		spin_lock(&cache->lock);
 		printk(KERN_INFO "block group %llu has %llu bytes, %llu used "
 		       "%llu pinned %llu reserved\n",
