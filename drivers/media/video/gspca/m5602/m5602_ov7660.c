@@ -38,7 +38,68 @@ static void ov7660_dump_registers(struct sd *sd);
 
 int ov7660_probe(struct sd *sd)
 {
+	int err = 0, i;
+	u8 prod_id = 0, ver_id = 0;
+
+	s32 *sensor_settings;
+
+	if (force_sensor) {
+		if (force_sensor == OV7660_SENSOR) {
+			info("Forcing an %s sensor", ov7660.name);
+			goto sensor_found;
+		}
+		/* If we want to force another sensor,
+		don't try to probe this one */
+		return -ENODEV;
+	}
+
+	/* Do the preinit */
+	for (i = 0; i < ARRAY_SIZE(preinit_ov7660) && !err; i++) {
+		u8 data[2];
+
+		if (preinit_ov7660[i][0] == BRIDGE) {
+			err = m5602_write_bridge(sd,
+				preinit_ov7660[i][1],
+				preinit_ov7660[i][2]);
+		} else {
+			data[0] = preinit_ov7660[i][2];
+			err = m5602_write_sensor(sd,
+				preinit_ov7660[i][1], data, 1);
+		}
+	}
+	if (err < 0)
+		return err;
+
+	if (m5602_read_sensor(sd, OV7660_PID, &prod_id, 1))
+		return -ENODEV;
+
+	if (m5602_read_sensor(sd, OV7660_VER, &ver_id, 1))
+		return -ENODEV;
+
+	info("Sensor reported 0x%x%x", prod_id, ver_id);
+
+	if ((prod_id == 0x76) && (ver_id == 0x60)) {
+		info("Detected a ov7660 sensor");
+		goto sensor_found;
+	}
 	return -ENODEV;
+
+sensor_found:
+	sensor_settings = kmalloc(
+		ARRAY_SIZE(ov7660_ctrls) * sizeof(s32), GFP_KERNEL);
+	if (!sensor_settings)
+		return -ENOMEM;
+
+	sd->gspca_dev.cam.cam_mode = ov7660_modes;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(ov7660_modes);
+	sd->desc->ctrls = ov7660_ctrls;
+	sd->desc->nctrls = ARRAY_SIZE(ov7660_ctrls);
+
+	for (i = 0; i < ARRAY_SIZE(ov7660_ctrls); i++)
+		sensor_settings[i] = ov7660_ctrls[i].qctrl.default_value;
+	sd->sensor_priv = sensor_settings;
+
+	return 0;
 }
 
 int ov7660_init(struct sd *sd)

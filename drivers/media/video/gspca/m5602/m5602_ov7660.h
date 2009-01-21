@@ -84,6 +84,10 @@
 #define DEFAULT_SATURATION	0x00
 #define DEFAULT_EXPOSURE	0x20
 
+/* Kernel module parameters */
+extern int force_sensor;
+extern int dump_sensor;
+
 int ov7660_probe(struct sd *sd);
 int ov7660_init(struct sd *sd);
 int ov7660_start(struct sd *sd);

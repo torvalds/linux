@@ -30,7 +30,8 @@ enum sensors {
 	S5K83A_SENSOR	= 2,
 	S5K4AA_SENSOR	= 3,
 	MT9M111_SENSOR	= 4,
-	PO1030_SENSOR	= 5
+	PO1030_SENSOR	= 5,
+	OV7660_SENSOR   = 6,
 };
 
 /* Enumerates all possible instruction types */
