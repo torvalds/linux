@@ -85,11 +85,6 @@ int ov7660_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
-	sensor_settings = kmalloc(
-		ARRAY_SIZE(ov7660_ctrls) * sizeof(s32), GFP_KERNEL);
-	if (!sensor_settings)
-		return -ENOMEM;
-
 	sd->gspca_dev.cam.cam_mode = ov7660_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(ov7660_modes);
 	sd->desc->ctrls = ov7660_ctrls;
@@ -104,7 +99,27 @@ sensor_found:
 
 int ov7660_init(struct sd *sd)
 {
-	return 0;
+	int i, err = 0;
+
+	/* Init the sensor */
+	for (i = 0; i < ARRAY_SIZE(init_ov7660); i++) {
+		u8 data[2];
+
+		if (init_ov7660[i][0] == BRIDGE) {
+			err = m5602_write_bridge(sd,
+				init_ov7660[i][1],
+				init_ov7660[i][2]);
+		} else {
+			data[0] = init_ov7660[i][2];
+			err = m5602_write_sensor(sd,
+					init_ov7660[i][1], data, 1);
+		}
+	}
+
+	if (dump_sensor)
+		ov7660_dump_registers(sd);
+
+	return err;
 }
 
 int ov7660_start(struct sd *sd)
