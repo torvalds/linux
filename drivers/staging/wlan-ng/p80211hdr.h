@@ -229,7 +229,7 @@ typedef struct p80211_hdr_a3
 	u8	a2[WLAN_ADDR_LEN];
 	u8	a3[WLAN_ADDR_LEN];
 	u16	seq;
-} __WLAN_ATTRIB_PACK__ p80211_hdr_a3_t;
+} __attribute__((packed)) p80211_hdr_a3_t;
 
 typedef struct p80211_hdr_a4
 {
@@ -240,13 +240,13 @@ typedef struct p80211_hdr_a4
 	u8	a3[WLAN_ADDR_LEN];
 	u16	seq;
 	u8	a4[WLAN_ADDR_LEN];
-} __WLAN_ATTRIB_PACK__ p80211_hdr_a4_t;
+} __attribute__((packed)) p80211_hdr_a4_t;
 
 typedef union p80211_hdr
 {
 	p80211_hdr_a3_t		a3;
 	p80211_hdr_a4_t		a4;
-} __WLAN_ATTRIB_PACK__ p80211_hdr_t;
+} __attribute__((packed)) p80211_hdr_t;
 
 
 /*================================================================*/

@@ -109,7 +109,7 @@ typedef struct p80211ioctl_req
 	u32	magic;
 	u16	len;
 	u32	result;
-} __WLAN_ATTRIB_PACK__ p80211ioctl_req_t;
+} __attribute__((packed)) p80211ioctl_req_t;
 
 
 /*================================================================*/

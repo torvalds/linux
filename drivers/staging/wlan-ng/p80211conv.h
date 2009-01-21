@@ -148,7 +148,7 @@ typedef struct wlan_ethhdr
 	u8	daddr[WLAN_ETHADDR_LEN];
 	u8	saddr[WLAN_ETHADDR_LEN];
 	u16	type;
-} __WLAN_ATTRIB_PACK__ wlan_ethhdr_t;
+} __attribute__((packed)) wlan_ethhdr_t;
 
 /* local llc header type */
 typedef struct wlan_llc
@@ -156,14 +156,14 @@ typedef struct wlan_llc
 	u8	dsap;
 	u8	ssap;
 	u8	ctl;
-} __WLAN_ATTRIB_PACK__ wlan_llc_t;
+} __attribute__((packed)) wlan_llc_t;
 
 /* local snap header type */
 typedef struct wlan_snap
 {
 	u8	oui[WLAN_IEEE_OUI_LEN];
 	u16	type;
-} __WLAN_ATTRIB_PACK__ wlan_snap_t;
+} __attribute__((packed)) wlan_snap_t;
 
 /* Circular include trick */
 struct wlandevice;
