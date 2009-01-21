@@ -111,10 +111,6 @@ static int pppox_create(struct net *net, struct socket *sock, int protocol)
 	if (protocol < 0 || protocol > PX_MAX_PROTO)
 		goto out;
 
-	/* we support net-namespaces for PPPoE only (yet) */
-	if (protocol != PX_PROTO_OE && net != &init_net)
-		return -EAFNOSUPPORT;
-
 	rc = -EPROTONOSUPPORT;
 	if (!pppox_protos[protocol])
 		request_module("pppox-proto-%d", protocol);
