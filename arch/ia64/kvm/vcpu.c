@@ -807,12 +807,15 @@ static inline void vcpu_set_itm(struct kvm_vcpu *vcpu, u64 val);
 static void vcpu_set_itc(struct kvm_vcpu *vcpu, u64 val)
 {
 	struct kvm_vcpu *v;
+	struct kvm *kvm;
 	int i;
 	long itc_offset = val - ia64_getreg(_IA64_REG_AR_ITC);
 	unsigned long vitv = VCPU(vcpu, itv);
 
+	kvm = (struct kvm *)KVM_VM_BASE;
+
 	if (vcpu->vcpu_id == 0) {
-		for (i = 0; i < KVM_MAX_VCPUS; i++) {
+		for (i = 0; i < kvm->arch.online_vcpus; i++) {
 			v = (struct kvm_vcpu *)((char *)vcpu +
 					sizeof(struct kvm_vcpu_data) * i);
 			VMX(v, itc_offset) = itc_offset;

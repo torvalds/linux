@@ -157,10 +157,10 @@ struct kvm_vm_data {
 	struct kvm_vcpu_data vcpu_data[KVM_MAX_VCPUS];
 };
 
-#define VCPU_BASE(n)	KVM_VM_DATA_BASE + \
-				offsetof(struct kvm_vm_data, vcpu_data[n])
-#define VM_BASE		KVM_VM_DATA_BASE + \
-				offsetof(struct kvm_vm_data, kvm_vm_struct)
+#define VCPU_BASE(n)	(KVM_VM_DATA_BASE + \
+				offsetof(struct kvm_vm_data, vcpu_data[n]))
+#define KVM_VM_BASE	(KVM_VM_DATA_BASE + \
+				offsetof(struct kvm_vm_data, kvm_vm_struct))
 #define KVM_MEM_DIRTY_LOG_BASE	KVM_VM_DATA_BASE + \
 				offsetof(struct kvm_vm_data, kvm_mem_dirty_log)
 
@@ -463,6 +463,8 @@ struct kvm_arch {
 	unsigned long	metaphysical_rr0;
 	unsigned long	metaphysical_rr4;
 	unsigned long	vmm_init_rr;
+
+	int		online_vcpus;
 
 	struct kvm_ioapic *vioapic;
 	struct kvm_vm_stat stat;

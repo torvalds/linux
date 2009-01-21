@@ -314,7 +314,7 @@ static struct kvm_vcpu *lid_to_vcpu(struct kvm *kvm, unsigned long id,
 	union ia64_lid lid;
 	int i;
 
-	for (i = 0; i < KVM_MAX_VCPUS; i++) {
+	for (i = 0; i < kvm->arch.online_vcpus; i++) {
 		if (kvm->vcpus[i]) {
 			lid.val = VCPU_LID(kvm->vcpus[i]);
 			if (lid.id == id && lid.eid == eid)
@@ -388,7 +388,7 @@ static int handle_global_purge(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	call_data.ptc_g_data = p->u.ptc_g_data;
 
-	for (i = 0; i < KVM_MAX_VCPUS; i++) {
+	for (i = 0; i < kvm->arch.online_vcpus; i++) {
 		if (!kvm->vcpus[i] || kvm->vcpus[i]->arch.mp_state ==
 						KVM_MP_STATE_UNINITIALIZED ||
 					vcpu == kvm->vcpus[i])
@@ -788,6 +788,8 @@ struct  kvm *kvm_arch_create_vm(void)
 		return ERR_PTR(-ENOMEM);
 	kvm_init_vm(kvm);
 
+	kvm->arch.online_vcpus = 0;
+
 	return kvm;
 
 }
@@ -1154,7 +1156,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 		/*Initialize itc offset for vcpus*/
 		itc_offset = 0UL - ia64_getreg(_IA64_REG_AR_ITC);
-		for (i = 0; i < KVM_MAX_VCPUS; i++) {
+		for (i = 0; i < kvm->arch.online_vcpus; i++) {
 			v = (struct kvm_vcpu *)((char *)vcpu +
 					sizeof(struct kvm_vcpu_data) * i);
 			v->arch.itc_offset = itc_offset;
@@ -1287,6 +1289,8 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 		printk(KERN_DEBUG"kvm: vcpu_setup error!!\n");
 		goto fail;
 	}
+
+	kvm->arch.online_vcpus++;
 
 	return vcpu;
 fail:
@@ -1828,7 +1832,7 @@ struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
 	struct kvm_vcpu *lvcpu = kvm->vcpus[0];
 	int i;
 
-	for (i = 1; i < KVM_MAX_VCPUS; i++) {
+	for (i = 1; i < kvm->arch.online_vcpus; i++) {
 		if (!kvm->vcpus[i])
 			continue;
 		if (lvcpu->arch.xtp > kvm->vcpus[i]->arch.xtp)
