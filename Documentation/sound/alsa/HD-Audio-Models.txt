@@ -352,5 +352,4 @@ STAC92HD83*
 
 STAC9872
 ========
-  vaio		Setup for VAIO FE550G/SZ110
-  vaio-ar Setup for VAIO AR
+  N/A
