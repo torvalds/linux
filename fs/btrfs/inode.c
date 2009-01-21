@@ -4156,6 +4156,12 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	return -EINVAL;
 }
 
+static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		__u64 start, __u64 len)
+{
+	return extent_fiemap(inode, fieinfo, start, len, btrfs_get_extent);
+}
+
 int btrfs_readpage(struct file *file, struct page *page)
 {
 	struct extent_io_tree *tree;
@@ -5021,6 +5027,7 @@ static struct inode_operations btrfs_file_inode_operations = {
 	.removexattr	= btrfs_removexattr,
 	.permission	= btrfs_permission,
 	.fallocate	= btrfs_fallocate,
+	.fiemap		= btrfs_fiemap,
 };
 static struct inode_operations btrfs_special_inode_operations = {
 	.getattr	= btrfs_getattr,

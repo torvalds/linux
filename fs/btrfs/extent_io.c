@@ -2854,6 +2854,98 @@ out:
 	return sector;
 }
 
+int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		__u64 start, __u64 len, get_extent_t *get_extent)
+{
+	int ret;
+	u64 off = start;
+	u64 max = start + len;
+	u32 flags = 0;
+	u64 disko = 0;
+	struct extent_map *em = NULL;
+	int end = 0;
+	u64 em_start = 0, em_len = 0;
+	unsigned long emflags;
+	ret = 0;
+
+	if (len == 0)
+		return -EINVAL;
+
+	lock_extent(&BTRFS_I(inode)->io_tree, start, start + len,
+		GFP_NOFS);
+	em = get_extent(inode, NULL, 0, off, max - off, 0);
+	if (!em)
+		goto out;
+	if (IS_ERR(em)) {
+		ret = PTR_ERR(em);
+		goto out;
+	}
+	while (!end) {
+		off = em->start + em->len;
+		if (off >= max)
+			end = 1;
+
+		em_start = em->start;
+		em_len = em->len;
+
+		disko = 0;
+		flags = 0;
+
+		switch (em->block_start) {
+		case EXTENT_MAP_LAST_BYTE:
+			end = 1;
+			flags |= FIEMAP_EXTENT_LAST;
+			break;
+		case EXTENT_MAP_HOLE:
+			flags |= FIEMAP_EXTENT_UNWRITTEN;
+			break;
+		case EXTENT_MAP_INLINE:
+			flags |= (FIEMAP_EXTENT_DATA_INLINE |
+				  FIEMAP_EXTENT_NOT_ALIGNED);
+			break;
+		case EXTENT_MAP_DELALLOC:
+			flags |= (FIEMAP_EXTENT_DELALLOC |
+				  FIEMAP_EXTENT_UNKNOWN);
+			break;
+		default:
+			disko = em->block_start;
+			break;
+		}
+		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
+			flags |= FIEMAP_EXTENT_ENCODED;
+
+		emflags = em->flags;
+		free_extent_map(em);
+		em = NULL;
+
+		if (!end) {
+			em = get_extent(inode, NULL, 0, off, max - off, 0);
+			if (!em)
+				goto out;
+			if (IS_ERR(em)) {
+				ret = PTR_ERR(em);
+				goto out;
+			}
+			emflags = em->flags;
+		}
+		if (test_bit(EXTENT_FLAG_VACANCY, &emflags)) {
+			flags |= FIEMAP_EXTENT_LAST;
+			end = 1;
+		}
+
+		ret = fiemap_fill_next_extent(fieinfo, em_start, disko,
+					em_len, flags);
+		if (ret)
+			goto out_free;
+	}
+out_free:
+	free_extent_map(em);
+out:
+	unlock_extent(&BTRFS_I(inode)->io_tree, start, start + len,
+			GFP_NOFS);
+	return ret;
+}
+
 static inline struct page *extent_buffer_page(struct extent_buffer *eb,
 					      unsigned long i)
 {

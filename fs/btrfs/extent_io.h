@@ -193,6 +193,8 @@ int extent_commit_write(struct extent_io_tree *tree,
 			unsigned from, unsigned to);
 sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 		get_extent_t *get_extent);
+int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		__u64 start, __u64 len, get_extent_t *get_extent);
 int set_range_dirty(struct extent_io_tree *tree, u64 start, u64 end);
 int set_state_private(struct extent_io_tree *tree, u64 start, u64 private);
 int get_state_private(struct extent_io_tree *tree, u64 start, u64 *private);
