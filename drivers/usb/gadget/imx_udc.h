@@ -170,7 +170,7 @@ struct imx_udc_struct {
 /* #define DEBUG_IRQ */
 /* #define DEBUG_EPIRQ */
 /* #define DEBUG_DUMP */
-#define DEBUG_ERR
+/* #define DEBUG_ERR */
 
 #ifdef DEBUG_REQ
 	#define D_REQ(dev, args...)	dev_dbg(dev, ## args)

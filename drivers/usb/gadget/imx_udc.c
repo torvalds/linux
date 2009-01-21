@@ -283,7 +283,7 @@ void imx_ep_stall(struct imx_ep_struct *imx_ep)
 	imx_flush(imx_ep);
 
 	/* Special care for ep0 */
-	if (EP_NO(imx_ep)) {
+	if (!EP_NO(imx_ep)) {
 		temp = __raw_readl(imx_usb->base + USB_CTRL);
 		__raw_writel(temp | CTRL_CMDOVER | CTRL_CMDERROR, imx_usb->base + USB_CTRL);
 		do { } while (__raw_readl(imx_usb->base + USB_CTRL) & CTRL_CMDOVER);
@@ -301,7 +301,7 @@ void imx_ep_stall(struct imx_ep_struct *imx_ep)
 	 			break;
 	 		udelay(20);
 	 	}
-		if (i == 50)
+		if (i == 100)
 			D_ERR(imx_usb->dev, "<%s> Non finished stall on %s\n",
 				__func__, imx_ep->ep.name);
 	}
@@ -539,10 +539,9 @@ static int handle_ep0(struct imx_ep_struct *imx_ep)
 	struct imx_request *req = NULL;
 	int ret = 0;
 
-	if (!list_empty(&imx_ep->queue))
+	if (!list_empty(&imx_ep->queue)) {
 		req = list_entry(imx_ep->queue.next, struct imx_request, queue);
 
-	if (req) {
 		switch (imx_ep->imx_usb->ep0state) {
 
 		case EP0_IN_DATA_PHASE:			/* GET_DESCRIPTOR */
@@ -560,6 +559,10 @@ static int handle_ep0(struct imx_ep_struct *imx_ep)
 			break;
 		}
 	}
+
+	else
+		D_ERR(imx_ep->imx_usb->dev, "<%s> no request on %s\n",
+						__func__, imx_ep->ep.name);
 
 	return ret;
 }
@@ -759,7 +762,7 @@ static int imx_ep_queue
 	*/
 	if (imx_usb->set_config && !EP_NO(imx_ep)) {
 		imx_usb->set_config = 0;
-		D_EPX(imx_usb->dev,
+		D_ERR(imx_usb->dev,
 			"<%s> gadget reply set config\n", __func__);
 		return 0;
 	}
@@ -779,8 +782,6 @@ static int imx_ep_queue
 		return -ESHUTDOWN;
 	}
 
-	local_irq_save(flags);
-
 	/* Debug */
 	D_REQ(imx_usb->dev, "<%s> ep%d %s request for [%d] bytes\n",
 		__func__, EP_NO(imx_ep),
@@ -790,16 +791,17 @@ static int imx_ep_queue
 
 	if (imx_ep->stopped) {
 		usb_req->status = -ESHUTDOWN;
-		ret = -ESHUTDOWN;
-		goto out;
+		return -ESHUTDOWN;
 	}
 
 	if (req->in_use) {
 		D_ERR(imx_usb->dev,
 			"<%s> refusing to queue req %p (already queued)\n",
 			__func__, req);
-		goto out;
+		return 0;
 	}
+
+	local_irq_save(flags);
 
 	usb_req->status = -EINPROGRESS;
 	usb_req->actual = 0;
@@ -810,7 +812,7 @@ static int imx_ep_queue
 		ret = handle_ep0(imx_ep);
 	else
 		ret = handle_ep(imx_ep);
-out:
+
 	local_irq_restore(flags);
 	return ret;
 }
@@ -1010,10 +1012,8 @@ static irqreturn_t imx_udc_irq(int irq, void *dev)
 				dump_usb_stat(__func__, imx_usb);
 	}
 
-	if (!imx_usb->driver) {
-		/*imx_udc_disable(imx_usb);*/
+	if (!imx_usb->driver)
 		goto end_irq;
-	}
 
 	if (intr & INTR_WAKEUP) {
 		if (imx_usb->gadget.speed == USB_SPEED_UNKNOWN
@@ -1095,6 +1095,11 @@ static irqreturn_t imx_udc_irq(int irq, void *dev)
 	}
 
 	if (intr & INTR_SOF) {
+		/* Copy from Freescale BSP.
+		   We must enable SOF intr and set CMDOVER.
+		   Datasheet don't specifiy this action, but it
+		   is done in Freescale BSP, so just copy it.
+		*/
 		if (imx_usb->ep0state == EP0_IDLE) {
 			temp = __raw_readl(imx_usb->base + USB_CTRL);
 			__raw_writel(temp | CTRL_CMDOVER, imx_usb->base + USB_CTRL);
