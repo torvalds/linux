@@ -93,8 +93,6 @@
 #define WLAN_DBVAR	wlan_debug
 #endif
 
-#define WLAN_RELEASE	"0.3.0-lkml"
-
 #include <linux/hardirq.h>
 
 #define WLAN_LOG_ERROR(x,args...) printk(KERN_ERR "%s: " x , __func__ , ##args);
@@ -179,10 +177,5 @@ typedef struct net_device netdevice_t;
 extern int wlan_debug;
 #endif
 
-extern int wlan_ethconv;		/* What's the default ethconv? */
-
-/*=============================================================*/
-/*--- Functions -----------------------------------------------*/
-/*=============================================================*/
 #endif /* _WLAN_COMPAT_H */
 

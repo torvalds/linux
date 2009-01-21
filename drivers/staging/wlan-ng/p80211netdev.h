@@ -59,6 +59,8 @@
 /*================================================================*/
 /* Constants */
 
+#define WLAN_RELEASE	"0.3.0-staging"
+
 #define WLAN_DEVICE_CLOSED	0
 #define WLAN_DEVICE_OPEN	1
 
