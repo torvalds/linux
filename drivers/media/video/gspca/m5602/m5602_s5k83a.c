@@ -299,14 +299,28 @@ static int rotation_thread_function(void *data)
 
 int s5k83a_start(struct sd *sd)
 {
+	int i, err = 0;
 	struct s5k83a_priv *sens_priv = sd->sensor_priv;
 
 	/* Create another thread, polling the GPIO ports of the camera to check
 	   if it got rotated. This is how the windows driver does it so we have
 	   to assume that there is no better way of accomplishing this */
 	sens_priv->rotation_thread = kthread_create(rotation_thread_function,
-							sd, "rotation thread");
+						    sd, "rotation thread");
 	wake_up_process(sens_priv->rotation_thread);
+
+	/* Preinit the sensor */
+	for (i = 0; i < ARRAY_SIZE(start_s5k83a) && !err; i++) {
+		u8 data[2] = {start_s5k83a[i][2], start_s5k83a[i][3]};
+		if (start_s5k83a[i][0] == SENSOR)
+			err = m5602_write_sensor(sd, start_s5k83a[i][1],
+				data, 2);
+		else
+			err = m5602_write_bridge(sd, start_s5k83a[i][1],
+				data[0]);
+	}
+	if (err < 0)
+		return err;
 
 	return s5k83a_set_led_indication(sd, 1);
 }
