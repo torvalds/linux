@@ -585,8 +585,7 @@ static void t3_reset_qset(struct sge_qset *q)
 	memset(q->txq, 0, sizeof(struct sge_txq) * SGE_TXQ_PER_SET);
 	q->txq_stopped = 0;
 	q->tx_reclaim_timer.function = NULL; /* for t3_stop_sge_timers() */
-	kfree(q->lro_frag_tbl);
-	q->lro_nfrags = q->lro_frag_len = 0;
+	q->lro_frag_tbl.nr_frags = q->lro_frag_tbl.len = 0;
 }
 
 
@@ -1945,10 +1944,8 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 		qs->port_stats[SGE_PSTAT_VLANEX]++;
 		if (likely(grp))
 			if (lro)
-				lro_vlan_hwaccel_receive_skb(&qs->lro_mgr, skb,
-							     grp,
-							     ntohs(p->vlan),
-							     p);
+				vlan_gro_receive(&qs->napi, grp,
+						 ntohs(p->vlan), skb);
 			else {
 				if (unlikely(pi->iscsi_ipv4addr &&
 				    is_arp(skb))) {
@@ -1965,7 +1962,7 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 			dev_kfree_skb_any(skb);
 	} else if (rq->polling) {
 		if (lro)
-			lro_receive_skb(&qs->lro_mgr, skb, p);
+			napi_gro_receive(&qs->napi, skb);
 		else {
 			if (unlikely(pi->iscsi_ipv4addr && is_arp(skb)))
 				cxgb3_arp_process(adap, skb);
@@ -1978,59 +1975,6 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 static inline int is_eth_tcp(u32 rss)
 {
 	return G_HASHTYPE(ntohl(rss)) == RSS_HASH_4_TUPLE;
-}
-
-/**
- *	lro_frame_ok - check if an ingress packet is eligible for LRO
- *	@p: the CPL header of the packet
- *
- *	Returns true if a received packet is eligible for LRO.
- *	The following conditions must be true:
- *	- packet is TCP/IP Ethernet II (checked elsewhere)
- *	- not an IP fragment
- *	- no IP options
- *	- TCP/IP checksums are correct
- *	- the packet is for this host
- */
-static inline int lro_frame_ok(const struct cpl_rx_pkt *p)
-{
-	const struct ethhdr *eh = (struct ethhdr *)(p + 1);
-	const struct iphdr *ih = (struct iphdr *)(eh + 1);
-
-	return (*((u8 *)p + 1) & 0x90) == 0x10 && p->csum == htons(0xffff) &&
-		eh->h_proto == htons(ETH_P_IP) && ih->ihl == (sizeof(*ih) >> 2);
-}
-
-static int t3_get_lro_header(void **eh,  void **iph, void **tcph,
-			     u64 *hdr_flags, void *priv)
-{
-	const struct cpl_rx_pkt *cpl = priv;
-
-	if (!lro_frame_ok(cpl))
-		return -1;
-
-	*eh = (struct ethhdr *)(cpl + 1);
-	*iph = (struct iphdr *)((struct ethhdr *)*eh + 1);
-	*tcph = (struct tcphdr *)((struct iphdr *)*iph + 1);
-
-	*hdr_flags = LRO_IPV4 | LRO_TCP;
-	return 0;
-}
-
-static int t3_get_skb_header(struct sk_buff *skb,
-			      void **iph, void **tcph, u64 *hdr_flags,
-			      void *priv)
-{
-	void *eh;
-
-	return t3_get_lro_header(&eh, iph, tcph, hdr_flags, priv);
-}
-
-static int t3_get_frag_header(struct skb_frag_struct *frag, void **eh,
-			      void **iph, void **tcph, u64 *hdr_flags,
-			      void *priv)
-{
-	return t3_get_lro_header(eh, iph, tcph, hdr_flags, priv);
 }
 
 /**
@@ -2049,8 +1993,9 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 {
 	struct rx_sw_desc *sd = &fl->sdesc[fl->cidx];
 	struct cpl_rx_pkt *cpl;
-	struct skb_frag_struct *rx_frag = qs->lro_frag_tbl;
-	int nr_frags = qs->lro_nfrags, frag_len = qs->lro_frag_len;
+	struct skb_frag_struct *rx_frag = qs->lro_frag_tbl.frags;
+	int nr_frags = qs->lro_frag_tbl.nr_frags;
+	int frag_len = qs->lro_frag_tbl.len;
 	int offset = 0;
 
 	if (!nr_frags) {
@@ -2069,13 +2014,13 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	rx_frag->page_offset = sd->pg_chunk.offset + offset;
 	rx_frag->size = len;
 	frag_len += len;
-	qs->lro_nfrags++;
-	qs->lro_frag_len = frag_len;
+	qs->lro_frag_tbl.nr_frags++;
+	qs->lro_frag_tbl.len = frag_len;
 
 	if (!complete)
 		return;
 
-	qs->lro_nfrags = qs->lro_frag_len = 0;
+	qs->lro_frag_tbl.ip_summed = CHECKSUM_UNNECESSARY;
 	cpl = qs->lro_va;
 
 	if (unlikely(cpl->vlan_valid)) {
@@ -2084,36 +2029,15 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 		struct vlan_group *grp = pi->vlan_grp;
 
 		if (likely(grp != NULL)) {
-			lro_vlan_hwaccel_receive_frags(&qs->lro_mgr,
-						       qs->lro_frag_tbl,
-						       frag_len, frag_len,
-						       grp, ntohs(cpl->vlan),
-						       cpl, 0);
-			return;
+			vlan_gro_frags(&qs->napi, grp, ntohs(cpl->vlan),
+				       &qs->lro_frag_tbl);
+			goto out;
 		}
 	}
-	lro_receive_frags(&qs->lro_mgr, qs->lro_frag_tbl,
-			  frag_len, frag_len, cpl, 0);
-}
+	napi_gro_frags(&qs->napi, &qs->lro_frag_tbl);
 
-/**
- *	init_lro_mgr - initialize a LRO manager object
- *	@lro_mgr: the LRO manager object
- */
-static void init_lro_mgr(struct sge_qset *qs, struct net_lro_mgr *lro_mgr)
-{
-	lro_mgr->dev = qs->netdev;
-	lro_mgr->features = LRO_F_NAPI;
-	lro_mgr->frag_align_pad = NET_IP_ALIGN;
-	lro_mgr->ip_summed = CHECKSUM_UNNECESSARY;
-	lro_mgr->ip_summed_aggr = CHECKSUM_UNNECESSARY;
-	lro_mgr->max_desc = T3_MAX_LRO_SES;
-	lro_mgr->lro_arr = qs->lro_desc;
-	lro_mgr->get_frag_header = t3_get_frag_header;
-	lro_mgr->get_skb_header = t3_get_skb_header;
-	lro_mgr->max_aggr = T3_MAX_LRO_MAX_PKTS;
-	if (lro_mgr->max_aggr > MAX_SKB_FRAGS)
-		lro_mgr->max_aggr = MAX_SKB_FRAGS;
+out:
+	qs->lro_frag_tbl.nr_frags = qs->lro_frag_tbl.len = 0;
 }
 
 /**
@@ -2357,10 +2281,6 @@ next_fl:
 	}
 
 	deliver_partial_bundle(&adap->tdev, q, offload_skbs, ngathered);
-	lro_flush_all(&qs->lro_mgr);
-	qs->port_stats[SGE_PSTAT_LRO_AGGR] = qs->lro_mgr.stats.aggregated;
-	qs->port_stats[SGE_PSTAT_LRO_FLUSHED] = qs->lro_mgr.stats.flushed;
-	qs->port_stats[SGE_PSTAT_LRO_NO_DESC] = qs->lro_mgr.stats.no_desc;
 
 	if (sleeping)
 		check_ring_db(adap, qs, sleeping);
@@ -2907,7 +2827,6 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 {
 	int i, avail, ret = -ENOMEM;
 	struct sge_qset *q = &adapter->sge.qs[id];
-	struct net_lro_mgr *lro_mgr = &q->lro_mgr;
 
 	init_qset_cntxt(q, id);
 	setup_timer(&q->tx_reclaim_timer, sge_timer_cb, (unsigned long)q);
@@ -2987,10 +2906,6 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 	q->fl[0].order = FL0_PG_ORDER;
 	q->fl[1].order = FL1_PG_ORDER;
 
-	q->lro_frag_tbl = kcalloc(MAX_FRAME_SIZE / FL1_PG_CHUNK_SIZE + 1,
-				  sizeof(struct skb_frag_struct),
-				  GFP_KERNEL);
-	q->lro_nfrags = q->lro_frag_len = 0;
 	spin_lock_irq(&adapter->sge.reg_lock);
 
 	/* FL threshold comparison uses < */
@@ -3041,8 +2956,6 @@ int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 	q->netdev = dev;
 	q->tx_q = netdevq;
 	t3_update_qset_coalesce(q, p);
-
-	init_lro_mgr(q, lro_mgr);
 
 	avail = refill_fl(adapter, &q->fl[0], q->fl[0].size,
 			  GFP_KERNEL | __GFP_COMP);

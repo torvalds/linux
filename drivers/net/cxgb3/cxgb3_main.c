@@ -508,19 +508,9 @@ static void set_qset_lro(struct net_device *dev, int qset_idx, int val)
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	int i, lro_on = 1;
 
 	adapter->params.sge.qset[qset_idx].lro = !!val;
 	adapter->sge.qs[qset_idx].lro_enabled = !!val;
-
-	/* let ethtool report LRO on only if all queues are LRO enabled */
-	for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; ++i)
-		lro_on &= adapter->params.sge.qset[i].lro;
-
-	if (lro_on)
-		dev->features |= NETIF_F_LRO;
-	else
-		dev->features &= ~NETIF_F_LRO;
 }
 
 /**
@@ -1433,9 +1423,9 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_VLANINS);
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_TX_CSUM);
 	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_RX_CSUM_GOOD);
-	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_LRO_AGGR);
-	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_LRO_FLUSHED);
-	*data++ = collect_sge_port_stats(adapter, pi, SGE_PSTAT_LRO_NO_DESC);
+	*data++ = 0;
+	*data++ = 0;
+	*data++ = 0;
 	*data++ = s->rx_cong_drops;
 
 	*data++ = s->num_toggled;
@@ -1826,28 +1816,6 @@ static void get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
 }
 
-static int cxgb3_set_flags(struct net_device *dev, u32 data)
-{
-	struct port_info *pi = netdev_priv(dev);
-	int i;
-
-	if (data & ETH_FLAG_LRO) {
-		if (!(pi->rx_offload & T3_RX_CSUM))
-			return -EINVAL;
-
-		pi->rx_offload |= T3_LRO;
-		for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++)
-			set_qset_lro(dev, i, 1);
-
-	} else {
-		pi->rx_offload &= ~T3_LRO;
-		for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++)
-			set_qset_lro(dev, i, 0);
-	}
-
-	return 0;
-}
-
 static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_settings = get_settings,
 	.set_settings = set_settings,
@@ -1877,8 +1845,6 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_regs = get_regs,
 	.get_wol = get_wol,
 	.set_tso = ethtool_op_set_tso,
-	.get_flags = ethtool_op_get_flags,
-	.set_flags = cxgb3_set_flags,
 };
 
 static int in_range(int val, int lo, int hi)
@@ -2967,7 +2933,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		netdev->mem_end = mmio_start + mmio_len - 1;
 		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
 		netdev->features |= NETIF_F_LLTX;
-		netdev->features |= NETIF_F_LRO;
+		netdev->features |= NETIF_F_GRO;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 

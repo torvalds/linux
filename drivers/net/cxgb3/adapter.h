@@ -42,7 +42,6 @@
 #include <linux/cache.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
-#include <linux/inet_lro.h>
 #include "t3cdev.h"
 #include <asm/io.h>
 
@@ -178,15 +177,11 @@ enum {				/* per port SGE statistics */
 	SGE_PSTAT_TX_CSUM,	/* # of TX checksum offloads */
 	SGE_PSTAT_VLANEX,	/* # of VLAN tag extractions */
 	SGE_PSTAT_VLANINS,	/* # of VLAN tag insertions */
-	SGE_PSTAT_LRO_AGGR,	/* # of page chunks added to LRO sessions */
-	SGE_PSTAT_LRO_FLUSHED,	/* # of flushed LRO sessions */
-	SGE_PSTAT_LRO_NO_DESC,	/* # of overflown LRO sessions */
 
 	SGE_PSTAT_MAX		/* must be last */
 };
 
-#define T3_MAX_LRO_SES 8
-#define T3_MAX_LRO_MAX_PKTS 64
+struct napi_gro_fraginfo;
 
 struct sge_qset {		/* an SGE queue set */
 	struct adapter *adap;
@@ -194,12 +189,8 @@ struct sge_qset {		/* an SGE queue set */
 	struct sge_rspq rspq;
 	struct sge_fl fl[SGE_RXQ_PER_SET];
 	struct sge_txq txq[SGE_TXQ_PER_SET];
-	struct net_lro_mgr lro_mgr;
-	struct net_lro_desc lro_desc[T3_MAX_LRO_SES];
-	struct skb_frag_struct *lro_frag_tbl;
-	int lro_nfrags;
+	struct napi_gro_fraginfo lro_frag_tbl;
 	int lro_enabled;
-	int lro_frag_len;
 	void *lro_va;
 	struct net_device *netdev;
 	struct netdev_queue *tx_q;	/* associated netdev TX queue */
