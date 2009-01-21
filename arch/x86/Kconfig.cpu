@@ -292,15 +292,13 @@ config X86_CPU
 # Define implied options from the CPU selection here
 config X86_L1_CACHE_BYTES
 	int
-	default "128" if GENERIC_CPU || MPSC
-	default "64" if MK8 || MCORE2
-	depends on X86_64
+	default "128" if MPSC
+	default "64" if GENERIC_CPU || MK8 || MCORE2 || X86_32
 
 config X86_INTERNODE_CACHE_BYTES
 	int
 	default "4096" if X86_VSMP
 	default X86_L1_CACHE_BYTES if !X86_VSMP
-	depends on X86_64
 
 config X86_CMPXCHG
 	def_bool X86_64 || (X86_32 && !M386)
