@@ -51,6 +51,7 @@ enum regulator_status {
  *
  * @set_mode: Set the operating mode for the regulator.
  * @get_mode: Get the current operating mode for the regulator.
+ * @get_status: Report the regulator status.
  * @get_optimum_mode: Get the most efficient operating mode for the regulator
  *                    when running with the specified parameters.
  *
