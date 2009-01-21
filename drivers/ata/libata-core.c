@@ -4709,8 +4709,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 
 /**
  *	ata_qc_new - Request an available ATA command, for queueing
- *	@ap: Port associated with device @dev
- *	@dev: Device from whom we request an available command structure
+ *	@ap: target port
  *
  *	LOCKING:
  *	None.
