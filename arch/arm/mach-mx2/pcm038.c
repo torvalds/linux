@@ -183,12 +183,6 @@ static void gpio_fec_active(void)
 			ARRAY_SIZE(mxc_fec_pins), "FEC");
 }
 
-static void gpio_fec_inactive(void)
-{
-	mxc_gpio_release_multiple_pins(mxc_fec_pins,
-			ARRAY_SIZE(mxc_fec_pins));
-}
-
 static struct mxc_nand_platform_data pcm038_nand_board_info = {
 	.width = 1,
 	.hw_ecc = 1,

@@ -209,12 +209,6 @@ static void gpio_fec_active(void)
 			ARRAY_SIZE(mxc_fec_pins), "FEC");
 }
 
-static void gpio_fec_inactive(void)
-{
-	mxc_gpio_release_multiple_pins(mxc_fec_pins,
-			ARRAY_SIZE(mxc_fec_pins));
-}
-
 static struct imxuart_platform_data uart_pdata[] = {
 	{
 		.init = uart_mxc_port0_init,
