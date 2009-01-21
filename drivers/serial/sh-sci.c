@@ -994,9 +994,21 @@ static void sci_config_port(struct uart_port *port, int flags)
 
 	port->type = s->type;
 
-	if (port->flags & UPF_IOREMAP && !port->membase) {
+	if (port->membase)
+		return;
+
+	if (port->flags & UPF_IOREMAP) {
 		port->membase = ioremap_nocache(port->mapbase, 0x40);
-		dev_err(port->dev, "can't remap port#%d\n", port->line);
+
+		if (IS_ERR(port->membase))
+			dev_err(port->dev, "can't remap port#%d\n", port->line);
+	} else {
+		/*
+		 * For the simple (and majority of) cases where we don't
+		 * need to do any remapping, just cast the cookie
+		 * directly.
+		 */
+		port->membase = (void __iomem *)port->mapbase;
 	}
 }
 
@@ -1036,9 +1048,9 @@ static struct uart_ops sci_uart_ops = {
 #endif
 };
 
-static int __devinit sci_init_single(struct sci_port *sci_port,
-				     unsigned int index,
-				     struct plat_sci_port *p)
+static void __devinit sci_init_single(struct sci_port *sci_port,
+				      unsigned int index,
+				      struct plat_sci_port *p)
 {
 	sci_port->port.ops	= &sci_uart_ops;
 	sci_port->port.iotype	= UPIO_MEM;
@@ -1069,22 +1081,6 @@ static int __devinit sci_init_single(struct sci_port *sci_port,
 	init_timer(&sci_port->break_timer);
 
 	sci_port->port.mapbase	= p->mapbase;
-
-	if (p->mapbase && !p->membase) {
-		if (p->flags & UPF_IOREMAP) {
-			p->membase = ioremap_nocache(p->mapbase, 0x40);
-			if (IS_ERR(p->membase))
-				return PTR_ERR(p->membase);
-		} else {
-			/*
-			 * For the simple (and majority of) cases
-			 * where we don't need to do any remapping,
-			 * just cast the cookie directly.
-			 */
-			p->membase = (void __iomem *)p->mapbase;
-		}
-	}
-
 	sci_port->port.membase	= p->membase;
 
 	sci_port->port.irq	= p->irqs[SCIx_TXI_IRQ];
@@ -1092,8 +1088,6 @@ static int __devinit sci_init_single(struct sci_port *sci_port,
 	sci_port->type		= sci_port->port.type = p->type;
 
 	memcpy(&sci_port->irqs, &p->irqs, sizeof(p->irqs));
-
-	return 0;
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
@@ -1163,8 +1157,7 @@ static int __init serial_console_setup(struct console *co, char *options)
 		sci_port->clk = clk_get(NULL, "module_clk");
 #endif
 
-	if (port->flags & UPF_IOREMAP)
-		sci_config_port(port, 0);
+	sci_config_port(port, 0);
 
 	if (sci_port->enable)
 		sci_port->enable(port);
@@ -1258,18 +1251,11 @@ static int __devinit sci_probe_single(struct platform_device *dev,
 	}
 
 	sciport->port.dev = &dev->dev;
-	ret = sci_init_single(sciport, index, p);
-	if (ret)
-		return ret;
+	sci_init_single(sciport, index, p);
 
 	ret = uart_add_one_port(&sci_uart_driver, &sciport->port);
-
-	if (ret) {
-		if (p->flags & UPF_IOREMAP)
-			iounmap(p->membase);
-
+	if (ret)
 		return ret;
-	}
 
 	INIT_LIST_HEAD(&sciport->node);
 
