@@ -33,8 +33,6 @@
  *
  * --> ATAPI support (Marvell claims the 60xx/70xx chips can do it).
  *
- * --> Investigate problems with PCI Message Signalled Interrupts (MSI).
- *
  * --> Develop a low-power-consumption strategy, and implement it.
  *
  * --> [Experiment, low priority] Investigate interrupt coalescing.
@@ -70,7 +68,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"1.24"
+#define DRV_VERSION	"1.25"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -2199,9 +2197,15 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 	struct ata_host *host = dev_instance;
 	struct mv_host_priv *hpriv = host->private_data;
 	unsigned int handled = 0;
+	int using_msi = hpriv->hp_flags & MV_HP_FLAG_MSI;
 	u32 main_irq_cause, pending_irqs;
 
 	spin_lock(&host->lock);
+
+	/* for MSI:  block new interrupts while in here */
+	if (using_msi)
+		writel(0, hpriv->main_irq_mask_addr);
+
 	main_irq_cause = readl(hpriv->main_irq_cause_addr);
 	pending_irqs   = main_irq_cause & hpriv->main_irq_mask;
 	/*
@@ -2215,6 +2219,11 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance)
 			handled = mv_host_intr(host, pending_irqs);
 	}
 	spin_unlock(&host->lock);
+
+	/* for MSI: unmask; interrupt cause bits will retrigger now */
+	if (using_msi)
+		writel(hpriv->main_irq_mask, hpriv->main_irq_mask_addr);
+
 	return IRQ_RETVAL(handled);
 }
 
@@ -3417,9 +3426,9 @@ static int mv_pci_init_one(struct pci_dev *pdev,
 	if (rc)
 		return rc;
 
-	/* Enable interrupts */
-	if (msi && pci_enable_msi(pdev))
-		pci_intx(pdev, 1);
+	/* Enable message-switched interrupts, if requested */
+	if (msi && pci_enable_msi(pdev) == 0)
+		hpriv->hp_flags |= MV_HP_FLAG_MSI;
 
 	mv_dump_pci_cfg(pdev, 0x68);
 	mv_print_info(host);
