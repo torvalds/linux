@@ -59,6 +59,7 @@ struct imx_udc_struct {
 	struct device				*dev;
 	struct imx_ep_struct			imx_ep[IMX_USB_NB_EP];
 	struct clk				*clk;
+	struct timer_list			timer;
 	enum ep0_state				ep0state;
 	struct resource				*res;
 	void __iomem				*base;
