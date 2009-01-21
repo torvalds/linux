@@ -37,7 +37,6 @@
 #include <linux/ctype.h>
 #include <linux/namei.h>
 #include <linux/miscdevice.h>
-#include <linux/version.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"

@@ -19,7 +19,6 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
-#include <linux/version.h>
 #include "compat.h"
 #include "hash.h"
 #include "crc32c.h"

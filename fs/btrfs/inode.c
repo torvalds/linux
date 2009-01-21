@@ -34,7 +34,6 @@
 #include <linux/statfs.h>
 #include <linux/compat.h>
 #include <linux/bit_spinlock.h>
-#include <linux/version.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/falloc.h>

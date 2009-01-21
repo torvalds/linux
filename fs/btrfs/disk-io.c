@@ -16,7 +16,6 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/scatterlist.h>

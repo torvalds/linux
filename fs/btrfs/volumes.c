@@ -20,7 +20,6 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/random.h>
-#include <linux/version.h>
 #include <asm/div64.h>
 #include "compat.h"
 #include "ctree.h"

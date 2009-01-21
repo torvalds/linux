@@ -29,7 +29,6 @@
 #include <linux/writeback.h>
 #include <linux/statfs.h>
 #include <linux/compat.h>
-#include <linux/version.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"

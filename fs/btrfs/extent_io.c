@@ -9,7 +9,6 @@
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/swap.h>
-#include <linux/version.h>
 #include <linux/writeback.h>
 #include <linux/pagevec.h>
 #include "extent_io.h"
