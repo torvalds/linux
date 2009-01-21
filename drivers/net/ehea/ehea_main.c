@@ -3069,6 +3069,22 @@ static void ehea_unregister_port(struct ehea_port *port)
 	of_device_unregister(&port->ofdev);
 }
 
+static const struct net_device_ops ehea_netdev_ops = {
+	.ndo_open		= ehea_open,
+	.ndo_stop		= ehea_stop,
+	.ndo_start_xmit		= ehea_start_xmit,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ehea_netpoll,
+#endif
+	.ndo_get_stats		= ehea_get_stats,
+	.ndo_set_mac_address	= ehea_set_mac_addr,
+	.ndo_set_multicast_list	= ehea_set_multicast_list,
+	.ndo_change_mtu		= ehea_change_mtu,
+	.ndo_vlan_rx_register	= ehea_vlan_rx_register,
+	.ndo_vlan_rx_add_vid	= ehea_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= ehea_vlan_rx_kill_vid
+};
+
 struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 					 u32 logical_port_id,
 					 struct device_node *dn)
@@ -3121,19 +3137,9 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	/* initialize net_device structure */
 	memcpy(dev->dev_addr, &port->mac_addr, ETH_ALEN);
 
-	dev->open = ehea_open;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ehea_netpoll;
-#endif
-	dev->stop = ehea_stop;
-	dev->hard_start_xmit = ehea_start_xmit;
-	dev->get_stats = ehea_get_stats;
-	dev->set_multicast_list = ehea_set_multicast_list;
-	dev->set_mac_address = ehea_set_mac_addr;
-	dev->change_mtu = ehea_change_mtu;
-	dev->vlan_rx_register = ehea_vlan_rx_register;
-	dev->vlan_rx_add_vid = ehea_vlan_rx_add_vid;
-	dev->vlan_rx_kill_vid = ehea_vlan_rx_kill_vid;
+	dev->netdev_ops = &ehea_netdev_ops;
+	ehea_set_ethtool_ops(dev);
+
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO
 		      | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX
 		      | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER
@@ -3142,7 +3148,6 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	dev->watchdog_timeo = EHEA_WATCH_DOG_TIMEOUT;
 
 	INIT_WORK(&port->reset_task, ehea_reset_port);
-	ehea_set_ethtool_ops(dev);
 
 	ret = register_netdev(dev);
 	if (ret) {
