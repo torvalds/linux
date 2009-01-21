@@ -118,8 +118,8 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 	mem = dev->dma_mem;
 	if (!mem)
 		return 0;
-	if (unlikely(size > mem->size))
- 		return 0;
+	if (unlikely(size > (mem->size << PAGE_SHIFT)))
+		return 0;
 
 	pageno = bitmap_find_free_region(mem->bitmap, mem->size, order);
 	if (pageno >= 0) {
