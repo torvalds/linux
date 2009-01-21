@@ -419,7 +419,6 @@ static noinline void pgtable_bad(struct pt_regs *regs,
 	printk(KERN_ALERT "%s: Corrupted page table at address %lx\n",
 	       tsk->comm, address);
 	dump_pagetable(address);
-	tsk = current;
 	tsk->thread.cr2 = address;
 	tsk->thread.trap_no = 14;
 	tsk->thread.error_code = error_code;
