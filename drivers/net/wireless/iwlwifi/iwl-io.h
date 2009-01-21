@@ -165,7 +165,7 @@ static inline int _iwl_grab_nic_access(struct iwl_priv *priv)
 	ret = _iwl_poll_bit(priv, CSR_GP_CNTRL,
 			   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
 			   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
-			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 50);
+			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
 	if (ret < 0) {
 		IWL_ERR(priv, "MAC is in deep sleep!\n");
 		return -EIO;

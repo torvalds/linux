@@ -1338,6 +1338,9 @@ static int iwl3945_apm_reset(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	udelay(10);
+
+	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
 			 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
@@ -1346,11 +1349,6 @@ static int iwl3945_apm_reset(struct iwl_priv *priv)
 	if (!rc) {
 		iwl_write_prph(priv, APMG_CLK_CTRL_REG,
 					 APMG_CLK_VAL_BSM_CLK_RQT);
-
-		udelay(10);
-
-		iwl_set_bit(priv, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 		iwl_write_prph(priv, APMG_RTC_INT_MSK_REG, 0x0);
 		iwl_write_prph(priv, APMG_RTC_INT_STT_REG,

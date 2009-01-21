@@ -4941,6 +4941,7 @@ static void __iwl3945_down(struct iwl_priv *priv)
 			test_bit(STATUS_EXIT_PENDING, &priv->status) <<
 				STATUS_EXIT_PENDING;
 
+	priv->cfg->ops->lib->apm_ops.reset(priv);
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -4958,7 +4959,11 @@ static void __iwl3945_down(struct iwl_priv *priv)
 
 	udelay(5);
 
-	priv->cfg->ops->lib->apm_ops.reset(priv);
+	if (exit_pending || test_bit(STATUS_IN_SUSPEND, &priv->status))
+		priv->cfg->ops->lib->apm_ops.stop(priv);
+	else
+		priv->cfg->ops->lib->apm_ops.reset(priv);
+
  exit:
 	memset(&priv->card_alive, 0, sizeof(struct iwl_alive_resp));
 
