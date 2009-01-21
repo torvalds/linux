@@ -546,10 +546,6 @@ static int __devinit snd_cmi8330_probe(struct snd_card *card, int dev)
 				   "no OPL device at 0x%lx-0x%lx ?\n",
 				   fmport[dev], fmport[dev] + 2);
 		} else {
-			err = snd_opl3_timer_new(opl3, 0, 1);
-			if (err < 0)
-				return err;
-
 			err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 			if (err < 0)
 				return err;

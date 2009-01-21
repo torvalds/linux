@@ -815,14 +815,8 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 				   chip->fm_port, chip->fm_port + 4 - 1);
 		}
 		if (opl3) {
-#ifdef CS4231
-			const int t1dev = 1;
-#else
-			const int t1dev = 0;
-#endif
-			if ((error = snd_opl3_timer_new(opl3, t1dev, t1dev+1)) < 0)
-				return error;
-			if ((error = snd_opl3_hwdep_new(opl3, 0, 1, &synth)) < 0)
+			error = snd_opl3_hwdep_new(opl3, 0, 1, &synth);
+			if (error < 0)
 				return error;
 		}
 	}

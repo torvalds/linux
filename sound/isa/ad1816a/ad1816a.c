@@ -207,11 +207,8 @@ static int __devinit snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard
 				    OPL3_HW_AUTO, 0, &opl3) < 0) {
 			printk(KERN_ERR PFX "no OPL device at 0x%lx-0x%lx.\n", fm_port[dev], fm_port[dev] + 2);
 		} else {
-			if ((error = snd_opl3_timer_new(opl3, 1, 2)) < 0) {
-				snd_card_free(card);
-				return error;
-			}
-			if ((error = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
+			error = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+			if (error < 0) {
 				snd_card_free(card);
 				return error;
 			}
