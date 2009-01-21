@@ -2698,13 +2698,9 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	/* if metadata always pin */
 	if (owner_objectid < BTRFS_FIRST_FREE_OBJECTID) {
 		if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
-			struct btrfs_block_group_cache *cache;
-
-			/* btrfs_free_reserved_extent */
-			cache = btrfs_lookup_block_group(root->fs_info, bytenr);
-			BUG_ON(!cache);
-			btrfs_add_free_space(cache, bytenr, num_bytes);
-			put_block_group(cache);
+			mutex_lock(&root->fs_info->pinned_mutex);
+			btrfs_update_pinned_extents(root, bytenr, num_bytes, 1);
+			mutex_unlock(&root->fs_info->pinned_mutex);
 			update_reserved_extents(root, bytenr, num_bytes, 0);
 			return 0;
 		}

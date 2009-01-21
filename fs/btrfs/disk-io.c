@@ -849,6 +849,14 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	spin_lock_init(&root->list_lock);
 	mutex_init(&root->objectid_mutex);
 	mutex_init(&root->log_mutex);
+	init_waitqueue_head(&root->log_writer_wait);
+	init_waitqueue_head(&root->log_commit_wait[0]);
+	init_waitqueue_head(&root->log_commit_wait[1]);
+	atomic_set(&root->log_commit[0], 0);
+	atomic_set(&root->log_commit[1], 0);
+	atomic_set(&root->log_writers, 0);
+	root->log_batch = 0;
+	root->log_transid = 0;
 	extent_io_tree_init(&root->dirty_log_pages,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 
@@ -933,15 +941,16 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
-			     struct btrfs_fs_info *fs_info)
+static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
+					 struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root;
 	struct btrfs_root *tree_root = fs_info->tree_root;
+	struct extent_buffer *leaf;
 
 	root = kzalloc(sizeof(*root), GFP_NOFS);
 	if (!root)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
 		     tree_root->sectorsize, tree_root->stripesize,
@@ -950,12 +959,23 @@ int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 	root->root_key.objectid = BTRFS_TREE_LOG_OBJECTID;
 	root->root_key.type = BTRFS_ROOT_ITEM_KEY;
 	root->root_key.offset = BTRFS_TREE_LOG_OBJECTID;
+	/*
+	 * log trees do not get reference counted because they go away
+	 * before a real commit is actually done.  They do store pointers
+	 * to file data extents, and those reference counts still get
+	 * updated (along with back refs to the log tree).
+	 */
 	root->ref_cows = 0;
 
-	root->node = btrfs_alloc_free_block(trans, root, root->leafsize,
-					    0, BTRFS_TREE_LOG_OBJECTID,
-					    trans->transid, 0, 0, 0);
+	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
+				      0, BTRFS_TREE_LOG_OBJECTID,
+				      trans->transid, 0, 0, 0);
+	if (IS_ERR(leaf)) {
+		kfree(root);
+		return ERR_CAST(leaf);
+	}
 
+	root->node = leaf;
 	btrfs_set_header_nritems(root->node, 0);
 	btrfs_set_header_level(root->node, 0);
 	btrfs_set_header_bytenr(root->node, root->node->start);
@@ -967,7 +987,48 @@ int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 			    BTRFS_FSID_SIZE);
 	btrfs_mark_buffer_dirty(root->node);
 	btrfs_tree_unlock(root->node);
-	fs_info->log_root_tree = root;
+	return root;
+}
+
+int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
+			     struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_root *log_root;
+
+	log_root = alloc_log_tree(trans, fs_info);
+	if (IS_ERR(log_root))
+		return PTR_ERR(log_root);
+	WARN_ON(fs_info->log_root_tree);
+	fs_info->log_root_tree = log_root;
+	return 0;
+}
+
+int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
+		       struct btrfs_root *root)
+{
+	struct btrfs_root *log_root;
+	struct btrfs_inode_item *inode_item;
+
+	log_root = alloc_log_tree(trans, root->fs_info);
+	if (IS_ERR(log_root))
+		return PTR_ERR(log_root);
+
+	log_root->last_trans = trans->transid;
+	log_root->root_key.offset = root->root_key.objectid;
+
+	inode_item = &log_root->root_item.inode;
+	inode_item->generation = cpu_to_le64(1);
+	inode_item->size = cpu_to_le64(3);
+	inode_item->nlink = cpu_to_le32(1);
+	inode_item->nbytes = cpu_to_le64(root->leafsize);
+	inode_item->mode = cpu_to_le32(S_IFDIR | 0755);
+
+	btrfs_set_root_bytenr(&log_root->root_item, log_root->node->start);
+	btrfs_set_root_generation(&log_root->root_item, trans->transid);
+
+	WARN_ON(root->log_root);
+	root->log_root = log_root;
+	root->log_transid = 0;
 	return 0;
 }
 
@@ -1530,10 +1591,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	init_waitqueue_head(&fs_info->transaction_throttle);
 	init_waitqueue_head(&fs_info->transaction_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);
-	init_waitqueue_head(&fs_info->tree_log_wait);
-	atomic_set(&fs_info->tree_log_commit, 0);
-	atomic_set(&fs_info->tree_log_writers, 0);
-	fs_info->tree_log_transid = 0;
 
 	__setup_root(4096, 4096, 4096, 4096, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
