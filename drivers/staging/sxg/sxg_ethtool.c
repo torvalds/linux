@@ -53,15 +53,6 @@
 #include "sxghw.h"
 #include "sxghif.h"
 #include "sxg.h"
-//#include "sxg.c"
-#define SXG_UCODE_DBG			 0  	 /* Turn on for debugging */
-#ifdef SXG_UCODE_DBG
-#include "saharadbgdownload.c"
-#include "saharadbgdownloadB.c"
-#else
-#include "saharadownload.c"
-#include "saharadownloadB.c"
-#endif
 
 struct sxg_nic_stats {
         char stat_string[ETH_GSTRING_LEN];
