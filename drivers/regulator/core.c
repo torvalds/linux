@@ -30,33 +30,6 @@ static LIST_HEAD(regulator_list);
 static LIST_HEAD(regulator_map_list);
 
 /*
- * struct regulator_dev
- *
- * Voltage / Current regulator class device. One for each regulator.
- */
-struct regulator_dev {
-	struct regulator_desc *desc;
-	int use_count;
-
-	/* lists we belong to */
-	struct list_head list; /* list of all regulators */
-	struct list_head slist; /* list of supplied regulators */
-
-	/* lists we own */
-	struct list_head consumer_list; /* consumers we supply */
-	struct list_head supply_list; /* regulators we supply */
-
-	struct blocking_notifier_head notifier;
-	struct mutex mutex; /* consumer lock */
-	struct module *owner;
-	struct device dev;
-	struct regulation_constraints *constraints;
-	struct regulator_dev *supply;	/* for tree */
-
-	void *reg_data;		/* regulator_dev data */
-};
-
-/*
  * struct regulator_map
  *
  * Used to provide symbolic supply names to devices.

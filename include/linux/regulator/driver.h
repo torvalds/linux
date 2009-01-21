@@ -137,6 +137,38 @@ struct regulator_desc {
 	struct module *owner;
 };
 
+/*
+ * struct regulator_dev
+ *
+ * Voltage / Current regulator class device. One for each
+ * regulator.
+ *
+ * This should *not* be used directly by anything except the regulator
+ * core and notification injection (which should take the mutex and do
+ * no other direct access).
+ */
+struct regulator_dev {
+	struct regulator_desc *desc;
+	int use_count;
+
+	/* lists we belong to */
+	struct list_head list; /* list of all regulators */
+	struct list_head slist; /* list of supplied regulators */
+
+	/* lists we own */
+	struct list_head consumer_list; /* consumers we supply */
+	struct list_head supply_list; /* regulators we supply */
+
+	struct blocking_notifier_head notifier;
+	struct mutex mutex; /* consumer lock */
+	struct module *owner;
+	struct device dev;
+	struct regulation_constraints *constraints;
+	struct regulator_dev *supply;	/* for tree */
+
+	void *reg_data;		/* regulator_dev data */
+};
+
 struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	struct device *dev, struct regulator_init_data *init_data,
 	void *driver_data);
