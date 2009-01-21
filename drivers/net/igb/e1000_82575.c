@@ -1103,6 +1103,13 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 	       E1000_CTRL_SWDPIN1;
 	wr32(E1000_CTRL, reg);
 
+	/* Power on phy for 82576 fiber adapters */
+	if (hw->mac.type == e1000_82576) {
+		reg = rd32(E1000_CTRL_EXT);
+		reg &= ~E1000_CTRL_EXT_SDP7_DATA;
+		wr32(E1000_CTRL_EXT, reg);
+	}
+
 	/* Set switch control to serdes energy detect */
 	reg = rd32(E1000_CONNSW);
 	reg |= E1000_CONNSW_ENRGSRC;
