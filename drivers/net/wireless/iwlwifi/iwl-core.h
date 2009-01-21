@@ -277,7 +277,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
  * RF -Kill - here and not in iwl-rfkill.h to be available when
  * RF-kill subsystem is not compiled.
  ****************************************************/
-void iwl_rf_kill(struct iwl_priv *priv);
+void iwl_bg_rf_kill(struct work_struct *work);
 void iwl_radio_kill_sw_disable_radio(struct iwl_priv *priv);
 int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv);
 

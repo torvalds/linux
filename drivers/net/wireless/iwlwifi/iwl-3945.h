@@ -304,18 +304,6 @@ extern int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv);
 extern u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id,
 		 u16 tx_rate, u8 flags);
 
-#ifdef CONFIG_IWL3945_RFKILL
-struct iwl_priv;
-
-void iwl3945_rfkill_set_hw_state(struct iwl_priv *priv);
-void iwl3945_rfkill_unregister(struct iwl_priv *priv);
-int iwl3945_rfkill_init(struct iwl_priv *priv);
-#else
-static inline void iwl3945_rfkill_set_hw_state(struct iwl_priv *priv) {}
-static inline void iwl3945_rfkill_unregister(struct iwl_priv *priv) {}
-static inline int iwl3945_rfkill_init(struct iwl_priv *priv) { return 0; }
-#endif
-
 static inline int iwl3945_is_associated(struct iwl_priv *priv)
 {
 	return (priv->active39_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) ? 1 : 0;

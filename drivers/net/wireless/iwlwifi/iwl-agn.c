@@ -2266,41 +2266,6 @@ static void iwl_bg_alive_start(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
-static void iwl_bg_rf_kill(struct work_struct *work)
-{
-	struct iwl_priv *priv = container_of(work, struct iwl_priv, rf_kill);
-
-	wake_up_interruptible(&priv->wait_command_queue);
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	mutex_lock(&priv->mutex);
-
-	if (!iwl_is_rfkill(priv)) {
-		IWL_DEBUG(IWL_DL_RF_KILL,
-			  "HW and/or SW RF Kill no longer active, restarting "
-			  "device\n");
-		if (!test_bit(STATUS_EXIT_PENDING, &priv->status) &&
-		     test_bit(STATUS_ALIVE, &priv->status))
-			queue_work(priv->workqueue, &priv->restart);
-	} else {
-		/* make sure mac80211 stop sending Tx frame */
-		if (priv->mac80211_registered)
-			ieee80211_stop_queues(priv->hw);
-
-		if (!test_bit(STATUS_RF_KILL_HW, &priv->status))
-			IWL_DEBUG_RF_KILL("Can not turn radio back on - "
-					  "disabled by SW switch\n");
-		else
-			IWL_WARN(priv, "Radio Frequency Kill Switch is On:\n"
-				    "Kill switch must be turned off for "
-				    "wireless networking to work.\n");
-	}
-	mutex_unlock(&priv->mutex);
-	iwl_rfkill_set_hw_state(priv);
-}
-
 static void iwl_bg_run_time_calib_work(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
