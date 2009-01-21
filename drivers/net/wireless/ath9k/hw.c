@@ -2255,7 +2255,7 @@ int ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 		return -EINVAL;
 	}
 
-	if (AR_SREV_9280(ah)) {
+	if (AR_SREV_9280_10_OR_LATER(ah)) {
 		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
 			    AR_GPIO_JTAG_DISABLE);
 
