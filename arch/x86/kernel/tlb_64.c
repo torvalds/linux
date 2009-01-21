@@ -1,20 +1,14 @@
 #include <linux/init.h>
 
 #include <linux/mm.h>
-#include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/smp.h>
-#include <linux/kernel_stat.h>
-#include <linux/mc146818rtc.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
-#include <asm/mtrr.h>
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
-#include <asm/proto.h>
-#include <asm/apicdef.h>
-#include <asm/idle.h>
+#include <asm/apic.h>
 #include <asm/uv/uv.h>
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
@@ -121,8 +115,8 @@ EXPORT_SYMBOL_GPL(leave_mm);
 
 asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 {
-	int cpu;
-	int sender;
+	unsigned int cpu;
+	unsigned int sender;
 	union smp_flush_state *f;
 
 	cpu = smp_processor_id();
@@ -155,14 +149,16 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 	}
 out:
 	ack_APIC_irq();
+	smp_mb__before_clear_bit();
 	cpumask_clear_cpu(cpu, to_cpumask(f->flush_cpumask));
+	smp_mb__after_clear_bit();
 	inc_irq_stat(irq_tlb_count);
 }
 
 static void flush_tlb_others_ipi(const struct cpumask *cpumask,
 				 struct mm_struct *mm, unsigned long va)
 {
-	int sender;
+	unsigned int sender;
 	union smp_flush_state *f;
 
 	/* Caller has disabled preemption */

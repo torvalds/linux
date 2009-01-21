@@ -84,13 +84,15 @@ EXPORT_SYMBOL_GPL(leave_mm);
  *
  * 1) Flush the tlb entries if the cpu uses the mm that's being flushed.
  * 2) Leave the mm if we are in the lazy tlb mode.
+ *
+ * Interrupts are disabled.
  */
 
 void smp_invalidate_interrupt(struct pt_regs *regs)
 {
-	unsigned long cpu;
+	unsigned int cpu;
 
-	cpu = get_cpu();
+	cpu = smp_processor_id();
 
 	if (!cpumask_test_cpu(cpu, flush_cpumask))
 		goto out;
@@ -112,12 +114,11 @@ void smp_invalidate_interrupt(struct pt_regs *regs)
 		} else
 			leave_mm(cpu);
 	}
+out:
 	ack_APIC_irq();
 	smp_mb__before_clear_bit();
 	cpumask_clear_cpu(cpu, flush_cpumask);
 	smp_mb__after_clear_bit();
-out:
-	put_cpu_no_resched();
 	inc_irq_stat(irq_tlb_count);
 }
 
@@ -215,7 +216,6 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 		flush_tlb_others(&mm->cpu_vm_mask, mm, va);
 	preempt_enable();
 }
-EXPORT_SYMBOL(flush_tlb_page);
 
 static void do_flush_tlb_all(void *info)
 {
