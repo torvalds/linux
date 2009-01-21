@@ -1005,7 +1005,7 @@ void ehea_error_data(struct ehea_adapter *adapter, u64 res_handle)
 	unsigned long ret;
 	u64 *rblock;
 
-	rblock = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	rblock = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!rblock) {
 		ehea_error("Cannot allocate rblock memory.");
 		return;
@@ -1022,5 +1022,5 @@ void ehea_error_data(struct ehea_adapter *adapter, u64 res_handle)
 	else
 		ehea_error("Error data could not be fetched: %llX", res_handle);
 
-	kfree(rblock);
+	free_page((unsigned long)rblock);
 }
