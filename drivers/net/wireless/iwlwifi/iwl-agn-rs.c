@@ -148,6 +148,7 @@ struct iwl_lq_sta {
 	u16 active_mimo2_rate;
 	u16 active_mimo3_rate;
 	u16 active_rate_basic;
+	s8 max_rate_idx;     /* Max rate set by user */
 
 	struct iwl_link_quality_cmd lq;
 	struct iwl_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
@@ -1759,6 +1760,15 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		return;
 	}
 
+	/* force user max rate if set by user */
+	if ((lq_sta->max_rate_idx != -1) &&
+	    (lq_sta->max_rate_idx < index)) {
+		index = lq_sta->max_rate_idx;
+		update_lq = 1;
+		window = &(tbl->win[index]);
+		goto lq_update;
+	}
+
 	window = &(tbl->win[index]);
 
 	/*
@@ -1849,6 +1859,11 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 					tbl->lq_type);
 	low = high_low & 0xff;
 	high = (high_low >> 8) & 0xff;
+
+	/* If user set max rate, dont allow higher than user constrain */
+	if ((lq_sta->max_rate_idx != -1) &&
+	    (lq_sta->max_rate_idx < high))
+		high = IWL_RATE_INVALID;
 
 	sr = window->success_ratio;
 
@@ -2110,6 +2125,17 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 
 	IWL_DEBUG_RATE_LIMIT("rate scale calculate new rate for skb\n");
 
+	/* Get max rate if user set max rate */
+	if (lq_sta) {
+		lq_sta->max_rate_idx = txrc->max_rate_idx;
+		if ((sband->band == IEEE80211_BAND_5GHZ) &&
+		    (lq_sta->max_rate_idx != -1))
+			lq_sta->max_rate_idx += IWL_FIRST_OFDM_RATE;
+		if ((lq_sta->max_rate_idx < 0) ||
+		    (lq_sta->max_rate_idx >= IWL_RATE_COUNT))
+			lq_sta->max_rate_idx = -1;
+	}
+
 	if (sta)
 		mask_bit = sta->supp_rates[sband->band];
 
@@ -2220,6 +2246,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	}
 
 	lq_sta->is_dup = 0;
+	lq_sta->max_rate_idx = -1;
 	lq_sta->is_green = rs_use_green(priv, conf);
 	lq_sta->active_legacy_rate = priv->active_rate & ~(0x1000);
 	lq_sta->active_rate_basic = priv->active_rate_basic;

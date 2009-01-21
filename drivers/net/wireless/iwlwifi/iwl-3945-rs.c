@@ -651,6 +651,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	u16 fc;
 	u16 rate_mask = 0;
+	s8 max_rate_idx = -1;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
@@ -674,6 +675,13 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 					rate_lowest_index(sband, sta);
 		return;
 	}
+
+	/* get user max rate if set */
+	max_rate_idx = txrc->max_rate_idx;
+	if ((sband->band == IEEE80211_BAND_5GHZ) && (max_rate_idx != -1))
+		max_rate_idx += IWL_FIRST_OFDM_RATE;
+	if ((max_rate_idx < 0) || (max_rate_idx >= IWL_RATE_COUNT))
+		max_rate_idx = -1;
 
 	index = min(rs_sta->last_txrate_idx & 0xffff, IWL_RATE_COUNT_3945 - 1);
 
@@ -706,6 +714,12 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 		rs_sta->start_rate = IWL_RATE_INVALID;
 	}
 
+	/* force user max rate if set by user */
+	if ((max_rate_idx != -1) && (max_rate_idx < index)) {
+		if (rate_mask & (1 << max_rate_idx))
+			index = max_rate_idx;
+	}
+
 	window = &(rs_sta->win[index]);
 
 	fail_count = window->counter - window->success_counter;
@@ -731,6 +745,10 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 					     sband->band);
 	low = high_low & 0xff;
 	high = (high_low >> 8) & 0xff;
+
+	/* If user set max rate, dont allow higher than user constrain */
+	if ((max_rate_idx != -1) && (max_rate_idx < high))
+		high = IWL_RATE_INVALID;
 
 	if (low != IWL_RATE_INVALID)
 		low_tpt = rs_sta->win[low].average_tpt;
