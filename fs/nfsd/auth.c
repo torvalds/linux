@@ -49,6 +49,8 @@ int nfsd_setuser(struct svc_rqst *rqstp, struct svc_export *exp)
 		new->fsuid = exp->ex_anon_uid;
 		new->fsgid = exp->ex_anon_gid;
 		gi = groups_alloc(0);
+		if (!gi)
+			goto oom;
 	} else if (flags & NFSEXP_ROOTSQUASH) {
 		if (!new->fsuid)
 			new->fsuid = exp->ex_anon_uid;
