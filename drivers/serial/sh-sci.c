@@ -1082,20 +1082,6 @@ static void __init sci_init_ports(void)
 	}
 }
 
-int __init early_sci_setup(struct uart_port *port)
-{
-	if (unlikely(port->line > SCI_NPORTS))
-		return -ENODEV;
-
-	sci_init_ports();
-
-	sci_ports[port->line].port.membase	= port->membase;
-	sci_ports[port->line].port.mapbase	= port->mapbase;
-	sci_ports[port->line].port.type		= port->type;
-
-	return 0;
-}
-
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
 /*
  *	Print a string to the serial port trying not to disturb

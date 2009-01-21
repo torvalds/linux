@@ -27,6 +27,4 @@ struct plat_sci_port {
 	upf_t		flags;			/* UPF_* flags */
 };
 
-int early_sci_setup(struct uart_port *port);
-
 #endif /* __LINUX_SERIAL_SCI_H */
