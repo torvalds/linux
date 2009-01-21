@@ -156,6 +156,7 @@ static int __devinit snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard
 	struct snd_card_ad1816a *acard;
 	struct snd_ad1816a *chip;
 	struct snd_opl3 *opl3;
+	struct snd_timer *timer;
 
 	if ((card = snd_card_new(index[dev], id[dev], THIS_MODULE,
 				 sizeof(struct snd_card_ad1816a))) == NULL)
@@ -190,6 +191,12 @@ static int __devinit snd_card_ad1816a_probe(int dev, struct pnp_card_link *pcard
 	}
 
 	if ((error = snd_ad1816a_mixer(chip)) < 0) {
+		snd_card_free(card);
+		return error;
+	}
+
+	error = snd_ad1816a_timer(chip, 0, &timer);
+	if (error < 0) {
 		snd_card_free(card);
 		return error;
 	}

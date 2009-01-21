@@ -377,7 +377,6 @@ static struct snd_pcm_hardware snd_ad1816a_capture = {
 	.fifo_size =		0,
 };
 
-#if 0 /* not used now */
 static int snd_ad1816a_timer_close(struct snd_timer *timer)
 {
 	struct snd_ad1816a *chip = snd_timer_chip(timer);
@@ -442,8 +441,6 @@ static struct snd_timer_hardware snd_ad1816a_timer_table = {
 	.start =	snd_ad1816a_timer_start,
 	.stop =		snd_ad1816a_timer_stop,
 };
-#endif /* not used now */
-
 
 static int snd_ad1816a_playback_open(struct snd_pcm_substream *substream)
 {
@@ -687,7 +684,6 @@ int __devinit snd_ad1816a_pcm(struct snd_ad1816a *chip, int device, struct snd_p
 	return 0;
 }
 
-#if 0 /* not used now */
 int __devinit snd_ad1816a_timer(struct snd_ad1816a *chip, int device, struct snd_timer **rtimer)
 {
 	struct snd_timer *timer;
@@ -709,7 +705,6 @@ int __devinit snd_ad1816a_timer(struct snd_ad1816a *chip, int device, struct snd
 		*rtimer = timer;
 	return 0;
 }
-#endif /* not used now */
 
 /*
  *
