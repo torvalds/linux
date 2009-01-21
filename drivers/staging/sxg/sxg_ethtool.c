@@ -161,14 +161,14 @@ static int sxg_nic_set_settings(struct net_device *netdev,
 	return -EOPNOTSUPP;
 }
 
-static int
+static void
 sxg_nic_get_strings(struct net_device *netdev, u32 stringset, u8 * data)
 {
 	int index;
 
 	switch(stringset) {
-		case ETH_SS_TEST:
-			return -EOPNOTSUPP;
+	case ETH_SS_TEST:
+		/* return -EOPNOTSUPP; */
 		break;
 	case ETH_SS_STATS:
 		for (index = 0; index < SXG_NIC_STATS_LEN; index++) {
@@ -228,7 +228,7 @@ static int sxg_nic_get_settings(struct net_device *netdev,
 	return 0;
 }
 
-static int sxg_nic_get_rx_csum(struct net_device *netdev)
+static u32 sxg_nic_get_rx_csum(struct net_device *netdev)
 {
 	struct adapter_t *adapter = netdev_priv(netdev);
 	return ((adapter->flags & SXG_RCV_IP_CSUM_ENABLED) ||
@@ -266,11 +266,12 @@ static void sxg_nic_get_regs(struct net_device *netdev,
 	memcpy((buff+sizeof(struct sxg_hw_regs)), UcodeRegs, sizeof(struct sxg_ucode_regs));
 }
 
-static int sxg_nic_get_wol(struct net_device *netdev,
-				struct ethtool_wolinfo *wol)
+static void sxg_nic_get_wol(struct net_device *netdev,
+			    struct ethtool_wolinfo *wol)
 {
 	/* We dont support wake-on-lan */
-	return -EOPNOTSUPP;
+	wol->supported = 0;
+	memset(&wol->sopass, 0, sizeof(wol->sopass));
 }
 
 static int sxg_nic_get_eeprom_len(struct net_device *netdev)
