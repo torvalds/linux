@@ -94,6 +94,7 @@ config SND_CMI8330
 	tristate "C-Media CMI8330"
 	select SND_WSS_LIB
 	select SND_SB16_DSP
+	select SND_OPL3_LIB
 	help
 	  Say Y here to include support for soundcards based on the
 	  C-Media CMI8330 chip.
