@@ -251,10 +251,6 @@ typedef union p80211_hdr
 
 
 /*================================================================*/
-/* Extern Declarations */
-
-
-/*================================================================*/
 /* Function Declarations */
 
 /* Frame and header lenght macros */

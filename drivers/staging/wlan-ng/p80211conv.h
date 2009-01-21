@@ -169,9 +169,6 @@ typedef struct wlan_snap
 struct wlandevice;
 
 /*================================================================*/
-/* Externs */
-
-/*================================================================*/
 /*Function Declarations */
 
 int skb_p80211_to_ether( struct wlandevice *wlandev, u32 ethconv,
