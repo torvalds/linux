@@ -15,8 +15,7 @@
 #include <asm/proto.h>
 #include <asm/apicdef.h>
 #include <asm/idle.h>
-#include <asm/uv/uv_hub.h>
-#include <asm/uv/uv_bau.h>
+#include <asm/uv/uv.h>
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
 			= { &init_mm, 0, };
@@ -206,16 +205,13 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 			     struct mm_struct *mm, unsigned long va)
 {
 	if (is_uv_system()) {
-		/* FIXME: could be an percpu_alloc'd thing */
-		static DEFINE_PER_CPU(cpumask_t, flush_tlb_mask);
-		struct cpumask *after_uv_flush = &get_cpu_var(flush_tlb_mask);
+		unsigned int cpu;
 
-		cpumask_andnot(after_uv_flush, cpumask,
-			       cpumask_of(smp_processor_id()));
-		if (!uv_flush_tlb_others(after_uv_flush, mm, va))
-			flush_tlb_others_ipi(after_uv_flush, mm, va);
-
-		put_cpu_var(flush_tlb_uv_cpumask);
+		cpu = get_cpu();
+		cpumask = uv_flush_tlb_others(cpumask, mm, va, cpu);
+		if (cpumask)
+			flush_tlb_others_ipi(cpumask, mm, va);
+		put_cpu();
 		return;
 	}
 	flush_tlb_others_ipi(cpumask, mm, va);

@@ -28,6 +28,7 @@
 #include <asm/apic.h>
 #include <mach_apic.h>
 #include <asm/genapic.h>
+#include <asm/uv/uv.h>
 #endif
 
 #include <asm/pgtable.h>

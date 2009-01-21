@@ -62,6 +62,7 @@
 #include <asm/vmi.h>
 #include <asm/genapic.h>
 #include <asm/setup.h>
+#include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 
 #include <mach_apic.h>
