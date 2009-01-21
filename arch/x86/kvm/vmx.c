@@ -3687,8 +3687,7 @@ static int __init vmx_init(void)
 	if (vm_need_ept()) {
 		bypass_guest_pf = 0;
 		kvm_mmu_set_base_ptes(VMX_EPT_READABLE_MASK |
-			VMX_EPT_WRITABLE_MASK |
-			VMX_EPT_IGMT_BIT);
+			VMX_EPT_WRITABLE_MASK);
 		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
 				VMX_EPT_EXECUTABLE_MASK,
 				VMX_EPT_DEFAULT_MT << VMX_EPT_MT_EPTE_SHIFT);
