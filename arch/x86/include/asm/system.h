@@ -89,13 +89,15 @@ do {									\
 #ifdef CONFIG_CC_STACKPROTECTOR
 #define __switch_canary							  \
 	"movq %P[task_canary](%%rsi),%%r8\n\t"				  \
-	"movq %%r8,%%gs:%P[gs_canary]\n\t"
-#define __switch_canary_param						  \
-	, [task_canary] "i" (offsetof(struct task_struct, stack_canary))  \
-	, [gs_canary] "i" (offsetof(union irq_stack_union, stack_canary))
+	"movq %%r8,"__percpu_arg([gs_canary])"\n\t"
+#define __switch_canary_oparam						  \
+	, [gs_canary] "=m" (per_cpu_var(irq_stack_union.stack_canary))
+#define __switch_canary_iparam						  \
+	, [task_canary] "i" (offsetof(struct task_struct, stack_canary))
 #else	/* CC_STACKPROTECTOR */
 #define __switch_canary
-#define __switch_canary_param
+#define __switch_canary_oparam
+#define __switch_canary_iparam
 #endif	/* CC_STACKPROTECTOR */
 
 /* Save restore flags to clear handle leaking NT */
@@ -114,13 +116,14 @@ do {									\
 	     "jc   ret_from_fork\n\t"					  \
 	     RESTORE_CONTEXT						  \
 	     : "=a" (last)					  	  \
+	       __switch_canary_oparam					  \
 	     : [next] "S" (next), [prev] "D" (prev),			  \
 	       [threadrsp] "i" (offsetof(struct task_struct, thread.sp)), \
 	       [ti_flags] "i" (offsetof(struct thread_info, flags)),	  \
 	       [tif_fork] "i" (TIF_FORK),			  	  \
 	       [thread_info] "i" (offsetof(struct task_struct, stack)),   \
 	       [current_task] "m" (per_cpu_var(current_task))		  \
-	       __switch_canary_param					  \
+	       __switch_canary_iparam					  \
 	     : "memory", "cc" __EXTRA_CLOBBER)
 #endif
 
