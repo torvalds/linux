@@ -370,8 +370,6 @@ static void ehea_refill_rq1(struct ehea_port_res *pr, int index, int nr_of_wqes)
 							      EHEA_L_PKT_SIZE);
 			if (!skb_arr_rq1[index]) {
 				pr->rq1_skba.os_skbs = fill_wqes - i;
-				ehea_error("%s: no mem for skb/%d wqes filled",
-					   dev->name, i);
 				break;
 			}
 		}
@@ -387,26 +385,19 @@ static void ehea_refill_rq1(struct ehea_port_res *pr, int index, int nr_of_wqes)
 	ehea_update_rq1a(pr->qp, adder);
 }
 
-static int ehea_init_fill_rq1(struct ehea_port_res *pr, int nr_rq1a)
+static void ehea_init_fill_rq1(struct ehea_port_res *pr, int nr_rq1a)
 {
-	int ret = 0;
 	struct sk_buff **skb_arr_rq1 = pr->rq1_skba.arr;
 	struct net_device *dev = pr->port->netdev;
 	int i;
 
 	for (i = 0; i < pr->rq1_skba.len; i++) {
 		skb_arr_rq1[i] = netdev_alloc_skb(dev, EHEA_L_PKT_SIZE);
-		if (!skb_arr_rq1[i]) {
-			ehea_error("%s: no mem for skb/%d wqes filled",
-				   dev->name, i);
-			ret = -ENOMEM;
-			goto out;
-		}
+		if (!skb_arr_rq1[i])
+			break;
 	}
 	/* Ring doorbell */
 	ehea_update_rq1a(pr->qp, nr_rq1a);
-out:
-	return ret;
 }
 
 static int ehea_refill_rq_def(struct ehea_port_res *pr,
@@ -435,10 +426,12 @@ static int ehea_refill_rq_def(struct ehea_port_res *pr,
 		u64 tmp_addr;
 		struct sk_buff *skb = netdev_alloc_skb(dev, packet_size);
 		if (!skb) {
-			ehea_error("%s: no mem for skb/%d wqes filled",
-				   pr->port->netdev->name, i);
 			q_skba->os_skbs = fill_wqes - i;
-			ret = -ENOMEM;
+			if (q_skba->os_skbs == q_skba->len - 2) {
+				ehea_info("%s: rq%i ran dry - no mem for skb",
+					  pr->port->netdev->name, rq_nr);
+				ret = -ENOMEM;
+			}
 			break;
 		}
 		skb_reserve(skb, NET_IP_ALIGN);
@@ -1201,11 +1194,11 @@ static int ehea_fill_port_res(struct ehea_port_res *pr)
 	int ret;
 	struct ehea_qp_init_attr *init_attr = &pr->qp->init_attr;
 
-	ret = ehea_init_fill_rq1(pr, init_attr->act_nr_rwqes_rq1
-				     - init_attr->act_nr_rwqes_rq2
-				     - init_attr->act_nr_rwqes_rq3 - 1);
+	ehea_init_fill_rq1(pr, init_attr->act_nr_rwqes_rq1
+			       - init_attr->act_nr_rwqes_rq2
+			       - init_attr->act_nr_rwqes_rq3 - 1);
 
-	ret |= ehea_refill_rq2(pr, init_attr->act_nr_rwqes_rq2 - 1);
+	ret = ehea_refill_rq2(pr, init_attr->act_nr_rwqes_rq2 - 1);
 
 	ret |= ehea_refill_rq3(pr, init_attr->act_nr_rwqes_rq3 - 1);
 
