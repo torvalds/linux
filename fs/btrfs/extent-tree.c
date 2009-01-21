@@ -5952,9 +5952,11 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 
-	btrfs_remove_free_space_cache(block_group);
+	spin_lock(&root->fs_info->block_group_cache_lock);
 	rb_erase(&block_group->cache_node,
 		 &root->fs_info->block_group_cache_tree);
+	spin_unlock(&root->fs_info->block_group_cache_lock);
+	btrfs_remove_free_space_cache(block_group);
 	down_write(&block_group->space_info->groups_sem);
 	list_del(&block_group->list);
 	up_write(&block_group->space_info->groups_sem);
