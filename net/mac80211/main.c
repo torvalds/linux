@@ -176,7 +176,7 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 	else if (sdata->vif.type == NL80211_IFTYPE_AP)
 		conf.bssid = sdata->dev->dev_addr;
 	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		u8 zero[ETH_ALEN] = { 0 };
+		static const u8 zero[ETH_ALEN] = { 0 };
 		conf.bssid = zero;
 	} else {
 		WARN_ON(1);
