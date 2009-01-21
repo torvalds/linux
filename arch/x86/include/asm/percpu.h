@@ -75,7 +75,7 @@ do {							\
 	case 8:						\
 		asm(op "q %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
-		    : "r" ((T__)val));			\
+		    : "re" ((T__)val));			\
 		break;					\
 	default: __bad_percpu_size();			\
 	}						\

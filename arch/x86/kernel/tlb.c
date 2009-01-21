@@ -1,22 +1,15 @@
 #include <linux/init.h>
 
 #include <linux/mm.h>
-#include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/smp.h>
-#include <linux/kernel_stat.h>
-#include <linux/mc146818rtc.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
-#include <asm/mtrr.h>
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
-#include <asm/proto.h>
-#include <asm/apicdef.h>
-#include <asm/idle.h>
-#include <asm/uv/uv_hub.h>
-#include <asm/uv/uv_bau.h>
+#include <asm/apic.h>
+#include <asm/uv/uv.h>
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
 			= { &init_mm, 0, };
@@ -120,10 +113,20 @@ EXPORT_SYMBOL_GPL(leave_mm);
  * Interrupts are disabled.
  */
 
-asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
+/*
+ * FIXME: use of asmlinkage is not consistent.  On x86_64 it's noop
+ * but still used for documentation purpose but the usage is slightly
+ * inconsistent.  On x86_32, asmlinkage is regparm(0) but interrupt
+ * entry calls in with the first parameter in %eax.  Maybe define
+ * intrlinkage?
+ */
+#ifdef CONFIG_X86_64
+asmlinkage
+#endif
+void smp_invalidate_interrupt(struct pt_regs *regs)
 {
-	int cpu;
-	int sender;
+	unsigned int cpu;
+	unsigned int sender;
 	union smp_flush_state *f;
 
 	cpu = smp_processor_id();
@@ -156,14 +159,16 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 	}
 out:
 	ack_APIC_irq();
+	smp_mb__before_clear_bit();
 	cpumask_clear_cpu(cpu, to_cpumask(f->flush_cpumask));
+	smp_mb__after_clear_bit();
 	inc_irq_stat(irq_tlb_count);
 }
 
 static void flush_tlb_others_ipi(const struct cpumask *cpumask,
 				 struct mm_struct *mm, unsigned long va)
 {
-	int sender;
+	unsigned int sender;
 	union smp_flush_state *f;
 
 	/* Caller has disabled preemption */
@@ -206,16 +211,13 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
 			     struct mm_struct *mm, unsigned long va)
 {
 	if (is_uv_system()) {
-		/* FIXME: could be an percpu_alloc'd thing */
-		static DEFINE_PER_CPU(cpumask_t, flush_tlb_mask);
-		struct cpumask *after_uv_flush = &get_cpu_var(flush_tlb_mask);
+		unsigned int cpu;
 
-		cpumask_andnot(after_uv_flush, cpumask,
-			       cpumask_of(smp_processor_id()));
-		if (!uv_flush_tlb_others(after_uv_flush, mm, va))
-			flush_tlb_others_ipi(after_uv_flush, mm, va);
-
-		put_cpu_var(flush_tlb_uv_cpumask);
+		cpu = get_cpu();
+		cpumask = uv_flush_tlb_others(cpumask, mm, va, cpu);
+		if (cpumask)
+			flush_tlb_others_ipi(cpumask, mm, va);
+		put_cpu();
 		return;
 	}
 	flush_tlb_others_ipi(cpumask, mm, va);

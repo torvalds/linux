@@ -672,7 +672,7 @@ common_interrupt:
 ENDPROC(common_interrupt)
 	CFI_ENDPROC
 
-#define BUILD_INTERRUPT(name, nr)	\
+#define BUILD_INTERRUPT3(name, nr, fn)	\
 ENTRY(name)				\
 	RING0_INT_FRAME;		\
 	pushl $~(nr);			\
@@ -680,10 +680,12 @@ ENTRY(name)				\
 	SAVE_ALL;			\
 	TRACE_IRQS_OFF			\
 	movl %esp,%eax;			\
-	call smp_##name;		\
+	call fn;			\
 	jmp ret_from_intr;		\
 	CFI_ENDPROC;			\
 ENDPROC(name)
+
+#define BUILD_INTERRUPT(name, nr)	BUILD_INTERRUPT3(name, nr, smp_##name)
 
 /* The include is where all of the SMP etc. interrupts come from */
 #include "entry_arch.h"
