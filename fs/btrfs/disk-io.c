@@ -1823,13 +1823,14 @@ fail_sb_buffer:
 fail_iput:
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 	iput(fs_info->btree_inode);
-fail:
+
 	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+	bdi_destroy(&fs_info->bdi);
 
+fail:
 	kfree(extent_root);
 	kfree(tree_root);
-	bdi_destroy(&fs_info->bdi);
 	kfree(fs_info);
 	kfree(chunk_root);
 	kfree(dev_root);
