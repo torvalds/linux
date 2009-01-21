@@ -199,7 +199,8 @@ sensor_found:
 int s5k83a_init(struct sd *sd)
 {
 	int i, err = 0;
-	s32 *sensor_settings = sd->sensor_priv;
+	s32 *sensor_settings =
+			((struct s5k83a_priv *) sd->sensor_priv)->settings;
 
 	for (i = 0; i < ARRAY_SIZE(init_s5k83a) && !err; i++) {
 		u8 data[2] = {0x00, 0x00};
