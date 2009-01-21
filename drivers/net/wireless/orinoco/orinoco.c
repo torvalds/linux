@@ -3604,7 +3604,7 @@ struct net_device
 	struct orinoco_private *priv;
 
 	dev = alloc_etherdev(sizeof(struct orinoco_private) + sizeof_card);
-	if (! dev)
+	if (!dev)
 		return NULL;
 	priv = netdev_priv(dev);
 	priv->ndev = dev;
@@ -3619,7 +3619,7 @@ struct net_device
 	dev->netdev_ops = &orinoco_netdev_ops;
 	dev->watchdog_timeo = HZ; /* 1 second timeout */
 	dev->ethtool_ops = &orinoco_ethtool_ops;
-	dev->wireless_handlers = (struct iw_handler_def *)&orinoco_handler_def;
+	dev->wireless_handlers = &orinoco_handler_def;
 #ifdef WIRELESS_SPY
 	priv->wireless_data.spy_data = &priv->spy_data;
 	dev->wireless_data = &priv->wireless_data;
