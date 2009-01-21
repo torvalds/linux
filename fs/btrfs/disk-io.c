@@ -1739,13 +1739,13 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->system_alloc_profile = fs_info->metadata_alloc_profile;
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
 					       "btrfs-cleaner");
-	if (!fs_info->cleaner_kthread)
+	if (IS_ERR(fs_info->cleaner_kthread))
 		goto fail_csum_root;
 
 	fs_info->transaction_kthread = kthread_run(transaction_kthread,
 						   tree_root,
 						   "btrfs-transaction");
-	if (!fs_info->transaction_kthread)
+	if (IS_ERR(fs_info->transaction_kthread))
 		goto fail_cleaner;
 
 	if (btrfs_super_log_root(disk_super) != 0) {
