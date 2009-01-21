@@ -198,21 +198,21 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 
 	switch ( wlandev->macmode ) {
 	case WLAN_MACMODE_IBSS_STA:
-		memcpy(p80211_hdr->a3.a1, &e_hdr.daddr, WLAN_ADDR_LEN);
-		memcpy(p80211_hdr->a3.a2, wlandev->netdev->dev_addr, WLAN_ADDR_LEN);
-		memcpy(p80211_hdr->a3.a3, wlandev->bssid, WLAN_ADDR_LEN);
+		memcpy(p80211_hdr->a3.a1, &e_hdr.daddr, ETH_ALEN);
+		memcpy(p80211_hdr->a3.a2, wlandev->netdev->dev_addr, ETH_ALEN);
+		memcpy(p80211_hdr->a3.a3, wlandev->bssid, ETH_ALEN);
 		break;
 	case WLAN_MACMODE_ESS_STA:
 		fc |= host2ieee16(WLAN_SET_FC_TODS(1));
-		memcpy(p80211_hdr->a3.a1, wlandev->bssid, WLAN_ADDR_LEN);
-		memcpy(p80211_hdr->a3.a2, wlandev->netdev->dev_addr, WLAN_ADDR_LEN);
-		memcpy(p80211_hdr->a3.a3, &e_hdr.daddr, WLAN_ADDR_LEN);
+		memcpy(p80211_hdr->a3.a1, wlandev->bssid, ETH_ALEN);
+		memcpy(p80211_hdr->a3.a2, wlandev->netdev->dev_addr, ETH_ALEN);
+		memcpy(p80211_hdr->a3.a3, &e_hdr.daddr, ETH_ALEN);
 		break;
 	case WLAN_MACMODE_ESS_AP:
 		fc |= host2ieee16(WLAN_SET_FC_FROMDS(1));
-		memcpy(p80211_hdr->a3.a1, &e_hdr.daddr, WLAN_ADDR_LEN);
-		memcpy(p80211_hdr->a3.a2, wlandev->bssid, WLAN_ADDR_LEN);
-		memcpy(p80211_hdr->a3.a3, &e_hdr.saddr, WLAN_ADDR_LEN);
+		memcpy(p80211_hdr->a3.a1, &e_hdr.daddr, ETH_ALEN);
+		memcpy(p80211_hdr->a3.a2, wlandev->bssid, ETH_ALEN);
+		memcpy(p80211_hdr->a3.a3, &e_hdr.saddr, ETH_ALEN);
 		break;
 	default:
 		WLAN_LOG_ERROR("Error: Converting eth to wlan in unknown mode.\n");

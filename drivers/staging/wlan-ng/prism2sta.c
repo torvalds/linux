@@ -70,6 +70,7 @@
 #include <linux/delay.h>
 #include <asm/byteorder.h>
 #include <linux/if_arp.h>
+#include <linux/if_ether.h>
 
 #include "wlan_compat.h"
 
@@ -920,7 +921,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	/* Collect the MAC address */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_CNFOWNMACADDR,
-		wlandev->netdev->dev_addr, WLAN_ADDR_LEN);
+		wlandev->netdev->dev_addr, ETH_ALEN);
 	if ( result != 0 ) {
 		WLAN_LOG_ERROR("Failed to retrieve mac address\n");
 		goto failed;
@@ -1588,7 +1589,7 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 	*/
 
 	for (i = 0; i < hw->authlist.cnt; i++)
-		if (memcmp(rec.sta_addr, hw->authlist.addr[i], WLAN_ADDR_LEN) == 0)
+		if (memcmp(rec.sta_addr, hw->authlist.addr[i], ETH_ALEN) == 0)
 			break;
 
 	if (i >= hw->authlist.cnt) {
@@ -1662,7 +1663,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 	** authentication.
 	*/
 
-	memcpy(rec.address, inf->info.authreq.sta_addr, WLAN_ADDR_LEN);
+	memcpy(rec.address, inf->info.authreq.sta_addr, ETH_ALEN);
 	rec.status = P80211ENUM_status_unspec_failure;
 
 	/*
@@ -1679,7 +1680,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 
 			for (i = 0; i < hw->authlist.cnt; i++)
 				if (memcmp(rec.address, hw->authlist.addr[i],
-						WLAN_ADDR_LEN) == 0) {
+						ETH_ALEN) == 0) {
 					rec.status = P80211ENUM_status_successful;
 					break;
 				}
@@ -1715,8 +1716,8 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 				addr = hw->allow.addr1[0];
 			}
 
-			for (i = 0; i < cnt; i++, addr += WLAN_ADDR_LEN)
-				if (memcmp(rec.address, addr, WLAN_ADDR_LEN) == 0) {
+			for (i = 0; i < cnt; i++, addr += ETH_ALEN)
+				if (memcmp(rec.address, addr, ETH_ALEN) == 0) {
 					rec.status = P80211ENUM_status_successful;
 					break;
 				}
@@ -1745,8 +1746,8 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 
 			rec.status = P80211ENUM_status_successful;
 
-			for (i = 0; i < cnt; i++, addr += WLAN_ADDR_LEN)
-				if (memcmp(rec.address, addr, WLAN_ADDR_LEN) == 0) {
+			for (i = 0; i < cnt; i++, addr += ETH_ALEN)
+				if (memcmp(rec.address, addr, ETH_ALEN) == 0) {
 					rec.status = P80211ENUM_status_unspec_failure;
 					break;
 				}
@@ -1767,7 +1768,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 
 	if (rec.status == P80211ENUM_status_successful) {
 		for (i = 0; i < hw->authlist.cnt; i++)
-			if (memcmp(rec.address, hw->authlist.addr[i], WLAN_ADDR_LEN) == 0)
+			if (memcmp(rec.address, hw->authlist.addr[i], ETH_ALEN) == 0)
 				break;
 
 		if (i >= hw->authlist.cnt) {
@@ -1775,7 +1776,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 				rec.status = P80211ENUM_status_ap_full;
 			} else {
 				memcpy(hw->authlist.addr[hw->authlist.cnt],
-					rec.address, WLAN_ADDR_LEN);
+					rec.address, ETH_ALEN);
 				hw->authlist.cnt++;
 				added = 1;
 			}

@@ -63,6 +63,8 @@
 /*================================================================*/
 /* System Includes */
 
+#include <linux/if_ether.h>
+
 /*================================================================*/
 /* Project Includes */
 
@@ -75,7 +77,6 @@
 /* Constants */
 
 /*--- Sizes -----------------------------------------------*/
-#define WLAN_ADDR_LEN			6
 #define WLAN_CRC_LEN			4
 #define WLAN_BSSID_LEN			6
 #define WLAN_BSS_TS_LEN			8
@@ -225,9 +226,9 @@ typedef struct p80211_hdr_a3
 {
 	u16	fc;
 	u16	dur;
-	u8	a1[WLAN_ADDR_LEN];
-	u8	a2[WLAN_ADDR_LEN];
-	u8	a3[WLAN_ADDR_LEN];
+	u8	a1[ETH_ALEN];
+	u8	a2[ETH_ALEN];
+	u8	a3[ETH_ALEN];
 	u16	seq;
 } __attribute__((packed)) p80211_hdr_a3_t;
 
@@ -235,11 +236,11 @@ typedef struct p80211_hdr_a4
 {
 	u16	fc;
 	u16	dur;
-	u8	a1[WLAN_ADDR_LEN];
-	u8	a2[WLAN_ADDR_LEN];
-	u8	a3[WLAN_ADDR_LEN];
+	u8	a1[ETH_ALEN];
+	u8	a2[ETH_ALEN];
+	u8	a3[ETH_ALEN];
 	u16	seq;
-	u8	a4[WLAN_ADDR_LEN];
+	u8	a4[ETH_ALEN];
 } __attribute__((packed)) p80211_hdr_a4_t;
 
 typedef union p80211_hdr
@@ -282,7 +283,7 @@ inline static u16 p80211_headerlen(u16 fctl)
 	case WLAN_FTYPE_DATA:
 		hdrlen = WLAN_HDR_A3_LEN;
 		if ( WLAN_GET_FC_TODS(fctl) && WLAN_GET_FC_FROMDS(fctl) ) {
-			hdrlen += WLAN_ADDR_LEN;
+			hdrlen += ETH_ALEN;
 		}
 		break;
 	case WLAN_FTYPE_CTL:

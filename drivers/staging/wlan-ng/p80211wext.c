@@ -51,6 +51,7 @@
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
+#include <linux/if_ether.h>
 
 /*================================================================*/
 /* Project Includes */
@@ -1805,9 +1806,9 @@ int p80211wext_event_associated(wlandevice_t *wlandev, int assoc)
         /* Send the association state first */
         data.ap_addr.sa_family = ARPHRD_ETHER;
         if (assoc) {
-                memcpy(data.ap_addr.sa_data, wlandev->bssid, WLAN_ADDR_LEN);
+                memcpy(data.ap_addr.sa_data, wlandev->bssid, ETH_ALEN);
         } else {
-                memset(data.ap_addr.sa_data, 0, WLAN_ADDR_LEN);
+                memset(data.ap_addr.sa_data, 0, ETH_ALEN);
         }
 
         if (wlan_wext_write)

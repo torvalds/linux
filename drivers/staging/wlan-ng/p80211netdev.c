@@ -70,6 +70,7 @@
 #include <linux/wireless.h>
 #include <linux/sockios.h>
 #include <linux/etherdevice.h>
+#include <linux/if_ether.h>
 
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
@@ -347,7 +348,7 @@ static void p80211netdev_rx_bh(unsigned long arg)
 				/* perform mcast filtering */
 				if (wlandev->netdev->flags & IFF_ALLMULTI) {
 					/* allow my local address through */
-					if (memcmp(hdr->a1, wlandev->netdev->dev_addr, WLAN_ADDR_LEN) != 0) {
+					if (memcmp(hdr->a1, wlandev->netdev->dev_addr, ETH_ALEN) != 0) {
 						/* but reject anything else that isn't multicast */
 						if (!(hdr->a1[0] & 0x01)) {
 							dev_kfree_skb(skb);
@@ -728,8 +729,8 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	macaddr->did = DIDmib_dot11mac_dot11OperationTable_dot11MACAddress;
 	macaddr->status = P80211ENUM_msgitem_status_data_ok;
 	macaddr->len = sizeof(macaddr->data);
-	macaddr->data.len = WLAN_ADDR_LEN;
-	memcpy(&macaddr->data.data, new_addr->sa_data, WLAN_ADDR_LEN);
+	macaddr->data.len = ETH_ALEN;
+	memcpy(&macaddr->data.data, new_addr->sa_data, ETH_ALEN);
 
 	/* Set up the resultcode argument */
 	resultcode->did = DIDmsg_dot11req_mibset_resultcode;

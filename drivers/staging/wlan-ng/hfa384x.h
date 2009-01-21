@@ -61,6 +61,8 @@
 
 #define HFA384x_LEVEL_TO_dBm(v)   (0x100 + (v) * 100 / 255 - 100)
 
+#include <linux/if_ether.h>
+
 /*------ Constants --------------------------------------------*/
 /*--- Mins & Maxs -----------------------------------*/
 #define		HFA384x_CMD_ALLOC_LEN_MIN	((u16)4)
@@ -450,7 +452,7 @@ Configuration RID Lengths: Network Param, Dynamic Config Entities
   include the len or code fields)
 --------------------------------------------------------------------*/
 /* TODO: fill in the rest of these */
-#define		HFA384x_RID_GROUPADDR_LEN	((u16)16 * WLAN_ADDR_LEN)
+#define		HFA384x_RID_GROUPADDR_LEN	((u16)16 * ETH_ALEN)
 #define		HFA384x_RID_CREATEIBSS_LEN	((u16)0)
 #define		HFA384x_RID_FRAGTHRESH_LEN	((u16)0)
 #define		HFA384x_RID_RTSTHRESH_LEN	((u16)0)
@@ -1130,7 +1132,7 @@ typedef struct hfa384x_JoinRequest_data
 /*-- Configuration Record: authenticateStation (data portion only) --*/
 typedef struct hfa384x_authenticateStation_data
 {
-	u8	address[WLAN_ADDR_LEN];
+	u8	address[ETH_ALEN];
 	u16	status;
 	u16	algorithm;
 } __attribute__((packed)) hfa384x_authenticateStation_data_t;
@@ -1138,7 +1140,7 @@ typedef struct hfa384x_authenticateStation_data
 /*-- Configuration Record: associateStation (data portion only) --*/
 typedef struct hfa384x_associateStation_data
 {
-	u8	address[WLAN_ADDR_LEN];
+	u8	address[ETH_ALEN];
 	u16	status;
 	u16	type;
 } __attribute__((packed)) hfa384x_associateStation_data_t;
@@ -1153,7 +1155,7 @@ typedef struct hfa384x_ChannelInfoRequest_data
 /*-- Configuration Record: WEPKeyMapping (data portion only) --*/
 typedef struct hfa384x_WEPKeyMapping
 {
-	u8	address[WLAN_ADDR_LEN];
+	u8	address[ETH_ALEN];
 	u16	key_index;
 	u8 	key[16];
 	u8 	mic_transmit_key[4];
@@ -1880,9 +1882,9 @@ typedef struct hfa384x_LinkStatus
 typedef struct hfa384x_AssocStatus
 {
 	u16	assocstatus;
-	u8	sta_addr[WLAN_ADDR_LEN];
+	u8	sta_addr[ETH_ALEN];
 	/* old_ap_addr is only valid if assocstatus == 2 */
-	u8	old_ap_addr[WLAN_ADDR_LEN];
+	u8	old_ap_addr[ETH_ALEN];
 	u16	reason;
 	u16	reserved;
 } __attribute__((packed)) hfa384x_AssocStatus_t;
@@ -1891,7 +1893,7 @@ typedef struct hfa384x_AssocStatus
 
 typedef struct hfa384x_AuthRequest
 {
-	u8	sta_addr[WLAN_ADDR_LEN];
+	u8	sta_addr[ETH_ALEN];
 	u16	algorithm;
 } __attribute__((packed)) hfa384x_AuthReq_t;
 
@@ -1899,7 +1901,7 @@ typedef struct hfa384x_AuthRequest
 
 typedef struct hfa384x_AssocRequest
 {
-	u8	sta_addr[WLAN_ADDR_LEN];
+	u8	sta_addr[ETH_ALEN];
 	u16	type;
 	u8   wpa_data[80];
 } __attribute__((packed)) hfa384x_AssocReq_t;
@@ -1912,8 +1914,8 @@ typedef struct hfa384x_AssocRequest
 
 typedef struct hfa384x_MicFailure
 {
-	u8	sender[WLAN_ADDR_LEN];
-	u8	dest[WLAN_ADDR_LEN];
+	u8	sender[ETH_ALEN];
+	u8	dest[ETH_ALEN];
 } __attribute__((packed)) hfa384x_MicFailure_t;
 
 /*--  Unsolicited Frame, MAC Mgmt: PSUserCount (AP Only) --*/
@@ -1925,7 +1927,7 @@ typedef struct hfa384x_PSUserCount
 
 typedef struct hfa384x_KeyIDChanged
 {
-	u8	sta_addr[WLAN_ADDR_LEN];
+	u8	sta_addr[ETH_ALEN];
 	u16	keyid;
 } __attribute__((packed)) hfa384x_KeyIDChanged_t;
 
@@ -2460,7 +2462,7 @@ typedef struct hfa484x_metacmd
 typedef struct prism2sta_authlist
 {
 	unsigned int	cnt;
-	u8	addr[WLAN_AUTH_MAX][WLAN_ADDR_LEN];
+	u8	addr[WLAN_AUTH_MAX][ETH_ALEN];
 	u8	assoc[WLAN_AUTH_MAX];
 } prism2sta_authlist_t;
 
@@ -2468,9 +2470,9 @@ typedef struct prism2sta_accesslist
 {
 	unsigned int	modify;
 	unsigned int	cnt;
-	u8	addr[WLAN_ACCESS_MAX][WLAN_ADDR_LEN];
+	u8	addr[WLAN_ACCESS_MAX][ETH_ALEN];
 	unsigned int	cnt1;
-	u8	addr1[WLAN_ACCESS_MAX][WLAN_ADDR_LEN];
+	u8	addr1[WLAN_ACCESS_MAX][ETH_ALEN];
 } prism2sta_accesslist_t;
 
 typedef struct hfa384x
@@ -2552,7 +2554,7 @@ typedef struct hfa384x
 
 	/* Group Addresses - right now, there are up to a total
 	of MAX_GRP_ADDR group addresses */
-	u8		dot11_grp_addr[MAX_GRP_ADDR][WLAN_ADDR_LEN];
+	u8		dot11_grp_addr[MAX_GRP_ADDR][ETH_ALEN];
 	unsigned int		dot11_grpcnt;
 
 	/* Component Identities */
