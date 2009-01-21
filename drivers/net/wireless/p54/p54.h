@@ -144,7 +144,7 @@ struct p54_common {
 	unsigned int output_power;
 	u32 tsf_low32;
 	u32 tsf_high32;
-	u64 basic_rate_mask;
+	u32 basic_rate_mask;
 	u16 wakeup_timer;
 	u16 aid;
 	struct ieee80211_tx_queue_stats tx_stats[8];

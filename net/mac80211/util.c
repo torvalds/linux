@@ -731,12 +731,12 @@ int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
 	return ret;
 }
 
-u64 ieee80211_mandatory_rates(struct ieee80211_local *local,
+u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 			      enum ieee80211_band band)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *bitrates;
-	u64 mandatory_rates;
+	u32 mandatory_rates;
 	enum ieee80211_rate_flags mandatory_flag;
 	int i;
 

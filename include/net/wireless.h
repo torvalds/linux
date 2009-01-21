@@ -367,7 +367,7 @@ ieee80211_get_channel(struct wiphy *wiphy, int freq)
  */
 struct ieee80211_rate *
 ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
-			    u64 basic_rates, int bitrate);
+			    u32 basic_rates, int bitrate);
 
 /**
  * regulatory_hint - driver hint to the wireless core a regulatory domain

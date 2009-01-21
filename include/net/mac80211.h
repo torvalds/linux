@@ -207,7 +207,7 @@ struct ieee80211_bss_conf {
 	u16 beacon_int;
 	u16 assoc_capability;
 	u64 timestamp;
-	u64 basic_rates;
+	u32 basic_rates;
 	struct ieee80211_bss_ht_conf ht;
 };
 
@@ -761,7 +761,7 @@ enum set_key_cmd {
  *	sizeof(void *), size is determined in hw information.
  */
 struct ieee80211_sta {
-	u64 supp_rates[IEEE80211_NUM_BANDS];
+	u32 supp_rates[IEEE80211_NUM_BANDS];
 	u8 addr[ETH_ALEN];
 	u16 aid;
 	struct ieee80211_sta_ht_cap ht_cap;

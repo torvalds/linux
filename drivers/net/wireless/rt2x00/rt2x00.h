@@ -396,7 +396,7 @@ struct rt2x00lib_erp {
 	int ack_timeout;
 	int ack_consume_time;
 
-	u64 basic_rates;
+	u32 basic_rates;
 
 	int slot_time;
 

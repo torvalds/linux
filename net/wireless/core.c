@@ -273,10 +273,16 @@ int wiphy_register(struct wiphy *wiphy)
 
 		sband->band = band;
 
-		if (!sband->n_channels || !sband->n_bitrates) {
-			WARN_ON(1);
+		if (WARN_ON(!sband->n_channels || !sband->n_bitrates))
 			return -EINVAL;
-		}
+
+		/*
+		 * Since we use a u32 for rate bitmaps in
+		 * ieee80211_get_response_rate, we cannot
+		 * have more than 32 legacy rates.
+		 */
+		if (WARN_ON(sband->n_bitrates > 32))
+			return -EINVAL;
 
 		for (i = 0; i < sband->n_channels; i++) {
 			sband->channels[i].orig_flags =

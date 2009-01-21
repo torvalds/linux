@@ -73,7 +73,7 @@ static u8 *ieee80211_bss_get_ie(struct ieee80211_bss *bss, u8 ie)
 
 static int ieee80211_compatible_rates(struct ieee80211_bss *bss,
 				      struct ieee80211_supported_band *sband,
-				      u64 *rates)
+				      u32 *rates)
 {
 	int i, j, count;
 	*rates = 0;
@@ -93,14 +93,14 @@ static int ieee80211_compatible_rates(struct ieee80211_bss *bss,
 }
 
 /* also used by mesh code */
-u64 ieee80211_sta_get_rates(struct ieee80211_local *local,
+u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    struct ieee802_11_elems *elems,
 			    enum ieee80211_band band)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *bitrates;
 	size_t num_rates;
-	u64 supp_rates;
+	u32 supp_rates;
 	int i, j;
 	sband = local->hw.wiphy->bands[band];
 
@@ -253,7 +253,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_bss *bss;
 	int wmm = 0;
 	struct ieee80211_supported_band *sband;
-	u64 rates = 0;
+	u32 rates = 0;
 	size_t e_ies_len;
 
 	if (ifsta->flags & IEEE80211_STA_PREV_BSSID_SET) {
@@ -1282,7 +1282,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
 	struct sta_info *sta;
-	u64 rates, basic_rates;
+	u32 rates, basic_rates;
 	u16 capab_info, status_code, aid;
 	struct ieee802_11_elems elems;
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
@@ -1639,7 +1639,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 	struct ieee80211_channel *channel;
 	u64 beacon_timestamp, rx_timestamp;
-	u64 supp_rates = 0;
+	u32 supp_rates = 0;
 	enum ieee80211_band band = rx_status->band;
 
 	if (elems->ds_params && elems->ds_params_len == 1)
@@ -1660,7 +1660,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 		sta = sta_info_get(local, mgmt->sa);
 		if (sta) {
-			u64 prev_rates;
+			u32 prev_rates;
 
 			prev_rates = sta->sta.supp_rates[band];
 			/* make sure mandatory rates are always added */
@@ -2526,7 +2526,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
  * must be callable in atomic context.
  */
 struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
-					u8 *bssid,u8 *addr, u64 supp_rates)
+					u8 *bssid,u8 *addr, u32 supp_rates)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;

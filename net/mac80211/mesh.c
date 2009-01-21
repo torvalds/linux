@@ -476,7 +476,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee802_11_elems elems;
 	struct ieee80211_channel *channel;
-	u64 supp_rates = 0;
+	u32 supp_rates = 0;
 	size_t baselen;
 	int freq;
 	enum ieee80211_band band = rx_status->band;

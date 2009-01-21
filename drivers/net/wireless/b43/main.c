@@ -3398,7 +3398,7 @@ out_unlock_mutex:
 	return err;
 }
 
-static void b43_update_basic_rates(struct b43_wldev *dev, u64 brates)
+static void b43_update_basic_rates(struct b43_wldev *dev, u32 brates)
 {
 	struct ieee80211_supported_band *sband =
 		dev->wl->hw->wiphy->bands[b43_current_band(dev->wl)];

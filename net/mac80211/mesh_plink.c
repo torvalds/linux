@@ -93,7 +93,7 @@ static inline void mesh_plink_fsm_restart(struct sta_info *sta)
  *       on it in the lifecycle management section!
  */
 static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
-					 u8 *hw_addr, u64 rates)
+					 u8 *hw_addr, u32 rates)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
@@ -222,7 +222,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-void mesh_neighbour_update(u8 *hw_addr, u64 rates, struct ieee80211_sub_if_data *sdata,
+void mesh_neighbour_update(u8 *hw_addr, u32 rates, struct ieee80211_sub_if_data *sdata,
 			   bool peer_accepting_plinks)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -447,7 +447,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		spin_lock_bh(&sta->lock);
 	} else if (!sta) {
 		/* ftype == PLINK_OPEN */
-		u64 rates;
+		u32 rates;
 		if (!mesh_plink_free_count(sdata)) {
 			mpl_dbg("Mesh plink error: no more free plinks\n");
 			rcu_read_unlock();
