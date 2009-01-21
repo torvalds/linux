@@ -123,6 +123,7 @@ config PPC
 	select HAVE_DMA_ATTRS if PPC64
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_OPROFILE
+	select HAVE_SYSCALL_WRAPPERS if PPC64
 
 config EARLY_PRINTK
 	bool

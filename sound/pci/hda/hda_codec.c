@@ -2724,6 +2724,67 @@ int snd_hda_check_board_config(struct hda_codec *codec,
 EXPORT_SYMBOL_HDA(snd_hda_check_board_config);
 
 /**
+ * snd_hda_check_board_codec_sid_config - compare the current codec
+				          subsystem ID with the
+					  config table
+
+	   This is important for Gateway notebooks with SB450 HDA Audio
+	   where the vendor ID of the PCI device is:
+		ATI Technologies Inc SB450 HDA Audio [1002:437b]
+	   and the vendor/subvendor are found only at the codec.
+
+ * @codec: the HDA codec
+ * @num_configs: number of config enums
+ * @models: array of model name strings
+ * @tbl: configuration table, terminated by null entries
+ *
+ * Compares the modelname or PCI subsystem id of the current codec with the
+ * given configuration table.  If a matching entry is found, returns its
+ * config value (supposed to be 0 or positive).
+ *
+ * If no entries are matching, the function returns a negative value.
+ */
+int snd_hda_check_board_codec_sid_config(struct hda_codec *codec,
+			       int num_configs, const char **models,
+			       const struct snd_pci_quirk *tbl)
+{
+	const struct snd_pci_quirk *q;
+
+	/* Search for codec ID */
+	for (q = tbl; q->subvendor; q++) {
+		unsigned long vendorid = (q->subdevice) | (q->subvendor << 16);
+
+		if (vendorid == codec->subsystem_id)
+			break;
+	}
+
+	if (!q->subvendor)
+		return -1;
+
+	tbl = q;
+
+	if (tbl->value >= 0 && tbl->value < num_configs) {
+#ifdef CONFIG_SND_DEBUG_DETECT
+		char tmp[10];
+		const char *model = NULL;
+		if (models)
+			model = models[tbl->value];
+		if (!model) {
+			sprintf(tmp, "#%d", tbl->value);
+			model = tmp;
+		}
+		snd_printdd(KERN_INFO "hda_codec: model '%s' is selected "
+			    "for config %x:%x (%s)\n",
+			    model, tbl->subvendor, tbl->subdevice,
+			    (tbl->name ? tbl->name : "Unknown device"));
+#endif
+		return tbl->value;
+	}
+	return -1;
+}
+EXPORT_SYMBOL_HDA(snd_hda_check_board_codec_sid_config);
+
+/**
  * snd_hda_add_new_ctls - create controls from the array
  * @codec: the HDA codec
  * @knew: the array of struct snd_kcontrol_new
@@ -2815,7 +2876,7 @@ void snd_hda_power_down(struct hda_codec *codec)
 		return;
 	if (power_save(codec)) {
 		codec->power_transition = 1; /* avoid reentrance */
-		schedule_delayed_work(&codec->power_work,
+		queue_delayed_work(codec->bus->workq, &codec->power_work,
 				msecs_to_jiffies(power_save(codec) * 1000));
 	}
 }

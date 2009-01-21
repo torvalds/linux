@@ -29,7 +29,7 @@ DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
  *	To avoid global state use 8 different call vectors.
  *	Each CPU uses a specific vector to trigger flushes on other
  *	CPUs. Depending on the received vector the target CPUs look into
- *	the right per cpu variable for the flush data.
+ *	the right array slot for the flush data.
  *
  *	With more than 8 CPUs they are hashed to the 8 available
  *	vectors. The limited global vector space forces us to this right now.
@@ -44,13 +44,13 @@ union smp_flush_state {
 		spinlock_t tlbstate_lock;
 		DECLARE_BITMAP(flush_cpumask, NR_CPUS);
 	};
-	char pad[SMP_CACHE_BYTES];
-} ____cacheline_aligned;
+	char pad[CONFIG_X86_INTERNODE_CACHE_BYTES];
+} ____cacheline_internodealigned_in_smp;
 
 /* State is put into the per CPU data section, but padded
    to a full cache line because other CPUs can access it and we don't
    want false sharing in the per cpu data segment. */
-static DEFINE_PER_CPU(union smp_flush_state, flush_state);
+static union smp_flush_state flush_state[NUM_INVALIDATE_TLB_VECTORS];
 
 /*
  * We cannot call mmdrop() because we are in interrupt context,
@@ -135,7 +135,7 @@ void smp_invalidate_interrupt(struct pt_regs *regs)
 	 * Use that to determine where the sender put the data.
 	 */
 	sender = ~regs->orig_ax - INVALIDATE_TLB_VECTOR_START;
-	f = &per_cpu(flush_state, sender);
+	f = &flush_state[sender];
 
 	if (!cpumask_test_cpu(cpu, to_cpumask(f->flush_cpumask)))
 		goto out;
@@ -173,7 +173,7 @@ static void flush_tlb_others_ipi(const struct cpumask *cpumask,
 
 	/* Caller has disabled preemption */
 	sender = smp_processor_id() % NUM_INVALIDATE_TLB_VECTORS;
-	f = &per_cpu(flush_state, sender);
+	f = &flush_state[sender];
 
 	/*
 	 * Could avoid this lock when
@@ -227,8 +227,8 @@ static int __cpuinit init_smp_flush(void)
 {
 	int i;
 
-	for_each_possible_cpu(i)
-		spin_lock_init(&per_cpu(flush_state, i).tlbstate_lock);
+	for (i = 0; i < ARRAY_SIZE(flush_state); i++)
+		spin_lock_init(&flush_state[i].tlbstate_lock);
 
 	return 0;
 }

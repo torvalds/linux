@@ -1288,7 +1288,7 @@ static const struct ata_port_info sata_fsl_port_info[] = {
 static int sata_fsl_probe(struct of_device *ofdev,
 			const struct of_device_id *match)
 {
-	int retval = 0;
+	int retval = -ENXIO;
 	void __iomem *hcr_base = NULL;
 	void __iomem *ssr_base = NULL;
 	void __iomem *csr_base = NULL;

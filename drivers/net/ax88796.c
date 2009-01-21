@@ -37,7 +37,10 @@ static int phy_debug = 0;
 #define __ei_open       ax_ei_open
 #define __ei_close      ax_ei_close
 #define __ei_poll	ax_ei_poll
+#define __ei_start_xmit ax_ei_start_xmit
 #define __ei_tx_timeout ax_ei_tx_timeout
+#define __ei_get_stats  ax_ei_get_stats
+#define __ei_set_multicast_list ax_ei_set_multicast_list
 #define __ei_interrupt  ax_ei_interrupt
 #define ____alloc_ei_netdev ax__alloc_ei_netdev
 #define __NS8390_init   ax_NS8390_init
@@ -623,6 +626,23 @@ static void ax_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 }
 #endif
 
+static const struct net_device_ops ax_netdev_ops = {
+	.ndo_open		= ax_open,
+	.ndo_stop		= ax_close,
+	.ndo_do_ioctl		= ax_ioctl,
+
+	.ndo_start_xmit		= ax_ei_start_xmit,
+	.ndo_tx_timeout		= ax_ei_tx_timeout,
+	.ndo_get_stats		= ax_ei_get_stats,
+	.ndo_set_multicast_list = ax_ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ax_ei_poll,
+#endif
+};
+
 /* setup code */
 
 static void ax_initial_setup(struct net_device *dev, struct ei_device *ei_local)
@@ -738,9 +758,7 @@ static int ax_init_dev(struct net_device *dev, int first_init)
 	ei_status.get_8390_hdr	= &ax_get_8390_hdr;
 	ei_status.priv = 0;
 
-	dev->open		= ax_open;
-	dev->stop		= ax_close;
-	dev->do_ioctl		= ax_ioctl;
+	dev->netdev_ops		= &ax_netdev_ops;
 	dev->ethtool_ops	= &ax_ethtool_ops;
 
 	ax->msg_enable		= NETIF_MSG_LINK;
@@ -753,9 +771,6 @@ static int ax_init_dev(struct net_device *dev, int first_init)
 	ax->mii.mdio_write	= ax_phy_write;
 	ax->mii.dev		= dev;
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ax_ei_poll;
-#endif
 	ax_NS8390_init(dev, 0);
 
 	if (first_init)
