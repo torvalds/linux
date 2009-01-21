@@ -4156,11 +4156,6 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	return -EINVAL;
 }
 
-static sector_t btrfs_bmap(struct address_space *mapping, sector_t iblock)
-{
-	return extent_bmap(mapping, iblock, btrfs_get_extent);
-}
-
 int btrfs_readpage(struct file *file, struct page *page)
 {
 	struct extent_io_tree *tree;
@@ -4985,13 +4980,24 @@ static struct extent_io_ops btrfs_extent_io_ops = {
 	.clear_bit_hook = btrfs_clear_bit_hook,
 };
 
+/*
+ * btrfs doesn't support the bmap operation because swapfiles
+ * use bmap to make a mapping of extents in the file.  They assume
+ * these extents won't change over the life of the file and they
+ * use the bmap result to do IO directly to the drive.
+ *
+ * the btrfs bmap call would return logical addresses that aren't
+ * suitable for IO and they also will change frequently as COW
+ * operations happen.  So, swapfile + btrfs == corruption.
+ *
+ * For now we're avoiding this by dropping bmap.
+ */
 static struct address_space_operations btrfs_aops = {
 	.readpage	= btrfs_readpage,
 	.writepage	= btrfs_writepage,
 	.writepages	= btrfs_writepages,
 	.readpages	= btrfs_readpages,
 	.sync_page	= block_sync_page,
-	.bmap		= btrfs_bmap,
 	.direct_IO	= btrfs_direct_IO,
 	.invalidatepage = btrfs_invalidatepage,
 	.releasepage	= btrfs_releasepage,
