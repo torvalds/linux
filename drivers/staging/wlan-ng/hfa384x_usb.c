@@ -130,6 +130,7 @@
 #include <asm/bitops.h>
 #include <linux/list.h>
 #include <linux/usb.h>
+#include <linux/byteorder/generic.h>
 
 #include "wlan_compat.h"
 
@@ -3817,7 +3818,7 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 	switch( HFA384x_RXSTATUS_MACPORT_GET(usbin->rxfrm.desc.status) )
 	{
 	case 0:
-		fc = ieee2host16(usbin->rxfrm.desc.frame_control);
+		fc = le16_to_cpu(usbin->rxfrm.desc.frame_control);
 
 		/* If exclude and we receive an unencrypted, drop it */
 		if ( (wlandev->hostwep & HOSTWEP_EXCLUDEUNENCRYPTED) &&
@@ -3918,7 +3919,7 @@ static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *r
 
 	/* Don't forget the status, time, and data_len fields are in host order */
 	/* Figure out how big the frame is */
-	fc = ieee2host16(rxdesc->frame_control);
+	fc = le16_to_cpu(rxdesc->frame_control);
 	hdrlen = p80211_headerlen(fc);
 	datalen = hfa384x2host_16(rxdesc->data_len);
 

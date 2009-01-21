@@ -65,6 +65,7 @@
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 #include <linux/workqueue.h>
+#include <linux/byteorder/generic.h>
 
 #include <asm/io.h>
 #include <linux/delay.h>
@@ -316,7 +317,7 @@ static int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb,
 
 	/* If necessary, set the 802.11 WEP bit */
 	if ((wlandev->hostwep & (HOSTWEP_PRIVACYINVOKED | HOSTWEP_ENCRYPT)) == HOSTWEP_PRIVACYINVOKED) {
-		p80211_hdr->a3.fc |= host2ieee16(WLAN_SET_FC_ISWEP(1));
+		p80211_hdr->a3.fc |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));
 	}
 
 	result = hfa384x_drvr_txframe(hw, skb, p80211_hdr, p80211_wep);

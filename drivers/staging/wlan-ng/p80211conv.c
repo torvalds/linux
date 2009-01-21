@@ -63,6 +63,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
+#include <linux/byteorder/generic.h>
 
 #include <asm/byteorder.h>
 
@@ -192,7 +193,7 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 
 	/* Set up the 802.11 header */
 	/* It's a data frame */
-	fc = host2ieee16( WLAN_SET_FC_FTYPE(WLAN_FTYPE_DATA) |
+	fc = cpu_to_le16( WLAN_SET_FC_FTYPE(WLAN_FTYPE_DATA) |
 			  WLAN_SET_FC_FSTYPE(WLAN_FSTYPE_DATAONLY));
 
 	switch ( wlandev->macmode ) {
@@ -202,13 +203,13 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 		memcpy(p80211_hdr->a3.a3, wlandev->bssid, ETH_ALEN);
 		break;
 	case WLAN_MACMODE_ESS_STA:
-		fc |= host2ieee16(WLAN_SET_FC_TODS(1));
+		fc |= cpu_to_le16(WLAN_SET_FC_TODS(1));
 		memcpy(p80211_hdr->a3.a1, wlandev->bssid, ETH_ALEN);
 		memcpy(p80211_hdr->a3.a2, wlandev->netdev->dev_addr, ETH_ALEN);
 		memcpy(p80211_hdr->a3.a3, &e_hdr.daddr, ETH_ALEN);
 		break;
 	case WLAN_MACMODE_ESS_AP:
-		fc |= host2ieee16(WLAN_SET_FC_FROMDS(1));
+		fc |= cpu_to_le16(WLAN_SET_FC_FROMDS(1));
 		memcpy(p80211_hdr->a3.a1, &e_hdr.daddr, ETH_ALEN);
 		memcpy(p80211_hdr->a3.a2, wlandev->bssid, ETH_ALEN);
 		memcpy(p80211_hdr->a3.a3, &e_hdr.saddr, ETH_ALEN);
@@ -237,7 +238,7 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 			WLAN_LOG_WARNING("Host en-WEP failed, dropping frame (%d).\n", foo);
 			return 2;
 		}
-		fc |= host2ieee16(WLAN_SET_FC_ISWEP(1));
+		fc |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));
 	}
 
 
@@ -312,7 +313,7 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 	w_hdr = (p80211_hdr_t *) skb->data;
 
         /* setup some vars for convenience */
-	fc = ieee2host16(w_hdr->a3.fc);
+	fc = le16_to_cpu(w_hdr->a3.fc);
 	if ( (WLAN_GET_FC_TODS(fc) == 0) && (WLAN_GET_FC_FROMDS(fc) == 0) ) {
 		memcpy(daddr, w_hdr->a3.a1, WLAN_ETHADDR_LEN);
 		memcpy(saddr, w_hdr->a3.a2, WLAN_ETHADDR_LEN);
@@ -392,7 +393,7 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 		   (e_llc->ctl == 0x03) &&
 		   (((memcmp( e_snap->oui, oui_rfc1042, WLAN_IEEE_OUI_LEN)==0) &&
 		    (ethconv == WLAN_ETHCONV_8021h) &&
-		    (p80211_stt_findproto(ieee2host16(e_snap->type)))) ||
+		    (p80211_stt_findproto(le16_to_cpu(e_snap->type)))) ||
 		    (memcmp( e_snap->oui, oui_rfc1042, WLAN_IEEE_OUI_LEN)!=0)))
 	{
 		WLAN_LOG_DEBUG(3, "SNAP+RFC1042 len: %d\n", payload_length);

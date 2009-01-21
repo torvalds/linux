@@ -71,6 +71,7 @@
 #include <linux/sockios.h>
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
+#include <linux/byteorder/generic.h>
 
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
@@ -324,7 +325,7 @@ static void p80211netdev_rx_bh(unsigned long arg)
 				continue;
 			} else {
 				hdr = (p80211_hdr_a3_t *)skb->data;
-				fc = ieee2host16(hdr->fc);
+				fc = le16_to_cpu(hdr->fc);
 				if (p80211_rx_typedrop(wlandev, fc)) {
 					dev_kfree_skb(skb);
 					continue;
