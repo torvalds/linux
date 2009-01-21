@@ -135,6 +135,7 @@ static int uart_mxc_port3_exit(struct platform_device *pdev)
 {
 	mxc_gpio_release_multiple_pins(mxc_uart3_pins,
 			ARRAY_SIZE(mxc_uart3_pins));
+	return 0;
 }
 
 static int mxc_uart4_pins[] = {
