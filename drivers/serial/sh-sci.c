@@ -91,10 +91,6 @@ struct sh_sci_priv {
 #endif
 };
 
-#ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
-static struct sci_port *serial_console_port;
-#endif
-
 /* Function prototypes */
 static void sci_stop_tx(struct uart_port *port);
 
@@ -1083,6 +1079,18 @@ static void __init sci_init_ports(void)
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
+static struct tty_driver *serial_console_device(struct console *co, int *index)
+{
+	struct uart_driver *p = &sci_uart_driver;
+	*index = co->index;
+	return p->tty_driver;
+}
+
+static void serial_console_putchar(struct uart_port *port, int ch)
+{
+	sci_poll_put_char(port, ch);
+}
+
 /*
  *	Print a string to the serial port trying not to disturb
  *	any possible real use of the port...
@@ -1090,16 +1098,10 @@ static void __init sci_init_ports(void)
 static void serial_console_write(struct console *co, const char *s,
 				 unsigned count)
 {
-	struct uart_port *port = &serial_console_port->port;
+	struct uart_port *port = co->data;
 	unsigned short bits;
-	int i;
 
-	for (i = 0; i < count; i++) {
-		if (*s == 10)
-			sci_poll_put_char(port, '\r');
-
-		sci_poll_put_char(port, *s++);
-	}
+	uart_console_write(co->data, s, count, serial_console_putchar);
 
 	/* wait until fifo is empty and last bit has been transmitted */
 	bits = SCxSR_TDxE(port) | SCxSR_TEND(port);
@@ -1109,6 +1111,7 @@ static void serial_console_write(struct console *co, const char *s,
 
 static int __init serial_console_setup(struct console *co, char *options)
 {
+	struct sci_port *sci_port;
 	struct uart_port *port;
 	int baud = 115200;
 	int bits = 8;
@@ -1124,8 +1127,9 @@ static int __init serial_console_setup(struct console *co, char *options)
 	if (co->index >= SCI_NPORTS)
 		co->index = 0;
 
-	serial_console_port = &sci_ports[co->index];
-	port = &serial_console_port->port;
+	sci_port = &sci_ports[co->index];
+	port = &sci_port->port;
+	co->data = port;
 
 	/*
 	 * Also need to check port->type, we don't actually have any
@@ -1135,21 +1139,17 @@ static int __init serial_console_setup(struct console *co, char *options)
 	 */
 	if (!port->type)
 		return -ENODEV;
-	if (!port->membase || !port->mapbase)
-		return -ENODEV;
-
-	port->type = serial_console_port->type;
 
 #ifdef CONFIG_HAVE_CLK
-	if (!serial_console_port->clk)
-		serial_console_port->clk = clk_get(NULL, "module_clk");
+	if (!sci_port->clk)
+		sci_port->clk = clk_get(NULL, "module_clk");
 #endif
 
 	if (port->flags & UPF_IOREMAP)
 		sci_config_port(port, 0);
 
-	if (serial_console_port->enable)
-		serial_console_port->enable(port);
+	if (sci_port->enable)
+		sci_port->enable(port);
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1165,12 +1165,11 @@ static int __init serial_console_setup(struct console *co, char *options)
 
 static struct console serial_console = {
 	.name		= "ttySC",
-	.device		= uart_console_device,
+	.device		= serial_console_device,
 	.write		= serial_console_write,
 	.setup		= serial_console_setup,
 	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
-	.data		= &sci_uart_driver,
 };
 
 static int __init sci_console_init(void)
