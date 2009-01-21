@@ -577,7 +577,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 		       *(unsigned long long *)disk_super->fsid,
 		       *(unsigned long long *)(disk_super->fsid + 8));
 	}
-	printk(KERN_INFO "devid %llu transid %llu %s\n",
+	printk(KERN_CONT "devid %llu transid %llu %s\n",
 	       (unsigned long long)devid, (unsigned long long)transid, path);
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
 
