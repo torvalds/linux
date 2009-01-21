@@ -415,7 +415,7 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 
 	ftrace_enable_cpu();
 
-	WARN_ON_ONCE(ret);
+	WARN_ON_ONCE(ret && ret != -EAGAIN);
 
 	__update_max_tr(tr, tsk, cpu);
 	__raw_spin_unlock(&ftrace_max_lock);

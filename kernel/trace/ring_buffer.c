@@ -2266,8 +2266,23 @@ int ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 	if (buffer_a->pages != buffer_b->pages)
 		return -EINVAL;
 
+	if (ring_buffer_flags != RB_BUFFERS_ON)
+		return -EAGAIN;
+
+	if (atomic_read(&buffer_a->record_disabled))
+		return -EAGAIN;
+
+	if (atomic_read(&buffer_b->record_disabled))
+		return -EAGAIN;
+
 	cpu_buffer_a = buffer_a->buffers[cpu];
 	cpu_buffer_b = buffer_b->buffers[cpu];
+
+	if (atomic_read(&cpu_buffer_a->record_disabled))
+		return -EAGAIN;
+
+	if (atomic_read(&cpu_buffer_b->record_disabled))
+		return -EAGAIN;
 
 	/*
 	 * We can't do a synchronize_sched here because this
