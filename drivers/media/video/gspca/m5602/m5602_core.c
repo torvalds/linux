@@ -84,10 +84,11 @@ int m5602_wait_for_i2c(struct sd *sd)
 {
 	int err;
 	u8 data;
+
 	do {
 		err = m5602_read_bridge(sd, M5602_XB_I2C_STATUS, &data);
 	} while ((data & I2C_BUSY) && !err);
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 int m5602_read_sensor(struct sd *sd, const u8 address,
