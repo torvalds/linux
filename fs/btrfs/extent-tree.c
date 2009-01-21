@@ -4440,7 +4440,7 @@ static noinline int replace_one_extent(struct btrfs_trans_handle *trans,
 	u64 lock_end = 0;
 	u64 num_bytes;
 	u64 ext_offset;
-	u64 first_pos;
+	u64 search_end = (u64)-1;
 	u32 nritems;
 	int nr_scaned = 0;
 	int extent_locked = 0;
@@ -4448,7 +4448,6 @@ static noinline int replace_one_extent(struct btrfs_trans_handle *trans,
 	int ret;
 
 	memcpy(&key, leaf_key, sizeof(key));
-	first_pos = INT_LIMIT(loff_t) - extent_key->offset;
 	if (ref_path->owner_objectid != BTRFS_MULTIPLE_OBJECTIDS) {
 		if (key.objectid < ref_path->owner_objectid ||
 		    (key.objectid == ref_path->owner_objectid &&
@@ -4497,7 +4496,7 @@ next:
 			if ((key.objectid > ref_path->owner_objectid) ||
 			    (key.objectid == ref_path->owner_objectid &&
 			     key.type > BTRFS_EXTENT_DATA_KEY) ||
-			    (key.offset >= first_pos + extent_key->offset))
+			    key.offset >= search_end)
 				break;
 		}
 
@@ -4530,8 +4529,10 @@ next:
 		num_bytes = btrfs_file_extent_num_bytes(leaf, fi);
 		ext_offset = btrfs_file_extent_offset(leaf, fi);
 
-		if (first_pos > key.offset - ext_offset)
-			first_pos = key.offset - ext_offset;
+		if (search_end == (u64)-1) {
+			search_end = key.offset - ext_offset +
+				btrfs_file_extent_ram_bytes(leaf, fi);
+		}
 
 		if (!extent_locked) {
 			lock_start = key.offset;
@@ -4720,7 +4721,7 @@ next:
 		}
 skip:
 		if (ref_path->owner_objectid != BTRFS_MULTIPLE_OBJECTIDS &&
-		    key.offset >= first_pos + extent_key->offset)
+		    key.offset >= search_end)
 			break;
 
 		cond_resched();
