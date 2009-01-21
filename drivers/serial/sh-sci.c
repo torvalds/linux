@@ -618,7 +618,7 @@ static inline int sci_handle_breaks(struct uart_port *port)
 	int copied = 0;
 	unsigned short status = sci_in(port, SCxSR);
 	struct tty_struct *tty = port->info->port.tty;
-	struct sci_port *s = &sci_ports[port->line];
+	struct sci_port *s = to_sci_port(port);
 
 	if (uart_handle_break(port))
 		return 0;
@@ -875,7 +875,7 @@ static void sci_break_ctl(struct uart_port *port, int break_state)
 
 static int sci_startup(struct uart_port *port)
 {
-	struct sci_port *s = &sci_ports[port->line];
+	struct sci_port *s = to_sci_port(port);
 
 	if (s->enable)
 		s->enable(port);
@@ -893,7 +893,7 @@ static int sci_startup(struct uart_port *port)
 
 static void sci_shutdown(struct uart_port *port)
 {
-	struct sci_port *s = &sci_ports[port->line];
+	struct sci_port *s = to_sci_port(port);
 
 	sci_stop_rx(port);
 	sci_stop_tx(port);
@@ -990,7 +990,7 @@ static int sci_request_port(struct uart_port *port)
 
 static void sci_config_port(struct uart_port *port, int flags)
 {
-	struct sci_port *s = &sci_ports[port->line];
+	struct sci_port *s = to_sci_port(port);
 
 	port->type = s->type;
 
@@ -1002,7 +1002,7 @@ static void sci_config_port(struct uart_port *port, int flags)
 
 static int sci_verify_port(struct uart_port *port, struct serial_struct *ser)
 {
-	struct sci_port *s = &sci_ports[port->line];
+	struct sci_port *s = to_sci_port(port);
 
 	if (ser->irq != s->irqs[SCIx_TXI_IRQ] || ser->irq > nr_irqs)
 		return -EINVAL;
