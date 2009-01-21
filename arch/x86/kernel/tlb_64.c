@@ -113,7 +113,17 @@ EXPORT_SYMBOL_GPL(leave_mm);
  * Interrupts are disabled.
  */
 
-asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
+/*
+ * FIXME: use of asmlinkage is not consistent.  On x86_64 it's noop
+ * but still used for documentation purpose but the usage is slightly
+ * inconsistent.  On x86_32, asmlinkage is regparm(0) but interrupt
+ * entry calls in with the first parameter in %eax.  Maybe define
+ * intrlinkage?
+ */
+#ifdef CONFIG_X86_64
+asmlinkage
+#endif
+void smp_invalidate_interrupt(struct pt_regs *regs)
 {
 	unsigned int cpu;
 	unsigned int sender;

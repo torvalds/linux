@@ -58,8 +58,11 @@
 # define CALL_FUNCTION_VECTOR		0xfc
 # define CALL_FUNCTION_SINGLE_VECTOR	0xfb
 # define THERMAL_APIC_VECTOR		0xfa
-/* 0xf1 - 0xf9 : free */
-# define INVALIDATE_TLB_VECTOR		0xf0
+/* 0xf8 - 0xf9 : free */
+# define INVALIDATE_TLB_VECTOR_END	0xf7
+# define INVALIDATE_TLB_VECTOR_START	0xf0	/* f0-f7 used for TLB flush */
+
+# define NUM_INVALIDATE_TLB_VECTORS	8
 
 #else
 
