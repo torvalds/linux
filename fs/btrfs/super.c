@@ -583,17 +583,18 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 	struct btrfs_ioctl_vol_args *vol;
 	struct btrfs_fs_devices *fs_devices;
 	int ret = -ENOTTY;
-	int len;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	vol = kmalloc(sizeof(*vol), GFP_KERNEL);
+	if (!vol)
+		return -ENOMEM;
+
 	if (copy_from_user(vol, (void __user *)arg, sizeof(*vol))) {
 		ret = -EFAULT;
 		goto out;
 	}
-	len = strnlen(vol->name, BTRFS_PATH_NAME_MAX);
 
 	switch (cmd) {
 	case BTRFS_IOC_SCAN_DEV:
