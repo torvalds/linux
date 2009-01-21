@@ -454,17 +454,11 @@ struct btrfs_timespec {
 	__le32 nsec;
 } __attribute__ ((__packed__));
 
-typedef enum {
+enum btrfs_compression_type {
 	BTRFS_COMPRESS_NONE = 0,
 	BTRFS_COMPRESS_ZLIB = 1,
 	BTRFS_COMPRESS_LAST = 2,
-} btrfs_compression_type;
-
-/* we don't understand any encryption methods right now */
-typedef enum {
-	BTRFS_ENCRYPTION_NONE = 0,
-	BTRFS_ENCRYPTION_LAST = 1,
-} btrfs_encryption_type;
+};
 
 struct btrfs_inode_item {
 	/* nfs style generation number */
