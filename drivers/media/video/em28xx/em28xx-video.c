@@ -1008,8 +1008,13 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 
 	if (dev->board.has_msp34xx)
 		em28xx_i2c_call_clients(dev, VIDIOC_G_CTRL, ctrl);
-	else
+	else {
 		rc = em28xx_get_ctrl(dev, ctrl);
+		if (rc < 0) {
+			em28xx_i2c_call_clients(dev, VIDIOC_G_CTRL, ctrl);
+			rc = 0;
+		}
+	}
 
 	mutex_unlock(&dev->lock);
 	return rc;
