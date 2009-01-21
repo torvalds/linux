@@ -2,6 +2,7 @@
 #define SAHARA_B_UCODE_VERS_DATE  			"$Date: 2008/08/19 00:05:59 $"
 #define SAHARA_B_UCODE_HOSTIF_ID  			3
 
+#if 0
 static u32 	SBNumSections = 0x1;
 static u32  	SBSectionSize[] =
 {
@@ -12,3 +13,4 @@ static u32  	SBSectionStart[] =
 	0x00000000, 0x00001fff, };
 
 static unsigned char SaharaUCodeB[1][1];
+#endif
