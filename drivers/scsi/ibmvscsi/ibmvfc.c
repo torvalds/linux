@@ -933,7 +933,7 @@ static void ibmvfc_get_host_speed(struct Scsi_Host *shost)
 			fc_host_speed(shost) = FC_PORTSPEED_16GBIT;
 			break;
 		default:
-			ibmvfc_log(vhost, 3, "Unknown port speed: %ld Gbit\n",
+			ibmvfc_log(vhost, 3, "Unknown port speed: %lld Gbit\n",
 				   vhost->login_buf->resp.link_speed / 100);
 			fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
@@ -2149,8 +2149,8 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 {
 	const char *desc = ibmvfc_get_ae_desc(crq->event);
 
-	ibmvfc_log(vhost, 3, "%s event received. scsi_id: %lx, wwpn: %lx,"
-		   " node_name: %lx\n", desc, crq->scsi_id, crq->wwpn, crq->node_name);
+	ibmvfc_log(vhost, 3, "%s event received. scsi_id: %llx, wwpn: %llx,"
+		   " node_name: %llx\n", desc, crq->scsi_id, crq->wwpn, crq->node_name);
 
 	switch (crq->event) {
 	case IBMVFC_AE_LINK_UP:
@@ -2184,7 +2184,7 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 		ibmvfc_link_down(vhost, IBMVFC_HALTED);
 		break;
 	default:
-		dev_err(vhost->dev, "Unknown async event received: %ld\n", crq->event);
+		dev_err(vhost->dev, "Unknown async event received: %lld\n", crq->event);
 		break;
 	};
 }
@@ -2261,13 +2261,13 @@ static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost)
 	 * actually sent
 	 */
 	if (unlikely(!ibmvfc_valid_event(&vhost->pool, evt))) {
-		dev_err(vhost->dev, "Returned correlation_token 0x%08lx is invalid!\n",
+		dev_err(vhost->dev, "Returned correlation_token 0x%08llx is invalid!\n",
 			crq->ioba);
 		return;
 	}
 
 	if (unlikely(atomic_read(&evt->free))) {
-		dev_err(vhost->dev, "Received duplicate correlation_token 0x%08lx!\n",
+		dev_err(vhost->dev, "Received duplicate correlation_token 0x%08llx!\n",
 			crq->ioba);
 		return;
 	}
@@ -3259,7 +3259,7 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost, u64 scsi_id)
 
 	tgt = mempool_alloc(vhost->tgt_pool, GFP_KERNEL);
 	if (!tgt) {
-		dev_err(vhost->dev, "Target allocation failure for scsi id %08lx\n",
+		dev_err(vhost->dev, "Target allocation failure for scsi id %08llx\n",
 			scsi_id);
 		return -ENOMEM;
 	}

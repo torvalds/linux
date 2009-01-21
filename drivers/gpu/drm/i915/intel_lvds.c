@@ -456,6 +456,13 @@ void intel_lvds_init(struct drm_device *dev)
 		dev_priv->panel_fixed_mode =
 			drm_mode_duplicate(dev, dev_priv->vbt_mode);
 		mutex_unlock(&dev->mode_config.mutex);
+		if (dev_priv->panel_fixed_mode) {
+			dev_priv->panel_fixed_mode->type |=
+				DRM_MODE_TYPE_PREFERRED;
+			drm_mode_probed_add(connector,
+					    dev_priv->panel_fixed_mode);
+			goto out;
+		}
 	}
 
 	/*

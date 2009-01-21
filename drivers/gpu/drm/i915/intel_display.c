@@ -401,6 +401,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	I915_WRITE(dspstride, crtc->fb->pitch);
 
 	dspcntr = I915_READ(dspcntr_reg);
+	/* Mask out pixel format bits in case we change it */
+	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 	switch (crtc->fb->bits_per_pixel) {
 	case 8:
 		dspcntr |= DISPPLANE_8BPP;
@@ -1014,21 +1016,25 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	if (bo->size < width * height * 4) {
 		DRM_ERROR("buffer is to small\n");
-		drm_gem_object_unreference(bo);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail;
 	}
 
-	if (dev_priv->cursor_needs_physical) {
-		addr = dev->agp->base + obj_priv->gtt_offset;
-	} else {
+	/* we only need to pin inside GTT if cursor is non-phy */
+	if (!dev_priv->cursor_needs_physical) {
+		ret = i915_gem_object_pin(bo, PAGE_SIZE);
+		if (ret) {
+			DRM_ERROR("failed to pin cursor bo\n");
+			goto fail;
+		}
 		addr = obj_priv->gtt_offset;
-	}
-
-	ret = i915_gem_object_pin(bo, PAGE_SIZE);
-	if (ret) {
-		DRM_ERROR("failed to pin cursor bo\n");
-		drm_gem_object_unreference(bo);
-		return ret;
+	} else {
+		ret = i915_gem_attach_phys_object(dev, bo, (pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1);
+		if (ret) {
+			DRM_ERROR("failed to attach phys object\n");
+			goto fail;
+		}
+		addr = obj_priv->phys_obj->handle->busaddr;
 	}
 
 	temp = 0;
@@ -1041,14 +1047,25 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	I915_WRITE(base, addr);
 
 	if (intel_crtc->cursor_bo) {
-		i915_gem_object_unpin(intel_crtc->cursor_bo);
+		if (dev_priv->cursor_needs_physical) {
+			if (intel_crtc->cursor_bo != bo)
+				i915_gem_detach_phys_object(dev, intel_crtc->cursor_bo);
+		} else
+			i915_gem_object_unpin(intel_crtc->cursor_bo);
+		mutex_lock(&dev->struct_mutex);
 		drm_gem_object_unreference(intel_crtc->cursor_bo);
+		mutex_unlock(&dev->struct_mutex);
 	}
 
 	intel_crtc->cursor_addr = addr;
 	intel_crtc->cursor_bo = bo;
 
 	return 0;
+fail:
+	mutex_lock(&dev->struct_mutex);
+	drm_gem_object_unreference(bo);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
 }
 
 static int intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)

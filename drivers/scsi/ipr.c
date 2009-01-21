@@ -4912,7 +4912,7 @@ static int ipr_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 	if (res && ipr_is_gata(res)) {
 		if (cmd == HDIO_GET_IDENTITY)
 			return -ENOTTY;
-		return ata_scsi_ioctl(sdev, cmd, arg);
+		return ata_sas_scsi_ioctl(res->sata_port->ap, sdev, cmd, arg);
 	}
 
 	return -EINVAL;

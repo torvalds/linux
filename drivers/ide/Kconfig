@@ -701,11 +701,6 @@ config BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
        depends on SOC_AU1200 && BLK_DEV_IDE_AU1XXX
 endchoice
 
-config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
-       int "Maximum transfer size (KB) per request (up to 128)"
-       default "128"
-       depends on BLK_DEV_IDE_AU1XXX
-
 config BLK_DEV_IDE_TX4938
 	tristate "TX4938 internal IDE support"
 	depends on SOC_TX4938

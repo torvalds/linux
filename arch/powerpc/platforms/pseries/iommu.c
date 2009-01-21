@@ -127,10 +127,10 @@ static int tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 		}
 
 		if (rc && printk_ratelimit()) {
-			printk("tce_build_pSeriesLP: plpar_tce_put failed. rc=%ld\n", rc);
-			printk("\tindex   = 0x%lx\n", (u64)tbl->it_index);
-			printk("\ttcenum  = 0x%lx\n", (u64)tcenum);
-			printk("\ttce val = 0x%lx\n", tce );
+			printk("tce_build_pSeriesLP: plpar_tce_put failed. rc=%lld\n", rc);
+			printk("\tindex   = 0x%llx\n", (u64)tbl->it_index);
+			printk("\ttcenum  = 0x%llx\n", (u64)tcenum);
+			printk("\ttce val = 0x%llx\n", tce );
 			show_stack(current, (unsigned long *)__get_SP());
 		}
 
@@ -210,10 +210,10 @@ static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 	}
 
 	if (rc && printk_ratelimit()) {
-		printk("tce_buildmulti_pSeriesLP: plpar_tce_put failed. rc=%ld\n", rc);
-		printk("\tindex   = 0x%lx\n", (u64)tbl->it_index);
-		printk("\tnpages  = 0x%lx\n", (u64)npages);
-		printk("\ttce[0] val = 0x%lx\n", tcep[0]);
+		printk("tce_buildmulti_pSeriesLP: plpar_tce_put failed. rc=%lld\n", rc);
+		printk("\tindex   = 0x%llx\n", (u64)tbl->it_index);
+		printk("\tnpages  = 0x%llx\n", (u64)npages);
+		printk("\ttce[0] val = 0x%llx\n", tcep[0]);
 		show_stack(current, (unsigned long *)__get_SP());
 	}
 	return ret;
@@ -227,9 +227,9 @@ static void tce_free_pSeriesLP(struct iommu_table *tbl, long tcenum, long npages
 		rc = plpar_tce_put((u64)tbl->it_index, (u64)tcenum << 12, 0);
 
 		if (rc && printk_ratelimit()) {
-			printk("tce_free_pSeriesLP: plpar_tce_put failed. rc=%ld\n", rc);
-			printk("\tindex   = 0x%lx\n", (u64)tbl->it_index);
-			printk("\ttcenum  = 0x%lx\n", (u64)tcenum);
+			printk("tce_free_pSeriesLP: plpar_tce_put failed. rc=%lld\n", rc);
+			printk("\tindex   = 0x%llx\n", (u64)tbl->it_index);
+			printk("\ttcenum  = 0x%llx\n", (u64)tcenum);
 			show_stack(current, (unsigned long *)__get_SP());
 		}
 
@@ -246,9 +246,9 @@ static void tce_freemulti_pSeriesLP(struct iommu_table *tbl, long tcenum, long n
 
 	if (rc && printk_ratelimit()) {
 		printk("tce_freemulti_pSeriesLP: plpar_tce_stuff failed\n");
-		printk("\trc      = %ld\n", rc);
-		printk("\tindex   = 0x%lx\n", (u64)tbl->it_index);
-		printk("\tnpages  = 0x%lx\n", (u64)npages);
+		printk("\trc      = %lld\n", rc);
+		printk("\tindex   = 0x%llx\n", (u64)tbl->it_index);
+		printk("\tnpages  = 0x%llx\n", (u64)npages);
 		show_stack(current, (unsigned long *)__get_SP());
 	}
 }
@@ -261,10 +261,9 @@ static unsigned long tce_get_pSeriesLP(struct iommu_table *tbl, long tcenum)
 	rc = plpar_tce_get((u64)tbl->it_index, (u64)tcenum << 12, &tce_ret);
 
 	if (rc && printk_ratelimit()) {
-		printk("tce_get_pSeriesLP: plpar_tce_get failed. rc=%ld\n",
-			rc);
-		printk("\tindex   = 0x%lx\n", (u64)tbl->it_index);
-		printk("\ttcenum  = 0x%lx\n", (u64)tcenum);
+		printk("tce_get_pSeriesLP: plpar_tce_get failed. rc=%lld\n", rc);
+		printk("\tindex   = 0x%llx\n", (u64)tbl->it_index);
+		printk("\ttcenum  = 0x%llx\n", (u64)tcenum);
 		show_stack(current, (unsigned long *)__get_SP());
 	}
 

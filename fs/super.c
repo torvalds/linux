@@ -544,7 +544,7 @@ rescan:
 	return NULL;
 }
 
-asmlinkage long sys_ustat(unsigned dev, struct ustat __user * ubuf)
+SYSCALL_DEFINE2(ustat, unsigned, dev, struct ustat __user *, ubuf)
 {
         struct super_block *s;
         struct ustat tmp;
