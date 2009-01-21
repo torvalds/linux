@@ -304,8 +304,6 @@ int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 	p80211msg_dot11req_mibset_t	*msg = msgp;
 	p80211itemd_t			*mibitem;
 
-	DBFENTER;
-
 	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 	msg->resultcode.data = P80211ENUM_resultcode_success;
 
@@ -383,8 +381,6 @@ int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 	}
 
 done:
-	DBFEXIT;
-
 	return(0);
 }
 
@@ -425,8 +421,6 @@ void                         *data)
 	p80211pstrd_t  *pstr = (p80211pstrd_t*) data;
 	u8          bytebuf[MIB_TMP_MAXLEN];
 
-	DBFENTER;
-
 	if (isget) {
 		result = hfa384x_drvr_getconfig(hw, mib->parm1, bytebuf, mib->parm2);
 		prism2mgmt_bytearea2pstr(bytebuf, pstr, mib->parm2);
@@ -436,7 +430,6 @@ void                         *data)
 		result = hfa384x_drvr_setconfig(hw, mib->parm1, bytebuf, mib->parm2);
 	}
 
-	DBFEXIT;
 	return(result);
 }
 
@@ -478,8 +471,6 @@ void                         *data)
 	u8   bytebuf[MIB_TMP_MAXLEN];
 	u16  *wordbuf = (u16*) bytebuf;
 
-	DBFENTER;
-
 	if (isget) {
 		result = hfa384x_drvr_getconfig16(hw, mib->parm1, wordbuf);
 		*uint32 = *wordbuf;
@@ -494,7 +485,6 @@ void                         *data)
 		result = hfa384x_drvr_setconfig16(hw, mib->parm1, *wordbuf);
 	}
 
-	DBFEXIT;
 	return(result);
 }
 
@@ -537,8 +527,6 @@ void                         *data)
 	u16  *wordbuf = (u16*) bytebuf;
 	u32  flags;
 
-	DBFENTER;
-
 	result = hfa384x_drvr_getconfig16(hw, mib->parm1, wordbuf);
 	if (result == 0) {
 		/* [MSM] Removed, getconfig16 returns the value in host order.
@@ -561,7 +549,6 @@ void                         *data)
 		}
 	}
 
-	DBFEXIT;
 	return(result);
 }
 
@@ -603,8 +590,6 @@ void                         *data)
 	u8          bytebuf[MIB_TMP_MAXLEN];
 	u16         len;
 
-	DBFENTER;
-
 	if (isget) {
 		result = 0;    /* Should never happen. */
 	} else {
@@ -615,7 +600,6 @@ void                         *data)
 		result = hfa384x_drvr_setconfig(hw, mib->parm1, bytebuf, len);
 	}
 
-	DBFEXIT;
 	return(result);
 }
 
@@ -654,8 +638,6 @@ void                         *data)
 {
 	int     result;
 
-	DBFENTER;
-
 	if (wlandev->hostwep & HOSTWEP_DECRYPT) {
 		if (wlandev->hostwep & HOSTWEP_DECRYPT)
 			mib->parm2 |= HFA384x_WEPFLAGS_DISABLE_RXCRYPT;
@@ -665,7 +647,6 @@ void                         *data)
 
 	result = prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 
-	DBFEXIT;
 	return(result);
 }
 
@@ -704,11 +685,8 @@ void                         *data)
 {
 	int     result;
 
-	DBFENTER;
-
 	result = prism2mib_flag(mib, isget, wlandev, hw, msg, data);
 
-	DBFEXIT;
 	return(result);
 }
 
@@ -748,8 +726,6 @@ void                         *data)
 	int     result;
 	u32  *uint32 = (u32*) data;
 
-	DBFENTER;
-
 	if (!isget)
 		if ((*uint32) % 2) {
 			WLAN_LOG_WARNING("Attempt to set odd number "
@@ -760,7 +736,6 @@ void                         *data)
 
 	result = prism2mib_uint32(mib, isget, wlandev, hw, msg, data);
 
-	DBFEXIT;
 	return(result);
 }
 
@@ -801,8 +776,6 @@ void                         *data)
 
 	int  result;
 
-	DBFENTER;
-
 	switch (mib->did) {
 	case DIDmib_lnx_lnxConfigTable_lnxRSNAIE: {
 		hfa384x_WPAData_t wpa;
@@ -824,7 +797,6 @@ void                         *data)
 		WLAN_LOG_ERROR("Unhandled DID 0x%08x\n", mib->did);
 	}
 
-	DBFEXIT;
 	return(0);
 }
 
@@ -845,11 +817,8 @@ void                         *data)
 
 void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 {
-	DBFENTER;
-
 	bytestr->len = host2hfa384x_16((u16)(pstr->len));
 	memcpy(bytestr->data, pstr->data, pstr->len);
-	DBFEXIT;
 }
 
 
@@ -870,10 +839,7 @@ void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 
 void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr)
 {
-	DBFENTER;
-
 	memcpy(bytearea, pstr->data, pstr->len);
-	DBFEXIT;
 }
 
 
@@ -894,11 +860,8 @@ void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr)
 
 void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 {
-	DBFENTER;
-
 	pstr->len = (u8)(hfa384x2host_16((u16)(bytestr->len)));
 	memcpy(pstr->data, bytestr->data, pstr->len);
-	DBFEXIT;
 }
 
 
@@ -919,11 +882,8 @@ void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 
 void prism2mgmt_bytearea2pstr(u8 *bytearea, p80211pstrd_t *pstr, int len)
 {
-	DBFENTER;
-
 	pstr->len = (u8)len;
 	memcpy(pstr->data, bytearea, len);
-	DBFEXIT;
 }
 
 
@@ -943,10 +903,7 @@ void prism2mgmt_bytearea2pstr(u8 *bytearea, p80211pstrd_t *pstr, int len)
 
 void prism2mgmt_prism2int2p80211int(u16 *prism2int, u32 *wlanint)
 {
-	DBFENTER;
-
 	*wlanint = (u32)hfa384x2host_16(*prism2int);
-	DBFEXIT;
 }
 
 
@@ -966,10 +923,7 @@ void prism2mgmt_prism2int2p80211int(u16 *prism2int, u32 *wlanint)
 
 void prism2mgmt_p80211int2prism2int(u16 *prism2int, u32 *wlanint)
 {
-	DBFENTER;
-
 	*prism2int = host2hfa384x_16((u16)(*wlanint));
-	DBFEXIT;
 }
 
 
@@ -989,12 +943,9 @@ void prism2mgmt_p80211int2prism2int(u16 *prism2int, u32 *wlanint)
 ----------------------------------------------------------------*/
 void prism2mgmt_prism2enum2p80211enum(u16 *prism2enum, u32 *wlanenum, u16 rid)
 {
-	DBFENTER;
-
 	/* At the moment, the need for this functionality hasn't
 	presented itself. All the wlan enumerated values are
 	a 1-to-1 match against the Prism2 enumerated values*/
-	DBFEXIT;
 	return;
 }
 
@@ -1015,12 +966,9 @@ void prism2mgmt_prism2enum2p80211enum(u16 *prism2enum, u32 *wlanenum, u16 rid)
 ----------------------------------------------------------------*/
 void prism2mgmt_p80211enum2prism2enum(u16 *prism2enum, u32 *wlanenum, u16 rid)
 {
-	DBFENTER;
-
 	/* At the moment, the need for this functionality hasn't
 	presented itself. All the wlan enumerated values are
 	a 1-to-1 match against the Prism2 enumerated values*/
-	DBFEXIT;
 	return;
 }
 
@@ -1043,8 +991,6 @@ void prism2mgmt_get_oprateset(u16 *rate, p80211pstrd_t *pstr)
 {
 	u8	len;
 	u8	*datarate;
-
-	DBFENTER;
 
 	len = 0;
 	datarate = pstr->data;
@@ -1079,7 +1025,6 @@ void prism2mgmt_get_oprateset(u16 *rate, p80211pstrd_t *pstr)
 
 	pstr->len = len;
 
-	DBFEXIT;
 	return;
 }
 
@@ -1102,8 +1047,6 @@ void prism2mgmt_set_oprateset(u16 *rate, p80211pstrd_t *pstr)
 {
 	u8	*datarate;
 	int	i;
-
-	DBFENTER;
 
 	*rate = 0;
 
@@ -1130,6 +1073,5 @@ void prism2mgmt_set_oprateset(u16 *rate, p80211pstrd_t *pstr)
 		}
 	}
 
-	DBFEXIT;
 	return;
 }

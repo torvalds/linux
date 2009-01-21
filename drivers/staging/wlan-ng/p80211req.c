@@ -129,8 +129,6 @@ int p80211req_dorequest( wlandevice_t *wlandev, u8 *msgbuf)
 	int		result = 0;
 	p80211msg_t	*msg = (p80211msg_t*)msgbuf;
 
-	DBFENTER;
-
 	/* Check to make sure the MSD is running */
 	if (
 	!((wlandev->msdstate == WLAN_MSD_HWPRESENT &&
@@ -162,7 +160,6 @@ int p80211req_dorequest( wlandevice_t *wlandev, u8 *msgbuf)
 		wlandev->mlmerequest(wlandev, msg);
 
 	clear_bit( 1, &(wlandev->request_pending));
-	DBFEXIT;
 	return result;	/* if result==0, msg->status still may contain an err */
 }
 
@@ -186,8 +183,6 @@ int p80211req_dorequest( wlandevice_t *wlandev, u8 *msgbuf)
 ----------------------------------------------------------------*/
 static void p80211req_handlemsg( wlandevice_t *wlandev, p80211msg_t *msg)
 {
-        DBFENTER;
-
 	switch (msg->msgcode) {
 
 	case DIDmsg_lnxreq_hostwep: {
@@ -211,8 +206,6 @@ static void p80211req_handlemsg( wlandevice_t *wlandev, p80211msg_t *msg)
 		;
 	} /* switch msg->msgcode */
 
-	DBFEXIT;
-
 	return;
 }
 
@@ -223,8 +216,6 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 	p80211itemd_t   *mibitem = (p80211itemd_t *) mib_msg->mibattribute.data;
 	p80211pstrd_t  *pstr = (p80211pstrd_t*) mibitem->data;
 	u8 *key = mibitem->data + sizeof(p80211pstrd_t);
-
-	DBFENTER;
 
 	switch (mibitem->did) {
 	case DIDmib_dot11smt_dot11WEPDefaultKeysTable_dot11WEPDefaultKey0: {
@@ -294,7 +285,6 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 		;
 	}
 
-	DBFEXIT;
 	return 0;
 }
 

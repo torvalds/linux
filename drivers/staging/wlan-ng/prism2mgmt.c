@@ -134,8 +134,6 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
 
         hfa384x_HostScanRequest_data_t  scanreq;
 
-	DBFENTER;
-
         /* gatekeeper check */
         if (HFA384x_FIRMWARE_VERSION(hw->ident_sta_fw.major,
                                      hw->ident_sta_fw.minor,
@@ -340,7 +338,6 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
  exit:
 	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 
-	DBFEXIT;
 	return result;
 }
 
@@ -373,8 +370,6 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 	hfa384x_HScanResultSub_t *item = NULL;
 
 	int count;
-
-	DBFENTER;
 
         req = (p80211msg_dot11req_scan_results_t *) msgp;
 
@@ -502,7 +497,6 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 	req->resultcode.data = P80211ENUM_resultcode_success;
 
  exit:
-	DBFEXIT;
 	return result;
 }
 
@@ -535,7 +529,6 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 	u8			bytebuf[80];
 	hfa384x_bytestr_t	*p2bytestr = (hfa384x_bytestr_t*)bytebuf;
 	u16			word;
-	DBFENTER;
 
 	wlandev->macmode = WLAN_MACMODE_NONE;
 
@@ -681,7 +674,6 @@ failed:
 done:
 	result = 0;
 
-	DBFEXIT;
 	return result;
 }
 
@@ -708,7 +700,6 @@ int prism2mgmt_readpda(wlandevice_t *wlandev, void *msgp)
 	hfa384x_t		*hw = wlandev->priv;
 	p80211msg_p2req_readpda_t	*msg = msgp;
 	int				result;
-	DBFENTER;
 
 	/* We only support collecting the PDA when in the FWLOAD
 	 * state.
@@ -738,7 +729,6 @@ int prism2mgmt_readpda(wlandevice_t *wlandev, void *msgp)
 				P80211ENUM_resultcode_implementation_failure;
 			msg->resultcode.status =
 				P80211ENUM_msgitem_status_data_ok;
-			DBFEXIT;
 			return 0;
 		}
 		msg->pda.status = P80211ENUM_msgitem_status_data_ok;
@@ -746,7 +736,6 @@ int prism2mgmt_readpda(wlandevice_t *wlandev, void *msgp)
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 	}
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -779,7 +768,6 @@ int prism2mgmt_ramdl_state(wlandevice_t *wlandev, void *msgp)
 {
 	hfa384x_t		*hw = wlandev->priv;
 	p80211msg_p2req_ramdl_state_t	*msg = msgp;
-	DBFENTER;
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
 		WLAN_LOG_ERROR(
@@ -788,7 +776,6 @@ int prism2mgmt_ramdl_state(wlandevice_t *wlandev, void *msgp)
 		msg->resultcode.data =
 			P80211ENUM_resultcode_implementation_failure;
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		DBFEXIT;
 		return 0;
 	}
 
@@ -809,7 +796,6 @@ int prism2mgmt_ramdl_state(wlandevice_t *wlandev, void *msgp)
 		msg->resultcode.data = P80211ENUM_resultcode_success;
 	}
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -841,7 +827,6 @@ int prism2mgmt_ramdl_write(wlandevice_t *wlandev, void *msgp)
 	u32			addr;
 	u32			len;
 	u8			*buf;
-	DBFENTER;
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
 		WLAN_LOG_ERROR(
@@ -850,7 +835,6 @@ int prism2mgmt_ramdl_write(wlandevice_t *wlandev, void *msgp)
 		msg->resultcode.data =
 			P80211ENUM_resultcode_implementation_failure;
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		DBFEXIT;
 		return 0;
 	}
 
@@ -870,7 +854,6 @@ int prism2mgmt_ramdl_write(wlandevice_t *wlandev, void *msgp)
 	}
 	msg->resultcode.data = P80211ENUM_resultcode_success;
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -905,7 +888,6 @@ int prism2mgmt_flashdl_state(wlandevice_t *wlandev, void *msgp)
 	int			result = 0;
 	hfa384x_t		*hw = wlandev->priv;
 	p80211msg_p2req_flashdl_state_t	*msg = msgp;
-	DBFENTER;
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
 		WLAN_LOG_ERROR(
@@ -914,7 +896,6 @@ int prism2mgmt_flashdl_state(wlandevice_t *wlandev, void *msgp)
 		msg->resultcode.data =
 			P80211ENUM_resultcode_implementation_failure;
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		DBFEXIT;
 		return 0;
 	}
 
@@ -951,7 +932,6 @@ int prism2mgmt_flashdl_state(wlandevice_t *wlandev, void *msgp)
 		}
 	}
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -981,7 +961,6 @@ int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp)
 	u32			addr;
 	u32			len;
 	u8			*buf;
-	DBFENTER;
 
 	if (wlandev->msdstate != WLAN_MSD_FWLOAD) {
 		WLAN_LOG_ERROR(
@@ -990,7 +969,6 @@ int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp)
 		msg->resultcode.data =
 			P80211ENUM_resultcode_implementation_failure;
 		msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
-		DBFEXIT;
 		return 0;
 	}
 
@@ -1016,7 +994,6 @@ int prism2mgmt_flashdl_write(wlandevice_t *wlandev, void *msgp)
 	}
 	msg->resultcode.data = P80211ENUM_resultcode_success;
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -1049,7 +1026,6 @@ int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp)
 	p80211pstrd_t		*pstr;
 	u8			bytebuf[256];
 	hfa384x_bytestr_t	*p2bytestr = (hfa384x_bytestr_t*)bytebuf;
-	DBFENTER;
 
 	wlandev->macmode = WLAN_MACMODE_NONE;
 
@@ -1107,7 +1083,6 @@ int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp)
 	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 	msg->resultcode.data = P80211ENUM_resultcode_success;
 
-	DBFEXIT;
 	return result;
 }
 
@@ -1138,8 +1113,6 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 
 	hfa384x_t			*hw = wlandev->priv;
 	u16			word;
-
-	DBFENTER;
 
 	msg->resultcode.status = P80211ENUM_msgitem_status_data_ok;
 	switch (msg->enable.data)
@@ -1357,7 +1330,5 @@ failed:
 	msg->resultcode.data = P80211ENUM_resultcode_refused;
 	result = 0;
 exit:
-
-	DBFEXIT;
 	return result;
 }

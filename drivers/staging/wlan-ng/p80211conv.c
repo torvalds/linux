@@ -140,7 +140,6 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 	wlan_snap_t     *e_snap;
 	int foo;
 
-	DBFENTER;
 	memcpy(&e_hdr, skb->data, sizeof(e_hdr));
 
 	if (skb->len <= 0) {
@@ -248,7 +247,6 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 	p80211_hdr->a3.dur = 0;
 	p80211_hdr->a3.seq = 0;
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -307,8 +305,6 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 	wlan_snap_t     *e_snap;
 
 	int foo;
-
-	DBFENTER;
 
 	payload_length = skb->len - WLAN_HDR_A3_LEN - WLAN_CRC_LEN;
 	payload_offset = WLAN_HDR_A3_LEN;
@@ -511,7 +507,6 @@ int skb_p80211_to_ether( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 	/* Free the metadata */
 	p80211skb_rxmeta_detach(skb);
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -567,7 +562,6 @@ p80211skb_rxmeta_detach(struct sk_buff *skb)
 	p80211_rxmeta_t		*rxmeta;
 	p80211_frmmeta_t	*frmmeta;
 
-	DBFENTER;
 	/* Sanity checks */
 	if ( skb==NULL ) {			/* bad skb */
 		WLAN_LOG_DEBUG(1, "Called w/ null skb.\n");
@@ -590,7 +584,6 @@ p80211skb_rxmeta_detach(struct sk_buff *skb)
 	/* Clear skb->cb */
 	memset(skb->cb, 0, sizeof(skb->cb));
 exit:
-	DBFEXIT;
 	return;
 }
 
@@ -616,8 +609,6 @@ p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	int			result = 0;
 	p80211_rxmeta_t		*rxmeta;
 	p80211_frmmeta_t	*frmmeta;
-
-	DBFENTER;
 
 	/* If these already have metadata, we error out! */
 	if (P80211SKB_RXMETA(skb) != NULL) {
@@ -648,7 +639,6 @@ p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	frmmeta->magic = P80211_FRMMETA_MAGIC;
 	frmmeta->rx = rxmeta;
 exit:
-	DBFEXIT;
 	return result;
 }
 
@@ -672,7 +662,7 @@ void
 p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	p80211_frmmeta_t	*meta;
-	DBFENTER;
+
 	meta = P80211SKB_FRMMETA(skb);
 	if ( meta && meta->rx) {
 		p80211skb_rxmeta_detach(skb);
@@ -681,6 +671,5 @@ p80211skb_free(struct wlandevice *wlandev, struct sk_buff *skb)
 	}
 
 	dev_kfree_skb(skb);
-	DBFEXIT;
 	return;
 }

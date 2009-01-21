@@ -157,12 +157,10 @@ MODULE_PARM_DESC(wlan_debug, "p80211 debug level");
 ----------------------------------------------------------------*/
 static int p80211knetdev_init( netdevice_t *netdev)
 {
-	DBFENTER;
 	/* Called in response to register_netdev */
 	/* This is usually the probe function, but the probe has */
 	/* already been done by the MSD and the create_kdev */
 	/* function.  All we do here is return success */
-	DBFEXIT;
 	return 0;
 }
 
@@ -185,12 +183,10 @@ static struct net_device_stats*
 p80211knetdev_get_stats(netdevice_t *netdev)
 {
 	wlandevice_t	*wlandev = netdev->ml_priv;
-	DBFENTER;
 
 	/* TODO: review the MIB stats for items that correspond to
 		linux stats */
 
-	DBFEXIT;
 	return &(wlandev->linux_stats);
 }
 
@@ -214,8 +210,6 @@ static int p80211knetdev_open( netdevice_t *netdev )
 	int 		result = 0; /* success */
 	wlandevice_t	*wlandev = netdev->ml_priv;
 
-	DBFENTER;
-
 	/* Check to make sure the MSD is running */
 	if ( wlandev->msdstate != WLAN_MSD_RUNNING ) {
 		return -ENODEV;
@@ -232,7 +226,6 @@ static int p80211knetdev_open( netdevice_t *netdev )
 		result = -EAGAIN;
 	}
 
-	DBFEXIT;
 	return result;
 }
 
@@ -254,8 +247,6 @@ static int p80211knetdev_stop( netdevice_t *netdev )
 	int		result = 0;
 	wlandevice_t	*wlandev = netdev->ml_priv;
 
-	DBFENTER;
-
 	if ( wlandev->close != NULL ) {
 		result = wlandev->close(wlandev);
 	}
@@ -263,7 +254,6 @@ static int p80211knetdev_stop( netdevice_t *netdev )
 	netif_stop_queue(wlandev->netdev);
 	wlandev->state = WLAN_DEVICE_CLOSED;
 
-	DBFEXIT;
 	return result;
 }
 
@@ -283,14 +273,11 @@ static int p80211knetdev_stop( netdevice_t *netdev )
 void
 p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb )
 {
-	DBFENTER;
-
 	/* Enqueue for post-irq processing */
 	skb_queue_tail(&wlandev->nsd_rxq, skb);
 
 	tasklet_schedule(&wlandev->rx_bh);
 
-        DBFEXIT;
 	return;
 }
 
@@ -314,8 +301,6 @@ static void p80211netdev_rx_bh(unsigned long arg)
 	netdevice_t     *dev = wlandev->netdev;
 	p80211_hdr_a3_t *hdr;
 	u16 fc;
-
-        DBFENTER;
 
 	/* Let's empty our our queue */
 	while ( (skb = skb_dequeue(&wlandev->nsd_rxq)) ) {
@@ -369,8 +354,6 @@ static void p80211netdev_rx_bh(unsigned long arg)
 		}
 		dev_kfree_skb(skb);
 	}
-
-        DBFEXIT;
 }
 
 
@@ -400,8 +383,6 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 	wlandevice_t	*wlandev = netdev->ml_priv;
 	p80211_hdr_t    p80211_hdr;
 	p80211_metawep_t p80211_wep;
-
-	DBFENTER;
 
 	if (skb == NULL) {
 		return 0;
@@ -506,7 +487,6 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 	if (!result)
 		dev_kfree_skb(skb);
 
-	DBFEXIT;
 	return result;
 }
 
@@ -527,14 +507,11 @@ static void p80211knetdev_set_multicast_list(netdevice_t *dev)
 {
 	wlandevice_t	*wlandev = dev->ml_priv;
 
-	DBFENTER;
-
 	/* TODO:  real multicast support as well */
 
 	if (wlandev->set_multicast_list)
 		wlandev->set_multicast_list(wlandev, dev);
 
-	DBFEXIT;
 }
 
 #ifdef SIOCETHTOOL
@@ -620,7 +597,6 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 	p80211ioctl_req_t	*req = (p80211ioctl_req_t*)ifr;
 	wlandevice_t		*wlandev = dev->ml_priv;
 	u8			*msgbuf;
-	DBFENTER;
 
 	WLAN_LOG_DEBUG(2, "rx'd ioctl, cmd=%d, len=%d\n", cmd, req->len);
 
@@ -663,8 +639,6 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 		result = -ENOMEM;
 	}
 bail:
-	DBFEXIT;
-
 	return result; /* If allocate,copyfrom or copyto fails, return errno */
 }
 
@@ -702,7 +676,6 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	p80211item_uint32_t		*resultcode;
 	int result = 0;
 
-	DBFENTER;
 	/* If we're running, we don't allow MAC address changes */
 	if (netif_running(dev)) {
 		return -EBUSY;
@@ -753,21 +726,17 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 		memcpy(dev->dev_addr, new_addr->sa_data, dev->addr_len);
 	}
 
-	DBFEXIT;
 	return result;
 }
 
 static int wlan_change_mtu(netdevice_t *dev, int new_mtu)
 {
-	DBFENTER;
 	// 2312 is max 802.11 payload, 20 is overhead, (ether + llc +snap)
 	// and another 8 for wep.
         if ( (new_mtu < 68) || (new_mtu > (2312 - 20 - 8)))
                 return -EINVAL;
 
         dev->mtu = new_mtu;
-
-	DBFEXIT;
 
         return 0;
 }
@@ -800,8 +769,6 @@ int wlan_setup(wlandevice_t *wlandev)
 {
 	int		result = 0;
 	netdevice_t	*dev;
-
-	DBFENTER;
 
 	/* Set up the wlandev */
 	wlandev->state = WLAN_DEVICE_CLOSED;
@@ -853,7 +820,6 @@ int wlan_setup(wlandevice_t *wlandev)
 		netif_carrier_off(dev);
 	}
 
-	DBFEXIT;
 	return result;
 }
 
@@ -882,8 +848,6 @@ int wlan_unsetup(wlandevice_t *wlandev)
 {
 	int		result = 0;
 
-	DBFENTER;
-
 	tasklet_kill(&wlandev->rx_bh);
 
 	if (wlandev->netdev == NULL ) {
@@ -894,7 +858,6 @@ int wlan_unsetup(wlandevice_t *wlandev)
 		wlandev->netdev = NULL;
 	}
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -923,13 +886,10 @@ int register_wlandev(wlandevice_t *wlandev)
 {
 	int		i = 0;
 
-	DBFENTER;
-
 	i = register_netdev(wlandev->netdev);
 	if (i)
 		return i;
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -955,8 +915,6 @@ int unregister_wlandev(wlandevice_t *wlandev)
 {
 	struct sk_buff *skb;
 
-	DBFENTER;
-
 	unregister_netdev(wlandev->netdev);
 
 	/* Now to clean out the rx queue */
@@ -964,7 +922,6 @@ int unregister_wlandev(wlandevice_t *wlandev)
 		dev_kfree_skb(skb);
 	}
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -1001,15 +958,12 @@ int unregister_wlandev(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 void p80211netdev_hwremoved(wlandevice_t *wlandev)
 {
-	DBFENTER;
 	wlandev->hwremoved = 1;
 	if ( wlandev->state == WLAN_DEVICE_OPEN) {
 		netif_stop_queue(wlandev->netdev);
 	}
 
 	netif_device_detach(wlandev->netdev);
-
-	DBFEXIT;
 }
 
 
@@ -1196,7 +1150,6 @@ static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc)
 static void p80211knetdev_tx_timeout( netdevice_t *netdev)
 {
 	wlandevice_t	*wlandev = netdev->ml_priv;
-	DBFENTER;
 
 	if (wlandev->tx_timeout) {
 		wlandev->tx_timeout(wlandev);
@@ -1205,6 +1158,4 @@ static void p80211knetdev_tx_timeout( netdevice_t *netdev)
 				 wlandev->nsdname);
 		netif_wake_queue(wlandev->netdev);
 	}
-
-	DBFEXIT;
 }

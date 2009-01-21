@@ -218,8 +218,6 @@ inline void dmpmem(void *buf, int n)
 ----------------------------------------------------------------*/
 static int prism2sta_open(wlandevice_t *wlandev)
 {
-	DBFENTER;
-
 	/* We don't currently have to do anything else.
 	 * The setup of the MAC should be subsequently completed via
 	 * the mlme commands.
@@ -228,7 +226,6 @@ static int prism2sta_open(wlandevice_t *wlandev)
 	 * frames because of dev->flags&IFF_UP is true.
 	 */
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -256,15 +253,12 @@ static int prism2sta_open(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 static int prism2sta_close(wlandevice_t *wlandev)
 {
-	DBFENTER;
-
 	/* We don't currently have to do anything else.
 	 * Higher layers know we're not ready from dev->start==0 and
 	 * dev->tbusy==1.  Our rx path knows to not pass up received
 	 * frames because of dev->flags&IFF_UP is false.
 	 */
 
-	DBFEXIT;
 	return 0;
 }
 
@@ -288,8 +282,6 @@ static int prism2sta_close(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 static void prism2sta_reset(wlandevice_t *wlandev )
 {
-	DBFENTER;
-	DBFEXIT;
 	return;
 }
 
@@ -321,7 +313,6 @@ static int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb,
 {
 	hfa384x_t		*hw = (hfa384x_t *)wlandev->priv;
 	int			result;
-	DBFENTER;
 
 	/* If necessary, set the 802.11 WEP bit */
 	if ((wlandev->hostwep & (HOSTWEP_PRIVACYINVOKED | HOSTWEP_ENCRYPT)) == HOSTWEP_PRIVACYINVOKED) {
@@ -330,7 +321,6 @@ static int prism2sta_txframe(wlandevice_t *wlandev, struct sk_buff *skb,
 
 	result = hfa384x_drvr_txframe(hw, skb, p80211_hdr, p80211_wep);
 
-	DBFEXIT;
 	return result;
 }
 
@@ -364,7 +354,6 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 
 	int result = 0;
-	DBFENTER;
 
 	switch( msg->msgcode )
 	{
@@ -459,7 +448,6 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		break;
 	}
 
-	DBFEXIT;
 	return result;
 }
 
@@ -489,7 +477,6 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 {
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	u32 			result;
-	DBFENTER;
 
 	result = P80211ENUM_resultcode_implementation_failure;
 
@@ -635,7 +622,6 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 		break;
 	}
 
-	DBFEXIT;
 	return result;
 }
 
@@ -666,8 +652,6 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	u16                  temp;
 	u8			snum[HFA384x_RID_NICSERIALNUMBER_LEN];
 	char			pstr[(HFA384x_RID_NICSERIALNUMBER_LEN * 4) + 1];
-
-	DBFENTER;
 
 	/* Collect version and compatibility info */
 	/*  Some are critical, some are not */
@@ -953,7 +937,6 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 failed:
 	WLAN_LOG_ERROR("Failed, result=%d\n", result);
 done:
-	DBFEXIT;
 	return result;
 }
 
@@ -992,8 +975,6 @@ static int prism2sta_setmulticast(wlandevice_t *wlandev, netdevice_t *dev)
 
 	u16  promisc;
 
-	DBFENTER;
-
 	/* If we're not ready, what's the point? */
 	if ( hw->state != HFA384x_STATE_RUNNING )
 		goto exit;
@@ -1014,7 +995,6 @@ static int prism2sta_setmulticast(wlandevice_t *wlandev, netdevice_t *dev)
 	// }
 
  exit:
-	DBFEXIT;
 	return result;
 }
 
@@ -1038,9 +1018,7 @@ static int prism2sta_setmulticast(wlandevice_t *wlandev, netdevice_t *dev)
 ----------------------------------------------------------------*/
 static void prism2sta_inf_handover(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
-	DBFENTER;
 	WLAN_LOG_DEBUG(2,"received infoframe:HANDOVER (unhandled)\n");
-	DBFEXIT;
 	return;
 }
 
@@ -1071,8 +1049,6 @@ static void prism2sta_inf_tallies(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf
 	int			i;
 	int			cnt;
 
-	DBFENTER;
-
 	/*
 	** Determine if these are 16-bit or 32-bit tallies, based on the
 	** record length of the info record.
@@ -1090,8 +1066,6 @@ static void prism2sta_inf_tallies(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf
 		for (i = 0; i < cnt; i++, dst++, src16++)
 			*dst += hfa384x2host_16(*src16);
 	}
-
-	DBFEXIT;
 
 	return;
 }
@@ -1123,7 +1097,6 @@ static void prism2sta_inf_scanresults(wlandevice_t *wlandev,
 	int			i;
 	hfa384x_JoinRequest_data_t	joinreq;
 	int			result;
-	DBFENTER;
 
 	/* Get the number of results, first in bytes, then in results */
 	nbss = (inf->framelen * sizeof(u16)) -
@@ -1154,7 +1127,6 @@ static void prism2sta_inf_scanresults(wlandevice_t *wlandev,
 		WLAN_LOG_ERROR("setconfig(joinreq) failed, result=%d\n", result);
 	}
 
-	DBFEXIT;
 	return;
 }
 
@@ -1180,7 +1152,6 @@ static void prism2sta_inf_hostscanresults(wlandevice_t *wlandev,
 {
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	int			nbss;
-	DBFENTER;
 
 	nbss = (inf->framelen - 3) / 32;
 	WLAN_LOG_DEBUG(1, "Received %d hostscan results\n", nbss);
@@ -1200,8 +1171,6 @@ static void prism2sta_inf_hostscanresults(wlandevice_t *wlandev,
         /* Notify/wake the sleeping caller. */
         hw->scanflag = nbss;
         wake_up_interruptible(&hw->cmdq);
-
-	DBFEXIT;
 };
 
 /*----------------------------------------------------------------
@@ -1227,7 +1196,6 @@ static void prism2sta_inf_chinforesults(wlandevice_t *wlandev,
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	unsigned int		i, n;
 
-	DBFENTER;
 	hw->channel_info.results.scanchannels =
 		hfa384x2host_16(inf->info.chinforesult.scanchannels);
 #if 0
@@ -1255,7 +1223,6 @@ static void prism2sta_inf_chinforesults(wlandevice_t *wlandev,
 	atomic_set(&hw->channel_info.done, 2);
 
 	hw->channel_info.count = n;
-	DBFEXIT;
 	return;
 }
 
@@ -1266,7 +1233,6 @@ void prism2sta_processing_defer(struct work_struct *data)
 	hfa384x_bytestr32_t ssid;
 	int			result;
 
-	DBFENTER;
 	/* First let's process the auth frames */
 	{
 		struct sk_buff          *skb;
@@ -1511,7 +1477,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 #endif
 
  failed:
-	DBFEXIT;
+        return;
 }
 
 /*----------------------------------------------------------------
@@ -1536,13 +1502,10 @@ static void prism2sta_inf_linkstatus(wlandevice_t *wlandev,
 {
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 
-	DBFENTER;
-
 	hw->link_status_new = hfa384x2host_16(inf->info.linkstatus.linkstatus);
 
 	schedule_work(&hw->link_bh);
 
-	DBFEXIT;
 	return;
 }
 
@@ -1570,8 +1533,6 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	hfa384x_AssocStatus_t	rec;
 	int			i;
-
-	DBFENTER;
 
 	memcpy(&rec, &inf->info.assocstatus, sizeof(rec));
 	rec.assocstatus = hfa384x2host_16(rec.assocstatus);
@@ -1604,8 +1565,6 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 			WLAN_LOG_WARNING("authfail assocstatus info frame received for authenticated station.\n");
 	}
 
-	DBFEXIT;
-
 	return;
 }
 
@@ -1634,8 +1593,6 @@ static void prism2sta_inf_authreq(wlandevice_t *wlandev,
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 	struct sk_buff *skb;
 
-	DBFENTER;
-
 	skb = dev_alloc_skb(sizeof(*inf));
 	if (skb) {
 		skb_put(skb, sizeof(*inf));
@@ -1643,8 +1600,6 @@ static void prism2sta_inf_authreq(wlandevice_t *wlandev,
 		skb_queue_tail(&hw->authq, skb);
 		schedule_work(&hw->link_bh);
 	}
-
-	DBFEXIT;
 }
 
 static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
@@ -1655,8 +1610,6 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 
 	int    i, added, result, cnt;
 	u8  *addr;
-
-	DBFENTER;
 
 	/*
 	** Build the AuthenticateStation record.  Initialize it for denying
@@ -1798,9 +1751,6 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 		if (added) hw->authlist.cnt--;
 		WLAN_LOG_ERROR("setconfig(authenticatestation) failed, result=%d\n", result);
 	}
-
-	DBFEXIT;
-
 	return;
 }
 
@@ -1828,11 +1778,7 @@ static void prism2sta_inf_psusercnt(wlandevice_t *wlandev,
 {
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 
-	DBFENTER;
-
 	hw->psusercount = hfa384x2host_16(inf->info.psusercnt.usercnt);
-
-	DBFEXIT;
 
 	return;
 }
@@ -1858,9 +1804,7 @@ void prism2sta_ev_dtim(wlandevice_t *wlandev)
 #if 0
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 #endif
-	DBFENTER;
 	WLAN_LOG_DEBUG(3, "DTIM event, currently unhandled.\n");
-	DBFEXIT;
 	return;
 }
 
@@ -1886,9 +1830,7 @@ void prism2sta_ev_infdrop(wlandevice_t *wlandev)
 #if 0
         hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
 #endif
-	DBFENTER;
 	WLAN_LOG_DEBUG(3, "Info frame dropped due to card mem low.\n");
-	DBFEXIT;
 	return;
 }
 
@@ -1912,7 +1854,6 @@ void prism2sta_ev_infdrop(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
-	DBFENTER;
 	inf->infotype = hfa384x2host_16(inf->infotype);
 	/* Dispatch */
 	switch ( inf->infotype ) {
@@ -1957,7 +1898,6 @@ void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 				"Unknown info type=0x%02x\n", inf->infotype);
 			break;
 	}
-	DBFEXIT;
 	return;
 }
 
@@ -1983,11 +1923,8 @@ void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 ----------------------------------------------------------------*/
 void prism2sta_ev_txexc(wlandevice_t *wlandev, u16 status)
 {
-	DBFENTER;
-
 	WLAN_LOG_DEBUG(3, "TxExc status=0x%x.\n", status);
 
-	DBFEXIT;
 	return;
 }
 
@@ -2010,11 +1947,9 @@ void prism2sta_ev_txexc(wlandevice_t *wlandev, u16 status)
 ----------------------------------------------------------------*/
 void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status)
 {
-	DBFENTER;
 	WLAN_LOG_DEBUG(4, "Tx Complete, status=0x%04x\n", status);
 	/* update linux network stats */
 	wlandev->linux_stats.tx_packets++;
-	DBFEXIT;
 	return;
 }
 
@@ -2037,11 +1972,7 @@ void prism2sta_ev_tx(wlandevice_t *wlandev, u16 status)
 ----------------------------------------------------------------*/
 void prism2sta_ev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 {
-	DBFENTER;
-
 	p80211netdev_rx(wlandev, skb);
-
-	DBFEXIT;
 	return;
 }
 
@@ -2063,11 +1994,7 @@ void prism2sta_ev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 ----------------------------------------------------------------*/
 void prism2sta_ev_alloc(wlandevice_t *wlandev)
 {
-	DBFENTER;
-
 	netif_wake_queue(wlandev->netdev);
-
-	DBFEXIT;
 	return;
 }
 
@@ -2138,8 +2065,6 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	hfa384x_bytestr32_t ssid;
 	int result = 0;
 
-	DBFENTER;
-
 	if (hw->wlandev->hwremoved)
 		goto done;
 
@@ -2198,16 +2123,14 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	mod_timer(&hw->commsqual_timer, jiffies + HZ);
 
  done:
-	DBFEXIT;
+	;
 }
 
 void prism2sta_commsqual_timer(unsigned long data)
 {
         hfa384x_t               *hw = (hfa384x_t *) data;
 
-	DBFENTER;
-
 	schedule_work(&hw->commsqual_bh);
-
-	DBFEXIT;
 }
+
+

@@ -85,8 +85,6 @@ static int prism2sta_probe_usb(
 	hfa384x_t	*hw = NULL;
 	int              result = 0;
 
-	DBFENTER;
-
 	dev = interface_to_usbdev(interface);
 
 	if ((wlandev = create_wlan()) == NULL) {
@@ -148,8 +146,6 @@ static int prism2sta_probe_usb(
 	wlandev = NULL;
 
  done:
-	DBFEXIT;
-
 	usb_set_intfdata(interface, wlandev);
 	return result;
 }
@@ -178,8 +174,6 @@ static void
 prism2sta_disconnect_usb(struct usb_interface *interface)
 {
 	wlandevice_t		*wlandev;
-
-        DBFENTER;
 
 	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
 
@@ -265,9 +259,7 @@ prism2sta_disconnect_usb(struct usb_interface *interface)
 	}
 
  exit:
-
 	usb_set_intfdata(interface, NULL);
-	DBFEXIT;
 }
 
 
@@ -281,21 +273,13 @@ static struct usb_driver prism2_usb_driver = {
 
 static int __init prism2usb_init(void)
 {
-        DBFENTER;
-
 	/* This call will result in calls to prism2sta_probe_usb. */
 	return usb_register(&prism2_usb_driver);
-
-	DBFEXIT;
 };
 
 static void __exit prism2usb_cleanup(void)
 {
-        DBFENTER;
-
 	usb_deregister(&prism2_usb_driver);
-
-	DBFEXIT;
 };
 
 module_init(prism2usb_init);

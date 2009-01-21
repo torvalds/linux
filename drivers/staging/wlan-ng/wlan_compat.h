@@ -110,14 +110,10 @@
 		for( __i__=0; __i__ < (n); __i__++) \
 			printk( " %02x", ((u8*)(p))[__i__]); \
 		printk("\n"); }
-	#define DBFENTER { if ( WLAN_DBVAR >= 5 ){ WLAN_LOG_DEBUG(3,"---->\n"); } }
-	#define DBFEXIT  { if ( WLAN_DBVAR >= 5 ){ WLAN_LOG_DEBUG(3,"<----\n"); } }
 
 	#define WLAN_LOG_DEBUG(l,x,args...) if ( WLAN_DBVAR >= (l)) printk(KERN_DEBUG "%s(%lu): " x ,  __func__, (preempt_count() & PREEMPT_MASK), ##args );
 #else
 	#define WLAN_HEX_DUMP( l, s, p, n)
-	#define DBFENTER
-	#define DBFEXIT
 
 	#define WLAN_LOG_DEBUG(l, s, args...)
 #endif
