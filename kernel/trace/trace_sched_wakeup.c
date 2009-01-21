@@ -153,6 +153,7 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 		goto out_unlock;
 
 	trace_function(wakeup_trace, data, CALLER_ADDR1, CALLER_ADDR2, flags, pc);
+	tracing_sched_switch_trace(wakeup_trace, data, prev, next, flags, pc);
 
 	/*
 	 * usecs conversion is slow so we try to delay the conversion
@@ -214,6 +215,7 @@ static void wakeup_reset(struct trace_array *tr)
 static void
 probe_wakeup(struct rq *rq, struct task_struct *p, int success)
 {
+	struct trace_array_cpu *data;
 	int cpu = smp_processor_id();
 	unsigned long flags;
 	long disabled;
@@ -253,9 +255,12 @@ probe_wakeup(struct rq *rq, struct task_struct *p, int success)
 
 	local_save_flags(flags);
 
-	wakeup_trace->data[wakeup_cpu]->preempt_timestamp = ftrace_now(cpu);
-	trace_function(wakeup_trace, wakeup_trace->data[wakeup_cpu],
-		       CALLER_ADDR1, CALLER_ADDR2, flags, pc);
+	data = wakeup_trace->data[wakeup_cpu];
+	data->preempt_timestamp = ftrace_now(cpu);
+	tracing_sched_wakeup_trace(wakeup_trace, data, p, current,
+				   flags, pc);
+	trace_function(wakeup_trace, data, CALLER_ADDR1, CALLER_ADDR2,
+		       flags, pc);
 
 out_locked:
 	__raw_spin_unlock(&wakeup_lock);
