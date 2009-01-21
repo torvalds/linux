@@ -32,7 +32,8 @@ extern struct list_head all_lock_classes;
 extern struct lock_chain lock_chains[];
 
 extern void
-get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3, char *c4);
+get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3,
+					char *c4, char *c5, char *c6);
 
 extern const char * __get_key_name(struct lockdep_subclass_key *key, char *str);
 

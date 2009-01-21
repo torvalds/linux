@@ -310,12 +310,14 @@ EXPORT_SYMBOL(lockdep_on);
 #if VERBOSE
 # define HARDIRQ_VERBOSE	1
 # define SOFTIRQ_VERBOSE	1
+# define RECLAIM_VERBOSE	1
 #else
 # define HARDIRQ_VERBOSE	0
 # define SOFTIRQ_VERBOSE	0
+# define RECLAIM_VERBOSE	0
 #endif
 
-#if VERBOSE || HARDIRQ_VERBOSE || SOFTIRQ_VERBOSE
+#if VERBOSE || HARDIRQ_VERBOSE || SOFTIRQ_VERBOSE || RECLAIM_VERBOSE
 /*
  * Quick filtering for interesting events:
  */
@@ -454,6 +456,10 @@ static const char *usage_str[] =
 	[LOCK_USED_IN_SOFTIRQ_READ] =	"in-softirq-R",
 	[LOCK_ENABLED_SOFTIRQS_READ] =	"softirq-on-R",
 	[LOCK_ENABLED_HARDIRQS_READ] =	"hardirq-on-R",
+	[LOCK_USED_IN_RECLAIM_FS] =	"in-reclaim-W",
+	[LOCK_USED_IN_RECLAIM_FS_READ] = "in-reclaim-R",
+	[LOCK_HELD_OVER_RECLAIM_FS] =	"ov-reclaim-W",
+	[LOCK_HELD_OVER_RECLAIM_FS_READ] = "ov-reclaim-R",
 };
 
 const char * __get_key_name(struct lockdep_subclass_key *key, char *str)
@@ -462,9 +468,10 @@ const char * __get_key_name(struct lockdep_subclass_key *key, char *str)
 }
 
 void
-get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3, char *c4)
+get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3,
+					char *c4, char *c5, char *c6)
 {
-	*c1 = '.', *c2 = '.', *c3 = '.', *c4 = '.';
+	*c1 = '.', *c2 = '.', *c3 = '.', *c4 = '.', *c5 = '.', *c6 = '.';
 
 	if (class->usage_mask & LOCKF_USED_IN_HARDIRQ)
 		*c1 = '+';
@@ -493,14 +500,29 @@ get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3, char *c4
 		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQS_READ)
 			*c4 = '?';
 	}
+
+	if (class->usage_mask & LOCKF_USED_IN_RECLAIM_FS)
+		*c5 = '+';
+	else
+		if (class->usage_mask & LOCKF_HELD_OVER_RECLAIM_FS)
+			*c5 = '-';
+
+	if (class->usage_mask & LOCKF_HELD_OVER_RECLAIM_FS_READ)
+		*c6 = '-';
+	if (class->usage_mask & LOCKF_USED_IN_RECLAIM_FS_READ) {
+		*c6 = '+';
+		if (class->usage_mask & LOCKF_HELD_OVER_RECLAIM_FS_READ)
+			*c6 = '?';
+	}
+
 }
 
 static void print_lock_name(struct lock_class *class)
 {
-	char str[KSYM_NAME_LEN], c1, c2, c3, c4;
+	char str[KSYM_NAME_LEN], c1, c2, c3, c4, c5, c6;
 	const char *name;
 
-	get_usage_chars(class, &c1, &c2, &c3, &c4);
+	get_usage_chars(class, &c1, &c2, &c3, &c4, &c5, &c6);
 
 	name = class->name;
 	if (!name) {
@@ -513,7 +535,7 @@ static void print_lock_name(struct lock_class *class)
 		if (class->subclass)
 			printk("/%d", class->subclass);
 	}
-	printk("){%c%c%c%c}", c1, c2, c3, c4);
+	printk("){%c%c%c%c%c%c}", c1, c2, c3, c4, c5, c6);
 }
 
 static void print_lockdep_cache(struct lockdep_map *lock)
@@ -1306,6 +1328,26 @@ check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
 					LOCK_ENABLED_SOFTIRQS, "soft"))
 		return 0;
 
+	/*
+	 * Prove that the new dependency does not connect a reclaim-fs-safe
+	 * lock with a reclaim-fs-unsafe lock - to achieve this we search
+	 * the backwards-subgraph starting at <prev>, and the
+	 * forwards-subgraph starting at <next>:
+	 */
+	if (!check_usage(curr, prev, next, LOCK_USED_IN_RECLAIM_FS,
+					LOCK_HELD_OVER_RECLAIM_FS, "reclaim-fs"))
+		return 0;
+
+	/*
+	 * Prove that the new dependency does not connect a reclaim-fs-safe-read
+	 * lock with a reclaim-fs-unsafe lock - to achieve this we search
+	 * the backwards-subgraph starting at <prev>, and the
+	 * forwards-subgraph starting at <next>:
+	 */
+	if (!check_usage(curr, prev, next, LOCK_USED_IN_RECLAIM_FS_READ,
+					LOCK_HELD_OVER_RECLAIM_FS, "reclaim-fs-read"))
+		return 0;
+
 	return 1;
 }
 
@@ -1949,6 +1991,14 @@ static int softirq_verbose(struct lock_class *class)
 	return 0;
 }
 
+static int reclaim_verbose(struct lock_class *class)
+{
+#if RECLAIM_VERBOSE
+	return class_filter(class);
+#endif
+	return 0;
+}
+
 #define STRICT_READ_CHECKS	1
 
 static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
@@ -2007,6 +2057,31 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		if (softirq_verbose(hlock_class(this)))
 			ret = 2;
 		break;
+	case LOCK_USED_IN_RECLAIM_FS:
+		if (!valid_state(curr, this, new_bit, LOCK_HELD_OVER_RECLAIM_FS))
+			return 0;
+		if (!valid_state(curr, this, new_bit,
+				 LOCK_HELD_OVER_RECLAIM_FS_READ))
+			return 0;
+		/*
+		 * just marked it reclaim-fs-safe, check that this lock
+		 * took no reclaim-fs-unsafe lock in the past:
+		 */
+		if (!check_usage_forwards(curr, this,
+					  LOCK_HELD_OVER_RECLAIM_FS, "reclaim-fs"))
+			return 0;
+#if STRICT_READ_CHECKS
+		/*
+		 * just marked it reclaim-fs-safe, check that this lock
+		 * took no reclaim-fs-unsafe-read lock in the past:
+		 */
+		if (!check_usage_forwards(curr, this,
+				LOCK_HELD_OVER_RECLAIM_FS_READ, "reclaim-fs-read"))
+			return 0;
+#endif
+		if (reclaim_verbose(hlock_class(this)))
+			ret = 2;
+		break;
 	case LOCK_USED_IN_HARDIRQ_READ:
 		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_HARDIRQS))
 			return 0;
@@ -2031,6 +2106,19 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 					  LOCK_ENABLED_SOFTIRQS, "soft"))
 			return 0;
 		if (softirq_verbose(hlock_class(this)))
+			ret = 2;
+		break;
+	case LOCK_USED_IN_RECLAIM_FS_READ:
+		if (!valid_state(curr, this, new_bit, LOCK_HELD_OVER_RECLAIM_FS))
+			return 0;
+		/*
+		 * just marked it reclaim-fs-read-safe, check that this lock
+		 * took no reclaim-fs-unsafe lock in the past:
+		 */
+		if (!check_usage_forwards(curr, this,
+					  LOCK_HELD_OVER_RECLAIM_FS, "reclaim-fs"))
+			return 0;
+		if (reclaim_verbose(hlock_class(this)))
 			ret = 2;
 		break;
 	case LOCK_ENABLED_HARDIRQS:
@@ -2085,6 +2173,32 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		if (softirq_verbose(hlock_class(this)))
 			ret = 2;
 		break;
+	case LOCK_HELD_OVER_RECLAIM_FS:
+		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_RECLAIM_FS))
+			return 0;
+		if (!valid_state(curr, this, new_bit,
+				 LOCK_USED_IN_RECLAIM_FS_READ))
+			return 0;
+		/*
+		 * just marked it reclaim-fs-unsafe, check that no reclaim-fs-safe
+		 * lock in the system ever took it in the past:
+		 */
+		if (!check_usage_backwards(curr, this,
+					   LOCK_USED_IN_RECLAIM_FS, "reclaim-fs"))
+			return 0;
+#if STRICT_READ_CHECKS
+		/*
+		 * just marked it softirq-unsafe, check that no
+		 * softirq-safe-read lock in the system ever took
+		 * it in the past:
+		 */
+		if (!check_usage_backwards(curr, this,
+				   LOCK_USED_IN_RECLAIM_FS_READ, "reclaim-fs-read"))
+			return 0;
+#endif
+		if (reclaim_verbose(hlock_class(this)))
+			ret = 2;
+		break;
 	case LOCK_ENABLED_HARDIRQS_READ:
 		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_HARDIRQ))
 			return 0;
@@ -2115,6 +2229,21 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		if (softirq_verbose(hlock_class(this)))
 			ret = 2;
 		break;
+	case LOCK_HELD_OVER_RECLAIM_FS_READ:
+		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_RECLAIM_FS))
+			return 0;
+#if STRICT_READ_CHECKS
+		/*
+		 * just marked it reclaim-fs-read-unsafe, check that no
+		 * reclaim-fs-safe lock in the system ever took it in the past:
+		 */
+		if (!check_usage_backwards(curr, this,
+					   LOCK_USED_IN_RECLAIM_FS, "reclaim-fs"))
+			return 0;
+#endif
+		if (reclaim_verbose(hlock_class(this)))
+			ret = 2;
+		break;
 	default:
 		WARN_ON(1);
 		break;
@@ -2123,11 +2252,17 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	return ret;
 }
 
+enum mark_type {
+	HARDIRQ,
+	SOFTIRQ,
+	RECLAIM_FS,
+};
+
 /*
  * Mark all held locks with a usage bit:
  */
 static int
-mark_held_locks(struct task_struct *curr, int hardirq)
+mark_held_locks(struct task_struct *curr, enum mark_type mark)
 {
 	enum lock_usage_bit usage_bit;
 	struct held_lock *hlock;
@@ -2136,17 +2271,32 @@ mark_held_locks(struct task_struct *curr, int hardirq)
 	for (i = 0; i < curr->lockdep_depth; i++) {
 		hlock = curr->held_locks + i;
 
-		if (hardirq) {
+		switch (mark) {
+		case HARDIRQ:
 			if (hlock->read)
 				usage_bit = LOCK_ENABLED_HARDIRQS_READ;
 			else
 				usage_bit = LOCK_ENABLED_HARDIRQS;
-		} else {
+			break;
+
+		case SOFTIRQ:
 			if (hlock->read)
 				usage_bit = LOCK_ENABLED_SOFTIRQS_READ;
 			else
 				usage_bit = LOCK_ENABLED_SOFTIRQS;
+			break;
+
+		case RECLAIM_FS:
+			if (hlock->read)
+				usage_bit = LOCK_HELD_OVER_RECLAIM_FS_READ;
+			else
+				usage_bit = LOCK_HELD_OVER_RECLAIM_FS;
+			break;
+
+		default:
+			BUG();
 		}
+
 		if (!mark_lock(curr, hlock, usage_bit))
 			return 0;
 	}
@@ -2200,7 +2350,7 @@ void trace_hardirqs_on_caller(unsigned long ip)
 	 * We are going to turn hardirqs on, so set the
 	 * usage bit for all held locks:
 	 */
-	if (!mark_held_locks(curr, 1))
+	if (!mark_held_locks(curr, HARDIRQ))
 		return;
 	/*
 	 * If we have softirqs enabled, then set the usage
@@ -2208,7 +2358,7 @@ void trace_hardirqs_on_caller(unsigned long ip)
 	 * this bit from being set before)
 	 */
 	if (curr->softirqs_enabled)
-		if (!mark_held_locks(curr, 0))
+		if (!mark_held_locks(curr, SOFTIRQ))
 			return;
 
 	curr->hardirq_enable_ip = ip;
@@ -2288,7 +2438,7 @@ void trace_softirqs_on(unsigned long ip)
 	 * enabled too:
 	 */
 	if (curr->hardirqs_enabled)
-		mark_held_locks(curr, 0);
+		mark_held_locks(curr, SOFTIRQ);
 }
 
 /*
@@ -2315,6 +2465,31 @@ void trace_softirqs_off(unsigned long ip)
 		DEBUG_LOCKS_WARN_ON(!softirq_count());
 	} else
 		debug_atomic_inc(&redundant_softirqs_off);
+}
+
+void lockdep_trace_alloc(gfp_t gfp_mask)
+{
+	struct task_struct *curr = current;
+
+	if (unlikely(!debug_locks))
+		return;
+
+	/* no reclaim without waiting on it */
+	if (!(gfp_mask & __GFP_WAIT))
+		return;
+
+	/* this guy won't enter reclaim */
+	if ((curr->flags & PF_MEMALLOC) && !(gfp_mask & __GFP_NOMEMALLOC))
+		return;
+
+	/* We're only interested __GFP_FS allocations for now */
+	if (!(gfp_mask & __GFP_FS))
+		return;
+
+	if (DEBUG_LOCKS_WARN_ON(irqs_disabled()))
+		return;
+
+	mark_held_locks(curr, RECLAIM_FS);
 }
 
 static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
@@ -2358,6 +2533,22 @@ static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
 			if (curr->softirqs_enabled)
 				if (!mark_lock(curr, hlock,
 						LOCK_ENABLED_SOFTIRQS))
+					return 0;
+		}
+	}
+
+	/*
+	 * We reuse the irq context infrastructure more broadly as a general
+	 * context checking code. This tests GFP_FS recursion (a lock taken
+	 * during reclaim for a GFP_FS allocation is held over a GFP_FS
+	 * allocation).
+	 */
+	if (!hlock->trylock && (curr->lockdep_reclaim_gfp & __GFP_FS)) {
+		if (hlock->read) {
+			if (!mark_lock(curr, hlock, LOCK_USED_IN_RECLAIM_FS_READ))
+					return 0;
+		} else {
+			if (!mark_lock(curr, hlock, LOCK_USED_IN_RECLAIM_FS))
 					return 0;
 		}
 	}
@@ -2453,6 +2644,10 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 	case LOCK_ENABLED_SOFTIRQS:
 	case LOCK_ENABLED_HARDIRQS_READ:
 	case LOCK_ENABLED_SOFTIRQS_READ:
+	case LOCK_USED_IN_RECLAIM_FS:
+	case LOCK_USED_IN_RECLAIM_FS_READ:
+	case LOCK_HELD_OVER_RECLAIM_FS:
+	case LOCK_HELD_OVER_RECLAIM_FS_READ:
 		ret = mark_lock_irq(curr, this, new_bit);
 		if (!ret)
 			return 0;
@@ -2965,6 +3160,16 @@ void lock_release(struct lockdep_map *lock, int nested,
 	raw_local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(lock_release);
+
+void lockdep_set_current_reclaim_state(gfp_t gfp_mask)
+{
+	current->lockdep_reclaim_gfp = gfp_mask;
+}
+
+void lockdep_clear_current_reclaim_state(void)
+{
+	current->lockdep_reclaim_gfp = 0;
+}
 
 #ifdef CONFIG_LOCK_STAT
 static int
