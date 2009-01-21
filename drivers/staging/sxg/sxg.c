@@ -133,12 +133,13 @@ void sxg_collect_statistics(struct adapter_t *adapter);
 
 #define XXXTODO 0
 
+#if XXXTODO
 static int sxg_mac_set_address(struct net_device *dev, void *ptr);
+static void sxg_unmap_mmio_space(struct adapter_t *adapter);
+#endif
 static void sxg_mcast_set_list(struct net_device *dev);
 
 static int sxg_adapter_set_hwaddr(struct adapter_t *adapter);
-
-static void sxg_unmap_mmio_space(struct adapter_t *adapter);
 
 static int sxg_initialize_adapter(struct adapter_t *adapter);
 static void sxg_stock_rcv_buffers(struct adapter_t *adapter);
@@ -3035,7 +3036,9 @@ static int sxg_read_mdio_reg(struct adapter_t *adapter,
  * complemented), we must then transpose the value and return bits 30-23.
  */
 static u32 sxg_crc_table[256];/* Table of CRC's for all possible byte values */
+#if XXXTODO
 static u32 sxg_crc_init;	/* Is table initialized */
+#endif
 
 /* Contruct the CRC32 table */
 static void sxg_mcast_init_crc32(void)
@@ -3060,6 +3063,7 @@ static void sxg_mcast_init_crc32(void)
 	}
 }
 
+#if XXXTODO
 /*
  *  Return the MAC hast as described above.
  */
@@ -3087,6 +3091,7 @@ static unsigned char sxg_mcast_get_mac_hash(char *macaddr)
 
 	return (machash);
 }
+#endif
 
 static void sxg_mcast_set_mask(struct adapter_t *adapter)
 {
@@ -3130,6 +3135,7 @@ static void sxg_mcast_set_mask(struct adapter_t *adapter)
 	}
 }
 
+#if XXXTODO
 /*
  *  Allocate a mcast_address structure to hold the multicast address.
  *  Link it in.
@@ -3178,6 +3184,7 @@ static void sxg_mcast_set_bit(struct adapter_t *adapter, char *address)
 	/* OR in the new bit into our 64 bit mask. */
 	adapter->MulticastMask |= (u64) 1 << crcpoly;
 }
+#endif
 
 static void sxg_mcast_set_list(struct net_device *dev)
 {
@@ -3191,6 +3198,7 @@ static void sxg_mcast_set_list(struct net_device *dev)
 	sxg_mcast_set_mask(adapter);
 }
 
+#if XXXTODO
 static void sxg_unmap_mmio_space(struct adapter_t *adapter)
 {
 #if LINUX_FREES_ADAPTER_RESOURCES
@@ -3202,6 +3210,7 @@ static void sxg_unmap_mmio_space(struct adapter_t *adapter)
  */
 #endif
 }
+#endif
 
 void sxg_free_sgl_buffers(struct adapter_t *adapter)
 {
