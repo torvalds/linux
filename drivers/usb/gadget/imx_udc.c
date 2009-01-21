@@ -1133,6 +1133,7 @@ end_irq:
 static irqreturn_t imx_udc_ctrl_irq(int irq, void *dev)
 {
 	struct imx_udc_struct *imx_usb = dev;
+	struct imx_ep_struct *imx_ep = &imx_usb->imx_ep[0];
 	int intr = __raw_readl(imx_usb->base + USB_EP_INTR(0));
 
 	dump_ep_intr(__func__, 0, intr, imx_usb->dev);
@@ -1142,16 +1143,15 @@ static irqreturn_t imx_udc_ctrl_irq(int irq, void *dev)
 		return IRQ_HANDLED;
 	}
 
-	/* DEVREQ IRQ has highest priority */
+	/* DEVREQ has highest priority */
 	if (intr & (EPINTR_DEVREQ | EPINTR_MDEVREQ))
 		handle_ep0_devreq(imx_usb);
 	/* Seem i.MX is missing EOF interrupt sometimes.
-	 * Therefore we monitor both EOF and FIFO_EMPTY interrups
-	 * when transmiting, and both EOF and FIFO_FULL when
-	 * receiving data.
+	 * Therefore we don't monitor EOF.
+	 * We call handle_ep0() only if a request is queued for ep0.
 	 */
-	else if (intr & (EPINTR_EOF | EPINTR_FIFO_EMPTY | EPINTR_FIFO_FULL))
-		handle_ep0(&imx_usb->imx_ep[0]);
+	else if (!list_empty(&imx_ep->queue))
+		handle_ep0(imx_ep);
 
 	__raw_writel(intr, imx_usb->base + USB_EP_INTR(0));
 
