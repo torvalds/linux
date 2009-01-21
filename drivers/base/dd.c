@@ -189,14 +189,8 @@ int wait_for_device_probe(void)
  * @drv: driver to bind a device to
  * @dev: device to try to bind to the driver
  *
- * First, we call the bus's match function, if one present, which should
- * compare the device IDs the driver supports with the device IDs of the
- * device. Note we don't do this ourselves because we don't know the
- * format of the ID structures, nor what is to be considered a match and
- * what is not.
- *
- * This function returns 1 if a match is found, -ENODEV if the device is
- * not registered, and 0 otherwise.
+ * This function returns -ENODEV if the device is not registered,
+ * 1 if the device is bound sucessfully and 0 otherwise.
  *
  * This function must be called with @dev->sem held.  When called for a
  * USB interface, @dev->parent->sem must be held as well.
@@ -207,21 +201,22 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 
 	if (!device_is_registered(dev))
 		return -ENODEV;
-	if (drv->bus->match && !drv->bus->match(dev, drv))
-		goto done;
 
 	pr_debug("bus: '%s': %s: matched device %s with driver %s\n",
 		 drv->bus->name, __func__, dev_name(dev), drv->name);
 
 	ret = really_probe(dev, drv);
 
-done:
 	return ret;
 }
 
 static int __device_attach(struct device_driver *drv, void *data)
 {
 	struct device *dev = data;
+
+	if (!driver_match_device(drv, dev))
+		return 0;
+
 	return driver_probe_device(drv, dev);
 }
 
@@ -274,7 +269,7 @@ static int __driver_attach(struct device *dev, void *data)
 	 * is an error.
 	 */
 
-	if (drv->bus->match && !drv->bus->match(dev, drv))
+	if (!driver_match_device(drv, dev))
 		return 0;
 
 	if (dev->parent)	/* Needed for USB */
