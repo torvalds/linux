@@ -3583,6 +3583,17 @@ static int orinoco_init(struct net_device *dev)
 	return err;
 }
 
+static const struct net_device_ops orinoco_netdev_ops = {
+	.ndo_init		= orinoco_init,
+	.ndo_open		= orinoco_open,
+	.ndo_stop		= orinoco_stop,
+	.ndo_start_xmit		= orinoco_xmit,
+	.ndo_set_multicast_list	= orinoco_set_multicast_list,
+	.ndo_change_mtu		= orinoco_change_mtu,
+	.ndo_tx_timeout		= orinoco_tx_timeout,
+	.ndo_get_stats		= orinoco_get_stats,
+};
+
 struct net_device
 *alloc_orinocodev(int sizeof_card,
 		  struct device *device,
@@ -3605,27 +3616,20 @@ struct net_device
 	priv->dev = device;
 
 	/* Setup / override net_device fields */
-	dev->init = orinoco_init;
-	dev->hard_start_xmit = orinoco_xmit;
-	dev->tx_timeout = orinoco_tx_timeout;
+	dev->netdev_ops = &orinoco_netdev_ops;
 	dev->watchdog_timeo = HZ; /* 1 second timeout */
-	dev->get_stats = orinoco_get_stats;
 	dev->ethtool_ops = &orinoco_ethtool_ops;
 	dev->wireless_handlers = (struct iw_handler_def *)&orinoco_handler_def;
 #ifdef WIRELESS_SPY
 	priv->wireless_data.spy_data = &priv->spy_data;
 	dev->wireless_data = &priv->wireless_data;
 #endif
-	dev->change_mtu = orinoco_change_mtu;
-	dev->set_multicast_list = orinoco_set_multicast_list;
 	/* we use the default eth_mac_addr for setting the MAC addr */
 
 	/* Reserve space in skb for the SNAP header */
 	dev->hard_header_len += ENCAPS_OVERHEAD;
 
 	/* Set up default callbacks */
-	dev->open = orinoco_open;
-	dev->stop = orinoco_stop;
 	priv->hard_reset = hard_reset;
 	priv->stop_fw = stop_fw;
 
