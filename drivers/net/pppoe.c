@@ -695,7 +695,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		po->chan.private = sk;
 		po->chan.ops = &pppoe_chan_ops;
 
-		error = ppp_register_channel(&po->chan);
+		error = ppp_register_net_channel(dev_net(dev), &po->chan);
 		if (error)
 			goto err_put;
 

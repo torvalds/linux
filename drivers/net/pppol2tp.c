@@ -1749,7 +1749,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 	po->chan.ops	 = &pppol2tp_chan_ops;
 	po->chan.mtu	 = session->mtu;
 
-	error = ppp_register_channel(&po->chan);
+	error = ppp_register_net_channel(sock_net(sk), &po->chan);
 	if (error)
 		goto end_put_tun;
 
