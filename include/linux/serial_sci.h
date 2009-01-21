@@ -25,6 +25,7 @@ struct plat_sci_port {
 	unsigned int	irqs[SCIx_NR_IRQS];	/* ERI, RXI, TXI, BRI */
 	unsigned int	type;			/* SCI / SCIF / IRDA */
 	upf_t		flags;			/* UPF_* flags */
+	char		*clk;			/* clock string */
 };
 
 #endif /* __LINUX_SERIAL_SCI_H */
