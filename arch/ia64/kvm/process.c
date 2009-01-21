@@ -607,7 +607,7 @@ static void set_pal_call_data(struct kvm_vcpu *vcpu)
 	p->exit_reason = EXIT_REASON_PAL_CALL;
 }
 
-static void set_pal_call_result(struct kvm_vcpu *vcpu)
+static void get_pal_call_result(struct kvm_vcpu *vcpu)
 {
 	struct exit_ctl_data *p = &vcpu->arch.exit_data;
 
@@ -635,7 +635,7 @@ static void set_sal_call_data(struct kvm_vcpu *vcpu)
 	p->exit_reason = EXIT_REASON_SAL_CALL;
 }
 
-static void set_sal_call_result(struct kvm_vcpu *vcpu)
+static void get_sal_call_result(struct kvm_vcpu *vcpu)
 {
 	struct exit_ctl_data *p = &vcpu->arch.exit_data;
 
@@ -658,13 +658,13 @@ void  kvm_ia64_handle_break(unsigned long ifa, struct kvm_pt_regs *regs,
 		if (iim == DOMN_PAL_REQUEST) {
 			set_pal_call_data(v);
 			vmm_transition(v);
-			set_pal_call_result(v);
+			get_pal_call_result(v);
 			vcpu_increment_iip(v);
 			return;
 		} else if (iim == DOMN_SAL_REQUEST) {
 			set_sal_call_data(v);
 			vmm_transition(v);
-			set_sal_call_result(v);
+			get_sal_call_result(v);
 			vcpu_increment_iip(v);
 			return;
 		}
