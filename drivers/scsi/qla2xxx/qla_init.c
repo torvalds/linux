@@ -3562,6 +3562,9 @@ qla24xx_reset_adapter(scsi_qla_host_t *vha)
 	WRT_REG_DWORD(&reg->hccr, HCCRX_REL_RISC_PAUSE);
 	RD_REG_DWORD(&reg->hccr);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
+	if (IS_NOPOLLING_TYPE(ha))
+		ha->isp_ops->enable_intrs(ha);
 }
 
 /* On sparc systems, obtain port and node WWN from firmware
