@@ -13,6 +13,7 @@
 #include <linux/serial_sci.h>
 #include <linux/mm.h>
 #include <linux/uio_driver.h>
+#include <linux/sh_cmt.h>
 #include <asm/clock.h>
 #include <asm/mmzone.h>
 
@@ -176,6 +177,38 @@ static struct platform_device jpu_device = {
 	.num_resources	= ARRAY_SIZE(jpu_resources),
 };
 
+static struct sh_cmt_config cmt_platform_data = {
+	.name = "CMT",
+	.channel_offset = 0x60,
+	.timer_bit = 5,
+	.clk = "cmt0",
+	.clockevent_rating = 125,
+	.clocksource_rating = 200,
+};
+
+static struct resource cmt_resources[] = {
+	[0] = {
+		.name	= "CMT",
+		.start	= 0x044a0060,
+		.end	= 0x044a006b,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 104,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device cmt_device = {
+	.name		= "sh_cmt",
+	.id		= 0,
+	.dev = {
+		.platform_data	= &cmt_platform_data,
+	},
+	.resource	= cmt_resources,
+	.num_resources	= ARRAY_SIZE(cmt_resources),
+};
+
 static struct plat_sci_port sci_platform_data[] = {
 	{
 		.mapbase	= 0xffe00000,
@@ -209,6 +242,7 @@ static struct platform_device sci_device = {
 };
 
 static struct platform_device *sh7722_devices[] __initdata = {
+	&cmt_device,
 	&rtc_device,
 	&usbf_device,
 	&iic_device,
