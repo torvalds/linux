@@ -2183,15 +2183,16 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 	int ret;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 	u32 codeaddr;
-	unsigned char *instruction = NULL;
+	u32 instruction;
+	int index = 0;
 	u32 rcvucodelen = 0;
 
 	switch (adapter->devid) {
 	case SLIC_2GB_DEVICE_ID:
-		file = "oasis_rcv.bin";
+		file = "oasisrcvucode.sys";
 		break;
 	case SLIC_1GB_DEVICE_ID:
-		file = "gb_rcv.bin";
+		file = "gbrcvucode.sys";
 		break;
 	default:
 		ASSERT(0);
@@ -2204,8 +2205,8 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 		return ret;
 	}
 
-	instruction = (unsigned char *)fw->data;
-	rcvucodelen = fw->size;
+	rcvucodelen = *(u32 *)(fw->data + index);
+	index += 4;
 	switch (adapter->devid) {
 	case SLIC_2GB_DEVICE_ID:
 		if (rcvucodelen != OasisRcvUCodeLen)
@@ -2219,24 +2220,24 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 		ASSERT(0);
 		break;
 	}
-
 	/* start download */
 	WRITE_REG(slic_regs->slic_rcv_wcs, SLIC_RCVWCS_BEGIN, FLUSH);
-
 	/* download the rcv sequencer ucode */
 	for (codeaddr = 0; codeaddr < rcvucodelen; codeaddr++) {
 		/* write out instruction address */
 		WRITE_REG(slic_regs->slic_rcv_wcs, codeaddr, FLUSH);
 
+		instruction = *(u32 *)(fw->data + index);
+		index += 4;
 		/* write out the instruction data low addr */
 		WRITE_REG(slic_regs->slic_rcv_wcs,
-			  (u32) *(u32 *) instruction, FLUSH);
-		instruction += 4;
+			  instruction, FLUSH);
 
+		instruction = *(u8 *)(fw->data + index);
+		index++;
 		/* write out the instruction data high addr */
-		WRITE_REG(slic_regs->slic_rcv_wcs, (u32) *instruction,
+		WRITE_REG(slic_regs->slic_rcv_wcs, (u8)instruction,
 			  FLUSH);
-		instruction += 1;
 	}
 
 	/* download finished */
@@ -2254,16 +2255,14 @@ static int slic_card_download(struct adapter *adapter)
 	int thissectionsize;
 	int codeaddr;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
-	u32 *instruction = NULL;
-	u32 *lastinstruct = NULL;
-	u32 *startinstruct = NULL;
-	unsigned char *nextinstruct;
+	u32 instruction;
 	u32 baseaddress;
 	u32 failure;
 	u32 i;
 	u32 numsects = 0;
 	u32 sectsize[3];
 	u32 sectstart[3];
+	int ucode_start, index = 0;
 
 /*      DBG_MSG ("slicoss: %s (%s) adapter[%p] card[%p] devid[%x] \
 	jiffies[%lx] cpu %d\n", __func__, adapter->netdev->name, adapter,
@@ -2271,24 +2270,10 @@ static int slic_card_download(struct adapter *adapter)
 
 	switch (adapter->devid) {
 	case SLIC_2GB_DEVICE_ID:
-/*      DBG_MSG ("slicoss: %s devid==SLIC_2GB_DEVICE_ID sections[%x]\n",
-	__func__, (uint) ONumSections); */
-		file = "slic_oasis.bin";
-		numsects = ONumSections;
-		for (i = 0; i < numsects; i++) {
-			sectsize[i] = OSectionSize[i];
-			sectstart[i] = OSectionStart[i];
-		}
+		file = "oasisdownload.sys";
 		break;
 	case SLIC_1GB_DEVICE_ID:
-/*              DBG_MSG ("slicoss: %s devid==SLIC_1GB_DEVICE_ID sections[%x]\n",
-		__func__, (uint) MNumSections); */
-		file = "slic_mojave.bin";
-		numsects = MNumSections;
-		for (i = 0; i < numsects; i++) {
-			sectsize[i] = MSectionSize[i];
-			sectstart[i] = MSectionStart[i];
-		}
+		file = "gbdownload.sys";
 		break;
 	default:
 		ASSERT(0);
@@ -2299,75 +2284,42 @@ static int slic_card_download(struct adapter *adapter)
 		printk(KERN_ERR "SLICOSS: Failed to load firmware %s\n", file);
 		return ret;
 	}
-
+	numsects = *(u32 *)(fw->data + index);
+	index += 4;
 	ASSERT(numsects <= 3);
-
+	for (i = 0; i < numsects; i++) {
+		sectsize[i] = *(u32 *)(fw->data + index);
+		index += 4;
+	}
+	for (i = 0; i < numsects; i++) {
+		sectstart[i] = *(u32 *)(fw->data + index);
+		index += 4;
+	}
+	ucode_start = index;
+	instruction = *(u32 *)(fw->data + index);
+	index += 4;
 	for (section = 0; section < numsects; section++) {
-		switch (adapter->devid) {
-		case SLIC_2GB_DEVICE_ID:
-			instruction = (u32 *)(fw->data + (SECTION_SIZE *
-								section));
-			baseaddress = sectstart[section];
-			thissectionsize = sectsize[section] >> 3;
-			lastinstruct =
-			    (u32 *)(fw->data + (SECTION_SIZE * section) +
-					sectsize[section] - 8);
-			break;
-		case SLIC_1GB_DEVICE_ID:
-			instruction = (u32 *)(fw->data + (SECTION_SIZE *
-								section));
-			baseaddress = sectstart[section];
-			thissectionsize = sectsize[section] >> 3;
-			lastinstruct =
-			    (u32 *)(fw->data + (SECTION_SIZE * section) +
-					sectsize[section] - 8);
-			break;
-		default:
-			ASSERT(0);
-			break;
-		}
-
 		baseaddress = sectstart[section];
 		thissectionsize = sectsize[section] >> 3;
 
 		for (codeaddr = 0; codeaddr < thissectionsize; codeaddr++) {
-			startinstruct = instruction;
-			nextinstruct = ((unsigned char *)instruction) + 8;
 			/* Write out instruction address */
 			WRITE_REG(slic_regs->slic_wcs, baseaddress + codeaddr,
 				  FLUSH);
 			/* Write out instruction to low addr */
-			WRITE_REG(slic_regs->slic_wcs, *instruction, FLUSH);
-#ifdef CONFIG_X86_64
-			instruction = (u32 *)((unsigned char *)instruction + 4);
-#else
-			instruction++;
-#endif
+			WRITE_REG(slic_regs->slic_wcs, instruction, FLUSH);
+			instruction = *(u32 *)(fw->data + index);
+			index += 4;
+
 			/* Write out instruction to high addr */
-			WRITE_REG(slic_regs->slic_wcs, *instruction, FLUSH);
-#ifdef CONFIG_X86_64
-			instruction = (u32 *)((unsigned char *)instruction + 4);
-#else
-			instruction++;
-#endif
+			WRITE_REG(slic_regs->slic_wcs, instruction, FLUSH);
+			instruction = *(u32 *)(fw->data + index);
+			index += 4;
 		}
 	}
-
+	index = ucode_start;
 	for (section = 0; section < numsects; section++) {
-		switch (adapter->devid) {
-		case SLIC_2GB_DEVICE_ID:
-			instruction = (u32 *)fw->data + (SECTION_SIZE *
-								section);
-			break;
-		case SLIC_1GB_DEVICE_ID:
-			instruction = (u32 *)fw->data + (SECTION_SIZE *
-								section);
-			break;
-		default:
-			ASSERT(0);
-			break;
-		}
-
+		instruction = *(u32 *)(fw->data + index);
 		baseaddress = sectstart[section];
 		if (baseaddress < 0x8000)
 			continue;
@@ -2375,37 +2327,31 @@ static int slic_card_download(struct adapter *adapter)
 
 /*        DBG_MSG ("slicoss: COMPARE secton[%x] baseaddr[%x] sectnsize[%x]\n",
 		(uint)section,baseaddress,thissectionsize);*/
-
 		for (codeaddr = 0; codeaddr < thissectionsize; codeaddr++) {
 			/* Write out instruction address */
 			WRITE_REG(slic_regs->slic_wcs,
 				  SLIC_WCS_COMPARE | (baseaddress + codeaddr),
 				  FLUSH);
 			/* Write out instruction to low addr */
-			WRITE_REG(slic_regs->slic_wcs, *instruction, FLUSH);
-#ifdef CONFIG_X86_64
-			instruction = (u32 *)((unsigned char *)instruction + 4);
-#else
-			instruction++;
-#endif
+			WRITE_REG(slic_regs->slic_wcs, instruction, FLUSH);
+			instruction = *(u32 *)(fw->data + index);
+			index += 4;
 			/* Write out instruction to high addr */
-			WRITE_REG(slic_regs->slic_wcs, *instruction, FLUSH);
-#ifdef CONFIG_X86_64
-			instruction = (u32 *)((unsigned char *)instruction + 4);
-#else
-			instruction++;
-#endif
+			WRITE_REG(slic_regs->slic_wcs, instruction, FLUSH);
+			instruction = *(u32 *)(fw->data + index);
+			index += 4;
+
 			/* Check SRAM location zero. If it is non-zero. Abort.*/
-			failure = readl((u32 __iomem *)&slic_regs->slic_reset);
+/*			failure = readl((u32 __iomem *)&slic_regs->slic_reset);
 			if (failure) {
 				DBG_MSG
-				    ("slicoss: %s FAILURE EXIT codeaddr[%x] \
-				    thissectionsize[%x] failure[%x]\n",
+				    ("slicoss: %s FAILURE EXIT codeaddr[%x] "
+				    "thissectionsize[%x] failure[%x]\n",
 				     __func__, codeaddr, thissectionsize,
 				     failure);
 				release_firmware(fw);
 				return -EIO;
-			}
+			}*/
 		}
 	}
 /*    DBG_MSG ("slicoss: Compare done\n");*/
@@ -2570,8 +2516,8 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 				i++;
 				if (i > 5000) {
 					DBG_ERROR
-					    ("SLIC: %d config data fetch timed\
-					      out!\n", adapter->port);
+					    ("SLIC: %d config data fetch timed "
+					      "out!\n", adapter->port);
 					DBG_MSG("%s shmem[%p] shmem->isr[%x]\n",
 						__func__, adapter->pshmem,
 						adapter->pshmem->isr);
@@ -2792,12 +2738,12 @@ static u32 slic_card_locate(struct adapter *adapter)
 #if DBG
 		if (adapter->devid == SLIC_2GB_DEVICE_ID) {
 			DBG_MSG
-			    ("SLICOSS ==> Initialize 2 Port Gigabit Server \
-			     and Storage Accelerator\n");
+			    ("SLICOSS ==> Initialize 2 Port Gigabit Server "
+			     "and Storage Accelerator\n");
 		} else {
 			DBG_MSG
-			    ("SLICOSS ==> Initialize 1 Port Gigabit Server \
-			     and Storage Accelerator\n");
+			    ("SLICOSS ==> Initialize 1 Port Gigabit Server "
+			     "and Storage Accelerator\n");
 		}
 #endif
 		card->busnumber = adapter->busnumber;
@@ -2865,8 +2811,8 @@ static u32 slic_card_locate(struct adapter *adapter)
 		ASSERT(physcard);
 
 		DBG_MSG
-		    ("\n%s Allocate a PHYSICALcard:\n    PHYSICAL_Card[%p]\n\
-		     LogicalCard  [%p]\n    adapter      [%p]\n",
+		    ("\n%s Allocate a PHYSICALcard:\n    PHYSICAL_Card[%p]\n"
+		     "    LogicalCard  [%p]\n    adapter      [%p]\n",
 		     __func__, physcard, card, adapter);
 
 		physcard->next = slic_global.phys_card;
@@ -4449,7 +4395,7 @@ static int slic_debug_card_show(struct seq_file *seq, void *v)
 	unsigned char *oemfru = (unsigned char *)(&card->config.OemFru);
 #endif
 
-	seq_printf(seq, "driver_version           : %s", slic_proc_version);
+	seq_printf(seq, "driver_version           : %s\n", slic_proc_version);
 	seq_printf(seq, "Microcode versions:           \n");
 	seq_printf(seq, "    Gigabit (gb)         : %s %s\n",
 		    MOJAVE_UCODE_VERS_STRING, MOJAVE_UCODE_VERS_DATE);
