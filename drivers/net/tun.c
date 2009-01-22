@@ -63,6 +63,7 @@
 #include <linux/virtio_net.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+#include <net/rtnetlink.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -812,6 +813,22 @@ static void tun_setup(struct net_device *dev)
 	dev->destructor = free_netdev;
 }
 
+/* Trivial set of netlink ops to allow deleting tun or tap
+ * device with netlink.
+ */
+static int tun_validate(struct nlattr *tb[], struct nlattr *data[])
+{
+	return -EINVAL;
+}
+
+static struct rtnl_link_ops tun_link_ops __read_mostly = {
+	.kind		= DRV_NAME,
+	.priv_size	= sizeof(struct tun_struct),
+	.setup		= tun_setup,
+	.validate	= tun_validate,
+};
+
+
 static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 {
 	struct tun_struct *tun;
@@ -861,6 +878,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			return -ENOMEM;
 
 		dev_net_set(dev, net);
+		dev->rtnl_link_ops = &tun_link_ops;
 
 		tun = netdev_priv(dev);
 		tun->dev = dev;
@@ -1317,29 +1335,6 @@ static const struct ethtool_ops tun_ethtool_ops = {
 	.set_rx_csum	= tun_set_rx_csum
 };
 
-static int tun_init_net(struct net *net)
-{
-	return 0;
-}
-
-static void tun_exit_net(struct net *net)
-{
-	struct net_device *dev, *next;
-
-	rtnl_lock();
-	for_each_netdev_safe(net, dev, next) {
-		if (dev->ethtool_ops != &tun_ethtool_ops)
-			continue;
-		DBG(KERN_INFO "%s cleaned up\n", dev->name);
-		unregister_netdevice(dev);
-	}
-	rtnl_unlock();
-}
-
-static struct pernet_operations tun_net_ops = {
-	.init = tun_init_net,
-	.exit = tun_exit_net,
-};
 
 static int __init tun_init(void)
 {
@@ -1348,10 +1343,10 @@ static int __init tun_init(void)
 	printk(KERN_INFO "tun: %s, %s\n", DRV_DESCRIPTION, DRV_VERSION);
 	printk(KERN_INFO "tun: %s\n", DRV_COPYRIGHT);
 
-	ret = register_pernet_device(&tun_net_ops);
+	ret = rtnl_link_register(&tun_link_ops);
 	if (ret) {
-		printk(KERN_ERR "tun: Can't register pernet ops\n");
-		goto err_pernet;
+		printk(KERN_ERR "tun: Can't register link_ops\n");
+		goto err_linkops;
 	}
 
 	ret = misc_register(&tun_miscdev);
@@ -1359,18 +1354,17 @@ static int __init tun_init(void)
 		printk(KERN_ERR "tun: Can't register misc device %d\n", TUN_MINOR);
 		goto err_misc;
 	}
-	return 0;
-
+	return  0;
 err_misc:
-	unregister_pernet_device(&tun_net_ops);
-err_pernet:
+	rtnl_link_unregister(&tun_link_ops);
+err_linkops:
 	return ret;
 }
 
 static void tun_cleanup(void)
 {
 	misc_deregister(&tun_miscdev);
-	unregister_pernet_device(&tun_net_ops);
+	rtnl_link_unregister(&tun_link_ops);
 }
 
 module_init(tun_init);
