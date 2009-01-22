@@ -8750,18 +8750,17 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 
 	if (loopback_mode == BNX2X_MAC_LOOPBACK) {
 		bp->link_params.loopback_mode = LOOPBACK_BMAC;
-		bnx2x_acquire_phy_lock(bp);
 		bnx2x_phy_init(&bp->link_params, &bp->link_vars);
-		bnx2x_release_phy_lock(bp);
 
 	} else if (loopback_mode == BNX2X_PHY_LOOPBACK) {
+		u16 cnt = 1000;
 		bp->link_params.loopback_mode = LOOPBACK_XGXS_10;
-		bnx2x_acquire_phy_lock(bp);
 		bnx2x_phy_init(&bp->link_params, &bp->link_vars);
-		bnx2x_release_phy_lock(bp);
 		/* wait until link state is restored */
-		bnx2x_wait_for_link(bp, link_up);
-
+		if (link_up)
+			while (cnt-- && bnx2x_test_link(&bp->link_params,
+							&bp->link_vars))
+				msleep(10);
 	} else
 		return -EINVAL;
 
@@ -8867,6 +8866,7 @@ static int bnx2x_test_loopback(struct bnx2x *bp, u8 link_up)
 		return BNX2X_LOOPBACK_FAILED;
 
 	bnx2x_netif_stop(bp, 1);
+	bnx2x_acquire_phy_lock(bp);
 
 	if (bnx2x_run_loopback(bp, BNX2X_MAC_LOOPBACK, link_up)) {
 		DP(NETIF_MSG_PROBE, "MAC loopback failed\n");
@@ -8878,6 +8878,7 @@ static int bnx2x_test_loopback(struct bnx2x *bp, u8 link_up)
 		rc |= BNX2X_PHY_LOOPBACK_FAILED;
 	}
 
+	bnx2x_release_phy_lock(bp);
 	bnx2x_netif_start(bp);
 
 	return rc;
