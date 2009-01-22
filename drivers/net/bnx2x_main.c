@@ -6547,6 +6547,8 @@ load_error2:
 	bnx2x_free_irq(bp);
 load_error1:
 	bnx2x_napi_disable(bp);
+	for_each_queue(bp, i)
+		netif_napi_del(&bnx2x_fp(bp, i, napi));
 	bnx2x_free_mem(bp);
 
 	/* TBD we really need to reset the chip
@@ -6855,6 +6857,8 @@ unload_error:
 	bnx2x_free_skbs(bp);
 	for_each_queue(bp, i)
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
+	for_each_queue(bp, i)
+		netif_napi_del(&bnx2x_fp(bp, i, napi));
 	bnx2x_free_mem(bp);
 
 	bp->state = BNX2X_STATE_CLOSED;
@@ -10481,6 +10485,8 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	bnx2x_free_skbs(bp);
 	for_each_queue(bp, i)
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
+	for_each_queue(bp, i)
+		netif_napi_del(&bnx2x_fp(bp, i, napi));
 	bnx2x_free_mem(bp);
 
 	bp->state = BNX2X_STATE_CLOSED;
