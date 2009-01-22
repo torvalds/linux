@@ -199,7 +199,7 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 	i = 0;
 	list_for_each_entry(entry, &pdev->msi_list, list) {
-		hwirq = rtas_query_irq_number(pdn, i);
+		hwirq = rtas_query_irq_number(pdn, i++);
 		if (hwirq < 0) {
 			pr_debug("rtas_msi: error (%d) getting hwirq\n", rc);
 			return hwirq;
