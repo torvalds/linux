@@ -1091,6 +1091,16 @@ static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
 		if (last_request->initiator == REGDOM_SET_BY_USER &&
 			  last_request->intersect)
 			return -EOPNOTSUPP;
+		/* Process user requests only after previous user/driver/core
+		 * requests have been processed */
+		if (last_request->initiator == REGDOM_SET_BY_CORE ||
+		    last_request->initiator == REGDOM_SET_BY_DRIVER ||
+		    last_request->initiator == REGDOM_SET_BY_USER) {
+			if (!alpha2_equal(last_request->alpha2,
+			    cfg80211_regdomain->alpha2))
+				return -EAGAIN;
+		}
+
 		return 0;
 	}
 
