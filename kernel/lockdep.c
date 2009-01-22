@@ -445,21 +445,21 @@ atomic_t nr_find_usage_backwards_recursions;
  * Locking printouts:
  */
 
+#define __STR(foo)	#foo
+#define STR(foo)	__STR(foo)
+
+#define __USAGE(__STATE)						\
+	[LOCK_USED_IN_##__STATE] = "IN-"STR(__STATE)"-W",		\
+	[LOCK_ENABLED_##__STATE] = STR(__STATE)"-ON-W",			\
+	[LOCK_USED_IN_##__STATE##_READ] = "IN-"STR(__STATE)"-R",	\
+	[LOCK_ENABLED_##__STATE##_READ] = STR(__STATE)"-ON-R",
+
 static const char *usage_str[] =
 {
-	[LOCK_USED] =			"initial-use ",
-	[LOCK_USED_IN_HARDIRQ] =	"in-hardirq-W",
-	[LOCK_USED_IN_SOFTIRQ] =	"in-softirq-W",
-	[LOCK_ENABLED_SOFTIRQ] =	"softirq-on-W",
-	[LOCK_ENABLED_HARDIRQ] =	"hardirq-on-W",
-	[LOCK_USED_IN_HARDIRQ_READ] =	"in-hardirq-R",
-	[LOCK_USED_IN_SOFTIRQ_READ] =	"in-softirq-R",
-	[LOCK_ENABLED_SOFTIRQ_READ] =	"softirq-on-R",
-	[LOCK_ENABLED_HARDIRQ_READ] =	"hardirq-on-R",
-	[LOCK_USED_IN_RECLAIM_FS] =	"in-reclaim-W",
-	[LOCK_USED_IN_RECLAIM_FS_READ] = "in-reclaim-R",
-	[LOCK_ENABLED_RECLAIM_FS] =	"ov-reclaim-W",
-	[LOCK_ENABLED_RECLAIM_FS_READ] = "ov-reclaim-R",
+#define LOCKDEP_STATE(__STATE) __USAGE(__STATE)
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
+	[LOCK_USED] = "INITIAL USE",
 };
 
 const char * __get_key_name(struct lockdep_subclass_key *key, char *str)
