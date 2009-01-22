@@ -937,13 +937,15 @@ static void update_all_wiphy_regulatory(enum reg_set_by setby)
 	struct cfg80211_registered_device *drv;
 
 	list_for_each_entry(drv, &cfg80211_drv_list, list)
-		if (!ignore_reg_update(&drv->wiphy, setby))
-			wiphy_update_regulatory(&drv->wiphy, setby);
+		wiphy_update_regulatory(&drv->wiphy, setby);
 }
 
 void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby)
 {
 	enum ieee80211_band band;
+
+	if (ignore_reg_update(wiphy, setby))
+		return;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (wiphy->bands[band])
 			handle_band(wiphy, band);
