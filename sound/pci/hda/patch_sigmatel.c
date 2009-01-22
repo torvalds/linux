@@ -4126,7 +4126,9 @@ static void stac92xx_free(struct hda_codec *codec)
 static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
 				unsigned int flag)
 {
-	unsigned int pin_ctl = snd_hda_codec_read(codec, nid,
+	unsigned int old_ctl, pin_ctl;
+
+	pin_ctl = snd_hda_codec_read(codec, nid,
 			0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0x00);
 
 	if (pin_ctl & AC_PINCTL_IN_EN) {
@@ -4140,14 +4142,17 @@ static void stac92xx_set_pinctl(struct hda_codec *codec, hda_nid_t nid,
 			return;
 	}
 
+	old_ctl = pin_ctl;
 	/* if setting pin direction bits, clear the current
 	   direction bits first */
 	if (flag & (AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN))
 		pin_ctl &= ~(AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN);
 	
-	snd_hda_codec_write_cache(codec, nid, 0,
-			AC_VERB_SET_PIN_WIDGET_CONTROL,
-			pin_ctl | flag);
+	pin_ctl |= flag;
+	if (old_ctl != pin_ctl)
+		snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_PIN_WIDGET_CONTROL,
+					  pin_ctl);
 }
 
 static void stac92xx_reset_pinctl(struct hda_codec *codec, hda_nid_t nid,
@@ -4155,9 +4160,10 @@ static void stac92xx_reset_pinctl(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned int pin_ctl = snd_hda_codec_read(codec, nid,
 			0, AC_VERB_GET_PIN_WIDGET_CONTROL, 0x00);
-	snd_hda_codec_write_cache(codec, nid, 0,
-			AC_VERB_SET_PIN_WIDGET_CONTROL,
-			pin_ctl & ~flag);
+	if (pin_ctl & flag)
+		snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_PIN_WIDGET_CONTROL,
+					  pin_ctl & ~flag);
 }
 
 static int get_pin_presence(struct hda_codec *codec, hda_nid_t nid)
