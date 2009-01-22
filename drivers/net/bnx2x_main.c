@@ -6143,8 +6143,8 @@ static void bnx2x_netif_start(struct bnx2x *bp)
 static void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 {
 	bnx2x_int_disable_sync(bp, disable_hw);
+	bnx2x_napi_disable(bp);
 	if (netif_running(bp->dev)) {
-		bnx2x_napi_disable(bp);
 		netif_tx_disable(bp->dev);
 		bp->dev->trans_start = jiffies;	/* prevent tx timeout */
 	}
@@ -6689,8 +6689,7 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	bnx2x_set_storm_rx_mode(bp);
 
 	bnx2x_netif_stop(bp, 1);
-	if (!netif_running(bp->dev))
-		bnx2x_napi_disable(bp);
+
 	del_timer_sync(&bp->timer);
 	SHMEM_WR(bp, func_mb[BP_FUNC(bp)].drv_pulse_mb,
 		 (DRV_PULSE_ALWAYS_ALIVE | bp->fw_drv_pulse_wr_seq));
