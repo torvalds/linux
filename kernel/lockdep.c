@@ -2091,22 +2091,34 @@ mark_lock_irq_used_in(struct task_struct *curr, struct held_lock *this,
 }
 
 static int
-mark_lock_irq_used_in_read(struct task_struct *curr, struct held_lock *this,
+mark_lock_irq_read(struct task_struct *curr, struct held_lock *this,
 			   int new_bit)
 {
 	const char *name = state_name(new_bit);
 	const char *rname = state_rname(new_bit);
 
 	int excl_bit = exclusive_bit(new_bit);
+	int dir = new_bit & 2;
 
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
-	/*
-	 * just marked it hardirq-read-safe, check that this lock
-	 * took no hardirq-unsafe lock in the past:
-	 */
-	if (!check_usage_forwards(curr, this, excl_bit, name))
-		return 0;
+
+	if (!dir) {
+		/*
+		 * just marked it hardirq-read-safe, check that this lock
+		 * took no hardirq-unsafe lock in the past:
+		 */
+		if (!check_usage_forwards(curr, this, excl_bit, name))
+			return 0;
+	} else if (STRICT_READ_CHECKS) {
+		/*
+		 * just marked it hardirq-read-unsafe, check that no
+		 * hardirq-safe lock in the system ever took it in the past:
+		 */
+		if (!check_usage_backwards(curr, this, excl_bit, name))
+			return 0;
+	}
+
 	if (state_verbose(new_bit, hlock_class(this)))
 		return 2;
 
@@ -2147,31 +2159,6 @@ mark_lock_irq_enabled(struct task_struct *curr, struct held_lock *this,
 	return 1;
 }
 
-static int
-mark_lock_irq_enabled_read(struct task_struct *curr, struct held_lock *this,
-			   int new_bit)
-{
-	const char *name = state_name(new_bit);
-	const char *rname = state_rname(new_bit);
-
-	int excl_bit = exclusive_bit(new_bit);
-
-	if (!valid_state(curr, this, new_bit, excl_bit))
-		return 0;
-#if STRICT_READ_CHECKS
-	/*
-	 * just marked it hardirq-read-unsafe, check that no
-	 * hardirq-safe lock in the system ever took it in the past:
-	 */
-	if (!check_usage_backwards(curr, this, excl_bit, name))
-		return 0;
-#endif
-	if (verbose(hlock_class(this)))
-		return 2;
-
-	return 1;
-}
-
 static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		enum lock_usage_bit new_bit)
 {
@@ -2186,17 +2173,15 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	case LOCK_USED_IN_HARDIRQ_READ:
 	case LOCK_USED_IN_SOFTIRQ_READ:
 	case LOCK_USED_IN_RECLAIM_FS_READ:
-		return mark_lock_irq_used_in_read(curr, this, new_bit);
+	case LOCK_ENABLED_HARDIRQ_READ:
+	case LOCK_ENABLED_SOFTIRQ_READ:
+	case LOCK_ENABLED_RECLAIM_FS_READ:
+		return mark_lock_irq_read(curr, this, new_bit);
 
 	case LOCK_ENABLED_HARDIRQ:
 	case LOCK_ENABLED_SOFTIRQ:
 	case LOCK_ENABLED_RECLAIM_FS:
 		return mark_lock_irq_enabled(curr, this, new_bit);
-
-	case LOCK_ENABLED_HARDIRQ_READ:
-	case LOCK_ENABLED_SOFTIRQ_READ:
-	case LOCK_ENABLED_RECLAIM_FS_READ:
-		return mark_lock_irq_enabled_read(curr, this, new_bit);
 
 	default:
 		WARN_ON(1);
