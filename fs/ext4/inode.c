@@ -975,6 +975,17 @@ out:
 	return err;
 }
 
+qsize_t ext4_get_reserved_space(struct inode *inode)
+{
+	unsigned long long total;
+
+	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
+	total = EXT4_I(inode)->i_reserved_data_blocks +
+		EXT4_I(inode)->i_reserved_meta_blocks;
+	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+
+	return total;
+}
 /*
  * Calculate the number of metadata blocks need to reserve
  * to allocate @blocks for non extent file based file
@@ -1036,8 +1047,14 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
 	/* update per-inode reservations */
 	BUG_ON(used  > EXT4_I(inode)->i_reserved_data_blocks);
 	EXT4_I(inode)->i_reserved_data_blocks -= used;
-
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+
+	/*
+	 * free those over-booking quota for metadata blocks
+	 */
+
+	if (mdb_free)
+		vfs_dq_release_reservation_block(inode, mdb_free);
 }
 
 /*
@@ -1553,8 +1570,8 @@ static int ext4_journalled_write_end(struct file *file,
 static int ext4_da_reserve_space(struct inode *inode, int nrblocks)
 {
 	int retries = 0;
-       struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-       unsigned long md_needed, mdblocks, total = 0;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	unsigned long md_needed, mdblocks, total = 0;
 
 	/*
 	 * recalculate the amount of metadata blocks to reserve
@@ -1570,12 +1587,23 @@ repeat:
 	md_needed = mdblocks - EXT4_I(inode)->i_reserved_meta_blocks;
 	total = md_needed + nrblocks;
 
+	/*
+	 * Make quota reservation here to prevent quota overflow
+	 * later. Real quota accounting is done at pages writeout
+	 * time.
+	 */
+	if (vfs_dq_reserve_block(inode, total)) {
+		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+		return -EDQUOT;
+	}
+
 	if (ext4_claim_free_blocks(sbi, total)) {
 		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 		if (ext4_should_retry_alloc(inode->i_sb, &retries)) {
 			yield();
 			goto repeat;
 		}
+		vfs_dq_release_reservation_block(inode, total);
 		return -ENOSPC;
 	}
 	EXT4_I(inode)->i_reserved_data_blocks += nrblocks;
@@ -1629,6 +1657,8 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
 	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
 	EXT4_I(inode)->i_reserved_meta_blocks = mdb;
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+
+	vfs_dq_release_reservation_block(inode, release);
 }
 
 static void ext4_da_page_release_reservation(struct page *page,
