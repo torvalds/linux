@@ -244,8 +244,8 @@ static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)
 	}
 
 	/* No MSI -> MSIs can't have been assigned by fw, leave LSI */
-	if (check_req_msi(pdev, 1)) {
-		dev_dbg(&pdev->dev, "rtas_msi: no req#msi, nothing to do.\n");
+	if (check_req_msi(pdev, 1) && check_req_msix(pdev, 1)) {
+		dev_dbg(&pdev->dev, "rtas_msi: no req#msi/x, nothing to do.\n");
 		return;
 	}
 
