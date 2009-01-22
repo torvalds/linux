@@ -3364,7 +3364,7 @@ void i915_gem_free_all_phys_object(struct drm_device *dev)
 {
 	int i;
 
-	for (i = 0; i < I915_MAX_PHYS_OBJECT; i++)
+	for (i = I915_GEM_PHYS_CURSOR_0; i <= I915_MAX_PHYS_OBJECT; i++)
 		i915_gem_free_phys_object(dev, i);
 }
 
