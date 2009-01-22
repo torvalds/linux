@@ -2001,12 +2001,38 @@ static int reclaim_verbose(struct lock_class *class)
 
 #define STRICT_READ_CHECKS	1
 
+static const char *state_names[] = {
+#define LOCKDEP_STATE(__STATE) \
+	STR(__STATE),
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
+};
+
+static inline const char *state_name(enum lock_usage_bit bit)
+{
+	return state_names[bit >> 2];
+}
+
+static const char *state_rnames[] = {
+#define LOCKDEP_STATE(__STATE) \
+	STR(__STATE)"-READ",
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
+};
+
+static inline const char *state_rname(enum lock_usage_bit bit)
+{
+	return state_rnames[bit >> 2];
+}
+
 static int
 mark_lock_irq_used_in(struct task_struct *curr, struct held_lock *this,
 		      int new_bit, int excl_bit,
-		      const char *name, const char *rname,
 		      int (*verbose)(struct lock_class *class))
 {
+	const char *name = state_name(new_bit);
+	const char *rname = state_rname(new_bit);
+
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
 	if (!valid_state(curr, this, new_bit, excl_bit + 1))
@@ -2034,9 +2060,11 @@ mark_lock_irq_used_in(struct task_struct *curr, struct held_lock *this,
 static int
 mark_lock_irq_used_in_read(struct task_struct *curr, struct held_lock *this,
 			   int new_bit, int excl_bit,
-			   const char *name, const char *rname,
 			   int (*verbose)(struct lock_class *class))
 {
+	const char *name = state_name(new_bit);
+	const char *rname = state_rname(new_bit);
+
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
 	/*
@@ -2054,9 +2082,11 @@ mark_lock_irq_used_in_read(struct task_struct *curr, struct held_lock *this,
 static int
 mark_lock_irq_enabled(struct task_struct *curr, struct held_lock *this,
 		      int new_bit, int excl_bit,
-		      const char *name, const char *rname,
 		      int (*verbose)(struct lock_class *class))
 {
+	const char *name = state_name(new_bit);
+	const char *rname = state_rname(new_bit);
+
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
 	if (!valid_state(curr, this, new_bit, excl_bit + 1))
@@ -2085,9 +2115,11 @@ mark_lock_irq_enabled(struct task_struct *curr, struct held_lock *this,
 static int
 mark_lock_irq_enabled_read(struct task_struct *curr, struct held_lock *this,
 			   int new_bit, int excl_bit,
-			   const char *name, const char *rname,
 			   int (*verbose)(struct lock_class *class))
 {
+	const char *name = state_name(new_bit);
+	const char *rname = state_rname(new_bit);
+
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
 #if STRICT_READ_CHECKS
@@ -2113,57 +2145,53 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	case LOCK_USED_IN_HARDIRQ:
 		return mark_lock_irq_used_in(curr, this, new_bit,
 				LOCK_ENABLED_HARDIRQ,
-				"hard", "hard-read", hardirq_verbose);
+				hardirq_verbose);
 	case LOCK_USED_IN_SOFTIRQ:
 		return mark_lock_irq_used_in(curr, this, new_bit,
 				LOCK_ENABLED_SOFTIRQ,
-				"soft", "soft-read", softirq_verbose);
+				softirq_verbose);
 	case LOCK_USED_IN_RECLAIM_FS:
 		return mark_lock_irq_used_in(curr, this, new_bit,
 				LOCK_ENABLED_RECLAIM_FS,
-				"reclaim-fs", "reclaim-fs-read",
 				reclaim_verbose);
 
 	case LOCK_USED_IN_HARDIRQ_READ:
 		return mark_lock_irq_used_in_read(curr, this, new_bit,
 				LOCK_ENABLED_HARDIRQ,
-				"hard", "hard-read", hardirq_verbose);
+				hardirq_verbose);
 	case LOCK_USED_IN_SOFTIRQ_READ:
 		return mark_lock_irq_used_in_read(curr, this, new_bit,
 				LOCK_ENABLED_SOFTIRQ,
-				"soft", "soft-read", softirq_verbose);
+				softirq_verbose);
 	case LOCK_USED_IN_RECLAIM_FS_READ:
 		return mark_lock_irq_used_in_read(curr, this, new_bit,
 				LOCK_ENABLED_RECLAIM_FS,
-				"reclaim-fs", "reclaim-fs-read",
 				reclaim_verbose);
 
 	case LOCK_ENABLED_HARDIRQ:
 		return mark_lock_irq_enabled(curr, this, new_bit,
 				LOCK_USED_IN_HARDIRQ,
-				"hard", "hard-read", hardirq_verbose);
+				hardirq_verbose);
 	case LOCK_ENABLED_SOFTIRQ:
 		return mark_lock_irq_enabled(curr, this, new_bit,
 				LOCK_USED_IN_SOFTIRQ,
-				"soft", "soft-read", softirq_verbose);
+				softirq_verbose);
 	case LOCK_ENABLED_RECLAIM_FS:
 		return mark_lock_irq_enabled(curr, this, new_bit,
 				LOCK_USED_IN_RECLAIM_FS,
-				"reclaim-fs", "reclaim-fs-read",
 				reclaim_verbose);
 
 	case LOCK_ENABLED_HARDIRQ_READ:
 		return mark_lock_irq_enabled_read(curr, this, new_bit,
 				LOCK_USED_IN_HARDIRQ,
-				"hard", "hard-read", hardirq_verbose);
+				hardirq_verbose);
 	case LOCK_ENABLED_SOFTIRQ_READ:
 		return mark_lock_irq_enabled_read(curr, this, new_bit,
 				LOCK_USED_IN_SOFTIRQ,
-				"soft", "soft-read", softirq_verbose);
+				softirq_verbose);
 	case LOCK_ENABLED_RECLAIM_FS_READ:
 		return mark_lock_irq_enabled_read(curr, this, new_bit,
 				LOCK_USED_IN_RECLAIM_FS,
-				"reclaim-fs", "reclaim-fs-read",
 				reclaim_verbose);
 
 	default:
