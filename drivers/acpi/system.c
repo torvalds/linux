@@ -192,65 +192,6 @@ static struct attribute_group interrupt_stats_attr_group = {
 };
 static struct kobj_attribute *counter_attrs;
 
-static int count_num_gpes(void)
-{
-	int count = 0;
-	struct acpi_gpe_xrupt_info *gpe_xrupt_info;
-	struct acpi_gpe_block_info *gpe_block;
-	acpi_cpu_flags flags;
-
-	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
-
-	gpe_xrupt_info = acpi_gbl_gpe_xrupt_list_head;
-	while (gpe_xrupt_info) {
-		gpe_block = gpe_xrupt_info->gpe_block_list_head;
-		while (gpe_block) {
-			count += gpe_block->register_count *
-			    ACPI_GPE_REGISTER_WIDTH;
-			gpe_block = gpe_block->next;
-		}
-		gpe_xrupt_info = gpe_xrupt_info->next;
-	}
-	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
-
-	return count;
-}
-
-static int get_gpe_device(int index, acpi_handle *handle)
-{
-	struct acpi_gpe_xrupt_info *gpe_xrupt_info;
-	struct acpi_gpe_block_info *gpe_block;
-	acpi_cpu_flags flags;
-	struct acpi_namespace_node *node;
-
-	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
-
-	gpe_xrupt_info = acpi_gbl_gpe_xrupt_list_head;
-	while (gpe_xrupt_info) {
-		gpe_block = gpe_xrupt_info->gpe_block_list_head;
-		node = gpe_block->node;
-		while (gpe_block) {
-			index -= gpe_block->register_count *
-			    ACPI_GPE_REGISTER_WIDTH;
-			if (index < 0) {
-				acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
-				/* return NULL if it's FADT GPE */
-				if (node->type != ACPI_TYPE_DEVICE)
-					*handle = NULL;
-				else
-					*handle = node;
-				return 0;
-			}
-			node = gpe_block->node;
-			gpe_block = gpe_block->next;
-		}
-		gpe_xrupt_info = gpe_xrupt_info->next;
-	}
-	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
-
-	return -ENODEV;
-}
-
 static void delete_gpe_attr_array(void)
 {
 	struct event_counter *tmp = all_counters;
@@ -309,7 +250,7 @@ static int get_status(u32 index, acpi_event_status *status, acpi_handle *handle)
 		goto end;
 
 	if (index < num_gpes) {
-		result = get_gpe_device(index, handle);
+		result = acpi_get_gpe_device(index, handle);
 		if (result) {
 			ACPI_EXCEPTION((AE_INFO, AE_NOT_FOUND,
 				"Invalid GPE 0x%x\n", index));
@@ -436,7 +377,7 @@ void acpi_irq_stats_init(void)
 	if (all_counters)
 		return;
 
-	num_gpes = count_num_gpes();
+	num_gpes = acpi_current_gpe_count;
 	num_counters = num_gpes + ACPI_NUM_FIXED_EVENTS + NUM_COUNTERS_EXTRA;
 
 	all_attrs = kzalloc(sizeof(struct attribute *) * (num_counters + 1),

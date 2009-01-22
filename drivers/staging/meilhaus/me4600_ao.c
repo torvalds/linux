@@ -2294,7 +2294,7 @@ static irqreturn_t me4600_ao_isr(int irq, void *dev_id
 	irq_status = inl(instance->irq_status_reg);
 	if (!(irq_status & (ME4600_IRQ_STATUS_BIT_AO_HF << instance->ao_idx))) {
 		PINFO("%ld Shared interrupt. %s(): ID=%d: status_reg=0x%04X\n",
-		      jiffies, __FUNCTION__, instance->ao_idx, irq_status);
+		      jiffies, __func__, instance->ao_idx, irq_status);
 		return IRQ_NONE;
 	}
 
@@ -3009,7 +3009,7 @@ static void me4600_ao_work_control_task(
 	instance =
 	    container_of((void *)work, me4600_ao_subdevice_t, ao_control_task);
 #endif
-	PINFO("<%s: %ld> executed. idx=%d\n", __FUNCTION__, jiffies,
+	PINFO("<%s: %ld> executed. idx=%d\n", __func__, jiffies,
 	      instance->ao_idx);
 
 	status = inl(instance->status_reg);
@@ -3316,7 +3316,7 @@ static void me4600_ao_work_control_task(
 		queue_delayed_work(instance->me4600_workqueue,
 				   &instance->ao_control_task, 1);
 	} else {
-		PINFO("<%s> Ending control task.\n", __FUNCTION__);
+		PINFO("<%s> Ending control task.\n", __func__);
 	}
 
 }

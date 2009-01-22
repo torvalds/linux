@@ -40,6 +40,7 @@
 #include <linux/ctype.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
+#include <linux/proc_fs.h>
 #include <linux/notifier.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
@@ -55,7 +56,10 @@
 #include "xenbus_comms.h"
 #include "xenbus_probe.h"
 
+
 int xen_store_evtchn;
+EXPORT_SYMBOL(xen_store_evtchn);
+
 struct xenstore_domain_interface *xen_store_interface;
 static unsigned long xen_store_mfn;
 
@@ -166,6 +170,9 @@ static int read_backend_details(struct xenbus_device *xendev)
 	return read_otherend_details(xendev, "backend-id", "backend");
 }
 
+static struct device_attribute xenbus_dev_attrs[] = {
+	__ATTR_NULL
+};
 
 /* Bus type for frontend drivers. */
 static struct xen_bus_type xenbus_frontend = {
@@ -174,12 +181,13 @@ static struct xen_bus_type xenbus_frontend = {
 	.get_bus_id = frontend_bus_id,
 	.probe = xenbus_probe_frontend,
 	.bus = {
-		.name     = "xen",
-		.match    = xenbus_match,
-		.uevent   = xenbus_uevent,
-		.probe    = xenbus_dev_probe,
-		.remove   = xenbus_dev_remove,
-		.shutdown = xenbus_dev_shutdown,
+		.name      = "xen",
+		.match     = xenbus_match,
+		.uevent    = xenbus_uevent,
+		.probe     = xenbus_dev_probe,
+		.remove    = xenbus_dev_remove,
+		.shutdown  = xenbus_dev_shutdown,
+		.dev_attrs = xenbus_dev_attrs,
 	},
 };
 
@@ -851,6 +859,14 @@ static int __init xenbus_probe_init(void)
 
 	if (!xen_initial_domain())
 		xenbus_probe(NULL);
+
+#ifdef CONFIG_XEN_COMPAT_XENFS
+	/*
+	 * Create xenfs mountpoint in /proc for compatibility with
+	 * utilities that expect to find "xenbus" under "/proc/xen".
+	 */
+	proc_mkdir("xen", NULL);
+#endif
 
 	return 0;
 

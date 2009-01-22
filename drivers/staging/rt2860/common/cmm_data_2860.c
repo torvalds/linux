@@ -1002,7 +1002,7 @@ VOID RT28xxPciStaAsicSleepThenAutoWakeup(
         AutoWakeupCfg.field.AutoLeadTime = 5;
         RTMP_IO_WRITE32(pAd, AUTO_WAKEUP_CFG, AutoWakeupCfg.word);
         AsicSendCommandToMcu(pAd, 0x30, 0xff, 0xff, 0x00);   // send POWER-SAVE command to MCU. Timeout 40us.
-        DBGPRINT(RT_DEBUG_TRACE, ("<-- %s, TbttNumToNextWakeUp=%d \n", __FUNCTION__, TbttNumToNextWakeUp));
+        DBGPRINT(RT_DEBUG_TRACE, ("<-- %s, TbttNumToNextWakeUp=%d \n", __func__, TbttNumToNextWakeUp));
     }
     OPSTATUS_SET_FLAG(pAd, fOP_STATUS_DOZE);
 }
@@ -1115,7 +1115,7 @@ VOID RT28xxPciMlmeRadioOn(
     if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF))
    		return;
 
-    DBGPRINT(RT_DEBUG_TRACE,("%s===>\n", __FUNCTION__));
+    DBGPRINT(RT_DEBUG_TRACE,("%s===>\n", __func__));
 
     if ((pAd->OpMode == OPMODE_AP) ||
         ((pAd->OpMode == OPMODE_STA) && (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))))
@@ -1165,7 +1165,7 @@ VOID RT28xxPciMlmeRadioOFF(
     if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF))
     	return;
 
-    DBGPRINT(RT_DEBUG_TRACE,("%s===>\n", __FUNCTION__));
+    DBGPRINT(RT_DEBUG_TRACE,("%s===>\n", __func__));
 
 	// Set LED
 	RTMPSetLED(pAd, LED_RADIO_OFF);

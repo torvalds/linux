@@ -393,7 +393,7 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 	return ret;
 }
 
-struct em28xx_vol_table outputs[] = {
+static const struct em28xx_vol_table outputs[] = {
 	{ EM28XX_AOUT_MASTER, AC97_MASTER_VOL      },
 	{ EM28XX_AOUT_LINE,   AC97_LINE_LEVEL_VOL  },
 	{ EM28XX_AOUT_MONO,   AC97_MASTER_MONO_VOL },

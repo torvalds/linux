@@ -161,6 +161,9 @@
 
 #define PORT_S3C6400	84
 
+/* NWPSERIAL */
+#define PORT_NWPSERIAL	85
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

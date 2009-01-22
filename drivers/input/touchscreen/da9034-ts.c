@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/workqueue.h>
 #include <linux/mfd/da903x.h>
 
 #define DA9034_MANUAL_CTRL	0x50

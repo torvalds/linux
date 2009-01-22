@@ -71,7 +71,7 @@ void bfin_pm_suspend_standby_enter(void)
 	gpio_pm_wakeup_request(CONFIG_PM_WAKEUP_GPIO_NUMBER, WAKEUP_TYPE);
 #endif
 
-	local_irq_save(flags);
+	local_irq_save_hw(flags);
 	bfin_pm_standby_setup();
 
 #ifdef CONFIG_PM_BFIN_SLEEP_DEEPER
@@ -82,15 +82,19 @@ void bfin_pm_suspend_standby_enter(void)
 
 	bfin_pm_standby_restore();
 
-#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)  || defined(CONFIG_BF561)
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)  || defined(CONFIG_BF561) || \
+	defined(CONFIG_BF538) || defined(CONFIG_BF539) || defined(CONFIG_BF51x)
 	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
-#if defined(CONFIG_BF52x)
+#if defined(CONFIG_BF52x) || defined(CONFIG_BF51x)
 	/* BF52x system reset does not properly reset SIC_IWR1 which
 	 * will screw up the bootrom as it relies on MDMA0/1 waking it
 	 * up from IDLE instructions.  See this report for more info:
 	 * http://blackfin.uclinux.org/gf/tracker/4323
 	 */
-	bfin_write_SIC_IWR1(IWR_ENABLE(10) | IWR_ENABLE(11));
+	if (ANOMALY_05000435)
+		bfin_write_SIC_IWR1(IWR_ENABLE(10) | IWR_ENABLE(11));
+	else
+		bfin_write_SIC_IWR1(IWR_DISABLE_ALL);
 #else
 	bfin_write_SIC_IWR1(IWR_DISABLE_ALL);
 #endif
@@ -101,7 +105,7 @@ void bfin_pm_suspend_standby_enter(void)
 	bfin_write_SIC_IWR(IWR_DISABLE_ALL);
 #endif
 
-	local_irq_restore(flags);
+	local_irq_restore_hw(flags);
 }
 
 int bf53x_suspend_l1_mem(unsigned char *memptr)
@@ -245,12 +249,12 @@ int bfin_pm_suspend_mem_enter(void)
 	wakeup |= GPWE;
 #endif
 
-	local_irq_save(flags);
+	local_irq_save_hw(flags);
 
 	ret = blackfin_dma_suspend();
 
 	if (ret) {
-		local_irq_restore(flags);
+		local_irq_restore_hw(flags);
 		kfree(memptr);
 		return ret;
 	}
@@ -271,7 +275,7 @@ int bfin_pm_suspend_mem_enter(void)
 	bfin_gpio_pm_hibernate_restore();
 	blackfin_dma_resume();
 
-	local_irq_restore(flags);
+	local_irq_restore_hw(flags);
 	kfree(memptr);
 
 	return 0;

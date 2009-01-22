@@ -769,7 +769,7 @@ static int pc_open(struct tty_struct *tty, struct file *filp)
 	/* Check status of board configured in system.  */
 
 	/*
-	 * I check to see if the epca_setup routine detected an user error. It
+	 * I check to see if the epca_setup routine detected a user error. It
 	 * might be better to put this in pc_init, but for the moment it goes
 	 * here.
 	 */

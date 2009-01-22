@@ -28,11 +28,16 @@
 
 #include "common.h"
 
-extern void __init isa_init_irq(unsigned int irq);
-
 unsigned int mem_fclk_21285 = 50000000;
 
 EXPORT_SYMBOL(mem_fclk_21285);
+
+static void __init early_fclk(char **arg)
+{
+	mem_fclk_21285 = simple_strtoul(*arg, arg, 0);
+}
+
+__early_param("mem_fclk_21285=", early_fclk);
 
 static int __init parse_tag_memclk(const struct tag *tag)
 {

@@ -16,6 +16,8 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef __USB_CORE_HCD_H
+#define __USB_CORE_HCD_H
 
 #ifdef __KERNEL__
 
@@ -254,7 +256,9 @@ extern int usb_hcd_pci_probe(struct pci_dev *dev,
 extern void usb_hcd_pci_remove(struct pci_dev *dev);
 
 #ifdef CONFIG_PM
-extern int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t state);
+extern int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t msg);
+extern int usb_hcd_pci_suspend_late(struct pci_dev *dev, pm_message_t msg);
+extern int usb_hcd_pci_resume_early(struct pci_dev *dev);
 extern int usb_hcd_pci_resume(struct pci_dev *dev);
 #endif /* CONFIG_PM */
 
@@ -386,8 +390,8 @@ extern int usb_find_interface_driver(struct usb_device *dev,
 #ifdef CONFIG_PM
 extern void usb_hcd_resume_root_hub(struct usb_hcd *hcd);
 extern void usb_root_hub_lost_power(struct usb_device *rhdev);
-extern int hcd_bus_suspend(struct usb_device *rhdev);
-extern int hcd_bus_resume(struct usb_device *rhdev);
+extern int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg);
+extern int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg);
 #else
 static inline void usb_hcd_resume_root_hub(struct usb_hcd *hcd)
 {
@@ -419,7 +423,7 @@ static inline void usbfs_cleanup(void) { }
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_USB_MON)
+#if defined(CONFIG_USB_MON) || defined(CONFIG_USB_MON_MODULE)
 
 struct usb_mon_operations {
 	void (*urb_submit)(struct usb_bus *bus, struct urb *urb);
@@ -461,7 +465,7 @@ static inline void usbmon_urb_submit_error(struct usb_bus *bus, struct urb *urb,
 static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
 		int status) {}
 
-#endif /* CONFIG_USB_MON */
+#endif /* CONFIG_USB_MON || CONFIG_USB_MON_MODULE */
 
 /*-------------------------------------------------------------------------*/
 
@@ -490,3 +494,5 @@ extern struct rw_semaphore ehci_cf_port_reset_rwsem;
 extern unsigned long usb_hcds_loaded;
 
 #endif /* __KERNEL__ */
+
+#endif /* __USB_CORE_HCD_H */

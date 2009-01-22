@@ -426,8 +426,8 @@ void sparc64_pbm_msi_init(struct pci_pbm_info *pbm,
 		       pbm->name,
 		       pbm->msi_first, pbm->msi_num, pbm->msi_data_mask,
 		       pbm->msix_data_width);
-		printk(KERN_INFO "%s: MSI addr32[0x%lx:0x%x] "
-		       "addr64[0x%lx:0x%x]\n",
+		printk(KERN_INFO "%s: MSI addr32[0x%llx:0x%x] "
+		       "addr64[0x%llx:0x%x]\n",
 		       pbm->name,
 		       pbm->msi32_start, pbm->msi32_len,
 		       pbm->msi64_start, pbm->msi64_len);

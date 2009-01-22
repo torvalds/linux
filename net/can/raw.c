@@ -99,13 +99,14 @@ static void raw_rcv(struct sk_buff *skb, void *data)
 	struct raw_sock *ro = raw_sk(sk);
 	struct sockaddr_can *addr;
 
-	if (!ro->recv_own_msgs) {
-		/* check the received tx sock reference */
-		if (skb->sk == sk) {
-			kfree_skb(skb);
-			return;
-		}
-	}
+	/* check the received tx sock reference */
+	if (!ro->recv_own_msgs && skb->sk == sk)
+		return;
+
+	/* clone the given skb to be able to enqueue it into the rcv queue */
+	skb = skb_clone(skb, GFP_ATOMIC);
+	if (!skb)
+		return;
 
 	/*
 	 *  Put the datagram to the queue so that raw_recvmsg() can

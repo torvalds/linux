@@ -191,7 +191,7 @@ Original licence information: None
 
 --------------------------------------------------------------------------
 
-Driver: tu_usb_3410_5052 -- USB TI 3410/5052 serial device
+Driver: ti_usb_3410_5052 -- USB TI 3410/5052 serial device
 
 File: ti_3410.fw
 Info: firmware 9/10/04 FW3410_Special_StartWdogOnStartPort
@@ -203,6 +203,20 @@ Licence: Allegedly GPLv2+, but no source visible. Marked:
 	 Copyright (C) 2004 Texas Instruments
 
 Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: ti_usb_3410_5052 -- Multi-Tech USB cell modems
+
+File: mts_cdma.fw
+File: mts_gsm.fw
+File: mts_edge.fw
+
+Licence: "all firmware components are redistributable in binary form"
+         per support@multitech.com
+	 Copyright (C) 2005 Multi-Tech Systems, Inc.
+
+Found in hex form in ftp://ftp.multitech.com/wireless/wireless_linux.zip
 
 --------------------------------------------------------------------------
 
@@ -357,6 +371,18 @@ File: cxgb3/t3c_psram-1.1.0.bin.ihex
 file: cxgb3/t3fw-7.0.0.bin.ihex
 
 License: GPLv2 or OpenIB.org BSD license, no source visible
+
+--------------------------------------------------------------------------
+
+Driver: e100 -- Intel PRO/100 Ethernet NIC
+
+File: e100/d101m_ucode.bin
+File: e100/d101s_ucode.bin
+File: e100/d102e_ucode.bin
+
+Licence: Unknown
+
+Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
 

@@ -134,6 +134,16 @@ static const struct pnp_device_id sb1000_pnp_ids[] = {
 };
 MODULE_DEVICE_TABLE(pnp, sb1000_pnp_ids);
 
+static const struct net_device_ops sb1000_netdev_ops = {
+	.ndo_open		= sb1000_open,
+	.ndo_start_xmit		= sb1000_start_xmit,
+	.ndo_do_ioctl		= sb1000_dev_ioctl,
+	.ndo_stop		= sb1000_close,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int
 sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 {
@@ -192,11 +202,7 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	if (sb1000_debug > 0)
 		printk(KERN_NOTICE "%s", version);
 
-	/* The SB1000-specific entries in the device structure. */
-	dev->open		= sb1000_open;
-	dev->do_ioctl		= sb1000_dev_ioctl;
-	dev->hard_start_xmit	= sb1000_start_xmit;
-	dev->stop		= sb1000_close;
+	dev->netdev_ops	= &sb1000_netdev_ops;
 
 	/* hardware address is 0:0:serial_number */
 	dev->dev_addr[2]	= serial_number >> 24 & 0xff;

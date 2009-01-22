@@ -449,7 +449,7 @@ again:
 	__asm__ __volatile__("wrpr %0, 0x0, %%pstate"
 			     : : "r" (pstate));
 	if (stuck == 0) {
-		printk("CPU[%d]: mondo stuckage result[%016lx]\n",
+		printk("CPU[%d]: mondo stuckage result[%016llx]\n",
 		       smp_processor_id(), result);
 	} else {
 		udelay(2);
@@ -584,7 +584,7 @@ retry:
 			/* Busy bits will not clear, continue instead
 			 * of freezing up on this cpu.
 			 */
-			printk("CPU[%d]: mondo stuckage result[%016lx]\n",
+			printk("CPU[%d]: mondo stuckage result[%016llx]\n",
 			       smp_processor_id(), dispatch_stat);
 		} else {
 			int i, this_busy_nack = 0;

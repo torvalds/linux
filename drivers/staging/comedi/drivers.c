@@ -557,7 +557,7 @@ unsigned int comedi_buf_munge(comedi_async * async, unsigned int num_bytes)
 		block_size = num_bytes - count;
 		if (block_size < 0) {
 			rt_printk("%s: %s: bug! block_size is negative\n",
-				__FILE__, __FUNCTION__);
+				__FILE__, __func__);
 			break;
 		}
 		if ((int)(async->munge_ptr + block_size -

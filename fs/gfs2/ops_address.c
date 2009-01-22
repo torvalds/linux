@@ -675,6 +675,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		goto out_trans_fail;
 
 	error = -ENOMEM;
+	flags |= AOP_FLAG_NOFS;
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	*pagep = page;
 	if (unlikely(!page))

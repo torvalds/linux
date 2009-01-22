@@ -541,9 +541,9 @@ static int __init perf_init(void)
 	spin_lock_init(&perf_lock);
 
 	/* TODO: this only lets us access the first cpu.. what to do for SMP? */
-	cpu_device = cpu_data[0].dev;
+	cpu_device = per_cpu(cpu_data, 0).dev;
 	printk("Performance monitoring counters enabled for %s\n",
-		cpu_data[0].dev->name);
+		per_cpu(cpu_data, 0).dev->name);
 
 	return 0;
 }

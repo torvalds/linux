@@ -52,9 +52,9 @@ struct cgroup_subsys_state {
 	 * hierarchy structure */
 	struct cgroup *cgroup;
 
-	/* State maintained by the cgroup system to allow
-	 * subsystems to be "busy". Should be accessed via css_get()
-	 * and css_put() */
+	/* State maintained by the cgroup system to allow subsystems
+	 * to be "busy". Should be accessed via css_get(),
+	 * css_tryget() and and css_put(). */
 
 	atomic_t refcnt;
 
@@ -64,11 +64,14 @@ struct cgroup_subsys_state {
 /* bits in struct cgroup_subsys_state flags field */
 enum {
 	CSS_ROOT, /* This CSS is the root of the subsystem */
+	CSS_REMOVED, /* This CSS is dead */
 };
 
 /*
- * Call css_get() to hold a reference on the cgroup;
- *
+ * Call css_get() to hold a reference on the css; it can be used
+ * for a reference obtained via:
+ * - an existing ref-counted reference to the css
+ * - task->cgroups for a locked task
  */
 
 static inline void css_get(struct cgroup_subsys_state *css)
@@ -77,9 +80,32 @@ static inline void css_get(struct cgroup_subsys_state *css)
 	if (!test_bit(CSS_ROOT, &css->flags))
 		atomic_inc(&css->refcnt);
 }
+
+static inline bool css_is_removed(struct cgroup_subsys_state *css)
+{
+	return test_bit(CSS_REMOVED, &css->flags);
+}
+
+/*
+ * Call css_tryget() to take a reference on a css if your existing
+ * (known-valid) reference isn't already ref-counted. Returns false if
+ * the css has been destroyed.
+ */
+
+static inline bool css_tryget(struct cgroup_subsys_state *css)
+{
+	if (test_bit(CSS_ROOT, &css->flags))
+		return true;
+	while (!atomic_inc_not_zero(&css->refcnt)) {
+		if (test_bit(CSS_REMOVED, &css->flags))
+			return false;
+	}
+	return true;
+}
+
 /*
  * css_put() should be called to release a reference taken by
- * css_get()
+ * css_get() or css_tryget()
  */
 
 extern void __css_put(struct cgroup_subsys_state *css);
@@ -116,7 +142,7 @@ struct cgroup {
 	struct list_head children;	/* my children */
 
 	struct cgroup *parent;	/* my parent */
-	struct dentry *dentry;	  	/* cgroup fs entry */
+	struct dentry *dentry;	  	/* cgroup fs entry, RCU protected */
 
 	/* Private pointers for each registered subsystem */
 	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
@@ -145,6 +171,9 @@ struct cgroup {
 	int pids_use_count;
 	/* Length of the current tasks_pids array */
 	int pids_length;
+
+	/* For RCU-protected deletion */
+	struct rcu_head rcu_head;
 };
 
 /* A css_set is a structure holding pointers to a set of
@@ -337,9 +366,23 @@ struct cgroup_subsys {
 #define MAX_CGROUP_TYPE_NAMELEN 32
 	const char *name;
 
-	/* Protected by RCU */
-	struct cgroupfs_root *root;
+	/*
+	 * Protects sibling/children links of cgroups in this
+	 * hierarchy, plus protects which hierarchy (or none) the
+	 * subsystem is a part of (i.e. root/sibling).  To avoid
+	 * potential deadlocks, the following operations should not be
+	 * undertaken while holding any hierarchy_mutex:
+	 *
+	 * - allocating memory
+	 * - initiating hotplug events
+	 */
+	struct mutex hierarchy_mutex;
 
+	/*
+	 * Link to parent, and list entry in parent's children.
+	 * Protected by this->hierarchy_mutex and cgroup_lock()
+	 */
+	struct cgroupfs_root *root;
 	struct list_head sibling;
 };
 

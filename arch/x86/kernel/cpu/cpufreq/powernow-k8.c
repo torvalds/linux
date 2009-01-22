@@ -1199,10 +1199,10 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	set_cpus_allowed_ptr(current, &oldmask);
 
 	if (cpu_family == CPU_HW_PSTATE)
-		pol->cpus = cpumask_of_cpu(pol->cpu);
+		cpumask_copy(pol->cpus, cpumask_of(pol->cpu));
 	else
-		pol->cpus = per_cpu(cpu_core_map, pol->cpu);
-	data->available_cores = &(pol->cpus);
+		cpumask_copy(pol->cpus, &per_cpu(cpu_core_map, pol->cpu));
+	data->available_cores = pol->cpus;
 
 	/* Take a crude guess here.
 	 * That guess was in microseconds, so multiply with 1000 */

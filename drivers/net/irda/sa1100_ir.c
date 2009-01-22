@@ -60,7 +60,6 @@ struct sa1100_irda {
 	dma_regs_t		*txdma;
 	dma_regs_t		*rxdma;
 
-	struct net_device_stats	stats;
 	struct device		*dev;
 	struct irda_platform_data *pdata;
 	struct irlap_cb		*irlap;
@@ -375,13 +374,13 @@ static void sa1100_irda_hpsir_irq(struct net_device *dev)
 		data = Ser2UTDR;
 
 		if (stat & (UTSR1_FRE | UTSR1_ROR)) {
-			si->stats.rx_errors++;
+			dev->stats.rx_errors++;
 			if (stat & UTSR1_FRE)
-				si->stats.rx_frame_errors++;
+				dev->stats.rx_frame_errors++;
 			if (stat & UTSR1_ROR)
-				si->stats.rx_fifo_errors++;
+				dev->stats.rx_fifo_errors++;
 		} else
-			async_unwrap_char(dev, &si->stats, &si->rx_buff, data);
+			async_unwrap_char(dev, &dev->stats, &si->rx_buff, data);
 
 		status = Ser2UTSR0;
 	}
@@ -396,9 +395,9 @@ static void sa1100_irda_hpsir_irq(struct net_device *dev)
 		 * There are at least 4 bytes in the FIFO.  Read 3 bytes
 		 * and leave the rest to the block below.
 		 */
-		async_unwrap_char(dev, &si->stats, &si->rx_buff, Ser2UTDR);
-		async_unwrap_char(dev, &si->stats, &si->rx_buff, Ser2UTDR);
-		async_unwrap_char(dev, &si->stats, &si->rx_buff, Ser2UTDR);
+		async_unwrap_char(dev, &dev->stats, &si->rx_buff, Ser2UTDR);
+		async_unwrap_char(dev, &dev->stats, &si->rx_buff, Ser2UTDR);
+		async_unwrap_char(dev, &dev->stats, &si->rx_buff, Ser2UTDR);
 	}
 
 	if (status & (UTSR0_RFS | UTSR0_RID)) {
@@ -406,7 +405,7 @@ static void sa1100_irda_hpsir_irq(struct net_device *dev)
 		 * Fifo contains more than 1 character.
 		 */
 		do {
-			async_unwrap_char(dev, &si->stats, &si->rx_buff,
+			async_unwrap_char(dev, &dev->stats, &si->rx_buff,
 					  Ser2UTDR);
 		} while (Ser2UTSR1 & UTSR1_RNE);
 
@@ -422,8 +421,8 @@ static void sa1100_irda_hpsir_irq(struct net_device *dev)
 		} while (Ser2UTSR1 & UTSR1_TNF && si->tx_buff.len);
 
 		if (si->tx_buff.len == 0) {
-			si->stats.tx_packets++;
-			si->stats.tx_bytes += si->tx_buff.data -
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += si->tx_buff.data -
 					      si->tx_buff.head;
 
 			/*
@@ -482,11 +481,11 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 		data = Ser2HSDR;
 
 		if (stat & (HSSR1_CRE | HSSR1_ROR)) {
-			si->stats.rx_errors++;
+			dev->stats.rx_errors++;
 			if (stat & HSSR1_CRE)
-				si->stats.rx_crc_errors++;
+				dev->stats.rx_crc_errors++;
 			if (stat & HSSR1_ROR)
-				si->stats.rx_frame_errors++;
+				dev->stats.rx_frame_errors++;
 		} else
 			skb->data[len++] = data;
 
@@ -505,8 +504,8 @@ static void sa1100_irda_fir_error(struct sa1100_irda *si, struct net_device *dev
 		skb->dev = dev;
 		skb_reset_mac_header(skb);
 		skb->protocol = htons(ETH_P_IRDA);
-		si->stats.rx_packets++;
-		si->stats.rx_bytes += len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += len;
 
 		/*
 		 * Before we pass the buffer up, allocate a new one.
@@ -545,10 +544,10 @@ static void sa1100_irda_fir_irq(struct net_device *dev)
 	 * from the fifo.
 	 */
 	if (Ser2HSSR0 & (HSSR0_FRE | HSSR0_RAB)) {
-		si->stats.rx_errors++;
+		dev->stats.rx_errors++;
 
 		if (Ser2HSSR0 & HSSR0_FRE)
-			si->stats.rx_frame_errors++;
+			dev->stats.rx_frame_errors++;
 
 		/*
 		 * Clear out the DMA...
@@ -633,8 +632,8 @@ static void sa1100_irda_txdma_irq(void *id)
 	 */
 	if (skb) {
 		dma_unmap_single(si->dev, si->txbuf_dma, skb->len, DMA_TO_DEVICE);
-		si->stats.tx_packets ++;
-		si->stats.tx_bytes += skb->len;
+		dev->stats.tx_packets ++;
+		dev->stats.tx_bytes += skb->len;
 		dev_kfree_skb_irq(skb);
 	}
 
@@ -760,12 +759,6 @@ sa1100_irda_ioctl(struct net_device *dev, struct ifreq *ifreq, int cmd)
 	}
 		
 	return ret;
-}
-
-static struct net_device_stats *sa1100_irda_stats(struct net_device *dev)
-{
-	struct sa1100_irda *si = netdev_priv(dev);
-	return &si->stats;
 }
 
 static int sa1100_irda_start(struct net_device *dev)
@@ -924,7 +917,6 @@ static int sa1100_irda_probe(struct platform_device *pdev)
 	dev->open		= sa1100_irda_start;
 	dev->stop		= sa1100_irda_stop;
 	dev->do_ioctl		= sa1100_irda_ioctl;
-	dev->get_stats		= sa1100_irda_stats;
 	dev->irq		= IRQ_Ser2ICP;
 
 	irda_init_max_qos_capabilies(&si->qos);

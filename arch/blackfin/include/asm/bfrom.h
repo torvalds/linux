@@ -43,6 +43,11 @@ __attribute__((__noreturn__))
 static inline void bfrom_SoftReset(void *new_stack)
 {
 	while (1)
+		/*
+		 * We don't declare the SP as clobbered on purpose, since
+		 * it confuses the heck out of the compiler, and this function
+		 * never returns
+		 */
 		__asm__ __volatile__(
 			"sp = %[stack];"
 			"jump (%[bfrom_syscontrol]);"

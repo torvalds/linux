@@ -969,8 +969,7 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
  *	Takes the console sem and the called methods then take the tty
  *	termios_mutex and the tty ctrl_lock in that order.
  */
-
-int vt_resize(struct tty_struct *tty, struct winsize *ws)
+static int vt_resize(struct tty_struct *tty, struct winsize *ws)
 {
 	struct vc_data *vc = tty->driver_data;
 	int ret;

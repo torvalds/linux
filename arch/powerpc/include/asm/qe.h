@@ -17,6 +17,8 @@
 #ifdef __KERNEL__
 
 #include <linux/spinlock.h>
+#include <linux/errno.h>
+#include <linux/err.h>
 #include <asm/cpm.h>
 #include <asm/immap_qe.h>
 
@@ -84,7 +86,11 @@ static inline bool qe_clock_is_brg(enum qe_clock clk)
 extern spinlock_t cmxgcr_lock;
 
 /* Export QE common operations */
+#ifdef CONFIG_QUICC_ENGINE
 extern void __init qe_reset(void);
+#else
+static inline void qe_reset(void) {}
+#endif
 
 /* QE PIO */
 #define QE_PIO_PINS 32
@@ -101,16 +107,43 @@ struct qe_pio_regs {
 #endif
 };
 
-extern int par_io_init(struct device_node *np);
-extern int par_io_of_config(struct device_node *np);
 #define QE_PIO_DIR_IN	2
 #define QE_PIO_DIR_OUT	1
 extern void __par_io_config_pin(struct qe_pio_regs __iomem *par_io, u8 pin,
 				int dir, int open_drain, int assignment,
 				int has_irq);
+#ifdef CONFIG_QUICC_ENGINE
+extern int par_io_init(struct device_node *np);
+extern int par_io_of_config(struct device_node *np);
 extern int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
 			     int assignment, int has_irq);
 extern int par_io_data_set(u8 port, u8 pin, u8 val);
+#else
+static inline int par_io_init(struct device_node *np) { return -ENOSYS; }
+static inline int par_io_of_config(struct device_node *np) { return -ENOSYS; }
+static inline int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
+		int assignment, int has_irq) { return -ENOSYS; }
+static inline int par_io_data_set(u8 port, u8 pin, u8 val) { return -ENOSYS; }
+#endif /* CONFIG_QUICC_ENGINE */
+
+/*
+ * Pin multiplexing functions.
+ */
+struct qe_pin;
+#ifdef CONFIG_QE_GPIO
+extern struct qe_pin *qe_pin_request(struct device_node *np, int index);
+extern void qe_pin_free(struct qe_pin *qe_pin);
+extern void qe_pin_set_gpio(struct qe_pin *qe_pin);
+extern void qe_pin_set_dedicated(struct qe_pin *pin);
+#else
+static inline struct qe_pin *qe_pin_request(struct device_node *np, int index)
+{
+	return ERR_PTR(-ENOSYS);
+}
+static inline void qe_pin_free(struct qe_pin *qe_pin) {}
+static inline void qe_pin_set_gpio(struct qe_pin *qe_pin) {}
+static inline void qe_pin_set_dedicated(struct qe_pin *pin) {}
+#endif /* CONFIG_QE_GPIO */
 
 /* QE internal API */
 int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input);
@@ -591,7 +624,7 @@ struct ucc_slow_pram {
 #define UCC_GETH_UCCE_RXF1      0x00000002
 #define UCC_GETH_UCCE_RXF0      0x00000001
 
-/* UPSMR, when used as a UART */
+/* UCC Protocol Specific Mode Register (UPSMR), when used for UART */
 #define UCC_UART_UPSMR_FLC		0x8000
 #define UCC_UART_UPSMR_SL		0x4000
 #define UCC_UART_UPSMR_CL_MASK		0x3000
@@ -618,6 +651,23 @@ struct ucc_slow_pram {
 #define UCC_UART_UPSMR_TPM_LOW		0x0001
 #define UCC_UART_UPSMR_TPM_EVEN		0x0002
 #define UCC_UART_UPSMR_TPM_HIGH		0x0003
+
+/* UCC Protocol Specific Mode Register (UPSMR), when used for Ethernet */
+#define UCC_GETH_UPSMR_FTFE     0x80000000
+#define UCC_GETH_UPSMR_PTPE     0x40000000
+#define UCC_GETH_UPSMR_ECM      0x04000000
+#define UCC_GETH_UPSMR_HSE      0x02000000
+#define UCC_GETH_UPSMR_PRO      0x00400000
+#define UCC_GETH_UPSMR_CAP      0x00200000
+#define UCC_GETH_UPSMR_RSH      0x00100000
+#define UCC_GETH_UPSMR_RPM      0x00080000
+#define UCC_GETH_UPSMR_R10M     0x00040000
+#define UCC_GETH_UPSMR_RLPB     0x00020000
+#define UCC_GETH_UPSMR_TBIM     0x00010000
+#define UCC_GETH_UPSMR_RES1     0x00002000
+#define UCC_GETH_UPSMR_RMM      0x00001000
+#define UCC_GETH_UPSMR_CAM      0x00000400
+#define UCC_GETH_UPSMR_BRO      0x00000200
 
 /* UCC Transmit On Demand Register (UTODR) */
 #define UCC_SLOW_TOD	0x8000

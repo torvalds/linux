@@ -1568,6 +1568,22 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return err;
 }
 
+static const struct net_device_ops pcnet32_netdev_ops = {
+	.ndo_open		= pcnet32_open,
+	.ndo_stop 		= pcnet32_close,
+	.ndo_start_xmit		= pcnet32_start_xmit,
+	.ndo_tx_timeout		= pcnet32_tx_timeout,
+	.ndo_get_stats		= pcnet32_get_stats,
+	.ndo_set_multicast_list = pcnet32_set_multicast_list,
+	.ndo_do_ioctl		= pcnet32_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= pcnet32_poll_controller,
+#endif
+};
+
 /* pcnet32_probe1
  *  Called from both pcnet32_probe_vlbus and pcnet_probe_pci.
  *  pdev will be NULL when called from pcnet32_probe_vlbus.
@@ -1934,19 +1950,9 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->watchdog_timer.function = (void *)&pcnet32_watchdog;
 
 	/* The PCNET32-specific entries in the device structure. */
-	dev->open = &pcnet32_open;
-	dev->hard_start_xmit = &pcnet32_start_xmit;
-	dev->stop = &pcnet32_close;
-	dev->get_stats = &pcnet32_get_stats;
-	dev->set_multicast_list = &pcnet32_set_multicast_list;
-	dev->do_ioctl = &pcnet32_ioctl;
+	dev->netdev_ops = &pcnet32_netdev_ops;
 	dev->ethtool_ops = &pcnet32_ethtool_ops;
-	dev->tx_timeout = pcnet32_tx_timeout;
 	dev->watchdog_timeo = (5 * HZ);
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = pcnet32_poll_controller;
-#endif
 
 	/* Fill in the generic fields of the device structure. */
 	if (register_netdev(dev))
@@ -2276,7 +2282,7 @@ static int pcnet32_open(struct net_device *dev)
 	if (lp->chip_version >= PCNET32_79C970A) {
 		/* Print the link status and start the watchdog */
 		pcnet32_check_media(dev, 1);
-		mod_timer(&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
+		mod_timer(&lp->watchdog_timer, PCNET32_WATCHDOG_TIMEOUT);
 	}
 
 	i = 0;
@@ -2911,7 +2917,7 @@ static void pcnet32_watchdog(struct net_device *dev)
 	pcnet32_check_media(dev, 0);
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	mod_timer(&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
+	mod_timer(&lp->watchdog_timer, round_jiffies(PCNET32_WATCHDOG_TIMEOUT));
 }
 
 static int pcnet32_pm_suspend(struct pci_dev *pdev, pm_message_t state)

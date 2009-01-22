@@ -522,6 +522,7 @@ static int __init pcied_init(void)
 {
 	int retval = 0;
 
+	pciehp_firmware_init();
 	retval = pcie_port_service_register(&hpdriver_portdrv);
  	dbg("pcie_port_service_register = %d\n", retval);
   	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");

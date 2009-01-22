@@ -303,7 +303,7 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		else if (start == (ha->flt_region_boot * 4) ||
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if (IS_QLA25XX(ha) &&
+		else if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) &&
 		    start == (ha->flt_region_vpd_nvram * 4))
 		    valid = 1;
 		if (!valid) {
@@ -815,6 +815,21 @@ qla2x00_total_isp_aborts_show(struct device *dev,
 	    ha->qla_stats.total_isp_aborts);
 }
 
+static ssize_t
+qla2x00_mpi_version_show(struct device *dev, struct device_attribute *attr,
+    char *buf)
+{
+	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA81XX(ha))
+		return snprintf(buf, PAGE_SIZE, "\n");
+
+	return snprintf(buf, PAGE_SIZE, "%02x.%02x.%02x.%02x (%x)\n",
+	    ha->mpi_version[0], ha->mpi_version[1], ha->mpi_version[2],
+	    ha->mpi_version[3], ha->mpi_capabilities);
+}
+
 static DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show, NULL);
 static DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
 static DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
@@ -839,6 +854,7 @@ static DEVICE_ATTR(optrom_fw_version, S_IRUGO, qla2x00_optrom_fw_version_show,
 		   NULL);
 static DEVICE_ATTR(total_isp_aborts, S_IRUGO, qla2x00_total_isp_aborts_show,
 		   NULL);
+static DEVICE_ATTR(mpi_version, S_IRUGO, qla2x00_mpi_version_show, NULL);
 
 struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version,
@@ -858,6 +874,7 @@ struct device_attribute *qla2x00_host_attrs[] = {
 	&dev_attr_optrom_fcode_version,
 	&dev_attr_optrom_fw_version,
 	&dev_attr_total_isp_aborts,
+	&dev_attr_mpi_version,
 	NULL,
 };
 
@@ -891,6 +908,9 @@ qla2x00_get_host_speed(struct Scsi_Host *shost)
 		break;
 	case PORT_SPEED_8GB:
 		speed = FC_PORTSPEED_8GBIT;
+		break;
+	case PORT_SPEED_10GB:
+		speed = FC_PORTSPEED_10GBIT;
 		break;
 	}
 	fc_host_speed(shost) = speed;
@@ -1382,7 +1402,9 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	fc_host_max_npiv_vports(vha->host) = ha->max_npiv_vports;
 	fc_host_npiv_vports_inuse(vha->host) = ha->cur_vport_count;
 
-	if (IS_QLA25XX(ha))
+	if (IS_QLA81XX(ha))
+		speed = FC_PORTSPEED_10GBIT;
+	else if (IS_QLA25XX(ha))
 		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
 		    FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
 	else if (IS_QLA24XX_TYPE(ha))

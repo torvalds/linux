@@ -16,7 +16,6 @@
 #include <linux/sched.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
-#include <linux/smp_lock.h>
 #include <linux/mount.h>
 #include <linux/pid_namespace.h>
 
@@ -162,17 +161,12 @@ static int proc_root_readdir(struct file * filp,
 	unsigned int nr = filp->f_pos;
 	int ret;
 
-	lock_kernel();
-
 	if (nr < FIRST_PROCESS_ENTRY) {
 		int error = proc_readdir(filp, dirent, filldir);
-		if (error <= 0) {
-			unlock_kernel();
+		if (error <= 0)
 			return error;
-		}
 		filp->f_pos = FIRST_PROCESS_ENTRY;
 	}
-	unlock_kernel();
 
 	ret = proc_pid_readdir(filp, dirent, filldir);
 	return ret;

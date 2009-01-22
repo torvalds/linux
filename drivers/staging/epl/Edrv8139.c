@@ -391,19 +391,19 @@ tEplKernel EdrvInit(tEdrvInitParam * pEdrvInitParam_p)
 	// register PCI driver
 	iResult = pci_register_driver(&EdrvDriver);
 	if (iResult != 0) {
-		printk("%s pci_register_driver failed with %d\n", __FUNCTION__,
+		printk("%s pci_register_driver failed with %d\n", __func__,
 		       iResult);
 		Ret = kEplNoResource;
 		goto Exit;
 	}
 
 	if (EdrvInstance_l.m_pPciDev == NULL) {
-		printk("%s m_pPciDev=NULL\n", __FUNCTION__);
+		printk("%s m_pPciDev=NULL\n", __func__);
 		Ret = kEplNoResource;
 		goto Exit;
 	}
 	// read MAC address from controller
-	printk("%s local MAC = ", __FUNCTION__);
+	printk("%s local MAC = ", __func__);
 	for (iResult = 0; iResult < 6; iResult++) {
 		pEdrvInitParam_p->m_abMyMacAddr[iResult] =
 		    EDRV_REGB_READ((EDRV_REGDW_IDR0 + iResult));
@@ -434,7 +434,7 @@ tEplKernel EdrvShutdown(void)
 {
 
 	// unregister PCI driver
-	printk("%s calling pci_unregister_driver()\n", __FUNCTION__);
+	printk("%s calling pci_unregister_driver()\n", __func__);
 	pci_unregister_driver(&EdrvDriver);
 
 	return kEplSuccessful;
@@ -621,7 +621,7 @@ tEplKernel EdrvSendTxMsg(tEdrvTxBuffer * pBuffer_p)
 		    EDRV_REGDW_READ((EDRV_REGDW_TSD0 +
 				     (EdrvInstance_l.m_uiCurTxDesc *
 				      sizeof(DWORD))));
-		printk("%s InvOp TSD%u = 0x%08lX", __FUNCTION__,
+		printk("%s InvOp TSD%u = 0x%08lX", __func__,
 		       EdrvInstance_l.m_uiCurTxDesc, dwTemp);
 		printk("  Cmd = 0x%02X\n",
 		       (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
@@ -646,7 +646,7 @@ tEplKernel EdrvSendTxMsg(tEdrvTxBuffer * pBuffer_p)
 	dwTemp =
 	    EDRV_REGDW_READ((EDRV_REGDW_TSAD0 +
 			     (EdrvInstance_l.m_uiCurTxDesc * sizeof(DWORD))));
-//    printk("%s TSAD%u = 0x%08lX", __FUNCTION__, EdrvInstance_l.m_uiCurTxDesc, dwTemp);
+//    printk("%s TSAD%u = 0x%08lX", __func__, EdrvInstance_l.m_uiCurTxDesc, dwTemp);
 
 	// start transmission
 	EDRV_REGDW_WRITE((EDRV_REGDW_TSD0 +
@@ -786,7 +786,7 @@ static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
 
 		if (EdrvInstance_l.m_pbTxBuf == NULL) {
 			printk("%s Tx buffers currently not allocated\n",
-			       __FUNCTION__);
+			       __func__);
 			goto Exit;
 		}
 		// read transmit status
@@ -842,7 +842,7 @@ static int TgtEthIsr(int nIrqNum_p, void *ppDevInstData_p,
 
 		if (EdrvInstance_l.m_pbRxBuf == NULL) {
 			printk("%s Rx buffers currently not allocated\n",
-			       __FUNCTION__);
+			       __func__);
 			goto Exit;
 		}
 		// read current offset in receive buffer
@@ -944,7 +944,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	DWORD dwTemp;
 
 	if (EdrvInstance_l.m_pPciDev != NULL) {	// Edrv is already connected to a PCI device
-		printk("%s device %s discarded\n", __FUNCTION__,
+		printk("%s device %s discarded\n", __func__,
 		       pci_name(pPciDev));
 		iResult = -ENODEV;
 		goto Exit;
@@ -953,7 +953,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	if (pPciDev->revision >= 0x20) {
 		printk
 		    ("%s device %s is an enhanced 8139C+ version, which is not supported\n",
-		     __FUNCTION__, pci_name(pPciDev));
+		     __func__, pci_name(pPciDev));
 		iResult = -ENODEV;
 		goto Exit;
 	}
@@ -961,7 +961,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	EdrvInstance_l.m_pPciDev = pPciDev;
 
 	// enable device
-	printk("%s enable device\n", __FUNCTION__);
+	printk("%s enable device\n", __func__);
 	iResult = pci_enable_device(pPciDev);
 	if (iResult != 0) {
 		goto Exit;
@@ -972,13 +972,13 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 		goto Exit;
 	}
 
-	printk("%s request regions\n", __FUNCTION__);
+	printk("%s request regions\n", __func__);
 	iResult = pci_request_regions(pPciDev, DRV_NAME);
 	if (iResult != 0) {
 		goto Exit;
 	}
 
-	printk("%s ioremap\n", __FUNCTION__);
+	printk("%s ioremap\n", __func__);
 	EdrvInstance_l.m_pIoAddr =
 	    ioremap(pci_resource_start(pPciDev, 1),
 		    pci_resource_len(pPciDev, 1));
@@ -987,11 +987,11 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 		goto Exit;
 	}
 	// enable PCI busmaster
-	printk("%s enable busmaster\n", __FUNCTION__);
+	printk("%s enable busmaster\n", __func__);
 	pci_set_master(pPciDev);
 
 	// reset controller
-	printk("%s reset controller\n", __FUNCTION__);
+	printk("%s reset controller\n", __func__);
 	EDRV_REGB_WRITE(EDRV_REGB_COMMAND, EDRV_REGB_COMMAND_RST);
 
 	// wait until reset has finished
@@ -1008,20 +1008,20 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	dwTemp = EDRV_REGDW_READ(EDRV_REGDW_TCR);
 	if (((dwTemp & EDRV_REGDW_TCR_VER_MASK) != EDRV_REGDW_TCR_VER_C)
 	    && ((dwTemp & EDRV_REGDW_TCR_VER_MASK) != EDRV_REGDW_TCR_VER_D)) {	// unsupported chip
-		printk("%s Unsupported chip! TCR = 0x%08lX\n", __FUNCTION__,
+		printk("%s Unsupported chip! TCR = 0x%08lX\n", __func__,
 		       dwTemp);
 		iResult = -ENODEV;
 		goto Exit;
 	}
 	// disable interrupts
-	printk("%s disable interrupts\n", __FUNCTION__);
+	printk("%s disable interrupts\n", __func__);
 	EDRV_REGW_WRITE(EDRV_REGW_INT_MASK, 0);
 	// acknowledge all pending interrupts
 	EDRV_REGW_WRITE(EDRV_REGW_INT_STATUS,
 			EDRV_REGW_READ(EDRV_REGW_INT_STATUS));
 
 	// install interrupt handler
-	printk("%s install interrupt handler\n", __FUNCTION__);
+	printk("%s install interrupt handler\n", __func__);
 	iResult =
 	    request_irq(pPciDev->irq, TgtEthIsr, IRQF_SHARED,
 			DRV_NAME /*pPciDev->dev.name */ , pPciDev);
@@ -1031,16 +1031,16 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 
 /*
     // unlock configuration registers
-    printk("%s unlock configuration registers\n", __FUNCTION__);
+    printk("%s unlock configuration registers\n", __func__);
     EDRV_REGB_WRITE(EDRV_REGB_CMD9346, EDRV_REGB_CMD9346_UNLOCK);
 
     // check if user specified a MAC address
-    printk("%s check specified MAC address\n", __FUNCTION__);
+    printk("%s check specified MAC address\n", __func__);
     for (iResult = 0; iResult < 6; iResult++)
     {
         if (EdrvInstance_l.m_InitParam.m_abMyMacAddr[iResult] != 0)
         {
-            printk("%s set local MAC address\n", __FUNCTION__);
+            printk("%s set local MAC address\n", __func__);
             // write this MAC address to controller
             EDRV_REGDW_WRITE(EDRV_REGDW_IDR0,
                 le32_to_cpu(*((DWORD*)&EdrvInstance_l.m_InitParam.m_abMyMacAddr[0])));
@@ -1059,7 +1059,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 */
 
 	// allocate buffers
-	printk("%s allocate buffers\n", __FUNCTION__);
+	printk("%s allocate buffers\n", __func__);
 	EdrvInstance_l.m_pbTxBuf =
 	    pci_alloc_consistent(pPciDev, EDRV_TX_BUFFER_SIZE,
 				 &EdrvInstance_l.m_pTxBufDma);
@@ -1076,7 +1076,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 		goto Exit;
 	}
 	// reset pointers for Tx buffers
-	printk("%s reset pointers fo Tx buffers\n", __FUNCTION__);
+	printk("%s reset pointers fo Tx buffers\n", __func__);
 	EDRV_REGDW_WRITE(EDRV_REGDW_TSAD0, 0);
 	dwTemp = EDRV_REGDW_READ(EDRV_REGDW_TSAD0);
 	EDRV_REGDW_WRITE(EDRV_REGDW_TSAD1, 0);
@@ -1090,11 +1090,11 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	       (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
 
 	// set pointer for receive buffer in controller
-	printk("%s set pointer to Rx buffer\n", __FUNCTION__);
+	printk("%s set pointer to Rx buffer\n", __func__);
 	EDRV_REGDW_WRITE(EDRV_REGDW_RBSTART, EdrvInstance_l.m_pRxBufDma);
 
 	// enable transmitter and receiver
-	printk("%s enable Tx and Rx", __FUNCTION__);
+	printk("%s enable Tx and Rx", __func__);
 	EDRV_REGB_WRITE(EDRV_REGB_COMMAND,
 			(EDRV_REGB_COMMAND_RE | EDRV_REGB_COMMAND_TE));
 	printk("  Command = 0x%02X\n",
@@ -1104,12 +1104,12 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	EDRV_REGDW_WRITE(EDRV_REGDW_MPC, 0);
 
 	// set transmit configuration register
-	printk("%s set Tx conf register", __FUNCTION__);
+	printk("%s set Tx conf register", __func__);
 	EDRV_REGDW_WRITE(EDRV_REGDW_TCR, EDRV_REGDW_TCR_DEF);
 	printk(" = 0x%08X\n", EDRV_REGDW_READ(EDRV_REGDW_TCR));
 
 	// set receive configuration register
-	printk("%s set Rx conf register", __FUNCTION__);
+	printk("%s set Rx conf register", __func__);
 	EDRV_REGDW_WRITE(EDRV_REGDW_RCR, EDRV_REGDW_RCR_DEF);
 	printk(" = 0x%08X\n", EDRV_REGDW_READ(EDRV_REGDW_RCR));
 
@@ -1121,7 +1121,7 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 
 /*
     // enable transmitter and receiver
-    printk("%s enable Tx and Rx", __FUNCTION__);
+    printk("%s enable Tx and Rx", __func__);
     EDRV_REGB_WRITE(EDRV_REGB_COMMAND, (EDRV_REGB_COMMAND_RE | EDRV_REGB_COMMAND_TE));
     printk("  Command = 0x%02X\n", (WORD) EDRV_REGB_READ(EDRV_REGB_COMMAND));
 */
@@ -1129,11 +1129,11 @@ static int EdrvInitOne(struct pci_dev *pPciDev, const struct pci_device_id *pId)
 	EDRV_REGW_WRITE(EDRV_REGW_MULINT, 0);
 
 	// enable interrupts
-	printk("%s enable interrupts\n", __FUNCTION__);
+	printk("%s enable interrupts\n", __func__);
 	EDRV_REGW_WRITE(EDRV_REGW_INT_MASK, EDRV_REGW_INT_MASK_DEF);
 
       Exit:
-	printk("%s finished with %d\n", __FUNCTION__, iResult);
+	printk("%s finished with %d\n", __func__, iResult);
 	return iResult;
 }
 

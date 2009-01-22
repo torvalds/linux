@@ -335,7 +335,7 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 			goto exit;
 		} else {
 			dbg_info(&dev->intf->dev, "%s: nonzero status received: %d\n",
-				 __FUNCTION__, urb->status);
+				 __func__, urb->status);
 			goto resubmit; /* maybe we can recover */
 		}
 	}
@@ -345,7 +345,7 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 			 "Urb length was %d bytes!! Do something intelligent \n", urb->actual_length);
 	} else {
 		dbg_info(&dev->intf->dev, "%s: received: %02x%02x%02x%02x%02x%02x%02x%02x\n",
-			 __FUNCTION__, dev->interrupt_in_buffer[0],dev->interrupt_in_buffer[1],dev->interrupt_in_buffer[2],dev->interrupt_in_buffer[3],dev->interrupt_in_buffer[4],dev->interrupt_in_buffer[5],dev->interrupt_in_buffer[6],dev->interrupt_in_buffer[7]);
+			 __func__, dev->interrupt_in_buffer[0],dev->interrupt_in_buffer[1],dev->interrupt_in_buffer[2],dev->interrupt_in_buffer[3],dev->interrupt_in_buffer[4],dev->interrupt_in_buffer[5],dev->interrupt_in_buffer[6],dev->interrupt_in_buffer[7]);
 #if SUPPRESS_EXTRA_OFFLINE_EVENTS
 		if(dev->offline == 2 && dev->interrupt_in_buffer[1] == 0xff) { goto resubmit; }
 		if(dev->offline == 1 && dev->interrupt_in_buffer[1] == 0xff) { dev->offline = 2; goto resubmit; }
@@ -355,7 +355,7 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 		if(dev->offline == 0 && dev->interrupt_in_buffer[1] == 0xff) { dev->offline = 1; }
 
 #endif
-		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __FUNCTION__,dev->ring_head,dev->ring_tail);
+		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __func__,dev->ring_head,dev->ring_tail);
 
 		next_ring_head = (dev->ring_head+1) % ring_buffer_size;
 
@@ -399,7 +399,7 @@ static void usb_tranzport_interrupt_out_callback(struct urb *urb)
 			     urb->status == -ESHUTDOWN))
 		dbg_info(&dev->intf->dev,
 			 "%s - nonzero write interrupt status received: %d\n",
-			 __FUNCTION__, urb->status);
+			 __func__, urb->status);
 
 	dev->interrupt_out_busy = 0;
 	wake_up_interruptible(&dev->write_wait);
@@ -424,7 +424,7 @@ static int usb_tranzport_open(struct inode *inode, struct file *file)
 
 	if (!interface) {
 		err("%s - error, can't find device for minor %d\n",
-		     __FUNCTION__, subminor);
+		     __func__, subminor);
 		retval = -ENODEV;
 		goto unlock_disconnect_exit;
 	}
@@ -613,7 +613,7 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer, size_t
 	}
 
 	dbg_info(&dev->intf->dev, "%s: copying to userspace: %02x%02x%02x%02x%02x%02x%02x%02x\n",
-			 __FUNCTION__, (*dev->ring_buffer)[dev->ring_tail].cmd[0],(*dev->ring_buffer)[dev->ring_tail].cmd[1],(*dev->ring_buffer)[dev->ring_tail].cmd[2],(*dev->ring_buffer)[dev->ring_tail].cmd[3],(*dev->ring_buffer)[dev->ring_tail].cmd[4],(*dev->ring_buffer)[dev->ring_tail].cmd[5],(*dev->ring_buffer)[dev->ring_tail].cmd[6],(*dev->ring_buffer)[dev->ring_tail].cmd[7]);
+			 __func__, (*dev->ring_buffer)[dev->ring_tail].cmd[0],(*dev->ring_buffer)[dev->ring_tail].cmd[1],(*dev->ring_buffer)[dev->ring_tail].cmd[2],(*dev->ring_buffer)[dev->ring_tail].cmd[3],(*dev->ring_buffer)[dev->ring_tail].cmd[4],(*dev->ring_buffer)[dev->ring_tail].cmd[5],(*dev->ring_buffer)[dev->ring_tail].cmd[6],(*dev->ring_buffer)[dev->ring_tail].cmd[7]);
 
 #if BUFFERED_READS
 	   c = 0;
@@ -632,7 +632,7 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer, size_t
 			// FIXME the math is wrong for going in reverse, actually, as the midi spec doesn't allow signed chars
 
 	dbg_info(&dev->intf->dev, "%s: trying to compress: %02x%02x%02x%02x%02x %02x %02x %02x\n",
-			 __FUNCTION__, (*dev->ring_buffer)[dev->ring_tail].cmd[0],(*dev->ring_buffer)[dev->ring_tail].cmd[1],(*dev->ring_buffer)[dev->ring_tail].cmd[2],(*dev->ring_buffer)[dev->ring_tail].cmd[3],(*dev->ring_buffer)[dev->ring_tail].cmd[4],(*dev->ring_buffer)[dev->ring_tail].cmd[5],(*dev->ring_buffer)[dev->ring_tail].cmd[6],(*dev->ring_buffer)[dev->ring_tail].cmd[7]);
+			 __func__, (*dev->ring_buffer)[dev->ring_tail].cmd[0],(*dev->ring_buffer)[dev->ring_tail].cmd[1],(*dev->ring_buffer)[dev->ring_tail].cmd[2],(*dev->ring_buffer)[dev->ring_tail].cmd[3],(*dev->ring_buffer)[dev->ring_tail].cmd[4],(*dev->ring_buffer)[dev->ring_tail].cmd[5],(*dev->ring_buffer)[dev->ring_tail].cmd[6],(*dev->ring_buffer)[dev->ring_tail].cmd[7]);
 
 
 			if(((*dev->ring_buffer)[dev->ring_tail].cmd[6] != 0 &&
@@ -645,7 +645,7 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer, size_t
 				((*dev->ring_buffer)[dev->ring_tail].cmd[5] == (*dev->ring_buffer)[next_tail].cmd[5]))
  {
 	dbg_info(&dev->intf->dev, "%s: should compress: %02x%02x%02x%02x%02x%02x%02x%02x\n",
-			 __FUNCTION__, (*dev->ring_buffer)[dev->ring_tail].cmd[0],(*dev->ring_buffer)[dev->ring_tail].cmd[1],(*dev->ring_buffer)[dev->ring_tail].cmd[2],(*dev->ring_buffer)[dev->ring_tail].cmd[3],(*dev->ring_buffer)[dev->ring_tail].cmd[4],(*dev->ring_buffer)[dev->ring_tail].cmd[5],(*dev->ring_buffer)[dev->ring_tail].cmd[6],(*dev->ring_buffer)[dev->ring_tail].cmd[7]);
+			 __func__, (*dev->ring_buffer)[dev->ring_tail].cmd[0],(*dev->ring_buffer)[dev->ring_tail].cmd[1],(*dev->ring_buffer)[dev->ring_tail].cmd[2],(*dev->ring_buffer)[dev->ring_tail].cmd[3],(*dev->ring_buffer)[dev->ring_tail].cmd[4],(*dev->ring_buffer)[dev->ring_tail].cmd[5],(*dev->ring_buffer)[dev->ring_tail].cmd[6],(*dev->ring_buffer)[dev->ring_tail].cmd[7]);
 
 				newwheel += oldwheel;
 				if(oldwheel > 0 && !(newwheel > 0)) {
@@ -673,7 +673,7 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer, size_t
 
 		dev->ring_tail = (dev->ring_tail+1) % ring_buffer_size;
 		c+=8;
-		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __FUNCTION__,dev->ring_head,dev->ring_tail);
+		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __func__,dev->ring_head,dev->ring_tail);
 	   }
 	   retval = c;
 
@@ -684,7 +684,7 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer, size_t
 	}
 
 	dev->ring_tail = (dev->ring_tail+1) % ring_buffer_size;
-	dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __FUNCTION__,dev->ring_head,dev->ring_tail);
+	dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __func__,dev->ring_head,dev->ring_tail);
 
 	retval = 8;
 #endif /* BUFFERED_READS */
@@ -743,7 +743,7 @@ static ssize_t usb_tranzport_write(struct file *file, const char __user *buffer,
 	if (bytes_to_write < count)
 		dev_warn(&dev->intf->dev, "Write buffer overflow, %zd bytes dropped\n",count-bytes_to_write);
 
-	dbg_info(&dev->intf->dev, "%s: count = %zd, bytes_to_write = %zd\n", __FUNCTION__, count, bytes_to_write);
+	dbg_info(&dev->intf->dev, "%s: count = %zd, bytes_to_write = %zd\n", __func__, count, bytes_to_write);
 
 	if (copy_from_user(dev->interrupt_out_buffer, buffer, bytes_to_write)) {
 		retval = -EFAULT;

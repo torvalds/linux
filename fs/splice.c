@@ -21,6 +21,7 @@
 #include <linux/file.h>
 #include <linux/pagemap.h>
 #include <linux/splice.h>
+#include <linux/memcontrol.h>
 #include <linux/mm_inline.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
@@ -1434,8 +1435,8 @@ static long vmsplice_to_pipe(struct file *file, const struct iovec __user *iov,
  * Currently we punt and implement it as a normal copy, see pipe_to_user().
  *
  */
-asmlinkage long sys_vmsplice(int fd, const struct iovec __user *iov,
-			     unsigned long nr_segs, unsigned int flags)
+SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, iov,
+		unsigned long, nr_segs, unsigned int, flags)
 {
 	struct file *file;
 	long error;
@@ -1460,9 +1461,9 @@ asmlinkage long sys_vmsplice(int fd, const struct iovec __user *iov,
 	return error;
 }
 
-asmlinkage long sys_splice(int fd_in, loff_t __user *off_in,
-			   int fd_out, loff_t __user *off_out,
-			   size_t len, unsigned int flags)
+SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
+		int, fd_out, loff_t __user *, off_out,
+		size_t, len, unsigned int, flags)
 {
 	long error;
 	struct file *in, *out;
@@ -1684,7 +1685,7 @@ static long do_tee(struct file *in, struct file *out, size_t len,
 	return ret;
 }
 
-asmlinkage long sys_tee(int fdin, int fdout, size_t len, unsigned int flags)
+SYSCALL_DEFINE4(tee, int, fdin, int, fdout, size_t, len, unsigned int, flags)
 {
 	struct file *in;
 	int error, fput_in;

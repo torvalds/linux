@@ -124,3 +124,10 @@ KBUILD_EXTRA_SYMBOLS
 --------------------------------------------------
 For modules use symbols from another modules.
 See more details in modules.txt.
+
+ALLSOURCE_ARCHS
+--------------------------------------------------
+For tags/TAGS/cscope targets, you can specify more than one archs
+to be included in the databases, separated by blankspace. e.g.
+
+    $ make ALLSOURCE_ARCHS="x86 mips arm" tags

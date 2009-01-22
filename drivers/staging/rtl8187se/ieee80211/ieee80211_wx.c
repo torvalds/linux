@@ -663,7 +663,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
                 ret = -EINVAL;
                 goto done;
         }
-//	printk("8-09-08-9=====>%s, alg name:%s\n",__FUNCTION__, alg);
+//	printk("8-09-08-9=====>%s, alg name:%s\n",__func__, alg);
 
 	 ops = ieee80211_get_crypto_ops(alg);
         if (ops == NULL) {
@@ -757,7 +757,7 @@ int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
                                union iwreq_data *wrqu, char *extra)
 {
 	struct iw_mlme *mlme = (struct iw_mlme *) extra;
-//	printk("\ndkgadfslkdjgalskdf===============>%s(), cmd:%x\n", __FUNCTION__, mlme->cmd);
+//	printk("\ndkgadfslkdjgalskdf===============>%s(), cmd:%x\n", __func__, mlme->cmd);
 #if 1
 	switch (mlme->cmd) {
         case IW_MLME_DEAUTH:
@@ -830,7 +830,7 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
 #if 0
-	printk("====>%s()\n", __FUNCTION__);
+	printk("====>%s()\n", __func__);
 	{
 		int i;
 		for (i=0; i<len; i++)
@@ -866,7 +866,7 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 		ieee->wpa_ie = NULL;
 		ieee->wpa_ie_len = 0;
 	}
-//	printk("<=====out %s()\n", __FUNCTION__);
+//	printk("<=====out %s()\n", __func__);
 
 	return 0;
 

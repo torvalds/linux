@@ -1177,7 +1177,7 @@ static int r8180_wx_set_channelplan(struct net_device *dev,
 	//struct ieee80211_device *ieee = netdev_priv(dev);
 	int *val = (int *)extra;
 	int i;
-	printk("-----in fun %s\n", __FUNCTION__);
+	printk("-----in fun %s\n", __func__);
 
 	if(priv->ieee80211->bHwRadioOff)
 		return 0;
@@ -1235,7 +1235,7 @@ static int r8180_wx_set_forcerate(struct net_device *dev,
 
 	down(&priv->wx_sem);
 
-	printk("==============>%s(): forcerate is %d\n",__FUNCTION__,forcerate);
+	printk("==============>%s(): forcerate is %d\n",__func__,forcerate);
 	if((forcerate == 2) || (forcerate == 4) || (forcerate == 11) || (forcerate == 22) || (forcerate == 12) ||
 		(forcerate == 18) || (forcerate == 24) || (forcerate == 36) || (forcerate == 48) || (forcerate == 72) ||
 		(forcerate == 96) || (forcerate == 108))
@@ -1260,7 +1260,7 @@ static int r8180_wx_set_enc_ext(struct net_device *dev,
 {
 
 	struct r8180_priv *priv = ieee80211_priv(dev);
-	//printk("===>%s()\n", __FUNCTION__);
+	//printk("===>%s()\n", __func__);
 
 	int ret=0;
 
@@ -1277,7 +1277,7 @@ static int r8180_wx_set_auth(struct net_device *dev,
                                         struct iw_request_info *info,
                                         struct iw_param *data, char *extra)
 {
-	//printk("====>%s()\n", __FUNCTION__);
+	//printk("====>%s()\n", __func__);
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	int ret=0;
 
@@ -1294,7 +1294,7 @@ static int r8180_wx_set_mlme(struct net_device *dev,
                                         struct iw_request_info *info,
                                         union iwreq_data *wrqu, char *extra)
 {
-	//printk("====>%s()\n", __FUNCTION__);
+	//printk("====>%s()\n", __func__);
 
 	int ret=0;
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -1315,7 +1315,7 @@ static int r8180_wx_set_gen_ie(struct net_device *dev,
                                         struct iw_request_info *info,
                                         struct iw_point *data, char *extra)
 {
-//	printk("====>%s(), len:%d\n", __FUNCTION__, data->length);
+//	printk("====>%s(), len:%d\n", __func__, data->length);
 	int ret=0;
         struct r8180_priv *priv = ieee80211_priv(dev);
 
@@ -1328,7 +1328,7 @@ static int r8180_wx_set_gen_ie(struct net_device *dev,
         ret = ieee80211_wx_set_gen_ie(priv->ieee80211, extra, data->length);
 #endif
         up(&priv->wx_sem);
-	//printk("<======%s(), ret:%d\n", __FUNCTION__, ret);
+	//printk("<======%s(), ret:%d\n", __func__, ret);
         return ret;
 
 

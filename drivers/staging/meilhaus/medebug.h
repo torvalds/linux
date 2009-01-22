@@ -66,21 +66,21 @@
 
 #ifdef MEDEBUG_DEBUG
 # define PDEBUG(fmt, args...) \
-	printk(KERN_DEBUG"ME_DRV D: <%s> " fmt, __FUNCTION__, ##args)
+	printk(KERN_DEBUG"ME_DRV D: <%s> " fmt, __func__, ##args)
 #else
 # define PDEBUG(fmt, args...)
 #endif
 
 #ifdef MEDEBUG_DEBUG_LOCKS
 # define PDEBUG_LOCKS(fmt, args...) \
-	printk(KERN_DEBUG"ME_DRV L: <%s> " fmt, __FUNCTION__, ##args)
+	printk(KERN_DEBUG"ME_DRV L: <%s> " fmt, __func__, ##args)
 #else
 # define PDEBUG_LOCKS(fmt, args...)
 #endif
 
 #ifdef MEDEBUG_DEBUG_REG
 # define PDEBUG_REG(fmt, args...) \
-	printk(KERN_DEBUG"ME_DRV R: <%s:%d> REG:" fmt, __FUNCTION__, __LINE__, ##args)
+	printk(KERN_DEBUG"ME_DRV R: <%s:%d> REG:" fmt, __func__, __LINE__, ##args)
 #else
 # define PDEBUG_REG(fmt, args...)
 #endif
@@ -108,7 +108,7 @@
 
 //This debug is only to detect logical errors!
 # define PSECURITY(fmt, args...) \
-	printk(KERN_CRIT"ME_DRV SECURITY: <%s:%s:%i> " fmt, __FILE__, __FUNCTION__, __LINE__, ##args)
+	printk(KERN_CRIT"ME_DRV SECURITY: <%s:%s:%i> " fmt, __FILE__, __func__, __LINE__, ##args)
 //This debug is to keep track in customers' system
 # define PLOG(fmt, args...) \
 	printk(KERN_INFO"ME_DRV: " fmt, ##args)
@@ -116,7 +116,7 @@
 //This debug is to check new parts during development
 #ifdef MEDEBUG_DEVELOP
 # define PDEVELOP(fmt, args...) \
-	printk(KERN_CRIT"ME_DRV: <%s:%s:%i> " fmt, __FILE__, __FUNCTION__, __LINE__, ##args)
+	printk(KERN_CRIT"ME_DRV: <%s:%s:%i> " fmt, __FILE__, __func__, __LINE__, ##args)
 #else
 # define PDEVELOP(fmt, args...)
 #endif

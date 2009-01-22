@@ -1956,7 +1956,11 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_change_mtu		= ns83820_change_mtu,
 	.ndo_set_multicast_list = ns83820_set_multicast,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_tx_timeout		= ns83820_tx_timeout,
+#ifdef NS83820_VLAN_ACCEL_SUPPORT
+	.ndo_vlan_rx_register	= ns83820_vlan_rx_register,
+#endif
 };
 
 static int __devinit ns83820_init_one(struct pci_dev *pci_dev,
@@ -2216,7 +2220,6 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev,
 #ifdef NS83820_VLAN_ACCEL_SUPPORT
 	/* We also support hardware vlan acceleration */
 	ndev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	ndev->vlan_rx_register = ns83820_vlan_rx_register;
 #endif
 
 	if (using_dac) {

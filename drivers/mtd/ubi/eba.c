@@ -717,7 +717,7 @@ write_error:
  * to the real data size, although the @buf buffer has to contain the
  * alignment. In all other cases, @len has to be aligned.
  *
- * It is prohibited to write more then once to logical eraseblocks of static
+ * It is prohibited to write more than once to logical eraseblocks of static
  * volumes. This function returns zero in case of success and a negative error
  * code in case of failure.
  */

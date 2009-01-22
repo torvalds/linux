@@ -2839,6 +2839,8 @@ int __init early_serial_setup(struct uart_port *port)
 	p->flags        = port->flags;
 	p->mapbase      = port->mapbase;
 	p->private_data = port->private_data;
+	p->type		= port->type;
+	p->line		= port->line;
 
 	set_io_from_upio(p);
 	if (port->serial_in)
@@ -3123,7 +3125,7 @@ static int __init serial8250_init(void)
 	if (nr_uarts > UART_NR)
 		nr_uarts = UART_NR;
 
-	printk(KERN_INFO "Serial: 8250/16550 driver"
+	printk(KERN_INFO "Serial: 8250/16550 driver, "
 		"%d ports, IRQ sharing %sabled\n", nr_uarts,
 		share_irqs ? "en" : "dis");
 

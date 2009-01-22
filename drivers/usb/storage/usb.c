@@ -75,9 +75,6 @@
 #ifdef CONFIG_USB_STORAGE_SDDR55
 #include "sddr55.h"
 #endif
-#ifdef CONFIG_USB_STORAGE_DPCM
-#include "dpcm.h"
-#endif
 #ifdef CONFIG_USB_STORAGE_FREECOM
 #include "freecom.h"
 #endif
@@ -103,6 +100,7 @@
 #include "cypress_atacb.h"
 #endif
 #include "sierra_ms.h"
+#include "option_ms.h"
 
 /* Some informational data */
 MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
@@ -112,6 +110,10 @@ MODULE_LICENSE("GPL");
 static unsigned int delay_use = 5;
 module_param(delay_use, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(delay_use, "seconds to delay before using a new device");
+
+static char quirks[128];
+module_param_string(quirks, quirks, sizeof(quirks), S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(quirks, "supplemental list of device IDs and their quirks");
 
 
 /*
@@ -126,6 +128,8 @@ MODULE_PARM_DESC(delay_use, "seconds to delay before using a new device");
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin,bcdDeviceMax), \
   .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
 
+#define COMPLIANT_DEV	UNUSUAL_DEV
+
 #define USUAL_DEV(useProto, useTrans, useType) \
 { USB_INTERFACE_INFO(USB_CLASS_MASS_STORAGE, useProto, useTrans), \
   .driver_info = (USB_US_TYPE_STOR<<24) }
@@ -134,6 +138,7 @@ static struct usb_device_id storage_usb_ids [] = {
 
 #	include "unusual_devs.h"
 #undef UNUSUAL_DEV
+#undef COMPLIANT_DEV
 #undef USUAL_DEV
 	/* Terminating entry */
 	{ }
@@ -164,6 +169,8 @@ MODULE_DEVICE_TABLE (usb, storage_usb_ids);
 	.initFunction = init_function,	\
 }
 
+#define COMPLIANT_DEV	UNUSUAL_DEV
+
 #define USUAL_DEV(use_protocol, use_transport, use_type) \
 { \
 	.useProtocol = use_protocol,	\
@@ -173,6 +180,7 @@ MODULE_DEVICE_TABLE (usb, storage_usb_ids);
 static struct us_unusual_dev us_unusual_dev_list[] = {
 #	include "unusual_devs.h" 
 #	undef UNUSUAL_DEV
+#	undef COMPLIANT_DEV
 #	undef USUAL_DEV
 
 	/* Terminating entry */
@@ -464,13 +472,83 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 		US_DEBUGP("I/O buffer allocation failed\n");
 		return -ENOMEM;
 	}
-
-	us->sensebuf = kmalloc(US_SENSE_SIZE, GFP_KERNEL);
-	if (!us->sensebuf) {
-		US_DEBUGP("Sense buffer allocation failed\n");
-		return -ENOMEM;
-	}
 	return 0;
+}
+
+/* Works only for digits and letters, but small and fast */
+#define TOLOWER(x) ((x) | 0x20)
+
+/* Adjust device flags based on the "quirks=" module parameter */
+static void adjust_quirks(struct us_data *us)
+{
+	char *p;
+	u16 vid = le16_to_cpu(us->pusb_dev->descriptor.idVendor);
+	u16 pid = le16_to_cpu(us->pusb_dev->descriptor.idProduct);
+	unsigned f = 0;
+	unsigned int mask = (US_FL_SANE_SENSE | US_FL_FIX_CAPACITY |
+			US_FL_CAPACITY_HEURISTICS | US_FL_IGNORE_DEVICE |
+			US_FL_NOT_LOCKABLE | US_FL_MAX_SECTORS_64 |
+			US_FL_CAPACITY_OK | US_FL_IGNORE_RESIDUE |
+			US_FL_SINGLE_LUN | US_FL_NO_WP_DETECT);
+
+	p = quirks;
+	while (*p) {
+		/* Each entry consists of VID:PID:flags */
+		if (vid == simple_strtoul(p, &p, 16) &&
+				*p == ':' &&
+				pid == simple_strtoul(p+1, &p, 16) &&
+				*p == ':')
+			break;
+
+		/* Move forward to the next entry */
+		while (*p) {
+			if (*p++ == ',')
+				break;
+		}
+	}
+	if (!*p)	/* No match */
+		return;
+
+	/* Collect the flags */
+	while (*++p && *p != ',') {
+		switch (TOLOWER(*p)) {
+		case 'a':
+			f |= US_FL_SANE_SENSE;
+			break;
+		case 'c':
+			f |= US_FL_FIX_CAPACITY;
+			break;
+		case 'h':
+			f |= US_FL_CAPACITY_HEURISTICS;
+			break;
+		case 'i':
+			f |= US_FL_IGNORE_DEVICE;
+			break;
+		case 'l':
+			f |= US_FL_NOT_LOCKABLE;
+			break;
+		case 'm':
+			f |= US_FL_MAX_SECTORS_64;
+			break;
+		case 'o':
+			f |= US_FL_CAPACITY_OK;
+			break;
+		case 'r':
+			f |= US_FL_IGNORE_RESIDUE;
+			break;
+		case 's':
+			f |= US_FL_SINGLE_LUN;
+			break;
+		case 'w':
+			f |= US_FL_NO_WP_DETECT;
+			break;
+		/* Ignore unrecognized flag characters */
+		}
+	}
+	us->fflags = (us->fflags & ~mask) | f;
+	dev_info(&us->pusb_intf->dev, "Quirks match for "
+			"vid %04x pid %04x: %x\n",
+			vid, pid, f);
 }
 
 /* Find an unusual_dev descriptor (always succeeds in the current code) */
@@ -497,6 +575,7 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 			idesc->bInterfaceProtocol :
 			unusual_dev->useTransport;
 	us->fflags = USB_US_ORIG_FLAGS(id->driver_info);
+	adjust_quirks(us);
 
 	if (us->fflags & US_FL_IGNORE_DEVICE) {
 		printk(KERN_INFO USB_STORAGE "device ignored\n");
@@ -562,7 +641,7 @@ static int get_transport(struct us_data *us)
 
 	case US_PR_CBI:
 		us->transport_name = "Control/Bulk/Interrupt";
-		us->transport = usb_stor_CBI_transport;
+		us->transport = usb_stor_CB_transport;
 		us->transport_reset = usb_stor_CB_reset;
 		us->max_lun = 7;
 		break;
@@ -675,19 +754,19 @@ static int get_protocol(struct us_data *us)
 
 	case US_SC_8020:
 		us->protocol_name = "8020i";
-		us->proto_handler = usb_stor_ATAPI_command;
+		us->proto_handler = usb_stor_pad12_command;
 		us->max_lun = 0;
 		break;
 
 	case US_SC_QIC:
 		us->protocol_name = "QIC-157";
-		us->proto_handler = usb_stor_qic157_command;
+		us->proto_handler = usb_stor_pad12_command;
 		us->max_lun = 0;
 		break;
 
 	case US_SC_8070:
 		us->protocol_name = "8070i";
-		us->proto_handler = usb_stor_ATAPI_command;
+		us->proto_handler = usb_stor_pad12_command;
 		us->max_lun = 0;
 		break;
 
@@ -839,8 +918,6 @@ static void usb_stor_release_resources(struct us_data *us)
 static void dissociate_dev(struct us_data *us)
 {
 	US_DEBUGP("-- %s\n", __func__);
-
-	kfree(us->sensebuf);
 
 	/* Free the device-related DMA-mapped buffers */
 	if (us->cr)
@@ -1064,6 +1141,7 @@ static struct usb_driver usb_storage_driver = {
 static int __init usb_stor_init(void)
 {
 	int retval;
+
 	printk(KERN_INFO "Initializing USB Mass Storage driver...\n");
 
 	/* register the driver, return usb_register return code if error */

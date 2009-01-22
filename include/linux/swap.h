@@ -214,7 +214,8 @@ static inline void lru_cache_add_active_file(struct page *page)
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
 					gfp_t gfp_mask);
 extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *mem,
-							gfp_t gfp_mask);
+						  gfp_t gfp_mask, bool noswap,
+						  unsigned int swappiness);
 extern int __isolate_lru_page(struct page *page, int mode, int file);
 extern unsigned long shrink_all_memory(unsigned long nr_pages);
 extern int vm_swappiness;
@@ -333,6 +334,22 @@ static inline void disable_swap_token(void)
 	put_swap_token(swap_token_mm);
 }
 
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+extern void mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent);
+#else
+static inline void
+mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent)
+{
+}
+#endif
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+extern void mem_cgroup_uncharge_swap(swp_entry_t ent);
+#else
+static inline void mem_cgroup_uncharge_swap(swp_entry_t ent)
+{
+}
+#endif
+
 #else /* CONFIG_SWAP */
 
 #define nr_swap_pages				0L
@@ -408,6 +425,12 @@ static inline swp_entry_t get_swap_page(void)
 #define grab_swap_token()  do { } while(0)
 #define has_swap_token(x) 0
 #define disable_swap_token() do { } while(0)
+
+static inline int mem_cgroup_cache_charge_swapin(struct page *page,
+			struct mm_struct *mm, gfp_t mask, bool locked)
+{
+	return 0;
+}
 
 #endif /* CONFIG_SWAP */
 #endif /* __KERNEL__*/

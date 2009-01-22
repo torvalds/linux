@@ -409,7 +409,7 @@ static int ipoib_mcast_join_complete(int status,
 	}
 
 	if (mcast->logcount++ < 20) {
-		if (status == -ETIMEDOUT) {
+		if (status == -ETIMEDOUT || status == -EAGAIN) {
 			ipoib_dbg_mcast(priv, "multicast join failed for %pI6, status %d\n",
 					mcast->mcmember.mgid.raw, status);
 		} else {
@@ -528,6 +528,9 @@ void ipoib_mcast_join_task(struct work_struct *work)
 
 	if (!priv->broadcast) {
 		struct ipoib_mcast *broadcast;
+
+		if (!test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
+			return;
 
 		broadcast = ipoib_mcast_alloc(dev, 1);
 		if (!broadcast) {

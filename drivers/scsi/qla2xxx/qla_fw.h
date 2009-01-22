@@ -1215,9 +1215,10 @@ struct qla_fdt_layout {
 
 struct qla_flt_location {
 	uint8_t sig[4];
-	uint32_t start_lo;
-	uint32_t start_hi;
-	uint16_t unused;
+	uint16_t start_lo;
+	uint16_t start_hi;
+	uint8_t version;
+	uint8_t unused[5];
 	uint16_t checksum;
 };
 
@@ -1390,4 +1391,291 @@ struct access_chip_rsp_84xx {
 
 	uint32_t reserved[12];
 };
+
+/* 81XX Support **************************************************************/
+
+#define MBA_DCBX_START		0x8016
+#define MBA_DCBX_COMPLETE	0x8030
+#define MBA_FCF_CONF_ERR	0x8031
+#define MBA_DCBX_PARAM_UPDATE	0x8032
+#define MBA_IDC_COMPLETE	0x8100
+#define MBA_IDC_NOTIFY		0x8101
+#define MBA_IDC_TIME_EXT	0x8102
+
+struct nvram_81xx {
+	/* NVRAM header. */
+	uint8_t id[4];
+	uint16_t nvram_version;
+	uint16_t reserved_0;
+
+	/* Firmware Initialization Control Block. */
+	uint16_t version;
+	uint16_t reserved_1;
+	uint16_t frame_payload_size;
+	uint16_t execution_throttle;
+	uint16_t exchange_count;
+	uint16_t reserved_2;
+
+	uint8_t port_name[WWN_SIZE];
+	uint8_t node_name[WWN_SIZE];
+
+	uint16_t login_retry_count;
+	uint16_t reserved_3;
+	uint16_t interrupt_delay_timer;
+	uint16_t login_timeout;
+
+	uint32_t firmware_options_1;
+	uint32_t firmware_options_2;
+	uint32_t firmware_options_3;
+
+	uint16_t reserved_4[4];
+
+	/* Offset 64. */
+	uint8_t enode_mac[6];
+	uint16_t reserved_5[5];
+
+	/* Offset 80. */
+	uint16_t reserved_6[24];
+
+	/* Offset 128. */
+	uint16_t reserved_7[64];
+
+	/*
+	 * BIT 0  = Enable spinup delay
+	 * BIT 1  = Disable BIOS
+	 * BIT 2  = Enable Memory Map BIOS
+	 * BIT 3  = Enable Selectable Boot
+	 * BIT 4  = Disable RISC code load
+	 * BIT 5  = Disable Serdes
+	 * BIT 6  = Opt boot mode
+	 * BIT 7  = Interrupt enable
+	 *
+	 * BIT 8  = EV Control enable
+	 * BIT 9  = Enable lip reset
+	 * BIT 10 = Enable lip full login
+	 * BIT 11 = Enable target reset
+	 * BIT 12 = Stop firmware
+	 * BIT 13 = Enable nodename option
+	 * BIT 14 = Default WWPN valid
+	 * BIT 15 = Enable alternate WWN
+	 *
+	 * BIT 16 = CLP LUN string
+	 * BIT 17 = CLP Target string
+	 * BIT 18 = CLP BIOS enable string
+	 * BIT 19 = CLP Serdes string
+	 * BIT 20 = CLP WWPN string
+	 * BIT 21 = CLP WWNN string
+	 * BIT 22 =
+	 * BIT 23 =
+	 * BIT 24 = Keep WWPN
+	 * BIT 25 = Temp WWPN
+	 * BIT 26-31 =
+	 */
+	uint32_t host_p;
+
+	uint8_t alternate_port_name[WWN_SIZE];
+	uint8_t alternate_node_name[WWN_SIZE];
+
+	uint8_t boot_port_name[WWN_SIZE];
+	uint16_t boot_lun_number;
+	uint16_t reserved_8;
+
+	uint8_t alt1_boot_port_name[WWN_SIZE];
+	uint16_t alt1_boot_lun_number;
+	uint16_t reserved_9;
+
+	uint8_t alt2_boot_port_name[WWN_SIZE];
+	uint16_t alt2_boot_lun_number;
+	uint16_t reserved_10;
+
+	uint8_t alt3_boot_port_name[WWN_SIZE];
+	uint16_t alt3_boot_lun_number;
+	uint16_t reserved_11;
+
+	/*
+	 * BIT 0 = Selective Login
+	 * BIT 1 = Alt-Boot Enable
+	 * BIT 2 = Reserved
+	 * BIT 3 = Boot Order List
+	 * BIT 4 = Reserved
+	 * BIT 5 = Selective LUN
+	 * BIT 6 = Reserved
+	 * BIT 7-31 =
+	 */
+	uint32_t efi_parameters;
+
+	uint8_t reset_delay;
+	uint8_t reserved_12;
+	uint16_t reserved_13;
+
+	uint16_t boot_id_number;
+	uint16_t reserved_14;
+
+	uint16_t max_luns_per_target;
+	uint16_t reserved_15;
+
+	uint16_t port_down_retry_count;
+	uint16_t link_down_timeout;
+
+	/* FCode parameters. */
+	uint16_t fcode_parameter;
+
+	uint16_t reserved_16[3];
+
+	/* Offset 352. */
+	uint8_t reserved_17[4];
+	uint16_t reserved_18[5];
+	uint8_t reserved_19[2];
+	uint16_t reserved_20[8];
+
+	/* Offset 384. */
+	uint8_t reserved_21[16];
+	uint16_t reserved_22[8];
+
+	/* Offset 416. */
+	uint16_t reserved_23[32];
+
+	/* Offset 480. */
+	uint8_t model_name[16];
+
+	/* Offset 496. */
+	uint16_t feature_mask_l;
+	uint16_t feature_mask_h;
+	uint16_t reserved_24[2];
+
+	uint16_t subsystem_vendor_id;
+	uint16_t subsystem_device_id;
+
+	uint32_t checksum;
+};
+
+/*
+ * ISP Initialization Control Block.
+ * Little endian except where noted.
+ */
+#define	ICB_VERSION 1
+struct init_cb_81xx {
+	uint16_t version;
+	uint16_t reserved_1;
+
+	uint16_t frame_payload_size;
+	uint16_t execution_throttle;
+	uint16_t exchange_count;
+
+	uint16_t reserved_2;
+
+	uint8_t port_name[WWN_SIZE];		/* Big endian. */
+	uint8_t node_name[WWN_SIZE];		/* Big endian. */
+
+	uint16_t response_q_inpointer;
+	uint16_t request_q_outpointer;
+
+	uint16_t login_retry_count;
+
+	uint16_t prio_request_q_outpointer;
+
+	uint16_t response_q_length;
+	uint16_t request_q_length;
+
+	uint16_t reserved_3;
+
+	uint16_t prio_request_q_length;
+
+	uint32_t request_q_address[2];
+	uint32_t response_q_address[2];
+	uint32_t prio_request_q_address[2];
+
+	uint8_t reserved_4[8];
+
+	uint16_t atio_q_inpointer;
+	uint16_t atio_q_length;
+	uint32_t atio_q_address[2];
+
+	uint16_t interrupt_delay_timer;		/* 100us increments. */
+	uint16_t login_timeout;
+
+	/*
+	 * BIT 0-3 = Reserved
+	 * BIT 4  = Enable Target Mode
+	 * BIT 5  = Disable Initiator Mode
+	 * BIT 6  = Reserved
+	 * BIT 7  = Reserved
+	 *
+	 * BIT 8-13 = Reserved
+	 * BIT 14 = Node Name Option
+	 * BIT 15-31 = Reserved
+	 */
+	uint32_t firmware_options_1;
+
+	/*
+	 * BIT 0  = Operation Mode bit 0
+	 * BIT 1  = Operation Mode bit 1
+	 * BIT 2  = Operation Mode bit 2
+	 * BIT 3  = Operation Mode bit 3
+	 * BIT 4-7 = Reserved
+	 *
+	 * BIT 8  = Enable Class 2
+	 * BIT 9  = Enable ACK0
+	 * BIT 10 = Reserved
+	 * BIT 11 = Enable FC-SP Security
+	 * BIT 12 = FC Tape Enable
+	 * BIT 13 = Reserved
+	 * BIT 14 = Enable Target PRLI Control
+	 * BIT 15-31 = Reserved
+	 */
+	uint32_t firmware_options_2;
+
+	/*
+	 * BIT 0-3 = Reserved
+	 * BIT 4  = FCP RSP Payload bit 0
+	 * BIT 5  = FCP RSP Payload bit 1
+	 * BIT 6  = Enable Receive Out-of-Order data frame handling
+	 * BIT 7  = Reserved
+	 *
+	 * BIT 8  = Reserved
+	 * BIT 9  = Enable Out-of-Order FCP_XFER_RDY relative offset handling
+	 * BIT 10-16 = Reserved
+	 * BIT 17 = Enable multiple FCFs
+	 * BIT 18-20 = MAC addressing mode
+	 * BIT 21-25 = Ethernet data rate
+	 * BIT 26 = Enable ethernet header rx IOCB for ATIO q
+	 * BIT 27 = Enable ethernet header rx IOCB for response q
+	 * BIT 28 = SPMA selection bit 0
+	 * BIT 28 = SPMA selection bit 1
+	 * BIT 30-31 = Reserved
+	 */
+	uint32_t firmware_options_3;
+
+	uint8_t  reserved_5[8];
+
+	uint8_t enode_mac[6];
+
+	uint8_t reserved_6[10];
+};
+
+struct mid_init_cb_81xx {
+	struct init_cb_81xx init_cb;
+
+	uint16_t count;
+	uint16_t options;
+
+	struct mid_conf_entry_24xx entries[MAX_MULTI_ID_FABRIC];
+};
+
+#define FARX_ACCESS_FLASH_CONF_81XX	0x7FFD0000
+#define FARX_ACCESS_FLASH_DATA_81XX	0x7F800000
+
+/* 81XX Flash locations -- occupies second 2MB region. */
+#define FA_BOOT_CODE_ADDR_81	0x80000
+#define FA_RISC_CODE_ADDR_81	0xA0000
+#define FA_FW_AREA_ADDR_81	0xC0000
+#define FA_VPD_NVRAM_ADDR_81	0xD0000
+#define FA_FEATURE_ADDR_81	0xD4000
+#define FA_FLASH_DESCR_ADDR_81	0xD8000
+#define FA_FLASH_LAYOUT_ADDR_81	0xD8400
+#define FA_HW_EVENT0_ADDR_81	0xDC000
+#define FA_HW_EVENT1_ADDR_81	0xDC400
+#define FA_NPIV_CONF0_ADDR_81	0xD1000
+#define FA_NPIV_CONF1_ADDR_81	0xD2000
+
 #endif

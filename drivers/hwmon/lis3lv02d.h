@@ -23,7 +23,7 @@
  * The actual chip is STMicroelectronics LIS3LV02DL or LIS3LV02DQ that seems to
  * be connected via SPI. There exists also several similar chips (such as LIS302DL or
  * LIS3L02DQ) but not in the HP laptops and they have slightly different registers.
- * They can also be connected via IÂ˛C.
+ * They can also be connected via I²C.
  */
 
 #define LIS3LV02DL_ID	0x3A /* Also the LIS3LV02DQ */
@@ -147,3 +147,36 @@ enum lis3lv02d_dd_src {
 	DD_SRC_IA	= 0x40,
 };
 
+struct axis_conversion {
+	s8	x;
+	s8	y;
+	s8	z;
+};
+
+struct acpi_lis3lv02d {
+	struct acpi_device	*device;   /* The ACPI device */
+	acpi_status (*init) (acpi_handle handle);
+	acpi_status (*write) (acpi_handle handle, int reg, u8 val);
+	acpi_status (*read) (acpi_handle handle, int reg, u8 *ret);
+
+	struct input_dev	*idev;     /* input device */
+	struct task_struct	*kthread;  /* kthread for input */
+	struct mutex            lock;
+	struct platform_device	*pdev;     /* platform device */
+	atomic_t		count;     /* interrupt count after last read */
+	int			xcalib;    /* calibrated null value for x */
+	int			ycalib;    /* calibrated null value for y */
+	int			zcalib;    /* calibrated null value for z */
+	unsigned char		is_on;     /* whether the device is on or off */
+	unsigned char		usage;     /* usage counter */
+	struct axis_conversion	ac;        /* hw -> logical axis */
+};
+
+int lis3lv02d_init_device(struct acpi_lis3lv02d *dev);
+int lis3lv02d_joystick_enable(void);
+void lis3lv02d_joystick_disable(void);
+void lis3lv02d_poweroff(acpi_handle handle);
+void lis3lv02d_poweron(acpi_handle handle);
+int lis3lv02d_remove_fs(void);
+
+extern struct acpi_lis3lv02d adev;

@@ -349,7 +349,7 @@ static irqreturn_t me1400_ext_irq_isr(int irq, void *dev_id,
 	    (PLX_LOCAL_INT1_STATE | PLX_LOCAL_INT1_EN | PLX_PCI_INT_EN)) {
 		spin_unlock(&instance->subdevice_lock);
 		PINFO("%ld Shared interrupt. %s(): irq_status_reg=0x%04X\n",
-		      jiffies, __FUNCTION__, status);
+		      jiffies, __func__, status);
 		return IRQ_NONE;
 	}
 

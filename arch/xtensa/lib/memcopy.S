@@ -9,7 +9,7 @@
  * Copyright (C) 2002 - 2005 Tensilica Inc.
  */
 
-#include <asm/variant/core.h>
+#include <variant/core.h>
 
 	.macro	src_b	r, w0, w1
 #ifdef __XTENSA_EB__

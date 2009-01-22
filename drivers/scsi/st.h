@@ -29,6 +29,7 @@ struct st_request {
 	int result;
 	struct scsi_tape *stp;
 	struct completion *waiting;
+	struct bio *bio;
 };
 
 /* The tape buffer descriptor. */
@@ -44,20 +45,13 @@ struct st_buffer {
 	int syscall_result;
 	struct st_request *last_SRpnt;
 	struct st_cmdstatus cmdstat;
+	struct page **reserved_pages;
+	struct page **mapped_pages;
+	struct rq_map_data map_data;
 	unsigned char *b_data;
 	unsigned short use_sg;	/* zero or max number of s/g segments for this adapter */
 	unsigned short sg_segs;		/* number of segments in s/g list */
-	unsigned short orig_frp_segs;	/* number of segments allocated at first try */
 	unsigned short frp_segs;	/* number of buffer segments */
-	unsigned int frp_sg_current;	/* driver buffer length currently in s/g list */
-	struct st_buf_fragment *frp;	/* the allocated buffer fragment list */
-	struct scatterlist sg[1];	/* MUST BE last item */
-};
-
-/* The tape buffer fragment descriptor */
-struct st_buf_fragment {
-	struct page *page;
-	unsigned int length;
 };
 
 /* The tape mode definition */

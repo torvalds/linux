@@ -446,7 +446,7 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 				       struct kprobe_ctlblk *kcb)
 {
-#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PM)
+#if !defined(CONFIG_PREEMPT) || defined(CONFIG_FREEZER)
 	if (p->ainsn.boostable == 1 && !p->post_handler) {
 		/* Boost up -- we can execute copied instructions directly */
 		reset_current_kprobe();
@@ -695,7 +695,7 @@ static __used __kprobes void *trampoline_handler(struct pt_regs *regs)
 	/*
 	 * It is possible to have multiple instances associated with a given
 	 * task either because multiple functions in the call path have
-	 * return probes installed on them, and/or more then one
+	 * return probes installed on them, and/or more than one
 	 * return probe was registered for a target function.
 	 *
 	 * We can handle this because:

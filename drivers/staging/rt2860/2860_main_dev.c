@@ -1202,7 +1202,7 @@ VOID RT28xx_UpdateBeaconToAsic(
 	UCHAR			bcn_idx = 0;
 
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s() : No valid Interface be found.\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s() : No valid Interface be found.\n", __func__));
 		return;
 	}
 

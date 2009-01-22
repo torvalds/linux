@@ -1324,7 +1324,7 @@ again:
 			goto out;
 		}
 
-		mlog(0, "lock %s, successfull return from ocfs2_dlm_lock\n",
+		mlog(0, "lock %s, successful return from ocfs2_dlm_lock\n",
 		     lockres->l_name);
 
 		/* At this point we've gone inside the dlm and need to
@@ -2951,7 +2951,7 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 		ocfs2_dlm_dump_lksb(&lockres->l_lksb);
 		BUG();
 	}
-	mlog(0, "lock %s, successfull return from ocfs2_dlm_unlock\n",
+	mlog(0, "lock %s, successful return from ocfs2_dlm_unlock\n",
 	     lockres->l_name);
 
 	ocfs2_wait_on_busy_lock(lockres);

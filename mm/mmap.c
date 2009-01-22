@@ -245,7 +245,7 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
 	return next;
 }
 
-asmlinkage unsigned long sys_brk(unsigned long brk)
+SYSCALL_DEFINE1(brk, unsigned long, brk)
 {
 	unsigned long rlim, retval;
 	unsigned long newbrk, oldbrk;
@@ -1948,7 +1948,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 
 EXPORT_SYMBOL(do_munmap);
 
-asmlinkage long sys_munmap(unsigned long addr, size_t len)
+SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
 {
 	int ret;
 	struct mm_struct *mm = current->mm;
@@ -2471,4 +2471,14 @@ void mm_drop_all_locks(struct mm_struct *mm)
 	}
 
 	mutex_unlock(&mm_all_locks_mutex);
+}
+
+/*
+ * initialise the VMA slab
+ */
+void __init mmap_init(void)
+{
+	vm_area_cachep = kmem_cache_create("vm_area_struct",
+			sizeof(struct vm_area_struct), 0,
+			SLAB_PANIC, NULL);
 }

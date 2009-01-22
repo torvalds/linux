@@ -44,8 +44,8 @@ static DEFINE_SPINLOCK(beat_htab_lock);
 
 static inline unsigned int beat_read_mask(unsigned hpte_group)
 {
-	unsigned long hpte_v[5];
 	unsigned long rmask = 0;
+	u64 hpte_v[5];
 
 	beat_read_htab_entries(0, hpte_group + 0, hpte_v);
 	if (!(hpte_v[0] & HPTE_V_BOLTED))
@@ -93,8 +93,7 @@ static long beat_lpar_hpte_insert(unsigned long hpte_group,
 				  int psize, int ssize)
 {
 	unsigned long lpar_rc;
-	unsigned long slot;
-	unsigned long hpte_v, hpte_r;
+	u64 hpte_v, hpte_r, slot;
 
 	/* same as iseries */
 	if (vflags & HPTE_V_SECONDARY)
@@ -153,8 +152,9 @@ static long beat_lpar_hpte_remove(unsigned long hpte_group)
 
 static unsigned long beat_lpar_hpte_getword0(unsigned long slot)
 {
-	unsigned long dword0, dword[5];
+	unsigned long dword0;
 	unsigned long lpar_rc;
+	u64 dword[5];
 
 	lpar_rc = beat_read_htab_entries(0, slot & ~3UL, dword);
 
@@ -170,7 +170,7 @@ static void beat_lpar_hptab_clear(void)
 	unsigned long size_bytes = 1UL << ppc64_pft_size;
 	unsigned long hpte_count = size_bytes >> 4;
 	int i;
-	unsigned long dummy0, dummy1;
+	u64 dummy0, dummy1;
 
 	/* TODO: Use bulk call */
 	for (i = 0; i < hpte_count; i++)
@@ -189,7 +189,8 @@ static long beat_lpar_hpte_updatepp(unsigned long slot,
 				    int psize, int ssize, int local)
 {
 	unsigned long lpar_rc;
-	unsigned long dummy0, dummy1, want_v;
+	u64 dummy0, dummy1;
+	unsigned long want_v;
 
 	want_v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M);
 
@@ -255,7 +256,8 @@ static void beat_lpar_hpte_updateboltedpp(unsigned long newpp,
 					  unsigned long ea,
 					  int psize, int ssize)
 {
-	unsigned long lpar_rc, slot, vsid, va, dummy0, dummy1;
+	unsigned long lpar_rc, slot, vsid, va;
+	u64 dummy0, dummy1;
 
 	vsid = get_kernel_vsid(ea, MMU_SEGSIZE_256M);
 	va = (vsid << 28) | (ea & 0x0fffffff);
@@ -276,7 +278,7 @@ static void beat_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 {
 	unsigned long want_v;
 	unsigned long lpar_rc;
-	unsigned long dummy1, dummy2;
+	u64 dummy1, dummy2;
 	unsigned long flags;
 
 	DBG_LOW("    inval : slot=%lx, va=%016lx, psize: %d, local: %d\n",
@@ -315,8 +317,7 @@ static long beat_lpar_hpte_insert_v3(unsigned long hpte_group,
 				  int psize, int ssize)
 {
 	unsigned long lpar_rc;
-	unsigned long slot;
-	unsigned long hpte_v, hpte_r;
+	u64 hpte_v, hpte_r, slot;
 
 	/* same as iseries */
 	if (vflags & HPTE_V_SECONDARY)

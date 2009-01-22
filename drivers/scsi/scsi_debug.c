@@ -2508,7 +2508,7 @@ static void pseudo_0_release(struct device *dev)
 }
 
 static struct device pseudo_primary = {
-	.bus_id		= "pseudo_0",
+	.init_name	= "pseudo_0",
 	.release	= pseudo_0_release,
 };
 
@@ -2680,7 +2680,7 @@ static int sdebug_add_adapter(void)
         sdbg_host->dev.bus = &pseudo_lld_bus;
         sdbg_host->dev.parent = &pseudo_primary;
         sdbg_host->dev.release = &sdebug_release_adapter;
-        sprintf(sdbg_host->dev.bus_id, "adapter%d", scsi_debug_add_host);
+        dev_set_name(&sdbg_host->dev, "adapter%d", scsi_debug_add_host);
 
         error = device_register(&sdbg_host->dev);
 

@@ -98,7 +98,7 @@ struct cache_head *sunrpc_cache_lookup(struct cache_detail *detail,
 
 	return new;
 }
-EXPORT_SYMBOL(sunrpc_cache_lookup);
+EXPORT_SYMBOL_GPL(sunrpc_cache_lookup);
 
 
 static void queue_loose(struct cache_detail *detail, struct cache_head *ch);
@@ -173,7 +173,7 @@ struct cache_head *sunrpc_cache_update(struct cache_detail *detail,
 	cache_put(old, detail);
 	return tmp;
 }
-EXPORT_SYMBOL(sunrpc_cache_update);
+EXPORT_SYMBOL_GPL(sunrpc_cache_update);
 
 static int cache_make_upcall(struct cache_detail *detail, struct cache_head *h);
 /*
@@ -245,7 +245,7 @@ int cache_check(struct cache_detail *detail,
 		cache_put(h, detail);
 	return rv;
 }
-EXPORT_SYMBOL(cache_check);
+EXPORT_SYMBOL_GPL(cache_check);
 
 /*
  * caches need to be periodically cleaned.
@@ -373,7 +373,7 @@ int cache_register(struct cache_detail *cd)
 	schedule_delayed_work(&cache_cleaner, 0);
 	return 0;
 }
-EXPORT_SYMBOL(cache_register);
+EXPORT_SYMBOL_GPL(cache_register);
 
 void cache_unregister(struct cache_detail *cd)
 {
@@ -399,7 +399,7 @@ void cache_unregister(struct cache_detail *cd)
 out:
 	printk(KERN_ERR "nfsd: failed to unregister %s cache\n", cd->name);
 }
-EXPORT_SYMBOL(cache_unregister);
+EXPORT_SYMBOL_GPL(cache_unregister);
 
 /* clean cache tries to find something to clean
  * and cleans it.
@@ -514,7 +514,7 @@ void cache_flush(void)
 	while (cache_clean() != -1)
 		cond_resched();
 }
-EXPORT_SYMBOL(cache_flush);
+EXPORT_SYMBOL_GPL(cache_flush);
 
 void cache_purge(struct cache_detail *detail)
 {
@@ -523,7 +523,7 @@ void cache_purge(struct cache_detail *detail)
 	cache_flush();
 	detail->flush_time = 1;
 }
-EXPORT_SYMBOL(cache_purge);
+EXPORT_SYMBOL_GPL(cache_purge);
 
 
 /*
@@ -988,7 +988,7 @@ void qword_add(char **bpp, int *lp, char *str)
 	*bpp = bp;
 	*lp = len;
 }
-EXPORT_SYMBOL(qword_add);
+EXPORT_SYMBOL_GPL(qword_add);
 
 void qword_addhex(char **bpp, int *lp, char *buf, int blen)
 {
@@ -1017,7 +1017,7 @@ void qword_addhex(char **bpp, int *lp, char *buf, int blen)
 	*bpp = bp;
 	*lp = len;
 }
-EXPORT_SYMBOL(qword_addhex);
+EXPORT_SYMBOL_GPL(qword_addhex);
 
 static void warn_no_listener(struct cache_detail *detail)
 {
@@ -1140,7 +1140,7 @@ int qword_get(char **bpp, char *dest, int bufsize)
 	*dest = '\0';
 	return len;
 }
-EXPORT_SYMBOL(qword_get);
+EXPORT_SYMBOL_GPL(qword_get);
 
 
 /*

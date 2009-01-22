@@ -64,7 +64,7 @@
 #include <linux/jiffies.h>
 #include "iphase.h"		  
 #include "suni.h"		  
-#define swap(x) (((x & 0xff) << 8) | ((x & 0xff00) >> 8))  
+#define swap_byte_order(x) (((x & 0xff) << 8) | ((x & 0xff00) >> 8))
 
 #define PRIV(dev) ((struct suni_priv *) dev->phy_data)
 
@@ -1306,7 +1306,7 @@ static void rx_dle_intr(struct atm_dev *dev)
           // get real pkt length  pwang_test
           trailer = (struct cpcs_trailer*)((u_char *)skb->data +
                                  skb->len - sizeof(*trailer));
-          length =  swap(trailer->length);
+	  length = swap_byte_order(trailer->length);
           if ((length > iadev->rx_buf_sz) || (length > 
                               (skb->len - sizeof(struct cpcs_trailer))))
           {
@@ -2995,7 +2995,7 @@ static int ia_pkt_tx (struct atm_vcc *vcc, struct sk_buff *skb) {
 		skb->len, PCI_DMA_TODEVICE);
 	wr_ptr->local_pkt_addr = (buf_desc_ptr->buf_start_hi << 16) | 
                                                   buf_desc_ptr->buf_start_lo;  
-	/* wr_ptr->bytes = swap(total_len);	didn't seem to affect ?? */  
+	/* wr_ptr->bytes = swap_byte_order(total_len); didn't seem to affect?? */
 	wr_ptr->bytes = skb->len;  
 
         /* hw bug - DLEs of 0x2d, 0x2e, 0x2f cause DMA lockup */

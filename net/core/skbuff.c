@@ -2602,6 +2602,12 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		       skb_shinfo(skb)->nr_frags * sizeof(skb_frag_t));
 
 		skb_shinfo(p)->nr_frags += skb_shinfo(skb)->nr_frags;
+		skb_shinfo(skb)->nr_frags = 0;
+
+		skb->truesize -= skb->data_len;
+		skb->len -= skb->data_len;
+		skb->data_len = 0;
+
 		NAPI_GRO_CB(skb)->free = 1;
 		goto done;
 	}

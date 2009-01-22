@@ -102,7 +102,7 @@ sim710_probe_common(struct device *dev, unsigned long base_addr,
 	struct NCR_700_Host_Parameters *hostdata =
 		kzalloc(sizeof(struct NCR_700_Host_Parameters),	GFP_KERNEL);
 
-	printk(KERN_NOTICE "sim710: %s\n", dev->bus_id);
+	printk(KERN_NOTICE "sim710: %s\n", dev_name(dev));
 	printk(KERN_NOTICE "sim710: irq = %d, clock = %d, base = 0x%lx, scsi_id = %d\n",
 	       irq, clock, base_addr, scsi_id);
 
@@ -305,7 +305,7 @@ sim710_eisa_probe(struct device *dev)
 		scsi_id = ffs(val) - 1;
 
 		if(scsi_id > 7 || (val & ~(1<<scsi_id)) != 0) {
-			printk(KERN_ERR "sim710.c, EISA card %s has incorrect scsi_id, setting to 7\n", dev->bus_id);
+			printk(KERN_ERR "sim710.c, EISA card %s has incorrect scsi_id, setting to 7\n", dev_name(dev));
 			scsi_id = 7;
 		}
 	} else {

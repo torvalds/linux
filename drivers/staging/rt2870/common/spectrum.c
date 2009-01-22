@@ -48,7 +48,7 @@ VOID MeasureReqTabInit(
 	if (pAd->CommonCfg.pMeasureReqTab)
 		NdisZeroMemory(pAd->CommonCfg.pMeasureReqTab, sizeof(MEASURE_REQ_TAB));
 	else
-		DBGPRINT(RT_DEBUG_ERROR, ("%s Fail to alloc memory for pAd->CommonCfg.pMeasureReqTab.\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s Fail to alloc memory for pAd->CommonCfg.pMeasureReqTab.\n", __func__));
 
 	return;
 }
@@ -76,7 +76,7 @@ static PMEASURE_REQ_ENTRY MeasureReqLookUp(
 
 	if (pTab == NULL)
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s: pMeasureReqTab doesn't exist.\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s: pMeasureReqTab doesn't exist.\n", __func__));
 		return NULL;
 	}
 
@@ -113,7 +113,7 @@ static PMEASURE_REQ_ENTRY MeasureReqInsert(
 
 	if(pTab == NULL)
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s: pMeasureReqTab doesn't exist.\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s: pMeasureReqTab doesn't exist.\n", __func__));
 		return NULL;
 	}
 
@@ -174,7 +174,7 @@ static PMEASURE_REQ_ENTRY MeasureReqInsert(
 		else
 		{
 			pEntry = NULL;
-			DBGPRINT(RT_DEBUG_ERROR, ("%s: pMeasureReqTab tab full.\n", __FUNCTION__));
+			DBGPRINT(RT_DEBUG_ERROR, ("%s: pMeasureReqTab tab full.\n", __func__));
 		}
 
 		// add this Neighbor entry into HASH table
@@ -209,7 +209,7 @@ static VOID MeasureReqDelete(
 
 	if(pTab == NULL)
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s: pMeasureReqTab doesn't exist.\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s: pMeasureReqTab doesn't exist.\n", __func__));
 		return;
 	}
 
@@ -266,7 +266,7 @@ VOID TpcReqTabInit(
 	if (pAd->CommonCfg.pTpcReqTab)
 		NdisZeroMemory(pAd->CommonCfg.pTpcReqTab, sizeof(TPC_REQ_TAB));
 	else
-		DBGPRINT(RT_DEBUG_ERROR, ("%s Fail to alloc memory for pAd->CommonCfg.pTpcReqTab.\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s Fail to alloc memory for pAd->CommonCfg.pTpcReqTab.\n", __func__));
 
 	return;
 }
@@ -294,7 +294,7 @@ static PTPC_REQ_ENTRY TpcReqLookUp(
 
 	if (pTab == NULL)
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s: pTpcReqTab doesn't exist.\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s: pTpcReqTab doesn't exist.\n", __func__));
 		return NULL;
 	}
 
@@ -332,7 +332,7 @@ static PTPC_REQ_ENTRY TpcReqInsert(
 
 	if(pTab == NULL)
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s: pTpcReqTab doesn't exist.\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s: pTpcReqTab doesn't exist.\n", __func__));
 		return NULL;
 	}
 
@@ -393,7 +393,7 @@ static PTPC_REQ_ENTRY TpcReqInsert(
 		else
 		{
 			pEntry = NULL;
-			DBGPRINT(RT_DEBUG_ERROR, ("%s: pTpcReqTab tab full.\n", __FUNCTION__));
+			DBGPRINT(RT_DEBUG_ERROR, ("%s: pTpcReqTab tab full.\n", __func__));
 		}
 
 		// add this Neighbor entry into HASH table
@@ -428,7 +428,7 @@ static VOID TpcReqDelete(
 
 	if(pTab == NULL)
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s: pTpcReqTab doesn't exist.\n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s: pTpcReqTab doesn't exist.\n", __func__));
 		return;
 	}
 
@@ -781,7 +781,7 @@ VOID EnqueueMeasurementReq(
 	NStatus = MlmeAllocateMemory(pAd, (PVOID)&pOutBuffer);  //Get an unused nonpaged memory
 	if(NStatus != NDIS_STATUS_SUCCESS)
 	{
-		DBGPRINT(RT_DEBUG_TRACE, ("%s() allocate memory failed \n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_TRACE, ("%s() allocate memory failed \n", __func__));
 		return;
 	}
 	NdisMoveMemory(pOutBuffer, (PCHAR)&ActHdr, sizeof(HEADER_802_11));
@@ -843,7 +843,7 @@ VOID EnqueueMeasurementRep(
 	NStatus = MlmeAllocateMemory(pAd, (PVOID)&pOutBuffer);  //Get an unused nonpaged memory
 	if(NStatus != NDIS_STATUS_SUCCESS)
 	{
-		DBGPRINT(RT_DEBUG_TRACE, ("%s() allocate memory failed \n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_TRACE, ("%s() allocate memory failed \n", __func__));
 		return;
 	}
 	NdisMoveMemory(pOutBuffer, (PCHAR)&ActHdr, sizeof(HEADER_802_11));
@@ -897,7 +897,7 @@ VOID EnqueueTPCReq(
 	NStatus = MlmeAllocateMemory(pAd, (PVOID)&pOutBuffer);  //Get an unused nonpaged memory
 	if(NStatus != NDIS_STATUS_SUCCESS)
 	{
-		DBGPRINT(RT_DEBUG_TRACE, ("%s() allocate memory failed \n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_TRACE, ("%s() allocate memory failed \n", __func__));
 		return;
 	}
 	NdisMoveMemory(pOutBuffer, (PCHAR)&ActHdr, sizeof(HEADER_802_11));
@@ -949,7 +949,7 @@ VOID EnqueueTPCRep(
 	NStatus = MlmeAllocateMemory(pAd, (PVOID)&pOutBuffer);  //Get an unused nonpaged memory
 	if(NStatus != NDIS_STATUS_SUCCESS)
 	{
-		DBGPRINT(RT_DEBUG_TRACE, ("%s() allocate memory failed \n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_TRACE, ("%s() allocate memory failed \n", __func__));
 		return;
 	}
 	NdisMoveMemory(pOutBuffer, (PCHAR)&ActHdr, sizeof(HEADER_802_11));
@@ -1002,7 +1002,7 @@ VOID EnqueueChSwAnn(
 	NStatus = MlmeAllocateMemory(pAd, (PVOID)&pOutBuffer);  //Get an unused nonpaged memory
 	if(NStatus != NDIS_STATUS_SUCCESS)
 	{
-		DBGPRINT(RT_DEBUG_TRACE, ("%s() allocate memory failed \n", __FUNCTION__));
+		DBGPRINT(RT_DEBUG_TRACE, ("%s() allocate memory failed \n", __func__));
 		return;
 	}
 	NdisMoveMemory(pOutBuffer, (PCHAR)&ActHdr, sizeof(HEADER_802_11));
@@ -1595,7 +1595,7 @@ static VOID PeerMeasureReportAction(
 
 	if ((pMeasureReportInfo = kmalloc(sizeof(MEASURE_RPI_REPORT), GFP_ATOMIC)) == NULL)
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s unable to alloc memory for measure report buffer (size=%d).\n", __FUNCTION__, sizeof(MEASURE_RPI_REPORT)));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s unable to alloc memory for measure report buffer (size=%d).\n", __func__, sizeof(MEASURE_RPI_REPORT)));
 		return;
 	}
 
@@ -1704,7 +1704,7 @@ static VOID PeerTpcRepAction(
 		{
 			TpcReqDelete(pAd, pEntry->DialogToken);
 			DBGPRINT(RT_DEBUG_TRACE, ("%s: DialogToken=%x, TxPwr=%d, LinkMargin=%d\n",
-				__FUNCTION__, DialogToken, TpcRepInfo.TxPwr, TpcRepInfo.LinkMargin));
+				__func__, DialogToken, TpcRepInfo.TxPwr, TpcRepInfo.LinkMargin));
 		}
 	}
 
@@ -1820,7 +1820,7 @@ INT Set_MeasureReq_Proc(
 				MeasureReqType = simple_strtol(thisChar, 0, 16);
 				if (MeasureReqType > 3)
 				{
-					DBGPRINT(RT_DEBUG_ERROR, ("%s: unknow MeasureReqType(%d)\n", __FUNCTION__, MeasureReqType));
+					DBGPRINT(RT_DEBUG_ERROR, ("%s: unknow MeasureReqType(%d)\n", __func__, MeasureReqType));
 					return TRUE;
 				}
 				break;
@@ -1832,10 +1832,10 @@ INT Set_MeasureReq_Proc(
 		ArgIdx++;
 	}
 
-	DBGPRINT(RT_DEBUG_TRACE, ("%s::Aid = %d, MeasureReqType=%d MeasureCh=%d\n", __FUNCTION__, Aid, MeasureReqType, MeasureCh));
+	DBGPRINT(RT_DEBUG_TRACE, ("%s::Aid = %d, MeasureReqType=%d MeasureCh=%d\n", __func__, Aid, MeasureReqType, MeasureCh));
 	if (!VALID_WCID(Aid))
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s: unknow sta of Aid(%d)\n", __FUNCTION__, Aid));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s: unknow sta of Aid(%d)\n", __func__, Aid));
 		return TRUE;
 	}
 
@@ -1860,10 +1860,10 @@ INT Set_TpcReq_Proc(
 
 	Aid = simple_strtol(arg, 0, 16);
 
-	DBGPRINT(RT_DEBUG_TRACE, ("%s::Aid = %d\n", __FUNCTION__, Aid));
+	DBGPRINT(RT_DEBUG_TRACE, ("%s::Aid = %d\n", __func__, Aid));
 	if (!VALID_WCID(Aid))
 	{
-		DBGPRINT(RT_DEBUG_ERROR, ("%s: unknow sta of Aid(%d)\n", __FUNCTION__, Aid));
+		DBGPRINT(RT_DEBUG_ERROR, ("%s: unknow sta of Aid(%d)\n", __func__, Aid));
 		return TRUE;
 	}
 

@@ -569,7 +569,7 @@ static ssize_t smk_write_cipso(struct file *file, const char __user *buf,
 	if (skp == NULL)
 		goto out;
 
-	rule += SMK_LABELLEN;;
+	rule += SMK_LABELLEN;
 	ret = sscanf(rule, "%d", &maplevel);
 	if (ret != 1 || maplevel > SMACK_CIPSO_MAXLEVEL)
 		goto out;

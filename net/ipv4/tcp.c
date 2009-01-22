@@ -522,8 +522,12 @@ static int tcp_splice_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
 				unsigned int offset, size_t len)
 {
 	struct tcp_splice_state *tss = rd_desc->arg.data;
+	int ret;
 
-	return skb_splice_bits(skb, offset, tss->pipe, tss->len, tss->flags);
+	ret = skb_splice_bits(skb, offset, tss->pipe, rd_desc->count, tss->flags);
+	if (ret > 0)
+		rd_desc->count -= ret;
+	return ret;
 }
 
 static int __tcp_splice_read(struct sock *sk, struct tcp_splice_state *tss)
@@ -531,6 +535,7 @@ static int __tcp_splice_read(struct sock *sk, struct tcp_splice_state *tss)
 	/* Store TCP splice context information in read_descriptor_t. */
 	read_descriptor_t rd_desc = {
 		.arg.data = tss,
+		.count	  = tss->len,
 	};
 
 	return tcp_read_sock(sk, &rd_desc, tcp_splice_data_recv);
@@ -611,11 +616,13 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 		tss.len -= ret;
 		spliced += ret;
 
+		if (!timeo)
+			break;
 		release_sock(sk);
 		lock_sock(sk);
 
 		if (sk->sk_err || sk->sk_state == TCP_CLOSE ||
-		    (sk->sk_shutdown & RCV_SHUTDOWN) || !timeo ||
+		    (sk->sk_shutdown & RCV_SHUTDOWN) ||
 		    signal_pending(current))
 			break;
 	}
@@ -1313,7 +1320,7 @@ int tcp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		if ((available < target) &&
 		    (len > sysctl_tcp_dma_copybreak) && !(flags & MSG_PEEK) &&
 		    !sysctl_tcp_low_latency &&
-		    __get_cpu_var(softnet_data).net_dma) {
+		    dma_find_channel(DMA_MEMCPY)) {
 			preempt_enable_no_resched();
 			tp->ucopy.pinned_list =
 					dma_pin_iovec_pages(msg->msg_iov, len);
@@ -1523,7 +1530,7 @@ do_prequeue:
 		if (!(flags & MSG_TRUNC)) {
 #ifdef CONFIG_NET_DMA
 			if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
-				tp->ucopy.dma_chan = get_softnet_dma();
+				tp->ucopy.dma_chan = dma_find_channel(DMA_MEMCPY);
 
 			if (tp->ucopy.dma_chan) {
 				tp->ucopy.dma_cookie = dma_skb_copy_datagram_iovec(
@@ -1628,7 +1635,6 @@ skip_copy:
 
 		/* Safe to free early-copied skbs now */
 		__skb_queue_purge(&sk->sk_async_wait_queue);
-		dma_chan_put(tp->ucopy.dma_chan);
 		tp->ucopy.dma_chan = NULL;
 	}
 	if (tp->ucopy.pinned_list) {
@@ -2383,7 +2389,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	unsigned int seq;
 	__be32 delta;
 	unsigned int oldlen;
-	unsigned int len;
+	unsigned int mss;
 
 	if (!pskb_may_pull(skb, sizeof(*th)))
 		goto out;
@@ -2399,10 +2405,13 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	oldlen = (u16)~skb->len;
 	__skb_pull(skb, thlen);
 
+	mss = skb_shinfo(skb)->gso_size;
+	if (unlikely(skb->len <= mss))
+		goto out;
+
 	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
 		/* Packet is from an untrusted source, reset gso_segs. */
 		int type = skb_shinfo(skb)->gso_type;
-		int mss;
 
 		if (unlikely(type &
 			     ~(SKB_GSO_TCPV4 |
@@ -2413,7 +2422,6 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 			     !(type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))))
 			goto out;
 
-		mss = skb_shinfo(skb)->gso_size;
 		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
 
 		segs = NULL;
@@ -2424,8 +2432,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 	if (IS_ERR(segs))
 		goto out;
 
-	len = skb_shinfo(skb)->gso_size;
-	delta = htonl(oldlen + (thlen + len));
+	delta = htonl(oldlen + (thlen + mss));
 
 	skb = segs;
 	th = tcp_hdr(skb);
@@ -2441,7 +2448,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 			     csum_fold(csum_partial(skb_transport_header(skb),
 						    thlen, skb->csum));
 
-		seq += len;
+		seq += mss;
 		skb = skb->next;
 		th = tcp_hdr(skb);
 
@@ -2542,6 +2549,7 @@ out:
 
 	return pp;
 }
+EXPORT_SYMBOL(tcp_gro_receive);
 
 int tcp_gro_complete(struct sk_buff *skb)
 {
@@ -2558,6 +2566,7 @@ int tcp_gro_complete(struct sk_buff *skb)
 
 	return 0;
 }
+EXPORT_SYMBOL(tcp_gro_complete);
 
 #ifdef CONFIG_TCP_MD5SIG
 static unsigned long tcp_md5sig_users;

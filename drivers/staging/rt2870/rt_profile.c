@@ -1024,7 +1024,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 								pAd->MlmeAux.SsidLen = pAd->CommonCfg.SsidLen;
 								NdisZeroMemory(pAd->MlmeAux.Ssid, NDIS_802_11_LENGTH_SSID);
 								NdisMoveMemory(pAd->MlmeAux.Ssid, tmpbuf, pAd->MlmeAux.SsidLen);
-								DBGPRINT(RT_DEBUG_TRACE, ("%s::(SSID=%s)\n", __FUNCTION__, tmpbuf));
+								DBGPRINT(RT_DEBUG_TRACE, ("%s::(SSID=%s)\n", __func__, tmpbuf));
 							}
 						}
 					}
@@ -1043,7 +1043,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 								pAd->StaCfg.BssType = BSS_INFRA;
 							// Reset Ralink supplicant to not use, it will be set to start when UI set PMK key
 							pAd->StaCfg.WpaState = SS_NOTUSE;
-							DBGPRINT(RT_DEBUG_TRACE, ("%s::(NetworkType=%d)\n", __FUNCTION__, pAd->StaCfg.BssType));
+							DBGPRINT(RT_DEBUG_TRACE, ("%s::(NetworkType=%d)\n", __func__, pAd->StaCfg.BssType));
 						}
 					}
 #endif // CONFIG_STA_SUPPORT //
@@ -1341,7 +1341,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 				                        pAd->StaCfg.PortSecured = WPA_802_1X_PORT_NOT_SECURED;
 
-							DBGPRINT(RT_DEBUG_TRACE, ("%s::(EncrypType=%d)\n", __FUNCTION__, pAd->StaCfg.WepStatus));
+							DBGPRINT(RT_DEBUG_TRACE, ("%s::(EncrypType=%d)\n", __func__, pAd->StaCfg.WepStatus));
 						}
 #endif // CONFIG_STA_SUPPORT //
 					}
@@ -1368,7 +1368,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 							pAd->StaCfg.bMixCipher 		= FALSE;
 
 							//RTMPMakeRSNIE(pAd, pAd->StaCfg.AuthMode, pAd->StaCfg.WepStatus, 0);
-							DBGPRINT(RT_DEBUG_TRACE, ("%s::(EncrypType=%d)\n", __FUNCTION__, pAd->StaCfg.WepStatus));
+							DBGPRINT(RT_DEBUG_TRACE, ("%s::(EncrypType=%d)\n", __func__, pAd->StaCfg.WepStatus));
 						}
 #endif // CONFIG_STA_SUPPORT //
 					}
@@ -1405,7 +1405,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 							else
 							{
 								err = 1;
-								DBGPRINT(RT_DEBUG_ERROR, ("%s::(WPAPSK key-string required 8 ~ 64 characters!)\n", __FUNCTION__));
+								DBGPRINT(RT_DEBUG_ERROR, ("%s::(WPAPSK key-string required 8 ~ 64 characters!)\n", __func__));
 							}
 
 							if (err == 0)
@@ -1436,7 +1436,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 									pAd->StaCfg.WpaState = SS_NOTUSE;
 								}
 
-								DBGPRINT(RT_DEBUG_TRACE, ("%s::(WPAPSK=%s)\n", __FUNCTION__, tmpbuf));
+								DBGPRINT(RT_DEBUG_TRACE, ("%s::(WPAPSK=%s)\n", __func__, tmpbuf));
 							}
 						}
 					}

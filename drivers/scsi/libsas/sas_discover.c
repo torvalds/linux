@@ -169,7 +169,7 @@ int sas_notify_lldd_dev_found(struct domain_device *dev)
 		if (res) {
 			printk("sas: driver on pcidev %s cannot handle "
 			       "device %llx, error:%d\n",
-			       sas_ha->dev->bus_id,
+			       dev_name(sas_ha->dev),
 			       SAS_ADDR(dev->sas_addr), res);
 		}
 	}

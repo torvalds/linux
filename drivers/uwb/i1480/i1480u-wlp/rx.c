@@ -167,7 +167,7 @@ do {							\
 do {							\
 	if (printk_ratelimit())				\
 		dev_err(&i1480u->usb_iface->dev, msg);	\
-	i1480u->stats.rx_dropped++;			\
+	i1480u->net_dev->stats.rx_dropped++;			\
 } while (0)
 
 
@@ -193,10 +193,8 @@ void i1480u_skb_deliver(struct i1480u *i1480u)
 	if (!should_parse)
 		goto out;
 	i1480u->rx_skb->protocol = eth_type_trans(i1480u->rx_skb, net_dev);
-	i1480u->stats.rx_packets++;
-	i1480u->stats.rx_bytes += i1480u->rx_untd_pkt_size;
-	net_dev->last_rx = jiffies;
-	/* FIXME: flow control: check netif_rx() retval */
+	net_dev->stats.rx_packets++;
+	net_dev->stats.rx_bytes += i1480u->rx_untd_pkt_size;
 
 	netif_rx(i1480u->rx_skb);		/* deliver */
 out:

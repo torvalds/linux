@@ -31,9 +31,6 @@ struct csr1212_keyval;
 struct hpsb_host;
 struct ieee1394_device_id;
 
-/* '1' '3' '9' '4' in ASCII */
-#define IEEE1394_BUSID_MAGIC	__constant_cpu_to_be32(0x31333934)
-
 /* This is the start of a Node entry structure. It should be a stable API
  * for which to gather info from the Node Manager about devices attached
  * to the bus.  */

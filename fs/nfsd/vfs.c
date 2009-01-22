@@ -744,16 +744,44 @@ nfsd_close(struct file *filp)
 	fput(filp);
 }
 
+/*
+ * Sync a file
+ * As this calls fsync (not fdatasync) there is no need for a write_inode
+ * after it.
+ */
+static inline int nfsd_dosync(struct file *filp, struct dentry *dp,
+			      const struct file_operations *fop)
+{
+	struct inode *inode = dp->d_inode;
+	int (*fsync) (struct file *, struct dentry *, int);
+	int err;
+
+	err = filemap_fdatawrite(inode->i_mapping);
+	if (err == 0 && fop && (fsync = fop->fsync))
+		err = fsync(filp, dp, 0);
+	if (err == 0)
+		err = filemap_fdatawait(inode->i_mapping);
+
+	return err;
+}
+
 static int
 nfsd_sync(struct file *filp)
 {
-	return vfs_fsync(filp, filp->f_path.dentry, 0);
+        int err;
+	struct inode *inode = filp->f_path.dentry->d_inode;
+	dprintk("nfsd: sync file %s\n", filp->f_path.dentry->d_name.name);
+	mutex_lock(&inode->i_mutex);
+	err=nfsd_dosync(filp, filp->f_path.dentry, filp->f_op);
+	mutex_unlock(&inode->i_mutex);
+
+	return err;
 }
 
 int
-nfsd_sync_dir(struct dentry *dentry)
+nfsd_sync_dir(struct dentry *dp)
 {
-	return vfs_fsync(NULL, dentry, 0);
+	return nfsd_dosync(NULL, dp, dp->d_inode->i_fop);
 }
 
 /*

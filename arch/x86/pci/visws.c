@@ -24,24 +24,6 @@ static void pci_visws_disable_irq(struct pci_dev *dev) { }
 
 unsigned int pci_bus0, pci_bus1;
 
-static inline u8 bridge_swizzle(u8 pin, u8 slot) 
-{
-	return (((pin - 1) + slot) % 4) + 1;
-}
-
-static u8 __init visws_swizzle(struct pci_dev *dev, u8 *pinp)
-{
-	u8 pin = *pinp;
-
-	while (dev->bus->self) {	/* Move up the chain of bridges. */
-		pin = bridge_swizzle(pin, PCI_SLOT(dev->devfn));
-		dev = dev->bus->self;
-	}
-	*pinp = pin;
-
-	return PCI_SLOT(dev->devfn);
-}
-
 static int __init visws_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq, bus = dev->bus->number;
@@ -106,7 +88,7 @@ int __init pci_visws_init(void)
 	raw_pci_ops = &pci_direct_conf1;
 	pci_scan_bus_with_sysdata(pci_bus0);
 	pci_scan_bus_with_sysdata(pci_bus1);
-	pci_fixup_irqs(visws_swizzle, visws_map_irq);
+	pci_fixup_irqs(pci_common_swizzle, visws_map_irq);
 	pcibios_resource_survey();
 	return 0;
 }

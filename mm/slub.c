@@ -2254,7 +2254,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
 		 * Add some empty padding so that we can catch
 		 * overwrites from earlier objects rather than let
 		 * tracking information or the free pointer be
-		 * corrupted if an user writes before the start
+		 * corrupted if a user writes before the start
 		 * of the object.
 		 */
 		size += sizeof(void *);

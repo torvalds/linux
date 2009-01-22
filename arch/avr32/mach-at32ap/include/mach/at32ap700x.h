@@ -211,4 +211,7 @@
 
 #define ATMEL_LCDC_ALT_15BIT	(ATMEL_LCDC_CONTROL | ATMEL_LCDC_ALT_15B_DATA)
 
+/* Bitmask for all EBI data (D16..D31) pins on port E */
+#define ATMEL_EBI_PE_DATA_ALL  (0x0000FFFF)
+
 #endif /* __ASM_ARCH_AT32AP700X_H__ */

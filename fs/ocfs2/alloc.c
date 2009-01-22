@@ -3868,7 +3868,7 @@ static void ocfs2_split_record(struct inode *inode,
 	struct ocfs2_extent_list *left_el = NULL, *right_el, *insert_el, *el;
 	struct ocfs2_extent_rec *rec, *tmprec;
 
-	right_el = path_leaf_el(right_path);;
+	right_el = path_leaf_el(right_path);
 	if (left_path)
 		left_el = path_leaf_el(left_path);
 

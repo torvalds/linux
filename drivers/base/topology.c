@@ -28,6 +28,7 @@
 #include <linux/mm.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
+#include <linux/hardirq.h>
 #include <linux/topology.h>
 
 #define define_one_ro(_name) 		\

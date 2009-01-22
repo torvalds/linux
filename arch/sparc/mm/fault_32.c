@@ -283,7 +283,8 @@ bad_area_nosemaphore:
 	/* Is this in ex_table? */
 no_context:
 	g2 = regs->u_regs[UREG_G2];
-	if (!from_user && (fixup = search_extables_range(regs->pc, &g2))) {
+	if (!from_user) {
+		fixup = search_extables_range(regs->pc, &g2);
 		if (fixup > 10) { /* Values below are reserved for other things */
 			extern const unsigned __memset_start[];
 			extern const unsigned __memset_end[];

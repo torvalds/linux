@@ -65,7 +65,7 @@ MODULE_PARM_DESC(extra, "Enable extra LEDs and keys on IBM RapidAcces, EzKey and
 
 /*
  * Scancode to keycode tables. These are just the default setting, and
- * are loadable via an userland utility.
+ * are loadable via a userland utility.
  */
 
 static const unsigned short atkbd_set2_keycode[512] = {

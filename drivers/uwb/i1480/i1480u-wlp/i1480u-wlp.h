@@ -221,7 +221,6 @@ struct i1480u {
 	struct net_device *net_dev;
 
 	spinlock_t lock;
-	struct net_device_stats stats;
 
 	/* RX context handling */
 	struct sk_buff *rx_skb;
@@ -271,7 +270,6 @@ extern int i1480u_stop(struct net_device *);
 extern int i1480u_hard_start_xmit(struct sk_buff *, struct net_device *);
 extern void i1480u_tx_timeout(struct net_device *);
 extern int i1480u_set_config(struct net_device *, struct ifmap *);
-extern struct net_device_stats *i1480u_get_stats(struct net_device *);
 extern int i1480u_change_mtu(struct net_device *, int);
 extern void i1480u_uwb_notifs_cb(void *, struct uwb_dev *, enum uwb_notifs);
 

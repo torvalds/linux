@@ -152,7 +152,6 @@ struct irda_usb_cb {
 	struct urb *speed_urb;		/* URB used to send speed commands */
 	
 	struct net_device *netdev;	/* Yes! we are some kind of netdev. */
-	struct net_device_stats stats;
 	struct irlap_cb   *irlap;	/* The link layer we are binded to */
 	struct qos_info qos;
 	char *speed_buff;		/* Buffer for speed changes */

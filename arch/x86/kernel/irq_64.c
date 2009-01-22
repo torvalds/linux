@@ -14,10 +14,10 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/ftrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/smp.h>
 #include <asm/io_apic.h>
 #include <asm/idle.h>
-#include <asm/smp.h>
 
 /*
  * Probabilistic stack overflow check:
@@ -142,18 +142,18 @@ extern void call_softirq(void);
 
 asmlinkage void do_softirq(void)
 {
- 	__u32 pending;
- 	unsigned long flags;
+	__u32 pending;
+	unsigned long flags;
 
- 	if (in_interrupt())
- 		return;
+	if (in_interrupt())
+		return;
 
- 	local_irq_save(flags);
- 	pending = local_softirq_pending();
- 	/* Switch to interrupt stack */
- 	if (pending) {
+	local_irq_save(flags);
+	pending = local_softirq_pending();
+	/* Switch to interrupt stack */
+	if (pending) {
 		call_softirq();
 		WARN_ON_ONCE(softirq_count());
 	}
- 	local_irq_restore(flags);
+	local_irq_restore(flags);
 }

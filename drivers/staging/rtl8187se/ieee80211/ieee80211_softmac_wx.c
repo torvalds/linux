@@ -31,7 +31,7 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 {
 	int ret;
 	struct iw_freq *fwrq = & wrqu->freq;
-//	printk("in %s\n",__FUNCTION__);
+//	printk("in %s\n",__func__);
 	down(&ieee->wx_sem);
 
 	if(ieee->iw_mode == IW_MODE_INFRA){

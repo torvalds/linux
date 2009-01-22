@@ -778,12 +778,13 @@ static struct nes_cm_node *find_node(struct nes_cm_core *cm_core,
 	unsigned long flags;
 	struct list_head *hte;
 	struct nes_cm_node *cm_node;
+	__be32 tmp_addr = cpu_to_be32(loc_addr);
 
 	/* get a handle on the hte */
 	hte = &cm_core->connected_nodes;
 
 	nes_debug(NES_DBG_CM, "Searching for an owner node: %pI4:%x from core %p->%p\n",
-		  &loc_addr, loc_port, cm_core, hte);
+		  &tmp_addr, loc_port, cm_core, hte);
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
@@ -816,6 +817,7 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 {
 	unsigned long flags;
 	struct nes_cm_listener *listen_node;
+	__be32 tmp_addr = cpu_to_be32(dst_addr);
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
@@ -833,7 +835,7 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 	spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
 
 	nes_debug(NES_DBG_CM, "Unable to find listener for %pI4:%x\n",
-		  &dst_addr, dst_port);
+		  &tmp_addr, dst_port);
 
 	/* no listener */
 	return NULL;
@@ -2059,6 +2061,7 @@ static int mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 	struct tcphdr *tcph;
 	struct nes_cm_info nfo;
 	int skb_handled = 1;
+	__be32 tmp_daddr, tmp_saddr;
 
 	if (!skb)
 		return 0;
@@ -2074,8 +2077,11 @@ static int mini_cm_recv_pkt(struct nes_cm_core *cm_core,
 	nfo.rem_addr = ntohl(iph->saddr);
 	nfo.rem_port = ntohs(tcph->source);
 
+	tmp_daddr = cpu_to_be32(iph->daddr);
+	tmp_saddr = cpu_to_be32(iph->saddr);
+
 	nes_debug(NES_DBG_CM, "Received packet: dest=%pI4:0x%04X src=%pI4:0x%04X\n",
-		  &iph->daddr, tcph->dest, &iph->saddr, tcph->source);
+		  &tmp_daddr, tcph->dest, &tmp_saddr, tcph->source);
 
 	do {
 		cm_node = find_node(cm_core,
@@ -2705,7 +2711,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			sizeof(struct ietf_mpa_frame));
 
 
-	/* notify OF layer that accept event was successfull */
+	/* notify OF layer that accept event was successful */
 	cm_id->add_ref(cm_id);
 
 	cm_event.event = IW_CM_EVENT_ESTABLISHED;

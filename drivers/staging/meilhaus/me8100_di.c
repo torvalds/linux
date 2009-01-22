@@ -536,7 +536,7 @@ static irqreturn_t me8100_isr(int irq, void *dev_id, struct pt_regs *regs)
 		     PLX_INTCSR_LOCAL_INT1_EN)) {
 			PINFO
 			    ("%ld Shared interrupt. %s(): idx=0 plx:irq_status_reg=0x%04X\n",
-			     jiffies, __FUNCTION__, icsr);
+			     jiffies, __func__, icsr);
 			return IRQ_NONE;
 		}
 	} else if (instance->di_idx == 1) {
@@ -547,11 +547,11 @@ static irqreturn_t me8100_isr(int irq, void *dev_id, struct pt_regs *regs)
 		     PLX_INTCSR_LOCAL_INT2_EN)) {
 			PINFO
 			    ("%ld Shared interrupt. %s(): idx=1 plx:irq_status_reg=0x%04X\n",
-			     jiffies, __FUNCTION__, icsr);
+			     jiffies, __func__, icsr);
 			return IRQ_NONE;
 		}
 	} else {
-		PERROR("%s():Wrong interrupt idx=%d csr=0x%X.\n", __FUNCTION__,
+		PERROR("%s():Wrong interrupt idx=%d csr=0x%X.\n", __func__,
 		       instance->di_idx, icsr);
 		return IRQ_NONE;
 	}

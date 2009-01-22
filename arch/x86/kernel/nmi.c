@@ -26,7 +26,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/kdebug.h>
 #include <linux/smp.h>
-#include <linux/nmi.h>
 
 #include <asm/i8259.h>
 #include <asm/io_apic.h>

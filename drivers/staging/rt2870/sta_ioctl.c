@@ -2224,7 +2224,7 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
 			wrq->length = strlen(extra) + 1; // 1: size of '\0'
 			break;
         default:
-            DBGPRINT(RT_DEBUG_TRACE, ("%s - unknow subcmd = %d\n", __FUNCTION__, subcmd));
+            DBGPRINT(RT_DEBUG_TRACE, ("%s - unknow subcmd = %d\n", __func__, subcmd));
             break;
     }
 
@@ -2243,7 +2243,7 @@ int rt_ioctl_siwmlme(struct net_device *dev,
 	MLME_DISASSOC_REQ_STRUCT	DisAssocReq;
 	MLME_DEAUTH_REQ_STRUCT      DeAuthReq;
 
-	DBGPRINT(RT_DEBUG_TRACE, ("====> %s\n", __FUNCTION__));
+	DBGPRINT(RT_DEBUG_TRACE, ("====> %s\n", __func__));
 
 	if (pMlme == NULL)
 		return -EINVAL;
@@ -2252,7 +2252,7 @@ int rt_ioctl_siwmlme(struct net_device *dev,
 	{
 #ifdef IW_MLME_DEAUTH
 		case IW_MLME_DEAUTH:
-			DBGPRINT(RT_DEBUG_TRACE, ("====> %s - IW_MLME_DEAUTH\n", __FUNCTION__));
+			DBGPRINT(RT_DEBUG_TRACE, ("====> %s - IW_MLME_DEAUTH\n", __func__));
 			COPY_MAC_ADDR(DeAuthReq.Addr, pAd->CommonCfg.Bssid);
 			DeAuthReq.Reason = pMlme->reason_code;
 			MsgElem.MsgLen = sizeof(MLME_DEAUTH_REQ_STRUCT);
@@ -2267,7 +2267,7 @@ int rt_ioctl_siwmlme(struct net_device *dev,
 #endif // IW_MLME_DEAUTH //
 #ifdef IW_MLME_DISASSOC
 		case IW_MLME_DISASSOC:
-			DBGPRINT(RT_DEBUG_TRACE, ("====> %s - IW_MLME_DISASSOC\n", __FUNCTION__));
+			DBGPRINT(RT_DEBUG_TRACE, ("====> %s - IW_MLME_DISASSOC\n", __func__));
 			COPY_MAC_ADDR(DisAssocReq.Addr, pAd->CommonCfg.Bssid);
 			DisAssocReq.Reason =  pMlme->reason_code;
 
@@ -2281,7 +2281,7 @@ int rt_ioctl_siwmlme(struct net_device *dev,
 			break;
 #endif // IW_MLME_DISASSOC //
 		default:
-			DBGPRINT(RT_DEBUG_TRACE, ("====> %s - Unknow Command\n", __FUNCTION__));
+			DBGPRINT(RT_DEBUG_TRACE, ("====> %s - Unknow Command\n", __func__));
 			break;
 	}
 
@@ -2314,7 +2314,7 @@ int rt_ioctl_siwauth(struct net_device *dev,
             else if (param->value == IW_AUTH_WPA_VERSION_WPA2)
                 pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA2PSK;
 
-            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_WPA_VERSION - param->value = %d!\n", __FUNCTION__, param->value));
+            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_WPA_VERSION - param->value = %d!\n", __func__, param->value));
             break;
     	case IW_AUTH_CIPHER_PAIRWISE:
             if (param->value == IW_AUTH_CIPHER_NONE)
@@ -2345,7 +2345,7 @@ int rt_ioctl_siwauth(struct net_device *dev,
                 pAdapter->StaCfg.OrigWepStatus = pAdapter->StaCfg.WepStatus;
                 pAdapter->StaCfg.PairCipher = Ndis802_11Encryption3Enabled;
             }
-            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_CIPHER_PAIRWISE - param->value = %d!\n", __FUNCTION__, param->value));
+            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_CIPHER_PAIRWISE - param->value = %d!\n", __func__, param->value));
             break;
     	case IW_AUTH_CIPHER_GROUP:
             if (param->value == IW_AUTH_CIPHER_NONE)
@@ -2365,7 +2365,7 @@ int rt_ioctl_siwauth(struct net_device *dev,
             {
                 pAdapter->StaCfg.GroupCipher = Ndis802_11Encryption3Enabled;
             }
-            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_CIPHER_GROUP - param->value = %d!\n", __FUNCTION__, param->value));
+            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_CIPHER_GROUP - param->value = %d!\n", __func__, param->value));
             break;
     	case IW_AUTH_KEY_MGMT:
             if (param->value == IW_AUTH_KEY_MGMT_802_1X)
@@ -2395,7 +2395,7 @@ int rt_ioctl_siwauth(struct net_device *dev,
                 //pAdapter->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 				STA_PORT_SECURED(pAdapter);
             }
-            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_KEY_MGMT - param->value = %d!\n", __FUNCTION__, param->value));
+            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_KEY_MGMT - param->value = %d!\n", __func__, param->value));
             break;
     	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
             break;
@@ -2408,7 +2408,7 @@ int rt_ioctl_siwauth(struct net_device *dev,
                 pAdapter->StaCfg.PairCipher = Ndis802_11WEPDisabled;
         	    pAdapter->StaCfg.GroupCipher = Ndis802_11WEPDisabled;
             }*/
-            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_PRIVACY_INVOKED - param->value = %d!\n", __FUNCTION__, param->value));
+            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_PRIVACY_INVOKED - param->value = %d!\n", __func__, param->value));
     		break;
     	case IW_AUTH_DROP_UNENCRYPTED:
             if (param->value != 0)
@@ -2418,7 +2418,7 @@ int rt_ioctl_siwauth(struct net_device *dev,
                 //pAdapter->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 				STA_PORT_SECURED(pAdapter);
 			}
-            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_WPA_VERSION - param->value = %d!\n", __FUNCTION__, param->value));
+            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_WPA_VERSION - param->value = %d!\n", __func__, param->value));
     		break;
     	case IW_AUTH_80211_AUTH_ALG:
 			if (param->value & IW_AUTH_ALG_SHARED_KEY)
@@ -2431,10 +2431,10 @@ int rt_ioctl_siwauth(struct net_device *dev,
 			}
             else
 				return -EINVAL;
-            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_80211_AUTH_ALG - param->value = %d!\n", __FUNCTION__, param->value));
+            DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_80211_AUTH_ALG - param->value = %d!\n", __func__, param->value));
 			break;
     	case IW_AUTH_WPA_ENABLED:
-    		DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_WPA_ENABLED - Driver supports WPA!(param->value = %d)\n", __FUNCTION__, param->value));
+    		DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_WPA_ENABLED - Driver supports WPA!(param->value = %d)\n", __func__, param->value));
     		break;
     	default:
     		return -EOPNOTSUPP;
@@ -2542,7 +2542,7 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
 		pAdapter->SharedKey[BSS0][keyIdx].CipherAlg = CIPHER_NONE;
 		AsicRemoveSharedKeyEntry(pAdapter, 0, (UCHAR)keyIdx);
         NdisZeroMemory(&pAdapter->SharedKey[BSS0][keyIdx], sizeof(CIPHER_KEY));
-        DBGPRINT(RT_DEBUG_TRACE, ("%s::Remove all keys!(encoding->flags = %x)\n", __FUNCTION__, encoding->flags));
+        DBGPRINT(RT_DEBUG_TRACE, ("%s::Remove all keys!(encoding->flags = %x)\n", __func__, encoding->flags));
     }
 					else
     {
@@ -2554,15 +2554,15 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
         if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY)
         {
             pAdapter->StaCfg.DefaultKeyId = keyIdx;
-            DBGPRINT(RT_DEBUG_TRACE, ("%s::DefaultKeyId = %d\n", __FUNCTION__, pAdapter->StaCfg.DefaultKeyId));
+            DBGPRINT(RT_DEBUG_TRACE, ("%s::DefaultKeyId = %d\n", __func__, pAdapter->StaCfg.DefaultKeyId));
         }
 
         switch (alg) {
     		case IW_ENCODE_ALG_NONE:
-                DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_ENCODE_ALG_NONE\n", __FUNCTION__));
+                DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_ENCODE_ALG_NONE\n", __func__));
     			break;
     		case IW_ENCODE_ALG_WEP:
-                DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_ENCODE_ALG_WEP - ext->key_len = %d, keyIdx = %d\n", __FUNCTION__, ext->key_len, keyIdx));
+                DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_ENCODE_ALG_WEP - ext->key_len = %d, keyIdx = %d\n", __func__, ext->key_len, keyIdx));
     			if (ext->key_len == MAX_WEP_KEY_SIZE)
                 {
         			pAdapter->SharedKey[BSS0][keyIdx].KeyLen = MAX_WEP_KEY_SIZE;
@@ -2595,7 +2595,7 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
 				}
     			break;
             case IW_ENCODE_ALG_TKIP:
-                DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_ENCODE_ALG_TKIP - keyIdx = %d, ext->key_len = %d\n", __FUNCTION__, keyIdx, ext->key_len));
+                DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_ENCODE_ALG_TKIP - keyIdx = %d, ext->key_len = %d\n", __func__, keyIdx, ext->key_len));
                 if (ext->key_len == 32)
                 {
                     if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY)

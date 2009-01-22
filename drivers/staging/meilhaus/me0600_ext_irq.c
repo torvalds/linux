@@ -360,7 +360,7 @@ static irqreturn_t me0600_isr(int irq, void *dev_id, struct pt_regs *regs)
 	if (instance->lintno > 1) {
 		PERROR_CRITICAL
 		    ("%s():Wrong subdevice index=%d plx:irq_status_reg=0x%04X.\n",
-		     __FUNCTION__, instance->lintno, inl(instance->intcsr));
+		     __func__, instance->lintno, inl(instance->intcsr));
 		return IRQ_NONE;
 	}
 
@@ -384,7 +384,7 @@ static irqreturn_t me0600_isr(int irq, void *dev_id, struct pt_regs *regs)
 	} else {
 		PINFO
 		    ("%ld Shared interrupt. %s(): idx=0 plx:irq_status_reg=0x%04X\n",
-		     jiffies, __FUNCTION__, status);
+		     jiffies, __func__, status);
 		ret = IRQ_NONE;
 	}
 	spin_unlock(instance->intcsr_lock);

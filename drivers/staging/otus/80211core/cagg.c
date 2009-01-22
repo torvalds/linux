@@ -1933,7 +1933,7 @@ u16_t zfAggRx(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo *addInfo, struct a
      */
 
     /* zm_msg2_agg(ZM_LV_0, "queue seq = ", seq_no);
-     * DbgPrint("%s:%s%lxh %s%lxh\n", __FUNCTION__, "queue seq=", seq_no,
+     * DbgPrint("%s:%s%lxh %s%lxh\n", __func__, "queue seq=", seq_no,
      *   "; seq_start=", tid_rx->seq_start);
      */
 

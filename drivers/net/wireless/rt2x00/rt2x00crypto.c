@@ -184,8 +184,8 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, unsigned int align,
 	 * Make room for new data, note that we increase both
 	 * headsize and tailsize when required. The tailsize is
 	 * only needed when ICV data needs to be inserted and
-	 * the padding is smaller then the ICV data.
-	 * When alignment requirements is greater then the
+	 * the padding is smaller than the ICV data.
+	 * When alignment requirements is greater than the
 	 * ICV data we must trim the skb to the correct size
 	 * because we need to remove the extra bytes.
 	 */

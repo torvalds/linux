@@ -122,6 +122,24 @@ config BOARD_ATNGW100
 	bool "ATNGW100 Network Gateway"
 	select CPU_AT32AP7000
 
+config BOARD_HAMMERHEAD
+	bool "Hammerhead board"
+	select CPU_AT32AP7000
+	select USB_ARCH_HAS_HCD
+	help
+	  The Hammerhead platform is built around a AVR32 32-bit microcontroller from Atmel.
+	  It offers versatile peripherals, such as ethernet, usb device, usb host etc.
+
+	  The board also incooperates a power supply and is a Power over Ethernet (PoE) Powered
+	  Device (PD).
+
+	  Additonally, a Cyclone III FPGA from Altera is integrated on the board. The FPGA is
+	  mapped into the 32-bit AVR memory bus. The FPGA offers two DDR2 SDRAM interfaces, which
+	  will cover even the most exceptional need of memory bandwidth. Together with the onboard
+	  video decoder the board is ready for video processing.
+
+	  For more information see: http://www.miromico.com/hammerhead
+
 config BOARD_FAVR_32
 	bool "Favr-32 LCD-board"
 	select CPU_AT32AP7000
@@ -133,6 +151,7 @@ endchoice
 
 source "arch/avr32/boards/atstk1000/Kconfig"
 source "arch/avr32/boards/atngw100/Kconfig"
+source "arch/avr32/boards/hammerhead/Kconfig"
 source "arch/avr32/boards/favr-32/Kconfig"
 
 choice

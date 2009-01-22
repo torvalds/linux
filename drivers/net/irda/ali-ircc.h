@@ -191,7 +191,6 @@ struct ali_ircc_cb {
 	struct tx_fifo tx_fifo;    /* Info about frames to be transmitted */
 
 	struct net_device *netdev;     /* Yes! we are some kind of netdevice */
-	struct net_device_stats stats;
 	
 	struct irlap_cb *irlap;    /* The link layer we are binded to */
 	struct qos_info qos;       /* QoS capabilities for this device */

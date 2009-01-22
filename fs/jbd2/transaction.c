@@ -25,6 +25,7 @@
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <linux/hrtimer.h>
 
 static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh);
 
@@ -48,6 +49,7 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
 {
 	transaction->t_journal = journal;
 	transaction->t_state = T_RUNNING;
+	transaction->t_start_time = ktime_get();
 	transaction->t_tid = journal->j_transaction_sequence++;
 	transaction->t_expires = jiffies + journal->j_commit_interval;
 	spin_lock_init(&transaction->t_handle_lock);
@@ -1240,7 +1242,7 @@ int jbd2_journal_stop(handle_t *handle)
 {
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal = transaction->t_journal;
-	int old_handle_count, err;
+	int err;
 	pid_t pid;
 
 	J_ASSERT(journal_current_handle() == handle);
@@ -1263,24 +1265,54 @@ int jbd2_journal_stop(handle_t *handle)
 	/*
 	 * Implement synchronous transaction batching.  If the handle
 	 * was synchronous, don't force a commit immediately.  Let's
-	 * yield and let another thread piggyback onto this transaction.
-	 * Keep doing that while new threads continue to arrive.
-	 * It doesn't cost much - we're about to run a commit and sleep
-	 * on IO anyway.  Speeds up many-threaded, many-dir operations
-	 * by 30x or more...
+	 * yield and let another thread piggyback onto this
+	 * transaction.  Keep doing that while new threads continue to
+	 * arrive.  It doesn't cost much - we're about to run a commit
+	 * and sleep on IO anyway.  Speeds up many-threaded, many-dir
+	 * operations by 30x or more...
 	 *
-	 * But don't do this if this process was the most recent one to
-	 * perform a synchronous write.  We do this to detect the case where a
-	 * single process is doing a stream of sync writes.  No point in waiting
-	 * for joiners in that case.
+	 * We try and optimize the sleep time against what the
+	 * underlying disk can do, instead of having a static sleep
+	 * time.  This is useful for the case where our storage is so
+	 * fast that it is more optimal to go ahead and force a flush
+	 * and wait for the transaction to be committed than it is to
+	 * wait for an arbitrary amount of time for new writers to
+	 * join the transaction.  We achieve this by measuring how
+	 * long it takes to commit a transaction, and compare it with
+	 * how long this transaction has been running, and if run time
+	 * < commit time then we sleep for the delta and commit.  This
+	 * greatly helps super fast disks that would see slowdowns as
+	 * more threads started doing fsyncs.
+	 *
+	 * But don't do this if this process was the most recent one
+	 * to perform a synchronous write.  We do this to detect the
+	 * case where a single process is doing a stream of sync
+	 * writes.  No point in waiting for joiners in that case.
 	 */
 	pid = current->pid;
 	if (handle->h_sync && journal->j_last_sync_writer != pid) {
+		u64 commit_time, trans_time;
+
 		journal->j_last_sync_writer = pid;
-		do {
-			old_handle_count = transaction->t_handle_count;
-			schedule_timeout_uninterruptible(1);
-		} while (old_handle_count != transaction->t_handle_count);
+
+		spin_lock(&journal->j_state_lock);
+		commit_time = journal->j_average_commit_time;
+		spin_unlock(&journal->j_state_lock);
+
+		trans_time = ktime_to_ns(ktime_sub(ktime_get(),
+						   transaction->t_start_time));
+
+		commit_time = max_t(u64, commit_time,
+				    1000*journal->j_min_batch_time);
+		commit_time = min_t(u64, commit_time,
+				    1000*journal->j_max_batch_time);
+
+		if (trans_time < commit_time) {
+			ktime_t expires = ktime_add_ns(ktime_get(),
+						       commit_time);
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_hrtimeout(&expires, HRTIMER_MODE_ABS);
+		}
 	}
 
 	current->journal_info = NULL;

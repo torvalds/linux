@@ -239,7 +239,7 @@ static void usb_alphatrack_interrupt_in_callback(struct urb *urb)
 			goto exit;
 		} else {
 			dbg_info(&dev->intf->dev, "%s: nonzero status received: %d\n",
-				 __FUNCTION__, urb->status);
+				 __func__, urb->status);
 			goto resubmit; /* maybe we can recover */
 		}
 	}
@@ -261,7 +261,7 @@ static void usb_alphatrack_interrupt_in_callback(struct urb *urb)
 		if(dev->offline > 0 && dev->interrupt_in_buffer[1] != 0xff) { dev->offline = 0; }
 		if(dev->offline == 0 && dev->interrupt_in_buffer[1] == 0xff) { dev->offline = 1; }
 #endif
-		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __FUNCTION__,dev->ring_head,dev->ring_tail);
+		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __func__,dev->ring_head,dev->ring_tail);
 		next_ring_head = (dev->ring_head+1) % ring_buffer_size;
 
 		if (next_ring_head != dev->ring_tail) {
@@ -305,7 +305,7 @@ static void usb_alphatrack_interrupt_out_callback(struct urb *urb)
 			     urb->status == -ESHUTDOWN))
 		dbg_info(&dev->intf->dev,
 			 "%s - nonzero write interrupt status received: %d\n",
-			 __FUNCTION__, urb->status);
+			 __func__, urb->status);
 	atomic_dec(&dev->writes_pending);
 	dev->interrupt_out_busy = 0;
 	wake_up_interruptible(&dev->write_wait);
@@ -330,7 +330,7 @@ static int usb_alphatrack_open(struct inode *inode, struct file *file)
 
 	if (!interface) {
 		err("%s - error, can't find device for minor %d\n",
-		     __FUNCTION__, subminor);
+		     __func__, subminor);
 		retval = -ENODEV;
 		goto unlock_disconnect_exit;
 	}
@@ -514,7 +514,7 @@ static ssize_t usb_alphatrack_read(struct file *file, char __user *buffer, size_
 						 }
 						 dev->ring_tail = (dev->ring_tail+1) % ring_buffer_size;
 						 c+=INPUT_CMD_SIZE;
-						 dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __FUNCTION__,dev->ring_head,dev->ring_tail);
+						 dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __func__,dev->ring_head,dev->ring_tail);
 	   }
 	   retval = c;
 
@@ -573,7 +573,7 @@ static ssize_t usb_alphatrack_write(struct file *file, const char __user *buffer
 	if (bytes_to_write < count)
 		dev_warn(&dev->intf->dev, "Write buffer overflow, %zd bytes dropped\n",count-bytes_to_write);
 
-	dbg_info(&dev->intf->dev, "%s: count = %zd, bytes_to_write = %zd\n", __FUNCTION__, count, bytes_to_write);
+	dbg_info(&dev->intf->dev, "%s: count = %zd, bytes_to_write = %zd\n", __func__, count, bytes_to_write);
 
 	if (copy_from_user(dev->interrupt_out_buffer, buffer, bytes_to_write)) {
 		retval = -EFAULT;

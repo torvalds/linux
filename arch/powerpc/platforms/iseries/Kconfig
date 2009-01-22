@@ -10,18 +10,21 @@ menu "iSeries device drivers"
 config VIODASD
 	tristate "iSeries Virtual I/O disk support"
 	depends on BLOCK
+	select VIOPATH
 	help
 	  If you are running on an iSeries system and you want to use
 	  virtual disks created and managed by OS/400, say Y.
 
 config VIOCD
 	tristate "iSeries Virtual I/O CD support"
+	select VIOPATH
 	help
 	  If you are running Linux on an IBM iSeries system and you want to
 	  read a CD drive owned by OS/400, say Y here.
 
 config VIOTAPE
 	tristate "iSeries Virtual Tape Support"
+	select VIOPATH
 	help
 	  If you are running Linux on an iSeries system and you want Linux
 	  to read and/or write a tape drive owned by OS/400, say Y here.
@@ -30,5 +33,3 @@ endmenu
 
 config VIOPATH
 	bool
-	depends on VIODASD || VIOCD || VIOTAPE || ISERIES_VETH
-	default y

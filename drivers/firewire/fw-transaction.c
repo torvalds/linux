@@ -19,6 +19,7 @@
  */
 
 #include <linux/completion.h>
+#include <linux/idr.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
 #include <linux/module.h>
@@ -971,6 +972,7 @@ static void __exit fw_core_cleanup(void)
 {
 	unregister_chrdev(fw_cdev_major, "firewire");
 	bus_unregister(&fw_bus_type);
+	idr_destroy(&fw_device_idr);
 }
 
 module_init(fw_core_init);

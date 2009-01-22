@@ -1004,7 +1004,7 @@ static inline void bdx_rxdb_free_elem(struct rxdb *db, int n)
  * skb for rx. It assumes that Rx is desabled in HW
  * funcs are grouped for better cache usage
  *
- * RxD fifo is smaller then RxF fifo by design. Upon high load, RxD will be
+ * RxD fifo is smaller than RxF fifo by design. Upon high load, RxD will be
  * filled and packets will be dropped by nic without getting into host or
  * cousing interrupt. Anyway, in that condition, host has no chance to proccess
  * all packets, but dropping in nic is cheaper, since it takes 0 cpu cycles
@@ -1826,7 +1826,7 @@ static void bdx_tx_free(struct bdx_priv *priv)
  *
  * Pushes desc to TxD fifo and overlaps it if needed.
  * NOTE: this func does not check for available space. this is responsibility
- *    of the caller. Neither does it check that data size is smaller then
+ *    of the caller. Neither does it check that data size is smaller than
  *    fifo size.
  */
 static void bdx_tx_push_desc(struct bdx_priv *priv, void *data, int size)

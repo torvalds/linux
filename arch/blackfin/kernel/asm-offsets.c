@@ -56,6 +56,9 @@ int main(void)
 	/* offsets into the thread struct */
 	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
 	DEFINE(THREAD_USP, offsetof(struct thread_struct, usp));
+	DEFINE(THREAD_SR, offsetof(struct thread_struct, seqstat));
+	DEFINE(PT_SR, offsetof(struct thread_struct, seqstat));
+	DEFINE(THREAD_ESP0, offsetof(struct thread_struct, esp0));
 	DEFINE(THREAD_PC, offsetof(struct thread_struct, pc));
 	DEFINE(KERNEL_STACK_SIZE, THREAD_SIZE);
 
@@ -127,6 +130,32 @@ int main(void)
 	/* signal defines */
 	DEFINE(SIGSEGV, SIGSEGV);
 	DEFINE(SIGTRAP, SIGTRAP);
+
+	/* PDA management (in L1 scratchpad) */
+	DEFINE(PDA_SYSCFG, offsetof(struct blackfin_pda, syscfg));
+#ifdef CONFIG_SMP
+	DEFINE(PDA_IRQFLAGS, offsetof(struct blackfin_pda, imask));
+#endif
+	DEFINE(PDA_IPDT, offsetof(struct blackfin_pda, ipdt));
+	DEFINE(PDA_IPDT_SWAPCOUNT, offsetof(struct blackfin_pda, ipdt_swapcount));
+	DEFINE(PDA_DPDT, offsetof(struct blackfin_pda, dpdt));
+	DEFINE(PDA_DPDT_SWAPCOUNT, offsetof(struct blackfin_pda, dpdt_swapcount));
+	DEFINE(PDA_EXIPTR, offsetof(struct blackfin_pda, ex_iptr));
+	DEFINE(PDA_EXOPTR, offsetof(struct blackfin_pda, ex_optr));
+	DEFINE(PDA_EXBUF, offsetof(struct blackfin_pda, ex_buf));
+	DEFINE(PDA_EXIMASK, offsetof(struct blackfin_pda, ex_imask));
+	DEFINE(PDA_EXSTACK, offsetof(struct blackfin_pda, ex_stack));
+#ifdef ANOMALY_05000261
+	DEFINE(PDA_LFRETX, offsetof(struct blackfin_pda, last_cplb_fault_retx));
+#endif
+	DEFINE(PDA_DCPLB, offsetof(struct blackfin_pda, dcplb_fault_addr));
+	DEFINE(PDA_ICPLB, offsetof(struct blackfin_pda, icplb_fault_addr));
+	DEFINE(PDA_RETX, offsetof(struct blackfin_pda, retx));
+	DEFINE(PDA_SEQSTAT, offsetof(struct blackfin_pda, seqstat));
+#ifdef CONFIG_SMP
+	/* Inter-core lock (in L2 SRAM) */
+	DEFINE(SIZEOF_CORELOCK, sizeof(struct corelock_slot));
+#endif
 
 	return 0;
 }

@@ -1463,7 +1463,7 @@ static int __devinit add_card(struct pci_dev *dev,
 
                                 /* info_length, crc_length and 1394 magic number to check, if it is really a bus info block */
 				if (((be32_to_cpu(lynx->bus_info_block[0]) & 0xffff0000) == 0x04040000) &&
-				    (lynx->bus_info_block[1] == __constant_cpu_to_be32(0x31333934)))
+				    (lynx->bus_info_block[1] == IEEE1394_BUSID_MAGIC))
                                 {
                                         PRINT(KERN_DEBUG, lynx->id, "read a valid bus info block from");
                                 } else {

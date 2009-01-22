@@ -917,6 +917,7 @@ static const struct net_device_ops rtl8139_netdev_ops = {
 	.ndo_stop		= rtl8139_close,
 	.ndo_get_stats		= rtl8139_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_start_xmit		= rtl8139_start_xmit,
 	.ndo_set_multicast_list	= rtl8139_set_rx_mode,
 	.ndo_do_ioctl		= netdev_ioctl,
@@ -924,7 +925,6 @@ static const struct net_device_ops rtl8139_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= rtl8139_poll_controller,
 #endif
-
 };
 
 static int __devinit rtl8139_init_one (struct pci_dev *pdev,

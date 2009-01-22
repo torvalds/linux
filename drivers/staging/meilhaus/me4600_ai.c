@@ -2629,11 +2629,11 @@ static irqreturn_t me4600_ai_isr(int irq, void *dev_id, struct pt_regs *regs)
 		if ((irq_status & (ME4600_IRQ_STATUS_BIT_AI_HF | ME4600_IRQ_STATUS_BIT_SC | ME4600_IRQ_STATUS_BIT_LE)) == ME4600_IRQ_STATUS_BIT_LE) {	//This is security check case. LE is unused. This should never ever happend.
 			PINFO
 			    ("%ld Shared interrupt. %s(): irq_status_reg=LE_IRQ\n",
-			     jiffies, __FUNCTION__);
+			     jiffies, __func__);
 		} else {
 			PINFO
 			    ("%ld Shared interrupt. %s(): irq_status_reg=0x%04X\n",
-			     jiffies, __FUNCTION__, irq_status);
+			     jiffies, __func__, irq_status);
 		}
 #endif
 		return IRQ_NONE;
@@ -3329,7 +3329,7 @@ static void me4600_ai_work_control_task(struct work_struct *work)
 	instance =
 	    container_of((void *)work, me4600_ai_subdevice_t, ai_control_task);
 #endif
-	PINFO("<%s: %ld> executed.\n", __FUNCTION__, jiffies);
+	PINFO("<%s: %ld> executed.\n", __func__, jiffies);
 
 	status = inl(instance->status_reg);
 	PDEBUG_REG("status_reg inl(0x%lX+0x%lX)=0x%x\n", instance->reg_base,
@@ -3428,7 +3428,7 @@ static void me4600_ai_work_control_task(struct work_struct *work)
 		queue_delayed_work(instance->me4600_workqueue,
 				   &instance->ai_control_task, 1);
 	} else {
-		PINFO("<%s> Ending control task.\n", __FUNCTION__);
+		PINFO("<%s> Ending control task.\n", __func__);
 	}
 
 }

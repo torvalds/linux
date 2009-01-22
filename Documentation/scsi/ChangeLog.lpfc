@@ -733,7 +733,7 @@ Changes from 20040920 to 20041018
 	  I/O completion path a little more, especially taking care of
 	  fast-pathing the non-error case.  Also removes tons of dead
 	  members and defines from lpfc_scsi.h - e.g. lpfc_target is down
-	  to nothing more then the lpfc_nodelist pointer.
+	  to nothing more than the lpfc_nodelist pointer.
 	* Added binary sysfs file to issue mbox commands
 	* Replaced #if __BIG_ENDIAN with #if __BIG_ENDIAN_BITFIELD for
 	  compatibility with the user space applications.

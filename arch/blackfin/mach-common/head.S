@@ -13,6 +13,7 @@
 #include <asm/blackfin.h>
 #include <asm/thread_info.h>
 #include <asm/trace.h>
+#include <asm/asm-offsets.h>
 
 __INIT
 
@@ -111,33 +112,26 @@ ENTRY(__start)
 	 * This happens here, since L1 gets clobbered
 	 * below
 	 */
-	p0.l = _saved_retx;
-	p0.h = _saved_retx;
+	GET_PDA(p0, r0);
+	r7 = [p0 + PDA_RETX];
 	p1.l = _init_saved_retx;
 	p1.h = _init_saved_retx;
-	r0 = [p0];
-	[p1] = r0;
+	[p1] = r7;
 
-	p0.l = _saved_dcplb_fault_addr;
-	p0.h = _saved_dcplb_fault_addr;
+	r7 = [p0 + PDA_DCPLB];
 	p1.l = _init_saved_dcplb_fault_addr;
 	p1.h = _init_saved_dcplb_fault_addr;
-	r0 = [p0];
-	[p1] = r0;
+	[p1] = r7;
 
-	p0.l = _saved_icplb_fault_addr;
-	p0.h = _saved_icplb_fault_addr;
+	r7 = [p0 + PDA_ICPLB];
 	p1.l = _init_saved_icplb_fault_addr;
 	p1.h = _init_saved_icplb_fault_addr;
-	r0 = [p0];
-	[p1] = r0;
+	[p1] = r7;
 
-	p0.l = _saved_seqstat;
-	p0.h = _saved_seqstat;
+	r7 = [p0 + PDA_SEQSTAT];
 	p1.l = _init_saved_seqstat;
 	p1.h = _init_saved_seqstat;
-	r0 = [p0];
-	[p1] = r0;
+	[p1] = r7;
 #endif
 
 	/* Initialize stack pointer */
@@ -153,7 +147,7 @@ ENTRY(__start)
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bfin_relocate_l1_mem;
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
-	call _start_dma_code;
+	call _init_clocks;
 #endif
 
 	/* This section keeps the processor in supervisor mode
@@ -170,12 +164,8 @@ ENTRY(__start)
 	[p0] = p1;
 	csync;
 
-	p0.l = lo(IMASK);
-	p0.h = hi(IMASK);
-	p1.l = IMASK_IVG15;
-	p1.h = 0x0;
-	[p0] = p1;
-	csync;
+	r0 = EVT_IVG15 (z);
+	sti r0;
 
 	raise 15;
 	p0.l = .LWAIT_HERE;
@@ -195,6 +185,19 @@ ENDPROC(__start)
 # define WDOG_CTL WDOGA_CTL
 #endif
 
+ENTRY(__init_clear_bss)
+	r2 = r2 - r1;
+	cc = r2 == 0;
+	if cc jump .L_bss_done;
+	r2 >>= 2;
+	p1 = r1;
+	p2 = r2;
+	lsetup (1f, 1f) lc0 = p2;
+1:	[p1++] = r0;
+.L_bss_done:
+	rts;
+ENDPROC(__init_clear_bss)
+
 ENTRY(_real_start)
 	/* Enable nested interrupts */
 	[--sp] = reti;
@@ -206,87 +209,34 @@ ENTRY(_real_start)
 	w[p0] = r0;
 	ssync;
 
+	r0 = 0 (x);
+	/* Zero out all of the fun bss regions */
 #if L1_DATA_A_LENGTH > 0
 	r1.l = __sbss_l1;
 	r1.h = __sbss_l1;
 	r2.l = __ebss_l1;
 	r2.h = __ebss_l1;
-	r0 = 0 (z);
-	r2 = r2 - r1;
-	cc = r2 == 0;
-	if cc jump .L_a_l1_done;
-	r2 >>= 2;
-	p1 = r1;
-	p2 = r2;
-	lsetup (.L_clear_a_l1, .L_clear_a_l1 ) lc0 = p2;
-.L_clear_a_l1:
-	[p1++] = r0;
-.L_a_l1_done:
+	call __init_clear_bss
 #endif
-
 #if L1_DATA_B_LENGTH > 0
 	r1.l = __sbss_b_l1;
 	r1.h = __sbss_b_l1;
 	r2.l = __ebss_b_l1;
 	r2.h = __ebss_b_l1;
-	r0 = 0 (z);
-	r2 = r2 - r1;
-	cc = r2 == 0;
-	if cc jump .L_b_l1_done;
-	r2 >>= 2;
-	p1 = r1;
-	p2 = r2;
-	lsetup (.L_clear_b_l1, .L_clear_b_l1 ) lc0 = p2;
-.L_clear_b_l1:
-	[p1++] = r0;
-.L_b_l1_done:
+	call __init_clear_bss
 #endif
-
 #if L2_LENGTH > 0
 	r1.l = __sbss_l2;
 	r1.h = __sbss_l2;
 	r2.l = __ebss_l2;
 	r2.h = __ebss_l2;
-	r0 = 0 (z);
-	r2 = r2 - r1;
-	cc = r2 == 0;
-	if cc jump .L_l2_done;
-	r2 >>= 2;
-	p1 = r1;
-	p2 = r2;
-	lsetup (.L_clear_l2, .L_clear_l2 ) lc0 = p2;
-.L_clear_l2:
-	[p1++] = r0;
-.L_l2_done:
+	call __init_clear_bss
 #endif
-
-	/* Zero out the bss region
-	 * Note: this will fail if bss is 0 bytes ...
-	 */
-	r0 = 0 (z);
 	r1.l = ___bss_start;
 	r1.h = ___bss_start;
 	r2.l = ___bss_stop;
 	r2.h = ___bss_stop;
-	r2 = r2 - r1;
-	r2 >>= 2;
-	p1 = r1;
-	p2 = r2;
-	lsetup (.L_clear_bss, .L_clear_bss) lc0 = p2;
-.L_clear_bss:
-	[p1++] = r0;
-
-	/* In case there is a NULL pointer reference,
-	 * zero out region before stext
-	 */
-	p1 = r0;
-	r2.l = __stext;
-	r2.h = __stext;
-	r2 >>= 2;
-	p2 = r2;
-	lsetup (.L_clear_zero, .L_clear_zero) lc0 = p2;
-.L_clear_zero:
-	[p1++] = r0;
+	call __init_clear_bss
 
 	/* Pass the u-boot arguments to the global value command line */
 	R0 = R7;
@@ -299,6 +249,9 @@ ENTRY(_real_start)
 	sp = sp + p1;
 	usp = sp;
 	fp = sp;
+	sp += -12;
+	call _init_pda
+	sp += 12;
 	jump.l _start_kernel;
 ENDPROC(_real_start)
 

@@ -24,6 +24,8 @@
 #include <linux/amba/clcd.h>
 #include <linux/err.h>
 
+#include <asm/irq.h>
+
 #include <mach/netx-regs.h>
 #include <mach/hardware.h>
 

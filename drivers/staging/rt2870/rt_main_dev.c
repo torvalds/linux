@@ -1554,7 +1554,7 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 #if 0
 //	if ((pkt->data[0] & 0x1) == 0)
 	{
-		//hex_dump(__FUNCTION__, pkt->data, pkt->len);
+		//hex_dump(__func__, pkt->data, pkt->len);
 		printk("pPacket = %x\n", pPacket);
 	}
 #endif

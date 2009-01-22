@@ -128,7 +128,7 @@ static struct ctl_table_header *ip6_header;
 
 int ipv6_sysctl_register(void)
 {
-	int err = -ENOMEM;;
+	int err = -ENOMEM;
 
 	ip6_header = register_net_sysctl_rotable(net_ipv6_ctl_path, ipv6_table);
 	if (ip6_header == NULL)

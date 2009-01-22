@@ -262,15 +262,6 @@ int i1480u_stop(struct net_device *net_dev)
 	return 0;
 }
 
-
-/** Report statistics */
-struct net_device_stats *i1480u_get_stats(struct net_device *net_dev)
-{
-	struct i1480u *i1480u = netdev_priv(net_dev);
-	return &i1480u->stats;
-}
-
-
 /**
  *
  * Change the interface config--we probably don't have to do anything.

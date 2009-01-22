@@ -117,8 +117,8 @@ void i1480u_tx_cb(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		spin_lock_irqsave(&i1480u->lock, flags);
-		i1480u->stats.tx_packets++;
-		i1480u->stats.tx_bytes += urb->actual_length;
+		net_dev->stats.tx_packets++;
+		net_dev->stats.tx_bytes += urb->actual_length;
 		spin_unlock_irqrestore(&i1480u->lock, flags);
 		break;
 	case -ECONNRESET:	/* Not an error, but a controlled situation; */
@@ -530,7 +530,7 @@ int i1480u_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	return NETDEV_TX_OK;
 error:
 	dev_kfree_skb_any(skb);
-	i1480u->stats.tx_dropped++;
+	net_dev->stats.tx_dropped++;
 out:
 	return NETDEV_TX_OK;
 }

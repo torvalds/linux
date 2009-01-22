@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Name: acpi.h - Master include file, Publics and external data.
+ * Name: acpi.h - Master public include file used to interface to ACPICA
  *
  *****************************************************************************/
 
@@ -45,25 +45,22 @@
 #define __ACPI_H__
 
 /*
- * Common includes for all ACPI driver files
- * We put them here because we don't want to duplicate them
- * in the rest of the source code again and again.
+ * Public include files for use by code that will interface to ACPICA.
+ *
+ * Information includes the ACPICA data types, names, exceptions, and
+ * external interface prototypes. Also included are the definitions for
+ * all ACPI tables (FADT, MADT, etc.)
+ *
+ * Note: The order of these include files is important.
  */
-#include "acnames.h"		/* Global ACPI names and strings */
-#include "acconfig.h"		/* Configuration constants */
-#include "platform/acenv.h"	/* Target environment specific items */
-#include "actypes.h"		/* Fundamental common data types */
-#include "acexcep.h"		/* ACPI exception codes */
-#include "acmacros.h"		/* C macros */
+#include "platform/acenv.h"	/* Environment-specific items */
+#include "acnames.h"		/* Common ACPI names and strings */
+#include "actypes.h"		/* ACPICA data types and structures */
+#include "acexcep.h"		/* ACPICA exceptions */
 #include "actbl.h"		/* ACPI table definitions */
-#include "aclocal.h"		/* Internal data types */
 #include "acoutput.h"		/* Error output and Debug macros */
-#include "acpiosxf.h"		/* Interfaces to the ACPI-to-OS layer */
+#include "acrestyp.h"		/* Resource Descriptor structs */
+#include "acpiosxf.h"		/* OSL interfaces (ACPICA-to-OS) */
 #include "acpixf.h"		/* ACPI core subsystem external interfaces */
-#include "acobject.h"		/* ACPI internal object */
-#include "acstruct.h"		/* Common structures */
-#include "acglobal.h"		/* All global variables */
-#include "achware.h"		/* Hardware defines and interfaces */
-#include "acutils.h"		/* Utility interfaces */
 
 #endif				/* __ACPI_H__ */

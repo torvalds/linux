@@ -98,7 +98,7 @@ struct compat_ncp_objectname_ioctl
 {
 	s32		auth_type;
 	u32		object_name_len;
-	compat_caddr_t	object_name;	/* an userspace data, in most cases user name */
+	compat_caddr_t	object_name;	/* a userspace data, in most cases user name */
 };
 
 struct compat_ncp_fs_info_v2 {

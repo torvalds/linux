@@ -101,7 +101,7 @@ static const struct {
 	{ IBMVFC_FABRIC_MAPPED, IBMVFC_UNABLE_TO_ESTABLISH, DID_ERROR, 1, 1, "unable to establish" },
 	{ IBMVFC_FABRIC_MAPPED, IBMVFC_XPORT_FAULT, DID_OK, 1, 0, "transport fault" },
 	{ IBMVFC_FABRIC_MAPPED, IBMVFC_CMD_TIMEOUT, DID_TIME_OUT, 1, 1, "command timeout" },
-	{ IBMVFC_FABRIC_MAPPED, IBMVFC_ENETDOWN, DID_NO_CONNECT, 1, 1, "network down" },
+	{ IBMVFC_FABRIC_MAPPED, IBMVFC_ENETDOWN, DID_TRANSPORT_DISRUPTED, 1, 1, "network down" },
 	{ IBMVFC_FABRIC_MAPPED, IBMVFC_HW_FAILURE, DID_ERROR, 1, 1, "hardware failure" },
 	{ IBMVFC_FABRIC_MAPPED, IBMVFC_LINK_DOWN_ERR, DID_REQUEUE, 0, 0, "link down" },
 	{ IBMVFC_FABRIC_MAPPED, IBMVFC_LINK_DEAD_ERR, DID_ERROR, 0, 0, "link dead" },
@@ -115,11 +115,11 @@ static const struct {
 
 	{ IBMVFC_VIOS_FAILURE, IBMVFC_CRQ_FAILURE, DID_REQUEUE, 1, 1, "CRQ failure" },
 	{ IBMVFC_VIOS_FAILURE, IBMVFC_SW_FAILURE, DID_ERROR, 0, 1, "software failure" },
-	{ IBMVFC_VIOS_FAILURE, IBMVFC_INVALID_PARAMETER, DID_ABORT, 0, 1, "invalid parameter" },
-	{ IBMVFC_VIOS_FAILURE, IBMVFC_MISSING_PARAMETER, DID_ABORT, 0, 1, "missing parameter" },
+	{ IBMVFC_VIOS_FAILURE, IBMVFC_INVALID_PARAMETER, DID_ERROR, 0, 1, "invalid parameter" },
+	{ IBMVFC_VIOS_FAILURE, IBMVFC_MISSING_PARAMETER, DID_ERROR, 0, 1, "missing parameter" },
 	{ IBMVFC_VIOS_FAILURE, IBMVFC_HOST_IO_BUS, DID_ERROR, 1, 1, "host I/O bus failure" },
-	{ IBMVFC_VIOS_FAILURE, IBMVFC_TRANS_CANCELLED, DID_ABORT, 0, 1, "transaction cancelled" },
-	{ IBMVFC_VIOS_FAILURE, IBMVFC_TRANS_CANCELLED_IMPLICIT, DID_ABORT, 0, 1, "transaction cancelled implicit" },
+	{ IBMVFC_VIOS_FAILURE, IBMVFC_TRANS_CANCELLED, DID_ERROR, 0, 1, "transaction cancelled" },
+	{ IBMVFC_VIOS_FAILURE, IBMVFC_TRANS_CANCELLED_IMPLICIT, DID_ERROR, 0, 1, "transaction cancelled implicit" },
 	{ IBMVFC_VIOS_FAILURE, IBMVFC_INSUFFICIENT_RESOURCE, DID_REQUEUE, 1, 1, "insufficient resources" },
 	{ IBMVFC_VIOS_FAILURE, IBMVFC_PLOGI_REQUIRED, DID_ERROR, 0, 1, "port login required" },
 	{ IBMVFC_VIOS_FAILURE, IBMVFC_COMMAND_FAILED, DID_ERROR, 1, 1, "command failed" },
@@ -933,7 +933,7 @@ static void ibmvfc_get_host_speed(struct Scsi_Host *shost)
 			fc_host_speed(shost) = FC_PORTSPEED_16GBIT;
 			break;
 		default:
-			ibmvfc_log(vhost, 3, "Unknown port speed: %ld Gbit\n",
+			ibmvfc_log(vhost, 3, "Unknown port speed: %lld Gbit\n",
 				   vhost->login_buf->resp.link_speed / 100);
 			fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
@@ -1145,10 +1145,10 @@ static void ibmvfc_set_login_info(struct ibmvfc_host *vhost)
 	login_info->async.len = vhost->async_crq.size * sizeof(*vhost->async_crq.msgs);
 	strncpy(login_info->partition_name, vhost->partition_name, IBMVFC_MAX_NAME);
 	strncpy(login_info->device_name,
-		vhost->host->shost_gendev.bus_id, IBMVFC_MAX_NAME);
+		dev_name(&vhost->host->shost_gendev), IBMVFC_MAX_NAME);
 
 	location = of_get_property(of_node, "ibm,loc-code", NULL);
-	location = location ? location : vhost->dev->bus_id;
+	location = location ? location : dev_name(vhost->dev);
 	strncpy(login_info->drc_name, location, IBMVFC_MAX_NAME);
 }
 
@@ -2149,8 +2149,8 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 {
 	const char *desc = ibmvfc_get_ae_desc(crq->event);
 
-	ibmvfc_log(vhost, 3, "%s event received. scsi_id: %lx, wwpn: %lx,"
-		   " node_name: %lx\n", desc, crq->scsi_id, crq->wwpn, crq->node_name);
+	ibmvfc_log(vhost, 3, "%s event received. scsi_id: %llx, wwpn: %llx,"
+		   " node_name: %llx\n", desc, crq->scsi_id, crq->wwpn, crq->node_name);
 
 	switch (crq->event) {
 	case IBMVFC_AE_LINK_UP:
@@ -2184,7 +2184,7 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 		ibmvfc_link_down(vhost, IBMVFC_HALTED);
 		break;
 	default:
-		dev_err(vhost->dev, "Unknown async event received: %ld\n", crq->event);
+		dev_err(vhost->dev, "Unknown async event received: %lld\n", crq->event);
 		break;
 	};
 }
@@ -2261,13 +2261,13 @@ static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost)
 	 * actually sent
 	 */
 	if (unlikely(!ibmvfc_valid_event(&vhost->pool, evt))) {
-		dev_err(vhost->dev, "Returned correlation_token 0x%08lx is invalid!\n",
+		dev_err(vhost->dev, "Returned correlation_token 0x%08llx is invalid!\n",
 			crq->ioba);
 		return;
 	}
 
 	if (unlikely(atomic_read(&evt->free))) {
-		dev_err(vhost->dev, "Received duplicate correlation_token 0x%08lx!\n",
+		dev_err(vhost->dev, "Received duplicate correlation_token 0x%08llx!\n",
 			crq->ioba);
 		return;
 	}
@@ -3259,7 +3259,7 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost, u64 scsi_id)
 
 	tgt = mempool_alloc(vhost->tgt_pool, GFP_KERNEL);
 	if (!tgt) {
-		dev_err(vhost->dev, "Target allocation failure for scsi id %08lx\n",
+		dev_err(vhost->dev, "Target allocation failure for scsi id %08llx\n",
 			scsi_id);
 		return -ENOMEM;
 	}

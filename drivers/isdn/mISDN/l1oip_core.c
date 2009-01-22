@@ -777,6 +777,8 @@ fail:
 static void
 l1oip_socket_close(struct l1oip *hc)
 {
+	struct dchannel *dch = hc->chan[hc->d_idx].dch;
+
 	/* kill thread */
 	if (hc->socket_thread) {
 		if (debug & DEBUG_L1OIP_SOCKET)
@@ -784,6 +786,16 @@ l1oip_socket_close(struct l1oip *hc)
 				"killing...\n", __func__);
 		send_sig(SIGTERM, hc->socket_thread, 0);
 		wait_for_completion(&hc->socket_complete);
+	}
+
+	/* if active, we send up a PH_DEACTIVATE and deactivate */
+	if (test_bit(FLG_ACTIVE, &dch->Flags)) {
+		if (debug & (DEBUG_L1OIP_MSG|DEBUG_L1OIP_SOCKET))
+			printk(KERN_DEBUG "%s: interface become deactivated "
+				"due to timeout\n", __func__);
+		test_and_clear_bit(FLG_ACTIVE, &dch->Flags);
+		_queue_data(&dch->dev.D, PH_DEACTIVATE_IND, MISDN_ID_ANY, 0,
+			NULL, GFP_ATOMIC);
 	}
 }
 
@@ -944,7 +956,8 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = MISDN_CTRL_SETPEER | MISDN_CTRL_UNSETPEER;
+		cq->op = MISDN_CTRL_SETPEER | MISDN_CTRL_UNSETPEER
+			| MISDN_CTRL_GETPEER;
 		break;
 	case MISDN_CTRL_SETPEER:
 		hc->remoteip = (u32)cq->p1;
@@ -963,6 +976,13 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 				__func__);
 		hc->remoteip = 0;
 		l1oip_socket_open(hc);
+		break;
+	case MISDN_CTRL_GETPEER:
+		if (debug & DEBUG_L1OIP_SOCKET)
+			printk(KERN_DEBUG "%s: getting ip address.\n",
+				__func__);
+		cq->p1 = hc->remoteip;
+		cq->p2 = hc->remoteport | (hc->localport << 16);
 		break;
 	default:
 		printk(KERN_WARNING "%s: unknown Op %x\n",
@@ -1413,7 +1433,8 @@ init_card(struct l1oip *hc, int pri, int bundle)
 		hc->chan[i + ch].bch = bch;
 		set_channelmap(bch->nr, dch->dev.channelmap);
 	}
-	ret = mISDN_register_device(&dch->dev, hc->name);
+	/* TODO: create a parent device for this driver */
+	ret = mISDN_register_device(&dch->dev, NULL, hc->name);
 	if (ret)
 		return ret;
 	hc->registered = 1;

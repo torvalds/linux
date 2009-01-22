@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/initrd.h>
+#include <linux/async.h>
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_fs_sb.h>
@@ -372,6 +373,7 @@ void __init prepare_namespace(void)
 	/* wait for the known devices to complete their probing */
 	while (driver_probe_done() != 0)
 		msleep(100);
+	async_synchronize_full();
 
 	md_run_setup();
 

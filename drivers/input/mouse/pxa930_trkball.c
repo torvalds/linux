@@ -186,7 +186,7 @@ static int __devinit pxa930_trkball_probe(struct platform_device *pdev)
 	error = request_irq(irq, pxa930_trkball_interrupt, IRQF_DISABLED,
 			    pdev->name, trkball);
 	if (error) {
-		dev_err(&pdev->dev, "failed to request irq: %d\n", ret);
+		dev_err(&pdev->dev, "failed to request irq: %d\n", error);
 		goto failed_free_io;
 	}
 
@@ -227,7 +227,7 @@ failed_free_io:
 	iounmap(trkball->mmio_base);
 failed:
 	kfree(trkball);
-	return ret;
+	return error;
 }
 
 static int __devexit pxa930_trkball_remove(struct platform_device *pdev)

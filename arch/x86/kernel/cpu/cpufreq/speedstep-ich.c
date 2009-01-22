@@ -229,7 +229,7 @@ static unsigned int speedstep_detect_chipset (void)
 	return 0;
 }
 
-static unsigned int _speedstep_get(const cpumask_t *cpus)
+static unsigned int _speedstep_get(const struct cpumask *cpus)
 {
 	unsigned int speed;
 	cpumask_t cpus_allowed;
@@ -244,7 +244,7 @@ static unsigned int _speedstep_get(const cpumask_t *cpus)
 
 static unsigned int speedstep_get(unsigned int cpu)
 {
-	return _speedstep_get(&cpumask_of_cpu(cpu));
+	return _speedstep_get(cpumask_of(cpu));
 }
 
 /**
@@ -267,7 +267,7 @@ static int speedstep_target (struct cpufreq_policy *policy,
 	if (cpufreq_frequency_table_target(policy, &speedstep_freqs[0], target_freq, relation, &newstate))
 		return -EINVAL;
 
-	freqs.old = _speedstep_get(&policy->cpus);
+	freqs.old = _speedstep_get(policy->cpus);
 	freqs.new = speedstep_freqs[newstate].frequency;
 	freqs.cpu = policy->cpu;
 
@@ -279,20 +279,20 @@ static int speedstep_target (struct cpufreq_policy *policy,
 
 	cpus_allowed = current->cpus_allowed;
 
-	for_each_cpu_mask_nr(i, policy->cpus) {
+	for_each_cpu(i, policy->cpus) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	}
 
 	/* switch to physical CPU where state is to be changed */
-	set_cpus_allowed_ptr(current, &policy->cpus);
+	set_cpus_allowed_ptr(current, policy->cpus);
 
 	speedstep_set_state(newstate);
 
 	/* allow to be run on all CPUs */
 	set_cpus_allowed_ptr(current, &cpus_allowed);
 
-	for_each_cpu_mask_nr(i, policy->cpus) {
+	for_each_cpu(i, policy->cpus) {
 		freqs.cpu = i;
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 	}
@@ -322,11 +322,11 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 
 	/* only run on CPU to be set, or on its sibling */
 #ifdef CONFIG_SMP
-	policy->cpus = per_cpu(cpu_sibling_map, policy->cpu);
+	cpumask_copy(policy->cpus, &per_cpu(cpu_sibling_map, policy->cpu));
 #endif
 
 	cpus_allowed = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, &policy->cpus);
+	set_cpus_allowed_ptr(current, policy->cpus);
 
 	/* detect low and high frequency and transition latency */
 	result = speedstep_get_freqs(speedstep_processor,
@@ -339,7 +339,7 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 		return result;
 
 	/* get current speed setting */
-	speed = _speedstep_get(&policy->cpus);
+	speed = _speedstep_get(policy->cpus);
 	if (!speed)
 		return -EIO;
 

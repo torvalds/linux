@@ -569,7 +569,6 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 
 	cafe_smbus_enable_irq(cam);
 	adap->id = I2C_HW_SMBUS_CAFE;
-	adap->class = I2C_CLASS_CAM_DIGITAL;
 	adap->owner = THIS_MODULE;
 	adap->client_register = cafe_smbus_attach;
 	adap->client_unregister = cafe_smbus_detach;

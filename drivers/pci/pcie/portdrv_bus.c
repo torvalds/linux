@@ -16,14 +16,10 @@
 #include "portdrv.h"
 
 static int pcie_port_bus_match(struct device *dev, struct device_driver *drv);
-static int pcie_port_bus_suspend(struct device *dev, pm_message_t state);
-static int pcie_port_bus_resume(struct device *dev);
 
 struct bus_type pcie_port_bus_type = {
 	.name 		= "pci_express",
 	.match 		= pcie_port_bus_match,
-	.suspend	= pcie_port_bus_suspend,
-	.resume		= pcie_port_bus_resume, 
 };
 EXPORT_SYMBOL_GPL(pcie_port_bus_type);
 
@@ -49,32 +45,12 @@ static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-static int pcie_port_bus_suspend(struct device *dev, pm_message_t state)
+int pcie_port_bus_register(void)
 {
-	struct pcie_device *pciedev;
-	struct pcie_port_service_driver *driver;
-
-	if (!dev || !dev->driver)
-		return 0;
-
-	pciedev = to_pcie_device(dev);
- 	driver = to_service_driver(dev->driver);
-	if (driver && driver->suspend)
-		driver->suspend(pciedev, state);
-	return 0;
+	return bus_register(&pcie_port_bus_type);
 }
 
-static int pcie_port_bus_resume(struct device *dev)
+void pcie_port_bus_unregister(void)
 {
-	struct pcie_device *pciedev;
-	struct pcie_port_service_driver *driver;
-
-	if (!dev || !dev->driver)
-		return 0;
-
-	pciedev = to_pcie_device(dev);
- 	driver = to_service_driver(dev->driver);
-	if (driver && driver->resume)
-		driver->resume(pciedev);
-	return 0;
+	bus_unregister(&pcie_port_bus_type);
 }

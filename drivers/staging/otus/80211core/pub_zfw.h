@@ -23,7 +23,7 @@
 /* Buffer management */
 #ifdef ZM_ENABLE_BUFFER_DEBUG
 extern zbuf_t* zfwBufAllocateWithContext(zdev_t* dev, u16_t len, u8_t *functionName, ULONG line);
-#define zfwBufAllocate(dev, len)  zfwBufAllocateWithContext(dev, len, (u8_t *)__FUNCTION__, __LINE__)
+#define zfwBufAllocate(dev, len)  zfwBufAllocateWithContext(dev, len, (u8_t *)__func__, __LINE__)
 #else
 extern zbuf_t* zfwBufAllocate(zdev_t* dev, u16_t len);
 #endif

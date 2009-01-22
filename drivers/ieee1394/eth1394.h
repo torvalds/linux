@@ -54,7 +54,6 @@ enum eth1394_bc_states { ETHER1394_BC_ERROR,
 
 /* Private structure for our ethernet driver */
 struct eth1394_priv {
-	struct net_device_stats stats;	/* Device stats			 */
 	struct hpsb_host *host;		/* The card for this dev	 */
 	u16 bc_maxpayload;		/* Max broadcast payload	 */
 	u8 bc_sspd;			/* Max broadcast speed		 */
@@ -82,7 +81,7 @@ struct eth1394_priv {
 
 struct eth1394hdr {
 	unsigned char	h_dest[ETH1394_ALEN];	/* destination eth1394 addr	*/
-	unsigned short	h_proto;		/* packet type ID field	*/
+	__be16		h_proto;		/* packet type ID field	*/
 }  __attribute__((packed));
 
 static inline struct eth1394hdr *eth1394_hdr(const struct sk_buff *skb)
@@ -99,13 +98,13 @@ typedef enum {ETH1394_GASP, ETH1394_WRREQ} eth1394_tx_type;
 struct eth1394_uf_hdr {
 	u16 lf:2;
 	u16 res:14;
-	u16 ether_type;		/* Ethernet packet type */
+	__be16 ether_type;		/* Ethernet packet type */
 } __attribute__((packed));
 #elif defined __LITTLE_ENDIAN_BITFIELD
 struct eth1394_uf_hdr {
 	u16 res:14;
 	u16 lf:2;
-	u16 ether_type;
+	__be16 ether_type;
 } __attribute__((packed));
 #else
 #error Unknown bit field type
@@ -117,7 +116,7 @@ struct eth1394_ff_hdr {
 	u16 lf:2;
 	u16 res1:2;
 	u16 dg_size:12;		/* Datagram size */
-	u16 ether_type;		/* Ethernet packet type */
+	__be16 ether_type;		/* Ethernet packet type */
 	u16 dgl;		/* Datagram label */
 	u16 res2;
 } __attribute__((packed));
@@ -126,7 +125,7 @@ struct eth1394_ff_hdr {
 	u16 dg_size:12;
 	u16 res1:2;
 	u16 lf:2;
-	u16 ether_type;
+	__be16 ether_type;
 	u16 dgl;
 	u16 res2;
 } __attribute__((packed));
@@ -207,11 +206,11 @@ struct eth1394_arp {
 	u16 opcode;		/* ARP Opcode	*/
 	/* Above is exactly the same format as struct arphdr */
 
-	u64 s_uniq_id;		/* Sender's 64bit EUI			*/
+	__be64 s_uniq_id;	/* Sender's 64bit EUI		*/
 	u8 max_rec;		/* Sender's max packet size		*/
 	u8 sspd;		/* Sender's max speed			*/
-	u16 fifo_hi;		/* hi 16bits of sender's FIFO addr	*/
-	u32 fifo_lo;		/* lo 32bits of sender's FIFO addr	*/
+	__be16 fifo_hi;		/* hi 16bits of sender's FIFO addr	*/
+	__be32 fifo_lo;		/* lo 32bits of sender's FIFO addr	*/
 	u32 sip;		/* Sender's IP Address			*/
 	u32 tip;		/* IP Address of requested hw addr	*/
 };

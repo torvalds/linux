@@ -685,7 +685,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (MACHINE_HAS_IEEE)
 		lowcore->extended_save_area_addr = (u32) save_area;
 #else
-	BUG_ON(vdso_alloc_per_cpu(smp_processor_id(), lowcore));
+	if (vdso_alloc_per_cpu(smp_processor_id(), lowcore))
+		BUG();
 #endif
 	set_prefix((u32)(unsigned long) lowcore);
 	local_mcck_enable();

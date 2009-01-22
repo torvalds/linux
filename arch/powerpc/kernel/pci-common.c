@@ -16,7 +16,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#undef DEBUG
+#define DEBUG
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -1356,6 +1356,63 @@ static void __init pcibios_allocate_resources(int pass)
 	}
 }
 
+static void __init pcibios_reserve_legacy_regions(struct pci_bus *bus)
+{
+	struct pci_controller *hose = pci_bus_to_host(bus);
+	resource_size_t	offset;
+	struct resource *res, *pres;
+	int i;
+
+	pr_debug("Reserving legacy ranges for domain %04x\n", pci_domain_nr(bus));
+
+	/* Check for IO */
+	if (!(hose->io_resource.flags & IORESOURCE_IO))
+		goto no_io;
+	offset = (unsigned long)hose->io_base_virt - _IO_BASE;
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	BUG_ON(res == NULL);
+	res->name = "Legacy IO";
+	res->flags = IORESOURCE_IO;
+	res->start = offset;
+	res->end = (offset + 0xfff) & 0xfffffffful;
+	pr_debug("Candidate legacy IO: %pR\n", res);
+	if (request_resource(&hose->io_resource, res)) {
+		printk(KERN_DEBUG
+		       "PCI %04x:%02x Cannot reserve Legacy IO %pR\n",
+		       pci_domain_nr(bus), bus->number, res);
+		kfree(res);
+	}
+
+ no_io:
+	/* Check for memory */
+	offset = hose->pci_mem_offset;
+	pr_debug("hose mem offset: %016llx\n", (unsigned long long)offset);
+	for (i = 0; i < 3; i++) {
+		pres = &hose->mem_resources[i];
+		if (!(pres->flags & IORESOURCE_MEM))
+			continue;
+		pr_debug("hose mem res: %pR\n", pres);
+		if ((pres->start - offset) <= 0xa0000 &&
+		    (pres->end - offset) >= 0xbffff)
+			break;
+	}
+	if (i >= 3)
+		return;
+	res = kzalloc(sizeof(struct resource), GFP_KERNEL);
+	BUG_ON(res == NULL);
+	res->name = "Legacy VGA memory";
+	res->flags = IORESOURCE_MEM;
+	res->start = 0xa0000 + offset;
+	res->end = 0xbffff + offset;
+	pr_debug("Candidate VGA memory: %pR\n", res);
+	if (request_resource(pres, res)) {
+		printk(KERN_DEBUG
+		       "PCI %04x:%02x Cannot reserve VGA memory %pR\n",
+		       pci_domain_nr(bus), bus->number, res);
+		kfree(res);
+	}
+}
+
 void __init pcibios_resource_survey(void)
 {
 	struct pci_bus *b;
@@ -1371,6 +1428,18 @@ void __init pcibios_resource_survey(void)
 		pcibios_allocate_resources(1);
 	}
 
+	/* Before we start assigning unassigned resource, we try to reserve
+	 * the low IO area and the VGA memory area if they intersect the
+	 * bus available resources to avoid allocating things on top of them
+	 */
+	if (!(ppc_pci_flags & PPC_PCI_PROBE_ONLY)) {
+		list_for_each_entry(b, &pci_root_buses, node)
+			pcibios_reserve_legacy_regions(b);
+	}
+
+	/* Now, if the platform didn't decide to blindly trust the firmware,
+	 * we proceed to assigning things that were left unassigned
+	 */
 	if (!(ppc_pci_flags & PPC_PCI_PROBE_ONLY)) {
 		pr_debug("PCI: Assigning unassigned resouces...\n");
 		pci_assign_unassigned_resources();

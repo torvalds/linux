@@ -977,7 +977,7 @@ static void me1600_ao_work_control_task(struct work_struct *work)
 	    container_of((void *)work, me1600_ao_subdevice_t, ao_control_task);
 #endif
 
-	PINFO("<%s: %ld> executed. idx=%d\n", __FUNCTION__, jiffies,
+	PINFO("<%s: %ld> executed. idx=%d\n", __func__, jiffies,
 	      instance->ao_idx);
 
 	if (!((instance->ao_regs_shadows)->trigger & instance->ao_idx)) {	// Output was triggerd.
@@ -1027,7 +1027,7 @@ static void me1600_ao_work_control_task(struct work_struct *work)
 		queue_delayed_work(instance->me1600_workqueue,
 				   &instance->ao_control_task, 1);
 	} else {
-		PINFO("<%s> Ending control task.\n", __FUNCTION__);
+		PINFO("<%s> Ending control task.\n", __func__);
 	}
 
 }

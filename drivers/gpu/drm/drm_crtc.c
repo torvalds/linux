@@ -210,7 +210,7 @@ static int drm_mode_object_get(struct drm_device *dev,
 	int ret;
 
 	WARN(!mutex_is_locked(&dev->mode_config.mutex),
-	     "%s called w/o mode_config lock\n", __FUNCTION__);
+	     "%s called w/o mode_config lock\n", __func__);
 again:
 	if (idr_pre_get(&dev->mode_config.crtc_idr, GFP_KERNEL) == 0) {
 		DRM_ERROR("Ran out memory getting a mode number\n");

@@ -74,6 +74,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		"LowTotal:       %8lu kB\n"
 		"LowFree:        %8lu kB\n"
 #endif
+#ifndef CONFIG_MMU
+		"MmapCopy:       %8lu kB\n"
+#endif
 		"SwapTotal:      %8lu kB\n"
 		"SwapFree:       %8lu kB\n"
 		"Dirty:          %8lu kB\n"
@@ -115,6 +118,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 		K(i.freehigh),
 		K(i.totalram-i.totalhigh),
 		K(i.freeram-i.freehigh),
+#endif
+#ifndef CONFIG_MMU
+		K((unsigned long) atomic_read(&mmap_pages_allocated)),
 #endif
 		K(i.totalswap),
 		K(i.freeswap),

@@ -1,0 +1,54 @@
+#
+# USB OTG infrastructure may be needed for peripheral-only, host-only,
+# or OTG-capable configurations when OTG transceivers or controllers
+# are used.
+#
+
+comment "OTG and related infrastructure"
+
+if USB || USB_GADGET
+
+config USB_OTG_UTILS
+	bool
+	help
+	  Select this to make sure the build includes objects from
+	  the OTG infrastructure directory.
+
+#
+# USB Transceiver Drivers
+#
+config USB_GPIO_VBUS
+	tristate "GPIO based peripheral-only VBUS sensing 'transceiver'"
+	depends on GENERIC_GPIO
+	select USB_OTG_UTILS
+	help
+	  Provides simple GPIO VBUS sensing for controllers with an
+	  internal transceiver via the otg_transceiver interface, and
+	  optionally control of a D+ pullup GPIO as well as a VBUS
+	  current limit regulator.
+
+config ISP1301_OMAP
+	tristate "Philips ISP1301 with OMAP OTG"
+	depends on I2C && ARCH_OMAP_OTG
+	select USB_OTG_UTILS
+	help
+	  If you say yes here you get support for the Philips ISP1301
+	  USB-On-The-Go transceiver working with the OMAP OTG controller.
+	  The ISP1301 is a full speed USB  transceiver which is used in
+	  products including H2, H3, and H4 development boards for Texas
+	  Instruments OMAP processors.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called isp1301_omap.
+
+config TWL4030_USB
+	tristate "TWL4030 USB Transceiver Driver"
+	depends on TWL4030_CORE
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the USB OTG transceiver on TWL4030
+	  family chips (including the TWL5030 and TPS659x0 devices).
+	  This transceiver supports high and full speed devices plus,
+	  in host mode, low speed.
+
+endif # USB || OTG

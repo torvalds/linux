@@ -50,6 +50,7 @@
 #include <asm/sections.h>
 #include <linux/tracepoint.h>
 #include <linux/ftrace.h>
+#include <linux/async.h>
 
 #if 0
 #define DEBUGP printk
@@ -742,8 +743,8 @@ static void wait_for_zero_refcount(struct module *mod)
 	mutex_lock(&module_mutex);
 }
 
-asmlinkage long
-sys_delete_module(const char __user *name_user, unsigned int flags)
+SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
+		unsigned int, flags)
 {
 	struct module *mod;
 	char name[MODULE_NAME_LEN];
@@ -816,6 +817,7 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 		mod->exit();
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
+	async_synchronize_full();
 	mutex_lock(&module_mutex);
 	/* Store the name of the last unloaded module for diagnostic purposes */
 	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
@@ -2294,10 +2296,8 @@ static noinline struct module *load_module(void __user *umod,
 }
 
 /* This is where the real work happens */
-asmlinkage long
-sys_init_module(void __user *umod,
-		unsigned long len,
-		const char __user *uargs)
+SYSCALL_DEFINE3(init_module, void __user *, umod,
+		unsigned long, len, const char __user *, uargs)
 {
 	struct module *mod;
 	int ret = 0;

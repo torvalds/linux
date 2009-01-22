@@ -389,6 +389,7 @@ static const struct net_device_ops sis900_netdev_ops = {
 	.ndo_set_multicast_list	= set_rx_mode,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_do_ioctl		= mii_ioctl,
 	.ndo_tx_timeout		= sis900_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -508,10 +509,10 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 	else
 		ret = sis900_get_mac_addr(pci_dev, net_dev);
 
-	if (ret == 0) {
-		printk(KERN_WARNING "%s: Cannot read MAC address.\n", dev_name);
-		ret = -ENODEV;
-		goto err_unmap_rx;
+	if (!ret || !is_valid_ether_addr(net_dev->dev_addr)) {
+		random_ether_addr(net_dev->dev_addr);
+		printk(KERN_WARNING "%s: Unreadable or invalid MAC address,"
+				"using random generated one\n", dev_name);
 	}
 
 	/* 630ET : set the mii access mode as software-mode */

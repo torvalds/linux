@@ -614,8 +614,10 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	req->vp_idx = vp_idx;
 	req->qos = qos;
 
-	if (ha->rsp_q_map[rsp_que])
+	if (ha->rsp_q_map[rsp_que]) {
 		req->rsp = ha->rsp_q_map[rsp_que];
+		req->rsp->req = req;
+	}
 	/* Use alternate PCI bus number */
 	if (MSB(req->rid))
 		options |= BIT_4;
@@ -627,6 +629,7 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	req->ring_index = 0;
 	req->cnt = req->length;
 	req->id = que_id;
+	req->max_q_depth = ha->req_q_map[0]->max_q_depth;
 	mutex_unlock(&ha->vport_lock);
 
 	ret = qla25xx_init_req_que(base_vha, req, options);

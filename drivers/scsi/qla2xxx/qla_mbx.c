@@ -123,8 +123,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 	/* Wait for mbx cmd completion until timeout */
 
-	if (!abort_active && io_lock_on) {
-
+	if ((!abort_active && io_lock_on) || IS_NOPOLLING_TYPE(ha)) {
 		set_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 
 		if (IS_FWI2_CAPABLE(ha))
@@ -218,7 +217,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	/* Clean up */
 	ha->mcp = NULL;
 
-	if (abort_active || !io_lock_on) {
+	if ((abort_active || !io_lock_on) && !IS_NOPOLLING_TYPE(ha)) {
 		DEBUG11(printk("%s(%ld): checking for additional resp "
 		    "interrupt.\n", __func__, base_vha->host_no));
 
@@ -412,7 +411,8 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
  */
 void
 qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
-    uint16_t *subminor, uint16_t *attributes, uint32_t *memory)
+    uint16_t *subminor, uint16_t *attributes, uint32_t *memory, uint8_t *mpi,
+    uint32_t *mpi_caps)
 {
 	int		rval;
 	mbx_cmd_t	mc;
@@ -423,6 +423,8 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
 	mcp->mb[0] = MBC_GET_FIRMWARE_VERSION;
 	mcp->out_mb = MBX_0;
 	mcp->in_mb = MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	if (IS_QLA81XX(vha->hw))
+		mcp->in_mb |= MBX_13|MBX_12|MBX_11|MBX_10;
 	mcp->flags = 0;
 	mcp->tov = MBX_TOV_SECONDS;
 	rval = qla2x00_mailbox_command(vha, mcp);
@@ -436,6 +438,13 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha, uint16_t *major, uint16_t *minor,
 		*memory = 0x1FFFF;			/* Defaults to 128KB. */
 	else
 		*memory = (mcp->mb[5] << 16) | mcp->mb[4];
+	if (IS_QLA81XX(vha->hw)) {
+		mpi[0] = mcp->mb[10] >> 8;
+		mpi[1] = mcp->mb[10] & 0xff;
+		mpi[2] = mcp->mb[11] >> 8;
+		mpi[3] = mcp->mb[11] & 0xff;
+		*mpi_caps = (mcp->mb[12] << 16) | mcp->mb[13];
+	}
 
 	if (rval != QLA_SUCCESS) {
 		/*EMPTY*/
@@ -568,7 +577,6 @@ int
 qla2x00_mbx_reg_test(scsi_qla_host_t *vha)
 {
 	int rval;
-	struct qla_hw_data *ha = vha->hw;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 
@@ -595,14 +603,6 @@ qla2x00_mbx_reg_test(scsi_qla_host_t *vha)
 		if (mcp->mb[5] != 0xA5A5 || mcp->mb[6] != 0x5A5A ||
 		    mcp->mb[7] != 0x2525)
 			rval = QLA_FUNCTION_FAILED;
-		if (rval == QLA_FUNCTION_FAILED) {
-			struct device_reg_24xx __iomem *reg =
-			    &ha->iobase->isp24;
-
-			qla2xxx_hw_event_log(vha, HW_EVENT_ISP_ERR, 0,
-			    LSW(RD_REG_DWORD(&reg->hccr)),
-			    LSW(RD_REG_DWORD(&reg->istatus)));
-		}
 	}
 
 	if (rval != QLA_SUCCESS) {
@@ -1363,7 +1363,13 @@ qla2x00_lip_reset(scsi_qla_host_t *vha)
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
 
-	if (IS_FWI2_CAPABLE(vha->hw)) {
+	if (IS_QLA81XX(vha->hw)) {
+		/* Logout across all FCFs. */
+		mcp->mb[0] = MBC_LIP_FULL_LOGIN;
+		mcp->mb[1] = BIT_1;
+		mcp->mb[2] = 0;
+		mcp->out_mb = MBX_2|MBX_1|MBX_0;
+	} else if (IS_FWI2_CAPABLE(vha->hw)) {
 		mcp->mb[0] = MBC_LIP_FULL_LOGIN;
 		mcp->mb[1] = BIT_6;
 		mcp->mb[2] = 0;
@@ -1852,6 +1858,9 @@ qla2x00_full_login_lip(scsi_qla_host_t *vha)
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
+
+	if (IS_QLA81XX(vha->hw))
+	    return QLA_SUCCESS;
 
 	DEBUG11(printk("qla2x00_full_login_lip(%ld): entered.\n",
 	    vha->host_no));
@@ -2512,7 +2521,7 @@ qla2x00_enable_fce_trace(scsi_qla_host_t *vha, dma_addr_t fce_dma,
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
 
-	if (!IS_QLA25XX(vha->hw))
+	if (!IS_QLA25XX(vha->hw) && !IS_QLA81XX(vha->hw))
 		return QLA_FUNCTION_FAILED;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
@@ -3155,7 +3164,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp,
 	mcp->mb[7] = LSW(MSD(rsp->dma));
 	mcp->mb[5] = rsp->length;
 	mcp->mb[11] = rsp->vp_idx;
-	mcp->mb[14] = rsp->msix->vector;
+	mcp->mb[14] = rsp->msix->entry;
 	mcp->mb[13] = rsp->rid;
 
 	reg = (struct device_reg_25xxmq *)((void *)(ha->mqiobase) +

@@ -15,9 +15,9 @@
  * Copyright 2003 Andi Kleen, SuSE Labs.
  */
 
-struct mpc_config_bus;
-struct mp_config_table;
-struct mpc_config_processor;
+struct mpc_bus;
+struct mpc_table;
+struct mpc_cpu;
 
 struct genapic {
 	char *name;
@@ -51,7 +51,7 @@ struct genapic {
 	/* When one of the next two hooks returns 1 the genapic
 	   is switched to this. Essentially they are additional probe
 	   functions. */
-	int (*mps_oem_check)(struct mp_config_table *mpc, char *oem,
+	int (*mps_oem_check)(struct mpc_table *mpc, char *oem,
 			     char *productid);
 	int (*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
 

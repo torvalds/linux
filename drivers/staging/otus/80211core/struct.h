@@ -137,7 +137,7 @@ extern const u8_t zg11gRateTbl[8];
 
 #ifdef ZM_ENABLE_BUFFER_TRACE
 extern void zfwBufTrace(zdev_t* dev, zbuf_t *buf, u8_t *functionName);
-#define ZM_BUFFER_TRACE(dev, buf)       zfwBufTrace(dev, buf, __FUNCTION__);
+#define ZM_BUFFER_TRACE(dev, buf)       zfwBufTrace(dev, buf, __func__);
 #else
 #define ZM_BUFFER_TRACE(dev, buf)
 #endif

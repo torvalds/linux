@@ -69,8 +69,18 @@
 		};
 
 		bcsr@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
  			compatible = "fsl,mpc8360mds-bcsr";
 			reg = <1 0 0x8000>;
+			ranges = <0 1 0 0x8000>;
+
+			bcsr13: gpio-controller@d {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8360mds-bcsr-gpio";
+				reg = <0xd 1>;
+				gpio-controller;
+			};
 		};
 	};
 
@@ -195,9 +205,20 @@
 		};
 
 		par_io@1400 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			reg = <0x1400 0x100>;
+			ranges = <0 0x1400 0x100>;
 			device_type = "par_io";
 			num-ports = <7>;
+
+			qe_pio_b: gpio-controller@18 {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8360-qe-pario-bank",
+					     "fsl,mpc8323-qe-pario-bank";
+				reg = <0x18 0x18>;
+				gpio-controller;
+			};
 
 			pio1: ucc_pin@01 {
 				pio-map = <
@@ -282,6 +303,15 @@
 			};
 		};
 
+		timer@440 {
+			compatible = "fsl,mpc8360-qe-gtm",
+				     "fsl,qe-gtm", "fsl,gtm";
+			reg = <0x440 0x40>;
+			clock-frequency = <132000000>;
+			interrupts = <12 13 14 15>;
+			interrupt-parent = <&qeic>;
+		};
+
 		spi@4c0 {
 			cell-index = <0>;
 			compatible = "fsl,spi";
@@ -301,11 +331,20 @@
 		};
 
 		usb@6c0 {
-			compatible = "qe_udc";
+			compatible = "fsl,mpc8360-qe-usb",
+				     "fsl,mpc8323-qe-usb";
 			reg = <0x6c0 0x40 0x8b00 0x100>;
 			interrupts = <11>;
 			interrupt-parent = <&qeic>;
-			mode = "slave";
+			fsl,fullspeed-clock = "clk21";
+			fsl,lowspeed-clock = "brg9";
+			gpios = <&qe_pio_b  2 0   /* USBOE */
+				 &qe_pio_b  3 0   /* USBTP */
+				 &qe_pio_b  8 0   /* USBTN */
+				 &qe_pio_b  9 0   /* USBRP */
+				 &qe_pio_b 11 0   /* USBRN */
+				 &bcsr13    5 0   /* SPEED */
+				 &bcsr13    4 1>; /* POWER */
 		};
 
 		enet0: ucc@2000 {

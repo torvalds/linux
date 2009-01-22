@@ -554,7 +554,7 @@ static void __init build_device_resources(struct of_device *op,
 		memset(r, 0, sizeof(*r));
 
 		if (of_resource_verbose)
-			printk("%s reg[%d] -> %lx\n",
+			printk("%s reg[%d] -> %llx\n",
 			       op->node->full_name, index,
 			       result);
 

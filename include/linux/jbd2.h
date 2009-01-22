@@ -638,6 +638,11 @@ struct transaction_s
 	unsigned long		t_expires;
 
 	/*
+	 * When this transaction started, in nanoseconds [no locking]
+	 */
+	ktime_t			t_start_time;
+
+	/*
 	 * How many handles used this transaction? [t_handle_lock]
 	 */
 	int t_handle_count;
@@ -681,6 +686,8 @@ jbd2_time_diff(unsigned long start, unsigned long end)
 
 	return end + (MAX_JIFFY_OFFSET - start);
 }
+
+#define JBD2_NR_BATCH	64
 
 /**
  * struct journal_s - The journal_s type is the concrete type associated with
@@ -826,6 +833,14 @@ struct journal_s
 	struct mutex		j_checkpoint_mutex;
 
 	/*
+	 * List of buffer heads used by the checkpoint routine.  This
+	 * was moved from jbd2_log_do_checkpoint() to reduce stack
+	 * usage.  Access to this array is controlled by the
+	 * j_checkpoint_mutex.  [j_checkpoint_mutex]
+	 */
+	struct buffer_head	*j_chkpt_bhs[JBD2_NR_BATCH];
+	
+	/*
 	 * Journal head: identifies the first unused block in the journal.
 	 * [j_state_lock]
 	 */
@@ -939,7 +954,25 @@ struct journal_s
 	struct buffer_head	**j_wbuf;
 	int			j_wbufsize;
 
+	/*
+	 * this is the pid of hte last person to run a synchronous operation
+	 * through the journal
+	 */
 	pid_t			j_last_sync_writer;
+
+	/*
+	 * the average amount of time in nanoseconds it takes to commit a
+	 * transaction to disk. [j_state_lock]
+	 */
+	u64			j_average_commit_time;
+
+	/*
+	 * minimum and maximum times that we should wait for
+	 * additional filesystem operations to get batched into a
+	 * synchronous handle in microseconds
+	 */
+	u32			j_min_batch_time;
+	u32			j_max_batch_time;
 
 	/* This function is called when a transaction is closed */
 	void			(*j_commit_callback)(journal_t *,
@@ -1102,7 +1135,6 @@ extern int	   jbd2_journal_set_features
 		   (journal_t *, unsigned long, unsigned long, unsigned long);
 extern void	   jbd2_journal_clear_features
 		   (journal_t *, unsigned long, unsigned long, unsigned long);
-extern int	   jbd2_journal_create     (journal_t *);
 extern int	   jbd2_journal_load       (journal_t *journal);
 extern int	   jbd2_journal_destroy    (journal_t *);
 extern int	   jbd2_journal_recover    (journal_t *journal);
@@ -1177,8 +1209,8 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid);
 int jbd2_log_do_checkpoint(journal_t *journal);
 
 void __jbd2_log_wait_for_space(journal_t *journal);
-extern void	__jbd2_journal_drop_transaction(journal_t *, transaction_t *);
-extern int	jbd2_cleanup_journal_tail(journal_t *);
+extern void __jbd2_journal_drop_transaction(journal_t *, transaction_t *);
+extern int jbd2_cleanup_journal_tail(journal_t *);
 
 /* Debugging code only: */
 

@@ -202,7 +202,7 @@ static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
 static int __init h1900_special_case(void);
 
-int __init ipaq_mtd_init(void)
+static int __init ipaq_mtd_init(void)
 {
 	struct mtd_partition *parts = NULL;
 	int nb_parts = 0;

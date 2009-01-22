@@ -460,7 +460,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
 	VM_BUG_ON(!PageLocked(page));
 
 	error = mem_cgroup_cache_charge(page, current->mm,
-					gfp_mask & ~__GFP_HIGHMEM);
+					gfp_mask & GFP_RECLAIM_MASK);
 	if (error)
 		goto out;
 
@@ -1374,7 +1374,7 @@ do_readahead(struct address_space *mapping, struct file *filp,
 	return 0;
 }
 
-asmlinkage ssize_t sys_readahead(int fd, loff_t offset, size_t count)
+SYSCALL_DEFINE(readahead)(int fd, loff_t offset, size_t count)
 {
 	ssize_t ret;
 	struct file *file;
@@ -1393,6 +1393,13 @@ asmlinkage ssize_t sys_readahead(int fd, loff_t offset, size_t count)
 	}
 	return ret;
 }
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+asmlinkage long SyS_readahead(long fd, loff_t offset, long count)
+{
+	return SYSC_readahead((int) fd, offset, (size_t) count);
+}
+SYSCALL_ALIAS(sys_readahead, SyS_readahead);
+#endif
 
 #ifdef CONFIG_MMU
 /**

@@ -128,7 +128,7 @@
  * situation when the picked physical eraseblock is constantly erased after the
  * data is written to it. So, we have a constant which limits the highest erase
  * counter of the free physical eraseblock to pick. Namely, the WL sub-system
- * does not pick eraseblocks with erase counter greater then the lowest erase
+ * does not pick eraseblocks with erase counter greater than the lowest erase
  * counter plus %WL_FREE_MAX_DIFF.
  */
 #define WL_FREE_MAX_DIFF (2*UBI_WL_THRESHOLD)
@@ -917,7 +917,7 @@ static int ensure_wear_leveling(struct ubi_device *ubi)
 		/*
 		 * We schedule wear-leveling only if the difference between the
 		 * lowest erase counter of used physical eraseblocks and a high
-		 * erase counter of free physical eraseblocks is greater then
+		 * erase counter of free physical eraseblocks is greater than
 		 * %UBI_WL_THRESHOLD.
 		 */
 		e1 = rb_entry(rb_first(&ubi->used), struct ubi_wl_entry, u.rb);

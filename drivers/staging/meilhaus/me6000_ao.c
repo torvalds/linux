@@ -863,7 +863,7 @@ static int me6000_ao_io_single_write(me_subdevice_t * subdevice,
 
 /// @note When flag 'ME_IO_SINGLE_TYPE_TRIG_SYNCHRONOUS' is set than output is triggered. ALWAYS!
 
-	PINFO("<%s> start mode= 0x%08x %s\n", __FUNCTION__, mode,
+	PINFO("<%s> start mode= 0x%08x %s\n", __func__, mode,
 	      (flags & ME_IO_SINGLE_TYPE_TRIG_SYNCHRONOUS) ? "SYNCHRONOUS" :
 	      "");
 	if (instance->fifo & ME6000_AO_HAS_FIFO) {	// FIFO - Continous mode
@@ -1663,7 +1663,7 @@ static int me6000_ao_io_stream_start(me_subdevice_t * subdevice,
 
 	status = inl(instance->status_reg);
 	//Start state machine and interrupts
-	PINFO("<%s:%d> Start state machine.\n", __FUNCTION__, __LINE__);
+	PINFO("<%s:%d> Start state machine.\n", __func__, __LINE__);
 	ctrl &= ~(ME6000_AO_CTRL_BIT_STOP | ME6000_AO_CTRL_BIT_IMMEDIATE_STOP);
 	if (instance->start_mode == ME6000_AO_EXT_TRIG) {
 		PDEBUG("DIGITAL TRIGGER\n");
@@ -1671,7 +1671,7 @@ static int me6000_ao_io_stream_start(me_subdevice_t * subdevice,
 	}
 	if (!(status & ME6000_AO_STATUS_BIT_HF)) {	//More than half!
 		if ((ctrl & ME6000_AO_CTRL_MODE_MASK) == ME6000_AO_MODE_CONTINUOUS) {	//Enable IRQ only when hardware_continous is set and FIFO is more than half
-			PINFO("<%s:%d> Start interrupts.\n", __FUNCTION__,
+			PINFO("<%s:%d> Start interrupts.\n", __func__,
 			      __LINE__);
 			ctrl |= ME6000_AO_CTRL_BIT_ENABLE_IRQ;
 		}
@@ -1682,7 +1682,7 @@ static int me6000_ao_io_stream_start(me_subdevice_t * subdevice,
 	spin_unlock_irqrestore(&instance->subdevice_lock, cpu_flags);
 
 	//Trigger output
-	PINFO("<%s> start mode= 0x%x %s\n", __FUNCTION__, instance->start_mode,
+	PINFO("<%s> start mode= 0x%x %s\n", __func__, instance->start_mode,
 	      (flags & ME_IO_SINGLE_TYPE_TRIG_SYNCHRONOUS) ? "SYNCHRONOUS" :
 	      "");
 	if (flags & ME_IO_SINGLE_TYPE_TRIG_SYNCHRONOUS) {	//Trigger outputs
@@ -1777,7 +1777,7 @@ static int me6000_ao_io_stream_start(me_subdevice_t * subdevice,
 		status = inl(instance->status_reg);
 		if (!(status & ME6000_AO_STATUS_BIT_HF)) {	//More than half!
 			spin_lock_irqsave(&instance->subdevice_lock, cpu_flags);
-			PINFO("<%s:%d> Start interrupts.\n", __FUNCTION__,
+			PINFO("<%s:%d> Start interrupts.\n", __func__,
 			      __LINE__);
 			ctrl = inl(instance->ctrl_reg);
 			ctrl |= ME6000_AO_CTRL_BIT_ENABLE_IRQ;
@@ -1819,7 +1819,7 @@ static int me6000_ao_io_stream_start(me_subdevice_t * subdevice,
 				spin_lock_irqsave(&instance->subdevice_lock,
 						  cpu_flags);
 				PINFO("<%s:%d> Start interrupts.\n",
-				      __FUNCTION__, __LINE__);
+				      __func__, __LINE__);
 				ctrl = inl(instance->ctrl_reg);
 				ctrl |= ME6000_AO_CTRL_BIT_ENABLE_IRQ;
 				outl(ctrl, instance->ctrl_reg);
@@ -2346,7 +2346,7 @@ static irqreturn_t me6000_ao_isr(int irq, void *dev_id, struct pt_regs *regs)
 	irq_status = inl(instance->irq_status_reg);
 	if (!(irq_status & (ME6000_IRQ_STATUS_BIT_AO_HF << instance->ao_idx))) {
 		PINFO("%ld Shared interrupt. %s(): ID=%d: status_reg=0x%04X\n",
-		      jiffies, __FUNCTION__, instance->ao_idx, irq_status);
+		      jiffies, __func__, instance->ao_idx, irq_status);
 		return IRQ_NONE;
 	}
 
@@ -2861,7 +2861,7 @@ int inline ao_stop_immediately(me6000_ao_subdevice_t * instance)
 			}
 		}
 
-		PINFO("<%s> Wait for stop: %d\n", __FUNCTION__, i);
+		PINFO("<%s> Wait for stop: %d\n", __func__, i);
 
 		//Still working!
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -3132,7 +3132,7 @@ static void me6000_ao_work_control_task(
 	instance =
 	    container_of((void *)work, me6000_ao_subdevice_t, ao_control_task);
 #endif
-	PINFO("<%s: %ld> executed. idx=%d\n", __FUNCTION__, jiffies,
+	PINFO("<%s: %ld> executed. idx=%d\n", __func__, jiffies,
 	      instance->ao_idx);
 
 	status = inl(instance->status_reg);
@@ -3550,7 +3550,7 @@ static void me6000_ao_work_control_task(
 		queue_delayed_work(instance->me6000_workqueue,
 				   &instance->ao_control_task, 1);
 	} else {
-		PINFO("<%s> Ending control task.\n", __FUNCTION__);
+		PINFO("<%s> Ending control task.\n", __func__);
 	}
 
 }

@@ -1347,7 +1347,6 @@ static struct i2c_driver ov7670_driver = {
 		.name = "ov7670",
 	},
 	.id 		= I2C_DRIVERID_OV7670,
-	.class 		= I2C_CLASS_CAM_DIGITAL,
 	.attach_adapter = ov7670_attach,
 	.detach_client	= ov7670_detach,
 	.command	= ov7670_command,

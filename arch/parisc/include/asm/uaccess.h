@@ -241,4 +241,6 @@ unsigned long copy_in_user(void __user *dst, const void __user *src, unsigned lo
 #define __copy_to_user_inatomic __copy_to_user
 #define __copy_from_user_inatomic __copy_from_user
 
+int fixup_exception(struct pt_regs *regs);
+
 #endif /* __PARISC_UACCESS_H */

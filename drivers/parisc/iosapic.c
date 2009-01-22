@@ -519,8 +519,7 @@ iosapic_xlate_pin(struct iosapic_info *isi, struct pci_dev *pcidev)
 		**
 		** Advantage is it's really easy to implement.
 		*/
-		intr_pin = ((intr_pin-1)+PCI_SLOT(pcidev->devfn)) % 4;
-		intr_pin++;	/* convert back to INTA-D (1-4) */
+		intr_pin = pci_swizzle_interrupt_pin(pcidev, intr_pin);
 #endif /* PCI_BRIDGE_FUNCS */
 
 		/*
