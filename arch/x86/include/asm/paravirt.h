@@ -279,7 +279,6 @@ struct pv_mmu_ops {
 					pte_t *ptep, pte_t pte);
 
 	pteval_t (*pte_val)(pte_t);
-	pteval_t (*pte_flags)(pte_t);
 	pte_t (*make_pte)(pteval_t pte);
 
 	pgdval_t (*pgd_val)(pgd_t);
@@ -1081,23 +1080,6 @@ static inline pteval_t pte_val(pte_t pte)
 		ret = PVOP_CALL1(pteval_t, pv_mmu_ops.pte_val,
 				 pte.pte);
 
-	return ret;
-}
-
-static inline pteval_t pte_flags(pte_t pte)
-{
-	pteval_t ret;
-
-	if (sizeof(pteval_t) > sizeof(long))
-		ret = PVOP_CALL2(pteval_t, pv_mmu_ops.pte_flags,
-				 pte.pte, (u64)pte.pte >> 32);
-	else
-		ret = PVOP_CALL1(pteval_t, pv_mmu_ops.pte_flags,
-				 pte.pte);
-
-#ifdef CONFIG_PARAVIRT_DEBUG
-	BUG_ON(ret & PTE_PFN_MASK);
-#endif
 	return ret;
 }
 
