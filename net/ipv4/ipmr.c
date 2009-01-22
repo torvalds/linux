@@ -83,7 +83,6 @@ static int mroute_do_assert;				/* Set in PIM assert	*/
 static int mroute_do_pim;
 
 static struct mfc_cache *mfc_unres_queue;		/* Queue of unresolved entries */
-static atomic_t cache_resolve_queue_len;		/* Size of unresolved	*/
 
 /* Special spinlock for queue of unresolved entries */
 static DEFINE_SPINLOCK(mfc_unres_lock);
@@ -340,7 +339,7 @@ static void ipmr_destroy_unres(struct mfc_cache *c)
 	struct sk_buff *skb;
 	struct nlmsgerr *e;
 
-	atomic_dec(&cache_resolve_queue_len);
+	atomic_dec(&init_net.ipv4.cache_resolve_queue_len);
 
 	while ((skb = skb_dequeue(&c->mfc_un.unres.unresolved))) {
 		if (ip_hdr(skb)->version == 0) {
@@ -374,7 +373,7 @@ static void ipmr_expire_process(unsigned long dummy)
 		return;
 	}
 
-	if (atomic_read(&cache_resolve_queue_len) == 0)
+	if (mfc_unres_queue == NULL)
 		goto out;
 
 	now = jiffies;
@@ -395,7 +394,7 @@ static void ipmr_expire_process(unsigned long dummy)
 		ipmr_destroy_unres(c);
 	}
 
-	if (atomic_read(&cache_resolve_queue_len))
+	if (mfc_unres_queue != NULL)
 		mod_timer(&ipmr_expire_timer, jiffies + expires);
 
 out:
@@ -690,7 +689,8 @@ ipmr_cache_unresolved(vifi_t vifi, struct sk_buff *skb)
 
 	spin_lock_bh(&mfc_unres_lock);
 	for (c=mfc_unres_queue; c; c=c->next) {
-		if (c->mfc_mcastgrp == iph->daddr &&
+		if (net_eq(mfc_net(c), &init_net) &&
+		    c->mfc_mcastgrp == iph->daddr &&
 		    c->mfc_origin == iph->saddr)
 			break;
 	}
@@ -700,7 +700,7 @@ ipmr_cache_unresolved(vifi_t vifi, struct sk_buff *skb)
 		 *	Create a new entry if allowable
 		 */
 
-		if (atomic_read(&cache_resolve_queue_len) >= 10 ||
+		if (atomic_read(&init_net.ipv4.cache_resolve_queue_len) >= 10 ||
 		    (c = ipmr_cache_alloc_unres(&init_net)) == NULL) {
 			spin_unlock_bh(&mfc_unres_lock);
 
@@ -729,7 +729,7 @@ ipmr_cache_unresolved(vifi_t vifi, struct sk_buff *skb)
 			return err;
 		}
 
-		atomic_inc(&cache_resolve_queue_len);
+		atomic_inc(&init_net.ipv4.cache_resolve_queue_len);
 		c->next = mfc_unres_queue;
 		mfc_unres_queue = c;
 
@@ -827,14 +827,16 @@ static int ipmr_mfc_add(struct mfcctl *mfc, int mrtsock)
 	spin_lock_bh(&mfc_unres_lock);
 	for (cp = &mfc_unres_queue; (uc=*cp) != NULL;
 	     cp = &uc->next) {
-		if (uc->mfc_origin == c->mfc_origin &&
+		if (net_eq(mfc_net(uc), &init_net) &&
+		    uc->mfc_origin == c->mfc_origin &&
 		    uc->mfc_mcastgrp == c->mfc_mcastgrp) {
 			*cp = uc->next;
-			if (atomic_dec_and_test(&cache_resolve_queue_len))
-				del_timer(&ipmr_expire_timer);
+			atomic_dec(&init_net.ipv4.cache_resolve_queue_len);
 			break;
 		}
 	}
+	if (mfc_unres_queue == NULL)
+		del_timer(&ipmr_expire_timer);
 	spin_unlock_bh(&mfc_unres_lock);
 
 	if (uc) {
@@ -880,18 +882,19 @@ static void mroute_clean_tables(struct sock *sk)
 		}
 	}
 
-	if (atomic_read(&cache_resolve_queue_len) != 0) {
-		struct mfc_cache *c;
+	if (atomic_read(&init_net.ipv4.cache_resolve_queue_len) != 0) {
+		struct mfc_cache *c, **cp;
 
 		spin_lock_bh(&mfc_unres_lock);
-		while (mfc_unres_queue != NULL) {
-			c = mfc_unres_queue;
-			mfc_unres_queue = c->next;
-			spin_unlock_bh(&mfc_unres_lock);
+		cp = &mfc_unres_queue;
+		while ((c = *cp) != NULL) {
+			if (!net_eq(mfc_net(c), &init_net)) {
+				cp = &c->next;
+				continue;
+			}
+			*cp = c->next;
 
 			ipmr_destroy_unres(c);
-
-			spin_lock_bh(&mfc_unres_lock);
 		}
 		spin_unlock_bh(&mfc_unres_lock);
 	}

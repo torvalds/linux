@@ -60,6 +60,7 @@ struct netns_ipv4 {
 	struct mfc_cache	**mfc_cache_array;
 	struct vif_device	*vif_table;
 	int			maxvif;
+	atomic_t		cache_resolve_queue_len;
 #endif
 };
 #endif
