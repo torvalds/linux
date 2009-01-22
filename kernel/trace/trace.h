@@ -438,7 +438,6 @@ void trace_function(struct trace_array *tr,
 
 void trace_graph_return(struct ftrace_graph_ret *trace);
 int trace_graph_entry(struct ftrace_graph_ent *trace);
-void trace_hw_branch(struct trace_array *tr, u64 from, u64 to);
 
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);
