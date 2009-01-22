@@ -148,8 +148,7 @@ struct ath5k_softc {
 	u8			bssidmask[ETH_ALEN];
 
 	unsigned int		led_pin,	/* GPIO pin for driving LED */
-				led_on,		/* pin setting for LED on */
-				led_off;	/* off time for current blink */
+				led_on;		/* pin setting for LED on */
 
 	struct tasklet_struct	restq;		/* reset tasklet */
 
