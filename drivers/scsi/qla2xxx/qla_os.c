@@ -65,8 +65,6 @@ MODULE_PARM_DESC(ql2xextended_error_logging,
 
 static void qla2x00_free_device(scsi_qla_host_t *);
 
-static void qla2x00_config_dma_addressing(scsi_qla_host_t *ha);
-
 int ql2xfdmienable=1;
 module_param(ql2xfdmienable, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xfdmienable,
@@ -1242,9 +1240,8 @@ qla2x00_change_queue_type(struct scsi_device *sdev, int tag_type)
  * supported addressing method.
  */
 static void
-qla2x00_config_dma_addressing(scsi_qla_host_t *vha)
+qla2x00_config_dma_addressing(struct qla_hw_data *ha)
 {
-	struct qla_hw_data *ha = vha->hw;
 	/* Assume a 32bit DMA mask. */
 	ha->flags.enable_64bit_addressing = 0;
 
@@ -1870,6 +1867,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	set_bit(0, (unsigned long *) ha->vp_idx_map);
 
+	qla2x00_config_dma_addressing(ha);
 	ret = qla2x00_mem_alloc(ha, req_length, rsp_length, &req, &rsp);
 	if (!ret) {
 		qla_printk(KERN_WARNING, ha,
@@ -1895,8 +1893,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	pci_set_drvdata(pdev, base_vha);
-
-	qla2x00_config_dma_addressing(base_vha);
 
 	host = base_vha->host;
 	base_vha->req_ques[0] = req->id;
