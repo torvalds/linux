@@ -610,13 +610,12 @@ void tracing_start(void)
 		return;
 
 	spin_lock_irqsave(&tracing_start_lock, flags);
-	if (--trace_stop_count)
-		goto out;
-
-	if (trace_stop_count < 0) {
-		/* Someone screwed up their debugging */
-		WARN_ON_ONCE(1);
-		trace_stop_count = 0;
+	if (--trace_stop_count) {
+		if (trace_stop_count < 0) {
+			/* Someone screwed up their debugging */
+			WARN_ON_ONCE(1);
+			trace_stop_count = 0;
+		}
 		goto out;
 	}
 
