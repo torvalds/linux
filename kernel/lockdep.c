@@ -467,54 +467,37 @@ const char * __get_key_name(struct lockdep_subclass_key *key, char *str)
 	return kallsyms_lookup((unsigned long)key, NULL, NULL, NULL, str);
 }
 
+static inline unsigned long lock_flag(enum lock_usage_bit bit)
+{
+	return 1UL << bit;
+}
+
+static char get_usage_char(struct lock_class *class, enum lock_usage_bit bit)
+{
+	char c = '.';
+
+	if (class->usage_mask & lock_flag(bit + 2))
+		c = '+';
+	if (class->usage_mask & lock_flag(bit)) {
+		c = '-';
+		if (class->usage_mask & lock_flag(bit + 2))
+			c = '?';
+	}
+
+	return c;
+}
+
 void
 get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3,
 					char *c4, char *c5, char *c6)
 {
-	*c1 = '.', *c2 = '.', *c3 = '.', *c4 = '.', *c5 = '.', *c6 = '.';
+	*c1 = get_usage_char(class, LOCK_USED_IN_HARDIRQ);
+	*c2 = get_usage_char(class, LOCK_USED_IN_SOFTITQ);
+	*c3 = get_usage_char(class, LOCK_USED_IN_HARDIRQ_READ);
+	*c4 = get_usage_char(class, LOCK_USED_IN_SOFTITQ_READ);
 
-	if (class->usage_mask & LOCKF_USED_IN_HARDIRQ)
-		*c1 = '+';
-	else
-		if (class->usage_mask & LOCKF_ENABLED_HARDIRQ)
-			*c1 = '-';
-
-	if (class->usage_mask & LOCKF_USED_IN_SOFTIRQ)
-		*c2 = '+';
-	else
-		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQ)
-			*c2 = '-';
-
-	if (class->usage_mask & LOCKF_ENABLED_HARDIRQ_READ)
-		*c3 = '-';
-	if (class->usage_mask & LOCKF_USED_IN_HARDIRQ_READ) {
-		*c3 = '+';
-		if (class->usage_mask & LOCKF_ENABLED_HARDIRQ_READ)
-			*c3 = '?';
-	}
-
-	if (class->usage_mask & LOCKF_ENABLED_SOFTIRQ_READ)
-		*c4 = '-';
-	if (class->usage_mask & LOCKF_USED_IN_SOFTIRQ_READ) {
-		*c4 = '+';
-		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQ_READ)
-			*c4 = '?';
-	}
-
-	if (class->usage_mask & LOCKF_USED_IN_RECLAIM_FS)
-		*c5 = '+';
-	else
-		if (class->usage_mask & LOCKF_ENABLED_RECLAIM_FS)
-			*c5 = '-';
-
-	if (class->usage_mask & LOCKF_ENABLED_RECLAIM_FS_READ)
-		*c6 = '-';
-	if (class->usage_mask & LOCKF_USED_IN_RECLAIM_FS_READ) {
-		*c6 = '+';
-		if (class->usage_mask & LOCKF_ENABLED_RECLAIM_FS_READ)
-			*c6 = '?';
-	}
-
+	*c5 = get_usage_char(class, LOCK_USED_IN_RECLAIM_FS);
+	*c6 = get_usage_char(class, LOCK_USED_IN_RECLAIM_FS_READ);
 }
 
 static void print_lock_name(struct lock_class *class)
