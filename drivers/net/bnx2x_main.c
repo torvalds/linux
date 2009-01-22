@@ -5148,12 +5148,21 @@ static void enable_blocks_attention(struct bnx2x *bp)
 }
 
 
+static void bnx2x_reset_common(struct bnx2x *bp)
+{
+	/* reset_common */
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_CLEAR,
+	       0xd3ffff7f);
+	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR, 0x1403);
+}
+
 static int bnx2x_init_common(struct bnx2x *bp)
 {
 	u32 val, i;
 
 	DP(BNX2X_MSG_MCP, "starting common init  func %d\n", BP_FUNC(bp));
 
+	bnx2x_reset_common(bp);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_SET, 0xffffffff);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_SET, 0xfffc);
 
@@ -6638,14 +6647,6 @@ static void bnx2x_reset_port(struct bnx2x *bp)
 		   "BRB1 is not empty  %d blocks are occupied\n", val);
 
 	/* TODO: Close Doorbell port? */
-}
-
-static void bnx2x_reset_common(struct bnx2x *bp)
-{
-	/* reset_common */
-	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_1_CLEAR,
-	       0xd3ffff7f);
-	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_2_CLEAR, 0x1403);
 }
 
 static void bnx2x_reset_chip(struct bnx2x *bp, u32 reset_code)
