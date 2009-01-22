@@ -397,6 +397,14 @@ source "arch/sh/boards/Kconfig"
 
 menu "Timer and clock configuration"
 
+config SH_TIMER_CMT
+	def_bool n
+	prompt "CMT support"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables build of the CMT system timer driver.
+
 config SH_TMU
 	def_bool y
 	prompt "TMU timer support"
