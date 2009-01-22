@@ -7011,7 +7011,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->wiphy->fw_handles_regulatory = true;
+	hw->wiphy->custom_regulatory = true;
 
 	/* 4 EDCA QOS priorities */
 	hw->queues = 4;
