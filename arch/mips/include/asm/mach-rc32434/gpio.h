@@ -82,5 +82,6 @@ struct rb532_gpio_reg {
 
 extern void rb532_gpio_set_ilevel(int bit, unsigned gpio);
 extern void rb532_gpio_set_istat(int bit, unsigned gpio);
+extern void rb532_gpio_set_func(unsigned gpio);
 
 #endif /* _RC32434_GPIO_H_ */

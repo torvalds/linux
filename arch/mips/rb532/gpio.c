@@ -174,10 +174,11 @@ EXPORT_SYMBOL(rb532_gpio_set_istat);
 /*
  * Configure GPIO alternate function
  */
-static void rb532_gpio_set_func(int bit, unsigned gpio)
+void rb532_gpio_set_func(unsigned gpio)
 {
-       rb532_set_bit(bit, gpio, rb532_gpio_chip->regbase + GPIOFUNC);
+       rb532_set_bit(1, gpio, rb532_gpio_chip->regbase + GPIOFUNC);
 }
+EXPORT_SYMBOL(rb532_gpio_set_func);
 
 int __init rb532_gpio_init(void)
 {
