@@ -1975,7 +1975,7 @@ void print_irqtrace_events(struct task_struct *curr)
 	print_ip_sym(curr->softirq_disable_ip);
 }
 
-static int hardirq_verbose(struct lock_class *class)
+static int HARDIRQ_verbose(struct lock_class *class)
 {
 #if HARDIRQ_VERBOSE
 	return class_filter(class);
@@ -1983,7 +1983,7 @@ static int hardirq_verbose(struct lock_class *class)
 	return 0;
 }
 
-static int softirq_verbose(struct lock_class *class)
+static int SOFTIRQ_verbose(struct lock_class *class)
 {
 #if SOFTIRQ_VERBOSE
 	return class_filter(class);
@@ -1991,7 +1991,7 @@ static int softirq_verbose(struct lock_class *class)
 	return 0;
 }
 
-static int reclaim_verbose(struct lock_class *class)
+static int RECLAIM_FS_verbose(struct lock_class *class)
 {
 #if RECLAIM_VERBOSE
 	return class_filter(class);
@@ -2025,6 +2025,19 @@ static inline const char *state_rname(enum lock_usage_bit bit)
 	return state_rnames[bit >> 2];
 }
 
+static int (*state_verbose_f[])(struct lock_class *class) = {
+#define LOCKDEP_STATE(__STATE) \
+	__STATE##_verbose,
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
+};
+
+static inline int state_verbose(enum lock_usage_bit bit,
+				struct lock_class *class)
+{
+	return state_verbose_f[bit >> 2](class);
+}
+
 static int exclusive_bit(int new_bit)
 {
 	/*
@@ -2046,8 +2059,7 @@ static int exclusive_bit(int new_bit)
 
 static int
 mark_lock_irq_used_in(struct task_struct *curr, struct held_lock *this,
-		      int new_bit,
-		      int (*verbose)(struct lock_class *class))
+		      int new_bit)
 {
 	const char *name = state_name(new_bit);
 	const char *rname = state_rname(new_bit);
@@ -2072,7 +2084,7 @@ mark_lock_irq_used_in(struct task_struct *curr, struct held_lock *this,
 	if (!check_usage_forwards(curr, this, excl_bit + 1, rname))
 		return 0;
 #endif
-	if (verbose(hlock_class(this)))
+	if (state_verbose(new_bit, hlock_class(this)))
 		return 2;
 
 	return 1;
@@ -2080,8 +2092,7 @@ mark_lock_irq_used_in(struct task_struct *curr, struct held_lock *this,
 
 static int
 mark_lock_irq_used_in_read(struct task_struct *curr, struct held_lock *this,
-			   int new_bit,
-			   int (*verbose)(struct lock_class *class))
+			   int new_bit)
 {
 	const char *name = state_name(new_bit);
 	const char *rname = state_rname(new_bit);
@@ -2096,7 +2107,7 @@ mark_lock_irq_used_in_read(struct task_struct *curr, struct held_lock *this,
 	 */
 	if (!check_usage_forwards(curr, this, excl_bit, name))
 		return 0;
-	if (verbose(hlock_class(this)))
+	if (state_verbose(new_bit, hlock_class(this)))
 		return 2;
 
 	return 1;
@@ -2104,8 +2115,7 @@ mark_lock_irq_used_in_read(struct task_struct *curr, struct held_lock *this,
 
 static int
 mark_lock_irq_enabled(struct task_struct *curr, struct held_lock *this,
-		      int new_bit,
-		      int (*verbose)(struct lock_class *class))
+		      int new_bit)
 {
 	const char *name = state_name(new_bit);
 	const char *rname = state_rname(new_bit);
@@ -2131,7 +2141,7 @@ mark_lock_irq_enabled(struct task_struct *curr, struct held_lock *this,
 	if (!check_usage_backwards(curr, this, excl_bit + 1, rname))
 		return 0;
 #endif
-	if (verbose(hlock_class(this)))
+	if (state_verbose(new_bit, hlock_class(this)))
 		return 2;
 
 	return 1;
@@ -2139,8 +2149,7 @@ mark_lock_irq_enabled(struct task_struct *curr, struct held_lock *this,
 
 static int
 mark_lock_irq_enabled_read(struct task_struct *curr, struct held_lock *this,
-			   int new_bit,
-			   int (*verbose)(struct lock_class *class))
+			   int new_bit)
 {
 	const char *name = state_name(new_bit);
 	const char *rname = state_rname(new_bit);
@@ -2170,44 +2179,24 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 
 	switch(new_bit) {
 	case LOCK_USED_IN_HARDIRQ:
-		return mark_lock_irq_used_in(curr, this, new_bit,
-				hardirq_verbose);
 	case LOCK_USED_IN_SOFTIRQ:
-		return mark_lock_irq_used_in(curr, this, new_bit,
-				softirq_verbose);
 	case LOCK_USED_IN_RECLAIM_FS:
-		return mark_lock_irq_used_in(curr, this, new_bit,
-				reclaim_verbose);
+		return mark_lock_irq_used_in(curr, this, new_bit);
 
 	case LOCK_USED_IN_HARDIRQ_READ:
-		return mark_lock_irq_used_in_read(curr, this, new_bit,
-				hardirq_verbose);
 	case LOCK_USED_IN_SOFTIRQ_READ:
-		return mark_lock_irq_used_in_read(curr, this, new_bit,
-				softirq_verbose);
 	case LOCK_USED_IN_RECLAIM_FS_READ:
-		return mark_lock_irq_used_in_read(curr, this, new_bit,
-				reclaim_verbose);
+		return mark_lock_irq_used_in_read(curr, this, new_bit);
 
 	case LOCK_ENABLED_HARDIRQ:
-		return mark_lock_irq_enabled(curr, this, new_bit,
-				hardirq_verbose);
 	case LOCK_ENABLED_SOFTIRQ:
-		return mark_lock_irq_enabled(curr, this, new_bit,
-				softirq_verbose);
 	case LOCK_ENABLED_RECLAIM_FS:
-		return mark_lock_irq_enabled(curr, this, new_bit,
-				reclaim_verbose);
+		return mark_lock_irq_enabled(curr, this, new_bit);
 
 	case LOCK_ENABLED_HARDIRQ_READ:
-		return mark_lock_irq_enabled_read(curr, this, new_bit,
-				hardirq_verbose);
 	case LOCK_ENABLED_SOFTIRQ_READ:
-		return mark_lock_irq_enabled_read(curr, this, new_bit,
-				softirq_verbose);
 	case LOCK_ENABLED_RECLAIM_FS_READ:
-		return mark_lock_irq_enabled_read(curr, this, new_bit,
-				reclaim_verbose);
+		return mark_lock_irq_enabled_read(curr, this, new_bit);
 
 	default:
 		WARN_ON(1);
