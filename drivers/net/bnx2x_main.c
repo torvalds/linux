@@ -6622,6 +6622,7 @@ static int bnx2x_stop_leading(struct bnx2x *bp)
 		}
 		cnt--;
 		msleep(1);
+		rmb(); /* Refresh the dsb_sp_prod */
 	}
 	bp->state = BNX2X_STATE_CLOSING_WAIT4_UNLOAD;
 	bp->fp[0].state = BNX2X_FP_STATE_CLOSED;
