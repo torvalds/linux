@@ -180,7 +180,15 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 	else
 		DALGN &= ~(1 << host->dma);
 	DDADR(host->dma) = host->sg_dma;
-	DCSR(host->dma) = DCSR_RUN;
+
+	/*
+	 * workaround for erratum #91:
+	 * only start DMA now if we are doing a read,
+	 * otherwise we wait until CMD/RESP has finished
+	 * before starting DMA.
+	 */
+	if (!cpu_is_pxa27x() || data->flags & MMC_DATA_READ)
+		DCSR(host->dma) = DCSR_RUN;
 }
 
 static void pxamci_start_cmd(struct pxamci_host *host, struct mmc_command *cmd, unsigned int cmdat)
@@ -267,6 +275,12 @@ static int pxamci_cmd_done(struct pxamci_host *host, unsigned int stat)
 	pxamci_disable_irq(host, END_CMD_RES);
 	if (host->data && !cmd->error) {
 		pxamci_enable_irq(host, DATA_TRAN_DONE);
+		/*
+		 * workaround for erratum #91, if doing write
+		 * enable DMA late
+		 */
+		if (cpu_is_pxa27x() && host->data->flags & MMC_DATA_WRITE)
+			DCSR(host->dma) = DCSR_RUN;
 	} else {
 		pxamci_finish_request(host, host->mrq);
 	}
