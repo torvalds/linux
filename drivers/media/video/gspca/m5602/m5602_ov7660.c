@@ -18,7 +18,26 @@
 
 #include "m5602_ov7660.h"
 
-const static struct ctrl ov7660_ctrls[] = {};
+static int ov7660_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int ov7660_set_gain(struct gspca_dev *gspca_dev, __s32 val);
+
+const static struct ctrl ov7660_ctrls[] = {
+#define GAIN_IDX 1
+	{
+		{
+			.id		= V4L2_CID_GAIN,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "gain",
+			.minimum	= 0x00,
+			.maximum	= 0xff,
+			.step		= 0x1,
+			.default_value	= DEFAULT_GAIN,
+			.flags		= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = ov7660_set_gain,
+		.get = ov7660_get_gain
+	},
+};
 
 static struct v4l2_pix_format ov7660_modes[] = {
 	{
@@ -85,6 +104,11 @@ int ov7660_probe(struct sd *sd)
 	return -ENODEV;
 
 sensor_found:
+	sensor_settings = kmalloc(
+		ARRAY_SIZE(ov7660_ctrls) * sizeof(s32), GFP_KERNEL);
+	if (!sensor_settings)
+		return -ENOMEM;
+
 	sd->gspca_dev.cam.cam_mode = ov7660_modes;
 	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(ov7660_modes);
 	sd->desc->ctrls = ov7660_ctrls;
@@ -100,6 +124,7 @@ sensor_found:
 int ov7660_init(struct sd *sd)
 {
 	int i, err = 0;
+	s32 *sensor_settings = sd->sensor_priv;
 
 	/* Init the sensor */
 	for (i = 0; i < ARRAY_SIZE(init_ov7660); i++) {
@@ -119,6 +144,10 @@ int ov7660_init(struct sd *sd)
 	if (dump_sensor)
 		ov7660_dump_registers(sd);
 
+	err = ov7660_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
+	if (err < 0)
+		return err;
+
 	return err;
 }
 
@@ -132,7 +161,38 @@ int ov7660_stop(struct sd *sd)
 	return 0;
 }
 
-void ov7660_disconnect(struct sd *sd) {}
+void ov7660_disconnect(struct sd *sd)
+{
+	ov7660_stop(sd);
+
+	sd->sensor = NULL;
+	kfree(sd->sensor_priv);
+}
+
+static int ov7660_get_gain(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	*val = sensor_settings[GAIN_IDX];
+	PDEBUG(D_V4L2, "Read gain %d", *val);
+	return 0;
+}
+
+static int ov7660_set_gain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	int err;
+	u8 i2c_data;
+	struct sd *sd = (struct sd *) gspca_dev;
+	s32 *sensor_settings = sd->sensor_priv;
+
+	PDEBUG(D_V4L2, "Setting gain to %d", val);
+
+	sensor_settings[GAIN_IDX] = val;
+
+	err = m5602_write_sensor(sd, OV7660_GAIN, &i2c_data, 1);
+	return err;
+}
 
 static void ov7660_dump_registers(struct sd *sd)
 {
@@ -165,4 +225,3 @@ static void ov7660_dump_registers(struct sd *sd)
 		m5602_write_sensor(sd, address, &old_value, 1);
 	}
 }
-
