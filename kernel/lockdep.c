@@ -2626,18 +2626,13 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 		return 0;
 
 	switch (new_bit) {
-	case LOCK_USED_IN_HARDIRQ:
-	case LOCK_USED_IN_SOFTIRQ:
-	case LOCK_USED_IN_HARDIRQ_READ:
-	case LOCK_USED_IN_SOFTIRQ_READ:
-	case LOCK_ENABLED_HARDIRQ:
-	case LOCK_ENABLED_SOFTIRQ:
-	case LOCK_ENABLED_HARDIRQ_READ:
-	case LOCK_ENABLED_SOFTIRQ_READ:
-	case LOCK_USED_IN_RECLAIM_FS:
-	case LOCK_USED_IN_RECLAIM_FS_READ:
-	case LOCK_ENABLED_RECLAIM_FS:
-	case LOCK_ENABLED_RECLAIM_FS_READ:
+#define LOCKDEP_STATE(__STATE)			\
+	case LOCK_USED_IN_##__STATE:		\
+	case LOCK_USED_IN_##__STATE##_READ:	\
+	case LOCK_ENABLED_##__STATE:		\
+	case LOCK_ENABLED_##__STATE##_READ:
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
 		ret = mark_lock_irq(curr, this, new_bit);
 		if (!ret)
 			return 0;
