@@ -1888,6 +1888,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		    "[ERROR] Failed to allocate memory for scsi_host\n");
 
 		ret = -ENOMEM;
+		qla2x00_mem_free(ha);
+		qla2x00_free_que(ha, req, rsp);
 		goto probe_hw_failed;
 	}
 
@@ -1917,14 +1919,13 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Set up the irqs */
 	ret = qla2x00_request_irqs(ha, rsp);
 	if (ret)
-		goto probe_failed;
-
+		goto probe_init_failed;
 	/* Alloc arrays of request and response ring ptrs */
 	if (!qla2x00_alloc_queues(ha)) {
 		qla_printk(KERN_WARNING, ha,
 		"[ERROR] Failed to allocate memory for queue"
 		" pointers\n");
-		goto probe_failed;
+		goto probe_init_failed;
 	}
 	ha->rsp_q_map[0] = rsp;
 	ha->req_q_map[0] = req;
@@ -1996,6 +1997,10 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    ha->isp_ops->fw_version_str(base_vha, fw_str));
 
 	return 0;
+
+probe_init_failed:
+	qla2x00_free_que(ha, req, rsp);
+	ha->max_queues = 0;
 
 probe_failed:
 	qla2x00_free_device(base_vha);
