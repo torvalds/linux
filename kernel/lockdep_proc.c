@@ -84,7 +84,7 @@ static int l_show(struct seq_file *m, void *v)
 {
 	struct lock_class *class = v;
 	struct lock_list *entry;
-	char c1, c2, c3, c4, c5, c6;
+	char usage[LOCK_USAGE_CHARS];
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(m, "all lock classes:\n");
@@ -100,8 +100,8 @@ static int l_show(struct seq_file *m, void *v)
 	seq_printf(m, " BD:%5ld", lockdep_count_backward_deps(class));
 #endif
 
-	get_usage_chars(class, &c1, &c2, &c3, &c4, &c5, &c6);
-	seq_printf(m, " %c%c%c%c%c%c", c1, c2, c3, c4, c5, c6);
+	get_usage_chars(class, usage);
+	seq_printf(m, " %s", usage);
 
 	seq_printf(m, ": ");
 	print_name(m, class);

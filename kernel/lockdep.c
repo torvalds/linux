@@ -487,25 +487,25 @@ static char get_usage_char(struct lock_class *class, enum lock_usage_bit bit)
 	return c;
 }
 
-void
-get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3,
-					char *c4, char *c5, char *c6)
+void get_usage_chars(struct lock_class *class, char usage[LOCK_USAGE_CHARS])
 {
-	*c1 = get_usage_char(class, LOCK_USED_IN_HARDIRQ);
-	*c2 = get_usage_char(class, LOCK_USED_IN_SOFTITQ);
-	*c3 = get_usage_char(class, LOCK_USED_IN_HARDIRQ_READ);
-	*c4 = get_usage_char(class, LOCK_USED_IN_SOFTITQ_READ);
+	int i = 0;
 
-	*c5 = get_usage_char(class, LOCK_USED_IN_RECLAIM_FS);
-	*c6 = get_usage_char(class, LOCK_USED_IN_RECLAIM_FS_READ);
+#define LOCKDEP_STATE(__STATE) 						\
+	usage[i++] = get_usage_char(class, LOCK_USED_IN_##__STATE);	\
+	usage[i++] = get_usage_char(class, LOCK_USED_IN_##__STATE##_READ);
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
+
+	usage[i] = '\0';
 }
 
 static void print_lock_name(struct lock_class *class)
 {
-	char str[KSYM_NAME_LEN], c1, c2, c3, c4, c5, c6;
+	char str[KSYM_NAME_LEN], usage[LOCK_USAGE_CHARS];
 	const char *name;
 
-	get_usage_chars(class, &c1, &c2, &c3, &c4, &c5, &c6);
+	get_usage_chars(class, usage);
 
 	name = class->name;
 	if (!name) {
@@ -518,7 +518,7 @@ static void print_lock_name(struct lock_class *class)
 		if (class->subclass)
 			printk("/%d", class->subclass);
 	}
-	printk("){%c%c%c%c%c%c}", c1, c2, c3, c4, c5, c6);
+	printk("){%s}", usage);
 }
 
 static void print_lockdep_cache(struct lockdep_map *lock)

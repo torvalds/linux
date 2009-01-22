@@ -70,9 +70,10 @@ enum {
 extern struct list_head all_lock_classes;
 extern struct lock_chain lock_chains[];
 
-extern void
-get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3,
-					char *c4, char *c5, char *c6);
+#define LOCK_USAGE_CHARS (1+LOCK_USAGE_STATES/2)
+
+extern void get_usage_chars(struct lock_class *class,
+			    char usage[LOCK_USAGE_CHARS]);
 
 extern const char * __get_key_name(struct lockdep_subclass_key *key, char *str);
 

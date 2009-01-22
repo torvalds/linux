@@ -27,33 +27,37 @@ lock-class.
 State
 -----
 
-The validator tracks lock-class usage history into 5 separate state bits:
+The validator tracks lock-class usage history into 4n + 1 separate state bits:
 
-- 'ever held in hardirq context'                    [ == hardirq-safe   ]
-- 'ever held in softirq context'                    [ == softirq-safe   ]
-- 'ever held with hardirqs enabled'                 [ == hardirq-unsafe ]
-- 'ever held with softirqs and hardirqs enabled'    [ == softirq-unsafe ]
+- 'ever held in STATE context'
+- 'ever head as readlock in STATE context'
+- 'ever head with STATE enabled'
+- 'ever head as readlock with STATE enabled'
+
+Where STATE can be either one of (kernel/lockdep_states.h)
+ - hardirq
+ - softirq
+ - reclaim_fs
 
 - 'ever used'                                       [ == !unused        ]
 
-When locking rules are violated, these 4 state bits are presented in the
-locking error messages, inside curlies.  A contrived example:
+When locking rules are violated, these state bits are presented in the
+locking error messages, inside curlies. A contrived example:
 
    modprobe/2287 is trying to acquire lock:
-    (&sio_locks[i].lock){--..}, at: [<c02867fd>] mutex_lock+0x21/0x24
+    (&sio_locks[i].lock){-.-...}, at: [<c02867fd>] mutex_lock+0x21/0x24
 
    but task is already holding lock:
-    (&sio_locks[i].lock){--..}, at: [<c02867fd>] mutex_lock+0x21/0x24
+    (&sio_locks[i].lock){-.-...}, at: [<c02867fd>] mutex_lock+0x21/0x24
 
 
-The bit position indicates hardirq, softirq, hardirq-read,
-softirq-read respectively, and the character displayed in each
-indicates:
+The bit position indicates STATE, STATE-read, for each of the states listed
+above, and the character displayed in each indicates:
 
    '.'  acquired while irqs disabled
    '+'  acquired in irq context
    '-'  acquired with irqs enabled
-   '?' read acquired in irq context with irqs enabled.
+   '?'  acquired in irq context with irqs enabled.
 
 Unused mutexes cannot be part of the cause of an error.
 
