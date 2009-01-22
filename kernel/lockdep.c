@@ -2253,10 +2253,18 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 }
 
 enum mark_type {
-	HARDIRQ,
-	SOFTIRQ,
-	RECLAIM_FS,
+#define LOCKDEP_STATE(__STATE)	__STATE,
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
 };
+
+#define MARK_HELD_CASE(__STATE)						\
+	case __STATE:							\
+		if (hlock->read)					\
+			usage_bit = LOCK_ENABLED_##__STATE##_READ;	\
+		else							\
+			usage_bit = LOCK_ENABLED_##__STATE;		\
+		break;
 
 /*
  * Mark all held locks with a usage bit:
@@ -2272,27 +2280,9 @@ mark_held_locks(struct task_struct *curr, enum mark_type mark)
 		hlock = curr->held_locks + i;
 
 		switch (mark) {
-		case HARDIRQ:
-			if (hlock->read)
-				usage_bit = LOCK_ENABLED_HARDIRQ_READ;
-			else
-				usage_bit = LOCK_ENABLED_HARDIRQ;
-			break;
-
-		case SOFTIRQ:
-			if (hlock->read)
-				usage_bit = LOCK_ENABLED_SOFTIRQ_READ;
-			else
-				usage_bit = LOCK_ENABLED_SOFTIRQ;
-			break;
-
-		case RECLAIM_FS:
-			if (hlock->read)
-				usage_bit = LOCK_ENABLED_RECLAIM_FS_READ;
-			else
-				usage_bit = LOCK_ENABLED_RECLAIM_FS;
-			break;
-
+#define LOCKDEP_STATE(__STATE) MARK_HELD_CASE(__STATE)
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
 		default:
 			BUG();
 		}
