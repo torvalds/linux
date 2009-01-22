@@ -82,8 +82,6 @@ static DEFINE_RWLOCK(mrt_lock);
 static int mroute_do_assert;				/* Set in PIM assert	*/
 static int mroute_do_pim;
 
-static struct mfc_cache *mfc_cache_array[MFC_LINES];	/* Forwarding cache	*/
-
 static struct mfc_cache *mfc_unres_queue;		/* Queue of unresolved entries */
 static atomic_t cache_resolve_queue_len;		/* Size of unresolved	*/
 
@@ -524,7 +522,7 @@ static struct mfc_cache *ipmr_cache_find(__be32 origin, __be32 mcastgrp)
 	int line = MFC_HASH(mcastgrp, origin);
 	struct mfc_cache *c;
 
-	for (c=mfc_cache_array[line]; c; c = c->next) {
+	for (c = init_net.ipv4.mfc_cache_array[line]; c; c = c->next) {
 		if (c->mfc_origin==origin && c->mfc_mcastgrp==mcastgrp)
 			break;
 	}
@@ -764,7 +762,8 @@ static int ipmr_mfc_delete(struct mfcctl *mfc)
 
 	line = MFC_HASH(mfc->mfcc_mcastgrp.s_addr, mfc->mfcc_origin.s_addr);
 
-	for (cp=&mfc_cache_array[line]; (c=*cp) != NULL; cp = &c->next) {
+	for (cp = &init_net.ipv4.mfc_cache_array[line];
+	     (c = *cp) != NULL; cp = &c->next) {
 		if (c->mfc_origin == mfc->mfcc_origin.s_addr &&
 		    c->mfc_mcastgrp == mfc->mfcc_mcastgrp.s_addr) {
 			write_lock_bh(&mrt_lock);
@@ -785,7 +784,8 @@ static int ipmr_mfc_add(struct mfcctl *mfc, int mrtsock)
 
 	line = MFC_HASH(mfc->mfcc_mcastgrp.s_addr, mfc->mfcc_origin.s_addr);
 
-	for (cp=&mfc_cache_array[line]; (c=*cp) != NULL; cp = &c->next) {
+	for (cp = &init_net.ipv4.mfc_cache_array[line];
+	     (c = *cp) != NULL; cp = &c->next) {
 		if (c->mfc_origin == mfc->mfcc_origin.s_addr &&
 		    c->mfc_mcastgrp == mfc->mfcc_mcastgrp.s_addr)
 			break;
@@ -816,8 +816,8 @@ static int ipmr_mfc_add(struct mfcctl *mfc, int mrtsock)
 		c->mfc_flags |= MFC_STATIC;
 
 	write_lock_bh(&mrt_lock);
-	c->next = mfc_cache_array[line];
-	mfc_cache_array[line] = c;
+	c->next = init_net.ipv4.mfc_cache_array[line];
+	init_net.ipv4.mfc_cache_array[line] = c;
 	write_unlock_bh(&mrt_lock);
 
 	/*
@@ -866,7 +866,7 @@ static void mroute_clean_tables(struct sock *sk)
 	for (i=0; i<MFC_LINES; i++) {
 		struct mfc_cache *c, **cp;
 
-		cp = &mfc_cache_array[i];
+		cp = &init_net.ipv4.mfc_cache_array[i];
 		while ((c = *cp) != NULL) {
 			if (c->mfc_flags&MFC_STATIC) {
 				cp = &c->next;
@@ -1767,10 +1767,11 @@ static struct mfc_cache *ipmr_mfc_seq_idx(struct ipmr_mfc_iter *it, loff_t pos)
 {
 	struct mfc_cache *mfc;
 
-	it->cache = mfc_cache_array;
+	it->cache = init_net.ipv4.mfc_cache_array;
 	read_lock(&mrt_lock);
 	for (it->ct = 0; it->ct < MFC_LINES; it->ct++)
-		for (mfc = mfc_cache_array[it->ct]; mfc; mfc = mfc->next)
+		for (mfc = init_net.ipv4.mfc_cache_array[it->ct];
+		     mfc; mfc = mfc->next)
 			if (pos-- == 0)
 				return mfc;
 	read_unlock(&mrt_lock);
@@ -1812,10 +1813,10 @@ static void *ipmr_mfc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (it->cache == &mfc_unres_queue)
 		goto end_of_list;
 
-	BUG_ON(it->cache != mfc_cache_array);
+	BUG_ON(it->cache != init_net.ipv4.mfc_cache_array);
 
 	while (++it->ct < MFC_LINES) {
-		mfc = mfc_cache_array[it->ct];
+		mfc = init_net.ipv4.mfc_cache_array[it->ct];
 		if (mfc)
 			return mfc;
 	}
@@ -1843,7 +1844,7 @@ static void ipmr_mfc_seq_stop(struct seq_file *seq, void *v)
 
 	if (it->cache == &mfc_unres_queue)
 		spin_unlock_bh(&mfc_unres_lock);
-	else if (it->cache == mfc_cache_array)
+	else if (it->cache == init_net.ipv4.mfc_cache_array)
 		read_unlock(&mrt_lock);
 }
 
@@ -1929,12 +1930,26 @@ static int __net_init ipmr_net_init(struct net *net)
 		err = -ENOMEM;
 		goto fail;
 	}
+
+	/* Forwarding cache */
+	net->ipv4.mfc_cache_array = kcalloc(MFC_LINES,
+					    sizeof(struct mfc_cache *),
+					    GFP_KERNEL);
+	if (!net->ipv4.mfc_cache_array) {
+		err = -ENOMEM;
+		goto fail_mfc_cache;
+	}
+	return 0;
+
+fail_mfc_cache:
+	kfree(net->ipv4.vif_table);
 fail:
 	return err;
 }
 
 static void __net_exit ipmr_net_exit(struct net *net)
 {
+	kfree(net->ipv4.mfc_cache_array);
 	kfree(net->ipv4.vif_table);
 }
 
