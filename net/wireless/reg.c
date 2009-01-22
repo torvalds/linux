@@ -867,6 +867,22 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 
 	power_rule = &reg_rule->power_rule;
 
+	if (last_request->initiator == REGDOM_SET_BY_DRIVER &&
+	    last_request->wiphy && last_request->wiphy == wiphy &&
+	    last_request->wiphy->strict_regulatory) {
+		/* This gaurantees the driver's requested regulatory domain
+		 * will always be used as a base for further regulatory
+		 * settings */
+		chan->flags = chan->orig_flags =
+			map_regdom_flags(reg_rule->flags);
+		chan->max_antenna_gain = chan->orig_mag =
+			(int) MBI_TO_DBI(power_rule->max_antenna_gain);
+		chan->max_bandwidth = KHZ_TO_MHZ(max_bandwidth);
+		chan->max_power = chan->orig_mpwr =
+			(int) MBM_TO_DBM(power_rule->max_eirp);
+		return;
+	}
+
 	chan->flags = flags | map_regdom_flags(reg_rule->flags);
 	chan->max_antenna_gain = min(chan->orig_mag,
 		(int) MBI_TO_DBI(power_rule->max_antenna_gain));
@@ -896,6 +912,11 @@ static bool ignore_reg_update(struct wiphy *wiphy, enum reg_set_by setby)
 		return true;
 	if (setby == REGDOM_SET_BY_CORE &&
 		  wiphy->custom_regulatory)
+		return true;
+	/* wiphy->regd will be set once the device has its own
+	 * desired regulatory domain set */
+	if (wiphy->strict_regulatory && !wiphy->regd &&
+	    !is_world_regdom(last_request->alpha2))
 		return true;
 	return false;
 }
@@ -1155,10 +1176,15 @@ new_request:
 
 void regulatory_hint(struct wiphy *wiphy, const char *alpha2)
 {
+	int r;
 	BUG_ON(!alpha2);
 
 	mutex_lock(&cfg80211_drv_mutex);
-	__regulatory_hint(wiphy, REGDOM_SET_BY_DRIVER, alpha2, 0, ENVIRON_ANY);
+	r = __regulatory_hint(wiphy, REGDOM_SET_BY_DRIVER,
+		alpha2, 0, ENVIRON_ANY);
+	/* This is required so that the orig_* parameters are saved */
+	if (r == -EALREADY && wiphy->strict_regulatory)
+		wiphy_update_regulatory(wiphy, REGDOM_SET_BY_DRIVER);
 	mutex_unlock(&cfg80211_drv_mutex);
 }
 EXPORT_SYMBOL(regulatory_hint);

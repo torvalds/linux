@@ -186,6 +186,15 @@ struct ieee80211_supported_band {
  * 	ISO / IEC 3166 alpha2 it belongs to. When this is enabled
  * 	we will disregard the first regulatory hint (when the
  * 	initiator is %REGDOM_SET_BY_CORE).
+ * @strict_regulatory: tells us the driver for this device will ignore
+ * 	regulatory domain settings until it gets its own regulatory domain
+ * 	via its regulatory_hint(). After its gets its own regulatory domain
+ * 	it will only allow further regulatory domain settings to further
+ * 	enhance compliance. For example if channel 13 and 14 are disabled
+ * 	by this regulatory domain no user regulatory domain can enable these
+ * 	channels at a later time. This can be used for devices which do not
+ * 	have calibration information gauranteed for frequencies or settings
+ * 	outside of its regulatory domain.
  * @reg_notifier: the driver's regulatory notification callback
  * @regd: the driver's regulatory domain, if one was requested via
  * 	the regulatory_hint() API. This can be used by the driver
@@ -202,6 +211,7 @@ struct wiphy {
 	u16 interface_modes;
 
 	bool custom_regulatory;
+	bool strict_regulatory;
 
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't
