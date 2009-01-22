@@ -292,6 +292,12 @@ int clk_register(struct clk *clk)
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
+	/*
+	 * trap out already registered clocks
+	 */
+	if (clk->node.next || clk->node.prev)
+		return 0;
+
 	mutex_lock(&clocks_mutex);
 	list_add(&clk->node, &clocks);
 	if (clk->init)
