@@ -312,15 +312,14 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, 0);
 
 	if (cpu_class_is_omap1()) {
-		struct clk *armxor_ck;
+		/*
+		 * The I2C functional clock is the armxor_ck, so there's
+		 * no need to get "armxor_ck" separately.  Now, if OMAP2420
+		 * always returns 12MHz for the functional clock, we can
+		 * do this bit unconditionally.
+		 */
+		fclk_rate = clk_get_rate(dev->fclk);
 
-		armxor_ck = clk_get(NULL, "armxor_ck");
-		if (IS_ERR(armxor_ck))
-			dev_warn(dev->dev, "Could not get armxor_ck\n");
-		else {
-			fclk_rate = clk_get_rate(armxor_ck);
-			clk_put(armxor_ck);
-		}
 		/* TRM for 5912 says the I2C clock must be prescaled to be
 		 * between 7 - 12 MHz. The XOR input clock is typically
 		 * 12, 13 or 19.2 MHz. So we should have code that produces:
