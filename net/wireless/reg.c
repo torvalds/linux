@@ -1080,8 +1080,13 @@ static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
 		}
 		return REG_INTERSECT;
 	case REGDOM_SET_BY_DRIVER:
-		if (last_request->initiator == REGDOM_SET_BY_CORE)
-			return 0;
+		if (last_request->initiator == REGDOM_SET_BY_CORE) {
+			if (is_old_static_regdom(cfg80211_regdomain))
+				return 0;
+			if (!alpha2_equal(cfg80211_regdomain->alpha2, alpha2))
+				return 0;
+			return -EALREADY;
+		}
 		return REG_INTERSECT;
 	case REGDOM_SET_BY_USER:
 		if (last_request->initiator == REGDOM_SET_BY_COUNTRY_IE)
@@ -1100,6 +1105,10 @@ static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
 			    cfg80211_regdomain->alpha2))
 				return -EAGAIN;
 		}
+
+		if (!is_old_static_regdom(cfg80211_regdomain) &&
+		    alpha2_equal(cfg80211_regdomain->alpha2, alpha2))
+			return -EALREADY;
 
 		return 0;
 	}
