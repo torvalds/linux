@@ -944,9 +944,9 @@ qla24xx_unprotect_flash(struct qla_hw_data *ha)
 	if (!ha->fdt_wrt_disable)
 		return;
 
-	/* Disable flash write-protection. */
+	/* Disable flash write-protection, first clear SR protection bit */
 	qla24xx_write_flash_dword(ha, flash_conf_addr(ha, 0x101), 0);
-	/* Some flash parts need an additional zero-write to clear bits.*/
+	/* Then write zero again to clear remaining SR bits.*/
 	qla24xx_write_flash_dword(ha, flash_conf_addr(ha, 0x101), 0);
 }
 
@@ -1021,7 +1021,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 			    (fdata & 0xff00) |((fdata << 16) &
 			    0xff0000) | ((fdata >> 16) & 0xff));
 			if (ret != QLA_SUCCESS) {
-				DEBUG9(qla_printk("Unable to flash sector: "
+				DEBUG9(qla_printk("Unable to erase sector: "
 				    "address=%x.\n", faddr));
 				break;
 			}
