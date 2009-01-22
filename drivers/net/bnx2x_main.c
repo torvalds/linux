@@ -9827,6 +9827,8 @@ static int bnx2x_open(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
+	netif_carrier_off(dev);
+
 	bnx2x_set_power_state(bp, PCI_D0);
 
 	return bnx2x_nic_load(bp, LOAD_OPEN);
@@ -10331,8 +10333,6 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Cannot register net device\n");
 		goto init_one_exit;
 	}
-
-	netif_carrier_off(dev);
 
 	bp->common.name = board_info[ent->driver_data].name;
 	printk(KERN_INFO "%s: %s (%c%d) PCI-E x%d %s found at mem %lx,"
