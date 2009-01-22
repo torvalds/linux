@@ -1119,6 +1119,7 @@ int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol,
 	u16 nid = get_amp_nid(kcontrol);
 	u8 chs = get_amp_channels(kcontrol);
 	int dir = get_amp_direction(kcontrol);
+	unsigned int ofs = get_amp_offset(kcontrol);
 	u32 caps;
 
 	caps = query_amp_caps(codec, nid, dir);
@@ -1130,6 +1131,8 @@ int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol,
 		       kcontrol->id.name);
 		return -EINVAL;
 	}
+	if (ofs < caps)
+		caps -= ofs;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = chs == 3 ? 2 : 1;
 	uinfo->value.integer.min = 0;
@@ -1137,6 +1140,32 @@ int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_volume_info);
+
+
+static inline unsigned int
+read_amp_value(struct hda_codec *codec, hda_nid_t nid,
+	       int ch, int dir, int idx, unsigned int ofs)
+{
+	unsigned int val;
+	val = snd_hda_codec_amp_read(codec, nid, ch, dir, idx);
+	val &= HDA_AMP_VOLMASK;
+	if (val >= ofs)
+		val -= ofs;
+	else
+		val = 0;
+	return val;
+}
+
+static inline int
+update_amp_value(struct hda_codec *codec, hda_nid_t nid,
+		 int ch, int dir, int idx, unsigned int ofs,
+		 unsigned int val)
+{
+	if (val > 0)
+		val += ofs;
+	return snd_hda_codec_amp_update(codec, nid, ch, dir, idx,
+					HDA_AMP_VOLMASK, val);
+}
 
 int snd_hda_mixer_amp_volume_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -1146,14 +1175,13 @@ int snd_hda_mixer_amp_volume_get(struct snd_kcontrol *kcontrol,
 	int chs = get_amp_channels(kcontrol);
 	int dir = get_amp_direction(kcontrol);
 	int idx = get_amp_index(kcontrol);
+	unsigned int ofs = get_amp_offset(kcontrol);
 	long *valp = ucontrol->value.integer.value;
 
 	if (chs & 1)
-		*valp++ = snd_hda_codec_amp_read(codec, nid, 0, dir, idx)
-			& HDA_AMP_VOLMASK;
+		*valp++ = read_amp_value(codec, nid, 0, dir, idx, ofs);
 	if (chs & 2)
-		*valp = snd_hda_codec_amp_read(codec, nid, 1, dir, idx)
-			& HDA_AMP_VOLMASK;
+		*valp = read_amp_value(codec, nid, 1, dir, idx, ofs);
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_mixer_amp_volume_get);
@@ -1166,18 +1194,17 @@ int snd_hda_mixer_amp_volume_put(struct snd_kcontrol *kcontrol,
 	int chs = get_amp_channels(kcontrol);
 	int dir = get_amp_direction(kcontrol);
 	int idx = get_amp_index(kcontrol);
+	unsigned int ofs = get_amp_offset(kcontrol);
 	long *valp = ucontrol->value.integer.value;
 	int change = 0;
 
 	snd_hda_power_up(codec);
 	if (chs & 1) {
-		change = snd_hda_codec_amp_update(codec, nid, 0, dir, idx,
-						  0x7f, *valp);
+		change = update_amp_value(codec, nid, 0, dir, idx, ofs, *valp);
 		valp++;
 	}
 	if (chs & 2)
-		change |= snd_hda_codec_amp_update(codec, nid, 1, dir, idx,
-						   0x7f, *valp);
+		change |= update_amp_value(codec, nid, 1, dir, idx, ofs, *valp);
 	snd_hda_power_down(codec);
 	return change;
 }
@@ -1189,6 +1216,7 @@ int snd_hda_mixer_amp_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	hda_nid_t nid = get_amp_nid(kcontrol);
 	int dir = get_amp_direction(kcontrol);
+	unsigned int ofs = get_amp_offset(kcontrol);
 	u32 caps, val1, val2;
 
 	if (size < 4 * sizeof(unsigned int))
@@ -1197,6 +1225,7 @@ int snd_hda_mixer_amp_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 	val2 = (caps & AC_AMPCAP_STEP_SIZE) >> AC_AMPCAP_STEP_SIZE_SHIFT;
 	val2 = (val2 + 1) * 25;
 	val1 = -((caps & AC_AMPCAP_OFFSET) >> AC_AMPCAP_OFFSET_SHIFT);
+	val1 += ofs;
 	val1 = ((int)val1) * ((int)val2);
 	if (put_user(SNDRV_CTL_TLVT_DB_SCALE, _tlv))
 		return -EFAULT;
