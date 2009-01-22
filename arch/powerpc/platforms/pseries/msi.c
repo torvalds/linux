@@ -71,11 +71,13 @@ static int rtas_change_msi(struct pci_dn *pdn, u32 func, u32 num_irqs)
 	} while (rtas_busy_delay(rc));
 
 	/*
-	 * If the RTAS call succeeded, check the number of irqs is actually
-	 * what we asked for. If not, return an error.
+	 * If the RTAS call succeeded, return the number of irqs allocated.
+	 * If not, make sure we return a negative error code.
 	 */
-	if (rc == 0 && rtas_ret[0] != num_irqs)
-		rc = -ENOSPC;
+	if (rc == 0)
+		rc = rtas_ret[0];
+	else if (rc > 0)
+		rc = -rc;
 
 	pr_debug("rtas_msi: ibm,change_msi(func=%d,num=%d), got %d rc = %d\n",
 		 func, num_irqs, rtas_ret[0], rc);
@@ -91,7 +93,7 @@ static void rtas_disable_msi(struct pci_dev *pdev)
 	if (!pdn)
 		return;
 
-	if (rtas_change_msi(pdn, RTAS_CHANGE_FN, 0))
+	if (rtas_change_msi(pdn, RTAS_CHANGE_FN, 0) != 0)
 		pr_debug("rtas_msi: Setting MSIs to 0 failed!\n");
 }
 
@@ -195,14 +197,14 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	if (type == PCI_CAP_ID_MSI) {
 		rc = rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, nvec);
 
-		if (rc) {
+		if (rc < 0) {
 			pr_debug("rtas_msi: trying the old firmware call.\n");
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_FN, nvec);
 		}
 	} else
 		rc = rtas_change_msi(pdn, RTAS_CHANGE_MSIX_FN, nvec);
 
-	if (rc) {
+	if (rc != nvec) {
 		pr_debug("rtas_msi: rtas_change_msi() failed\n");
 		return rc;
 	}
