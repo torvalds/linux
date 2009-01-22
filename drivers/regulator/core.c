@@ -831,6 +831,19 @@ static void unset_consumer_device_supply(struct regulator_dev *rdev,
 	}
 }
 
+static void unset_regulator_supplies(struct regulator_dev *rdev)
+{
+	struct regulator_map *node, *n;
+
+	list_for_each_entry_safe(node, n, &regulator_map_list, list) {
+		if (rdev == node->regulator) {
+			list_del(&node->list);
+			kfree(node);
+			return;
+		}
+	}
+}
+
 #define REG_STR_SIZE	32
 
 static struct regulator *create_regulator(struct regulator_dev *rdev,
@@ -1970,6 +1983,7 @@ void regulator_unregister(struct regulator_dev *rdev)
 		return;
 
 	mutex_lock(&regulator_list_mutex);
+	unset_regulator_supplies(rdev);
 	list_del(&rdev->list);
 	if (rdev->supply)
 		sysfs_remove_link(&rdev->dev.kobj, "supply");
