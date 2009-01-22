@@ -63,6 +63,9 @@ struct netns_ipv4 {
 	atomic_t		cache_resolve_queue_len;
 	int			mroute_do_assert;
 	int			mroute_do_pim;
+#if defined(CONFIG_IP_PIMSM_V1) || defined(CONFIG_IP_PIMSM_V2)
+	int			mroute_reg_vif_num;
+#endif
 #endif
 };
 #endif
