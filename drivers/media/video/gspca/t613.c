@@ -694,7 +694,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		break;
 	default:
 		PDEBUG(D_CONF, "unknown sensor %04x", sensor_id);
-		return -1;
+		return -EINVAL;
 	}
 
 	if (sd->sensor != SENSOR_OTHER) {
