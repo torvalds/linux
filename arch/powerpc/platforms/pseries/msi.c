@@ -132,7 +132,7 @@ static void rtas_teardown_msi_irqs(struct pci_dev *pdev)
 	rtas_disable_msi(pdev);
 }
 
-static int check_req_msi(struct pci_dev *pdev, int nvec)
+static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 {
 	struct device_node *dn;
 	struct pci_dn *pdn;
@@ -144,24 +144,34 @@ static int check_req_msi(struct pci_dev *pdev, int nvec)
 
 	dn = pdn->node;
 
-	req_msi = of_get_property(dn, "ibm,req#msi", NULL);
+	req_msi = of_get_property(dn, prop_name, NULL);
 	if (!req_msi) {
-		pr_debug("rtas_msi: No ibm,req#msi on %s\n", dn->full_name);
+		pr_debug("rtas_msi: No %s on %s\n", prop_name, dn->full_name);
 		return -ENOENT;
 	}
 
 	if (*req_msi < nvec) {
-		pr_debug("rtas_msi: ibm,req#msi requests < %d MSIs\n", nvec);
+		pr_debug("rtas_msi: %s requests < %d MSIs\n", prop_name, nvec);
 		return -ENOSPC;
 	}
 
 	return 0;
 }
 
+static int check_req_msi(struct pci_dev *pdev, int nvec)
+{
+	return check_req(pdev, nvec, "ibm,req#msi");
+}
+
+static int check_req_msix(struct pci_dev *pdev, int nvec)
+{
+	return check_req(pdev, nvec, "ibm,req#msi-x");
+}
+
 static int rtas_msi_check_device(struct pci_dev *pdev, int nvec, int type)
 {
 	if (type == PCI_CAP_ID_MSIX)
-		pr_debug("rtas_msi: MSI-X untested, trying anyway.\n");
+		return check_req_msix(pdev, nvec);
 
 	return check_req_msi(pdev, nvec);
 }
