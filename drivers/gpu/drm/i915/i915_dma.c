@@ -944,8 +944,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	dev->mode_config.fb_base = drm_get_resource_start(dev, fb_bar) &
 		0xff000000;
 
-	DRM_DEBUG("*** fb base 0x%08lx\n", dev->mode_config.fb_base);
-
 	if (IS_MOBILE(dev) || (IS_I9XX(dev) && !IS_I965G(dev) && !IS_G33(dev)))
 		dev_priv->cursor_needs_physical = true;
 	else
