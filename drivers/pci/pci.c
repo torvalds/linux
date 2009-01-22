@@ -1393,12 +1393,11 @@ int pci_restore_standard_config(struct pci_dev *dev)
 	pci_power_t prev_state;
 	int error;
 
-	pci_restore_state(dev);
 	pci_update_current_state(dev, PCI_D0);
 
 	prev_state = dev->current_state;
 	if (prev_state == PCI_D0)
-		return 0;
+		goto Restore;
 
 	error = pci_raw_set_power_state(dev, PCI_D0, false);
 	if (error)
@@ -1421,7 +1420,8 @@ int pci_restore_standard_config(struct pci_dev *dev)
 
 	dev->current_state = PCI_D0;
 
-	return 0;
+ Restore:
+	return pci_restore_state(dev);
 }
 
 /**
