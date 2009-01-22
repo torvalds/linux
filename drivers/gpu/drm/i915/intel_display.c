@@ -1452,6 +1452,7 @@ static int intel_connector_clones(struct drm_device *dev, int type_mask)
 
 static void intel_setup_outputs(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
 
 	intel_crt_init(dev);
@@ -1463,13 +1464,16 @@ static void intel_setup_outputs(struct drm_device *dev)
 	if (IS_I9XX(dev)) {
 		int found;
 
-		found = intel_sdvo_init(dev, SDVOB);
-		if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
-			intel_hdmi_init(dev, SDVOB);
-
-		found = intel_sdvo_init(dev, SDVOC);
-		if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
-			intel_hdmi_init(dev, SDVOC);
+		if (I915_READ(SDVOB) & SDVO_DETECTED) {
+			found = intel_sdvo_init(dev, SDVOB);
+			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+				intel_hdmi_init(dev, SDVOB);
+		}
+		if (!IS_G4X(dev) || (I915_READ(SDVOB) & SDVO_DETECTED)) {
+			found = intel_sdvo_init(dev, SDVOC);
+			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+				intel_hdmi_init(dev, SDVOC);
+		}
 	} else
 		intel_dvo_init(dev);
 
