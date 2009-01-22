@@ -67,9 +67,6 @@
 #define CONFIG_IP_PIMSM	1
 #endif
 
-static struct sock *mroute_socket;
-
-
 /* Big lock, protecting vif table, mrt cache and mroute socket state.
    Note that the changes are semaphored via rtnl_lock.
  */
@@ -658,7 +655,7 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 	skb->transport_header = skb->network_header;
 	}
 
-	if (mroute_socket == NULL) {
+	if (init_net.ipv4.mroute_sk == NULL) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -666,7 +663,8 @@ static int ipmr_cache_report(struct sk_buff *pkt, vifi_t vifi, int assert)
 	/*
 	 *	Deliver to mrouted
 	 */
-	if ((ret = sock_queue_rcv_skb(mroute_socket, skb))<0) {
+	ret = sock_queue_rcv_skb(init_net.ipv4.mroute_sk, skb);
+	if (ret < 0) {
 		if (net_ratelimit())
 			printk(KERN_WARNING "mroute: pending queue full, dropping entries.\n");
 		kfree_skb(skb);
@@ -896,11 +894,11 @@ static void mroute_clean_tables(struct sock *sk)
 static void mrtsock_destruct(struct sock *sk)
 {
 	rtnl_lock();
-	if (sk == mroute_socket) {
+	if (sk == init_net.ipv4.mroute_sk) {
 		IPV4_DEVCONF_ALL(sock_net(sk), MC_FORWARDING)--;
 
 		write_lock_bh(&mrt_lock);
-		mroute_socket = NULL;
+		init_net.ipv4.mroute_sk = NULL;
 		write_unlock_bh(&mrt_lock);
 
 		mroute_clean_tables(sk);
@@ -922,7 +920,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int 
 	struct mfcctl mfc;
 
 	if (optname != MRT_INIT) {
-		if (sk != mroute_socket && !capable(CAP_NET_ADMIN))
+		if (sk != init_net.ipv4.mroute_sk && !capable(CAP_NET_ADMIN))
 			return -EACCES;
 	}
 
@@ -935,7 +933,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int 
 			return -ENOPROTOOPT;
 
 		rtnl_lock();
-		if (mroute_socket) {
+		if (init_net.ipv4.mroute_sk) {
 			rtnl_unlock();
 			return -EADDRINUSE;
 		}
@@ -943,7 +941,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int 
 		ret = ip_ra_control(sk, 1, mrtsock_destruct);
 		if (ret == 0) {
 			write_lock_bh(&mrt_lock);
-			mroute_socket = sk;
+			init_net.ipv4.mroute_sk = sk;
 			write_unlock_bh(&mrt_lock);
 
 			IPV4_DEVCONF_ALL(sock_net(sk), MC_FORWARDING)++;
@@ -951,7 +949,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int 
 		rtnl_unlock();
 		return ret;
 	case MRT_DONE:
-		if (sk != mroute_socket)
+		if (sk != init_net.ipv4.mroute_sk)
 			return -EACCES;
 		return ip_ra_control(sk, 0, NULL);
 	case MRT_ADD_VIF:
@@ -964,7 +962,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int 
 			return -ENFILE;
 		rtnl_lock();
 		if (optname == MRT_ADD_VIF) {
-			ret = vif_add(&vif, sk==mroute_socket);
+			ret = vif_add(&vif, sk == init_net.ipv4.mroute_sk);
 		} else {
 			ret = vif_delete(vif.vifc_vifi, 0);
 		}
@@ -985,7 +983,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int 
 		if (optname == MRT_DEL_MFC)
 			ret = ipmr_mfc_delete(&mfc);
 		else
-			ret = ipmr_mfc_add(&mfc, sk==mroute_socket);
+			ret = ipmr_mfc_add(&mfc, sk == init_net.ipv4.mroute_sk);
 		rtnl_unlock();
 		return ret;
 		/*
@@ -1425,9 +1423,9 @@ int ip_mr_input(struct sk_buff *skb)
 			       that we can forward NO IGMP messages.
 			     */
 			    read_lock(&mrt_lock);
-			    if (mroute_socket) {
+			    if (init_net.ipv4.mroute_sk) {
 				    nf_reset(skb);
-				    raw_rcv(mroute_socket, skb);
+				    raw_rcv(init_net.ipv4.mroute_sk, skb);
 				    read_unlock(&mrt_lock);
 				    return 0;
 			    }
