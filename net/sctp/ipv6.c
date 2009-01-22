@@ -97,8 +97,7 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 		if (addr) {
 			addr->a.v6.sin6_family = AF_INET6;
 			addr->a.v6.sin6_port = 0;
-			memcpy(&addr->a.v6.sin6_addr, &ifa->addr,
-				 sizeof(struct in6_addr));
+			ipv6_addr_copy(&addr->a.v6.sin6_addr, &ifa->addr);
 			addr->a.v6.sin6_scope_id = ifa->idev->dev->ifindex;
 			addr->valid = 1;
 			spin_lock_bh(&sctp_local_addr_lock);
