@@ -7,8 +7,6 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-
-#include <asm/swab.h>
 #include <linux/byteorder/big_endian.h>
 
 #endif /* _ASM_POWERPC_BYTEORDER_H */

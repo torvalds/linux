@@ -590,6 +590,11 @@ static void __init check_cpu_slb_size(unsigned long node)
 {
 	u32 *slb_size_ptr;
 
+	slb_size_ptr = of_get_flat_dt_prop(node, "slb-size", NULL);
+	if (slb_size_ptr != NULL) {
+		mmu_slb_size = *slb_size_ptr;
+		return;
+	}
 	slb_size_ptr = of_get_flat_dt_prop(node, "ibm,slb-size", NULL);
 	if (slb_size_ptr != NULL) {
 		mmu_slb_size = *slb_size_ptr;

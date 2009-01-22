@@ -266,6 +266,8 @@ static int detect_ejectable_slots(struct pci_bus *pbus)
 	int found = acpi_pci_detect_ejectable(pbus);
 	if (!found) {
 		acpi_handle bridge_handle = acpi_pci_get_bridge_handle(pbus);
+		if (!bridge_handle)
+			return 0;
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge_handle, (u32)1,
 				    is_pci_dock_device, (void *)&found, NULL);
 	}

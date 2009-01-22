@@ -409,7 +409,7 @@ static int ipoib_mcast_join_complete(int status,
 	}
 
 	if (mcast->logcount++ < 20) {
-		if (status == -ETIMEDOUT) {
+		if (status == -ETIMEDOUT || status == -EAGAIN) {
 			ipoib_dbg_mcast(priv, "multicast join failed for %pI6, status %d\n",
 					mcast->mcmember.mgid.raw, status);
 		} else {

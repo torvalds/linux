@@ -88,7 +88,7 @@ struct drm_connector_helper_funcs {
 	struct drm_encoder *(*best_encoder)(struct drm_connector *connector);
 };
 
-extern void drm_helper_probe_single_connector_modes(struct drm_connector *connector, uint32_t maxX, uint32_t maxY);
+extern int drm_helper_probe_single_connector_modes(struct drm_connector *connector, uint32_t maxX, uint32_t maxY);
 extern void drm_helper_disable_unused_functions(struct drm_device *dev);
 extern int drm_helper_hotplug_stage_two(struct drm_device *dev);
 extern bool drm_helper_initial_config(struct drm_device *dev, bool can_grow);

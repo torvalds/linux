@@ -70,7 +70,7 @@ static int ps3stor_probe_access(struct ps3_storage_device *dev)
 			 __func__, __LINE__, n);
 	dev->region_idx = __ffs(dev->accessible_regions);
 	dev_info(&dev->sbd.core,
-		 "First accessible region has index %u start %lu size %lu\n",
+		 "First accessible region has index %u start %llu size %llu\n",
 		 dev->region_idx, dev->regions[dev->region_idx].start,
 		 dev->regions[dev->region_idx].size);
 
@@ -220,7 +220,7 @@ u64 ps3stor_read_write_sectors(struct ps3_storage_device *dev, u64 lpar,
 	const char *op = write ? "write" : "read";
 	int res;
 
-	dev_dbg(&dev->sbd.core, "%s:%u: %s %lu sectors starting at %lu\n",
+	dev_dbg(&dev->sbd.core, "%s:%u: %s %llu sectors starting at %llu\n",
 		__func__, __LINE__, op, sectors, start_sector);
 
 	init_completion(&dev->done);
@@ -238,7 +238,7 @@ u64 ps3stor_read_write_sectors(struct ps3_storage_device *dev, u64 lpar,
 
 	wait_for_completion(&dev->done);
 	if (dev->lv1_status) {
-		dev_dbg(&dev->sbd.core, "%s:%u: %s failed 0x%lx\n", __func__,
+		dev_dbg(&dev->sbd.core, "%s:%u: %s failed 0x%llx\n", __func__,
 			__LINE__, op, dev->lv1_status);
 		return dev->lv1_status;
 	}
@@ -268,7 +268,7 @@ u64 ps3stor_send_command(struct ps3_storage_device *dev, u64 cmd, u64 arg1,
 {
 	int res;
 
-	dev_dbg(&dev->sbd.core, "%s:%u: send device command 0x%lx\n", __func__,
+	dev_dbg(&dev->sbd.core, "%s:%u: send device command 0x%llx\n", __func__,
 		__LINE__, cmd);
 
 	init_completion(&dev->done);
@@ -277,19 +277,19 @@ u64 ps3stor_send_command(struct ps3_storage_device *dev, u64 cmd, u64 arg1,
 					      arg2, arg3, arg4, &dev->tag);
 	if (res) {
 		dev_err(&dev->sbd.core,
-			"%s:%u: send_device_command 0x%lx failed %d\n",
+			"%s:%u: send_device_command 0x%llx failed %d\n",
 			__func__, __LINE__, cmd, res);
 		return -1;
 	}
 
 	wait_for_completion(&dev->done);
 	if (dev->lv1_status) {
-		dev_dbg(&dev->sbd.core, "%s:%u: command 0x%lx failed 0x%lx\n",
+		dev_dbg(&dev->sbd.core, "%s:%u: command 0x%llx failed 0x%llx\n",
 			__func__, __LINE__, cmd, dev->lv1_status);
 		return dev->lv1_status;
 	}
 
-	dev_dbg(&dev->sbd.core, "%s:%u: command 0x%lx completed\n", __func__,
+	dev_dbg(&dev->sbd.core, "%s:%u: command 0x%llx completed\n", __func__,
 		__LINE__, cmd);
 
 	return 0;

@@ -1057,7 +1057,7 @@ int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
 	if (retval)
 		return retval;
 
-	ld = tty_ldisc_ref(tty);
+	ld = tty_ldisc_ref_wait(tty);
 	switch (arg) {
 	case TCIFLUSH:
 		if (ld && ld->ops->flush_buffer)

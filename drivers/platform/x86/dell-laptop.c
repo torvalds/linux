@@ -22,7 +22,7 @@
 #include <linux/rfkill.h>
 #include <linux/power_supply.h>
 #include <linux/acpi.h>
-#include "../firmware/dcdbas.h"
+#include "../../firmware/dcdbas.h"
 
 #define BRIGHTNESS_TOKEN 0x7d
 
