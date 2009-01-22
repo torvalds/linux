@@ -418,17 +418,20 @@ static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 
-	if (dmi_check_system(s5k4aa_vflip_dmi_table))
+	if (dmi_check_system(s5k4aa_vflip_dmi_table)) {
 		val = !val;
+		data = (data & 0x3f) |
+		       (!sensor_settings[HFLIP_IDX] << 6) |
+		       ((val & 0x01) << 7);
+	} else {
+		data = (data & 0x3f) |
+		(sensor_settings[HFLIP_IDX] << 6) |
+		((val & 0x01) << 7);
+	}
 
-	data = ((data & ~S5K4AA_RM_V_FLIP)
-			| ((val & 0x01) << 7));
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		return err;
-
-	if (dmi_check_system(s5k4aa_vflip_dmi_table))
-		val = !val;
 
 	if (val) {
 		err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
@@ -445,7 +448,6 @@ static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 		data--;
 		err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	}
-
 	return err;
 }
 
@@ -481,6 +483,17 @@ static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 
+	if (dmi_check_system(s5k4aa_vflip_dmi_table)) {
+		val = !val;
+		data = (data & 0x3f) |
+		       (!sensor_settings[VFLIP_IDX] << 7) |
+		       ((val & 0x01) << 6);
+	} else {
+		data = (data & 0x3f) |
+		       (sensor_settings[VFLIP_IDX] << 7) |
+		       ((val & 0x01) << 6);
+	}
+
 	data = ((data & ~S5K4AA_RM_H_FLIP) | ((val & 0x01) << 6));
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
@@ -501,7 +514,6 @@ static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 		data--;
 		err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	}
-
 	return err;
 }
 
