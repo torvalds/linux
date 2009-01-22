@@ -647,6 +647,7 @@ struct uvc_device {
 	struct urb *int_urb;
 	__u8 *status;
 	struct input_dev *input;
+	char input_phys[64];
 
 	/* Video Streaming interfaces */
 	struct list_head streaming;
