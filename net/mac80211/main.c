@@ -168,7 +168,6 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 		return 0;
 
 	memset(&conf, 0, sizeof(conf));
-	conf.changed = changed;
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
 	    sdata->vif.type == NL80211_IFTYPE_ADHOC)
@@ -183,8 +182,49 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 		return -EINVAL;
 	}
 
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
+		break;
+	default:
+		/* do not warn to simplify caller in scan.c */
+		changed &= ~IEEE80211_IFCC_BEACON_ENABLED;
+		if (WARN_ON(changed & IEEE80211_IFCC_BEACON))
+			return -EINVAL;
+		changed &= ~IEEE80211_IFCC_BEACON;
+		break;
+	}
+
+	if (changed & IEEE80211_IFCC_BEACON_ENABLED) {
+		if (local->sw_scanning) {
+			conf.enable_beacon = false;
+		} else {
+			/*
+			 * Beacon should be enabled, but AP mode must
+			 * check whether there is a beacon configured.
+			 */
+			switch (sdata->vif.type) {
+			case NL80211_IFTYPE_AP:
+				conf.enable_beacon =
+					!!rcu_dereference(sdata->u.ap.beacon);
+				break;
+			case NL80211_IFTYPE_ADHOC:
+			case NL80211_IFTYPE_MESH_POINT:
+				conf.enable_beacon = true;
+				break;
+			default:
+				/* not reached */
+				WARN_ON(1);
+				break;
+			}
+		}
+	}
+
 	if (WARN_ON(!conf.bssid && (changed & IEEE80211_IFCC_BSSID)))
 		return -EINVAL;
+
+	conf.changed = changed;
 
 	return local->ops->config_interface(local_to_hw(local),
 					    &sdata->vif, &conf);

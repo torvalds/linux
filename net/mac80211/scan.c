@@ -20,6 +20,7 @@
 
 #include <linux/wireless.h>
 #include <linux/if_arp.h>
+#include <linux/rtnetlink.h>
 #include <net/mac80211.h>
 #include <net/iw_handler.h>
 
@@ -472,8 +473,8 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	netif_addr_unlock(local->mdev);
 	netif_tx_unlock_bh(local->mdev);
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list) {
 		/* Tell AP we're back */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
@@ -482,15 +483,16 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 			}
 		} else
 			netif_tx_wake_all_queues(sdata->dev);
+
+		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON_ENABLED);
 	}
-	rcu_read_unlock();
+	mutex_unlock(&local->iflist_mtx);
 
  done:
 	ieee80211_mlme_notify_scan_completed(local);
 	ieee80211_mesh_notify_scan_completed(local);
 }
 EXPORT_SYMBOL(ieee80211_scan_completed);
-
 
 void ieee80211_scan_work(struct work_struct *work)
 {
@@ -633,8 +635,10 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 
 	local->sw_scanning = true;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON_ENABLED);
+
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
 				netif_tx_stop_all_queues(sdata->dev);
@@ -643,7 +647,7 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 		} else
 			netif_tx_stop_all_queues(sdata->dev);
 	}
-	rcu_read_unlock();
+	mutex_unlock(&local->iflist_mtx);
 
 	if (ssid) {
 		local->scan_ssid_len = ssid_len;
