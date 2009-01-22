@@ -49,8 +49,9 @@ struct sd {
 	u8 effect;
 
 	u8 sensor;
-#define SENSOR_TAS5130A 0
-#define SENSOR_OM6802 1
+#define SENSOR_OM6802 0
+#define SENSOR_OTHER 1
+#define SENSOR_TAS5130A 2
 };
 
 /* V4L2 controls supported by the driver */
@@ -272,6 +273,34 @@ struct additional_sensor_data {
 };
 
 const static struct additional_sensor_data sensor_data[] = {
+    {				/* OM6802 */
+	.data1 =
+		{0xc2, 0x28, 0x0f, 0x22, 0xcd, 0x27, 0x2c, 0x06,
+		 0xb3, 0xfc},
+	.data2 =
+		{0x80, 0xff, 0xff, 0x80, 0xff, 0xff, 0x80, 0xff,
+		 0xff},
+	.data4 =	/*Freq (50/60Hz). Splitted for test purpose */
+		{0x66, 0xca, 0xa8, 0xf0},
+	.data5 =	/* this could be removed later */
+		{0x0c, 0x03, 0xab, 0x13, 0x81, 0x23},
+	.stream =
+		{0x0b, 0x04, 0x0a, 0x78},
+    },
+    {				/* OTHER */
+	.data1 =
+		{0xc1, 0x48, 0x04, 0x1b, 0xca, 0x2e, 0x33, 0x3a,
+		 0xe8, 0xfc},
+	.data2 =
+		{0x4e, 0x9c, 0xec, 0x40, 0x80, 0xc0, 0x48, 0x96,
+		 0xd9},
+	.data4 =
+		{0x66, 0x00, 0xa8, 0xa8},
+	.data5 =
+		{0x0c, 0x03, 0xab, 0x29, 0x81, 0x69},
+	.stream =
+		{0x0b, 0x04, 0x0a, 0x00},
+    },
     {				/* TAS5130A */
 	.data1 =
 		{0xbb, 0x28, 0x10, 0x10, 0xbb, 0x28, 0x1e, 0x27,
@@ -286,20 +315,6 @@ const static struct additional_sensor_data sensor_data[] = {
 	.stream =
 		{0x0b, 0x04, 0x0a, 0x40},
     },
-    {				/* OM6802 */
-	.data1 =
-		{0xc2, 0x28, 0x0f, 0x22, 0xcd, 0x27, 0x2c, 0x06,
-		 0xb3, 0xfc},
-	.data2 =
-		{0x80, 0xff, 0xff, 0x80, 0xff, 0xff, 0x80, 0xff,
-		 0xff},
-	.data4 =	/*Freq (50/60Hz). Splitted for test purpose */
-		{0x66, 0xca, 0xa8, 0xf0 },
-	.data5 =	/* this could be removed later */
-		{0x0c, 0x03, 0xab, 0x13, 0x81, 0x23},
-	.stream =
-		{0x0b, 0x04, 0x0a, 0x78},
-    }
 };
 
 #define MAX_EFFECTS 7
@@ -619,7 +634,9 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	 * to see the initial parameters.*/
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
-	u8 byte, test_byte;
+	u16 sensor_id;
+	u8 test_byte;
+	u16 reg80, reg8e;
 
 	static const u8 read_indexs[] =
 		{ 0x06, 0x07, 0x0a, 0x0b, 0x66, 0x80, 0x81, 0x8e, 0x8f, 0xa5,
@@ -628,8 +645,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			{0x08, 0x03, 0x09, 0x03, 0x12, 0x04};
 	static const u8 n2[] =
 			{0x08, 0x00};
-	static const u8 n3[] =
+	static const u8 n3[6] =
 			{0x61, 0x68, 0x65, 0x0a, 0x60, 0x04};
+	static const u8 n3_other[6] =
+			{0x61, 0xc2, 0x65, 0x88, 0x60, 0x00};
 	static const u8 n4[] =
 		{0x09, 0x01, 0x12, 0x04, 0x66, 0x8a, 0x80, 0x3c,
 		 0x81, 0x22, 0x84, 0x50, 0x8a, 0x78, 0x8b, 0x68,
@@ -640,40 +659,61 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		 0x65, 0x0a, 0xbb, 0x86, 0xaf, 0x58, 0xb0, 0x68,
 		 0x87, 0x40, 0x89, 0x2b, 0x8d, 0xff, 0x83, 0x40,
 		 0xac, 0x84, 0xad, 0x86, 0xaf, 0x46};
+	static const u8 n4_other[] =
+		{0x66, 0x00, 0x7f, 0x00, 0x80, 0xac, 0x81, 0x69,
+		 0x84, 0x40, 0x85, 0x70, 0x86, 0x20, 0x8a, 0x68,
+		 0x8b, 0x58, 0x8c, 0x88, 0x8d, 0xff, 0x8e, 0xb8,
+		 0x8f, 0x28, 0xa2, 0x60, 0xa5, 0x40, 0xa8, 0xa8,
+		 0xac, 0x84, 0xad, 0x84, 0xae, 0x24, 0xaf, 0x56,
+		 0xb0, 0x68, 0xb1, 0x00, 0xb2, 0x88, 0xbb, 0xc5,
+		 0xbc, 0x4a, 0xbe, 0x36, 0xc2, 0x88, 0xc5, 0xc0,
+		 0xc6, 0xda, 0xe9, 0x26, 0xeb, 0x00};
 	static const u8 nset8[6] =
 			{ 0xa8, 0xf0, 0xc6, 0x88, 0xc0, 0x00 };
+	static const u8 nset8_other[6] =
+			{ 0xa8, 0xa8, 0xc6, 0xda, 0xc0, 0x00 };
 	static const u8 nset9[4] =
 			{ 0x0b, 0x04, 0x0a, 0x78 };
+	static const u8 nset9_other[4] =
+			{ 0x0b, 0x04, 0x0a, 0x00 };
 
-	byte = reg_r(gspca_dev, 0x06);
-	test_byte = reg_r(gspca_dev, 0x07);
-	if (byte == 0x08 && test_byte == 0x07) {
-		PDEBUG(D_CONF, "sensor om6802");
-		sd->sensor = SENSOR_OM6802;
-	} else if (byte == 0x08 && test_byte == 0x01) {
+	sensor_id = (reg_r(gspca_dev, 0x06) << 8)
+			| reg_r(gspca_dev, 0x07);
+	switch (sensor_id) {
+	case 0x0801:
 		PDEBUG(D_CONF, "sensor tas5130a");
 		sd->sensor = SENSOR_TAS5130A;
-	} else {
-		PDEBUG(D_CONF, "unknown sensor %02x %02x", byte, test_byte);
-		sd->sensor = SENSOR_TAS5130A;
+		break;
+	case 0x0803:
+		PDEBUG(D_CONF, "sensor om6802");
+		sd->sensor = SENSOR_OTHER;
+		break;
+	case 0x0807:
+		PDEBUG(D_CONF, "sensor om6802");
+		sd->sensor = SENSOR_OM6802;
+		break;
+	default:
+		PDEBUG(D_CONF, "unknown sensor %04x", sensor_id);
+		return -1;
 	}
 
-	reg_w_buf(gspca_dev, n1, sizeof n1);
-	test_byte = 0;
-	i = 5;
-	while (--i >= 0) {
-		reg_w_buf(gspca_dev, sensor_reset, sizeof sensor_reset);
-		test_byte = reg_r(gspca_dev, 0x0063);
-		msleep(100);
-		if (test_byte == 0x17)
-			break;		/* OK */
-	}
-	if (i < 0) {
-		err("Bad sensor reset %02x", test_byte);
-/*		return -EIO; */
+	if (sd->sensor != SENSOR_OTHER) {
+		reg_w_buf(gspca_dev, n1, sizeof n1);
+		i = 5;
+		while (--i >= 0) {
+			reg_w_buf(gspca_dev, sensor_reset, sizeof sensor_reset);
+			test_byte = reg_r(gspca_dev, 0x0063);
+			msleep(100);
+			if (test_byte == 0x17)
+				break;		/* OK */
+		}
+		if (i < 0) {
+			err("Bad sensor reset %02x", test_byte);
+/*			return -EIO; */
 /*fixme: test - continue */
+		}
+		reg_w_buf(gspca_dev, n2, sizeof n2);
 	}
-	reg_w_buf(gspca_dev, n2, sizeof n2);
 
 	i = 0;
 	while (read_indexs[i] != 0x00) {
@@ -683,10 +723,20 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		i++;
 	}
 
-	reg_w_buf(gspca_dev, n3, sizeof n3);
-	reg_w_buf(gspca_dev, n4, sizeof n4);
-	reg_r(gspca_dev, 0x0080);
-	reg_w(gspca_dev, 0x2c80);
+	if (sd->sensor != SENSOR_OTHER) {
+		reg_w_buf(gspca_dev, n3, sizeof n3);
+		reg_w_buf(gspca_dev, n4, sizeof n4);
+		reg_r(gspca_dev, 0x0080);
+		reg_w(gspca_dev, 0x2c80);
+		reg80 = 0x3880;
+		reg8e = 0x338e;
+	} else {
+		reg_w_buf(gspca_dev, n3_other, sizeof n3_other);
+		reg_w_buf(gspca_dev, n4_other, sizeof n4_other);
+		sd->gamma = 5;
+		reg80 = 0xac80;
+		reg8e = 0xb88e;
+	}
 
 	reg_w_ixbuf(gspca_dev, 0xd0, sensor_data[sd->sensor].data1,
 			sizeof sensor_data[sd->sensor].data1);
@@ -695,9 +745,9 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	reg_w_ixbuf(gspca_dev, 0xe0, sensor_data[sd->sensor].data2,
 			sizeof sensor_data[sd->sensor].data2);
 
-	reg_w(gspca_dev, 0x3880);
-	reg_w(gspca_dev, 0x3880);
-	reg_w(gspca_dev, 0x338e);
+	reg_w(gspca_dev, reg80);
+	reg_w(gspca_dev, reg80);
+	reg_w(gspca_dev, reg8e);
 
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
@@ -714,10 +764,14 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			sizeof sensor_data[sd->sensor].data4);
 	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data5,
 			sizeof sensor_data[sd->sensor].data5);
-	reg_w_buf(gspca_dev, nset8, sizeof nset8);
-	reg_w_buf(gspca_dev, nset9, sizeof nset9);
-
-	reg_w(gspca_dev, 0x2880);
+	if (sd->sensor != SENSOR_OTHER) {
+		reg_w_buf(gspca_dev, nset8, sizeof nset8);
+		reg_w_buf(gspca_dev, nset9, sizeof nset9);
+		reg_w(gspca_dev, 0x2880);
+	} else {
+		reg_w_buf(gspca_dev, nset8_other, sizeof nset8_other);
+		reg_w_buf(gspca_dev, nset9_other, sizeof nset9_other);
+	}
 
 	reg_w_ixbuf(gspca_dev, 0xd0, sensor_data[sd->sensor].data1,
 			sizeof sensor_data[sd->sensor].data1);
@@ -790,7 +844,7 @@ static void poll_sensor(struct gspca_dev *gspca_dev)
 		 0xa1, 0xb1, 0xda, 0x6b, 0xdb, 0x98, 0xdf, 0x0c,
 		 0xc2, 0x80, 0xc3, 0x10};
 
-	if (sd->sensor != SENSOR_TAS5130A) {
+	if (sd->sensor == SENSOR_OM6802) {
 		PDEBUG(D_STREAM, "[Sensor requires polling]");
 		reg_w_buf(gspca_dev, poll1, sizeof poll1);
 		reg_w_buf(gspca_dev, poll2, sizeof poll2);
@@ -826,7 +880,14 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	if (sd->sensor == SENSOR_TAS5130A) {
+	switch (sd->sensor) {
+	case SENSOR_OM6802:
+		om6802_sensor_init(gspca_dev);
+		break;
+	case SENSOR_OTHER:
+		break;
+	default:
+/*	case SENSOR_TAS5130A: */
 		i = 0;
 		while (tas5130a_sensor_init[i][0] != 0) {
 			reg_w_buf(gspca_dev, tas5130a_sensor_init[i],
@@ -838,8 +899,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w_buf(gspca_dev, tas5130a_sensor_init[3],
 				 sizeof tas5130a_sensor_init[0]);
 		reg_w(gspca_dev, 0x3c80);
-	} else {
-		om6802_sensor_init(gspca_dev);
+		break;
 	}
 	reg_w_buf(gspca_dev, sensor_data[sd->sensor].data4,
 			sizeof sensor_data[sd->sensor].data4);
@@ -869,8 +929,10 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	msleep(20);
 	reg_w_buf(gspca_dev, sensor_data[sd->sensor].stream,
 			sizeof sensor_data[sd->sensor].stream);
-	msleep(20);
-	reg_w(gspca_dev, 0x0309);
+	if (sd->sensor != SENSOR_OTHER) {
+		msleep(20);
+		reg_w(gspca_dev, 0x0309);
+	}
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
