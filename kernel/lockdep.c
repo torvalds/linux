@@ -458,8 +458,8 @@ static const char *usage_str[] =
 	[LOCK_ENABLED_HARDIRQ_READ] =	"hardirq-on-R",
 	[LOCK_USED_IN_RECLAIM_FS] =	"in-reclaim-W",
 	[LOCK_USED_IN_RECLAIM_FS_READ] = "in-reclaim-R",
-	[LOCK_HELD_OVER_RECLAIM_FS] =	"ov-reclaim-W",
-	[LOCK_HELD_OVER_RECLAIM_FS_READ] = "ov-reclaim-R",
+	[LOCK_ENABLED_RECLAIM_FS] =	"ov-reclaim-W",
+	[LOCK_ENABLED_RECLAIM_FS_READ] = "ov-reclaim-R",
 };
 
 const char * __get_key_name(struct lockdep_subclass_key *key, char *str)
@@ -504,14 +504,14 @@ get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3,
 	if (class->usage_mask & LOCKF_USED_IN_RECLAIM_FS)
 		*c5 = '+';
 	else
-		if (class->usage_mask & LOCKF_HELD_OVER_RECLAIM_FS)
+		if (class->usage_mask & LOCKF_ENABLED_RECLAIM_FS)
 			*c5 = '-';
 
-	if (class->usage_mask & LOCKF_HELD_OVER_RECLAIM_FS_READ)
+	if (class->usage_mask & LOCKF_ENABLED_RECLAIM_FS_READ)
 		*c6 = '-';
 	if (class->usage_mask & LOCKF_USED_IN_RECLAIM_FS_READ) {
 		*c6 = '+';
-		if (class->usage_mask & LOCKF_HELD_OVER_RECLAIM_FS_READ)
+		if (class->usage_mask & LOCKF_ENABLED_RECLAIM_FS_READ)
 			*c6 = '?';
 	}
 
@@ -1335,7 +1335,7 @@ check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
 	 * forwards-subgraph starting at <next>:
 	 */
 	if (!check_usage(curr, prev, next, LOCK_USED_IN_RECLAIM_FS,
-					LOCK_HELD_OVER_RECLAIM_FS, "reclaim-fs"))
+					LOCK_ENABLED_RECLAIM_FS, "reclaim-fs"))
 		return 0;
 
 	/*
@@ -1345,7 +1345,7 @@ check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
 	 * forwards-subgraph starting at <next>:
 	 */
 	if (!check_usage(curr, prev, next, LOCK_USED_IN_RECLAIM_FS_READ,
-					LOCK_HELD_OVER_RECLAIM_FS, "reclaim-fs-read"))
+					LOCK_ENABLED_RECLAIM_FS, "reclaim-fs-read"))
 		return 0;
 
 	return 1;
@@ -2058,17 +2058,17 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 			ret = 2;
 		break;
 	case LOCK_USED_IN_RECLAIM_FS:
-		if (!valid_state(curr, this, new_bit, LOCK_HELD_OVER_RECLAIM_FS))
+		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_RECLAIM_FS))
 			return 0;
 		if (!valid_state(curr, this, new_bit,
-				 LOCK_HELD_OVER_RECLAIM_FS_READ))
+				 LOCK_ENABLED_RECLAIM_FS_READ))
 			return 0;
 		/*
 		 * just marked it reclaim-fs-safe, check that this lock
 		 * took no reclaim-fs-unsafe lock in the past:
 		 */
 		if (!check_usage_forwards(curr, this,
-					  LOCK_HELD_OVER_RECLAIM_FS, "reclaim-fs"))
+					  LOCK_ENABLED_RECLAIM_FS, "reclaim-fs"))
 			return 0;
 #if STRICT_READ_CHECKS
 		/*
@@ -2076,7 +2076,7 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		 * took no reclaim-fs-unsafe-read lock in the past:
 		 */
 		if (!check_usage_forwards(curr, this,
-				LOCK_HELD_OVER_RECLAIM_FS_READ, "reclaim-fs-read"))
+				LOCK_ENABLED_RECLAIM_FS_READ, "reclaim-fs-read"))
 			return 0;
 #endif
 		if (reclaim_verbose(hlock_class(this)))
@@ -2109,14 +2109,14 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 			ret = 2;
 		break;
 	case LOCK_USED_IN_RECLAIM_FS_READ:
-		if (!valid_state(curr, this, new_bit, LOCK_HELD_OVER_RECLAIM_FS))
+		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_RECLAIM_FS))
 			return 0;
 		/*
 		 * just marked it reclaim-fs-read-safe, check that this lock
 		 * took no reclaim-fs-unsafe lock in the past:
 		 */
 		if (!check_usage_forwards(curr, this,
-					  LOCK_HELD_OVER_RECLAIM_FS, "reclaim-fs"))
+					  LOCK_ENABLED_RECLAIM_FS, "reclaim-fs"))
 			return 0;
 		if (reclaim_verbose(hlock_class(this)))
 			ret = 2;
@@ -2173,7 +2173,7 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		if (softirq_verbose(hlock_class(this)))
 			ret = 2;
 		break;
-	case LOCK_HELD_OVER_RECLAIM_FS:
+	case LOCK_ENABLED_RECLAIM_FS:
 		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_RECLAIM_FS))
 			return 0;
 		if (!valid_state(curr, this, new_bit,
@@ -2229,7 +2229,7 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		if (softirq_verbose(hlock_class(this)))
 			ret = 2;
 		break;
-	case LOCK_HELD_OVER_RECLAIM_FS_READ:
+	case LOCK_ENABLED_RECLAIM_FS_READ:
 		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_RECLAIM_FS))
 			return 0;
 #if STRICT_READ_CHECKS
@@ -2288,9 +2288,9 @@ mark_held_locks(struct task_struct *curr, enum mark_type mark)
 
 		case RECLAIM_FS:
 			if (hlock->read)
-				usage_bit = LOCK_HELD_OVER_RECLAIM_FS_READ;
+				usage_bit = LOCK_ENABLED_RECLAIM_FS_READ;
 			else
-				usage_bit = LOCK_HELD_OVER_RECLAIM_FS;
+				usage_bit = LOCK_ENABLED_RECLAIM_FS;
 			break;
 
 		default:
@@ -2646,8 +2646,8 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 	case LOCK_ENABLED_SOFTIRQ_READ:
 	case LOCK_USED_IN_RECLAIM_FS:
 	case LOCK_USED_IN_RECLAIM_FS_READ:
-	case LOCK_HELD_OVER_RECLAIM_FS:
-	case LOCK_HELD_OVER_RECLAIM_FS_READ:
+	case LOCK_ENABLED_RECLAIM_FS:
+	case LOCK_ENABLED_RECLAIM_FS_READ:
 		ret = mark_lock_irq(curr, this, new_bit);
 		if (!ret)
 			return 0;
