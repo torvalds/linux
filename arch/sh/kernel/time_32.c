@@ -181,7 +181,12 @@ static struct sysdev_class timer_sysclass = {
 
 static int __init timer_init_sysfs(void)
 {
-	int ret = sysdev_class_register(&timer_sysclass);
+	int ret;
+
+	if (!sys_timer)
+		return 0;
+
+	ret = sysdev_class_register(&timer_sysclass);
 	if (ret != 0)
 		return ret;
 
@@ -230,5 +235,8 @@ void __init time_init(void)
 	 * initialized for us.
 	 */
 	sys_timer = get_sys_timer();
+	if (unlikely(!sys_timer))
+		panic("System timer missing.\n");
+
 	printk(KERN_INFO "Using %s for system timer\n", sys_timer->name);
 }
