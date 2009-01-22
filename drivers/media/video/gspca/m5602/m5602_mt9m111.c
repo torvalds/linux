@@ -67,7 +67,7 @@ const static struct ctrl mt9m111_ctrls[] = {
 			.minimum        = 0,
 			.maximum        = 1,
 			.step           = 1,
-			.default_value  = 1
+			.default_value  = 0
 		},
 		.set = mt9m111_set_vflip,
 		.get = mt9m111_get_vflip
@@ -81,7 +81,7 @@ const static struct ctrl mt9m111_ctrls[] = {
 			.minimum        = 0,
 			.maximum        = 1,
 			.step           = 1,
-			.default_value  = 1
+			.default_value  = 0
 		},
 		.set = mt9m111_set_hflip,
 		.get = mt9m111_get_hflip
@@ -391,6 +391,9 @@ static int mt9m111_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 
 	sensor_settings[VFLIP_IDX] = val;
 
+	/* The mt9m111 is flipped by default */
+	val = !val;
+
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
@@ -427,6 +430,10 @@ static int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	PDEBUG(D_V4L2, "Set horizontal flip to %d", val);
 
 	sensor_settings[HFLIP_IDX] = val;
+
+	/* The mt9m111 is flipped by default */
+	val = !val;
+
 	/* Set the correct page map */
 	err = m5602_write_sensor(sd, MT9M111_PAGE_MAP, data, 2);
 	if (err < 0)
