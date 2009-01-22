@@ -146,7 +146,14 @@ static irqreturn_t tmu_timer_interrupt(int irq, void *dummy)
 	_tmu_clear_status(TMU0);
 	_tmu_set_irq(TMU0,tmu0_clockevent.mode != CLOCK_EVT_MODE_ONESHOT);
 
-	evt->event_handler(evt);
+	switch (tmu0_clockevent.mode) {
+	case CLOCK_EVT_MODE_ONESHOT:
+	case CLOCK_EVT_MODE_PERIODIC:
+		evt->event_handler(evt);
+		break;
+	default:
+		break;
+	}
 
 	return IRQ_HANDLED;
 }
@@ -271,6 +278,7 @@ static int tmu_timer_init(void)
 			clockevent_delta2ns(1, &tmu0_clockevent);
 
 	tmu0_clockevent.cpumask = cpumask_of(0);
+	tmu0_clockevent.rating = 100;
 
 	clockevents_register_device(&tmu0_clockevent);
 
