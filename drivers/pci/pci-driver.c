@@ -669,7 +669,10 @@ static int pci_pm_poweroff(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend(dev, PMSG_HIBERNATE);
 
-	if (drv && drv->pm && drv->pm->poweroff) {
+	if (!drv || !drv->pm)
+		return 0;
+
+	if (drv->pm->poweroff) {
 		error = drv->pm->poweroff(dev);
 		suspend_report_result(drv->pm->poweroff, error);
 	}
