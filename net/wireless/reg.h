@@ -11,13 +11,6 @@ void regulatory_exit(void);
 
 int set_regdom(const struct ieee80211_regdomain *rd);
 
-enum environment_cap {
-	ENVIRON_ANY,
-	ENVIRON_INDOOR,
-	ENVIRON_OUTDOOR,
-};
-
-
 /**
  * __regulatory_hint - hint to the wireless core a regulatory domain
  * @wiphy: if the hint comes from country information from an AP, this

@@ -213,7 +213,8 @@ struct wiphy {
 	struct ieee80211_supported_band *bands[IEEE80211_NUM_BANDS];
 
 	/* Lets us get back the wiphy on the callback */
-	int (*reg_notifier)(struct wiphy *wiphy, enum reg_set_by setby);
+	int (*reg_notifier)(struct wiphy *wiphy,
+			    struct regulatory_request *request);
 
 	/* fields below are read-only, assigned by cfg80211 */
 

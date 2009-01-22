@@ -42,38 +42,6 @@
 #include "core.h"
 #include "reg.h"
 
-/**
- * struct regulatory_request - receipt of last regulatory request
- *
- * @wiphy: this is set if this request's initiator is
- * 	%REGDOM_SET_BY_COUNTRY_IE or %REGDOM_SET_BY_DRIVER. This
- * 	can be used by the wireless core to deal with conflicts
- * 	and potentially inform users of which devices specifically
- * 	cased the conflicts.
- * @initiator: indicates who sent this request, could be any of
- * 	of those set in reg_set_by, %REGDOM_SET_BY_*
- * @alpha2: the ISO / IEC 3166 alpha2 country code of the requested
- * 	regulatory domain. We have a few special codes:
- * 	00 - World regulatory domain
- * 	99 - built by driver but a specific alpha2 cannot be determined
- * 	98 - result of an intersection between two regulatory domains
- * @intersect: indicates whether the wireless core should intersect
- * 	the requested regulatory domain with the presently set regulatory
- * 	domain.
- * @country_ie_checksum: checksum of the last processed and accepted
- * 	country IE
- * @country_ie_env: lets us know if the AP is telling us we are outdoor,
- * 	indoor, or if it doesn't matter
- */
-struct regulatory_request {
-	struct wiphy *wiphy;
-	enum reg_set_by initiator;
-	char alpha2[2];
-	bool intersect;
-	u32 country_ie_checksum;
-	enum environment_cap country_ie_env;
-};
-
 /* Receipt of information from last regulatory request */
 static struct regulatory_request *last_request;
 
@@ -951,7 +919,7 @@ void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby)
 			handle_band(wiphy, band);
 	}
 	if (wiphy->reg_notifier)
-		wiphy->reg_notifier(wiphy, setby);
+		wiphy->reg_notifier(wiphy, last_request);
 }
 
 static void handle_channel_custom(struct wiphy *wiphy,
