@@ -2025,13 +2025,34 @@ static inline const char *state_rname(enum lock_usage_bit bit)
 	return state_rnames[bit >> 2];
 }
 
+static int exclusive_bit(int new_bit)
+{
+	/*
+	 * USED_IN
+	 * USED_IN_READ
+	 * ENABLED
+	 * ENABLED_READ
+	 *
+	 * bit 0 - write/read
+	 * bit 1 - used_in/enabled
+	 * bit 2+  state
+	 */
+
+	int state = new_bit & ~3;
+	int dir = new_bit & 2;
+
+	return state | (dir ^ 2);
+}
+
 static int
 mark_lock_irq_used_in(struct task_struct *curr, struct held_lock *this,
-		      int new_bit, int excl_bit,
+		      int new_bit,
 		      int (*verbose)(struct lock_class *class))
 {
 	const char *name = state_name(new_bit);
 	const char *rname = state_rname(new_bit);
+
+	int excl_bit = exclusive_bit(new_bit);
 
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
@@ -2059,11 +2080,13 @@ mark_lock_irq_used_in(struct task_struct *curr, struct held_lock *this,
 
 static int
 mark_lock_irq_used_in_read(struct task_struct *curr, struct held_lock *this,
-			   int new_bit, int excl_bit,
+			   int new_bit,
 			   int (*verbose)(struct lock_class *class))
 {
 	const char *name = state_name(new_bit);
 	const char *rname = state_rname(new_bit);
+
+	int excl_bit = exclusive_bit(new_bit);
 
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
@@ -2081,11 +2104,13 @@ mark_lock_irq_used_in_read(struct task_struct *curr, struct held_lock *this,
 
 static int
 mark_lock_irq_enabled(struct task_struct *curr, struct held_lock *this,
-		      int new_bit, int excl_bit,
+		      int new_bit,
 		      int (*verbose)(struct lock_class *class))
 {
 	const char *name = state_name(new_bit);
 	const char *rname = state_rname(new_bit);
+
+	int excl_bit = exclusive_bit(new_bit);
 
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
@@ -2114,11 +2139,13 @@ mark_lock_irq_enabled(struct task_struct *curr, struct held_lock *this,
 
 static int
 mark_lock_irq_enabled_read(struct task_struct *curr, struct held_lock *this,
-			   int new_bit, int excl_bit,
+			   int new_bit,
 			   int (*verbose)(struct lock_class *class))
 {
 	const char *name = state_name(new_bit);
 	const char *rname = state_rname(new_bit);
+
+	int excl_bit = exclusive_bit(new_bit);
 
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
@@ -2144,54 +2171,42 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 	switch(new_bit) {
 	case LOCK_USED_IN_HARDIRQ:
 		return mark_lock_irq_used_in(curr, this, new_bit,
-				LOCK_ENABLED_HARDIRQ,
 				hardirq_verbose);
 	case LOCK_USED_IN_SOFTIRQ:
 		return mark_lock_irq_used_in(curr, this, new_bit,
-				LOCK_ENABLED_SOFTIRQ,
 				softirq_verbose);
 	case LOCK_USED_IN_RECLAIM_FS:
 		return mark_lock_irq_used_in(curr, this, new_bit,
-				LOCK_ENABLED_RECLAIM_FS,
 				reclaim_verbose);
 
 	case LOCK_USED_IN_HARDIRQ_READ:
 		return mark_lock_irq_used_in_read(curr, this, new_bit,
-				LOCK_ENABLED_HARDIRQ,
 				hardirq_verbose);
 	case LOCK_USED_IN_SOFTIRQ_READ:
 		return mark_lock_irq_used_in_read(curr, this, new_bit,
-				LOCK_ENABLED_SOFTIRQ,
 				softirq_verbose);
 	case LOCK_USED_IN_RECLAIM_FS_READ:
 		return mark_lock_irq_used_in_read(curr, this, new_bit,
-				LOCK_ENABLED_RECLAIM_FS,
 				reclaim_verbose);
 
 	case LOCK_ENABLED_HARDIRQ:
 		return mark_lock_irq_enabled(curr, this, new_bit,
-				LOCK_USED_IN_HARDIRQ,
 				hardirq_verbose);
 	case LOCK_ENABLED_SOFTIRQ:
 		return mark_lock_irq_enabled(curr, this, new_bit,
-				LOCK_USED_IN_SOFTIRQ,
 				softirq_verbose);
 	case LOCK_ENABLED_RECLAIM_FS:
 		return mark_lock_irq_enabled(curr, this, new_bit,
-				LOCK_USED_IN_RECLAIM_FS,
 				reclaim_verbose);
 
 	case LOCK_ENABLED_HARDIRQ_READ:
 		return mark_lock_irq_enabled_read(curr, this, new_bit,
-				LOCK_USED_IN_HARDIRQ,
 				hardirq_verbose);
 	case LOCK_ENABLED_SOFTIRQ_READ:
 		return mark_lock_irq_enabled_read(curr, this, new_bit,
-				LOCK_USED_IN_SOFTIRQ,
 				softirq_verbose);
 	case LOCK_ENABLED_RECLAIM_FS_READ:
 		return mark_lock_irq_enabled_read(curr, this, new_bit,
-				LOCK_USED_IN_RECLAIM_FS,
 				reclaim_verbose);
 
 	default:
