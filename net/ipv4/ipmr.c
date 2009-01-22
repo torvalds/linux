@@ -79,9 +79,6 @@ static DEFINE_RWLOCK(mrt_lock);
 
 #define VIF_EXISTS(_net, _idx) ((_net)->ipv4.vif_table[_idx].dev != NULL)
 
-static int mroute_do_assert;				/* Set in PIM assert	*/
-static int mroute_do_pim;
-
 static struct mfc_cache *mfc_unres_queue;		/* Queue of unresolved entries */
 
 /* Special spinlock for queue of unresolved entries */
@@ -1003,7 +1000,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int 
 		int v;
 		if (get_user(v,(int __user *)optval))
 			return -EFAULT;
-		mroute_do_assert=(v)?1:0;
+		init_net.ipv4.mroute_do_assert = (v) ? 1 : 0;
 		return 0;
 	}
 #ifdef CONFIG_IP_PIMSM
@@ -1017,11 +1014,11 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, int 
 
 		rtnl_lock();
 		ret = 0;
-		if (v != mroute_do_pim) {
-			mroute_do_pim = v;
-			mroute_do_assert = v;
+		if (v != init_net.ipv4.mroute_do_pim) {
+			init_net.ipv4.mroute_do_pim = v;
+			init_net.ipv4.mroute_do_assert = v;
 #ifdef CONFIG_IP_PIMSM_V2
-			if (mroute_do_pim)
+			if (init_net.ipv4.mroute_do_pim)
 				ret = inet_add_protocol(&pim_protocol,
 							IPPROTO_PIM);
 			else
@@ -1073,10 +1070,10 @@ int ip_mroute_getsockopt(struct sock *sk, int optname, char __user *optval, int 
 		val = 0x0305;
 #ifdef CONFIG_IP_PIMSM
 	else if (optname == MRT_PIM)
-		val = mroute_do_pim;
+		val = init_net.ipv4.mroute_do_pim;
 #endif
 	else
-		val = mroute_do_assert;
+		val = init_net.ipv4.mroute_do_assert;
 	if (copy_to_user(optval, &val, olr))
 		return -EFAULT;
 	return 0;
@@ -1356,13 +1353,14 @@ static int ip_mr_forward(struct sk_buff *skb, struct mfc_cache *cache, int local
 		cache->mfc_un.res.wrong_if++;
 		true_vifi = ipmr_find_vif(skb->dev);
 
-		if (true_vifi >= 0 && mroute_do_assert &&
+		if (true_vifi >= 0 && init_net.ipv4.mroute_do_assert &&
 		    /* pimsm uses asserts, when switching from RPT to SPT,
 		       so that we cannot check that packet arrived on an oif.
 		       It is bad, but otherwise we would need to move pretty
 		       large chunk of pimd to kernel. Ough... --ANK
 		     */
-		    (mroute_do_pim || cache->mfc_un.res.ttls[true_vifi] < 255) &&
+		    (init_net.ipv4.mroute_do_pim ||
+		     cache->mfc_un.res.ttls[true_vifi] < 255) &&
 		    time_after(jiffies,
 			       cache->mfc_un.res.last_assert + MFC_ASSERT_THRESH)) {
 			cache->mfc_un.res.last_assert = jiffies;
@@ -1550,7 +1548,7 @@ int pim_rcv_v1(struct sk_buff * skb)
 
 	pim = igmp_hdr(skb);
 
-	if (!mroute_do_pim ||
+	if (!init_net.ipv4.mroute_do_pim ||
 	    pim->group != PIM_V1_VERSION || pim->code != PIM_V1_REGISTER)
 		goto drop;
 

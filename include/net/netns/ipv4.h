@@ -61,6 +61,8 @@ struct netns_ipv4 {
 	struct vif_device	*vif_table;
 	int			maxvif;
 	atomic_t		cache_resolve_queue_len;
+	int			mroute_do_assert;
+	int			mroute_do_pim;
 #endif
 };
 #endif
