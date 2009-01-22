@@ -3273,6 +3273,9 @@ i915_gem_lastclose(struct drm_device *dev)
 {
 	int ret;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
 	ret = i915_gem_idle(dev);
 	if (ret)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
