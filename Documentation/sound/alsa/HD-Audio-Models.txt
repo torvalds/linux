@@ -285,6 +285,7 @@ STAC9205/9254
   dell-m42	Dell (unknown)
   dell-m43	Dell Precision
   dell-m44	Dell Inspiron
+  eapd		Keep EAPD on (e.g. Gateway T1616)
 
 STAC9220/9221
 =============
