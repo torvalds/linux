@@ -256,7 +256,8 @@ void mfc_net_set(struct mfc_cache *mfc, struct net *net)
 
 #ifdef __KERNEL__
 struct rtmsg;
-extern int ipmr_get_route(struct sk_buff *skb, struct rtmsg *rtm, int nowait);
+extern int ipmr_get_route(struct net *net, struct sk_buff *skb,
+			  struct rtmsg *rtm, int nowait);
 #endif
 
 #endif
