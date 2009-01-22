@@ -625,11 +625,7 @@ void ath9k_hw_loadnf(struct ath_hal *ah, struct ath9k_channel *chan)
 	else
 		chainmask = 0x3F;
 
-#ifdef ATH_NF_PER_CHAN
-	h = chan->nfCalHist;
-#else
 	h = ah->nfCalHist;
-#endif
 
 	for (i = 0; i < NUM_NF_READINGS; i++) {
 		if (chainmask & (1 << i)) {
@@ -697,11 +693,7 @@ int16_t ath9k_hw_getnf(struct ath_hal *ah,
 		}
 	}
 
-#ifdef ATH_NF_PER_CHAN
-	h = chan->nfCalHist;
-#else
 	h = ah->nfCalHist;
-#endif
 
 	ath9k_hw_update_nfcal_hist_buffer(h, nfarray);
 	chan->rawNoiseFloor = h[0].privNF;
@@ -728,20 +720,12 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hal *ah)
 
 s16 ath9k_hw_getchan_noise(struct ath_hal *ah, struct ath9k_channel *chan)
 {
-	struct ath9k_channel *ichan;
 	s16 nf;
 
-	ichan = ath9k_regd_check_channel(ah, chan);
-	if (ichan == NULL) {
-		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"invalid channel %u/0x%x; no mapping\n",
-			chan->channel, chan->channelFlags);
-		return ATH_DEFAULT_NOISE_FLOOR;
-	}
-	if (ichan->rawNoiseFloor == 0)
+	if (chan->rawNoiseFloor == 0)
 		nf = -96;
 	else
-		nf = ichan->rawNoiseFloor;
+		nf = chan->rawNoiseFloor;
 
 	if (!ath9k_hw_nf_in_range(ah, nf))
 		nf = ATH_DEFAULT_NOISE_FLOOR;
@@ -755,21 +739,13 @@ bool ath9k_hw_calibrate(struct ath_hal *ah, struct ath9k_channel *chan,
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	struct hal_cal_list *currCal = ahp->ah_cal_list_curr;
-	struct ath9k_channel *ichan = ath9k_regd_check_channel(ah, chan);
 
 	*isCalDone = true;
-
-	if (ichan == NULL) {
-		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
-			"invalid channel %u/0x%x; no mapping\n",
-			chan->channel, chan->channelFlags);
-		return false;
-	}
 
 	if (currCal &&
 	    (currCal->calState == CAL_RUNNING ||
 	     currCal->calState == CAL_WAITING)) {
-		ath9k_hw_per_calibration(ah, ichan, rxchainmask, currCal,
+		ath9k_hw_per_calibration(ah, chan, rxchainmask, currCal,
 					 isCalDone);
 		if (*isCalDone) {
 			ahp->ah_cal_list_curr = currCal = currCal->calNext;
@@ -782,14 +758,12 @@ bool ath9k_hw_calibrate(struct ath_hal *ah, struct ath9k_channel *chan,
 	}
 
 	if (longcal) {
-		ath9k_hw_getnf(ah, ichan);
+		ath9k_hw_getnf(ah, chan);
 		ath9k_hw_loadnf(ah, ah->ah_curchan);
 		ath9k_hw_start_nfcal(ah);
 
-		if ((ichan->channelFlags & CHANNEL_CW_INT) != 0) {
-			chan->channelFlags |= CHANNEL_CW_INT;
-			ichan->channelFlags &= ~CHANNEL_CW_INT;
-		}
+		if (chan->channelFlags & CHANNEL_CW_INT)
+			chan->channelFlags &= ~CHANNEL_CW_INT;
 	}
 
 	return true;
@@ -894,7 +868,6 @@ bool ath9k_hw_init_cal(struct ath_hal *ah,
 		       struct ath9k_channel *chan)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
-	struct ath9k_channel *ichan = ath9k_regd_check_channel(ah, chan);
 
 	REG_WRITE(ah, AR_PHY_AGC_CONTROL,
 		  REG_READ(ah, AR_PHY_AGC_CONTROL) |
@@ -942,7 +915,7 @@ bool ath9k_hw_init_cal(struct ath_hal *ah,
 			ath9k_hw_reset_calibration(ah, ahp->ah_cal_list_curr);
 	}
 
-	ichan->CalValid = 0;
+	chan->CalValid = 0;
 
 	return true;
 }

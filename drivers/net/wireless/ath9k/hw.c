@@ -187,46 +187,6 @@ u16 ath9k_hw_computetxtime(struct ath_hal *ah,
 	return txTime;
 }
 
-u32 ath9k_hw_mhz2ieee(struct ath_hal *ah, u32 freq, u32 flags)
-{
-	if (flags & CHANNEL_2GHZ) {
-		if (freq == 2484)
-			return 14;
-		if (freq < 2484)
-			return (freq - 2407) / 5;
-		else
-			return 15 + ((freq - 2512) / 20);
-	} else if (flags & CHANNEL_5GHZ) {
-		if (ath9k_regd_is_public_safety_sku(ah) &&
-		    IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq)) {
-			return ((freq * 10) +
-				(((freq % 5) == 2) ? 5 : 0) - 49400) / 5;
-		} else if ((flags & CHANNEL_A) && (freq <= 5000)) {
-			return (freq - 4000) / 5;
-		} else {
-			return (freq - 5000) / 5;
-		}
-	} else {
-		if (freq == 2484)
-			return 14;
-		if (freq < 2484)
-			return (freq - 2407) / 5;
-		if (freq < 5000) {
-			if (ath9k_regd_is_public_safety_sku(ah)
-			    && IS_CHAN_IN_PUBLIC_SAFETY_BAND(freq)) {
-				return ((freq * 10) +
-					(((freq % 5) ==
-					  2) ? 5 : 0) - 49400) / 5;
-			} else if (freq > 4900) {
-				return (freq - 4000) / 5;
-			} else {
-				return 15 + ((freq - 2512) / 20);
-			}
-		}
-		return (freq - 5000) / 5;
-	}
-}
-
 void ath9k_hw_get_channel_centers(struct ath_hal *ah,
 				  struct ath9k_channel *chan,
 				  struct chan_centers *centers)
@@ -1270,6 +1230,7 @@ static int ath9k_hw_process_ini(struct ath_hal *ah,
 {
 	int i, regWrites = 0;
 	struct ath_hal_5416 *ahp = AH5416(ah);
+	struct ieee80211_channel *channel = chan->chan;
 	u32 modesIndex, freqIndex;
 	int status;
 
@@ -1374,9 +1335,8 @@ static int ath9k_hw_process_ini(struct ath_hal *ah,
 
 	status = ath9k_hw_set_txpower(ah, chan,
 				      ath9k_regd_get_ctl(ah, chan),
-				      ath9k_regd_get_antenna_allowed(ah,
-								     chan),
-				      chan->maxRegTxPower * 2,
+				      channel->max_antenna_gain * 2,
+				      channel->max_power * 2,
 				      min((u32) MAX_RATE_POWER,
 					  (u32) ah->ah_powerLimit));
 	if (status != 0) {
@@ -1669,6 +1629,7 @@ static bool ath9k_hw_channel_change(struct ath_hal *ah,
 				    struct ath9k_channel *chan,
 				    enum ath9k_ht_macmode macmode)
 {
+	struct ieee80211_channel *channel = chan->chan;
 	u32 synthDelay, qnum;
 
 	for (qnum = 0; qnum < AR_NUM_QCU; qnum++) {
@@ -1705,8 +1666,8 @@ static bool ath9k_hw_channel_change(struct ath_hal *ah,
 
 	if (ath9k_hw_set_txpower(ah, chan,
 				 ath9k_regd_get_ctl(ah, chan),
-				 ath9k_regd_get_antenna_allowed(ah, chan),
-				 chan->maxRegTxPower * 2,
+				 channel->max_antenna_gain * 2,
+				 channel->max_power * 2,
 				 min((u32) MAX_RATE_POWER,
 				     (u32) ah->ah_powerLimit)) != 0) {
 		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
@@ -2207,13 +2168,6 @@ int ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 	if (AR_SREV_9280(ah)) {
 		ahp->ah_txchainmask &= 0x3;
 		ahp->ah_rxchainmask &= 0x3;
-	}
-
-	if (ath9k_regd_check_channel(ah, chan) == NULL) {
-		DPRINTF(ah->ah_sc, ATH_DBG_CHANNEL,
-			"invalid channel %u/0x%x; no mapping\n",
-			chan->channel, chan->channelFlags);
-		return -EINVAL;
 	}
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
@@ -3718,13 +3672,14 @@ bool ath9k_hw_disable(struct ath_hal *ah)
 bool ath9k_hw_set_txpowerlimit(struct ath_hal *ah, u32 limit)
 {
 	struct ath9k_channel *chan = ah->ah_curchan;
+	struct ieee80211_channel *channel = chan->chan;
 
 	ah->ah_powerLimit = min(limit, (u32) MAX_RATE_POWER);
 
 	if (ath9k_hw_set_txpower(ah, chan,
 				 ath9k_regd_get_ctl(ah, chan),
-				 ath9k_regd_get_antenna_allowed(ah, chan),
-				 chan->maxRegTxPower * 2,
+				 channel->max_antenna_gain * 2,
+				 channel->max_power * 2,
 				 min((u32) MAX_RATE_POWER,
 				     (u32) ah->ah_powerLimit)) != 0)
 		return false;

@@ -457,22 +457,12 @@ struct ath9k_channel {
 	struct ieee80211_channel *chan;
 	u16 channel;
 	u32 channelFlags;
-	u8 privFlags;
-	int8_t maxRegTxPower;
-	int8_t maxTxPower;
-	int8_t minTxPower;
 	u32 chanmode;
 	int32_t CalValid;
 	bool oneTimeCalsDone;
 	int8_t iCoff;
 	int8_t qCoff;
 	int16_t rawNoiseFloor;
-	int8_t antennaMax;
-	u32 regDmnFlags;
-	u32 conformanceTestLimit[3]; /* 0:11a, 1: 11b, 2:11g */
-#ifdef ATH_NF_PER_CHAN
-	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
-#endif
 };
 
 #define IS_CHAN_A(_c) ((((_c)->channelFlags & CHANNEL_A) == CHANNEL_A) || \
@@ -500,7 +490,6 @@ struct ath9k_channel {
 			  ((_c)->chanmode == CHANNEL_G_HT40MINUS))
 #define IS_CHAN_HT(_c) (IS_CHAN_HT20((_c)) || IS_CHAN_HT40((_c)))
 
-#define IS_CHAN_IN_PUBLIC_SAFETY_BAND(_c) ((_c) > 4940 && (_c) < 4990)
 #define IS_CHAN_A_5MHZ_SPACED(_c)			\
 	((((_c)->channelFlags & CHANNEL_5GHZ) != 0) &&	\
 	 (((_c)->channel % 20) != 0) &&			\
@@ -790,15 +779,13 @@ struct ath_hal {
 	u16 ah_currentRD;
 	u16 ah_currentRDExt;
 	u16 ah_currentRDInUse;
-	u16 ah_currentRD5G;
-	u16 ah_currentRD2G;
-	char ah_iso[4];
+	char alpha2[2];
+	struct reg_dmn_pair_mapping *regpair;
 	enum ath9k_power_mode ah_power_mode;
 	enum ath9k_power_mode ah_restore_mode;
 
-	struct ath9k_channel ah_channels[150];
+	struct ath9k_channel ah_channels[38];
 	struct ath9k_channel *ah_curchan;
-	u32 ah_nchan;
 
 	bool ah_isPciExpress;
 	u16 ah_txTrigLevel;
@@ -807,10 +794,7 @@ struct ath_hal {
 	u32 ah_rfkill_polarity;
 	u32 ah_btactive_gpio;
 	u32 ah_wlanactive_gpio;
-
-#ifndef ATH_NF_PER_CHAN
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
-#endif
 
 	bool sw_mgmt_crypto;
 };
@@ -825,8 +809,6 @@ struct ath_rate_table;
 
 /* Helpers */
 
-enum wireless_mode ath9k_hw_chan2wmode(struct ath_hal *ah,
-			       const struct ath9k_channel *chan);
 bool ath9k_hw_wait(struct ath_hal *ah, u32 reg, u32 mask, u32 val);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
 bool ath9k_get_channel_edges(struct ath_hal *ah,
@@ -836,7 +818,6 @@ u16 ath9k_hw_computetxtime(struct ath_hal *ah,
 			   struct ath_rate_table *rates,
 			   u32 frameLen, u16 rateix,
 			   bool shortPreamble);
-u32 ath9k_hw_mhz2ieee(struct ath_hal *ah, u32 freq, u32 flags);
 void ath9k_hw_get_channel_centers(struct ath_hal *ah,
 				  struct ath9k_channel *chan,
 				  struct chan_centers *centers);
@@ -924,17 +905,18 @@ bool ath9k_hw_setslottime(struct ath_hal *ah, u32 us);
 void ath9k_hw_set11nmac2040(struct ath_hal *ah, enum ath9k_ht_macmode mode);
 
 /* Regulatory */
+u16 ath9k_regd_get_rd(struct ath_hal *ah);
+bool ath9k_is_world_regd(struct ath_hal *ah);
+const struct ieee80211_regdomain *ath9k_world_regdomain(struct ath_hal *ah);
+const struct ieee80211_regdomain *ath9k_default_world_regdomain(void);
 
-bool ath9k_regd_is_public_safety_sku(struct ath_hal *ah);
-struct ath9k_channel* ath9k_regd_check_channel(struct ath_hal *ah,
-			 const struct ath9k_channel *c);
+void ath9k_reg_apply_world_flags(struct wiphy *wiphy, enum reg_set_by setby);
+void ath9k_reg_apply_radar_flags(struct wiphy *wiphy);
+
+int ath9k_regd_init(struct ath_hal *ah);
+bool ath9k_regd_is_eeprom_valid(struct ath_hal *ah);
 u32 ath9k_regd_get_ctl(struct ath_hal *ah, struct ath9k_channel *chan);
-u32 ath9k_regd_get_antenna_allowed(struct ath_hal *ah,
-				   struct ath9k_channel *chan);
-bool ath9k_regd_init_channels(struct ath_hal *ah,
-			      u32 maxchans, u32 *nchans, u8 *regclassids,
-			      u32 maxregids, u32 *nregids, u16 cc,
-			      bool enableOutdoor, bool enableExtendedChannels);
+int ath9k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
 
 /* ANI */
 
