@@ -982,7 +982,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	int ret;
 	uint32_t liter, miter;
 	uint32_t sec_mask, rest_addr;
-	uint32_t fdata, findex;
+	uint32_t fdata;
 	dma_addr_t optrom_dma;
 	void *optrom = NULL;
 	uint32_t *s, *d;
@@ -1003,17 +1003,15 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	}
 
 	rest_addr = (ha->fdt_block_size >> 2) - 1;
-	sec_mask = (ha->optrom_size >> 2) - (ha->fdt_block_size >> 2);
+	sec_mask = ~rest_addr;
 
 	qla24xx_unprotect_flash(ha);
 
 	for (liter = 0; liter < dwords; liter++, faddr++, dwptr++) {
-
-		findex = faddr;
-		fdata = (findex & sec_mask) << 2;
+		fdata = (faddr & sec_mask) << 2;
 
 		/* Are we at the beginning of a sector? */
-		if ((findex & rest_addr) == 0) {
+		if ((faddr & rest_addr) == 0) {
 			/* Do sector unprotect. */
 			if (ha->fdt_unprotect_sec_cmd)
 				qla24xx_write_flash_dword(ha,
