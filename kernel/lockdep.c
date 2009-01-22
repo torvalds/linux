@@ -2001,6 +2001,109 @@ static int reclaim_verbose(struct lock_class *class)
 
 #define STRICT_READ_CHECKS	1
 
+static int
+mark_lock_irq_used_in(struct task_struct *curr, struct held_lock *this,
+		      int new_bit, int excl_bit,
+		      const char *name, const char *rname,
+		      int (*verbose)(struct lock_class *class))
+{
+	if (!valid_state(curr, this, new_bit, excl_bit))
+		return 0;
+	if (!valid_state(curr, this, new_bit, excl_bit + 1))
+		return 0;
+	/*
+	 * just marked it hardirq-safe, check that this lock
+	 * took no hardirq-unsafe lock in the past:
+	 */
+	if (!check_usage_forwards(curr, this, excl_bit, name))
+		return 0;
+#if STRICT_READ_CHECKS
+	/*
+	 * just marked it hardirq-safe, check that this lock
+	 * took no hardirq-unsafe-read lock in the past:
+	 */
+	if (!check_usage_forwards(curr, this, excl_bit + 1, rname))
+		return 0;
+#endif
+	if (verbose(hlock_class(this)))
+		return 2;
+
+	return 1;
+}
+
+static int
+mark_lock_irq_used_in_read(struct task_struct *curr, struct held_lock *this,
+			   int new_bit, int excl_bit,
+			   const char *name, const char *rname,
+			   int (*verbose)(struct lock_class *class))
+{
+	if (!valid_state(curr, this, new_bit, excl_bit))
+		return 0;
+	/*
+	 * just marked it hardirq-read-safe, check that this lock
+	 * took no hardirq-unsafe lock in the past:
+	 */
+	if (!check_usage_forwards(curr, this, excl_bit, name))
+		return 0;
+	if (verbose(hlock_class(this)))
+		return 2;
+
+	return 1;
+}
+
+static int
+mark_lock_irq_enabled(struct task_struct *curr, struct held_lock *this,
+		      int new_bit, int excl_bit,
+		      const char *name, const char *rname,
+		      int (*verbose)(struct lock_class *class))
+{
+	if (!valid_state(curr, this, new_bit, excl_bit))
+		return 0;
+	if (!valid_state(curr, this, new_bit, excl_bit + 1))
+		return 0;
+	/*
+	 * just marked it hardirq-unsafe, check that no hardirq-safe
+	 * lock in the system ever took it in the past:
+	 */
+	if (!check_usage_backwards(curr, this, excl_bit, name))
+		return 0;
+#if STRICT_READ_CHECKS
+	/*
+	 * just marked it hardirq-unsafe, check that no
+	 * hardirq-safe-read lock in the system ever took
+	 * it in the past:
+	 */
+	if (!check_usage_backwards(curr, this, excl_bit + 1, rname))
+		return 0;
+#endif
+	if (verbose(hlock_class(this)))
+		return 2;
+
+	return 1;
+}
+
+static int
+mark_lock_irq_enabled_read(struct task_struct *curr, struct held_lock *this,
+			   int new_bit, int excl_bit,
+			   const char *name, const char *rname,
+			   int (*verbose)(struct lock_class *class))
+{
+	if (!valid_state(curr, this, new_bit, excl_bit))
+		return 0;
+#if STRICT_READ_CHECKS
+	/*
+	 * just marked it hardirq-read-unsafe, check that no
+	 * hardirq-safe lock in the system ever took it in the past:
+	 */
+	if (!check_usage_backwards(curr, this, excl_bit, name))
+		return 0;
+#endif
+	if (verbose(hlock_class(this)))
+		return 2;
+
+	return 1;
+}
+
 static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		enum lock_usage_bit new_bit)
 {
@@ -2008,242 +2111,61 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 
 	switch(new_bit) {
 	case LOCK_USED_IN_HARDIRQ:
-		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_HARDIRQ))
-			return 0;
-		if (!valid_state(curr, this, new_bit,
-				 LOCK_ENABLED_HARDIRQ_READ))
-			return 0;
-		/*
-		 * just marked it hardirq-safe, check that this lock
-		 * took no hardirq-unsafe lock in the past:
-		 */
-		if (!check_usage_forwards(curr, this,
-					  LOCK_ENABLED_HARDIRQ, "hard"))
-			return 0;
-#if STRICT_READ_CHECKS
-		/*
-		 * just marked it hardirq-safe, check that this lock
-		 * took no hardirq-unsafe-read lock in the past:
-		 */
-		if (!check_usage_forwards(curr, this,
-				LOCK_ENABLED_HARDIRQ_READ, "hard-read"))
-			return 0;
-#endif
-		if (hardirq_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_used_in(curr, this, new_bit,
+				LOCK_ENABLED_HARDIRQ,
+				"hard", "hard-read", hardirq_verbose);
 	case LOCK_USED_IN_SOFTIRQ:
-		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_SOFTIRQ))
-			return 0;
-		if (!valid_state(curr, this, new_bit,
-				 LOCK_ENABLED_SOFTIRQ_READ))
-			return 0;
-		/*
-		 * just marked it softirq-safe, check that this lock
-		 * took no softirq-unsafe lock in the past:
-		 */
-		if (!check_usage_forwards(curr, this,
-					  LOCK_ENABLED_SOFTIRQ, "soft"))
-			return 0;
-#if STRICT_READ_CHECKS
-		/*
-		 * just marked it softirq-safe, check that this lock
-		 * took no softirq-unsafe-read lock in the past:
-		 */
-		if (!check_usage_forwards(curr, this,
-				LOCK_ENABLED_SOFTIRQ_READ, "soft-read"))
-			return 0;
-#endif
-		if (softirq_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_used_in(curr, this, new_bit,
+				LOCK_ENABLED_SOFTIRQ,
+				"soft", "soft-read", softirq_verbose);
 	case LOCK_USED_IN_RECLAIM_FS:
-		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_RECLAIM_FS))
-			return 0;
-		if (!valid_state(curr, this, new_bit,
-				 LOCK_ENABLED_RECLAIM_FS_READ))
-			return 0;
-		/*
-		 * just marked it reclaim-fs-safe, check that this lock
-		 * took no reclaim-fs-unsafe lock in the past:
-		 */
-		if (!check_usage_forwards(curr, this,
-					  LOCK_ENABLED_RECLAIM_FS, "reclaim-fs"))
-			return 0;
-#if STRICT_READ_CHECKS
-		/*
-		 * just marked it reclaim-fs-safe, check that this lock
-		 * took no reclaim-fs-unsafe-read lock in the past:
-		 */
-		if (!check_usage_forwards(curr, this,
-				LOCK_ENABLED_RECLAIM_FS_READ, "reclaim-fs-read"))
-			return 0;
-#endif
-		if (reclaim_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_used_in(curr, this, new_bit,
+				LOCK_ENABLED_RECLAIM_FS,
+				"reclaim-fs", "reclaim-fs-read",
+				reclaim_verbose);
+
 	case LOCK_USED_IN_HARDIRQ_READ:
-		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_HARDIRQ))
-			return 0;
-		/*
-		 * just marked it hardirq-read-safe, check that this lock
-		 * took no hardirq-unsafe lock in the past:
-		 */
-		if (!check_usage_forwards(curr, this,
-					  LOCK_ENABLED_HARDIRQ, "hard"))
-			return 0;
-		if (hardirq_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_used_in_read(curr, this, new_bit,
+				LOCK_ENABLED_HARDIRQ,
+				"hard", "hard-read", hardirq_verbose);
 	case LOCK_USED_IN_SOFTIRQ_READ:
-		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_SOFTIRQ))
-			return 0;
-		/*
-		 * just marked it softirq-read-safe, check that this lock
-		 * took no softirq-unsafe lock in the past:
-		 */
-		if (!check_usage_forwards(curr, this,
-					  LOCK_ENABLED_SOFTIRQ, "soft"))
-			return 0;
-		if (softirq_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_used_in_read(curr, this, new_bit,
+				LOCK_ENABLED_SOFTIRQ,
+				"soft", "soft-read", softirq_verbose);
 	case LOCK_USED_IN_RECLAIM_FS_READ:
-		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_RECLAIM_FS))
-			return 0;
-		/*
-		 * just marked it reclaim-fs-read-safe, check that this lock
-		 * took no reclaim-fs-unsafe lock in the past:
-		 */
-		if (!check_usage_forwards(curr, this,
-					  LOCK_ENABLED_RECLAIM_FS, "reclaim-fs"))
-			return 0;
-		if (reclaim_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_used_in_read(curr, this, new_bit,
+				LOCK_ENABLED_RECLAIM_FS,
+				"reclaim-fs", "reclaim-fs-read",
+				reclaim_verbose);
+
 	case LOCK_ENABLED_HARDIRQ:
-		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_HARDIRQ))
-			return 0;
-		if (!valid_state(curr, this, new_bit,
-				 LOCK_USED_IN_HARDIRQ_READ))
-			return 0;
-		/*
-		 * just marked it hardirq-unsafe, check that no hardirq-safe
-		 * lock in the system ever took it in the past:
-		 */
-		if (!check_usage_backwards(curr, this,
-					   LOCK_USED_IN_HARDIRQ, "hard"))
-			return 0;
-#if STRICT_READ_CHECKS
-		/*
-		 * just marked it hardirq-unsafe, check that no
-		 * hardirq-safe-read lock in the system ever took
-		 * it in the past:
-		 */
-		if (!check_usage_backwards(curr, this,
-				   LOCK_USED_IN_HARDIRQ_READ, "hard-read"))
-			return 0;
-#endif
-		if (hardirq_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_enabled(curr, this, new_bit,
+				LOCK_USED_IN_HARDIRQ,
+				"hard", "hard-read", hardirq_verbose);
 	case LOCK_ENABLED_SOFTIRQ:
-		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_SOFTIRQ))
-			return 0;
-		if (!valid_state(curr, this, new_bit,
-				 LOCK_USED_IN_SOFTIRQ_READ))
-			return 0;
-		/*
-		 * just marked it softirq-unsafe, check that no softirq-safe
-		 * lock in the system ever took it in the past:
-		 */
-		if (!check_usage_backwards(curr, this,
-					   LOCK_USED_IN_SOFTIRQ, "soft"))
-			return 0;
-#if STRICT_READ_CHECKS
-		/*
-		 * just marked it softirq-unsafe, check that no
-		 * softirq-safe-read lock in the system ever took
-		 * it in the past:
-		 */
-		if (!check_usage_backwards(curr, this,
-				   LOCK_USED_IN_SOFTIRQ_READ, "soft-read"))
-			return 0;
-#endif
-		if (softirq_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_enabled(curr, this, new_bit,
+				LOCK_USED_IN_SOFTIRQ,
+				"soft", "soft-read", softirq_verbose);
 	case LOCK_ENABLED_RECLAIM_FS:
-		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_RECLAIM_FS))
-			return 0;
-		if (!valid_state(curr, this, new_bit,
-				 LOCK_USED_IN_RECLAIM_FS_READ))
-			return 0;
-		/*
-		 * just marked it reclaim-fs-unsafe, check that no reclaim-fs-safe
-		 * lock in the system ever took it in the past:
-		 */
-		if (!check_usage_backwards(curr, this,
-					   LOCK_USED_IN_RECLAIM_FS, "reclaim-fs"))
-			return 0;
-#if STRICT_READ_CHECKS
-		/*
-		 * just marked it softirq-unsafe, check that no
-		 * softirq-safe-read lock in the system ever took
-		 * it in the past:
-		 */
-		if (!check_usage_backwards(curr, this,
-				   LOCK_USED_IN_RECLAIM_FS_READ, "reclaim-fs-read"))
-			return 0;
-#endif
-		if (reclaim_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_enabled(curr, this, new_bit,
+				LOCK_USED_IN_RECLAIM_FS,
+				"reclaim-fs", "reclaim-fs-read",
+				reclaim_verbose);
+
 	case LOCK_ENABLED_HARDIRQ_READ:
-		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_HARDIRQ))
-			return 0;
-#if STRICT_READ_CHECKS
-		/*
-		 * just marked it hardirq-read-unsafe, check that no
-		 * hardirq-safe lock in the system ever took it in the past:
-		 */
-		if (!check_usage_backwards(curr, this,
-					   LOCK_USED_IN_HARDIRQ, "hard"))
-			return 0;
-#endif
-		if (hardirq_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_enabled_read(curr, this, new_bit,
+				LOCK_USED_IN_HARDIRQ,
+				"hard", "hard-read", hardirq_verbose);
 	case LOCK_ENABLED_SOFTIRQ_READ:
-		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_SOFTIRQ))
-			return 0;
-#if STRICT_READ_CHECKS
-		/*
-		 * just marked it softirq-read-unsafe, check that no
-		 * softirq-safe lock in the system ever took it in the past:
-		 */
-		if (!check_usage_backwards(curr, this,
-					   LOCK_USED_IN_SOFTIRQ, "soft"))
-			return 0;
-#endif
-		if (softirq_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_enabled_read(curr, this, new_bit,
+				LOCK_USED_IN_SOFTIRQ,
+				"soft", "soft-read", softirq_verbose);
 	case LOCK_ENABLED_RECLAIM_FS_READ:
-		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_RECLAIM_FS))
-			return 0;
-#if STRICT_READ_CHECKS
-		/*
-		 * just marked it reclaim-fs-read-unsafe, check that no
-		 * reclaim-fs-safe lock in the system ever took it in the past:
-		 */
-		if (!check_usage_backwards(curr, this,
-					   LOCK_USED_IN_RECLAIM_FS, "reclaim-fs"))
-			return 0;
-#endif
-		if (reclaim_verbose(hlock_class(this)))
-			ret = 2;
-		break;
+		return mark_lock_irq_enabled_read(curr, this, new_bit,
+				LOCK_USED_IN_RECLAIM_FS,
+				"reclaim-fs", "reclaim-fs-read",
+				reclaim_verbose);
+
 	default:
 		WARN_ON(1);
 		break;
