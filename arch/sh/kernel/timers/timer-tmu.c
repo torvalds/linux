@@ -254,7 +254,14 @@ static int tmu_timer_init(void)
 
 	_tmu_start(TMU1);
 
-	sh_hpt_frequency = clk_get_rate(&tmu1_clk);
+	clocksource_sh.rating = 200;
+	clocksource_sh.mask = CLOCKSOURCE_MASK(32);
+	clocksource_sh.read = tmu_timer_read;
+	clocksource_sh.shift = 10;
+	clocksource_sh.mult = clocksource_hz2mult(clk_get_rate(&tmu1_clk),
+						  clocksource_sh.shift);
+	clocksource_sh.flags = CLOCK_SOURCE_IS_CONTINUOUS;
+	clocksource_register(&clocksource_sh);
 
 	tmu0_clockevent.mult = div_sc(frequency, NSEC_PER_SEC,
 				      tmu0_clockevent.shift);
@@ -274,7 +281,6 @@ static struct sys_timer_ops tmu_timer_ops = {
 	.init		= tmu_timer_init,
 	.start		= tmu_timer_start,
 	.stop		= tmu_timer_stop,
-	.read		= tmu_timer_read,
 };
 
 struct sys_timer tmu_timer = {
