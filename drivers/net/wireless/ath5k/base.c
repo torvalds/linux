@@ -1180,6 +1180,8 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	unsigned int mrr_rate[3], mrr_tries[3];
 	int i, ret;
 	u16 hw_rate;
+	u16 cts_rate = 0;
+	u16 duration = 0;
 	u8 rc_flags;
 
 	flags = AR5K_TXDESC_INTREQ | AR5K_TXDESC_CLRDMASK;
@@ -1199,6 +1201,19 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 
 	pktlen = skb->len;
 
+	if (rc_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
+		flags |= AR5K_TXDESC_RTSENA;
+		cts_rate = ieee80211_get_rts_cts_rate(sc->hw, info)->hw_value;
+		duration = le16_to_cpu(ieee80211_rts_duration(sc->hw,
+			sc->vif, pktlen, info));
+	}
+	if (rc_flags & IEEE80211_TX_RC_USE_CTS_PROTECT) {
+		flags |= AR5K_TXDESC_CTSENA;
+		cts_rate = ieee80211_get_rts_cts_rate(sc->hw, info)->hw_value;
+		duration = le16_to_cpu(ieee80211_ctstoself_duration(sc->hw,
+			sc->vif, pktlen, info));
+	}
+
 	if (info->control.hw_key) {
 		keyidx = info->control.hw_key->hw_key_idx;
 		pktlen += info->control.hw_key->icv_len;
@@ -1207,7 +1222,8 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 		ieee80211_get_hdrlen_from_skb(skb), AR5K_PKT_TYPE_NORMAL,
 		(sc->power_level * 2),
 		hw_rate,
-		info->control.rates[0].count, keyidx, 0, flags, 0, 0);
+		info->control.rates[0].count, keyidx, 0, flags,
+		cts_rate, duration);
 	if (ret)
 		goto err_unmap;
 
