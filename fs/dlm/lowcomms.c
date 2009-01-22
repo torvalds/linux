@@ -53,6 +53,7 @@
 #include <linux/mutex.h>
 #include <linux/sctp.h>
 #include <net/sctp/user.h>
+#include <net/ipv6.h>
 
 #include "dlm_internal.h"
 #include "lowcomms.h"
@@ -250,8 +251,7 @@ static int nodeid_to_addr(int nodeid, struct sockaddr *retaddr)
 	} else {
 		struct sockaddr_in6 *in6  = (struct sockaddr_in6 *) &addr;
 		struct sockaddr_in6 *ret6 = (struct sockaddr_in6 *) retaddr;
-		memcpy(&ret6->sin6_addr, &in6->sin6_addr,
-		       sizeof(in6->sin6_addr));
+		ipv6_addr_copy(&ret6->sin6_addr, &in6->sin6_addr);
 	}
 
 	return 0;
