@@ -41,6 +41,15 @@ const unsigned char rfc1042_header[] __aligned(2) =
 const unsigned char bridge_tunnel_header[] __aligned(2) =
 	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 
+struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy)
+{
+	struct ieee80211_local *local;
+	BUG_ON(!wiphy);
+
+	local = wiphy_priv(wiphy);
+	return &local->hw;
+}
+EXPORT_SYMBOL(wiphy_to_ieee80211_hw);
 
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			enum nl80211_iftype type)
