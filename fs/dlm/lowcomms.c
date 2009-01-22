@@ -21,7 +21,7 @@
  *
  * Cluster nodes are referred to by their nodeids. nodeids are
  * simply 32 bit numbers to the locking module - if they need to
- * be expanded for the cluster infrastructure then that is it's
+ * be expanded for the cluster infrastructure then that is its
  * responsibility. It is this layer's
  * responsibility to resolve these into IP address or
  * whatever it needs for inter-node communication.
@@ -36,9 +36,9 @@
  * of high load. Also, this way, the sending thread can collect together
  * messages bound for one node and send them in one block.
  *
- * lowcomms will choose to use wither TCP or SCTP as its transport layer
+ * lowcomms will choose to use either TCP or SCTP as its transport layer
  * depending on the configuration variable 'protocol'. This should be set
- * to 0 (default) for TCP or 1 for SCTP. It shouldbe configured using a
+ * to 0 (default) for TCP or 1 for SCTP. It should be configured using a
  * cluster-wide mechanism as it must be the same on all nodes of the cluster
  * for the DLM to function.
  *
