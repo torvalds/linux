@@ -450,12 +450,12 @@ static const char *usage_str[] =
 	[LOCK_USED] =			"initial-use ",
 	[LOCK_USED_IN_HARDIRQ] =	"in-hardirq-W",
 	[LOCK_USED_IN_SOFTIRQ] =	"in-softirq-W",
-	[LOCK_ENABLED_SOFTIRQS] =	"softirq-on-W",
-	[LOCK_ENABLED_HARDIRQS] =	"hardirq-on-W",
+	[LOCK_ENABLED_SOFTIRQ] =	"softirq-on-W",
+	[LOCK_ENABLED_HARDIRQ] =	"hardirq-on-W",
 	[LOCK_USED_IN_HARDIRQ_READ] =	"in-hardirq-R",
 	[LOCK_USED_IN_SOFTIRQ_READ] =	"in-softirq-R",
-	[LOCK_ENABLED_SOFTIRQS_READ] =	"softirq-on-R",
-	[LOCK_ENABLED_HARDIRQS_READ] =	"hardirq-on-R",
+	[LOCK_ENABLED_SOFTIRQ_READ] =	"softirq-on-R",
+	[LOCK_ENABLED_HARDIRQ_READ] =	"hardirq-on-R",
 	[LOCK_USED_IN_RECLAIM_FS] =	"in-reclaim-W",
 	[LOCK_USED_IN_RECLAIM_FS_READ] = "in-reclaim-R",
 	[LOCK_HELD_OVER_RECLAIM_FS] =	"ov-reclaim-W",
@@ -476,28 +476,28 @@ get_usage_chars(struct lock_class *class, char *c1, char *c2, char *c3,
 	if (class->usage_mask & LOCKF_USED_IN_HARDIRQ)
 		*c1 = '+';
 	else
-		if (class->usage_mask & LOCKF_ENABLED_HARDIRQS)
+		if (class->usage_mask & LOCKF_ENABLED_HARDIRQ)
 			*c1 = '-';
 
 	if (class->usage_mask & LOCKF_USED_IN_SOFTIRQ)
 		*c2 = '+';
 	else
-		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQS)
+		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQ)
 			*c2 = '-';
 
-	if (class->usage_mask & LOCKF_ENABLED_HARDIRQS_READ)
+	if (class->usage_mask & LOCKF_ENABLED_HARDIRQ_READ)
 		*c3 = '-';
 	if (class->usage_mask & LOCKF_USED_IN_HARDIRQ_READ) {
 		*c3 = '+';
-		if (class->usage_mask & LOCKF_ENABLED_HARDIRQS_READ)
+		if (class->usage_mask & LOCKF_ENABLED_HARDIRQ_READ)
 			*c3 = '?';
 	}
 
-	if (class->usage_mask & LOCKF_ENABLED_SOFTIRQS_READ)
+	if (class->usage_mask & LOCKF_ENABLED_SOFTIRQ_READ)
 		*c4 = '-';
 	if (class->usage_mask & LOCKF_USED_IN_SOFTIRQ_READ) {
 		*c4 = '+';
-		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQS_READ)
+		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQ_READ)
 			*c4 = '?';
 	}
 
@@ -1296,7 +1296,7 @@ check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
 	 * forwards-subgraph starting at <next>:
 	 */
 	if (!check_usage(curr, prev, next, LOCK_USED_IN_HARDIRQ,
-					LOCK_ENABLED_HARDIRQS, "hard"))
+					LOCK_ENABLED_HARDIRQ, "hard"))
 		return 0;
 
 	/*
@@ -1306,7 +1306,7 @@ check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
 	 * forwards-subgraph starting at <next>:
 	 */
 	if (!check_usage(curr, prev, next, LOCK_USED_IN_HARDIRQ_READ,
-					LOCK_ENABLED_HARDIRQS, "hard-read"))
+					LOCK_ENABLED_HARDIRQ, "hard-read"))
 		return 0;
 
 	/*
@@ -1316,7 +1316,7 @@ check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
 	 * forwards-subgraph starting at <next>:
 	 */
 	if (!check_usage(curr, prev, next, LOCK_USED_IN_SOFTIRQ,
-					LOCK_ENABLED_SOFTIRQS, "soft"))
+					LOCK_ENABLED_SOFTIRQ, "soft"))
 		return 0;
 	/*
 	 * Prove that the new dependency does not connect a softirq-safe-read
@@ -1325,7 +1325,7 @@ check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
 	 * forwards-subgraph starting at <next>:
 	 */
 	if (!check_usage(curr, prev, next, LOCK_USED_IN_SOFTIRQ_READ,
-					LOCK_ENABLED_SOFTIRQS, "soft"))
+					LOCK_ENABLED_SOFTIRQ, "soft"))
 		return 0;
 
 	/*
@@ -2008,17 +2008,17 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 
 	switch(new_bit) {
 	case LOCK_USED_IN_HARDIRQ:
-		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_HARDIRQS))
+		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_HARDIRQ))
 			return 0;
 		if (!valid_state(curr, this, new_bit,
-				 LOCK_ENABLED_HARDIRQS_READ))
+				 LOCK_ENABLED_HARDIRQ_READ))
 			return 0;
 		/*
 		 * just marked it hardirq-safe, check that this lock
 		 * took no hardirq-unsafe lock in the past:
 		 */
 		if (!check_usage_forwards(curr, this,
-					  LOCK_ENABLED_HARDIRQS, "hard"))
+					  LOCK_ENABLED_HARDIRQ, "hard"))
 			return 0;
 #if STRICT_READ_CHECKS
 		/*
@@ -2026,24 +2026,24 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		 * took no hardirq-unsafe-read lock in the past:
 		 */
 		if (!check_usage_forwards(curr, this,
-				LOCK_ENABLED_HARDIRQS_READ, "hard-read"))
+				LOCK_ENABLED_HARDIRQ_READ, "hard-read"))
 			return 0;
 #endif
 		if (hardirq_verbose(hlock_class(this)))
 			ret = 2;
 		break;
 	case LOCK_USED_IN_SOFTIRQ:
-		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_SOFTIRQS))
+		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_SOFTIRQ))
 			return 0;
 		if (!valid_state(curr, this, new_bit,
-				 LOCK_ENABLED_SOFTIRQS_READ))
+				 LOCK_ENABLED_SOFTIRQ_READ))
 			return 0;
 		/*
 		 * just marked it softirq-safe, check that this lock
 		 * took no softirq-unsafe lock in the past:
 		 */
 		if (!check_usage_forwards(curr, this,
-					  LOCK_ENABLED_SOFTIRQS, "soft"))
+					  LOCK_ENABLED_SOFTIRQ, "soft"))
 			return 0;
 #if STRICT_READ_CHECKS
 		/*
@@ -2051,7 +2051,7 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		 * took no softirq-unsafe-read lock in the past:
 		 */
 		if (!check_usage_forwards(curr, this,
-				LOCK_ENABLED_SOFTIRQS_READ, "soft-read"))
+				LOCK_ENABLED_SOFTIRQ_READ, "soft-read"))
 			return 0;
 #endif
 		if (softirq_verbose(hlock_class(this)))
@@ -2083,27 +2083,27 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 			ret = 2;
 		break;
 	case LOCK_USED_IN_HARDIRQ_READ:
-		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_HARDIRQS))
+		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_HARDIRQ))
 			return 0;
 		/*
 		 * just marked it hardirq-read-safe, check that this lock
 		 * took no hardirq-unsafe lock in the past:
 		 */
 		if (!check_usage_forwards(curr, this,
-					  LOCK_ENABLED_HARDIRQS, "hard"))
+					  LOCK_ENABLED_HARDIRQ, "hard"))
 			return 0;
 		if (hardirq_verbose(hlock_class(this)))
 			ret = 2;
 		break;
 	case LOCK_USED_IN_SOFTIRQ_READ:
-		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_SOFTIRQS))
+		if (!valid_state(curr, this, new_bit, LOCK_ENABLED_SOFTIRQ))
 			return 0;
 		/*
 		 * just marked it softirq-read-safe, check that this lock
 		 * took no softirq-unsafe lock in the past:
 		 */
 		if (!check_usage_forwards(curr, this,
-					  LOCK_ENABLED_SOFTIRQS, "soft"))
+					  LOCK_ENABLED_SOFTIRQ, "soft"))
 			return 0;
 		if (softirq_verbose(hlock_class(this)))
 			ret = 2;
@@ -2121,7 +2121,7 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		if (reclaim_verbose(hlock_class(this)))
 			ret = 2;
 		break;
-	case LOCK_ENABLED_HARDIRQS:
+	case LOCK_ENABLED_HARDIRQ:
 		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_HARDIRQ))
 			return 0;
 		if (!valid_state(curr, this, new_bit,
@@ -2147,7 +2147,7 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		if (hardirq_verbose(hlock_class(this)))
 			ret = 2;
 		break;
-	case LOCK_ENABLED_SOFTIRQS:
+	case LOCK_ENABLED_SOFTIRQ:
 		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_SOFTIRQ))
 			return 0;
 		if (!valid_state(curr, this, new_bit,
@@ -2199,7 +2199,7 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		if (reclaim_verbose(hlock_class(this)))
 			ret = 2;
 		break;
-	case LOCK_ENABLED_HARDIRQS_READ:
+	case LOCK_ENABLED_HARDIRQ_READ:
 		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_HARDIRQ))
 			return 0;
 #if STRICT_READ_CHECKS
@@ -2214,7 +2214,7 @@ static int mark_lock_irq(struct task_struct *curr, struct held_lock *this,
 		if (hardirq_verbose(hlock_class(this)))
 			ret = 2;
 		break;
-	case LOCK_ENABLED_SOFTIRQS_READ:
+	case LOCK_ENABLED_SOFTIRQ_READ:
 		if (!valid_state(curr, this, new_bit, LOCK_USED_IN_SOFTIRQ))
 			return 0;
 #if STRICT_READ_CHECKS
@@ -2274,16 +2274,16 @@ mark_held_locks(struct task_struct *curr, enum mark_type mark)
 		switch (mark) {
 		case HARDIRQ:
 			if (hlock->read)
-				usage_bit = LOCK_ENABLED_HARDIRQS_READ;
+				usage_bit = LOCK_ENABLED_HARDIRQ_READ;
 			else
-				usage_bit = LOCK_ENABLED_HARDIRQS;
+				usage_bit = LOCK_ENABLED_HARDIRQ;
 			break;
 
 		case SOFTIRQ:
 			if (hlock->read)
-				usage_bit = LOCK_ENABLED_SOFTIRQS_READ;
+				usage_bit = LOCK_ENABLED_SOFTIRQ_READ;
 			else
-				usage_bit = LOCK_ENABLED_SOFTIRQS;
+				usage_bit = LOCK_ENABLED_SOFTIRQ;
 			break;
 
 		case RECLAIM_FS:
@@ -2520,19 +2520,19 @@ static int mark_irqflags(struct task_struct *curr, struct held_lock *hlock)
 	if (!hlock->hardirqs_off) {
 		if (hlock->read) {
 			if (!mark_lock(curr, hlock,
-					LOCK_ENABLED_HARDIRQS_READ))
+					LOCK_ENABLED_HARDIRQ_READ))
 				return 0;
 			if (curr->softirqs_enabled)
 				if (!mark_lock(curr, hlock,
-						LOCK_ENABLED_SOFTIRQS_READ))
+						LOCK_ENABLED_SOFTIRQ_READ))
 					return 0;
 		} else {
 			if (!mark_lock(curr, hlock,
-					LOCK_ENABLED_HARDIRQS))
+					LOCK_ENABLED_HARDIRQ))
 				return 0;
 			if (curr->softirqs_enabled)
 				if (!mark_lock(curr, hlock,
-						LOCK_ENABLED_SOFTIRQS))
+						LOCK_ENABLED_SOFTIRQ))
 					return 0;
 		}
 	}
@@ -2640,10 +2640,10 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 	case LOCK_USED_IN_SOFTIRQ:
 	case LOCK_USED_IN_HARDIRQ_READ:
 	case LOCK_USED_IN_SOFTIRQ_READ:
-	case LOCK_ENABLED_HARDIRQS:
-	case LOCK_ENABLED_SOFTIRQS:
-	case LOCK_ENABLED_HARDIRQS_READ:
-	case LOCK_ENABLED_SOFTIRQS_READ:
+	case LOCK_ENABLED_HARDIRQ:
+	case LOCK_ENABLED_SOFTIRQ:
+	case LOCK_ENABLED_HARDIRQ_READ:
+	case LOCK_ENABLED_SOFTIRQ_READ:
 	case LOCK_USED_IN_RECLAIM_FS:
 	case LOCK_USED_IN_RECLAIM_FS_READ:
 	case LOCK_HELD_OVER_RECLAIM_FS:

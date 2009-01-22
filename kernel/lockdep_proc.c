@@ -300,27 +300,27 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 			nr_uncategorized++;
 		if (class->usage_mask & LOCKF_USED_IN_IRQ)
 			nr_irq_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_IRQS)
+		if (class->usage_mask & LOCKF_ENABLED_IRQ)
 			nr_irq_unsafe++;
 		if (class->usage_mask & LOCKF_USED_IN_SOFTIRQ)
 			nr_softirq_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQS)
+		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQ)
 			nr_softirq_unsafe++;
 		if (class->usage_mask & LOCKF_USED_IN_HARDIRQ)
 			nr_hardirq_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_HARDIRQS)
+		if (class->usage_mask & LOCKF_ENABLED_HARDIRQ)
 			nr_hardirq_unsafe++;
 		if (class->usage_mask & LOCKF_USED_IN_IRQ_READ)
 			nr_irq_read_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_IRQS_READ)
+		if (class->usage_mask & LOCKF_ENABLED_IRQ_READ)
 			nr_irq_read_unsafe++;
 		if (class->usage_mask & LOCKF_USED_IN_SOFTIRQ_READ)
 			nr_softirq_read_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQS_READ)
+		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQ_READ)
 			nr_softirq_read_unsafe++;
 		if (class->usage_mask & LOCKF_USED_IN_HARDIRQ_READ)
 			nr_hardirq_read_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_HARDIRQS_READ)
+		if (class->usage_mask & LOCKF_ENABLED_HARDIRQ_READ)
 			nr_hardirq_read_unsafe++;
 
 #ifdef CONFIG_PROVE_LOCKING
