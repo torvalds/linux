@@ -1268,9 +1268,49 @@ check_usage(struct task_struct *curr, struct held_lock *prev,
 			bit_backwards, bit_forwards, irqclass);
 }
 
-static int
-check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
-		struct held_lock *next)
+static const char *state_names[] = {
+#define LOCKDEP_STATE(__STATE) \
+	STR(__STATE),
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
+};
+
+static const char *state_rnames[] = {
+#define LOCKDEP_STATE(__STATE) \
+	STR(__STATE)"-READ",
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
+};
+
+static inline const char *state_name(enum lock_usage_bit bit)
+{
+	return (bit & 1) ? state_rnames[bit >> 2] : state_names[bit >> 2];
+}
+
+static int exclusive_bit(int new_bit)
+{
+	/*
+	 * USED_IN
+	 * USED_IN_READ
+	 * ENABLED
+	 * ENABLED_READ
+	 *
+	 * bit 0 - write/read
+	 * bit 1 - used_in/enabled
+	 * bit 2+  state
+	 */
+
+	int state = new_bit & ~3;
+	int dir = new_bit & 2;
+
+	/*
+	 * keep state, bit flip the direction and strip read.
+	 */
+	return state | (dir ^ 2);
+}
+
+static int check_irq_usage(struct task_struct *curr, struct held_lock *prev,
+			   struct held_lock *next, enum lock_usage_bit bit)
 {
 	/*
 	 * Prove that the new dependency does not connect a hardirq-safe
@@ -1278,9 +1318,11 @@ check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
 	 * the backwards-subgraph starting at <prev>, and the
 	 * forwards-subgraph starting at <next>:
 	 */
-	if (!check_usage(curr, prev, next, LOCK_USED_IN_HARDIRQ,
-					LOCK_ENABLED_HARDIRQ, "hard"))
+	if (!check_usage(curr, prev, next, bit,
+			   exclusive_bit(bit), state_name(bit)))
 		return 0;
+
+	bit++; /* _READ */
 
 	/*
 	 * Prove that the new dependency does not connect a hardirq-safe-read
@@ -1288,48 +1330,22 @@ check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
 	 * the backwards-subgraph starting at <prev>, and the
 	 * forwards-subgraph starting at <next>:
 	 */
-	if (!check_usage(curr, prev, next, LOCK_USED_IN_HARDIRQ_READ,
-					LOCK_ENABLED_HARDIRQ, "hard-read"))
+	if (!check_usage(curr, prev, next, bit,
+			   exclusive_bit(bit), state_name(bit)))
 		return 0;
 
-	/*
-	 * Prove that the new dependency does not connect a softirq-safe
-	 * lock with a softirq-unsafe lock - to achieve this we search
-	 * the backwards-subgraph starting at <prev>, and the
-	 * forwards-subgraph starting at <next>:
-	 */
-	if (!check_usage(curr, prev, next, LOCK_USED_IN_SOFTIRQ,
-					LOCK_ENABLED_SOFTIRQ, "soft"))
-		return 0;
-	/*
-	 * Prove that the new dependency does not connect a softirq-safe-read
-	 * lock with a softirq-unsafe lock - to achieve this we search
-	 * the backwards-subgraph starting at <prev>, and the
-	 * forwards-subgraph starting at <next>:
-	 */
-	if (!check_usage(curr, prev, next, LOCK_USED_IN_SOFTIRQ_READ,
-					LOCK_ENABLED_SOFTIRQ, "soft"))
-		return 0;
+	return 1;
+}
 
-	/*
-	 * Prove that the new dependency does not connect a reclaim-fs-safe
-	 * lock with a reclaim-fs-unsafe lock - to achieve this we search
-	 * the backwards-subgraph starting at <prev>, and the
-	 * forwards-subgraph starting at <next>:
-	 */
-	if (!check_usage(curr, prev, next, LOCK_USED_IN_RECLAIM_FS,
-					LOCK_ENABLED_RECLAIM_FS, "reclaim-fs"))
+static int
+check_prev_add_irq(struct task_struct *curr, struct held_lock *prev,
+		struct held_lock *next)
+{
+#define LOCKDEP_STATE(__STATE)						\
+	if (!check_irq_usage(curr, prev, next, LOCK_USED_IN_##__STATE))	\
 		return 0;
-
-	/*
-	 * Prove that the new dependency does not connect a reclaim-fs-safe-read
-	 * lock with a reclaim-fs-unsafe lock - to achieve this we search
-	 * the backwards-subgraph starting at <prev>, and the
-	 * forwards-subgraph starting at <next>:
-	 */
-	if (!check_usage(curr, prev, next, LOCK_USED_IN_RECLAIM_FS_READ,
-					LOCK_ENABLED_RECLAIM_FS, "reclaim-fs-read"))
-		return 0;
+#include "lockdep_states.h"
+#undef LOCKDEP_STATE
 
 	return 1;
 }
@@ -1984,30 +2000,6 @@ static int RECLAIM_FS_verbose(struct lock_class *class)
 
 #define STRICT_READ_CHECKS	1
 
-static const char *state_names[] = {
-#define LOCKDEP_STATE(__STATE) \
-	STR(__STATE),
-#include "lockdep_states.h"
-#undef LOCKDEP_STATE
-};
-
-static inline const char *state_name(enum lock_usage_bit bit)
-{
-	return state_names[bit >> 2];
-}
-
-static const char *state_rnames[] = {
-#define LOCKDEP_STATE(__STATE) \
-	STR(__STATE)"-READ",
-#include "lockdep_states.h"
-#undef LOCKDEP_STATE
-};
-
-static inline const char *state_rname(enum lock_usage_bit bit)
-{
-	return state_rnames[bit >> 2];
-}
-
 static int (*state_verbose_f[])(struct lock_class *class) = {
 #define LOCKDEP_STATE(__STATE) \
 	__STATE##_verbose,
@@ -2021,37 +2013,12 @@ static inline int state_verbose(enum lock_usage_bit bit,
 	return state_verbose_f[bit >> 2](class);
 }
 
-static int exclusive_bit(int new_bit)
-{
-	/*
-	 * USED_IN
-	 * USED_IN_READ
-	 * ENABLED
-	 * ENABLED_READ
-	 *
-	 * bit 0 - write/read
-	 * bit 1 - used_in/enabled
-	 * bit 2+  state
-	 */
-
-	int state = new_bit & ~3;
-	int dir = new_bit & 2;
-
-	/*
-	 * keep state, bit flip the direction and strip read.
-	 */
-	return state | (dir ^ 2);
-}
-
 typedef int (*check_usage_f)(struct task_struct *, struct held_lock *,
 			     enum lock_usage_bit bit, const char *name);
 
 static int
 mark_lock_irq(struct task_struct *curr, struct held_lock *this, int new_bit)
 {
-	const char *name = state_name(new_bit);
-	const char *rname = state_rname(new_bit);
-
 	int excl_bit = exclusive_bit(new_bit);
 	int read = new_bit & 1;
 	int dir = new_bit & 2;
@@ -2078,7 +2045,7 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this, int new_bit)
 	 * states.
 	 */
 	if ((!read || !dir || STRICT_READ_CHECKS) &&
-			!usage(curr, this, excl_bit, name))
+			!usage(curr, this, excl_bit, state_name(new_bit)))
 		return 0;
 
 	/*
@@ -2089,7 +2056,8 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this, int new_bit)
 			return 0;
 
 		if (STRICT_READ_CHECKS &&
-				!usage(curr, this, excl_bit + 1, rname))
+			!usage(curr, this, excl_bit + 1,
+				state_name(new_bit + 1)))
 			return 0;
 	}
 
