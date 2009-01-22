@@ -202,12 +202,6 @@ extern struct irq_desc irq_desc[NR_IRQS];
 extern struct irq_desc *move_irq_desc(struct irq_desc *old_desc, int cpu);
 #endif /* CONFIG_SPARSE_IRQ */
 
-#define kstat_irqs_this_cpu(DESC) \
-	((DESC)->kstat_irqs[smp_processor_id()])
-#define kstat_incr_irqs_this_cpu(irqno, DESC) \
-	((DESC)->kstat_irqs[smp_processor_id()]++)
-
-
 extern struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu);
 
 static inline struct irq_desc *
