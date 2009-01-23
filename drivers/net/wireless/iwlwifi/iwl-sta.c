@@ -86,7 +86,8 @@ static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
-	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE))
+	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE) &&
+	    !(priv->stations_39[sta_id].used & IWL_STA_DRIVER_ACTIVE))
 		IWL_ERR(priv, "ACTIVATE a non DRIVER active station %d\n",
 			sta_id);
 
@@ -131,7 +132,7 @@ static int iwl_add_sta_callback(struct iwl_priv *priv,
 	return 1;
 }
 
-static int iwl_send_add_sta(struct iwl_priv *priv,
+int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags)
 {
 	struct iwl_rx_packet *res = NULL;
@@ -179,6 +180,7 @@ static int iwl_send_add_sta(struct iwl_priv *priv,
 
 	return ret;
 }
+EXPORT_SYMBOL(iwl_send_add_sta);
 
 static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 				   struct ieee80211_sta_ht_cap *sta_ht_inf)

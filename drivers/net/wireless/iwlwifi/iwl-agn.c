@@ -310,20 +310,6 @@ void iwl_update_chain_flags(struct iwl_priv *priv)
 	iwl_commit_rxon(priv);
 }
 
-static int iwl_send_bt_config(struct iwl_priv *priv)
-{
-	struct iwl_bt_cmd bt_cmd = {
-		.flags = 3,
-		.lead_time = 0xAA,
-		.max_kill = 1,
-		.kill_ack_mask = 0,
-		.kill_cts_mask = 0,
-	};
-
-	return iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-				sizeof(struct iwl_bt_cmd), &bt_cmd);
-}
-
 static void iwl_clear_free_frames(struct iwl_priv *priv)
 {
 	struct list_head *element;

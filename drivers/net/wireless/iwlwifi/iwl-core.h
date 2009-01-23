@@ -335,6 +335,7 @@ void iwl_bg_scan_check(struct work_struct *data);
 void iwl_bg_abort_scan(struct work_struct *work);
 void iwl_bg_scan_completed(struct work_struct *work);
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
+int iwl_send_scan_abort(struct iwl_priv *priv);
 
 /* For faster active scanning, scan will move to the next channel if fewer than
  * PLCP_QUIET_THRESH packets are heard on this channel within
@@ -468,6 +469,7 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 }
 
 extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);
+extern int iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags);
 extern int iwl_verify_ucode(struct iwl_priv *priv);
 extern int iwl_send_lq_cmd(struct iwl_priv *priv,

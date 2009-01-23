@@ -1007,6 +1007,21 @@ void iwl_enable_interrupts(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_enable_interrupts);
 
+int iwl_send_bt_config(struct iwl_priv *priv)
+{
+	struct iwl_bt_cmd bt_cmd = {
+		.flags = 3,
+		.lead_time = 0xAA,
+		.max_kill = 1,
+		.kill_ack_mask = 0,
+		.kill_cts_mask = 0,
+	};
+
+	return iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+				sizeof(struct iwl_bt_cmd), &bt_cmd);
+}
+EXPORT_SYMBOL(iwl_send_bt_config);
+
 int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags)
 {
 	u32 stat_flags = 0;

@@ -51,6 +51,7 @@
 #include "iwl-fh.h"
 #include "iwl-3945-fh.h"
 #include "iwl-commands.h"
+#include "iwl-sta.h"
 #include "iwl-3945.h"
 #include "iwl-helpers.h"
 #include "iwl-core.h"
@@ -226,22 +227,10 @@ u8 iwl3945_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flag
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 
 	/* Add station to device's station table */
-	iwl3945_send_add_station(priv, &station->sta, flags);
+	iwl_send_add_sta(priv,
+			 (struct iwl_addsta_cmd *)&station->sta, flags);
 	return index;
 
-}
-
-int iwl3945_send_statistics_request(struct iwl_priv *priv)
-{
-	u32 val = 0;
-
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_STATISTICS_CMD,
-		.len = sizeof(val),
-		.data = &val,
-	};
-
-	return iwl_send_cmd_sync(priv, &cmd);
 }
 
 /**
@@ -611,95 +600,6 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	return 0;
 }
 
-static int iwl3945_send_bt_config(struct iwl_priv *priv)
-{
-	struct iwl_bt_cmd bt_cmd = {
-		.flags = 3,
-		.lead_time = 0xAA,
-		.max_kill = 1,
-		.kill_ack_mask = 0,
-		.kill_cts_mask = 0,
-	};
-
-	return iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-					sizeof(bt_cmd), &bt_cmd);
-}
-
-static int iwl3945_add_sta_sync_callback(struct iwl_priv *priv,
-				     struct iwl_cmd *cmd, struct sk_buff *skb)
-{
-	struct iwl_rx_packet *res = NULL;
-
-	if (!skb) {
-		IWL_ERR(priv, "Error: Response NULL in REPLY_ADD_STA.\n");
-		return 1;
-	}
-
-	res = (struct iwl_rx_packet *)skb->data;
-	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
-			  res->hdr.flags);
-		return 1;
-	}
-
-	switch (res->u.add_sta.status) {
-	case ADD_STA_SUCCESS_MSK:
-		break;
-	default:
-		break;
-	}
-
-	/* We didn't cache the SKB; let the caller free it */
-	return 1;
-}
-
-int iwl3945_send_add_station(struct iwl_priv *priv,
-			 struct iwl3945_addsta_cmd *sta, u8 flags)
-{
-	struct iwl_rx_packet *res = NULL;
-	int rc = 0;
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_ADD_STA,
-		.len = sizeof(struct iwl3945_addsta_cmd),
-		.meta.flags = flags,
-		.data = sta,
-	};
-
-	if (flags & CMD_ASYNC)
-		cmd.meta.u.callback = iwl3945_add_sta_sync_callback;
-	else
-		cmd.meta.flags |= CMD_WANT_SKB;
-
-	rc = iwl_send_cmd(priv, &cmd);
-
-	if (rc || (flags & CMD_ASYNC))
-		return rc;
-
-	res = (struct iwl_rx_packet *)cmd.meta.u.skb->data;
-	if (res->hdr.flags & IWL_CMD_FAILED_MSK) {
-		IWL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
-			  res->hdr.flags);
-		rc = -EIO;
-	}
-
-	if (rc == 0) {
-		switch (res->u.add_sta.status) {
-		case ADD_STA_SUCCESS_MSK:
-			IWL_DEBUG_INFO("REPLY_ADD_STA PASSED\n");
-			break;
-		default:
-			rc = -EIO;
-			IWL_WARN(priv, "REPLY_ADD_STA failed\n");
-			break;
-		}
-	}
-
-	priv->alloc_rxb_skb--;
-	dev_kfree_skb_any(cmd.meta.u.skb);
-
-	return rc;
-}
-
 static int iwl3945_update_sta_key_info(struct iwl_priv *priv,
 				   struct ieee80211_key_conf *keyconf,
 				   u8 sta_id)
@@ -734,7 +634,8 @@ static int iwl3945_update_sta_key_info(struct iwl_priv *priv,
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	IWL_DEBUG_INFO("hwcrypto: modify ucode station key info\n");
-	iwl3945_send_add_station(priv, &priv->stations_39[sta_id].sta, 0);
+	iwl_send_add_sta(priv,
+		(struct iwl_addsta_cmd *)&priv->stations_39[sta_id].sta, 0);
 	return 0;
 }
 
@@ -752,7 +653,8 @@ static int iwl3945_clear_sta_key_info(struct iwl_priv *priv, u8 sta_id)
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	IWL_DEBUG_INFO("hwcrypto: clear ucode station key info\n");
-	iwl3945_send_add_station(priv, &priv->stations_39[sta_id].sta, 0);
+	iwl_send_add_sta(priv,
+		(struct iwl_addsta_cmd *)&priv->stations_39[sta_id].sta, 0);
 	return 0;
 }
 
@@ -4005,7 +3907,7 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	}
 
 	/* Configure Bluetooth device coexistence support */
-	iwl3945_send_bt_config(priv);
+	iwl_send_bt_config(priv);
 
 	/* Configure the adapter for unassociated operation */
 	iwl3945_commit_rxon(priv);
@@ -5810,7 +5712,7 @@ static ssize_t show_statistics(struct device *d,
 		return -EAGAIN;
 
 	mutex_lock(&priv->mutex);
-	rc = iwl3945_send_statistics_request(priv);
+	rc = iwl_send_statistics_request(priv, 0);
 	mutex_unlock(&priv->mutex);
 
 	if (rc) {

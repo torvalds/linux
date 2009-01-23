@@ -41,6 +41,7 @@
 #include "iwl-fh.h"
 #include "iwl-3945-fh.h"
 #include "iwl-commands.h"
+#include "iwl-sta.h"
 #include "iwl-3945.h"
 #include "iwl-eeprom.h"
 #include "iwl-helpers.h"
@@ -895,7 +896,8 @@ u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 
-	iwl3945_send_add_station(priv, &station->sta, flags);
+	iwl_send_add_sta(priv,
+			 (struct iwl_addsta_cmd *)&station->sta, flags);
 	IWL_DEBUG_RATE("SCALE sync station %d to rate %d\n",
 			sta_id, tx_rate);
 	return sta_id;
@@ -2376,6 +2378,13 @@ static u16 iwl3945_get_hcmd_size(u8 cmd_id, u16 len)
 	}
 }
 
+static u16 iwl3945_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
+{
+	u16 size = (u16)sizeof(struct iwl3945_addsta_cmd);
+	memcpy(data, cmd, size);
+	return size;
+}
+
 /**
  * iwl3945_init_hw_rate_table - Initialize the hardware rate fallback table
  */
@@ -2743,6 +2752,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 	.get_hcmd_size = iwl3945_get_hcmd_size,
+	.build_addsta_hcmd = iwl3945_build_addsta_hcmd,
 };
 
 static struct iwl_ops iwl3945_ops = {

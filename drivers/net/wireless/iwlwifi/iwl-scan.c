@@ -109,7 +109,7 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms)
 }
 EXPORT_SYMBOL(iwl_scan_cancel_timeout);
 
-static int iwl_send_scan_abort(struct iwl_priv *priv)
+int iwl_send_scan_abort(struct iwl_priv *priv)
 {
 	int ret = 0;
 	struct iwl_rx_packet *res;
@@ -150,7 +150,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 
 	return ret;
 }
-
+EXPORT_SYMBOL(iwl_send_scan_abort);
 
 /* Service response to REPLY_SCAN_CMD (0x80) */
 static void iwl_rx_reply_scan(struct iwl_priv *priv,
