@@ -64,12 +64,12 @@ static const struct v4l2_pix_format vga_mode[] = {
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 5},
+		.priv = 4},
 	{176, 144, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 4},
+		.priv = 3},
 	{320, 240, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
 		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 2,
@@ -93,6 +93,7 @@ static const struct v4l2_pix_format vga_mode[] = {
 
 #define SPCA50X_USB_CTRL 0x00	/* spca505 */
 #define SPCA50X_CUSB_ENABLE 0x01 /* spca505 */
+
 #define SPCA50X_REG_GLOBAL 0x03	/* spca505 */
 #define SPCA50X_GMISC0_IDSEL 0x01 /* Global control device ID select spca505 */
 #define SPCA50X_GLOBAL_MISC0 0x00 /* Global control miscellaneous 0 spca505 */
@@ -100,6 +101,9 @@ static const struct v4l2_pix_format vga_mode[] = {
 #define SPCA50X_GLOBAL_MISC1 0x01 /* 505 */
 #define SPCA50X_GLOBAL_MISC3 0x03 /* 505 */
 #define SPCA50X_GMISC3_SAA7113RST 0x20	/* Not sure about this one spca505 */
+
+/* Image format and compression control */
+#define SPCA50X_REG_COMPRESS 0x04
 
 /*
  * Data to initialize a SPCA505. Common to the CCD and external modes
@@ -670,55 +674,48 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	ret = reg_write(gspca_dev->dev, 0x06, 0x16, 0x0a);
 	if (ret < 0)
 		return ret;
-	reg_write(gspca_dev->dev, 0x05, 0xc2, 18);
+	reg_write(gspca_dev->dev, 0x05, 0xc2, 0x12);
 	return 0;
+}
+
+static void setbrightness(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 brightness = sd->brightness;
+
+	reg_write(gspca_dev->dev, 0x05, 0x00, (255 - brightness) >> 6);
+	reg_write(gspca_dev->dev, 0x05, 0x01, (255 - brightness) << 2);
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
-	int ret;
+	int ret, mode;
+	static u8 mode_tb[][3] = {
+	/*	  r00   r06   r07	*/
+		{0x00, 0x10, 0x10},	/* 640x480 */
+		{0x01, 0x1a, 0x1a},	/* 352x288 */
+		{0x02, 0x1c, 0x1d},	/* 320x240 */
+		{0x04, 0x34, 0x34},	/* 176x144 */
+		{0x05, 0x40, 0x40}	/* 160x120 */
+	};
 
 	/* necessary because without it we can see stream
 	 * only once after loading module */
 	/* stopping usb registers Tomasz change */
-	reg_write(dev, 0x02, 0x0, 0x0);
-	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
-	case 0:
-		reg_write(dev, 0x04, 0x00, 0x00);
-		reg_write(dev, 0x04, 0x06, 0x10);
-		reg_write(dev, 0x04, 0x07, 0x10);
-		break;
-	case 1:
-		reg_write(dev, 0x04, 0x00, 0x01);
-		reg_write(dev, 0x04, 0x06, 0x1a);
-		reg_write(dev, 0x04, 0x07, 0x1a);
-		break;
-	case 2:
-		reg_write(dev, 0x04, 0x00, 0x02);
-		reg_write(dev, 0x04, 0x06, 0x1c);
-		reg_write(dev, 0x04, 0x07, 0x1d);
-		break;
-	case 4:
-		reg_write(dev, 0x04, 0x00, 0x04);
-		reg_write(dev, 0x04, 0x06, 0x34);
-		reg_write(dev, 0x04, 0x07, 0x34);
-		break;
-	default:
-/*	case 5: */
-		reg_write(dev, 0x04, 0x00, 0x05);
-		reg_write(dev, 0x04, 0x06, 0x40);
-		reg_write(dev, 0x04, 0x07, 0x40);
-		break;
-	}
-/* Enable ISO packet machine - should we do this here or in ISOC init ? */
+	reg_write(dev, 0x02, 0x00, 0x00);
+
+	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
+	reg_write(dev, SPCA50X_REG_COMPRESS, 0x00, mode_tb[mode][0]);
+	reg_write(dev, SPCA50X_REG_COMPRESS, 0x06, mode_tb[mode][1]);
+	reg_write(dev, SPCA50X_REG_COMPRESS, 0x07, mode_tb[mode][2]);
+
 	ret = reg_write(dev, SPCA50X_REG_USB,
 			 SPCA50X_USB_CTRL,
 			 SPCA50X_CUSB_ENABLE);
 
-/*	reg_write(dev, 0x5, 0x0, 0x0); */
-/*	reg_write(dev, 0x5, 0x0, 0x1); */
-/*	reg_write(dev, 0x5, 0x11, 0x2); */
+	setbrightness(gspca_dev);
+
 	return ret;
 }
 
@@ -765,16 +762,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				data, len);
 		break;
 	}
-}
-
-static void setbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	u8 brightness = sd->brightness;
-
-	reg_write(gspca_dev->dev, 0x05, 0x00, (255 - brightness) >> 6);
-	reg_write(gspca_dev->dev, 0x05, 0x01, (255 - brightness) << 2);
-
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
