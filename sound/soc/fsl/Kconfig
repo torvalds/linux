@@ -10,7 +10,8 @@ config SND_SOC_MPC8610
 
 config SND_SOC_MPC8610_HPCD
 	tristate "ALSA SoC support for the Freescale MPC8610 HPCD board"
-	depends on MPC8610_HPCD
+	# I2C is necessary for the CS4270 driver
+	depends on MPC8610_HPCD && I2C
 	select SND_SOC_MPC8610
 	select SND_SOC_CS4270
 	select SND_SOC_CS4270_VD33_ERRATA

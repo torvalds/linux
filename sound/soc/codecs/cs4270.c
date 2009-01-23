@@ -12,11 +12,7 @@
  *
  * Current features/limitations:
  *
- * 1) Software mode is supported.  Stand-alone mode is automatically
- *    selected if I2C is disabled or if a CS4270 is not found on the I2C
- *    bus.  However, stand-alone mode is only partially implemented because
- *    there is no mechanism yet for this driver and the machine driver to
- *    communicate the values of the M0, M1, MCLK1, and MCLK2 pins.
+ * 1) Software mode is supported.  Stand-alone mode is not supported.
  * 2) Only I2C is supported, not SPI
  * 3) Only Master mode is supported, not Slave.
  * 4) The machine driver's 'startup' function must call
@@ -32,14 +28,6 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <linux/i2c.h>
-
-#include "cs4270.h"
-
-/* If I2C is defined, then we support software mode.  However, if we're
-   not compiled as module but I2C is, then we can't use I2C calls. */
-#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
-#define USE_I2C
-#endif
 
 /* Private data for the CS4270 */
 struct cs4270_private {
@@ -59,8 +47,6 @@ struct cs4270_private {
 			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE | \
 			SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_3BE | \
 			SNDRV_PCM_FMTBIT_S24_LE  | SNDRV_PCM_FMTBIT_S24_BE)
-
-#ifdef USE_I2C
 
 /* CS4270 registers addresses */
 #define CS4270_CHIPID	0x01	/* Chip ID */
@@ -272,17 +258,6 @@ static int cs4270_set_dai_fmt(struct snd_soc_dai *codec_dai,
 }
 
 /*
- * A list of addresses on which this CS4270 could use.  I2C addresses are
- * 7 bits.  For the CS4270, the upper four bits are always 1001, and the
- * lower three bits are determined via the AD2, AD1, and AD0 pins
- * (respectively).
- */
-static const unsigned short normal_i2c[] = {
-	0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, I2C_CLIENT_END
-};
-I2C_CLIENT_INSMOD;
-
-/*
  * Pre-fill the CS4270 register cache.
  *
  * We use the auto-increment feature of the CS4270 to read all registers in
@@ -476,7 +451,6 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 }
 
 #ifdef CONFIG_SND_SOC_CS4270_HWMUTE
-
 /*
  * Set the CS4270 external mute
  *
@@ -501,30 +475,14 @@ static int cs4270_mute(struct snd_soc_dai *dai, int mute)
 
 	return snd_soc_write(codec, CS4270_MUTE, reg6);
 }
-
+#else
+#define cs4270_mute NULL
 #endif
-
-static int cs4270_i2c_probe(struct i2c_client *, const struct i2c_device_id *);
 
 /* A list of non-DAPM controls that the CS4270 supports */
 static const struct snd_kcontrol_new cs4270_snd_controls[] = {
 	SOC_DOUBLE_R("Master Playback Volume",
 		CS4270_VOLA, CS4270_VOLB, 0, 0xFF, 1)
-};
-
-static const struct i2c_device_id cs4270_id[] = {
-	{"cs4270", 0},
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, cs4270_id);
-
-static struct i2c_driver cs4270_i2c_driver = {
-	.driver = {
-		.name = "CS4270 I2C",
-		.owner = THIS_MODULE,
-	},
-	.id_table = cs4270_id,
-	.probe = cs4270_i2c_probe,
 };
 
 /*
@@ -633,7 +591,20 @@ error:
 	return ret;
 }
 
-#endif /* USE_I2C*/
+static const struct i2c_device_id cs4270_id[] = {
+	{"cs4270", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, cs4270_id);
+
+static struct i2c_driver cs4270_i2c_driver = {
+	.driver = {
+		.name = "cs4270",
+		.owner = THIS_MODULE,
+	},
+	.id_table = cs4270_id,
+	.probe = cs4270_i2c_probe,
+};
 
 struct snd_soc_dai cs4270_dai = {
 	.name = "CS4270",
@@ -698,7 +669,6 @@ static int cs4270_probe(struct platform_device *pdev)
 		goto error_free_codec;
 	}
 
-#ifdef USE_I2C
 	cs4270_socdev = socdev;
 
 	ret = i2c_add_driver(&cs4270_i2c_driver);
@@ -708,20 +678,16 @@ static int cs4270_probe(struct platform_device *pdev)
 	}
 
 	/* Did we find a CS4270 on the I2C bus? */
-	if (codec->control_data) {
-		/* Initialize codec ops */
-		cs4270_dai.ops.hw_params = cs4270_hw_params;
-		cs4270_dai.ops.set_sysclk = cs4270_set_dai_sysclk;
-		cs4270_dai.ops.set_fmt = cs4270_set_dai_fmt;
-#ifdef CONFIG_SND_SOC_CS4270_HWMUTE
-		cs4270_dai.ops.digital_mute = cs4270_mute;
-#endif
-	} else
-		printk(KERN_INFO "cs4270: no I2C device found, "
-			"using stand-alone mode\n");
-#else
-	printk(KERN_INFO "cs4270: I2C disabled, using stand-alone mode\n");
-#endif
+	if (!codec->control_data) {
+		printk(KERN_ERR "cs4270: failed to attach driver");
+		goto error_del_driver;
+	}
+
+	/* Initialize codec ops */
+	cs4270_dai.ops.hw_params = cs4270_hw_params;
+	cs4270_dai.ops.set_sysclk = cs4270_set_dai_sysclk;
+	cs4270_dai.ops.set_fmt = cs4270_set_dai_fmt;
+	cs4270_dai.ops.digital_mute = cs4270_mute;
 
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
@@ -732,11 +698,9 @@ static int cs4270_probe(struct platform_device *pdev)
 	return 0;
 
 error_del_driver:
-#ifdef USE_I2C
 	i2c_del_driver(&cs4270_i2c_driver);
 
 error_free_pcms:
-#endif
 	snd_soc_free_pcms(socdev);
 
 error_free_codec:
@@ -752,9 +716,7 @@ static int cs4270_remove(struct platform_device *pdev)
 
 	snd_soc_free_pcms(socdev);
 
-#ifdef USE_I2C
 	i2c_del_driver(&cs4270_i2c_driver);
-#endif
 
 	kfree(socdev->codec);
 	socdev->codec = NULL;
