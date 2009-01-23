@@ -180,6 +180,7 @@
 #define BTTV_BOARD_VD012		   0x99
 #define BTTV_BOARD_VD012_X1		   0x9a
 #define BTTV_BOARD_VD012_X2		   0x9b
+#define BTTV_BOARD_IVCE8784		   0x9c
 
 
 /* more card-specific defines */
