@@ -232,7 +232,7 @@ __le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv)
 	return 0;		/* "diversity" is default if error */
 }
 
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 #define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
 
 static const char *iwl3945_get_tx_fail_reason(u32 status)
@@ -412,7 +412,7 @@ void iwl3945_hw_rx_statistics(struct iwl_priv *priv, struct iwl_rx_mem_buffer *r
  * Misc. internal state and helper functions
  *
  ******************************************************************************/
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 
 /**
  * iwl3945_report_frame - dump frame to syslog during debug sessions
@@ -421,7 +421,7 @@ void iwl3945_hw_rx_statistics(struct iwl_priv *priv, struct iwl_rx_mem_buffer *r
  * including selective frame dumps.
  * group100 parameter selects whether to show 1 out of 100 good frames.
  */
-static void iwl3945_dbg_report_frame(struct iwl_priv *priv,
+static void _iwl3945_dbg_report_frame(struct iwl_priv *priv,
 		      struct iwl_rx_packet *pkt,
 		      struct ieee80211_hdr *header, int group100)
 {
@@ -548,6 +548,15 @@ static void iwl3945_dbg_report_frame(struct iwl_priv *priv,
 	if (print_dump)
 		iwl_print_hex_dump(priv, IWL_DL_RX, data, length);
 }
+
+static void iwl3945_dbg_report_frame(struct iwl_priv *priv,
+		      struct iwl_rx_packet *pkt,
+		      struct ieee80211_hdr *header, int group100)
+{
+	if (priv->debug_level & IWL_DL_RX)
+		_iwl3945_dbg_report_frame(priv, pkt, header, group100);
+}
+
 #else
 static inline void iwl3945_dbg_report_frame(struct iwl_priv *priv,
 		      struct iwl_rx_packet *pkt,
@@ -711,11 +720,8 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 			      rx_status.signal, rx_status.signal,
 			      rx_status.noise, rx_status.rate_idx);
 
-#ifdef CONFIG_IWL3945_DEBUG
-	if (priv->debug_level & (IWL_DL_RX))
-		/* Set "1" to report good data frames in groups of 100 */
-		iwl3945_dbg_report_frame(priv, pkt, header, 1);
-#endif
+	/* Set "1" to report good data frames in groups of 100 */
+	iwl3945_dbg_report_frame(priv, pkt, header, 1);
 
 	if (network_packet) {
 		priv->last_beacon_time = le32_to_cpu(rx_end->beacon_timestamp);

@@ -20,7 +20,7 @@ config IWLWIFI_RFKILL
 	depends on IWLCORE
 
 config IWLWIFI_DEBUG
-	bool "Enable full debugging output in iwlagn driver"
+	bool "Enable full debugging output in iwlagn and iwl3945 drivers"
 	depends on IWLCORE
 	---help---
 	  This option will enable debug tracing output for the iwlwifi drivers
@@ -144,30 +144,3 @@ config IWL3945_LEDS
 	depends on IWL3945
 	---help---
 	  This option enables LEDS for the iwl3945 driver.
-
-config IWL3945_DEBUG
-	bool "Enable full debugging output in iwl3945 driver"
-	depends on IWL3945
-	---help---
-	  This option will enable debug tracing output for the iwl3945
-	  driver.
-
-	  This will result in the kernel module being ~100k larger.  You can
-	  control which debug output is sent to the kernel log by setting the
-	  value in
-
-	          /sys/bus/pci/drivers/${DRIVER}/debug_level
-
-	  This entry will only exist if this option is enabled.
-
-	  To set a value, simply echo an 8-byte hex value to the same file:
-
-		  % echo 0x43fff > /sys/bus/pci/drivers/${DRIVER}/debug_level
-
-	  You can find the list of debug mask values in:
-		  drivers/net/wireless/iwlwifi/iwl-3945-debug.h
-
-	  If this is your first time using this driver, you should say Y here
-	  as the debug information can assist others in helping you resolve
-	  any problems you may encounter.
-

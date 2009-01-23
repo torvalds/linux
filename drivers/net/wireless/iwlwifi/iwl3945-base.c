@@ -63,7 +63,7 @@
 #define DRV_DESCRIPTION	\
 "Intel(R) PRO/Wireless 3945ABG/BG Network Connection driver for Linux"
 
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 #define VD "d"
 #else
 #define VD
@@ -1503,7 +1503,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	fc = hdr->frame_control;
 
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	if (ieee80211_is_auth(fc))
 		IWL_DEBUG_TX("Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_req(fc))
@@ -2045,7 +2045,7 @@ static void iwl3945_rx_spectrum_measure_notif(struct iwl_priv *priv,
 static void iwl3945_rx_pm_sleep_notif(struct iwl_priv *priv,
 				  struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	IWL_DEBUG_RX("sleep mode: %d, src: %d\n",
@@ -2092,7 +2092,7 @@ static void iwl3945_bg_beacon_update(struct work_struct *work)
 static void iwl3945_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl3945_beacon_notif *beacon = &(pkt->u.beacon_status);
 	u8 rate = beacon->beacon_notify_hdr.rate;
@@ -2115,7 +2115,7 @@ static void iwl3945_rx_beacon_notif(struct iwl_priv *priv,
 static void iwl3945_rx_reply_scan(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_scanreq_notification *notif =
 	    (struct iwl_scanreq_notification *)pkt->u.raw;
@@ -2788,7 +2788,7 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 	iwl3945_rx_queue_restock(priv);
 }
 
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 static void iwl3945_print_rx_config_cmd(struct iwl_priv *priv,
 					struct iwl3945_rxon_cmd *rxon)
 {
@@ -3028,7 +3028,7 @@ static void iwl3945_irq_handle_error(struct iwl_priv *priv)
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	if (priv->debug_level & IWL_DL_FW_ERRORS) {
 		iwl3945_dump_nic_error_log(priv);
 		iwl3945_dump_nic_event_log(priv);
@@ -3077,7 +3077,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	u32 inta, handled = 0;
 	u32 inta_fh;
 	unsigned long flags;
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_mask;
 #endif
 
@@ -3095,7 +3095,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
 	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	if (priv->debug_level & IWL_DL_ISR) {
 		/* just for debug */
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
@@ -3129,7 +3129,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 		return;
 	}
 
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	if (priv->debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_SCD)
@@ -3200,7 +3200,7 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 	if (test_bit(STATUS_INT_ENABLED, &priv->status))
 		iwl3945_enable_interrupts(priv);
 
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	if (priv->debug_level & (IWL_DL_ISR)) {
 		inta = iwl_read32(priv, CSR_INT);
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
@@ -5414,7 +5414,7 @@ static int iwl3945_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *sk
  *
  *****************************************************************************/
 
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 
 /*
  * The following adds a new attribute to the sysfs representation
@@ -5450,7 +5450,7 @@ static ssize_t store_debug_level(struct device *d,
 static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO,
 			show_debug_level, store_debug_level);
 
-#endif /* CONFIG_IWL3945_DEBUG */
+#endif /* CONFIG_IWLWIFI_DEBUG */
 
 static ssize_t show_temperature(struct device *d,
 				struct device_attribute *attr, char *buf)
@@ -5930,7 +5930,7 @@ static struct attribute *iwl3945_sysfs_entries[] = {
 	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	&dev_attr_debug_level.attr,
 #endif
 	NULL
@@ -6082,7 +6082,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->cfg = cfg;
 	priv->pci_dev = pdev;
 
-#ifdef CONFIG_IWL3945_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUG
 	priv->debug_level = iwl3945_mod_params.debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif

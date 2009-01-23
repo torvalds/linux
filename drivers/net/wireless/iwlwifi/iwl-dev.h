@@ -1059,7 +1059,7 @@ struct iwl_priv {
 	s8 tx_power_channel_lmt;
 
 
-#if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWL3945_DEBUG)
+#ifdef CONFIG_IWLWIFI_DEBUG
 	/* debugging info */
 	u32 debug_level;
 	u32 framecnt_to_us;
