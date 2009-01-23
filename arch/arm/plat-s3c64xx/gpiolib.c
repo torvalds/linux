@@ -417,4 +417,4 @@ static __init int s3c64xx_gpiolib_init(void)
 	return 0;
 }
 
-arch_initcall(s3c64xx_gpiolib_init);
+core_initcall(s3c64xx_gpiolib_init);
