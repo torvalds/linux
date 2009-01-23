@@ -3337,7 +3337,7 @@ static struct hda_verb ad1984_thinkpad_init_verbs[] = {
 	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
 	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 	/* docking mic boost */
-	{0x25, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x25, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	/* Analog mixer - docking mic; mute as default */
 	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* enable EAPD bit */
