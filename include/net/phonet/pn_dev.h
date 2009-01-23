@@ -36,8 +36,9 @@ struct phonet_device {
 	DECLARE_BITMAP(addrs, 64);
 };
 
-void phonet_device_init(void);
+int phonet_device_init(void);
 void phonet_device_exit(void);
+void phonet_netlink_register(void);
 struct net_device *phonet_device_get(struct net *net);
 
 int phonet_address_add(struct net_device *dev, u8 addr);

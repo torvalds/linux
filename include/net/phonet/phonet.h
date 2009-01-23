@@ -105,7 +105,6 @@ void phonet_proto_unregister(int protocol, struct phonet_protocol *pp);
 
 int phonet_sysctl_init(void);
 void phonet_sysctl_exit(void);
-void phonet_netlink_register(void);
 int isi_register(void);
 void isi_unregister(void);
 

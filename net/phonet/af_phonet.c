@@ -426,16 +426,18 @@ static int __init phonet_init(void)
 {
 	int err;
 
+	err = phonet_device_init();
+	if (err)
+		return err;
+
 	err = sock_register(&phonet_proto_family);
 	if (err) {
 		printk(KERN_ALERT
 			"phonet protocol family initialization failed\n");
-		return err;
+		goto err_sock;
 	}
 
-	phonet_device_init();
 	dev_add_pack(&phonet_packet_type);
-	phonet_netlink_register();
 	phonet_sysctl_init();
 
 	err = isi_register();
@@ -447,6 +449,7 @@ err:
 	phonet_sysctl_exit();
 	sock_unregister(PF_PHONET);
 	dev_remove_pack(&phonet_packet_type);
+err_sock:
 	phonet_device_exit();
 	return err;
 }
