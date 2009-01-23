@@ -978,7 +978,6 @@ struct iwl_priv {
 	u16 rates_mask;
 
 	u32 power_mode;
-	u32 antenna;
 	u8 bssid[ETH_ALEN];
 	u16 rts_threshold;
 	u8 mac_addr[ETH_ALEN];

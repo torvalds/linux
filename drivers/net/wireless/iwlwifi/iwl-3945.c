@@ -197,41 +197,6 @@ static int iwl3945_hwrate_to_plcp_idx(u8 plcp)
 	return -1;
 }
 
-/**
- * iwl3945_get_antenna_flags - Get antenna flags for RXON command
- * @priv: eeprom and antenna fields are used to determine antenna flags
- *
- * priv->eeprom39  is used to determine if antenna AUX/MAIN are reversed
- * priv->antenna specifies the antenna diversity mode:
- *
- * IWL_ANTENNA_DIVERSITY - NIC selects best antenna by itself
- * IWL_ANTENNA_MAIN      - Force MAIN antenna
- * IWL_ANTENNA_AUX       - Force AUX antenna
- */
-__le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv)
-{
-	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
-
-	switch (priv->antenna) {
-	case IWL_ANTENNA_DIVERSITY:
-		return 0;
-
-	case IWL_ANTENNA_MAIN:
-		if (eeprom->antenna_switch_type)
-			return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_B_MSK;
-		return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_A_MSK;
-
-	case IWL_ANTENNA_AUX:
-		if (eeprom->antenna_switch_type)
-			return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_A_MSK;
-		return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_B_MSK;
-	}
-
-	/* bad antenna selector value */
-	IWL_ERR(priv, "Bad antenna selector value (0x%x)\n", priv->antenna);
-	return 0;		/* "diversity" is default if error */
-}
-
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
 

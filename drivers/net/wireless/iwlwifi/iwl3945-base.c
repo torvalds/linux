@@ -448,6 +448,43 @@ static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
 }
 
 /**
+ * iwl3945_get_antenna_flags - Get antenna flags for RXON command
+ * @priv: eeprom and antenna fields are used to determine antenna flags
+ *
+ * priv->eeprom39  is used to determine if antenna AUX/MAIN are reversed
+ * iwl3945_mod_params.antenna specifies the antenna diversity mode:
+ *
+ * IWL_ANTENNA_DIVERSITY - NIC selects best antenna by itself
+ * IWL_ANTENNA_MAIN      - Force MAIN antenna
+ * IWL_ANTENNA_AUX       - Force AUX antenna
+ */
+__le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv)
+{
+	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
+
+	switch (iwl3945_mod_params.antenna) {
+	case IWL_ANTENNA_DIVERSITY:
+		return 0;
+
+	case IWL_ANTENNA_MAIN:
+		if (eeprom->antenna_switch_type)
+			return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_B_MSK;
+		return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_A_MSK;
+
+	case IWL_ANTENNA_AUX:
+		if (eeprom->antenna_switch_type)
+			return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_A_MSK;
+		return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_B_MSK;
+	}
+
+	/* bad antenna selector value */
+	IWL_ERR(priv, "Bad antenna selector value (0x%x)\n",
+		iwl3945_mod_params.antenna);
+
+	return 0;		/* "diversity" is default if error */
+}
+
+/**
  * iwl3945_commit_rxon - commit staging_rxon to hardware
  *
  * The RXON command in staging_rxon is committed to the hardware and
@@ -5804,7 +5841,7 @@ static ssize_t show_antenna(struct device *d,
 	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 
-	return sprintf(buf, "%d\n", priv->antenna);
+	return sprintf(buf, "%d\n", iwl3945_mod_params.antenna);
 }
 
 static ssize_t store_antenna(struct device *d,
@@ -5824,7 +5861,7 @@ static ssize_t store_antenna(struct device *d,
 
 	if ((ant >= 0) && (ant <= 2)) {
 		IWL_DEBUG_INFO("Setting antenna select to %d.\n", ant);
-		priv->antenna = (enum iwl3945_antenna)ant;
+		iwl3945_mod_params.antenna = (enum iwl3945_antenna)ant;
 	} else
 		IWL_DEBUG_INFO("Bad antenna select value %d.\n", ant);
 
@@ -6088,9 +6125,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 #endif
 	hw->rate_control_algorithm = "iwl-3945-rs";
 	hw->sta_data_size = sizeof(struct iwl3945_sta_priv);
-
-	/* Select antenna (may be helpful if only one antenna is connected) */
-	priv->antenna = (enum iwl3945_antenna)iwl3945_mod_params.antenna;
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
