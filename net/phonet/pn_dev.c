@@ -204,13 +204,8 @@ void phonet_device_exit(void)
 	struct phonet_device *pnd, *n;
 
 	rtnl_unregister_all(PF_PHONET);
-	rtnl_lock();
-	spin_lock_bh(&pndevs.lock);
+	unregister_netdevice_notifier(&phonet_device_notifier);
 
 	list_for_each_entry_safe(pnd, n, &pndevs.list, list)
 		__phonet_device_free(pnd);
-
-	spin_unlock_bh(&pndevs.lock);
-	rtnl_unlock();
-	unregister_netdevice_notifier(&phonet_device_notifier);
 }
