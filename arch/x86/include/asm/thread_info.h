@@ -40,6 +40,7 @@ struct thread_info {
 						*/
 	__u8			supervisor_stack[0];
 #endif
+	int			uaccess_err;
 };
 
 #define INIT_THREAD_INFO(tsk)			\
