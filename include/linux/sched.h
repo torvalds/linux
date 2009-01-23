@@ -137,6 +137,8 @@ extern unsigned long nr_uninterruptible(void);
 extern unsigned long nr_active(void);
 extern unsigned long nr_iowait(void);
 
+extern unsigned long get_parent_ip(unsigned long addr);
+
 struct seq_file;
 struct cfs_rq;
 struct task_group;

@@ -21,6 +21,7 @@
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include <linux/rcupdate.h>
+#include <linux/ftrace.h>
 #include <linux/smp.h>
 #include <linux/tick.h>
 
@@ -79,13 +80,23 @@ static void __local_bh_disable(unsigned long ip)
 	WARN_ON_ONCE(in_irq());
 
 	raw_local_irq_save(flags);
-	add_preempt_count(SOFTIRQ_OFFSET);
+	/*
+	 * The preempt tracer hooks into add_preempt_count and will break
+	 * lockdep because it calls back into lockdep after SOFTIRQ_OFFSET
+	 * is set and before current->softirq_enabled is cleared.
+	 * We must manually increment preempt_count here and manually
+	 * call the trace_preempt_off later.
+	 */
+	preempt_count() += SOFTIRQ_OFFSET;
 	/*
 	 * Were softirqs turned off above:
 	 */
 	if (softirq_count() == SOFTIRQ_OFFSET)
 		trace_softirqs_off(ip);
 	raw_local_irq_restore(flags);
+
+	if (preempt_count() == SOFTIRQ_OFFSET)
+		trace_preempt_off(CALLER_ADDR0, get_parent_ip(CALLER_ADDR1));
 }
 #else /* !CONFIG_TRACE_IRQFLAGS */
 static inline void __local_bh_disable(unsigned long ip)
