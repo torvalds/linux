@@ -781,6 +781,8 @@ static void local_apic_timer_interrupt(void)
 	inc_irq_stat(apic_timer_irqs);
 
 	evt->event_handler(evt);
+
+	perf_counter_unthrottle();
 }
 
 /*

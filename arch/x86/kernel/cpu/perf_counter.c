@@ -33,6 +33,9 @@ static int nr_counters_fixed __read_mostly;
 struct cpu_hw_counters {
 	struct perf_counter	*counters[X86_PMC_IDX_MAX];
 	unsigned long		used[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
+	u64			last_interrupt;
+	u64			global_enable;
+	int			throttled;
 };
 
 /*
@@ -474,16 +477,19 @@ perf_handle_group(struct perf_counter *sibling, u64 *status, u64 *overflown)
 static void __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
 {
 	int bit, cpu = smp_processor_id();
-	u64 ack, status, saved_global;
-	struct cpu_hw_counters *cpuc;
+	u64 ack, status, now;
+	struct cpu_hw_counters *cpuc = &per_cpu(cpu_hw_counters, cpu);
 
-	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, saved_global);
+	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, cpuc->global_enable);
 
 	/* Disable counters globally */
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 	ack_APIC_irq();
 
-	cpuc = &per_cpu(cpu_hw_counters, cpu);
+	now = sched_clock();
+	if (now - cpuc->last_interrupt < PERFMON_MIN_PERIOD_NS)
+		cpuc->throttled = 1;
+	cpuc->last_interrupt = now;
 
 	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
 	if (!status)
@@ -533,9 +539,29 @@ again:
 		goto again;
 out:
 	/*
-	 * Restore - do not reenable when global enable is off:
+	 * Restore - do not reenable when global enable is off or throttled:
 	 */
-	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, saved_global);
+	if (!cpuc->throttled)
+		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, cpuc->global_enable);
+}
+
+void perf_counter_unthrottle(void)
+{
+	struct cpu_hw_counters *cpuc;
+
+	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
+		return;
+
+	if (unlikely(!perf_counters_initialized))
+		return;
+
+	cpuc = &per_cpu(cpu_hw_counters, smp_processor_id());
+	if (cpuc->throttled) {
+		if (printk_ratelimit())
+			printk(KERN_WARNING "PERFMON: max event frequency exceeded!\n");
+		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, cpuc->global_enable);
+		cpuc->throttled = 0;
+	}
 }
 
 void smp_perf_counter_interrupt(struct pt_regs *regs)

@@ -254,6 +254,7 @@ extern void perf_counter_init_task(struct task_struct *child);
 extern void perf_counter_exit_task(struct task_struct *child);
 extern void perf_counter_notify(struct pt_regs *regs);
 extern void perf_counter_print_debug(void);
+extern void perf_counter_unthrottle(void);
 extern u64 hw_perf_save_disable(void);
 extern void hw_perf_restore(u64 ctrl);
 extern int perf_counter_task_disable(void);
@@ -270,6 +271,8 @@ static inline int is_software_counter(struct perf_counter *counter)
 	return !counter->hw_event.raw && counter->hw_event.type < 0;
 }
 
+#define PERFMON_MIN_PERIOD_NS 10000
+
 #else
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
@@ -281,6 +284,7 @@ static inline void perf_counter_init_task(struct task_struct *child)	{ }
 static inline void perf_counter_exit_task(struct task_struct *child)	{ }
 static inline void perf_counter_notify(struct pt_regs *regs)		{ }
 static inline void perf_counter_print_debug(void)			{ }
+static inline void perf_counter_unthrottle(void)			{ }
 static inline void hw_perf_restore(u64 ctrl)			{ }
 static inline u64 hw_perf_save_disable(void)		      { return 0; }
 static inline int perf_counter_task_disable(void)	{ return -EINVAL; }
