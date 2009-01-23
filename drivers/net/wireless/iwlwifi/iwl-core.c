@@ -699,6 +699,18 @@ static u8 iwl_count_chain_bitmap(u32 chain_bitmap)
 }
 
 /**
+ * iwl_is_monitor_mode - Determine if interface in monitor mode
+ *
+ * priv->iw_mode is set in add_interface, but add_interface is
+ * never called for monitor mode. The only way mac80211 informs us about
+ * monitor mode is through configuring filters (call to configure_filter).
+ */
+static bool iwl_is_monitor_mode(struct iwl_priv *priv)
+{
+	return !!(priv->staging_rxon.filter_flags & RXON_FILTER_PROMISC_MSK);
+}
+
+/**
  * iwl_set_rxon_chain - Set up Rx chain usage in "staging" RXON image
  *
  * Selects how many and which Rx receivers/antennas/chains to use.
