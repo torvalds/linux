@@ -222,6 +222,49 @@ static const struct file_operations fops_interrupt = {
 	.owner = THIS_MODULE
 };
 
+
+static ssize_t read_file_tsf(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[100];
+	snprintf(buf, sizeof(buf), "0x%016llx\n",
+		 (unsigned long long)ath9k_hw_gettsf64(sc->sc_ah));
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 19);
+}
+
+static ssize_t write_file_tsf(struct file *file,
+                              const char __user *user_buf,
+                              size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[21];
+	unsigned long long tsf;
+
+	if (copy_from_user(buf, user_buf, min(count, sizeof(buf) - 1)))
+		return -EFAULT;
+	buf[sizeof(buf) - 1] = '\0';
+
+	if (strncmp(buf, "reset", 5) == 0) {
+		ath9k_hw_reset_tsf(sc->sc_ah);
+		printk(KERN_INFO "debugfs reset TSF\n");
+	} else {
+		tsf = simple_strtoul(buf, NULL, 0);
+		ath9k_hw_settsf64(sc->sc_ah, tsf);
+		printk(KERN_INFO "debugfs set TSF to %#018llx\n", tsf);
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_tsf = {
+	.read = read_file_tsf,
+	.write = write_file_tsf,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
+
 int ath9k_init_debug(struct ath_softc *sc)
 {
 	sc->sc_debug.debug_mask = ath9k_debug;
@@ -247,6 +290,11 @@ int ath9k_init_debug(struct ath_softc *sc)
 	if (!sc->sc_debug.debugfs_interrupt)
 		goto err;
 
+	sc->sc_debug.debugfs_tsf = debugfs_create_file("tsf", S_IRUGO,
+				       sc->sc_debug.debugfs_phy, sc, &fops_tsf);
+	if (!sc->sc_debug.debugfs_tsf)
+		goto err;
+
 	return 0;
 err:
 	ath9k_exit_debug(sc);
@@ -255,6 +303,7 @@ err:
 
 void ath9k_exit_debug(struct ath_softc *sc)
 {
+	debugfs_remove(sc->sc_debug.debugfs_tsf);
 	debugfs_remove(sc->sc_debug.debugfs_interrupt);
 	debugfs_remove(sc->sc_debug.debugfs_dma);
 	debugfs_remove(sc->sc_debug.debugfs_phy);

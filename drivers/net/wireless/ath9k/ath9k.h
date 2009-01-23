@@ -899,6 +899,7 @@ void ath9k_hw_getbssidmask(struct ath_hal *ah, u8 *mask);
 bool ath9k_hw_setbssidmask(struct ath_hal *ah, const u8 *mask);
 void ath9k_hw_write_associd(struct ath_hal *ah, const u8 *bssid, u16 assocId);
 u64 ath9k_hw_gettsf64(struct ath_hal *ah);
+void ath9k_hw_settsf64(struct ath_hal *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hal *ah);
 bool ath9k_hw_set_tsfadjust(struct ath_hal *ah, u32 setting);
 bool ath9k_hw_setslottime(struct ath_hal *ah, u32 us);
