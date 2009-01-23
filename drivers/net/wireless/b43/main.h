@@ -121,4 +121,11 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags);
 void b43_mac_suspend(struct b43_wldev *dev);
 void b43_mac_enable(struct b43_wldev *dev);
 
+
+struct b43_request_fw_context;
+int b43_do_request_fw(struct b43_request_fw_context *ctx,
+		      const char *name,
+		      struct b43_firmware_file *fw);
+void b43_do_release_fw(struct b43_firmware_file *fw);
+
 #endif /* B43_MAIN_H_ */
