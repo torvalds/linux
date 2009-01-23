@@ -108,7 +108,6 @@ void cpu_idle(void)
 				play_dead();
 
 			local_irq_disable();
-			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
 			/* Don't trace irqs off for idle */
 			stop_critical_timings();
 			pm_idle();
