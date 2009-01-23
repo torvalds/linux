@@ -397,6 +397,7 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_namelen = UBIFS_MAX_NLEN;
 	buf->f_fsid.val[0] = le32_to_cpu(uuid[0]) ^ le32_to_cpu(uuid[2]);
 	buf->f_fsid.val[1] = le32_to_cpu(uuid[1]) ^ le32_to_cpu(uuid[3]);
+	ubifs_assert(buf->f_bfree <= c->block_cnt);
 	return 0;
 }
 
@@ -735,12 +736,12 @@ static void init_constants_master(struct ubifs_info *c)
  * take_gc_lnum - reserve GC LEB.
  * @c: UBIFS file-system description object
  *
- * This function ensures that the LEB reserved for garbage collection is
- * unmapped and is marked as "taken" in lprops. We also have to set free space
- * to LEB size and dirty space to zero, because lprops may contain out-of-date
- * information if the file-system was un-mounted before it has been committed.
- * This function returns zero in case of success and a negative error code in
- * case of failure.
+ * This function ensures that the LEB reserved for garbage collection is marked
+ * as "taken" in lprops. We also have to set free space to LEB size and dirty
+ * space to zero, because lprops may contain out-of-date information if the
+ * file-system was un-mounted before it has been committed. This function
+ * returns zero in case of success and a negative error code in case of
+ * failure.
  */
 static int take_gc_lnum(struct ubifs_info *c)
 {
@@ -750,10 +751,6 @@ static int take_gc_lnum(struct ubifs_info *c)
 		ubifs_err("no LEB for GC");
 		return -EINVAL;
 	}
-
-	err = ubifs_leb_unmap(c, c->gc_lnum);
-	if (err)
-		return err;
 
 	/* And we have to tell lprops that this LEB is taken */
 	err = ubifs_change_one_lp(c, c->gc_lnum, c->leb_size, 0,
@@ -1280,16 +1277,35 @@ static int mount_ubifs(struct ubifs_info *c)
 			if (err)
 				goto out_orphans;
 			err = ubifs_rcvry_gc_commit(c);
-		} else
+		} else {
 			err = take_gc_lnum(c);
-		if (err)
-			goto out_orphans;
+			if (err)
+				goto out_orphans;
+
+			/*
+			 * GC LEB may contain garbage if there was an unclean
+			 * reboot, and it should be un-mapped.
+			 */
+			err = ubifs_leb_unmap(c, c->gc_lnum);
+			if (err)
+				return err;
+		}
 
 		err = dbg_check_lprops(c);
 		if (err)
 			goto out_orphans;
 	} else if (c->need_recovery) {
 		err = ubifs_recover_size(c);
+		if (err)
+			goto out_orphans;
+	} else {
+		/*
+		 * Even if we mount read-only, we have to set space in GC LEB
+		 * to proper value because this affects UBIFS free space
+		 * reporting. We do not want to have a situation when
+		 * re-mounting from R/O to R/W changes amount of free space.
+		 */
+		err = take_gc_lnum(c);
 		if (err)
 			goto out_orphans;
 	}
@@ -1316,6 +1332,8 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_infos;
 
 	c->always_chk_crc = 0;
+	/* GC LEB has to be empty and taken at this point */
+	ubifs_assert(c->lst.taken_empty_lebs == 1);
 
 	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"",
 		  c->vi.ubi_num, c->vi.vol_id, c->vi.name);
@@ -1561,7 +1579,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	if (c->need_recovery)
 		err = ubifs_rcvry_gc_commit(c);
 	else
-		err = take_gc_lnum(c);
+		err = ubifs_leb_unmap(c, c->gc_lnum);
 	if (err)
 		goto out;
 
@@ -1786,6 +1804,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		c->bu.buf = NULL;
 	}
 
+	ubifs_assert(c->lst.taken_empty_lebs == 1);
 	return 0;
 }
 
