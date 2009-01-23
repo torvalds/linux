@@ -758,6 +758,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.conf.radio_enabled = true;
 
 	INIT_LIST_HEAD(&local->interfaces);
+	mutex_init(&local->iflist_mtx);
 
 	spin_lock_init(&local->key_lock);
 
@@ -1007,6 +1008,8 @@ EXPORT_SYMBOL(ieee80211_unregister_hw);
 void ieee80211_free_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+
+	mutex_destroy(&local->iflist_mtx);
 
 	wiphy_free(local->hw.wiphy);
 }

@@ -643,7 +643,9 @@ struct ieee80211_local {
 	struct crypto_blkcipher *wep_rx_tfm;
 	u32 wep_iv;
 
+	/* see iface.c */
 	struct list_head interfaces;
+	struct mutex iflist_mtx;
 
 	/*
 	 * Key lock, protects sdata's key_list and sta_info's

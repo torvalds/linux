@@ -21,6 +21,23 @@
 #include "mesh.h"
 #include "led.h"
 
+/**
+ * DOC: Interface list locking
+ *
+ * The interface list in each struct ieee80211_local is protected
+ * three-fold:
+ *
+ * (1) modifications may only be done under the RTNL
+ * (2) modifications and readers are protected against each other by
+ *     the iflist_mtx.
+ * (3) modifications are done in an RCU manner so atomic readers
+ *     can traverse the list in RCU-safe blocks.
+ *
+ * As a consequence, reads (traversals) of the list can be protected
+ * by either the RTNL, the iflist_mtx or RCU.
+ */
+
+
 static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 {
 	int meshhdrlen;
@@ -800,7 +817,9 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 					    params->mesh_id_len,
 					    params->mesh_id);
 
+	mutex_lock(&local->iflist_mtx);
 	list_add_tail_rcu(&sdata->list, &local->interfaces);
+	mutex_unlock(&local->iflist_mtx);
 
 	if (new_dev)
 		*new_dev = ndev;
@@ -816,7 +835,10 @@ void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata)
 {
 	ASSERT_RTNL();
 
+	mutex_lock(&sdata->local->iflist_mtx);
 	list_del_rcu(&sdata->list);
+	mutex_unlock(&sdata->local->iflist_mtx);
+
 	synchronize_rcu();
 	unregister_netdevice(sdata->dev);
 }
@@ -832,7 +854,16 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	ASSERT_RTNL();
 
 	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
+		/*
+		 * we cannot hold the iflist_mtx across unregister_netdevice,
+		 * but we only need to hold it for list modifications to lock
+		 * out readers since we're under the RTNL here as all other
+		 * writers.
+		 */
+		mutex_lock(&local->iflist_mtx);
 		list_del(&sdata->list);
+		mutex_unlock(&local->iflist_mtx);
+
 		unregister_netdevice(sdata->dev);
 	}
 }
