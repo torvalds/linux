@@ -18,12 +18,9 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/hardware.h>
+#include <asm/mach-types.h>
 #include <mach/audio.h>
 #include <mach/eseries-gpio.h>
-
-#include <asm/mach-types.h>
 
 #include "../codecs/wm9712.h"
 #include "pxa2xx-pcm.h"
