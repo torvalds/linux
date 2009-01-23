@@ -34,7 +34,7 @@ int snd_soc_jack_new(struct snd_soc_card *card, const char *id, int type,
 	jack->card = card;
 	INIT_LIST_HEAD(&jack->pins);
 
-	return snd_jack_new(card->socdev->codec->card, id, type, &jack->jack);
+	return snd_jack_new(card->codec->card, id, type, &jack->jack);
 }
 EXPORT_SYMBOL_GPL(snd_soc_jack_new);
 
@@ -54,7 +54,7 @@ EXPORT_SYMBOL_GPL(snd_soc_jack_new);
  */
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 {
-	struct snd_soc_codec *codec = jack->card->socdev->codec;
+	struct snd_soc_codec *codec = jack->card->codec;
 	struct snd_soc_jack_pin *pin;
 	int enable;
 	int oldstatus;

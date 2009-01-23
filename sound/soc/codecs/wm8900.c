@@ -720,7 +720,7 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 reg;
 
 	reg = wm8900_read(codec, WM8900_REG_AUDIO1) & ~0x60;
@@ -1210,7 +1210,7 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8900_priv *wm8900 = codec->private_data;
 	int fll_out = wm8900->fll_out;
 	int fll_in  = wm8900->fll_in;
@@ -1234,7 +1234,7 @@ static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 static int wm8900_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8900_priv *wm8900 = codec->private_data;
 	u16 *cache;
 	int i, ret;
@@ -1414,7 +1414,7 @@ static int wm8900_probe(struct platform_device *pdev)
 	}
 
 	codec = wm8900_codec;
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 
 	/* Register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);

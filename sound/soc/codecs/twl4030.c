@@ -981,7 +981,7 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	u8 mode, old_mode, format, old_format;
 
 
@@ -1166,7 +1166,7 @@ EXPORT_SYMBOL_GPL(twl4030_dai);
 static int twl4030_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -1176,7 +1176,7 @@ static int twl4030_suspend(struct platform_device *pdev, pm_message_t state)
 static int twl4030_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	twl4030_set_bias_level(codec, codec->suspend_bias_level);
@@ -1190,7 +1190,7 @@ static int twl4030_resume(struct platform_device *pdev)
 
 static int twl4030_init(struct snd_soc_device *socdev)
 {
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret = 0;
 
 	printk(KERN_INFO "TWL4030 Audio Codec init \n");
@@ -1251,7 +1251,7 @@ static int twl4030_probe(struct platform_device *pdev)
 	if (codec == NULL)
 		return -ENOMEM;
 
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
@@ -1265,7 +1265,7 @@ static int twl4030_probe(struct platform_device *pdev)
 static int twl4030_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	printk(KERN_INFO "TWL4030 Audio Codec remove\n");
 	snd_soc_free_pcms(socdev);

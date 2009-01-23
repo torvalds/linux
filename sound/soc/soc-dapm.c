@@ -817,7 +817,7 @@ static ssize_t dapm_widget_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct snd_soc_device *devdata = dev_get_drvdata(dev);
-	struct snd_soc_codec *codec = devdata->codec;
+	struct snd_soc_codec *codec = devdata->card->codec;
 	struct snd_soc_dapm_widget *w;
 	int count = 0;
 	char *state = "not set";
@@ -1552,8 +1552,8 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_stream_event);
 int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
 				enum snd_soc_bias_level level)
 {
-	struct snd_soc_codec *codec = socdev->codec;
 	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret = 0;
 
 	if (card->set_bias_level)
@@ -1645,7 +1645,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dapm_get_pin_status);
  */
 void snd_soc_dapm_free(struct snd_soc_device *socdev)
 {
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	snd_soc_dapm_sys_remove(socdev->dev);
 	dapm_free_widgets(codec);

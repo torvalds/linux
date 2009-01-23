@@ -452,7 +452,7 @@ static int wm8510_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 iface = wm8510_read_reg_cache(codec, WM8510_IFACE) & 0x19f;
 	u16 adn = wm8510_read_reg_cache(codec, WM8510_ADD) & 0x1f1;
 
@@ -581,7 +581,7 @@ EXPORT_SYMBOL_GPL(wm8510_dai);
 static int wm8510_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	wm8510_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -590,7 +590,7 @@ static int wm8510_suspend(struct platform_device *pdev, pm_message_t state)
 static int wm8510_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u8 data[2];
 	u16 *cache = codec->reg_cache;
@@ -612,7 +612,7 @@ static int wm8510_resume(struct platform_device *pdev)
  */
 static int wm8510_init(struct snd_soc_device *socdev)
 {
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret = 0;
 
 	codec->name = "WM8510";
@@ -670,7 +670,7 @@ static int wm8510_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct snd_soc_device *socdev = wm8510_socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret;
 
 	i2c_set_clientdata(i2c, codec);
@@ -751,7 +751,7 @@ err_driver:
 static int __devinit wm8510_spi_probe(struct spi_device *spi)
 {
 	struct snd_soc_device *socdev = wm8510_socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret;
 
 	codec->control_data = spi;
@@ -817,7 +817,7 @@ static int wm8510_probe(struct platform_device *pdev)
 	if (codec == NULL)
 		return -ENOMEM;
 
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
@@ -847,7 +847,7 @@ static int wm8510_probe(struct platform_device *pdev)
 static int wm8510_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	if (codec->control_data)
 		wm8510_set_bias_level(codec, SND_SOC_BIAS_OFF);

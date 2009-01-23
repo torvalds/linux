@@ -397,7 +397,7 @@ static int uda1380_pcm_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int reg, reg_start, reg_end, clk;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -430,7 +430,7 @@ static int uda1380_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 clk = uda1380_read_reg_cache(codec, UDA1380_CLK);
 
 	/* set WSPLL power and divider if running from this clock */
@@ -469,7 +469,7 @@ static void uda1380_pcm_shutdown(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 clk = uda1380_read_reg_cache(codec, UDA1380_CLK);
 
 	/* shut down WSPLL power if running from this clock */
@@ -591,7 +591,7 @@ EXPORT_SYMBOL_GPL(uda1380_dai);
 static int uda1380_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	uda1380_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -600,7 +600,7 @@ static int uda1380_suspend(struct platform_device *pdev, pm_message_t state)
 static int uda1380_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u8 data[2];
 	u16 *cache = codec->reg_cache;
@@ -622,7 +622,7 @@ static int uda1380_resume(struct platform_device *pdev)
  */
 static int uda1380_init(struct snd_soc_device *socdev, int dac_clk)
 {
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret = 0;
 
 	codec->name = "UDA1380";
@@ -688,7 +688,7 @@ static int uda1380_i2c_probe(struct i2c_client *i2c,
 {
 	struct snd_soc_device *socdev = uda1380_socdev;
 	struct uda1380_setup_data *setup = socdev->codec_data;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret;
 
 	i2c_set_clientdata(i2c, codec);
@@ -779,7 +779,7 @@ static int uda1380_probe(struct platform_device *pdev)
 	if (codec == NULL)
 		return -ENOMEM;
 
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
@@ -803,7 +803,7 @@ static int uda1380_probe(struct platform_device *pdev)
 static int uda1380_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	if (codec->control_data)
 		uda1380_set_bias_level(codec, SND_SOC_BIAS_OFF);

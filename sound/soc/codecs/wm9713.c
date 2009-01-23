@@ -1115,7 +1115,7 @@ static int wm9713_soc_suspend(struct platform_device *pdev,
 	pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 reg;
 
 	/* Disable everything except touchpanel - that will be handled
@@ -1133,7 +1133,7 @@ static int wm9713_soc_suspend(struct platform_device *pdev,
 static int wm9713_soc_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm9713_priv *wm9713 = codec->private_data;
 	int i, ret;
 	u16 *cache = codec->reg_cache;
@@ -1174,10 +1174,11 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "WM9713/WM9714 SoC Audio Codec %s\n", WM9713_VERSION);
 
-	socdev->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (socdev->codec == NULL)
+	socdev->card->codec = kzalloc(sizeof(struct snd_soc_codec),
+				      GFP_KERNEL);
+	if (socdev->card->codec == NULL)
 		return -ENOMEM;
-	codec = socdev->codec;
+	codec = socdev->card->codec;
 	mutex_init(&codec->mutex);
 
 	codec->reg_cache = kmemdup(wm9713_reg, sizeof(wm9713_reg), GFP_KERNEL);
@@ -1249,15 +1250,15 @@ priv_err:
 	kfree(codec->reg_cache);
 
 cache_err:
-	kfree(socdev->codec);
-	socdev->codec = NULL;
+	kfree(socdev->card->codec);
+	socdev->card->codec = NULL;
 	return ret;
 }
 
 static int wm9713_soc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	if (codec == NULL)
 		return 0;

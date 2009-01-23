@@ -234,7 +234,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 		cpu_dai->capture.active = codec_dai->capture.active = 1;
 	cpu_dai->active = codec_dai->active = 1;
 	cpu_dai->runtime = runtime;
-	socdev->codec->active++;
+	card->codec->active++;
 	mutex_unlock(&pcm_mutex);
 	return 0;
 
@@ -264,7 +264,7 @@ static void close_delayed_work(struct work_struct *work)
 	struct snd_soc_card *card = container_of(work, struct snd_soc_card,
 						 delayed_work.work);
 	struct snd_soc_device *socdev = card->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = card->codec;
 	struct snd_soc_dai *codec_dai;
 	int i;
 
@@ -319,7 +319,7 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = card->codec;
 
 	mutex_lock(&pcm_mutex);
 
@@ -387,7 +387,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = card->codec;
 	int ret = 0;
 
 	mutex_lock(&pcm_mutex);
@@ -553,7 +553,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = card->codec;
 
 	mutex_lock(&pcm_mutex);
 
@@ -629,7 +629,7 @@ static int soc_suspend(struct platform_device *pdev, pm_message_t state)
 	struct snd_soc_card *card = socdev->card;
 	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = card->codec;
 	int i;
 
 	/* Due to the resume being scheduled into a workqueue we could
@@ -705,7 +705,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	struct snd_soc_device *socdev = card->socdev;
 	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = card->codec;
 	struct platform_device *pdev = to_platform_device(socdev->dev);
 	int i;
 
@@ -982,8 +982,8 @@ static struct platform_driver soc_driver = {
 static int soc_new_pcm(struct snd_soc_device *socdev,
 	struct snd_soc_dai_link *dai_link, int num)
 {
-	struct snd_soc_codec *codec = socdev->codec;
 	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_codec *codec = card->codec;
 	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_dai *codec_dai = dai_link->codec_dai;
 	struct snd_soc_dai *cpu_dai = dai_link->cpu_dai;
@@ -998,7 +998,7 @@ static int soc_new_pcm(struct snd_soc_device *socdev,
 
 	rtd->dai = dai_link;
 	rtd->socdev = socdev;
-	codec_dai->codec = socdev->codec;
+	codec_dai->codec = card->codec;
 
 	/* check client and interface hw capabilities */
 	sprintf(new_name, "%s %s-%d", dai_link->stream_name, codec_dai->name,
@@ -1048,9 +1048,8 @@ static int soc_new_pcm(struct snd_soc_device *socdev,
 }
 
 /* codec register dump */
-static ssize_t soc_codec_reg_show(struct snd_soc_device *devdata, char *buf)
+static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 {
-	struct snd_soc_codec *codec = devdata->codec;
 	int i, step = 1, count = 0;
 
 	if (!codec->reg_cache_size)
@@ -1090,7 +1089,7 @@ static ssize_t codec_reg_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct snd_soc_device *devdata = dev_get_drvdata(dev);
-	return soc_codec_reg_show(devdata, buf);
+	return soc_codec_reg_show(devdata->card->codec, buf);
 }
 
 static DEVICE_ATTR(codec_reg, 0444, codec_reg_show, NULL);
@@ -1107,12 +1106,10 @@ static ssize_t codec_reg_read_file(struct file *file, char __user *user_buf,
 {
 	ssize_t ret;
 	struct snd_soc_codec *codec = file->private_data;
-	struct device *card_dev = codec->card->dev;
-	struct snd_soc_device *devdata = card_dev->driver_data;
 	char *buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-	ret = soc_codec_reg_show(devdata, buf);
+	ret = soc_codec_reg_show(codec, buf);
 	if (ret >= 0)
 		ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
 	kfree(buf);
@@ -1309,8 +1306,8 @@ EXPORT_SYMBOL_GPL(snd_soc_test_bits);
  */
 int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid)
 {
-	struct snd_soc_codec *codec = socdev->codec;
 	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_codec *codec = card->codec;
 	int ret = 0, i;
 
 	mutex_lock(&codec->mutex);
@@ -1355,8 +1352,8 @@ EXPORT_SYMBOL_GPL(snd_soc_new_pcms);
  */
 int snd_soc_init_card(struct snd_soc_device *socdev)
 {
-	struct snd_soc_codec *codec = socdev->codec;
 	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_codec *codec = card->codec;
 	int ret = 0, i, ac97 = 0, err = 0;
 
 	for (i = 0; i < card->num_links; i++) {
@@ -1404,7 +1401,7 @@ int snd_soc_init_card(struct snd_soc_device *socdev)
 	if (err < 0)
 		printk(KERN_WARNING "asoc: failed to add codec sysfs files\n");
 
-	soc_init_codec_debugfs(socdev->codec);
+	soc_init_codec_debugfs(codec);
 	mutex_unlock(&codec->mutex);
 
 out:
@@ -1421,14 +1418,14 @@ EXPORT_SYMBOL_GPL(snd_soc_init_card);
  */
 void snd_soc_free_pcms(struct snd_soc_device *socdev)
 {
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 #ifdef CONFIG_SND_SOC_AC97_BUS
 	struct snd_soc_dai *codec_dai;
 	int i;
 #endif
 
 	mutex_lock(&codec->mutex);
-	soc_cleanup_codec_debugfs(socdev->codec);
+	soc_cleanup_codec_debugfs(codec);
 #ifdef CONFIG_SND_SOC_AC97_BUS
 	for (i = 0; i < codec->num_dai; i++) {
 		codec_dai = &codec->dai[i];

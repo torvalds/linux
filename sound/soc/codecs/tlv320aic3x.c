@@ -727,7 +727,7 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct aic3x_priv *aic3x = codec->private_data;
 	int codec_clk = 0, bypass_pll = 0, fsref, last_clk = 0;
 	u8 data, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
@@ -1079,7 +1079,7 @@ EXPORT_SYMBOL_GPL(aic3x_dai);
 static int aic3x_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	aic3x_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -1089,7 +1089,7 @@ static int aic3x_suspend(struct platform_device *pdev, pm_message_t state)
 static int aic3x_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u8 data[2];
 	u8 *cache = codec->reg_cache;
@@ -1112,7 +1112,7 @@ static int aic3x_resume(struct platform_device *pdev)
  */
 static int aic3x_init(struct snd_soc_device *socdev)
 {
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct aic3x_setup_data *setup = socdev->codec_data;
 	int reg, ret = 0;
 
@@ -1243,7 +1243,7 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 			   const struct i2c_device_id *id)
 {
 	struct snd_soc_device *socdev = aic3x_socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret;
 
 	i2c_set_clientdata(i2c, codec);
@@ -1348,7 +1348,7 @@ static int aic3x_probe(struct platform_device *pdev)
 	}
 
 	codec->private_data = aic3x;
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
@@ -1374,7 +1374,7 @@ static int aic3x_probe(struct platform_device *pdev)
 static int aic3x_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	/* power down chip */
 	if (codec->control_data)

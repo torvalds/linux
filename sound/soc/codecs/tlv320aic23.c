@@ -405,7 +405,7 @@ static int tlv320aic23_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 iface_reg;
 	int ret;
 	struct aic23 *aic23 = container_of(codec, struct aic23, codec);
@@ -453,7 +453,7 @@ static int tlv320aic23_pcm_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	/* set active */
 	tlv320aic23_write(codec, TLV320AIC23_ACTIVE, 0x0001);
@@ -466,7 +466,7 @@ static void tlv320aic23_shutdown(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct aic23 *aic23 = container_of(codec, struct aic23, codec);
 
 	/* deactivate */
@@ -609,7 +609,7 @@ static int tlv320aic23_suspend(struct platform_device *pdev,
 			       pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	tlv320aic23_write(codec, TLV320AIC23_ACTIVE, 0x0);
 	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_OFF);
@@ -620,7 +620,7 @@ static int tlv320aic23_suspend(struct platform_device *pdev,
 static int tlv320aic23_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u16 reg;
 
@@ -642,7 +642,7 @@ static int tlv320aic23_resume(struct platform_device *pdev)
  */
 static int tlv320aic23_init(struct snd_soc_device *socdev)
 {
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret = 0;
 	u16 reg;
 
@@ -729,7 +729,7 @@ static int tlv320aic23_codec_probe(struct i2c_client *i2c,
 				   const struct i2c_device_id *i2c_id)
 {
 	struct snd_soc_device *socdev = tlv320aic23_socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret;
 
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -787,7 +787,7 @@ static int tlv320aic23_probe(struct platform_device *pdev)
 	if (aic23 == NULL)
 		return -ENOMEM;
 	codec = &aic23->codec;
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
@@ -806,7 +806,7 @@ static int tlv320aic23_probe(struct platform_device *pdev)
 static int tlv320aic23_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct aic23 *aic23 = container_of(codec, struct aic23, codec);
 
 	if (codec->control_data)

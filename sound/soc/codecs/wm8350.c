@@ -1301,7 +1301,7 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 static int wm8350_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -1310,7 +1310,7 @@ static int wm8350_suspend(struct platform_device *pdev, pm_message_t state)
 static int wm8350_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	wm8350_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
@@ -1423,8 +1423,8 @@ static int wm8350_probe(struct platform_device *pdev)
 
 	BUG_ON(!wm8350_codec);
 
-	socdev->codec = wm8350_codec;
-	codec = socdev->codec;
+	socdev->card->codec = wm8350_codec;
+	codec = socdev->card->codec;
 	wm8350 = codec->control_data;
 	priv = codec->private_data;
 
@@ -1498,7 +1498,7 @@ card_err:
 static int wm8350_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8350 *wm8350 = codec->control_data;
 	struct wm8350_data *priv = codec->private_data;
 	int ret;

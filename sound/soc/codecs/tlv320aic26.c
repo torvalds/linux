@@ -130,7 +130,7 @@ static int aic26_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct aic26 *aic26 = codec->private_data;
 	int fsref, divisor, wlen, pval, jval, dval, qval;
 	u16 reg;
@@ -338,7 +338,7 @@ static int aic26_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	codec = &aic26->codec;
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 
 	dev_dbg(&pdev->dev, "Registering PCMs, dev=%p, socdev->dev=%p\n",
 		&pdev->dev, socdev->dev);

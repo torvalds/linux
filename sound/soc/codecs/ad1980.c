@@ -186,10 +186,10 @@ static int ad1980_soc_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "AD1980 SoC Audio Codec\n");
 
-	socdev->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (socdev->codec == NULL)
+	socdev->card->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
+	if (socdev->card->codec == NULL)
 		return -ENOMEM;
-	codec = socdev->codec;
+	codec = socdev->card->codec;
 	mutex_init(&codec->mutex);
 
 	codec->reg_cache =
@@ -275,15 +275,15 @@ codec_err:
 	kfree(codec->reg_cache);
 
 cache_err:
-	kfree(socdev->codec);
-	socdev->codec = NULL;
+	kfree(socdev->card->codec);
+	socdev->card->codec = NULL;
 	return ret;
 }
 
 static int ad1980_soc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	if (codec == NULL)
 		return 0;
