@@ -33,6 +33,26 @@ static const struct clkops clkops_dspck;
 
 #include "clock.h"
 
+static int clk_omap1_dummy_enable(struct clk *clk)
+{
+	return 0;
+}
+
+static void clk_omap1_dummy_disable(struct clk *clk)
+{
+}
+
+static const struct clkops clkops_dummy = {
+	.enable = clk_omap1_dummy_enable,
+	.disable = clk_omap1_dummy_disable,
+};
+
+static struct clk dummy_ck = {
+	.name	= "dummy",
+	.ops	= &clkops_dummy,
+	.flags	= RATE_FIXED,
+};
+
 struct omap_clk {
 	u32		cpu;
 	struct clk_lookup lk;
