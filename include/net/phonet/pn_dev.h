@@ -38,7 +38,7 @@ struct phonet_device {
 
 int phonet_device_init(void);
 void phonet_device_exit(void);
-void phonet_netlink_register(void);
+int phonet_netlink_register(void);
 struct net_device *phonet_device_get(struct net *net);
 
 int phonet_address_add(struct net_device *dev, u8 addr);

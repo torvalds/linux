@@ -190,9 +190,13 @@ static struct notifier_block phonet_device_notifier = {
 /* Initialize Phonet devices list */
 int __init phonet_device_init(void)
 {
+	int err;
+
 	register_netdevice_notifier(&phonet_device_notifier);
-	phonet_netlink_register();
-	return 0;
+	err = phonet_netlink_register();
+	if (err)
+		phonet_device_exit();
+	return err;
 }
 
 void phonet_device_exit(void)

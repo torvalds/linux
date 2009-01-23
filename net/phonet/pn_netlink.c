@@ -160,9 +160,14 @@ out:
 	return skb->len;
 }
 
-void __init phonet_netlink_register(void)
+int __init phonet_netlink_register(void)
 {
-	rtnl_register(PF_PHONET, RTM_NEWADDR, addr_doit, NULL);
-	rtnl_register(PF_PHONET, RTM_DELADDR, addr_doit, NULL);
-	rtnl_register(PF_PHONET, RTM_GETADDR, NULL, getaddr_dumpit);
+	int err = __rtnl_register(PF_PHONET, RTM_NEWADDR, addr_doit, NULL);
+	if (err)
+		return err;
+
+	/* Further __rtnl_register() cannot fail */
+	__rtnl_register(PF_PHONET, RTM_DELADDR, addr_doit, NULL);
+	__rtnl_register(PF_PHONET, RTM_GETADDR, NULL, getaddr_dumpit);
+	return 0;
 }
