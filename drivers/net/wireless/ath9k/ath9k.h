@@ -874,7 +874,6 @@ void ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio, u32 val);
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
 void ath9k_enable_rfkill(struct ath_hal *ah);
 #endif
-int ath9k_hw_select_antconfig(struct ath_hal *ah, u32 cfg);
 u32 ath9k_hw_getdefantenna(struct ath_hal *ah);
 void ath9k_hw_setantenna(struct ath_hal *ah, u32 antenna);
 bool ath9k_hw_setantennaswitch(struct ath_hal *ah,
