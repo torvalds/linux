@@ -20,6 +20,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
+#include "wm9705.h"
+
 /*
  * WM9705 register cache
  */

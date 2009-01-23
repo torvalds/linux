@@ -29,6 +29,8 @@
 #include <sound/initval.h>
 #include <linux/i2c.h>
 
+#include "cs4270.h"
+
 /* Private data for the CS4270 */
 struct cs4270_private {
 	unsigned int mclk; /* Input frequency of the MCLK pin */
