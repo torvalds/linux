@@ -854,7 +854,8 @@ static void ath_key_delete(struct ath_softc *sc, struct ieee80211_key_conf *key)
 	}
 }
 
-static void setup_ht_cap(struct ieee80211_sta_ht_cap *ht_info)
+static void setup_ht_cap(struct ath_softc *sc,
+			 struct ieee80211_sta_ht_cap *ht_info)
 {
 #define	ATH9K_HT_CAP_MAXRXAMPDU_65536 0x3	/* 2 ^ 16 */
 #define	ATH9K_HT_CAP_MPDUDENSITY_8 0x6		/* 8 usec */
@@ -867,10 +868,22 @@ static void setup_ht_cap(struct ieee80211_sta_ht_cap *ht_info)
 
 	ht_info->ampdu_factor = ATH9K_HT_CAP_MAXRXAMPDU_65536;
 	ht_info->ampdu_density = ATH9K_HT_CAP_MPDUDENSITY_8;
+
 	/* set up supported mcs set */
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	ht_info->mcs.rx_mask[0] = 0xff;
-	ht_info->mcs.rx_mask[1] = 0xff;
+
+	switch(sc->sc_rx_chainmask) {
+	case 1:
+		ht_info->mcs.rx_mask[0] = 0xff;
+		break;
+	case 5:
+	case 7:
+	default:
+		ht_info->mcs.rx_mask[0] = 0xff;
+		ht_info->mcs.rx_mask[1] = 0xff;
+		break;
+	}
+
 	ht_info->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 }
 
@@ -1549,9 +1562,9 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 	hw->rate_control_algorithm = "ath9k_rate_control";
 
 	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) {
-		setup_ht_cap(&sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
+		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
 		if (test_bit(ATH9K_MODE_11A, sc->sc_ah->ah_caps.wireless_modes))
-			setup_ht_cap(&sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
+			setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_5GHZ].ht_cap);
 	}
 
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] =	&sc->sbands[IEEE80211_BAND_2GHZ];
