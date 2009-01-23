@@ -91,7 +91,6 @@ config SND_SOC_SSM2602
 
 config SND_SOC_TLV320AIC23
 	tristate
-	depends on I2C
 
 config SND_SOC_TLV320AIC26
 	tristate "TI TLV320AIC26 Codec support" if SND_SOC_OF_SIMPLE
@@ -99,15 +98,12 @@ config SND_SOC_TLV320AIC26
 
 config SND_SOC_TLV320AIC3X
 	tristate
-	depends on I2C
 
 config SND_SOC_TWL4030
 	tristate
-	depends on TWL4030_CORE
 
 config SND_SOC_UDA134X
        tristate
-       select SND_SOC_L3
 
 config SND_SOC_UDA1380
         tristate
