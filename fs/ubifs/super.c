@@ -1469,9 +1469,6 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 {
 	int err, lnum;
 
-	if (c->ro_media)
-		return -EINVAL;
-
 	mutex_lock(&c->umount_mutex);
 	c->remounting_rw = 1;
 	c->always_chk_crc = 1;
@@ -1605,8 +1602,12 @@ out:
  */
 static void commit_on_unmount(struct ubifs_info *c)
 {
-	struct super_block *sb = c->vfs_sb;
 	long long bud_bytes;
+
+	if (!c->fast_unmount) {
+		dbg_gen("skip committing - fast unmount enabled");
+		return;
+	}
 
 	/*
 	 * This function is called before the background thread is stopped, so
@@ -1617,8 +1618,11 @@ static void commit_on_unmount(struct ubifs_info *c)
 	bud_bytes = c->bud_bytes;
 	spin_unlock(&c->buds_lock);
 
-	if (!c->fast_unmount && !(sb->s_flags & MS_RDONLY) && bud_bytes)
+	if (bud_bytes) {
+		dbg_gen("run commit");
 		ubifs_run_commit(c);
+	} else
+		dbg_gen("journal is empty, do not run commit");
 }
 
 /**
@@ -1633,6 +1637,8 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	int i, err;
 
 	ubifs_assert(!c->need_recovery);
+	ubifs_assert(!c->ro_media);
+
 	commit_on_unmount(c);
 
 	mutex_lock(&c->umount_mutex);
@@ -1646,16 +1652,17 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 		del_timer_sync(&c->jheads[i].wbuf.timer);
 	}
 
-	if (!c->ro_media) {
-		c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
-		c->mst_node->flags |= cpu_to_le32(UBIFS_MST_NO_ORPHS);
-		c->mst_node->gc_lnum = cpu_to_le32(c->gc_lnum);
-		err = ubifs_write_master(c);
-		if (err)
-			ubifs_ro_mode(c, err);
-	}
+	c->mst_node->flags &= ~cpu_to_le32(UBIFS_MST_DIRTY);
+	c->mst_node->flags |= cpu_to_le32(UBIFS_MST_NO_ORPHS);
+	c->mst_node->gc_lnum = cpu_to_le32(c->gc_lnum);
+	err = ubifs_write_master(c);
+	if (err)
+		ubifs_ro_mode(c, err);
 
-	ubifs_destroy_idx_gc(c);
+	err = ubifs_destroy_idx_gc(c);
+	if (err)
+		ubifs_ro_mode(c, err);
+
 	free_wbufs(c);
 	vfree(c->orph_buf);
 	c->orph_buf = NULL;
@@ -1754,6 +1761,11 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 	}
 
 	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
+		if (c->ro_media) {
+			ubifs_msg("cannot re-mount R/W, UBIFS is working in "
+				  "R/O mode");
+			return -EINVAL;
+		}
 		err = ubifs_remount_rw(c);
 		if (err)
 			return err;
@@ -2044,7 +2056,7 @@ static void ubifs_kill_sb(struct super_block *sb)
 	 * We do 'commit_on_unmount()' here instead of 'ubifs_put_super()'
 	 * in order to be outside BKL.
 	 */
-	if (sb->s_root)
+	if (sb->s_root && !(sb->s_flags & MS_RDONLY))
 		commit_on_unmount(c);
 	/* The un-mount routine is actually done in put_super() */
 	generic_shutdown_super(sb);

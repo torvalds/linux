@@ -678,6 +678,9 @@ int ubifs_change_one_lp(struct ubifs_info *c, int lnum, int free, int dirty,
 
 out:
 	ubifs_release_lprops(c);
+	if (err)
+		ubifs_err("cannot change properties of LEB %d, error %d",
+			  lnum, err);
 	return err;
 }
 
@@ -714,6 +717,9 @@ int ubifs_update_one_lp(struct ubifs_info *c, int lnum, int free, int dirty,
 
 out:
 	ubifs_release_lprops(c);
+	if (err)
+		ubifs_err("cannot update properties of LEB %d, error %d",
+			  lnum, err);
 	return err;
 }
 
@@ -737,6 +743,8 @@ int ubifs_read_one_lp(struct ubifs_info *c, int lnum, struct ubifs_lprops *lp)
 	lpp = ubifs_lpt_lookup(c, lnum);
 	if (IS_ERR(lpp)) {
 		err = PTR_ERR(lpp);
+		ubifs_err("cannot read properties of LEB %d, error %d",
+			  lnum, err);
 		goto out;
 	}
 

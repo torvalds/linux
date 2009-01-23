@@ -1593,7 +1593,7 @@ int ubifs_replay_journal(struct ubifs_info *c);
 int ubifs_garbage_collect(struct ubifs_info *c, int anyway);
 int ubifs_gc_start_commit(struct ubifs_info *c);
 int ubifs_gc_end_commit(struct ubifs_info *c);
-void ubifs_destroy_idx_gc(struct ubifs_info *c);
+int ubifs_destroy_idx_gc(struct ubifs_info *c);
 int ubifs_get_idx_gc_leb(struct ubifs_info *c);
 int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp);
 

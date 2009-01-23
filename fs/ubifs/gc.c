@@ -830,21 +830,29 @@ out:
  * ubifs_destroy_idx_gc - destroy idx_gc list.
  * @c: UBIFS file-system description object
  *
- * This function destroys the idx_gc list. It is called when unmounting or
- * remounting read-only so locks are not needed.
+ * This function destroys the @c->idx_gc list. It is called when unmounting or
+ * remounting read-only so locks are not needed. Returns zero in case of
+ * success and a negative error code in case of failure.
  */
-void ubifs_destroy_idx_gc(struct ubifs_info *c)
+int ubifs_destroy_idx_gc(struct ubifs_info *c)
 {
+	int ret = 0;
+
 	while (!list_empty(&c->idx_gc)) {
+		int err;
 		struct ubifs_gced_idx_leb *idx_gc;
 
 		idx_gc = list_entry(c->idx_gc.next, struct ubifs_gced_idx_leb,
 				    list);
-		c->idx_gc_cnt -= 1;
+		err = ubifs_change_one_lp(c, idx_gc->lnum, LPROPS_NC,
+					  LPROPS_NC, 0, LPROPS_TAKEN, -1);
+		if (err && !ret)
+			ret = err;
 		list_del(&idx_gc->list);
 		kfree(idx_gc);
 	}
 
+	return ret;
 }
 
 /**
