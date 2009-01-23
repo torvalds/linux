@@ -592,6 +592,38 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 	return 0;
 }
 
+/*
+ * Tell nic where to find circular buffer of Tx Frame Descriptors for
+ * given Tx queue, and enable the DMA channel used for that queue.
+ *
+ * 4965 supports up to 16 Tx queues in DRAM, mapped to up to 8 Tx DMA
+ * channels supported in hardware.
+ */
+int iwl_hw_tx_queue_init(struct iwl_priv *priv,
+			 struct iwl_tx_queue *txq)
+{
+	int ret;
+	unsigned long flags;
+	int txq_id = txq->q.id;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = iwl_grab_nic_access(priv);
+	if (ret) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return ret;
+	}
+
+	/* Circular buffer (TFD queue in DRAM) physical base address */
+	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
+			     txq->q.dma_addr >> 8);
+
+	iwl_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
+}
+
+
 /******************************************************************************
  *
  * Misc. internal state and helper functions

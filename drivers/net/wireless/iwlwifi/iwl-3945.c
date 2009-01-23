@@ -1068,8 +1068,8 @@ static int iwl3945_txq_ctx_reset(struct iwl_priv *priv)
 	for (txq_id = 0; txq_id < TFD_QUEUE_MAX; txq_id++) {
 		slots_num = (txq_id == IWL_CMD_QUEUE_NUM) ?
 				TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
-		rc = iwl3945_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
-				txq_id);
+		rc = iwl_tx_queue_init(priv, &priv->txq[txq_id], slots_num,
+				       txq_id);
 		if (rc) {
 			IWL_ERR(priv, "Tx %d queue init failed\n", txq_id);
 			goto error;
@@ -1258,7 +1258,7 @@ void iwl3945_hw_txq_ctx_free(struct iwl_priv *priv)
 
 	/* Tx queues */
 	for (txq_id = 0; txq_id < TFD_QUEUE_MAX; txq_id++)
-		iwl3945_tx_queue_free(priv, &priv->txq[txq_id]);
+		iwl_tx_queue_free(priv, txq_id);
 }
 
 void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
@@ -2491,6 +2491,7 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 		return -ENOMEM;
 	}
 
+	priv->hw_params.tfd_size = sizeof(struct iwl3945_tfd);
 	priv->hw_params.rx_buf_size = IWL_RX_BUF_SIZE_3K;
 	priv->hw_params.max_pkt_size = 2342;
 	priv->hw_params.max_rxq_size = RX_QUEUE_SIZE;
@@ -2705,6 +2706,7 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 static struct iwl_lib_ops iwl3945_lib = {
 	.txq_attach_buf_to_tfd = iwl3945_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = iwl3945_hw_txq_free_tfd,
+	.txq_init = iwl3945_hw_tx_queue_init,
 	.load_ucode = iwl3945_load_bsm,
 	.apm_ops = {
 		.init = iwl3945_apm_init,

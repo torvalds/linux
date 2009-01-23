@@ -815,6 +815,7 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.dma_chnl_num = FH49_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			IWL49_NUM_QUEUES * sizeof(struct iwl4965_scd_bc_tbl);
+	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWL4965_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL4965_BROADCAST_ID;
 	priv->hw_params.max_data_size = IWL49_RTC_DATA_SIZE;
@@ -2297,6 +2298,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.txq_agg_disable = iwl4965_txq_agg_disable,
 	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = iwl_hw_txq_free_tfd,
+	.txq_init = iwl_hw_tx_queue_init,
 	.rx_handler_setup = iwl4965_rx_handler_setup,
 	.setup_deferred_work = iwl4965_setup_deferred_work,
 	.cancel_deferred_work = iwl4965_cancel_deferred_work,

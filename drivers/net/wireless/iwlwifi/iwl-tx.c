@@ -131,7 +131,7 @@ EXPORT_SYMBOL(iwl_txq_update_write_ptr);
  * Free all buffers.
  * 0-fill, but do not free "txq" descriptor structure.
  */
-static void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
+void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
@@ -154,7 +154,7 @@ static void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
-		pci_free_consistent(dev, sizeof(struct iwl_tfd) *
+		pci_free_consistent(dev, priv->hw_params.tfd_size *
 				    txq->q.n_bd, txq->tfds, txq->q.dma_addr);
 
 	/* De-alloc array of per-TFD driver data */
@@ -164,7 +164,7 @@ static void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
 }
-
+EXPORT_SYMBOL(iwl_tx_queue_free);
 
 /**
  * iwl_cmd_queue_free - Deallocate DMA queue.
@@ -295,12 +295,12 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 	/* Circular buffer of transmit frame descriptors (TFDs),
 	 * shared with device */
 	txq->tfds = pci_alloc_consistent(dev,
-			sizeof(struct iwl_tfd) * TFD_QUEUE_SIZE_MAX,
+			priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX,
 			&txq->q.dma_addr);
 
 	if (!txq->tfds) {
 		IWL_ERR(priv, "pci_alloc_consistent(%zd) failed\n",
-			  sizeof(struct iwl_tfd) * TFD_QUEUE_SIZE_MAX);
+			  priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX);
 		goto error;
 	}
 	txq->q.id = id;
@@ -314,42 +314,11 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 	return -ENOMEM;
 }
 
-/*
- * Tell nic where to find circular buffer of Tx Frame Descriptors for
- * given Tx queue, and enable the DMA channel used for that queue.
- *
- * 4965 supports up to 16 Tx queues in DRAM, mapped to up to 8 Tx DMA
- * channels supported in hardware.
- */
-static int iwl_hw_tx_queue_init(struct iwl_priv *priv,
-				struct iwl_tx_queue *txq)
-{
-	int ret;
-	unsigned long flags;
-	int txq_id = txq->q.id;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
-
-	/* Circular buffer (TFD queue in DRAM) physical base address */
-	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
-			     txq->q.dma_addr >> 8);
-
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
-}
-
 /**
  * iwl_tx_queue_init - Allocate and initialize one tx/cmd queue
  */
-static int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
-			     int slots_num, u32 txq_id)
+int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+		      int slots_num, u32 txq_id)
 {
 	int i, len;
 	int ret;
@@ -391,7 +360,7 @@ static int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
 	/* Tell device where to find queue */
-	iwl_hw_tx_queue_init(priv, txq);
+	priv->cfg->ops->lib->txq_init(priv, txq);
 
 	return 0;
 err:
@@ -406,6 +375,8 @@ err:
 	}
 	return -ENOMEM;
 }
+EXPORT_SYMBOL(iwl_tx_queue_init);
+
 /**
  * iwl_hw_txq_ctx_free - Free TXQ Context
  *

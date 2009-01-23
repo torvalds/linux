@@ -116,6 +116,8 @@ struct iwl_lib_ops {
 				     u16 len, u8 reset, u8 pad);
 	void (*txq_free_tfd)(struct iwl_priv *priv,
 			     struct iwl_tx_queue *txq);
+	int (*txq_init)(struct iwl_priv *priv,
+			struct iwl_tx_queue *txq);
 	/* aggregations */
 	int (*txq_agg_enable)(struct iwl_priv *priv, int txq_id, int tx_fifo,
 			      int sta_id, int tid, u16 ssn_idx);
@@ -264,7 +266,12 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
 int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
 void iwl_hw_txq_ctx_free(struct iwl_priv *priv);
+int iwl_hw_tx_queue_init(struct iwl_priv *priv,
+			 struct iwl_tx_queue *txq);
 int iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+		      int slots_num, u32 txq_id);
+void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id);
 int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn);
 int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid);
 int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id);
