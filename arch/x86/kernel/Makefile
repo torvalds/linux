@@ -109,7 +109,7 @@ obj-$(CONFIG_MICROCODE)			+= microcode.o
 
 obj-$(CONFIG_X86_CHECK_BIOS_CORRUPTION) += check.o
 
-obj-$(CONFIG_SWIOTLB)			+= pci-swiotlb_64.o # NB rename without _64
+obj-$(CONFIG_SWIOTLB)			+= pci-swiotlb.o
 
 ###
 # 64 bit specific files
