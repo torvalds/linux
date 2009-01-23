@@ -145,8 +145,7 @@ static int omap_wdt_open(struct inode *inode, struct file *file)
 	if (test_and_set_bit(1, (unsigned long *)&(wdev->omap_wdt_users)))
 		return -EBUSY;
 
-	if (wdev->ick)
-		clk_enable(wdev->ick);    /* Enable the interface clock */
+	clk_enable(wdev->ick);    /* Enable the interface clock */
 	clk_enable(wdev->fck);    /* Enable the functional clock */
 
 	/* initialize prescaler */
@@ -176,8 +175,7 @@ static int omap_wdt_release(struct inode *inode, struct file *file)
 
 	omap_wdt_disable(wdev);
 
-	if (wdev->ick)
-		clk_disable(wdev->ick);
+	clk_disable(wdev->ick);
 	clk_disable(wdev->fck);
 #else
 	printk(KERN_CRIT "omap_wdt: Unexpected close, not stopping!\n");
@@ -294,13 +292,11 @@ static int __init omap_wdt_probe(struct platform_device *pdev)
 	wdev->omap_wdt_users = 0;
 	wdev->mem = mem;
 
-	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
-		wdev->ick = clk_get(&pdev->dev, "ick");
-		if (IS_ERR(wdev->ick)) {
-			ret = PTR_ERR(wdev->ick);
-			wdev->ick = NULL;
-			goto err_clk;
-		}
+	wdev->ick = clk_get(&pdev->dev, "ick");
+	if (IS_ERR(wdev->ick)) {
+		ret = PTR_ERR(wdev->ick);
+		wdev->ick = NULL;
+		goto err_clk;
 	}
 	wdev->fck = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(wdev->fck)) {
@@ -383,10 +379,7 @@ static int omap_wdt_remove(struct platform_device *pdev)
 	release_mem_region(res->start, res->end - res->start + 1);
 	platform_set_drvdata(pdev, NULL);
 
-	if (wdev->ick) {
-		clk_put(wdev->ick);
-	}
-
+	clk_put(wdev->ick);
 	clk_put(wdev->fck);
 	iounmap(wdev->base);
 
