@@ -37,9 +37,6 @@ MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
 static int dvb_usb_af9015_remote;
 module_param_named(remote, dvb_usb_af9015_remote, int, 0644);
 MODULE_PARM_DESC(remote, "select remote");
-static int dvb_usb_af9015_dual_mode;
-module_param_named(dual_mode, dvb_usb_af9015_dual_mode, int, 0644);
-MODULE_PARM_DESC(dual_mode, "enable dual mode");
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static DEFINE_MUTEX(af9015_usb_mutex);
@@ -836,9 +833,6 @@ static int af9015_read_config(struct usb_device *udev)
 		goto error;
 	af9015_config.dual_mode = val;
 	deb_info("%s: TS mode:%d\n", __func__, af9015_config.dual_mode);
-	/* disable dual mode by default because it is buggy */
-	if (!dvb_usb_af9015_dual_mode)
-		af9015_config.dual_mode = 0;
 
 	/* Set adapter0 buffer size according to USB port speed, adapter1 buffer
 	   size can be static because it is enabled only USB2.0 */
