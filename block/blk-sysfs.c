@@ -197,6 +197,27 @@ queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 	return ret;
 }
 
+static ssize_t queue_iostats_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(blk_queue_io_stat(q), page);
+}
+
+static ssize_t queue_iostats_store(struct request_queue *q, const char *page,
+				   size_t count)
+{
+	unsigned long stats;
+	ssize_t ret = queue_var_store(&stats, page, count);
+
+	spin_lock_irq(q->queue_lock);
+	if (stats)
+		queue_flag_set(QUEUE_FLAG_IO_STAT, q);
+	else
+		queue_flag_clear(QUEUE_FLAG_IO_STAT, q);
+	spin_unlock_irq(q->queue_lock);
+
+	return ret;
+}
+
 static struct queue_sysfs_entry queue_requests_entry = {
 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_requests_show,
@@ -249,6 +270,12 @@ static struct queue_sysfs_entry queue_rq_affinity_entry = {
 	.store = queue_rq_affinity_store,
 };
 
+static struct queue_sysfs_entry queue_iostats_entry = {
+	.attr = {.name = "iostats", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_iostats_show,
+	.store = queue_iostats_store,
+};
+
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
@@ -259,6 +286,7 @@ static struct attribute *default_attrs[] = {
 	&queue_nonrot_entry.attr,
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,
+	&queue_iostats_entry.attr,
 	NULL,
 };
 

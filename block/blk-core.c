@@ -64,11 +64,12 @@ static struct workqueue_struct *kblockd_workqueue;
 
 static void drive_stat_acct(struct request *rq, int new_io)
 {
+	struct gendisk *disk = rq->rq_disk;
 	struct hd_struct *part;
 	int rw = rq_data_dir(rq);
 	int cpu;
 
-	if (!blk_fs_request(rq) || !rq->rq_disk)
+	if (!blk_fs_request(rq) || !disk || !blk_queue_io_stat(disk->queue))
 		return;
 
 	cpu = part_stat_lock();
@@ -599,8 +600,7 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
 	q->unplug_fn		= generic_unplug_device;
-	q->queue_flags		= (1 << QUEUE_FLAG_CLUSTER |
-				   1 << QUEUE_FLAG_STACKABLE);
+	q->queue_flags		= QUEUE_FLAG_DEFAULT;
 	q->queue_lock		= lock;
 
 	blk_queue_segment_boundary(q, BLK_SEG_BOUNDARY_MASK);
@@ -1663,6 +1663,55 @@ void blkdev_dequeue_request(struct request *req)
 }
 EXPORT_SYMBOL(blkdev_dequeue_request);
 
+static void blk_account_io_completion(struct request *req, unsigned int bytes)
+{
+	struct gendisk *disk = req->rq_disk;
+
+	if (!disk || !blk_queue_io_stat(disk->queue))
+		return;
+
+	if (blk_fs_request(req)) {
+		const int rw = rq_data_dir(req);
+		struct hd_struct *part;
+		int cpu;
+
+		cpu = part_stat_lock();
+		part = disk_map_sector_rcu(req->rq_disk, req->sector);
+		part_stat_add(cpu, part, sectors[rw], bytes >> 9);
+		part_stat_unlock();
+	}
+}
+
+static void blk_account_io_done(struct request *req)
+{
+	struct gendisk *disk = req->rq_disk;
+
+	if (!disk || !blk_queue_io_stat(disk->queue))
+		return;
+
+	/*
+	 * Account IO completion.  bar_rq isn't accounted as a normal
+	 * IO on queueing nor completion.  Accounting the containing
+	 * request is enough.
+	 */
+	if (blk_fs_request(req) && req != &req->q->bar_rq) {
+		unsigned long duration = jiffies - req->start_time;
+		const int rw = rq_data_dir(req);
+		struct hd_struct *part;
+		int cpu;
+
+		cpu = part_stat_lock();
+		part = disk_map_sector_rcu(disk, req->sector);
+
+		part_stat_inc(cpu, part, ios[rw]);
+		part_stat_add(cpu, part, ticks[rw], duration);
+		part_round_stats(cpu, part);
+		part_dec_in_flight(part);
+
+		part_stat_unlock();
+	}
+}
+
 /**
  * __end_that_request_first - end I/O on a request
  * @req:      the request being processed
@@ -1698,16 +1747,7 @@ static int __end_that_request_first(struct request *req, int error,
 				(unsigned long long)req->sector);
 	}
 
-	if (blk_fs_request(req) && req->rq_disk) {
-		const int rw = rq_data_dir(req);
-		struct hd_struct *part;
-		int cpu;
-
-		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(req->rq_disk, req->sector);
-		part_stat_add(cpu, part, sectors[rw], nr_bytes >> 9);
-		part_stat_unlock();
-	}
+	blk_account_io_completion(req, nr_bytes);
 
 	total_bytes = bio_nbytes = 0;
 	while ((bio = req->bio) != NULL) {
@@ -1787,8 +1827,6 @@ static int __end_that_request_first(struct request *req, int error,
  */
 static void end_that_request_last(struct request *req, int error)
 {
-	struct gendisk *disk = req->rq_disk;
-
 	if (blk_rq_tagged(req))
 		blk_queue_end_tag(req->q, req);
 
@@ -1800,27 +1838,7 @@ static void end_that_request_last(struct request *req, int error)
 
 	blk_delete_timer(req);
 
-	/*
-	 * Account IO completion.  bar_rq isn't accounted as a normal
-	 * IO on queueing nor completion.  Accounting the containing
-	 * request is enough.
-	 */
-	if (disk && blk_fs_request(req) && req != &req->q->bar_rq) {
-		unsigned long duration = jiffies - req->start_time;
-		const int rw = rq_data_dir(req);
-		struct hd_struct *part;
-		int cpu;
-
-		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(disk, req->sector);
-
-		part_stat_inc(cpu, part, ios[rw]);
-		part_stat_add(cpu, part, ticks[rw], duration);
-		part_round_stats(cpu, part);
-		part_dec_in_flight(part);
-
-		part_stat_unlock();
-	}
+	blk_account_io_done(req);
 
 	if (req->end_io)
 		req->end_io(req, error);
