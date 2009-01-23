@@ -3229,10 +3229,6 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 		dev_priv->mm.wedged = 0;
 	}
 
-	dev_priv->mm.gtt_mapping = io_mapping_create_wc(dev->agp->base,
-							dev->agp->agp_info.aper_size
-							* 1024 * 1024);
-
 	mutex_lock(&dev->struct_mutex);
 	dev_priv->mm.suspended = 0;
 
@@ -3255,7 +3251,6 @@ int
 i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
@@ -3264,7 +3259,6 @@ i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 	ret = i915_gem_idle(dev);
 	drm_irq_uninstall(dev);
 
-	io_mapping_free(dev_priv->mm.gtt_mapping);
 	return ret;
 }
 

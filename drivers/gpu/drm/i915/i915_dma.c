@@ -966,10 +966,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto kfree_devname;
 
-        dev_priv->mm.gtt_mapping =
-		io_mapping_create_wc(dev->agp->base,
-				     dev->agp->agp_info.aper_size * 1024*1024);
-
 	/* Allow hardware batchbuffers unless told otherwise.
 	 */
 	dev_priv->allow_batchbuffer = 1;
@@ -1081,6 +1077,23 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto free_priv;
 	}
 
+        dev_priv->mm.gtt_mapping =
+		io_mapping_create_wc(dev->agp->base,
+				     dev->agp->agp_info.aper_size * 1024*1024);
+	/* Set up a WC MTRR for non-PAT systems.  This is more common than
+	 * one would think, because the kernel disables PAT on first
+	 * generation Core chips because WC PAT gets overridden by a UC
+	 * MTRR if present.  Even if a UC MTRR isn't present.
+	 */
+	dev_priv->mm.gtt_mtrr = mtrr_add(dev->agp->base,
+					 dev->agp->agp_info.aper_size *
+					 1024 * 1024,
+					 MTRR_TYPE_WRCOMB, 1);
+	if (dev_priv->mm.gtt_mtrr < 0) {
+		DRM_INFO("MTRR allocation failed\n.  Graphics "
+			 "performance may suffer.\n");
+	}
+
 #ifdef CONFIG_HIGHMEM64G
 	/* don't enable GEM on PAE - needs agp + set_memory_* interface fixes */
 	dev_priv->has_gem = 0;
@@ -1145,8 +1158,14 @@ int i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	io_mapping_free(dev_priv->mm.gtt_mapping);
+	if (dev_priv->mm.gtt_mtrr >= 0) {
+		mtrr_del(dev_priv->mm.gtt_mtrr, dev->agp->base,
+			 dev->agp->agp_info.aper_size * 1024 * 1024);
+		dev_priv->mm.gtt_mtrr = -1;
+	}
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		io_mapping_free(dev_priv->mm.gtt_mapping);
 		drm_irq_uninstall(dev);
 	}
 

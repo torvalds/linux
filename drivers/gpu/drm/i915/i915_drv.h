@@ -284,6 +284,7 @@ typedef struct drm_i915_private {
 		struct drm_mm gtt_space;
 
 		struct io_mapping *gtt_mapping;
+		int gtt_mtrr;
 
 		/**
 		 * List of objects currently involved in rendering from the
