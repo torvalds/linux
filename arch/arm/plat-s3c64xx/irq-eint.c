@@ -194,7 +194,7 @@ static void s3c_irq_demux_eint20_27(unsigned int irq, struct irq_desc *desc)
 	s3c_irq_demux_eint(20, 27);
 }
 
-int __init s3c64xx_init_irq_eint(void)
+static int __init s3c64xx_init_irq_eint(void)
 {
 	int irq;
 
