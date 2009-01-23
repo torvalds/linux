@@ -974,9 +974,8 @@ bool ath9k_hw_set_power_cal_table(struct ath_hal *ah,
 				  int16_t *pTxPowerIndexOffset);
 bool ath9k_hw_eeprom_set_board_values(struct ath_hal *ah,
 				      struct ath9k_channel *chan);
-int ath9k_hw_get_eeprom_antenna_cfg(struct ath_hal *ah,
-				    struct ath9k_channel *chan,
-				    u8 index, u16 *config);
+u16 ath9k_hw_get_eeprom_antenna_cfg(struct ath_hal *ah,
+				    struct ath9k_channel *chan);
 u8 ath9k_hw_get_num_ant_config(struct ath_hal *ah,
 			       enum ieee80211_band freq_band);
 u16 ath9k_hw_eeprom_get_spur_chan(struct ath_hal *ah, u16 i, bool is2GHz);
