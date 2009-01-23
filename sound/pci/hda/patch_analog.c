@@ -2288,10 +2288,6 @@ static struct hda_verb ad1988_capture_init_verbs[] = {
 	{0x0c, AC_VERB_SET_CONNECT_SEL, 0x1},
 	{0x0d, AC_VERB_SET_CONNECT_SEL, 0x1},
 	{0x0e, AC_VERB_SET_CONNECT_SEL, 0x1},
-	/* ADCs; muted */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 
 	{ }
 };
@@ -2399,10 +2395,6 @@ static struct hda_verb ad1988_3stack_init_verbs[] = {
 	{0x0c, AC_VERB_SET_CONNECT_SEL, 0x1},
 	{0x0d, AC_VERB_SET_CONNECT_SEL, 0x1},
 	{0x0e, AC_VERB_SET_CONNECT_SEL, 0x1},
-	/* ADCs; muted */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 	/* Analog Mix output amp */
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE | 0x1f}, /* 0dB */
 	{ }
@@ -2474,10 +2466,6 @@ static struct hda_verb ad1988_laptop_init_verbs[] = {
 	{0x0c, AC_VERB_SET_CONNECT_SEL, 0x1},
 	{0x0d, AC_VERB_SET_CONNECT_SEL, 0x1},
 	{0x0e, AC_VERB_SET_CONNECT_SEL, 0x1},
-	/* ADCs; muted */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 	/* Analog Mix output amp */
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE | 0x1f}, /* 0dB */
 	{ }
