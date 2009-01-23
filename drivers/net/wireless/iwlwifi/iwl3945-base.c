@@ -744,7 +744,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 
 	/* If we issue a new RXON command which required a tune then we must
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
-	rc = iwl3945_hw_reg_send_txpower(priv);
+	rc = priv->cfg->ops->lib->send_tx_power(priv);
 	if (rc) {
 		IWL_ERR(priv, "Error setting Tx power (%d).\n", rc);
 		return rc;
@@ -5517,7 +5517,7 @@ static void iwl3945_bg_scan_completed(struct work_struct *work)
 	/* Since setting the TXPOWER may have been deferred while
 	 * performing the scan, fire one off */
 	mutex_lock(&priv->mutex);
-	iwl3945_hw_reg_send_txpower(priv);
+	priv->cfg->ops->lib->send_tx_power(priv);
 	mutex_unlock(&priv->mutex);
 }
 

@@ -1705,12 +1705,12 @@ static void iwl3945_hw_reg_set_scan_power(struct iwl_priv *priv, u32 scan_tbl_in
 }
 
 /**
- * iwl3945_hw_reg_send_txpower - fill in Tx Power command with gain settings
+ * iwl3945_send_tx_power - fill in Tx Power command with gain settings
  *
  * Configures power settings for all rates for the current channel,
  * using values from channel info struct, and send to NIC
  */
-int iwl3945_hw_reg_send_txpower(struct iwl_priv *priv)
+int iwl3945_send_tx_power(struct iwl_priv *priv)
 {
 	int rate_idx, i;
 	const struct iwl_channel_info *ch_info = NULL;
@@ -1935,7 +1935,7 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl_priv *priv)
 	}
 
 	/* send Txpower command for current channel to ucode */
-	return iwl3945_hw_reg_send_txpower(priv);
+	return priv->cfg->ops->lib->send_tx_power(priv);
 }
 
 int iwl3945_hw_reg_set_txpower(struct iwl_priv *priv, s8 power)
@@ -2712,6 +2712,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 		.config = iwl3945_nic_config,
 		.set_pwr_src = iwl3945_set_pwr_src,
 	},
+	.send_tx_power	= iwl3945_send_tx_power,
 };
 
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
