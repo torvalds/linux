@@ -870,7 +870,7 @@ void uwb_rsv_queue_update(struct uwb_rc *rc)
  */
 void uwb_rsv_sched_update(struct uwb_rc *rc)
 {
-	spin_lock(&rc->rsvs_lock);
+	spin_lock_bh(&rc->rsvs_lock);
 	if (!delayed_work_pending(&rc->rsv_update_work)) {
 		if (rc->set_drp_ie_pending > 0) {
 			rc->set_drp_ie_pending++;
@@ -879,7 +879,7 @@ void uwb_rsv_sched_update(struct uwb_rc *rc)
 		uwb_rsv_queue_update(rc);
 	}
 unlock:
-	spin_unlock(&rc->rsvs_lock);
+	spin_unlock_bh(&rc->rsvs_lock);
 }
 
 /*
