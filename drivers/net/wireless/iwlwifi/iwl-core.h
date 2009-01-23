@@ -395,6 +395,11 @@ void iwl_enable_interrupts(struct iwl_priv *priv);
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
 void iwl_dump_nic_event_log(struct iwl_priv *priv);
 
+/*****************************************************
+*  GEOS
+******************************************************/
+int iwlcore_init_geos(struct iwl_priv *priv);
+void iwlcore_free_geos(struct iwl_priv *priv);
 
 /*************** DRIVER STATUS FUNCTIONS   *****/
 
