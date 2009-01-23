@@ -299,10 +299,13 @@ static int decrease_reservation(unsigned long nr_pages)
 
 		scrub_page(page);
 
-		ret = HYPERVISOR_update_va_mapping(
-			(unsigned long)__va(pfn << PAGE_SHIFT),
-			__pte_ma(0), 0);
-		BUG_ON(ret);
+		if (!PageHighMem(page)) {
+			ret = HYPERVISOR_update_va_mapping(
+				(unsigned long)__va(pfn << PAGE_SHIFT),
+				__pte_ma(0), 0);
+			BUG_ON(ret);
+                }
+
 	}
 
 	/* Ensure that ballooned highmem pages don't have kmaps. */
