@@ -28,7 +28,7 @@ struct phonet_device_list {
 	spinlock_t lock;
 };
 
-extern struct phonet_device_list pndevs;
+struct phonet_device_list *phonet_device_list(struct net *net);
 
 struct phonet_device {
 	struct list_head list;
