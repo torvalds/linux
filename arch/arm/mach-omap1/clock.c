@@ -132,6 +132,15 @@ static struct omap_clk omap_clks[] = {
 	CLK(NULL,	"mpu",		&virtual_ck_mpu, CK_16XX | CK_1510 | CK_310),
 	CLK("i2c_omap.1", "i2c_fck",	&i2c_fck,	CK_16XX | CK_1510 | CK_310),
 	CLK("i2c_omap.1", "i2c_ick",	&i2c_ick,	CK_16XX),
+	CLK("omap-mcbsp.1", "ick",	&dspper_ck,	CK_16XX),
+	CLK("omap-mcbsp.1", "ick",	&dummy_ck,	CK_1510 | CK_310),
+	CLK("omap-mcbsp.2", "ick",	&armper_ck.clk,	CK_16XX),
+	CLK("omap-mcbsp.2", "ick",	&dummy_ck,	CK_1510 | CK_310),
+	CLK("omap-mcbsp.3", "ick",	&dspper_ck,	CK_16XX),
+	CLK("omap-mcbsp.3", "ick",	&dummy_ck,	CK_1510 | CK_310),
+	CLK("omap-mcbsp.1", "fck",	&dspxor_ck,	CK_16XX | CK_1510 | CK_310),
+	CLK("omap-mcbsp.2", "fck",	&armper_ck.clk,	CK_16XX | CK_1510 | CK_310),
+	CLK("omap-mcbsp.3", "fck",	&dspxor_ck,	CK_16XX | CK_1510 | CK_310),
 };
 
 static int omap1_clk_enable_generic(struct clk * clk);
