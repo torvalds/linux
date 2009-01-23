@@ -730,10 +730,11 @@ int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 {
 	int count;
 	struct iwl_queue *q;
-	struct iwl3945_tfd *tfd;
+	struct iwl3945_tfd *tfd, *tfd_tmp;
 
 	q = &txq->q;
-	tfd = &txq->tfds39[q->write_ptr];
+	tfd_tmp = (struct iwl3945_tfd *)txq->tfds;
+	tfd = &tfd_tmp[q->write_ptr];
 
 	if (reset)
 		memset(tfd, 0, sizeof(*tfd));
@@ -764,7 +765,7 @@ int iwl3945_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
  */
 void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
-	struct iwl3945_tfd *tfd_tmp = (struct iwl3945_tfd *)&txq->tfds39[0];
+	struct iwl3945_tfd *tfd_tmp = (struct iwl3945_tfd *)txq->tfds;
 	struct iwl3945_tfd *tfd = &tfd_tmp[txq->q.read_ptr];
 	struct pci_dev *dev = priv->pci_dev;
 	int i;

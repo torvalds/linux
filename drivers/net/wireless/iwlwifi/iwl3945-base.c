@@ -172,13 +172,13 @@ static int iwl3945_tx_queue_alloc(struct iwl_priv *priv,
 
 	/* Circular buffer of transmit frame descriptors (TFDs),
 	 * shared with device */
-	txq->tfds39 = pci_alloc_consistent(dev,
-			sizeof(txq->tfds39[0]) * TFD_QUEUE_SIZE_MAX,
-			&txq->q.dma_addr);
+	txq->tfds = pci_alloc_consistent(dev,
+				sizeof(struct iwl3945_tfd) * TFD_QUEUE_SIZE_MAX,
+				&txq->q.dma_addr);
 
-	if (!txq->tfds39) {
+	if (!txq->tfds) {
 		IWL_ERR(priv, "pci_alloc_consistent(%zd) failed\n",
-			  sizeof(txq->tfds39[0]) * TFD_QUEUE_SIZE_MAX);
+			  sizeof(struct iwl3945_tfd) * TFD_QUEUE_SIZE_MAX);
 		goto error;
 	}
 	txq->q.id = id;
@@ -287,7 +287,7 @@ void iwl3945_tx_queue_free(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd)
 		pci_free_consistent(dev, sizeof(struct iwl3945_tfd) *
-				    txq->q.n_bd, txq->tfds39, txq->q.dma_addr);
+				    txq->q.n_bd, txq->tfds, txq->q.dma_addr);
 
 	/* De-alloc array of per-TFD driver data */
 	kfree(txq->txb);

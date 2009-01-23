@@ -520,7 +520,7 @@ static inline u8 iwl_tfd_get_num_tbs(struct iwl_tfd *tfd)
  */
 void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
-	struct iwl_tfd *tfd_tmp = (struct iwl_tfd *)&txq->tfds[0];
+	struct iwl_tfd *tfd_tmp = (struct iwl_tfd *)txq->tfds;
 	struct iwl_tfd *tfd;
 	struct pci_dev *dev = priv->pci_dev;
 	int index = txq->q.read_ptr;
@@ -563,11 +563,12 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 				 u8 reset, u8 pad)
 {
 	struct iwl_queue *q;
-	struct iwl_tfd *tfd;
+	struct iwl_tfd *tfd, *tfd_tmp;
 	u32 num_tbs;
 
 	q = &txq->q;
-	tfd = &txq->tfds[q->write_ptr];
+	tfd_tmp = (struct iwl_tfd *)txq->tfds;
+	tfd = &tfd_tmp[q->write_ptr];
 
 	if (reset)
 		memset(tfd, 0, sizeof(*tfd));

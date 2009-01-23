@@ -295,12 +295,12 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 	/* Circular buffer of transmit frame descriptors (TFDs),
 	 * shared with device */
 	txq->tfds = pci_alloc_consistent(dev,
-			sizeof(txq->tfds[0]) * TFD_QUEUE_SIZE_MAX,
+			sizeof(struct iwl_tfd) * TFD_QUEUE_SIZE_MAX,
 			&txq->q.dma_addr);
 
 	if (!txq->tfds) {
 		IWL_ERR(priv, "pci_alloc_consistent(%zd) failed\n",
-			  sizeof(txq->tfds[0]) * TFD_QUEUE_SIZE_MAX);
+			  sizeof(struct iwl_tfd) * TFD_QUEUE_SIZE_MAX);
 		goto error;
 	}
 	txq->q.id = id;
