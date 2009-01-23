@@ -1470,6 +1470,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	int err, lnum;
 
 	mutex_lock(&c->umount_mutex);
+	dbg_save_space_info(c);
 	c->remounting_rw = 1;
 	c->always_chk_crc = 1;
 
@@ -1573,8 +1574,9 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	c->vfs_sb->s_flags &= ~MS_RDONLY;
 	c->remounting_rw = 0;
 	c->always_chk_crc = 0;
+	err = dbg_check_space_info(c);
 	mutex_unlock(&c->umount_mutex);
-	return 0;
+	return err;
 
 out:
 	vfree(c->orph_buf);
@@ -1629,8 +1631,8 @@ static void commit_on_unmount(struct ubifs_info *c)
  * ubifs_remount_ro - re-mount in read-only mode.
  * @c: UBIFS file-system description object
  *
- * We rely on VFS to have stopped writing. Possibly the background thread could
- * be running a commit, however kthread_stop will wait in that case.
+ * We assume VFS has stopped writing. Possibly the background thread could be
+ * running a commit, however kthread_stop will wait in that case.
  */
 static void ubifs_remount_ro(struct ubifs_info *c)
 {
@@ -1640,12 +1642,13 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	ubifs_assert(!c->ro_media);
 
 	commit_on_unmount(c);
-
 	mutex_lock(&c->umount_mutex);
 	if (c->bgt) {
 		kthread_stop(c->bgt);
 		c->bgt = NULL;
 	}
+
+	dbg_save_space_info(c);
 
 	for (i = 0; i < c->jhead_cnt; i++) {
 		ubifs_wbuf_sync(&c->jheads[i].wbuf);
@@ -1669,6 +1672,9 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	vfree(c->ileb_buf);
 	c->ileb_buf = NULL;
 	ubifs_lpt_free(c, 1);
+	err = dbg_check_space_info(c);
+	if (err)
+		ubifs_ro_mode(c, err);
 	mutex_unlock(&c->umount_mutex);
 }
 

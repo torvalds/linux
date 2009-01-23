@@ -432,7 +432,6 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 	int uninitialized_var(err), appending = !!(pos + len > inode->i_size);
 	struct page *page;
 
-
 	ubifs_assert(ubifs_inode(inode)->ui_size == inode->i_size);
 
 	if (unlikely(c->ro_media))

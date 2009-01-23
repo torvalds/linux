@@ -635,10 +635,10 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
  * @c: UBIFS file-system description object
  * @st: return statistics
  */
-void ubifs_get_lp_stats(struct ubifs_info *c, struct ubifs_lp_stats *st)
+void ubifs_get_lp_stats(struct ubifs_info *c, struct ubifs_lp_stats *lst)
 {
 	spin_lock(&c->space_lock);
-	memcpy(st, &c->lst, sizeof(struct ubifs_lp_stats));
+	memcpy(lst, &c->lst, sizeof(struct ubifs_lp_stats));
 	spin_unlock(&c->space_lock);
 }
 

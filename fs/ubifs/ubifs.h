@@ -1495,6 +1495,7 @@ void ubifs_release_ino_dirty(struct ubifs_info *c, struct inode *inode,
 void ubifs_cancel_ino_op(struct ubifs_info *c, struct inode *inode,
 			 struct ubifs_budget_req *req);
 long long ubifs_get_free_space(struct ubifs_info *c);
+long long ubifs_get_free_space_nolock(struct ubifs_info *c);
 int ubifs_calc_min_idx_lebs(struct ubifs_info *c);
 void ubifs_convert_page_budget(struct ubifs_info *c);
 long long ubifs_reported_space(const struct ubifs_info *c, long long free);
@@ -1646,7 +1647,7 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 					   const struct ubifs_lprops *lp,
 					   int free, int dirty, int flags,
 					   int idx_gc_cnt);
-void ubifs_get_lp_stats(struct ubifs_info *c, struct ubifs_lp_stats *stats);
+void ubifs_get_lp_stats(struct ubifs_info *c, struct ubifs_lp_stats *lst);
 void ubifs_add_to_cat(struct ubifs_info *c, struct ubifs_lprops *lprops,
 		      int cat);
 void ubifs_replace_cat(struct ubifs_info *c, struct ubifs_lprops *old_lprops,
