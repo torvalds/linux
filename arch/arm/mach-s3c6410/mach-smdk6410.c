@@ -146,7 +146,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 
 static struct i2c_board_info i2c_devs0[] __initdata = {
 	{ I2C_BOARD_INFO("24c08", 0x50), },
-	{ I2C_BOARD_INFO("WM8580", 0X1b), },
+	{ I2C_BOARD_INFO("wm8580", 0x1b), },
 };
 
 static struct i2c_board_info i2c_devs1[] __initdata = {
