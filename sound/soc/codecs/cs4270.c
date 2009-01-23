@@ -31,12 +31,6 @@
 
 #include "cs4270.h"
 
-/* Private data for the CS4270 */
-struct cs4270_private {
-	unsigned int mclk; /* Input frequency of the MCLK pin */
-	unsigned int mode; /* The mode (I2S or left-justified) */
-};
-
 /*
  * The codec isn't really big-endian or little-endian, since the I2S
  * interface requires data to be sent serially with the MSbit first.
@@ -108,6 +102,14 @@ struct cs4270_private {
 #define CS4270_MUTE_POLARITY	0x04
 #define CS4270_MUTE_DAC_A	0x01
 #define CS4270_MUTE_DAC_B	0x02
+
+/* Private data for the CS4270 */
+struct cs4270_private {
+	struct snd_soc_codec codec;
+	u8 reg_cache[CS4270_NUMREGS];
+	unsigned int mclk; /* Input frequency of the MCLK pin */
+	unsigned int mode; /* The mode (I2S or left-justified) */
+};
 
 /*
  * Clock Ratio Selection for Master Mode with I2C enabled
@@ -504,112 +506,8 @@ static const struct snd_kcontrol_new cs4270_snd_controls[] = {
  */
 static struct snd_soc_device *cs4270_socdev;
 
-/*
- * Initialize the I2C interface of the CS4270
- *
- * This function is called for whenever the I2C subsystem finds a device
- * at a particular address.
- *
- * Note: snd_soc_new_pcms() must be called before this function can be called,
- * because of snd_ctl_add().
- */
-static int cs4270_i2c_probe(struct i2c_client *i2c_client,
-	const struct i2c_device_id *id)
-{
-	struct snd_soc_device *socdev = cs4270_socdev;
-	struct snd_soc_codec *codec = socdev->codec;
-	int i;
-	int ret = 0;
-
-	/* Probing all possible addresses has one drawback: if there are
-	   multiple CS4270s on the bus, then you cannot specify which
-	   socdev is matched with which CS4270.  For now, we just reject
-	   this I2C device if the socdev already has one attached. */
-	if (codec->control_data)
-		return -ENODEV;
-
-	/* Note: codec_dai->codec is NULL here */
-
-	codec->reg_cache = kzalloc(CS4270_NUMREGS, GFP_KERNEL);
-	if (!codec->reg_cache) {
-		printk(KERN_ERR "cs4270: could not allocate register cache\n");
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	/* Verify that we have a CS4270 */
-
-	ret = i2c_smbus_read_byte_data(i2c_client, CS4270_CHIPID);
-	if (ret < 0) {
-		printk(KERN_ERR "cs4270: failed to read I2C\n");
-		goto error;
-	}
-	/* The top four bits of the chip ID should be 1100. */
-	if ((ret & 0xF0) != 0xC0) {
-		/* The device at this address is not a CS4270 codec */
-		ret = -ENODEV;
-		goto error;
-	}
-
-	printk(KERN_INFO "cs4270: found device at I2C address %X\n",
-		i2c_client->addr);
-	printk(KERN_INFO "cs4270: hardware revision %X\n", ret & 0xF);
-
-	codec->control_data = i2c_client;
-	codec->read = cs4270_read_reg_cache;
-	codec->write = cs4270_i2c_write;
-	codec->reg_cache_size = CS4270_NUMREGS;
-
-	/* The I2C interface is set up, so pre-fill our register cache */
-
-	ret = cs4270_fill_cache(codec);
-	if (ret < 0) {
-		printk(KERN_ERR "cs4270: failed to fill register cache\n");
-		goto error;
-	}
-
-	/* Add the non-DAPM controls */
-
-	for (i = 0; i < ARRAY_SIZE(cs4270_snd_controls); i++) {
-		struct snd_kcontrol *kctrl =
-		snd_soc_cnew(&cs4270_snd_controls[i], codec, NULL);
-
-		ret = snd_ctl_add(codec->card, kctrl);
-		if (ret < 0)
-			goto error;
-	}
-
-	i2c_set_clientdata(i2c_client, codec);
-
-	return 0;
-
-error:
-	codec->control_data = NULL;
-
-	kfree(codec->reg_cache);
-	codec->reg_cache = NULL;
-	codec->reg_cache_size = 0;
-
-	return ret;
-}
-
-static const struct i2c_device_id cs4270_id[] = {
-	{"cs4270", 0},
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, cs4270_id);
-
-static struct i2c_driver cs4270_i2c_driver = {
-	.driver = {
-		.name = "cs4270",
-		.owner = THIS_MODULE,
-	},
-	.id_table = cs4270_id,
-	.probe = cs4270_i2c_probe,
-};
-
 struct snd_soc_dai cs4270_dai = {
-	.name = "CS4270",
+	.name = "cs4270",
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
@@ -624,31 +522,60 @@ struct snd_soc_dai cs4270_dai = {
 		.rates = 0,
 		.formats = CS4270_FORMATS,
 	},
+	.ops = {
+		.hw_params = cs4270_hw_params,
+		.set_sysclk = cs4270_set_dai_sysclk,
+		.set_fmt = cs4270_set_dai_fmt,
+		.digital_mute = cs4270_mute,
+	},
 };
 EXPORT_SYMBOL_GPL(cs4270_dai);
 
 /*
- * ASoC probe function
+ * Initialize the I2C interface of the CS4270
  *
- * This function is called when the machine driver calls
- * platform_device_add().
+ * This function is called for whenever the I2C subsystem finds a device
+ * at a particular address.
+ *
+ * Note: snd_soc_new_pcms() must be called before this function can be called,
+ * because of snd_ctl_add().
  */
-static int cs4270_probe(struct platform_device *pdev)
+static int cs4270_i2c_probe(struct i2c_client *i2c_client,
+	const struct i2c_device_id *id)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_device *socdev = cs4270_socdev;
 	struct snd_soc_codec *codec;
+	struct cs4270_private *cs4270;
+	int i;
 	int ret = 0;
 
-	printk(KERN_INFO "CS4270 ALSA SoC Codec\n");
+	/* Verify that we have a CS4270 */
+
+	ret = i2c_smbus_read_byte_data(i2c_client, CS4270_CHIPID);
+	if (ret < 0) {
+		printk(KERN_ERR "cs4270: failed to read I2C\n");
+		return ret;
+	}
+	/* The top four bits of the chip ID should be 1100. */
+	if ((ret & 0xF0) != 0xC0) {
+		printk(KERN_ERR "cs4270: device at addr %X is not a CS4270\n",
+		       i2c_client->addr);
+		return -ENODEV;
+	}
+
+	printk(KERN_INFO "cs4270: found device at I2C address %X\n",
+		i2c_client->addr);
+	printk(KERN_INFO "cs4270: hardware revision %X\n", ret & 0xF);
 
 	/* Allocate enough space for the snd_soc_codec structure
 	   and our private data together. */
-	codec = kzalloc(ALIGN(sizeof(struct snd_soc_codec), 4) +
-			sizeof(struct cs4270_private), GFP_KERNEL);
-	if (!codec) {
+	cs4270 = kzalloc(sizeof(struct cs4270_private), GFP_KERNEL);
+	if (!cs4270) {
 		printk(KERN_ERR "cs4270: Could not allocate codec structure\n");
 		return -ENOMEM;
 	}
+	codec = &cs4270->codec;
+	socdev->codec = codec;
 
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
@@ -658,10 +585,20 @@ static int cs4270_probe(struct platform_device *pdev)
 	codec->owner = THIS_MODULE;
 	codec->dai = &cs4270_dai;
 	codec->num_dai = 1;
-	codec->private_data = (void *) codec +
-		ALIGN(sizeof(struct snd_soc_codec), 4);
+	codec->private_data = cs4270;
+	codec->control_data = i2c_client;
+	codec->read = cs4270_read_reg_cache;
+	codec->write = cs4270_i2c_write;
+	codec->reg_cache = cs4270->reg_cache;
+	codec->reg_cache_size = CS4270_NUMREGS;
 
-	socdev->codec = codec;
+	/* The I2C interface is set up, so pre-fill our register cache */
+
+	ret = cs4270_fill_cache(codec);
+	if (ret < 0) {
+		printk(KERN_ERR "cs4270: failed to fill register cache\n");
+		goto error_free_codec;
+	}
 
 	/* Register PCMs */
 
@@ -671,57 +608,92 @@ static int cs4270_probe(struct platform_device *pdev)
 		goto error_free_codec;
 	}
 
-	cs4270_socdev = socdev;
+	/* Add the non-DAPM controls */
 
-	ret = i2c_add_driver(&cs4270_i2c_driver);
-	if (ret) {
-		printk(KERN_ERR "cs4270: failed to attach driver");
-		goto error_free_pcms;
+	for (i = 0; i < ARRAY_SIZE(cs4270_snd_controls); i++) {
+		struct snd_kcontrol *kctrl;
+
+		kctrl = snd_soc_cnew(&cs4270_snd_controls[i], codec, NULL);
+		if (!kctrl) {
+			printk(KERN_ERR "cs4270: error creating control '%s'\n",
+			       cs4270_snd_controls[i].name);
+			ret = -ENOMEM;
+			goto error_free_pcms;
+		}
+
+		ret = snd_ctl_add(codec->card, kctrl);
+		if (ret < 0) {
+			printk(KERN_ERR "cs4270: error adding control '%s'\n",
+			       cs4270_snd_controls[i].name);
+			goto error_free_pcms;
+		}
 	}
 
-	/* Did we find a CS4270 on the I2C bus? */
-	if (!codec->control_data) {
-		printk(KERN_ERR "cs4270: failed to attach driver");
-		goto error_del_driver;
-	}
-
-	/* Initialize codec ops */
-	cs4270_dai.ops.hw_params = cs4270_hw_params;
-	cs4270_dai.ops.set_sysclk = cs4270_set_dai_sysclk;
-	cs4270_dai.ops.set_fmt = cs4270_set_dai_fmt;
-	cs4270_dai.ops.digital_mute = cs4270_mute;
+	/* Initialize the SOC device */
 
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "cs4270: failed to register card\n");
-		goto error_del_driver;
+		goto error_free_pcms;;
 	}
 
-	return 0;
+	i2c_set_clientdata(i2c_client, socdev);
 
-error_del_driver:
-	i2c_del_driver(&cs4270_i2c_driver);
+	return 0;
 
 error_free_pcms:
 	snd_soc_free_pcms(socdev);
 
 error_free_codec:
-	kfree(socdev->codec);
-	socdev->codec = NULL;
+	kfree(cs4270);
 
 	return ret;
 }
 
-static int cs4270_remove(struct platform_device *pdev)
+static int cs4270_i2c_remove(struct i2c_client *i2c_client)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_device *socdev = i2c_get_clientdata(i2c_client);
+	struct snd_soc_codec *codec = socdev->codec;
+	struct cs4270_private *cs4270 = codec->private_data;
 
 	snd_soc_free_pcms(socdev);
+	kfree(cs4270);
 
+	return 0;
+}
+
+static struct i2c_device_id cs4270_id[] = {
+	{"cs4270", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, cs4270_id);
+
+static struct i2c_driver cs4270_i2c_driver = {
+	.driver = {
+		.name = "cs4270",
+		.owner = THIS_MODULE,
+	},
+	.id_table = cs4270_id,
+	.probe = cs4270_i2c_probe,
+	.remove = cs4270_i2c_remove,
+};
+
+/*
+ * ASoC probe function
+ *
+ * This function is called when the machine driver calls
+ * platform_device_add().
+ */
+static int cs4270_probe(struct platform_device *pdev)
+{
+	cs4270_socdev = platform_get_drvdata(pdev);;
+
+	return i2c_add_driver(&cs4270_i2c_driver);
+}
+
+static int cs4270_remove(struct platform_device *pdev)
+{
 	i2c_del_driver(&cs4270_i2c_driver);
-
-	kfree(socdev->codec);
-	socdev->codec = NULL;
 
 	return 0;
 }
@@ -740,6 +712,8 @@ EXPORT_SYMBOL_GPL(soc_codec_device_cs4270);
 
 static int __init cs4270_init(void)
 {
+	printk(KERN_INFO "Cirrus Logic CS4270 ALSA SoC Codec Driver\n");
+
 	return snd_soc_register_dai(&cs4270_dai);
 }
 module_init(cs4270_init);
