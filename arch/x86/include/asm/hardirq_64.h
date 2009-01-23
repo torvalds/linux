@@ -3,7 +3,6 @@
 
 #include <linux/threads.h>
 #include <linux/irq.h>
-#include <asm/apic.h>
 
 typedef struct {
 	unsigned int __softirq_pending;
