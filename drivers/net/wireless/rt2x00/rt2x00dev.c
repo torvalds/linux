@@ -881,23 +881,17 @@ EXPORT_SYMBOL_GPL(rt2x00lib_remove_dev);
 #ifdef CONFIG_PM
 int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 {
-	int retval;
-
 	NOTICE(rt2x00dev, "Going to sleep.\n");
 
 	/*
-	 * Only continue if mac80211 has open interfaces.
+	 * Prevent mac80211 from accessing driver while suspended.
 	 */
-	if (!test_and_clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
-	    !test_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags))
-		goto exit;
-
-	set_bit(DEVICE_STATE_STARTED_SUSPEND, &rt2x00dev->flags);
+	if (!test_and_clear_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags))
+		return 0;
 
 	/*
-	 * Disable radio.
+	 * Cleanup as much as possible.
 	 */
-	rt2x00lib_stop(rt2x00dev);
 	rt2x00lib_uninitialize(rt2x00dev);
 
 	/*
@@ -906,7 +900,6 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	rt2x00leds_suspend(rt2x00dev);
 	rt2x00debug_deregister(rt2x00dev);
 
-exit:
 	/*
 	 * Set device mode to sleep for power management,
 	 * on some hardware this call seems to consistently fail.
@@ -918,8 +911,7 @@ exit:
 	 * the radio and the other components already disabled the
 	 * device is as good as disabled.
 	 */
-	retval = rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_SLEEP);
-	if (retval)
+	if (rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_SLEEP))
 		WARNING(rt2x00dev, "Device failed to enter sleep state, "
 			"continue suspending.\n");
 
@@ -927,34 +919,8 @@ exit:
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_suspend);
 
-static void rt2x00lib_resume_intf(void *data, u8 *mac,
-				  struct ieee80211_vif *vif)
-{
-	struct rt2x00_dev *rt2x00dev = data;
-	struct rt2x00_intf *intf = vif_to_intf(vif);
-
-	spin_lock(&intf->lock);
-
-	rt2x00lib_config_intf(rt2x00dev, intf,
-			      vif->type, intf->mac, intf->bssid);
-
-
-	/*
-	 * AP, Ad-hoc, and Mesh Point mode require a new beacon update.
-	 */
-	if (vif->type == NL80211_IFTYPE_AP ||
-	    vif->type == NL80211_IFTYPE_ADHOC ||
-	    vif->type == NL80211_IFTYPE_MESH_POINT ||
-	    vif->type == NL80211_IFTYPE_WDS)
-		intf->delayed_flags |= DELAYED_UPDATE_BEACON;
-
-	spin_unlock(&intf->lock);
-}
-
 int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 {
-	int retval;
-
 	NOTICE(rt2x00dev, "Waking up.\n");
 
 	/*
@@ -964,60 +930,11 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	rt2x00leds_resume(rt2x00dev);
 
 	/*
-	 * Only continue if mac80211 had open interfaces.
-	 */
-	if (!test_and_clear_bit(DEVICE_STATE_STARTED_SUSPEND, &rt2x00dev->flags))
-		return 0;
-
-	/*
-	 * Reinitialize device and all active interfaces.
-	 */
-	retval = rt2x00lib_start(rt2x00dev);
-	if (retval)
-		goto exit;
-
-	/*
-	 * Reconfigure device.
-	 */
-	retval = rt2x00mac_config(rt2x00dev->hw, ~0);
-	if (retval)
-		goto exit;
-
-	/*
-	 * Iterator over each active interface to
-	 * reconfigure the hardware.
-	 */
-	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
-					    rt2x00lib_resume_intf, rt2x00dev);
-
-	/*
 	 * We are ready again to receive requests from mac80211.
 	 */
 	set_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags);
 
-	/*
-	 * It is possible that during that mac80211 has attempted
-	 * to send frames while we were suspending or resuming.
-	 * In that case we have disabled the TX queue and should
-	 * now enable it again
-	 */
-	ieee80211_wake_queues(rt2x00dev->hw);
-
-	/*
-	 * During interface iteration we might have changed the
-	 * delayed_flags, time to handles the event by calling
-	 * the work handler directly.
-	 */
-	rt2x00lib_intf_scheduled(&rt2x00dev->intf_work);
-
 	return 0;
-
-exit:
-	rt2x00lib_stop(rt2x00dev);
-	rt2x00lib_uninitialize(rt2x00dev);
-	rt2x00debug_deregister(rt2x00dev);
-
-	return retval;
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_resume);
 #endif /* CONFIG_PM */
