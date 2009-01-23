@@ -14,6 +14,7 @@ typedef struct {
 	unsigned int irq_tlb_count;
 	unsigned int irq_thermal_count;
 	unsigned int irq_spurious_count;
+	unsigned int irq_threshold_count;
 } ____cacheline_aligned irq_cpustat_t;
 
 DECLARE_PER_CPU(irq_cpustat_t, irq_stat);
@@ -22,11 +23,16 @@ DECLARE_PER_CPU(irq_cpustat_t, irq_stat);
 #define MAX_HARDIRQS_PER_CPU NR_VECTORS
 
 #define __ARCH_IRQ_STAT
-#define __IRQ_STAT(cpu, member) (per_cpu(irq_stat, cpu).member)
 
-#define inc_irq_stat(member)	(__get_cpu_var(irq_stat).member++)
+#define inc_irq_stat(member)	percpu_add(irq_stat.member, 1)
 
-void ack_bad_irq(unsigned int irq);
-#include <linux/irq_cpustat.h>
+#define local_softirq_pending()	percpu_read(irq_stat.__softirq_pending)
+
+#define __ARCH_SET_SOFTIRQ_PENDING
+
+#define set_softirq_pending(x)	percpu_write(irq_stat.__softirq_pending, (x))
+#define or_softirq_pending(x)	percpu_or(irq_stat.__softirq_pending, (x))
+
+extern void ack_bad_irq(unsigned int irq);
 
 #endif /* _ASM_X86_HARDIRQ_32_H */
