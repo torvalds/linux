@@ -745,6 +745,16 @@ static int af9015_read_config(struct usb_device *udev)
 				af9015_config.ir_table_size =
 				  ARRAY_SIZE(af9015_ir_table_digittrade);
 				break;
+			case AF9015_REMOTE_AVERMEDIA_KS:
+				af9015_properties[i].rc_key_map =
+				  af9015_rc_keys_avermedia;
+				af9015_properties[i].rc_key_map_size =
+				  ARRAY_SIZE(af9015_rc_keys_avermedia);
+				af9015_config.ir_table =
+				  af9015_ir_table_avermedia_ks;
+				af9015_config.ir_table_size =
+				  ARRAY_SIZE(af9015_ir_table_avermedia_ks);
+				break;
 			}
 		} else {
 			switch (le16_to_cpu(udev->descriptor.idVendor)) {
