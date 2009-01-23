@@ -271,8 +271,6 @@ static inline int is_software_counter(struct perf_counter *counter)
 	return !counter->hw_event.raw && counter->hw_event.type < 0;
 }
 
-#define PERFMON_MIN_PERIOD_NS 10000
-
 #else
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }

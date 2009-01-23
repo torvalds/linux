@@ -33,9 +33,8 @@ static int nr_counters_fixed __read_mostly;
 struct cpu_hw_counters {
 	struct perf_counter	*counters[X86_PMC_IDX_MAX];
 	unsigned long		used[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
-	u64			last_interrupt;
+	unsigned long		interrupts;
 	u64			global_enable;
-	int			throttled;
 };
 
 /*
@@ -471,13 +470,18 @@ perf_handle_group(struct perf_counter *sibling, u64 *status, u64 *overflown)
 }
 
 /*
+ * Maximum interrupt frequency of 100KHz per CPU
+ */
+#define PERFMON_MAX_INTERRUPTS 100000/HZ
+
+/*
  * This handler is triggered by the local APIC, so the APIC IRQ handling
  * rules apply:
  */
 static void __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
 {
 	int bit, cpu = smp_processor_id();
-	u64 ack, status, now;
+	u64 ack, status;
 	struct cpu_hw_counters *cpuc = &per_cpu(cpu_hw_counters, cpu);
 
 	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, cpuc->global_enable);
@@ -485,11 +489,6 @@ static void __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
 	/* Disable counters globally */
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 	ack_APIC_irq();
-
-	now = sched_clock();
-	if (now - cpuc->last_interrupt < PERFMON_MIN_PERIOD_NS)
-		cpuc->throttled = 1;
-	cpuc->last_interrupt = now;
 
 	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
 	if (!status)
@@ -541,13 +540,14 @@ out:
 	/*
 	 * Restore - do not reenable when global enable is off or throttled:
 	 */
-	if (!cpuc->throttled)
+	if (++cpuc->interrupts < PERFMON_MAX_INTERRUPTS)
 		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, cpuc->global_enable);
 }
 
 void perf_counter_unthrottle(void)
 {
 	struct cpu_hw_counters *cpuc;
+	u64 global_enable;
 
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
 		return;
@@ -556,12 +556,15 @@ void perf_counter_unthrottle(void)
 		return;
 
 	cpuc = &per_cpu(cpu_hw_counters, smp_processor_id());
-	if (cpuc->throttled) {
+	if (cpuc->interrupts >= PERFMON_MAX_INTERRUPTS) {
 		if (printk_ratelimit())
-			printk(KERN_WARNING "PERFMON: max event frequency exceeded!\n");
+			printk(KERN_WARNING "PERFMON: max interrupts exceeded!\n");
 		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, cpuc->global_enable);
-		cpuc->throttled = 0;
 	}
+	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, global_enable);
+	if (unlikely(cpuc->global_enable && !global_enable))
+		wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, cpuc->global_enable);
+	cpuc->interrupts = 0;
 }
 
 void smp_perf_counter_interrupt(struct pt_regs *regs)
