@@ -3267,12 +3267,12 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 		 * hearing clear Rx packet).*/
 		if (IWL_UCODE_API(priv->ucode_ver) >= 2) {
 			if (n_probes)
-				scan_ch->type |= IWL_SCAN_PROBE_MASK(n_probes);
+				scan_ch->type |= IWL39_SCAN_PROBE_MASK(n_probes);
 		} else {
 			/* uCode v1 does not allow setting direct probe bits on
 			 * passive channel. */
 			if ((scan_ch->type & 1) && n_probes)
-				scan_ch->type |= IWL_SCAN_PROBE_MASK(n_probes);
+				scan_ch->type |= IWL39_SCAN_PROBE_MASK(n_probes);
 		}
 
 		/* Set txpower levels to defaults */

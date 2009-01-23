@@ -2432,6 +2432,9 @@ struct iwl3945_scan_channel {
 	__le16 passive_dwell;	/* in 1024-uSec TU (time units), typ 20-500 */
 } __attribute__ ((packed));
 
+/* set number of direct probes u8 type */
+#define IWL39_SCAN_PROBE_MASK(n) ((BIT(n) | (BIT(n) - BIT(1))))
+
 struct iwl_scan_channel {
 	/*
 	 * type is defined as:
@@ -2447,6 +2450,9 @@ struct iwl_scan_channel {
 	__le16 active_dwell;	/* in 1024-uSec TU (time units), typ 5-50 */
 	__le16 passive_dwell;	/* in 1024-uSec TU (time units), typ 20-500 */
 } __attribute__ ((packed));
+
+/* set number of direct probes __le32 type */
+#define IWL_SCAN_PROBE_MASK(n) 	cpu_to_le32((BIT(n) | (BIT(n) - BIT(1))))
 
 /**
  * struct iwl_ssid_ie - directed scan network information element

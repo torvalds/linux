@@ -346,7 +346,6 @@ int iwl_send_scan_abort(struct iwl_priv *priv);
 #define IWL_ACTIVE_QUIET_TIME       __constant_cpu_to_le16(10)  /* msec */
 #define IWL_PLCP_QUIET_THRESH       __constant_cpu_to_le16(1)  /* packets */
 
-#define IWL_SCAN_PROBE_MASK(n) 	cpu_to_le32((BIT(n) | (BIT(n) - BIT(1))))
 
 /*******************************************************************************
  * Calibrations - implemented in iwl-calib.c
