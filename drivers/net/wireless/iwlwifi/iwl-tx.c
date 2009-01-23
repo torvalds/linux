@@ -278,6 +278,7 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 			      struct iwl_tx_queue *txq, u32 id)
 {
 	struct pci_dev *dev = priv->pci_dev;
+	size_t tfd_sz = priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX;
 
 	/* Driver private data, only for Tx (not command) queues,
 	 * not shared with device. */
@@ -289,18 +290,16 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 				  "structures failed\n");
 			goto error;
 		}
-	} else
+	} else {
 		txq->txb = NULL;
+	}
 
 	/* Circular buffer of transmit frame descriptors (TFDs),
 	 * shared with device */
-	txq->tfds = pci_alloc_consistent(dev,
-			priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX,
-			&txq->q.dma_addr);
+	txq->tfds = pci_alloc_consistent(dev, tfd_sz, &txq->q.dma_addr);
 
 	if (!txq->tfds) {
-		IWL_ERR(priv, "pci_alloc_consistent(%zd) failed\n",
-			  priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX);
+		IWL_ERR(priv, "pci_alloc_consistent(%zd) failed\n", tfd_sz);
 		goto error;
 	}
 	txq->q.id = id;
