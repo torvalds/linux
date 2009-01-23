@@ -18,8 +18,6 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/hardware.h>
 #include <mach/audio.h>
 #include <mach/eseries-gpio.h>
 
