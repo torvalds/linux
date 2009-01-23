@@ -316,8 +316,29 @@ void iwl_init_scan_params(struct iwl_priv *priv);
 int iwl_scan_cancel(struct iwl_priv *priv);
 int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
 int iwl_scan_initiate(struct iwl_priv *priv);
+u16 iwl_fill_probe_req(struct iwl_priv *priv, enum ieee80211_band band,
+		       struct ieee80211_mgmt *frame, int left);
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
+u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
+			      enum ieee80211_band band,
+			      u8 n_probes);
+u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
+			       enum ieee80211_band band);
+void iwl_bg_scan_check(struct work_struct *data);
+void iwl_bg_abort_scan(struct work_struct *work);
+void iwl_bg_scan_completed(struct work_struct *work);
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
+
+/* For faster active scanning, scan will move to the next channel if fewer than
+ * PLCP_QUIET_THRESH packets are heard on this channel within
+ * ACTIVE_QUIET_TIME after sending probe request.  This shortens the dwell
+ * time if it's a quiet channel (nothing responded to our probe, and there's
+ * no other traffic).
+ * Disable "quiet" feature by setting PLCP_QUIET_THRESH to 0. */
+#define IWL_ACTIVE_QUIET_TIME       __constant_cpu_to_le16(10)  /* msec */
+#define IWL_PLCP_QUIET_THRESH       __constant_cpu_to_le16(1)  /* packets */
+
+#define IWL_SCAN_PROBE_MASK(n) 	cpu_to_le32((BIT(n) | (BIT(n) - BIT(1))))
 
 /*******************************************************************************
  * Calibrations - implemented in iwl-calib.c

@@ -46,15 +46,6 @@
 #define IWL_ACTIVE_DWELL_FACTOR_24GHZ (3)
 #define IWL_ACTIVE_DWELL_FACTOR_52GHZ (2)
 
-/* For faster active scanning, scan will move to the next channel if fewer than
- * PLCP_QUIET_THRESH packets are heard on this channel within
- * ACTIVE_QUIET_TIME after sending probe request.  This shortens the dwell
- * time if it's a quiet channel (nothing responded to our probe, and there's
- * no other traffic).
- * Disable "quiet" feature by setting PLCP_QUIET_THRESH to 0. */
-#define IWL_PLCP_QUIET_THRESH       __constant_cpu_to_le16(1)  /* packets */
-#define IWL_ACTIVE_QUIET_TIME       __constant_cpu_to_le16(10)  /* msec */
-
 /* For passive scan, listen PASSIVE_DWELL_TIME (msec) on each channel.
  * Must be set longer than active dwell time.
  * For the most reliable scan, set > AP beacon interval (typically 100msec). */
@@ -63,7 +54,6 @@
 #define IWL_PASSIVE_DWELL_BASE      (100)
 #define IWL_CHANNEL_TUNE_TIME       5
 
-#define IWL_SCAN_PROBE_MASK(n) 	cpu_to_le32((BIT(n) | (BIT(n) - BIT(1))))
 
 
 /**
@@ -296,9 +286,9 @@ void iwl_setup_rx_scan_handlers(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_setup_rx_scan_handlers);
 
-static inline u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
-					    enum ieee80211_band band,
-					    u8 n_probes)
+inline u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
+				     enum ieee80211_band band,
+				     u8 n_probes)
 {
 	if (band == IEEE80211_BAND_5GHZ)
 		return IWL_ACTIVE_DWELL_TIME_52 +
@@ -307,9 +297,10 @@ static inline u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 		return IWL_ACTIVE_DWELL_TIME_24 +
 			IWL_ACTIVE_DWELL_FACTOR_24GHZ * (n_probes + 1);
 }
+EXPORT_SYMBOL(iwl_get_active_dwell_time);
 
-static u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
-				      enum ieee80211_band band)
+u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
+			       enum ieee80211_band band)
 {
 	u16 passive = (band == IEEE80211_BAND_2GHZ) ?
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_24 :
@@ -327,6 +318,7 @@ static u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 
 	return passive;
 }
+EXPORT_SYMBOL(iwl_get_passive_dwell_time);
 
 static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 				     enum ieee80211_band band,
@@ -450,7 +442,7 @@ EXPORT_SYMBOL(iwl_scan_initiate);
 
 #define IWL_SCAN_CHECK_WATCHDOG (7 * HZ)
 
-static void iwl_bg_scan_check(struct work_struct *data)
+void iwl_bg_scan_check(struct work_struct *data)
 {
 	struct iwl_priv *priv =
 	    container_of(data, struct iwl_priv, scan_check.work);
@@ -470,6 +462,8 @@ static void iwl_bg_scan_check(struct work_struct *data)
 	}
 	mutex_unlock(&priv->mutex);
 }
+EXPORT_SYMBOL(iwl_bg_scan_check);
+
 /**
  * iwl_supported_rate_to_ie - fill in the supported rate in IE field
  *
@@ -527,10 +521,10 @@ static void iwl_ht_cap_to_ie(const struct ieee80211_supported_band *sband,
  * iwl_fill_probe_req - fill in all required fields and IE for probe request
  */
 
-static u16 iwl_fill_probe_req(struct iwl_priv *priv,
-				  enum ieee80211_band band,
-				  struct ieee80211_mgmt *frame,
-				  int left)
+u16 iwl_fill_probe_req(struct iwl_priv *priv,
+		       enum ieee80211_band band,
+		       struct ieee80211_mgmt *frame,
+		       int left)
 {
 	int len = 0;
 	u8 *pos = NULL;
@@ -624,6 +618,7 @@ static u16 iwl_fill_probe_req(struct iwl_priv *priv,
 
 	return (u16)len;
 }
+EXPORT_SYMBOL(iwl_fill_probe_req);
 
 static void iwl_bg_request_scan(struct work_struct *data)
 {
@@ -839,7 +834,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
-static void iwl_bg_abort_scan(struct work_struct *work)
+void iwl_bg_abort_scan(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, abort_scan);
 
@@ -853,8 +848,9 @@ static void iwl_bg_abort_scan(struct work_struct *work)
 
 	mutex_unlock(&priv->mutex);
 }
+EXPORT_SYMBOL(iwl_bg_abort_scan);
 
-static void iwl_bg_scan_completed(struct work_struct *work)
+void iwl_bg_scan_completed(struct work_struct *work)
 {
 	struct iwl_priv *priv =
 	    container_of(work, struct iwl_priv, scan_completed);
@@ -872,7 +868,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
 	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
 	mutex_unlock(&priv->mutex);
 }
-
+EXPORT_SYMBOL(iwl_bg_scan_completed);
 
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv)
 {
