@@ -789,11 +789,15 @@ static int pcxhr_clock_type_put(struct snd_kcontrol *kcontrol,
 	if (mgr->use_clock_type != ucontrol->value.enumerated.item[0]) {
 		mutex_lock(&mgr->setup_mutex);
 		mgr->use_clock_type = ucontrol->value.enumerated.item[0];
-		if (mgr->use_clock_type)
+		rate = 0;
+		if (mgr->use_clock_type != PCXHR_CLOCK_TYPE_INTERNAL) {
 			pcxhr_get_external_clock(mgr, mgr->use_clock_type,
 						 &rate);
-		else
+		} else {
 			rate = mgr->sample_rate;
+			if (!rate)
+				rate = 48000;
+		}
 		if (rate) {
 			pcxhr_set_clock(mgr, rate);
 			if (mgr->sample_rate)

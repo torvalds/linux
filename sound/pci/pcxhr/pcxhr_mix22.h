@@ -32,6 +32,9 @@ int hr222_get_external_clock(struct pcxhr_mgr *mgr,
 			     enum pcxhr_clock_type clock_type,
 			     int *sample_rate);
 
+int hr222_read_gpio(struct pcxhr_mgr *mgr, int is_gpi, int *value);
+int hr222_write_gpo(struct pcxhr_mgr *mgr, int value);
+
 #define HR222_LINE_PLAYBACK_LEVEL_MIN		0	/* -25.5 dB */
 #define HR222_LINE_PLAYBACK_ZERO_LEVEL		51	/* 0.0 dB */
 #define HR222_LINE_PLAYBACK_LEVEL_MAX		99	/* +24.0 dB */
