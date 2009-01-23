@@ -2951,6 +2951,15 @@ int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 }
 EXPORT_SYMBOL_GPL(__ftrace_printk);
 
+int __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap)
+{
+	if (!(trace_flags & TRACE_ITER_PRINTK))
+		return 0;
+
+	return trace_vprintk(ip, task_curr_ret_stack(current), fmt, ap);
+}
+EXPORT_SYMBOL_GPL(__ftrace_vprintk);
+
 static int trace_panic_handler(struct notifier_block *this,
 			       unsigned long event, void *unused)
 {

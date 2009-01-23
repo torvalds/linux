@@ -302,6 +302,9 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
 extern int
 __ftrace_printk(unsigned long ip, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
+# define ftrace_vprintk(fmt, ap) __ftrace_printk(_THIS_IP_, fmt, ap)
+extern int
+__ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap);
 extern void ftrace_dump(void);
 #else
 static inline void
@@ -314,6 +317,11 @@ static inline void tracing_stop(void) { }
 static inline void ftrace_off_permanent(void) { }
 static inline int
 ftrace_printk(const char *fmt, ...)
+{
+	return 0;
+}
+static inline int
+ftrace_vprintk(const char *fmt, va_list ap)
 {
 	return 0;
 }
