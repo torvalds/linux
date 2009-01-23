@@ -2698,6 +2698,9 @@ static int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 	iwl_set_rate(priv);
 
+	/* call to ensure that 4965 rx_chain is set properly in monitor mode */
+	iwl_set_rxon_chain(priv);
+
 	if (memcmp(&priv->active_rxon,
 		   &priv->staging_rxon, sizeof(priv->staging_rxon)))
 		iwl_commit_rxon(priv);
