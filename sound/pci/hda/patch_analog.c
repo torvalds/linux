@@ -1407,8 +1407,8 @@ static struct hda_verb ad1981_init_verbs[] = {
 	{0x1e, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
 	{0x1f, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
 	/* Mic boost: 0dB */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	/* Record selector: Front mic */
 	{0x15, AC_VERB_SET_CONNECT_SEL, 0x0},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
