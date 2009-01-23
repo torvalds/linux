@@ -61,6 +61,8 @@ DEBUGFS_READONLY_FILE(wep_iv, 20, "%#06x",
 		      local->wep_iv & 0xffffff);
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, 100, "%s",
 		      local->rate_ctrl ? local->rate_ctrl->ops->name : "<unset>");
+DEBUGFS_READONLY_FILE(tsf, 20, "%#018llx",
+                      (unsigned long long) (local->ops->get_tsf ? local->ops->get_tsf(local_to_hw(local)) : 0));
 
 /* statistics stuff */
 
@@ -202,6 +204,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(long_retry_limit);
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
+	DEBUGFS_ADD(tsf);
 
 	statsd = debugfs_create_dir("statistics", phyd);
 	local->debugfs.statistics = statsd;
@@ -255,6 +258,7 @@ void debugfs_hw_del(struct ieee80211_local *local)
 	DEBUGFS_DEL(long_retry_limit);
 	DEBUGFS_DEL(total_ps_buffered);
 	DEBUGFS_DEL(wep_iv);
+	DEBUGFS_DEL(tsf);
 
 	DEBUGFS_STATS_DEL(transmitted_fragment_count);
 	DEBUGFS_STATS_DEL(multicast_transmitted_frame_count);
