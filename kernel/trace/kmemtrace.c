@@ -139,12 +139,12 @@ kmemtrace_print_alloc_compress(struct trace_iterator *iter,
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	/* Requested */
-	ret = trace_seq_printf(s, "%4ld   ", entry->bytes_req);
+	ret = trace_seq_printf(s, "%4zd   ", entry->bytes_req);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	/* Allocated */
-	ret = trace_seq_printf(s, "%4ld   ", entry->bytes_alloc);
+	ret = trace_seq_printf(s, "%4zd   ", entry->bytes_alloc);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
