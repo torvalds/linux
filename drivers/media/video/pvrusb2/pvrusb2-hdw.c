@@ -2412,10 +2412,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->usb_intf = intf;
 	hdw->usb_dev = interface_to_usbdev(intf);
 
-	scnprintf(hdw->bus_info,sizeof(hdw->bus_info),
-		  "usb %s address %d",
-		  dev_name(&hdw->usb_dev->dev),
-		  hdw->usb_dev->devnum);
+	usb_make_path(hdw->usb_dev, hdw->bus_info, sizeof(hdw->bus_info));
 
 	ifnum = hdw->usb_intf->cur_altsetting->desc.bInterfaceNumber;
 	usb_set_interface(hdw->usb_dev,ifnum,0);
