@@ -1085,6 +1085,11 @@ static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 	int status;
 	u32 reg;
 
+	if (len != 2048) {
+		ERROR(rt2x00dev, "Invalid firmware file length (len=%zu)\n", len);
+		return -ENOENT;
+	}
+
 	/*
 	 * Wait for stable hardware.
 	 */
