@@ -90,6 +90,7 @@ MODULE_LICENSE("GPL");
 struct iwl_mod_params iwl3945_mod_params = {
 	.num_of_queues = IWL39_MAX_NUM_QUEUES,
 	.sw_crypto = 1,
+	.restart_fw = 1,
 	/* the rest are 0 by default */
 };
 
@@ -3088,7 +3089,8 @@ static void iwl3945_irq_handle_error(struct iwl_priv *priv)
 			       sizeof(priv->recovery39_rxon));
 			priv->error_recovering = 1;
 		}
-		queue_work(priv->workqueue, &priv->restart);
+		if (priv->cfg->mod_params->restart_fw)
+			queue_work(priv->workqueue, &priv->restart);
 	}
 }
 
@@ -6481,6 +6483,9 @@ MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
 
 module_param_named(queues_num, iwl3945_mod_params.num_of_queues, int, 0444);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
+
+module_param_named(fw_restart3945, iwl3945_mod_params.restart_fw, int, 0444);
+MODULE_PARM_DESC(fw_restart3945, "restart firmware in case of error");
 
 module_exit(iwl3945_exit);
 module_init(iwl3945_init);
