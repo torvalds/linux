@@ -868,7 +868,7 @@ static inline char rt2x00_rf(const struct rt2x00_chip *chipset, const u16 chip)
 	return (chipset->rf == chip);
 }
 
-static inline u16 rt2x00_rev(const struct rt2x00_chip *chipset)
+static inline u32 rt2x00_rev(const struct rt2x00_chip *chipset)
 {
 	return chipset->rev;
 }
