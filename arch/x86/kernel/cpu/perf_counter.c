@@ -605,7 +605,7 @@ void perf_counter_notify(struct pt_regs *regs)
 	local_irq_restore(flags);
 }
 
-void __cpuinit perf_counters_lapic_init(int nmi)
+void perf_counters_lapic_init(int nmi)
 {
 	u32 apic_val;
 
