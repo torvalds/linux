@@ -2056,6 +2056,9 @@ static struct snd_pci_quirk stac922x_cfg_tbl[] = {
 		      "Intel D945P", STAC_D945GTP3),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0707,
 		      "Intel D945P", STAC_D945GTP5),
+	/* other intel */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x0204,
+		      "Intel D945", STAC_D945_REF),
 	/* other systems  */
 	/* Apple Intel Mac (Mac Mini, MacBook, MacBook Pro...) */
 	SND_PCI_QUIRK(0x8384, 0x7680,
