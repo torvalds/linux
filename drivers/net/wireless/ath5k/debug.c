@@ -210,15 +210,22 @@ static ssize_t write_file_tsf(struct file *file,
 				 size_t count, loff_t *ppos)
 {
 	struct ath5k_softc *sc = file->private_data;
-	char buf[20];
+	char buf[21];
+	unsigned long long tsf;
 
-	if (copy_from_user(buf, userbuf, min(count, sizeof(buf))))
+	if (copy_from_user(buf, userbuf, min(count, sizeof(buf) - 1)))
 		return -EFAULT;
+	buf[sizeof(buf) - 1] = '\0';
 
 	if (strncmp(buf, "reset", 5) == 0) {
 		ath5k_hw_reset_tsf(sc->ah);
 		printk(KERN_INFO "debugfs reset TSF\n");
+	} else {
+		tsf = simple_strtoul(buf, NULL, 0);
+		ath5k_hw_set_tsf64(sc->ah, tsf);
+		printk(KERN_INFO "debugfs set TSF to %#018llx\n", tsf);
 	}
+
 	return count;
 }
 

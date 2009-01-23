@@ -646,6 +646,23 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah)
 }
 
 /**
+ * ath5k_hw_set_tsf64 - Set a new 64bit TSF
+ *
+ * @ah: The &struct ath5k_hw
+ * @tsf64: The new 64bit TSF
+ *
+ * Sets the new TSF
+ */
+void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64)
+{
+	ATH5K_TRACE(ah->ah_sc);
+
+	ath5k_hw_reg_write(ah, 0x00000000, AR5K_TSF_L32);
+	ath5k_hw_reg_write(ah, (tsf64 >> 32) & 0xffffffff, AR5K_TSF_U32);
+	ath5k_hw_reg_write(ah, tsf64 & 0xffffffff, AR5K_TSF_L32);
+}
+
+/**
  * ath5k_hw_reset_tsf - Force a TSF reset
  *
  * @ah: The &struct ath5k_hw
