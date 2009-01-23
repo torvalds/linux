@@ -220,8 +220,7 @@ SECTIONS
    * so that it can be accessed as a percpu variable.
    */
   . = ALIGN(PAGE_SIZE);
-  PERCPU_VADDR_PREALLOC(0, :percpu, pda_size)
-  per_cpu____pda = __per_cpu_start;
+  PERCPU_VADDR(0, :percpu)
 #else
   PERCPU(PAGE_SIZE)
 #endif
@@ -262,3 +261,8 @@ SECTIONS
  */
 ASSERT((_end - _text <= KERNEL_IMAGE_SIZE),
 	"kernel image bigger than KERNEL_IMAGE_SIZE")
+
+#ifdef CONFIG_SMP
+ASSERT((per_cpu__irq_stack_union == 0),
+        "irq_stack_union is not at start of per-cpu area");
+#endif

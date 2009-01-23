@@ -77,30 +77,6 @@ static void __init setup_node_to_cpumask_map(void);
 static inline void setup_node_to_cpumask_map(void) { }
 #endif
 
-/*
- * Define load_pda_offset() and per-cpu __pda for x86_64.
- * load_pda_offset() is responsible for loading the offset of pda into
- * %gs.
- *
- * On SMP, pda offset also duals as percpu base address and thus it
- * should be at the start of per-cpu area.  To achieve this, it's
- * preallocated in vmlinux_64.lds.S directly instead of using
- * DEFINE_PER_CPU().
- */
-#ifdef CONFIG_X86_64
-void __cpuinit load_pda_offset(int cpu)
-{
-	/* Memory clobbers used to order pda/percpu accesses */
-	mb();
-	wrmsrl(MSR_GS_BASE, cpu_pda(cpu));
-	mb();
-}
-#ifndef CONFIG_SMP
-DEFINE_PER_CPU(struct x8664_pda, __pda);
-#endif
-EXPORT_PER_CPU_SYMBOL(__pda);
-#endif /* CONFIG_SMP && CONFIG_X86_64 */
-
 #ifdef CONFIG_X86_64
 
 /* correctly size the local cpu masks */
@@ -207,15 +183,13 @@ void __init setup_per_cpu_areas(void)
 		per_cpu(cpu_number, cpu) = cpu;
 #ifdef CONFIG_X86_64
 		per_cpu(irq_stack_ptr, cpu) =
-			(char *)per_cpu(irq_stack, cpu) + IRQ_STACK_SIZE - 64;
+			per_cpu(irq_stack_union.irq_stack, cpu) + IRQ_STACK_SIZE - 64;
 		/*
-		 * CPU0 modified pda in the init data area, reload pda
-		 * offset for CPU0 and clear the area for others.
+		 * Up to this point, CPU0 has been using .data.init
+		 * area.  Reload %gs offset for CPU0.
 		 */
 		if (cpu == 0)
-			load_pda_offset(0);
-		else
-			memset(cpu_pda(cpu), 0, sizeof(*cpu_pda(cpu)));
+			load_gs_base(cpu);
 #endif
 
 		DBG("PERCPU: cpu %4d %p\n", cpu, ptr);

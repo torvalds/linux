@@ -1645,7 +1645,6 @@ asmlinkage void __init xen_start_kernel(void)
 #ifdef CONFIG_X86_64
 	/* Disable until direct per-cpu data access. */
 	have_vcpu_info_placement = 0;
-	pda_init(0);
 #endif
 
 	xen_smp_init();

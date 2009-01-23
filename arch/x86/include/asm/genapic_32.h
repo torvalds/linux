@@ -138,11 +138,4 @@ struct genapic {
 extern struct genapic *genapic;
 extern void es7000_update_genapic_to_cluster(void);
 
-enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
-#define get_uv_system_type()		UV_NONE
-#define is_uv_system()			0
-#define uv_wakeup_secondary(a, b)	1
-#define uv_system_init()		do {} while (0)
-
-
 #endif /* _ASM_X86_GENAPIC_32_H */

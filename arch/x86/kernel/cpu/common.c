@@ -29,9 +29,9 @@
 #include <asm/apic.h>
 #include <mach_apic.h>
 #include <asm/genapic.h>
+#include <asm/uv/uv.h>
 #endif
 
-#include <asm/pda.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/desc.h>
@@ -65,23 +65,23 @@ cpumask_t cpu_sibling_setup_map;
 
 static struct cpu_dev *this_cpu __cpuinitdata;
 
+DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 #ifdef CONFIG_X86_64
-/* We need valid kernel segments for data and code in long mode too
- * IRET will check the segment types  kkeil 2000/10/28
- * Also sysret mandates a special GDT layout
- */
-/* The TLS descriptors are currently at a different place compared to i386.
-   Hopefully nobody expects them at a fixed place (Wine?) */
-DEFINE_PER_CPU(struct gdt_page, gdt_page) = { .gdt = {
+	/*
+	 * We need valid kernel segments for data and code in long mode too
+	 * IRET will check the segment types  kkeil 2000/10/28
+	 * Also sysret mandates a special GDT layout
+	 *
+	 * The TLS descriptors are currently at a different place compared to i386.
+	 * Hopefully nobody expects them at a fixed place (Wine?)
+	 */
 	[GDT_ENTRY_KERNEL32_CS] = { { { 0x0000ffff, 0x00cf9b00 } } },
 	[GDT_ENTRY_KERNEL_CS] = { { { 0x0000ffff, 0x00af9b00 } } },
 	[GDT_ENTRY_KERNEL_DS] = { { { 0x0000ffff, 0x00cf9300 } } },
 	[GDT_ENTRY_DEFAULT_USER32_CS] = { { { 0x0000ffff, 0x00cffb00 } } },
 	[GDT_ENTRY_DEFAULT_USER_DS] = { { { 0x0000ffff, 0x00cff300 } } },
 	[GDT_ENTRY_DEFAULT_USER_CS] = { { { 0x0000ffff, 0x00affb00 } } },
-} };
 #else
-DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 	[GDT_ENTRY_KERNEL_CS] = { { { 0x0000ffff, 0x00cf9a00 } } },
 	[GDT_ENTRY_KERNEL_DS] = { { { 0x0000ffff, 0x00cf9200 } } },
 	[GDT_ENTRY_DEFAULT_USER_CS] = { { { 0x0000ffff, 0x00cffa00 } } },
@@ -113,9 +113,9 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 	[GDT_ENTRY_APMBIOS_BASE+2] = { { { 0x0000ffff, 0x00409200 } } },
 
 	[GDT_ENTRY_ESPFIX_SS] = { { { 0x00000000, 0x00c09200 } } },
-	[GDT_ENTRY_PERCPU] = { { { 0x00000000, 0x00000000 } } },
-} };
+	[GDT_ENTRY_PERCPU] = { { { 0x0000ffff, 0x00cf9200 } } },
 #endif
+} };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
 
 #ifdef CONFIG_X86_32
@@ -883,12 +883,13 @@ __setup("clearcpuid=", setup_disablecpuid);
 #ifdef CONFIG_X86_64
 struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 
-DEFINE_PER_CPU_PAGE_ALIGNED(char[IRQ_STACK_SIZE], irq_stack);
+DEFINE_PER_CPU_FIRST(union irq_stack_union,
+		     irq_stack_union) __aligned(PAGE_SIZE);
 #ifdef CONFIG_SMP
 DEFINE_PER_CPU(char *, irq_stack_ptr);	/* will be set during per cpu init */
 #else
 DEFINE_PER_CPU(char *, irq_stack_ptr) =
-	per_cpu_var(irq_stack) + IRQ_STACK_SIZE - 64;
+	per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
 #endif
 
 DEFINE_PER_CPU(unsigned long, kernel_stack) =
@@ -896,15 +897,6 @@ DEFINE_PER_CPU(unsigned long, kernel_stack) =
 EXPORT_PER_CPU_SYMBOL(kernel_stack);
 
 DEFINE_PER_CPU(unsigned int, irq_count) = -1;
-
-void __cpuinit pda_init(int cpu)
-{
-	/* Setup up data that may be needed in __get_free_pages early */
-	loadsegment(fs, 0);
-	loadsegment(gs, 0);
-
-	load_pda_offset(cpu);
-}
 
 static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
 	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ])
@@ -969,9 +961,9 @@ void __cpuinit cpu_init(void)
 	struct task_struct *me;
 	int i;
 
-	/* CPU 0 is initialised in head64.c */
-	if (cpu != 0)
-		pda_init(cpu);
+	loadsegment(fs, 0);
+	loadsegment(gs, 0);
+	load_gs_base(cpu);
 
 #ifdef CONFIG_NUMA
 	if (cpu != 0 && percpu_read(node_number) == 0 &&

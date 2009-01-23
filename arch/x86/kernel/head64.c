@@ -91,8 +91,6 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	if (console_loglevel == 10)
 		early_printk("Kernel alive\n");
 
-	pda_init(0);
-
 	x86_64_start_reservations(real_mode_data);
 }
 

@@ -1132,7 +1132,9 @@ void __cpuinit setup_local_APIC(void)
 	int i, j;
 
 	if (disable_apic) {
+#ifdef CONFIG_X86_IO_APIC
 		disable_ioapic_setup();
+#endif
 		return;
 	}
 
@@ -1843,6 +1845,11 @@ void __cpuinit generic_processor_info(int apicid, int version)
 
 	num_processors++;
 	cpu = cpumask_next_zero(-1, cpu_present_mask);
+
+	if (version != apic_version[boot_cpu_physical_apicid])
+		WARN_ONCE(1,
+			"ACPI: apic version mismatch, bootcpu: %x cpu %d: %x\n",
+			apic_version[boot_cpu_physical_apicid], cpu, version);
 
 	physid_set(apicid, phys_cpu_present_map);
 	if (apicid == boot_cpu_physical_apicid) {

@@ -75,7 +75,7 @@ do {							\
 	case 8:						\
 		asm(op "q %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
-		    : "r" ((T__)val));			\
+		    : "re" ((T__)val));			\
 		break;					\
 	default: __bad_percpu_size();			\
 	}						\
@@ -132,12 +132,6 @@ do {							\
 
 /* We can use this directly for local CPU (faster). */
 DECLARE_PER_CPU(unsigned long, this_cpu_off);
-
-#ifdef CONFIG_X86_64
-extern void load_pda_offset(int cpu);
-#else
-static inline void load_pda_offset(int cpu) { }
-#endif
 
 #endif /* !__ASSEMBLY__ */
 

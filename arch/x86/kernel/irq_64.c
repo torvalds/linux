@@ -18,9 +18,13 @@
 #include <linux/smp.h>
 #include <asm/io_apic.h>
 #include <asm/idle.h>
+#include <asm/apic.h>
 
 DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 EXPORT_PER_CPU_SYMBOL(irq_stat);
+
+DEFINE_PER_CPU(struct pt_regs *, irq_regs);
+EXPORT_PER_CPU_SYMBOL(irq_regs);
 
 /*
  * Probabilistic stack overflow check:
