@@ -620,7 +620,9 @@ void ath9k_hw_loadnf(struct ath_hal *ah, struct ath9k_channel *chan)
 	};
 	u8 chainmask;
 
-	if (AR_SREV_9280(ah))
+	if (AR_SREV_9285(ah))
+		chainmask = 0x9;
+	else if (AR_SREV_9280(ah))
 		chainmask = 0x1B;
 	else
 		chainmask = 0x3F;
