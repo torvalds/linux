@@ -81,6 +81,7 @@ enum {
 
 enum {
 	STAC_92HD83XXX_REF,
+	STAC_92HD83XXX_PWR_REF,
 	STAC_92HD83XXX_MODELS
 };
 
@@ -334,7 +335,7 @@ static hda_nid_t stac92hd83xxx_slave_dig_outs[2] = {
 };
 
 static unsigned int stac92hd83xxx_pwr_mapping[4] = {
-	0x03, 0x0c, 0x20, 0x80,
+	0x03, 0x0c, 0x20, 0x40,
 };
 
 static hda_nid_t stac92hd83xxx_amp_nids[1] = {
@@ -841,10 +842,6 @@ static struct hda_verb stac92hd73xx_10ch_core_init[] = {
 };
 
 static struct hda_verb stac92hd83xxx_core_init[] = {
-	/* start of config #1 */
-	{ 0xe, AC_VERB_SET_CONNECT_SEL, 0x3},
-
-	/* start of config #2 */
 	{ 0xa, AC_VERB_SET_CONNECT_SEL, 0x0},
 	{ 0xb, AC_VERB_SET_CONNECT_SEL, 0x0},
 	{ 0xd, AC_VERB_SET_CONNECT_SEL, 0x1},
@@ -1738,10 +1735,12 @@ static unsigned int ref92hd83xxx_pin_configs[14] = {
 
 static unsigned int *stac92hd83xxx_brd_tbl[STAC_92HD83XXX_MODELS] = {
 	[STAC_92HD83XXX_REF] = ref92hd83xxx_pin_configs,
+	[STAC_92HD83XXX_PWR_REF] = ref92hd83xxx_pin_configs,
 };
 
 static const char *stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 	[STAC_92HD83XXX_REF] = "ref",
+	[STAC_92HD83XXX_PWR_REF] = "mic-ref",
 };
 
 static struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
@@ -1801,6 +1800,8 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 		      "HP dv5", STAC_HP_M4),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x30f4,
 		      "HP dv7", STAC_HP_M4),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x30f7,
+		      "HP dv4", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x30fc,
 		      "HP dv7", STAC_HP_M4),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3603,
@@ -4754,7 +4755,9 @@ static struct hda_input_mux stac92hd83xxx_dmux = {
 static int patch_stac92hd83xxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
+	hda_nid_t conn[STAC92HD83_DAC_COUNT + 1];
 	int err;
+	int num_dacs;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -4773,15 +4776,16 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
 	spec->multiout.dac_nids = spec->dac_nids;
 
-	spec->init = stac92hd83xxx_core_init;
-	switch (codec->vendor_id) {
-	case 0x111d7605:
-		break;
-	default:
-		spec->num_pwrs--;
-		spec->init++; /* switch to config #2 */
-	}
 
+	/* set port 0xe to select the last DAC
+	 */
+	num_dacs = snd_hda_get_connections(codec, 0x0e,
+		conn, STAC92HD83_DAC_COUNT + 1) - 1;
+
+	snd_hda_codec_write_cache(codec, 0xe, 0,
+		AC_VERB_SET_CONNECT_SEL, num_dacs);
+
+	spec->init = stac92hd83xxx_core_init;
 	spec->mixer = stac92hd83xxx_mixer;
 	spec->num_pins = ARRAY_SIZE(stac92hd83xxx_pin_nids);
 	spec->num_dmuxes = ARRAY_SIZE(stac92hd83xxx_dmux_nids);
@@ -4805,6 +4809,15 @@ again:
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
+	}
+
+	switch (codec->vendor_id) {
+	case 0x111d7604:
+	case 0x111d7605:
+		if (spec->board_config == STAC_92HD83XXX_PWR_REF)
+			break;
+		spec->num_pwrs = 0;
+		break;
 	}
 
 	err = stac92xx_parse_auto_config(codec, 0x1d, 0);
