@@ -1322,7 +1322,7 @@ fsm_start:
 					 * condition.  Mark hint.
 					 */
 					ata_ehi_push_desc(ehi, "ST-ATA: "
-						"DRQ=1 with device error, "
+						"DRQ=0 without device error, "
 						"dev_stat 0x%X", status);
 					qc->err_mask |= AC_ERR_HSM |
 							AC_ERR_NODEV_HINT;
