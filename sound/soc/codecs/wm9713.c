@@ -940,13 +940,14 @@ static void wm9713_voiceshutdown(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	u16 status;
+	u16 status, rate;
 
 	/* Gracefully shut down the voice interface. */
 	status = ac97_read(codec, AC97_EXTENDED_STATUS) | 0x1000;
-	ac97_write(codec, AC97_HANDSET_RATE, 0x0280);
+	rate = ac97_read(codec, AC97_HANDSET_RATE) & 0xF0FF;
+	ac97_write(codec, AC97_HANDSET_RATE, rate | 0x0200);
 	schedule_timeout_interruptible(msecs_to_jiffies(1));
-	ac97_write(codec, AC97_HANDSET_RATE, 0x0F80);
+	ac97_write(codec, AC97_HANDSET_RATE, rate | 0x0F00);
 	ac97_write(codec, AC97_EXTENDED_MID, status);
 }
 
