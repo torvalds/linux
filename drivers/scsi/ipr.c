@@ -7147,6 +7147,7 @@ static void ipr_free_all_resources(struct ipr_ioa_cfg *ioa_cfg)
 
 	ENTER;
 	free_irq(pdev->irq, ioa_cfg);
+	pci_disable_msi(pdev);
 	iounmap(ioa_cfg->hdw_dma_regs);
 	pci_release_regions(pdev);
 	ipr_free_mem(ioa_cfg);
@@ -7432,6 +7433,11 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 		goto out;
 	}
 
+	if (!(rc = pci_enable_msi(pdev)))
+		dev_info(&pdev->dev, "MSI enabled\n");
+	else if (ipr_debug)
+		dev_info(&pdev->dev, "Cannot enable MSI\n");
+
 	dev_info(&pdev->dev, "Found IOA with IRQ: %d\n", pdev->irq);
 
 	host = scsi_host_alloc(&driver_template, sizeof(*ioa_cfg));
@@ -7574,6 +7580,7 @@ out_release_regions:
 out_scsi_host_put:
 	scsi_host_put(host);
 out_disable:
+	pci_disable_msi(pdev);
 	pci_disable_device(pdev);
 	goto out;
 }
