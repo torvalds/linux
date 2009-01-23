@@ -95,6 +95,7 @@ static int zylonite_voice_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	unsigned int pll_out = 0;
 	unsigned int acds = 0;
 	unsigned int wm9713_div = 0;
 	int ret = 0;
@@ -102,13 +103,16 @@ static int zylonite_voice_hw_params(struct snd_pcm_substream *substream,
 	switch (params_rate(params)) {
 	case 8000:
 		wm9713_div = 12;
+		pll_out = 2048000;
 		break;
 	case 16000:
 		wm9713_div = 6;
+		pll_out = 4096000;
 		break;
 	case 48000:
 	default:
 		wm9713_div = 2;
+		pll_out = 12288000;
 		acds = 1;
 		break;
 	}
@@ -126,6 +130,10 @@ static int zylonite_voice_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_tdm_slot(cpu_dai,
 				       params_channels(params),
 				       params_channels(params));
+	if (ret < 0)
+		return ret;
+
+	ret = snd_soc_dai_set_pll(cpu_dai, 0, 0, pll_out);
 	if (ret < 0)
 		return ret;
 
