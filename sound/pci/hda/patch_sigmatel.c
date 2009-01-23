@@ -958,16 +958,6 @@ static struct hda_verb stac9205_core_init[] = {
 		.private_value = HDA_COMPOSE_AMP_VAL(nid, chs, idx, dir) \
 	}
 
-#define STAC_INPUT_SOURCE(cnt) \
-	{ \
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
-		.name = "Input Source", \
-		.count = cnt, \
-		.info = stac92xx_mux_enum_info, \
-		.get = stac92xx_mux_enum_get, \
-		.put = stac92xx_mux_enum_put, \
-	}
-
 #define STAC_ANALOG_LOOPBACK(verb_read, verb_write, cnt) \
 	{ \
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
@@ -982,7 +972,6 @@ static struct hda_verb stac9205_core_init[] = {
 static struct snd_kcontrol_new stac9200_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0xb, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Master Playback Switch", 0xb, 0, HDA_OUTPUT),
-	STAC_INPUT_SOURCE(1),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0a, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0a, 0, HDA_OUTPUT),
 	{ } /* end */
@@ -1098,7 +1087,6 @@ static struct snd_kcontrol_new stac92hd83xxx_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac92hd71bxx_analog_mixer[] = {
-	STAC_INPUT_SOURCE(2),
 	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A0, 2),
 
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x1c, 0x0, HDA_OUTPUT),
@@ -1127,7 +1115,6 @@ static struct snd_kcontrol_new stac92hd71bxx_analog_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac92hd71bxx_mixer[] = {
-	STAC_INPUT_SOURCE(2),
 	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A0, 2),
 
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x1c, 0x0, HDA_OUTPUT),
@@ -1141,14 +1128,12 @@ static struct snd_kcontrol_new stac92hd71bxx_mixer[] = {
 static struct snd_kcontrol_new stac925x_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x0e, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Master Playback Switch", 0x0e, 0, HDA_OUTPUT),
-	STAC_INPUT_SOURCE(1),
 	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x14, 0, HDA_OUTPUT),
 	{ } /* end */
 };
 
 static struct snd_kcontrol_new stac9205_mixer[] = {
-	STAC_INPUT_SOURCE(2),
 	STAC_ANALOG_LOOPBACK(0xFE0, 0x7E0, 1),
 
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x1b, 0x0, HDA_INPUT),
@@ -1161,7 +1146,6 @@ static struct snd_kcontrol_new stac9205_mixer[] = {
 
 /* This needs to be generated dynamically based on sequence */
 static struct snd_kcontrol_new stac922x_mixer[] = {
-	STAC_INPUT_SOURCE(2),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x17, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x17, 0x0, HDA_INPUT),
 
@@ -1172,7 +1156,6 @@ static struct snd_kcontrol_new stac922x_mixer[] = {
 
 
 static struct snd_kcontrol_new stac927x_mixer[] = {
-	STAC_INPUT_SOURCE(3),
 	STAC_ANALOG_LOOPBACK(0xFEB, 0x7EB, 1),
 
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x18, 0x0, HDA_INPUT),
@@ -2777,22 +2760,37 @@ static struct snd_kcontrol_new stac92xx_control_templates[] = {
 };
 
 /* add dynamic controls */
-static int stac92xx_add_control_temp(struct sigmatel_spec *spec,
-				     struct snd_kcontrol_new *ktemp,
-				     int idx, const char *name,
-				     unsigned long val)
+static struct snd_kcontrol_new *
+stac_control_new(struct sigmatel_spec *spec,
+		 struct snd_kcontrol_new *ktemp,
+		 const char *name)
 {
 	struct snd_kcontrol_new *knew;
 
 	snd_array_init(&spec->kctls, sizeof(*knew), 32);
 	knew = snd_array_new(&spec->kctls);
 	if (!knew)
-		return -ENOMEM;
+		return NULL;
 	*knew = *ktemp;
-	knew->index = idx;
 	knew->name = kstrdup(name, GFP_KERNEL);
-	if (!knew->name)
+	if (!knew->name) {
+		/* roolback */
+		memset(knew, 0, sizeof(*knew));
+		spec->kctls.alloced--;
+		return NULL;
+	}
+	return knew;
+}
+
+static int stac92xx_add_control_temp(struct sigmatel_spec *spec,
+				     struct snd_kcontrol_new *ktemp,
+				     int idx, const char *name,
+				     unsigned long val)
+{
+	struct snd_kcontrol_new *knew = stac_control_new(spec, ktemp, name);
+	if (!knew)
 		return -ENOMEM;
+	knew->index = idx;
 	knew->private_value = val;
 	return 0;
 }
@@ -2812,6 +2810,29 @@ static inline int stac92xx_add_control(struct sigmatel_spec *spec, int type,
 				       const char *name, unsigned long val)
 {
 	return stac92xx_add_control_idx(spec, type, 0, name, val);
+}
+
+static struct snd_kcontrol_new stac_input_src_temp = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Input Source",
+	.info = stac92xx_mux_enum_info,
+	.get = stac92xx_mux_enum_get,
+	.put = stac92xx_mux_enum_put,
+};
+
+static int stac92xx_add_input_source(struct sigmatel_spec *spec)
+{
+	struct snd_kcontrol_new *knew;
+	struct hda_input_mux *imux = &spec->private_imux;
+
+	if (!spec->num_adcs || imux->num_items <= 1)
+		return 0; /* no need for input source control */
+	knew = stac_control_new(spec, &stac_input_src_temp,
+				stac_input_src_temp.name);
+	if (!knew)
+		return -ENOMEM;
+	knew->count = spec->num_adcs;
+	return 0;
 }
 
 /* check whether the line-input can be used as line-out */
@@ -3699,6 +3720,10 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 			return err;
 	}
 
+	err = stac92xx_add_input_source(spec);
+	if (err < 0)
+		return err;
+
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 	if (spec->multiout.max_channels > 2)
 		spec->surr_switch = 1;
@@ -3811,6 +3836,10 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
+
+	err = stac92xx_add_input_source(spec);
+	if (err < 0)
+		return err;
 
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = 0x05;
@@ -5426,7 +5455,6 @@ static struct hda_verb stac9872_core_init[] = {
 static struct snd_kcontrol_new stac9872_mixer[] = {
 	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x09, 0, HDA_INPUT),
-	STAC_INPUT_SOURCE(1),
 	{ } /* end */
 };
 
