@@ -531,6 +531,13 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 		}
 	}
 
+	/* Check if we do have FAT channels */
+	if (priv->cfg->ops->lib->eeprom_ops.regulatory_bands[5] >=
+	    priv->cfg->eeprom_size &&
+	    priv->cfg->ops->lib->eeprom_ops.regulatory_bands[6] >=
+	    priv->cfg->eeprom_size)
+		return 0;
+
 	/* Two additional EEPROM bands for 2.4 and 5 GHz FAT channels */
 	for (band = 6; band <= 7; band++) {
 		enum ieee80211_band ieeeband;
@@ -582,6 +589,7 @@ void iwl_free_channel_map(struct iwl_priv *priv)
 	kfree(priv->channel_info);
 	priv->channel_count = 0;
 }
+EXPORT_SYMBOL(iwl_free_channel_map);
 
 /**
  * iwl_get_channel_info - Find driver's private channel info

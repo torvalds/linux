@@ -1091,9 +1091,6 @@ struct iwl_priv {
 
 	struct iwl3945_station_entry stations_39[IWL_STATION_COUNT];
 
-	/* eeprom */
-	struct iwl3945_eeprom eeprom39;
-
 	u32 sta_supp_rates;
 }; /*iwl_priv */
 

@@ -257,7 +257,7 @@ static int iwl3945_set_rxon_channel(struct iwl_priv *priv,
 				    enum ieee80211_band band,
 				    u16 channel)
 {
-	if (!iwl3945_get_channel_info(priv, band, channel)) {
+	if (!iwl_get_channel_info(priv, band, channel)) {
 		IWL_DEBUG_INFO("Could not set channel to %d [%d]\n",
 			       channel, band);
 		return -EINVAL;
@@ -834,86 +834,6 @@ static int iwl3945_send_beacon_cmd(struct iwl_priv *priv)
 	return rc;
 }
 
-/******************************************************************************
- *
- * EEPROM related functions
- *
- ******************************************************************************/
-
-static void get_eeprom_mac(struct iwl_priv *priv, u8 *mac)
-{
-	memcpy(mac, priv->eeprom39.mac_address, 6);
-}
-
-/*
- * Clear the OWNER_MSK, to establish driver (instead of uCode running on
- * embedded controller) as EEPROM reader; each read is a series of pulses
- * to/from the EEPROM chip, not a single event, so even reads could conflict
- * if they weren't arbitrated by some ownership mechanism.  Here, the driver
- * simply claims ownership, which should be safe when this function is called
- * (i.e. before loading uCode!).
- */
-static inline int iwl3945_eeprom_acquire_semaphore(struct iwl_priv *priv)
-{
-	_iwl_clear_bit(priv, CSR_EEPROM_GP, CSR_EEPROM_GP_IF_OWNER_MSK);
-	return 0;
-}
-
-/**
- * iwl3945_eeprom_init - read EEPROM contents
- *
- * Load the EEPROM contents from adapter into priv->eeprom39
- *
- * NOTE:  This routine uses the non-debug IO access functions.
- */
-int iwl3945_eeprom_init(struct iwl_priv *priv)
-{
-	u16 *e = (u16 *)&priv->eeprom39;
-	u32 gp = iwl_read32(priv, CSR_EEPROM_GP);
-	int sz = sizeof(priv->eeprom39);
-	int ret;
-	u16 addr;
-
-	/* The EEPROM structure has several padding buffers within it
-	 * and when adding new EEPROM maps is subject to programmer errors
-	 * which may be very difficult to identify without explicitly
-	 * checking the resulting size of the eeprom map. */
-	BUILD_BUG_ON(sizeof(priv->eeprom39) != IWL_EEPROM_IMAGE_SIZE);
-
-	if ((gp & CSR_EEPROM_GP_VALID_MSK) == CSR_EEPROM_GP_BAD_SIGNATURE) {
-		IWL_ERR(priv, "EEPROM not found, EEPROM_GP=0x%08x\n", gp);
-		return -ENOENT;
-	}
-
-	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
-	ret = iwl3945_eeprom_acquire_semaphore(priv);
-	if (ret < 0) {
-		IWL_ERR(priv, "Failed to acquire EEPROM semaphore.\n");
-		return -ENOENT;
-	}
-
-	/* eeprom is an array of 16bit values */
-	for (addr = 0; addr < sz; addr += sizeof(u16)) {
-		u32 r;
-
-		_iwl_write32(priv, CSR_EEPROM_REG,
-				 CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
-		_iwl_clear_bit(priv, CSR_EEPROM_REG, CSR_EEPROM_REG_BIT_CMD);
-		ret = iwl_poll_direct_bit(priv, CSR_EEPROM_REG,
-					      CSR_EEPROM_REG_READ_VALID_MSK,
-					      IWL_EEPROM_ACCESS_TIMEOUT);
-		if (ret < 0) {
-			IWL_ERR(priv, "Time out reading EEPROM[%d]\n", addr);
-			return ret;
-		}
-
-		r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
-		e[addr / 2] = le16_to_cpu((__force __le16)(r >> 16));
-	}
-
-	return 0;
-}
-
 static void iwl3945_unset_hw_params(struct iwl_priv *priv)
 {
 	if (priv->shared_virt)
@@ -1304,7 +1224,7 @@ static void iwl3945_connection_init_rx_config(struct iwl_priv *priv,
 		priv->staging39_rxon.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 #endif
 
-	ch_info = iwl3945_get_channel_info(priv, priv->band,
+	ch_info = iwl_get_channel_info(priv, priv->band,
 				       le16_to_cpu(priv->active39_rxon.channel));
 
 	if (!ch_info)
@@ -1336,7 +1256,7 @@ static int iwl3945_set_mode(struct iwl_priv *priv, int mode)
 	if (mode == NL80211_IFTYPE_ADHOC) {
 		const struct iwl_channel_info *ch_info;
 
-		ch_info = iwl3945_get_channel_info(priv,
+		ch_info = iwl_get_channel_info(priv,
 			priv->band,
 			le16_to_cpu(priv->staging39_rxon.channel));
 
@@ -3349,258 +3269,6 @@ unplugged:
 	return IRQ_NONE;
 }
 
-/************************** EEPROM BANDS ****************************
- *
- * The iwl3945_eeprom_band definitions below provide the mapping from the
- * EEPROM contents to the specific channel number supported for each
- * band.
- *
- * For example, iwl3945_priv->eeprom39.band_3_channels[4] from the band_3
- * definition below maps to physical channel 42 in the 5.2GHz spectrum.
- * The specific geography and calibration information for that channel
- * is contained in the eeprom map itself.
- *
- * During init, we copy the eeprom information and channel map
- * information into priv->channel_info_24/52 and priv->channel_map_24/52
- *
- * channel_map_24/52 provides the index in the channel_info array for a
- * given channel.  We have to have two separate maps as there is channel
- * overlap with the 2.4GHz and 5.2GHz spectrum as seen in band_1 and
- * band_2
- *
- * A value of 0xff stored in the channel_map indicates that the channel
- * is not supported by the hardware at all.
- *
- * A value of 0xfe in the channel_map indicates that the channel is not
- * valid for Tx with the current hardware.  This means that
- * while the system can tune and receive on a given channel, it may not
- * be able to associate or transmit any frames on that
- * channel.  There is no corresponding channel information for that
- * entry.
- *
- *********************************************************************/
-
-/* 2.4 GHz */
-static const u8 iwl3945_eeprom_band_1[14] = {
-	1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
-};
-
-/* 5.2 GHz bands */
-static const u8 iwl3945_eeprom_band_2[] = {	/* 4915-5080MHz */
-	183, 184, 185, 187, 188, 189, 192, 196, 7, 8, 11, 12, 16
-};
-
-static const u8 iwl3945_eeprom_band_3[] = {	/* 5170-5320MHz */
-	34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64
-};
-
-static const u8 iwl3945_eeprom_band_4[] = {	/* 5500-5700MHz */
-	100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
-};
-
-static const u8 iwl3945_eeprom_band_5[] = {	/* 5725-5825MHz */
-	145, 149, 153, 157, 161, 165
-};
-
-static void iwl3945_init_band_reference(const struct iwl_priv *priv, int band,
-				    int *eeprom_ch_count,
-				    const struct iwl_eeprom_channel
-				    **eeprom_ch_info,
-				    const u8 **eeprom_ch_index)
-{
-	switch (band) {
-	case 1:		/* 2.4GHz band */
-		*eeprom_ch_count = ARRAY_SIZE(iwl3945_eeprom_band_1);
-		*eeprom_ch_info = priv->eeprom39.band_1_channels;
-		*eeprom_ch_index = iwl3945_eeprom_band_1;
-		break;
-	case 2:		/* 4.9GHz band */
-		*eeprom_ch_count = ARRAY_SIZE(iwl3945_eeprom_band_2);
-		*eeprom_ch_info = priv->eeprom39.band_2_channels;
-		*eeprom_ch_index = iwl3945_eeprom_band_2;
-		break;
-	case 3:		/* 5.2GHz band */
-		*eeprom_ch_count = ARRAY_SIZE(iwl3945_eeprom_band_3);
-		*eeprom_ch_info = priv->eeprom39.band_3_channels;
-		*eeprom_ch_index = iwl3945_eeprom_band_3;
-		break;
-	case 4:		/* 5.5GHz band */
-		*eeprom_ch_count = ARRAY_SIZE(iwl3945_eeprom_band_4);
-		*eeprom_ch_info = priv->eeprom39.band_4_channels;
-		*eeprom_ch_index = iwl3945_eeprom_band_4;
-		break;
-	case 5:		/* 5.7GHz band */
-		*eeprom_ch_count = ARRAY_SIZE(iwl3945_eeprom_band_5);
-		*eeprom_ch_info = priv->eeprom39.band_5_channels;
-		*eeprom_ch_index = iwl3945_eeprom_band_5;
-		break;
-	default:
-		BUG();
-		return;
-	}
-}
-
-/**
- * iwl3945_get_channel_info - Find driver's private channel info
- *
- * Based on band and channel number.
- */
-const struct iwl_channel_info *
-iwl3945_get_channel_info(const struct iwl_priv *priv,
-			 enum ieee80211_band band, u16 channel)
-{
-	int i;
-
-	switch (band) {
-	case IEEE80211_BAND_5GHZ:
-		for (i = 14; i < priv->channel_count; i++) {
-			if (priv->channel_info[i].channel == channel)
-				return &priv->channel_info[i];
-		}
-		break;
-
-	case IEEE80211_BAND_2GHZ:
-		if (channel >= 1 && channel <= 14)
-			return &priv->channel_info[channel - 1];
-		break;
-	case IEEE80211_NUM_BANDS:
-		WARN_ON(1);
-	}
-
-	return NULL;
-}
-
-#define CHECK_AND_PRINT(x) ((eeprom_ch_info[ch].flags & EEPROM_CHANNEL_##x) \
-			    ? # x " " : "")
-
-/**
- * iwl3945_init_channel_map - Set up driver's info for all possible channels
- */
-static int iwl3945_init_channel_map(struct iwl_priv *priv)
-{
-	int eeprom_ch_count = 0;
-	const u8 *eeprom_ch_index = NULL;
-	const struct iwl_eeprom_channel *eeprom_ch_info = NULL;
-	int band, ch;
-	struct iwl_channel_info *ch_info;
-
-	if (priv->channel_count) {
-		IWL_DEBUG_INFO("Channel map already initialized.\n");
-		return 0;
-	}
-
-	if (priv->eeprom39.version < 0x2f) {
-		IWL_WARN(priv, "Unsupported EEPROM version: 0x%04X\n",
-			    priv->eeprom39.version);
-		return -EINVAL;
-	}
-
-	IWL_DEBUG_INFO("Initializing regulatory info from EEPROM\n");
-
-	priv->channel_count =
-	    ARRAY_SIZE(iwl3945_eeprom_band_1) +
-	    ARRAY_SIZE(iwl3945_eeprom_band_2) +
-	    ARRAY_SIZE(iwl3945_eeprom_band_3) +
-	    ARRAY_SIZE(iwl3945_eeprom_band_4) +
-	    ARRAY_SIZE(iwl3945_eeprom_band_5);
-
-	IWL_DEBUG_INFO("Parsing data for %d channels.\n", priv->channel_count);
-
-	priv->channel_info = kzalloc(sizeof(struct iwl_channel_info) *
-				     priv->channel_count, GFP_KERNEL);
-	if (!priv->channel_info) {
-		IWL_ERR(priv, "Could not allocate channel_info\n");
-		priv->channel_count = 0;
-		return -ENOMEM;
-	}
-
-	ch_info = priv->channel_info;
-
-	/* Loop through the 5 EEPROM bands adding them in order to the
-	 * channel map we maintain (that contains additional information than
-	 * what just in the EEPROM) */
-	for (band = 1; band <= 5; band++) {
-
-		iwl3945_init_band_reference(priv, band, &eeprom_ch_count,
-					&eeprom_ch_info, &eeprom_ch_index);
-
-		/* Loop through each band adding each of the channels */
-		for (ch = 0; ch < eeprom_ch_count; ch++) {
-			ch_info->channel = eeprom_ch_index[ch];
-			ch_info->band = (band == 1) ? IEEE80211_BAND_2GHZ :
-			    IEEE80211_BAND_5GHZ;
-
-			/* permanently store EEPROM's channel regulatory flags
-			 *   and max power in channel info database. */
-			ch_info->eeprom = eeprom_ch_info[ch];
-
-			/* Copy the run-time flags so they are there even on
-			 * invalid channels */
-			ch_info->flags = eeprom_ch_info[ch].flags;
-
-			if (!(is_channel_valid(ch_info))) {
-				IWL_DEBUG_INFO("Ch. %d Flags %x [%sGHz] - "
-					       "No traffic\n",
-					       ch_info->channel,
-					       ch_info->flags,
-					       is_channel_a_band(ch_info) ?
-					       "5.2" : "2.4");
-				ch_info++;
-				continue;
-			}
-
-			/* Initialize regulatory-based run-time data */
-			ch_info->max_power_avg = ch_info->curr_txpow =
-			    eeprom_ch_info[ch].max_power_avg;
-			ch_info->scan_power = eeprom_ch_info[ch].max_power_avg;
-			ch_info->min_power = 0;
-
-			IWL_DEBUG_INFO("Ch. %d [%sGHz] %s%s%s%s%s%s(0x%02x"
-				       " %ddBm): Ad-Hoc %ssupported\n",
-				       ch_info->channel,
-				       is_channel_a_band(ch_info) ?
-				       "5.2" : "2.4",
-				       CHECK_AND_PRINT(VALID),
-				       CHECK_AND_PRINT(IBSS),
-				       CHECK_AND_PRINT(ACTIVE),
-				       CHECK_AND_PRINT(RADAR),
-				       CHECK_AND_PRINT(WIDE),
-				       CHECK_AND_PRINT(DFS),
-				       eeprom_ch_info[ch].flags,
-				       eeprom_ch_info[ch].max_power_avg,
-				       ((eeprom_ch_info[ch].
-					 flags & EEPROM_CHANNEL_IBSS)
-					&& !(eeprom_ch_info[ch].
-					     flags & EEPROM_CHANNEL_RADAR))
-				       ? "" : "not ");
-
-			/* Set the tx_power_user_lmt to the highest power
-			 * supported by any channel */
-			if (eeprom_ch_info[ch].max_power_avg >
-			    priv->tx_power_user_lmt)
-				priv->tx_power_user_lmt =
-				    eeprom_ch_info[ch].max_power_avg;
-
-			ch_info++;
-		}
-	}
-
-	/* Set up txpower settings in driver for all channels */
-	if (iwl3945_txpower_set_from_eeprom(priv))
-		return -EIO;
-
-	return 0;
-}
-
-/*
- * iwl3945_free_channel_map - undo allocations in iwl3945_init_channel_map
- */
-static void iwl3945_free_channel_map(struct iwl_priv *priv)
-{
-	kfree(priv->channel_info);
-	priv->channel_count = 0;
-}
-
 static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 					 enum ieee80211_band band,
 				     u8 is_active, u8 n_probes,
@@ -3631,7 +3299,7 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 
 		scan_ch->channel = channels[i].hw_value;
 
-		ch_info = iwl3945_get_channel_info(priv, band, scan_ch->channel);
+		ch_info = iwl_get_channel_info(priv, band, scan_ch->channel);
 		if (!is_channel_valid(ch_info)) {
 			IWL_DEBUG_SCAN("Channel %d is INVALID for this band.\n",
 				       scan_ch->channel);
@@ -3718,6 +3386,7 @@ static void iwl3945_init_hw_rates(struct iwl_priv *priv,
 /**
  * iwl3945_init_geos - Initialize mac80211's geo/channel info based from eeprom
  */
+#define IEEE80211_24GHZ_MAX_CHANNEL 14
 static int iwl3945_init_geos(struct iwl_priv *priv)
 {
 	struct iwl_channel_info *ch;
@@ -3748,7 +3417,7 @@ static int iwl3945_init_geos(struct iwl_priv *priv)
 
 	/* 5.2GHz channels start after the 2.4GHz channels */
 	sband = &priv->bands[IEEE80211_BAND_5GHZ];
-	sband->channels = &channels[ARRAY_SIZE(iwl3945_eeprom_band_1)];
+	sband->channels = &channels[IEEE80211_24GHZ_MAX_CHANNEL];
 	/* just OFDM */
 	sband->bitrates = &rates[IWL_FIRST_OFDM_RATE];
 	sband->n_bitrates = IWL_RATE_COUNT - IWL_FIRST_OFDM_RATE;
@@ -5242,8 +4911,8 @@ static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	ch_info = iwl3945_get_channel_info(priv, conf->channel->band,
-					   conf->channel->hw_value);
+	ch_info = iwl_get_channel_info(priv, conf->channel->band,
+				       conf->channel->hw_value);
 	if (!is_channel_valid(ch_info)) {
 		IWL_DEBUG_SCAN("Channel %d [%d] is INVALID for this band.\n",
 			       conf->channel->hw_value, conf->channel->band);
@@ -6423,6 +6092,7 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 static int iwl3945_init_drv(struct iwl_priv *priv)
 {
 	int ret;
+	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
 
 	priv->retry_rate = 1;
 	priv->ibss_beacon = NULL;
@@ -6456,10 +6126,22 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->power_mode = IWL39_POWER_AC;
 	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
 
-	ret = iwl3945_init_channel_map(priv);
+	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
+		IWL_WARN(priv, "Unsupported EEPROM version: 0x%04X\n",
+			 eeprom->version);
+		ret = -EINVAL;
+		goto err;
+	}
+	ret = iwl_init_channel_map(priv);
 	if (ret) {
 		IWL_ERR(priv, "initializing regulatory failed: %d\n", ret);
 		goto err;
+	}
+
+	/* Set up txpower settings in driver for all channels */
+	if (iwl3945_txpower_set_from_eeprom(priv)) {
+		ret = -EIO;
+		goto err_free_channel_map;
 	}
 
 	ret = iwl3945_init_geos(priv);
@@ -6471,7 +6153,7 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	return 0;
 
 err_free_channel_map:
-	iwl3945_free_channel_map(priv);
+	iwl_free_channel_map(priv);
 err:
 	return ret;
 }
@@ -6482,6 +6164,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	struct iwl_priv *priv;
 	struct ieee80211_hw *hw;
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
+	struct iwl3945_eeprom *eeprom;
 	unsigned long flags;
 
 	/***********************
@@ -6597,13 +6280,14 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 * ********************/
 
 	/* Read the EEPROM */
-	err = iwl3945_eeprom_init(priv);
+	err = iwl_eeprom_init(priv);
 	if (err) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
 		goto out_remove_sysfs;
 	}
 	/* MAC Address location in EEPROM same for 3945/4965 */
-	get_eeprom_mac(priv, priv->mac_addr);
+	eeprom = (struct iwl3945_eeprom *)priv->eeprom;
+	memcpy(priv->mac_addr, eeprom->mac_address, ETH_ALEN);
 	IWL_DEBUG_INFO("MAC address: %pM\n", priv->mac_addr);
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
 
@@ -6776,7 +6460,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
-	iwl3945_free_channel_map(priv);
+	iwl_free_channel_map(priv);
 	iwl3945_free_geos(priv);
 	kfree(priv->scan);
 	if (priv->ibss_beacon)

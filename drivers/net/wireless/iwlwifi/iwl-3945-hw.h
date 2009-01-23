@@ -182,7 +182,7 @@ struct iwl3945_eeprom {
  * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
  */
 	u16 band_1_count;	/* abs.ofs: 196 */
-	struct iwl_eeprom_channel band_1_channels[14];  /* abs.ofs: 196 */
+	struct iwl_eeprom_channel band_1_channels[14];  /* abs.ofs: 198 */
 
 /*
  * 4.9 GHz channels 183, 184, 185, 187, 188, 189, 192, 196,
@@ -225,7 +225,7 @@ struct iwl3945_eeprom {
 	u8 reserved16[172];	/* fill out to full 1024 byte block */
 } __attribute__ ((packed));
 
-#define IWL_EEPROM_IMAGE_SIZE 1024
+#define IWL3945_EEPROM_IMG_SIZE 1024
 
 /* End of EEPROM */
 

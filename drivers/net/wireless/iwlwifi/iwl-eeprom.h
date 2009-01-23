@@ -118,6 +118,9 @@ struct iwl_eeprom_channel {
 	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
 } __attribute__ ((packed));
 
+/* 3945 Specific */
+#define EEPROM_3945_EEPROM_VERSION	(0x2f)
+
 /* 4965 has two radio transmitters (and 3 radio receivers) */
 #define EEPROM_TX_POWER_TX_CHAINS      (2)
 

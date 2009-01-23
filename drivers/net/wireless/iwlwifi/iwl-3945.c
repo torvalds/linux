@@ -42,6 +42,7 @@
 #include "iwl-3945-fh.h"
 #include "iwl-commands.h"
 #include "iwl-3945.h"
+#include "iwl-eeprom.h"
 #include "iwl-helpers.h"
 #include "iwl-core.h"
 #include "iwl-agn-rs.h"
@@ -209,17 +210,19 @@ static int iwl3945_hwrate_to_plcp_idx(u8 plcp)
  */
 __le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv)
 {
+	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
+
 	switch (priv->antenna) {
 	case IWL_ANTENNA_DIVERSITY:
 		return 0;
 
 	case IWL_ANTENNA_MAIN:
-		if (priv->eeprom39.antenna_switch_type)
+		if (eeprom->antenna_switch_type)
 			return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_B_MSK;
 		return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_A_MSK;
 
 	case IWL_ANTENNA_AUX:
-		if (priv->eeprom39.antenna_switch_type)
+		if (eeprom->antenna_switch_type)
 			return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_A_MSK;
 		return RXON_FLG_DIS_DIV_MSK | RXON_FLG_ANT_B_MSK;
 	}
@@ -1128,6 +1131,7 @@ out:
 
 static void iwl3945_nic_config(struct iwl_priv *priv)
 {
+	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
 	unsigned long flags;
 	u8 rev_id = 0;
 
@@ -1145,42 +1149,42 @@ static void iwl3945_nic_config(struct iwl_priv *priv)
 			    CSR39_HW_IF_CONFIG_REG_BIT_3945_MM);
 	}
 
-	if (EEPROM_SKU_CAP_OP_MODE_MRC == priv->eeprom39.sku_cap) {
+	if (EEPROM_SKU_CAP_OP_MODE_MRC == eeprom->sku_cap) {
 		IWL_DEBUG_INFO("SKU OP mode is mrc\n");
 		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			    CSR39_HW_IF_CONFIG_REG_BIT_SKU_MRC);
 	} else
 		IWL_DEBUG_INFO("SKU OP mode is basic\n");
 
-	if ((priv->eeprom39.board_revision & 0xF0) == 0xD0) {
+	if ((eeprom->board_revision & 0xF0) == 0xD0) {
 		IWL_DEBUG_INFO("3945ABG revision is 0x%X\n",
-			       priv->eeprom39.board_revision);
+			       eeprom->board_revision);
 		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			    CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
 	} else {
 		IWL_DEBUG_INFO("3945ABG revision is 0x%X\n",
-			       priv->eeprom39.board_revision);
+			       eeprom->board_revision);
 		iwl_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
 			      CSR39_HW_IF_CONFIG_REG_BIT_BOARD_TYPE);
 	}
 
-	if (priv->eeprom39.almgor_m_version <= 1) {
+	if (eeprom->almgor_m_version <= 1) {
 		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			    CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_A);
 		IWL_DEBUG_INFO("Card M type A version is 0x%X\n",
-			       priv->eeprom39.almgor_m_version);
+			       eeprom->almgor_m_version);
 	} else {
 		IWL_DEBUG_INFO("Card M type B version is 0x%X\n",
-			       priv->eeprom39.almgor_m_version);
+			       eeprom->almgor_m_version);
 		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			    CSR39_HW_IF_CONFIG_REG_BITS_SILICON_TYPE_B);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if (priv->eeprom39.sku_cap & EEPROM_SKU_CAP_SW_RF_KILL_ENABLE)
+	if (eeprom->sku_cap & EEPROM_SKU_CAP_SW_RF_KILL_ENABLE)
 		IWL_DEBUG_RF_KILL("SW RF KILL supported in EEPROM.\n");
 
-	if (priv->eeprom39.sku_cap & EEPROM_SKU_CAP_HW_RF_KILL_ENABLE)
+	if (eeprom->sku_cap & EEPROM_SKU_CAP_HW_RF_KILL_ENABLE)
 		IWL_DEBUG_RF_KILL("HW RF KILL supported in EEPROM.\n");
 }
 
@@ -1406,6 +1410,7 @@ int iwl3945_hw_get_temperature(struct iwl_priv *priv)
 */
 static int iwl3945_hw_reg_txpower_get_temperature(struct iwl_priv *priv)
 {
+	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
 	int temperature;
 
 	temperature = iwl3945_hw_get_temperature(priv);
@@ -1421,7 +1426,7 @@ static int iwl3945_hw_reg_txpower_get_temperature(struct iwl_priv *priv)
 		/* if really really hot(?),
 		 *   substitute the 3rd band/group's temp measured at factory */
 		if (priv->last_temperature > 100)
-			temperature = priv->eeprom39.groups[2].temperature;
+			temperature = eeprom->groups[2].temperature;
 		else /* else use most recent "sane" value from driver */
 			temperature = priv->last_temperature;
 	}
@@ -1720,7 +1725,7 @@ int iwl3945_send_tx_power(struct iwl_priv *priv)
 	};
 
 	txpower.band = (priv->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
-	ch_info = iwl3945_get_channel_info(priv,
+	ch_info = iwl_get_channel_info(priv,
 				       priv->band,
 				       le16_to_cpu(priv->active39_rxon.channel));
 	if (!ch_info) {
@@ -1881,6 +1886,7 @@ static int iwl3945_hw_reg_get_ch_txpower_limit(struct iwl_channel_info *ch_info)
 static int iwl3945_hw_reg_comp_txpower_temp(struct iwl_priv *priv)
 {
 	struct iwl_channel_info *ch_info = NULL;
+	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
 	int delta_index;
 	const s8 *clip_pwrs; /* array of h/w max power levels for each rate */
 	u8 a_band;
@@ -1896,7 +1902,7 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl_priv *priv)
 		a_band = is_channel_a_band(ch_info);
 
 		/* Get this chnlgrp's factory calibration temperature */
-		ref_temp = (s16)priv->eeprom39.groups[ch_info->group_index].
+		ref_temp = (s16)eeprom->groups[ch_info->group_index].
 		    temperature;
 
 		/* get power index adjustment based on current and factory
@@ -2041,7 +2047,8 @@ static void iwl3945_bg_reg_txpower_periodic(struct work_struct *work)
 static u16 iwl3945_hw_reg_get_ch_grp_index(struct iwl_priv *priv,
 				       const struct iwl_channel_info *ch_info)
 {
-	struct iwl3945_eeprom_txpower_group *ch_grp = &priv->eeprom39.groups[0];
+	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
+	struct iwl3945_eeprom_txpower_group *ch_grp = &eeprom->groups[0];
 	u8 group;
 	u16 group_index = 0;	/* based on factory calib frequencies */
 	u8 grp_channel;
@@ -2077,6 +2084,7 @@ static int iwl3945_hw_reg_get_matched_power_index(struct iwl_priv *priv,
 				       s32 setting_index, s32 *new_index)
 {
 	const struct iwl3945_eeprom_txpower_group *chnl_grp = NULL;
+	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
 	s32 index0, index1;
 	s32 power = 2 * requested_power;
 	s32 i;
@@ -2085,7 +2093,7 @@ static int iwl3945_hw_reg_get_matched_power_index(struct iwl_priv *priv,
 	s32 res;
 	s32 denominator;
 
-	chnl_grp = &priv->eeprom39.groups[setting_index];
+	chnl_grp = &eeprom->groups[setting_index];
 	samples = chnl_grp->samples;
 	for (i = 0; i < 5; i++) {
 		if (power == samples[i].power) {
@@ -2124,6 +2132,7 @@ static void iwl3945_hw_reg_init_channel_groups(struct iwl_priv *priv)
 {
 	u32 i;
 	s32 rate_index;
+	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
 	const struct iwl3945_eeprom_txpower_group *group;
 
 	IWL_DEBUG_POWER("Initializing factory calib info from EEPROM\n");
@@ -2131,7 +2140,7 @@ static void iwl3945_hw_reg_init_channel_groups(struct iwl_priv *priv)
 	for (i = 0; i < IWL_NUM_TX_CALIB_GROUPS; i++) {
 		s8 *clip_pwrs;	/* table of power levels for each rate */
 		s8 satur_pwr;	/* saturation power for each chnl group */
-		group = &priv->eeprom39.groups[i];
+		group = &eeprom->groups[i];
 
 		/* sanity check on factory saturation power value */
 		if (group->saturation_power < 40) {
@@ -2204,6 +2213,7 @@ int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv)
 {
 	struct iwl_channel_info *ch_info = NULL;
 	struct iwl3945_channel_power_info *pwr_info;
+	struct iwl3945_eeprom *eeprom = (struct iwl3945_eeprom *)priv->eeprom;
 	int delta_index;
 	u8 rate_index;
 	u8 scan_tbl_index;
@@ -2238,7 +2248,7 @@ int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv)
 		/* calculate power index *adjustment* value according to
 		 *  diff between current temperature and factory temperature */
 		delta_index = iwl3945_hw_reg_adjust_power_by_temp(temperature,
-				priv->eeprom39.groups[ch_info->group_index].
+				eeprom->groups[ch_info->group_index].
 				temperature);
 
 		IWL_DEBUG_POWER("Delta index for channel %d: %d [%d]\n",
@@ -2585,6 +2595,33 @@ static int iwl3945_verify_bsm(struct iwl_priv *priv)
 	return 0;
 }
 
+
+/******************************************************************************
+ *
+ * EEPROM related functions
+ *
+ ******************************************************************************/
+
+/*
+ * Clear the OWNER_MSK, to establish driver (instead of uCode running on
+ * embedded controller) as EEPROM reader; each read is a series of pulses
+ * to/from the EEPROM chip, not a single event, so even reads could conflict
+ * if they weren't arbitrated by some ownership mechanism.  Here, the driver
+ * simply claims ownership, which should be safe when this function is called
+ * (i.e. before loading uCode!).
+ */
+static int iwl3945_eeprom_acquire_semaphore(struct iwl_priv *priv)
+{
+	_iwl_clear_bit(priv, CSR_EEPROM_GP, CSR_EEPROM_GP_IF_OWNER_MSK);
+	return 0;
+}
+
+
+static void iwl3945_eeprom_release_semaphore(struct iwl_priv *priv)
+{
+	return;
+}
+
  /**
   * iwl3945_load_bsm - Load bootstrap instructions
   *
@@ -2715,6 +2752,21 @@ static struct iwl_lib_ops iwl3945_lib = {
 		.config = iwl3945_nic_config,
 		.set_pwr_src = iwl3945_set_pwr_src,
 	},
+	.eeprom_ops = {
+		.regulatory_bands = {
+			EEPROM_REGULATORY_BAND_1_CHANNELS,
+			EEPROM_REGULATORY_BAND_2_CHANNELS,
+			EEPROM_REGULATORY_BAND_3_CHANNELS,
+			EEPROM_REGULATORY_BAND_4_CHANNELS,
+			EEPROM_REGULATORY_BAND_5_CHANNELS,
+			IWL3945_EEPROM_IMG_SIZE,
+			IWL3945_EEPROM_IMG_SIZE,
+		},
+		.verify_signature  = iwlcore_eeprom_verify_signature,
+		.acquire_semaphore = iwl3945_eeprom_acquire_semaphore,
+		.release_semaphore = iwl3945_eeprom_release_semaphore,
+		.query_addr = iwlcore_eeprom_query_addr,
+	},
 	.send_tx_power	= iwl3945_send_tx_power,
 };
 
@@ -2733,6 +2785,8 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.ucode_api_max = IWL3945_UCODE_API_MAX,
 	.ucode_api_min = IWL3945_UCODE_API_MIN,
 	.sku = IWL_SKU_G,
+	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
+	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
 	.mod_params = &iwl3945_mod_params
 };
@@ -2743,6 +2797,8 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.ucode_api_max = IWL3945_UCODE_API_MAX,
 	.ucode_api_min = IWL3945_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
+	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
+	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
 	.mod_params = &iwl3945_mod_params
 };
