@@ -1615,6 +1615,7 @@ static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_sta_def_wmm_params(sdata, bss);
 
+	ifsta->flags |= IEEE80211_STA_PREV_BSSID_SET;
 	ifsta->state = IEEE80211_STA_MLME_IBSS_JOINED;
 	mod_timer(&ifsta->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
 
@@ -2178,19 +2179,18 @@ static int ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata,
 	int i;
 	int ret;
 
-#if 0
-	/* Easier testing, use fixed BSSID. */
-	memset(bssid, 0xfe, ETH_ALEN);
-#else
-	/* Generate random, not broadcast, locally administered BSSID. Mix in
-	 * own MAC address to make sure that devices that do not have proper
-	 * random number generator get different BSSID. */
-	get_random_bytes(bssid, ETH_ALEN);
-	for (i = 0; i < ETH_ALEN; i++)
-		bssid[i] ^= sdata->dev->dev_addr[i];
-	bssid[0] &= ~0x01;
-	bssid[0] |= 0x02;
-#endif
+	if (sdata->u.sta.flags & IEEE80211_STA_BSSID_SET) {
+		memcpy(bssid, ifsta->bssid, ETH_ALEN);
+	} else {
+		/* Generate random, not broadcast, locally administered BSSID. Mix in
+		 * own MAC address to make sure that devices that do not have proper
+		 * random number generator get different BSSID. */
+		get_random_bytes(bssid, ETH_ALEN);
+		for (i = 0; i < ETH_ALEN; i++)
+			bssid[i] ^= sdata->dev->dev_addr[i];
+		bssid[0] &= ~0x01;
+		bssid[0] |= 0x02;
+	}
 
 	printk(KERN_DEBUG "%s: Creating new IBSS network, BSSID %pM\n",
 	       sdata->dev->name, bssid);
@@ -2251,6 +2251,9 @@ static int ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata,
 		    memcmp(ifsta->ssid, bss->ssid, bss->ssid_len) != 0
 		    || !(bss->capability & WLAN_CAPABILITY_IBSS))
 			continue;
+		if ((ifsta->flags & IEEE80211_STA_BSSID_SET) &&
+		    memcmp(ifsta->bssid, bss->bssid, ETH_ALEN) != 0)
+			continue;
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 		printk(KERN_DEBUG "   bssid=%pM found\n", bss->bssid);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
@@ -2267,7 +2270,9 @@ static int ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata,
 		       "%pM\n", bssid, ifsta->bssid);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 
-	if (found && memcmp(ifsta->bssid, bssid, ETH_ALEN) != 0) {
+	if (found &&
+	    ((!(ifsta->flags & IEEE80211_STA_PREV_BSSID_SET)) ||
+	     memcmp(ifsta->bssid, bssid, ETH_ALEN) != 0)) {
 		int ret;
 		int search_freq;
 
@@ -2605,16 +2610,16 @@ int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size
 		memset(ifsta->ssid, 0, sizeof(ifsta->ssid));
 		memcpy(ifsta->ssid, ssid, len);
 		ifsta->ssid_len = len;
-		ifsta->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
 	}
+
+	ifsta->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
 
 	if (len)
 		ifsta->flags |= IEEE80211_STA_SSID_SET;
 	else
 		ifsta->flags &= ~IEEE80211_STA_SSID_SET;
 
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-	    !(ifsta->flags & IEEE80211_STA_BSSID_SET)) {
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		ifsta->ibss_join_req = jiffies;
 		ifsta->state = IEEE80211_STA_MLME_IBSS_SEARCH;
 		return ieee80211_sta_find_ibss(sdata, ifsta);
@@ -2634,36 +2639,25 @@ int ieee80211_sta_get_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size
 int ieee80211_sta_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid)
 {
 	struct ieee80211_if_sta *ifsta;
-	int res;
-	bool valid;
 
 	ifsta = &sdata->u.sta;
-	valid = is_valid_ether_addr(bssid);
 
-	if (memcmp(ifsta->bssid, bssid, ETH_ALEN) != 0) {
-		if(valid)
-			memcpy(ifsta->bssid, bssid, ETH_ALEN);
-		else
-			memset(ifsta->bssid, 0, ETH_ALEN);
-		res = 0;
-		/*
-		 * Hack! See also ieee80211_sta_set_ssid.
-		 */
-		if (netif_running(sdata->dev))
-			res = ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID);
-		if (res) {
+	if (is_valid_ether_addr(bssid)) {
+		memcpy(ifsta->bssid, bssid, ETH_ALEN);
+		ifsta->flags |= IEEE80211_STA_BSSID_SET;
+	} else {
+		memset(ifsta->bssid, 0, ETH_ALEN);
+		ifsta->flags &= ~IEEE80211_STA_BSSID_SET;
+	}
+
+	if (netif_running(sdata->dev)) {
+		if (ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID)) {
 			printk(KERN_DEBUG "%s: Failed to config new BSSID to "
 			       "the low-level driver\n", sdata->dev->name);
-			return res;
 		}
 	}
 
-	if (valid)
-		ifsta->flags |= IEEE80211_STA_BSSID_SET;
-	else
-		ifsta->flags &= ~IEEE80211_STA_BSSID_SET;
-
-	return 0;
+	return ieee80211_sta_set_ssid(sdata, ifsta->ssid, ifsta->ssid_len);
 }
 
 int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata, char *ie, size_t len)
