@@ -2734,28 +2734,6 @@ static void airo_networks_initialize(struct airo_info *ai)
 			      &ai->network_free_list);
 }
 
-static int airo_test_wpa_capable(struct airo_info *ai)
-{
-	int status;
-	CapabilityRid cap_rid;
-
-	status = readCapabilityRid(ai, &cap_rid, 1);
-	if (status != SUCCESS) return 0;
-
-	/* Only firmware versions 5.30.17 or better can do WPA */
-	if (le16_to_cpu(cap_rid.softVer) > 0x530
-	  || (le16_to_cpu(cap_rid.softVer) == 0x530
-	      && le16_to_cpu(cap_rid.softSubVer) >= 17)) {
-		airo_print_info("", "WPA is supported.");
-		return 1;
-	}
-
-	/* No WPA support */
-	airo_print_info("", "WPA unsupported (only firmware versions 5.30.17"
-		" and greater support WPA.  Detected %s)", cap_rid.prodVer);
-	return 0;
-}
-
 static struct net_device *_init_airo_card( unsigned short irq, int port,
 					   int is_pcmcia, struct pci_dev *pci,
 					   struct device *dmdev )
@@ -2763,6 +2741,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	struct net_device *dev;
 	struct airo_info *ai;
 	int i, rc;
+	CapabilityRid cap_rid;
 
 	/* Create the network device object. */
 	dev = alloc_netdev(sizeof(*ai), "", ether_setup);
@@ -2832,7 +2811,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	}
 
 	if (probe) {
-		if ( setup_card( ai, dev->dev_addr, 1 ) != SUCCESS ) {
+		if (setup_card(ai, dev->dev_addr, 1) != SUCCESS) {
 			airo_print_err(dev->name, "MAC could not be enabled" );
 			rc = -EIO;
 			goto err_out_map;
@@ -2840,18 +2819,6 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	} else if (!test_bit(FLAG_MPI,&ai->flags)) {
 		ai->bap_read = fast_bap_read;
 		set_bit(FLAG_FLASHING, &ai->flags);
-	}
-
-	/* Test for WPA support */
-	if (airo_test_wpa_capable(ai)) {
-		set_bit(FLAG_WPA_CAPABLE, &ai->flags);
-		ai->bssListFirst = RID_WPA_BSSLISTFIRST;
-		ai->bssListNext = RID_WPA_BSSLISTNEXT;
-		ai->bssListRidLen = sizeof(BSSListRid);
-	} else {
-		ai->bssListFirst = RID_BSSLISTFIRST;
-		ai->bssListNext = RID_BSSLISTNEXT;
-		ai->bssListRidLen = sizeof(BSSListRid) - sizeof(BSSListRidExtra);
 	}
 
 	strcpy(dev->name, "eth%d");
@@ -2863,6 +2830,37 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	ai->wifidev = init_wifidev(ai, dev);
 	if (!ai->wifidev)
 		goto err_out_reg;
+
+	rc = readCapabilityRid(ai, &cap_rid, 1);
+	if (rc != SUCCESS) {
+		rc = -EIO;
+		goto err_out_wifi;
+	}
+
+	airo_print_info(dev->name, "Firmware version %x.%x.%02x",
+	                ((le16_to_cpu(cap_rid.softVer) >> 8) & 0xF),
+	                (le16_to_cpu(cap_rid.softVer) & 0xFF),
+	                le16_to_cpu(cap_rid.softSubVer));
+
+	/* Test for WPA support */
+	/* Only firmware versions 5.30.17 or better can do WPA */
+	if (le16_to_cpu(cap_rid.softVer) > 0x530
+	 || (le16_to_cpu(cap_rid.softVer) == 0x530
+	      && le16_to_cpu(cap_rid.softSubVer) >= 17)) {
+		airo_print_info(ai->dev->name, "WPA supported.");
+
+		set_bit(FLAG_WPA_CAPABLE, &ai->flags);
+		ai->bssListFirst = RID_WPA_BSSLISTFIRST;
+		ai->bssListNext = RID_WPA_BSSLISTNEXT;
+		ai->bssListRidLen = sizeof(BSSListRid);
+	} else {
+		airo_print_info(ai->dev->name, "WPA unsupported with firmware "
+			"versions older than 5.30.17.");
+
+		ai->bssListFirst = RID_BSSLISTFIRST;
+		ai->bssListNext = RID_BSSLISTNEXT;
+		ai->bssListRidLen = sizeof(BSSListRid) - sizeof(BSSListRidExtra);
+	}
 
 	set_bit(FLAG_REGISTERED,&ai->flags);
 	airo_print_info(dev->name, "MAC enabled %pM", dev->dev_addr);
