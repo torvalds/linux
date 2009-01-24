@@ -3191,6 +3191,7 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 	 * Baseband attennuation. Subtract it. */
 	bbatt_delta -= 4 * rfatt_delta;
 
+#if B43_DEBUG
 	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
 		int dbm = pwr_adjust < 0 ? -pwr_adjust : pwr_adjust;
 		b43dbg(dev->wl,
@@ -3199,6 +3200,8 @@ static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
 		       (pwr_adjust < 0 ? "-" : ""), Q52_ARG(dbm),
 		       bbatt_delta, rfatt_delta);
 	}
+#endif /* DEBUG */
+
 	/* So do we finally need to adjust something in hardware? */
 	if ((rfatt_delta == 0) && (bbatt_delta == 0))
 		goto no_adjustment_needed;
