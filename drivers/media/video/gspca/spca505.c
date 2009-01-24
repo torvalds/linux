@@ -650,8 +650,31 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
+	return 0;
+}
+
+static void setbrightness(struct gspca_dev *gspca_dev)
+{
 	struct sd *sd = (struct sd *) gspca_dev;
-	int ret;
+	u8 brightness = sd->brightness;
+
+	reg_write(gspca_dev->dev, 0x05, 0x00, (255 - brightness) >> 6);
+	reg_write(gspca_dev->dev, 0x05, 0x01, (255 - brightness) << 2);
+}
+
+static int sd_start(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct usb_device *dev = gspca_dev->dev;
+	int ret, mode;
+	static u8 mode_tb[][3] = {
+	/*	  r00   r06   r07	*/
+		{0x00, 0x10, 0x10},	/* 640x480 */
+		{0x01, 0x1a, 0x1a},	/* 352x288 */
+		{0x02, 0x1c, 0x1d},	/* 320x240 */
+		{0x04, 0x34, 0x34},	/* 176x144 */
+		{0x05, 0x40, 0x40}	/* 160x120 */
+	};
 
 	if (sd->subtype == Nxultra)
 		write_vector(gspca_dev, spca505b_open_data_ccd);
@@ -675,30 +698,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	if (ret < 0)
 		return ret;
 	reg_write(gspca_dev->dev, 0x05, 0xc2, 0x12);
-	return 0;
-}
-
-static void setbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	u8 brightness = sd->brightness;
-
-	reg_write(gspca_dev->dev, 0x05, 0x00, (255 - brightness) >> 6);
-	reg_write(gspca_dev->dev, 0x05, 0x01, (255 - brightness) << 2);
-}
-
-static int sd_start(struct gspca_dev *gspca_dev)
-{
-	struct usb_device *dev = gspca_dev->dev;
-	int ret, mode;
-	static u8 mode_tb[][3] = {
-	/*	  r00   r06   r07	*/
-		{0x00, 0x10, 0x10},	/* 640x480 */
-		{0x01, 0x1a, 0x1a},	/* 352x288 */
-		{0x02, 0x1c, 0x1d},	/* 320x240 */
-		{0x04, 0x34, 0x34},	/* 176x144 */
-		{0x05, 0x40, 0x40}	/* 160x120 */
-	};
 
 	/* necessary because without it we can see stream
 	 * only once after loading module */
