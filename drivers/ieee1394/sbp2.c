@@ -1413,8 +1413,7 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 			  "(firmware_revision 0x%06x, vendor_id 0x%06x,"
 			  " model_id 0x%06x)",
 			  NODE_BUS_ARGS(ud->ne->host, ud->ne->nodeid),
-			  workarounds, firmware_revision,
-			  ud->vendor_id ? ud->vendor_id : ud->ne->vendor_id,
+			  workarounds, firmware_revision, ud->vendor_id,
 			  model);
 
 	/* We would need one SCSI host template for each target to adjust
