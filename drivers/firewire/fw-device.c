@@ -657,7 +657,8 @@ static void fw_device_shutdown(struct work_struct *work)
 		container_of(work, struct fw_device, work.work);
 	int minor = MINOR(device->device.devt);
 
-	if (time_is_after_jiffies(device->card->reset_jiffies + SHUTDOWN_DELAY)) {
+	if (time_is_after_jiffies(device->card->reset_jiffies + SHUTDOWN_DELAY)
+	    && !list_empty(&device->card->link)) {
 		schedule_delayed_work(&device->work, SHUTDOWN_DELAY);
 		return;
 	}
@@ -1074,7 +1075,8 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		if (atomic_xchg(&device->state,
 				FW_DEVICE_GONE) == FW_DEVICE_RUNNING) {
 			PREPARE_DELAYED_WORK(&device->work, fw_device_shutdown);
-			schedule_delayed_work(&device->work, SHUTDOWN_DELAY);
+			schedule_delayed_work(&device->work,
+				list_empty(&card->link) ? 0 : SHUTDOWN_DELAY);
 		}
 		break;
 	}
