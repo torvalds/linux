@@ -3059,6 +3059,9 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 		hpriv->main_irq_mask_addr  = mmio + PCI_HC_MAIN_IRQ_MASK_OFS;
 	}
 
+	/* initialize shadow irq mask with register's value */
+	hpriv->main_irq_mask = readl(hpriv->main_irq_mask_addr);
+
 	/* global interrupt mask: 0 == mask everything */
 	mv_set_main_irq_mask(host, ~0, 0);
 
