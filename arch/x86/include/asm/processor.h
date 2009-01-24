@@ -73,7 +73,7 @@ struct cpuinfo_x86 {
 	char			pad0;
 #else
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
-	int			 x86_tlbsize;
+	int			x86_tlbsize;
 	__u8			x86_virt_bits;
 	__u8			x86_phys_bits;
 #endif
