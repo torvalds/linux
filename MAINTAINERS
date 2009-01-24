@@ -4924,11 +4924,11 @@ L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 ZR36067 VIDEO FOR LINUX DRIVER
-P:	Ronald Bultje
-M:	rbultje@ronald.bitfreak.net
 L:	mjpeg-users@lists.sourceforge.net
+L:	linux-media@vger.kernel.org
 W:	http://mjpeg.sourceforge.net/driver-zoran/
-S:	Maintained
+T:	Mercurial http://linuxtv.org/hg/v4l-dvb
+S:	Odd Fixes
 
 ZS DECSTATION Z85C30 SERIAL DRIVER
 P:	Maciej W. Rozycki
