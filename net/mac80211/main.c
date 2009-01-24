@@ -858,7 +858,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	mdev->set_multicast_list = ieee80211_master_set_multicast_list;
 
 	local->hw.workqueue =
-		create_freezeable_workqueue(wiphy_name(local->hw.wiphy));
+		create_singlethread_workqueue(wiphy_name(local->hw.wiphy));
 	if (!local->hw.workqueue) {
 		result = -ENOMEM;
 		goto fail_workqueue;
