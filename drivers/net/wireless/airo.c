@@ -1094,12 +1094,6 @@ typedef struct wep_key_t {
 	u8	key[16];	/* 40-bit and 104-bit keys */
 } wep_key_t;
 
-/* Backward compatibility */
-#ifndef IW_ENCODE_NOKEY
-#define IW_ENCODE_NOKEY         0x0800  /* Key is write only, so not present */
-#define IW_ENCODE_MODE  (IW_ENCODE_DISABLED | IW_ENCODE_RESTRICTED | IW_ENCODE_OPEN)
-#endif /* IW_ENCODE_NOKEY */
-
 /* List of Wireless Handlers (new API) */
 static const struct iw_handler_def	airo_handler_def;
 
