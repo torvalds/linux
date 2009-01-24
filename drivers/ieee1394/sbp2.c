@@ -347,8 +347,8 @@ static struct scsi_host_template sbp2_shost_template = {
 	.sdev_attrs		 = sbp2_sysfs_sdev_attrs,
 };
 
-/* for match-all entries in sbp2_workarounds_table */
-#define SBP2_ROM_VALUE_WILDCARD 0x1000000
+#define SBP2_ROM_VALUE_WILDCARD ~0         /* match all */
+#define SBP2_ROM_VALUE_MISSING  0xff000000 /* not present in the unit dir. */
 
 /*
  * List of devices with known bugs.
@@ -359,60 +359,60 @@ static struct scsi_host_template sbp2_shost_template = {
  */
 static const struct {
 	u32 firmware_revision;
-	u32 model_id;
+	u32 model;
 	unsigned workarounds;
 } sbp2_workarounds_table[] = {
 	/* DViCO Momobay CX-1 with TSB42AA9 bridge */ {
 		.firmware_revision	= 0x002800,
-		.model_id		= 0x001010,
+		.model			= 0x001010,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36 |
 					  SBP2_WORKAROUND_MODE_SENSE_8 |
 					  SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* DViCO Momobay FX-3A with TSB42AA9A bridge */ {
 		.firmware_revision	= 0x002800,
-		.model_id		= 0x000000,
+		.model			= 0x000000,
 		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY |
 					  SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,
-		.model_id		= SBP2_ROM_VALUE_WILDCARD,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36,
 	},
 	/* PL-3507 bridge with Prolific firmware */ {
 		.firmware_revision	= 0x012800,
-		.model_id		= SBP2_ROM_VALUE_WILDCARD,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Symbios bridge */ {
 		.firmware_revision	= 0xa0b800,
-		.model_id		= SBP2_ROM_VALUE_WILDCARD,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
 	},
 	/* Datafab MD2-FW2 with Symbios/LSILogic SYM13FW500 bridge */ {
 		.firmware_revision	= 0x002600,
-		.model_id		= SBP2_ROM_VALUE_WILDCARD,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
 	},
 	/* iPod 4th generation */ {
 		.firmware_revision	= 0x0a2700,
-		.model_id		= 0x000021,
+		.model			= 0x000021,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
 	},
 	/* iPod mini */ {
 		.firmware_revision	= 0x0a2700,
-		.model_id		= 0x000022,
+		.model			= 0x000022,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
 	},
 	/* iPod mini */ {
 		.firmware_revision	= 0x0a2700,
-		.model_id		= 0x000023,
+		.model			= 0x000023,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
 	},
 	/* iPod Photo */ {
 		.firmware_revision	= 0x0a2700,
-		.model_id		= 0x00007e,
+		.model			= 0x00007e,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
 	}
 };
@@ -1341,13 +1341,15 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 	struct csr1212_keyval *kv;
 	struct csr1212_dentry *dentry;
 	u64 management_agent_addr;
-	u32 unit_characteristics, firmware_revision;
+	u32 unit_characteristics, firmware_revision, model;
 	unsigned workarounds;
 	int i;
 
 	management_agent_addr = 0;
 	unit_characteristics = 0;
-	firmware_revision = 0;
+	firmware_revision = SBP2_ROM_VALUE_MISSING;
+	model = ud->flags & UNIT_DIRECTORY_MODEL_ID ?
+				ud->model_id : SBP2_ROM_VALUE_MISSING;
 
 	csr1212_for_each_dir_entry(ud->ne->csr, kv, ud->ud_kv, dentry) {
 		switch (kv->key.id) {
@@ -1388,9 +1390,9 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 			    sbp2_workarounds_table[i].firmware_revision !=
 			    (firmware_revision & 0xffff00))
 				continue;
-			if (sbp2_workarounds_table[i].model_id !=
+			if (sbp2_workarounds_table[i].model !=
 			    SBP2_ROM_VALUE_WILDCARD &&
-			    sbp2_workarounds_table[i].model_id != ud->model_id)
+			    sbp2_workarounds_table[i].model != model)
 				continue;
 			workarounds |= sbp2_workarounds_table[i].workarounds;
 			break;
@@ -1403,7 +1405,7 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 			  NODE_BUS_ARGS(ud->ne->host, ud->ne->nodeid),
 			  workarounds, firmware_revision,
 			  ud->vendor_id ? ud->vendor_id : ud->ne->vendor_id,
-			  ud->model_id);
+			  model);
 
 	/* We would need one SCSI host template for each target to adjust
 	 * max_sectors on the fly, therefore warn only. */
