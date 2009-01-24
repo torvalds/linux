@@ -44,6 +44,9 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 		}
 	}
 
+	/* flush again, in case driver queued work */
+	flush_workqueue(local->hw.workqueue);
+
 	/* stop hardware */
 	if (local->open_count) {
 		ieee80211_led_radio(local, false);
