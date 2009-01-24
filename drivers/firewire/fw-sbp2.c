@@ -168,6 +168,7 @@ struct sbp2_target {
 	int address_high;
 	unsigned int workarounds;
 	unsigned int mgt_orb_timeout;
+	unsigned int max_payload;
 
 	int dont_block;	/* counter for each logical unit */
 	int blocked;	/* ditto */
@@ -1156,6 +1157,15 @@ static int sbp2_probe(struct device *dev)
 
 	sbp2_init_workarounds(tgt, model, firmware_revision);
 
+	/*
+	 * At S100 we can do 512 bytes per packet, at S200 1024 bytes,
+	 * and so on up to 4096 bytes.  The SBP-2 max_payload field
+	 * specifies the max payload size as 2 ^ (max_payload + 2), so
+	 * if we set this to max_speed + 7, we get the right value.
+	 */
+	tgt->max_payload = min(device->max_speed + 7, 10U);
+	tgt->max_payload = min(tgt->max_payload, device->card->max_receive - 1);
+
 	/* Do the login in a workqueue so we can easily reschedule retries. */
 	list_for_each_entry(lu, &tgt->lu_list, link)
 		sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
@@ -1434,7 +1444,6 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	struct sbp2_logical_unit *lu = cmd->device->hostdata;
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct sbp2_command_orb *orb;
-	unsigned int max_payload;
 	int generation, retval = SCSI_MLQUEUE_HOST_BUSY;
 
 	/*
@@ -1462,17 +1471,9 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	orb->done = done;
 	orb->cmd  = cmd;
 
-	orb->request.next.high   = cpu_to_be32(SBP2_ORB_NULL);
-	/*
-	 * At speed 100 we can do 512 bytes per packet, at speed 200,
-	 * 1024 bytes per packet etc.  The SBP-2 max_payload field
-	 * specifies the max payload size as 2 ^ (max_payload + 2), so
-	 * if we set this to max_speed + 7, we get the right value.
-	 */
-	max_payload = min(device->max_speed + 7,
-			  device->card->max_receive - 1);
+	orb->request.next.high = cpu_to_be32(SBP2_ORB_NULL);
 	orb->request.misc = cpu_to_be32(
-		COMMAND_ORB_MAX_PAYLOAD(max_payload) |
+		COMMAND_ORB_MAX_PAYLOAD(lu->tgt->max_payload) |
 		COMMAND_ORB_SPEED(device->max_speed) |
 		COMMAND_ORB_NOTIFY);
 
