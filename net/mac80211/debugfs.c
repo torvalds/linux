@@ -57,12 +57,61 @@ DEBUGFS_READONLY_FILE(long_retry_limit, 20, "%d",
 		      local->hw.conf.long_frame_max_tx_count);
 DEBUGFS_READONLY_FILE(total_ps_buffered, 20, "%d",
 		      local->total_ps_buffered);
-DEBUGFS_READONLY_FILE(wep_iv, 20, "%#06x",
+DEBUGFS_READONLY_FILE(wep_iv, 20, "%#08x",
 		      local->wep_iv & 0xffffff);
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, 100, "%s",
 		      local->rate_ctrl ? local->rate_ctrl->ops->name : "<unset>");
-DEBUGFS_READONLY_FILE(tsf, 20, "%#018llx",
-                      (unsigned long long) (local->ops->get_tsf ? local->ops->get_tsf(local_to_hw(local)) : 0));
+
+static ssize_t tsf_read(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	u64 tsf = 0;
+	char buf[100];
+
+	if (local->ops->get_tsf)
+		tsf = local->ops->get_tsf(local_to_hw(local));
+
+	snprintf(buf, sizeof(buf), "0x%016llx\n", (unsigned long long) tsf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, 19);
+}
+
+static ssize_t tsf_write(struct file *file,
+                         const char __user *user_buf,
+                         size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	unsigned long long tsf;
+	char buf[100];
+	size_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	if (strncmp(buf, "reset", 5) == 0) {
+		if (local->ops->reset_tsf) {
+			local->ops->reset_tsf(local_to_hw(local));
+			printk(KERN_INFO "%s: debugfs reset TSF\n", wiphy_name(local->hw.wiphy));
+		}
+	} else {
+		tsf = simple_strtoul(buf, NULL, 0);
+		if (local->ops->set_tsf) {
+			local->ops->set_tsf(local_to_hw(local), tsf);
+			printk(KERN_INFO "%s: debugfs set TSF to %#018llx\n", wiphy_name(local->hw.wiphy), tsf);
+		}
+	}
+
+	return count;
+}
+
+static const struct file_operations tsf_ops = {
+	.read = tsf_read,
+	.write = tsf_write,
+	.open = mac80211_open_file_generic
+};
 
 /* statistics stuff */
 

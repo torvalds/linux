@@ -239,6 +239,7 @@ static int ath5k_get_stats(struct ieee80211_hw *hw,
 static int ath5k_get_tx_stats(struct ieee80211_hw *hw,
 		struct ieee80211_tx_queue_stats *stats);
 static u64 ath5k_get_tsf(struct ieee80211_hw *hw);
+static void ath5k_set_tsf(struct ieee80211_hw *hw, u64 tsf);
 static void ath5k_reset_tsf(struct ieee80211_hw *hw);
 static int ath5k_beacon_update(struct ath5k_softc *sc,
 		struct sk_buff *skb);
@@ -261,6 +262,7 @@ static struct ieee80211_ops ath5k_hw_ops = {
 	.conf_tx 	= NULL,
 	.get_tx_stats 	= ath5k_get_tx_stats,
 	.get_tsf 	= ath5k_get_tsf,
+	.set_tsf 	= ath5k_set_tsf,
 	.reset_tsf 	= ath5k_reset_tsf,
 	.bss_info_changed = ath5k_bss_info_changed,
 };
@@ -3108,6 +3110,14 @@ ath5k_get_tsf(struct ieee80211_hw *hw)
 	struct ath5k_softc *sc = hw->priv;
 
 	return ath5k_hw_get_tsf64(sc->ah);
+}
+
+static void
+ath5k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
+{
+	struct ath5k_softc *sc = hw->priv;
+
+	ath5k_hw_set_tsf64(sc->ah, tsf);
 }
 
 static void

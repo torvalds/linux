@@ -2451,6 +2451,14 @@ static u64 ath9k_get_tsf(struct ieee80211_hw *hw)
 	return tsf;
 }
 
+static void ath9k_set_tsf(struct ieee80211_hw *hw, u64 tsf)
+{
+	struct ath_softc *sc = hw->priv;
+	struct ath_hal *ah = sc->sc_ah;
+
+	ath9k_hw_settsf64(ah, tsf);
+}
+
 static void ath9k_reset_tsf(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
@@ -2514,6 +2522,7 @@ struct ieee80211_ops ath9k_ops = {
 	.bss_info_changed   = ath9k_bss_info_changed,
 	.set_key            = ath9k_set_key,
 	.get_tsf 	    = ath9k_get_tsf,
+	.set_tsf 	    = ath9k_set_tsf,
 	.reset_tsf 	    = ath9k_reset_tsf,
 	.ampdu_action       = ath9k_ampdu_action,
 };

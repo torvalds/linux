@@ -1359,7 +1359,11 @@ enum ieee80211_ampdu_mlme_action {
  *	hw->ampdu_queues items.
  *
  * @get_tsf: Get the current TSF timer value from firmware/hardware. Currently,
- *	this is only used for IBSS mode debugging and, as such, is not a
+ *	this is only used for IBSS mode BSSID merging and debugging. Is not a
+ *	required function. Must be atomic.
+ *
+ * @set_tsf: Set the TSF timer to the specified value in the firmware/hardware.
+ *      Currently, this is only used for IBSS mode debugging. Is not a
  *	required function. Must be atomic.
  *
  * @reset_tsf: Reset the TSF timer and allow firmware/hardware to synchronize
@@ -1421,6 +1425,7 @@ struct ieee80211_ops {
 	int (*get_tx_stats)(struct ieee80211_hw *hw,
 			    struct ieee80211_tx_queue_stats *stats);
 	u64 (*get_tsf)(struct ieee80211_hw *hw);
+	void (*set_tsf)(struct ieee80211_hw *hw, u64 tsf);
 	void (*reset_tsf)(struct ieee80211_hw *hw);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
 	int (*ampdu_action)(struct ieee80211_hw *hw,
