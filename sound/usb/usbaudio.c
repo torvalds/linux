@@ -1280,14 +1280,14 @@ static int init_usb_sample_rate(struct usb_device *dev, int iface,
 		if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), SET_CUR,
 					   USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_OUT,
 					   SAMPLING_FREQ_CONTROL << 8, ep, data, 3, 1000)) < 0) {
-			snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d to ep 0x%x\n",
+			snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d to ep %#x\n",
 				   dev->devnum, iface, fmt->altsetting, rate, ep);
 			return err;
 		}
 		if ((err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), GET_CUR,
 					   USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_IN,
 					   SAMPLING_FREQ_CONTROL << 8, ep, data, 3, 1000)) < 0) {
-			snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq at ep 0x%x\n",
+			snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq at ep %#x\n",
 				   dev->devnum, iface, fmt->altsetting, ep);
 			return 0; /* some devices don't support reading */
 		}
@@ -1456,7 +1456,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	channels = params_channels(hw_params);
 	fmt = find_format(subs, format, rate, channels);
 	if (!fmt) {
-		snd_printd(KERN_DEBUG "cannot set format: format = 0x%x, rate = %d, channels = %d\n",
+		snd_printd(KERN_DEBUG "cannot set format: format = %#x, rate = %d, channels = %d\n",
 			   format, rate, channels);
 		return -EINVAL;
 	}
@@ -2148,7 +2148,7 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 		fp = list_entry(p, struct audioformat, list);
 		snd_iprintf(buffer, "  Interface %d\n", fp->iface);
 		snd_iprintf(buffer, "    Altset %d\n", fp->altsetting);
-		snd_iprintf(buffer, "    Format: 0x%x\n", fp->format);
+		snd_iprintf(buffer, "    Format: %#x\n", fp->format);
 		snd_iprintf(buffer, "    Channels: %d\n", fp->channels);
 		snd_iprintf(buffer, "    Endpoint: %d %s (%s)\n",
 			    fp->endpoint & USB_ENDPOINT_NUMBER_MASK,
@@ -2168,7 +2168,7 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 			snd_iprintf(buffer, "\n");
 		}
 		// snd_iprintf(buffer, "    Max Packet Size = %d\n", fp->maxpacksize);
-		// snd_iprintf(buffer, "    EP Attribute = 0x%x\n", fp->attributes);
+		// snd_iprintf(buffer, "    EP Attribute = %#x\n", fp->attributes);
 	}
 }
 
@@ -2607,7 +2607,7 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip, struct audioformat 
 		fp->format = SNDRV_PCM_FORMAT_MPEG;
 		break;
 	default:
-		snd_printd(KERN_INFO "%d:%u:%d : unknown format tag 0x%x is detected.  processed as MPEG.\n",
+		snd_printd(KERN_INFO "%d:%u:%d : unknown format tag %#x is detected.  processed as MPEG.\n",
 			   chip->dev->devnum, fp->iface, fp->altsetting, format);
 		fp->format = SNDRV_PCM_FORMAT_MPEG;
 		break;
@@ -2805,7 +2805,7 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			continue;
 		}
 
-		snd_printdd(KERN_INFO "%d:%u:%d: add audio endpoint 0x%x\n", dev->devnum, iface_no, altno, fp->endpoint);
+		snd_printdd(KERN_INFO "%d:%u:%d: add audio endpoint %#x\n", dev->devnum, iface_no, altno, fp->endpoint);
 		err = add_audio_endpoint(chip, stream, fp);
 		if (err < 0) {
 			kfree(fp->rate_table);
