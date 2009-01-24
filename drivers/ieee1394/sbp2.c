@@ -256,7 +256,7 @@ static int sbp2_set_busy_timeout(struct sbp2_lu *);
 static int sbp2_max_speed_and_size(struct sbp2_lu *);
 
 
-static const u8 sbp2_speedto_max_payload[] = { 0x7, 0x8, 0x9, 0xA, 0xB, 0xC };
+static const u8 sbp2_speedto_max_payload[] = { 0x7, 0x8, 0x9, 0xa, 0xa, 0xa };
 
 static DEFINE_RWLOCK(sbp2_hi_logical_units_lock);
 
