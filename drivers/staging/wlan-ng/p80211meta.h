@@ -65,36 +65,6 @@
 #endif
 
 /*================================================================*/
-/* Macros */
-
-/*----------------------------------------------------------------*/
-/* The following macros are used to ensure consistent naming */
-/*  conventions for all the different metadata lists. */
-
-#define MKREQMETANAME(name)		p80211meta_ ## req ## _ ## name
-#define MKINDMETANAME(name)		p80211meta_ ## ind ## _ ## name
-#define MKMIBMETANAME(name)		p80211meta_ ## mib ## _ ## name
-#define MKGRPMETANAME(name)		p80211meta_ ## grp ## _ ## name
-
-#define MKREQMETASIZE(name)		p80211meta_ ## req ## _ ## name ## _ ## size
-#define MKINDMETASIZE(name)		p80211meta_ ## ind ## _ ## name ## _ ## size
-#define MKMIBMETASIZE(name)		p80211meta_ ## mib ## _ ## name ## _ ## size
-#define MKGRPMETASIZE(name)		p80211meta_ ## grp ## _ ## name ## _ ## size
-
-#define GETMETASIZE(aptr)		(**((u32**)(aptr)))
-
-/*----------------------------------------------------------------*/
-/* The following ifdef depends on the following defines: */
-/*  P80211_NOINCLUDESTRINGS - if defined, all metadata name fields */
-/*                               are empty strings */
-
-#ifdef P80211_NOINCLUDESTRINGS
-	#define	MKITEMNAME(s)	("")
-#else
-	#define	MKITEMNAME(s)	(s)
-#endif
-
-/*================================================================*/
 /* Types */
 
 /*----------------------------------------------------------------*/
@@ -130,25 +100,10 @@ typedef struct catlistitem
 	grplistitem_t	*grplist;
 } catlistitem_t;
 
-/*================================================================*/
-/* Function Declarations */
-
-/*----------------------------------------------------------------*/
-/* */
-u32 p80211_text2did(catlistitem_t *catlist, char *catname, char *grpname, char *itemname);
-u32 p80211_text2catdid(catlistitem_t *list, char *name );
-u32 p80211_text2grpdid(grplistitem_t *list, char *name );
-u32 p80211_text2itemdid(p80211meta_t *list, char *name );
-u32 p80211_isvalid_did( catlistitem_t *catlist, u32 did );
-u32 p80211_isvalid_catdid( catlistitem_t *catlist, u32 did );
-u32 p80211_isvalid_grpdid( catlistitem_t *catlist, u32 did );
-u32 p80211_isvalid_itemdid( catlistitem_t *catlist, u32 did );
-catlistitem_t *p80211_did2cat( catlistitem_t *catlist, u32 did );
-grplistitem_t *p80211_did2grp( catlistitem_t *catlist, u32 did );
-p80211meta_t *p80211_did2item( catlistitem_t *catlist, u32 did );
-u32 p80211item_maxdatalen( struct catlistitem *metalist, u32 did );
-u32 p80211_metaname2did(struct catlistitem *metalist, char *itemname);
-u32 p80211item_getoffset( struct catlistitem *metalist, u32 did );
-int p80211item_gettype(p80211meta_t *meta);
-
 #endif /* _P80211META_H */
+
+
+
+
+
+
