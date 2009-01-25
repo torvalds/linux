@@ -45,6 +45,10 @@
 
 #include "osd_debug.h"
 
+#ifndef __unused
+#    define __unused			__attribute__((unused))
+#endif
+
 enum { OSD_REQ_RETRIES = 1 };
 
 MODULE_AUTHOR("Boaz Harrosh <bharrosh@panasas.com>");
@@ -61,6 +65,50 @@ static inline void build_test(void)
 static unsigned _osd_req_cdb_len(struct osd_request *or)
 {
 	return OSDv1_TOTAL_CDB_LEN;
+}
+
+static unsigned _osd_req_alist_elem_size(struct osd_request *or, unsigned len)
+{
+	return osdv1_attr_list_elem_size(len);
+}
+
+static unsigned _osd_req_alist_size(struct osd_request *or, void *list_head)
+{
+	return osdv1_list_size(list_head);
+}
+
+static unsigned _osd_req_sizeof_alist_header(struct osd_request *or)
+{
+	return sizeof(struct osdv1_attributes_list_header);
+}
+
+static void _osd_req_set_alist_type(struct osd_request *or,
+	void *list, int list_type)
+{
+	struct osdv1_attributes_list_header *attr_list = list;
+
+	memset(attr_list, 0, sizeof(*attr_list));
+	attr_list->type = list_type;
+}
+
+static bool _osd_req_is_alist_type(struct osd_request *or,
+	void *list, int list_type)
+{
+	if (!list)
+		return false;
+
+	if (1) {
+		struct osdv1_attributes_list_header *attr_list = list;
+
+		return attr_list->type == list_type;
+	}
+}
+
+static osd_cdb_offset osd_req_encode_offset(struct osd_request *or,
+	u64 offset, unsigned *padding)
+{
+	return __osd_encode_offset(offset, padding,
+				  OSDv1_OFFSET_MIN_SHIFT, OSD_OFFSET_MAX_SHIFT);
 }
 
 void osd_dev_init(struct osd_dev *osdd, struct scsi_device *scsi_device)
@@ -125,9 +173,24 @@ static void _abort_unexecuted_bios(struct request *rq)
 	}
 }
 
+static void _osd_free_seg(struct osd_request *or __unused,
+	struct _osd_req_data_segment *seg)
+{
+	if (!seg->buff || !seg->alloc_size)
+		return;
+
+	kfree(seg->buff);
+	seg->buff = NULL;
+	seg->alloc_size = 0;
+}
+
 void osd_end_request(struct osd_request *or)
 {
 	struct request *rq = or->request;
+
+	_osd_free_seg(or, &or->set_attr);
+	_osd_free_seg(or, &or->enc_get_attr);
+	_osd_free_seg(or, &or->get_attr);
 
 	if (rq) {
 		if (rq->next_rq) {
@@ -175,6 +238,54 @@ int osd_execute_request_async(struct osd_request *or,
 	return 0;
 }
 EXPORT_SYMBOL(osd_execute_request_async);
+
+u8 sg_out_pad_buffer[1 << OSDv1_OFFSET_MIN_SHIFT];
+u8 sg_in_pad_buffer[1 << OSDv1_OFFSET_MIN_SHIFT];
+
+static int _osd_realloc_seg(struct osd_request *or,
+	struct _osd_req_data_segment *seg, unsigned max_bytes)
+{
+	void *buff;
+
+	if (seg->alloc_size >= max_bytes)
+		return 0;
+
+	buff = krealloc(seg->buff, max_bytes, or->alloc_flags);
+	if (!buff) {
+		OSD_ERR("Failed to Realloc %d-bytes was-%d\n", max_bytes,
+			seg->alloc_size);
+		return -ENOMEM;
+	}
+
+	memset(buff + seg->alloc_size, 0, max_bytes - seg->alloc_size);
+	seg->buff = buff;
+	seg->alloc_size = max_bytes;
+	return 0;
+}
+
+static int _alloc_set_attr_list(struct osd_request *or,
+	const struct osd_attr *oa, unsigned nelem, unsigned add_bytes)
+{
+	unsigned total_bytes = add_bytes;
+
+	for (; nelem; --nelem, ++oa)
+		total_bytes += _osd_req_alist_elem_size(or, oa->len);
+
+	OSD_DEBUG("total_bytes=%d\n", total_bytes);
+	return _osd_realloc_seg(or, &or->set_attr, total_bytes);
+}
+
+static int _alloc_get_attr_desc(struct osd_request *or, unsigned max_bytes)
+{
+	OSD_DEBUG("total_bytes=%d\n", max_bytes);
+	return _osd_realloc_seg(or, &or->enc_get_attr, max_bytes);
+}
+
+static int _alloc_get_attr_list(struct osd_request *or)
+{
+	OSD_DEBUG("total_bytes=%d\n", or->get_attr.total_bytes);
+	return _osd_realloc_seg(or, &or->get_attr, or->get_attr.total_bytes);
+}
 
 /*
  * Common to all OSD commands
@@ -284,6 +395,410 @@ void osd_req_read(struct osd_request *or,
 }
 EXPORT_SYMBOL(osd_req_read);
 
+void osd_req_get_attributes(struct osd_request *or,
+	const struct osd_obj_id *obj)
+{
+	_osd_req_encode_common(or, OSD_ACT_GET_ATTRIBUTES, obj, 0, 0);
+}
+EXPORT_SYMBOL(osd_req_get_attributes);
+
+void osd_req_set_attributes(struct osd_request *or,
+	const struct osd_obj_id *obj)
+{
+	_osd_req_encode_common(or, OSD_ACT_SET_ATTRIBUTES, obj, 0, 0);
+}
+EXPORT_SYMBOL(osd_req_set_attributes);
+
+/*
+ * Attributes List-mode
+ */
+
+int osd_req_add_set_attr_list(struct osd_request *or,
+	const struct osd_attr *oa, unsigned nelem)
+{
+	unsigned total_bytes = or->set_attr.total_bytes;
+	void *attr_last;
+	int ret;
+
+	if (or->attributes_mode &&
+	    or->attributes_mode != OSD_CDB_GET_SET_ATTR_LISTS) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+	or->attributes_mode = OSD_CDB_GET_SET_ATTR_LISTS;
+
+	if (!total_bytes) { /* first-time: allocate and put list header */
+		total_bytes = _osd_req_sizeof_alist_header(or);
+		ret = _alloc_set_attr_list(or, oa, nelem, total_bytes);
+		if (ret)
+			return ret;
+		_osd_req_set_alist_type(or, or->set_attr.buff,
+					OSD_ATTR_LIST_SET_RETRIEVE);
+	}
+	attr_last = or->set_attr.buff + total_bytes;
+
+	for (; nelem; --nelem) {
+		struct osd_attributes_list_element *attr;
+		unsigned elem_size = _osd_req_alist_elem_size(or, oa->len);
+
+		total_bytes += elem_size;
+		if (unlikely(or->set_attr.alloc_size < total_bytes)) {
+			or->set_attr.total_bytes = total_bytes - elem_size;
+			ret = _alloc_set_attr_list(or, oa, nelem, total_bytes);
+			if (ret)
+				return ret;
+			attr_last =
+				or->set_attr.buff + or->set_attr.total_bytes;
+		}
+
+		attr = attr_last;
+		attr->attr_page = cpu_to_be32(oa->attr_page);
+		attr->attr_id = cpu_to_be32(oa->attr_id);
+		attr->attr_bytes = cpu_to_be16(oa->len);
+		memcpy(attr->attr_val, oa->val_ptr, oa->len);
+
+		attr_last += elem_size;
+		++oa;
+	}
+
+	or->set_attr.total_bytes = total_bytes;
+	return 0;
+}
+EXPORT_SYMBOL(osd_req_add_set_attr_list);
+
+static int _append_map_kern(struct request *req,
+	void *buff, unsigned len, gfp_t flags)
+{
+	struct bio *bio;
+	int ret;
+
+	bio = bio_map_kern(req->q, buff, len, flags);
+	if (IS_ERR(bio)) {
+		OSD_ERR("Failed bio_map_kern(%p, %d) => %ld\n", buff, len,
+			PTR_ERR(bio));
+		return PTR_ERR(bio);
+	}
+	ret = blk_rq_append_bio(req->q, req, bio);
+	if (ret) {
+		OSD_ERR("Failed blk_rq_append_bio(%p) => %d\n", bio, ret);
+		bio_put(bio);
+	}
+	return ret;
+}
+
+static int _req_append_segment(struct osd_request *or,
+	unsigned padding, struct _osd_req_data_segment *seg,
+	struct _osd_req_data_segment *last_seg, struct _osd_io_info *io)
+{
+	void *pad_buff;
+	int ret;
+
+	if (padding) {
+		/* check if we can just add it to last buffer */
+		if (last_seg &&
+		    (padding <= last_seg->alloc_size - last_seg->total_bytes))
+			pad_buff = last_seg->buff + last_seg->total_bytes;
+		else
+			pad_buff = io->pad_buff;
+
+		ret = _append_map_kern(io->req, pad_buff, padding,
+				       or->alloc_flags);
+		if (ret)
+			return ret;
+		io->total_bytes += padding;
+	}
+
+	ret = _append_map_kern(io->req, seg->buff, seg->total_bytes,
+			       or->alloc_flags);
+	if (ret)
+		return ret;
+
+	io->total_bytes += seg->total_bytes;
+	OSD_DEBUG("padding=%d buff=%p total_bytes=%d\n", padding, seg->buff,
+		  seg->total_bytes);
+	return 0;
+}
+
+static int _osd_req_finalize_set_attr_list(struct osd_request *or)
+{
+	struct osd_cdb_head *cdbh = osd_cdb_head(&or->cdb);
+	unsigned padding;
+	int ret;
+
+	if (!or->set_attr.total_bytes) {
+		cdbh->attrs_list.set_attr_offset = OSD_OFFSET_UNUSED;
+		return 0;
+	}
+
+	cdbh->attrs_list.set_attr_bytes = cpu_to_be32(or->set_attr.total_bytes);
+	cdbh->attrs_list.set_attr_offset =
+		osd_req_encode_offset(or, or->out.total_bytes, &padding);
+
+	ret = _req_append_segment(or, padding, &or->set_attr,
+				  or->out.last_seg, &or->out);
+	if (ret)
+		return ret;
+
+	or->out.last_seg = &or->set_attr;
+	return 0;
+}
+
+int osd_req_add_get_attr_list(struct osd_request *or,
+	const struct osd_attr *oa, unsigned nelem)
+{
+	unsigned total_bytes = or->enc_get_attr.total_bytes;
+	void *attr_last;
+	int ret;
+
+	if (or->attributes_mode &&
+	    or->attributes_mode != OSD_CDB_GET_SET_ATTR_LISTS) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+	or->attributes_mode = OSD_CDB_GET_SET_ATTR_LISTS;
+
+	/* first time calc data-in list header size */
+	if (!or->get_attr.total_bytes)
+		or->get_attr.total_bytes = _osd_req_sizeof_alist_header(or);
+
+	/* calc data-out info */
+	if (!total_bytes) { /* first-time: allocate and put list header */
+		unsigned max_bytes;
+
+		total_bytes = _osd_req_sizeof_alist_header(or);
+		max_bytes = total_bytes +
+			nelem * sizeof(struct osd_attributes_list_attrid);
+		ret = _alloc_get_attr_desc(or, max_bytes);
+		if (ret)
+			return ret;
+
+		_osd_req_set_alist_type(or, or->enc_get_attr.buff,
+					OSD_ATTR_LIST_GET);
+	}
+	attr_last = or->enc_get_attr.buff + total_bytes;
+
+	for (; nelem; --nelem) {
+		struct osd_attributes_list_attrid *attrid;
+		const unsigned cur_size = sizeof(*attrid);
+
+		total_bytes += cur_size;
+		if (unlikely(or->enc_get_attr.alloc_size < total_bytes)) {
+			or->enc_get_attr.total_bytes = total_bytes - cur_size;
+			ret = _alloc_get_attr_desc(or,
+					total_bytes + nelem * sizeof(*attrid));
+			if (ret)
+				return ret;
+			attr_last = or->enc_get_attr.buff +
+				or->enc_get_attr.total_bytes;
+		}
+
+		attrid = attr_last;
+		attrid->attr_page = cpu_to_be32(oa->attr_page);
+		attrid->attr_id = cpu_to_be32(oa->attr_id);
+
+		attr_last += cur_size;
+
+		/* calc data-in size */
+		or->get_attr.total_bytes +=
+			_osd_req_alist_elem_size(or, oa->len);
+		++oa;
+	}
+
+	or->enc_get_attr.total_bytes = total_bytes;
+
+	OSD_DEBUG(
+	       "get_attr.total_bytes=%u(%u) enc_get_attr.total_bytes=%u(%Zu)\n",
+	       or->get_attr.total_bytes,
+	       or->get_attr.total_bytes - _osd_req_sizeof_alist_header(or),
+	       or->enc_get_attr.total_bytes,
+	       (or->enc_get_attr.total_bytes - _osd_req_sizeof_alist_header(or))
+			/ sizeof(struct osd_attributes_list_attrid));
+
+	return 0;
+}
+EXPORT_SYMBOL(osd_req_add_get_attr_list);
+
+static int _osd_req_finalize_get_attr_list(struct osd_request *or)
+{
+	struct osd_cdb_head *cdbh = osd_cdb_head(&or->cdb);
+	unsigned out_padding;
+	unsigned in_padding;
+	int ret;
+
+	if (!or->enc_get_attr.total_bytes) {
+		cdbh->attrs_list.get_attr_desc_offset = OSD_OFFSET_UNUSED;
+		cdbh->attrs_list.get_attr_offset = OSD_OFFSET_UNUSED;
+		return 0;
+	}
+
+	ret = _alloc_get_attr_list(or);
+	if (ret)
+		return ret;
+
+	/* The out-going buffer info update */
+	OSD_DEBUG("out-going\n");
+	cdbh->attrs_list.get_attr_desc_bytes =
+		cpu_to_be32(or->enc_get_attr.total_bytes);
+
+	cdbh->attrs_list.get_attr_desc_offset =
+		osd_req_encode_offset(or, or->out.total_bytes, &out_padding);
+
+	ret = _req_append_segment(or, out_padding, &or->enc_get_attr,
+				  or->out.last_seg, &or->out);
+	if (ret)
+		return ret;
+	or->out.last_seg = &or->enc_get_attr;
+
+	/* The incoming buffer info update */
+	OSD_DEBUG("in-coming\n");
+	cdbh->attrs_list.get_attr_alloc_length =
+		cpu_to_be32(or->get_attr.total_bytes);
+
+	cdbh->attrs_list.get_attr_offset =
+		osd_req_encode_offset(or, or->in.total_bytes, &in_padding);
+
+	ret = _req_append_segment(or, in_padding, &or->get_attr, NULL,
+				  &or->in);
+	if (ret)
+		return ret;
+	or->in.last_seg = &or->get_attr;
+
+	return 0;
+}
+
+int osd_req_decode_get_attr_list(struct osd_request *or,
+	struct osd_attr *oa, int *nelem, void **iterator)
+{
+	unsigned cur_bytes, returned_bytes;
+	int n;
+	const unsigned sizeof_attr_list = _osd_req_sizeof_alist_header(or);
+	void *cur_p;
+
+	if (!_osd_req_is_alist_type(or, or->get_attr.buff,
+				    OSD_ATTR_LIST_SET_RETRIEVE)) {
+		oa->attr_page = 0;
+		oa->attr_id = 0;
+		oa->val_ptr = NULL;
+		oa->len = 0;
+		*iterator = NULL;
+		return 0;
+	}
+
+	if (*iterator) {
+		BUG_ON((*iterator < or->get_attr.buff) ||
+		     (or->get_attr.buff + or->get_attr.alloc_size < *iterator));
+		cur_p = *iterator;
+		cur_bytes = (*iterator - or->get_attr.buff) - sizeof_attr_list;
+		returned_bytes = or->get_attr.total_bytes;
+	} else { /* first time decode the list header */
+		cur_bytes = sizeof_attr_list;
+		returned_bytes = _osd_req_alist_size(or, or->get_attr.buff) +
+					sizeof_attr_list;
+
+		cur_p = or->get_attr.buff + sizeof_attr_list;
+
+		if (returned_bytes > or->get_attr.alloc_size) {
+			OSD_DEBUG("target report: space was not big enough! "
+				  "Allocate=%u Needed=%u\n",
+				  or->get_attr.alloc_size,
+				  returned_bytes + sizeof_attr_list);
+
+			returned_bytes =
+				or->get_attr.alloc_size - sizeof_attr_list;
+		}
+		or->get_attr.total_bytes = returned_bytes;
+	}
+
+	for (n = 0; (n < *nelem) && (cur_bytes < returned_bytes); ++n) {
+		struct osd_attributes_list_element *attr = cur_p;
+		unsigned inc;
+
+		oa->len = be16_to_cpu(attr->attr_bytes);
+		inc = _osd_req_alist_elem_size(or, oa->len);
+		OSD_DEBUG("oa->len=%d inc=%d cur_bytes=%d\n",
+			  oa->len, inc, cur_bytes);
+		cur_bytes += inc;
+		if (cur_bytes > returned_bytes) {
+			OSD_ERR("BAD FOOD from target. list not valid!"
+				"c=%d r=%d n=%d\n",
+				cur_bytes, returned_bytes, n);
+			oa->val_ptr = NULL;
+			break;
+		}
+
+		oa->attr_page = be32_to_cpu(attr->attr_page);
+		oa->attr_id = be32_to_cpu(attr->attr_id);
+		oa->val_ptr = attr->attr_val;
+
+		cur_p += inc;
+		++oa;
+	}
+
+	*iterator = (returned_bytes - cur_bytes) ? cur_p : NULL;
+	*nelem = n;
+	return returned_bytes - cur_bytes;
+}
+EXPORT_SYMBOL(osd_req_decode_get_attr_list);
+
+/*
+ * Attributes Page-mode
+ */
+
+int osd_req_add_get_attr_page(struct osd_request *or,
+	u32 page_id, void *attar_page, unsigned max_page_len,
+	const struct osd_attr *set_one_attr)
+{
+	struct osd_cdb_head *cdbh = osd_cdb_head(&or->cdb);
+
+	if (or->attributes_mode &&
+	    or->attributes_mode != OSD_CDB_GET_ATTR_PAGE_SET_ONE) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+	or->attributes_mode = OSD_CDB_GET_ATTR_PAGE_SET_ONE;
+
+	or->get_attr.buff = attar_page;
+	or->get_attr.total_bytes = max_page_len;
+
+	or->set_attr.buff = set_one_attr->val_ptr;
+	or->set_attr.total_bytes = set_one_attr->len;
+
+	cdbh->attrs_page.get_attr_page = cpu_to_be32(page_id);
+	cdbh->attrs_page.get_attr_alloc_length = cpu_to_be32(max_page_len);
+	/* ocdb->attrs_page.get_attr_offset; */
+
+	cdbh->attrs_page.set_attr_page = cpu_to_be32(set_one_attr->attr_page);
+	cdbh->attrs_page.set_attr_id = cpu_to_be32(set_one_attr->attr_id);
+	cdbh->attrs_page.set_attr_length = cpu_to_be32(set_one_attr->len);
+	/* ocdb->attrs_page.set_attr_offset; */
+	return 0;
+}
+EXPORT_SYMBOL(osd_req_add_get_attr_page);
+
+static int _osd_req_finalize_attr_page(struct osd_request *or)
+{
+	struct osd_cdb_head *cdbh = osd_cdb_head(&or->cdb);
+	unsigned in_padding, out_padding;
+	int ret;
+
+	/* returned page */
+	cdbh->attrs_page.get_attr_offset =
+		osd_req_encode_offset(or, or->in.total_bytes, &in_padding);
+
+	ret = _req_append_segment(or, in_padding, &or->get_attr, NULL,
+				  &or->in);
+	if (ret)
+		return ret;
+
+	/* set one value */
+	cdbh->attrs_page.set_attr_offset =
+		osd_req_encode_offset(or, or->out.total_bytes, &out_padding);
+
+	ret = _req_append_segment(or, out_padding, &or->enc_get_attr, NULL,
+				  &or->out);
+	return ret;
+}
+
 /*
  * osd_finalize_request and helpers
  */
@@ -378,9 +893,31 @@ int osd_finalize_request(struct osd_request *or,
 			_LLU(or->in.total_bytes), or->in.req->data_len);
 	}
 
+	or->out.pad_buff = sg_out_pad_buffer;
+	or->in.pad_buff = sg_in_pad_buffer;
+
 	if (!or->attributes_mode)
 		or->attributes_mode = OSD_CDB_GET_SET_ATTR_LISTS;
 	cdbh->command_specific_options |= or->attributes_mode;
+	if (or->attributes_mode == OSD_CDB_GET_ATTR_PAGE_SET_ONE) {
+		ret = _osd_req_finalize_attr_page(or);
+	} else {
+		/* TODO: I think that for the GET_ATTR command these 2 should
+		 * be reversed to keep them in execution order (for embeded
+		 * targets with low memory footprint)
+		 */
+		ret = _osd_req_finalize_set_attr_list(or);
+		if (ret) {
+			OSD_DEBUG("_osd_req_finalize_set_attr_list failed\n");
+			return ret;
+		}
+
+		ret = _osd_req_finalize_get_attr_list(or);
+		if (ret) {
+			OSD_DEBUG("_osd_req_finalize_get_attr_list failed\n");
+			return ret;
+		}
+	}
 
 	or->request->cmd = or->cdb.buff;
 	or->request->cmd_len = _osd_req_cdb_len(or);
@@ -445,4 +982,46 @@ EXPORT_SYMBOL(osd_sec_init_nosec_doall_caps);
 void osd_set_caps(struct osd_cdb *cdb, const void *caps)
 {
 	memcpy(&cdb->v1.caps, caps, OSDv1_CAP_LEN);
+}
+
+/*
+ * Declared in osd_protocol.h
+ * 4.12.5 Data-In and Data-Out buffer offsets
+ * byte offset = mantissa * (2^(exponent+8))
+ * Returns the smallest allowed encoded offset that contains given @offset
+ * The actual encoded offset returned is @offset + *@padding.
+ */
+osd_cdb_offset __osd_encode_offset(
+	u64 offset, unsigned *padding, int min_shift, int max_shift)
+{
+	u64 try_offset = -1, mod, align;
+	osd_cdb_offset be32_offset;
+	int shift;
+
+	*padding = 0;
+	if (!offset)
+		return 0;
+
+	for (shift = min_shift; shift < max_shift; ++shift) {
+		try_offset = offset >> shift;
+		if (try_offset < (1 << OSD_OFFSET_MAX_BITS))
+			break;
+	}
+
+	BUG_ON(shift == max_shift);
+
+	align = 1 << shift;
+	mod = offset & (align - 1);
+	if (mod) {
+		*padding = align - mod;
+		try_offset += 1;
+	}
+
+	try_offset |= ((shift - 8) & 0xf) << 28;
+	be32_offset = cpu_to_be32((u32)try_offset);
+
+	OSD_DEBUG("offset=%llu mantissa=%llu exp=%d encoded=%x pad=%d\n",
+		 _LLU(offset), _LLU(try_offset & 0x0FFFFFFF), shift,
+		 be32_offset, *padding);
+	return be32_offset;
 }
