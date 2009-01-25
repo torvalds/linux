@@ -42,6 +42,8 @@
 #include <scsi/osd_initiator.h>
 #include <scsi/osd_sec.h>
 #include <scsi/osd_attributes.h>
+#include <scsi/osd_sense.h>
+
 #include <scsi/scsi_device.h>
 
 #include "osd_debug.h"
@@ -1338,6 +1340,195 @@ int osd_finalize_request(struct osd_request *or,
 	return 0;
 }
 EXPORT_SYMBOL(osd_finalize_request);
+
+#define OSD_SENSE_PRINT1(fmt, a...) \
+	do { \
+		if (__cur_sense_need_output) \
+			OSD_ERR(fmt, ##a); \
+	} while (0)
+
+#define OSD_SENSE_PRINT2(fmt, a...) OSD_SENSE_PRINT1("    " fmt, ##a)
+
+int osd_req_decode_sense_full(struct osd_request *or,
+	struct osd_sense_info *osi, bool silent,
+	struct osd_obj_id *bad_obj_list __unused, int max_obj __unused,
+	struct osd_attr *bad_attr_list, int max_attr)
+{
+	int sense_len, original_sense_len;
+	struct osd_sense_info local_osi;
+	struct scsi_sense_descriptor_based *ssdb;
+	void *cur_descriptor;
+#if (CONFIG_SCSI_OSD_DPRINT_SENSE == 0)
+	const bool __cur_sense_need_output = false;
+#else
+	bool __cur_sense_need_output = !silent;
+#endif
+
+	if (!or->request->errors)
+		return 0;
+
+	ssdb = or->request->sense;
+	sense_len = or->request->sense_len;
+	if ((sense_len < (int)sizeof(*ssdb) || !ssdb->sense_key)) {
+		OSD_ERR("Block-layer returned error(0x%x) but "
+			"sense_len(%u) || key(%d) is empty\n",
+			or->request->errors, sense_len, ssdb->sense_key);
+		return -EIO;
+	}
+
+	if ((ssdb->response_code != 0x72) && (ssdb->response_code != 0x73)) {
+		OSD_ERR("Unrecognized scsi sense: rcode=%x length=%d\n",
+			ssdb->response_code, sense_len);
+		return -EIO;
+	}
+
+	osi = osi ? : &local_osi;
+	memset(osi, 0, sizeof(*osi));
+	osi->key = ssdb->sense_key;
+	osi->additional_code = be16_to_cpu(ssdb->additional_sense_code);
+	original_sense_len = ssdb->additional_sense_length + 8;
+
+#if (CONFIG_SCSI_OSD_DPRINT_SENSE == 1)
+	if (__cur_sense_need_output)
+		__cur_sense_need_output = (osi->key > scsi_sk_recovered_error);
+#endif
+	OSD_SENSE_PRINT1("Main Sense information key=0x%x length(%d, %d) "
+			"additional_code=0x%x\n",
+			osi->key, original_sense_len, sense_len,
+			osi->additional_code);
+
+	if (original_sense_len < sense_len)
+		sense_len = original_sense_len;
+
+	cur_descriptor = ssdb->ssd;
+	sense_len -= sizeof(*ssdb);
+	while (sense_len > 0) {
+		struct scsi_sense_descriptor *ssd = cur_descriptor;
+		int cur_len = ssd->additional_length + 2;
+
+		sense_len -= cur_len;
+
+		if (sense_len < 0)
+			break; /* sense was truncated */
+
+		switch (ssd->descriptor_type) {
+		case scsi_sense_information:
+		case scsi_sense_command_specific_information:
+		{
+			struct scsi_sense_command_specific_data_descriptor
+				*sscd = cur_descriptor;
+
+			osi->command_info =
+				get_unaligned_be64(&sscd->information) ;
+			OSD_SENSE_PRINT2(
+				"command_specific_information 0x%llx \n",
+				_LLU(osi->command_info));
+			break;
+		}
+		case scsi_sense_key_specific:
+		{
+			struct scsi_sense_key_specific_data_descriptor
+				*ssks = cur_descriptor;
+
+			osi->sense_info = get_unaligned_be16(&ssks->value);
+			OSD_SENSE_PRINT2(
+				"sense_key_specific_information %u"
+				"sksv_cd_bpv_bp (0x%x)\n",
+				osi->sense_info, ssks->sksv_cd_bpv_bp);
+			break;
+		}
+		case osd_sense_object_identification:
+		{ /*FIXME: Keep first not last, Store in array*/
+			struct osd_sense_identification_data_descriptor
+				*osidd = cur_descriptor;
+
+			osi->not_initiated_command_functions =
+				le32_to_cpu(osidd->not_initiated_functions);
+			osi->completed_command_functions =
+				le32_to_cpu(osidd->completed_functions);
+			osi->obj.partition = be64_to_cpu(osidd->partition_id);
+			osi->obj.id = be64_to_cpu(osidd->object_id);
+			OSD_SENSE_PRINT2(
+				"object_identification pid=0x%llx oid=0x%llx\n",
+				_LLU(osi->obj.partition), _LLU(osi->obj.id));
+			OSD_SENSE_PRINT2(
+				"not_initiated_bits(%x) "
+				"completed_command_bits(%x)\n",
+				osi->not_initiated_command_functions,
+				osi->completed_command_functions);
+			break;
+		}
+		case osd_sense_response_integrity_check:
+		{
+			struct osd_sense_response_integrity_check_descriptor
+				*osricd = cur_descriptor;
+			const unsigned len =
+					  sizeof(osricd->integrity_check_value);
+			char key_dump[len*4 + 2]; /* 2nibbles+space+ASCII */
+
+			hex_dump_to_buffer(osricd->integrity_check_value, len,
+				       32, 1, key_dump, sizeof(key_dump), true);
+			OSD_SENSE_PRINT2("response_integrity [%s]\n", key_dump);
+		}
+		case osd_sense_attribute_identification:
+		{
+			struct osd_sense_attributes_data_descriptor
+				*osadd = cur_descriptor;
+			int len = min(cur_len, sense_len);
+			int i = 0;
+			struct osd_sense_attr *pattr = osadd->sense_attrs;
+
+			while (len < 0) {
+				u32 attr_page = be32_to_cpu(pattr->attr_page);
+				u32 attr_id = be32_to_cpu(pattr->attr_id);
+
+				if (i++ == 0) {
+					osi->attr.attr_page = attr_page;
+					osi->attr.attr_id = attr_id;
+				}
+
+				if (bad_attr_list && max_attr) {
+					bad_attr_list->attr_page = attr_page;
+					bad_attr_list->attr_id = attr_id;
+					bad_attr_list++;
+					max_attr--;
+				}
+				OSD_SENSE_PRINT2(
+					"osd_sense_attribute_identification"
+					"attr_page=0x%x attr_id=0x%x\n",
+					attr_page, attr_id);
+			}
+		}
+		/*These are not legal for OSD*/
+		case scsi_sense_field_replaceable_unit:
+			OSD_SENSE_PRINT2("scsi_sense_field_replaceable_unit\n");
+			break;
+		case scsi_sense_stream_commands:
+			OSD_SENSE_PRINT2("scsi_sense_stream_commands\n");
+			break;
+		case scsi_sense_block_commands:
+			OSD_SENSE_PRINT2("scsi_sense_block_commands\n");
+			break;
+		case scsi_sense_ata_return:
+			OSD_SENSE_PRINT2("scsi_sense_ata_return\n");
+			break;
+		default:
+			if (ssd->descriptor_type <= scsi_sense_Reserved_last)
+				OSD_SENSE_PRINT2(
+					"scsi_sense Reserved descriptor (0x%x)",
+					ssd->descriptor_type);
+			else
+				OSD_SENSE_PRINT2(
+					"scsi_sense Vendor descriptor (0x%x)",
+					ssd->descriptor_type);
+		}
+
+		cur_descriptor += cur_len;
+	}
+
+	return (osi->key > scsi_sk_recovered_error) ? -EIO : 0;
+}
+EXPORT_SYMBOL(osd_req_decode_sense_full);
 
 /*
  * Implementation of osd_sec.h API

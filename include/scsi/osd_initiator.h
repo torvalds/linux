@@ -217,6 +217,55 @@ int osd_execute_request_async(struct osd_request *or,
 	osd_req_done_fn *done, void *private);
 
 /**
+ * osd_req_decode_sense_full - Decode sense information after execution.
+ *
+ * @or:           - osd_request to examine
+ * @osi           - Recievs a more detailed error report information (optional).
+ * @silent        - Do not print to dmsg (Even if enabled)
+ * @bad_obj_list  - Some commands act on multiple objects. Failed objects will
+ *                  be recieved here (optional)
+ * @max_obj       - Size of @bad_obj_list.
+ * @bad_attr_list - List of failing attributes (optional)
+ * @max_attr      - Size of @bad_attr_list.
+ *
+ * After execution, sense + return code can be analyzed using this function. The
+ * return code is the final disposition on the error. So it is possible that a
+ * CHECK_CONDITION was returned from target but this will return NO_ERROR, for
+ * example on recovered errors. All parameters are optional if caller does
+ * not need any returned information.
+ * Note: This function will also dump the error to dmsg according to settings
+ * of the SCSI_OSD_DPRINT_SENSE Kconfig value. Set @silent if you know the
+ * command would routinely fail, to not spam the dmsg file.
+ */
+struct osd_sense_info {
+	int key;		/* one of enum scsi_sense_keys */
+	int additional_code ;	/* enum osd_additional_sense_codes */
+	union { /* Sense specific information */
+		u16 sense_info;
+		u16 cdb_field_offset; 	/* scsi_invalid_field_in_cdb */
+	};
+	union { /* Command specific information */
+		u64 command_info;
+	};
+
+	u32 not_initiated_command_functions; /* osd_command_functions_bits */
+	u32 completed_command_functions; /* osd_command_functions_bits */
+	struct osd_obj_id obj;
+	struct osd_attr attr;
+};
+
+int osd_req_decode_sense_full(struct osd_request *or,
+	struct osd_sense_info *osi, bool silent,
+	struct osd_obj_id *bad_obj_list, int max_obj,
+	struct osd_attr *bad_attr_list, int max_attr);
+
+static inline int osd_req_decode_sense(struct osd_request *or,
+	struct osd_sense_info *osi)
+{
+	return osd_req_decode_sense_full(or, osi, false, NULL, 0, NULL, 0);
+}
+
+/**
  * osd_end_request - return osd_request to free store
  *
  * @or:		osd_request to free
