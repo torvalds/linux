@@ -343,6 +343,9 @@ static void _osd_req_encode_common(struct osd_request *or,
 /*
  * Device commands
  */
+/*TODO: void osd_req_set_master_seed_xchg(struct osd_request *, ...); */
+/*TODO: void osd_req_set_master_key(struct osd_request *, ...); */
+
 void osd_req_format(struct osd_request *or, u64 tot_capacity)
 {
 	_osd_req_encode_common(or, OSD_ACT_FORMAT_OSD, &osd_root_object, 0,
@@ -373,6 +376,10 @@ void osd_req_flush_obsd(struct osd_request *or,
 }
 EXPORT_SYMBOL(osd_req_flush_obsd);
 
+/*TODO: void osd_req_perform_scsi_command(struct osd_request *,
+	const u8 *cdb, ...); */
+/*TODO: void osd_req_task_management(struct osd_request *, ...); */
+
 /*
  * Partition commands
  */
@@ -398,6 +405,10 @@ void osd_req_remove_partition(struct osd_request *or, osd_id partition)
 	_osd_req_encode_partition(or, OSD_ACT_REMOVE_PARTITION, partition);
 }
 EXPORT_SYMBOL(osd_req_remove_partition);
+
+/*TODO: void osd_req_set_partition_key(struct osd_request *,
+	osd_id partition, u8 new_key_id[OSD_CRYPTO_KEYID_SIZE],
+	u8 seed[OSD_CRYPTO_SEED_SIZE]); */
 
 static int _osd_req_list_objects(struct osd_request *or,
 	__be16 action, const struct osd_obj_id *obj, osd_id initial_id,
@@ -464,6 +475,11 @@ EXPORT_SYMBOL(osd_req_flush_partition);
 /*
  * Collection commands
  */
+/*TODO: void osd_req_create_collection(struct osd_request *,
+	const struct osd_obj_id *); */
+/*TODO: void osd_req_remove_collection(struct osd_request *,
+	const struct osd_obj_id *); */
+
 int osd_req_list_collection_objects(struct osd_request *or,
 	const struct osd_obj_id *obj, osd_id initial_id,
 	struct osd_obj_id_list *list, unsigned nelem)
@@ -473,6 +489,8 @@ int osd_req_list_collection_objects(struct osd_request *or,
 }
 EXPORT_SYMBOL(osd_req_list_collection_objects);
 
+/*TODO: void query(struct osd_request *, ...); V2 */
+
 void osd_req_flush_collection(struct osd_request *or,
 	const struct osd_obj_id *obj, enum osd_options_flush_scope_values op)
 {
@@ -480,6 +498,9 @@ void osd_req_flush_collection(struct osd_request *or,
 	_osd_req_encode_flush(or, op);
 }
 EXPORT_SYMBOL(osd_req_flush_collection);
+
+/*TODO: void get_member_attrs(struct osd_request *, ...); V2 */
+/*TODO: void set_member_attrs(struct osd_request *, ...); V2 */
 
 /*
  * Object commands
@@ -496,6 +517,11 @@ void osd_req_remove_object(struct osd_request *or, struct osd_obj_id *obj)
 }
 EXPORT_SYMBOL(osd_req_remove_object);
 
+
+/*TODO: void osd_req_create_multi(struct osd_request *or,
+	struct osd_obj_id *first, struct osd_obj_id_list *list, unsigned nelem);
+*/
+
 void osd_req_write(struct osd_request *or,
 	const struct osd_obj_id *obj, struct bio *bio, u64 offset)
 {
@@ -506,6 +532,15 @@ void osd_req_write(struct osd_request *or,
 	or->out.total_bytes = bio->bi_size;
 }
 EXPORT_SYMBOL(osd_req_write);
+
+/*TODO: void osd_req_append(struct osd_request *,
+	const struct osd_obj_id *, struct bio *data_out); */
+/*TODO: void osd_req_create_write(struct osd_request *,
+	const struct osd_obj_id *, struct bio *data_out, u64 offset); */
+/*TODO: void osd_req_clear(struct osd_request *,
+	const struct osd_obj_id *, u64 offset, u64 len); */
+/*TODO: void osd_req_punch(struct osd_request *,
+	const struct osd_obj_id *, u64 offset, u64 len); V2 */
 
 void osd_req_flush_object(struct osd_request *or,
 	const struct osd_obj_id *obj, enum osd_options_flush_scope_values op,
