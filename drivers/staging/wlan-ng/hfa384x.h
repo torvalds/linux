@@ -59,73 +59,35 @@
 /*=============================================================*/
 #define HFA384x_FIRMWARE_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 
-#define HFA384x_LEVEL_TO_dBm(v)   (0x100 + (v) * 100 / 255 - 100)
-
 #include <linux/if_ether.h>
 
 /*------ Constants --------------------------------------------*/
 /*--- Mins & Maxs -----------------------------------*/
-#define		HFA384x_CMD_ALLOC_LEN_MIN	((u16)4)
-#define		HFA384x_CMD_ALLOC_LEN_MAX	((u16)2400)
-#define		HFA384x_BAP_DATALEN_MAX		((u16)4096)
-#define		HFA384x_BAP_OFFSET_MAX		((u16)4096)
 #define		HFA384x_PORTID_MAX		((u16)7)
 #define		HFA384x_NUMPORTS_MAX		((u16)(HFA384x_PORTID_MAX+1))
 #define		HFA384x_PDR_LEN_MAX		((u16)512)	/* in bytes, from EK */
-#define		HFA384x_PDA_RECS_MAX		((u16)200)	/* a guess */
 #define		HFA384x_PDA_LEN_MAX		((u16)1024)	/* in bytes, from EK */
 #define		HFA384x_SCANRESULT_MAX		((u16)31)
 #define		HFA384x_HSCANRESULT_MAX		((u16)31)
 #define		HFA384x_CHINFORESULT_MAX	((u16)16)
-#define		HFA384x_DRVR_FIDSTACKLEN_MAX	(10)
-#define		HFA384x_DRVR_TXBUF_MAX		(sizeof(hfa384x_tx_frame_t) + \
-						WLAN_DATA_MAXLEN - \
-						WLAN_WEP_IV_LEN - \
-						WLAN_WEP_ICV_LEN + 2)
-#define		HFA384x_DRVR_MAGIC		(0x4a2d)
-#define		HFA384x_INFODATA_MAXLEN		(sizeof(hfa384x_infodata_t))
-#define		HFA384x_INFOFRM_MAXLEN		(sizeof(hfa384x_InfFrame_t))
 #define		HFA384x_RID_GUESSING_MAXLEN	2048  /* I'm not really sure */
 #define		HFA384x_RIDDATA_MAXLEN		HFA384x_RID_GUESSING_MAXLEN
 #define		HFA384x_USB_RWMEM_MAXLEN	2048
 
 /*--- Support Constants -----------------------------*/
-#define		HFA384x_BAP_PROC			((u16)0)
-#define		HFA384x_BAP_int				((u16)1)
 #define		HFA384x_PORTTYPE_IBSS			((u16)0)
 #define		HFA384x_PORTTYPE_BSS			((u16)1)
-#define		HFA384x_PORTTYPE_WDS			((u16)2)
 #define		HFA384x_PORTTYPE_PSUEDOIBSS		((u16)3)
-#define		HFA384x_PORTTYPE_HOSTAP    		((u16)6)
 #define		HFA384x_WEPFLAGS_PRIVINVOKED		((u16)BIT(0))
 #define		HFA384x_WEPFLAGS_EXCLUDE		((u16)BIT(1))
 #define		HFA384x_WEPFLAGS_DISABLE_TXCRYPT	((u16)BIT(4))
 #define		HFA384x_WEPFLAGS_DISABLE_RXCRYPT	((u16)BIT(7))
-#define		HFA384x_WEPFLAGS_DISALLOW_MIXED 	((u16)BIT(11))
-#define		HFA384x_WEPFLAGS_IV_intERVAL1		((u16)0)
-#define		HFA384x_WEPFLAGS_IV_intERVAL10		((u16)BIT(5))
-#define		HFA384x_WEPFLAGS_IV_intERVAL50		((u16)BIT(6))
-#define		HFA384x_WEPFLAGS_IV_intERVAL100		((u16)(BIT(5) | BIT(6)))
-#define		HFA384x_WEPFLAGS_FIRMWARE_WPA  		((u16)BIT(8))
-#define		HFA384x_WEPFLAGS_HOST_MIC      		((u16)BIT(9))
-#define 	HFA384x_ROAMMODE_FWSCAN_FWROAM		((u16)1)
-#define 	HFA384x_ROAMMODE_FWSCAN_HOSTROAM	((u16)2)
 #define 	HFA384x_ROAMMODE_HOSTSCAN_HOSTROAM	((u16)3)
 #define 	HFA384x_PORTSTATUS_DISABLED		((u16)1)
-#define 	HFA384x_PORTSTATUS_INITSRCH		((u16)2)
-#define 	HFA384x_PORTSTATUS_CONN_IBSS		((u16)3)
-#define 	HFA384x_PORTSTATUS_CONN_ESS		((u16)4)
-#define 	HFA384x_PORTSTATUS_OOR_ESS		((u16)5)
-#define 	HFA384x_PORTSTATUS_CONN_WDS		((u16)6)
-#define 	HFA384x_PORTSTATUS_HOSTAP		((u16)8)
 #define		HFA384x_RATEBIT_1			((u16)1)
 #define		HFA384x_RATEBIT_2			((u16)2)
 #define		HFA384x_RATEBIT_5dot5			((u16)4)
 #define		HFA384x_RATEBIT_11			((u16)8)
-
-/*--- Just some symbolic names for legibility -------*/
-#define		HFA384x_TXCMD_NORECL		((u16)0)
-#define		HFA384x_TXCMD_RECL		((u16)1)
 
 /*--- MAC Internal memory constants and macros ------*/
 /* masks and macros used to manipulate MAC internal memory addresses. */
@@ -141,9 +103,6 @@
  * macros below help handle some of this.
  */
 
-/* Handy constant */
-#define		HFA384x_ADDR_AUX_OFF_MAX	((u16)0x007f)
-
 /* Mask bits for discarding unwanted pieces in a flat address */
 #define		HFA384x_ADDR_FLAT_AUX_PAGE_MASK	(0x007fff80)
 #define		HFA384x_ADDR_FLAT_AUX_OFF_MASK	(0x0000007f)
@@ -154,44 +113,16 @@
 #define		HFA384x_ADDR_AUX_PAGE_MASK	(0xffff)
 #define		HFA384x_ADDR_AUX_OFF_MASK	(0x007f)
 
-/* Mask bits for discarding unwanted pieces in CMD format 16-bit address parts */
-#define		HFA384x_ADDR_CMD_PAGE_MASK	(0x007f)
-#define		HFA384x_ADDR_CMD_OFF_MASK	(0xffff)
-
 /* Make a 32-bit flat address from AUX format 16-bit page and offset */
 #define		HFA384x_ADDR_AUX_MKFLAT(p,o)	\
 		(((u32)(((u16)(p))&HFA384x_ADDR_AUX_PAGE_MASK)) <<7) | \
 		((u32)(((u16)(o))&HFA384x_ADDR_AUX_OFF_MASK))
-
-/* Make a 32-bit flat address from CMD format 16-bit page and offset */
-#define		HFA384x_ADDR_CMD_MKFLAT(p,o)	\
-		(((u32)(((u16)(p))&HFA384x_ADDR_CMD_PAGE_MASK)) <<16) | \
-		((u32)(((u16)(o))&HFA384x_ADDR_CMD_OFF_MASK))
-
-/* Make AUX format offset and page from a 32-bit flat address */
-#define		HFA384x_ADDR_AUX_MKPAGE(f) \
-		((u16)((((u32)(f))&HFA384x_ADDR_FLAT_AUX_PAGE_MASK)>>7))
-#define		HFA384x_ADDR_AUX_MKOFF(f) \
-		((u16)(((u32)(f))&HFA384x_ADDR_FLAT_AUX_OFF_MASK))
 
 /* Make CMD format offset and page from a 32-bit flat address */
 #define		HFA384x_ADDR_CMD_MKPAGE(f) \
 		((u16)((((u32)(f))&HFA384x_ADDR_FLAT_CMD_PAGE_MASK)>>16))
 #define		HFA384x_ADDR_CMD_MKOFF(f) \
 		((u16)(((u32)(f))&HFA384x_ADDR_FLAT_CMD_OFF_MASK))
-
-/*--- Aux register masks/tests ----------------------*/
-/* Some of the upper bits of the AUX offset register are used to */
-/*  select address space. */
-#define		HFA384x_AUX_CTL_EXTDS	(0x00)
-#define		HFA384x_AUX_CTL_NV	(0x01)
-#define		HFA384x_AUX_CTL_PHY	(0x02)
-#define		HFA384x_AUX_CTL_ICSRAM	(0x03)
-
-/* Make AUX register offset and page values from a flat address */
-#define		HFA384x_AUX_MKOFF(f, c) \
-	(HFA384x_ADDR_AUX_MKOFF(f) | (((u16)(c))<<12))
-#define		HFA384x_AUX_MKPAGE(f)	HFA384x_ADDR_AUX_MKPAGE(f)
 
 
 /*--- Controller Memory addresses -------------------*/
@@ -203,9 +134,6 @@
 #define		HFA384x_DLSTATE_DISABLED		0
 #define		HFA384x_DLSTATE_RAMENABLED		1
 #define		HFA384x_DLSTATE_FLASHENABLED		2
-#define		HFA384x_DLSTATE_FLASHWRITTEN		3
-#define		HFA384x_DLSTATE_FLASHWRITEPENDING	4
-#define		HFA384x_DLSTATE_GENESIS 		5
 
 #define		HFA384x_CMD_OFF			(0x00)
 #define		HFA384x_PARAM0_OFF		(0x04)
