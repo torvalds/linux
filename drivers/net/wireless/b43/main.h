@@ -40,6 +40,24 @@
 
 
 extern int b43_modparam_qos;
+extern int b43_modparam_verbose;
+
+/* Logmessage verbosity levels. Update the b43_modparam_verbose helptext, if
+ * you add or remove levels. */
+enum b43_verbosity {
+	B43_VERBOSITY_ERROR,
+	B43_VERBOSITY_WARN,
+	B43_VERBOSITY_INFO,
+	B43_VERBOSITY_DEBUG,
+	__B43_VERBOSITY_AFTERLAST, /* keep last */
+
+	B43_VERBOSITY_MAX = __B43_VERBOSITY_AFTERLAST - 1,
+#if B43_DEBUG
+	B43_VERBOSITY_DEFAULT = B43_VERBOSITY_DEBUG,
+#else
+	B43_VERBOSITY_DEFAULT = B43_VERBOSITY_INFO,
+#endif
+};
 
 
 /* Lightweight function to convert a frequency (in Mhz) to a channel number. */

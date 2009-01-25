@@ -878,12 +878,9 @@ void b43err(struct b43_wl *wl, const char *fmt, ...)
     __attribute__ ((format(printf, 2, 3)));
 void b43warn(struct b43_wl *wl, const char *fmt, ...)
     __attribute__ ((format(printf, 2, 3)));
-#if B43_DEBUG
 void b43dbg(struct b43_wl *wl, const char *fmt, ...)
     __attribute__ ((format(printf, 2, 3)));
-#else /* DEBUG */
-# define b43dbg(wl, fmt...) do { /* nothing */ } while (0)
-#endif /* DEBUG */
+
 
 /* A WARN_ON variant that vanishes when b43 debugging is disabled.
  * This _also_ evaluates the arg with debugging disabled. */

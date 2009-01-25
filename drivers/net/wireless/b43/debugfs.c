@@ -668,9 +668,18 @@ B43_DEBUGFS_FOPS(restart, NULL, restart_write_file, 1);
 B43_DEBUGFS_FOPS(loctls, loctls_read_file, NULL, 0);
 
 
-int b43_debug(struct b43_wldev *dev, enum b43_dyndbg feature)
+bool b43_debug(struct b43_wldev *dev, enum b43_dyndbg feature)
 {
-	return !!(dev->dfsentry && dev->dfsentry->dyn_debug[feature]);
+	bool enabled;
+
+	enabled = (dev->dfsentry && dev->dfsentry->dyn_debug[feature]);
+	if (unlikely(enabled)) {
+		/* Force full debugging messages, if the user enabled
+		 * some dynamic debugging feature. */
+		b43_modparam_verbose = B43_VERBOSITY_MAX;
+	}
+
+	return enabled;
 }
 
 static void b43_remove_dynamic_debug(struct b43_wldev *dev)
