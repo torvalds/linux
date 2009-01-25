@@ -67,6 +67,7 @@
 #include <linux/delay.h>
 #include <asm/byteorder.h>
 #include <linux/usb.h>
+#include <linux/bitops.h>
 
 /*================================================================*/
 /* Project Includes */
@@ -996,28 +997,28 @@ void prism2mgmt_get_oprateset(u16 *rate, p80211pstrd_t *pstr)
 	datarate = pstr->data;
 
  	/* 1 Mbps */
-	if ( BIT0 & (*rate) ) {
+	if ( BIT(0) & (*rate) ) {
 		len += (u8)1;
 		*datarate = (u8)2;
 		datarate++;
 	}
 
  	/* 2 Mbps */
-	if ( BIT1 & (*rate) ) {
+	if ( BIT(1) & (*rate) ) {
 		len += (u8)1;
 		*datarate = (u8)4;
 		datarate++;
 	}
 
  	/* 5.5 Mbps */
-	if ( BIT2 & (*rate) ) {
+	if ( BIT(2) & (*rate) ) {
 		len += (u8)1;
 		*datarate = (u8)11;
 		datarate++;
 	}
 
  	/* 11 Mbps */
-	if ( BIT3 & (*rate) ) {
+	if ( BIT(3) & (*rate) ) {
 		len += (u8)1;
 		*datarate = (u8)22;
 		datarate++;
@@ -1055,16 +1056,16 @@ void prism2mgmt_set_oprateset(u16 *rate, p80211pstrd_t *pstr)
 	for ( i=0; i < pstr->len; i++, datarate++ ) {
 		switch (*datarate) {
 		case 2: /* 1 Mbps */
-			*rate |= BIT0;
+			*rate |= BIT(0);
 			break;
 		case 4: /* 2 Mbps */
-			*rate |= BIT1;
+			*rate |= BIT(1);
 			break;
 		case 11: /* 5.5 Mbps */
-			*rate |= BIT2;
+			*rate |= BIT(2);
 			break;
 		case 22: /* 11 Mbps */
-			*rate |= BIT3;
+			*rate |= BIT(3);
 			break;
 		default:
 			WLAN_LOG_DEBUG(1, "Unrecoginzed Rate of %d\n",

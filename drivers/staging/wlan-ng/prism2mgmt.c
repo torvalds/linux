@@ -76,6 +76,7 @@
 #include <asm/byteorder.h>
 #include <linux/random.h>
 #include <linux/usb.h>
+#include <linux/bitops.h>
 
 #include "wlan_compat.h"
 
@@ -94,10 +95,10 @@
 #include "prism2mgmt.h"
 
 /* Converts 802.11 format rate specifications to prism2 */
-#define p80211rate_to_p2bit(n)	((((n)&~BIT7) == 2) ? BIT0 : \
-				 (((n)&~BIT7) == 4) ? BIT1 : \
-				 (((n)&~BIT7) == 11) ? BIT2 : \
-				 (((n)&~BIT7) == 22) ? BIT3 : 0)
+#define p80211rate_to_p2bit(n)	((((n)&~BIT(7)) == 2) ? BIT(0) :  \
+				 (((n)&~BIT(7)) == 4) ? BIT(1) : \
+				 (((n)&~BIT(7)) == 11) ? BIT(2) : \
+				 (((n)&~BIT(7)) == 22) ? BIT(3) : 0)
 
 /*----------------------------------------------------------------
 * prism2mgmt_scan
@@ -196,7 +197,7 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
         for (i = 0; i < msg->channellist.data.len; i++) {
                 u8 channel = msg->channellist.data.data[i];
                 if (channel > 14) continue;
-                /* channel 1 is BIT0 ... channel 14 is BIT13 */
+                /* channel 1 is BIT 0 ... channel 14 is BIT 13 */
                 word |= (1 << (channel-1));
         }
         scanreq.channelList = host2hfa384x_16(word);

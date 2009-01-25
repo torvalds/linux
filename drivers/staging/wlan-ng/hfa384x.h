@@ -97,17 +97,17 @@
 #define		HFA384x_PORTTYPE_WDS			((u16)2)
 #define		HFA384x_PORTTYPE_PSUEDOIBSS		((u16)3)
 #define		HFA384x_PORTTYPE_HOSTAP    		((u16)6)
-#define		HFA384x_WEPFLAGS_PRIVINVOKED		((u16)BIT0)
-#define		HFA384x_WEPFLAGS_EXCLUDE		((u16)BIT1)
-#define		HFA384x_WEPFLAGS_DISABLE_TXCRYPT	((u16)BIT4)
-#define		HFA384x_WEPFLAGS_DISABLE_RXCRYPT	((u16)BIT7)
-#define		HFA384x_WEPFLAGS_DISALLOW_MIXED 	((u16)BIT11)
+#define		HFA384x_WEPFLAGS_PRIVINVOKED		((u16)BIT(0))
+#define		HFA384x_WEPFLAGS_EXCLUDE		((u16)BIT(1))
+#define		HFA384x_WEPFLAGS_DISABLE_TXCRYPT	((u16)BIT(4))
+#define		HFA384x_WEPFLAGS_DISABLE_RXCRYPT	((u16)BIT(7))
+#define		HFA384x_WEPFLAGS_DISALLOW_MIXED 	((u16)BIT(11))
 #define		HFA384x_WEPFLAGS_IV_intERVAL1		((u16)0)
-#define		HFA384x_WEPFLAGS_IV_intERVAL10		((u16)BIT5)
-#define		HFA384x_WEPFLAGS_IV_intERVAL50		((u16)BIT6)
-#define		HFA384x_WEPFLAGS_IV_intERVAL100		((u16)(BIT5 | BIT6))
-#define		HFA384x_WEPFLAGS_FIRMWARE_WPA  		((u16)BIT8)
-#define		HFA384x_WEPFLAGS_HOST_MIC      		((u16)BIT9)
+#define		HFA384x_WEPFLAGS_IV_intERVAL10		((u16)BIT(5))
+#define		HFA384x_WEPFLAGS_IV_intERVAL50		((u16)BIT(6))
+#define		HFA384x_WEPFLAGS_IV_intERVAL100		((u16)(BIT(5) | BIT(6)))
+#define		HFA384x_WEPFLAGS_FIRMWARE_WPA  		((u16)BIT(8))
+#define		HFA384x_WEPFLAGS_HOST_MIC      		((u16)BIT(9))
 #define 	HFA384x_ROAMMODE_FWSCAN_FWROAM		((u16)1)
 #define 	HFA384x_ROAMMODE_FWSCAN_HOSTROAM	((u16)2)
 #define 	HFA384x_ROAMMODE_HOSTSCAN_HOSTROAM	((u16)3)
@@ -248,59 +248,59 @@
 #define		HFA384x_PCI_M1_CTL_OFF		(0xac)
 
 /*--- Register Field Masks --------------------------*/
-#define		HFA384x_CMD_BUSY		((u16)BIT15)
-#define		HFA384x_CMD_AINFO		((u16)(BIT14 | BIT13 | BIT12 | BIT11 | BIT10 | BIT9 | BIT8))
-#define		HFA384x_CMD_MACPORT		((u16)(BIT10 | BIT9 | BIT8))
-#define		HFA384x_CMD_RECL		((u16)BIT8)
-#define		HFA384x_CMD_WRITE		((u16)BIT8)
-#define		HFA384x_CMD_PROGMODE		((u16)(BIT9 | BIT8))
-#define		HFA384x_CMD_CMDCODE		((u16)(BIT5 | BIT4 | BIT3 | BIT2 | BIT1 | BIT0))
+#define		HFA384x_CMD_BUSY		((u16)BIT(15))
+#define		HFA384x_CMD_AINFO		((u16)(BIT(14) | BIT(13) | BIT(12) | BIT(11) | BIT(10) | BIT(9) | BIT(8)))
+#define		HFA384x_CMD_MACPORT		((u16)(BIT(10) | BIT(9) | BIT(8)))
+#define		HFA384x_CMD_RECL		((u16)BIT(8))
+#define		HFA384x_CMD_WRITE		((u16)BIT(8))
+#define		HFA384x_CMD_PROGMODE		((u16)(BIT(9) | BIT(8)))
+#define		HFA384x_CMD_CMDCODE		((u16)(BIT(5) | BIT(4) | BIT(3) | BIT(2) | BIT(1) | BIT(0)))
 
-#define		HFA384x_STATUS_RESULT		((u16)(BIT14 | BIT13 | BIT12 | BIT11 | BIT10 | BIT9 | BIT8))
-#define		HFA384x_STATUS_CMDCODE		((u16)(BIT5 | BIT4 | BIT3 | BIT2 | BIT1 | BIT0))
+#define		HFA384x_STATUS_RESULT		((u16)(BIT(14) | BIT(13) | BIT(12) | BIT(11) | BIT(10) | BIT(9) | BIT(8)))
+#define		HFA384x_STATUS_CMDCODE		((u16)(BIT(5) | BIT(4) | BIT(3) | BIT(2) | BIT(1) | BIT(0)))
 
-#define		HFA384x_OFFSET_BUSY		((u16)BIT15)
-#define		HFA384x_OFFSET_ERR		((u16)BIT14)
-#define		HFA384x_OFFSET_DATAOFF		((u16)(BIT11 | BIT10 | BIT9 | BIT8 | BIT7 | BIT6 | BIT5 | BIT4 | BIT3 | BIT2 | BIT1))
+#define		HFA384x_OFFSET_BUSY		((u16)BIT(15))
+#define		HFA384x_OFFSET_ERR		((u16)BIT(14))
+#define		HFA384x_OFFSET_DATAOFF		((u16)(BIT(11) | BIT(10) | BIT(9) | BIT(8) | BIT(7) | BIT(6) | BIT(5) | BIT(4) | BIT(3) | BIT(2) | BIT(1)))
 
-#define		HFA384x_EVSTAT_TICK		((u16)BIT15)
-#define		HFA384x_EVSTAT_WTERR		((u16)BIT14)
-#define		HFA384x_EVSTAT_INFDROP		((u16)BIT13)
-#define		HFA384x_EVSTAT_INFO		((u16)BIT7)
-#define		HFA384x_EVSTAT_DTIM		((u16)BIT5)
-#define		HFA384x_EVSTAT_CMD		((u16)BIT4)
-#define		HFA384x_EVSTAT_ALLOC		((u16)BIT3)
-#define		HFA384x_EVSTAT_TXEXC		((u16)BIT2)
-#define		HFA384x_EVSTAT_TX		((u16)BIT1)
-#define		HFA384x_EVSTAT_RX		((u16)BIT0)
+#define		HFA384x_EVSTAT_TICK		((u16)BIT(15))
+#define		HFA384x_EVSTAT_WTERR		((u16)BIT(14))
+#define		HFA384x_EVSTAT_INFDROP		((u16)BIT(13))
+#define		HFA384x_EVSTAT_INFO		((u16)BIT(7))
+#define		HFA384x_EVSTAT_DTIM		((u16)BIT(5))
+#define		HFA384x_EVSTAT_CMD		((u16)BIT(4))
+#define		HFA384x_EVSTAT_ALLOC		((u16)BIT(3))
+#define		HFA384x_EVSTAT_TXEXC		((u16)BIT(2))
+#define		HFA384x_EVSTAT_TX		((u16)BIT(1))
+#define		HFA384x_EVSTAT_RX		((u16)BIT(0)
 
 #define         HFA384x_int_BAP_OP           (HFA384x_EVSTAT_INFO|HFA384x_EVSTAT_RX|HFA384x_EVSTAT_TX|HFA384x_EVSTAT_TXEXC)
 
 #define         HFA384x_int_NORMAL           (HFA384x_EVSTAT_INFO|HFA384x_EVSTAT_RX|HFA384x_EVSTAT_TX|HFA384x_EVSTAT_TXEXC|HFA384x_EVSTAT_INFDROP|HFA384x_EVSTAT_ALLOC|HFA384x_EVSTAT_DTIM)
 
-#define		HFA384x_intEN_TICK		((u16)BIT15)
-#define		HFA384x_intEN_WTERR		((u16)BIT14)
-#define		HFA384x_intEN_INFDROP		((u16)BIT13)
-#define		HFA384x_intEN_INFO		((u16)BIT7)
-#define		HFA384x_intEN_DTIM		((u16)BIT5)
-#define		HFA384x_intEN_CMD		((u16)BIT4)
-#define		HFA384x_intEN_ALLOC		((u16)BIT3)
-#define		HFA384x_intEN_TXEXC		((u16)BIT2)
-#define		HFA384x_intEN_TX		((u16)BIT1)
-#define		HFA384x_intEN_RX		((u16)BIT0)
+#define		HFA384x_intEN_TICK		((u16)BIT(15))
+#define		HFA384x_intEN_WTERR		((u16)BIT(14))
+#define		HFA384x_intEN_INFDROP		((u16)BIT(13))
+#define		HFA384x_intEN_INFO		((u16)BIT(7))
+#define		HFA384x_intEN_DTIM		((u16)BIT(5))
+#define		HFA384x_intEN_CMD		((u16)BIT(4))
+#define		HFA384x_intEN_ALLOC		((u16)BIT(3))
+#define		HFA384x_intEN_TXEXC		((u16)BIT(2))
+#define		HFA384x_intEN_TX		((u16)BIT(1))
+#define		HFA384x_intEN_RX		((u16)BIT(0)
 
-#define		HFA384x_EVACK_TICK		((u16)BIT15)
-#define		HFA384x_EVACK_WTERR		((u16)BIT14)
-#define		HFA384x_EVACK_INFDROP		((u16)BIT13)
-#define		HFA384x_EVACK_INFO		((u16)BIT7)
-#define		HFA384x_EVACK_DTIM		((u16)BIT5)
-#define		HFA384x_EVACK_CMD		((u16)BIT4)
-#define		HFA384x_EVACK_ALLOC		((u16)BIT3)
-#define		HFA384x_EVACK_TXEXC		((u16)BIT2)
-#define		HFA384x_EVACK_TX		((u16)BIT1)
-#define		HFA384x_EVACK_RX		((u16)BIT0)
+#define		HFA384x_EVACK_TICK		((u16)BIT(15))
+#define		HFA384x_EVACK_WTERR		((u16)BIT(14))
+#define		HFA384x_EVACK_INFDROP		((u16)BIT(13))
+#define		HFA384x_EVACK_INFO		((u16)BIT(7))
+#define		HFA384x_EVACK_DTIM		((u16)BIT(5))
+#define		HFA384x_EVACK_CMD		((u16)BIT(4))
+#define		HFA384x_EVACK_ALLOC		((u16)BIT(3))
+#define		HFA384x_EVACK_TXEXC		((u16)BIT(2))
+#define		HFA384x_EVACK_TX		((u16)BIT(1))
+#define		HFA384x_EVACK_RX		((u16)BIT(0)
 
-#define		HFA384x_CONTROL_AUXEN		((u16)(BIT15 | BIT14))
+#define		HFA384x_CONTROL_AUXEN		((u16)(BIT(15) | BIT(14)))
 
 
 /*--- Command Code Constants --------------------------*/
@@ -883,11 +883,11 @@ PD Record codes
 /*=============================================================*/
 /*------ Types and their related constants --------------------*/
 
-#define HFA384x_HOSTAUTHASSOC_HOSTAUTH   BIT0
-#define HFA384x_HOSTAUTHASSOC_HOSTASSOC  BIT1
+#define HFA384x_HOSTAUTHASSOC_HOSTAUTH   BIT(0)
+#define HFA384x_HOSTAUTHASSOC_HOSTASSOC  BIT(1)
 
 #define HFA384x_WHAHANDLING_DISABLED     0
-#define HFA384x_WHAHANDLING_PASSTHROUGH  BIT1
+#define HFA384x_WHAHANDLING_PASSTHROUGH  BIT(1)
 
 /*-------------------------------------------------------------*/
 /* Commonly used basic types */
@@ -1518,11 +1518,11 @@ typedef struct hfa384x_LFOStatus
 	u16  VRHFOResult;
 } __attribute__((packed)) hfa384x_LFOStatus_t;
 
-#define HFA384x_TESTRESULT_ALLPASSED    BIT0
-#define HFA384x_TESTRESULT_LFO_FAIL     BIT1
-#define HFA384x_TESTRESULT_VR_HF0_FAIL  BIT2
-#define HFA384x_HOST_FIRM_COORDINATE    BIT7
-#define HFA384x_TESTRESULT_COORDINATE   BIT15
+#define HFA384x_TESTRESULT_ALLPASSED    BIT(0)
+#define HFA384x_TESTRESULT_LFO_FAIL     BIT(1)
+#define HFA384x_TESTRESULT_VR_HF0_FAIL  BIT(2)
+#define HFA384x_HOST_FIRM_COORDINATE    BIT(7)
+#define HFA384x_TESTRESULT_COORDINATE   BIT(15)
 
 /*-- Information Record: LEDControl --*/
 typedef struct hfa384x_LEDControl
@@ -1606,20 +1606,20 @@ typedef struct hfa384x_tx_frame
 Communication Frames: Field Masks for Transmit Frames
 --------------------------------------------------------------------*/
 /*-- Status Field --*/
-#define		HFA384x_TXSTATUS_ACKERR			((u16)BIT5)
-#define		HFA384x_TXSTATUS_FORMERR		((u16)BIT3)
-#define		HFA384x_TXSTATUS_DISCON			((u16)BIT2)
-#define		HFA384x_TXSTATUS_AGEDERR		((u16)BIT1)
-#define		HFA384x_TXSTATUS_RETRYERR		((u16)BIT0)
+#define		HFA384x_TXSTATUS_ACKERR			((u16)BIT(5))
+#define		HFA384x_TXSTATUS_FORMERR		((u16)BIT(3))
+#define		HFA384x_TXSTATUS_DISCON			((u16)BIT(2))
+#define		HFA384x_TXSTATUS_AGEDERR		((u16)BIT(1))
+#define		HFA384x_TXSTATUS_RETRYERR		((u16)BIT(0))
 /*-- Transmit Control Field --*/
-#define		HFA384x_TX_CFPOLL			((u16)BIT12)
-#define		HFA384x_TX_PRST				((u16)BIT11)
-#define		HFA384x_TX_MACPORT			((u16)(BIT10 | BIT9 | BIT8))
-#define		HFA384x_TX_NOENCRYPT			((u16)BIT7)
-#define		HFA384x_TX_RETRYSTRAT			((u16)(BIT6 | BIT5))
-#define		HFA384x_TX_STRUCTYPE			((u16)(BIT4 | BIT3))
-#define		HFA384x_TX_TXEX				((u16)BIT2)
-#define		HFA384x_TX_TXOK				((u16)BIT1)
+#define		HFA384x_TX_CFPOLL			((u16)BIT(12))
+#define		HFA384x_TX_PRST				((u16)BIT(11))
+#define		HFA384x_TX_MACPORT			((u16)(BIT(10) | BIT(9) | BIT(8)))
+#define		HFA384x_TX_NOENCRYPT			((u16)BIT(7))
+#define		HFA384x_TX_RETRYSTRAT			((u16)(BIT(6) | BIT(5)))
+#define		HFA384x_TX_STRUCTYPE			((u16)(BIT(4) | BIT(3)))
+#define		HFA384x_TX_TXEX				((u16)BIT(2))
+#define		HFA384x_TX_TXOK				((u16)BIT(1))
 /*--------------------------------------------------------------------
 Communication Frames: Test/Get/Set Field Values for Transmit Frames
 --------------------------------------------------------------------*/
@@ -1695,10 +1695,10 @@ Communication Frames: Field Masks for Receive Frames
 #define		HFA384x_RX_DATA_OFF			((u16)60)
 
 /*-- Status Fields --*/
-#define		HFA384x_RXSTATUS_MSGTYPE		((u16)(BIT15 | BIT14 | BIT13))
-#define		HFA384x_RXSTATUS_MACPORT		((u16)(BIT10 | BIT9 | BIT8))
-#define		HFA384x_RXSTATUS_UNDECR			((u16)BIT1)
-#define		HFA384x_RXSTATUS_FCSERR			((u16)BIT0)
+#define		HFA384x_RXSTATUS_MSGTYPE		((u16)(BIT(15) | BIT(14) | BIT(13)))
+#define		HFA384x_RXSTATUS_MACPORT		((u16)(BIT(10) | BIT(9) | BIT(8)))
+#define		HFA384x_RXSTATUS_UNDECR			((u16)BIT(1))
+#define		HFA384x_RXSTATUS_FCSERR			((u16)BIT(0))
 /*--------------------------------------------------------------------
 Communication Frames: Test/Get/Set Field Values for Receive Frames
 --------------------------------------------------------------------*/
@@ -1822,8 +1822,8 @@ typedef struct hfa384x_ChInfoResultSub
 	u16	active;
 } __attribute__((packed)) hfa384x_ChInfoResultSub_t;
 
-#define HFA384x_CHINFORESULT_BSSACTIVE	BIT0
-#define HFA384x_CHINFORESULT_PCFACTIVE	BIT1
+#define HFA384x_CHINFORESULT_BSSACTIVE	BIT(0)
+#define HFA384x_CHINFORESULT_PCFACTIVE	BIT(1)
 
 typedef struct hfa384x_ChInfoResult
 {
@@ -2444,9 +2444,9 @@ typedef struct hfa484x_metacmd
 #define	MAX_GRP_ADDR		32
 #define WLAN_COMMENT_MAX	80  /* Max. length of user comment string. */
 
-#define MM_SAT_PCF		(BIT14)
-#define MM_GCSD_PCF		(BIT15)
-#define MM_GCSD_PCF_EB		(BIT14 | BIT15)
+#define MM_SAT_PCF		(BIT(14))
+#define MM_GCSD_PCF		(BIT(15))
+#define MM_GCSD_PCF_EB		(BIT(14) | BIT(15))
 
 #define WLAN_STATE_STOPPED	0   /* Network is not active. */
 #define WLAN_STATE_STARTED	1   /* Network has been started. */

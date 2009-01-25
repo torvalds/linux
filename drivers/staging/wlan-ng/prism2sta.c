@@ -72,6 +72,7 @@
 #include <asm/byteorder.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
+#include <linux/bitops.h>
 
 #include "wlan_compat.h"
 
@@ -713,8 +714,8 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->ident_sta_fw.minor = hfa384x2host_16(hw->ident_sta_fw.minor);
 
 	/* strip out the 'special' variant bits */
-	hw->mm_mods = hw->ident_sta_fw.variant & (BIT14 | BIT15);
-	hw->ident_sta_fw.variant &= ~((u16)(BIT14 | BIT15));
+	hw->mm_mods = hw->ident_sta_fw.variant & (BIT(14) | BIT(15));
+	hw->ident_sta_fw.variant &= ~((u16)(BIT(14) | BIT(15)));
 
 	if  ( hw->ident_sta_fw.id == 0x1f ) {
 		WLAN_LOG_INFO(

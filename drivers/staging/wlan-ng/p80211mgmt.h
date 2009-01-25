@@ -213,15 +213,15 @@
 /* Macros */
 
 /*-- Capability Field ---------------------------*/
-#define WLAN_GET_MGMT_CAP_INFO_ESS(n)		((n) & BIT0)
-#define WLAN_GET_MGMT_CAP_INFO_IBSS(n)		(((n) & BIT1) >> 1)
-#define WLAN_GET_MGMT_CAP_INFO_CFPOLLABLE(n)	(((n) & BIT2) >> 2)
-#define WLAN_GET_MGMT_CAP_INFO_CFPOLLREQ(n)	(((n) & BIT3) >> 3)
-#define WLAN_GET_MGMT_CAP_INFO_PRIVACY(n)	(((n) & BIT4) >> 4)
+#define WLAN_GET_MGMT_CAP_INFO_ESS(n)		((n) & BIT(0))
+#define WLAN_GET_MGMT_CAP_INFO_IBSS(n)		(((n) & BIT(1)) >> 1)
+#define WLAN_GET_MGMT_CAP_INFO_CFPOLLABLE(n)	(((n) & BIT(2)) >> 2)
+#define WLAN_GET_MGMT_CAP_INFO_CFPOLLREQ(n)	(((n) & BIT(3)) >> 3)
+#define WLAN_GET_MGMT_CAP_INFO_PRIVACY(n)	(((n) & BIT(4)) >> 4)
   /* p80211b additions */
-#define WLAN_GET_MGMT_CAP_INFO_SHORT(n)		(((n) & BIT5) >> 5)
-#define WLAN_GET_MGMT_CAP_INFO_PBCC(n)		(((n) & BIT6) >> 6)
-#define WLAN_GET_MGMT_CAP_INFO_AGILITY(n)	(((n) & BIT7) >> 7)
+#define WLAN_GET_MGMT_CAP_INFO_SHORT(n)		(((n) & BIT(5)) >> 5)
+#define WLAN_GET_MGMT_CAP_INFO_PBCC(n)		(((n) & BIT(6)) >> 6)
+#define WLAN_GET_MGMT_CAP_INFO_AGILITY(n)	(((n) & BIT(7)) >> 7)
 
 #define WLAN_SET_MGMT_CAP_INFO_ESS(n)		(n)
 #define WLAN_SET_MGMT_CAP_INFO_IBSS(n)		((n) << 1)

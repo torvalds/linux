@@ -52,6 +52,7 @@
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/if_ether.h>
+#include <linux/bitops.h>
 
 /*================================================================*/
 /* Project Includes */
@@ -126,7 +127,7 @@ static const long p80211wext_channel_freq[] = {
 #define NUM_CHANNELS ARRAY_SIZE(p80211wext_channel_freq)
 
 /* steal a spare bit to store the shared/opensystems state. should default to open if not set */
-#define HOSTWEP_SHAREDKEY BIT3
+#define HOSTWEP_SHAREDKEY BIT(3)
 
 
 /** function declarations =============== */

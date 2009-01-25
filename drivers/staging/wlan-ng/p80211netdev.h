@@ -158,11 +158,11 @@ int p80211wext_event_associated(struct wlandevice *wlandev, int assoc);
 #define NUM_WEPKEYS 4
 #define MAX_KEYLEN 32
 
-#define HOSTWEP_DEFAULTKEY_MASK (BIT1|BIT0)
-#define HOSTWEP_DECRYPT  BIT4
-#define HOSTWEP_ENCRYPT  BIT5
-#define HOSTWEP_PRIVACYINVOKED BIT6
-#define HOSTWEP_EXCLUDEUNENCRYPTED BIT7
+#define HOSTWEP_DEFAULTKEY_MASK (BIT(1)|BIT(0))
+#define HOSTWEP_DECRYPT  BIT(4)
+#define HOSTWEP_ENCRYPT  BIT(5)
+#define HOSTWEP_PRIVACYINVOKED BIT(6)
+#define HOSTWEP_EXCLUDEUNENCRYPTED BIT(7)
 
 extern int wlan_watchdog;
 extern int wlan_wext_write;

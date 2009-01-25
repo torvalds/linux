@@ -86,9 +86,9 @@
 /*----------------------------------------------------------------*/
 /* Netlink multicast bits for different types of messages */
 
-#define P80211_NL_MCAST_GRP_MLME	BIT0	/* Local station messages */
-#define P80211_NL_MCAST_GRP_SNIFF	BIT1	/* Sniffer messages */
-#define P80211_NL_MCAST_GRP_DIST	BIT2	/* Distribution system messages */
+#define P80211_NL_MCAST_GRP_MLME	BIT(0)	/* Local station messages */
+#define P80211_NL_MCAST_GRP_SNIFF	BIT(1)	/* Sniffer messages */
+#define P80211_NL_MCAST_GRP_DIST	BIT(2)	/* Distribution system messages */
 
 /*================================================================*/
 /* Types */

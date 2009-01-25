@@ -167,17 +167,17 @@
 /*                        SET_FC_FSTYPE(WLAN_FSTYPE_RTS) );   */
 /*------------------------------------------------------------*/
 
-#define WLAN_GET_FC_PVER(n)	 (((u16)(n)) & (BIT0 | BIT1))
-#define WLAN_GET_FC_FTYPE(n)	((((u16)(n)) & (BIT2 | BIT3)) >> 2)
-#define WLAN_GET_FC_FSTYPE(n)	((((u16)(n)) & (BIT4|BIT5|BIT6|BIT7)) >> 4)
-#define WLAN_GET_FC_TODS(n) 	((((u16)(n)) & (BIT8)) >> 8)
-#define WLAN_GET_FC_FROMDS(n)	((((u16)(n)) & (BIT9)) >> 9)
-#define WLAN_GET_FC_MOREFRAG(n) ((((u16)(n)) & (BIT10)) >> 10)
-#define WLAN_GET_FC_RETRY(n)	((((u16)(n)) & (BIT11)) >> 11)
-#define WLAN_GET_FC_PWRMGT(n)	((((u16)(n)) & (BIT12)) >> 12)
-#define WLAN_GET_FC_MOREDATA(n) ((((u16)(n)) & (BIT13)) >> 13)
-#define WLAN_GET_FC_ISWEP(n)	((((u16)(n)) & (BIT14)) >> 14)
-#define WLAN_GET_FC_ORDER(n)	((((u16)(n)) & (BIT15)) >> 15)
+#define WLAN_GET_FC_PVER(n)	 (((u16)(n)) & (BIT(0) | BIT(1)))
+#define WLAN_GET_FC_FTYPE(n)	((((u16)(n)) & (BIT(2) | BIT(3))) >> 2)
+#define WLAN_GET_FC_FSTYPE(n)	((((u16)(n)) & (BIT(4)|BIT(5)|BIT(6)|BIT(7))) >> 4)
+#define WLAN_GET_FC_TODS(n) 	((((u16)(n)) & (BIT(8))) >> 8)
+#define WLAN_GET_FC_FROMDS(n)	((((u16)(n)) & (BIT(9))) >> 9)
+#define WLAN_GET_FC_MOREFRAG(n) ((((u16)(n)) & (BIT(10))) >> 10)
+#define WLAN_GET_FC_RETRY(n)	((((u16)(n)) & (BIT(11))) >> 11)
+#define WLAN_GET_FC_PWRMGT(n)	((((u16)(n)) & (BIT(12))) >> 12)
+#define WLAN_GET_FC_MOREDATA(n) ((((u16)(n)) & (BIT(13))) >> 13)
+#define WLAN_GET_FC_ISWEP(n)	((((u16)(n)) & (BIT(14))) >> 14)
+#define WLAN_GET_FC_ORDER(n)	((((u16)(n)) & (BIT(15))) >> 15)
 
 #define WLAN_SET_FC_PVER(n)	((u16)(n))
 #define WLAN_SET_FC_FTYPE(n)	(((u16)(n)) << 2)
@@ -202,8 +202,8 @@
 /* Macros to get/set the bitfields of the Sequence Control    */
 /* Field.                                                     */
 /*------------------------------------------------------------*/
-#define WLAN_GET_SEQ_FRGNUM(n) (((u16)(n)) & (BIT0|BIT1|BIT2|BIT3))
-#define WLAN_GET_SEQ_SEQNUM(n) ((((u16)(n)) & (~(BIT0|BIT1|BIT2|BIT3))) >> 4)
+#define WLAN_GET_SEQ_FRGNUM(n) (((u16)(n)) & (BIT(0)|BIT(1)|BIT(2)|BIT(3)))
+#define WLAN_GET_SEQ_SEQNUM(n) ((((u16)(n)) & (~(BIT(0)|BIT(1)|BIT(2)|BIT(3)))) >> 4)
 
 /*--- Data ptr macro -----------------------------------------*/
 /* Creates a u8* to the data portion of a frame            */
@@ -212,7 +212,7 @@
 #define WLAN_HDR_A3_DATAP(p) (((u8*)(p)) + WLAN_HDR_A3_LEN)
 #define WLAN_HDR_A4_DATAP(p) (((u8*)(p)) + WLAN_HDR_A4_LEN)
 
-#define DOT11_RATE5_ISBASIC_GET(r)     (((u8)(r)) & BIT7)
+#define DOT11_RATE5_ISBASIC_GET(r)     (((u8)(r)) & BIT(7))
 
 /*================================================================*/
 /* Types */
