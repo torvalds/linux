@@ -255,12 +255,12 @@ static int acpi_platform_notify(struct device *dev)
 	}
 	type = acpi_get_bus_type(dev->bus);
 	if (!type) {
-		DBG("No ACPI bus support for %s\n", dev->bus_id);
+		DBG("No ACPI bus support for %s\n", dev_name(dev));
 		ret = -EINVAL;
 		goto end;
 	}
 	if ((ret = type->find_device(dev, &handle)) != 0)
-		DBG("Can't get handler for %s\n", dev->bus_id);
+		DBG("Can't get handler for %s\n", dev_name(dev));
       end:
 	if (!ret)
 		acpi_bind_one(dev, handle);
@@ -271,10 +271,10 @@ static int acpi_platform_notify(struct device *dev)
 
 		acpi_get_name(dev->archdata.acpi_handle,
 			      ACPI_FULL_PATHNAME, &buffer);
-		DBG("Device %s -> %s\n", dev->bus_id, (char *)buffer.pointer);
+		DBG("Device %s -> %s\n", dev_name(dev), (char *)buffer.pointer);
 		kfree(buffer.pointer);
 	} else
-		DBG("Device %s -> No ACPI support\n", dev->bus_id);
+		DBG("Device %s -> No ACPI support\n", dev_name(dev));
 #endif
 
 	return ret;
