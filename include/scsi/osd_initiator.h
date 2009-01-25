@@ -33,6 +33,12 @@ struct osd_dev {
 	unsigned def_timeout;
 };
 
+/* Add/remove test ioctls from external modules */
+typedef int (do_test_fn)(struct osd_dev *od, unsigned cmd, unsigned long arg);
+int osduld_register_test(unsigned ioctl, do_test_fn *do_test);
+void osduld_unregister_test(unsigned ioctl);
+
+/* These are called by uld at probe time */
 void osd_dev_init(struct osd_dev *od, struct scsi_device *scsi_device);
 void osd_dev_fini(struct osd_dev *od);
 

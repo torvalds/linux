@@ -17,6 +17,9 @@ ifneq ($(OSD_INC),)
 CONFIG_SCSI_OSD_INITIATOR=m
 ccflags-y += -DCONFIG_SCSI_OSD_INITIATOR -DCONFIG_SCSI_OSD_INITIATOR_MODULE
 
+CONFIG_SCSI_OSD_ULD=m
+ccflags-y += -DCONFIG_SCSI_OSD_ULD -DCONFIG_SCSI_OSD_ULD_MODULE
+
 # Uncomment to turn debug on
 # ccflags-y += -DCONFIG_SCSI_OSD_DEBUG
 
@@ -30,3 +33,7 @@ endif
 # libosd.ko - osd-initiator library
 libosd-y := osd_initiator.o
 obj-$(CONFIG_SCSI_OSD_INITIATOR) += libosd.o
+
+# osd.ko - SCSI ULD and char-device
+osd-y := osd_uld.o
+obj-$(CONFIG_SCSI_OSD_ULD) += osd.o
