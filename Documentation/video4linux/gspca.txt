@@ -216,6 +216,7 @@ pac207		093a:2468	PAC207
 pac207		093a:2470	Genius GF112
 pac207		093a:2471	Genius VideoCam ge111
 pac207		093a:2472	Genius VideoCam ge110
+pac207		093a:2474	Genius iLook 111
 pac207		093a:2476	Genius e-Messenger 112
 pac7311		093a:2600	PAC7311 Typhoon
 pac7311		093a:2601	Philips SPC 610 NC
