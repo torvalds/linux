@@ -1214,7 +1214,7 @@ UNUSUAL_DEV(  0x07c4, 0xa400, 0x0000, 0xffff,
 		"Datafab",
 		"KECF-USB",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_INQUIRY ),
+		US_FL_FIX_INQUIRY | US_FL_FIX_CAPACITY ),
 
 /* Reported by Rauch Wolke <rauchwolke@gmx.net> */
 UNUSUAL_DEV(  0x07c4, 0xa4a5, 0x0000, 0xffff,
