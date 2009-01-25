@@ -13,18 +13,21 @@ Author:
 Description
 -----------
 
-This driver provides support for the accelerometer found in various HP laptops
-sporting the feature officially called "HP Mobile Data Protection System 3D" or
-"HP 3D DriveGuard". It detect automatically laptops with this sensor. Known models
-(for now the HP 2133, nc6420, nc2510, nc8510, nc84x0, nw9440 and nx9420) will
-have their axis automatically oriented on standard way (eg: you can directly
-play neverball).  The accelerometer data is readable via
+This driver provides support for the accelerometer found in various HP
+laptops sporting the feature officially called "HP Mobile Data
+Protection System 3D" or "HP 3D DriveGuard". It detect automatically
+laptops with this sensor. Known models (for now the HP 2133, nc6420,
+nc2510, nc8510, nc84x0, nw9440 and nx9420) will have their axis
+automatically oriented on standard way (eg: you can directly play
+neverball).  The accelerometer data is readable via
 /sys/devices/platform/lis3lv02d.
 
 Sysfs attributes under /sys/devices/platform/lis3lv02d/:
 position - 3D position that the accelerometer reports. Format: "(x,y,z)"
-calibrate - read: values (x, y, z) that are used as the base for input class device operation.
-            write: forces the base to be recalibrated with the current position.
+calibrate - read: values (x, y, z) that are used as the base for input
+		  class device operation.
+            write: forces the base to be recalibrated with the current
+		  position.
 rate - reports the sampling rate of the accelerometer device in HZ
 
 This driver also provides an absolute input class device, allowing
@@ -39,11 +42,12 @@ the accelerometer are converted into a "standard" organisation of the axes
  * When the laptop is horizontal the position reported is about 0 for X and Y
 and a positive value for Z
  * If the left side is elevated, X increases (becomes positive)
- * If the front side (where the touchpad is) is elevated, Y decreases (becomes negative)
+ * If the front side (where the touchpad is) is elevated, Y decreases
+	(becomes negative)
  * If the laptop is put upside-down, Z becomes negative
 
-If your laptop model is not recognized (cf "dmesg"), you can send an email to the
-authors to add it to the database.  When reporting a new laptop, please include
-the output of "dmidecode" plus the value of /sys/devices/platform/lis3lv02d/position
-in these four cases.
+If your laptop model is not recognized (cf "dmesg"), you can send an
+email to the authors to add it to the database.  When reporting a new
+laptop, please include the output of "dmidecode" plus the value of
+/sys/devices/platform/lis3lv02d/position in these four cases.
 

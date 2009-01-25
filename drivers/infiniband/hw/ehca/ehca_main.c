@@ -304,7 +304,7 @@ static int ehca_sense_attributes(struct ehca_shca *shca)
 
 	h_ret = hipz_h_query_hca(shca->ipz_hca_handle, rblock);
 	if (h_ret != H_SUCCESS) {
-		ehca_gen_err("Cannot query device properties. h_ret=%li",
+		ehca_gen_err("Cannot query device properties. h_ret=%lli",
 			     h_ret);
 		ret = -EPERM;
 		goto sense_attributes1;
@@ -391,7 +391,7 @@ static int ehca_sense_attributes(struct ehca_shca *shca)
 	port = (struct hipz_query_port *)rblock;
 	h_ret = hipz_h_query_port(shca->ipz_hca_handle, 1, port);
 	if (h_ret != H_SUCCESS) {
-		ehca_gen_err("Cannot query port properties. h_ret=%li",
+		ehca_gen_err("Cannot query port properties. h_ret=%lli",
 			     h_ret);
 		ret = -EPERM;
 		goto sense_attributes1;
@@ -682,7 +682,7 @@ static ssize_t ehca_show_adapter_handle(struct device *dev,
 {
 	struct ehca_shca *shca = dev->driver_data;
 
-	return sprintf(buf, "%lx\n", shca->ipz_hca_handle.handle);
+	return sprintf(buf, "%llx\n", shca->ipz_hca_handle.handle);
 
 }
 static DEVICE_ATTR(adapter_handle, S_IRUGO, ehca_show_adapter_handle, NULL);
@@ -955,7 +955,7 @@ void ehca_poll_eqs(unsigned long data)
 			struct ehca_eq *eq = &shca->eq;
 			int max = 3;
 			volatile u64 q_ofs, q_ofs2;
-			u64 flags;
+			unsigned long flags;
 			spin_lock_irqsave(&eq->spinlock, flags);
 			q_ofs = eq->ipz_queue.current_q_offset;
 			spin_unlock_irqrestore(&eq->spinlock, flags);

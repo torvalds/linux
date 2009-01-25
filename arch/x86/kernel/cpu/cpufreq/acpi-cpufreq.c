@@ -150,9 +150,8 @@ struct drv_cmd {
 	u32 val;
 };
 
-static long do_drv_read(void *_cmd)
+static void do_drv_read(struct drv_cmd *cmd)
 {
-	struct drv_cmd *cmd = _cmd;
 	u32 h;
 
 	switch (cmd->type) {
@@ -167,12 +166,10 @@ static long do_drv_read(void *_cmd)
 	default:
 		break;
 	}
-	return 0;
 }
 
-static long do_drv_write(void *_cmd)
+static void do_drv_write(struct drv_cmd *cmd)
 {
-	struct drv_cmd *cmd = _cmd;
 	u32 lo, hi;
 
 	switch (cmd->type) {
@@ -189,23 +186,30 @@ static long do_drv_write(void *_cmd)
 	default:
 		break;
 	}
-	return 0;
 }
 
 static void drv_read(struct drv_cmd *cmd)
 {
+	cpumask_t saved_mask = current->cpus_allowed;
 	cmd->val = 0;
 
-	work_on_cpu(cpumask_any(cmd->mask), do_drv_read, cmd);
+	set_cpus_allowed_ptr(current, cmd->mask);
+	do_drv_read(cmd);
+	set_cpus_allowed_ptr(current, &saved_mask);
 }
 
 static void drv_write(struct drv_cmd *cmd)
 {
+	cpumask_t saved_mask = current->cpus_allowed;
 	unsigned int i;
 
 	for_each_cpu(i, cmd->mask) {
-		work_on_cpu(i, do_drv_write, cmd);
+		set_cpus_allowed_ptr(current, cpumask_of(i));
+		do_drv_write(cmd);
 	}
+
+	set_cpus_allowed_ptr(current, &saved_mask);
+	return;
 }
 
 static u32 get_cur_val(const struct cpumask *mask)
@@ -231,14 +235,9 @@ static u32 get_cur_val(const struct cpumask *mask)
 		return 0;
 	}
 
-	if (unlikely(!alloc_cpumask_var(&cmd.mask, GFP_KERNEL)))
-		return 0;
-
 	cpumask_copy(cmd.mask, mask);
 
 	drv_read(&cmd);
-
-	free_cpumask_var(cmd.mask);
 
 	dprintk("get_cur_val = %u\n", cmd.val);
 

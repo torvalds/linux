@@ -1258,35 +1258,48 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 {
 	int	rval;
 	unsigned long flags = 0;
-	int cnt;
+	int cnt, que;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = ha->req_q_map[0];
-	struct rsp_que *rsp = ha->rsp_q_map[0];
+	struct req_que *req;
+	struct rsp_que *rsp;
+	struct scsi_qla_host *vp;
 	struct mid_init_cb_24xx *mid_init_cb =
 	    (struct mid_init_cb_24xx *) ha->init_cb;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
 	/* Clear outstanding commands array. */
-	for (cnt = 0; cnt < MAX_OUTSTANDING_COMMANDS; cnt++)
-		req->outstanding_cmds[cnt] = NULL;
+	for (que = 0; que < ha->max_queues; que++) {
+		req = ha->req_q_map[que];
+		if (!req)
+			continue;
+		for (cnt = 0; cnt < MAX_OUTSTANDING_COMMANDS; cnt++)
+			req->outstanding_cmds[cnt] = NULL;
 
-	req->current_outstanding_cmd = 0;
+		req->current_outstanding_cmd = 0;
+
+		/* Initialize firmware. */
+		req->ring_ptr  = req->ring;
+		req->ring_index    = 0;
+		req->cnt      = req->length;
+	}
+
+	for (que = 0; que < ha->max_queues; que++) {
+		rsp = ha->rsp_q_map[que];
+		if (!rsp)
+			continue;
+		rsp->ring_ptr = rsp->ring;
+		rsp->ring_index    = 0;
+
+		/* Initialize response queue entries */
+		qla2x00_init_response_q_entries(rsp);
+	}
 
 	/* Clear RSCN queue. */
-	vha->rscn_in_ptr = 0;
-	vha->rscn_out_ptr = 0;
-
-	/* Initialize firmware. */
-	req->ring_ptr  = req->ring;
-	req->ring_index    = 0;
-	req->cnt      = req->length;
-	rsp->ring_ptr = rsp->ring;
-	rsp->ring_index    = 0;
-
-	/* Initialize response queue entries */
-	qla2x00_init_response_q_entries(rsp);
-
+	list_for_each_entry(vp, &ha->vp_list, list) {
+		vp->rscn_in_ptr = 0;
+		vp->rscn_out_ptr = 0;
+	}
 	ha->isp_ops->config_rings(vha);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -3212,8 +3225,8 @@ qla2x00_loop_resync(scsi_qla_host_t *vha)
 	int rval = QLA_SUCCESS;
 	uint32_t wait_time;
 	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = ha->req_q_map[0];
-	struct rsp_que *rsp = ha->rsp_q_map[0];
+	struct req_que *req = ha->req_q_map[vha->req_ques[0]];
+	struct rsp_que *rsp = req->rsp;
 
 	atomic_set(&vha->loop_state, LOOP_UPDATE);
 	clear_bit(ISP_ABORT_RETRY, &vha->dpc_flags);
@@ -3492,6 +3505,7 @@ qla25xx_init_queues(struct qla_hw_data *ha)
 		}
 		req = ha->req_q_map[i];
 		if (req) {
+		/* Clear outstanding commands array. */
 			req->options &= ~BIT_0;
 			ret = qla25xx_init_req_que(base_vha, req, req->options);
 			if (ret != QLA_SUCCESS)
@@ -3500,7 +3514,7 @@ qla25xx_init_queues(struct qla_hw_data *ha)
 						req->id));
 			else
 				DEBUG2_17(printk(KERN_WARNING
-					"%s Rsp que:%d inited\n", __func__,
+					"%s Req que:%d inited\n", __func__,
 						req->id));
 		}
 	}
@@ -4151,8 +4165,8 @@ qla24xx_configure_vhba(scsi_qla_host_t *vha)
 	uint16_t mb[MAILBOX_REGISTER_COUNT];
 	struct qla_hw_data *ha = vha->hw;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
-	struct req_que *req = ha->req_q_map[0];
-	struct rsp_que *rsp = ha->rsp_q_map[0];
+	struct req_que *req = ha->req_q_map[vha->req_ques[0]];
+	struct rsp_que *rsp = req->rsp;
 
 	if (!vha->vp_idx)
 		return -EINVAL;

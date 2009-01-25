@@ -434,11 +434,11 @@ static int rt2x00usb_find_endpoints(struct rt2x00_dev *rt2x00dev)
 
 		if (usb_endpoint_is_bulk_in(ep_desc)) {
 			rt2x00usb_assign_endpoint(rt2x00dev->rx, ep_desc);
-		} else if (usb_endpoint_is_bulk_out(ep_desc)) {
+		} else if (usb_endpoint_is_bulk_out(ep_desc) &&
+			   (queue != queue_end(rt2x00dev))) {
 			rt2x00usb_assign_endpoint(queue, ep_desc);
+			queue = queue_next(queue);
 
-			if (queue != queue_end(rt2x00dev))
-				queue = queue_next(queue);
 			tx_ep_desc = ep_desc;
 		}
 	}

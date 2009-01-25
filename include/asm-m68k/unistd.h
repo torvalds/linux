@@ -5,6 +5,7 @@
  * This file contains the system call numbers.
  */
 
+#define __NR_restart_syscall	  0
 #define __NR_exit		  1
 #define __NR_fork		  2
 #define __NR_read		  3
@@ -358,9 +359,6 @@
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-
-/* whitelist for checksyscalls */
-#define __IGNORE_restart_syscall
 
 /*
  * "Conditional" syscalls

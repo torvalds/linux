@@ -120,8 +120,8 @@ static int populate_range(struct mm_struct *mm, struct vm_area_struct *vma,
  * and the vma's default protection is used. Arbitrary protections
  * might be implemented in the future.
  */
-asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
-	unsigned long prot, unsigned long pgoff, unsigned long flags)
+SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+		unsigned long, prot, unsigned long, pgoff, unsigned long, flags)
 {
 	struct mm_struct *mm = current->mm;
 	struct address_space *mapping;

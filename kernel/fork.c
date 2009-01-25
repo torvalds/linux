@@ -901,7 +901,7 @@ static void copy_flags(unsigned long clone_flags, struct task_struct *p)
 	clear_freeze_flag(p);
 }
 
-asmlinkage long sys_set_tid_address(int __user *tidptr)
+SYSCALL_DEFINE1(set_tid_address, int __user *, tidptr)
 {
 	current->clear_child_tid = tidptr;
 
@@ -1603,7 +1603,7 @@ static int unshare_fd(unsigned long unshare_flags, struct files_struct **new_fdp
  * constructed. Here we are modifying the current, active,
  * task_struct.
  */
-asmlinkage long sys_unshare(unsigned long unshare_flags)
+SYSCALL_DEFINE1(unshare, unsigned long, unshare_flags)
 {
 	int err = 0;
 	struct fs_struct *fs, *new_fs = NULL;

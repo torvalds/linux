@@ -47,6 +47,10 @@ static inline int pcibus_to_node(struct pci_bus *pbus)
 	(pcibus_to_node(bus) == -1 ? \
 	 CPU_MASK_ALL : \
 	 node_to_cpumask(pcibus_to_node(bus)))
+#define cpumask_of_pcibus(bus)	\
+	(pcibus_to_node(bus) == -1 ? \
+	 CPU_MASK_ALL_PTR : \
+	 cpumask_of_node(pcibus_to_node(bus)))
 
 #define SD_NODE_INIT (struct sched_domain) {		\
 	.min_interval		= 8,			\

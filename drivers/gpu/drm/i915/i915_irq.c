@@ -411,6 +411,12 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
+	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
+	u32 pipeconf;
+
+	pipeconf = I915_READ(pipeconf_reg);
+	if (!(pipeconf & PIPEACONF_ENABLE))
+		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
 	if (IS_I965G(dev))

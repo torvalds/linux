@@ -546,7 +546,7 @@ static int setup_sge_qsets(struct adapter *adap)
 		pi->qs = &adap->sge.qs[pi->first_qset];
 		for (j = pi->first_qset; j < pi->first_qset + pi->nqsets;
 		     ++j, ++qset_idx) {
-			set_qset_lro(dev, qset_idx, pi->rx_csum_offload);
+			set_qset_lro(dev, qset_idx, pi->rx_offload & T3_LRO);
 			err = t3_sge_alloc_qset(adap, qset_idx, 1,
 				(adap->flags & USING_MSIX) ? qset_idx + 1 :
 							     irq_idx,
@@ -1657,17 +1657,19 @@ static u32 get_rx_csum(struct net_device *dev)
 {
 	struct port_info *p = netdev_priv(dev);
 
-	return p->rx_csum_offload;
+	return p->rx_offload & T3_RX_CSUM;
 }
 
 static int set_rx_csum(struct net_device *dev, u32 data)
 {
 	struct port_info *p = netdev_priv(dev);
 
-	p->rx_csum_offload = data;
-	if (!data) {
+	if (data) {
+		p->rx_offload |= T3_RX_CSUM;
+	} else {
 		int i;
 
+		p->rx_offload &= ~(T3_RX_CSUM | T3_LRO);
 		for (i = p->first_qset; i < p->first_qset + p->nqsets; i++)
 			set_qset_lro(dev, i, 0);
 	}
@@ -1830,15 +1832,18 @@ static int cxgb3_set_flags(struct net_device *dev, u32 data)
 	int i;
 
 	if (data & ETH_FLAG_LRO) {
-		if (!pi->rx_csum_offload)
+		if (!(pi->rx_offload & T3_RX_CSUM))
 			return -EINVAL;
 
+		pi->rx_offload |= T3_LRO;
 		for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++)
 			set_qset_lro(dev, i, 1);
 
-	} else
+	} else {
+		pi->rx_offload &= ~T3_LRO;
 		for (i = pi->first_qset; i < pi->first_qset + pi->nqsets; i++)
 			set_qset_lro(dev, i, 0);
+	}
 
 	return 0;
 }
@@ -1926,7 +1931,7 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 				pi = adap2pinfo(adapter, i);
 				if (t.qset_idx >= pi->first_qset &&
 				    t.qset_idx < pi->first_qset + pi->nqsets &&
-				    !pi->rx_csum_offload)
+				    !(pi->rx_offload & T3_RX_CSUM))
 					return -EINVAL;
 			}
 
@@ -2946,7 +2951,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		adapter->port[i] = netdev;
 		pi = netdev_priv(netdev);
 		pi->adapter = adapter;
-		pi->rx_csum_offload = 1;
+		pi->rx_offload = T3_RX_CSUM | T3_LRO;
 		pi->port_id = i;
 		netif_carrier_off(netdev);
 		netif_tx_stop_all_queues(netdev);
@@ -2955,6 +2960,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		netdev->mem_end = mmio_start + mmio_len - 1;
 		netdev->features |= NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO;
 		netdev->features |= NETIF_F_LLTX;
+		netdev->features |= NETIF_F_LRO;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 
