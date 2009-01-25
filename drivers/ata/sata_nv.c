@@ -352,6 +352,7 @@ enum nv_host_type
 	NFORCE3 = NFORCE2,	/* NF2 == NF3 as far as sata_nv is concerned */
 	CK804,
 	ADMA,
+	MCP5x,
 	SWNCQ,
 };
 
@@ -363,10 +364,10 @@ static const struct pci_device_id nv_pci_tbl[] = {
 	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_CK804_SATA2), CK804 },
 	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP04_SATA), CK804 },
 	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP04_SATA2), CK804 },
-	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SATA), SWNCQ },
-	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SATA2), SWNCQ },
-	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SATA), SWNCQ },
-	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SATA2), SWNCQ },
+	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SATA), MCP5x },
+	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SATA2), MCP5x },
+	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SATA), MCP5x },
+	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SATA2), MCP5x },
 	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP61_SATA), GENERIC },
 	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP61_SATA2), GENERIC },
 	{ PCI_VDEVICE(NVIDIA, PCI_DEVICE_ID_NVIDIA_NFORCE_MCP61_SATA3), GENERIC },
@@ -467,8 +468,19 @@ static struct ata_port_operations nv_adma_ops = {
 	.host_stop		= nv_adma_host_stop,
 };
 
+/* Kernel bz#12351 reports that when SWNCQ is enabled, for hotplug to
+ * work, hardreset should be used and hardreset can't report proper
+ * signature, which suggests that mcp5x is closer to nf2 as long as
+ * reset quirkiness is concerned.  Define separate ops for mcp5x with
+ * nv_noclassify_hardreset().
+ */
+static struct ata_port_operations nv_mcp5x_ops = {
+	.inherits		= &nv_common_ops,
+	.hardreset		= nv_noclassify_hardreset,
+};
+
 static struct ata_port_operations nv_swncq_ops = {
-	.inherits		= &nv_generic_ops,
+	.inherits		= &nv_mcp5x_ops,
 
 	.qc_defer		= ata_std_qc_defer,
 	.qc_prep		= nv_swncq_qc_prep,
@@ -530,6 +542,15 @@ static const struct ata_port_info nv_port_info[] = {
 		.udma_mask	= NV_UDMA_MASK,
 		.port_ops	= &nv_adma_ops,
 		.private_data	= NV_PI_PRIV(nv_adma_interrupt, &nv_adma_sht),
+	},
+	/* MCP5x */
+	{
+		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY,
+		.pio_mask	= NV_PIO_MASK,
+		.mwdma_mask	= NV_MWDMA_MASK,
+		.udma_mask	= NV_UDMA_MASK,
+		.port_ops	= &nv_mcp5x_ops,
+		.private_data	= NV_PI_PRIV(nv_generic_interrupt, &nv_sht),
 	},
 	/* SWNCQ */
 	{
@@ -2355,14 +2376,9 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (type == CK804 && adma_enabled) {
 		dev_printk(KERN_NOTICE, &pdev->dev, "Using ADMA mode\n");
 		type = ADMA;
-	}
-
-	if (type == SWNCQ) {
-		if (swncq_enabled)
-			dev_printk(KERN_NOTICE, &pdev->dev,
-				   "Using SWNCQ mode\n");
-		else
-			type = GENERIC;
+	} else if (type == MCP5x && swncq_enabled) {
+		dev_printk(KERN_NOTICE, &pdev->dev, "Using SWNCQ mode\n");
+		type = SWNCQ;
 	}
 
 	ppi[0] = &nv_port_info[type];
