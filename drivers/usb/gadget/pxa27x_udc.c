@@ -1536,8 +1536,10 @@ static void udc_disable(struct pxa_udc *udc);
  * Context: any
  *
  * The UDC should be enabled if :
+
  *  - the pullup resistor is connected
  *  - and a gadget driver is bound
+ *  - and vbus is sensed (or no vbus sense is available)
  *
  * Returns 1 if UDC should be enabled, 0 otherwise
  */
@@ -1546,6 +1548,7 @@ static int should_enable_udc(struct pxa_udc *udc)
 	int put_on;
 
 	put_on = ((udc->pullup_on) && (udc->driver));
+	put_on &= ((udc->vbus_sensed) || (!udc->transceiver));
 	return put_on;
 }
 
@@ -1557,6 +1560,7 @@ static int should_enable_udc(struct pxa_udc *udc)
  * The UDC should be disabled if :
  *  - the pullup resistor is not connected
  *  - or no gadget driver is bound
+ *  - or no vbus is sensed (when vbus sesing is available)
  *
  * Returns 1 if UDC should be disabled
  */
@@ -1565,6 +1569,7 @@ static int should_disable_udc(struct pxa_udc *udc)
 	int put_off;
 
 	put_off = ((!udc->pullup_on) || (!udc->driver));
+	put_off |= ((!udc->vbus_sensed) && (udc->transceiver));
 	return put_off;
 }
 
@@ -1592,10 +1597,37 @@ static int pxa_udc_pullup(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
+static void udc_enable(struct pxa_udc *udc);
+static void udc_disable(struct pxa_udc *udc);
+
+/**
+ * pxa_udc_vbus_session - Called by external transceiver to enable/disable udc
+ * @_gadget: usb gadget
+ * @is_active: 0 if should disable the udc, 1 if should enable
+ *
+ * Enables the udc, and optionnaly activates D+ pullup resistor. Or disables the
+ * udc, and deactivates D+ pullup resistor.
+ *
+ * Returns 0
+ */
+static int pxa_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
+{
+	struct pxa_udc *udc = to_gadget_udc(_gadget);
+
+	udc->vbus_sensed = is_active;
+	if (should_enable_udc(udc))
+		udc_enable(udc);
+	if (should_disable_udc(udc))
+		udc_disable(udc);
+
+	return 0;
+}
+
 static const struct usb_gadget_ops pxa_udc_ops = {
 	.get_frame	= pxa_udc_get_frame,
 	.wakeup		= pxa_udc_wakeup,
 	.pullup		= pxa_udc_pullup,
+	.vbus_session	= pxa_udc_vbus_session,
 	/* current versions must always be self-powered */
 };
 
@@ -2357,6 +2389,7 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 	device_initialize(&udc->gadget.dev);
 	udc->gadget.dev.parent = &pdev->dev;
 	udc->gadget.dev.dma_mask = NULL;
+	udc->vbus_sensed = 0;
 
 	the_controller = udc;
 	platform_set_drvdata(pdev, udc);

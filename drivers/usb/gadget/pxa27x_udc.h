@@ -456,6 +456,7 @@ struct pxa_udc {
 	unsigned				enabled:1;
 	unsigned				pullup_on:1;
 	unsigned				pullup_resume:1;
+	unsigned				vbus_sensed:1;
 	unsigned				config:2;
 	unsigned				last_interface:3;
 	unsigned				last_alternate:3;
