@@ -57,6 +57,7 @@
 #endif
 
 #include <linux/hardirq.h>
+#include <linux/ctype.h>
 
 #if defined(WLAN_INCLUDE_DEBUG)
 	#define WLAN_HEX_DUMP( l, x, p, n)	if( WLAN_DBVAR >= (l) ){ \
@@ -80,8 +81,6 @@ typedef struct net_device netdevice_t;
 /*--- General Macros ------------------------------------------*/
 /*=============================================================*/
 
-#define wlan_isprint(c)	(((c) > (0x19)) && ((c) < (0x7f)))
-
 #define wlan_hexchar(x) (((x) < 0x0a) ? ('0' + (x)) : ('a' + ((x) - 0x0a)))
 
 /* Create a string of printable chars from something that might not be */
@@ -92,7 +91,7 @@ typedef struct net_device netdevice_t;
 	int j = 0; \
 	memset(str, 0, (strlen)); \
 	for (i = 0; i < (buflen); i++) { \
-		if ( wlan_isprint((buf)[i]) ) { \
+		if ( isprint((buf)[i]) ) { \
 			(str)[j] = (buf)[i]; \
 			j++; \
 		} else { \
