@@ -58,8 +58,6 @@
 
 #include <linux/hardirq.h>
 
-#define WLAN_LOG_ERROR(x,args...) printk(KERN_ERR "%s: " x , __func__ , ##args);
-
 #define WLAN_LOG_WARNING(x,args...) printk(KERN_WARNING "%s: " x , __func__ , ##args);
 
 #if defined(WLAN_INCLUDE_DEBUG)

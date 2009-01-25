@@ -495,7 +495,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 			 * for firmware loading.
 			 */
 			if ((result=hfa384x_drvr_start(hw))) {
-				WLAN_LOG_ERROR(
+				printk(KERN_ERR
 					"hfa384x_drvr_start() failed,"
 					"result=%d\n", (int)result);
 				result =
@@ -539,7 +539,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 			 * of the hardware or a previous firmware load.
 			 */
 			if ((result=hfa384x_drvr_start(hw))) {
-				WLAN_LOG_ERROR(
+				printk(KERN_ERR
 					"hfa384x_drvr_start() failed,"
 					"result=%d\n", (int)result);
 				result =
@@ -549,7 +549,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 			}
 
 			if ((result=prism2sta_getcardinfo(wlandev))) {
-				WLAN_LOG_ERROR(
+				printk(KERN_ERR
 					"prism2sta_getcardinfo() failed,"
 					"result=%d\n", (int)result);
 				result =
@@ -559,7 +559,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 				break;
 			}
 			if ((result=prism2sta_globalsetup(wlandev))) {
-				WLAN_LOG_ERROR(
+				printk(KERN_ERR
 					"prism2sta_globalsetup() failed,"
 					"result=%d\n", (int)result);
 				result =
@@ -661,7 +661,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_NICIDENTITY,
 			&hw->ident_nic, sizeof(hfa384x_compident_t));
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to retrieve NICIDENTITY\n");
+		printk(KERN_ERR "Failed to retrieve NICIDENTITY\n");
 		goto failed;
 	}
 
@@ -679,7 +679,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_PRIIDENTITY,
 			&hw->ident_pri_fw, sizeof(hfa384x_compident_t));
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to retrieve PRIIDENTITY\n");
+		printk(KERN_ERR "Failed to retrieve PRIIDENTITY\n");
 		goto failed;
 	}
 
@@ -697,12 +697,12 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STAIDENTITY,
 			&hw->ident_sta_fw, sizeof(hfa384x_compident_t));
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to retrieve STAIDENTITY\n");
+		printk(KERN_ERR "Failed to retrieve STAIDENTITY\n");
 		goto failed;
 	}
 
 	if (hw->ident_nic.id < 0x8000) {
-		WLAN_LOG_ERROR("FATAL: Card is not an Intersil Prism2/2.5/3\n");
+		printk(KERN_ERR "FATAL: Card is not an Intersil Prism2/2.5/3\n");
 		result = -1;
 		goto failed;
 	}
@@ -727,7 +727,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 			"ident:  ap f/w: id=0x%02x %d.%d.%d\n",
 			hw->ident_sta_fw.id, hw->ident_sta_fw.major,
 			hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
-		WLAN_LOG_ERROR("Unsupported Tertiary AP firmeare loaded!\n");
+		printk(KERN_ERR "Unsupported Tertiary AP firmeare loaded!\n");
 		goto failed;
 	}
 
@@ -735,7 +735,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_MFISUPRANGE,
 			&hw->cap_sup_mfi, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to retrieve MFISUPRANGE\n");
+		printk(KERN_ERR "Failed to retrieve MFISUPRANGE\n");
 		goto failed;
 	}
 
@@ -757,7 +757,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_CFISUPRANGE,
 			&hw->cap_sup_cfi, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to retrieve CFISUPRANGE\n");
+		printk(KERN_ERR "Failed to retrieve CFISUPRANGE\n");
 		goto failed;
 	}
 
@@ -779,7 +779,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_PRISUPRANGE,
 			&hw->cap_sup_pri, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to retrieve PRISUPRANGE\n");
+		printk(KERN_ERR "Failed to retrieve PRISUPRANGE\n");
 		goto failed;
 	}
 
@@ -801,7 +801,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STASUPRANGE,
 			&hw->cap_sup_sta, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to retrieve STASUPRANGE\n");
+		printk(KERN_ERR "Failed to retrieve STASUPRANGE\n");
 		goto failed;
 	}
 
@@ -831,7 +831,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_PRI_CFIACTRANGES,
 			&hw->cap_act_pri_cfi, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to retrieve PRI_CFIACTRANGES\n");
+		printk(KERN_ERR "Failed to retrieve PRI_CFIACTRANGES\n");
 		goto failed;
 	}
 
@@ -853,7 +853,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STA_CFIACTRANGES,
 			&hw->cap_act_sta_cfi, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to retrieve STA_CFIACTRANGES\n");
+		printk(KERN_ERR "Failed to retrieve STA_CFIACTRANGES\n");
 		goto failed;
 	}
 
@@ -875,7 +875,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_STA_MFIACTRANGES,
 			&hw->cap_act_sta_mfi, sizeof(hfa384x_caplevel_t));
 	if ( result ) {
-		WLAN_LOG_ERROR("Failed to retrieve STA_MFIACTRANGES\n");
+		printk(KERN_ERR "Failed to retrieve STA_MFIACTRANGES\n");
 		goto failed;
 	}
 
@@ -901,7 +901,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 				pstr, sizeof(pstr));
 		printk(KERN_INFO "Prism2 card SN: %s\n", pstr);
 	} else {
-		WLAN_LOG_ERROR("Failed to retrieve Prism2 Card SN\n");
+		printk(KERN_ERR "Failed to retrieve Prism2 Card SN\n");
 		goto failed;
 	}
 
@@ -909,7 +909,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_CNFOWNMACADDR,
 		wlandev->netdev->dev_addr, ETH_ALEN);
 	if ( result != 0 ) {
-		WLAN_LOG_ERROR("Failed to retrieve mac address\n");
+		printk(KERN_ERR "Failed to retrieve mac address\n");
 		goto failed;
 	}
 
@@ -937,7 +937,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	goto done;
 failed:
-	WLAN_LOG_ERROR("Failed, result=%d\n", result);
+	printk(KERN_ERR "Failed, result=%d\n", result);
 done:
 	return result;
 }
@@ -1126,7 +1126,7 @@ static void prism2sta_inf_scanresults(wlandevice_t *wlandev,
 			HFA384x_RID_JOINREQUEST,
 			&joinreq, HFA384x_RID_JOINREQUEST_LEN);
 	if (result) {
-		WLAN_LOG_ERROR("setconfig(joinreq) failed, result=%d\n", result);
+		printk(KERN_ERR "setconfig(joinreq) failed, result=%d\n", result);
 	}
 
 	return;
@@ -1751,7 +1751,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 							&rec, sizeof(rec));
 	if (result) {
 		if (added) hw->authlist.cnt--;
-		WLAN_LOG_ERROR("setconfig(authenticatestation) failed, result=%d\n", result);
+		printk(KERN_ERR "setconfig(authenticatestation) failed, result=%d\n", result);
 	}
 	return;
 }
@@ -2029,7 +2029,7 @@ static wlandevice_t *create_wlan(void)
 	hw =		kmalloc(sizeof(hfa384x_t), GFP_KERNEL);
 
 	if (!wlandev || !hw) {
-		WLAN_LOG_ERROR("%s: Memory allocation failure.\n", dev_info);
+		printk(KERN_ERR "%s: Memory allocation failure.\n", dev_info);
 		if (wlandev)	kfree(wlandev);
 		if (hw)		kfree(hw);
 		return NULL;
@@ -2083,7 +2083,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 						HFA384x_RID_DBMCOMMSQUALITY_LEN);
 
 		if (result) {
-			WLAN_LOG_ERROR("error fetching commsqual\n");
+			printk(KERN_ERR "error fetching commsqual\n");
 			goto done;
 		}
 

@@ -719,7 +719,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	 * change the netdev address
 	 */
 	if ( result != 0 || resultcode->data != P80211ENUM_resultcode_success) {
-		WLAN_LOG_ERROR(
+		printk(KERN_ERR
 		"Low-level driver failed dot11req_mibset(dot11MACAddress).\n");
 		result = -EADDRNOTAVAIL;
 	} else {
@@ -785,7 +785,7 @@ int wlan_setup(wlandevice_t *wlandev)
 	/* Allocate and initialize the struct device */
 	dev = alloc_netdev(0,"wlan%d",ether_setup);
 	if ( dev == NULL ) {
-		WLAN_LOG_ERROR("Failed to alloc netdev.\n");
+		printk(KERN_ERR "Failed to alloc netdev.\n");
 		result = 1;
 	} else {
 		wlandev->netdev = dev;
@@ -852,7 +852,7 @@ int wlan_unsetup(wlandevice_t *wlandev)
 	tasklet_kill(&wlandev->rx_bh);
 
 	if (wlandev->netdev == NULL ) {
-		WLAN_LOG_ERROR("called without wlandev->netdev set.\n");
+		printk(KERN_ERR "called without wlandev->netdev set.\n");
 		result = 1;
 	} else {
 		free_netdev(wlandev->netdev);

@@ -1330,7 +1330,7 @@ void
 hfa384x_copy_from_aux(
 	hfa384x_t *hw, u32 cardaddr, u32 auxctl, void *buf, unsigned int len)
 {
-	WLAN_LOG_ERROR("not used in USB.\n");
+	printk(KERN_ERR "not used in USB.\n");
 }
 
 
@@ -1362,7 +1362,7 @@ void
 hfa384x_copy_to_aux(
 	hfa384x_t *hw, u32 cardaddr, u32 auxctl, void *buf, unsigned int len)
 {
-	WLAN_LOG_ERROR("not used in USB.\n");
+	printk(KERN_ERR "not used in USB.\n");
 }
 
 
@@ -1395,7 +1395,7 @@ int hfa384x_corereset(hfa384x_t *hw, int holdtime, int settletime, int genesis)
 
 	result=usb_reset_device(hw->usb);
 	if(result<0) {
-		WLAN_LOG_ERROR("usb_reset_device() failed, result=%d.\n",result);
+		printk(KERN_ERR "usb_reset_device() failed, result=%d.\n",result);
 	}
 
 	return result;
@@ -2289,7 +2289,7 @@ WLAN_LOG_WARNING("dlbuf@0x%06lx len=%d to=%d\n", dlbufaddr, hw->bufinfo.len, hw-
 		result = hfa384x_cmd_download(hw, HFA384x_PROGMODE_NV,
 				burnlo, burnhi, burnlen);
 		if ( result ) {
-			WLAN_LOG_ERROR("download(NV,lo=%x,hi=%x,len=%x) "
+			printk(KERN_ERR "download(NV,lo=%x,hi=%x,len=%x) "
 				"cmd failed, result=%d. Aborting d/l\n",
 				burnlo, burnhi, burnlen, result);
 			goto exit_proc;
@@ -2322,7 +2322,7 @@ WLAN_LOG_WARNING("dlbuf@0x%06lx len=%d to=%d\n", dlbufaddr, hw->bufinfo.len, hw-
 
 Comment out for debugging, assume the write was successful.
 			if (result) {
-				WLAN_LOG_ERROR(
+				printk(KERN_ERR
 					"Write to dl buffer failed, "
 					"result=0x%04x. Aborting.\n",
 					result);
@@ -2337,7 +2337,7 @@ Comment out for debugging, assume the write was successful.
 				HFA384x_PROGMODE_NVWRITE,
 				0,0,0);
 		if ( result ) {
-			WLAN_LOG_ERROR(
+			printk(KERN_ERR
 				"download(NVWRITE,lo=%x,hi=%x,len=%x) "
 				"cmd failed, result=%d. Aborting d/l\n",
 				burnlo, burnhi, burnlen, result);
@@ -2486,7 +2486,7 @@ hfa384x_drvr_setconfig_async(
 ----------------------------------------------------------------*/
 int hfa384x_drvr_handover( hfa384x_t *hw, u8 *addr)
 {
-	WLAN_LOG_ERROR("Not currently supported in USB!\n");
+	printk(KERN_ERR "Not currently supported in USB!\n");
 	return -EIO;
 }
 
@@ -2585,7 +2585,7 @@ hfa384x_drvr_ramdl_enable(hfa384x_t *hw, u32 exeaddr)
 	/* Check that a port isn't active */
 	for ( i = 0; i < HFA384x_PORTID_MAX; i++) {
 		if ( hw->port_enabled[i] ) {
-			WLAN_LOG_ERROR(
+			printk(KERN_ERR
 				"Can't download with a macport enabled.\n");
 			return -EINVAL;
 		}
@@ -2593,7 +2593,7 @@ hfa384x_drvr_ramdl_enable(hfa384x_t *hw, u32 exeaddr)
 
 	/* Check that we're not already in a download state */
 	if ( hw->dlstate != HFA384x_DLSTATE_DISABLED ) {
-		WLAN_LOG_ERROR(
+		printk(KERN_ERR
 			"Download state not disabled.\n");
 		return -EINVAL;
 	}
@@ -2778,14 +2778,14 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len)
 			pdrcode = hfa384x2host_16(pda[currpdr+1]);
 			/* Test the record length */
 			if ( pdrlen > HFA384x_PDR_LEN_MAX || pdrlen == 0) {
-				WLAN_LOG_ERROR("pdrlen invalid=%d\n",
+				printk(KERN_ERR "pdrlen invalid=%d\n",
 					pdrlen);
 				pdaok = 0;
 				break;
 			}
 			/* Test the code */
 			if ( !hfa384x_isgood_pdrcode(pdrcode) ) {
-				WLAN_LOG_ERROR("pdrcode invalid=%d\n",
+				printk(KERN_ERR "pdrcode invalid=%d\n",
 					pdrcode);
 				pdaok = 0;
 				break;
@@ -2883,23 +2883,23 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 	 */
 	result = usb_get_status(hw->usb, USB_RECIP_ENDPOINT, hw->endp_in, &status);
 	if (result < 0) {
-		WLAN_LOG_ERROR(
+		printk(KERN_ERR
 			"Cannot get bulk in endpoint status.\n");
 		goto done;
 	}
 	if ((status == 1) && usb_clear_halt(hw->usb, hw->endp_in)) {
-		WLAN_LOG_ERROR(
+		printk(KERN_ERR
 			"Failed to reset bulk in endpoint.\n");
 	}
 
 	result = usb_get_status(hw->usb, USB_RECIP_ENDPOINT, hw->endp_out, &status);
 	if (result < 0) {
-		WLAN_LOG_ERROR(
+		printk(KERN_ERR
 			"Cannot get bulk out endpoint status.\n");
 		goto done;
 	}
 	if ((status == 1) && usb_clear_halt(hw->usb, hw->endp_out)) {
-		WLAN_LOG_ERROR(
+		printk(KERN_ERR
 			"Failed to reset bulk out endpoint.\n");
 	}
 
@@ -2909,7 +2909,7 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 	/* Post the IN urb */
 	result = submit_rx_urb(hw, GFP_KERNEL);
 	if (result != 0) {
-		WLAN_LOG_ERROR(
+		printk(KERN_ERR
 			"Fatal, failed to submit RX URB, result=%d\n",
 			result);
 		goto done;
@@ -2930,7 +2930,7 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 	result = result2 = hfa384x_cmd_initialize(hw);
 	if (result1 != 0) {
 		if (result2 != 0) {
-			WLAN_LOG_ERROR(
+			printk(KERN_ERR
 				"cmd_initialize() failed on two attempts, results %d and %d\n",
 				result1, result2);
 			usb_kill_urb(&hw->rx_urb);
@@ -3112,7 +3112,7 @@ int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb, p80211_hdr_t *p8021
 	result = 1;
 	ret = submit_tx_urb(hw, &hw->tx_urb, GFP_ATOMIC);
 	if ( ret != 0 ) {
-		WLAN_LOG_ERROR(
+		printk(KERN_ERR
 			"submit_tx_urb() failed, error=%d\n", ret);
 		result = 3;
 	}
@@ -3337,7 +3337,7 @@ static void unlocked_usbctlx_complete(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 		break;
 
 	default:
-		WLAN_LOG_ERROR("CTLX[%d] not in a terminating state(%s)\n",
+		printk(KERN_ERR "CTLX[%d] not in a terminating state(%s)\n",
 		               hfa384x2host_16(ctlx->outbuf.type),
 		               ctlxstr(ctlx->state));
 		break;
@@ -3437,7 +3437,7 @@ hfa384x_usbctlxq_run(hfa384x_t	*hw)
 			break;
 		}
 
-		WLAN_LOG_ERROR("Failed to submit CTLX[%d]: error=%d\n",
+		printk(KERN_ERR "Failed to submit CTLX[%d]: error=%d\n",
 		               hfa384x2host_16(head->outbuf.type), result);
 		unlocked_usbctlx_complete(hw, head);
 	} /* while */
@@ -3559,7 +3559,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 		result = submit_rx_urb(hw, GFP_ATOMIC);
 
 		if (result != 0) {
-			WLAN_LOG_ERROR(
+			printk(KERN_ERR
 				"Fatal, failed to resubmit rx_urb. error=%d\n",
 				result);
 		}
@@ -3733,7 +3733,7 @@ retry:
 			/*
 			 * Throw this CTLX away ...
 			 */
-			WLAN_LOG_ERROR("Matched IN URB, CTLX[%d] in invalid state(%s)."
+			printk(KERN_ERR "Matched IN URB, CTLX[%d] in invalid state(%s)."
 			               " Discarded.\n",
 			               hfa384x2host_16(ctlx->outbuf.type),
 			               ctlxstr(ctlx->state));
@@ -3938,7 +3938,7 @@ static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *r
 	}
 
 	if ( (skb = dev_alloc_skb(skblen)) == NULL ) {
-		WLAN_LOG_ERROR("alloc_skb failed trying to allocate %d bytes\n", skblen);
+		printk(KERN_ERR "alloc_skb failed trying to allocate %d bytes\n", skblen);
 		return;
 	}
 
@@ -4183,7 +4183,7 @@ retry:
 
 		default:
 			/* This is NOT a valid CTLX "success" state! */
-			WLAN_LOG_ERROR(
+			printk(KERN_ERR
 			    "Illegal CTLX[%d] success state(%s, %d) in OUT URB\n",
 			    hfa384x2host_16(ctlx->outbuf.type),
 			    ctlxstr(ctlx->state), urb->status);

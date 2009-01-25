@@ -141,7 +141,7 @@ int p80211req_dorequest( wlandevice_t *wlandev, u8 *msgbuf)
 	/* Check Permissions */
 	if (!capable(CAP_NET_ADMIN) &&
 	    (msg->msgcode != DIDmsg_dot11req_mibget)) {
-		WLAN_LOG_ERROR("%s: only dot11req_mibget allowed for non-root.\n", wlandev->name);
+		printk(KERN_ERR "%s: only dot11req_mibget allowed for non-root.\n", wlandev->name);
 		return -EPERM;
 	}
 

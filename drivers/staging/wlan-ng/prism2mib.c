@@ -795,7 +795,7 @@ void                         *data)
 		break;
 	}
 	default:
-		WLAN_LOG_ERROR("Unhandled DID 0x%08x\n", mib->did);
+		printk(KERN_ERR "Unhandled DID 0x%08x\n", mib->did);
 	}
 
 	return(0);

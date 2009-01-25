@@ -1274,7 +1274,7 @@ static int p80211wext_siwscan(netdevice_t *dev,
 	int i = 0;
 
 	if (wlandev->macmode == WLAN_MACMODE_ESS_AP) {
-		WLAN_LOG_ERROR("Can't scan in AP mode\n");
+		printk(KERN_ERR "Can't scan in AP mode\n");
 		err = (-EOPNOTSUPP);
 		goto exit;
 	}

@@ -88,14 +88,14 @@ static int prism2sta_probe_usb(
 	dev = interface_to_usbdev(interface);
 
 	if ((wlandev = create_wlan()) == NULL) {
-		WLAN_LOG_ERROR("%s: Memory allocation failure.\n", dev_info);
+		printk(KERN_ERR "%s: Memory allocation failure.\n", dev_info);
 		result = -EIO;
 		goto failed;
 	}
 	hw = wlandev->priv;
 
 	if ( wlan_setup(wlandev) != 0 ) {
-		WLAN_LOG_ERROR("%s: wlan_setup() failed.\n", dev_info);
+		printk(KERN_ERR "%s: wlan_setup() failed.\n", dev_info);
 		result = -EIO;
 		goto failed;
 	}
@@ -118,7 +118,7 @@ static int prism2sta_probe_usb(
 			unregister_wlandev(wlandev);
 			hfa384x_destroy(hw);
 			result = -EIO;
-			WLAN_LOG_ERROR(
+			printk(KERN_ERR
 				"%s: hfa384x_corereset() failed.\n",
 				dev_info);
 			goto failed;
@@ -130,7 +130,7 @@ static int prism2sta_probe_usb(
 	wlandev->msdstate = WLAN_MSD_HWPRESENT;
 
         if ( register_wlandev(wlandev) != 0 ) {
-		WLAN_LOG_ERROR("%s: register_wlandev() failed.\n", dev_info);
+		printk(KERN_ERR "%s: register_wlandev() failed.\n", dev_info);
 		result = -EIO;
 		goto failed;
         }
