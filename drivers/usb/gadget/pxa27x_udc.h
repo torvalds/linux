@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
+#include <linux/usb/otg.h>
 
 /*
  * Register definitions
@@ -421,6 +422,7 @@ struct udc_stats {
  * @driver: bound gadget (zero, g_ether, g_file_storage, ...)
  * @dev: device
  * @mach: machine info, used to activate specific GPIO
+ * @transceiver: external transceiver to handle vbus sense and D+ pullup
  * @ep0state: control endpoint state machine state
  * @stats: statistics on udc usage
  * @udc_usb_ep: array of usb endpoints offered by the gadget
@@ -446,6 +448,7 @@ struct pxa_udc {
 	struct usb_gadget_driver		*driver;
 	struct device				*dev;
 	struct pxa2xx_udc_mach_info		*mach;
+	struct otg_transceiver			*transceiver;
 
 	enum ep0_state				ep0state;
 	struct udc_stats			stats;

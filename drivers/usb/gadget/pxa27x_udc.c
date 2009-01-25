@@ -1779,10 +1779,21 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	dev_dbg(udc->dev, "registered gadget driver '%s'\n",
 		driver->driver.name);
 
+	if (udc->transceiver) {
+		retval = otg_set_peripheral(udc->transceiver, &udc->gadget);
+		if (retval) {
+			dev_err(udc->dev, "can't bind to transceiver\n");
+			goto transceiver_fail;
+		}
+	}
+
 	if (should_enable_udc(udc))
 		udc_enable(udc);
 	return 0;
 
+transceiver_fail:
+	if (driver->unbind)
+		driver->unbind(&udc->gadget);
 bind_fail:
 	device_del(&udc->gadget.dev);
 add_fail:
@@ -1840,9 +1851,11 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	udc->driver = NULL;
 
 	device_del(&udc->gadget.dev);
-
 	dev_info(udc->dev, "unregistered gadget driver '%s'\n",
 		 driver->driver.name);
+
+	if (udc->transceiver)
+		return otg_set_peripheral(udc->transceiver, NULL);
 	return 0;
 }
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
@@ -2359,6 +2372,7 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 
 	udc->dev = &pdev->dev;
 	udc->mach = pdev->dev.platform_data;
+	udc->transceiver = otg_get_transceiver();
 
 	gpio = udc->mach->gpio_pullup;
 	if (gpio_is_valid(gpio)) {
@@ -2431,6 +2445,9 @@ static int __exit pxa_udc_remove(struct platform_device *_dev)
 	if (gpio_is_valid(gpio))
 		gpio_free(gpio);
 
+	otg_put_transceiver(udc->transceiver);
+
+	udc->transceiver = NULL;
 	platform_set_drvdata(_dev, NULL);
 	the_controller = NULL;
 	clk_put(udc->clk);
