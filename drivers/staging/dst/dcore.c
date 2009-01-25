@@ -311,7 +311,7 @@ static int dst_node_sysfs_init(struct dst_node *n)
 	memcpy(&n->info->device, &dst_node_dev, sizeof(struct device));
 	n->info->size = n->size;
 
-	snprintf(n->info->device.bus_id, sizeof(n->info->device.bus_id), "dst-%s", n->name);
+	dev_set_name(&n->info->device, "dst-%s", n->name);
 	err = device_register(&n->info->device);
 	if (err) {
 		dprintk(KERN_ERR "Failed to register node '%s', err: %d.\n",
