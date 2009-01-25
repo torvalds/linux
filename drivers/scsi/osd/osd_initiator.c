@@ -41,6 +41,7 @@
 
 #include <scsi/osd_initiator.h>
 #include <scsi/osd_sec.h>
+#include <scsi/osd_attributes.h>
 #include <scsi/scsi_device.h>
 
 #include "osd_debug.h"
@@ -62,6 +63,130 @@ static inline void build_test(void)
 	BUILD_BUG_ON(sizeof(struct osdv2_cdb) != OSD_TOTAL_CDB_LEN);
 	BUILD_BUG_ON(sizeof(struct osdv1_cdb) != OSDv1_TOTAL_CDB_LEN);
 }
+
+static const char *_osd_ver_desc(struct osd_request *or)
+{
+	return osd_req_is_ver1(or) ? "OSD1" : "OSD2";
+}
+
+#define ATTR_DEF_RI(id, len) ATTR_DEF(OSD_APAGE_ROOT_INFORMATION, id, len)
+
+static int _osd_print_system_info(struct osd_dev *od, void *caps)
+{
+	struct osd_request *or;
+	struct osd_attr get_attrs[] = {
+		ATTR_DEF_RI(OSD_ATTR_RI_VENDOR_IDENTIFICATION, 8),
+		ATTR_DEF_RI(OSD_ATTR_RI_PRODUCT_IDENTIFICATION, 16),
+		ATTR_DEF_RI(OSD_ATTR_RI_PRODUCT_MODEL, 32),
+		ATTR_DEF_RI(OSD_ATTR_RI_PRODUCT_REVISION_LEVEL, 4),
+		ATTR_DEF_RI(OSD_ATTR_RI_PRODUCT_SERIAL_NUMBER, 64 /*variable*/),
+		ATTR_DEF_RI(OSD_ATTR_RI_OSD_NAME, 64 /*variable*/),
+		ATTR_DEF_RI(OSD_ATTR_RI_TOTAL_CAPACITY, 8),
+		ATTR_DEF_RI(OSD_ATTR_RI_USED_CAPACITY, 8),
+		ATTR_DEF_RI(OSD_ATTR_RI_NUMBER_OF_PARTITIONS, 8),
+		ATTR_DEF_RI(OSD_ATTR_RI_CLOCK, 6),
+		/* IBM-OSD-SIM Has a bug with this one put it last */
+		ATTR_DEF_RI(OSD_ATTR_RI_OSD_SYSTEM_ID, 20),
+	};
+	void *iter = NULL, *pFirst;
+	int nelem = ARRAY_SIZE(get_attrs), a = 0;
+	int ret;
+
+	or = osd_start_request(od, GFP_KERNEL);
+	if (!or)
+		return -ENOMEM;
+
+	/* get attrs */
+	osd_req_get_attributes(or, &osd_root_object);
+	osd_req_add_get_attr_list(or, get_attrs, ARRAY_SIZE(get_attrs));
+
+	ret = osd_finalize_request(or, 0, caps, NULL);
+	if (ret)
+		goto out;
+
+	ret = osd_execute_request(or);
+	if (ret) {
+		OSD_ERR("Failed to detect %s => %d\n", _osd_ver_desc(or), ret);
+		goto out;
+	}
+
+	osd_req_decode_get_attr_list(or, get_attrs, &nelem, &iter);
+
+	OSD_INFO("Detected %s device\n",
+		_osd_ver_desc(or));
+
+	pFirst = get_attrs[a++].val_ptr;
+	OSD_INFO("OSD_ATTR_RI_VENDOR_IDENTIFICATION [%s]\n",
+		(char *)pFirst);
+
+	pFirst = get_attrs[a++].val_ptr;
+	OSD_INFO("OSD_ATTR_RI_PRODUCT_IDENTIFICATION [%s]\n",
+		(char *)pFirst);
+
+	pFirst = get_attrs[a++].val_ptr;
+	OSD_INFO("OSD_ATTR_RI_PRODUCT_MODEL [%s]\n",
+		(char *)pFirst);
+
+	pFirst = get_attrs[a++].val_ptr;
+	OSD_INFO("OSD_ATTR_RI_PRODUCT_REVISION_LEVEL [%u]\n",
+		get_unaligned_be32(pFirst));
+
+	pFirst = get_attrs[a++].val_ptr;
+	OSD_INFO("OSD_ATTR_RI_PRODUCT_SERIAL_NUMBER [%s]\n",
+		(char *)pFirst);
+
+	pFirst = get_attrs[a].val_ptr;
+	OSD_INFO("OSD_ATTR_RI_OSD_NAME [%s]\n", (char *)pFirst);
+	a++;
+
+	pFirst = get_attrs[a++].val_ptr;
+	OSD_INFO("OSD_ATTR_RI_TOTAL_CAPACITY [0x%llx]\n",
+		_LLU(get_unaligned_be64(pFirst)));
+
+	pFirst = get_attrs[a++].val_ptr;
+	OSD_INFO("OSD_ATTR_RI_USED_CAPACITY [0x%llx]\n",
+		_LLU(get_unaligned_be64(pFirst)));
+
+	pFirst = get_attrs[a++].val_ptr;
+	OSD_INFO("OSD_ATTR_RI_NUMBER_OF_PARTITIONS [%llu]\n",
+		_LLU(get_unaligned_be64(pFirst)));
+
+	/* FIXME: Where are the time utilities */
+	pFirst = get_attrs[a++].val_ptr;
+	OSD_INFO("OSD_ATTR_RI_CLOCK [0x%02x%02x%02x%02x%02x%02x]\n",
+		((char *)pFirst)[0], ((char *)pFirst)[1],
+		((char *)pFirst)[2], ((char *)pFirst)[3],
+		((char *)pFirst)[4], ((char *)pFirst)[5]);
+
+	if (a < nelem) { /* IBM-OSD-SIM bug, Might not have it */
+		unsigned len = get_attrs[a].len;
+		char sid_dump[32*4 + 2]; /* 2nibbles+space+ASCII */
+
+		hex_dump_to_buffer(get_attrs[a].val_ptr, len, 32, 1,
+				   sid_dump, sizeof(sid_dump), true);
+		OSD_INFO("OSD_ATTR_RI_OSD_SYSTEM_ID(%d) [%s]\n", len, sid_dump);
+		a++;
+	}
+out:
+	osd_end_request(or);
+	return ret;
+}
+
+int osd_auto_detect_ver(struct osd_dev *od, void *caps)
+{
+	int ret;
+
+	/* Auto-detect the osd version */
+	ret = _osd_print_system_info(od, caps);
+	if (ret) {
+		osd_dev_set_ver(od, OSD_VER1);
+		OSD_DEBUG("converting to OSD1\n");
+		ret = _osd_print_system_info(od, caps);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(osd_auto_detect_ver);
 
 static unsigned _osd_req_cdb_len(struct osd_request *or)
 {

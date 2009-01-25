@@ -243,6 +243,7 @@ EXPORT_SYMBOL(osduld_put_device);
 static int __detect_osd(struct osd_uld_device *oud)
 {
 	struct scsi_device *scsi_device = oud->od.scsi_device;
+	char caps[OSD_CAP_LEN];
 	int error;
 
 	/* sending a test_unit_ready as first command seems to be needed
@@ -253,6 +254,10 @@ static int __detect_osd(struct osd_uld_device *oud)
 	error = scsi_test_unit_ready(scsi_device, 10*HZ, 5, NULL);
 	if (error)
 		OSD_ERR("warning: scsi_test_unit_ready failed\n");
+
+	osd_sec_init_nosec_doall_caps(caps, &osd_root_object, false, true);
+	if (osd_auto_detect_ver(&oud->od, caps))
+		return -ENODEV;
 
 	return 0;
 }
