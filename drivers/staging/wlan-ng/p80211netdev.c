@@ -418,7 +418,7 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 		 */
 		if(skb->protocol != ETH_P_80211_RAW) {
 			netif_start_queue(wlandev->netdev);
-			WLAN_LOG_NOTICE(
+			printk(KERN_NOTICE
 				"Tx attempt prior to association, frame dropped.\n");
 			wlandev->linux_stats.tx_dropped++;
 			result = 0;
