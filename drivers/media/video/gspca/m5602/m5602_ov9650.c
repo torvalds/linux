@@ -45,6 +45,14 @@ static
     const
 	struct dmi_system_id ov9650_flip_dmi_table[] = {
 	{
+		.ident = "ASUS A6VA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A6VA")
+		}
+	},
+	{
+
 		.ident = "ASUS A6VC",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
