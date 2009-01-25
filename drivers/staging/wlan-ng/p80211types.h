@@ -70,23 +70,6 @@
 /*================================================================*/
 
 /*----------------------------------------------------------------*/
-/* p80211 data type codes used for MIB items and message */
-/* arguments. The various metadata structures provide additional */
-/* information about these types. */
-
-#define P80211_TYPE_OCTETSTR		1	/* pascal array of bytes */
-#define P80211_TYPE_DISPLAYSTR		2	/* pascal array of bytes containing ascii */
-#define P80211_TYPE_int			4	/* u32 min and max limited by 32 bits */
-#define P80211_TYPE_ENUMint		5	/* u32 holding a numeric
-						   code that can be mapped
-						   to a textual name */
-#define P80211_TYPE_UNKDATA		6	/* Data item containing an
-						   unknown data type */
-#define P80211_TYPE_intARRAY		7	/* Array of 32-bit integers. */
-#define P80211_TYPE_BITARRAY		8	/* Array of bits. */
-#define P80211_TYPE_MACARRAY		9	/* Array of MAC addresses. */
-
-/*----------------------------------------------------------------*/
 /* The following constants are indexes into the Mib Category List */
 /* and the Message Category List */
 
@@ -102,25 +85,6 @@
 /* Message Category List */
 #define P80211_MSG_CAT_DOT11REQ		1
 #define P80211_MSG_CAT_DOT11IND		2
-/* #define P80211_MSG_CAT_DOT11CFM		3 (doesn't exist at this time) */
-
-#define P80211SEC_DOT11REQ		P80211_MSG_CAT_DOT11REQ
-#define P80211SEC_DOT11IND		P80211_MSG_CAT_DOT11IND
-/* #define P80211SEC_DOT11CFM		P80211_MSG_CAT_DOT11CFM  (doesn't exist at this time */
-
-
-
-/*----------------------------------------------------------------*/
-/* p80211 DID field codes that represent access type and */
-/* is_table status. */
-
-#define P80211DID_ACCESS_READ		0x10000000
-#define P80211DID_ACCESS_WRITE		0x08000000
-#define P80211DID_WRITEONLY		0x00000001
-#define P80211DID_READONLY		0x00000002
-#define P80211DID_READWRITE		0x00000003
-#define P80211DID_ISTABLE_FALSE		0
-#define P80211DID_ISTABLE_TRUE		1
 
 /*----------------------------------------------------------------*/
 /* p80211 enumeration constants.  The value to text mappings for */
@@ -128,104 +92,30 @@
 /*  from the mappings. */
 
 /* error codes for lookups */
-#define P80211ENUM_BAD				0xffffffffUL
-#define P80211ENUM_BADSTR			"P80211ENUM_BAD"
 
 #define P80211ENUM_truth_false			0
 #define P80211ENUM_truth_true			1
 #define P80211ENUM_ifstate_disable		0
 #define P80211ENUM_ifstate_fwload		1
 #define P80211ENUM_ifstate_enable		2
-#define P80211ENUM_powermgmt_active		1
-#define P80211ENUM_powermgmt_powersave		2
 #define P80211ENUM_bsstype_infrastructure	1
 #define P80211ENUM_bsstype_independent		2
 #define P80211ENUM_bsstype_any			3
 #define P80211ENUM_authalg_opensystem		1
 #define P80211ENUM_authalg_sharedkey		2
-#define P80211ENUM_phytype_fhss			1
-#define P80211ENUM_phytype_dsss			2
-#define P80211ENUM_phytype_irbaseband		3
-#define P80211ENUM_temptype_commercial		1
-#define P80211ENUM_temptype_industrial		2
-#define P80211ENUM_regdomain_fcc		16
-#define P80211ENUM_regdomain_doc		32
-#define P80211ENUM_regdomain_etsi		48
-#define P80211ENUM_regdomain_spain		49
-#define P80211ENUM_regdomain_france		50
-#define P80211ENUM_regdomain_mkk		64
-#define P80211ENUM_ccamode_edonly		1
-#define P80211ENUM_ccamode_csonly		2
-#define P80211ENUM_ccamode_edandcs		4
-#define P80211ENUM_ccamode_cswithtimer		8
-#define P80211ENUM_ccamode_hrcsanded		16
-#define P80211ENUM_diversity_fixedlist		1
-#define P80211ENUM_diversity_notsupported	2
-#define P80211ENUM_diversity_dynamic		3
 #define P80211ENUM_scantype_active		1
-#define P80211ENUM_scantype_passive		2
-#define P80211ENUM_scantype_both		3
 #define P80211ENUM_resultcode_success		1
 #define P80211ENUM_resultcode_invalid_parameters	2
 #define P80211ENUM_resultcode_not_supported	3
-#define P80211ENUM_resultcode_timeout		4
-#define P80211ENUM_resultcode_too_many_req	5
 #define P80211ENUM_resultcode_refused		6
-#define P80211ENUM_resultcode_bss_already	7
-#define P80211ENUM_resultcode_invalid_access	8
-#define P80211ENUM_resultcode_invalid_mibattribute	9
 #define P80211ENUM_resultcode_cant_set_readonly_mib	10
 #define P80211ENUM_resultcode_implementation_failure	11
 #define P80211ENUM_resultcode_cant_get_writeonly_mib	12
-#define P80211ENUM_reason_unspec_reason		1
-#define P80211ENUM_reason_auth_not_valid	2
-#define P80211ENUM_reason_deauth_lv_ss		3
-#define P80211ENUM_reason_inactivity		4
-#define P80211ENUM_reason_ap_overload		5
-#define P80211ENUM_reason_class23_err		6
-#define P80211ENUM_reason_class3_err		7
-#define P80211ENUM_reason_disas_lv_ss		8
-#define P80211ENUM_reason_asoc_not_auth		9
 #define P80211ENUM_status_successful		0
 #define P80211ENUM_status_unspec_failure	1
-#define P80211ENUM_status_unsup_cap		10
-#define P80211ENUM_status_reasoc_no_asoc	11
-#define P80211ENUM_status_fail_other		12
-#define P80211ENUM_status_unspt_alg		13
-#define P80211ENUM_status_auth_seq_fail		14
-#define P80211ENUM_status_chlng_fail		15
-#define P80211ENUM_status_auth_timeout		16
 #define P80211ENUM_status_ap_full		17
-#define P80211ENUM_status_unsup_rate		18
-#define P80211ENUM_status_unsup_shortpreamble	19
-#define P80211ENUM_status_unsup_pbcc		20
-#define P80211ENUM_status_unsup_agility		21
 #define P80211ENUM_msgitem_status_data_ok		0
 #define P80211ENUM_msgitem_status_no_value		1
-#define P80211ENUM_msgitem_status_invalid_itemname	2
-#define P80211ENUM_msgitem_status_invalid_itemdata	3
-#define P80211ENUM_msgitem_status_missing_itemdata	4
-#define P80211ENUM_msgitem_status_incomplete_itemdata	5
-#define P80211ENUM_msgitem_status_invalid_msg_did	6
-#define P80211ENUM_msgitem_status_invalid_mib_did	7
-#define P80211ENUM_msgitem_status_missing_conv_func	8
-#define P80211ENUM_msgitem_status_string_too_long	9
-#define P80211ENUM_msgitem_status_data_out_of_range	10
-#define P80211ENUM_msgitem_status_string_too_short	11
-#define P80211ENUM_msgitem_status_missing_valid_func	12
-#define P80211ENUM_msgitem_status_unknown		13
-#define P80211ENUM_msgitem_status_invalid_did		14
-#define P80211ENUM_msgitem_status_missing_print_func	15
-
-#define P80211ENUM_lnxroam_reason_unknown        0
-#define P80211ENUM_lnxroam_reason_beacon         1
-#define P80211ENUM_lnxroam_reason_signal         2
-#define P80211ENUM_lnxroam_reason_txretry        3
-#define P80211ENUM_lnxroam_reason_notjoined      4
-
-#define P80211ENUM_p2preamble_long               0
-#define P80211ENUM_p2preamble_short              2
-#define P80211ENUM_p2preamble_mixed              3
 
 /*----------------------------------------------------------------*/
 /* p80211 max length constants for the different pascal strings. */
@@ -239,45 +129,8 @@
 					/* is a DID-LEN-DATA triple */
 					/* with a max size of 4+4+384 */
 
-#define P80211_SET_int(item, value) do { \
-	(item).data   = (value); \
-	(item).status = P80211ENUM_msgitem_status_data_ok; \
-	} while(0)
-/*----------------------------------------------------------------*/
-/* string constants */
-
-#define NOT_SET			"NOT_SET"
-#define NOT_SUPPORTED		"NOT_SUPPORTED"
-#define UNKNOWN_DATA		"UNKNOWN_DATA"
-
-
-/*--------------------------------------------------------------------*/
-/*  Metadata flags  */
-
-/* MSM: Do these belong in p80211meta.h? I'm not sure. */
-
-#define ISREQUIRED		(0x80000000UL)
-#define ISREQUEST		(0x40000000UL)
-#define ISCONFIRM		(0x20000000UL)
-
-
 /*================================================================*/
 /* Macros */
-
-/*--------------------------------------------------------------------*/
-/* The following macros are used to manipulate the 'flags' field in   */
-/*  the metadata.  These are only used when the metadata is for       */
-/*  command arguments to determine if the data item is required, and  */
-/*  whether the metadata item is for a request command, confirm       */
-/*  command or both.                                                  */
-/*--------------------------------------------------------------------*/
-/* MSM: Do these belong in p80211meta.h?  I'm not sure */
-
-#define P80211ITEM_SETFLAGS(q, r, c)	( q | r | c )
-
-#define P80211ITEM_ISREQUIRED(flags)	(((u32)(flags & ISREQUIRED)) >> 31 )
-#define P80211ITEM_ISREQUEST(flags)	(((u32)(flags & ISREQUEST)) >> 30 )
-#define P80211ITEM_ISCONFIRM(flags)	(((u32)(flags & ISCONFIRM)) >> 29 )
 
 /*----------------------------------------------------------------*/
 /* The following macro creates a name for an enum */
@@ -297,9 +150,6 @@
 *                                           r - Read flag
 *                                           . - Unused
 */
-
-#define P80211DID_INVALID		0xffffffffUL
-#define P80211DID_VALID			0x00000000UL
 
 #define P80211DID_LSB_SECTION		(0)
 #define P80211DID_LSB_GROUP		(6)
