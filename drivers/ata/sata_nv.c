@@ -305,10 +305,10 @@ static irqreturn_t nv_ck804_interrupt(int irq, void *dev_instance);
 static int nv_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
 static int nv_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 
+static int nv_noclassify_hardreset(struct ata_link *link, unsigned int *class,
+				   unsigned long deadline);
 static void nv_nf2_freeze(struct ata_port *ap);
 static void nv_nf2_thaw(struct ata_port *ap);
-static int nv_nf2_hardreset(struct ata_link *link, unsigned int *class,
-			    unsigned long deadline);
 static void nv_ck804_freeze(struct ata_port *ap);
 static void nv_ck804_thaw(struct ata_port *ap);
 static int nv_adma_slave_config(struct scsi_device *sdev);
@@ -432,7 +432,7 @@ static struct ata_port_operations nv_nf2_ops = {
 	.inherits		= &nv_common_ops,
 	.freeze			= nv_nf2_freeze,
 	.thaw			= nv_nf2_thaw,
-	.hardreset		= nv_nf2_hardreset,
+	.hardreset		= nv_noclassify_hardreset,
 };
 
 /* CK804 finally gets hardreset right */
@@ -1530,6 +1530,17 @@ static int nv_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
 	return 0;
 }
 
+static int nv_noclassify_hardreset(struct ata_link *link, unsigned int *class,
+				   unsigned long deadline)
+{
+	bool online;
+	int rc;
+
+	rc = sata_link_hardreset(link, sata_deb_timing_hotplug, deadline,
+				 &online, NULL);
+	return online ? -EAGAIN : rc;
+}
+
 static void nv_nf2_freeze(struct ata_port *ap)
 {
 	void __iomem *scr_addr = ap->host->ports[0]->ioaddr.scr_addr;
@@ -1552,17 +1563,6 @@ static void nv_nf2_thaw(struct ata_port *ap)
 	mask = ioread8(scr_addr + NV_INT_ENABLE);
 	mask |= (NV_INT_MASK << shift);
 	iowrite8(mask, scr_addr + NV_INT_ENABLE);
-}
-
-static int nv_nf2_hardreset(struct ata_link *link, unsigned int *class,
-			    unsigned long deadline)
-{
-	bool online;
-	int rc;
-
-	rc = sata_link_hardreset(link, sata_deb_timing_hotplug, deadline,
-				 &online, NULL);
-	return online ? -EAGAIN : rc;
 }
 
 static void nv_ck804_freeze(struct ata_port *ap)
