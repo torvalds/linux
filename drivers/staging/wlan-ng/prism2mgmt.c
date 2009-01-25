@@ -1179,7 +1179,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 
 		}
 
-		WLAN_LOG_INFO("monitor mode disabled\n");
+		printk(KERN_INFO "monitor mode disabled\n");
 		msg->resultcode.data = P80211ENUM_resultcode_success;
 		result = 0;
 		goto exit;
@@ -1301,7 +1301,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		}
 
 		if (wlandev->netdev->type == ARPHRD_ETHER) {
-			WLAN_LOG_INFO("monitor mode enabled\n");
+			printk(KERN_INFO "monitor mode enabled\n");
 		}
 
 		/* Set the driver state */

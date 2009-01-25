@@ -671,7 +671,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->ident_nic.major = hfa384x2host_16(hw->ident_nic.major);
 	hw->ident_nic.minor = hfa384x2host_16(hw->ident_nic.minor);
 
-	WLAN_LOG_INFO( "ident: nic h/w: id=0x%02x %d.%d.%d\n",
+	printk(KERN_INFO  "ident: nic h/w: id=0x%02x %d.%d.%d\n",
 			hw->ident_nic.id, hw->ident_nic.major,
 			hw->ident_nic.minor, hw->ident_nic.variant);
 
@@ -689,7 +689,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->ident_pri_fw.major = hfa384x2host_16(hw->ident_pri_fw.major);
 	hw->ident_pri_fw.minor = hfa384x2host_16(hw->ident_pri_fw.minor);
 
-	WLAN_LOG_INFO( "ident: pri f/w: id=0x%02x %d.%d.%d\n",
+	printk(KERN_INFO  "ident: pri f/w: id=0x%02x %d.%d.%d\n",
 			hw->ident_pri_fw.id, hw->ident_pri_fw.major,
 			hw->ident_pri_fw.minor, hw->ident_pri_fw.variant);
 
@@ -718,12 +718,12 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->ident_sta_fw.variant &= ~((u16)(BIT(14) | BIT(15)));
 
 	if  ( hw->ident_sta_fw.id == 0x1f ) {
-		WLAN_LOG_INFO(
+		printk(KERN_INFO
 			"ident: sta f/w: id=0x%02x %d.%d.%d\n",
 			hw->ident_sta_fw.id, hw->ident_sta_fw.major,
 			hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
 	} else {
-		WLAN_LOG_INFO(
+		printk(KERN_INFO
 			"ident:  ap f/w: id=0x%02x %d.%d.%d\n",
 			hw->ident_sta_fw.id, hw->ident_sta_fw.major,
 			hw->ident_sta_fw.minor, hw->ident_sta_fw.variant);
@@ -747,7 +747,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->cap_sup_mfi.bottom = hfa384x2host_16(hw->cap_sup_mfi.bottom);
 	hw->cap_sup_mfi.top = hfa384x2host_16(hw->cap_sup_mfi.top);
 
-	WLAN_LOG_INFO(
+	printk(KERN_INFO
 		"MFI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
 		hw->cap_sup_mfi.role, hw->cap_sup_mfi.id,
 		hw->cap_sup_mfi.variant, hw->cap_sup_mfi.bottom,
@@ -769,7 +769,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->cap_sup_cfi.bottom = hfa384x2host_16(hw->cap_sup_cfi.bottom);
 	hw->cap_sup_cfi.top = hfa384x2host_16(hw->cap_sup_cfi.top);
 
-	WLAN_LOG_INFO(
+	printk(KERN_INFO
 		"CFI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
 		hw->cap_sup_cfi.role, hw->cap_sup_cfi.id,
 		hw->cap_sup_cfi.variant, hw->cap_sup_cfi.bottom,
@@ -791,7 +791,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->cap_sup_pri.bottom = hfa384x2host_16(hw->cap_sup_pri.bottom);
 	hw->cap_sup_pri.top = hfa384x2host_16(hw->cap_sup_pri.top);
 
-	WLAN_LOG_INFO(
+	printk(KERN_INFO
 		"PRI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
 		hw->cap_sup_pri.role, hw->cap_sup_pri.id,
 		hw->cap_sup_pri.variant, hw->cap_sup_pri.bottom,
@@ -814,13 +814,13 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->cap_sup_sta.top = hfa384x2host_16(hw->cap_sup_sta.top);
 
 	if ( hw->cap_sup_sta.id == 0x04 ) {
-		WLAN_LOG_INFO(
+		printk(KERN_INFO
 		"STA:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
 		hw->cap_sup_sta.role, hw->cap_sup_sta.id,
 		hw->cap_sup_sta.variant, hw->cap_sup_sta.bottom,
 		hw->cap_sup_sta.top);
 	} else {
-		WLAN_LOG_INFO(
+		printk(KERN_INFO
 		"AP:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
 		hw->cap_sup_sta.role, hw->cap_sup_sta.id,
 		hw->cap_sup_sta.variant, hw->cap_sup_sta.bottom,
@@ -843,7 +843,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->cap_act_pri_cfi.bottom = hfa384x2host_16(hw->cap_act_pri_cfi.bottom);
 	hw->cap_act_pri_cfi.top = hfa384x2host_16(hw->cap_act_pri_cfi.top);
 
-	WLAN_LOG_INFO(
+	printk(KERN_INFO
 		"PRI-CFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
 		hw->cap_act_pri_cfi.role, hw->cap_act_pri_cfi.id,
 		hw->cap_act_pri_cfi.variant, hw->cap_act_pri_cfi.bottom,
@@ -865,7 +865,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->cap_act_sta_cfi.bottom = hfa384x2host_16(hw->cap_act_sta_cfi.bottom);
 	hw->cap_act_sta_cfi.top = hfa384x2host_16(hw->cap_act_sta_cfi.top);
 
-	WLAN_LOG_INFO(
+	printk(KERN_INFO
 		"STA-CFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
 		hw->cap_act_sta_cfi.role, hw->cap_act_sta_cfi.id,
 		hw->cap_act_sta_cfi.variant, hw->cap_act_sta_cfi.bottom,
@@ -887,7 +887,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	hw->cap_act_sta_mfi.bottom = hfa384x2host_16(hw->cap_act_sta_mfi.bottom);
 	hw->cap_act_sta_mfi.top = hfa384x2host_16(hw->cap_act_sta_mfi.top);
 
-	WLAN_LOG_INFO(
+	printk(KERN_INFO
 		"STA-MFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
 		hw->cap_act_sta_mfi.role, hw->cap_act_sta_mfi.id,
 		hw->cap_act_sta_mfi.variant, hw->cap_act_sta_mfi.bottom,
@@ -899,7 +899,7 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	if ( !result ) {
 		wlan_mkprintstr(snum, HFA384x_RID_NICSERIALNUMBER_LEN,
 				pstr, sizeof(pstr));
-		WLAN_LOG_INFO("Prism2 card SN: %s\n", pstr);
+		printk(KERN_INFO "Prism2 card SN: %s\n", pstr);
 	} else {
 		WLAN_LOG_ERROR("Failed to retrieve Prism2 Card SN\n");
 		goto failed;
@@ -1263,7 +1263,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 */
 		netif_carrier_off(wlandev->netdev);
 
-		WLAN_LOG_INFO("linkstatus=NOTCONNECTED (unhandled)\n");
+		printk(KERN_INFO "linkstatus=NOTCONNECTED (unhandled)\n");
 		break;
 
 	case HFA384x_LINK_CONNECTED:
@@ -1288,7 +1288,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		if ( wlandev->netdev->type == ARPHRD_ETHER ) {
 			u16			portstatus;
 
-			WLAN_LOG_INFO("linkstatus=CONNECTED\n");
+			printk(KERN_INFO "linkstatus=CONNECTED\n");
 
 			/* For non-usb devices, we can use the sync versions */
 			/* Collect the BSSID, and set state to allow tx */
@@ -1351,10 +1351,10 @@ void prism2sta_processing_defer(struct work_struct *data)
 			hfa384x_drvr_setconfig( hw,
 				HFA384x_RID_JOINREQUEST,
 				&joinreq, HFA384x_RID_JOINREQUEST_LEN);
-			WLAN_LOG_INFO("linkstatus=DISCONNECTED (re-submitting join)\n");
+			printk(KERN_INFO "linkstatus=DISCONNECTED (re-submitting join)\n");
 		} else {
 			if (wlandev->netdev->type == ARPHRD_ETHER)
-				WLAN_LOG_INFO("linkstatus=DISCONNECTED (unhandled)\n");
+				printk(KERN_INFO "linkstatus=DISCONNECTED (unhandled)\n");
 		}
 		wlandev->macmode = WLAN_MACMODE_NONE;
 
@@ -1377,7 +1377,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 * Indicate Reassociation
 		 * Enable Transmits, Receives and pass up data frames
 		 */
-		WLAN_LOG_INFO("linkstatus=AP_CHANGE\n");
+		printk(KERN_INFO "linkstatus=AP_CHANGE\n");
 
 		result = hfa384x_drvr_getconfig(hw,
 						HFA384x_RID_CURRENTBSSID,
@@ -1419,7 +1419,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 * Response:
 		 * Block Transmits, Ignore receives of data frames
 		 */
-		WLAN_LOG_INFO("linkstatus=AP_OUTOFRANGE (unhandled)\n");
+		printk(KERN_INFO "linkstatus=AP_OUTOFRANGE (unhandled)\n");
 
 		netif_carrier_off(wlandev->netdev);
 
@@ -1432,7 +1432,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 * Response:
 		 * Enable Transmits, Receives and pass up data frames
 		 */
-		WLAN_LOG_INFO("linkstatus=AP_INRANGE\n");
+		printk(KERN_INFO "linkstatus=AP_INRANGE\n");
 
 		hw->link_status = HFA384x_LINK_CONNECTED;
 		netif_carrier_on(wlandev->netdev);
@@ -1456,9 +1456,9 @@ void prism2sta_processing_defer(struct work_struct *data)
 			hfa384x_drvr_setconfig( hw,
 				HFA384x_RID_JOINREQUEST,
 				&joinreq, HFA384x_RID_JOINREQUEST_LEN);
-			WLAN_LOG_INFO("linkstatus=ASSOCFAIL (re-submitting join)\n");
+			printk(KERN_INFO "linkstatus=ASSOCFAIL (re-submitting join)\n");
 		} else {
-			WLAN_LOG_INFO("linkstatus=ASSOCFAIL (unhandled)\n");
+			printk(KERN_INFO "linkstatus=ASSOCFAIL (unhandled)\n");
 		}
 
 		netif_carrier_off(wlandev->netdev);

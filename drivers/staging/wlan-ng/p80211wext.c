@@ -407,7 +407,7 @@ static int p80211wext_siwmode(netdevice_t *dev,
 		break;
 	default:
 		/* Not set yet. */
-		WLAN_LOG_INFO("Operation mode: %d not support\n", *mode);
+		printk(KERN_INFO "Operation mode: %d not support\n", *mode);
 		return -EOPNOTSUPP;
 	}
 

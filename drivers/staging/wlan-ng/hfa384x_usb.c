@@ -2244,7 +2244,7 @@ hfa384x_drvr_flashdl_write(
 		return -EINVAL;
 	}
 
-	WLAN_LOG_INFO("Download %d bytes to flash @0x%06x\n", len, daddr);
+	printk(KERN_INFO "Download %d bytes to flash @0x%06x\n", len, daddr);
 
 	/* Convert to flat address for arithmetic */
 	/* NOTE: dlbuffer RID stores the address in AUX format */
@@ -2282,7 +2282,7 @@ WLAN_LOG_WARNING("dlbuf@0x%06lx len=%d to=%d\n", dlbufaddr, hw->bufinfo.len, hw-
 		burnlo = HFA384x_ADDR_CMD_MKOFF(burndaddr);
 		burnhi = HFA384x_ADDR_CMD_MKPAGE(burndaddr);
 
-		WLAN_LOG_INFO("Writing %d bytes to flash @0x%06x\n",
+		printk(KERN_INFO "Writing %d bytes to flash @0x%06x\n",
 			burnlen, burndaddr);
 
 		/* Set the download mode */
@@ -2665,7 +2665,7 @@ hfa384x_drvr_ramdl_write(hfa384x_t *hw, u32 daddr, void* buf, u32 len)
 		return -EINVAL;
 	}
 
-	WLAN_LOG_INFO("Writing %d bytes to ram @0x%06x\n", len, daddr);
+	printk(KERN_INFO "Writing %d bytes to ram @0x%06x\n", len, daddr);
 
 	/* How many dowmem calls?  */
 	nwrites = len / HFA384x_USB_RWMEM_MAXLEN;
@@ -2802,7 +2802,7 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len)
 			}
 		}
 		if ( pdaok ) {
-			WLAN_LOG_INFO(
+			printk(KERN_INFO
 				"PDA Read from 0x%08x in %s space.\n",
 				pdaloc[i].cardaddr,
 				pdaloc[i].auxctl == 0 ? "EXTDS" :
@@ -4087,7 +4087,7 @@ static void hfa384x_usbout_callback(struct urb *urb)
 			break;
 
 		default:
-			WLAN_LOG_INFO("unknown urb->status=%d\n", urb->status);
+			printk(KERN_INFO "unknown urb->status=%d\n", urb->status);
 			++(wlandev->linux_stats.tx_errors);
 			break;
 		} /* switch */
