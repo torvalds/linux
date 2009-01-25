@@ -162,6 +162,8 @@ enum cmd_mode
 typedef enum cmd_mode CMD_MODE;
 
 #define THROTTLE_JIFFIES	(HZ/8)
+#define URB_ASYNC_UNLINK 0
+#define USB_QUEUE_BULK 0
 
 /*================================================================*/
 /* Local Macros */

@@ -84,9 +84,6 @@
 #undef netdevice_t
 typedef struct net_device netdevice_t;
 
-#define URB_ASYNC_UNLINK 0
-#define USB_QUEUE_BULK 0
-
 /*=============================================================*/
 /*--- General Macros ------------------------------------------*/
 /*=============================================================*/
