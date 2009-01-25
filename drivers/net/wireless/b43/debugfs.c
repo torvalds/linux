@@ -367,34 +367,6 @@ static int mmio32write__write_file(struct b43_wldev *dev,
 	return 0;
 }
 
-/* wl->irq_lock is locked */
-static ssize_t tsf_read_file(struct b43_wldev *dev,
-			     char *buf, size_t bufsize)
-{
-	ssize_t count = 0;
-	u64 tsf;
-
-	b43_tsf_read(dev, &tsf);
-	fappend("0x%08x%08x\n",
-		(unsigned int)((tsf & 0xFFFFFFFF00000000ULL) >> 32),
-		(unsigned int)(tsf & 0xFFFFFFFFULL));
-
-	return count;
-}
-
-/* wl->irq_lock is locked */
-static int tsf_write_file(struct b43_wldev *dev,
-			  const char *buf, size_t count)
-{
-	u64 tsf;
-
-	if (sscanf(buf, "%llu", (unsigned long long *)(&tsf)) != 1)
-		return -EINVAL;
-	b43_tsf_write(dev, tsf);
-
-	return 0;
-}
-
 static ssize_t txstat_read_file(struct b43_wldev *dev,
 				char *buf, size_t bufsize)
 {
@@ -691,7 +663,6 @@ B43_DEBUGFS_FOPS(mmio16read, mmio16read__read_file, mmio16read__write_file, 1);
 B43_DEBUGFS_FOPS(mmio16write, NULL, mmio16write__write_file, 1);
 B43_DEBUGFS_FOPS(mmio32read, mmio32read__read_file, mmio32read__write_file, 1);
 B43_DEBUGFS_FOPS(mmio32write, NULL, mmio32write__write_file, 1);
-B43_DEBUGFS_FOPS(tsf, tsf_read_file, tsf_write_file, 1);
 B43_DEBUGFS_FOPS(txstat, txstat_read_file, NULL, 0);
 B43_DEBUGFS_FOPS(restart, NULL, restart_write_file, 1);
 B43_DEBUGFS_FOPS(loctls, loctls_read_file, NULL, 0);
@@ -805,7 +776,6 @@ void b43_debugfs_add_device(struct b43_wldev *dev)
 	ADD_FILE(mmio16write, 0200);
 	ADD_FILE(mmio32read, 0600);
 	ADD_FILE(mmio32write, 0200);
-	ADD_FILE(tsf, 0600);
 	ADD_FILE(txstat, 0400);
 	ADD_FILE(restart, 0200);
 	ADD_FILE(loctls, 0400);
@@ -834,7 +804,6 @@ void b43_debugfs_remove_device(struct b43_wldev *dev)
 	debugfs_remove(e->file_mmio16write.dentry);
 	debugfs_remove(e->file_mmio32read.dentry);
 	debugfs_remove(e->file_mmio32write.dentry);
-	debugfs_remove(e->file_tsf.dentry);
 	debugfs_remove(e->file_txstat.dentry);
 	debugfs_remove(e->file_restart.dentry);
 	debugfs_remove(e->file_loctls.dentry);

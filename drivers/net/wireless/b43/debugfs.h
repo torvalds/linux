@@ -46,7 +46,6 @@ struct b43_dfsentry {
 	struct b43_dfs_file file_mmio16write;
 	struct b43_dfs_file file_mmio32read;
 	struct b43_dfs_file file_mmio32write;
-	struct b43_dfs_file file_tsf;
 	struct b43_dfs_file file_txstat;
 	struct b43_dfs_file file_txpower_g;
 	struct b43_dfs_file file_restart;
