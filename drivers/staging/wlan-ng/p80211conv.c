@@ -83,25 +83,10 @@
 
 
 /*================================================================*/
-/* Local Constants */
-
-/*================================================================*/
-/* Local Macros */
-
-
-/*================================================================*/
-/* Local Types */
-
-
-/*================================================================*/
 /* Local Static Definitions */
 
 static u8	oui_rfc1042[] = {0x00, 0x00, 0x00};
 static u8	oui_8021h[] = {0x00, 0x00, 0xf8};
-
-/*================================================================*/
-/* Local Function Declarations */
-
 
 /*================================================================*/
 /* Function Definitions */
@@ -225,11 +210,7 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 	if ((wlandev->hostwep & HOSTWEP_PRIVACYINVOKED) && (wlandev->hostwep & HOSTWEP_ENCRYPT)) {
 		// XXXX need to pick keynum other than default?
 
-#if 1
 		p80211_wep->data = kmalloc(skb->len, GFP_ATOMIC);
-#else
-		p80211_wep->data = skb->data;
-#endif
 
 		if ((foo = wep_encrypt(wlandev, skb->data, p80211_wep->data,
 				       skb->len,
