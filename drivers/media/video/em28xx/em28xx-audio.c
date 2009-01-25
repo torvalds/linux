@@ -401,9 +401,9 @@ static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
 	snd_pcm_uframes_t hwptr_done;
 
 	dev = snd_pcm_substream_chip(substream);
-       spin_lock_irqsave(&dev->adev.slock, flags);
+	spin_lock_irqsave(&dev->adev.slock, flags);
 	hwptr_done = dev->adev.hwptr_done_capture;
-       spin_unlock_irqrestore(&dev->adev.slock, flags);
+	spin_unlock_irqrestore(&dev->adev.slock, flags);
 
 	return hwptr_done;
 }
