@@ -280,8 +280,8 @@ static int osst_chk_result(struct osst_tape * STp, struct osst_request * SRpnt)
 			static	int	notyetprinted = 1;
 
 			printk(KERN_WARNING
-			     "%s:W: Warning %x (sugg. bt 0x%x, driver bt 0x%x, host bt 0x%x).\n",
-			     name, result, suggestion(result), driver_byte(result) & DRIVER_MASK,
+			     "%s:W: Warning %x (driver bt 0x%x, host bt 0x%x).\n",
+			     name, result, driver_byte(result),
 			     host_byte(result));
 			if (notyetprinted) {
 				notyetprinted = 0;
