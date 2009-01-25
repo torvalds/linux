@@ -183,7 +183,7 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
                 }
                 result = hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFPASSIVESCANCTRL, word);
                 if ( result ) {
-                        WLAN_LOG_WARNING("Passive scan not supported with "
+                        printk(KERN_WARNING "Passive scan not supported with "
 					  "current firmware.  (<1.5.1)\n");
                 }
         }

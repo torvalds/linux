@@ -1155,7 +1155,7 @@ static void p80211knetdev_tx_timeout( netdevice_t *netdev)
 	if (wlandev->tx_timeout) {
 		wlandev->tx_timeout(wlandev);
 	} else {
-		WLAN_LOG_WARNING("Implement tx_timeout for %s\n",
+		printk(KERN_WARNING "Implement tx_timeout for %s\n",
 				 wlandev->nsdname);
 		netif_wake_queue(wlandev->netdev);
 	}

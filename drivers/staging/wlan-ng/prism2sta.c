@@ -446,7 +446,7 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 		break;
 	}
 	default:
-		WLAN_LOG_WARNING("Unknown mgmt request message 0x%08x", msg->msgcode);
+		printk(KERN_WARNING "Unknown mgmt request message 0x%08x", msg->msgcode);
 		break;
 	}
 
@@ -511,7 +511,7 @@ u32 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate)
 			result = P80211ENUM_resultcode_success;
 			break;
 		case WLAN_MSD_RUNNING:
-			WLAN_LOG_WARNING(
+			printk(KERN_WARNING
 				"Cannot enter fwload state from enable state,"
 				"you must disable first.\n");
 			result = P80211ENUM_resultcode_invalid_parameters;
@@ -1467,7 +1467,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 	default:
 		/* This is bad, IO port problems? */
-		WLAN_LOG_WARNING(
+		printk(KERN_WARNING
 			"unknown linkstatus=0x%02x\n", hw->link_status);
 		goto failed;
 		break;
@@ -1557,14 +1557,14 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 
 	if (i >= hw->authlist.cnt) {
 		if (rec.assocstatus != HFA384x_ASSOCSTATUS_AUTHFAIL)
-			WLAN_LOG_WARNING("assocstatus info frame received for non-authenticated station.\n");
+			printk(KERN_WARNING "assocstatus info frame received for non-authenticated station.\n");
 	} else {
 		hw->authlist.assoc[i] =
 			(rec.assocstatus == HFA384x_ASSOCSTATUS_STAASSOC ||
 			 rec.assocstatus == HFA384x_ASSOCSTATUS_REASSOC);
 
 		if (rec.assocstatus == HFA384x_ASSOCSTATUS_AUTHFAIL)
-			WLAN_LOG_WARNING("authfail assocstatus info frame received for authenticated station.\n");
+			printk(KERN_WARNING "authfail assocstatus info frame received for authenticated station.\n");
 	}
 
 	return;
@@ -1887,16 +1887,16 @@ void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 			prism2sta_inf_psusercnt(wlandev, inf);
 			break;
 	        case HFA384x_IT_KEYIDCHANGED:
-			WLAN_LOG_WARNING("Unhandled IT_KEYIDCHANGED\n");
+			printk(KERN_WARNING "Unhandled IT_KEYIDCHANGED\n");
 			break;
 	        case HFA384x_IT_ASSOCREQ:
-			WLAN_LOG_WARNING("Unhandled IT_ASSOCREQ\n");
+			printk(KERN_WARNING "Unhandled IT_ASSOCREQ\n");
 			break;
 	        case HFA384x_IT_MICFAILURE:
-			WLAN_LOG_WARNING("Unhandled IT_MICFAILURE\n");
+			printk(KERN_WARNING "Unhandled IT_MICFAILURE\n");
 			break;
 		default:
-			WLAN_LOG_WARNING(
+			printk(KERN_WARNING
 				"Unknown info type=0x%02x\n", inf->infotype);
 			break;
 	}

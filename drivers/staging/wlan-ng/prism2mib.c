@@ -729,7 +729,7 @@ void                         *data)
 
 	if (!isget)
 		if ((*uint32) % 2) {
-			WLAN_LOG_WARNING("Attempt to set odd number "
+			printk(KERN_WARNING "Attempt to set odd number "
 					  "FragmentationThreshold\n");
 			msg->resultcode.data = P80211ENUM_resultcode_not_supported;
 			return(0);

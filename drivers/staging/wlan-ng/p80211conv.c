@@ -235,7 +235,7 @@ int skb_ether_to_p80211( wlandevice_t *wlandev, u32 ethconv, struct sk_buff *skb
 				       skb->len,
 				(wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK),
 				p80211_wep->iv, p80211_wep->icv))) {
-			WLAN_LOG_WARNING("Host en-WEP failed, dropping frame (%d).\n", foo);
+			printk(KERN_WARNING "Host en-WEP failed, dropping frame (%d).\n", foo);
 			return 2;
 		}
 		fc |= cpu_to_le16(WLAN_SET_FC_ISWEP(1));

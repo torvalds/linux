@@ -58,8 +58,6 @@
 
 #include <linux/hardirq.h>
 
-#define WLAN_LOG_WARNING(x,args...) printk(KERN_WARNING "%s: " x , __func__ , ##args);
-
 #if defined(WLAN_INCLUDE_DEBUG)
 	#define WLAN_HEX_DUMP( l, x, p, n)	if( WLAN_DBVAR >= (l) ){ \
 		int __i__; \
