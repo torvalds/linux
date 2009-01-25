@@ -422,8 +422,9 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 module_param(force_sensor, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(force_sensor,
-		"force detection of sensor, "
-		"1 = OV9650, 2 = S5K83A, 3 = S5K4AA, 4 = MT9M111, 5 = PO1030");
+		"forces detection of a sensor, "
+		"1 = OV9650, 2 = S5K83A, 3 = S5K4AA, "
+		"4 = MT9M111, 5 = PO1030, 6 = OV7660");
 
 module_param(dump_bridge, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(dump_bridge, "Dumps all usb bridge registers at startup");
