@@ -329,8 +329,7 @@ static inline int __raw_read_trylock(raw_rwlock_t *lock)
 {
 	atomic_t *count = (atomic_t *)lock;
 
-	atomic_dec(count);
-	if (atomic_read(count) >= 0)
+	if (atomic_dec_return(count) >= 0)
 		return 1;
 	atomic_inc(count);
 	return 0;
