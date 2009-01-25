@@ -1623,12 +1623,34 @@ static int pxa_udc_vbus_session(struct usb_gadget *_gadget, int is_active)
 	return 0;
 }
 
+/**
+ * pxa_udc_vbus_draw - Called by gadget driver after SET_CONFIGURATION completed
+ * @_gadget: usb gadget
+ * @mA: current drawn
+ *
+ * Context: !in_interrupt()
+ *
+ * Called after a configuration was chosen by a USB host, to inform how much
+ * current can be drawn by the device from VBus line.
+ *
+ * Returns 0 or -EOPNOTSUPP if no transceiver is handling the udc
+ */
+static int pxa_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
+{
+	struct pxa_udc *udc;
+
+	udc = to_gadget_udc(_gadget);
+	if (udc->transceiver)
+		return otg_set_power(udc->transceiver, mA);
+	return -EOPNOTSUPP;
+}
+
 static const struct usb_gadget_ops pxa_udc_ops = {
 	.get_frame	= pxa_udc_get_frame,
 	.wakeup		= pxa_udc_wakeup,
 	.pullup		= pxa_udc_pullup,
 	.vbus_session	= pxa_udc_vbus_session,
-	/* current versions must always be self-powered */
+	.vbus_draw	= pxa_udc_vbus_draw,
 };
 
 /**
