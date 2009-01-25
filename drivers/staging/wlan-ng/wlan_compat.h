@@ -86,9 +86,6 @@ typedef struct net_device netdevice_t;
 /*--- General Macros ------------------------------------------*/
 /*=============================================================*/
 
-#define wlan_max(a, b) (((a) > (b)) ? (a) : (b))
-#define wlan_min(a, b) (((a) < (b)) ? (a) : (b))
-
 #define wlan_isprint(c)	(((c) > (0x19)) && ((c) < (0x7f)))
 
 #define wlan_hexchar(x) (((x) < 0x0a) ? ('0' + (x)) : ('a' + ((x) - 0x0a)))

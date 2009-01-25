@@ -1328,7 +1328,7 @@ wext_translate_bss(struct iw_request_info *info, char *current_ev,
 		char essid[IW_ESSID_MAX_SIZE + 1];
 		int size;
 
-		size = wlan_min(IW_ESSID_MAX_SIZE, bss->ssid.data.len);
+		size = min_t(unsigned short, IW_ESSID_MAX_SIZE, bss->ssid.data.len);
 		memset(&essid, 0, sizeof (essid));
 		memcpy(&essid, bss->ssid.data.data, size);
 		WLAN_LOG_DEBUG(1, " essid size = %d\n", size);
