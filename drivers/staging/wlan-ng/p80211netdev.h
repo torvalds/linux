@@ -70,8 +70,6 @@
 #define WLAN_MACMODE_ESS_AP	3
 
 /* MSD States */
-#define WLAN_MSD_START			-1
-#define WLAN_MSD_DRIVERLOADED		0
 #define WLAN_MSD_HWPRESENT_PENDING	1
 #define WLAN_MSD_HWFAIL			2
 #define WLAN_MSD_HWPRESENT		3
@@ -96,12 +94,7 @@
 
 /*--- NSD Capabilities Flags ------------------------------*/
 #define P80211_NSDCAP_HARDWAREWEP           0x01  /* hardware wep engine */
-#define P80211_NSDCAP_TIEDWEP               0x02  /* can't decouple en/de */
-#define P80211_NSDCAP_NOHOSTWEP             0x04  /* must use hardware wep */
-#define P80211_NSDCAP_PBCC                  0x08  /* hardware supports PBCC */
 #define P80211_NSDCAP_SHORT_PREAMBLE        0x10  /* hardware supports */
-#define P80211_NSDCAP_AGILITY               0x20  /* hardware supports */
-#define P80211_NSDCAP_AP_RETRANSMIT         0x40  /* nsd handles retransmits */
 #define P80211_NSDCAP_HWFRAGMENT            0x80  /* nsd handles frag/defrag */
 #define P80211_NSDCAP_AUTOJOIN              0x100  /* nsd does autojoin */
 #define P80211_NSDCAP_NOSCAN                0x200  /* nsd can scan */
@@ -150,7 +143,6 @@ typedef struct p80211_frmrx_t
 /* called by /proc/net/wireless */
 struct iw_statistics* p80211wext_get_wireless_stats(netdevice_t *dev);
 /* wireless extensions' ioctls */
-int p80211wext_support_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd);
 extern struct iw_handler_def p80211wext_handler_def;
 int p80211wext_event_associated(struct wlandevice *wlandev, int assoc);
 
@@ -241,8 +233,6 @@ int wep_change_key(wlandevice_t *wlandev, int keynum, u8* key, int keylen);
 int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override, u8 *iv, u8 *icv);
 int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum, u8 *iv, u8 *icv);
 
-void	p80211netdev_startup(void);
-void	p80211netdev_shutdown(void);
 int	wlan_setup(wlandevice_t *wlandev);
 int	wlan_unsetup(wlandevice_t *wlandev);
 int	register_wlandev(wlandevice_t *wlandev);
