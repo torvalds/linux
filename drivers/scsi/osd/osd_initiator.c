@@ -111,6 +111,14 @@ static osd_cdb_offset osd_req_encode_offset(struct osd_request *or,
 				  OSDv1_OFFSET_MIN_SHIFT, OSD_OFFSET_MAX_SHIFT);
 }
 
+static struct osd_security_parameters *
+_osd_req_sec_params(struct osd_request *or)
+{
+	struct osd_cdb *ocdb = &or->cdb;
+
+	return &ocdb->v1.sec_params;
+}
+
 void osd_dev_init(struct osd_dev *osdd, struct scsi_device *scsi_device)
 {
 	memset(osdd, 0, sizeof(*osdd));
@@ -799,6 +807,64 @@ static int _osd_req_finalize_attr_page(struct osd_request *or)
 	return ret;
 }
 
+static int _osd_req_finalize_data_integrity(struct osd_request *or,
+	bool has_in, bool has_out, const u8 *cap_key)
+{
+	struct osd_security_parameters *sec_parms = _osd_req_sec_params(or);
+	int ret;
+
+	if (!osd_is_sec_alldata(sec_parms))
+		return 0;
+
+	if (has_out) {
+		struct _osd_req_data_segment seg = {
+			.buff = &or->out_data_integ,
+			.total_bytes = sizeof(or->out_data_integ),
+		};
+		unsigned pad;
+
+		or->out_data_integ.data_bytes = cpu_to_be64(
+			or->out.bio ? or->out.bio->bi_size : 0);
+		or->out_data_integ.set_attributes_bytes = cpu_to_be64(
+			or->set_attr.total_bytes);
+		or->out_data_integ.get_attributes_bytes = cpu_to_be64(
+			or->enc_get_attr.total_bytes);
+
+		sec_parms->data_out_integrity_check_offset =
+			osd_req_encode_offset(or, or->out.total_bytes, &pad);
+
+		ret = _req_append_segment(or, pad, &seg, or->out.last_seg,
+					  &or->out);
+		if (ret)
+			return ret;
+		or->out.last_seg = NULL;
+
+		/* they are now all chained to request sign them all together */
+		osd_sec_sign_data(&or->out_data_integ, or->out.req->bio,
+				  cap_key);
+	}
+
+	if (has_in) {
+		struct _osd_req_data_segment seg = {
+			.buff = &or->in_data_integ,
+			.total_bytes = sizeof(or->in_data_integ),
+		};
+		unsigned pad;
+
+		sec_parms->data_in_integrity_check_offset =
+			osd_req_encode_offset(or, or->in.total_bytes, &pad);
+
+		ret = _req_append_segment(or, pad, &seg, or->in.last_seg,
+					  &or->in);
+		if (ret)
+			return ret;
+
+		or->in.last_seg = NULL;
+	}
+
+	return 0;
+}
+
 /*
  * osd_finalize_request and helpers
  */
@@ -919,6 +985,12 @@ int osd_finalize_request(struct osd_request *or,
 		}
 	}
 
+	ret = _osd_req_finalize_data_integrity(or, has_in, has_out, cap_key);
+	if (ret)
+		return ret;
+
+	osd_sec_sign_cdb(&or->cdb, cap_key);
+
 	or->request->cmd = or->cdb.buff;
 	or->request->cmd_len = _osd_req_cdb_len(or);
 
@@ -982,6 +1054,20 @@ EXPORT_SYMBOL(osd_sec_init_nosec_doall_caps);
 void osd_set_caps(struct osd_cdb *cdb, const void *caps)
 {
 	memcpy(&cdb->v1.caps, caps, OSDv1_CAP_LEN);
+}
+
+bool osd_is_sec_alldata(struct osd_security_parameters *sec_parms __unused)
+{
+	return false;
+}
+
+void osd_sec_sign_cdb(struct osd_cdb *ocdb __unused, const u8 *cap_key __unused)
+{
+}
+
+void osd_sec_sign_data(void *data_integ __unused,
+		       struct bio *bio __unused, const u8 *cap_key __unused)
+{
 }
 
 /*
