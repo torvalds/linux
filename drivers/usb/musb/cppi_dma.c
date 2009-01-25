@@ -995,6 +995,7 @@ static int cppi_channel_program(struct dma_channel *ch,
 	cppi_ch->offset = 0;
 	cppi_ch->maxpacket = maxpacket;
 	cppi_ch->buf_len = len;
+	cppi_ch->channel.actual_len = 0;
 
 	/* TX channel? or RX? */
 	if (cppi_ch->transmit)
