@@ -62,12 +62,15 @@ static int em28xx_isoc_audio_deinit(struct em28xx *dev)
 
 	dprintk("Stopping isoc\n");
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
-		usb_kill_urb(dev->adev.urb[i]);
+		if (!irqs_disabled())
+			usb_kill_urb(dev->adev.urb[i]);
+		else
+			usb_unlink_urb(dev->adev.urb[i]);
 		usb_free_urb(dev->adev.urb[i]);
 		dev->adev.urb[i] = NULL;
 
-	       kfree(dev->adev.transfer_buffer[i]);
-	       dev->adev.transfer_buffer[i] = NULL;
+		kfree(dev->adev.transfer_buffer[i]);
+		dev->adev.transfer_buffer[i] = NULL;
 	}
 
 	return 0;

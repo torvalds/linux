@@ -860,8 +860,11 @@ void em28xx_uninit_isoc(struct em28xx *dev)
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
 		urb = dev->isoc_ctl.urb[i];
 		if (urb) {
-			usb_kill_urb(urb);
-			usb_unlink_urb(urb);
+			if (!irqs_disabled())
+				usb_kill_urb(urb);
+			else
+				usb_unlink_urb(urb);
+
 			if (dev->isoc_ctl.transfer_buffer[i]) {
 				usb_buffer_free(dev->udev,
 					urb->transfer_buffer_length,
