@@ -33,6 +33,10 @@ struct osd_dev {
 	unsigned def_timeout;
 };
 
+/* Retrieve/return osd_dev(s) for use by Kernel clients */
+struct osd_dev *osduld_path_lookup(const char *dev_name); /*Use IS_ERR/ERR_PTR*/
+void osduld_put_device(struct osd_dev *od);
+
 /* Add/remove test ioctls from external modules */
 typedef int (do_test_fn)(struct osd_dev *od, unsigned cmd, unsigned long arg);
 int osduld_register_test(unsigned ioctl, do_test_fn *do_test);
