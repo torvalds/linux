@@ -59,36 +59,50 @@ static inline void build_test(void)
 {
 	/* structures were not packed */
 	BUILD_BUG_ON(sizeof(struct osd_capability) != OSD_CAP_LEN);
+	BUILD_BUG_ON(sizeof(struct osdv2_cdb) != OSD_TOTAL_CDB_LEN);
 	BUILD_BUG_ON(sizeof(struct osdv1_cdb) != OSDv1_TOTAL_CDB_LEN);
 }
 
 static unsigned _osd_req_cdb_len(struct osd_request *or)
 {
-	return OSDv1_TOTAL_CDB_LEN;
+	return osd_req_is_ver1(or) ? OSDv1_TOTAL_CDB_LEN : OSD_TOTAL_CDB_LEN;
 }
 
 static unsigned _osd_req_alist_elem_size(struct osd_request *or, unsigned len)
 {
-	return osdv1_attr_list_elem_size(len);
+	return osd_req_is_ver1(or) ?
+		osdv1_attr_list_elem_size(len) :
+		osdv2_attr_list_elem_size(len);
 }
 
 static unsigned _osd_req_alist_size(struct osd_request *or, void *list_head)
 {
-	return osdv1_list_size(list_head);
+	return osd_req_is_ver1(or) ?
+		osdv1_list_size(list_head) :
+		osdv2_list_size(list_head);
 }
 
 static unsigned _osd_req_sizeof_alist_header(struct osd_request *or)
 {
-	return sizeof(struct osdv1_attributes_list_header);
+	return osd_req_is_ver1(or) ?
+		sizeof(struct osdv1_attributes_list_header) :
+		sizeof(struct osdv2_attributes_list_header);
 }
 
 static void _osd_req_set_alist_type(struct osd_request *or,
 	void *list, int list_type)
 {
-	struct osdv1_attributes_list_header *attr_list = list;
+	if (osd_req_is_ver1(or)) {
+		struct osdv1_attributes_list_header *attr_list = list;
 
-	memset(attr_list, 0, sizeof(*attr_list));
-	attr_list->type = list_type;
+		memset(attr_list, 0, sizeof(*attr_list));
+		attr_list->type = list_type;
+	} else {
+		struct osdv2_attributes_list_header *attr_list = list;
+
+		memset(attr_list, 0, sizeof(*attr_list));
+		attr_list->type = list_type;
+	}
 }
 
 static bool _osd_req_is_alist_type(struct osd_request *or,
@@ -97,8 +111,12 @@ static bool _osd_req_is_alist_type(struct osd_request *or,
 	if (!list)
 		return false;
 
-	if (1) {
+	if (osd_req_is_ver1(or)) {
 		struct osdv1_attributes_list_header *attr_list = list;
+
+		return attr_list->type == list_type;
+	} else {
+		struct osdv2_attributes_list_header *attr_list = list;
 
 		return attr_list->type == list_type;
 	}
@@ -110,15 +128,22 @@ static void _osd_req_encode_olist(struct osd_request *or,
 {
 	struct osd_cdb_head *cdbh = osd_cdb_head(&or->cdb);
 
-	cdbh->v1.list_identifier = list->list_identifier;
-	cdbh->v1.start_address = list->continuation_id;
+	if (osd_req_is_ver1(or)) {
+		cdbh->v1.list_identifier = list->list_identifier;
+		cdbh->v1.start_address = list->continuation_id;
+	} else {
+		cdbh->v2.list_identifier = list->list_identifier;
+		cdbh->v2.start_address = list->continuation_id;
+	}
 }
 
 static osd_cdb_offset osd_req_encode_offset(struct osd_request *or,
 	u64 offset, unsigned *padding)
 {
 	return __osd_encode_offset(offset, padding,
-				  OSDv1_OFFSET_MIN_SHIFT, OSD_OFFSET_MAX_SHIFT);
+			osd_req_is_ver1(or) ?
+				OSDv1_OFFSET_MIN_SHIFT : OSD_OFFSET_MIN_SHIFT,
+			OSD_OFFSET_MAX_SHIFT);
 }
 
 static struct osd_security_parameters *
@@ -126,7 +151,10 @@ _osd_req_sec_params(struct osd_request *or)
 {
 	struct osd_cdb *ocdb = &or->cdb;
 
-	return &ocdb->v1.sec_params;
+	if (osd_req_is_ver1(or))
+		return &ocdb->v1.sec_params;
+	else
+		return &ocdb->v2.sec_params;
 }
 
 void osd_dev_init(struct osd_dev *osdd, struct scsi_device *scsi_device)
@@ -134,6 +162,9 @@ void osd_dev_init(struct osd_dev *osdd, struct scsi_device *scsi_device)
 	memset(osdd, 0, sizeof(*osdd));
 	osdd->scsi_device = scsi_device;
 	osdd->def_timeout = BLK_DEFAULT_SG_TIMEOUT;
+#ifdef OSD_VER1_SUPPORT
+	osdd->version = OSD_VER2;
+#endif
 	/* TODO: Allocate pools for osd_request attributes ... */
 }
 EXPORT_SYMBOL(osd_dev_init);
@@ -334,10 +365,30 @@ static void _osdv1_req_encode_common(struct osd_request *or,
 	ocdb->h.v1.start_address = cpu_to_be64(offset);
 }
 
+static void _osdv2_req_encode_common(struct osd_request *or,
+	 __be16 act, const struct osd_obj_id *obj, u64 offset, u64 len)
+{
+	struct osdv2_cdb *ocdb = &or->cdb.v2;
+
+	OSD_DEBUG("OSDv2 execute opcode 0x%x\n", be16_to_cpu(act));
+
+	ocdb->h.varlen_cdb.opcode = VARIABLE_LENGTH_CMD;
+	ocdb->h.varlen_cdb.additional_cdb_length = OSD_ADDITIONAL_CDB_LENGTH;
+	ocdb->h.varlen_cdb.service_action = act;
+
+	ocdb->h.partition = cpu_to_be64(obj->partition);
+	ocdb->h.object = cpu_to_be64(obj->id);
+	ocdb->h.v2.length = cpu_to_be64(len);
+	ocdb->h.v2.start_address = cpu_to_be64(offset);
+}
+
 static void _osd_req_encode_common(struct osd_request *or,
 	__be16 act, const struct osd_obj_id *obj, u64 offset, u64 len)
 {
-	_osdv1_req_encode_common(or, act, obj, offset, len);
+	if (osd_req_is_ver1(or))
+		_osdv1_req_encode_common(or, act, obj, offset, len);
+	else
+		_osdv2_req_encode_common(or, act, obj, offset, len);
 }
 
 /*
@@ -546,6 +597,12 @@ void osd_req_flush_object(struct osd_request *or,
 	const struct osd_obj_id *obj, enum osd_options_flush_scope_values op,
 	/*V2*/ u64 offset, /*V2*/ u64 len)
 {
+	if (unlikely(osd_req_is_ver1(or) && (offset || len))) {
+		OSD_DEBUG("OSD Ver1 flush on specific range ignored\n");
+		offset = 0;
+		len = 0;
+	}
+
 	_osd_req_encode_common(or, OSD_ACT_FLUSH, obj, offset, len);
 	_osd_req_encode_flush(or, op);
 }
@@ -1169,6 +1226,10 @@ enum { OSD_SEC_CAP_V1_ALL_CAPS =
 	OSD_SEC_CAP_GLOBAL | OSD_SEC_CAP_DEV_MGMT
 };
 
+enum { OSD_SEC_CAP_V2_ALL_CAPS =
+	OSD_SEC_CAP_V1_ALL_CAPS | OSD_SEC_CAP_QUERY | OSD_SEC_CAP_M_OBJECT
+};
+
 void osd_sec_init_nosec_doall_caps(void *caps,
 	const struct osd_obj_id *obj, bool is_collection, const bool is_v1)
 {
@@ -1210,9 +1271,14 @@ void osd_sec_init_nosec_doall_caps(void *caps,
 }
 EXPORT_SYMBOL(osd_sec_init_nosec_doall_caps);
 
+/* FIXME: Extract version from caps pointer.
+ *        Also Pete's target only supports caps from OSDv1 for now
+ */
 void osd_set_caps(struct osd_cdb *cdb, const void *caps)
 {
-	memcpy(&cdb->v1.caps, caps, OSDv1_CAP_LEN);
+	bool is_ver1 = true;
+	/* NOTE: They start at same address */
+	memcpy(&cdb->v1.caps, caps, is_ver1 ? OSDv1_CAP_LEN : OSD_CAP_LEN);
 }
 
 bool osd_is_sec_alldata(struct osd_security_parameters *sec_parms __unused)

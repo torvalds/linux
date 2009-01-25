@@ -21,6 +21,23 @@
 
 /* Note: "NI" in comments below means "Not Implemented yet" */
 
+/* Configure of code:
+ * #undef if you *don't* want OSD v1 support in runtime.
+ * If #defined the initiator will dynamically configure to encode OSD v1
+ * CDB's if the target is detected to be OSD v1 only.
+ * OSD v2 only commands, options, and attributes will be ignored if target
+ * is v1 only.
+ * If #defined will result in bigger/slower code (OK Slower maybe not)
+ * Q: Should this be CONFIG_SCSI_OSD_VER1_SUPPORT and set from Kconfig?
+ */
+#define OSD_VER1_SUPPORT y
+
+enum osd_std_version {
+	OSD_VER_NONE = 0,
+	OSD_VER1 = 1,
+	OSD_VER2 = 2,
+};
+
 /*
  * Object-based Storage Device.
  * This object represents an OSD device.
@@ -31,6 +48,10 @@
 struct osd_dev {
 	struct scsi_device *scsi_device;
 	unsigned def_timeout;
+
+#ifdef OSD_VER1_SUPPORT
+	enum osd_std_version version;
+#endif
 };
 
 /* Retrieve/return osd_dev(s) for use by Kernel clients */
@@ -45,6 +66,14 @@ void osduld_unregister_test(unsigned ioctl);
 /* These are called by uld at probe time */
 void osd_dev_init(struct osd_dev *od, struct scsi_device *scsi_device);
 void osd_dev_fini(struct osd_dev *od);
+
+/* we might want to use function vector in the future */
+static inline void osd_dev_set_ver(struct osd_dev *od, enum osd_std_version v)
+{
+#ifdef OSD_VER1_SUPPORT
+	od->version = v;
+#endif
+}
 
 struct osd_request;
 typedef void (osd_req_done_fn)(struct osd_request *or, void *private);
@@ -81,6 +110,16 @@ struct osd_request {
 	void *async_private;
 	int async_error;
 };
+
+/* OSD Version control */
+static inline bool osd_req_is_ver1(struct osd_request *or)
+{
+#ifdef OSD_VER1_SUPPORT
+	return or->osd_dev->version == OSD_VER1;
+#else
+	return false;
+#endif
+}
 
 /*
  * How to use the osd library:

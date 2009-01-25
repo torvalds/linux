@@ -25,12 +25,16 @@ enum {
 	OSDv1_TOTAL_CDB_LEN = OSDv1_ADDITIONAL_CDB_LENGTH + 8,
 	OSDv1_CAP_LEN = 80,
 	/* Latest supported version */
-	OSD_ADDITIONAL_CDB_LENGTH = OSDv1_ADDITIONAL_CDB_LENGTH,
-	OSD_TOTAL_CDB_LEN = OSDv1_TOTAL_CDB_LEN,
-	OSD_CAP_LEN = OSDv1_CAP_LEN,
+/* 	OSD_ADDITIONAL_CDB_LENGTH = 216,*/
+	OSD_ADDITIONAL_CDB_LENGTH =
+		OSDv1_ADDITIONAL_CDB_LENGTH, /* FIXME: Pete rev-001 sup */
+	OSD_TOTAL_CDB_LEN = OSD_ADDITIONAL_CDB_LENGTH + 8,
+/* 	OSD_CAP_LEN = 104,*/
+	OSD_CAP_LEN = OSDv1_CAP_LEN,/* FIXME: Pete rev-001 sup */
 
 	OSD_SYSTEMID_LEN = 20,
 	OSD_CRYPTO_KEYID_SIZE = 20,
+	/*FIXME: OSDv2_CRYPTO_KEYID_SIZE = 32,*/
 	OSD_CRYPTO_SEED_SIZE = 4,
 	OSD_CRYPTO_NONCE_SIZE = 12,
 	OSD_MAX_SENSE_LEN = 252, /* from SPC-3 */
@@ -108,6 +112,7 @@ enum {
 	OSD_OFFSET_MAX_BITS = 28,
 
 	OSDv1_OFFSET_MIN_SHIFT = 8,
+	OSD_OFFSET_MIN_SHIFT = 3,
 	OSD_OFFSET_MAX_SHIFT = 16,
 };
 
@@ -129,6 +134,16 @@ static inline osd_cdb_offset osd_encode_offset_v1(u64 offset, unsigned *padding)
 				OSDv1_OFFSET_MIN_SHIFT, OSD_OFFSET_MAX_SHIFT);
 }
 
+/* Minimum 8 bytes alignment
+ * Same as v1 but since exponent can be signed than a less than
+ * 256 alignment can be reached with small offsets (<2GB)
+ */
+static inline osd_cdb_offset osd_encode_offset_v2(u64 offset, unsigned *padding)
+{
+	return __osd_encode_offset(offset, padding,
+				   OSD_OFFSET_MIN_SHIFT, OSD_OFFSET_MAX_SHIFT);
+}
+
 /* osd2r03: 5.2.1 Overview */
 struct osd_cdb_head {
 	struct scsi_varlen_cdb_hdr varlen_cdb;
@@ -144,6 +159,13 @@ struct osd_cdb_head {
 /*36*/			__be64		length;
 /*44*/			__be64		start_address;
 		} __packed v1;
+
+		struct __osdv2_cdb_addr_len {
+			/* called allocation_length in some commands */
+/*32*/			__be64	length;
+/*40*/			__be64	start_address;
+/*48*/			__be32 list_identifier;/* Rarely used */
+		} __packed v2;
 	};
 /*52*/	union { /* selected attributes mode Page/List/Single */
 		struct osd_attributes_page_mode {
@@ -182,6 +204,7 @@ struct osd_cdb_head {
 /*80*/
 
 /*160 v1*/
+/*184 v2*/
 struct osd_security_parameters {
 /*160*/u8	integrity_check_value[OSD_CRYPTO_KEYID_SIZE];
 /*180*/u8	request_nonce[OSD_CRYPTO_NONCE_SIZE];
@@ -189,6 +212,9 @@ struct osd_security_parameters {
 /*196*/osd_cdb_offset	data_out_integrity_check_offset;
 } __packed;
 /*200 v1*/
+/*224 v2*/
+
+/* FIXME: osdv2_security_parameters */
 
 struct osdv1_cdb {
 	struct osd_cdb_head h;
@@ -196,9 +222,17 @@ struct osdv1_cdb {
 	struct osd_security_parameters sec_params;
 } __packed;
 
+struct osdv2_cdb {
+	struct osd_cdb_head h;
+	u8 caps[OSD_CAP_LEN];
+	struct osd_security_parameters sec_params;
+	/* FIXME: osdv2_security_parameters */
+} __packed;
+
 struct osd_cdb {
 	union {
 		struct osdv1_cdb v1;
+		struct osdv2_cdb v2;
 		u8 buff[OSD_TOTAL_CDB_LEN];
 	};
 } __packed;
@@ -269,6 +303,7 @@ struct osd_attributes_list_attrid {
 /*
  * osd2r03: 7.1.3.3 List entry format for retrieved attributes and
  *                  for setting attributes
+ * NOTE: v2 is 8-bytes aligned, v1 is not aligned.
  */
 struct osd_attributes_list_element {
 	__be32 attr_page;
@@ -279,6 +314,7 @@ struct osd_attributes_list_element {
 
 enum {
 	OSDv1_ATTRIBUTES_ELEM_ALIGN = 1,
+	OSD_ATTRIBUTES_ELEM_ALIGN = 8,
 };
 
 enum {
@@ -290,6 +326,12 @@ static inline unsigned osdv1_attr_list_elem_size(unsigned len)
 {
 	return ALIGN(len + sizeof(struct osd_attributes_list_element),
 		     OSDv1_ATTRIBUTES_ELEM_ALIGN);
+}
+
+static inline unsigned osdv2_attr_list_elem_size(unsigned len)
+{
+	return ALIGN(len + sizeof(struct osd_attributes_list_element),
+		     OSD_ATTRIBUTES_ELEM_ALIGN);
 }
 
 /*
@@ -324,6 +366,21 @@ struct osdv1_attributes_list_header {
 static inline unsigned osdv1_list_size(struct osdv1_attributes_list_header *h)
 {
 	return be16_to_cpu(h->list_bytes);
+}
+
+struct osdv2_attributes_list_header {
+	u8 type;	/* lower 4-bits only */
+	u8 pad[3];
+/*4*/	__be32 list_bytes; /* Initiator shall set to zero. Only set by target */
+	/*
+	 * type=9 followed by struct osd_attributes_list_element's
+	 * type=E followed by struct osd_attributes_list_multi_header's
+	 */
+} __packed;
+
+static inline unsigned osdv2_list_size(struct osdv2_attributes_list_header *h)
+{
+	return be32_to_cpu(h->list_bytes);
 }
 
 /* (osd-r10 6.13)
@@ -469,9 +526,34 @@ struct osdv1_cap_object_descriptor {
 } __packed;
 /*80 v1*/
 
-struct osd_capability {
+/*56 v2*/
+struct osd_cap_object_descriptor {
+	union {
+		struct {
+/*56*/			__be32 allowed_attributes_access;
+/*60*/			__be32 policy_access_tag;
+/*64*/			__be16 boot_epoch;
+/*66*/			u8 reserved[6];
+/*72*/			__be64 allowed_partition_id;
+/*80*/			__be64 allowed_object_id;
+/*88*/			__be64 allowed_range_length;
+/*96*/			__be64 allowed_range_start;
+		} __packed obj_desc;
+
+/*56*/		u8 object_descriptor[48];
+	};
+} __packed;
+/*104 v2*/
+
+struct osdv1_capability {
 	struct osd_capability_head h;
 	struct osdv1_cap_object_descriptor od;
+} __packed;
+
+struct osd_capability {
+	struct osd_capability_head h;
+/* 	struct osd_cap_object_descriptor od;*/
+	struct osdv1_cap_object_descriptor od; /* FIXME: Pete rev-001 sup */
 } __packed;
 
 /**
