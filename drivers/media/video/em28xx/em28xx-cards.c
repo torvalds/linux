@@ -1630,7 +1630,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 			em28xx_errdev("If the board were missdetected, "
 				      "please email this log to:\n");
 			em28xx_errdev("\tV4L Mailing List "
-				      " <video4linux-list@redhat.com>\n");
+				      " <linux-media@vger.kernel.org>\n");
 			em28xx_errdev("Board detected as %s\n",
 				      em28xx_boards[dev->model].name);
 
@@ -1662,7 +1662,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 			em28xx_errdev("If the board were missdetected, "
 				      "please email this log to:\n");
 			em28xx_errdev("\tV4L Mailing List "
-				      " <video4linux-list@redhat.com>\n");
+				      " <linux-media@vger.kernel.org>\n");
 			em28xx_errdev("Board detected as %s\n",
 				      em28xx_boards[dev->model].name);
 
@@ -1675,7 +1675,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 	em28xx_errdev("You may try to use card=<n> insmod option to "
 		      "workaround that.\n");
 	em28xx_errdev("Please send an email with this log to:\n");
-	em28xx_errdev("\tV4L Mailing List <video4linux-list@redhat.com>\n");
+	em28xx_errdev("\tV4L Mailing List <linux-media@vger.kernel.org>\n");
 	em28xx_errdev("Board eeprom hash is 0x%08lx\n", dev->hash);
 	em28xx_errdev("Board i2c devicelist hash is 0x%08lx\n", dev->i2c_hash);
 
