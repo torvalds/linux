@@ -1358,6 +1358,16 @@ fsm_start:
 					qc->err_mask |= AC_ERR_HSM;
 				}
 
+				/* There are oddball controllers with
+				 * status register stuck at 0x7f and
+				 * lbal/m/h at zero which makes it
+				 * pass all other presence detection
+				 * mechanisms we have.  Set NODEV_HINT
+				 * for it.  Kernel bz#7241.
+				 */
+				if (status == 0x7f)
+					qc->err_mask |= AC_ERR_NODEV_HINT;
+
 				/* ata_pio_sectors() might change the
 				 * state to HSM_ST_LAST. so, the state
 				 * is changed after ata_pio_sectors().
