@@ -370,6 +370,7 @@ static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 	}
 
 	pci_save_state(pci_dev);
+	pci_dev->state_saved = true;
 	/*
 	 * This is for compatibility with existing code with legacy PM support.
 	 */
@@ -419,6 +420,7 @@ static int pci_legacy_resume(struct device *dev)
 static void pci_pm_default_resume_noirq(struct pci_dev *pci_dev)
 {
 	pci_restore_standard_config(pci_dev);
+	pci_dev->state_saved = false;
 	pci_fixup_device(pci_fixup_resume_early, pci_dev);
 }
 
@@ -554,6 +556,13 @@ static int pci_pm_resume(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct device_driver *drv = dev->driver;
 	int error = 0;
+
+	/*
+	 * This is necessary for the suspend error path in which resume is
+	 * called without restoring the standard config registers of the device.
+	 */
+	if (pci_dev->state_saved)
+		pci_restore_standard_config(pci_dev);
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume(dev);
@@ -709,6 +718,13 @@ static int pci_pm_restore(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct device_driver *drv = dev->driver;
 	int error = 0;
+
+	/*
+	 * This is necessary for the hibernation error path in which restore is
+	 * called without restoring the standard config registers of the device.
+	 */
+	if (pci_dev->state_saved)
+		pci_restore_standard_config(pci_dev);
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume(dev);
