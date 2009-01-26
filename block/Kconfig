@@ -50,6 +50,8 @@ config BLK_DEV_IO_TRACE
 	select RELAY
 	select DEBUG_FS
 	select TRACEPOINTS
+	select TRACING
+	select STACKTRACE
 	help
 	  Say Y here if you want to be able to trace the block layer actions
 	  on a given queue. Tracing allows you to see any traffic happening
@@ -57,6 +59,12 @@ config BLK_DEV_IO_TRACE
 	  support tools needed), fetch the blktrace tools from:
 
 	  git://git.kernel.dk/blktrace.git
+
+	  Tracing also is possible using the ftrace interface, e.g.:
+
+	    echo 1 > /sys/block/sda/sda1/trace/enable
+	    echo blk > /sys/kernel/debug/tracing/current_tracer
+	    cat /sys/kernel/debug/tracing/trace_pipe
 
 	  If unsure, say N.
 
