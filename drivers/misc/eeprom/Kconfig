@@ -26,6 +26,17 @@ config AT24
 	  This driver can also be built as a module.  If so, the module
 	  will be called at24.
 
+config SPI_AT25
+	tristate "SPI EEPROMs from most vendors"
+	depends on SPI && SYSFS
+	help
+	  Enable this driver to get read/write support to most SPI EEPROMs,
+	  after you configure the board init code to know about each eeprom
+	  on your target board.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called at25.
+
 config SENSORS_EEPROM
 	tristate "Old I2C EEPROM reader"
 	depends on I2C && EXPERIMENTAL
