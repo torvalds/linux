@@ -858,26 +858,25 @@ static struct hda_verb stac92hd83xxx_core_init[] = {
 static struct hda_verb stac92hd71bxx_core_init[] = {
 	/* set master volume and direct control */
 	{ 0x28, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
-	/* unmute right and left channels for nodes 0x0a, 0xd, 0x0f */
-	{ 0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{ 0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{}
 };
 
-#define HD_DISABLE_PORTF 2
+#define HD_DISABLE_PORTF 1
 static struct hda_verb stac92hd71bxx_analog_core_init[] = {
 	/* start of config #1 */
 
 	/* connect port 0f to audio mixer */
 	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x2},
-	/* unmute right and left channels for node 0x0f */
-	{ 0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	/* start of config #2 */
 
 	/* set master volume and direct control */
 	{ 0x28, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
-	/* unmute right and left channels for nodes 0x0a, 0xd */
+	{}
+};
+
+static struct hda_verb stac92hd71bxx_unmute_core_init[] = {
+	/* unmute right and left channels for nodes 0x0f, 0xa, 0x0d */
+	{ 0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{ 0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{}
@@ -4942,6 +4941,7 @@ static struct hda_input_mux stac92hd71bxx_dmux = {
 static int patch_stac92hd71bxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
+	struct hda_verb *unmute_init = stac92hd71bxx_unmute_core_init;
 	int err = 0;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
@@ -5015,6 +5015,7 @@ again:
 
 		/* disable VSW */
 		spec->init = &stac92hd71bxx_analog_core_init[HD_DISABLE_PORTF];
+		unmute_init++;
 		stac_change_pin_config(codec, 0xf, 0x40f000f0);
 		break;
 	case 0x111d7603: /* 6 Port with Analog Mixer */
@@ -5030,6 +5031,9 @@ again:
 		spec->init = stac92hd71bxx_analog_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
 	}
+
+	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
+		snd_hda_sequence_write_cache(codec, unmute_init);
 
 	spec->aloopback_mask = 0x50;
 	spec->aloopback_shift = 0;
