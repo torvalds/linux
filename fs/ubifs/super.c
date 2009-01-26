@@ -1524,6 +1524,12 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		err = ubifs_recover_inl_heads(c, c->sbuf);
 		if (err)
 			goto out;
+	} else {
+		/* A readonly mount is not allowed to have orphans */
+		ubifs_assert(c->tot_orphans == 0);
+		err = ubifs_clear_orphans(c);
+		if (err)
+			goto out;
 	}
 
 	if (!(c->mst_node->flags & cpu_to_le32(UBIFS_MST_DIRTY))) {
