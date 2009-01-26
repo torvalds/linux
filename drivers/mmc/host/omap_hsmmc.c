@@ -571,7 +571,10 @@ static void mmc_omap_detect(struct work_struct *work)
 						mmc_carddetect_work);
 	struct omap_mmc_slot_data *slot = &mmc_slot(host);
 
-	host->carddetect = slot->card_detect(slot->card_detect_irq);
+	if (mmc_slot(host).card_detect)
+		host->carddetect = slot->card_detect(slot->card_detect_irq);
+	else
+		host->carddetect = -ENOSYS;
 
 	sysfs_notify(&host->mmc->class_dev.kobj, NULL, "cover_switch");
 	if (host->carddetect) {
@@ -1089,7 +1092,7 @@ static int __init omap_mmc_probe(struct platform_device *pdev)
 	}
 
 	/* Request IRQ for card detect */
-	if ((mmc_slot(host).card_detect_irq) && (mmc_slot(host).card_detect)) {
+	if ((mmc_slot(host).card_detect_irq)) {
 		ret = request_irq(mmc_slot(host).card_detect_irq,
 				  omap_mmc_cd_handler,
 				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
@@ -1112,8 +1115,8 @@ static int __init omap_mmc_probe(struct platform_device *pdev)
 		if (ret < 0)
 			goto err_slot_name;
 	}
-	if (mmc_slot(host).card_detect_irq && mmc_slot(host).card_detect &&
-			host->pdata->slots[host->slot_id].get_cover_state) {
+	if (mmc_slot(host).card_detect_irq &&
+	    host->pdata->slots[host->slot_id].get_cover_state) {
 		ret = device_create_file(&mmc->class_dev,
 					&dev_attr_cover_switch);
 		if (ret < 0)
