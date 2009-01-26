@@ -292,6 +292,7 @@ static void fuse_put_super(struct super_block *sb)
 	list_del(&fc->entry);
 	fuse_ctl_remove_conn(fc);
 	mutex_unlock(&fuse_mutex);
+	bdi_destroy(&fc->bdi);
 	fuse_conn_put(fc);
 }
 
@@ -532,7 +533,6 @@ void fuse_conn_put(struct fuse_conn *fc)
 		if (fc->destroy_req)
 			fuse_request_free(fc->destroy_req);
 		mutex_destroy(&fc->inst_mutex);
-		bdi_destroy(&fc->bdi);
 		fc->release(fc);
 	}
 }

@@ -281,7 +281,8 @@ __releases(&fc->lock)
 			fc->blocked = 0;
 			wake_up_all(&fc->blocked_waitq);
 		}
-		if (fc->num_background == FUSE_CONGESTION_THRESHOLD) {
+		if (fc->num_background == FUSE_CONGESTION_THRESHOLD &&
+		    fc->connected) {
 			clear_bdi_congested(&fc->bdi, READ);
 			clear_bdi_congested(&fc->bdi, WRITE);
 		}
