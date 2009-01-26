@@ -1804,7 +1804,7 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 		}
 
 		list_add(&EXT4_I(inode)->i_orphan, &EXT4_SB(sb)->s_orphan);
-		DQUOT_INIT(inode);
+		vfs_dq_init(inode);
 		if (inode->i_nlink) {
 			printk(KERN_DEBUG
 				"%s: truncating inode %lu to %lld bytes\n",
@@ -3369,8 +3369,8 @@ static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf)
  * is locked for write. Otherwise the are possible deadlocks:
  * Process 1                         Process 2
  * ext4_create()                     quota_sync()
- *   jbd2_journal_start()                   write_dquot()
- *   DQUOT_INIT()                        down(dqio_mutex)
+ *   jbd2_journal_start()                  write_dquot()
+ *   vfs_dq_init()                         down(dqio_mutex)
  *     down(dqio_mutex)                    jbd2_journal_start()
  *
  */

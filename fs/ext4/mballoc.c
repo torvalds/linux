@@ -4587,7 +4587,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 			return 0;
 		}
 		reserv_blks = ar->len;
-		while (ar->len && DQUOT_ALLOC_BLOCK(ar->inode, ar->len)) {
+		while (ar->len && vfs_dq_alloc_block(ar->inode, ar->len)) {
 			ar->flags |= EXT4_MB_HINT_NOPREALLOC;
 			ar->len--;
 		}
@@ -4663,7 +4663,7 @@ out2:
 	kmem_cache_free(ext4_ac_cachep, ac);
 out1:
 	if (inquota && ar->len < inquota)
-		DQUOT_FREE_BLOCK(ar->inode, inquota - ar->len);
+		vfs_dq_free_block(ar->inode, inquota - ar->len);
 out3:
 	if (!ar->len) {
 		if (!EXT4_I(ar->inode)->i_delalloc_reserved_flag)
