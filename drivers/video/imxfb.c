@@ -43,7 +43,12 @@
 
 #define LCDC_SIZE	0x04
 #define SIZE_XMAX(x)	((((x) >> 4) & 0x3f) << 20)
+
+#ifdef CONFIG_ARCH_MX1
 #define SIZE_YMAX(y)	((y) & 0x1ff)
+#else
+#define SIZE_YMAX(y)	((y) & 0x3ff)
+#endif
 
 #define LCDC_VPW	0x08
 #define VPW_VPW(x)	((x) & 0x3ff)
@@ -53,7 +58,12 @@
 #define CPOS_CC0	(1<<30)
 #define CPOS_OP		(1<<28)
 #define CPOS_CXP(x)	(((x) & 3ff) << 16)
+
+#ifdef CONFIG_ARCH_MX1
 #define CPOS_CYP(y)	((y) & 0x1ff)
+#else
+#define CPOS_CYP(y)	((y) & 0x3ff)
+#endif
 
 #define LCDC_LCWHB	0x10
 #define LCWHB_BK_EN	(1<<31)
@@ -62,9 +72,16 @@
 #define LCWHB_BD(x)	((x) & 0xff)
 
 #define LCDC_LCHCC	0x14
+
+#ifdef CONFIG_ARCH_MX1
 #define LCHCC_CUR_COL_R(r) (((r) & 0x1f) << 11)
 #define LCHCC_CUR_COL_G(g) (((g) & 0x3f) << 5)
 #define LCHCC_CUR_COL_B(b) ((b) & 0x1f)
+#else
+#define LCHCC_CUR_COL_R(r) (((r) & 0x3f) << 12)
+#define LCHCC_CUR_COL_G(g) (((g) & 0x3f) << 6)
+#define LCHCC_CUR_COL_B(b) ((b) & 0x3f)
+#endif
 
 #define LCDC_PCR	0x18
 
@@ -91,7 +108,13 @@
 /* bit fields in imxfb.h */
 
 #define LCDC_RMCR	0x34
+
+#ifdef CONFIG_ARCH_MX1
 #define RMCR_LCDC_EN	(1<<1)
+#else
+#define RMCR_LCDC_EN	0
+#endif
+
 #define RMCR_SELF_REF	(1<<0)
 
 #define LCDC_LCDICR	0x38
@@ -364,10 +387,6 @@ static int imxfb_set_par(struct fb_info *info)
 static void imxfb_enable_controller(struct imxfb_info *fbi)
 {
 	pr_debug("Enabling LCD controller\n");
-
-	/* initialize LCDC */
-	writel(readl(fbi->regs + LCDC_RMCR) & ~RMCR_LCDC_EN,
-		fbi->regs + LCDC_RMCR);	/* just to be safe... */
 
 	writel(fbi->screen_dma, fbi->regs + LCDC_SSA);
 
