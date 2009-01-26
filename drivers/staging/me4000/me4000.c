@@ -309,7 +309,7 @@ static struct pci_driver me4000_driver = {
 	.probe = me4000_probe
 };
 
-static struct file_operations me4000_ao_fops_sing = {
+static const struct file_operations me4000_ao_fops_sing = {
       .owner = THIS_MODULE,
       .write = me4000_ao_write_sing,
       .ioctl = me4000_ao_ioctl_sing,
@@ -317,7 +317,7 @@ static struct file_operations me4000_ao_fops_sing = {
       .release = me4000_release,
 };
 
-static struct file_operations me4000_ao_fops_wrap = {
+static const struct file_operations me4000_ao_fops_wrap = {
       .owner = THIS_MODULE,
       .write = me4000_ao_write_wrap,
       .ioctl = me4000_ao_ioctl_wrap,
@@ -325,7 +325,7 @@ static struct file_operations me4000_ao_fops_wrap = {
       .release = me4000_release,
 };
 
-static struct file_operations me4000_ao_fops_cont = {
+static const struct file_operations me4000_ao_fops_cont = {
       .owner = THIS_MODULE,
       .write = me4000_ao_write_cont,
       .poll = me4000_ao_poll_cont,
@@ -335,14 +335,14 @@ static struct file_operations me4000_ao_fops_cont = {
       .fsync = me4000_ao_fsync_cont,
 };
 
-static struct file_operations me4000_ai_fops_sing = {
+static const struct file_operations me4000_ai_fops_sing = {
       .owner = THIS_MODULE,
       .ioctl = me4000_ai_ioctl_sing,
       .open = me4000_open,
       .release = me4000_release,
 };
 
-static struct file_operations me4000_ai_fops_cont_sw = {
+static const struct file_operations me4000_ai_fops_cont_sw = {
       .owner = THIS_MODULE,
       .read = me4000_ai_read,
       .poll = me4000_ai_poll,
@@ -352,7 +352,7 @@ static struct file_operations me4000_ai_fops_cont_sw = {
       .fasync = me4000_ai_fasync,
 };
 
-static struct file_operations me4000_ai_fops_cont_et = {
+static const struct file_operations me4000_ai_fops_cont_et = {
       .owner = THIS_MODULE,
       .read = me4000_ai_read,
       .poll = me4000_ai_poll,
@@ -361,7 +361,7 @@ static struct file_operations me4000_ai_fops_cont_et = {
       .release = me4000_release,
 };
 
-static struct file_operations me4000_ai_fops_cont_et_value = {
+static const struct file_operations me4000_ai_fops_cont_et_value = {
       .owner = THIS_MODULE,
       .read = me4000_ai_read,
       .poll = me4000_ai_poll,
@@ -370,7 +370,7 @@ static struct file_operations me4000_ai_fops_cont_et_value = {
       .release = me4000_release,
 };
 
-static struct file_operations me4000_ai_fops_cont_et_chanlist = {
+static const struct file_operations me4000_ai_fops_cont_et_chanlist = {
       .owner = THIS_MODULE,
       .read = me4000_ai_read,
       .poll = me4000_ai_poll,
@@ -379,21 +379,21 @@ static struct file_operations me4000_ai_fops_cont_et_chanlist = {
       .release = me4000_release,
 };
 
-static struct file_operations me4000_dio_fops = {
+static const struct file_operations me4000_dio_fops = {
       .owner = THIS_MODULE,
       .ioctl = me4000_dio_ioctl,
       .open = me4000_open,
       .release = me4000_release,
 };
 
-static struct file_operations me4000_cnt_fops = {
+static const struct file_operations me4000_cnt_fops = {
       .owner = THIS_MODULE,
       .ioctl = me4000_cnt_ioctl,
       .open = me4000_open,
       .release = me4000_release,
 };
 
-static struct file_operations me4000_ext_int_fops = {
+static const struct file_operations me4000_ext_int_fops = {
       .owner = THIS_MODULE,
       .ioctl = me4000_ext_int_ioctl,
       .open = me4000_open,
@@ -401,7 +401,7 @@ static struct file_operations me4000_ext_int_fops = {
       .fasync = me4000_ext_int_fasync,
 };
 
-static struct file_operations *me4000_ao_fops_array[] = {
+static const struct file_operations *me4000_ao_fops_array[] = {
 	/* single operations */
 	&me4000_ao_fops_sing,
 	/* wraparound operations */
@@ -410,7 +410,7 @@ static struct file_operations *me4000_ao_fops_array[] = {
 	&me4000_ao_fops_cont,
 };
 
-static struct file_operations *me4000_ai_fops_array[] = {
+static const struct file_operations *me4000_ai_fops_array[] = {
 	/* single operations */
 	&me4000_ai_fops_sing,
 	/* continuous operations with software start */
