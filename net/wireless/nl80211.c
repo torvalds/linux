@@ -1908,6 +1908,11 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 	mutex_lock(&cfg80211_drv_mutex);
 	r = __regulatory_hint(NULL, REGDOM_SET_BY_USER, data, 0, ENVIRON_ANY);
 	mutex_unlock(&cfg80211_drv_mutex);
+	/* This means the regulatory domain was already set, however
+	 * we don't want to confuse userspace with a "successful error"
+	 * message so lets just treat it as a success */
+	if (r == -EALREADY)
+		r = 0;
 	return r;
 }
 
