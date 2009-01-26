@@ -2266,6 +2266,10 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state, int sync)
 	if (!sched_feat(SYNC_WAKEUPS))
 		sync = 0;
 
+	if (!sync && (current->se.avg_overlap < sysctl_sched_migration_cost &&
+			    p->se.avg_overlap < sysctl_sched_migration_cost))
+		sync = 1;
+
 #ifdef CONFIG_SMP
 	if (sched_feat(LB_WAKEUP_UPDATE)) {
 		struct sched_domain *sd;
