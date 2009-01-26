@@ -29,6 +29,10 @@
 # define cpu_is_mx31() (0)
 #endif
 
+#ifndef CONFIG_MACH_MX21
+# define cpu_is_mx21() (0)
+#endif
+
 #ifndef CONFIG_MACH_MX27
 # define cpu_is_mx27() (0)
 #endif

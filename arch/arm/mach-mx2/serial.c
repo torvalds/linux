@@ -99,6 +99,7 @@ struct platform_device mxc_uart_device3 = {
 	.num_resources = ARRAY_SIZE(uart3),
 };
 
+#ifdef CONFIG_MACH_MX27
 static struct resource uart4[] = {
 	{
 		.start = UART5_BASE_ADDR,
@@ -136,3 +137,4 @@ struct platform_device mxc_uart_device5 = {
 	.resource = uart5,
 	.num_resources = ARRAY_SIZE(uart5),
 };
+#endif
