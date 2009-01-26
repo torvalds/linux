@@ -829,15 +829,20 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	if (!file)
 		return -EINVAL;
 
-	if (file->f_op != &fuse_dev_operations)
+	if (file->f_op != &fuse_dev_operations) {
+		fput(file);
 		return -EINVAL;
+	}
 
 	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
-	if (!fc)
+	if (!fc) {
+		fput(file);
 		return -ENOMEM;
+	}
 
 	err = fuse_conn_init(fc, sb);
 	if (err) {
+		fput(file);
 		kfree(fc);
 		return err;
 	}
