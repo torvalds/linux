@@ -12,6 +12,7 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 static struct musb_hdrc_eps_bits musb_eps[] = {
