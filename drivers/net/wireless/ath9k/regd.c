@@ -447,7 +447,7 @@ int ath9k_regd_init(struct ath_hal *ah)
 	}
 
 	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
-		"Country alpha2 being used: %c%c\n",
+		"Country alpha2 being used: %c%c\n"
 		"Regpair detected: 0x%0x\n",
 		ah->alpha2[0], ah->alpha2[1],
 		ah->regpair->regDmnEnum);
