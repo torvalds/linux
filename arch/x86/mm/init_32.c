@@ -138,6 +138,47 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 	return pte_offset_kernel(pmd, 0);
 }
 
+static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
+					   unsigned long vaddr, pte_t *lastpte)
+{
+#ifdef CONFIG_HIGHMEM
+	/*
+	 * Something (early fixmap) may already have put a pte
+	 * page here, which causes the page table allocation
+	 * to become nonlinear. Attempt to fix it, and if it
+	 * is still nonlinear then we have to bug.
+	 */
+	int pmd_idx_kmap_begin = fix_to_virt(FIX_KMAP_END) >> PMD_SHIFT;
+	int pmd_idx_kmap_end = fix_to_virt(FIX_KMAP_BEGIN) >> PMD_SHIFT;
+
+	if (pmd_idx_kmap_begin != pmd_idx_kmap_end
+	    && (vaddr >> PMD_SHIFT) >= pmd_idx_kmap_begin
+	    && (vaddr >> PMD_SHIFT) <= pmd_idx_kmap_end
+	    && ((__pa(pte) >> PAGE_SHIFT) < table_start
+		|| (__pa(pte) >> PAGE_SHIFT) >= table_end)) {
+		pte_t *newpte;
+		int i;
+
+		BUG_ON(after_init_bootmem);
+		newpte = alloc_low_page();
+		for (i = 0; i < PTRS_PER_PTE; i++)
+			set_pte(newpte + i, pte[i]);
+
+		paravirt_alloc_pte(&init_mm, __pa(newpte) >> PAGE_SHIFT);
+		set_pmd(pmd, __pmd(__pa(newpte)|_PAGE_TABLE));
+		BUG_ON(newpte != pte_offset_kernel(pmd, 0));
+		__flush_tlb_all();
+
+		paravirt_release_pte(__pa(pte) >> PAGE_SHIFT);
+		pte = newpte;
+	}
+	BUG_ON(vaddr < fix_to_virt(FIX_KMAP_BEGIN - 1)
+	       && vaddr > fix_to_virt(FIX_KMAP_END)
+	       && lastpte && lastpte + PTRS_PER_PTE != pte);
+#endif
+	return pte;
+}
+
 /*
  * This function initializes a certain range of kernel virtual memory
  * with new bootmem page tables, everywhere page tables are missing in
@@ -154,6 +195,7 @@ page_table_range_init(unsigned long start, unsigned long end, pgd_t *pgd_base)
 	unsigned long vaddr;
 	pgd_t *pgd;
 	pmd_t *pmd;
+	pte_t *pte = NULL;
 
 	vaddr = start;
 	pgd_idx = pgd_index(vaddr);
@@ -165,7 +207,8 @@ page_table_range_init(unsigned long start, unsigned long end, pgd_t *pgd_base)
 		pmd = pmd + pmd_index(vaddr);
 		for (; (pmd_idx < PTRS_PER_PMD) && (vaddr != end);
 							pmd++, pmd_idx++) {
-			one_page_table_init(pmd);
+			pte = page_table_kmap_check(one_page_table_init(pmd),
+			                            pmd, vaddr, pte);
 
 			vaddr += PMD_SIZE;
 		}
@@ -508,7 +551,6 @@ static void __init early_ioremap_page_table_range_init(pgd_t *pgd_base)
 	 * Fixed mappings, only the page table structure has to be
 	 * created - mappings will be set by set_fixmap():
 	 */
-	early_ioremap_clear();
 	vaddr = __fix_to_virt(__end_of_fixed_addresses - 1) & PMD_MASK;
 	end = (FIXADDR_TOP + PMD_SIZE - 1) & PMD_MASK;
 	page_table_range_init(vaddr, end, pgd_base);
@@ -801,7 +843,7 @@ static void __init find_early_table_space(unsigned long end, int use_pse)
 	tables += PAGE_ALIGN(ptes * sizeof(pte_t));
 
 	/* for fixmap */
-	tables += PAGE_SIZE * 2;
+	tables += PAGE_ALIGN(__end_of_fixed_addresses * sizeof(pte_t));
 
 	/*
 	 * RED-PEN putting page tables only on node 0 could
