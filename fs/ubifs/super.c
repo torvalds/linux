@@ -1320,20 +1320,21 @@ static int mount_ubifs(struct ubifs_info *c)
 		else {
 			c->need_recovery = 0;
 			ubifs_msg("recovery completed");
+			/* GC LEB has to be empty and taken at this point */
+			ubifs_assert(c->lst.taken_empty_lebs == 1);
 		}
-	}
-
-	err = dbg_debugfs_init_fs(c);
-	if (err)
-		goto out_infos;
+	} else
+		ubifs_assert(c->lst.taken_empty_lebs == 1);
 
 	err = dbg_check_filesystem(c);
 	if (err)
 		goto out_infos;
 
+	err = dbg_debugfs_init_fs(c);
+	if (err)
+		goto out_infos;
+
 	c->always_chk_crc = 0;
-	/* GC LEB has to be empty and taken at this point */
-	ubifs_assert(c->lst.taken_empty_lebs == 1);
 
 	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"",
 		  c->vi.ubi_num, c->vi.vol_id, c->vi.name);
@@ -1663,7 +1664,7 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	int i, err;
 
 	ubifs_assert(!c->need_recovery);
-	ubifs_assert(!c->ro_media);
+	ubifs_assert(!(c->vfs_sb->s_flags & MS_RDONLY));
 
 	commit_on_unmount(c);
 	mutex_lock(&c->umount_mutex);
