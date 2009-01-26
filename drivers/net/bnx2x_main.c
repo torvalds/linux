@@ -57,8 +57,8 @@
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 
-#define DRV_MODULE_VERSION	"1.45.25"
-#define DRV_MODULE_RELDATE	"2009/01/22"
+#define DRV_MODULE_VERSION	"1.45.26"
+#define DRV_MODULE_RELDATE	"2009/01/26"
 #define BNX2X_BC_VER		0x040200
 
 /* Time in jiffies before concluding the transmitter is hung */
@@ -740,8 +740,15 @@ static inline int bnx2x_has_tx_work(struct bnx2x_fastpath *fp)
 	/* Tell compiler that status block fields can change */
 	barrier();
 	tx_cons_sb = le16_to_cpu(*fp->tx_cons_sb);
-	return ((fp->tx_pkt_prod != tx_cons_sb) ||
-		(fp->tx_pkt_prod != fp->tx_pkt_cons));
+	return (fp->tx_pkt_cons != tx_cons_sb);
+}
+
+static inline int bnx2x_has_tx_work_unload(struct bnx2x_fastpath *fp)
+{
+	/* Tell compiler that consumer and producer can change */
+	barrier();
+	return (fp->tx_pkt_prod != fp->tx_pkt_cons);
+
 }
 
 /* free skb in the packet ring at pos idx
@@ -6729,7 +6736,7 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 		cnt = 1000;
 		smp_rmb();
-		while (bnx2x_has_tx_work(fp)) {
+		while (bnx2x_has_tx_work_unload(fp)) {
 
 			bnx2x_tx_int(fp, 1000);
 			if (!cnt) {
