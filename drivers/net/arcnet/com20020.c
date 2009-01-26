@@ -348,6 +348,7 @@ static void com20020_set_mc_list(struct net_device *dev)
     defined(CONFIG_ARCNET_COM20020_CS_MODULE)
 EXPORT_SYMBOL(com20020_check);
 EXPORT_SYMBOL(com20020_found);
+EXPORT_SYMBOL(com20020_netdev_ops);
 #endif
 
 MODULE_LICENSE("GPL");
