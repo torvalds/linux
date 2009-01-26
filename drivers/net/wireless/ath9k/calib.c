@@ -105,27 +105,29 @@ static void ath9k_hw_do_getnf(struct ath_hal *ah,
 		"NF calibrated [ctl] [chain 0] is %d\n", nf);
 	nfarray[0] = nf;
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		nf = MS(REG_READ(ah, AR_PHY_CH1_CCA),
-			AR9280_PHY_CH1_MINCCA_PWR);
-	else
-		nf = MS(REG_READ(ah, AR_PHY_CH1_CCA),
-			AR_PHY_CH1_MINCCA_PWR);
+	if (!AR_SREV_9285(ah)) {
+		if (AR_SREV_9280_10_OR_LATER(ah))
+			nf = MS(REG_READ(ah, AR_PHY_CH1_CCA),
+					AR9280_PHY_CH1_MINCCA_PWR);
+		else
+			nf = MS(REG_READ(ah, AR_PHY_CH1_CCA),
+					AR_PHY_CH1_MINCCA_PWR);
 
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-		"NF calibrated [ctl] [chain 1] is %d\n", nf);
-	nfarray[1] = nf;
-
-	if (!AR_SREV_9280(ah)) {
-		nf = MS(REG_READ(ah, AR_PHY_CH2_CCA),
-			AR_PHY_CH2_MINCCA_PWR);
 		if (nf & 0x100)
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"NF calibrated [ctl] [chain 2] is %d\n", nf);
-		nfarray[2] = nf;
+				"NF calibrated [ctl] [chain 1] is %d\n", nf);
+		nfarray[1] = nf;
+
+		if (!AR_SREV_9280(ah)) {
+			nf = MS(REG_READ(ah, AR_PHY_CH2_CCA),
+					AR_PHY_CH2_MINCCA_PWR);
+			if (nf & 0x100)
+				nf = 0 - ((nf ^ 0x1ff) + 1);
+			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
+				"NF calibrated [ctl] [chain 2] is %d\n", nf);
+			nfarray[2] = nf;
+		}
 	}
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
@@ -141,27 +143,29 @@ static void ath9k_hw_do_getnf(struct ath_hal *ah,
 		"NF calibrated [ext] [chain 0] is %d\n", nf);
 	nfarray[3] = nf;
 
-	if (AR_SREV_9280_10_OR_LATER(ah))
-		nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA),
-			AR9280_PHY_CH1_EXT_MINCCA_PWR);
-	else
-		nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA),
-			AR_PHY_CH1_EXT_MINCCA_PWR);
+	if (!AR_SREV_9285(ah)) {
+		if (AR_SREV_9280_10_OR_LATER(ah))
+			nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA),
+					AR9280_PHY_CH1_EXT_MINCCA_PWR);
+		else
+			nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA),
+					AR_PHY_CH1_EXT_MINCCA_PWR);
 
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-		"NF calibrated [ext] [chain 1] is %d\n", nf);
-	nfarray[4] = nf;
-
-	if (!AR_SREV_9280(ah)) {
-		nf = MS(REG_READ(ah, AR_PHY_CH2_EXT_CCA),
-			AR_PHY_CH2_EXT_MINCCA_PWR);
 		if (nf & 0x100)
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
-			"NF calibrated [ext] [chain 2] is %d\n", nf);
-		nfarray[5] = nf;
+				"NF calibrated [ext] [chain 1] is %d\n", nf);
+		nfarray[4] = nf;
+
+		if (!AR_SREV_9280(ah)) {
+			nf = MS(REG_READ(ah, AR_PHY_CH2_EXT_CCA),
+					AR_PHY_CH2_EXT_MINCCA_PWR);
+			if (nf & 0x100)
+				nf = 0 - ((nf ^ 0x1ff) + 1);
+			DPRINTF(ah->ah_sc, ATH_DBG_CALIBRATE,
+				"NF calibrated [ext] [chain 2] is %d\n", nf);
+			nfarray[5] = nf;
+		}
 	}
 }
 
@@ -668,12 +672,6 @@ int16_t ath9k_hw_getnf(struct ath_hal *ah,
 	int16_t nfarray[NUM_NF_READINGS] = { 0 };
 	struct ath9k_nfcal_hist *h;
 	struct ieee80211_channel *c = chan->chan;
-	u8 chainmask;
-
-	if (AR_SREV_9280(ah))
-		chainmask = 0x1B;
-	else
-		chainmask = 0x3F;
 
 	chan->channelFlags &= (~CHANNEL_CW_INT);
 	if (REG_READ(ah, AR_PHY_AGC_CONTROL) & AR_PHY_AGC_CONTROL_NF) {

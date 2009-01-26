@@ -2165,7 +2165,10 @@ int ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 	ahp->ah_txchainmask = sc->sc_tx_chainmask;
 	ahp->ah_rxchainmask = sc->sc_rx_chainmask;
 
-	if (AR_SREV_9280(ah)) {
+	if (AR_SREV_9285(ah)) {
+		ahp->ah_txchainmask &= 0x1;
+		ahp->ah_rxchainmask &= 0x1;
+	} else if (AR_SREV_9280(ah)) {
 		ahp->ah_txchainmask &= 0x3;
 		ahp->ah_rxchainmask &= 0x3;
 	}
