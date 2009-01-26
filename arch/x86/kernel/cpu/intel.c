@@ -29,14 +29,17 @@
 
 static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 {
-	u64 misc_enable;
+	/* Unmask CPUID levels if masked: */
+	if (c->x86 == 6 && c->x86_model >= 15) {
+		u64 misc_enable;
 
-	/* Unmask CPUID levels if masked */
-	if (!rdmsrl_safe(MSR_IA32_MISC_ENABLE, &misc_enable) &&
-	    (misc_enable & MSR_IA32_MISC_ENABLE_LIMIT_CPUID)) {
-		misc_enable &= ~MSR_IA32_MISC_ENABLE_LIMIT_CPUID;
-		wrmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
-		c->cpuid_level = cpuid_eax(0);
+		rdmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
+
+		if (misc_enable & MSR_IA32_MISC_ENABLE_LIMIT_CPUID) {
+			misc_enable &= ~MSR_IA32_MISC_ENABLE_LIMIT_CPUID;
+			wrmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
+			c->cpuid_level = cpuid_eax(0);
+		}
 	}
 
 	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
