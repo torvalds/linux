@@ -133,15 +133,14 @@ void ftrace_nmi_exit(void)
 
 static void wait_for_nmi(void)
 {
-	int waited = 0;
+	if (!atomic_read(&in_nmi))
+		return;
 
-	while (atomic_read(&in_nmi)) {
-		waited = 1;
+	do {
 		cpu_relax();
-	}
+	} while(atomic_read(&in_nmi));
 
-	if (waited)
-		nmi_wait_count++;
+	nmi_wait_count++;
 }
 
 static int
