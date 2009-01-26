@@ -329,6 +329,14 @@ static int audit_match_filetype(struct audit_context *ctx, int which)
  */
 
 #ifdef CONFIG_AUDIT_TREE
+static void audit_set_auditable(struct audit_context *ctx)
+{
+	if (!ctx->prio) {
+		ctx->prio = 1;
+		ctx->current_state = AUDIT_RECORD_CONTEXT;
+	}
+}
+
 static int put_tree_ref(struct audit_context *ctx, struct audit_chunk *chunk)
 {
 	struct audit_tree_refs *p = ctx->trees;
@@ -740,14 +748,6 @@ void audit_filter_inodes(struct task_struct *tsk, struct audit_context *ctx)
 		}
 	}
 	rcu_read_unlock();
-}
-
-static void audit_set_auditable(struct audit_context *ctx)
-{
-	if (!ctx->prio) {
-		ctx->prio = 1;
-		ctx->current_state = AUDIT_RECORD_CONTEXT;
-	}
 }
 
 static inline struct audit_context *audit_get_context(struct task_struct *tsk,
