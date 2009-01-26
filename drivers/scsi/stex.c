@@ -746,6 +746,7 @@ static void stex_mu_intr(struct st_hba *hba, u32 doorbell)
 				stex_copy_data(ccb, resp, size);
 		}
 
+		ccb->req = NULL;
 		ccb->srb_status = resp->srb_status;
 		ccb->scsi_status = resp->scsi_status;
 
