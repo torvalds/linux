@@ -2205,7 +2205,7 @@ static int me4000_ao_ioctl_sing(struct inode *inode_p, struct file *file_p,
 	case ME4000_AO_SIMULTANEOUS_UPDATE:
 		return
 		    me4000_ao_simultaneous_update(
-		    		(struct me4000_ao_channel_list *)arg,
+				(struct me4000_ao_channel_list *)arg,
 				ao_context);
 	case ME4000_AO_EX_TRIG_TIMEOUT:
 		return me4000_ao_ex_trig_timeout((unsigned long *)arg,
@@ -2681,11 +2681,11 @@ static int me4000_ao_preload_update(struct me4000_ao_context *ao_context)
 			    (tmp &
 			     (0x1 <<
 			      (((struct me4000_ao_context *)entry)->index
-			      					      + 16)))) {
+								      + 16)))) {
 				tmp &=
 				    ~(0x1 <<
 				      (((struct me4000_ao_context *)entry)->
-				      					index));
+									index));
 			}
 		}
 	}
