@@ -246,17 +246,17 @@ static irqreturn_t me4000_ext_int_isr(int, void *);
   Inline functions
   ---------------------------------------------------------------------------*/
 
-static int inline me4000_buf_count(struct me4000_circ_buf buf, int size)
+static inline int me4000_buf_count(struct me4000_circ_buf buf, int size)
 {
 	return (buf.head - buf.tail) & (size - 1);
 }
 
-static int inline me4000_buf_space(struct me4000_circ_buf buf, int size)
+static inline int me4000_buf_space(struct me4000_circ_buf buf, int size)
 {
 	return (buf.tail - (buf.head + 1)) & (size - 1);
 }
 
-static int inline me4000_values_to_end(struct me4000_circ_buf buf, int size)
+static inline int me4000_values_to_end(struct me4000_circ_buf buf, int size)
 {
 	int end;
 	int n;
@@ -265,7 +265,7 @@ static int inline me4000_values_to_end(struct me4000_circ_buf buf, int size)
 	return (n < end) ? n : end;
 }
 
-static int inline me4000_space_to_end(struct me4000_circ_buf buf, int size)
+static inline int me4000_space_to_end(struct me4000_circ_buf buf, int size)
 {
 	int end;
 	int n;
@@ -275,19 +275,19 @@ static int inline me4000_space_to_end(struct me4000_circ_buf buf, int size)
 	return (n <= end) ? n : (end + 1);
 }
 
-static void inline me4000_outb(unsigned char value, unsigned long port)
+static inline void me4000_outb(unsigned char value, unsigned long port)
 {
 	PORT_PDEBUG("--> 0x%02X port 0x%04lX\n", value, port);
 	outb(value, port);
 }
 
-static void inline me4000_outl(unsigned long value, unsigned long port)
+static inline void me4000_outl(unsigned long value, unsigned long port)
 {
 	PORT_PDEBUG("--> 0x%08lX port 0x%04lX\n", value, port);
 	outl(value, port);
 }
 
-static unsigned long inline me4000_inl(unsigned long port)
+static inline unsigned long me4000_inl(unsigned long port)
 {
 	unsigned long value;
 	value = inl(port);
@@ -295,7 +295,7 @@ static unsigned long inline me4000_inl(unsigned long port)
 	return value;
 }
 
-static unsigned char inline me4000_inb(unsigned long port)
+static inline unsigned char me4000_inb(unsigned long port)
 {
 	unsigned char value;
 	value = inb(port);
