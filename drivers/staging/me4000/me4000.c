@@ -402,17 +402,25 @@ static struct file_operations me4000_ext_int_fops = {
 };
 
 static struct file_operations *me4000_ao_fops_array[] = {
-	&me4000_ao_fops_sing,	// single operations
-	&me4000_ao_fops_wrap,	// wraparound operations
-	&me4000_ao_fops_cont,	// continous operations
+	/* single operations */
+	&me4000_ao_fops_sing,
+	/* wraparound operations */
+	&me4000_ao_fops_wrap,
+	/* continuous operations */
+	&me4000_ao_fops_cont,
 };
 
 static struct file_operations *me4000_ai_fops_array[] = {
-	&me4000_ai_fops_sing,	// single operations
-	&me4000_ai_fops_cont_sw,	// continuous operations with software start
-	&me4000_ai_fops_cont_et,	// continous operations with external trigger
-	&me4000_ai_fops_cont_et_value,	// sample values by external trigger
-	&me4000_ai_fops_cont_et_chanlist,	// work through one channel list by external trigger
+	/* single operations */
+	&me4000_ai_fops_sing,
+	/* continuous operations with software start */
+	&me4000_ai_fops_cont_sw,
+	/* continuous operations with external trigger */
+	&me4000_ai_fops_cont_et,
+	/* sample values by external trigger */
+	&me4000_ai_fops_cont_et_value,
+	/* work through one channel list by external trigger */
+	&me4000_ai_fops_cont_et_chanlist,
 };
 
 static int __init me4000_init_module(void)
@@ -1460,7 +1468,7 @@ static int me4000_open(struct inode *inode_p, struct file *file_p)
 		/* Set file operations pointer to single functions */
 		file_p->f_op = &me4000_dio_fops;
 
-		//me4000_dio_reset(dio_context);
+		/* me4000_dio_reset(dio_context); */
 	}
 	/* Counters */
 	else if (MAJOR(inode_p->i_rdev) == me4000_cnt_major_driver_no) {
@@ -2400,8 +2408,8 @@ static int me4000_ao_stop(struct me4000_ao_context *ao_context)
 	}
 
 	/* Clear the stop bit */
-	//tmp &= ~ME4000_AO_CTRL_BIT_STOP;
-	//me4000_outl(tmp, ao_context->ctrl_reg);
+	/* tmp &= ~ME4000_AO_CTRL_BIT_STOP; */
+	/* me4000_outl(tmp, ao_context->ctrl_reg); */
 
 	return 0;
 }
@@ -2432,8 +2440,8 @@ static int me4000_ao_immediate_stop(struct me4000_ao_context *ao_context)
 	}
 
 	/* Clear the stop bits */
-	//tmp &= ~(ME4000_AO_CTRL_BIT_STOP | ME4000_AO_CTRL_BIT_IMMEDIATE_STOP);
-	//me4000_outl(tmp, ao_context->ctrl_reg);
+	/* tmp &= ~(ME4000_AO_CTRL_BIT_STOP | ME4000_AO_CTRL_BIT_IMMEDIATE_STOP); */
+	/* me4000_outl(tmp, ao_context->ctrl_reg); */
 
 	return 0;
 }
@@ -2596,8 +2604,10 @@ static int me4000_ao_simultaneous_disable(struct me4000_ao_context *ao_context)
 
 	spin_lock(&ao_context->board_info->preload_lock);
 	tmp = me4000_inl(ao_context->preload_reg);
-	tmp &= ~(0x1 << ao_context->index);	// Disable preload bit
-	tmp &= ~(0x1 << (ao_context->index + 16));	// Disable hw simultaneous bit
+	/* Disable preload bit */
+	tmp &= ~(0x1 << ao_context->index);
+	/* Disable hw simultaneous bit */
+	tmp &= ~(0x1 << (ao_context->index + 16));
 	me4000_outl(tmp, ao_context->preload_reg);
 	spin_unlock(&ao_context->board_info->preload_lock);
 
@@ -2612,8 +2622,10 @@ static int me4000_ao_simultaneous_ex_trig(struct me4000_ao_context *ao_context)
 
 	spin_lock(&ao_context->board_info->preload_lock);
 	tmp = me4000_inl(ao_context->preload_reg);
-	tmp |= (0x1 << ao_context->index);	// Enable preload bit
-	tmp |= (0x1 << (ao_context->index + 16));	// Enable hw simultaneous bit
+	/* Enable preload bit */
+	tmp |= (0x1 << ao_context->index);
+	/* Enable hw simulatenous bit */
+	tmp |= (0x1 << (ao_context->index + 16));
 	me4000_outl(tmp, ao_context->preload_reg);
 	spin_unlock(&ao_context->board_info->preload_lock);
 
@@ -2628,8 +2640,10 @@ static int me4000_ao_simultaneous_sw(struct me4000_ao_context *ao_context)
 
 	spin_lock(&ao_context->board_info->preload_lock);
 	tmp = me4000_inl(ao_context->preload_reg);
-	tmp |= (0x1 << ao_context->index);	// Enable preload bit
-	tmp &= ~(0x1 << (ao_context->index + 16));	// Disable hw simultaneous bit
+	/* Enable preload bit */
+	tmp |= (0x1 << ao_context->index);
+	/* Enable hw simulatenous bit */
+	tmp &= ~(0x1 << (ao_context->index + 16));
 	me4000_outl(tmp, ao_context->preload_reg);
 	spin_unlock(&ao_context->board_info->preload_lock);
 
@@ -2730,8 +2744,10 @@ static int me4000_ao_simultaneous_update(struct me4000_ao_channel_list *arg,
 			       "ME4000:me4000_ao_simultaneous_update():Invalid board number specified\n");
 			return -EFAULT;
 		}
-		tmp &= ~(0x1 << channels.list[i]);	// Clear the preload bit
-		tmp &= ~(0x1 << (channels.list[i] + 16));	// Clear the hw simultaneous bit
+		/* Clear the preload bit */
+		tmp &= ~(0x1 << channels.list[i]);
+		/* Clear the hw simultaneous bit */
+		tmp &= ~(0x1 << (channels.list[i] + 16));
 	}
 	me4000_outl(tmp, ao_context->preload_reg);
 	spin_unlock(&ao_context->board_info->preload_lock);
@@ -2757,8 +2773,10 @@ static int me4000_ao_synchronous_ex_trig(struct me4000_ao_context *ao_context)
 
 	spin_lock(&ao_context->board_info->preload_lock);
 	tmp = me4000_inl(ao_context->preload_reg);
-	tmp &= ~(0x1 << ao_context->index);	// Disable synchronous sw bit
-	tmp |= 0x1 << (ao_context->index + 16);	// Enable synchronous hw bit
+	/* Disable synchronous sw bit */
+	tmp &= ~(0x1 << ao_context->index);
+	/* Enable synchronous hw bit */
+	tmp |= 0x1 << (ao_context->index + 16);
 	me4000_outl(tmp, ao_context->preload_reg);
 	spin_unlock(&ao_context->board_info->preload_lock);
 
@@ -2792,8 +2810,10 @@ static int me4000_ao_synchronous_sw(struct me4000_ao_context *ao_context)
 
 	spin_lock(&ao_context->board_info->preload_lock);
 	tmp = me4000_inl(ao_context->preload_reg);
-	tmp |= 0x1 << ao_context->index;	// Enable synchronous sw bit
-	tmp &= ~(0x1 << (ao_context->index + 16));	// Disable synchronous hw bit
+	/* Enable synchronous sw bit */
+	tmp |= 0x1 << ao_context->index;
+	/* Disable synchronous hw bit */
+	tmp &= ~(0x1 << (ao_context->index + 16));
 	me4000_outl(tmp, ao_context->preload_reg);
 	spin_unlock(&ao_context->board_info->preload_lock);
 
@@ -5434,8 +5454,6 @@ static irqreturn_t me4000_ao_isr(int irq, void *dev_id)
 	int i;
 	int c = 0;
 	int c1 = 0;
-	//unsigned long before;
-	//unsigned long after;
 
 	ISR_PDEBUG("me4000_ao_isr() is executed\n");
 
@@ -5487,7 +5505,6 @@ static irqreturn_t me4000_ao_isr(int irq, void *dev_id)
 			    ("me4000_ao_isr():Work done or buffer empty\n");
 			break;
 		}
-		//rdtscl(before);
 		if (((ao_context->fifo_reg & 0xFF) == ME4000_AO_01_FIFO_REG) ||
 		    ((ao_context->fifo_reg & 0xFF) == ME4000_AO_03_FIFO_REG)) {
 			for (i = 0; i < c1; i++) {
@@ -5503,8 +5520,6 @@ static irqreturn_t me4000_ao_isr(int irq, void *dev_id)
 			      ao_context->circ_buf.buf +
 			      ao_context->circ_buf.tail, c1);
 
-		//rdtscl(after);
-		//printk(KERN_ERR"ME4000:me4000_ao_isr():Time lapse = %lu\n", after - before);
 
 		ao_context->circ_buf.tail =
 		    (ao_context->circ_buf.tail + c1) & (ME4000_AO_BUFFER_COUNT -
@@ -5536,8 +5551,10 @@ static irqreturn_t me4000_ao_isr(int irq, void *dev_id)
 	/* If state machine is stopped, flow was interrupted */
 	if (!(me4000_inl(ao_context->status_reg) & ME4000_AO_STATUS_BIT_FSM)) {
 		printk(KERN_ERR "ME4000:me4000_ao_isr():Broken pipe\n");
-		ao_context->pipe_flag = 1;	// Set flag in order to inform write routine
-		tmp &= ~ME4000_AO_CTRL_BIT_ENABLE_IRQ;	// Disable interrupt
+		/* Set flag in order to inform write routine */
+		ao_context->pipe_flag = 1;
+		/* Disable interrupt */
+		tmp &= ~ME4000_AO_CTRL_BIT_ENABLE_IRQ;
 	}
 	me4000_outl(tmp, ao_context->ctrl_reg);
 	spin_unlock(&ao_context->int_lock);
