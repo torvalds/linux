@@ -63,5 +63,7 @@ struct clk {
 int clk_register(struct clk *clk);
 void clk_unregister(struct clk *clk);
 
+unsigned long mxc_decode_pll(unsigned int pll, u32 f_ref);
+
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_ARCH_MXC_CLOCK_H__ */

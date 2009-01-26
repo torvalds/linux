@@ -328,3 +328,47 @@ static int __init mxc_setup_proc_entry(void)
 
 late_initcall(mxc_setup_proc_entry);
 #endif
+
+/*
+ * Get the resulting clock rate from a PLL register value and the input
+ * frequency. PLLs with this register layout can at least be found on
+ * MX1, MX21, MX27 and MX31
+ *
+ *                  mfi + mfn / (mfd + 1)
+ *  f = 2 * f_ref * --------------------
+ *                        pd + 1
+ */
+unsigned long mxc_decode_pll(unsigned int reg_val, u32 freq)
+{
+	long long ll;
+	int mfn_abs;
+	unsigned int mfi, mfn, mfd, pd;
+
+	mfi = (reg_val >> 10) & 0xf;
+	mfn = reg_val & 0x3ff;
+	mfd = (reg_val >> 16) & 0x3ff;
+	pd =  (reg_val >> 26) & 0xf;
+
+	mfi = mfi <= 5 ? 5 : mfi;
+
+	mfn_abs = mfn;
+
+#if !defined CONFIG_ARCH_MX1 && !defined CONFIG_ARCH_MX21
+	if (mfn >= 0x200) {
+		mfn |= 0xFFFFFE00;
+		mfn_abs = -mfn;
+	}
+#endif
+
+	freq *= 2;
+	freq /= pd + 1;
+
+	ll = (unsigned long long)freq * mfn_abs;
+
+	do_div(ll, mfd + 1);
+	if (mfn < 0)
+		ll = -ll;
+	ll = (freq * mfi) + ll;
+
+	return ll;
+}

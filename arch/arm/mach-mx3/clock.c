@@ -158,10 +158,8 @@ static int _clk_pll_set_rate(struct clk *clk, unsigned long rate)
 
 static unsigned long _clk_pll_get_rate(struct clk *clk)
 {
-	long mfi, mfn, mfd, pdf, ref_clk, mfn_abs;
 	unsigned long reg, ccmr;
-	s64 temp;
-	unsigned int prcs;
+	unsigned int prcs, ref_clk;
 
 	ccmr = __raw_readl(MXC_CCM_CCMR);
 	prcs = (ccmr & MXC_CCM_CCMR_PRCS_MASK) >> MXC_CCM_CCMR_PRCS_OFFSET;
@@ -185,27 +183,7 @@ static unsigned long _clk_pll_get_rate(struct clk *clk)
 		return 0;
 	}
 
-	pdf = (reg & MXC_CCM_PCTL_PD_MASK) >> MXC_CCM_PCTL_PD_OFFSET;
-	mfd = (reg & MXC_CCM_PCTL_MFD_MASK) >> MXC_CCM_PCTL_MFD_OFFSET;
-	mfi = (reg & MXC_CCM_PCTL_MFI_MASK) >> MXC_CCM_PCTL_MFI_OFFSET;
-	mfi = (mfi <= 5) ? 5 : mfi;
-	mfn = mfn_abs = reg & MXC_CCM_PCTL_MFN_MASK;
-
-	if (mfn >= 0x200) {
-		mfn |= 0xFFFFFE00;
-		mfn_abs = -mfn;
-	}
-
-	ref_clk *= 2;
-	ref_clk /= pdf + 1;
-
-	temp = (u64) ref_clk * mfn_abs;
-	do_div(temp, mfd + 1);
-	if (mfn < 0)
-		temp = -temp;
-	temp = (ref_clk * mfi) + temp;
-
-	return temp;
+	return mxc_decode_pll(reg, ref_clk);
 }
 
 static int _clk_usb_pll_enable(struct clk *clk)

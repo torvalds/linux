@@ -486,26 +486,8 @@ static struct clk ckil_clk = {
 
 static unsigned long get_mpll_clk(struct clk *clk)
 {
-	uint32_t reg;
-	unsigned long ref_clk;
-	unsigned long mfi = 0, mfn = 0, mfd = 0, pdf = 0;
-	unsigned long long temp;
-
-	ref_clk = clk_get_rate(clk->parent);
-
-	reg = __raw_readl(CCM_MPCTL0);
-	pdf = (reg & CCM_MPCTL0_PD_MASK) >> CCM_MPCTL0_PD_OFFSET;
-	mfd = (reg & CCM_MPCTL0_MFD_MASK) >> CCM_MPCTL0_MFD_OFFSET;
-	mfi = (reg & CCM_MPCTL0_MFI_MASK) >> CCM_MPCTL0_MFI_OFFSET;
-	mfn = (reg & CCM_MPCTL0_MFN_MASK) >> CCM_MPCTL0_MFN_OFFSET;
-
-	mfi = (mfi <= 5) ? 5 : mfi;
-	temp = 2LL * ref_clk * mfn;
-	do_div(temp, mfd + 1);
-	temp = 2LL * ref_clk * mfi + temp;
-	do_div(temp, pdf + 1);
-
-	return (unsigned long)temp;
+	return mxc_decode_pll(__raw_readl(CCM_MPCTL0),
+			clk_get_rate(clk->parent));
 }
 
 static struct clk mpll_clk = {
@@ -555,28 +537,18 @@ static unsigned long get_spll_clk(struct clk *clk)
 {
 	uint32_t reg;
 	unsigned long ref_clk;
-	unsigned long mfi = 0, mfn = 0, mfd = 0, pdf = 0;
-	unsigned long long temp;
 
 	ref_clk = clk_get_rate(clk->parent);
 
 	reg = __raw_readl(CCM_SPCTL0);
-	/*TODO: This is TO2 Bug */
+
+	/* On TO2 we have to write the value back. Otherwise we
+	 * read 0 from this register the next time.
+	 */
 	if (mx27_revision() >= CHIP_REV_2_0)
 		__raw_writel(reg, CCM_SPCTL0);
 
-	pdf = (reg & CCM_SPCTL0_PD_MASK) >> CCM_SPCTL0_PD_OFFSET;
-	mfd = (reg & CCM_SPCTL0_MFD_MASK) >> CCM_SPCTL0_MFD_OFFSET;
-	mfi = (reg & CCM_SPCTL0_MFI_MASK) >> CCM_SPCTL0_MFI_OFFSET;
-	mfn = (reg & CCM_SPCTL0_MFN_MASK) >> CCM_SPCTL0_MFN_OFFSET;
-
-	mfi = (mfi <= 5) ? 5 : mfi;
-	temp = 2LL * ref_clk * mfn;
-	do_div(temp, mfd + 1);
-	temp = 2LL * ref_clk * mfi + temp;
-	do_div(temp, pdf + 1);
-
-	return (unsigned long)temp;
+	return mxc_decode_pll(reg, ref_clk);
 }
 
 static struct clk spll_clk = {
