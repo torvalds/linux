@@ -356,7 +356,7 @@ static int popen(struct atm_vcc *vcc)
 	}
 	header = (void *)skb_put(skb, sizeof(*header));
 
-	header->size = cpu_to_le16(sizeof(*header));
+	header->size = cpu_to_le16(0);
 	header->vpi = cpu_to_le16(vcc->vpi);
 	header->vci = cpu_to_le16(vcc->vci);
 	header->type = cpu_to_le16(PKT_POPEN);
@@ -389,7 +389,7 @@ static void pclose(struct atm_vcc *vcc)
 	}
 	header = (void *)skb_put(skb, sizeof(*header));
 
-	header->size = cpu_to_le16(sizeof(*header));
+	header->size = cpu_to_le16(0);
 	header->vpi = cpu_to_le16(vcc->vpi);
 	header->vci = cpu_to_le16(vcc->vci);
 	header->type = cpu_to_le16(PKT_PCLOSE);
@@ -507,6 +507,7 @@ static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct solos_card *card = vcc->dev->dev_data;
 	struct sk_buff *skb2 = NULL;
 	struct pkt_hdr *header;
+	int pktlen;
 
 	//dev_dbg(&card->dev->dev, "psend called.\n");
 	//dev_dbg(&card->dev->dev, "dev,vpi,vci = %d,%d,%d\n",SOLOS_CHAN(vcc->dev),vcc->vpi,vcc->vci);
@@ -524,7 +525,8 @@ static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 		return 0;
 	}
 
-	if (skb->len > (BUF_SIZE - sizeof(*header))) {
+	pktlen = skb->len;
+	if (pktlen > (BUF_SIZE - sizeof(*header))) {
 		dev_warn(&card->dev->dev, "Length of PDU is too large. Dropping PDU.\n");
 		solos_pop(vcc, skb);
 		return 0;
@@ -546,7 +548,8 @@ static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 
 	header = (void *)skb_push(skb, sizeof(*header));
 
-	header->size = cpu_to_le16(skb->len);
+	/* This does _not_ include the size of the header */
+	header->size = cpu_to_le16(pktlen);
 	header->vpi = cpu_to_le16(vcc->vpi);
 	header->vci = cpu_to_le16(vcc->vci);
 	header->type = cpu_to_le16(PKT_DATA);
