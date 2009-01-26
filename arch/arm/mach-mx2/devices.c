@@ -228,6 +228,39 @@ struct platform_device mxc_nand_device = {
 	.resource = mxc_nand_resources,
 };
 
+#ifdef CONFIG_FB_IMX
+/*
+ * lcdc:
+ * - i.MX1: the basic controller
+ * - i.MX21: to be checked
+ * - i.MX27: like i.MX1, with slightly variations
+ */
+static struct resource mxc_fb[] = {
+	{
+		.start = LCDC_BASE_ADDR,
+		.end   = LCDC_BASE_ADDR + 0xFFF,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MXC_INT_LCDC,
+		.end   = MXC_INT_LCDC,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+/* mxc lcd driver */
+struct platform_device mxc_fb_device = {
+	.name = "imx-fb",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_fb),
+	.resource = mxc_fb,
+	.dev = {
+		.coherent_dma_mask = 0xFFFFFFFF,
+	},
+};
+
+#endif
+
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	[0] = {
