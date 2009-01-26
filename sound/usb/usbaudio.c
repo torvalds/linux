@@ -108,6 +108,7 @@ MODULE_PARM_DESC(ignore_ctl_error,
 #define MAX_URBS	8
 #define SYNC_URBS	4	/* always four urbs for sync */
 #define MIN_PACKS_URB	1	/* minimum 1 packet per urb */
+#define MAX_QUEUE	24	/* try not to exceed this queue length, in ms */
 
 struct audioformat {
 	struct list_head list;
@@ -1079,7 +1080,7 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 
 	/* decide how many packets to be used */
 	if (is_playback) {
-		unsigned int minsize;
+		unsigned int minsize, maxpacks;
 		/* determine how small a packet can be */
 		minsize = (subs->freqn >> (16 - subs->datainterval))
 			  * (frame_bits >> 3);
@@ -1094,6 +1095,12 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 		/* we need at least two URBs for queueing */
 		if (total_packs < 2 * MIN_PACKS_URB * packs_per_ms)
 			total_packs = 2 * MIN_PACKS_URB * packs_per_ms;
+		else {
+			/* and we don't want too long a queue either */
+			maxpacks = max((unsigned int)MAX_QUEUE, urb_packs * 2);
+			if (total_packs > maxpacks * packs_per_ms)
+				total_packs = maxpacks * packs_per_ms;
+		}
 	} else {
 		total_packs = MAX_URBS * urb_packs;
 	}
