@@ -1035,9 +1035,9 @@ static void release_substream_urbs(struct snd_usb_substream *subs, int force)
 static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int period_bytes,
 			       unsigned int rate, unsigned int frame_bits)
 {
-	unsigned int maxsize, n, i;
+	unsigned int maxsize, i;
 	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
-	unsigned int npacks[MAX_URBS], urb_packs, total_packs, packs_per_ms;
+	unsigned int urb_packs, total_packs, packs_per_ms;
 
 	/* calculate the frequency in 16.16 format */
 	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
@@ -1109,31 +1109,11 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 		/* too much... */
 		subs->nurbs = MAX_URBS;
 		total_packs = MAX_URBS * urb_packs;
-	}
-	n = total_packs;
-	for (i = 0; i < subs->nurbs; i++) {
-		npacks[i] = n > urb_packs ? urb_packs : n;
-		n -= urb_packs;
-	}
-	if (subs->nurbs <= 1) {
+	} else if (subs->nurbs < 2) {
 		/* too little - we need at least two packets
 		 * to ensure contiguous playback/capture
 		 */
 		subs->nurbs = 2;
-		npacks[0] = (total_packs + 1) / 2;
-		npacks[1] = total_packs - npacks[0];
-	} else if (npacks[subs->nurbs-1] < MIN_PACKS_URB * packs_per_ms) {
-		/* the last packet is too small.. */
-		if (subs->nurbs > 2) {
-			/* merge to the first one */
-			npacks[0] += npacks[subs->nurbs - 1];
-			subs->nurbs--;
-		} else {
-			/* divide to two */
-			subs->nurbs = 2;
-			npacks[0] = (total_packs + 1) / 2;
-			npacks[1] = total_packs - npacks[0];
-		}
 	}
 
 	/* allocate and initialize data urbs */
@@ -1141,7 +1121,8 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 		struct snd_urb_ctx *u = &subs->dataurb[i];
 		u->index = i;
 		u->subs = subs;
-		u->packets = npacks[i];
+		u->packets = (i + 1) * total_packs / subs->nurbs
+			- i * total_packs / subs->nurbs;
 		u->buffer_size = maxsize * u->packets;
 		if (subs->fmt_type == USB_FORMAT_TYPE_II)
 			u->packets++; /* for transfer delimiter */
