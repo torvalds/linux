@@ -277,8 +277,6 @@ struct dquot {
 	struct mem_dqblk dq_dqb;	/* Diskquota usage */
 };
 
-#define NODQUOT (struct dquot *)NULL
-
 #define QUOTA_OK          0
 #define NO_QUOTA          1
 
