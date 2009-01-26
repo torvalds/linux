@@ -37,6 +37,10 @@
 # define cpu_is_mx27() (0)
 #endif
 
+#ifndef CONFIG_MACH_MX21
+# define cpu_is_mx21() (0)
+#endif
+
 #if defined(CONFIG_ARCH_MX3) || defined(CONFIG_ARCH_MX2)
 #define CSCR_U(n) (IO_ADDRESS(WEIM_BASE_ADDR) + n * 0x10)
 #define CSCR_L(n) (IO_ADDRESS(WEIM_BASE_ADDR) + n * 0x10 + 0x4)
