@@ -129,7 +129,7 @@
  * it returns 0xDEADBEEF
  */
 #define IO_ADDRESS(x)   \
-	(void __iomem *) \
+	(void __force __iomem *) \
 	(((x >= AIPI_BASE_ADDR) && (x < (AIPI_BASE_ADDR + AIPI_SIZE))) ? \
 		AIPI_IO_ADDRESS(x) : \
 	((x >= SAHB1_BASE_ADDR) && (x < (SAHB1_BASE_ADDR + SAHB1_SIZE))) ? \

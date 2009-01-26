@@ -52,11 +52,9 @@ static struct clocksource clocksource_mxc = {
 
 static int __init mxc_clocksource_init(struct clk *timer_clk)
 {
-	unsigned int clock;
+	unsigned int c = clk_get_rate(timer_clk);
 
-	clock = clk_get_rate(timer_clk);
-
-	clocksource_mxc.mult = clocksource_hz2mult(clock,
+	clocksource_mxc.mult = clocksource_hz2mult(c,
 					clocksource_mxc.shift);
 	clocksource_register(&clocksource_mxc);
 
@@ -176,11 +174,9 @@ static struct clock_event_device clockevent_mxc = {
 
 static int __init mxc_clockevent_init(struct clk *timer_clk)
 {
-	unsigned int clock;
+	unsigned int c = clk_get_rate(timer_clk);
 
-	clock = clk_get_rate(timer_clk);
-
-	clockevent_mxc.mult = div_sc(clock, NSEC_PER_SEC,
+	clockevent_mxc.mult = div_sc(c, NSEC_PER_SEC,
 					clockevent_mxc.shift);
 	clockevent_mxc.max_delta_ns =
 			clockevent_delta2ns(0xfffffffe, &clockevent_mxc);

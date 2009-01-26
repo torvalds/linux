@@ -266,7 +266,7 @@ static void __init mx27ads_timer_init(void)
 	mx27_clocks_init(fref);
 }
 
-struct sys_timer mx27ads_timer = {
+static struct sys_timer mx27ads_timer = {
 	.init	= mx27ads_timer_init,
 };
 
@@ -279,7 +279,7 @@ static struct map_desc mx27ads_io_desc[] __initdata = {
 	},
 };
 
-void __init mx27ads_map_io(void)
+static void __init mx27ads_map_io(void)
 {
 	mxc_map_io();
 	iotable_init(mx27ads_io_desc, ARRAY_SIZE(mx27ads_io_desc));

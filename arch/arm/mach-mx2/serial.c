@@ -22,6 +22,7 @@
 #include <linux/serial.h>
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
+#include "devices.h"
 
 static struct resource uart0[] = {
 	{

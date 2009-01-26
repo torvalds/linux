@@ -34,6 +34,9 @@
 
 #include <mach/irqs.h>
 #include <mach/hardware.h>
+#include <mach/common.h>
+
+#include "devices.h"
 
 /*
  * Resource definition for the MXC IrDA
@@ -230,32 +233,32 @@ static struct mxc_gpio_port imx_gpio_ports[] = {
 	[0] = {
 		.chip.label = "gpio-0",
 		.irq = MXC_INT_GPIO,
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 0),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR),
 		.virtual_irq_start = MXC_GPIO_IRQ_START,
 	},
 	[1] = {
 		.chip.label = "gpio-1",
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 1),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR + 0x100),
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 32,
 	},
 	[2] = {
 		.chip.label = "gpio-2",
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 2),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR + 0x200),
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 64,
 	},
 	[3] = {
 		.chip.label = "gpio-3",
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 3),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR + 0x300),
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 96,
 	},
 	[4] = {
 		.chip.label = "gpio-4",
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 4),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR + 0x400),
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 128,
 	},
 	[5] = {
 		.chip.label = "gpio-5",
-		.base = (void*)(AIPI_BASE_ADDR_VIRT + 0x15000 + 0x100 * 5),
+		.base = IO_ADDRESS(GPIO_BASE_ADDR + 0x500),
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 160,
 	}
 };
