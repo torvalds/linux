@@ -231,5 +231,6 @@ config DELL_LAPTOP
 	laptops.
 
 source "drivers/misc/c2port/Kconfig"
+source "drivers/misc/eeprom/Kconfig"
 
 endif # MISC_DEVICES
