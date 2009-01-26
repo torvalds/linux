@@ -229,6 +229,8 @@ static void p54u_tx_3887(struct ieee80211_hw *dev, struct sk_buff *skb)
 			  usb_sndbulkpipe(priv->udev, P54U_PIPE_DATA),
 			  skb->data, skb->len, FREE_AFTER_TX(skb) ?
 			  p54u_tx_cb : p54u_tx_dummy_cb, skb);
+	addr_urb->transfer_flags |= URB_ZERO_PACKET;
+	data_urb->transfer_flags |= URB_ZERO_PACKET;
 
 	usb_anchor_urb(addr_urb, &priv->submitted);
 	err = usb_submit_urb(addr_urb, GFP_ATOMIC);
@@ -237,7 +239,7 @@ static void p54u_tx_3887(struct ieee80211_hw *dev, struct sk_buff *skb)
 		goto out;
 	}
 
-	usb_anchor_urb(addr_urb, &priv->submitted);
+	usb_anchor_urb(data_urb, &priv->submitted);
 	err = usb_submit_urb(data_urb, GFP_ATOMIC);
 	if (err)
 		usb_unanchor_urb(data_urb);
@@ -332,12 +334,13 @@ static void p54u_tx_net2280(struct ieee80211_hw *dev, struct sk_buff *skb)
 	 * free what's inside the transfer_buffer after the callback routine
 	 * has completed.
 	 */
-	int_urb->transfer_flags |= URB_FREE_BUFFER;
+	int_urb->transfer_flags |= URB_FREE_BUFFER | URB_ZERO_PACKET;
 
 	usb_fill_bulk_urb(data_urb, priv->udev,
 			  usb_sndbulkpipe(priv->udev, P54U_PIPE_DATA),
 			  hdr, skb->len + sizeof(*hdr), FREE_AFTER_TX(skb) ?
 			  p54u_tx_cb : p54u_tx_dummy_cb, skb);
+	data_urb->transfer_flags |= URB_ZERO_PACKET;
 
 	usb_anchor_urb(int_urb, &priv->submitted);
 	err = usb_submit_urb(int_urb, GFP_ATOMIC);
