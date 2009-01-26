@@ -1,6 +1,6 @@
 menu "EEPROM support"
 
-config AT24
+config EEPROM_AT24
 	tristate "I2C EEPROMs from most vendors"
 	depends on I2C && SYSFS && EXPERIMENTAL
 	help
@@ -26,7 +26,7 @@ config AT24
 	  This driver can also be built as a module.  If so, the module
 	  will be called at24.
 
-config SPI_AT25
+config EEPROM_AT25
 	tristate "SPI EEPROMs from most vendors"
 	depends on SPI && SYSFS
 	help
@@ -37,9 +37,9 @@ config SPI_AT25
 	  This driver can also be built as a module.  If so, the module
 	  will be called at25.
 
-config SENSORS_EEPROM
+config EEPROM_LEGACY
 	tristate "Old I2C EEPROM reader"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C && SYSFS
 	help
 	  If you say yes here you get read-only access to the EEPROM data
 	  available on modern memory DIMMs and Sony Vaio laptops via I2C. Such
