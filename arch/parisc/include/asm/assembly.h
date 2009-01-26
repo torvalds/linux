@@ -79,6 +79,7 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
+#include <asm/types.h>
 
 #include <asm/asmregs.h>
 
