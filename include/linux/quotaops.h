@@ -454,35 +454,4 @@ static inline void vfs_dq_free_block(struct inode *inode, qsize_t nr)
 	vfs_dq_free_space(inode, nr << inode->i_blkbits);
 }
 
-/*
- * Define uppercase equivalents for compatibility with old function names
- * Can go away when we think all users have been converted (15/04/2008)
- */
-#define DQUOT_INIT(inode) vfs_dq_init(inode)
-#define DQUOT_DROP(inode) vfs_dq_drop(inode)
-#define DQUOT_PREALLOC_SPACE_NODIRTY(inode, nr) \
-				vfs_dq_prealloc_space_nodirty(inode, nr)
-#define DQUOT_PREALLOC_SPACE(inode, nr) vfs_dq_prealloc_space(inode, nr)
-#define DQUOT_ALLOC_SPACE_NODIRTY(inode, nr) \
-				vfs_dq_alloc_space_nodirty(inode, nr)
-#define DQUOT_ALLOC_SPACE(inode, nr) vfs_dq_alloc_space(inode, nr)
-#define DQUOT_PREALLOC_BLOCK_NODIRTY(inode, nr) \
-				vfs_dq_prealloc_block_nodirty(inode, nr)
-#define DQUOT_PREALLOC_BLOCK(inode, nr) vfs_dq_prealloc_block(inode, nr)
-#define DQUOT_ALLOC_BLOCK_NODIRTY(inode, nr) \
-				vfs_dq_alloc_block_nodirty(inode, nr)
-#define DQUOT_ALLOC_BLOCK(inode, nr) vfs_dq_alloc_block(inode, nr)
-#define DQUOT_ALLOC_INODE(inode) vfs_dq_alloc_inode(inode)
-#define DQUOT_FREE_SPACE_NODIRTY(inode, nr) \
-				vfs_dq_free_space_nodirty(inode, nr)
-#define DQUOT_FREE_SPACE(inode, nr) vfs_dq_free_space(inode, nr)
-#define DQUOT_FREE_BLOCK_NODIRTY(inode, nr) \
-				vfs_dq_free_block_nodirty(inode, nr)
-#define DQUOT_FREE_BLOCK(inode, nr) vfs_dq_free_block(inode, nr)
-#define DQUOT_FREE_INODE(inode) vfs_dq_free_inode(inode)
-#define DQUOT_TRANSFER(inode, iattr) vfs_dq_transfer(inode, iattr)
-#define DQUOT_SYNC(sb) vfs_dq_sync(sb)
-#define DQUOT_OFF(sb, remount) vfs_dq_off(sb, remount)
-#define DQUOT_ON_REMOUNT(sb) vfs_dq_quota_on_remount(sb)
-
 #endif /* _LINUX_QUOTAOPS_ */
