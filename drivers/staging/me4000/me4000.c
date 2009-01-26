@@ -248,12 +248,12 @@ static irqreturn_t me4000_ext_int_isr(int, void *);
 
 static int inline me4000_buf_count(struct me4000_circ_buf buf, int size)
 {
-	return ((buf.head - buf.tail) & (size - 1));
+	return (buf.head - buf.tail) & (size - 1);
 }
 
 static int inline me4000_buf_space(struct me4000_circ_buf buf, int size)
 {
-	return ((buf.tail - (buf.head + 1)) & (size - 1));
+	return (buf.tail - (buf.head + 1)) & (size - 1);
 }
 
 static int inline me4000_values_to_end(struct me4000_circ_buf buf, int size)
@@ -2058,7 +2058,7 @@ static ssize_t me4000_ao_write_cont(struct file *filep, const char *buff,
 						ME4000_AO_BUFFER_COUNT);
 
 			if (c == 0)
-				return (2 * ret);
+				return 2 * ret;
 
 			/* Only able to write size of free buffer or size of count */
 			if (count < c)
