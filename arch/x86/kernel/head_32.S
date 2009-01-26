@@ -577,6 +577,9 @@ ignore_int:
 	pushl 40(%esp)
 	pushl $int_msg
 	call printk
+
+	call dump_stack
+
 	addl $(5*4),%esp
 	popl %ds
 	popl %es
@@ -652,7 +655,7 @@ early_recursion_flag:
 	.long 0
 
 int_msg:
-	.asciz "Unknown interrupt or fault at EIP %p %p %p\n"
+	.asciz "Unknown interrupt or fault at: %p %p %p\n"
 
 fault_msg:
 /* fault info: */
