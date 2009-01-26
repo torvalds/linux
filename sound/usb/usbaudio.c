@@ -525,7 +525,7 @@ static int snd_usb_audio_next_packet_size(struct snd_usb_substream *subs)
 /*
  * Prepare urb for streaming before playback starts or when paused.
  *
- * We don't have any data, so we send a frame of silence.
+ * We don't have any data, so we send silence.
  */
 static int prepare_nodata_playback_urb(struct snd_usb_substream *subs,
 				       struct snd_pcm_runtime *runtime,
@@ -537,13 +537,13 @@ static int prepare_nodata_playback_urb(struct snd_usb_substream *subs,
 
 	offs = 0;
 	urb->dev = ctx->subs->dev;
-	urb->number_of_packets = subs->packs_per_ms;
-	for (i = 0; i < subs->packs_per_ms; ++i) {
+	for (i = 0; i < ctx->packets; ++i) {
 		counts = snd_usb_audio_next_packet_size(subs);
 		urb->iso_frame_desc[i].offset = offs * stride;
 		urb->iso_frame_desc[i].length = counts * stride;
 		offs += counts;
 	}
+	urb->number_of_packets = ctx->packets;
 	urb->transfer_buffer_length = offs * stride;
 	memset(urb->transfer_buffer,
 	       subs->cur_audiofmt->format == SNDRV_PCM_FORMAT_U8 ? 0x80 : 0,
