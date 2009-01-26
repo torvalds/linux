@@ -37,7 +37,7 @@ static int __read_mostly  blk_tracer_enabled;
 
 static struct tracer_opt blk_tracer_opts[] = {
 	/* Default disable the minimalistic output */
-	{ TRACER_OPT(blk_classic, TRACE_BLK_OPT_CLASSIC ) },
+	{ TRACER_OPT(blk_classic, TRACE_BLK_OPT_CLASSIC) },
 	{ }
 };
 
@@ -169,7 +169,8 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	pid_t pid;
 	int cpu, pc = 0;
 
-	if (unlikely(bt->trace_state != Blktrace_running || !blk_tracer_enabled))
+	if (unlikely(bt->trace_state != Blktrace_running ||
+		     !blk_tracer_enabled))
 		return;
 
 	what |= ddir_act[rw & WRITE];
@@ -192,7 +193,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 						 sizeof(*t) + pdu_len, &flags);
 		if (!event)
 			return;
-		
+
 		ent = ring_buffer_event_data(event);
 		t = (struct blk_io_trace *)ent;
 		pc = preempt_count();
@@ -234,7 +235,7 @@ record_it:
 		if (blk_tr) {
 			ring_buffer_unlock_commit(blk_tr->buffer, event, flags);
 			if (pid != 0 &&
-			    (blk_tracer_flags.val & TRACE_BLK_OPT_CLASSIC) == 0 &&
+			    !(blk_tracer_flags.val & TRACE_BLK_OPT_CLASSIC) &&
 			    (trace_flags & TRACE_ITER_STACKTRACE) != 0)
 				__trace_stack(blk_tr, NULL, flags, 5, pc);
 			trace_wake_up();
@@ -955,19 +956,27 @@ static void blk_unregister_tracepoints(void)
 
 static void fill_rwbs(char *rwbs, const struct blk_io_trace *t)
 {
-        int i = 0;
+	int i = 0;
 
-        if (t->action & BLK_TC_DISCARD)	   rwbs[i++] = 'D';
-        else if (t->action & BLK_TC_WRITE) rwbs[i++] = 'W';
-        else if (t->bytes)		   rwbs[i++] = 'R';
-        else				   rwbs[i++] = 'N';
+	if (t->action & BLK_TC_DISCARD)
+		rwbs[i++] = 'D';
+	else if (t->action & BLK_TC_WRITE)
+		rwbs[i++] = 'W';
+	else if (t->bytes)
+		rwbs[i++] = 'R';
+	else
+		rwbs[i++] = 'N';
 
-        if (t->action & BLK_TC_AHEAD)	   rwbs[i++] = 'A';
-        if (t->action & BLK_TC_BARRIER)	   rwbs[i++] = 'B';
-        if (t->action & BLK_TC_SYNC)	   rwbs[i++] = 'S';
-        if (t->action & BLK_TC_META)	   rwbs[i++] = 'M';
+	if (t->action & BLK_TC_AHEAD)
+		rwbs[i++] = 'A';
+	if (t->action & BLK_TC_BARRIER)
+		rwbs[i++] = 'B';
+	if (t->action & BLK_TC_SYNC)
+		rwbs[i++] = 'S';
+	if (t->action & BLK_TC_META)
+		rwbs[i++] = 'M';
 
-        rwbs[i] = '\0';
+	rwbs[i] = '\0';
 }
 
 static inline
@@ -1049,7 +1058,8 @@ static int blk_log_generic(struct trace_seq *s, const struct trace_entry *ent)
 	return trace_seq_printf(s, "[%s]\n", cmd);
 }
 
-static int blk_log_with_error(struct trace_seq *s, const struct trace_entry *ent)
+static int blk_log_with_error(struct trace_seq *s,
+			      const struct trace_entry *ent)
 {
 	if (t_sec(ent))
 		return trace_seq_printf(s, "%llu + %u [%d]\n", t_sector(ent),

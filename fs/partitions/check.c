@@ -19,6 +19,7 @@
 #include <linux/kmod.h>
 #include <linux/ctype.h>
 #include <linux/genhd.h>
+#include <linux/blktrace_api.h>
 
 #include "check.h"
 
@@ -266,10 +267,6 @@ ssize_t part_fail_store(struct device *dev,
 
 	return count;
 }
-#endif
-
-#ifdef CONFIG_BLK_DEV_IO_TRACE
-extern struct attribute_group blk_trace_attr_group;
 #endif
 
 static DEVICE_ATTR(partition, S_IRUGO, part_partition_show, NULL);
