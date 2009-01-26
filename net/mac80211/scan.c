@@ -475,6 +475,9 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
+
 		/* Tell AP we're back */
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
@@ -637,6 +640,9 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
+
 		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON_ENABLED);
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
