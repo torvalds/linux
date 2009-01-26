@@ -210,7 +210,7 @@ struct usb_action {
 static const struct usb_action adcm2700_Initial[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},		/* 00,00,01,cc */
 	{0xa0, 0x04, ZC3XX_R002_CLOCKSELECT},		/* 00,02,04,cc */
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},		/* 00,08,03,cc */
+	{0xa0, 0x00, ZC3XX_R008_CLOCKSETTING},		/* 00,08,03,cc */
 	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,0a,cc */
 	{0xa0, 0xd3, ZC3XX_R08B_I2CDEVICEADDR},		/* 00,8b,d3,cc */
 	{0xa0, 0x02, ZC3XX_R003_FRAMEWIDTHHIGH},	/* 00,03,02,cc */
@@ -230,7 +230,7 @@ static const struct usb_action adcm2700_Initial[] = {
 	{0xbb, 0x00, 0x0400},				/* 04,00,00,bb */
 	{0xdd, 0x00, 0x0010},				/* 00,00,10,dd */
 	{0xbb, 0x0f, 0x140f},				/* 14,0f,0f,bb */
-	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},	/* 01,01,37,cc */
+	{0xa0, 0xb7, ZC3XX_R101_SENSORCORRECTION},	/* 01,01,37,cc */
 	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},		/* 01,00,0d,cc */
 	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},		/* 01,89,06,cc */
 	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},		/* 01,c5,03,cc */
@@ -269,6 +269,15 @@ static const struct usb_action adcm2700_Initial[] = {
 	{0xdd, 0x00, 0x0010},				/* 00,00,10,dd */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
 	{0xaa, 0xfe, 0x0020},				/* 00,fe,20,aa */
+/*mswin+*/
+	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},
+	{0xaa, 0xfe, 0x0002},
+	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},
+	{0xaa, 0xb4, 0xcd37},
+	{0xaa, 0xa4, 0x0004},
+	{0xaa, 0xa8, 0x0007},
+	{0xaa, 0xac, 0x0004},
+/*mswin-*/
 	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,0a,cc */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
 	{0xdd, 0x00, 0x0010},				/* 00,00,10,dd */
@@ -290,7 +299,7 @@ static const struct usb_action adcm2700_Initial[] = {
 static const struct usb_action adcm2700_InitialScale[] = {
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},		/* 00,00,01,cc */
 	{0xa0, 0x10, ZC3XX_R002_CLOCKSELECT},		/* 00,02,10,cc */
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},		/* 00,08,03,cc */
+	{0xa0, 0x00, ZC3XX_R008_CLOCKSETTING},		/* 00,08,03,cc */
 	{0xa0, 0x0a, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,0a,cc */
 	{0xa0, 0xd3, ZC3XX_R08B_I2CDEVICEADDR},		/* 00,8b,d3,cc */
 	{0xa0, 0x02, ZC3XX_R003_FRAMEWIDTHHIGH},	/* 00,03,02,cc */
@@ -310,7 +319,7 @@ static const struct usb_action adcm2700_InitialScale[] = {
 	{0xbb, 0x00, 0x0400},				/* 04,00,00,bb */
 	{0xdd, 0x00, 0x0010},				/* 00,00,10,dd */
 	{0xbb, 0x0f, 0x140f},				/* 14,0f,0f,bb */
-	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},	/* 01,01,37,cc */
+	{0xa0, 0xb7, ZC3XX_R101_SENSORCORRECTION},	/* 01,01,37,cc */
 	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},		/* 01,00,0d,cc */
 	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},		/* 01,89,06,cc */
 	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},		/* 01,c5,03,cc */
@@ -338,9 +347,9 @@ static const struct usb_action adcm2700_InitialScale[] = {
 	{0xbb, 0x5f, 0x2090},				/* 20,5f,90,bb */
 	{0xbb, 0x01, 0x8000},				/* 80,01,00,bb */
 	{0xbb, 0x09, 0x8400},				/* 84,09,00,bb */
-	{0xbb, 0x88, 0x0002},				/* 00,88,02,bb */
+	{0xbb, 0x86, 0x0002},				/* 00,88,02,bb */
 	{0xbb, 0xe6, 0x0401},				/* 04,e6,01,bb */
-	{0xbb, 0x88, 0x0802},				/* 08,88,02,bb */
+	{0xbb, 0x86, 0x0802},				/* 08,88,02,bb */
 	{0xbb, 0xe6, 0x0c01},				/* 0c,e6,01,bb */
 	{0xa0, 0x01, ZC3XX_R010_CMOSSENSORSELECT},	/* 00,10,01,cc */
 	{0xdd, 0x00, 0x0010},				/* 00,00,10,dd */
@@ -6354,7 +6363,9 @@ static void setmatrix(struct gspca_dev *gspca_dev)
 	int i;
 	const __u8 *matrix;
 	static const u8 adcm2700_matrix[9] =
-		{0x66, 0xed, 0xed, 0xed, 0x66, 0xed, 0xed, 0xed, 0x66};
+/*		{0x66, 0xed, 0xed, 0xed, 0x66, 0xed, 0xed, 0xed, 0x66}; */
+/*ms-win*/
+		{0x74, 0xed, 0xed, 0xed, 0x74, 0xed, 0xed, 0xed, 0x74};
 	static const __u8 gc0305_matrix[9] =
 		{0x50, 0xf8, 0xf8, 0xf8, 0x50, 0xf8, 0xf8, 0xf8, 0x50};
 	static const __u8 ov7620_matrix[9] =
@@ -6399,7 +6410,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	__u8 brightness;
 
 	switch (sd->sensor) {
-	case SENSOR_ADCM2700:
 	case SENSOR_GC0305:
 	case SENSOR_OV7620:
 	case SENSOR_PO2030:
@@ -6408,8 +6418,11 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 /*fixme: is it really write to 011d and 018d for all other sensors? */
 	brightness = sd->brightness;
 	reg_w(gspca_dev->dev, brightness, 0x011d);
-	if (sd->sensor == SENSOR_HV7131B)
+	switch (sd->sensor) {
+	case SENSOR_ADCM2700:
+	case SENSOR_HV7131B:
 		return;
+	}
 	if (brightness < 0x70)
 		brightness += 0x10;
 	else
@@ -6549,6 +6562,7 @@ static void setquality(struct gspca_dev *gspca_dev)
 	__u8 frxt;
 
 	switch (sd->sensor) {
+	case SENSOR_ADCM2700:
 	case SENSOR_GC0305:
 	case SENSOR_HV7131B:
 	case SENSOR_OV7620:
@@ -7295,8 +7309,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	}
 	setmatrix(gspca_dev);			/* one more time? */
 	switch (sd->sensor) {
-	case SENSOR_ADCM2700:
-		break;
 	case SENSOR_OV7620:
 	case SENSOR_PAS202B:
 		reg_r(gspca_dev, 0x0180);	/* from win */
@@ -7338,19 +7350,16 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	setautogain(gspca_dev);
 	switch (sd->sensor) {
-	case SENSOR_PAS202B:
-		reg_w(dev, 0x00, 0x0007);	/* (from win traces) */
-		break;
 	case SENSOR_PO2030:
 		msleep(500);
 		reg_r(gspca_dev, 0x0008);
 		reg_r(gspca_dev, 0x0007);
+		/*fall thru*/
+	case SENSOR_PAS202B:
 		reg_w(dev, 0x00, 0x0007);	/* (from win traces) */
-		reg_w(dev, 0x02, 0x0008);
+		reg_w(dev, 0x02, ZC3XX_R008_CLOCKSETTING);
 		break;
 	}
-	if (sd->sensor == SENSOR_PAS202B)
-		reg_w(dev, 0x02, ZC3XX_R008_CLOCKSETTING);
 	return 0;
 }
 
