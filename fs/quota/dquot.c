@@ -129,9 +129,9 @@
  * i_mutex on quota files is special (it's below dqio_mutex)
  */
 
-static DEFINE_SPINLOCK(dq_list_lock);
-static DEFINE_SPINLOCK(dq_state_lock);
-DEFINE_SPINLOCK(dq_data_lock);
+static __cacheline_aligned_in_smp DEFINE_SPINLOCK(dq_list_lock);
+static __cacheline_aligned_in_smp DEFINE_SPINLOCK(dq_state_lock);
+__cacheline_aligned_in_smp DEFINE_SPINLOCK(dq_data_lock);
 EXPORT_SYMBOL(dq_data_lock);
 
 static char *quotatypes[] = INITQFNAMES;
