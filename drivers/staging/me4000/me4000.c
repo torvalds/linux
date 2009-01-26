@@ -36,8 +36,8 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 #include <asm/system.h>
 
 /* Include-File for the Meilhaus ME-4000 I/O board */
