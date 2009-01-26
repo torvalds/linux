@@ -546,15 +546,13 @@ static void clear_board_info_list(void)
 				&board_info->ao_context_list, list) {
 			me4000_ao_reset(ao_context);
 			free_irq(ao_context->irq, ao_context);
-			if (ao_context->circ_buf.buf)
-				kfree(ao_context->circ_buf.buf);
+			kfree(ao_context->circ_buf.buf);
 			list_del(&ao_context->list);
 			kfree(ao_context);
 		}
 
 		/* Clear analog input context */
-		if (board_info->ai_context->circ_buf.buf)
-			kfree(board_info->ai_context->circ_buf.buf);
+		kfree(board_info->ai_context->circ_buf.buf);
 		kfree(board_info->ai_context);
 
 		/* Clear digital I/O context */
@@ -3668,8 +3666,7 @@ AI_CONFIG_ERR:
 	tmp &=
 	    ~(ME4000_AI_CTRL_BIT_CHANNEL_FIFO | ME4000_AI_CTRL_BIT_SAMPLE_HOLD);
 
-	if (list)
-		kfree(list);
+	kfree(list);
 
 	return err;
 
