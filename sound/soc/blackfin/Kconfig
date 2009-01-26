@@ -42,7 +42,7 @@ config SND_BF5XX_AC97
 	  You will also need to select the audio interfaces to support below.
 
 	  Note:
-	  AC97 codecs which do not implment the slot-16 mode will not function
+	  AC97 codecs which do not implement the slot-16 mode will not function
 	  properly with this driver. This driver is known to work with the
 	  Analog Devices line of AC97 codecs.
 

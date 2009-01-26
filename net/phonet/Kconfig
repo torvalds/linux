@@ -6,7 +6,7 @@ config PHONET
 	tristate "Phonet protocols family"
 	help
 	  The Phone Network protocol (PhoNet) is a packet-oriented
-	  communication protocol developped by Nokia for use with its modems.
+	  communication protocol developed by Nokia for use with its modems.
 
 	  This is required for Maemo to use cellular data connectivity (if
 	  supported). It can also be used to control Nokia phones

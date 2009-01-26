@@ -100,7 +100,7 @@ config LEDS_HP6XX
 	tristate "LED Support for the HP Jornada 6xx"
 	depends on LEDS_CLASS && SH_HP6XX
 	help
-	  This option enables led support for the handheld
+	  This option enables LED support for the handheld
 	  HP Jornada 620/660/680/690.
 
 config LEDS_PCA9532
@@ -108,7 +108,7 @@ config LEDS_PCA9532
 	depends on LEDS_CLASS && I2C && INPUT && EXPERIMENTAL
 	help
 	  This option enables support for NXP pca9532
-	  led controller. It is generally only usefull
+	  LED controller. It is generally only useful
 	  as a platform driver
 
 config LEDS_GPIO
@@ -144,7 +144,7 @@ config LEDS_CLEVO_MAIL
 	  	Positivo Mobile (Clevo M5x0V)
 
 	  If your model is not listed here you can try the "nodetect"
-	  module paramter.
+	  module parameter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-clevo-mail.

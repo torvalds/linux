@@ -127,13 +127,13 @@ config BOARD_HAMMERHEAD
 	select CPU_AT32AP7000
 	select USB_ARCH_HAS_HCD
 	help
-	  The Hammerhead platform is built around a AVR32 32-bit microcontroller from Atmel.
+	  The Hammerhead platform is built around an AVR32 32-bit microcontroller from Atmel.
 	  It offers versatile peripherals, such as ethernet, usb device, usb host etc.
 
-	  The board also incooperates a power supply and is a Power over Ethernet (PoE) Powered
+	  The board also incorporates a power supply and is a Power over Ethernet (PoE) Powered
 	  Device (PD).
 
-	  Additonally, a Cyclone III FPGA from Altera is integrated on the board. The FPGA is
+	  Additionally, a Cyclone III FPGA from Altera is integrated on the board. The FPGA is
 	  mapped into the 32-bit AVR memory bus. The FPGA offers two DDR2 SDRAM interfaces, which
 	  will cover even the most exceptional need of memory bandwidth. Together with the onboard
 	  video decoder the board is ready for video processing.

@@ -143,7 +143,7 @@ config INPUT_APMPOWER
 	---help---
 	  Say Y here if you want suspend key events to trigger a user
 	  requested suspend through APM. This is useful on embedded
-	  systems where such behviour is desired without userspace
+	  systems where such behaviour is desired without userspace
 	  interaction. If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the

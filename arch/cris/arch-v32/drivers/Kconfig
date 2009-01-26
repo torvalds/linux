@@ -342,7 +342,7 @@ config ETRAX_SERIAL_PORT4_DMA9_IN
 	help
 	  Enables the DMA9 input channel for ser4 (ttyS4).
 	  If you do not enable DMA, an interrupt for each character will be
-	  used when receiveing data.
+	  used when receiving data.
 	  Normally you want to use DMA, unless you use the DMA channel for
 	  something else.
 

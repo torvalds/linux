@@ -1129,7 +1129,7 @@ config NODES_SHIFT
 	depends on NEED_MULTIPLE_NODES
 	---help---
 	  Specify the maximum number of NUMA Nodes available on the target
-	  system.  Increases memory reserved to accomodate various tables.
+	  system.  Increases memory reserved to accommodate various tables.
 
 config HAVE_ARCH_BOOTMEM
 	def_bool y
@@ -1307,7 +1307,7 @@ config MTRR_SANITIZER
 	  add writeback entries.
 
 	  Can be disabled with disable_mtrr_cleanup on the kernel command line.
-	  The largest mtrr entry size for a continous block can be set with
+	  The largest mtrr entry size for a continuous block can be set with
 	  mtrr_chunk_size.
 
 	  If unsure, say Y.

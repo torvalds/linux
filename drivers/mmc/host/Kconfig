@@ -177,7 +177,7 @@ config MMC_SPI
 	select CRC7
 	select CRC_ITU_T
 	help
-	  Some systems accss MMC/SD/SDIO cards using a SPI controller
+	  Some systems access MMC/SD/SDIO cards using a SPI controller
 	  instead of using a "native" MMC/SD/SDIO controller.  This has a
 	  disadvantage of being relatively high overhead, but a compensating
 	  advantage of working on many systems without dedicated MMC/SD/SDIO
