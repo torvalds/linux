@@ -180,6 +180,7 @@ static int uart_mxc_port5_exit(struct platform_device *pdev)
 
 static struct platform_device *platform_devices[] __initdata = {
 	&mx27ads_nor_mtd_device,
+	&mxc_fec_device,
 };
 
 static int mxc_fec_pins[] = {

@@ -14,3 +14,4 @@ extern struct platform_device mxc_uart_device5;
 extern struct platform_device mxc_w1_master_device;
 extern struct platform_device mxc_nand_device;
 extern struct platform_device mxc_fb_device;
+extern struct platform_device mxc_fec_device;

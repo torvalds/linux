@@ -191,6 +191,7 @@ static struct mxc_nand_platform_data pcm038_nand_board_info = {
 static struct platform_device *platform_devices[] __initdata = {
 	&pcm038_nor_mtd_device,
 	&mxc_w1_master_device,
+	&mxc_fec_device,
 	&pcm038_sram_mtd_device,
 };
 

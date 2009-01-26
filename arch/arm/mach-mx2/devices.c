@@ -258,7 +258,27 @@ struct platform_device mxc_fb_device = {
 		.coherent_dma_mask = 0xFFFFFFFF,
 	},
 };
+#endif
 
+#ifdef CONFIG_MACH_MX27
+static struct resource mxc_fec_resources[] = {
+	{
+		.start	= FEC_BASE_ADDR,
+		.end	= FEC_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM
+	}, {
+		.start	= MXC_INT_FEC,
+		.end	= MXC_INT_FEC,
+		.flags	= IORESOURCE_IRQ
+	},
+};
+
+struct platform_device mxc_fec_device = {
+	.name = "fec",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_fec_resources),
+	.resource = mxc_fec_resources,
+};
 #endif
 
 /* GPIO port description */
