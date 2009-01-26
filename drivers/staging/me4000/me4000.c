@@ -1261,9 +1261,8 @@ static int me4000_reset_board(struct me4000_info *info)
 		    info->me4000_regbase + ME4000_AO_DEMUX_ADJUST_REG);
 
 	/* Set digital I/O direction for port 0 to output on isolated versions */
-	if (!(me4000_inl(info->me4000_regbase + ME4000_DIO_DIR_REG) & 0x1)) {
+	if (!(me4000_inl(info->me4000_regbase + ME4000_DIO_DIR_REG) & 0x1))
 		me4000_outl(0x1, info->me4000_regbase + ME4000_DIO_CTRL_REG);
-	}
 
 	return 0;
 }
@@ -2102,9 +2101,8 @@ static ssize_t me4000_ao_write_cont(struct file *filep, const char *buff,
 		}
 	}
 
-	if (filep->f_flags & O_NONBLOCK) {
+	if (filep->f_flags & O_NONBLOCK)
 		return (ret == 0) ? -EAGAIN : 2 * ret;
-	}
 
 	return 2 * ret;
 }
@@ -3625,9 +3623,8 @@ static int me4000_ai_config(struct me4000_ai_config *arg,
 	me4000_outl(tmp, ai_context->ctrl_reg);
 
 	/* Write the channel list */
-	for (i = 0; i < cmd.channel_list.count; i++) {
+	for (i = 0; i < cmd.channel_list.count; i++)
 		me4000_outl(list[i], ai_context->channel_list_reg);
-	}
 
 	/* Setup sample and hold */
 	if (cmd.sh) {
@@ -3776,9 +3773,7 @@ static int me4000_ai_start_ex(unsigned long *arg,
 
 	if (timeout) {
 		ref = jiffies;
-		while (!
-		       (inl(ai_context->status_reg) & ME4000_AI_STATUS_BIT_FSM))
-		{
+		while (!(inl(ai_context->status_reg) & ME4000_AI_STATUS_BIT_FSM)) {
 			interruptible_sleep_on_timeout(&queue, 1);
 			if (signal_pending(current)) {
 				printk(KERN_ERR
@@ -3793,9 +3788,7 @@ static int me4000_ai_start_ex(unsigned long *arg,
 			}
 		}
 	} else {
-		while (!
-		       (inl(ai_context->status_reg) & ME4000_AI_STATUS_BIT_FSM))
-		{
+		while (!(inl(ai_context->status_reg) & ME4000_AI_STATUS_BIT_FSM)) {
 			interruptible_sleep_on_timeout(&queue, 1);
 			if (signal_pending(current)) {
 				printk(KERN_ERR
@@ -4116,9 +4109,8 @@ static ssize_t me4000_ai_read(struct file *filep, char *buff, size_t cnt,
 		return -EPIPE;
 	}
 
-	if (filep->f_flags & O_NONBLOCK) {
+	if (filep->f_flags & O_NONBLOCK)
 		return (k == 0) ? -EAGAIN : 2 * ret;
-	}
 
 	CALL_PDEBUG("me4000_ai_read() is leaved\n");
 	return ret * 2;
@@ -4257,11 +4249,10 @@ static int eeprom_write_cmd(struct me4000_ai_context *ai_context, unsigned long 
 	udelay(EEPROM_DELAY);
 
 	for (i = 0; i < length; i++) {
-		if (cmd & ((0x1 << (length - 1)) >> i)) {
+		if (cmd & ((0x1 << (length - 1)) >> i))
 			value |= PLX_ICR_BIT_EEPROM_WRITE;
-		} else {
+		else
 			value &= ~PLX_ICR_BIT_EEPROM_WRITE;
-		}
 
 		/* Write to EEPROM */
 		me4000_outl(value,
@@ -4317,11 +4308,11 @@ static unsigned short eeprom_read_cmd(struct me4000_ai_context *ai_context,
 
 	/* Write the read command to the eeprom */
 	for (i = 0; i < length; i++) {
-		if (cmd & ((0x1 << (length - 1)) >> i)) {
+		if (cmd & ((0x1 << (length - 1)) >> i))
 			value |= PLX_ICR_BIT_EEPROM_WRITE;
-		} else {
+		else
 			value &= ~PLX_ICR_BIT_EEPROM_WRITE;
-		}
+
 		me4000_outl(value,
 			    ai_context->board_info->plx_regbase + PLX_ICR);
 		udelay(EEPROM_DELAY);
