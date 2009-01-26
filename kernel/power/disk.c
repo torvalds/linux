@@ -265,7 +265,7 @@ static int create_image(int platform_mode)
  *	hibernation_snapshot - quiesce devices and create the hibernation
  *	snapshot image.
  *	@platform_mode - if set, use the platform driver, if available, to
- *			 prepare the platform frimware for the power transition.
+ *			 prepare the platform firmware for the power transition.
  *
  *	Must be called with pm_mutex held
  */
@@ -378,7 +378,7 @@ static int resume_target_kernel(void)
  *	hibernation_restore - quiesce devices and restore the hibernation
  *	snapshot image.  If successful, control returns in hibernation_snaphot()
  *	@platform_mode - if set, use the platform driver, if available, to
- *			 prepare the platform frimware for the transition.
+ *			 prepare the platform firmware for the transition.
  *
  *	Must be called with pm_mutex held
  */

@@ -1649,7 +1649,7 @@ static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
 
 /**
  *  @brief This function executes next command in command
- *  pending queue. It will put fimware back to PS mode
+ *  pending queue. It will put firmware back to PS mode
  *  if applicable.
  *
  *  @param priv     A pointer to struct lbs_private structure

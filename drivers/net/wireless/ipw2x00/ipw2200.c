@@ -8844,7 +8844,7 @@ static int ipw_wx_set_mode(struct net_device *dev,
 #endif				/* CONFIG_IPW2200_MONITOR */
 
 	/* Free the existing firmware and reset the fw_loaded
-	 * flag so ipw_load() will bring in the new firmawre */
+	 * flag so ipw_load() will bring in the new firmware */
 	free_firmware();
 
 	priv->ieee->iw_mode = wrqu->mode;

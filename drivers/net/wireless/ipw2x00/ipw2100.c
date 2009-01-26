@@ -2362,7 +2362,7 @@ static void ipw2100_corruption_detected(struct ipw2100_priv *priv, int i)
 		       i * sizeof(struct ipw2100_status));
 
 #ifdef IPW2100_DEBUG_C3
-	/* Halt the fimrware so we can get a good image */
+	/* Halt the firmware so we can get a good image */
 	write_register(priv->net_dev, IPW_REG_RESET_REG,
 		       IPW_AUX_HOST_RESET_REG_STOP_MASTER);
 	j = 5;

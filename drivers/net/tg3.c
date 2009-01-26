@@ -11225,7 +11225,7 @@ static int __devinit tg3_phy_probe(struct tg3 *tp)
 		return tg3_phy_init(tp);
 
 	/* Reading the PHY ID register can conflict with ASF
-	 * firwmare access to the PHY hardware.
+	 * firmware access to the PHY hardware.
 	 */
 	err = 0;
 	if ((tp->tg3_flags & TG3_FLAG_ENABLE_ASF) ||

@@ -550,7 +550,7 @@ void pci_update_current_state(struct pci_dev *dev, pci_power_t state)
  * @dev: PCI device to handle.
  * @state: PCI power state (D0, D1, D2, D3hot) to put the device into.
  *
- * Transition a device to a new power state, using the platform formware and/or
+ * Transition a device to a new power state, using the platform firmware and/or
  * the device's PCI PM registers.
  *
  * RETURN VALUE:
