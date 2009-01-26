@@ -511,6 +511,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	struct saa7146_vv *vv = dev->vv_data;
 	struct video_device *vfd;
 	int err;
+	int i;
 
 	DEB_EE(("dev:%p, name:'%s', type:%d\n",dev,name,type));
 
@@ -520,9 +521,11 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 		return -ENOMEM;
 
 	vfd->fops = &video_fops;
-	vfd->ioctl_ops = dev->ext_vv_data ? &dev->ext_vv_data->ops :
-						&saa7146_video_ioctl_ops;
+	vfd->ioctl_ops = &dev->ext_vv_data->ops;
 	vfd->release = video_device_release;
+	vfd->tvnorms = 0;
+	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
+		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
 	strlcpy(vfd->name, name, sizeof(vfd->name));
 	video_set_drvdata(vfd, dev);
 
