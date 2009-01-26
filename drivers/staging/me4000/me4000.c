@@ -2361,7 +2361,9 @@ static int me4000_ao_start(unsigned long *arg,
 					       "ME4000:me4000_ao_start():Wait on start of state machine interrupted\n");
 					return -EINTR;
 				}
-				if (((jiffies - ref) > (timeout * HZ / USER_HZ))) {	// 2.6 has diffrent definitions for HZ in user and kernel space
+				/* kernel 2.6 has different definitions for HZ
+				 * in user and kernel space */
+				if ((jiffies - ref) > (timeout * HZ / USER_HZ)) {
 					printk(KERN_ERR
 					       "ME4000:me4000_ao_start():Timeout reached\n");
 					return -EIO;
@@ -2867,7 +2869,9 @@ static int me4000_ao_ex_trig_timeout(unsigned long *arg,
 					       "ME4000:me4000_ao_ex_trig_timeout():Wait on start of state machine interrupted\n");
 					return -EINTR;
 				}
-				if (((jiffies - ref) > (timeout * HZ / USER_HZ))) {	// 2.6 has diffrent definitions for HZ in user and kernel space
+				/* kernel 2.6 has different definitions for HZ
+				 * in user and kernel space */
+				if ((jiffies - ref) > (timeout * HZ / USER_HZ)) {
 					printk(KERN_ERR
 					       "ME4000:me4000_ao_ex_trig_timeout():Timeout reached\n");
 					return -EIO;
@@ -3243,7 +3247,8 @@ static int me4000_ai_single(struct me4000_ai_single *arg,
 				       "ME4000:me4000_ai_single():Wait on start of state machine interrupted\n");
 				return -EINTR;
 			}
-			if (((jiffies - jiffy) > (cmd.timeout * HZ / USER_HZ)) && cmd.timeout) {	// 2.6 has diffrent definitions for HZ in user and kernel space
+			/* 2.6 has different definitions for HZ in user and kernel space */
+			if (((jiffies - jiffy) > (cmd.timeout * HZ / USER_HZ)) && cmd.timeout) {
 				printk(KERN_ERR
 				       "ME4000:me4000_ai_single():Timeout reached\n");
 				return -EIO;
@@ -3783,7 +3788,8 @@ static int me4000_ai_start_ex(unsigned long *arg,
 				       "ME4000:me4000_ai_start_ex():Wait on start of state machine interrupted\n");
 				return -EINTR;
 			}
-			if (((jiffies - ref) > (timeout * HZ / USER_HZ))) {	// 2.6 has diffrent definitions for HZ in user and kernel space
+			/* 2.6 has different definitions for HZ in user and kernel space */
+			if ((jiffies - ref) > (timeout * HZ / USER_HZ)) {
 				printk(KERN_ERR
 				       "ME4000:me4000_ai_start_ex():Timeout reached\n");
 				return -EIO;
