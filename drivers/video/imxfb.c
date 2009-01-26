@@ -14,7 +14,6 @@
  *	linux-arm-kernel@lists.arm.linux.org.uk
  */
 
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -159,6 +158,17 @@ struct imxfb_info {
 #define MIN_XRES	64
 #define MIN_YRES	64
 
+/* Actually this really is 18bit support, the lowest 2 bits of each colour
+ * are unused in hardware. We claim to have 24bit support to make software
+ * like X work, which does not support 18bit.
+ */
+static struct imxfb_rgb def_rgb_18 = {
+	.red	= {.offset = 16, .length = 8,},
+	.green	= {.offset = 8, .length = 8,},
+	.blue	= {.offset = 0, .length = 8,},
+	.transp = {.offset = 0, .length = 0,},
+};
+
 static struct imxfb_rgb def_rgb_16_tft = {
 	.red	= {.offset = 11, .length = 5,},
 	.green	= {.offset = 5, .length = 6,},
@@ -286,6 +296,9 @@ static int imxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	pr_debug("var->bits_per_pixel=%d\n", var->bits_per_pixel);
 	switch (var->bits_per_pixel) {
+	case 32:
+		rgb = &def_rgb_18;
+		break;
 	case 16:
 	default:
 		if (readl(fbi->regs + LCDC_PCR) & PCR_TFT)
@@ -327,9 +340,7 @@ static int imxfb_set_par(struct fb_info *info)
 	struct imxfb_info *fbi = info->par;
 	struct fb_var_screeninfo *var = &info->var;
 
-	pr_debug("set_par\n");
-
-	if (var->bits_per_pixel == 16)
+	if (var->bits_per_pixel == 16 || var->bits_per_pixel == 32)
 		info->fix.visual = FB_VISUAL_TRUECOLOR;
 	else if (!fbi->cmap_static)
 		info->fix.visual = FB_VISUAL_PSEUDOCOLOR;
