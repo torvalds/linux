@@ -1423,15 +1423,11 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
-	struct vlan_group *old_grp;
 	u32 tempval;
 
 	spin_lock_irqsave(&priv->rxlock, flags);
 
-	old_grp = priv->vlgrp;
-
-	if (old_grp == grp)
-		return;
+	priv->vlgrp = grp;
 
 	if (grp) {
 		/* Enable VLAN tag insertion */

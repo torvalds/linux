@@ -633,6 +633,14 @@ config PID_NS
 	  Unless you want to work with an experimental feature
 	  say N here.
 
+config NET_NS
+	bool "Network namespace"
+	default n
+	depends on NAMESPACES && EXPERIMENTAL && NET
+	help
+	  Allow user space to create what appear to be multiple instances
+	  of the network stack.
+
 config BLK_DEV_INITRD
 	bool "Initial RAM filesystem and RAM disk (initramfs/initrd) support"
 	depends on BROKEN || !FRV
