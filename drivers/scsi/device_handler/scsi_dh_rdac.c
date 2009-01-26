@@ -579,6 +579,11 @@ static int rdac_check_sense(struct scsi_device *sdev,
 			 * Power On, Reset, or Bus Device Reset, just retry.
 			 */
 			return ADD_TO_MLQUEUE;
+		if (sense_hdr->asc == 0x8b && sense_hdr->ascq == 0x02)
+			/*
+			 * Quiescence in progress , just retry.
+			 */
+			return ADD_TO_MLQUEUE;
 		break;
 	}
 	/* success just means we do not care what scsi-ml does */
