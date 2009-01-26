@@ -306,7 +306,7 @@ static int smsc95xx_write_eeprom(struct usbnet *dev, u32 offset, u32 length,
 	return 0;
 }
 
-static void smsc95xx_async_cmd_callback(struct urb *urb, struct pt_regs *regs)
+static void smsc95xx_async_cmd_callback(struct urb *urb)
 {
 	struct usb_context *usb_context = urb->context;
 	struct usbnet *dev = usb_context->dev;
@@ -348,7 +348,7 @@ static int smsc95xx_write_reg_async(struct usbnet *dev, u16 index, u32 *data)
 
 	usb_fill_control_urb(urb, dev->udev, usb_sndctrlpipe(dev->udev, 0),
 		(void *)&usb_context->req, data, size,
-		(usb_complete_t)smsc95xx_async_cmd_callback,
+		smsc95xx_async_cmd_callback,
 		(void *)usb_context);
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
