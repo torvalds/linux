@@ -94,7 +94,7 @@ struct genapic {
 	void (*inquire_remote_apic)(int apicid);
 };
 
-extern struct genapic *genapic;
+extern struct genapic *apic;
 
 #ifdef CONFIG_X86_32
 

@@ -22,18 +22,18 @@ static inline const struct cpumask *target_cpus(void)
 
 #ifdef CONFIG_X86_64
 #include <asm/genapic.h>
-#define INT_DELIVERY_MODE (genapic->int_delivery_mode)
-#define INT_DEST_MODE (genapic->int_dest_mode)
-#define TARGET_CPUS	  (genapic->target_cpus())
-#define apic_id_registered (genapic->apic_id_registered)
-#define init_apic_ldr (genapic->init_apic_ldr)
-#define cpu_mask_to_apicid (genapic->cpu_mask_to_apicid)
-#define cpu_mask_to_apicid_and (genapic->cpu_mask_to_apicid_and)
-#define phys_pkg_id	(genapic->phys_pkg_id)
-#define vector_allocation_domain    (genapic->vector_allocation_domain)
+#define INT_DELIVERY_MODE (apic->int_delivery_mode)
+#define INT_DEST_MODE (apic->int_dest_mode)
+#define TARGET_CPUS	  (apic->target_cpus())
+#define apic_id_registered (apic->apic_id_registered)
+#define init_apic_ldr (apic->init_apic_ldr)
+#define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
+#define cpu_mask_to_apicid_and (apic->cpu_mask_to_apicid_and)
+#define phys_pkg_id	(apic->phys_pkg_id)
+#define vector_allocation_domain    (apic->vector_allocation_domain)
 #define read_apic_id()  (GET_APIC_ID(apic_read(APIC_ID)))
-#define send_IPI_self (genapic->send_IPI_self)
-#define wakeup_secondary_cpu (genapic->wakeup_cpu)
+#define send_IPI_self (apic->send_IPI_self)
+#define wakeup_secondary_cpu (apic->wakeup_cpu)
 extern void setup_apic_routing(void);
 #else
 #define INT_DELIVERY_MODE dest_LowestPrio

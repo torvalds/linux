@@ -20,14 +20,14 @@
 
 void __init es7000_update_genapic_to_cluster(void)
 {
-	genapic->target_cpus = target_cpus_cluster;
-	genapic->int_delivery_mode = INT_DELIVERY_MODE_CLUSTER;
-	genapic->int_dest_mode = INT_DEST_MODE_CLUSTER;
-	genapic->no_balance_irq = NO_BALANCE_IRQ_CLUSTER;
+	apic->target_cpus = target_cpus_cluster;
+	apic->int_delivery_mode = INT_DELIVERY_MODE_CLUSTER;
+	apic->int_dest_mode = INT_DEST_MODE_CLUSTER;
+	apic->no_balance_irq = NO_BALANCE_IRQ_CLUSTER;
 
-	genapic->init_apic_ldr = init_apic_ldr_cluster;
+	apic->init_apic_ldr = init_apic_ldr_cluster;
 
-	genapic->cpu_mask_to_apicid = cpu_mask_to_apicid_cluster;
+	apic->cpu_mask_to_apicid = cpu_mask_to_apicid_cluster;
 }
 
 static int probe_es7000(void)

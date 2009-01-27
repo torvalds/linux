@@ -188,14 +188,14 @@ static void noop_wait_for_deassert(atomic_t *deassert_not_used)
 
 static int __init es7000_update_genapic(void)
 {
-	genapic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
+	apic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
 
 	/* MPENTIUMIII */
 	if (boot_cpu_data.x86 == 6 &&
 	    (boot_cpu_data.x86_model >= 7 || boot_cpu_data.x86_model <= 11)) {
 		es7000_update_genapic_to_cluster();
-		genapic->wait_for_init_deassert = noop_wait_for_deassert;
-		genapic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
+		apic->wait_for_init_deassert = noop_wait_for_deassert;
+		apic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
 	}
 
 	return 0;

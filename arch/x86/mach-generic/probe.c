@@ -23,7 +23,7 @@ extern struct genapic apic_bigsmp;
 extern struct genapic apic_es7000;
 extern struct genapic apic_default;
 
-struct genapic *genapic = &apic_default;
+struct genapic *apic = &apic_default;
 
 static struct genapic *apic_probe[] __initdata = {
 #ifdef CONFIG_X86_NUMAQ
@@ -52,7 +52,7 @@ static int __init parse_apic(char *arg)
 
 	for (i = 0; apic_probe[i]; i++) {
 		if (!strcmp(apic_probe[i]->name, arg)) {
-			genapic = apic_probe[i];
+			apic = apic_probe[i];
 			cmdline_apic = 1;
 			return 0;
 		}
@@ -76,13 +76,13 @@ void __init generic_bigsmp_probe(void)
 	 * - we find more than 8 CPUs in acpi LAPIC listing with xAPIC support
 	 */
 
-	if (!cmdline_apic && genapic == &apic_default) {
+	if (!cmdline_apic && apic == &apic_default) {
 		if (apic_bigsmp.probe()) {
-			genapic = &apic_bigsmp;
+			apic = &apic_bigsmp;
 			if (x86_quirks->update_genapic)
 				x86_quirks->update_genapic();
 			printk(KERN_INFO "Overriding APIC driver with %s\n",
-			       genapic->name);
+			       apic->name);
 		}
 	}
 #endif
@@ -94,7 +94,7 @@ void __init generic_apic_probe(void)
 		int i;
 		for (i = 0; apic_probe[i]; i++) {
 			if (apic_probe[i]->probe()) {
-				genapic = apic_probe[i];
+				apic = apic_probe[i];
 				break;
 			}
 		}
@@ -105,7 +105,7 @@ void __init generic_apic_probe(void)
 		if (x86_quirks->update_genapic)
 			x86_quirks->update_genapic();
 	}
-	printk(KERN_INFO "Using APIC driver %s\n", genapic->name);
+	printk(KERN_INFO "Using APIC driver %s\n", apic->name);
 }
 
 /* These functions can switch the APIC even after the initial ->probe() */
@@ -116,11 +116,11 @@ int __init mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 	for (i = 0; apic_probe[i]; ++i) {
 		if (apic_probe[i]->mps_oem_check(mpc, oem, productid)) {
 			if (!cmdline_apic) {
-				genapic = apic_probe[i];
+				apic = apic_probe[i];
 				if (x86_quirks->update_genapic)
 					x86_quirks->update_genapic();
 				printk(KERN_INFO "Switched to APIC driver `%s'.\n",
-				       genapic->name);
+				       apic->name);
 			}
 			return 1;
 		}
@@ -134,11 +134,11 @@ int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	for (i = 0; apic_probe[i]; ++i) {
 		if (apic_probe[i]->acpi_madt_oem_check(oem_id, oem_table_id)) {
 			if (!cmdline_apic) {
-				genapic = apic_probe[i];
+				apic = apic_probe[i];
 				if (x86_quirks->update_genapic)
 					x86_quirks->update_genapic();
 				printk(KERN_INFO "Switched to APIC driver `%s'.\n",
-				       genapic->name);
+				       apic->name);
 			}
 			return 1;
 		}
@@ -148,5 +148,5 @@ int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 
 int hard_smp_processor_id(void)
 {
-	return genapic->get_apic_id(*(unsigned long *)(APIC_BASE+APIC_ID));
+	return apic->get_apic_id(*(unsigned long *)(APIC_BASE+APIC_ID));
 }

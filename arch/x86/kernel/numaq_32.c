@@ -236,7 +236,7 @@ static int __init numaq_setup_ioapic_ids(void)
 
 static int __init numaq_update_genapic(void)
 {
-	genapic->wakeup_cpu = wakeup_secondary_cpu_via_nmi;
+	apic->wakeup_cpu = wakeup_secondary_cpu_via_nmi;
 
 	return 0;
 }

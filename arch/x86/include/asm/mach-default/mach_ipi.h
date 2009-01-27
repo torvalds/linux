@@ -12,8 +12,8 @@ extern int no_broadcast;
 
 #ifdef CONFIG_X86_64
 #include <asm/genapic.h>
-#define send_IPI_mask (genapic->send_IPI_mask)
-#define send_IPI_mask_allbutself (genapic->send_IPI_mask_allbutself)
+#define send_IPI_mask (apic->send_IPI_mask)
+#define send_IPI_mask_allbutself (apic->send_IPI_mask_allbutself)
 #else
 static inline void send_IPI_mask(const struct cpumask *mask, int vector)
 {
@@ -39,8 +39,8 @@ static inline void __local_send_IPI_all(int vector)
 }
 
 #ifdef CONFIG_X86_64
-#define send_IPI_allbutself (genapic->send_IPI_allbutself)
-#define send_IPI_all (genapic->send_IPI_all)
+#define send_IPI_allbutself (apic->send_IPI_allbutself)
+#define send_IPI_all (apic->send_IPI_all)
 #else
 static inline void send_IPI_allbutself(int vector)
 {
