@@ -54,22 +54,11 @@ struct rb532_cf_info {
 
 /* ------------------------------------------------------------------------ */
 
-static inline void rb532_pata_finish_io(struct ata_port *ap)
-{
-	struct ata_host *ah = ap->host;
-	struct rb532_cf_info *info = ah->private_data;
-
-	/* FIXME: Keep previous delay. If this is merely a fence then
-	   ata_sff_sync might be sufficient. */
-	ata_sff_dma_pause(ap);
-	ndelay(RB500_CF_IO_DELAY);
-}
-
 static void rb532_pata_exec_command(struct ata_port *ap,
 				const struct ata_taskfile *tf)
 {
 	writeb(tf->command, ap->ioaddr.command_addr);
-	rb532_pata_finish_io(ap);
+	ata_sff_pause(ap);
 }
 
 static unsigned int rb532_pata_data_xfer(struct ata_device *adev, unsigned char *buf,
@@ -87,7 +76,7 @@ static unsigned int rb532_pata_data_xfer(struct ata_device *adev, unsigned char 
 			*buf = readb(ioaddr);
 	}
 
-	rb532_pata_finish_io(adev->link->ap);
+	ata_sff_pause(ap);
 	return retlen;
 }
 
