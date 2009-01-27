@@ -54,13 +54,6 @@ struct rb532_cf_info {
 
 /* ------------------------------------------------------------------------ */
 
-static void rb532_pata_exec_command(struct ata_port *ap,
-				const struct ata_taskfile *tf)
-{
-	writeb(tf->command, ap->ioaddr.command_addr);
-	ata_sff_pause(ap);
-}
-
 static unsigned int rb532_pata_data_xfer(struct ata_device *adev, unsigned char *buf,
 				unsigned int buflen, int write_data)
 {
@@ -112,7 +105,6 @@ static irqreturn_t rb532_pata_irq_handler(int irq, void *dev_instance)
 
 static struct ata_port_operations rb532_pata_port_ops = {
 	.inherits		= &ata_sff_port_ops,
-	.sff_exec_command	= rb532_pata_exec_command,
 	.sff_data_xfer		= rb532_pata_data_xfer,
 	.freeze			= rb532_pata_freeze,
 	.thaw			= rb532_pata_thaw,
