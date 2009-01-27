@@ -1040,7 +1040,7 @@ out:
 static void *pppoe_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(pn->hash_lock)
 {
-	struct pppoe_net *pn = pppoe_pernet(seq->private);
+	struct pppoe_net *pn = pppoe_pernet(seq_file_net(seq));
 	loff_t l = *pos;
 
 	read_lock_bh(&pn->hash_lock);
@@ -1049,7 +1049,7 @@ static void *pppoe_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *pppoe_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct pppoe_net *pn = pppoe_pernet(seq->private);
+	struct pppoe_net *pn = pppoe_pernet(seq_file_net(seq));
 	struct pppox_sock *po;
 
 	++*pos;
@@ -1077,7 +1077,7 @@ out:
 static void pppoe_seq_stop(struct seq_file *seq, void *v)
 	__releases(pn->hash_lock)
 {
-	struct pppoe_net *pn = pppoe_pernet(seq->private);
+	struct pppoe_net *pn = pppoe_pernet(seq_file_net(seq));
 	read_unlock_bh(&pn->hash_lock);
 }
 
@@ -1090,30 +1090,8 @@ static const struct seq_operations pppoe_seq_ops = {
 
 static int pppoe_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *m;
-	struct net *net;
-	int err;
-
-	err = seq_open(file, &pppoe_seq_ops);
-	if (err)
-		return err;
-
-	m = file->private_data;
-	net = maybe_get_net(PDE_NET(PDE(inode)));
-	BUG_ON(!net);
-	m->private = net;
-
-	return err;
-}
-
-static int pppoe_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *m;
-
-	m = file->private_data;
-	put_net((struct net*)m->private);
-
-	return seq_release(inode, file);
+	return seq_open_net(inode, file, &pppoe_seq_ops,
+			sizeof(struct seq_net_private));
 }
 
 static const struct file_operations pppoe_seq_fops = {
@@ -1121,7 +1099,7 @@ static const struct file_operations pppoe_seq_fops = {
 	.open		= pppoe_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= pppoe_seq_release,
+	.release	= seq_release_net,
 };
 
 #endif /* CONFIG_PROC_FS */
