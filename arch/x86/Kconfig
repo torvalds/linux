@@ -271,18 +271,6 @@ config X86_PC
 	help
 	  Choose this option if your computer is a standard PC or compatible.
 
-config X86_VOYAGER
-	bool "Voyager (NCR)"
-	depends on X86_32 && SMP && !PCI && BROKEN
-	help
-	  Voyager is an MCA-based 32-way capable SMP architecture proprietary
-	  to NCR Corp.  Machine classes 345x/35xx/4100/51xx are Voyager-based.
-
-	  *** WARNING ***
-
-	  If you do not specifically know you have a Voyager based machine,
-	  say N here, otherwise the kernel you build will not be bootable.
-
 config X86_GENERICARCH
        bool "Generic architecture"
 	depends on X86_32
@@ -394,6 +382,19 @@ config X86_ELAN
 	  Do not use this option for K6/Athlon/Opteron processors!
 
 	  If unsure, choose "PC-compatible" instead.
+
+config X86_VOYAGER
+	bool "Voyager (NCR)"
+	depends on X86_32 && SMP && !PCI && BROKEN
+	depends on X86_NON_STANDARD
+	help
+	  Voyager is an MCA-based 32-way capable SMP architecture proprietary
+	  to NCR Corp.  Machine classes 345x/35xx/4100/51xx are Voyager-based.
+
+	  *** WARNING ***
+
+	  If you do not specifically know you have a Voyager based machine,
+	  say N here, otherwise the kernel you build will not be bootable.
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
