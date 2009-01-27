@@ -27,6 +27,7 @@
 #include <mach/irqs.h>
 #include <mach/gpio.h>
 #include <asm/mach/irq.h>
+#include <plat/powerdomain.h>
 
 /*
  * OMAP1510 GPIO registers
@@ -2041,19 +2042,24 @@ static struct sys_device omap_gpio_device = {
 
 static int workaround_enabled;
 
-void omap2_gpio_prepare_for_retention(void)
+void omap2_gpio_prepare_for_idle(int power_state)
 {
 	int i, c = 0;
 	int min = 0;
 
 	if (cpu_is_omap34xx())
 		min = 1;
-	/* Remove triggering for all non-wakeup GPIOs.  Otherwise spurious
-	 * IRQs will be generated.  See OMAP2420 Errata item 1.101. */
+
 	for (i = min; i < gpio_bank_count; i++) {
 		struct gpio_bank *bank = &gpio_bank[i];
 		u32 l1, l2;
 
+		if (power_state > PWRDM_POWER_OFF)
+			continue;
+
+		/* If going to OFF, remove triggering for all
+		 * non-wakeup GPIOs.  Otherwise spurious IRQs will be
+		 * generated.  See OMAP2420 Errata item 1.101. */
 		if (!(bank->enabled_non_wakeup_gpios))
 			continue;
 
@@ -2101,18 +2107,19 @@ void omap2_gpio_prepare_for_retention(void)
 	workaround_enabled = 1;
 }
 
-void omap2_gpio_resume_after_retention(void)
+void omap2_gpio_resume_after_idle(void)
 {
 	int i;
 	int min = 0;
 
-	if (!workaround_enabled)
-		return;
 	if (cpu_is_omap34xx())
 		min = 1;
 	for (i = min; i < gpio_bank_count; i++) {
 		struct gpio_bank *bank = &gpio_bank[i];
 		u32 l, gen, gen0, gen1;
+
+		if (!workaround_enabled)
+			continue;
 
 		if (!(bank->enabled_non_wakeup_gpios))
 			continue;

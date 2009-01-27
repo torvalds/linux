@@ -107,7 +107,7 @@ static void omap2_enter_full_retention(void)
 	l = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0) | OMAP24XX_USBSTANDBYCTRL;
 	omap_ctrl_writel(l, OMAP2_CONTROL_DEVCONF0);
 
-	omap2_gpio_prepare_for_retention();
+	omap2_gpio_prepare_for_idle(PWRDM_POWER_RET);
 
 	if (omap2_pm_debug) {
 		omap2_pm_dump(0, 0, 0);
@@ -141,7 +141,7 @@ no_sleep:
 		tmp = timespec_to_ns(&ts_idle) * NSEC_PER_USEC;
 		omap2_pm_dump(0, 1, tmp);
 	}
-	omap2_gpio_resume_after_retention();
+	omap2_gpio_resume_after_idle();
 
 	clk_enable(osc_ck);
 
