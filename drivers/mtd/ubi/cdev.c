@@ -259,12 +259,9 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 	return err ? err : count_save - count;
 }
 
-#ifdef CONFIG_MTD_UBI_DEBUG_USERSPACE_IO
-
 /*
  * This function allows to directly write to dynamic UBI volumes, without
- * issuing the volume update operation. Available only as a debugging feature.
- * Very useful for testing UBI.
+ * issuing the volume update operation.
  */
 static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 				     size_t count, loff_t *offp)
@@ -275,6 +272,9 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	int lnum, off, len, tbuf_size, err = 0;
 	size_t count_save = count;
 	char *tbuf;
+
+	if (!vol->direct_writes)
+		return -EPERM;
 
 	dbg_gen("requested: write %zd bytes to offset %lld of volume %u",
 		count, *offp, vol->vol_id);
@@ -338,10 +338,6 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	vfree(tbuf);
 	return err ? err : count_save - count;
 }
-
-#else
-#define vol_cdev_direct_write(file, buf, count, offp) (-EPERM)
-#endif /* CONFIG_MTD_UBI_DEBUG_USERSPACE_IO */
 
 static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 			      size_t count, loff_t *offp)
@@ -549,6 +545,30 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 		err = ubi_is_mapped(desc, lnum);
+		break;
+	}
+
+	/* Set volume property command*/
+	case UBI_IOCSETPROP:
+	{
+		struct ubi_set_prop_req req;
+
+		err = copy_from_user(&req, argp,
+				sizeof(struct ubi_set_prop_req));
+		if (err) {
+			err = -EFAULT;
+			break;
+		}
+		switch (req.property) {
+		case UBI_PROP_DIRECT_WRITE:
+			mutex_lock(&ubi->volumes_mutex);
+			desc->vol->direct_writes = !!req.value;
+			mutex_unlock(&ubi->volumes_mutex);
+			break;
+		default:
+			err = -EINVAL;
+			break;
+		}
 		break;
 	}
 

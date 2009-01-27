@@ -124,6 +124,14 @@
  * To check if a logical eraseblock is mapped to a physical eraseblock, the
  * %UBI_IOCEBISMAP ioctl command should be used. It returns %0 if the LEB is
  * not mapped, and %1 if it is mapped.
+ *
+ * Set an UBI volume property
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * To set an UBI volume property the %UBI_IOCSETPROP ioctl command should be
+ * used. A pointer to a &struct ubi_set_prop_req object is expected to be
+ * passed. The object describes which property should be set, and to which value
+ * it should be set.
  */
 
 /*
@@ -175,6 +183,8 @@
 #define UBI_IOCEBUNMAP _IOW(UBI_VOL_IOC_MAGIC, 4, int32_t)
 /* Check if LEB is mapped command */
 #define UBI_IOCEBISMAP _IOR(UBI_VOL_IOC_MAGIC, 5, int32_t)
+/* Set an UBI volume property */
+#define UBI_IOCSETPROP _IOW(UBI_VOL_IOC_MAGIC, 6, struct ubi_set_prop_req)
 
 /* Maximum MTD device name length supported by UBI */
 #define MAX_UBI_MTD_NAME_LEN 127
@@ -208,6 +218,16 @@ enum {
 enum {
 	UBI_DYNAMIC_VOLUME = 3,
 	UBI_STATIC_VOLUME  = 4,
+};
+
+/*
+ * UBI set property ioctl constants
+ *
+ * @UBI_PROP_DIRECT_WRITE: allow / disallow user to directly write and
+ *                         erase individual eraseblocks on dynamic volumes
+ */
+enum {
+       UBI_PROP_DIRECT_WRITE = 1,
 };
 
 /**
@@ -372,5 +392,19 @@ struct ubi_map_req {
 	int8_t  dtype;
 	int8_t  padding[3];
 } __attribute__ ((packed));
+
+
+/**
+ * struct ubi_set_prop_req - a data structure used to set an ubi volume
+ *                           property.
+ * @property: property to set (%UBI_PROP_DIRECT_WRITE)
+ * @padding: reserved for future, not used, has to be zeroed
+ * @value: value to set
+ */
+struct ubi_set_prop_req {
+       uint8_t  property;
+       uint8_t  padding[7];
+       uint64_t value;
+}  __attribute__ ((packed));
 
 #endif /* __UBI_USER_H__ */
