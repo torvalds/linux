@@ -5270,8 +5270,8 @@ static ssize_t store_antenna(struct device *d,
 			     struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
+	struct iwl_priv *priv __maybe_unused = dev_get_drvdata(d);
 	int ant;
-	struct iwl_priv *priv = dev_get_drvdata(d);
 
 	if (count == 0)
 		return 0;
