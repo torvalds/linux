@@ -48,25 +48,10 @@
 struct rb532_cf_info {
 	void __iomem	*iobase;
 	unsigned int	gpio_line;
-	int		frozen;
 	unsigned int	irq;
 };
 
 /* ------------------------------------------------------------------------ */
-
-static void rb532_pata_freeze(struct ata_port *ap)
-{
-	struct rb532_cf_info *info = ap->host->private_data;
-
-	info->frozen = 1;
-}
-
-static void rb532_pata_thaw(struct ata_port *ap)
-{
-	struct rb532_cf_info *info = ap->host->private_data;
-
-	info->frozen = 0;
-}
 
 static irqreturn_t rb532_pata_irq_handler(int irq, void *dev_instance)
 {
@@ -75,8 +60,7 @@ static irqreturn_t rb532_pata_irq_handler(int irq, void *dev_instance)
 
 	if (gpio_get_value(info->gpio_line)) {
 		set_irq_type(info->irq, IRQ_TYPE_LEVEL_LOW);
-		if (!info->frozen)
-			ata_sff_interrupt(info->irq, dev_instance);
+		ata_sff_interrupt(info->irq, dev_instance);
 	} else {
 		set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
 	}
@@ -87,8 +71,6 @@ static irqreturn_t rb532_pata_irq_handler(int irq, void *dev_instance)
 static struct ata_port_operations rb532_pata_port_ops = {
 	.inherits		= &ata_sff_port_ops,
 	.sff_data_xfer		= ata_sff_data_xfer32,
-	.freeze			= rb532_pata_freeze,
-	.thaw			= rb532_pata_thaw,
 };
 
 /* ------------------------------------------------------------------------ */
