@@ -468,9 +468,10 @@ struct rt2x00lib_ops {
 	 */
 	int (*probe_hw) (struct rt2x00_dev *rt2x00dev);
 	char *(*get_firmware_name) (struct rt2x00_dev *rt2x00dev);
-	u16 (*get_firmware_crc) (const void *data, const size_t len);
-	int (*load_firmware) (struct rt2x00_dev *rt2x00dev, const void *data,
-			      const size_t len);
+	int (*check_firmware) (struct rt2x00_dev *rt2x00dev,
+			       const u8 *data, const size_t len);
+	int (*load_firmware) (struct rt2x00_dev *rt2x00dev,
+			      const u8 *data, const size_t len);
 
 	/*
 	 * Device initialization/deinitialization handlers.

@@ -1061,34 +1061,41 @@ static char *rt73usb_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 	return FIRMWARE_RT2571;
 }
 
-static u16 rt73usb_get_firmware_crc(const void *data, const size_t len)
+static int rt73usb_check_firmware(struct rt2x00_dev *rt2x00dev,
+				  const u8 *data, const size_t len)
 {
+	u16 fw_crc;
 	u16 crc;
 
 	/*
-	 * Use the crc itu-t algorithm.
+	 * Only support 2kb firmware files.
+	 */
+	if (len != 2048)
+		return FW_BAD_LENGTH;
+
+	/*
 	 * The last 2 bytes in the firmware array are the crc checksum itself,
 	 * this means that we should never pass those 2 bytes to the crc
 	 * algorithm.
+	 */
+	fw_crc = (data[len - 2] << 8 | data[len - 1]);
+
+	/*
+	 * Use the crc itu-t algorithm.
 	 */
 	crc = crc_itu_t(0, data, len - 2);
 	crc = crc_itu_t_byte(crc, 0);
 	crc = crc_itu_t_byte(crc, 0);
 
-	return crc;
+	return (fw_crc == crc) ? FW_OK : FW_BAD_CRC;
 }
 
-static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
-				 const size_t len)
+static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev,
+				 const u8 *data, const size_t len)
 {
 	unsigned int i;
 	int status;
 	u32 reg;
-
-	if (len != 2048) {
-		ERROR(rt2x00dev, "Invalid firmware file length (len=%zu)\n", len);
-		return -ENOENT;
-	}
 
 	/*
 	 * Wait for stable hardware.
@@ -2278,7 +2285,7 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.probe_hw		= rt73usb_probe_hw,
 	.get_firmware_name	= rt73usb_get_firmware_name,
-	.get_firmware_crc	= rt73usb_get_firmware_crc,
+	.check_firmware		= rt73usb_check_firmware,
 	.load_firmware		= rt73usb_load_firmware,
 	.initialize		= rt2x00usb_initialize,
 	.uninitialize		= rt2x00usb_uninitialize,

@@ -135,6 +135,16 @@ enum rate_modulation {
 };
 
 /*
+ * Firmware validation error codes
+ */
+enum firmware_errors {
+	FW_OK,
+	FW_BAD_CRC,
+	FW_BAD_LENGTH,
+	FW_BAD_VERSION,
+};
+
+/*
  * Register handlers.
  * We store the position of a register field inside a field structure,
  * This will simplify the process of setting and reading a certain field
