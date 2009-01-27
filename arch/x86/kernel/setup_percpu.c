@@ -22,14 +22,8 @@
 # define DBG(x...)
 #endif
 
-/*
- * Could be inside CONFIG_HAVE_SETUP_PER_CPU_AREA with other stuff but
- * voyager wants cpu_number too.
- */
-#ifdef CONFIG_SMP
 DEFINE_PER_CPU(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
-#endif
 
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
 
