@@ -1071,22 +1071,19 @@ void __cpuinit cpu_init(void)
 	 */
 	if (kgdb_connected && arch_kgdb_ops.correct_hw_break)
 		arch_kgdb_ops.correct_hw_break();
-	else {
+	else
 #endif
-	/*
-	 * Clear all 6 debug registers:
-	 */
-
-	set_debugreg(0UL, 0);
-	set_debugreg(0UL, 1);
-	set_debugreg(0UL, 2);
-	set_debugreg(0UL, 3);
-	set_debugreg(0UL, 6);
-	set_debugreg(0UL, 7);
-#ifdef CONFIG_KGDB
-	/* If the kgdb is connected no debug regs should be altered. */
+	{
+		/*
+		 * Clear all 6 debug registers:
+		 */
+		set_debugreg(0UL, 0);
+		set_debugreg(0UL, 1);
+		set_debugreg(0UL, 2);
+		set_debugreg(0UL, 3);
+		set_debugreg(0UL, 6);
+		set_debugreg(0UL, 7);
 	}
-#endif
 
 	fpu_init();
 
