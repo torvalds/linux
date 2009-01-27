@@ -172,11 +172,11 @@ static struct ip_tunnel * ipgre_tunnel_lookup(struct net_device *dev,
 	int link = dev->ifindex;
 	unsigned h0 = HASH(remote);
 	unsigned h1 = HASH(key);
-	struct ip_tunnel *t, *sel[4] = { NULL, NULL, NULL, NULL };
+	struct ip_tunnel *t, *cand = NULL;
 	struct ipgre_net *ign = net_generic(net, ipgre_net_id);
 	int dev_type = (gre_proto == htons(ETH_P_TEB)) ?
 		       ARPHRD_ETHER : ARPHRD_IPGRE;
-	int idx;
+	int score, cand_score = 4;
 
 	for (t = ign->tunnels_r_l[h0^h1]; t; t = t->next) {
 		if (local != t->parms.iph.saddr ||
@@ -189,15 +189,18 @@ static struct ip_tunnel * ipgre_tunnel_lookup(struct net_device *dev,
 		    t->dev->type != dev_type)
 			continue;
 
-		idx = 0;
+		score = 0;
 		if (t->parms.link != link)
-			idx |= 1;
+			score |= 1;
 		if (t->dev->type != dev_type)
-			idx |= 2;
-		if (idx == 0)
+			score |= 2;
+		if (score == 0)
 			return t;
-		if (sel[idx] == NULL)
-			sel[idx] = t;
+
+		if (score < cand_score) {
+			cand = t;
+			cand_score = score;
+		}
 	}
 
 	for (t = ign->tunnels_r[h0^h1]; t; t = t->next) {
@@ -210,15 +213,18 @@ static struct ip_tunnel * ipgre_tunnel_lookup(struct net_device *dev,
 		    t->dev->type != dev_type)
 			continue;
 
-		idx = 0;
+		score = 0;
 		if (t->parms.link != link)
-			idx |= 1;
+			score |= 1;
 		if (t->dev->type != dev_type)
-			idx |= 2;
-		if (idx == 0)
+			score |= 2;
+		if (score == 0)
 			return t;
-		if (sel[idx] == NULL)
-			sel[idx] = t;
+
+		if (score < cand_score) {
+			cand = t;
+			cand_score = score;
+		}
 	}
 
 	for (t = ign->tunnels_l[h1]; t; t = t->next) {
@@ -233,15 +239,18 @@ static struct ip_tunnel * ipgre_tunnel_lookup(struct net_device *dev,
 		    t->dev->type != dev_type)
 			continue;
 
-		idx = 0;
+		score = 0;
 		if (t->parms.link != link)
-			idx |= 1;
+			score |= 1;
 		if (t->dev->type != dev_type)
-			idx |= 2;
-		if (idx == 0)
+			score |= 2;
+		if (score == 0)
 			return t;
-		if (sel[idx] == NULL)
-			sel[idx] = t;
+
+		if (score < cand_score) {
+			cand = t;
+			cand_score = score;
+		}
 	}
 
 	for (t = ign->tunnels_wc[h1]; t; t = t->next) {
@@ -253,20 +262,22 @@ static struct ip_tunnel * ipgre_tunnel_lookup(struct net_device *dev,
 		    t->dev->type != dev_type)
 			continue;
 
-		idx = 0;
+		score = 0;
 		if (t->parms.link != link)
-			idx |= 1;
+			score |= 1;
 		if (t->dev->type != dev_type)
-			idx |= 2;
-		if (idx == 0)
+			score |= 2;
+		if (score == 0)
 			return t;
-		if (sel[idx] == NULL)
-			sel[idx] = t;
+
+		if (score < cand_score) {
+			cand = t;
+			cand_score = score;
+		}
 	}
 
-	for (idx = 1; idx < ARRAY_SIZE(sel); idx++)
-		if (sel[idx] != NULL)
-			return sel[idx];
+	if (cand != NULL)
+		return cand;
 
 	if (ign->fb_tunnel_dev->flags & IFF_UP)
 		return netdev_priv(ign->fb_tunnel_dev);
