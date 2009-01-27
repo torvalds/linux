@@ -293,20 +293,20 @@ void kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 	}
 }
 
-static void __kvm_ioapic_update_eoi(struct kvm_ioapic *ioapic, int gsi,
+static void __kvm_ioapic_update_eoi(struct kvm_ioapic *ioapic, int pin,
 				    int trigger_mode)
 {
 	union ioapic_redir_entry *ent;
 
-	ent = &ioapic->redirtbl[gsi];
+	ent = &ioapic->redirtbl[pin];
 
-	kvm_notify_acked_irq(ioapic->kvm, gsi);
+	kvm_notify_acked_irq(ioapic->kvm, KVM_IRQCHIP_IOAPIC, pin);
 
 	if (trigger_mode == IOAPIC_LEVEL_TRIG) {
 		ASSERT(ent->fields.trig_mode == IOAPIC_LEVEL_TRIG);
 		ent->fields.remote_irr = 0;
-		if (!ent->fields.mask && (ioapic->irr & (1 << gsi)))
-			ioapic_service(ioapic, gsi);
+		if (!ent->fields.mask && (ioapic->irr & (1 << pin)))
+			ioapic_service(ioapic, pin);
 	}
 }
 

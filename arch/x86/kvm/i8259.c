@@ -49,7 +49,8 @@ static void pic_unlock(struct kvm_pic *s)
 	spin_unlock(&s->lock);
 
 	while (acks) {
-		kvm_notify_acked_irq(kvm, __ffs(acks));
+		kvm_notify_acked_irq(kvm, SELECT_PIC(__ffs(acks)),
+				     __ffs(acks));
 		acks &= acks - 1;
 	}
 
@@ -232,7 +233,7 @@ int kvm_pic_read_irq(struct kvm *kvm)
 	}
 	pic_update_irq(s);
 	pic_unlock(s);
-	kvm_notify_acked_irq(kvm, irq);
+	kvm_notify_acked_irq(kvm, SELECT_PIC(irq), irq);
 
 	return intno;
 }

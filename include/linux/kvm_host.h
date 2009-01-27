@@ -352,7 +352,7 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask);
 
 void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level);
-void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi);
+void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin);
 void kvm_register_irq_ack_notifier(struct kvm *kvm,
 				   struct kvm_irq_ack_notifier *kian);
 void kvm_unregister_irq_ack_notifier(struct kvm_irq_ack_notifier *kian);

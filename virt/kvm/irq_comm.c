@@ -59,10 +59,19 @@ void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 			e->set(e, kvm, !!(*irq_state));
 }
 
-void kvm_notify_acked_irq(struct kvm *kvm, unsigned gsi)
+void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
 {
+	struct kvm_kernel_irq_routing_entry *e;
 	struct kvm_irq_ack_notifier *kian;
 	struct hlist_node *n;
+	unsigned gsi = pin;
+
+	list_for_each_entry(e, &kvm->irq_routing, link)
+		if (e->irqchip.irqchip == irqchip &&
+		    e->irqchip.pin == pin) {
+			gsi = e->gsi;
+			break;
+		}
 
 	hlist_for_each_entry(kian, n, &kvm->arch.irq_ack_notifier_list, link)
 		if (kian->gsi == gsi)
@@ -237,8 +246,6 @@ out:
 #define ROUTING_ENTRY1(irq) IOAPIC_ROUTING_ENTRY(irq)
 
 #ifdef CONFIG_X86
-#define SELECT_PIC(irq) \
-	((irq) < 8 ? KVM_IRQCHIP_PIC_MASTER : KVM_IRQCHIP_PIC_SLAVE)
 #  define PIC_ROUTING_ENTRY(irq) \
 	{ .gsi = irq, .type = KVM_IRQ_ROUTING_IRQCHIP,	\
 	  .u.irqchip.irqchip = SELECT_PIC(irq), .u.irqchip.pin = (irq) % 8 }
