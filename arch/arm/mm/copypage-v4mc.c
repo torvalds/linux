@@ -68,7 +68,7 @@ mc_copy_user_page(void *from, void *to)
 	: "r" (from), "r" (to), "I" (PAGE_SIZE / 64));
 }
 
-void v4_mc_copy_user_highpage(struct page *from, struct page *to,
+void v4_mc_copy_user_highpage(struct page *to, struct page *from,
 	unsigned long vaddr)
 {
 	void *kto = kmap_atomic(to, KM_USER1);

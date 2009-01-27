@@ -87,14 +87,6 @@ config PHANTOM
 	  If you choose to build module, its name will be phantom. If unsure,
 	  say N here.
 
-config EEPROM_93CX6
-	tristate "EEPROM 93CX6 support"
-	---help---
-	  This is a driver for the EEPROM chipsets 93c46 and 93c66.
-	  The driver supports both read as well as write commands.
-
-	  If unsure, say N.
-
 config SGI_IOC4
 	tristate "SGI IOC4 Base IO support"
 	depends on PCI
@@ -231,5 +223,6 @@ config DELL_LAPTOP
 	laptops.
 
 source "drivers/misc/c2port/Kconfig"
+source "drivers/misc/eeprom/Kconfig"
 
 endif # MISC_DEVICES

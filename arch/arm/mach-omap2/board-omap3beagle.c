@@ -28,6 +28,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand.h>
 
+#include <linux/i2c/twl4030.h>
+
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -120,6 +122,9 @@ static int beagle_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
+	omap_cfg_reg(AH8_34XX_GPIO29);
+	mmc[0].gpio_cd = gpio + 0;
+	twl4030_mmc_init(mmc);
 
 	/* REVISIT: need ehci-omap hooks for external VBUS
 	 * power switch and overcurrent detect
@@ -303,10 +308,6 @@ static void __init omap3_beagle_init(void)
 	omap_board_config = omap3_beagle_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_beagle_config);
 	omap_serial_init();
-
-	omap_cfg_reg(AH8_34XX_GPIO29);
-	mmc[0].gpio_cd = gpio + 0;
-	twl4030_mmc_init(mmc);
 
 	omap_cfg_reg(J25_34XX_GPIO170);
 	gpio_request(170, "DVI_nPD");

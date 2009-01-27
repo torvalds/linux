@@ -194,7 +194,7 @@ SYSCALL(sys_chown16,sys_ni_syscall,sys32_chown16_wrapper)	/* old chown16 syscall
 SYSCALL(sys_getcwd,sys_getcwd,sys32_getcwd_wrapper)
 SYSCALL(sys_capget,sys_capget,sys32_capget_wrapper)
 SYSCALL(sys_capset,sys_capset,sys32_capset_wrapper)		/* 185 */
-SYSCALL(sys_sigaltstack,sys_sigaltstack,sys32_sigaltstack)
+SYSCALL(sys_sigaltstack,sys_sigaltstack,sys32_sigaltstack_wrapper)
 SYSCALL(sys_sendfile,sys_sendfile64,sys32_sendfile_wrapper)
 NI_SYSCALL							/* streams1 */
 NI_SYSCALL							/* streams2 */
@@ -230,8 +230,8 @@ SYSCALL(sys_mincore,sys_mincore,sys32_mincore_wrapper)
 SYSCALL(sys_madvise,sys_madvise,sys32_madvise_wrapper)
 SYSCALL(sys_getdents64,sys_getdents64,sys32_getdents64_wrapper)	/* 220 */
 SYSCALL(sys_fcntl64,sys_ni_syscall,compat_sys_fcntl64_wrapper)
-SYSCALL(sys_readahead,sys_readahead,sys32_readahead)
-SYSCALL(sys_sendfile64,sys_ni_syscall,sys32_sendfile64)
+SYSCALL(sys_readahead,sys_readahead,sys32_readahead_wrapper)
+SYSCALL(sys_sendfile64,sys_ni_syscall,sys32_sendfile64_wrapper)
 SYSCALL(sys_setxattr,sys_setxattr,sys32_setxattr_wrapper)
 SYSCALL(sys_lsetxattr,sys_lsetxattr,sys32_lsetxattr_wrapper)	/* 225 */
 SYSCALL(sys_fsetxattr,sys_fsetxattr,sys32_fsetxattr_wrapper)
@@ -245,11 +245,11 @@ SYSCALL(sys_removexattr,sys_removexattr,sys32_removexattr_wrapper)
 SYSCALL(sys_lremovexattr,sys_lremovexattr,sys32_lremovexattr_wrapper)
 SYSCALL(sys_fremovexattr,sys_fremovexattr,sys32_fremovexattr_wrapper)	/* 235 */
 SYSCALL(sys_gettid,sys_gettid,sys_gettid)
-SYSCALL(sys_tkill,sys_tkill,sys_tkill)
+SYSCALL(sys_tkill,sys_tkill,sys_tkill_wrapper)
 SYSCALL(sys_futex,sys_futex,compat_sys_futex_wrapper)
 SYSCALL(sys_sched_setaffinity,sys_sched_setaffinity,sys32_sched_setaffinity_wrapper)
 SYSCALL(sys_sched_getaffinity,sys_sched_getaffinity,sys32_sched_getaffinity_wrapper)	/* 240 */
-SYSCALL(sys_tgkill,sys_tgkill,sys_tgkill)
+SYSCALL(sys_tgkill,sys_tgkill,sys_tgkill_wrapper)
 NI_SYSCALL							/* reserved for TUX */
 SYSCALL(sys_io_setup,sys_io_setup,sys32_io_setup_wrapper)
 SYSCALL(sys_io_destroy,sys_io_destroy,sys32_io_destroy_wrapper)
@@ -288,7 +288,7 @@ SYSCALL(sys_mq_getsetattr,sys_mq_getsetattr,compat_sys_mq_getsetattr_wrapper)
 SYSCALL(sys_kexec_load,sys_kexec_load,compat_sys_kexec_load_wrapper)
 SYSCALL(sys_add_key,sys_add_key,compat_sys_add_key_wrapper)
 SYSCALL(sys_request_key,sys_request_key,compat_sys_request_key_wrapper)
-SYSCALL(sys_keyctl,sys_keyctl,compat_sys_keyctl)		/* 280 */
+SYSCALL(sys_keyctl,sys_keyctl,compat_sys_keyctl_wrapper)		/* 280 */
 SYSCALL(sys_waitid,sys_waitid,compat_sys_waitid_wrapper)
 SYSCALL(sys_ioprio_set,sys_ioprio_set,sys_ioprio_set_wrapper)
 SYSCALL(sys_ioprio_get,sys_ioprio_get,sys_ioprio_get_wrapper)

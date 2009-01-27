@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
+#include <mach/irqs.h>
 #include <mach/dma.h>
 #include <mach/irqs.h>
 #include <mach/mux.h>

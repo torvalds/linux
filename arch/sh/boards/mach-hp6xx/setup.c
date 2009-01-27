@@ -12,9 +12,9 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/irq.h>
 #include <asm/hd64461.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <mach/hp6xx.h>
 #include <cpu/dac.h>
 

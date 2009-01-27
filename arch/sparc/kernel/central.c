@@ -103,6 +103,7 @@ static int __devinit clock_board_probe(struct of_device *op,
 	p->leds_resource.name = "leds";
 
 	p->leds_pdev.name = "sunfire-clockboard-leds";
+	p->leds_pdev.id = -1;
 	p->leds_pdev.resource = &p->leds_resource;
 	p->leds_pdev.num_resources = 1;
 	p->leds_pdev.dev.parent = &op->dev;
@@ -197,6 +198,7 @@ static int __devinit fhc_probe(struct of_device *op,
 		p->leds_resource.name = "leds";
 
 		p->leds_pdev.name = "sunfire-fhc-leds";
+		p->leds_pdev.id = p->board_num;
 		p->leds_pdev.resource = &p->leds_resource;
 		p->leds_pdev.num_resources = 1;
 		p->leds_pdev.dev.parent = &op->dev;

@@ -1,0 +1,16 @@
+config ROMFS_FS
+	tristate "ROM file system support"
+	depends on BLOCK
+	---help---
+	  This is a very small read-only file system mainly intended for
+	  initial ram disks of installation disks, but it could be used for
+	  other read-only media as well.  Read
+	  <file:Documentation/filesystems/romfs.txt> for details.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called romfs.  Note that the file system of your
+	  root partition (the one containing the directory /) cannot be a
+	  module.
+
+	  If you don't know whether you need it, then you don't need it:
+	  answer N.

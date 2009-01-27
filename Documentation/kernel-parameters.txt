@@ -577,9 +577,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			a memory unit (amount[KMG]). See also
 			Documentation/kdump/kdump.txt for a example.
 
-	cs4232=		[HW,OSS]
-			Format: <io>,<irq>,<dma>,<dma2>,<mpuio>,<mpuirq>
-
 	cs89x0_dma=	[HW,NET]
 			Format: <dma>
 
@@ -731,10 +728,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			1 -- enforcing (deny and log).
 			Default value is 0.
 			Value can be changed at runtime via /selinux/enforce.
-
-	es1371=		[HW,OSS]
-			Format: <spdif>,[<nomix>,[<amplifier>]]
-			See also header of sound/oss/es1371.c.
 
 	ether=		[HW,NET] Ethernet cards parameters
 			This option is obsoleted by the "netdev=" option, which
