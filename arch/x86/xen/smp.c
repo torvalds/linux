@@ -281,7 +281,6 @@ static int __cpuinit xen_cpu_up(unsigned int cpu)
 
 	per_cpu(current_task, cpu) = idle;
 #ifdef CONFIG_X86_32
-	init_gdt(cpu);
 	irq_ctx_init(cpu);
 #else
 	clear_tsk_thread_flag(idle, TIF_FORK);

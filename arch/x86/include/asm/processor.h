@@ -394,14 +394,6 @@ union irq_stack_union {
 
 DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
 DECLARE_PER_CPU(char *, irq_stack_ptr);
-
-static inline void load_gs_base(int cpu)
-{
-	/* Memory clobbers used to order pda/percpu accesses */
-	mb();
-	wrmsrl(MSR_GS_BASE, (unsigned long)per_cpu(irq_stack_union.gs_base, cpu));
-	mb();
-}
 #endif
 
 extern void print_cpu_info(struct cpuinfo_x86 *);
@@ -778,7 +770,6 @@ extern struct desc_ptr		early_gdt_descr;
 extern void cpu_set_gdt(int);
 extern void switch_to_new_gdt(void);
 extern void cpu_init(void);
-extern void init_gdt(int cpu);
 
 static inline unsigned long get_debugctlmsr(void)
 {
