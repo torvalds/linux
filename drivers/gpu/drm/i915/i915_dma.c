@@ -731,6 +731,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_GEM:
 		value = dev_priv->has_gem;
 		break;
+	case I915_PARAM_NUM_FENCES_AVAIL:
+		value = dev_priv->num_fence_regs - dev_priv->fence_reg_start;
+		break;
 	default:
 		DRM_ERROR("Unknown parameter %d\n", param->param);
 		return -EINVAL;
@@ -763,6 +766,13 @@ static int i915_setparam(struct drm_device *dev, void *data,
 		break;
 	case I915_SETPARAM_ALLOW_BATCHBUFFER:
 		dev_priv->allow_batchbuffer = param->value;
+		break;
+	case I915_SETPARAM_NUM_USED_FENCES:
+		if (param->value > dev_priv->num_fence_regs ||
+		    param->value < 0)
+			return -EINVAL;
+		/* Userspace can use first N regs */
+		dev_priv->fence_reg_start = param->value;
 		break;
 	default:
 		DRM_ERROR("unknown parameter %d\n", param->param);

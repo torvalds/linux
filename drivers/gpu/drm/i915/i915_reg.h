@@ -186,12 +186,12 @@
 #define FENCE_REG_830_0			0x2000
 #define   I830_FENCE_START_MASK		0x07f80000
 #define   I830_FENCE_TILING_Y_SHIFT	12
-#define   I830_FENCE_SIZE_BITS(size)	((get_order(size >> 19) - 1) << 8)
+#define   I830_FENCE_SIZE_BITS(size)	((ffs((size) >> 19) - 1) << 8)
 #define   I830_FENCE_PITCH_SHIFT	4
 #define   I830_FENCE_REG_VALID		(1<<0)
 
 #define   I915_FENCE_START_MASK		0x0ff00000
-#define   I915_FENCE_SIZE_BITS(size)	((get_order(size >> 20) - 1) << 8)
+#define   I915_FENCE_SIZE_BITS(size)	((ffs((size) >> 20) - 1) << 8)
 
 #define FENCE_REG_965_0			0x03000
 #define   I965_FENCE_PITCH_SHIFT	2
