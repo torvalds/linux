@@ -271,51 +271,6 @@ config X86_PC
 	help
 	  Choose this option if your computer is a standard PC or compatible.
 
-config X86_GENERICARCH
-       bool "Generic architecture"
-	depends on X86_32
-       help
-          This option compiles in the NUMAQ, Summit, bigsmp, ES7000, default
-	  subarchitectures.  It is intended for a generic binary kernel.
-	  if you select them all, kernel will probe it one by one. and will
-	  fallback to default.
-
-if X86_GENERICARCH
-
-config X86_NUMAQ
-	bool "NUMAQ (IBM/Sequent)"
-	depends on SMP && X86_32 && PCI && X86_MPPARSE
-	select NUMA
-	help
-	  This option is used for getting Linux to run on a NUMAQ (IBM/Sequent)
-	  NUMA multiquad box. This changes the way that processors are
-	  bootstrapped, and uses Clustered Logical APIC addressing mode instead
-	  of Flat Logical.  You will need a new lynxer.elf file to flash your
-	  firmware with - send email to <Martin.Bligh@us.ibm.com>.
-
-config X86_SUMMIT
-	bool "Summit/EXA (IBM x440)"
-	depends on X86_32 && SMP
-	help
-	  This option is needed for IBM systems that use the Summit/EXA chipset.
-	  In particular, it is needed for the x440.
-
-config X86_ES7000
-	bool "Support for Unisys ES7000 IA32 series"
-	depends on X86_32 && SMP
-	help
-	  Support for Unisys ES7000 systems.  Say 'Y' here if this kernel is
-	  supposed to run on an IA32-based Unisys ES7000 system.
-
-config X86_BIGSMP
-	bool "Support for big SMP systems with more than 8 CPUs"
-	depends on X86_32 && SMP
-	help
-	  This option is needed for the systems that have more than 8 CPUs
-	  and if the system is not of any sub-arch type above.
-
-endif
-
 config X86_VSMP
 	bool "Support for ScaleMP vSMP"
 	select PARAVIRT
@@ -395,6 +350,49 @@ config X86_VOYAGER
 
 	  If you do not specifically know you have a Voyager based machine,
 	  say N here, otherwise the kernel you build will not be bootable.
+
+config X86_GENERICARCH
+	bool "Support non-standard 32-bit SMP architectures"
+	depends on X86_32 && SMP
+	depends on X86_NON_STANDARD
+	help
+          This option compiles in the NUMAQ, Summit, bigsmp, ES7000, default
+	  subarchitectures.  It is intended for a generic binary kernel.
+	  if you select them all, kernel will probe it one by one. and will
+	  fallback to default.
+
+config X86_NUMAQ
+	bool "NUMAQ (IBM/Sequent)"
+	depends on X86_GENERICARCH
+	select NUMA
+	select X86_MPPARSE
+	help
+	  This option is used for getting Linux to run on a NUMAQ (IBM/Sequent)
+	  NUMA multiquad box. This changes the way that processors are
+	  bootstrapped, and uses Clustered Logical APIC addressing mode instead
+	  of Flat Logical.  You will need a new lynxer.elf file to flash your
+	  firmware with - send email to <Martin.Bligh@us.ibm.com>.
+
+config X86_SUMMIT
+	bool "Summit/EXA (IBM x440)"
+	depends on X86_GENERICARCH
+	help
+	  This option is needed for IBM systems that use the Summit/EXA chipset.
+	  In particular, it is needed for the x440.
+
+config X86_ES7000
+	bool "Support for Unisys ES7000 IA32 series"
+	depends on X86_GENERICARCH
+	help
+	  Support for Unisys ES7000 systems.  Say 'Y' here if this kernel is
+	  supposed to run on an IA32-based Unisys ES7000 system.
+
+config X86_BIGSMP
+	bool "Support for big SMP systems with more than 8 CPUs"
+	depends on X86_GENERICARCH
+	help
+	  This option is needed for the systems that have more than 8 CPUs
+	  and if the system is not of any sub-arch type above.
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
