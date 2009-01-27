@@ -2482,7 +2482,7 @@ static int iwl_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		dev_kfree_skb_any(skb);
 
 	IWL_DEBUG_MACDUMP("leave\n");
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int iwl_mac_add_interface(struct ieee80211_hw *hw,

@@ -609,7 +609,7 @@ void i2400m_msg_to_dev_cancel_wait(struct i2400m *i2400m, int code)
 	spin_lock_irqsave(&i2400m->rx_lock, flags);
 	ack_skb = i2400m->ack_skb;
 	if (ack_skb && !IS_ERR(ack_skb))
-		kfree(ack_skb);
+		kfree_skb(ack_skb);
 	i2400m->ack_skb = ERR_PTR(code);
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
 }

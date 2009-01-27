@@ -1,0 +1,15 @@
+config FUSE_FS
+	tristate "FUSE (Filesystem in Userspace) support"
+	help
+	  With FUSE it is possible to implement a fully functional filesystem
+	  in a userspace program.
+
+	  There's also companion library: libfuse.  This library along with
+	  utilities is available from the FUSE homepage:
+	  <http://fuse.sourceforge.net/>
+
+	  See <file:Documentation/filesystems/fuse.txt> for more information.
+	  See <file:Documentation/Changes> for needed library/utility version.
+
+	  If you want to develop a userspace FS, or if you want to use
+	  a filesystem based on FUSE, answer Y or M.

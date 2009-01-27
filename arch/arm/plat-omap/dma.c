@@ -278,14 +278,11 @@ void omap_set_dma_transfer_params(int lch, int data_type, int elem_count,
 		u32 val;
 
 		val = dma_read(CCR(lch));
-		val &= ~(3 << 19);
-		if (dma_trigger > 63)
-			val |= 1 << 20;
-		if (dma_trigger > 31)
-			val |= 1 << 19;
 
-		val &= ~(0x1f);
-		val |= (dma_trigger & 0x1f);
+		/* DMA_SYNCHRO_CONTROL_UPPER depends on the channel number */
+		val &= ~((3 << 19) | 0x1f);
+		val |= (dma_trigger & ~0x1f) << 14;
+		val |= dma_trigger & 0x1f;
 
 		if (sync_mode & OMAP_DMA_SYNC_FRAME)
 			val |= 1 << 5;

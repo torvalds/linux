@@ -1419,7 +1419,6 @@ static int __devinit add_card(struct pci_dev *dev,
 		i2c_ad = kzalloc(sizeof(*i2c_ad), GFP_KERNEL);
         	if (!i2c_ad) FAIL("failed to allocate I2C adapter memory");
 
-		i2c_ad->id = I2C_HW_B_PCILYNX;
 		strlcpy(i2c_ad->name, "PCILynx I2C", sizeof(i2c_ad->name));
                 i2c_adapter_data = bit_data;
                 i2c_ad->algo_data = &i2c_adapter_data;

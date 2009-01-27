@@ -611,8 +611,8 @@ CONFIG_I2C_GPIO=m
 # Miscellaneous I2C Chip support
 #
 # CONFIG_DS1682 is not set
-CONFIG_AT24=m
-# CONFIG_SENSORS_EEPROM is not set
+CONFIG_EEPROM_AT24=m
+# CONFIG_EEPROM_LEGACY is not set
 # CONFIG_SENSORS_PCF8574 is not set
 # CONFIG_PCF8575 is not set
 # CONFIG_SENSORS_PCA9539 is not set
@@ -637,7 +637,7 @@ CONFIG_SPI_ATMEL=y
 #
 # SPI Protocol Masters
 #
-# CONFIG_SPI_AT25 is not set
+# CONFIG_EEPROM_AT25 is not set
 CONFIG_SPI_SPIDEV=m
 # CONFIG_SPI_TLE62X0 is not set
 CONFIG_ARCH_REQUIRE_GPIOLIB=y
