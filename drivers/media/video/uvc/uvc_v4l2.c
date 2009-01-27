@@ -488,8 +488,8 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		memset(cap, 0, sizeof *cap);
 		strlcpy(cap->driver, "uvcvideo", sizeof cap->driver);
 		strlcpy(cap->card, vdev->name, sizeof cap->card);
-		strlcpy(cap->bus_info, video->dev->udev->bus->bus_name,
-			sizeof cap->bus_info);
+		usb_make_path(video->dev->udev,
+			      cap->bus_info, sizeof(cap->bus_info));
 		cap->version = DRIVER_VERSION_NUMBER;
 		if (video->streaming->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 			cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
