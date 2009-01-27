@@ -15,6 +15,7 @@
 #include <asm/highmem.h>
 #include <asm/proto.h>
 #include <asm/cpumask.h>
+#include <asm/cpu.h>
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 # define DBG(x...) printk(KERN_DEBUG x)
@@ -37,7 +38,7 @@ EXPORT_PER_CPU_SYMBOL(this_cpu_off);
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
 
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = {
-	[0] = BOOT_PERCPU_OFFSET,
+	[0 ... NR_CPUS-1] = BOOT_PERCPU_OFFSET,
 };
 EXPORT_SYMBOL(__per_cpu_offset);
 
@@ -101,10 +102,10 @@ void __init setup_per_cpu_areas(void)
 				early_per_cpu_map(x86_cpu_to_node_map, cpu);
 #endif
 		/*
-		 * Up to this point, CPU0 has been using .data.init
-		 * area.  Reload %gs offset for CPU0.
+		 * Up to this point, the boot CPU has been using .data.init
+		 * area.  Reload %gs offset for the boot CPU.
 		 */
-		if (cpu == 0)
+		if (cpu == boot_cpu_id)
 			load_gs_base(cpu);
 #endif
 
