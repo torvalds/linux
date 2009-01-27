@@ -213,7 +213,7 @@ static void cdrom_queue_request_sense(ide_drive_t *drive, void *sense,
 				      struct request *failed_command)
 {
 	struct cdrom_info *info		= drive->driver_data;
-	struct request *rq		= &info->request_sense_request;
+	struct request *rq		= &drive->request_sense_rq;
 
 	ide_debug_log(IDE_DBG_SENSE, "enter");
 

@@ -91,8 +91,6 @@ struct cdrom_info {
 	   on this device. */
 	struct request_sense sense_data;
 
-	struct request request_sense_request;
-
 	u8 max_speed;		/* Max speed of the drive. */
 	u8 current_speed;	/* Current speed of the drive. */
 
