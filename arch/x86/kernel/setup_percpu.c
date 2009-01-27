@@ -96,22 +96,25 @@ void __init setup_per_cpu_areas(void)
 		per_cpu(cpu_number, cpu) = cpu;
 		setup_percpu_segment(cpu);
 		/*
-		 * Copy data used in early init routines from the initial arrays to the
-		 * per cpu data areas.  These arrays then become expendable and the
-		 * *_early_ptr's are zeroed indicating that the static arrays are gone.
+		 * Copy data used in early init routines from the
+		 * initial arrays to the per cpu data areas.  These
+		 * arrays then become expendable and the *_early_ptr's
+		 * are zeroed indicating that the static arrays are
+		 * gone.
 		 */
 #ifdef CONFIG_X86_LOCAL_APIC
 		per_cpu(x86_cpu_to_apicid, cpu) =
-				early_per_cpu_map(x86_cpu_to_apicid, cpu);
+			early_per_cpu_map(x86_cpu_to_apicid, cpu);
 		per_cpu(x86_bios_cpu_apicid, cpu) =
-				early_per_cpu_map(x86_bios_cpu_apicid, cpu);
+			early_per_cpu_map(x86_bios_cpu_apicid, cpu);
 #endif
 #ifdef CONFIG_X86_64
 		per_cpu(irq_stack_ptr, cpu) =
-			per_cpu(irq_stack_union.irq_stack, cpu) + IRQ_STACK_SIZE - 64;
+			per_cpu(irq_stack_union.irq_stack, cpu) +
+			IRQ_STACK_SIZE - 64;
 #ifdef CONFIG_NUMA
 		per_cpu(x86_cpu_to_node_map, cpu) =
-				early_per_cpu_map(x86_cpu_to_node_map, cpu);
+			early_per_cpu_map(x86_cpu_to_node_map, cpu);
 #endif
 #endif
 		/*
