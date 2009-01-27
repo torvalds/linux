@@ -349,9 +349,23 @@ config X86_VSMP
 
 endchoice
 
+config X86_NON_STANDARD
+	bool "Support for non-standard x86 platforms"
+	help
+	  If you disable this option then the kernel will only support
+	  standard PC platforms. (which covers the vast majority of
+	  systems out there.)
+
+	  If you enable this option then you'll be able to select a number
+	  of less common non-PC x86 platforms: VisWS, RDC321, SGI/UV.
+
+	  If you have one of these systems, or if you want to build a
+	  generic distribution kernel, say Y here - otherwise say N.
+
 config X86_VISWS
 	bool "SGI 320/540 (Visual Workstation)"
 	depends on X86_32 && PCI && X86_MPPARSE && PCI_GODIRECT
+	depends on X86_NON_STANDARD
 	help
 	  The SGI Visual Workstation series is an IA32-based workstation
 	  based on SGI systems chips with some legacy PC hardware attached.
@@ -364,6 +378,7 @@ config X86_VISWS
 config X86_RDC321X
 	bool "RDC R-321x SoC"
 	depends on X86_32
+	depends on X86_NON_STANDARD
 	select M486
 	select X86_REBOOTFIXUPS
 	help
@@ -374,6 +389,7 @@ config X86_RDC321X
 config X86_UV
 	bool "SGI Ultraviolet"
 	depends on X86_64
+	depends on X86_NON_STANDARD
 	help
 	  This option is needed in order to support SGI Ultraviolet systems.
 	  If you don't have one of these, you should say N here.
