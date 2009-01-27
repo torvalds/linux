@@ -35,8 +35,6 @@ EXPORT_PER_CPU_SYMBOL(cpu_number);
 DEFINE_PER_CPU(unsigned long, this_cpu_off) = BOOT_PERCPU_OFFSET;
 EXPORT_PER_CPU_SYMBOL(this_cpu_off);
 
-#ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
-
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = {
 	[0 ... NR_CPUS-1] = BOOT_PERCPU_OFFSET,
 };
@@ -125,6 +123,3 @@ void __init setup_per_cpu_areas(void)
 	/* Setup cpu initialized, callin, callout masks */
 	setup_cpu_local_masks();
 }
-
-#endif
-
