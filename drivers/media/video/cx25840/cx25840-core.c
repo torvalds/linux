@@ -1383,7 +1383,7 @@ static int cx25840_log_status(struct v4l2_subdev *sd)
 static int cx25840_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
 	/* ignore this command */
-	if (cmd == TUNER_SET_TYPE_ADDR)
+	if (cmd == TUNER_SET_TYPE_ADDR || cmd == TUNER_SET_CONFIG)
 		return 0;
 
 	/* Old-style drivers rely on initialization on first use, so
