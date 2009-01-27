@@ -1742,6 +1742,21 @@ static const struct net_device_ops smsc911x_netdev_ops = {
 #endif
 };
 
+/* copies the current mac address from hardware to dev->dev_addr */
+static void __devinit smsc911x_read_mac_address(struct net_device *dev)
+{
+	struct smsc911x_data *pdata = netdev_priv(dev);
+	u32 mac_high16 = smsc911x_mac_read(pdata, ADDRH);
+	u32 mac_low32 = smsc911x_mac_read(pdata, ADDRL);
+
+	dev->dev_addr[0] = (u8)(mac_low32);
+	dev->dev_addr[1] = (u8)(mac_low32 >> 8);
+	dev->dev_addr[2] = (u8)(mac_low32 >> 16);
+	dev->dev_addr[3] = (u8)(mac_low32 >> 24);
+	dev->dev_addr[4] = (u8)(mac_high16);
+	dev->dev_addr[5] = (u8)(mac_high16 >> 8);
+}
+
 /* Initializing private device structures, only called from probe */
 static int __devinit smsc911x_init(struct net_device *dev)
 {
@@ -1828,6 +1843,12 @@ static int __devinit smsc911x_init(struct net_device *dev)
 	if (pdata->generation == 0)
 		SMSC_WARNING(PROBE,
 			"This driver is not intended for this chip revision");
+
+	/* workaround for platforms without an eeprom, where the mac address
+	 * is stored elsewhere and set by the bootloader.  This saves the
+	 * mac address before resetting the device */
+	if (pdata->config.flags & SMSC911X_SAVE_MAC_ADDRESS)
+		smsc911x_read_mac_address(dev);
 
 	/* Reset the LAN911x */
 	if (smsc911x_soft_reset(pdata))
@@ -2009,14 +2030,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	} else {
 		/* Try reading mac address from device. if EEPROM is present
 		 * it will already have been set */
-		u32 mac_high16 = smsc911x_mac_read(pdata, ADDRH);
-		u32 mac_low32 = smsc911x_mac_read(pdata, ADDRL);
-		dev->dev_addr[0] = (u8)(mac_low32);
-		dev->dev_addr[1] = (u8)(mac_low32 >> 8);
-		dev->dev_addr[2] = (u8)(mac_low32 >> 16);
-		dev->dev_addr[3] = (u8)(mac_low32 >> 24);
-		dev->dev_addr[4] = (u8)(mac_high16);
-		dev->dev_addr[5] = (u8)(mac_high16 >> 8);
+		smsc911x_read_mac_address(dev);
 
 		if (is_valid_ether_addr(dev->dev_addr)) {
 			/* eeprom values are valid  so use them */

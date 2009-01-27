@@ -45,5 +45,6 @@ struct smsc911x_platform_config {
 #define SMSC911X_USE_32BIT 			(BIT(1))
 #define SMSC911X_FORCE_INTERNAL_PHY		(BIT(2))
 #define SMSC911X_FORCE_EXTERNAL_PHY 		(BIT(3))
+#define SMSC911X_SAVE_MAC_ADDRESS		(BIT(4))
 
 #endif /* __LINUX_SMSC911X_H__ */
