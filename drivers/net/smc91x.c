@@ -1768,6 +1768,19 @@ static const struct ethtool_ops smc_ethtool_ops = {
 	.set_eeprom	= smc_ethtool_seteeprom,
 };
 
+static const struct net_device_ops smc_netdev_ops = {
+	.ndo_open		= smc_open,
+	.ndo_stop		= smc_close,
+	.ndo_start_xmit		= smc_hard_start_xmit,
+	.ndo_tx_timeout		= smc_timeout,
+	.ndo_set_multicast_list	= smc_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= smc_poll_controller,
+#endif
+};
+
 /*
  * smc_findirq
  *
@@ -1977,16 +1990,9 @@ static int __devinit smc_probe(struct net_device *dev, void __iomem *ioaddr,
 	/* Fill in the fields of the device structure with ethernet values. */
 	ether_setup(dev);
 
-	dev->open = smc_open;
-	dev->stop = smc_close;
-	dev->hard_start_xmit = smc_hard_start_xmit;
-	dev->tx_timeout = smc_timeout;
 	dev->watchdog_timeo = msecs_to_jiffies(watchdog);
-	dev->set_multicast_list = smc_set_multicast_list;
+	dev->netdev_ops = &smc_netdev_ops;
 	dev->ethtool_ops = &smc_ethtool_ops;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = smc_poll_controller;
-#endif
 
 	tasklet_init(&lp->tx_task, smc_hardware_send_pkt, (unsigned long)dev);
 	INIT_WORK(&lp->phy_configure, smc_phy_configure);
