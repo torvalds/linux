@@ -772,10 +772,10 @@ static void iwl_update_rx_stats(struct iwl_priv *priv, u16 fc, u16 len)
 /*
  * returns non-zero if packet should be dropped
  */
-static int iwl_set_decrypted_flag(struct iwl_priv *priv,
-				      struct ieee80211_hdr *hdr,
-				      u32 decrypt_res,
-				      struct ieee80211_rx_status *stats)
+int iwl_set_decrypted_flag(struct iwl_priv *priv,
+			   struct ieee80211_hdr *hdr,
+			   u32 decrypt_res,
+			   struct ieee80211_rx_status *stats)
 {
 	u16 fc = le16_to_cpu(hdr->frame_control);
 
@@ -815,6 +815,7 @@ static int iwl_set_decrypted_flag(struct iwl_priv *priv,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(iwl_set_decrypted_flag);
 
 static u32 iwl_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
 {

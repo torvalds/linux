@@ -251,7 +251,7 @@ int iwl3945_rs_next_rate(struct iwl_priv *priv, int rate)
 		break;
 	case IEEE80211_BAND_2GHZ:
 		if (!(priv->sta_supp_rates & IWL_OFDM_RATES_MASK) &&
-		    iwl3945_is_associated(priv)) {
+		    iwl_is_associated(priv)) {
 			if (rate == IWL_RATE_11M_INDEX)
 				next_rate = IWL_RATE_5M_INDEX;
 		}
@@ -579,7 +579,8 @@ static void iwl3945_pass_packet_to_mac80211(struct iwl_priv *priv,
 	skb_put(rxb->skb, le16_to_cpu(rx_hdr->len));
 
 	if (!iwl3945_mod_params.sw_crypto)
-		iwl3945_set_decrypted_flag(priv, rxb->skb,
+		iwl_set_decrypted_flag(priv,
+				       (struct ieee80211_hdr *)rxb->skb->data,
 				       le32_to_cpu(rx_end->status), stats);
 
 #ifdef CONFIG_IWL3945_LEDS
@@ -1694,17 +1695,17 @@ int iwl3945_send_tx_power(struct iwl_priv *priv)
 	int rate_idx, i;
 	const struct iwl_channel_info *ch_info = NULL;
 	struct iwl3945_txpowertable_cmd txpower = {
-		.channel = priv->active39_rxon.channel,
+		.channel = priv->active_rxon.channel,
 	};
 
 	txpower.band = (priv->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
 	ch_info = iwl_get_channel_info(priv,
 				       priv->band,
-				       le16_to_cpu(priv->active39_rxon.channel));
+				       le16_to_cpu(priv->active_rxon.channel));
 	if (!ch_info) {
 		IWL_ERR(priv,
 			"Failed to get channel info for channel %d [%d]\n",
-			le16_to_cpu(priv->active39_rxon.channel), priv->band);
+			le16_to_cpu(priv->active_rxon.channel), priv->band);
 		return -EINVAL;
 	}
 
@@ -2432,7 +2433,7 @@ int iwl3945_init_hw_rate_table(struct iwl_priv *priv)
 		 * 1M CCK rates */
 
 		if (!(priv->sta_supp_rates & IWL_OFDM_RATES_MASK) &&
-		    iwl3945_is_associated(priv)) {
+		    iwl_is_associated(priv)) {
 
 			index = IWL_FIRST_CCK_RATE;
 			for (i = IWL_RATE_6M_INDEX_TABLE;
