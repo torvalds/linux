@@ -258,12 +258,17 @@ __u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
 void switch_to_new_gdt(void)
 {
 	struct desc_ptr gdt_descr;
+	int cpu = smp_processor_id();
 
-	gdt_descr.address = (long)get_cpu_gdt_table(smp_processor_id());
+	gdt_descr.address = (long)get_cpu_gdt_table(cpu);
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
+	/* Reload the per-cpu base */
 #ifdef CONFIG_X86_32
-	asm("mov %0, %%fs" : : "r" (__KERNEL_PERCPU) : "memory");
+	loadsegment(fs, __KERNEL_PERCPU);
+#else
+	loadsegment(gs, 0);
+	wrmsrl(MSR_GS_BASE, (unsigned long)per_cpu(irq_stack_union.gs_base, cpu));
 #endif
 }
 
@@ -968,10 +973,6 @@ void __cpuinit cpu_init(void)
 	struct task_struct *me;
 	int i;
 
-	loadsegment(fs, 0);
-	loadsegment(gs, 0);
-	load_gs_base(cpu);
-
 #ifdef CONFIG_NUMA
 	if (cpu != 0 && percpu_read(node_number) == 0 &&
 	    cpu_to_node(cpu) != NUMA_NO_NODE)
@@ -993,6 +994,8 @@ void __cpuinit cpu_init(void)
 	 */
 
 	switch_to_new_gdt();
+	loadsegment(fs, 0);
+
 	load_idt((const struct desc_ptr *)&idt_descr);
 
 	memset(me->thread.tls_array, 0, GDT_ENTRY_TLS_ENTRIES * 8);

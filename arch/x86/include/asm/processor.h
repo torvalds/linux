@@ -394,11 +394,6 @@ union irq_stack_union {
 
 DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
 DECLARE_PER_CPU(char *, irq_stack_ptr);
-
-static inline void load_gs_base(int cpu)
-{
-	wrmsrl(MSR_GS_BASE, (unsigned long)per_cpu(irq_stack_union.gs_base, cpu));
-}
 #endif
 
 extern void print_cpu_info(struct cpuinfo_x86 *);

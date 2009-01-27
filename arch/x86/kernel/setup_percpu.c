@@ -113,13 +113,13 @@ void __init setup_per_cpu_areas(void)
 		per_cpu(x86_cpu_to_node_map, cpu) =
 				early_per_cpu_map(x86_cpu_to_node_map, cpu);
 #endif
+#endif
 		/*
 		 * Up to this point, the boot CPU has been using .data.init
-		 * area.  Reload %gs offset for the boot CPU.
+		 * area.  Reload any changed state for the boot CPU.
 		 */
 		if (cpu == boot_cpu_id)
-			load_gs_base(cpu);
-#endif
+			switch_to_new_gdt();
 
 		DBG("PERCPU: cpu %4d %p\n", cpu, ptr);
 	}
