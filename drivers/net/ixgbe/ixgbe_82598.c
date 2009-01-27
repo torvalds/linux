@@ -213,6 +213,10 @@ static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 
 	/* Media type for I82598 is based on device ID */
 	switch (hw->device_id) {
+	case IXGBE_DEV_ID_82598:
+		/* Default device ID is mezzanine card KX/KX4 */
+		media_type = ixgbe_media_type_backplane;
+		break;
 	case IXGBE_DEV_ID_82598AF_DUAL_PORT:
 	case IXGBE_DEV_ID_82598AF_SINGLE_PORT:
 	case IXGBE_DEV_ID_82598EB_CX4:
@@ -1002,6 +1006,11 @@ static s32 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw)
 	s32 physical_layer = IXGBE_PHYSICAL_LAYER_UNKNOWN;
 
 	switch (hw->device_id) {
+	case IXGBE_DEV_ID_82598:
+		/* Default device ID is mezzanine card KX/KX4 */
+		physical_layer = (IXGBE_PHYSICAL_LAYER_10GBASE_KX4 |
+				  IXGBE_PHYSICAL_LAYER_1000BASE_KX);
+		break;
 	case IXGBE_DEV_ID_82598EB_CX4:
 	case IXGBE_DEV_ID_82598_CX4_DUAL_PORT:
 		physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_CX4;
