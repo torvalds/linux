@@ -244,7 +244,7 @@ static inline int test_time_stamp(u64 delta)
 	return 0;
 }
 
-#define BUF_PAGE_SIZE (PAGE_SIZE - sizeof(struct buffer_data_page))
+#define BUF_PAGE_SIZE (PAGE_SIZE - offsetof(struct buffer_data_page, data))
 
 /*
  * head_page == tail_page && head == tail then buffer is empty.
