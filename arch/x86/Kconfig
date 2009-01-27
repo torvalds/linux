@@ -262,16 +262,8 @@ config X86_MPPARSE
 	  For old smp systems that do not have proper acpi support. Newer systems
 	  (esp with 64bit cpus) with acpi support, MADT and DSDT will override it
 
-choice
-	prompt "Subarchitecture Type"
-	default X86_PC
-
 config X86_PC
-	bool "PC-compatible"
-	help
-	  Choose this option if your computer is a standard PC or compatible.
-
-endchoice
+	def_bool y
 
 config X86_NON_STANDARD
 	bool "Support for non-standard x86 platforms"
