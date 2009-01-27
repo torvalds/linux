@@ -51,13 +51,15 @@ cxgb3_cpl_handler_func t3c_handlers[NUM_CPL_CMDS];
 
 static void open_rnic_dev(struct t3cdev *);
 static void close_rnic_dev(struct t3cdev *);
+static void iwch_err_handler(struct t3cdev *, u32, u32);
 
 struct cxgb3_client t3c_client = {
 	.name = "iw_cxgb3",
 	.add = open_rnic_dev,
 	.remove = close_rnic_dev,
 	.handlers = t3c_handlers,
-	.redirect = iwch_ep_redirect
+	.redirect = iwch_ep_redirect,
+	.err_handler = iwch_err_handler
 };
 
 static LIST_HEAD(dev_list);
@@ -158,6 +160,17 @@ static void close_rnic_dev(struct t3cdev *tdev)
 		}
 	}
 	mutex_unlock(&dev_mutex);
+}
+
+static void iwch_err_handler(struct t3cdev *tdev, u32 status, u32 error)
+{
+	struct cxio_rdev *rdev = tdev->ulp;
+
+	if (status == OFFLOAD_STATUS_DOWN)
+		rdev->flags = CXIO_ERROR_FATAL;
+
+	return;
+
 }
 
 static int __init iwch_init_module(void)

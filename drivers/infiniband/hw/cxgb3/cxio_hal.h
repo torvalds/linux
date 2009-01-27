@@ -108,6 +108,8 @@ struct cxio_rdev {
 	struct gen_pool *pbl_pool;
 	struct gen_pool *rqt_pool;
 	struct list_head entry;
+	u32	flags;
+#define	CXIO_ERROR_FATAL	1
 };
 
 static inline int cxio_num_stags(struct cxio_rdev *rdev_p)

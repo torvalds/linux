@@ -701,6 +701,9 @@ static int __cxio_tpt_op(struct cxio_rdev *rdev_p, u32 reset_tpt_entry,
 	u32 stag_idx;
 	u32 wptr;
 
+	if (rdev_p->flags)
+		return -EIO;
+
 	stag_state = stag_state > 0;
 	stag_idx = (*stag) >> 8;
 
