@@ -24,6 +24,7 @@
 #include <linux/fb.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/smsc911x.h>
 
 #include <video/platform_lcd.h>
 
@@ -44,6 +45,7 @@
 #include <plat/regs-sys.h>
 #include <plat/iic.h>
 #include <plat/fb.h>
+#include <plat/gpio-cfg.h>
 
 #include <plat/s3c6410.h>
 #include <plat/clock.h>
@@ -132,6 +134,37 @@ static struct s3c_fb_platdata smdk6410_lcd_pdata __initdata = {
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 };
 
+static struct resource smdk6410_smsc911x_resources[] = {
+	[0] = {
+		.start = 0x18000000,
+		.end   = 0x18000000 + SZ_64K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = S3C_EINT(10),
+		.end   = S3C_EINT(10),
+		.flags = IORESOURCE_IRQ | IRQ_TYPE_LEVEL_LOW,
+	},
+};
+
+static struct smsc911x_platform_config smdk6410_smsc911x_pdata = {
+	.irq_polarity  = SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type      = SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+	.flags         = SMSC911X_USE_32BIT | SMSC911X_FORCE_INTERNAL_PHY,
+	.phy_interface = PHY_INTERFACE_MODE_MII,
+};
+
+
+static struct platform_device smdk6410_smsc911x = {
+	.name          = "smsc911x",
+	.id            = -1,
+	.num_resources = ARRAY_SIZE(smdk6410_smsc911x_resources),
+	.resource      = &smdk6410_smsc911x_resources[0],
+	.dev = {
+		.platform_data = &smdk6410_smsc911x_pdata,
+	},
+};
+
 static struct map_desc smdk6410_iodesc[] = {};
 
 static struct platform_device *smdk6410_devices[] __initdata = {
@@ -145,6 +178,8 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&s3c_device_i2c1,
 	&s3c_device_fb,
 	&smdk6410_lcd_powerdev,
+
+	&smdk6410_smsc911x,
 };
 
 static struct i2c_board_info i2c_devs0[] __initdata = {
