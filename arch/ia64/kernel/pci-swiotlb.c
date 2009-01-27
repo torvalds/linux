@@ -13,9 +13,6 @@
 int swiotlb __read_mostly;
 EXPORT_SYMBOL(swiotlb);
 
-/* Set this to 1 if there is a HW IOMMU in the system */
-int iommu_detected __read_mostly;
-
 struct dma_map_ops swiotlb_dma_ops = {
 	.alloc_coherent = swiotlb_alloc_coherent,
 	.free_coherent = swiotlb_free_coherent,
