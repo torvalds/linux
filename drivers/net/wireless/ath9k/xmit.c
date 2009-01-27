@@ -268,7 +268,8 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 {
 	struct ath_node *an = NULL;
 	struct sk_buff *skb;
-	struct ieee80211_tx_info *tx_info;
+	struct ieee80211_sta *sta;
+	struct ieee80211_hdr *hdr;
 	struct ath_atx_tid *tid = NULL;
 	struct ath_buf *bf_next, *bf_last = bf->bf_lastbf;
 	struct ath_desc *ds = bf_last->bf_desc;
@@ -278,12 +279,18 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	int isaggr, txfail, txpending, sendbar = 0, needreset = 0;
 
 	skb = (struct sk_buff *)bf->bf_mpdu;
-	tx_info = IEEE80211_SKB_CB(skb);
+	hdr = (struct ieee80211_hdr *)skb->data;
 
-	if (tx_info->control.sta) {
-		an = (struct ath_node *)tx_info->control.sta->drv_priv;
-		tid = ATH_AN_2_TID(an, bf->bf_tidno);
+	rcu_read_lock();
+
+	sta = ieee80211_find_sta(sc->hw, hdr->addr1);
+	if (!sta) {
+		rcu_read_unlock();
+		return;
 	}
+
+	an = (struct ath_node *)sta->drv_priv;
+	tid = ATH_AN_2_TID(an, bf->bf_tidno);
 
 	isaggr = bf_isaggr(bf);
 	memset(ba, 0, WME_BA_BMP_SIZE >> 3);
@@ -391,6 +398,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			/* send buffered frames as singles */
 			ath_tx_flush_tid(sc, tid);
 		}
+		rcu_read_unlock();
 		return;
 	}
 
@@ -401,6 +409,8 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		ath_tx_queue_tid(txq, tid);
 		spin_unlock_bh(&txq->axq_lock);
 	}
+
+	rcu_read_unlock();
 
 	if (needreset)
 		ath_reset(sc, false);
