@@ -725,7 +725,7 @@ static int tc_mii_probe(struct net_device *dev)
 	}
 
 	/* attach the mac to the phy */
-	phydev = phy_connect(dev, phydev->dev.bus_id,
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
 			     &tc_handle_link_change, 0,
 			     lp->chiptype == TC35815_TX4939 ?
 			     PHY_INTERFACE_MODE_RMII : PHY_INTERFACE_MODE_MII);
@@ -735,7 +735,7 @@ static int tc_mii_probe(struct net_device *dev)
 	}
 	printk(KERN_INFO "%s: attached PHY driver [%s] "
 		"(mii_bus:phy_addr=%s, id=%x)\n",
-		dev->name, phydev->drv->name, phydev->dev.bus_id,
+		dev->name, phydev->drv->name, dev_name(&phydev->dev),
 		phydev->phy_id);
 
 	/* mask with MAC supported features */

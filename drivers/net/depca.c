@@ -606,8 +606,8 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 	if (!mem_start || lp->adapter < DEPCA || lp->adapter >=unknown)
 		return -ENXIO;
 
-	printk ("%s: %s at 0x%04lx",
-	        device->bus_id, depca_signature[lp->adapter], ioaddr);
+	printk("%s: %s at 0x%04lx",
+	       dev_name(device), depca_signature[lp->adapter], ioaddr);
 
 	switch (lp->depca_bus) {
 #ifdef CONFIG_MCA
@@ -669,7 +669,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 
 	spin_lock_init(&lp->lock);
 	sprintf(lp->adapter_name, "%s (%s)",
-		depca_signature[lp->adapter], device->bus_id);
+		depca_signature[lp->adapter], dev_name(device));
 	status = -EBUSY;
 
 	/* Initialisation Block */

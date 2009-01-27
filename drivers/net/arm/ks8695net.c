@@ -1059,7 +1059,7 @@ ks8695_get_drvinfo(struct net_device *ndev, struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, MODULENAME, sizeof(info->driver));
 	strlcpy(info->version, MODULEVERSION, sizeof(info->version));
-	strlcpy(info->bus_info, ndev->dev.parent->bus_id,
+	strlcpy(info->bus_info, dev_name(ndev->dev.parent),
 		sizeof(info->bus_info));
 }
 

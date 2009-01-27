@@ -176,7 +176,8 @@ static int __init macsonic_init(struct net_device *dev)
 	if ((lp->descriptors = dma_alloc_coherent(lp->device,
 	            SIZEOF_SONIC_DESC * SONIC_BUS_SCALE(lp->dma_bitmode),
 	            &lp->descriptors_laddr, GFP_KERNEL)) == NULL) {
-		printk(KERN_ERR "%s: couldn't alloc DMA memory for descriptors.\n", lp->device->bus_id);
+		printk(KERN_ERR "%s: couldn't alloc DMA memory for descriptors.\n",
+		       dev_name(lp->device));
 		return -ENOMEM;
 	}
 
@@ -337,7 +338,7 @@ static int __init mac_onboard_sonic_probe(struct net_device *dev)
 		sonic_version_printed = 1;
 	}
 	printk(KERN_INFO "%s: onboard / comm-slot SONIC at 0x%08lx\n",
-	       lp->device->bus_id, dev->base_addr);
+	       dev_name(lp->device), dev->base_addr);
 
 	/* The PowerBook's SONIC is 16 bit always. */
 	if (macintosh_config->ident == MAC_MODEL_PB520) {
@@ -370,10 +371,10 @@ static int __init mac_onboard_sonic_probe(struct net_device *dev)
 	}
 	printk(KERN_INFO
 	       "%s: revision 0x%04x, using %d bit DMA and register offset %d\n",
-	       lp->device->bus_id, sr, lp->dma_bitmode?32:16, lp->reg_offset);
+	       dev_name(lp->device), sr, lp->dma_bitmode?32:16, lp->reg_offset);
 
 #if 0 /* This is sometimes useful to find out how MacOS configured the card. */
-	printk(KERN_INFO "%s: DCR: 0x%04x, DCR2: 0x%04x\n", lp->device->bus_id,
+	printk(KERN_INFO "%s: DCR: 0x%04x, DCR2: 0x%04x\n", dev_name(lp->device),
 	       SONIC_READ(SONIC_DCR) & 0xffff, SONIC_READ(SONIC_DCR2) & 0xffff);
 #endif
 
@@ -525,12 +526,12 @@ static int __init mac_nubus_sonic_probe(struct net_device *dev)
 		sonic_version_printed = 1;
 	}
 	printk(KERN_INFO "%s: %s in slot %X\n",
-	       lp->device->bus_id, ndev->board->name, ndev->board->slot);
+	       dev_name(lp->device), ndev->board->name, ndev->board->slot);
 	printk(KERN_INFO "%s: revision 0x%04x, using %d bit DMA and register offset %d\n",
-	       lp->device->bus_id, SONIC_READ(SONIC_SR), dma_bitmode?32:16, reg_offset);
+	       dev_name(lp->device), SONIC_READ(SONIC_SR), dma_bitmode?32:16, reg_offset);
 
 #if 0 /* This is sometimes useful to find out how MacOS configured the card. */
-	printk(KERN_INFO "%s: DCR: 0x%04x, DCR2: 0x%04x\n", lp->device->bus_id,
+	printk(KERN_INFO "%s: DCR: 0x%04x, DCR2: 0x%04x\n", dev_name(lp->device),
 	       SONIC_READ(SONIC_DCR) & 0xffff, SONIC_READ(SONIC_DCR2) & 0xffff);
 #endif
 
