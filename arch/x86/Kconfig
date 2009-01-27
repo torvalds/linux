@@ -1819,7 +1819,6 @@ if X86_32
 
 config ISA
 	bool "ISA support"
-	depends on !X86_VOYAGER
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
