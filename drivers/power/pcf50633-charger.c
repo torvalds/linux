@@ -106,21 +106,6 @@ int pcf50633_mbc_get_status(struct pcf50633 *pcf)
 }
 EXPORT_SYMBOL_GPL(pcf50633_mbc_get_status);
 
-void pcf50633_mbc_set_status(struct pcf50633 *pcf, int what, int status)
-{
-	struct pcf50633_mbc *mbc = platform_get_drvdata(pcf->mbc_pdev);
-
-	if (what & PCF50633_MBC_USB_ONLINE)
-		mbc->usb_online = !!status;
-	if (what & PCF50633_MBC_USB_ACTIVE)
-		mbc->usb_active = !!status;
-	if (what & PCF50633_MBC_ADAPTER_ONLINE)
-		mbc->adapter_online = !!status;
-	if (what & PCF50633_MBC_ADAPTER_ACTIVE)
-		mbc->adapter_active = !!status;
-}
-EXPORT_SYMBOL_GPL(pcf50633_mbc_set_status);
-
 static ssize_t
 show_chgmode(struct device *dev, struct device_attribute *attr, char *buf)
 {
