@@ -69,15 +69,12 @@ EXPORT_SYMBOL(__per_cpu_offset);
  */
 void __init setup_per_cpu_areas(void)
 {
-	ssize_t size, old_size;
+	ssize_t size;
 	char *ptr;
 	int cpu;
-	unsigned long align = 1;
 
 	/* Copy section for each CPU (we discard the original) */
-	old_size = PERCPU_ENOUGH_ROOM;
-	align = max_t(unsigned long, PAGE_SIZE, align);
-	size = roundup(old_size, align);
+	size = roundup(PERCPU_ENOUGH_ROOM, PAGE_SIZE);
 
 	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%d nr_node_ids:%d\n",
 		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_node_ids);
@@ -86,20 +83,17 @@ void __init setup_per_cpu_areas(void)
 
 	for_each_possible_cpu(cpu) {
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-		ptr = __alloc_bootmem(size, align,
-				 __pa(MAX_DMA_ADDRESS));
+		ptr = alloc_bootmem_pages(size);
 #else
 		int node = early_cpu_to_node(cpu);
 		if (!node_online(node) || !NODE_DATA(node)) {
-			ptr = __alloc_bootmem(size, align,
-					 __pa(MAX_DMA_ADDRESS));
+			ptr = alloc_bootmem_pages(size);
 			pr_info("cpu %d has no node %d or node-local memory\n",
 				cpu, node);
 			pr_debug("per cpu data for cpu%d at %016lx\n",
 				 cpu, __pa(ptr));
 		} else {
-			ptr = __alloc_bootmem_node(NODE_DATA(node), size, align,
-							__pa(MAX_DMA_ADDRESS));
+			ptr = alloc_bootmem_pages_node(NODE_DATA(node), size);
 			pr_debug("per cpu data for cpu%d on node%d at %016lx\n",
 				cpu, node, __pa(ptr));
 		}
