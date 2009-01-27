@@ -102,6 +102,7 @@ static struct iwl_power_vec_entry range_2[IWL_POWER_MAX] = {
 	{{SLP, SLP_TOUT(25), SLP_TOUT(25), SLP_VEC(4, 7, 10, 10, 0xFF)}, 0}
 };
 
+
 /* set card power command */
 static int iwl_set_power(struct iwl_priv *priv, void *cmd)
 {
@@ -125,13 +126,6 @@ static u16 iwl_get_auto_power_mode(struct iwl_priv *priv)
 			mode = IWL_POWER_ON_AC_ASSOC;
 		else
 			mode = IWL_POWER_ON_AC_DISASSOC;
-		break;
-	/* FIXME: remove battery and ac from here */
-	case IWL_POWER_BATTERY:
-		mode = IWL_POWER_INDEX_3;
-		break;
-	case IWL_POWER_AC:
-		mode = IWL_POWER_MODE_CAM;
 		break;
 	default:
 		mode = priv->power_data.user_power_setting;
@@ -357,7 +351,7 @@ EXPORT_SYMBOL(iwl_power_enable_management);
 /* set user_power_setting */
 int iwl_power_set_user_mode(struct iwl_priv *priv, u16 mode)
 {
-	if (mode > IWL_POWER_LIMIT)
+	if (mode > IWL_POWER_MAX)
 		return -EINVAL;
 
 	priv->power_data.user_power_setting = mode;
@@ -371,11 +365,10 @@ EXPORT_SYMBOL(iwl_power_set_user_mode);
  */
 int iwl_power_set_system_mode(struct iwl_priv *priv, u16 mode)
 {
-	if (mode > IWL_POWER_LIMIT)
+	if (mode < IWL_POWER_SYS_MAX)
+		priv->power_data.system_power_setting = mode;
+	else
 		return -EINVAL;
-
-	priv->power_data.system_power_setting = mode;
-
 	return iwl_power_update_mode(priv, 0);
 }
 EXPORT_SYMBOL(iwl_power_set_system_mode);

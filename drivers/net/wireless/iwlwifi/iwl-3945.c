@@ -1063,7 +1063,7 @@ static int iwl3945_apm_init(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	iwl3945_power_init_handle(priv);
+	iwl_power_initialize(priv);
 
 	iwl_set_bit(priv, CSR_GIO_CHICKEN_BITS,
 			  CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
@@ -2372,7 +2372,9 @@ static u16 iwl3945_get_hcmd_size(u8 cmd_id, u16 len)
 {
 	switch (cmd_id) {
 	case REPLY_RXON:
-		return (u16) sizeof(struct iwl3945_rxon_cmd);
+		return sizeof(struct iwl3945_rxon_cmd);
+	case POWER_TABLE_CMD:
+		return sizeof(struct iwl3945_powertable_cmd);
 	default:
 		return len;
 	}
