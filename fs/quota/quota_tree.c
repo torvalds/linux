@@ -33,7 +33,7 @@ static int get_index(struct qtree_mem_dqinfo *info, qid_t id, int depth)
 }
 
 /* Number of entries in one blocks */
-static inline int qtree_dqstr_in_blk(struct qtree_mem_dqinfo *info)
+static int qtree_dqstr_in_blk(struct qtree_mem_dqinfo *info)
 {
 	return (info->dqi_usable_bs - sizeof(struct qt_disk_dqdbheader))
 	       / info->dqi_entry_size;
@@ -47,7 +47,7 @@ static char *getdqbuf(size_t size)
 	return buf;
 }
 
-static inline ssize_t read_blk(struct qtree_mem_dqinfo *info, uint blk, char *buf)
+static ssize_t read_blk(struct qtree_mem_dqinfo *info, uint blk, char *buf)
 {
 	struct super_block *sb = info->dqi_sb;
 
@@ -56,7 +56,7 @@ static inline ssize_t read_blk(struct qtree_mem_dqinfo *info, uint blk, char *bu
 	       info->dqi_usable_bs, blk << info->dqi_blocksize_bits);
 }
 
-static inline ssize_t write_blk(struct qtree_mem_dqinfo *info, uint blk, char *buf)
+static ssize_t write_blk(struct qtree_mem_dqinfo *info, uint blk, char *buf)
 {
 	struct super_block *sb = info->dqi_sb;
 

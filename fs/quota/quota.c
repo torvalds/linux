@@ -341,7 +341,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id, void
  * look up a superblock on which quota ops will be performed
  * - use the name of a block device to find the superblock thereon
  */
-static inline struct super_block *quotactl_block(const char __user *special)
+static struct super_block *quotactl_block(const char __user *special)
 {
 #ifdef CONFIG_BLOCK
 	struct block_device *bdev;

@@ -243,7 +243,8 @@ static inline void remove_dquot_hash(struct dquot *dquot)
 	hlist_del_init(&dquot->dq_hash);
 }
 
-static inline struct dquot *find_dquot(unsigned int hashent, struct super_block *sb, unsigned int id, int type)
+static struct dquot *find_dquot(unsigned int hashent, struct super_block *sb,
+				unsigned int id, int type)
 {
 	struct hlist_node *node;
 	struct dquot *dquot;
@@ -935,7 +936,7 @@ void dquot_free_reserved_space(struct dquot *dquot, qsize_t number)
 	dquot->dq_dqb.dqb_rsvspace -= number;
 }
 
-static inline void dquot_decr_inodes(struct dquot *dquot, qsize_t number)
+static void dquot_decr_inodes(struct dquot *dquot, qsize_t number)
 {
 	if (sb_dqopt(dquot->dq_sb)->flags & DQUOT_NEGATIVE_USAGE ||
 	    dquot->dq_dqb.dqb_curinodes >= number)
@@ -947,7 +948,7 @@ static inline void dquot_decr_inodes(struct dquot *dquot, qsize_t number)
 	clear_bit(DQ_INODES_B, &dquot->dq_flags);
 }
 
-static inline void dquot_decr_space(struct dquot *dquot, qsize_t number)
+static void dquot_decr_space(struct dquot *dquot, qsize_t number)
 {
 	if (sb_dqopt(dquot->dq_sb)->flags & DQUOT_NEGATIVE_USAGE ||
 	    dquot->dq_dqb.dqb_curspace >= number)
@@ -974,7 +975,7 @@ static int warning_issued(struct dquot *dquot, const int warntype)
 #ifdef CONFIG_PRINT_QUOTA_WARNING
 static int flag_print_warnings = 1;
 
-static inline int need_print_warning(struct dquot *dquot)
+static int need_print_warning(struct dquot *dquot)
 {
 	if (!flag_print_warnings)
 		return 0;
@@ -1109,7 +1110,7 @@ err_out:
  *
  * Note that this function can sleep.
  */
-static inline void flush_warnings(struct dquot * const *dquots, char *warntype)
+static void flush_warnings(struct dquot *const *dquots, char *warntype)
 {
 	int i;
 
@@ -1125,7 +1126,7 @@ static inline void flush_warnings(struct dquot * const *dquots, char *warntype)
 		}
 }
 
-static inline char ignore_hardlimit(struct dquot *dquot)
+static int ignore_hardlimit(struct dquot *dquot)
 {
 	struct mem_dqinfo *info = &sb_dqopt(dquot->dq_sb)->info[dquot->dq_type];
 
