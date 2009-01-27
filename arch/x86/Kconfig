@@ -331,19 +331,6 @@ config X86_ELAN
 
 	  If unsure, choose "PC-compatible" instead.
 
-config X86_VOYAGER
-	bool "Voyager (NCR)"
-	depends on X86_32 && SMP && !PCI && BROKEN
-	depends on X86_NON_STANDARD
-	help
-	  Voyager is an MCA-based 32-way capable SMP architecture proprietary
-	  to NCR Corp.  Machine classes 345x/35xx/4100/51xx are Voyager-based.
-
-	  *** WARNING ***
-
-	  If you do not specifically know you have a Voyager based machine,
-	  say N here, otherwise the kernel you build will not be bootable.
-
 config X86_32_NON_STANDARD
 	bool "Support non-standard 32-bit SMP architectures"
 	depends on X86_32 && SMP
@@ -353,6 +340,13 @@ config X86_32_NON_STANDARD
 	  subarchitectures.  It is intended for a generic binary kernel.
 	  if you select them all, kernel will probe it one by one. and will
 	  fallback to default.
+
+config X86_BIGSMP
+	bool "Support for big SMP systems with more than 8 CPUs"
+	depends on X86_32_NON_STANDARD
+	help
+	  This option is needed for the systems that have more than 8 CPUs
+	  and if the system is not of any sub-arch type above.
 
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
@@ -380,12 +374,18 @@ config X86_ES7000
 	  Support for Unisys ES7000 systems.  Say 'Y' here if this kernel is
 	  supposed to run on an IA32-based Unisys ES7000 system.
 
-config X86_BIGSMP
-	bool "Support for big SMP systems with more than 8 CPUs"
+config X86_VOYAGER
+	bool "Voyager (NCR)"
+	depends on SMP && !PCI && BROKEN
 	depends on X86_32_NON_STANDARD
 	help
-	  This option is needed for the systems that have more than 8 CPUs
-	  and if the system is not of any sub-arch type above.
+	  Voyager is an MCA-based 32-way capable SMP architecture proprietary
+	  to NCR Corp.  Machine classes 345x/35xx/4100/51xx are Voyager-based.
+
+	  *** WARNING ***
+
+	  If you do not specifically know you have a Voyager based machine,
+	  say N here, otherwise the kernel you build will not be bootable.
 
 config SCHED_OMIT_FRAME_POINTER
 	def_bool y
