@@ -2371,7 +2371,7 @@ end:
 #include <linux/seq_file.h>
 
 struct pppol2tp_seq_data {
-	struct net *seq_net;			/* net of inode */
+	struct seq_net_private p;
 	struct pppol2tp_tunnel *tunnel;		/* current tunnel */
 	struct pppol2tp_session *session;	/* NULL means get first session in tunnel */
 };
@@ -2436,7 +2436,7 @@ static void *pppol2tp_seq_start(struct seq_file *m, loff_t *offs)
 
 	BUG_ON(m->private == NULL);
 	pd = m->private;
-	pn = pppol2tp_pernet(pd->seq_net);
+	pn = pppol2tp_pernet(seq_file_net(m));
 
 	if (pd->tunnel == NULL) {
 		if (!list_empty(&pn->pppol2tp_tunnel_list))
@@ -2558,46 +2558,8 @@ static const struct seq_operations pppol2tp_seq_ops = {
  */
 static int pppol2tp_proc_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *m;
-	struct pppol2tp_seq_data *pd;
-	struct net *net;
-	int ret = 0;
-
-	ret = seq_open(file, &pppol2tp_seq_ops);
-	if (ret < 0)
-		goto out;
-
-	m = file->private_data;
-
-	/* Allocate and fill our proc_data for access later */
-	ret = -ENOMEM;
-	m->private = kzalloc(sizeof(*pd), GFP_KERNEL);
-	if (m->private == NULL)
-		goto out;
-
-	pd = m->private;
-	net = maybe_get_net(PDE_NET(PDE(inode)));
-	BUG_ON(!net);
-	pd->seq_net = net;
-	return 0;
-
-out:
-	return ret;
-}
-
-/* Called when /proc file access completes.
- */
-static int pppol2tp_proc_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *m = (struct seq_file *)file->private_data;
-	struct pppol2tp_seq_data *pd = m->private;
-
-	put_net(pd->seq_net);
-
-	kfree(m->private);
-	m->private = NULL;
-
-	return seq_release(inode, file);
+	return seq_open_net(inode, file, &pppol2tp_seq_ops,
+			    sizeof(struct pppol2tp_seq_data));
 }
 
 static const struct file_operations pppol2tp_proc_fops = {
@@ -2605,7 +2567,7 @@ static const struct file_operations pppol2tp_proc_fops = {
 	.open		= pppol2tp_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= pppol2tp_proc_release,
+	.release	= seq_release_net,
 };
 
 #endif /* CONFIG_PROC_FS */
