@@ -732,6 +732,12 @@ static int popen(struct atm_vcc *vcc)
 	struct sk_buff *skb;
 	struct pkt_hdr *header;
 
+	if (vcc->qos.aal != ATM_AAL5) {
+		dev_warn(&card->dev->dev, "Unsupported ATM type %d\n",
+			 vcc->qos.aal);
+		return -EINVAL;
+	}
+
 	skb = alloc_skb(sizeof(*header), GFP_ATOMIC);
 	if (!skb && net_ratelimit()) {
 		dev_warn(&card->dev->dev, "Failed to allocate sk_buff in popen()\n");
