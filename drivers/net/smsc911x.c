@@ -368,48 +368,53 @@ out:
 	return reg;
 }
 
-/* Autodetects and initialises external phy for SMSC9115 and SMSC9117 flavors.
- * If something goes wrong, returns -ENODEV to revert back to internal phy.
- * Performed at initialisation only, so interrupts are enabled */
-static int smsc911x_phy_initialise_external(struct smsc911x_data *pdata)
+/* Switch to external phy. Assumes tx and rx are stopped. */
+static void smsc911x_phy_enable_external(struct smsc911x_data *pdata)
 {
 	unsigned int hwcfg = smsc911x_reg_read(pdata, HW_CFG);
 
-	/* External phy is requested, supported, and detected */
-	if (hwcfg & HW_CFG_EXT_PHY_DET_) {
+	/* Disable phy clocks to the MAC */
+	hwcfg &= (~HW_CFG_PHY_CLK_SEL_);
+	hwcfg |= HW_CFG_PHY_CLK_SEL_CLK_DIS_;
+	smsc911x_reg_write(pdata, HW_CFG, hwcfg);
+	udelay(10);	/* Enough time for clocks to stop */
 
-		/* Switch to external phy. Assuming tx and rx are stopped
-		 * because smsc911x_phy_initialise is called before
-		 * smsc911x_rx_initialise and tx_initialise. */
+	/* Switch to external phy */
+	hwcfg |= HW_CFG_EXT_PHY_EN_;
+	smsc911x_reg_write(pdata, HW_CFG, hwcfg);
 
-		/* Disable phy clocks to the MAC */
-		hwcfg &= (~HW_CFG_PHY_CLK_SEL_);
-		hwcfg |= HW_CFG_PHY_CLK_SEL_CLK_DIS_;
-		smsc911x_reg_write(pdata, HW_CFG, hwcfg);
-		udelay(10);	/* Enough time for clocks to stop */
+	/* Enable phy clocks to the MAC */
+	hwcfg &= (~HW_CFG_PHY_CLK_SEL_);
+	hwcfg |= HW_CFG_PHY_CLK_SEL_EXT_PHY_;
+	smsc911x_reg_write(pdata, HW_CFG, hwcfg);
+	udelay(10);	/* Enough time for clocks to restart */
 
-		/* Switch to external phy */
-		hwcfg |= HW_CFG_EXT_PHY_EN_;
-		smsc911x_reg_write(pdata, HW_CFG, hwcfg);
+	hwcfg |= HW_CFG_SMI_SEL_;
+	smsc911x_reg_write(pdata, HW_CFG, hwcfg);
+}
 
-		/* Enable phy clocks to the MAC */
-		hwcfg &= (~HW_CFG_PHY_CLK_SEL_);
-		hwcfg |= HW_CFG_PHY_CLK_SEL_EXT_PHY_;
-		smsc911x_reg_write(pdata, HW_CFG, hwcfg);
-		udelay(10);	/* Enough time for clocks to restart */
+/* Autodetects and enables external phy if present on supported chips.
+ * autodetection can be overridden by specifying SMSC911X_FORCE_INTERNAL_PHY
+ * or SMSC911X_FORCE_EXTERNAL_PHY in the platform_data flags. */
+static void smsc911x_phy_initialise_external(struct smsc911x_data *pdata)
+{
+	unsigned int hwcfg = smsc911x_reg_read(pdata, HW_CFG);
 
-		hwcfg |= HW_CFG_SMI_SEL_;
-		smsc911x_reg_write(pdata, HW_CFG, hwcfg);
-
-		SMSC_TRACE(HW, "Successfully switched to external PHY");
+	if (pdata->config.flags & SMSC911X_FORCE_INTERNAL_PHY) {
+		SMSC_TRACE(HW, "Forcing internal PHY");
+		pdata->using_extphy = 0;
+	} else if (pdata->config.flags & SMSC911X_FORCE_EXTERNAL_PHY) {
+		SMSC_TRACE(HW, "Forcing external PHY");
+		smsc911x_phy_enable_external(pdata);
+		pdata->using_extphy = 1;
+	} else if (hwcfg & HW_CFG_EXT_PHY_DET_) {
+		SMSC_TRACE(HW, "HW_CFG EXT_PHY_DET set, using external PHY");
+		smsc911x_phy_enable_external(pdata);
 		pdata->using_extphy = 1;
 	} else {
-		SMSC_WARNING(HW, "No external PHY detected, "
-			"Using internal PHY instead.");
-		/* Use internal phy */
-		return -ENODEV;
+		SMSC_TRACE(HW, "HW_CFG EXT_PHY_DET clear, using internal PHY");
+		pdata->using_extphy = 0;
 	}
-	return 0;
 }
 
 /* Fetches a tx status out of the status fifo */
@@ -825,22 +830,18 @@ static int __devinit smsc911x_mii_init(struct platform_device *pdev,
 
 	pdata->mii_bus->parent = &pdev->dev;
 
-	pdata->using_extphy = 0;
-
 	switch (pdata->idrev & 0xFFFF0000) {
 	case 0x01170000:
 	case 0x01150000:
 	case 0x117A0000:
 	case 0x115A0000:
 		/* External PHY supported, try to autodetect */
-		if (smsc911x_phy_initialise_external(pdata) < 0) {
-			SMSC_TRACE(HW, "No external PHY detected, "
-				"using internal PHY");
-		}
+		smsc911x_phy_initialise_external(pdata);
 		break;
 	default:
 		SMSC_TRACE(HW, "External PHY is not supported, "
 			"using internal PHY");
+		pdata->using_extphy = 0;
 		break;
 	}
 
