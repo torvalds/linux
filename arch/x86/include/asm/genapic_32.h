@@ -21,19 +21,28 @@ struct mpc_cpu;
 
 struct genapic {
 	char *name;
-	int (*probe)(void);
 
+	int (*probe)(void);
+	int (*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
 	int (*apic_id_registered)(void);
+
+	u32 int_delivery_mode;
+	u32 int_dest_mode;
+
 	const struct cpumask *(*target_cpus)(void);
-	int int_delivery_mode;
-	int int_dest_mode;
+
 	int ESR_DISABLE;
+
 	int apic_destination_logical;
 	unsigned long (*check_apicid_used)(physid_mask_t bitmap, int apicid);
 	unsigned long (*check_apicid_present)(int apicid);
+
 	int no_balance_irq;
 	int no_ioapic_check;
+
+	void (*vector_allocation_domain)(int cpu, struct cpumask *retmask);
 	void (*init_apic_ldr)(void);
+
 	physid_mask_t (*ioapic_phys_id_map)(physid_mask_t map);
 
 	void (*setup_apic_routing)(void);
@@ -45,22 +54,27 @@ struct genapic {
 	void (*setup_portio_remap)(void);
 	int (*check_phys_apicid_present)(int boot_cpu_physical_apicid);
 	void (*enable_apic_mode)(void);
+#ifdef CONFIG_X86_32
 	u32 (*phys_pkg_id)(u32 cpuid_apic, int index_msb);
+#else
+	unsigned int (*phys_pkg_id)(int index_msb);
+#endif
 
-	/* mpparse */
-	/* When one of the next two hooks returns 1 the genapic
-	   is switched to this. Essentially they are additional probe
-	   functions. */
+	/*
+	 * When one of the next two hooks returns 1 the genapic
+	 * is switched to this. Essentially they are additional
+	 * probe functions:
+	 */
 	int (*mps_oem_check)(struct mpc_table *mpc, char *oem,
 			     char *productid);
-	int (*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
 
-	unsigned (*get_apic_id)(unsigned long x);
+	unsigned int (*get_apic_id)(unsigned long x);
+	unsigned long (*set_apic_id)(unsigned int id);
 	unsigned long apic_id_mask;
+
 	unsigned int (*cpu_mask_to_apicid)(const struct cpumask *cpumask);
 	unsigned int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
 					       const struct cpumask *andmask);
-	void (*vector_allocation_domain)(int cpu, struct cpumask *retmask);
 
 #ifdef CONFIG_SMP
 	/* ipi */
@@ -69,8 +83,11 @@ struct genapic {
 					 int vector);
 	void (*send_IPI_allbutself)(int vector);
 	void (*send_IPI_all)(int vector);
+	void (*send_IPI_self)(int vector);
 #endif
+	/* wakeup_secondary_cpu */
 	int (*wakeup_cpu)(int apicid, unsigned long start_eip);
+
 	int trampoline_phys_low;
 	int trampoline_phys_high;
 	void (*wait_for_init_deassert)(atomic_t *deassert);
