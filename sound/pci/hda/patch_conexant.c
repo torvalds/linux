@@ -347,6 +347,7 @@ static int conexant_mux_enum_put(struct snd_kcontrol *kcontrol,
 				     &spec->cur_mux[adc_idx]);
 }
 
+#ifdef CONFIG_SND_JACK
 static int conexant_add_jack(struct hda_codec *codec,
 		hda_nid_t nid, int type)
 {
@@ -394,7 +395,6 @@ static void conexant_report_jack(struct hda_codec *codec, hda_nid_t nid)
 
 static int conexant_init_jacks(struct hda_codec *codec)
 {
-#ifdef CONFIG_SND_JACK
 	struct conexant_spec *spec = codec->spec;
 	int i;
 
@@ -422,10 +422,19 @@ static int conexant_init_jacks(struct hda_codec *codec)
 			++hv;
 		}
 	}
-#endif
 	return 0;
 
 }
+#else
+static inline void conexant_report_jack(struct hda_codec *codec, hda_nid_t nid)
+{
+}
+
+static inline int conexant_init_jacks(struct hda_codec *codec)
+{
+	return 0;
+}
+#endif
 
 static int conexant_init(struct hda_codec *codec)
 {
