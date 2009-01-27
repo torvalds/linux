@@ -52,7 +52,7 @@ static void i915_gem_object_free_page_list(struct drm_gem_object *obj);
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
-static void i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
+static int i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
 static int i915_gem_evict_something(struct drm_device *dev);
 static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
@@ -585,8 +585,11 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Need a new fence register? */
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
-	    obj_priv->tiling_mode != I915_TILING_NONE)
-		i915_gem_object_get_fence_reg(obj);
+	    obj_priv->tiling_mode != I915_TILING_NONE) {
+		ret = i915_gem_object_get_fence_reg(obj);
+		if (ret != 0)
+			return VM_FAULT_SIGBUS;
+	}
 
 	pfn = ((dev->agp->base + obj_priv->gtt_offset) >> PAGE_SHIFT) +
 		page_offset;
@@ -1513,7 +1516,7 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
  * It then sets up the reg based on the object's properties: address, pitch
  * and tiling format.
  */
-static void
+static int
 i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
@@ -1563,10 +1566,11 @@ try_again:
 		 * objects to finish before trying again.
 		 */
 		if (i == dev_priv->num_fence_regs) {
-			ret = i915_gem_object_wait_rendering(reg->obj);
+			ret = i915_gem_object_set_to_gtt_domain(reg->obj, 0);
 			if (ret) {
-				WARN(ret, "wait_rendering failed: %d\n", ret);
-				return;
+				WARN(ret != -ERESTARTSYS,
+				     "switch to GTT domain failed: %d\n", ret);
+				return ret;
 			}
 			goto try_again;
 		}
@@ -1591,6 +1595,8 @@ try_again:
 		i915_write_fence_reg(reg);
 	else
 		i830_write_fence_reg(reg);
+
+	return 0;
 }
 
 /**
