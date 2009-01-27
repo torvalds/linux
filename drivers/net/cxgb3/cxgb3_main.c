@@ -2542,6 +2542,12 @@ static int t3_adapter_error(struct adapter *adapter, int reset)
 {
 	int i, ret = 0;
 
+	if (is_offload(adapter) &&
+	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map)) {
+		cxgb3_err_notify(&adapter->tdev, OFFLOAD_STATUS_DOWN, 0);
+		offload_close(&adapter->tdev);
+	}
+
 	/* Stop all ports */
 	for_each_port(adapter, i) {
 		struct net_device *netdev = adapter->port[i];
@@ -2549,10 +2555,6 @@ static int t3_adapter_error(struct adapter *adapter, int reset)
 		if (netif_running(netdev))
 			cxgb_close(netdev);
 	}
-
-	if (is_offload(adapter) &&
-	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
-		offload_close(&adapter->tdev);
 
 	/* Stop SGE timers */
 	t3_stop_sge_timers(adapter);
@@ -2605,6 +2607,9 @@ static void t3_resume_ports(struct adapter *adapter)
 			}
 		}
 	}
+
+	if (is_offload(adapter) && !ofld_disable)
+		cxgb3_err_notify(&adapter->tdev, OFFLOAD_STATUS_UP, 0);
 }
 
 /*

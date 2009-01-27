@@ -153,6 +153,18 @@ void cxgb3_remove_clients(struct t3cdev *tdev)
 	mutex_unlock(&cxgb3_db_lock);
 }
 
+void cxgb3_err_notify(struct t3cdev *tdev, u32 status, u32 error)
+{
+	struct cxgb3_client *client;
+
+	mutex_lock(&cxgb3_db_lock);
+	list_for_each_entry(client, &client_list, client_list) {
+		if (client->err_handler)
+			client->err_handler(tdev, status, error);
+	}
+	mutex_unlock(&cxgb3_db_lock);
+}
+
 static struct net_device *get_iff_from_mac(struct adapter *adapter,
 					   const unsigned char *mac,
 					   unsigned int vlan)
