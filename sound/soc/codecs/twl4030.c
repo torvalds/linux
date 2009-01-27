@@ -802,16 +802,16 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 		SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD|
 		SND_SOC_DAPM_POST_REG),
 
-	/* Analog input muxes with power switch for the physical ADCL/R */
+	/* Analog input muxes with switch for the capture amplifiers */
 	SND_SOC_DAPM_VALUE_MUX("Analog Left Capture Route",
-		TWL4030_REG_AVADC_CTL, 3, 0, &twl4030_dapm_analoglmic_control),
+		TWL4030_REG_ANAMICL, 4, 0, &twl4030_dapm_analoglmic_control),
 	SND_SOC_DAPM_VALUE_MUX("Analog Right Capture Route",
-		TWL4030_REG_AVADC_CTL, 1, 0, &twl4030_dapm_analogrmic_control),
+		TWL4030_REG_ANAMICR, 4, 0, &twl4030_dapm_analogrmic_control),
 
-	SND_SOC_DAPM_PGA("Analog Left Amplifier",
-		TWL4030_REG_ANAMICL, 4, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Analog Right Amplifier",
-		TWL4030_REG_ANAMICR, 4, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("ADC Physical Left",
+		TWL4030_REG_AVADC_CTL, 3, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("ADC Physical Right",
+		TWL4030_REG_AVADC_CTL, 1, 0, NULL, 0),
 
 	SND_SOC_DAPM_PGA("Digimic0 Enable",
 		TWL4030_REG_ADCMICSEL, 1, 0, NULL, 0),
@@ -885,23 +885,23 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Analog Right Capture Route", "Sub mic", "SUBMIC"},
 	{"Analog Right Capture Route", "AUXR", "AUXR"},
 
-	{"Analog Left Amplifier", NULL, "Analog Left Capture Route"},
-	{"Analog Right Amplifier", NULL, "Analog Right Capture Route"},
+	{"ADC Physical Left", NULL, "Analog Left Capture Route"},
+	{"ADC Physical Right", NULL, "Analog Right Capture Route"},
 
 	{"Digimic0 Enable", NULL, "DIGIMIC0"},
 	{"Digimic1 Enable", NULL, "DIGIMIC1"},
 
 	/* TX1 Left capture path */
-	{"TX1 Capture Route", "Analog", "Analog Left Amplifier"},
+	{"TX1 Capture Route", "Analog", "ADC Physical Left"},
 	{"TX1 Capture Route", "Digimic0", "Digimic0 Enable"},
 	/* TX1 Right capture path */
-	{"TX1 Capture Route", "Analog", "Analog Right Amplifier"},
+	{"TX1 Capture Route", "Analog", "ADC Physical Right"},
 	{"TX1 Capture Route", "Digimic0", "Digimic0 Enable"},
 	/* TX2 Left capture path */
-	{"TX2 Capture Route", "Analog", "Analog Left Amplifier"},
+	{"TX2 Capture Route", "Analog", "ADC Physical Left"},
 	{"TX2 Capture Route", "Digimic1", "Digimic1 Enable"},
 	/* TX2 Right capture path */
-	{"TX2 Capture Route", "Analog", "Analog Right Amplifier"},
+	{"TX2 Capture Route", "Analog", "ADC Physical Right"},
 	{"TX2 Capture Route", "Digimic1", "Digimic1 Enable"},
 
 	{"ADC Virtual Left1", NULL, "TX1 Capture Route"},
