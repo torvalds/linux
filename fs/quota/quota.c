@@ -20,7 +20,8 @@
 #include <linux/types.h>
 
 /* Check validity of generic quotactl commands */
-static int generic_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t id)
+static int generic_quotactl_valid(struct super_block *sb, int type, int cmd,
+				  qid_t id)
 {
 	if (type >= MAXQUOTAS)
 		return -EINVAL;
@@ -72,7 +73,8 @@ static int generic_quotactl_valid(struct super_block *sb, int type, int cmd, qid
 		case Q_SETINFO:
 		case Q_SETQUOTA:
 		case Q_GETQUOTA:
-			/* This is just informative test so we are satisfied without a lock */
+			/* This is just an informative test so we are satisfied
+			 * without the lock */
 			if (!sb_has_quota_active(sb, type))
 				return -ESRCH;
 	}
@@ -92,7 +94,8 @@ static int generic_quotactl_valid(struct super_block *sb, int type, int cmd, qid
 }
 
 /* Check validity of XFS Quota Manager commands */
-static int xqm_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t id)
+static int xqm_quotactl_valid(struct super_block *sb, int type, int cmd,
+			      qid_t id)
 {
 	if (type >= XQM_MAXQUOTAS)
 		return -EINVAL;
@@ -142,7 +145,8 @@ static int xqm_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t i
 	return 0;
 }
 
-static int check_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t id)
+static int check_quotactl_valid(struct super_block *sb, int type, int cmd,
+				qid_t id)
 {
 	int error;
 
@@ -180,7 +184,8 @@ static void quota_sync_sb(struct super_block *sb, int type)
 			continue;
 		if (!sb_has_quota_active(sb, cnt))
 			continue;
-		mutex_lock_nested(&sb_dqopt(sb)->files[cnt]->i_mutex, I_MUTEX_QUOTA);
+		mutex_lock_nested(&sb_dqopt(sb)->files[cnt]->i_mutex,
+				  I_MUTEX_QUOTA);
 		truncate_inode_pages(&sb_dqopt(sb)->files[cnt]->i_data, 0);
 		mutex_unlock(&sb_dqopt(sb)->files[cnt]->i_mutex);
 	}
@@ -200,14 +205,15 @@ void sync_dquots(struct super_block *sb, int type)
 	spin_lock(&sb_lock);
 restart:
 	list_for_each_entry(sb, &super_blocks, s_list) {
-		/* This test just improves performance so it needn't be reliable... */
+		/* This test just improves performance so it needn't be
+		 * reliable... */
 		for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 			if (type != -1 && type != cnt)
 				continue;
 			if (!sb_has_quota_active(sb, cnt))
 				continue;
 			if (!info_dirty(&sb_dqopt(sb)->info[cnt]) &&
-			    list_empty(&sb_dqopt(sb)->info[cnt].dqi_dirty_list))
+			   list_empty(&sb_dqopt(sb)->info[cnt].dqi_dirty_list))
 				continue;
 			break;
 		}
@@ -227,7 +233,8 @@ restart:
 }
 
 /* Copy parameters and call proper function */
-static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id, void __user *addr)
+static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
+		       void __user *addr)
 {
 	int ret;
 
@@ -235,7 +242,8 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id, void
 		case Q_QUOTAON: {
 			char *pathname;
 
-			if (IS_ERR(pathname = getname(addr)))
+			pathname = getname(addr);
+			if (IS_ERR(pathname))
 				return PTR_ERR(pathname);
 			ret = sb->s_qcop->quota_on(sb, type, id, pathname, 0);
 			putname(pathname);
@@ -261,7 +269,8 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id, void
 		case Q_GETINFO: {
 			struct if_dqinfo info;
 
-			if ((ret = sb->s_qcop->get_info(sb, type, &info)))
+			ret = sb->s_qcop->get_info(sb, type, &info);
+			if (ret)
 				return ret;
 			if (copy_to_user(addr, &info, sizeof(info)))
 				return -EFAULT;
@@ -277,7 +286,8 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id, void
 		case Q_GETQUOTA: {
 			struct if_dqblk idq;
 
-			if ((ret = sb->s_qcop->get_dqblk(sb, type, id, &idq)))
+			ret = sb->s_qcop->get_dqblk(sb, type, id, &idq);
+			if (ret)
 				return ret;
 			if (copy_to_user(addr, &idq, sizeof(idq)))
 				return -EFAULT;
@@ -322,7 +332,8 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id, void
 		case Q_XGETQUOTA: {
 			struct fs_disk_quota fdq;
 
-			if ((ret = sb->s_qcop->get_xquota(sb, type, id, &fdq)))
+			ret = sb->s_qcop->get_xquota(sb, type, id, &fdq);
+			if (ret)
 				return ret;
 			if (copy_to_user(addr, &fdq, sizeof(fdq)))
 				return -EFAULT;

@@ -43,7 +43,8 @@ static char *getdqbuf(size_t size)
 {
 	char *buf = kmalloc(size, GFP_NOFS);
 	if (!buf)
-		printk(KERN_WARNING "VFS: Not enough memory for quota buffers.\n");
+		printk(KERN_WARNING
+		       "VFS: Not enough memory for quota buffers.\n");
 	return buf;
 }
 
@@ -113,7 +114,8 @@ static int put_free_dqblk(struct qtree_mem_dqinfo *info, char *buf, uint blk)
 }
 
 /* Remove given block from the list of blocks with free entries */
-static int remove_free_dqentry(struct qtree_mem_dqinfo *info, char *buf, uint blk)
+static int remove_free_dqentry(struct qtree_mem_dqinfo *info, char *buf,
+			       uint blk)
 {
 	char *tmpbuf = getdqbuf(info->dqi_usable_bs);
 	struct qt_disk_dqdbheader *dh = (struct qt_disk_dqdbheader *)buf;
@@ -150,7 +152,9 @@ static int remove_free_dqentry(struct qtree_mem_dqinfo *info, char *buf, uint bl
 	dh->dqdh_next_free = dh->dqdh_prev_free = cpu_to_le32(0);
 	/* No matter whether write succeeds block is out of list */
 	if (write_blk(info, blk, buf) < 0)
-		printk(KERN_ERR "VFS: Can't write block (%u) with free entries.\n", blk);
+		printk(KERN_ERR
+		       "VFS: Can't write block (%u) with free entries.\n",
+		       blk);
 	return 0;
 out_buf:
 	kfree(tmpbuf);
@@ -158,7 +162,8 @@ out_buf:
 }
 
 /* Insert given block to the beginning of list with free entries */
-static int insert_free_dqentry(struct qtree_mem_dqinfo *info, char *buf, uint blk)
+static int insert_free_dqentry(struct qtree_mem_dqinfo *info, char *buf,
+			       uint blk)
 {
 	char *tmpbuf = getdqbuf(info->dqi_usable_bs);
 	struct qt_disk_dqdbheader *dh = (struct qt_disk_dqdbheader *)buf;
@@ -230,7 +235,8 @@ static uint find_free_dqentry(struct qtree_mem_dqinfo *info,
 			return 0;
 		}
 		memset(buf, 0, info->dqi_usable_bs);
-		/* This is enough as block is already zeroed and entry list is empty... */
+		/* This is enough as the block is already zeroed and the entry
+		 * list is empty... */
 		info->dqi_free_entry = blk;
 		mark_info_dirty(dquot->dq_sb, dquot->dq_type);
 	}
@@ -246,10 +252,12 @@ static uint find_free_dqentry(struct qtree_mem_dqinfo *info,
 	}
 	le16_add_cpu(&dh->dqdh_entries, 1);
 	/* Find free structure in block */
-	for (i = 0, ddquot = buf + sizeof(struct qt_disk_dqdbheader);
-	     i < qtree_dqstr_in_blk(info) && !qtree_entry_unused(info, ddquot);
-	     i++, ddquot += info->dqi_entry_size)
-		;
+	ddquot = buf + sizeof(struct qt_disk_dqdbheader);
+	for (i = 0; i < qtree_dqstr_in_blk(info); i++) {
+		if (qtree_entry_unused(info, ddquot))
+			break;
+		ddquot += info->dqi_entry_size;
+	}
 #ifdef __QUOTA_QT_PARANOIA
 	if (i == qtree_dqstr_in_blk(info)) {
 		printk(KERN_ERR "VFS: find_free_dqentry(): Data block full "
@@ -340,7 +348,8 @@ static inline int dq_insert_tree(struct qtree_mem_dqinfo *info,
 }
 
 /*
- *	We don't have to be afraid of deadlocks as we never have quotas on quota files...
+ * We don't have to be afraid of deadlocks as we never have quotas on quota
+ * files...
  */
 int qtree_write_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 {
@@ -515,10 +524,12 @@ static loff_t find_block_dqentry(struct qtree_mem_dqinfo *info,
 		printk(KERN_ERR "VFS: Can't read quota tree block %u.\n", blk);
 		goto out_buf;
 	}
-	for (i = 0, ddquot = buf + sizeof(struct qt_disk_dqdbheader);
-	     i < qtree_dqstr_in_blk(info) && !info->dqi_ops->is_id(ddquot, dquot);
-	     i++, ddquot += info->dqi_entry_size)
-		;
+	ddquot = buf + sizeof(struct qt_disk_dqdbheader);
+	for (i = 0; i < qtree_dqstr_in_blk(info); i++) {
+		if (info->dqi_ops->is_id(ddquot, dquot))
+			break;
+		ddquot += info->dqi_entry_size;
+	}
 	if (i == qtree_dqstr_in_blk(info)) {
 		printk(KERN_ERR "VFS: Quota for id %u referenced "
 		  "but not present.\n", dquot->dq_id);
@@ -632,7 +643,8 @@ EXPORT_SYMBOL(qtree_read_dquot);
  * the only one operating on dquot (thanks to dq_lock) */
 int qtree_release_dquot(struct qtree_mem_dqinfo *info, struct dquot *dquot)
 {
-	if (test_bit(DQ_FAKE_B, &dquot->dq_flags) && !(dquot->dq_dqb.dqb_curinodes | dquot->dq_dqb.dqb_curspace))
+	if (test_bit(DQ_FAKE_B, &dquot->dq_flags) &&
+	    !(dquot->dq_dqb.dqb_curinodes | dquot->dq_dqb.dqb_curspace))
 		return qtree_delete_dquot(info, dquot);
 	return 0;
 }
