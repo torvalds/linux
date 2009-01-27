@@ -25,15 +25,20 @@
 DEFINE_PER_CPU(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
 
+#ifdef CONFIG_X86_64
+#define BOOT_PERCPU_OFFSET ((unsigned long)__per_cpu_load)
+#else
+#define BOOT_PERCPU_OFFSET 0
+#endif
+
+DEFINE_PER_CPU(unsigned long, this_cpu_off) = BOOT_PERCPU_OFFSET;
+EXPORT_PER_CPU_SYMBOL(this_cpu_off);
+
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
 
-#ifdef CONFIG_X86_64
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = {
-	[0] = (unsigned long)__per_cpu_load,
+	[0] = BOOT_PERCPU_OFFSET,
 };
-#else
-unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
-#endif
 EXPORT_SYMBOL(__per_cpu_offset);
 
 /*

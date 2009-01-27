@@ -5,13 +5,6 @@
 #include <asm/smp.h>
 #include <asm/sections.h>
 
-#ifdef CONFIG_X86_64
-DEFINE_PER_CPU(unsigned long, this_cpu_off) = (unsigned long)__per_cpu_load;
-#else
-DEFINE_PER_CPU(unsigned long, this_cpu_off);
-#endif
-EXPORT_PER_CPU_SYMBOL(this_cpu_off);
-
 #ifdef CONFIG_X86_32
 /*
  * Initialize the CPU's GDT.  This is either the boot CPU doing itself
