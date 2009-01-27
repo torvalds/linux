@@ -1696,24 +1696,10 @@ static int rt61pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 
 static void rt61pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
-
+	/*
+	 * Disable power
+	 */
 	rt2x00pci_register_write(rt2x00dev, MAC_CSR10, 0x00001818);
-
-	/*
-	 * Disable synchronisation.
-	 */
-	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, 0);
-
-	/*
-	 * Cancel RX and TX.
-	 */
-	rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC0, 1);
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC1, 1);
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC2, 1);
-	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC3, 1);
-	rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 }
 
 static int rt61pci_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
@@ -1933,6 +1919,24 @@ static void rt61pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC1, (queue == QID_AC_BK));
 	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC2, (queue == QID_AC_VI));
 	rt2x00_set_field32(&reg, TX_CNTL_CSR_KICK_TX_AC3, (queue == QID_AC_VO));
+	rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
+}
+
+static void rt61pci_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
+				  const enum data_queue_qid qid)
+{
+	u32 reg;
+
+	if (qid == QID_BEACON) {
+		rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, 0);
+		return;
+	}
+
+	rt2x00pci_register_read(rt2x00dev, TX_CNTL_CSR, &reg);
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC0, (qid == QID_AC_BE));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC1, (qid == QID_AC_BK));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC2, (qid == QID_AC_VI));
+	rt2x00_set_field32(&reg, TX_CNTL_CSR_ABORT_TX_AC3, (qid == QID_AC_VO));
 	rt2x00pci_register_write(rt2x00dev, TX_CNTL_CSR, reg);
 }
 
@@ -2761,6 +2765,7 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.write_tx_data		= rt2x00pci_write_tx_data,
 	.write_beacon		= rt61pci_write_beacon,
 	.kick_tx_queue		= rt61pci_kick_tx_queue,
+	.kill_tx_queue		= rt61pci_kill_tx_queue,
 	.fill_rxdone		= rt61pci_fill_rxdone,
 	.config_shared_key	= rt61pci_config_shared_key,
 	.config_pairwise_key	= rt61pci_config_pairwise_key,

@@ -123,9 +123,11 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb);
  * rt2x00queue_update_beacon - Send new beacon from mac80211 to hardware
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @vif: Interface for which the beacon should be updated.
+ * @enable_beacon: Enable beaconing
  */
 int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
-			      struct ieee80211_vif *vif);
+			      struct ieee80211_vif *vif,
+			      const bool enable_beacon);
 
 /**
  * rt2x00queue_index_inc - Index incrementation function
@@ -137,6 +139,15 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
  * resetting the index to the start of the queue.
  */
 void rt2x00queue_index_inc(struct data_queue *queue, enum queue_index index);
+
+/**
+ * rt2x00queue_stop_queues - Halt all data queues
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ *
+ * This function will loop through all available queues to stop
+ * any pending outgoing frames.
+ */
+void rt2x00queue_stop_queues(struct rt2x00_dev *rt2x00dev);
 
 /**
  * rt2x00queue_init_queues - Initialize all data queues

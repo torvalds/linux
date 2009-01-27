@@ -508,6 +508,8 @@ struct rt2x00lib_ops {
 	int (*get_tx_data_len) (struct queue_entry *entry);
 	void (*kick_tx_queue) (struct rt2x00_dev *rt2x00dev,
 			       const enum data_queue_qid queue);
+	void (*kill_tx_queue) (struct rt2x00_dev *rt2x00dev,
+			       const enum data_queue_qid queue);
 
 	/*
 	 * RX control handlers
