@@ -1247,7 +1247,7 @@ static int smsc911x_open(struct net_device *dev)
 	napi_enable(&pdata->napi);
 
 	temp = smsc911x_reg_read(pdata, INT_EN);
-	temp |= (INT_EN_TDFA_EN_ | INT_EN_RSFL_EN_);
+	temp |= (INT_EN_TDFA_EN_ | INT_EN_RSFL_EN_ | INT_EN_RXSTOP_INT_EN_);
 	smsc911x_reg_write(pdata, INT_EN, temp);
 
 	spin_lock_irq(&pdata->mac_lock);
@@ -1419,11 +1419,6 @@ static void smsc911x_set_multicast_list(struct net_device *dev)
 
 			/* Request the hardware to stop, then perform the
 			 * update when we get an RX_STOP interrupt */
-			smsc911x_reg_write(pdata, INT_STS, INT_STS_RXSTOP_INT_);
-			temp = smsc911x_reg_read(pdata, INT_EN);
-			temp |= INT_EN_RXSTOP_INT_EN_;
-			smsc911x_reg_write(pdata, INT_EN, temp);
-
 			temp = smsc911x_mac_read(pdata, MAC_CR);
 			temp &= ~(MAC_CR_RXEN_);
 			smsc911x_mac_write(pdata, MAC_CR, temp);
@@ -1462,11 +1457,9 @@ static irqreturn_t smsc911x_irqhandler(int irq, void *dev_id)
 		/* Called when there is a multicast update scheduled and
 		 * it is now safe to complete the update */
 		SMSC_TRACE(INTR, "RX Stop interrupt");
-		temp = smsc911x_reg_read(pdata, INT_EN);
-		temp &= (~INT_EN_RXSTOP_INT_EN_);
-		smsc911x_reg_write(pdata, INT_EN, temp);
 		smsc911x_reg_write(pdata, INT_STS, INT_STS_RXSTOP_INT_);
-		smsc911x_rx_multicast_update_workaround(pdata);
+		if (pdata->multicast_update_pending)
+			smsc911x_rx_multicast_update_workaround(pdata);
 		serviced = IRQ_HANDLED;
 	}
 
