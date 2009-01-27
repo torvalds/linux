@@ -184,6 +184,48 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 
 }
 
+static void twl4030_power_up(struct snd_soc_codec *codec)
+{
+	u8 anamicl, regmisc1, byte;
+	int i = 0;
+
+	/* set CODECPDZ to turn on codec */
+	twl4030_codec_enable(codec, 1);
+
+	/* initiate offset cancellation */
+	anamicl = twl4030_read_reg_cache(codec, TWL4030_REG_ANAMICL);
+	twl4030_write(codec, TWL4030_REG_ANAMICL,
+		anamicl | TWL4030_CNCL_OFFSET_START);
+
+	/* wait for offset cancellation to complete */
+	do {
+		/* this takes a little while, so don't slam i2c */
+		udelay(2000);
+		twl4030_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &byte,
+				    TWL4030_REG_ANAMICL);
+	} while ((i++ < 100) &&
+		 ((byte & TWL4030_CNCL_OFFSET_START) ==
+		  TWL4030_CNCL_OFFSET_START));
+
+	/* Make sure that the reg_cache has the same value as the HW */
+	twl4030_write_reg_cache(codec, TWL4030_REG_ANAMICL, byte);
+
+	/* anti-pop when changing analog gain */
+	regmisc1 = twl4030_read_reg_cache(codec, TWL4030_REG_MISC_SET_1);
+	twl4030_write(codec, TWL4030_REG_MISC_SET_1,
+		regmisc1 | TWL4030_SMOOTH_ANAVOL_EN);
+
+	/* toggle CODECPDZ as per TRM */
+	twl4030_codec_enable(codec, 0);
+	twl4030_codec_enable(codec, 1);
+}
+
+static void twl4030_power_down(struct snd_soc_codec *codec)
+{
+	/* power down */
+	twl4030_codec_enable(codec, 0);
+}
+
 /* Earpiece */
 static const char *twl4030_earpiece_texts[] =
 		{"Off", "DACL1", "DACL2", "DACR1"};
@@ -920,49 +962,6 @@ static int twl4030_add_widgets(struct snd_soc_codec *codec)
 
 	snd_soc_dapm_new_widgets(codec);
 	return 0;
-}
-
-static void twl4030_power_up(struct snd_soc_codec *codec)
-{
-	u8 anamicl, regmisc1, byte;
-	int i = 0;
-
-	/* set CODECPDZ to turn on codec */
-	twl4030_codec_enable(codec, 1);
-
-	/* initiate offset cancellation */
-	anamicl = twl4030_read_reg_cache(codec, TWL4030_REG_ANAMICL);
-	twl4030_write(codec, TWL4030_REG_ANAMICL,
-		anamicl | TWL4030_CNCL_OFFSET_START);
-
-
-	/* wait for offset cancellation to complete */
-	do {
-		/* this takes a little while, so don't slam i2c */
-		udelay(2000);
-		twl4030_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &byte,
-				    TWL4030_REG_ANAMICL);
-	} while ((i++ < 100) &&
-		 ((byte & TWL4030_CNCL_OFFSET_START) ==
-		  TWL4030_CNCL_OFFSET_START));
-
-	/* Make sure that the reg_cache has the same value as the HW */
-	twl4030_write_reg_cache(codec, TWL4030_REG_ANAMICL, byte);
-
-	/* anti-pop when changing analog gain */
-	regmisc1 = twl4030_read_reg_cache(codec, TWL4030_REG_MISC_SET_1);
-	twl4030_write(codec, TWL4030_REG_MISC_SET_1,
-		regmisc1 | TWL4030_SMOOTH_ANAVOL_EN);
-
-	/* toggle CODECPDZ as per TRM */
-	twl4030_codec_enable(codec, 0);
-	twl4030_codec_enable(codec, 1);
-}
-
-static void twl4030_power_down(struct snd_soc_codec *codec)
-{
-	/* power down */
-	twl4030_codec_enable(codec, 0);
 }
 
 static int twl4030_set_bias_level(struct snd_soc_codec *codec,
