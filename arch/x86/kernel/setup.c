@@ -588,7 +588,7 @@ early_param("elfcorehdr", setup_elfcorehdr);
 
 static int __init default_update_genapic(void)
 {
-#ifdef CONFIG_X86_SMP
+#ifdef CONFIG_SMP
 	if (!apic->wakeup_cpu)
 		apic->wakeup_cpu = wakeup_secondary_cpu_via_init;
 #endif

@@ -1900,7 +1900,7 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	}
 #endif
 
-#if defined(CONFIG_X86_SMP) || defined(CONFIG_X86_64)
+#if defined(CONFIG_SMP) || defined(CONFIG_X86_64)
 	early_per_cpu(x86_cpu_to_apicid, cpu) = apicid;
 	early_per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
 #endif

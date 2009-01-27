@@ -173,11 +173,6 @@ config GENERIC_PENDING_IRQ
 	depends on GENERIC_HARDIRQS && SMP
 	default y
 
-config X86_SMP
-	bool
-	depends on SMP && ((X86_32 && !X86_VOYAGER) || X86_64)
-	default y
-
 config USE_GENERIC_SMP_HELPERS
 	def_bool y
 	depends on SMP
@@ -203,7 +198,7 @@ config X86_BIOS_REBOOT
 
 config X86_TRAMPOLINE
 	bool
-	depends on X86_SMP || (X86_VOYAGER && SMP) || (64BIT && ACPI_SLEEP)
+	depends on SMP || (64BIT && ACPI_SLEEP)
 	default y
 
 config KTIME_SCALAR
