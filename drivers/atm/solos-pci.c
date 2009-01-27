@@ -303,8 +303,8 @@ static char *next_string(struct sk_buff *skb)
  */       
 static int process_status(struct solos_card *card, int port, struct sk_buff *skb)
 {
-	char *str, *end;
-	int ver, rate_up, rate_down, state;
+	char *str, *end, *state_str;
+	int ver, rate_up, rate_down, state, snr, attn;
 
 	if (!card->atmdev[port])
 		return -ENODEV;
@@ -330,19 +330,35 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 	if (*end)
 		return -EIO;
 
-	str = next_string(skb);
-	if (!strcmp(str, "Showtime"))
+	state_str = next_string(skb);
+	if (!strcmp(state_str, "Showtime"))
 		state = ATM_PHY_SIG_FOUND;
 	else {
 		state = ATM_PHY_SIG_LOST;
 		release_vccs(card->atmdev[port]);
 	}
 
+	str = next_string(skb);
+	snr = simple_strtol(str, &end, 10);
+	if (*end)
+		return -EIO;
+
+	str = next_string(skb);
+	attn = simple_strtol(str, &end, 10);
+	if (*end)
+		return -EIO;
+
+	if (state == ATM_PHY_SIG_LOST && !rate_up && !rate_down)
+		dev_info(&card->dev->dev, "Port %d ATM state: %s\n",
+			 port, state_str);
+	else
+		dev_info(&card->dev->dev, "Port %d ATM state: %s (%d/%d kb/s, SNR %ddB, Attn %ddB)\n",
+			 port, state_str, rate_up/1000, rate_down/1000,
+			 snr, attn);
+
 	card->atmdev[port]->link_rate = rate_down;
 	card->atmdev[port]->signal = state;
 
-	dev_info(&card->dev->dev, "ATM state: '%s', %d/%d kb/s up/down.\n",
-		 str, rate_up/1000, rate_down/1000);
 	return 0;
 }
 
@@ -851,7 +867,7 @@ static int fpga_tx(struct solos_card *card)
 	dev_vdbg(&card->dev->dev, "TX Flags are %X\n", tx_pending);
 
 	for (port = 0; port < card->nr_ports; port++) {
-		if (!(tx_pending & (1 << port))) {
+		if (card->atmdev[port] && !(tx_pending & (1 << port))) {
 
 			spin_lock(&card->tx_queue_lock);
 			skb = skb_dequeue(&card->tx_queue[port]);
