@@ -2253,24 +2253,27 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 		}
 	}
 
-	if ((conf->changed & IEEE80211_IFCC_BEACON) &&
-	    ((vif->type == NL80211_IFTYPE_ADHOC) ||
-	     (vif->type == NL80211_IFTYPE_AP))) {
-		/*
-		 * Allocate and setup the beacon frame.
-		 *
-		 * Stop any previous beacon DMA.  This may be
-		 * necessary, for example, when an ibss merge
-		 * causes reconfiguration; we may be called
-		 * with beacon transmission active.
-		 */
-		ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+	if ((vif->type == NL80211_IFTYPE_ADHOC) ||
+	    (vif->type == NL80211_IFTYPE_AP)) {
+		if ((conf->changed & IEEE80211_IFCC_BEACON) ||
+		    (conf->changed & IEEE80211_IFCC_BEACON_ENABLED &&
+		     conf->enable_beacon)) {
+			/*
+			 * Allocate and setup the beacon frame.
+			 *
+			 * Stop any previous beacon DMA.  This may be
+			 * necessary, for example, when an ibss merge
+			 * causes reconfiguration; we may be called
+			 * with beacon transmission active.
+			 */
+			ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
 
-		error = ath_beacon_alloc(sc, 0);
-		if (error != 0)
-			return error;
+			error = ath_beacon_alloc(sc, 0);
+			if (error != 0)
+				return error;
 
-		ath_beacon_sync(sc, 0);
+			ath_beacon_sync(sc, 0);
+		}
 	}
 
 	/* Check for WLAN_CAPABILITY_PRIVACY ? */
