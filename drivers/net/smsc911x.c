@@ -1886,9 +1886,9 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct smsc911x_data *pdata;
 	struct smsc911x_platform_config *config = pdev->dev.platform_data;
-	struct resource *res;
+	struct resource *res, *irq_res;
 	unsigned int intcfg = 0;
-	int res_size;
+	int res_size, irq_flags;
 	int retval;
 	DECLARE_MAC_BUF(mac);
 
@@ -1913,6 +1913,14 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	}
 	res_size = res->end - res->start;
 
+	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!irq_res) {
+		pr_warning("%s: Could not allocate irq resource.\n",
+			SMSC_CHIPNAME);
+		retval = -ENODEV;
+		goto out_0;
+	}
+
 	if (!request_mem_region(res->start, res_size, SMSC_CHIPNAME)) {
 		retval = -EBUSY;
 		goto out_0;
@@ -1929,7 +1937,8 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 
 	pdata = netdev_priv(dev);
 
-	dev->irq = platform_get_irq(pdev, 0);
+	dev->irq = irq_res->start;
+	irq_flags = irq_res->flags & IRQF_TRIGGER_MASK;
 	pdata->ioaddr = ioremap_nocache(res->start, res_size);
 
 	/* copy config parameters across to pdata */
@@ -1962,8 +1971,8 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 	smsc911x_reg_write(pdata, INT_EN, 0);
 	smsc911x_reg_write(pdata, INT_STS, 0xFFFFFFFF);
 
-	retval = request_irq(dev->irq, smsc911x_irqhandler, IRQF_DISABLED,
-			     dev->name, dev);
+	retval = request_irq(dev->irq, smsc911x_irqhandler,
+			     irq_flags | IRQF_DISABLED, dev->name, dev);
 	if (retval) {
 		SMSC_WARNING(PROBE,
 			"Unable to claim requested irq: %d", dev->irq);
