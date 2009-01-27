@@ -1690,7 +1690,7 @@ static void iwl3945_hw_reg_set_scan_power(struct iwl_priv *priv, u32 scan_tbl_in
  * Configures power settings for all rates for the current channel,
  * using values from channel info struct, and send to NIC
  */
-int iwl3945_send_tx_power(struct iwl_priv *priv)
+static int iwl3945_send_tx_power(struct iwl_priv *priv)
 {
 	int rate_idx, i;
 	const struct iwl_channel_info *ch_info = NULL;
