@@ -1359,7 +1359,7 @@ static void ath_rc_init(struct ath_softc *sc,
 
 	if (sta->ht_cap.ht_supported) {
 		ath_rc_priv->ht_cap = WLAN_RC_HT_FLAG;
-		if (sc->sc_tx_chainmask != 1)
+		if (sc->sc_ah->ah_caps.tx_chainmask != 1)
 			ath_rc_priv->ht_cap |= WLAN_RC_DS_FLAG;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 			ath_rc_priv->ht_cap |= WLAN_RC_40_FLAG;

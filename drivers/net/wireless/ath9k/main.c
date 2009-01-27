@@ -876,6 +876,7 @@ static void setup_ht_cap(struct ath_softc *sc,
 	case 1:
 		ht_info->mcs.rx_mask[0] = 0xff;
 		break;
+	case 3:
 	case 5:
 	case 7:
 	default:
