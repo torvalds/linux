@@ -2054,6 +2054,9 @@ static int exclusive_bit(int new_bit)
 	int state = new_bit & ~3;
 	int dir = new_bit & 2;
 
+	/*
+	 * keep state, bit flip the direction and strip read.
+	 */
 	return state | (dir ^ 2);
 }
 
@@ -2070,22 +2073,42 @@ mark_lock_irq(struct task_struct *curr, struct held_lock *this, int new_bit)
 	int read = new_bit & 1;
 	int dir = new_bit & 2;
 
+	/*
+	 * mark USED_IN has to look forwards -- to ensure no dependency
+	 * has ENABLED state, which would allow recursion deadlocks.
+	 *
+	 * mark ENABLED has to look backwards -- to ensure no dependee
+	 * has USED_IN state, which, again, would allow  recursion deadlocks.
+	 */
 	check_usage_f usage = dir ?
 		check_usage_backwards : check_usage_forwards;
 
+	/*
+	 * Validate that this particular lock does not have conflicting
+	 * usage states.
+	 */
 	if (!valid_state(curr, this, new_bit, excl_bit))
 		return 0;
 
-	if (!read && !valid_state(curr, this, new_bit, excl_bit + 1))
-		return 0;
-
-	if ((!read || (!dir || STRICT_READ_CHECKS)) &&
+	/*
+	 * Validate that the lock dependencies don't have conflicting usage
+	 * states.
+	 */
+	if ((!read || !dir || STRICT_READ_CHECKS) &&
 			!usage(curr, this, excl_bit, name))
 		return 0;
 
-	if ((!read && STRICT_READ_CHECKS) &&
-			!usage(curr, this, excl_bit + 1, rname))
-		return 0;
+	/*
+	 * Check for read in write conflicts
+	 */
+	if (!read) {
+		if (!valid_state(curr, this, new_bit, excl_bit + 1))
+			return 0;
+
+		if (STRICT_READ_CHECKS &&
+				!usage(curr, this, excl_bit + 1, rname))
+			return 0;
+	}
 
 	if (state_verbose(new_bit, hlock_class(this)))
 		return 2;
