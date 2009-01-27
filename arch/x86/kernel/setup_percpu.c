@@ -97,33 +97,6 @@ static inline void setup_cpu_local_masks(void)
 #endif /* CONFIG_X86_32 */
 
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
-/*
- * Copy data used in early init routines from the initial arrays to the
- * per cpu data areas.  These arrays then become expendable and the
- * *_early_ptr's are zeroed indicating that the static arrays are gone.
- */
-static void __init setup_per_cpu_maps(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		per_cpu(x86_cpu_to_apicid, cpu) =
-				early_per_cpu_map(x86_cpu_to_apicid, cpu);
-		per_cpu(x86_bios_cpu_apicid, cpu) =
-				early_per_cpu_map(x86_bios_cpu_apicid, cpu);
-#ifdef X86_64_NUMA
-		per_cpu(x86_cpu_to_node_map, cpu) =
-				early_per_cpu_map(x86_cpu_to_node_map, cpu);
-#endif
-	}
-
-	/* indicate the early static arrays will soon be gone */
-	early_per_cpu_ptr(x86_cpu_to_apicid) = NULL;
-	early_per_cpu_ptr(x86_bios_cpu_apicid) = NULL;
-#ifdef X86_64_NUMA
-	early_per_cpu_ptr(x86_cpu_to_node_map) = NULL;
-#endif
-}
 
 #ifdef CONFIG_X86_64
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = {
@@ -181,6 +154,19 @@ void __init setup_per_cpu_areas(void)
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		per_cpu(this_cpu_off, cpu) = per_cpu_offset(cpu);
 		per_cpu(cpu_number, cpu) = cpu;
+		/*
+		 * Copy data used in early init routines from the initial arrays to the
+		 * per cpu data areas.  These arrays then become expendable and the
+		 * *_early_ptr's are zeroed indicating that the static arrays are gone.
+		 */
+		per_cpu(x86_cpu_to_apicid, cpu) =
+				early_per_cpu_map(x86_cpu_to_apicid, cpu);
+		per_cpu(x86_bios_cpu_apicid, cpu) =
+				early_per_cpu_map(x86_bios_cpu_apicid, cpu);
+#ifdef X86_64_NUMA
+		per_cpu(x86_cpu_to_node_map, cpu) =
+				early_per_cpu_map(x86_cpu_to_node_map, cpu);
+#endif
 #ifdef CONFIG_X86_64
 		per_cpu(irq_stack_ptr, cpu) =
 			per_cpu(irq_stack_union.irq_stack, cpu) + IRQ_STACK_SIZE - 64;
@@ -195,8 +181,12 @@ void __init setup_per_cpu_areas(void)
 		DBG("PERCPU: cpu %4d %p\n", cpu, ptr);
 	}
 
-	/* Setup percpu data maps */
-	setup_per_cpu_maps();
+	/* indicate the early static arrays will soon be gone */
+	early_per_cpu_ptr(x86_cpu_to_apicid) = NULL;
+	early_per_cpu_ptr(x86_bios_cpu_apicid) = NULL;
+#ifdef X86_64_NUMA
+	early_per_cpu_ptr(x86_cpu_to_node_map) = NULL;
+#endif
 
 	/* Setup node to cpumask map */
 	setup_node_to_cpumask_map();
