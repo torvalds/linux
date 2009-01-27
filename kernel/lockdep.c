@@ -2099,14 +2099,6 @@ enum mark_type {
 #undef LOCKDEP_STATE
 };
 
-#define MARK_HELD_CASE(__STATE)						\
-	case __STATE:							\
-		if (hlock->read)					\
-			usage_bit = LOCK_ENABLED_##__STATE##_READ;	\
-		else							\
-			usage_bit = LOCK_ENABLED_##__STATE;		\
-		break;
-
 /*
  * Mark all held locks with a usage bit:
  */
@@ -2120,13 +2112,11 @@ mark_held_locks(struct task_struct *curr, enum mark_type mark)
 	for (i = 0; i < curr->lockdep_depth; i++) {
 		hlock = curr->held_locks + i;
 
-		switch (mark) {
-#define LOCKDEP_STATE(__STATE) MARK_HELD_CASE(__STATE)
-#include "lockdep_states.h"
-#undef LOCKDEP_STATE
-		default:
-			BUG();
-		}
+		usage_bit = 2 + (mark << 2); /* ENABLED */
+		if (hlock->read)
+			usage_bit += 1; /* READ */
+
+		BUG_ON(usage_bit >= LOCK_USAGE_STATES);
 
 		if (!mark_lock(curr, hlock, usage_bit))
 			return 0;
