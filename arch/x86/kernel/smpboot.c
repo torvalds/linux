@@ -793,7 +793,6 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 do_rest:
 	per_cpu(current_task, cpu) = c_idle.idle;
 #ifdef CONFIG_X86_32
-	init_gdt(cpu);
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	irq_ctx_init(cpu);
 #else
@@ -1186,9 +1185,6 @@ out:
 void __init native_smp_prepare_boot_cpu(void)
 {
 	int me = smp_processor_id();
-#ifdef CONFIG_X86_32
-	init_gdt(me);
-#endif
 	switch_to_new_gdt();
 	/* already set me in cpu_online_mask in boot_cpu_init() */
 	cpumask_set_cpu(me, cpu_callout_mask);

@@ -40,6 +40,19 @@ unsigned long __per_cpu_offset[NR_CPUS] __read_mostly = {
 };
 EXPORT_SYMBOL(__per_cpu_offset);
 
+static inline void setup_percpu_segment(int cpu)
+{
+#ifdef CONFIG_X86_32
+	struct desc_struct gdt;
+
+	pack_descriptor(&gdt, per_cpu_offset(cpu), 0xFFFFF,
+			0x2 | DESCTYPE_S, 0x8);
+	gdt.s = 1;
+	write_gdt_entry(get_cpu_gdt_table(cpu),
+			GDT_ENTRY_PERCPU, &gdt, DESCTYPE_S);
+#endif
+}
+
 /*
  * Great future plan:
  * Declare PDA itself and support (irqstack,tss,pgd) as per cpu data.
@@ -81,6 +94,7 @@ void __init setup_per_cpu_areas(void)
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		per_cpu(this_cpu_off, cpu) = per_cpu_offset(cpu);
 		per_cpu(cpu_number, cpu) = cpu;
+		setup_percpu_segment(cpu);
 		/*
 		 * Copy data used in early init routines from the initial arrays to the
 		 * per cpu data areas.  These arrays then become expendable and the
