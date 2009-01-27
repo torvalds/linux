@@ -1884,7 +1884,6 @@ source "drivers/mca/Kconfig"
 
 config SCx200
 	tristate "NatSemi SCx200 support"
-	depends on !X86_VOYAGER
 	help
 	  This provides basic support for National Semiconductor's
 	  (now AMD's) Geode processors.  The driver probes for the
