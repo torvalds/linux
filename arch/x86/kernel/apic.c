@@ -60,6 +60,24 @@
 # error SPURIOUS_APIC_VECTOR definition error
 #endif
 
+unsigned int num_processors;
+unsigned disabled_cpus __cpuinitdata;
+/* Processor that is doing the boot up */
+unsigned int boot_cpu_physical_apicid = -1U;
+EXPORT_SYMBOL(boot_cpu_physical_apicid);
+unsigned int max_physical_apicid;
+
+/* Bitmask of physically existing CPUs */
+physid_mask_t phys_cpu_present_map;
+
+/*
+ * Map cpu index to physical APIC ID
+ */
+DEFINE_EARLY_PER_CPU(u16, x86_cpu_to_apicid, BAD_APICID);
+DEFINE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid, BAD_APICID);
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
+
 #ifdef CONFIG_X86_32
 /*
  * Knob to control our willingness to enable the local APIC.

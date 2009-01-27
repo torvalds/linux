@@ -31,26 +31,6 @@ DEFINE_PER_CPU(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
 #endif
 
-#ifdef CONFIG_X86_LOCAL_APIC
-unsigned int num_processors;
-unsigned disabled_cpus __cpuinitdata;
-/* Processor that is doing the boot up */
-unsigned int boot_cpu_physical_apicid = -1U;
-EXPORT_SYMBOL(boot_cpu_physical_apicid);
-unsigned int max_physical_apicid;
-
-/* Bitmask of physically existing CPUs */
-physid_mask_t phys_cpu_present_map;
-#endif
-
-/*
- * Map cpu index to physical APIC ID
- */
-DEFINE_EARLY_PER_CPU(u16, x86_cpu_to_apicid, BAD_APICID);
-DEFINE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid, BAD_APICID);
-EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_apicid);
-EXPORT_EARLY_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
-
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
 
 #ifdef CONFIG_X86_64
@@ -108,10 +88,12 @@ void __init setup_per_cpu_areas(void)
 		 * per cpu data areas.  These arrays then become expendable and the
 		 * *_early_ptr's are zeroed indicating that the static arrays are gone.
 		 */
+#ifdef CONFIG_X86_LOCAL_APIC
 		per_cpu(x86_cpu_to_apicid, cpu) =
 				early_per_cpu_map(x86_cpu_to_apicid, cpu);
 		per_cpu(x86_bios_cpu_apicid, cpu) =
 				early_per_cpu_map(x86_bios_cpu_apicid, cpu);
+#endif
 #ifdef CONFIG_X86_64
 		per_cpu(irq_stack_ptr, cpu) =
 			per_cpu(irq_stack_union.irq_stack, cpu) + IRQ_STACK_SIZE - 64;
