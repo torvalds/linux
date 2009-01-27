@@ -190,11 +190,6 @@ config X86_HT
 	depends on SMP
 	default y
 
-config X86_BIOS_REBOOT
-	bool
-	depends on !X86_VOYAGER
-	default y
-
 config X86_TRAMPOLINE
 	bool
 	depends on SMP || (64BIT && ACPI_SLEEP)
@@ -1361,7 +1356,6 @@ source kernel/Kconfig.hz
 
 config KEXEC
 	bool "kexec system call"
-	depends on X86_BIOS_REBOOT
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
