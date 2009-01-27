@@ -217,7 +217,13 @@ static void ath_setup_rates(struct ath_softc *sc, enum ieee80211_band band)
 	for (i = 0; i < maxrates; i++) {
 		rate[i].bitrate = rate_table->info[i].ratekbps / 100;
 		rate[i].hw_value = rate_table->info[i].ratecode;
+		if (rate_table->info[i].short_preamble) {
+			rate[i].hw_value_short = rate_table->info[i].ratecode |
+				rate_table->info[i].short_preamble;
+			rate[i].flags = IEEE80211_RATE_SHORT_PREAMBLE;
+		}
 		sband->n_bitrates++;
+
 		DPRINTF(sc, ATH_DBG_CONFIG, "Rate: %2dMbps, ratecode: %2d\n",
 			rate[i].bitrate / 10, rate[i].hw_value);
 	}
