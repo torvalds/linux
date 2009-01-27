@@ -1007,7 +1007,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 
 		printk(KERN_WARNING
 		       "More than 8 CPUs detected - skipping them.\n"
-		       "Use CONFIG_X86_GENERICARCH and CONFIG_X86_BIGSMP.\n");
+		       "Use CONFIG_X86_32_NON_STANDARD and CONFIG_X86_BIGSMP.\n");
 
 		nr = 0;
 		for_each_present_cpu(cpu) {

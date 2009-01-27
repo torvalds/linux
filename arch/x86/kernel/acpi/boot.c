@@ -1335,7 +1335,7 @@ static void __init acpi_process_madt(void)
 		if (!error) {
 			acpi_lapic = 1;
 
-#ifdef CONFIG_X86_GENERICARCH
+#ifdef CONFIG_X86_32_NON_STANDARD
 			generic_bigsmp_probe();
 #endif
 			/*
