@@ -913,6 +913,9 @@ static void twl4030_power_up(struct snd_soc_codec *codec)
 		 ((byte & TWL4030_CNCL_OFFSET_START) ==
 		  TWL4030_CNCL_OFFSET_START));
 
+	/* Make sure that the reg_cache has the same value as the HW */
+	twl4030_write_reg_cache(codec, TWL4030_REG_ANAMICL, byte);
+
 	/* anti-pop when changing analog gain */
 	regmisc1 = twl4030_read_reg_cache(codec, TWL4030_REG_MISC_SET_1);
 	twl4030_write(codec, TWL4030_REG_MISC_SET_1,
