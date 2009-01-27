@@ -73,7 +73,6 @@ struct genapic {
 	unsigned int (*cpu_mask_to_apicid_and)(const struct cpumask *cpumask,
 					       const struct cpumask *andmask);
 
-#ifdef CONFIG_SMP
 	/* ipi */
 	void (*send_IPI_mask)(const struct cpumask *mask, int vector);
 	void (*send_IPI_mask_allbutself)(const struct cpumask *mask,
@@ -81,7 +80,7 @@ struct genapic {
 	void (*send_IPI_allbutself)(int vector);
 	void (*send_IPI_all)(int vector);
 	void (*send_IPI_self)(int vector);
-#endif
+
 	/* wakeup_secondary_cpu */
 	int (*wakeup_cpu)(int apicid, unsigned long start_eip);
 
