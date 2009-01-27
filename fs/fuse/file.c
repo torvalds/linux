@@ -54,7 +54,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 		ff->reserved_req = fuse_request_alloc();
 		if (!ff->reserved_req) {
 			kfree(ff);
-			ff = NULL;
+			return NULL;
 		} else {
 			INIT_LIST_HEAD(&ff->write_entry);
 			atomic_set(&ff->count, 0);
