@@ -371,8 +371,28 @@ static ssize_t console_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(console, 0644, console_show, console_store);
-static DEVICE_ATTR(OperationalMode, 0444, solos_param_show, NULL);
-static DEVICE_ATTR(AutoStart, 0644, solos_param_show, solos_param_store);
+
+
+#define SOLOS_ATTR_RO(x) static DEVICE_ATTR(x, 0444, solos_param_show, NULL);
+#define SOLOS_ATTR_RW(x) static DEVICE_ATTR(x, 0644, solos_param_show, solos_param_store);
+
+#include "solos-attrlist.c"
+
+#undef SOLOS_ATTR_RO
+#undef SOLOS_ATTR_RW
+
+#define SOLOS_ATTR_RO(x) &dev_attr_##x.attr,
+#define SOLOS_ATTR_RW(x) &dev_attr_##x.attr,
+
+static struct attribute *solos_attrs[] = {
+#include "solos-attrlist.c"
+	NULL
+};
+
+static struct attribute_group solos_attr_group = {
+	.attrs = solos_attrs,
+	.name = "parameters",
+};
 
 static int flash_upgrade(struct solos_card *card, int chip)
 {
@@ -987,10 +1007,8 @@ static int atm_init(struct solos_card *card)
 		}
 		if (device_create_file(&card->atmdev[i]->class_dev, &dev_attr_console))
 			dev_err(&card->dev->dev, "Could not register console for ATM device %d\n", i);
-		if (device_create_file(&card->atmdev[i]->class_dev, &dev_attr_OperationalMode))
-			dev_err(&card->dev->dev, "Could not register opmode attr for ATM device %d\n", i);
-		if (device_create_file(&card->atmdev[i]->class_dev, &dev_attr_AutoStart))
-			dev_err(&card->dev->dev, "Could not register autostart attr for ATM device %d\n", i);
+		if (sysfs_create_group(&card->atmdev[i]->class_dev.kobj, &solos_attr_group))
+			dev_err(&card->dev->dev, "Could not register parameter group for ATM device %d\n", i);
 
 		dev_info(&card->dev->dev, "Registered ATM device %d\n", card->atmdev[i]->number);
 
