@@ -1551,7 +1551,6 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 	depends on NUMA
 
 menu "Power management and ACPI options"
-	depends on !X86_VOYAGER
 
 config ARCH_HIBERNATION_HEADER
 	def_bool y
