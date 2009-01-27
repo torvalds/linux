@@ -144,7 +144,6 @@ config ARCH_HIBERNATION_POSSIBLE
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on !X86_VOYAGER
 
 config ZONE_DMA32
 	bool
