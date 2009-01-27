@@ -351,7 +351,7 @@ endchoice
 
 config X86_VISWS
 	bool "SGI 320/540 (Visual Workstation)"
-	depends on X86_32 && PCI && !X86_VOYAGER && X86_MPPARSE && PCI_GODIRECT
+	depends on X86_32 && PCI && X86_MPPARSE && PCI_GODIRECT
 	help
 	  The SGI Visual Workstation series is an IA32-based workstation
 	  based on SGI systems chips with some legacy PC hardware attached.
