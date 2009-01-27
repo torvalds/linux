@@ -51,25 +51,6 @@ DEFINE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid, BAD_APICID);
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 EXPORT_EARLY_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
-#ifdef CONFIG_X86_64
-
-/* correctly size the local cpu masks */
-static void setup_cpu_local_masks(void)
-{
-	alloc_bootmem_cpumask_var(&cpu_initialized_mask);
-	alloc_bootmem_cpumask_var(&cpu_callin_mask);
-	alloc_bootmem_cpumask_var(&cpu_callout_mask);
-	alloc_bootmem_cpumask_var(&cpu_sibling_setup_mask);
-}
-
-#else /* CONFIG_X86_32 */
-
-static inline void setup_cpu_local_masks(void)
-{
-}
-
-#endif /* CONFIG_X86_32 */
-
 #ifdef CONFIG_HAVE_SETUP_PER_CPU_AREA
 
 #ifdef CONFIG_X86_64
