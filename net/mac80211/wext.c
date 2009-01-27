@@ -906,6 +906,8 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 					IEEE80211_CONF_CHANGE_PS);
 			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
 				ieee80211_send_nullfunc(local, sdata, 0);
+			del_timer_sync(&local->dynamic_ps_timer);
+			cancel_work_sync(&local->dynamic_ps_enable_work);
 		}
 	}
 
