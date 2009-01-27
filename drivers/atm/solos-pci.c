@@ -159,7 +159,7 @@ static ssize_t solos_param_show(struct device *dev, struct device_attribute *att
 
 	buflen = strlen(attr->attr.name) + 10;
 
-	skb = alloc_skb(buflen, GFP_KERNEL);
+	skb = alloc_skb(sizeof(*header) + buflen, GFP_KERNEL);
 	if (!skb) {
 		dev_warn(&card->dev->dev, "Failed to allocate sk_buff in solos_param_show()\n");
 		return -ENOMEM;
@@ -215,7 +215,7 @@ static ssize_t solos_param_store(struct device *dev, struct device_attribute *at
 
 	buflen = strlen(attr->attr.name) + 11 + count;
 
-	skb = alloc_skb(buflen, GFP_KERNEL);
+	skb = alloc_skb(sizeof(*header) + buflen, GFP_KERNEL);
 	if (!skb) {
 		dev_warn(&card->dev->dev, "Failed to allocate sk_buff in solos_param_store()\n");
 		return -ENOMEM;
