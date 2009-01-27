@@ -414,6 +414,47 @@ static int handsfree_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int headsetl_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	unsigned char hs_gain, hs_pop;
+
+	/* Save the current volume */
+	hs_gain = twl4030_read_reg_cache(w->codec, TWL4030_REG_HS_GAIN_SET);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		/* Do the anti-pop/bias ramp enable according to the TRM */
+		hs_pop = TWL4030_RAMP_DELAY_645MS;
+		twl4030_write(w->codec, TWL4030_REG_HS_POPN_SET, hs_pop);
+		hs_pop |= TWL4030_VMID_EN;
+		twl4030_write(w->codec, TWL4030_REG_HS_POPN_SET, hs_pop);
+		/* Is this needed? Can we just use whatever gain here? */
+		twl4030_write(w->codec, TWL4030_REG_HS_GAIN_SET,
+				(hs_gain & (~0x0f)) | 0x0a);
+		hs_pop |= TWL4030_RAMP_EN;
+		twl4030_write(w->codec, TWL4030_REG_HS_POPN_SET, hs_pop);
+
+		/* Restore the original volume */
+		twl4030_write(w->codec, TWL4030_REG_HS_GAIN_SET, hs_gain);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		/* Do the anti-pop/bias ramp disable according to the TRM */
+		hs_pop = twl4030_read_reg_cache(w->codec,
+						TWL4030_REG_HS_POPN_SET);
+		hs_pop &= ~TWL4030_RAMP_EN;
+		twl4030_write(w->codec, TWL4030_REG_HS_POPN_SET, hs_pop);
+		/* Bypass the reg_cache to mute the headset */
+		twl4030_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
+					hs_gain & (~0x0f),
+					TWL4030_REG_HS_GAIN_SET);
+		hs_pop &= ~TWL4030_VMID_EN;
+		twl4030_write(w->codec, TWL4030_REG_HS_POPN_SET, hs_pop);
+		break;
+	}
+	return 0;
+}
+
 /*
  * Some of the gain controls in TWL (mostly those which are associated with
  * the outputs) are implemented in an interesting way:
@@ -720,8 +761,9 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_VALUE_MUX("PredriveR Mux", SND_SOC_NOPM, 0, 0,
 		&twl4030_dapm_predriver_control),
 	/* HeadsetL/R */
-	SND_SOC_DAPM_MUX("HeadsetL Mux", SND_SOC_NOPM, 0, 0,
-		&twl4030_dapm_hsol_control),
+	SND_SOC_DAPM_MUX_E("HeadsetL Mux", SND_SOC_NOPM, 0, 0,
+		&twl4030_dapm_hsol_control, headsetl_event,
+		SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_MUX("HeadsetR Mux", SND_SOC_NOPM, 0, 0,
 		&twl4030_dapm_hsor_control),
 	/* CarkitL/R */
@@ -882,7 +924,7 @@ static int twl4030_add_widgets(struct snd_soc_codec *codec)
 
 static void twl4030_power_up(struct snd_soc_codec *codec)
 {
-	u8 anamicl, regmisc1, byte, popn;
+	u8 anamicl, regmisc1, byte;
 	int i = 0;
 
 	/* set CODECPDZ to turn on codec */
@@ -915,33 +957,10 @@ static void twl4030_power_up(struct snd_soc_codec *codec)
 	/* toggle CODECPDZ as per TRM */
 	twl4030_codec_enable(codec, 0);
 	twl4030_codec_enable(codec, 1);
-
-	/* program anti-pop with bias ramp delay */
-	popn = twl4030_read_reg_cache(codec, TWL4030_REG_HS_POPN_SET);
-	popn &= TWL4030_RAMP_DELAY;
-	popn |=	TWL4030_RAMP_DELAY_645MS;
-	twl4030_write(codec, TWL4030_REG_HS_POPN_SET, popn);
-	popn |=	TWL4030_VMID_EN;
-	twl4030_write(codec, TWL4030_REG_HS_POPN_SET, popn);
-
-	/* enable anti-pop ramp */
-	popn |= TWL4030_RAMP_EN;
-	twl4030_write(codec, TWL4030_REG_HS_POPN_SET, popn);
 }
 
 static void twl4030_power_down(struct snd_soc_codec *codec)
 {
-	u8 popn;
-
-	/* disable anti-pop ramp */
-	popn = twl4030_read_reg_cache(codec, TWL4030_REG_HS_POPN_SET);
-	popn &= ~TWL4030_RAMP_EN;
-	twl4030_write(codec, TWL4030_REG_HS_POPN_SET, popn);
-
-	/* disable bias out */
-	popn &= ~TWL4030_VMID_EN;
-	twl4030_write(codec, TWL4030_REG_HS_POPN_SET, popn);
-
 	/* power down */
 	twl4030_codec_enable(codec, 0);
 }
