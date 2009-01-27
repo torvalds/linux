@@ -3,6 +3,9 @@
 
 #include <linux/cpumask.h>
 
+#include <asm/mpspec.h>
+#include <asm/atomic.h>
+
 /*
  * Copyright 2004 James Cleverdon, IBM.
  * Subject to the GNU Public License, v.2
@@ -13,7 +16,6 @@
  * Martin Bligh, Andi Kleen, James Bottomley, John Stultz, and
  * James Cleverdon.
  */
-
 struct genapic {
 	char *name;
 
@@ -85,6 +87,7 @@ struct genapic {
 
 	int trampoline_phys_low;
 	int trampoline_phys_high;
+
 	void (*wait_for_init_deassert)(atomic_t *deassert);
 	void (*smp_callin_clear_local_apic)(void);
 	void (*store_NMI_vector)(unsigned short *high, unsigned short *low);
@@ -92,10 +95,9 @@ struct genapic {
 	void (*inquire_remote_apic)(int apicid);
 };
 
-#ifdef CONFIG_X86_32
+extern struct genapic *genapic;
 
-#include <asm/mpspec.h>
-#include <asm/atomic.h>
+#ifdef CONFIG_X86_32
 
 #define APICFUNC(x) .x = x,
 
@@ -143,8 +145,8 @@ struct genapic {
 	IPIFUNC(send_IPI_all)				\
 	APICFUNC(enable_apic_mode)			\
 	APICFUNC(phys_pkg_id)				\
-	.trampoline_phys_low = TRAMPOLINE_PHYS_LOW,		\
-	.trampoline_phys_high = TRAMPOLINE_PHYS_HIGH,		\
+	.trampoline_phys_low = TRAMPOLINE_PHYS_LOW,	\
+	.trampoline_phys_high = TRAMPOLINE_PHYS_HIGH,	\
 	APICFUNC(wait_for_init_deassert)		\
 	APICFUNC(smp_callin_clear_local_apic)		\
 	APICFUNC(store_NMI_vector)			\
@@ -152,12 +154,9 @@ struct genapic {
 	APICFUNC(inquire_remote_apic)			\
 }
 
-extern struct genapic *genapic;
 extern void es7000_update_genapic_to_cluster(void);
 
 #else /* CONFIG_X86_64: */
-
-extern struct genapic *genapic;
 
 extern struct genapic apic_flat;
 extern struct genapic apic_physflat;
