@@ -111,8 +111,6 @@ module_param(atmdebug, int, 0644);
 module_param(firmware_upgrade, int, 0444);
 module_param(fpga_upgrade, int, 0444);
 
-static int opens;
-
 static void fpga_queue(struct solos_card *card, int port, struct sk_buff *skb,
 		       struct atm_vcc *vcc);
 static int fpga_tx(struct solos_card *);
@@ -455,10 +453,6 @@ static int popen(struct atm_vcc *vcc)
 	set_bit(ATM_VF_READY, &vcc->flags);
 	list_vccs(0);
 
-	if (!opens)
-		iowrite32(1, card->config_regs + IRQ_EN_ADDR);
-
-	opens++; //count open PVCs
 
 	return 0;
 }
@@ -484,8 +478,6 @@ static void pclose(struct atm_vcc *vcc)
 	fpga_queue(card, SOLOS_CHAN(vcc->dev), skb, NULL);
 
 //	dev_dbg(&card->dev->dev, "Close for vpi %d and vci %d on interface %d\n", vcc->vpi, vcc->vci, SOLOS_CHAN(vcc->dev));
-	if (!--opens)
-		iowrite32(0, card->config_regs + IRQ_EN_ADDR);
 
 	clear_bit(ATM_VF_ADDR, &vcc->flags);
 	clear_bit(ATM_VF_READY, &vcc->flags);
@@ -799,8 +791,6 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 static int atm_init(struct solos_card *card)
 {
 	int i;
-
-	opens = 0;
 
 	for (i = 0; i < card->nr_ports; i++) {
 		skb_queue_head_init(&card->tx_queue[i]);
