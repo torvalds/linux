@@ -60,7 +60,7 @@ u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 			goto out;
 		}
 
-	IWL_DEBUG_ASSOC_LIMIT("can not find STA %pM total %d\n",
+	IWL_DEBUG_ASSOC_LIMIT(priv, "can not find STA %pM total %d\n",
 			      addr, priv->num_stations);
 
  out:
@@ -92,7 +92,7 @@ static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 			sta_id);
 
 	priv->stations[sta_id].used |= IWL_STA_UCODE_ACTIVE;
-	IWL_DEBUG_ASSOC("Added STA to Ucode: %pM\n",
+	IWL_DEBUG_ASSOC(priv, "Added STA to Ucode: %pM\n",
 			priv->stations[sta_id].sta.sta.addr);
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
@@ -123,7 +123,7 @@ static int iwl_add_sta_callback(struct iwl_priv *priv,
 		iwl_sta_ucode_activate(priv, sta_id);
 		 /* fall through */
 	default:
-		IWL_DEBUG_HC("Received REPLY_ADD_STA:(0x%08X)\n",
+		IWL_DEBUG_HC(priv, "Received REPLY_ADD_STA:(0x%08X)\n",
 			     res->u.add_sta.status);
 		break;
 	}
@@ -166,7 +166,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		switch (res->u.add_sta.status) {
 		case ADD_STA_SUCCESS_MSK:
 			iwl_sta_ucode_activate(priv, sta->sta.sta_id);
-			IWL_DEBUG_INFO("REPLY_ADD_STA PASSED\n");
+			IWL_DEBUG_INFO(priv, "REPLY_ADD_STA PASSED\n");
 			break;
 		default:
 			ret = -EIO;
@@ -272,7 +272,7 @@ u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
 
 	station = &priv->stations[sta_id];
 	station->used = IWL_STA_DRIVER_ACTIVE;
-	IWL_DEBUG_ASSOC("Add STA to driver ID %d: %pM\n",
+	IWL_DEBUG_ASSOC(priv, "Add STA to driver ID %d: %pM\n",
 			sta_id, addr);
 	priv->num_stations++;
 
@@ -304,7 +304,7 @@ static void iwl_sta_ucode_deactivate(struct iwl_priv *priv, const char *addr)
 
 	BUG_ON(sta_id == IWL_INVALID_STATION);
 
-	IWL_DEBUG_ASSOC("Removed STA from Ucode: %pM\n", addr);
+	IWL_DEBUG_ASSOC(priv, "Removed STA from Ucode: %pM\n", addr);
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 
@@ -390,7 +390,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,
 		switch (res->u.rem_sta.status) {
 		case REM_STA_SUCCESS_MSK:
 			iwl_sta_ucode_deactivate(priv, addr);
-			IWL_DEBUG_ASSOC("REPLY_REMOVE_STA PASSED\n");
+			IWL_DEBUG_ASSOC(priv, "REPLY_REMOVE_STA PASSED\n");
 			break;
 		default:
 			ret = -EIO;
@@ -432,7 +432,7 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 	if (unlikely(sta_id == IWL_INVALID_STATION))
 		goto out;
 
-	IWL_DEBUG_ASSOC("Removing STA from driver:%d  %pM\n",
+	IWL_DEBUG_ASSOC(priv, "Removing STA from driver:%d  %pM\n",
 		sta_id, addr);
 
 	if (!(priv->stations[sta_id].used & IWL_STA_DRIVER_ACTIVE)) {
@@ -560,7 +560,7 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 	priv->default_wep_key--;
 	memset(&priv->wep_keys[keyconf->keyidx], 0, sizeof(priv->wep_keys[0]));
 	ret = iwl_send_static_wepkey_cmd(priv, 1);
-	IWL_DEBUG_WEP("Remove default WEP key: idx=%d ret=%d\n",
+	IWL_DEBUG_WEP(priv, "Remove default WEP key: idx=%d ret=%d\n",
 		      keyconf->keyidx, ret);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
@@ -576,7 +576,7 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 
 	if (keyconf->keylen != WEP_KEY_LEN_128 &&
 	    keyconf->keylen != WEP_KEY_LEN_64) {
-		IWL_DEBUG_WEP("Bad WEP key length %d\n", keyconf->keylen);
+		IWL_DEBUG_WEP(priv, "Bad WEP key length %d\n", keyconf->keylen);
 		return -EINVAL;
 	}
 
@@ -596,7 +596,7 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 							keyconf->keylen);
 
 	ret = iwl_send_static_wepkey_cmd(priv, 0);
-	IWL_DEBUG_WEP("Set default WEP key: len=%d idx=%d ret=%d\n",
+	IWL_DEBUG_WEP(priv, "Set default WEP key: len=%d idx=%d ret=%d\n",
 		keyconf->keylen, keyconf->keyidx, ret);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
@@ -752,7 +752,7 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 
 	sta_id = iwl_find_station(priv, addr);
 	if (sta_id == IWL_INVALID_STATION) {
-		IWL_DEBUG_MAC80211("leave - %pM not in station map.\n",
+		IWL_DEBUG_MAC80211(priv, "leave - %pM not in station map.\n",
 				   addr);
 		return;
 	}
@@ -804,7 +804,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	key_flags = le16_to_cpu(priv->stations[sta_id].sta.key.key_flags);
 	keyidx = (key_flags >> STA_KEY_FLG_KEYID_POS) & 0x3;
 
-	IWL_DEBUG_WEP("Remove dynamic key: idx=%d sta=%d\n",
+	IWL_DEBUG_WEP(priv, "Remove dynamic key: idx=%d sta=%d\n",
 		      keyconf->keyidx, sta_id);
 
 	if (keyconf->keyidx != keyidx) {
@@ -868,7 +868,7 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 		ret = -EINVAL;
 	}
 
-	IWL_DEBUG_WEP("Set dynamic key: alg= %d len=%d idx=%d sta=%d ret=%d\n",
+	IWL_DEBUG_WEP(priv, "Set dynamic key: alg= %d len=%d idx=%d sta=%d ret=%d\n",
 		      keyconf->alg, keyconf->keylen, keyconf->keyidx,
 		      sta_id, ret);
 
@@ -881,13 +881,13 @@ static void iwl_dump_lq_cmd(struct iwl_priv *priv,
 			   struct iwl_link_quality_cmd *lq)
 {
 	int i;
-	IWL_DEBUG_RATE("lq station id 0x%x\n", lq->sta_id);
-	IWL_DEBUG_RATE("lq ant 0x%X 0x%X\n",
+	IWL_DEBUG_RATE(priv, "lq station id 0x%x\n", lq->sta_id);
+	IWL_DEBUG_RATE(priv, "lq ant 0x%X 0x%X\n",
 		       lq->general_params.single_stream_ant_msk,
 		       lq->general_params.dual_stream_ant_msk);
 
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
-		IWL_DEBUG_RATE("lq index %d 0x%X\n",
+		IWL_DEBUG_RATE(priv, "lq index %d 0x%X\n",
 			       i, lq->rs_table[i].rate_n_flags);
 }
 #else
@@ -1064,7 +1064,7 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 		if (sta_id != IWL_INVALID_STATION)
 			return sta_id;
 
-		IWL_DEBUG_DROP("Station %pM not in station map. "
+		IWL_DEBUG_DROP(priv, "Station %pM not in station map. "
 			       "Defaulting to broadcast...\n",
 			       hdr->addr1);
 		iwl_print_hex_dump(priv, IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));

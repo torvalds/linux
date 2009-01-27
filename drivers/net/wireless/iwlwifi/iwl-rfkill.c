@@ -47,7 +47,7 @@ static int iwl_rfkill_soft_rf_kill(void *data, enum rfkill_state state)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return 0;
 
-	IWL_DEBUG_RF_KILL("we received soft RFKILL set to state %d\n", state);
+	IWL_DEBUG_RF_KILL(priv, "we received soft RFKILL set to state %d\n", state);
 	mutex_lock(&priv->mutex);
 
 	switch (state) {
@@ -79,7 +79,7 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 
 	BUG_ON(device == NULL);
 
-	IWL_DEBUG_RF_KILL("Initializing RFKILL.\n");
+	IWL_DEBUG_RF_KILL(priv, "Initializing RFKILL.\n");
 	priv->rfkill = rfkill_allocate(device, RFKILL_TYPE_WLAN);
 	if (!priv->rfkill) {
 		IWL_ERR(priv, "Unable to allocate RFKILL device.\n");
@@ -102,7 +102,7 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 		goto free_rfkill;
 	}
 
-	IWL_DEBUG_RF_KILL("RFKILL initialization complete.\n");
+	IWL_DEBUG_RF_KILL(priv, "RFKILL initialization complete.\n");
 	return ret;
 
 free_rfkill:
@@ -111,7 +111,7 @@ free_rfkill:
 	priv->rfkill = NULL;
 
 error:
-	IWL_DEBUG_RF_KILL("RFKILL initialization complete.\n");
+	IWL_DEBUG_RF_KILL(priv, "RFKILL initialization complete.\n");
 	return ret;
 }
 EXPORT_SYMBOL(iwl_rfkill_init);

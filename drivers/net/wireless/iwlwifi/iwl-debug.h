@@ -37,18 +37,20 @@ struct iwl_priv;
 #define IWL_CRIT(p, f, a...) dev_crit(&((p)->pci_dev->dev), f, ## a)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
-#define IWL_DEBUG(level, fmt, args...)					    \
-do {									    \
-	if (priv->debug_level & (level))				    \
-		dev_printk(KERN_ERR, &(priv->hw->wiphy->dev), "%c %s " fmt, \
-			   in_interrupt() ? 'I' : 'U', __func__ , ## args); \
+#define IWL_DEBUG(__priv, level, fmt, args...)				\
+do {									\
+	if (__priv->debug_level & (level))				\
+		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
+			 "%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
+			__func__ , ## args);				\
 } while (0)
 
-#define IWL_DEBUG_LIMIT(level, fmt, args...)				    \
-do {									    \
-	if ((priv->debug_level & (level)) && net_ratelimit())		    \
-		dev_printk(KERN_ERR, &(priv->hw->wiphy->dev), "%c %s " fmt, \
-			   in_interrupt() ? 'I' : 'U', __func__ , ## args); \
+#define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)			\
+do {									\
+	if ((__priv->debug_level & (level)) && net_ratelimit())		\
+		dev_printk(KERN_ERR, &(__priv->hw->wiphy->dev),		\
+			"%c %s " fmt, in_interrupt() ? 'I' : 'U',	\
+			 __func__ , ## args);				\
 } while (0)
 
 #define iwl_print_hex_dump(priv, level, p, len) 			\
@@ -88,8 +90,8 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv);
 #endif
 
 #else
-#define IWL_DEBUG(level, fmt, args...)
-#define IWL_DEBUG_LIMIT(level, fmt, args...)
+#define IWL_DEBUG(__priv, level, fmt, args...)
+#define IWL_DEBUG_LIMIT(__priv, level, fmt, args...)
 static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
 				      void *p, u32 len)
 {}
@@ -169,42 +171,45 @@ static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
 #define IWL_DL_TX_REPLY		(1 << 30)
 #define IWL_DL_QOS		(1 << 31)
 
-#define IWL_DEBUG_INFO(f, a...)		IWL_DEBUG(IWL_DL_INFO, f, ## a)
-#define IWL_DEBUG_MAC80211(f, a...)	IWL_DEBUG(IWL_DL_MAC80211, f, ## a)
-#define IWL_DEBUG_MACDUMP(f, a...)	IWL_DEBUG(IWL_DL_MACDUMP, f, ## a)
-#define IWL_DEBUG_TEMP(f, a...)		IWL_DEBUG(IWL_DL_TEMP, f, ## a)
-#define IWL_DEBUG_SCAN(f, a...)		IWL_DEBUG(IWL_DL_SCAN, f, ## a)
-#define IWL_DEBUG_RX(f, a...)		IWL_DEBUG(IWL_DL_RX, f, ## a)
-#define IWL_DEBUG_TX(f, a...)		IWL_DEBUG(IWL_DL_TX, f, ## a)
-#define IWL_DEBUG_ISR(f, a...)		IWL_DEBUG(IWL_DL_ISR, f, ## a)
-#define IWL_DEBUG_LED(f, a...)		IWL_DEBUG(IWL_DL_LED, f, ## a)
-#define IWL_DEBUG_WEP(f, a...)		IWL_DEBUG(IWL_DL_WEP, f, ## a)
-#define IWL_DEBUG_HC(f, a...)		IWL_DEBUG(IWL_DL_HCMD, f, ## a)
-#define IWL_DEBUG_HC_DUMP(f, a...)	IWL_DEBUG(IWL_DL_HCMD_DUMP, f, ## a)
-#define IWL_DEBUG_CALIB(f, a...)	IWL_DEBUG(IWL_DL_CALIB, f, ## a)
-#define IWL_DEBUG_FW(f, a...)		IWL_DEBUG(IWL_DL_FW, f, ## a)
-#define IWL_DEBUG_RF_KILL(f, a...)	IWL_DEBUG(IWL_DL_RF_KILL, f, ## a)
-#define IWL_DEBUG_DROP(f, a...)		IWL_DEBUG(IWL_DL_DROP, f, ## a)
-#define IWL_DEBUG_DROP_LIMIT(f, a...)	IWL_DEBUG_LIMIT(IWL_DL_DROP, f, ## a)
-#define IWL_DEBUG_AP(f, a...)		IWL_DEBUG(IWL_DL_AP, f, ## a)
-#define IWL_DEBUG_TXPOWER(f, a...)	IWL_DEBUG(IWL_DL_TXPOWER, f, ## a)
-#define IWL_DEBUG_IO(f, a...)		IWL_DEBUG(IWL_DL_IO, f, ## a)
-#define IWL_DEBUG_RATE(f, a...)		IWL_DEBUG(IWL_DL_RATE, f, ## a)
-#define IWL_DEBUG_RATE_LIMIT(f, a...)	IWL_DEBUG_LIMIT(IWL_DL_RATE, f, ## a)
-#define IWL_DEBUG_NOTIF(f, a...)	IWL_DEBUG(IWL_DL_NOTIF, f, ## a)
-#define IWL_DEBUG_ASSOC(f, a...)	\
-		IWL_DEBUG(IWL_DL_ASSOC | IWL_DL_INFO, f, ## a)
-#define IWL_DEBUG_ASSOC_LIMIT(f, a...)	\
-		IWL_DEBUG_LIMIT(IWL_DL_ASSOC | IWL_DL_INFO, f, ## a)
-#define IWL_DEBUG_HT(f, a...)		IWL_DEBUG(IWL_DL_HT, f, ## a)
-#define IWL_DEBUG_STATS(f, a...)	IWL_DEBUG(IWL_DL_STATS, f, ## a)
-#define IWL_DEBUG_STATS_LIMIT(f, a...)	IWL_DEBUG_LIMIT(IWL_DL_STATS, f, ## a)
-#define IWL_DEBUG_TX_REPLY(f, a...)	IWL_DEBUG(IWL_DL_TX_REPLY, f, ## a)
-#define IWL_DEBUG_TX_REPLY_LIMIT(f, a...) \
-		IWL_DEBUG_LIMIT(IWL_DL_TX_REPLY, f, ## a)
-#define IWL_DEBUG_QOS(f, a...)		IWL_DEBUG(IWL_DL_QOS, f, ## a)
-#define IWL_DEBUG_RADIO(f, a...)	IWL_DEBUG(IWL_DL_RADIO, f, ## a)
-#define IWL_DEBUG_POWER(f, a...)	IWL_DEBUG(IWL_DL_POWER, f, ## a)
-#define IWL_DEBUG_11H(f, a...)		IWL_DEBUG(IWL_DL_11H, f, ## a)
+#define IWL_DEBUG_INFO(p, f, a...)	IWL_DEBUG(p, IWL_DL_INFO, f, ## a)
+#define IWL_DEBUG_MAC80211(p, f, a...)	IWL_DEBUG(p, IWL_DL_MAC80211, f, ## a)
+#define IWL_DEBUG_MACDUMP(p, f, a...)	IWL_DEBUG(p, IWL_DL_MACDUMP, f, ## a)
+#define IWL_DEBUG_TEMP(p, f, a...)	IWL_DEBUG(p, IWL_DL_TEMP, f, ## a)
+#define IWL_DEBUG_SCAN(p, f, a...)	IWL_DEBUG(p, IWL_DL_SCAN, f, ## a)
+#define IWL_DEBUG_RX(p, f, a...)	IWL_DEBUG(p, IWL_DL_RX, f, ## a)
+#define IWL_DEBUG_TX(p, f, a...)	IWL_DEBUG(p, IWL_DL_TX, f, ## a)
+#define IWL_DEBUG_ISR(p, f, a...)	IWL_DEBUG(p, IWL_DL_ISR, f, ## a)
+#define IWL_DEBUG_LED(p, f, a...)	IWL_DEBUG(p, IWL_DL_LED, f, ## a)
+#define IWL_DEBUG_WEP(p, f, a...)	IWL_DEBUG(p, IWL_DL_WEP, f, ## a)
+#define IWL_DEBUG_HC(p, f, a...)	IWL_DEBUG(p, IWL_DL_HCMD, f, ## a)
+#define IWL_DEBUG_HC_DUMP(p, f, a...)	IWL_DEBUG(p, IWL_DL_HCMD_DUMP, f, ## a)
+#define IWL_DEBUG_CALIB(p, f, a...)	IWL_DEBUG(p, IWL_DL_CALIB, f, ## a)
+#define IWL_DEBUG_FW(p, f, a...)	IWL_DEBUG(p, IWL_DL_FW, f, ## a)
+#define IWL_DEBUG_RF_KILL(p, f, a...)	IWL_DEBUG(p, IWL_DL_RF_KILL, f, ## a)
+#define IWL_DEBUG_DROP(p, f, a...)	IWL_DEBUG(p, IWL_DL_DROP, f, ## a)
+#define IWL_DEBUG_DROP_LIMIT(p, f, a...)	\
+		IWL_DEBUG_LIMIT(p, IWL_DL_DROP, f, ## a)
+#define IWL_DEBUG_AP(p, f, a...)	IWL_DEBUG(p, IWL_DL_AP, f, ## a)
+#define IWL_DEBUG_TXPOWER(p, f, a...)	IWL_DEBUG(p, IWL_DL_TXPOWER, f, ## a)
+#define IWL_DEBUG_IO(p, f, a...)	IWL_DEBUG(p, IWL_DL_IO, f, ## a)
+#define IWL_DEBUG_RATE(p, f, a...)	IWL_DEBUG(p, IWL_DL_RATE, f, ## a)
+#define IWL_DEBUG_RATE_LIMIT(p, f, a...)	\
+		IWL_DEBUG_LIMIT(p, IWL_DL_RATE, f, ## a)
+#define IWL_DEBUG_NOTIF(p, f, a...)	IWL_DEBUG(p, IWL_DL_NOTIF, f, ## a)
+#define IWL_DEBUG_ASSOC(p, f, a...)	\
+		IWL_DEBUG(p, IWL_DL_ASSOC | IWL_DL_INFO, f, ## a)
+#define IWL_DEBUG_ASSOC_LIMIT(p, f, a...)	\
+		IWL_DEBUG_LIMIT(p, IWL_DL_ASSOC | IWL_DL_INFO, f, ## a)
+#define IWL_DEBUG_HT(p, f, a...)	IWL_DEBUG(p, IWL_DL_HT, f, ## a)
+#define IWL_DEBUG_STATS(p, f, a...)	IWL_DEBUG(p, IWL_DL_STATS, f, ## a)
+#define IWL_DEBUG_STATS_LIMIT(p, f, a...)	\
+		IWL_DEBUG_LIMIT(p, IWL_DL_STATS, f, ## a)
+#define IWL_DEBUG_TX_REPLY(p, f, a...)	IWL_DEBUG(p, IWL_DL_TX_REPLY, f, ## a)
+#define IWL_DEBUG_TX_REPLY_LIMIT(p, f, a...) \
+		IWL_DEBUG_LIMIT(p, IWL_DL_TX_REPLY, f, ## a)
+#define IWL_DEBUG_QOS(p, f, a...)	IWL_DEBUG(p, IWL_DL_QOS, f, ## a)
+#define IWL_DEBUG_RADIO(p, f, a...)	IWL_DEBUG(p, IWL_DL_RADIO, f, ## a)
+#define IWL_DEBUG_POWER(p, f, a...)	IWL_DEBUG(p, IWL_DL_POWER, f, ## a)
+#define IWL_DEBUG_11H(p, f, a...)	IWL_DEBUG(p, IWL_DL_11H, f, ## a)
 
 #endif

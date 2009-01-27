@@ -137,7 +137,7 @@ static int iwl3945_led_off(struct iwl_priv *priv, int led_id)
 		.off = 0,
 		.interval = IWL_DEF_LED_INTRVL
 	};
-	IWL_DEBUG_LED("led off %d\n", led_id);
+	IWL_DEBUG_LED(priv, "led off %d\n", led_id);
 	return iwl_send_led_cmd(priv, &led_cmd);
 }
 
@@ -174,7 +174,7 @@ static void iwl3945_led_brightness_set(struct led_classdev *led_cdev,
 	case LED_FULL:
 		if (led->type == IWL_LED_TRG_ASSOC) {
 			priv->allow_blinking = 1;
-			IWL_DEBUG_LED("MAC is  associated\n");
+			IWL_DEBUG_LED(priv, "MAC is  associated\n");
 		}
 		if (led->led_on)
 			led->led_on(priv, IWL_LED_LINK);
@@ -182,7 +182,7 @@ static void iwl3945_led_brightness_set(struct led_classdev *led_cdev,
 	case LED_OFF:
 		if (led->type == IWL_LED_TRG_ASSOC) {
 			priv->allow_blinking = 0;
-			IWL_DEBUG_LED("MAC is disassociated\n");
+			IWL_DEBUG_LED(priv, "MAC is disassociated\n");
 		}
 		if (led->led_off)
 			led->led_off(priv, IWL_LED_LINK);

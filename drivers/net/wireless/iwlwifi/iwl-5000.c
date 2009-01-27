@@ -84,7 +84,7 @@ static int iwl5000_apm_stop_master(struct iwl_priv *priv)
 				  CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-	IWL_DEBUG_INFO("stop master\n");
+	IWL_DEBUG_INFO(priv, "stop master\n");
 
 	return 0;
 }
@@ -118,7 +118,7 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0) {
-		IWL_DEBUG_INFO("Failed to init the card\n");
+		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
 		return ret;
 	}
 
@@ -186,7 +186,7 @@ static int iwl5000_apm_reset(struct iwl_priv *priv)
 	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0) {
-		IWL_DEBUG_INFO("Failed to init the card\n");
+		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
 		goto out;
 	}
 
@@ -338,7 +338,7 @@ static void iwl5000_gain_computation(struct iwl_priv *priv,
 			data->delta_gain_code[i] |= (1 << 2);
 	}
 
-	IWL_DEBUG_CALIB("Delta gains: ANT_B = %d  ANT_C = %d\n",
+	IWL_DEBUG_CALIB(priv, "Delta gains: ANT_B = %d  ANT_C = %d\n",
 			data->delta_gain_code[1], data->delta_gain_code[2]);
 
 	if (!data->radio_write) {
@@ -387,7 +387,7 @@ static void iwl5000_chain_noise_reset(struct iwl_priv *priv)
 			IWL_ERR(priv,
 				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
-		IWL_DEBUG_CALIB("Run chain_noise_calibrate\n");
+		IWL_DEBUG_CALIB(priv, "Run chain_noise_calibrate\n");
 	}
 }
 
@@ -518,7 +518,7 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 static void iwl5000_rx_calib_complete(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb)
 {
-	IWL_DEBUG_INFO("Init. calibration is completed, restarting fw.\n");
+	IWL_DEBUG_INFO(priv, "Init. calibration is completed, restarting fw.\n");
 	queue_work(priv->workqueue, &priv->restart);
 }
 
@@ -586,7 +586,7 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 	if (ret)
 		return ret;
 
-	IWL_DEBUG_INFO("INST uCode section being loaded...\n");
+	IWL_DEBUG_INFO(priv, "INST uCode section being loaded...\n");
 	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
 					priv->ucode_write_complete, 5 * HZ);
 	if (ret == -ERESTARTSYS) {
@@ -606,7 +606,7 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 	if (ret)
 		return ret;
 
-	IWL_DEBUG_INFO("DATA uCode section being loaded...\n");
+	IWL_DEBUG_INFO(priv, "DATA uCode section being loaded...\n");
 
 	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
 				priv->ucode_write_complete, 5 * HZ);
@@ -631,20 +631,20 @@ static int iwl5000_load_ucode(struct iwl_priv *priv)
 
 	/* check whether init ucode should be loaded, or rather runtime ucode */
 	if (priv->ucode_init.len && (priv->ucode_type == UCODE_NONE)) {
-		IWL_DEBUG_INFO("Init ucode found. Loading init ucode...\n");
+		IWL_DEBUG_INFO(priv, "Init ucode found. Loading init ucode...\n");
 		ret = iwl5000_load_given_ucode(priv,
 			&priv->ucode_init, &priv->ucode_init_data);
 		if (!ret) {
-			IWL_DEBUG_INFO("Init ucode load complete.\n");
+			IWL_DEBUG_INFO(priv, "Init ucode load complete.\n");
 			priv->ucode_type = UCODE_INIT;
 		}
 	} else {
-		IWL_DEBUG_INFO("Init ucode not found, or already loaded. "
+		IWL_DEBUG_INFO(priv, "Init ucode not found, or already loaded. "
 			"Loading runtime ucode...\n");
 		ret = iwl5000_load_given_ucode(priv,
 			&priv->ucode_code, &priv->ucode_data);
 		if (!ret) {
-			IWL_DEBUG_INFO("Runtime ucode load complete.\n");
+			IWL_DEBUG_INFO(priv, "Runtime ucode load complete.\n");
 			priv->ucode_type = UCODE_RT;
 		}
 	}
@@ -660,7 +660,7 @@ static void iwl5000_init_alive_start(struct iwl_priv *priv)
 	if (priv->card_alive_init.is_valid != UCODE_VALID_OK) {
 		/* We had an error bringing up the hardware, so take it
 		 * all the way back down so we can try again */
-		IWL_DEBUG_INFO("Initialize Alive failed.\n");
+		IWL_DEBUG_INFO(priv, "Initialize Alive failed.\n");
 		goto restart;
 	}
 
@@ -670,7 +670,7 @@ static void iwl5000_init_alive_start(struct iwl_priv *priv)
 	if (iwl_verify_ucode(priv)) {
 		/* Runtime instruction load was bad;
 		 * take it all the way back down so we can try again */
-		IWL_DEBUG_INFO("Bad \"initialize\" uCode load.\n");
+		IWL_DEBUG_INFO(priv, "Bad \"initialize\" uCode load.\n");
 		goto restart;
 	}
 
@@ -713,7 +713,7 @@ static void iwl5000_tx_queue_set_status(struct iwl_priv *priv,
 
 	txq->sched_retry = scd_retry;
 
-	IWL_DEBUG_INFO("%s %s Queue %d on AC %d\n",
+	IWL_DEBUG_INFO(priv, "%s %s Queue %d on AC %d\n",
 		       active ? "Activate" : "Deactivate",
 		       scd_retry ? "BA" : "AC", txq_id, tx_fifo_id);
 }
@@ -1151,7 +1151,7 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 	u16 seq;
 
 	if (agg->wait_for_ba)
-		IWL_DEBUG_TX_REPLY("got tx response w/o block-ack\n");
+		IWL_DEBUG_TX_REPLY(priv, "got tx response w/o block-ack\n");
 
 	agg->frame_count = tx_resp->frame_count;
 	agg->start_idx = start_idx;
@@ -1165,7 +1165,7 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 		idx = start_idx;
 
 		/* FIXME: code repetition */
-		IWL_DEBUG_TX_REPLY("FrameCnt = %d, StartIdx=%d idx=%d\n",
+		IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, StartIdx=%d idx=%d\n",
 				   agg->frame_count, agg->start_idx, idx);
 
 		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
@@ -1177,9 +1177,9 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 
 		/* FIXME: code repetition end */
 
-		IWL_DEBUG_TX_REPLY("1 Frame 0x%x failure :%d\n",
+		IWL_DEBUG_TX_REPLY(priv, "1 Frame 0x%x failure :%d\n",
 				    status & 0xff, tx_resp->failure_frame);
-		IWL_DEBUG_TX_REPLY("Rate Info rate_n_flags=%x\n", rate_n_flags);
+		IWL_DEBUG_TX_REPLY(priv, "Rate Info rate_n_flags=%x\n", rate_n_flags);
 
 		agg->wait_for_ba = 0;
 	} else {
@@ -1199,7 +1199,7 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 				      AGG_TX_STATE_ABORT_MSK))
 				continue;
 
-			IWL_DEBUG_TX_REPLY("FrameCnt = %d, txq_id=%d idx=%d\n",
+			IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, txq_id=%d idx=%d\n",
 					   agg->frame_count, txq_id, idx);
 
 			hdr = iwl_tx_queue_get_hdr(priv, txq_id, idx);
@@ -1214,7 +1214,7 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 				return -1;
 			}
 
-			IWL_DEBUG_TX_REPLY("AGG Frame i=%d idx %d seq=%d\n",
+			IWL_DEBUG_TX_REPLY(priv, "AGG Frame i=%d idx %d seq=%d\n",
 					   i, idx, SEQ_TO_SN(sc));
 
 			sh = idx - start;
@@ -1232,13 +1232,13 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 				sh = 0;
 			}
 			bitmap |= 1ULL << sh;
-			IWL_DEBUG_TX_REPLY("start=%d bitmap=0x%llx\n",
+			IWL_DEBUG_TX_REPLY(priv, "start=%d bitmap=0x%llx\n",
 					   start, (unsigned long long)bitmap);
 		}
 
 		agg->bitmap = bitmap;
 		agg->start_idx = start;
-		IWL_DEBUG_TX_REPLY("Frames %d start_idx=%d bitmap=0x%llx\n",
+		IWL_DEBUG_TX_REPLY(priv, "Frames %d start_idx=%d bitmap=0x%llx\n",
 				   agg->frame_count, agg->start_idx,
 				   (unsigned long long)agg->bitmap);
 
@@ -1291,7 +1291,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 
 		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
 			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
-			IWL_DEBUG_TX_REPLY("Retry scheduler reclaim "
+			IWL_DEBUG_TX_REPLY(priv, "Retry scheduler reclaim "
 					"scd_ssn=%d idx=%d txq=%d swq=%d\n",
 					scd_ssn , index, txq_id, txq->swq_id);
 
@@ -1318,7 +1318,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
 
-		IWL_DEBUG_TX_REPLY("TXQ %d status %s (0x%08x) rate_n_flags "
+		IWL_DEBUG_TX_REPLY(priv, "TXQ %d status %s (0x%08x) rate_n_flags "
 				   "0x%x retries %d\n",
 				   txq_id,
 				   iwl_get_tx_fail_reason(status), status,
@@ -1389,7 +1389,7 @@ static int iwl5000_send_rxon_assoc(struct iwl_priv *priv)
 	    (rxon1->acquisition_data == rxon2->acquisition_data) &&
 	    (rxon1->rx_chain == rxon2->rx_chain) &&
 	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
-		IWL_DEBUG_INFO("Using current RXON_ASSOC.  Not resending.\n");
+		IWL_DEBUG_INFO(priv, "Using current RXON_ASSOC.  Not resending.\n");
 		return 0;
 	}
 
@@ -1465,7 +1465,7 @@ static int iwl5000_calc_rssi(struct iwl_priv *priv,
 	max_rssi = max_t(u32, rssi_a, rssi_b);
 	max_rssi = max_t(u32, max_rssi, rssi_c);
 
-	IWL_DEBUG_STATS("Rssi In A %d B %d C %d Max %d AGC dB %d\n",
+	IWL_DEBUG_STATS(priv, "Rssi In A %d B %d C %d Max %d AGC dB %d\n",
 		rssi_a, rssi_b, rssi_c, max_rssi, agc);
 
 	/* dBm = max_rssi dB - agc dB - constant.

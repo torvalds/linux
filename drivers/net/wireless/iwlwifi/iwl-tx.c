@@ -96,7 +96,7 @@ int iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 		reg = iwl_read32(priv, CSR_UCODE_DRV_GP1);
 
 		if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {
-			IWL_DEBUG_INFO("Requesting wakeup, GP1 = 0x%x\n", reg);
+			IWL_DEBUG_INFO(priv, "Requesting wakeup, GP1 = 0x%x\n", reg);
 			iwl_set_bit(priv, CSR_GP_CNTRL,
 				    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 			return ret;
@@ -638,14 +638,14 @@ static void iwl_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 		memcpy(tx_cmd->key, keyconf->key, keyconf->keylen);
 		if (info->flags & IEEE80211_TX_CTL_AMPDU)
 			tx_cmd->tx_flags |= TX_CMD_FLG_AGG_CCMP_MSK;
-		IWL_DEBUG_TX("tx_cmd with AES hwcrypto\n");
+		IWL_DEBUG_TX(priv, "tx_cmd with AES hwcrypto\n");
 		break;
 
 	case ALG_TKIP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
 		ieee80211_get_tkip_key(keyconf, skb_frag,
 			IEEE80211_TKIP_P2_KEY, tx_cmd->key);
-		IWL_DEBUG_TX("tx_cmd with tkip hwcrypto\n");
+		IWL_DEBUG_TX(priv, "tx_cmd with tkip hwcrypto\n");
 		break;
 
 	case ALG_WEP:
@@ -657,7 +657,7 @@ static void iwl_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 
 		memcpy(&tx_cmd->key[3], keyconf->key, keyconf->keylen);
 
-		IWL_DEBUG_TX("Configuring packet for WEP encryption "
+		IWL_DEBUG_TX(priv, "Configuring packet for WEP encryption "
 			     "with key %d\n", keyconf->keyidx);
 		break;
 
@@ -703,7 +703,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (iwl_is_rfkill(priv)) {
-		IWL_DEBUG_DROP("Dropping - RF KILL\n");
+		IWL_DEBUG_DROP(priv, "Dropping - RF KILL\n");
 		goto drop_unlock;
 	}
 
@@ -717,11 +717,11 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (ieee80211_is_auth(fc))
-		IWL_DEBUG_TX("Sending AUTH frame\n");
+		IWL_DEBUG_TX(priv, "Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_req(fc))
-		IWL_DEBUG_TX("Sending ASSOC frame\n");
+		IWL_DEBUG_TX(priv, "Sending ASSOC frame\n");
 	else if (ieee80211_is_reassoc_req(fc))
-		IWL_DEBUG_TX("Sending REASSOC frame\n");
+		IWL_DEBUG_TX(priv, "Sending REASSOC frame\n");
 #endif
 
 	/* drop all data frame if we are not associated */
@@ -731,7 +731,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	    (!iwl_is_associated(priv) ||
 	     ((priv->iw_mode == NL80211_IFTYPE_STATION) && !priv->assoc_id) ||
 	     !priv->assoc_station_added)) {
-		IWL_DEBUG_DROP("Dropping - !iwl_is_associated\n");
+		IWL_DEBUG_DROP(priv, "Dropping - !iwl_is_associated\n");
 		goto drop_unlock;
 	}
 
@@ -742,12 +742,12 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	/* Find (or create) index into station table for destination station */
 	sta_id = iwl_get_sta_id(priv, hdr);
 	if (sta_id == IWL_INVALID_STATION) {
-		IWL_DEBUG_DROP("Dropping - INVALID STATION: %pM\n",
+		IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 			       hdr->addr1);
 		goto drop;
 	}
 
-	IWL_DEBUG_TX("station Id %d\n", sta_id);
+	IWL_DEBUG_TX(priv, "station Id %d\n", sta_id);
 
 	swq_id = skb_get_queue_mapping(skb);
 	txq_id = swq_id;
@@ -938,7 +938,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	       !(cmd->meta.flags & CMD_SIZE_HUGE));
 
 	if (iwl_is_rfkill(priv)) {
-		IWL_DEBUG_INFO("Not sending command - RF KILL");
+		IWL_DEBUG_INFO(priv, "Not sending command - RF KILL");
 		return -EIO;
 	}
 
@@ -981,7 +981,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	switch (out_cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:
-		IWL_DEBUG_HC_DUMP("Sending command %s (#%x), seq: 0x%04X, "
+		IWL_DEBUG_HC_DUMP(priv, "Sending command %s (#%x), seq: 0x%04X, "
 				"%d bytes at %d[%d]:%d\n",
 				get_cmd_string(out_cmd->hdr.cmd),
 				out_cmd->hdr.cmd,
@@ -989,7 +989,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 				q->write_ptr, idx, IWL_CMD_QUEUE_NUM);
 				break;
 	default:
-		IWL_DEBUG_HC("Sending command %s (#%x), seq: 0x%04X, "
+		IWL_DEBUG_HC(priv, "Sending command %s (#%x), seq: 0x%04X, "
 				"%d bytes at %d[%d]:%d\n",
 				get_cmd_string(out_cmd->hdr.cmd),
 				out_cmd->hdr.cmd,
@@ -1194,7 +1194,7 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 		tid_data->agg.state = IWL_AGG_ON;
 		ieee80211_start_tx_ba_cb_irqsafe(priv->hw, ra, tid);
 	} else {
-		IWL_DEBUG_HT("HW queue is NOT empty: %d packets in HW queue\n",
+		IWL_DEBUG_HT(priv, "HW queue is NOT empty: %d packets in HW queue\n",
 			     tid_data->tfds_in_queue);
 		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
 	}
@@ -1235,13 +1235,13 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 
 	/* The queue is not empty */
 	if (write_ptr != read_ptr) {
-		IWL_DEBUG_HT("Stopping a non empty AGG HW QUEUE\n");
+		IWL_DEBUG_HT(priv, "Stopping a non empty AGG HW QUEUE\n");
 		priv->stations[sta_id].tid[tid].agg.state =
 				IWL_EMPTYING_HW_QUEUE_DELBA;
 		return 0;
 	}
 
-	IWL_DEBUG_HT("HW queue is empty\n");
+	IWL_DEBUG_HT(priv, "HW queue is empty\n");
 	priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1272,7 +1272,7 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id)
 		    (q->read_ptr == q->write_ptr)) {
 			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
 			int tx_fifo = default_tid_to_tx_fifo[tid];
-			IWL_DEBUG_HT("HW queue empty: continue DELBA flow\n");
+			IWL_DEBUG_HT(priv, "HW queue empty: continue DELBA flow\n");
 			priv->cfg->ops->lib->txq_agg_disable(priv, txq_id,
 							     ssn, tx_fifo);
 			tid_data->agg.state = IWL_AGG_OFF;
@@ -1282,7 +1282,7 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id)
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
 		/* We are reclaiming the last packet of the queue */
 		if (tid_data->tfds_in_queue == 0) {
-			IWL_DEBUG_HT("HW queue empty: continue ADDBA flow\n");
+			IWL_DEBUG_HT(priv, "HW queue empty: continue ADDBA flow\n");
 			tid_data->agg.state = IWL_AGG_ON;
 			ieee80211_start_tx_ba_cb_irqsafe(priv->hw, addr, tid);
 		}
@@ -1317,7 +1317,7 @@ static int iwl_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 
 	/* Mark that the expected block-ack response arrived */
 	agg->wait_for_ba = 0;
-	IWL_DEBUG_TX_REPLY("BA %d %d\n", agg->start_idx, ba_resp->seq_ctl);
+	IWL_DEBUG_TX_REPLY(priv, "BA %d %d\n", agg->start_idx, ba_resp->seq_ctl);
 
 	/* Calculate shift to align block-ack bits with our Tx window bits */
 	sh = agg->start_idx - SEQ_TO_INDEX(seq_ctl >> 4);
@@ -1328,7 +1328,7 @@ static int iwl_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	bitmap = le64_to_cpu(ba_resp->bitmap) >> sh;
 
 	if (agg->frame_count > (64 - sh)) {
-		IWL_DEBUG_TX_REPLY("more frames than bitmap size");
+		IWL_DEBUG_TX_REPLY(priv, "more frames than bitmap size");
 		return -1;
 	}
 
@@ -1341,7 +1341,7 @@ static int iwl_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	for (i = 0; i < agg->frame_count ; i++) {
 		ack = bitmap & (1ULL << i);
 		successes += !!ack;
-		IWL_DEBUG_TX_REPLY("%s ON i=%d idx=%d raw=%d\n",
+		IWL_DEBUG_TX_REPLY(priv, "%s ON i=%d idx=%d raw=%d\n",
 			ack ? "ACK" : "NACK", i, (agg->start_idx + i) & 0xff,
 			agg->start_idx + i);
 	}
@@ -1354,7 +1354,7 @@ static int iwl_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	info->status.ampdu_ack_len = agg->frame_count;
 	iwl_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
 
-	IWL_DEBUG_TX_REPLY("Bitmap %llx\n", (unsigned long long)bitmap);
+	IWL_DEBUG_TX_REPLY(priv, "Bitmap %llx\n", (unsigned long long)bitmap);
 
 	return 0;
 }
@@ -1399,19 +1399,19 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 	/* TODO: Need to get this copy more safely - now good for debug */
 
-	IWL_DEBUG_TX_REPLY("REPLY_COMPRESSED_BA [%d] Received from %pM, "
+	IWL_DEBUG_TX_REPLY(priv, "REPLY_COMPRESSED_BA [%d] Received from %pM, "
 			   "sta_id = %d\n",
 			   agg->wait_for_ba,
 			   (u8 *) &ba_resp->sta_addr_lo32,
 			   ba_resp->sta_id);
-	IWL_DEBUG_TX_REPLY("TID = %d, SeqCtl = %d, bitmap = 0x%llx, scd_flow = "
+	IWL_DEBUG_TX_REPLY(priv, "TID = %d, SeqCtl = %d, bitmap = 0x%llx, scd_flow = "
 			   "%d, scd_ssn = %d\n",
 			   ba_resp->tid,
 			   ba_resp->seq_ctl,
 			   (unsigned long long)le64_to_cpu(ba_resp->bitmap),
 			   ba_resp->scd_flow,
 			   ba_resp->scd_ssn);
-	IWL_DEBUG_TX_REPLY("DAT start_idx = %d, bitmap = 0x%llx \n",
+	IWL_DEBUG_TX_REPLY(priv, "DAT start_idx = %d, bitmap = 0x%llx \n",
 			   agg->start_idx,
 			   (unsigned long long)agg->bitmap);
 

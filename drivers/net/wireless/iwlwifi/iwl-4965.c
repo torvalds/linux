@@ -76,7 +76,7 @@ static int iwl4965_verify_bsm(struct iwl_priv *priv)
 	u32 reg;
 	u32 val;
 
-	IWL_DEBUG_INFO("Begin verify bsm\n");
+	IWL_DEBUG_INFO(priv, "Begin verify bsm\n");
 
 	/* verify BSM SRAM contents */
 	val = iwl_read_prph(priv, BSM_WR_DWCOUNT_REG);
@@ -94,7 +94,7 @@ static int iwl4965_verify_bsm(struct iwl_priv *priv)
 		}
 	}
 
-	IWL_DEBUG_INFO("BSM bootstrap uCode image OK\n");
+	IWL_DEBUG_INFO(priv, "BSM bootstrap uCode image OK\n");
 
 	return 0;
 }
@@ -144,7 +144,7 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 	u32 reg_offset;
 	int ret;
 
-	IWL_DEBUG_INFO("Begin load bsm\n");
+	IWL_DEBUG_INFO(priv, "Begin load bsm\n");
 
 	priv->ucode_type = UCODE_RT;
 
@@ -201,7 +201,7 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 		udelay(10);
 	}
 	if (i < 100)
-		IWL_DEBUG_INFO("BSM write complete, poll %d iterations\n", i);
+		IWL_DEBUG_INFO(priv, "BSM write complete, poll %d iterations\n", i);
 	else {
 		IWL_ERR(priv, "BSM write did not complete!\n");
 		return -EIO;
@@ -257,7 +257,7 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	IWL_DEBUG_INFO("Runtime uCode pointers are set.\n");
+	IWL_DEBUG_INFO(priv, "Runtime uCode pointers are set.\n");
 
 	return ret;
 }
@@ -279,7 +279,7 @@ static void iwl4965_init_alive_start(struct iwl_priv *priv)
 	if (priv->card_alive_init.is_valid != UCODE_VALID_OK) {
 		/* We had an error bringing up the hardware, so take it
 		 * all the way back down so we can try again */
-		IWL_DEBUG_INFO("Initialize Alive failed.\n");
+		IWL_DEBUG_INFO(priv, "Initialize Alive failed.\n");
 		goto restart;
 	}
 
@@ -289,7 +289,7 @@ static void iwl4965_init_alive_start(struct iwl_priv *priv)
 	if (iwl_verify_ucode(priv)) {
 		/* Runtime instruction load was bad;
 		 * take it all the way back down so we can try again */
-		IWL_DEBUG_INFO("Bad \"initialize\" uCode load.\n");
+		IWL_DEBUG_INFO(priv, "Bad \"initialize\" uCode load.\n");
 		goto restart;
 	}
 
@@ -299,11 +299,11 @@ static void iwl4965_init_alive_start(struct iwl_priv *priv)
 	/* Send pointers to protocol/runtime uCode image ... init code will
 	 * load and launch runtime uCode, which will send us another "Alive"
 	 * notification. */
-	IWL_DEBUG_INFO("Initialization Alive received.\n");
+	IWL_DEBUG_INFO(priv, "Initialization Alive received.\n");
 	if (iwl4965_set_ucode_ptrs(priv)) {
 		/* Runtime instruction load won't happen;
 		 * take it all the way back down so we can try again */
-		IWL_DEBUG_INFO("Couldn't set up uCode pointers.\n");
+		IWL_DEBUG_INFO(priv, "Couldn't set up uCode pointers.\n");
 		goto restart;
 	}
 	return;
@@ -354,7 +354,7 @@ static int iwl4965_apm_init(struct iwl_priv *priv)
 	ret = iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
 			CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 	if (ret < 0) {
-		IWL_DEBUG_INFO("Failed to init the card\n");
+		IWL_DEBUG_INFO(priv, "Failed to init the card\n");
 		goto out;
 	}
 
@@ -437,7 +437,7 @@ static int iwl4965_apm_stop_master(struct iwl_priv *priv)
 			CSR_RESET_REG_FLAG_MASTER_DISABLED, 100);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
-	IWL_DEBUG_INFO("stop master\n");
+	IWL_DEBUG_INFO(priv, "stop master\n");
 
 	return 0;
 }
@@ -526,7 +526,7 @@ static void iwl4965_chain_noise_reset(struct iwl_priv *priv)
 			IWL_ERR(priv,
 				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
-		IWL_DEBUG_CALIB("Run chain_noise_calibrate\n");
+		IWL_DEBUG_CALIB(priv, "Run chain_noise_calibrate\n");
 	}
 }
 
@@ -558,7 +558,7 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 			data->delta_gain_code[i] = 0;
 		}
 	}
-	IWL_DEBUG_CALIB("delta_gain_codes: a %d b %d c %d\n",
+	IWL_DEBUG_CALIB(priv, "delta_gain_codes: a %d b %d c %d\n",
 		     data->delta_gain_code[0],
 		     data->delta_gain_code[1],
 		     data->delta_gain_code[2]);
@@ -576,7 +576,7 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
 				      sizeof(cmd), &cmd);
 		if (ret)
-			IWL_DEBUG_CALIB("fail sending cmd "
+			IWL_DEBUG_CALIB(priv, "fail sending cmd "
 				     "REPLY_PHY_CALIBRATION_CMD \n");
 
 		/* TODO we might want recalculate
@@ -669,7 +669,7 @@ static void iwl4965_tx_queue_set_status(struct iwl_priv *priv,
 
 	txq->sched_retry = scd_retry;
 
-	IWL_DEBUG_INFO("%s %s Queue %d on AC %d\n",
+	IWL_DEBUG_INFO(priv, "%s %s Queue %d on AC %d\n",
 		       active ? "Activate" : "Deactivate",
 		       scd_retry ? "BA" : "AC", txq_id, tx_fifo_id);
 }
@@ -968,7 +968,7 @@ static int iwl4965_interpolate_chan(struct iwl_priv *priv, u32 channel,
 	ch_i2 = priv->calib_info->band_info[s].ch2.ch_num;
 	chan_info->ch_num = (u8) channel;
 
-	IWL_DEBUG_TXPOWER("channel %d subband %d factory cal ch %d & %d\n",
+	IWL_DEBUG_TXPOWER(priv, "channel %d subband %d factory cal ch %d & %d\n",
 			  channel, s, ch_i1, ch_i2);
 
 	for (c = 0; c < EEPROM_TX_POWER_TX_CHAINS; c++) {
@@ -998,19 +998,19 @@ static int iwl4965_interpolate_chan(struct iwl_priv *priv, u32 channel,
 							   m1->pa_det, ch_i2,
 							   m2->pa_det);
 
-			IWL_DEBUG_TXPOWER
-			    ("chain %d meas %d AP1=%d AP2=%d AP=%d\n", c, m,
-			     m1->actual_pow, m2->actual_pow, omeas->actual_pow);
-			IWL_DEBUG_TXPOWER
-			    ("chain %d meas %d NI1=%d NI2=%d NI=%d\n", c, m,
-			     m1->gain_idx, m2->gain_idx, omeas->gain_idx);
-			IWL_DEBUG_TXPOWER
-			    ("chain %d meas %d PA1=%d PA2=%d PA=%d\n", c, m,
-			     m1->pa_det, m2->pa_det, omeas->pa_det);
-			IWL_DEBUG_TXPOWER
-			    ("chain %d meas %d  T1=%d  T2=%d  T=%d\n", c, m,
-			     m1->temperature, m2->temperature,
-			     omeas->temperature);
+			IWL_DEBUG_TXPOWER(priv,
+				"chain %d meas %d AP1=%d AP2=%d AP=%d\n", c, m,
+				m1->actual_pow, m2->actual_pow, omeas->actual_pow);
+			IWL_DEBUG_TXPOWER(priv,
+				"chain %d meas %d NI1=%d NI2=%d NI=%d\n", c, m,
+				m1->gain_idx, m2->gain_idx, omeas->gain_idx);
+			IWL_DEBUG_TXPOWER(priv,
+				"chain %d meas %d PA1=%d PA2=%d PA=%d\n", c, m,
+				m1->pa_det, m2->pa_det, omeas->pa_det);
+			IWL_DEBUG_TXPOWER(priv,
+				"chain %d meas %d  T1=%d  T2=%d  T=%d\n", c, m,
+				m1->temperature, m2->temperature,
+				omeas->temperature);
 		}
 	}
 
@@ -1312,7 +1312,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	user_target_power = 2 * priv->tx_power_user_lmt;
 
 	/* Get current (RXON) channel, band, width */
-	IWL_DEBUG_TXPOWER("chan %d band %d is_fat %d\n", channel, band,
+	IWL_DEBUG_TXPOWER(priv, "chan %d band %d is_fat %d\n", channel, band,
 			  is_fat);
 
 	ch_info = iwl_get_channel_info(priv, priv->band, channel);
@@ -1329,7 +1329,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 		return -EINVAL;
 	}
 
-	IWL_DEBUG_TXPOWER("channel %d belongs to txatten group %d\n",
+	IWL_DEBUG_TXPOWER(priv, "channel %d belongs to txatten group %d\n",
 			  channel, txatten_grp);
 
 	if (is_fat) {
@@ -1379,7 +1379,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 	voltage_compensation =
 	    iwl4965_get_voltage_compensation(voltage, init_voltage);
 
-	IWL_DEBUG_TXPOWER("curr volt %d eeprom volt %d volt comp %d\n",
+	IWL_DEBUG_TXPOWER(priv, "curr volt %d eeprom volt %d volt comp %d\n",
 			  init_voltage,
 			  voltage, voltage_compensation);
 
@@ -1410,13 +1410,13 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 		factory_gain_index[c] = measurement->gain_idx;
 		factory_actual_pwr[c] = measurement->actual_pow;
 
-		IWL_DEBUG_TXPOWER("chain = %d\n", c);
-		IWL_DEBUG_TXPOWER("fctry tmp %d, "
+		IWL_DEBUG_TXPOWER(priv, "chain = %d\n", c);
+		IWL_DEBUG_TXPOWER(priv, "fctry tmp %d, "
 				  "curr tmp %d, comp %d steps\n",
 				  factory_temp, current_temp,
 				  temperature_comp[c]);
 
-		IWL_DEBUG_TXPOWER("fctry idx %d, fctry pwr %d\n",
+		IWL_DEBUG_TXPOWER(priv, "fctry idx %d, fctry pwr %d\n",
 				  factory_gain_index[c],
 				  factory_actual_pwr[c]);
 	}
@@ -1449,7 +1449,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 		if (target_power > power_limit)
 			target_power = power_limit;
 
-		IWL_DEBUG_TXPOWER("rate %d sat %d reg %d usr %d tgt %d\n",
+		IWL_DEBUG_TXPOWER(priv, "rate %d sat %d reg %d usr %d tgt %d\n",
 				  i, saturation_power - back_off_table[i],
 				  current_regulatory, user_target_power,
 				  target_power);
@@ -1473,7 +1473,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 					    voltage_compensation +
 					    atten_value);
 
-/*			IWL_DEBUG_TXPOWER("calculated txpower index %d\n",
+/*			IWL_DEBUG_TXPOWER(priv, "calculated txpower index %d\n",
 						power_index); */
 
 			if (power_index < get_min_power_index(i, band))
@@ -1506,7 +1506,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl_priv *priv, u8 band, u16 channel,
 			tx_power.s.dsp_predis_atten[c] =
 				gain_table[band][power_index].dsp;
 
-			IWL_DEBUG_TXPOWER("chain %d mimo %d index %d "
+			IWL_DEBUG_TXPOWER(priv, "chain %d mimo %d index %d "
 					  "gain 0x%02x dsp %d\n",
 					  c, atten_value, power_index,
 					tx_power.s.radio_tx_gain[c],
@@ -1581,7 +1581,7 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 	     rxon2->ofdm_ht_dual_stream_basic_rates) &&
 	    (rxon1->rx_chain == rxon2->rx_chain) &&
 	    (rxon1->ofdm_basic_rates == rxon2->ofdm_basic_rates)) {
-		IWL_DEBUG_INFO("Using current RXON_ASSOC.  Not resending.\n");
+		IWL_DEBUG_INFO(priv, "Using current RXON_ASSOC.  Not resending.\n");
 		return 0;
 	}
 
@@ -1638,7 +1638,7 @@ static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 	rc = iwl4965_fill_txpower_tbl(priv, band, channel, is_fat,
 				      ctrl_chan_high, &cmd.tx_power);
 	if (rc) {
-		IWL_DEBUG_11H("error:%d  fill txpower_tbl\n", rc);
+		IWL_DEBUG_11H(priv, "error:%d  fill txpower_tbl\n", rc);
 		return rc;
 	}
 
@@ -1703,13 +1703,13 @@ static int iwl4965_hw_get_temperature(const struct iwl_priv *priv)
 
 	if (test_bit(STATUS_TEMPERATURE, &priv->status) &&
 		(priv->statistics.flag & STATISTICS_REPLY_FLG_FAT_MODE_MSK)) {
-		IWL_DEBUG_TEMP("Running FAT temperature calibration\n");
+		IWL_DEBUG_TEMP(priv, "Running FAT temperature calibration\n");
 		R1 = (s32)le32_to_cpu(priv->card_alive_init.therm_r1[1]);
 		R2 = (s32)le32_to_cpu(priv->card_alive_init.therm_r2[1]);
 		R3 = (s32)le32_to_cpu(priv->card_alive_init.therm_r3[1]);
 		R4 = le32_to_cpu(priv->card_alive_init.therm_r4[1]);
 	} else {
-		IWL_DEBUG_TEMP("Running temperature calibration\n");
+		IWL_DEBUG_TEMP(priv, "Running temperature calibration\n");
 		R1 = (s32)le32_to_cpu(priv->card_alive_init.therm_r1[0]);
 		R2 = (s32)le32_to_cpu(priv->card_alive_init.therm_r2[0]);
 		R3 = (s32)le32_to_cpu(priv->card_alive_init.therm_r3[0]);
@@ -1729,7 +1729,7 @@ static int iwl4965_hw_get_temperature(const struct iwl_priv *priv)
 		vt = sign_extend(
 			le32_to_cpu(priv->statistics.general.temperature), 23);
 
-	IWL_DEBUG_TEMP("Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
+	IWL_DEBUG_TEMP(priv, "Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
 
 	if (R3 == R1) {
 		IWL_ERR(priv, "Calibration conflict R1 == R3\n");
@@ -1742,7 +1742,7 @@ static int iwl4965_hw_get_temperature(const struct iwl_priv *priv)
 	temperature /= (R3 - R1);
 	temperature = (temperature * 97) / 100 + TEMPERATURE_CALIB_KELVIN_OFFSET;
 
-	IWL_DEBUG_TEMP("Calibrated temperature: %dK, %dC\n",
+	IWL_DEBUG_TEMP(priv, "Calibrated temperature: %dK, %dC\n",
 			temperature, KELVIN_TO_CELSIUS(temperature));
 
 	return temperature;
@@ -1765,7 +1765,7 @@ static int iwl4965_is_temp_calib_needed(struct iwl_priv *priv)
 	int temp_diff;
 
 	if (!test_bit(STATUS_STATISTICS, &priv->status)) {
-		IWL_DEBUG_TEMP("Temperature not updated -- no statistics.\n");
+		IWL_DEBUG_TEMP(priv, "Temperature not updated -- no statistics.\n");
 		return 0;
 	}
 
@@ -1773,19 +1773,19 @@ static int iwl4965_is_temp_calib_needed(struct iwl_priv *priv)
 
 	/* get absolute value */
 	if (temp_diff < 0) {
-		IWL_DEBUG_POWER("Getting cooler, delta %d, \n", temp_diff);
+		IWL_DEBUG_POWER(priv, "Getting cooler, delta %d, \n", temp_diff);
 		temp_diff = -temp_diff;
 	} else if (temp_diff == 0)
-		IWL_DEBUG_POWER("Same temp, \n");
+		IWL_DEBUG_POWER(priv, "Same temp, \n");
 	else
-		IWL_DEBUG_POWER("Getting warmer, delta %d, \n", temp_diff);
+		IWL_DEBUG_POWER(priv, "Getting warmer, delta %d, \n", temp_diff);
 
 	if (temp_diff < IWL_TEMPERATURE_THRESHOLD) {
-		IWL_DEBUG_POWER("Thermal txpower calib not needed\n");
+		IWL_DEBUG_POWER(priv, "Thermal txpower calib not needed\n");
 		return 0;
 	}
 
-	IWL_DEBUG_POWER("Thermal txpower calib needed\n");
+	IWL_DEBUG_POWER(priv, "Thermal txpower calib needed\n");
 
 	return 1;
 }
@@ -1800,12 +1800,12 @@ static void iwl4965_temperature_calib(struct iwl_priv *priv)
 
 	if (priv->temperature != temp) {
 		if (priv->temperature)
-			IWL_DEBUG_TEMP("Temperature changed "
+			IWL_DEBUG_TEMP(priv, "Temperature changed "
 				       "from %dC to %dC\n",
 				       KELVIN_TO_CELSIUS(priv->temperature),
 				       KELVIN_TO_CELSIUS(temp));
 		else
-			IWL_DEBUG_TEMP("Temperature "
+			IWL_DEBUG_TEMP(priv, "Temperature "
 				       "initialized to %dC\n",
 				       KELVIN_TO_CELSIUS(temp));
 	}
@@ -2022,7 +2022,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 	int i, sh, idx;
 	u16 seq;
 	if (agg->wait_for_ba)
-		IWL_DEBUG_TX_REPLY("got tx response w/o block-ack\n");
+		IWL_DEBUG_TX_REPLY(priv, "got tx response w/o block-ack\n");
 
 	agg->frame_count = tx_resp->frame_count;
 	agg->start_idx = start_idx;
@@ -2036,7 +2036,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		idx = start_idx;
 
 		/* FIXME: code repetition */
-		IWL_DEBUG_TX_REPLY("FrameCnt = %d, StartIdx=%d idx=%d\n",
+		IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, StartIdx=%d idx=%d\n",
 				   agg->frame_count, agg->start_idx, idx);
 
 		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
@@ -2047,9 +2047,9 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
 		/* FIXME: code repetition end */
 
-		IWL_DEBUG_TX_REPLY("1 Frame 0x%x failure :%d\n",
+		IWL_DEBUG_TX_REPLY(priv, "1 Frame 0x%x failure :%d\n",
 				    status & 0xff, tx_resp->failure_frame);
-		IWL_DEBUG_TX_REPLY("Rate Info rate_n_flags=%x\n", rate_n_flags);
+		IWL_DEBUG_TX_REPLY(priv, "Rate Info rate_n_flags=%x\n", rate_n_flags);
 
 		agg->wait_for_ba = 0;
 	} else {
@@ -2069,7 +2069,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 				      AGG_TX_STATE_ABORT_MSK))
 				continue;
 
-			IWL_DEBUG_TX_REPLY("FrameCnt = %d, txq_id=%d idx=%d\n",
+			IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, txq_id=%d idx=%d\n",
 					   agg->frame_count, txq_id, idx);
 
 			hdr = iwl_tx_queue_get_hdr(priv, txq_id, idx);
@@ -2083,7 +2083,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 				return -1;
 			}
 
-			IWL_DEBUG_TX_REPLY("AGG Frame i=%d idx %d seq=%d\n",
+			IWL_DEBUG_TX_REPLY(priv, "AGG Frame i=%d idx %d seq=%d\n",
 					   i, idx, SEQ_TO_SN(sc));
 
 			sh = idx - start;
@@ -2101,13 +2101,13 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 				sh = 0;
 			}
 			bitmap |= 1ULL << sh;
-			IWL_DEBUG_TX_REPLY("start=%d bitmap=0x%llx\n",
+			IWL_DEBUG_TX_REPLY(priv, "start=%d bitmap=0x%llx\n",
 					   start, (unsigned long long)bitmap);
 		}
 
 		agg->bitmap = bitmap;
 		agg->start_idx = start;
-		IWL_DEBUG_TX_REPLY("Frames %d start_idx=%d bitmap=0x%llx\n",
+		IWL_DEBUG_TX_REPLY(priv, "Frames %d start_idx=%d bitmap=0x%llx\n",
 				   agg->frame_count, agg->start_idx,
 				   (unsigned long long)agg->bitmap);
 
@@ -2176,7 +2176,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 
 		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
 			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
-			IWL_DEBUG_TX_REPLY("Retry scheduler reclaim scd_ssn "
+			IWL_DEBUG_TX_REPLY(priv, "Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
 			freed = iwl_tx_queue_reclaim(priv, txq_id, index);
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
@@ -2199,7 +2199,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
 
-		IWL_DEBUG_TX_REPLY("TXQ %d status %s (0x%08x) "
+		IWL_DEBUG_TX_REPLY(priv, "TXQ %d status %s (0x%08x) "
 				   "rate_n_flags 0x%x retries %d\n",
 				   txq_id,
 				   iwl_get_tx_fail_reason(status), status,
@@ -2247,7 +2247,7 @@ static int iwl4965_calc_rssi(struct iwl_priv *priv,
 		if (valid_antennae & (1 << i))
 			max_rssi = max(ncphy->rssi_info[i << 1], max_rssi);
 
-	IWL_DEBUG_STATS("Rssi In A %d B %d C %d Max %d AGC dB %d\n",
+	IWL_DEBUG_STATS(priv, "Rssi In A %d B %d C %d Max %d AGC dB %d\n",
 		ncphy->rssi_info[0], ncphy->rssi_info[2], ncphy->rssi_info[4],
 		max_rssi, agc);
 

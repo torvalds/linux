@@ -149,7 +149,7 @@ static void iwl_power_init_handle(struct iwl_priv *priv)
 	int i;
 	u16 pci_pm;
 
-	IWL_DEBUG_POWER("Initialize power \n");
+	IWL_DEBUG_POWER(priv, "Initialize power \n");
 
 	pow_data = &priv->power_data;
 
@@ -161,7 +161,7 @@ static void iwl_power_init_handle(struct iwl_priv *priv)
 
 	pci_read_config_word(priv->pci_dev, PCI_CFG_LINK_CTRL, &pci_pm);
 
-	IWL_DEBUG_POWER("adjust power command flags\n");
+	IWL_DEBUG_POWER(priv, "adjust power command flags\n");
 
 	for (i = 0; i < IWL_POWER_MAX; i++) {
 		cmd = &pow_data->pwr_range_0[i].cmd;
@@ -185,7 +185,7 @@ static int iwl_update_power_cmd(struct iwl_priv *priv,
 	bool skip;
 
 	if (mode > IWL_POWER_INDEX_5) {
-		IWL_DEBUG_POWER("Error invalid power mode \n");
+		IWL_DEBUG_POWER(priv, "Error invalid power mode \n");
 		return -EINVAL;
 	}
 
@@ -225,10 +225,10 @@ static int iwl_update_power_cmd(struct iwl_priv *priv,
 		if (le32_to_cpu(cmd->sleep_interval[i]) > max_sleep)
 			cmd->sleep_interval[i] = cpu_to_le32(max_sleep);
 
-	IWL_DEBUG_POWER("Flags value = 0x%08X\n", cmd->flags);
-	IWL_DEBUG_POWER("Tx timeout = %u\n", le32_to_cpu(cmd->tx_data_timeout));
-	IWL_DEBUG_POWER("Rx timeout = %u\n", le32_to_cpu(cmd->rx_data_timeout));
-	IWL_DEBUG_POWER("Sleep interval vector = { %d , %d , %d , %d , %d }\n",
+	IWL_DEBUG_POWER(priv, "Flags value = 0x%08X\n", cmd->flags);
+	IWL_DEBUG_POWER(priv, "Tx timeout = %u\n", le32_to_cpu(cmd->tx_data_timeout));
+	IWL_DEBUG_POWER(priv, "Rx timeout = %u\n", le32_to_cpu(cmd->rx_data_timeout));
+	IWL_DEBUG_POWER(priv, "Sleep interval vector = { %d , %d , %d , %d , %d }\n",
 			le32_to_cpu(cmd->sleep_interval[0]),
 			le32_to_cpu(cmd->sleep_interval[1]),
 			le32_to_cpu(cmd->sleep_interval[2]),
@@ -302,7 +302,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 		if (priv->cfg->ops->lib->update_chain_flags && update_chains)
 			priv->cfg->ops->lib->update_chain_flags(priv);
 		else
-			IWL_DEBUG_POWER("Cannot update the power, chain noise "
+			IWL_DEBUG_POWER(priv, "Cannot update the power, chain noise "
 					"calibration running: %d\n",
 					priv->chain_noise_data.state);
 		if (!ret)
@@ -423,7 +423,7 @@ static void iwl_bg_set_power_save(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work,
 				struct iwl_priv, set_power_save.work);
-	IWL_DEBUG(IWL_DL_STATE, "update power\n");
+	IWL_DEBUG_POWER(priv, "update power\n");
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
