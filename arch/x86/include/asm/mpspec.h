@@ -56,11 +56,13 @@ extern int smp_found_config;
 extern int mpc_default_type;
 extern unsigned long mp_lapic_addr;
 
-extern void find_smp_config(void);
 extern void get_smp_config(void);
+
 #ifdef CONFIG_X86_MPPARSE
+extern void find_smp_config(void);
 extern void early_reserve_e820_mpc_new(void);
 #else
+static inline void find_smp_config(void) { }
 static inline void early_reserve_e820_mpc_new(void) { }
 #endif
 

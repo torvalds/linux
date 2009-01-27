@@ -254,10 +254,6 @@ config NUMA_MIGRATE_IRQ_DESC
 
 	  If you don't know what to do here, say N.
 
-config X86_FIND_SMP_CONFIG
-	def_bool y
-	depends on X86_MPPARSE || X86_VOYAGER
-
 config X86_MPPARSE
 	bool "Enable MPS table" if ACPI
 	default y
