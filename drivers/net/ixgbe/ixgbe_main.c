@@ -3901,16 +3901,27 @@ static void ixgbe_netpoll(struct net_device *netdev)
  **/
 static int ixgbe_link_config(struct ixgbe_hw *hw)
 {
-	u32 autoneg = IXGBE_LINK_SPEED_10GB_FULL;
+	u32 autoneg;
+	bool link_up = false;
+	u32 ret = IXGBE_ERR_LINK_SETUP;
 
-	/* must always autoneg for both 1G and 10G link */
-	hw->mac.autoneg = true;
+	if (hw->mac.ops.check_link)
+		ret = hw->mac.ops.check_link(hw, &autoneg, &link_up, false);
 
-	if ((hw->mac.type == ixgbe_mac_82598EB) &&
-	    (hw->phy.media_type == ixgbe_media_type_copper))
-		autoneg = IXGBE_LINK_SPEED_82598_AUTONEG;
+	if (ret || !link_up)
+		goto link_cfg_out;
 
-	return hw->mac.ops.setup_link_speed(hw, autoneg, true, true);
+	if (hw->mac.ops.get_link_capabilities)
+		ret = hw->mac.ops.get_link_capabilities(hw, &autoneg,
+		                                        &hw->mac.autoneg);
+	if (ret)
+		goto link_cfg_out;
+
+	if (hw->mac.ops.setup_link_speed)
+		ret = hw->mac.ops.setup_link_speed(hw, autoneg, true, true);
+
+link_cfg_out:
+	return ret;
 }
 
 static const struct net_device_ops ixgbe_netdev_ops = {
