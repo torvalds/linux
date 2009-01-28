@@ -13,8 +13,16 @@
 int swiotlb __read_mostly;
 EXPORT_SYMBOL(swiotlb);
 
+static void *ia64_swiotlb_alloc_coherent(struct device *dev, size_t size,
+					 dma_addr_t *dma_handle, gfp_t gfp)
+{
+	if (dev->coherent_dma_mask != DMA_64BIT_MASK)
+		gfp |= GFP_DMA;
+	return swiotlb_alloc_coherent(dev, size, dma_handle, gfp);
+}
+
 struct dma_map_ops swiotlb_dma_ops = {
-	.alloc_coherent = swiotlb_alloc_coherent,
+	.alloc_coherent = ia64_swiotlb_alloc_coherent,
 	.free_coherent = swiotlb_free_coherent,
 	.map_page = swiotlb_map_page,
 	.unmap_page = swiotlb_unmap_page,
