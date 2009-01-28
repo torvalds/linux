@@ -398,19 +398,14 @@ static int _omap3_noncore_dpll_lock(struct clk *clk)
 
 	ai = omap3_dpll_autoidle_read(clk);
 
+	omap3_dpll_deny_idle(clk);
+
 	_omap3_dpll_write_clken(clk, DPLL_LOCKED);
 
-	if (ai) {
-		/*
-		 * If no downstream clocks are enabled, CM_IDLEST bit
-		 * may never become active, so don't wait for DPLL to lock.
-		 */
-		r = 0;
+	r = _omap3_wait_dpll_status(clk, 1);
+
+	if (ai)
 		omap3_dpll_allow_idle(clk);
-	} else {
-		r = _omap3_wait_dpll_status(clk, 1);
-		omap3_dpll_deny_idle(clk);
-	};
 
 	return r;
 }
