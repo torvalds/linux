@@ -125,6 +125,8 @@ static void snd_ac97_proc_read_main(struct snd_ac97 *ac97, struct snd_info_buffe
         snd_iprintf(buffer, "PCI Subsys Device: 0x%04x\n\n",
                     ac97->subsystem_device);
 
+	snd_iprintf(buffer, "Flags: %x\n", ac97->flags);
+
 	if ((ac97->ext_id & AC97_EI_REV_MASK) >= AC97_EI_REV_23) {
 		val = snd_ac97_read(ac97, AC97_INT_PAGING);
 		snd_ac97_update_bits(ac97, AC97_INT_PAGING,
