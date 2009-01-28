@@ -353,7 +353,7 @@ static void omap2_dflt_clk_disable(struct clk *clk)
 	else
 		v &= ~(1 << clk->enable_bit);
 	__raw_writel(v, clk->enable_reg);
-	wmb();
+	/* No OCP barrier needed here since it is a disable operation */
 }
 
 const struct clkops clkops_omap2_dflt_wait = {
