@@ -1763,7 +1763,8 @@ void __init connect_bsp_APIC(void)
 		outb(0x01, 0x23);
 	}
 #endif
-	enable_apic_mode();
+	if (apic->enable_apic_mode)
+		apic->enable_apic_mode();
 }
 
 /**

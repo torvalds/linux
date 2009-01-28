@@ -145,8 +145,5 @@ static inline physid_mask_t default_apicid_to_cpu_present(int phys_apicid)
 	return physid_mask_of_physid(phys_apicid);
 }
 
-static inline void enable_apic_mode(void)
-{
-}
 #endif /* CONFIG_X86_LOCAL_APIC */
 #endif /* _ASM_X86_MACH_DEFAULT_MACH_APIC_H */

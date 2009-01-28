@@ -86,7 +86,7 @@ struct genapic apic_bigsmp = {
 	.apicid_to_cpu_present		= bigsmp_apicid_to_cpu_present,
 	.setup_portio_remap		= NULL,
 	.check_phys_apicid_present	= bigsmp_check_phys_apicid_present,
-	.enable_apic_mode		= enable_apic_mode,
+	.enable_apic_mode		= NULL,
 	.phys_pkg_id			= phys_pkg_id,
 	.mps_oem_check			= mps_oem_check,
 

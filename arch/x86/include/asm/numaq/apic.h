@@ -97,10 +97,6 @@ static inline int numaq_check_phys_apicid_present(int boot_cpu_physical_apicid)
 	return 1;
 }
 
-static inline void enable_apic_mode(void)
-{
-}
-
 /*
  * We use physical apicids here, not logical, so just return the default
  * physical broadcast to stop people from breaking us

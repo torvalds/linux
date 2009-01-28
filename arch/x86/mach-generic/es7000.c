@@ -36,10 +36,10 @@ static int probe_es7000(void)
 }
 
 extern void es7000_sw_apic(void);
-static void __init enable_apic_mode(void)
+
+static void __init es7000_enable_apic_mode(void)
 {
 	es7000_sw_apic();
-	return;
 }
 
 static __init int
@@ -128,7 +128,7 @@ struct genapic apic_es7000 = {
 	.apicid_to_cpu_present		= es7000_apicid_to_cpu_present,
 	.setup_portio_remap		= NULL,
 	.check_phys_apicid_present	= es7000_check_phys_apicid_present,
-	.enable_apic_mode		= enable_apic_mode,
+	.enable_apic_mode		= es7000_enable_apic_mode,
 	.phys_pkg_id			= phys_pkg_id,
 	.mps_oem_check			= mps_oem_check,
 
