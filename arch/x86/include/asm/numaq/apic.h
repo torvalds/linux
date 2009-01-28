@@ -92,19 +92,6 @@ static inline physid_mask_t numaq_apicid_to_cpu_present(int logical_apicid)
 
 extern void *xquad_portio;
 
-static inline void setup_portio_remap(void)
-{
-	int num_quads = num_online_nodes();
-
-	if (num_quads <= 1)
-       		return;
-
-	printk("Remapping cross-quad port I/O for %d quads\n", num_quads);
-	xquad_portio = ioremap(XQUAD_PORTIO_BASE, num_quads*XQUAD_PORTIO_QUAD);
-	printk("xquad_portio vaddr 0x%08lx, len %08lx\n",
-		(u_long) xquad_portio, (u_long) num_quads*XQUAD_PORTIO_QUAD);
-}
-
 static inline int check_phys_apicid_present(int boot_cpu_physical_apicid)
 {
 	return (1);

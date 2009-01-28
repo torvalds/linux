@@ -3,7 +3,6 @@
 
 #include <asm/genapic.h>
 
-#define setup_portio_remap (apic->setup_portio_remap)
 #define check_phys_apicid_present (apic->check_phys_apicid_present)
 #define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
 #define cpu_mask_to_apicid_and (apic->cpu_mask_to_apicid_and)

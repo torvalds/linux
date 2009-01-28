@@ -127,10 +127,6 @@ static inline physid_mask_t es7000_ioapic_phys_id_map(physid_mask_t phys_map)
 }
 
 
-static inline void setup_portio_remap(void)
-{
-}
-
 extern unsigned int boot_cpu_physical_apicid;
 static inline int check_phys_apicid_present(int cpu_physical_apicid)
 {

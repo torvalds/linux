@@ -132,10 +132,6 @@ static inline physid_mask_t default_apicid_to_cpu_present(int phys_apicid)
 	return physid_mask_of_physid(phys_apicid);
 }
 
-static inline void setup_portio_remap(void)
-{
-}
-
 static inline int check_phys_apicid_present(int boot_cpu_physical_apicid)
 {
 	return physid_isset(boot_cpu_physical_apicid, phys_cpu_present_map);

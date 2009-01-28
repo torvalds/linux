@@ -116,7 +116,7 @@ static inline physid_mask_t summit_apicid_to_cpu_present(int apicid)
 	return physid_mask_of_physid(0);
 }
 
-static inline void setup_portio_remap(void)
+static inline void summit_setup_portio_remap(void)
 {
 }
 

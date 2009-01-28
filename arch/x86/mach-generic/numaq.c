@@ -44,6 +44,19 @@ static void numaq_vector_allocation_domain(int cpu, cpumask_t *retmask)
 	*retmask = (cpumask_t){ { [0] = APIC_ALL_CPUS, } };
 }
 
+static void numaq_setup_portio_remap(void)
+{
+	int num_quads = num_online_nodes();
+
+	if (num_quads <= 1)
+       		return;
+
+	printk("Remapping cross-quad port I/O for %d quads\n", num_quads);
+	xquad_portio = ioremap(XQUAD_PORTIO_BASE, num_quads*XQUAD_PORTIO_QUAD);
+	printk("xquad_portio vaddr 0x%08lx, len %08lx\n",
+		(u_long) xquad_portio, (u_long) num_quads*XQUAD_PORTIO_QUAD);
+}
+
 struct genapic apic_numaq = {
 
 	.name				= "NUMAQ",
@@ -71,7 +84,7 @@ struct genapic apic_numaq = {
 	.cpu_to_logical_apicid		= numaq_cpu_to_logical_apicid,
 	.cpu_present_to_apicid		= numaq_cpu_present_to_apicid,
 	.apicid_to_cpu_present		= numaq_apicid_to_cpu_present,
-	.setup_portio_remap		= setup_portio_remap,
+	.setup_portio_remap		= numaq_setup_portio_remap,
 	.check_phys_apicid_present	= check_phys_apicid_present,
 	.enable_apic_mode		= enable_apic_mode,
 	.phys_pkg_id			= phys_pkg_id,

@@ -1170,7 +1170,8 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 	map_cpu_to_logical_apicid();
 
-	setup_portio_remap();
+	if (apic->setup_portio_remap)
+		apic->setup_portio_remap();
 
 	smpboot_setup_io_apic();
 	/*
