@@ -547,7 +547,7 @@ calibrate_by_pmtimer(long deltapm, long *delta, long *deltatsc)
 	return -1;
 #endif
 
-	apic_printk(APIC_VERBOSE, "... PM timer delta = %ld\n", deltapm);
+	apic_printk(APIC_VERBOSE, "... PM-Timer delta = %ld\n", deltapm);
 
 	/* Check, if the PM timer is available */
 	if (!deltapm)
@@ -557,14 +557,14 @@ calibrate_by_pmtimer(long deltapm, long *delta, long *deltatsc)
 
 	if (deltapm > (pm_100ms - pm_thresh) &&
 	    deltapm < (pm_100ms + pm_thresh)) {
-		apic_printk(APIC_VERBOSE, "... PM timer result ok\n");
+		apic_printk(APIC_VERBOSE, "... PM-Timer result ok\n");
 		return 0;
 	}
 
 	res = (((u64)deltapm) *  mult) >> 22;
 	do_div(res, 1000000);
 	pr_warning("APIC calibration not consistent "
-		   "with PM Timer: %ldms instead of 100ms\n",(long)res);
+		   "with PM-Timer: %ldms instead of 100ms\n",(long)res);
 
 	/* Correct the lapic counter value */
 	res = (((u64)(*delta)) * pm_100ms);
