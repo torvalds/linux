@@ -1,8 +1,8 @@
 #ifndef _ASM_X86_MACH_DEFAULT_MACH_WAKECPU_H
 #define _ASM_X86_MACH_DEFAULT_MACH_WAKECPU_H
 
-#define TRAMPOLINE_PHYS_LOW (0x467)
-#define TRAMPOLINE_PHYS_HIGH (0x469)
+#define DEFAULT_TRAMPOLINE_PHYS_LOW (0x467)
+#define DEFAULT_TRAMPOLINE_PHYS_HIGH (0x469)
 
 static inline void wait_for_init_deassert(atomic_t *deassert)
 {

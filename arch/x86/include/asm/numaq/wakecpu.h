@@ -3,8 +3,8 @@
 
 /* This file copes with machines that wakeup secondary CPUs by NMIs */
 
-#define TRAMPOLINE_PHYS_LOW (0x8)
-#define TRAMPOLINE_PHYS_HIGH (0xa)
+#define NUMAQ_TRAMPOLINE_PHYS_LOW (0x8)
+#define NUMAQ_TRAMPOLINE_PHYS_HIGH (0xa)
 
 /* We don't do anything here because we use NMI's to boot instead */
 static inline void wait_for_init_deassert(atomic_t *deassert)
@@ -24,17 +24,17 @@ static inline void store_NMI_vector(unsigned short *high, unsigned short *low)
 {
 	printk("Storing NMI vector\n");
 	*high =
-	  *((volatile unsigned short *)phys_to_virt(TRAMPOLINE_PHYS_HIGH));
+	  *((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_HIGH));
 	*low =
-	  *((volatile unsigned short *)phys_to_virt(TRAMPOLINE_PHYS_LOW));
+	  *((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_LOW));
 }
 
 static inline void restore_NMI_vector(unsigned short *high, unsigned short *low)
 {
 	printk("Restoring NMI vector\n");
-	*((volatile unsigned short *)phys_to_virt(TRAMPOLINE_PHYS_HIGH)) =
+	*((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_HIGH)) =
 								 *high;
-	*((volatile unsigned short *)phys_to_virt(TRAMPOLINE_PHYS_LOW)) =
+	*((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_LOW)) =
 								 *low;
 }
 

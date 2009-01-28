@@ -1,8 +1,8 @@
 #ifndef __ASM_ES7000_WAKECPU_H
 #define __ASM_ES7000_WAKECPU_H
 
-#define TRAMPOLINE_PHYS_LOW	0x467
-#define TRAMPOLINE_PHYS_HIGH	0x469
+#define ES7000_TRAMPOLINE_PHYS_LOW	0x467
+#define ES7000_TRAMPOLINE_PHYS_HIGH	0x469
 
 static inline void wait_for_init_deassert(atomic_t *deassert)
 {

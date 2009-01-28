@@ -85,8 +85,8 @@ struct genapic apic_default = {
 	.send_IPI_self			= NULL,
 
 	.wakeup_cpu			= NULL,
-	.trampoline_phys_low		= TRAMPOLINE_PHYS_LOW,
-	.trampoline_phys_high		= TRAMPOLINE_PHYS_HIGH,
+	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
+	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 	.wait_for_init_deassert		= wait_for_init_deassert,
 	.smp_callin_clear_local_apic	= smp_callin_clear_local_apic,
 	.store_NMI_vector		= store_NMI_vector,
