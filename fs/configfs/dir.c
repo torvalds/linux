@@ -167,8 +167,8 @@ configfs_adjust_dir_dirent_depth_after_populate(struct configfs_dirent *sd)
 /*
  * Allocates a new configfs_dirent and links it to the parent configfs_dirent
  */
-static struct configfs_dirent *configfs_new_dirent(struct configfs_dirent * parent_sd,
-						void * element)
+static struct configfs_dirent *configfs_new_dirent(struct configfs_dirent *parent_sd,
+						   void *element, int type)
 {
 	struct configfs_dirent * sd;
 
@@ -180,6 +180,7 @@ static struct configfs_dirent *configfs_new_dirent(struct configfs_dirent * pare
 	INIT_LIST_HEAD(&sd->s_links);
 	INIT_LIST_HEAD(&sd->s_children);
 	sd->s_element = element;
+	sd->s_type = type;
 	configfs_init_dirent_depth(sd);
 	spin_lock(&configfs_dirent_lock);
 	if (parent_sd->s_type & CONFIGFS_USET_DROPPING) {
@@ -225,12 +226,11 @@ int configfs_make_dirent(struct configfs_dirent * parent_sd,
 {
 	struct configfs_dirent * sd;
 
-	sd = configfs_new_dirent(parent_sd, element);
+	sd = configfs_new_dirent(parent_sd, element, type);
 	if (IS_ERR(sd))
 		return PTR_ERR(sd);
 
 	sd->s_mode = mode;
-	sd->s_type = type;
 	sd->s_dentry = dentry;
 	if (dentry) {
 		dentry->d_fsdata = configfs_get(sd);
@@ -1006,11 +1006,11 @@ static int configfs_dump(struct configfs_dirent *sd, int level)
  * Note, btw, that this can be called at *any* time, even when a configfs
  * subsystem isn't registered, or when configfs is loading or unloading.
  * Just like configfs_register_subsystem().  So we take the same
- * precautions.  We pin the filesystem.  We lock each i_mutex _in_order_
- * on our way down the tree.  If we can find the target item in the
+ * precautions.  We pin the filesystem.  We lock configfs_dirent_lock.
+ * If we can find the target item in the
  * configfs tree, it must be part of the subsystem tree as well, so we
- * do not need the subsystem semaphore.  Holding the i_mutex chain locks
- * out mkdir() and rmdir(), who might be racing us.
+ * do not need the subsystem semaphore.  Holding configfs_dirent_lock helps
+ * locking out mkdir() and rmdir(), who might be racing us.
  */
 
 /*
@@ -1023,17 +1023,21 @@ static int configfs_dump(struct configfs_dirent *sd, int level)
  * do that so we can unlock it if we find nothing.
  *
  * Here we do a depth-first search of the dentry hierarchy looking for
- * our object.  We take i_mutex on each step of the way down.  IT IS
- * ESSENTIAL THAT i_mutex LOCKING IS ORDERED.  If we come back up a branch,
- * we'll drop the i_mutex.
+ * our object.
+ * We deliberately ignore items tagged as dropping since they are virtually
+ * dead, as well as items in the middle of attachment since they virtually
+ * do not exist yet. This completes the locking out of racing mkdir() and
+ * rmdir().
+ * Note: subdirectories in the middle of attachment start with s_type =
+ * CONFIGFS_DIR|CONFIGFS_USET_CREATING set by create_dir().  When
+ * CONFIGFS_USET_CREATING is set, we ignore the item.  The actual set of
+ * s_type is in configfs_new_dirent(), which has configfs_dirent_lock.
  *
- * If the target is not found, -ENOENT is bubbled up and we have released
- * all locks.  If the target was found, the locks will be cleared by
- * configfs_depend_rollback().
+ * If the target is not found, -ENOENT is bubbled up.
  *
  * This adds a requirement that all config_items be unique!
  *
- * This is recursive because the locking traversal is tricky.  There isn't
+ * This is recursive.  There isn't
  * much on the stack, though, so folks that need this function - be careful
  * about your stack!  Patches will be accepted to make it iterative.
  */
@@ -1045,13 +1049,13 @@ static int configfs_depend_prep(struct dentry *origin,
 
 	BUG_ON(!origin || !sd);
 
-	/* Lock this guy on the way down */
-	mutex_lock(&sd->s_dentry->d_inode->i_mutex);
 	if (sd->s_element == target)  /* Boo-yah */
 		goto out;
 
 	list_for_each_entry(child_sd, &sd->s_children, s_sibling) {
-		if (child_sd->s_type & CONFIGFS_DIR) {
+		if ((child_sd->s_type & CONFIGFS_DIR) &&
+		    !(child_sd->s_type & CONFIGFS_USET_DROPPING) &&
+		    !(child_sd->s_type & CONFIGFS_USET_CREATING)) {
 			ret = configfs_depend_prep(child_sd->s_dentry,
 						   target);
 			if (!ret)
@@ -1060,31 +1064,10 @@ static int configfs_depend_prep(struct dentry *origin,
 	}
 
 	/* We looped all our children and didn't find target */
-	mutex_unlock(&sd->s_dentry->d_inode->i_mutex);
 	ret = -ENOENT;
 
 out:
 	return ret;
-}
-
-/*
- * This is ONLY called if configfs_depend_prep() did its job.  So we can
- * trust the entire path from item back up to origin.
- *
- * We walk backwards from item, unlocking each i_mutex.  We finish by
- * unlocking origin.
- */
-static void configfs_depend_rollback(struct dentry *origin,
-				     struct config_item *item)
-{
-	struct dentry *dentry = item->ci_dentry;
-
-	while (dentry != origin) {
-		mutex_unlock(&dentry->d_inode->i_mutex);
-		dentry = dentry->d_parent;
-	}
-
-	mutex_unlock(&origin->d_inode->i_mutex);
 }
 
 int configfs_depend_item(struct configfs_subsystem *subsys,
@@ -1127,17 +1110,21 @@ int configfs_depend_item(struct configfs_subsystem *subsys,
 
 	/* Ok, now we can trust subsys/s_item */
 
-	/* Scan the tree, locking i_mutex recursively, return 0 if found */
+	spin_lock(&configfs_dirent_lock);
+	/* Scan the tree, return 0 if found */
 	ret = configfs_depend_prep(subsys_sd->s_dentry, target);
 	if (ret)
-		goto out_unlock_fs;
+		goto out_unlock_dirent_lock;
 
-	/* We hold all i_mutexes from the subsystem down to the target */
+	/*
+	 * We are sure that the item is not about to be removed by rmdir(), and
+	 * not in the middle of attachment by mkdir().
+	 */
 	p = target->ci_dentry->d_fsdata;
 	p->s_dependent_count += 1;
 
-	configfs_depend_rollback(subsys_sd->s_dentry, target);
-
+out_unlock_dirent_lock:
+	spin_unlock(&configfs_dirent_lock);
 out_unlock_fs:
 	mutex_unlock(&configfs_sb->s_root->d_inode->i_mutex);
 
@@ -1162,10 +1149,10 @@ void configfs_undepend_item(struct configfs_subsystem *subsys,
 	struct configfs_dirent *sd;
 
 	/*
-	 * Since we can trust everything is pinned, we just need i_mutex
-	 * on the item.
+	 * Since we can trust everything is pinned, we just need
+	 * configfs_dirent_lock.
 	 */
-	mutex_lock(&target->ci_dentry->d_inode->i_mutex);
+	spin_lock(&configfs_dirent_lock);
 
 	sd = target->ci_dentry->d_fsdata;
 	BUG_ON(sd->s_dependent_count < 1);
@@ -1176,7 +1163,7 @@ void configfs_undepend_item(struct configfs_subsystem *subsys,
 	 * After this unlock, we cannot trust the item to stay alive!
 	 * DO NOT REFERENCE item after this unlock.
 	 */
-	mutex_unlock(&target->ci_dentry->d_inode->i_mutex);
+	spin_unlock(&configfs_dirent_lock);
 }
 EXPORT_SYMBOL(configfs_undepend_item);
 
@@ -1376,13 +1363,6 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (sd->s_type & CONFIGFS_USET_DEFAULT)
 		return -EPERM;
 
-	/*
-	 * Here's where we check for dependents.  We're protected by
-	 * i_mutex.
-	 */
-	if (sd->s_dependent_count)
-		return -EBUSY;
-
 	/* Get a working ref until we have the child */
 	parent_item = configfs_get_config_item(dentry->d_parent);
 	subsys = to_config_group(parent_item)->cg_subsys;
@@ -1406,9 +1386,17 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 		mutex_lock(&configfs_symlink_mutex);
 		spin_lock(&configfs_dirent_lock);
-		ret = configfs_detach_prep(dentry, &wait_mutex);
-		if (ret)
-			configfs_detach_rollback(dentry);
+		/*
+		 * Here's where we check for dependents.  We're protected by
+		 * configfs_dirent_lock.
+		 * If no dependent, atomically tag the item as dropping.
+		 */
+		ret = sd->s_dependent_count ? -EBUSY : 0;
+		if (!ret) {
+			ret = configfs_detach_prep(dentry, &wait_mutex);
+			if (ret)
+				configfs_detach_rollback(dentry);
+		}
 		spin_unlock(&configfs_dirent_lock);
 		mutex_unlock(&configfs_symlink_mutex);
 
@@ -1519,7 +1507,7 @@ static int configfs_dir_open(struct inode *inode, struct file *file)
 	 */
 	err = -ENOENT;
 	if (configfs_dirent_is_ready(parent_sd)) {
-		file->private_data = configfs_new_dirent(parent_sd, NULL);
+		file->private_data = configfs_new_dirent(parent_sd, NULL, 0);
 		if (IS_ERR(file->private_data))
 			err = PTR_ERR(file->private_data);
 		else
