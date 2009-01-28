@@ -36,15 +36,13 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
+#include <linux/io.h>
+#include <linux/irq.h>
 
-#include <asm/irq.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>
-
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
+
 #include "fec.h"
 
 #if defined(CONFIG_FEC2)
