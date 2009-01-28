@@ -3263,7 +3263,7 @@ skip:
 
 	/* Reached end of directory/root. Bump pos past the last item. */
 	if (key_type == BTRFS_DIR_INDEX_KEY)
-		filp->f_pos = INT_LIMIT(typeof(filp->f_pos));
+		filp->f_pos = INT_LIMIT(off_t);
 	else
 		filp->f_pos++;
 nopos:
