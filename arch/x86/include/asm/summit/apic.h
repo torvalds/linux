@@ -182,7 +182,7 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *inmask,
  *
  * See Intel's IA-32 SW Dev's Manual Vol2 under CPUID.
  */
-static inline int phys_pkg_id(int cpuid_apic, int index_msb)
+static inline int summit_phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return hard_smp_processor_id() >> index_msb;
 }

@@ -87,7 +87,7 @@ struct genapic apic_numaq = {
 	.setup_portio_remap		= numaq_setup_portio_remap,
 	.check_phys_apicid_present	= numaq_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
-	.phys_pkg_id			= phys_pkg_id,
+	.phys_pkg_id			= numaq_phys_pkg_id,
 	.mps_oem_check			= mps_oem_check,
 
 	.get_apic_id			= get_apic_id,

@@ -122,7 +122,7 @@ struct genapic apic_es7000 = {
 	.setup_portio_remap		= NULL,
 	.check_phys_apicid_present	= es7000_check_phys_apicid_present,
 	.enable_apic_mode		= es7000_enable_apic_mode,
-	.phys_pkg_id			= phys_pkg_id,
+	.phys_pkg_id			= es7000_phys_pkg_id,
 	.mps_oem_check			= mps_oem_check,
 
 	.get_apic_id			= get_apic_id,

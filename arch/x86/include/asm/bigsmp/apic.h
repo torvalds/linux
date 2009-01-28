@@ -133,7 +133,7 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	return BAD_APICID;
 }
 
-static inline int phys_pkg_id(int cpuid_apic, int index_msb)
+static inline int bigsmp_phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return cpuid_apic >> index_msb;
 }

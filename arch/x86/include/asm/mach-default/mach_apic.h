@@ -21,7 +21,6 @@ static inline const struct cpumask *default_target_cpus(void)
 #include <asm/genapic.h>
 #define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
 #define cpu_mask_to_apicid_and (apic->cpu_mask_to_apicid_and)
-#define phys_pkg_id	(apic->phys_pkg_id)
 #define read_apic_id()  (GET_APIC_ID(apic_read(APIC_ID)))
 #define send_IPI_self (apic->send_IPI_self)
 #define wakeup_secondary_cpu (apic->wakeup_cpu)
@@ -65,7 +64,7 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	return (unsigned int)(mask1 & mask2 & mask3);
 }
 
-static inline int phys_pkg_id(int cpuid_apic, int index_msb)
+static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return cpuid_apic >> index_msb;
 }

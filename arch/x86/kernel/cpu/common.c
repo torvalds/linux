@@ -442,7 +442,7 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		}
 
 		index_msb = get_count_order(smp_num_siblings);
-		c->phys_proc_id = phys_pkg_id(c->initial_apicid, index_msb);
+		c->phys_proc_id = apic->phys_pkg_id(c->initial_apicid, index_msb);
 
 		smp_num_siblings = smp_num_siblings / c->x86_max_cores;
 
@@ -450,7 +450,7 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 		core_bits = get_count_order(c->x86_max_cores);
 
-		c->cpu_core_id = phys_pkg_id(c->initial_apicid, index_msb) &
+		c->cpu_core_id = apic->phys_pkg_id(c->initial_apicid, index_msb) &
 					       ((1 << core_bits) - 1);
 	}
 
@@ -686,7 +686,7 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 		c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xFF;
 #ifdef CONFIG_X86_32
 # ifdef CONFIG_X86_HT
-		c->apicid = phys_pkg_id(c->initial_apicid, 0);
+		c->apicid = apic->phys_pkg_id(c->initial_apicid, 0);
 # else
 		c->apicid = c->initial_apicid;
 # endif
@@ -733,7 +733,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		this_cpu->c_identify(c);
 
 #ifdef CONFIG_X86_64
-	c->apicid = phys_pkg_id(c->initial_apicid, 0);
+	c->apicid = apic->phys_pkg_id(c->initial_apicid, 0);
 #endif
 
 	/*

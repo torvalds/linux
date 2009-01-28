@@ -5,7 +5,6 @@
 
 #define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
 #define cpu_mask_to_apicid_and (apic->cpu_mask_to_apicid_and)
-#define phys_pkg_id (apic->phys_pkg_id)
 #define wakeup_secondary_cpu (apic->wakeup_cpu)
 
 extern void generic_bigsmp_probe(void);

@@ -116,13 +116,13 @@ void __cpuinit detect_extended_topology(struct cpuinfo_x86 *c)
 
 	core_select_mask = (~(-1 << core_plus_mask_width)) >> ht_mask_width;
 
-	c->cpu_core_id = phys_pkg_id(c->initial_apicid, ht_mask_width)
+	c->cpu_core_id = apic->phys_pkg_id(c->initial_apicid, ht_mask_width)
 						 & core_select_mask;
-	c->phys_proc_id = phys_pkg_id(c->initial_apicid, core_plus_mask_width);
+	c->phys_proc_id = apic->phys_pkg_id(c->initial_apicid, core_plus_mask_width);
 	/*
 	 * Reinit the apicid, now that we have extended initial_apicid.
 	 */
-	c->apicid = phys_pkg_id(c->initial_apicid, 0);
+	c->apicid = apic->phys_pkg_id(c->initial_apicid, 0);
 
 	c->x86_max_cores = (core_level_siblings / smp_num_siblings);
 
