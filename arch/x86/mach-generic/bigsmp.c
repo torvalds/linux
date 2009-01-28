@@ -92,7 +92,7 @@ struct genapic apic_bigsmp = {
 
 	.get_apic_id			= bigsmp_get_apic_id,
 	.set_apic_id			= NULL,
-	.apic_id_mask			= APIC_ID_MASK,
+	.apic_id_mask			= BIGSMP_APIC_ID_MASK,
 
 	.cpu_mask_to_apicid		= cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= cpu_mask_to_apicid_and,

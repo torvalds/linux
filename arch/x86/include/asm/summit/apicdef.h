@@ -1,7 +1,7 @@
 #ifndef __ASM_SUMMIT_APICDEF_H
 #define __ASM_SUMMIT_APICDEF_H
 
-#define		APIC_ID_MASK		(0xFF<<24)
+#define		SUMMIT_APIC_ID_MASK		(0xFF<<24)
 
 static inline unsigned summit_get_apic_id(unsigned long x)
 {

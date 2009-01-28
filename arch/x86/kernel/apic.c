@@ -1009,11 +1009,11 @@ int __init verify_local_APIC(void)
 	 */
 	reg0 = apic_read(APIC_ID);
 	apic_printk(APIC_DEBUG, "Getting ID: %x\n", reg0);
-	apic_write(APIC_ID, reg0 ^ APIC_ID_MASK);
+	apic_write(APIC_ID, reg0 ^ apic->apic_id_mask);
 	reg1 = apic_read(APIC_ID);
 	apic_printk(APIC_DEBUG, "Getting ID: %x\n", reg1);
 	apic_write(APIC_ID, reg0);
-	if (reg1 != (reg0 ^ APIC_ID_MASK))
+	if (reg1 != (reg0 ^ apic->apic_id_mask))
 		return 0;
 
 	/*

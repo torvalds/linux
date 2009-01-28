@@ -352,7 +352,7 @@ struct genapic apic_physflat =  {
 
 	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
-	.apic_id_mask			= 0xFFu<<24,
+	.apic_id_mask			= 0xFFu << 24,
 
 	.cpu_mask_to_apicid		= physflat_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= physflat_cpu_mask_to_apicid_and,

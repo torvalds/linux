@@ -4,10 +4,9 @@
 #include <asm/apic.h>
 
 #ifdef CONFIG_X86_64
-#define	APIC_ID_MASK		(apic->apic_id_mask)
 #define	SET_APIC_ID(x)		(apic->set_apic_id(x))
 #else
-#define		APIC_ID_MASK		(0xF<<24)
+#define		DEFAULT_APIC_ID_MASK	(0x0F<<24)
 
 static inline unsigned default_get_apic_id(unsigned long x) 
 {
