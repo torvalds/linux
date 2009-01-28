@@ -226,7 +226,7 @@ static unsigned int uv_read_apic_id(void)
 	return get_apic_id(apic_read(APIC_ID));
 }
 
-static unsigned int phys_pkg_id(int index_msb)
+static int uv_phys_pkg_id(int initial_apicid, int index_msb)
 {
 	return uv_read_apic_id() >> index_msb;
 }
@@ -265,7 +265,7 @@ struct genapic apic_x2apic_uv_x = {
 	.setup_portio_remap		= NULL,
 	.check_phys_apicid_present	= default_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
-	.phys_pkg_id			= phys_pkg_id,
+	.phys_pkg_id			= uv_phys_pkg_id,
 	.mps_oem_check			= NULL,
 
 	.get_apic_id			= get_apic_id,

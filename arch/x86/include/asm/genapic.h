@@ -48,11 +48,7 @@ struct genapic {
 	void (*setup_portio_remap)(void);
 	int (*check_phys_apicid_present)(int boot_cpu_physical_apicid);
 	void (*enable_apic_mode)(void);
-#ifdef CONFIG_X86_32
-	u32 (*phys_pkg_id)(u32 cpuid_apic, int index_msb);
-#else
-	unsigned int (*phys_pkg_id)(int index_msb);
-#endif
+	int (*phys_pkg_id)(int cpuid_apic, int index_msb);
 
 	/*
 	 * When one of the next two hooks returns 1 the genapic

@@ -221,7 +221,7 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *inmask,
 	return apicid;
 }
 
-static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
+static inline int phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return cpuid_apic >> index_msb;
 }

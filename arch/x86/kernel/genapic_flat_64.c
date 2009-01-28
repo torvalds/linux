@@ -169,7 +169,7 @@ static unsigned int flat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	return mask1 & mask2;
 }
 
-static unsigned int phys_pkg_id(int index_msb)
+static int flat_phys_pkg_id(int initial_apic_id, int index_msb)
 {
 	return hard_smp_processor_id() >> index_msb;
 }
@@ -202,7 +202,7 @@ struct genapic apic_flat =  {
 	.setup_portio_remap		= NULL,
 	.check_phys_apicid_present	= default_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
-	.phys_pkg_id			= phys_pkg_id,
+	.phys_pkg_id			= flat_phys_pkg_id,
 	.mps_oem_check			= NULL,
 
 	.get_apic_id			= get_apic_id,
@@ -346,7 +346,7 @@ struct genapic apic_physflat =  {
 	.setup_portio_remap		= NULL,
 	.check_phys_apicid_present	= default_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
-	.phys_pkg_id			= phys_pkg_id,
+	.phys_pkg_id			= flat_phys_pkg_id,
 	.mps_oem_check			= NULL,
 
 	.get_apic_id			= get_apic_id,

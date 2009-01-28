@@ -175,13 +175,14 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *inmask,
 	return apicid;
 }
 
-/* cpuid returns the value latched in the HW at reset, not the APIC ID
+/*
+ * cpuid returns the value latched in the HW at reset, not the APIC ID
  * register's value.  For any box whose BIOS changes APIC IDs, like
  * clustered APIC systems, we must use hard_smp_processor_id.
  *
  * See Intel's IA-32 SW Dev's Manual Vol2 under CPUID.
  */
-static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
+static inline int phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return hard_smp_processor_id() >> index_msb;
 }

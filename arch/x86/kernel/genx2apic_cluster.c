@@ -157,7 +157,7 @@ static unsigned long set_apic_id(unsigned int id)
 	return x;
 }
 
-static unsigned int phys_pkg_id(int index_msb)
+static int x2apic_cluster_phys_pkg_id(int initial_apicid, int index_msb)
 {
 	return current_cpu_data.initial_apicid >> index_msb;
 }
@@ -204,7 +204,7 @@ struct genapic apic_x2apic_cluster = {
 	.setup_portio_remap		= NULL,
 	.check_phys_apicid_present	= default_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
-	.phys_pkg_id			= phys_pkg_id,
+	.phys_pkg_id			= x2apic_cluster_phys_pkg_id,
 	.mps_oem_check			= NULL,
 
 	.get_apic_id			= get_apic_id,
