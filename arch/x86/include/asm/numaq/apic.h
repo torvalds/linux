@@ -76,14 +76,14 @@ static inline int cpu_present_to_apicid(int mps_cpu)
 		return BAD_APICID;
 }
 
-static inline int apicid_to_node(int logical_apicid) 
+static inline int numaq_apicid_to_node(int logical_apicid) 
 {
 	return logical_apicid >> 4;
 }
 
 static inline physid_mask_t apicid_to_cpu_present(int logical_apicid)
 {
-	int node = apicid_to_node(logical_apicid);
+	int node = numaq_apicid_to_node(logical_apicid);
 	int cpu = __ffs(logical_apicid & 0xf);
 
 	return physid_mask_of_physid(cpu + 4*node);

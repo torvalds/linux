@@ -75,7 +75,7 @@ static inline void summit_setup_apic_routing(void)
 						nr_ioapics);
 }
 
-static inline int apicid_to_node(int logical_apicid)
+static inline int summit_apicid_to_node(int logical_apicid)
 {
 #ifdef CONFIG_SMP
 	return apicid_2_node[hard_smp_processor_id()];

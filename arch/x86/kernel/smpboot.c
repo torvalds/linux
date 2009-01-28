@@ -163,7 +163,7 @@ static void map_cpu_to_logical_apicid(void)
 {
 	int cpu = smp_processor_id();
 	int apicid = logical_smp_processor_id();
-	int node = apicid_to_node(apicid);
+	int node = apic->apicid_to_node(apicid);
 
 	if (!node_online(node))
 		node = first_online_node;

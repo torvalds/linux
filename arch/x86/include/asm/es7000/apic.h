@@ -82,7 +82,7 @@ static inline void es7000_setup_apic_routing(void)
 			nr_ioapics, cpus_addr(*es7000_target_cpus())[0]);
 }
 
-static inline int apicid_to_node(int logical_apicid)
+static inline int es7000_apicid_to_node(int logical_apicid)
 {
 	return 0;
 }
