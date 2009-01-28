@@ -19,10 +19,8 @@ static inline const struct cpumask *default_target_cpus(void)
 #ifdef CONFIG_X86_64
 #include <asm/genapic.h>
 #define read_apic_id()  (apic->get_apic_id(apic_read(APIC_ID)))
-#define wakeup_secondary_cpu (apic->wakeup_cpu)
 extern void default_setup_apic_routing(void);
 #else
-#define wakeup_secondary_cpu wakeup_secondary_cpu_via_init
 /*
  * Set up the logical destination ID.
  *

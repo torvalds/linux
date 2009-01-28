@@ -750,7 +750,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.
- * Returns zero if CPU booted OK, else error code from wakeup_secondary_cpu.
+ * Returns zero if CPU booted OK, else error code from ->wakeup_cpu.
  */
 {
 	unsigned long boot_error = 0;
@@ -841,7 +841,7 @@ do_rest:
 	/*
 	 * Starting actual IPI sequence...
 	 */
-	boot_error = wakeup_secondary_cpu(apicid, start_ip);
+	boot_error = apic->wakeup_cpu(apicid, start_ip);
 
 	if (!boot_error) {
 		/*
