@@ -563,14 +563,17 @@ static int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
 	/* 3430 ES2 TRM: 4.7.6.9 DPLL Programming Sequence */
 	_omap3_noncore_dpll_bypass(clk);
 
+	/* Set jitter correction */
+	v = __raw_readl(dd->control_reg);
+	v &= ~dd->freqsel_mask;
+	v |= freqsel << __ffs(dd->freqsel_mask);
+	__raw_writel(v, dd->control_reg);
+
+	/* Set DPLL multiplier, divider */
 	v = __raw_readl(dd->mult_div1_reg);
 	v &= ~(dd->mult_mask | dd->div1_mask);
-
-	/* Set mult (M), div1 (N), freqsel */
 	v |= m << __ffs(dd->mult_mask);
-	v |= n << __ffs(dd->div1_mask);
-	v |= freqsel << __ffs(dd->freqsel_mask);
-
+	v |= (n - 1) << __ffs(dd->div1_mask);
 	__raw_writel(v, dd->mult_div1_reg);
 
 	/* We let the clock framework set the other output dividers later */
