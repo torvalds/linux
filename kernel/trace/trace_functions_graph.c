@@ -52,15 +52,11 @@ static struct tracer_flags tracer_flags = {
 
 static int graph_trace_init(struct trace_array *tr)
 {
-	int cpu, ret;
-
-	for_each_online_cpu(cpu)
-		tracing_reset(tr, cpu);
-
-	ret = register_ftrace_graph(&trace_graph_return,
+	int ret = register_ftrace_graph(&trace_graph_return,
 					&trace_graph_entry);
 	if (ret)
 		return ret;
+	tracing_reset_online_cpus(tr);
 	tracing_start_cmdline_record();
 
 	return 0;
