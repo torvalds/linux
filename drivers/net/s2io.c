@@ -7542,6 +7542,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 
 	sp->mac_control.stats_info->sw_stat.mem_freed += skb->truesize;
 send_up:
+	skb_record_rx_queue(skb, ring_no);
 	queue_rx_frame(skb, RXD_GET_VLAN_TAG(rxdp->Control_2));
 aggregate:
 	sp->mac_control.rings[ring_no].rx_bufs_left -= 1;

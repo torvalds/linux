@@ -3390,6 +3390,7 @@ static int niu_process_rx_pkt(struct niu *np, struct rx_ring_info *rp)
 	rp->rx_bytes += skb->len;
 
 	skb->protocol = eth_type_trans(skb, np->dev);
+	skb_record_rx_queue(skb, rp->rx_channel);
 	netif_receive_skb(skb);
 
 	return num_rcr;

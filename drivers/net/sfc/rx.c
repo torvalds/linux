@@ -575,6 +575,8 @@ void __efx_rx_packet(struct efx_channel *channel,
 	/* Set the SKB flags */
 	skb->ip_summed = CHECKSUM_NONE;
 
+	skb_record_rx_queue(skb, channel->channel);
+
 	/* Pass the packet up */
 	netif_receive_skb(skb);
 

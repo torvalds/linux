@@ -768,6 +768,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 		skb->ip_summed = ip_summed;
 		skb->protocol = eth_type_trans(skb, dev);
+		skb_record_rx_queue(skb, cq->ring);
 
 		/* Push it up the stack */
 		if (priv->vlgrp && (be32_to_cpu(cqe->vlan_my_qpn) &

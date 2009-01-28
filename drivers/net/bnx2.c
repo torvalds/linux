@@ -3007,6 +3007,8 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 		}
 
+		skb_record_rx_queue(skb, bnapi - &bp->bnx2_napi[0]);
+
 #ifdef BCM_VLAN
 		if (hw_vlan)
 			vlan_hwaccel_receive_skb(skb, bp->vlgrp, vtag);

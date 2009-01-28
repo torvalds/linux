@@ -1325,6 +1325,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		skb_record_rx_queue(skb, queue);
 
 		{
 			struct iphdr *iph;

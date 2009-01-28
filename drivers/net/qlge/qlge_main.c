@@ -1436,6 +1436,7 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 	qdev->stats.rx_packets++;
 	qdev->stats.rx_bytes += skb->len;
 	skb->protocol = eth_type_trans(skb, ndev);
+	skb_record_rx_queue(skb, rx_ring - &qdev->rx_ring[0]);
 	if (qdev->vlgrp && (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_V)) {
 		QPRINTK(qdev, RX_STATUS, DEBUG,
 			"Passing a VLAN packet upstream.\n");
