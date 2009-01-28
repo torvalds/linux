@@ -82,7 +82,7 @@ static inline physid_mask_t apicid_to_cpu_present(int phys_apicid)
 
 extern u8 cpu_2_logical_apicid[];
 /* Mapping from cpu number to logical apicid */
-static inline int cpu_to_logical_apicid(int cpu)
+static inline int bigsmp_cpu_to_logical_apicid(int cpu)
 {
 	if (cpu >= nr_cpu_ids)
 		return BAD_APICID;
@@ -115,7 +115,7 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 	int apicid;	
 
 	cpu = first_cpu(*cpumask);
-	apicid = cpu_to_logical_apicid(cpu);
+	apicid = bigsmp_cpu_to_logical_apicid(cpu);
 	return apicid;
 }
 
@@ -132,7 +132,7 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 		if (cpumask_test_cpu(cpu, cpu_online_mask))
 			break;
 	if (cpu < nr_cpu_ids)
-		return cpu_to_logical_apicid(cpu);
+		return bigsmp_cpu_to_logical_apicid(cpu);
 
 	return BAD_APICID;
 }

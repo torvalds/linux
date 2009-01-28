@@ -56,7 +56,8 @@ static inline physid_mask_t numaq_ioapic_phys_id_map(physid_mask_t phys_map)
 
 /* Mapping from cpu number to logical apicid */
 extern u8 cpu_2_logical_apicid[];
-static inline int cpu_to_logical_apicid(int cpu)
+
+static inline int numaq_cpu_to_logical_apicid(int cpu)
 {
 	if (cpu >= nr_cpu_ids)
 		return BAD_APICID;

@@ -85,7 +85,7 @@ static inline int summit_apicid_to_node(int logical_apicid)
 }
 
 /* Mapping from cpu number to logical apicid */
-static inline int cpu_to_logical_apicid(int cpu)
+static inline int summit_cpu_to_logical_apicid(int cpu)
 {
 #ifdef CONFIG_SMP
 	if (cpu >= nr_cpu_ids)
@@ -145,10 +145,10 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 	 * on the same apicid cluster return default value of target_cpus():
 	 */
 	cpu = first_cpu(*cpumask);
-	apicid = cpu_to_logical_apicid(cpu);
+	apicid = summit_cpu_to_logical_apicid(cpu);
 	while (cpus_found < num_bits_set) {
 		if (cpu_isset(cpu, *cpumask)) {
-			int new_apicid = cpu_to_logical_apicid(cpu);
+			int new_apicid = summit_cpu_to_logical_apicid(cpu);
 			if (apicid_cluster(apicid) !=
 					apicid_cluster(new_apicid)){
 				printk ("%s: Not a valid mask!\n", __func__);
@@ -165,7 +165,7 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *inmask,
 						  const struct cpumask *andmask)
 {
-	int apicid = cpu_to_logical_apicid(0);
+	int apicid = summit_cpu_to_logical_apicid(0);
 	cpumask_var_t cpumask;
 
 	if (!alloc_cpumask_var(&cpumask, GFP_ATOMIC))

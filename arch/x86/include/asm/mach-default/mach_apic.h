@@ -105,7 +105,7 @@ static inline physid_mask_t default_ioapic_phys_id_map(physid_mask_t phys_map)
 }
 
 /* Mapping from cpu number to logical apicid */
-static inline int cpu_to_logical_apicid(int cpu)
+static inline int default_cpu_to_logical_apicid(int cpu)
 {
 	return 1 << cpu;
 }
