@@ -686,10 +686,8 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 	WARN_ON(new_div != 1 && new_div != 2);
 
 	/* REVISIT: Add SDRC_MR changing to this code also */
-	local_irq_disable();
 	omap3_configure_core_dpll(sp->rfr_ctrl, sp->actim_ctrla,
 				  sp->actim_ctrlb, new_div);
-	local_irq_enable();
 
 	return 0;
 }
