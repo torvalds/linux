@@ -259,4 +259,5 @@ static inline physid_mask_t default_apicid_to_cpu_present(int phys_apicid)
 }
 
 #endif /* CONFIG_X86_LOCAL_APIC */
+
 #endif /* _ASM_X86_GENAPIC_64_H */

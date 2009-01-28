@@ -20,7 +20,6 @@
 
 #ifdef CONFIG_X86_32
 #include <asm/genapic.h>
-#include <mach_ipi.h>
 
 /*
  * the following functions deal with sending IPIs between CPUs.

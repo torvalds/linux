@@ -49,7 +49,7 @@
 #include <asm/i8259.h>
 #include <asm/smp.h>
 
-#include <mach_ipi.h>
+#include <asm/genapic.h>
 
 /*
  * Sanity check

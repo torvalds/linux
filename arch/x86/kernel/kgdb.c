@@ -46,7 +46,7 @@
 #include <asm/apicdef.h>
 #include <asm/system.h>
 
-#include <mach_ipi.h>
+#include <asm/genapic.h>
 
 /*
  * Put the error code here just in case the user cares:

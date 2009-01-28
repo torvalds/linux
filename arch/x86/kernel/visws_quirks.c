@@ -32,7 +32,7 @@
 #include <asm/e820.h>
 #include <asm/io.h>
 
-#include <mach_ipi.h>
+#include <asm/genapic.h>
 
 #include <asm/genapic.h>
 
