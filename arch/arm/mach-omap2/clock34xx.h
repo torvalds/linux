@@ -1060,8 +1060,15 @@ static struct clk corex2_fck = {
 
 /* DPLL power domain clock controls */
 
-static const struct clksel div2_core_clksel[] = {
-	{ .parent = &core_ck, .rates = div2_rates },
+static const struct clksel_rate div4_rates[] = {
+	{ .div = 1, .val = 1, .flags = RATE_IN_343X | DEFAULT_RATE },
+	{ .div = 2, .val = 2, .flags = RATE_IN_343X },
+	{ .div = 4, .val = 4, .flags = RATE_IN_343X },
+	{ .div = 0 }
+};
+
+static const struct clksel div4_core_clksel[] = {
+	{ .parent = &core_ck, .rates = div4_rates },
 	{ .parent = NULL }
 };
 
@@ -1076,7 +1083,7 @@ static struct clk dpll1_fck = {
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(MPU_MOD, OMAP3430_CM_CLKSEL1_PLL),
 	.clksel_mask	= OMAP3430_MPU_CLK_SRC_MASK,
-	.clksel		= div2_core_clksel,
+	.clksel		= div4_core_clksel,
 	.flags		= RATE_PROPAGATES,
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -1151,7 +1158,7 @@ static struct clk dpll2_fck = {
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430_IVA2_MOD, OMAP3430_CM_CLKSEL1_PLL),
 	.clksel_mask	= OMAP3430_IVA2_CLK_SRC_MASK,
-	.clksel		= div2_core_clksel,
+	.clksel		= div4_core_clksel,
 	.flags		= RATE_PROPAGATES,
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -1186,6 +1193,11 @@ static struct clk iva2_ck = {
 };
 
 /* Common interface clocks */
+
+static const struct clksel div2_core_clksel[] = {
+	{ .parent = &core_ck, .rates = div2_rates },
+	{ .parent = NULL }
+};
 
 static struct clk l3_ick = {
 	.name		= "l3_ick",
