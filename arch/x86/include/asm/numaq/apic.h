@@ -92,9 +92,9 @@ static inline physid_mask_t numaq_apicid_to_cpu_present(int logical_apicid)
 
 extern void *xquad_portio;
 
-static inline int check_phys_apicid_present(int boot_cpu_physical_apicid)
+static inline int numaq_check_phys_apicid_present(int boot_cpu_physical_apicid)
 {
-	return (1);
+	return 1;
 }
 
 static inline void enable_apic_mode(void)

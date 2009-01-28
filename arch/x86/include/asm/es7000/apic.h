@@ -126,9 +126,9 @@ static inline physid_mask_t es7000_ioapic_phys_id_map(physid_mask_t phys_map)
 	return physids_promote(0xff);
 }
 
-
 extern unsigned int boot_cpu_physical_apicid;
-static inline int check_phys_apicid_present(int cpu_physical_apicid)
+
+static inline int es7000_check_phys_apicid_present(int cpu_physical_apicid)
 {
 	boot_cpu_physical_apicid = read_apic_id();
 	return (1);

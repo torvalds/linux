@@ -110,6 +110,7 @@ DECLARE_PER_CPU(int, x2apic_extra_bits);
 extern void default_setup_apic_routing(void);
 
 extern int default_cpu_present_to_apicid(int mps_cpu);
+extern int default_check_phys_apicid_present(int boot_cpu_physical_apicid);
 #endif
 
 #endif /* _ASM_X86_GENAPIC_64_H */

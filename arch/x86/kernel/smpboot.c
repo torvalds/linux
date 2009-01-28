@@ -908,6 +908,11 @@ int default_cpu_present_to_apicid(int mps_cpu)
 {
 	return __default_cpu_present_to_apicid(mps_cpu);
 }
+
+int default_check_phys_apicid_present(int boot_cpu_physical_apicid)
+{
+	return __default_check_phys_apicid_present(boot_cpu_physical_apicid);
+}
 #endif
 
 int __cpuinit native_cpu_up(unsigned int cpu)
@@ -1058,7 +1063,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	 * Should not be necessary because the MP table should list the boot
 	 * CPU too, but we do it for the sake of robustness anyway.
 	 */
-	if (!check_phys_apicid_present(boot_cpu_physical_apicid)) {
+	if (!apic->check_phys_apicid_present(boot_cpu_physical_apicid)) {
 		printk(KERN_NOTICE
 			"weird, boot CPU (#%d) not listed by the BIOS.\n",
 			boot_cpu_physical_apicid);

@@ -118,23 +118,31 @@ static inline int __default_cpu_present_to_apicid(int mps_cpu)
 		return BAD_APICID;
 }
 
+static inline int
+__default_check_phys_apicid_present(int boot_cpu_physical_apicid)
+{
+	return physid_isset(boot_cpu_physical_apicid, phys_cpu_present_map);
+}
+
 #ifdef CONFIG_X86_32
 static inline int default_cpu_present_to_apicid(int mps_cpu)
 {
 	return __default_cpu_present_to_apicid(mps_cpu);
 }
+
+static inline int
+default_check_phys_apicid_present(int boot_cpu_physical_apicid)
+{
+	return __default_check_phys_apicid_present(boot_cpu_physical_apicid);
+}
 #else
 extern int default_cpu_present_to_apicid(int mps_cpu);
+extern int default_check_phys_apicid_present(int boot_cpu_physical_apicid);
 #endif
 
 static inline physid_mask_t default_apicid_to_cpu_present(int phys_apicid)
 {
 	return physid_mask_of_physid(phys_apicid);
-}
-
-static inline int check_phys_apicid_present(int boot_cpu_physical_apicid)
-{
-	return physid_isset(boot_cpu_physical_apicid, phys_cpu_present_map);
 }
 
 static inline void enable_apic_mode(void)
