@@ -206,6 +206,7 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"dss_ick",	&dss_ick,	CK_343X),
 	CLK(NULL,	"cam_mclk",	&cam_mclk,	CK_343X),
 	CLK(NULL,	"cam_ick",	&cam_ick,	CK_343X),
+	CLK(NULL,	"csi2_96m_fck",	&csi2_96m_fck,	CK_343X),
 	CLK(NULL,	"usbhost_120m_fck", &usbhost_120m_fck, CK_3430ES2),
 	CLK(NULL,	"usbhost_48m_fck", &usbhost_48m_fck, CK_3430ES2),
 	CLK(NULL,	"usbhost_ick",	&usbhost_ick,	CK_3430ES2),
