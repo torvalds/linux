@@ -119,10 +119,8 @@ static void sxg_complete_slow_send(struct adapter_t *adapter, int irq_context);
 static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter,
 					struct sxg_event *Event);
 static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus);
-/* See if we need sxg_mac_filter() in future. If not remove it
 static bool sxg_mac_filter(struct adapter_t *adapter,
 			   struct ether_header *EtherHdr, ushort length);
-*/
 static struct net_device_stats *sxg_get_stats(struct net_device * dev);
 void sxg_free_resources(struct adapter_t *adapter);
 void sxg_free_rcvblocks(struct adapter_t *adapter);
@@ -155,6 +153,7 @@ static int sxg_write_mdio_reg(struct adapter_t *adapter,
 			      u32 DevAddr, u32 RegAddr, u32 Value);
 static int sxg_read_mdio_reg(struct adapter_t *adapter,
 			     u32 DevAddr, u32 RegAddr, u32 *pValue);
+static void sxg_set_mcast_addr(struct adapter_t *adapter);
 
 static unsigned int sxg_first_init = 1;
 static char *sxg_banner =
@@ -1609,16 +1608,14 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter,
 #endif
 	/* Dumb-nic frame.  See if it passes our mac filter and update stats */
 
-	/*
-	 * ASK if (!sxg_mac_filter(adapter,
-	 *    		SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr),
-	 *		Event->Length)) {
-	 * 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "RcvFiltr",
-	 * Event, SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr),
-	 * Event->Length, 0);
-	 *	goto drop;
-	 * }
-	 */
+	if (!sxg_mac_filter(adapter,
+	    (struct ether_header *)(SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr)),
+	    Event->Length)) {
+		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "RcvFiltr",
+			    Event, SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr),
+			    Event->Length, 0);
+	  goto drop;
+	}
 
 	Packet = RcvDataBufferHdr->SxgDumbRcvPacket;
 	SXG_ADJUST_RCV_PACKET(Packet, RcvDataBufferHdr, Event);
@@ -1728,7 +1725,6 @@ static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus)
 	}
 }
 
-#if 0		/* Find out if this code will be needed in future */
 /*
  * sxg_mac_filter
  *
@@ -1743,6 +1739,7 @@ static bool sxg_mac_filter(struct adapter_t *adapter,
 		struct ether_header *EtherHdr, ushort length)
 {
 	bool EqualAddr;
+	struct net_device *dev = adapter->netdev;
 
 	if (SXG_MULTICAST_PACKET(EtherHdr)) {
 		if (SXG_BROADCAST_PACKET(EtherHdr)) {
@@ -1750,8 +1747,6 @@ static bool sxg_mac_filter(struct adapter_t *adapter,
 			if (adapter->MacFilter & MAC_BCAST) {
 				adapter->Stats.DumbRcvBcastPkts++;
 				adapter->Stats.DumbRcvBcastBytes += length;
-				adapter->Stats.DumbRcvPkts++;
-				adapter->Stats.DumbRcvBytes += length;
 				return (TRUE);
 			}
 		} else {
@@ -1759,15 +1754,12 @@ static bool sxg_mac_filter(struct adapter_t *adapter,
 			if (adapter->MacFilter & MAC_ALLMCAST) {
 				adapter->Stats.DumbRcvMcastPkts++;
 				adapter->Stats.DumbRcvMcastBytes += length;
-				adapter->Stats.DumbRcvPkts++;
-				adapter->Stats.DumbRcvBytes += length;
 				return (TRUE);
 			}
 			if (adapter->MacFilter & MAC_MCAST) {
-				struct sxg_multicast_address *MulticastAddrs =
-				    adapter->MulticastAddrs;
-				while (MulticastAddrs) {
-					ETHER_EQ_ADDR(MulticastAddrs->Address,
+				struct dev_mc_list *mclist = dev->mc_list;
+				while (mclist) {
+					ETHER_EQ_ADDR(mclist->da_addr,
 						      EtherHdr->ether_dhost,
 						      EqualAddr);
 					if (EqualAddr) {
@@ -1775,12 +1767,9 @@ static bool sxg_mac_filter(struct adapter_t *adapter,
 						    DumbRcvMcastPkts++;
 						adapter->Stats.
 						    DumbRcvMcastBytes += length;
-						adapter->Stats.DumbRcvPkts++;
-						adapter->Stats.DumbRcvBytes +=
-						    length;
 						return (TRUE);
 					}
-					MulticastAddrs = MulticastAddrs->Next;
+					mclist = mclist->next;
 				}
 			}
 		}
@@ -1792,20 +1781,15 @@ static bool sxg_mac_filter(struct adapter_t *adapter,
 		 */
 		adapter->Stats.DumbRcvUcastPkts++;
 		adapter->Stats.DumbRcvUcastBytes += length;
-		adapter->Stats.DumbRcvPkts++;
-		adapter->Stats.DumbRcvBytes += length;
 		return (TRUE);
 	}
 	if (adapter->MacFilter & MAC_PROMISC) {
 		/* Whatever it is, keep it. */
-		adapter->Stats.DumbRcvPkts++;
-		adapter->Stats.DumbRcvBytes += length;
 		return (TRUE);
 	}
-	adapter->Stats.RcvDiscards++;
 	return (FALSE);
 }
-#endif
+
 static int sxg_register_interrupt(struct adapter_t *adapter)
 {
 	if (!adapter->intrregistered) {
@@ -1885,24 +1869,24 @@ static int sxg_if_init(struct adapter_t *adapter)
 	ASSERT(adapter->linkstate == LINK_DOWN);
 
 	adapter->devflags_prev = dev->flags;
-	adapter->macopts = MAC_DIRECTED;
+	adapter->MacFilter = MAC_DIRECTED;
 	if (dev->flags) {
 		DBG_ERROR("sxg: %s (%s) Set MAC options: ", __func__,
 			  adapter->netdev->name);
 		if (dev->flags & IFF_BROADCAST) {
-			adapter->macopts |= MAC_BCAST;
+			adapter->MacFilter |= MAC_BCAST;
 			DBG_ERROR("BCAST ");
 		}
 		if (dev->flags & IFF_PROMISC) {
-			adapter->macopts |= MAC_PROMISC;
+			adapter->MacFilter |= MAC_PROMISC;
 			DBG_ERROR("PROMISC ");
 		}
 		if (dev->flags & IFF_ALLMULTI) {
-			adapter->macopts |= MAC_ALLMCAST;
+			adapter->MacFilter |= MAC_ALLMCAST;
 			DBG_ERROR("ALL_MCAST ");
 		}
 		if (dev->flags & IFF_MULTICAST) {
-			adapter->macopts |= MAC_MCAST;
+			adapter->MacFilter |= MAC_MCAST;
 			DBG_ERROR("MCAST ");
 		}
 		DBG_ERROR("\n");
@@ -3036,9 +3020,7 @@ static int sxg_read_mdio_reg(struct adapter_t *adapter,
  * complemented), we must then transpose the value and return bits 30-23.
  */
 static u32 sxg_crc_table[256];/* Table of CRC's for all possible byte values */
-#if XXXTODO
 static u32 sxg_crc_init;	/* Is table initialized */
-#endif
 
 /* Contruct the CRC32 table */
 static void sxg_mcast_init_crc32(void)
@@ -3063,7 +3045,6 @@ static void sxg_mcast_init_crc32(void)
 	}
 }
 
-#if XXXTODO
 /*
  *  Return the MAC hast as described above.
  */
@@ -3091,13 +3072,12 @@ static unsigned char sxg_mcast_get_mac_hash(char *macaddr)
 
 	return (machash);
 }
-#endif
 
 static void sxg_mcast_set_mask(struct adapter_t *adapter)
 {
 	struct sxg_ucode_regs *sxg_regs = adapter->UcodeRegs;
 
-	DBG_ERROR("%s ENTER (%s) macopts[%x] mask[%llx]\n", __func__,
+	DBG_ERROR("%s ENTER (%s) MacFilter[%x] mask[%llx]\n", __FUNCTION__,
 		  adapter->netdev->name, (unsigned int)adapter->MacFilter,
 		  adapter->MulticastMask);
 
@@ -3107,7 +3087,7 @@ static void sxg_mcast_set_mask(struct adapter_t *adapter)
 		 * promiscuous mode as well as ALLMCAST mode.  It saves the
 		 * Microcode from having keep state about the MAC configuration
 		 */
-		/* DBG_ERROR("sxg: %s macopts = MAC_ALLMCAST | MAC_PROMISC\n
+		/* DBG_ERROR("sxg: %s MacFilter = MAC_ALLMCAST | MAC_PROMISC\n \
 		 * 				SLUT MODE!!!\n",__func__);
 		 */
 		WRITE_REG(sxg_regs->McastLow, 0xFFFFFFFF, FLUSH);
@@ -3135,39 +3115,6 @@ static void sxg_mcast_set_mask(struct adapter_t *adapter)
 	}
 }
 
-#if XXXTODO
-/*
- *  Allocate a mcast_address structure to hold the multicast address.
- *  Link it in.
- */
-static int sxg_mcast_add_list(struct adapter_t *adapter, char *address)
-{
-	struct mcast_address *mcaddr, *mlist;
-	bool equaladdr;
-
-	/* Check to see if it already exists */
-	mlist = adapter->mcastaddrs;
-	while (mlist) {
-		ETHER_EQ_ADDR(mlist->address, address, equaladdr);
-		if (equaladdr) {
-			return (STATUS_SUCCESS);
-		}
-		mlist = mlist->next;
-	}
-
-	/* Doesn't already exist.  Allocate a structure to hold it */
-	mcaddr = kmalloc(sizeof(struct mcast_address), GFP_ATOMIC);
-	if (mcaddr == NULL)
-		return 1;
-
-	memcpy(mcaddr->address, address, 6);
-
-	mcaddr->next = adapter->mcastaddrs;
-	adapter->mcastaddrs = mcaddr;
-
-	return (STATUS_SUCCESS);
-}
-
 static void sxg_mcast_set_bit(struct adapter_t *adapter, char *address)
 {
 	unsigned char crcpoly;
@@ -3184,7 +3131,25 @@ static void sxg_mcast_set_bit(struct adapter_t *adapter, char *address)
 	/* OR in the new bit into our 64 bit mask. */
 	adapter->MulticastMask |= (u64) 1 << crcpoly;
 }
-#endif
+
+/*
+ *   Function takes MAC addresses from dev_mc_list and generates the Mask
+ */
+
+static void sxg_set_mcast_addr(struct adapter_t *adapter)
+{
+        struct dev_mc_list *mclist;
+        struct net_device *dev = adapter->netdev;
+        int i;
+
+        if (adapter->MacFilter & (MAC_ALLMCAST | MAC_MCAST)) {
+               for (i = 0, mclist = dev->mc_list; i < dev->mc_count;
+                             i++, mclist = mclist->next) {
+                        sxg_mcast_set_bit(adapter,mclist->da_addr);
+                }
+        }
+        sxg_mcast_set_mask(adapter);
+}
 
 static void sxg_mcast_set_list(struct net_device *dev)
 {
@@ -3194,8 +3159,16 @@ static void sxg_mcast_set_list(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC) {
 		adapter->MacFilter |= MAC_PROMISC;
 	}
+
+        if (dev->flags & IFF_MULTICAST)
+                adapter->MacFilter |= MAC_MCAST;
+
+        if (dev->flags & IFF_ALLMULTI) {
+                adapter->MacFilter |= MAC_ALLMCAST;
+	}
+
 	//XXX handle other flags as well
-	sxg_mcast_set_mask(adapter);
+	sxg_set_mcast_addr(adapter);
 }
 
 #if XXXTODO

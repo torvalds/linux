@@ -99,9 +99,9 @@ static struct sxg_nic_stats sxg_nic_gstrings_stats[] = {
 	/* May be need in future */
 /*	{"dumb_rcv_broadcast_packets", SXG_NIC_STATS(Stats.DumbRcvBcastPkts)},
 	{"dumb_rcv_broadcast_bytes", SXG_NIC_STATS(Stats.DumbRcvBcastBytes)},
-	{"dumb_rcv_multicast_packets", SXG_NIC_STATS(Stats.DumbRcvMcastPkts)},
+*/	{"dumb_rcv_multicast_packets", SXG_NIC_STATS(Stats.DumbRcvMcastPkts)},
 	{"dumb_rcv_multicast_bytes", SXG_NIC_STATS(Stats.DumbRcvMcastBytes)},
-	{"dumb_rcv_unicast_packets", SXG_NIC_STATS(Stats.DumbRcvUcastPkts)},
+/*	{"dumb_rcv_unicast_packets", SXG_NIC_STATS(Stats.DumbRcvUcastPkts)},
 	{"dumb_rcv_unicast_bytes", SXG_NIC_STATS(Stats.DumbRcvUcastBytes)},
 */
 	{"no_sgl_buffer", SXG_NIC_STATS(Stats.NoSglBuf)},
