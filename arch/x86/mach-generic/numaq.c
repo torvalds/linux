@@ -90,7 +90,7 @@ struct genapic apic_numaq = {
 	.phys_pkg_id			= numaq_phys_pkg_id,
 	.mps_oem_check			= __numaq_mps_oem_check,
 
-	.get_apic_id			= get_apic_id,
+	.get_apic_id			= numaq_get_apic_id,
 	.set_apic_id			= NULL,
 	.apic_id_mask			= APIC_ID_MASK,
 

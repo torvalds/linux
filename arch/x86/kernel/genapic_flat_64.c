@@ -126,11 +126,12 @@ static void flat_send_IPI_all(int vector)
 		__send_IPI_shortcut(APIC_DEST_ALLINC, vector, apic->dest_logical);
 }
 
-static unsigned int get_apic_id(unsigned long x)
+static unsigned int flat_get_apic_id(unsigned long x)
 {
 	unsigned int id;
 
 	id = (((x)>>24) & 0xFFu);
+
 	return id;
 }
 
@@ -146,7 +147,7 @@ static unsigned int read_xapic_id(void)
 {
 	unsigned int id;
 
-	id = get_apic_id(apic_read(APIC_ID));
+	id = flat_get_apic_id(apic_read(APIC_ID));
 	return id;
 }
 
@@ -205,7 +206,7 @@ struct genapic apic_flat =  {
 	.phys_pkg_id			= flat_phys_pkg_id,
 	.mps_oem_check			= NULL,
 
-	.get_apic_id			= get_apic_id,
+	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
 	.apic_id_mask			= 0xFFu << 24,
 
@@ -349,7 +350,7 @@ struct genapic apic_physflat =  {
 	.phys_pkg_id			= flat_phys_pkg_id,
 	.mps_oem_check			= NULL,
 
-	.get_apic_id			= get_apic_id,
+	.get_apic_id			= flat_get_apic_id,
 	.set_apic_id			= set_apic_id,
 	.apic_id_mask			= 0xFFu<<24,
 

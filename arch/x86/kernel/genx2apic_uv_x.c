@@ -201,7 +201,7 @@ static unsigned int uv_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	return BAD_APICID;
 }
 
-static unsigned int get_apic_id(unsigned long x)
+static unsigned int x2apic_get_apic_id(unsigned long x)
 {
 	unsigned int id;
 
@@ -223,7 +223,7 @@ static unsigned long set_apic_id(unsigned int id)
 static unsigned int uv_read_apic_id(void)
 {
 
-	return get_apic_id(apic_read(APIC_ID));
+	return x2apic_get_apic_id(apic_read(APIC_ID));
 }
 
 static int uv_phys_pkg_id(int initial_apicid, int index_msb)
@@ -268,7 +268,7 @@ struct genapic apic_x2apic_uv_x = {
 	.phys_pkg_id			= uv_phys_pkg_id,
 	.mps_oem_check			= NULL,
 
-	.get_apic_id			= get_apic_id,
+	.get_apic_id			= x2apic_get_apic_id,
 	.set_apic_id			= set_apic_id,
 	.apic_id_mask			= 0xFFFFFFFFu,
 

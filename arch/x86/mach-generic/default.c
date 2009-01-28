@@ -71,7 +71,7 @@ struct genapic apic_default = {
 	.phys_pkg_id			= default_phys_pkg_id,
 	.mps_oem_check			= NULL,
 
-	.get_apic_id			= get_apic_id,
+	.get_apic_id			= default_get_apic_id,
 	.set_apic_id			= NULL,
 	.apic_id_mask			= APIC_ID_MASK,
 

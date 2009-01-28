@@ -1,14 +1,11 @@
 #ifndef __ASM_NUMAQ_APICDEF_H
 #define __ASM_NUMAQ_APICDEF_H
 
-
 #define APIC_ID_MASK (0xF<<24)
 
-static inline unsigned get_apic_id(unsigned long x)
+static inline unsigned int numaq_get_apic_id(unsigned long x)
 {
-	        return (((x)>>24)&0x0F);
+	return (x >> 24) & 0x0F;
 }
-
-#define         GET_APIC_ID(x)  get_apic_id(x)
 
 #endif

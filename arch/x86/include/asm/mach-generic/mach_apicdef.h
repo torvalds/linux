@@ -4,7 +4,6 @@
 #ifndef APIC_DEFINITION
 #include <asm/genapic.h>
 
-#define GET_APIC_ID (apic->get_apic_id)
 #define APIC_ID_MASK (apic->apic_id_mask)
 #endif
 

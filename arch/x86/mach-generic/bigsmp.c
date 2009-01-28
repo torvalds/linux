@@ -90,7 +90,7 @@ struct genapic apic_bigsmp = {
 	.phys_pkg_id			= bigsmp_phys_pkg_id,
 	.mps_oem_check			= NULL,
 
-	.get_apic_id			= get_apic_id,
+	.get_apic_id			= bigsmp_get_apic_id,
 	.set_apic_id			= NULL,
 	.apic_id_mask			= APIC_ID_MASK,
 

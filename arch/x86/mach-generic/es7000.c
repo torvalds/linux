@@ -126,7 +126,7 @@ struct genapic apic_es7000 = {
 	.phys_pkg_id			= es7000_phys_pkg_id,
 	.mps_oem_check			= es7000_mps_oem_check,
 
-	.get_apic_id			= get_apic_id,
+	.get_apic_id			= es7000_get_apic_id,
 	.set_apic_id			= NULL,
 	.apic_id_mask			= APIC_ID_MASK,
 

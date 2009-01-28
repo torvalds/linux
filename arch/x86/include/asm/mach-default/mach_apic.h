@@ -21,7 +21,7 @@ static inline const struct cpumask *default_target_cpus(void)
 #include <asm/genapic.h>
 #define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
 #define cpu_mask_to_apicid_and (apic->cpu_mask_to_apicid_and)
-#define read_apic_id()  (GET_APIC_ID(apic_read(APIC_ID)))
+#define read_apic_id()  (apic->get_apic_id(apic_read(APIC_ID)))
 #define send_IPI_self (apic->send_IPI_self)
 #define wakeup_secondary_cpu (apic->wakeup_cpu)
 extern void default_setup_apic_routing(void);

@@ -141,7 +141,7 @@ static unsigned int x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	return BAD_APICID;
 }
 
-static unsigned int get_apic_id(unsigned long x)
+static unsigned int x2apic_cluster_phys_get_apic_id(unsigned long x)
 {
 	unsigned int id;
 
@@ -207,7 +207,7 @@ struct genapic apic_x2apic_cluster = {
 	.phys_pkg_id			= x2apic_cluster_phys_pkg_id,
 	.mps_oem_check			= NULL,
 
-	.get_apic_id			= get_apic_id,
+	.get_apic_id			= x2apic_cluster_phys_get_apic_id,
 	.set_apic_id			= set_apic_id,
 	.apic_id_mask			= 0xFFFFFFFFu,
 
