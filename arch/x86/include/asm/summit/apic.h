@@ -105,13 +105,13 @@ static inline int summit_cpu_present_to_apicid(int mps_cpu)
 }
 
 static inline physid_mask_t
- summit_ioapic_phys_id_map(physid_mask_t phys_id_map)
+summit_ioapic_phys_id_map(physid_mask_t phys_id_map)
 {
 	/* For clustered we don't have a good way to do this yet - hack */
 	return physids_promote(0x0F);
 }
 
-static inline physid_mask_t apicid_to_cpu_present(int apicid)
+static inline physid_mask_t summit_apicid_to_cpu_present(int apicid)
 {
 	return physid_mask_of_physid(0);
 }

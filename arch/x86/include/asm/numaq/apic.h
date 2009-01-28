@@ -82,7 +82,7 @@ static inline int numaq_apicid_to_node(int logical_apicid)
 	return logical_apicid >> 4;
 }
 
-static inline physid_mask_t apicid_to_cpu_present(int logical_apicid)
+static inline physid_mask_t numaq_apicid_to_cpu_present(int logical_apicid)
 {
 	int node = numaq_apicid_to_node(logical_apicid);
 	int cpu = __ffs(logical_apicid & 0xf);

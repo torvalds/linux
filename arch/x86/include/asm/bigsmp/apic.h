@@ -75,7 +75,7 @@ static inline int bigsmp_cpu_present_to_apicid(int mps_cpu)
 	return BAD_APICID;
 }
 
-static inline physid_mask_t apicid_to_cpu_present(int phys_apicid)
+static inline physid_mask_t bigsmp_apicid_to_cpu_present(int phys_apicid)
 {
 	return physid_mask_of_physid(phys_apicid);
 }

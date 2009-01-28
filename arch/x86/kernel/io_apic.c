@@ -2155,7 +2155,7 @@ static void __init setup_ioapic_ids_from_mpc(void)
 			mp_ioapics[apic_id].apicid = i;
 		} else {
 			physid_mask_t tmp;
-			tmp = apicid_to_cpu_present(mp_ioapics[apic_id].apicid);
+			tmp = apic->apicid_to_cpu_present(mp_ioapics[apic_id].apicid);
 			apic_printk(APIC_VERBOSE, "Setting %d in the "
 					"phys_id_present_map\n",
 					mp_ioapics[apic_id].apicid);
@@ -3899,7 +3899,7 @@ int __init io_apic_get_unique_id(int ioapic, int apic_id)
 		apic_id = i;
 	}
 
-	tmp = apicid_to_cpu_present(apic_id);
+	tmp = apic->apicid_to_cpu_present(apic_id);
 	physids_or(apic_id_map, apic_id_map, tmp);
 
 	if (reg_00.bits.ID != apic_id) {

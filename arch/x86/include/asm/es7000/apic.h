@@ -98,7 +98,7 @@ static inline int es7000_cpu_present_to_apicid(int mps_cpu)
 		return BAD_APICID;
 }
 
-static inline physid_mask_t apicid_to_cpu_present(int phys_apicid)
+static inline physid_mask_t es7000_apicid_to_cpu_present(int phys_apicid)
 {
 	static int id = 0;
 	physid_mask_t mask;

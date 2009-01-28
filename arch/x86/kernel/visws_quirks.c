@@ -200,7 +200,7 @@ static void __init MP_processor_info(struct mpc_cpu *m)
 		return;
 	}
 
-	apic_cpus = apicid_to_cpu_present(m->apicid);
+	apic_cpus = apic->apicid_to_cpu_present(m->apicid);
 	physids_or(phys_cpu_present_map, phys_cpu_present_map, apic_cpus);
 	/*
 	 * Validate version
