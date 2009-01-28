@@ -120,7 +120,7 @@ struct genapic apic_es7000 = {
 	.init_apic_ldr			= es7000_init_apic_ldr,
 
 	.ioapic_phys_id_map		= es7000_ioapic_phys_id_map,
-	.setup_apic_routing		= setup_apic_routing,
+	.setup_apic_routing		= es7000_setup_apic_routing,
 	.multi_timer_check		= multi_timer_check,
 	.apicid_to_node			= apicid_to_node,
 	.cpu_to_logical_apicid		= cpu_to_logical_apicid,

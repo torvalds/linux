@@ -3,7 +3,6 @@
 
 #include <asm/genapic.h>
 
-#define setup_apic_routing (apic->setup_apic_routing)
 #define multi_timer_check (apic->multi_timer_check)
 #define apicid_to_node (apic->apicid_to_node)
 #define cpu_to_logical_apicid (apic->cpu_to_logical_apicid) 

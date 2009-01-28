@@ -1128,7 +1128,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 
 #ifdef CONFIG_X86_64
 	enable_IR_x2apic();
-	setup_apic_routing();
+	default_setup_apic_routing();
 #endif
 
 	if (smp_sanity_check(max_cpus) < 0) {

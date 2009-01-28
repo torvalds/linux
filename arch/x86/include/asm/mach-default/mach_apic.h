@@ -25,7 +25,7 @@ static inline const struct cpumask *default_target_cpus(void)
 #define read_apic_id()  (GET_APIC_ID(apic_read(APIC_ID)))
 #define send_IPI_self (apic->send_IPI_self)
 #define wakeup_secondary_cpu (apic->wakeup_cpu)
-extern void setup_apic_routing(void);
+extern void default_setup_apic_routing(void);
 #else
 #define wakeup_secondary_cpu wakeup_secondary_cpu_via_init
 /*
@@ -70,7 +70,7 @@ static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
 	return cpuid_apic >> index_msb;
 }
 
-static inline void setup_apic_routing(void)
+static inline void default_setup_apic_routing(void)
 {
 #ifdef CONFIG_X86_IO_APIC
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",

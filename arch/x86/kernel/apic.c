@@ -1625,7 +1625,7 @@ int __init APIC_init_uniprocessor(void)
 	enable_IR_x2apic();
 #endif
 #ifdef CONFIG_X86_64
-	setup_apic_routing();
+	default_setup_apic_routing();
 #endif
 
 	verify_local_APIC();

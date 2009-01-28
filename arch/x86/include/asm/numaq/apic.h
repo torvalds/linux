@@ -33,7 +33,7 @@ static inline void numaq_init_apic_ldr(void)
 	/* Already done in NUMA-Q firmware */
 }
 
-static inline void setup_apic_routing(void)
+static inline void numaq_setup_apic_routing(void)
 {
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
 		"NUMA-Q", nr_ioapics);

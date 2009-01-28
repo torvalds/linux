@@ -56,7 +56,7 @@ static inline void bigsmp_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-static inline void setup_apic_routing(void)
+static inline void bigsmp_setup_apic_routing(void)
 {
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
 		"Physflat", nr_ioapics);

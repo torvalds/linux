@@ -73,7 +73,7 @@ static inline void es7000_init_apic_ldr(void)
 }
 
 extern int apic_version [MAX_APICS];
-static inline void setup_apic_routing(void)
+static inline void es7000_setup_apic_routing(void)
 {
 	int apic = per_cpu(x86_bios_cpu_apicid, smp_processor_id());
 	printk("Enabling APIC mode:  %s. Using %d I/O APICs, target cpus %lx\n",

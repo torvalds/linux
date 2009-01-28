@@ -74,7 +74,7 @@ static inline int summit_apic_id_registered(void)
 	return 1;
 }
 
-static inline void setup_apic_routing(void)
+static inline void summit_setup_apic_routing(void)
 {
 	printk("Enabling APIC mode:  Summit.  Using %d I/O APICs\n",
 						nr_ioapics);

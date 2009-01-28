@@ -44,7 +44,7 @@ static struct genapic *apic_probe[] __initdata = {
 /*
  * Check the APIC IDs in bios_cpu_apicid and choose the APIC mode.
  */
-void __init setup_apic_routing(void)
+void __init default_setup_apic_routing(void)
 {
 	if (apic == &apic_x2apic_phys || apic == &apic_x2apic_cluster) {
 		if (!intr_remapping_enabled)
