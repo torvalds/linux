@@ -1000,6 +1000,10 @@ void omap2_clk_disable_unused(struct clk *clk)
 		return;
 
 	printk(KERN_INFO "Disabling unused clock \"%s\"\n", clk->name);
-	_omap2_clk_disable(clk);
+	if (cpu_is_omap34xx()) {
+		omap2_clk_enable(clk);
+		omap2_clk_disable(clk);
+	} else
+		_omap2_clk_disable(clk);
 }
 #endif
