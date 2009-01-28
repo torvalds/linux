@@ -1306,10 +1306,6 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 		 dev->dev_addr[ETH_ALEN-1] = fec_mac_default[ETH_ALEN-1] + fep->index;
 }
 
-static void __inline__ fec_enable_phy_intr(void)
-{
-}
-
 static void __inline__ fec_disable_phy_intr(void)
 {
 	volatile unsigned long *icrp;
@@ -1323,17 +1319,6 @@ static void __inline__ fec_phy_ack_intr(void)
 	/* Acknowledge the interrupt */
 	icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
 	*icrp = 0x0d000000;
-}
-
-static void __inline__ fec_localhw_setup(void)
-{
-}
-
-/*
- *	Do not need to make region uncached on 5272.
- */
-static void __inline__ fec_uncache(unsigned long addr)
-{
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1475,26 +1460,11 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 		dev->dev_addr[ETH_ALEN-1] = fec_mac_default[ETH_ALEN-1] + fep->index;
 }
 
-static void __inline__ fec_enable_phy_intr(void)
-{
-}
-
 static void __inline__ fec_disable_phy_intr(void)
 {
 }
 
 static void __inline__ fec_phy_ack_intr(void)
-{
-}
-
-static void __inline__ fec_localhw_setup(void)
-{
-}
-
-/*
- *	Do not need to make region uncached on 5272.
- */
-static void __inline__ fec_uncache(unsigned long addr)
 {
 }
 
@@ -1596,23 +1566,11 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 		dev->dev_addr[ETH_ALEN-1] = fec_mac_default[ETH_ALEN-1] + fep->index;
 }
 
-static void __inline__ fec_enable_phy_intr(void)
-{
-}
-
 static void __inline__ fec_disable_phy_intr(void)
 {
 }
 
 static void __inline__ fec_phy_ack_intr(void)
-{
-}
-
-static void __inline__ fec_localhw_setup(void)
-{
-}
-
-static void __inline__ fec_uncache(unsigned long addr)
 {
 }
 
@@ -1735,26 +1693,11 @@ static void __inline__ fec_get_mac(struct net_device *dev)
 		dev->dev_addr[ETH_ALEN-1] = fec_mac_default[ETH_ALEN-1] + fep->index;
 }
 
-static void __inline__ fec_enable_phy_intr(void)
-{
-}
-
 static void __inline__ fec_disable_phy_intr(void)
 {
 }
 
 static void __inline__ fec_phy_ack_intr(void)
-{
-}
-
-static void __inline__ fec_localhw_setup(void)
-{
-}
-
-/*
- *	Do not need to make region uncached on 532x.
- */
-static void __inline__ fec_uncache(unsigned long addr)
 {
 }
 
@@ -2199,8 +2142,6 @@ int __init fec_enet_init(struct net_device *dev)
 	cbd_base = (cbd_t *)mem_addr;
 	/* XXX: missing check for allocation failure */
 
-	fec_uncache(mem_addr);
-
 	/* Set receive and transmit descriptor base.
 	*/
 	fep->rx_bd_base = cbd_base;
@@ -2220,8 +2161,6 @@ int __init fec_enet_init(struct net_device *dev)
 		*/
 		mem_addr = __get_free_page(GFP_KERNEL);
 		/* XXX: missing check for allocation failure */
-
-		fec_uncache(mem_addr);
 
 		/* Initialize the BD for every fragment in the page.
 		*/
@@ -2338,7 +2277,6 @@ fec_restart(struct net_device *dev, int duplex)
 	/* Clear any outstanding interrupt.
 	*/
 	fecp->fec_ievent = 0xffc00000;
-	fec_enable_phy_intr();
 
 	/* Set station address.
 	*/
@@ -2352,8 +2290,6 @@ fec_restart(struct net_device *dev, int duplex)
 	/* Set maximum receive buffer size.
 	*/
 	fecp->fec_r_buff_size = PKT_MAXBLR_SIZE;
-
-	fec_localhw_setup();
 
 	/* Set receive and transmit descriptor base.
 	*/
@@ -2460,7 +2396,6 @@ fec_stop(struct net_device *dev)
 	/* Clear outstanding MII command interrupts.
 	*/
 	fecp->fec_ievent = FEC_ENET_MII;
-	fec_enable_phy_intr();
 
 	fecp->fec_imask = FEC_ENET_MII;
 	fecp->fec_mii_speed = fep->phy_speed;
