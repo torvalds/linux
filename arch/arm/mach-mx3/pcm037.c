@@ -26,6 +26,8 @@
 #include <linux/gpio.h>
 #include <linux/smc911x.h>
 #include <linux/interrupt.h>
+#include <linux/i2c.h>
+#include <linux/i2c/at24.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -37,6 +39,9 @@
 #include <mach/iomux-mx3.h>
 #include <mach/board-pcm037.h>
 #include <mach/mxc_nand.h>
+#ifdef CONFIG_I2C_IMX
+#include <mach/i2c.h>
+#endif
 
 #include "devices.h"
 
@@ -117,6 +122,46 @@ static struct mxc_nand_platform_data pcm037_nand_board_info = {
 	.hw_ecc = 1,
 };
 
+#ifdef CONFIG_I2C_IMX
+static int i2c_1_pins[] = {
+	MX31_PIN_CSPI2_MOSI__SCL,
+	MX31_PIN_CSPI2_MISO__SDA,
+};
+
+static int pcm037_i2c_1_init(struct device *dev)
+{
+	return mxc_iomux_setup_multiple_pins(i2c_1_pins, ARRAY_SIZE(i2c_1_pins),
+			"i2c-1");
+}
+
+static void pcm037_i2c_1_exit(struct device *dev)
+{
+	mxc_iomux_release_multiple_pins(i2c_1_pins, ARRAY_SIZE(i2c_1_pins));
+}
+
+static struct imxi2c_platform_data pcm037_i2c_1_data = {
+	.bitrate = 100000,
+	.init = pcm037_i2c_1_init,
+	.exit = pcm037_i2c_1_exit,
+};
+
+static struct at24_platform_data board_eeprom = {
+	.byte_len = 4096,
+	.page_size = 32,
+	.flags = AT24_FLAG_ADDR16,
+};
+
+static struct i2c_board_info pcm037_i2c_devices[] = {
+       {
+		I2C_BOARD_INFO("at24", 0x52), /* E0=0, E1=1, E2=0 */
+		.platform_data = &board_eeprom,
+	}, {
+		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
+		.type = "pcf8563",
+	}
+};
+#endif
+
 static struct platform_device *devices[] __initdata = {
 	&pcm037_flash,
 	&pcm037_eth,
@@ -156,6 +201,12 @@ static void __init mxc_board_init(void)
 				"pcm037-eth"))
 		gpio_direction_input(MX31_PIN_GPIO3_1);
 
+#ifdef CONFIG_I2C_IMX
+	i2c_register_board_info(1, pcm037_i2c_devices,
+			ARRAY_SIZE(pcm037_i2c_devices));
+
+	mxc_register_device(&mxc_i2c_device1, &pcm037_i2c_1_data);
+#endif
 	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
 }
 
