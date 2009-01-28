@@ -40,7 +40,6 @@
 #include <asm/smp.h>
 #include <asm/atomic.h>
 #include <asm/apicdef.h>
-#include <mach_mpparse.h>
 #include <asm/genapic.h>
 #include <asm/setup.h>
 

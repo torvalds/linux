@@ -32,7 +32,6 @@
 #include <mach_apic.h>
 #ifdef CONFIG_X86_32
 #include <mach_apicdef.h>
-#include <mach_mpparse.h>
 #endif
 
 /*

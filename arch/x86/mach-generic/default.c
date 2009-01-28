@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <asm/mach-default/mach_apic.h>
 #include <asm/mach-default/mach_ipi.h>
-#include <asm/mach-default/mach_mpparse.h>
 
 static void default_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {

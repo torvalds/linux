@@ -16,7 +16,6 @@
 #include <linux/smp.h>
 #include <asm/bigsmp/apic.h>
 #include <asm/bigsmp/ipi.h>
-#include <asm/mach-default/mach_mpparse.h>
 
 static int dmi_bigsmp; /* can be set by dmi scanners */
 

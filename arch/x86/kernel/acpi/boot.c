@@ -63,7 +63,6 @@ EXPORT_SYMBOL(acpi_disabled);
 
 #ifdef	CONFIG_X86_LOCAL_APIC
 #include <mach_apic.h>
-#include <mach_mpparse.h>
 #endif				/* CONFIG_X86_LOCAL_APIC */
 
 #endif				/* X86 */
