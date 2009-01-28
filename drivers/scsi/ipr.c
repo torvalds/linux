@@ -354,6 +354,8 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"9076: Configuration error, missing remote IOA"},
 	{0x06679100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4050: Enclosure does not support a required multipath function"},
+	{0x06690000, 0, IPR_DEFAULT_LOG_LEVEL,
+	"4070: Logically bad block written on device"},
 	{0x06690200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9041: Array protection temporarily suspended"},
 	{0x06698200, 0, IPR_DEFAULT_LOG_LEVEL,
