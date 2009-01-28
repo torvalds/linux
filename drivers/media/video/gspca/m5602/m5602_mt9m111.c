@@ -86,7 +86,7 @@ const static struct ctrl mt9m111_ctrls[] = {
 			.minimum        = 0,
 			.maximum        = (INITIAL_MAX_GAIN - 1) * 2 * 2 * 2,
 			.step           = 1,
-			.default_value  = DEFAULT_GAIN,
+			.default_value  = MT9M111_DEFAULT_GAIN,
 			.flags          = V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = mt9m111_set_gain,

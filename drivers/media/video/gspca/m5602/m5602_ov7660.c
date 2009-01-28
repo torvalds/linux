@@ -31,7 +31,7 @@ const static struct ctrl ov7660_ctrls[] = {
 			.minimum	= 0x00,
 			.maximum	= 0xff,
 			.step		= 0x1,
-			.default_value	= DEFAULT_GAIN,
+			.default_value	= OV7660_DEFAULT_GAIN,
 			.flags		= V4L2_CTRL_FLAG_SLIDER
 		},
 		.set = ov7660_set_gain,
