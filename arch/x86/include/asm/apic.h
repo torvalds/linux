@@ -211,4 +211,20 @@ static inline void disable_local_APIC(void) { }
 
 #endif /* !CONFIG_X86_LOCAL_APIC */
 
+#ifdef CONFIG_X86_64
+#define	SET_APIC_ID(x)		(apic->set_apic_id(x))
+#else
+
+static inline unsigned default_get_apic_id(unsigned long x) 
+{
+	unsigned int ver = GET_APIC_VERSION(apic_read(APIC_LVR));
+
+	if (APIC_XAPIC(ver))
+		return (x >> 24) & 0xFF;
+	else
+		return (x >> 24) & 0x0F;
+}
+
+#endif
+
 #endif /* _ASM_X86_APIC_H */

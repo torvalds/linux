@@ -5,7 +5,6 @@
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>
-#include <asm/mach-default/mach_apicdef.h>
 #include <asm/genapic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>

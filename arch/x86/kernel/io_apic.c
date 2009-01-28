@@ -64,7 +64,6 @@
 
 #include <mach_ipi.h>
 #include <mach_apic.h>
-#include <mach_apicdef.h>
 
 #define __apicdebuginit(type) static type __init
 

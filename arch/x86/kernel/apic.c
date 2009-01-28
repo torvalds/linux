@@ -50,7 +50,6 @@
 #include <asm/smp.h>
 
 #include <mach_apic.h>
-#include <mach_apicdef.h>
 #include <mach_ipi.h>
 
 /*

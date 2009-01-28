@@ -3,7 +3,6 @@
 
 #ifdef CONFIG_X86_LOCAL_APIC
 
-#include <mach_apicdef.h>
 #include <asm/smp.h>
 
 #define APIC_DFR_VALUE	(APIC_DFR_FLAT)
