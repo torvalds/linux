@@ -71,6 +71,9 @@ void pci_remove_bus(struct pci_bus *pci_bus)
 	down_write(&pci_bus_sem);
 	list_del(&pci_bus->node);
 	up_write(&pci_bus_sem);
+	if (!pci_bus->is_added)
+		return;
+
 	pci_remove_legacy_files(pci_bus);
 	device_remove_file(&pci_bus->dev, &dev_attr_cpuaffinity);
 	device_remove_file(&pci_bus->dev, &dev_attr_cpulistaffinity);
