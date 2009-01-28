@@ -94,8 +94,8 @@ struct genapic apic_bigsmp = {
 	.set_apic_id			= NULL,
 	.apic_id_mask			= 0xFF << 24,
 
-	.cpu_mask_to_apicid		= cpu_mask_to_apicid,
-	.cpu_mask_to_apicid_and		= cpu_mask_to_apicid_and,
+	.cpu_mask_to_apicid		= bigsmp_cpu_mask_to_apicid,
+	.cpu_mask_to_apicid_and		= bigsmp_cpu_mask_to_apicid_and,
 
 	.send_IPI_mask			= send_IPI_mask,
 	.send_IPI_mask_allbutself	= NULL,

@@ -105,18 +105,14 @@ static inline int bigsmp_check_phys_apicid_present(int boot_cpu_physical_apicid)
 }
 
 /* As we are using single CPU as destination, pick only one CPU here */
-static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
+static inline unsigned int bigsmp_cpu_mask_to_apicid(const cpumask_t *cpumask)
 {
-	int cpu;
-	int apicid;	
-
-	cpu = first_cpu(*cpumask);
-	apicid = bigsmp_cpu_to_logical_apicid(cpu);
-	return apicid;
+	return bigsmp_cpu_to_logical_apicid(first_cpu(*cpumask));
 }
 
-static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-						  const struct cpumask *andmask)
+static inline unsigned int
+bigsmp_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+			      const struct cpumask *andmask)
 {
 	int cpu;
 
@@ -124,9 +120,10 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
 	 * May as well be the first.
 	 */
-	for_each_cpu_and(cpu, cpumask, andmask)
+	for_each_cpu_and(cpu, cpumask, andmask) {
 		if (cpumask_test_cpu(cpu, cpu_online_mask))
 			break;
+	}
 	if (cpu < nr_cpu_ids)
 		return bigsmp_cpu_to_logical_apicid(cpu);
 

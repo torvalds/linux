@@ -137,12 +137,12 @@ static inline int es7000_check_phys_apicid_present(int cpu_physical_apicid)
 }
 
 static inline unsigned int
-cpu_mask_to_apicid_cluster(const struct cpumask *cpumask)
+es7000_cpu_mask_to_apicid_cluster(const struct cpumask *cpumask)
 {
-	int num_bits_set;
 	int cpus_found = 0;
-	int cpu;
+	int num_bits_set;
 	int apicid;
+	int cpu;
 
 	num_bits_set = cpumask_weight(cpumask);
 	/* Return id to all */
@@ -154,12 +154,15 @@ cpu_mask_to_apicid_cluster(const struct cpumask *cpumask)
 	 */
 	cpu = cpumask_first(cpumask);
 	apicid = es7000_cpu_to_logical_apicid(cpu);
+
 	while (cpus_found < num_bits_set) {
 		if (cpumask_test_cpu(cpu, cpumask)) {
 			int new_apicid = es7000_cpu_to_logical_apicid(cpu);
+
 			if (apicid_cluster(apicid) !=
-					apicid_cluster(new_apicid)){
+					apicid_cluster(new_apicid)) {
 				printk ("%s: Not a valid mask!\n", __func__);
+
 				return 0xFF;
 			}
 			apicid = new_apicid;
@@ -170,12 +173,12 @@ cpu_mask_to_apicid_cluster(const struct cpumask *cpumask)
 	return apicid;
 }
 
-static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
+static inline unsigned int es7000_cpu_mask_to_apicid(const cpumask_t *cpumask)
 {
-	int num_bits_set;
 	int cpus_found = 0;
-	int cpu;
+	int num_bits_set;
 	int apicid;
+	int cpu;
 
 	num_bits_set = cpus_weight(*cpumask);
 	/* Return id to all */
@@ -190,9 +193,11 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 	while (cpus_found < num_bits_set) {
 		if (cpu_isset(cpu, *cpumask)) {
 			int new_apicid = es7000_cpu_to_logical_apicid(cpu);
+
 			if (apicid_cluster(apicid) !=
-					apicid_cluster(new_apicid)){
+					apicid_cluster(new_apicid)) {
 				printk ("%s: Not a valid mask!\n", __func__);
+
 				return es7000_cpu_to_logical_apicid(0);
 			}
 			apicid = new_apicid;
@@ -204,8 +209,9 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 }
 
 
-static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *inmask,
-						  const struct cpumask *andmask)
+static inline unsigned int
+es7000_cpu_mask_to_apicid_and(const struct cpumask *inmask,
+			      const struct cpumask *andmask)
 {
 	int apicid = es7000_cpu_to_logical_apicid(0);
 	cpumask_var_t cpumask;
@@ -215,9 +221,10 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *inmask,
 
 	cpumask_and(cpumask, inmask, andmask);
 	cpumask_and(cpumask, cpumask, cpu_online_mask);
-	apicid = cpu_mask_to_apicid(cpumask);
+	apicid = es7000_cpu_mask_to_apicid(cpumask);
 
 	free_cpumask_var(cpumask);
+
 	return apicid;
 }
 

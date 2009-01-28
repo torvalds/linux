@@ -125,29 +125,32 @@ static inline int summit_check_phys_apicid_present(int boot_cpu_physical_apicid)
 	return 1;
 }
 
-static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
+static inline unsigned int summit_cpu_mask_to_apicid(const cpumask_t *cpumask)
 {
-	int num_bits_set;
 	int cpus_found = 0;
-	int cpu;
+	int num_bits_set;
 	int apicid;
+	int cpu;
 
 	num_bits_set = cpus_weight(*cpumask);
 	/* Return id to all */
 	if (num_bits_set >= nr_cpu_ids)
-		return (int) 0xFF;
+		return 0xFF;
 	/*
 	 * The cpus in the mask must all be on the apic cluster.  If are not
 	 * on the same apicid cluster return default value of target_cpus():
 	 */
 	cpu = first_cpu(*cpumask);
 	apicid = summit_cpu_to_logical_apicid(cpu);
+
 	while (cpus_found < num_bits_set) {
 		if (cpu_isset(cpu, *cpumask)) {
 			int new_apicid = summit_cpu_to_logical_apicid(cpu);
+
 			if (apicid_cluster(apicid) !=
-					apicid_cluster(new_apicid)){
+					apicid_cluster(new_apicid)) {
 				printk ("%s: Not a valid mask!\n", __func__);
+
 				return 0xFF;
 			}
 			apicid = apicid | new_apicid;
@@ -158,8 +161,9 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 	return apicid;
 }
 
-static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *inmask,
-						  const struct cpumask *andmask)
+static inline unsigned int
+summit_cpu_mask_to_apicid_and(const struct cpumask *inmask,
+			      const struct cpumask *andmask)
 {
 	int apicid = summit_cpu_to_logical_apicid(0);
 	cpumask_var_t cpumask;
@@ -169,9 +173,10 @@ static inline unsigned int cpu_mask_to_apicid_and(const struct cpumask *inmask,
 
 	cpumask_and(cpumask, inmask, andmask);
 	cpumask_and(cpumask, cpumask, cpu_online_mask);
-	apicid = cpu_mask_to_apicid(cpumask);
+	apicid = summit_cpu_mask_to_apicid(cpumask);
 
 	free_cpumask_var(cpumask);
+
 	return apicid;
 }
 
