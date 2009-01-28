@@ -94,13 +94,16 @@ static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
+static int uart_pins[] = {
+	MX31_PIN_CTS1__CTS1,
+	MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1,
+	MX31_PIN_RXD1__RXD1
+};
+
 static inline void mxc_init_imx_uart(void)
 {
-	mxc_iomux_mode(MX31_PIN_CTS1__CTS1);
-	mxc_iomux_mode(MX31_PIN_RTS1__RTS1);
-	mxc_iomux_mode(MX31_PIN_TXD1__TXD1);
-	mxc_iomux_mode(MX31_PIN_RXD1__RXD1);
-
+	mxc_iomux_setup_multiple_pins(uart_pins, ARRAY_SIZE(uart_pins), "uart-0");
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 }
 #else /* !SERIAL_IMX */
@@ -176,7 +179,7 @@ static void __init mx31ads_init_expio(void)
 	/*
 	 * Configure INT line as GPIO input
 	 */
-	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_GPIO1_4, IOMUX_CONFIG_GPIO));
+	mxc_iomux_setup_pin(IOMUX_MODE(MX31_PIN_GPIO1_4, IOMUX_CONFIG_GPIO), "expio");
 
 	/* disable the interrupt and clear the status */
 	__raw_writew(0xFFFF, PBC_INTMASK_CLEAR_REG);
