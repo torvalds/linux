@@ -866,7 +866,7 @@ static int __init omap2_clk_arch_init(void)
 
 	/* REVISIT: not yet ready for 343x */
 #if 0
-	if (omap2_select_table_rate(&virt_prcm_set, mpurate))
+	if (clk_set_rate(&virt_prcm_set, mpurate))
 		printk(KERN_ERR "Could not find matching MPU rate\n");
 #endif
 
