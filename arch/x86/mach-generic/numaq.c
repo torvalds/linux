@@ -97,10 +97,10 @@ struct genapic apic_numaq = {
 	.cpu_mask_to_apicid		= numaq_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= numaq_cpu_mask_to_apicid_and,
 
-	.send_IPI_mask			= send_IPI_mask,
+	.send_IPI_mask			= numaq_send_IPI_mask,
 	.send_IPI_mask_allbutself	= NULL,
-	.send_IPI_allbutself		= send_IPI_allbutself,
-	.send_IPI_all			= send_IPI_all,
+	.send_IPI_allbutself		= numaq_send_IPI_allbutself,
+	.send_IPI_all			= numaq_send_IPI_all,
 	.send_IPI_self			= NULL,
 
 	.wakeup_cpu			= NULL,

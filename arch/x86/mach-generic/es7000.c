@@ -133,10 +133,10 @@ struct genapic apic_es7000 = {
 	.cpu_mask_to_apicid		= es7000_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= es7000_cpu_mask_to_apicid_and,
 
-	.send_IPI_mask			= send_IPI_mask,
+	.send_IPI_mask			= es7000_send_IPI_mask,
 	.send_IPI_mask_allbutself	= NULL,
-	.send_IPI_allbutself		= send_IPI_allbutself,
-	.send_IPI_all			= send_IPI_all,
+	.send_IPI_allbutself		= es7000_send_IPI_allbutself,
+	.send_IPI_all			= es7000_send_IPI_all,
 	.send_IPI_self			= NULL,
 
 	.wakeup_cpu			= NULL,

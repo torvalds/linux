@@ -3,8 +3,4 @@
 
 #include <asm/genapic.h>
 
-#define send_IPI_mask (apic->send_IPI_mask)
-#define send_IPI_allbutself (apic->send_IPI_allbutself)
-#define send_IPI_all (apic->send_IPI_all)
-
 #endif /* _ASM_X86_MACH_GENERIC_MACH_IPI_H */

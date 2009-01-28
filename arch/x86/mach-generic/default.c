@@ -78,10 +78,10 @@ struct genapic apic_default = {
 	.cpu_mask_to_apicid		= default_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= default_cpu_mask_to_apicid_and,
 
-	.send_IPI_mask			= send_IPI_mask,
+	.send_IPI_mask			= default_send_IPI_mask,
 	.send_IPI_mask_allbutself	= NULL,
-	.send_IPI_allbutself		= send_IPI_allbutself,
-	.send_IPI_all			= send_IPI_all,
+	.send_IPI_allbutself		= default_send_IPI_allbutself,
+	.send_IPI_all			= default_send_IPI_all,
 	.send_IPI_self			= NULL,
 
 	.wakeup_cpu			= NULL,

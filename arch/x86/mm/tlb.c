@@ -196,7 +196,7 @@ static void flush_tlb_others_ipi(const struct cpumask *cpumask,
 	 * We have to send the IPI only to
 	 * CPUs affected.
 	 */
-	send_IPI_mask(to_cpumask(f->flush_cpumask),
+	apic->send_IPI_mask(to_cpumask(f->flush_cpumask),
 		      INVALIDATE_TLB_VECTOR_START + sender);
 
 	while (!cpumask_empty(to_cpumask(f->flush_cpumask)))

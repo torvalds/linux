@@ -74,7 +74,7 @@ static inline void _flat_send_IPI_mask(unsigned long mask, int vector)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__send_IPI_dest_field(mask, vector, apic->dest_logical);
+	__default_send_IPI_dest_field(mask, vector, apic->dest_logical);
 	local_irq_restore(flags);
 }
 
@@ -85,14 +85,15 @@ static void flat_send_IPI_mask(const struct cpumask *cpumask, int vector)
 	_flat_send_IPI_mask(mask, vector);
 }
 
-static void flat_send_IPI_mask_allbutself(const struct cpumask *cpumask,
-					  int vector)
+static void
+ flat_send_IPI_mask_allbutself(const struct cpumask *cpumask, int vector)
 {
 	unsigned long mask = cpumask_bits(cpumask)[0];
 	int cpu = smp_processor_id();
 
 	if (cpu < BITS_PER_LONG)
 		clear_bit(cpu, &mask);
+
 	_flat_send_IPI_mask(mask, vector);
 }
 
@@ -114,16 +115,19 @@ static void flat_send_IPI_allbutself(int vector)
 			_flat_send_IPI_mask(mask, vector);
 		}
 	} else if (num_online_cpus() > 1) {
-		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector, apic->dest_logical);
+		__default_send_IPI_shortcut(APIC_DEST_ALLBUT,
+					    vector, apic->dest_logical);
 	}
 }
 
 static void flat_send_IPI_all(int vector)
 {
-	if (vector == NMI_VECTOR)
+	if (vector == NMI_VECTOR) {
 		flat_send_IPI_mask(cpu_online_mask, vector);
-	else
-		__send_IPI_shortcut(APIC_DEST_ALLINC, vector, apic->dest_logical);
+	} else {
+		__default_send_IPI_shortcut(APIC_DEST_ALLINC,
+					    vector, apic->dest_logical);
+	}
 }
 
 static unsigned int flat_get_apic_id(unsigned long x)
@@ -265,18 +269,18 @@ static void physflat_vector_allocation_domain(int cpu, struct cpumask *retmask)
 
 static void physflat_send_IPI_mask(const struct cpumask *cpumask, int vector)
 {
-	send_IPI_mask_sequence(cpumask, vector);
+	default_send_IPI_mask_sequence(cpumask, vector);
 }
 
 static void physflat_send_IPI_mask_allbutself(const struct cpumask *cpumask,
 					      int vector)
 {
-	send_IPI_mask_allbutself(cpumask, vector);
+	default_send_IPI_mask_allbutself(cpumask, vector);
 }
 
 static void physflat_send_IPI_allbutself(int vector)
 {
-	send_IPI_mask_allbutself(cpu_online_mask, vector);
+	default_send_IPI_mask_allbutself(cpu_online_mask, vector);
 }
 
 static void physflat_send_IPI_all(int vector)

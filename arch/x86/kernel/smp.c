@@ -118,12 +118,12 @@ static void native_smp_send_reschedule(int cpu)
 		WARN_ON(1);
 		return;
 	}
-	send_IPI_mask(cpumask_of(cpu), RESCHEDULE_VECTOR);
+	apic->send_IPI_mask(cpumask_of(cpu), RESCHEDULE_VECTOR);
 }
 
 void native_send_call_func_single_ipi(int cpu)
 {
-	send_IPI_mask(cpumask_of(cpu), CALL_FUNCTION_SINGLE_VECTOR);
+	apic->send_IPI_mask(cpumask_of(cpu), CALL_FUNCTION_SINGLE_VECTOR);
 }
 
 void native_send_call_func_ipi(const struct cpumask *mask)
@@ -131,7 +131,7 @@ void native_send_call_func_ipi(const struct cpumask *mask)
 	cpumask_var_t allbutself;
 
 	if (!alloc_cpumask_var(&allbutself, GFP_ATOMIC)) {
-		send_IPI_mask(mask, CALL_FUNCTION_VECTOR);
+		apic->send_IPI_mask(mask, CALL_FUNCTION_VECTOR);
 		return;
 	}
 
@@ -140,9 +140,9 @@ void native_send_call_func_ipi(const struct cpumask *mask)
 
 	if (cpumask_equal(mask, allbutself) &&
 	    cpumask_equal(cpu_online_mask, cpu_callout_mask))
-		send_IPI_allbutself(CALL_FUNCTION_VECTOR);
+		apic->send_IPI_allbutself(CALL_FUNCTION_VECTOR);
 	else
-		send_IPI_mask(mask, CALL_FUNCTION_VECTOR);
+		apic->send_IPI_mask(mask, CALL_FUNCTION_VECTOR);
 
 	free_cpumask_var(allbutself);
 }

@@ -55,8 +55,9 @@ static inline void __xapic_wait_icr_idle(void)
 		cpu_relax();
 }
 
-static inline void __send_IPI_shortcut(unsigned int shortcut, int vector,
-				       unsigned int dest)
+static inline void
+__default_send_IPI_shortcut(unsigned int shortcut,
+			    int vector, unsigned int dest)
 {
 	/*
 	 * Subtle. In the case of the 'never do double writes' workaround
@@ -87,8 +88,8 @@ static inline void __send_IPI_shortcut(unsigned int shortcut, int vector,
  * This is used to send an IPI with no shorthand notation (the destination is
  * specified in bits 56 to 63 of the ICR).
  */
-static inline void __send_IPI_dest_field(unsigned int mask, int vector,
-					 unsigned int dest)
+static inline void
+ __default_send_IPI_dest_field(unsigned int mask, int vector, unsigned int dest)
 {
 	unsigned long cfg;
 
@@ -117,11 +118,11 @@ static inline void __send_IPI_dest_field(unsigned int mask, int vector,
 	native_apic_mem_write(APIC_ICR, cfg);
 }
 
-static inline void send_IPI_mask_sequence(const struct cpumask *mask,
-					  int vector)
+static inline void
+default_send_IPI_mask_sequence(const struct cpumask *mask, int vector)
 {
-	unsigned long flags;
 	unsigned long query_cpu;
+	unsigned long flags;
 
 	/*
 	 * Hack. The clustered APIC addressing mode doesn't allow us to send
@@ -130,27 +131,28 @@ static inline void send_IPI_mask_sequence(const struct cpumask *mask,
 	 */
 	local_irq_save(flags);
 	for_each_cpu(query_cpu, mask) {
-		__send_IPI_dest_field(per_cpu(x86_cpu_to_apicid, query_cpu),
-				      vector, APIC_DEST_PHYSICAL);
+		__default_send_IPI_dest_field(per_cpu(x86_cpu_to_apicid,
+				query_cpu), vector, APIC_DEST_PHYSICAL);
 	}
 	local_irq_restore(flags);
 }
 
-static inline void send_IPI_mask_allbutself(const struct cpumask *mask,
-					    int vector)
+static inline void
+default_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
 {
-	unsigned long flags;
-	unsigned int query_cpu;
 	unsigned int this_cpu = smp_processor_id();
+	unsigned int query_cpu;
+	unsigned long flags;
 
 	/* See Hack comment above */
 
 	local_irq_save(flags);
-	for_each_cpu(query_cpu, mask)
-		if (query_cpu != this_cpu)
-			__send_IPI_dest_field(
-				per_cpu(x86_cpu_to_apicid, query_cpu),
-				vector, APIC_DEST_PHYSICAL);
+	for_each_cpu(query_cpu, mask) {
+		if (query_cpu == this_cpu)
+			continue;
+		__default_send_IPI_dest_field(per_cpu(x86_cpu_to_apicid,
+				 query_cpu), vector, APIC_DEST_PHYSICAL);
+	}
 	local_irq_restore(flags);
 }
 

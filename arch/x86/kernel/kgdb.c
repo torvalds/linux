@@ -347,7 +347,7 @@ void kgdb_post_primary_code(struct pt_regs *regs, int e_vector, int err_code)
  */
 void kgdb_roundup_cpus(unsigned long flags)
 {
-	send_IPI_allbutself(APIC_DM_NMI);
+	apic->send_IPI_allbutself(APIC_DM_NMI);
 }
 #endif
 

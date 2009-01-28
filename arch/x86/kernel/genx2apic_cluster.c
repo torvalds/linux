@@ -36,8 +36,8 @@ static void x2apic_vector_allocation_domain(int cpu, struct cpumask *retmask)
 	cpumask_set_cpu(cpu, retmask);
 }
 
-static void __x2apic_send_IPI_dest(unsigned int apicid, int vector,
-				   unsigned int dest)
+static void
+ __x2apic_send_IPI_dest(unsigned int apicid, int vector, unsigned int dest)
 {
 	unsigned long cfg;
 
@@ -57,45 +57,50 @@ static void __x2apic_send_IPI_dest(unsigned int apicid, int vector,
  */
 static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
 {
-	unsigned long flags;
 	unsigned long query_cpu;
+	unsigned long flags;
 
 	local_irq_save(flags);
-	for_each_cpu(query_cpu, mask)
+	for_each_cpu(query_cpu, mask) {
 		__x2apic_send_IPI_dest(
 			per_cpu(x86_cpu_to_logical_apicid, query_cpu),
 			vector, apic->dest_logical);
+	}
 	local_irq_restore(flags);
 }
 
-static void x2apic_send_IPI_mask_allbutself(const struct cpumask *mask,
-					    int vector)
+static void
+ x2apic_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
 {
-	unsigned long flags;
-	unsigned long query_cpu;
 	unsigned long this_cpu = smp_processor_id();
+	unsigned long query_cpu;
+	unsigned long flags;
 
 	local_irq_save(flags);
-	for_each_cpu(query_cpu, mask)
-		if (query_cpu != this_cpu)
-			__x2apic_send_IPI_dest(
+	for_each_cpu(query_cpu, mask) {
+		if (query_cpu == this_cpu)
+			continue;
+		__x2apic_send_IPI_dest(
 				per_cpu(x86_cpu_to_logical_apicid, query_cpu),
 				vector, apic->dest_logical);
+	}
 	local_irq_restore(flags);
 }
 
 static void x2apic_send_IPI_allbutself(int vector)
 {
-	unsigned long flags;
-	unsigned long query_cpu;
 	unsigned long this_cpu = smp_processor_id();
+	unsigned long query_cpu;
+	unsigned long flags;
 
 	local_irq_save(flags);
-	for_each_online_cpu(query_cpu)
-		if (query_cpu != this_cpu)
-			__x2apic_send_IPI_dest(
+	for_each_online_cpu(query_cpu) {
+		if (query_cpu == this_cpu)
+			continue;
+		__x2apic_send_IPI_dest(
 				per_cpu(x86_cpu_to_logical_apicid, query_cpu),
 				vector, apic->dest_logical);
+	}
 	local_irq_restore(flags);
 }
 
@@ -175,7 +180,6 @@ static void init_x2apic_ldr(void)
 	int cpu = smp_processor_id();
 
 	per_cpu(x86_cpu_to_logical_apicid, cpu) = apic_read(APIC_LDR);
-	return;
 }
 
 struct genapic apic_x2apic_cluster = {

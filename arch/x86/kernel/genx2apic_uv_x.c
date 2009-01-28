@@ -118,12 +118,13 @@ static void uv_send_IPI_one(int cpu, int vector)
 	int pnode;
 
 	apicid = per_cpu(x86_cpu_to_apicid, cpu);
-	lapicid = apicid & 0x3f;		/* ZZZ macro needed */
+	lapicid = apicid & 0x3f; /* ZZZ macro needed */
 	pnode = uv_apicid_to_pnode(apicid);
-	val =
-	    (1UL << UVH_IPI_INT_SEND_SHFT) | (lapicid <<
-					      UVH_IPI_INT_APIC_ID_SHFT) |
-	    (vector << UVH_IPI_INT_VECTOR_SHFT);
+
+	val = (     1UL << UVH_IPI_INT_SEND_SHFT    ) |
+	      ( lapicid << UVH_IPI_INT_APIC_ID_SHFT ) |
+	      (  vector << UVH_IPI_INT_VECTOR_SHFT  );
+
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 }
 
@@ -137,22 +138,24 @@ static void uv_send_IPI_mask(const struct cpumask *mask, int vector)
 
 static void uv_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
 {
-	unsigned int cpu;
 	unsigned int this_cpu = smp_processor_id();
+	unsigned int cpu;
 
-	for_each_cpu(cpu, mask)
+	for_each_cpu(cpu, mask) {
 		if (cpu != this_cpu)
 			uv_send_IPI_one(cpu, vector);
+	}
 }
 
 static void uv_send_IPI_allbutself(int vector)
 {
-	unsigned int cpu;
 	unsigned int this_cpu = smp_processor_id();
+	unsigned int cpu;
 
-	for_each_online_cpu(cpu)
+	for_each_online_cpu(cpu) {
 		if (cpu != this_cpu)
 			uv_send_IPI_one(cpu, vector);
+	}
 }
 
 static void uv_send_IPI_all(int vector)

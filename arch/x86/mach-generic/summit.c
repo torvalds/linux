@@ -77,10 +77,10 @@ struct genapic apic_summit = {
 	.cpu_mask_to_apicid		= summit_cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= summit_cpu_mask_to_apicid_and,
 
-	.send_IPI_mask			= send_IPI_mask,
+	.send_IPI_mask			= summit_send_IPI_mask,
 	.send_IPI_mask_allbutself	= NULL,
-	.send_IPI_allbutself		= send_IPI_allbutself,
-	.send_IPI_all			= send_IPI_all,
+	.send_IPI_allbutself		= summit_send_IPI_allbutself,
+	.send_IPI_all			= summit_send_IPI_all,
 	.send_IPI_self			= NULL,
 
 	.wakeup_cpu			= NULL,

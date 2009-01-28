@@ -514,11 +514,11 @@ static void send_cleanup_vector(struct irq_cfg *cfg)
 		for_each_cpu_and(i, cfg->old_domain, cpu_online_mask)
 			cfg->move_cleanup_count++;
 		for_each_cpu_and(i, cfg->old_domain, cpu_online_mask)
-			send_IPI_mask(cpumask_of(i), IRQ_MOVE_CLEANUP_VECTOR);
+			apic->send_IPI_mask(cpumask_of(i), IRQ_MOVE_CLEANUP_VECTOR);
 	} else {
 		cpumask_and(cleanup_mask, cfg->old_domain, cpu_online_mask);
 		cfg->move_cleanup_count = cpumask_weight(cleanup_mask);
-		send_IPI_mask(cleanup_mask, IRQ_MOVE_CLEANUP_VECTOR);
+		apic->send_IPI_mask(cleanup_mask, IRQ_MOVE_CLEANUP_VECTOR);
 		free_cpumask_var(cleanup_mask);
 	}
 	cfg->move_in_progress = 0;
@@ -800,7 +800,7 @@ static void clear_IO_APIC (void)
 }
 
 #if !defined(CONFIG_SMP) && defined(CONFIG_X86_32)
-void send_IPI_self(int vector)
+void default_send_IPI_self(int vector)
 {
 	unsigned int cfg;
 
@@ -2297,7 +2297,7 @@ static int ioapic_retrigger_irq(unsigned int irq)
 	unsigned long flags;
 
 	spin_lock_irqsave(&vector_lock, flags);
-	send_IPI_mask(cpumask_of(cpumask_first(cfg->domain)), cfg->vector);
+	apic->send_IPI_mask(cpumask_of(cpumask_first(cfg->domain)), cfg->vector);
 	spin_unlock_irqrestore(&vector_lock, flags);
 
 	return 1;
@@ -2305,7 +2305,7 @@ static int ioapic_retrigger_irq(unsigned int irq)
 #else
 static int ioapic_retrigger_irq(unsigned int irq)
 {
-	send_IPI_self(irq_cfg(irq)->vector);
+	apic->send_IPI_self(irq_cfg(irq)->vector);
 
 	return 1;
 }

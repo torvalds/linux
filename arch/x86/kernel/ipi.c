@@ -48,7 +48,7 @@ static inline int __prepare_ICR2(unsigned int mask)
 	return SET_APIC_DEST_FIELD(mask);
 }
 
-void __send_IPI_shortcut(unsigned int shortcut, int vector)
+void __default_send_IPI_shortcut(unsigned int shortcut, int vector)
 {
 	/*
 	 * Subtle. In the case of the 'never do double writes' workaround
@@ -75,16 +75,16 @@ void __send_IPI_shortcut(unsigned int shortcut, int vector)
 	apic_write(APIC_ICR, cfg);
 }
 
-void send_IPI_self(int vector)
+void default_send_IPI_self(int vector)
 {
-	__send_IPI_shortcut(APIC_DEST_SELF, vector);
+	__default_send_IPI_shortcut(APIC_DEST_SELF, vector);
 }
 
 /*
  * This is used to send an IPI with no shorthand notation (the destination is
  * specified in bits 56 to 63 of the ICR).
  */
-static inline void __send_IPI_dest_field(unsigned long mask, int vector)
+static inline void __default_send_IPI_dest_field(unsigned long mask, int vector)
 {
 	unsigned long cfg;
 
@@ -116,18 +116,18 @@ static inline void __send_IPI_dest_field(unsigned long mask, int vector)
 /*
  * This is only used on smaller machines.
  */
-void send_IPI_mask_bitmask(const struct cpumask *cpumask, int vector)
+void default_send_IPI_mask_bitmask(const struct cpumask *cpumask, int vector)
 {
 	unsigned long mask = cpumask_bits(cpumask)[0];
 	unsigned long flags;
 
 	local_irq_save(flags);
 	WARN_ON(mask & ~cpumask_bits(cpu_online_mask)[0]);
-	__send_IPI_dest_field(mask, vector);
+	__default_send_IPI_dest_field(mask, vector);
 	local_irq_restore(flags);
 }
 
-void send_IPI_mask_sequence(const struct cpumask *mask, int vector)
+void default_send_IPI_mask_sequence(const struct cpumask *mask, int vector)
 {
 	unsigned long flags;
 	unsigned int query_cpu;
@@ -140,11 +140,11 @@ void send_IPI_mask_sequence(const struct cpumask *mask, int vector)
 
 	local_irq_save(flags);
 	for_each_cpu(query_cpu, mask)
-		__send_IPI_dest_field(apic->cpu_to_logical_apicid(query_cpu), vector);
+		__default_send_IPI_dest_field(apic->cpu_to_logical_apicid(query_cpu), vector);
 	local_irq_restore(flags);
 }
 
-void send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
+void default_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
 {
 	unsigned long flags;
 	unsigned int query_cpu;
@@ -153,10 +153,12 @@ void send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
 	/* See Hack comment above */
 
 	local_irq_save(flags);
-	for_each_cpu(query_cpu, mask)
-		if (query_cpu != this_cpu)
-			__send_IPI_dest_field(apic->cpu_to_logical_apicid(query_cpu),
-					      vector);
+	for_each_cpu(query_cpu, mask) {
+		if (query_cpu == this_cpu)
+			continue;
+		__default_send_IPI_dest_field(
+			apic->cpu_to_logical_apicid(query_cpu), vector);
+	}
 	local_irq_restore(flags);
 }
 

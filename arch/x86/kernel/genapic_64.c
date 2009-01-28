@@ -65,7 +65,7 @@ void __init default_setup_apic_routing(void)
 
 void apic_send_IPI_self(int vector)
 {
-	__send_IPI_shortcut(APIC_DEST_SELF, vector, APIC_DEST_PHYSICAL);
+	__default_send_IPI_shortcut(APIC_DEST_SELF, vector, APIC_DEST_PHYSICAL);
 }
 
 int __init default_acpi_madt_oem_check(char *oem_id, char *oem_table_id)

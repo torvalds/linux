@@ -55,8 +55,8 @@ static void __x2apic_send_IPI_dest(unsigned int apicid, int vector,
 
 static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
 {
-	unsigned long flags;
 	unsigned long query_cpu;
+	unsigned long flags;
 
 	local_irq_save(flags);
 	for_each_cpu(query_cpu, mask) {
@@ -66,12 +66,12 @@ static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
 	local_irq_restore(flags);
 }
 
-static void x2apic_send_IPI_mask_allbutself(const struct cpumask *mask,
-					    int vector)
+static void
+ x2apic_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
 {
-	unsigned long flags;
-	unsigned long query_cpu;
 	unsigned long this_cpu = smp_processor_id();
+	unsigned long query_cpu;
+	unsigned long flags;
 
 	local_irq_save(flags);
 	for_each_cpu(query_cpu, mask) {
@@ -85,16 +85,17 @@ static void x2apic_send_IPI_mask_allbutself(const struct cpumask *mask,
 
 static void x2apic_send_IPI_allbutself(int vector)
 {
-	unsigned long flags;
-	unsigned long query_cpu;
 	unsigned long this_cpu = smp_processor_id();
+	unsigned long query_cpu;
+	unsigned long flags;
 
 	local_irq_save(flags);
-	for_each_online_cpu(query_cpu)
-		if (query_cpu != this_cpu)
-			__x2apic_send_IPI_dest(
-				per_cpu(x86_cpu_to_apicid, query_cpu),
-				vector, APIC_DEST_PHYSICAL);
+	for_each_online_cpu(query_cpu) {
+		if (query_cpu == this_cpu)
+			continue;
+		__x2apic_send_IPI_dest(per_cpu(x86_cpu_to_apicid, query_cpu),
+				       vector, APIC_DEST_PHYSICAL);
+	}
 	local_irq_restore(flags);
 }
 
@@ -145,18 +146,12 @@ x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 
 static unsigned int x2apic_phys_get_apic_id(unsigned long x)
 {
-	unsigned int id;
-
-	id = x;
-	return id;
+	return x;
 }
 
 static unsigned long set_apic_id(unsigned int id)
 {
-	unsigned long x;
-
-	x = id;
-	return x;
+	return id;
 }
 
 static int x2apic_phys_pkg_id(int initial_apicid, int index_msb)
@@ -171,7 +166,6 @@ static void x2apic_send_IPI_self(int vector)
 
 static void init_x2apic_ldr(void)
 {
-	return;
 }
 
 struct genapic apic_x2apic_phys = {
