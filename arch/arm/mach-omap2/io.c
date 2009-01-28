@@ -27,8 +27,8 @@
 #include <mach/mux.h>
 #include <mach/omapfb.h>
 #include <mach/sram.h>
-
-#include "memory.h"
+#include <mach/sdrc.h>
+#include <mach/gpmc.h>
 
 #include "clock.h"
 

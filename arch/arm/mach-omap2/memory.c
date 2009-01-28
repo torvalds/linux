@@ -29,8 +29,15 @@
 
 #include "prm.h"
 
-#include "memory.h"
+#include <mach/sdrc.h>
 #include "sdrc.h"
+
+/* Memory timing, DLL mode flags */
+#define M_DDR		1
+#define M_LOCK_CTRL	(1 << 2)
+#define M_UNLOCK	0
+#define M_LOCK		1
+
 
 void __iomem *omap2_sdrc_base;
 void __iomem *omap2_sms_base;

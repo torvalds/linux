@@ -33,7 +33,7 @@
 #include <asm/div64.h>
 #include <asm/clkdev.h>
 
-#include "memory.h"
+#include <mach/sdrc.h>
 #include "clock.h"
 #include "prm.h"
 #include "prm-regbits-24xx.h"
