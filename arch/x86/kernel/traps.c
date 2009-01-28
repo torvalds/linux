@@ -54,7 +54,7 @@
 #include <asm/desc.h>
 #include <asm/i387.h>
 
-#include <mach_traps.h>
+#include <asm/mach_traps.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/pgalloc.h>

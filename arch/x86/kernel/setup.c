@@ -81,7 +81,7 @@
 #include <asm/io_apic.h>
 #include <asm/ist.h>
 #include <asm/vmi.h>
-#include <setup_arch.h>
+#include <asm/setup_arch.h>
 #include <asm/bios_ebda.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>

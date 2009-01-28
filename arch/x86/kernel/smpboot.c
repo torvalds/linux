@@ -66,7 +66,7 @@
 #include <linux/mc146818rtc.h>
 
 #include <asm/genapic.h>
-#include <smpboot_hooks.h>
+#include <asm/smpboot_hooks.h>
 
 #ifdef CONFIG_X86_32
 u8 apicid_2_node[MAX_APICID];

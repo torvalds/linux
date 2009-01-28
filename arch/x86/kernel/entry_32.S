@@ -688,7 +688,7 @@ ENDPROC(name)
 #define BUILD_INTERRUPT(name, nr)	BUILD_INTERRUPT3(name, nr, smp_##name)
 
 /* The include is where all of the SMP etc. interrupts come from */
-#include "entry_arch.h"
+#include <asm/entry_arch.h>
 
 ENTRY(coprocessor_error)
 	RING0_INT_FRAME
