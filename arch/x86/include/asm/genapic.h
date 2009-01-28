@@ -23,8 +23,8 @@ struct genapic {
 	int (*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
 	int (*apic_id_registered)(void);
 
-	u32 int_delivery_mode;
-	u32 int_dest_mode;
+	u32 irq_delivery_mode;
+	u32 irq_dest_mode;
 
 	const struct cpumask *(*target_cpus)(void);
 

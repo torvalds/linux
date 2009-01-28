@@ -180,8 +180,8 @@ struct genapic apic_flat =  {
 	.acpi_madt_oem_check		= flat_acpi_madt_oem_check,
 	.apic_id_registered		= flat_apic_id_registered,
 
-	.int_delivery_mode		= dest_LowestPrio,
-	.int_dest_mode			= (APIC_DEST_LOGICAL != 0),
+	.irq_delivery_mode		= dest_LowestPrio,
+	.irq_dest_mode			= (APIC_DEST_LOGICAL != 0),
 
 	.target_cpus			= flat_target_cpus,
 	.ESR_DISABLE			= 0,
@@ -326,8 +326,8 @@ struct genapic apic_physflat =  {
 	.acpi_madt_oem_check		= physflat_acpi_madt_oem_check,
 	.apic_id_registered		= flat_apic_id_registered,
 
-	.int_delivery_mode		= dest_Fixed,
-	.int_dest_mode			= (APIC_DEST_PHYSICAL != 0),
+	.irq_delivery_mode		= dest_Fixed,
+	.irq_dest_mode			= (APIC_DEST_PHYSICAL != 0),
 
 	.target_cpus			= physflat_target_cpus,
 	.ESR_DISABLE			= 0,

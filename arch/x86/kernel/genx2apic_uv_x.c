@@ -243,8 +243,8 @@ struct genapic apic_x2apic_uv_x = {
 	.acpi_madt_oem_check		= uv_acpi_madt_oem_check,
 	.apic_id_registered		= uv_apic_id_registered,
 
-	.int_delivery_mode		= dest_Fixed,
-	.int_dest_mode			= (APIC_DEST_PHYSICAL != 0),
+	.irq_delivery_mode		= dest_Fixed,
+	.irq_dest_mode			= (APIC_DEST_PHYSICAL != 0),
 
 	.target_cpus			= uv_target_cpus,
 	.ESR_DISABLE			= 0,

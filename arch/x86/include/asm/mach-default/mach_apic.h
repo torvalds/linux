@@ -22,8 +22,8 @@ static inline const struct cpumask *target_cpus(void)
 
 #ifdef CONFIG_X86_64
 #include <asm/genapic.h>
-#define INT_DELIVERY_MODE (apic->int_delivery_mode)
-#define INT_DEST_MODE (apic->int_dest_mode)
+#define IRQ_DELIVERY_MODE (apic->irq_delivery_mode)
+#define IRQ_DEST_MODE (apic->irq_dest_mode)
 #define TARGET_CPUS	  (apic->target_cpus())
 #define init_apic_ldr (apic->init_apic_ldr)
 #define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
@@ -35,8 +35,8 @@ static inline const struct cpumask *target_cpus(void)
 #define wakeup_secondary_cpu (apic->wakeup_cpu)
 extern void setup_apic_routing(void);
 #else
-#define INT_DELIVERY_MODE dest_LowestPrio
-#define INT_DEST_MODE 1     /* logical delivery broadcast to all procs */
+#define IRQ_DELIVERY_MODE dest_LowestPrio
+#define IRQ_DEST_MODE 1     /* logical delivery broadcast to all procs */
 #define TARGET_CPUS (target_cpus())
 #define wakeup_secondary_cpu wakeup_secondary_cpu_via_init
 /*

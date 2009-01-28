@@ -44,8 +44,8 @@ struct genapic apic_summit = {
 	.acpi_madt_oem_check		= summit_acpi_madt_oem_check,
 	.apic_id_registered		= summit_apic_id_registered,
 
-	.int_delivery_mode		= INT_DELIVERY_MODE,
-	.int_dest_mode			= INT_DEST_MODE,
+	.irq_delivery_mode		= IRQ_DELIVERY_MODE,
+	.irq_dest_mode			= IRQ_DEST_MODE,
 
 	.target_cpus			= target_cpus,
 	.ESR_DISABLE			= esr_disable,

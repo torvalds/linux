@@ -21,8 +21,8 @@ static inline const cpumask_t *target_cpus(void)
 #undef APIC_DEST_LOGICAL
 #define APIC_DEST_LOGICAL	0
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
-#define INT_DELIVERY_MODE	(dest_Fixed)
-#define INT_DEST_MODE		(0)    /* phys delivery to target proc */
+#define IRQ_DELIVERY_MODE	(dest_Fixed)
+#define IRQ_DEST_MODE		(0)    /* phys delivery to target proc */
 #define NO_BALANCE_IRQ		(0)
 
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)

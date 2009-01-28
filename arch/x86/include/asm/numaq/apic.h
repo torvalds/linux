@@ -15,8 +15,8 @@ static inline const cpumask_t *target_cpus(void)
 #define NO_BALANCE_IRQ (1)
 #define esr_disable (1)
 
-#define INT_DELIVERY_MODE dest_LowestPrio
-#define INT_DEST_MODE 0     /* physical delivery on LOCAL quad */
+#define IRQ_DELIVERY_MODE dest_LowestPrio
+#define IRQ_DEST_MODE 0     /* physical delivery on LOCAL quad */
  
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
 {
