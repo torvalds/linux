@@ -186,7 +186,7 @@ struct genapic apic_x2apic_cluster = {
 	.irq_dest_mode			= (APIC_DEST_LOGICAL != 0),
 
 	.target_cpus			= x2apic_target_cpus,
-	.ESR_DISABLE			= 0,
+	.disable_esr			= 0,
 	.apic_destination_logical	= 0,
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,

@@ -1107,7 +1107,7 @@ static void __cpuinit lapic_setup_esr(void)
 		return;
 	}
 
-	if (apic->ESR_DISABLE) {
+	if (apic->disable_esr) {
 		/*
 		 * Something untraceable is creating bad interrupts on
 		 * secondary quads ... for the moment, just leave the
@@ -1157,7 +1157,7 @@ void __cpuinit setup_local_APIC(void)
 
 #ifdef CONFIG_X86_32
 	/* Pound the ESR really hard over the head with a big hammer - mbligh */
-	if (lapic_is_integrated() && apic->ESR_DISABLE) {
+	if (lapic_is_integrated() && apic->disable_esr) {
 		apic_write(APIC_ESR, 0);
 		apic_write(APIC_ESR, 0);
 		apic_write(APIC_ESR, 0);

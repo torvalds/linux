@@ -69,7 +69,7 @@ struct genapic apic_bigsmp = {
 	.irq_dest_mode			= 0,
 
 	.target_cpus			= bigsmp_target_cpus,
-	.ESR_DISABLE			= 1,
+	.disable_esr			= 1,
 	.apic_destination_logical	= APIC_DEST_LOGICAL,
 	.check_apicid_used		= check_apicid_used,
 	.check_apicid_present		= check_apicid_present,

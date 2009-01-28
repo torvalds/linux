@@ -28,7 +28,7 @@ struct genapic {
 
 	const struct cpumask *(*target_cpus)(void);
 
-	int ESR_DISABLE;
+	int disable_esr;
 
 	int apic_destination_logical;
 	unsigned long (*check_apicid_used)(physid_mask_t bitmap, int apicid);

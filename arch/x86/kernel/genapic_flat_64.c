@@ -184,7 +184,7 @@ struct genapic apic_flat =  {
 	.irq_dest_mode			= (APIC_DEST_LOGICAL != 0),
 
 	.target_cpus			= flat_target_cpus,
-	.ESR_DISABLE			= 0,
+	.disable_esr			= 0,
 	.apic_destination_logical	= 0,
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
@@ -330,7 +330,7 @@ struct genapic apic_physflat =  {
 	.irq_dest_mode			= (APIC_DEST_PHYSICAL != 0),
 
 	.target_cpus			= physflat_target_cpus,
-	.ESR_DISABLE			= 0,
+	.disable_esr			= 0,
 	.apic_destination_logical	= 0,
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,

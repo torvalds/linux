@@ -247,7 +247,7 @@ struct genapic apic_x2apic_uv_x = {
 	.irq_dest_mode			= (APIC_DEST_PHYSICAL != 0),
 
 	.target_cpus			= uv_target_cpus,
-	.ESR_DISABLE			= 0,
+	.disable_esr			= 0,
 	.apic_destination_logical	= 0,
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
