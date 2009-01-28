@@ -28,7 +28,7 @@ static inline int numaq_apic_id_registered(void)
 	return 1;
 }
 
-static inline void init_apic_ldr(void)
+static inline void numaq_init_apic_ldr(void)
 {
 	/* Already done in NUMA-Q firmware */
 }

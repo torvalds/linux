@@ -1179,7 +1179,7 @@ void __cpuinit setup_local_APIC(void)
 	 * an APIC.  See e.g. "AP-388 82489DX User's Manual" (Intel
 	 * document number 292116).  So here it goes...
 	 */
-	init_apic_ldr();
+	apic->init_apic_ldr();
 
 	/*
 	 * Set Task Priority to 'accept all'. We never change this

@@ -46,7 +46,7 @@ static inline unsigned long calculate_ldr(int cpu)
  * an APIC.  See e.g. "AP-388 82489DX User's Manual" (Intel
  * document number 292116).  So here it goes...
  */
-static inline void init_apic_ldr(void)
+static inline void bigsmp_init_apic_ldr(void)
 {
 	unsigned long val;
 	int cpu = smp_processor_id();

@@ -37,7 +37,7 @@ static inline unsigned long summit_check_apicid_present(int bit)
 
 extern u8 cpu_2_logical_apicid[];
 
-static inline void init_apic_ldr(void)
+static inline void summit_init_apic_ldr(void)
 {
 	unsigned long val, id;
 	int count = 0;

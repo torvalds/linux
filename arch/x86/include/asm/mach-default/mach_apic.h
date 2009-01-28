@@ -19,7 +19,6 @@ static inline const struct cpumask *default_target_cpus(void)
 
 #ifdef CONFIG_X86_64
 #include <asm/genapic.h>
-#define init_apic_ldr (apic->init_apic_ldr)
 #define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
 #define cpu_mask_to_apicid_and (apic->cpu_mask_to_apicid_and)
 #define phys_pkg_id	(apic->phys_pkg_id)
@@ -36,7 +35,7 @@ extern void setup_apic_routing(void);
  * an APIC.  See e.g. "AP-388 82489DX User's Manual" (Intel
  * document number 292116).  So here it goes...
  */
-static inline void init_apic_ldr(void)
+static inline void default_init_apic_ldr(void)
 {
 	unsigned long val;
 

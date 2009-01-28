@@ -24,7 +24,7 @@ void __init es7000_update_genapic_to_cluster(void)
 	apic->irq_delivery_mode = INT_DELIVERY_MODE_CLUSTER;
 	apic->irq_dest_mode = INT_DEST_MODE_CLUSTER;
 
-	apic->init_apic_ldr = init_apic_ldr_cluster;
+	apic->init_apic_ldr = es7000_init_apic_ldr_cluster;
 
 	apic->cpu_mask_to_apicid = cpu_mask_to_apicid_cluster;
 }
@@ -117,7 +117,7 @@ struct genapic apic_es7000 = {
 	.check_apicid_present		= es7000_check_apicid_present,
 
 	.vector_allocation_domain	= es7000_vector_allocation_domain,
-	.init_apic_ldr			= init_apic_ldr,
+	.init_apic_ldr			= es7000_init_apic_ldr,
 
 	.ioapic_phys_id_map		= ioapic_phys_id_map,
 	.setup_apic_routing		= setup_apic_routing,

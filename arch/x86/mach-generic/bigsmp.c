@@ -75,7 +75,7 @@ struct genapic apic_bigsmp = {
 	.check_apicid_present		= bigsmp_check_apicid_present,
 
 	.vector_allocation_domain	= bigsmp_vector_allocation_domain,
-	.init_apic_ldr			= init_apic_ldr,
+	.init_apic_ldr			= bigsmp_init_apic_ldr,
 
 	.ioapic_phys_id_map		= ioapic_phys_id_map,
 	.setup_apic_routing		= setup_apic_routing,

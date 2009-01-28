@@ -56,7 +56,7 @@ struct genapic apic_default = {
 	.check_apicid_present		= default_check_apicid_present,
 
 	.vector_allocation_domain	= default_vector_allocation_domain,
-	.init_apic_ldr			= init_apic_ldr,
+	.init_apic_ldr			= default_init_apic_ldr,
 
 	.ioapic_phys_id_map		= ioapic_phys_id_map,
 	.setup_apic_routing		= setup_apic_routing,
