@@ -244,7 +244,8 @@ static void __cpuinit smp_callin(void)
 	 */
 
 	pr_debug("CALLIN, before setup_local_APIC().\n");
-	smp_callin_clear_local_apic();
+	if (apic->smp_callin_clear_local_apic)
+		apic->smp_callin_clear_local_apic();
 	setup_local_APIC();
 	end_local_APIC_setup();
 	map_cpu_to_logical_apicid();

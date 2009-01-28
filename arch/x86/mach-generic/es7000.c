@@ -145,7 +145,9 @@ struct genapic apic_es7000 = {
 
 	.wait_for_init_deassert		= default_wait_for_init_deassert,
 
-	.smp_callin_clear_local_apic	= smp_callin_clear_local_apic,
+	/* Nothing to do for most platforms, since cleared by the INIT cycle: */
+	.smp_callin_clear_local_apic	= NULL,
+
 	.store_NMI_vector		= store_NMI_vector,
 	.restore_NMI_vector		= restore_NMI_vector,
 	.inquire_remote_apic		= inquire_remote_apic,

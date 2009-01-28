@@ -8,11 +8,6 @@ static inline void default_wait_for_init_deassert(atomic_t *deassert)
 	return;
 }
 
-/* Nothing to do for most platforms, since cleared by the INIT cycle */
-static inline void smp_callin_clear_local_apic(void)
-{
-}
-
 static inline void store_NMI_vector(unsigned short *high, unsigned short *low)
 {
 }

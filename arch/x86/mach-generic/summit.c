@@ -89,7 +89,8 @@ struct genapic apic_summit = {
 
 	.wait_for_init_deassert		= default_wait_for_init_deassert,
 
-	.smp_callin_clear_local_apic	= smp_callin_clear_local_apic,
+	.smp_callin_clear_local_apic	= NULL,
+
 	.store_NMI_vector		= store_NMI_vector,
 	.restore_NMI_vector		= restore_NMI_vector,
 	.inquire_remote_apic		= inquire_remote_apic,

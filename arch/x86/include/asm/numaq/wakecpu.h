@@ -8,9 +8,9 @@
 
 /*
  * Because we use NMIs rather than the INIT-STARTUP sequence to
- * bootstrap the CPUs, the APIC may be in a weird state. Kick it.
+ * bootstrap the CPUs, the APIC may be in a weird state. Kick it:
  */
-static inline void smp_callin_clear_local_apic(void)
+static inline void numaq_smp_callin_clear_local_apic(void)
 {
 	clear_local_APIC();
 }
