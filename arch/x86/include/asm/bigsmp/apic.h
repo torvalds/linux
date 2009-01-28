@@ -9,7 +9,7 @@ static inline int bigsmp_apic_id_registered(void)
 	return 1;
 }
 
-static inline const cpumask_t *target_cpus(void)
+static inline const cpumask_t *bigsmp_target_cpus(void)
 {
 #ifdef CONFIG_SMP
 	return &cpu_online_map;

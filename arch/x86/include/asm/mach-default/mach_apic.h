@@ -8,7 +8,7 @@
 
 #define APIC_DFR_VALUE	(APIC_DFR_FLAT)
 
-static inline const struct cpumask *target_cpus(void)
+static inline const struct cpumask *default_target_cpus(void)
 { 
 #ifdef CONFIG_SMP
 	return cpu_online_mask;
@@ -33,7 +33,7 @@ static inline const struct cpumask *target_cpus(void)
 #define wakeup_secondary_cpu (apic->wakeup_cpu)
 extern void setup_apic_routing(void);
 #else
-#define TARGET_CPUS (target_cpus())
+#define TARGET_CPUS (default_target_cpus())
 #define wakeup_secondary_cpu wakeup_secondary_cpu_via_init
 /*
  * Set up the logical destination ID.

@@ -55,7 +55,7 @@ struct genapic apic_numaq = {
 	/* physical delivery on LOCAL quad: */
 	.irq_dest_mode			= 0,
 
-	.target_cpus			= target_cpus,
+	.target_cpus			= numaq_target_cpus,
 	.ESR_DISABLE			= esr_disable,
 	.apic_destination_logical	= APIC_DEST_LOGICAL,
 	.check_apicid_used		= check_apicid_used,

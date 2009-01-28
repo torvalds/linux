@@ -16,7 +16,7 @@ static inline const cpumask_t *target_cpus_cluster(void)
 	return &CPU_MASK_ALL;
 }
 
-static inline const cpumask_t *target_cpus(void)
+static inline const cpumask_t *es7000_target_cpus(void)
 {
 	return &cpumask_of_cpu(smp_processor_id());
 }
@@ -83,7 +83,7 @@ static inline void setup_apic_routing(void)
 	printk("Enabling APIC mode:  %s. Using %d I/O APICs, target cpus %lx\n",
 		(apic_version[apic] == 0x14) ?
 			"Physical Cluster" : "Logical Cluster",
-			nr_ioapics, cpus_addr(*target_cpus())[0]);
+			nr_ioapics, cpus_addr(*es7000_target_cpus())[0]);
 }
 
 static inline int multi_timer_check(int apic, int irq)

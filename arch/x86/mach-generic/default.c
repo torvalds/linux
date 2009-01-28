@@ -35,7 +35,7 @@ struct genapic apic_default = {
 	/* logical delivery broadcast to all CPUs: */
 	.irq_dest_mode			= 1,
 
-	.target_cpus			= target_cpus,
+	.target_cpus			= default_target_cpus,
 	.ESR_DISABLE			= esr_disable,
 	.apic_destination_logical	= APIC_DEST_LOGICAL,
 	.check_apicid_used		= check_apicid_used,

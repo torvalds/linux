@@ -7,7 +7,7 @@
 
 #define APIC_DFR_VALUE	(APIC_DFR_CLUSTER)
 
-static inline const cpumask_t *target_cpus(void)
+static inline const cpumask_t *numaq_target_cpus(void)
 {
 	return &CPU_MASK_ALL;
 }
