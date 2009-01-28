@@ -45,7 +45,7 @@
 #define DPLL_MIN_DIVIDER		1
 
 /* Possible error results from _dpll_test_mult */
-#define DPLL_MULT_UNDERFLOW		(1 << 0)
+#define DPLL_MULT_UNDERFLOW		-1
 
 /*
  * Scale factor to mitigate roundoff errors in DPLL rate rounding.
@@ -826,7 +826,7 @@ static int _dpll_test_mult(int *m, int n, unsigned long *new_rate,
 			   unsigned long target_rate,
 			   unsigned long parent_rate)
 {
-	int flags = 0, carry = 0;
+	int r = 0, carry = 0;
 
 	/* Unscale m and round if necessary */
 	if (*m % DPLL_SCALE_FACTOR >= DPLL_ROUNDING_VAL)
@@ -847,13 +847,13 @@ static int _dpll_test_mult(int *m, int n, unsigned long *new_rate,
 	if (*m < DPLL_MIN_MULTIPLIER) {
 		*m = DPLL_MIN_MULTIPLIER;
 		*new_rate = 0;
-		flags = DPLL_MULT_UNDERFLOW;
+		r = DPLL_MULT_UNDERFLOW;
 	}
 
 	if (*new_rate == 0)
 		*new_rate = _dpll_compute_new_rate(parent_rate, *m, n);
 
-	return flags;
+	return r;
 }
 
 /**
@@ -892,20 +892,26 @@ long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 
 	dd->last_rounded_rate = 0;
 
-	for (n = dd->max_divider; n >= DPLL_MIN_DIVIDER; n--) {
+	for (n = DPLL_MIN_DIVIDER; n <= dd->max_divider; n++) {
 
 		/* Compute the scaled DPLL multiplier, based on the divider */
 		m = scaled_rt_rp * n;
 
 		/*
-		 * Since we're counting n down, a m overflow means we can
-		 * can immediately skip to the next n
+		 * Since we're counting n up, a m overflow means we
+		 * can bail out completely (since as n increases in
+		 * the next iteration, there's no way that m can
+		 * increase beyond the current m)
 		 */
 		if (m > scaled_max_m)
-			continue;
+			break;
 
 		r = _dpll_test_mult(&m, n, &new_rate, target_rate,
 				    clk->parent->rate);
+
+		/* m can't be set low enough for this n - try with a larger n */
+		if (r == DPLL_MULT_UNDERFLOW)
+			continue;
 
 		e = target_rate - new_rate;
 		pr_debug("clock: n = %d: m = %d: rate error is %d "
@@ -918,16 +924,11 @@ long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 			min_e_n = n;
 
 			pr_debug("clock: found new least error %d\n", min_e);
-		}
 
-		/*
-		 * Since we're counting n down, a m underflow means we
-		 * can bail out completely (since as n decreases in
-		 * the next iteration, there's no way that m can
-		 * increase beyond the current m)
-		 */
-		if (r & DPLL_MULT_UNDERFLOW)
-			break;
+			/* We found good settings -- bail out now */
+			if (min_e <= clk->dpll_data->rate_tolerance)
+				break;
+		}
 	}
 
 	if (min_e < 0) {
