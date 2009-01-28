@@ -55,8 +55,7 @@ struct genapic {
 	 * is switched to this. Essentially they are additional
 	 * probe functions:
 	 */
-	int (*mps_oem_check)(struct mpc_table *mpc, char *oem,
-			     char *productid);
+	int (*mps_oem_check)(struct mpc_table *mpc, char *oem, char *productid);
 
 	unsigned int (*get_apic_id)(unsigned long x);
 	unsigned long (*set_apic_id)(unsigned int id);

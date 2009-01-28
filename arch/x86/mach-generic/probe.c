@@ -113,17 +113,21 @@ void __init generic_apic_probe(void)
 int __init mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
 	int i;
+
 	for (i = 0; apic_probe[i]; ++i) {
-		if (apic_probe[i]->mps_oem_check(mpc, oem, productid)) {
-			if (!cmdline_apic) {
-				apic = apic_probe[i];
-				if (x86_quirks->update_genapic)
-					x86_quirks->update_genapic();
-				printk(KERN_INFO "Switched to APIC driver `%s'.\n",
-				       apic->name);
-			}
-			return 1;
+		if (!apic_probe[i]->mps_oem_check)
+			continue;
+		if (!apic_probe[i]->mps_oem_check(mpc, oem, productid))
+			continue;
+
+		if (!cmdline_apic) {
+			apic = apic_probe[i];
+			if (x86_quirks->update_genapic)
+				x86_quirks->update_genapic();
+			printk(KERN_INFO "Switched to APIC driver `%s'.\n",
+			       apic->name);
 		}
+		return 1;
 	}
 	return 0;
 }
