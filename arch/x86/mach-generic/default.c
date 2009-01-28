@@ -41,9 +41,6 @@ struct genapic apic_default = {
 	.check_apicid_used		= default_check_apicid_used,
 	.check_apicid_present		= default_check_apicid_present,
 
-	.no_balance_irq			= NO_BALANCE_IRQ,
-	.no_ioapic_check		= 0,
-
 	.vector_allocation_domain	= vector_allocation_domain,
 	.init_apic_ldr			= init_apic_ldr,
 

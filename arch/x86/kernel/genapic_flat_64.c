@@ -189,9 +189,6 @@ struct genapic apic_flat =  {
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
 
-	.no_balance_irq			= 0,
-	.no_ioapic_check		= 0,
-
 	.vector_allocation_domain	= flat_vector_allocation_domain,
 	.init_apic_ldr			= flat_init_apic_ldr,
 
@@ -334,9 +331,6 @@ struct genapic apic_physflat =  {
 	.dest_logical			= 0,
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
-
-	.no_balance_irq			= 0,
-	.no_ioapic_check		= 0,
 
 	.vector_allocation_domain	= physflat_vector_allocation_domain,
 	/* not needed, but shouldn't hurt: */

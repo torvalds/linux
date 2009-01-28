@@ -191,9 +191,6 @@ struct genapic apic_x2apic_cluster = {
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
 
-	.no_balance_irq			= 0,
-	.no_ioapic_check		= 0,
-
 	.vector_allocation_domain	= x2apic_vector_allocation_domain,
 	.init_apic_ldr			= init_x2apic_ldr,
 

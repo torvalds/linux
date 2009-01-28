@@ -252,9 +252,6 @@ struct genapic apic_x2apic_uv_x = {
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
 
-	.no_balance_irq			= 0,
-	.no_ioapic_check		= 0,
-
 	.vector_allocation_domain	= uv_vector_allocation_domain,
 	.init_apic_ldr			= uv_init_apic_ldr,
 

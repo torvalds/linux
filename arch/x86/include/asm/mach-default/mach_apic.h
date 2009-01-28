@@ -17,8 +17,6 @@ static inline const struct cpumask *default_target_cpus(void)
 #endif
 } 
 
-#define NO_BALANCE_IRQ (0)
-
 #ifdef CONFIG_X86_64
 #include <asm/genapic.h>
 #define init_apic_ldr (apic->init_apic_ldr)

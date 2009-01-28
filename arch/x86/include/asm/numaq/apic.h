@@ -12,8 +12,6 @@ static inline const cpumask_t *numaq_target_cpus(void)
 	return &CPU_MASK_ALL;
 }
 
-#define NO_BALANCE_IRQ (1)
-
 static inline unsigned long
 numaq_check_apicid_used(physid_mask_t bitmap, int apicid)
 {

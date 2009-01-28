@@ -4,8 +4,6 @@
 #include <asm/smp.h>
 #include <linux/gfp.h>
 
-#define NO_BALANCE_IRQ (0)
-
 /* In clustered mode, the high nibble of APIC ID is a cluster number.
  * The low nibble is a 4-bit bitmap. */
 #define XAPIC_DEST_CPUS_SHIFT	4

@@ -23,10 +23,8 @@ static inline const cpumask_t *es7000_target_cpus(void)
 #define APIC_DFR_VALUE_CLUSTER		(APIC_DFR_CLUSTER)
 #define INT_DELIVERY_MODE_CLUSTER	(dest_LowestPrio)
 #define INT_DEST_MODE_CLUSTER		(1) /* logical delivery broadcast to all procs */
-#define NO_BALANCE_IRQ_CLUSTER		(1)
 
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
-#define NO_BALANCE_IRQ		(0)
 
 static inline unsigned long
 es7000_check_apicid_used(physid_mask_t bitmap, int apicid)

@@ -34,9 +34,6 @@ struct genapic {
 	unsigned long (*check_apicid_used)(physid_mask_t bitmap, int apicid);
 	unsigned long (*check_apicid_present)(int apicid);
 
-	int no_balance_irq;
-	int no_ioapic_check;
-
 	void (*vector_allocation_domain)(int cpu, struct cpumask *retmask);
 	void (*init_apic_ldr)(void);
 

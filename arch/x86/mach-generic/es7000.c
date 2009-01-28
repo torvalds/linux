@@ -23,7 +23,6 @@ void __init es7000_update_genapic_to_cluster(void)
 	apic->target_cpus = target_cpus_cluster;
 	apic->irq_delivery_mode = INT_DELIVERY_MODE_CLUSTER;
 	apic->irq_dest_mode = INT_DEST_MODE_CLUSTER;
-	apic->no_balance_irq = NO_BALANCE_IRQ_CLUSTER;
 
 	apic->init_apic_ldr = init_apic_ldr_cluster;
 
@@ -116,9 +115,6 @@ struct genapic apic_es7000 = {
 	.dest_logical			= 0,
 	.check_apicid_used		= es7000_check_apicid_used,
 	.check_apicid_present		= es7000_check_apicid_present,
-
-	.no_balance_irq			= NO_BALANCE_IRQ,
-	.no_ioapic_check		= 0,
 
 	.vector_allocation_domain	= vector_allocation_domain,
 	.init_apic_ldr			= init_apic_ldr,
