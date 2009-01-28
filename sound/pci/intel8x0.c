@@ -2317,7 +2317,7 @@ static int snd_intel8x0_ich_chip_cold_reset(struct intel8x0 *chip)
 #define snd_intel8x0_ich_chip_can_cold_reset(chip) \
 	(!snd_pci_quirk_lookup(chip->pci, ich_chip_reset_mode))
 #else
-#define snd_intel8x0_ich_chip_cold_reset(x) do { } while (0)
+#define snd_intel8x0_ich_chip_cold_reset(chip)	0
 #define snd_intel8x0_ich_chip_can_cold_reset(chip) (0)
 #endif
 
