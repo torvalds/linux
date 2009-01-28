@@ -4,9 +4,9 @@
 #define xapic_phys_to_log_apicid(cpu) (per_cpu(x86_bios_cpu_apicid, cpu))
 #define esr_disable (1)
 
-static inline int apic_id_registered(void)
+static inline int bigsmp_apic_id_registered(void)
 {
-	return (1);
+	return 1;
 }
 
 static inline const cpumask_t *target_cpus(void)

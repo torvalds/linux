@@ -1171,7 +1171,7 @@ void __cpuinit setup_local_APIC(void)
 	 * Double-check whether this APIC is really registered.
 	 * This is meaningless in clustered apic mode, so we skip it.
 	 */
-	if (!apic_id_registered())
+	if (!apic->apic_id_registered())
 		BUG();
 
 	/*

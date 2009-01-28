@@ -74,7 +74,7 @@ static inline int multi_timer_check(int apic, int irq)
 	return 0;
 }
 
-static inline int apic_id_registered(void)
+static inline int summit_apic_id_registered(void)
 {
 	return 1;
 }

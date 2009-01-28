@@ -42,7 +42,7 @@ struct genapic apic_summit = {
 	.name				= "summit",
 	.probe				= probe_summit,
 	.acpi_madt_oem_check		= summit_acpi_madt_oem_check,
-	.apic_id_registered		= apic_id_registered,
+	.apic_id_registered		= summit_apic_id_registered,
 
 	.int_delivery_mode		= INT_DELIVERY_MODE,
 	.int_dest_mode			= INT_DEST_MODE,

@@ -28,7 +28,7 @@ static inline unsigned long check_apicid_present(int bit)
 }
 #define apicid_cluster(apicid) (apicid & 0xF0)
 
-static inline int apic_id_registered(void)
+static inline int numaq_apic_id_registered(void)
 {
 	return 1;
 }

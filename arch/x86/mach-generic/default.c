@@ -29,7 +29,7 @@ struct genapic apic_default = {
 	.name				= "default",
 	.probe				= probe_default,
 	.acpi_madt_oem_check		= NULL,
-	.apic_id_registered		= apic_id_registered,
+	.apic_id_registered		= default_apic_id_registered,
 
 	.int_delivery_mode		= INT_DELIVERY_MODE,
 	.int_dest_mode			= INT_DEST_MODE,

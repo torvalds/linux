@@ -25,7 +25,6 @@ static inline const struct cpumask *target_cpus(void)
 #define INT_DELIVERY_MODE (apic->int_delivery_mode)
 #define INT_DEST_MODE (apic->int_dest_mode)
 #define TARGET_CPUS	  (apic->target_cpus())
-#define apic_id_registered (apic->apic_id_registered)
 #define init_apic_ldr (apic->init_apic_ldr)
 #define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
 #define cpu_mask_to_apicid_and (apic->cpu_mask_to_apicid_and)
@@ -57,7 +56,7 @@ static inline void init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-static inline int apic_id_registered(void)
+static inline int default_apic_id_registered(void)
 {
 	return physid_isset(read_apic_id(), phys_cpu_present_map);
 }
