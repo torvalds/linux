@@ -65,6 +65,8 @@ static inline int dmi_walk(void (*decode)(const struct dmi_header *))
 	{ return -1; }
 static inline bool dmi_match(enum dmi_field f, const char *str)
 	{ return false; }
+static inline const struct dmi_system_id *
+	dmi_first_match(const struct dmi_system_id *list) { return NULL; }
 
 #endif
 
