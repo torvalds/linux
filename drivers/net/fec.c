@@ -1111,7 +1111,7 @@ static phy_info_t const phy_info_am79c874 = {
 /* register definitions for the 8721 */
 
 #define MII_KS8721BL_RXERCR	21
-#define MII_KS8721BL_ICSR	22
+#define MII_KS8721BL_ICSR	27
 #define	MII_KS8721BL_PHYCR	31
 
 static phy_cmd_t const phy_cmd_ks8721bl_config[] = {
