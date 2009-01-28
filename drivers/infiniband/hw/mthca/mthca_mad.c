@@ -104,7 +104,8 @@ static void update_sm_ah(struct mthca_dev *dev,
  */
 static void smp_snoop(struct ib_device *ibdev,
 		      u8 port_num,
-		      struct ib_mad *mad)
+		      struct ib_mad *mad,
+		      u16 prev_lid)
 {
 	struct ib_event event;
 
@@ -114,6 +115,7 @@ static void smp_snoop(struct ib_device *ibdev,
 		if (mad->mad_hdr.attr_id == IB_SMP_ATTR_PORT_INFO) {
 			struct ib_port_info *pinfo =
 				(struct ib_port_info *) ((struct ib_smp *) mad)->data;
+			u16 lid = be16_to_cpu(pinfo->lid);
 
 			mthca_update_rate(to_mdev(ibdev), port_num);
 			update_sm_ah(to_mdev(ibdev), port_num,
@@ -123,12 +125,15 @@ static void smp_snoop(struct ib_device *ibdev,
 			event.device           = ibdev;
 			event.element.port_num = port_num;
 
-			if (pinfo->clientrereg_resv_subnetto & 0x80)
+			if (pinfo->clientrereg_resv_subnetto & 0x80) {
 				event.event    = IB_EVENT_CLIENT_REREGISTER;
-			else
-				event.event    = IB_EVENT_LID_CHANGE;
+				ib_dispatch_event(&event);
+			}
 
-			ib_dispatch_event(&event);
+			if (prev_lid != lid) {
+				event.event    = IB_EVENT_LID_CHANGE;
+				ib_dispatch_event(&event);
+			}
 		}
 
 		if (mad->mad_hdr.attr_id == IB_SMP_ATTR_PKEY_TABLE) {
@@ -196,6 +201,8 @@ int mthca_process_mad(struct ib_device *ibdev,
 	int err;
 	u8 status;
 	u16 slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
+	u16 prev_lid = 0;
+	struct ib_port_attr pattr;
 
 	/* Forward locally generated traps to the SM */
 	if (in_mad->mad_hdr.method == IB_MGMT_METHOD_TRAP &&
@@ -233,6 +240,12 @@ int mthca_process_mad(struct ib_device *ibdev,
 			return IB_MAD_RESULT_SUCCESS;
 	} else
 		return IB_MAD_RESULT_SUCCESS;
+	if ((in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED ||
+	     in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) &&
+	    in_mad->mad_hdr.method == IB_MGMT_METHOD_SET &&
+	    in_mad->mad_hdr.attr_id == IB_SMP_ATTR_PORT_INFO &&
+	    !ib_query_port(ibdev, port_num, &pattr))
+		prev_lid = pattr.lid;
 
 	err = mthca_MAD_IFC(to_mdev(ibdev),
 			    mad_flags & IB_MAD_IGNORE_MKEY,
@@ -252,7 +265,7 @@ int mthca_process_mad(struct ib_device *ibdev,
 	}
 
 	if (!out_mad->mad_hdr.status) {
-		smp_snoop(ibdev, port_num, in_mad);
+		smp_snoop(ibdev, port_num, in_mad, prev_lid);
 		node_desc_override(ibdev, out_mad);
 	}
 
