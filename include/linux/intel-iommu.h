@@ -330,13 +330,4 @@ extern int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 
 extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
-extern void *intel_alloc_coherent(struct device *, size_t, dma_addr_t *, gfp_t);
-extern void intel_free_coherent(struct device *, size_t, void *, dma_addr_t);
-extern dma_addr_t intel_map_single(struct device *, phys_addr_t, size_t, int);
-extern void intel_unmap_single(struct device *, dma_addr_t, size_t, int);
-extern int intel_map_sg(struct device *, struct scatterlist *, int,
-			enum dma_data_direction, struct dma_attrs *);
-extern void intel_unmap_sg(struct device *, struct scatterlist *, int,
-			   enum dma_data_direction, struct dma_attrs *);
-
 #endif

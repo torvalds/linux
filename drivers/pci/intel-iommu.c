@@ -2283,13 +2283,6 @@ static dma_addr_t intel_map_page(struct device *dev, struct page *page,
 				  dir, to_pci_dev(dev)->dma_mask);
 }
 
-dma_addr_t intel_map_single(struct device *hwdev, phys_addr_t paddr,
-			    size_t size, int dir)
-{
-	return __intel_map_single(hwdev, paddr, size, dir,
-				  to_pci_dev(hwdev)->dma_mask);
-}
-
 static void flush_unmaps(void)
 {
 	int i, j;
@@ -2397,14 +2390,14 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 	}
 }
 
-void intel_unmap_single(struct device *dev, dma_addr_t dev_addr, size_t size,
-			int dir)
+static void intel_unmap_single(struct device *dev, dma_addr_t dev_addr, size_t size,
+			       int dir)
 {
 	intel_unmap_page(dev, dev_addr, size, dir, NULL);
 }
 
-void *intel_alloc_coherent(struct device *hwdev, size_t size,
-			   dma_addr_t *dma_handle, gfp_t flags)
+static void *intel_alloc_coherent(struct device *hwdev, size_t size,
+				  dma_addr_t *dma_handle, gfp_t flags)
 {
 	void *vaddr;
 	int order;
@@ -2427,8 +2420,8 @@ void *intel_alloc_coherent(struct device *hwdev, size_t size,
 	return NULL;
 }
 
-void intel_free_coherent(struct device *hwdev, size_t size, void *vaddr,
-			 dma_addr_t dma_handle)
+static void intel_free_coherent(struct device *hwdev, size_t size, void *vaddr,
+				dma_addr_t dma_handle)
 {
 	int order;
 
@@ -2441,9 +2434,9 @@ void intel_free_coherent(struct device *hwdev, size_t size, void *vaddr,
 
 #define SG_ENT_VIRT_ADDRESS(sg)	(sg_virt((sg)))
 
-void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
-		    int nelems, enum dma_data_direction dir,
-		    struct dma_attrs *attrs)
+static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
+			   int nelems, enum dma_data_direction dir,
+			   struct dma_attrs *attrs)
 {
 	int i;
 	struct pci_dev *pdev = to_pci_dev(hwdev);
@@ -2500,8 +2493,8 @@ static int intel_nontranslate_map_sg(struct device *hddev,
 	return nelems;
 }
 
-int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
-		 enum dma_data_direction dir, struct dma_attrs *attrs)
+static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
+			enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	void *addr;
 	int i;
