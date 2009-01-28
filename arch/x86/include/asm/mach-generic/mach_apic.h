@@ -5,8 +5,6 @@
 
 #define esr_disable (apic->ESR_DISABLE)
 #define NO_BALANCE_IRQ (apic->no_balance_irq)
-#define IRQ_DELIVERY_MODE (apic->irq_delivery_mode)
-#define IRQ_DEST_MODE (apic->irq_dest_mode)
 #undef APIC_DEST_LOGICAL
 #define APIC_DEST_LOGICAL (apic->apic_destination_logical)
 #define TARGET_CPUS	  (apic->target_cpus())

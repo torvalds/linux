@@ -1514,9 +1514,9 @@ static int setup_ioapic_entry(int apic_id, int irq,
 		memset(&irte, 0, sizeof(irte));
 
 		irte.present = 1;
-		irte.dst_mode = IRQ_DEST_MODE;
+		irte.dst_mode = apic->irq_dest_mode;
 		irte.trigger_mode = trigger;
-		irte.dlvry_mode = IRQ_DELIVERY_MODE;
+		irte.dlvry_mode = apic->irq_delivery_mode;
 		irte.vector = vector;
 		irte.dest_id = IRTE_DEST(destination);
 
@@ -1529,8 +1529,8 @@ static int setup_ioapic_entry(int apic_id, int irq,
 	} else
 #endif
 	{
-		entry->delivery_mode = IRQ_DELIVERY_MODE;
-		entry->dest_mode = IRQ_DEST_MODE;
+		entry->delivery_mode = apic->irq_delivery_mode;
+		entry->dest_mode = apic->irq_dest_mode;
 		entry->dest = destination;
 	}
 
@@ -1659,10 +1659,10 @@ static void __init setup_timer_IRQ0_pin(unsigned int apic_id, unsigned int pin,
 	 * We use logical delivery to get the timer IRQ
 	 * to the first CPU.
 	 */
-	entry.dest_mode = IRQ_DEST_MODE;
+	entry.dest_mode = apic->irq_dest_mode;
 	entry.mask = 1;					/* mask IRQ now */
 	entry.dest = cpu_mask_to_apicid(TARGET_CPUS);
-	entry.delivery_mode = IRQ_DELIVERY_MODE;
+	entry.delivery_mode = apic->irq_delivery_mode;
 	entry.polarity = 0;
 	entry.trigger = 0;
 	entry.vector = vector;
@@ -3279,9 +3279,9 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 		memset (&irte, 0, sizeof(irte));
 
 		irte.present = 1;
-		irte.dst_mode = IRQ_DEST_MODE;
+		irte.dst_mode = apic->irq_dest_mode;
 		irte.trigger_mode = 0; /* edge */
-		irte.dlvry_mode = IRQ_DELIVERY_MODE;
+		irte.dlvry_mode = apic->irq_delivery_mode;
 		irte.vector = cfg->vector;
 		irte.dest_id = IRTE_DEST(dest);
 
@@ -3299,10 +3299,10 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 		msg->address_hi = MSI_ADDR_BASE_HI;
 		msg->address_lo =
 			MSI_ADDR_BASE_LO |
-			((IRQ_DEST_MODE == 0) ?
+			((apic->irq_dest_mode == 0) ?
 				MSI_ADDR_DEST_MODE_PHYSICAL:
 				MSI_ADDR_DEST_MODE_LOGICAL) |
-			((IRQ_DELIVERY_MODE != dest_LowestPrio) ?
+			((apic->irq_delivery_mode != dest_LowestPrio) ?
 				MSI_ADDR_REDIRECTION_CPU:
 				MSI_ADDR_REDIRECTION_LOWPRI) |
 			MSI_ADDR_DEST_ID(dest);
@@ -3310,7 +3310,7 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 		msg->data =
 			MSI_DATA_TRIGGER_EDGE |
 			MSI_DATA_LEVEL_ASSERT |
-			((IRQ_DELIVERY_MODE != dest_LowestPrio) ?
+			((apic->irq_delivery_mode != dest_LowestPrio) ?
 				MSI_DATA_DELIVERY_FIXED:
 				MSI_DATA_DELIVERY_LOWPRI) |
 			MSI_DATA_VECTOR(cfg->vector);
@@ -3711,11 +3711,11 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 			HT_IRQ_LOW_BASE |
 			HT_IRQ_LOW_DEST_ID(dest) |
 			HT_IRQ_LOW_VECTOR(cfg->vector) |
-			((IRQ_DEST_MODE == 0) ?
+			((apic->irq_dest_mode == 0) ?
 				HT_IRQ_LOW_DM_PHYSICAL :
 				HT_IRQ_LOW_DM_LOGICAL) |
 			HT_IRQ_LOW_RQEOI_EDGE |
-			((IRQ_DELIVERY_MODE != dest_LowestPrio) ?
+			((apic->irq_delivery_mode != dest_LowestPrio) ?
 				HT_IRQ_LOW_MT_FIXED :
 				HT_IRQ_LOW_MT_ARBITRATED) |
 			HT_IRQ_LOW_IRQ_MASKED;
@@ -3763,8 +3763,8 @@ int arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
 	BUG_ON(sizeof(struct uv_IO_APIC_route_entry) != sizeof(unsigned long));
 
 	entry->vector = cfg->vector;
-	entry->delivery_mode = IRQ_DELIVERY_MODE;
-	entry->dest_mode = IRQ_DEST_MODE;
+	entry->delivery_mode = apic->irq_delivery_mode;
+	entry->dest_mode = apic->irq_dest_mode;
 	entry->polarity = 0;
 	entry->trigger = 0;
 	entry->mask = 0;

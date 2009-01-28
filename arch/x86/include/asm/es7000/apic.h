@@ -27,8 +27,8 @@ static inline const cpumask_t *target_cpus(void)
 #define NO_BALANCE_IRQ_CLUSTER		(1)
 
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
-#define IRQ_DELIVERY_MODE	(dest_Fixed)
-#define IRQ_DEST_MODE		(0)    /* phys delivery to target procs */
+#define ES7000_IRQ_DELIVERY_MODE (dest_Fixed)
+#define ES7000_IRQ_DEST_MODE	(0)    /* phys delivery to target procs */
 #define NO_BALANCE_IRQ		(0)
 #undef  APIC_DEST_LOGICAL
 #define APIC_DEST_LOGICAL	0x0

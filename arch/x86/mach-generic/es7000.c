@@ -107,8 +107,8 @@ struct genapic apic_es7000 = {
 	.acpi_madt_oem_check		= es7000_acpi_madt_oem_check,
 	.apic_id_registered		= es7000_apic_id_registered,
 
-	.irq_delivery_mode		= IRQ_DELIVERY_MODE,
-	.irq_dest_mode			= IRQ_DEST_MODE,
+	.irq_delivery_mode		= ES7000_IRQ_DELIVERY_MODE,
+	.irq_dest_mode			= ES7000_IRQ_DEST_MODE,
 
 	.target_cpus			= target_cpus,
 	.ESR_DISABLE			= esr_disable,

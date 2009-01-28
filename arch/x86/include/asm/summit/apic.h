@@ -24,8 +24,8 @@ static inline const cpumask_t *target_cpus(void)
 	return &cpumask_of_cpu(0);
 }
 
-#define IRQ_DELIVERY_MODE (dest_LowestPrio)
-#define IRQ_DEST_MODE 1     /* logical delivery broadcast to all procs */
+#define SUMMIT_IRQ_DELIVERY_MODE (dest_LowestPrio)
+#define SUMMIT_IRQ_DEST_MODE 1     /* logical delivery broadcast to all procs */
 
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
 {
