@@ -231,7 +231,7 @@ unsigned int do_IRQ(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-#include <mach_apic.h>
+#include <asm/genapic.h>
 
 /* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
 void fixup_irqs(void)

@@ -34,7 +34,7 @@
 
 #include <mach_ipi.h>
 
-#include "mach_apic.h"
+#include <asm/genapic.h>
 
 #include <linux/kernel_stat.h>
 

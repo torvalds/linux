@@ -49,7 +49,6 @@
 #include <asm/i8259.h>
 #include <asm/smp.h>
 
-#include <mach_apic.h>
 #include <mach_ipi.h>
 
 /*
@@ -1910,10 +1909,29 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	set_cpu_present(cpu, true);
 }
 
-#ifdef CONFIG_X86_64
 int hard_smp_processor_id(void)
 {
 	return read_apic_id();
+}
+
+void default_init_apic_ldr(void)
+{
+	unsigned long val;
+
+	apic_write(APIC_DFR, APIC_DFR_VALUE);
+	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
+	val |= SET_APIC_LOGICAL_ID(1UL << smp_processor_id());
+	apic_write(APIC_LDR, val);
+}
+
+#ifdef CONFIG_X86_32
+int default_apicid_to_node(int logical_apicid)
+{
+#ifdef CONFIG_SMP
+	return apicid_2_node[hard_smp_processor_id()];
+#else
+	return 0;
+#endif
 }
 #endif
 

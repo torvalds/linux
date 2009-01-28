@@ -7,7 +7,7 @@
 #include <asm/pat.h>
 #include <asm/processor.h>
 
-#include <mach_apic.h>
+#include <asm/genapic.h>
 
 struct cpuid_bit {
 	u16 feature;

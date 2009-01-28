@@ -19,7 +19,7 @@
 #include <asm/proto.h>
 
 #ifdef CONFIG_X86_32
-#include <mach_apic.h>
+#include <asm/genapic.h>
 #include <mach_ipi.h>
 
 /*

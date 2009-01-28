@@ -26,7 +26,7 @@
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
-#include <mach_apic.h>
+#include <asm/genapic.h>
 #include <asm/genapic.h>
 #include <asm/uv/uv.h>
 #endif

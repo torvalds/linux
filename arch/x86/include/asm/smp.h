@@ -173,8 +173,6 @@ extern int safe_smp_processor_id(void);
 
 #endif
 
-#include <asm/genapic.h>
-
 #ifdef CONFIG_X86_LOCAL_APIC
 
 #ifndef CONFIG_X86_64
@@ -184,26 +182,9 @@ static inline int logical_smp_processor_id(void)
 	return GET_APIC_LOGICAL_ID(*(u32 *)(APIC_BASE + APIC_LDR));
 }
 
-static inline unsigned int read_apic_id(void)
-{
-	unsigned int reg;
-
-	reg = *(u32 *)(APIC_BASE + APIC_ID);
-
-	return apic->get_apic_id(reg);
-}
 #endif
 
-
-# if defined(APIC_DEFINITION) || defined(CONFIG_X86_64)
 extern int hard_smp_processor_id(void);
-# else
-static inline int hard_smp_processor_id(void)
-{
-	/* we don't want to mark this access volatile - bad code generation */
-	return read_apic_id();
-}
-# endif /* APIC_DEFINITION */
 
 #else /* CONFIG_X86_LOCAL_APIC */
 

@@ -27,7 +27,7 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 #include <mach_ipi.h>
-#include <mach_apic.h>
+#include <asm/genapic.h>
 /*
  *	Some notes on x86 processor bugs affecting SMP operation:
  *

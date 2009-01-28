@@ -42,10 +42,6 @@
 #include <asm/mpspec.h>
 #include <asm/smp.h>
 
-#ifdef CONFIG_X86_LOCAL_APIC
-# include <mach_apic.h>
-#endif
-
 static int __initdata acpi_force = 0;
 u32 acpi_rsdt_forced;
 #ifdef	CONFIG_ACPI
@@ -56,15 +52,7 @@ int acpi_disabled = 1;
 EXPORT_SYMBOL(acpi_disabled);
 
 #ifdef	CONFIG_X86_64
-
-#include <asm/proto.h>
-
-#else				/* X86 */
-
-#ifdef	CONFIG_X86_LOCAL_APIC
-#include <mach_apic.h>
-#endif				/* CONFIG_X86_LOCAL_APIC */
-
+# include <asm/proto.h>
 #endif				/* X86 */
 
 #define BAD_MADT_ENTRY(entry, end) (					    \

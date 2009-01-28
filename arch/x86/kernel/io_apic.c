@@ -63,7 +63,7 @@
 #include <asm/uv/uv_irq.h>
 
 #include <mach_ipi.h>
-#include <mach_apic.h>
+#include <asm/genapic.h>
 
 #define __apicdebuginit(type) static type __init
 

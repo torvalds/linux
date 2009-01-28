@@ -20,7 +20,7 @@
 #include <asm/tsc.h>
 #include <asm/irq_vectors.h>
 
-#include <mach_apic.h>
+#include <asm/genapic.h>
 
 static struct bau_control	**uv_bau_table_bases __read_mostly;
 static int			uv_bau_retry_limit __read_mostly;

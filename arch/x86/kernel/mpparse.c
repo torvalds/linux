@@ -29,8 +29,7 @@
 #include <asm/setup.h>
 #include <asm/smp.h>
 
-#include <mach_apic.h>
-
+#include <asm/genapic.h>
 /*
  * Checksum an MP configuration block.
  */

@@ -215,7 +215,7 @@ static inline void disable_local_APIC(void) { }
 #define	SET_APIC_ID(x)		(apic->set_apic_id(x))
 #else
 
-static inline unsigned default_get_apic_id(unsigned long x) 
+static inline unsigned default_get_apic_id(unsigned long x)
 {
 	unsigned int ver = GET_APIC_VERSION(apic_read(APIC_LVR));
 
