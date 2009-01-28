@@ -640,6 +640,12 @@ static const struct clksel omap_96m_alwon_fck_clksel[] = {
 	{ .parent = NULL }
 };
 
+/*
+ * DPLL4 generates DPLL4_M2X2_CLK which is then routed into the PRM as
+ * PRM_96M_ALWON_(F)CLK.  Two clocks then emerge from the PRM:
+ * 96M_ALWON_FCLK (called "omap_96m_alwon_fck" below) and
+ * CM_96K_(F)CLK.
+ */
 static struct clk omap_96m_alwon_fck = {
 	.name		= "omap_96m_alwon_fck",
 	.ops		= &clkops_null,
@@ -652,28 +658,38 @@ static struct clk omap_96m_alwon_fck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
-static struct clk omap_96m_fck = {
-	.name		= "omap_96m_fck",
+static struct clk cm_96m_fck = {
+	.name		= "cm_96m_fck",
 	.ops		= &clkops_null,
 	.parent		= &omap_96m_alwon_fck,
 	.flags		= RATE_PROPAGATES,
 	.recalc		= &followparent_recalc,
 };
 
-static const struct clksel cm_96m_fck_clksel[] = {
-	{ .parent = &sys_ck,	    .rates = dpll_bypass_rates },
-	{ .parent = &dpll4_m2x2_ck, .rates = dpll_locked_rates },
+static const struct clksel_rate omap_96m_dpll_rates[] = {
+	{ .div = 1, .val = 0, .flags = RATE_IN_343X | DEFAULT_RATE },
+	{ .div = 0 }
+};
+
+static const struct clksel_rate omap_96m_sys_rates[] = {
+	{ .div = 1, .val = 1, .flags = RATE_IN_343X | DEFAULT_RATE },
+	{ .div = 0 }
+};
+
+static const struct clksel omap_96m_fck_clksel[] = {
+	{ .parent = &cm_96m_fck, .rates = omap_96m_dpll_rates },
+	{ .parent = &sys_ck,	 .rates = omap_96m_sys_rates },
 	{ .parent = NULL }
 };
 
-static struct clk cm_96m_fck = {
-	.name		= "cm_96m_fck",
+static struct clk omap_96m_fck = {
+	.name		= "omap_96m_fck",
 	.ops		= &clkops_null,
-	.parent		= &dpll4_m2x2_ck,
+	.parent		= &sys_ck,
 	.init		= &omap2_init_clksel_parent,
-	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST),
-	.clksel_mask	= OMAP3430_ST_PERIPH_CLK_MASK,
-	.clksel		= cm_96m_fck_clksel,
+	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
+	.clksel_mask	= OMAP3430_SOURCE_96M_MASK,
+	.clksel		= omap_96m_fck_clksel,
 	.flags		= RATE_PROPAGATES,
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -742,13 +758,13 @@ static struct clk omap_54m_fck = {
 	.ops		= &clkops_null,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
-	.clksel_mask	= OMAP3430_SOURCE_54M,
+	.clksel_mask	= OMAP3430_SOURCE_54M_MASK,
 	.clksel		= omap_54m_clksel,
 	.flags		= RATE_PROPAGATES,
 	.recalc		= &omap2_clksel_recalc,
 };
 
-static const struct clksel_rate omap_48m_96md2_rates[] = {
+static const struct clksel_rate omap_48m_cm96m_rates[] = {
 	{ .div = 2, .val = 0, .flags = RATE_IN_343X | DEFAULT_RATE },
 	{ .div = 0 }
 };
@@ -759,7 +775,7 @@ static const struct clksel_rate omap_48m_alt_rates[] = {
 };
 
 static const struct clksel omap_48m_clksel[] = {
-	{ .parent = &cm_96m_fck, .rates = omap_48m_96md2_rates },
+	{ .parent = &cm_96m_fck, .rates = omap_48m_cm96m_rates },
 	{ .parent = &sys_altclk, .rates = omap_48m_alt_rates },
 	{ .parent = NULL }
 };
@@ -769,7 +785,7 @@ static struct clk omap_48m_fck = {
 	.ops		= &clkops_null,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
-	.clksel_mask	= OMAP3430_SOURCE_48M,
+	.clksel_mask	= OMAP3430_SOURCE_48M_MASK,
 	.clksel		= omap_48m_clksel,
 	.flags		= RATE_PROPAGATES,
 	.recalc		= &omap2_clksel_recalc,
@@ -958,10 +974,10 @@ static const struct clksel_rate clkout2_src_54m_rates[] = {
 };
 
 static const struct clksel clkout2_src_clksel[] = {
-	{ .parent = &core_ck,		  .rates = clkout2_src_core_rates },
-	{ .parent = &sys_ck,		  .rates = clkout2_src_sys_rates },
-	{ .parent = &omap_96m_alwon_fck,  .rates = clkout2_src_96m_rates },
-	{ .parent = &omap_54m_fck,	  .rates = clkout2_src_54m_rates },
+	{ .parent = &core_ck,		.rates = clkout2_src_core_rates },
+	{ .parent = &sys_ck,		.rates = clkout2_src_sys_rates },
+	{ .parent = &cm_96m_fck,	.rates = clkout2_src_96m_rates },
+	{ .parent = &omap_54m_fck,	.rates = clkout2_src_54m_rates },
 	{ .parent = NULL }
 };
 
@@ -2782,8 +2798,8 @@ static struct clk mcbsp4_ick = {
 };
 
 static const struct clksel mcbsp_234_clksel[] = {
-	{ .parent = &per_96m_fck, .rates = common_mcbsp_96m_rates },
-	{ .parent = &mcbsp_clks,  .rates = common_mcbsp_mcbsp_rates },
+	{ .parent = &core_96m_fck, .rates = common_mcbsp_96m_rates },
+	{ .parent = &mcbsp_clks,   .rates = common_mcbsp_mcbsp_rates },
 	{ .parent = NULL }
 };
 
