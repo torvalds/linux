@@ -108,6 +108,8 @@ extern struct genapic apic_x2apic_uv_x;
 DECLARE_PER_CPU(int, x2apic_extra_bits);
 
 extern void default_setup_apic_routing(void);
+
+extern int default_cpu_present_to_apicid(int mps_cpu);
 #endif
 
 #endif /* _ASM_X86_GENAPIC_64_H */

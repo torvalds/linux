@@ -88,7 +88,7 @@ static inline int es7000_apicid_to_node(int logical_apicid)
 }
 
 
-static inline int cpu_present_to_apicid(int mps_cpu)
+static inline int es7000_cpu_present_to_apicid(int mps_cpu)
 {
 	if (!mps_cpu)
 		return boot_cpu_physical_apicid;

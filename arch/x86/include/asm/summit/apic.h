@@ -96,7 +96,7 @@ static inline int summit_cpu_to_logical_apicid(int cpu)
 #endif
 }
 
-static inline int cpu_present_to_apicid(int mps_cpu)
+static inline int summit_cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < nr_cpu_ids)
 		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);

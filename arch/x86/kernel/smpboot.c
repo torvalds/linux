@@ -903,9 +903,16 @@ do_rest:
 	return boot_error;
 }
 
+#ifdef CONFIG_X86_64
+int default_cpu_present_to_apicid(int mps_cpu)
+{
+	return __default_cpu_present_to_apicid(mps_cpu);
+}
+#endif
+
 int __cpuinit native_cpu_up(unsigned int cpu)
 {
-	int apicid = cpu_present_to_apicid(cpu);
+	int apicid = apic->cpu_present_to_apicid(cpu);
 	unsigned long flags;
 	int err;
 

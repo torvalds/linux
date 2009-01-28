@@ -69,7 +69,7 @@ static inline int numaq_cpu_to_logical_apicid(int cpu)
  * cpu to APIC ID relation to properly interact with the intelligent
  * mode of the cluster controller.
  */
-static inline int cpu_present_to_apicid(int mps_cpu)
+static inline int numaq_cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < 60)
 		return ((mps_cpu >> 2) << 4) | (1 << (mps_cpu & 0x3));

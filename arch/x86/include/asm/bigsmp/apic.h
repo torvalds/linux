@@ -67,7 +67,7 @@ static inline int bigsmp_apicid_to_node(int logical_apicid)
 	return apicid_2_node[hard_smp_processor_id()];
 }
 
-static inline int cpu_present_to_apicid(int mps_cpu)
+static inline int bigsmp_cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < nr_cpu_ids)
 		return (int) per_cpu(x86_bios_cpu_apicid, mps_cpu);

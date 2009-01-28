@@ -110,13 +110,22 @@ static inline int default_cpu_to_logical_apicid(int cpu)
 	return 1 << cpu;
 }
 
-static inline int cpu_present_to_apicid(int mps_cpu)
+static inline int __default_cpu_present_to_apicid(int mps_cpu)
 {
 	if (mps_cpu < nr_cpu_ids && cpu_present(mps_cpu))
 		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
 	else
 		return BAD_APICID;
 }
+
+#ifdef CONFIG_X86_32
+static inline int default_cpu_present_to_apicid(int mps_cpu)
+{
+	return __default_cpu_present_to_apicid(mps_cpu);
+}
+#else
+extern int default_cpu_present_to_apicid(int mps_cpu);
+#endif
 
 static inline physid_mask_t apicid_to_cpu_present(int phys_apicid)
 {
