@@ -2581,6 +2581,11 @@ int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 	return nelems;
 }
 
+static int intel_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return !dma_addr;
+}
+
 struct dma_map_ops intel_dma_ops = {
 	.alloc_coherent = intel_alloc_coherent,
 	.free_coherent = intel_free_coherent,
@@ -2588,6 +2593,7 @@ struct dma_map_ops intel_dma_ops = {
 	.unmap_sg = intel_unmap_sg,
 	.map_page = intel_map_page,
 	.unmap_page = intel_unmap_page,
+	.mapping_error = intel_mapping_error,
 };
 
 static inline int iommu_domain_cache_init(void)

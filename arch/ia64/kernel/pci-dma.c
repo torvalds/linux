@@ -99,11 +99,6 @@ int iommu_dma_supported(struct device *dev, u64 mask)
 }
 EXPORT_SYMBOL(iommu_dma_supported);
 
-static int vtd_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return 0;
-}
-
 void __init pci_iommu_alloc(void)
 {
 	dma_ops = &intel_dma_ops;
@@ -113,7 +108,6 @@ void __init pci_iommu_alloc(void)
 	dma_ops->sync_single_for_device = machvec_dma_sync_single;
 	dma_ops->sync_sg_for_device = machvec_dma_sync_sg;
 	dma_ops->dma_supported = iommu_dma_supported;
-	dma_ops->mapping_error = vtd_dma_mapping_error;
 
 	/*
 	 * The order of these functions is important for
