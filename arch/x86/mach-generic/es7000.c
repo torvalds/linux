@@ -114,8 +114,8 @@ struct genapic apic_es7000 = {
 	.target_cpus			= es7000_target_cpus,
 	.disable_esr			= 1,
 	.dest_logical			= 0,
-	.check_apicid_used		= check_apicid_used,
-	.check_apicid_present		= check_apicid_present,
+	.check_apicid_used		= es7000_check_apicid_used,
+	.check_apicid_present		= es7000_check_apicid_present,
 
 	.no_balance_irq			= NO_BALANCE_IRQ,
 	.no_ioapic_check		= 0,

@@ -38,8 +38,8 @@ struct genapic apic_default = {
 	.target_cpus			= default_target_cpus,
 	.disable_esr			= 0,
 	.dest_logical			= APIC_DEST_LOGICAL,
-	.check_apicid_used		= check_apicid_used,
-	.check_apicid_present		= check_apicid_present,
+	.check_apicid_used		= default_check_apicid_used,
+	.check_apicid_present		= default_check_apicid_present,
 
 	.no_balance_irq			= NO_BALANCE_IRQ,
 	.no_ioapic_check		= 0,

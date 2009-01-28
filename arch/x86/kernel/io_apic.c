@@ -2135,7 +2135,7 @@ static void __init setup_ioapic_ids_from_mpc(void)
 		 * system must have a unique ID or we get lots of nice
 		 * 'stuck on smp_invalidate_needed IPI wait' messages.
 		 */
-		if (check_apicid_used(phys_id_present_map,
+		if (apic->check_apicid_used(phys_id_present_map,
 					mp_ioapics[apic_id].apicid)) {
 			printk(KERN_ERR "BIOS bug, IO-APIC#%d ID %d is already used!...\n",
 				apic_id, mp_ioapics[apic_id].apicid);
@@ -3878,10 +3878,10 @@ int __init io_apic_get_unique_id(int ioapic, int apic_id)
 	 * Every APIC in a system must have a unique ID or we get lots of nice
 	 * 'stuck on smp_invalidate_needed IPI wait' messages.
 	 */
-	if (check_apicid_used(apic_id_map, apic_id)) {
+	if (apic->check_apicid_used(apic_id_map, apic_id)) {
 
 		for (i = 0; i < get_physical_broadcast(); i++) {
-			if (!check_apicid_used(apic_id_map, i))
+			if (!apic->check_apicid_used(apic_id_map, i))
 				break;
 		}
 

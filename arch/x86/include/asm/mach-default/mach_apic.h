@@ -105,12 +105,12 @@ static inline void vector_allocation_domain(int cpu, struct cpumask *retmask)
 }
 #endif
 
-static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
+static inline unsigned long default_check_apicid_used(physid_mask_t bitmap, int apicid)
 {
 	return physid_isset(apicid, bitmap);
 }
 
-static inline unsigned long check_apicid_present(int bit)
+static inline unsigned long default_check_apicid_present(int bit)
 {
 	return physid_isset(bit, phys_cpu_present_map);
 }

@@ -51,8 +51,8 @@ struct genapic apic_summit = {
 	.target_cpus			= summit_target_cpus,
 	.disable_esr			= 1,
 	.dest_logical			= APIC_DEST_LOGICAL,
-	.check_apicid_used		= check_apicid_used,
-	.check_apicid_present		= check_apicid_present,
+	.check_apicid_used		= summit_check_apicid_used,
+	.check_apicid_present		= summit_check_apicid_present,
 
 	.no_balance_irq			= NO_BALANCE_IRQ,
 	.no_ioapic_check		= 0,

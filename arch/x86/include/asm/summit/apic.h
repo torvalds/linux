@@ -23,13 +23,14 @@ static inline const cpumask_t *summit_target_cpus(void)
 	return &cpumask_of_cpu(0);
 }
 
-static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
+static inline unsigned long
+summit_check_apicid_used(physid_mask_t bitmap, int apicid)
 {
 	return 0;
 }
 
 /* we don't use the phys_cpu_present_map to indicate apicid presence */
-static inline unsigned long check_apicid_present(int bit)
+static inline unsigned long summit_check_apicid_present(int bit)
 {
 	return 1;
 }

@@ -28,11 +28,12 @@ static inline const cpumask_t *es7000_target_cpus(void)
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
 #define NO_BALANCE_IRQ		(0)
 
-static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
+static inline unsigned long
+es7000_check_apicid_used(physid_mask_t bitmap, int apicid)
 {
 	return 0;
 }
-static inline unsigned long check_apicid_present(int bit)
+static inline unsigned long es7000_check_apicid_present(int bit)
 {
 	return physid_isset(bit, phys_cpu_present_map);
 }
