@@ -237,25 +237,61 @@ static void uv_send_IPI_self(int vector)
 }
 
 struct genapic apic_x2apic_uv_x = {
-	.name = "UV large system",
-	.acpi_madt_oem_check = uv_acpi_madt_oem_check,
-	.int_delivery_mode = dest_Fixed,
-	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
-	.target_cpus = uv_target_cpus,
-	.vector_allocation_domain = uv_vector_allocation_domain,
-	.apic_id_registered = uv_apic_id_registered,
-	.init_apic_ldr = uv_init_apic_ldr,
-	.send_IPI_all = uv_send_IPI_all,
-	.send_IPI_allbutself = uv_send_IPI_allbutself,
-	.send_IPI_mask = uv_send_IPI_mask,
-	.send_IPI_mask_allbutself = uv_send_IPI_mask_allbutself,
-	.send_IPI_self = uv_send_IPI_self,
-	.cpu_mask_to_apicid = uv_cpu_mask_to_apicid,
-	.cpu_mask_to_apicid_and = uv_cpu_mask_to_apicid_and,
-	.phys_pkg_id = phys_pkg_id,
-	.get_apic_id = get_apic_id,
-	.set_apic_id = set_apic_id,
-	.apic_id_mask = (0xFFFFFFFFu),
+
+	.name				= "UV large system",
+	.probe				= NULL,
+	.acpi_madt_oem_check		= uv_acpi_madt_oem_check,
+	.apic_id_registered		= uv_apic_id_registered,
+
+	.int_delivery_mode		= dest_Fixed,
+	.int_dest_mode			= (APIC_DEST_PHYSICAL != 0),
+
+	.target_cpus			= uv_target_cpus,
+	.ESR_DISABLE			= 0,
+	.apic_destination_logical	= 0,
+	.check_apicid_used		= NULL,
+	.check_apicid_present		= NULL,
+
+	.no_balance_irq			= 0,
+	.no_ioapic_check		= 0,
+
+	.vector_allocation_domain	= uv_vector_allocation_domain,
+	.init_apic_ldr			= uv_init_apic_ldr,
+
+	.ioapic_phys_id_map		= NULL,
+	.setup_apic_routing		= NULL,
+	.multi_timer_check		= NULL,
+	.apicid_to_node			= NULL,
+	.cpu_to_logical_apicid		= NULL,
+	.cpu_present_to_apicid		= NULL,
+	.apicid_to_cpu_present		= NULL,
+	.setup_portio_remap		= NULL,
+	.check_phys_apicid_present	= NULL,
+	.enable_apic_mode		= NULL,
+	.phys_pkg_id			= phys_pkg_id,
+	.mps_oem_check			= NULL,
+
+	.get_apic_id			= get_apic_id,
+	.set_apic_id			= set_apic_id,
+	.apic_id_mask			= 0xFFFFFFFFu,
+
+	.cpu_mask_to_apicid		= uv_cpu_mask_to_apicid,
+	.cpu_mask_to_apicid_and		= uv_cpu_mask_to_apicid_and,
+
+	.send_IPI_mask			= uv_send_IPI_mask,
+	.send_IPI_mask_allbutself	= uv_send_IPI_mask_allbutself,
+	.send_IPI_allbutself		= uv_send_IPI_allbutself,
+	.send_IPI_all			= uv_send_IPI_all,
+	.send_IPI_self			= uv_send_IPI_self,
+
+	.wakeup_cpu			= NULL,
+	.trampoline_phys_low		= 0,
+	.trampoline_phys_high		= 0,
+	.wait_for_init_deassert		= NULL,
+	.smp_callin_clear_local_apic	= NULL,
+	.store_NMI_vector		= NULL,
+	.restore_NMI_vector		= NULL,
+	.inquire_remote_apic		= NULL,
 };
 
 static __cpuinit void set_x2apic_extra_bits(int pnode)
