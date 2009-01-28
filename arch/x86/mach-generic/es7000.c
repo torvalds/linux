@@ -86,7 +86,7 @@ static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 }
 #endif
 
-static void vector_allocation_domain(int cpu, cpumask_t *retmask)
+static void es7000_vector_allocation_domain(int cpu, cpumask_t *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
 	 * specified in the interrupt destination when using lowest
@@ -116,7 +116,7 @@ struct genapic apic_es7000 = {
 	.check_apicid_used		= es7000_check_apicid_used,
 	.check_apicid_present		= es7000_check_apicid_present,
 
-	.vector_allocation_domain	= vector_allocation_domain,
+	.vector_allocation_domain	= es7000_vector_allocation_domain,
 	.init_apic_ldr			= init_apic_ldr,
 
 	.ioapic_phys_id_map		= ioapic_phys_id_map,

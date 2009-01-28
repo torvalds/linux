@@ -24,7 +24,7 @@ static int probe_summit(void)
 	return 0;
 }
 
-static void vector_allocation_domain(int cpu, cpumask_t *retmask)
+static void summit_vector_allocation_domain(int cpu, cpumask_t *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
 	 * specified in the interrupt destination when using lowest
@@ -54,7 +54,7 @@ struct genapic apic_summit = {
 	.check_apicid_used		= summit_check_apicid_used,
 	.check_apicid_present		= summit_check_apicid_present,
 
-	.vector_allocation_domain	= vector_allocation_domain,
+	.vector_allocation_domain	= summit_vector_allocation_domain,
 	.init_apic_ldr			= init_apic_ldr,
 
 	.ioapic_phys_id_map		= ioapic_phys_id_map,

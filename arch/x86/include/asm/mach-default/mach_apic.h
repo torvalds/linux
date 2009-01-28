@@ -23,7 +23,6 @@ static inline const struct cpumask *default_target_cpus(void)
 #define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
 #define cpu_mask_to_apicid_and (apic->cpu_mask_to_apicid_and)
 #define phys_pkg_id	(apic->phys_pkg_id)
-#define vector_allocation_domain    (apic->vector_allocation_domain)
 #define read_apic_id()  (GET_APIC_ID(apic_read(APIC_ID)))
 #define send_IPI_self (apic->send_IPI_self)
 #define wakeup_secondary_cpu (apic->wakeup_cpu)
@@ -89,18 +88,6 @@ static inline int apicid_to_node(int logical_apicid)
 #endif
 }
 
-static inline void vector_allocation_domain(int cpu, struct cpumask *retmask)
-{
-        /* Careful. Some cpus do not strictly honor the set of cpus
-         * specified in the interrupt destination when using lowest
-         * priority interrupt delivery mode.
-         *
-         * In particular there was a hyperthreading cpu observed to
-         * deliver interrupts to the wrong hyperthread when only one
-         * hyperthread was specified in the interrupt desitination.
-         */
-	*retmask = (cpumask_t) { { [0] = APIC_ALL_CPUS } };
-}
 #endif
 
 static inline unsigned long default_check_apicid_used(physid_mask_t bitmap, int apicid)

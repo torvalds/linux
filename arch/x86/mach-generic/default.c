@@ -18,6 +18,20 @@
 #include <asm/mach-default/mach_mpparse.h>
 #include <asm/mach-default/mach_wakecpu.h>
 
+static void default_vector_allocation_domain(int cpu, struct cpumask *retmask)
+{
+	/*
+	 * Careful. Some cpus do not strictly honor the set of cpus
+	 * specified in the interrupt destination when using lowest
+	 * priority interrupt delivery mode.
+	 *
+	 * In particular there was a hyperthreading cpu observed to
+	 * deliver interrupts to the wrong hyperthread when only one
+	 * hyperthread was specified in the interrupt desitination.
+	 */
+	*retmask = (cpumask_t) { { [0] = APIC_ALL_CPUS } };
+}
+
 /* should be called last. */
 static int probe_default(void)
 {
@@ -41,7 +55,7 @@ struct genapic apic_default = {
 	.check_apicid_used		= default_check_apicid_used,
 	.check_apicid_present		= default_check_apicid_present,
 
-	.vector_allocation_domain	= vector_allocation_domain,
+	.vector_allocation_domain	= default_vector_allocation_domain,
 	.init_apic_ldr			= init_apic_ldr,
 
 	.ioapic_phys_id_map		= ioapic_phys_id_map,

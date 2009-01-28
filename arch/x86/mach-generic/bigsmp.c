@@ -42,7 +42,7 @@ static const struct dmi_system_id bigsmp_dmi_table[] = {
 	 { }
 };
 
-static void vector_allocation_domain(int cpu, cpumask_t *retmask)
+static void bigsmp_vector_allocation_domain(int cpu, cpumask_t *retmask)
 {
 	cpus_clear(*retmask);
 	cpu_set(cpu, *retmask);
@@ -74,7 +74,7 @@ struct genapic apic_bigsmp = {
 	.check_apicid_used		= bigsmp_check_apicid_used,
 	.check_apicid_present		= bigsmp_check_apicid_present,
 
-	.vector_allocation_domain	= vector_allocation_domain,
+	.vector_allocation_domain	= bigsmp_vector_allocation_domain,
 	.init_apic_ldr			= init_apic_ldr,
 
 	.ioapic_phys_id_map		= ioapic_phys_id_map,

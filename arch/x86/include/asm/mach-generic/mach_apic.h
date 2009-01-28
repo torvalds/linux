@@ -15,7 +15,6 @@
 #define check_phys_apicid_present (apic->check_phys_apicid_present)
 #define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
 #define cpu_mask_to_apicid_and (apic->cpu_mask_to_apicid_and)
-#define vector_allocation_domain (apic->vector_allocation_domain)
 #define enable_apic_mode (apic->enable_apic_mode)
 #define phys_pkg_id (apic->phys_pkg_id)
 #define wakeup_secondary_cpu (apic->wakeup_cpu)
