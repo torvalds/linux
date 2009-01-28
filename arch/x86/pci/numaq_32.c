@@ -5,7 +5,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/nodemask.h>
-#include <mach_apic.h>
+#include <asm/genapic.h>
 #include <asm/mpspec.h>
 #include <asm/pci_x86.h>
 
