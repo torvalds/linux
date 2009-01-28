@@ -236,6 +236,11 @@ static struct powerdomain dss_pwrdm = {
 	},
 };
 
+/*
+ * Although the 34XX TRM Rev K Table 4-371 notes that retention is a
+ * possible SGX powerstate, the SGX device itself does not support
+ * retention.
+ */
 static struct powerdomain sgx_pwrdm = {
 	.name		  = "sgx_pwrdm",
 	.prcm_offs	  = OMAP3430ES2_SGX_MOD,
@@ -243,7 +248,7 @@ static struct powerdomain sgx_pwrdm = {
 	.wkdep_srcs	  = gfx_sgx_wkdeps,
 	.sleepdep_srcs	  = cam_gfx_sleepdeps,
 	/* XXX This is accurate for 3430 SGX, but what about GFX? */
-	.pwrsts		  = PWRSTS_OFF_RET_ON,
+	.pwrsts		  = PWRSTS_OFF_ON,
 	.pwrsts_logic_ret = PWRDM_POWER_RET,
 	.banks		  = 1,
 	.pwrsts_mem_ret	  = {
