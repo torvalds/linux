@@ -310,10 +310,10 @@ struct pv_time_ops pv_time_ops = {
 
 struct pv_irq_ops pv_irq_ops = {
 	.init_IRQ = native_init_IRQ,
-	.save_fl = native_save_fl,
-	.restore_fl = native_restore_fl,
-	.irq_disable = native_irq_disable,
-	.irq_enable = native_irq_enable,
+	.save_fl = __PV_IS_CALLEE_SAVE(native_save_fl),
+	.restore_fl = __PV_IS_CALLEE_SAVE(native_restore_fl),
+	.irq_disable = __PV_IS_CALLEE_SAVE(native_irq_disable),
+	.irq_enable = __PV_IS_CALLEE_SAVE(native_irq_enable),
 	.safe_halt = native_safe_halt,
 	.halt = native_halt,
 #ifdef CONFIG_X86_64

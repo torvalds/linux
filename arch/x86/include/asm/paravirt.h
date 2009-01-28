@@ -17,6 +17,10 @@
 #ifdef CONFIG_X86_32
 /* CLBR_ANY should match all regs platform has. For i386, that's just it */
 #define CLBR_ANY  ((1 << 4) - 1)
+
+#define CLBR_ARG_REGS	(CLBR_EAX | CLBR_EDX | CLBR_ECX)
+#define CLBR_RET_REG	(CLBR_EAX)
+#define CLBR_SCRATCH	(0)
 #else
 #define CLBR_RAX  CLBR_EAX
 #define CLBR_RCX  CLBR_ECX
@@ -27,15 +31,18 @@
 #define CLBR_R9   (1 << 6)
 #define CLBR_R10  (1 << 7)
 #define CLBR_R11  (1 << 8)
+
 #define CLBR_ANY  ((1 << 9) - 1)
 
 #define CLBR_ARG_REGS	(CLBR_RDI | CLBR_RSI | CLBR_RDX | \
 			 CLBR_RCX | CLBR_R8 | CLBR_R9)
-#define CLBR_RET_REG	(CLBR_RAX | CLBR_RDX)
+#define CLBR_RET_REG	(CLBR_RAX)
 #define CLBR_SCRATCH	(CLBR_R10 | CLBR_R11)
 
 #include <asm/desc_defs.h>
 #endif /* X86_64 */
+
+#define CLBR_CALLEE_SAVE ((CLBR_ARG_REGS | CLBR_SCRATCH) & ~CLBR_RET_REG)
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
@@ -49,6 +56,14 @@ struct desc_ptr;
 struct tss_struct;
 struct mm_struct;
 struct desc_struct;
+
+/*
+ * Wrapper type for pointers to code which uses the non-standard
+ * calling convention.  See PV_CALL_SAVE_REGS_THUNK below.
+ */
+struct paravirt_callee_save {
+	void *func;
+};
 
 /* general info */
 struct pv_info {
@@ -199,11 +214,15 @@ struct pv_irq_ops {
 	 * expected to use X86_EFLAGS_IF; all other bits
 	 * returned from save_fl are undefined, and may be ignored by
 	 * restore_fl.
+	 *
+	 * NOTE: These functions callers expect the callee to preserve
+	 * more registers than the standard C calling convention.
 	 */
-	unsigned long (*save_fl)(void);
-	void (*restore_fl)(unsigned long);
-	void (*irq_disable)(void);
-	void (*irq_enable)(void);
+	struct paravirt_callee_save save_fl;
+	struct paravirt_callee_save restore_fl;
+	struct paravirt_callee_save irq_disable;
+	struct paravirt_callee_save irq_enable;
+
 	void (*safe_halt)(void);
 	void (*halt)(void);
 
@@ -1437,12 +1456,37 @@ extern struct paravirt_patch_site __parainstructions[],
 	__parainstructions_end[];
 
 #ifdef CONFIG_X86_32
-#define PV_SAVE_REGS "pushl %%ecx; pushl %%edx;"
-#define PV_RESTORE_REGS "popl %%edx; popl %%ecx"
+#define PV_SAVE_REGS "pushl %ecx; pushl %edx;"
+#define PV_RESTORE_REGS "popl %edx; popl %ecx;"
+
+/* save and restore all caller-save registers, except return value */
+#define PV_SAVE_ALL_CALLER_REGS PV_SAVE_REGS
+#define PV_RESTORE_ALL_CALLER_REGS PV_RESTORE_REGS
+
 #define PV_FLAGS_ARG "0"
 #define PV_EXTRA_CLOBBERS
 #define PV_VEXTRA_CLOBBERS
 #else
+/* save and restore all caller-save registers, except return value */
+#define PV_SAVE_ALL_CALLER_REGS						\
+	"push %rcx;"							\
+	"push %rdx;"							\
+	"push %rsi;"							\
+	"push %rdi;"							\
+	"push %r8;"							\
+	"push %r9;"							\
+	"push %r10;"							\
+	"push %r11;"
+#define PV_RESTORE_ALL_CALLER_REGS					\
+	"pop %r11;"							\
+	"pop %r10;"							\
+	"pop %r9;"							\
+	"pop %r8;"							\
+	"pop %rdi;"							\
+	"pop %rsi;"							\
+	"pop %rdx;"							\
+	"pop %rcx;"
+
 /* We save some registers, but all of them, that's too much. We clobber all
  * caller saved registers but the argument parameter */
 #define PV_SAVE_REGS "pushq %%rdi;"
@@ -1452,52 +1496,76 @@ extern struct paravirt_patch_site __parainstructions[],
 #define PV_FLAGS_ARG "D"
 #endif
 
+/*
+ * Generate a thunk around a function which saves all caller-save
+ * registers except for the return value.  This allows C functions to
+ * be called from assembler code where fewer than normal registers are
+ * available.  It may also help code generation around calls from C
+ * code if the common case doesn't use many registers.
+ *
+ * When a callee is wrapped in a thunk, the caller can assume that all
+ * arg regs and all scratch registers are preserved across the
+ * call. The return value in rax/eax will not be saved, even for void
+ * functions.
+ */
+#define PV_CALLEE_SAVE_REGS_THUNK(func)					\
+	extern typeof(func) __raw_callee_save_##func;			\
+	static void *__##func##__ __used = func;			\
+									\
+	asm(".pushsection .text;"					\
+	    "__raw_callee_save_" #func ": "				\
+	    PV_SAVE_ALL_CALLER_REGS					\
+	    "call " #func ";"						\
+	    PV_RESTORE_ALL_CALLER_REGS					\
+	    "ret;"							\
+	    ".popsection")
+
+/* Get a reference to a callee-save function */
+#define PV_CALLEE_SAVE(func)						\
+	((struct paravirt_callee_save) { __raw_callee_save_##func })
+
+/* Promise that "func" already uses the right calling convention */
+#define __PV_IS_CALLEE_SAVE(func)			\
+	((struct paravirt_callee_save) { func })
+
 static inline unsigned long __raw_local_save_flags(void)
 {
 	unsigned long f;
 
-	asm volatile(paravirt_alt(PV_SAVE_REGS
-				  PARAVIRT_CALL
-				  PV_RESTORE_REGS)
+	asm volatile(paravirt_alt(PARAVIRT_CALL)
 		     : "=a"(f)
 		     : paravirt_type(pv_irq_ops.save_fl),
 		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "cc" PV_VEXTRA_CLOBBERS);
+		     : "memory", "cc");
 	return f;
 }
 
 static inline void raw_local_irq_restore(unsigned long f)
 {
-	asm volatile(paravirt_alt(PV_SAVE_REGS
-				  PARAVIRT_CALL
-				  PV_RESTORE_REGS)
+	asm volatile(paravirt_alt(PARAVIRT_CALL)
 		     : "=a"(f)
 		     : PV_FLAGS_ARG(f),
 		       paravirt_type(pv_irq_ops.restore_fl),
 		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "cc" PV_EXTRA_CLOBBERS);
+		     : "memory", "cc");
 }
 
 static inline void raw_local_irq_disable(void)
 {
-	asm volatile(paravirt_alt(PV_SAVE_REGS
-				  PARAVIRT_CALL
-				  PV_RESTORE_REGS)
+	asm volatile(paravirt_alt(PARAVIRT_CALL)
 		     :
 		     : paravirt_type(pv_irq_ops.irq_disable),
 		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "eax", "cc" PV_EXTRA_CLOBBERS);
+		     : "memory", "eax", "cc");
 }
 
 static inline void raw_local_irq_enable(void)
 {
-	asm volatile(paravirt_alt(PV_SAVE_REGS
-				  PARAVIRT_CALL
-				  PV_RESTORE_REGS)
+	asm volatile(paravirt_alt(PARAVIRT_CALL)
 		     :
 		     : paravirt_type(pv_irq_ops.irq_enable),
 		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "eax", "cc" PV_EXTRA_CLOBBERS);
+		     : "memory", "eax", "cc");
 }
 
 static inline unsigned long __raw_local_irq_save(void)
@@ -1541,9 +1609,9 @@ static inline unsigned long __raw_local_irq_save(void)
 
 
 #define COND_PUSH(set, mask, reg)			\
-	.if ((~set) & mask); push %reg; .endif
+	.if ((~(set)) & mask); push %reg; .endif
 #define COND_POP(set, mask, reg)			\
-	.if ((~set) & mask); pop %reg; .endif
+	.if ((~(set)) & mask); pop %reg; .endif
 
 #ifdef CONFIG_X86_64
 
@@ -1594,15 +1662,15 @@ static inline unsigned long __raw_local_irq_save(void)
 
 #define DISABLE_INTERRUPTS(clobbers)					\
 	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_irq_disable), clobbers, \
-		  PV_SAVE_REGS(clobbers);				\
+		  PV_SAVE_REGS(clobbers | CLBR_CALLEE_SAVE);		\
 		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_irq_disable);	\
-		  PV_RESTORE_REGS(clobbers);)
+		  PV_RESTORE_REGS(clobbers | CLBR_CALLEE_SAVE);)
 
 #define ENABLE_INTERRUPTS(clobbers)					\
 	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_irq_enable), clobbers,	\
-		  PV_SAVE_REGS(clobbers);				\
+		  PV_SAVE_REGS(clobbers | CLBR_CALLEE_SAVE);		\
 		  call PARA_INDIRECT(pv_irq_ops+PV_IRQ_irq_enable);	\
-		  PV_RESTORE_REGS(clobbers);)
+		  PV_RESTORE_REGS(clobbers | CLBR_CALLEE_SAVE);)
 
 #define USERGS_SYSRET32							\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_usergs_sysret32),	\

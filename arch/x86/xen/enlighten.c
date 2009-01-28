@@ -676,10 +676,10 @@ void xen_setup_vcpu_info_placement(void)
 	if (have_vcpu_info_placement) {
 		printk(KERN_INFO "Xen: using vcpu_info placement\n");
 
-		pv_irq_ops.save_fl = xen_save_fl_direct;
-		pv_irq_ops.restore_fl = xen_restore_fl_direct;
-		pv_irq_ops.irq_disable = xen_irq_disable_direct;
-		pv_irq_ops.irq_enable = xen_irq_enable_direct;
+		pv_irq_ops.save_fl = __PV_IS_CALLEE_SAVE(xen_save_fl_direct);
+		pv_irq_ops.restore_fl = __PV_IS_CALLEE_SAVE(xen_restore_fl_direct);
+		pv_irq_ops.irq_disable = __PV_IS_CALLEE_SAVE(xen_irq_disable_direct);
+		pv_irq_ops.irq_enable = __PV_IS_CALLEE_SAVE(xen_irq_enable_direct);
 		pv_mmu_ops.read_cr2 = xen_read_cr2_direct;
 	}
 }
