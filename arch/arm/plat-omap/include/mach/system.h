@@ -9,11 +9,11 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 
+#include <mach/prcm.h>
+
 #ifndef CONFIG_MACH_VOICEBLUE
 #define voiceblue_reset()		do {} while (0)
 #endif
-
-extern void omap_prcm_arch_reset(char mode);
 
 static inline void arch_idle(void)
 {
