@@ -1729,6 +1729,13 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 		goto out;
 	}
 
+	if (skb->sk && skb->sk->sk_hash) {
+		u32 val = skb->sk->sk_hash;
+
+		hash = jhash_1word(val, simple_tx_hashrnd);
+		goto out;
+	}
+
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		if (!(ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)))
