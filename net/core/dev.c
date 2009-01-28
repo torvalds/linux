@@ -1722,6 +1722,13 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 		simple_tx_hashrnd_initialized = 1;
 	}
 
+	if (skb_rx_queue_recorded(skb)) {
+		u32 val = skb_get_rx_queue(skb);
+
+		hash = jhash_1word(val, simple_tx_hashrnd);
+		goto out;
+	}
+
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		if (!(ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)))
@@ -1759,6 +1766,7 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 
 	hash = jhash_3words(addr1, addr2, ports, simple_tx_hashrnd);
 
+out:
 	return (u16) (((u64) hash * dev->real_num_tx_queues) >> 32);
 }
 

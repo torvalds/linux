@@ -1904,6 +1904,21 @@ static inline void skb_copy_queue_mapping(struct sk_buff *to, const struct sk_bu
 	to->queue_mapping = from->queue_mapping;
 }
 
+static inline void skb_record_rx_queue(struct sk_buff *skb, u16 rx_queue)
+{
+	skb->queue_mapping = rx_queue + 1;
+}
+
+static inline u16 skb_get_rx_queue(struct sk_buff *skb)
+{
+	return skb->queue_mapping - 1;
+}
+
+static inline bool skb_rx_queue_recorded(struct sk_buff *skb)
+{
+	return (skb->queue_mapping != 0);
+}
+
 #ifdef CONFIG_XFRM
 static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
 {
