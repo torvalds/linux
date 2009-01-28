@@ -1957,25 +1957,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)
 		sc->sc_imask |= ATH9K_INT_CST;
 
-	/*
-	 * Enable MIB interrupts when there are hardware phy counters.
-	 * Note we only do this (at the moment) for station mode.
-	 */
-	if (ath9k_hw_phycounters(sc->sc_ah) &&
-	    ((sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION) ||
-	     (sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC)))
-		sc->sc_imask |= ATH9K_INT_MIB;
-	/*
-	 * Some hardware processes the TIM IE and fires an
-	 * interrupt when the TIM bit is set.  For hardware
-	 * that does, if not overridden by configuration,
-	 * enable the TIM interrupt when operating as station.
-	 */
-	if ((sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_ENHANCEDPM) &&
-	    (sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION) &&
-	    !sc->sc_config.swBeaconProcess)
-		sc->sc_imask |= ATH9K_INT_TIM;
-
 	ath_cache_conf_rate(sc, &hw->conf);
 
 	sc->sc_flags &= ~SC_OP_INVALID;
@@ -2123,6 +2104,27 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	/* Set the device opmode */
 	sc->sc_ah->ah_opmode = ic_opmode;
+
+	/*
+	 * Enable MIB interrupts when there are hardware phy counters.
+	 * Note we only do this (at the moment) for station mode.
+	 */
+	if (ath9k_hw_phycounters(sc->sc_ah) &&
+	    ((conf->type == NL80211_IFTYPE_STATION) ||
+	     (conf->type == NL80211_IFTYPE_ADHOC)))
+		sc->sc_imask |= ATH9K_INT_MIB;
+	/*
+	 * Some hardware processes the TIM IE and fires an
+	 * interrupt when the TIM bit is set.  For hardware
+	 * that does, if not overridden by configuration,
+	 * enable the TIM interrupt when operating as station.
+	 */
+	if ((sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_ENHANCEDPM) &&
+	    (conf->type == NL80211_IFTYPE_STATION) &&
+	    !sc->sc_config.swBeaconProcess)
+		sc->sc_imask |= ATH9K_INT_TIM;
+
+	ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_imask);
 
 	if (conf->type == NL80211_IFTYPE_AP) {
 		/* TODO: is this a suitable place to start ANI for AP mode? */
