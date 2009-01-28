@@ -2108,7 +2108,7 @@ static void __init setup_ioapic_ids_from_mpc(void)
 	 * This is broken; anything with a real cpu count has to
 	 * circumvent this idiocy regardless.
 	 */
-	phys_id_present_map = ioapic_phys_id_map(phys_cpu_present_map);
+	phys_id_present_map = apic->ioapic_phys_id_map(phys_cpu_present_map);
 
 	/*
 	 * Set the IOAPIC ID to the value stored in the MPC table.
@@ -3862,7 +3862,7 @@ int __init io_apic_get_unique_id(int ioapic, int apic_id)
 	 */
 
 	if (physids_empty(apic_id_map))
-		apic_id_map = ioapic_phys_id_map(phys_cpu_present_map);
+		apic_id_map = apic->ioapic_phys_id_map(phys_cpu_present_map);
 
 	spin_lock_irqsave(&ioapic_lock, flags);
 	reg_00.raw = io_apic_read(ioapic, 0);

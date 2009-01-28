@@ -57,7 +57,7 @@ struct genapic apic_summit = {
 	.vector_allocation_domain	= summit_vector_allocation_domain,
 	.init_apic_ldr			= summit_init_apic_ldr,
 
-	.ioapic_phys_id_map		= ioapic_phys_id_map,
+	.ioapic_phys_id_map		= summit_ioapic_phys_id_map,
 	.setup_apic_routing		= setup_apic_routing,
 	.multi_timer_check		= multi_timer_check,
 	.apicid_to_node			= apicid_to_node,

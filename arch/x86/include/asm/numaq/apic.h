@@ -48,7 +48,7 @@ static inline int multi_timer_check(int apic, int irq)
 	return apic != 0 && irq == 0;
 }
 
-static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_map)
+static inline physid_mask_t numaq_ioapic_phys_id_map(physid_mask_t phys_map)
 {
 	/* We don't have a good way to do this yet - hack */
 	return physids_promote(0xFUL);

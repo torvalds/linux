@@ -99,7 +99,7 @@ static inline unsigned long default_check_apicid_present(int bit)
 	return physid_isset(bit, phys_cpu_present_map);
 }
 
-static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_map)
+static inline physid_mask_t default_ioapic_phys_id_map(physid_mask_t phys_map)
 {
 	return phys_map;
 }

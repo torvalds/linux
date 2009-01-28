@@ -3,7 +3,6 @@
 
 #include <asm/genapic.h>
 
-#define ioapic_phys_id_map (apic->ioapic_phys_id_map)
 #define setup_apic_routing (apic->setup_apic_routing)
 #define multi_timer_check (apic->multi_timer_check)
 #define apicid_to_node (apic->apicid_to_node)
