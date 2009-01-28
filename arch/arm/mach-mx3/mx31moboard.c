@@ -63,6 +63,25 @@ static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 };
 
+static int mxc_uart0_pins[] = {
+	MX31_PIN_CTS1__CTS1,
+	MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1,
+	MX31_PIN_RXD1__RXD1
+};
+static int mxc_uart1_pins[] = {
+	MX31_PIN_CTS2__CTS2,
+	MX31_PIN_RTS2__RTS2,
+	MX31_PIN_TXD2__TXD2,
+	MX31_PIN_RXD2__RXD2
+};
+static int mxc_uart4_pins[] = {
+	MX31_PIN_PC_RST__CTS5,
+	MX31_PIN_PC_VS2__RTS5,
+	MX31_PIN_PC_BVD2__TXD5,
+	MX31_PIN_PC_BVD1__RXD5
+};
+
 /*
  * Board specific initialization.
  */
@@ -70,25 +89,13 @@ static void __init mxc_board_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_iomux_mode(MX31_PIN_CTS1__CTS1);
-	mxc_iomux_mode(MX31_PIN_RTS1__RTS1);
-	mxc_iomux_mode(MX31_PIN_TXD1__TXD1);
-	mxc_iomux_mode(MX31_PIN_RXD1__RXD1);
-
+	mxc_iomux_setup_multiple_pins(mxc_uart0_pins, ARRAY_SIZE(mxc_uart0_pins), "uart0");
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 
-	mxc_iomux_mode(MX31_PIN_CTS2__CTS2);
-	mxc_iomux_mode(MX31_PIN_RTS2__RTS2);
-	mxc_iomux_mode(MX31_PIN_TXD2__TXD2);
-	mxc_iomux_mode(MX31_PIN_RXD2__RXD2);
-
+	mxc_iomux_setup_multiple_pins(mxc_uart1_pins, ARRAY_SIZE(mxc_uart1_pins), "uart1");
 	mxc_register_device(&mxc_uart_device1, &uart_pdata);
 
-	mxc_iomux_mode(MX31_PIN_PC_RST__CTS5);
-	mxc_iomux_mode(MX31_PIN_PC_VS2__RTS5);
-	mxc_iomux_mode(MX31_PIN_PC_BVD2__TXD5);
-	mxc_iomux_mode(MX31_PIN_PC_BVD1__RXD5);
-
+	mxc_iomux_setup_multiple_pins(mxc_uart4_pins, ARRAY_SIZE(mxc_uart4_pins), "uart4");
 	mxc_register_device(&mxc_uart_device4, &uart_pdata);
 }
 
