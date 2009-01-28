@@ -64,8 +64,9 @@ struct genapic apic_bigsmp = {
 	.acpi_madt_oem_check		= NULL,
 	.apic_id_registered		= bigsmp_apic_id_registered,
 
-	.irq_delivery_mode		= BIGSMP_IRQ_DELIVERY_MODE,
-	.irq_dest_mode			= BIGSMP_IRQ_DEST_MODE,
+	.irq_delivery_mode		= dest_Fixed,
+	/* phys delivery to target CPU: */
+	.irq_dest_mode			= 0,
 
 	.target_cpus			= target_cpus,
 	.ESR_DISABLE			= esr_disable,
