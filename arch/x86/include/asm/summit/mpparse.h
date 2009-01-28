@@ -11,8 +11,8 @@ extern void setup_summit(void);
 #define setup_summit()	{}
 #endif
 
-static inline int mps_oem_check(struct mpc_table *mpc, char *oem,
-		char *productid)
+static inline int
+summit_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
 	if (!strncmp(oem, "IBM ENSW", 8) &&
 			(!strncmp(productid, "VIGIL SMP", 9)

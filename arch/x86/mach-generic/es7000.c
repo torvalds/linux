@@ -36,11 +36,12 @@ static int probe_es7000(void)
 }
 
 static __init int
-mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
+es7000_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
 	if (mpc->oemptr) {
 		struct mpc_oemtable *oem_table =
 			(struct mpc_oemtable *)mpc->oemptr;
+
 		if (!strncmp(oem, "UNISYS", 6))
 			return parse_unisys_oem((char *)oem_table);
 	}
@@ -123,7 +124,7 @@ struct genapic apic_es7000 = {
 	.check_phys_apicid_present	= es7000_check_phys_apicid_present,
 	.enable_apic_mode		= es7000_enable_apic_mode,
 	.phys_pkg_id			= es7000_phys_pkg_id,
-	.mps_oem_check			= mps_oem_check,
+	.mps_oem_check			= es7000_mps_oem_check,
 
 	.get_apic_id			= get_apic_id,
 	.set_apic_id			= NULL,

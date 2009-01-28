@@ -19,7 +19,7 @@
 #include <asm/numaq/wakecpu.h>
 #include <asm/numaq.h>
 
-static int mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
+static int __numaq_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
 	numaq_mps_oem_check(mpc, oem, productid);
 	return found_numaq;
@@ -88,7 +88,7 @@ struct genapic apic_numaq = {
 	.check_phys_apicid_present	= numaq_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
 	.phys_pkg_id			= numaq_phys_pkg_id,
-	.mps_oem_check			= mps_oem_check,
+	.mps_oem_check			= __numaq_mps_oem_check,
 
 	.get_apic_id			= get_apic_id,
 	.set_apic_id			= NULL,

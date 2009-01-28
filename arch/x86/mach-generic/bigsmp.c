@@ -88,7 +88,7 @@ struct genapic apic_bigsmp = {
 	.check_phys_apicid_present	= bigsmp_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
 	.phys_pkg_id			= bigsmp_phys_pkg_id,
-	.mps_oem_check			= mps_oem_check,
+	.mps_oem_check			= NULL,
 
 	.get_apic_id			= get_apic_id,
 	.set_apic_id			= NULL,

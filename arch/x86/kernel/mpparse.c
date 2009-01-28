@@ -292,7 +292,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 		return 0;
 
 #ifdef CONFIG_X86_32
-	mps_oem_check(mpc, oem, str);
+	generic_mps_oem_check(mpc, oem, str);
 #endif
 	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)

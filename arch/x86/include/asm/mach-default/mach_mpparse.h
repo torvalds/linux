@@ -2,7 +2,7 @@
 #define _ASM_X86_MACH_DEFAULT_MACH_MPPARSE_H
 
 static inline int
-mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
+generic_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
 	return 0;
 }

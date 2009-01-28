@@ -68,7 +68,7 @@ struct genapic apic_summit = {
 	.check_phys_apicid_present	= summit_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
 	.phys_pkg_id			= summit_phys_pkg_id,
-	.mps_oem_check			= mps_oem_check,
+	.mps_oem_check			= summit_mps_oem_check,
 
 	.get_apic_id			= get_apic_id,
 	.set_apic_id			= NULL,
