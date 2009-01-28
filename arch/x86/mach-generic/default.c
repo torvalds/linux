@@ -31,8 +31,9 @@ struct genapic apic_default = {
 	.acpi_madt_oem_check		= NULL,
 	.apic_id_registered		= default_apic_id_registered,
 
-	.irq_delivery_mode		= DEFAULT_IRQ_DELIVERY_MODE,
-	.irq_dest_mode			= DEFAULT_IRQ_DEST_MODE,
+	.irq_delivery_mode		= dest_LowestPrio,
+	/* logical delivery broadcast to all CPUs: */
+	.irq_dest_mode			= 1,
 
 	.target_cpus			= target_cpus,
 	.ESR_DISABLE			= esr_disable,

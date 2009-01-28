@@ -34,8 +34,6 @@ static inline const struct cpumask *target_cpus(void)
 #define wakeup_secondary_cpu (apic->wakeup_cpu)
 extern void setup_apic_routing(void);
 #else
-#define DEFAULT_IRQ_DELIVERY_MODE dest_LowestPrio
-#define DEFAULT_IRQ_DEST_MODE 1     /* logical delivery broadcast to all procs */
 #define TARGET_CPUS (target_cpus())
 #define wakeup_secondary_cpu wakeup_secondary_cpu_via_init
 /*
