@@ -79,7 +79,7 @@ struct genapic apic_bigsmp = {
 
 	.ioapic_phys_id_map		= bigsmp_ioapic_phys_id_map,
 	.setup_apic_routing		= bigsmp_setup_apic_routing,
-	.multi_timer_check		= multi_timer_check,
+	.multi_timer_check		= NULL,
 	.apicid_to_node			= apicid_to_node,
 	.cpu_to_logical_apicid		= cpu_to_logical_apicid,
 	.cpu_present_to_apicid		= cpu_present_to_apicid,

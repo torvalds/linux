@@ -64,11 +64,6 @@ static inline void summit_init_apic_ldr(void)
 	apic_write(APIC_LDR, val);
 }
 
-static inline int multi_timer_check(int apic, int irq)
-{
-	return 0;
-}
-
 static inline int summit_apic_id_registered(void)
 {
 	return 1;

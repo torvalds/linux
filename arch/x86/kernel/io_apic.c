@@ -1618,10 +1618,15 @@ static void __init setup_IO_APIC_irqs(void)
 			}
 
 			irq = pin_2_irq(idx, apic_id, pin);
-#ifdef CONFIG_X86_32
-			if (multi_timer_check(apic_id, irq))
+
+			/*
+			 * Skip the timer IRQ if there's a quirk handler
+			 * installed and if it returns 1:
+			 */
+			if (apic->multi_timer_check &&
+					apic->multi_timer_check(apic_id, irq))
 				continue;
-#endif
+
 			desc = irq_to_desc_alloc_cpu(irq, cpu);
 			if (!desc) {
 				printk(KERN_INFO "can not get irq_desc for %d\n", irq);

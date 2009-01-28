@@ -104,11 +104,6 @@ static inline physid_mask_t default_ioapic_phys_id_map(physid_mask_t phys_map)
 	return phys_map;
 }
 
-static inline int multi_timer_check(int apic, int irq)
-{
-	return 0;
-}
-
 /* Mapping from cpu number to logical apicid */
 static inline int cpu_to_logical_apicid(int cpu)
 {

@@ -43,7 +43,7 @@ static inline void numaq_setup_apic_routing(void)
  * Skip adding the timer int on secondary nodes, which causes
  * a small but painful rift in the time-space continuum.
  */
-static inline int multi_timer_check(int apic, int irq)
+static inline int numaq_multi_timer_check(int apic, int irq)
 {
 	return apic != 0 && irq == 0;
 }
