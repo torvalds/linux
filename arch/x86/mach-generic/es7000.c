@@ -35,13 +35,6 @@ static int probe_es7000(void)
 	return 0;
 }
 
-extern void es7000_sw_apic(void);
-
-static void __init es7000_enable_apic_mode(void)
-{
-	es7000_sw_apic();
-}
-
 static __init int
 mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {

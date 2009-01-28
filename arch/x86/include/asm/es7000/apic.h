@@ -36,6 +36,8 @@ static inline unsigned long es7000_check_apicid_present(int bit)
 	return physid_isset(bit, phys_cpu_present_map);
 }
 
+extern void es7000_enable_apic_mode(void);
+
 #define apicid_cluster(apicid) (apicid & 0xF0)
 
 static inline unsigned long calculate_ldr(int cpu)

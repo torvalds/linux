@@ -359,20 +359,21 @@ es7000_mip_write(struct mip_reg *mip_reg)
 	return status;
 }
 
-void __init
-es7000_sw_apic(void)
+void __init es7000_enable_apic_mode(void)
 {
-	if (es7000_plat) {
-		int mip_status;
-		struct mip_reg es7000_mip_reg;
+	struct mip_reg es7000_mip_reg;
+	int mip_status;
 
-		printk("ES7000: Enabling APIC mode.\n");
-        	memset(&es7000_mip_reg, 0, sizeof(struct mip_reg));
-        	es7000_mip_reg.off_0 = MIP_SW_APIC;
-        	es7000_mip_reg.off_38 = (MIP_VALID);
-        	while ((mip_status = es7000_mip_write(&es7000_mip_reg)) != 0)
-              		printk("es7000_sw_apic: command failed, status = %x\n",
-				mip_status);
+	if (!es7000_plat)
 		return;
+
+	printk("ES7000: Enabling APIC mode.\n");
+       	memset(&es7000_mip_reg, 0, sizeof(struct mip_reg));
+       	es7000_mip_reg.off_0 = MIP_SW_APIC;
+       	es7000_mip_reg.off_38 = MIP_VALID;
+
+       	while ((mip_status = es7000_mip_write(&es7000_mip_reg)) != 0) {
+		printk("es7000_enable_apic_mode: command failed, status = %x\n",
+			mip_status);
 	}
 }
