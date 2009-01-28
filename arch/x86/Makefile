@@ -113,11 +113,6 @@ mcore-y  := arch/x86/mach-default/
 mflags-$(CONFIG_X86_VOYAGER)	:= -Iarch/x86/include/asm/mach-voyager
 mcore-$(CONFIG_X86_VOYAGER)	:= arch/x86/mach-voyager/
 
-# generic subarchitecture
-mflags-$(CONFIG_X86_GENERICARCH):= -Iarch/x86/include/asm/mach-generic
-fcore-$(CONFIG_X86_GENERICARCH)	+= arch/x86/mach-generic/
-mcore-$(CONFIG_X86_GENERICARCH)	:= arch/x86/mach-default/
-
 # default subarch .h files
 mflags-y += -Iarch/x86/include/asm/mach-default
 
