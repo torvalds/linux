@@ -18,7 +18,6 @@ static inline const struct cpumask *default_target_cpus(void)
 } 
 
 #define NO_BALANCE_IRQ (0)
-#define esr_disable (0)
 
 #ifdef CONFIG_X86_64
 #include <asm/genapic.h>

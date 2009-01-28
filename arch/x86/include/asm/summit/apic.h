@@ -4,7 +4,6 @@
 #include <asm/smp.h>
 #include <linux/gfp.h>
 
-#define esr_disable (1)
 #define NO_BALANCE_IRQ (0)
 
 /* In clustered mode, the high nibble of APIC ID is a cluster number.

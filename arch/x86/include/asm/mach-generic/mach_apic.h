@@ -3,7 +3,6 @@
 
 #include <asm/genapic.h>
 
-#define esr_disable (apic->ESR_DISABLE)
 #define NO_BALANCE_IRQ (apic->no_balance_irq)
 #undef APIC_DEST_LOGICAL
 #define APIC_DEST_LOGICAL (apic->apic_destination_logical)

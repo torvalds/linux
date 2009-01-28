@@ -112,7 +112,7 @@ struct genapic apic_es7000 = {
 	.irq_dest_mode			= 0,
 
 	.target_cpus			= es7000_target_cpus,
-	.ESR_DISABLE			= esr_disable,
+	.ESR_DISABLE			= 1,
 	.apic_destination_logical	= APIC_DEST_LOGICAL,
 	.check_apicid_used		= check_apicid_used,
 	.check_apicid_present		= check_apicid_present,

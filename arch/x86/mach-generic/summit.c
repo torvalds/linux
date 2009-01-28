@@ -49,7 +49,7 @@ struct genapic apic_summit = {
 	.irq_dest_mode			= 1,
 
 	.target_cpus			= summit_target_cpus,
-	.ESR_DISABLE			= esr_disable,
+	.ESR_DISABLE			= 1,
 	.apic_destination_logical	= APIC_DEST_LOGICAL,
 	.check_apicid_used		= check_apicid_used,
 	.check_apicid_present		= check_apicid_present,

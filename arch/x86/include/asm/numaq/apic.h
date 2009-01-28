@@ -13,7 +13,6 @@ static inline const cpumask_t *numaq_target_cpus(void)
 }
 
 #define NO_BALANCE_IRQ (1)
-#define esr_disable (1)
 
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
 {

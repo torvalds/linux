@@ -4,7 +4,6 @@
 #include <linux/gfp.h>
 
 #define xapic_phys_to_log_apicid(cpu) per_cpu(x86_bios_cpu_apicid, cpu)
-#define esr_disable (1)
 
 static inline int es7000_apic_id_registered(void)
 {
