@@ -142,7 +142,9 @@ struct genapic apic_es7000 = {
 	.wakeup_cpu			= NULL,
 	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
-	.wait_for_init_deassert		= wait_for_init_deassert,
+
+	.wait_for_init_deassert		= default_wait_for_init_deassert,
+
 	.smp_callin_clear_local_apic	= smp_callin_clear_local_apic,
 	.store_NMI_vector		= store_NMI_vector,
 	.restore_NMI_vector		= restore_NMI_vector,

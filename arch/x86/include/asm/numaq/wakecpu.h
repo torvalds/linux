@@ -6,11 +6,6 @@
 #define NUMAQ_TRAMPOLINE_PHYS_LOW (0x8)
 #define NUMAQ_TRAMPOLINE_PHYS_HIGH (0xa)
 
-/* We don't do anything here because we use NMI's to boot instead */
-static inline void wait_for_init_deassert(atomic_t *deassert)
-{
-}
-
 /*
  * Because we use NMIs rather than the INIT-STARTUP sequence to
  * bootstrap the CPUs, the APIC may be in a weird state. Kick it.

@@ -196,7 +196,8 @@ static void __cpuinit smp_callin(void)
 	 * our local APIC.  We have to wait for the IPI or we'll
 	 * lock up on an APIC access.
 	 */
-	wait_for_init_deassert(&init_deasserted);
+	if (apic->wait_for_init_deassert)
+		apic->wait_for_init_deassert(&init_deasserted);
 
 	/*
 	 * (This works even if the APIC is not enabled.)

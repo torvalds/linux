@@ -106,7 +106,10 @@ struct genapic apic_numaq = {
 	.wakeup_cpu			= NULL,
 	.trampoline_phys_low		= NUMAQ_TRAMPOLINE_PHYS_LOW,
 	.trampoline_phys_high		= NUMAQ_TRAMPOLINE_PHYS_HIGH,
-	.wait_for_init_deassert		= wait_for_init_deassert,
+
+	/* We don't do anything here because we use NMI's to boot instead */
+	.wait_for_init_deassert		= NULL,
+
 	.smp_callin_clear_local_apic	= smp_callin_clear_local_apic,
 	.store_NMI_vector		= store_NMI_vector,
 	.restore_NMI_vector		= restore_NMI_vector,

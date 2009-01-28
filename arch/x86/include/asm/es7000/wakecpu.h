@@ -4,7 +4,7 @@
 #define ES7000_TRAMPOLINE_PHYS_LOW	0x467
 #define ES7000_TRAMPOLINE_PHYS_HIGH	0x469
 
-static inline void wait_for_init_deassert(atomic_t *deassert)
+static inline void es7000_wait_for_init_deassert(atomic_t *deassert)
 {
 #ifndef CONFIG_ES7000_CLUSTERED_APIC
 	while (!atomic_read(deassert))
