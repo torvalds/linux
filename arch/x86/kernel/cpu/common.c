@@ -224,6 +224,49 @@ static inline void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 #endif
 
 /*
+ * Some CPU features depend on higher CPUID levels, which may not always
+ * be available due to CPUID level capping or broken virtualization
+ * software.  Add those features to this table to auto-disable them.
+ */
+struct cpuid_dependent_feature {
+	u32 feature;
+	u32 level;
+};
+static const struct cpuid_dependent_feature __cpuinitconst
+cpuid_dependent_features[] = {
+	{ X86_FEATURE_MWAIT,		0x00000005 },
+	{ X86_FEATURE_DCA,		0x00000009 },
+	{ X86_FEATURE_XSAVE,		0x0000000d },
+	{ 0, 0 }
+};
+
+static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
+{
+	const struct cpuid_dependent_feature *df;
+	for (df = cpuid_dependent_features; df->feature; df++) {
+		/*
+		 * Note: cpuid_level is set to -1 if unavailable, but
+		 * extended_extended_level is set to 0 if unavailable
+		 * and the legitimate extended levels are all negative
+		 * when signed; hence the weird messing around with
+		 * signs here...
+		 */
+		if (cpu_has(c, df->feature) &&
+		    ((s32)df->feature < 0 ?
+		     (u32)df->feature > (u32)c->extended_cpuid_level :
+		     (s32)df->feature > (s32)c->cpuid_level)) {
+			clear_cpu_cap(c, df->feature);
+			if (warn)
+				printk(KERN_WARNING
+				       "CPU: CPU feature %s disabled "
+				       "due to lack of CPUID level 0x%x\n",
+				       x86_cap_flags[df->feature],
+				       df->level);
+		}
+	}
+}	
+
+/*
  * Naming convention should be: <Name> [(<Codename>)]
  * This table only is used unless init_<vendor>() below doesn't set it;
  * in particular, if CPUID levels 0x80000002..4 are supported, this isn't used
@@ -586,11 +629,10 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	if (this_cpu->c_early_init)
 		this_cpu->c_early_init(c);
 
-	validate_pat_support(c);
-
 #ifdef CONFIG_SMP
 	c->cpu_index = boot_cpu_id;
 #endif
+	filter_cpuid_features(c, false);
 }
 
 void __init early_cpu_init(void)
@@ -723,6 +765,9 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	 * The vendor-specific functions might have changed features.  Now
 	 * we do "generic changes."
 	 */
+
+	/* Filter out anything that depends on CPUID levels we don't have */
+	filter_cpuid_features(c, true);
 
 	/* If the model name is still unset, do table lookup. */
 	if (!c->x86_model_id[0]) {
@@ -1053,22 +1098,19 @@ void __cpuinit cpu_init(void)
 	 */
 	if (kgdb_connected && arch_kgdb_ops.correct_hw_break)
 		arch_kgdb_ops.correct_hw_break();
-	else {
+	else
 #endif
-	/*
-	 * Clear all 6 debug registers:
-	 */
-
-	set_debugreg(0UL, 0);
-	set_debugreg(0UL, 1);
-	set_debugreg(0UL, 2);
-	set_debugreg(0UL, 3);
-	set_debugreg(0UL, 6);
-	set_debugreg(0UL, 7);
-#ifdef CONFIG_KGDB
-	/* If the kgdb is connected no debug regs should be altered. */
+	{
+		/*
+		 * Clear all 6 debug registers:
+		 */
+		set_debugreg(0UL, 0);
+		set_debugreg(0UL, 1);
+		set_debugreg(0UL, 2);
+		set_debugreg(0UL, 3);
+		set_debugreg(0UL, 6);
+		set_debugreg(0UL, 7);
 	}
-#endif
 
 	fpu_init();
 

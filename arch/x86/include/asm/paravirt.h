@@ -280,7 +280,6 @@ struct pv_mmu_ops {
 					pte_t *ptep, pte_t pte);
 
 	pteval_t (*pte_val)(pte_t);
-	pteval_t (*pte_flags)(pte_t);
 	pte_t (*make_pte)(pteval_t pte);
 
 	pgdval_t (*pgd_val)(pgd_t);
@@ -1086,23 +1085,6 @@ static inline pteval_t pte_val(pte_t pte)
 	return ret;
 }
 
-static inline pteval_t pte_flags(pte_t pte)
-{
-	pteval_t ret;
-
-	if (sizeof(pteval_t) > sizeof(long))
-		ret = PVOP_CALL2(pteval_t, pv_mmu_ops.pte_flags,
-				 pte.pte, (u64)pte.pte >> 32);
-	else
-		ret = PVOP_CALL1(pteval_t, pv_mmu_ops.pte_flags,
-				 pte.pte);
-
-#ifdef CONFIG_PARAVIRT_DEBUG
-	BUG_ON(ret & PTE_PFN_MASK);
-#endif
-	return ret;
-}
-
 static inline pgd_t __pgd(pgdval_t val)
 {
 	pgdval_t ret;
@@ -1390,8 +1372,6 @@ static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 
 void _paravirt_nop(void);
 #define paravirt_nop	((void *)_paravirt_nop)
-
-void paravirt_use_bytelocks(void);
 
 #ifdef CONFIG_SMP
 
