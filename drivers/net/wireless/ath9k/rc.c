@@ -1479,6 +1479,20 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 			 (is_underrun) ? ATH_11N_TXMAXTRY :
 			 tx_info_priv->tx.ts_longretry);
 
+	/* Check if aggregation has to be enabled for this tid */
+	if (conf_is_ht(&sc->hw->conf)) {
+		if (ieee80211_is_data_qos(fc)) {
+			u8 *qc, tid;
+			struct ath_node *an;
+
+			qc = ieee80211_get_qos_ctl(hdr);
+			tid = qc[0] & 0xf;
+			an = (struct ath_node *)sta->drv_priv;
+
+			if(ath_tx_aggr_check(sc, an, tid))
+				ieee80211_start_tx_ba_session(sc->hw, hdr->addr1, tid);
+		}
+	}
 exit:
 	kfree(tx_info_priv);
 }
@@ -1490,7 +1504,6 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ath_softc *sc = priv;
-	struct ieee80211_hw *hw = sc->hw;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	int is_probe = 0;
@@ -1508,21 +1521,6 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	/* Find tx rate for unicast frames */
 	ath_rc_ratefind(sc, ath_rc_priv, ATH_11N_TXMAXTRY, 4,
 			tx_info, &is_probe, false);
-
-	/* Check if aggregation has to be enabled for this tid */
-	if (conf_is_ht(&hw->conf)) {
-		if (ieee80211_is_data_qos(fc)) {
-			u8 *qc, tid;
-			struct ath_node *an;
-
-			qc = ieee80211_get_qos_ctl(hdr);
-			tid = qc[0] & 0xf;
-			an = (struct ath_node *)sta->drv_priv;
-
-			if(ath_tx_aggr_check(sc, an, tid))
-				ieee80211_start_tx_ba_session(hw, hdr->addr1, tid);
-		}
-	}
 }
 
 static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
