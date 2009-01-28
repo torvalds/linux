@@ -797,23 +797,6 @@ static void clear_IO_APIC (void)
 			clear_IO_APIC_pin(apic, pin);
 }
 
-#if !defined(CONFIG_SMP) && defined(CONFIG_X86_32)
-void default_send_IPI_self(int vector)
-{
-	unsigned int cfg;
-
-	/*
-	 * Wait for idle.
-	 */
-	apic_wait_icr_idle();
-	cfg = APIC_DM_FIXED | APIC_DEST_SELF | vector | apic->dest_logical;
-	/*
-	 * Send the IPI. The write to APIC_ICR fires this off.
-	 */
-	apic_write(APIC_ICR, cfg);
-}
-#endif /* !CONFIG_SMP && CONFIG_X86_32*/
-
 #ifdef CONFIG_X86_32
 /*
  * support for broken MP BIOSs, enables hand-redirection of PIRQ0-7 to

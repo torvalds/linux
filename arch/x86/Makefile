@@ -102,24 +102,6 @@ KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 # prevent gcc from generating any FP code by mistake
 KBUILD_CFLAGS += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
 
-###
-# Sub architecture support
-# fcore-y is linked before mcore-y files.
-
-# Default subarch .c files
-mcore-y  := arch/x86/mach-default/
-
-# Voyager subarch support
-mflags-$(CONFIG_X86_VOYAGER)	:= -Iarch/x86/include/asm/mach-voyager
-mcore-$(CONFIG_X86_VOYAGER)	:= arch/x86/mach-voyager/
-
-# default subarch .h files
-mflags-y += -Iarch/x86/include/asm/mach-default
-
-# 64 bit does not support subarch support - clear sub arch variables
-fcore-$(CONFIG_X86_64)  :=
-mcore-$(CONFIG_X86_64)  :=
-
 KBUILD_CFLAGS += $(mflags-y)
 KBUILD_AFLAGS += $(mflags-y)
 
@@ -144,9 +126,6 @@ core-$(CONFIG_LGUEST_GUEST) += arch/x86/lguest/
 
 core-y += arch/x86/kernel/
 core-y += arch/x86/mm/
-
-# Remaining sub architecture files
-core-y += $(mcore-y)
 
 core-y += arch/x86/crypto/
 core-y += arch/x86/vdso/
