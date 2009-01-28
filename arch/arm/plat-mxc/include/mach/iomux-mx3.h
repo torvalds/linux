@@ -92,7 +92,7 @@ enum iomux_gp_func {
 	MUX_EXTDMAREQ2_MBX_SEL		= 1 << 15,
 	MUX_TAMPER_DETECT_EN		= 1 << 16,
 	MUX_PGP_USB_4WIRE		= 1 << 17,
-	MUX_PGB_USB_COMMON		= 1 << 18,
+	MUX_PGP_USB_COMMON		= 1 << 18,
 	MUX_SDHC_MEMSTICK1		= 1 << 19,
 	MUX_SDHC_MEMSTICK2		= 1 << 20,
 	MUX_PGP_SPLL_BYP		= 1 << 21,
@@ -109,21 +109,44 @@ enum iomux_gp_func {
 };
 
 /*
+ * setups a single pin:
+ * 	- reserves the pin so that it is not claimed by another driver
+ * 	- setups the iomux according to the configuration
+ * 	- if the pin is configured as a GPIO, we claim it throug kernel gpiolib
+ */
+int mxc_iomux_setup_pin(const unsigned int pin, const char *label);
+/*
+ * setups mutliple pins
+ * convenient way to call the above function with tables
+ */
+int mxc_iomux_setup_multiple_pins(unsigned int *pin_list, unsigned count,
+		const char *label);
+
+/*
+ * releases a single pin:
+ * 	- make it available for a future use by another driver
+ * 	- frees the GPIO if the pin was configured as GPIO
+ * 	- DOES NOT reconfigure the IOMUX in its reset state
+ */
+void mxc_iomux_release_pin(const unsigned int pin);
+/*
+ * releases multiple pins
+ * convenvient way to call the above function with tables
+ */
+void mxc_iomux_release_multiple_pins(unsigned int *pin_list, int count);
+
+/*
  * This function enables/disables the general purpose function for a particular
  * signal.
  */
-void iomux_config_gpr(enum iomux_gp_func , bool);
+void mxc_iomux_set_gpr(enum iomux_gp_func, bool en);
 
 /*
- * set the mode for a IOMUX pin.
+ * This function only configures the iomux hardware.
+ * It is called by the setup functions and should not be called directly anymore.
+ * It is here visible for backward compatibility
  */
-int mxc_iomux_mode(unsigned int);
-
-/*
- * This function enables/disables the general purpose function for a particular
- * signal.
- */
-void mxc_iomux_set_gpr(enum iomux_gp_func, bool);
+int mxc_iomux_mode(unsigned int pin_mode);
 
 #define IOMUX_PADNUM_MASK	0x1ff
 #define IOMUX_GPIONUM_SHIFT	9
@@ -142,6 +165,11 @@ void mxc_iomux_set_gpr(enum iomux_gp_func, bool);
 #define IOMUX_TO_IRQ(iomux_pin) \
 	(((iomux_pin & IOMUX_GPIONUM_MASK) >> IOMUX_GPIONUM_SHIFT) + \
 	MXC_GPIO_IRQ_START)
+
+/*
+ * The number of gpio devices among the pads
+ */
+#define GPIO_PORT_MAX 3
 
 /*
  * This enumeration is constructed based on the Section
@@ -479,6 +507,9 @@ enum iomux_pins {
 	MX31_PIN_COMPARE	= IOMUX_PIN( 8,   326),
 	MX31_PIN_CAPTURE	= IOMUX_PIN( 7,   327),
 };
+
+#define PIN_MAX 327
+#define NB_PORTS 12 /* NB_PINS/32, we chose 32 pins per "PORT" */
 
 /*
  * Convenience values for use with mxc_iomux_mode()
