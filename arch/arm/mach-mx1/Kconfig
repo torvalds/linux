@@ -11,4 +11,8 @@ config ARCH_MX1ADS
 	help
 	  Say Y here if you are using Motorola MX1ADS/MXLADS boards
 
+config MACH_SCB9328
+	bool "Synertronixx scb9328"
+	help
+	  Say Y here if you are using a Synertronixx scb9328 board
 endif
