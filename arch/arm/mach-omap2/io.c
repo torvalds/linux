@@ -195,12 +195,12 @@ void __init omap2_map_common_io(void)
 	omapfb_reserve_sdram();
 }
 
-void __init omap2_init_common_hw(void)
+void __init omap2_init_common_hw(struct omap_sdrc_params *sp)
 {
 	omap2_mux_init();
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_pwrdm_autodeps);
 	omap2_clk_init();
-	omap2_sdrc_init();
+	omap2_sdrc_init(sp);
 	gpmc_init();
 }
