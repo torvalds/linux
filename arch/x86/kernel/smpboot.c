@@ -53,7 +53,6 @@
 #include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/idle.h>
-#include <asm/smp.h>
 #include <asm/trampoline.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
@@ -63,6 +62,7 @@
 #include <asm/vmi.h>
 #include <asm/genapic.h>
 #include <asm/setup.h>
+#include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 
 #include <mach_apic.h>
@@ -745,52 +745,6 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 	complete(&c_idle->done);
 }
 
-#ifdef CONFIG_X86_64
-
-/* __ref because it's safe to call free_bootmem when after_bootmem == 0. */
-static void __ref free_bootmem_pda(struct x8664_pda *oldpda)
-{
-	if (!after_bootmem)
-		free_bootmem((unsigned long)oldpda, sizeof(*oldpda));
-}
-
-/*
- * Allocate node local memory for the AP pda.
- *
- * Must be called after the _cpu_pda pointer table is initialized.
- */
-int __cpuinit get_local_pda(int cpu)
-{
-	struct x8664_pda *oldpda, *newpda;
-	unsigned long size = sizeof(struct x8664_pda);
-	int node = cpu_to_node(cpu);
-
-	if (cpu_pda(cpu) && !cpu_pda(cpu)->in_bootmem)
-		return 0;
-
-	oldpda = cpu_pda(cpu);
-	newpda = kmalloc_node(size, GFP_ATOMIC, node);
-	if (!newpda) {
-		printk(KERN_ERR "Could not allocate node local PDA "
-			"for CPU %d on node %d\n", cpu, node);
-
-		if (oldpda)
-			return 0;	/* have a usable pda */
-		else
-			return -1;
-	}
-
-	if (oldpda) {
-		memcpy(newpda, oldpda, size);
-		free_bootmem_pda(oldpda);
-	}
-
-	newpda->in_bootmem = 0;
-	cpu_pda(cpu) = newpda;
-	return 0;
-}
-#endif /* CONFIG_X86_64 */
-
 static int __cpuinit do_boot_cpu(int apicid, int cpu)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
@@ -807,16 +761,6 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 		.done = COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
 	INIT_WORK(&c_idle.work, do_fork_idle);
-
-#ifdef CONFIG_X86_64
-	/* Allocate node local memory for AP pdas */
-	if (cpu > 0) {
-		boot_error = get_local_pda(cpu);
-		if (boot_error)
-			goto restore_state;
-			/* if can't get pda memory, can't start cpu */
-	}
-#endif
 
 	alternatives_smp_switch(1);
 
@@ -847,14 +791,16 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 
 	set_idle_for_cpu(cpu, c_idle.idle);
 do_rest:
-#ifdef CONFIG_X86_32
 	per_cpu(current_task, cpu) = c_idle.idle;
-	init_gdt(cpu);
+#ifdef CONFIG_X86_32
 	/* Stack for startup_32 can be just as for start_secondary onwards */
 	irq_ctx_init(cpu);
 #else
-	cpu_pda(cpu)->pcurrent = c_idle.idle;
 	clear_tsk_thread_flag(c_idle.idle, TIF_FORK);
+	initial_gs = per_cpu_offset(cpu);
+	per_cpu(kernel_stack, cpu) =
+		(unsigned long)task_stack_page(c_idle.idle) -
+		KERNEL_STACK_OFFSET + THREAD_SIZE;
 #endif
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	initial_code = (unsigned long)start_secondary;
@@ -931,9 +877,7 @@ do_rest:
 				inquire_remote_apic(apicid);
 		}
 	}
-#ifdef CONFIG_X86_64
-restore_state:
-#endif
+
 	if (boot_error) {
 		/* Try to put things back the way they were before ... */
 		numa_remove_cpu(cpu); /* was set by numa_add_cpu */
@@ -1125,6 +1069,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 		printk(KERN_ERR "... forcing use of dummy APIC emulation."
 				"(tell your hw vendor)\n");
 		smpboot_clear_io_apic();
+		disable_ioapic_setup();
 		return -1;
 	}
 
@@ -1240,9 +1185,6 @@ out:
 void __init native_smp_prepare_boot_cpu(void)
 {
 	int me = smp_processor_id();
-#ifdef CONFIG_X86_32
-	init_gdt(me);
-#endif
 	switch_to_new_gdt();
 	/* already set me in cpu_online_mask in boot_cpu_init() */
 	cpumask_set_cpu(me, cpu_callout_mask);

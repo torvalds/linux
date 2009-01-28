@@ -15,6 +15,8 @@
 
 #include <linux/mutex.h>
 
+#include <asm/uv/uv.h>
+
 #ifdef CONFIG_IA64
 #include <asm/system.h>
 #include <asm/sn/arch.h>	/* defines is_shub1() and is_shub2() */

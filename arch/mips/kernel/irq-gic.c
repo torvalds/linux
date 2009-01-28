@@ -187,7 +187,7 @@ static void gic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 		set_bit(irq, pcpu_masks[first_cpu(tmp)].pcpu_mask);
 
 	}
-	irq_desc[irq].affinity = *cpumask;
+	cpumask_copy(irq_desc[irq].affinity, cpumask);
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 }

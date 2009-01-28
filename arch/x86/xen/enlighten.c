@@ -634,35 +634,27 @@ static void xen_flush_tlb_single(unsigned long addr)
 	preempt_enable();
 }
 
-static void xen_flush_tlb_others(const cpumask_t *cpus, struct mm_struct *mm,
-				 unsigned long va)
+static void xen_flush_tlb_others(const struct cpumask *cpus,
+				 struct mm_struct *mm, unsigned long va)
 {
 	struct {
 		struct mmuext_op op;
-		cpumask_t mask;
+		DECLARE_BITMAP(mask, NR_CPUS);
 	} *args;
-	cpumask_t cpumask = *cpus;
 	struct multicall_space mcs;
 
-	/*
-	 * A couple of (to be removed) sanity checks:
-	 *
-	 * - current CPU must not be in mask
-	 * - mask must exist :)
-	 */
-	BUG_ON(cpus_empty(cpumask));
-	BUG_ON(cpu_isset(smp_processor_id(), cpumask));
+	BUG_ON(cpumask_empty(cpus));
 	BUG_ON(!mm);
-
-	/* If a CPU which we ran on has gone down, OK. */
-	cpus_and(cpumask, cpumask, cpu_online_map);
-	if (cpus_empty(cpumask))
-		return;
 
 	mcs = xen_mc_entry(sizeof(*args));
 	args = mcs.args;
-	args->mask = cpumask;
-	args->op.arg2.vcpumask = &args->mask;
+	args->op.arg2.vcpumask = to_cpumask(args->mask);
+
+	/* Remove us, and any offline CPUS. */
+	cpumask_and(to_cpumask(args->mask), cpus, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), to_cpumask(args->mask));
+	if (unlikely(cpumask_empty(to_cpumask(args->mask))))
+		goto issue;
 
 	if (va == TLB_FLUSH_ALL) {
 		args->op.cmd = MMUEXT_TLB_FLUSH_MULTI;
@@ -673,6 +665,7 @@ static void xen_flush_tlb_others(const cpumask_t *cpus, struct mm_struct *mm,
 
 	MULTI_mmuext_op(mcs.mc, &args->op, 1, NULL, DOMID_SELF);
 
+issue:
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
 
@@ -702,17 +695,17 @@ static void xen_write_cr0(unsigned long cr0)
 
 static void xen_write_cr2(unsigned long cr2)
 {
-	x86_read_percpu(xen_vcpu)->arch.cr2 = cr2;
+	percpu_read(xen_vcpu)->arch.cr2 = cr2;
 }
 
 static unsigned long xen_read_cr2(void)
 {
-	return x86_read_percpu(xen_vcpu)->arch.cr2;
+	return percpu_read(xen_vcpu)->arch.cr2;
 }
 
 static unsigned long xen_read_cr2_direct(void)
 {
-	return x86_read_percpu(xen_vcpu_info.arch.cr2);
+	return percpu_read(xen_vcpu_info.arch.cr2);
 }
 
 static void xen_write_cr4(unsigned long cr4)
@@ -725,12 +718,12 @@ static void xen_write_cr4(unsigned long cr4)
 
 static unsigned long xen_read_cr3(void)
 {
-	return x86_read_percpu(xen_cr3);
+	return percpu_read(xen_cr3);
 }
 
 static void set_current_cr3(void *v)
 {
-	x86_write_percpu(xen_current_cr3, (unsigned long)v);
+	percpu_write(xen_current_cr3, (unsigned long)v);
 }
 
 static void __xen_write_cr3(bool kernel, unsigned long cr3)
@@ -755,7 +748,7 @@ static void __xen_write_cr3(bool kernel, unsigned long cr3)
 	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);
 
 	if (kernel) {
-		x86_write_percpu(xen_cr3, cr3);
+		percpu_write(xen_cr3, cr3);
 
 		/* Update xen_current_cr3 once the batch has actually
 		   been submitted. */
@@ -771,7 +764,7 @@ static void xen_write_cr3(unsigned long cr3)
 
 	/* Update while interrupts are disabled, so its atomic with
 	   respect to ipis */
-	x86_write_percpu(xen_cr3, cr3);
+	percpu_write(xen_cr3, cr3);
 
 	__xen_write_cr3(true, cr3);
 
@@ -1652,7 +1645,6 @@ asmlinkage void __init xen_start_kernel(void)
 #ifdef CONFIG_X86_64
 	/* Disable until direct per-cpu data access. */
 	have_vcpu_info_placement = 0;
-	x86_64_init_pda();
 #endif
 
 	xen_smp_init();
