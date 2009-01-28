@@ -160,8 +160,12 @@ static bool ath9k_is_radar_freq(u16 center_freq)
 	return (center_freq >= 5260 && center_freq <= 5700);
 }
 
-/* Enable adhoc on 5 GHz if allowed by 11d */
-static void ath9k_reg_apply_5ghz_adhoc_flags(struct wiphy *wiphy,
+/*
+ * Enable adhoc on 5 GHz if allowed by 11d.
+ * Remove passive scan if channel is allowed by 11d,
+ * except when on radar frequencies.
+ */
+static void ath9k_reg_apply_5ghz_beaconing_flags(struct wiphy *wiphy,
 					     enum reg_set_by setby)
 {
 	struct ieee80211_supported_band *sband;
@@ -189,6 +193,10 @@ static void ath9k_reg_apply_5ghz_adhoc_flags(struct wiphy *wiphy,
 		 * probe */
 		if (!(reg_rule->flags & NL80211_RRF_NO_IBSS))
 			ch->flags &= ~NL80211_RRF_NO_IBSS;
+		if (!ath9k_is_radar_freq(ch->center_freq))
+			continue;
+		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
+			ch->flags &= ~NL80211_RRF_PASSIVE_SCAN;
 	}
 }
 
@@ -283,10 +291,10 @@ void ath9k_reg_apply_world_flags(struct wiphy *wiphy, enum reg_set_by setby)
 	case 0x63:
 	case 0x66:
 	case 0x67:
-		ath9k_reg_apply_5ghz_adhoc_flags(wiphy, setby);
+		ath9k_reg_apply_5ghz_beaconing_flags(wiphy, setby);
 		break;
 	case 0x68:
-		ath9k_reg_apply_5ghz_adhoc_flags(wiphy, setby);
+		ath9k_reg_apply_5ghz_beaconing_flags(wiphy, setby);
 		ath9k_reg_apply_active_scan_flags(wiphy, setby);
 		break;
 	}
