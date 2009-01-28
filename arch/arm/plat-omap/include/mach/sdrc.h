@@ -4,10 +4,12 @@
 /*
  * OMAP2/3 SDRC/SMS register definitions
  *
- * Copyright (C) 2007 Texas Instruments, Inc.
- * Copyright (C) 2007 Nokia Corporation
+ * Copyright (C) 2007-2008 Texas Instruments, Inc.
+ * Copyright (C) 2007-2008 Nokia Corporation
  *
- * Written by Paul Walmsley
+ * Tony Lindgren
+ * Paul Walmsley
+ * Richard Woodruff
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -64,17 +66,24 @@
  * SMS register access
  */
 
-
-#define OMAP242X_SMS_REGADDR(reg)	IO_ADDRESS(OMAP2420_SMS_BASE + reg)
-#define OMAP243X_SMS_REGADDR(reg)	IO_ADDRESS(OMAP243X_SMS_BASE + reg)
-#define OMAP343X_SMS_REGADDR(reg)	IO_ADDRESS(OMAP343X_SMS_BASE + reg)
+#define OMAP242X_SMS_REGADDR(reg)					\
+			(void __iomem *)IO_ADDRESS(OMAP2420_SMS_BASE + reg)
+#define OMAP243X_SMS_REGADDR(reg)					\
+			(void __iomem *)IO_ADDRESS(OMAP243X_SMS_BASE + reg)
+#define OMAP343X_SMS_REGADDR(reg)					\
+			(void __iomem *)IO_ADDRESS(OMAP343X_SMS_BASE + reg)
 
 /* SMS register offsets - read/write with sms_{read,write}_reg() */
 
 #define SMS_SYSCONFIG		0x010
 /* REVISIT: fill in other SMS registers here */
 
+
 #ifndef __ASSEMBLER__
+
+void __init omap2_sdrc_init(void);
+
+#ifdef CONFIG_ARCH_OMAP2
 
 struct memory_timings {
 	u32 m_type;		/* ddr = 1, sdr = 0 */
@@ -84,15 +93,13 @@ struct memory_timings {
 	u32 base_cs;		/* base chip select to use for calculations */
 };
 
-extern void omap2_init_memory_params(u32 force_lock_to_unlock_mode);
-extern u32 omap2_memory_get_slow_dll_ctrl(void);
-extern u32 omap2_memory_get_fast_dll_ctrl(void);
-extern u32 omap2_memory_get_type(void);
-u32 omap2_dll_force_needed(void);
-u32 omap2_reprogram_sdrc(u32 level, u32 force);
-void __init omap2_init_memory(void);
+extern void omap2xxx_sdrc_init_params(u32 force_lock_to_unlock_mode);
 
-#endif
+u32 omap2xxx_sdrc_dll_is_unlocked(void);
+u32 omap2xxx_sdrc_reprogram(u32 level, u32 force);
 
+#endif  /* CONFIG_ARCH_OMAP2 */
+
+#endif  /* __ASSEMBLER__ */
 
 #endif

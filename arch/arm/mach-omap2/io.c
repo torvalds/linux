@@ -201,6 +201,6 @@ void __init omap2_init_common_hw(void)
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_pwrdm_autodeps);
 	omap2_clk_init();
-	omap2_init_memory();
+	omap2_sdrc_init();
 	gpmc_init();
 }
