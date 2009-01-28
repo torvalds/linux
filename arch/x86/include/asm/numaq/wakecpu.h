@@ -15,7 +15,8 @@ static inline void numaq_smp_callin_clear_local_apic(void)
 	clear_local_APIC();
 }
 
-static inline void store_NMI_vector(unsigned short *high, unsigned short *low)
+static inline void
+numaq_store_NMI_vector(unsigned short *high, unsigned short *low)
 {
 	printk("Storing NMI vector\n");
 	*high =
@@ -24,7 +25,8 @@ static inline void store_NMI_vector(unsigned short *high, unsigned short *low)
 	  *((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_LOW));
 }
 
-static inline void restore_NMI_vector(unsigned short *high, unsigned short *low)
+static inline void
+numaq_restore_NMI_vector(unsigned short *high, unsigned short *low)
 {
 	printk("Restoring NMI vector\n");
 	*((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_HIGH)) =

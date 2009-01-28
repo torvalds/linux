@@ -13,14 +13,6 @@ static inline void es7000_wait_for_init_deassert(atomic_t *deassert)
 	return;
 }
 
-static inline void store_NMI_vector(unsigned short *high, unsigned short *low)
-{
-}
-
-static inline void restore_NMI_vector(unsigned short *high, unsigned short *low)
-{
-}
-
 extern void __inquire_remote_apic(int apicid);
 
 static inline void inquire_remote_apic(int apicid)

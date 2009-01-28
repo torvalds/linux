@@ -8,14 +8,6 @@ static inline void default_wait_for_init_deassert(atomic_t *deassert)
 	return;
 }
 
-static inline void store_NMI_vector(unsigned short *high, unsigned short *low)
-{
-}
-
-static inline void restore_NMI_vector(unsigned short *high, unsigned short *low)
-{
-}
-
 #ifdef CONFIG_SMP
 extern void __inquire_remote_apic(int apicid);
 #else /* CONFIG_SMP */

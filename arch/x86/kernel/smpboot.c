@@ -826,7 +826,8 @@ do_rest:
 
 		pr_debug("Setting warm reset code and vector.\n");
 
-		store_NMI_vector(&nmi_high, &nmi_low);
+		if (apic->store_NMI_vector)
+			apic->store_NMI_vector(&nmi_high, &nmi_low);
 
 		smpboot_setup_warm_reset_vector(start_ip);
 		/*
