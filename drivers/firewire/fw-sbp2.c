@@ -360,15 +360,17 @@ static const struct {
 		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
 	},
-
 	/*
-	 * There are iPods (2nd gen, 3rd gen) with model_id == 0, but
-	 * these iPods do not feature the read_capacity bug according
-	 * to one report.  Read_capacity behaviour as well as model_id
-	 * could change due to Apple-supplied firmware updates though.
+	 * iPod 2nd generation: needs 128k max transfer size workaround
+	 * iPod 3rd generation: needs fix capacity workaround
 	 */
-
-	/* iPod 4th generation. */ {
+	{
+		.firmware_revision	= 0x0a2700,
+		.model			= 0x000000,
+		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS |
+					  SBP2_WORKAROUND_FIX_CAPACITY,
+	},
+	/* iPod 4th generation */ {
 		.firmware_revision	= 0x0a2700,
 		.model			= 0x000021,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
