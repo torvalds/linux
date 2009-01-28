@@ -9,10 +9,11 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 
 void *dma_alloc_coherent(struct device *dev, size_t size,
-			   dma_addr_t *dma_handle, int gfp)
+			   dma_addr_t *dma_handle, gfp_t gfp)
 {
 	void *ret;
 	/* ignore region specifiers */
@@ -34,3 +35,8 @@ void dma_free_coherent(struct device *dev, size_t size,
 {
 	free_pages((unsigned long)vaddr, get_order(size));
 }
+
+void dma_sync_single_for_cpu(struct device *dev, dma_addr_t handle, size_t size, enum dma_data_direction dir)
+{
+}
+
