@@ -32,3 +32,4 @@ obj-$(CONFIG_ANDROID)		+= android/
 obj-$(CONFIG_DST)		+= dst/
 obj-$(CONFIG_POHMELFS)		+= pohmelfs/
 obj-$(CONFIG_STLC45XX)		+= stlc45xx/
+obj-$(CONFIG_USB_SERIAL_ATEN2011)	+= uc2322/

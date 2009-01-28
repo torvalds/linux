@@ -99,5 +99,7 @@ source "drivers/staging/pohmelfs/Kconfig"
 
 source "drivers/staging/stlc45xx/Kconfig"
 
+source "drivers/staging/uc2322/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
