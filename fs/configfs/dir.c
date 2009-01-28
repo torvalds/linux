@@ -78,6 +78,92 @@ static const struct dentry_operations configfs_dentry_ops = {
 	.d_delete	= configfs_d_delete,
 };
 
+#ifdef CONFIG_LOCKDEP
+
+/*
+ * Helpers to make lockdep happy with our recursive locking of default groups'
+ * inodes (see configfs_attach_group() and configfs_detach_group()).
+ * We put default groups i_mutexes in separate classes according to their depth
+ * from the youngest non-default group ancestor.
+ *
+ * For a non-default group A having default groups A/B, A/C, and A/C/D, default
+ * groups A/B and A/C will have their inode's mutex in class
+ * default_group_class[0], and default group A/C/D will be in
+ * default_group_class[1].
+ *
+ * The lock classes are declared and assigned in inode.c, according to the
+ * s_depth value.
+ * The s_depth value is initialized to -1, adjusted to >= 0 when attaching
+ * default groups, and reset to -1 when all default groups are attached. During
+ * attachment, if configfs_create() sees s_depth > 0, the lock class of the new
+ * inode's mutex is set to default_group_class[s_depth - 1].
+ */
+
+static void configfs_init_dirent_depth(struct configfs_dirent *sd)
+{
+	sd->s_depth = -1;
+}
+
+static void configfs_set_dir_dirent_depth(struct configfs_dirent *parent_sd,
+					  struct configfs_dirent *sd)
+{
+	int parent_depth = parent_sd->s_depth;
+
+	if (parent_depth >= 0)
+		sd->s_depth = parent_depth + 1;
+}
+
+static void
+configfs_adjust_dir_dirent_depth_before_populate(struct configfs_dirent *sd)
+{
+	/*
+	 * item's i_mutex class is already setup, so s_depth is now only
+	 * used to set new sub-directories s_depth, which is always done
+	 * with item's i_mutex locked.
+	 */
+	/*
+	 *  sd->s_depth == -1 iff we are a non default group.
+	 *  else (we are a default group) sd->s_depth > 0 (see
+	 *  create_dir()).
+	 */
+	if (sd->s_depth == -1)
+		/*
+		 * We are a non default group and we are going to create
+		 * default groups.
+		 */
+		sd->s_depth = 0;
+}
+
+static void
+configfs_adjust_dir_dirent_depth_after_populate(struct configfs_dirent *sd)
+{
+	/* We will not create default groups anymore. */
+	sd->s_depth = -1;
+}
+
+#else /* CONFIG_LOCKDEP */
+
+static void configfs_init_dirent_depth(struct configfs_dirent *sd)
+{
+}
+
+static void configfs_set_dir_dirent_depth(struct configfs_dirent *parent_sd,
+					  struct configfs_dirent *sd)
+{
+}
+
+static void
+configfs_adjust_dir_dirent_depth_before_populate(struct configfs_dirent *sd)
+{
+}
+
+static void
+configfs_adjust_dir_dirent_depth_after_populate(struct configfs_dirent *sd)
+{
+}
+
+#endif /* CONFIG_LOCKDEP */
+
 /*
  * Allocates a new configfs_dirent and links it to the parent configfs_dirent
  */
@@ -94,6 +180,7 @@ static struct configfs_dirent *configfs_new_dirent(struct configfs_dirent * pare
 	INIT_LIST_HEAD(&sd->s_links);
 	INIT_LIST_HEAD(&sd->s_children);
 	sd->s_element = element;
+	configfs_init_dirent_depth(sd);
 	spin_lock(&configfs_dirent_lock);
 	if (parent_sd->s_type & CONFIGFS_USET_DROPPING) {
 		spin_unlock(&configfs_dirent_lock);
@@ -187,6 +274,7 @@ static int create_dir(struct config_item * k, struct dentry * p,
 		error = configfs_make_dirent(p->d_fsdata, d, k, mode,
 					     CONFIGFS_DIR | CONFIGFS_USET_CREATING);
 	if (!error) {
+		configfs_set_dir_dirent_depth(p->d_fsdata, d->d_fsdata);
 		error = configfs_create(d, mode, init_dir);
 		if (!error) {
 			inc_nlink(p->d_inode);
@@ -789,11 +877,13 @@ static int configfs_attach_group(struct config_item *parent_item,
 		 * error, as rmdir() would.
 		 */
 		mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
+		configfs_adjust_dir_dirent_depth_before_populate(sd);
 		ret = populate_groups(to_config_group(item));
 		if (ret) {
 			configfs_detach_item(item);
 			dentry->d_inode->i_flags |= S_DEAD;
 		}
+		configfs_adjust_dir_dirent_depth_after_populate(sd);
 		mutex_unlock(&dentry->d_inode->i_mutex);
 		if (ret)
 			d_delete(dentry);
