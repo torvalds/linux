@@ -292,16 +292,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 		return 0;
 
 #ifdef CONFIG_X86_32
-	/*
-	 * need to make sure summit and es7000's mps_oem_check is safe to be
-	 * called early via genericarch 's mps_oem_check
-	 */
-	if (early) {
-#ifdef CONFIG_X86_NUMAQ
-		numaq_mps_oem_check(mpc, oem, str);
-#endif
-	} else
-		mps_oem_check(mpc, oem, str);
+	mps_oem_check(mpc, oem, str);
 #endif
 	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)
