@@ -877,19 +877,22 @@ long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 	int m, n, r, e, scaled_max_m;
 	unsigned long scaled_rt_rp, new_rate;
 	int min_e = -1, min_e_m = -1, min_e_n = -1;
+	struct dpll_data *dd;
 
 	if (!clk || !clk->dpll_data)
 		return ~0;
+
+	dd = clk->dpll_data;
 
 	pr_debug("clock: starting DPLL round_rate for clock %s, target rate "
 		 "%ld\n", clk->name, target_rate);
 
 	scaled_rt_rp = target_rate / (clk->parent->rate / DPLL_SCALE_FACTOR);
-	scaled_max_m = clk->dpll_data->max_multiplier * DPLL_SCALE_FACTOR;
+	scaled_max_m = dd->max_multiplier * DPLL_SCALE_FACTOR;
 
-	clk->dpll_data->last_rounded_rate = 0;
+	dd->last_rounded_rate = 0;
 
-	for (n = clk->dpll_data->max_divider; n >= DPLL_MIN_DIVIDER; n--) {
+	for (n = dd->max_divider; n >= DPLL_MIN_DIVIDER; n--) {
 
 		/* Compute the scaled DPLL multiplier, based on the divider */
 		m = scaled_rt_rp * n;
@@ -909,7 +912,7 @@ long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 			 "(new_rate = %ld)\n", n, m, e, new_rate);
 
 		if (min_e == -1 ||
-		    min_e >= (int)(abs(e) - clk->dpll_data->rate_tolerance)) {
+		    min_e >= (int)(abs(e) - dd->rate_tolerance)) {
 			min_e = e;
 			min_e_m = m;
 			min_e_n = n;
@@ -932,17 +935,17 @@ long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 		return ~0;
 	}
 
-	clk->dpll_data->last_rounded_m = min_e_m;
-	clk->dpll_data->last_rounded_n = min_e_n;
-	clk->dpll_data->last_rounded_rate =
-		_dpll_compute_new_rate(clk->parent->rate, min_e_m,  min_e_n);
+	dd->last_rounded_m = min_e_m;
+	dd->last_rounded_n = min_e_n;
+	dd->last_rounded_rate = _dpll_compute_new_rate(clk->parent->rate,
+						       min_e_m,  min_e_n);
 
 	pr_debug("clock: final least error: e = %d, m = %d, n = %d\n",
 		 min_e, min_e_m, min_e_n);
 	pr_debug("clock: final rate: %ld  (target rate: %ld)\n",
-		 clk->dpll_data->last_rounded_rate, target_rate);
+		 dd->last_rounded_rate, target_rate);
 
-	return clk->dpll_data->last_rounded_rate;
+	return dd->last_rounded_rate;
 }
 
 /*-------------------------------------------------------------------------
