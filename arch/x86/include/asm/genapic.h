@@ -113,4 +113,11 @@ extern int default_cpu_present_to_apicid(int mps_cpu);
 extern int default_check_phys_apicid_present(int boot_cpu_physical_apicid);
 #endif
 
+static inline void default_wait_for_init_deassert(atomic_t *deassert)
+{
+	while (!atomic_read(deassert))
+		cpu_relax();
+	return;
+}
+
 #endif /* _ASM_X86_GENAPIC_64_H */

@@ -14,7 +14,6 @@
 #include <linux/acpi.h>
 #include <linux/smp.h>
 #include <asm/ipi.h>
-#include <asm/mach-default/mach_wakecpu.h>
 
 #define APIC_DFR_VALUE_CLUSTER		(APIC_DFR_CLUSTER)
 #define INT_DELIVERY_MODE_CLUSTER	(dest_LowestPrio)

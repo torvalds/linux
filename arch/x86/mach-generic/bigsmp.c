@@ -17,7 +17,6 @@
 #include <asm/bigsmp/apic.h>
 #include <asm/bigsmp/ipi.h>
 #include <asm/mach-default/mach_mpparse.h>
-#include <asm/mach-default/mach_wakecpu.h>
 
 static int dmi_bigsmp; /* can be set by dmi scanners */
 

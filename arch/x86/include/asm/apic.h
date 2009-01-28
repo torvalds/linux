@@ -41,6 +41,21 @@ extern unsigned int apic_verbosity;
 extern int local_apic_timer_c2_ok;
 
 extern int disable_apic;
+
+#ifdef CONFIG_SMP
+extern void __inquire_remote_apic(int apicid);
+#else /* CONFIG_SMP */
+static inline void __inquire_remote_apic(int apicid)
+{
+}
+#endif /* CONFIG_SMP */
+
+static inline void default_inquire_remote_apic(int apicid)
+{
+	if (apic_verbosity >= APIC_DEBUG)
+		__inquire_remote_apic(apicid);
+}
+
 /*
  * Basic functions accessing APICs.
  */
