@@ -1293,7 +1293,7 @@ static struct clk sgx_fck = {
 	.ops		= &clkops_omap2_dflt_wait,
 	.init		= &omap2_init_clksel_parent,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430ES2_SGX_MOD, CM_FCLKEN),
-	.enable_bit	= OMAP3430ES2_EN_SGX_SHIFT,
+	.enable_bit	= OMAP3430ES2_CM_FCLKEN_SGX_EN_SGX_SHIFT,
 	.clksel_reg	= OMAP_CM_REGADDR(OMAP3430ES2_SGX_MOD, CM_CLKSEL),
 	.clksel_mask	= OMAP3430ES2_CLKSEL_SGX_MASK,
 	.clksel		= sgx_clksel,
@@ -1307,7 +1307,7 @@ static struct clk sgx_ick = {
 	.parent		= &l3_ick,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430ES2_SGX_MOD, CM_ICLKEN),
-	.enable_bit	= OMAP3430ES2_EN_SGX_SHIFT,
+	.enable_bit	= OMAP3430ES2_CM_ICLKEN_SGX_EN_SGX_SHIFT,
 	.clkdm_name	= "sgx_clkdm",
 	.recalc		= &followparent_recalc,
 };
