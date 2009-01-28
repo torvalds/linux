@@ -666,6 +666,7 @@ static struct dpll_data dpll_dd = {
 	.mult_mask		= OMAP24XX_DPLL_MULT_MASK,
 	.div1_mask		= OMAP24XX_DPLL_DIV_MASK,
 	.max_multiplier		= 1024,
+	.min_divider		= 1,
 	.max_divider		= 16,
 	.rate_tolerance		= DEFAULT_DPLL_RATE_TOLERANCE
 };

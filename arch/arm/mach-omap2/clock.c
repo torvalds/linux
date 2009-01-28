@@ -58,11 +58,67 @@
 #define DPLL_ROUNDING_VAL		((DPLL_SCALE_BASE / 2) * \
 					 (DPLL_SCALE_FACTOR / DPLL_SCALE_BASE))
 
+/* DPLL valid Fint frequency band limits - from 34xx TRM Section 4.7.6.2 */
+#define DPLL_FINT_BAND1_MIN		750000
+#define DPLL_FINT_BAND1_MAX		2100000
+#define DPLL_FINT_BAND2_MIN		7500000
+#define DPLL_FINT_BAND2_MAX		21000000
+
+/* _dpll_test_fint() return codes */
+#define DPLL_FINT_UNDERFLOW		-1
+#define DPLL_FINT_INVALID		-2
+
 u8 cpu_mask;
 
 /*-------------------------------------------------------------------------
  * OMAP2/3 specific clock functions
  *-------------------------------------------------------------------------*/
+
+/*
+ * _dpll_test_fint - test whether an Fint value is valid for the DPLL
+ * @clk: DPLL struct clk to test
+ * @n: divider value (N) to test
+ *
+ * Tests whether a particular divider @n will result in a valid DPLL
+ * internal clock frequency Fint. See the 34xx TRM 4.7.6.2 "DPLL Jitter
+ * Correction".  Returns 0 if OK, -1 if the enclosing loop can terminate
+ * (assuming that it is counting N upwards), or -2 if the enclosing loop
+ * should skip to the next iteration (again assuming N is increasing).
+ */
+static int _dpll_test_fint(struct clk *clk, u8 n)
+{
+	struct dpll_data *dd;
+	long fint;
+	int ret = 0;
+
+	dd = clk->dpll_data;
+
+	/* DPLL divider must result in a valid jitter correction val */
+	fint = clk->parent->rate / (n + 1);
+	if (fint < DPLL_FINT_BAND1_MIN) {
+
+		pr_debug("rejecting n=%d due to Fint failure, "
+			 "lowering max_divider\n", n);
+		dd->max_divider = n;
+		ret = DPLL_FINT_UNDERFLOW;
+
+	} else if (fint > DPLL_FINT_BAND1_MAX &&
+		   fint < DPLL_FINT_BAND2_MIN) {
+
+		pr_debug("rejecting n=%d due to Fint failure\n", n);
+		ret = DPLL_FINT_INVALID;
+
+	} else if (fint > DPLL_FINT_BAND2_MAX) {
+
+		pr_debug("rejecting n=%d due to Fint failure, "
+			 "boosting min_divider\n", n);
+		dd->min_divider = n;
+		ret = DPLL_FINT_INVALID;
+
+	}
+
+	return ret;
+}
 
 /**
  * omap2_init_clk_clkdm - look up a clockdomain name, store pointer in clk
@@ -892,7 +948,14 @@ long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 
 	dd->last_rounded_rate = 0;
 
-	for (n = DPLL_MIN_DIVIDER; n <= dd->max_divider; n++) {
+	for (n = dd->min_divider; n <= dd->max_divider; n++) {
+
+		/* Is the (input clk, divider) pair valid for the DPLL? */
+		r = _dpll_test_fint(clk, n);
+		if (r == DPLL_FINT_UNDERFLOW)
+			break;
+		else if (r == DPLL_FINT_INVALID)
+			continue;
 
 		/* Compute the scaled DPLL multiplier, based on the divider */
 		m = scaled_rt_rp * n;
@@ -926,7 +989,7 @@ long omap2_dpll_round_rate(struct clk *clk, unsigned long target_rate)
 			pr_debug("clock: found new least error %d\n", min_e);
 
 			/* We found good settings -- bail out now */
-			if (min_e <= clk->dpll_data->rate_tolerance)
+			if (min_e <= dd->rate_tolerance)
 				break;
 		}
 	}
