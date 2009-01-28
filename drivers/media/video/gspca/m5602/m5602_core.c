@@ -112,18 +112,16 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 	if (err < 0)
 		return err;
 
+	/* Sensors with registers that only are one byte width are differently read */
+	/* FIXME: This works with the ov9650, but has issues with the po1030 */
 	if (sd->sensor->i2c_regW == 1) {
-		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, len);
+		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 1);
 		if (err < 0)
 			return err;
 
 		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x08);
-		if (err < 0)
-			return err;
 	} else {
 		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x18 + len);
-		if (err < 0)
-			return err;
 	}
 
 	for (i = 0; (i < len) && !err; i++) {
