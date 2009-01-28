@@ -356,8 +356,8 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Push the data cache so the CPM does not get stale memory
 	 * data.
 	 */
-	flush_dcache_range((unsigned long)skb->data,
-			   (unsigned long)skb->data + skb->len);
+	dma_sync_single(NULL, bdp->cbd_bufaddr,
+			bdp->cbd_datlen, DMA_TO_DEVICE);
 
 	/* Send it on its way.  Tell FEC it's ready, interrupt when done,
 	 * it's the last BD of the frame, and to put the CRC on the end.
@@ -629,6 +629,9 @@ while (!((status = bdp->cbd_sc) & BD_ENET_RX_EMPTY)) {
 	pkt_len = bdp->cbd_datlen;
 	dev->stats.rx_bytes += pkt_len;
 	data = (__u8*)__va(bdp->cbd_bufaddr);
+
+	dma_sync_single(NULL, (unsigned long)__pa(data),
+			pkt_len - 4, DMA_FROM_DEVICE);
 
 	/* This does 16 byte alignment, exactly what we need.
 	 * The packet length includes FCS, but we don't want to
