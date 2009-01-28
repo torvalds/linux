@@ -25,16 +25,6 @@ numaq_store_NMI_vector(unsigned short *high, unsigned short *low)
 	  *((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_LOW));
 }
 
-static inline void
-numaq_restore_NMI_vector(unsigned short *high, unsigned short *low)
-{
-	printk("Restoring NMI vector\n");
-	*((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_HIGH)) =
-								 *high;
-	*((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_LOW)) =
-								 *low;
-}
-
 static inline void inquire_remote_apic(int apicid)
 {
 }

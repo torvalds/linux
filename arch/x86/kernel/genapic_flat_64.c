@@ -229,7 +229,6 @@ struct genapic apic_flat =  {
 	.wait_for_init_deassert		= NULL,
 	.smp_callin_clear_local_apic	= NULL,
 	.store_NMI_vector		= NULL,
-	.restore_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
 };
 
@@ -375,6 +374,5 @@ struct genapic apic_physflat =  {
 	.wait_for_init_deassert		= NULL,
 	.smp_callin_clear_local_apic	= NULL,
 	.store_NMI_vector		= NULL,
-	.restore_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
 };

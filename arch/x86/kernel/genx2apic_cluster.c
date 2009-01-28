@@ -233,6 +233,5 @@ struct genapic apic_x2apic_cluster = {
 	.wait_for_init_deassert		= NULL,
 	.smp_callin_clear_local_apic	= NULL,
 	.store_NMI_vector		= NULL,
-	.restore_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
 };

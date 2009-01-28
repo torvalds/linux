@@ -112,6 +112,5 @@ struct genapic apic_numaq = {
 
 	.smp_callin_clear_local_apic	= numaq_smp_callin_clear_local_apic,
 	.store_NMI_vector		= numaq_store_NMI_vector,
-	.restore_NMI_vector		= numaq_restore_NMI_vector,
 	.inquire_remote_apic		= inquire_remote_apic,
 };
