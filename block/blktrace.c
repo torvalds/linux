@@ -1109,12 +1109,7 @@ static void blk_tracer_print_header(struct seq_file *m)
 
 static void blk_tracer_start(struct trace_array *tr)
 {
-	int cpu;
-
-	tr->time_start = ftrace_now(tr->cpu);
-
-	for_each_online_cpu(cpu)
-		tracing_reset(tr, cpu);
+	tracing_reset_online_cpus(tr);
 
 	mutex_lock(&blk_probe_mutex);
 	if (atomic_add_return(1, &blk_probes_ref) == 1)
