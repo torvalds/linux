@@ -22,7 +22,6 @@ static inline const struct cpumask *default_target_cpus(void)
 
 #ifdef CONFIG_X86_64
 #include <asm/genapic.h>
-#define TARGET_CPUS	  (apic->target_cpus())
 #define init_apic_ldr (apic->init_apic_ldr)
 #define cpu_mask_to_apicid (apic->cpu_mask_to_apicid)
 #define cpu_mask_to_apicid_and (apic->cpu_mask_to_apicid_and)
@@ -33,7 +32,6 @@ static inline const struct cpumask *default_target_cpus(void)
 #define wakeup_secondary_cpu (apic->wakeup_cpu)
 extern void setup_apic_routing(void);
 #else
-#define TARGET_CPUS (default_target_cpus())
 #define wakeup_secondary_cpu wakeup_secondary_cpu_via_init
 /*
  * Set up the logical destination ID.

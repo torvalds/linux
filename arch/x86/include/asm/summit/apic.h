@@ -148,7 +148,7 @@ static inline unsigned int cpu_mask_to_apicid(const cpumask_t *cpumask)
 		return (int) 0xFF;
 	/*
 	 * The cpus in the mask must all be on the apic cluster.  If are not
-	 * on the same apicid cluster return default value of TARGET_CPUS.
+	 * on the same apicid cluster return default value of target_cpus():
 	 */
 	cpu = first_cpu(*cpumask);
 	apicid = cpu_to_logical_apicid(cpu);

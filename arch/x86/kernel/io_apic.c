@@ -1559,10 +1559,10 @@ static void setup_IO_APIC_irq(int apic_id, int pin, unsigned int irq, struct irq
 
 	cfg = desc->chip_data;
 
-	if (assign_irq_vector(irq, cfg, TARGET_CPUS))
+	if (assign_irq_vector(irq, cfg, apic->target_cpus()))
 		return;
 
-	dest = cpu_mask_to_apicid_and(cfg->domain, TARGET_CPUS);
+	dest = cpu_mask_to_apicid_and(cfg->domain, apic->target_cpus());
 
 	apic_printk(APIC_VERBOSE,KERN_DEBUG
 		    "IOAPIC[%d]: Set routing entry (%d-%d -> 0x%x -> "
@@ -1661,7 +1661,7 @@ static void __init setup_timer_IRQ0_pin(unsigned int apic_id, unsigned int pin,
 	 */
 	entry.dest_mode = apic->irq_dest_mode;
 	entry.mask = 1;					/* mask IRQ now */
-	entry.dest = cpu_mask_to_apicid(TARGET_CPUS);
+	entry.dest = cpu_mask_to_apicid(apic->target_cpus());
 	entry.delivery_mode = apic->irq_delivery_mode;
 	entry.polarity = 0;
 	entry.trigger = 0;
@@ -2877,7 +2877,7 @@ static inline void __init check_timer(void)
 	 * get/set the timer IRQ vector:
 	 */
 	disable_8259A_irq(0);
-	assign_irq_vector(0, cfg, TARGET_CPUS);
+	assign_irq_vector(0, cfg, apic->target_cpus());
 
 	/*
 	 * As IRQ0 is to be enabled in the 8259A, the virtual
@@ -3195,7 +3195,7 @@ unsigned int create_irq_nr(unsigned int irq_want)
 
 		if (cfg_new->vector != 0)
 			continue;
-		if (__assign_irq_vector(new, cfg_new, TARGET_CPUS) == 0)
+		if (__assign_irq_vector(new, cfg_new, apic->target_cpus()) == 0)
 			irq = new;
 		break;
 	}
@@ -3261,11 +3261,11 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 		return -ENXIO;
 
 	cfg = irq_cfg(irq);
-	err = assign_irq_vector(irq, cfg, TARGET_CPUS);
+	err = assign_irq_vector(irq, cfg, apic->target_cpus());
 	if (err)
 		return err;
 
-	dest = cpu_mask_to_apicid_and(cfg->domain, TARGET_CPUS);
+	dest = cpu_mask_to_apicid_and(cfg->domain, apic->target_cpus());
 
 #ifdef CONFIG_INTR_REMAP
 	if (irq_remapped(irq)) {
@@ -3698,12 +3698,12 @@ int arch_setup_ht_irq(unsigned int irq, struct pci_dev *dev)
 		return -ENXIO;
 
 	cfg = irq_cfg(irq);
-	err = assign_irq_vector(irq, cfg, TARGET_CPUS);
+	err = assign_irq_vector(irq, cfg, apic->target_cpus());
 	if (!err) {
 		struct ht_irq_msg msg;
 		unsigned dest;
 
-		dest = cpu_mask_to_apicid_and(cfg->domain, TARGET_CPUS);
+		dest = cpu_mask_to_apicid_and(cfg->domain, apic->target_cpus());
 
 		msg.address_hi = HT_IRQ_HIGH_DEST_ID(dest);
 
@@ -3987,7 +3987,7 @@ int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity)
 /*
  * This function currently is only a helper for the i386 smp boot process where
  * we need to reprogram the ioredtbls to cater for the cpus which have come online
- * so mask in all cases should simply be TARGET_CPUS
+ * so mask in all cases should simply be apic->target_cpus()
  */
 #ifdef CONFIG_SMP
 void __init setup_ioapic_dest(void)
@@ -4028,7 +4028,7 @@ void __init setup_ioapic_dest(void)
 			    (IRQ_NO_BALANCING | IRQ_AFFINITY_SET))
 				mask = desc->affinity;
 			else
-				mask = TARGET_CPUS;
+				mask = apic->target_cpus();
 
 #ifdef CONFIG_INTR_REMAP
 			if (intr_remapping_enabled)
