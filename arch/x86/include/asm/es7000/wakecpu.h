@@ -13,12 +13,4 @@ static inline void es7000_wait_for_init_deassert(atomic_t *deassert)
 	return;
 }
 
-extern void __inquire_remote_apic(int apicid);
-
-static inline void inquire_remote_apic(int apicid)
-{
-	if (apic_verbosity >= APIC_DEBUG)
-		__inquire_remote_apic(apicid);
-}
-
 #endif /* __ASM_MACH_WAKECPU_H */

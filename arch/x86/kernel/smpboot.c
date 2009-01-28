@@ -876,8 +876,8 @@ do_rest:
 			else
 				/* trampoline code not run */
 				printk(KERN_ERR "Not responding.\n");
-			if (get_uv_system_type() != UV_NON_UNIQUE_APIC)
-				inquire_remote_apic(apicid);
+			if (apic->inquire_remote_apic)
+				apic->inquire_remote_apic(apicid);
 		}
 	}
 

@@ -25,8 +25,4 @@ numaq_store_NMI_vector(unsigned short *high, unsigned short *low)
 	  *((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_LOW));
 }
 
-static inline void inquire_remote_apic(int apicid)
-{
-}
-
 #endif /* __ASM_NUMAQ_WAKECPU_H */

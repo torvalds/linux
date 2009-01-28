@@ -92,5 +92,5 @@ struct genapic apic_default = {
 
 	.smp_callin_clear_local_apic	= NULL,
 	.store_NMI_vector		= NULL,
-	.inquire_remote_apic		= inquire_remote_apic,
+	.inquire_remote_apic		= default_inquire_remote_apic,
 };

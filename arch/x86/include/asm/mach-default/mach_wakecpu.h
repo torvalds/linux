@@ -16,7 +16,7 @@ static inline void __inquire_remote_apic(int apicid)
 }
 #endif /* CONFIG_SMP */
 
-static inline void inquire_remote_apic(int apicid)
+static inline void default_inquire_remote_apic(int apicid)
 {
 	if (apic_verbosity >= APIC_DEBUG)
 		__inquire_remote_apic(apicid);
