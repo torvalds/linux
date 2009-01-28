@@ -88,6 +88,12 @@ struct genapic {
 
 extern struct genapic *apic;
 
+/*
+ * Warm reset vector default position:
+ */
+#define DEFAULT_TRAMPOLINE_PHYS_LOW		0x467
+#define DEFAULT_TRAMPOLINE_PHYS_HIGH		0x469
+
 #ifdef CONFIG_X86_32
 extern void es7000_update_genapic_to_cluster(void);
 #else
