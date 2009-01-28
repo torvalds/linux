@@ -1166,6 +1166,8 @@ static void atm_remove(struct solos_card *card)
 	for (i = 0; i < card->nr_ports; i++) {
 		if (card->atmdev[i]) {
 			dev_info(&card->dev->dev, "Unregistering ATM device %d\n", card->atmdev[i]->number);
+
+			sysfs_remove_group(&card->atmdev[i]->class_dev.kobj, &solos_attr_group);
 			atm_dev_deregister(card->atmdev[i]);
 		}
 	}
