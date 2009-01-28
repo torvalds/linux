@@ -341,7 +341,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (bdp->cbd_bufaddr & 0x3) {
 		unsigned int index;
 		index = bdp - fep->tx_bd_base;
-		memcpy(fep->tx_bounce[index], (void *) bdp->cbd_bufaddr, bdp->cbd_datlen);
+		memcpy(fep->tx_bounce[index], (void *)skb->data, skb->len);
 		bdp->cbd_bufaddr = __pa(fep->tx_bounce[index]);
 	}
 
