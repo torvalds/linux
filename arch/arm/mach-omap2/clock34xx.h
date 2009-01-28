@@ -34,6 +34,7 @@ static void omap3_dpll_deny_idle(struct clk *clk);
 static u32 omap3_dpll_autoidle_read(struct clk *clk);
 static int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate);
 static int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate);
+static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate);
 
 /* Maximum DPLL multiplier, divider values for OMAP3 */
 #define OMAP3_MAX_DPLL_MULT		2048
@@ -471,11 +472,7 @@ static const struct clksel div31_dpll3m2_clksel[] = {
 	{ .parent = NULL }
 };
 
-/*
- * DPLL3 output M2
- * REVISIT: This DPLL output divider must be changed in SRAM, so until
- * that code is ready, this should remain a 'read-only' clksel clock.
- */
+/* DPLL3 output M2 - primary control point for CORE speed */
 static struct clk dpll3_m2_ck = {
 	.name		= "dpll3_m2_ck",
 	.ops		= &clkops_null,
@@ -486,6 +483,8 @@ static struct clk dpll3_m2_ck = {
 	.clksel		= div31_dpll3m2_clksel,
 	.flags		= RATE_PROPAGATES,
 	.clkdm_name	= "dpll3_clkdm",
+	.round_rate	= &omap2_clksel_round_rate,
+	.set_rate	= &omap3_core_dpll_m2_set_rate,
 	.recalc		= &omap2_clksel_recalc,
 };
 

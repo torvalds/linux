@@ -634,6 +634,71 @@ static int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 	return omap3_noncore_dpll_set_rate(clk, rate);
 }
 
+
+/*
+ * CORE DPLL (DPLL3) rate programming functions
+ *
+ * These call into SRAM code to do the actual CM writes, since the SDRAM
+ * is clocked from DPLL3.
+ */
+
+/**
+ * omap3_core_dpll_m2_set_rate - set CORE DPLL M2 divider
+ * @clk: struct clk * of DPLL to set
+ * @rate: rounded target rate
+ *
+ * Program the DPLL M2 divider with the rounded target rate.  Returns
+ * -EINVAL upon error, or 0 upon success.
+ */
+static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 new_div = 0;
+	unsigned long validrate, sdrcrate;
+	struct omap_sdrc_params *sp;
+
+	if (!clk || !rate)
+		return -EINVAL;
+
+	if (clk != &dpll3_m2_ck)
+		return -EINVAL;
+
+	if (rate == clk->rate)
+		return 0;
+
+	validrate = omap2_clksel_round_rate_div(clk, rate, &new_div);
+	if (validrate != rate)
+		return -EINVAL;
+
+	sdrcrate = sdrc_ick.rate;
+	if (rate > clk->rate)
+		sdrcrate <<= ((rate / clk->rate) - 1);
+	else
+		sdrcrate >>= ((clk->rate / rate) - 1);
+
+	sp = omap2_sdrc_get_params(sdrcrate);
+	if (!sp)
+		return -EINVAL;
+
+	pr_info("clock: changing CORE DPLL rate from %lu to %lu\n", clk->rate,
+		validrate);
+	pr_info("clock: SDRC timing params used: %08x %08x %08x\n",
+		sp->rfr_ctrl, sp->actim_ctrla, sp->actim_ctrlb);
+
+	/* REVISIT: SRAM code doesn't support other M2 divisors yet */
+	WARN_ON(new_div != 1 && new_div != 2);
+
+	/* REVISIT: Add SDRC_MR changing to this code also */
+	local_irq_disable();
+	omap3_configure_core_dpll(sp->rfr_ctrl, sp->actim_ctrla,
+				  sp->actim_ctrlb, new_div);
+	local_irq_enable();
+
+	omap2_clksel_recalc(clk);
+
+	return 0;
+}
+
+
 static const struct clkops clkops_noncore_dpll_ops = {
 	.enable		= &omap3_noncore_dpll_enable,
 	.disable	= &omap3_noncore_dpll_disable,
