@@ -163,7 +163,7 @@ static void omap1_watchdog_recalc(struct clk * clk)
 
 static void omap1_uart_recalc(struct clk * clk)
 {
-	unsigned int val = omap_readl(clk->enable_reg);
+	unsigned int val = __raw_readl(clk->enable_reg);
 	if (val & clk->enable_bit)
 		clk->rate = 48000000;
 	else
@@ -517,14 +517,14 @@ static int omap1_set_uart_rate(struct clk * clk, unsigned long rate)
 {
 	unsigned int val;
 
-	val = omap_readl(clk->enable_reg);
+	val = __raw_readl(clk->enable_reg);
 	if (rate == 12000000)
 		val &= ~(1 << clk->enable_bit);
 	else if (rate == 48000000)
 		val |= (1 << clk->enable_bit);
 	else
 		return -EINVAL;
-	omap_writel(val, clk->enable_reg);
+	__raw_writel(val, clk->enable_reg);
 	clk->rate = rate;
 
 	return 0;
@@ -543,8 +543,8 @@ static int omap1_set_ext_clk_rate(struct clk * clk, unsigned long rate)
 	else
 		ratio_bits = (dsor - 2) << 2;
 
-	ratio_bits |= omap_readw(clk->enable_reg) & ~0xfd;
-	omap_writew(ratio_bits, clk->enable_reg);
+	ratio_bits |= __raw_readw(clk->enable_reg) & ~0xfd;
+	__raw_writew(ratio_bits, clk->enable_reg);
 
 	return 0;
 }
@@ -583,8 +583,8 @@ static void omap1_init_ext_clk(struct clk * clk)
 	__u16 ratio_bits;
 
 	/* Determine current rate and ensure clock is based on 96MHz APLL */
-	ratio_bits = omap_readw(clk->enable_reg) & ~1;
-	omap_writew(ratio_bits, clk->enable_reg);
+	ratio_bits = __raw_readw(clk->enable_reg) & ~1;
+	__raw_writew(ratio_bits, clk->enable_reg);
 
 	ratio_bits = (ratio_bits & 0xfc) >> 2;
 	if (ratio_bits > 6)
@@ -646,25 +646,13 @@ static int omap1_clk_enable_generic(struct clk *clk)
 	}
 
 	if (clk->flags & ENABLE_REG_32BIT) {
-		if (clk->flags & VIRTUAL_IO_ADDRESS) {
-			regval32 = __raw_readl(clk->enable_reg);
-			regval32 |= (1 << clk->enable_bit);
-			__raw_writel(regval32, clk->enable_reg);
-		} else {
-			regval32 = omap_readl(clk->enable_reg);
-			regval32 |= (1 << clk->enable_bit);
-			omap_writel(regval32, clk->enable_reg);
-		}
+		regval32 = __raw_readl(clk->enable_reg);
+		regval32 |= (1 << clk->enable_bit);
+		__raw_writel(regval32, clk->enable_reg);
 	} else {
-		if (clk->flags & VIRTUAL_IO_ADDRESS) {
-			regval16 = __raw_readw(clk->enable_reg);
-			regval16 |= (1 << clk->enable_bit);
-			__raw_writew(regval16, clk->enable_reg);
-		} else {
-			regval16 = omap_readw(clk->enable_reg);
-			regval16 |= (1 << clk->enable_bit);
-			omap_writew(regval16, clk->enable_reg);
-		}
+		regval16 = __raw_readw(clk->enable_reg);
+		regval16 |= (1 << clk->enable_bit);
+		__raw_writew(regval16, clk->enable_reg);
 	}
 
 	return 0;
@@ -679,25 +667,13 @@ static void omap1_clk_disable_generic(struct clk *clk)
 		return;
 
 	if (clk->flags & ENABLE_REG_32BIT) {
-		if (clk->flags & VIRTUAL_IO_ADDRESS) {
-			regval32 = __raw_readl(clk->enable_reg);
-			regval32 &= ~(1 << clk->enable_bit);
-			__raw_writel(regval32, clk->enable_reg);
-		} else {
-			regval32 = omap_readl(clk->enable_reg);
-			regval32 &= ~(1 << clk->enable_bit);
-			omap_writel(regval32, clk->enable_reg);
-		}
+		regval32 = __raw_readl(clk->enable_reg);
+		regval32 &= ~(1 << clk->enable_bit);
+		__raw_writel(regval32, clk->enable_reg);
 	} else {
-		if (clk->flags & VIRTUAL_IO_ADDRESS) {
-			regval16 = __raw_readw(clk->enable_reg);
-			regval16 &= ~(1 << clk->enable_bit);
-			__raw_writew(regval16, clk->enable_reg);
-		} else {
-			regval16 = omap_readw(clk->enable_reg);
-			regval16 &= ~(1 << clk->enable_bit);
-			omap_writew(regval16, clk->enable_reg);
-		}
+		regval16 = __raw_readw(clk->enable_reg);
+		regval16 &= ~(1 << clk->enable_bit);
+		__raw_writew(regval16, clk->enable_reg);
 	}
 }
 
@@ -745,17 +721,10 @@ static void __init omap1_clk_disable_unused(struct clk *clk)
 	}
 
 	/* Is the clock already disabled? */
-	if (clk->flags & ENABLE_REG_32BIT) {
-		if (clk->flags & VIRTUAL_IO_ADDRESS)
-			regval32 = __raw_readl(clk->enable_reg);
-			else
-				regval32 = omap_readl(clk->enable_reg);
-	} else {
-		if (clk->flags & VIRTUAL_IO_ADDRESS)
-			regval32 = __raw_readw(clk->enable_reg);
-		else
-			regval32 = omap_readw(clk->enable_reg);
-	}
+	if (clk->flags & ENABLE_REG_32BIT)
+		regval32 = __raw_readl(clk->enable_reg);
+	else
+		regval32 = __raw_readw(clk->enable_reg);
 
 	if ((regval32 & (1 << clk->enable_bit)) == 0)
 		return;

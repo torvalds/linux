@@ -134,7 +134,6 @@ extern const struct clkops clkops_null;
 #define RATE_PROPAGATES		(1 << 2)	/* Program children too */
 /* bits 3-4 are free */
 #define ENABLE_REG_32BIT	(1 << 5)	/* Use 32-bit access */
-#define VIRTUAL_IO_ADDRESS	(1 << 6)	/* Clock in virtual address */
 #define CLOCK_IDLE_CONTROL	(1 << 7)
 #define CLOCK_NO_IDLE_PARENT	(1 << 8)
 #define DELAYED_APP		(1 << 9)	/* Delay application of clock */
