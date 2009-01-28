@@ -123,6 +123,18 @@ static struct platform_device *devices[] __initdata = {
 	&pcm037_sram_device,
 };
 
+static int uart0_pins[] = {
+	MX31_PIN_CTS1__CTS1,
+	MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1,
+	MX31_PIN_RXD1__RXD1
+};
+
+static int uart2_pins[] = {
+	MX31_PIN_CSPI3_MOSI__RXD3,
+	MX31_PIN_CSPI3_MISO__TXD3
+};
+
 /*
  * Board specific initialization.
  */
@@ -130,24 +142,18 @@ static void __init mxc_board_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_iomux_mode(MX31_PIN_CTS1__CTS1);
-	mxc_iomux_mode(MX31_PIN_RTS1__RTS1);
-	mxc_iomux_mode(MX31_PIN_TXD1__TXD1);
-	mxc_iomux_mode(MX31_PIN_RXD1__RXD1);
-
+	mxc_iomux_setup_multiple_pins(uart0_pins, ARRAY_SIZE(uart0_pins), "uart-0");
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 
-	mxc_iomux_mode(MX31_PIN_CSPI3_MOSI__RXD3);
-	mxc_iomux_mode(MX31_PIN_CSPI3_MISO__TXD3);
-
+	mxc_iomux_setup_multiple_pins(uart2_pins, ARRAY_SIZE(uart2_pins), "uart-2");
 	mxc_register_device(&mxc_uart_device2, &uart_pdata);
 
-	mxc_iomux_mode(MX31_PIN_BATT_LINE__OWIRE);
+	mxc_iomux_setup_pin(MX31_PIN_BATT_LINE__OWIRE, "batt-0wire");
 	mxc_register_device(&mxc_w1_master_device, NULL);
 
 	/* SMSC9215 IRQ pin */
-	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_GPIO3_1, IOMUX_CONFIG_GPIO));
-	if (!gpio_request(MX31_PIN_GPIO3_1, "pcm037-eth"))
+	if (!mxc_iomux_setup_pin(IOMUX_MODE(MX31_PIN_GPIO3_1, IOMUX_CONFIG_GPIO),
+				"pcm037-eth"))
 		gpio_direction_input(MX31_PIN_GPIO3_1);
 
 	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
