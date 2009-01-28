@@ -44,6 +44,17 @@ void _paravirt_nop(void)
 {
 }
 
+/* identity function, which can be inlined */
+u32 _paravirt_ident_32(u32 x)
+{
+	return x;
+}
+
+u64 _paravirt_ident_64(u64 x)
+{
+	return x;
+}
+
 static void __init default_banner(void)
 {
 	printk(KERN_INFO "Booting paravirtualized kernel on %s\n",
@@ -138,9 +149,16 @@ unsigned paravirt_patch_default(u8 type, u16 clobbers, void *insnbuf,
 	if (opfunc == NULL)
 		/* If there's no function, patch it with a ud2a (BUG) */
 		ret = paravirt_patch_insns(insnbuf, len, ud2a, ud2a+sizeof(ud2a));
-	else if (opfunc == paravirt_nop)
+	else if (opfunc == _paravirt_nop)
 		/* If the operation is a nop, then nop the callsite */
 		ret = paravirt_patch_nop();
+
+	/* identity functions just return their single argument */
+	else if (opfunc == _paravirt_ident_32)
+		ret = paravirt_patch_ident_32(insnbuf, len);
+	else if (opfunc == _paravirt_ident_64)
+		ret = paravirt_patch_ident_64(insnbuf, len);
+
 	else if (type == PARAVIRT_PATCH(pv_cpu_ops.iret) ||
 		 type == PARAVIRT_PATCH(pv_cpu_ops.irq_enable_sysexit) ||
 		 type == PARAVIRT_PATCH(pv_cpu_ops.usergs_sysret32) ||
@@ -373,6 +391,45 @@ struct pv_apic_ops pv_apic_ops = {
 #endif
 };
 
+typedef pte_t make_pte_t(pteval_t);
+typedef pmd_t make_pmd_t(pmdval_t);
+typedef pud_t make_pud_t(pudval_t);
+typedef pgd_t make_pgd_t(pgdval_t);
+
+typedef pteval_t pte_val_t(pte_t);
+typedef pmdval_t pmd_val_t(pmd_t);
+typedef pudval_t pud_val_t(pud_t);
+typedef pgdval_t pgd_val_t(pgd_t);
+
+
+#if defined(CONFIG_X86_32) && !defined(CONFIG_X86_PAE)
+/* 32-bit pagetable entries */
+#define paravirt_native_make_pte	(make_pte_t *)_paravirt_ident_32
+#define paravirt_native_pte_val		(pte_val_t *)_paravirt_ident_32
+
+#define paravirt_native_make_pmd	(make_pmd_t *)_paravirt_ident_32
+#define paravirt_native_pmd_val		(pmd_val_t *)_paravirt_ident_32
+
+#define paravirt_native_make_pud	(make_pud_t *)_paravirt_ident_32
+#define paravirt_native_pud_val		(pud_val_t *)_paravirt_ident_32
+
+#define paravirt_native_make_pgd	(make_pgd_t *)_paravirt_ident_32
+#define paravirt_native_pgd_val		(pgd_val_t *)_paravirt_ident_32
+#else
+/* 64-bit pagetable entries */
+#define paravirt_native_make_pte	(make_pte_t *)_paravirt_ident_64
+#define paravirt_native_pte_val		(pte_val_t *)_paravirt_ident_64
+
+#define paravirt_native_make_pmd	(make_pmd_t *)_paravirt_ident_64
+#define paravirt_native_pmd_val		(pmd_val_t *)_paravirt_ident_64
+
+#define paravirt_native_make_pud	(make_pud_t *)_paravirt_ident_64
+#define paravirt_native_pud_val		(pud_val_t *)_paravirt_ident_64
+
+#define paravirt_native_make_pgd	(make_pgd_t *)_paravirt_ident_64
+#define paravirt_native_pgd_val		(pgd_val_t *)_paravirt_ident_64
+#endif
+
 struct pv_mmu_ops pv_mmu_ops = {
 #ifndef CONFIG_X86_64
 	.pagetable_setup_start = native_pagetable_setup_start,
@@ -424,21 +481,21 @@ struct pv_mmu_ops pv_mmu_ops = {
 	.pmd_clear = native_pmd_clear,
 #endif
 	.set_pud = native_set_pud,
-	.pmd_val = native_pmd_val,
-	.make_pmd = native_make_pmd,
+	.pmd_val = paravirt_native_pmd_val,
+	.make_pmd = paravirt_native_make_pmd,
 
 #if PAGETABLE_LEVELS == 4
-	.pud_val = native_pud_val,
-	.make_pud = native_make_pud,
+	.pud_val = paravirt_native_pud_val,
+	.make_pud = paravirt_native_make_pud,
 	.set_pgd = native_set_pgd,
 #endif
 #endif /* PAGETABLE_LEVELS >= 3 */
 
-	.pte_val = native_pte_val,
-	.pgd_val = native_pgd_val,
+	.pte_val = paravirt_native_pte_val,
+	.pgd_val = paravirt_native_pgd_val,
 
-	.make_pte = native_make_pte,
-	.make_pgd = native_make_pgd,
+	.make_pte = paravirt_native_make_pte,
+	.make_pgd = paravirt_native_make_pgd,
 
 	.dup_mmap = paravirt_nop,
 	.exit_mmap = paravirt_nop,

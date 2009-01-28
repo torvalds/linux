@@ -388,6 +388,8 @@ extern struct pv_lock_ops pv_lock_ops;
 	asm("start_" #ops "_" #name ": " code "; end_" #ops "_" #name ":")
 
 unsigned paravirt_patch_nop(void);
+unsigned paravirt_patch_ident_32(void *insnbuf, unsigned len);
+unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len);
 unsigned paravirt_patch_ignore(unsigned len);
 unsigned paravirt_patch_call(void *insnbuf,
 			     const void *target, u16 tgt_clobbers,
@@ -1371,6 +1373,9 @@ static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 }
 
 void _paravirt_nop(void);
+u32 _paravirt_ident_32(u32);
+u64 _paravirt_ident_64(u64);
+
 #define paravirt_nop	((void *)_paravirt_nop)
 
 void paravirt_use_bytelocks(void);
