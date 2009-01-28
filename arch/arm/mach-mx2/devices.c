@@ -281,6 +281,48 @@ struct platform_device mxc_fec_device = {
 };
 #endif
 
+static struct resource mxc_i2c_1_resources[] = {
+	[0] = {
+		.start	= I2C_BASE_ADDR,
+		.end	= I2C_BASE_ADDR + 0x0fff,
+		.flags	= IORESOURCE_MEM
+	},
+	[1] = {
+		.start	= MXC_INT_I2C,
+		.end	= MXC_INT_I2C,
+		.flags	= IORESOURCE_IRQ
+	}
+};
+
+struct platform_device mxc_i2c_device0 = {
+	.name = "imx-i2c",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_i2c_1_resources),
+	.resource = mxc_i2c_1_resources
+};
+
+#ifdef CONFIG_MACH_MX27
+static struct resource mxc_i2c_2_resources[] = {
+	[0] = {
+		.start	= I2C2_BASE_ADDR,
+		.end	= I2C2_BASE_ADDR + 0x0fff,
+		.flags	= IORESOURCE_MEM
+	},
+	[1] = {
+		.start	= MXC_INT_I2C2,
+		.end	= MXC_INT_I2C2,
+		.flags	= IORESOURCE_IRQ
+	}
+};
+
+struct platform_device mxc_i2c_device1 = {
+	.name = "imx-i2c",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(mxc_i2c_2_resources),
+	.resource = mxc_i2c_2_resources
+};
+#endif
+
 static struct resource mxc_pwm_resources[] = {
 	[0] = {
 		.start	= PWM_BASE_ADDR,
