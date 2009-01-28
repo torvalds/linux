@@ -57,7 +57,7 @@ mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 
 #ifdef CONFIG_ACPI
 /* Hook from generic ACPI tables.c */
-static int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	unsigned long oem_addr = 0;
 	int check_dsdt;
@@ -81,7 +81,7 @@ static int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return ret;
 }
 #else
-static int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	return 0;
 }
@@ -104,7 +104,7 @@ struct genapic apic_es7000 = {
 
 	.name				= "es7000",
 	.probe				= probe_es7000,
-	.acpi_madt_oem_check		= acpi_madt_oem_check,
+	.acpi_madt_oem_check		= es7000_acpi_madt_oem_check,
 	.apic_id_registered		= apic_id_registered,
 
 	.int_delivery_mode		= INT_DELIVERY_MODE,

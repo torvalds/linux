@@ -31,12 +31,6 @@ static int probe_numaq(void)
 	return found_numaq;
 }
 
-/* Hook from generic ACPI tables.c */
-static int acpi_madt_oem_check(char *oem_id, char *oem_table_id)
-{
-	return 0;
-}
-
 static void vector_allocation_domain(int cpu, cpumask_t *retmask)
 {
 	/* Careful. Some cpus do not strictly honor the set of cpus
@@ -54,7 +48,7 @@ struct genapic apic_numaq = {
 
 	.name				= "NUMAQ",
 	.probe				= probe_numaq,
-	.acpi_madt_oem_check		= acpi_madt_oem_check,
+	.acpi_madt_oem_check		= NULL,
 	.apic_id_registered		= apic_id_registered,
 
 	.int_delivery_mode		= INT_DELIVERY_MODE,

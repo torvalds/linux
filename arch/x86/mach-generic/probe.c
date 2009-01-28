@@ -128,20 +128,24 @@ int __init mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 	return 0;
 }
 
-int __init acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+int __init default_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	int i;
+
 	for (i = 0; apic_probe[i]; ++i) {
-		if (apic_probe[i]->acpi_madt_oem_check(oem_id, oem_table_id)) {
-			if (!cmdline_apic) {
-				apic = apic_probe[i];
-				if (x86_quirks->update_genapic)
-					x86_quirks->update_genapic();
-				printk(KERN_INFO "Switched to APIC driver `%s'.\n",
-				       apic->name);
-			}
-			return 1;
+		if (!apic_probe[i]->acpi_madt_oem_check)
+			continue;
+		if (!apic_probe[i]->acpi_madt_oem_check(oem_id, oem_table_id))
+			continue;
+
+		if (!cmdline_apic) {
+			apic = apic_probe[i];
+			if (x86_quirks->update_genapic)
+				x86_quirks->update_genapic();
+			printk(KERN_INFO "Switched to APIC driver `%s'.\n",
+			       apic->name);
 		}
+		return 1;
 	}
 	return 0;
 }

@@ -8,7 +8,7 @@ mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 }
 
 /* Hook from generic ACPI tables.c */
-static inline int acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static inline int default_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	return 0;
 }

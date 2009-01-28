@@ -61,7 +61,7 @@ struct genapic apic_bigsmp = {
 
 	.name				= "bigsmp",
 	.probe				= probe_bigsmp,
-	.acpi_madt_oem_check		= acpi_madt_oem_check,
+	.acpi_madt_oem_check		= NULL,
 	.apic_id_registered		= apic_id_registered,
 
 	.int_delivery_mode		= INT_DELIVERY_MODE,

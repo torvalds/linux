@@ -9,7 +9,7 @@ extern void unmap_unisys_acpi_oem_table(unsigned long oem_addr);
 extern void setup_unisys(void);
 
 #ifndef CONFIG_X86_GENERICARCH
-extern int acpi_madt_oem_check(char *oem_id, char *oem_table_id);
+extern int default_acpi_madt_oem_check(char *oem_id, char *oem_table_id);
 extern int mps_oem_check(struct mpc_table *mpc, char *oem, char *productid);
 #endif
 
