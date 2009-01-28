@@ -57,7 +57,7 @@ struct genapic apic_numaq = {
 
 	.target_cpus			= numaq_target_cpus,
 	.disable_esr			= 1,
-	.apic_destination_logical	= APIC_DEST_LOGICAL,
+	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= check_apicid_used,
 	.check_apicid_present		= check_apicid_present,
 

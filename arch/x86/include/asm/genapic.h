@@ -30,7 +30,7 @@ struct genapic {
 
 	int disable_esr;
 
-	int apic_destination_logical;
+	int dest_logical;
 	unsigned long (*check_apicid_used)(physid_mask_t bitmap, int apicid);
 	unsigned long (*check_apicid_present)(int apicid);
 

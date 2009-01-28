@@ -37,7 +37,7 @@ struct genapic apic_default = {
 
 	.target_cpus			= default_target_cpus,
 	.disable_esr			= 0,
-	.apic_destination_logical	= APIC_DEST_LOGICAL,
+	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= check_apicid_used,
 	.check_apicid_present		= check_apicid_present,
 

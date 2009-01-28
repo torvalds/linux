@@ -64,7 +64,7 @@ static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
 	for_each_cpu(query_cpu, mask)
 		__x2apic_send_IPI_dest(
 			per_cpu(x86_cpu_to_logical_apicid, query_cpu),
-			vector, apic->apic_destination_logical);
+			vector, apic->dest_logical);
 	local_irq_restore(flags);
 }
 
@@ -80,7 +80,7 @@ static void x2apic_send_IPI_mask_allbutself(const struct cpumask *mask,
 		if (query_cpu != this_cpu)
 			__x2apic_send_IPI_dest(
 				per_cpu(x86_cpu_to_logical_apicid, query_cpu),
-				vector, apic->apic_destination_logical);
+				vector, apic->dest_logical);
 	local_irq_restore(flags);
 }
 
@@ -95,7 +95,7 @@ static void x2apic_send_IPI_allbutself(int vector)
 		if (query_cpu != this_cpu)
 			__x2apic_send_IPI_dest(
 				per_cpu(x86_cpu_to_logical_apicid, query_cpu),
-				vector, apic->apic_destination_logical);
+				vector, apic->dest_logical);
 	local_irq_restore(flags);
 }
 
@@ -187,7 +187,7 @@ struct genapic apic_x2apic_cluster = {
 
 	.target_cpus			= x2apic_target_cpus,
 	.disable_esr			= 0,
-	.apic_destination_logical	= APIC_DEST_LOGICAL,
+	.dest_logical			= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
 

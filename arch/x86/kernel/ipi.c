@@ -30,7 +30,7 @@
 
 static inline int __prepare_ICR(unsigned int shortcut, int vector)
 {
-	unsigned int icr = shortcut | apic->apic_destination_logical;
+	unsigned int icr = shortcut | apic->dest_logical;
 
 	switch (vector) {
 	default:

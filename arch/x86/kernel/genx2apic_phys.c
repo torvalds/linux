@@ -183,7 +183,7 @@ struct genapic apic_x2apic_phys = {
 
 	.target_cpus			= x2apic_target_cpus,
 	.disable_esr			= 0,
-	.apic_destination_logical	= 0,
+	.dest_logical			= 0,
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
 

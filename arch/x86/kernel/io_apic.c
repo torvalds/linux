@@ -806,7 +806,7 @@ void send_IPI_self(int vector)
 	 * Wait for idle.
 	 */
 	apic_wait_icr_idle();
-	cfg = APIC_DM_FIXED | APIC_DEST_SELF | vector | apic->apic_destination_logical;
+	cfg = APIC_DM_FIXED | APIC_DEST_SELF | vector | apic->dest_logical;
 	/*
 	 * Send the IPI. The write to APIC_ICR fires this off.
 	 */
