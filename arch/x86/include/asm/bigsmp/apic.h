@@ -17,8 +17,6 @@ static inline const cpumask_t *bigsmp_target_cpus(void)
 #endif
 }
 
-#undef APIC_DEST_LOGICAL
-#define APIC_DEST_LOGICAL	0
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
 #define NO_BALANCE_IRQ		(0)
 

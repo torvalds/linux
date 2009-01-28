@@ -583,7 +583,7 @@ wakeup_secondary_cpu_via_nmi(int logical_apicid, unsigned long start_eip)
 	/* Target chip */
 	/* Boot on the stack */
 	/* Kick the second */
-	apic_icr_write(APIC_DM_NMI | APIC_DEST_LOGICAL, logical_apicid);
+	apic_icr_write(APIC_DM_NMI |  apic->apic_destination_logical, logical_apicid);
 
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();

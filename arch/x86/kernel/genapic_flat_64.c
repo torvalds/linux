@@ -74,7 +74,7 @@ static inline void _flat_send_IPI_mask(unsigned long mask, int vector)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__send_IPI_dest_field(mask, vector, APIC_DEST_LOGICAL);
+	__send_IPI_dest_field(mask, vector, apic->apic_destination_logical);
 	local_irq_restore(flags);
 }
 
@@ -114,7 +114,7 @@ static void flat_send_IPI_allbutself(int vector)
 			_flat_send_IPI_mask(mask, vector);
 		}
 	} else if (num_online_cpus() > 1) {
-		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector,APIC_DEST_LOGICAL);
+		__send_IPI_shortcut(APIC_DEST_ALLBUT, vector, apic->apic_destination_logical);
 	}
 }
 
@@ -123,7 +123,7 @@ static void flat_send_IPI_all(int vector)
 	if (vector == NMI_VECTOR)
 		flat_send_IPI_mask(cpu_online_mask, vector);
 	else
-		__send_IPI_shortcut(APIC_DEST_ALLINC, vector, APIC_DEST_LOGICAL);
+		__send_IPI_shortcut(APIC_DEST_ALLINC, vector, apic->apic_destination_logical);
 }
 
 static unsigned int get_apic_id(unsigned long x)
@@ -181,11 +181,11 @@ struct genapic apic_flat =  {
 	.apic_id_registered		= flat_apic_id_registered,
 
 	.irq_delivery_mode		= dest_LowestPrio,
-	.irq_dest_mode			= (APIC_DEST_LOGICAL != 0),
+	.irq_dest_mode			= 1, /* logical */
 
 	.target_cpus			= flat_target_cpus,
 	.disable_esr			= 0,
-	.apic_destination_logical	= 0,
+	.apic_destination_logical	= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
 
@@ -327,7 +327,7 @@ struct genapic apic_physflat =  {
 	.apic_id_registered		= flat_apic_id_registered,
 
 	.irq_delivery_mode		= dest_Fixed,
-	.irq_dest_mode			= (APIC_DEST_PHYSICAL != 0),
+	.irq_dest_mode			= 0, /* physical */
 
 	.target_cpus			= physflat_target_cpus,
 	.disable_esr			= 0,

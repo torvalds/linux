@@ -27,8 +27,6 @@ static inline const cpumask_t *es7000_target_cpus(void)
 
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
 #define NO_BALANCE_IRQ		(0)
-#undef  APIC_DEST_LOGICAL
-#define APIC_DEST_LOGICAL	0x0
 
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
 {

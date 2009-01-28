@@ -244,11 +244,11 @@ struct genapic apic_x2apic_uv_x = {
 	.apic_id_registered		= uv_apic_id_registered,
 
 	.irq_delivery_mode		= dest_Fixed,
-	.irq_dest_mode			= (APIC_DEST_PHYSICAL != 0),
+	.irq_dest_mode			= 1, /* logical */
 
 	.target_cpus			= uv_target_cpus,
 	.disable_esr			= 0,
-	.apic_destination_logical	= 0,
+	.apic_destination_logical	= APIC_DEST_LOGICAL,
 	.check_apicid_used		= NULL,
 	.check_apicid_present		= NULL,
 

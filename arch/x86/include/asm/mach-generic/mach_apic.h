@@ -4,8 +4,6 @@
 #include <asm/genapic.h>
 
 #define NO_BALANCE_IRQ (apic->no_balance_irq)
-#undef APIC_DEST_LOGICAL
-#define APIC_DEST_LOGICAL (apic->apic_destination_logical)
 #define init_apic_ldr (apic->init_apic_ldr)
 #define ioapic_phys_id_map (apic->ioapic_phys_id_map)
 #define setup_apic_routing (apic->setup_apic_routing)
