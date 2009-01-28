@@ -128,7 +128,7 @@ struct genapic apic_es7000 = {
 
 	.get_apic_id			= es7000_get_apic_id,
 	.set_apic_id			= NULL,
-	.apic_id_mask			= ES7000_APIC_ID_MASK,
+	.apic_id_mask			= 0xFF << 24,
 
 	.cpu_mask_to_apicid		= cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= cpu_mask_to_apicid_and,

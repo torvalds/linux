@@ -73,7 +73,7 @@ struct genapic apic_default = {
 
 	.get_apic_id			= default_get_apic_id,
 	.set_apic_id			= NULL,
-	.apic_id_mask			= DEFAULT_APIC_ID_MASK,
+	.apic_id_mask			= 0x0F << 24,
 
 	.cpu_mask_to_apicid		= cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= cpu_mask_to_apicid_and,

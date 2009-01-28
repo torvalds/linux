@@ -6,7 +6,6 @@
 #ifdef CONFIG_X86_64
 #define	SET_APIC_ID(x)		(apic->set_apic_id(x))
 #else
-#define		DEFAULT_APIC_ID_MASK	(0x0F<<24)
 
 static inline unsigned default_get_apic_id(unsigned long x) 
 {

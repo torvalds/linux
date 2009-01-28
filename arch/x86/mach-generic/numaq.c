@@ -92,7 +92,7 @@ struct genapic apic_numaq = {
 
 	.get_apic_id			= numaq_get_apic_id,
 	.set_apic_id			= NULL,
-	.apic_id_mask			= NUMAQ_APIC_ID_MASK,
+	.apic_id_mask			= 0x0F << 24,
 
 	.cpu_mask_to_apicid		= cpu_mask_to_apicid,
 	.cpu_mask_to_apicid_and		= cpu_mask_to_apicid_and,
