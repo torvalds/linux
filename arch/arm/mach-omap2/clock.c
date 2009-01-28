@@ -74,6 +74,28 @@ u8 cpu_mask;
  * OMAP2/3 specific clock functions
  *-------------------------------------------------------------------------*/
 
+/**
+ * _omap2xxx_clk_commit - commit clock parent/rate changes in hardware
+ * @clk: struct clk *
+ *
+ * If @clk has the DELAYED_APP flag set, meaning that parent/rate changes
+ * don't take effect until the VALID_CONFIG bit is written, write the
+ * VALID_CONFIG bit and wait for the write to complete.  No return value.
+ */
+static void _omap2xxx_clk_commit(struct clk *clk)
+{
+	if (!cpu_is_omap24xx())
+		return;
+
+	if (!(clk->flags & DELAYED_APP))
+		return;
+
+	prm_write_mod_reg(OMAP24XX_VALID_CONFIG, OMAP24XX_GR_MOD,
+		OMAP24XX_PRCM_CLKCFG_CTRL_OFFSET);
+	/* OCP barrier */
+	prm_read_mod_reg(OMAP24XX_GR_MOD, OMAP24XX_PRCM_CLKCFG_CTRL_OFFSET);
+}
+
 /*
  * _dpll_test_fint - test whether an Fint value is valid for the DPLL
  * @clk: DPLL struct clk to test
@@ -685,11 +707,7 @@ int omap2_clksel_set_rate(struct clk *clk, unsigned long rate)
 
 	clk->rate = clk->parent->rate / new_div;
 
-	if (clk->flags & DELAYED_APP && cpu_is_omap24xx()) {
-		prm_write_mod_reg(OMAP24XX_VALID_CONFIG,
-			OMAP24XX_GR_MOD, OMAP24XX_PRCM_CLKCFG_CTRL_OFFSET);
-		wmb();
-	}
+	_omap2xxx_clk_commit(clk);
 
 	return 0;
 }
@@ -772,10 +790,7 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 	__raw_writel(v, clk->clksel_reg);
 	wmb();
 
-	if (clk->flags & DELAYED_APP && cpu_is_omap24xx()) {
-		__raw_writel(OMAP24XX_VALID_CONFIG, OMAP24XX_PRCM_CLKCFG_CTRL);
-		wmb();
-	}
+	_omap2xxx_clk_commit(clk);
 
 	if (clk->usecount > 0)
 		_omap2_clk_enable(clk);
