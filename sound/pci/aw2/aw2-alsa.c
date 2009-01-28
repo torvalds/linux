@@ -368,9 +368,9 @@ static int __devinit snd_aw2_probe(struct pci_dev *pci,
 	}
 
 	/* (2) Create card instance */
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	/* (3) Create main component */
 	err = snd_aw2_create(card, pci, &chip);

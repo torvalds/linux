@@ -121,31 +121,44 @@ static inline int init_info_for_card(struct snd_card *card)
 #endif
 
 /**
- *  snd_card_new - create and initialize a soundcard structure
+ *  snd_card_create - create and initialize a soundcard structure
  *  @idx: card index (address) [0 ... (SNDRV_CARDS-1)]
  *  @xid: card identification (ASCII string)
  *  @module: top level module for locking
  *  @extra_size: allocate this extra size after the main soundcard structure
+ *  @card_ret: the pointer to store the created card instance
  *
  *  Creates and initializes a soundcard structure.
  *
- *  Returns kmallocated snd_card structure. Creates the ALSA control interface
- *  (which is blocked until snd_card_register function is called).
+ *  The function allocates snd_card instance via kzalloc with the given
+ *  space for the driver to use freely.  The allocated struct is stored
+ *  in the given card_ret pointer.
+ *
+ *  Returns zero if successful or a negative error code.
  */
-struct snd_card *snd_card_new(int idx, const char *xid,
-			 struct module *module, int extra_size)
+int snd_card_create(int idx, const char *xid,
+		    struct module *module, int extra_size,
+		    struct snd_card **card_ret)
 {
 	struct snd_card *card;
 	int err, idx2;
 
+	if (snd_BUG_ON(!card_ret))
+		return -EINVAL;
+	*card_ret = NULL;
+
 	if (extra_size < 0)
 		extra_size = 0;
 	card = kzalloc(sizeof(*card) + extra_size, GFP_KERNEL);
-	if (card == NULL)
-		return NULL;
+	if (!card)
+		return -ENOMEM;
 	if (xid) {
-		if (!snd_info_check_reserved_words(xid))
+		if (!snd_info_check_reserved_words(xid)) {
+			snd_printk(KERN_ERR
+				   "given id string '%s' is reserved.\n", xid);
+			err = -EBUSY;
 			goto __error;
+		}
 		strlcpy(card->id, xid, sizeof(card->id));
 	}
 	err = 0;
@@ -202,26 +215,28 @@ struct snd_card *snd_card_new(int idx, const char *xid,
 #endif
 	/* the control interface cannot be accessed from the user space until */
 	/* snd_cards_bitmask and snd_cards are set with snd_card_register */
-	if ((err = snd_ctl_create(card)) < 0) {
-		snd_printd("unable to register control minors\n");
+	err = snd_ctl_create(card);
+	if (err < 0) {
+		snd_printk(KERN_ERR "unable to register control minors\n");
 		goto __error;
 	}
-	if ((err = snd_info_card_create(card)) < 0) {
-		snd_printd("unable to create card info\n");
+	err = snd_info_card_create(card);
+	if (err < 0) {
+		snd_printk(KERN_ERR "unable to create card info\n");
 		goto __error_ctl;
 	}
 	if (extra_size > 0)
 		card->private_data = (char *)card + sizeof(struct snd_card);
-	return card;
+	*card_ret = card;
+	return 0;
 
       __error_ctl:
 	snd_device_free_all(card, SNDRV_DEV_CMD_PRE);
       __error:
 	kfree(card);
-      	return NULL;
+  	return err;
 }
-
-EXPORT_SYMBOL(snd_card_new);
+EXPORT_SYMBOL(snd_card_create);
 
 /* return non-zero if a card is already locked */
 int snd_card_locked(int card)
