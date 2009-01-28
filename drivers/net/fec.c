@@ -38,10 +38,14 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/clk.h>
 
 #include <asm/cacheflush.h>
+
+#ifndef CONFIG_ARCH_MXC
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
+#endif
 
 #include "fec.h"
 
@@ -49,6 +53,13 @@
 #define	FEC_MAX_PORTS	2
 #else
 #define	FEC_MAX_PORTS	1
+#endif
+
+#ifdef CONFIG_ARCH_MXC
+#include <mach/hardware.h>
+#define FEC_ALIGNMENT	0xf
+#else
+#define FEC_ALIGNMENT	0x3
 #endif
 
 #if defined(CONFIG_M5272)
@@ -158,7 +169,7 @@ typedef struct {
  * account when setting it.
  */
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
-    defined(CONFIG_M520x) || defined(CONFIG_M532x)
+    defined(CONFIG_M520x) || defined(CONFIG_M532x) || defined(CONFIG_ARCH_MXC)
 #define	OPT_FRAME_SIZE	(PKT_MAXBUF_SIZE << 16)
 #else
 #define	OPT_FRAME_SIZE	0
@@ -339,7 +350,7 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 *	4-byte boundaries. Use bounce buffers to copy data
 	 *	and get it aligned. Ugh.
 	 */
-	if (bdp->cbd_bufaddr & 0x3) {
+	if (bdp->cbd_bufaddr & FEC_ALIGNMENT) {
 		unsigned int index;
 		index = bdp - fep->tx_bd_base;
 		memcpy(fep->tx_bounce[index], (void *)skb->data, skb->len);
