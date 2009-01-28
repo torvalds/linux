@@ -492,28 +492,33 @@ pteval_t xen_pte_val(pte_t pte)
 {
 	return pte_mfn_to_pfn(pte.pte);
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_pte_val);
 
 pgdval_t xen_pgd_val(pgd_t pgd)
 {
 	return pte_mfn_to_pfn(pgd.pgd);
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_pgd_val);
 
 pte_t xen_make_pte(pteval_t pte)
 {
 	pte = pte_pfn_to_mfn(pte);
 	return native_make_pte(pte);
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_make_pte);
 
 pgd_t xen_make_pgd(pgdval_t pgd)
 {
 	pgd = pte_pfn_to_mfn(pgd);
 	return native_make_pgd(pgd);
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_make_pgd);
 
 pmdval_t xen_pmd_val(pmd_t pmd)
 {
 	return pte_mfn_to_pfn(pmd.pmd);
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_pmd_val);
 
 void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 {
@@ -590,12 +595,14 @@ pmd_t xen_make_pmd(pmdval_t pmd)
 	pmd = pte_pfn_to_mfn(pmd);
 	return native_make_pmd(pmd);
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_make_pmd);
 
 #if PAGETABLE_LEVELS == 4
 pudval_t xen_pud_val(pud_t pud)
 {
 	return pte_mfn_to_pfn(pud.pud);
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_pud_val);
 
 pud_t xen_make_pud(pudval_t pud)
 {
@@ -603,6 +610,7 @@ pud_t xen_make_pud(pudval_t pud)
 
 	return native_make_pud(pud);
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_make_pud);
 
 pgd_t *xen_get_user_pgd(pgd_t *pgd)
 {
@@ -1813,11 +1821,11 @@ const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.ptep_modify_prot_start = __ptep_modify_prot_start,
 	.ptep_modify_prot_commit = __ptep_modify_prot_commit,
 
-	.pte_val = xen_pte_val,
-	.pgd_val = xen_pgd_val,
+	.pte_val = PV_CALLEE_SAVE(xen_pte_val),
+	.pgd_val = PV_CALLEE_SAVE(xen_pgd_val),
 
-	.make_pte = xen_make_pte,
-	.make_pgd = xen_make_pgd,
+	.make_pte = PV_CALLEE_SAVE(xen_make_pte),
+	.make_pgd = PV_CALLEE_SAVE(xen_make_pgd),
 
 #ifdef CONFIG_X86_PAE
 	.set_pte_atomic = xen_set_pte_atomic,
@@ -1827,12 +1835,12 @@ const struct pv_mmu_ops xen_mmu_ops __initdata = {
 #endif	/* CONFIG_X86_PAE */
 	.set_pud = xen_set_pud_hyper,
 
-	.make_pmd = xen_make_pmd,
-	.pmd_val = xen_pmd_val,
+	.make_pmd = PV_CALLEE_SAVE(xen_make_pmd),
+	.pmd_val = PV_CALLEE_SAVE(xen_pmd_val),
 
 #if PAGETABLE_LEVELS == 4
-	.pud_val = xen_pud_val,
-	.make_pud = xen_make_pud,
+	.pud_val = PV_CALLEE_SAVE(xen_pud_val),
+	.make_pud = PV_CALLEE_SAVE(xen_make_pud),
 	.set_pgd = xen_set_pgd_hyper,
 
 	.alloc_pud = xen_alloc_pte_init,

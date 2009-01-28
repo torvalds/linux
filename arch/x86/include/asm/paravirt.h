@@ -19,7 +19,7 @@
 #define CLBR_ANY  ((1 << 4) - 1)
 
 #define CLBR_ARG_REGS	(CLBR_EAX | CLBR_EDX | CLBR_ECX)
-#define CLBR_RET_REG	(CLBR_EAX)
+#define CLBR_RET_REG	(CLBR_EAX | CLBR_EDX)
 #define CLBR_SCRATCH	(0)
 #else
 #define CLBR_RAX  CLBR_EAX
@@ -308,11 +308,11 @@ struct pv_mmu_ops {
 	void (*ptep_modify_prot_commit)(struct mm_struct *mm, unsigned long addr,
 					pte_t *ptep, pte_t pte);
 
-	pteval_t (*pte_val)(pte_t);
-	pte_t (*make_pte)(pteval_t pte);
+	struct paravirt_callee_save pte_val;
+	struct paravirt_callee_save make_pte;
 
-	pgdval_t (*pgd_val)(pgd_t);
-	pgd_t (*make_pgd)(pgdval_t pgd);
+	struct paravirt_callee_save pgd_val;
+	struct paravirt_callee_save make_pgd;
 
 #if PAGETABLE_LEVELS >= 3
 #ifdef CONFIG_X86_PAE
@@ -327,12 +327,12 @@ struct pv_mmu_ops {
 
 	void (*set_pud)(pud_t *pudp, pud_t pudval);
 
-	pmdval_t (*pmd_val)(pmd_t);
-	pmd_t (*make_pmd)(pmdval_t pmd);
+	struct paravirt_callee_save pmd_val;
+	struct paravirt_callee_save make_pmd;
 
 #if PAGETABLE_LEVELS == 4
-	pudval_t (*pud_val)(pud_t);
-	pud_t (*make_pud)(pudval_t pud);
+	struct paravirt_callee_save pud_val;
+	struct paravirt_callee_save make_pud;
 
 	void (*set_pgd)(pgd_t *pudp, pgd_t pgdval);
 #endif	/* PAGETABLE_LEVELS == 4 */
@@ -1155,13 +1155,13 @@ static inline pte_t __pte(pteval_t val)
 	pteval_t ret;
 
 	if (sizeof(pteval_t) > sizeof(long))
-		ret = PVOP_CALL2(pteval_t,
-				 pv_mmu_ops.make_pte,
-				 val, (u64)val >> 32);
+		ret = PVOP_CALLEE2(pteval_t,
+				   pv_mmu_ops.make_pte,
+				   val, (u64)val >> 32);
 	else
-		ret = PVOP_CALL1(pteval_t,
-				 pv_mmu_ops.make_pte,
-				 val);
+		ret = PVOP_CALLEE1(pteval_t,
+				   pv_mmu_ops.make_pte,
+				   val);
 
 	return (pte_t) { .pte = ret };
 }
@@ -1171,11 +1171,11 @@ static inline pteval_t pte_val(pte_t pte)
 	pteval_t ret;
 
 	if (sizeof(pteval_t) > sizeof(long))
-		ret = PVOP_CALL2(pteval_t, pv_mmu_ops.pte_val,
-				 pte.pte, (u64)pte.pte >> 32);
+		ret = PVOP_CALLEE2(pteval_t, pv_mmu_ops.pte_val,
+				   pte.pte, (u64)pte.pte >> 32);
 	else
-		ret = PVOP_CALL1(pteval_t, pv_mmu_ops.pte_val,
-				 pte.pte);
+		ret = PVOP_CALLEE1(pteval_t, pv_mmu_ops.pte_val,
+				   pte.pte);
 
 	return ret;
 }
@@ -1185,11 +1185,11 @@ static inline pgd_t __pgd(pgdval_t val)
 	pgdval_t ret;
 
 	if (sizeof(pgdval_t) > sizeof(long))
-		ret = PVOP_CALL2(pgdval_t, pv_mmu_ops.make_pgd,
-				 val, (u64)val >> 32);
+		ret = PVOP_CALLEE2(pgdval_t, pv_mmu_ops.make_pgd,
+				   val, (u64)val >> 32);
 	else
-		ret = PVOP_CALL1(pgdval_t, pv_mmu_ops.make_pgd,
-				 val);
+		ret = PVOP_CALLEE1(pgdval_t, pv_mmu_ops.make_pgd,
+				   val);
 
 	return (pgd_t) { ret };
 }
@@ -1199,11 +1199,11 @@ static inline pgdval_t pgd_val(pgd_t pgd)
 	pgdval_t ret;
 
 	if (sizeof(pgdval_t) > sizeof(long))
-		ret =  PVOP_CALL2(pgdval_t, pv_mmu_ops.pgd_val,
-				  pgd.pgd, (u64)pgd.pgd >> 32);
+		ret =  PVOP_CALLEE2(pgdval_t, pv_mmu_ops.pgd_val,
+				    pgd.pgd, (u64)pgd.pgd >> 32);
 	else
-		ret =  PVOP_CALL1(pgdval_t, pv_mmu_ops.pgd_val,
-				  pgd.pgd);
+		ret =  PVOP_CALLEE1(pgdval_t, pv_mmu_ops.pgd_val,
+				    pgd.pgd);
 
 	return ret;
 }
@@ -1267,11 +1267,11 @@ static inline pmd_t __pmd(pmdval_t val)
 	pmdval_t ret;
 
 	if (sizeof(pmdval_t) > sizeof(long))
-		ret = PVOP_CALL2(pmdval_t, pv_mmu_ops.make_pmd,
-				 val, (u64)val >> 32);
+		ret = PVOP_CALLEE2(pmdval_t, pv_mmu_ops.make_pmd,
+				   val, (u64)val >> 32);
 	else
-		ret = PVOP_CALL1(pmdval_t, pv_mmu_ops.make_pmd,
-				 val);
+		ret = PVOP_CALLEE1(pmdval_t, pv_mmu_ops.make_pmd,
+				   val);
 
 	return (pmd_t) { ret };
 }
@@ -1281,11 +1281,11 @@ static inline pmdval_t pmd_val(pmd_t pmd)
 	pmdval_t ret;
 
 	if (sizeof(pmdval_t) > sizeof(long))
-		ret =  PVOP_CALL2(pmdval_t, pv_mmu_ops.pmd_val,
-				  pmd.pmd, (u64)pmd.pmd >> 32);
+		ret =  PVOP_CALLEE2(pmdval_t, pv_mmu_ops.pmd_val,
+				    pmd.pmd, (u64)pmd.pmd >> 32);
 	else
-		ret =  PVOP_CALL1(pmdval_t, pv_mmu_ops.pmd_val,
-				  pmd.pmd);
+		ret =  PVOP_CALLEE1(pmdval_t, pv_mmu_ops.pmd_val,
+				    pmd.pmd);
 
 	return ret;
 }
@@ -1307,11 +1307,11 @@ static inline pud_t __pud(pudval_t val)
 	pudval_t ret;
 
 	if (sizeof(pudval_t) > sizeof(long))
-		ret = PVOP_CALL2(pudval_t, pv_mmu_ops.make_pud,
-				 val, (u64)val >> 32);
+		ret = PVOP_CALLEE2(pudval_t, pv_mmu_ops.make_pud,
+				   val, (u64)val >> 32);
 	else
-		ret = PVOP_CALL1(pudval_t, pv_mmu_ops.make_pud,
-				 val);
+		ret = PVOP_CALLEE1(pudval_t, pv_mmu_ops.make_pud,
+				   val);
 
 	return (pud_t) { ret };
 }

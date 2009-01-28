@@ -391,43 +391,12 @@ struct pv_apic_ops pv_apic_ops = {
 #endif
 };
 
-typedef pte_t make_pte_t(pteval_t);
-typedef pmd_t make_pmd_t(pmdval_t);
-typedef pud_t make_pud_t(pudval_t);
-typedef pgd_t make_pgd_t(pgdval_t);
-
-typedef pteval_t pte_val_t(pte_t);
-typedef pmdval_t pmd_val_t(pmd_t);
-typedef pudval_t pud_val_t(pud_t);
-typedef pgdval_t pgd_val_t(pgd_t);
-
-
 #if defined(CONFIG_X86_32) && !defined(CONFIG_X86_PAE)
 /* 32-bit pagetable entries */
-#define paravirt_native_make_pte	(make_pte_t *)_paravirt_ident_32
-#define paravirt_native_pte_val		(pte_val_t *)_paravirt_ident_32
-
-#define paravirt_native_make_pmd	(make_pmd_t *)_paravirt_ident_32
-#define paravirt_native_pmd_val		(pmd_val_t *)_paravirt_ident_32
-
-#define paravirt_native_make_pud	(make_pud_t *)_paravirt_ident_32
-#define paravirt_native_pud_val		(pud_val_t *)_paravirt_ident_32
-
-#define paravirt_native_make_pgd	(make_pgd_t *)_paravirt_ident_32
-#define paravirt_native_pgd_val		(pgd_val_t *)_paravirt_ident_32
+#define PTE_IDENT	__PV_IS_CALLEE_SAVE(_paravirt_ident_32)
 #else
 /* 64-bit pagetable entries */
-#define paravirt_native_make_pte	(make_pte_t *)_paravirt_ident_64
-#define paravirt_native_pte_val		(pte_val_t *)_paravirt_ident_64
-
-#define paravirt_native_make_pmd	(make_pmd_t *)_paravirt_ident_64
-#define paravirt_native_pmd_val		(pmd_val_t *)_paravirt_ident_64
-
-#define paravirt_native_make_pud	(make_pud_t *)_paravirt_ident_64
-#define paravirt_native_pud_val		(pud_val_t *)_paravirt_ident_64
-
-#define paravirt_native_make_pgd	(make_pgd_t *)_paravirt_ident_64
-#define paravirt_native_pgd_val		(pgd_val_t *)_paravirt_ident_64
+#define PTE_IDENT	__PV_IS_CALLEE_SAVE(_paravirt_ident_64)
 #endif
 
 struct pv_mmu_ops pv_mmu_ops = {
@@ -481,21 +450,23 @@ struct pv_mmu_ops pv_mmu_ops = {
 	.pmd_clear = native_pmd_clear,
 #endif
 	.set_pud = native_set_pud,
-	.pmd_val = paravirt_native_pmd_val,
-	.make_pmd = paravirt_native_make_pmd,
+
+	.pmd_val = PTE_IDENT,
+	.make_pmd = PTE_IDENT,
 
 #if PAGETABLE_LEVELS == 4
-	.pud_val = paravirt_native_pud_val,
-	.make_pud = paravirt_native_make_pud,
+	.pud_val = PTE_IDENT,
+	.make_pud = PTE_IDENT,
+
 	.set_pgd = native_set_pgd,
 #endif
 #endif /* PAGETABLE_LEVELS >= 3 */
 
-	.pte_val = paravirt_native_pte_val,
-	.pgd_val = paravirt_native_pgd_val,
+	.pte_val = PTE_IDENT,
+	.pgd_val = PTE_IDENT,
 
-	.make_pte = paravirt_native_make_pte,
-	.make_pgd = paravirt_native_make_pgd,
+	.make_pte = PTE_IDENT,
+	.make_pgd = PTE_IDENT,
 
 	.dup_mmap = paravirt_nop,
 	.exit_mmap = paravirt_nop,
