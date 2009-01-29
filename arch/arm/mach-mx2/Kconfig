@@ -1,27 +1,22 @@
-comment "MX2 family CPU support"
-	depends on ARCH_MX2
+if ARCH_MX2
 
 choice
-	prompt "MX2 Type"
-	depends on ARCH_MX2
+	prompt "CPUs:"
 	default MACH_MX21
 
 config MACH_MX21
 	bool "i.MX21 support"
-	depends on ARCH_MX2
 	help
 	  This enables support for Freescale's MX2 based i.MX21 processor.
 
 config MACH_MX27
 	bool "i.MX27 support"
-	depends on ARCH_MX2
 	help
 	  This enables support for Freescale's MX2 based i.MX27 processor.
 
 endchoice
 
-comment "MX2 Platforms"
-	depends on ARCH_MX2
+comment "MX2 platforms:"
 
 config MACH_MX27ADS
 	bool "MX27ADS platform"
@@ -50,3 +45,5 @@ config MACH_PCM970_BASEBOARD
 	  PCM970 evaluation board.
 
 endchoice
+
+endif

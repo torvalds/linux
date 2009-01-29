@@ -3,7 +3,7 @@ if ARCH_MXC
 menu "Freescale MXC Implementations"
 
 choice
-	prompt "MXC/iMX Base Type"
+	prompt "Freescale CPU family:"
 	default ARCH_MX3
 
 config ARCH_MX1

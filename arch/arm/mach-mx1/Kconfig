@@ -1,6 +1,6 @@
 if ARCH_MX1
 
-comment "MX1 Platforms"
+comment "MX1 platforms:"
 
 config MACH_MXLADS
 	bool
@@ -15,4 +15,5 @@ config MACH_SCB9328
 	bool "Synertronixx scb9328"
 	help
 	  Say Y here if you are using a Synertronixx scb9328 board
+
 endif

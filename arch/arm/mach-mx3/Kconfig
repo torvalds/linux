@@ -1,5 +1,6 @@
-menu "MX3 Options"
-	depends on ARCH_MX3
+if ARCH_MX3
+
+comment "MX3 platforms:"
 
 config MACH_MX31ADS
 	bool "Support MX31ADS platforms"
@@ -44,5 +45,4 @@ config MACH_MX31MOBOARD
 	  Include support for mx31moboard platform. This includes specific
 	  configurations for the board and its peripherals.
 
-endmenu
-
+endif
