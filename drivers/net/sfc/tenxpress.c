@@ -67,6 +67,8 @@
 #define PMA_PMD_EXT_CLK312_WIDTH 1
 #define PMA_PMD_EXT_LPOWER_LBN  12
 #define PMA_PMD_EXT_LPOWER_WIDTH 1
+#define PMA_PMD_EXT_ROBUST_LBN	14
+#define PMA_PMD_EXT_ROBUST_WIDTH 1
 #define PMA_PMD_EXT_SSR_LBN	15
 #define PMA_PMD_EXT_SSR_WIDTH	1
 
@@ -284,7 +286,9 @@ static int tenxpress_init(struct efx_nic *efx)
 					 PMA_PMD_XCONTROL_REG);
 		reg |= ((1 << PMA_PMD_EXT_GMII_EN_LBN) |
 			(1 << PMA_PMD_EXT_CLK_OUT_LBN) |
-			(1 << PMA_PMD_EXT_CLK312_LBN));
+			(1 << PMA_PMD_EXT_CLK312_LBN) |
+			(1 << PMA_PMD_EXT_ROBUST_LBN));
+
 		mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
 				    PMA_PMD_XCONTROL_REG, reg);
 		mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_C22EXT,
