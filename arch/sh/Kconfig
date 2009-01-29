@@ -431,7 +431,6 @@ config SH_CMT
 config SH_TIMER_CMT
 	bool "CMT clockevents driver"
 	depends on SYS_SUPPORTS_CMT && !SH_CMT
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
 config SH_MTU2

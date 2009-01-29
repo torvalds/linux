@@ -104,7 +104,6 @@ int do_settimeofday(struct timespec *tv)
 EXPORT_SYMBOL(do_settimeofday);
 #endif /* !CONFIG_GENERIC_TIME */
 
-#ifndef CONFIG_GENERIC_CLOCKEVENTS
 /* last time the RTC clock got updated */
 static long last_rtc_update;
 
@@ -148,7 +147,6 @@ void handle_timer_tick(void)
 	update_process_times(user_mode(get_irq_regs()));
 #endif
 }
-#endif /* !CONFIG_GENERIC_CLOCKEVENTS */
 
 #ifdef CONFIG_PM
 int timer_suspend(struct sys_device *dev, pm_message_t state)
