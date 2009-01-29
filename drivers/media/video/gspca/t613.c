@@ -635,7 +635,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
 	u16 sensor_id;
-	u8 test_byte;
+	u8 test_byte = 0;
 	u16 reg80, reg8e;
 
 	static const u8 read_indexs[] =
