@@ -204,7 +204,10 @@ static void smd_channel_probe_worker(struct work_struct *work)
 	unsigned n;
 
 	shared = smem_find(ID_CH_ALLOC_TBL, sizeof(*shared) * 64);
-
+	if (!shared) {
+		pr_err("smd: cannot find allocation table\n");
+		return;
+	}
 	for (n = 0; n < 64; n++) {
 		if (smd_ch_allocated[n])
 			continue;
