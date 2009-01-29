@@ -61,13 +61,26 @@
 #define _IWL6050_MODULE_FIRMWARE(api) IWL6050_FW_PRE #api ".ucode"
 #define IWL6050_MODULE_FIRMWARE(api) _IWL6050_MODULE_FIRMWARE(api)
 
+static struct iwl_hcmd_utils_ops iwl6000_hcmd_utils = {
+	.get_hcmd_size = iwl5000_get_hcmd_size,
+	.build_addsta_hcmd = iwl5000_build_addsta_hcmd,
+	.rts_tx_cmd_flag = iwl5000_rts_tx_cmd_flag,
+	.calc_rssi = iwl5000_calc_rssi,
+};
+
+static struct iwl_ops iwl6000_ops = {
+	.lib = &iwl5000_lib,
+	.hcmd = &iwl5000_hcmd,
+	.utils = &iwl6000_hcmd_utils,
+};
+
 struct iwl_cfg iwl6000_2ag_cfg = {
 	.name = "6000 Series 2x2 AG",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
-	.ops = &iwl5000_ops,
+	.ops = &iwl6000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
@@ -83,7 +96,7 @@ struct iwl_cfg iwl6000_2agn_cfg = {
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5000_ops,
+	.ops = &iwl6000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
@@ -99,7 +112,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5000_ops,
+	.ops = &iwl6000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
@@ -115,7 +128,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5000_ops,
+	.ops = &iwl6000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
@@ -131,7 +144,7 @@ struct iwl_cfg iwl6050_3agn_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5000_ops,
+	.ops = &iwl6000_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,

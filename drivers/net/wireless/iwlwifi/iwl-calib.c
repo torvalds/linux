@@ -846,8 +846,9 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	IWL_DEBUG_CALIB(priv, "min_average_noise = %d, antenna %d\n",
 			min_average_noise, min_average_noise_antenna_i);
 
-	priv->cfg->ops->utils->gain_computation(priv, average_noise,
-		min_average_noise_antenna_i, min_average_noise);
+	if (priv->cfg->ops->utils->gain_computation)
+		priv->cfg->ops->utils->gain_computation(priv, average_noise,
+			min_average_noise_antenna_i, min_average_noise);
 
 	/* Some power changes may have been made during the calibration.
 	 * Update and commit the RXON
