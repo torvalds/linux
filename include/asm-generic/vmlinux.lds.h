@@ -451,18 +451,17 @@
  * end offset.
  */
 #define PERCPU_VADDR(vaddr, phdr)					\
-	VMLINUX_SYMBOL(__per_cpu_load_abs) = .;				\
-	.data.percpu vaddr : AT(VMLINUX_SYMBOL(__per_cpu_load_abs)	\
+	VMLINUX_SYMBOL(__per_cpu_load) = .;				\
+	.data.percpu vaddr : AT(VMLINUX_SYMBOL(__per_cpu_load)		\
 				- LOAD_OFFSET) {			\
 		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
-		VMLINUX_SYMBOL(__per_cpu_load) = LOADADDR(.data.percpu) + LOAD_OFFSET;\
 		*(.data.percpu.first)					\
 		*(.data.percpu.page_aligned)				\
 		*(.data.percpu)						\
 		*(.data.percpu.shared_aligned)				\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
 	} phdr								\
-	. = VMLINUX_SYMBOL(__per_cpu_load_abs) + SIZEOF(.data.percpu);
+	. = VMLINUX_SYMBOL(__per_cpu_load) + SIZEOF(.data.percpu);
 
 /**
  * PERCPU - define output section for percpu area, simple version
