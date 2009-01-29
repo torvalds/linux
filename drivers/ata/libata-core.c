@@ -2777,7 +2777,7 @@ int ata_bus_probe(struct ata_port *ap)
 			/* This is the last chance, better to slow
 			 * down than lose it.
 			 */
-			sata_down_spd_limit(&ap->link);
+			sata_down_spd_limit(&ap->link, 0);
 			ata_down_xfermask_limit(dev, ATA_DNXFER_PIO);
 		}
 	}
@@ -2873,10 +2873,16 @@ void ata_port_disable(struct ata_port *ap)
 /**
  *	sata_down_spd_limit - adjust SATA spd limit downward
  *	@link: Link to adjust SATA spd limit for
+ *	@spd_limit: Additional limit
  *
  *	Adjust SATA spd limit of @link downward.  Note that this
  *	function only adjusts the limit.  The change must be applied
  *	using sata_set_spd().
+ *
+ *	If @spd_limit is non-zero, the speed is limited to equal to or
+ *	lower than @spd_limit if such speed is supported.  If
+ *	@spd_limit is slower than any supported speed, only the lowest
+ *	supported speed is allowed.
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -2884,10 +2890,10 @@ void ata_port_disable(struct ata_port *ap)
  *	RETURNS:
  *	0 on success, negative errno on failure
  */
-int sata_down_spd_limit(struct ata_link *link)
+int sata_down_spd_limit(struct ata_link *link, u32 spd_limit)
 {
 	u32 sstatus, spd, mask;
-	int rc, highbit;
+	int rc, bit;
 
 	if (!sata_scr_valid(link))
 		return -EOPNOTSUPP;
@@ -2906,8 +2912,8 @@ int sata_down_spd_limit(struct ata_link *link)
 		return -EINVAL;
 
 	/* unconditionally mask off the highest bit */
-	highbit = fls(mask) - 1;
-	mask &= ~(1 << highbit);
+	bit = fls(mask) - 1;
+	mask &= ~(1 << bit);
 
 	/* Mask off all speeds higher than or equal to the current
 	 * one.  Force 1.5Gbps if current SPD is not available.
@@ -2920,6 +2926,15 @@ int sata_down_spd_limit(struct ata_link *link)
 	/* were we already at the bottom? */
 	if (!mask)
 		return -EINVAL;
+
+	if (spd_limit) {
+		if (mask & ((1 << spd_limit) - 1))
+			mask &= (1 << spd_limit) - 1;
+		else {
+			bit = ffs(mask) - 1;
+			mask = 1 << bit;
+		}
+	}
 
 	link->sata_spd_limit = mask;
 

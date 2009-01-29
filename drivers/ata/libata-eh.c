@@ -1875,7 +1875,7 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev,
 	/* speed down? */
 	if (verdict & ATA_EH_SPDN_SPEED_DOWN) {
 		/* speed down SATA link speed if possible */
-		if (sata_down_spd_limit(link) == 0) {
+		if (sata_down_spd_limit(link, 0) == 0) {
 			action |= ATA_EH_RESET;
 			goto done;
 		}
@@ -2627,11 +2627,11 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	}
 
 	if (try == max_tries - 1) {
-		sata_down_spd_limit(link);
+		sata_down_spd_limit(link, 0);
 		if (slave)
-			sata_down_spd_limit(slave);
+			sata_down_spd_limit(slave, 0);
 	} else if (rc == -EPIPE)
-		sata_down_spd_limit(failed_link);
+		sata_down_spd_limit(failed_link, 0);
 
 	if (hardreset)
 		reset = hardreset;
@@ -3011,7 +3011,7 @@ static int ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 			/* This is the last chance, better to slow
 			 * down than lose it.
 			 */
-			sata_down_spd_limit(ata_dev_phys_link(dev));
+			sata_down_spd_limit(ata_dev_phys_link(dev), 0);
 			if (dev->pio_mode > XFER_PIO_0)
 				ata_down_xfermask_limit(dev, ATA_DNXFER_PIO);
 		}
