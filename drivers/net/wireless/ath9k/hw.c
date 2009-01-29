@@ -267,7 +267,7 @@ static int ath9k_hw_get_radiorev(struct ath_hal *ah)
 
 static void ath9k_hw_disablepcie(struct ath_hal *ah)
 {
-	if (!AR_SREV_9100(ah))
+	if (AR_SREV_9100(ah))
 		return;
 
 	REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
