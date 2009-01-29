@@ -888,6 +888,12 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 			return;
 		}
 		down_read(&mm->mmap_sem);
+	} else {
+		/*
+		 * The above down_read_trylock() might have succeeded in which
+		 * case we'll have missed the might_sleep() from down_read().
+		 */
+		might_sleep();
 	}
 
 	vma = find_vma(mm, address);
