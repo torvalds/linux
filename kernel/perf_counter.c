@@ -1934,7 +1934,8 @@ __perf_counter_exit_task(struct task_struct *child,
 		}
 	}
 
-	kfree(child_counter);
+	if (!child_counter->filp || !atomic_long_read(&child_counter->filp->f_count))
+		kfree(child_counter);
 }
 
 /*
