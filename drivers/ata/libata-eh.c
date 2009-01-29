@@ -1194,6 +1194,11 @@ void ata_dev_disable(struct ata_device *dev)
 	ata_acpi_on_disable(dev);
 	ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0 | ATA_DNXFER_QUIET);
 	dev->class++;
+
+	/* From now till the next successful probe, ering is used to
+	 * track probe failures.  Clear accumulated device error info.
+	 */
+	ata_ering_clear(&dev->ering);
 }
 
 /**
@@ -2765,6 +2770,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 						     readid_flags, dev->id);
 			switch (rc) {
 			case 0:
+				/* clear error info accumulated during probe */
+				ata_ering_clear(&dev->ering);
 				new_mask |= 1 << dev->devno;
 				break;
 			case -ENOENT:
