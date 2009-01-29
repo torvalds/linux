@@ -32,6 +32,7 @@ spca561		041e:403b	Creative Webcam Vista (VF0010)
 zc3xx		041e:4051	Creative Live!Cam Notebook Pro (VF0250)
 ov519		041e:4052	Creative Live! VISTA IM
 zc3xx		041e:4053	Creative Live!Cam Video IM
+vc032x		041e:405b	Creative Live! Cam Notebook Ultra (VC0130)
 ov519		041e:405f	Creative Live! VISTA VF0330
 ov519		041e:4060	Creative Live! VISTA VF0350
 ov519		041e:4061	Creative Live! VISTA VF0400
