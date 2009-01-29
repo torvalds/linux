@@ -70,7 +70,6 @@
 
 #define RX_DMA_SIZE	2048
 
-static int debug = 0;
 static int atmdebug = 0;
 static int firmware_upgrade = 0;
 static int fpga_upgrade = 0;
@@ -133,11 +132,9 @@ MODULE_AUTHOR("Traverse Technologies <support@traverse.com.au>");
 MODULE_DESCRIPTION("Solos PCI driver");
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
-MODULE_PARM_DESC(debug, "Enable Loopback");
 MODULE_PARM_DESC(atmdebug, "Print ATM data");
 MODULE_PARM_DESC(firmware_upgrade, "Initiate Solos firmware upgrade");
 MODULE_PARM_DESC(fpga_upgrade, "Initiate FPGA upgrade");
-module_param(debug, int, 0444);
 module_param(atmdebug, int, 0644);
 module_param(firmware_upgrade, int, 0444);
 module_param(fpga_upgrade, int, 0444);
@@ -974,25 +971,11 @@ static int fpga_tx(struct solos_card *card)
 static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	struct solos_card *card = vcc->dev->dev_data;
-	struct sk_buff *skb2 = NULL;
 	struct pkt_hdr *header;
 	int pktlen;
 
 	//dev_dbg(&card->dev->dev, "psend called.\n");
 	//dev_dbg(&card->dev->dev, "dev,vpi,vci = %d,%d,%d\n",SOLOS_CHAN(vcc->dev),vcc->vpi,vcc->vci);
-
-	if (debug) {
-		skb2 = atm_alloc_charge(vcc, skb->len, GFP_ATOMIC);
-		if (skb2) {
-			memcpy(skb2->data, skb->data, skb->len);
-			skb_put(skb2, skb->len);
-			vcc->push(vcc, skb2);
-			atomic_inc(&vcc->stats->rx);
-		}
-		atomic_inc(&vcc->stats->tx);
-		solos_pop(vcc, skb);
-		return 0;
-	}
 
 	pktlen = skb->len;
 	if (pktlen > (BUF_SIZE - sizeof(*header))) {
@@ -1051,9 +1034,6 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	uint8_t major_ver, minor_ver;
 	uint32_t data32;
 	struct solos_card *card;
-
-	if (debug)
-		return 0;
 
 	card = kzalloc(sizeof(*card), GFP_KERNEL);
 	if (!card)
@@ -1255,9 +1235,6 @@ static void atm_remove(struct solos_card *card)
 static void fpga_remove(struct pci_dev *dev)
 {
 	struct solos_card *card = pci_get_drvdata(dev);
-
-	if (debug)
-		return;
 
 	atm_remove(card);
 
