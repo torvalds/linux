@@ -2356,8 +2356,6 @@ static void selinux_bprm_committed_creds(struct linux_binprm *bprm)
 	int rc, i;
 	unsigned long flags;
 
-	secondary_ops->bprm_committed_creds(bprm);
-
 	osid = tsec->osid;
 	sid = tsec->sid;
 
