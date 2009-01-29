@@ -2533,6 +2533,8 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 	struct net_device *dev = napi->dev;
 	struct sk_buff *skb = napi->skb;
 	struct ethhdr *eth;
+	skb_frag_t *frag;
+	int i;
 
 	napi->skb = NULL;
 
@@ -2545,8 +2547,14 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 	}
 
 	BUG_ON(info->nr_frags > MAX_SKB_FRAGS);
+	frag = &info->frags[info->nr_frags - 1];
+
+	for (i = skb_shinfo(skb)->nr_frags; i < info->nr_frags; i++) {
+		skb_fill_page_desc(skb, i, frag->page, frag->page_offset,
+				   frag->size);
+		frag++;
+	}
 	skb_shinfo(skb)->nr_frags = info->nr_frags;
-	memcpy(skb_shinfo(skb)->frags, info->frags, sizeof(info->frags));
 
 	skb->data_len = info->len;
 	skb->len += info->len;
