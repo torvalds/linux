@@ -570,16 +570,12 @@ static irqreturn_t solos_irq(int irq, void *dev_id)
 
 	//ACK IRQ
 	iowrite32(0, card->config_regs + IRQ_CLEAR);
-	//Disable IRQs from FPGA
-	iowrite32(0, card->config_regs + IRQ_EN_ADDR);
 
 	if (card->atmdev[0])
 		tasklet_schedule(&card->tlet);
 	else
 		wake_up(&card->fw_wq);
 
-	//Enable IRQs from FPGA
-	iowrite32(1, card->config_regs + IRQ_EN_ADDR);
 	return IRQ_RETVAL(handled);
 }
 
@@ -1132,7 +1128,7 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 */
 	//dev_dbg(&card->dev->dev, "Requesting IRQ: %d\n",dev->irq);
-	err = request_irq(dev->irq, solos_irq, IRQF_DISABLED|IRQF_SHARED,
+	err = request_irq(dev->irq, solos_irq, IRQF_SHARED,
 			  "solos-pci", card);
 	if (err) {
 		dev_dbg(&card->dev->dev, "Failed to request interrupt IRQ: %d\n", dev->irq);
