@@ -385,6 +385,7 @@ static int new_pts_mount(struct file_system_type *fs_type, int flags,
 
 fail:
 	dput(mnt->mnt_sb->s_root);
+	up_write(&mnt->mnt_sb->s_umount);
 	deactivate_super(mnt->mnt_sb);
 	return err;
 }
@@ -473,6 +474,7 @@ static int init_pts_mount(struct file_system_type *fs_type, int flags,
 	err = mknod_ptmx(mnt->mnt_sb);
 	if (err) {
 		dput(mnt->mnt_sb->s_root);
+		up_write(&mnt->mnt_sb->s_umount);
 		deactivate_super(mnt->mnt_sb);
 	}
 
