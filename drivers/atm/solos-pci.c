@@ -100,6 +100,7 @@ struct solos_card {
 	void __iomem *config_regs;
 	void __iomem *buffers;
 	int nr_ports;
+	int tx_mask;
 	struct pci_dev *dev;
 	struct atm_dev *atmdev[4];
 	struct tasklet_struct tlet;
@@ -590,15 +591,13 @@ void solos_bh(unsigned long card_arg)
 	struct solos_card *card = (void *)card_arg;
 	int port;
 	uint32_t card_flags;
-	uint32_t tx_mask;
 	uint32_t rx_done = 0;
 
 	card_flags = ioread32(card->config_regs + FLAGS_ADDR);
 
 	/* The TX bits are set if the channel is busy; clear if not. We want to
 	   invoke fpga_tx() unless _all_ the bits for active channels are set */
-	tx_mask = (1 << card->nr_ports) - 1;
-	if ((card_flags & tx_mask) != tx_mask)
+	if ((card_flags & card->tx_mask) != card->tx_mask)
 		fpga_tx(card);
 
 	for (port = 0; port < card->nr_ports; port++) {
@@ -887,15 +886,20 @@ static void fpga_queue(struct solos_card *card, int port, struct sk_buff *skb,
 		       struct atm_vcc *vcc)
 {
 	int old_len;
+	unsigned long flags;
 
 	SKB_CB(skb)->vcc = vcc;
 
-	spin_lock(&card->tx_queue_lock);
+	spin_lock_irqsave(&card->tx_queue_lock, flags);
 	old_len = skb_queue_len(&card->tx_queue[port]);
 	skb_queue_tail(&card->tx_queue[port], skb);
-	spin_unlock(&card->tx_queue_lock);
+	if (!old_len) {
+		card->tx_mask |= (1 << port);
+	}
+	spin_unlock_irqrestore(&card->tx_queue_lock, flags);
 
-	/* If TX might need to be started, do so */
+	/* Theoretically we could just schedule the tasklet here, but
+	   that introduces latency we don't want -- it's noticeable */
 	if (!old_len)
 		fpga_tx(card);
 }
@@ -911,7 +915,7 @@ static int fpga_tx(struct solos_card *card)
 
 	spin_lock_irqsave(&card->tx_lock, flags);
 
-	tx_pending = ioread32(card->config_regs + FLAGS_ADDR);
+	tx_pending = ioread32(card->config_regs + FLAGS_ADDR) & card->tx_mask;
 
 	dev_vdbg(&card->dev->dev, "TX Flags are %X\n", tx_pending);
 
@@ -925,6 +929,8 @@ static int fpga_tx(struct solos_card *card)
 			
 			spin_lock(&card->tx_queue_lock);
 			skb = skb_dequeue(&card->tx_queue[port]);
+			if (!skb)
+				card->tx_mask &= ~(1 << port);
 			spin_unlock(&card->tx_queue_lock);
 
 			if (skb && !card->using_dma) {
