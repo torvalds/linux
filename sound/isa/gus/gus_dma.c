@@ -45,7 +45,8 @@ static void snd_gf1_dma_program(struct snd_gus_card * gus,
 	unsigned char dma_cmd;
 	unsigned int address_high;
 
-	// snd_printk("dma_transfer: addr=0x%x, buf=0x%lx, count=0x%x\n", addr, (long) buf, count);
+	snd_printdd("dma_transfer: addr=0x%x, buf=0x%lx, count=0x%x\n",
+		    addr, buf_addr, count);
 
 	if (gus->gf1.dma1 > 3) {
 		if (gus->gf1.enh_mode) {
@@ -142,7 +143,9 @@ static void snd_gf1_dma_interrupt(struct snd_gus_card * gus)
 	snd_gf1_dma_program(gus, block->addr, block->buf_addr, block->count, (unsigned short) block->cmd);
 	kfree(block);
 #if 0
-	printk("program dma (IRQ) - addr = 0x%x, buffer = 0x%lx, count = 0x%x, cmd = 0x%x\n", addr, (long) buffer, count, cmd);
+	snd_printd(KERN_DEBUG "program dma (IRQ) - "
+		   "addr = 0x%x, buffer = 0x%lx, count = 0x%x, cmd = 0x%x\n",
+		   block->addr, block->buf_addr, block->count, block->cmd);
 #endif
 }
 
@@ -203,13 +206,16 @@ int snd_gf1_dma_transfer_block(struct snd_gus_card * gus,
 	}
 	*block = *__block;
 	block->next = NULL;
-#if 0
-	printk("addr = 0x%x, buffer = 0x%lx, count = 0x%x, cmd = 0x%x\n", block->addr, (long) block->buffer, block->count, block->cmd);
-#endif
-#if 0
-	printk("gus->gf1.dma_data_pcm_last = 0x%lx\n", (long)gus->gf1.dma_data_pcm_last);
-	printk("gus->gf1.dma_data_pcm = 0x%lx\n", (long)gus->gf1.dma_data_pcm);
-#endif
+
+	snd_printdd("addr = 0x%x, buffer = 0x%lx, count = 0x%x, cmd = 0x%x\n",
+		    block->addr, (long) block->buffer, block->count,
+		    block->cmd);
+
+	snd_printdd("gus->gf1.dma_data_pcm_last = 0x%lx\n",
+		    (long)gus->gf1.dma_data_pcm_last);
+	snd_printdd("gus->gf1.dma_data_pcm = 0x%lx\n",
+		    (long)gus->gf1.dma_data_pcm);
+
 	spin_lock_irqsave(&gus->dma_lock, flags);
 	if (synth) {
 		if (gus->gf1.dma_data_synth_last) {
