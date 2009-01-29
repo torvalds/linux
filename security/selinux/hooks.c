@@ -2674,11 +2674,7 @@ static int selinux_inode_readlink(struct dentry *dentry)
 static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *nameidata)
 {
 	const struct cred *cred = current_cred();
-	int rc;
 
-	rc = secondary_ops->inode_follow_link(dentry, nameidata);
-	if (rc)
-		return rc;
 	return dentry_has_perm(cred, NULL, dentry, FILE__READ);
 }
 
