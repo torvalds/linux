@@ -1407,7 +1407,7 @@ int dbg_check_tnc(struct ubifs_info *c, int extra)
  * @c: UBIFS file-system description object
  * @leaf_cb: called for each leaf node
  * @znode_cb: called for each indexing node
- * @priv: private date which is passed to callbacks
+ * @priv: private data which is passed to callbacks
  *
  * This function walks the UBIFS index and calls the @leaf_cb for each leaf
  * node and @znode_cb for each indexing node. Returns zero in case of success

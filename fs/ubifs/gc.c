@@ -401,7 +401,7 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 
 		/*
 		 * Don't release the LEB until after the next commit, because
-		 * it may contain date which is needed for recovery. So
+		 * it may contain data which is needed for recovery. So
 		 * although we freed this LEB, it will become usable only after
 		 * the commit.
 		 */
