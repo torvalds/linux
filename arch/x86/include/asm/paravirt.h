@@ -1321,11 +1321,11 @@ static inline pudval_t pud_val(pud_t pud)
 	pudval_t ret;
 
 	if (sizeof(pudval_t) > sizeof(long))
-		ret =  PVOP_CALL2(pudval_t, pv_mmu_ops.pud_val,
-				  pud.pud, (u64)pud.pud >> 32);
+		ret =  PVOP_CALLEE2(pudval_t, pv_mmu_ops.pud_val,
+				    pud.pud, (u64)pud.pud >> 32);
 	else
-		ret =  PVOP_CALL1(pudval_t, pv_mmu_ops.pud_val,
-				  pud.pud);
+		ret =  PVOP_CALLEE1(pudval_t, pv_mmu_ops.pud_val,
+				    pud.pud);
 
 	return ret;
 }
