@@ -799,24 +799,34 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 	int proto;
 	__wsum csum;
 
-	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
+	iph = skb_gro_header(skb, sizeof(*iph));
+	if (unlikely(!iph))
 		goto out;
 
-	iph = ipv6_hdr(skb);
-	__skb_pull(skb, sizeof(*iph));
+	skb_gro_pull(skb, sizeof(*iph));
+	skb_set_transport_header(skb, skb_gro_offset(skb));
 
-	flush += ntohs(iph->payload_len) != skb->len;
+	flush += ntohs(iph->payload_len) != skb_gro_len(skb);
 
 	rcu_read_lock();
-	proto = ipv6_gso_pull_exthdrs(skb, iph->nexthdr);
-	iph = ipv6_hdr(skb);
-	IPV6_GRO_CB(skb)->proto = proto;
+	proto = iph->nexthdr;
 	ops = rcu_dereference(inet6_protos[proto]);
-	if (!ops || !ops->gro_receive)
-		goto out_unlock;
+	if (!ops || !ops->gro_receive) {
+		__pskb_pull(skb, skb_gro_offset(skb));
+		proto = ipv6_gso_pull_exthdrs(skb, proto);
+		skb_gro_pull(skb, -skb_transport_offset(skb));
+		skb_reset_transport_header(skb);
+		__skb_push(skb, skb_gro_offset(skb));
+
+		if (!ops || !ops->gro_receive)
+			goto out_unlock;
+
+		iph = ipv6_hdr(skb);
+	}
+
+	IPV6_GRO_CB(skb)->proto = proto;
 
 	flush--;
-	skb_reset_transport_header(skb);
 	nlen = skb_network_header_len(skb);
 
 	for (p = *head; p; p = p->next) {

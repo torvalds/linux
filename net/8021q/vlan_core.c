@@ -98,6 +98,8 @@ drop:
 int vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
 		     unsigned int vlan_tci, struct sk_buff *skb)
 {
+	skb_gro_reset_offset(skb);
+
 	return napi_skb_finish(vlan_gro_common(napi, grp, vlan_tci, skb), skb);
 }
 EXPORT_SYMBOL(vlan_gro_receive);

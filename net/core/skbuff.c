@@ -2584,17 +2584,21 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	struct sk_buff *p = *head;
 	struct sk_buff *nskb;
 	unsigned int headroom;
-	unsigned int hlen = p->data - skb_mac_header(p);
-	unsigned int len = skb->len;
+	unsigned int len = skb_gro_len(skb);
 
-	if (hlen + p->len + len >= 65536)
+	if (p->len + len >= 65536)
 		return -E2BIG;
 
 	if (skb_shinfo(p)->frag_list)
 		goto merge;
-	else if (!skb_headlen(p) && !skb_headlen(skb) &&
-		 skb_shinfo(p)->nr_frags + skb_shinfo(skb)->nr_frags <
+	else if (skb_headlen(skb) <= skb_gro_offset(skb) &&
+		 skb_shinfo(p)->nr_frags + skb_shinfo(skb)->nr_frags <=
 		 MAX_SKB_FRAGS) {
+		skb_shinfo(skb)->frags[0].page_offset +=
+			skb_gro_offset(skb) - skb_headlen(skb);
+		skb_shinfo(skb)->frags[0].size -=
+			skb_gro_offset(skb) - skb_headlen(skb);
+
 		memcpy(skb_shinfo(p)->frags + skb_shinfo(p)->nr_frags,
 		       skb_shinfo(skb)->frags,
 		       skb_shinfo(skb)->nr_frags * sizeof(skb_frag_t));
@@ -2611,7 +2615,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	}
 
 	headroom = skb_headroom(p);
-	nskb = netdev_alloc_skb(p->dev, headroom);
+	nskb = netdev_alloc_skb(p->dev, headroom + skb_gro_offset(p));
 	if (unlikely(!nskb))
 		return -ENOMEM;
 
@@ -2619,12 +2623,15 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	nskb->mac_len = p->mac_len;
 
 	skb_reserve(nskb, headroom);
+	__skb_put(nskb, skb_gro_offset(p));
 
-	skb_set_mac_header(nskb, -hlen);
+	skb_set_mac_header(nskb, skb_mac_header(p) - p->data);
 	skb_set_network_header(nskb, skb_network_offset(p));
 	skb_set_transport_header(nskb, skb_transport_offset(p));
 
-	memcpy(skb_mac_header(nskb), skb_mac_header(p), hlen);
+	__skb_pull(p, skb_gro_offset(p));
+	memcpy(skb_mac_header(nskb), skb_mac_header(p),
+	       p->data - skb_mac_header(p));
 
 	*NAPI_GRO_CB(nskb) = *NAPI_GRO_CB(p);
 	skb_shinfo(nskb)->frag_list = p;

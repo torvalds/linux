@@ -215,6 +215,13 @@ static inline struct hlist_head *dev_index_hash(struct net *net, int ifindex)
 	return &net->dev_index_head[ifindex & ((1 << NETDEV_HASHBITS) - 1)];
 }
 
+static inline void *skb_gro_mac_header(struct sk_buff *skb)
+{
+	return skb_headlen(skb) ? skb_mac_header(skb) :
+	       page_address(skb_shinfo(skb)->frags[0].page) +
+	       skb_shinfo(skb)->frags[0].page_offset;
+}
+
 /* Device list insertion */
 static int list_netdevice(struct net_device *dev)
 {
@@ -2350,7 +2357,6 @@ static int napi_gro_complete(struct sk_buff *skb)
 
 out:
 	skb_shinfo(skb)->gso_size = 0;
-	__skb_push(skb, -skb_network_offset(skb));
 	return netif_receive_skb(skb);
 }
 
@@ -2367,6 +2373,25 @@ void napi_gro_flush(struct napi_struct *napi)
 	napi->gro_list = NULL;
 }
 EXPORT_SYMBOL(napi_gro_flush);
+
+void *skb_gro_header(struct sk_buff *skb, unsigned int hlen)
+{
+	unsigned int offset = skb_gro_offset(skb);
+
+	hlen += offset;
+	if (hlen <= skb_headlen(skb))
+		return skb->data + offset;
+
+	if (unlikely(!skb_shinfo(skb)->nr_frags ||
+		     skb_shinfo(skb)->frags[0].size <=
+		     hlen - skb_headlen(skb) ||
+		     PageHighMem(skb_shinfo(skb)->frags[0].page)))
+		return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
+
+	return page_address(skb_shinfo(skb)->frags[0].page) +
+	       skb_shinfo(skb)->frags[0].page_offset + offset;
+}
+EXPORT_SYMBOL(skb_gro_header);
 
 int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
@@ -2388,11 +2413,13 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, head, list) {
 		struct sk_buff *p;
+		void *mac;
 
 		if (ptype->type != type || ptype->dev || !ptype->gro_receive)
 			continue;
 
-		skb_reset_network_header(skb);
+		skb_set_network_header(skb, skb_gro_offset(skb));
+		mac = skb_gro_mac_header(skb);
 		mac_len = skb->network_header - skb->mac_header;
 		skb->mac_len = mac_len;
 		NAPI_GRO_CB(skb)->same_flow = 0;
@@ -2406,8 +2433,7 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 				continue;
 
 			if (p->mac_len != mac_len ||
-			    memcmp(skb_mac_header(p), skb_mac_header(skb),
-				   mac_len))
+			    memcmp(skb_mac_header(p), mac, mac_len))
 				NAPI_GRO_CB(p)->same_flow = 0;
 		}
 
@@ -2434,13 +2460,11 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	if (same_flow)
 		goto ok;
 
-	if (NAPI_GRO_CB(skb)->flush || count >= MAX_GRO_SKBS) {
-		__skb_push(skb, -skb_network_offset(skb));
+	if (NAPI_GRO_CB(skb)->flush || count >= MAX_GRO_SKBS)
 		goto normal;
-	}
 
 	NAPI_GRO_CB(skb)->count = 1;
-	skb_shinfo(skb)->gso_size = skb->len;
+	skb_shinfo(skb)->gso_size = skb_gro_len(skb);
 	skb->next = napi->gro_list;
 	napi->gro_list = skb;
 	ret = GRO_HELD;
@@ -2488,6 +2512,8 @@ EXPORT_SYMBOL(napi_skb_finish);
 
 int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
+	skb_gro_reset_offset(skb);
+
 	return napi_skb_finish(__napi_gro_receive(napi, skb), skb);
 }
 EXPORT_SYMBOL(napi_gro_receive);
@@ -2506,6 +2532,7 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 {
 	struct net_device *dev = napi->dev;
 	struct sk_buff *skb = napi->skb;
+	struct ethhdr *eth;
 
 	napi->skb = NULL;
 
@@ -2525,13 +2552,23 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 	skb->len += info->len;
 	skb->truesize += info->len;
 
-	if (!pskb_may_pull(skb, ETH_HLEN)) {
+	skb_reset_mac_header(skb);
+	skb_gro_reset_offset(skb);
+
+	eth = skb_gro_header(skb, sizeof(*eth));
+	if (!eth) {
 		napi_reuse_skb(napi, skb);
 		skb = NULL;
 		goto out;
 	}
 
-	skb->protocol = eth_type_trans(skb, dev);
+	skb_gro_pull(skb, sizeof(*eth));
+
+	/*
+	 * This works because the only protocols we care about don't require
+	 * special handling.  We'll fix it up properly at the end.
+	 */
+	skb->protocol = eth->h_proto;
 
 	skb->ip_summed = info->ip_summed;
 	skb->csum = info->csum;
@@ -2544,10 +2581,21 @@ EXPORT_SYMBOL(napi_fraginfo_skb);
 int napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb, int ret)
 {
 	int err = NET_RX_SUCCESS;
+	int may;
 
 	switch (ret) {
 	case GRO_NORMAL:
-		return netif_receive_skb(skb);
+	case GRO_HELD:
+		may = pskb_may_pull(skb, skb_gro_offset(skb));
+		BUG_ON(!may);
+
+		skb->protocol = eth_type_trans(skb, napi->dev);
+
+		if (ret == GRO_NORMAL)
+			return netif_receive_skb(skb);
+
+		skb_gro_pull(skb, -ETH_HLEN);
+		break;
 
 	case GRO_DROP:
 		err = NET_RX_DROP;

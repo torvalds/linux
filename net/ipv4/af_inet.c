@@ -1253,10 +1253,10 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	int proto;
 	int id;
 
-	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
+	iph = skb_gro_header(skb, sizeof(*iph));
+	if (unlikely(!iph))
 		goto out;
 
-	iph = ip_hdr(skb);
 	proto = iph->protocol & (MAX_INET_PROTOS - 1);
 
 	rcu_read_lock();
@@ -1270,7 +1270,7 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
 		goto out_unlock;
 
-	flush = ntohs(iph->tot_len) != skb->len ||
+	flush = ntohs(iph->tot_len) != skb_gro_len(skb) ||
 		iph->frag_off != htons(IP_DF);
 	id = ntohs(iph->id);
 
@@ -1298,8 +1298,8 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	}
 
 	NAPI_GRO_CB(skb)->flush |= flush;
-	__skb_pull(skb, sizeof(*iph));
-	skb_reset_transport_header(skb);
+	skb_gro_pull(skb, sizeof(*iph));
+	skb_set_transport_header(skb, skb_gro_offset(skb));
 
 	pp = ops->gro_receive(head, skb);
 
