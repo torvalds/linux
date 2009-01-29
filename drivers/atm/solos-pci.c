@@ -293,13 +293,15 @@ static char *next_string(struct sk_buff *skb)
 {
 	int i = 0;
 	char *this = skb->data;
-
-	while (i < skb->len) {
+	
+	for (i = 0; i < skb->len; i++) {
 		if (this[i] == '\n') {
 			this[i] = 0;
-			skb_pull(skb, i);
+			skb_pull(skb, i + 1);
 			return this;
 		}
+		if (!isprint(this[i]))
+			return NULL;
 	}
 	return NULL;
 }
@@ -316,7 +318,7 @@ static char *next_string(struct sk_buff *skb)
 static int process_status(struct solos_card *card, int port, struct sk_buff *skb)
 {
 	char *str, *end, *state_str;
-	int ver, rate_up, rate_down, state, snr, attn;
+	int ver, rate_up, rate_down, state;
 
 	if (!card->atmdev[port])
 		return -ENODEV;
@@ -333,16 +335,22 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 	}
 
 	str = next_string(skb);
+	if (!str)
+		return -EIO;
 	rate_up = simple_strtol(str, &end, 10);
 	if (*end)
 		return -EIO;
 
 	str = next_string(skb);
+	if (!str)
+		return -EIO;
 	rate_down = simple_strtol(str, &end, 10);
 	if (*end)
 		return -EIO;
 
 	state_str = next_string(skb);
+	if (!state_str)
+		return -EIO;
 	if (!strcmp(state_str, "Showtime"))
 		state = ATM_PHY_SIG_FOUND;
 	else {
@@ -350,25 +358,24 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 		release_vccs(card->atmdev[port]);
 	}
 
-	str = next_string(skb);
-	snr = simple_strtol(str, &end, 10);
-	if (*end)
-		return -EIO;
-
-	str = next_string(skb);
-	attn = simple_strtol(str, &end, 10);
-	if (*end)
-		return -EIO;
-
-	if (state == ATM_PHY_SIG_LOST && !rate_up && !rate_down)
+	if (state == ATM_PHY_SIG_LOST) {
 		dev_info(&card->dev->dev, "Port %d ATM state: %s\n",
 			 port, state_str);
-	else
-		dev_info(&card->dev->dev, "Port %d ATM state: %s (%d/%d kb/s, SNR %ddB, Attn %ddB)\n",
-			 port, state_str, rate_up/1000, rate_down/1000,
-			 snr, attn);
+	} else {
+		char *snr, *attn;
 
-	card->atmdev[port]->link_rate = rate_down;
+		snr = next_string(skb);
+		if (!str)
+			return -EIO;
+		attn = next_string(skb);
+		if (!attn)
+			return -EIO;
+
+		dev_info(&card->dev->dev, "Port %d: %s (%d/%d kb/s%s%s%s%s)\n",
+			 port, state_str, rate_down/1000, rate_up/1000,
+			 snr[0]?", SNR ":"", snr, attn[0]?", Attn ":"", attn);
+	}		
+	card->atmdev[port]->link_rate = rate_down / 424;
 	card->atmdev[port]->signal = state;
 
 	return 0;
