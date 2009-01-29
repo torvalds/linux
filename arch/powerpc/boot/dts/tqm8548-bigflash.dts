@@ -365,14 +365,14 @@
 		can0@2,0 {
 			compatible = "intel,82527"; // Bosch CC770
 			reg = <2 0x0 0x100>;
-			interrupts = <4 0>;
+			interrupts = <4 1>;
 			interrupt-parent = <&mpic>;
 		};
 
 		can1@2,100 {
 			compatible = "intel,82527"; // Bosch CC770
 			reg = <2 0x100 0x100>;
-			interrupts = <4 0>;
+			interrupts = <4 1>;
 			interrupt-parent = <&mpic>;
 		};
 
