@@ -1836,6 +1836,7 @@ xpc_process_msg_chctl_flags_sn2(struct xpc_partition *part, int ch_number)
 		 */
 		xpc_clear_remote_msgqueue_flags_sn2(ch);
 
+		smp_wmb(); /* ensure flags have been cleared before bte_copy */
 		ch_sn2->w_remote_GP.put = ch_sn2->remote_GP.put;
 
 		dev_dbg(xpc_chan, "w_remote_GP.put changed to %ld, partid=%d, "
@@ -1934,7 +1935,7 @@ xpc_get_deliverable_payload_sn2(struct xpc_channel *ch)
 			break;
 
 		get = ch_sn2->w_local_GP.get;
-		rmb();	/* guarantee that .get loads before .put */
+		smp_rmb();	/* guarantee that .get loads before .put */
 		if (get == ch_sn2->w_remote_GP.put)
 			break;
 
@@ -2053,7 +2054,7 @@ xpc_allocate_msg_sn2(struct xpc_channel *ch, u32 flags,
 	while (1) {
 
 		put = ch_sn2->w_local_GP.put;
-		rmb();	/* guarantee that .put loads before .get */
+		smp_rmb();	/* guarantee that .put loads before .get */
 		if (put - ch_sn2->w_remote_GP.get < ch->local_nentries) {
 
 			/* There are available message entries. We need to try
@@ -2186,7 +2187,7 @@ xpc_send_payload_sn2(struct xpc_channel *ch, u32 flags, void *payload,
 	 * The preceding store of msg->flags must occur before the following
 	 * load of local_GP->put.
 	 */
-	mb();
+	smp_mb();
 
 	/* see if the message is next in line to be sent, if so send it */
 
@@ -2287,7 +2288,7 @@ xpc_received_payload_sn2(struct xpc_channel *ch, void *payload)
 	 * The preceding store of msg->flags must occur before the following
 	 * load of local_GP->get.
 	 */
-	mb();
+	smp_mb();
 
 	/*
 	 * See if this message is next in line to be acknowledged as having
