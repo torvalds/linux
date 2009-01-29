@@ -135,6 +135,14 @@
 /* This should be increased if a protocol with a bigger head is added. */
 #define GRO_MAX_HEAD (MAX_HEADER + 128)
 
+enum {
+	GRO_MERGED,
+	GRO_MERGED_FREE,
+	GRO_HELD,
+	GRO_NORMAL,
+	GRO_DROP,
+};
+
 /*
  *	The list of packet types we will receive (as opposed to discard)
  *	and the routines to invoke.
@@ -2369,7 +2377,7 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	int count = 0;
 	int same_flow;
 	int mac_len;
-	int free;
+	int ret;
 
 	if (!(skb->dev->features & NETIF_F_GRO))
 		goto normal;
@@ -2412,7 +2420,7 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 		goto normal;
 
 	same_flow = NAPI_GRO_CB(skb)->same_flow;
-	free = NAPI_GRO_CB(skb)->free;
+	ret = NAPI_GRO_CB(skb)->free ? GRO_MERGED_FREE : GRO_MERGED;
 
 	if (pp) {
 		struct sk_buff *nskb = *pp;
@@ -2435,12 +2443,13 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	skb_shinfo(skb)->gso_size = skb->len;
 	skb->next = napi->gro_list;
 	napi->gro_list = skb;
+	ret = GRO_HELD;
 
 ok:
-	return free;
+	return ret;
 
 normal:
-	return -1;
+	return GRO_NORMAL;
 }
 EXPORT_SYMBOL(dev_gro_receive);
 
@@ -2456,18 +2465,30 @@ static int __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	return dev_gro_receive(napi, skb);
 }
 
-int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+int napi_skb_finish(int ret, struct sk_buff *skb)
 {
-	switch (__napi_gro_receive(napi, skb)) {
-	case -1:
+	int err = NET_RX_SUCCESS;
+
+	switch (ret) {
+	case GRO_NORMAL:
 		return netif_receive_skb(skb);
 
-	case 1:
+	case GRO_DROP:
+		err = NET_RX_DROP;
+		/* fall through */
+
+	case GRO_MERGED_FREE:
 		kfree_skb(skb);
 		break;
 	}
 
-	return NET_RX_SUCCESS;
+	return err;
+}
+EXPORT_SYMBOL(napi_skb_finish);
+
+int napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
+{
+	return napi_skb_finish(__napi_gro_receive(napi, skb), skb);
 }
 EXPORT_SYMBOL(napi_gro_receive);
 
@@ -2520,28 +2541,35 @@ out:
 }
 EXPORT_SYMBOL(napi_fraginfo_skb);
 
+int napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb, int ret)
+{
+	int err = NET_RX_SUCCESS;
+
+	switch (ret) {
+	case GRO_NORMAL:
+		return netif_receive_skb(skb);
+
+	case GRO_DROP:
+		err = NET_RX_DROP;
+		/* fall through */
+
+	case GRO_MERGED_FREE:
+		napi_reuse_skb(napi, skb);
+		break;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(napi_frags_finish);
+
 int napi_gro_frags(struct napi_struct *napi, struct napi_gro_fraginfo *info)
 {
 	struct sk_buff *skb = napi_fraginfo_skb(napi, info);
-	int err = NET_RX_DROP;
 
 	if (!skb)
-		goto out;
+		return NET_RX_DROP;
 
-	err = NET_RX_SUCCESS;
-
-	switch (__napi_gro_receive(napi, skb)) {
-	case -1:
-		return netif_receive_skb(skb);
-
-	case 0:
-		goto out;
-	}
-
-	napi_reuse_skb(napi, skb);
-
-out:
-	return err;
+	return napi_frags_finish(napi, skb, __napi_gro_receive(napi, skb));
 }
 EXPORT_SYMBOL(napi_gro_frags);
 
