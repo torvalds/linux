@@ -1126,7 +1126,6 @@ MODULE_DEVICE_TABLE(i2c, tvp5150_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tvp5150",
-	.driverid = I2C_DRIVERID_TVP5150,
 	.command = tvp5150_command,
 	.probe = tvp5150_probe,
 	.remove = tvp5150_remove,

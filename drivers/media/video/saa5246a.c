@@ -1098,7 +1098,6 @@ MODULE_DEVICE_TABLE(i2c, saa5246a_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa5246a",
-	.driverid = I2C_DRIVERID_SAA5249,
 	.probe = saa5246a_probe,
 	.remove = saa5246a_remove,
 	.id_table = saa5246a_id,

@@ -262,7 +262,6 @@ MODULE_DEVICE_TABLE(i2c, tda9840_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tda9840",
-	.driverid = I2C_DRIVERID_TDA9840,
 	.command = tda9840_command,
 	.probe = tda9840_probe,
 	.remove = tda9840_remove,

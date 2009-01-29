@@ -210,7 +210,6 @@ MODULE_DEVICE_TABLE(i2c, m52790_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "m52790",
-	.driverid = I2C_DRIVERID_M52790,
 	.command = m52790_command,
 	.probe = m52790_probe,
 	.remove = m52790_remove,

@@ -1528,7 +1528,6 @@ MODULE_DEVICE_TABLE(i2c, saa717x_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa717x",
-	.driverid = I2C_DRIVERID_SAA717X,
 	.command = saa717x_command,
 	.probe = saa717x_probe,
 	.remove = saa717x_remove,

@@ -191,7 +191,6 @@ MODULE_DEVICE_TABLE(i2c, tea6415c_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tea6415c",
-	.driverid = I2C_DRIVERID_TEA6415C,
 	.command = tea6415c_command,
 	.probe = tea6415c_probe,
 	.remove = tea6415c_remove,

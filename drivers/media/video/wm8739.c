@@ -343,7 +343,6 @@ MODULE_DEVICE_TABLE(i2c, wm8739_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "wm8739",
-	.driverid = I2C_DRIVERID_WM8739,
 	.command = wm8739_command,
 	.probe = wm8739_probe,
 	.remove = wm8739_remove,

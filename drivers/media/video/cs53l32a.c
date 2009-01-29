@@ -218,7 +218,6 @@ MODULE_DEVICE_TABLE(i2c, cs53l32a_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "cs53l32a",
-	.driverid = I2C_DRIVERID_CS53L32A,
 	.command = cs53l32a_command,
 	.remove = cs53l32a_remove,
 	.probe = cs53l32a_probe,

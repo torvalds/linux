@@ -206,7 +206,6 @@ MODULE_DEVICE_TABLE(i2c, vp27smpx_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "vp27smpx",
-	.driverid = I2C_DRIVERID_VP27SMPX,
 	.command = vp27smpx_command,
 	.probe = vp27smpx_probe,
 	.remove = vp27smpx_remove,
