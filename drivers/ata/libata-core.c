@@ -164,6 +164,11 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
 
+static bool ata_sstatus_online(u32 sstatus)
+{
+	return (sstatus & 0xf) == 0x3;
+}
+
 /**
  *	ata_link_next - link iteration helper
  *	@link: the previous link, NULL to start
@@ -2891,7 +2896,7 @@ int sata_down_spd_limit(struct ata_link *link)
 	 * If not, use cached value in link->sata_spd.
 	 */
 	rc = sata_scr_read(link, SCR_STATUS, &sstatus);
-	if (rc == 0)
+	if (rc == 0 && ata_sstatus_online(sstatus))
 		spd = (sstatus >> 4) & 0xf;
 	else
 		spd = link->sata_spd;
@@ -5162,7 +5167,7 @@ bool ata_phys_link_online(struct ata_link *link)
 	u32 sstatus;
 
 	if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0 &&
-	    (sstatus & 0xf) == 0x3)
+	    ata_sstatus_online(sstatus))
 		return true;
 	return false;
 }
@@ -5186,7 +5191,7 @@ bool ata_phys_link_offline(struct ata_link *link)
 	u32 sstatus;
 
 	if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0 &&
-	    (sstatus & 0xf) != 0x3)
+	    !ata_sstatus_online(sstatus))
 		return true;
 	return false;
 }
