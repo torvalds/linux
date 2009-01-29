@@ -614,8 +614,6 @@ static int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate)
 	omap3_noncore_dpll_program(clk, dd->last_rounded_m, dd->last_rounded_n,
 				   freqsel);
 
-	omap3_dpll_recalc(clk);
-
 	return 0;
 }
 
@@ -692,8 +690,6 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 	omap3_configure_core_dpll(sp->rfr_ctrl, sp->actim_ctrla,
 				  sp->actim_ctrlb, new_div);
 	local_irq_enable();
-
-	omap2_clksel_recalc(clk);
 
 	return 0;
 }
