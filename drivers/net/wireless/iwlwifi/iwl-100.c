@@ -68,5 +68,6 @@ struct iwl_cfg iwl100_bgn_cfg = {
 	.mod_params = &iwl50_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
+	.need_pll_cfg = true,
 };
 

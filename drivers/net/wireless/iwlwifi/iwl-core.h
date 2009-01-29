@@ -213,6 +213,7 @@ struct iwl_cfg {
 	const struct iwl_mod_params *mod_params;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
+	bool need_pll_cfg;
 };
 
 /***************************
