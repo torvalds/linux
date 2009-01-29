@@ -394,7 +394,7 @@ static void iwl5000_chain_noise_reset(struct iwl_priv *priv)
 	}
 }
 
-static void iwl5000_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
+void iwl5000_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
 			__le32 *tx_flags)
 {
 	if ((info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) ||
@@ -1105,7 +1105,7 @@ static int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 	return 0;
 }
 
-static u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
+u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 {
 	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
 	memcpy(data, cmd, size);
@@ -1334,7 +1334,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 }
 
 /* Currently 5000 is the superset of everything */
-static u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len)
+u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len)
 {
 	return len;
 }
@@ -1435,7 +1435,7 @@ static void iwl5000_temperature(struct iwl_priv *priv)
 }
 
 /* Calc max signal level (dBm) among 3 possible receivers */
-static int iwl5000_calc_rssi(struct iwl_priv *priv,
+int iwl5000_calc_rssi(struct iwl_priv *priv,
 			     struct iwl_rx_phy_res *rx_resp)
 {
 	/* data from PHY/DSP regarding signal strength, etc.,
@@ -1472,11 +1472,11 @@ static int iwl5000_calc_rssi(struct iwl_priv *priv,
 	return max_rssi - agc - IWL49_RSSI_OFFSET;
 }
 
-static struct iwl_hcmd_ops iwl5000_hcmd = {
+struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
 };
 
-static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
+struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 	.get_hcmd_size = iwl5000_get_hcmd_size,
 	.build_addsta_hcmd = iwl5000_build_addsta_hcmd,
 	.gain_computation = iwl5000_gain_computation,
@@ -1485,7 +1485,7 @@ static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 	.calc_rssi = iwl5000_calc_rssi,
 };
 
-static struct iwl_lib_ops iwl5000_lib = {
+struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
 	.txq_inval_byte_cnt_tbl = iwl5000_txq_inval_byte_cnt_tbl,
