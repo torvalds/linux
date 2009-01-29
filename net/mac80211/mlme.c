@@ -2415,8 +2415,10 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata,
 							 ifsta->ssid_len);
 			ifsta->state = IEEE80211_STA_MLME_AUTHENTICATE;
 			set_bit(IEEE80211_STA_REQ_AUTH, &ifsta->request);
-		} else
+		} else {
+			ifsta->assoc_scan_tries = 0;
 			ifsta->state = IEEE80211_STA_MLME_DISABLED;
+		}
 	}
 	return -1;
 }
