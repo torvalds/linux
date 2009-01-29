@@ -1085,12 +1085,7 @@ static int check_free_space(struct ubifs_info *c)
 		ubifs_err("insufficient free space to mount in read/write mode");
 		dbg_dump_budg(c);
 		dbg_dump_lprops(c);
-		/*
-		 * We return %-EINVAL instead of %-ENOSPC because it seems to
-		 * be the closest error code mentioned in the mount function
-		 * documentation.
-		 */
-		return -EINVAL;
+		return -ENOSPC;
 	}
 	return 0;
 }
@@ -1790,7 +1785,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
 		if (c->ro_media) {
 			ubifs_msg("cannot re-mount due to prior errors");
-			return -EINVAL;
+			return -EROFS;
 		}
 		err = ubifs_remount_rw(c);
 		if (err)
@@ -1798,7 +1793,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY)) {
 		if (c->ro_media) {
 			ubifs_msg("cannot re-mount due to prior errors");
-			return -EINVAL;
+			return -EROFS;
 		}
 		ubifs_remount_ro(c);
 	}
