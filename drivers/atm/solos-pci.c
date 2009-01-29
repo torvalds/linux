@@ -123,7 +123,6 @@ struct solos_param {
 	pid_t pid;
 	int port;
 	struct sk_buff *response;
-	wait_queue_head_t wq;
 };
 
 #define SOLOS_CHAN(atmdev) ((int)(unsigned long)(atmdev)->phy_data)
