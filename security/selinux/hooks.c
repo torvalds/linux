@@ -2635,11 +2635,6 @@ static int selinux_inode_link(struct dentry *old_dentry, struct inode *dir, stru
 
 static int selinux_inode_unlink(struct inode *dir, struct dentry *dentry)
 {
-	int rc;
-
-	rc = secondary_ops->inode_unlink(dir, dentry);
-	if (rc)
-		return rc;
 	return may_link(dir, dentry, MAY_UNLINK);
 }
 
