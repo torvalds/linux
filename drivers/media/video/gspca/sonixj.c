@@ -1939,7 +1939,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 /*	{USB_DEVICE(0x0c45, 0x607a), BSI(SN9C102P, OV7648, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x607c), BSI(SN9C102P, HV7131R, 0x11)},
 /*	{USB_DEVICE(0x0c45, 0x607e), BSI(SN9C102P, OV7630, 0x??)}, */
-	{USB_DEVICE(0x0c45, 0x60c0), BSI(SN9C105, MT9V111, 0x5c)},
+	{USB_DEVICE(0x0c45, 0x60c0), BSI(SN9C105, MI0360, 0x5d)},
 /*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6801, 0x??)}, */
 /*	{USB_DEVICE(0x0c45, 0x60cc), BSI(SN9C105, HV7131GP, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x60ec), BSI(SN9C105, MO4000, 0x21)},
