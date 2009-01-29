@@ -548,7 +548,7 @@ static int set_v4lctrl(struct cx18 *cx, struct v4l2_control *ctrl)
 		break;
 
 	case V4L2_CID_HUE:
-		if (ctrl->value < -127 || ctrl->value > 127) {
+		if (ctrl->value < -128 || ctrl->value > 127) {
 			CX18_ERR("invalid hue setting %d\n", ctrl->value);
 			return -ERANGE;
 		}

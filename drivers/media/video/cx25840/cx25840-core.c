@@ -763,7 +763,7 @@ static int cx25840_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 
 	case V4L2_CID_HUE:
-		if (ctrl->value < -127 || ctrl->value > 127) {
+		if (ctrl->value < -128 || ctrl->value > 127) {
 			v4l_err(client, "invalid hue setting %d\n", ctrl->value);
 			return -ERANGE;
 		}
