@@ -1356,8 +1356,8 @@ set_input(struct bttv *btv, unsigned int input, unsigned int norm)
 	} else {
 		video_mux(btv,input);
 	}
-	audio_input(btv,(input == bttv_tvcards[btv->c.type].tuner ?
-		       TVAUDIO_INPUT_TUNER : TVAUDIO_INPUT_EXTERN));
+	audio_input(btv, (btv->tuner_type != TUNER_ABSENT && input == 0) ?
+			 TVAUDIO_INPUT_TUNER : TVAUDIO_INPUT_EXTERN);
 	set_tvnorm(btv, norm);
 }
 
@@ -1907,7 +1907,7 @@ static int bttv_enum_input(struct file *file, void *priv,
 	i->type     = V4L2_INPUT_TYPE_CAMERA;
 	i->audioset = 1;
 
-	if (i->index == bttv_tvcards[btv->c.type].tuner) {
+	if (btv->tuner_type != TUNER_ABSENT && i->index == 0) {
 		sprintf(i->name, "Television");
 		i->type  = V4L2_INPUT_TYPE_TUNER;
 		i->tuner = 0;
@@ -1971,7 +1971,7 @@ static int bttv_s_tuner(struct file *file, void *priv,
 	if (0 != err)
 		return err;
 
-	if (UNSET == bttv_tvcards[btv->c.type].tuner)
+	if (btv->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
 
 	if (0 != t->index)
@@ -2665,8 +2665,7 @@ static int bttv_querycap(struct file *file, void  *priv,
 	if (no_overlay <= 0)
 		cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
 
-	if (bttv_tvcards[btv->c.type].tuner != UNSET &&
-	    bttv_tvcards[btv->c.type].tuner != TUNER_ABSENT)
+	if (btv->tuner_type != TUNER_ABSENT)
 		cap->capabilities |= V4L2_CAP_TUNER;
 	return 0;
 }
@@ -2949,7 +2948,7 @@ static int bttv_g_tuner(struct file *file, void *priv,
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
 
-	if (UNSET == bttv_tvcards[btv->c.type].tuner)
+	if (btv->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
@@ -3509,7 +3508,7 @@ static int radio_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
 
-	if (UNSET == bttv_tvcards[btv->c.type].tuner)
+	if (btv->tuner_type == TUNER_ABSENT)
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;

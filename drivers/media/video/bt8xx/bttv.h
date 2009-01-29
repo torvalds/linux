@@ -216,7 +216,6 @@ struct tvcard
 	char *name;
 	unsigned int video_inputs;
 	unsigned int audio_inputs;
-	unsigned int tuner;
 	unsigned int svhs;
 	unsigned int digital_mode; // DIGITAL_MODE_CAMERA or DIGITAL_MODE_VIDEO
 	u32 gpiomask;

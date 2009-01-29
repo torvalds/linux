@@ -286,12 +286,10 @@ static int attach_inform(struct i2c_client *client)
 		btv->i2c_msp34xx_client = client;
 	if (client->driver->id == I2C_DRIVERID_TVAUDIO)
 		btv->i2c_tvaudio_client = client;
-	if (btv->tuner_type != UNSET) {
+	if (btv->tuner_type != TUNER_ABSENT) {
 		struct tuner_setup tun_setup;
 
-		if ((addr==ADDR_UNSET) ||
-				(addr==client->addr)) {
-
+		if (addr == ADDR_UNSET || addr == client->addr) {
 			tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV | T_RADIO;
 			tun_setup.type = btv->tuner_type;
 			tun_setup.addr = addr;
