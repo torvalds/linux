@@ -2182,11 +2182,6 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 	return 0;
 }
 
-static int selinux_bprm_check_security(struct linux_binprm *bprm)
-{
-	return secondary_ops->bprm_check_security(bprm);
-}
-
 static int selinux_bprm_secureexec(struct linux_binprm *bprm)
 {
 	const struct cred *cred = current_cred();
@@ -5608,7 +5603,6 @@ static struct security_operations selinux_ops = {
 	.netlink_recv =			selinux_netlink_recv,
 
 	.bprm_set_creds =		selinux_bprm_set_creds,
-	.bprm_check_security =		selinux_bprm_check_security,
 	.bprm_committing_creds =	selinux_bprm_committing_creds,
 	.bprm_committed_creds =		selinux_bprm_committed_creds,
 	.bprm_secureexec =		selinux_bprm_secureexec,
