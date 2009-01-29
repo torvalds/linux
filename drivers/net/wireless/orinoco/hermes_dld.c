@@ -573,9 +573,9 @@ static const struct {							\
 	__le16 id;							\
 	u8 val[length];							\
 } __attribute__ ((packed)) default_pdr_data_##pid = {			\
-	__constant_cpu_to_le16((sizeof(default_pdr_data_##pid)/		\
+	cpu_to_le16((sizeof(default_pdr_data_##pid)/		\
 				sizeof(__le16)) - 1),			\
-	__constant_cpu_to_le16(pid),					\
+	cpu_to_le16(pid),					\
 	data								\
 }
 

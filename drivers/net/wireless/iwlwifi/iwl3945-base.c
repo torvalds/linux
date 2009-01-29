@@ -658,7 +658,7 @@ static void iwl3945_activate_qos(struct iwl_priv *priv, u8 force)
 
 
 #define MAX_UCODE_BEACON_INTERVAL	1024
-#define INTEL_CONN_LISTEN_INTERVAL	__constant_cpu_to_le16(0xA)
+#define INTEL_CONN_LISTEN_INTERVAL	cpu_to_le16(0xA)
 
 static __le16 iwl3945_adjust_beacon_interval(u16 beacon_val)
 {
@@ -1048,7 +1048,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 				IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl = cpu_to_le16(seq_number) |
 			(hdr->seq_ctrl &
-				__constant_cpu_to_le16(IEEE80211_SCTL_FRAG));
+				cpu_to_le16(IEEE80211_SCTL_FRAG));
 		seq_number += 0x10;
 	}
 

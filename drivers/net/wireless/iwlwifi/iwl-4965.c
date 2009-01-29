@@ -1995,8 +1995,8 @@ static u16 iwl4965_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 	addsta->add_immediate_ba_tid = cmd->add_immediate_ba_tid;
 	addsta->remove_immediate_ba_tid = cmd->remove_immediate_ba_tid;
 	addsta->add_immediate_ba_ssn = cmd->add_immediate_ba_ssn;
-	addsta->reserved1 = __constant_cpu_to_le16(0);
-	addsta->reserved2 = __constant_cpu_to_le32(0);
+	addsta->reserved1 = cpu_to_le16(0);
+	addsta->reserved2 = cpu_to_le32(0);
 
 	return (u16)sizeof(struct iwl4965_addsta_cmd);
 }

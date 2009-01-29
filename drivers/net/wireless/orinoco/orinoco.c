@@ -1333,7 +1333,7 @@ static void orinoco_rx_monitor(struct net_device *dev, u16 rxfid,
 	skb->dev = dev;
 	skb->ip_summed = CHECKSUM_NONE;
 	skb->pkt_type = PACKET_OTHERHOST;
-	skb->protocol = __constant_htons(ETH_P_802_2);
+	skb->protocol = cpu_to_be16(ETH_P_802_2);
 	
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;

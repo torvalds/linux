@@ -8272,7 +8272,7 @@ static void ipw_handle_mgmt_packet(struct ipw_priv *priv,
 		skb_reset_mac_header(skb);
 
 		skb->pkt_type = PACKET_OTHERHOST;
-		skb->protocol = __constant_htons(ETH_P_80211_STATS);
+		skb->protocol = cpu_to_be16(ETH_P_80211_STATS);
 		memset(skb->cb, 0, sizeof(rxb->skb->cb));
 		netif_rx(skb);
 		rxb->skb = NULL;

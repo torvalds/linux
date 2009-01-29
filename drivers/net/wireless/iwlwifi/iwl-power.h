@@ -54,14 +54,14 @@ enum {
 
 /* Power management (not Tx power) structures */
 
-#define NOSLP __constant_cpu_to_le16(0), 0, 0
+#define NOSLP cpu_to_le16(0), 0, 0
 #define SLP IWL_POWER_DRIVER_ALLOW_SLEEP_MSK, 0, 0
-#define SLP_TOUT(T) __constant_cpu_to_le32((T) * MSEC_TO_USEC)
-#define SLP_VEC(X0, X1, X2, X3, X4) {__constant_cpu_to_le32(X0), \
-				     __constant_cpu_to_le32(X1), \
-				     __constant_cpu_to_le32(X2), \
-				     __constant_cpu_to_le32(X3), \
-				     __constant_cpu_to_le32(X4)}
+#define SLP_TOUT(T) cpu_to_le32((T) * MSEC_TO_USEC)
+#define SLP_VEC(X0, X1, X2, X3, X4) {cpu_to_le32(X0), \
+				     cpu_to_le32(X1), \
+				     cpu_to_le32(X2), \
+				     cpu_to_le32(X3), \
+				     cpu_to_le32(X4)}
 struct iwl_power_vec_entry {
 	struct iwl_powertable_cmd cmd;
 	u8 no_dtim;

@@ -757,7 +757,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		seq_number = priv->stations[sta_id].tid[tid].seq_number;
 		seq_number &= IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl = hdr->seq_ctrl &
-				__constant_cpu_to_le16(IEEE80211_SCTL_FRAG);
+				cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(seq_number);
 		seq_number += 0x10;
 		/* aggregation is on for this <sta,tid> */
