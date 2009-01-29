@@ -2531,11 +2531,6 @@ static int selinux_mount(char *dev_name,
 			 void *data)
 {
 	const struct cred *cred = current_cred();
-	int rc;
-
-	rc = secondary_ops->sb_mount(dev_name, path, type, flags, data);
-	if (rc)
-		return rc;
 
 	if (flags & MS_REMOUNT)
 		return superblock_has_perm(cred, path->mnt->mnt_sb,
