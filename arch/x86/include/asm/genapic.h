@@ -145,7 +145,7 @@ static inline unsigned int read_apic_id(void)
 {
 	unsigned int reg;
 
-	reg = *(u32 *)(APIC_BASE + APIC_ID);
+	reg = apic_read(APIC_ID);
 
 	return apic->get_apic_id(reg);
 }
