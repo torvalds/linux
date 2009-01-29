@@ -1411,12 +1411,19 @@ static int iwl5000_send_rxon_assoc(struct iwl_priv *priv)
 static int  iwl5000_send_tx_power(struct iwl_priv *priv)
 {
 	struct iwl5000_tx_power_dbm_cmd tx_power_cmd;
+	u8 tx_ant_cfg_cmd;
 
 	/* half dBm need to multiply */
 	tx_power_cmd.global_lmt = (s8)(2 * priv->tx_power_user_lmt);
 	tx_power_cmd.flags = IWL50_TX_POWER_NO_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWL50_TX_POWER_AUTO;
-	return  iwl_send_cmd_pdu_async(priv, REPLY_TX_POWER_DBM_CMD,
+
+	if (IWL_UCODE_API(priv->ucode_ver) == 1)
+		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD_V1;
+	else
+		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD;
+
+	return  iwl_send_cmd_pdu_async(priv, tx_ant_cfg_cmd,
 				       sizeof(tx_power_cmd), &tx_power_cmd,
 				       NULL);
 }

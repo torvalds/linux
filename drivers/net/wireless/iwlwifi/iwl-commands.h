@@ -144,9 +144,11 @@ enum {
 	WHO_IS_AWAKE_NOTIFICATION = 0x94,	/* not used */
 
 	/* Miscellaneous commands */
+	REPLY_TX_POWER_DBM_CMD = 0x95,
 	QUIET_NOTIFICATION = 0x96,		/* not used */
 	REPLY_TX_PWR_TABLE_CMD = 0x97,
-	REPLY_TX_POWER_DBM_CMD = 0x98,
+	REPLY_TX_POWER_DBM_CMD_V1 = 0x98,	/* old version of API */
+	TX_ANT_CONFIGURATION_CMD = 0x98,	/* not used */
 	MEASURE_ABORT_NOTIFICATION = 0x99,	/* not used */
 
 	/* Bluetooth device coexistence config command */
