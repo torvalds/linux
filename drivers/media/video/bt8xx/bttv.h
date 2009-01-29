@@ -206,15 +206,16 @@ struct bttv_core {
 
 struct bttv;
 
-
 struct tvcard {
 	char *name;
 	void (*volume_gpio)(struct bttv *btv, __u16 volume);
 	void (*audio_mode_gpio)(struct bttv *btv, struct v4l2_tuner *tuner, int set);
 	void (*muxsel_hook)(struct bttv *btv, unsigned int input);
 
+	/* MUX bits for each input, two bits per input starting with the LSB */
+	u32 muxsel; /* Use MUXSEL() to set */
+
 	u32 gpiomask;
-	u32 muxsel[16];
 	u32 gpiomux[4];  /* Tuner, Radio, external, internal */
 	u32 gpiomute;    /* GPIO mute setting */
 	u32 gpiomask2;   /* GPIO MUX mask */
@@ -245,6 +246,31 @@ struct tvcard {
 };
 
 extern struct tvcard bttv_tvcards[];
+
+/*
+ * This bit of cpp voodoo is used to create a macro with a variable number of
+ * arguments (1 to 16).  It will pack each argument into a word two bits at a
+ * time.  It can't be a function because it needs to be compile time constant to
+ * initialize structures.  Since each argument must fit in two bits, it's ok
+ * that they are changed to octal.  One should not use hex number, macros, or
+ * anything else with this macro.  Just use plain integers from 0 to 3.
+ */
+#define _MUXSELf(a)      	0##a << 30
+#define _MUXSELe(a, b...)	0##a << 28 | _MUXSELf(b)
+#define _MUXSELd(a, b...)	0##a << 26 | _MUXSELe(b)
+#define _MUXSELc(a, b...)	0##a << 24 | _MUXSELd(b)
+#define _MUXSELb(a, b...)	0##a << 22 | _MUXSELc(b)
+#define _MUXSELa(a, b...)	0##a << 20 | _MUXSELb(b)
+#define _MUXSEL9(a, b...)	0##a << 18 | _MUXSELa(b)
+#define _MUXSEL8(a, b...)	0##a << 16 | _MUXSEL9(b)
+#define _MUXSEL7(a, b...)	0##a << 14 | _MUXSEL8(b)
+#define _MUXSEL6(a, b...)	0##a << 12 | _MUXSEL7(b)
+#define _MUXSEL5(a, b...)	0##a << 10 | _MUXSEL6(b)
+#define _MUXSEL4(a, b...)	0##a << 8  | _MUXSEL5(b)
+#define _MUXSEL3(a, b...)	0##a << 6  | _MUXSEL4(b)
+#define _MUXSEL2(a, b...)	0##a << 4  | _MUXSEL3(b)
+#define _MUXSEL1(a, b...)	0##a << 2  | _MUXSEL2(b)
+#define MUXSEL(a, b...)		(a | _MUXSEL1(b))
 
 /* identification / initialization of the card */
 extern void bttv_idcard(struct bttv *btv);

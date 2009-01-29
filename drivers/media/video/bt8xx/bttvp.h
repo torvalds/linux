@@ -464,6 +464,12 @@ struct bttv {
 extern unsigned int bttv_num;
 extern struct bttv bttvs[BTTV_MAX];
 
+static inline unsigned int bttv_muxsel(const struct bttv *btv,
+				       unsigned int input)
+{
+	return (bttv_tvcards[btv->c.type].muxsel >> (input * 2)) & 3;
+}
+
 #endif
 
 #define btwrite(dat,adr)    writel((dat), btv->bt848_mmio+(adr))
