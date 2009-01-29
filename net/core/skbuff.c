@@ -2591,9 +2591,11 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 	if (skb_shinfo(p)->frag_list)
 		goto merge;
-	else if (skb_headlen(skb) <= skb_gro_offset(skb) &&
-		 skb_shinfo(p)->nr_frags + skb_shinfo(skb)->nr_frags <=
-		 MAX_SKB_FRAGS) {
+	else if (skb_headlen(skb) <= skb_gro_offset(skb)) {
+		if (skb_shinfo(p)->nr_frags + skb_shinfo(skb)->nr_frags >
+		    MAX_SKB_FRAGS)
+			return -E2BIG;
+
 		skb_shinfo(skb)->frags[0].page_offset +=
 			skb_gro_offset(skb) - skb_headlen(skb);
 		skb_shinfo(skb)->frags[0].size -=
