@@ -18,7 +18,6 @@
 #define EFX_WORKAROUND_ALWAYS(efx) 1
 #define EFX_WORKAROUND_FALCON_A(efx) (falcon_rev(efx) <= FALCON_REV_A1)
 #define EFX_WORKAROUND_10G(efx) EFX_IS10G(efx)
-#define EFX_WORKAROUND_SFT9001A(efx) ((efx)->phy_type == PHY_TYPE_SFT9001A)
 #define EFX_WORKAROUND_SFT9001(efx) ((efx)->phy_type == PHY_TYPE_SFT9001A || \
 				     (efx)->phy_type == PHY_TYPE_SFT9001B)
 
@@ -55,9 +54,6 @@
 
 /* Need to send XNP pages for 100BaseT */
 #define EFX_WORKAROUND_13204 EFX_WORKAROUND_SFT9001
-/* Need to keep AN enabled */
-#define EFX_WORKAROUND_13963 EFX_WORKAROUND_SFT9001A
-
 /* Don't restart AN in near-side loopback */
 #define EFX_WORKAROUND_15195 EFX_WORKAROUND_SFT9001
 

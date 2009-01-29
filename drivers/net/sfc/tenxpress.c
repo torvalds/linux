@@ -179,11 +179,13 @@
 #define C22EXT_STATUS_LINK_LBN  2
 #define C22EXT_STATUS_LINK_WIDTH 1
 
-#define C22EXT_MSTSLV_REG       49162
-#define C22EXT_MSTSLV_1000_HD_LBN 10
-#define C22EXT_MSTSLV_1000_HD_WIDTH 1
-#define C22EXT_MSTSLV_1000_FD_LBN 11
-#define C22EXT_MSTSLV_1000_FD_WIDTH 1
+#define C22EXT_MSTSLV_CTRL			49161
+#define C22EXT_MSTSLV_CTRL_ADV_1000_HD_LBN	8
+#define C22EXT_MSTSLV_CTRL_ADV_1000_FD_LBN	9
+
+#define C22EXT_MSTSLV_STATUS			49162
+#define C22EXT_MSTSLV_STATUS_LP_1000_HD_LBN	10
+#define C22EXT_MSTSLV_STATUS_LP_1000_FD_LBN	11
 
 /* Time to wait between powering down the LNPGA and turning off the power
  * rails */
@@ -741,114 +743,76 @@ reset:
 	return rc;
 }
 
-static u32 tenxpress_get_xnp_lpa(struct efx_nic *efx)
+static void
+tenxpress_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	int phy = efx->mii.phy_id;
-	u32 lpa = 0;
+	int phy_id = efx->mii.phy_id;
+	u32 adv = 0, lpa = 0;
 	int reg;
 
 	if (efx->phy_type != PHY_TYPE_SFX7101) {
-		reg = mdio_clause45_read(efx, phy, MDIO_MMD_C22EXT,
-					 C22EXT_MSTSLV_REG);
-		if (reg & (1 << C22EXT_MSTSLV_1000_HD_LBN))
+		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_C22EXT,
+					 C22EXT_MSTSLV_CTRL);
+		if (reg & (1 << C22EXT_MSTSLV_CTRL_ADV_1000_FD_LBN))
+			adv |= ADVERTISED_1000baseT_Full;
+		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_C22EXT,
+					 C22EXT_MSTSLV_STATUS);
+		if (reg & (1 << C22EXT_MSTSLV_STATUS_LP_1000_HD_LBN))
 			lpa |= ADVERTISED_1000baseT_Half;
-		if (reg & (1 << C22EXT_MSTSLV_1000_FD_LBN))
+		if (reg & (1 << C22EXT_MSTSLV_STATUS_LP_1000_FD_LBN))
 			lpa |= ADVERTISED_1000baseT_Full;
 	}
-	reg = mdio_clause45_read(efx, phy, MDIO_MMD_AN, MDIO_AN_10GBT_STATUS);
+	reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
+				 MDIO_AN_10GBT_CTRL);
+	if (reg & (1 << MDIO_AN_10GBT_CTRL_ADV_10G_LBN))
+		adv |= ADVERTISED_10000baseT_Full;
+	reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
+				 MDIO_AN_10GBT_STATUS);
 	if (reg & (1 << MDIO_AN_10GBT_STATUS_LP_10G_LBN))
 		lpa |= ADVERTISED_10000baseT_Full;
-	return lpa;
-}
 
-static void sfx7101_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
-{
-	mdio_clause45_get_settings_ext(efx, ecmd, ADVERTISED_10000baseT_Full,
-				       tenxpress_get_xnp_lpa(efx));
-	ecmd->supported |= SUPPORTED_10000baseT_Full;
-	ecmd->advertising |= ADVERTISED_10000baseT_Full;
-}
+	mdio_clause45_get_settings_ext(efx, ecmd, adv, lpa);
 
-static void sft9001_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
-{
-	int phy_id = efx->mii.phy_id;
-	u32 xnp_adv = 0;
-	int reg;
-
-	reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
-				 PMA_PMD_SPEED_ENABLE_REG);
-	if (EFX_WORKAROUND_13204(efx) && (reg & (1 << PMA_PMD_100TX_ADV_LBN)))
-		xnp_adv |= ADVERTISED_100baseT_Full;
-	if (reg & (1 << PMA_PMD_1000T_ADV_LBN))
-		xnp_adv |= ADVERTISED_1000baseT_Full;
-	if (reg & (1 << PMA_PMD_10000T_ADV_LBN))
-		xnp_adv |= ADVERTISED_10000baseT_Full;
-
-	mdio_clause45_get_settings_ext(efx, ecmd, xnp_adv,
-				       tenxpress_get_xnp_lpa(efx));
-
-	ecmd->supported |= (SUPPORTED_100baseT_Half |
-			    SUPPORTED_100baseT_Full |
-			    SUPPORTED_1000baseT_Full);
-
-	/* Use the vendor defined C22ext register for duplex settings */
-	if (ecmd->speed != SPEED_10000 && !ecmd->autoneg) {
-		reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_C22EXT,
-					 GPHY_XCONTROL_REG);
-		ecmd->duplex = (reg & (1 << GPHY_DUPLEX_LBN) ?
-				DUPLEX_FULL : DUPLEX_HALF);
-	}
+	if (efx->phy_type != PHY_TYPE_SFX7101)
+		ecmd->supported |= (SUPPORTED_100baseT_Full |
+				    SUPPORTED_1000baseT_Full);
 
 	/* In loopback, the PHY automatically brings up the correct interface,
 	 * but doesn't advertise the correct speed. So override it */
 	if (efx->loopback_mode == LOOPBACK_GPHY)
 		ecmd->speed = SPEED_1000;
-	else if (LOOPBACK_MASK(efx) & SFT9001_LOOPBACKS)
+	else if (LOOPBACK_MASK(efx) & efx->phy_op->loopbacks)
 		ecmd->speed = SPEED_10000;
 }
 
-static int sft9001_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+static int tenxpress_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	int phy_id = efx->mii.phy_id;
-	int rc;
+	if (!ecmd->autoneg)
+		return -EINVAL;
 
-	rc = mdio_clause45_set_settings(efx, ecmd);
-	if (rc)
-		return rc;
-
-	if (ecmd->speed != SPEED_10000 && !ecmd->autoneg)
-		mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_C22EXT,
-				       GPHY_XCONTROL_REG, GPHY_DUPLEX_LBN,
-				       ecmd->duplex == DUPLEX_FULL);
-
-	return rc;
+	return mdio_clause45_set_settings(efx, ecmd);
 }
 
-static bool sft9001_set_xnp_advertise(struct efx_nic *efx, u32 advertising)
+static void sfx7101_set_npage_adv(struct efx_nic *efx, u32 advertising)
 {
-	int phy = efx->mii.phy_id;
-	int reg = mdio_clause45_read(efx, phy, MDIO_MMD_PMAPMD,
-				     PMA_PMD_SPEED_ENABLE_REG);
-	bool enabled;
+	mdio_clause45_set_flag(efx, efx->mii.phy_id, MDIO_MMD_AN,
+			       MDIO_AN_10GBT_CTRL,
+			       MDIO_AN_10GBT_CTRL_ADV_10G_LBN,
+			       advertising & ADVERTISED_10000baseT_Full);
+}
 
-	reg &= ~((1 << 2) | (1 << 3));
-	if (EFX_WORKAROUND_13204(efx) &&
-	    (advertising & ADVERTISED_100baseT_Full))
-		reg |= 1 << PMA_PMD_100TX_ADV_LBN;
-	if (advertising & ADVERTISED_1000baseT_Full)
-		reg |= 1 << PMA_PMD_1000T_ADV_LBN;
-	if (advertising & ADVERTISED_10000baseT_Full)
-		reg |= 1 << PMA_PMD_10000T_ADV_LBN;
-	mdio_clause45_write(efx, phy, MDIO_MMD_PMAPMD,
-			    PMA_PMD_SPEED_ENABLE_REG, reg);
+static void sft9001_set_npage_adv(struct efx_nic *efx, u32 advertising)
+{
+	int phy_id = efx->mii.phy_id;
 
-	enabled = (advertising &
-		   (ADVERTISED_1000baseT_Half |
-		    ADVERTISED_1000baseT_Full |
-		    ADVERTISED_10000baseT_Full));
-	if (EFX_WORKAROUND_13204(efx))
-		enabled |= (advertising & ADVERTISED_100baseT_Full);
-	return enabled;
+	mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_C22EXT,
+			       C22EXT_MSTSLV_CTRL,
+			       C22EXT_MSTSLV_CTRL_ADV_1000_FD_LBN,
+			       advertising & ADVERTISED_1000baseT_Full);
+	mdio_clause45_set_flag(efx, phy_id, MDIO_MMD_AN,
+			       MDIO_AN_10GBT_CTRL,
+			       MDIO_AN_10GBT_CTRL_ADV_10G_LBN,
+			       advertising & ADVERTISED_10000baseT_Full);
 }
 
 struct efx_phy_operations falcon_sfx7101_phy_ops = {
@@ -858,8 +822,9 @@ struct efx_phy_operations falcon_sfx7101_phy_ops = {
 	.poll             = tenxpress_phy_poll,
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = efx_port_dummy_op_void,
-	.get_settings	  = sfx7101_get_settings,
-	.set_settings	  = mdio_clause45_set_settings,
+	.get_settings	  = tenxpress_get_settings,
+	.set_settings	  = tenxpress_set_settings,
+	.set_npage_adv    = sfx7101_set_npage_adv,
 	.num_tests	  = ARRAY_SIZE(sfx7101_test_names),
 	.test_names	  = sfx7101_test_names,
 	.run_tests	  = sfx7101_run_tests,
@@ -874,9 +839,9 @@ struct efx_phy_operations falcon_sft9001_phy_ops = {
 	.poll             = tenxpress_phy_poll,
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = efx_port_dummy_op_void,
-	.get_settings	  = sft9001_get_settings,
-	.set_settings	  = sft9001_set_settings,
-	.set_xnp_advertise = sft9001_set_xnp_advertise,
+	.get_settings	  = tenxpress_get_settings,
+	.set_settings	  = tenxpress_set_settings,
+	.set_npage_adv    = sft9001_set_npage_adv,
 	.num_tests	  = ARRAY_SIZE(sft9001_test_names),
 	.test_names	  = sft9001_test_names,
 	.run_tests	  = sft9001_run_tests,
