@@ -4084,27 +4084,26 @@ static void __devinit avermedia_eeprom(struct bttv *btv)
 	       btv->has_remote ? "yes" : "no");
 }
 
-/* used on Voodoo TV/FM (Voodoo 200), S0 wired to 0x10000 */
-void bttv_tda9880_setnorm(struct bttv *btv, unsigned int norm)
+/*
+ * For Voodoo TV/FM and Voodoo 200.  These cards' tuners use a TDA9880
+ * analog demod, which is not I2C controlled like the newer and more common
+ * TDA9887 series.  Instead is has two tri-state input pins, S0 and S1,
+ * that control the IF for the video and audio.  Apparently, bttv GPIO
+ * 0x10000 is connected to S0.  S0 low selects a 38.9 MHz VIF for B/G/D/K/I
+ * (i.e., PAL) while high selects 45.75 MHz for M/N (i.e., NTSC).
+ */
+u32 bttv_tda9880_setnorm(struct bttv *btv, u32 gpiobits)
 {
-	/* fix up our card entry */
-	if(norm==V4L2_STD_NTSC) {
-		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomux[TVAUDIO_INPUT_TUNER]=0x957fff;
-		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomute=0x957fff;
-		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomux[TVAUDIO_INPUT_TUNER]=0x957fff;
-		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomute=0x957fff;
-		dprintk("bttv_tda9880_setnorm to NTSC\n");
+
+	if (btv->audio == TVAUDIO_INPUT_TUNER) {
+		if (bttv_tvnorms[btv->tvnorm].v4l2_id & V4L2_STD_MN)
+			gpiobits |= 0x10000;
+		else
+			gpiobits &= ~0x10000;
 	}
-	else {
-		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomux[TVAUDIO_INPUT_TUNER]=0x947fff;
-		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].gpiomute=0x947fff;
-		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomux[TVAUDIO_INPUT_TUNER]=0x947fff;
-		bttv_tvcards[BTTV_BOARD_VOODOOTV_200].gpiomute=0x947fff;
-		dprintk("bttv_tda9880_setnorm to PAL\n");
-	}
-	/* set GPIO according */
-	gpio_bits(bttv_tvcards[btv->c.type].gpiomask,
-		  bttv_tvcards[btv->c.type].gpiomux[btv->audio]);
+
+	gpio_bits(bttv_tvcards[btv->c.type].gpiomask, gpiobits);
+	return gpiobits;
 }
 
 

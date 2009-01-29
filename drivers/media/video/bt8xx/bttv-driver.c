@@ -1180,7 +1180,16 @@ audio_mux(struct bttv *btv, int input, int mute)
 	else
 		gpio_val = bttv_tvcards[btv->c.type].gpiomux[input];
 
-	gpio_bits(bttv_tvcards[btv->c.type].gpiomask, gpio_val);
+	switch (btv->c.type) {
+	case BTTV_BOARD_VOODOOTV_FM:
+	case BTTV_BOARD_VOODOOTV_200:
+		gpio_val = bttv_tda9880_setnorm(btv, gpio_val);
+		break;
+
+	default:
+		gpio_bits(bttv_tvcards[btv->c.type].gpiomask, gpio_val);
+	}
+
 	if (bttv_gpio)
 		bttv_gpio_tracking(btv, audio_modes[mute ? 4 : input]);
 	if (in_interrupt())
@@ -1319,7 +1328,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 	switch (btv->c.type) {
 	case BTTV_BOARD_VOODOOTV_FM:
 	case BTTV_BOARD_VOODOOTV_200:
-		bttv_tda9880_setnorm(btv,norm);
+		bttv_tda9880_setnorm(btv, gpio_read());
 		break;
 	}
 	id = tvnorm->v4l2_id;
