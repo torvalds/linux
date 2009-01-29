@@ -2283,16 +2283,12 @@ int falcon_switch_mac(struct efx_nic *efx)
 		efx->link_fd = true;
 	}
 
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 	efx->mac_op = (EFX_IS10G(efx) ?
 		       &falcon_xmac_operations : &falcon_gmac_operations);
-	if (old_mac_op == efx->mac_op)
-		return 0;
 
-	WARN_ON(!mutex_is_locked(&efx->mac_lock));
-
-	/* Not all macs support a mac-level link state */
-	efx->mac_up = true;
-
+	/* Always push the NIC_STAT_REG setting even if the mac hasn't
+	 * changed, because this function is run post online reset */
 	falcon_read(efx, &nic_stat, NIC_STAT_REG);
 	strap_val = EFX_IS10G(efx) ? 5 : 3;
 	if (falcon_rev(efx) >= FALCON_REV_B0) {
@@ -2305,8 +2301,13 @@ int falcon_switch_mac(struct efx_nic *efx)
 		BUG_ON(EFX_OWORD_FIELD(nic_stat, STRAP_PINS) != strap_val);
 	}
 
+	if (old_mac_op == efx->mac_op)
+		return 0;
 
 	EFX_LOG(efx, "selected %cMAC\n", EFX_IS10G(efx) ? 'X' : 'G');
+	/* Not all macs support a mac-level link state */
+	efx->mac_up = true;
+
 	return falcon_reset_macs(efx);
 }
 
