@@ -73,6 +73,8 @@ static void sigmaSQ_muxsel(struct bttv *btv, unsigned int input);
 
 static void geovision_muxsel(struct bttv *btv, unsigned int input);
 
+static void phytec_muxsel(struct bttv *btv, unsigned int input);
+
 static int terratec_active_radio_upgrade(struct bttv *btv);
 static int tea5757_read(struct bttv *btv);
 static int tea5757_write(struct bttv *btv, int value);
@@ -2054,10 +2056,9 @@ struct tvcard bttv_tvcards[] = {
 		/* .audio_inputs= 0, */
 		.svhs           = 9,
 		.gpiomask       = 0x00,
-		.gpiomask2      = 0x03, /* gpiomask2 defines the bits used to switch audio
-					via the upper nibble of muxsel. here: used for
-					xternal video-mux */
-		.muxsel         = { 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33, 0x01, 0x00 },
+		.gpiomask2      = 0x03, /* used for external vodeo mux */
+		.muxsel         = { 2, 2, 2, 2, 3, 3, 3, 3, 1, 0 },
+		.muxsel_hook	= phytec_muxsel,
 		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
 		.needs_tvaudio  = 1,
 		.pll            = PLL_28,
@@ -2070,10 +2071,9 @@ struct tvcard bttv_tvcards[] = {
 		/* .audio_inputs= 0, */
 		.svhs           = 9,
 		.gpiomask       = 0x00,
-		.gpiomask2      = 0x03, /* gpiomask2 defines the bits used to switch audio
-					via the upper nibble of muxsel. here: used for
-					xternal video-mux */
-		.muxsel         = { 0x02, 0x12, 0x22, 0x32, 0x03, 0x13, 0x23, 0x33, 0x01, 0x01 },
+		.gpiomask2      = 0x03, /* used for external vodeo mux */
+		.muxsel         = { 2, 2, 2, 2, 3, 3, 3, 3, 1, 1 },
+		.muxsel_hook	= phytec_muxsel,
 		.gpiomux        = { 0, 0, 0, 0 }, /* card has no audio */
 		.needs_tvaudio  = 1,
 		.pll            = PLL_28,
@@ -4526,6 +4526,16 @@ static void PXC200_muxsel(struct bttv *btv, unsigned int input)
 	  btand(~BT848_IFORM_MUXSEL,BT848_IFORM);
 
 	printk(KERN_DEBUG "bttv%d: setting input channel to:%d\n", btv->c.nr,(int)mux);
+}
+
+static void phytec_muxsel(struct bttv *btv, unsigned int input)
+{
+	unsigned int mux = input % 4;
+
+	if (input == btv->svhs)
+		mux = 0;
+
+	gpio_bits(0x3, mux);
 }
 
 /* ----------------------------------------------------------------------- */
