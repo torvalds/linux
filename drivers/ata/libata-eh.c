@@ -3035,7 +3035,11 @@ static int ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 {
 	struct ata_eh_context *ehc = &dev->link->eh_context;
 
-	ehc->tries[dev->devno]--;
+	/* -EAGAIN from EH routine indicates retry without prejudice.
+	 * The requester is responsible for ensuring forward progress.
+	 */
+	if (err != -EAGAIN)
+		ehc->tries[dev->devno]--;
 
 	switch (err) {
 	case -ENODEV:
