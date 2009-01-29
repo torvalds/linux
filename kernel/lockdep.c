@@ -41,6 +41,7 @@
 #include <linux/utsname.h>
 #include <linux/hash.h>
 #include <linux/ftrace.h>
+#include <linux/stringify.h>
 
 #include <asm/sections.h>
 
@@ -445,14 +446,11 @@ atomic_t nr_find_usage_backwards_recursions;
  * Locking printouts:
  */
 
-#define __STR(foo)	#foo
-#define STR(foo)	__STR(foo)
-
 #define __USAGE(__STATE)						\
-	[LOCK_USED_IN_##__STATE] = "IN-"STR(__STATE)"-W",		\
-	[LOCK_ENABLED_##__STATE] = STR(__STATE)"-ON-W",			\
-	[LOCK_USED_IN_##__STATE##_READ] = "IN-"STR(__STATE)"-R",	\
-	[LOCK_ENABLED_##__STATE##_READ] = STR(__STATE)"-ON-R",
+	[LOCK_USED_IN_##__STATE] = "IN-"__stringify(__STATE)"-W",	\
+	[LOCK_ENABLED_##__STATE] = __stringify(__STATE)"-ON-W",		\
+	[LOCK_USED_IN_##__STATE##_READ] = "IN-"__stringify(__STATE)"-R",\
+	[LOCK_ENABLED_##__STATE##_READ] = __stringify(__STATE)"-ON-R",
 
 static const char *usage_str[] =
 {
@@ -1270,14 +1268,14 @@ check_usage(struct task_struct *curr, struct held_lock *prev,
 
 static const char *state_names[] = {
 #define LOCKDEP_STATE(__STATE) \
-	STR(__STATE),
+	__stringify(__STATE),
 #include "lockdep_states.h"
 #undef LOCKDEP_STATE
 };
 
 static const char *state_rnames[] = {
 #define LOCKDEP_STATE(__STATE) \
-	STR(__STATE)"-READ",
+	__stringify(__STATE)"-READ",
 #include "lockdep_states.h"
 #undef LOCKDEP_STATE
 };
