@@ -375,8 +375,13 @@ static void sfn4111t_fini(struct efx_nic *efx)
 	i2c_unregister_device(efx->board_info.hwmon_client);
 }
 
-static struct i2c_board_info sfn4111t_hwmon_info = {
+static struct i2c_board_info sfn4111t_a0_hwmon_info = {
 	I2C_BOARD_INFO("max6647", 0x4e),
+	.irq		= -1,
+};
+
+static struct i2c_board_info sfn4111t_r5_hwmon_info = {
+	I2C_BOARD_INFO("max6646", 0x4d),
 	.irq		= -1,
 };
 
@@ -385,7 +390,10 @@ int sfn4111t_init(struct efx_nic *efx)
 	int rc;
 
 	efx->board_info.hwmon_client =
-		i2c_new_device(&efx->i2c_adap, &sfn4111t_hwmon_info);
+		i2c_new_device(&efx->i2c_adap,
+			       (efx->board_info.minor < 5) ?
+			       &sfn4111t_a0_hwmon_info :
+			       &sfn4111t_r5_hwmon_info);
 	if (!efx->board_info.hwmon_client)
 		return -EIO;
 
