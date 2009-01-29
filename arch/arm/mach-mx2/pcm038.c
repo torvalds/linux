@@ -20,11 +20,12 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/plat-ram.h>
+#include <linux/io.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/iomux-mx1-mx2.h>
+#include <mach/iomux.h>
 #include <asm/mach/time.h>
 #include <mach/imx-uart.h>
 #include <mach/board-pcm038.h>
@@ -170,7 +171,7 @@ static int mxc_fec_pins[] = {
 	PD11_AOUT_FEC_TX_CLK,
 	PD12_AOUT_FEC_RXD0,
 	PD13_AOUT_FEC_RX_DV,
-	PD14_AOUT_FEC_CLR,
+	PD14_AOUT_FEC_RX_CLK,
 	PD15_AOUT_FEC_COL,
 	PD16_AIN_FEC_TX_ER,
 	PF23_AIN_FEC_TX_EN
@@ -217,7 +218,7 @@ static void __init pcm038_init(void)
 	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
 	mxc_register_device(&mxc_uart_device2, &uart_pdata[2]);
 
-	mxc_gpio_mode(PE16_AF_RTCK); /* OWIRE */
+	mxc_gpio_mode(PE16_AF_OWIRE);
 	mxc_register_device(&mxc_nand_device, &pcm038_nand_board_info);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));

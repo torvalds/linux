@@ -24,7 +24,7 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/imx-uart.h>
-#include <mach/iomux-mx1-mx2.h>
+#include <mach/iomux.h>
 #include "devices.h"
 
 /*

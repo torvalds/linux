@@ -32,7 +32,7 @@
 
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
-#include <mach/iomux-mx1-mx2.h>
+#include <mach/iomux.h>
 
 void mxc_gpio_mode(int gpio_mode)
 {

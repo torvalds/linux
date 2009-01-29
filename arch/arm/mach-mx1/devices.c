@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <mach/irqs.h>
 #include <mach/hardware.h>
 
 static struct resource imx_csi_resources[] = {
