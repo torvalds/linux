@@ -1115,8 +1115,10 @@ static void cgroup_kill_sb(struct super_block *sb) {
 	}
 	write_unlock(&css_set_lock);
 
-	list_del(&root->root_list);
-	root_count--;
+	if (!list_empty(&root->root_list)) {
+		list_del(&root->root_list);
+		root_count--;
+	}
 
 	mutex_unlock(&cgroup_mutex);
 
