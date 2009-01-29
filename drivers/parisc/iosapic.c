@@ -487,7 +487,7 @@ iosapic_xlate_pin(struct iosapic_info *isi, struct pci_dev *pcidev)
 	}
 
 	/* Check if pcidev behind a PPB */
-	if (NULL != pcidev->bus->self) {
+	if (pcidev->bus->parent) {
 		/* Convert pcidev INTR_PIN into something we
 		** can lookup in the IRT.
 		*/
@@ -523,10 +523,9 @@ iosapic_xlate_pin(struct iosapic_info *isi, struct pci_dev *pcidev)
 #endif /* PCI_BRIDGE_FUNCS */
 
 		/*
-		** Locate the host slot the PPB nearest the Host bus
-		** adapter.
-		*/
-		while (NULL != p->parent->self)
+		 * Locate the host slot of the PPB.
+		 */
+		while (p->parent->parent)
 			p = p->parent;
 
 		intr_slot = PCI_SLOT(p->self->devfn);

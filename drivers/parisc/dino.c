@@ -587,7 +587,7 @@ dino_fixup_bus(struct pci_bus *bus)
 			bus->resource[i+1] = &res[i];
 		}
 
-	} else if(bus->self) {
+	} else if (bus->parent) {
 		int i;
 
 		pci_read_bridge_bases(bus);
