@@ -19,7 +19,6 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
-#include <linux/version.h>
 #include "compat.h"
 #include "hash.h"
 #include "crc32c.h"
@@ -30,7 +29,6 @@
 #include "volumes.h"
 #include "locking.h"
 #include "ref-cache.h"
-#include "compat.h"
 
 #define PENDING_EXTENT_INSERT 0
 #define PENDING_EXTENT_DELETE 1
@@ -326,10 +324,8 @@ static struct btrfs_space_info *__find_space_info(struct btrfs_fs_info *info,
 						  u64 flags)
 {
 	struct list_head *head = &info->space_info;
-	struct list_head *cur;
 	struct btrfs_space_info *found;
-	list_for_each(cur, head) {
-		found = list_entry(cur, struct btrfs_space_info, list);
+	list_for_each_entry(found, head, list) {
 		if (found->flags == flags)
 			return found;
 	}
@@ -2159,7 +2155,8 @@ again:
 		ret = find_first_extent_bit(&info->extent_ins, search, &start,
 					    &end, EXTENT_WRITEBACK);
 		if (ret) {
-			if (skipped && all && !num_inserts) {
+			if (skipped && all && !num_inserts &&
+			    list_empty(&update_list)) {
 				skipped = 0;
 				search = 0;
 				continue;
@@ -2547,6 +2544,7 @@ again:
 		if (ret) {
 			if (all && skipped && !nr) {
 				search = 0;
+				skipped = 0;
 				continue;
 			}
 			mutex_unlock(&info->extent_ins_mutex);
@@ -2700,13 +2698,9 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	/* if metadata always pin */
 	if (owner_objectid < BTRFS_FIRST_FREE_OBJECTID) {
 		if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
-			struct btrfs_block_group_cache *cache;
-
-			/* btrfs_free_reserved_extent */
-			cache = btrfs_lookup_block_group(root->fs_info, bytenr);
-			BUG_ON(!cache);
-			btrfs_add_free_space(cache, bytenr, num_bytes);
-			put_block_group(cache);
+			mutex_lock(&root->fs_info->pinned_mutex);
+			btrfs_update_pinned_extents(root, bytenr, num_bytes, 1);
+			mutex_unlock(&root->fs_info->pinned_mutex);
 			update_reserved_extents(root, bytenr, num_bytes, 0);
 			return 0;
 		}
@@ -3014,7 +3008,6 @@ loop_check:
 static void dump_space_info(struct btrfs_space_info *info, u64 bytes)
 {
 	struct btrfs_block_group_cache *cache;
-	struct list_head *l;
 
 	printk(KERN_INFO "space_info has %llu free, is %sfull\n",
 	       (unsigned long long)(info->total_bytes - info->bytes_used -
@@ -3022,8 +3015,7 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes)
 	       (info->full) ? "" : "not ");
 
 	down_read(&info->groups_sem);
-	list_for_each(l, &info->block_groups) {
-		cache = list_entry(l, struct btrfs_block_group_cache, list);
+	list_for_each_entry(cache, &info->block_groups, list) {
 		spin_lock(&cache->lock);
 		printk(KERN_INFO "block group %llu has %llu bytes, %llu used "
 		       "%llu pinned %llu reserved\n",
@@ -4444,7 +4436,7 @@ static noinline int replace_one_extent(struct btrfs_trans_handle *trans,
 	u64 lock_end = 0;
 	u64 num_bytes;
 	u64 ext_offset;
-	u64 first_pos;
+	u64 search_end = (u64)-1;
 	u32 nritems;
 	int nr_scaned = 0;
 	int extent_locked = 0;
@@ -4452,7 +4444,6 @@ static noinline int replace_one_extent(struct btrfs_trans_handle *trans,
 	int ret;
 
 	memcpy(&key, leaf_key, sizeof(key));
-	first_pos = INT_LIMIT(loff_t) - extent_key->offset;
 	if (ref_path->owner_objectid != BTRFS_MULTIPLE_OBJECTIDS) {
 		if (key.objectid < ref_path->owner_objectid ||
 		    (key.objectid == ref_path->owner_objectid &&
@@ -4501,7 +4492,7 @@ next:
 			if ((key.objectid > ref_path->owner_objectid) ||
 			    (key.objectid == ref_path->owner_objectid &&
 			     key.type > BTRFS_EXTENT_DATA_KEY) ||
-			    (key.offset >= first_pos + extent_key->offset))
+			    key.offset >= search_end)
 				break;
 		}
 
@@ -4534,8 +4525,10 @@ next:
 		num_bytes = btrfs_file_extent_num_bytes(leaf, fi);
 		ext_offset = btrfs_file_extent_offset(leaf, fi);
 
-		if (first_pos > key.offset - ext_offset)
-			first_pos = key.offset - ext_offset;
+		if (search_end == (u64)-1) {
+			search_end = key.offset - ext_offset +
+				btrfs_file_extent_ram_bytes(leaf, fi);
+		}
 
 		if (!extent_locked) {
 			lock_start = key.offset;
@@ -4724,7 +4717,7 @@ next:
 		}
 skip:
 		if (ref_path->owner_objectid != BTRFS_MULTIPLE_OBJECTIDS &&
-		    key.offset >= first_pos + extent_key->offset)
+		    key.offset >= search_end)
 			break;
 
 		cond_resched();
@@ -5957,9 +5950,11 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 
-	btrfs_remove_free_space_cache(block_group);
+	spin_lock(&root->fs_info->block_group_cache_lock);
 	rb_erase(&block_group->cache_node,
 		 &root->fs_info->block_group_cache_tree);
+	spin_unlock(&root->fs_info->block_group_cache_lock);
+	btrfs_remove_free_space_cache(block_group);
 	down_write(&block_group->space_info->groups_sem);
 	list_del(&block_group->list);
 	up_write(&block_group->space_info->groups_sem);

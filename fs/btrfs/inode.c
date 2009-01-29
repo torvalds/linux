@@ -34,7 +34,6 @@
 #include <linux/statfs.h>
 #include <linux/compat.h>
 #include <linux/bit_spinlock.h>
-#include <linux/version.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/falloc.h>
@@ -1324,12 +1323,11 @@ static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 			     struct inode *inode, u64 file_offset,
 			     struct list_head *list)
 {
-	struct list_head *cur;
 	struct btrfs_ordered_sum *sum;
 
 	btrfs_set_trans_block_group(trans, inode);
-	list_for_each(cur, list) {
-		sum = list_entry(cur, struct btrfs_ordered_sum, list);
+
+	list_for_each_entry(sum, list, list) {
 		btrfs_csum_file_blocks(trans,
 		       BTRFS_I(inode)->root->fs_info->csum_root, sum);
 	}
@@ -4158,9 +4156,10 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	return -EINVAL;
 }
 
-static sector_t btrfs_bmap(struct address_space *mapping, sector_t iblock)
+static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+		__u64 start, __u64 len)
 {
-	return extent_bmap(mapping, iblock, btrfs_get_extent);
+	return extent_fiemap(inode, fieinfo, start, len, btrfs_get_extent);
 }
 
 int btrfs_readpage(struct file *file, struct page *page)
@@ -4987,13 +4986,24 @@ static struct extent_io_ops btrfs_extent_io_ops = {
 	.clear_bit_hook = btrfs_clear_bit_hook,
 };
 
+/*
+ * btrfs doesn't support the bmap operation because swapfiles
+ * use bmap to make a mapping of extents in the file.  They assume
+ * these extents won't change over the life of the file and they
+ * use the bmap result to do IO directly to the drive.
+ *
+ * the btrfs bmap call would return logical addresses that aren't
+ * suitable for IO and they also will change frequently as COW
+ * operations happen.  So, swapfile + btrfs == corruption.
+ *
+ * For now we're avoiding this by dropping bmap.
+ */
 static struct address_space_operations btrfs_aops = {
 	.readpage	= btrfs_readpage,
 	.writepage	= btrfs_writepage,
 	.writepages	= btrfs_writepages,
 	.readpages	= btrfs_readpages,
 	.sync_page	= block_sync_page,
-	.bmap		= btrfs_bmap,
 	.direct_IO	= btrfs_direct_IO,
 	.invalidatepage = btrfs_invalidatepage,
 	.releasepage	= btrfs_releasepage,
@@ -5017,6 +5027,7 @@ static struct inode_operations btrfs_file_inode_operations = {
 	.removexattr	= btrfs_removexattr,
 	.permission	= btrfs_permission,
 	.fallocate	= btrfs_fallocate,
+	.fiemap		= btrfs_fiemap,
 };
 static struct inode_operations btrfs_special_inode_operations = {
 	.getattr	= btrfs_getattr,

@@ -45,8 +45,11 @@ ssize_t __btrfs_getxattr(struct inode *inode, const char *name,
 	/* lookup the xattr by name */
 	di = btrfs_lookup_xattr(NULL, root, path, inode->i_ino, name,
 				strlen(name), 0);
-	if (!di || IS_ERR(di)) {
+	if (!di) {
 		ret = -ENODATA;
+		goto out;
+	} else if (IS_ERR(di)) {
+		ret = PTR_ERR(di);
 		goto out;
 	}
 
@@ -62,6 +65,14 @@ ssize_t __btrfs_getxattr(struct inode *inode, const char *name,
 		ret = -ERANGE;
 		goto out;
 	}
+
+	/*
+	 * The way things are packed into the leaf is like this
+	 * |struct btrfs_dir_item|name|data|
+	 * where name is the xattr name, so security.foo, and data is the
+	 * content of the xattr.  data_ptr points to the location in memory
+	 * where the data starts in the in memory leaf
+	 */
 	data_ptr = (unsigned long)((char *)(di + 1) +
 				   btrfs_dir_name_len(leaf, di));
 	read_extent_buffer(leaf, buffer, data_ptr,
@@ -176,7 +187,6 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;
-	ret = 0;
 	advance = 0;
 	while (1) {
 		leaf = path->nodes[0];

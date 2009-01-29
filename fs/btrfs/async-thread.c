@@ -16,7 +16,6 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/version.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
