@@ -14,6 +14,12 @@ config MACH_DSM320
 	  Say 'Y' here if you want your kernel to run on the D-Link
 	  DSM-320 Wireless Media Player.
 
+config MACH_ACS5K
+	bool "Brivo Systems LLC, ACS-5000 Master board"
+	help
+	  say 'Y' here if you want your kernel to run on the Brivo
+	  Systems LLC, ACS-5000 Master board.
+
 endmenu
 
 endif
