@@ -389,6 +389,7 @@ static void summit_vector_allocation_domain(int cpu, cpumask_t *retmask)
 	*retmask = (cpumask_t){ { [0] = APIC_ALL_CPUS, } };
 }
 
+#ifdef CONFIG_X86_SUMMIT_NUMA
 static struct rio_table_hdr *rio_table_hdr __initdata;
 static struct scal_detail   *scal_devs[MAX_NUMNODES] __initdata;
 static struct rio_detail    *rio_devs[MAX_NUMNODES*4] __initdata;
@@ -543,7 +544,7 @@ void __init setup_summit(void)
 			next_wpeg = 0;
 	} while (next_wpeg != 0);
 }
-
+#endif
 
 struct genapic apic_summit = {
 
