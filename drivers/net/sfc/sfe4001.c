@@ -235,12 +235,18 @@ static ssize_t set_phy_flash_cfg(struct device *dev,
 	} else if (efx->state != STATE_RUNNING || netif_running(efx->net_dev)) {
 		err = -EBUSY;
 	} else {
+		/* Reset the PHY, reconfigure the MAC and enable/disable
+		 * MAC stats accordingly. */
 		efx->phy_mode = new_mode;
+		if (new_mode & PHY_MODE_SPECIAL)
+			efx_stats_disable(efx);
 		if (efx->board_info.type == EFX_BOARD_SFE4001)
 			err = sfe4001_poweron(efx);
 		else
 			err = sfn4111t_reset(efx);
 		efx_reconfigure_port(efx);
+		if (!(new_mode & PHY_MODE_SPECIAL))
+			efx_stats_enable(efx);
 	}
 	rtnl_unlock();
 
@@ -329,6 +335,11 @@ int sfe4001_init(struct efx_nic *efx)
 	efx->board_info.monitor = sfe4001_check_hw;
 	efx->board_info.fini = sfe4001_fini;
 
+	if (efx->phy_mode & PHY_MODE_SPECIAL) {
+		/* PHY won't generate a 156.25 MHz clock and MAC stats fetch
+		 * will fail. */
+		efx_stats_disable(efx);
+	}
 	rc = sfe4001_poweron(efx);
 	if (rc)
 		goto fail_ioexp;
@@ -405,8 +416,10 @@ int sfn4111t_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_hwmon;
 
-	if (efx->phy_mode & PHY_MODE_SPECIAL)
+	if (efx->phy_mode & PHY_MODE_SPECIAL) {
+		efx_stats_disable(efx);
 		sfn4111t_reset(efx);
+	}
 
 	return 0;
 

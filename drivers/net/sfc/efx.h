@@ -36,6 +36,8 @@ extern void efx_process_channel_now(struct efx_channel *channel);
 extern void efx_flush_queues(struct efx_nic *efx);
 
 /* Ports */
+extern void efx_stats_disable(struct efx_nic *efx);
+extern void efx_stats_enable(struct efx_nic *efx);
 extern void efx_reconfigure_port(struct efx_nic *efx);
 extern void __efx_reconfigure_port(struct efx_nic *efx);
 

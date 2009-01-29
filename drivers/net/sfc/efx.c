@@ -685,7 +685,7 @@ static int efx_init_port(struct efx_nic *efx)
 	efx->mac_op->reconfigure(efx);
 
 	efx->port_initialized = true;
-	efx->stats_enabled = true;
+	efx_stats_enable(efx);
 	return 0;
 
 fail:
@@ -734,6 +734,7 @@ static void efx_fini_port(struct efx_nic *efx)
 	if (!efx->port_initialized)
 		return;
 
+	efx_stats_disable(efx);
 	efx->phy_op->fini(efx);
 	efx->port_initialized = false;
 
@@ -1360,6 +1361,20 @@ static int efx_net_stop(struct net_device *net_dev)
 	return 0;
 }
 
+void efx_stats_disable(struct efx_nic *efx)
+{
+	spin_lock(&efx->stats_lock);
+	++efx->stats_disable_count;
+	spin_unlock(&efx->stats_lock);
+}
+
+void efx_stats_enable(struct efx_nic *efx)
+{
+	spin_lock(&efx->stats_lock);
+	--efx->stats_disable_count;
+	spin_unlock(&efx->stats_lock);
+}
+
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
 static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 {
@@ -1368,12 +1383,12 @@ static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 	struct net_device_stats *stats = &net_dev->stats;
 
 	/* Update stats if possible, but do not wait if another thread
-	 * is updating them (or resetting the NIC); slightly stale
-	 * stats are acceptable.
+	 * is updating them or if MAC stats fetches are temporarily
+	 * disabled; slightly stale stats are acceptable.
 	 */
 	if (!spin_trylock(&efx->stats_lock))
 		return stats;
-	if (efx->stats_enabled) {
+	if (!efx->stats_disable_count) {
 		efx->mac_op->update_stats(efx);
 		falcon_update_nic_stats(efx);
 	}
@@ -1626,12 +1641,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method,
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
-	/* The net_dev->get_stats handler is quite slow, and will fail
-	 * if a fetch is pending over reset. Serialise against it. */
-	spin_lock(&efx->stats_lock);
-	efx->stats_enabled = false;
-	spin_unlock(&efx->stats_lock);
-
+	efx_stats_disable(efx);
 	efx_stop_all(efx);
 	mutex_lock(&efx->mac_lock);
 	mutex_lock(&efx->spi_lock);
@@ -1682,7 +1692,7 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method,
 
 	if (ok) {
 		efx_start_all(efx);
-		efx->stats_enabled = true;
+		efx_stats_enable(efx);
 	}
 	return rc;
 }
@@ -1888,6 +1898,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	efx->rx_checksum_enabled = true;
 	spin_lock_init(&efx->netif_stop_lock);
 	spin_lock_init(&efx->stats_lock);
+	efx->stats_disable_count = 1;
 	mutex_init(&efx->mac_lock);
 	efx->mac_op = &efx_dummy_mac_operations;
 	efx->phy_op = &efx_dummy_phy_operations;
