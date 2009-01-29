@@ -1,5 +1,13 @@
-#ifdef __uClinux__
-#include "mmu_no.h"
+#ifndef __MMU_H
+#define __MMU_H
+
+#ifdef CONFIG_MMU
+/* Default "unsigned long" context */
+typedef unsigned long mm_context_t;
 #else
-#include "mmu_mm.h"
+typedef struct {
+	unsigned long		end_brk;
+} mm_context_t;
+#endif
+
 #endif
