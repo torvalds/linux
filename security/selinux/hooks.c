@@ -2311,8 +2311,6 @@ static void selinux_bprm_committing_creds(struct linux_binprm *bprm)
 	struct rlimit *rlim, *initrlim;
 	int rc, i;
 
-	secondary_ops->bprm_committing_creds(bprm);
-
 	new_tsec = bprm->cred->security;
 	if (new_tsec->sid == new_tsec->osid)
 		return;
