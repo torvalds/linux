@@ -1799,7 +1799,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.svhs           = NO_SVHS,
 		.gpiomask       = 0,
-		.muxsel         = { 0, 1, 2, 3 },
+		.muxsel         = { 2, 2, 2, 2 },
 		.muxsel_hook    = eagle_muxsel,
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
@@ -3109,8 +3109,7 @@ static void init_ids_eagle(struct bttv *btv)
  * has its own multiplexer */
 static void eagle_muxsel(struct bttv *btv, unsigned int input)
 {
-	btaor((2)<<5, ~(3<<5), BT848_IFORM);
-	gpio_bits(3,bttv_tvcards[btv->c.type].muxsel[input&7]);
+	gpio_bits(3, input & 3);
 
 	/* composite */
 	/* set chroma ADC to sleep */
