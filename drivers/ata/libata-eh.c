@@ -1176,6 +1176,27 @@ void ata_eh_qc_retry(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	ata_dev_disable - disable ATA device
+ *	@dev: ATA device to disable
+ *
+ *	Disable @dev.
+ *
+ *	Locking:
+ *	EH context.
+ */
+void ata_dev_disable(struct ata_device *dev)
+{
+	if (!ata_dev_enabled(dev))
+		return;
+
+	if (ata_msg_drv(dev->link->ap))
+		ata_dev_printk(dev, KERN_WARNING, "disabled\n");
+	ata_acpi_on_disable(dev);
+	ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0 | ATA_DNXFER_QUIET);
+	dev->class++;
+}
+
+/**
  *	ata_eh_detach_dev - detach ATA device
  *	@dev: ATA device to detach
  *

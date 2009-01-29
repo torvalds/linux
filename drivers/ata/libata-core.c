@@ -1015,18 +1015,6 @@ static const char *sata_spd_string(unsigned int spd)
 	return spd_str[spd - 1];
 }
 
-void ata_dev_disable(struct ata_device *dev)
-{
-	if (ata_dev_enabled(dev)) {
-		if (ata_msg_drv(dev->link->ap))
-			ata_dev_printk(dev, KERN_WARNING, "disabled\n");
-		ata_acpi_on_disable(dev);
-		ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0 |
-					     ATA_DNXFER_QUIET);
-		dev->class++;
-	}
-}
-
 static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 {
 	struct ata_link *link = dev->link;
