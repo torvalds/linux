@@ -230,7 +230,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
         jmp 0xf0000400;			\
         ");				\
 })
-#elif defined(CONFIG_NETtel) || defined(CONFIG_eLIA) || \
+#elif defined(CONFIG_NETtel) || \
       defined(CONFIG_SECUREEDGEMP3) || defined(CONFIG_CLEOPATRA)
 #define HARD_RESET_NOW() ({		\
         asm("				\

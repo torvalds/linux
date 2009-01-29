@@ -1698,7 +1698,7 @@ static void __inline__ fec_set_mii(struct net_device *dev, struct fec_enet_priva
 	/*
 	 * Set MII speed to 2.5 MHz
 	 */
-	fep->phy_speed = ((((MCF_CLK / 2) / (2500000 / 10)) + 5) / 10) * 2;
+	fep->phy_speed = (MCF_CLK / 3) / (2500000 * 2 ) * 2;
 	fecp->fec_mii_speed = fep->phy_speed;
 
 	fec_restart(dev, 0);
