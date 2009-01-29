@@ -947,8 +947,10 @@ int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose)
 	}
 	for (i = 0; i < n; i++) {
 		if (netxen_rom_fast_read(adapter, 8*i + 4*offset, &val) != 0 ||
-		netxen_rom_fast_read(adapter, 8*i + 4*offset + 4, &addr) != 0)
+		netxen_rom_fast_read(adapter, 8*i + 4*offset + 4, &addr) != 0) {
+			kfree(buf);
 			return -EIO;
+		}
 
 		buf[i].addr = addr;
 		buf[i].data = val;
