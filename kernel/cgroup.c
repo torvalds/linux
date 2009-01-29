@@ -2993,20 +2993,21 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys,
 		mutex_unlock(&cgroup_mutex);
 		return 0;
 	}
-	task_lock(tsk);
-	cg = tsk->cgroups;
-	parent = task_cgroup(tsk, subsys->subsys_id);
 
 	/* Pin the hierarchy */
-	if (!atomic_inc_not_zero(&parent->root->sb->s_active)) {
+	if (!atomic_inc_not_zero(&root->sb->s_active)) {
 		/* We race with the final deactivate_super() */
 		mutex_unlock(&cgroup_mutex);
 		return 0;
 	}
 
 	/* Keep the cgroup alive */
+	task_lock(tsk);
+	parent = task_cgroup(tsk, subsys->subsys_id);
+	cg = tsk->cgroups;
 	get_css_set(cg);
 	task_unlock(tsk);
+
 	mutex_unlock(&cgroup_mutex);
 
 	/* Now do the VFS work to create a cgroup */
@@ -3045,7 +3046,7 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys,
 		mutex_unlock(&inode->i_mutex);
 		put_css_set(cg);
 
-		deactivate_super(parent->root->sb);
+		deactivate_super(root->sb);
 		/* The cgroup is still accessible in the VFS, but
 		 * we're not going to try to rmdir() it at this
 		 * point. */
@@ -3071,7 +3072,7 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys,
 	mutex_lock(&cgroup_mutex);
 	put_css_set(cg);
 	mutex_unlock(&cgroup_mutex);
-	deactivate_super(parent->root->sb);
+	deactivate_super(root->sb);
 	return ret;
 }
 
