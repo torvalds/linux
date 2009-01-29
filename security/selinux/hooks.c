@@ -3212,12 +3212,6 @@ static int selinux_dentry_open(struct file *file, const struct cred *cred)
 
 static int selinux_task_create(unsigned long clone_flags)
 {
-	int rc;
-
-	rc = secondary_ops->task_create(clone_flags);
-	if (rc)
-		return rc;
-
 	return current_has_perm(current, PROCESS__FORK);
 }
 
