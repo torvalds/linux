@@ -15,6 +15,7 @@
 #include "net_driver.h"
 #include "mdio_10g.h"
 #include "boards.h"
+#include "workarounds.h"
 
 int mdio_clause45_reset_mmd(struct efx_nic *port, int mmd,
 			    int spins, int spintime)
@@ -517,6 +518,9 @@ int mdio_clause45_set_settings(struct efx_nic *efx,
 			reg |= BMCR_ANENABLE | BMCR_ANRESTART;
 		else
 			reg &= ~BMCR_ANENABLE;
+		if (EFX_WORKAROUND_15195(efx)
+		    && LOOPBACK_MASK(efx) & efx->phy_op->loopbacks)
+			reg &= ~BMCR_ANRESTART;
 		if (xnp)
 			reg |= 1 << MDIO_AN_CTRL_XNP_LBN;
 		else

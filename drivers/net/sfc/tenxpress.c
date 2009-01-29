@@ -511,7 +511,7 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
 	struct ethtool_cmd ecmd;
-	bool phy_mode_change, loop_reset, loop_toggle, loopback;
+	bool phy_mode_change, loop_reset;
 
 	if (efx->phy_mode & (PHY_MODE_OFF | PHY_MODE_SPECIAL)) {
 		phy_data->phy_mode = efx->phy_mode;
@@ -522,12 +522,10 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 
 	phy_mode_change = (efx->phy_mode == PHY_MODE_NORMAL &&
 			   phy_data->phy_mode != PHY_MODE_NORMAL);
-	loopback = LOOPBACK_MASK(efx) & efx->phy_op->loopbacks;
-	loop_toggle = LOOPBACK_CHANGED(phy_data, efx, efx->phy_op->loopbacks);
 	loop_reset = (LOOPBACK_OUT_OF(phy_data, efx, efx->phy_op->loopbacks) ||
 		      LOOPBACK_CHANGED(phy_data, efx, 1 << LOOPBACK_GPHY));
 
-	if (loop_reset || loop_toggle || loopback || phy_mode_change) {
+	if (loop_reset || phy_mode_change) {
 		int rc;
 
 		efx->phy_op->get_settings(efx, &ecmd);
@@ -540,20 +538,6 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 			 * then xaui will be reset anyway */
 			if (EFX_IS10G(efx))
 				falcon_reset_xaui(efx);
-		}
-
-		if (efx->phy_type != PHY_TYPE_SFX7101) {
-			/* Only change autoneg once, on coming out or
-			 * going into loopback */
-			if (loop_toggle)
-				ecmd.autoneg = !loopback;
-			if (loopback) {
-				ecmd.duplex = DUPLEX_FULL;
-				if (efx->loopback_mode == LOOPBACK_GPHY)
-					ecmd.speed = SPEED_1000;
-				else
-					ecmd.speed = SPEED_10000;
-			}
 		}
 
 		rc = efx->phy_op->set_settings(efx, &ecmd);
@@ -813,6 +797,13 @@ static void sft9001_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 		ecmd->duplex = (reg & (1 << GPHY_DUPLEX_LBN) ?
 				DUPLEX_FULL : DUPLEX_HALF);
 	}
+
+	/* In loopback, the PHY automatically brings up the correct interface,
+	 * but doesn't advertise the correct speed. So override it */
+	if (efx->loopback_mode == LOOPBACK_GPHY)
+		ecmd->speed = SPEED_1000;
+	else if (LOOPBACK_MASK(efx) & SFT9001_LOOPBACKS)
+		ecmd->speed = SPEED_10000;
 }
 
 static int sft9001_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
