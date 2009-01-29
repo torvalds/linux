@@ -3405,10 +3405,6 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info,
 	u32 perm;
 	int rc;
 
-	rc = secondary_ops->task_kill(p, info, sig, secid);
-	if (rc)
-		return rc;
-
 	if (!sig)
 		perm = PROCESS__SIGNULL; /* null signal; existence test */
 	else
