@@ -1198,18 +1198,7 @@ enum {
 #define AR_CFP_VAL          0x0000FFFF
 
 #define AR_RX_FILTER        0x803C
-#define AR_RX_FILTER_ALL    0x00000000
-#define AR_RX_UCAST         0x00000001
-#define AR_RX_MCAST         0x00000002
-#define AR_RX_BCAST         0x00000004
-#define AR_RX_CONTROL       0x00000008
-#define AR_RX_BEACON        0x00000010
-#define AR_RX_PROM          0x00000020
-#define AR_RX_PROBE_REQ     0x00000080
-#define AR_RX_MY_BEACON     0x00000200
 #define AR_RX_COMPR_BAR     0x00000400
-#define AR_RX_COMPR_BA      0x00000800
-#define AR_RX_UNCOM_BA_BAR  0x00001000
 
 #define AR_MCAST_FIL0       0x8040
 #define AR_MCAST_FIL1       0x8044
