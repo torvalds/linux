@@ -1040,7 +1040,7 @@ static void bt848A_set_timing(struct bttv *btv)
 	int table_idx = bttv_tvnorms[btv->tvnorm].sram;
 	int fsc       = bttv_tvnorms[btv->tvnorm].Fsc;
 
-	if (UNSET == bttv_tvcards[btv->c.type].muxsel[btv->input]) {
+	if (btv->input == btv->dig) {
 		dprintk("bttv%d: load digital timing table (table_idx=%d)\n",
 			btv->c.nr,table_idx);
 

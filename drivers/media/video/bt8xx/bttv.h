@@ -224,6 +224,10 @@ struct tvcard {
 	u8 video_inputs;	/* Number of inputs */
 	unsigned int svhs:4;	/* Which input is s-video */
 #define NO_SVHS	15
+	unsigned int pll:2;
+#define PLL_NONE 0
+#define PLL_28   1
+#define PLL_35   2
 
 	/* i2c audio flags */
 	unsigned int no_msp34xx:1;
@@ -236,11 +240,8 @@ struct tvcard {
 	unsigned int has_dvb:1;
 	unsigned int has_remote:1;
 	unsigned int has_radio:1;
+	unsigned int has_dig_in:1; /* Has digital input (always last input) */
 	unsigned int no_gpioirq:1;
-	unsigned int pll:2;
-#define PLL_NONE 0
-#define PLL_28   1
-#define PLL_35   2
 };
 
 extern struct tvcard bttv_tvcards[];

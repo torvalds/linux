@@ -329,7 +329,7 @@ struct bttv {
 	unsigned int cardid;   /* pci subsystem id (bt878 based ones) */
 	unsigned int tuner_type;  /* tuner chip type */
 	unsigned int tda9887_conf;
-	unsigned int svhs;
+	unsigned int svhs, dig;
 	struct bttv_pll_info pll;
 	int triton1;
 	int gpioirq;

@@ -633,8 +633,9 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs	= 3,
 		/* .audio_inputs= 1, */
 		.svhs		= NO_SVHS,
+		.has_dig_in	= 1,
 		.gpiomask	= 7,
-		.muxsel		= { 2, 3, -1 },
+		.muxsel		= { 2, 3, 0 }, /* input 2 is digital */
 		/* .digital_mode= DIGITAL_MODE_CAMERA, */
 		.gpiomux 	= { 0, 0, 0, 0 },
 		.no_msp34xx	= 1,
@@ -1069,8 +1070,9 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs	= 5,
 		/* .audio_inputs= 1, */
 		.svhs		= 3,
+		.has_dig_in	= 1,
 		.gpiomask	= 0xAA0000,
-		.muxsel		= { 2, 3, 1, 1, -1 },
+		.muxsel		= { 2, 3, 1, 1, 0 }, /* input 4 is digital */
 		/* .digital_mode= DIGITAL_MODE_CAMERA, */
 		.gpiomux 	= { 0x20000, 0, 0x80000, 0x80000 },
 		.gpiomute 	= 0xa8000,
@@ -2539,8 +2541,9 @@ struct tvcard bttv_tvcards[] = {
 		.video_inputs	= 5,
 		/* .audio_inputs= 1, */
 		.svhs		= 3,
+		.has_dig_in	= 1,
 		.gpiomask	= 0x01fe00,
-		.muxsel		= { 2, 3, 1, 1, -1 },
+		.muxsel		= { 2, 3, 1, 1, 0 }, /* in 4 is digital */
 		/* .digital_mode= DIGITAL_MODE_CAMERA, */
 		.gpiomux	= { 0x00400, 0x10400, 0x04400, 0x80000 },
 		.gpiomute	= 0x12400,
@@ -3417,6 +3420,8 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		bttv_call_i2c_clients(btv, TUNER_SET_CONFIG, &tda9887_cfg);
 	}
 
+	btv->dig = bttv_tvcards[btv->c.type].has_dig_in ?
+		   bttv_tvcards[btv->c.type].video_inputs - 1 : UNSET;
 	btv->svhs = bttv_tvcards[btv->c.type].svhs == NO_SVHS ?
 		    UNSET : bttv_tvcards[btv->c.type].svhs;
 	if (svhs[btv->c.nr] != UNSET)
