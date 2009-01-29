@@ -346,6 +346,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     sbirq	- IRQ # for CMI8330 chip (SB16)
     sbdma8	- 8bit DMA # for CMI8330 chip (SB16)
     sbdma16	- 16bit DMA # for CMI8330 chip (SB16)
+    fmport	- (optional) OPL3 I/O port
+    mpuport	- (optional) MPU401 I/O port
+    mpuirq	- (optional) MPU401 irq #
 
     This module supports multiple cards and autoprobe.
 
