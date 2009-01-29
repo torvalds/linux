@@ -3056,18 +3056,13 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 				 unsigned long prot)
 {
 	const struct cred *cred = current_cred();
-	int rc;
-
-	rc = secondary_ops->file_mprotect(vma, reqprot, prot);
-	if (rc)
-		return rc;
 
 	if (selinux_checkreqprot)
 		prot = reqprot;
 
 #ifndef CONFIG_PPC32
 	if ((prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
-		rc = 0;
+		int rc = 0;
 		if (vma->vm_start >= vma->vm_mm->start_brk &&
 		    vma->vm_end <= vma->vm_mm->brk) {
 			rc = cred_has_perm(cred, cred, PROCESS__EXECHEAP);
