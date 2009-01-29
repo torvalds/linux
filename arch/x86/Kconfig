@@ -262,6 +262,12 @@ config X86_MPPARSE
 	  For old smp systems that do not have proper acpi support. Newer systems
 	  (esp with 64bit cpus) with acpi support, MADT and DSDT will override it
 
+config X86_BIGSMP
+	bool "Support for big SMP systems with more than 8 CPUs"
+	depends on X86_32 && SMP
+	help
+	  This option is needed for the systems that have more than 8 CPUs
+
 config X86_NON_STANDARD
 	bool "Support for non-standard x86 platforms"
 	help
@@ -338,13 +344,6 @@ config X86_32_NON_STANDARD
 	  if you select them all, kernel will probe it one by one. and will
 	  fallback to default.
 
-config X86_BIGSMP
-	bool "Support for big SMP systems with more than 8 CPUs"
-	depends on X86_32_NON_STANDARD
-	help
-	  This option is needed for the systems that have more than 8 CPUs
-	  and if the system is not of any sub-arch type above.
-
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
 	depends on X86_32_NON_STANDARD
@@ -366,7 +365,7 @@ config X86_SUMMIT
 
 config X86_ES7000
 	bool "Support for Unisys ES7000 IA32 series"
-	depends on X86_32_NON_STANDARD
+	depends on X86_32_NON_STANDARD && X86_BIGSMP
 	help
 	  Support for Unisys ES7000 systems.  Say 'Y' here if this kernel is
 	  supposed to run on an IA32-based Unisys ES7000 system.

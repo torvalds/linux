@@ -372,8 +372,8 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 			(*x86_quirks->mpc_record)++;
 	}
 
-#ifdef CONFIG_X86_32_NON_STANDARD
-       generic_bigsmp_probe();
+#ifdef CONFIG_X86_BIGSMP
+	generic_bigsmp_probe();
 #endif
 
 	if (apic->setup_apic_routing)
