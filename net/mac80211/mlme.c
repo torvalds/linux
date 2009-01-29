@@ -2722,9 +2722,8 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 
 	if (sdata && sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		ifsta = &sdata->u.sta;
-		if (!(ifsta->flags & IEEE80211_STA_BSSID_SET) ||
-		    (!(ifsta->state == IEEE80211_STA_MLME_IBSS_JOINED) &&
-		    !ieee80211_sta_active_ibss(sdata)))
+		if ((!(ifsta->flags & IEEE80211_STA_PREV_BSSID_SET)) ||
+		    !ieee80211_sta_active_ibss(sdata))
 			ieee80211_sta_find_ibss(sdata, ifsta);
 	}
 
