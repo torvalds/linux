@@ -2681,11 +2681,6 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *na
 static int selinux_inode_permission(struct inode *inode, int mask)
 {
 	const struct cred *cred = current_cred();
-	int rc;
-
-	rc = secondary_ops->inode_permission(inode, mask);
-	if (rc)
-		return rc;
 
 	if (!mask) {
 		/* No permission to check.  Existence test. */
