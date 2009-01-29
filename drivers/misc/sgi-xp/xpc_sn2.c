@@ -1106,8 +1106,6 @@ xpc_process_activate_IRQ_rcvd_sn2(void)
 	int n_IRQs_expected;
 	int n_IRQs_detected;
 
-	DBUG_ON(xpc_activate_IRQ_rcvd == 0);
-
 	spin_lock_irqsave(&xpc_activate_IRQ_rcvd_lock, irq_flags);
 	n_IRQs_expected = xpc_activate_IRQ_rcvd;
 	xpc_activate_IRQ_rcvd = 0;
@@ -1726,6 +1724,7 @@ xpc_clear_local_msgqueue_flags_sn2(struct xpc_channel *ch)
 		msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->local_msgqueue +
 					     (get % ch->local_nentries) *
 					     ch->entry_size);
+		DBUG_ON(!(msg->flags & XPC_M_SN2_READY));
 		msg->flags = 0;
 	} while (++get < ch_sn2->remote_GP.get);
 }
@@ -1740,11 +1739,18 @@ xpc_clear_remote_msgqueue_flags_sn2(struct xpc_channel *ch)
 	struct xpc_msg_sn2 *msg;
 	s64 put;
 
-	put = ch_sn2->w_remote_GP.put;
+	/* flags are zeroed when the buffer is allocated */
+	if (ch_sn2->remote_GP.put < ch->remote_nentries)
+		return;
+
+	put = max(ch_sn2->w_remote_GP.put, ch->remote_nentries);
 	do {
 		msg = (struct xpc_msg_sn2 *)((u64)ch_sn2->remote_msgqueue +
 					     (put % ch->remote_nentries) *
 					     ch->entry_size);
+		DBUG_ON(!(msg->flags & XPC_M_SN2_READY));
+		DBUG_ON(!(msg->flags & XPC_M_SN2_DONE));
+		DBUG_ON(msg->number != put - ch->remote_nentries);
 		msg->flags = 0;
 	} while (++put < ch_sn2->remote_GP.put);
 }
@@ -2280,8 +2286,9 @@ xpc_received_payload_sn2(struct xpc_channel *ch, void *payload)
 	dev_dbg(xpc_chan, "msg=0x%p, msg_number=%ld, partid=%d, channel=%d\n",
 		(void *)msg, msg_number, ch->partid, ch->number);
 
-	DBUG_ON((((u64)msg - (u64)ch->remote_msgqueue) / ch->entry_size) !=
+	DBUG_ON((((u64)msg - (u64)ch->sn.sn2.remote_msgqueue) / ch->entry_size) !=
 		msg_number % ch->remote_nentries);
+	DBUG_ON(!(msg->flags & XPC_M_SN2_READY));
 	DBUG_ON(msg->flags & XPC_M_SN2_DONE);
 
 	msg->flags |= XPC_M_SN2_DONE;
