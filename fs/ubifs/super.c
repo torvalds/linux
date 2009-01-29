@@ -451,16 +451,6 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 		return 0;
 
 	/*
-	 * Synchronize write buffers, because 'ubifs_run_commit()' does not
-	 * do this if it waits for an already running commit.
-	 */
-	for (i = 0; i < c->jhead_cnt; i++) {
-		err = ubifs_wbuf_sync(&c->jheads[i].wbuf);
-		if (err)
-			return err;
-	}
-
-	/*
 	 * VFS calls '->sync_fs()' before synchronizing all dirty inodes and
 	 * pages, so synchronize them first, then commit the journal. Strictly
 	 * speaking, it is not necessary to commit the journal here,
@@ -470,6 +460,16 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 	 * they synchronize the file system.
 	 */
 	generic_sync_sb_inodes(sb, &wbc);
+
+	/*
+	 * Synchronize write buffers, because 'ubifs_run_commit()' does not
+	 * do this if it waits for an already running commit.
+	 */
+	for (i = 0; i < c->jhead_cnt; i++) {
+		err = ubifs_wbuf_sync(&c->jheads[i].wbuf);
+		if (err)
+			return err;
+	}
 
 	err = ubifs_run_commit(c);
 	if (err)
