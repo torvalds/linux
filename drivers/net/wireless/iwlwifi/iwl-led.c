@@ -352,7 +352,7 @@ int iwl_leds_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_radio_led_name(priv->hw);
 	snprintf(priv->led[IWL_LED_TRG_RADIO].name,
-		 sizeof(priv->led[IWL_LED_TRG_RADIO].name), "iwl-%s:radio",
+		 sizeof(priv->led[IWL_LED_TRG_RADIO].name), "iwl-%s::radio",
 		 wiphy_name(priv->hw->wiphy));
 
 	priv->led[IWL_LED_TRG_RADIO].led_on = iwl4965_led_on_reg;
@@ -366,7 +366,7 @@ int iwl_leds_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_assoc_led_name(priv->hw);
 	snprintf(priv->led[IWL_LED_TRG_ASSOC].name,
-		 sizeof(priv->led[IWL_LED_TRG_ASSOC].name), "iwl-%s:assoc",
+		 sizeof(priv->led[IWL_LED_TRG_ASSOC].name), "iwl-%s::assoc",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl_leds_register_led(priv, &priv->led[IWL_LED_TRG_ASSOC],
@@ -382,7 +382,7 @@ int iwl_leds_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_rx_led_name(priv->hw);
 	snprintf(priv->led[IWL_LED_TRG_RX].name,
-		 sizeof(priv->led[IWL_LED_TRG_RX].name), "iwl-%s:RX",
+		 sizeof(priv->led[IWL_LED_TRG_RX].name), "iwl-%s::RX",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl_leds_register_led(priv, &priv->led[IWL_LED_TRG_RX],
@@ -397,7 +397,7 @@ int iwl_leds_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_tx_led_name(priv->hw);
 	snprintf(priv->led[IWL_LED_TRG_TX].name,
-		 sizeof(priv->led[IWL_LED_TRG_TX].name), "iwl-%s:TX",
+		 sizeof(priv->led[IWL_LED_TRG_TX].name), "iwl-%s::TX",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl_leds_register_led(priv, &priv->led[IWL_LED_TRG_TX],
