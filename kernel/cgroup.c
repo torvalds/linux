@@ -2509,7 +2509,7 @@ static int cgroup_clear_css_refs(struct cgroup *cgrp)
 	for_each_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
 		int refcnt;
-		do {
+		while (1) {
 			/* We can only remove a CSS with a refcnt==1 */
 			refcnt = atomic_read(&css->refcnt);
 			if (refcnt > 1) {
@@ -2523,7 +2523,10 @@ static int cgroup_clear_css_refs(struct cgroup *cgrp)
 			 * css_tryget() to spin until we set the
 			 * CSS_REMOVED bits or abort
 			 */
-		} while (atomic_cmpxchg(&css->refcnt, refcnt, 0) != refcnt);
+			if (atomic_cmpxchg(&css->refcnt, refcnt, 0) == refcnt)
+				break;
+			cpu_relax();
+		}
 	}
  done:
 	for_each_subsys(cgrp->root, ss) {
