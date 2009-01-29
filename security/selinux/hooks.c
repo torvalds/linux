@@ -1892,6 +1892,16 @@ static int selinux_capset(struct cred *new, const struct cred *old,
 	return cred_has_perm(old, new, PROCESS__SETCAP);
 }
 
+/*
+ * (This comment used to live with the selinux_task_setuid hook,
+ * which was removed).
+ *
+ * Since setuid only affects the current process, and since the SELinux
+ * controls are not based on the Linux identity attributes, SELinux does not
+ * need to control this operation.  However, SELinux does control the use of
+ * the CAP_SETUID and CAP_SETGID capabilities using the capable hook.
+ */
+
 static int selinux_capable(struct task_struct *tsk, const struct cred *cred,
 			   int cap, int audit)
 {
@@ -2909,16 +2919,6 @@ static int selinux_inode_listsecurity(struct inode *inode, char *buffer, size_t 
 	return len;
 }
 
-static int selinux_inode_need_killpriv(struct dentry *dentry)
-{
-	return secondary_ops->inode_need_killpriv(dentry);
-}
-
-static int selinux_inode_killpriv(struct dentry *dentry)
-{
-	return secondary_ops->inode_killpriv(dentry);
-}
-
 static void selinux_inode_getsecid(const struct inode *inode, u32 *secid)
 {
 	struct inode_security_struct *isec = inode->i_security;
@@ -3288,29 +3288,6 @@ static int selinux_kernel_create_files_as(struct cred *new, struct inode *inode)
 	return 0;
 }
 
-static int selinux_task_setuid(uid_t id0, uid_t id1, uid_t id2, int flags)
-{
-	/* Since setuid only affects the current process, and
-	   since the SELinux controls are not based on the Linux
-	   identity attributes, SELinux does not need to control
-	   this operation.  However, SELinux does control the use
-	   of the CAP_SETUID and CAP_SETGID capabilities using the
-	   capable hook. */
-	return 0;
-}
-
-static int selinux_task_fix_setuid(struct cred *new, const struct cred *old,
-				   int flags)
-{
-	return secondary_ops->task_fix_setuid(new, old, flags);
-}
-
-static int selinux_task_setgid(gid_t id0, gid_t id1, gid_t id2, int flags)
-{
-	/* See the comment for setuid above. */
-	return 0;
-}
-
 static int selinux_task_setpgid(struct task_struct *p, pid_t pgid)
 {
 	return current_has_perm(p, PROCESS__SETPGID);
@@ -3329,12 +3306,6 @@ static int selinux_task_getsid(struct task_struct *p)
 static void selinux_task_getsecid(struct task_struct *p, u32 *secid)
 {
 	*secid = task_sid(p);
-}
-
-static int selinux_task_setgroups(struct group_info *group_info)
-{
-	/* See the comment for setuid above. */
-	return 0;
 }
 
 static int selinux_task_setnice(struct task_struct *p, int nice)
@@ -3415,18 +3386,6 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info,
 	else
 		rc = current_has_perm(p, perm);
 	return rc;
-}
-
-static int selinux_task_prctl(int option,
-			      unsigned long arg2,
-			      unsigned long arg3,
-			      unsigned long arg4,
-			      unsigned long arg5)
-{
-	/* The current prctl operations do not appear to require
-	   any SELinux controls since they merely observe or modify
-	   the state of the current process. */
-	return secondary_ops->task_prctl(option, arg2, arg3, arg4, arg5);
 }
 
 static int selinux_task_wait(struct task_struct *p)
@@ -5563,8 +5522,6 @@ static struct security_operations selinux_ops = {
 	.inode_getsecurity =		selinux_inode_getsecurity,
 	.inode_setsecurity =		selinux_inode_setsecurity,
 	.inode_listsecurity =		selinux_inode_listsecurity,
-	.inode_need_killpriv =		selinux_inode_need_killpriv,
-	.inode_killpriv =		selinux_inode_killpriv,
 	.inode_getsecid =		selinux_inode_getsecid,
 
 	.file_permission =		selinux_file_permission,
@@ -5586,14 +5543,10 @@ static struct security_operations selinux_ops = {
 	.cred_prepare =			selinux_cred_prepare,
 	.kernel_act_as =		selinux_kernel_act_as,
 	.kernel_create_files_as =	selinux_kernel_create_files_as,
-	.task_setuid =			selinux_task_setuid,
-	.task_fix_setuid =		selinux_task_fix_setuid,
-	.task_setgid =			selinux_task_setgid,
 	.task_setpgid =			selinux_task_setpgid,
 	.task_getpgid =			selinux_task_getpgid,
 	.task_getsid =			selinux_task_getsid,
 	.task_getsecid =		selinux_task_getsecid,
-	.task_setgroups =		selinux_task_setgroups,
 	.task_setnice =			selinux_task_setnice,
 	.task_setioprio =		selinux_task_setioprio,
 	.task_getioprio =		selinux_task_getioprio,
@@ -5603,7 +5556,6 @@ static struct security_operations selinux_ops = {
 	.task_movememory =		selinux_task_movememory,
 	.task_kill =			selinux_task_kill,
 	.task_wait =			selinux_task_wait,
-	.task_prctl =			selinux_task_prctl,
 	.task_to_inode =		selinux_task_to_inode,
 
 	.ipc_permission =		selinux_ipc_permission,
