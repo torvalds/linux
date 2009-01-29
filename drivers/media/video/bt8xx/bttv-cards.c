@@ -1516,8 +1516,7 @@ struct tvcard bttv_tvcards[] = {
 		.svhs           = NO_SVHS,
 		.gpiomask       = 0x00,
 		.gpiomask2      = 0x07ff,
-		.muxsel         = { 0x33, 0x13, 0x23, 0x43, 0xf3, 0x73, 0xe3, 0x03,
-				0xd3, 0xb3, 0xc3, 0x63, 0x93, 0x53, 0x83, 0xa3 },
+		.muxsel         = { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
 		.tuner_type     = TUNER_ABSENT,
@@ -4178,6 +4177,11 @@ void tea5757_set_freq(struct bttv *btv, unsigned short freq)
  */
 static void rv605_muxsel(struct bttv *btv, unsigned int input)
 {
+	static const u8 muxgpio[] = { 0x3, 0x1, 0x2, 0x4, 0xf, 0x7, 0xe, 0x0,
+				      0xd, 0xb, 0xc, 0x6, 0x9, 0x5, 0x8, 0xa };
+
+	gpio_bits(0x07f, muxgpio[input]);
+
 	/* reset all conections */
 	gpio_bits(0x200,0x200);
 	mdelay(1);
@@ -4185,7 +4189,6 @@ static void rv605_muxsel(struct bttv *btv, unsigned int input)
 	mdelay(1);
 
 	/* create a new connection */
-	gpio_bits(0x480,0x080);
 	gpio_bits(0x480,0x480);
 	mdelay(1);
 	gpio_bits(0x480,0x080);
