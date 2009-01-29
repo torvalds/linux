@@ -26,6 +26,8 @@
 #include <mach/irqs.h>
 #include <mach/hardware.h>
 
+#include "devices.h"
+
 static struct resource imx_csi_resources[] = {
 	[0] = {
 		.start  = 0x00224000,

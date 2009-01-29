@@ -25,6 +25,8 @@
 #include <mach/irqs.h>
 #include <mach/imx-uart.h>
 
+#include "devices.h"
+
 static struct resource uart0[] = {
 	{
 		.start = UART1_BASE_ADDR,
