@@ -462,7 +462,7 @@ struct bttv {
 /* our devices */
 #define BTTV_MAX 32
 extern unsigned int bttv_num;
-extern struct bttv bttvs[BTTV_MAX];
+extern struct bttv *bttvs[BTTV_MAX];
 
 static inline unsigned int bttv_muxsel(const struct bttv *btv,
 				       unsigned int input)

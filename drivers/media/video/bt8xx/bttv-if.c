@@ -47,7 +47,10 @@ struct pci_dev* bttv_get_pcidev(unsigned int card)
 {
 	if (card >= bttv_num)
 		return NULL;
-	return bttvs[card].c.pci;
+	if (!bttvs[card])
+		return NULL;
+
+	return bttvs[card]->c.pci;
 }
 
 
@@ -59,7 +62,10 @@ int bttv_gpio_enable(unsigned int card, unsigned long mask, unsigned long data)
 		return -EINVAL;
 	}
 
-	btv = &bttvs[card];
+	btv = bttvs[card];
+	if (!btv)
+		return -ENODEV;
+
 	gpio_inout(mask,data);
 	if (bttv_gpio)
 		bttv_gpio_tracking(btv,"extern enable");
@@ -74,7 +80,9 @@ int bttv_read_gpio(unsigned int card, unsigned long *data)
 		return -EINVAL;
 	}
 
-	btv = &bttvs[card];
+	btv = bttvs[card];
+	if (!btv)
+		return -ENODEV;
 
 	if(btv->shutdown) {
 		return -ENODEV;
@@ -94,7 +102,9 @@ int bttv_write_gpio(unsigned int card, unsigned long mask, unsigned long data)
 		return -EINVAL;
 	}
 
-	btv = &bttvs[card];
+	btv = bttvs[card];
+	if (!btv)
+		return -ENODEV;
 
 /* prior setting BT848_GPIO_REG_INP is (probably) not needed
    because direct input is set on init */

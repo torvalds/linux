@@ -58,7 +58,7 @@
 
 
 unsigned int bttv_num;			/* number of Bt848s in use */
-struct bttv bttvs[BTTV_MAX];
+struct bttv *bttvs[BTTV_MAX];
 
 unsigned int bttv_debug;
 unsigned int bttv_verbose = 1;
@@ -3217,29 +3217,19 @@ err:
 static int bttv_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
-	struct bttv *btv = NULL;
+	struct bttv *btv = video_drvdata(file);
 	struct bttv_fh *fh;
 	enum v4l2_buf_type type = 0;
-	unsigned int i;
 
 	dprintk(KERN_DEBUG "bttv: open minor=%d\n",minor);
 
 	lock_kernel();
-	for (i = 0; i < bttv_num; i++) {
-		if (bttvs[i].video_dev &&
-		    bttvs[i].video_dev->minor == minor) {
-			btv = &bttvs[i];
-			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			break;
-		}
-		if (bttvs[i].vbi_dev &&
-		    bttvs[i].vbi_dev->minor == minor) {
-			btv = &bttvs[i];
-			type = V4L2_BUF_TYPE_VBI_CAPTURE;
-			break;
-		}
-	}
-	if (NULL == btv) {
+	if (btv->video_dev->minor == minor) {
+		type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	} else if (btv->vbi_dev->minor == minor) {
+		type = V4L2_BUF_TYPE_VBI_CAPTURE;
+	} else {
+		WARN_ON(1);
 		unlock_kernel();
 		return -ENODEV;
 	}
@@ -3429,20 +3419,14 @@ static struct video_device bttv_video_template = {
 static int radio_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
-	struct bttv *btv = NULL;
+	struct bttv *btv = video_drvdata(file);
 	struct bttv_fh *fh;
-	unsigned int i;
 
 	dprintk("bttv: open minor=%d\n",minor);
 
 	lock_kernel();
-	for (i = 0; i < bttv_num; i++) {
-		if (bttvs[i].radio_dev && bttvs[i].radio_dev->minor == minor) {
-			btv = &bttvs[i];
-			break;
-		}
-	}
-	if (NULL == btv) {
+	WARN_ON(btv->radio_dev && btv->radio_dev->minor != minor);
+	if (!btv->radio_dev || btv->radio_dev->minor != minor) {
 		unlock_kernel();
 		return -ENODEV;
 	}
@@ -4203,6 +4187,7 @@ static struct video_device *vdev_init(struct bttv *btv,
 	vfd->parent  = &btv->c.pci->dev;
 	vfd->release = video_device_release;
 	vfd->debug   = bttv_debug;
+	video_set_drvdata(vfd, btv);
 	snprintf(vfd->name, sizeof(vfd->name), "BT%d%s %s (%s)",
 		 btv->id, (btv->id==848 && btv->revision==0x12) ? "A" : "",
 		 type_name, bttv_tvcards[btv->c.type].name);
@@ -4312,8 +4297,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	if (bttv_num == BTTV_MAX)
 		return -ENOMEM;
 	printk(KERN_INFO "bttv: Bt8xx card found (%d).\n", bttv_num);
-	btv=&bttvs[bttv_num];
-	memset(btv,0,sizeof(*btv));
+	bttvs[bttv_num] = btv = kzalloc(sizeof(*btv), GFP_KERNEL);
 	btv->c.nr  = bttv_num;
 	sprintf(btv->c.name,"bttv%d",btv->c.nr);
 
@@ -4517,6 +4501,9 @@ static void __devexit bttv_remove(struct pci_dev *pci_dev)
 			   pci_resource_len(btv->c.pci,0));
 
 	pci_set_drvdata(pci_dev, NULL);
+	bttvs[btv->c.nr] = NULL;
+	kfree(btv);
+
 	return;
 }
 
