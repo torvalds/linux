@@ -957,13 +957,16 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 
 		token = match_token(p, tokens, args);
 		switch (token) {
+		/*
+		 * %Opt_fast_unmount and %Opt_norm_unmount options are ignored.
+		 * We accepte them in order to be backware-compatible. But this
+		 * should be removed at some point.
+		 */
 		case Opt_fast_unmount:
 			c->mount_opts.unmount_mode = 2;
-			c->fast_unmount = 1;
 			break;
 		case Opt_norm_unmount:
 			c->mount_opts.unmount_mode = 1;
-			c->fast_unmount = 0;
 			break;
 		case Opt_bulk_read:
 			c->mount_opts.bulk_read = 2;
@@ -1359,7 +1362,6 @@ static int mount_ubifs(struct ubifs_info *c)
 	       c->uuid[4], c->uuid[5], c->uuid[6], c->uuid[7],
 	       c->uuid[8], c->uuid[9], c->uuid[10], c->uuid[11],
 	       c->uuid[12], c->uuid[13], c->uuid[14], c->uuid[15]);
-	dbg_msg("fast unmount:        %d", c->fast_unmount);
 	dbg_msg("big_lpt              %d", c->big_lpt);
 	dbg_msg("log LEBs:            %d (%d - %d)",
 		c->log_lebs, UBIFS_LOG_LNUM, c->log_last);
@@ -1616,38 +1618,6 @@ out:
 }
 
 /**
- * commit_on_unmount - commit the journal when un-mounting.
- * @c: UBIFS file-system description object
- *
- * This function is called during un-mounting and re-mounting, and it commits
- * the journal unless the "fast unmount" mode is enabled.
- */
-static void commit_on_unmount(struct ubifs_info *c)
-{
-	long long bud_bytes;
-
-	if (!c->fast_unmount) {
-		dbg_gen("skip committing - fast unmount enabled");
-		return;
-	}
-
-	/*
-	 * This function is called before the background thread is stopped, so
-	 * we may race with ongoing commit, which means we have to take
-	 * @c->bud_lock to access @c->bud_bytes.
-	 */
-	spin_lock(&c->buds_lock);
-	bud_bytes = c->bud_bytes;
-	spin_unlock(&c->buds_lock);
-
-	if (bud_bytes) {
-		dbg_gen("run commit");
-		ubifs_run_commit(c);
-	} else
-		dbg_gen("journal is empty, do not run commit");
-}
-
-/**
  * ubifs_remount_ro - re-mount in read-only mode.
  * @c: UBIFS file-system description object
  *
@@ -1661,7 +1631,6 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	ubifs_assert(!c->need_recovery);
 	ubifs_assert(!(c->vfs_sb->s_flags & MS_RDONLY));
 
-	commit_on_unmount(c);
 	mutex_lock(&c->umount_mutex);
 	if (c->bgt) {
 		kthread_stop(c->bgt);
@@ -2077,15 +2046,6 @@ out_close:
 
 static void ubifs_kill_sb(struct super_block *sb)
 {
-	struct ubifs_info *c = sb->s_fs_info;
-
-	/*
-	 * We do 'commit_on_unmount()' here instead of 'ubifs_put_super()'
-	 * in order to be outside BKL.
-	 */
-	if (sb->s_root && !(sb->s_flags & MS_RDONLY))
-		commit_on_unmount(c);
-	/* The un-mount routine is actually done in put_super() */
 	generic_shutdown_super(sb);
 }
 
