@@ -192,10 +192,6 @@
 #define WINVIEW_PT2254_DATA 0x20
 #define WINVIEW_PT2254_STROBE 0x80
 
-/* digital_mode */
-#define DIGITAL_MODE_VIDEO 1
-#define DIGITAL_MODE_CAMERA 2
-
 struct bttv_core {
 	/* device structs */
 	struct pci_dev       *pci;
@@ -211,18 +207,23 @@ struct bttv_core {
 struct bttv;
 
 
-struct tvcard
-{
+struct tvcard {
 	char *name;
-	unsigned int video_inputs;
-	unsigned int audio_inputs;
-	unsigned int svhs;
-	unsigned int digital_mode; // DIGITAL_MODE_CAMERA or DIGITAL_MODE_VIDEO
+	void (*volume_gpio)(struct bttv *btv, __u16 volume);
+	void (*audio_mode_gpio)(struct bttv *btv, struct v4l2_tuner *tuner, int set);
+	void (*muxsel_hook)(struct bttv *btv, unsigned int input);
+
 	u32 gpiomask;
 	u32 muxsel[16];
 	u32 gpiomux[4];  /* Tuner, Radio, external, internal */
 	u32 gpiomute;    /* GPIO mute setting */
 	u32 gpiomask2;   /* GPIO MUX mask */
+
+	unsigned int tuner_type;
+	u8 tuner_addr;
+	u8 video_inputs;	/* Number of inputs */
+	unsigned int svhs:4;	/* Which input is s-video */
+#define NO_SVHS	15
 
 	/* i2c audio flags */
 	unsigned int no_msp34xx:1;
@@ -231,28 +232,15 @@ struct tvcard
 	unsigned int needs_tvaudio:1;
 	unsigned int msp34xx_alt:1;
 
-	/* flag: video pci function is unused */
-	unsigned int no_video:1;
+	unsigned int no_video:1; /* video pci function is unused */
 	unsigned int has_dvb:1;
 	unsigned int has_remote:1;
+	unsigned int has_radio:1;
 	unsigned int no_gpioirq:1;
-
-	/* other settings */
-	unsigned int pll;
+	unsigned int pll:2;
 #define PLL_NONE 0
 #define PLL_28   1
 #define PLL_35   2
-
-	unsigned int tuner_type;
-	unsigned int tuner_addr;
-	unsigned int radio_addr;
-
-	unsigned int has_radio;
-
-	void (*volume_gpio)(struct bttv *btv, __u16 volume);
-	void (*audio_mode_gpio)(struct bttv *btv, struct v4l2_tuner *tuner, int set);
-
-	void (*muxsel_hook)(struct bttv *btv, unsigned int input);
 };
 
 extern struct tvcard bttv_tvcards[];
