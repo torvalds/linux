@@ -186,19 +186,22 @@ static int sfn4111t_reset(struct efx_nic *efx)
 {
 	efx_oword_t reg;
 
-	/* GPIO pins are also used for I2C, so block that temporarily */
+	/* GPIO 3 and the GPIO register are shared with I2C, so block that */
 	mutex_lock(&efx->i2c_adap.bus_lock);
 
+	/* Pull RST_N (GPIO 2) low then let it up again, setting the
+	 * FLASH_CFG_1 strap (GPIO 3) appropriately.  Only change the
+	 * output enables; the output levels should always be 0 (low)
+	 * and we rely on external pull-ups. */
 	falcon_read(efx, &reg, GPIO_CTL_REG_KER);
 	EFX_SET_OWORD_FIELD(reg, GPIO2_OEN, true);
-	EFX_SET_OWORD_FIELD(reg, GPIO2_OUT, false);
 	falcon_write(efx, &reg, GPIO_CTL_REG_KER);
 	msleep(1000);
-	EFX_SET_OWORD_FIELD(reg, GPIO2_OUT, true);
-	EFX_SET_OWORD_FIELD(reg, GPIO3_OEN, true);
-	EFX_SET_OWORD_FIELD(reg, GPIO3_OUT,
-			    !(efx->phy_mode & PHY_MODE_SPECIAL));
+	EFX_SET_OWORD_FIELD(reg, GPIO2_OEN, false);
+	EFX_SET_OWORD_FIELD(reg, GPIO3_OEN,
+			    !!(efx->phy_mode & PHY_MODE_SPECIAL));
 	falcon_write(efx, &reg, GPIO_CTL_REG_KER);
+	msleep(1);
 
 	mutex_unlock(&efx->i2c_adap.bus_lock);
 
