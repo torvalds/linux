@@ -6924,18 +6924,21 @@ static void alc882_auto_init_analog_input(struct hda_codec *codec)
 static void alc882_auto_init_input_src(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	const struct hda_input_mux *imux = spec->input_mux;
 	int c;
 
 	for (c = 0; c < spec->num_adc_nids; c++) {
 		hda_nid_t conn_list[HDA_MAX_NUM_INPUTS];
 		hda_nid_t nid = spec->capsrc_nids[c];
+		unsigned int mux_idx;
+		const struct hda_input_mux *imux;
 		int conns, mute, idx, item;
 
 		conns = snd_hda_get_connections(codec, nid, conn_list,
 						ARRAY_SIZE(conn_list));
 		if (conns < 0)
 			continue;
+		mux_idx = c >= spec->num_mux_defs ? 0 : c;
+		imux = &spec->input_mux[mux_idx];
 		for (idx = 0; idx < conns; idx++) {
 			/* if the current connection is the selected one,
 			 * unmute it as default - otherwise mute it
@@ -6948,8 +6951,20 @@ static void alc882_auto_init_input_src(struct hda_codec *codec)
 					break;
 				}
 			}
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_AMP_GAIN_MUTE, mute);
+			/* check if we have a selector or mixer
+			 * we could check for the widget type instead, but
+			 * just check for Amp-In presence (in case of mixer
+			 * without amp-in there is something wrong, this
+			 * function shouldn't be used or capsrc nid is wrong)
+			 */
+			if (get_wcaps(codec, nid) & AC_WCAP_IN_AMP)
+				snd_hda_codec_write(codec, nid, 0,
+						    AC_VERB_SET_AMP_GAIN_MUTE,
+						    mute);
+			else if (mute != AMP_IN_MUTE(idx))
+				snd_hda_codec_write(codec, nid, 0,
+						    AC_VERB_SET_CONNECT_SEL,
+						    idx);
 		}
 	}
 }
