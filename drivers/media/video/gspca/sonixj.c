@@ -46,7 +46,7 @@ struct sd {
 	u8 red;
 	u8 gamma;
 	u8 vflip;			/* ov7630 only */
-	u8 infrared;			/* mi0360 only */
+	u8 infrared;			/* mt9v111 only */
 
 	s8 ag_cnt;
 #define AG_CNT_START 13
@@ -61,10 +61,11 @@ struct sd {
 #define SENSOR_HV7131R 0
 #define SENSOR_MI0360 1
 #define SENSOR_MO4000 2
-#define SENSOR_OM6802 3
-#define SENSOR_OV7630 4
-#define SENSOR_OV7648 5
-#define SENSOR_OV7660 6
+#define SENSOR_MT9V111 3
+#define SENSOR_OM6802 4
+#define SENSOR_OV7630 5
+#define SENSOR_OV7648 6
+#define SENSOR_OV7660 7
 	u8 i2c_base;
 };
 
@@ -206,7 +207,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setvflip,
 	    .get = sd_getvflip,
 	},
-/* mi0360 only */
+/* mt9v111 only */
 #define INFRARED_IDX 7
 	{
 	    {
@@ -228,18 +229,20 @@ static struct ctrl sd_ctrls[] = {
 static __u32 ctrl_dis[] = {
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
 						/* SENSOR_HV7131R 0 */
-	(1 << VFLIP_IDX),
+	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
 						/* SENSOR_MI0360 1 */
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
 						/* SENSOR_MO4000 2 */
+	(1 << AUTOGAIN_IDX),
+						/* SENSOR_MT9V111 3 */
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
-						/* SENSOR_OM6802 3 */
+						/* SENSOR_OM6802 4 */
 	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX),
-						/* SENSOR_OV7630 4 */
+						/* SENSOR_OV7630 5 */
 	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX),
-						/* SENSOR_OV7648 5 */
+						/* SENSOR_OV7648 6 */
 	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX),
-						/* SENSOR_OV7660 6 */
+						/* SENSOR_OV7660 7 */
 };
 
 static const struct v4l2_pix_format vga_mode[] = {
@@ -294,6 +297,17 @@ static const u8 sn_mo4000[0x1c] = {
 	0x08,	0x00,	0x00,	0x00
 };
 
+static const u8 sn_mt9v111[0x1c] = {
+/*	reg0	reg1	reg2	reg3	reg4	reg5	reg6	reg7 */
+	0x00,	0x61,	0x40,	0x00,	0x1a,	0x20,	0x20,	0x20,
+/*	reg8	reg9	rega	regb	regc	regd	rege	regf */
+	0x81,	0x5c,	0x07,	0x00,	0x00,	0x00,	0x00,	0x00,
+/*	reg10	reg11	reg12	reg13	reg14	reg15	reg16	reg17 */
+	0x03,	0x00,	0x00,	0x02,	0x1c,	0x28,	0x1e,	0x40,
+/*	reg18	reg19	reg1a	reg1b */
+	0x06,	0x00,	0x00,	0x00
+};
+
 static const u8 sn_om6802[0x1c] = {
 /*	reg0	reg1	reg2	reg3	reg4	reg5	reg6	reg7 */
 	0x00,	0x23,	0x72,	0x00,	0x1a,	0x34,	0x27,	0x20,
@@ -343,6 +357,7 @@ static const u8 *sn_tb[] = {
 	sn_hv7131,
 	sn_mi0360,
 	sn_mo4000,
+	sn_mt9v111,
 	sn_om6802,
 	sn_ov7630,
 	sn_ov7648,
@@ -396,7 +411,7 @@ static const u8 hv7131r_sensor_init[][8] = {
 static const u8 mi0360_sensor_init[][8] = {
 	{0xb1, 0x5d, 0x07, 0x00, 0x02, 0x00, 0x00, 0x10},
 	{0xb1, 0x5d, 0x0d, 0x00, 0x01, 0x00, 0x00, 0x10},
-	{0xb1, 0x5d, 0x0D, 0x00, 0x00, 0x00, 0x00, 0x10},
+	{0xb1, 0x5d, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xd1, 0x5d, 0x01, 0x00, 0x08, 0x00, 0x16, 0x10},
 	{0xd1, 0x5d, 0x03, 0x01, 0xe2, 0x02, 0x82, 0x10},
 	{0xd1, 0x5d, 0x05, 0x00, 0x09, 0x00, 0x53, 0x10},
@@ -468,6 +483,38 @@ static const u8 mo4000_sensor_init[][8] = {
 	{0xa1, 0x21, 0x10, 0x20, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x11, 0x38, 0x00, 0x00, 0x00, 0x10},
+	{}
+};
+static const u8 mt9v111_sensor_init[][8] = {
+	{0xb1, 0x5c, 0x0d, 0x00, 0x01, 0x00, 0x00, 0x10}, /* reset? */
+	/* delay 20 ms */
+	{0xb1, 0x5c, 0x0d, 0x00, 0x00, 0x00, 0x00, 0x10},
+	{0xb1, 0x5c, 0x01, 0x00, 0x01, 0x00, 0x00, 0x10}, /* IFP select */
+	{0xb1, 0x5c, 0x08, 0x04, 0x80, 0x00, 0x00, 0x10}, /* output fmt ctrl */
+	{0xb1, 0x5c, 0x06, 0x00, 0x00, 0x00, 0x00, 0x10}, /* op mode ctrl */
+	{0xb1, 0x5c, 0x01, 0x00, 0x04, 0x00, 0x00, 0x10}, /* sensor select */
+	{0xb1, 0x5c, 0x08, 0x00, 0x08, 0x00, 0x00, 0x10}, /* row start */
+	{0xb1, 0x5c, 0x02, 0x00, 0x16, 0x00, 0x00, 0x10}, /* col start */
+	{0xb1, 0x5c, 0x03, 0x01, 0xe7, 0x00, 0x00, 0x10}, /* window height */
+	{0xb1, 0x5c, 0x04, 0x02, 0x87, 0x00, 0x00, 0x10}, /* window width */
+	{0xb1, 0x5c, 0x07, 0x30, 0x02, 0x00, 0x00, 0x10}, /* output ctrl */
+	{0xb1, 0x5c, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x10}, /* shutter delay */
+	{0xb1, 0x5c, 0x12, 0x00, 0xb0, 0x00, 0x00, 0x10}, /* zoom col start */
+	{0xb1, 0x5c, 0x13, 0x00, 0x7c, 0x00, 0x00, 0x10}, /* zoom row start */
+	{0xb1, 0x5c, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x10}, /* digital zoom */
+	{0xb1, 0x5c, 0x20, 0x00, 0x00, 0x00, 0x00, 0x10}, /* read mode */
+	{0xb1, 0x5c, 0x20, 0x00, 0x00, 0x00, 0x00, 0x10},
+	/*******/
+	{0xb1, 0x5c, 0x20, 0x00, 0x00, 0x00, 0x00, 0x10},
+	{0xb1, 0x5c, 0x20, 0x00, 0x00, 0x00, 0x00, 0x10},
+	{0xb1, 0x5c, 0x09, 0x00, 0x64, 0x00, 0x00, 0x10}, /* shutter width */
+	{0xd1, 0x5c, 0x2b, 0x00, 0x33, 0x00, 0xa0, 0x10}, /* green1 gain */
+	{0xd1, 0x5c, 0x2d, 0x00, 0xa0, 0x00, 0x33, 0x10}, /* red gain */
+	/*******/
+	{0xb1, 0x5c, 0x06, 0x00, 0x1e, 0x00, 0x00, 0x10}, /* vert blanking */
+	{0xb1, 0x5c, 0x05, 0x00, 0x0a, 0x00, 0x00, 0x10}, /* horiz blanking */
+	{0xd1, 0x5c, 0x2c, 0x00, 0xad, 0x00, 0xad, 0x10}, /* blue gain */
+	{0xb1, 0x5c, 0x35, 0x01, 0xc0, 0x00, 0x00, 0x10}, /* global gain */
 	{}
 };
 static const u8 om6802_sensor_init[][8] = {
@@ -736,7 +783,7 @@ static void reg_w1(struct gspca_dev *gspca_dev,
 		   u16 value,
 		   u8 data)
 {
-	PDEBUG(D_USBO, "reg_w1 [%02x] = %02x", value, data);
+	PDEBUG(D_USBO, "reg_w1 [%04x] = %02x", value, data);
 	gspca_dev->usb_buf[0] = data;
 	usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
@@ -752,7 +799,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			  const u8 *buffer,
 			  int len)
 {
-	PDEBUG(D_USBO, "reg_w [%02x] = %02x %02x ..",
+	PDEBUG(D_USBO, "reg_w [%04x] = %02x %02x ..",
 		value, buffer[0], buffer[1]);
 #ifdef GSPCA_DEBUG
 	if (len > USB_BUF_SZ) {
@@ -832,7 +879,7 @@ static void i2c_r5(struct gspca_dev *gspca_dev, u8 reg)
 	reg_r(gspca_dev, 0x0a, 5);
 }
 
-static int probesensor(struct gspca_dev *gspca_dev)
+static int hv7131r_probe(struct gspca_dev *gspca_dev)
 {
 	i2c_w1(gspca_dev, 0x02, 0);			/* sensor wakeup */
 	msleep(10);
@@ -852,6 +899,52 @@ static int probesensor(struct gspca_dev *gspca_dev)
 		gspca_dev->usb_buf[2]);
 	PDEBUG(D_PROBE, "Sensor sn9c102P Not found");
 	return -ENODEV;
+}
+
+static int mi0360_probe(struct gspca_dev *gspca_dev)
+{
+	int i, j;
+	u16 val;
+	static const u8 probe_tb[][4][8] = {
+	    {
+		{0xb0, 0x5d, 0x07, 0x00, 0x02, 0x00, 0x00, 0x10},
+		{0x90, 0x5d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
+		{0xa2, 0x5d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
+		{0xb0, 0x5d, 0x07, 0x00, 0x00, 0x00, 0x00, 0x10}
+	    },
+	    {
+		{0xb0, 0x5c, 0x01, 0x00, 0x04, 0x00, 0x00, 0x10},
+		{0x90, 0x5c, 0x36, 0x00, 0x00, 0x00, 0x00, 0x10},
+		{0xa2, 0x5c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
+		{}
+	    },
+	};
+
+	for (i = 0; i < ARRAY_SIZE(probe_tb); i++) {
+		reg_w1(gspca_dev, 0x17, 0x62);
+		reg_w1(gspca_dev, 0x01, 0x08);
+		for (j = 0; j < 3; j++)
+			i2c_w8(gspca_dev, probe_tb[i][j]);
+		msleep(2);
+		reg_r(gspca_dev, 0x0a, 5);
+		val = (gspca_dev->usb_buf[3] << 8) | gspca_dev->usb_buf[4];
+		if (probe_tb[i][3][0] != 0)
+			i2c_w8(gspca_dev, probe_tb[i][3]);
+		reg_w1(gspca_dev, 0x01, 0x29);
+		reg_w1(gspca_dev, 0x17, 0x42);
+		if (val != 0xffff)
+			break;
+	}
+	switch (val) {
+	case 0x823a:
+		PDEBUG(D_PROBE, "Sensor mt9v111");
+		return SENSOR_MT9V111;
+	case 0x8243:
+		PDEBUG(D_PROBE, "Sensor mi0360");
+		return SENSOR_MI0360;
+	}
+	PDEBUG(D_PROBE, "Unknown sensor %04x - forced to mi0360", val);
+	return SENSOR_MI0360;
 }
 
 static int configure_gpio(struct gspca_dev *gspca_dev,
@@ -887,6 +980,12 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 	reg_w(gspca_dev, 0x03, &sn9c1xx[3], 0x0f);
 
 	switch (sd->sensor) {
+	case SENSOR_MT9V111:
+		reg_w1(gspca_dev, 0x01, 0x61);
+		reg_w1(gspca_dev, 0x17, 0x61);
+		reg_w1(gspca_dev, 0x01, 0x60);
+		reg_w1(gspca_dev, 0x01, 0x40);
+		break;
 	case SENSOR_OM6802:
 		reg_w1(gspca_dev, 0x02, 0x71);
 		reg_w1(gspca_dev, 0x01, 0x42);
@@ -920,7 +1019,7 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 		reg_w1(gspca_dev, 0x17, 0x61);
 		reg_w1(gspca_dev, 0x01, 0x42);
 		if (sd->sensor == SENSOR_HV7131R) {
-			if (probesensor(gspca_dev) < 0)
+			if (hv7131r_probe(gspca_dev) < 0)
 				return -ENODEV;
 		}
 		break;
@@ -957,6 +1056,19 @@ static void mo4000_InitSensor(struct gspca_dev *gspca_dev)
 
 	while (mo4000_sensor_init[i][0]) {
 		i2c_w8(gspca_dev, mo4000_sensor_init[i]);
+		i++;
+	}
+}
+
+static void mt9v111_InitSensor(struct gspca_dev *gspca_dev)
+{
+	int i = 0;
+
+	i2c_w8(gspca_dev, mt9v111_sensor_init[i]);
+	i++;
+	msleep(20);
+	while (mt9v111_sensor_init[i][0]) {
+		i2c_w8(gspca_dev, mt9v111_sensor_init[i]);
 		i++;
 	}
 }
@@ -1078,11 +1190,21 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	case BRIDGE_SN9C105:
 		if (regF1 != 0x11)
 			return -ENODEV;
+		if (sd->sensor == SENSOR_MI0360) {
+			sd->sensor = mi0360_probe(gspca_dev);
+			if (sd->sensor == SENSOR_MT9V111)
+				sd->i2c_base = 0x5c;
+		}
 		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	case BRIDGE_SN9C120:
 		if (regF1 != 0x12)
 			return -ENODEV;
+		if (sd->sensor == SENSOR_MI0360) {
+			sd->sensor = mi0360_probe(gspca_dev);
+			if (sd->sensor == SENSOR_MT9V111)
+				sd->i2c_base = 0x5c;
+		}
 		regGpio[1] = 0x70;
 		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
@@ -1117,7 +1239,7 @@ static u32 setexposure(struct gspca_dev *gspca_dev,
 		break;
 	    }
 	case SENSOR_MI0360: {
-		u8 expoMi[] =	 /* exposure 0x0635 -> 4 fp/s 0x10 */
+		u8 expoMi[] =		/* exposure 0x0635 -> 4 fp/s 0x10 */
 			{ 0xb1, 0x5d, 0x09, 0x06, 0x35, 0x00, 0x00, 0x16 };
 		static const u8 doit[] =		/* update sensor */
 			{ 0xb1, 0x5d, 0x07, 0x00, 0x03, 0x00, 0x00, 0x10 };
@@ -1153,10 +1275,23 @@ static u32 setexposure(struct gspca_dev *gspca_dev,
 				| ((expo & 0x0003) << 4);
 		i2c_w8(gspca_dev, expoMo10);
 		i2c_w8(gspca_dev, gainMo);
-		PDEBUG(D_CONF, "set exposure %d",
+		PDEBUG(D_FRAM, "set exposure %d",
 			((expoMo10[3] & 0x07) << 10)
 			| (expoMof[3] << 2)
 			| ((expoMo10[3] & 0x30) >> 4));
+		break;
+	    }
+	case SENSOR_MT9V111: {
+		u8 expo_c1[] =
+			{ 0xb1, 0x5c, 0x09, 0x00, 0x00, 0x00, 0x00, 0x10 };
+
+		if (expo > 0x0280)
+			expo = 0x0280;
+		else if (expo < 0x0040)
+			expo = 0x0040;
+		expo_c1[3] = expo >> 8;
+		expo_c1[4] = expo;
+		i2c_w8(gspca_dev, expo_c1);
 		break;
 	    }
 	case SENSOR_OM6802: {
@@ -1170,7 +1305,7 @@ static u32 setexposure(struct gspca_dev *gspca_dev,
 		gainOm[3] = expo >> 2;
 		i2c_w8(gspca_dev, gainOm);
 		reg_w1(gspca_dev, 0x96, (expo >> 5) & 0x1f);
-		PDEBUG(D_CONF, "set exposure %d", gainOm[3]);
+		PDEBUG(D_FRAM, "set exposure %d", gainOm[3]);
 		break;
 	    }
 	}
@@ -1198,6 +1333,10 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		expo = sd->brightness >> 4;
 		sd->exposure = setexposure(gspca_dev, expo);
 		break;
+	case SENSOR_MT9V111:
+		expo = sd->brightness >> 8;
+		sd->exposure = setexposure(gspca_dev, expo);
+		break;
 	case SENSOR_OM6802:
 		expo = sd->brightness >> 6;
 		sd->exposure = setexposure(gspca_dev, expo);
@@ -1205,7 +1344,8 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	reg_w1(gspca_dev, 0x96, k2);		/* color matrix Y offset */
+	if (sd->sensor != SENSOR_MT9V111)
+		reg_w1(gspca_dev, 0x96, k2);	/* color matrix Y offset */
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
@@ -1322,6 +1462,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0xc9, 0x3c);
 	reg_w1(gspca_dev, 0x18, sn9c1xx[0x18]);
 	switch (sd->sensor) {
+	case SENSOR_MT9V111:
+		reg17 = 0xe0;
+		break;
 	case SENSOR_OV7630:
 		reg17 = 0xe2;
 		break;
@@ -1349,6 +1492,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	for (i = 0; i < 8; i++)
 		reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
 	switch (sd->sensor) {
+	case SENSOR_MT9V111:
+		reg_w1(gspca_dev, 0x9a, 0x07);
+		reg_w1(gspca_dev, 0x99, 0x59);
+		break;
 	case SENSOR_OV7648:
 		reg_w1(gspca_dev, 0x9a, 0x0a);
 		reg_w1(gspca_dev, 0x99, 0x60);
@@ -1388,6 +1535,14 @@ static int sd_start(struct gspca_dev *gspca_dev)
 /*			reg1 = 0x06;	 * 640 clk 24Mz (done) */
 		}
 		break;
+	case SENSOR_MT9V111:
+		mt9v111_InitSensor(gspca_dev);
+		if (mode) {
+			reg1 = 0x04;	/* 320 clk 48Mhz */
+		} else {
+/*			reg1 = 0x06;	 * 640 clk 24Mz (done) */
+			reg17 = 0xe2;
+		}
 	case SENSOR_OM6802:
 		om6802_InitSensor(gspca_dev);
 		reg17 = 0x64;		/* 640 MCKSIZE */
@@ -1436,17 +1591,14 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg18 = sn9c1xx[0x18] | (mode << 4);
 	reg_w1(gspca_dev, 0x18, reg18 | 0x40);
 
-	reg_w(gspca_dev, 0x100, qtable4, 0x40);
-	reg_w(gspca_dev, 0x140, qtable4 + 0x40, 0x40);
+	reg_w(gspca_dev, 0x0100, qtable4, 0x40);
+	reg_w(gspca_dev, 0x0140, qtable4 + 0x40, 0x40);
 
 	reg_w1(gspca_dev, 0x18, reg18);
 
 	reg_w1(gspca_dev, 0x17, reg17);
 	reg_w1(gspca_dev, 0x01, reg1);
 	switch (sd->sensor) {
-	case SENSOR_MI0360:
-		setinfrared(sd);
-		break;
 	case SENSOR_OV7630:
 		setvflip(sd);
 		break;
@@ -1482,6 +1634,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	case SENSOR_OV7648:
 		i2c_w8(gspca_dev, stopov7648);
 		/* fall thru */
+	case SENSOR_MT9V111:
 	case SENSOR_OV7630:
 		data = 0x29;
 		break;
@@ -1529,6 +1682,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 		default:
 /*		case SENSOR_MO4000: */
 /*		case SENSOR_MI0360: */
+/*		case SENSOR_MT9V111: */
 /*		case SENSOR_OM6802: */
 			expotimes = sd->exposure;
 			expotimes += (luma_mean - delta) >> 6;
@@ -1785,7 +1939,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 /*	{USB_DEVICE(0x0c45, 0x607a), BSI(SN9C102P, OV7648, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x607c), BSI(SN9C102P, HV7131R, 0x11)},
 /*	{USB_DEVICE(0x0c45, 0x607e), BSI(SN9C102P, OV7630, 0x??)}, */
-	{USB_DEVICE(0x0c45, 0x60c0), BSI(SN9C105, MI0360, 0x5d)},
+	{USB_DEVICE(0x0c45, 0x60c0), BSI(SN9C105, MT9V111, 0x5c)},
 /*	{USB_DEVICE(0x0c45, 0x60c8), BSI(SN9C105, OM6801, 0x??)}, */
 /*	{USB_DEVICE(0x0c45, 0x60cc), BSI(SN9C105, HV7131GP, 0x??)}, */
 	{USB_DEVICE(0x0c45, 0x60ec), BSI(SN9C105, MO4000, 0x21)},
