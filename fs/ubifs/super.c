@@ -1687,10 +1687,6 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	if (err)
 		ubifs_ro_mode(c, err);
 
-	err = ubifs_destroy_idx_gc(c);
-	if (err)
-		ubifs_ro_mode(c, err);
-
 	free_wbufs(c);
 	vfree(c->orph_buf);
 	c->orph_buf = NULL;
@@ -1793,15 +1789,19 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 
 	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
 		if (c->ro_media) {
-			ubifs_msg("cannot re-mount R/W, UBIFS is working in "
-				  "R/O mode");
+			ubifs_msg("cannot re-mount due to prior errors");
 			return -EINVAL;
 		}
 		err = ubifs_remount_rw(c);
 		if (err)
 			return err;
-	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY))
+	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY)) {
+		if (c->ro_media) {
+			ubifs_msg("cannot re-mount due to prior errors");
+			return -EINVAL;
+		}
 		ubifs_remount_ro(c);
+	}
 
 	if (c->bulk_read == 1)
 		bu_init(c);
