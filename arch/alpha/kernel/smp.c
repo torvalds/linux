@@ -120,8 +120,9 @@ void __cpuinit
 smp_callin(void)
 {
 	int cpuid = hard_smp_processor_id();
+	cpumask_t mask = cpu_online_map;
 
-	if (cpu_test_and_set(cpuid, cpu_online_map)) {
+	if (cpu_test_and_set(cpuid, mask)) {
 		printk("??, cpu 0x%x already present??\n", cpuid);
 		BUG();
 	}
