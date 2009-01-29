@@ -813,8 +813,7 @@ static int popen(struct atm_vcc *vcc)
 
 	fpga_queue(card, SOLOS_CHAN(vcc->dev), skb, NULL);
 
-//	dev_dbg(&card->dev->dev, "Open for vpi %d and vci %d on interface %d\n", vcc->vpi, vcc->vci, SOLOS_CHAN(vcc->dev));
-	set_bit(ATM_VF_ADDR, &vcc->flags); // accept the vpi / vci
+	set_bit(ATM_VF_ADDR, &vcc->flags);
 	set_bit(ATM_VF_READY, &vcc->flags);
 	list_vccs(0);
 
@@ -841,8 +840,6 @@ static void pclose(struct atm_vcc *vcc)
 	header->type = cpu_to_le16(PKT_PCLOSE);
 
 	fpga_queue(card, SOLOS_CHAN(vcc->dev), skb, NULL);
-
-//	dev_dbg(&card->dev->dev, "Close for vpi %d and vci %d on interface %d\n", vcc->vpi, vcc->vci, SOLOS_CHAN(vcc->dev));
 
 	clear_bit(ATM_VF_ADDR, &vcc->flags);
 	clear_bit(ATM_VF_READY, &vcc->flags);
@@ -936,7 +933,7 @@ static uint32_t fpga_tx(struct solos_card *card)
 
 			if (skb && !card->using_dma) {
 				memcpy_toio(TX_BUF(card, port), skb->data, skb->len);
-				tx_started |= 1 << port; //Set TX full flag
+				tx_started |= 1 << port;
 				oldskb = skb; /* We're done with this skb already */
 			} else if (skb && card->using_dma) {
 				SKB_CB(skb)->dma_addr = pci_map_single(card->dev, skb->data,
@@ -965,10 +962,10 @@ static uint32_t fpga_tx(struct solos_card *card)
 
 		}
 	}
+	/* For non-DMA TX, write the 'TX start' bit for all four ports simultaneously */
 	if (tx_started)
 		iowrite32(tx_started, card->config_regs + FLAGS_ADDR);
 
- out:
 	spin_unlock_irqrestore(&card->tx_lock, flags);
 	return card_flags;
 }
@@ -978,9 +975,6 @@ static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct solos_card *card = vcc->dev->dev_data;
 	struct pkt_hdr *header;
 	int pktlen;
-
-	//dev_dbg(&card->dev->dev, "psend called.\n");
-	//dev_dbg(&card->dev->dev, "dev,vpi,vci = %d,%d,%d\n",SOLOS_CHAN(vcc->dev),vcc->vpi,vcc->vci);
 
 	pktlen = skb->len;
 	if (pktlen > (BUF_SIZE - sizeof(*header))) {
@@ -1077,11 +1071,6 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto out_unmap_config;
 	}
 
-//	for(i=0;i<64 ;i+=4){
-//		data32=ioread32(card->buffers + i);
-//		dev_dbg(&card->dev->dev, "%08lX\n",(unsigned long)data32);
-//	}
-
 	//Fill Config Mem with zeros
 	for(i = 0; i < 128; i += 4)
 		iowrite32(0, card->config_regs + i);
@@ -1110,33 +1099,6 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	spin_lock_init(&card->param_queue_lock);
 	INIT_LIST_HEAD(&card->param_queue);
 
-/*
-	// Set Loopback mode
-	data32 = 0x00010000;
-	iowrite32(data32,card->config_regs + FLAGS_ADDR);
-*/
-/*
-	// Fill Buffers with zeros
-	for (i = 0; i < BUF_SIZE * 8; i += 4)
-		iowrite32(0, card->buffers + i);
-*/
-/*
-	for(i = 0; i < (BUF_SIZE * 1); i += 4)
-		iowrite32(0x12345678, card->buffers + i + (0*BUF_SIZE));
-	for(i = 0; i < (BUF_SIZE * 1); i += 4)
-		iowrite32(0xabcdef98, card->buffers + i + (1*BUF_SIZE));
-
-	// Read Config Memory
-	printk(KERN_DEBUG "Reading Config MEM\n");
-	i = 0;
-	for(i = 0; i < 16; i++) {
-		data32=ioread32(card->buffers + i*(BUF_SIZE/2));
-		printk(KERN_ALERT "Addr: %lX Data: %08lX\n",
-		       (unsigned long)(addr_start + i*(BUF_SIZE/2)),
-		       (unsigned long)data32);
-	}
-*/
-	//dev_dbg(&card->dev->dev, "Requesting IRQ: %d\n",dev->irq);
 	err = request_irq(dev->irq, solos_irq, IRQF_SHARED,
 			  "solos-pci", card);
 	if (err) {
@@ -1144,7 +1106,6 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto out_unmap_both;
 	}
 
-	// Enable IRQs
 	iowrite32(1, card->config_regs + IRQ_EN_ADDR);
 
 	if (fpga_upgrade)
@@ -1243,25 +1204,18 @@ static void fpga_remove(struct pci_dev *dev)
 
 	atm_remove(card);
 
-	dev_vdbg(&dev->dev, "Freeing IRQ\n");
-	// Disable IRQs from FPGA
 	iowrite32(0, card->config_regs + IRQ_EN_ADDR);
 	free_irq(dev->irq, card);
 	tasklet_kill(&card->tlet);
 
-	//	iowrite32(0x01,pciregs);
-	dev_vdbg(&dev->dev, "Unmapping PCI resource\n");
 	pci_iounmap(dev, card->buffers);
 	pci_iounmap(dev, card->config_regs);
 
-	dev_vdbg(&dev->dev, "Releasing PCI Region\n");
 	pci_release_regions(dev);
 	pci_disable_device(dev);
 
 	pci_set_drvdata(dev, NULL);
 	kfree(card);
-//	dev_dbg(&card->dev->dev, "fpga_remove\n");
-	return;
 }
 
 static struct pci_device_id fpga_pci_tbl[] __devinitdata = {
