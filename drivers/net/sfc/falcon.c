@@ -824,10 +824,6 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 			    rx_ev_pause_frm ? " [PAUSE]" : "");
 	}
 #endif
-
-	if (unlikely(rx_ev_eth_crc_err && EFX_WORKAROUND_10750(efx) &&
-		     efx->phy_type == PHY_TYPE_SFX7101))
-		tenxpress_crc_err(efx);
 }
 
 /* Handle receive events that are not in-order. */

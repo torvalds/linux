@@ -189,24 +189,11 @@
  * rails */
 #define LNPGA_PDOWN_WAIT	(HZ / 5)
 
-static int crc_error_reset_threshold = 100;
-module_param(crc_error_reset_threshold, int, 0644);
-MODULE_PARM_DESC(crc_error_reset_threshold,
-		 "Max number of CRC errors before XAUI reset");
-
 struct tenxpress_phy_data {
 	enum efx_loopback_mode loopback_mode;
-	atomic_t bad_crc_count;
 	enum efx_phy_mode phy_mode;
 	int bad_lp_tries;
 };
-
-void tenxpress_crc_err(struct efx_nic *efx)
-{
-	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	if (phy_data != NULL)
-		atomic_inc(&phy_data->bad_crc_count);
-}
 
 static ssize_t show_phy_short_reach(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -627,13 +614,6 @@ static void tenxpress_phy_poll(struct efx_nic *efx)
 
 	if (phy_data->phy_mode != PHY_MODE_NORMAL)
 		return;
-
-	if (EFX_WORKAROUND_10750(efx) &&
-	    atomic_read(&phy_data->bad_crc_count) > crc_error_reset_threshold) {
-		EFX_ERR(efx, "Resetting XAUI due to too many CRC errors\n");
-		falcon_reset_xaui(efx);
-		atomic_set(&phy_data->bad_crc_count, 0);
-	}
 }
 
 static void tenxpress_phy_fini(struct efx_nic *efx)
