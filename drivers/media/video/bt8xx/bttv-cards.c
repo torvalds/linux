@@ -2104,8 +2104,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 		.gpiomask       = 0x00,
-		.muxsel         = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-				0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10 },
+		.muxsel         = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 		.muxsel_hook    = ivc120_muxsel,
 		.pll            = PLL_28,
 	},
@@ -4445,8 +4444,7 @@ static void ivc120_muxsel(struct bttv *btv, unsigned int input)
 	bttv_I2CWrite(btv, I2C_TDA8540_ALT6, 0x02,
 		      ((matrix == 2) ? 0x03 : 0x00), 1);  /* 9-12 */
 
-	/* Selects MUX0 for input on the 878 */
-	btaor((0)<<5, ~(3<<5), BT848_IFORM);
+	/* 878's MUX0 is already selected for input via muxsel values */
 }
 
 
