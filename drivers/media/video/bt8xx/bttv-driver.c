@@ -1277,7 +1277,7 @@ bttv_crop_calc_limits(struct bttv_crop *c)
 }
 
 static void
-bttv_crop_reset(struct bttv_crop *c, int norm)
+bttv_crop_reset(struct bttv_crop *c, unsigned int norm)
 {
 	c->rect = bttv_tvnorms[norm].cropcap.defrect;
 	bttv_crop_calc_limits(c);
@@ -1290,16 +1290,13 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 	const struct bttv_tvnorm *tvnorm;
 	v4l2_std_id id;
 
-	if (norm < 0 || norm >= BTTV_TVNORMS)
-		return -EINVAL;
+	BUG_ON(norm >= BTTV_TVNORMS);
+	BUG_ON(btv->tvnorm >= BTTV_TVNORMS);
 
 	tvnorm = &bttv_tvnorms[norm];
 
-	if (btv->tvnorm < 0 ||
-	    btv->tvnorm >= BTTV_TVNORMS ||
-	    0 != memcmp(&bttv_tvnorms[btv->tvnorm].cropcap,
-			&tvnorm->cropcap,
-			sizeof (tvnorm->cropcap))) {
+	if (!memcmp(&bttv_tvnorms[btv->tvnorm].cropcap, &tvnorm->cropcap,
+		    sizeof (tvnorm->cropcap))) {
 		bttv_crop_reset(&btv->crop[0], norm);
 		btv->crop[1] = btv->crop[0]; /* current = default */
 

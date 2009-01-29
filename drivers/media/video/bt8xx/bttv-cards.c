@@ -4085,7 +4085,7 @@ static void __devinit avermedia_eeprom(struct bttv *btv)
 }
 
 /* used on Voodoo TV/FM (Voodoo 200), S0 wired to 0x10000 */
-void bttv_tda9880_setnorm(struct bttv *btv, int norm)
+void bttv_tda9880_setnorm(struct bttv *btv, unsigned int norm)
 {
 	/* fix up our card entry */
 	if(norm==V4L2_STD_NTSC) {

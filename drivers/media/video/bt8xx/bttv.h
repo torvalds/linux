@@ -265,7 +265,7 @@ extern void bttv_init_card2(struct bttv *btv);
 
 /* card-specific funtions */
 extern void tea5757_set_freq(struct bttv *btv, unsigned short freq);
-extern void bttv_tda9880_setnorm(struct bttv *btv, int norm);
+extern void bttv_tda9880_setnorm(struct bttv *btv, unsigned int norm);
 
 /* extra tweaks for some chipsets */
 extern void bttv_check_chipset(void);

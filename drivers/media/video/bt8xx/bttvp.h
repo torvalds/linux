@@ -135,7 +135,7 @@ struct bttv_buffer {
 
 	/* bttv specific */
 	const struct bttv_format   *fmt;
-	int                        tvnorm;
+	unsigned int               tvnorm;
 	int                        btformat;
 	int                        btswap;
 	struct bttv_geometry       geo;
@@ -154,7 +154,7 @@ struct bttv_buffer_set {
 };
 
 struct bttv_overlay {
-	int                    tvnorm;
+	unsigned int           tvnorm;
 	struct v4l2_rect       w;
 	enum v4l2_field        field;
 	struct v4l2_clip       *clips;
@@ -174,7 +174,7 @@ struct bttv_vbi_fmt {
 };
 
 /* bttv-vbi.c */
-void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, int norm);
+void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int norm);
 
 struct bttv_crop {
 	/* A cropping rectangle in struct bttv_tvnorm.cropcap units. */
@@ -378,7 +378,8 @@ struct bttv {
 	unsigned int audio;
 	unsigned int mute;
 	unsigned long freq;
-	int tvnorm,hue,contrast,bright,saturation;
+	unsigned int tvnorm;
+	int hue, contrast, bright, saturation;
 	struct v4l2_framebuffer fbuf;
 	unsigned int field_count;
 
