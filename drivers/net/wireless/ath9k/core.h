@@ -600,6 +600,8 @@ struct ath_ani {
 /********************/
 
 #define ATH_LED_PIN	1
+#define ATH_LED_ON_DURATION_IDLE	350	/* in msecs */
+#define ATH_LED_OFF_DURATION_IDLE	250	/* in msecs */
 
 enum ath_led_type {
 	ATH_LED_RADIO,
@@ -677,6 +679,7 @@ enum PROT_MODE {
 #define SC_OP_RFKILL_SW_BLOCKED	BIT(12)
 #define SC_OP_RFKILL_HW_BLOCKED	BIT(13)
 #define SC_OP_WAIT_FOR_BEACON	BIT(14)
+#define SC_OP_LED_ON		BIT(15)
 
 struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
@@ -725,10 +728,17 @@ struct ath_softc {
 	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
 	struct ath_rate_table *cur_rate_table;
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
+
 	struct ath_led radio_led;
 	struct ath_led assoc_led;
 	struct ath_led tx_led;
 	struct ath_led rx_led;
+	struct delayed_work ath_led_blink_work;
+	int led_on_duration;
+	int led_off_duration;
+	int led_on_cnt;
+	int led_off_cnt;
+
 	struct ath_rfkill rf_kill;
 	struct ath_ani sc_ani;
 	struct ath9k_node_stats sc_halstats;

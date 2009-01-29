@@ -935,6 +935,32 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 /*	 LED functions		*/
 /********************************/
 
+static void ath_led_blink_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+					    ath_led_blink_work.work);
+
+	if (!(sc->sc_flags & SC_OP_LED_ASSOCIATED))
+		return;
+	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
+			  (sc->sc_flags & SC_OP_LED_ON) ? 1 : 0);
+
+	queue_delayed_work(sc->hw->workqueue, &sc->ath_led_blink_work,
+			   (sc->sc_flags & SC_OP_LED_ON) ?
+			   msecs_to_jiffies(sc->led_off_duration) :
+			   msecs_to_jiffies(sc->led_on_duration));
+
+	sc->led_on_duration =
+			max((ATH_LED_ON_DURATION_IDLE - sc->led_on_cnt), 25);
+	sc->led_off_duration =
+			max((ATH_LED_OFF_DURATION_IDLE - sc->led_off_cnt), 10);
+	sc->led_on_cnt = sc->led_off_cnt = 0;
+	if (sc->sc_flags & SC_OP_LED_ON)
+		sc->sc_flags &= ~SC_OP_LED_ON;
+	else
+		sc->sc_flags |= SC_OP_LED_ON;
+}
+
 static void ath_led_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness)
 {
@@ -944,16 +970,27 @@ static void ath_led_brightness(struct led_classdev *led_cdev,
 	switch (brightness) {
 	case LED_OFF:
 		if (led->led_type == ATH_LED_ASSOC ||
-		    led->led_type == ATH_LED_RADIO)
+		    led->led_type == ATH_LED_RADIO) {
+			ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
+				(led->led_type == ATH_LED_RADIO));
 			sc->sc_flags &= ~SC_OP_LED_ASSOCIATED;
-		ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
-				(led->led_type == ATH_LED_RADIO) ? 1 :
-				!!(sc->sc_flags & SC_OP_LED_ASSOCIATED));
+			if (led->led_type == ATH_LED_RADIO)
+				sc->sc_flags &= ~SC_OP_LED_ON;
+		} else {
+			sc->led_off_cnt++;
+		}
 		break;
 	case LED_FULL:
-		if (led->led_type == ATH_LED_ASSOC)
+		if (led->led_type == ATH_LED_ASSOC) {
 			sc->sc_flags |= SC_OP_LED_ASSOCIATED;
-		ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 0);
+			queue_delayed_work(sc->hw->workqueue,
+					   &sc->ath_led_blink_work, 0);
+		} else if (led->led_type == ATH_LED_RADIO) {
+			ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 0);
+			sc->sc_flags |= SC_OP_LED_ON;
+		} else {
+			sc->led_on_cnt++;
+		}
 		break;
 	default:
 		break;
@@ -989,6 +1026,7 @@ static void ath_unregister_led(struct ath_led *led)
 
 static void ath_deinit_leds(struct ath_softc *sc)
 {
+	cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	ath_unregister_led(&sc->assoc_led);
 	sc->sc_flags &= ~SC_OP_LED_ASSOCIATED;
 	ath_unregister_led(&sc->tx_led);
@@ -1007,6 +1045,8 @@ static void ath_init_leds(struct ath_softc *sc)
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	/* LED off, active low */
 	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
+
+	INIT_DELAYED_WORK(&sc->ath_led_blink_work, ath_led_blink_work);
 
 	trigger = ieee80211_get_radio_led_name(sc->hw);
 	snprintf(sc->radio_led.name, sizeof(sc->radio_led.name),
