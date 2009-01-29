@@ -65,6 +65,17 @@ static
 
 static struct v4l2_pix_format s5k4aa_modes[] = {
 	{
+		1280,
+		1024,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			1280 * 1024,
+		.bytesperline = 1280,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	},
+	{
 		640,
 		480,
 		V4L2_PIX_FMT_SBGGR8,
@@ -257,6 +268,38 @@ int s5k4aa_start(struct sd *sd)
 	struct cam *cam = &sd->gspca_dev.cam;
 
 	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width) {
+	case 1280:
+		PDEBUG(D_V4L2, "Configuring camera for SXGA mode");
+
+		for (i = 0; i < ARRAY_SIZE(SXGA_s5k4aa); i++) {
+			switch (SXGA_s5k4aa[i][0]) {
+			case BRIDGE:
+				err = m5602_write_bridge(sd,
+						 SXGA_s5k4aa[i][1],
+						 SXGA_s5k4aa[i][2]);
+			break;
+
+			case SENSOR:
+				data[0] = SXGA_s5k4aa[i][2];
+				err = m5602_write_sensor(sd,
+						 SXGA_s5k4aa[i][1],
+						 data, 1);
+			break;
+
+			case SENSOR_LONG:
+				data[0] = SXGA_s5k4aa[i][2];
+				data[1] = SXGA_s5k4aa[i][3];
+				err = m5602_write_sensor(sd,
+						  SXGA_s5k4aa[i][1],
+						  data, 2);
+			break;
+
+			default:
+				err("Invalid stream command, exiting init");
+				return -EINVAL;
+			}
+		}
+
 	case 640:
 		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
 
