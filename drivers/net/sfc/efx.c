@@ -676,9 +676,8 @@ static int efx_init_port(struct efx_nic *efx)
 	rc = efx->phy_op->init(efx);
 	if (rc)
 		return rc;
-	efx->phy_op->reconfigure(efx);
-
 	mutex_lock(&efx->mac_lock);
+	efx->phy_op->reconfigure(efx);
 	rc = falcon_switch_mac(efx);
 	mutex_unlock(&efx->mac_lock);
 	if (rc)
@@ -1622,7 +1621,8 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 
 /* Tears down the entire software state and most of the hardware state
  * before reset.  */
-void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+void efx_reset_down(struct efx_nic *efx, enum reset_type method,
+		    struct ethtool_cmd *ecmd)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
@@ -1639,6 +1639,8 @@ void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	efx->phy_op->get_settings(efx, ecmd);
 
 	efx_fini_channels(efx);
+	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
+		efx->phy_op->fini(efx);
 }
 
 /* This function will always ensure that the locks acquired in
@@ -1646,7 +1648,8 @@ void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
  * that we were unable to reinitialise the hardware, and the
  * driver should be disabled. If ok is false, then the rx and tx
  * engines are not restarted, pending a RESET_DISABLE. */
-int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd, bool ok)
+int efx_reset_up(struct efx_nic *efx, enum reset_type method,
+		 struct ethtool_cmd *ecmd, bool ok)
 {
 	int rc;
 
@@ -1656,6 +1659,15 @@ int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd, bool ok)
 	if (rc) {
 		EFX_ERR(efx, "failed to initialise NIC\n");
 		ok = false;
+	}
+
+	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE) {
+		if (ok) {
+			rc = efx->phy_op->init(efx);
+			if (rc)
+				ok = false;
+		} else
+			efx->port_initialized = false;
 	}
 
 	if (ok) {
@@ -1702,7 +1714,7 @@ static int efx_reset(struct efx_nic *efx)
 
 	EFX_INFO(efx, "resetting (%d)\n", method);
 
-	efx_reset_down(efx, &ecmd);
+	efx_reset_down(efx, method, &ecmd);
 
 	rc = falcon_reset_hw(efx, method);
 	if (rc) {
@@ -1721,10 +1733,10 @@ static int efx_reset(struct efx_nic *efx)
 
 	/* Leave device stopped if necessary */
 	if (method == RESET_TYPE_DISABLE) {
-		efx_reset_up(efx, &ecmd, false);
+		efx_reset_up(efx, method, &ecmd, false);
 		rc = -EIO;
 	} else {
-		rc = efx_reset_up(efx, &ecmd, true);
+		rc = efx_reset_up(efx, method, &ecmd, true);
 	}
 
 out_disable:

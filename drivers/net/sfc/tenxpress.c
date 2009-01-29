@@ -337,6 +337,7 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	rc = tenxpress_init(efx);
 	if (rc < 0)
 		goto fail;
+	mdio_clause45_set_pause(efx);
 
 	if (efx->phy_type == PHY_TYPE_SFT9001B) {
 		rc = device_create_file(&efx->pci_dev->dev,
