@@ -3245,14 +3245,6 @@ static int selinux_cred_prepare(struct cred *new, const struct cred *old,
 }
 
 /*
- * commit new credentials
- */
-static void selinux_cred_commit(struct cred *new, const struct cred *old)
-{
-	secondary_ops->cred_commit(new, old);
-}
-
-/*
  * set the security data for a kernel service
  * - all the creation contexts are set to unlabelled
  */
@@ -5610,7 +5602,6 @@ static struct security_operations selinux_ops = {
 	.task_create =			selinux_task_create,
 	.cred_free =			selinux_cred_free,
 	.cred_prepare =			selinux_cred_prepare,
-	.cred_commit =			selinux_cred_commit,
 	.kernel_act_as =		selinux_kernel_act_as,
 	.kernel_create_files_as =	selinux_kernel_create_files_as,
 	.task_setuid =			selinux_task_setuid,
