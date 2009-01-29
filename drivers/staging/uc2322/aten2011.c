@@ -372,7 +372,6 @@ int handle_newMsr(struct ATENINTL_port *port,__u8 newMsr);
 int handle_newLsr(struct ATENINTL_port *port,__u8 newLsr);
 /* function prototypes for the usbserial callbacks */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static int  ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
 static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
 static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port, const unsigned char *data, int count);
@@ -386,21 +385,6 @@ static int ATEN2011_tiocmset(struct tty_struct *tty, struct file *file,
 static int ATEN2011_tiocmget(struct tty_struct *tty, struct file *file);
 static int  ATEN2011_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
 static void ATEN2011_break(struct tty_struct *tty, int break_state);
-#else
-static int  ATEN2011_open(struct usb_serial_port *port, struct file *filp);
-static void ATEN2011_close(struct usb_serial_port *port, struct file *filp);
-static int ATEN2011_write(struct usb_serial_port *port, const unsigned char *data, int count);
-static int  ATEN2011_write_room(struct usb_serial_port *port);
-static int  ATEN2011_chars_in_buffer(struct usb_serial_port *port);
-static void ATEN2011_throttle(struct usb_serial_port *port);
-static void ATEN2011_unthrottle(struct usb_serial_port *port);
-static void ATEN2011_set_termios	(struct usb_serial_port *port, struct ktermios *old_termios);
-static int ATEN2011_tiocmset(struct usb_serial_port *port, struct file *file,
-        			unsigned int set, unsigned int clear);
-static int ATEN2011_tiocmget(struct usb_serial_port *port, struct file *file);
-static int  ATEN2011_ioctl(struct usb_serial_port *port, struct file *file, unsigned int cmd, unsigned long arg);
-static void ATEN2011_break(struct usb_serial_port *port, int break_state);
-#endif
 
 //static void ATEN2011_break_ctl(struct usb_serial_port *port, int break_state );
 
@@ -412,15 +396,9 @@ static int ATEN2011_calc_num_ports(struct usb_serial *serial);
 /* function prototypes for all of our local functions */
 static int  ATEN2011_calc_baud_rate_divisor(int baudRate, int *divisor,__u16 *clk_sel_val);
 static int  ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port *ATEN2011_port, int baudRate);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static void ATEN2011_change_port_settings(struct tty_struct *tty, struct ATENINTL_port *ATEN2011_port, struct ktermios *old_termios);
 static void ATEN2011_block_until_chase_response(struct tty_struct *tty, struct ATENINTL_port *ATEN2011_port);
 static void ATEN2011_block_until_tx_empty(struct tty_struct *tty, struct ATENINTL_port *ATEN2011_port);
-#else
-static void ATEN2011_change_port_settings(struct ATENINTL_port *ATEN2011_port, struct ktermios *old_termios);
-static void ATEN2011_block_until_chase_response(struct ATENINTL_port *ATEN2011_port);
-static void ATEN2011_block_until_tx_empty(struct ATENINTL_port *ATEN2011_port);
-#endif
 
 int __init ATENINTL2011_init(void);
 void __exit ATENINTL2011_exit(void);
@@ -1110,22 +1088,13 @@ static void ATEN2011_bulk_in_callback(struct urb *urb)
 	DPRINTK("%s", "Entering ........... \n");
 
 	if (urb->actual_length) {
-//MATRIX
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 		tty = tty_port_tty_get(&ATEN2011_port->port->port);
-#elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,27)
-		tty = ATEN2011_port->port->port.tty;
-#else
-		tty = ATEN2011_port->port->tty;
-#endif
 		if (tty) {
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			DPRINTK(" %s \n", data);
 			tty_flip_buffer_push(tty);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 			tty_kref_put(tty);
-#endif
 		}
 
 		ATEN2011_port->icount.rx += urb->actual_length;
@@ -1187,25 +1156,9 @@ static void ATEN2011_bulk_out_data_callback(struct urb *urb)
 
 	DPRINTK("%s \n", "Entering .........");
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 	tty = tty_port_tty_get(&ATEN2011_port->port->port);
-#elif LINUX_VERSION_CODE == KERNEL_VERSION(2,6,27)
-	tty = ATEN2011_port->port->port.tty;
-#else
-	tty = ATEN2011_port->port->tty;
-#endif
 
 	if (tty && ATEN2011_port->open) {
-		/* let the tty driver wakeup if it has a special *
-		 * write_wakeup function                         */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-		if ((tty->flags & (1 << TTY_DO_WRITE_WAKEUP))
-		    && tty->ldisc.write_wakeup) {
-			(tty->ldisc.write_wakeup) (tty);
-		}
-#endif
-
 		/* tell the tty driver that something has changed */
 		wake_up_interruptible(&tty->write_wait);
 	}
@@ -1214,9 +1167,7 @@ static void ATEN2011_bulk_out_data_callback(struct urb *urb)
 	ATEN2011_port->write_in_progress = FALSE;
 
 //schedule_work(&ATEN2011_port->port->work);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 	tty_kref_put(tty);
-#endif
 
 }
 
@@ -1243,12 +1194,8 @@ static int ATEN2011_serial_probe(struct usb_serial *serial,
  *	Otherwise we return a negative error number.
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 			 struct file *filp)
-#else
-static int ATEN2011_open(struct usb_serial_port *port, struct file *filp)
-#endif
 {
 	int response;
 	int j;
@@ -1261,9 +1208,7 @@ static int ATEN2011_open(struct usb_serial_port *port, struct file *filp)
 	struct ATENINTL_port *ATEN2011_port;
 	struct ktermios tmp_termios;
 	int minor;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	struct tty_struct *tty = NULL;
-#endif
+
 	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
 		DPRINTK("%s", "Port Paranoia failed \n");
 		return -ENODEV;
@@ -1518,9 +1463,6 @@ static int ATEN2011_open(struct usb_serial_port *port, struct file *filp)
 	 * the data through,otherwise it is scheduled, and with      *
 	 * high data rates (like with OHCI) data can get lost.       */
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	tty = port->tty;
-#endif
 	if (tty)
 		tty->low_latency = 1;
 /*
@@ -1648,11 +1590,7 @@ static int ATEN2011_open(struct usb_serial_port *port, struct file *filp)
 	ATEN2011_port->open = TRUE;
 	//ATEN2011_change_port_settings(ATEN2011_port,old_termios);
 	/* Setup termios */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	ATEN2011_set_termios(tty, port, &tmp_termios);
-#else
-	ATEN2011_set_termios(port, &tmp_termios);
-#endif
 	ATEN2011_port->rxBytesAvail = 0x0;
 	ATEN2011_port->icount.tx = 0;
 	ATEN2011_port->icount.rx = 0;
@@ -1671,12 +1609,8 @@ static int ATEN2011_open(struct usb_serial_port *port, struct file *filp)
  *	this function is called by the tty driver when a port is closed
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 			   struct file *filp)
-#else
-static void ATEN2011_close(struct usb_serial_port *port, struct file *filp)
-#endif
 {
 	struct usb_serial *serial;
 	struct ATENINTL_serial *ATEN2011_serial;
@@ -1707,11 +1641,7 @@ static void ATEN2011_close(struct usb_serial_port *port, struct file *filp)
 	}
 	if (serial->dev) {
 		/* flush and block(wait) until tx is empty */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 		ATEN2011_block_until_tx_empty(tty, ATEN2011_port);
-#else
-		ATEN2011_block_until_tx_empty(ATEN2011_port);
-#endif
 	}
 	// kill the ports URB's
 	for (no_urbs = 0; no_urbs < NUM_URBS; no_urbs++)
@@ -1787,15 +1717,9 @@ static void ATEN2011_close(struct usb_serial_port *port, struct file *filp)
  * SerialBreak
  *	this function sends a break to the port
  *****************************************************************************/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static void ATEN2011_break(struct tty_struct *tty, int break_state)
-#else
-static void ATEN2011_break(struct usb_serial_port *port, int break_state)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	struct usb_serial_port *port = tty->driver_data;
-#endif
 	unsigned char data;
 	struct usb_serial *serial;
 	struct ATENINTL_serial *ATEN2011_serial;
@@ -1828,11 +1752,7 @@ static void ATEN2011_break(struct usb_serial_port *port, int break_state)
 	if (serial->dev) {
 
 		/* flush and block until tx is empty */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 		ATEN2011_block_until_chase_response(tty, ATEN2011_port);
-#else
-		ATEN2011_block_until_chase_response(ATEN2011_port);
-#endif
 	}
 
 	if (break_state == -1) {
@@ -1861,25 +1781,16 @@ static void ATEN2011_break(struct usb_serial_port *port, int break_state)
  *
  ************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static void ATEN2011_block_until_chase_response(struct tty_struct *tty,
 						struct ATENINTL_port
 						*ATEN2011_port)
-#else
-static void ATEN2011_block_until_chase_response(struct ATENINTL_port
-						*ATEN2011_port)
-#endif
 {
 	int timeout = 1 * HZ;
 	int wait = 10;
 	int count;
 
 	while (1) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 		count = ATEN2011_chars_in_buffer(tty);
-#else
-		count = ATEN2011_chars_in_buffer(ATEN2011_port->port);
-#endif
 
 		/* Check for Buffer status */
 		if (count <= 0) {
@@ -1913,12 +1824,8 @@ static void ATEN2011_block_until_chase_response(struct ATENINTL_port
  *		3. A timout of 3 seconds without activity has expired
  *
  ************************************************************************/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static void ATEN2011_block_until_tx_empty(struct tty_struct *tty,
 					  struct ATENINTL_port *ATEN2011_port)
-#else
-static void ATEN2011_block_until_tx_empty(struct ATENINTL_port *ATEN2011_port)
-#endif
 {
 	int timeout = HZ / 10;
 	int wait = 30;
@@ -1926,11 +1833,7 @@ static void ATEN2011_block_until_tx_empty(struct ATENINTL_port *ATEN2011_port)
 
 	while (1) {
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 		count = ATEN2011_chars_in_buffer(tty);
-#else
-		count = ATEN2011_chars_in_buffer(ATEN2011_port->port);
-#endif
 
 		/* Check for Buffer status */
 		if (count <= 0) {
@@ -1961,15 +1864,9 @@ static void ATEN2011_block_until_tx_empty(struct ATENINTL_port *ATEN2011_port)
  *	Otherwise we return a negative error number.
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static int ATEN2011_write_room(struct tty_struct *tty)
-#else
-static int ATEN2011_write_room(struct usb_serial_port *port)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	struct usb_serial_port *port = tty->driver_data;
-#endif
 	int i;
 	int room = 0;
 	struct ATENINTL_port *ATEN2011_port;
@@ -2009,15 +1906,9 @@ static int ATEN2011_write_room(struct usb_serial_port *port)
  *	Otherwise we return a negative error number.
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static int ATEN2011_chars_in_buffer(struct tty_struct *tty)
-#else
-static int ATEN2011_chars_in_buffer(struct usb_serial_port *port)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	struct usb_serial_port *port = tty->driver_data;
-#endif
 	int i;
 	int chars = 0;
 	struct ATENINTL_port *ATEN2011_port;
@@ -2053,13 +1944,8 @@ static int ATEN2011_chars_in_buffer(struct usb_serial_port *port)
  *      return a negative error number.
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 			  const unsigned char *data, int count)
-#else
-static int ATEN2011_write(struct usb_serial_port *port,
-			  const unsigned char *data, int count)
-#endif
 {
 	int status;
 	int i;
@@ -2229,17 +2115,9 @@ static int ATEN2011_write(struct usb_serial_port *port,
  *	being read from the port.
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static void ATEN2011_throttle(struct tty_struct *tty)
-#else
-static void ATEN2011_throttle(struct usb_serial_port *port)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	struct usb_serial_port *port = tty->driver_data;
-#else
-	struct tty_struct *tty;
-#endif
 	struct ATENINTL_port *ATEN2011_port;
 	int status;
 
@@ -2262,9 +2140,6 @@ static void ATEN2011_throttle(struct usb_serial_port *port)
 
 	DPRINTK("%s", "Entering .......... \n");
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	tty = port->tty;
-#endif
 	if (!tty) {
 		dbg("%s - no tty available", __FUNCTION__);
 		return;
@@ -2273,11 +2148,7 @@ static void ATEN2011_throttle(struct usb_serial_port *port)
 	/* if we are implementing XON/XOFF, send the stop character */
 	if (I_IXOFF(tty)) {
 		unsigned char stop_char = STOP_CHAR(tty);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 		status = ATEN2011_write(tty, port, &stop_char, 1);	//FC4
-#else
-		status = ATEN2011_write(port, &stop_char, 1);	//FC4
-#endif
 		if (status <= 0) {
 			return;
 		}
@@ -2304,17 +2175,9 @@ static void ATEN2011_throttle(struct usb_serial_port *port)
  *	this function is called by the tty driver when it wants to resume the data
  *	being read from the port (called after SerialThrottle is called)
  *****************************************************************************/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static void ATEN2011_unthrottle(struct tty_struct *tty)
-#else
-static void ATEN2011_unthrottle(struct usb_serial_port *port)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	struct usb_serial_port *port = tty->driver_data;
-#else
-	struct tty_struct *tty;
-#endif
 	int status;
 	struct ATENINTL_port *ATEN2011_port = ATEN2011_get_port_private(port);
 
@@ -2333,9 +2196,6 @@ static void ATEN2011_unthrottle(struct usb_serial_port *port)
 
 	DPRINTK("%s", "Entering .......... \n");
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	tty = port->tty;
-#endif
 	if (!tty) {
 		dbg("%s - no tty available", __FUNCTION__);
 		return;
@@ -2344,11 +2204,7 @@ static void ATEN2011_unthrottle(struct usb_serial_port *port)
 	/* if we are implementing XON/XOFF, send the start character */
 	if (I_IXOFF(tty)) {
 		unsigned char start_char = START_CHAR(tty);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 		status = ATEN2011_write(tty, port, &start_char, 1);	//FC4
-#else
-		status = ATEN2011_write(port, &start_char, 1);	//FC4
-#endif
 		if (status <= 0) {
 			return;
 		}
@@ -2369,15 +2225,9 @@ static void ATEN2011_unthrottle(struct usb_serial_port *port)
 	return;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static int ATEN2011_tiocmget(struct tty_struct *tty, struct file *file)
-#else
-static int ATEN2011_tiocmget(struct usb_serial_port *port, struct file *file)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	struct usb_serial_port *port = tty->driver_data;
-#endif
 	//struct ti_port *tport = usb_get_serial_port_data(port);
 	struct ATENINTL_port *ATEN2011_port;
 	unsigned int result;
@@ -2409,17 +2259,10 @@ static int ATEN2011_tiocmget(struct usb_serial_port *port, struct file *file)
 	return result;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static int ATEN2011_tiocmset(struct tty_struct *tty, struct file *file,
 			     unsigned int set, unsigned int clear)
-#else
-static int ATEN2011_tiocmset(struct usb_serial_port *port, struct file *file,
-			     unsigned int set, unsigned int clear)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	struct usb_serial_port *port = tty->driver_data;
-#endif
 	struct ATENINTL_port *ATEN2011_port;
 	//struct ti_port *tport = usb_get_serial_port_data(port);
 	unsigned int mcr;
@@ -2464,22 +2307,15 @@ static int ATEN2011_tiocmset(struct usb_serial_port *port, struct file *file,
  *	this function is called by the tty driver when it wants to change the termios structure
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static void ATEN2011_set_termios(struct tty_struct *tty,
 				 struct usb_serial_port *port,
 				 struct ktermios *old_termios)
-#else
-static void ATEN2011_set_termios(struct usb_serial_port *port,
-				 struct ktermios *old_termios)
-#endif
 {
 	int status;
 	unsigned int cflag;
 	struct usb_serial *serial;
 	struct ATENINTL_port *ATEN2011_port;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	struct tty_struct *tty;
-#endif
+
 	DPRINTK("ATEN2011_set_termios: START\n");
 	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
 		DPRINTK("%s", "Invalid port \n");
@@ -2497,15 +2333,6 @@ static void ATEN2011_set_termios(struct usb_serial_port *port,
 
 	if (ATEN2011_port == NULL)
 		return;
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	tty = port->tty;
-
-	if (!port->tty || !port->tty->termios) {
-		dbg("%s - no tty or termios", __FUNCTION__);
-		return;
-	}
-#endif
 
 	if (!ATEN2011_port->open) {
 		dbg("%s - port not opened", __FUNCTION__);
@@ -2543,11 +2370,7 @@ static void ATEN2011_set_termios(struct usb_serial_port *port,
 
 	/* change the port settings to the new ones specified */
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	ATEN2011_change_port_settings(tty, ATEN2011_port, old_termios);
-#else
-	ATEN2011_change_port_settings(ATEN2011_port, old_termios);
-#endif
 
 	if (!ATEN2011_port->read_urb) {
 		DPRINTK("%s", "URB KILLED !!!!!\n");
@@ -2587,23 +2410,14 @@ static void ATEN2011_break_ctl( struct usb_serial_port *port, int break_state )
  * 	    allows an RS485 driver to be written in user space.
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static int get_lsr_info(struct tty_struct *tty,
 			struct ATENINTL_port *ATEN2011_port,
 			unsigned int *value)
-#else
-static int get_lsr_info(struct ATENINTL_port *ATEN2011_port,
-			unsigned int *value)
-#endif
 {
 	int count;
 	unsigned int result = 0;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	count = ATEN2011_chars_in_buffer(tty);
-#else
-	count = ATEN2011_chars_in_buffer(ATEN2011_port->port);
-#endif
 	if (count == 0) {
 		dbg("%s -- Empty", __FUNCTION__);
 		result = TIOCSER_TEMT;
@@ -2620,19 +2434,11 @@ static int get_lsr_info(struct ATENINTL_port *ATEN2011_port,
  * Purpose: Let user call ioctl to get the count of number of bytes available.
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static int get_number_bytes_avail(struct tty_struct *tty,
 				  struct ATENINTL_port *ATEN2011_port,
 				  unsigned int *value)
-#else
-static int get_number_bytes_avail(struct ATENINTL_port *ATEN2011_port,
-				  unsigned int *value)
-#endif
 {
 	unsigned int result = 0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	struct tty_struct *tty = ATEN2011_port->port->tty;
-#endif
 
 	if (!tty)
 		return -ENOIOCTLCMD;
@@ -2785,19 +2591,10 @@ static int get_serial_info(struct ATENINTL_port *ATEN2011_port,
  *	this function handles any ioctl calls to the driver
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 			  unsigned int cmd, unsigned long arg)
-#else
-static int ATEN2011_ioctl(struct usb_serial_port *port, struct file *file,
-			  unsigned int cmd, unsigned long arg)
-#endif
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	struct usb_serial_port *port = tty->driver_data;
-#else
-	struct tty_struct *tty;
-#endif
 	struct ATENINTL_port *ATEN2011_port;
 	struct async_icount cnow;
 	struct async_icount cprev;
@@ -2813,9 +2610,6 @@ static int ATEN2011_ioctl(struct usb_serial_port *port, struct file *file,
 	}
 
 	ATEN2011_port = ATEN2011_get_port_private(port);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	tty = ATEN2011_port->port->tty;
-#endif
 
 	if (ATEN2011_port == NULL)
 		return -1;
@@ -2827,25 +2621,14 @@ static int ATEN2011_ioctl(struct usb_serial_port *port, struct file *file,
 
 	case TIOCINQ:
 		dbg("%s (%d) TIOCINQ", __FUNCTION__, port->number);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 		return get_number_bytes_avail(tty, ATEN2011_port,
 					      (unsigned int *)arg);
-#else
-		return get_number_bytes_avail(ATEN2011_port,
-					      (unsigned int *)arg);
-#endif
 		break;
 
 	case TIOCOUTQ:
 		dbg("%s (%d) TIOCOUTQ", __FUNCTION__, port->number);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 		return put_user(ATEN2011_chars_in_buffer(tty),
 				(int __user *)arg);
-#else
-		return put_user(tty->driver->ops->chars_in_buffer ?
-				tty->driver->ops->chars_in_buffer(tty) : 0,
-				(int __user *)arg);
-#endif
 		break;
 
 		/*  //2.6.17 block
@@ -2877,11 +2660,7 @@ static int ATEN2011_ioctl(struct usb_serial_port *port, struct file *file,
 		 */
 	case TIOCSERGETLSR:
 		dbg("%s (%d) TIOCSERGETLSR", __FUNCTION__, port->number);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 		return get_lsr_info(tty, ATEN2011_port, (unsigned int *)arg);
-#else
-		return get_lsr_info(ATEN2011_port, (unsigned int *)arg);
-#endif
 		return 0;
 
 	case TIOCMBIS:
@@ -3172,18 +2951,10 @@ static int ATEN2011_calc_baud_rate_divisor(int baudRate, int *divisor,
  *      the specified new settings.
  *****************************************************************************/
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 static void ATEN2011_change_port_settings(struct tty_struct *tty,
 					  struct ATENINTL_port *ATEN2011_port,
 					  struct ktermios *old_termios)
-#else
-static void ATEN2011_change_port_settings(struct ATENINTL_port *ATEN2011_port,
-					  struct ktermios *old_termios)
-#endif
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	struct tty_struct *tty;
-#endif
 	int baud;
 	unsigned cflag;
 	unsigned iflag;
@@ -3219,9 +2990,6 @@ static void ATEN2011_change_port_settings(struct ATENINTL_port *ATEN2011_port,
 		dbg("%s - port not opened", __FUNCTION__);
 		return;
 	}
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	tty = ATEN2011_port->port->tty;
-#endif
 
 	if ((!tty) || (!tty->termios)) {
 		dbg("%s - no tty structures", __FUNCTION__);
