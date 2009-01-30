@@ -246,7 +246,9 @@ static int debug = 0;
 #define ATEN_CTRL_TIMEOUT	500
 #define VENDOR_READ_LENGTH	(0x01)
 
-int RS485mode = 0;		//set to 1 for RS485 mode and 0 for RS232 mode
+/* set to 1 for RS485 mode and 0 for RS232 mode */
+/* FIXME make this somehow dynamic and not build time specific */
+static int RS485mode = 0;
 
 static struct usb_serial *ATEN2011_get_usb_serial(struct usb_serial_port *port, const
 						  char *function);
@@ -1519,7 +1521,6 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 	int i;
 	int bytes_sent = 0;
 	int transfer_size;
-	int from_user = 0;
 	int minor;
 
 	struct ATENINTL_port *ATEN2011_port;
@@ -1581,15 +1582,7 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 	transfer_size = min(count, URB_TRANSFER_BUFFER_SIZE);
 
-	if (from_user) {
-		if (copy_from_user
-		    (urb->transfer_buffer, current_position, transfer_size)) {
-			bytes_sent = -EFAULT;
-			goto exit;
-		}
-	} else {
-		memcpy(urb->transfer_buffer, current_position, transfer_size);
-	}
+	memcpy(urb->transfer_buffer, current_position, transfer_size);
 	//usb_serial_debug_data (__FILE__, __FUNCTION__, transfer_size, urb->transfer_buffer);
 
 	/* fill urb with data and submit  */
@@ -1906,7 +1899,7 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 
 static int get_lsr_info(struct tty_struct *tty,
 			struct ATENINTL_port *ATEN2011_port,
-			unsigned int *value)
+			unsigned int __user *value)
 {
 	int count;
 	unsigned int result = 0;
@@ -1924,7 +1917,7 @@ static int get_lsr_info(struct tty_struct *tty,
 
 static int get_number_bytes_avail(struct tty_struct *tty,
 				  struct ATENINTL_port *ATEN2011_port,
-				  unsigned int *value)
+				  unsigned int __user *value)
 {
 	unsigned int result = 0;
 
@@ -1941,7 +1934,7 @@ static int get_number_bytes_avail(struct tty_struct *tty,
 }
 
 static int set_modem_info(struct ATENINTL_port *ATEN2011_port, unsigned int cmd,
-			  unsigned int *value)
+			  unsigned int __user *value)
 {
 	unsigned int mcr;
 	unsigned int arg;
@@ -2006,7 +1999,7 @@ static int set_modem_info(struct ATENINTL_port *ATEN2011_port, unsigned int cmd,
 }
 
 static int get_modem_info(struct ATENINTL_port *ATEN2011_port,
-			  unsigned int *value)
+			  unsigned int __user *value)
 {
 	unsigned int result = 0;
 	__u16 msr;
@@ -2030,7 +2023,7 @@ static int get_modem_info(struct ATENINTL_port *ATEN2011_port,
 }
 
 static int get_serial_info(struct ATENINTL_port *ATEN2011_port,
-			   struct serial_struct *retinfo)
+			   struct serial_struct __user *retinfo)
 {
 	struct serial_struct tmp;
 
@@ -2068,8 +2061,7 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 	struct async_icount cprev;
 	struct serial_icounter_struct icount;
 	int ATENret = 0;
-	//int retval;
-	//struct tty_ldisc *ld;
+	unsigned int __user *user_arg = (unsigned int __user *)arg;
 
 	//printk("%s - port %d, cmd = 0x%x\n", __FUNCTION__, port->number, cmd);
 	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
@@ -2089,19 +2081,17 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 
 	case TIOCINQ:
 		dbg("%s (%d) TIOCINQ", __FUNCTION__, port->number);
-		return get_number_bytes_avail(tty, ATEN2011_port,
-					      (unsigned int *)arg);
+		return get_number_bytes_avail(tty, ATEN2011_port, user_arg);
 		break;
 
 	case TIOCOUTQ:
 		dbg("%s (%d) TIOCOUTQ", __FUNCTION__, port->number);
-		return put_user(ATEN2011_chars_in_buffer(tty),
-				(int __user *)arg);
+		return put_user(ATEN2011_chars_in_buffer(tty), user_arg);
 		break;
 
 	case TIOCSERGETLSR:
 		dbg("%s (%d) TIOCSERGETLSR", __FUNCTION__, port->number);
-		return get_lsr_info(tty, ATEN2011_port, (unsigned int *)arg);
+		return get_lsr_info(tty, ATEN2011_port, user_arg);
 		return 0;
 
 	case TIOCMBIS:
@@ -2111,18 +2101,18 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 		    port->number);
 		//      printk("%s (%d) TIOCMSET/TIOCMBIC/TIOCMSET", __FUNCTION__,  port->number);
 		ATENret =
-		    set_modem_info(ATEN2011_port, cmd, (unsigned int *)arg);
+		    set_modem_info(ATEN2011_port, cmd, user_arg);
 		//              printk(" %s: ret:%d\n",__FUNCTION__,ATENret);
 		return ATENret;
 
 	case TIOCMGET:
 		dbg("%s (%d) TIOCMGET", __FUNCTION__, port->number);
-		return get_modem_info(ATEN2011_port, (unsigned int *)arg);
+		return get_modem_info(ATEN2011_port, user_arg);
 
 	case TIOCGSERIAL:
 		dbg("%s (%d) TIOCGSERIAL", __FUNCTION__, port->number);
 		return get_serial_info(ATEN2011_port,
-				       (struct serial_struct *)arg);
+				       (struct serial_struct __user *)arg);
 
 	case TIOCSSERIAL:
 		dbg("%s (%d) TIOCSSERIAL", __FUNCTION__, port->number);
@@ -2170,7 +2160,7 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 
 		dbg("%s (%d) TIOCGICOUNT RX=%d, TX=%d", __FUNCTION__,
 		    port->number, icount.rx, icount.tx);
-		if (copy_to_user((void *)arg, &icount, sizeof(icount)))
+		if (copy_to_user((void __user *)arg, &icount, sizeof(icount)))
 			return -EFAULT;
 		return 0;
 
@@ -2829,7 +2819,7 @@ static int ATEN2011_startup(struct usb_serial *serial)
 
 	/* setting configuration feature to one */
 	usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
-			(__u8) 0x03, 0x00, 0x01, 0x00, 0x00, 0x00, 5 * HZ);
+			(__u8) 0x03, 0x00, 0x01, 0x00, NULL, 0x00, 5 * HZ);
 	return 0;
 }
 
