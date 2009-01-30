@@ -258,8 +258,10 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		return -EINVAL;
 	obj_priv = obj->driver_private;
 
-	if (!i915_tiling_ok(dev, args->stride, obj->size, args->tiling_mode))
+	if (!i915_tiling_ok(dev, args->stride, obj->size, args->tiling_mode)) {
+		drm_gem_object_unreference(obj);
 		return -EINVAL;
+	}
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -289,6 +291,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			     "failed to unbind object for tiling switch");
 			args->tiling_mode = obj_priv->tiling_mode;
 			mutex_unlock(&dev->struct_mutex);
+			drm_gem_object_unreference(obj);
 
 			return ret;
 		}
