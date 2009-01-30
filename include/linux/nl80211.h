@@ -113,6 +113,8 @@
  * @NL80211_CMD_SET_BSS: Set BSS attributes for BSS identified by
  *	%NL80211_ATTR_IFINDEX.
  *
+ * @NL80211_CMD_GET_REG: ask the wireless core to send us its currently set
+ * 	regulatory domain.
  * @NL80211_CMD_SET_REG: Set current regulatory domain. CRDA sends this command
  *	after being queried by the kernel. CRDA replies by sending a regulatory
  *	domain structure which consists of %NL80211_ATTR_REG_ALPHA set to our
@@ -187,6 +189,8 @@ enum nl80211_commands {
 	NL80211_CMD_SET_MESH_PARAMS,
 
 	NL80211_CMD_SET_MGMT_EXTRA_IE,
+
+	NL80211_CMD_GET_REG,
 
 	/* add new commands above here */
 
