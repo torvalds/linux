@@ -22,157 +22,73 @@
 #include <linux/module.h>
 #include <linux/serial.h>
 #include <linux/usb.h>
+#include <linux/usb/serial.h>
 #include <asm/uaccess.h>
 
-#define KERNEL_2_6		1
 
-#include <linux/usb/serial.h>
+#define ZLP_REG1		0x3A	/* Zero_Flag_Reg1 58 */
+#define ZLP_REG2		0x3B	/* Zero_Flag_Reg2 59 */
+#define ZLP_REG3		0x3C	/* Zero_Flag_Reg3 60 */
+#define ZLP_REG4		0x3D	/* Zero_Flag_Reg4 61 */
+#define ZLP_REG5		0x3E	/* Zero_Flag_Reg5 62 */
 
-#define MAX_RS232_PORTS		2	/* Max # of RS-232 ports per device */
+/* Interrupt Rotinue Defines	*/
+#define SERIAL_IIR_RLS		0x06
+#define SERIAL_IIR_RDA		0x04
+#define SERIAL_IIR_CTI		0x0c
+#define SERIAL_IIR_THR		0x02
+#define SERIAL_IIR_MS		0x00
 
-#include <linux/version.h>
+/* Emulation of the bit mask on the LINE STATUS REGISTER.  */
+#define SERIAL_LSR_DR		0x0001
+#define SERIAL_LSR_OE		0x0002
+#define SERIAL_LSR_PE		0x0004
+#define SERIAL_LSR_FE		0x0008
+#define SERIAL_LSR_BI		0x0010
+#define SERIAL_LSR_THRE		0x0020
+#define SERIAL_LSR_TEMT		0x0040
+#define SERIAL_LSR_FIFOERR	0x0080
 
-#ifndef TRUE
-	#define TRUE		(1)
-#endif
+/* MSR bit defines(place holders) */
+#define ATEN_MSR_DELTA_CTS	0x10
+#define ATEN_MSR_DELTA_DSR	0x20
+#define ATEN_MSR_DELTA_RI	0x40
+#define ATEN_MSR_DELTA_CD	0x80
 
-#ifndef FALSE
-	#define FALSE		(0)
-#endif
+/* Serial Port register Address */
+#define RECEIVE_BUFFER_REGISTER		((__u16)(0x00))
+#define TRANSMIT_HOLDING_REGISTER	((__u16)(0x00))
+#define INTERRUPT_ENABLE_REGISTER	((__u16)(0x01))
+#define INTERRUPT_IDENT_REGISTER	((__u16)(0x02))
+#define FIFO_CONTROL_REGISTER		((__u16)(0x02))
+#define LINE_CONTROL_REGISTER		((__u16)(0x03))
+#define MODEM_CONTROL_REGISTER		((__u16)(0x04))
+#define LINE_STATUS_REGISTER		((__u16)(0x05))
+#define MODEM_STATUS_REGISTER		((__u16)(0x06))
+#define SCRATCH_PAD_REGISTER		((__u16)(0x07))
+#define DIVISOR_LATCH_LSB		((__u16)(0x00))
+#define DIVISOR_LATCH_MSB		((__u16)(0x01))
 
-#ifndef LOW8
-	#define LOW8(val)	((unsigned char)(val & 0xff))
-#endif
+#define SP1_REGISTER			((__u16)(0x00))
+#define CONTROL1_REGISTER		((__u16)(0x01))
+#define CLK_MULTI_REGISTER		((__u16)(0x02))
+#define CLK_START_VALUE_REGISTER	((__u16)(0x03))
+#define DCR1_REGISTER			((__u16)(0x04))
+#define GPIO_REGISTER			((__u16)(0x07))
 
-#ifndef HIGH8
-	#define HIGH8(val)	((unsigned char)((val & 0xff00) >> 8))
-#endif
+#define SERIAL_LCR_DLAB			((__u16)(0x0080))
 
-#ifndef NUM_ENTRIES
-	#define NUM_ENTRIES(x)	(sizeof(x)/sizeof((x)[0]))
-#endif
-
-#define MAX_SERIALNUMBER_LEN 	12
-
-/* The following table is used to map the USBx port number to
- * the device serial number (or physical USB path), */
-
-#define MAX_ATENPORTS	2
-#define MAX_NAME_LEN	64
-
-#define RAID_REG1 	0x30
-#define RAID_REG2 	0x31
-
-#define ZLP_REG1  	0x3A      //Zero_Flag_Reg1    58
-#define ZLP_REG2  	0x3B      //Zero_Flag_Reg2    59
-#define ZLP_REG3  	0x3C      //Zero_Flag_Reg3    60
-#define ZLP_REG4  	0x3D      //Zero_Flag_Reg4    61
-#define ZLP_REG5  	0x3E      //Zero_Flag_Reg5    62
-
-#define THRESHOLD_VAL_SP1_1     0x3F
-#define THRESHOLD_VAL_SP1_2     0x40
-#define THRESHOLD_VAL_SP2_1     0x41
-#define THRESHOLD_VAL_SP2_2     0x42
-
-#define THRESHOLD_VAL_SP3_1     0x43
-#define THRESHOLD_VAL_SP3_2     0x44
-#define THRESHOLD_VAL_SP4_1     0x45
-#define THRESHOLD_VAL_SP4_2     0x46
-
-
-/* For higher baud Rates use TIOCEXBAUD */
-#define TIOCEXBAUD	0x5462
-
-#define BAUD_1152	0	/* 115200bps  * 1	*/
-#define BAUD_2304	1	/* 230400bps  * 2	*/
-#define BAUD_4032	2	/* 403200bps  * 3.5	*/
-#define BAUD_4608	3	/* 460800bps  * 4	*/
-#define BAUD_8064	4	/* 806400bps  * 7	*/
-#define BAUD_9216	5	/* 921600bps  * 8	*/
-
-#define CHASE_TIMEOUT		(5*HZ)		/* 5 seconds */
-#define OPEN_TIMEOUT		(5*HZ)		/* 5 seconds */
-#define COMMAND_TIMEOUT		(5*HZ)		/* 5 seconds */
-
-#ifndef SERIAL_MAGIC
-	#define SERIAL_MAGIC	0x6702
-#endif
-
-#define PORT_MAGIC		0x7301
-
+/*
+ * URB POOL related defines
+ */
+#define NUM_URBS			16	/* URB Count */
+#define URB_TRANSFER_BUFFER_SIZE	32	/* URB Size  */
 
 #define USB_VENDOR_ID_ATENINTL		0x0557
 #define ATENINTL_DEVICE_ID_2011		0x2011
 #define ATENINTL_DEVICE_ID_7820		0x7820
 
-
-/* Interrupt Rotinue Defines	*/
-
-#define SERIAL_IIR_RLS      0x06
-#define SERIAL_IIR_RDA      0x04
-#define SERIAL_IIR_CTI      0x0c
-#define SERIAL_IIR_THR      0x02
-#define SERIAL_IIR_MS       0x00
-
-/*
- *  Emulation of the bit mask on the LINE STATUS REGISTER.
- */
-#define SERIAL_LSR_DR       0x0001
-#define SERIAL_LSR_OE       0x0002
-#define SERIAL_LSR_PE       0x0004
-#define SERIAL_LSR_FE       0x0008
-#define SERIAL_LSR_BI       0x0010
-#define SERIAL_LSR_THRE     0x0020
-#define SERIAL_LSR_TEMT     0x0040
-#define SERIAL_LSR_FIFOERR  0x0080
-
-//MSR bit defines(place holders)
-#define ATEN_MSR_CTS         0x01
-#define ATEN_MSR_DSR         0x02
-#define ATEN_MSR_RI          0x04
-#define ATEN_MSR_CD          0x08
-#define ATEN_MSR_DELTA_CTS   0x10
-#define ATEN_MSR_DELTA_DSR   0x20
-#define ATEN_MSR_DELTA_RI    0x40
-#define ATEN_MSR_DELTA_CD    0x80
-
-// Serial Port register Address
-#define RECEIVE_BUFFER_REGISTER    ((__u16)(0x00))
-#define TRANSMIT_HOLDING_REGISTER  ((__u16)(0x00))
-#define INTERRUPT_ENABLE_REGISTER  ((__u16)(0x01))
-#define INTERRUPT_IDENT_REGISTER   ((__u16)(0x02))
-#define FIFO_CONTROL_REGISTER      ((__u16)(0x02))
-#define LINE_CONTROL_REGISTER      ((__u16)(0x03))
-#define MODEM_CONTROL_REGISTER     ((__u16)(0x04))
-#define LINE_STATUS_REGISTER       ((__u16)(0x05))
-#define MODEM_STATUS_REGISTER      ((__u16)(0x06))
-#define SCRATCH_PAD_REGISTER       ((__u16)(0x07))
-#define DIVISOR_LATCH_LSB          ((__u16)(0x00))
-#define DIVISOR_LATCH_MSB          ((__u16)(0x01))
-
-#define SP_REGISTER_BASE           ((__u16)(0x08))
-#define CONTROL_REGISTER_BASE      ((__u16)(0x09))
-#define DCR_REGISTER_BASE          ((__u16)(0x16))
-
-#define SP1_REGISTER               ((__u16)(0x00))
-#define CONTROL1_REGISTER          ((__u16)(0x01))
-#define CLK_MULTI_REGISTER         ((__u16)(0x02))
-#define CLK_START_VALUE_REGISTER   ((__u16)(0x03))
-#define DCR1_REGISTER              ((__u16)(0x04))
-#define GPIO_REGISTER              ((__u16)(0x07))
-
-#define CLOCK_SELECT_REG1          ((__u16)(0x13))
-#define CLOCK_SELECT_REG2          ((__u16)(0x14))
-
-#define SERIAL_LCR_DLAB       	   ((__u16)(0x0080))
-
-/*
- * URB POOL related defines
- */
-#define NUM_URBS                        16     /* URB Count */
-#define URB_TRANSFER_BUFFER_SIZE        32     /* URB Size  */
-
-// different USB-serial Adapter's ID's table
+/* different USB-serial Adapter's ID's table */
 static struct usb_device_id ATENINTL_port_id_table [] = {
 	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL,ATENINTL_DEVICE_ID_2011) },
 	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL,ATENINTL_DEVICE_ID_7820) },
@@ -332,14 +248,7 @@ void __exit ATENINTL2011_exit(void);
 #define ATEN2011_MSR_CD		0x80	/* Current state of CD */
 
 
-/* all defines goes here */
-
-/*
- * Debug related defines
- */
-
 /* 1: Enables the debugging -- 0: Disable the debugging */
-
 #define ATEN_DEBUG	0
 
 #ifdef ATEN_DEBUG
@@ -351,36 +260,26 @@ static int debug = 0;
 #define DPRINTK(fmt, args...)
 
 #endif
-//#undef DPRINTK
-//      #define DPRINTK(fmt, args...)
 
 /*
  * Version Information
  */
-#define DRIVER_VERSION "1.3.1"
+#define DRIVER_VERSION "2.0"
 #define DRIVER_DESC "ATENINTL 2011 USB Serial Adapter"
 
 /*
  * Defines used for sending commands to port
  */
 
-#define WAIT_FOR_EVER   (HZ * 0 )	/* timeout urb is wait for ever */
-#define ATEN_WDR_TIMEOUT (HZ * 5 )	/* default urb timeout */
-
-#define ATEN_PORT1       0x0200
-#define ATEN_PORT2       0x0300
-#define ATEN_VENREG      0x0000
-#define ATEN_MAX_PORT	 0x02
-#define ATEN_WRITE       0x0E
-#define ATEN_READ        0x0D
+#define ATEN_WDR_TIMEOUT	(50)	/* default urb timeout */
 
 /* Requests */
-#define ATEN_RD_RTYPE 0xC0
-#define ATEN_WR_RTYPE 0x40
-#define ATEN_RDREQ    0x0D
-#define ATEN_WRREQ    0x0E
-#define ATEN_CTRL_TIMEOUT        500
-#define VENDOR_READ_LENGTH                      (0x01)
+#define ATEN_RD_RTYPE		0xC0
+#define ATEN_WR_RTYPE		0x40
+#define ATEN_RDREQ		0x0D
+#define ATEN_WRREQ		0x0E
+#define ATEN_CTRL_TIMEOUT	500
+#define VENDOR_READ_LENGTH	(0x01)
 
 int RS485mode = 0;		//set to 1 for RS485 mode and 0 for RS232 mode
 
@@ -608,7 +507,7 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 	DPRINTK("%s", " : Entering\n");
 
 	ATEN2011_serial = (struct ATENINTL_serial *)urb->context;
-	if (!urb)		// || ATEN2011_serial->status_polling_started == FALSE )
+	if (!urb)		// || ATEN2011_serial->status_polling_started == 0 )
 	{
 		DPRINTK("%s", "Invalid Pointer !!!!:\n");
 		return;
@@ -679,7 +578,7 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 			wval =
 			    (((__u16) serial->port[i]->number -
 			      (__u16) (minor)) + 1) << 8;
-		if (ATEN2011_port->open != FALSE) {
+		if (ATEN2011_port->open != 0) {
 			//printk("%s wval is:(for 2011) %x\n",__FUNCTION__,wval);
 
 			if (sp[i] & 0x01) {
@@ -712,7 +611,7 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 
 	}
       exit:
-	if (ATEN2011_serial->status_polling_started == FALSE)
+	if (ATEN2011_serial->status_polling_started == 0)
 		return;
 
 	result = usb_submit_urb(urb, GFP_ATOMIC);
@@ -974,7 +873,7 @@ static void ATEN2011_bulk_out_data_callback(struct urb *urb)
 	}
 
 	/* Release the Write URB */
-	ATEN2011_port->write_in_progress = FALSE;
+	ATEN2011_port->write_in_progress = 0;
 
 //schedule_work(&ATEN2011_port->port->work);
 	tty_kref_put(tty);
@@ -1280,7 +1179,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
      * were not set up at that time.)                        */
 	if (ATEN2011_serial->NoOfOpenPorts == 1) {
 		// start the status polling here
-		ATEN2011_serial->status_polling_started = TRUE;
+		ATEN2011_serial->status_polling_started = 1;
 		//if (ATEN2011_serial->interrupt_in_buffer == NULL)
 		// {
 		/* If not yet set, Set here */
@@ -1384,10 +1283,10 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 	/* initialize our port settings */
 	ATEN2011_port->shadowMCR = MCR_MASTER_IE;	/* Must set to enable ints! */
-	ATEN2011_port->chaseResponsePending = FALSE;
+	ATEN2011_port->chaseResponsePending = 0;
 	/* send a open port command */
-	ATEN2011_port->openPending = FALSE;
-	ATEN2011_port->open = TRUE;
+	ATEN2011_port->openPending = 0;
+	ATEN2011_port->open = 1;
 	//ATEN2011_change_port_settings(ATEN2011_port,old_termios);
 	/* Setup termios */
 	ATEN2011_set_termios(tty, port, &tmp_termios);
@@ -1477,8 +1376,8 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	//printk("the num of ports opend is:%d\n",ATEN2011_serial->NoOfOpenPorts);
 	if (ATEN2011_serial->NoOfOpenPorts == 0) {
 		//stop the stus polling here
-		//printk("disabling the status polling flag to FALSE :\n");
-		ATEN2011_serial->status_polling_started = FALSE;
+		//printk("disabling the status polling flag to 0 :\n");
+		ATEN2011_serial->status_polling_started = 0;
 		if (ATEN2011_serial->interrupt_read_urb) {
 			DPRINTK("%s", "Shutdown interrupt_read_urb\n");
 			//ATEN2011_serial->interrupt_in_buffer=NULL;
@@ -1501,9 +1400,9 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	//ATEN2011_get_Uart_Reg(port,MODEM_CONTROL_REGISTER,&Data1);
 	//printk("value of MCR after closing the port is : 0x%x\n",Data1);
 
-	ATEN2011_port->open = FALSE;
-	ATEN2011_port->closePending = FALSE;
-	ATEN2011_port->openPending = FALSE;
+	ATEN2011_port->open = 0;
+	ATEN2011_port->closePending = 0;
+	ATEN2011_port->openPending = 0;
 	DPRINTK("%s \n", "Leaving ............");
 
 }
@@ -1538,7 +1437,7 @@ static void ATEN2011_break(struct tty_struct *tty, int break_state)
 	}
 
 	/* flush and chase */
-	ATEN2011_port->chaseResponsePending = TRUE;
+	ATEN2011_port->chaseResponsePending = 1;
 
 	if (serial->dev) {
 
@@ -1574,7 +1473,7 @@ static void ATEN2011_block_until_chase_response(struct tty_struct *tty,
 
 		/* Check for Buffer status */
 		if (count <= 0) {
-			ATEN2011_port->chaseResponsePending = FALSE;
+			ATEN2011_port->chaseResponsePending = 0;
 			return;
 		}
 
@@ -2350,8 +2249,6 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 			return -EFAULT;
 		return 0;
 
-	case TIOCEXBAUD:
-		return 0;
 	default:
 		break;
 	}
@@ -2464,11 +2361,11 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 		ATEN2011_set_Uart_Reg(port, LINE_CONTROL_REGISTER, Data);
 
 		/* Write the divisor */
-		Data = LOW8(divisor);	//:  commented to test
+		Data = (unsigned char)(divisor & 0xff);
 		DPRINTK("set_serial_baud Value to write DLL is %x\n", Data);
 		ATEN2011_set_Uart_Reg(port, DIVISOR_LATCH_LSB, Data);
 
-		Data = HIGH8(divisor);	//:  commented to test
+		Data = (unsigned char)((divisor & 0xff00) >> 8);
 		DPRINTK("set_serial_baud Value to write DLM is %x\n", Data);
 		ATEN2011_set_Uart_Reg(port, DIVISOR_LATCH_MSB, Data);
 
@@ -2772,8 +2669,8 @@ static int ATEN2011_startup(struct usb_serial *serial)
 	memset(ATEN2011_serial, 0, sizeof(struct ATENINTL_serial));
 
 	ATEN2011_serial->serial = serial;
-	//initilize status polling flag to FALSE
-	ATEN2011_serial->status_polling_started = FALSE;
+	//initilize status polling flag to 0
+	ATEN2011_serial->status_polling_started = 0;
 
 	ATEN2011_set_serial_private(serial, ATEN2011_serial);
 	ATEN2011_serial->ATEN2011_spectrum_2or4ports =
