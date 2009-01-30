@@ -498,7 +498,8 @@ values.  To do the latter, you can stick the following in your .emacs file:
             (let ((filename (buffer-file-name)))
               ;; Enable kernel mode for the appropriate files
               (when (and filename
-                         (string-match "~/src/linux-trees" filename))
+                         (string-match (expand-file-name "~/src/linux-trees")
+                                       filename))
                 (setq indent-tabs-mode t)
                 (c-set-style "linux-tabs-only")))))
 
