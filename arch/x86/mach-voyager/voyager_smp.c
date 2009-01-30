@@ -1746,12 +1746,13 @@ static void __init voyager_smp_prepare_cpus(unsigned int max_cpus)
 
 static void __cpuinit voyager_smp_prepare_boot_cpu(void)
 {
-	switch_to_new_gdt();
+	int cpu = smp_processor_id();
+	switch_to_new_gdt(cpu);
 
-	cpu_set(smp_processor_id(), cpu_online_map);
-	cpu_set(smp_processor_id(), cpu_callout_map);
-	cpu_set(smp_processor_id(), cpu_possible_map);
-	cpu_set(smp_processor_id(), cpu_present_map);
+	cpu_set(cpu, cpu_online_map);
+	cpu_set(cpu, cpu_callout_map);
+	cpu_set(cpu, cpu_possible_map);
+	cpu_set(cpu, cpu_present_map);
 }
 
 static int __cpuinit voyager_cpu_up(unsigned int cpu)

@@ -255,10 +255,9 @@ __u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
 
 /* Current gdt points %fs at the "master" per-cpu area: after this,
  * it's on the real one. */
-void switch_to_new_gdt(void)
+void switch_to_new_gdt(int cpu)
 {
 	struct desc_ptr gdt_descr;
-	int cpu = smp_processor_id();
 
 	gdt_descr.address = (long)get_cpu_gdt_table(cpu);
 	gdt_descr.size = GDT_SIZE - 1;
@@ -993,7 +992,7 @@ void __cpuinit cpu_init(void)
 	 * and set up the GDT descriptor:
 	 */
 
-	switch_to_new_gdt();
+	switch_to_new_gdt(cpu);
 	loadsegment(fs, 0);
 
 	load_idt((const struct desc_ptr *)&idt_descr);
@@ -1098,7 +1097,7 @@ void __cpuinit cpu_init(void)
 		clear_in_cr4(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
 
 	load_idt(&idt_descr);
-	switch_to_new_gdt();
+	switch_to_new_gdt(cpu);
 
 	/*
 	 * Set up and load the per-CPU TSS and LDT
