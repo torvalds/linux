@@ -1090,8 +1090,6 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		iowrite32(0, card->config_regs + FPGA_MODE);
 		data32 = ioread32(card->config_regs + FPGA_MODE); 
 	}
-	//Set RX empty flags
-	iowrite32(0xF0, card->config_regs + FLAGS_ADDR);
 
 	data32 = ioread32(card->config_regs + FPGA_VER);
 	fpga_ver = (data32 & 0x0000FFFF);
@@ -1102,6 +1100,10 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (fpga_ver > 27)
 		card->using_dma = 1;
+	else {
+		/* Set RX empty flag for all ports */
+		iowrite32(0xF0, card->config_regs + FLAGS_ADDR);
+	}
 
 	card->nr_ports = 2; /* FIXME: Detect daughterboard */
 
