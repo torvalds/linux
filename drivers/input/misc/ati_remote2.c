@@ -139,6 +139,9 @@ static int ati_remote2_probe(struct usb_interface *interface, const struct usb_d
 static void ati_remote2_disconnect(struct usb_interface *interface);
 static int ati_remote2_suspend(struct usb_interface *interface, pm_message_t message);
 static int ati_remote2_resume(struct usb_interface *interface);
+static int ati_remote2_reset_resume(struct usb_interface *interface);
+static int ati_remote2_pre_reset(struct usb_interface *interface);
+static int ati_remote2_post_reset(struct usb_interface *interface);
 
 static struct usb_driver ati_remote2_driver = {
 	.name       = "ati_remote2",
@@ -147,6 +150,9 @@ static struct usb_driver ati_remote2_driver = {
 	.id_table   = ati_remote2_id_table,
 	.suspend    = ati_remote2_suspend,
 	.resume     = ati_remote2_resume,
+	.reset_resume = ati_remote2_reset_resume,
+	.pre_reset  = ati_remote2_pre_reset,
+	.post_reset = ati_remote2_post_reset,
 	.supports_autosuspend = 1,
 };
 
@@ -709,6 +715,78 @@ static int ati_remote2_resume(struct usb_interface *interface)
 
 	if (!r)
 		ar2->flags &= ~ATI_REMOTE2_SUSPENDED;
+
+	mutex_unlock(&ati_remote2_mutex);
+
+	return r;
+}
+
+static int ati_remote2_reset_resume(struct usb_interface *interface)
+{
+	struct ati_remote2 *ar2;
+	struct usb_host_interface *alt = interface->cur_altsetting;
+	int r = 0;
+
+	if (alt->desc.bInterfaceNumber)
+		return 0;
+
+	ar2 = usb_get_intfdata(interface);
+
+	dev_dbg(&ar2->intf[0]->dev, "%s()\n", __func__);
+
+	mutex_lock(&ati_remote2_mutex);
+
+	r = ati_remote2_setup(ar2);
+	if (r)
+		goto out;
+
+	if (ar2->flags & ATI_REMOTE2_OPENED)
+		r = ati_remote2_submit_urbs(ar2);
+
+	if (!r)
+		ar2->flags &= ~ATI_REMOTE2_SUSPENDED;
+
+ out:
+	mutex_unlock(&ati_remote2_mutex);
+
+	return r;
+}
+
+static int ati_remote2_pre_reset(struct usb_interface *interface)
+{
+	struct ati_remote2 *ar2;
+	struct usb_host_interface *alt = interface->cur_altsetting;
+
+	if (alt->desc.bInterfaceNumber)
+		return 0;
+
+	ar2 = usb_get_intfdata(interface);
+
+	dev_dbg(&ar2->intf[0]->dev, "%s()\n", __func__);
+
+	mutex_lock(&ati_remote2_mutex);
+
+	if (ar2->flags == ATI_REMOTE2_OPENED)
+		ati_remote2_kill_urbs(ar2);
+
+	return 0;
+}
+
+static int ati_remote2_post_reset(struct usb_interface *interface)
+{
+	struct ati_remote2 *ar2;
+	struct usb_host_interface *alt = interface->cur_altsetting;
+	int r = 0;
+
+	if (alt->desc.bInterfaceNumber)
+		return 0;
+
+	ar2 = usb_get_intfdata(interface);
+
+	dev_dbg(&ar2->intf[0]->dev, "%s()\n", __func__);
+
+	if (ar2->flags == ATI_REMOTE2_OPENED)
+		r = ati_remote2_submit_urbs(ar2);
 
 	mutex_unlock(&ati_remote2_mutex);
 
