@@ -1167,7 +1167,12 @@ static int cx24116_initfe(struct dvb_frontend *fe)
 	if (ret != 0)
 		return ret;
 
-	return cx24116_diseqc_init(fe);
+	ret = cx24116_diseqc_init(fe);
+	if (ret != 0)
+		return ret;
+
+	/* HVR-4000 needs this */
+	return cx24116_set_voltage(fe, SEC_VOLTAGE_13);
 }
 
 /*
