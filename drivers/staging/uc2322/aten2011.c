@@ -229,9 +229,6 @@ static int debug = 0;
 /* FIXME make this somehow dynamic and not build time specific */
 static int RS485mode = 0;
 
-static void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port);
-
-
 static inline void ATEN2011_set_serial_private(struct usb_serial *serial,
 					       struct ATENINTL_serial *data)
 {
@@ -341,17 +338,6 @@ static int get_uart_reg(struct usb_serial_port *port, __u16 reg, __u16 *val)
 			      ATEN_WDR_TIMEOUT);
 	*val = (*val) & 0x00ff;
 	return ret;
-}
-
-static void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port)
-{
-
-	DPRINTK("***************************************\n");
-	DPRINTK("SpRegOffset is %2x\n", ATEN2011_port->SpRegOffset);
-	DPRINTK("ControlRegOffset is %2x \n", ATEN2011_port->ControlRegOffset);
-	DPRINTK("DCRRegOffset is %2x \n", ATEN2011_port->DcrRegOffset);
-	DPRINTK("***************************************\n");
-
 }
 
 static int handle_newMsr(struct ATENINTL_port *port, __u8 newMsr)
@@ -2405,7 +2391,6 @@ static int ATEN2011_startup(struct usb_serial *serial)
 			ATEN2011_port->ControlRegOffset = 0xd;
 			ATEN2011_port->DcrRegOffset = 0x1c;
 		}
-		ATEN2011_Dump_serial_port(ATEN2011_port);
 
 		ATEN2011_set_port_private(serial->port[i], ATEN2011_port);
 
