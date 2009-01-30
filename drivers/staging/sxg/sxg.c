@@ -112,9 +112,13 @@ static int sxg_transmit_packet(struct adapter_t *adapter, struct sk_buff *skb);
 static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 				struct sxg_scatter_gather *SxgSgl);
 
-static void sxg_handle_interrupt(struct adapter_t *adapter);
+static void sxg_handle_interrupt(struct adapter_t *adapter, int *work_done,
+					 int budget);
+static void sxg_interrupt(struct adapter_t *adapter);
+static int sxg_poll(struct napi_struct *napi, int budget);
 static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId);
-static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId);
+static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId,
+			 int *sxg_napi_continue, int *work_done, int budget);
 static void sxg_complete_slow_send(struct adapter_t *adapter, int irq_context);
 static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter,
 					struct sxg_event *Event);
@@ -743,7 +747,6 @@ static inline int sxg_read_config(struct adapter_t *adapter)
 		memcpy(adapter->netdev->dev_addr, adapter->currmacaddr, 6);
 		memcpy(adapter->netdev->perm_addr, adapter->currmacaddr, 6);
 	}
-	printk("LINSYS : These are the new MAC address\n");
 	sxg_dbg_macaddrs(adapter);
 
 	return status;
@@ -955,6 +958,8 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 		goto err_out_unmap;
 	}
 
+	netif_napi_add(netdev, &adapter->napi,
+		sxg_poll, SXG_NETDEV_WEIGHT);
 	DBG_ERROR
 	    ("sxg: %s addr 0x%lx, irq %d, MAC addr \
 		%02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -1090,9 +1095,6 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 	 * Move the Isr contents and clear the value in
 	 * shared memory, and mask interrupts
 	 */
-	adapter->IsrCopy[0] = adapter->Isr[0];
-	adapter->Isr[0] = 0;
-	WRITE_REG(adapter->UcodeRegs[0].Icr, SXG_ICR(0, SXG_ICR_MASK), TRUE);
 	/* ASSERT(adapter->IsrDpcsPending == 0); */
 #if XXXTODO			/* RSS Stuff */
 	/*
@@ -1127,27 +1129,42 @@ static irqreturn_t sxg_isr(int irq, void *dev_id)
 	}
 	*TargetCpus = CpuMask;
 #endif
-	/*  There are no DPCs in Linux, so call the handler now */
-	sxg_handle_interrupt(adapter);
+	sxg_interrupt(adapter);
 
 	return IRQ_HANDLED;
 }
 
-static void sxg_handle_interrupt(struct adapter_t *adapter)
+static void sxg_interrupt(struct adapter_t *adapter)
+{
+	WRITE_REG(adapter->UcodeRegs[0].Icr, SXG_ICR(0, SXG_ICR_MASK), TRUE);
+
+	if (netif_rx_schedule_prep(&adapter->napi)) {
+		__netif_rx_schedule(&adapter->napi);
+	}
+}
+
+static void sxg_handle_interrupt(struct adapter_t *adapter, int *work_done,
+					 int budget)
 {
 	/* unsigned char           RssId   = 0; */
 	u32 NewIsr;
-
+	int sxg_napi_continue = 1;
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "HndlIntr",
 		  adapter, adapter->IsrCopy[0], 0, 0);
 	/* For now, RSS is disabled with line based interrupts */
 	ASSERT(adapter->RssEnabled == FALSE);
 	ASSERT(adapter->MsiEnabled == FALSE);
-	ASSERT(adapter->IsrCopy[0]);
+
+	adapter->IsrCopy[0] = adapter->Isr[0];
+	adapter->Isr[0] = 0;
 
 	/* Always process the event queue. */
-	sxg_process_event_queue(adapter,
-				(adapter->RssEnabled ? /*RssId */ 0 : 0));
+	while (sxg_napi_continue)
+	{
+		sxg_process_event_queue(adapter,
+				(adapter->RssEnabled ? /*RssId */ 0 : 0),
+				 &sxg_napi_continue, work_done, budget);
+	}
 
 #if XXXTODO			/* RSS stuff */
 	if (--adapter->IsrDpcsPending) {
@@ -1165,10 +1182,22 @@ static void sxg_handle_interrupt(struct adapter_t *adapter)
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "ClearIsr",
 		  adapter, NewIsr, 0, 0);
 
-	WRITE_REG(adapter->UcodeRegs[0].Isr, NewIsr, TRUE);
-
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XHndlInt",
 		  adapter, 0, 0, 0);
+}
+static int sxg_poll(struct napi_struct *napi, int budget)
+{
+	struct adapter_t *adapter = container_of(napi, struct adapter_t, napi);
+	int work_done = 0;
+
+	sxg_handle_interrupt(adapter, &work_done, budget);
+
+	if (work_done < budget) {
+		netif_rx_complete(napi);
+		WRITE_REG(adapter->UcodeRegs[0].Isr, 0, TRUE);
+	}
+
+	return work_done;
 }
 
 /*
@@ -1285,7 +1314,8 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
  * Return Value:
  * 	None.
  */
-static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
+static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId,
+			 int *sxg_napi_continue, int *work_done, int budget)
 {
 	struct sxg_event_ring *EventRing = &adapter->EventRings[RssId];
 	struct sxg_event *Event = &EventRing->Ring[adapter->NextEvent[RssId]];
@@ -1316,6 +1346,7 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 	 * we shouldn't need a lock for any of this.
 	 */
 	while (Event->Status & EVENT_STATUS_VALID) {
+		(*sxg_napi_continue) = 1;
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "Event",
 			  Event, Event->Code, Event->Status,
 			  adapter->NextEvent);
@@ -1327,6 +1358,7 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 						       Event->CommandIndex);
 			break;
 		case EVENT_CODE_SLOWRCV:
+			(*work_done)++;
 			--adapter->RcvBuffersOnCard;
 			if ((skb = sxg_slow_receive(adapter, Event))) {
 				u32 rx_bytes;
@@ -1349,7 +1381,7 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
 #endif
 				skb->dev = adapter->netdev;
-				netif_rx(skb);
+				netif_receive_skb(skb);
 #endif
 			}
 			break;
@@ -1409,7 +1441,17 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId)
 				break;
 			}
 		}
+		if (*work_done >= budget) {
+			WRITE_REG(adapter->UcodeRegs[RssId].EventRelease,
+				  EventsProcessed, FALSE);
+			EventsProcessed = 0;
+			(*sxg_napi_continue) = 0;
+			break;
+		}
 	}
+	if (!(Event->Status & EVENT_STATUS_VALID))
+		(*sxg_napi_continue) = 0;
+
 #ifdef LINUX_HANDLES_RCV_INDICATION_LISTS
 	/* Indicate any received dumb-nic frames */
 	SXG_INDICATE_PACKETS(adapter, IndicationList, num_skbs);
@@ -1907,6 +1949,20 @@ static int sxg_if_init(struct adapter_t *adapter)
 	return (STATUS_SUCCESS);
 }
 
+void sxg_set_interrupt_aggregation(struct adapter_t *adapter)
+{
+	/*
+	 * Top bit disables aggregation on xmt (SXG_AGG_XMT_DISABLE).
+	 * Make sure Max is less than 0x8000.
+	 */
+	adapter->max_aggregation = SXG_MAX_AGG_DEFAULT;
+	adapter->min_aggregation = SXG_MIN_AGG_DEFAULT;
+	WRITE_REG(adapter->UcodeRegs[0].Aggregation,
+		((adapter->max_aggregation << SXG_MAX_AGG_SHIFT) |
+			adapter->min_aggregation),
+			TRUE);
+}
+
 static int sxg_entry_open(struct net_device *dev)
 {
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
@@ -1959,6 +2015,8 @@ static int sxg_entry_open(struct net_device *dev)
 		return (status);
 	}
 	DBG_ERROR("sxg: %s ENABLE ALL INTERRUPTS\n", __func__);
+	sxg_set_interrupt_aggregation(adapter);
+	napi_enable(&adapter->napi);
 
 	/* Enable interrupts */
 	SXG_ENABLE_ALL_INTERRUPTS(adapter);
@@ -1972,12 +2030,16 @@ static int sxg_entry_open(struct net_device *dev)
 int sxg_second_open(struct net_device * dev)
 {
 	struct adapter_t *adapter = (struct adapter_t*) netdev_priv(dev);
+	int status = 0;
 
 	spin_lock_irqsave(&sxg_global.driver_lock, sxg_global.flags);
 	netif_start_queue(adapter->netdev);
         adapter->state = ADAPT_UP;
         adapter->linkstate = LINK_UP;
 
+	status = sxg_initialize_adapter(adapter);
+	sxg_set_interrupt_aggregation(adapter);
+	napi_enable(&adapter->napi);
         /* Re-enable interrupts */
         SXG_ENABLE_ALL_INTERRUPTS(adapter);
 
@@ -2029,6 +2091,7 @@ static int sxg_entry_halt(struct net_device *dev)
 {
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 
+	napi_disable(&adapter->napi);
 	spin_lock_irqsave(&sxg_global.driver_lock, sxg_global.flags);
 	DBG_ERROR("sxg: %s (%s) ENTER\n", __func__, dev->name);
 
@@ -2105,7 +2168,6 @@ static int sxg_send_packets(struct sk_buff *skb, struct net_device *dev)
 	 * DBG_ERROR("sxg: %s ENTER sxg_send_packets skb[%p]\n", __FUNCTION__,
 	 *	  skb);
 	 */
-	printk("ASK:sxg_send_packets: skb[%p]\n", skb);
 
 	/* Check the adapter state */
 	switch (adapter->State) {

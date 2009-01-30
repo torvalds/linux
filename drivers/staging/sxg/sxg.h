@@ -48,6 +48,9 @@
 #define SXG_DRV_VERSION	"1.0.1"
 
 extern char sxg_driver_name[];
+
+#define SXG_NETDEV_WEIGHT 64
+
 /*
  * struct sxg_stats - Probably move these to someplace where
  * the slicstat (sxgstat?) program can get them.
@@ -524,6 +527,7 @@ struct sxgbase_driver {
 struct adapter_t {
 	void *               ifp;
 	unsigned int                port;
+	struct napi_struct 	napi;
 	struct physcard        *physcard;
 	unsigned int                physport;
 	unsigned int                slotnumber;
@@ -701,6 +705,8 @@ struct adapter_t {
 #if defined(CONFIG_X86)
 	u32		AddrUpper;			/* Upper 32 bits of 64-bit register */
 #endif
+	unsigned short max_aggregation;
+	unsigned short min_aggregation;
 	/*#if SXG_FAILURE_DUMP */
 	/*	NDIS_EVENT	DumpThreadEvent; */	/* syncronize dump thread */
 	/*	BOOLEAN		DumpThreadRunning; */	/* termination flag */
