@@ -979,6 +979,7 @@ static int mv_stop_edma(struct ata_port *ap)
 {
 	void __iomem *port_mmio = mv_ap_base(ap);
 	struct mv_port_priv *pp = ap->private_data;
+	int err = 0;
 
 	if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN))
 		return 0;
@@ -986,9 +987,10 @@ static int mv_stop_edma(struct ata_port *ap)
 	mv_wait_for_edma_empty_idle(ap);
 	if (mv_stop_edma_engine(port_mmio)) {
 		ata_port_printk(ap, KERN_ERR, "Unable to stop eDMA\n");
-		return -EIO;
+		err = -EIO;
 	}
-	return 0;
+	mv_edma_cfg(ap, 0, 0);
+	return err;
 }
 
 #ifdef ATA_DEBUG
@@ -1337,6 +1339,7 @@ static int mv_port_start(struct ata_port *ap)
 			pp->sg_tbl_dma[tag] = pp->sg_tbl_dma[0];
 		}
 	}
+	mv_edma_cfg(ap, 0, 0);
 	return 0;
 
 out_port_free_dma_mem:
@@ -1797,7 +1800,6 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 		 * shadow block, etc registers.
 		 */
 		mv_stop_edma(ap);
-		mv_edma_cfg(ap, 0, 0);
 		mv_clear_and_enable_port_irqs(ap, mv_ap_base(ap), port_irqs);
 		mv_pmp_select(ap, qc->dev->link->pmp);
 		return ata_sff_qc_issue(qc);
@@ -2997,6 +2999,7 @@ static int mv_hardreset(struct ata_link *link, unsigned int *class,
 				extra = HZ; /* only extend it once, max */
 		}
 	} while (sstatus != 0x0 && sstatus != 0x113 && sstatus != 0x123);
+	mv_edma_cfg(ap, 0, 0);
 
 	return rc;
 }
