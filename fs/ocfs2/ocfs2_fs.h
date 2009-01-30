@@ -416,6 +416,7 @@ static struct ocfs2_system_inode_info ocfs2_system_inodes[NUM_SYSTEM_INODES] = {
 #define OCFS2_DIR_REC_LEN(name_len)	(((name_len) + OCFS2_DIR_MEMBER_LEN + \
                                           OCFS2_DIR_ROUND) & \
 					 ~OCFS2_DIR_ROUND)
+#define OCFS2_DIR_MIN_REC_LEN	OCFS2_DIR_REC_LEN(1)
 
 #define OCFS2_LINK_MAX		32000
 
@@ -842,7 +843,9 @@ struct ocfs2_dx_root_block {
 	__le16		dr_reserved1;
 	__le64		dr_dir_blkno;		/* Pointer to parent inode */
 	__le64		dr_reserved2;
-	__le64		dr_reserved3[16];
+	__le64		dr_free_blk;		/* Pointer to head of free
+						 * unindexed block list. */
+	__le64		dr_reserved3[15];
 	union {
 		struct ocfs2_extent_list dr_list; /* Keep this aligned to 128
 						   * bits for maximum space

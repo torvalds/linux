@@ -39,11 +39,19 @@ struct ocfs2_dir_lookup_result {
 
 	struct buffer_head		*dl_dx_root_bh;	/* Root of indexed
 							 * tree */
+
 	struct buffer_head		*dl_dx_leaf_bh;	/* Indexed leaf block */
 	struct ocfs2_dx_entry		*dl_dx_entry;	/* Target dx_entry in
 							 * indexed leaf */
 	struct ocfs2_dx_hinfo		dl_hinfo;	/* Name hash results */
+
+	struct buffer_head		*dl_prev_leaf_bh;/* Previous entry in
+							  * dir free space
+							  * list. NULL if
+							  * previous entry is
+							  * dx root block. */
 };
+
 void ocfs2_free_dir_lookup_result(struct ocfs2_dir_lookup_result *res);
 
 int ocfs2_find_entry(const char *name, int namelen,

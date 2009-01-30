@@ -385,8 +385,8 @@ static inline int ocfs2_remove_extent_credits(struct super_block *sb)
 }
 
 /* data block for new dir/symlink, 2 for bitmap updates (bitmap fe +
- * bitmap block for the new bit) */
-#define OCFS2_DIR_LINK_ADDITIONAL_CREDITS (1 + 2)
+ * bitmap block for the new bit) dx_root update for free list */
+#define OCFS2_DIR_LINK_ADDITIONAL_CREDITS (1 + 2 + 1)
 
 static inline int ocfs2_add_dir_index_credits(struct super_block *sb)
 {
@@ -420,19 +420,19 @@ static inline int ocfs2_mknod_credits(struct super_block *sb, int is_dir,
 #define OCFS2_SIMPLE_DIR_EXTEND_CREDITS (2)
 
 /* file update (nlink, etc) + directory mtime/ctime + dir entry block + quota
- * update on dir + index leaf */
+ * update on dir + index leaf + dx root update for free list */
 static inline int ocfs2_link_credits(struct super_block *sb)
 {
-	return 2*OCFS2_INODE_UPDATE_CREDITS + 2 +
+	return 2*OCFS2_INODE_UPDATE_CREDITS + 3 +
 	       ocfs2_quota_trans_credits(sb);
 }
 
 /* inode + dir inode (if we unlink a dir), + dir entry block + orphan
- * dir inode link + dir inode index leaf */
+ * dir inode link + dir inode index leaf + dir index root */
 static inline int ocfs2_unlink_credits(struct super_block *sb)
 {
 	/* The quota update from ocfs2_link_credits is unused here... */
-	return 2 * OCFS2_INODE_UPDATE_CREDITS + 2 + ocfs2_link_credits(sb);
+	return 2 * OCFS2_INODE_UPDATE_CREDITS + 3 + ocfs2_link_credits(sb);
 }
 
 /* dinode + orphan dir dinode + inode alloc dinode + orphan dir entry +
