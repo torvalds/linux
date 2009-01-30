@@ -230,8 +230,6 @@ static int debug = 0;
 static int RS485mode = 0;
 
 /* setting and get register values */
-static int ATEN2011_set_Uart_Reg(struct usb_serial_port *port, __u16 reg,
-				 __u16 val);
 static int ATEN2011_get_Uart_Reg(struct usb_serial_port *port, __u16 reg,
 				 __u16 * val);
 
@@ -289,45 +287,35 @@ static int get_reg_sync(struct usb_serial_port *port, __u16 reg, __u16 *val)
 	return ret;
 }
 
-static int ATEN2011_set_Uart_Reg(struct usb_serial_port *port, __u16 reg,
-				 __u16 val)
+static int set_uart_reg(struct usb_serial_port *port, __u16 reg, __u16 val)
 {
-
 	struct usb_device *dev = port->serial->dev;
-	struct ATENINTL_serial *ATEN2011_serial;
-	int minor;
-	ATEN2011_serial = ATEN2011_get_serial_private(port->serial);
+	struct ATENINTL_serial *a_serial;
+	__u16 minor;
+
+	a_serial = ATEN2011_get_serial_private(port->serial);
 	minor = port->serial->minor;
 	if (minor == SERIAL_TTY_NO_MINOR)
 		minor = 0;
 	val = val & 0x00ff;
-	// For the UART control registers, the application number need to be Or'ed
 
-	if (ATEN2011_serial->ATEN2011_spectrum_2or4ports == 4) {
-		val |= (((__u16) port->number - (__u16) (minor)) + 1) << 8;
-		DPRINTK("ATEN2011_set_Uart_Reg application number is %x\n",
-			val);
-	} else {
-		if (((__u16) port->number - (__u16) (minor)) == 0) {
-			//      val= 0x100;
-			val |=
-			    (((__u16) port->number - (__u16) (minor)) + 1) << 8;
-			DPRINTK
-			    ("ATEN2011_set_Uart_Reg application number is %x\n",
-			     val);
-		} else {
-			//      val=0x300;
-			val |=
-			    (((__u16) port->number - (__u16) (minor)) + 2) << 8;
-			DPRINTK
-			    ("ATEN2011_set_Uart_Reg application number is %x\n",
-			     val);
-		}
+	/*
+	 * For the UART control registers,
+	 * the application number need to be Or'ed
+	 */
+	if (a_serial->ATEN2011_spectrum_2or4ports == 4)
+		val |= (((__u16)port->number - minor) + 1) << 8;
+	else {
+		if (((__u16) port->number - minor) == 0)
+			val |= (((__u16)port->number - minor) + 1) << 8;
+		else
+			val |= (((__u16)port->number - minor) + 2) << 8;
 	}
+	dbg("%s: application number is %x\n", __func__, val);
+
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0), ATEN_WRREQ,
 			       ATEN_WR_RTYPE, val, reg, NULL, 0,
 			       ATEN_WDR_TIMEOUT);
-
 }
 
 static int ATEN2011_get_Uart_Reg(struct usb_serial_port *port, __u16 reg,
@@ -880,8 +868,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 		Data = 0xC0;
 	else
 		Data = 0x00;
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, SCRATCH_PAD_REGISTER, Data);
+	status = set_uart_reg(port, SCRATCH_PAD_REGISTER, Data);
 	if (status < 0) {
 		DPRINTK("Writing SCRATCH_PAD_REGISTER failed status-0x%x\n",
 			status);
@@ -914,37 +901,32 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	////////////////////////////////////
 
 	Data = 0x00;
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, INTERRUPT_ENABLE_REGISTER, Data);
+	status = set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
 	if (status < 0) {
 		DPRINTK("disableing interrupts failed\n");
 		return -1;
 	}
 	// Set FIFO_CONTROL_REGISTER to the default value
 	Data = 0x00;
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, FIFO_CONTROL_REGISTER, Data);
+	status = set_uart_reg(port, FIFO_CONTROL_REGISTER, Data);
 	if (status < 0) {
 		DPRINTK("Writing FIFO_CONTROL_REGISTER  failed\n");
 		return -1;
 	}
 
 	Data = 0xcf;		//chk
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, FIFO_CONTROL_REGISTER, Data);
+	status = set_uart_reg(port, FIFO_CONTROL_REGISTER, Data);
 	if (status < 0) {
 		DPRINTK("Writing FIFO_CONTROL_REGISTER  failed\n");
 		return -1;
 	}
 
 	Data = 0x03;		//LCR_BITS_8
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, LINE_CONTROL_REGISTER, Data);
+	status = set_uart_reg(port, LINE_CONTROL_REGISTER, Data);
 	ATEN2011_port->shadowLCR = Data;
 
 	Data = 0x0b;		// MCR_DTR|MCR_RTS|MCR_MASTER_IE
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER, Data);
+	status = set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 	ATEN2011_port->shadowMCR = Data;
 
 #ifdef Check
@@ -954,16 +936,13 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	ATEN2011_port->shadowLCR = Data;
 
 	Data |= SERIAL_LCR_DLAB;	//data latch enable in LCR 0x80
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, LINE_CONTROL_REGISTER, Data);
+	status = set_uart_reg(port, LINE_CONTROL_REGISTER, Data);
 
 	Data = 0x0c;
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, DIVISOR_LATCH_LSB, Data);
+	status = set_uart_reg(port, DIVISOR_LATCH_LSB, Data);
 
 	Data = 0x0;
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, DIVISOR_LATCH_MSB, Data);
+	status = set_uart_reg(port, DIVISOR_LATCH_MSB, Data);
 
 	Data = 0x00;
 	status = 0;
@@ -971,8 +950,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 //      Data = ATEN2011_port->shadowLCR; //data latch disable
 	Data = Data & ~SERIAL_LCR_DLAB;
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, LINE_CONTROL_REGISTER, Data);
+	status = set_uart_reg(port, LINE_CONTROL_REGISTER, Data);
 	ATEN2011_port->shadowLCR = Data;
 #endif
 	//clearing Bulkin and Bulkout Fifo
@@ -987,8 +965,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	//Finally enable all interrupts
 	Data = 0x0;
 	Data = 0x0c;
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, INTERRUPT_ENABLE_REGISTER, Data);
+	status = set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
 
 	//clearing rx_disable
 	Data = 0x0;
@@ -1284,9 +1261,9 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 	// clear the MCR & IER
 	Data = 0x00;
-	ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER, Data);
+	set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 	Data = 0x00;
-	ATEN2011_set_Uart_Reg(port, INTERRUPT_ENABLE_REGISTER, Data);
+	set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
 
 	//ATEN2011_get_Uart_Reg(port,MODEM_CONTROL_REGISTER,&Data1);
 	//printk("value of MCR after closing the port is : 0x%x\n",Data1);
@@ -1367,8 +1344,7 @@ static void ATEN2011_break(struct tty_struct *tty, int break_state)
 	ATEN2011_port->shadowLCR = data;
 	DPRINTK("ATEN2011_break ATEN2011_port->shadowLCR is %x\n",
 		ATEN2011_port->shadowLCR);
-	ATEN2011_set_Uart_Reg(port, LINE_CONTROL_REGISTER,
-			      ATEN2011_port->shadowLCR);
+	set_uart_reg(port, LINE_CONTROL_REGISTER, ATEN2011_port->shadowLCR);
 
 	return;
 }
@@ -1546,10 +1522,8 @@ static void ATEN2011_throttle(struct tty_struct *tty)
 	/* if we are implementing RTS/CTS, toggle that line */
 	if (tty->termios->c_cflag & CRTSCTS) {
 		ATEN2011_port->shadowMCR &= ~MCR_RTS;
-		status = 0;
-		status =
-		    ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER,
-					  ATEN2011_port->shadowMCR);
+		status = set_uart_reg(port, MODEM_CONTROL_REGISTER,
+				      ATEN2011_port->shadowMCR);
 
 		if (status < 0) {
 			return;
@@ -1592,10 +1566,8 @@ static void ATEN2011_unthrottle(struct tty_struct *tty)
 	/* if we are implementing RTS/CTS, toggle that line */
 	if (tty->termios->c_cflag & CRTSCTS) {
 		ATEN2011_port->shadowMCR |= MCR_RTS;
-		status = 0;
-		status =
-		    ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER,
-					  ATEN2011_port->shadowMCR);
+		status = set_uart_reg(port, MODEM_CONTROL_REGISTER,
+				      ATEN2011_port->shadowMCR);
 		if (status < 0) {
 			return;
 		}
@@ -1671,8 +1643,7 @@ static int ATEN2011_tiocmset(struct tty_struct *tty, struct file *file,
 
 	ATEN2011_port->shadowMCR = mcr;
 
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER, mcr);
+	status = set_uart_reg(port, MODEM_CONTROL_REGISTER, mcr);
 	if (status < 0) {
 		DPRINTK("setting MODEM_CONTROL_REGISTER Failed\n");
 		return -1;
@@ -1841,8 +1812,7 @@ static int set_modem_info(struct ATENINTL_port *ATEN2011_port, unsigned int cmd,
 	ATEN2011_port->shadowMCR = mcr;
 
 	Data = ATEN2011_port->shadowMCR;
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER, Data);
+	status = set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 	if (status < 0) {
 		DPRINTK("setting MODEM_CONTROL_REGISTER Failed\n");
 		return -1;
@@ -2083,12 +2053,10 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 #ifdef HW_flow_control
 		//NOTE: need to see the pther register to modify
 		//setting h/w flow control bit to 1;
-		status = 0;
 		//Data = ATEN2011_port->shadowMCR ;
 		Data = 0x2b;
 		ATEN2011_port->shadowMCR = Data;
-		status =
-		    ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER, Data);
+		status = set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 		if (status < 0) {
 			DPRINTK("Writing spreg failed in set_serial_baud\n");
 			return -1;
@@ -2098,12 +2066,10 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 	} else {
 #ifdef HW_flow_control
 		//setting h/w flow control bit to 0;
-		status = 0;
 		//Data = ATEN2011_port->shadowMCR ;
 		Data = 0xb;
 		ATEN2011_port->shadowMCR = Data;
-		status =
-		    ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER, Data);
+		status = set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 		if (status < 0) {
 			DPRINTK("Writing spreg failed in set_serial_baud\n");
 			return -1;
@@ -2140,21 +2106,21 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 		/* Enable access to divisor latch */
 		Data = ATEN2011_port->shadowLCR | SERIAL_LCR_DLAB;
 		ATEN2011_port->shadowLCR = Data;
-		ATEN2011_set_Uart_Reg(port, LINE_CONTROL_REGISTER, Data);
+		set_uart_reg(port, LINE_CONTROL_REGISTER, Data);
 
 		/* Write the divisor */
 		Data = (unsigned char)(divisor & 0xff);
 		DPRINTK("set_serial_baud Value to write DLL is %x\n", Data);
-		ATEN2011_set_Uart_Reg(port, DIVISOR_LATCH_LSB, Data);
+		set_uart_reg(port, DIVISOR_LATCH_LSB, Data);
 
 		Data = (unsigned char)((divisor & 0xff00) >> 8);
 		DPRINTK("set_serial_baud Value to write DLM is %x\n", Data);
-		ATEN2011_set_Uart_Reg(port, DIVISOR_LATCH_MSB, Data);
+		set_uart_reg(port, DIVISOR_LATCH_MSB, Data);
 
 		/* Disable access to divisor latch */
 		Data = ATEN2011_port->shadowLCR & ~SERIAL_LCR_DLAB;
 		ATEN2011_port->shadowLCR = Data;
-		ATEN2011_set_Uart_Reg(port, LINE_CONTROL_REGISTER, Data);
+		set_uart_reg(port, LINE_CONTROL_REGISTER, Data);
 
 	}
 
@@ -2264,24 +2230,24 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 	     ATEN2011_port->shadowLCR);
 	/* Disable Interrupts */
 	Data = 0x00;
-	ATEN2011_set_Uart_Reg(port, INTERRUPT_ENABLE_REGISTER, Data);
+	set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
 
 	Data = 0x00;
-	ATEN2011_set_Uart_Reg(port, FIFO_CONTROL_REGISTER, Data);
+	set_uart_reg(port, FIFO_CONTROL_REGISTER, Data);
 
 	Data = 0xcf;
-	ATEN2011_set_Uart_Reg(port, FIFO_CONTROL_REGISTER, Data);
+	set_uart_reg(port, FIFO_CONTROL_REGISTER, Data);
 
 	/* Send the updated LCR value to the ATEN2011 */
 	Data = ATEN2011_port->shadowLCR;
 
-	ATEN2011_set_Uart_Reg(port, LINE_CONTROL_REGISTER, Data);
+	set_uart_reg(port, LINE_CONTROL_REGISTER, Data);
 
 	Data = 0x00b;
 	ATEN2011_port->shadowMCR = Data;
-	ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER, Data);
+	set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 	Data = 0x00b;
-	ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER, Data);
+	set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 
 	/* set up the MCR register and send it to the ATEN2011 */
 
@@ -2298,7 +2264,7 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 	}
 
 	Data = ATEN2011_port->shadowMCR;
-	ATEN2011_set_Uart_Reg(port, MODEM_CONTROL_REGISTER, Data);
+	set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 
 	/* Determine divisor based on baud rate */
 	baud = tty_get_baud_rate(tty);
@@ -2314,7 +2280,7 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 
 	/* Enable Interrupts */
 	Data = 0x0c;
-	ATEN2011_set_Uart_Reg(port, INTERRUPT_ENABLE_REGISTER, Data);
+	set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
 
 	if (ATEN2011_port->read_urb->status != -EINPROGRESS) {
 		ATEN2011_port->read_urb->dev = serial->dev;
