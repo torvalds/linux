@@ -2189,10 +2189,10 @@ static int slic_card_download_gbrcv(struct adapter *adapter)
 
 	switch (adapter->devid) {
 	case SLIC_2GB_DEVICE_ID:
-		file = "oasisrcvucode.sys";
+		file = "slicoss/oasisrcvucode.sys";
 		break;
 	case SLIC_1GB_DEVICE_ID:
-		file = "gbrcvucode.sys";
+		file = "slicoss/gbrcvucode.sys";
 		break;
 	default:
 		ASSERT(0);
@@ -2270,10 +2270,10 @@ static int slic_card_download(struct adapter *adapter)
 
 	switch (adapter->devid) {
 	case SLIC_2GB_DEVICE_ID:
-		file = "oasisdownload.sys";
+		file = "slicoss/oasisdownload.sys";
 		break;
 	case SLIC_1GB_DEVICE_ID:
-		file = "gbdownload.sys";
+		file = "slicoss/gbdownload.sys";
 		break;
 	default:
 		ASSERT(0);

@@ -364,6 +364,20 @@ Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
 
+Driver: SLICOSS - Alacritech IS-NIC products
+
+File: slicoss/gbdownload.sys.ihex
+File: slicoss/gbrcvucode.sys.ihex
+File: slicoss/oasisdbgdownload.sys.ihex
+File: slicoss/oasisdownload.sys.ihex
+File: slicoss/oasisrcvucode.sys.ihex
+
+Licence: Unknown
+
+Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
 Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
 
 File: cxgb3/t3b_psram-1.1.0.bin.ihex
