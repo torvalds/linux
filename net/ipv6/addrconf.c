@@ -4250,7 +4250,7 @@ static struct addrconf_sysctl_table
 			.procname	=	"mc_forwarding",
 			.data		=	&ipv6_devconf.mc_forwarding,
 			.maxlen		=	sizeof(int),
-			.mode		=	0644,
+			.mode		=	0444,
 			.proc_handler	=	proc_dointvec,
 		},
 #endif
