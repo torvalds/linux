@@ -1040,7 +1040,7 @@ static struct atmdev_ops fpga_ops = {
 
 static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	int err, i;
+	int err;
 	uint16_t fpga_ver;
 	uint8_t major_ver, minor_ver;
 	uint32_t data32;
@@ -1090,10 +1090,6 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		iowrite32(0, card->config_regs + FPGA_MODE);
 		data32 = ioread32(card->config_regs + FPGA_MODE); 
 	}
-	//Fill Config Mem with zeros
-	for(i = 0; i < 128; i += 4)
-		iowrite32(0, card->config_regs + i);
-
 	//Set RX empty flags
 	iowrite32(0xF0, card->config_regs + FLAGS_ADDR);
 
