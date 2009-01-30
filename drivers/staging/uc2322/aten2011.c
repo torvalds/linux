@@ -230,8 +230,6 @@ static int debug = 0;
 static int RS485mode = 0;
 
 /* setting and get register values */
-static int ATEN2011_get_reg_sync(struct usb_serial_port *port, __u16 reg,
-				 __u16 * val);
 static int ATEN2011_set_Uart_Reg(struct usb_serial_port *port, __u16 reg,
 				 __u16 val);
 static int ATEN2011_get_Uart_Reg(struct usb_serial_port *port, __u16 reg,
@@ -278,17 +276,15 @@ static int set_reg_sync(struct usb_serial_port *port, __u16 reg, __u16 val)
 			       ATEN_WDR_TIMEOUT);
 }
 
-static int ATEN2011_get_reg_sync(struct usb_serial_port *port, __u16 reg,
-				 __u16 * val)
+static int get_reg_sync(struct usb_serial_port *port, __u16 reg, __u16 *val)
 {
 	struct usb_device *dev = port->serial->dev;
-	int ret = 0;
+	int ret;
 
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), ATEN_RDREQ,
 			      ATEN_RD_RTYPE, 0, reg, val, VENDOR_READ_LENGTH,
 			      ATEN_WDR_TIMEOUT);
-	DPRINTK("ATEN2011_get_reg_sync offset is %x, return val %x\n", reg,
-		*val);
+	dbg("%s: offset is %x, return val %x\n", __func__, reg, *val);
 	*val = (*val) & 0x00ff;
 	return ret;
 }
@@ -857,9 +853,8 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 //NEED to check the fallowing Block
 
-	status = 0;
 	Data = 0x0;
-	status = ATEN2011_get_reg_sync(port, ATEN2011_port->SpRegOffset, &Data);
+	status = get_reg_sync(port, ATEN2011_port->SpRegOffset, &Data);
 	if (status < 0) {
 		DPRINTK("Reading Spreg failed\n");
 		return -1;
@@ -897,10 +892,8 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 //**************************CHECK***************************//
 
-	status = 0;
 	Data = 0x0;
-	status =
-	    ATEN2011_get_reg_sync(port, ATEN2011_port->ControlRegOffset, &Data);
+	status = get_reg_sync(port, ATEN2011_port->ControlRegOffset, &Data);
 	if (status < 0) {
 		DPRINTK("Reading Controlreg failed\n");
 		return -1;
@@ -984,15 +977,12 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 #endif
 	//clearing Bulkin and Bulkout Fifo
 	Data = 0x0;
-	status = 0;
-	status = ATEN2011_get_reg_sync(port, ATEN2011_port->SpRegOffset, &Data);
+	status = get_reg_sync(port, ATEN2011_port->SpRegOffset, &Data);
 
 	Data = Data | 0x0c;
-	status = 0;
 	status = set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
 
 	Data = Data & ~0x0c;
-	status = 0;
 	status = set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
 	//Finally enable all interrupts
 	Data = 0x0;
@@ -1002,18 +992,13 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 	//clearing rx_disable
 	Data = 0x0;
-	status = 0;
-	status =
-	    ATEN2011_get_reg_sync(port, ATEN2011_port->ControlRegOffset, &Data);
+	status = get_reg_sync(port, ATEN2011_port->ControlRegOffset, &Data);
 	Data = Data & ~0x20;
-	status = 0;
 	status = set_reg_sync(port, ATEN2011_port->ControlRegOffset, Data);
 
 	// rx_negate
 	Data = 0x0;
-	status = 0;
-	status =
-	    ATEN2011_get_reg_sync(port, ATEN2011_port->ControlRegOffset, &Data);
+	status = get_reg_sync(port, ATEN2011_port->ControlRegOffset, &Data);
 	Data = Data | 0x10;
 	status = 0;
 	status = set_reg_sync(port, ATEN2011_port->ControlRegOffset, Data);
@@ -2131,13 +2116,10 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 	{
 		clk_sel_val = 0x0;
 		Data = 0x0;
-		status = 0;
 		status =
 		    ATEN2011_calc_baud_rate_divisor(baudRate, &divisor,
 						    &clk_sel_val);
-		status =
-		    ATEN2011_get_reg_sync(port, ATEN2011_port->SpRegOffset,
-					  &Data);
+		status = get_reg_sync(port, ATEN2011_port->SpRegOffset, &Data);
 		if (status < 0) {
 			DPRINTK("reading spreg failed in set_serial_baud\n");
 			return -1;
@@ -2486,10 +2468,8 @@ static int ATEN2011_startup(struct usb_serial *serial)
 
 		//enable rx_disable bit in control register
 
-		status =
-		    ATEN2011_get_reg_sync(serial->port[i],
-					  ATEN2011_port->ControlRegOffset,
-					  &Data);
+		status = get_reg_sync(serial->port[i],
+				      ATEN2011_port->ControlRegOffset, &Data);
 		if (status < 0) {
 			DPRINTK("Reading ControlReg failed status-0x%x\n",
 				status);
