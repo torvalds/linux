@@ -70,6 +70,7 @@
 
 #define RX_DMA_SIZE	2048
 
+static int reset = 0;
 static int atmdebug = 0;
 static int firmware_upgrade = 0;
 static int fpga_upgrade = 0;
@@ -131,9 +132,11 @@ MODULE_AUTHOR("Traverse Technologies <support@traverse.com.au>");
 MODULE_DESCRIPTION("Solos PCI driver");
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
+MODULE_PARM_DESC(reset, "Reset Solos chips on startup");
 MODULE_PARM_DESC(atmdebug, "Print ATM data");
 MODULE_PARM_DESC(firmware_upgrade, "Initiate Solos firmware upgrade");
 MODULE_PARM_DESC(fpga_upgrade, "Initiate FPGA upgrade");
+module_param(reset, int, 0444);
 module_param(atmdebug, int, 0644);
 module_param(firmware_upgrade, int, 0444);
 module_param(fpga_upgrade, int, 0444);
@@ -1071,6 +1074,13 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto out_unmap_config;
 	}
 
+	if (reset) {
+		iowrite32(1, card->config_regs + FPGA_MODE);
+		data32 = ioread32(card->config_regs + FPGA_MODE); 
+
+		iowrite32(0, card->config_regs + FPGA_MODE);
+		data32 = ioread32(card->config_regs + FPGA_MODE); 
+	}
 	//Fill Config Mem with zeros
 	for(i = 0; i < 128; i += 4)
 		iowrite32(0, card->config_regs + i);
