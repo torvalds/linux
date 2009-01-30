@@ -794,7 +794,7 @@ void ip6_route_input(struct sk_buff *skb)
 		.proto = iph->nexthdr,
 	};
 
-	if (rt6_need_strict(&iph->daddr))
+	if (rt6_need_strict(&iph->daddr) && skb->dev->type != ARPHRD_PIMREG)
 		flags |= RT6_LOOKUP_F_IFACE;
 
 	skb->dst = fib6_rule_lookup(net, &fl, flags, ip6_pol_route_input);

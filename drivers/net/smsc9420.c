@@ -1378,6 +1378,7 @@ static int smsc9420_open(struct net_device *dev)
 
 	/* test the IRQ connection to the ISR */
 	smsc_dbg(IFUP, "Testing ISR using IRQ %d", dev->irq);
+	pd->software_irq_signal = false;
 
 	spin_lock_irqsave(&pd->int_lock, flags);
 	/* configure interrupt deassertion timer and enable interrupts */
@@ -1393,8 +1394,6 @@ static int smsc9420_open(struct net_device *dev)
 	smsc9420_pci_flush_write(pd);
 
 	timeout = 1000;
-	pd->software_irq_signal = false;
-	smp_wmb();
 	while (timeout--) {
 		if (pd->software_irq_signal)
 			break;

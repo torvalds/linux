@@ -1536,6 +1536,11 @@ static void adjust_link(struct net_device *dev)
 static int init_phy(struct net_device *dev)
 {
 	struct ucc_geth_private *priv = netdev_priv(dev);
+	struct device_node *np = priv->node;
+	struct device_node *phy, *mdio;
+	const phandle *ph;
+	char bus_name[MII_BUS_ID_SIZE];
+	const unsigned int *id;
 	struct phy_device *phydev;
 	char phy_id[BUS_ID_SIZE];
 
@@ -1543,8 +1548,18 @@ static int init_phy(struct net_device *dev)
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT, priv->ug_info->mdio_bus,
-		 priv->ug_info->phy_address);
+	ph = of_get_property(np, "phy-handle", NULL);
+	phy = of_find_node_by_phandle(*ph);
+	mdio = of_get_parent(phy);
+
+	id = of_get_property(phy, "reg", NULL);
+
+	of_node_put(phy);
+	of_node_put(mdio);
+
+	uec_mdio_bus_name(bus_name, mdio);
+	snprintf(phy_id, sizeof(phy_id), "%s:%02x",
+                                bus_name, *id);
 
 	phydev = phy_connect(dev, phy_id, &adjust_link, 0, priv->phy_interface);
 
@@ -3748,6 +3763,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	ugeth->ug_info = ug_info;
 	ugeth->dev = dev;
+	ugeth->node = np;
 
 	return 0;
 }
