@@ -229,10 +229,6 @@ static int debug = 0;
 /* FIXME make this somehow dynamic and not build time specific */
 static int RS485mode = 0;
 
-/* setting and get register values */
-static int ATEN2011_get_Uart_Reg(struct usb_serial_port *port, __u16 reg,
-				 __u16 * val);
-
 static void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port);
 
 
@@ -318,43 +314,30 @@ static int set_uart_reg(struct usb_serial_port *port, __u16 reg, __u16 val)
 			       ATEN_WDR_TIMEOUT);
 }
 
-static int ATEN2011_get_Uart_Reg(struct usb_serial_port *port, __u16 reg,
-				 __u16 * val)
+static int get_uart_reg(struct usb_serial_port *port, __u16 reg, __u16 *val)
 {
 	struct usb_device *dev = port->serial->dev;
 	int ret = 0;
-	__u16 Wval;
-	struct ATENINTL_serial *ATEN2011_serial;
-	int minor = port->serial->minor;
-	ATEN2011_serial = ATEN2011_get_serial_private(port->serial);
+	__u16 wval;
+	struct ATENINTL_serial *a_serial;
+	__u16 minor = port->serial->minor;
+
+	a_serial = ATEN2011_get_serial_private(port->serial);
 	if (minor == SERIAL_TTY_NO_MINOR)
 		minor = 0;
 
-	//DPRINTK("application number is %4x \n",(((__u16)port->number - (__u16)(minor))+1)<<8);
-	/*Wval  is same as application number */
-	if (ATEN2011_serial->ATEN2011_spectrum_2or4ports == 4) {
-		Wval = (((__u16) port->number - (__u16) (minor)) + 1) << 8;
-		DPRINTK("ATEN2011_get_Uart_Reg application number is %x\n",
-			Wval);
-	} else {
-		if (((__u16) port->number - (__u16) (minor)) == 0) {
-			//      Wval= 0x100;
-			Wval =
-			    (((__u16) port->number - (__u16) (minor)) + 1) << 8;
-			DPRINTK
-			    ("ATEN2011_get_Uart_Reg application number is %x\n",
-			     Wval);
-		} else {
-			//      Wval=0x300;
-			Wval =
-			    (((__u16) port->number - (__u16) (minor)) + 2) << 8;
-			DPRINTK
-			    ("ATEN2011_get_Uart_Reg application number is %x\n",
-			     Wval);
-		}
+	/* wval is same as application number */
+	if (a_serial->ATEN2011_spectrum_2or4ports == 4)
+		wval = (((__u16)port->number - minor) + 1) << 8;
+	else {
+		if (((__u16) port->number - minor) == 0)
+			wval = (((__u16) port->number - minor) + 1) << 8;
+		else
+			wval = (((__u16) port->number - minor) + 2) << 8;
 	}
+	dbg("%s: application number is %x\n", __func__, wval);
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), ATEN_RDREQ,
-			      ATEN_RD_RTYPE, Wval, reg, val, VENDOR_READ_LENGTH,
+			      ATEN_RD_RTYPE, wval, reg, val, VENDOR_READ_LENGTH,
 			      ATEN_WDR_TIMEOUT);
 	*val = (*val) & 0x00ff;
 	return ret;
@@ -931,8 +914,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 #ifdef Check
 	Data = 0x00;
-	status = 0;
-	status = ATEN2011_get_Uart_Reg(port, LINE_CONTROL_REGISTER, &Data);
+	status = get_uart_reg(port, LINE_CONTROL_REGISTER, &Data);
 	ATEN2011_port->shadowLCR = Data;
 
 	Data |= SERIAL_LCR_DLAB;	//data latch enable in LCR 0x80
@@ -945,8 +927,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	status = set_uart_reg(port, DIVISOR_LATCH_MSB, Data);
 
 	Data = 0x00;
-	status = 0;
-	status = ATEN2011_get_Uart_Reg(port, LINE_CONTROL_REGISTER, &Data);
+	status = get_uart_reg(port, LINE_CONTROL_REGISTER, &Data);
 
 //      Data = ATEN2011_port->shadowLCR; //data latch disable
 	Data = Data & ~SERIAL_LCR_DLAB;
@@ -1264,9 +1245,6 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 	Data = 0x00;
 	set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
-
-	//ATEN2011_get_Uart_Reg(port,MODEM_CONTROL_REGISTER,&Data1);
-	//printk("value of MCR after closing the port is : 0x%x\n",Data1);
 
 	ATEN2011_port->open = 0;
 	DPRINTK("%s \n", "Leaving ............");
@@ -1593,8 +1571,8 @@ static int ATEN2011_tiocmget(struct tty_struct *tty, struct file *file)
 	if (ATEN2011_port == NULL)
 		return -ENODEV;
 
-	status = ATEN2011_get_Uart_Reg(port, MODEM_STATUS_REGISTER, &msr);
-	status = ATEN2011_get_Uart_Reg(port, MODEM_CONTROL_REGISTER, &mcr);
+	status = get_uart_reg(port, MODEM_STATUS_REGISTER, &msr);
+	status = get_uart_reg(port, MODEM_CONTROL_REGISTER, &mcr);
 //        mcr = ATEN2011_port->shadowMCR;
 // COMMENT2: the Fallowing three line are commented for updating only MSR values
 	result = ((mcr & MCR_DTR) ? TIOCM_DTR : 0)
@@ -1827,10 +1805,9 @@ static int get_modem_info(struct ATENINTL_port *ATEN2011_port,
 	unsigned int result = 0;
 	__u16 msr;
 	unsigned int mcr = ATEN2011_port->shadowMCR;
-	int status = 0;
-	status =
-	    ATEN2011_get_Uart_Reg(ATEN2011_port->port, MODEM_STATUS_REGISTER,
-				  &msr);
+	int status;
+
+	status = get_uart_reg(ATEN2011_port->port, MODEM_STATUS_REGISTER, &msr);
 	result = ((mcr & MCR_DTR) ? TIOCM_DTR : 0)	/* 0x002 */
 	    |((mcr & MCR_RTS) ? TIOCM_RTS : 0)	/* 0x004 */
 	    |((msr & ATEN2011_MSR_CTS) ? TIOCM_CTS : 0)	/* 0x020 */
