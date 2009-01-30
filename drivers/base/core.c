@@ -1280,7 +1280,7 @@ EXPORT_SYMBOL_GPL(__root_device_register);
 
 /**
  * root_device_unregister - unregister and free a root device
- * @root: device going away.
+ * @dev: device going away
  *
  * This function unregisters and cleans up a device that was created by
  * root_device_register().
