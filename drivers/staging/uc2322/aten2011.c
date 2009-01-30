@@ -2858,7 +2858,7 @@ static struct usb_serial *ATEN2011_get_usb_serial(struct usb_serial_port *port,
 	return port->serial;
 }
 
-static struct usb_serial_driver ATENINTL2011_4port_device = {
+static struct usb_serial_driver aten_serial_driver = {
 	.driver = {
 		.owner =	THIS_MODULE,
 		.name =		"aten2011",
@@ -2892,55 +2892,34 @@ static struct usb_driver aten_driver = {
 	.id_table =	id_table,
 };
 
-static int __init ATENINTL2011_init(void)
+static int __init aten_init(void)
 {
 	int retval;
 
-	DPRINTK("%s \n", " ATEN2011_init :entering..........");
-
 	/* Register with the usb serial */
-	retval = usb_serial_register(&ATENINTL2011_4port_device);
-
+	retval = usb_serial_register(&aten_serial_driver);
 	if (retval)
-		goto failed_port_device_register;
+		return retval;
 
-/*	info(DRIVER_DESC " " DRIVER_VERSION); */
 	printk(KERN_INFO KBUILD_MODNAME ":"
 	       DRIVER_DESC " " DRIVER_VERSION "\n");
 
 	/* Register with the usb */
 	retval = usb_register(&aten_driver);
-
 	if (retval)
-		goto failed_usb_register;
-
-	if (retval == 0) {
-		DPRINTK("%s\n", "Leaving...");
-		return 0;
-	}
-
-      failed_usb_register:
-	usb_serial_deregister(&ATENINTL2011_4port_device);
-
-      failed_port_device_register:
+		usb_serial_deregister(&aten_serial_driver);
 
 	return retval;
 }
 
-static void __exit ATENINTL2011_exit(void)
+static void __exit aten_exit(void)
 {
-
-	DPRINTK("%s \n", " ATEN2011_exit :entering..........");
-
 	usb_deregister(&aten_driver);
-
-	usb_serial_deregister(&ATENINTL2011_4port_device);
-
-	DPRINTK("%s\n", "End...");
+	usb_serial_deregister(&aten_serial_driver);
 }
 
-module_init(ATENINTL2011_init);
-module_exit(ATENINTL2011_exit);
+module_init(aten_init);
+module_exit(aten_exit);
 
 /* Module information */
 MODULE_DESCRIPTION(DRIVER_DESC);
