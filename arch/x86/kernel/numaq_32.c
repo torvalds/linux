@@ -554,7 +554,7 @@ struct genapic apic_numaq = {
 	.send_IPI_mask_allbutself	= NULL,
 	.send_IPI_allbutself		= numaq_send_IPI_allbutself,
 	.send_IPI_all			= numaq_send_IPI_all,
-	.send_IPI_self			= NULL,
+	.send_IPI_self			= default_send_IPI_self,
 
 	.wakeup_cpu			= NULL,
 	.trampoline_phys_low		= NUMAQ_TRAMPOLINE_PHYS_LOW,

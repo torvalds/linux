@@ -588,7 +588,7 @@ struct genapic apic_summit = {
 	.send_IPI_mask_allbutself	= NULL,
 	.send_IPI_allbutself		= summit_send_IPI_allbutself,
 	.send_IPI_all			= summit_send_IPI_all,
-	.send_IPI_self			= NULL,
+	.send_IPI_self			= default_send_IPI_self,
 
 	.wakeup_cpu			= NULL,
 	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
