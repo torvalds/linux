@@ -1544,6 +1544,8 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 				ieee80211_start_tx_ba_session(sc->hw, hdr->addr1, tid);
 		}
 	}
+
+	ath_debug_stat_rc(sc, skb);
 exit:
 	kfree(tx_info_priv);
 }
