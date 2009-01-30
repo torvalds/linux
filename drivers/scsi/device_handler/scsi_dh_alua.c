@@ -691,6 +691,7 @@ static const struct scsi_dh_devlist alua_dev_list[] = {
 	{"IBM", "2107900" },
 	{"IBM", "2145" },
 	{"Pillar", "Axiom" },
+	{"Intel", "Multi-Flex"},
 	{NULL, NULL}
 };
 
