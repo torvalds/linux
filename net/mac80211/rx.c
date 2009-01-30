@@ -86,8 +86,7 @@ ieee80211_rx_radiotap_len(struct ieee80211_local *local,
 
 	if (status->flag & RX_FLAG_TSFT)
 		len += 8;
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DB ||
-	    local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		len += 1;
 	if (local->hw.flags & IEEE80211_HW_NOISE_DBM)
 		len += 1;
@@ -198,14 +197,6 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	/* IEEE80211_RADIOTAP_ANTENNA */
 	*pos = status->antenna;
 	pos++;
-
-	/* IEEE80211_RADIOTAP_DB_ANTSIGNAL */
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DB) {
-		*pos = status->signal;
-		rthdr->it_present |=
-			cpu_to_le32(1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL);
-		pos++;
-	}
 
 	/* IEEE80211_RADIOTAP_DB_ANTNOISE is not used */
 

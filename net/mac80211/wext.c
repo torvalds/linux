@@ -173,8 +173,7 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 	range->num_encoding_sizes = 2;
 	range->max_encoding_tokens = NUM_DEFAULT_KEYS;
 
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC ||
-	    local->hw.flags & IEEE80211_HW_SIGNAL_DB)
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
 		range->max_qual.level = local->hw.max_signal;
 	else if  (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		range->max_qual.level = -110;
