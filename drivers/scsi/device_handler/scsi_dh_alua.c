@@ -247,8 +247,8 @@ static unsigned submit_stpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	/* Prepare the data buffer */
 	memset(h->buff, 0, stpg_len);
 	h->buff[4] = TPGS_STATE_OPTIMIZED & 0x0f;
-	h->buff[6] = (h->group_id >> 8) & 0x0f;
-	h->buff[7] = h->group_id & 0x0f;
+	h->buff[6] = (h->group_id >> 8) & 0xff;
+	h->buff[7] = h->group_id & 0xff;
 
 	rq = get_alua_req(sdev, h->buff, stpg_len, WRITE);
 	if (!rq)
