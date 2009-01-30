@@ -261,10 +261,11 @@ enum configuration_ids {
 	INSN_CONFIG_GET_CLOCK_SRC = 2004,	/* Get master clock source */
 	INSN_CONFIG_SET_OTHER_SRC = 2005,	/* Set other source */
 /*	INSN_CONFIG_GET_OTHER_SRC = 2006,*/	/* Get other source */
-	INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE,	/* Get size in bytes of
-						  subdevice's on-board fifos
-						  used during streaming
-						  input/output */
+	INSN_CONFIG_GET_HARDWARE_BUFFER_SIZE = 2006,	/* Get size in bytes of
+							   subdevice's on-board
+							   fifos used during
+							   streaming
+							   input/output */
 	INSN_CONFIG_SET_COUNTER_MODE = 4097,
 	INSN_CONFIG_8254_SET_MODE = INSN_CONFIG_SET_COUNTER_MODE,	/* deprecated */
 	INSN_CONFIG_8254_READ_STATUS = 4098,
