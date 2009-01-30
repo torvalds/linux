@@ -364,6 +364,13 @@ show_cpuinfo (struct seq_file *m, void *v)
 				 boot_cpu_data.cpu_hz / 1000000,
 				 boot_cpu_data.cpu_hz % 1000000  );
 
+		seq_printf(m, "capabilities\t:");
+		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS32)
+			seq_printf(m, " os32");
+		if (boot_cpu_data.pdc.capabilities & PDC_MODEL_OS64)
+			seq_printf(m, " os64");
+		seq_printf(m, "\n");
+
 		seq_printf(m, "model\t\t: %s\n"
 				"model name\t: %s\n",
 				 boot_cpu_data.pdc.sys_model_name,
