@@ -461,6 +461,15 @@ static int alua_check_sense(struct scsi_device *sdev,
 			 */
 			return ADD_TO_MLQUEUE;
 		}
+		if (sense_hdr->asc == 0x3f && sense_hdr->ascq == 0x0e) {
+			/*
+			 * REPORTED_LUNS_DATA_HAS_CHANGED is reported
+			 * when switching controllers on targets like
+			 * Intel Multi-Flex. We can just retry.
+			 */
+			return ADD_TO_MLQUEUE;
+		}
+
 		break;
 	}
 
