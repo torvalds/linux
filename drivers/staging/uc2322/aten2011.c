@@ -88,20 +88,12 @@
 #define ATENINTL_DEVICE_ID_2011		0x2011
 #define ATENINTL_DEVICE_ID_7820		0x7820
 
-/* different USB-serial Adapter's ID's table */
-static struct usb_device_id ATENINTL_port_id_table [] = {
+static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL,ATENINTL_DEVICE_ID_2011) },
 	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL,ATENINTL_DEVICE_ID_7820) },
 	{ } /* terminating entry */
 };
-
-static __devinitdata struct usb_device_id id_table_combined [] = {
-	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL,ATENINTL_DEVICE_ID_2011) },
-	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL,ATENINTL_DEVICE_ID_7820) },
-	{ } /* terminating entry */
-};
-
-MODULE_DEVICE_TABLE (usb, id_table_combined);
+MODULE_DEVICE_TABLE (usb, id_table);
 
 /* This structure holds all of the local port information */
 struct ATENINTL_port
@@ -177,39 +169,12 @@ struct ATENINTL_serial
 	unsigned char	status_polling_started;
 };
 
-static void ATEN2011_interrupt_callback(struct urb *urb);
-static void ATEN2011_bulk_in_callback(struct urb *urb);
-static void ATEN2011_bulk_out_data_callback(struct urb *urb);
-static void ATEN2011_control_callback(struct urb *urb);
-static int ATEN2011_get_reg(struct ATENINTL_port *ATEN,__u16 Wval, __u16 reg, __u16 * val);
-int handle_newMsr(struct ATENINTL_port *port,__u8 newMsr);
-int handle_newLsr(struct ATENINTL_port *port,__u8 newLsr);
-static int  ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
-static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
-static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port, const unsigned char *data, int count);
-static int  ATEN2011_write_room(struct tty_struct *tty);
-static int  ATEN2011_chars_in_buffer(struct tty_struct *tty);
-static void ATEN2011_throttle(struct tty_struct *tty);
-static void ATEN2011_unthrottle(struct tty_struct *tty);
-static void ATEN2011_set_termios(struct tty_struct *tty, struct usb_serial_port *port, struct ktermios *old_termios);
-static int ATEN2011_tiocmset(struct tty_struct *tty, struct file *file,
-        			unsigned int set, unsigned int clear);
-static int ATEN2011_tiocmget(struct tty_struct *tty, struct file *file);
-static int  ATEN2011_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
-static void ATEN2011_break(struct tty_struct *tty, int break_state);
-static int  ATEN2011_startup(struct usb_serial *serial);
-static void ATEN2011_shutdown(struct usb_serial *serial);
-static int ATEN2011_calc_num_ports(struct usb_serial *serial);
-
-static int  ATEN2011_calc_baud_rate_divisor(int baudRate, int *divisor,__u16 *clk_sel_val);
-static int  ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port *ATEN2011_port, int baudRate);
-static void ATEN2011_change_port_settings(struct tty_struct *tty, struct ATENINTL_port *ATEN2011_port, struct ktermios *old_termios);
-static void ATEN2011_block_until_chase_response(struct tty_struct *tty, struct ATENINTL_port *ATEN2011_port);
-static void ATEN2011_block_until_tx_empty(struct tty_struct *tty, struct ATENINTL_port *ATEN2011_port);
-
-int __init ATENINTL2011_init(void);
-void __exit ATENINTL2011_exit(void);
-
+static void ATEN2011_set_termios(struct tty_struct *tty,
+				 struct usb_serial_port *port,
+				 struct ktermios *old_termios);
+static void ATEN2011_change_port_settings(struct tty_struct *tty,
+					  struct ATENINTL_port *ATEN2011_port,
+					  struct ktermios *old_termios);
 
 /*************************************
  * Bit definitions for each register *
@@ -300,7 +265,7 @@ static int ATEN2011_set_Uart_Reg(struct usb_serial_port *port, __u16 reg,
 static int ATEN2011_get_Uart_Reg(struct usb_serial_port *port, __u16 reg,
 				 __u16 * val);
 
-void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port);
+static void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port);
 
 
 static inline void ATEN2011_set_serial_private(struct usb_serial *serial,
@@ -439,7 +404,7 @@ static int ATEN2011_get_Uart_Reg(struct usb_serial_port *port, __u16 reg,
 	return ret;
 }
 
-void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port)
+static void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port)
 {
 
 	DPRINTK("***************************************\n");
@@ -451,45 +416,138 @@ void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port)
 
 }
 
-static struct usb_serial_driver ATENINTL2011_4port_device = {
-	.driver = {
-		   .owner = THIS_MODULE,
-		   .name = "ATEN2011",
-		   },
-	.description = DRIVER_DESC,
-	.id_table = ATENINTL_port_id_table,
-	.open = ATEN2011_open,
-	.close = ATEN2011_close,
-	.write = ATEN2011_write,
-	.write_room = ATEN2011_write_room,
-	.chars_in_buffer = ATEN2011_chars_in_buffer,
-	.throttle = ATEN2011_throttle,
-	.unthrottle = ATEN2011_unthrottle,
-	.calc_num_ports = ATEN2011_calc_num_ports,
+static int handle_newMsr(struct ATENINTL_port *port, __u8 newMsr)
+{
+	struct ATENINTL_port *ATEN2011_port;
+	struct async_icount *icount;
+	ATEN2011_port = port;
+	icount = &ATEN2011_port->icount;
+	if (newMsr &
+	    (ATEN_MSR_DELTA_CTS | ATEN_MSR_DELTA_DSR | ATEN_MSR_DELTA_RI |
+	     ATEN_MSR_DELTA_CD)) {
+		icount = &ATEN2011_port->icount;
 
-#ifdef ATENSerialProbe
-	.probe = ATEN2011_serial_probe,
-#endif
-	.ioctl = ATEN2011_ioctl,
-	.set_termios = ATEN2011_set_termios,
-	.break_ctl = ATEN2011_break,
-//      .break_ctl              = ATEN2011_break_ctl,
-	.tiocmget = ATEN2011_tiocmget,
-	.tiocmset = ATEN2011_tiocmset,
-	.attach = ATEN2011_startup,
-	.shutdown = ATEN2011_shutdown,
-	.read_bulk_callback = ATEN2011_bulk_in_callback,
-	.read_int_callback = ATEN2011_interrupt_callback,
-};
+		/* update input line counters */
+		if (newMsr & ATEN_MSR_DELTA_CTS) {
+			icount->cts++;
+		}
+		if (newMsr & ATEN_MSR_DELTA_DSR) {
+			icount->dsr++;
+		}
+		if (newMsr & ATEN_MSR_DELTA_CD) {
+			icount->dcd++;
+		}
+		if (newMsr & ATEN_MSR_DELTA_RI) {
+			icount->rng++;
+		}
+	}
 
-static struct usb_driver io_driver = {
-	.name = "ATEN2011",
-	.probe = usb_serial_probe,
-	.disconnect = usb_serial_disconnect,
-	.id_table = id_table_combined,
-};
+	return 0;
+}
 
-//#ifdef ATEN2011
+static int handle_newLsr(struct ATENINTL_port *port, __u8 newLsr)
+{
+	struct async_icount *icount;
+
+	dbg("%s - %02x", __FUNCTION__, newLsr);
+
+	if (newLsr & SERIAL_LSR_BI) {
+		//
+		// Parity and Framing errors only count if they
+		// occur exclusive of a break being
+		// received.
+		//
+		newLsr &= (__u8) (SERIAL_LSR_OE | SERIAL_LSR_BI);
+	}
+
+	/* update input line counters */
+	icount = &port->icount;
+	if (newLsr & SERIAL_LSR_BI) {
+		icount->brk++;
+	}
+	if (newLsr & SERIAL_LSR_OE) {
+		icount->overrun++;
+	}
+	if (newLsr & SERIAL_LSR_PE) {
+		icount->parity++;
+	}
+	if (newLsr & SERIAL_LSR_FE) {
+		icount->frame++;
+	}
+
+	return 0;
+}
+
+static void ATEN2011_control_callback(struct urb *urb)
+{
+	unsigned char *data;
+	struct ATENINTL_port *ATEN2011_port;
+	__u8 regval = 0x0;
+
+	if (!urb) {
+		DPRINTK("%s", "Invalid Pointer !!!!:\n");
+		return;
+	}
+
+	switch (urb->status) {
+	case 0:
+		/* success */
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		/* this urb is terminated, clean up */
+		dbg("%s - urb shutting down with status: %d", __FUNCTION__,
+		    urb->status);
+		return;
+	default:
+		dbg("%s - nonzero urb status received: %d", __FUNCTION__,
+		    urb->status);
+		goto exit;
+	}
+
+	ATEN2011_port = (struct ATENINTL_port *)urb->context;
+
+	DPRINTK("%s urb buffer size is %d\n", __FUNCTION__, urb->actual_length);
+	DPRINTK("%s ATEN2011_port->MsrLsr is %d port %d\n", __FUNCTION__,
+		ATEN2011_port->MsrLsr, ATEN2011_port->port_num);
+	data = urb->transfer_buffer;
+	regval = (__u8) data[0];
+	DPRINTK("%s data is %x\n", __FUNCTION__, regval);
+	if (ATEN2011_port->MsrLsr == 0)
+		handle_newMsr(ATEN2011_port, regval);
+	else if (ATEN2011_port->MsrLsr == 1)
+		handle_newLsr(ATEN2011_port, regval);
+
+      exit:
+	return;
+}
+
+static int ATEN2011_get_reg(struct ATENINTL_port *ATEN, __u16 Wval, __u16 reg,
+			    __u16 * val)
+{
+	struct usb_device *dev = ATEN->port->serial->dev;
+	struct usb_ctrlrequest *dr = NULL;
+	unsigned char *buffer = NULL;
+	int ret = 0;
+	buffer = (__u8 *) ATEN->ctrl_buf;
+
+//      dr=(struct usb_ctrlrequest *)(buffer);
+	dr = (void *)(buffer + 2);
+	dr->bRequestType = ATEN_RD_RTYPE;
+	dr->bRequest = ATEN_RDREQ;
+	dr->wValue = cpu_to_le16(Wval);	//0;
+	dr->wIndex = cpu_to_le16(reg);
+	dr->wLength = cpu_to_le16(2);
+
+	usb_fill_control_urb(ATEN->control_urb, dev, usb_rcvctrlpipe(dev, 0),
+			     (unsigned char *)dr, buffer, 2,
+			     ATEN2011_control_callback, ATEN);
+	ATEN->control_urb->transfer_buffer_length = 2;
+	ret = usb_submit_urb(ATEN->control_urb, GFP_ATOMIC);
+	return ret;
+}
+
 static void ATEN2011_interrupt_callback(struct urb *urb)
 {
 	int result;
@@ -623,139 +681,6 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 
 	return;
 
-}
-
-//#endif
-static void ATEN2011_control_callback(struct urb *urb)
-{
-	unsigned char *data;
-	struct ATENINTL_port *ATEN2011_port;
-	__u8 regval = 0x0;
-
-	if (!urb) {
-		DPRINTK("%s", "Invalid Pointer !!!!:\n");
-		return;
-	}
-
-	switch (urb->status) {
-	case 0:
-		/* success */
-		break;
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__,
-		    urb->status);
-		return;
-	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__,
-		    urb->status);
-		goto exit;
-	}
-
-	ATEN2011_port = (struct ATENINTL_port *)urb->context;
-
-	DPRINTK("%s urb buffer size is %d\n", __FUNCTION__, urb->actual_length);
-	DPRINTK("%s ATEN2011_port->MsrLsr is %d port %d\n", __FUNCTION__,
-		ATEN2011_port->MsrLsr, ATEN2011_port->port_num);
-	data = urb->transfer_buffer;
-	regval = (__u8) data[0];
-	DPRINTK("%s data is %x\n", __FUNCTION__, regval);
-	if (ATEN2011_port->MsrLsr == 0)
-		handle_newMsr(ATEN2011_port, regval);
-	else if (ATEN2011_port->MsrLsr == 1)
-		handle_newLsr(ATEN2011_port, regval);
-
-      exit:
-	return;
-}
-
-int handle_newMsr(struct ATENINTL_port *port, __u8 newMsr)
-{
-	struct ATENINTL_port *ATEN2011_port;
-	struct async_icount *icount;
-	ATEN2011_port = port;
-	icount = &ATEN2011_port->icount;
-	if (newMsr &
-	    (ATEN_MSR_DELTA_CTS | ATEN_MSR_DELTA_DSR | ATEN_MSR_DELTA_RI |
-	     ATEN_MSR_DELTA_CD)) {
-		icount = &ATEN2011_port->icount;
-
-		/* update input line counters */
-		if (newMsr & ATEN_MSR_DELTA_CTS) {
-			icount->cts++;
-		}
-		if (newMsr & ATEN_MSR_DELTA_DSR) {
-			icount->dsr++;
-		}
-		if (newMsr & ATEN_MSR_DELTA_CD) {
-			icount->dcd++;
-		}
-		if (newMsr & ATEN_MSR_DELTA_RI) {
-			icount->rng++;
-		}
-	}
-
-	return 0;
-}
-
-int handle_newLsr(struct ATENINTL_port *port, __u8 newLsr)
-{
-	struct async_icount *icount;
-
-	dbg("%s - %02x", __FUNCTION__, newLsr);
-
-	if (newLsr & SERIAL_LSR_BI) {
-		//
-		// Parity and Framing errors only count if they
-		// occur exclusive of a break being
-		// received.
-		//
-		newLsr &= (__u8) (SERIAL_LSR_OE | SERIAL_LSR_BI);
-	}
-
-	/* update input line counters */
-	icount = &port->icount;
-	if (newLsr & SERIAL_LSR_BI) {
-		icount->brk++;
-	}
-	if (newLsr & SERIAL_LSR_OE) {
-		icount->overrun++;
-	}
-	if (newLsr & SERIAL_LSR_PE) {
-		icount->parity++;
-	}
-	if (newLsr & SERIAL_LSR_FE) {
-		icount->frame++;
-	}
-
-	return 0;
-}
-
-static int ATEN2011_get_reg(struct ATENINTL_port *ATEN, __u16 Wval, __u16 reg,
-			    __u16 * val)
-{
-	struct usb_device *dev = ATEN->port->serial->dev;
-	struct usb_ctrlrequest *dr = NULL;
-	unsigned char *buffer = NULL;
-	int ret = 0;
-	buffer = (__u8 *) ATEN->ctrl_buf;
-
-//      dr=(struct usb_ctrlrequest *)(buffer);
-	dr = (void *)(buffer + 2);
-	dr->bRequestType = ATEN_RD_RTYPE;
-	dr->bRequest = ATEN_RDREQ;
-	dr->wValue = cpu_to_le16(Wval);	//0;
-	dr->wIndex = cpu_to_le16(reg);
-	dr->wLength = cpu_to_le16(2);
-
-	usb_fill_control_urb(ATEN->control_urb, dev, usb_rcvctrlpipe(dev, 0),
-			     (unsigned char *)dr, buffer, 2,
-			     ATEN2011_control_callback, ATEN);
-	ATEN->control_urb->transfer_buffer_length = 2;
-	ret = usb_submit_urb(ATEN->control_urb, GFP_ATOMIC);
-	return ret;
 }
 
 static void ATEN2011_bulk_in_callback(struct urb *urb)
@@ -1303,6 +1228,68 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 }
 
+static int ATEN2011_chars_in_buffer(struct tty_struct *tty)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	int i;
+	int chars = 0;
+	struct ATENINTL_port *ATEN2011_port;
+
+	//DPRINTK("%s \n"," ATEN2011_chars_in_buffer:entering ...........");
+
+	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
+		DPRINTK("%s", "Invalid port \n");
+		return -1;
+	}
+
+	ATEN2011_port = ATEN2011_get_port_private(port);
+	if (ATEN2011_port == NULL) {
+		DPRINTK("%s \n", "ATEN2011_break:leaving ...........");
+		return -1;
+	}
+
+	for (i = 0; i < NUM_URBS; ++i) {
+		if (ATEN2011_port->write_urb_pool[i]->status == -EINPROGRESS) {
+			chars += URB_TRANSFER_BUFFER_SIZE;
+		}
+	}
+	dbg("%s - returns %d", __FUNCTION__, chars);
+	return (chars);
+
+}
+
+static void ATEN2011_block_until_tx_empty(struct tty_struct *tty,
+					  struct ATENINTL_port *ATEN2011_port)
+{
+	int timeout = HZ / 10;
+	int wait = 30;
+	int count;
+
+	while (1) {
+
+		count = ATEN2011_chars_in_buffer(tty);
+
+		/* Check for Buffer status */
+		if (count <= 0) {
+			return;
+		}
+
+		/* Block the thread for a while */
+		interruptible_sleep_on_timeout(&ATEN2011_port->wait_chase,
+					       timeout);
+
+		/* No activity.. count down section */
+		wait--;
+		if (wait == 0) {
+			dbg("%s - TIMEOUT", __FUNCTION__);
+			return;
+		} else {
+			/* Reset timout value back to seconds */
+			wait = 30;
+		}
+	}
+}
+
 static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 			   struct file *filp)
 {
@@ -1407,6 +1394,39 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 
 }
 
+static void ATEN2011_block_until_chase_response(struct tty_struct *tty,
+						struct ATENINTL_port
+						*ATEN2011_port)
+{
+	int timeout = 1 * HZ;
+	int wait = 10;
+	int count;
+
+	while (1) {
+		count = ATEN2011_chars_in_buffer(tty);
+
+		/* Check for Buffer status */
+		if (count <= 0) {
+			ATEN2011_port->chaseResponsePending = 0;
+			return;
+		}
+
+		/* Block the thread for a while */
+		interruptible_sleep_on_timeout(&ATEN2011_port->wait_chase,
+					       timeout);
+		/* No activity.. count down section */
+		wait--;
+		if (wait == 0) {
+			dbg("%s - TIMEOUT", __FUNCTION__);
+			return;
+		} else {
+			/* Reset timout value back to seconds */
+			wait = 10;
+		}
+	}
+
+}
+
 static void ATEN2011_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1460,71 +1480,6 @@ static void ATEN2011_break(struct tty_struct *tty, int break_state)
 	return;
 }
 
-static void ATEN2011_block_until_chase_response(struct tty_struct *tty,
-						struct ATENINTL_port
-						*ATEN2011_port)
-{
-	int timeout = 1 * HZ;
-	int wait = 10;
-	int count;
-
-	while (1) {
-		count = ATEN2011_chars_in_buffer(tty);
-
-		/* Check for Buffer status */
-		if (count <= 0) {
-			ATEN2011_port->chaseResponsePending = 0;
-			return;
-		}
-
-		/* Block the thread for a while */
-		interruptible_sleep_on_timeout(&ATEN2011_port->wait_chase,
-					       timeout);
-		/* No activity.. count down section */
-		wait--;
-		if (wait == 0) {
-			dbg("%s - TIMEOUT", __FUNCTION__);
-			return;
-		} else {
-			/* Reset timout value back to seconds */
-			wait = 10;
-		}
-	}
-
-}
-
-static void ATEN2011_block_until_tx_empty(struct tty_struct *tty,
-					  struct ATENINTL_port *ATEN2011_port)
-{
-	int timeout = HZ / 10;
-	int wait = 30;
-	int count;
-
-	while (1) {
-
-		count = ATEN2011_chars_in_buffer(tty);
-
-		/* Check for Buffer status */
-		if (count <= 0) {
-			return;
-		}
-
-		/* Block the thread for a while */
-		interruptible_sleep_on_timeout(&ATEN2011_port->wait_chase,
-					       timeout);
-
-		/* No activity.. count down section */
-		wait--;
-		if (wait == 0) {
-			dbg("%s - TIMEOUT", __FUNCTION__);
-			return;
-		} else {
-			/* Reset timout value back to seconds */
-			wait = 30;
-		}
-	}
-}
-
 static int ATEN2011_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1554,36 +1509,6 @@ static int ATEN2011_write_room(struct tty_struct *tty)
 
 	dbg("%s - returns %d", __FUNCTION__, room);
 	return (room);
-
-}
-
-static int ATEN2011_chars_in_buffer(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	int i;
-	int chars = 0;
-	struct ATENINTL_port *ATEN2011_port;
-
-	//DPRINTK("%s \n"," ATEN2011_chars_in_buffer:entering ...........");
-
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid port \n");
-		return -1;
-	}
-
-	ATEN2011_port = ATEN2011_get_port_private(port);
-	if (ATEN2011_port == NULL) {
-		DPRINTK("%s \n", "ATEN2011_break:leaving ...........");
-		return -1;
-	}
-
-	for (i = 0; i < NUM_URBS; ++i) {
-		if (ATEN2011_port->write_urb_pool[i]->status == -EINPROGRESS) {
-			chars += URB_TRANSFER_BUFFER_SIZE;
-		}
-	}
-	dbg("%s - returns %d", __FUNCTION__, chars);
-	return (chars);
 
 }
 
@@ -2256,6 +2181,43 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 	return -ENOIOCTLCMD;
 }
 
+static int ATEN2011_calc_baud_rate_divisor(int baudRate, int *divisor,
+					   __u16 * clk_sel_val)
+{
+	//int i;
+	//__u16 custom,round1, round;
+
+	dbg("%s - %d", __FUNCTION__, baudRate);
+
+	if (baudRate <= 115200) {
+		*divisor = 115200 / baudRate;
+		*clk_sel_val = 0x0;
+	}
+	if ((baudRate > 115200) && (baudRate <= 230400)) {
+		*divisor = 230400 / baudRate;
+		*clk_sel_val = 0x10;
+	} else if ((baudRate > 230400) && (baudRate <= 403200)) {
+		*divisor = 403200 / baudRate;
+		*clk_sel_val = 0x20;
+	} else if ((baudRate > 403200) && (baudRate <= 460800)) {
+		*divisor = 460800 / baudRate;
+		*clk_sel_val = 0x30;
+	} else if ((baudRate > 460800) && (baudRate <= 806400)) {
+		*divisor = 806400 / baudRate;
+		*clk_sel_val = 0x40;
+	} else if ((baudRate > 806400) && (baudRate <= 921600)) {
+		*divisor = 921600 / baudRate;
+		*clk_sel_val = 0x50;
+	} else if ((baudRate > 921600) && (baudRate <= 1572864)) {
+		*divisor = 1572864 / baudRate;
+		*clk_sel_val = 0x60;
+	} else if ((baudRate > 1572864) && (baudRate <= 3145728)) {
+		*divisor = 3145728 / baudRate;
+		*clk_sel_val = 0x70;
+	}
+	return 0;
+}
+
 static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 					     *ATEN2011_port, int baudRate)
 {
@@ -2377,43 +2339,6 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 	}
 
 	return status;
-}
-
-static int ATEN2011_calc_baud_rate_divisor(int baudRate, int *divisor,
-					   __u16 * clk_sel_val)
-{
-	//int i;
-	//__u16 custom,round1, round;
-
-	dbg("%s - %d", __FUNCTION__, baudRate);
-
-	if (baudRate <= 115200) {
-		*divisor = 115200 / baudRate;
-		*clk_sel_val = 0x0;
-	}
-	if ((baudRate > 115200) && (baudRate <= 230400)) {
-		*divisor = 230400 / baudRate;
-		*clk_sel_val = 0x10;
-	} else if ((baudRate > 230400) && (baudRate <= 403200)) {
-		*divisor = 403200 / baudRate;
-		*clk_sel_val = 0x20;
-	} else if ((baudRate > 403200) && (baudRate <= 460800)) {
-		*divisor = 460800 / baudRate;
-		*clk_sel_val = 0x30;
-	} else if ((baudRate > 460800) && (baudRate <= 806400)) {
-		*divisor = 806400 / baudRate;
-		*clk_sel_val = 0x40;
-	} else if ((baudRate > 806400) && (baudRate <= 921600)) {
-		*divisor = 921600 / baudRate;
-		*clk_sel_val = 0x50;
-	} else if ((baudRate > 921600) && (baudRate <= 1572864)) {
-		*divisor = 1572864 / baudRate;
-		*clk_sel_val = 0x60;
-	} else if ((baudRate > 1572864) && (baudRate <= 3145728)) {
-		*divisor = 3145728 / baudRate;
-		*clk_sel_val = 0x70;
-	}
-	return 0;
 }
 
 static void ATEN2011_change_port_settings(struct tty_struct *tty,
@@ -2988,7 +2913,41 @@ static struct usb_serial *ATEN2011_get_usb_serial(struct usb_serial_port *port,
 	return port->serial;
 }
 
-int __init ATENINTL2011_init(void)
+static struct usb_serial_driver ATENINTL2011_4port_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"aten2011",
+		},
+	.description =		DRIVER_DESC,
+	.id_table =		id_table,
+	.open =			ATEN2011_open,
+	.close =		ATEN2011_close,
+	.write =		ATEN2011_write,
+	.write_room =		ATEN2011_write_room,
+	.chars_in_buffer =	ATEN2011_chars_in_buffer,
+	.throttle =		ATEN2011_throttle,
+	.unthrottle =		ATEN2011_unthrottle,
+	.calc_num_ports =	ATEN2011_calc_num_ports,
+
+	.ioctl =		ATEN2011_ioctl,
+	.set_termios =		ATEN2011_set_termios,
+	.break_ctl =		ATEN2011_break,
+	.tiocmget =		ATEN2011_tiocmget,
+	.tiocmset =		ATEN2011_tiocmset,
+	.attach =		ATEN2011_startup,
+	.shutdown =		ATEN2011_shutdown,
+	.read_bulk_callback =	ATEN2011_bulk_in_callback,
+	.read_int_callback =	ATEN2011_interrupt_callback,
+};
+
+static struct usb_driver aten_driver = {
+	.name =		"aten2011",
+	.probe =	usb_serial_probe,
+	.disconnect =	usb_serial_disconnect,
+	.id_table =	id_table,
+};
+
+static int __init ATENINTL2011_init(void)
 {
 	int retval;
 
@@ -3005,7 +2964,7 @@ int __init ATENINTL2011_init(void)
 	       DRIVER_DESC " " DRIVER_VERSION "\n");
 
 	/* Register with the usb */
-	retval = usb_register(&io_driver);
+	retval = usb_register(&aten_driver);
 
 	if (retval)
 		goto failed_usb_register;
@@ -3023,12 +2982,12 @@ int __init ATENINTL2011_init(void)
 	return retval;
 }
 
-void __exit ATENINTL2011_exit(void)
+static void __exit ATENINTL2011_exit(void)
 {
 
 	DPRINTK("%s \n", " ATEN2011_exit :entering..........");
 
-	usb_deregister(&io_driver);
+	usb_deregister(&aten_driver);
 
 	usb_serial_deregister(&ATENINTL2011_4port_device);
 
