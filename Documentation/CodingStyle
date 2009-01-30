@@ -483,6 +483,16 @@ values.  To do the latter, you can stick the following in your .emacs file:
     (* (max steps 1)
        c-basic-offset)))
 
+(add-hook 'c-mode-common-hook
+          (lambda ()
+            ;; Add kernel style
+            (c-add-style
+             "linux-tabs-only"
+             '("linux" (c-offsets-alist
+                        (arglist-cont-nonempty
+                         c-lineup-gcc-asm-reg
+                         c-lineup-arglist-tabs-only))))))
+
 (add-hook 'c-mode-hook
           (lambda ()
             (let ((filename (buffer-file-name)))
@@ -490,10 +500,7 @@ values.  To do the latter, you can stick the following in your .emacs file:
               (when (and filename
                          (string-match "~/src/linux-trees" filename))
                 (setq indent-tabs-mode t)
-                (c-set-style "linux")
-                (c-set-offset 'arglist-cont-nonempty
-                              '(c-lineup-gcc-asm-reg
-                                c-lineup-arglist-tabs-only))))))
+                (c-set-style "linux-tabs-only")))))
 
 This will make emacs go better with the kernel coding style for C
 files below ~/src/linux-trees.
