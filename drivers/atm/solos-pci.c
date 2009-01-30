@@ -340,6 +340,12 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 	str = next_string(skb);
 	if (!str)
 		return -EIO;
+	if (!strcmp(str, "ERROR")) {
+		dev_dbg(&card->dev->dev, "Status packet indicated Solos error on port %d (starting up?)\n",
+			 port);
+		return 0;
+	}
+
 	rate_up = simple_strtol(str, &end, 10);
 	if (*end)
 		return -EIO;
@@ -362,8 +368,7 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 	}
 
 	if (state == ATM_PHY_SIG_LOST) {
-		dev_info(&card->dev->dev, "Port %d ATM state: %s\n",
-			 port, state_str);
+		dev_info(&card->dev->dev, "Port %d: %s\n", port, state_str);
 	} else {
 		char *snr, *attn;
 
@@ -374,7 +379,7 @@ static int process_status(struct solos_card *card, int port, struct sk_buff *skb
 		if (!attn)
 			return -EIO;
 
-		dev_info(&card->dev->dev, "Port %d: %s (%d/%d kb/s%s%s%s%s)\n",
+		dev_info(&card->dev->dev, "Port %d: %s @%d/%d kb/s%s%s%s%s\n",
 			 port, state_str, rate_down/1000, rate_up/1000,
 			 snr[0]?", SNR ":"", snr, attn[0]?", Attn ":"", attn);
 	}		
@@ -663,7 +668,11 @@ void solos_bh(unsigned long card_arg)
 				break;
 
 			case PKT_STATUS:
-				process_status(card, port, skb);
+				if (process_status(card, port, skb) &&
+				    net_ratelimit()) {
+					dev_warn(&card->dev->dev, "Bad status packet of %d bytes on port %d:\n", skb->len, port);
+					print_buffer(skb);
+				}
 				dev_kfree_skb_any(skb);
 				break;
 
