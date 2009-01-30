@@ -1543,6 +1543,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 /*			reg1 = 0x06;	 * 640 clk 24Mz (done) */
 			reg17 = 0xe2;
 		}
+		break;
 	case SENSOR_OM6802:
 		om6802_InitSensor(gspca_dev);
 		reg17 = 0x64;		/* 640 MCKSIZE */
