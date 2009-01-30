@@ -253,6 +253,16 @@ static char __cpuinit *table_lookup_model(struct cpuinfo_x86 *c)
 
 __u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
 
+void load_percpu_segment(int cpu)
+{
+#ifdef CONFIG_X86_32
+	loadsegment(fs, __KERNEL_PERCPU);
+#else
+	loadsegment(gs, 0);
+	wrmsrl(MSR_GS_BASE, (unsigned long)per_cpu(irq_stack_union.gs_base, cpu));
+#endif
+}
+
 /* Current gdt points %fs at the "master" per-cpu area: after this,
  * it's on the real one. */
 void switch_to_new_gdt(int cpu)
@@ -263,12 +273,8 @@ void switch_to_new_gdt(int cpu)
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 	/* Reload the per-cpu base */
-#ifdef CONFIG_X86_32
-	loadsegment(fs, __KERNEL_PERCPU);
-#else
-	loadsegment(gs, 0);
-	wrmsrl(MSR_GS_BASE, (unsigned long)per_cpu(irq_stack_union.gs_base, cpu));
-#endif
+
+	load_percpu_segment(cpu);
 }
 
 static struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
