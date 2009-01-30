@@ -1000,7 +1000,7 @@ static int __init smp_sanity_check(unsigned max_cpus)
 {
 	preempt_disable();
 
-#ifndef CONFIG_X86_BIGSMP
+#if !defined(CONFIG_X86_BIGSMP) && defined(CONFIG_X86_32)
 	if (def_to_bigsmp && nr_cpu_ids > 8) {
 		unsigned int cpu;
 		unsigned nr;
