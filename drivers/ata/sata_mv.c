@@ -1628,6 +1628,12 @@ static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)
 	if (pp->pp_flags & MV_PP_FLAG_NCQ_EN)
 		return NULL;
 	qc = ata_qc_from_tag(ap, ap->link.active_tag);
+	if (qc) {
+		if (qc->tf.flags & ATA_TFLAG_POLLING)
+			qc = NULL;
+		else if (!(qc->flags & ATA_QCFLAG_ACTIVE))
+			qc = NULL;
+	}
 	if (qc && (qc->tf.flags & ATA_TFLAG_POLLING))
 		qc = NULL;
 	return qc;
