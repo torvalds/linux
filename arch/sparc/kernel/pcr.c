@@ -9,11 +9,21 @@
 
 #include <asm/pil.h>
 #include <asm/pcr.h>
+#include <asm/nmi.h>
 
 /* This code is shared between various users of the performance
  * counters.  Users will be oprofile, pseudo-NMI watchdog, and the
  * perf_counter support layer.
  */
+
+#define PCR_SUN4U_ENABLE	(PCR_PIC_PRIV | PCR_STRACE | PCR_UTRACE)
+#define PCR_N2_ENABLE		(PCR_PIC_PRIV | PCR_STRACE | PCR_UTRACE | \
+				 PCR_N2_TOE_OV1 | \
+				 (2 << PCR_N2_SL1_SHIFT) | \
+				 (0xff << PCR_N2_MASK1_SHIFT))
+
+u64 pcr_enable;
+unsigned int picl_shift;
 
 /* Performance counter interrupts run unmasked at PIL level 15.
  * Therefore we can't do things like wakeups and other work
@@ -117,12 +127,15 @@ int __init pcr_arch_init(void)
 	switch (tlb_type) {
 	case hypervisor:
 		pcr_ops = &n2_pcr_ops;
+		pcr_enable = PCR_N2_ENABLE;
+		picl_shift = 2;
 		break;
 
-	case spitfire:
 	case cheetah:
 	case cheetah_plus:
+	case spitfire:
 		pcr_ops = &direct_pcr_ops;
+		pcr_enable = PCR_SUN4U_ENABLE;
 		break;
 
 	default:
@@ -130,7 +143,7 @@ int __init pcr_arch_init(void)
 		goto out_unregister;
 	}
 
-	return 0;
+	return nmi_init();
 
 out_unregister:
 	unregister_perf_hsvc();

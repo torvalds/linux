@@ -27,4 +27,20 @@ extern void schedule_deferred_pcr_work(void);
 #define PCR_N2_SL1_SHIFT	27
 #define PCR_N2_OV1		0x80000000
 
+extern unsigned int picl_shift;
+
+/* In order to commonize as much of the implementation as
+ * possible, we use PICH as our counter.  Mostly this is
+ * to accomodate Niagara-1 which can only count insn cycles
+ * in PICH.
+ */
+static inline u64 picl_value(unsigned int nmi_hz)
+{
+	u32 delta = local_cpu_data().clock_tick / (nmi_hz << picl_shift);
+
+	return ((u64)((0 - delta) & 0xffffffff)) << 32;
+}
+
+extern u64 pcr_enable;
+
 #endif /* __PCR_H */
