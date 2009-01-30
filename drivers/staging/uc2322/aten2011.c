@@ -105,31 +105,15 @@ struct ATENINTL_port
 	__u8	      	bulk_in_endpoint;	/* the bulk in endpoint handle */
 	unsigned char 	*bulk_in_buffer;	/* the buffer we use for the bulk in endpoint */
 	struct urb   	*read_urb;	     	/* read URB for this port */
-	__s16	     rxBytesAvail;/*the number of bytes that we need to read from this device */
-	__s16		rxBytesRemaining;	/* the number of port bytes left to read */
-	char		write_in_progress;	/* TRUE while a write URB is outstanding */
 	__u8		shadowLCR;		/* last LCR value received */
 	__u8		shadowMCR;		/* last MCR value received */
-	__u8		shadowMSR;		/* last MSR value received */
-	__u8		shadowLSR;		/* last LSR value received */
-	__u8		shadowXonChar;		/* last value set as XON char in ATENINTL */
-	__u8		shadowXoffChar;		/* last value set as XOFF char in ATENINTL */
-	__u8		validDataMask;
-	__u32		baudRate;
 	char		open;
-	char		openPending;
-	char		commandPending;
-	char		closePending;
 	char		chaseResponsePending;
 	wait_queue_head_t	wait_chase;		/* for handling sleeping while waiting for chase to finish */
-	wait_queue_head_t	wait_open;		/* for handling sleeping while waiting for open to finish */
 	wait_queue_head_t	wait_command;		/* for handling sleeping while waiting for command to finish */
-	wait_queue_head_t	delta_msr_wait;		/* for handling sleeping while waiting for msr change to happen */
-	 int                     delta_msr_cond;
 	struct async_icount	icount;
 	struct usb_serial_port	*port;			/* loop back to the owner of this object */
 	/*Offsets*/
-	__u16 		AppNum;
 	__u8 		SpRegOffset;
 	__u8 		ControlRegOffset;
 	__u8 		DcrRegOffset;
@@ -156,11 +140,6 @@ struct ATENINTL_serial
 	unsigned char  *bulk_in_buffer;		/* the buffer we use for the bulk in endpoint */
 	struct urb 	*read_urb;		/* our bulk read urb */
 	__u8		bulk_out_endpoint;	/* the bulk out endpoint handle */
-	__s16	 rxBytesAvail;	/* the number of bytes that we need to read from this device */
-	__u8		rxPort;		/* the port that we are currently receiving data for */
-	__u8		rxStatusCode;		/* the receive status code */
-	__u8		rxStatusParam;		/* the receive status paramater */
-	__s16		rxBytesRemaining;	/* the number of port bytes left to read */
 	struct usb_serial	*serial;	/* loop back to the owner of this object */
 	int	ATEN2011_spectrum_2or4ports; 	//this says the number of ports in the device
 	// Indicates about the no.of opened ports of an individual USB-serial adapater.
@@ -410,7 +389,6 @@ static void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port)
 {
 
 	DPRINTK("***************************************\n");
-	DPRINTK("Application number is %4x\n", ATEN2011_port->AppNum);
 	DPRINTK("SpRegOffset is %2x\n", ATEN2011_port->SpRegOffset);
 	DPRINTK("ControlRegOffset is %2x \n", ATEN2011_port->ControlRegOffset);
 	DPRINTK("DCRRegOffset is %2x \n", ATEN2011_port->DcrRegOffset);
@@ -798,9 +776,6 @@ static void ATEN2011_bulk_out_data_callback(struct urb *urb)
 		/* tell the tty driver that something has changed */
 		wake_up_interruptible(&tty->write_wait);
 	}
-
-	/* Release the Write URB */
-	ATEN2011_port->write_in_progress = 0;
 
 //schedule_work(&ATEN2011_port->port->work);
 	tty_kref_put(tty);
@@ -1200,9 +1175,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 
 	/* initialize our wait queues */
-	init_waitqueue_head(&ATEN2011_port->wait_open);
 	init_waitqueue_head(&ATEN2011_port->wait_chase);
-	init_waitqueue_head(&ATEN2011_port->delta_msr_wait);
 	init_waitqueue_head(&ATEN2011_port->wait_command);
 
 	/* initialize our icount structure */
@@ -1212,12 +1185,10 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	ATEN2011_port->shadowMCR = MCR_MASTER_IE;	/* Must set to enable ints! */
 	ATEN2011_port->chaseResponsePending = 0;
 	/* send a open port command */
-	ATEN2011_port->openPending = 0;
 	ATEN2011_port->open = 1;
 	//ATEN2011_change_port_settings(ATEN2011_port,old_termios);
 	/* Setup termios */
 	ATEN2011_set_termios(tty, port, &tmp_termios);
-	ATEN2011_port->rxBytesAvail = 0x0;
 	ATEN2011_port->icount.tx = 0;
 	ATEN2011_port->icount.rx = 0;
 
@@ -1390,8 +1361,6 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	//printk("value of MCR after closing the port is : 0x%x\n",Data1);
 
 	ATEN2011_port->open = 0;
-	ATEN2011_port->closePending = 0;
-	ATEN2011_port->openPending = 0;
 	DPRINTK("%s \n", "Leaving ............");
 
 }
@@ -2122,10 +2091,6 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 		dbg("%s (%d) TIOCMIWAIT", __FUNCTION__, port->number);
 		cprev = ATEN2011_port->icount;
 		while (1) {
-			//interruptible_sleep_on(&ATEN2011_port->delta_msr_wait);
-			// ATEN2011_port->delta_msr_cond=0;
-			//wait_event_interruptible(ATEN2011_port->delta_msr_wait,(ATEN2011_port->delta_msr_cond==1));
-
 			/* see if a signal did it */
 			if (signal_pending(current))
 				return -ERESTARTSYS;
@@ -2338,7 +2303,6 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 	int baud;
 	unsigned cflag;
 	unsigned iflag;
-	__u8 mask = 0xff;
 	__u8 lData;
 	__u8 lParity;
 	__u8 lStop;
@@ -2366,7 +2330,7 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 
 	dbg("%s - port %d", __FUNCTION__, ATEN2011_port->port->number);
 
-	if ((!ATEN2011_port->open) && (!ATEN2011_port->openPending)) {
+	if (!ATEN2011_port->open) {
 		dbg("%s - port not opened", __FUNCTION__);
 		return;
 	}
@@ -2393,17 +2357,14 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 		switch (cflag & CSIZE) {
 		case CS5:
 			lData = LCR_BITS_5;
-			mask = 0x1f;
 			break;
 
 		case CS6:
 			lData = LCR_BITS_6;
-			mask = 0x3f;
 			break;
 
 		case CS7:
 			lData = LCR_BITS_7;
-			mask = 0x7f;
 			break;
 		default:
 		case CS8:
@@ -2443,7 +2404,6 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 	    ~(LCR_BITS_MASK | LCR_STOP_MASK | LCR_PAR_MASK);
 	ATEN2011_port->shadowLCR |= (lData | lParity | lStop);
 
-	ATEN2011_port->validDataMask = mask;
 	DPRINTK
 	    ("ATEN2011_change_port_settings ATEN2011_port->shadowLCR is %x\n",
 	     ATEN2011_port->shadowLCR);
@@ -2512,8 +2472,6 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 			     status);
 		}
 	}
-	//wake_up(&ATEN2011_port->delta_msr_wait);
-	//ATEN2011_port->delta_msr_cond=1;
 	DPRINTK
 	    ("ATEN2011_change_port_settings ATEN2011_port->shadowLCR is End %x\n",
 	     ATEN2011_port->shadowLCR);
@@ -2619,9 +2577,6 @@ static int ATEN2011_startup(struct usb_serial *serial)
 			minor = 0;
 		ATEN2011_port->port_num =
 		    ((serial->port[i]->number - minor) + 1);
-
-		ATEN2011_port->AppNum = (((__u16) serial->port[i]->number -
-					  (__u16) (minor)) + 1) << 8;
 
 		if (ATEN2011_port->port_num == 1) {
 			ATEN2011_port->SpRegOffset = 0x0;
