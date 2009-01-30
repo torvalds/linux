@@ -233,7 +233,6 @@ struct ath_buf_state {
 #define bf_isht(bf)		(bf->bf_state.bf_type & BUF_HT)
 #define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
 #define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
-#define bf_isshpreamble(bf)	(bf->bf_state.bf_type & BUF_SHORT_PREAMBLE)
 #define bf_isbar(bf)		(bf->bf_state.bf_type & BUF_BAR)
 #define bf_ispspoll(bf) 	(bf->bf_state.bf_type & BUF_PSPOLL)
 #define bf_isaggrburst(bf)	(bf->bf_state.bf_type & BUF_AGGR_BURST)
@@ -658,12 +657,6 @@ struct ath_rfkill {
 #define ATH_RSSI_DUMMY_MARKER   0x127
 #define ATH_RATE_DUMMY_MARKER   0
 
-enum PROT_MODE {
-	PROT_M_NONE = 0,
-	PROT_M_RTSCTS,
-	PROT_M_CTSONLY
-};
-
 #define SC_OP_INVALID		BIT(0)
 #define SC_OP_BEACONS		BIT(1)
 #define SC_OP_RXAGGR		BIT(2)
@@ -715,7 +708,6 @@ struct ath_softc {
 	u8 sc_splitmic;
 	atomic_t ps_usecount;
 	enum ath9k_int sc_imask;
-	enum PROT_MODE sc_protmode;
 	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
 	enum ath9k_ht_macmode tx_chan_width;
 

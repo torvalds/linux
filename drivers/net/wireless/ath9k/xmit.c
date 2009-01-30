@@ -1386,8 +1386,6 @@ static int setup_tx_flags(struct ath_softc *sc, struct sk_buff *skb,
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
 		flags |= ATH9K_TXDESC_NOACK;
-	if (tx_info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
-		flags |= ATH9K_TXDESC_RTSENA;
 
 	return flags;
 }
@@ -1433,137 +1431,86 @@ static u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, struct ath_buf *bf,
 
 static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 {
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_rate_table *rt;
-	struct ath_desc *ds = bf->bf_desc;
-	struct ath_desc *lastds = bf->bf_lastbf->bf_desc;
+	struct ath_rate_table *rt = sc->cur_rate_table;
 	struct ath9k_11n_rate_series series[4];
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
-	struct ieee80211_hdr *hdr;
-	struct ieee80211_hw *hw = sc->hw;
-	int i, flags, rtsctsena = 0, enable_g_protection = 0;
-	u32 ctsduration = 0;
-	u8 rix = 0, cix, ctsrate = 0;
-	__le16 fc;
+	int i, flags = 0;
+	u8 rix = 0, ctsrate = 0;
 
 	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
 
 	skb = (struct sk_buff *)bf->bf_mpdu;
-	hdr = (struct ieee80211_hdr *)skb->data;
-	fc = hdr->frame_control;
 	tx_info = IEEE80211_SKB_CB(skb);
 	rates = tx_info->control.rates;
 
-	if (ieee80211_has_morefrags(fc) ||
-	    (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG)) {
-		rates[1].count = rates[2].count = rates[3].count = 0;
-		rates[1].idx = rates[2].idx = rates[3].idx = 0;
-		rates[0].count = ATH_TXMAXTRY;
-	}
-
-	/* get the cix for the lowest valid rix */
-	rt = sc->cur_rate_table;
-	for (i = 3; i >= 0; i--) {
-		if (rates[i].count && (rates[i].idx >= 0)) {
-			rix = rates[i].idx;
-			break;
-		}
-	}
-
-	flags = (bf->bf_flags & (ATH9K_TXDESC_RTSENA | ATH9K_TXDESC_CTSENA));
-	cix = rt->info[rix].ctrl_rate;
-
-	/* All protection frames are transmited at 2Mb/s for 802.11g,
-	 * otherwise we transmit them at 1Mb/s */
-	if (hw->conf.channel->band == IEEE80211_BAND_2GHZ &&
-	  !conf_is_ht(&hw->conf))
-		enable_g_protection = 1;
+	/*
+	 * We check if Short Preamble is needed for the CTS rate by
+	 * checking the BSS's global flag.
+	 * But for the rate series, IEEE80211_TX_RC_USE_SHORT_PREAMBLE is used.
+	 */
+	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
+		ctsrate = rt->info[tx_info->control.rts_cts_rate_idx].ratecode |
+			rt->info[tx_info->control.rts_cts_rate_idx].short_preamble;
+	else
+		ctsrate = rt->info[tx_info->control.rts_cts_rate_idx].ratecode;
 
 	/*
-	 * If 802.11g protection is enabled, determine whether to use RTS/CTS or
-	 * just CTS.  Note that this is only done for OFDM/HT unicast frames.
+	 * ATH9K_TXDESC_RTSENA and ATH9K_TXDESC_CTSENA are mutually exclusive.
+	 * Check the first rate in the series to decide whether RTS/CTS
+	 * or CTS-to-self has to be used.
 	 */
-	if (sc->sc_protmode != PROT_M_NONE && !(bf->bf_flags & ATH9K_TXDESC_NOACK)
-	    && (rt->info[rix].phy == WLAN_RC_PHY_OFDM ||
-		WLAN_RC_PHY_HT(rt->info[rix].phy))) {
-		if (sc->sc_protmode == PROT_M_RTSCTS)
-			flags = ATH9K_TXDESC_RTSENA;
-		else if (sc->sc_protmode == PROT_M_CTSONLY)
-			flags = ATH9K_TXDESC_CTSENA;
+	if (rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT)
+		flags = ATH9K_TXDESC_CTSENA;
+	else if (rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS)
+		flags = ATH9K_TXDESC_RTSENA;
 
-		cix = rt->info[enable_g_protection].ctrl_rate;
-		rtsctsena = 1;
-	}
-
-	/* For 11n, the default behavior is to enable RTS for hw retried frames.
-	 * We enable the global flag here and let rate series flags determine
-	 * which rates will actually use RTS.
-	 */
-	if ((ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) && bf_isdata(bf)) {
-		/* 802.11g protection not needed, use our default behavior */
-		if (!rtsctsena)
-			flags = ATH9K_TXDESC_RTSENA;
-	}
-
-	/* Set protection if aggregate protection on */
+	/* FIXME: Handle aggregation protection */
 	if (sc->sc_config.ath_aggr_prot &&
 	    (!bf_isaggr(bf) || (bf_isaggr(bf) && bf->bf_al < 8192))) {
 		flags = ATH9K_TXDESC_RTSENA;
-		cix = rt->info[enable_g_protection].ctrl_rate;
-		rtsctsena = 1;
 	}
 
 	/* For AR5416 - RTS cannot be followed by a frame larger than 8K */
-	if (bf_isaggr(bf) && (bf->bf_al > ah->ah_caps.rts_aggr_limit))
+	if (bf_isaggr(bf) && (bf->bf_al > sc->sc_ah->ah_caps.rts_aggr_limit))
 		flags &= ~(ATH9K_TXDESC_RTSENA);
-
-	/*
-	 * CTS transmit rate is derived from the transmit rate by looking in the
-	 * h/w rate table.  We must also factor in whether or not a short
-	 * preamble is to be used. NB: cix is set above where RTS/CTS is enabled
-	 */
-	ctsrate = rt->info[cix].ratecode |
-		(bf_isshpreamble(bf) ? rt->info[cix].short_preamble : 0);
 
 	for (i = 0; i < 4; i++) {
 		if (!rates[i].count || (rates[i].idx < 0))
 			continue;
 
 		rix = rates[i].idx;
-
-		series[i].Rate = rt->info[rix].ratecode |
-			(bf_isshpreamble(bf) ? rt->info[rix].short_preamble : 0);
-
 		series[i].Tries = rates[i].count;
+		series[i].ChSel = sc->sc_tx_chainmask;
 
-		series[i].RateFlags = (
-			(rates[i].flags & IEEE80211_TX_RC_USE_RTS_CTS) ?
-				ATH9K_RATESERIES_RTS_CTS : 0) |
-			((rates[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH) ?
-				ATH9K_RATESERIES_2040 : 0) |
-			((rates[i].flags & IEEE80211_TX_RC_SHORT_GI) ?
-				ATH9K_RATESERIES_HALFGI : 0);
+		if (rates[i].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
+			series[i].Rate = rt->info[rix].ratecode |
+				rt->info[rix].short_preamble;
+		else
+			series[i].Rate = rt->info[rix].ratecode;
+
+		if (rates[i].flags & IEEE80211_TX_RC_USE_RTS_CTS)
+			series[i].RateFlags |= ATH9K_RATESERIES_RTS_CTS;
+		if (rates[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+			series[i].RateFlags |= ATH9K_RATESERIES_2040;
+		if (rates[i].flags & IEEE80211_TX_RC_SHORT_GI)
+			series[i].RateFlags |= ATH9K_RATESERIES_HALFGI;
 
 		series[i].PktDuration = ath_pkt_duration(sc, rix, bf,
 			 (rates[i].flags & IEEE80211_TX_RC_40_MHZ_WIDTH) != 0,
 			 (rates[i].flags & IEEE80211_TX_RC_SHORT_GI),
-			 bf_isshpreamble(bf));
-
-		series[i].ChSel = sc->sc_tx_chainmask;
-
-		if (rtsctsena)
-			series[i].RateFlags |= ATH9K_RATESERIES_RTS_CTS;
+			 (rates[i].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE));
 	}
 
 	/* set dur_update_en for l-sig computation except for PS-Poll frames */
-	ath9k_hw_set11n_ratescenario(ah, ds, lastds, !bf_ispspoll(bf),
-				     ctsrate, ctsduration,
-				     series, 4, flags);
+	ath9k_hw_set11n_ratescenario(sc->sc_ah, bf->bf_desc,
+				     bf->bf_lastbf->bf_desc,
+				     !bf_ispspoll(bf), ctsrate,
+				     0, series, 4, flags);
 
 	if (sc->sc_config.ath_aggr_prot && flags)
-		ath9k_hw_set11n_burstduration(ah, ds, 8192);
+		ath9k_hw_set11n_burstduration(sc->sc_ah, bf->bf_desc, 8192);
 }
 
 static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
@@ -1593,8 +1540,6 @@ static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 		bf->bf_state.bf_type |= BUF_BAR;
 	if (ieee80211_is_pspoll(fc))
 		bf->bf_state.bf_type |= BUF_PSPOLL;
-	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
-		bf->bf_state.bf_type |= BUF_SHORT_PREAMBLE;
 	if ((conf_is_ht(&sc->hw->conf) && !is_pae(skb) &&
 	     (tx_info->flags & IEEE80211_TX_CTL_AMPDU)))
 		bf->bf_state.bf_type |= BUF_HT;

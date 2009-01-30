@@ -344,9 +344,6 @@ void ath9k_hw_set11n_ratescenario(struct ath_hal *ah, struct ath_desc *ds,
 	struct ar5416_desc *last_ads = AR5416DESC(lastds);
 	u32 ds_ctl0;
 
-	(void) nseries;
-	(void) rtsctsDuration;
-
 	if (flags & (ATH9K_TXDESC_RTSENA | ATH9K_TXDESC_CTSENA)) {
 		ds_ctl0 = ads->ds_ctl0;
 

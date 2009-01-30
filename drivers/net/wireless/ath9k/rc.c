@@ -747,14 +747,17 @@ static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 	return rate;
 }
 
-static void ath_rc_rate_set_series(struct ath_rate_table *rate_table ,
+static void ath_rc_rate_set_series(struct ath_rate_table *rate_table,
 				   struct ieee80211_tx_rate *rate,
+				   struct ieee80211_tx_rate_control *txrc,
 				   u8 tries, u8 rix, int rtsctsenable)
 {
 	rate->count = tries;
 	rate->idx = rix;
 
-	if (rtsctsenable)
+	if (txrc->short_preamble)
+		rate->flags |= IEEE80211_TX_RC_USE_SHORT_PREAMBLE;
+	if (txrc->rts || rtsctsenable)
 		rate->flags |= IEEE80211_TX_RC_USE_RTS_CTS;
 	if (WLAN_RC_PHY_40(rate_table->info[rix].phy))
 		rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
@@ -762,6 +765,43 @@ static void ath_rc_rate_set_series(struct ath_rate_table *rate_table ,
 		rate->flags |= IEEE80211_TX_RC_SHORT_GI;
 	if (WLAN_RC_PHY_HT(rate_table->info[rix].phy))
 		rate->flags |= IEEE80211_TX_RC_MCS;
+}
+
+static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
+				   struct ath_rate_table *rate_table,
+				   struct ieee80211_tx_info *tx_info)
+{
+	struct ieee80211_tx_rate *rates = tx_info->control.rates;
+	int i = 0, rix = 0, cix, enable_g_protection = 0;
+
+	/* get the cix for the lowest valid rix */
+	for (i = 3; i >= 0; i--) {
+		if (rates[i].count && (rates[i].idx >= 0)) {
+			rix = rates[i].idx;
+			break;
+		}
+	}
+	cix = rate_table->info[rix].ctrl_rate;
+
+	/* All protection frames are transmited at 2Mb/s for 802.11g,
+	 * otherwise we transmit them at 1Mb/s */
+	if (sc->hw->conf.channel->band == IEEE80211_BAND_2GHZ &&
+	    !conf_is_ht(&sc->hw->conf))
+		enable_g_protection = 1;
+
+	/*
+	 * If 802.11g protection is enabled, determine whether to use RTS/CTS or
+	 * just CTS.  Note that this is only done for OFDM/HT unicast frames.
+	 */
+	if ((sc->sc_flags & SC_OP_PROTECT_ENABLE) &&
+	    !(tx_info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+	    (rate_table->info[rix].phy == WLAN_RC_PHY_OFDM ||
+	     WLAN_RC_PHY_HT(rate_table->info[rix].phy))) {
+		rates[0].flags |= IEEE80211_TX_RC_USE_CTS_PROTECT;
+		cix = rate_table->info[enable_g_protection].ctrl_rate;
+	}
+
+	tx_info->control.rts_cts_rate_idx = cix;
 }
 
 static u8 ath_rc_rate_getidx(struct ath_softc *sc,
@@ -801,6 +841,8 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rates = tx_info->control.rates;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	__le16 fc = hdr->frame_control;
 	u8 try_per_rate = 0, i = 0, rix, nrix;
 	int is_probe = 0;
 
@@ -811,7 +853,7 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 	if (is_probe) {
 		/* set one try for probe rates. For the
 		 * probes don't enable rts */
-		ath_rc_rate_set_series(rate_table, &rates[i++],
+		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
 				       1, nrix, 0);
 
 		try_per_rate = (ATH_11N_TXMAXTRY/4);
@@ -820,12 +862,12 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 		 */
 		nrix = ath_rc_rate_getidx(sc, ath_rc_priv,
 					  rate_table, nrix, 1, 0);
-		ath_rc_rate_set_series(rate_table, &rates[i++],
+		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
 				       try_per_rate, nrix, 0);
 	} else {
 		try_per_rate = (ATH_11N_TXMAXTRY/4);
 		/* Set the choosen rate. No RTS for first series entry. */
-		ath_rc_rate_set_series(rate_table, &rates[i++],
+		ath_rc_rate_set_series(rate_table, &rates[i++], txrc,
 				       try_per_rate, nrix, 0);
 	}
 
@@ -841,7 +883,7 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 		nrix = ath_rc_rate_getidx(sc, ath_rc_priv,
 					  rate_table, nrix, 1, min_rate);
 		/* All other rates in the series have RTS enabled */
-		ath_rc_rate_set_series(rate_table, &rates[i],
+		ath_rc_rate_set_series(rate_table, &rates[i], txrc,
 				       try_num, nrix, 1);
 	}
 
@@ -871,6 +913,24 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 			rates[3].flags = rates[2].flags;
 		}
 	}
+
+	/*
+	 * Force hardware to use computed duration for next
+	 * fragment by disabling multi-rate retry, which
+	 * updates duration based on the multi-rate duration table.
+	 *
+	 * FIXME: Fix duration
+	 */
+	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK) &&
+	    (ieee80211_has_morefrags(fc) ||
+	     (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG))) {
+		rates[1].count = rates[2].count = rates[3].count = 0;
+		rates[1].idx = rates[2].idx = rates[3].idx = 0;
+		rates[0].count = ATH_TXMAXTRY;
+	}
+
+	/* Setup RTS/CTS */
+	ath_rc_rate_set_rtscts(sc, rate_table, tx_info);
 }
 
 static bool ath_rc_update_per(struct ath_softc *sc,
@@ -1385,16 +1445,16 @@ static void ath_rc_init(struct ath_softc *sc,
 	if (!rateset->rs_nrates) {
 		/* No working rate, just initialize valid rates */
 		hi = ath_rc_init_validrates(ath_rc_priv, rate_table,
-						ath_rc_priv->ht_cap);
+					    ath_rc_priv->ht_cap);
 	} else {
 		/* Use intersection of working rates and valid rates */
 		hi = ath_rc_setvalid_rates(ath_rc_priv, rate_table,
-					       rateset, ath_rc_priv->ht_cap);
+					   rateset, ath_rc_priv->ht_cap);
 		if (ath_rc_priv->ht_cap & WLAN_RC_HT_FLAG) {
 			hthi = ath_rc_setvalid_htrates(ath_rc_priv,
-							   rate_table,
-							   ht_mcs,
-							   ath_rc_priv->ht_cap);
+						       rate_table,
+						       ht_mcs,
+						       ath_rc_priv->ht_cap);
 		}
 		hi = A_MAX(hi, hthi);
 	}
