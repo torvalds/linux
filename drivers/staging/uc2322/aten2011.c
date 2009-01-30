@@ -229,32 +229,6 @@ static int debug = 0;
 /* FIXME make this somehow dynamic and not build time specific */
 static int RS485mode = 0;
 
-static inline void ATEN2011_set_serial_private(struct usb_serial *serial,
-					       struct ATENINTL_serial *data)
-{
-	usb_set_serial_data(serial, (void *)data);
-}
-
-static inline struct ATENINTL_serial *ATEN2011_get_serial_private(struct
-								  usb_serial
-								  *serial)
-{
-	return (struct ATENINTL_serial *)usb_get_serial_data(serial);
-}
-
-static inline void ATEN2011_set_port_private(struct usb_serial_port *port,
-					     struct ATENINTL_port *data)
-{
-	usb_set_serial_port_data(port, (void *)data);
-}
-
-static inline struct ATENINTL_port *ATEN2011_get_port_private(struct
-							      usb_serial_port
-							      *port)
-{
-	return (struct ATENINTL_port *)usb_get_serial_port_data(port);
-}
-
 static int set_reg_sync(struct usb_serial_port *port, __u16 reg, __u16 val)
 {
 	struct usb_device *dev = port->serial->dev;
@@ -286,7 +260,7 @@ static int set_uart_reg(struct usb_serial_port *port, __u16 reg, __u16 val)
 	struct ATENINTL_serial *a_serial;
 	__u16 minor;
 
-	a_serial = ATEN2011_get_serial_private(port->serial);
+	a_serial = usb_get_serial_data(port->serial);
 	minor = port->serial->minor;
 	if (minor == SERIAL_TTY_NO_MINOR)
 		minor = 0;
@@ -319,7 +293,7 @@ static int get_uart_reg(struct usb_serial_port *port, __u16 reg, __u16 *val)
 	struct ATENINTL_serial *a_serial;
 	__u16 minor = port->serial->minor;
 
-	a_serial = ATEN2011_get_serial_private(port->serial);
+	a_serial = usb_get_serial_data(port->serial);
 	if (minor == SERIAL_TTY_NO_MINOR)
 		minor = 0;
 
@@ -546,7 +520,7 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 	}
 	//      printk("%s data is sp1:%x sp2:%x sp3:%x sp4:%x status:%x\n",__FUNCTION__,sp1,sp2,sp3,sp4,st);
 	for (i = 0; i < serial->num_ports; i++) {
-		ATEN2011_port = ATEN2011_get_port_private(serial->port[i]);
+		ATEN2011_port = usb_get_serial_port_data(serial->port[i]);
 		minor = serial->minor;
 		if (minor == SERIAL_TTY_NO_MINOR)
 			minor = 0;
@@ -639,7 +613,7 @@ static void ATEN2011_bulk_in_callback(struct urb *urb)
 	DPRINTK("%s\n", "Entering... \n");
 
 	data = urb->transfer_buffer;
-	ATEN2011_serial = ATEN2011_get_serial_private(serial);
+	ATEN2011_serial = usb_get_serial_data(serial);
 
 	DPRINTK("%s", "Entering ........... \n");
 
@@ -742,7 +716,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	//ATEN2011_serial->NoOfOpenPorts++;
 	serial = port->serial;
 
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_port = usb_get_serial_port_data(port);
 
 	if (ATEN2011_port == NULL)
 		return -ENODEV;
@@ -764,7 +738,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 */
 //      port0 = serial->port[0];
 
-	ATEN2011_serial = ATEN2011_get_serial_private(serial);
+	ATEN2011_serial = usb_get_serial_data(serial);
 
 	if (ATEN2011_serial == NULL)	//|| port0 == NULL)
 	{
@@ -1097,7 +1071,7 @@ static int ATEN2011_chars_in_buffer(struct tty_struct *tty)
 
 	//DPRINTK("%s \n"," ATEN2011_chars_in_buffer:entering ...........");
 
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_port = usb_get_serial_port_data(port);
 	if (ATEN2011_port == NULL) {
 		DPRINTK("%s \n", "ATEN2011_break:leaving ...........");
 		return -1;
@@ -1163,8 +1137,8 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	serial = port->serial;
 
 	// take the Adpater and port's private data
-	ATEN2011_serial = ATEN2011_get_serial_private(serial);
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_serial = usb_get_serial_data(serial);
+	ATEN2011_port = usb_get_serial_port_data(port);
 	if ((ATEN2011_serial == NULL) || (ATEN2011_port == NULL)) {
 		return;
 	}
@@ -1283,8 +1257,8 @@ static void ATEN2011_break(struct tty_struct *tty, int break_state)
 
 	serial = port->serial;
 
-	ATEN2011_serial = ATEN2011_get_serial_private(serial);
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_serial = usb_get_serial_data(serial);
+	ATEN2011_port = usb_get_serial_port_data(port);
 
 	if ((ATEN2011_serial == NULL) || (ATEN2011_port == NULL)) {
 		return;
@@ -1322,7 +1296,7 @@ static int ATEN2011_write_room(struct tty_struct *tty)
 
 //      DPRINTK("%s \n"," ATEN2011_write_room:entering ...........");
 
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_port = usb_get_serial_port_data(port);
 	if (ATEN2011_port == NULL) {
 		DPRINTK("%s \n", "ATEN2011_break:leaving ...........");
 		return -1;
@@ -1359,13 +1333,13 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	serial = port->serial;
 
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_port = usb_get_serial_port_data(port);
 	if (ATEN2011_port == NULL) {
 		DPRINTK("%s", "ATEN2011_port is NULL\n");
 		return -1;
 	}
 
-	ATEN2011_serial = ATEN2011_get_serial_private(serial);
+	ATEN2011_serial = usb_get_serial_data(serial);
 	if (ATEN2011_serial == NULL) {
 		DPRINTK("%s", "ATEN2011_serial is NULL \n");
 		return -1;
@@ -1457,7 +1431,7 @@ static void ATEN2011_throttle(struct tty_struct *tty)
 
 	DPRINTK("- port %d\n", port->number);
 
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_port = usb_get_serial_port_data(port);
 
 	if (ATEN2011_port == NULL)
 		return;
@@ -1501,7 +1475,7 @@ static void ATEN2011_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	int status;
-	struct ATENINTL_port *ATEN2011_port = ATEN2011_get_port_private(port);
+	struct ATENINTL_port *ATEN2011_port = usb_get_serial_port_data(port);
 
 	if (ATEN2011_port == NULL)
 		return;
@@ -1550,7 +1524,7 @@ static int ATEN2011_tiocmget(struct tty_struct *tty, struct file *file)
 	__u16 mcr;
 	//unsigned int mcr;
 	int status = 0;
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_port = usb_get_serial_port_data(port);
 
 	DPRINTK("%s - port %d", __FUNCTION__, port->number);
 
@@ -1585,7 +1559,7 @@ static int ATEN2011_tiocmset(struct tty_struct *tty, struct file *file,
 
 	DPRINTK("%s - port %d", __FUNCTION__, port->number);
 
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_port = usb_get_serial_port_data(port);
 
 	if (ATEN2011_port == NULL)
 		return -ENODEV;
@@ -1629,7 +1603,7 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 
 	serial = port->serial;
 
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_port = usb_get_serial_port_data(port);
 
 	if (ATEN2011_port == NULL)
 		return;
@@ -1851,7 +1825,7 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 
 	//printk("%s - port %d, cmd = 0x%x\n", __FUNCTION__, port->number, cmd);
 
-	ATEN2011_port = ATEN2011_get_port_private(port);
+	ATEN2011_port = usb_get_serial_port_data(port);
 
 	if (ATEN2011_port == NULL)
 		return -1;
@@ -2329,7 +2303,7 @@ static int ATEN2011_startup(struct usb_serial *serial)
 	//initilize status polling flag to 0
 	ATEN2011_serial->status_polling_started = 0;
 
-	ATEN2011_set_serial_private(serial, ATEN2011_serial);
+	usb_set_serial_data(serial, ATEN2011_serial);
 	ATEN2011_serial->ATEN2011_spectrum_2or4ports =
 	    ATEN2011_calc_num_ports(serial);
 	/* we set up the pointers to the endpoints in the ATEN2011_open *
@@ -2341,7 +2315,7 @@ static int ATEN2011_startup(struct usb_serial *serial)
 		    kmalloc(sizeof(struct ATENINTL_port), GFP_KERNEL);
 		if (ATEN2011_port == NULL) {
 			err("%s - Out of memory", __FUNCTION__);
-			ATEN2011_set_serial_private(serial, NULL);
+			usb_set_serial_data(serial, NULL);
 			kfree(ATEN2011_serial);
 			return -ENOMEM;
 		}
@@ -2354,7 +2328,7 @@ static int ATEN2011_startup(struct usb_serial *serial)
 
 		ATEN2011_port->port = serial->port[i];
 //
-		ATEN2011_set_port_private(serial->port[i], ATEN2011_port);
+		usb_set_serial_port_data(serial->port[i], ATEN2011_port);
 
 		minor = serial->port[i]->serial->minor;
 		if (minor == SERIAL_TTY_NO_MINOR)
@@ -2392,7 +2366,7 @@ static int ATEN2011_startup(struct usb_serial *serial)
 			ATEN2011_port->DcrRegOffset = 0x1c;
 		}
 
-		ATEN2011_set_port_private(serial->port[i], ATEN2011_port);
+		usb_set_serial_port_data(serial->port[i], ATEN2011_port);
 
 		//enable rx_disable bit in control register
 
@@ -2558,17 +2532,17 @@ static void ATEN2011_shutdown(struct usb_serial *serial)
 	 * stop reads and writes on all ports                */
 
 	for (i = 0; i < serial->num_ports; ++i) {
-		ATEN2011_port = ATEN2011_get_port_private(serial->port[i]);
+		ATEN2011_port = usb_get_serial_port_data(serial->port[i]);
 		kfree(ATEN2011_port->ctrl_buf);
 		usb_kill_urb(ATEN2011_port->control_urb);
 		kfree(ATEN2011_port);
-		ATEN2011_set_port_private(serial->port[i], NULL);
+		usb_set_serial_port_data(serial->port[i], NULL);
 	}
 
 	/* free private structure allocated for serial device */
 
-	kfree(ATEN2011_get_serial_private(serial));
-	ATEN2011_set_serial_private(serial, NULL);
+	kfree(usb_get_serial_data(serial));
+	usb_set_serial_data(serial, NULL);
 
 	DPRINTK("%s\n", "Thank u :: ");
 
