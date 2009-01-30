@@ -267,18 +267,18 @@ static void physflat_vector_allocation_domain(int cpu, struct cpumask *retmask)
 
 static void physflat_send_IPI_mask(const struct cpumask *cpumask, int vector)
 {
-	default_send_IPI_mask_sequence(cpumask, vector);
+	default_send_IPI_mask_sequence_phys(cpumask, vector);
 }
 
 static void physflat_send_IPI_mask_allbutself(const struct cpumask *cpumask,
 					      int vector)
 {
-	default_send_IPI_mask_allbutself(cpumask, vector);
+	default_send_IPI_mask_allbutself_phys(cpumask, vector);
 }
 
 static void physflat_send_IPI_allbutself(int vector)
 {
-	default_send_IPI_mask_allbutself(cpu_online_mask, vector);
+	default_send_IPI_mask_allbutself_phys(cpu_online_mask, vector);
 }
 
 static void physflat_send_IPI_all(int vector)

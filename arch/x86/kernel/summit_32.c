@@ -43,6 +43,7 @@
 #include <asm/genapic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
+#include <asm/ipi.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -54,12 +55,9 @@ static inline unsigned summit_get_apic_id(unsigned long x)
 	return (x >> 24) & 0xFF;
 }
 
-void default_send_IPI_mask_sequence(const cpumask_t *mask, int vector);
-void default_send_IPI_mask_allbutself(const cpumask_t *mask, int vector);
-
 static inline void summit_send_IPI_mask(const cpumask_t *mask, int vector)
 {
-	default_send_IPI_mask_sequence(mask, vector);
+	default_send_IPI_mask_sequence_logical(mask, vector);
 }
 
 static inline void summit_send_IPI_allbutself(int vector)

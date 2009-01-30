@@ -451,12 +451,12 @@ static int es7000_check_dsdt(void)
 
 static void es7000_send_IPI_mask(const struct cpumask *mask, int vector)
 {
-	default_send_IPI_mask_sequence(mask, vector);
+	default_send_IPI_mask_sequence_phys(mask, vector);
 }
 
 static void es7000_send_IPI_allbutself(int vector)
 {
-	default_send_IPI_mask_allbutself(cpu_online_mask, vector);
+	default_send_IPI_mask_allbutself_phys(cpu_online_mask, vector);
 }
 
 static void es7000_send_IPI_all(int vector)

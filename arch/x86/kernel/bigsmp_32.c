@@ -9,6 +9,7 @@
 #include <asm/genapic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
+#include <asm/ipi.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
@@ -154,17 +155,14 @@ static inline int bigsmp_phys_pkg_id(int cpuid_apic, int index_msb)
 	return cpuid_apic >> index_msb;
 }
 
-void default_send_IPI_mask_sequence(const struct cpumask *mask, int vector);
-void default_send_IPI_mask_allbutself(const struct cpumask *mask, int vector);
-
 static inline void bigsmp_send_IPI_mask(const struct cpumask *mask, int vector)
 {
-	default_send_IPI_mask_sequence(mask, vector);
+	default_send_IPI_mask_sequence_phys(mask, vector);
 }
 
 static inline void bigsmp_send_IPI_allbutself(int vector)
 {
-	default_send_IPI_mask_allbutself(cpu_online_mask, vector);
+	default_send_IPI_mask_allbutself_phys(cpu_online_mask, vector);
 }
 
 static inline void bigsmp_send_IPI_all(int vector)
