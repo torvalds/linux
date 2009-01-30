@@ -229,13 +229,6 @@ static int debug = 0;
 /* FIXME make this somehow dynamic and not build time specific */
 static int RS485mode = 0;
 
-static struct usb_serial *ATEN2011_get_usb_serial(struct usb_serial_port *port, const
-						  char *function);
-static int ATEN2011_serial_paranoia_check(struct usb_serial *serial, const char
-					  *function);
-static int ATEN2011_port_paranoia_check(struct usb_serial_port *port, const char
-					*function);
-
 /* setting and get register values */
 static int ATEN2011_set_reg_sync(struct usb_serial_port *port, __u16 reg,
 				 __u16 val);
@@ -571,7 +564,6 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 	data = urb->transfer_buffer;
 
 	//ATEN2011_serial= (struct ATENINTL_serial *)urb->context;
-	//serial  = ATEN2011_get_usb_serial(port,__FUNCTION__);
 	serial = ATEN2011_serial->serial;
 
 	/* ATENINTL get 5 bytes
@@ -691,16 +683,7 @@ static void ATEN2011_bulk_in_callback(struct urb *urb)
 	}
 
 	port = (struct usb_serial_port *)ATEN2011_port->port;
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Port Paranoia failed \n");
-		return;
-	}
-
-	serial = ATEN2011_get_usb_serial(port, __FUNCTION__);
-	if (!serial) {
-		DPRINTK("%s\n", "Bad serial pointer ");
-		return;
-	}
+	serial = port->serial;
 
 	DPRINTK("%s\n", "Entering... \n");
 
@@ -763,11 +746,6 @@ static void ATEN2011_bulk_out_data_callback(struct urb *urb)
 		return;
 	}
 
-	if (ATEN2011_port_paranoia_check(ATEN2011_port->port, __FUNCTION__)) {
-		DPRINTK("%s", "Port Paranoia failed \n");
-		return;
-	}
-
 	DPRINTK("%s \n", "Entering .........");
 
 	tty = tty_port_tty_get(&ATEN2011_port->port->port);
@@ -810,17 +788,8 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	struct ktermios tmp_termios;
 	int minor;
 
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Port Paranoia failed \n");
-		return -ENODEV;
-	}
 	//ATEN2011_serial->NoOfOpenPorts++;
 	serial = port->serial;
-
-	if (ATEN2011_serial_paranoia_check(serial, __FUNCTION__)) {
-		DPRINTK("%s", "Serial Paranoia failed \n");
-		return -ENODEV;
-	}
 
 	ATEN2011_port = ATEN2011_get_port_private(port);
 
@@ -1210,11 +1179,6 @@ static int ATEN2011_chars_in_buffer(struct tty_struct *tty)
 
 	//DPRINTK("%s \n"," ATEN2011_chars_in_buffer:entering ...........");
 
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid port \n");
-		return -1;
-	}
-
 	ATEN2011_port = ATEN2011_get_port_private(port);
 	if (ATEN2011_port == NULL) {
 		DPRINTK("%s \n", "ATEN2011_break:leaving ...........");
@@ -1278,15 +1242,8 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	//ThreadState = 1;
 	/* MATRIX  */
 	//printk("Entering... :ATEN2011_close\n");
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Port Paranoia failed \n");
-		return;
-	}
-	serial = ATEN2011_get_usb_serial(port, __FUNCTION__);
-	if (!serial) {
-		DPRINTK("%s", "Serial Paranoia failed \n");
-		return;
-	}
+	serial = port->serial;
+
 	// take the Adpater and port's private data
 	ATEN2011_serial = ATEN2011_get_serial_private(serial);
 	ATEN2011_port = ATEN2011_get_port_private(port);
@@ -1409,16 +1366,7 @@ static void ATEN2011_break(struct tty_struct *tty, int break_state)
 	DPRINTK("%s \n", "Entering ...........");
 	DPRINTK("ATEN2011_break: Start\n");
 
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Port Paranoia failed \n");
-		return;
-	}
-
-	serial = ATEN2011_get_usb_serial(port, __FUNCTION__);
-	if (!serial) {
-		DPRINTK("%s", "Serial Paranoia failed \n");
-		return;
-	}
+	serial = port->serial;
 
 	ATEN2011_serial = ATEN2011_get_serial_private(serial);
 	ATEN2011_port = ATEN2011_get_port_private(port);
@@ -1460,12 +1408,6 @@ static int ATEN2011_write_room(struct tty_struct *tty)
 
 //      DPRINTK("%s \n"," ATEN2011_write_room:entering ...........");
 
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid port \n");
-		DPRINTK("%s \n", " ATEN2011_write_room:leaving ...........");
-		return -1;
-	}
-
 	ATEN2011_port = ATEN2011_get_port_private(port);
 	if (ATEN2011_port == NULL) {
 		DPRINTK("%s \n", "ATEN2011_break:leaving ...........");
@@ -1501,16 +1443,7 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 	unsigned char *data1;
 	DPRINTK("%s \n", "entering ...........");
 
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Port Paranoia failed \n");
-		return -1;
-	}
-
 	serial = port->serial;
-	if (ATEN2011_serial_paranoia_check(serial, __FUNCTION__)) {
-		DPRINTK("%s", "Serial Paranoia failed \n");
-		return -1;
-	}
 
 	ATEN2011_port = ATEN2011_get_port_private(port);
 	if (ATEN2011_port == NULL) {
@@ -1608,11 +1541,6 @@ static void ATEN2011_throttle(struct tty_struct *tty)
 	struct ATENINTL_port *ATEN2011_port;
 	int status;
 
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid port \n");
-		return;
-	}
-
 	DPRINTK("- port %d\n", port->number);
 
 	ATEN2011_port = ATEN2011_get_port_private(port);
@@ -1662,11 +1590,6 @@ static void ATEN2011_unthrottle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	int status;
 	struct ATENINTL_port *ATEN2011_port = ATEN2011_get_port_private(port);
-
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid port \n");
-		return;
-	}
 
 	if (ATEN2011_port == NULL)
 		return;
@@ -1794,17 +1717,8 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 	struct ATENINTL_port *ATEN2011_port;
 
 	DPRINTK("ATEN2011_set_termios: START\n");
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid port \n");
-		return;
-	}
 
 	serial = port->serial;
-
-	if (ATEN2011_serial_paranoia_check(serial, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid Serial \n");
-		return;
-	}
 
 	ATEN2011_port = ATEN2011_get_port_private(port);
 
@@ -1915,10 +1829,6 @@ static int set_modem_info(struct ATENINTL_port *ATEN2011_port, unsigned int cmd,
 		return -1;
 
 	port = (struct usb_serial_port *)ATEN2011_port->port;
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid port \n");
-		return -1;
-	}
 
 	mcr = ATEN2011_port->shadowMCR;
 
@@ -2033,10 +1943,6 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 	unsigned int __user *user_arg = (unsigned int __user *)arg;
 
 	//printk("%s - port %d, cmd = 0x%x\n", __FUNCTION__, port->number, cmd);
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid port \n");
-		return -1;
-	}
 
 	ATEN2011_port = ATEN2011_get_port_private(port);
 
@@ -2188,15 +2094,6 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 		return -1;
 
 	port = (struct usb_serial_port *)ATEN2011_port->port;
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid port \n");
-		return -1;
-	}
-
-	if (ATEN2011_serial_paranoia_check(port->serial, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid Serial \n");
-		return -1;
-	}
 
 	DPRINTK("%s", "Entering .......... \n");
 
@@ -2315,16 +2212,6 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 		return;
 
 	port = (struct usb_serial_port *)ATEN2011_port->port;
-
-	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid port \n");
-		return;
-	}
-
-	if (ATEN2011_serial_paranoia_check(port->serial, __FUNCTION__)) {
-		DPRINTK("%s", "Invalid Serial \n");
-		return;
-	}
 
 	serial = port->serial;
 
@@ -2813,49 +2700,6 @@ static void ATEN2011_shutdown(struct usb_serial *serial)
 
 	DPRINTK("%s\n", "Thank u :: ");
 
-}
-
-/* Inline functions to check the sanity of a pointer that is passed to us */
-static int ATEN2011_serial_paranoia_check(struct usb_serial *serial,
-					  const char *function)
-{
-	if (!serial) {
-		dbg("%s - serial == NULL", function);
-		return -1;
-	}
-	if (!serial->type) {
-		dbg("%s - serial->type == NULL!", function);
-		return -1;
-	}
-
-	return 0;
-}
-static int ATEN2011_port_paranoia_check(struct usb_serial_port *port,
-					const char *function)
-{
-	if (!port) {
-		dbg("%s - port == NULL", function);
-		return -1;
-	}
-	if (!port->serial) {
-		dbg("%s - port->serial == NULL", function);
-		return -1;
-	}
-
-	return 0;
-}
-static struct usb_serial *ATEN2011_get_usb_serial(struct usb_serial_port *port,
-						  const char *function)
-{
-	/* if no port was specified, or it fails a paranoia check */
-	if (!port ||
-	    ATEN2011_port_paranoia_check(port, function) ||
-	    ATEN2011_serial_paranoia_check(port->serial, function)) {
-		/* then say that we don't have a valid usb_serial thing, which will                  * end up genrating -ENODEV return values */
-		return NULL;
-	}
-
-	return port->serial;
 }
 
 static struct usb_serial_driver aten_serial_driver = {
