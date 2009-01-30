@@ -2821,9 +2821,6 @@ static sector_t ext4_bmap(struct address_space *mapping, sector_t block)
 		filemap_write_and_wait(mapping);
 	}
 
-	BUG_ON(!EXT4_JOURNAL(inode) &&
-	       EXT4_I(inode)->i_state & EXT4_STATE_JDATA);
-
 	if (EXT4_JOURNAL(inode) && EXT4_I(inode)->i_state & EXT4_STATE_JDATA) {
 		/*
 		 * This is a REALLY heavyweight approach, but the use of
