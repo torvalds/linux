@@ -631,8 +631,7 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv,
 static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
 			     struct ath_rate_table *rate_table,
-			     int probe_allowed, int *is_probing,
-			     int is_retry)
+			     int *is_probing)
 {
 	u32 dt, best_thruput, this_thruput, now_msec;
 	u8 rate, next_rate, best_rate, maxindex, minindex;
@@ -714,13 +713,6 @@ static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 	}
 
 	rate = best_rate;
-
-	/* if we are retrying for more than half the number
-	 * of max retries, use the min rate for the next retry
-	 */
-	if (is_retry)
-		rate = ath_rc_priv->valid_rate_index[minindex];
-
 	ath_rc_priv->rssi_last_lookup = rssi_last;
 
 	/*
@@ -728,13 +720,12 @@ static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 	 * non-monoticity of 11g's rate table
 	 */
 
-	if (rate >= ath_rc_priv->rate_max_phy && probe_allowed) {
+	if (rate >= ath_rc_priv->rate_max_phy) {
 		rate = ath_rc_priv->rate_max_phy;
 
 		/* Probe the next allowed phy state */
-		/* FIXME:XXXX Check to make sure ratMax is checked properly */
 		if (ath_rc_get_nextvalid_txrate(rate_table,
-						ath_rc_priv, rate, &next_rate) &&
+					ath_rc_priv, rate, &next_rate) &&
 		    (now_msec - ath_rc_priv->probe_time >
 		     rate_table->probe_interval) &&
 		    (ath_rc_priv->hw_maxretry_pktcnt >= 1)) {
@@ -804,54 +795,54 @@ static u8 ath_rc_rate_getidx(struct ath_softc *sc,
 
 static void ath_rc_ratefind(struct ath_softc *sc,
 			    struct ath_rate_priv *ath_rc_priv,
-			    int num_tries, int num_rates,
-			    struct ieee80211_tx_info *tx_info, int *is_probe,
-			    int is_retry)
+			    struct ieee80211_tx_rate_control *txrc)
 {
-	u8 try_per_rate = 0, i = 0, rix, nrix;
 	struct ath_rate_table *rate_table;
+	struct sk_buff *skb = txrc->skb;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rates = tx_info->control.rates;
+	u8 try_per_rate = 0, i = 0, rix, nrix;
+	int is_probe = 0;
 
 	rate_table = sc->cur_rate_table;
-	rix = ath_rc_ratefind_ht(sc, ath_rc_priv, rate_table, 1,
-				 is_probe, is_retry);
+	rix = ath_rc_ratefind_ht(sc, ath_rc_priv, rate_table, &is_probe);
 	nrix = rix;
 
-	if (*is_probe) {
+	if (is_probe) {
 		/* set one try for probe rates. For the
 		 * probes don't enable rts */
-		ath_rc_rate_set_series(rate_table,
-			&rates[i++], 1, nrix, 0);
+		ath_rc_rate_set_series(rate_table, &rates[i++],
+				       1, nrix, 0);
 
-		try_per_rate = (num_tries/num_rates);
+		try_per_rate = (ATH_11N_TXMAXTRY/4);
 		/* Get the next tried/allowed rate. No RTS for the next series
 		 * after the probe rate
 		 */
-		nrix = ath_rc_rate_getidx(sc,
-			ath_rc_priv, rate_table, nrix, 1, 0);
-		ath_rc_rate_set_series(rate_table,
-			&rates[i++], try_per_rate, nrix, 0);
+		nrix = ath_rc_rate_getidx(sc, ath_rc_priv,
+					  rate_table, nrix, 1, 0);
+		ath_rc_rate_set_series(rate_table, &rates[i++],
+				       try_per_rate, nrix, 0);
 	} else {
-		try_per_rate = (num_tries/num_rates);
+		try_per_rate = (ATH_11N_TXMAXTRY/4);
 		/* Set the choosen rate. No RTS for first series entry. */
-		ath_rc_rate_set_series(rate_table,
-			&rates[i++], try_per_rate, nrix, 0);
+		ath_rc_rate_set_series(rate_table, &rates[i++],
+				       try_per_rate, nrix, 0);
 	}
 
 	/* Fill in the other rates for multirate retry */
-	for ( ; i < num_rates; i++) {
+	for ( ; i < 4; i++) {
 		u8 try_num;
 		u8 min_rate;
 
-		try_num = ((i + 1) == num_rates) ?
-			num_tries - (try_per_rate * i) : try_per_rate ;
-		min_rate = (((i + 1) == num_rates) && 0);
+		try_num = ((i + 1) == 4) ?
+			ATH_11N_TXMAXTRY - (try_per_rate * i) : try_per_rate ;
+		min_rate = (((i + 1) == 4) && 0);
 
 		nrix = ath_rc_rate_getidx(sc, ath_rc_priv,
 					  rate_table, nrix, 1, min_rate);
 		/* All other rates in the series have RTS enabled */
-		ath_rc_rate_set_series(rate_table,
-				       &rates[i], try_num, nrix, 1);
+		ath_rc_rate_set_series(rate_table, &rates[i],
+				       try_num, nrix, 1);
 	}
 
 	/*
@@ -1503,10 +1494,9 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	struct ieee80211_supported_band *sband = txrc->sband;
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	int is_probe = 0;
 	__le16 fc = hdr->frame_control;
 
 	/* lowest rate for management and multicast/broadcast frames */
@@ -1519,8 +1509,7 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	}
 
 	/* Find tx rate for unicast frames */
-	ath_rc_ratefind(sc, ath_rc_priv, ATH_11N_TXMAXTRY, 4,
-			tx_info, &is_probe, false);
+	ath_rc_ratefind(sc, ath_rc_priv, txrc);
 }
 
 static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
