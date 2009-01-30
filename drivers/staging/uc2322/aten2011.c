@@ -1,50 +1,16 @@
 /*
+ * Aten 2011 USB serial driver for 4 port devices
+ *
+ * Copyright (C) 2000 Inside Out Networks
+ * Copyright (C) 2001-2002, 2009 Greg Kroah-Hartman <greg@kroah.com>
+ * Copyright (C) 2009 Novell Inc.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-/*************************************************************************
- *** --------------------------------------------------------------------
- ***
- *** Project Name: ATENINTL
- ***
- *** Module Name: ATEN2011
- ***
- *** File: aten2011.c
- ***
- ***
- *** File Revision: 1.2
- ***
- *** Revision Date:  2009-01-16
- ***
- ***
- *** Purpose	  : It gives an interface between USB to  4 Serial
- ***                and serves as a Serial Driver for the high
- ***		    level layers /applications.
- ***
- *** Change History:
- ***	Modified from ATEN revision 1.2 for Linux kernel 2.6.26 or later
- ***
- *** LEGEND	  :
- ***
- ***
- *** DBG - Code inserted due to as part of debugging
- *** DPRINTK - Debug Print statement
- ***
- *************************************************************************/
-
-/* all file inclusion goes here */
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -54,9 +20,7 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
-//#include <linux/spinlock.h>
 #include <linux/serial.h>
-//#include <linux/ioctl.h>
 #include <linux/usb.h>
 #include <asm/uaccess.h>
 
@@ -67,13 +31,6 @@
 #define MAX_RS232_PORTS		2	/* Max # of RS-232 ports per device */
 
 #include <linux/version.h>
-
-/*
- *  All typedef goes here
- */
-
-
-/* typedefs that the insideout headers need */
 
 #ifndef TRUE
 	#define TRUE		(1)
@@ -144,14 +101,10 @@
 #define PORT_MAGIC		0x7301
 
 
-
-/* vendor id and device id defines */
-
 #define USB_VENDOR_ID_ATENINTL		0x0557
 #define ATENINTL_DEVICE_ID_2011		0x2011
 #define ATENINTL_DEVICE_ID_7820		0x7820
 
-/* Product information read from the ATENINTL. Provided for later upgrade */
 
 /* Interrupt Rotinue Defines	*/
 
@@ -219,25 +172,6 @@
 #define NUM_URBS                        16     /* URB Count */
 #define URB_TRANSFER_BUFFER_SIZE        32     /* URB Size  */
 
-struct ATENINTL_product_info
-{
-	__u16	ProductId;		/* Product Identifier */
-	__u8	NumPorts;		/* Number of ports on ATENINTL */
-	__u8	ProdInfoVer;		/* What version of structure is this? */
-
-	__u32	IsServer        :1;	/* Set if Server */
-	__u32	IsRS232         :1;	/* Set if RS-232 ports exist */
-	__u32	IsRS422         :1;	/* Set if RS-422 ports exist */
-	__u32	IsRS485         :1;	/* Set if RS-485 ports exist */
-	__u32	IsReserved      :28;	/* Reserved for later expansion */
-
-	__u8	CpuRev;			/* CPU revision level (chg only if s/w visible) */
-	__u8	BoardRev;		/* PCB revision level (chg only if s/w visible) */
-
-	__u8	ManufactureDescDate[3];	/* MM/DD/YY when descriptor template was compiled */
-	__u8	Unused1[1];		/* Available */
-};
-
 // different USB-serial Adapter's ID's table
 static struct usb_device_id ATENINTL_port_id_table [] = {
 	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL,ATENINTL_DEVICE_ID_2011) },
@@ -291,7 +225,6 @@ struct ATENINTL_port
 	__u8 		SpRegOffset;
 	__u8 		ControlRegOffset;
 	__u8 		DcrRegOffset;
-	__u8 		ClkSelectRegOffset;
 	//for processing control URBS in interrupt context
 	struct urb 	*control_urb;
        // __le16 rx_creg;
@@ -308,8 +241,6 @@ struct ATENINTL_port
 /* This structure holds all of the individual serial device information */
 struct ATENINTL_serial
 {
-	char		name[MAX_NAME_LEN+1];		/* string name of this device */
-	struct	ATENINTL_product_info	product_info;	/* Product Info */
 	__u8		interrupt_in_endpoint;		/* the interrupt endpoint handle */
 	unsigned char  *interrupt_in_buffer;		/* the buffer we use for the interrupt endpoint */
 	struct urb *	interrupt_read_urb;	/* our interrupt urb */
@@ -330,39 +261,6 @@ struct ATENINTL_serial
 	unsigned char	status_polling_started;
 };
 
-/* baud rate information */
-struct ATEN2011_divisor_table_entry
-{
-	__u32  BaudRate;
-	__u16  Divisor;
-};
-
-/* Define table of divisors for ATENINTL 2011 hardware	   *
- * These assume a 3.6864MHz crystal, the standard /16, and *
- * MCR.7 = 0.						   */
-#ifdef NOTATEN2011
-static struct ATEN2011_divisor_table_entry ATEN2011_divisor_table[] = {
-	{   50,		2304},
-	{   110,	1047},	/* 2094.545455 => 230450   => .0217 % over */
-	{   134,	857},	/* 1713.011152 => 230398.5 => .00065% under */
-	{   150,	768},
-	{   300,	384},
-	{   600,	192},
-	{   1200,	96},
-	{   1800,	64},
-	{   2400,	48},
-	{   4800,	24},
-	{   7200,	16},
-	{   9600,	12},
-	{   19200,	6},
-	{   38400,	3},
-	{   57600,	2},
-	{   115200,	1},
-};
-#endif
-
-/* local function prototypes */
-/* function prototypes for all URB callbacks */
 static void ATEN2011_interrupt_callback(struct urb *urb);
 static void ATEN2011_bulk_in_callback(struct urb *urb);
 static void ATEN2011_bulk_out_data_callback(struct urb *urb);
@@ -370,8 +268,6 @@ static void ATEN2011_control_callback(struct urb *urb);
 static int ATEN2011_get_reg(struct ATENINTL_port *ATEN,__u16 Wval, __u16 reg, __u16 * val);
 int handle_newMsr(struct ATENINTL_port *port,__u8 newMsr);
 int handle_newLsr(struct ATENINTL_port *port,__u8 newLsr);
-/* function prototypes for the usbserial callbacks */
-
 static int  ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
 static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port, struct file *filp);
 static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port, const unsigned char *data, int count);
@@ -385,15 +281,10 @@ static int ATEN2011_tiocmset(struct tty_struct *tty, struct file *file,
 static int ATEN2011_tiocmget(struct tty_struct *tty, struct file *file);
 static int  ATEN2011_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
 static void ATEN2011_break(struct tty_struct *tty, int break_state);
-
-//static void ATEN2011_break_ctl(struct usb_serial_port *port, int break_state );
-
 static int  ATEN2011_startup(struct usb_serial *serial);
 static void ATEN2011_shutdown(struct usb_serial *serial);
-//static int ATEN2011_serial_probe(struct usb_serial *serial, const struct usb_device_id *id);
 static int ATEN2011_calc_num_ports(struct usb_serial *serial);
 
-/* function prototypes for all of our local functions */
 static int  ATEN2011_calc_baud_rate_divisor(int baudRate, int *divisor,__u16 *clk_sel_val);
 static int  ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port *ATEN2011_port, int baudRate);
 static void ATEN2011_change_port_settings(struct tty_struct *tty, struct ATENINTL_port *ATEN2011_port, struct ktermios *old_termios);
@@ -449,8 +340,6 @@ void __exit ATENINTL2011_exit(void);
 
 /* 1: Enables the debugging -- 0: Disable the debugging */
 
-//#define printk //
-
 #define ATEN_DEBUG	0
 
 #ifdef ATEN_DEBUG
@@ -493,10 +382,6 @@ static int debug = 0;
 #define ATEN_CTRL_TIMEOUT        500
 #define VENDOR_READ_LENGTH                      (0x01)
 
-int ATEN2011_Thr_cnt;
-//int ATEN2011_spectrum_2or4ports; //this says the number of ports in the device
-//int NoOfOpenPorts;
-
 int RS485mode = 0;		//set to 1 for RS485 mode and 0 for RS232 mode
 
 static struct usb_serial *ATEN2011_get_usb_serial(struct usb_serial_port *port, const
@@ -518,12 +403,6 @@ static int ATEN2011_get_Uart_Reg(struct usb_serial_port *port, __u16 reg,
 
 void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port);
 
-/************************************************************************/
-/************************************************************************/
-/*             I N T E R F A C E   F U N C T I O N S			*/
-/*             I N T E R F A C E   F U N C T I O N S			*/
-/************************************************************************/
-/************************************************************************/
 
 static inline void ATEN2011_set_serial_private(struct usb_serial *serial,
 					       struct ATENINTL_serial *data)
@@ -551,15 +430,6 @@ static inline struct ATENINTL_port *ATEN2011_get_port_private(struct
 	return (struct ATENINTL_port *)usb_get_serial_port_data(port);
 }
 
-/*
-Description:- To set the Control register by calling usb_fill_control_urb function by passing usb_sndctrlpipe function as parameter.
-
-Input Parameters:
-usb_serial_port:  Data Structure usb_serialport correponding to that seril port.
-Reg: Register Address
-Val:  Value to set in the Register.
- */
-
 static int ATEN2011_set_reg_sync(struct usb_serial_port *port, __u16 reg,
 				 __u16 val)
 {
@@ -571,15 +441,6 @@ static int ATEN2011_set_reg_sync(struct usb_serial_port *port, __u16 reg,
 			       ATEN_WR_RTYPE, val, reg, NULL, 0,
 			       ATEN_WDR_TIMEOUT);
 }
-
-/*
-Description:- To set the Uart register by calling usb_fill_control_urb function by passing usb_rcvctrlpipe function as parameter.
-
-Input Parameters:
-usb_serial_port:  Data Structure usb_serialport correponding to that seril port.
-Reg: Register Address
-Val:  Value to receive from the Register.
- */
 
 static int ATEN2011_get_reg_sync(struct usb_serial_port *port, __u16 reg,
 				 __u16 * val)
@@ -595,15 +456,6 @@ static int ATEN2011_get_reg_sync(struct usb_serial_port *port, __u16 reg,
 	*val = (*val) & 0x00ff;
 	return ret;
 }
-
-/*
-Description:- To set the Uart register by calling usb_fill_control_urb function by passing usb_sndctrlpipe function as parameter.
-
-Input Parameters:
-usb_serial_port:  Data Structure usb_serialport correponding to that seril port.
-Reg: Register Address
-Val:  Value to set in the Register.
- */
 
 static int ATEN2011_set_Uart_Reg(struct usb_serial_port *port, __u16 reg,
 				 __u16 val)
@@ -646,14 +498,6 @@ static int ATEN2011_set_Uart_Reg(struct usb_serial_port *port, __u16 reg,
 
 }
 
-/*
-Description:- To set the Control register by calling usb_fill_control_urb function by passing usb_rcvctrlpipe function as parameter.
-
-Input Parameters:
-usb_serial_port:  Data Structure usb_serialport correponding to that seril port.
-Reg: Register Address
-Val:  Value to receive from the Register.
- */
 static int ATEN2011_get_Uart_Reg(struct usb_serial_port *port, __u16 reg,
 				 __u16 * val)
 {
@@ -704,16 +548,10 @@ void ATEN2011_Dump_serial_port(struct ATENINTL_port *ATEN2011_port)
 	DPRINTK("SpRegOffset is %2x\n", ATEN2011_port->SpRegOffset);
 	DPRINTK("ControlRegOffset is %2x \n", ATEN2011_port->ControlRegOffset);
 	DPRINTK("DCRRegOffset is %2x \n", ATEN2011_port->DcrRegOffset);
-	//DPRINTK("ClkSelectRegOffset is %2x \n",ATEN2011_port->ClkSelectRegOffset);
 	DPRINTK("***************************************\n");
 
 }
 
-/* all structre defination goes here */
-/****************************************************************************
- * ATENINTL2011_4port_device
- *              Structure defining ATEN2011, usb serial device
- ****************************************************************************/
 static struct usb_serial_driver ATENINTL2011_4port_device = {
 	.driver = {
 		   .owner = THIS_MODULE,
@@ -752,21 +590,6 @@ static struct usb_driver io_driver = {
 	.id_table = id_table_combined,
 };
 
-/************************************************************************/
-/************************************************************************/
-/*            U S B  C A L L B A C K   F U N C T I O N S                */
-/*            U S B  C A L L B A C K   F U N C T I O N S                */
-/************************************************************************/
-/************************************************************************/
-
-/*****************************************************************************
- * ATEN2011_interrupt_callback
- *	this is the callback function for when we have received data on the
- *	interrupt endpoint.
- * Input : 1 Input
- *			pointer to the URB packet,
- *
- *****************************************************************************/
 //#ifdef ATEN2011
 static void ATEN2011_interrupt_callback(struct urb *urb)
 {
@@ -948,6 +771,7 @@ static void ATEN2011_control_callback(struct urb *urb)
       exit:
 	return;
 }
+
 int handle_newMsr(struct ATENINTL_port *port, __u8 newMsr)
 {
 	struct ATENINTL_port *ATEN2011_port;
@@ -976,6 +800,7 @@ int handle_newMsr(struct ATENINTL_port *port, __u8 newMsr)
 
 	return 0;
 }
+
 int handle_newLsr(struct ATENINTL_port *port, __u8 newLsr)
 {
 	struct async_icount *icount;
@@ -1008,6 +833,7 @@ int handle_newLsr(struct ATENINTL_port *port, __u8 newLsr)
 
 	return 0;
 }
+
 static int ATEN2011_get_reg(struct ATENINTL_port *ATEN, __u16 Wval, __u16 reg,
 			    __u16 * val)
 {
@@ -1033,14 +859,6 @@ static int ATEN2011_get_reg(struct ATENINTL_port *ATEN, __u16 Wval, __u16 reg,
 	return ret;
 }
 
-/*****************************************************************************
- * ATEN2011_bulk_in_callback
- *	this is the callback function for when we have received data on the
- *	bulk in endpoint.
- * Input : 1 Input
- *			pointer to the URB packet,
- *
- *****************************************************************************/
 static void ATEN2011_bulk_in_callback(struct urb *urb)
 {
 	int status;
@@ -1121,14 +939,6 @@ static void ATEN2011_bulk_in_callback(struct urb *urb)
 	}
 }
 
-/*****************************************************************************
- * ATEN2011_bulk_out_data_callback
- *	this is the callback function for when we have finished sending serial data
- *	on the bulk out endpoint.
- * Input : 1 Input
- *			pointer to the URB packet,
- *
- *****************************************************************************/
 static void ATEN2011_bulk_out_data_callback(struct urb *urb)
 {
 	struct ATENINTL_port *ATEN2011_port;
@@ -1171,9 +981,6 @@ static void ATEN2011_bulk_out_data_callback(struct urb *urb)
 
 }
 
-/************************************************************************/
-/*       D R I V E R  T T Y  I N T E R F A C E  F U N C T I O N S       */
-/************************************************************************/
 #ifdef ATENSerialProbe
 static int ATEN2011_serial_probe(struct usb_serial *serial,
 				 const struct usb_device_id *id)
@@ -1186,13 +993,6 @@ static int ATEN2011_serial_probe(struct usb_serial *serial,
 	return 1;
 }
 #endif
-
-/*****************************************************************************
- * SerialOpen
- *	this function is called by the tty driver when a port is opened
- *	If successful, we return 0
- *	Otherwise we return a negative error number.
- *****************************************************************************/
 
 static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 			 struct file *filp)
@@ -1604,11 +1404,6 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 }
 
-/*****************************************************************************
- * ATEN2011_close
- *	this function is called by the tty driver when a port is closed
- *****************************************************************************/
-
 static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 			   struct file *filp)
 {
@@ -1713,10 +1508,6 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 
 }
 
-/*****************************************************************************
- * SerialBreak
- *	this function sends a break to the port
- *****************************************************************************/
 static void ATEN2011_break(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1770,17 +1561,6 @@ static void ATEN2011_break(struct tty_struct *tty, int break_state)
 	return;
 }
 
-/************************************************************************
- *
- * ATEN2011_block_until_chase_response
- *
- *	This function will block the close until one of the following:
- *		1. Response to our Chase comes from ATEN2011
- *		2. A timout of 10 seconds without activity has expired
- *		   (1K of ATEN2011 data @ 2400 baud ==> 4 sec to empty)
- *
- ************************************************************************/
-
 static void ATEN2011_block_until_chase_response(struct tty_struct *tty,
 						struct ATENINTL_port
 						*ATEN2011_port)
@@ -1814,16 +1594,6 @@ static void ATEN2011_block_until_chase_response(struct tty_struct *tty,
 
 }
 
-/************************************************************************
- *
- * ATEN2011_block_until_tx_empty
- *
- *	This function will block the close until one of the following:
- *		1. TX count are 0
- *		2. The ATEN2011 has stopped
- *		3. A timout of 3 seconds without activity has expired
- *
- ************************************************************************/
 static void ATEN2011_block_until_tx_empty(struct tty_struct *tty,
 					  struct ATENINTL_port *ATEN2011_port)
 {
@@ -1855,14 +1625,6 @@ static void ATEN2011_block_until_tx_empty(struct tty_struct *tty,
 		}
 	}
 }
-
-/*****************************************************************************
- * ATEN2011_write_room
- *	this function is called by the tty driver when it wants to know how many
- *	bytes of data we can accept for a specific port.
- *	If successful, we return the amount of room that we have for this port
- *	Otherwise we return a negative error number.
- *****************************************************************************/
 
 static int ATEN2011_write_room(struct tty_struct *tty)
 {
@@ -1896,16 +1658,6 @@ static int ATEN2011_write_room(struct tty_struct *tty)
 
 }
 
-/*****************************************************************************
- * ATEN2011_chars_in_buffer
- *	this function is called by the tty driver when it wants to know how many
- *	bytes of data we currently have outstanding in the port (data that has
- *	been written, but hasn't made it out the port yet)
- *	If successful, we return the number of bytes left to be written in the
- *	system,
- *	Otherwise we return a negative error number.
- *****************************************************************************/
-
 static int ATEN2011_chars_in_buffer(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -1936,14 +1688,6 @@ static int ATEN2011_chars_in_buffer(struct tty_struct *tty)
 
 }
 
-/*****************************************************************************
- * SerialWrite
- *	this function is called by the tty driver when data should be written to
- *	the port.
- *	If successful, we return the number of bytes written, otherwise we
- *      return a negative error number.
- *****************************************************************************/
-
 static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 			  const unsigned char *data, int count)
 {
@@ -1962,43 +1706,6 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 	const unsigned char *current_position = data;
 	unsigned char *data1;
 	DPRINTK("%s \n", "entering ...........");
-	//DPRINTK("ATEN2011_write: ATEN2011_port->shadowLCR is %x\n",ATEN2011_port->shadowLCR);
-
-#ifdef NOTATEN2011
-	Data = 0x00;
-	status = 0;
-	status = ATEN2011_get_Uart_Reg(port, LINE_CONTROL_REGISTER, &Data);
-	ATEN2011_port->shadowLCR = Data;
-	DPRINTK("ATEN2011_write: LINE_CONTROL_REGISTER is %x\n", Data);
-	DPRINTK("ATEN2011_write: ATEN2011_port->shadowLCR is %x\n",
-		ATEN2011_port->shadowLCR);
-
-	//Data = 0x03;
-	//status = ATEN2011_set_Uart_Reg(port,LINE_CONTROL_REGISTER,Data);
-	//ATEN2011_port->shadowLCR=Data;//Need to add later
-
-	Data |= SERIAL_LCR_DLAB;	//data latch enable in LCR 0x80
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, LINE_CONTROL_REGISTER, Data);
-
-	//Data = 0x0c;
-	//status = ATEN2011_set_Uart_Reg(port,DIVISOR_LATCH_LSB,Data);
-	Data = 0x00;
-	status = 0;
-	status = ATEN2011_get_Uart_Reg(port, DIVISOR_LATCH_LSB, &Data);
-	DPRINTK("ATEN2011_write:DLL value is %x\n", Data);
-
-	Data = 0x0;
-	status = 0;
-	status = ATEN2011_get_Uart_Reg(port, DIVISOR_LATCH_MSB, &Data);
-	DPRINTK("ATEN2011_write:DLM value is %x\n", Data);
-
-	Data = Data & ~SERIAL_LCR_DLAB;
-	DPRINTK("ATEN2011_write: ATEN2011_port->shadowLCR is %x\n",
-		ATEN2011_port->shadowLCR);
-	status = 0;
-	status = ATEN2011_set_Uart_Reg(port, LINE_CONTROL_REGISTER, Data);
-#endif
 
 	if (ATEN2011_port_paranoia_check(port, __FUNCTION__)) {
 		DPRINTK("%s", "Port Paranoia failed \n");
@@ -2109,12 +1816,6 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 }
 
-/*****************************************************************************
- * SerialThrottle
- *	this function is called by the tty driver when it wants to stop the data
- *	being read from the port.
- *****************************************************************************/
-
 static void ATEN2011_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -2170,11 +1871,6 @@ static void ATEN2011_throttle(struct tty_struct *tty)
 	return;
 }
 
-/*****************************************************************************
- * ATEN2011_unthrottle
- *	this function is called by the tty driver when it wants to resume the data
- *	being read from the port (called after SerialThrottle is called)
- *****************************************************************************/
 static void ATEN2011_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -2302,11 +1998,6 @@ static int ATEN2011_tiocmset(struct tty_struct *tty, struct file *file,
 	return 0;
 }
 
-/*****************************************************************************
- * SerialSetTermios
- *	this function is called by the tty driver when it wants to change the termios structure
- *****************************************************************************/
-
 static void ATEN2011_set_termios(struct tty_struct *tty,
 				 struct usb_serial_port *port,
 				 struct ktermios *old_termios)
@@ -2389,27 +2080,6 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 	return;
 }
 
-/*
-static void ATEN2011_break_ctl( struct usb_serial_port *port, int break_state )
-{
-        //struct usb_serial *serial = port->serial;
-
-//        if (BSA_USB_CMD(BELKIN_SA_SET_BREAK_REQUEST, break_state ? 1 : 0) < 0)
-  //              err("Set break_ctl %d", break_state);
-}
-*/
-
-/*****************************************************************************
- * get_lsr_info - get line status register info
- *
- * Purpose: Let user call ioctl() to get info when the UART physically
- * 	    is emptied.  On bus types like RS485, the transmitter must
- * 	    release the bus after transmitting. This must be done when
- * 	    the transmit shift register is empty, not be done when the
- * 	    transmit holding register is empty.  This functionality
- * 	    allows an RS485 driver to be written in user space.
- *****************************************************************************/
-
 static int get_lsr_info(struct tty_struct *tty,
 			struct ATENINTL_port *ATEN2011_port,
 			unsigned int *value)
@@ -2428,12 +2098,6 @@ static int get_lsr_info(struct tty_struct *tty,
 	return 0;
 }
 
-/*****************************************************************************
- * get_number_bytes_avail - get number of bytes available
- *
- * Purpose: Let user call ioctl to get the count of number of bytes available.
- *****************************************************************************/
-
 static int get_number_bytes_avail(struct tty_struct *tty,
 				  struct ATENINTL_port *ATEN2011_port,
 				  unsigned int *value)
@@ -2451,11 +2115,6 @@ static int get_number_bytes_avail(struct tty_struct *tty,
 
 	return -ENOIOCTLCMD;
 }
-
-/*****************************************************************************
- * set_modem_info
- *      function to set modem info
- *****************************************************************************/
 
 static int set_modem_info(struct ATENINTL_port *ATEN2011_port, unsigned int cmd,
 			  unsigned int *value)
@@ -2522,11 +2181,6 @@ static int set_modem_info(struct ATENINTL_port *ATEN2011_port, unsigned int cmd,
 	return 0;
 }
 
-/*****************************************************************************
- * get_modem_info
- *      function to get modem info
- *****************************************************************************/
-
 static int get_modem_info(struct ATENINTL_port *ATEN2011_port,
 			  unsigned int *value)
 {
@@ -2550,11 +2204,6 @@ static int get_modem_info(struct ATENINTL_port *ATEN2011_port,
 		return -EFAULT;
 	return 0;
 }
-
-/*****************************************************************************
- * get_serial_info
- *      function to get information about serial port
- *****************************************************************************/
 
 static int get_serial_info(struct ATENINTL_port *ATEN2011_port,
 			   struct serial_struct *retinfo)
@@ -2585,11 +2234,6 @@ static int get_serial_info(struct ATENINTL_port *ATEN2011_port,
 		return -EFAULT;
 	return 0;
 }
-
-/*****************************************************************************
- * SerialIoctl
- *	this function handles any ioctl calls to the driver
- *****************************************************************************/
 
 static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 			  unsigned int cmd, unsigned long arg)
@@ -2631,33 +2275,6 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 				(int __user *)arg);
 		break;
 
-		/*  //2.6.17 block
-		   case TCFLSH:
-		   retval = tty_check_change(tty);
-		   if (retval)
-		   return retval;
-
-		   ld = tty_ldisc_ref(tty);
-		   switch (arg) {
-		   case TCIFLUSH:
-		   if (ld && ld->flush_buffer)
-		   ld->flush_buffer(tty);
-		   break;
-		   case TCIOFLUSH:
-		   if (ld && ld->flush_buffer)
-		   ld->flush_buffer(tty);
-		   // fall through
-		   case TCOFLUSH:
-		   if (tty->driver->flush_buffer)
-		   tty->driver->flush_buffer(tty);
-		   break;
-		   default:
-		   tty_ldisc_deref(ld);
-		   return -EINVAL;
-		   }
-		   tty_ldisc_deref(ld);
-		   return 0;
-		 */
 	case TIOCSERGETLSR:
 		dbg("%s (%d) TIOCSERGETLSR", __FUNCTION__, port->number);
 		return get_lsr_info(tty, ATEN2011_port, (unsigned int *)arg);
@@ -2741,12 +2358,6 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 
 	return -ENOIOCTLCMD;
 }
-
-/*****************************************************************************
- * ATEN2011_send_cmd_write_baud_rate
- *	this function sends the proper command to change the baud rate of the
- *	specified port.
- *****************************************************************************/
 
 static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 					     *ATEN2011_port, int baudRate)
@@ -2871,11 +2482,6 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 	return status;
 }
 
-/*****************************************************************************
- * ATEN2011_calc_baud_rate_divisor
- *	this function calculates the proper baud rate divisor for the specified
- *	baud rate.
- *****************************************************************************/
 static int ATEN2011_calc_baud_rate_divisor(int baudRate, int *divisor,
 					   __u16 * clk_sel_val)
 {
@@ -2911,45 +2517,7 @@ static int ATEN2011_calc_baud_rate_divisor(int baudRate, int *divisor,
 		*clk_sel_val = 0x70;
 	}
 	return 0;
-
-#ifdef NOTATEN2011
-
-	for (i = 0; i < NUM_ENTRIES(ATEN2011_divisor_table); i++) {
-		if (ATEN2011_divisor_table[i].BaudRate == baudrate) {
-			*divisor = ATEN2011_divisor_table[i].Divisor;
-			return 0;
-		}
-	}
-
-	/* After trying for all the standard baud rates    *
-	 * Try calculating the divisor for this baud rate  */
-
-	if (baudrate > 75 && baudrate < 230400) {
-		/* get the divisor */
-		custom = (__u16) (230400L / baudrate);
-
-		/* Check for round off */
-		round1 = (__u16) (2304000L / baudrate);
-		round = (__u16) (round1 - (custom * 10));
-		if (round > 4) {
-			custom++;
-		}
-		*divisor = custom;
-
-		DPRINTK(" Baud %d = %d\n", baudrate, custom);
-		return 0;
-	}
-
-	DPRINTK("%s\n", " Baud calculation Failed...");
-	return -1;
-#endif
 }
-
-/*****************************************************************************
- * ATEN2011_change_port_settings
- *	This routine is called to set the UART on the device to match
- *      the specified new settings.
- *****************************************************************************/
 
 static void ATEN2011_change_port_settings(struct tty_struct *tty,
 					  struct ATENINTL_port *ATEN2011_port,
@@ -3173,10 +2741,6 @@ static int ATEN2011_calc_num_ports(struct usb_serial *serial)
 	return ATEN2011_2or4ports;
 }
 
-/****************************************************************************
- * ATEN2011_startup
- ****************************************************************************/
-
 static int ATEN2011_startup(struct usb_serial *serial)
 {
 	struct ATENINTL_serial *ATEN2011_serial;
@@ -3251,35 +2815,30 @@ static int ATEN2011_startup(struct usb_serial *serial)
 			ATEN2011_port->SpRegOffset = 0x0;
 			ATEN2011_port->ControlRegOffset = 0x1;
 			ATEN2011_port->DcrRegOffset = 0x4;
-			//ATEN2011_port->ClkSelectRegOffset =  ;
 		} else if ((ATEN2011_port->port_num == 2)
 			   && (ATEN2011_serial->ATEN2011_spectrum_2or4ports ==
 			       4)) {
 			ATEN2011_port->SpRegOffset = 0x8;
 			ATEN2011_port->ControlRegOffset = 0x9;
 			ATEN2011_port->DcrRegOffset = 0x16;
-			//ATEN2011_port->ClkSelectRegOffset =  ;
 		} else if ((ATEN2011_port->port_num == 2)
 			   && (ATEN2011_serial->ATEN2011_spectrum_2or4ports ==
 			       2)) {
 			ATEN2011_port->SpRegOffset = 0xa;
 			ATEN2011_port->ControlRegOffset = 0xb;
 			ATEN2011_port->DcrRegOffset = 0x19;
-			//ATEN2011_port->ClkSelectRegOffset =  ;
 		} else if ((ATEN2011_port->port_num == 3)
 			   && (ATEN2011_serial->ATEN2011_spectrum_2or4ports ==
 			       4)) {
 			ATEN2011_port->SpRegOffset = 0xa;
 			ATEN2011_port->ControlRegOffset = 0xb;
 			ATEN2011_port->DcrRegOffset = 0x19;
-			//ATEN2011_port->ClkSelectRegOffset =  ;
 		} else if ((ATEN2011_port->port_num == 4)
 			   && (ATEN2011_serial->ATEN2011_spectrum_2or4ports ==
 			       4)) {
 			ATEN2011_port->SpRegOffset = 0xc;
 			ATEN2011_port->ControlRegOffset = 0xd;
 			ATEN2011_port->DcrRegOffset = 0x1c;
-			//ATEN2011_port->ClkSelectRegOffset =  ;
 		}
 		ATEN2011_Dump_serial_port(ATEN2011_port);
 
@@ -3385,101 +2944,6 @@ static int ATEN2011_startup(struct usb_serial *serial)
 			DPRINTK("CLK_MULTI_REGISTER Writing success status%d\n",
 				status);
 
-		//write value 0x0 to scratchpad register
-		/*
-		   if(RS485mode==0)
-		   Data = 0xC0;
-		   else
-		   Data = 0x00;
-		   status=0;
-		   status=ATEN2011_set_Uart_Reg(serial->port[i],SCRATCH_PAD_REGISTER,Data);
-		   if(status<0) {
-		   DPRINTK("Writing SCRATCH_PAD_REGISTER failed status-0x%x\n", status);
-		   break;
-		   }
-		   else DPRINTK("SCRATCH_PAD_REGISTER Writing success status%d\n",status);
-		 */
-
-		/*
-		   //Threshold Registers
-		   if(ATEN2011_serial->ATEN2011_spectrum_2or4ports==4)
-		   {
-		   Data = 0x00;
-		   status=0;
-		   status=ATEN2011_set_reg_sync(serial->port[i],\
-		   (__u16)(THRESHOLD_VAL_SP1_1+(__u16)ATEN2011_Thr_cnt),Data);
-		   DPRINTK("THRESHOLD_VAL offset is%x\n", (__u16)(THRESHOLD_VAL_SP1_1+(__u16)ATEN2011_Thr_cnt));
-		   if(status<0) {
-		   DPRINTK("Writing THRESHOLD_VAL failed status-0x%x\n",status);
-		   break;
-		   }
-		   else DPRINTK("THRESHOLD_VAL Writing success status%d\n",status);
-		   ATEN2011_Thr_cnt++;
-
-		   Data = 0x01;
-		   status=0;
-		   status=ATEN2011_set_reg_sync(serial->port[i],\
-		   (__u16)(THRESHOLD_VAL_SP1_1+(__u16)ATEN2011_Thr_cnt),Data);
-		   DPRINTK("THRESHOLD_VAL offsetis%x\n",(__u16)(THRESHOLD_VAL_SP1_1+(__u16)ATEN2011_Thr_cnt));
-		   if(status<0) {
-		   DPRINTK("Writing THRESHOLD_VAL failed status-0x%x\n",status);
-		   break;
-		   }
-		   else DPRINTK("THRESHOLD_VAL Writing success status%d\n",status);
-		   ATEN2011_Thr_cnt++;
-		   }
-
-		   else
-		   {
-
-		   if(ATEN2011_port->port_num==1)
-		   {
-		   Data = 0x00;
-		   status=0;
-		   status=ATEN2011_set_reg_sync(serial->port[i],\
-		   0x3f,Data);
-		   DPRINTK("THRESHOLD_VAL offset is 0x3f\n");
-		   if(status<0) {
-		   DPRINTK("Writing THRESHOLD_VAL failed status-0x%x\n",status);
-		   break;
-		   }
-		   Data = 0x01;
-		   status=0;
-		   status=ATEN2011_set_reg_sync(serial->port[i],\
-		   0x40,Data);
-		   DPRINTK("THRESHOLD_VAL offset is 0x40\n");
-		   if(status<0) {
-		   DPRINTK("Writing THRESHOLD_VAL failed status-0x%x\n",status);
-		   break;
-
-		   }
-		   }
-		   else
-		   {
-		   Data = 0x00;
-		   status=0;
-		   status=ATEN2011_set_reg_sync(serial->port[i],\
-		   0x43,Data);
-		   DPRINTK("THRESHOLD_VAL offset is 0x43\n");
-		   if(status<0) {
-		   DPRINTK("Writing THRESHOLD_VAL failed status-0x%x\n",status);
-		   break;
-		   }
-		   Data = 0x01;
-		   status=0;
-		   status=ATEN2011_set_reg_sync(serial->port[i],\
-		   0x44,Data);
-		   DPRINTK("THRESHOLD_VAL offset is 0x44\n");
-		   if(status<0) {
-		   DPRINTK("Writing THRESHOLD_VAL failed status-0x%x\n",status);
-		   break;
-
-		   }
-
-		   }
-
-		   }
-		 */
 		//Zero Length flag register
 		if ((ATEN2011_port->port_num != 1)
 		    && (ATEN2011_serial->ATEN2011_spectrum_2or4ports == 2)) {
@@ -3531,7 +2995,6 @@ static int ATEN2011_startup(struct usb_serial *serial)
 
 	}
 
-	ATEN2011_Thr_cnt = 0;
 	//Zero Length flag enable
 	Data = 0x0f;
 	status = 0;
@@ -3545,14 +3008,8 @@ static int ATEN2011_startup(struct usb_serial *serial)
 	/* setting configuration feature to one */
 	usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			(__u8) 0x03, 0x00, 0x01, 0x00, 0x00, 0x00, 5 * HZ);
-	ATEN2011_Thr_cnt = 0;
 	return 0;
 }
-
-/****************************************************************************
- * ATEN2011_shutdown
- *	This function is called whenever the device is removed from the usb bus.
- ****************************************************************************/
 
 static void ATEN2011_shutdown(struct usb_serial *serial)
 {
@@ -3599,10 +3056,6 @@ static int ATEN2011_serial_paranoia_check(struct usb_serial *serial,
 		dbg("%s - serial == NULL", function);
 		return -1;
 	}
-//      if (serial->magic != USB_SERIAL_MAGIC) {
-//              dbg("%s - bad magic number for serial", function);
-//              return -1;
-//      }
 	if (!serial->type) {
 		dbg("%s - serial->type == NULL!", function);
 		return -1;
@@ -3617,10 +3070,6 @@ static int ATEN2011_port_paranoia_check(struct usb_serial_port *port,
 		dbg("%s - port == NULL", function);
 		return -1;
 	}
-//      if (port->magic != USB_SERIAL_PORT_MAGIC) {
-//              dbg("%s - bad magic number for port", function);
-//              return -1;
-//      }
 	if (!port->serial) {
 		dbg("%s - port->serial == NULL", function);
 		return -1;
@@ -3642,10 +3091,6 @@ static struct usb_serial *ATEN2011_get_usb_serial(struct usb_serial_port *port,
 	return port->serial;
 }
 
-/****************************************************************************
- * ATENINTL2011_init
- *	This is called by the module subsystem, or on startup to initialize us
- ****************************************************************************/
 int __init ATENINTL2011_init(void)
 {
 	int retval;
@@ -3681,10 +3126,6 @@ int __init ATENINTL2011_init(void)
 	return retval;
 }
 
-/****************************************************************************
- * ATENINTL2011_exit
- *	Called when the driver is about to be unloaded.
- ****************************************************************************/
 void __exit ATENINTL2011_exit(void)
 {
 
