@@ -105,7 +105,7 @@ static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long page)
 	return NULL;
 }
 
-static void set_page_present(unsigned long addr, bool present,
+static int set_page_present(unsigned long addr, bool present,
 							unsigned int *pglevel)
 {
 	pteval_t pteval;
@@ -116,7 +116,7 @@ static void set_page_present(unsigned long addr, bool present,
 
 	if (!pte) {
 		pr_err("kmmio: no pte for page 0x%08lx\n", addr);
-		return;
+		return -1;
 	}
 
 	if (pglevel)
@@ -140,22 +140,27 @@ static void set_page_present(unsigned long addr, bool present,
 
 	default:
 		pr_err("kmmio: unexpected page level 0x%x.\n", level);
-		return;
+		return -1;
 	}
 
 	__flush_tlb_one(addr);
+
+	return 0;
 }
 
 /** Mark the given page as not present. Access to it will trigger a fault. */
-static void arm_kmmio_fault_page(unsigned long page, unsigned int *pglevel)
+static int arm_kmmio_fault_page(unsigned long page, unsigned int *pglevel)
 {
-	set_page_present(page & PAGE_MASK, false, pglevel);
+	int ret = set_page_present(page & PAGE_MASK, false, pglevel);
+	WARN_ONCE(ret < 0, KERN_ERR "kmmio arming 0x%08lx failed.\n", page);
+	return ret;
 }
 
 /** Mark the given page as present. */
 static void disarm_kmmio_fault_page(unsigned long page, unsigned int *pglevel)
 {
-	set_page_present(page & PAGE_MASK, true, pglevel);
+	int ret = set_page_present(page & PAGE_MASK, true, pglevel);
+	WARN_ONCE(ret < 0, KERN_ERR "kmmio disarming 0x%08lx failed.\n", page);
 }
 
 /*
@@ -326,9 +331,13 @@ static int add_kmmio_fault_page(unsigned long page)
 
 	f->count = 1;
 	f->page = page;
-	list_add_rcu(&f->list, kmmio_page_list(f->page));
 
-	arm_kmmio_fault_page(f->page, NULL);
+	if (arm_kmmio_fault_page(f->page, NULL)) {
+		kfree(f);
+		return -1;
+	}
+
+	list_add_rcu(&f->list, kmmio_page_list(f->page));
 
 	return 0;
 }
