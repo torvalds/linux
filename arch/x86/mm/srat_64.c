@@ -21,6 +21,7 @@
 #include <asm/numa.h>
 #include <asm/e820.h>
 #include <asm/genapic.h>
+#include <asm/uv/uv.h>
 
 int acpi_numa __initdata;
 

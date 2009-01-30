@@ -399,8 +399,10 @@ static struct workqueue_struct *time_sync_wq;
 
 static void __init time_init_wq(void)
 {
-	if (!time_sync_wq)
-		time_sync_wq = create_singlethread_workqueue("timesync");
+	if (time_sync_wq)
+		return;
+	time_sync_wq = create_singlethread_workqueue("timesync");
+	stop_machine_create();
 }
 
 /*

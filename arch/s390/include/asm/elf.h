@@ -172,14 +172,14 @@ extern char elf_platform[];
 #ifndef __s390x__
 #define SET_PERSONALITY(ex) set_personality(PER_LINUX)
 #else /* __s390x__ */
-#define SET_PERSONALITY(ex)				\
-do {							\
-	if (current->personality != PER_LINUX32)	\
-		set_personality(PER_LINUX);		\
-	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)	\
-		set_thread_flag(TIF_31BIT);		\
-	else						\
-		clear_thread_flag(TIF_31BIT);		\
+#define SET_PERSONALITY(ex)					\
+do {								\
+	if (personality(current->personality) != PER_LINUX32)	\
+		set_personality(PER_LINUX);			\
+	if ((ex).e_ident[EI_CLASS] == ELFCLASS32)		\
+		set_thread_flag(TIF_31BIT);			\
+	else							\
+		clear_thread_flag(TIF_31BIT);			\
 } while (0)
 #endif /* __s390x__ */
 

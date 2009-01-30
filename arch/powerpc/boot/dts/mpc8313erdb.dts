@@ -185,7 +185,7 @@
 			cell-index = <0>;
 			device_type = "network";
 			model = "eTSEC";
-			compatible = "gianfar", "simple-bus";
+			compatible = "gianfar";
 			reg = <0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <37 0x8 36 0x8 35 0x8>;

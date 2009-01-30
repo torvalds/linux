@@ -418,6 +418,8 @@ struct usb_tt;
  * @autosuspend_disabled: autosuspend disabled by the user
  * @autoresume_disabled: autoresume disabled by the user
  * @skip_sys_resume: skip the next system resume
+ * @wusb_dev: if this is a Wireless USB device, link to the WUSB
+ *	specific data for the device.
  *
  * Notes:
  * Usbcore drivers should not set usbdev->state directly.  Instead use

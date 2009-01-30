@@ -32,7 +32,6 @@
 #include <mach/keypad.h>
 #include <mach/common.h>
 #include <mach/dsp_common.h>
-#include <mach/aic23.h>
 #include <mach/omapfb.h>
 #include <mach/lcd_mipid.h>
 #include <mach/mmc.h>
@@ -260,6 +259,13 @@ static DEFINE_MUTEX(audio_pwr_lock);
  * +--+-------------------------+---------------------------------------+
  */
 static int audio_pwr_state = -1;
+
+static inline void aic23_power_up(void)
+{
+}
+static inline void aic23_power_down(void)
+{
+}
 
 /*
  * audio_pwr_up / down should be called under audio_pwr_lock

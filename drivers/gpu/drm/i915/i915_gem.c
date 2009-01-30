@@ -3364,7 +3364,7 @@ void i915_gem_free_all_phys_object(struct drm_device *dev)
 {
 	int i;
 
-	for (i = 0; i < I915_MAX_PHYS_OBJECT; i++)
+	for (i = I915_GEM_PHYS_CURSOR_0; i <= I915_MAX_PHYS_OBJECT; i++)
 		i915_gem_free_phys_object(dev, i);
 }
 
@@ -3427,7 +3427,7 @@ i915_gem_attach_phys_object(struct drm_device *dev,
 		ret = i915_gem_init_phys_object(dev, id,
 						obj->size);
 		if (ret) {
-			DRM_ERROR("failed to init phys object %d size: %d\n", id, obj->size);
+			DRM_ERROR("failed to init phys object %d size: %zu\n", id, obj->size);
 			goto out;
 		}
 	}

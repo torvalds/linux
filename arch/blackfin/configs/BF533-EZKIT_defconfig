@@ -719,7 +719,7 @@ CONFIG_SPI_BFIN=y
 #
 # SPI Protocol Masters
 #
-# CONFIG_SPI_AT25 is not set
+# CONFIG_EEPROM_AT25 is not set
 # CONFIG_SPI_SPIDEV is not set
 # CONFIG_SPI_TLE62X0 is not set
 CONFIG_ARCH_WANT_OPTIONAL_GPIOLIB=y

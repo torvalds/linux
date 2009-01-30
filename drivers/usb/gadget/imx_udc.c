@@ -297,7 +297,7 @@ void imx_ep_stall(struct imx_ep_struct *imx_ep)
 
 		for (i = 0; i < 100; i ++) {
 			temp = __raw_readl(imx_usb->base + USB_EP_STAT(EP_NO(imx_ep)));
-	 		if (!temp & EPSTAT_STALL)
+			if (!(temp & EPSTAT_STALL))
 	 			break;
 	 		udelay(20);
 	 	}

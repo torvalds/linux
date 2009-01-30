@@ -944,9 +944,9 @@ qla24xx_unprotect_flash(struct qla_hw_data *ha)
 	if (!ha->fdt_wrt_disable)
 		return;
 
-	/* Disable flash write-protection. */
+	/* Disable flash write-protection, first clear SR protection bit */
 	qla24xx_write_flash_dword(ha, flash_conf_addr(ha, 0x101), 0);
-	/* Some flash parts need an additional zero-write to clear bits.*/
+	/* Then write zero again to clear remaining SR bits.*/
 	qla24xx_write_flash_dword(ha, flash_conf_addr(ha, 0x101), 0);
 }
 
@@ -980,12 +980,11 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
     uint32_t dwords)
 {
 	int ret;
-	uint32_t liter, miter;
+	uint32_t liter;
 	uint32_t sec_mask, rest_addr;
-	uint32_t fdata, findex;
+	uint32_t fdata;
 	dma_addr_t optrom_dma;
 	void *optrom = NULL;
-	uint32_t *s, *d;
 	struct qla_hw_data *ha = vha->hw;
 
 	ret = QLA_SUCCESS;
@@ -1003,17 +1002,15 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	}
 
 	rest_addr = (ha->fdt_block_size >> 2) - 1;
-	sec_mask = (ha->optrom_size >> 2) - (ha->fdt_block_size >> 2);
+	sec_mask = ~rest_addr;
 
 	qla24xx_unprotect_flash(ha);
 
 	for (liter = 0; liter < dwords; liter++, faddr++, dwptr++) {
-
-		findex = faddr;
-		fdata = (findex & sec_mask) << 2;
+		fdata = (faddr & sec_mask) << 2;
 
 		/* Are we at the beginning of a sector? */
-		if ((findex & rest_addr) == 0) {
+		if ((faddr & rest_addr) == 0) {
 			/* Do sector unprotect. */
 			if (ha->fdt_unprotect_sec_cmd)
 				qla24xx_write_flash_dword(ha,
@@ -1024,7 +1021,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 			    (fdata & 0xff00) |((fdata << 16) &
 			    0xff0000) | ((fdata >> 16) & 0xff));
 			if (ret != QLA_SUCCESS) {
-				DEBUG9(qla_printk("Unable to flash sector: "
+				DEBUG9(qla_printk("Unable to erase sector: "
 				    "address=%x.\n", faddr));
 				break;
 			}
@@ -1033,9 +1030,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 		/* Go with burst-write. */
 		if (optrom && (liter + OPTROM_BURST_DWORDS) <= dwords) {
 			/* Copy data to DMA'ble buffer. */
-			for (miter = 0, s = optrom, d = dwptr;
-			    miter < OPTROM_BURST_DWORDS; miter++, s++, d++)
-				*s = cpu_to_le32(*d);
+			memcpy(optrom, dwptr, OPTROM_BURST_SIZE);
 
 			ret = qla2x00_load_ram(vha, optrom_dma,
 			    flash_data_addr(ha, faddr),

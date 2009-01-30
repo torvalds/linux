@@ -114,38 +114,16 @@ struct IR_IO_APIC_route_entry {
 extern int nr_ioapics;
 extern int nr_ioapic_registers[MAX_IO_APICS];
 
-/*
- * MP-BIOS irq configuration table structures:
- */
-
 #define MP_MAX_IOAPIC_PIN 127
 
-struct mp_config_ioapic {
-	unsigned long mp_apicaddr;
-	unsigned int mp_apicid;
-	unsigned char mp_type;
-	unsigned char mp_apicver;
-	unsigned char mp_flags;
-};
-
-struct mp_config_intsrc {
-	unsigned int mp_dstapic;
-	unsigned char mp_type;
-	unsigned char mp_irqtype;
-	unsigned short mp_irqflag;
-	unsigned char mp_srcbus;
-	unsigned char mp_srcbusirq;
-	unsigned char mp_dstirq;
-};
-
 /* I/O APIC entries */
-extern struct mp_config_ioapic mp_ioapics[MAX_IO_APICS];
+extern struct mpc_ioapic mp_ioapics[MAX_IO_APICS];
 
 /* # of MP IRQ source entries */
 extern int mp_irq_entries;
 
 /* MP IRQ source entries */
-extern struct mp_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
+extern struct mpc_intsrc mp_irqs[MAX_IRQ_SOURCES];
 
 /* non-0 if default (table-less) MP configuration */
 extern int mpc_default_type;

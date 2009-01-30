@@ -1,0 +1,80 @@
+config NFSD
+	tristate "NFS server support"
+	depends on INET
+	select LOCKD
+	select SUNRPC
+	select EXPORTFS
+	select NFS_ACL_SUPPORT if NFSD_V2_ACL
+	help
+	  Choose Y here if you want to allow other computers to access
+	  files residing on this system using Sun's Network File System
+	  protocol.  To compile the NFS server support as a module,
+	  choose M here: the module will be called nfsd.
+
+	  You may choose to use a user-space NFS server instead, in which
+	  case you can choose N here.
+
+	  To export local file systems using NFS, you also need to install
+	  user space programs which can be found in the Linux nfs-utils
+	  package, available from http://linux-nfs.org/.  More detail about
+	  the Linux NFS server implementation is available via the
+	  exports(5) man page.
+
+	  Below you can choose which versions of the NFS protocol are
+	  available to clients mounting the NFS server on this system.
+	  Support for NFS version 2 (RFC 1094) is always available when
+	  CONFIG_NFSD is selected.
+
+	  If unsure, say N.
+
+config NFSD_V2_ACL
+	bool
+	depends on NFSD
+
+config NFSD_V3
+	bool "NFS server support for NFS version 3"
+	depends on NFSD
+	help
+	  This option enables support in your system's NFS server for
+	  version 3 of the NFS protocol (RFC 1813).
+
+	  If unsure, say Y.
+
+config NFSD_V3_ACL
+	bool "NFS server support for the NFSv3 ACL protocol extension"
+	depends on NFSD_V3
+	select NFSD_V2_ACL
+	help
+	  Solaris NFS servers support an auxiliary NFSv3 ACL protocol that
+	  never became an official part of the NFS version 3 protocol.
+	  This protocol extension allows applications on NFS clients to
+	  manipulate POSIX Access Control Lists on files residing on NFS
+	  servers.  NFS servers enforce POSIX ACLs on local files whether
+	  this protocol is available or not.
+
+	  This option enables support in your system's NFS server for the
+	  NFSv3 ACL protocol extension allowing NFS clients to manipulate
+	  POSIX ACLs on files exported by your system's NFS server.  NFS
+	  clients which support the Solaris NFSv3 ACL protocol can then
+	  access and modify ACLs on your NFS server.
+
+	  To store ACLs on your NFS server, you also need to enable ACL-
+	  related CONFIG options for your local file systems of choice.
+
+	  If unsure, say N.
+
+config NFSD_V4
+	bool "NFS server support for NFS version 4 (EXPERIMENTAL)"
+	depends on NFSD && PROC_FS && EXPERIMENTAL
+	select NFSD_V3
+	select FS_POSIX_ACL
+	select RPCSEC_GSS_KRB5
+	help
+	  This option enables support in your system's NFS server for
+	  version 4 of the NFS protocol (RFC 3530).
+
+	  To export files using NFSv4, you need to install additional user
+	  space programs which can be found in the Linux nfs-utils package,
+	  available from http://linux-nfs.org/.
+
+	  If unsure, say N.
