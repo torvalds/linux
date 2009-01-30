@@ -137,7 +137,6 @@ void sxg_collect_statistics(struct adapter_t *adapter);
 
 #if XXXTODO
 static int sxg_mac_set_address(struct net_device *dev, void *ptr);
-static void sxg_unmap_mmio_space(struct adapter_t *adapter);
 #endif
 static void sxg_mcast_set_list(struct net_device *dev);
 
@@ -3218,34 +3217,16 @@ static void sxg_mcast_set_list(struct net_device *dev)
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 
 	ASSERT(adapter);
-	if (dev->flags & IFF_PROMISC) {
+	if (dev->flags & IFF_PROMISC)
 		adapter->MacFilter |= MAC_PROMISC;
-	}
-
         if (dev->flags & IFF_MULTICAST)
                 adapter->MacFilter |= MAC_MCAST;
-
-        if (dev->flags & IFF_ALLMULTI) {
+        if (dev->flags & IFF_ALLMULTI)
                 adapter->MacFilter |= MAC_ALLMCAST;
-	}
 
 	//XXX handle other flags as well
 	sxg_set_mcast_addr(adapter);
 }
-
-#if XXXTODO
-static void sxg_unmap_mmio_space(struct adapter_t *adapter)
-{
-#if LINUX_FREES_ADAPTER_RESOURCES
-/*
- *       if (adapter->Regs) {
- *              iounmap(adapter->Regs);
- *      }
- *      adapter->slic_regs = NULL;
- */
-#endif
-}
-#endif
 
 void sxg_free_sgl_buffers(struct adapter_t *adapter)
 {

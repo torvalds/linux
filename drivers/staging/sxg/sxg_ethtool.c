@@ -159,7 +159,6 @@ sxg_nic_get_strings(struct net_device *netdev, u32 stringset, u8 * data)
 
 	switch(stringset) {
 	case ETH_SS_TEST:
-		/* return -EOPNOTSUPP; */
 		break;
 	case ETH_SS_STATS:
 		for (index = 0; index < SXG_NIC_STATS_LEN; index++) {
@@ -257,14 +256,6 @@ static void sxg_nic_get_regs(struct net_device *netdev,
 	memcpy((buff+sizeof(struct sxg_hw_regs)), UcodeRegs, sizeof(struct sxg_ucode_regs));
 }
 
-static void sxg_nic_get_wol(struct net_device *netdev,
-			    struct ethtool_wolinfo *wol)
-{
-	/* We dont support wake-on-lan */
-	wol->supported = 0;
-	memset(&wol->sopass, 0, sizeof(wol->sopass));
-}
-
 static int sxg_nic_get_eeprom_len(struct net_device *netdev)
 {
 	return (USER_VIEWABLE_EEPROM_SIZE);
@@ -315,10 +306,9 @@ struct ethtool_ops sxg_nic_ethtool_ops = {
 	.get_regs_len = sxg_nic_get_regs_len,
 	.get_regs = sxg_nic_get_regs,
 	.get_link = ethtool_op_get_link,
-	.get_wol = sxg_nic_get_wol,
+//	.get_wol = sxg_nic_get_wol,
 	.get_eeprom_len = sxg_nic_get_eeprom_len,
 	.get_eeprom = sxg_nic_get_eeprom,
-//	.get_ringparam = sxg_nic_get_ringparam,
 //	.get_pauseparam = sxg_nic_get_pauseparam,
 //	.set_pauseparam = sxg_nic_set_pauseparam,
 	.set_tx_csum = ethtool_op_set_tx_csum,
