@@ -310,6 +310,19 @@ static inline void ath5k_txbuf_free(struct ath5k_softc *sc,
 	bf->skb = NULL;
 }
 
+static inline void ath5k_rxbuf_free(struct ath5k_softc *sc,
+				struct ath5k_buf *bf)
+{
+	BUG_ON(!bf);
+	if (!bf->skb)
+		return;
+	pci_unmap_single(sc->pdev, bf->skbaddr, sc->rxbufsize,
+			PCI_DMA_FROMDEVICE);
+	dev_kfree_skb_any(bf->skb);
+	bf->skb = NULL;
+}
+
+
 /* Queues setup */
 static struct 	ath5k_txq *ath5k_txq_setup(struct ath5k_softc *sc,
 				int qtype, int subtype);
@@ -1343,7 +1356,7 @@ ath5k_desc_free(struct ath5k_softc *sc, struct pci_dev *pdev)
 	list_for_each_entry(bf, &sc->txbuf, list)
 		ath5k_txbuf_free(sc, bf);
 	list_for_each_entry(bf, &sc->rxbuf, list)
-		ath5k_txbuf_free(sc, bf);
+		ath5k_rxbuf_free(sc, bf);
 
 	/* Free memory associated with all descriptors */
 	pci_free_consistent(pdev, sc->desc_len, sc->desc, sc->desc_daddr);
