@@ -2212,10 +2212,10 @@ unsigned int skb_seq_read(unsigned int consumed, const u8 **data,
 		return 0;
 
 next_skb:
-	block_limit = skb_headlen(st->cur_skb);
+	block_limit = skb_headlen(st->cur_skb) + st->stepped_offset;
 
 	if (abs_offset < block_limit) {
-		*data = st->cur_skb->data + abs_offset;
+		*data = st->cur_skb->data + (abs_offset - st->stepped_offset);
 		return block_limit - abs_offset;
 	}
 
@@ -2257,6 +2257,7 @@ next_skb:
 	} else if (st->root_skb == st->cur_skb &&
 		   skb_shinfo(st->root_skb)->frag_list) {
 		st->cur_skb = skb_shinfo(st->root_skb)->frag_list;
+		st->frag_idx = 0;
 		goto next_skb;
 	}
 
