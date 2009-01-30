@@ -216,7 +216,7 @@ mmc_omap_show_slot_name(struct device *dev, struct device_attribute *attr,
 	struct mmc_omap_host *host = mmc_priv(mmc);
 	struct omap_mmc_slot_data slot = host->pdata->slots[host->slot_id];
 
-	return sprintf(buf, "slot:%s\n", slot.name);
+	return sprintf(buf, "%s\n", slot.name);
 }
 
 static DEVICE_ATTR(slot_name, S_IRUGO, mmc_omap_show_slot_name, NULL);
