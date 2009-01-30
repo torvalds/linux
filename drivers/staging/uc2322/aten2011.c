@@ -230,8 +230,6 @@ static int debug = 0;
 static int RS485mode = 0;
 
 /* setting and get register values */
-static int ATEN2011_set_reg_sync(struct usb_serial_port *port, __u16 reg,
-				 __u16 val);
 static int ATEN2011_get_reg_sync(struct usb_serial_port *port, __u16 reg,
 				 __u16 * val);
 static int ATEN2011_set_Uart_Reg(struct usb_serial_port *port, __u16 reg,
@@ -268,12 +266,12 @@ static inline struct ATENINTL_port *ATEN2011_get_port_private(struct
 	return (struct ATENINTL_port *)usb_get_serial_port_data(port);
 }
 
-static int ATEN2011_set_reg_sync(struct usb_serial_port *port, __u16 reg,
-				 __u16 val)
+static int set_reg_sync(struct usb_serial_port *port, __u16 reg, __u16 val)
 {
 	struct usb_device *dev = port->serial->dev;
 	val = val & 0x00ff;
-	DPRINTK("ATEN2011_set_reg_sync offset is %x, value %x\n", reg, val);
+
+	dbg("%s: is %x, value %x\n", __func__, reg, val);
 
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0), ATEN_WRREQ,
 			       ATEN_WR_RTYPE, val, reg, NULL, 0,
@@ -867,14 +865,14 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 		return -1;
 	}
 	Data |= 0x80;
-	status = ATEN2011_set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
+	status = set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
 	if (status < 0) {
 		DPRINTK("writing Spreg failed\n");
 		return -1;
 	}
 
 	Data &= ~0x80;
-	status = ATEN2011_set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
+	status = set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
 	if (status < 0) {
 		DPRINTK("writing Spreg failed\n");
 		return -1;
@@ -908,17 +906,10 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 		return -1;
 	}
 	Data |= 0x08;		//Driver done bit
-	/*
-	   status = ATEN2011_set_reg_sync(port,ATEN2011_port->ControlRegOffset,Data);
-	   if(status<0){
-	   DPRINTK("writing Controlreg failed\n");
-	   return -1;
-	   }
-	 */
 	Data |= 0x20;		//rx_disable
 	status = 0;
 	status =
-	    ATEN2011_set_reg_sync(port, ATEN2011_port->ControlRegOffset, Data);
+	    set_reg_sync(port, ATEN2011_port->ControlRegOffset, Data);
 	if (status < 0) {
 		DPRINTK("writing Controlreg failed\n");
 		return -1;
@@ -998,11 +989,11 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 	Data = Data | 0x0c;
 	status = 0;
-	status = ATEN2011_set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
+	status = set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
 
 	Data = Data & ~0x0c;
 	status = 0;
-	status = ATEN2011_set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
+	status = set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
 	//Finally enable all interrupts
 	Data = 0x0;
 	Data = 0x0c;
@@ -1016,8 +1007,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	    ATEN2011_get_reg_sync(port, ATEN2011_port->ControlRegOffset, &Data);
 	Data = Data & ~0x20;
 	status = 0;
-	status =
-	    ATEN2011_set_reg_sync(port, ATEN2011_port->ControlRegOffset, Data);
+	status = set_reg_sync(port, ATEN2011_port->ControlRegOffset, Data);
 
 	// rx_negate
 	Data = 0x0;
@@ -1026,8 +1016,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	    ATEN2011_get_reg_sync(port, ATEN2011_port->ControlRegOffset, &Data);
 	Data = Data | 0x10;
 	status = 0;
-	status =
-	    ATEN2011_set_reg_sync(port, ATEN2011_port->ControlRegOffset, Data);
+	status = set_reg_sync(port, ATEN2011_port->ControlRegOffset, Data);
 
 	/* force low_latency on so that our tty_push actually forces *
 	 * the data through,otherwise it is scheduled, and with      *
@@ -2154,10 +2143,7 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 			return -1;
 		}
 		Data = (Data & 0x8f) | clk_sel_val;
-		status = 0;
-		status =
-		    ATEN2011_set_reg_sync(port, ATEN2011_port->SpRegOffset,
-					  Data);
+		status = set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
 		if (status < 0) {
 			DPRINTK("Writing spreg failed in set_serial_baud\n");
 			return -1;
@@ -2516,11 +2502,8 @@ static int ATEN2011_startup(struct usb_serial *serial)
 		Data |= 0x04;	//sp1_bit to have cts change reflect in modem status reg
 
 		//Data |= 0x20; //rx_disable bit
-		status = 0;
-		status =
-		    ATEN2011_set_reg_sync(serial->port[i],
-					  ATEN2011_port->ControlRegOffset,
-					  Data);
+		status = set_reg_sync(serial->port[i],
+				      ATEN2011_port->ControlRegOffset, Data);
 		if (status < 0) {
 			DPRINTK
 			    ("Writing ControlReg failed(rx_disable) status-0x%x\n",
@@ -2533,11 +2516,9 @@ static int ATEN2011_startup(struct usb_serial *serial)
 
 		//Write default values in DCR (i.e 0x01 in DCR0, 0x05 in DCR2 and 0x24 in DCR3
 		Data = 0x01;
-		status = 0;
-		status =
-		    ATEN2011_set_reg_sync(serial->port[i],
-					  (__u16) (ATEN2011_port->DcrRegOffset +
-						   0), Data);
+		status = set_reg_sync(serial->port[i],
+				      (__u16)(ATEN2011_port->DcrRegOffset + 0),
+				      Data);
 		if (status < 0) {
 			DPRINTK("Writing DCR0 failed status-0x%x\n", status);
 			break;
@@ -2545,11 +2526,9 @@ static int ATEN2011_startup(struct usb_serial *serial)
 			DPRINTK("DCR0 Writing success status%d\n", status);
 
 		Data = 0x05;
-		status = 0;
-		status =
-		    ATEN2011_set_reg_sync(serial->port[i],
-					  (__u16) (ATEN2011_port->DcrRegOffset +
-						   1), Data);
+		status = set_reg_sync(serial->port[i],
+				      (__u16)(ATEN2011_port->DcrRegOffset + 1),
+				      Data);
 		if (status < 0) {
 			DPRINTK("Writing DCR1 failed status-0x%x\n", status);
 			break;
@@ -2557,11 +2536,9 @@ static int ATEN2011_startup(struct usb_serial *serial)
 			DPRINTK("DCR1 Writing success status%d\n", status);
 
 		Data = 0x24;
-		status = 0;
-		status =
-		    ATEN2011_set_reg_sync(serial->port[i],
-					  (__u16) (ATEN2011_port->DcrRegOffset +
-						   2), Data);
+		status = set_reg_sync(serial->port[i],
+				      (__u16)(ATEN2011_port->DcrRegOffset + 2),
+				      Data);
 		if (status < 0) {
 			DPRINTK("Writing DCR2 failed status-0x%x\n", status);
 			break;
@@ -2570,10 +2547,8 @@ static int ATEN2011_startup(struct usb_serial *serial)
 
 		// write values in clkstart0x0 and clkmulti 0x20
 		Data = 0x0;
-		status = 0;
-		status =
-		    ATEN2011_set_reg_sync(serial->port[i],
-					  CLK_START_VALUE_REGISTER, Data);
+		status = set_reg_sync(serial->port[i], CLK_START_VALUE_REGISTER,
+				      Data);
 		if (status < 0) {
 			DPRINTK
 			    ("Writing CLK_START_VALUE_REGISTER failed status-0x%x\n",
@@ -2585,10 +2560,8 @@ static int ATEN2011_startup(struct usb_serial *serial)
 			     status);
 
 		Data = 0x20;
-		status = 0;
-		status =
-		    ATEN2011_set_reg_sync(serial->port[i], CLK_MULTI_REGISTER,
-					  Data);
+		status = set_reg_sync(serial->port[i], CLK_MULTI_REGISTER,
+				      Data);
 		if (status < 0) {
 			DPRINTK
 			    ("Writing CLK_MULTI_REGISTER failed status-0x%x\n",
@@ -2603,13 +2576,9 @@ static int ATEN2011_startup(struct usb_serial *serial)
 		    && (ATEN2011_serial->ATEN2011_spectrum_2or4ports == 2)) {
 
 			Data = 0xff;
-			status = 0;
-			status = ATEN2011_set_reg_sync(serial->port[i],
-						       (__u16) (ZLP_REG1 +
-								((__u16)
-								 ATEN2011_port->
-								 port_num)),
-						       Data);
+			status = set_reg_sync(serial->port[i],
+					      (__u16)(ZLP_REG1 + ((__u16)ATEN2011_port->port_num)),
+					      Data);
 			DPRINTK("ZLIP offset%x\n",
 				(__u16) (ZLP_REG1 +
 					 ((__u16) ATEN2011_port->port_num)));
@@ -2623,13 +2592,9 @@ static int ATEN2011_startup(struct usb_serial *serial)
 					i + 2, status);
 		} else {
 			Data = 0xff;
-			status = 0;
-			status = ATEN2011_set_reg_sync(serial->port[i],
-						       (__u16) (ZLP_REG1 +
-								((__u16)
-								 ATEN2011_port->
-								 port_num) -
-								0x1), Data);
+			status = set_reg_sync(serial->port[i],
+					      (__u16)(ZLP_REG1 + ((__u16)ATEN2011_port->port_num) - 0x1),
+					      Data);
 			DPRINTK("ZLIP offset%x\n",
 				(__u16) (ZLP_REG1 +
 					 ((__u16) ATEN2011_port->port_num) -
@@ -2651,8 +2616,7 @@ static int ATEN2011_startup(struct usb_serial *serial)
 
 	//Zero Length flag enable
 	Data = 0x0f;
-	status = 0;
-	status = ATEN2011_set_reg_sync(serial->port[0], ZLP_REG5, Data);
+	status = set_reg_sync(serial->port[0], ZLP_REG5, Data);
 	if (status < 0) {
 		DPRINTK("Writing ZLP_REG5 failed status-0x%x\n", status);
 		return -1;
