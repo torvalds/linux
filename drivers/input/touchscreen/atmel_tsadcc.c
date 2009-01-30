@@ -236,7 +236,7 @@ static int __devinit atmel_tsadcc_probe(struct platform_device *pdev)
 	ts_dev->bufferedmeasure = 0;
 
 	snprintf(ts_dev->phys, sizeof(ts_dev->phys),
-		 "%s/input0", pdev->dev.bus_id);
+		 "%s/input0", dev_name(&pdev->dev));
 
 	input_dev->name = "atmel touch screen controller";
 	input_dev->phys = ts_dev->phys;

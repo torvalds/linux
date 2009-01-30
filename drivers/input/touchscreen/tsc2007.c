@@ -289,7 +289,8 @@ static int tsc2007_probe(struct i2c_client *client,
 
 	pdata->init_platform_hw();
 
-	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", client->dev.bus_id);
+	snprintf(ts->phys, sizeof(ts->phys),
+		 "%s/input0", dev_name(&client->dev));
 
 	input_dev->name = "TSC2007 Touchscreen";
 	input_dev->phys = ts->phys;
