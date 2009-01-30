@@ -649,7 +649,7 @@ static int at76_get_op_mode(struct usb_device *udev)
 		return -ENOMEM;
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), 0x33,
 			      USB_TYPE_VENDOR | USB_DIR_IN |
-			      USB_RECIP_INTERFACE, 0x01, 0, &op_mode, 1,
+			      USB_RECIP_INTERFACE, 0x01, 0, op_mode, 1,
 			      USB_CTRL_GET_TIMEOUT);
 	saved = *op_mode;
 	kfree(op_mode);
@@ -782,7 +782,7 @@ static inline int at76_get_cmd_status(struct usb_device *udev, u8 cmd)
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), 0x22,
 			      USB_TYPE_VENDOR | USB_DIR_IN |
 			      USB_RECIP_INTERFACE, cmd, 0, stat_buf,
-			      sizeof(stat_buf), USB_CTRL_GET_TIMEOUT);
+			      40, USB_CTRL_GET_TIMEOUT);
 	if (ret >= 0)
 		ret = stat_buf[5];
 	kfree(stat_buf);
