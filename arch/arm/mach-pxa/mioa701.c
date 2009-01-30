@@ -36,6 +36,7 @@
 #include <linux/power_supply.h>
 #include <linux/wm97xx_batt.h>
 #include <linux/mtd/physmap.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -452,6 +453,12 @@ static void udc_exit(void)
 	mio_gpio_free(ARRAY_AND_SIZE(udc_gpios));
 }
 
+struct gpio_vbus_mach_info gpio_vbus_data = {
+	.gpio_vbus = GPIO13_nUSB_DETECT,
+	.gpio_vbus_inverted = 1,
+	.gpio_pullup = -1,
+};
+
 /*
  * SDIO/MMC Card controller
  */
@@ -790,6 +797,7 @@ MIO_SIMPLE_DEV(pxa2xx_ac97,	  "pxa2xx-ac97",    NULL)
 MIO_PARENT_DEV(mio_wm9713_codec,  "wm9713-codec",   &pxa2xx_ac97.dev, NULL)
 MIO_SIMPLE_DEV(mioa701_sound,	  "mioa701-wm9713", NULL)
 MIO_SIMPLE_DEV(mioa701_board,	  "mioa701-board",  NULL)
+MIO_SIMPLE_DEV(gpio_vbus,	  "gpio-vbus",      &gpio_vbus_data);
 
 static struct platform_device *devices[] __initdata = {
 	&mioa701_gpio_keys,
@@ -801,7 +809,8 @@ static struct platform_device *devices[] __initdata = {
 	&mioa701_sound,
 	&power_dev,
 	&strataflash,
-	&mioa701_board
+	&gpio_vbus,
+	&mioa701_board,
 };
 
 static void mioa701_machine_exit(void);
