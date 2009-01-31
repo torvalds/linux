@@ -1,7 +1,7 @@
 /*
  * Driver for Digigram pcxhr compatible soundcards
  *
- * low level interface with interrupt ans message handling
+ * low level interface with interrupt and message handling
  *
  * Copyright (c) 2004 by Digigram <alsa@digigram.com>
  *
