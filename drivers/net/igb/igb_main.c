@@ -1834,11 +1834,11 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	rctl |= E1000_RCTL_SECRC;
 
 	/*
-	 * disable store bad packets, long packet enable, and clear size bits.
+	 * disable store bad packets and clear size bits.
 	 */
-	rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_LPE | E1000_RCTL_SZ_256);
+	rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_SZ_256);
 
-	if (adapter->netdev->mtu > ETH_DATA_LEN)
+	/* enable LPE when to prevent packets larger than max_frame_size */
 		rctl |= E1000_RCTL_LPE;
 
 	/* Setup buffer sizes */
@@ -1864,7 +1864,7 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	 */
 	/* allocations using alloc_page take too long for regular MTU
 	 * so only enable packet split for jumbo frames */
-	if (rctl & E1000_RCTL_LPE) {
+	if (adapter->netdev->mtu > ETH_DATA_LEN) {
 		adapter->rx_ps_hdr_size = IGB_RXBUFFER_128;
 		srrctl |= adapter->rx_ps_hdr_size <<
 			 E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
