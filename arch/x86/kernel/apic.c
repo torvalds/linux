@@ -1,7 +1,7 @@
 /*
  *	Local APIC handling, local APIC timers
  *
- *	(c) 1999, 2000 Ingo Molnar <mingo@redhat.com>
+ *	(c) 1999, 2000, 2009 Ingo Molnar <mingo@redhat.com>
  *
  *	Fixes
  *	Maciej W. Rozycki	:	Bits for genuine 82489DX APICs;

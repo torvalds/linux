@@ -1,7 +1,7 @@
 /*
  *	Intel IO-APIC support for multi-Pentium hosts.
  *
- *	Copyright (C) 1997, 1998, 1999, 2000 Ingo Molnar, Hajnalka Szabo
+ *	Copyright (C) 1997, 1998, 1999, 2000, 2009 Ingo Molnar, Hajnalka Szabo
  *
  *	Many thanks to Stig Venaas for trying out countless experimental
  *	patches and reporting/debugging problems patiently!

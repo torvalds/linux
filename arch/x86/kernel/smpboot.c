@@ -2,7 +2,7 @@
  *	x86 SMP booting functions
  *
  *	(c) 1995 Alan Cox, Building #3 <alan@lxorguk.ukuu.org.uk>
- *	(c) 1998, 1999, 2000 Ingo Molnar <mingo@redhat.com>
+ *	(c) 1998, 1999, 2000, 2009 Ingo Molnar <mingo@redhat.com>
  *	Copyright 2001 Andi Kleen, SuSE Labs.
  *
  *	Much of the core SMP work is based on previous work by Thomas Radke, to
