@@ -50,13 +50,26 @@
 #include <asm/smp.h>
 
 unsigned int num_processors;
+
 unsigned disabled_cpus __cpuinitdata;
+
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
-EXPORT_SYMBOL(boot_cpu_physical_apicid);
+
+/*
+ * The highest APIC ID seen during enumeration.
+ *
+ * This determines the messaging protocol we can use: if all APIC IDs
+ * are in the 0 ... 7 range, then we can use logical addressing which
+ * has some performance advantages (better broadcasting).
+ *
+ * If there's an APIC ID above 8, we use physical addressing.
+ */
 unsigned int max_physical_apicid;
 
-/* Bitmask of physically existing CPUs */
+/*
+ * Bitmask of physically existing CPUs:
+ */
 physid_mask_t phys_cpu_present_map;
 
 /*
