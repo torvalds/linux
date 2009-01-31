@@ -52,6 +52,13 @@
  */
 
 #define SPURIOUS_APIC_VECTOR		0xff
+/*
+ * Sanity check
+ */
+#if ((SPURIOUS_APIC_VECTOR & 0x0F) != 0x0F)
+# error SPURIOUS_APIC_VECTOR definition error
+#endif
+
 #define ERROR_APIC_VECTOR		0xfe
 #define RESCHEDULE_VECTOR		0xfd
 #define CALL_FUNCTION_VECTOR		0xfc

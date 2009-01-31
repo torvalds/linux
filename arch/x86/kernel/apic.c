@@ -49,13 +49,6 @@
 #include <asm/mtrr.h>
 #include <asm/smp.h>
 
-/*
- * Sanity check
- */
-#if ((SPURIOUS_APIC_VECTOR & 0x0F) != 0x0F)
-# error SPURIOUS_APIC_VECTOR definition error
-#endif
-
 unsigned int num_processors;
 unsigned disabled_cpus __cpuinitdata;
 /* Processor that is doing the boot up */
