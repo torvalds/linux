@@ -50,36 +50,25 @@
  *  into a single vector (CALL_FUNCTION_VECTOR) to save vector space.
  *  TLB, reschedule and local APIC vectors are performance-critical.
  */
+
+#define SPURIOUS_APIC_VECTOR		0xff
+#define ERROR_APIC_VECTOR		0xfe
+#define RESCHEDULE_VECTOR		0xfd
+#define CALL_FUNCTION_VECTOR		0xfc
+#define CALL_FUNCTION_SINGLE_VECTOR	0xfb
+#define THERMAL_APIC_VECTOR		0xfa
+
 #ifdef CONFIG_X86_32
-
-# define SPURIOUS_APIC_VECTOR		0xff
-# define ERROR_APIC_VECTOR		0xfe
-# define RESCHEDULE_VECTOR		0xfd
-# define CALL_FUNCTION_VECTOR		0xfc
-# define CALL_FUNCTION_SINGLE_VECTOR	0xfb
-# define THERMAL_APIC_VECTOR		0xfa
 /* 0xf8 - 0xf9 : free */
-# define INVALIDATE_TLB_VECTOR_END	0xf7
-# define INVALIDATE_TLB_VECTOR_START	0xf0	/* f0-f7 used for TLB flush */
-
-# define NUM_INVALIDATE_TLB_VECTORS	8
-
 #else
-
-# define SPURIOUS_APIC_VECTOR		0xff
-# define ERROR_APIC_VECTOR		0xfe
-# define RESCHEDULE_VECTOR		0xfd
-# define CALL_FUNCTION_VECTOR		0xfc
-# define CALL_FUNCTION_SINGLE_VECTOR	0xfb
-# define THERMAL_APIC_VECTOR		0xfa
 # define THRESHOLD_APIC_VECTOR		0xf9
 # define UV_BAU_MESSAGE			0xf8
-# define INVALIDATE_TLB_VECTOR_END	0xf7
-# define INVALIDATE_TLB_VECTOR_START	0xf0	/* f0-f7 used for TLB flush */
-
-#define NUM_INVALIDATE_TLB_VECTORS	8
-
 #endif
+
+/* f0-f7 used for spreading out TLB flushes: */
+#define INVALIDATE_TLB_VECTOR_END	0xf7
+#define INVALIDATE_TLB_VECTOR_START	0xf0
+#define NUM_INVALIDATE_TLB_VECTORS	8
 
 /*
  * Local APIC timer IRQ vector is on a different priority level,
