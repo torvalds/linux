@@ -669,7 +669,7 @@ static inline void calibra_delay(struct agnx_priv *priv)
 	unsigned int i = 100;
 
 	wmb();
-	while (i--) {
+	while (--i) {
 		reg = (ioread32(ctl + AGNX_ACI_STATUS));
 		if (reg == 0x4000)
 			break;
