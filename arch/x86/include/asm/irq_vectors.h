@@ -1,8 +1,6 @@
 #ifndef _ASM_X86_IRQ_VECTORS_H
 #define _ASM_X86_IRQ_VECTORS_H
 
-#include <linux/threads.h>
-
 /*
  * Linux IRQ vector layout.
  *
@@ -131,22 +129,18 @@
 #define NR_IRQS_LEGACY			  16
 
 #ifdef CONFIG_X86_IO_APIC
-
-#include <asm/apicnum.h>	/* need MAX_IO_APICS */
-
-#ifndef CONFIG_SPARSE_IRQ
-# if NR_CPUS < MAX_IO_APICS
-#  define NR_IRQS 			(NR_VECTORS + (32 * NR_CPUS))
+# ifndef CONFIG_SPARSE_IRQ
+#  if NR_CPUS < MAX_IO_APICS
+#   define NR_IRQS 			(NR_VECTORS + (32 * NR_CPUS))
+#  else
+#   define NR_IRQS			(NR_VECTORS + (32 * MAX_IO_APICS))
+#  endif
 # else
-#  define NR_IRQS			(NR_VECTORS + (32 * MAX_IO_APICS))
-# endif
-#else
-# define NR_IRQS					\
+#  define NR_IRQS					\
 	((8 * NR_CPUS) > (32 * MAX_IO_APICS) ?		\
 		(NR_VECTORS + (8 * NR_CPUS)) :		\
 		(NR_VECTORS + (32 * MAX_IO_APICS)))
-#endif
-
+# endif
 #else /* !CONFIG_X86_IO_APIC: */
 # define NR_IRQS			16
 #endif
