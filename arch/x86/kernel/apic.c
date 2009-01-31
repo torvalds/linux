@@ -14,42 +14,40 @@
  *	Mikael Pettersson	:	PM converted to driver model.
  */
 
-#include <linux/init.h>
-
-#include <linux/mm.h>
-#include <linux/delay.h>
-#include <linux/bootmem.h>
-#include <linux/interrupt.h>
-#include <linux/mc146818rtc.h>
 #include <linux/kernel_stat.h>
-#include <linux/sysdev.h>
-#include <linux/ioport.h>
-#include <linux/cpu.h>
-#include <linux/clockchips.h>
+#include <linux/mc146818rtc.h>
 #include <linux/acpi_pmtmr.h>
-#include <linux/module.h>
-#include <linux/dmi.h>
-#include <linux/dmar.h>
+#include <linux/clockchips.h>
+#include <linux/interrupt.h>
+#include <linux/bootmem.h>
 #include <linux/ftrace.h>
-#include <linux/smp.h>
-#include <linux/nmi.h>
+#include <linux/ioport.h>
+#include <linux/module.h>
+#include <linux/sysdev.h>
+#include <linux/delay.h>
 #include <linux/timex.h>
+#include <linux/dmar.h>
+#include <linux/init.h>
+#include <linux/cpu.h>
+#include <linux/dmi.h>
+#include <linux/nmi.h>
+#include <linux/smp.h>
+#include <linux/mm.h>
 
-#include <asm/atomic.h>
-#include <asm/mtrr.h>
-#include <asm/mpspec.h>
-#include <asm/desc.h>
 #include <asm/arch_hooks.h>
-#include <asm/hpet.h>
 #include <asm/pgalloc.h>
+#include <asm/genapic.h>
+#include <asm/atomic.h>
+#include <asm/mpspec.h>
 #include <asm/i8253.h>
-#include <asm/idle.h>
+#include <asm/i8259.h>
 #include <asm/proto.h>
 #include <asm/apic.h>
-#include <asm/i8259.h>
+#include <asm/desc.h>
+#include <asm/hpet.h>
+#include <asm/idle.h>
+#include <asm/mtrr.h>
 #include <asm/smp.h>
-
-#include <asm/genapic.h>
 
 /*
  * Sanity check
