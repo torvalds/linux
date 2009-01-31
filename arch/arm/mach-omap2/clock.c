@@ -175,7 +175,7 @@ void omap2_init_clksel_parent(struct clk *clk)
 						 clk->name, clks->parent->name,
 						 ((clk->parent) ?
 						  clk->parent->name : "NULL"));
-					clk->parent = clks->parent;
+					clk_reparent(clk, clks->parent);
 				};
 				found = 1;
 			}
@@ -780,7 +780,7 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 	if (clk->usecount > 0)
 		_omap2_clk_enable(clk);
 
-	clk->parent = new_parent;
+	clk_reparent(clk, new_parent);
 
 	/* CLKSEL clocks follow their parents' rates, divided by a divisor */
 	clk->rate = new_parent->rate;

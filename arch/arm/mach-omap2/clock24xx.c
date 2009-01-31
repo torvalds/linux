@@ -718,6 +718,9 @@ int __init omap2_clk_init(void)
 	omap2_sys_clk_recalc(&sys_ck);
 	propagate_rate(&sys_ck);
 
+	for (c = omap24xx_clks; c < omap24xx_clks + ARRAY_SIZE(omap24xx_clks); c++)
+		clk_init_one(c->lk.clk);
+
 	cpu_mask = 0;
 	if (cpu_is_omap2420())
 		cpu_mask |= CK_242X;

@@ -143,8 +143,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (ret == 0) {
 		if (clk->recalc)
 			clk->recalc(clk);
-		if (clk->flags & RATE_PROPAGATES)
-			propagate_rate(clk);
+		propagate_rate(clk);
 	}
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 
@@ -166,8 +165,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	if (ret == 0) {
 		if (clk->recalc)
 			clk->recalc(clk);
-		if (clk->flags & RATE_PROPAGATES)
-			propagate_rate(clk);
+		propagate_rate(clk);
 	}
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 
@@ -214,23 +212,30 @@ void followparent_recalc(struct clk *clk)
 	clk->rate = clk->parent->rate;
 }
 
+void clk_reparent(struct clk *child, struct clk *parent)
+{
+	list_del_init(&child->sibling);
+	if (parent)
+		list_add(&child->sibling, &parent->children);
+	child->parent = parent;
+
+	/* now do the debugfs renaming to reattach the child
+	   to the proper parent */
+}
+
 /* Propagate rate to children */
 void propagate_rate(struct clk * tclk)
 {
 	struct clk *clkp;
 
-	if (tclk == NULL || IS_ERR(tclk))
-		return;
-
-	list_for_each_entry(clkp, &clocks, node) {
-		if (likely(clkp->parent != tclk))
-			continue;
+	list_for_each_entry(clkp, &tclk->children, sibling) {
 		if (clkp->recalc)
 			clkp->recalc(clkp);
-		if (clkp->flags & RATE_PROPAGATES)
-			propagate_rate(clkp);
+		propagate_rate(clkp);
 	}
 }
+
+static LIST_HEAD(root_clks);
 
 /**
  * recalculate_root_clocks - recalculate and propagate all root clocks
@@ -243,14 +248,16 @@ void recalculate_root_clocks(void)
 {
 	struct clk *clkp;
 
-	list_for_each_entry(clkp, &clocks, node) {
-		if (!clkp->parent) {
-			if (clkp->recalc)
-				clkp->recalc(clkp);
-			if (clkp->flags & RATE_PROPAGATES)
-				propagate_rate(clkp);
-		}
+	list_for_each_entry(clkp, &root_clks, sibling) {
+		if (clkp->recalc)
+			clkp->recalc(clkp);
+		propagate_rate(clkp);
 	}
+}
+
+void clk_init_one(struct clk *clk)
+{
+	INIT_LIST_HEAD(&clk->children);
 }
 
 int clk_register(struct clk *clk)
@@ -265,6 +272,11 @@ int clk_register(struct clk *clk)
 		return 0;
 
 	mutex_lock(&clocks_mutex);
+	if (clk->parent)
+		list_add(&clk->sibling, &clk->parent->children);
+	else
+		list_add(&clk->sibling, &root_clks);
+
 	list_add(&clk->node, &clocks);
 	if (clk->init)
 		clk->init(clk);
@@ -280,6 +292,7 @@ void clk_unregister(struct clk *clk)
 		return;
 
 	mutex_lock(&clocks_mutex);
+	list_del(&clk->sibling);
 	list_del(&clk->node);
 	mutex_unlock(&clocks_mutex);
 }

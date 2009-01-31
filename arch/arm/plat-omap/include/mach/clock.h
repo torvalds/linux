@@ -70,6 +70,8 @@ struct clk {
 	const char		*name;
 	int			id;
 	struct clk		*parent;
+	struct list_head	children;
+	struct list_head	sibling;	/* node for children */
 	unsigned long		rate;
 	__u32			flags;
 	void __iomem		*enable_reg;
@@ -115,7 +117,9 @@ struct clk_functions {
 extern unsigned int mpurate;
 
 extern int clk_init(struct clk_functions *custom_clocks);
+extern void clk_init_one(struct clk *clk);
 extern int clk_register(struct clk *clk);
+extern void clk_reparent(struct clk *child, struct clk *parent);
 extern void clk_unregister(struct clk *clk);
 extern void propagate_rate(struct clk *clk);
 extern void recalculate_root_clocks(void);
@@ -131,8 +135,7 @@ extern const struct clkops clkops_null;
 /* Clock flags */
 /* bit 0 is free */
 #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
-#define RATE_PROPAGATES		(1 << 2)	/* Program children too */
-/* bits 3-4 are free */
+/* bits 2-4 are free */
 #define ENABLE_REG_32BIT	(1 << 5)	/* Use 32-bit access */
 #define CLOCK_IDLE_CONTROL	(1 << 7)
 #define CLOCK_NO_IDLE_PARENT	(1 << 8)

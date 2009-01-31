@@ -155,7 +155,6 @@ static struct clk ck_dpll1 = {
 	.name		= "ck_dpll1",
 	.ops		= &clkops_null,
 	.parent		= &ck_ref,
-	.flags		= RATE_PROPAGATES,
 };
 
 static struct arm_idlect1_clk ck_dpll1out = {
@@ -163,8 +162,7 @@ static struct arm_idlect1_clk ck_dpll1out = {
 		.name		= "ck_dpll1out",
 		.ops		= &clkops_generic,
 		.parent		= &ck_dpll1,
-		.flags		= CLOCK_IDLE_CONTROL |
-				  ENABLE_REG_32BIT | RATE_PROPAGATES,
+		.flags		= CLOCK_IDLE_CONTROL | ENABLE_REG_32BIT,
 		.enable_reg	= OMAP1_IO_ADDRESS(ARM_IDLECT2),
 		.enable_bit	= EN_CKOUT_ARM,
 		.recalc		= &followparent_recalc,
@@ -187,7 +185,6 @@ static struct clk arm_ck = {
 	.name		= "arm_ck",
 	.ops		= &clkops_null,
 	.parent		= &ck_dpll1,
-	.flags		= RATE_PROPAGATES,
 	.rate_offset	= CKCTL_ARMDIV_OFFSET,
 	.recalc		= &omap1_ckctl_recalc,
 	.round_rate	= omap1_clk_round_rate_ckctl_arm,
@@ -328,7 +325,7 @@ static struct arm_idlect1_clk tc_ck = {
 		.name		= "tc_ck",
 		.ops		= &clkops_null,
 		.parent		= &ck_dpll1,
-		.flags		= RATE_PROPAGATES | CLOCK_IDLE_CONTROL,
+		.flags		= CLOCK_IDLE_CONTROL,
 		.rate_offset	= CKCTL_TCDIV_OFFSET,
 		.recalc		= &omap1_ckctl_recalc,
 		.round_rate	= omap1_clk_round_rate_ckctl_arm,

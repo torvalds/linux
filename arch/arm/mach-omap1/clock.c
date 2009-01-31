@@ -782,6 +782,9 @@ int __init omap1_clk_init(void)
 	/* By default all idlect1 clocks are allowed to idle */
 	arm_idlect1_mask = ~0;
 
+	for (c = omap_clks; c < omap_clks + ARRAY_SIZE(omap_clks); c++)
+		clk_init_one(c->lk.clk);
+
 	cpu_mask = 0;
 	if (cpu_is_omap16xx())
 		cpu_mask |= CK_16XX;
