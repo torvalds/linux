@@ -6,6 +6,7 @@ b43-y				+= phy_g.o
 b43-y				+= phy_a.o
 b43-$(CONFIG_B43_NPHY)		+= phy_n.o
 b43-$(CONFIG_B43_PHY_LP)	+= phy_lp.o
+b43-$(CONFIG_B43_PHY_LP)	+= tables_lpphy.o
 b43-y				+= sysfs.o
 b43-y				+= xmit.o
 b43-y				+= lo.o

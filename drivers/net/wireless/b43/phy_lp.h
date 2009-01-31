@@ -803,7 +803,47 @@
 
 
 struct b43_phy_lp {
-	//TODO
+	/* Transmit isolation medium band */
+	u8 tx_isolation_med_band; /* FIXME initial value? */
+	/* Transmit isolation low band */
+	u8 tx_isolation_low_band; /* FIXME initial value? */
+	/* Transmit isolation high band */
+	u8 tx_isolation_hi_band; /* FIXME initial value? */
+
+	/* Receive power offset */
+	u8 rx_pwr_offset; /* FIXME initial value? */
+
+	/* TSSI transmit count */
+	u16 tssi_tx_count; /* FIXME initial value? */
+	/* TSSI index */
+	u16 tssi_idx; /* FIXME initial value? */
+	/* TSSI npt */
+	u16 tssi_npt; /* FIXME initial value? */
+
+	/* Target TX frequency */
+	u16 tgt_tx_freq; /* FIXME initial value? */
+
+	/* Transmit power index override */
+	s8 tx_pwr_idx_over; /* FIXME initial value? */
+
+	/* RSSI vf */
+	u8 rssi_vf; /* FIXME initial value? */
+	/* RSSI vc */
+	u8 rssi_vc; /* FIXME initial value? */
+	/* RSSI gs */
+	u8 rssi_gs; /* FIXME initial value? */
+
+	/* RC cap */
+	u8 rc_cap; /* FIXME initial value? */
+	/* BX arch */
+	u8 bx_arch; /* FIXME initial value? */
+
+	/* Full calibration channel */
+	u8 full_calib_chan; /* FIXME initial value? */
+
+	/* Transmit iqlocal best coeffs */
+	bool tx_iqloc_best_coeffs_valid;
+	u8 tx_iqloc_best_coeffs[11];
 };
 
 
