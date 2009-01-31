@@ -413,21 +413,6 @@ static void gsm_exit(void)
 /*
  * USB UDC
  */
-static void udc_power_command(int cmd)
-{
-	switch (cmd) {
-	case PXA2XX_UDC_CMD_DISCONNECT:
-		gpio_set_value(GPIO22_USB_ENABLE, 0);
-		break;
-	case PXA2XX_UDC_CMD_CONNECT:
-		gpio_set_value(GPIO22_USB_ENABLE, 1);
-		break;
-	default:
-		printk(KERN_INFO "udc_control: unknown command (0x%x)!\n", cmd);
-		break;
-	}
-}
-
 static int is_usb_connected(void)
 {
 	return !gpio_get_value(GPIO13_nUSB_DETECT);
@@ -435,23 +420,8 @@ static int is_usb_connected(void)
 
 static struct pxa2xx_udc_mach_info mioa701_udc_info = {
 	.udc_is_connected = is_usb_connected,
-	.udc_command	  = udc_power_command,
+	.gpio_pullup	  = GPIO22_USB_ENABLE,
 };
-
-struct gpio_ress udc_gpios[] = {
-	MIO_GPIO_OUT(GPIO22_USB_ENABLE, 0, "USB Vbus enable")
-};
-
-static int __init udc_init(void)
-{
-	pxa_set_udc_info(&mioa701_udc_info);
-	return mio_gpio_request(ARRAY_AND_SIZE(udc_gpios));
-}
-
-static void udc_exit(void)
-{
-	mio_gpio_free(ARRAY_AND_SIZE(udc_gpios));
-}
 
 struct gpio_vbus_mach_info gpio_vbus_data = {
 	.gpio_vbus = GPIO13_nUSB_DETECT,
@@ -847,7 +817,7 @@ static void __init mioa701_machine_init(void)
 	pxa_set_mci_info(&mioa701_mci_info);
 	pxa_set_keypad_info(&mioa701_keypad_info);
 	wm97xx_bat_set_pdata(&mioa701_battery_data);
-	udc_init();
+	pxa_set_udc_info(&mioa701_udc_info);
 	pm_power_off = mioa701_poweroff;
 	arm_pm_restart = mioa701_restart;
 	platform_add_devices(devices, ARRAY_SIZE(devices));
@@ -860,7 +830,6 @@ static void __init mioa701_machine_init(void)
 
 static void mioa701_machine_exit(void)
 {
-	udc_exit();
 	bootstrap_exit();
 	gsm_exit();
 }
