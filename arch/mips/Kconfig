@@ -351,7 +351,7 @@ config SGI_IP27
 	select ARC64
 	select BOOT_ELF64
 	select DEFAULT_SGI_PARTITION
-	select DMA_IP27
+	select DMA_COHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
 	select NR_CPUS_DEFAULT_64
@@ -759,9 +759,6 @@ config CFE
 	bool
 
 config DMA_COHERENT
-	bool
-
-config DMA_IP27
 	bool
 
 config DMA_NONCOHERENT
@@ -1368,7 +1365,7 @@ config CPU_SUPPORTS_64BIT_KERNEL
 #
 config HARDWARE_WATCHPOINTS
        bool
-       default y if CPU_MIPS32 || CPU_MIPS64
+       default y if CPU_MIPSR1 || CPU_MIPSR2
 
 menu "Kernel type"
 

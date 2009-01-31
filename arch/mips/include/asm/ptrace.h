@@ -105,7 +105,7 @@ struct pt_watch_regs {
 	enum pt_watch_style style;
 	union {
 		struct mips32_watch_regs mips32;
-		struct mips32_watch_regs mips64;
+		struct mips64_watch_regs mips64;
 	};
 };
 

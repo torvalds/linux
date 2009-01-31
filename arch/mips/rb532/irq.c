@@ -46,6 +46,7 @@
 #include <asm/system.h>
 
 #include <asm/mach-rc32434/irq.h>
+#include <asm/mach-rc32434/gpio.h>
 
 struct intr_group {
 	u32 mask;	/* mask of valid bits in pending/mask registers */
@@ -150,6 +151,9 @@ static void rb532_disable_irq(unsigned int irq_nr)
 		mask |= intr_bit;
 		WRITE_MASK(addr, mask);
 
+		if (group == GPIO_MAPPED_IRQ_GROUP)
+			rb532_gpio_set_istat(0, irq_nr - GPIO_MAPPED_IRQ_BASE);
+
 		/*
 		 * if there are no more interrupts enabled in this
 		 * group, disable corresponding IP
@@ -165,12 +169,35 @@ static void rb532_mask_and_ack_irq(unsigned int irq_nr)
 	ack_local_irq(group_to_ip(irq_to_group(irq_nr)));
 }
 
+static int rb532_set_type(unsigned int irq_nr, unsigned type)
+{
+	int gpio = irq_nr - GPIO_MAPPED_IRQ_BASE;
+	int group = irq_to_group(irq_nr);
+
+	if (group != GPIO_MAPPED_IRQ_GROUP)
+		return (type == IRQ_TYPE_LEVEL_HIGH) ? 0 : -EINVAL;
+
+	switch (type) {
+	case IRQ_TYPE_LEVEL_HIGH:
+		rb532_gpio_set_ilevel(1, gpio);
+		break;
+	case IRQ_TYPE_LEVEL_LOW:
+		rb532_gpio_set_ilevel(0, gpio);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static struct irq_chip rc32434_irq_type = {
 	.name		= "RB532",
 	.ack		= rb532_disable_irq,
 	.mask		= rb532_disable_irq,
 	.mask_ack	= rb532_mask_and_ack_irq,
 	.unmask		= rb532_enable_irq,
+	.set_type	= rb532_set_type,
 };
 
 void __init arch_init_irq(void)
