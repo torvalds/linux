@@ -134,7 +134,7 @@ void rt2x00leds_register(struct rt2x00_dev *rt2x00dev)
 		 rt2x00dev->ops->name, wiphy_name(rt2x00dev->hw->wiphy));
 
 	if (rt2x00dev->led_radio.flags & LED_INITIALIZED) {
-		snprintf(name, sizeof(name), "%s:radio", dev_name);
+		snprintf(name, sizeof(name), "%s::radio", dev_name);
 
 		retval = rt2x00leds_register_led(rt2x00dev,
 						 &rt2x00dev->led_radio,
@@ -144,7 +144,7 @@ void rt2x00leds_register(struct rt2x00_dev *rt2x00dev)
 	}
 
 	if (rt2x00dev->led_assoc.flags & LED_INITIALIZED) {
-		snprintf(name, sizeof(name), "%s:assoc", dev_name);
+		snprintf(name, sizeof(name), "%s::assoc", dev_name);
 
 		retval = rt2x00leds_register_led(rt2x00dev,
 						 &rt2x00dev->led_assoc,
@@ -154,7 +154,7 @@ void rt2x00leds_register(struct rt2x00_dev *rt2x00dev)
 	}
 
 	if (rt2x00dev->led_qual.flags & LED_INITIALIZED) {
-		snprintf(name, sizeof(name), "%s:quality", dev_name);
+		snprintf(name, sizeof(name), "%s::quality", dev_name);
 
 		retval = rt2x00leds_register_led(rt2x00dev,
 						 &rt2x00dev->led_qual,
