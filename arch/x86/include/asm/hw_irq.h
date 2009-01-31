@@ -71,12 +71,6 @@ extern void setup_ioapic_dest(void);
 extern void enable_IO_APIC(void);
 #endif
 
-/* IPI functions */
-#ifdef CONFIG_X86_32
-extern void default_send_IPI_self(int vector);
-#endif
-extern void default_send_IPI(int dest, int vector);
-
 /* Statistics */
 extern atomic_t irq_err_count;
 extern atomic_t irq_mis_count;
