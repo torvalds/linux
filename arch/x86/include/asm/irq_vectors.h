@@ -126,23 +126,37 @@
 #define LAST_VM86_IRQ			  15
 #define invalid_vm86_irq(irq)		((irq) < 3 || (irq) > 15)
 
+/*
+ * Size the maximum number of interrupts.
+ *
+ * If the irq_desc[] array has a sparse layout, we can size things
+ * generously - it scales up linearly with the maximum number of CPUs,
+ * and the maximum number of IO-APICs, whichever is higher.
+ *
+ * In other cases we size more conservatively, to not create too large
+ * static arrays.
+ */
+
 #define NR_IRQS_LEGACY			  16
 
+#define CPU_VECTOR_LIMIT		(  8 * NR_CPUS      )
+#define IO_APIC_VECTOR_LIMIT		( 32 * MAX_IO_APICS )
+
 #ifdef CONFIG_X86_IO_APIC
-# ifndef CONFIG_SPARSE_IRQ
-#  if NR_CPUS < MAX_IO_APICS
-#   define NR_IRQS 			(NR_VECTORS + (32 * NR_CPUS))
-#  else
-#   define NR_IRQS			(NR_VECTORS + (32 * MAX_IO_APICS))
-#  endif
-# else
+# ifdef CONFIG_SPARSE_IRQ
 #  define NR_IRQS					\
-	((8 * NR_CPUS) > (32 * MAX_IO_APICS) ?		\
-		(NR_VECTORS + (8 * NR_CPUS)) :		\
-		(NR_VECTORS + (32 * MAX_IO_APICS)))
+	(CPU_VECTOR_LIMIT > IO_APIC_VECTOR_LIMIT ?	\
+		(NR_VECTORS + CPU_VECTOR_LIMIT)  :	\
+		(NR_VECTORS + IO_APIC_VECTOR_LIMIT))
+# else
+#  if NR_CPUS < MAX_IO_APICS
+#   define NR_IRQS 			(NR_VECTORS + 4*CPU_VECTOR_LIMIT)
+#  else
+#   define NR_IRQS			(NR_VECTORS + IO_APIC_VECTOR_LIMIT)
+#  endif
 # endif
 #else /* !CONFIG_X86_IO_APIC: */
-# define NR_IRQS			16
+# define NR_IRQS			NR_IRQS_LEGACY
 #endif
 
 #endif /* _ASM_X86_IRQ_VECTORS_H */
