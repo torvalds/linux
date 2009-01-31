@@ -17,5 +17,7 @@
 u32 b43_lptab_read(struct b43_wldev *dev, u32 offset);
 void b43_lptab_write(struct b43_wldev *dev, u32 offset, u32 value);
 
+void b2062_upload_init_table(struct b43_wldev *dev);
+
 
 #endif /* B43_TABLES_LPPHY_H_ */

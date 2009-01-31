@@ -91,7 +91,7 @@ static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
 	b43_phy_set(dev, B43_PHY_OFDM(0x10A), 0x1);
 	b43_phy_maskset(dev, B43_LPPHY_CCKLMSSTEPSIZE, 0xFF01, 0x10);
 	b43_phy_maskset(dev, B43_PHY_OFDM(0xDF), 0xFF00, 0xF4);
-	b43_phy_maskset(dev, B43_PHY_OFDM(0xDF), 0x00FF, 0xF100);//FIXME specs are different
+	b43_phy_maskset(dev, B43_PHY_OFDM(0xDF), 0x00FF, 0xF100);
 	b43_phy_write(dev, B43_LPPHY_CLIPTHRESH, 0x48);
 	b43_phy_maskset(dev, B43_LPPHY_HIGAINDB, 0xFF00, 0x46);
 	b43_phy_maskset(dev, B43_PHY_OFDM(0xE4), 0xFF00, 0x10);
@@ -155,9 +155,112 @@ static void lpphy_baseband_init(struct b43_wldev *dev)
 		lpphy_baseband_rev0_1_init(dev);
 }
 
-static void lpphy_radio_init(struct b43_wldev *dev)
+struct b2062_freqdata {
+	u16 freq;
+	u8 data[6];
+};
+
+/* Initialize the 2062 radio. */
+static void lpphy_2062_init(struct b43_wldev *dev)
+{
+	u32 crystalfreq, pdiv, tmp, ref;
+	unsigned int i;
+	const struct b2062_freqdata *fd = NULL;
+
+	static const struct b2062_freqdata freqdata_tab[] = {
+		{ .freq = 12000, .data[0] =  6, .data[1] =  6, .data[2] =  6,
+				 .data[3] =  6, .data[4] = 10, .data[5] =  6, },
+		{ .freq = 13000, .data[0] =  4, .data[1] =  4, .data[2] =  4,
+				 .data[3] =  4, .data[4] = 11, .data[5] =  7, },
+		{ .freq = 14400, .data[0] =  3, .data[1] =  3, .data[2] =  3,
+				 .data[3] =  3, .data[4] = 12, .data[5] =  7, },
+		{ .freq = 16200, .data[0] =  3, .data[1] =  3, .data[2] =  3,
+				 .data[3] =  3, .data[4] = 13, .data[5] =  8, },
+		{ .freq = 18000, .data[0] =  2, .data[1] =  2, .data[2] =  2,
+				 .data[3] =  2, .data[4] = 14, .data[5] =  8, },
+		{ .freq = 19200, .data[0] =  1, .data[1] =  1, .data[2] =  1,
+				 .data[3] =  1, .data[4] = 14, .data[5] =  9, },
+	};
+
+	b2062_upload_init_table(dev);
+
+	b43_radio_write(dev, B2062_N_TX_CTL3, 0);
+	b43_radio_write(dev, B2062_N_TX_CTL4, 0);
+	b43_radio_write(dev, B2062_N_TX_CTL5, 0);
+	b43_radio_write(dev, B2062_N_PDN_CTL0, 0x40);
+	b43_radio_write(dev, B2062_N_PDN_CTL0, 0);
+	b43_radio_write(dev, B2062_N_CALIB_TS, 0x10);
+	b43_radio_write(dev, B2062_N_CALIB_TS, 0);
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		b43_radio_set(dev, B2062_N_TSSI_CTL0, 0x1);
+	else
+		b43_radio_mask(dev, B2062_N_TSSI_CTL0, ~0x1);
+
+	crystalfreq = 0;//FIXME
+
+	if (crystalfreq >= 30000000) {
+		pdiv = 1;
+		b43_radio_mask(dev, B2062_S_RFPLL_CTL1, 0xFFFB);
+	} else {
+		pdiv = 2;
+		b43_radio_set(dev, B2062_S_RFPLL_CTL1, 0x4);
+	}
+
+	tmp = (800000000 * pdiv + crystalfreq) / (32000000 * pdiv);
+	tmp = (tmp - 1) & 0xFF;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL18, tmp);
+
+	tmp = (2 * crystalfreq + 1000000 * pdiv) / (2000000 * pdiv);
+	tmp = ((tmp & 0xFF) - 1) & 0xFFFF;
+	b43_radio_write(dev, B2062_S_RFPLL_CTL19, tmp);
+
+	ref = (1000 * pdiv + 2 * crystalfreq) / (2000 * pdiv);
+	ref &= 0xFFFF;
+	for (i = 0; i < ARRAY_SIZE(freqdata_tab); i++) {
+		if (ref < freqdata_tab[i].freq) {
+			fd = &freqdata_tab[i];
+			break;
+		}
+	}
+	if (B43_WARN_ON(!fd))
+		return;
+
+	b43_radio_write(dev, B2062_S_RFPLL_CTL8,
+			((u16)(fd->data[1]) << 4) | fd->data[0]);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL9,
+			((u16)(fd->data[3]) << 4) | fd->data[2]);//FIXME specs are different
+	b43_radio_write(dev, B2062_S_RFPLL_CTL10, fd->data[4]);
+	b43_radio_write(dev, B2062_S_RFPLL_CTL11, fd->data[5]);
+}
+
+/* Initialize the 2063 radio. */
+static void lpphy_2063_init(struct b43_wldev *dev)
 {
 	//TODO
+}
+
+static void lpphy_sync_stx(struct b43_wldev *dev)
+{
+	//TODO
+}
+
+static void lpphy_radio_init(struct b43_wldev *dev)
+{
+	/* The radio is attached through the 4wire bus. */
+	b43_phy_set(dev, B43_LPPHY_FOURWIRE_CTL, 0x2);
+	udelay(1);
+	b43_phy_mask(dev, B43_LPPHY_FOURWIRE_CTL, 0xFFFD);
+	udelay(1);
+
+	if (dev->phy.rev < 2) {
+		lpphy_2062_init(dev);
+	} else {
+		lpphy_2063_init(dev);
+		lpphy_sync_stx(dev);
+		b43_phy_write(dev, B43_PHY_OFDM(0xF0), 0x5F80);
+		b43_phy_write(dev, B43_PHY_OFDM(0xF1), 0);
+		//TODO Do something on the backplane
+	}
 }
 
 static int b43_lpphy_op_init(struct b43_wldev *dev)
@@ -222,7 +325,9 @@ static int b43_lpphy_op_switch_channel(struct b43_wldev *dev,
 
 static unsigned int b43_lpphy_op_get_default_chan(struct b43_wldev *dev)
 {
-	return 1; /* Default to channel 1 */
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		return 1;
+	return 36;
 }
 
 static void b43_lpphy_op_set_rx_antenna(struct b43_wldev *dev, int antenna)
