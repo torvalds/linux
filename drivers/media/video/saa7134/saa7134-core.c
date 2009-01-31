@@ -54,9 +54,9 @@ static unsigned int gpio_tracking;
 module_param(gpio_tracking, int, 0644);
 MODULE_PARM_DESC(gpio_tracking,"enable debug messages [gpio]");
 
-static unsigned int alsa;
+static unsigned int alsa = 1;
 module_param(alsa, int, 0644);
-MODULE_PARM_DESC(alsa,"enable ALSA DMA sound [dmasound]");
+MODULE_PARM_DESC(alsa,"enable/disable ALSA DMA sound [dmasound]");
 
 static unsigned int latency = UNSET;
 module_param(latency, int, 0444);
@@ -152,8 +152,10 @@ static void request_module_async(struct work_struct *work){
 		request_module("saa7134-empress");
 	if (card_is_dvb(dev))
 		request_module("saa7134-dvb");
-	if (alsa)
-		request_module("saa7134-alsa");
+	if (alsa) {
+		if (dev->pci->device != PCI_DEVICE_ID_PHILIPS_SAA7130)
+			request_module("saa7134-alsa");
+	}
 }
 
 static void request_submodules(struct saa7134_dev *dev)
