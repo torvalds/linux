@@ -603,9 +603,8 @@ static int platform_uevent(struct device *dev, struct kobj_uevent_env *env)
  */
 static int platform_match(struct device *dev, struct device_driver *drv)
 {
-	struct platform_device *pdev;
+	struct platform_device *pdev = to_platform_device(dev);
 
-	pdev = container_of(dev, struct platform_device, dev);
 	return (strcmp(pdev->name, drv->name) == 0);
 }
 
@@ -623,26 +622,24 @@ static int platform_legacy_suspend(struct device *dev, pm_message_t mesg)
 
 static int platform_legacy_suspend_late(struct device *dev, pm_message_t mesg)
 {
-	struct platform_driver *drv = to_platform_driver(dev->driver);
-	struct platform_device *pdev;
+	struct platform_driver *pdrv = to_platform_driver(dev->driver);
+	struct platform_device *pdev = to_platform_device(dev);
 	int ret = 0;
 
-	pdev = container_of(dev, struct platform_device, dev);
-	if (dev->driver && drv->suspend_late)
-		ret = drv->suspend_late(pdev, mesg);
+	if (dev->driver && pdrv->suspend_late)
+		ret = pdrv->suspend_late(pdev, mesg);
 
 	return ret;
 }
 
 static int platform_legacy_resume_early(struct device *dev)
 {
-	struct platform_driver *drv = to_platform_driver(dev->driver);
-	struct platform_device *pdev;
+	struct platform_driver *pdrv = to_platform_driver(dev->driver);
+	struct platform_device *pdev = to_platform_device(dev);
 	int ret = 0;
 
-	pdev = container_of(dev, struct platform_device, dev);
-	if (dev->driver && drv->resume_early)
-		ret = drv->resume_early(pdev);
+	if (dev->driver && pdrv->resume_early)
+		ret = pdrv->resume_early(pdev);
 
 	return ret;
 }
