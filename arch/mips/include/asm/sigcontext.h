@@ -9,6 +9,7 @@
 #ifndef _ASM_SIGCONTEXT_H
 #define _ASM_SIGCONTEXT_H
 
+#include <linux/types.h>
 #include <asm/sgidefs.h>
 
 #if _MIPS_SIM == _MIPS_SIM_ABI32
