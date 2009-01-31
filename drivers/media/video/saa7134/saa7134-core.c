@@ -58,10 +58,6 @@ static unsigned int alsa;
 module_param(alsa, int, 0644);
 MODULE_PARM_DESC(alsa,"enable ALSA DMA sound [dmasound]");
 
-static unsigned int oss;
-module_param(oss, int, 0644);
-MODULE_PARM_DESC(oss,"enable OSS DMA sound [dmasound]");
-
 static unsigned int latency = UNSET;
 module_param(latency, int, 0444);
 MODULE_PARM_DESC(latency,"pci latency timer");
@@ -158,8 +154,6 @@ static void request_module_async(struct work_struct *work){
 		request_module("saa7134-dvb");
 	if (alsa)
 		request_module("saa7134-alsa");
-	if (oss)
-		request_module("saa7134-oss");
 }
 
 static void request_submodules(struct saa7134_dev *dev)
