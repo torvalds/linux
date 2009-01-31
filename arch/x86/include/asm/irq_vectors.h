@@ -3,45 +3,69 @@
 
 #include <linux/threads.h>
 
-#define NMI_VECTOR		0x02
+/*
+ * Linux IRQ vector layout.
+ *
+ * There are 256 IDT entries (per CPU - each entry is 8 bytes) which can
+ * be defined by Linux. They are used as a jump table by the CPU when a
+ * given vector is triggered - by a CPU-external, CPU-internal or
+ * software-triggered event.
+ *
+ * Linux sets the kernel code address each entry jumps to early during
+ * bootup, and never changes them. This is the general layout of the
+ * IDT entries:
+ *
+ *  Vectors   0 ...  31 : system traps and exceptions - hardcoded events
+ *  Vectors  32 ... 127 : device interrupts
+ *  Vector  128         : legacy int80 syscall interface
+ *  Vectors 129 ... 237 : device interrupts
+ *  Vectors 238 ... 255 : special interrupts
+ *
+ * 64-bit x86 has per CPU IDT tables, 32-bit has one shared IDT table.
+ *
+ * This file enumerates the exact layout of them:
+ */
+
+#define NMI_VECTOR			0x02
 
 /*
  * IDT vectors usable for external interrupt sources start
  * at 0x20:
  */
-#define FIRST_EXTERNAL_VECTOR	0x20
+#define FIRST_EXTERNAL_VECTOR		0x20
 
 #ifdef CONFIG_X86_32
-# define SYSCALL_VECTOR		0x80
+# define SYSCALL_VECTOR			0x80
 #else
-# define IA32_SYSCALL_VECTOR	0x80
+# define IA32_SYSCALL_VECTOR		0x80
 #endif
 
 /*
  * Reserve the lowest usable priority level 0x20 - 0x2f for triggering
  * cleanup after irq migration.
  */
-#define IRQ_MOVE_CLEANUP_VECTOR	FIRST_EXTERNAL_VECTOR
+#define IRQ_MOVE_CLEANUP_VECTOR		FIRST_EXTERNAL_VECTOR
 
 /*
  * Vectors 0x30-0x3f are used for ISA interrupts.
  */
-#define IRQ0_VECTOR		(FIRST_EXTERNAL_VECTOR + 0x10)
-#define IRQ1_VECTOR		(IRQ0_VECTOR + 1)
-#define IRQ2_VECTOR		(IRQ0_VECTOR + 2)
-#define IRQ3_VECTOR		(IRQ0_VECTOR + 3)
-#define IRQ4_VECTOR		(IRQ0_VECTOR + 4)
-#define IRQ5_VECTOR		(IRQ0_VECTOR + 5)
-#define IRQ6_VECTOR		(IRQ0_VECTOR + 6)
-#define IRQ7_VECTOR		(IRQ0_VECTOR + 7)
-#define IRQ8_VECTOR		(IRQ0_VECTOR + 8)
-#define IRQ9_VECTOR		(IRQ0_VECTOR + 9)
-#define IRQ10_VECTOR		(IRQ0_VECTOR + 10)
-#define IRQ11_VECTOR		(IRQ0_VECTOR + 11)
-#define IRQ12_VECTOR		(IRQ0_VECTOR + 12)
-#define IRQ13_VECTOR		(IRQ0_VECTOR + 13)
-#define IRQ14_VECTOR		(IRQ0_VECTOR + 14)
-#define IRQ15_VECTOR		(IRQ0_VECTOR + 15)
+#define IRQ0_VECTOR			(FIRST_EXTERNAL_VECTOR + 0x10)
+
+#define IRQ1_VECTOR			(IRQ0_VECTOR +  1)
+#define IRQ2_VECTOR			(IRQ0_VECTOR +  2)
+#define IRQ3_VECTOR			(IRQ0_VECTOR +  3)
+#define IRQ4_VECTOR			(IRQ0_VECTOR +  4)
+#define IRQ5_VECTOR			(IRQ0_VECTOR +  5)
+#define IRQ6_VECTOR			(IRQ0_VECTOR +  6)
+#define IRQ7_VECTOR			(IRQ0_VECTOR +  7)
+#define IRQ8_VECTOR			(IRQ0_VECTOR +  8)
+#define IRQ9_VECTOR			(IRQ0_VECTOR +  9)
+#define IRQ10_VECTOR			(IRQ0_VECTOR + 10)
+#define IRQ11_VECTOR			(IRQ0_VECTOR + 11)
+#define IRQ12_VECTOR			(IRQ0_VECTOR + 12)
+#define IRQ13_VECTOR			(IRQ0_VECTOR + 13)
+#define IRQ14_VECTOR			(IRQ0_VECTOR + 14)
+#define IRQ15_VECTOR			(IRQ0_VECTOR + 15)
 
 /*
  * Special IRQ vectors used by the SMP architecture, 0xf0-0xff
@@ -75,36 +99,36 @@
 /* f0-f7 used for spreading out TLB flushes: */
 #define INVALIDATE_TLB_VECTOR_END	0xf7
 #define INVALIDATE_TLB_VECTOR_START	0xf0
-#define NUM_INVALIDATE_TLB_VECTORS	8
+#define NUM_INVALIDATE_TLB_VECTORS	   8
 
 /*
  * Local APIC timer IRQ vector is on a different priority level,
  * to work around the 'lost local interrupt if more than 2 IRQ
  * sources per level' errata.
  */
-#define LOCAL_TIMER_VECTOR	0xef
+#define LOCAL_TIMER_VECTOR		0xef
 
 /*
  * Performance monitoring interrupt vector:
  */
-#define LOCAL_PERF_VECTOR	0xee
+#define LOCAL_PERF_VECTOR		0xee
 
 /*
  * First APIC vector available to drivers: (vectors 0x30-0xee) we
  * start at 0x31(0x41) to spread out vectors evenly between priority
  * levels. (0x80 is the syscall vector)
  */
-#define FIRST_DEVICE_VECTOR	(IRQ15_VECTOR + 2)
+#define FIRST_DEVICE_VECTOR		(IRQ15_VECTOR + 2)
 
-#define NR_VECTORS		256
+#define NR_VECTORS			 256
 
-#define FPU_IRQ			13
+#define FPU_IRQ				  13
 
-#define	FIRST_VM86_IRQ		3
-#define LAST_VM86_IRQ		15
-#define invalid_vm86_irq(irq)	((irq) < 3 || (irq) > 15)
+#define	FIRST_VM86_IRQ			   3
+#define LAST_VM86_IRQ			  15
+#define invalid_vm86_irq(irq)		((irq) < 3 || (irq) > 15)
 
-#define NR_IRQS_LEGACY		16
+#define NR_IRQS_LEGACY			  16
 
 #ifdef CONFIG_X86_IO_APIC
 
@@ -112,9 +136,9 @@
 
 #ifndef CONFIG_SPARSE_IRQ
 # if NR_CPUS < MAX_IO_APICS
-#  define NR_IRQS (NR_VECTORS + (32 * NR_CPUS))
+#  define NR_IRQS 			(NR_VECTORS + (32 * NR_CPUS))
 # else
-#  define NR_IRQS (NR_VECTORS + (32 * MAX_IO_APICS))
+#  define NR_IRQS			(NR_VECTORS + (32 * MAX_IO_APICS))
 # endif
 #else
 # define NR_IRQS					\
@@ -124,7 +148,7 @@
 #endif
 
 #else /* !CONFIG_X86_IO_APIC: */
-# define NR_IRQS		16
+# define NR_IRQS			16
 #endif
 
 #endif /* _ASM_X86_IRQ_VECTORS_H */
