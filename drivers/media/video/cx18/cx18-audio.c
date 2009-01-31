@@ -64,8 +64,7 @@ int cx18_audio_set_io(struct cx18 *cx)
 	val = cx18_read_reg(cx, CX18_AUDIO_ENABLE) & ~0x30;
 	val |= (audio_input > CX18_AV_AUDIO_SERIAL2) ? 0x20 :
 					(audio_input << 4);
-	cx18_write_reg(cx, val | 0xb00, CX18_AUDIO_ENABLE);
-	cx18_vapi(cx, CX18_APU_RESETAI, 1, 0);
+	cx18_write_reg_expect(cx, val | 0xb00, CX18_AUDIO_ENABLE, val, 0x30);
 	return 0;
 }
 

@@ -131,7 +131,8 @@ int cx18_av_loadfw(struct cx18 *cx)
 	v = cx18_read_reg(cx, CX18_AUDIO_ENABLE);
 	/* If bit 11 is 1, clear bit 10 */
 	if (v & 0x800)
-		cx18_write_reg(cx, v & 0xFFFFFBFF, CX18_AUDIO_ENABLE);
+		cx18_write_reg_expect(cx, v & 0xFFFFFBFF, CX18_AUDIO_ENABLE,
+				      0, 0x400);
 
 	/* Enable WW auto audio standard detection */
 	v = cx18_av_read4(cx, CXADEC_STD_DET_CTL);
