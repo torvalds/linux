@@ -57,8 +57,41 @@ static void b43_lpphy_op_free(struct b43_wldev *dev)
 	dev->phy.lp = NULL;
 }
 
+static void lpphy_table_init(struct b43_wldev *dev)
+{
+	//TODO
+}
+
+static void lpphy_baseband_rev0_1_init(struct b43_wldev *dev)
+{
+	B43_WARN_ON(1);//TODO rev < 2 not supported, yet.
+}
+
+static void lpphy_baseband_rev2plus_init(struct b43_wldev *dev)
+{
+	//TODO
+}
+
+static void lpphy_baseband_init(struct b43_wldev *dev)
+{
+	lpphy_table_init(dev);
+	if (dev->phy.rev >= 2)
+		lpphy_baseband_rev2plus_init(dev);
+	else
+		lpphy_baseband_rev0_1_init(dev);
+}
+
+static void lpphy_radio_init(struct b43_wldev *dev)
+{
+	//TODO
+}
+
 static int b43_lpphy_op_init(struct b43_wldev *dev)
 {
+	/* TODO: band SPROM */
+	lpphy_baseband_init(dev);
+	lpphy_radio_init(dev);
+
 	//TODO
 
 	return 0;
