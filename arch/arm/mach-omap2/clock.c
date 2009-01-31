@@ -419,30 +419,30 @@ int omap2_clk_enable(struct clk *clk)
 	int ret = 0;
 
 	if (clk->usecount++ == 0) {
-		if (clk->parent)
+		if (clk->parent) {
 			ret = omap2_clk_enable(clk->parent);
-
-		if (ret != 0) {
-			clk->usecount--;
-			return ret;
+			if (ret)
+				goto err;
 		}
 
 		if (clk->clkdm)
 			omap2_clkdm_clk_enable(clk->clkdm, clk);
 
 		ret = _omap2_clk_enable(clk);
-
-		if (ret != 0) {
+		if (ret) {
 			if (clk->clkdm)
 				omap2_clkdm_clk_disable(clk->clkdm, clk);
 
-			if (clk->parent) {
+			if (clk->parent)
 				omap2_clk_disable(clk->parent);
-				clk->usecount--;
-			}
+
+			goto err;
 		}
 	}
+	return ret;
 
+err:
+	clk->usecount--;
 	return ret;
 }
 
