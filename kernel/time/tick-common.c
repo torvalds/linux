@@ -274,6 +274,21 @@ out_bc:
 }
 
 /*
+ * Transfer the do_timer job away from a dying cpu.
+ *
+ * Called with interrupts disabled.
+ */
+static void tick_handover_do_timer(int *cpup)
+{
+	if (*cpup == tick_do_timer_cpu) {
+		int cpu = cpumask_first(cpu_online_mask);
+
+		tick_do_timer_cpu = (cpu < nr_cpu_ids) ? cpu :
+			TICK_DO_TIMER_NONE;
+	}
+}
+
+/*
  * Shutdown an event device on a given cpu:
  *
  * This is called on a life CPU, when a CPU is dead. So we cannot
@@ -296,13 +311,6 @@ static void tick_shutdown(unsigned int *cpup)
 		dev->mode = CLOCK_EVT_MODE_UNUSED;
 		clockevents_exchange_device(dev, NULL);
 		td->evtdev = NULL;
-	}
-	/* Transfer the do_timer job away from this cpu */
-	if (*cpup == tick_do_timer_cpu) {
-		int cpu = cpumask_first(cpu_online_mask);
-
-		tick_do_timer_cpu = (cpu < nr_cpu_ids) ? cpu :
-			TICK_DO_TIMER_NONE;
 	}
 	spin_unlock_irqrestore(&tick_device_lock, flags);
 }
@@ -355,6 +363,10 @@ static int tick_notify(struct notifier_block *nb, unsigned long reason,
 	case CLOCK_EVT_NOTIFY_BROADCAST_ENTER:
 	case CLOCK_EVT_NOTIFY_BROADCAST_EXIT:
 		tick_broadcast_oneshot_control(reason);
+		break;
+
+	case CLOCK_EVT_NOTIFY_CPU_DYING:
+		tick_handover_do_timer(dev);
 		break;
 
 	case CLOCK_EVT_NOTIFY_CPU_DEAD:
