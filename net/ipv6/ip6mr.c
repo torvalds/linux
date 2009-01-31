@@ -365,7 +365,9 @@ static int pim6_rcv(struct sk_buff *skb)
 	pim = (struct pimreghdr *)skb_transport_header(skb);
 	if (pim->type != ((PIM_VERSION << 4) | PIM_REGISTER) ||
 	    (pim->flags & PIM_NULL_REGISTER) ||
-	    (ip_compute_csum((void *)pim, sizeof(*pim)) != 0 &&
+	    (csum_ipv6_magic(&ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr,
+			     sizeof(*pim), IPPROTO_PIM,
+			     csum_partial((void *)pim, sizeof(*pim), 0)) &&
 	     csum_fold(skb_checksum(skb, 0, skb->len, 0))))
 		goto drop;
 
@@ -392,7 +394,7 @@ static int pim6_rcv(struct sk_buff *skb)
 	skb_pull(skb, (u8 *)encap - skb->data);
 	skb_reset_network_header(skb);
 	skb->dev = reg_dev;
-	skb->protocol = htons(ETH_P_IP);
+	skb->protocol = htons(ETH_P_IPV6);
 	skb->ip_summed = 0;
 	skb->pkt_type = PACKET_HOST;
 	dst_release(skb->dst);
@@ -481,6 +483,7 @@ static int mif6_delete(struct net *net, int vifi)
 {
 	struct mif_device *v;
 	struct net_device *dev;
+	struct inet6_dev *in6_dev;
 	if (vifi < 0 || vifi >= net->ipv6.maxvif)
 		return -EADDRNOTAVAIL;
 
@@ -512,6 +515,10 @@ static int mif6_delete(struct net *net, int vifi)
 	write_unlock_bh(&mrt_lock);
 
 	dev_set_allmulti(dev, -1);
+
+	in6_dev = __in6_dev_get(dev);
+	if (in6_dev)
+		in6_dev->cnf.mc_forwarding--;
 
 	if (v->flags & MIFF_REGISTER)
 		unregister_netdevice(dev);
@@ -622,6 +629,7 @@ static int mif6_add(struct net *net, struct mif6ctl *vifc, int mrtsock)
 	int vifi = vifc->mif6c_mifi;
 	struct mif_device *v = &net->ipv6.vif6_table[vifi];
 	struct net_device *dev;
+	struct inet6_dev *in6_dev;
 	int err;
 
 	/* Is vif busy ? */
@@ -661,6 +669,10 @@ static int mif6_add(struct net *net, struct mif6ctl *vifc, int mrtsock)
 	default:
 		return -EINVAL;
 	}
+
+	in6_dev = __in6_dev_get(dev);
+	if (in6_dev)
+		in6_dev->cnf.mc_forwarding++;
 
 	/*
 	 *	Fill in the VIF structures
@@ -838,8 +850,6 @@ static int ip6mr_cache_report(struct net *net, struct sk_buff *pkt, mifi_t mifi,
 
 	skb->dst = dst_clone(pkt->dst);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
-
-	skb_pull(skb, sizeof(struct ipv6hdr));
 	}
 
 	if (net->ipv6.mroute6_sk == NULL) {
@@ -1222,8 +1232,10 @@ static int ip6mr_sk_init(struct sock *sk)
 
 	rtnl_lock();
 	write_lock_bh(&mrt_lock);
-	if (likely(net->ipv6.mroute6_sk == NULL))
+	if (likely(net->ipv6.mroute6_sk == NULL)) {
 		net->ipv6.mroute6_sk = sk;
+		net->ipv6.devconf_all->mc_forwarding++;
+	}
 	else
 		err = -EADDRINUSE;
 	write_unlock_bh(&mrt_lock);
@@ -1242,6 +1254,7 @@ int ip6mr_sk_done(struct sock *sk)
 	if (sk == net->ipv6.mroute6_sk) {
 		write_lock_bh(&mrt_lock);
 		net->ipv6.mroute6_sk = NULL;
+		net->ipv6.devconf_all->mc_forwarding--;
 		write_unlock_bh(&mrt_lock);
 
 		mroute_clean_tables(net);

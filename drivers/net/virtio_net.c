@@ -287,7 +287,7 @@ static void try_fill_recv_maxbufs(struct virtnet_info *vi)
 		skb_put(skb, MAX_PACKET_LEN);
 
 		hdr = skb_vnet_hdr(skb);
-		sg_init_one(sg, hdr, sizeof(*hdr));
+		sg_set_buf(sg, hdr, sizeof(*hdr));
 
 		if (vi->big_packets) {
 			for (i = 0; i < MAX_SKB_FRAGS; i++) {
@@ -488,9 +488,9 @@ static int xmit_skb(struct virtnet_info *vi, struct sk_buff *skb)
 
 	/* Encode metadata header at front. */
 	if (vi->mergeable_rx_bufs)
-		sg_init_one(sg, mhdr, sizeof(*mhdr));
+		sg_set_buf(sg, mhdr, sizeof(*mhdr));
 	else
-		sg_init_one(sg, hdr, sizeof(*hdr));
+		sg_set_buf(sg, hdr, sizeof(*hdr));
 
 	num = skb_to_sgvec(skb, sg+1, 0, skb->len) + 1;
 
