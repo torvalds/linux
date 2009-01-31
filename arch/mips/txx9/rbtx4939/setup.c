@@ -336,6 +336,7 @@ static void __init rbtx4939_device_init(void)
 	rbtx4939_led_setup();
 	tx4939_wdt_init();
 	tx4939_ata_init();
+	tx4939_rtc_init();
 }
 
 static void __init rbtx4939_setup(void)

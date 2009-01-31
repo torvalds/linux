@@ -566,7 +566,7 @@ struct efx_mac_operations {
  * @poll: Poll for hardware state. Serialised by the mac_lock.
  * @get_settings: Get ethtool settings. Serialised by the mac_lock.
  * @set_settings: Set ethtool settings. Serialised by the mac_lock.
- * @set_xnp_advertise: Set abilities advertised in Extended Next Page
+ * @set_npage_adv: Set abilities advertised in (Extended) Next Page
  *	(only needed where AN bit is set in mmds)
  * @num_tests: Number of PHY-specific tests/results
  * @test_names: Names of the tests/results
@@ -586,7 +586,7 @@ struct efx_phy_operations {
 			      struct ethtool_cmd *ecmd);
 	int (*set_settings) (struct efx_nic *efx,
 			     struct ethtool_cmd *ecmd);
-	bool (*set_xnp_advertise) (struct efx_nic *efx, u32);
+	void (*set_npage_adv) (struct efx_nic *efx, u32);
 	u32 num_tests;
 	const char *const *test_names;
 	int (*run_tests) (struct efx_nic *efx, int *results, unsigned flags);
@@ -754,8 +754,7 @@ union efx_multicast_hash {
  *	&struct net_device_stats.
  * @stats_buffer: DMA buffer for statistics
  * @stats_lock: Statistics update lock. Serialises statistics fetches
- * @stats_enabled: Temporarily disable statistics fetches.
- *	Serialised by @stats_lock
+ * @stats_disable_count: Nest count for disabling statistics fetches
  * @mac_op: MAC interface
  * @mac_address: Permanent MAC address
  * @phy_type: PHY type
@@ -837,7 +836,7 @@ struct efx_nic {
 	struct efx_mac_stats mac_stats;
 	struct efx_buffer stats_buffer;
 	spinlock_t stats_lock;
-	bool stats_enabled;
+	unsigned int stats_disable_count;
 
 	struct efx_mac_operations *mac_op;
 	unsigned char mac_address[ETH_ALEN];

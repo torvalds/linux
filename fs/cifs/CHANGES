@@ -5,7 +5,9 @@ rather than posix (advisory) byte range locks, even though server would
 support posix byte range locks.  Fix query of root inode when prefixpath
 specified and user does not have access to query information about the
 top of the share.  Fix problem in 2.6.28 resolving DFS paths to
-Samba servers (worked to Windows).
+Samba servers (worked to Windows).  Fix rmdir so that pending search
+(readdir) requests do not get invalid results which include the now
+removed directory.
 
 Version 1.55
 ------------

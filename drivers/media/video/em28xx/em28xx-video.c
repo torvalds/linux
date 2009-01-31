@@ -886,10 +886,10 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	if (0 == INPUT(i)->type)
 		return -EINVAL;
 
+	dev->ctl_input = i;
+
 	mutex_lock(&dev->lock);
-
-	video_mux(dev, i);
-
+	video_mux(dev, dev->ctl_input);
 	mutex_unlock(&dev->lock);
 	return 0;
 }
@@ -938,6 +938,12 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
+
+
+	if (a->index >= MAX_EM28XX_INPUT)
+		return -EINVAL;
+	if (0 == INPUT(a->index)->type)
+		return -EINVAL;
 
 	mutex_lock(&dev->lock);
 
@@ -1950,29 +1956,13 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 
 int em28xx_register_analog_devices(struct em28xx *dev)
 {
+      u8 val;
 	int ret;
 
 	printk(KERN_INFO "%s: v4l2 driver version %d.%d.%d\n",
 		dev->name,
 		(EM28XX_VERSION_CODE >> 16) & 0xff,
 		(EM28XX_VERSION_CODE >> 8) & 0xff, EM28XX_VERSION_CODE & 0xff);
-
-	/* Analog specific initialization */
-	dev->format = &format[0];
-	video_mux(dev, 0);
-
-	/* enable vbi capturing */
-
-/*	em28xx_write_reg(dev, EM28XX_R0E_AUDIOSRC, 0xc0); audio register */
-/*	em28xx_write_reg(dev, EM28XX_R0F_XCLK, 0x80); clk register */
-	em28xx_write_reg(dev, EM28XX_R11_VINCTRL, 0x51);
-
-	dev->mute = 1;		/* maybe not the right place... */
-	dev->volume = 0x1f;
-
-	em28xx_set_outfmt(dev);
-	em28xx_colorlevels_set_default(dev);
-	em28xx_compression_disable(dev);
 
 	/* set default norm */
 	dev->norm = em28xx_video_template.current_norm;
@@ -1981,9 +1971,26 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	dev->interlaced = EM28XX_INTERLACED_DEFAULT;
 	dev->hscale = 0;
 	dev->vscale = 0;
+	dev->ctl_input = 0;
 
-	/* FIXME: This is a very bad hack! Not all devices have TV on input 2 */
-	dev->ctl_input = 2;
+	/* Analog specific initialization */
+	dev->format = &format[0];
+	video_mux(dev, dev->ctl_input);
+
+	/* Audio defaults */
+	dev->mute = 1;
+	dev->volume = 0x1f;
+
+	/* enable vbi capturing */
+
+/*	em28xx_write_reg(dev, EM28XX_R0E_AUDIOSRC, 0xc0); audio register */
+       val = (u8)em28xx_read_reg(dev, EM28XX_R0F_XCLK);
+       em28xx_write_reg(dev, EM28XX_R0F_XCLK, (EM28XX_XCLK_AUDIO_UNMUTE | val));
+	em28xx_write_reg(dev, EM28XX_R11_VINCTRL, 0x51);
+
+	em28xx_set_outfmt(dev);
+	em28xx_colorlevels_set_default(dev);
+	em28xx_compression_disable(dev);
 
 	/* allocate and fill video video_device struct */
 	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template, "video");
