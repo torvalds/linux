@@ -146,12 +146,12 @@ static void b43legacy_map_led(struct b43legacy_wldev *dev,
 	case B43legacy_LED_TRANSFER:
 	case B43legacy_LED_APTRANSFER:
 		snprintf(name, sizeof(name),
-			 "b43legacy-%s:tx", wiphy_name(hw->wiphy));
+			 "b43legacy-%s::tx", wiphy_name(hw->wiphy));
 		b43legacy_register_led(dev, &dev->led_tx, name,
 				 ieee80211_get_tx_led_name(hw),
 				 led_index, activelow);
 		snprintf(name, sizeof(name),
-			 "b43legacy-%s:rx", wiphy_name(hw->wiphy));
+			 "b43legacy-%s::rx", wiphy_name(hw->wiphy));
 		b43legacy_register_led(dev, &dev->led_rx, name,
 				 ieee80211_get_rx_led_name(hw),
 				 led_index, activelow);
@@ -161,7 +161,7 @@ static void b43legacy_map_led(struct b43legacy_wldev *dev,
 	case B43legacy_LED_RADIO_B:
 	case B43legacy_LED_MODE_BG:
 		snprintf(name, sizeof(name),
-			 "b43legacy-%s:radio", wiphy_name(hw->wiphy));
+			 "b43legacy-%s::radio", wiphy_name(hw->wiphy));
 		b43legacy_register_led(dev, &dev->led_radio, name,
 				 b43legacy_rfkill_led_name(dev),
 				 led_index, activelow);
@@ -172,7 +172,7 @@ static void b43legacy_map_led(struct b43legacy_wldev *dev,
 	case B43legacy_LED_WEIRD:
 	case B43legacy_LED_ASSOC:
 		snprintf(name, sizeof(name),
-			 "b43legacy-%s:assoc", wiphy_name(hw->wiphy));
+			 "b43legacy-%s::assoc", wiphy_name(hw->wiphy));
 		b43legacy_register_led(dev, &dev->led_assoc, name,
 				 ieee80211_get_assoc_led_name(hw),
 				 led_index, activelow);
