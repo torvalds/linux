@@ -169,9 +169,14 @@ static void cx18_av_initialize(struct cx18 *cx)
 	/* Set VGA_TRACK_RANGE to 0x20 */
 	cx18_av_and_or4(cx, CXADEC_DFE_CTRL2, 0xFFFF00FF, 0x00002000);
 
-	/* Enable VBI capture */
-	cx18_av_write4(cx, CXADEC_OUT_CTRL1, 0x4010253F);
-	/* cx18_av_write4(cx, CXADEC_OUT_CTRL1, 0x4010253E); */
+	/*
+	 * Initial VBI setup
+	 * VIP-1.1, 10 bit mode, enable Raw, disable sliced,
+	 * don't clamp raw samples when codes are in use, 4 byte user D-words,
+	 * programmed IDID, RP code V bit transition on VBLANK, data during
+	 * blanking intervals
+	 */
+	cx18_av_write4(cx, CXADEC_OUT_CTRL1, 0x4010252e);
 
 	/* Set the video input.
 	   The setting in MODE_CTRL gets lost when we do the above setup */

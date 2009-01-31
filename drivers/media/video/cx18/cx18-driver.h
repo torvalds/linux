@@ -319,59 +319,121 @@ struct cx18_open_id {
 /* forward declaration of struct defined in cx18-cards.h */
 struct cx18_card;
 
+/*
+ * A note about "sliced" VBI data as implemented in this driver:
+ *
+ * Currently we collect the sliced VBI in the form of Ancillary Data
+ * packets, inserted by the AV core decoder/digitizer/slicer in the
+ * horizontal blanking region of the VBI lines, in "raw" mode as far as
+ * the Encoder is concerned.  We don't ever tell the Encoder itself
+ * to provide sliced VBI. (AV Core: sliced mode - Encoder: raw mode)
+ *
+ * We then process the ancillary data ourselves to send the sliced data
+ * to the user application directly or build up MPEG-2 private stream 1
+ * packets to splice into (only!) MPEG-2 PS streams for the user app.
+ *
+ * (That's how ivtv essentially does it.)
+ *
+ * The Encoder should be able to extract certain sliced VBI data for
+ * us and provide it in a separate stream or splice it into any type of
+ * MPEG PS or TS stream, but this isn't implemented yet.
+ */
+
+/*
+ * Number of "raw" VBI samples per horizontal line we tell the Encoder to
+ * grab from the decoder/digitizer/slicer output for raw or sliced VBI.
+ * It depends on the pixel clock and the horiz rate:
+ *
+ * (1/Fh)*(2*Fp) = Samples/line
+ *     = 4 bytes EAV + Anc data in hblank + 4 bytes SAV + active samples
+ *
+ *  Sliced VBI data is sent as ancillary data during horizontal blanking
+ *  Raw VBI is sent as active video samples during vertcal blanking
+ *
+ *  We use a  BT.656 pxiel clock of 13.5 MHz and a BT.656 active line
+ *  length of 720 pixels @ 4:2:2 sampling.  Thus...
+ *
+ *  For systems that use a 15.734 kHz horizontal rate, such as
+ *  NTSC-M, PAL-M, PAL-60, and other 60 Hz/525 line systems, we have:
+ *
+ *  (1/15.734 kHz) * 2 * 13.5 MHz = 1716 samples/line =
+ *  4 bytes SAV + 268 bytes anc data + 4 bytes SAV + 1440 active samples
+ *
+ *  For systems that use a 15.625 kHz horizontal rate, such as
+ *  PAL-B/G/H, PAL-I, SECAM-L and other 50 Hz/625 line systems, we have:
+ *
+ *  (1/15.625 kHz) * 2 * 13.5 MHz = 1728 samples/line =
+ *  4 bytes SAV + 280 bytes anc data + 4 bytes SAV + 1440 active samples
+ */
+static const u32 vbi_active_samples = 1444; /* 4 byte SAV + 720 Y + 720 U/V */
+static const u32 vbi_hblank_samples_60Hz = 272; /* 4 byte EAV + 268 anc/fill */
+static const u32 vbi_hblank_samples_50Hz = 284; /* 4 byte EAV + 280 anc/fill */
 
 #define CX18_VBI_FRAMES 32
 
-/* VBI data */
 struct vbi_info {
-	u32 enc_size;
-	u32 frame;
-	u8 cc_data_odd[256];
-	u8 cc_data_even[256];
-	int cc_pos;
-	u8 cc_no_update;
-	u8 vps[5];
-	u8 vps_found;
-	int wss;
-	u8 wss_found;
-	u8 wss_no_update;
-	u32 raw_decoder_line_size;
-	u8 raw_decoder_sav_odd_field;
-	u8 raw_decoder_sav_even_field;
-	u32 sliced_decoder_line_size;
-	u8 sliced_decoder_sav_odd_field;
-	u8 sliced_decoder_sav_even_field;
+	/* Current state of v4l2 VBI settings for this device */
 	struct v4l2_format in;
-	/* convenience pointer to sliced struct in vbi_in union */
-	struct v4l2_sliced_vbi_format *sliced_in;
-	u32 service_set_in;
+	struct v4l2_sliced_vbi_format *sliced_in; /* pointer to in.fmt.sliced */
+	u32 count;    /* Count of VBI data lines: 60 Hz: 12 or 50 Hz: 18 */
+	u32 start[2]; /* First VBI data line per field: 10 & 273 or 6 & 318 */
+
+	u32 frame; /* Count of VBI buffers/frames received from Encoder */
+
+	/*
+	 * Vars for creation and insertion of MPEG Private Stream 1 packets
+	 * of sliced VBI data into an MPEG PS
+	 */
+
+	/* Boolean: create and insert Private Stream 1 packets into the PS */
 	int insert_mpeg;
 
-	/* Buffer for the maximum of 2 * 18 * packet_size sliced VBI lines.
-	   One for /dev/vbi0 and one for /dev/vbi8 */
+	/*
+	 * Buffer for the maximum of 2 * 18 * packet_size sliced VBI lines.
+	 * Used in cx18-vbi.c only for collecting sliced data, and as a source
+	 * during conversion of sliced VBI data into MPEG Priv Stream 1 packets.
+	 * We don't need to save state here, but the array may have been a bit
+	 * too big (2304 bytes) to alloc from the stack.
+	 */
 	struct v4l2_sliced_vbi_data sliced_data[36];
 
-	/* Buffer for VBI data inserted into MPEG stream.
-	   The first byte is a dummy byte that's never used.
-	   The next 16 bytes contain the MPEG header for the VBI data,
-	   the remainder is the actual VBI data.
-	   The max size accepted by the MPEG VBI reinsertion turns out
-	   to be 1552 bytes, which happens to be 4 + (1 + 42) * (2 * 18) bytes,
-	   where 4 is a four byte header, 42 is the max sliced VBI payload, 1 is
-	   a single line header byte and 2 * 18 is the number of VBI lines per frame.
-
-	   However, it seems that the data must be 1K aligned, so we have to
-	   pad the data until the 1 or 2 K boundary.
-
-	   This pointer array will allocate 2049 bytes to store each VBI frame. */
+	/*
+	 * A ring buffer of driver-generated MPEG-2 PS
+	 * Program Pack/Private Stream 1 packets for sliced VBI data insertion
+	 * into the MPEG PS stream.
+	 *
+	 * In each sliced_mpeg_data[] buffer is:
+	 * 	16 byte MPEG-2 PS Program Pack Header
+	 * 	16 byte MPEG-2 Private Stream 1 PES Header
+	 * 	 4 byte magic number: "itv0" or "ITV0"
+	 * 	 4 byte first  field line mask, if "itv0"
+	 * 	 4 byte second field line mask, if "itv0"
+	 * 	36 lines, if "ITV0"; or <36 lines, if "itv0"; of sliced VBI data
+	 *
+	 * 	Each line in the payload is
+	 *	 1 byte line header derived from the SDID (WSS, CC, VPS, etc.)
+	 *	42 bytes of line data
+	 *
+	 * That's a maximum 1552 bytes of payload in the Private Stream 1 packet
+	 * which is the payload size a PVR-350 (CX23415) MPEG decoder will
+	 * accept for VBI data. So, including the headers, it's a maximum 1584
+	 * bytes total.
+	 */
+#define CX18_SLICED_MPEG_DATA_MAXSZ	1584
+	/* copy_vbi_buf() needs 8 temp bytes on the end for the worst case */
+#define CX18_SLICED_MPEG_DATA_BUFSZ	(CX18_SLICED_MPEG_DATA_MAXSZ+8)
 	u8 *sliced_mpeg_data[CX18_VBI_FRAMES];
 	u32 sliced_mpeg_size[CX18_VBI_FRAMES];
-	struct cx18_buffer sliced_mpeg_buf;
+
+	/* Count of Program Pack/Program Stream 1 packets inserted into PS */
 	u32 inserted_frame;
 
-	u32 start[2], count;
-	u32 raw_size;
-	u32 sliced_size;
+	/*
+	 * A dummy driver stream transfer buffer with a copy of the next
+	 * sliced_mpeg_data[] buffer for output to userland apps.
+	 * Only used in cx18-fileops.c, but its state needs to persist at times.
+	 */
+	struct cx18_buffer sliced_mpeg_buf;
 };
 
 /* Per cx23418, per I2C bus private algo callback data */

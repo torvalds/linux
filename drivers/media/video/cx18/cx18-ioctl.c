@@ -102,6 +102,19 @@ void cx18_expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
 	}
 }
 
+static int check_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
+{
+	int f, l;
+	u16 set = 0;
+
+	for (f = 0; f < 2; f++) {
+		for (l = 0; l < 24; l++) {
+			fmt->service_lines[f][l] = select_service_from_set(f, l, fmt->service_lines[f][l], is_pal);
+			set |= fmt->service_lines[f][l];
+		}
+	}
+	return set != 0;
+}
 
 u16 cx18_get_service_set(struct v4l2_sliced_vbi_format *fmt)
 {
@@ -150,7 +163,7 @@ static int cx18_g_fmt_vbi_cap(struct file *file, void *fh,
 
 	vbifmt->sampling_rate = 27000000;
 	vbifmt->offset = 248;
-	vbifmt->samples_per_line = cx->vbi.raw_decoder_line_size - 4;
+	vbifmt->samples_per_line = vbi_active_samples - 4;
 	vbifmt->sample_format = V4L2_PIX_FMT_GREY;
 	vbifmt->start[0] = cx->vbi.start[0];
 	vbifmt->start[1] = cx->vbi.start[1];
@@ -164,7 +177,17 @@ static int cx18_g_fmt_vbi_cap(struct file *file, void *fh,
 static int cx18_g_fmt_sliced_vbi_cap(struct file *file, void *fh,
 					struct v4l2_format *fmt)
 {
-	return -EINVAL;
+	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
+
+	vbifmt->reserved[0] = 0;
+	vbifmt->reserved[1] = 0;
+	vbifmt->io_size = sizeof(struct v4l2_sliced_vbi_data) * 36;
+	memset(vbifmt->service_lines, 0, sizeof(vbifmt->service_lines));
+
+	cx18_av_cmd(cx, VIDIOC_G_FMT, fmt);
+	vbifmt->service_set = cx18_get_service_set(vbifmt);
+	return 0;
 }
 
 static int cx18_try_fmt_vid_cap(struct file *file, void *fh,
@@ -194,7 +217,18 @@ static int cx18_try_fmt_vbi_cap(struct file *file, void *fh,
 static int cx18_try_fmt_sliced_vbi_cap(struct file *file, void *fh,
 					struct v4l2_format *fmt)
 {
-	return -EINVAL;
+	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
+
+	vbifmt->io_size = sizeof(struct v4l2_sliced_vbi_data) * 36;
+	vbifmt->reserved[0] = 0;
+	vbifmt->reserved[1] = 0;
+
+	if (vbifmt->service_set)
+		cx18_expand_service_set(vbifmt, cx->is_50hz);
+	check_service_set(vbifmt, cx->is_50hz);
+	vbifmt->service_set = cx18_get_service_set(vbifmt);
+	return 0;
 }
 
 static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
@@ -250,7 +284,28 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 					struct v4l2_format *fmt)
 {
-	return -EINVAL;
+	struct cx18_open_id *id = fh;
+	struct cx18 *cx = id->cx;
+	int ret;
+	struct v4l2_sliced_vbi_format *vbifmt = &fmt->fmt.sliced;
+
+	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	if (ret)
+		return ret;
+
+	ret = cx18_try_fmt_sliced_vbi_cap(file, fh, fmt);
+	if (ret)
+		return ret;
+
+	if (check_service_set(vbifmt, cx->is_50hz) == 0)
+		return -EINVAL;
+
+	if (cx18_raw_vbi(cx) && atomic_read(&cx->ana_capturing) > 0)
+		return -EBUSY;
+	cx->vbi.in.type =  V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
+	cx18_av_cmd(cx, VIDIOC_S_FMT, fmt);
+	memcpy(cx->vbi.sliced_in, vbifmt, sizeof(*cx->vbi.sliced_in));
+	return 0;
 }
 
 static int cx18_g_chip_ident(struct file *file, void *fh,
@@ -548,7 +603,6 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	cx->vbi.count = cx->is_50hz ? 18 : 12;
 	cx->vbi.start[0] = cx->is_50hz ? 6 : 10;
 	cx->vbi.start[1] = cx->is_50hz ? 318 : 273;
-	cx->vbi.sliced_decoder_line_size = cx->is_60hz ? 272 : 284;
 	CX18_DEBUG_INFO("Switching standard to %llx.\n",
 			(unsigned long long) cx->std);
 
@@ -599,6 +653,19 @@ static int cx18_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 static int cx18_g_sliced_vbi_cap(struct file *file, void *fh,
 					struct v4l2_sliced_vbi_cap *cap)
 {
+	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	int set = cx->is_50hz ? V4L2_SLICED_VBI_625 : V4L2_SLICED_VBI_525;
+	int f, l;
+
+	if (cap->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
+		for (f = 0; f < 2; f++) {
+			for (l = 0; l < 24; l++) {
+				if (valid_service_line(f, l, cx->is_50hz))
+					cap->service_lines[f][l] = set;
+			}
+		}
+		return 0;
+	}
 	return -EINVAL;
 }
 

@@ -176,6 +176,8 @@ static struct cx18_buffer *cx18_get_buffer(struct cx18_stream *s, int non_block,
 	*err = 0;
 	while (1) {
 		if (s->type == CX18_ENC_STREAM_TYPE_MPG) {
+			/* Process pending program info updates and pending
+			   VBI data */
 
 			if (time_after(jiffies, cx->dualwatch_jiffies + msecs_to_jiffies(1000))) {
 				cx->dualwatch_jiffies = jiffies;
@@ -260,6 +262,20 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 		len = ucount;
 	if (cx->vbi.insert_mpeg && s->type == CX18_ENC_STREAM_TYPE_MPG &&
 	    !cx18_raw_vbi(cx) && buf != &cx->vbi.sliced_mpeg_buf) {
+		/*
+		 * Try to find a good splice point in the PS, just before
+		 * an MPEG-2 Program Pack start code, and provide only
+		 * up to that point to the user, so it's easy to insert VBI data
+		 * the next time around.
+		 */
+		/* FIXME - This only works for an MPEG-2 PS, not a TS */
+		/*
+		 * An MPEG-2 Program Stream (PS) is a series of
+		 * MPEG-2 Program Packs terminated by an
+		 * MPEG Program End Code after the last Program Pack.
+		 * A Program Pack may hold a PS System Header packet and any
+		 * number of Program Elementary Stream (PES) Packets
+		 */
 		const char *start = buf->buf + buf->readpos;
 		const char *p = start + 1;
 		const u8 *q;
@@ -267,38 +283,54 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 		int stuffing, i;
 
 		while (start + len > p) {
+			/* Scan for a 0 to find a potential MPEG-2 start code */
 			q = memchr(p, 0, start + len - p);
 			if (q == NULL)
 				break;
 			p = q + 1;
+			/*
+			 * Keep looking if not a
+			 * MPEG-2 Pack header start code:  0x00 0x00 0x01 0xba
+			 * or MPEG-2 video PES start code: 0x00 0x00 0x01 0xe0
+			 */
 			if ((char *)q + 15 >= buf->buf + buf->bytesused ||
 			    q[1] != 0 || q[2] != 1 || q[3] != ch)
 				continue;
+
+			/* If expecting the primary video PES */
 			if (!cx->search_pack_header) {
+				/* Continue if it couldn't be a PES packet */
 				if ((q[6] & 0xc0) != 0x80)
 					continue;
-				if (((q[7] & 0xc0) == 0x80 &&
-				     (q[9] & 0xf0) == 0x20) ||
-				    ((q[7] & 0xc0) == 0xc0 &&
-				     (q[9] & 0xf0) == 0x30)) {
-					ch = 0xba;
+				/* Check if a PTS or PTS & DTS follow */
+				if (((q[7] & 0xc0) == 0x80 &&  /* PTS only */
+				     (q[9] & 0xf0) == 0x20) || /* PTS only */
+				    ((q[7] & 0xc0) == 0xc0 &&  /* PTS & DTS */
+				     (q[9] & 0xf0) == 0x30)) { /* DTS follows */
+					/* Assume we found the video PES hdr */
+					ch = 0xba; /* next want a Program Pack*/
 					cx->search_pack_header = 1;
-					p = q + 9;
+					p = q + 9; /* Skip this video PES hdr */
 				}
 				continue;
 			}
+
+			/* We may have found a Program Pack start code */
+
+			/* Get the count of stuffing bytes & verify them */
 			stuffing = q[13] & 7;
 			/* all stuffing bytes must be 0xff */
 			for (i = 0; i < stuffing; i++)
 				if (q[14 + i] != 0xff)
 					break;
-			if (i == stuffing &&
-			    (q[4] & 0xc4) == 0x44 &&
-			    (q[12] & 3) == 3 &&
-			    q[14 + stuffing] == 0 &&
+			if (i == stuffing && /* right number of stuffing bytes*/
+			    (q[4] & 0xc4) == 0x44 && /* marker check */
+			    (q[12] & 3) == 3 &&  /* marker check */
+			    q[14 + stuffing] == 0 && /* PES Pack or Sys Hdr */
 			    q[15 + stuffing] == 0 &&
 			    q[16 + stuffing] == 1) {
-				cx->search_pack_header = 0;
+				/* We declare we actually found a Program Pack*/
+				cx->search_pack_header = 0; /* expect vid PES */
 				len = (char *)q - start;
 				cx18_setup_sliced_vbi_buf(cx);
 				break;

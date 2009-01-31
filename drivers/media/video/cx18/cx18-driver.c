@@ -586,7 +586,8 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 		(cx->params.video_temporal_filter_mode << 1) |
 		(cx->params.video_median_filter_type << 2);
 	cx->params.port = CX2341X_PORT_MEMORY;
-	cx->params.capabilities = CX2341X_CAP_HAS_TS | CX2341X_CAP_HAS_AC3;
+	cx->params.capabilities =
+	  CX2341X_CAP_HAS_TS | CX2341X_CAP_HAS_AC3 | CX2341X_CAP_HAS_SLICED_VBI;
 	init_waitqueue_head(&cx->cap_w);
 	init_waitqueue_head(&cx->mb_apu_waitq);
 	init_waitqueue_head(&cx->mb_cpu_waitq);
@@ -596,49 +597,6 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	cx->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	cx->vbi.sliced_in = &cx->vbi.in.fmt.sliced;
 
-	/*
-	 * The VBI line sizes depend on the pixel clock and the horiz rate
-	 *
-	 * (1/Fh)*(2*Fp) = Samples/line
-	 *     = 4 bytes EAV + Anc data in hblank + 4 bytes SAV + active samples
-	 *
-	 *  Sliced VBI is sent as ancillary data during horizontal blanking
-	 *  Raw VBI is sent as active video samples during vertcal blanking
-	 *
-	 *  We use a  BT.656 pxiel clock of 13.5 MHz and a BT.656 active line
-	 *  length of 720 pixels @ 4:2:2 sampling.  Thus...
-	 *
-	 *  For systems that use a 15.734 kHz horizontal rate, such as
-	 *  NTSC-M, PAL-M, PAL-60, and other 60 Hz/525 line systems, we have:
-	 *
-	 *  (1/15.734 kHz) * 2 * 13.5 MHz = 1716 samples/line =
-	 *  4 bytes SAV + 268 bytes anc data + 4 bytes SAV + 1440 active samples
-	 *
-	 *  For systems that use a 15.625 kHz horizontal rate, such as
-	 *  PAL-B/G/H, PAL-I, SECAM-L and other 50 Hz/625 line systems, we have:
-	 *
-	 *  (1/15.625 kHz) * 2 * 13.5 MHz = 1728 samples/line =
-	 *  4 bytes SAV + 280 bytes anc data + 4 bytes SAV + 1440 active samples
-	 *
-	 */
-
-	/* FIXME: init these based on tuner std & modify when std changes */
-	/* CX18-AV-Core number of VBI samples output per horizontal line */
-	cx->vbi.raw_decoder_line_size = 1444;   /* 4 byte SAV + 2 * 720 */
-	cx->vbi.sliced_decoder_line_size = 272; /* 60 Hz: 268+4, 50 Hz: 280+4 */
-
-	/* CX18-AV-Core VBI samples/line possibly rounded up */
-	cx->vbi.raw_size = 1444;   /* Real max size is 1444 */
-	cx->vbi.sliced_size = 284; /* Real max size is  284 */
-
-	/*
-	 * CX18-AV-Core SAV/EAV RP codes in VIP 1.x mode
-	 * Task Field VerticalBlank HorizontalBlank 0 0 0 0
-	 */
-	cx->vbi.raw_decoder_sav_odd_field = 0x20;     /*   V  */
-	cx->vbi.raw_decoder_sav_even_field = 0x60;    /*  FV  */
-	cx->vbi.sliced_decoder_sav_odd_field = 0xB0;  /* T VH - actually EAV */
-	cx->vbi.sliced_decoder_sav_even_field = 0xF0; /* TFVH - actually EAV */
 	return 0;
 }
 
@@ -671,7 +629,6 @@ static void __devinit cx18_init_struct2(struct cx18 *cx)
 	cx->av_state.aud_input = CX18_AV_AUDIO8;
 	cx->av_state.audclk_freq = 48000;
 	cx->av_state.audmode = V4L2_TUNER_MODE_LANG1;
-	/* FIXME - 8 is NTSC value, investigate */
 	cx->av_state.vbi_line_offset = 8;
 }
 
@@ -936,7 +893,7 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	 * suboptimal, as the CVBS and SVideo inputs could use a different std
 	 * and the buffer could end up being too small in that case.
 	 */
-	vbi_buf_size = cx->vbi.raw_size * (cx->is_60hz ? 24 : 36) / 2;
+	vbi_buf_size = vbi_active_samples * (cx->is_60hz ? 24 : 36) / 2;
 	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_VBI] = vbi_buf_size;
 
 	if (cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] < 0)

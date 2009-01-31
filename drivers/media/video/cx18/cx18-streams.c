@@ -349,10 +349,6 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	/* setup VBI registers */
 	cx18_av_cmd(cx, VIDIOC_S_FMT, &cx->vbi.in);
 
-	/* determine number of lines and total number of VBI bytes.
-	   A raw line takes 1444 bytes: 4 byte SAV code + 2 * 720
-	   A sliced line takes 51 bytes: 4 byte frame header, 4 byte internal
-	   header, 42 data bytes + checksum (to be confirmed) */
 	if (raw) {
 		lines = cx->vbi.count * 2;
 	} else {
@@ -361,24 +357,53 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 			lines += 2;
 	}
 
-	cx->vbi.enc_size = lines *
-		(raw ? cx->vbi.raw_size : cx->vbi.sliced_size);
-
 	data[0] = s->handle;
 	/* Lines per field */
 	data[1] = (lines / 2) | ((lines / 2) << 16);
 	/* bytes per line */
-	data[2] = (raw ? cx->vbi.raw_decoder_line_size
-		       : cx->vbi.sliced_decoder_line_size);
+	data[2] = (raw ? vbi_active_samples
+		       : (cx->is_60hz ? vbi_hblank_samples_60Hz
+				      : vbi_hblank_samples_50Hz));
 	/* Every X number of frames a VBI interrupt arrives
 	   (frames as in 25 or 30 fps) */
 	data[3] = 1;
-	/* Setup VBI for the cx25840 digitizer */
+	/*
+	 * Set the SAV/EAV RP codes to look for as start/stop points
+	 * when in VIP-1.1 mode
+	 */
 	if (raw) {
+		/*
+		 * Start codes for beginning of "active" line in vertical blank
+		 * 0x20 (               VerticalBlank                )
+		 * 0x60 (     EvenField VerticalBlank                )
+		 */
 		data[4] = 0x20602060;
+		/*
+		 * End codes for end of "active" raw lines and regular lines
+		 * 0x30 (               VerticalBlank HorizontalBlank)
+		 * 0x70 (     EvenField VerticalBlank HorizontalBlank)
+		 * 0x90 (Task                         HorizontalBlank)
+		 * 0xd0 (Task EvenField               HorizontalBlank)
+		 */
 		data[5] = 0x307090d0;
 	} else {
+		/*
+		 * End codes for active video, we want data in the hblank region
+		 * 0xb0 (Task         0 VerticalBlank HorizontalBlank)
+		 * 0xf0 (Task EvenField VerticalBlank HorizontalBlank)
+		 *
+		 * Since the V bit is only allowed to toggle in the EAV RP code,
+		 * just before the first active region line, these two
+		 * are problematic and we have to ignore them:
+		 * 0x90 (Task                         HorizontalBlank)
+		 * 0xd0 (Task EvenField               HorizontalBlank)
+		 */
 		data[4] = 0xB0F0B0F0;
+		/*
+		 * Start codes for beginning of active line in vertical blank
+		 * 0xa0 (Task           VerticalBlank                )
+		 * 0xe0 (Task EvenField VerticalBlank                )
+		 */
 		data[5] = 0xA0E0A0E0;
 	}
 
