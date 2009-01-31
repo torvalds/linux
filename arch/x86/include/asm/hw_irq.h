@@ -84,16 +84,6 @@ extern atomic_t irq_mis_count;
 /* EISA */
 extern void eisa_set_level_irq(unsigned int irq);
 
-/* Voyager functions */
-extern asmlinkage void vic_cpi_interrupt(void);
-extern asmlinkage void vic_sys_interrupt(void);
-extern asmlinkage void vic_cmn_interrupt(void);
-extern asmlinkage void qic_timer_interrupt(void);
-extern asmlinkage void qic_invalidate_interrupt(void);
-extern asmlinkage void qic_reschedule_interrupt(void);
-extern asmlinkage void qic_enable_irq_interrupt(void);
-extern asmlinkage void qic_call_function_interrupt(void);
-
 /* SMP */
 extern void smp_apic_timer_interrupt(struct pt_regs *);
 extern void smp_spurious_interrupt(struct pt_regs *);
