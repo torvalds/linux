@@ -67,6 +67,12 @@ extern int __cpu_up(unsigned int cpunum);
 extern void smp_cpus_done(unsigned int max_cpus);
 
 /*
+ * Callback to arch code if there's nosmp or maxcpus=0 on the
+ * boot command line:
+ */
+extern void arch_disable_smp_support(void);
+
+/*
  * Call a function on all other processors
  */
 int smp_call_function(void(*func)(void *info), void *info, int wait);

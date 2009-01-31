@@ -1138,9 +1138,7 @@ void __cpuinit setup_local_APIC(void)
 	int i, j;
 
 	if (disable_apic) {
-#ifdef CONFIG_X86_IO_APIC
-		disable_ioapic_setup();
-#endif
+		arch_disable_smp_support();
 		return;
 	}
 
