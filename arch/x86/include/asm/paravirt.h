@@ -1524,8 +1524,8 @@ extern struct paravirt_patch_site __parainstructions[],
 #define PV_RESTORE_REGS "popl %edx; popl %ecx;"
 
 /* save and restore all caller-save registers, except return value */
-#define PV_SAVE_ALL_CALLER_REGS PV_SAVE_REGS
-#define PV_RESTORE_ALL_CALLER_REGS PV_RESTORE_REGS
+#define PV_SAVE_ALL_CALLER_REGS		"pushl %ecx;"
+#define PV_RESTORE_ALL_CALLER_REGS	"popl  %ecx;"
 
 #define PV_FLAGS_ARG "0"
 #define PV_EXTRA_CLOBBERS
