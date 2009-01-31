@@ -124,7 +124,13 @@
 
 #define	FIRST_VM86_IRQ			   3
 #define LAST_VM86_IRQ			  15
-#define invalid_vm86_irq(irq)		((irq) < 3 || (irq) > 15)
+
+#ifndef __ASSEMBLY__
+static inline int invalid_vm86_irq(int irq)
+{
+	return irq < 3 || irq > 15;
+}
+#endif
 
 /*
  * Size the maximum number of interrupts.
