@@ -1820,8 +1820,6 @@ static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)
 		else if (!(qc->flags & ATA_QCFLAG_ACTIVE))
 			qc = NULL;
 	}
-	if (qc && (qc->tf.flags & ATA_TFLAG_POLLING))
-		qc = NULL;
 	return qc;
 }
 
