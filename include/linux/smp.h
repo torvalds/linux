@@ -67,12 +67,6 @@ extern int __cpu_up(unsigned int cpunum);
 extern void smp_cpus_done(unsigned int max_cpus);
 
 /*
- * Callback to arch code if there's nosmp or maxcpus=0 on the
- * boot command line:
- */
-extern void arch_disable_smp_support(void);
-
-/*
  * Call a function on all other processors
  */
 int smp_call_function(void(*func)(void *info), void *info, int wait);
@@ -181,6 +175,12 @@ static inline void init_call_single_data(void)
 #define get_cpu()		({ preempt_disable(); smp_processor_id(); })
 #define put_cpu()		preempt_enable()
 #define put_cpu_no_resched()	preempt_enable_no_resched()
+
+/*
+ * Callback to arch code if there's nosmp or maxcpus=0 on the
+ * boot command line:
+ */
+extern void arch_disable_smp_support(void);
 
 void smp_setup_processor_id(void);
 
