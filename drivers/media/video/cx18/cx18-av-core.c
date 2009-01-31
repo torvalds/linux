@@ -680,19 +680,45 @@ static int set_v4lfmt(struct cx18 *cx, struct v4l2_format *fmt)
 
 /* ----------------------------------------------------------------------- */
 
+static int valid_av_cmd(unsigned int cmd)
+{
+	switch (cmd) {
+		/* All commands supported by cx18_av_cmd() */
+		case VIDIOC_INT_DECODE_VBI_LINE:
+		case VIDIOC_INT_AUDIO_CLOCK_FREQ:
+		case VIDIOC_STREAMON:
+		case VIDIOC_STREAMOFF:
+		case VIDIOC_LOG_STATUS:
+		case VIDIOC_G_CTRL:
+		case VIDIOC_S_CTRL:
+		case VIDIOC_QUERYCTRL:
+		case VIDIOC_G_STD:
+		case VIDIOC_S_STD:
+		case AUDC_SET_RADIO:
+		case VIDIOC_INT_G_VIDEO_ROUTING:
+		case VIDIOC_INT_S_VIDEO_ROUTING:
+		case VIDIOC_INT_G_AUDIO_ROUTING:
+		case VIDIOC_INT_S_AUDIO_ROUTING:
+		case VIDIOC_S_FREQUENCY:
+		case VIDIOC_G_TUNER:
+		case VIDIOC_S_TUNER:
+		case VIDIOC_G_FMT:
+		case VIDIOC_S_FMT:
+		case VIDIOC_INT_RESET:
+			return 1;
+		default:
+			return 0;
+	}
+	return 0;
+}
+
 int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg)
 {
 	struct cx18_av_state *state = &cx->av_state;
 	struct v4l2_tuner *vt = arg;
 	struct v4l2_routing *route = arg;
 
-	/* ignore these commands */
-	switch (cmd) {
-	case TUNER_SET_TYPE_ADDR:
-		return 0;
-	}
-
-	if (!state->is_initialized) {
+	if (!state->is_initialized && valid_av_cmd(cmd)) {
 		CX18_DEBUG_INFO("cmd %08x triggered fw load\n", cmd);
 		/* initialize on first use */
 		state->is_initialized = 1;
