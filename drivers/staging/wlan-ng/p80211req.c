@@ -53,8 +53,6 @@
 /*================================================================*/
 /* System Includes */
 
-
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -82,21 +80,6 @@
 #include "p80211metadef.h"
 #include "p80211metastruct.h"
 #include "p80211req.h"
-
-/*================================================================*/
-/* Local Constants */
-
-/* Maximum amount of time we'll wait for a request to complete */
-#define P80211REQ_MAXTIME	3*HZ	/* 3 seconds */
-
-/*================================================================*/
-/* Local Macros */
-
-/*================================================================*/
-/* Local Types */
-
-/*================================================================*/
-/* Local Static Definitions */
 
 /*================================================================*/
 /* Local Function Declarations */
@@ -287,4 +270,3 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 
 	return 0;
 }
-
