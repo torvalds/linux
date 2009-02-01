@@ -154,9 +154,9 @@ static void __init smp_intr_init(void)
 
 static void __init apic_intr_init(void)
 {
-#ifdef CONFIG_X86_LOCAL_APIC
 	smp_intr_init();
 
+#ifdef CONFIG_X86_LOCAL_APIC
 	/* self generated IPI for local APIC timer */
 	alloc_intr_gate(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
 
