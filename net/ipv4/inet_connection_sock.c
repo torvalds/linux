@@ -119,7 +119,7 @@ again:
 					    (tb->num_owners < smallest_size || smallest_size == -1)) {
 						smallest_size = tb->num_owners;
 						smallest_rover = rover;
-						if (hashinfo->bsockets > (high - low) + 1) {
+						if (atomic_read(&hashinfo->bsockets) > (high - low) + 1) {
 							spin_unlock(&head->lock);
 							snum = smallest_rover;
 							goto have_snum;

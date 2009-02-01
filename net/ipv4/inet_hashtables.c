@@ -62,7 +62,7 @@ void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
 
-	hashinfo->bsockets++;
+	atomic_inc(&hashinfo->bsockets);
 
 	inet_sk(sk)->num = snum;
 	sk_add_bind_node(sk, &tb->owners);
@@ -81,7 +81,7 @@ static void __inet_put_port(struct sock *sk)
 	struct inet_bind_hashbucket *head = &hashinfo->bhash[bhash];
 	struct inet_bind_bucket *tb;
 
-	hashinfo->bsockets--;
+	atomic_dec(&hashinfo->bsockets);
 
 	spin_lock(&head->lock);
 	tb = inet_csk(sk)->icsk_bind_hash;
@@ -532,6 +532,7 @@ void inet_hashinfo_init(struct inet_hashinfo *h)
 {
 	int i;
 
+	atomic_set(&h->bsockets, 0);
 	for (i = 0; i < INET_LHTABLE_SIZE; i++) {
 		spin_lock_init(&h->listening_hash[i].lock);
 		INIT_HLIST_NULLS_HEAD(&h->listening_hash[i].head,

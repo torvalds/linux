@@ -134,7 +134,7 @@ struct inet_hashinfo {
 	struct inet_bind_hashbucket	*bhash;
 
 	unsigned int			bhash_size;
-	int				bsockets;
+	/* 4 bytes hole on 64 bit */
 
 	struct kmem_cache		*bind_bucket_cachep;
 
@@ -151,6 +151,7 @@ struct inet_hashinfo {
 	struct inet_listen_hashbucket	listening_hash[INET_LHTABLE_SIZE]
 					____cacheline_aligned_in_smp;
 
+	atomic_t			bsockets;
 };
 
 static inline struct inet_ehash_bucket *inet_ehash_bucket(
