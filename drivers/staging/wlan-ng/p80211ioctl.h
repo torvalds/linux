@@ -78,18 +78,6 @@
 
 #define P80211_IOCTL_MAGIC	(0x4a2d464dUL)
 
-/*----------------------------------------------------------------*/
-/* Netlink protocol numbers for the indication interface */
-
-#define P80211_NL_SOCK_IND	NETLINK_USERSOCK
-
-/*----------------------------------------------------------------*/
-/* Netlink multicast bits for different types of messages */
-
-#define P80211_NL_MCAST_GRP_MLME	BIT(0)	/* Local station messages */
-#define P80211_NL_MCAST_GRP_SNIFF	BIT(1)	/* Sniffer messages */
-#define P80211_NL_MCAST_GRP_DIST	BIT(2)	/* Distribution system messages */
-
 /*================================================================*/
 /* Types */
 
@@ -106,14 +94,5 @@ typedef struct p80211ioctl_req
 	u16	len;
 	u32	result;
 } __attribute__((packed)) p80211ioctl_req_t;
-
-
-/*================================================================*/
-/* Extern Declarations */
-
-
-/*================================================================*/
-/* Function Declarations */
-
 
 #endif /* _P80211IOCTL_H */
