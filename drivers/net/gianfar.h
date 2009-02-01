@@ -830,4 +830,6 @@ int gfar_local_mdio_write(struct gfar_mii __iomem *regs, int mii_id,
 			  int regnum, u16 value);
 int gfar_local_mdio_read(struct gfar_mii __iomem *regs, int mii_id, int regnum);
 
+extern const struct ethtool_ops gfar_ethtool_ops;
+
 #endif /* __GIANFAR_H */

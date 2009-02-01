@@ -105,7 +105,7 @@ int gfar_local_mdio_read(struct gfar_mii __iomem *regs, int mii_id, int regnum)
  * All PHY configuration is done through the TSEC1 MIIM regs */
 int gfar_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value)
 {
-	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
+	struct gfar_mii __iomem *regs = (void __force __iomem *)bus->priv;
 
 	/* Write to the local MII regs */
 	return(gfar_local_mdio_write(regs, mii_id, regnum, value));
@@ -116,7 +116,7 @@ int gfar_mdio_write(struct mii_bus *bus, int mii_id, int regnum, u16 value)
  * configuration has to be done through the TSEC1 MIIM regs */
 int gfar_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
-	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
+	struct gfar_mii __iomem *regs = (void __force __iomem *)bus->priv;
 
 	/* Read the local MII regs */
 	return(gfar_local_mdio_read(regs, mii_id, regnum));
@@ -125,7 +125,7 @@ int gfar_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 /* Reset the MIIM registers, and wait for the bus to free */
 static int gfar_mdio_reset(struct mii_bus *bus)
 {
-	struct gfar_mii __iomem *regs = (void __iomem *)bus->priv;
+	struct gfar_mii __iomem *regs = (void __force __iomem *)bus->priv;
 	unsigned int timeout = PHY_INIT_TIMEOUT;
 
 	mutex_lock(&bus->mdio_lock);
@@ -268,8 +268,8 @@ static int gfar_mdio_probe(struct of_device *ofdev,
 	 * Also, we have to cast back to struct gfar_mii because of
 	 * definition weirdness done in gianfar.h.
 	 */
-	enet_regs = (struct gfar __iomem *)
-		((char *)regs - offsetof(struct gfar, gfar_mii_regs));
+	enet_regs = (struct gfar __force __iomem *)
+		((char __force *)regs - offsetof(struct gfar, gfar_mii_regs));
 
 	for_each_child_of_node(np, tbi) {
 		if (!strncmp(tbi->type, "tbi-phy", 8))
@@ -337,7 +337,7 @@ static int gfar_mdio_remove(struct of_device *ofdev)
 
 	dev_set_drvdata(&ofdev->dev, NULL);
 
-	iounmap((void __iomem *)bus->priv);
+	iounmap((void __force __iomem *)bus->priv);
 	bus->priv = NULL;
 	kfree(bus->irq);
 	mdiobus_free(bus);
