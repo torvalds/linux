@@ -436,11 +436,16 @@ static struct ata_port_operations nv_nf2_ops = {
 	.hardreset		= nv_noclassify_hardreset,
 };
 
-/* CK804 finally gets hardreset right */
+/* For initial probing after boot and hot plugging, hardreset mostly
+ * works fine on CK804 but curiously, reprobing on the initial port by
+ * rescanning or rmmod/insmod fails to acquire the initial D2H Reg FIS
+ * in somewhat undeterministic way.  Use noclassify hardreset.
+ */
 static struct ata_port_operations nv_ck804_ops = {
 	.inherits		= &nv_common_ops,
 	.freeze			= nv_ck804_freeze,
 	.thaw			= nv_ck804_thaw,
+	.hardreset		= nv_noclassify_hardreset,
 	.host_stop		= nv_ck804_host_stop,
 };
 
