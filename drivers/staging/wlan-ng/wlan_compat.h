@@ -61,33 +61,6 @@
 #define WLAN_LOG_DEBUG(l, s, args...)
 
 /*=============================================================*/
-/*--- General Macros ------------------------------------------*/
-/*=============================================================*/
-
-#define wlan_hexchar(x) (((x) < 0x0a) ? ('0' + (x)) : ('a' + ((x) - 0x0a)))
-
-/* Create a string of printable chars from something that might not be */
-/* It's recommended that the str be 4*len + 1 bytes long */
-#define wlan_mkprintstr(buf, buflen, str, strlen) \
-{ \
-	int i = 0; \
-	int j = 0; \
-	memset(str, 0, (strlen)); \
-	for (i = 0; i < (buflen); i++) { \
-		if ( isprint((buf)[i]) ) { \
-			(str)[j] = (buf)[i]; \
-			j++; \
-		} else { \
-			(str)[j] = '\\'; \
-			(str)[j+1] = 'x'; \
-			(str)[j+2] = wlan_hexchar(((buf)[i] & 0xf0) >> 4); \
-			(str)[j+3] = wlan_hexchar(((buf)[i] & 0x0f)); \
-			j += 4; \
-		} \
-	} \
-}
-
-/*=============================================================*/
 /*--- Variables -----------------------------------------------*/
 /*=============================================================*/
 
