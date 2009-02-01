@@ -35,6 +35,7 @@
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <linux/rbtree.h>
+#include <linux/workqueue.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 
@@ -156,6 +157,7 @@ struct htb_sched {
 
 #define HTB_WARN_TOOMANYEVENTS	0x1
 	unsigned int warned;	/* only one warning */
+	struct work_struct work;
 };
 
 /* find class in global hash table using given handle */
@@ -659,7 +661,7 @@ static void htb_charge_class(struct htb_sched *q, struct htb_class *cl,
  * htb_do_events - make mode changes to classes at the level
  *
  * Scans event queue for pending events and applies them. Returns time of
- * next pending event (0 for no event in pq).
+ * next pending event (0 for no event in pq, q->now for too many events).
  * Note: Applied are events whose have cl->pq_key <= q->now.
  */
 static psched_time_t htb_do_events(struct htb_sched *q, int level,
@@ -687,12 +689,14 @@ static psched_time_t htb_do_events(struct htb_sched *q, int level,
 		if (cl->cmode != HTB_CAN_SEND)
 			htb_add_to_wait_tree(q, cl, diff);
 	}
-	/* too much load - let's continue on next jiffie (including above) */
+
+	/* too much load - let's continue after a break for scheduling */
 	if (!(q->warned & HTB_WARN_TOOMANYEVENTS)) {
 		printk(KERN_WARNING "htb: too many events!\n");
 		q->warned |= HTB_WARN_TOOMANYEVENTS;
 	}
-	return q->now + 2 * PSCHED_TICKS_PER_SEC / HZ;
+
+	return q->now;
 }
 
 /* Returns class->node+prio from id-tree where classe's id is >= id. NULL
@@ -892,7 +896,10 @@ static struct sk_buff *htb_dequeue(struct Qdisc *sch)
 		}
 	}
 	sch->qstats.overlimits++;
-	qdisc_watchdog_schedule(&q->watchdog, next_event);
+	if (likely(next_event > q->now))
+		qdisc_watchdog_schedule(&q->watchdog, next_event);
+	else
+		schedule_work(&q->work);
 fin:
 	return skb;
 }
@@ -962,6 +969,14 @@ static const struct nla_policy htb_policy[TCA_HTB_MAX + 1] = {
 	[TCA_HTB_RTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
 };
 
+static void htb_work_func(struct work_struct *work)
+{
+	struct htb_sched *q = container_of(work, struct htb_sched, work);
+	struct Qdisc *sch = q->watchdog.qdisc;
+
+	__netif_schedule(qdisc_root(sch));
+}
+
 static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct htb_sched *q = qdisc_priv(sch);
@@ -996,6 +1011,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 		INIT_LIST_HEAD(q->drops + i);
 
 	qdisc_watchdog_init(&q->watchdog, sch);
+	INIT_WORK(&q->work, htb_work_func);
 	skb_queue_head_init(&q->direct_queue);
 
 	q->direct_qlen = qdisc_dev(sch)->tx_queue_len;
@@ -1188,7 +1204,6 @@ static void htb_destroy_class(struct Qdisc *sch, struct htb_class *cl)
 	kfree(cl);
 }
 
-/* always caled under BH & queue lock */
 static void htb_destroy(struct Qdisc *sch)
 {
 	struct htb_sched *q = qdisc_priv(sch);
@@ -1196,6 +1211,7 @@ static void htb_destroy(struct Qdisc *sch)
 	struct htb_class *cl;
 	unsigned int i;
 
+	cancel_work_sync(&q->work);
 	qdisc_watchdog_cancel(&q->watchdog);
 	/* This line used to be after htb_destroy_class call below
 	   and surprisingly it worked in 2.4. But it must precede it
