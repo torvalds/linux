@@ -3042,7 +3042,6 @@ int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb, p80211_hdr_t *p8021
 	/* if we're using host WEP, increase size by IV+ICV */
 	if (p80211_wep->data) {
 		hw->txbuff.txfrm.desc.data_len = host2hfa384x_16(skb->len+8);
-		// hw->txbuff.txfrm.desc.tx_control |= HFA384x_TX_NOENCRYPT_SET(1);
 		usbpktlen+=8;
 	} else {
 		hw->txbuff.txfrm.desc.data_len = host2hfa384x_16(skb->len);
