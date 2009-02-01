@@ -25,6 +25,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -525,6 +526,31 @@ static struct platform_device pasic3 = {
 };
 
 /*
+ * USB "Transceiver"
+ */
+
+static struct resource gpio_vbus_resource = {
+	.flags = IORESOURCE_IRQ,
+	.start = IRQ_MAGICIAN_VBUS,
+	.end   = IRQ_MAGICIAN_VBUS,
+};
+
+static struct gpio_vbus_mach_info gpio_vbus_info = {
+	.gpio_pullup = GPIO27_MAGICIAN_USBC_PUEN,
+	.gpio_vbus   = EGPIO_MAGICIAN_CABLE_STATE_USB,
+};
+
+static struct platform_device gpio_vbus = {
+	.name          = "gpio-vbus",
+	.id            = -1,
+	.num_resources = 1,
+	.resource      = &gpio_vbus_resource,
+	.dev = {
+		.platform_data = &gpio_vbus_info,
+	},
+};
+
+/*
  * External power
  */
 
@@ -601,14 +627,14 @@ static struct resource power_supply_resources[] = {
 	[0] = {
 		.name  = "ac",
 		.flags = IORESOURCE_IRQ,
-		.start = IRQ_MAGICIAN_AC,
-		.end   = IRQ_MAGICIAN_AC,
+		.start = IRQ_MAGICIAN_VBUS,
+		.end   = IRQ_MAGICIAN_VBUS,
 	},
 	[1] = {
 		.name  = "usb",
 		.flags = IORESOURCE_IRQ,
-		.start = IRQ_MAGICIAN_AC,
-		.end   = IRQ_MAGICIAN_AC,
+		.start = IRQ_MAGICIAN_VBUS,
+		.end   = IRQ_MAGICIAN_VBUS,
 	},
 };
 
@@ -732,6 +758,7 @@ static struct platform_device *devices[] __initdata = {
 	&egpio,
 	&backlight,
 	&pasic3,
+	&gpio_vbus,
 	&power_supply,
 	&strataflash,
 	&leds_gpio,
