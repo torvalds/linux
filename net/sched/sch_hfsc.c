@@ -887,8 +887,7 @@ qdisc_peek_len(struct Qdisc *sch)
 
 	skb = sch->ops->peek(sch);
 	if (skb == NULL) {
-		if (net_ratelimit())
-			printk("qdisc_peek_len: non work-conserving qdisc ?\n");
+		qdisc_warn_nonwc("qdisc_peek_len", sch);
 		return 0;
 	}
 	len = qdisc_pkt_len(skb);
@@ -1642,8 +1641,7 @@ hfsc_dequeue(struct Qdisc *sch)
 
 	skb = qdisc_dequeue_peeked(cl->qdisc);
 	if (skb == NULL) {
-		if (net_ratelimit())
-			printk("HFSC: Non-work-conserving qdisc ?\n");
+		qdisc_warn_nonwc("HFSC", cl->qdisc);
 		return NULL;
 	}
 

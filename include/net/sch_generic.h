@@ -42,9 +42,10 @@ struct Qdisc
 	int 			(*enqueue)(struct sk_buff *skb, struct Qdisc *dev);
 	struct sk_buff *	(*dequeue)(struct Qdisc *dev);
 	unsigned		flags;
-#define TCQ_F_BUILTIN	1
-#define TCQ_F_THROTTLED	2
-#define TCQ_F_INGRESS	4
+#define TCQ_F_BUILTIN		1
+#define TCQ_F_THROTTLED		2
+#define TCQ_F_INGRESS		4
+#define TCQ_F_WARN_NONWC	(1 << 16)
 	int			padded;
 	struct Qdisc_ops	*ops;
 	struct qdisc_size_table	*stab;

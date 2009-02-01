@@ -114,8 +114,6 @@ struct htb_class {
 	struct tcf_proto *filter_list;
 	int filter_cnt;
 
-	int warned;		/* only one warning about non work conserving .. */
-
 	/* token bucket parameters */
 	struct qdisc_rate_table *rate;	/* rate table of the class itself */
 	struct qdisc_rate_table *ceil;	/* ceiling rate (limits borrows too) */
@@ -809,13 +807,8 @@ next:
 		skb = cl->un.leaf.q->dequeue(cl->un.leaf.q);
 		if (likely(skb != NULL))
 			break;
-		if (!cl->warned) {
-			printk(KERN_WARNING
-			       "htb: class %X isn't work conserving ?!\n",
-			       cl->common.classid);
-			cl->warned = 1;
-		}
 
+		qdisc_warn_nonwc("htb", cl->un.leaf.q);
 		htb_next_rb_node((level ? cl->parent->un.inner.ptr : q->
 				  ptr[0]) + prio);
 		cl = htb_lookup_leaf(q->row[level] + prio, prio,
