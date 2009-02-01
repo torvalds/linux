@@ -828,7 +828,7 @@ static int can_notifier(struct notifier_block *nb, unsigned long msg,
  */
 
 static struct packet_type can_packet __read_mostly = {
-	.type = __constant_htons(ETH_P_CAN),
+	.type = cpu_to_be16(ETH_P_CAN),
 	.dev  = NULL,
 	.func = can_rcv,
 };

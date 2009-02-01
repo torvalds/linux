@@ -890,7 +890,7 @@ out_unlock:
 }
 
 static struct packet_type ipv6_packet_type = {
-	.type = __constant_htons(ETH_P_IPV6),
+	.type = cpu_to_be16(ETH_P_IPV6),
 	.func = ipv6_rcv,
 	.gso_send_check = ipv6_gso_send_check,
 	.gso_segment = ipv6_gso_segment,

@@ -514,12 +514,12 @@ out:
 }
 
 static struct packet_type pppoes_ptype = {
-	.type	= __constant_htons(ETH_P_PPP_SES),
+	.type	= cpu_to_be16(ETH_P_PPP_SES),
 	.func	= pppoe_rcv,
 };
 
 static struct packet_type pppoed_ptype = {
-	.type	= __constant_htons(ETH_P_PPP_DISC),
+	.type	= cpu_to_be16(ETH_P_PPP_DISC),
 	.func	= pppoe_disc_rcv,
 };
 
@@ -877,7 +877,7 @@ static int pppoe_sendmsg(struct kiocb *iocb, struct socket *sock,
 	skb->dev = dev;
 
 	skb->priority = sk->sk_priority;
-	skb->protocol = __constant_htons(ETH_P_PPP_SES);
+	skb->protocol = cpu_to_be16(ETH_P_PPP_SES);
 
 	ph = (struct pppoe_hdr *)skb_put(skb, total_len + sizeof(struct pppoe_hdr));
 	start = (char *)&ph->tag[0];
@@ -937,7 +937,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	ph->sid	= po->num;
 	ph->length = htons(data_len);
 
-	skb->protocol = __constant_htons(ETH_P_PPP_SES);
+	skb->protocol = cpu_to_be16(ETH_P_PPP_SES);
 	skb->dev = dev;
 
 	dev_hard_header(skb, dev, ETH_P_PPP_SES,

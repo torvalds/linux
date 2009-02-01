@@ -1986,7 +1986,7 @@ static const struct proto_ops ax25_proto_ops = {
  *	Called by socket.c on kernel start up
  */
 static struct packet_type ax25_packet_type = {
-	.type	=	__constant_htons(ETH_P_AX25),
+	.type	=	cpu_to_be16(ETH_P_AX25),
 	.dev	=	NULL,				/* All devices */
 	.func	=	ax25_kiss_rcv,
 };

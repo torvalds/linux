@@ -748,7 +748,7 @@ static int myri_rebuild_header(struct sk_buff *skb)
 	switch (eth->h_proto)
 	{
 #ifdef CONFIG_INET
-	case __constant_htons(ETH_P_IP):
+	case cpu_to_be16(ETH_P_IP):
  		return arp_find(eth->h_dest, skb);
 #endif
 

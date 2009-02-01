@@ -394,7 +394,7 @@ static int mv88e6123_61_65_get_sset_count(struct dsa_switch *ds)
 }
 
 static struct dsa_switch_driver mv88e6123_61_65_switch_driver = {
-	.tag_protocol		= __constant_htons(ETH_P_EDSA),
+	.tag_protocol		= cpu_to_be16(ETH_P_EDSA),
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
 	.probe			= mv88e6123_61_65_probe,
 	.setup			= mv88e6123_61_65_setup,

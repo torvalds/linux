@@ -745,7 +745,7 @@ static inline struct sk_buff *gelic_put_vlan_tag(struct sk_buff *skb,
 	/* Move the mac addresses to the top of buffer */
 	memmove(skb->data, skb->data + VLAN_HLEN, 2 * ETH_ALEN);
 
-	veth->h_vlan_proto = __constant_htons(ETH_P_8021Q);
+	veth->h_vlan_proto = cpu_to_be16(ETH_P_8021Q);
 	veth->h_vlan_TCI = htons(tag);
 
 	return skb;

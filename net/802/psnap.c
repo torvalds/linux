@@ -51,7 +51,7 @@ static int snap_rcv(struct sk_buff *skb, struct net_device *dev,
 	int rc = 1;
 	struct datalink_proto *proto;
 	static struct packet_type snap_packet_type = {
-		.type = __constant_htons(ETH_P_SNAP),
+		.type = cpu_to_be16(ETH_P_SNAP),
 	};
 
 	if (unlikely(!pskb_may_pull(skb, 5)))

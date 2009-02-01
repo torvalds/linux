@@ -100,11 +100,11 @@ int sctp_chunk_iif(const struct sctp_chunk *chunk)
  */
 static const struct sctp_paramhdr ecap_param = {
 	SCTP_PARAM_ECN_CAPABLE,
-	__constant_htons(sizeof(struct sctp_paramhdr)),
+	cpu_to_be16(sizeof(struct sctp_paramhdr)),
 };
 static const struct sctp_paramhdr prsctp_param = {
 	SCTP_PARAM_FWD_TSN_SUPPORT,
-	__constant_htons(sizeof(struct sctp_paramhdr)),
+	cpu_to_be16(sizeof(struct sctp_paramhdr)),
 };
 
 /* A helper to initialize to initialize an op error inside a

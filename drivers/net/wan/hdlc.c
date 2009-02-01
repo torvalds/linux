@@ -349,7 +349,7 @@ EXPORT_SYMBOL(attach_hdlc_protocol);
 EXPORT_SYMBOL(detach_hdlc_protocol);
 
 static struct packet_type hdlc_packet_type = {
-	.type = __constant_htons(ETH_P_HDLC),
+	.type = cpu_to_be16(ETH_P_HDLC),
 	.func = hdlc_rcv,
 };
 

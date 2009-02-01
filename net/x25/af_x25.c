@@ -1609,7 +1609,7 @@ static const struct proto_ops SOCKOPS_WRAPPED(x25_proto_ops) = {
 SOCKOPS_WRAP(x25_proto, AF_X25);
 
 static struct packet_type x25_packet_type = {
-	.type =	__constant_htons(ETH_P_X25),
+	.type =	cpu_to_be16(ETH_P_X25),
 	.func =	x25_lapb_receive_frame,
 };
 

@@ -383,7 +383,7 @@ out:
 }
 
 static struct packet_type phonet_packet_type = {
-	.type = __constant_htons(ETH_P_PHONET),
+	.type = cpu_to_be16(ETH_P_PHONET),
 	.dev = NULL,
 	.func = phonet_rcv,
 };

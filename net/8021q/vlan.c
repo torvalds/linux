@@ -52,7 +52,7 @@ static const char vlan_copyright[] = "Ben Greear <greearb@candelatech.com>";
 static const char vlan_buggyright[] = "David S. Miller <davem@redhat.com>";
 
 static struct packet_type vlan_packet_type = {
-	.type = __constant_htons(ETH_P_8021Q),
+	.type = cpu_to_be16(ETH_P_8021Q),
 	.func = vlan_skb_recv, /* VLAN receive method */
 };
 

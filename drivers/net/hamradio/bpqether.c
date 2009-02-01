@@ -97,7 +97,7 @@ static int bpq_rcv(struct sk_buff *, struct net_device *, struct packet_type *, 
 static int bpq_device_event(struct notifier_block *, unsigned long, void *);
 
 static struct packet_type bpq_packet_type = {
-	.type	= __constant_htons(ETH_P_BPQ),
+	.type	= cpu_to_be16(ETH_P_BPQ),
 	.func	= bpq_rcv,
 };
 

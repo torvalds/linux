@@ -148,12 +148,12 @@ void llc_sap_close(struct llc_sap *sap)
 }
 
 static struct packet_type llc_packet_type = {
-	.type = __constant_htons(ETH_P_802_2),
+	.type = cpu_to_be16(ETH_P_802_2),
 	.func = llc_rcv,
 };
 
 static struct packet_type llc_tr_packet_type = {
-	.type = __constant_htons(ETH_P_TR_802_2),
+	.type = cpu_to_be16(ETH_P_TR_802_2),
 	.func = llc_rcv,
 };
 

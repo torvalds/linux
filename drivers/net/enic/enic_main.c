@@ -570,11 +570,11 @@ static inline void enic_queue_wq_skb_tso(struct enic *enic,
 	 * to each TCP segment resulting from the TSO.
 	 */
 
-	if (skb->protocol == __constant_htons(ETH_P_IP)) {
+	if (skb->protocol == cpu_to_be16(ETH_P_IP)) {
 		ip_hdr(skb)->check = 0;
 		tcp_hdr(skb)->check = ~csum_tcpudp_magic(ip_hdr(skb)->saddr,
 			ip_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
-	} else if (skb->protocol == __constant_htons(ETH_P_IPV6)) {
+	} else if (skb->protocol == cpu_to_be16(ETH_P_IPV6)) {
 		tcp_hdr(skb)->check = ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 			&ipv6_hdr(skb)->daddr, 0, IPPROTO_TCP, 0);
 	}

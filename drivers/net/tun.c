@@ -543,7 +543,7 @@ static struct sk_buff *tun_alloc_skb(size_t prepad, size_t len, size_t linear,
 /* Get packet from user space buffer */
 static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv, size_t count)
 {
-	struct tun_pi pi = { 0, __constant_htons(ETH_P_IP) };
+	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
 	size_t len = count, align = 0;
 	struct virtio_net_hdr gso = { 0 };

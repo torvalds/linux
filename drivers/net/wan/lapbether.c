@@ -422,7 +422,7 @@ static int lapbeth_device_event(struct notifier_block *this,
 /* ------------------------------------------------------------------------ */
 
 static struct packet_type lapbeth_packet_type = {
-	.type = __constant_htons(ETH_P_DEC),
+	.type = cpu_to_be16(ETH_P_DEC),
 	.func = lapbeth_rcv,
 };
 

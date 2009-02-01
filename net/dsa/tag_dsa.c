@@ -176,7 +176,7 @@ out:
 }
 
 static struct packet_type dsa_packet_type = {
-	.type	= __constant_htons(ETH_P_DSA),
+	.type	= cpu_to_be16(ETH_P_DSA),
 	.func	= dsa_rcv,
 };
 

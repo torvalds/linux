@@ -1170,7 +1170,7 @@ static bool netxen_tso_check(struct net_device *netdev,
 	__be16 protocol = skb->protocol;
 	u16 flags = 0;
 
-	if (protocol == __constant_htons(ETH_P_8021Q)) {
+	if (protocol == cpu_to_be16(ETH_P_8021Q)) {
 		struct vlan_ethhdr *vh = (struct vlan_ethhdr *)skb->data;
 		protocol = vh->h_vlan_encapsulated_proto;
 		flags = FLAGS_VLAN_TAGGED;
@@ -1183,21 +1183,21 @@ static bool netxen_tso_check(struct net_device *netdev,
 		desc->total_hdr_length =
 			skb_transport_offset(skb) + tcp_hdrlen(skb);
 
-		opcode = (protocol == __constant_htons(ETH_P_IPV6)) ?
+		opcode = (protocol == cpu_to_be16(ETH_P_IPV6)) ?
 				TX_TCP_LSO6 : TX_TCP_LSO;
 		tso = true;
 
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		u8 l4proto;
 
-		if (protocol == __constant_htons(ETH_P_IP)) {
+		if (protocol == cpu_to_be16(ETH_P_IP)) {
 			l4proto = ip_hdr(skb)->protocol;
 
 			if (l4proto == IPPROTO_TCP)
 				opcode = TX_TCP_PKT;
 			else if(l4proto == IPPROTO_UDP)
 				opcode = TX_UDP_PKT;
-		} else if (protocol == __constant_htons(ETH_P_IPV6)) {
+		} else if (protocol == cpu_to_be16(ETH_P_IPV6)) {
 			l4proto = ipv6_hdr(skb)->nexthdr;
 
 			if (l4proto == IPPROTO_TCP)

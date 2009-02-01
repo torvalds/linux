@@ -56,7 +56,7 @@ EXPORT_SYMBOL(irda_debug);
  * Tell the kernel how IrDA packets should be handled.
  */
 static struct packet_type irda_packet_type = {
-	.type	= __constant_htons(ETH_P_IRDA),
+	.type	= cpu_to_be16(ETH_P_IRDA),
 	.func	= irlap_driver_rcv,	/* Packet type handler irlap_frame.c */
 };
 

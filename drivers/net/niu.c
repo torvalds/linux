@@ -6447,11 +6447,11 @@ static u64 niu_compute_tx_flags(struct sk_buff *skb, struct ethhdr *ehdr,
 
 	ipv6 = ihl = 0;
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case cpu_to_be16(ETH_P_IP):
 		ip_proto = ip_hdr(skb)->protocol;
 		ihl = ip_hdr(skb)->ihl;
 		break;
-	case __constant_htons(ETH_P_IPV6):
+	case cpu_to_be16(ETH_P_IPV6):
 		ip_proto = ipv6_hdr(skb)->nexthdr;
 		ihl = (40 >> 2);
 		ipv6 = 1;

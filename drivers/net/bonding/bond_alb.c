@@ -822,7 +822,7 @@ static int rlb_initialize(struct bonding *bond)
 	_unlock_rx_hashtbl(bond);
 
 	/*initialize packet type*/
-	pk_type->type = __constant_htons(ETH_P_ARP);
+	pk_type->type = cpu_to_be16(ETH_P_ARP);
 	pk_type->dev = NULL;
 	pk_type->func = rlb_arp_recv;
 
@@ -892,7 +892,7 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 	memset(&pkt, 0, size);
 	memcpy(pkt.mac_dst, mac_addr, ETH_ALEN);
 	memcpy(pkt.mac_src, mac_addr, ETH_ALEN);
-	pkt.type = __constant_htons(ETH_P_LOOP);
+	pkt.type = cpu_to_be16(ETH_P_LOOP);
 
 	for (i = 0; i < MAX_LP_BURST; i++) {
 		struct sk_buff *skb;
