@@ -379,11 +379,21 @@ static const u8 *sn_tb[] = {
 	sn_sp80708
 };
 
+/* default gamma table */
 static const u8 gamma_def[17] = {
 	0x00, 0x2d, 0x46, 0x5a, 0x6c, 0x7c, 0x8b, 0x99,
 	0xa6, 0xb2, 0xbf, 0xca, 0xd5, 0xe0, 0xeb, 0xf5, 0xff
 };
-
+/* gamma for sensors HV7131R and MT9V111 */
+static const u8 gamma_spec_1[17] = {
+	0x08, 0x3a, 0x52, 0x65, 0x75, 0x83, 0x91, 0x9d,
+	0xa9, 0xb4, 0xbe, 0xc8, 0xd2, 0xdb, 0xe4, 0xed, 0xf5
+};
+/* gamma for sensor SP80708 */
+static const u8 gamma_spec_2[17] = {
+	0x0a, 0x2d, 0x4e, 0x68, 0x7d, 0x8f, 0x9f, 0xab,
+	0xb7, 0xc2, 0xcc, 0xd3, 0xd8, 0xde, 0xe2, 0xe5, 0xe6
+};
 
 /* color matrix and offsets */
 static const u8 reg84[] = {
@@ -1514,14 +1524,27 @@ static void setgamma(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
 	u8 gamma[17];
+	const u8 *gamma_base;
 	static const u8 delta[17] = {
 		0x00, 0x14, 0x1c, 0x1c, 0x1c, 0x1c, 0x1b, 0x1a,
 		0x18, 0x13, 0x10, 0x0e, 0x08, 0x07, 0x04, 0x02, 0x00
 	};
 
+	switch (sd->sensor) {
+	case SENSOR_HV7131R:
+	case SENSOR_MT9V111:
+		gamma_base = gamma_spec_1;
+		break;
+	case SENSOR_SP80708:
+		gamma_base = gamma_spec_2;
+		break;
+	default:
+		gamma_base = gamma_def;
+		break;
+	}
 
 	for (i = 0; i < sizeof gamma; i++)
-		gamma[i] = gamma_def[i]
+		gamma[i] = gamma_base[i]
 			+ delta[i] * (sd->gamma - GAMMA_DEF) / 32;
 	reg_w(gspca_dev, 0x20, gamma, sizeof gamma);
 }
@@ -1608,6 +1631,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x07, sn9c1xx[7]);	/* green */
 	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);	/* blue */
 	reg_w1(gspca_dev, 0x14, sn9c1xx[0x14]);
+
 	setgamma(gspca_dev);
 
 	for (i = 0; i < 8; i++)
@@ -1702,7 +1726,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		sp80708_InitSensor(gspca_dev);
 		if (mode) {
 /*??			reg1 = 0x04;	 * 320 clk 48Mhz */
-			;
 		} else {
 			reg1 = 0x46;	 /* 640 clk 48Mz */
 			reg17 = 0xa2;
