@@ -1055,25 +1055,7 @@ int prism2mgmt_autojoin(wlandevice_t *wlandev, void *msgp)
         result = hfa384x_drvr_setconfig(
 			hw, HFA384x_RID_CNFDESIREDSSID,
 			bytebuf, HFA384x_RID_CNFDESIREDSSID_LEN);
-#if 0
-	/* we can use the new-fangled auto-unknown mode if the firmware
-	   is 1.3.3 or newer */
-	if (HFA384x_FIRMARE_VERSION(hw->ident_sta_fw.major,
-				    hw->ident_sta_fw.minor,
-				    hw->ident_sta_fw.variant) >=
-	    HFA384x_FIRMWARE_VERSION(1,3,3)) {
-		/* Set up the IBSS options */
-		reg =  HFA384x_CREATEIBSS_JOINESS_JOINCREATEIBSS;
-		hfa384x_drvr_setconfig16(hw, HFA384x_RID_CREATEIBSS, reg);
-
-		/* Set the PortType */
-		port_type = HFA384x_PORTTYPE_IBSS;
-	} else {
-		port_type = HFA384x_PORTTYPE_BSS;
-	}
-#else
 	port_type = HFA384x_PORTTYPE_BSS;
-#endif
 	/* Set the PortType */
 	hfa384x_drvr_setconfig16(hw, HFA384x_RID_CNFPORTTYPE, port_type);
 
