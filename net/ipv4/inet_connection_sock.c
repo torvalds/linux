@@ -172,7 +172,8 @@ tb_found:
 		} else {
 			ret = 1;
 			if (inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb)) {
-				if (sk->sk_reuse && sk->sk_state != TCP_LISTEN && --attempts >= 0) {
+				if (sk->sk_reuse && sk->sk_state != TCP_LISTEN &&
+				    smallest_size != -1 && --attempts >= 0) {
 					spin_unlock(&head->lock);
 					goto again;
 				}
