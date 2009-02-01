@@ -2560,8 +2560,6 @@ hfa384x_drvr_handover( hfa384x_t *hw, u8 *addr);
 int
 hfa384x_drvr_hostscanresults( hfa384x_t *hw);
 int
-hfa384x_drvr_low_level(hfa384x_t *hw, hfa384x_metacmd_t *cmd);
-int
 hfa384x_drvr_mmi_read(hfa384x_t *hw, u32 address, u32 *result);
 int
 hfa384x_drvr_mmi_write(hfa384x_t *hw, u32 address, u32 data);

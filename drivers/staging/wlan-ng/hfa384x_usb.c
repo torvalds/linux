@@ -2318,18 +2318,6 @@ printk(KERN_WARNING "dlbuf@0x%06lx len=%d to=%d\n", dlbufaddr, hw->bufinfo.len, 
 					writeoffset,
 					writebuf,
 					writelen );
-#if 0
-
-Comment out for debugging, assume the write was successful.
-			if (result) {
-				printk(KERN_ERR
-					"Write to dl buffer failed, "
-					"result=0x%04x. Aborting.\n",
-					result);
-				goto exit_proc;
-			}
-#endif
-
 		}
 
 		/* set the download 'write flash' mode */
@@ -2488,29 +2476,6 @@ int hfa384x_drvr_handover( hfa384x_t *hw, u8 *addr)
 {
 	printk(KERN_ERR "Not currently supported in USB!\n");
 	return -EIO;
-}
-
-/*----------------------------------------------------------------
-* hfa384x_drvr_low_level
-*
-* Write test commands to the card.  Some test commands don't make
-* sense without prior set-up.  For example, continous TX isn't very
-* useful until you set the channel.  That functionality should be
-*
-* Side effects:
-*
-* Call context:
-*      process thread
-* -----------------------------------------------------------------*/
-int hfa384x_drvr_low_level(hfa384x_t *hw, hfa384x_metacmd_t *cmd)
-{
-	int             result;
-
-	/* Do i need a host2hfa... conversion ? */
-
-	result = hfa384x_docmd_wait(hw, cmd);
-
-	return result;
 }
 
 /*----------------------------------------------------------------
