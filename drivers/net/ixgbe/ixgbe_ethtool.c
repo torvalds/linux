@@ -141,6 +141,14 @@ static int ixgbe_get_settings(struct net_device *netdev,
 				ADVERTISED_FIBRE);
 			ecmd->port = PORT_FIBRE;
 			break;
+		case IXGBE_DEV_ID_82598_BX:
+			ecmd->supported = (SUPPORTED_1000baseT_Full |
+					   SUPPORTED_FIBRE);
+			ecmd->advertising = (ADVERTISED_1000baseT_Full |
+					     ADVERTISED_FIBRE);
+			ecmd->port = PORT_FIBRE;
+			ecmd->autoneg = AUTONEG_DISABLE;
+			break;
 		}
 	} else {
 		ecmd->supported |= SUPPORTED_FIBRE;
