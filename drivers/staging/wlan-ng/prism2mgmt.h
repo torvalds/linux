@@ -75,10 +75,6 @@ u32
 prism2sta_ifstate(wlandevice_t *wlandev, u32 ifstate);
 
 void
-prism2sta_ev_dtim(wlandevice_t *wlandev);
-void
-prism2sta_ev_infdrop(wlandevice_t *wlandev);
-void
 prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf);
 void
 prism2sta_ev_txexc(wlandevice_t *wlandev, u16 status);

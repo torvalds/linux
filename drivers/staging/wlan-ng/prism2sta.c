@@ -168,34 +168,6 @@ static void	prism2sta_inf_psusercnt(
 /*================================================================*/
 /* Function Definitions */
 
-/*----------------------------------------------------------------
-* dmpmem
-*
-* Debug utility function to dump memory to the kernel debug log.
-*
-* Arguments:
-*	buf	ptr data we want dumped
-*	len	length of data
-*
-* Returns:
-*	nothing
-* Side effects:
-*
-* Call context:
-*	process thread
-*	interrupt
-----------------------------------------------------------------*/
-inline void dmpmem(void *buf, int n)
-{
-	int c;
-	for ( c= 0; c < n; c++) {
-		if ( (c % 16) == 0 ) printk(KERN_DEBUG"dmp[%d]: ", c);
-		printk("%02x ", ((u8*)buf)[c]);
-		if ( (c % 16) == 15 ) printk("\n");
-	}
-	if ( (c % 16) != 0 ) printk("\n");
-}
-
 
 /*----------------------------------------------------------------
 * prism2sta_open
@@ -1200,9 +1172,6 @@ static void prism2sta_inf_chinforesults(wlandevice_t *wlandev,
 
 	hw->channel_info.results.scanchannels =
 		hfa384x2host_16(inf->info.chinforesult.scanchannels);
-#if 0
-	memcpy(&inf->info.chinforesult, &hw->channel_info.results, sizeof(hfa384x_ChInfoResult_t));
-#endif
 
 	for (i=0, n=0; i<HFA384x_CHINFORESULT_MAX; i++) {
 		if (hw->channel_info.results.scanchannels & (1<<i)) {
@@ -1784,58 +1753,6 @@ static void prism2sta_inf_psusercnt(wlandevice_t *wlandev,
 
 	return;
 }
-
-/*----------------------------------------------------------------
-* prism2sta_ev_dtim
-*
-* Handles the DTIM early warning event.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
-void prism2sta_ev_dtim(wlandevice_t *wlandev)
-{
-#if 0
-        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
-#endif
-	WLAN_LOG_DEBUG(3, "DTIM event, currently unhandled.\n");
-	return;
-}
-
-
-/*----------------------------------------------------------------
-* prism2sta_ev_infdrop
-*
-* Handles the InfDrop event.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
-void prism2sta_ev_infdrop(wlandevice_t *wlandev)
-{
-#if 0
-        hfa384x_t               *hw = (hfa384x_t *)wlandev->priv;
-#endif
-	WLAN_LOG_DEBUG(3, "Info frame dropped due to card mem low.\n");
-	return;
-}
-
 
 /*----------------------------------------------------------------
 * prism2sta_ev_info
