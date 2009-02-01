@@ -18,10 +18,6 @@
 
 #define QUADLOCAL2BUS(quad,local) (quad_local_to_mp_bus_id[quad][local])
 
-/* Where the IO area was mapped on multiquad, always 0 otherwise */
-void *xquad_portio;
-EXPORT_SYMBOL(xquad_portio);
-
 #define XQUAD_PORT_ADDR(port, quad) (xquad_portio + (XQUAD_PORTIO_QUAD*quad) + port)
 
 #define PCI_CONF1_MQ_ADDRESS(bus, devfn, reg) \

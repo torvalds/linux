@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2002, IBM Corp.
  *
- * All rights reserved.          
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,17 +23,18 @@
  * Send feedback to <gone@us.ibm.com>
  */
 
-#include <linux/mm.h>
+#include <linux/nodemask.h>
 #include <linux/bootmem.h>
 #include <linux/mmzone.h>
 #include <linux/module.h>
-#include <linux/nodemask.h>
-#include <asm/numaq.h>
-#include <asm/topology.h>
+#include <linux/mm.h>
+
 #include <asm/processor.h>
+#include <asm/topology.h>
 #include <asm/genapic.h>
-#include <asm/e820.h>
+#include <asm/numaq.h>
 #include <asm/setup.h>
+#include <asm/e820.h>
 
 #define	MB_TO_PAGES(addr) ((addr) << (20 - PAGE_SHIFT))
 
@@ -91,19 +92,20 @@ static int __init numaq_pre_time_init(void)
 }
 
 int found_numaq;
+
 /*
  * Have to match translation table entries to main table entries by counter
  * hence the mpc_record variable .... can't see a less disgusting way of
  * doing this ....
  */
 struct mpc_config_translation {
-	unsigned char mpc_type;
-	unsigned char trans_len;
-	unsigned char trans_type;
-	unsigned char trans_quad;
-	unsigned char trans_global;
-	unsigned char trans_local;
-	unsigned short trans_reserved;
+	unsigned char		mpc_type;
+	unsigned char		trans_len;
+	unsigned char		trans_type;
+	unsigned char		trans_quad;
+	unsigned char		trans_global;
+	unsigned char		trans_local;
+	unsigned short		trans_reserved;
 };
 
 /* x86_quirks member */
@@ -444,7 +446,8 @@ static inline physid_mask_t numaq_apicid_to_cpu_present(int logical_apicid)
 	return physid_mask_of_physid(cpu + 4*node);
 }
 
-extern void *xquad_portio;
+/* Where the IO area was mapped on multiquad, always 0 otherwise */
+void *xquad_portio;
 
 static inline int numaq_check_phys_apicid_present(int boot_cpu_physical_apicid)
 {
@@ -502,7 +505,7 @@ static void numaq_setup_portio_remap(void)
 	int num_quads = num_online_nodes();
 
 	if (num_quads <= 1)
-       		return;
+		return;
 
 	printk("Remapping cross-quad port I/O for %d quads\n", num_quads);
 	xquad_portio = ioremap(XQUAD_PORTIO_BASE, num_quads*XQUAD_PORTIO_QUAD);
