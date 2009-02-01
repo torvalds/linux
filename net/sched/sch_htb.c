@@ -153,6 +153,9 @@ struct htb_sched {
 	int direct_qlen;	/* max qlen of above */
 
 	long direct_pkts;
+
+#define HTB_WARN_TOOMANYEVENTS	0x1
+	unsigned int warned;	/* only one warning */
 };
 
 /* find class in global hash table using given handle */
@@ -685,6 +688,10 @@ static psched_time_t htb_do_events(struct htb_sched *q, int level,
 			htb_add_to_wait_tree(q, cl, diff);
 	}
 	/* too much load - let's continue on next jiffie (including above) */
+	if (!(q->warned & HTB_WARN_TOOMANYEVENTS)) {
+		printk(KERN_WARNING "htb: too many events!\n");
+		q->warned |= HTB_WARN_TOOMANYEVENTS;
+	}
 	return q->now + 2 * PSCHED_TICKS_PER_SEC / HZ;
 }
 
