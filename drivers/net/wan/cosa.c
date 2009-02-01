@@ -993,8 +993,8 @@ static struct fasync_struct *fasync[256] = { NULL, };
 static int cosa_fasync(struct inode *inode, struct file *file, int on)
 {
         int port = iminor(inode);
-        int rv = fasync_helper(inode, file, on, &fasync[port]);
-        return rv < 0 ? rv : 0;
+
+	return fasync_helper(inode, file, on, &fasync[port]);
 }
 #endif
 

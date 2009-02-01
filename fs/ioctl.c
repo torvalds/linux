@@ -432,7 +432,7 @@ static int ioctl_fioasync(unsigned int fd, struct file *filp,
 		else
 			error = -ENOTTY;
 	}
-	return error;
+	return error < 0 ? error : 0;
 }
 
 static int ioctl_fsfreeze(struct file *filp)

@@ -184,6 +184,8 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 		error = filp->f_op->fasync(fd, filp, (arg & FASYNC) != 0);
 		if (error < 0)
 			goto out;
+		if (error > 0)
+			error = 0;
 	}
 	spin_lock(&filp->f_lock);
 	filp->f_flags = (arg & SETFL_MASK) | (filp->f_flags & ~SETFL_MASK);
