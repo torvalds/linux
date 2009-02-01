@@ -664,17 +664,17 @@ extern struct i2400m_msg_hdr *i2400m_tx_msg_get(struct i2400m *, size_t *);
 extern void i2400m_tx_msg_sent(struct i2400m *);
 
 static const __le32 i2400m_NBOOT_BARKER[4] = {
-	__constant_cpu_to_le32(I2400M_NBOOT_BARKER),
-	__constant_cpu_to_le32(I2400M_NBOOT_BARKER),
-	__constant_cpu_to_le32(I2400M_NBOOT_BARKER),
-	__constant_cpu_to_le32(I2400M_NBOOT_BARKER)
+	cpu_to_le32(I2400M_NBOOT_BARKER),
+	cpu_to_le32(I2400M_NBOOT_BARKER),
+	cpu_to_le32(I2400M_NBOOT_BARKER),
+	cpu_to_le32(I2400M_NBOOT_BARKER)
 };
 
 static const __le32 i2400m_SBOOT_BARKER[4] = {
-	__constant_cpu_to_le32(I2400M_SBOOT_BARKER),
-	__constant_cpu_to_le32(I2400M_SBOOT_BARKER),
-	__constant_cpu_to_le32(I2400M_SBOOT_BARKER),
-	__constant_cpu_to_le32(I2400M_SBOOT_BARKER)
+	cpu_to_le32(I2400M_SBOOT_BARKER),
+	cpu_to_le32(I2400M_SBOOT_BARKER),
+	cpu_to_le32(I2400M_SBOOT_BARKER),
+	cpu_to_le32(I2400M_SBOOT_BARKER)
 };
 
 

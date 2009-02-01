@@ -211,16 +211,16 @@ int i2400mu_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
 		container_of(i2400m, struct i2400mu, i2400m);
 	struct device *dev = i2400m_dev(i2400m);
 	static const __le32 i2400m_WARM_BOOT_BARKER[4] = {
-		__constant_cpu_to_le32(I2400M_WARM_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_WARM_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_WARM_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_WARM_RESET_BARKER),
+		cpu_to_le32(I2400M_WARM_RESET_BARKER),
+		cpu_to_le32(I2400M_WARM_RESET_BARKER),
+		cpu_to_le32(I2400M_WARM_RESET_BARKER),
+		cpu_to_le32(I2400M_WARM_RESET_BARKER),
 	};
 	static const __le32 i2400m_COLD_BOOT_BARKER[4] = {
-		__constant_cpu_to_le32(I2400M_COLD_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_COLD_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_COLD_RESET_BARKER),
-		__constant_cpu_to_le32(I2400M_COLD_RESET_BARKER),
+		cpu_to_le32(I2400M_COLD_RESET_BARKER),
+		cpu_to_le32(I2400M_COLD_RESET_BARKER),
+		cpu_to_le32(I2400M_COLD_RESET_BARKER),
+		cpu_to_le32(I2400M_COLD_RESET_BARKER),
 	};
 
 	d_fnstart(3, dev, "(i2400m %p rt %u)\n", i2400m, rt);

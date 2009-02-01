@@ -140,10 +140,10 @@
 
 
 static const __le32 i2400m_ACK_BARKER[4] = {
-	__constant_cpu_to_le32(I2400M_ACK_BARKER),
-	__constant_cpu_to_le32(I2400M_ACK_BARKER),
-	__constant_cpu_to_le32(I2400M_ACK_BARKER),
-	__constant_cpu_to_le32(I2400M_ACK_BARKER)
+	cpu_to_le32(I2400M_ACK_BARKER),
+	cpu_to_le32(I2400M_ACK_BARKER),
+	cpu_to_le32(I2400M_ACK_BARKER),
+	cpu_to_le32(I2400M_ACK_BARKER)
 };
 
 
@@ -771,8 +771,8 @@ static
 int i2400m_dnload_init_nonsigned(struct i2400m *i2400m)
 {
 #define POKE(a, d) {					\
-	.address = __constant_cpu_to_le32(a),		\
-	.data = __constant_cpu_to_le32(d)		\
+	.address = cpu_to_le32(a),		\
+	.data = cpu_to_le32(d)		\
 }
 	static const struct {
 		__le32 address;

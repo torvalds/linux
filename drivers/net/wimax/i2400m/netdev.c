@@ -419,7 +419,7 @@ void i2400m_rx_fake_eth_header(struct net_device *net_dev,
 
 	memcpy(eth_hdr->h_dest, net_dev->dev_addr, sizeof(eth_hdr->h_dest));
 	memset(eth_hdr->h_source, 0, sizeof(eth_hdr->h_dest));
-	eth_hdr->h_proto = __constant_cpu_to_be16(ETH_P_IP);
+	eth_hdr->h_proto = cpu_to_be16(ETH_P_IP);
 }
 
 
