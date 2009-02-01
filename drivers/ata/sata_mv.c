@@ -1364,12 +1364,13 @@ static void mv_fill_sg(struct ata_queued_cmd *qc)
 			u32 offset = addr & 0xffff;
 			u32 len = sg_len;
 
-			if ((offset + sg_len > 0x10000))
+			if (offset + len > 0x10000)
 				len = 0x10000 - offset;
 
 			mv_sg->addr = cpu_to_le32(addr & 0xffffffff);
 			mv_sg->addr_hi = cpu_to_le32((addr >> 16) >> 16);
 			mv_sg->flags_size = cpu_to_le32(len & 0xffff);
+			mv_sg->reserved = 0;
 
 			sg_len -= len;
 			addr += len;
@@ -1381,6 +1382,7 @@ static void mv_fill_sg(struct ata_queued_cmd *qc)
 
 	if (likely(last_sg))
 		last_sg->flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
+	mb(); /* ensure data structure is visible to the chipset */
 }
 
 static void mv_crqb_pack_cmd(__le16 *cmdw, u8 data, u8 addr, unsigned last)
