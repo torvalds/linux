@@ -782,6 +782,12 @@ arp_ignore - INTEGER
 	The max value from conf/{all,interface}/arp_ignore is used
 	when ARP request is received on the {interface}
 
+arp_notify - BOOLEAN
+	Define mode for notification of address and device changes.
+	0 - (default): do nothing
+	1 - Generate gratuitous arp replies when device is brought up
+	    or hardware address changes.
+
 arp_accept - BOOLEAN
 	Define behavior when gratuitous arp replies are received:
 	0 - drop gratuitous arp frames
