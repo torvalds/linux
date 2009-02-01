@@ -700,3 +700,6 @@ int snd_msnd_pcm(struct snd_card *card, int device,
 }
 EXPORT_SYMBOL(snd_msnd_pcm);
 
+MODULE_DESCRIPTION("Common routines for Turtle Beach Multisound drivers");
+MODULE_LICENSE("GPL");
+
