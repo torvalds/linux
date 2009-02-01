@@ -463,6 +463,9 @@ static int gfar_probe(struct of_device *ofdev,
 		goto register_fail;
 	}
 
+	device_init_wakeup(&dev->dev,
+		priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
+
 	/* fill out IRQ number and name fields */
 	len_devname = strlen(dev->name);
 	strncpy(&priv->int_name_tx[0], dev->name, len_devname);
@@ -1199,6 +1202,8 @@ static int gfar_enet_open(struct net_device *dev)
 	}
 
 	netif_start_queue(dev);
+
+	device_set_wakeup_enable(&dev->dev, priv->wol_en);
 
 	return err;
 }
