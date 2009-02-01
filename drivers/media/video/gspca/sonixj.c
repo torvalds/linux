@@ -1009,18 +1009,19 @@ static int hv7131r_probe(struct gspca_dev *gspca_dev)
 	return -ENODEV;
 }
 
-static int mi0360_probe(struct gspca_dev *gspca_dev)
+static void mi0360_probe(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	int i, j;
 	u16 val;
 	static const u8 probe_tb[][4][8] = {
-	    {
+	    {					/* mi0360 */
 		{0xb0, 0x5d, 0x07, 0x00, 0x02, 0x00, 0x00, 0x10},
 		{0x90, 0x5d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
 		{0xa2, 0x5d, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
 		{0xb0, 0x5d, 0x07, 0x00, 0x00, 0x00, 0x00, 0x10}
 	    },
-	    {
+	    {					/* mt9v111 */
 		{0xb0, 0x5c, 0x01, 0x00, 0x04, 0x00, 0x00, 0x10},
 		{0x90, 0x5c, 0x36, 0x00, 0x00, 0x00, 0x00, 0x10},
 		{0xa2, 0x5c, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
@@ -1046,13 +1047,16 @@ static int mi0360_probe(struct gspca_dev *gspca_dev)
 	switch (val) {
 	case 0x823a:
 		PDEBUG(D_PROBE, "Sensor mt9v111");
-		return SENSOR_MT9V111;
+		sd->sensor = SENSOR_MT9V111;
+		sd->i2c_base = 0x5c;
+		break;
 	case 0x8243:
 		PDEBUG(D_PROBE, "Sensor mi0360");
-		return SENSOR_MI0360;
+		break;
+	default:
+		PDEBUG(D_PROBE, "Unknown sensor %04x - forced to mi0360", val);
+		break;
 	}
-	PDEBUG(D_PROBE, "Unknown sensor %04x - forced to mi0360", val);
-	return SENSOR_MI0360;
 }
 
 static int configure_gpio(struct gspca_dev *gspca_dev,
@@ -1319,21 +1323,15 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	case BRIDGE_SN9C105:
 		if (regF1 != 0x11)
 			return -ENODEV;
-		if (sd->sensor == SENSOR_MI0360) {
-			sd->sensor = mi0360_probe(gspca_dev);
-			if (sd->sensor == SENSOR_MT9V111)
-				sd->i2c_base = 0x5c;
-		}
+		if (sd->sensor == SENSOR_MI0360)
+			mi0360_probe(gspca_dev);
 		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
 	case BRIDGE_SN9C120:
 		if (regF1 != 0x12)
 			return -ENODEV;
-		if (sd->sensor == SENSOR_MI0360) {
-			sd->sensor = mi0360_probe(gspca_dev);
-			if (sd->sensor == SENSOR_MT9V111)
-				sd->i2c_base = 0x5c;
-		}
+		if (sd->sensor == SENSOR_MI0360)
+			mi0360_probe(gspca_dev);
 		regGpio[1] = 0x70;
 		reg_w(gspca_dev, 0x01, regGpio, 2);
 		break;
