@@ -2421,7 +2421,13 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 		ixgbe_set_num_queues(adapter);
 	} else {
 		adapter->flags |= IXGBE_FLAG_MSIX_ENABLED; /* Woot! */
-		adapter->num_msix_vectors = vectors;
+		/*
+		 * Adjust for only the vectors we'll use, which is minimum
+		 * of max_msix_q_vectors + NON_Q_VECTORS, or the number of
+		 * vectors we were allocated.
+		 */
+		adapter->num_msix_vectors = min(vectors,
+		                   adapter->max_msix_q_vectors + NON_Q_VECTORS);
 	}
 }
 
@@ -2746,6 +2752,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->ring_feature[RING_F_RSS].indices = rss;
 	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 	adapter->ring_feature[RING_F_DCB].indices = IXGBE_MAX_DCB_INDICES;
+	adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82598;
 
 #ifdef CONFIG_IXGBE_DCB
 	/* Configure DCB traffic classes */

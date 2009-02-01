@@ -204,9 +204,13 @@ struct ixgbe_q_vector {
 #define OTHER_VECTOR 1
 #define NON_Q_VECTORS (OTHER_VECTOR)
 
-#define MAX_MSIX_Q_VECTORS 16
+#define MAX_MSIX_VECTORS_82598 18
+#define MAX_MSIX_Q_VECTORS_82598 16
+
+#define MAX_MSIX_Q_VECTORS MAX_MSIX_Q_VECTORS_82598
+#define MAX_MSIX_COUNT MAX_MSIX_VECTORS_82598
+
 #define MIN_MSIX_Q_VECTORS 2
-#define MAX_MSIX_COUNT (MAX_MSIX_Q_VECTORS + NON_Q_VECTORS)
 #define MIN_MSIX_COUNT (MIN_MSIX_Q_VECTORS + NON_Q_VECTORS)
 
 /* board specific private data structure */
@@ -244,6 +248,7 @@ struct ixgbe_adapter {
 	u64 hw_csum_rx_good;
 	u64 non_eop_descs;
 	int num_msix_vectors;
+	int max_msix_q_vectors;         /* true count of q_vectors for device */
 	struct ixgbe_ring_feature ring_feature[3];
 	struct msix_entry *msix_entries;
 
