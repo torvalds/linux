@@ -217,7 +217,7 @@ static inline struct hlist_head *dev_index_hash(struct net *net, int ifindex)
 
 static inline void *skb_gro_mac_header(struct sk_buff *skb)
 {
-	return skb_headlen(skb) ? skb_mac_header(skb) :
+	return skb_mac_header(skb) < skb->data ? skb_mac_header(skb) :
 	       page_address(skb_shinfo(skb)->frags[0].page) +
 	       skb_shinfo(skb)->frags[0].page_offset;
 }
@@ -2469,11 +2469,19 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	napi->gro_list = skb;
 	ret = GRO_HELD;
 
+pull:
+	if (unlikely(!pskb_may_pull(skb, skb_gro_offset(skb)))) {
+		if (napi->gro_list == skb)
+			napi->gro_list = skb->next;
+		ret = GRO_DROP;
+	}
+
 ok:
 	return ret;
 
 normal:
-	return GRO_NORMAL;
+	ret = GRO_NORMAL;
+	goto pull;
 }
 EXPORT_SYMBOL(dev_gro_receive);
 
@@ -2589,14 +2597,10 @@ EXPORT_SYMBOL(napi_fraginfo_skb);
 int napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb, int ret)
 {
 	int err = NET_RX_SUCCESS;
-	int may;
 
 	switch (ret) {
 	case GRO_NORMAL:
 	case GRO_HELD:
-		may = pskb_may_pull(skb, skb_gro_offset(skb));
-		BUG_ON(!may);
-
 		skb->protocol = eth_type_trans(skb, napi->dev);
 
 		if (ret == GRO_NORMAL)
