@@ -3,8 +3,7 @@
 
 #include "trace.h"
 
-typedef int (*trace_print_func)(struct trace_seq *s, struct trace_entry *entry,
-				int flags);
+typedef int (*trace_print_func)(struct trace_iterator *iter, int flags);
 
 struct trace_event {
 	struct hlist_node	node;
@@ -40,8 +39,7 @@ struct trace_event *ftrace_find_event(int type);
 int register_ftrace_event(struct trace_event *event);
 int unregister_ftrace_event(struct trace_event *event);
 
-int
-trace_nop_print(struct trace_seq *s, struct trace_entry *entry, int flags);
+int trace_nop_print(struct trace_iterator *iter, int flags);
 
 #define MAX_MEMHEX_BYTES	8
 #define HEX_CHARS		(MAX_MEMHEX_BYTES*2 + 1)

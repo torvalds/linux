@@ -1140,10 +1140,10 @@ static struct {
 	[__BLK_TA_REMAP]	= {{  "A", "remap" },	   blk_log_remap },
 };
 
-static int blk_trace_event_print(struct trace_seq *s, struct trace_entry *ent,
-				 int flags)
+static int blk_trace_event_print(struct trace_iterator *iter, int flags)
 {
-	const struct blk_io_trace *t = (struct blk_io_trace *)ent;
+	struct trace_seq *s = &iter->seq;
+	const struct blk_io_trace *t = (struct blk_io_trace *)iter->ent;
 	const u16 what = t->action & ((1 << BLK_TC_SHIFT) - 1);
 	int ret;
 
@@ -1153,7 +1153,7 @@ static int blk_trace_event_print(struct trace_seq *s, struct trace_entry *ent,
 		const bool long_act = !!(trace_flags & TRACE_ITER_VERBOSE);
 		ret = blk_log_action_seq(s, t, what2act[what].act[long_act]);
 		if (ret)
-			ret = what2act[what].print(s, ent);
+			ret = what2act[what].print(s, iter->ent);
 	}
 
 	return ret ? TRACE_TYPE_HANDLED : TRACE_TYPE_PARTIAL_LINE;

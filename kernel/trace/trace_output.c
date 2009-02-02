@@ -484,19 +484,18 @@ int unregister_ftrace_event(struct trace_event *event)
  * Standard events
  */
 
-int
-trace_nop_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+int trace_nop_print(struct trace_iterator *iter, int flags)
 {
 	return 0;
 }
 
 /* TRACE_FN */
-static int
-trace_fn_latency(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_fn_latency(struct trace_iterator *iter, int flags)
 {
 	struct ftrace_entry *field;
+	struct trace_seq *s = &iter->seq;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	if (!seq_print_ip_sym(s, field->ip, flags))
 		goto partial;
@@ -513,12 +512,12 @@ trace_fn_latency(struct trace_seq *s, struct trace_entry *entry, int flags)
 	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int
-trace_fn_trace(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_fn_trace(struct trace_iterator *iter, int flags)
 {
 	struct ftrace_entry *field;
+	struct trace_seq *s = &iter->seq;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	if (!seq_print_ip_sym(s, field->ip, flags))
 		goto partial;
@@ -540,14 +539,13 @@ trace_fn_trace(struct trace_seq *s, struct trace_entry *entry, int flags)
 	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int
-trace_fn_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_fn_raw(struct trace_iterator *iter, int flags)
 {
 	struct ftrace_entry *field;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
-	if (!trace_seq_printf(s, "%lx %lx\n",
+	if (!trace_seq_printf(&iter->seq, "%lx %lx\n",
 			      field->ip,
 			      field->parent_ip))
 		return TRACE_TYPE_PARTIAL_LINE;
@@ -555,12 +553,12 @@ trace_fn_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
 	return 0;
 }
 
-static int
-trace_fn_hex(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_fn_hex(struct trace_iterator *iter, int flags)
 {
 	struct ftrace_entry *field;
+	struct trace_seq *s = &iter->seq;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	SEQ_PUT_HEX_FIELD_RET(s, field->ip);
 	SEQ_PUT_HEX_FIELD_RET(s, field->parent_ip);
@@ -568,12 +566,12 @@ trace_fn_hex(struct trace_seq *s, struct trace_entry *entry, int flags)
 	return 0;
 }
 
-static int
-trace_fn_bin(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_fn_bin(struct trace_iterator *iter, int flags)
 {
 	struct ftrace_entry *field;
+	struct trace_seq *s = &iter->seq;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	SEQ_PUT_FIELD_RET(s, field->ip);
 	SEQ_PUT_FIELD_RET(s, field->parent_ip);
@@ -591,20 +589,19 @@ static struct trace_event trace_fn_event = {
 };
 
 /* TRACE_CTX an TRACE_WAKE */
-static int
-trace_ctxwake_print(struct trace_seq *s, struct trace_entry *entry, int flags,
-		    char *delim)
+static int trace_ctxwake_print(struct trace_iterator *iter, char *delim)
 {
 	struct ctx_switch_entry *field;
 	char *comm;
 	int S, T;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	T = task_state_char(field->next_state);
 	S = task_state_char(field->prev_state);
 	comm = trace_find_cmdline(field->next_pid);
-	if (!trace_seq_printf(s, " %5d:%3d:%c %s [%03d] %5d:%3d:%c %s\n",
+	if (!trace_seq_printf(&iter->seq,
+			      " %5d:%3d:%c %s [%03d] %5d:%3d:%c %s\n",
 			      field->prev_pid,
 			      field->prev_prio,
 			      S, delim,
@@ -617,31 +614,27 @@ trace_ctxwake_print(struct trace_seq *s, struct trace_entry *entry, int flags,
 	return 0;
 }
 
-static int
-trace_ctx_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_ctx_print(struct trace_iterator *iter, int flags)
 {
-	return trace_ctxwake_print(s, entry, flags, "==>");
+	return trace_ctxwake_print(iter, "==>");
 }
 
-static int
-trace_wake_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_wake_print(struct trace_iterator *iter, int flags)
 {
-	return trace_ctxwake_print(s, entry, flags, "  +");
+	return trace_ctxwake_print(iter, "  +");
 }
 
-static int
-trace_ctxwake_raw(struct trace_seq *s, struct trace_entry *entry, int flags,
-		  char S)
+static int trace_ctxwake_raw(struct trace_iterator *iter, char S)
 {
 	struct ctx_switch_entry *field;
 	int T;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	if (!S)
 		task_state_char(field->prev_state);
 	T = task_state_char(field->next_state);
-	if (!trace_seq_printf(s, "%d %d %c %d %d %d %c\n",
+	if (!trace_seq_printf(&iter->seq, "%d %d %c %d %d %d %c\n",
 			      field->prev_pid,
 			      field->prev_prio,
 			      S,
@@ -654,27 +647,24 @@ trace_ctxwake_raw(struct trace_seq *s, struct trace_entry *entry, int flags,
 	return 0;
 }
 
-static int
-trace_ctx_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_ctx_raw(struct trace_iterator *iter, int flags)
 {
-	return trace_ctxwake_raw(s, entry, flags, 0);
+	return trace_ctxwake_raw(iter, 0);
 }
 
-static int
-trace_wake_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_wake_raw(struct trace_iterator *iter, int flags)
 {
-	return trace_ctxwake_raw(s, entry, flags, '+');
+	return trace_ctxwake_raw(iter, '+');
 }
 
 
-static int
-trace_ctxwake_hex(struct trace_seq *s, struct trace_entry *entry, int flags,
-		  char S)
+static int trace_ctxwake_hex(struct trace_iterator *iter, char S)
 {
 	struct ctx_switch_entry *field;
+	struct trace_seq *s = &iter->seq;
 	int T;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	if (!S)
 		task_state_char(field->prev_state);
@@ -691,24 +681,22 @@ trace_ctxwake_hex(struct trace_seq *s, struct trace_entry *entry, int flags,
 	return 0;
 }
 
-static int
-trace_ctx_hex(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_ctx_hex(struct trace_iterator *iter, int flags)
 {
-	return trace_ctxwake_hex(s, entry, flags, 0);
+	return trace_ctxwake_hex(iter, 0);
 }
 
-static int
-trace_wake_hex(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_wake_hex(struct trace_iterator *iter, int flags)
 {
-	return trace_ctxwake_hex(s, entry, flags, '+');
+	return trace_ctxwake_hex(iter, '+');
 }
 
-static int
-trace_ctxwake_bin(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_ctxwake_bin(struct trace_iterator *iter, int flags)
 {
 	struct ctx_switch_entry *field;
+	struct trace_seq *s = &iter->seq;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	SEQ_PUT_FIELD_RET(s, field->prev_pid);
 	SEQ_PUT_FIELD_RET(s, field->prev_prio);
@@ -739,14 +727,13 @@ static struct trace_event trace_wake_event = {
 };
 
 /* TRACE_SPECIAL */
-static int
-trace_special_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_special_print(struct trace_iterator *iter, int flags)
 {
 	struct special_entry *field;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
-	if (!trace_seq_printf(s, "# %ld %ld %ld\n",
+	if (!trace_seq_printf(&iter->seq, "# %ld %ld %ld\n",
 			      field->arg1,
 			      field->arg2,
 			      field->arg3))
@@ -755,12 +742,12 @@ trace_special_print(struct trace_seq *s, struct trace_entry *entry, int flags)
 	return 0;
 }
 
-static int
-trace_special_hex(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_special_hex(struct trace_iterator *iter, int flags)
 {
 	struct special_entry *field;
+	struct trace_seq *s = &iter->seq;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	SEQ_PUT_HEX_FIELD_RET(s, field->arg1);
 	SEQ_PUT_HEX_FIELD_RET(s, field->arg2);
@@ -769,12 +756,12 @@ trace_special_hex(struct trace_seq *s, struct trace_entry *entry, int flags)
 	return 0;
 }
 
-static int
-trace_special_bin(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_special_bin(struct trace_iterator *iter, int flags)
 {
 	struct special_entry *field;
+	struct trace_seq *s = &iter->seq;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	SEQ_PUT_FIELD_RET(s, field->arg1);
 	SEQ_PUT_FIELD_RET(s, field->arg2);
@@ -794,13 +781,13 @@ static struct trace_event trace_special_event = {
 
 /* TRACE_STACK */
 
-static int
-trace_stack_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_stack_print(struct trace_iterator *iter, int flags)
 {
 	struct stack_entry *field;
+	struct trace_seq *s = &iter->seq;
 	int i;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
 		if (i) {
@@ -830,13 +817,12 @@ static struct trace_event trace_stack_event = {
 };
 
 /* TRACE_USER_STACK */
-static int
-trace_user_stack_print(struct trace_seq *s, struct trace_entry *entry,
-		       int flags)
+static int trace_user_stack_print(struct trace_iterator *iter, int flags)
 {
 	struct userstack_entry *field;
+	struct trace_seq *s = &iter->seq;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	if (!seq_print_userip_objs(field, s, flags))
 		goto partial;
@@ -860,12 +846,12 @@ static struct trace_event trace_user_stack_event = {
 };
 
 /* TRACE_PRINT */
-static int
-trace_print_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_print_print(struct trace_iterator *iter, int flags)
 {
 	struct print_entry *field;
+	struct trace_seq *s = &iter->seq;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
 	if (!seq_print_ip_sym(s, field->ip, flags))
 		goto partial;
@@ -879,14 +865,13 @@ trace_print_print(struct trace_seq *s, struct trace_entry *entry, int flags)
 	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int
-trace_print_raw(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_print_raw(struct trace_iterator *iter, int flags)
 {
 	struct print_entry *field;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
-	if (!trace_seq_printf(s, "# %lx %s", field->ip, field->buf))
+	if (!trace_seq_printf(&iter->seq, "# %lx %s", field->ip, field->buf))
 		goto partial;
 
 	return 0;

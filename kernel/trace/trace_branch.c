@@ -160,14 +160,13 @@ trace_print_print(struct trace_seq *s, struct trace_entry *entry, int flags)
 	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int
-trace_branch_print(struct trace_seq *s, struct trace_entry *entry, int flags)
+static int trace_branch_print(struct trace_iterator *iter, int flags)
 {
 	struct trace_branch *field;
 
-	trace_assign_type(field, entry);
+	trace_assign_type(field, iter->ent);
 
-	if (trace_seq_printf(s, "[%s] %s:%s:%d\n",
+	if (trace_seq_printf(&iter->seq, "[%s] %s:%s:%d\n",
 			     field->correct ? "  ok  " : " MISS ",
 			     field->func,
 			     field->file,
