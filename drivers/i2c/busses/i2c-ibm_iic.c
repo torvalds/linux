@@ -756,11 +756,11 @@ static int __devinit iic_probe(struct of_device *ofdev,
 		goto error_cleanup;
 	}
 
-	/* Now register all the child nodes */
-	of_register_i2c_devices(adap, np);
-
 	dev_info(&ofdev->dev, "using %s mode\n",
 		 dev->fast_mode ? "fast (400 kHz)" : "standard (100 kHz)");
+
+	/* Now register all the child nodes */
+	of_register_i2c_devices(adap, np);
 
 	return 0;
 
