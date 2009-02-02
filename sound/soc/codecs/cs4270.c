@@ -149,7 +149,7 @@ struct cs4270_mode_ratios {
 	u8 mclk;
 };
 
-static struct cs4270_mode_ratios[] = {
+static struct cs4270_mode_ratios cs4270_mode_ratios[] = {
 	{64, CS4270_MODE_4X, CS4270_MODE_DIV1},
 #ifndef CONFIG_SND_SOC_CS4270_VD33_ERRATA
 	{96, CS4270_MODE_4X, CS4270_MODE_DIV15},
