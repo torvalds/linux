@@ -33,6 +33,9 @@ int seq_print_userip_objs(const struct userstack_entry *entry,
 int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
 		      unsigned long ip, unsigned long sym_flags);
 
+int trace_print_context(struct trace_iterator *iter);
+int trace_print_lat_context(struct trace_iterator *iter);
+
 struct trace_event *ftrace_find_event(int type);
 int register_ftrace_event(struct trace_event *event);
 int unregister_ftrace_event(struct trace_event *event);

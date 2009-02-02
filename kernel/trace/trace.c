@@ -227,7 +227,7 @@ static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 
 /* trace_flags holds trace_options default values */
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
-	TRACE_ITER_ANNOTATE;
+	TRACE_ITER_ANNOTATE | TRACE_ITER_CONTEXT_INFO;
 
 /**
  * trace_wake_up - wake up tasks waiting for trace input
@@ -285,6 +285,7 @@ static const char *trace_options[] = {
 	"userstacktrace",
 	"sym-userobj",
 	"printk-msg-only",
+	"context-info",
 	NULL
 };
 
@@ -1171,8 +1172,8 @@ __find_next_entry(struct trace_iterator *iter, int *ent_cpu, u64 *ent_ts)
 }
 
 /* Find the next real entry, without updating the iterator itself */
-static struct trace_entry *
-find_next_entry(struct trace_iterator *iter, int *ent_cpu, u64 *ent_ts)
+struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
+					  int *ent_cpu, u64 *ent_ts)
 {
 	return __find_next_entry(iter, ent_cpu, ent_ts);
 }
@@ -1351,57 +1352,6 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	seq_puts(m, "\n");
 }
 
-static void
-lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
-{
-	int hardirq, softirq;
-	char *comm;
-
-	comm = trace_find_cmdline(entry->pid);
-
-	trace_seq_printf(s, "%8.8s-%-5d ", comm, entry->pid);
-	trace_seq_printf(s, "%3d", cpu);
-	trace_seq_printf(s, "%c%c",
-			(entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
-			 (entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ? 'X' : '.',
-			((entry->flags & TRACE_FLAG_NEED_RESCHED) ? 'N' : '.'));
-
-	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
-	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
-	if (hardirq && softirq) {
-		trace_seq_putc(s, 'H');
-	} else {
-		if (hardirq) {
-			trace_seq_putc(s, 'h');
-		} else {
-			if (softirq)
-				trace_seq_putc(s, 's');
-			else
-				trace_seq_putc(s, '.');
-		}
-	}
-
-	if (entry->preempt_count)
-		trace_seq_printf(s, "%x", entry->preempt_count);
-	else
-		trace_seq_puts(s, ".");
-}
-
-unsigned long preempt_mark_thresh = 100;
-
-static void
-lat_print_timestamp(struct trace_seq *s, u64 abs_usecs,
-		    unsigned long rel_usecs)
-{
-	trace_seq_printf(s, " %4lldus", abs_usecs);
-	if (rel_usecs > preempt_mark_thresh)
-		trace_seq_puts(s, "!: ");
-	else if (rel_usecs > 1)
-		trace_seq_puts(s, "+: ");
-	else
-		trace_seq_puts(s, " : ");
-}
-
 static void test_cpu_buff_start(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
@@ -1419,46 +1369,24 @@ static void test_cpu_buff_start(struct trace_iterator *iter)
 	trace_seq_printf(s, "##### CPU %u buffer started ####\n", iter->cpu);
 }
 
-static enum print_line_t
-print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
+static enum print_line_t print_lat_fmt(struct trace_iterator *iter)
 {
 	struct trace_seq *s = &iter->seq;
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
-	struct trace_entry *next_entry;
 	struct trace_event *event;
-	unsigned long verbose = (trace_flags & TRACE_ITER_VERBOSE);
 	struct trace_entry *entry = iter->ent;
-	unsigned long abs_usecs;
-	unsigned long rel_usecs;
-	u64 next_ts;
-	char *comm;
 	int ret;
 
 	test_cpu_buff_start(iter);
 
-	next_entry = find_next_entry(iter, NULL, &next_ts);
-	if (!next_entry)
-		next_ts = iter->ts;
-	rel_usecs = ns2usecs(next_ts - iter->ts);
-	abs_usecs = ns2usecs(iter->ts - iter->tr->time_start);
+	event = ftrace_find_event(entry->type);
 
-	if (verbose) {
-		comm = trace_find_cmdline(entry->pid);
-		trace_seq_printf(s, "%16s %5d %3d %d %08x %08x [%08lx]"
-				 " %ld.%03ldms (+%ld.%03ldms): ",
-				 comm,
-				 entry->pid, cpu, entry->flags,
-				 entry->preempt_count, trace_idx,
-				 ns2usecs(iter->ts),
-				 abs_usecs/1000,
-				 abs_usecs % 1000, rel_usecs/1000,
-				 rel_usecs % 1000);
-	} else {
-		lat_print_generic(s, entry, cpu);
-		lat_print_timestamp(s, abs_usecs, rel_usecs);
+	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
+		ret = trace_print_lat_context(iter);
+		if (ret)
+			return ret;
 	}
 
-	event = ftrace_find_event(entry->type);
 	if (event && event->latency_trace) {
 		ret = event->latency_trace(s, entry, sym_flags);
 		if (ret)
@@ -1476,33 +1404,20 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
 	struct trace_entry *entry;
 	struct trace_event *event;
-	unsigned long usec_rem;
-	unsigned long long t;
-	unsigned long secs;
-	char *comm;
 	int ret;
 
 	entry = iter->ent;
 
 	test_cpu_buff_start(iter);
 
-	comm = trace_find_cmdline(iter->ent->pid);
-
-	t = ns2usecs(iter->ts);
-	usec_rem = do_div(t, 1000000ULL);
-	secs = (unsigned long)t;
-
-	ret = trace_seq_printf(s, "%16s-%-5d ", comm, entry->pid);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-	ret = trace_seq_printf(s, "[%03d] ", iter->cpu);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-	ret = trace_seq_printf(s, "%5lu.%06lu: ", secs, usec_rem);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
-
 	event = ftrace_find_event(entry->type);
+
+	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
+		ret = trace_print_context(iter);
+		if (ret)
+			return ret;
+	}
+
 	if (event && event->trace) {
 		ret = event->trace(s, entry, sym_flags);
 		if (ret)
@@ -1525,10 +1440,12 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 
 	entry = iter->ent;
 
-	ret = trace_seq_printf(s, "%d %d %llu ",
-		entry->pid, iter->cpu, iter->ts);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
+	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
+		ret = trace_seq_printf(s, "%d %d %llu ",
+			entry->pid, iter->cpu, iter->ts);
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
 
 	event = ftrace_find_event(entry->type);
 	if (event && event->raw) {
@@ -1553,9 +1470,11 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 
 	entry = iter->ent;
 
-	SEQ_PUT_HEX_FIELD_RET(s, entry->pid);
-	SEQ_PUT_HEX_FIELD_RET(s, iter->cpu);
-	SEQ_PUT_HEX_FIELD_RET(s, iter->ts);
+	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
+		SEQ_PUT_HEX_FIELD_RET(s, entry->pid);
+		SEQ_PUT_HEX_FIELD_RET(s, iter->cpu);
+		SEQ_PUT_HEX_FIELD_RET(s, iter->ts);
+	}
 
 	event = ftrace_find_event(entry->type);
 	if (event && event->hex)
@@ -1575,7 +1494,7 @@ static enum print_line_t print_printk_msg_only(struct trace_iterator *iter)
 
 	trace_assign_type(field, entry);
 
-	ret = trace_seq_printf(s, field->buf);
+	ret = trace_seq_printf(s, "%s", field->buf);
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
@@ -1590,9 +1509,11 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 
 	entry = iter->ent;
 
-	SEQ_PUT_FIELD_RET(s, entry->pid);
-	SEQ_PUT_FIELD_RET(s, entry->cpu);
-	SEQ_PUT_FIELD_RET(s, iter->ts);
+	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
+		SEQ_PUT_FIELD_RET(s, entry->pid);
+		SEQ_PUT_FIELD_RET(s, entry->cpu);
+		SEQ_PUT_FIELD_RET(s, iter->ts);
+	}
 
 	event = ftrace_find_event(entry->type);
 	if (event && event->binary)
@@ -1643,7 +1564,7 @@ static enum print_line_t print_trace_line(struct trace_iterator *iter)
 		return print_raw_fmt(iter);
 
 	if (iter->iter_flags & TRACE_FILE_LAT_FMT)
-		return print_lat_fmt(iter, iter->idx, iter->cpu);
+		return print_lat_fmt(iter);
 
 	return print_trace_fmt(iter);
 }
