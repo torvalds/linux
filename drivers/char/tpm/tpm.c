@@ -661,27 +661,124 @@ ssize_t tpm_show_temp_deactivated(struct device * dev,
 }
 EXPORT_SYMBOL_GPL(tpm_show_temp_deactivated);
 
-static const u8 pcrread[] = {
-	0, 193,			/* TPM_TAG_RQU_COMMAND */
-	0, 0, 0, 14,		/* length */
-	0, 0, 0, 21,		/* TPM_ORD_PcrRead */
-	0, 0, 0, 0		/* PCR index */
+/*
+ * tpm_chip_find_get - return tpm_chip for given chip number
+ */
+static struct tpm_chip *tpm_chip_find_get(int chip_num)
+{
+	struct tpm_chip *pos;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(pos, &tpm_chip_list, list) {
+		if (chip_num != TPM_ANY_NUM && chip_num != pos->dev_num)
+			continue;
+
+		if (try_module_get(pos->dev->driver->owner))
+			break;
+	}
+	rcu_read_unlock();
+	return pos;
+}
+
+#define TPM_ORDINAL_PCRREAD cpu_to_be32(21)
+#define READ_PCR_RESULT_SIZE 30
+static struct tpm_input_header pcrread_header = {
+	.tag = TPM_TAG_RQU_COMMAND,
+	.length = cpu_to_be32(14),
+	.ordinal = TPM_ORDINAL_PCRREAD
 };
+
+int __tpm_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
+{
+	int rc;
+	struct tpm_cmd_t cmd;
+
+	cmd.header.in = pcrread_header;
+	cmd.params.pcrread_in.pcr_idx = cpu_to_be32(pcr_idx);
+	BUILD_BUG_ON(cmd.header.in.length > READ_PCR_RESULT_SIZE);
+	rc = transmit_cmd(chip, &cmd, cmd.header.in.length,
+			  "attempting to read a pcr value");
+
+	if (rc == 0)
+		memcpy(res_buf, cmd.params.pcrread_out.pcr_result,
+		       TPM_DIGEST_SIZE);
+	return rc;
+}
+
+/**
+ * tpm_pcr_read - read a pcr value
+ * @chip_num: 	tpm idx # or ANY
+ * @pcr_idx:	pcr idx to retrieve
+ * @res_buf: 	TPM_PCR value
+ * 		size of res_buf is 20 bytes (or NULL if you don't care)
+ *
+ * The TPM driver should be built-in, but for whatever reason it
+ * isn't, protect against the chip disappearing, by incrementing
+ * the module usage count.
+ */
+int tpm_pcr_read(u32 chip_num, int pcr_idx, u8 *res_buf)
+{
+	struct tpm_chip *chip;
+	int rc;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL)
+		return -ENODEV;
+	rc = __tpm_pcr_read(chip, pcr_idx, res_buf);
+	module_put(chip->dev->driver->owner);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_pcr_read);
+
+/**
+ * tpm_pcr_extend - extend pcr value with hash
+ * @chip_num: 	tpm idx # or AN&
+ * @pcr_idx:	pcr idx to extend
+ * @hash: 	hash value used to extend pcr value
+ *
+ * The TPM driver should be built-in, but for whatever reason it
+ * isn't, protect against the chip disappearing, by incrementing
+ * the module usage count.
+ */
+#define TPM_ORD_PCR_EXTEND cpu_to_be32(20)
+#define EXTEND_PCR_SIZE 34
+static struct tpm_input_header pcrextend_header = {
+	.tag = TPM_TAG_RQU_COMMAND,
+	.length = cpu_to_be32(34),
+	.ordinal = TPM_ORD_PCR_EXTEND
+};
+
+int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
+{
+	struct tpm_cmd_t cmd;
+	int rc;
+	struct tpm_chip *chip;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL)
+		return -ENODEV;
+
+	cmd.header.in = pcrextend_header;
+	BUILD_BUG_ON(be32_to_cpu(cmd.header.in.length) > EXTEND_PCR_SIZE);
+	cmd.params.pcrextend_in.pcr_idx = cpu_to_be32(pcr_idx);
+	memcpy(cmd.params.pcrextend_in.hash, hash, TPM_DIGEST_SIZE);
+	rc = transmit_cmd(chip, &cmd, cmd.header.in.length,
+			  "attempting extend a PCR value");
+
+	module_put(chip->dev->driver->owner);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_pcr_extend);
 
 ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
 		      char *buf)
 {
 	cap_t cap;
-	u8 *data;
+	u8 digest[TPM_DIGEST_SIZE];
 	ssize_t rc;
 	int i, j, num_pcrs;
-	__be32 index;
 	char *str = buf;
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-
-	data = kzalloc(TPM_INTERNAL_RESULT_SIZE, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
 
 	rc = tpm_getcap(dev, TPM_CAP_PROP_PCR, &cap,
 			"attempting to determine the number of PCRS");
@@ -690,20 +787,14 @@ ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
 
 	num_pcrs = be32_to_cpu(cap.num_pcrs);
 	for (i = 0; i < num_pcrs; i++) {
-		memcpy(data, pcrread, sizeof(pcrread));
-		index = cpu_to_be32(i);
-		memcpy(data + 10, &index, 4);
-		rc = transmit_cmd(chip, (struct tpm_cmd_t *)data,
-				  TPM_INTERNAL_RESULT_SIZE,
-				  "attempting to read a PCR");
+		rc = __tpm_pcr_read(chip, i, digest);
 		if (rc)
 			break;
 		str += sprintf(str, "PCR-%02d: ", i);
 		for (j = 0; j < TPM_DIGEST_SIZE; j++)
-			str += sprintf(str, "%02X ", *(data + 10 + j));
+			str += sprintf(str, "%02X ", digest[j]);
 		str += sprintf(str, "\n");
 	}
-	kfree(data);
 	return str - buf;
 }
 EXPORT_SYMBOL_GPL(tpm_show_pcrs);

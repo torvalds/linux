@@ -26,6 +26,7 @@
 #include <linux/miscdevice.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/tpm.h>
 
 enum tpm_timeout {
 	TPM_TIMEOUT = 5,	/* msecs */
@@ -234,11 +235,28 @@ typedef union {
 	struct	tpm_output_header out;
 } tpm_cmd_header;
 
+#define TPM_DIGEST_SIZE 20
+struct tpm_pcrread_out {
+	u8	pcr_result[TPM_DIGEST_SIZE];
+}__attribute__((packed));
+
+struct tpm_pcrread_in {
+	__be32	pcr_idx;
+}__attribute__((packed));
+
+struct tpm_pcrextend_in {
+	__be32	pcr_idx;
+	u8	hash[TPM_DIGEST_SIZE];
+}__attribute__((packed));
+
 typedef union {
 	struct	tpm_getcap_params_out getcap_out;
 	struct	tpm_readpubek_params_out readpubek_out;
 	u8	readpubek_out_buffer[sizeof(struct tpm_readpubek_params_out)];
 	struct	tpm_getcap_params_in getcap_in;
+	struct	tpm_pcrread_in	pcrread_in;
+	struct	tpm_pcrread_out	pcrread_out;
+	struct	tpm_pcrextend_in pcrextend_in;
 } tpm_cmd_params;
 
 struct tpm_cmd_t {
