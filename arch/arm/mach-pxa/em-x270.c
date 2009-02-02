@@ -784,136 +784,64 @@ static inline void em_x270_init_camera(void) {}
 #endif
 
 /* DA9030 related initializations */
-static struct regulator_consumer_supply ldo3_consumers[] = {
-	{
-		.dev = NULL,
-		.supply = "vcc gps",
-	},
-};
+#define REGULATOR_CONSUMER(_name, _dev, _supply)			       \
+	static struct regulator_consumer_supply _name##_consumers[] = {	\
+		{							\
+			.dev = _dev,					\
+			.supply = _supply,				\
+		},							\
+	}
 
-static struct regulator_consumer_supply ldo5_consumers[] = {
-	{
-		.dev = NULL,
-		.supply = "vcc cam",
-	},
-};
+REGULATOR_CONSUMER(ldo3, NULL, "vcc gps");
+REGULATOR_CONSUMER(ldo5, NULL, "vcc cam");
+REGULATOR_CONSUMER(ldo10, &pxa_device_mci.dev, "vcc sdio");
+REGULATOR_CONSUMER(ldo12, NULL, "vcc usb");
+REGULATOR_CONSUMER(ldo19, NULL, "vcc gprs");
 
-static struct regulator_consumer_supply ldo10_consumers[] = {
-	{
-		.dev = &pxa_device_mci.dev,
-		.supply = "vcc sdio",
-	},
-};
+#define REGULATOR_INIT(_ldo, _min_uV, _max_uV, _ops_mask)		\
+	static struct regulator_init_data _ldo##_data = {		\
+		.constraints = {					\
+			.min_uV = _min_uV,				\
+			.max_uV = _max_uV,				\
+			.state_mem = {					\
+				.enabled = 0,				\
+			},						\
+			.valid_ops_mask = _ops_mask,			\
+		},							\
+		.num_consumer_supplies = ARRAY_SIZE(_ldo##_consumers),	\
+		.consumer_supplies = _ldo##_consumers,			\
+	};
 
-static struct regulator_consumer_supply ldo12_consumers[] = {
-	{
-		.dev = NULL,
-		.supply = "vcc usb",
-	},
-};
-
-static struct regulator_consumer_supply ldo19_consumers[] = {
-	{
-		.dev = NULL,
-		.supply = "vcc gprs",
-	},
-};
-
-static struct regulator_init_data ldo3_data = {
-	.constraints = {
-		.min_uV = 3200000,
-		.max_uV = 3200000,
-		.state_mem = {
-			.enabled = 0,
-		},
-	},
-	.num_consumer_supplies = ARRAY_SIZE(ldo3_consumers),
-	.consumer_supplies = ldo3_consumers,
-};
-
-static struct regulator_init_data ldo5_data = {
-	.constraints = {
-		.min_uV = 3000000,
-		.max_uV = 3000000,
-		.state_mem = {
-			.enabled = 0,
-		},
-	},
-	.num_consumer_supplies = ARRAY_SIZE(ldo5_consumers),
-	.consumer_supplies = ldo5_consumers,
-};
-
-static struct regulator_init_data ldo10_data = {
-	.constraints = {
-		.min_uV = 2000000,
-		.max_uV = 3200000,
-		.state_mem = {
-			.enabled = 0,
-		},
-		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies = ARRAY_SIZE(ldo10_consumers),
-	.consumer_supplies = ldo10_consumers,
-};
-
-static struct regulator_init_data ldo12_data = {
-	.constraints = {
-		.min_uV = 3000000,
-		.max_uV = 3000000,
-		.state_mem = {
-			.enabled = 0,
-		},
-	},
-	.num_consumer_supplies = ARRAY_SIZE(ldo12_consumers),
-	.consumer_supplies = ldo12_consumers,
-};
-
-static struct regulator_init_data ldo19_data = {
-	.constraints = {
-		.min_uV = 3200000,
-		.max_uV = 3200000,
-		.state_mem = {
-			.enabled = 0,
-		},
-	},
-	.num_consumer_supplies = ARRAY_SIZE(ldo19_consumers),
-	.consumer_supplies = ldo19_consumers,
-};
+REGULATOR_INIT(ldo3, 3200000, 3200000, REGULATOR_CHANGE_STATUS);
+REGULATOR_INIT(ldo5, 3000000, 3000000, REGULATOR_CHANGE_STATUS);
+REGULATOR_INIT(ldo10, 2000000, 3200000,
+	       REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE);
+REGULATOR_INIT(ldo12, 3000000, 3000000, REGULATOR_CHANGE_STATUS);
+REGULATOR_INIT(ldo19, 3200000, 3200000, REGULATOR_CHANGE_STATUS);
 
 struct led_info em_x270_led_info = {
 	.name = "em-x270:orange",
 	.default_trigger = "battery-charging-or-full",
 };
 
-struct da903x_subdev_info em_x270_da9030_subdevs[] = {
-	{
-		.name = "da903x-regulator",
-		.id = DA9030_ID_LDO3,
-		.platform_data = &ldo3_data,
-	}, {
-		.name = "da903x-regulator",
-		.id = DA9030_ID_LDO5,
-		.platform_data = &ldo5_data,
-	}, {
-		.name = "da903x-regulator",
-		.id = DA9030_ID_LDO10,
-		.platform_data = &ldo10_data,
-	}, {
-		.name = "da903x-regulator",
-		.id = DA9030_ID_LDO12,
-		.platform_data = &ldo12_data,
-	}, {
-		.name = "da903x-regulator",
-		.id = DA9030_ID_LDO19,
-		.platform_data = &ldo19_data,
-	}, {
-		.name = "da903x-led",
-		.id = DA9030_ID_LED_PC,
-		.platform_data = &em_x270_led_info,
-	}, {
-		.name = "da903x-backlight",
-		.id = DA9030_ID_WLED,
+#define DA9030_SUBDEV(_name, _id, _pdata)	\
+	{					\
+		.name = "da903x-" #_name,	\
+		.id = DA9030_ID_##_id,		\
+		.platform_data = _pdata,	\
 	}
+
+#define DA9030_LDO(num)	DA9030_SUBDEV(regulator, LDO##num, &ldo##num##_data)
+
+struct da903x_subdev_info em_x270_da9030_subdevs[] = {
+	DA9030_LDO(3),
+	DA9030_LDO(5),
+	DA9030_LDO(10),
+	DA9030_LDO(12),
+	DA9030_LDO(19),
+
+	DA9030_SUBDEV(led, LED_PC, &em_x270_led_info),
+	DA9030_SUBDEV(backlight, WLED, &em_x270_led_info),
 };
 
 static struct da903x_platform_data em_x270_da9030_info = {
