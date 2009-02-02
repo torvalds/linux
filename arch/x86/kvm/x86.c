@@ -490,6 +490,17 @@ static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 		return;
 	}
 
+	if (efer & EFER_FFXSR) {
+		struct kvm_cpuid_entry2 *feat;
+
+		feat = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
+		if (!feat || !(feat->edx & bit(X86_FEATURE_FXSR_OPT))) {
+			printk(KERN_DEBUG "set_efer: #GP, enable FFXSR w/o CPUID capability\n");
+			kvm_inject_gp(vcpu, 0);
+			return;
+		}
+	}
+
 	if (efer & EFER_SVME) {
 		struct kvm_cpuid_entry2 *feat;
 
@@ -1240,6 +1251,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 #ifdef CONFIG_X86_64
 		bit(X86_FEATURE_LM) |
 #endif
+		bit(X86_FEATURE_FXSR_OPT) |
 		bit(X86_FEATURE_MMXEXT) |
 		bit(X86_FEATURE_3DNOWEXT) |
 		bit(X86_FEATURE_3DNOW);
