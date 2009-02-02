@@ -133,8 +133,7 @@ static void run_one_entry(void)
 	entry = list_first_entry(&async_pending, struct async_entry, list);
 
 	/* 2) move it to the running queue */
-	list_del(&entry->list);
-	list_add_tail(&entry->list, entry->running);
+	list_move_tail(&entry->list, entry->running);
 	spin_unlock_irqrestore(&async_lock, flags);
 
 	/* 3) run it (and print duration)*/
