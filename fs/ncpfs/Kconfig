@@ -1,6 +1,27 @@
 #
 # NCP Filesystem configuration
 #
+config NCP_FS
+	tristate "NCP file system support (to mount NetWare volumes)"
+	depends on IPX!=n || INET
+	help
+	  NCP (NetWare Core Protocol) is a protocol that runs over IPX and is
+	  used by Novell NetWare clients to talk to file servers.  It is to
+	  IPX what NFS is to TCP/IP, if that helps.  Saying Y here allows you
+	  to mount NetWare file server volumes and to access them just like
+	  any other Unix directory.  For details, please read the file
+	  <file:Documentation/filesystems/ncpfs.txt> in the kernel source and
+	  the IPX-HOWTO from <http://www.tldp.org/docs.html#howto>.
+
+	  You do not have to say Y here if you want your Linux box to act as a
+	  file *server* for Novell NetWare clients.
+
+	  General information about how to connect Linux, Windows machines and
+	  Macs is on the WWW at <http://www.eats.com/linux_mac_win.html>.
+
+	  To compile this as a module, choose M here: the module will be called
+	  ncpfs.  Say N unless you are connected to a Novell network.
+
 config NCPFS_PACKET_SIGNING
 	bool "Packet signatures"
 	depends on NCP_FS

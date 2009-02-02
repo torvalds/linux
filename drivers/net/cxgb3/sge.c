@@ -2104,6 +2104,7 @@ static void init_lro_mgr(struct sge_qset *qs, struct net_lro_mgr *lro_mgr)
 {
 	lro_mgr->dev = qs->netdev;
 	lro_mgr->features = LRO_F_NAPI;
+	lro_mgr->frag_align_pad = NET_IP_ALIGN;
 	lro_mgr->ip_summed = CHECKSUM_UNNECESSARY;
 	lro_mgr->ip_summed_aggr = CHECKSUM_UNNECESSARY;
 	lro_mgr->max_desc = T3_MAX_LRO_SES;

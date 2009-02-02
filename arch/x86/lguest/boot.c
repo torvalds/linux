@@ -931,7 +931,7 @@ static void lguest_restart(char *reason)
  * that we can fit comfortably.
  *
  * First we need assembly templates of each of the patchable Guest operations,
- * and these are in lguest_asm.S. */
+ * and these are in i386_head.S. */
 
 /*G:060 We construct a table from the assembler templates: */
 static const struct lguest_insns
@@ -1093,7 +1093,7 @@ __init void lguest_init(void)
 	acpi_ht = 0;
 #endif
 
-	/* We set the perferred console to "hvc".  This is the "hypervisor
+	/* We set the preferred console to "hvc".  This is the "hypervisor
 	 * virtual console" driver written by the PowerPC people, which we also
 	 * adapted for lguest's use. */
 	add_preferred_console("hvc", 0, NULL);

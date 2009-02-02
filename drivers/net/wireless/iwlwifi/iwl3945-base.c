@@ -745,7 +745,7 @@ static int iwl3945_send_cmd_sync(struct iwl3945_priv *priv, struct iwl3945_host_
 		IWL_ERROR("Error: Response NULL in '%s'\n",
 			  get_cmd_string(cmd->id));
 		ret = -EIO;
-		goto out;
+		goto cancel;
 	}
 
 	ret = 0;
@@ -6538,7 +6538,7 @@ static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		dev_kfree_skb_any(skb);
 
 	IWL_DEBUG_MAC80211("leave\n");
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int iwl3945_mac_add_interface(struct ieee80211_hw *hw,

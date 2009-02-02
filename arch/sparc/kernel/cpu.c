@@ -239,14 +239,26 @@ unsigned int fsr_storage;
 
 static void set_cpu_and_fpu(int psr_impl, int psr_vers, int fpu_vers)
 {
+	const struct manufacturer_info *manuf;
+	int i;
+
 	sparc_cpu_type = NULL;
 	sparc_fpu_type = NULL;
-	if (psr_impl < ARRAY_SIZE(manufacturer_info))
+	manuf = NULL;
+
+	for (i = 0; i < ARRAY_SIZE(manufacturer_info); i++)
+	{
+		if (psr_impl == manufacturer_info[i].psr_impl) {
+			manuf = &manufacturer_info[i];
+			break;
+		}
+	}
+	if (manuf != NULL)
 	{
 		const struct cpu_info *cpu;
 		const struct fpu_info *fpu;
 
-		cpu = &manufacturer_info[psr_impl].cpu_info[0];
+		cpu = &manuf->cpu_info[0];
 		while (cpu->psr_vers != -1)
 		{
 			if (cpu->psr_vers == psr_vers) {
@@ -256,7 +268,7 @@ static void set_cpu_and_fpu(int psr_impl, int psr_vers, int fpu_vers)
 			}
 			cpu++;
 		}
-		fpu =  &manufacturer_info[psr_impl].fpu_info[0];
+		fpu =  &manuf->fpu_info[0];
 		while (fpu->fp_vers != -1)
 		{
 			if (fpu->fp_vers == fpu_vers) {

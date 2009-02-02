@@ -355,17 +355,27 @@ static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 	int i = 0;
 
 	if (drv && drv->suspend) {
+		pci_dev->state_saved = false;
+
 		i = drv->suspend(pci_dev, state);
 		suspend_report_result(drv->suspend, i);
-	} else {
-		pci_save_state(pci_dev);
-		/*
-		 * This is for compatibility with existing code with legacy PM
-		 * support.
-		 */
-		pci_pm_set_unknown_state(pci_dev);
+		if (i)
+			return i;
+
+		if (pci_dev->state_saved)
+			goto Fixup;
+
+		if (WARN_ON_ONCE(pci_dev->current_state != PCI_D0))
+			goto Fixup;
 	}
 
+	pci_save_state(pci_dev);
+	/*
+	 * This is for compatibility with existing code with legacy PM support.
+	 */
+	pci_pm_set_unknown_state(pci_dev);
+
+ Fixup:
 	pci_fixup_device(pci_fixup_suspend, pci_dev);
 
 	return i;
@@ -386,81 +396,34 @@ static int pci_legacy_suspend_late(struct device *dev, pm_message_t state)
 
 static int pci_legacy_resume_early(struct device *dev)
 {
-	int error = 0;
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	struct pci_driver * drv = pci_dev->driver;
 
-	pci_fixup_device(pci_fixup_resume_early, pci_dev);
-
-	if (drv && drv->resume_early)
-		error = drv->resume_early(pci_dev);
-	return error;
+	return drv && drv->resume_early ?
+			drv->resume_early(pci_dev) : 0;
 }
 
 static int pci_legacy_resume(struct device *dev)
 {
-	int error;
 	struct pci_dev * pci_dev = to_pci_dev(dev);
 	struct pci_driver * drv = pci_dev->driver;
 
 	pci_fixup_device(pci_fixup_resume, pci_dev);
 
-	if (drv && drv->resume) {
-		error = drv->resume(pci_dev);
-	} else {
-		/* restore the PCI config space */
-		pci_restore_state(pci_dev);
-		error = pci_pm_reenable_device(pci_dev);
-	}
-	return error;
+	return drv && drv->resume ?
+			drv->resume(pci_dev) : pci_pm_reenable_device(pci_dev);
 }
 
 /* Auxiliary functions used by the new power management framework */
 
-static int pci_restore_standard_config(struct pci_dev *pci_dev)
-{
-	struct pci_dev *parent = pci_dev->bus->self;
-	int error = 0;
-
-	/* Check if the device's bus is operational */
-	if (!parent || parent->current_state == PCI_D0) {
-		pci_restore_state(pci_dev);
-		pci_update_current_state(pci_dev, PCI_D0);
-	} else {
-		dev_warn(&pci_dev->dev, "unable to restore config, "
-			"bridge %s in low power state D%d\n", pci_name(parent),
-			parent->current_state);
-		pci_dev->current_state = PCI_UNKNOWN;
-		error = -EAGAIN;
-	}
-
-	return error;
-}
-
-static bool pci_is_bridge(struct pci_dev *pci_dev)
-{
-	return !!(pci_dev->subordinate);
-}
-
 static void pci_pm_default_resume_noirq(struct pci_dev *pci_dev)
 {
-	if (pci_restore_standard_config(pci_dev))
-		pci_fixup_device(pci_fixup_resume_early, pci_dev);
+	pci_restore_standard_config(pci_dev);
+	pci_fixup_device(pci_fixup_resume_early, pci_dev);
 }
 
 static int pci_pm_default_resume(struct pci_dev *pci_dev)
 {
-	/*
-	 * pci_restore_standard_config() should have been called once already,
-	 * but it would have failed if the device's parent bridge had not been
-	 * in power state D0 at that time.  Check it and try again if necessary.
-	 */
-	if (pci_dev->current_state == PCI_UNKNOWN) {
-		int error = pci_restore_standard_config(pci_dev);
-		if (error)
-			return error;
-	}
-
 	pci_fixup_device(pci_fixup_resume, pci_dev);
 
 	if (!pci_is_bridge(pci_dev))
@@ -575,10 +538,10 @@ static int pci_pm_resume_noirq(struct device *dev)
 	struct device_driver *drv = dev->driver;
 	int error = 0;
 
+	pci_pm_default_resume_noirq(pci_dev);
+
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume_early(dev);
-
-	pci_pm_default_resume_noirq(pci_dev);
 
 	if (drv && drv->pm && drv->pm->resume_noirq)
 		error = drv->pm->resume_noirq(dev);
@@ -730,10 +693,10 @@ static int pci_pm_restore_noirq(struct device *dev)
 	struct device_driver *drv = dev->driver;
 	int error = 0;
 
+	pci_pm_default_resume_noirq(pci_dev);
+
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume_early(dev);
-
-	pci_pm_default_resume_noirq(pci_dev);
 
 	if (drv && drv->pm && drv->pm->restore_noirq)
 		error = drv->pm->restore_noirq(dev);

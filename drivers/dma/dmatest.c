@@ -217,6 +217,10 @@ static int dmatest_func(void *data)
 	chan = thread->chan;
 
 	while (!kthread_should_stop()) {
+		struct dma_device *dev = chan->device;
+		struct dma_async_tx_descriptor *tx;
+		dma_addr_t dma_src, dma_dest;
+
 		total_tests++;
 
 		len = dmatest_random() % test_buf_size + 1;
@@ -226,10 +230,30 @@ static int dmatest_func(void *data)
 		dmatest_init_srcbuf(thread->srcbuf, src_off, len);
 		dmatest_init_dstbuf(thread->dstbuf, dst_off, len);
 
-		cookie = dma_async_memcpy_buf_to_buf(chan,
-				thread->dstbuf + dst_off,
-				thread->srcbuf + src_off,
-				len);
+		dma_src = dma_map_single(dev->dev, thread->srcbuf + src_off,
+				len, DMA_TO_DEVICE);
+		/* map with DMA_BIDIRECTIONAL to force writeback/invalidate */
+		dma_dest = dma_map_single(dev->dev, thread->dstbuf,
+				test_buf_size, DMA_BIDIRECTIONAL);
+
+		tx = dev->device_prep_dma_memcpy(chan, dma_dest + dst_off,
+				dma_src, len,
+				DMA_CTRL_ACK | DMA_COMPL_SKIP_DEST_UNMAP);
+		if (!tx) {
+			dma_unmap_single(dev->dev, dma_src, len, DMA_TO_DEVICE);
+			dma_unmap_single(dev->dev, dma_dest,
+					test_buf_size, DMA_BIDIRECTIONAL);
+			pr_warning("%s: #%u: prep error with src_off=0x%x "
+					"dst_off=0x%x len=0x%x\n",
+					thread_name, total_tests - 1,
+					src_off, dst_off, len);
+			msleep(100);
+			failed_tests++;
+			continue;
+		}
+		tx->callback = NULL;
+		cookie = tx->tx_submit(tx);
+
 		if (dma_submit_error(cookie)) {
 			pr_warning("%s: #%u: submit error %d with src_off=0x%x "
 					"dst_off=0x%x len=0x%x\n",
@@ -253,6 +277,9 @@ static int dmatest_func(void *data)
 			failed_tests++;
 			continue;
 		}
+		/* Unmap by myself (see DMA_COMPL_SKIP_DEST_UNMAP above) */
+		dma_unmap_single(dev->dev, dma_dest,
+				test_buf_size, DMA_BIDIRECTIONAL);
 
 		error_count = 0;
 

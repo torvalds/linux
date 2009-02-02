@@ -49,6 +49,7 @@
 #define E820_RESERVED_KERN        128
 
 #ifndef __ASSEMBLY__
+#include <linux/types.h>
 struct e820entry {
 	__u64 addr;	/* start of memory segment */
 	__u64 size;	/* size of memory segment */

@@ -21,7 +21,7 @@
  * end of memory on some systems.  It's also a seriously bad idea on non
  * dma-coherent systems.
  */
-#if !defined(CONFIG_DMA_COHERENT) || !defined(CONFIG_DMA_IP27)
+#ifdef CONFIG_DMA_NONCOHERENT
 #undef CONFIG_CPU_HAS_PREFETCH
 #endif
 #ifdef CONFIG_MIPS_MALTA
