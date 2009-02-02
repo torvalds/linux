@@ -83,7 +83,7 @@ static int write_tbcr(struct pxa930_trkball *trkball, int v)
 
 	__raw_writel(v, trkball->mmio_base + TBCR);
 
-	while (i--) {
+	while (--i) {
 		if (__raw_readl(trkball->mmio_base + TBCR) == v)
 			break;
 		msleep(1);
