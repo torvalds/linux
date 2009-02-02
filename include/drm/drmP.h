@@ -1173,10 +1173,10 @@ extern int drm_freebufs(struct drm_device *dev, void *data,
 extern int drm_mapbufs(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 extern int drm_order(unsigned long size);
-extern unsigned long drm_get_resource_start(struct drm_device *dev,
+extern resource_size_t drm_get_resource_start(struct drm_device *dev,
+					      unsigned int resource);
+extern resource_size_t drm_get_resource_len(struct drm_device *dev,
 					    unsigned int resource);
-extern unsigned long drm_get_resource_len(struct drm_device *dev,
-					  unsigned int resource);
 
 				/* DMA support (drm_dma.h) */
 extern int drm_dma_setup(struct drm_device *dev);

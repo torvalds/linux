@@ -113,8 +113,8 @@ typedef struct drm_mga_private {
 	 * \sa drm_mga_private_t::mmio
 	 */
 	/*@{ */
-	u32 mmio_base;		   /**< Bus address of base of MMIO. */
-	u32 mmio_size;		   /**< Size of the MMIO region. */
+	resource_size_t mmio_base;	   /**< Bus address of base of MMIO. */
+	resource_size_t mmio_size;	   /**< Size of the MMIO region. */
 	/*@} */
 
 	u32 clear_cmd;

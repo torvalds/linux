@@ -316,7 +316,7 @@ typedef struct drm_radeon_private {
 
 	/* starting from here on, data is preserved accross an open */
 	uint32_t flags;		/* see radeon_chip_flags */
-	unsigned long fb_aper_offset;
+	resource_size_t fb_aper_offset;
 
 	int num_gb_pipes;
 	int track_flush;

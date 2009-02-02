@@ -1057,7 +1057,7 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long base, size;
+	resource_size_t base, size;
 	int ret = 0, mmio_bar = IS_I9XX(dev) ? 0 : 1;
 
 	/* i915 has 4 more counters */

@@ -550,7 +550,7 @@ struct drm_mode_config {
 	int min_width, min_height;
 	int max_width, max_height;
 	struct drm_mode_config_funcs *funcs;
-	unsigned long fb_base;
+	resource_size_t fb_base;
 
 	/* pointers to standard properties */
 	struct list_head property_blob_list;
