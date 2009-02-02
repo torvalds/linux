@@ -1549,7 +1549,8 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 		if (hwif_init(hwif) == 0) {
 			printk(KERN_INFO "%s: failed to initialize IDE "
 					 "interface\n", hwif->name);
-			hwif->present = 0;
+			device_unregister(&hwif->gendev);
+			ide_disable_port(hwif);
 			continue;
 		}
 
