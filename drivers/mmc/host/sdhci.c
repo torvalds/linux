@@ -1636,8 +1636,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	mmc->f_max = host->max_clk;
 	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
 
-	if ((caps & SDHCI_CAN_DO_HISPD) ||
-		(host->quirks & SDHCI_QUIRK_FORCE_HIGHSPEED))
+	if (caps & SDHCI_CAN_DO_HISPD)
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
 
 	mmc->ocr_avail = 0;
