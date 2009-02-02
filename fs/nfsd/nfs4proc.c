@@ -120,9 +120,9 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 		goto out;
 
 	set_change_info(&open->op_cinfo, current_fh);
+	fh_dup2(current_fh, &resfh);
 
 	/* set reply cache */
-	fh_dup2(current_fh, &resfh);
 	open->op_stateowner->so_replay.rp_openfh_len = resfh.fh_handle.fh_size;
 	memcpy(open->op_stateowner->so_replay.rp_openfh,
 			&resfh.fh_handle.fh_base, resfh.fh_handle.fh_size);
