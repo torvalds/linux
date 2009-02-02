@@ -168,26 +168,27 @@ static u32 compress_sliced_buf(struct cx18 *cx, u32 line, u8 *buf,
 }
 
 void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
-			   u64 pts_stamp, int streamtype)
+			   int streamtype)
 {
 	u8 *p = (u8 *) buf->buf;
+	u32 *q = (u32 *) buf->buf;
 	u32 size = buf->bytesused;
+	u32 pts;
 	int lines;
 
 	if (streamtype != CX18_ENC_STREAM_TYPE_VBI)
 		return;
 
+	cx18_buf_swap(buf);
+
 	/*
-	 * Note the CX23418 provides a 12 byte header, in it's raw VBI
-	 * buffers to us, that we currently throw away:
-	 * 0x3fffffff [4 bytes of something] [4 byte timestamp]
+	 * The CX23418 provides a 12 byte header in it's raw VBI buffers to us:
+	 * 0x3fffffff [4 bytes of something] [4 byte presentation time stamp?]
 	 */
 
 	/* Raw VBI data */
 	if (cx18_raw_vbi(cx)) {
 		u8 type;
-
-		cx18_buf_swap(buf);
 
 		/* Skip 12 bytes of header that gets stuffed in */
 		size -= 12;
@@ -208,7 +209,8 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 	}
 
 	/* Sliced VBI data with data insertion */
-	cx18_buf_swap(buf);
+
+	pts = (q[0] == 0x3fffffff) ? q[2] : 0;
 
 	/* first field */
 	/* compress_sliced_buf() will skip the 12 bytes of header */
@@ -230,6 +232,6 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 	memcpy(p, &cx->vbi.sliced_data[0], size);
 
 	if (cx->vbi.insert_mpeg)
-		copy_vbi_data(cx, lines, pts_stamp);
+		copy_vbi_data(cx, lines, pts);
 	cx->vbi.frame++;
 }

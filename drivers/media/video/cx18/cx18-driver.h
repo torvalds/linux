@@ -293,7 +293,6 @@ struct cx18_stream {
 	int dma;		/* can be PCI_DMA_TODEVICE,
 				   PCI_DMA_FROMDEVICE or
 				   PCI_DMA_NONE */
-	u64 dma_pts;
 	wait_queue_head_t waitq;
 
 	/* Buffer Stats */
