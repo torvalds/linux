@@ -11,6 +11,7 @@
 
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
 
 #include <linux/dm9000.h>
 #include <linux/rtc-v3020.h>
@@ -47,18 +48,21 @@
 #include "generic.h"
 #include "devices.h"
 
-/* GPIO IRQ usage */
-#define GPIO41_ETHIRQ		(41)
+/* EM-X270 specific GPIOs */
 #define GPIO13_MMC_CD		(13)
-#define EM_X270_ETHIRQ		IRQ_GPIO(GPIO41_ETHIRQ)
-
-/* NAND control GPIOs */
-#define GPIO11_NAND_CS	(11)
-#define GPIO56_NAND_RB	(56)
-
-/* Miscelaneous GPIOs */
-#define GPIO93_CAM_RESET	(93)
 #define GPIO95_MMC_WP		(95)
+#define GPIO56_NAND_RB		(56)
+
+/* eXeda specific GPIOs */
+#define GPIO114_MMC_CD		(114)
+#define GPIO20_NAND_RB		(20)
+#define GPIO38_SD_PWEN		(38)
+
+/* common  GPIOs */
+#define GPIO11_NAND_CS		(11)
+#define GPIO93_CAM_RESET	(93)
+#define GPIO41_ETHIRQ		(41)
+#define EM_X270_ETHIRQ		IRQ_GPIO(GPIO41_ETHIRQ)
 
 static int mmc_cd;
 static int nand_rb;
@@ -188,6 +192,12 @@ static unsigned long em_x270_pin_config[] = {
 	GPIO13_GPIO,	/* MMC card detect */
 	GPIO56_GPIO,	/* NAND Ready/Busy */
 	GPIO95_GPIO,	/* MMC Write protect */
+};
+
+static unsigned long exeda_pin_config[] = {
+	GPIO20_GPIO,				/* NAND Ready/Busy */
+	GPIO38_GPIO	| MFP_LPM_DRIVE_LOW,	/* SD slot power */
+	GPIO114_GPIO,				/* MMC card detect */
 };
 
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
@@ -500,13 +510,23 @@ static int em_x270_mci_init(struct device *dev,
 		goto err_irq;
 	}
 
-	err = gpio_request(GPIO95_MMC_WP, "MMC WP");
-	if (err) {
-		dev_err(dev, "can't request MMC write protect: %d\n", err);
-		goto err_gpio_wp;
+	if (machine_is_em_x270()) {
+		err = gpio_request(GPIO95_MMC_WP, "MMC WP");
+		if (err) {
+			dev_err(dev, "can't request MMC write protect: %d\n",
+				err);
+			goto err_gpio_wp;
+		}
+		gpio_direction_input(GPIO95_MMC_WP);
+	} else {
+		err = gpio_request(GPIO38_SD_PWEN, "sdio power");
+		if (err) {
+			dev_err(dev, "can't request MMC power control : %d\n",
+				err);
+			goto err_gpio_wp;
+		}
+		gpio_direction_output(GPIO38_SD_PWEN, 1);
 	}
-
-	gpio_direction_input(GPIO95_MMC_WP);
 
 	return 0;
 
@@ -535,6 +555,12 @@ static void em_x270_mci_setpower(struct device *dev, unsigned int vdd)
 static void em_x270_mci_exit(struct device *dev, void *data)
 {
 	free_irq(gpio_to_irq(mmc_cd), data);
+	regulator_put(em_x270_sdio_ldo);
+
+	if (machine_is_em_x270())
+		gpio_free(GPIO95_MMC_WP);
+	else
+		gpio_free(GPIO38_SD_PWEN);
 }
 
 static int em_x270_mci_get_ro(struct device *dev)
@@ -549,12 +575,14 @@ static struct pxamci_platform_data em_x270_mci_platform_data = {
 			  MMC_VDD_30_31|MMC_VDD_31_32,
 	.init 		= em_x270_mci_init,
 	.setpower 	= em_x270_mci_setpower,
-	.get_ro		= em_x270_mci_get_ro,
 	.exit		= em_x270_mci_exit,
 };
 
 static void __init em_x270_init_mmc(void)
 {
+	if (machine_is_em_x270())
+		em_x270_mci_platform_data.get_ro = em_x270_mci_get_ro;
+
 	em_x270_mci_platform_data.detect_delay	= msecs_to_jiffies(250);
 	pxa_set_mci_info(&em_x270_mci_platform_data);
 }
@@ -651,23 +679,76 @@ static inline void em_x270_init_ac97(void) {}
 #endif
 
 #if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
-static unsigned int em_x270_matrix_keys[] = {
+static unsigned int em_x270_module_matrix_keys[] = {
 	KEY(0, 0, KEY_A), KEY(1, 0, KEY_UP), KEY(2, 1, KEY_B),
 	KEY(0, 2, KEY_LEFT), KEY(1, 1, KEY_ENTER), KEY(2, 0, KEY_RIGHT),
 	KEY(0, 1, KEY_C), KEY(1, 2, KEY_DOWN), KEY(2, 2, KEY_D),
 };
 
-struct pxa27x_keypad_platform_data em_x270_keypad_info = {
+struct pxa27x_keypad_platform_data em_x270_module_keypad_info = {
 	/* code map for the matrix keys */
 	.matrix_key_rows	= 3,
 	.matrix_key_cols	= 3,
-	.matrix_key_map		= em_x270_matrix_keys,
-	.matrix_key_map_size	= ARRAY_SIZE(em_x270_matrix_keys),
+	.matrix_key_map		= em_x270_module_matrix_keys,
+	.matrix_key_map_size	= ARRAY_SIZE(em_x270_module_matrix_keys),
+};
+
+static unsigned int em_x270_exeda_matrix_keys[] = {
+	KEY(0, 0, KEY_RIGHTSHIFT), KEY(0, 1, KEY_RIGHTCTRL),
+	KEY(0, 2, KEY_RIGHTALT), KEY(0, 3, KEY_SPACE),
+	KEY(0, 4, KEY_LEFTALT), KEY(0, 5, KEY_LEFTCTRL),
+	KEY(0, 6, KEY_ENTER), KEY(0, 7, KEY_SLASH),
+
+	KEY(1, 0, KEY_DOT), KEY(1, 1, KEY_M),
+	KEY(1, 2, KEY_N), KEY(1, 3, KEY_B),
+	KEY(1, 4, KEY_V), KEY(1, 5, KEY_C),
+	KEY(1, 6, KEY_X), KEY(1, 7, KEY_Z),
+
+	KEY(2, 0, KEY_LEFTSHIFT), KEY(2, 1, KEY_SEMICOLON),
+	KEY(2, 2, KEY_L), KEY(2, 3, KEY_K),
+	KEY(2, 4, KEY_J), KEY(2, 5, KEY_H),
+	KEY(2, 6, KEY_G), KEY(2, 7, KEY_F),
+
+	KEY(3, 0, KEY_D), KEY(3, 1, KEY_S),
+	KEY(3, 2, KEY_A), KEY(3, 3, KEY_TAB),
+	KEY(3, 4, KEY_BACKSPACE), KEY(3, 5, KEY_P),
+	KEY(3, 6, KEY_O), KEY(3, 7, KEY_I),
+
+	KEY(4, 0, KEY_U), KEY(4, 1, KEY_Y),
+	KEY(4, 2, KEY_T), KEY(4, 3, KEY_R),
+	KEY(4, 4, KEY_E), KEY(4, 5, KEY_W),
+	KEY(4, 6, KEY_Q), KEY(4, 7, KEY_MINUS),
+
+	KEY(5, 0, KEY_0), KEY(5, 1, KEY_9),
+	KEY(5, 2, KEY_8), KEY(5, 3, KEY_7),
+	KEY(5, 4, KEY_6), KEY(5, 5, KEY_5),
+	KEY(5, 6, KEY_4), KEY(5, 7, KEY_3),
+
+	KEY(6, 0, KEY_2), KEY(6, 1, KEY_1),
+	KEY(6, 2, KEY_ENTER), KEY(6, 3, KEY_END),
+	KEY(6, 4, KEY_DOWN), KEY(6, 5, KEY_UP),
+	KEY(6, 6, KEY_MENU), KEY(6, 7, KEY_F1),
+
+	KEY(7, 0, KEY_LEFT), KEY(7, 1, KEY_RIGHT),
+	KEY(7, 2, KEY_BACK), KEY(7, 3, KEY_HOME),
+	KEY(7, 4, 0), KEY(7, 5, 0),
+	KEY(7, 6, 0), KEY(7, 7, 0),
+};
+
+struct pxa27x_keypad_platform_data em_x270_exeda_keypad_info = {
+	/* code map for the matrix keys */
+	.matrix_key_rows	= 8,
+	.matrix_key_cols	= 8,
+	.matrix_key_map		= em_x270_exeda_matrix_keys,
+	.matrix_key_map_size	= ARRAY_SIZE(em_x270_exeda_matrix_keys),
 };
 
 static void __init em_x270_init_keypad(void)
 {
-	pxa_set_keypad_info(&em_x270_keypad_info);
+	if (machine_is_em_x270())
+		pxa_set_keypad_info(&em_x270_module_keypad_info);
+	else
+		pxa_set_keypad_info(&em_x270_exeda_keypad_info);
 }
 #else
 static inline void em_x270_init_keypad(void) {}
@@ -921,6 +1002,7 @@ static void __init em_x270_init_da9030(void)
 
 static void __init em_x270_module_init(void)
 {
+	pr_info("%s\n", __func__);
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(em_x270_pin_config));
 
 	mmc_cd = GPIO13_MMC_CD;
@@ -928,11 +1010,26 @@ static void __init em_x270_module_init(void)
 	dm9000_flags = DM9000_PLATF_32BITONLY;
 }
 
+static void __init em_x270_exeda_init(void)
+{
+	pr_info("%s\n", __func__);
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(exeda_pin_config));
+
+	mmc_cd = GPIO114_MMC_CD;
+	nand_rb = GPIO20_NAND_RB;
+	dm9000_flags = DM9000_PLATF_16BITONLY;
+}
+
 static void __init em_x270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(common_pin_config));
 
-	em_x270_module_init();
+	if (machine_is_em_x270())
+		em_x270_module_init();
+	else if (machine_is_exeda())
+		em_x270_exeda_init();
+	else
+		panic("Unsupported machine: %d\n", machine_arch_type);
 
 	em_x270_init_da9030();
 	em_x270_init_dm9000();
@@ -950,6 +1047,16 @@ static void __init em_x270_init(void)
 }
 
 MACHINE_START(EM_X270, "Compulab EM-X270")
+	.boot_params	= 0xa0000100,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.map_io		= pxa_map_io,
+	.init_irq	= pxa27x_init_irq,
+	.timer		= &pxa_timer,
+	.init_machine	= em_x270_init,
+MACHINE_END
+
+MACHINE_START(EXEDA, "Compulab eXeda")
 	.boot_params	= 0xa0000100,
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,

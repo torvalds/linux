@@ -254,6 +254,10 @@ config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"
 	select PXA27x
 
+config MACH_EXEDA
+	bool "CompuLab eXeda platform"
+	select PXA27x
+
 config MACH_COLIBRI
 	bool "Toradex Colibri PX27x"
 	select PXA27x
