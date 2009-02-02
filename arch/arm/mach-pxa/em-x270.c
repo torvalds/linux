@@ -43,12 +43,12 @@
 #include <mach/pxa2xx_spi.h>
 
 #include "generic.h"
+#include "devices.h"
 
 /* GPIO IRQ usage */
 #define GPIO41_ETHIRQ		(41)
 #define GPIO13_MMC_CD		(13)
 #define EM_X270_ETHIRQ		IRQ_GPIO(GPIO41_ETHIRQ)
-#define EM_X270_MMC_CD		IRQ_GPIO(GPIO13_MMC_CD)
 
 /* NAND control GPIOs */
 #define GPIO11_NAND_CS	(11)
@@ -56,6 +56,7 @@
 
 /* Miscelaneous GPIOs */
 #define GPIO93_CAM_RESET	(93)
+#define GPIO95_MMC_WP		(95)
 
 static unsigned long em_x270_pin_config[] = {
 	/* AC'97 */
@@ -163,7 +164,8 @@ static unsigned long em_x270_pin_config[] = {
 	GPIO18_RDY,
 
 	/* GPIO */
-	GPIO1_GPIO | WAKEUP_ON_EDGE_BOTH,
+	GPIO1_GPIO | WAKEUP_ON_EDGE_BOTH,	/* sleep/resume button */
+	GPIO95_GPIO,				/* MMC Write protect */
 
 	/* power controls */
 	GPIO20_GPIO	| MFP_LPM_DRIVE_LOW,	/* GPRS_PWEN */
@@ -464,47 +466,86 @@ static inline void em_x270_init_ohci(void) {}
 
 /* MCI controller setup */
 #if defined(CONFIG_MMC) || defined(CONFIG_MMC_MODULE)
+static struct regulator *em_x270_sdio_ldo;
+
 static int em_x270_mci_init(struct device *dev,
 			    irq_handler_t em_x270_detect_int,
 			    void *data)
 {
-	int err = request_irq(EM_X270_MMC_CD, em_x270_detect_int,
-			      IRQF_DISABLED | IRQF_TRIGGER_FALLING,
-			      "MMC card detect", data);
-	if (err) {
-		printk(KERN_ERR "%s: can't request MMC card detect IRQ: %d\n",
-		       __func__, err);
-		return err;
+	int err;
+
+	em_x270_sdio_ldo = regulator_get(dev, "vcc sdio");
+	if (IS_ERR(em_x270_sdio_ldo)) {
+		dev_err(dev, "can't request SDIO power supply: %ld\n",
+			PTR_ERR(em_x270_sdio_ldo));
+		return PTR_ERR(em_x270_sdio_ldo);
 	}
 
+	err = request_irq(gpio_to_irq(GPIO13_MMC_CD), em_x270_detect_int,
+			      IRQF_DISABLED | IRQF_TRIGGER_RISING |
+			      IRQF_TRIGGER_FALLING,
+			      "MMC card detect", data);
+	if (err) {
+		dev_err(dev, "can't request MMC card detect IRQ: %d\n", err);
+		goto err_irq;
+	}
+
+	err = gpio_request(GPIO95_MMC_WP, "MMC WP");
+	if (err) {
+		dev_err(dev, "can't request MMC write protect: %d\n", err);
+		goto err_gpio_wp;
+	}
+
+	gpio_direction_input(GPIO95_MMC_WP);
+
 	return 0;
+
+err_gpio_wp:
+	free_irq(gpio_to_irq(GPIO13_MMC_CD), data);
+err_irq:
+	regulator_put(em_x270_sdio_ldo);
+
+	return err;
 }
 
 static void em_x270_mci_setpower(struct device *dev, unsigned int vdd)
 {
-	/*
-	   FIXME: current hardware implementation does not allow to
-	   enable/disable MMC power. This will be fixed in next HW releases,
-	   and we'll need to add implmentation here.
-	*/
-	return;
+	struct pxamci_platform_data* p_d = dev->platform_data;
+
+	if ((1 << vdd) & p_d->ocr_mask) {
+		int vdd_uV = (2000 + (vdd - __ffs(MMC_VDD_20_21)) * 100) * 1000;
+
+		regulator_set_voltage(em_x270_sdio_ldo, vdd_uV, vdd_uV);
+		regulator_enable(em_x270_sdio_ldo);
+	} else {
+		regulator_disable(em_x270_sdio_ldo);
+	}
 }
 
 static void em_x270_mci_exit(struct device *dev, void *data)
 {
-	int irq = gpio_to_irq(GPIO13_MMC_CD);
-	free_irq(irq, data);
+	free_irq(gpio_to_irq(GPIO13_MMC_CD), data);
+}
+
+static int em_x270_mci_get_ro(struct device *dev)
+{
+	return gpio_get_value(GPIO95_MMC_WP);
 }
 
 static struct pxamci_platform_data em_x270_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_28_29|MMC_VDD_29_30|MMC_VDD_30_31,
+	.ocr_mask	= MMC_VDD_20_21|MMC_VDD_21_22|MMC_VDD_22_23|
+			  MMC_VDD_24_25|MMC_VDD_25_26|MMC_VDD_26_27|
+			  MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
+			  MMC_VDD_30_31|MMC_VDD_31_32,
 	.init 		= em_x270_mci_init,
 	.setpower 	= em_x270_mci_setpower,
+	.get_ro		= em_x270_mci_get_ro,
 	.exit		= em_x270_mci_exit,
 };
 
 static void __init em_x270_init_mmc(void)
 {
+	em_x270_mci_platform_data.detect_delay	= msecs_to_jiffies(250);
 	pxa_set_mci_info(&em_x270_mci_platform_data);
 }
 #else
@@ -757,6 +798,13 @@ static struct regulator_consumer_supply ldo5_consumers[] = {
 	},
 };
 
+static struct regulator_consumer_supply ldo10_consumers[] = {
+	{
+		.dev = &pxa_device_mci.dev,
+		.supply = "vcc sdio",
+	},
+};
+
 static struct regulator_consumer_supply ldo12_consumers[] = {
 	{
 		.dev = NULL,
@@ -793,6 +841,19 @@ static struct regulator_init_data ldo5_data = {
 	},
 	.num_consumer_supplies = ARRAY_SIZE(ldo5_consumers),
 	.consumer_supplies = ldo5_consumers,
+};
+
+static struct regulator_init_data ldo10_data = {
+	.constraints = {
+		.min_uV = 2000000,
+		.max_uV = 3200000,
+		.state_mem = {
+			.enabled = 0,
+		},
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(ldo10_consumers),
+	.consumer_supplies = ldo10_consumers,
 };
 
 static struct regulator_init_data ldo12_data = {
@@ -833,6 +894,10 @@ struct da903x_subdev_info em_x270_da9030_subdevs[] = {
 		.name = "da903x-regulator",
 		.id = DA9030_ID_LDO5,
 		.platform_data = &ldo5_data,
+	}, {
+		.name = "da903x-regulator",
+		.id = DA9030_ID_LDO10,
+		.platform_data = &ldo10_data,
 	}, {
 		.name = "da903x-regulator",
 		.id = DA9030_ID_LDO12,
