@@ -451,8 +451,8 @@ extern struct biovec_slab bvec_slabs[BIOVEC_NR_POOLS] __read_mostly;
 
 #ifdef CONFIG_HIGHMEM
 /*
- * remember to add offset! and never ever reenable interrupts between a
- * bvec_kmap_irq and bvec_kunmap_irq!!
+ * remember never ever reenable interrupts between a bvec_kmap_irq and
+ * bvec_kunmap_irq!
  *
  * This function MUST be inlined - it plays with the CPU interrupt flags.
  */
