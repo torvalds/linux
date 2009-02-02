@@ -10,6 +10,8 @@
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 
+extern void *xen_initial_gdt;
+
 struct trap_info;
 void xen_copy_trap_info(struct trap_info *traps);
 

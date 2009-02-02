@@ -170,8 +170,7 @@ static void __init xen_smp_prepare_boot_cpu(void)
 
 	/* We've switched to the "real" per-cpu gdt, so make sure the
 	   old memory can be recycled */
-	make_lowmem_page_readwrite(__per_cpu_load +
-				   (unsigned long)&per_cpu_var(gdt_page));
+	make_lowmem_page_readwrite(xen_initial_gdt);
 
 	xen_setup_vcpu_info_placement();
 }
@@ -287,6 +286,9 @@ static int __cpuinit xen_cpu_up(unsigned int cpu)
 	irq_ctx_init(cpu);
 #else
 	clear_tsk_thread_flag(idle, TIF_FORK);
+	per_cpu(kernel_stack, cpu) =
+		(unsigned long)task_stack_page(idle) -
+		KERNEL_STACK_OFFSET + THREAD_SIZE;
 #endif
 	xen_setup_timer(cpu);
 	xen_init_lock_cpu(cpu);
