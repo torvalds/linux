@@ -755,6 +755,8 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_SDVO:
 		case INTEL_OUTPUT_HDMI:
 			is_sdvo = true;
+			if (intel_output->needs_tv_clock)
+				is_tv = true;
 			break;
 		case INTEL_OUTPUT_DVO:
 			is_dvo = true;
