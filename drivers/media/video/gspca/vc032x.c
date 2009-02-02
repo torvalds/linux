@@ -2072,14 +2072,6 @@ static void usb_exchange(struct gspca_dev *gspca_dev,
 	/*not reached*/
 }
 
-static void vc0321_reset(struct gspca_dev *gspca_dev)
-{
-	reg_w(gspca_dev->dev, 0xa0, 0x00, 0xb04d);
-	reg_w(gspca_dev->dev, 0xa0, 0x01, 0xb301);
-	msleep(100);
-	reg_w(gspca_dev->dev, 0xa0, 0x01, 0xb003);
-	msleep(100);
-}
 
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
@@ -2092,8 +2084,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam = &gspca_dev->cam;
 	sd->bridge = id->driver_info;
-
-	vc0321_reset(gspca_dev);
 	sensor = vc032x_probe_sensor(gspca_dev);
 	switch (sensor) {
 	case -1:
