@@ -7053,12 +7053,14 @@ static int patch_alc882(struct hda_codec *codec)
 			break;
 		case 0x106b1000: /* iMac 24 */
 		case 0x106b2800: /* AppleTV */
+		case 0x106b3e00: /* iMac 24 Aluminium */
 			board_config = ALC885_IMAC24;
 			break;
 		case 0x106b00a1: /* Macbook (might be wrong - PCI SSID?) */
 		case 0x106b00a4: /* MacbookPro4,1 */
 		case 0x106b2c00: /* Macbook Pro rev3 */
 		case 0x106b3600: /* Macbook 3.1 */
+		case 0x106b3800: /* MacbookPro4,1 - latter revision */
 			board_config = ALC885_MBP3;
 			break;
 		default:
