@@ -135,6 +135,11 @@
 			interrupt-parent = <&ipic>;
 			dfsrr;
 
+			dtt@48 {
+				compatible = "national,lm75";
+				reg = <0x48>;
+			};
+
 			at24@50 {
 				compatible = "at24,24c256";
 				reg = <0x50>;
