@@ -24,6 +24,8 @@
 #include <linux/regulator/machine.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/tdo24m.h>
+#include <linux/power_supply.h>
+#include <linux/apm-emulation.h>
 
 #include <media/soc_camera.h>
 
@@ -824,6 +826,49 @@ struct led_info em_x270_led_info = {
 	.default_trigger = "battery-charging-or-full",
 };
 
+struct power_supply_info em_x270_psy_info = {
+	.name = "LP555597P6H-FPS",
+	.technology = POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.voltage_max_design = 4200000,
+	.voltage_min_design = 3000000,
+	.use_for_apm = 1,
+};
+
+static void em_x270_battery_low(void)
+{
+	apm_queue_event(APM_LOW_BATTERY);
+}
+
+static void em_x270_battery_critical(void)
+{
+	apm_queue_event(APM_CRITICAL_SUSPEND);
+}
+
+struct da9030_battery_info em_x270_batterty_info = {
+	.battery_info = &em_x270_psy_info,
+
+	.charge_milliamp = 1000,
+	.charge_millivolt = 4200,
+
+	.vbat_low = 3600,
+	.vbat_crit = 3400,
+	.vbat_charge_start = 4100,
+	.vbat_charge_stop = 4200,
+	.vbat_charge_restart = 4000,
+
+	.vcharge_min = 3200,
+	.vcharge_max = 5500,
+
+	.tbat_low = 197,
+	.tbat_high = 78,
+	.tbat_restart = 100,
+
+	.batmon_interval = 0,
+
+	.battery_low = em_x270_battery_low,
+	.battery_critical = em_x270_battery_critical,
+};
+
 #define DA9030_SUBDEV(_name, _id, _pdata)	\
 	{					\
 		.name = "da903x-" #_name,	\
@@ -842,6 +887,7 @@ struct da903x_subdev_info em_x270_da9030_subdevs[] = {
 
 	DA9030_SUBDEV(led, LED_PC, &em_x270_led_info),
 	DA9030_SUBDEV(backlight, WLED, &em_x270_led_info),
+	DA9030_SUBDEV(battery, BAT, &em_x270_batterty_info),
 };
 
 static struct da903x_platform_data em_x270_da9030_info = {
