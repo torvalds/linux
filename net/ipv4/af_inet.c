@@ -369,7 +369,6 @@ lookup_protocol:
 	sock_init_data(sock, sk);
 
 	sk->sk_destruct	   = inet_sock_destruct;
-	sk->sk_family	   = PF_INET;
 	sk->sk_protocol	   = protocol;
 	sk->sk_backlog_rcv = sk->sk_prot->backlog_rcv;
 
