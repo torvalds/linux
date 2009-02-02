@@ -641,7 +641,7 @@ static void ql_enable_all_completion_interrupts(struct ql_adapter *qdev)
 
 }
 
-static int ql_read_flash_word(struct ql_adapter *qdev, int offset, u32 *data)
+static int ql_read_flash_word(struct ql_adapter *qdev, int offset, __le32 *data)
 {
 	int status = 0;
 	/* wait for reg to come ready */
@@ -656,8 +656,11 @@ static int ql_read_flash_word(struct ql_adapter *qdev, int offset, u32 *data)
 			FLASH_ADDR, FLASH_ADDR_RDY, FLASH_ADDR_ERR);
 	if (status)
 		goto exit;
-	/* get the data */
-	*data = ql_read32(qdev, FLASH_DATA);
+	 /* This data is stored on flash as an array of
+	 * __le32.  Since ql_read32() returns cpu endian
+	 * we need to swap it back.
+	 */
+	*data = cpu_to_le32(ql_read32(qdev, FLASH_DATA));
 exit:
 	return status;
 }
@@ -666,7 +669,7 @@ static int ql_get_flash_params(struct ql_adapter *qdev)
 {
 	int i;
 	int status;
-	u32 *p = (u32 *)&qdev->flash;
+	__le32 *p = (__le32 *)&qdev->flash;
 
 	if (ql_sem_spinlock(qdev, SEM_FLASH_MASK))
 		return -ETIMEDOUT;
