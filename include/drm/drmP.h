@@ -526,7 +526,7 @@ struct drm_mm {
  * Kernel side of a mapping
  */
 struct drm_local_map {
-	unsigned long offset;	 /**< Requested physical address (0 for SAREA)*/
+	resource_size_t offset;	 /**< Requested physical address (0 for SAREA)*/
 	unsigned long size;	 /**< Requested physical size (bytes) */
 	enum drm_map_type type;	 /**< Type of memory to map */
 	enum drm_map_flags flags;	 /**< Flags */
@@ -760,8 +760,8 @@ struct drm_driver {
 					struct drm_file *file_priv);
 	void (*reclaim_buffers_idlelocked) (struct drm_device *dev,
 					    struct drm_file *file_priv);
-	unsigned long (*get_map_ofs) (struct drm_local_map * map);
-	unsigned long (*get_reg_ofs) (struct drm_device *dev);
+	resource_size_t (*get_map_ofs) (struct drm_local_map * map);
+	resource_size_t (*get_reg_ofs) (struct drm_device *dev);
 	void (*set_version) (struct drm_device *dev,
 			     struct drm_set_version *sv);
 
@@ -1062,8 +1062,8 @@ extern int drm_release(struct inode *inode, struct file *filp);
 extern int drm_mmap(struct file *filp, struct vm_area_struct *vma);
 extern int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma);
 extern void drm_vm_open_locked(struct vm_area_struct *vma);
-extern unsigned long drm_core_get_map_ofs(struct drm_local_map * map);
-extern unsigned long drm_core_get_reg_ofs(struct drm_device *dev);
+extern resource_size_t drm_core_get_map_ofs(struct drm_local_map * map);
+extern resource_size_t drm_core_get_reg_ofs(struct drm_device *dev);
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 				/* Memory management support (drm_memory.h) */
@@ -1166,7 +1166,7 @@ extern int drm_i_have_hw_lock(struct drm_device *dev, struct drm_file *file_priv
 				/* Buffer management support (drm_bufs.h) */
 extern int drm_addbufs_agp(struct drm_device *dev, struct drm_buf_desc * request);
 extern int drm_addbufs_pci(struct drm_device *dev, struct drm_buf_desc * request);
-extern int drm_addmap(struct drm_device *dev, unsigned int offset,
+extern int drm_addmap(struct drm_device *dev, resource_size_t offset,
 		      unsigned int size, enum drm_map_type type,
 		      enum drm_map_flags flags, struct drm_local_map **map_ptr);
 extern int drm_addmap_ioctl(struct drm_device *dev, void *data,

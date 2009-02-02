@@ -115,9 +115,9 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		 * Using vm_pgoff as a selector forces us to use this unusual
 		 * addressing scheme.
 		 */
-		unsigned long offset = (unsigned long)vmf->virtual_address -
-								vma->vm_start;
-		unsigned long baddr = map->offset + offset;
+		resource_size_t offset = (unsigned long)vmf->virtual_address -
+			vma->vm_start;
+		resource_size_t baddr = map->offset + offset;
 		struct drm_agp_mem *agpmem;
 		struct page *page;
 
@@ -149,8 +149,10 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		vmf->page = page;
 
 		DRM_DEBUG
-		    ("baddr = 0x%lx page = 0x%p, offset = 0x%lx, count=%d\n",
-		     baddr, __va(agpmem->memory->memory[offset]), offset,
+		    ("baddr = 0x%llx page = 0x%p, offset = 0x%llx, count=%d\n",
+		     (unsigned long long)baddr,
+		     __va(agpmem->memory->memory[offset]),
+		     (unsigned long long)offset,
 		     page_count(page));
 		return 0;
 	}
@@ -512,14 +514,14 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-unsigned long drm_core_get_map_ofs(struct drm_local_map * map)
+resource_size_t drm_core_get_map_ofs(struct drm_local_map * map)
 {
 	return map->offset;
 }
 
 EXPORT_SYMBOL(drm_core_get_map_ofs);
 
-unsigned long drm_core_get_reg_ofs(struct drm_device *dev)
+resource_size_t drm_core_get_reg_ofs(struct drm_device *dev)
 {
 #ifdef __alpha__
 	return dev->hose->dense_mem_base - dev->hose->mem_space->start;
@@ -548,7 +550,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_local_map *map = NULL;
-	unsigned long offset = 0;
+	resource_size_t offset = 0;
 	struct drm_hash_item *hash;
 
 	DRM_DEBUG("start = 0x%lx, end = 0x%lx, page offset = 0x%lx\n",
@@ -623,9 +625,9 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 				       vma->vm_page_prot))
 			return -EAGAIN;
 		DRM_DEBUG("   Type = %d; start = 0x%lx, end = 0x%lx,"
-			  " offset = 0x%lx\n",
+			  " offset = 0x%llx\n",
 			  map->type,
-			  vma->vm_start, vma->vm_end, map->offset + offset);
+			  vma->vm_start, vma->vm_end, (unsigned long long)(map->offset + offset));
 		vma->vm_ops = &drm_vm_ops;
 		break;
 	case _DRM_CONSISTENT:

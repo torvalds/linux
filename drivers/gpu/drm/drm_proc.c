@@ -276,9 +276,9 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 			type = "??";
 		else
 			type = types[map->type];
-		DRM_PROC_PRINT("%4d 0x%08lx 0x%08lx %4.4s  0x%02x 0x%08lx ",
+		DRM_PROC_PRINT("%4d 0x%08llx 0x%08lx %4.4s  0x%02x 0x%08lx ",
 			       i,
-			       map->offset,
+			       (unsigned long long)map->offset,
 			       map->size, type, map->flags,
 			       (unsigned long) r_list->user_token);
 		if (map->mtrr < 0) {

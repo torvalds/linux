@@ -54,11 +54,29 @@ static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 {
 	struct drm_map_list *entry;
 	list_for_each_entry(entry, &dev->maplist, head) {
-		if (entry->map && (entry->master == dev->primary->master) && (map->type == entry->map->type) &&
-		    ((entry->map->offset == map->offset) ||
-		     ((map->type == _DRM_SHM) && (map->flags&_DRM_CONTAINS_LOCK)))) {
+		/*
+		 * Because the kernel-userspace ABI is fixed at a 32-bit offset
+		 * while PCI resources may live above that, we ignore the map
+		 * offset for maps of type _DRM_FRAMEBUFFER or _DRM_REGISTERS.
+		 * It is assumed that each driver will have only one resource of
+		 * each type.
+		 */
+		if (!entry->map ||
+		    map->type != entry->map->type ||
+		    entry->master != dev->primary->master)
+			continue;
+		switch (map->type) {
+		case _DRM_SHM:
+			if (map->flags != _DRM_CONTAINS_LOCK)
+				break;
+		case _DRM_REGISTERS:
+		case _DRM_FRAME_BUFFER:
 			return entry;
+		default: /* Make gcc happy */
+			;
 		}
+		if (entry->map->offset == map->offset)
+			return entry;
 	}
 
 	return NULL;
@@ -96,7 +114,7 @@ static int drm_map_handle(struct drm_device *dev, struct drm_hash_item *hash,
  * type.  Adds the map to the map list drm_device::maplist. Adds MTRR's where
  * applicable and if supported by the kernel.
  */
-static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
+static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 			   unsigned int size, enum drm_map_type type,
 			   enum drm_map_flags flags,
 			   struct drm_map_list ** maplist)
@@ -124,9 +142,9 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 		drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		return -EINVAL;
 	}
-	DRM_DEBUG("offset = 0x%08lx, size = 0x%08lx, type = %d\n",
-		  map->offset, map->size, map->type);
-	if ((map->offset & (~PAGE_MASK)) || (map->size & (~PAGE_MASK))) {
+	DRM_DEBUG("offset = 0x%08llx, size = 0x%08lx, type = %d\n",
+		  (unsigned long long)map->offset, map->size, map->type);
+	if ((map->offset & (~(resource_size_t)PAGE_MASK)) || (map->size & (~PAGE_MASK))) {
 		drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 		return -EINVAL;
 	}
@@ -254,7 +272,8 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 			drm_free(map, sizeof(*map), DRM_MEM_MAPS);
 			return -EPERM;
 		}
-		DRM_DEBUG("AGP offset = 0x%08lx, size = 0x%08lx\n", map->offset, map->size);
+		DRM_DEBUG("AGP offset = 0x%08llx, size = 0x%08lx\n",
+			  (unsigned long long)map->offset, map->size);
 
 		break;
 	case _DRM_GEM:
@@ -322,7 +341,7 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 	return 0;
 	}
 
-int drm_addmap(struct drm_device * dev, unsigned int offset,
+int drm_addmap(struct drm_device * dev, resource_size_t offset,
 	       unsigned int size, enum drm_map_type type,
 	       enum drm_map_flags flags, struct drm_local_map ** map_ptr)
 {
