@@ -66,8 +66,7 @@ struct nfs4_cb_recall {
 	u32			cbr_ident;
 	int			cbr_trunc;
 	stateid_t		cbr_stateid;
-	u32			cbr_fhlen;
-	char			cbr_fhval[NFS4_FHSIZE];
+	struct knfsd_fh		cbr_fh;
 	struct nfs4_delegation	*cbr_dp;
 };
 
@@ -86,8 +85,7 @@ struct nfs4_delegation {
 };
 
 #define dl_stateid      dl_recall.cbr_stateid
-#define dl_fhlen        dl_recall.cbr_fhlen
-#define dl_fhval        dl_recall.cbr_fhval
+#define dl_fh           dl_recall.cbr_fh
 
 /* client delegation callback info */
 struct nfs4_callback {

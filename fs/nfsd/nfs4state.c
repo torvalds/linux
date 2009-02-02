@@ -215,9 +215,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 	dp->dl_stateid.si_stateownerid = current_delegid++;
 	dp->dl_stateid.si_fileid = 0;
 	dp->dl_stateid.si_generation = 0;
-	dp->dl_fhlen = current_fh->fh_handle.fh_size;
-	memcpy(dp->dl_fhval, &current_fh->fh_handle.fh_base,
-		        current_fh->fh_handle.fh_size);
+	fh_copy_shallow(&dp->dl_fh, &current_fh->fh_handle);
 	dp->dl_time = 0;
 	atomic_set(&dp->dl_count, 1);
 	list_add(&dp->dl_perfile, &fp->fi_delegations);

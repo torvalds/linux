@@ -218,7 +218,7 @@ static int
 encode_cb_recall(struct xdr_stream *xdr, struct nfs4_cb_recall *cb_rec)
 {
 	__be32 *p;
-	int len = cb_rec->cbr_fhlen;
+	int len = cb_rec->cbr_fh.fh_size;
 
 	RESERVE_SPACE(12+sizeof(cb_rec->cbr_stateid) + len);
 	WRITE32(OP_CB_RECALL);
@@ -226,7 +226,7 @@ encode_cb_recall(struct xdr_stream *xdr, struct nfs4_cb_recall *cb_rec)
 	WRITEMEM(&cb_rec->cbr_stateid.si_opaque, sizeof(stateid_opaque_t));
 	WRITE32(cb_rec->cbr_trunc);
 	WRITE32(len);
-	WRITEMEM(cb_rec->cbr_fhval, len);
+	WRITEMEM(&cb_rec->cbr_fh.fh_base, len);
 	return 0;
 }
 
