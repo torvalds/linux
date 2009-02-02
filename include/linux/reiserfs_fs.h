@@ -698,7 +698,9 @@ static inline void cpu_key_k_offset_dec(struct cpu_key *key)
 /* object identifier for root dir */
 #define REISERFS_ROOT_OBJECTID 2
 #define REISERFS_ROOT_PARENT_OBJECTID 1
+#ifdef __KERNEL__
 extern struct reiserfs_key root_key;
+#endif /* __KERNEL__ */
 
 /* 
  * Picture represents a leaf of the S+tree
@@ -1006,10 +1008,12 @@ struct reiserfs_de_head {
 #define de_visible(deh)	    	    test_bit_unaligned (DEH_Visible, &((deh)->deh_state))
 #define de_hidden(deh)	    	    !test_bit_unaligned (DEH_Visible, &((deh)->deh_state))
 
+#ifdef __KERNEL__
 extern void make_empty_dir_item_v1(char *body, __le32 dirid, __le32 objid,
 				   __le32 par_dirid, __le32 par_objid);
 extern void make_empty_dir_item(char *body, __le32 dirid, __le32 objid,
 				__le32 par_dirid, __le32 par_objid);
+#endif /* __KERNEL__ */
 
 /* array of the entry headers */
  /* get item body */
@@ -1478,7 +1482,9 @@ struct item_operations {
 	void (*print_vi) (struct virtual_item * vi);
 };
 
+#ifdef __KERNEL__
 extern struct item_operations *item_ops[TYPE_ANY + 1];
+#endif /* __KERNEL__ */
 
 #define op_bytes_number(ih,bsize)                    item_ops[le_ih_k_type (ih)]->bytes_number (ih, bsize)
 #define op_is_left_mergeable(key,bsize)              item_ops[le_key_k_type (le_key_version (key), key)]->is_left_mergeable (key, bsize)
@@ -1679,6 +1685,7 @@ struct reiserfs_transaction_handle {
 	struct list_head t_list;
 };
 
+#ifdef __KERNEL__
 /* used to keep track of ordered and tail writes, attached to the buffer
  * head through b_journal_head.
  */
@@ -2203,4 +2210,5 @@ int reiserfs_unpack(struct inode *inode, struct file *filp);
 /* xattr stuff */
 #define REISERFS_XATTR_DIR_SEM(s) (REISERFS_SB(s)->xattr_dir_sem)
 
+#endif /* __KERNEL__ */
 #endif				/* _LINUX_REISER_FS_H */
