@@ -91,7 +91,7 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->minor->dev;
-	struct drm_map *map = NULL;
+	struct drm_local_map *map = NULL;
 	struct drm_map_list *r_list;
 	struct drm_hash_item *hash;
 
@@ -176,7 +176,7 @@ static int drm_do_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
  */
 static int drm_do_vm_shm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	struct drm_map *map = (struct drm_map *) vma->vm_private_data;
+	struct drm_local_map *map = vma->vm_private_data;
 	unsigned long offset;
 	unsigned long i;
 	struct page *page;
@@ -209,7 +209,7 @@ static void drm_vm_shm_close(struct vm_area_struct *vma)
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_vma_entry *pt, *temp;
-	struct drm_map *map;
+	struct drm_local_map *map;
 	struct drm_map_list *r_list;
 	int found_maps = 0;
 
@@ -322,7 +322,7 @@ static int drm_do_vm_dma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
  */
 static int drm_do_vm_sg_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	struct drm_map *map = (struct drm_map *) vma->vm_private_data;
+	struct drm_local_map *map = vma->vm_private_data;
 	struct drm_file *priv = vma->vm_file->private_data;
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_sg_mem *entry = dev->sg;
@@ -512,7 +512,7 @@ static int drm_mmap_dma(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-unsigned long drm_core_get_map_ofs(struct drm_map * map)
+unsigned long drm_core_get_map_ofs(struct drm_local_map * map)
 {
 	return map->offset;
 }
@@ -547,7 +547,7 @@ int drm_mmap_locked(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
-	struct drm_map *map = NULL;
+	struct drm_local_map *map = NULL;
 	unsigned long offset = 0;
 	struct drm_hash_item *hash;
 
