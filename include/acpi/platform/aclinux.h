@@ -46,6 +46,7 @@
 
 #define ACPI_USE_SYSTEM_CLIBRARY
 #define ACPI_USE_DO_WHILE_0
+#define ACPI_MUTEX_TYPE             ACPI_BINARY_SEMAPHORE
 
 #ifdef __KERNEL__
 
@@ -69,9 +70,6 @@
 #define acpi_spinlock                   spinlock_t *
 #define ACPI_EXPORT_SYMBOL(symbol)  EXPORT_SYMBOL(symbol);
 #define strtoul                     simple_strtoul
-
-/* Full namespace pathname length limit - arbitrary */
-#define ACPI_PATHNAME_MAX              256
 
 #else				/* !__KERNEL__ */
 

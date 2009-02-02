@@ -82,6 +82,7 @@ static int s3c24xx_led_probe(struct platform_device *dev)
 	led->cdev.brightness_set = s3c24xx_led_set;
 	led->cdev.default_trigger = pdata->def_trigger;
 	led->cdev.name = pdata->name;
+	led->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
 	led->pdata = pdata;
 
@@ -111,33 +112,9 @@ static int s3c24xx_led_probe(struct platform_device *dev)
 	return ret;
 }
 
-
-#ifdef CONFIG_PM
-static int s3c24xx_led_suspend(struct platform_device *dev, pm_message_t state)
-{
-	struct s3c24xx_gpio_led *led = pdev_to_gpio(dev);
-
-	led_classdev_suspend(&led->cdev);
-	return 0;
-}
-
-static int s3c24xx_led_resume(struct platform_device *dev)
-{
-	struct s3c24xx_gpio_led *led = pdev_to_gpio(dev);
-
-	led_classdev_resume(&led->cdev);
-	return 0;
-}
-#else
-#define s3c24xx_led_suspend NULL
-#define s3c24xx_led_resume NULL
-#endif
-
 static struct platform_driver s3c24xx_led_driver = {
 	.probe		= s3c24xx_led_probe,
 	.remove		= s3c24xx_led_remove,
-	.suspend	= s3c24xx_led_suspend,
-	.resume		= s3c24xx_led_resume,
 	.driver		= {
 		.name		= "s3c24xx_led",
 		.owner		= THIS_MODULE,

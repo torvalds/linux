@@ -398,7 +398,7 @@ einval:	li	v0, -ENOSYS
 	sys	sys_uselib		1
 	sys	sys_swapon		2
 	sys	sys_reboot		3
-	sys	old_readdir		3
+	sys	sys_old_readdir		3
 	sys	old_mmap		6	/* 4090 */
 	sys	sys_munmap		2
 	sys	sys_truncate		2

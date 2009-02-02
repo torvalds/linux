@@ -117,16 +117,15 @@ static inline int generate_logical_apicid(int quad, int phys_apicid)
 }
 
 /* x86_quirks member */
-static int mpc_apic_id(struct mpc_config_processor *m)
+static int mpc_apic_id(struct mpc_cpu *m)
 {
 	int quad = translation_table[mpc_record]->trans_quad;
-	int logical_apicid = generate_logical_apicid(quad, m->mpc_apicid);
+	int logical_apicid = generate_logical_apicid(quad, m->apicid);
 
 	printk(KERN_DEBUG "Processor #%d %u:%u APIC version %d (quad %d, apic %d)\n",
-	       m->mpc_apicid,
-	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
-	       m->mpc_apicver, quad, logical_apicid);
+	       m->apicid, (m->cpufeature & CPU_FAMILY_MASK) >> 8,
+	       (m->cpufeature & CPU_MODEL_MASK) >> 4,
+	       m->apicver, quad, logical_apicid);
 	return logical_apicid;
 }
 
@@ -135,26 +134,26 @@ int mp_bus_id_to_node[MAX_MP_BUSSES];
 int mp_bus_id_to_local[MAX_MP_BUSSES];
 
 /* x86_quirks member */
-static void mpc_oem_bus_info(struct mpc_config_bus *m, char *name)
+static void mpc_oem_bus_info(struct mpc_bus *m, char *name)
 {
 	int quad = translation_table[mpc_record]->trans_quad;
 	int local = translation_table[mpc_record]->trans_local;
 
-	mp_bus_id_to_node[m->mpc_busid] = quad;
-	mp_bus_id_to_local[m->mpc_busid] = local;
+	mp_bus_id_to_node[m->busid] = quad;
+	mp_bus_id_to_local[m->busid] = local;
 	printk(KERN_INFO "Bus #%d is %s (node %d)\n",
-	       m->mpc_busid, name, quad);
+	       m->busid, name, quad);
 }
 
 int quad_local_to_mp_bus_id [NR_CPUS/4][4];
 
 /* x86_quirks member */
-static void mpc_oem_pci_bus(struct mpc_config_bus *m)
+static void mpc_oem_pci_bus(struct mpc_bus *m)
 {
 	int quad = translation_table[mpc_record]->trans_quad;
 	int local = translation_table[mpc_record]->trans_local;
 
-	quad_local_to_mp_bus_id[quad][local] = m->mpc_busid;
+	quad_local_to_mp_bus_id[quad][local] = m->busid;
 }
 
 static void __init MP_translation_info(struct mpc_config_translation *m)
@@ -186,7 +185,7 @@ static int __init mpf_checksum(unsigned char *mp, int len)
  * Read/parse the MPC oem tables
  */
 
-static void __init smp_read_mpc_oem(struct mp_config_oemtable *oemtable,
+static void __init smp_read_mpc_oem(struct mpc_oemtable *oemtable,
 				    unsigned short oemsize)
 {
 	int count = sizeof(*oemtable);	/* the header size */
@@ -195,18 +194,18 @@ static void __init smp_read_mpc_oem(struct mp_config_oemtable *oemtable,
 	mpc_record = 0;
 	printk(KERN_INFO "Found an OEM MPC table at %8p - parsing it ... \n",
 	       oemtable);
-	if (memcmp(oemtable->oem_signature, MPC_OEM_SIGNATURE, 4)) {
+	if (memcmp(oemtable->signature, MPC_OEM_SIGNATURE, 4)) {
 		printk(KERN_WARNING
 		       "SMP mpc oemtable: bad signature [%c%c%c%c]!\n",
-		       oemtable->oem_signature[0], oemtable->oem_signature[1],
-		       oemtable->oem_signature[2], oemtable->oem_signature[3]);
+		       oemtable->signature[0], oemtable->signature[1],
+		       oemtable->signature[2], oemtable->signature[3]);
 		return;
 	}
-	if (mpf_checksum((unsigned char *)oemtable, oemtable->oem_length)) {
+	if (mpf_checksum((unsigned char *)oemtable, oemtable->length)) {
 		printk(KERN_WARNING "SMP oem mptable: checksum error!\n");
 		return;
 	}
-	while (count < oemtable->oem_length) {
+	while (count < oemtable->length) {
 		switch (*oemptr) {
 		case MP_TRANSLATION:
 			{
@@ -260,8 +259,7 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.update_genapic		= numaq_update_genapic,
 };
 
-void numaq_mps_oem_check(struct mp_config_table *mpc, char *oem,
-				 char *productid)
+void numaq_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
 	if (strncmp(oem, "IBM NUMA", 8))
 		printk("Warning!  Not a NUMA-Q system!\n");

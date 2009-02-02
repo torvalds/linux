@@ -70,6 +70,15 @@
  * the controller, though.
  */
 
+static struct device *chan2dev(struct dma_chan *chan)
+{
+	return &chan->dev->device;
+}
+static struct device *chan2parent(struct dma_chan *chan)
+{
+	return chan->dev->device.parent;
+}
+
 static struct dw_desc *dwc_first_active(struct dw_dma_chan *dwc)
 {
 	return list_entry(dwc->active_list.next, struct dw_desc, desc_node);
@@ -93,12 +102,12 @@ static struct dw_desc *dwc_desc_get(struct dw_dma_chan *dwc)
 			ret = desc;
 			break;
 		}
-		dev_dbg(&dwc->chan.dev, "desc %p not ACKed\n", desc);
+		dev_dbg(chan2dev(&dwc->chan), "desc %p not ACKed\n", desc);
 		i++;
 	}
 	spin_unlock_bh(&dwc->lock);
 
-	dev_vdbg(&dwc->chan.dev, "scanned %u descriptors on freelist\n", i);
+	dev_vdbg(chan2dev(&dwc->chan), "scanned %u descriptors on freelist\n", i);
 
 	return ret;
 }
@@ -108,10 +117,10 @@ static void dwc_sync_desc_for_cpu(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	struct dw_desc	*child;
 
 	list_for_each_entry(child, &desc->txd.tx_list, desc_node)
-		dma_sync_single_for_cpu(dwc->chan.dev.parent,
+		dma_sync_single_for_cpu(chan2parent(&dwc->chan),
 				child->txd.phys, sizeof(child->lli),
 				DMA_TO_DEVICE);
-	dma_sync_single_for_cpu(dwc->chan.dev.parent,
+	dma_sync_single_for_cpu(chan2parent(&dwc->chan),
 			desc->txd.phys, sizeof(desc->lli),
 			DMA_TO_DEVICE);
 }
@@ -129,11 +138,11 @@ static void dwc_desc_put(struct dw_dma_chan *dwc, struct dw_desc *desc)
 
 		spin_lock_bh(&dwc->lock);
 		list_for_each_entry(child, &desc->txd.tx_list, desc_node)
-			dev_vdbg(&dwc->chan.dev,
+			dev_vdbg(chan2dev(&dwc->chan),
 					"moving child desc %p to freelist\n",
 					child);
 		list_splice_init(&desc->txd.tx_list, &dwc->free_list);
-		dev_vdbg(&dwc->chan.dev, "moving desc %p to freelist\n", desc);
+		dev_vdbg(chan2dev(&dwc->chan), "moving desc %p to freelist\n", desc);
 		list_add(&desc->desc_node, &dwc->free_list);
 		spin_unlock_bh(&dwc->lock);
 	}
@@ -163,9 +172,9 @@ static void dwc_dostart(struct dw_dma_chan *dwc, struct dw_desc *first)
 
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
-		dev_err(&dwc->chan.dev,
+		dev_err(chan2dev(&dwc->chan),
 			"BUG: Attempted to start non-idle channel\n");
-		dev_err(&dwc->chan.dev,
+		dev_err(chan2dev(&dwc->chan),
 			"  SAR: 0x%x DAR: 0x%x LLP: 0x%x CTL: 0x%x:%08x\n",
 			channel_readl(dwc, SAR),
 			channel_readl(dwc, DAR),
@@ -193,7 +202,7 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	void				*param;
 	struct dma_async_tx_descriptor	*txd = &desc->txd;
 
-	dev_vdbg(&dwc->chan.dev, "descriptor %u complete\n", txd->cookie);
+	dev_vdbg(chan2dev(&dwc->chan), "descriptor %u complete\n", txd->cookie);
 
 	dwc->completed = txd->cookie;
 	callback = txd->callback;
@@ -208,11 +217,11 @@ dwc_descriptor_complete(struct dw_dma_chan *dwc, struct dw_desc *desc)
 	 * mapped before they were submitted...
 	 */
 	if (!(txd->flags & DMA_COMPL_SKIP_DEST_UNMAP))
-		dma_unmap_page(dwc->chan.dev.parent, desc->lli.dar, desc->len,
-				DMA_FROM_DEVICE);
+		dma_unmap_page(chan2parent(&dwc->chan), desc->lli.dar,
+			       desc->len, DMA_FROM_DEVICE);
 	if (!(txd->flags & DMA_COMPL_SKIP_SRC_UNMAP))
-		dma_unmap_page(dwc->chan.dev.parent, desc->lli.sar, desc->len,
-				DMA_TO_DEVICE);
+		dma_unmap_page(chan2parent(&dwc->chan), desc->lli.sar,
+			       desc->len, DMA_TO_DEVICE);
 
 	/*
 	 * The API requires that no submissions are done from a
@@ -228,7 +237,7 @@ static void dwc_complete_all(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	LIST_HEAD(list);
 
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
-		dev_err(&dwc->chan.dev,
+		dev_err(chan2dev(&dwc->chan),
 			"BUG: XFER bit set, but channel not idle!\n");
 
 		/* Try to continue after resetting the channel... */
@@ -273,7 +282,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		return;
 	}
 
-	dev_vdbg(&dwc->chan.dev, "scan_descriptors: llp=0x%x\n", llp);
+	dev_vdbg(chan2dev(&dwc->chan), "scan_descriptors: llp=0x%x\n", llp);
 
 	list_for_each_entry_safe(desc, _desc, &dwc->active_list, desc_node) {
 		if (desc->lli.llp == llp)
@@ -292,7 +301,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 		dwc_descriptor_complete(dwc, desc);
 	}
 
-	dev_err(&dwc->chan.dev,
+	dev_err(chan2dev(&dwc->chan),
 		"BUG: All descriptors done, but channel not idle!\n");
 
 	/* Try to continue after resetting the channel... */
@@ -308,7 +317,7 @@ static void dwc_scan_descriptors(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 static void dwc_dump_lli(struct dw_dma_chan *dwc, struct dw_lli *lli)
 {
-	dev_printk(KERN_CRIT, &dwc->chan.dev,
+	dev_printk(KERN_CRIT, chan2dev(&dwc->chan),
 			"  desc: s0x%x d0x%x l0x%x c0x%x:%x\n",
 			lli->sar, lli->dar, lli->llp,
 			lli->ctlhi, lli->ctllo);
@@ -342,9 +351,9 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 	 * controller flagged an error instead of scribbling over
 	 * random memory locations.
 	 */
-	dev_printk(KERN_CRIT, &dwc->chan.dev,
+	dev_printk(KERN_CRIT, chan2dev(&dwc->chan),
 			"Bad descriptor submitted for DMA!\n");
-	dev_printk(KERN_CRIT, &dwc->chan.dev,
+	dev_printk(KERN_CRIT, chan2dev(&dwc->chan),
 			"  cookie: %d\n", bad_desc->txd.cookie);
 	dwc_dump_lli(dwc, &bad_desc->lli);
 	list_for_each_entry(child, &bad_desc->txd.tx_list, desc_node)
@@ -442,12 +451,12 @@ static dma_cookie_t dwc_tx_submit(struct dma_async_tx_descriptor *tx)
 	 * for DMA. But this is hard to do in a race-free manner.
 	 */
 	if (list_empty(&dwc->active_list)) {
-		dev_vdbg(&tx->chan->dev, "tx_submit: started %u\n",
+		dev_vdbg(chan2dev(tx->chan), "tx_submit: started %u\n",
 				desc->txd.cookie);
 		dwc_dostart(dwc, desc);
 		list_add_tail(&desc->desc_node, &dwc->active_list);
 	} else {
-		dev_vdbg(&tx->chan->dev, "tx_submit: queued %u\n",
+		dev_vdbg(chan2dev(tx->chan), "tx_submit: queued %u\n",
 				desc->txd.cookie);
 
 		list_add_tail(&desc->desc_node, &dwc->queue);
@@ -472,11 +481,11 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	unsigned int		dst_width;
 	u32			ctllo;
 
-	dev_vdbg(&chan->dev, "prep_dma_memcpy d0x%x s0x%x l0x%zx f0x%lx\n",
+	dev_vdbg(chan2dev(chan), "prep_dma_memcpy d0x%x s0x%x l0x%zx f0x%lx\n",
 			dest, src, len, flags);
 
 	if (unlikely(!len)) {
-		dev_dbg(&chan->dev, "prep_dma_memcpy: length is zero!\n");
+		dev_dbg(chan2dev(chan), "prep_dma_memcpy: length is zero!\n");
 		return NULL;
 	}
 
@@ -516,7 +525,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 			first = desc;
 		} else {
 			prev->lli.llp = desc->txd.phys;
-			dma_sync_single_for_device(chan->dev.parent,
+			dma_sync_single_for_device(chan2parent(chan),
 					prev->txd.phys, sizeof(prev->lli),
 					DMA_TO_DEVICE);
 			list_add_tail(&desc->desc_node,
@@ -531,7 +540,7 @@ dwc_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		prev->lli.ctllo |= DWC_CTLL_INT_EN;
 
 	prev->lli.llp = 0;
-	dma_sync_single_for_device(chan->dev.parent,
+	dma_sync_single_for_device(chan2parent(chan),
 			prev->txd.phys, sizeof(prev->lli),
 			DMA_TO_DEVICE);
 
@@ -562,15 +571,15 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	struct scatterlist	*sg;
 	size_t			total_len = 0;
 
-	dev_vdbg(&chan->dev, "prep_dma_slave\n");
+	dev_vdbg(chan2dev(chan), "prep_dma_slave\n");
 
 	if (unlikely(!dws || !sg_len))
 		return NULL;
 
-	reg_width = dws->slave.reg_width;
+	reg_width = dws->reg_width;
 	prev = first = NULL;
 
-	sg_len = dma_map_sg(chan->dev.parent, sgl, sg_len, direction);
+	sg_len = dma_map_sg(chan2parent(chan), sgl, sg_len, direction);
 
 	switch (direction) {
 	case DMA_TO_DEVICE:
@@ -579,7 +588,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				| DWC_CTLL_DST_FIX
 				| DWC_CTLL_SRC_INC
 				| DWC_CTLL_FC_M2P);
-		reg = dws->slave.tx_reg;
+		reg = dws->tx_reg;
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct dw_desc	*desc;
 			u32		len;
@@ -587,7 +596,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 			desc = dwc_desc_get(dwc);
 			if (!desc) {
-				dev_err(&chan->dev,
+				dev_err(chan2dev(chan),
 					"not enough descriptors available\n");
 				goto err_desc_get;
 			}
@@ -607,7 +616,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				first = desc;
 			} else {
 				prev->lli.llp = desc->txd.phys;
-				dma_sync_single_for_device(chan->dev.parent,
+				dma_sync_single_for_device(chan2parent(chan),
 						prev->txd.phys,
 						sizeof(prev->lli),
 						DMA_TO_DEVICE);
@@ -625,7 +634,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				| DWC_CTLL_SRC_FIX
 				| DWC_CTLL_FC_P2M);
 
-		reg = dws->slave.rx_reg;
+		reg = dws->rx_reg;
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct dw_desc	*desc;
 			u32		len;
@@ -633,7 +642,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 			desc = dwc_desc_get(dwc);
 			if (!desc) {
-				dev_err(&chan->dev,
+				dev_err(chan2dev(chan),
 					"not enough descriptors available\n");
 				goto err_desc_get;
 			}
@@ -653,7 +662,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				first = desc;
 			} else {
 				prev->lli.llp = desc->txd.phys;
-				dma_sync_single_for_device(chan->dev.parent,
+				dma_sync_single_for_device(chan2parent(chan),
 						prev->txd.phys,
 						sizeof(prev->lli),
 						DMA_TO_DEVICE);
@@ -673,7 +682,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		prev->lli.ctllo |= DWC_CTLL_INT_EN;
 
 	prev->lli.llp = 0;
-	dma_sync_single_for_device(chan->dev.parent,
+	dma_sync_single_for_device(chan2parent(chan),
 			prev->txd.phys, sizeof(prev->lli),
 			DMA_TO_DEVICE);
 
@@ -758,29 +767,21 @@ static void dwc_issue_pending(struct dma_chan *chan)
 	spin_unlock_bh(&dwc->lock);
 }
 
-static int dwc_alloc_chan_resources(struct dma_chan *chan,
-		struct dma_client *client)
+static int dwc_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(chan->device);
 	struct dw_desc		*desc;
-	struct dma_slave	*slave;
 	struct dw_dma_slave	*dws;
 	int			i;
 	u32			cfghi;
 	u32			cfglo;
 
-	dev_vdbg(&chan->dev, "alloc_chan_resources\n");
-
-	/* Channels doing slave DMA can only handle one client. */
-	if (dwc->dws || client->slave) {
-		if (chan->client_count)
-			return -EBUSY;
-	}
+	dev_vdbg(chan2dev(chan), "alloc_chan_resources\n");
 
 	/* ASSERT:  channel is idle */
 	if (dma_readl(dw, CH_EN) & dwc->mask) {
-		dev_dbg(&chan->dev, "DMA channel not idle?\n");
+		dev_dbg(chan2dev(chan), "DMA channel not idle?\n");
 		return -EIO;
 	}
 
@@ -789,23 +790,17 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan,
 	cfghi = DWC_CFGH_FIFO_MODE;
 	cfglo = 0;
 
-	slave = client->slave;
-	if (slave) {
+	dws = dwc->dws;
+	if (dws) {
 		/*
 		 * We need controller-specific data to set up slave
 		 * transfers.
 		 */
-		BUG_ON(!slave->dma_dev || slave->dma_dev != dw->dma.dev);
+		BUG_ON(!dws->dma_dev || dws->dma_dev != dw->dma.dev);
 
-		dws = container_of(slave, struct dw_dma_slave, slave);
-
-		dwc->dws = dws;
 		cfghi = dws->cfg_hi;
 		cfglo = dws->cfg_lo;
-	} else {
-		dwc->dws = NULL;
 	}
-
 	channel_writel(dwc, CFG_LO, cfglo);
 	channel_writel(dwc, CFG_HI, cfghi);
 
@@ -822,7 +817,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan,
 
 		desc = kzalloc(sizeof(struct dw_desc), GFP_KERNEL);
 		if (!desc) {
-			dev_info(&chan->dev,
+			dev_info(chan2dev(chan),
 				"only allocated %d descriptors\n", i);
 			spin_lock_bh(&dwc->lock);
 			break;
@@ -832,7 +827,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan,
 		desc->txd.tx_submit = dwc_tx_submit;
 		desc->txd.flags = DMA_CTRL_ACK;
 		INIT_LIST_HEAD(&desc->txd.tx_list);
-		desc->txd.phys = dma_map_single(chan->dev.parent, &desc->lli,
+		desc->txd.phys = dma_map_single(chan2parent(chan), &desc->lli,
 				sizeof(desc->lli), DMA_TO_DEVICE);
 		dwc_desc_put(dwc, desc);
 
@@ -847,7 +842,7 @@ static int dwc_alloc_chan_resources(struct dma_chan *chan,
 
 	spin_unlock_bh(&dwc->lock);
 
-	dev_dbg(&chan->dev,
+	dev_dbg(chan2dev(chan),
 		"alloc_chan_resources allocated %d descriptors\n", i);
 
 	return i;
@@ -860,7 +855,7 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 	struct dw_desc		*desc, *_desc;
 	LIST_HEAD(list);
 
-	dev_dbg(&chan->dev, "free_chan_resources (descs allocated=%u)\n",
+	dev_dbg(chan2dev(chan), "free_chan_resources (descs allocated=%u)\n",
 			dwc->descs_allocated);
 
 	/* ASSERT:  channel is idle */
@@ -881,13 +876,13 @@ static void dwc_free_chan_resources(struct dma_chan *chan)
 	spin_unlock_bh(&dwc->lock);
 
 	list_for_each_entry_safe(desc, _desc, &list, desc_node) {
-		dev_vdbg(&chan->dev, "  freeing descriptor %p\n", desc);
-		dma_unmap_single(chan->dev.parent, desc->txd.phys,
+		dev_vdbg(chan2dev(chan), "  freeing descriptor %p\n", desc);
+		dma_unmap_single(chan2parent(chan), desc->txd.phys,
 				sizeof(desc->lli), DMA_TO_DEVICE);
 		kfree(desc);
 	}
 
-	dev_vdbg(&chan->dev, "free_chan_resources done\n");
+	dev_vdbg(chan2dev(chan), "free_chan_resources done\n");
 }
 
 /*----------------------------------------------------------------------*/

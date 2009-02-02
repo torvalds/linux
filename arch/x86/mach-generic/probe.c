@@ -110,8 +110,7 @@ void __init generic_apic_probe(void)
 
 /* These functions can switch the APIC even after the initial ->probe() */
 
-int __init mps_oem_check(struct mp_config_table *mpc, char *oem,
-				 char *productid)
+int __init mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
 	int i;
 	for (i = 0; apic_probe[i]; ++i) {

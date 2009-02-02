@@ -35,7 +35,15 @@
 #define MXC_BOARD_IRQ_START	(MXC_INTERNAL_IRQS + MXC_GPIO_IRQS)
 #define MXC_BOARD_IRQS	16
 
-#define NR_IRQS		(MXC_BOARD_IRQ_START + MXC_BOARD_IRQS)
+#define MXC_IPU_IRQ_START	(MXC_BOARD_IRQ_START + MXC_BOARD_IRQS)
+
+#ifdef CONFIG_MX3_IPU_IRQS
+#define MX3_IPU_IRQS CONFIG_MX3_IPU_IRQS
+#else
+#define MX3_IPU_IRQS 0
+#endif
+
+#define NR_IRQS			(MXC_IPU_IRQ_START + MX3_IPU_IRQS)
 
 extern void imx_irq_set_priority(unsigned char irq, unsigned char prio);
 

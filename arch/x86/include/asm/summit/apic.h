@@ -2,6 +2,7 @@
 #define __ASM_SUMMIT_APIC_H
 
 #include <asm/smp.h>
+#include <linux/gfp.h>
 
 #define esr_disable (1)
 #define NO_BALANCE_IRQ (0)

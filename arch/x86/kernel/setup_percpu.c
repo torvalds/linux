@@ -5,12 +5,11 @@
 #include <linux/percpu.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
-#include <asm/smp.h>
-#include <asm/percpu.h>
+#include <linux/smp.h>
+#include <linux/topology.h>
 #include <asm/sections.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
-#include <asm/topology.h>
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>
 #include <asm/highmem.h>
@@ -20,8 +19,8 @@ unsigned int num_processors;
 unsigned disabled_cpus __cpuinitdata;
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
-unsigned int max_physical_apicid;
 EXPORT_SYMBOL(boot_cpu_physical_apicid);
+unsigned int max_physical_apicid;
 
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;
@@ -131,7 +130,27 @@ static void __init setup_cpu_pda_map(void)
 	/* point to new pointer table */
 	_cpu_pda = new_cpu_pda;
 }
-#endif
+
+#endif /* CONFIG_SMP && CONFIG_X86_64 */
+
+#ifdef CONFIG_X86_64
+
+/* correctly size the local cpu masks */
+static void __init setup_cpu_local_masks(void)
+{
+	alloc_bootmem_cpumask_var(&cpu_initialized_mask);
+	alloc_bootmem_cpumask_var(&cpu_callin_mask);
+	alloc_bootmem_cpumask_var(&cpu_callout_mask);
+	alloc_bootmem_cpumask_var(&cpu_sibling_setup_mask);
+}
+
+#else /* CONFIG_X86_32 */
+
+static inline void setup_cpu_local_masks(void)
+{
+}
+
+#endif /* CONFIG_X86_32 */
 
 /*
  * Great future plan:
@@ -187,6 +206,9 @@ void __init setup_per_cpu_areas(void)
 
 	/* Setup node to cpumask map */
 	setup_node_to_cpumask_map();
+
+	/* Setup cpu initialized, callin, callout masks */
+	setup_cpu_local_masks();
 }
 
 #endif
@@ -280,8 +302,8 @@ static void __cpuinit numa_set_cpumask(int cpu, int enable)
 
 	cpulist_scnprintf(buf, sizeof(buf), mask);
 	printk(KERN_DEBUG "%s cpu %d node %d: mask now %s\n",
-		enable? "numa_add_cpu":"numa_remove_cpu", cpu, node, buf);
- }
+		enable ? "numa_add_cpu" : "numa_remove_cpu", cpu, node, buf);
+}
 
 void __cpuinit numa_add_cpu(int cpu)
 {

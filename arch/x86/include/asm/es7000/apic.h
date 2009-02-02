@@ -1,6 +1,8 @@
 #ifndef __ASM_ES7000_APIC_H
 #define __ASM_ES7000_APIC_H
 
+#include <linux/gfp.h>
+
 #define xapic_phys_to_log_apicid(cpu) per_cpu(x86_bios_cpu_apicid, cpu)
 #define esr_disable (1)
 

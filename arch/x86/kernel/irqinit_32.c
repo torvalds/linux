@@ -9,18 +9,18 @@
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
 #include <linux/bitops.h>
+#include <linux/io.h>
+#include <linux/delay.h>
 
 #include <asm/atomic.h>
 #include <asm/system.h>
-#include <asm/io.h>
 #include <asm/timer.h>
 #include <asm/pgtable.h>
-#include <asm/delay.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
 #include <asm/arch_hooks.h>
 #include <asm/i8259.h>
-
+#include <asm/traps.h>
 
 
 /*
@@ -34,12 +34,10 @@
  * leads to races. IBM designers who came up with it should
  * be shot.
  */
- 
 
 static irqreturn_t math_error_irq(int cpl, void *dev_id)
 {
-	extern void math_error(void __user *);
-	outb(0,0xF0);
+	outb(0, 0xF0);
 	if (ignore_fpu_irq || !boot_cpu_data.hard_math)
 		return IRQ_NONE;
 	math_error((void __user *)get_irq_regs()->ip);
@@ -56,7 +54,7 @@ static struct irqaction fpu_irq = {
 	.name = "fpu",
 };
 
-void __init init_ISA_irqs (void)
+void __init init_ISA_irqs(void)
 {
 	int i;
 

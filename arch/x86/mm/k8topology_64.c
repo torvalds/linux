@@ -81,7 +81,6 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 	unsigned numnodes, cores, bits, apicid_base;
 	unsigned long prevbase;
 	struct bootnode nodes[8];
-	unsigned char nodeids[8];
 	int i, j, nb, found = 0;
 	u32 nodeid, reg;
 
@@ -110,7 +109,6 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 		limit = read_pci_config(0, nb, 1, 0x44 + i*8);
 
 		nodeid = limit & 7;
-		nodeids[i] = nodeid;
 		if ((base & 3) == 0) {
 			if (i < numnodes)
 				printk("Skipping disabled node %d\n", i);
@@ -179,9 +177,6 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 
 		nodes[nodeid].start = base;
 		nodes[nodeid].end = limit;
-		e820_register_active_regions(nodeid,
-				nodes[nodeid].start >> PAGE_SHIFT,
-				nodes[nodeid].end >> PAGE_SHIFT);
 
 		prevbase = base;
 
@@ -211,12 +206,15 @@ int __init k8_scan_nodes(unsigned long start, unsigned long end)
 	}
 
 	for (i = 0; i < 8; i++) {
-		if (nodes[i].start != nodes[i].end) {
-			nodeid = nodeids[i];
-			for (j = apicid_base; j < cores + apicid_base; j++)
-				apicid_to_node[(nodeid << bits) + j] = i;
-			setup_node_bootmem(i, nodes[i].start, nodes[i].end);
-		}
+		if (nodes[i].start == nodes[i].end)
+			continue;
+
+		e820_register_active_regions(i,
+				nodes[i].start >> PAGE_SHIFT,
+				nodes[i].end >> PAGE_SHIFT);
+		for (j = apicid_base; j < cores + apicid_base; j++)
+			apicid_to_node[(i << bits) + j] = i;
+		setup_node_bootmem(i, nodes[i].start, nodes[i].end);
 	}
 
 	numa_init_array();

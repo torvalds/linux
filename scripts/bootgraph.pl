@@ -41,11 +41,13 @@ use strict;
 
 my %start;
 my %end;
+my %type;
 my $done = 0;
 my $maxtime = 0;
 my $firsttime = 100;
 my $count = 0;
 my %pids;
+my %pidctr;
 
 while (<>) {
 	my $line = $_;
@@ -53,6 +55,7 @@ while (<>) {
 		my $func = $2;
 		if ($done == 0) {
 			$start{$func} = $1;
+			$type{$func} = 0;
 			if ($1 < $firsttime) {
 				$firsttime = $1;
 			}
@@ -63,11 +66,39 @@ while (<>) {
 		$count = $count + 1;
 	}
 
+	if ($line =~ /([0-9\.]+)\] async_waiting @ ([0-9]+)/) {
+		my $pid = $2;
+		my $func;
+		if (!defined($pidctr{$pid})) {
+			$func = "wait_" . $pid . "_1";
+			$pidctr{$pid} = 1;
+		} else {
+			$pidctr{$pid} = $pidctr{$pid} + 1;
+			$func = "wait_" . $pid . "_" . $pidctr{$pid};
+		}
+		if ($done == 0) {
+			$start{$func} = $1;
+			$type{$func} = 1;
+			if ($1 < $firsttime) {
+				$firsttime = $1;
+			}
+		}
+		$pids{$func} = $pid;
+		$count = $count + 1;
+	}
+
 	if ($line =~ /([0-9\.]+)\] initcall ([a-zA-Z0-9\_]+)\+.*returned/) {
 		if ($done == 0) {
 			$end{$2} = $1;
 			$maxtime = $1;
 		}
+	}
+
+	if ($line =~ /([0-9\.]+)\] async_continuing @ ([0-9]+)/) {
+		my $pid = $2;
+		my $func =  "wait_" . $pid . "_" . $pidctr{$pid};
+		$end{$func} = $1;
+		$maxtime = $1;
 	}
 	if ($line =~ /Write protecting the/) {
 		$done = 1;
@@ -105,6 +136,8 @@ $styles[9] = "fill:rgb(255,255,128);fill-opacity:0.5;stroke-width:1;stroke:rgb(0
 $styles[10] = "fill:rgb(255,128,255);fill-opacity:0.5;stroke-width:1;stroke:rgb(0,0,0)";
 $styles[11] = "fill:rgb(128,255,255);fill-opacity:0.5;stroke-width:1;stroke:rgb(0,0,0)";
 
+my $style_wait = "fill:rgb(128,128,128);fill-opacity:0.5;stroke-width:0;stroke:rgb(0,0,0)";
+
 my $mult = 1950.0 / ($maxtime - $firsttime);
 my $threshold2 = ($maxtime - $firsttime) / 120.0;
 my $threshold = $threshold2/10;
@@ -139,11 +172,16 @@ foreach my $key (@initcalls) {
 			$stylecounter = 0;
 		};
 
-		print "<rect x=\"$s\" width=\"$w\" y=\"$y\" height=\"145\" style=\"$style\"/>\n";
-		if ($duration >= $threshold2) {
-			print "<text transform=\"translate($s2,$y2) rotate(90)\">$key</text>\n";
+		if ($type{$key} == 1) {
+			$y = $y + 15;
+			print "<rect x=\"$s\" width=\"$w\" y=\"$y\" height=\"115\" style=\"$style_wait\"/>\n";
 		} else {
-			print "<text transform=\"translate($s3,$y2) rotate(90)\" font-size=\"3pt\">$key</text>\n";
+			print "<rect x=\"$s\" width=\"$w\" y=\"$y\" height=\"145\" style=\"$style\"/>\n";
+			if ($duration >= $threshold2) {
+				print "<text transform=\"translate($s2,$y2) rotate(90)\">$key</text>\n";
+			} else {
+				print "<text transform=\"translate($s3,$y2) rotate(90)\" font-size=\"3pt\">$key</text>\n";
+			}
 		}
 	}
 }

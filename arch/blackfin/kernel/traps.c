@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/fs.h>
+#include <linux/rbtree.h>
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
 #include <asm/cplb.h>
@@ -83,6 +84,7 @@ static void decode_address(char *buf, unsigned long address)
 	struct mm_struct *mm;
 	unsigned long flags, offset;
 	unsigned char in_atomic = (bfin_read_IPEND() & 0x10) || in_atomic();
+	struct rb_node *n;
 
 #ifdef CONFIG_KALLSYMS
 	unsigned long symsize;
@@ -128,9 +130,10 @@ static void decode_address(char *buf, unsigned long address)
 		if (!mm)
 			continue;
 
-		vml = mm->context.vmlist;
-		while (vml) {
-			struct vm_area_struct *vma = vml->vma;
+		for (n = rb_first(&mm->mm_rb); n; n = rb_next(n)) {
+			struct vm_area_struct *vma;
+
+			vma = rb_entry(n, struct vm_area_struct, vm_rb);
 
 			if (address >= vma->vm_start && address < vma->vm_end) {
 				char _tmpbuf[256];
@@ -176,8 +179,6 @@ static void decode_address(char *buf, unsigned long address)
 
 				goto done;
 			}
-
-			vml = vml->next;
 		}
 		if (!in_atomic)
 			mmput(mm);

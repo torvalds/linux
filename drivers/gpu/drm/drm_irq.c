@@ -106,8 +106,6 @@ void drm_vblank_cleanup(struct drm_device *dev)
 
 	drm_free(dev->vbl_queue, sizeof(*dev->vbl_queue) * dev->num_crtcs,
 		 DRM_MEM_DRIVER);
-	drm_free(dev->vbl_sigs, sizeof(*dev->vbl_sigs) * dev->num_crtcs,
-		 DRM_MEM_DRIVER);
 	drm_free(dev->_vblank_count, sizeof(*dev->_vblank_count) *
 		 dev->num_crtcs, DRM_MEM_DRIVER);
 	drm_free(dev->vblank_refcount, sizeof(*dev->vblank_refcount) *
@@ -132,17 +130,11 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	setup_timer(&dev->vblank_disable_timer, vblank_disable_fn,
 		    (unsigned long)dev);
 	spin_lock_init(&dev->vbl_lock);
-	atomic_set(&dev->vbl_signal_pending, 0);
 	dev->num_crtcs = num_crtcs;
 
 	dev->vbl_queue = drm_alloc(sizeof(wait_queue_head_t) * num_crtcs,
 				   DRM_MEM_DRIVER);
 	if (!dev->vbl_queue)
-		goto err;
-
-	dev->vbl_sigs = drm_alloc(sizeof(struct list_head) * num_crtcs,
-				  DRM_MEM_DRIVER);
-	if (!dev->vbl_sigs)
 		goto err;
 
 	dev->_vblank_count = drm_alloc(sizeof(atomic_t) * num_crtcs,
@@ -177,7 +169,6 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	/* Zero per-crtc vblank stuff */
 	for (i = 0; i < num_crtcs; i++) {
 		init_waitqueue_head(&dev->vbl_queue[i]);
-		INIT_LIST_HEAD(&dev->vbl_sigs[i]);
 		atomic_set(&dev->_vblank_count[i], 0);
 		atomic_set(&dev->vblank_refcount[i], 0);
 	}
@@ -267,7 +258,8 @@ EXPORT_SYMBOL(drm_irq_install);
  */
 int drm_irq_uninstall(struct drm_device * dev)
 {
-	int irq_enabled;
+	unsigned long irqflags;
+	int irq_enabled, i;
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return -EINVAL;
@@ -276,6 +268,16 @@ int drm_irq_uninstall(struct drm_device * dev)
 	irq_enabled = dev->irq_enabled;
 	dev->irq_enabled = 0;
 	mutex_unlock(&dev->struct_mutex);
+
+	/*
+	 * Wake up any waiters so they don't hang.
+	 */
+	spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	for (i = 0; i < dev->num_crtcs; i++) {
+		DRM_WAKEUP(&dev->vbl_queue[i]);
+		dev->vblank_enabled[i] = 0;
+	}
+	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 
 	if (!irq_enabled)
 		return -EINVAL;
@@ -529,15 +531,10 @@ out:
  * \param data user argument, pointing to a drm_wait_vblank structure.
  * \return zero on success or a negative number on failure.
  *
- * Verifies the IRQ is installed.
- *
- * If a signal is requested checks if this task has already scheduled the same signal
- * for the same vblank sequence number - nothing to be done in
- * that case. If the number of tasks waiting for the interrupt exceeds 100 the
- * function fails. Otherwise adds a new entry to drm_device::vbl_sigs for this
- * task.
- *
- * If a signal is not requested, then calls vblank_wait().
+ * This function enables the vblank interrupt on the pipe requested, then
+ * sleeps waiting for the requested sequence number to occur, and drops
+ * the vblank interrupt refcount afterwards. (vblank irq disable follows that
+ * after a timeout with no further vblank waits scheduled).
  */
 int drm_wait_vblank(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
@@ -547,6 +544,9 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 	unsigned int flags, seq, crtc;
 
 	if ((!dev->pdev->irq) || (!dev->irq_enabled))
+		return -EINVAL;
+
+	if (vblwait->request.type & _DRM_VBLANK_SIGNAL)
 		return -EINVAL;
 
 	if (vblwait->request.type &
@@ -586,133 +586,31 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 		vblwait->request.sequence = seq + 1;
 	}
 
-	if (flags & _DRM_VBLANK_SIGNAL) {
-		unsigned long irqflags;
-		struct list_head *vbl_sigs = &dev->vbl_sigs[crtc];
-		struct drm_vbl_sig *vbl_sig;
+	DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
+		  vblwait->request.sequence, crtc);
+	dev->last_vblank_wait[crtc] = vblwait->request.sequence;
+	DRM_WAIT_ON(ret, dev->vbl_queue[crtc], 3 * DRM_HZ,
+		    (((drm_vblank_count(dev, crtc) -
+		       vblwait->request.sequence) <= (1 << 23)) ||
+		     !dev->irq_enabled));
 
-		spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	if (ret != -EINTR) {
+		struct timeval now;
 
-		/* Check if this task has already scheduled the same signal
-		 * for the same vblank sequence number; nothing to be done in
-		 * that case
-		 */
-		list_for_each_entry(vbl_sig, vbl_sigs, head) {
-			if (vbl_sig->sequence == vblwait->request.sequence
-			    && vbl_sig->info.si_signo ==
-			    vblwait->request.signal
-			    && vbl_sig->task == current) {
-				spin_unlock_irqrestore(&dev->vbl_lock,
-						       irqflags);
-				vblwait->reply.sequence = seq;
-				goto done;
-			}
-		}
+		do_gettimeofday(&now);
 
-		if (atomic_read(&dev->vbl_signal_pending) >= 100) {
-			spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
-			ret = -EBUSY;
-			goto done;
-		}
-
-		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
-
-		vbl_sig = drm_calloc(1, sizeof(struct drm_vbl_sig),
-				     DRM_MEM_DRIVER);
-		if (!vbl_sig) {
-			ret = -ENOMEM;
-			goto done;
-		}
-
-		/* Get a refcount on the vblank, which will be released by
-		 * drm_vbl_send_signals().
-		 */
-		ret = drm_vblank_get(dev, crtc);
-		if (ret) {
-			drm_free(vbl_sig, sizeof(struct drm_vbl_sig),
-				 DRM_MEM_DRIVER);
-			goto done;
-		}
-
-		atomic_inc(&dev->vbl_signal_pending);
-
-		vbl_sig->sequence = vblwait->request.sequence;
-		vbl_sig->info.si_signo = vblwait->request.signal;
-		vbl_sig->task = current;
-
-		spin_lock_irqsave(&dev->vbl_lock, irqflags);
-
-		list_add_tail(&vbl_sig->head, vbl_sigs);
-
-		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
-
-		vblwait->reply.sequence = seq;
+		vblwait->reply.tval_sec = now.tv_sec;
+		vblwait->reply.tval_usec = now.tv_usec;
+		vblwait->reply.sequence = drm_vblank_count(dev, crtc);
+		DRM_DEBUG("returning %d to client\n",
+			  vblwait->reply.sequence);
 	} else {
-		DRM_DEBUG("waiting on vblank count %d, crtc %d\n",
-			  vblwait->request.sequence, crtc);
-		dev->last_vblank_wait[crtc] = vblwait->request.sequence;
-		DRM_WAIT_ON(ret, dev->vbl_queue[crtc], 3 * DRM_HZ,
-			    ((drm_vblank_count(dev, crtc)
-			      - vblwait->request.sequence) <= (1 << 23)));
-
-		if (ret != -EINTR) {
-			struct timeval now;
-
-			do_gettimeofday(&now);
-
-			vblwait->reply.tval_sec = now.tv_sec;
-			vblwait->reply.tval_usec = now.tv_usec;
-			vblwait->reply.sequence = drm_vblank_count(dev, crtc);
-			DRM_DEBUG("returning %d to client\n",
-				  vblwait->reply.sequence);
-		} else {
-			DRM_DEBUG("vblank wait interrupted by signal\n");
-		}
+		DRM_DEBUG("vblank wait interrupted by signal\n");
 	}
 
 done:
 	drm_vblank_put(dev, crtc);
 	return ret;
-}
-
-/**
- * Send the VBLANK signals.
- *
- * \param dev DRM device.
- * \param crtc CRTC where the vblank event occurred
- *
- * Sends a signal for each task in drm_device::vbl_sigs and empties the list.
- *
- * If a signal is not requested, then calls vblank_wait().
- */
-static void drm_vbl_send_signals(struct drm_device *dev, int crtc)
-{
-	struct drm_vbl_sig *vbl_sig, *tmp;
-	struct list_head *vbl_sigs;
-	unsigned int vbl_seq;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->vbl_lock, flags);
-
-	vbl_sigs = &dev->vbl_sigs[crtc];
-	vbl_seq = drm_vblank_count(dev, crtc);
-
-	list_for_each_entry_safe(vbl_sig, tmp, vbl_sigs, head) {
-	    if ((vbl_seq - vbl_sig->sequence) <= (1 << 23)) {
-		vbl_sig->info.si_code = vbl_seq;
-		send_sig_info(vbl_sig->info.si_signo,
-			      &vbl_sig->info, vbl_sig->task);
-
-		list_del(&vbl_sig->head);
-
-		drm_free(vbl_sig, sizeof(*vbl_sig),
-			 DRM_MEM_DRIVER);
-		atomic_dec(&dev->vbl_signal_pending);
-		drm_vblank_put(dev, crtc);
-	    }
-	}
-
-	spin_unlock_irqrestore(&dev->vbl_lock, flags);
 }
 
 /**
@@ -727,6 +625,5 @@ void drm_handle_vblank(struct drm_device *dev, int crtc)
 {
 	atomic_inc(&dev->_vblank_count[crtc]);
 	DRM_WAKEUP(&dev->vbl_queue[crtc]);
-	drm_vbl_send_signals(dev, crtc);
 }
 EXPORT_SYMBOL(drm_handle_vblank);

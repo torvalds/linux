@@ -1821,6 +1821,7 @@ static const struct net_device_ops cp_netdev_ops = {
 	.ndo_open		= cp_open,
 	.ndo_stop		= cp_close,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_set_multicast_list	= cp_set_rx_mode,
 	.ndo_get_stats		= cp_get_stats,
 	.ndo_do_ioctl		= cp_ioctl,
@@ -1832,6 +1833,7 @@ static const struct net_device_ops cp_netdev_ops = {
 #ifdef BROKEN
 	.ndo_change_mtu		= cp_change_mtu,
 #endif
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cp_poll_controller,
 #endif

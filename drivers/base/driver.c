@@ -19,14 +19,7 @@
 static struct device *next_device(struct klist_iter *i)
 {
 	struct klist_node *n = klist_next(i);
-	struct device *dev = NULL;
-	struct device_private *dev_prv;
-
-	if (n) {
-		dev_prv = to_device_private_driver(n);
-		dev = dev_prv->device;
-	}
-	return dev;
+	return n ? container_of(n, struct device, knode_driver) : NULL;
 }
 
 /**
@@ -49,7 +42,7 @@ int driver_for_each_device(struct device_driver *drv, struct device *start,
 		return -EINVAL;
 
 	klist_iter_init_node(&drv->p->klist_devices, &i,
-			     start ? &start->p->knode_driver : NULL);
+			     start ? &start->knode_driver : NULL);
 	while ((dev = next_device(&i)) && !error)
 		error = fn(dev, data);
 	klist_iter_exit(&i);
@@ -83,7 +76,7 @@ struct device *driver_find_device(struct device_driver *drv,
 		return NULL;
 
 	klist_iter_init_node(&drv->p->klist_devices, &i,
-			     (start ? &start->p->knode_driver : NULL));
+			     (start ? &start->knode_driver : NULL));
 	while ((dev = next_device(&i)))
 		if (match(dev, data) && get_device(dev))
 			break;

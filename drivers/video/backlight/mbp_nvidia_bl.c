@@ -70,6 +70,7 @@ static int mbp_get_intensity(struct backlight_device *bd)
 }
 
 static struct backlight_ops mbp_ops = {
+	.options = BL_CORE_SUSPENDRESUME,
 	.get_brightness = mbp_get_intensity,
 	.update_status  = mbp_send_intensity,
 };

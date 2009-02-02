@@ -63,8 +63,6 @@ static inline void rb532_pata_finish_io(struct ata_port *ap)
 	   ata_sff_sync might be sufficient. */
 	ata_sff_dma_pause(ap);
 	ndelay(RB500_CF_IO_DELAY);
-
-	set_irq_type(info->irq, IRQ_TYPE_LEVEL_HIGH);
 }
 
 static void rb532_pata_exec_command(struct ata_port *ap,

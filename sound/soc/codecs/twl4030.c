@@ -197,7 +197,7 @@ static const char *twl4030_earpiece_texts[] =
 static const unsigned int twl4030_earpiece_values[] =
 		{0x0, 0x1, 0x2, 0x4};
 
-static const struct soc_value_enum twl4030_earpiece_enum =
+static const struct soc_enum twl4030_earpiece_enum =
 	SOC_VALUE_ENUM_SINGLE(TWL4030_REG_EAR_CTL, 1, 0x7,
 			ARRAY_SIZE(twl4030_earpiece_texts),
 			twl4030_earpiece_texts,
@@ -213,7 +213,7 @@ static const char *twl4030_predrivel_texts[] =
 static const unsigned int twl4030_predrivel_values[] =
 		{0x0, 0x1, 0x2, 0x4};
 
-static const struct soc_value_enum twl4030_predrivel_enum =
+static const struct soc_enum twl4030_predrivel_enum =
 	SOC_VALUE_ENUM_SINGLE(TWL4030_REG_PREDL_CTL, 1, 0x7,
 			ARRAY_SIZE(twl4030_predrivel_texts),
 			twl4030_predrivel_texts,
@@ -229,7 +229,7 @@ static const char *twl4030_predriver_texts[] =
 static const unsigned int twl4030_predriver_values[] =
 		{0x0, 0x1, 0x2, 0x4};
 
-static const struct soc_value_enum twl4030_predriver_enum =
+static const struct soc_enum twl4030_predriver_enum =
 	SOC_VALUE_ENUM_SINGLE(TWL4030_REG_PREDR_CTL, 1, 0x7,
 			ARRAY_SIZE(twl4030_predriver_texts),
 			twl4030_predriver_texts,
@@ -317,7 +317,7 @@ static const char *twl4030_analoglmic_texts[] =
 static const unsigned int twl4030_analoglmic_values[] =
 		{0x0, 0x1, 0x2, 0x4, 0x8};
 
-static const struct soc_value_enum twl4030_analoglmic_enum =
+static const struct soc_enum twl4030_analoglmic_enum =
 	SOC_VALUE_ENUM_SINGLE(TWL4030_REG_ANAMICL, 0, 0xf,
 			ARRAY_SIZE(twl4030_analoglmic_texts),
 			twl4030_analoglmic_texts,
@@ -333,7 +333,7 @@ static const char *twl4030_analogrmic_texts[] =
 static const unsigned int twl4030_analogrmic_values[] =
 		{0x0, 0x1, 0x4};
 
-static const struct soc_value_enum twl4030_analogrmic_enum =
+static const struct soc_enum twl4030_analogrmic_enum =
 	SOC_VALUE_ENUM_SINGLE(TWL4030_REG_ANAMICR, 0, 0x5,
 			ARRAY_SIZE(twl4030_analogrmic_texts),
 			twl4030_analogrmic_texts,
@@ -1280,6 +1280,8 @@ static int twl4030_remove(struct platform_device *pdev)
 	struct snd_soc_codec *codec = socdev->codec;
 
 	printk(KERN_INFO "TWL4030 Audio Codec remove\n");
+	snd_soc_free_pcms(socdev);
+	snd_soc_dapm_free(socdev);
 	kfree(codec);
 
 	return 0;

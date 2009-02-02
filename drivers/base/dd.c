@@ -28,7 +28,7 @@
 
 static void driver_bound(struct device *dev)
 {
-	if (klist_node_attached(&dev->p->knode_driver)) {
+	if (klist_node_attached(&dev->knode_driver)) {
 		printk(KERN_WARNING "%s: device %s already bound\n",
 			__func__, kobject_name(&dev->kobj));
 		return;
@@ -41,7 +41,7 @@ static void driver_bound(struct device *dev)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_BOUND_DRIVER, dev);
 
-	klist_add_tail(&dev->p->knode_driver, &dev->driver->p->klist_devices);
+	klist_add_tail(&dev->knode_driver, &dev->driver->p->klist_devices);
 }
 
 static int driver_sysfs_add(struct device *dev)
@@ -310,7 +310,7 @@ static void __device_release_driver(struct device *dev)
 			drv->remove(dev);
 		devres_release_all(dev);
 		dev->driver = NULL;
-		klist_remove(&dev->p->knode_driver);
+		klist_remove(&dev->knode_driver);
 	}
 }
 
@@ -340,7 +340,6 @@ EXPORT_SYMBOL_GPL(device_release_driver);
  */
 void driver_detach(struct device_driver *drv)
 {
-	struct device_private *dev_prv;
 	struct device *dev;
 
 	for (;;) {
@@ -349,10 +348,8 @@ void driver_detach(struct device_driver *drv)
 			spin_unlock(&drv->p->klist_devices.k_lock);
 			break;
 		}
-		dev_prv = list_entry(drv->p->klist_devices.k_list.prev,
-				     struct device_private,
-				     knode_driver.n_node);
-		dev = dev_prv->device;
+		dev = list_entry(drv->p->klist_devices.k_list.prev,
+				struct device, knode_driver.n_node);
 		get_device(dev);
 		spin_unlock(&drv->p->klist_devices.k_lock);
 

@@ -807,13 +807,11 @@ static void rt2x00lib_rate(struct ieee80211_rate *entry,
 {
 	entry->flags = 0;
 	entry->bitrate = rate->bitrate;
-	entry->hw_value = rt2x00_create_rate_hw_value(index, 0);
-	entry->hw_value_short = entry->hw_value;
+	entry->hw_value =index;
+	entry->hw_value_short = index;
 
-	if (rate->flags & DEV_RATE_SHORT_PREAMBLE) {
+	if (rate->flags & DEV_RATE_SHORT_PREAMBLE)
 		entry->flags |= IEEE80211_RATE_SHORT_PREAMBLE;
-		entry->hw_value_short |= rt2x00_create_rate_hw_value(index, 1);
-	}
 }
 
 static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,

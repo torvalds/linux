@@ -100,7 +100,7 @@ comment "S/390 tape interface support"
 
 config S390_TAPE_BLOCK
 	bool "Support for tape block devices"
-	depends on S390_TAPE
+	depends on S390_TAPE && BLOCK
 	help
 	  Select this option if you want to access your channel-attached tape
 	  devices using the block device interface.  This interface is similar

@@ -29,6 +29,7 @@
 #include <linux/personality.h>
 #include <linux/unistd.h>
 #include <linux/ipc.h>
+#include <linux/syscalls.h>
 #include <asm/uaccess.h>
 #include "entry.h"
 
@@ -74,7 +75,7 @@ struct mmap_arg_struct {
 	unsigned long offset;
 };
 
-asmlinkage long sys_mmap2(struct mmap_arg_struct __user  *arg)
+SYSCALL_DEFINE1(mmap2, struct mmap_arg_struct __user *, arg)
 {
 	struct mmap_arg_struct a;
 	int error = -EFAULT;
@@ -86,7 +87,7 @@ out:
 	return error;
 }
 
-asmlinkage long old_mmap(struct mmap_arg_struct __user *arg)
+SYSCALL_DEFINE1(s390_old_mmap, struct mmap_arg_struct __user *, arg)
 {
 	struct mmap_arg_struct a;
 	long error = -EFAULT;
@@ -103,32 +104,13 @@ out:
 	return error;
 }
 
-#ifndef CONFIG_64BIT
-struct sel_arg_struct {
-	unsigned long n;
-	fd_set __user *inp, *outp, *exp;
-	struct timeval __user *tvp;
-};
-
-asmlinkage long old_select(struct sel_arg_struct __user *arg)
-{
-	struct sel_arg_struct a;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		return -EFAULT;
-	/* sys_select() does the appropriate kernel locking */
-	return sys_select(a.n, a.inp, a.outp, a.exp, a.tvp);
-
-}
-#endif /* CONFIG_64BIT */
-
 /*
  * sys_ipc() is the de-multiplexer for the SysV IPC calls..
  *
  * This is really horribly ugly.
  */
-asmlinkage long sys_ipc(uint call, int first, unsigned long second,
-				  unsigned long third, void __user *ptr)
+SYSCALL_DEFINE5(ipc, uint, call, int, first, unsigned long, second,
+		unsigned long, third, void __user *, ptr)
 {
         struct ipc_kludge tmp;
 	int ret;
@@ -194,7 +176,7 @@ asmlinkage long sys_ipc(uint call, int first, unsigned long second,
 }
 
 #ifdef CONFIG_64BIT
-asmlinkage long s390x_newuname(struct new_utsname __user *name)
+SYSCALL_DEFINE1(s390_newuname, struct new_utsname __user *, name)
 {
 	int ret = sys_newuname(name);
 
@@ -205,7 +187,7 @@ asmlinkage long s390x_newuname(struct new_utsname __user *name)
 	return ret;
 }
 
-asmlinkage long s390x_personality(unsigned long personality)
+SYSCALL_DEFINE1(s390_personality, unsigned long, personality)
 {
 	int ret;
 
@@ -224,14 +206,12 @@ asmlinkage long s390x_personality(unsigned long personality)
  */
 #ifndef CONFIG_64BIT
 
-asmlinkage long
-s390_fadvise64(int fd, u32 offset_high, u32 offset_low, size_t len, int advice)
+SYSCALL_DEFINE5(s390_fadvise64, int, fd, u32, offset_high, u32, offset_low,
+		size_t, len, int, advice)
 {
 	return sys_fadvise64(fd, (u64) offset_high << 32 | offset_low,
 			len, advice);
 }
-
-#endif
 
 struct fadvise64_64_args {
 	int fd;
@@ -240,8 +220,7 @@ struct fadvise64_64_args {
 	int advice;
 };
 
-asmlinkage long
-s390_fadvise64_64(struct fadvise64_64_args __user *args)
+SYSCALL_DEFINE1(s390_fadvise64_64, struct fadvise64_64_args __user *, args)
 {
 	struct fadvise64_64_args a;
 
@@ -250,7 +229,6 @@ s390_fadvise64_64(struct fadvise64_64_args __user *args)
 	return sys_fadvise64_64(a.fd, a.offset, a.len, a.advice);
 }
 
-#ifndef CONFIG_64BIT
 /*
  * This is a wrapper to call sys_fallocate(). For 31 bit s390 the last
  * 64 bit argument "len" is split into the upper and lower 32 bits. The
@@ -263,9 +241,19 @@ s390_fadvise64_64(struct fadvise64_64_args __user *args)
  * to
  *   %r2: fd, %r3: mode, %r4/%r5: offset, 96(%r15)-103(%r15): len
  */
-asmlinkage long s390_fallocate(int fd, int mode, loff_t offset,
+SYSCALL_DEFINE(s390_fallocate)(int fd, int mode, loff_t offset,
 			       u32 len_high, u32 len_low)
 {
 	return sys_fallocate(fd, mode, offset, ((u64)len_high << 32) | len_low);
 }
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+asmlinkage long SyS_s390_fallocate(long fd, long mode, loff_t offset,
+				   long len_high, long len_low)
+{
+	return SYSC_s390_fallocate((int) fd, (int) mode, offset,
+				   (u32) len_high, (u32) len_low);
+}
+SYSCALL_ALIAS(sys_s390_fallocate, SyS_s390_fallocate);
+#endif
+
 #endif

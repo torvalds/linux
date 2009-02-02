@@ -578,7 +578,7 @@ void ata_sff_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 	}
 
 	if (is_addr && (tf->flags & ATA_TFLAG_LBA48)) {
-		WARN_ON(!ioaddr->ctl_addr);
+		WARN_ON_ONCE(!ioaddr->ctl_addr);
 		iowrite8(tf->hob_feature, ioaddr->feature_addr);
 		iowrite8(tf->hob_nsect, ioaddr->nsect_addr);
 		iowrite8(tf->hob_lbal, ioaddr->lbal_addr);
@@ -651,7 +651,7 @@ void ata_sff_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 			iowrite8(tf->ctl, ioaddr->ctl_addr);
 			ap->last_ctl = tf->ctl;
 		} else
-			WARN_ON(1);
+			WARN_ON_ONCE(1);
 	}
 }
 EXPORT_SYMBOL_GPL(ata_sff_tf_read);
@@ -891,7 +891,7 @@ static void ata_pio_sectors(struct ata_queued_cmd *qc)
 		/* READ/WRITE MULTIPLE */
 		unsigned int nsect;
 
-		WARN_ON(qc->dev->multi_count == 0);
+		WARN_ON_ONCE(qc->dev->multi_count == 0);
 
 		nsect = min((qc->nbytes - qc->curbytes) / qc->sect_size,
 			    qc->dev->multi_count);
@@ -918,7 +918,7 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
 {
 	/* send SCSI cdb */
 	DPRINTK("send cdb\n");
-	WARN_ON(qc->dev->cdb_len < 12);
+	WARN_ON_ONCE(qc->dev->cdb_len < 12);
 
 	ap->ops->sff_data_xfer(qc->dev, qc->cdb, qc->dev->cdb_len, 1);
 	ata_sff_sync(ap);
@@ -1013,9 +1013,12 @@ next_sg:
 		qc->cursg_ofs = 0;
 	}
 
-	/* consumed can be larger than count only for the last transfer */
-	WARN_ON(qc->cursg && count != consumed);
-
+	/*
+	 * There used to be a  WARN_ON_ONCE(qc->cursg && count != consumed);
+	 * Unfortunately __atapi_pio_bytes doesn't know enough to do the WARN
+	 * check correctly as it doesn't know if it is the last request being
+	 * made. Somebody should implement a proper sanity check.
+	 */
 	if (bytes)
 		goto next_sg;
 	return 0;
@@ -1172,13 +1175,13 @@ int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 	unsigned long flags = 0;
 	int poll_next;
 
-	WARN_ON((qc->flags & ATA_QCFLAG_ACTIVE) == 0);
+	WARN_ON_ONCE((qc->flags & ATA_QCFLAG_ACTIVE) == 0);
 
 	/* Make sure ata_sff_qc_issue() does not throw things
 	 * like DMA polling into the workqueue. Notice that
 	 * in_wq is not equivalent to (qc->tf.flags & ATA_TFLAG_POLLING).
 	 */
-	WARN_ON(in_wq != ata_hsm_ok_in_wq(ap, qc));
+	WARN_ON_ONCE(in_wq != ata_hsm_ok_in_wq(ap, qc));
 
 fsm_start:
 	DPRINTK("ata%u: protocol %d task_state %d (dev_stat 0x%X)\n",
@@ -1319,7 +1322,7 @@ fsm_start:
 					 * condition.  Mark hint.
 					 */
 					ata_ehi_push_desc(ehi, "ST-ATA: "
-						"DRQ=1 with device error, "
+						"DRQ=0 without device error, "
 						"dev_stat 0x%X", status);
 					qc->err_mask |= AC_ERR_HSM |
 							AC_ERR_NODEV_HINT;
@@ -1355,6 +1358,16 @@ fsm_start:
 					qc->err_mask |= AC_ERR_HSM;
 				}
 
+				/* There are oddball controllers with
+				 * status register stuck at 0x7f and
+				 * lbal/m/h at zero which makes it
+				 * pass all other presence detection
+				 * mechanisms we have.  Set NODEV_HINT
+				 * for it.  Kernel bz#7241.
+				 */
+				if (status == 0x7f)
+					qc->err_mask |= AC_ERR_NODEV_HINT;
+
 				/* ata_pio_sectors() might change the
 				 * state to HSM_ST_LAST. so, the state
 				 * is changed after ata_pio_sectors().
@@ -1387,7 +1400,7 @@ fsm_start:
 		DPRINTK("ata%u: dev %u command complete, drv_stat 0x%x\n",
 			ap->print_id, qc->dev->devno, status);
 
-		WARN_ON(qc->err_mask & (AC_ERR_DEV | AC_ERR_HSM));
+		WARN_ON_ONCE(qc->err_mask & (AC_ERR_DEV | AC_ERR_HSM));
 
 		ap->hsm_task_state = HSM_ST_IDLE;
 
@@ -1423,7 +1436,7 @@ void ata_pio_task(struct work_struct *work)
 	int poll_next;
 
 fsm_start:
-	WARN_ON(ap->hsm_task_state == HSM_ST_IDLE);
+	WARN_ON_ONCE(ap->hsm_task_state == HSM_ST_IDLE);
 
 	/*
 	 * This is purely heuristic.  This is a fast path.
@@ -1512,7 +1525,7 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 		break;
 
 	case ATA_PROT_DMA:
-		WARN_ON(qc->tf.flags & ATA_TFLAG_POLLING);
+		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
 
 		ap->ops->sff_tf_load(ap, &qc->tf);  /* load tf registers */
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
@@ -1564,7 +1577,7 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 		break;
 
 	case ATAPI_PROT_DMA:
-		WARN_ON(qc->tf.flags & ATA_TFLAG_POLLING);
+		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
 
 		ap->ops->sff_tf_load(ap, &qc->tf);  /* load tf registers */
 		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
@@ -1576,7 +1589,7 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 		break;
 
 	default:
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		return AC_ERR_SYSTEM;
 	}
 

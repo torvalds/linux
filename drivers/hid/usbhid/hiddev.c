@@ -656,7 +656,7 @@ static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case HIDIOCGSTRING:
 		mutex_lock(&hiddev->existancelock);
-		if (!hiddev->exist)
+		if (hiddev->exist)
 			r = hiddev_ioctl_string(hiddev, cmd, user_arg);
 		else
 			r = -ENODEV;

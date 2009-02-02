@@ -22,7 +22,6 @@
  * Access Control Lists
  */
 typedef __uint16_t	xfs_acl_perm_t;
-typedef __int32_t	xfs_acl_type_t;
 typedef __int32_t	xfs_acl_tag_t;
 typedef __int32_t	xfs_acl_id_t;
 

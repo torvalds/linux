@@ -47,7 +47,7 @@
 #endif
 
 static int __initdata acpi_force = 0;
-
+u32 acpi_rsdt_forced;
 #ifdef	CONFIG_ACPI
 int acpi_disabled = 0;
 #else
@@ -1374,6 +1374,17 @@ static void __init acpi_process_madt(void)
 			       "Invalid BIOS MADT, disabling ACPI\n");
 			disable_acpi();
 		}
+	} else {
+		/*
+ 		 * ACPI found no MADT, and so ACPI wants UP PIC mode.
+ 		 * In the event an MPS table was found, forget it.
+ 		 * Boot with "acpi=off" to use MPS on such a system.
+ 		 */
+		if (smp_found_config) {
+			printk(KERN_WARNING PREFIX
+				"No APIC-table, disabling MPS\n");
+			smp_found_config = 0;
+		}
 	}
 
 	/*
@@ -1808,6 +1819,10 @@ static int __init parse_acpi(char *arg)
 		if (!acpi_force)
 			disable_acpi();
 		acpi_ht = 1;
+	}
+	/* acpi=rsdt use RSDT instead of XSDT */
+	else if (strcmp(arg, "rsdt") == 0) {
+		acpi_rsdt_forced = 1;
 	}
 	/* "acpi=noirq" disables ACPI interrupt routing */
 	else if (strcmp(arg, "noirq") == 0) {

@@ -3,7 +3,7 @@
 
 #define ATMEL_MCI_MAX_NR_SLOTS	2
 
-struct dma_slave;
+#include <linux/dw_dmac.h>
 
 /**
  * struct mci_slot_pdata - board-specific per-slot configuration
@@ -28,11 +28,11 @@ struct mci_slot_pdata {
 
 /**
  * struct mci_platform_data - board-specific MMC/SDcard configuration
- * @dma_slave: DMA slave interface to use in data transfers, or NULL.
+ * @dma_slave: DMA slave interface to use in data transfers.
  * @slot: Per-slot configuration data.
  */
 struct mci_platform_data {
-	struct dma_slave	*dma_slave;
+	struct dw_dma_slave	dma_slave;
 	struct mci_slot_pdata	slot[ATMEL_MCI_MAX_NR_SLOTS];
 };
 

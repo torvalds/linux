@@ -1453,6 +1453,9 @@ void wm8350_device_exit(struct wm8350 *wm8350)
 {
 	int i;
 
+	for (i = 0; i < ARRAY_SIZE(wm8350->pmic.led); i++)
+		platform_device_unregister(wm8350->pmic.led[i].pdev);
+
 	for (i = 0; i < ARRAY_SIZE(wm8350->pmic.pdev); i++)
 		platform_device_unregister(wm8350->pmic.pdev[i]);
 

@@ -10,7 +10,6 @@
 #include <linux/kthread.h>
 
 #include <acpi/acpi_drivers.h>
-#include <acpi/acinterp.h>	/* for acpi_ex_eisa_id_to_string() */
 
 #define _COMPONENT		ACPI_BUS_COMPONENT
 ACPI_MODULE_NAME("scan");

@@ -223,6 +223,7 @@ struct map_info {
 	   must leave it enabled. */
 	void (*set_vpp)(struct map_info *, int);
 
+	unsigned long pfow_base;
 	unsigned long map_priv_1;
 	unsigned long map_priv_2;
 	void *fldrv_priv;
