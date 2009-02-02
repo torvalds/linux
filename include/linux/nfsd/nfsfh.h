@@ -269,6 +269,13 @@ fh_copy(struct svc_fh *dst, struct svc_fh *src)
 	return dst;
 }
 
+static inline void
+fh_copy_shallow(struct knfsd_fh *dst, struct knfsd_fh *src)
+{
+	dst->fh_size = src->fh_size;
+	memcpy(&dst->fh_base, &src->fh_base, src->fh_size);
+}
+
 static __inline__ struct svc_fh *
 fh_init(struct svc_fh *fhp, int maxsize)
 {
