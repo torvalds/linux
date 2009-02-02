@@ -296,6 +296,7 @@ struct nubus_dev {
 	struct nubus_board* board;
 };
 
+#ifdef __KERNEL__
 /* This is all NuBus devices (used to find devices later on) */
 extern struct nubus_dev* nubus_devices;
 /* This is all NuBus cards */
@@ -351,6 +352,7 @@ void nubus_get_rsrc_mem(void* dest,
 void nubus_get_rsrc_str(void* dest,
 			const struct nubus_dirent *dirent,
 			int maxlen);
+#endif /* __KERNEL__ */
 
 /* We'd like to get rid of this eventually.  Only daynaport.c uses it now. */
 static inline void *nubus_slot_addr(int slot)
