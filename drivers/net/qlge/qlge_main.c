@@ -670,12 +670,19 @@ static int ql_get_flash_params(struct ql_adapter *qdev)
 	int i;
 	int status;
 	__le32 *p = (__le32 *)&qdev->flash;
+	u32 offset = 0;
+
+	/* Second function's parameters follow the first
+	 * function's.
+	 */
+	if (qdev->func)
+		offset = sizeof(qdev->flash) / sizeof(u32);
 
 	if (ql_sem_spinlock(qdev, SEM_FLASH_MASK))
 		return -ETIMEDOUT;
 
 	for (i = 0; i < sizeof(qdev->flash) / sizeof(u32); i++, p++) {
-		status = ql_read_flash_word(qdev, i, p);
+		status = ql_read_flash_word(qdev, i+offset, p);
 		if (status) {
 			QPRINTK(qdev, IFUP, ERR, "Error reading flash.\n");
 			goto exit;
