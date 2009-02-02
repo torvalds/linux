@@ -1023,7 +1023,7 @@ static void mi0360_probe(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i, j;
-	u16 val;
+	u16 val = 0;
 	static const u8 probe_tb[][4][8] = {
 	    {					/* mi0360 */
 		{0xb0, 0x5d, 0x07, 0x00, 0x02, 0x00, 0x00, 0x10},

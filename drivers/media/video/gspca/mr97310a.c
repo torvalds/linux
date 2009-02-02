@@ -73,7 +73,7 @@ static int reg_w(struct gspca_dev *gspca_dev, int len)
 
 	rc = usb_bulk_msg(gspca_dev->dev,
 			  usb_sndbulkpipe(gspca_dev->dev, 4),
-			  gspca_dev->usb_buf, len, 0, 500);
+			  gspca_dev->usb_buf, len, NULL, 500);
 	if (rc < 0)
 		PDEBUG(D_ERR, "reg write [%02x] error %d",
 		       gspca_dev->usb_buf[0], rc);
