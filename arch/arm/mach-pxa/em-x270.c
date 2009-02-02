@@ -60,7 +60,11 @@
 #define GPIO93_CAM_RESET	(93)
 #define GPIO95_MMC_WP		(95)
 
-static unsigned long em_x270_pin_config[] = {
+static int mmc_cd;
+static int nand_rb;
+static int dm9000_flags;
+
+static unsigned long common_pin_config[] = {
 	/* AC'97 */
 	GPIO28_AC97_BITCLK,
 	GPIO29_AC97_SDATA_IN_0,
@@ -167,7 +171,6 @@ static unsigned long em_x270_pin_config[] = {
 
 	/* GPIO */
 	GPIO1_GPIO | WAKEUP_ON_EDGE_BOTH,	/* sleep/resume button */
-	GPIO95_GPIO,				/* MMC Write protect */
 
 	/* power controls */
 	GPIO20_GPIO	| MFP_LPM_DRIVE_LOW,	/* GPRS_PWEN */
@@ -176,11 +179,15 @@ static unsigned long em_x270_pin_config[] = {
 
 	/* NAND controls */
 	GPIO11_GPIO	| MFP_LPM_DRIVE_HIGH,	/* NAND CE# */
-	GPIO56_GPIO,				/* NAND Ready/Busy */
 
 	/* interrupts */
-	GPIO13_GPIO,	/* MMC card detect */
 	GPIO41_GPIO,	/* DM9000 interrupt */
+};
+
+static unsigned long em_x270_pin_config[] = {
+	GPIO13_GPIO,	/* MMC card detect */
+	GPIO56_GPIO,	/* NAND Ready/Busy */
+	GPIO95_GPIO,	/* MMC Write protect */
 };
 
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
@@ -203,7 +210,7 @@ static struct resource em_x270_dm9000_resource[] = {
 };
 
 static struct dm9000_plat_data em_x270_dm9000_platdata = {
-	.flags		= DM9000_PLATF_32BITONLY,
+	.flags		= DM9000_PLATF_NO_EEPROM,
 };
 
 static struct platform_device em_x270_dm9000 = {
@@ -218,6 +225,7 @@ static struct platform_device em_x270_dm9000 = {
 
 static void __init em_x270_init_dm9000(void)
 {
+	em_x270_dm9000_platdata.flags |= dm9000_flags;
 	platform_device_register(&em_x270_dm9000);
 }
 #else
@@ -307,7 +315,7 @@ static int em_x270_nand_device_ready(struct mtd_info *mtd)
 {
 	dsb();
 
-	return gpio_get_value(GPIO56_NAND_RB);
+	return gpio_get_value(nand_rb);
 }
 
 static struct mtd_partition em_x270_partition_info[] = {
@@ -372,14 +380,14 @@ static void __init em_x270_init_nand(void)
 
 	gpio_direction_output(GPIO11_NAND_CS, 1);
 
-	err = gpio_request(GPIO56_NAND_RB, "NAND R/B");
+	err = gpio_request(nand_rb, "NAND R/B");
 	if (err) {
 		pr_warning("EM-X270: failed to request NAND R/B gpio\n");
 		gpio_free(GPIO11_NAND_CS);
 		return;
 	}
 
-	gpio_direction_input(GPIO56_NAND_RB);
+	gpio_direction_input(nand_rb);
 
 	platform_device_register(&em_x270_nand);
 }
@@ -483,7 +491,7 @@ static int em_x270_mci_init(struct device *dev,
 		return PTR_ERR(em_x270_sdio_ldo);
 	}
 
-	err = request_irq(gpio_to_irq(GPIO13_MMC_CD), em_x270_detect_int,
+	err = request_irq(gpio_to_irq(mmc_cd), em_x270_detect_int,
 			      IRQF_DISABLED | IRQF_TRIGGER_RISING |
 			      IRQF_TRIGGER_FALLING,
 			      "MMC card detect", data);
@@ -503,7 +511,7 @@ static int em_x270_mci_init(struct device *dev,
 	return 0;
 
 err_gpio_wp:
-	free_irq(gpio_to_irq(GPIO13_MMC_CD), data);
+	free_irq(gpio_to_irq(mmc_cd), data);
 err_irq:
 	regulator_put(em_x270_sdio_ldo);
 
@@ -526,7 +534,7 @@ static void em_x270_mci_setpower(struct device *dev, unsigned int vdd)
 
 static void em_x270_mci_exit(struct device *dev, void *data)
 {
-	free_irq(gpio_to_irq(GPIO13_MMC_CD), data);
+	free_irq(gpio_to_irq(mmc_cd), data);
 }
 
 static int em_x270_mci_get_ro(struct device *dev)
@@ -911,9 +919,20 @@ static void __init em_x270_init_da9030(void)
 	i2c_register_board_info(1, &em_x270_i2c_pmic_info, 1);
 }
 
-static void __init em_x270_init(void)
+static void __init em_x270_module_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(em_x270_pin_config));
+
+	mmc_cd = GPIO13_MMC_CD;
+	nand_rb = GPIO56_NAND_RB;
+	dm9000_flags = DM9000_PLATF_32BITONLY;
+}
+
+static void __init em_x270_init(void)
+{
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(common_pin_config));
+
+	em_x270_module_init();
 
 	em_x270_init_da9030();
 	em_x270_init_dm9000();
