@@ -178,19 +178,6 @@ static struct platform_driver gpio_led_driver = {
 	},
 };
 
-static int __init gpio_led_init(void)
-{
-	return platform_driver_register(&gpio_led_driver);
-}
-
-static void __exit gpio_led_exit(void)
-{
-	platform_driver_unregister(&gpio_led_driver);
-}
-
-module_init(gpio_led_init);
-module_exit(gpio_led_exit);
-
 MODULE_ALIAS("platform:leds-gpio");
 #endif /* CONFIG_LEDS_GPIO_PLATFORM */
 
@@ -283,19 +270,40 @@ static struct of_platform_driver of_gpio_leds_driver = {
 	.probe = of_gpio_leds_probe,
 	.remove = __devexit_p(of_gpio_leds_remove),
 };
-
-static int __init of_gpio_leds_init(void)
-{
-	return of_register_platform_driver(&of_gpio_leds_driver);
-}
-module_init(of_gpio_leds_init);
-
-static void __exit of_gpio_leds_exit(void)
-{
-	of_unregister_platform_driver(&of_gpio_leds_driver);
-}
-module_exit(of_gpio_leds_exit);
 #endif
+
+static int __init gpio_led_init(void)
+{
+	int ret;
+
+#ifdef CONFIG_LEDS_GPIO_PLATFORM	
+	ret = platform_driver_register(&gpio_led_driver);
+	if (ret)
+		return ret;
+#endif
+#ifdef CONFIG_LEDS_GPIO_OF
+	ret = of_register_platform_driver(&of_gpio_leds_driver);
+#endif
+#ifdef CONFIG_LEDS_GPIO_PLATFORM	
+	if (ret)
+		platform_driver_unregister(&gpio_led_driver);
+#endif
+
+	return ret;
+}
+
+static void __exit gpio_led_exit(void)
+{
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+	platform_driver_unregister(&gpio_led_driver);
+#endif
+#ifdef CONFIG_LEDS_GPIO_OF
+	of_unregister_platform_driver(&of_gpio_leds_driver);
+#endif
+}
+
+module_init(gpio_led_init);
+module_exit(gpio_led_exit);
 
 MODULE_AUTHOR("Raphael Assenat <raph@8d.com>, Trent Piepho <tpiepho@freescale.com>");
 MODULE_DESCRIPTION("GPIO LED driver");
