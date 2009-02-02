@@ -429,7 +429,6 @@ struct cx18 {
 	unsigned long i_flags;  /* global cx18 flags */
 	atomic_t ana_capturing;	/* count number of active analog capture streams */
 	atomic_t tot_capturing;	/* total count number of active capture streams */
-	spinlock_t lock;        /* lock access to this struct */
 	int search_pack_header;
 
 	int open_id;		/* incremented each time an open occurs, used as
