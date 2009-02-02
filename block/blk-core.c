@@ -69,7 +69,7 @@ static void drive_stat_acct(struct request *rq, int new_io)
 	int rw = rq_data_dir(rq);
 	int cpu;
 
-	if (!blk_fs_request(rq) || !disk || !blk_queue_io_stat(disk->queue))
+	if (!blk_fs_request(rq) || !disk || !blk_do_io_stat(disk->queue))
 		return;
 
 	cpu = part_stat_lock();
@@ -1667,7 +1667,7 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
 	struct gendisk *disk = req->rq_disk;
 
-	if (!disk || !blk_queue_io_stat(disk->queue))
+	if (!disk || !blk_do_io_stat(disk->queue))
 		return;
 
 	if (blk_fs_request(req)) {
@@ -1686,7 +1686,7 @@ static void blk_account_io_done(struct request *req)
 {
 	struct gendisk *disk = req->rq_disk;
 
-	if (!disk || !blk_queue_io_stat(disk->queue))
+	if (!disk || !blk_do_io_stat(disk->queue))
 		return;
 
 	/*
