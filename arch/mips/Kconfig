@@ -603,7 +603,7 @@ config CAVIUM_OCTEON_SIMULATOR
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
-	select CPU_CAVIUM_OCTEON
+	select SYS_HAS_CPU_CAVIUM_OCTEON
 	help
 	  The Octeon simulator is software performance model of the Cavium
 	  Octeon Processor. It supports simulating Octeon processors on x86
@@ -618,7 +618,7 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_HAS_EARLY_PRINTK
-	select CPU_CAVIUM_OCTEON
+	select SYS_HAS_CPU_CAVIUM_OCTEON
 	select SWAP_IO_SPACE
 	help
 	  This option supports all of the Octeon reference boards from Cavium
@@ -1234,6 +1234,7 @@ config CPU_SB1
 
 config CPU_CAVIUM_OCTEON
 	bool "Cavium Octeon processor"
+	depends on SYS_HAS_CPU_CAVIUM_OCTEON
 	select IRQ_CPU
 	select IRQ_CPU_OCTEON
 	select CPU_HAS_PREFETCH
@@ -1312,6 +1313,9 @@ config SYS_HAS_CPU_RM9000
 	bool
 
 config SYS_HAS_CPU_SB1
+	bool
+
+config SYS_HAS_CPU_CAVIUM_OCTEON
 	bool
 
 #
