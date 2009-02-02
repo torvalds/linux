@@ -103,6 +103,7 @@ enum {
 	ALC262_NEC,
 	ALC262_TOSHIBA_S06,
 	ALC262_TOSHIBA_RX1,
+	ALC262_TYAN,
 	ALC262_AUTO,
 	ALC262_MODEL_LAST /* last tag */
 };
@@ -9509,6 +9510,67 @@ static struct snd_kcontrol_new alc262_benq_t31_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc262_tyan_mixer[] = {
+	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Master Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Aux Playback Volume", 0x0b, 0x06, HDA_INPUT),
+	HDA_CODEC_MUTE("Aux Playback Switch", 0x0b, 0x06, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost", 0x19, 0, HDA_INPUT),
+	{ } /* end */
+};
+
+static struct hda_verb alc262_tyan_verbs[] = {
+	/* Headphone automute */
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+
+	/* P11 AUX_IN, white 4-pin connector */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	{0x14, AC_VERB_SET_CONFIG_DEFAULT_BYTES_1, 0xe1},
+	{0x14, AC_VERB_SET_CONFIG_DEFAULT_BYTES_2, 0x93},
+	{0x14, AC_VERB_SET_CONFIG_DEFAULT_BYTES_3, 0x19},
+
+	{}
+};
+
+/* unsolicited event for HP jack sensing */
+static void alc262_tyan_automute(struct hda_codec *codec)
+{
+	unsigned int mute;
+	unsigned int present;
+
+	snd_hda_codec_read(codec, 0x1b, 0, AC_VERB_SET_PIN_SENSE, 0);
+	present = snd_hda_codec_read(codec, 0x1b, 0,
+				     AC_VERB_GET_PIN_SENSE, 0);
+	present = (present & 0x80000000) != 0;
+	if (present) {
+		/* mute line output on ATX panel */
+		snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
+	} else {
+		/* unmute line output if necessary */
+		mute = snd_hda_codec_amp_read(codec, 0x1b, 0, HDA_OUTPUT, 0);
+		snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
+	}
+}
+
+static void alc262_tyan_unsol_event(struct hda_codec *codec,
+				       unsigned int res)
+{
+	if ((res >> 26) != ALC880_HP_EVENT)
+		return;
+	alc262_tyan_automute(codec);
+}
+
 #define alc262_capture_mixer		alc882_capture_mixer
 #define alc262_capture_alt_mixer	alc882_capture_alt_mixer
 
@@ -10626,6 +10688,7 @@ static const char *alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_ULTRA]		= "ultra",
 	[ALC262_LENOVO_3000]	= "lenovo-3000",
 	[ALC262_NEC]		= "nec",
+	[ALC262_TYAN]		= "tyan",
 	[ALC262_AUTO]		= "auto",
 };
 
@@ -10666,6 +10729,7 @@ static struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1179, 0xff7b, "Toshiba S06", ALC262_TOSHIBA_S06),
 	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu", ALC262_FUJITSU),
 	SND_PCI_QUIRK(0x10cf, 0x142d, "Fujitsu Lifebook E8410", ALC262_FUJITSU),
+	SND_PCI_QUIRK(0x10f1, 0x2915, "Tyan Thunder n6650W", ALC262_TYAN),
 	SND_PCI_QUIRK(0x144d, 0xc032, "Samsung Q1 Ultra", ALC262_ULTRA),
 	SND_PCI_QUIRK(0x144d, 0xc039, "Samsung Q1U EL", ALC262_ULTRA),
 	SND_PCI_QUIRK(0x144d, 0xc510, "Samsung Q45", ALC262_HIPPO),
@@ -10883,6 +10947,19 @@ static struct alc_config_preset alc262_presets[] = {
 		.input_mux = &alc262_capture_source,
 		.unsol_event = alc262_hippo_unsol_event,
 		.init_hook = alc262_hippo_automute,
+	},
+	[ALC262_TYAN] = {
+		.mixers = { alc262_tyan_mixer },
+		.init_verbs = { alc262_init_verbs, alc262_tyan_verbs},
+		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
+		.dac_nids = alc262_dac_nids,
+		.hp_nid = 0x02,
+		.dig_out_nid = ALC262_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc262_modes),
+		.channel_mode = alc262_modes,
+		.input_mux = &alc262_capture_source,
+		.unsol_event = alc262_tyan_unsol_event,
+		.init_hook = alc262_tyan_automute,
 	},
 };
 
