@@ -87,14 +87,7 @@ struct shared_info *HYPERVISOR_shared_info = (void *)&xen_dummy_shared_info;
  *
  * 0: not available, 1: available
  */
-static int have_vcpu_info_placement =
-#ifdef CONFIG_X86_32
-	1
-#else
-	0
-#endif
-	;
-
+static int have_vcpu_info_placement = 1;
 
 static void xen_vcpu_setup(int cpu)
 {
@@ -913,11 +906,6 @@ asmlinkage void __init xen_start_kernel(void)
 	}
 
 	machine_ops = xen_machine_ops;
-
-#ifdef CONFIG_X86_64
-	/* Disable until direct per-cpu data access. */
-	have_vcpu_info_placement = 0;
-#endif
 
 #ifdef CONFIG_X86_64
 	/*
