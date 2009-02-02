@@ -131,6 +131,7 @@ static const struct ctrl ov9650_ctrls[] = {
 #define RED_BALANCE_IDX 2
 	{
 		{
+			.id		= V4L2_CID_RED_BALANCE,
 			.type 		= V4L2_CTRL_TYPE_INTEGER,
 			.name 		= "red balance",
 			.minimum 	= 0x00,
@@ -145,6 +146,7 @@ static const struct ctrl ov9650_ctrls[] = {
 #define BLUE_BALANCE_IDX 3
 	{
 		{
+			.id		= V4L2_CID_BLUE_BALANCE,
 			.type 		= V4L2_CTRL_TYPE_INTEGER,
 			.name 		= "blue balance",
 			.minimum 	= 0x00,
