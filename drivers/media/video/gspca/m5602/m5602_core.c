@@ -36,7 +36,7 @@ static const __devinitdata struct usb_device_id m5602_table[] = {
 MODULE_DEVICE_TABLE(usb, m5602_table);
 
 /* Reads a byte from the m5602 */
-int m5602_read_bridge(struct sd *sd, u8 address, u8 *i2c_data)
+int m5602_read_bridge(struct sd *sd, const u8 address, u8 *i2c_data)
 {
 	int err;
 	struct usb_device *udev = sd->gspca_dev.dev;
@@ -57,7 +57,7 @@ int m5602_read_bridge(struct sd *sd, u8 address, u8 *i2c_data)
 }
 
 /* Writes a byte to to the m5602 */
-int m5602_write_bridge(struct sd *sd, u8 address, u8 i2c_data)
+int m5602_write_bridge(struct sd *sd, const u8 address, const u8 i2c_data)
 {
 	int err;
 	struct usb_device *udev = sd->gspca_dev.dev;
