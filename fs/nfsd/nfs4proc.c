@@ -103,11 +103,13 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 					(u32 *)open->op_verf.data,
 					&open->op_truncate, &created);
 
-		/* If we ever decide to use different attrs to store the
-		 * verifier in nfsd_create_v3, then we'll need to change this
+		/*
+		 * Following rfc 3530 14.2.16, use the returned bitmask
+		 * to indicate which attributes we used to store the
+		 * verifier:
 		 */
 		if (open->op_createmode == NFS4_CREATE_EXCLUSIVE && status == 0)
-			open->op_bmval[1] |= (FATTR4_WORD1_TIME_ACCESS |
+			open->op_bmval[1] = (FATTR4_WORD1_TIME_ACCESS |
 						FATTR4_WORD1_TIME_MODIFY);
 	} else {
 		status = nfsd_lookup(rqstp, current_fh,
