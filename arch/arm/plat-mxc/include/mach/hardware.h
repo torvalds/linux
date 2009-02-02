@@ -23,7 +23,9 @@
 #include <asm/sizes.h>
 
 #ifdef CONFIG_ARCH_MX3
-# include <mach/mx31.h>
+#include <mach/mx3x.h>
+#include <mach/mx31.h>
+#include <mach/mx35.h>
 #endif
 
 #ifdef CONFIG_ARCH_MX2
