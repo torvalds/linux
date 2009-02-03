@@ -99,7 +99,6 @@ extern void __iomem *ioremap_wc(unsigned long offset, unsigned long size);
  * A boot-time mapping is currently limited to at most 16 pages.
  */
 extern void early_ioremap_init(void);
-extern void early_ioremap_clear(void);
 extern void early_ioremap_reset(void);
 extern void __iomem *early_ioremap(unsigned long offset, unsigned long size);
 extern void __iomem *early_memremap(unsigned long offset, unsigned long size);

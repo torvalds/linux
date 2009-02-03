@@ -100,6 +100,9 @@ static int wusbhc_rh_port_reset(struct wusbhc *wusbhc, u8 port_idx)
 	struct wusb_port *port = wusb_port_by_idx(wusbhc, port_idx);
 	struct wusb_dev *wusb_dev = port->wusb_dev;
 
+	if (wusb_dev == NULL)
+		return -ENOTCONN;
+
 	port->status |= USB_PORT_STAT_RESET;
 	port->change |= USB_PORT_STAT_C_RESET;
 

@@ -953,7 +953,7 @@ smsc911x_rx_fastforward(struct smsc911x_data *pdata, unsigned int pktbytes)
 		do {
 			udelay(1);
 			val = smsc911x_reg_read(pdata, RX_DP_CTRL);
-		} while (timeout-- && (val & RX_DP_CTRL_RX_FFWD_));
+		} while (--timeout && (val & RX_DP_CTRL_RX_FFWD_));
 
 		if (unlikely(timeout == 0))
 			SMSC_WARNING(HW, "Timed out waiting for "

@@ -310,7 +310,6 @@ static const struct i2c_algorithm mpc_algo = {
 static struct i2c_adapter mpc_ops = {
 	.owner = THIS_MODULE,
 	.name = "MPC adapter",
-	.id = I2C_HW_MPC107,
 	.algo = &mpc_algo,
 	.timeout = 1,
 };

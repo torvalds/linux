@@ -1401,7 +1401,7 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	decoder->pdata = client->dev.platform_data;
 	if (!decoder->pdata) {
-		v4l_err(client, "No platform data\n!!");
+		v4l_err(client, "No platform data!!\n");
 		return -ENODEV;
 	}
 	/*

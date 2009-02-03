@@ -1070,6 +1070,13 @@ xfs_qm_sync(
 	return 0;
 }
 
+/*
+ * The hash chains and the mplist use the same xfs_dqhash structure as
+ * their list head, but we can take the mplist qh_lock and one of the
+ * hash qh_locks at the same time without any problem as they aren't
+ * related.
+ */
+static struct lock_class_key xfs_quota_mplist_class;
 
 /*
  * This initializes all the quota information that's kept in the
@@ -1105,6 +1112,8 @@ xfs_qm_init_quotainfo(
 	}
 
 	xfs_qm_list_init(&qinf->qi_dqlist, "mpdqlist", 0);
+	lockdep_set_class(&qinf->qi_dqlist.qh_lock, &xfs_quota_mplist_class);
+
 	qinf->qi_dqreclaims = 0;
 
 	/* mutex used to serialize quotaoffs */

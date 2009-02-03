@@ -15,19 +15,21 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/map.h>
-#include <linux/smc911x.h>
+#include <linux/smsc911x.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <asm/machvec.h>
 #include <asm/io.h>
 #include <cpu/sh7203.h>
 
-static struct smc911x_platdata smc911x_info = {
-	.flags		= SMC911X_USE_16BIT,
-	.irq_flags	= IRQF_TRIGGER_LOW,
+static struct smsc911x_platform_config smsc911x_config = {
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+	.flags		= SMSC911X_USE_16BIT,
 };
 
-static struct resource smc911x_resources[] = {
+static struct resource smsc911x_resources[] = {
 	[0] = {
 		.start		= 0x24000000,
 		.end		= 0x24000000 + 0x100,
@@ -40,13 +42,13 @@ static struct resource smc911x_resources[] = {
 	},
 };
 
-static struct platform_device smc911x_device = {
-	.name		= "smc911x",
+static struct platform_device smsc911x_device = {
+	.name		= "smsc911x",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(smc911x_resources),
-	.resource	= smc911x_resources,
+	.num_resources	= ARRAY_SIZE(smsc911x_resources),
+	.resource	= smsc911x_resources,
 	.dev		= {
-		.platform_data = &smc911x_info,
+		.platform_data = &smsc911x_config,
 	},
 };
 
@@ -87,7 +89,7 @@ static struct platform_device led_device = {
 };
 
 static struct platform_device *rsk7203_devices[] __initdata = {
-	&smc911x_device,
+	&smsc911x_device,
 	&led_device,
 };
 
