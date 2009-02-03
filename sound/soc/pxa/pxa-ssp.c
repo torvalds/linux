@@ -21,6 +21,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
+#include <asm/irq.h>
+
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -221,9 +223,9 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	if (!cpu_dai->active) {
-		ret = ssp_init(&priv->dev, cpu_dai->id + 1, SSP_NO_IRQ);
-		if (ret < 0)
-			return ret;
+		priv->dev.port = cpu_dai->id + 1;
+		priv->dev.irq = NO_IRQ;
+		clk_enable(priv->dev.ssp->clk);
 		ssp_disable(&priv->dev);
 	}
 	return ret;
@@ -238,7 +240,7 @@ static void pxa_ssp_shutdown(struct snd_pcm_substream *substream,
 
 	if (!cpu_dai->active) {
 		ssp_disable(&priv->dev);
-		ssp_exit(&priv->dev);
+		clk_disable(priv->dev.ssp->clk);
 	}
 }
 
@@ -751,7 +753,7 @@ static int pxa_ssp_probe(struct platform_device *pdev,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->dev.ssp = ssp_request(dai->id, "SoC audio");
+	priv->dev.ssp = ssp_request(dai->id + 1, "SoC audio");
 	if (priv->dev.ssp == NULL) {
 		ret = -ENODEV;
 		goto err_priv;
