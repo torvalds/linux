@@ -3862,7 +3862,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	ret = pci_enable_msix(nic->pdev, nic->entries, nic->num_entries);
 	/* We fail init if error or we get less vectors than min required */
 	if (ret) {
-		DBG_PRINT(ERR_DBG, "%s: Enabling MSIX failed\n", nic->dev->name);
+		DBG_PRINT(ERR_DBG, "s2io: Enabling MSI-X failed\n");
 		kfree(nic->entries);
 		nic->mac_control.stats_info->sw_stat.mem_freed
 			+= (nic->num_entries * sizeof(struct msix_entry));
@@ -8010,8 +8010,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		if (ret) {
 
 			DBG_PRINT(ERR_DBG,
-			  "%s: MSI-X requested but failed to enable\n",
-			  dev->name);
+			  "s2io: MSI-X requested but failed to enable\n");
 			sp->config.intr_type = INTA;
 		}
 	}
