@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
+#include <linux/percpu.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -244,8 +245,14 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 	    (fault_code & FAULT_CODE_DTLB))
 		BUG();
 
+	if (test_thread_flag(TIF_32BIT)) {
+		if (!(regs->tstate & TSTATE_PRIV))
+			regs->tpc &= 0xffffffff;
+		address &= 0xffffffff;
+	}
+
 	if (regs->tstate & TSTATE_PRIV) {
-		unsigned long tpc = regs->tpc;
+		unsigned long eaddr, tpc = regs->tpc;
 
 		/* Sanity check the PC. */
 		if ((tpc >= KERNBASE && tpc < (unsigned long) __init_end) ||
@@ -255,6 +262,16 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 			bad_kernel_pc(regs, address);
 			return;
 		}
+
+		insn = get_fault_insn(regs, insn);
+		eaddr = compute_effective_address(regs, insn, 0);
+		if (WARN_ON_ONCE((eaddr & PAGE_MASK) != (address & PAGE_MASK))){
+			printk(KERN_ERR "FAULT: Mismatch kernel fault "
+			       "address: addr[%lx] eaddr[%lx] TPC[%lx]\n",
+			       address, eaddr, tpc);
+			show_regs(regs);
+			goto handle_kernel_fault;
+		}
 	}
 
 	/*
@@ -263,12 +280,6 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 	 */
 	if (in_atomic() || !mm)
 		goto intr_or_no_mm;
-
-	if (test_thread_flag(TIF_32BIT)) {
-		if (!(regs->tstate & TSTATE_PRIV))
-			regs->tpc &= 0xffffffff;
-		address &= 0xffffffff;
-	}
 
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if ((regs->tstate & TSTATE_PRIV) &&
