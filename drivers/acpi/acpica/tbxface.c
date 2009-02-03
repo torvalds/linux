@@ -150,8 +150,7 @@ acpi_initialize_tables(struct acpi_table_desc * initial_table_array,
 	 * Root Table Array. This array contains the information of the RSDT/XSDT
 	 * in a common, more useable format.
 	 */
-	status =
-	    acpi_tb_parse_root_table(rsdp_address, ACPI_TABLE_ORIGIN_MAPPED);
+	status = acpi_tb_parse_root_table(rsdp_address);
 	return_ACPI_STATUS(status);
 }
 

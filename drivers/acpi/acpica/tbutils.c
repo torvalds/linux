@@ -280,7 +280,6 @@ u8 acpi_tb_checksum(u8 *buffer, u32 length)
  * FUNCTION:    acpi_tb_install_table
  *
  * PARAMETERS:  Address                 - Physical address of DSDT or FACS
- *              Flags                   - Flags
  *              Signature               - Table signature, NULL if no need to
  *                                        match
  *              table_index             - Index into root table array
@@ -296,8 +295,9 @@ u8 acpi_tb_checksum(u8 *buffer, u32 length)
 
 void
 acpi_tb_install_table(acpi_physical_address address,
-		      u8 flags, char *signature, u32 table_index)
+		      char *signature, u32 table_index)
 {
+	u8 flags;
 	acpi_status status;
 	struct acpi_table_header *table_to_install;
 	struct acpi_table_header *mapped_table;
@@ -344,12 +344,13 @@ acpi_tb_install_table(acpi_physical_address address,
 
 		acpi_gbl_root_table_list.tables[table_index].pointer =
 		    override_table;
-		flags = ACPI_TABLE_ORIGIN_OVERRIDE;
 		address = ACPI_PTR_TO_PHYSADDR(override_table);
 
 		table_to_install = override_table;
+		flags = ACPI_TABLE_ORIGIN_OVERRIDE;
 	} else {
 		table_to_install = mapped_table;
+		flags = ACPI_TABLE_ORIGIN_MAPPED;
 	}
 
 	/* Initialize the table entry */
@@ -435,7 +436,6 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
  * FUNCTION:    acpi_tb_parse_root_table
  *
  * PARAMETERS:  Rsdp                    - Pointer to the RSDP
- *              Flags                   - Flags
  *
  * RETURN:      Status
  *
@@ -449,7 +449,7 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
  ******************************************************************************/
 
 acpi_status __init
-acpi_tb_parse_root_table(acpi_physical_address rsdp_address, u8 flags)
+acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 {
 	struct acpi_table_rsdp *rsdp;
 	u32 table_entry_size;
@@ -600,14 +600,14 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address, u8 flags)
 	 */
 	for (i = 2; i < acpi_gbl_root_table_list.count; i++) {
 		acpi_tb_install_table(acpi_gbl_root_table_list.tables[i].
-				      address, flags, NULL, i);
+				      address, NULL, i);
 
 		/* Special case for FADT - get the DSDT and FACS */
 
 		if (ACPI_COMPARE_NAME
 		    (&acpi_gbl_root_table_list.tables[i].signature,
 		     ACPI_SIG_FADT)) {
-			acpi_tb_parse_fadt(i, flags);
+			acpi_tb_parse_fadt(i);
 		}
 	}
 

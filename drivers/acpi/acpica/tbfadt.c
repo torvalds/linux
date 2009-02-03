@@ -172,7 +172,6 @@ acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
  * FUNCTION:    acpi_tb_parse_fadt
  *
  * PARAMETERS:  table_index         - Index for the FADT
- *              Flags               - Flags
  *
  * RETURN:      None
  *
@@ -181,7 +180,7 @@ acpi_tb_init_generic_address(struct acpi_generic_address *generic_address,
  *
  ******************************************************************************/
 
-void acpi_tb_parse_fadt(u32 table_index, u8 flags)
+void acpi_tb_parse_fadt(u32 table_index)
 {
 	u32 length;
 	struct acpi_table_header *table;
@@ -219,10 +218,10 @@ void acpi_tb_parse_fadt(u32 table_index, u8 flags)
 	/* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
 	acpi_tb_install_table((acpi_physical_address) acpi_gbl_FADT.Xdsdt,
-			      flags, ACPI_SIG_DSDT, ACPI_TABLE_INDEX_DSDT);
+			      ACPI_SIG_DSDT, ACPI_TABLE_INDEX_DSDT);
 
 	acpi_tb_install_table((acpi_physical_address) acpi_gbl_FADT.Xfacs,
-			      flags, ACPI_SIG_FACS, ACPI_TABLE_INDEX_FACS);
+			      ACPI_SIG_FACS, ACPI_TABLE_INDEX_FACS);
 }
 
 /*******************************************************************************
