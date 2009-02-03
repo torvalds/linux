@@ -356,7 +356,7 @@ static int uda1380_add_widgets(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int uda1380_set_dai_fmt(struct snd_soc_dai *codec_dai,
+static int uda1380_set_dai_fmt_both(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -366,16 +366,70 @@ static int uda1380_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	iface = uda1380_read_reg_cache(codec, UDA1380_IFACE);
 	iface &= ~(R01_SFORI_MASK | R01_SIM | R01_SFORO_MASK);
 
-	/* FIXME: how to select I2S for DATAO and MSB for DATAI correctly? */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		iface |= R01_SFORI_I2S | R01_SFORO_I2S;
 		break;
 	case SND_SOC_DAIFMT_LSB:
-		iface |= R01_SFORI_LSB16 | R01_SFORO_I2S;
+		iface |= R01_SFORI_LSB16 | R01_SFORO_LSB16;
 		break;
 	case SND_SOC_DAIFMT_MSB:
-		iface |= R01_SFORI_MSB | R01_SFORO_I2S;
+		iface |= R01_SFORI_MSB | R01_SFORO_MSB;
+	}
+
+	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBM_CFM)
+		iface |= R01_SIM;
+
+	uda1380_write(codec, UDA1380_IFACE, iface);
+
+	return 0;
+}
+
+static int uda1380_set_dai_fmt_playback(struct snd_soc_dai *codec_dai,
+		unsigned int fmt)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	int iface;
+
+	/* set up DAI based upon fmt */
+	iface = uda1380_read_reg_cache(codec, UDA1380_IFACE);
+	iface &= ~R01_SFORI_MASK;
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:
+		iface |= R01_SFORI_I2S;
+		break;
+	case SND_SOC_DAIFMT_LSB:
+		iface |= R01_SFORI_LSB16;
+		break;
+	case SND_SOC_DAIFMT_MSB:
+		iface |= R01_SFORI_MSB;
+	}
+
+	uda1380_write(codec, UDA1380_IFACE, iface);
+
+	return 0;
+}
+
+static int uda1380_set_dai_fmt_capture(struct snd_soc_dai *codec_dai,
+		unsigned int fmt)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	int iface;
+
+	/* set up DAI based upon fmt */
+	iface = uda1380_read_reg_cache(codec, UDA1380_IFACE);
+	iface &= ~(R01_SIM | R01_SFORO_MASK);
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:
+		iface |= R01_SFORO_I2S;
+		break;
+	case SND_SOC_DAIFMT_LSB:
+		iface |= R01_SFORO_LSB16;
+		break;
+	case SND_SOC_DAIFMT_MSB:
+		iface |= R01_SFORO_MSB;
 	}
 
 	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBM_CFM)
@@ -549,7 +603,7 @@ struct snd_soc_dai uda1380_dai[] = {
 		.shutdown = uda1380_pcm_shutdown,
 		.prepare = uda1380_pcm_prepare,
 		.digital_mute = uda1380_mute,
-		.set_fmt = uda1380_set_dai_fmt,
+		.set_fmt = uda1380_set_dai_fmt_both,
 	},
 },
 { /* playback only - dual interface */
@@ -566,7 +620,7 @@ struct snd_soc_dai uda1380_dai[] = {
 		.shutdown = uda1380_pcm_shutdown,
 		.prepare = uda1380_pcm_prepare,
 		.digital_mute = uda1380_mute,
-		.set_fmt = uda1380_set_dai_fmt,
+		.set_fmt = uda1380_set_dai_fmt_playback,
 	},
 },
 { /* capture only - dual interface*/
@@ -582,7 +636,7 @@ struct snd_soc_dai uda1380_dai[] = {
 		.hw_params = uda1380_pcm_hw_params,
 		.shutdown = uda1380_pcm_shutdown,
 		.prepare = uda1380_pcm_prepare,
-		.set_fmt = uda1380_set_dai_fmt,
+		.set_fmt = uda1380_set_dai_fmt_capture,
 	},
 },
 };
