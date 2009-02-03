@@ -103,7 +103,9 @@ acpi_status acpi_tb_verify_table(struct acpi_table_desc *table_desc)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: This function is called to add the ACPI table
+ * DESCRIPTION: This function is called to add an ACPI table. It is used to
+ *              dynamically load tables via the Load and load_table AML
+ *              operators.
  *
  ******************************************************************************/
 
@@ -112,6 +114,7 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 {
 	u32 i;
 	acpi_status status = AE_OK;
+	struct acpi_table_header *override_table = NULL;
 
 	ACPI_FUNCTION_TRACE(tb_add_table);
 
@@ -199,6 +202,29 @@ acpi_tb_add_table(struct acpi_table_desc *table_desc, u32 *table_index)
 			status = AE_OK;
 			goto print_header;
 		}
+	}
+
+	/*
+	 * ACPI Table Override:
+	 * Allow the host to override dynamically loaded tables.
+	 */
+	status = acpi_os_table_override(table_desc->pointer, &override_table);
+	if (ACPI_SUCCESS(status) && override_table) {
+		ACPI_INFO((AE_INFO,
+			   "%4.4s @ 0x%p Table override, replaced with:",
+			   table_desc->pointer->signature,
+			   ACPI_CAST_PTR(void, table_desc->address)));
+
+		/* We can delete the table that was passed as a parameter */
+
+		acpi_tb_delete_table(table_desc);
+
+		/* Setup descriptor for the new table */
+
+		table_desc->address = ACPI_PTR_TO_PHYSADDR(override_table);
+		table_desc->pointer = override_table;
+		table_desc->length = override_table->length;
+		table_desc->flags = ACPI_TABLE_ORIGIN_OVERRIDE;
 	}
 
 	/* Add the table to the global root table list */
