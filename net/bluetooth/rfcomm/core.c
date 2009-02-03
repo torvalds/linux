@@ -1749,6 +1749,9 @@ static inline void rfcomm_process_dlcs(struct rfcomm_session *s)
 			continue;
 		}
 
+		if (test_bit(RFCOMM_SEC_PENDING, &d->flags))
+			continue;
+
 		if (test_bit(RFCOMM_TX_THROTTLED, &s->flags))
 			continue;
 
