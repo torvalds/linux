@@ -3025,7 +3025,7 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 		goto out_err;
 
 	ext4_debug("using block group %u(%d)\n", ac->ac_b_ex.fe_group,
-			gdp->bg_free_blocks_count);
+			ext4_free_blks_count(sb, gdp));
 
 	err = ext4_journal_get_write_access(handle, gdp_bh);
 	if (err)
