@@ -1042,6 +1042,7 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	int disassoc;
+	bool remove_bss = false;
 
 	/* TODO: start monitoring current AP signal quality and number of
 	 * missed beacons. Scan other channels every now and then and search
@@ -1067,6 +1068,7 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata,
 				       "range\n",
 				       sdata->dev->name, ifsta->bssid);
 				disassoc = 1;
+				remove_bss = true;
 			} else
 				ieee80211_send_probe_req(sdata, ifsta->bssid,
 							 ifsta->ssid,
@@ -1086,12 +1088,24 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_unlock();
 
-	if (disassoc)
+	if (disassoc) {
 		ieee80211_set_disassoc(sdata, ifsta, true, true,
 					WLAN_REASON_PREV_AUTH_NOT_VALID);
-	else
+		if (remove_bss) {
+			struct ieee80211_bss *bss;
+
+			bss = ieee80211_rx_bss_get(local, ifsta->bssid,
+					local->hw.conf.channel->center_freq,
+					ifsta->ssid, ifsta->ssid_len);
+			if (bss) {
+				atomic_dec(&bss->users);
+				ieee80211_rx_bss_put(local, bss);
+			}
+		}
+	} else {
 		mod_timer(&ifsta->timer, jiffies +
 				      IEEE80211_MONITORING_INTERVAL);
+	}
 }
 
 
