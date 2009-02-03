@@ -123,7 +123,7 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 
 	/* Check permissions */
 	if (((tun->owner != -1 && cred->euid != tun->owner) ||
-	     (tun->group != -1 && cred->egid != tun->group)) &&
+	     (tun->group != -1 && !in_egroup_p(tun->group))) &&
 		!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
