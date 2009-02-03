@@ -168,7 +168,6 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 		return 0;
 
 	memset(&conf, 0, sizeof(conf));
-	conf.changed = changed;
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
 	    sdata->vif.type == NL80211_IFTYPE_ADHOC)
@@ -176,15 +175,56 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 	else if (sdata->vif.type == NL80211_IFTYPE_AP)
 		conf.bssid = sdata->dev->dev_addr;
 	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		u8 zero[ETH_ALEN] = { 0 };
+		static const u8 zero[ETH_ALEN] = { 0 };
 		conf.bssid = zero;
 	} else {
 		WARN_ON(1);
 		return -EINVAL;
 	}
 
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
+		break;
+	default:
+		/* do not warn to simplify caller in scan.c */
+		changed &= ~IEEE80211_IFCC_BEACON_ENABLED;
+		if (WARN_ON(changed & IEEE80211_IFCC_BEACON))
+			return -EINVAL;
+		changed &= ~IEEE80211_IFCC_BEACON;
+		break;
+	}
+
+	if (changed & IEEE80211_IFCC_BEACON_ENABLED) {
+		if (local->sw_scanning) {
+			conf.enable_beacon = false;
+		} else {
+			/*
+			 * Beacon should be enabled, but AP mode must
+			 * check whether there is a beacon configured.
+			 */
+			switch (sdata->vif.type) {
+			case NL80211_IFTYPE_AP:
+				conf.enable_beacon =
+					!!rcu_dereference(sdata->u.ap.beacon);
+				break;
+			case NL80211_IFTYPE_ADHOC:
+			case NL80211_IFTYPE_MESH_POINT:
+				conf.enable_beacon = true;
+				break;
+			default:
+				/* not reached */
+				WARN_ON(1);
+				break;
+			}
+		}
+	}
+
 	if (WARN_ON(!conf.bssid && (changed & IEEE80211_IFCC_BSSID)))
 		return -EINVAL;
+
+	conf.changed = changed;
 
 	return local->ops->config_interface(local_to_hw(local),
 					    &sdata->vif, &conf);
@@ -208,26 +248,22 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	}
 
 	if (chan != local->hw.conf.channel ||
-	    channel_type != local->hw.conf.ht.channel_type) {
+	    channel_type != local->hw.conf.channel_type) {
 		local->hw.conf.channel = chan;
-		local->hw.conf.ht.channel_type = channel_type;
-		switch (channel_type) {
-		case NL80211_CHAN_NO_HT:
-			local->hw.conf.ht.enabled = false;
-			break;
-		case NL80211_CHAN_HT20:
-		case NL80211_CHAN_HT40MINUS:
-		case NL80211_CHAN_HT40PLUS:
-			local->hw.conf.ht.enabled = true;
-			break;
-		}
+		local->hw.conf.channel_type = channel_type;
 		changed |= IEEE80211_CONF_CHANGE_CHANNEL;
 	}
 
-	if (!local->hw.conf.power_level)
+	if (local->sw_scanning)
 		power = chan->max_power;
 	else
-		power = min(chan->max_power, local->hw.conf.power_level);
+		power = local->power_constr_level ?
+			(chan->max_power - local->power_constr_level) :
+			chan->max_power;
+
+	if (local->user_power_level)
+		power = min(power, local->user_power_level);
+
 	if (local->hw.conf.power_level != power) {
 		changed |= IEEE80211_CONF_CHANGE_POWER;
 		local->hw.conf.power_level = power;
@@ -722,6 +758,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.conf.radio_enabled = true;
 
 	INIT_LIST_HEAD(&local->interfaces);
+	mutex_init(&local->iflist_mtx);
 
 	spin_lock_init(&local->key_lock);
 
@@ -822,7 +859,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	mdev->set_multicast_list = ieee80211_master_set_multicast_list;
 
 	local->hw.workqueue =
-		create_freezeable_workqueue(wiphy_name(local->hw.wiphy));
+		create_singlethread_workqueue(wiphy_name(local->hw.wiphy));
 	if (!local->hw.workqueue) {
 		result = -ENOMEM;
 		goto fail_workqueue;
@@ -971,6 +1008,8 @@ EXPORT_SYMBOL(ieee80211_unregister_hw);
 void ieee80211_free_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+
+	mutex_destroy(&local->iflist_mtx);
 
 	wiphy_free(local->hw.wiphy);
 }

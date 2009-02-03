@@ -279,9 +279,8 @@ static void ath9k_ani_restart(struct ath_hal *ah)
 static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hal *ah)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
-	struct ath9k_channel *chan = ah->ah_curchan;
+	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
 	struct ar5416AniState *aniState;
-	enum wireless_mode mode;
 	int32_t rssi;
 
 	if (!DO_ANI(ah))
@@ -336,8 +335,7 @@ static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hal *ah)
 					     aniState->firstepLevel + 1);
 		return;
 	} else {
-		mode = ath9k_hw_chan2wmode(ah, chan);
-		if (mode == ATH9K_MODE_11G || mode == ATH9K_MODE_11B) {
+		if (conf->channel->band == IEEE80211_BAND_2GHZ) {
 			if (!aniState->ofdmWeakSigDetectOff)
 				ath9k_hw_ani_control(ah,
 				     ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
@@ -353,9 +351,8 @@ static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hal *ah)
 static void ath9k_hw_ani_cck_err_trigger(struct ath_hal *ah)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
-	struct ath9k_channel *chan = ah->ah_curchan;
+	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
 	struct ar5416AniState *aniState;
-	enum wireless_mode mode;
 	int32_t rssi;
 
 	if (!DO_ANI(ah))
@@ -381,8 +378,7 @@ static void ath9k_hw_ani_cck_err_trigger(struct ath_hal *ah)
 			ath9k_hw_ani_control(ah, ATH9K_ANI_FIRSTEP_LEVEL,
 					     aniState->firstepLevel + 1);
 	} else {
-		mode = ath9k_hw_chan2wmode(ah, chan);
-		if (mode == ATH9K_MODE_11G || mode == ATH9K_MODE_11B) {
+		if (conf->channel->band == IEEE80211_BAND_2GHZ) {
 			if (aniState->firstepLevel > 0)
 				ath9k_hw_ani_control(ah,
 					     ATH9K_ANI_FIRSTEP_LEVEL, 0);
@@ -555,6 +551,9 @@ void ath9k_hw_ani_monitor(struct ath_hal *ah,
 	struct ar5416AniState *aniState;
 	int32_t listenTime;
 
+	if (!DO_ANI(ah))
+		return;
+
 	aniState = ahp->ah_curani;
 	ahp->ah_stats.ast_nodestats = *stats;
 
@@ -613,9 +612,6 @@ void ath9k_hw_ani_monitor(struct ath_hal *ah,
 			cckPhyErrCnt - aniState->cckPhyErrCount;
 		aniState->cckPhyErrCount = cckPhyErrCnt;
 	}
-
-	if (!DO_ANI(ah))
-		return;
 
 	if (aniState->listenTime > 5 * ahp->ah_aniPeriod) {
 		if (aniState->ofdmPhyErrCount <= aniState->listenTime *

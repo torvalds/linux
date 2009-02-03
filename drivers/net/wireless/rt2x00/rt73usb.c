@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -185,6 +185,18 @@ static const struct rt2x00debug rt73usb_rt2x00debug = {
 	},
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+
+#ifdef CONFIG_RT2X00_LIB_RFKILL
+static int rt73usb_rfkill_poll(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+
+	rt2x00usb_register_read(rt2x00dev, MAC_CSR13, &reg);
+	return rt2x00_get_field32(reg, MAC_CSR13_BIT7);
+}
+#else
+#define rt73usb_rfkill_poll	NULL
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 #ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt73usb_brightness_set(struct led_classdev *led_cdev,
@@ -844,6 +856,44 @@ static void rt73usb_config_duration(struct rt2x00_dev *rt2x00dev,
 	rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 }
 
+static void rt73usb_config_ps(struct rt2x00_dev *rt2x00dev,
+				struct rt2x00lib_conf *libconf)
+{
+	enum dev_state state =
+	    (libconf->conf->flags & IEEE80211_CONF_PS) ?
+		STATE_SLEEP : STATE_AWAKE;
+	u32 reg;
+
+	if (state == STATE_SLEEP) {
+		rt2x00usb_register_read(rt2x00dev, MAC_CSR11, &reg);
+		rt2x00_set_field32(&reg, MAC_CSR11_DELAY_AFTER_TBCN,
+				   libconf->conf->beacon_int - 10);
+		rt2x00_set_field32(&reg, MAC_CSR11_TBCN_BEFORE_WAKEUP,
+				   libconf->conf->listen_interval - 1);
+		rt2x00_set_field32(&reg, MAC_CSR11_WAKEUP_LATENCY, 5);
+
+		/* We must first disable autowake before it can be enabled */
+		rt2x00_set_field32(&reg, MAC_CSR11_AUTOWAKE, 0);
+		rt2x00usb_register_write(rt2x00dev, MAC_CSR11, reg);
+
+		rt2x00_set_field32(&reg, MAC_CSR11_AUTOWAKE, 1);
+		rt2x00usb_register_write(rt2x00dev, MAC_CSR11, reg);
+
+		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
+					    USB_MODE_SLEEP, REGISTER_TIMEOUT);
+	} else {
+		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
+					    USB_MODE_WAKEUP, REGISTER_TIMEOUT);
+
+		rt2x00usb_register_read(rt2x00dev, MAC_CSR11, &reg);
+		rt2x00_set_field32(&reg, MAC_CSR11_DELAY_AFTER_TBCN, 0);
+		rt2x00_set_field32(&reg, MAC_CSR11_TBCN_BEFORE_WAKEUP, 0);
+		rt2x00_set_field32(&reg, MAC_CSR11_AUTOWAKE, 0);
+		rt2x00_set_field32(&reg, MAC_CSR11_WAKEUP_LATENCY, 0);
+		rt2x00usb_register_write(rt2x00dev, MAC_CSR11, reg);
+	}
+}
+
 static void rt73usb_config(struct rt2x00_dev *rt2x00dev,
 			   struct rt2x00lib_conf *libconf,
 			   const unsigned int flags)
@@ -861,6 +911,8 @@ static void rt73usb_config(struct rt2x00_dev *rt2x00dev,
 		rt73usb_config_retry_limit(rt2x00dev, libconf);
 	if (flags & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
 		rt73usb_config_duration(rt2x00dev, libconf);
+	if (flags & IEEE80211_CONF_CHANGE_PS)
+		rt73usb_config_ps(rt2x00dev, libconf);
 }
 
 /*
@@ -884,20 +936,27 @@ static void rt73usb_link_stats(struct rt2x00_dev *rt2x00dev,
 	qual->false_cca = rt2x00_get_field32(reg, STA_CSR1_FALSE_CCA_ERROR);
 }
 
-static void rt73usb_reset_tuner(struct rt2x00_dev *rt2x00dev)
+static inline void rt73usb_set_vgc(struct rt2x00_dev *rt2x00dev,
+				   struct link_qual *qual, u8 vgc_level)
 {
-	rt73usb_bbp_write(rt2x00dev, 17, 0x20);
-	rt2x00dev->link.vgc_level = 0x20;
+	if (qual->vgc_level != vgc_level) {
+		rt73usb_bbp_write(rt2x00dev, 17, vgc_level);
+		qual->vgc_level = vgc_level;
+		qual->vgc_level_reg = vgc_level;
+	}
 }
 
-static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
+static void rt73usb_reset_tuner(struct rt2x00_dev *rt2x00dev,
+				struct link_qual *qual)
 {
-	int rssi = rt2x00_get_link_rssi(&rt2x00dev->link);
-	u8 r17;
+	rt73usb_set_vgc(rt2x00dev, qual, 0x20);
+}
+
+static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev,
+			       struct link_qual *qual, const u32 count)
+{
 	u8 up_bound;
 	u8 low_bound;
-
-	rt73usb_bbp_read(rt2x00dev, 17, &r17);
 
 	/*
 	 * Determine r17 bounds.
@@ -911,10 +970,10 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 			up_bound += 0x10;
 		}
 	} else {
-		if (rssi > -82) {
+		if (qual->rssi > -82) {
 			low_bound = 0x1c;
 			up_bound = 0x40;
-		} else if (rssi > -84) {
+		} else if (qual->rssi > -84) {
 			low_bound = 0x1c;
 			up_bound = 0x20;
 		} else {
@@ -938,37 +997,32 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Special big-R17 for very short distance
 	 */
-	if (rssi > -35) {
-		if (r17 != 0x60)
-			rt73usb_bbp_write(rt2x00dev, 17, 0x60);
+	if (qual->rssi > -35) {
+		rt73usb_set_vgc(rt2x00dev, qual, 0x60);
 		return;
 	}
 
 	/*
 	 * Special big-R17 for short distance
 	 */
-	if (rssi >= -58) {
-		if (r17 != up_bound)
-			rt73usb_bbp_write(rt2x00dev, 17, up_bound);
+	if (qual->rssi >= -58) {
+		rt73usb_set_vgc(rt2x00dev, qual, up_bound);
 		return;
 	}
 
 	/*
 	 * Special big-R17 for middle-short distance
 	 */
-	if (rssi >= -66) {
-		low_bound += 0x10;
-		if (r17 != low_bound)
-			rt73usb_bbp_write(rt2x00dev, 17, low_bound);
+	if (qual->rssi >= -66) {
+		rt73usb_set_vgc(rt2x00dev, qual, low_bound + 0x10);
 		return;
 	}
 
 	/*
 	 * Special mid-R17 for middle distance
 	 */
-	if (rssi >= -74) {
-		if (r17 != (low_bound + 0x10))
-			rt73usb_bbp_write(rt2x00dev, 17, low_bound + 0x08);
+	if (qual->rssi >= -74) {
+		rt73usb_set_vgc(rt2x00dev, qual, low_bound + 0x08);
 		return;
 	}
 
@@ -976,12 +1030,12 @@ static void rt73usb_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Special case: Change up_bound based on the rssi.
 	 * Lower up_bound when rssi is weaker then -74 dBm.
 	 */
-	up_bound -= 2 * (-74 - rssi);
+	up_bound -= 2 * (-74 - qual->rssi);
 	if (low_bound > up_bound)
 		up_bound = low_bound;
 
-	if (r17 > up_bound) {
-		rt73usb_bbp_write(rt2x00dev, 17, up_bound);
+	if (qual->vgc_level > up_bound) {
+		rt73usb_set_vgc(rt2x00dev, qual, up_bound);
 		return;
 	}
 
@@ -991,17 +1045,12 @@ dynamic_cca_tune:
 	 * r17 does not yet exceed upper limit, continue and base
 	 * the r17 tuning on the false CCA count.
 	 */
-	if (rt2x00dev->link.qual.false_cca > 512 && r17 < up_bound) {
-		r17 += 4;
-		if (r17 > up_bound)
-			r17 = up_bound;
-		rt73usb_bbp_write(rt2x00dev, 17, r17);
-	} else if (rt2x00dev->link.qual.false_cca < 100 && r17 > low_bound) {
-		r17 -= 4;
-		if (r17 < low_bound)
-			r17 = low_bound;
-		rt73usb_bbp_write(rt2x00dev, 17, r17);
-	}
+	if ((qual->false_cca > 512) && (qual->vgc_level < up_bound))
+		rt73usb_set_vgc(rt2x00dev, qual,
+				min_t(u8, qual->vgc_level + 4, up_bound));
+	else if ((qual->false_cca < 100) && (qual->vgc_level > low_bound))
+		rt73usb_set_vgc(rt2x00dev, qual,
+				max_t(u8, qual->vgc_level - 4, low_bound));
 }
 
 /*
@@ -1035,6 +1084,11 @@ static int rt73usb_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 	unsigned int i;
 	int status;
 	u32 reg;
+
+	if (len != 2048) {
+		ERROR(rt2x00dev, "Invalid firmware file length (len=%zu)\n", len);
+		return -ENOENT;
+	}
 
 	/*
 	 * Wait for stable hardware.
@@ -1449,7 +1503,7 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_TIMESTAMP,
 			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_OFDM,
-			   test_bit(ENTRY_TXD_OFDM_RATE, &txdesc->flags));
+			   (txdesc->rate_mode == RATE_MODE_OFDM));
 	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
@@ -1816,6 +1870,14 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 		__set_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags);
 
 	/*
+	 * Detect if this device has an hardware controlled radio.
+	 */
+#ifdef CONFIG_RT2X00_LIB_RFKILL
+	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
+		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
+
+	/*
 	 * Read frequency offset.
 	 */
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &eeprom);
@@ -2020,7 +2082,9 @@ static int rt73usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00dev->hw->flags =
 	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-	    IEEE80211_HW_SIGNAL_DBM;
+	    IEEE80211_HW_SIGNAL_DBM |
+	    IEEE80211_HW_SUPPORTS_PS |
+	    IEEE80211_HW_PS_NULLFUNC_STACK;
 	rt2x00dev->hw->extra_tx_headroom = TXD_DESC_SIZE;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
@@ -2121,6 +2185,7 @@ static int rt73usb_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	struct rt2x00_field32 field;
 	int retval;
 	u32 reg;
+	u32 offset;
 
 	/*
 	 * First pass the configuration through rt2x00lib, that will
@@ -2132,24 +2197,23 @@ static int rt73usb_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	if (retval)
 		return retval;
 
+	/*
+	 * We only need to perform additional register initialization
+	 * for WMM queues/
+	 */
+	if (queue_idx >= 4)
+		return 0;
+
 	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
 
 	/* Update WMM TXOP register */
-	if (queue_idx < 2) {
-		field.bit_offset = queue_idx * 16;
-		field.bit_mask = 0xffff << field.bit_offset;
+	offset = AC_TXOP_CSR0 + (sizeof(u32) * (!!(queue_idx & 2)));
+	field.bit_offset = (queue_idx & 1) * 16;
+	field.bit_mask = 0xffff << field.bit_offset;
 
-		rt2x00usb_register_read(rt2x00dev, AC_TXOP_CSR0, &reg);
-		rt2x00_set_field32(&reg, field, queue->txop);
-		rt2x00usb_register_write(rt2x00dev, AC_TXOP_CSR0, reg);
-	} else if (queue_idx < 4) {
-		field.bit_offset = (queue_idx - 2) * 16;
-		field.bit_mask = 0xffff << field.bit_offset;
-
-		rt2x00usb_register_read(rt2x00dev, AC_TXOP_CSR1, &reg);
-		rt2x00_set_field32(&reg, field, queue->txop);
-		rt2x00usb_register_write(rt2x00dev, AC_TXOP_CSR1, reg);
-	}
+	rt2x00usb_register_read(rt2x00dev, offset, &reg);
+	rt2x00_set_field32(&reg, field, queue->txop);
+	rt2x00usb_register_write(rt2x00dev, offset, reg);
 
 	/* Update WMM registers */
 	field.bit_offset = queue_idx * 4;
@@ -2220,6 +2284,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.uninitialize		= rt2x00usb_uninitialize,
 	.clear_entry		= rt2x00usb_clear_entry,
 	.set_device_state	= rt73usb_set_device_state,
+	.rfkill_poll		= rt73usb_rfkill_poll,
 	.link_stats		= rt73usb_link_stats,
 	.reset_tuner		= rt73usb_reset_tuner,
 	.link_tuner		= rt73usb_link_tuner,

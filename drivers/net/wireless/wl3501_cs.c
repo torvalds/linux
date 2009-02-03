@@ -44,6 +44,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/wireless.h>
+#include <linux/ieee80211.h>
 
 #include <net/iw_handler.h>
 
@@ -110,12 +111,6 @@ static void wl3501_release(struct pcmcia_device *link);
  * database.
  */
 static dev_info_t wl3501_dev_info = "wl3501_cs";
-
-static int wl3501_chan2freq[] = {
-	[0]  = 2412, [1]  = 2417, [2]  = 2422, [3]  = 2427, [4] = 2432,
-	[5]  = 2437, [6]  = 2442, [7]  = 2447, [8]  = 2452, [9] = 2457,
-	[10] = 2462, [11] = 2467, [12] = 2472, [13] = 2477,
-};
 
 static const struct {
 	int reg_domain;
@@ -1510,7 +1505,7 @@ static int wl3501_get_freq(struct net_device *dev, struct iw_request_info *info,
 {
 	struct wl3501_card *this = netdev_priv(dev);
 
-	wrqu->freq.m = wl3501_chan2freq[this->chan - 1] * 100000;
+	wrqu->freq.m = ieee80211_dsss_chan_to_freq(this->chan) * 100000;
 	wrqu->freq.e = 1;
 	return 0;
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -125,9 +125,10 @@ EXPORT_SYMBOL(iwl_rx_queue_space);
  */
 int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 {
-	u32 reg = 0;
-	int ret = 0;
 	unsigned long flags;
+	u32 rx_wrt_ptr_reg = priv->hw_params.rx_wrt_ptr_reg;
+	u32 reg;
+	int ret = 0;
 
 	spin_lock_irqsave(&q->lock, flags);
 
@@ -149,15 +150,14 @@ int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 			goto exit_unlock;
 
 		/* Device expects a multiple of 8 */
-		iwl_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
-				     q->write & ~0x7);
+		iwl_write_direct32(priv, rx_wrt_ptr_reg, q->write & ~0x7);
 		iwl_release_nic_access(priv);
 
 	/* Else device is assumed to be awake */
-	} else
+	} else {
 		/* Device expects a multiple of 8 */
-		iwl_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write & ~0x7);
-
+		iwl_write32(priv, rx_wrt_ptr_reg, q->write & ~0x7);
+	}
 
 	q->need_update = 0;
 
@@ -262,8 +262,7 @@ void iwl_rx_allocate(struct iwl_priv *priv)
 		rxb->skb = alloc_skb(priv->hw_params.rx_buf_size + 256,
 				     GFP_KERNEL);
 		if (!rxb->skb) {
-			printk(KERN_CRIT DRV_NAME
-				   "Can not allocate SKB buffers\n");
+			IWL_CRIT(priv, "Can not allocate SKB buffers\n");
 			/* We don't reschedule replenish work here -- we will
 			 * call the restock method and if it still needs
 			 * more buffers it will schedule replenish */
@@ -895,7 +894,7 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 		rx_start = (struct iwl_rx_phy_res *)&priv->last_phy_res[1];
 
 	if (!rx_start) {
-		IWL_ERROR("MPDU frame without a PHY data\n");
+		IWL_ERR(priv, "MPDU frame without a PHY data\n");
 		return;
 	}
 	if (include_phy) {
@@ -1021,7 +1020,7 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	}
 
 	if (!rx_start) {
-		IWL_ERROR("MPDU frame without a PHY data\n");
+		IWL_ERR(priv, "MPDU frame without a PHY data\n");
 		return;
 	}
 

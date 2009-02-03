@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -102,7 +102,7 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 
 	return 0;
 err:
-	IWL_ERROR("Error %d iteration %d\n", ret, i);
+	IWL_ERR(priv, "Error %d iteration %d\n", ret, i);
 	return ret;
 }
 EXPORT_SYMBOL(iwl_send_calib_results);
@@ -483,7 +483,7 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 
 	ret = iwl_send_cmd(priv, &cmd_out);
 	if (ret)
-		IWL_ERROR("SENSITIVITY_CMD failed\n");
+		IWL_ERR(priv, "SENSITIVITY_CMD failed\n");
 
 	return ret;
 }

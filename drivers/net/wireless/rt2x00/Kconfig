@@ -97,10 +97,11 @@ config RT2X00_LIB_CRYPTO
 
 config RT2X00_LIB_RFKILL
 	boolean
-	default y if (RT2X00_LIB=y && RFKILL=y) || (RT2X00_LIB=m && RFKILL!=n)
+	default y if (RT2X00_LIB=y && INPUT=y) || (RT2X00_LIB=m && INPUT!=n)
+	select INPUT_POLLDEV
 
-comment "rt2x00 rfkill support disabled due to modularized RFKILL and built-in rt2x00"
-	depends on RT2X00_LIB=y && RFKILL=m
+comment "rt2x00 rfkill support disabled due to modularized INPUT and built-in rt2x00"
+	depends on RT2X00_LIB=y && INPUT=m
 
 config RT2X00_LIB_LEDS
 	boolean

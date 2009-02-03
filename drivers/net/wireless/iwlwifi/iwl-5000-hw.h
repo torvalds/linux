@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,10 +68,16 @@
 #ifndef __iwl_5000_hw_h__
 #define __iwl_5000_hw_h__
 
+#define IWL50_RTC_INST_LOWER_BOUND		(0x000000)
 #define IWL50_RTC_INST_UPPER_BOUND		(0x020000)
+
+#define IWL50_RTC_DATA_LOWER_BOUND		(0x800000)
 #define IWL50_RTC_DATA_UPPER_BOUND		(0x80C000)
-#define IWL50_RTC_INST_SIZE (IWL50_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
-#define IWL50_RTC_DATA_SIZE (IWL50_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
+
+#define IWL50_RTC_INST_SIZE (IWL50_RTC_INST_UPPER_BOUND - \
+				IWL50_RTC_INST_LOWER_BOUND)
+#define IWL50_RTC_DATA_SIZE (IWL50_RTC_DATA_UPPER_BOUND - \
+				IWL50_RTC_DATA_LOWER_BOUND)
 
 /* EEPROM */
 #define IWL_5000_EEPROM_IMG_SIZE			2048

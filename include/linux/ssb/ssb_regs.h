@@ -326,6 +326,42 @@
 #define  SSB_SPROM5_GPIOB_P3		0xFF00	/* Pin 3 */
 #define  SSB_SPROM5_GPIOB_P3_SHIFT	8
 
+/* SPROM Revision 8 */
+#define SSB_SPROM8_BFLLO		0x1084	/* Boardflags (low 16 bits) */
+#define SSB_SPROM8_BFLHI		0x1086	/* Boardflags Hi */
+#define SSB_SPROM8_IL0MAC		0x108C	/* 6 byte MAC address */
+#define SSB_SPROM8_CCODE		0x1092	/* 2 byte country code */
+#define SSB_SPROM8_ANTAVAIL		0x109C  /* Antenna available bitfields*/
+#define SSB_SPROM8_ANTAVAIL_A		0xFF00	/* A-PHY bitfield */
+#define SSB_SPROM8_ANTAVAIL_A_SHIFT	8
+#define SSB_SPROM8_ANTAVAIL_BG		0x00FF	/* B-PHY and G-PHY bitfield */
+#define SSB_SPROM8_ANTAVAIL_BG_SHIFT	0
+#define SSB_SPROM8_AGAIN01		0x109E	/* Antenna Gain (in dBm Q5.2) */
+#define  SSB_SPROM8_AGAIN0		0x00FF	/* Antenna 0 */
+#define  SSB_SPROM8_AGAIN0_SHIFT	0
+#define  SSB_SPROM8_AGAIN1		0xFF00	/* Antenna 1 */
+#define  SSB_SPROM8_AGAIN1_SHIFT	8
+#define SSB_SPROM8_AGAIN23		0x10A0
+#define  SSB_SPROM8_AGAIN2		0x00FF	/* Antenna 2 */
+#define  SSB_SPROM8_AGAIN2_SHIFT	0
+#define  SSB_SPROM8_AGAIN3		0xFF00	/* Antenna 3 */
+#define  SSB_SPROM8_AGAIN3_SHIFT	8
+#define SSB_SPROM8_GPIOA		0x1096	/*Gen. Purpose IO # 0 and 1 */
+#define  SSB_SPROM8_GPIOA_P0		0x00FF	/* Pin 0 */
+#define  SSB_SPROM8_GPIOA_P1		0xFF00	/* Pin 1 */
+#define  SSB_SPROM8_GPIOA_P1_SHIFT	8
+#define SSB_SPROM8_GPIOB		0x1098	/* Gen. Purpose IO # 2 and 3 */
+#define  SSB_SPROM8_GPIOB_P2		0x00FF	/* Pin 2 */
+#define  SSB_SPROM8_GPIOB_P3		0xFF00	/* Pin 3 */
+#define  SSB_SPROM8_GPIOB_P3_SHIFT	8
+#define SSB_SPROM8_MAXP_BG		0x10C0  /* Max Power BG in path 1 */
+#define  SSB_SPROM8_MAXP_BG_MASK	0x00FF  /* Mask for Max Power BG */
+#define  SSB_SPROM8_ITSSI_BG		0xFF00	/* Mask for path 1 itssi_bg */
+#define  SSB_SPROM8_ITSSI_BG_SHIFT	8
+#define SSB_SPROM8_MAXP_A		0x10C8  /* Max Power A in path 1 */
+#define  SSB_SPROM8_MAXP_A_MASK		0x00FF  /* Mask for Max Power A */
+#define  SSB_SPROM8_ITSSI_A		0xFF00	/* Mask for path 1 itssi_a */
+#define  SSB_SPROM8_ITSSI_A_SHIFT	8
 
 /* Values for SSB_SPROM1_BINF_CCODE */
 enum {

@@ -112,12 +112,14 @@ struct beacon_parameters {
  * @STATION_FLAG_SHORT_PREAMBLE: station is capable of receiving frames
  *	with short preambles
  * @STATION_FLAG_WME: station is WME/QoS capable
+ * @STATION_FLAG_MFP: station uses management frame protection
  */
 enum station_flags {
 	STATION_FLAG_CHANGED		= 1<<0,
 	STATION_FLAG_AUTHORIZED		= 1<<NL80211_STA_FLAG_AUTHORIZED,
 	STATION_FLAG_SHORT_PREAMBLE	= 1<<NL80211_STA_FLAG_SHORT_PREAMBLE,
 	STATION_FLAG_WME		= 1<<NL80211_STA_FLAG_WME,
+	STATION_FLAG_MFP		= 1<<NL80211_STA_FLAG_MFP,
 };
 
 /**
@@ -355,6 +357,51 @@ enum reg_set_by {
 	REGDOM_SET_BY_COUNTRY_IE,
 };
 
+/**
+ * enum environment_cap - Environment parsed from country IE
+ * @ENVIRON_ANY: indicates country IE applies to both indoor and
+ * 	outdoor operation.
+ * @ENVIRON_INDOOR: indicates country IE applies only to indoor operation
+ * @ENVIRON_OUTDOOR: indicates country IE applies only to outdoor operation
+ */
+enum environment_cap {
+	ENVIRON_ANY,
+	ENVIRON_INDOOR,
+	ENVIRON_OUTDOOR,
+};
+
+/**
+ * struct regulatory_request - receipt of last regulatory request
+ *
+ * @wiphy: this is set if this request's initiator is
+ * 	%REGDOM_SET_BY_COUNTRY_IE or %REGDOM_SET_BY_DRIVER. This
+ * 	can be used by the wireless core to deal with conflicts
+ * 	and potentially inform users of which devices specifically
+ * 	cased the conflicts.
+ * @initiator: indicates who sent this request, could be any of
+ * 	of those set in reg_set_by, %REGDOM_SET_BY_*
+ * @alpha2: the ISO / IEC 3166 alpha2 country code of the requested
+ * 	regulatory domain. We have a few special codes:
+ * 	00 - World regulatory domain
+ * 	99 - built by driver but a specific alpha2 cannot be determined
+ * 	98 - result of an intersection between two regulatory domains
+ * @intersect: indicates whether the wireless core should intersect
+ * 	the requested regulatory domain with the presently set regulatory
+ * 	domain.
+ * @country_ie_checksum: checksum of the last processed and accepted
+ * 	country IE
+ * @country_ie_env: lets us know if the AP is telling us we are outdoor,
+ * 	indoor, or if it doesn't matter
+ */
+struct regulatory_request {
+	struct wiphy *wiphy;
+	enum reg_set_by initiator;
+	char alpha2[2];
+	bool intersect;
+	u32 country_ie_checksum;
+	enum environment_cap country_ie_env;
+};
+
 struct ieee80211_freq_range {
 	u32 start_freq_khz;
 	u32 end_freq_khz;
@@ -431,6 +478,26 @@ struct ieee80211_txq_params {
 	u8 aifs;
 };
 
+/**
+ * struct mgmt_extra_ie_params - Extra management frame IE parameters
+ *
+ * Used to add extra IE(s) into management frames. If the driver cannot add the
+ * requested data into all management frames of the specified subtype that are
+ * generated in kernel or firmware/hardware, it must reject the configuration
+ * call. The IE data buffer is added to the end of the specified management
+ * frame body after all other IEs. This addition is not applied to frames that
+ * are injected through a monitor interface.
+ *
+ * @subtype: Management frame subtype
+ * @ies: IE data buffer or %NULL to remove previous data
+ * @ies_len: Length of @ies in octets
+ */
+struct mgmt_extra_ie_params {
+	u8 subtype;
+	u8 *ies;
+	int ies_len;
+};
+
 /* from net/wireless.h */
 struct wiphy;
 
@@ -449,6 +516,9 @@ struct ieee80211_channel;
  * All operations are currently invoked under rtnl for consistency with the
  * wireless extensions but this is subject to reevaluation as soon as this
  * code is used more widely and we have a first user without wext.
+ *
+ * @suspend: wiphy device needs to be suspended
+ * @resume: wiphy device needs to be resumed
  *
  * @add_virtual_intf: create a new virtual interface with the given name,
  *	must set the struct wireless_dev's iftype.
@@ -470,6 +540,8 @@ struct ieee80211_channel;
  *	and @key_index
  *
  * @set_default_key: set the default key on an interface
+ *
+ * @set_default_mgmt_key: set the default management frame key on an interface
  *
  * @add_beacon: Add a beacon with given parameters, @head, @interval
  *	and @dtim_period will be valid, @tail is optional.
@@ -497,8 +569,13 @@ struct ieee80211_channel;
  * @set_txq_params: Set TX queue parameters
  *
  * @set_channel: Set channel
+ *
+ * @set_mgmt_extra_ie: Set extra IE data for management frames
  */
 struct cfg80211_ops {
+	int	(*suspend)(struct wiphy *wiphy);
+	int	(*resume)(struct wiphy *wiphy);
+
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
 				    enum nl80211_iftype type, u32 *flags,
 				    struct vif_params *params);
@@ -518,6 +595,9 @@ struct cfg80211_ops {
 	int	(*set_default_key)(struct wiphy *wiphy,
 				   struct net_device *netdev,
 				   u8 key_index);
+	int	(*set_default_mgmt_key)(struct wiphy *wiphy,
+					struct net_device *netdev,
+					u8 key_index);
 
 	int	(*add_beacon)(struct wiphy *wiphy, struct net_device *dev,
 			      struct beacon_parameters *info);
@@ -564,6 +644,10 @@ struct cfg80211_ops {
 	int	(*set_channel)(struct wiphy *wiphy,
 			       struct ieee80211_channel *chan,
 			       enum nl80211_channel_type channel_type);
+
+	int	(*set_mgmt_extra_ie)(struct wiphy *wiphy,
+				     struct net_device *dev,
+				     struct mgmt_extra_ie_params *params);
 };
 
 /* temporary wext handlers */

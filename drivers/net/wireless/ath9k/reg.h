@@ -875,12 +875,15 @@ enum {
 
 #define AR_NUM_GPIO                              14
 #define AR928X_NUM_GPIO                          10
+#define AR9285_NUM_GPIO                          12
 
 #define AR_GPIO_IN_OUT                           0x4048
 #define AR_GPIO_IN_VAL                           0x0FFFC000
 #define AR_GPIO_IN_VAL_S                         14
 #define AR928X_GPIO_IN_VAL                       0x000FFC00
 #define AR928X_GPIO_IN_VAL_S                     10
+#define AR9285_GPIO_IN_VAL                       0x00FFF000
+#define AR9285_GPIO_IN_VAL_S                     12
 
 #define AR_GPIO_OE_OUT                           0x404c
 #define AR_GPIO_OE_OUT_DRV                       0x3
@@ -894,14 +897,24 @@ enum {
 #define AR_GPIO_INTR_POL_VAL_S                   0
 
 #define AR_GPIO_INPUT_EN_VAL                     0x4054
+#define AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_DEF     0x00000004
+#define AR_GPIO_INPUT_EN_VAL_BT_PRIORITY_S       2
+#define AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_DEF    0x00000008
+#define AR_GPIO_INPUT_EN_VAL_BT_FREQUENCY_S      3
+#define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_DEF       0x00000010
+#define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_S         4
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_DEF        0x00000080
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_DEF_S      7
+#define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB        0x00001000
+#define AR_GPIO_INPUT_EN_VAL_BT_ACTIVE_BB_S      12
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_BB         0x00008000
 #define AR_GPIO_INPUT_EN_VAL_RFSILENT_BB_S       15
 #define AR_GPIO_RTC_RESET_OVERRIDE_ENABLE        0x00010000
 #define AR_GPIO_JTAG_DISABLE                     0x00020000
 
 #define AR_GPIO_INPUT_MUX1                       0x4058
+#define AR_GPIO_INPUT_MUX1_BT_ACTIVE             0x000f0000
+#define AR_GPIO_INPUT_MUX1_BT_ACTIVE_S           16
 
 #define AR_GPIO_INPUT_MUX2                       0x405c
 #define AR_GPIO_INPUT_MUX2_CLK25                 0x0000000f
@@ -940,7 +953,7 @@ enum {
 
 #define AR_RTC_BASE             0x00020000
 #define AR_RTC_RC \
-	(AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0000) : 0x7000
+	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0000) : 0x7000)
 #define AR_RTC_RC_M		0x00000003
 #define AR_RTC_RC_MAC_WARM      0x00000001
 #define AR_RTC_RC_MAC_COLD      0x00000002
@@ -948,7 +961,7 @@ enum {
 #define AR_RTC_RC_WARM_RESET    0x00000008
 
 #define AR_RTC_PLL_CONTROL \
-	(AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0014) : 0x7014
+	((AR_SREV_9100(ah)) ? (AR_RTC_BASE + 0x0014) : 0x7014)
 
 #define AR_RTC_PLL_DIV          0x0000001f
 #define AR_RTC_PLL_DIV_S        0
@@ -1020,6 +1033,10 @@ enum {
 #define AR_AN_RF5G1_CH1_OB5_S   16
 #define AR_AN_RF5G1_CH1_DB5     0x00380000
 #define AR_AN_RF5G1_CH1_DB5_S   19
+
+#define AR_AN_TOP1                  0x7890
+#define AR_AN_TOP1_DACIPMODE	    0x00040000
+#define AR_AN_TOP1_DACIPMODE_S	    18
 
 #define AR_AN_TOP2                  0x7894
 #define AR_AN_TOP2_XPABIAS_LVL      0xC0000000
@@ -1236,6 +1253,8 @@ enum {
 
 #define AR_AES_MUTE_MASK1       0x8060
 #define AR_AES_MUTE_MASK1_SEQ   0x0000FFFF
+#define AR_AES_MUTE_MASK1_FC_MGMT 0xFFFF0000
+#define AR_AES_MUTE_MASK1_FC_MGMT_S 16
 
 #define AR_GATED_CLKS       0x8064
 #define AR_GATED_CLKS_TX    0x00000002
@@ -1459,6 +1478,10 @@ enum {
 #define AR_PCU_TXBUF_CTRL_SIZE_MASK     0x7FF
 #define AR_PCU_TXBUF_CTRL_USABLE_SIZE   0x700
 #define AR_9285_PCU_TXBUF_CTRL_USABLE_SIZE   0x380
+
+#define AR_PCU_MISC_MODE2               0x8344
+#define AR_PCU_MISC_MODE2_MGMT_CRYPTO_ENABLE           0x00000002
+#define AR_PCU_MISC_MODE2_NO_CRYPTO_FOR_NON_DATA_PKT   0x00000004
 
 #define AR_KEYTABLE_0           0x8800
 #define AR_KEYTABLE(_n)         (AR_KEYTABLE_0 + ((_n)*32))

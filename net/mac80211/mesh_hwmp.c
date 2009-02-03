@@ -149,7 +149,7 @@ static int mesh_path_sel_frame_tx(enum mpath_frame_type action, u8 flags,
 	pos += ETH_ALEN;
 	memcpy(pos, &dst_dsn, 4);
 
-	ieee80211_tx_skb(sdata, skb, 0);
+	ieee80211_tx_skb(sdata, skb, 1);
 	return 0;
 }
 
@@ -198,7 +198,7 @@ int mesh_path_error_tx(u8 *dst, __le32 dst_dsn, u8 *ra,
 	pos += ETH_ALEN;
 	memcpy(pos, &dst_dsn, 4);
 
-	ieee80211_tx_skb(sdata, skb, 0);
+	ieee80211_tx_skb(sdata, skb, 1);
 	return 0;
 }
 
@@ -759,7 +759,7 @@ enddiscovery:
 }
 
 /**
- * ieee80211s_lookup_nexthop - put the appropriate next hop on a mesh frame
+ * mesh_nexthop_lookup - put the appropriate next hop on a mesh frame
  *
  * @skb: 802.11 frame to be sent
  * @sdata: network subif the frame will be sent through

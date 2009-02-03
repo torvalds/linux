@@ -193,43 +193,6 @@ static const struct file_operations fops_registers = {
 };
 
 
-/* debugfs: TSF */
-
-static ssize_t read_file_tsf(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos)
-{
-	struct ath5k_softc *sc = file->private_data;
-	char buf[100];
-	snprintf(buf, sizeof(buf), "0x%016llx\n",
-		 (unsigned long long)ath5k_hw_get_tsf64(sc->ah));
-	return simple_read_from_buffer(user_buf, count, ppos, buf, 19);
-}
-
-static ssize_t write_file_tsf(struct file *file,
-				 const char __user *userbuf,
-				 size_t count, loff_t *ppos)
-{
-	struct ath5k_softc *sc = file->private_data;
-	char buf[20];
-
-	if (copy_from_user(buf, userbuf, min(count, sizeof(buf))))
-		return -EFAULT;
-
-	if (strncmp(buf, "reset", 5) == 0) {
-		ath5k_hw_reset_tsf(sc->ah);
-		printk(KERN_INFO "debugfs reset TSF\n");
-	}
-	return count;
-}
-
-static const struct file_operations fops_tsf = {
-	.read = read_file_tsf,
-	.write = write_file_tsf,
-	.open = ath5k_debugfs_open,
-	.owner = THIS_MODULE,
-};
-
-
 /* debugfs: beacons */
 
 static ssize_t read_file_beacon(struct file *file, char __user *user_buf,
@@ -423,9 +386,6 @@ ath5k_debug_init_device(struct ath5k_softc *sc)
 	sc->debug.debugfs_registers = debugfs_create_file("registers", S_IRUGO,
 				sc->debug.debugfs_phydir, sc, &fops_registers);
 
-	sc->debug.debugfs_tsf = debugfs_create_file("tsf", S_IWUSR | S_IRUGO,
-				sc->debug.debugfs_phydir, sc, &fops_tsf);
-
 	sc->debug.debugfs_beacon = debugfs_create_file("beacon", S_IWUSR | S_IRUGO,
 				sc->debug.debugfs_phydir, sc, &fops_beacon);
 
@@ -444,7 +404,6 @@ ath5k_debug_finish_device(struct ath5k_softc *sc)
 {
 	debugfs_remove(sc->debug.debugfs_debug);
 	debugfs_remove(sc->debug.debugfs_registers);
-	debugfs_remove(sc->debug.debugfs_tsf);
 	debugfs_remove(sc->debug.debugfs_beacon);
 	debugfs_remove(sc->debug.debugfs_reset);
 	debugfs_remove(sc->debug.debugfs_phydir);

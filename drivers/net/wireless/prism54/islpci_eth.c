@@ -23,6 +23,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
+#include <asm/byteorder.h>
 
 #include "prismcompat.h"
 #include "isl_38xx.h"
@@ -471,8 +472,8 @@ islpci_eth_receive(islpci_private *priv)
 		wmb();
 
 		/* increment the driver read pointer */
-		add_le32p(&control_block->
-			  driver_curr_frag[ISL38XX_CB_RX_DATA_LQ], 1);
+		le32_add_cpu(&control_block->
+			     driver_curr_frag[ISL38XX_CB_RX_DATA_LQ], 1);
 	}
 
 	/* trigger the device */

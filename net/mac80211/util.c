@@ -41,6 +41,15 @@ const unsigned char rfc1042_header[] __aligned(2) =
 const unsigned char bridge_tunnel_header[] __aligned(2) =
 	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 
+struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy)
+{
+	struct ieee80211_local *local;
+	BUG_ON(!wiphy);
+
+	local = wiphy_priv(wiphy);
+	return &local->hw;
+}
+EXPORT_SYMBOL(wiphy_to_ieee80211_hw);
 
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			enum nl80211_iftype type)
@@ -352,8 +361,8 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 	}
 }
 
-void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
-				    enum queue_stop_reason reason)
+static void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
+					   enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	unsigned long flags;
@@ -382,8 +391,8 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 	netif_stop_subqueue(local->mdev, queue);
 }
 
-void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
-				    enum queue_stop_reason reason)
+static void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
+					   enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	unsigned long flags;
@@ -459,7 +468,7 @@ void ieee80211_iterate_active_interfaces(
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 
-	rtnl_lock();
+	mutex_lock(&local->iflist_mtx);
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
@@ -480,7 +489,7 @@ void ieee80211_iterate_active_interfaces(
 				 &sdata->vif);
 	}
 
-	rtnl_unlock();
+	mutex_unlock(&local->iflist_mtx);
 }
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces);
 
@@ -653,6 +662,10 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 			elems->pwr_constr_elem = pos;
 			elems->pwr_constr_elem_len = elen;
 			break;
+		case WLAN_EID_TIMEOUT_INTERVAL:
+			elems->timeout_int = pos;
+			elems->timeout_int_len = elen;
+			break;
 		default:
 			break;
 		}
@@ -727,12 +740,12 @@ int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
 	return ret;
 }
 
-u64 ieee80211_mandatory_rates(struct ieee80211_local *local,
+u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 			      enum ieee80211_band band)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *bitrates;
-	u64 mandatory_rates;
+	u32 mandatory_rates;
 	enum ieee80211_rate_flags mandatory_flag;
 	int i;
 

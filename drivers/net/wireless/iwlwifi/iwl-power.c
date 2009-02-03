@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2009 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -60,14 +60,6 @@
 #define IWL_POWER_RANGE_1_MAX  (10)
 
 
-#define NOSLP __constant_cpu_to_le16(0), 0, 0
-#define SLP IWL_POWER_DRIVER_ALLOW_SLEEP_MSK, 0, 0
-#define SLP_TOUT(T) __constant_cpu_to_le32((T) * MSEC_TO_USEC)
-#define SLP_VEC(X0, X1, X2, X3, X4) {__constant_cpu_to_le32(X0), \
-				     __constant_cpu_to_le32(X1), \
-				     __constant_cpu_to_le32(X2), \
-				     __constant_cpu_to_le32(X3), \
-				     __constant_cpu_to_le32(X4)}
 
 #define IWL_POWER_ON_BATTERY		IWL_POWER_INDEX_5
 #define IWL_POWER_ON_AC_DISASSOC	IWL_POWER_MODE_CAM
@@ -149,7 +141,7 @@ static u16 iwl_get_auto_power_mode(struct iwl_priv *priv)
 }
 
 /* initialize to default */
-static int iwl_power_init_handle(struct iwl_priv *priv)
+static void iwl_power_init_handle(struct iwl_priv *priv)
 {
 	struct iwl_power_mgr *pow_data;
 	int size = sizeof(struct iwl_power_vec_entry) * IWL_POWER_MAX;
@@ -159,7 +151,7 @@ static int iwl_power_init_handle(struct iwl_priv *priv)
 
 	IWL_DEBUG_POWER("Initialize power \n");
 
-	pow_data = &(priv->power_data);
+	pow_data = &priv->power_data;
 
 	memset(pow_data, 0, sizeof(*pow_data));
 
@@ -179,26 +171,25 @@ static int iwl_power_init_handle(struct iwl_priv *priv)
 		else
 			cmd->flags |= IWL_POWER_PCI_PM_MSK;
 	}
-	return 0;
 }
 
 /* adjust power command according to DTIM period and power level*/
-static int iwl_update_power_command(struct iwl_priv *priv,
-				    struct iwl_powertable_cmd *cmd,
-				    u16 mode)
+static int iwl_update_power_cmd(struct iwl_priv *priv,
+				struct iwl_powertable_cmd *cmd, u16 mode)
 {
-	int ret = 0, i;
-	u8 skip;
-	u32 max_sleep = 0;
 	struct iwl_power_vec_entry *range;
-	u8 period = 0;
 	struct iwl_power_mgr *pow_data;
+	int i;
+	u32 max_sleep = 0;
+	u8 period;
+	bool skip;
 
 	if (mode > IWL_POWER_INDEX_5) {
 		IWL_DEBUG_POWER("Error invalid power mode \n");
-		return -1;
+		return -EINVAL;
 	}
-	pow_data = &(priv->power_data);
+
+	pow_data = &priv->power_data;
 
 	if (pow_data->dtim_period <= IWL_POWER_RANGE_0_MAX)
 		range = &pow_data->pwr_range_0[0];
@@ -212,14 +203,12 @@ static int iwl_update_power_command(struct iwl_priv *priv,
 
 	if (period == 0) {
 		period = 1;
-		skip = 0;
-	} else
-		skip = range[mode].no_dtim;
-
-	if (skip == 0) {
-		max_sleep = period;
-		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
+		skip = false;
 	} else {
+		skip = !!range[mode].no_dtim;
+	}
+
+	if (skip) {
 		__le32 slp_itrvl = cmd->sleep_interval[IWL_POWER_VEC_SIZE - 1];
 		max_sleep = le32_to_cpu(slp_itrvl);
 		if (max_sleep == 0xFF)
@@ -227,12 +216,14 @@ static int iwl_update_power_command(struct iwl_priv *priv,
 		else if (max_sleep >  period)
 			max_sleep = (le32_to_cpu(slp_itrvl) / period) * period;
 		cmd->flags |= IWL_POWER_SLEEP_OVER_DTIM_MSK;
+	} else {
+		max_sleep = period;
+		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
 	}
 
-	for (i = 0; i < IWL_POWER_VEC_SIZE; i++) {
+	for (i = 0; i < IWL_POWER_VEC_SIZE; i++)
 		if (le32_to_cpu(cmd->sleep_interval[i]) > max_sleep)
 			cmd->sleep_interval[i] = cpu_to_le32(max_sleep);
-	}
 
 	IWL_DEBUG_POWER("Flags value = 0x%08X\n", cmd->flags);
 	IWL_DEBUG_POWER("Tx timeout = %u\n", le32_to_cpu(cmd->tx_data_timeout));
@@ -244,7 +235,7 @@ static int iwl_update_power_command(struct iwl_priv *priv,
 			le32_to_cpu(cmd->sleep_interval[3]),
 			le32_to_cpu(cmd->sleep_interval[4]));
 
-	return ret;
+	return 0;
 }
 
 
@@ -295,7 +286,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 		if (final_mode != IWL_POWER_MODE_CAM)
 			set_bit(STATUS_POWER_PMI, &priv->status);
 
-		iwl_update_power_command(priv, &cmd, final_mode);
+		iwl_update_power_cmd(priv, &cmd, final_mode);
 		cmd.keep_alive_beacons = 0;
 
 		if (final_mode == IWL_POWER_INDEX_5)
@@ -392,13 +383,11 @@ EXPORT_SYMBOL(iwl_power_set_system_mode);
 /* initialize to default */
 void iwl_power_initialize(struct iwl_priv *priv)
 {
-
 	iwl_power_init_handle(priv);
 	priv->power_data.user_power_setting = IWL_POWER_AUTO;
-	priv->power_data.power_disabled = 0;
 	priv->power_data.system_power_setting = IWL_POWER_SYS_AUTO;
-	priv->power_data.is_battery_active = 0;
 	priv->power_data.power_disabled = 0;
+	priv->power_data.is_battery_active = 0;
 	priv->power_data.critical_power_setting = 0;
 }
 EXPORT_SYMBOL(iwl_power_initialize);
@@ -407,8 +396,8 @@ EXPORT_SYMBOL(iwl_power_initialize);
 int iwl_power_temperature_change(struct iwl_priv *priv)
 {
 	int ret = 0;
-	u16 new_critical = priv->power_data.critical_power_setting;
 	s32 temperature = KELVIN_TO_CELSIUS(priv->last_temperature);
+	u16 new_critical = priv->power_data.critical_power_setting;
 
 	if (temperature > IWL_CT_KILL_TEMPERATURE)
 		return 0;

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2007-2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -289,7 +289,7 @@ static u32 eeprom_indirect_address(const struct iwl_priv *priv, u32 address)
 		offset = iwl_eeprom_query16(priv, EEPROM_5000_LINK_OTHERS);
 		break;
 	default:
-		IWL_ERROR("illegal indirect type: 0x%X\n",
+		IWL_ERR(priv, "illegal indirect type: 0x%X\n",
 		address & INDIRECT_TYPE_MSK);
 		break;
 	}
@@ -384,7 +384,8 @@ static void iwl5000_chain_noise_reset(struct iwl_priv *priv)
 		ret = iwl_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
 					sizeof(cmd), &cmd);
 		if (ret)
-			IWL_ERROR("Could not send REPLY_PHY_CALIBRATION_CMD\n");
+			IWL_ERR(priv,
+				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
 		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
 		IWL_DEBUG_CALIB("Run chain_noise_calibrate\n");
 	}
@@ -507,7 +508,7 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 		index = IWL_CALIB_BASE_BAND;
 		break;
 	default:
-		IWL_ERROR("Unknown calibration notification %d\n",
+		IWL_ERR(priv, "Unknown calibration notification %d\n",
 			  hdr->op_code);
 		return;
 	}
@@ -580,7 +581,8 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 {
 	int ret = 0;
 
-	ret = iwl5000_load_section(priv, inst_image, RTC_INST_LOWER_BOUND);
+	ret = iwl5000_load_section(priv, inst_image,
+				   IWL50_RTC_INST_LOWER_BOUND);
 	if (ret)
 		return ret;
 
@@ -588,19 +590,19 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
 					priv->ucode_write_complete, 5 * HZ);
 	if (ret == -ERESTARTSYS) {
-		IWL_ERROR("Could not load the INST uCode section due "
+		IWL_ERR(priv, "Could not load the INST uCode section due "
 			"to interrupt\n");
 		return ret;
 	}
 	if (!ret) {
-		IWL_ERROR("Could not load the INST uCode section\n");
+		IWL_ERR(priv, "Could not load the INST uCode section\n");
 		return -ETIMEDOUT;
 	}
 
 	priv->ucode_write_complete = 0;
 
 	ret = iwl5000_load_section(
-		priv, data_image, RTC_DATA_LOWER_BOUND);
+		priv, data_image, IWL50_RTC_DATA_LOWER_BOUND);
 	if (ret)
 		return ret;
 
@@ -609,11 +611,11 @@ static int iwl5000_load_given_ucode(struct iwl_priv *priv,
 	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
 				priv->ucode_write_complete, 5 * HZ);
 	if (ret == -ERESTARTSYS) {
-		IWL_ERROR("Could not load the INST uCode section due "
+		IWL_ERR(priv, "Could not load the INST uCode section due "
 			"to interrupt\n");
 		return ret;
 	} else if (!ret) {
-		IWL_ERROR("Could not load the DATA uCode section\n");
+		IWL_ERR(priv, "Could not load the DATA uCode section\n");
 		return -ETIMEDOUT;
 	} else
 		ret = 0;
@@ -675,7 +677,8 @@ static void iwl5000_init_alive_start(struct iwl_priv *priv)
 	iwl_clear_stations_table(priv);
 	ret = priv->cfg->ops->lib->alive_notify(priv);
 	if (ret) {
-		IWL_WARNING("Could not complete ALIVE transition: %d\n", ret);
+		IWL_WARN(priv,
+			"Could not complete ALIVE transition: %d\n", ret);
 		goto restart;
 	}
 
@@ -824,8 +827,9 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if ((priv->cfg->mod_params->num_of_queues > IWL50_NUM_QUEUES) ||
 	    (priv->cfg->mod_params->num_of_queues < IWL_MIN_NUM_QUEUES)) {
-		IWL_ERROR("invalid queues_num, should be between %d and %d\n",
-			  IWL_MIN_NUM_QUEUES, IWL50_NUM_QUEUES);
+		IWL_ERR(priv,
+			"invalid queues_num, should be between %d and %d\n",
+			IWL_MIN_NUM_QUEUES, IWL50_NUM_QUEUES);
 		return -EINVAL;
 	}
 
@@ -833,6 +837,7 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			IWL50_NUM_QUEUES * sizeof(struct iwl5000_scd_bc_tbl);
+	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
 	priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
@@ -840,6 +845,8 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.fat_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
+	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
+
 	priv->hw_params.sens = &iwl5000_sensitivity;
 
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
@@ -1011,7 +1018,8 @@ static int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 
 	if ((IWL50_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL50_FIRST_AMPDU_QUEUE + IWL50_NUM_AMPDU_QUEUES <= txq_id)) {
-		IWL_WARNING("queue number out of range: %d, must be %d to %d\n",
+		IWL_WARN(priv,
+			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL50_FIRST_AMPDU_QUEUE,
 			IWL50_FIRST_AMPDU_QUEUE + IWL50_NUM_AMPDU_QUEUES - 1);
 		return -EINVAL;
@@ -1076,7 +1084,8 @@ static int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 
 	if ((IWL50_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL50_FIRST_AMPDU_QUEUE + IWL50_NUM_AMPDU_QUEUES <= txq_id)) {
-		IWL_WARNING("queue number out of range: %d, must be %d to %d\n",
+		IWL_WARN(priv,
+			"queue number out of range: %d, must be %d to %d\n",
 			txq_id, IWL50_FIRST_AMPDU_QUEUE,
 			IWL50_FIRST_AMPDU_QUEUE + IWL50_NUM_AMPDU_QUEUES - 1);
 		return -EINVAL;
@@ -1197,8 +1206,9 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
 			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
-				IWL_ERROR("BUG_ON idx doesn't match seq control"
-					  " idx=%d, seq_idx=%d, seq=%d\n",
+				IWL_ERR(priv,
+					"BUG_ON idx doesn't match seq control"
+					" idx=%d, seq_idx=%d, seq=%d\n",
 					  idx, SEQ_TO_SN(sc),
 					  hdr->seq_ctrl);
 				return -1;
@@ -1254,7 +1264,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 	int freed;
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
-		IWL_ERROR("Read index for DMA queue txq_id (%d) index %d "
+		IWL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
 			  index, txq->q.n_bd, txq->q.write_ptr,
 			  txq->q.read_ptr);
@@ -1328,7 +1338,7 @@ static void iwl5000_rx_reply_tx(struct iwl_priv *priv,
 		iwl_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
-		IWL_ERROR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
+		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
 }
 
 /* Currently 5000 is the superset of everything */
@@ -1356,7 +1366,7 @@ static void iwl5000_rx_handler_setup(struct iwl_priv *priv)
 
 static int iwl5000_hw_valid_rtc_data_addr(u32 addr)
 {
-	return (addr >= RTC_DATA_LOWER_BOUND) &&
+	return (addr >= IWL50_RTC_DATA_LOWER_BOUND) &&
 		(addr < IWL50_RTC_DATA_UPPER_BOUND);
 }
 
@@ -1460,7 +1470,7 @@ static int iwl5000_calc_rssi(struct iwl_priv *priv,
 
 	/* dBm = max_rssi dB - agc dB - constant.
 	 * Higher AGC (higher radio gain) means lower signal. */
-	return max_rssi - agc - IWL_RSSI_OFFSET;
+	return max_rssi - agc - IWL49_RSSI_OFFSET;
 }
 
 static struct iwl_hcmd_ops iwl5000_hcmd = {
@@ -1483,6 +1493,9 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.txq_set_sched = iwl5000_txq_set_sched,
 	.txq_agg_enable = iwl5000_txq_agg_enable,
 	.txq_agg_disable = iwl5000_txq_agg_disable,
+	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
+	.txq_free_tfd = iwl_hw_txq_free_tfd,
+	.txq_init = iwl_hw_tx_queue_init,
 	.rx_handler_setup = iwl5000_rx_handler_setup,
 	.setup_deferred_work = iwl5000_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
@@ -1517,13 +1530,13 @@ static struct iwl_lib_ops iwl5000_lib = {
 	},
 };
 
-static struct iwl_ops iwl5000_ops = {
+struct iwl_ops iwl5000_ops = {
 	.lib = &iwl5000_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
 };
 
-static struct iwl_mod_params iwl50_mod_params = {
+struct iwl_mod_params iwl50_mod_params = {
 	.num_of_queues = IWL50_NUM_QUEUES,
 	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
 	.amsdu_size_8K = 1,

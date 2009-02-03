@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -170,7 +170,8 @@ struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 	struct ieee80211_hw *hw =
 		ieee80211_alloc_hw(sizeof(struct iwl_priv), hw_ops);
 	if (hw == NULL) {
-		IWL_ERROR("Can not allocate network device\n");
+		printk(KERN_ERR "%s: Can not allocate network device\n",
+		       cfg->name);
 		goto out;
 	}
 
@@ -210,7 +211,7 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 	if (!rxq->bd) {
 		ret = iwl_rx_queue_alloc(priv);
 		if (ret) {
-			IWL_ERROR("Unable to initialize Rx queue\n");
+			IWL_ERR(priv, "Unable to initialize Rx queue\n");
 			return -ENOMEM;
 		}
 	} else
@@ -405,7 +406,7 @@ static void iwlcore_init_hw_rates(struct iwl_priv *priv,
 /**
  * iwlcore_init_geos - Initialize mac80211's geo/channel info based from eeprom
  */
-static int iwlcore_init_geos(struct iwl_priv *priv)
+int iwlcore_init_geos(struct iwl_priv *priv)
 {
 	struct iwl_channel_info *ch;
 	struct ieee80211_supported_band *sband;
@@ -456,8 +457,6 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 
 	priv->ieee_channels = channels;
 	priv->ieee_rates = rates;
-
-	iwlcore_init_hw_rates(priv, rates);
 
 	for (i = 0;  i < priv->channel_count; i++) {
 		ch = &priv->channel_info[i];
@@ -510,33 +509,33 @@ static int iwlcore_init_geos(struct iwl_priv *priv)
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
 	     priv->cfg->sku & IWL_SKU_A) {
-		printk(KERN_INFO DRV_NAME
-		       ": Incorrectly detected BG card as ABG.  Please send "
-		       "your PCI ID 0x%04X:0x%04X to maintainer.\n",
-		       priv->pci_dev->device, priv->pci_dev->subsystem_device);
+		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
+			"Please send your PCI ID 0x%04X:0x%04X to maintainer.\n",
+			   priv->pci_dev->device,
+			   priv->pci_dev->subsystem_device);
 		priv->cfg->sku &= ~IWL_SKU_A;
 	}
 
-	printk(KERN_INFO DRV_NAME
-	       ": Tunable channels: %d 802.11bg, %d 802.11a channels\n",
-	       priv->bands[IEEE80211_BAND_2GHZ].n_channels,
-	       priv->bands[IEEE80211_BAND_5GHZ].n_channels);
-
+	IWL_INFO(priv, "Tunable channels: %d 802.11bg, %d 802.11a channels\n",
+		   priv->bands[IEEE80211_BAND_2GHZ].n_channels,
+		   priv->bands[IEEE80211_BAND_5GHZ].n_channels);
 
 	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 
 	return 0;
 }
+EXPORT_SYMBOL(iwlcore_init_geos);
 
 /*
  * iwlcore_free_geos - undo allocations in iwlcore_init_geos
  */
-static void iwlcore_free_geos(struct iwl_priv *priv)
+void iwlcore_free_geos(struct iwl_priv *priv)
 {
 	kfree(priv->ieee_channels);
 	kfree(priv->ieee_rates);
 	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
+EXPORT_SYMBOL(iwlcore_free_geos);
 
 static bool is_single_rx_stream(struct iwl_priv *priv)
 {
@@ -679,7 +678,7 @@ static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 		break;
 	case WLAN_HT_CAP_SM_PS_INVALID:
 	default:
-		IWL_ERROR("invalid mimo ps mode %d\n",
+		IWL_ERR(priv, "invalid mimo ps mode %d\n",
 			   priv->current_ht_config.sm_ps);
 		WARN_ON(1);
 		idle_cnt = -1;
@@ -697,6 +696,18 @@ static u8 iwl_count_chain_bitmap(u32 chain_bitmap)
 	res += (chain_bitmap & BIT(2)) >> 2;
 	res += (chain_bitmap & BIT(4)) >> 4;
 	return res;
+}
+
+/**
+ * iwl_is_monitor_mode - Determine if interface in monitor mode
+ *
+ * priv->iw_mode is set in add_interface, but add_interface is
+ * never called for monitor mode. The only way mac80211 informs us about
+ * monitor mode is through configuring filters (call to configure_filter).
+ */
+static bool iwl_is_monitor_mode(struct iwl_priv *priv)
+{
+	return !!(priv->staging_rxon.filter_flags & RXON_FILTER_PROMISC_MSK);
 }
 
 /**
@@ -741,6 +752,19 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 
 	rx_chain |= active_rx_cnt << RXON_RX_CHAIN_MIMO_CNT_POS;
 	rx_chain |= idle_rx_cnt  << RXON_RX_CHAIN_CNT_POS;
+
+	/* copied from 'iwl_bg_request_scan()' */
+	/* Force use of chains B and C (0x6) for Rx for 4965
+	 * Avoid A (0x1) because of its off-channel reception on A-band.
+	 * MIMO is not used here, but value is required */
+	if (iwl_is_monitor_mode(priv) &&
+	    !(priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) &&
+	    ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)) {
+		rx_chain = 0x07 << RXON_RX_CHAIN_VALID_POS;
+		rx_chain |= 0x06 << RXON_RX_CHAIN_FORCE_SEL_POS;
+		rx_chain |= 0x07 << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
+		rx_chain |= 0x01 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
+	}
 
 	priv->staging_rxon.rx_chain = cpu_to_le16(rx_chain);
 
@@ -806,12 +830,13 @@ int iwl_setup_mac(struct iwl_priv *priv)
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM |
-		    IEEE80211_HW_AMPDU_AGGREGATION;
+		    IEEE80211_HW_AMPDU_AGGREGATION |
+		    IEEE80211_HW_SUPPORTS_PS;
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
 
-	hw->wiphy->fw_handles_regulatory = true;
+	hw->wiphy->custom_regulatory = true;
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
@@ -831,7 +856,7 @@ int iwl_setup_mac(struct iwl_priv *priv)
 
 	ret = ieee80211_register_hw(priv->hw);
 	if (ret) {
-		IWL_ERROR("Failed to register hw (error %d)\n", ret);
+		IWL_ERR(priv, "Failed to register hw (error %d)\n", ret);
 		return ret;
 	}
 	priv->mac80211_registered = 1;
@@ -863,7 +888,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
 
-	priv->retry_rate = 1;
 	priv->ibss_beacon = NULL;
 
 	spin_lock_init(&priv->lock);
@@ -903,15 +927,16 @@ int iwl_init_drv(struct iwl_priv *priv)
 
 	ret = iwl_init_channel_map(priv);
 	if (ret) {
-		IWL_ERROR("initializing regulatory failed: %d\n", ret);
+		IWL_ERR(priv, "initializing regulatory failed: %d\n", ret);
 		goto err;
 	}
 
 	ret = iwlcore_init_geos(priv);
 	if (ret) {
-		IWL_ERROR("initializing geos failed: %d\n", ret);
+		IWL_ERR(priv, "initializing geos failed: %d\n", ret);
 		goto err_free_channel_map;
 	}
+	iwlcore_init_hw_rates(priv, priv->ieee_rates);
 
 	return 0;
 
@@ -926,13 +951,13 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {
 	int ret = 0;
 	if (tx_power < IWL_TX_POWER_TARGET_POWER_MIN) {
-		IWL_WARNING("Requested user TXPOWER %d below limit.\n",
+		IWL_WARN(priv, "Requested user TXPOWER %d below limit.\n",
 			    priv->tx_power_user_lmt);
 		return -EINVAL;
 	}
 
 	if (tx_power > IWL_TX_POWER_TARGET_POWER_MAX) {
-		IWL_WARNING("Requested user TXPOWER %d above limit.\n",
+		IWL_WARN(priv, "Requested user TXPOWER %d above limit.\n",
 			    priv->tx_power_user_lmt);
 		return -EINVAL;
 	}
@@ -982,6 +1007,21 @@ void iwl_enable_interrupts(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_enable_interrupts);
 
+int iwl_send_bt_config(struct iwl_priv *priv)
+{
+	struct iwl_bt_cmd bt_cmd = {
+		.flags = 3,
+		.lead_time = 0xAA,
+		.max_kill = 1,
+		.kill_ack_mask = 0,
+		.kill_cts_mask = 0,
+	};
+
+	return iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+				sizeof(struct iwl_bt_cmd), &bt_cmd);
+}
+EXPORT_SYMBOL(iwl_send_bt_config);
+
 int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags)
 {
 	u32 stat_flags = 0;
@@ -1018,7 +1058,7 @@ static int iwlcore_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
 		iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
-			i + RTC_INST_LOWER_BOUND);
+			i + IWL49_RTC_INST_LOWER_BOUND);
 		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 			ret = -EIO;
@@ -1051,7 +1091,8 @@ static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 *image,
 	if (ret)
 		return ret;
 
-	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, RTC_INST_LOWER_BOUND);
+	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
+			   IWL49_RTC_INST_LOWER_BOUND);
 
 	errcnt = 0;
 	for (; len > 0; len -= sizeof(u32), image++) {
@@ -1060,7 +1101,7 @@ static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 *image,
 		 * if IWL_DL_IO is set */
 		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
-			IWL_ERROR("uCode INST section is invalid at "
+			IWL_ERR(priv, "uCode INST section is invalid at "
 				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
 				  save_len - len, val, le32_to_cpu(*image));
 			ret = -EIO;
@@ -1116,7 +1157,7 @@ int iwl_verify_ucode(struct iwl_priv *priv)
 		return 0;
 	}
 
-	IWL_ERROR("NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
+	IWL_ERR(priv, "NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
 
 	/* Since nothing seems to match, show first several data entries in
 	 * instruction SRAM, so maybe visual inspection will give a clue.
@@ -1188,21 +1229,22 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 		base = le32_to_cpu(priv->card_alive.error_event_table_ptr);
 
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
-		IWL_ERROR("Not valid error log pointer 0x%08X\n", base);
+		IWL_ERR(priv, "Not valid error log pointer 0x%08X\n", base);
 		return;
 	}
 
 	ret = iwl_grab_nic_access(priv);
 	if (ret) {
-		IWL_WARNING("Can not read from adapter at this time.\n");
+		IWL_WARN(priv, "Can not read from adapter at this time.\n");
 		return;
 	}
 
 	count = iwl_read_targ_mem(priv, base);
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
-		IWL_ERROR("Start IWL Error Log Dump:\n");
-		IWL_ERROR("Status: 0x%08lX, count: %d\n", priv->status, count);
+		IWL_ERR(priv, "Start IWL Error Log Dump:\n");
+		IWL_ERR(priv, "Status: 0x%08lX, count: %d\n",
+			priv->status, count);
 	}
 
 	desc = iwl_read_targ_mem(priv, base + 1 * sizeof(u32));
@@ -1215,12 +1257,12 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	line = iwl_read_targ_mem(priv, base + 9 * sizeof(u32));
 	time = iwl_read_targ_mem(priv, base + 11 * sizeof(u32));
 
-	IWL_ERROR("Desc                               Time       "
+	IWL_ERR(priv, "Desc                               Time       "
 		"data1      data2      line\n");
-	IWL_ERROR("%-28s (#%02d) %010u 0x%08X 0x%08X %u\n",
+	IWL_ERR(priv, "%-28s (#%02d) %010u 0x%08X 0x%08X %u\n",
 		desc_lookup(desc), desc, time, data1, data2, line);
-	IWL_ERROR("blink1  blink2  ilink1  ilink2\n");
-	IWL_ERROR("0x%05X 0x%05X 0x%05X 0x%05X\n", blink1, blink2,
+	IWL_ERR(priv, "blink1  blink2  ilink1  ilink2\n");
+	IWL_ERR(priv, "0x%05X 0x%05X 0x%05X 0x%05X\n", blink1, blink2,
 		ilink1, ilink2);
 
 	iwl_release_nic_access(priv);
@@ -1266,11 +1308,11 @@ static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 		ptr += sizeof(u32);
 		if (mode == 0) {
 			/* data, ev */
-			IWL_ERROR("EVT_LOG:0x%08x:%04u\n", time, ev);
+			IWL_ERR(priv, "EVT_LOG:0x%08x:%04u\n", time, ev);
 		} else {
 			data = iwl_read_targ_mem(priv, ptr);
 			ptr += sizeof(u32);
-			IWL_ERROR("EVT_LOGT:%010u:0x%08x:%04u\n",
+			IWL_ERR(priv, "EVT_LOGT:%010u:0x%08x:%04u\n",
 					time, data, ev);
 		}
 	}
@@ -1292,13 +1334,13 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 		base = le32_to_cpu(priv->card_alive.log_event_table_ptr);
 
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
-		IWL_ERROR("Invalid event log pointer 0x%08X\n", base);
+		IWL_ERR(priv, "Invalid event log pointer 0x%08X\n", base);
 		return;
 	}
 
 	ret = iwl_grab_nic_access(priv);
 	if (ret) {
-		IWL_WARNING("Can not read from adapter at this time.\n");
+		IWL_WARN(priv, "Can not read from adapter at this time.\n");
 		return;
 	}
 
@@ -1312,12 +1354,12 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 
 	/* bail out if nothing in log */
 	if (size == 0) {
-		IWL_ERROR("Start IWL Event Log Dump: nothing in log\n");
+		IWL_ERR(priv, "Start IWL Event Log Dump: nothing in log\n");
 		iwl_release_nic_access(priv);
 		return;
 	}
 
-	IWL_ERROR("Start IWL Event Log Dump: display count %d, wraps %d\n",
+	IWL_ERR(priv, "Start IWL Event Log Dump: display count %d, wraps %d\n",
 			size, num_wraps);
 
 	/* if uCode has wrapped back to top of log, start at the oldest entry,
@@ -1349,7 +1391,7 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
 			       sizeof(cmd), &cmd);
 	if (ret)
-		IWL_ERROR("REPLY_CT_KILL_CONFIG_CMD failed\n");
+		IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
 	else
 		IWL_DEBUG_INFO("REPLY_CT_KILL_CONFIG_CMD succeeded, "
 			"critical temperature is %d\n",
@@ -1368,7 +1410,7 @@ EXPORT_SYMBOL(iwl_rf_kill_ct_config);
  * When in the 'halt' state, the card is shut down and must be fully
  * restarted to come back on.
  */
-static int iwl_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
+int iwl_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
 {
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_CARD_STATE_CMD,
@@ -1379,6 +1421,7 @@ static int iwl_send_card_state(struct iwl_priv *priv, u32 flags, u8 meta_flag)
 
 	return iwl_send_cmd(priv, &cmd);
 }
+EXPORT_SYMBOL(iwl_send_card_state);
 
 void iwl_radio_kill_sw_disable_radio(struct iwl_priv *priv)
 {
@@ -1463,3 +1506,39 @@ int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv)
 	return 1;
 }
 EXPORT_SYMBOL(iwl_radio_kill_sw_enable_radio);
+
+void iwl_bg_rf_kill(struct work_struct *work)
+{
+	struct iwl_priv *priv = container_of(work, struct iwl_priv, rf_kill);
+
+	wake_up_interruptible(&priv->wait_command_queue);
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	mutex_lock(&priv->mutex);
+
+	if (!iwl_is_rfkill(priv)) {
+		IWL_DEBUG(IWL_DL_RF_KILL,
+			  "HW and/or SW RF Kill no longer active, restarting "
+			  "device\n");
+		if (!test_bit(STATUS_EXIT_PENDING, &priv->status) &&
+		    test_bit(STATUS_ALIVE, &priv->status))
+			queue_work(priv->workqueue, &priv->restart);
+	} else {
+		/* make sure mac80211 stop sending Tx frame */
+		if (priv->mac80211_registered)
+			ieee80211_stop_queues(priv->hw);
+
+		if (!test_bit(STATUS_RF_KILL_HW, &priv->status))
+			IWL_DEBUG_RF_KILL("Can not turn radio back on - "
+					  "disabled by SW switch\n");
+		else
+			IWL_WARN(priv, "Radio Frequency Kill Switch is On:\n"
+				    "Kill switch must be turned off for "
+				    "wireless networking to work.\n");
+	}
+	mutex_unlock(&priv->mutex);
+	iwl_rfkill_set_hw_state(priv);
+}
+EXPORT_SYMBOL(iwl_bg_rf_kill);

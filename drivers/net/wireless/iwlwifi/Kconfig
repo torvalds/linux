@@ -1,25 +1,26 @@
 config IWLWIFI
-	tristate
+	bool "Intel Wireless Wifi"
+	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	default y
 
 config IWLCORE
 	tristate "Intel Wireless Wifi Core"
-	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	depends on IWLWIFI
 	select LIB80211
-	select IWLWIFI
 	select MAC80211_LEDS if IWLWIFI_LEDS
 	select LEDS_CLASS if IWLWIFI_LEDS
 	select RFKILL if IWLWIFI_RFKILL
 
 config IWLWIFI_LEDS
-	bool
-	default n
+	bool "Enable LED support in iwlagn driver"
+	depends on IWLCORE
 
 config IWLWIFI_RFKILL
-	boolean "Iwlwifi RF kill support"
+	bool "Enable RF kill support in iwlagn driver"
 	depends on IWLCORE
 
 config IWLWIFI_DEBUG
-	bool "Enable full debugging output in iwlagn driver"
+	bool "Enable full debugging output in iwlagn and iwl3945 drivers"
 	depends on IWLCORE
 	---help---
 	  This option will enable debug tracing output for the iwlwifi drivers
@@ -51,7 +52,7 @@ config IWLWIFI_DEBUGFS
 
 config IWLAGN
 	tristate "Intel Wireless WiFi Next Gen AGN"
-	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	depends on IWLWIFI
 	select FW_LOADER
 	select IWLCORE
 	---help---
@@ -104,13 +105,12 @@ config IWL5000
 
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection"
-	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	depends on IWLWIFI
 	select FW_LOADER
 	select LIB80211
-	select IWLWIFI
 	select MAC80211_LEDS if IWL3945_LEDS
 	select LEDS_CLASS if IWL3945_LEDS
-	select RFKILL if IWL3945_RFKILL
+	select RFKILL if IWLWIFI_RFKILL
 	---help---
 	  Select to build the driver supporting the:
 
@@ -133,10 +133,6 @@ config IWL3945
 	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
 	  module will be called iwl3945.ko.
 
-config IWL3945_RFKILL
-	bool "Enable RF kill support in iwl3945 drivers"
-	depends on IWL3945
-
 config IWL3945_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iwl3945 drivers"
 	depends on IWL3945
@@ -148,30 +144,3 @@ config IWL3945_LEDS
 	depends on IWL3945
 	---help---
 	  This option enables LEDS for the iwl3945 driver.
-
-config IWL3945_DEBUG
-	bool "Enable full debugging output in iwl3945 driver"
-	depends on IWL3945
-	---help---
-	  This option will enable debug tracing output for the iwl3945
-	  driver.
-
-	  This will result in the kernel module being ~100k larger.  You can
-	  control which debug output is sent to the kernel log by setting the
-	  value in
-
-	          /sys/bus/pci/drivers/${DRIVER}/debug_level
-
-	  This entry will only exist if this option is enabled.
-
-	  To set a value, simply echo an 8-byte hex value to the same file:
-
-		  % echo 0x43fff > /sys/bus/pci/drivers/${DRIVER}/debug_level
-
-	  You can find the list of debug mask values in:
-		  drivers/net/wireless/iwlwifi/iwl-3945-debug.h
-
-	  If this is your first time using this driver, you should say Y here
-	  as the debug information can assist others in helping you resolve
-	  any problems you may encounter.
-

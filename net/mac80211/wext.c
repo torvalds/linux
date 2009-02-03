@@ -37,7 +37,14 @@ static int ieee80211_set_encryption(struct ieee80211_sub_if_data *sdata, u8 *sta
 	struct ieee80211_key *key;
 	int err;
 
-	if (idx < 0 || idx >= NUM_DEFAULT_KEYS) {
+	if (alg == ALG_AES_CMAC) {
+		if (idx < NUM_DEFAULT_KEYS ||
+		    idx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS) {
+			printk(KERN_DEBUG "%s: set_encrypt - invalid idx=%d "
+			       "(BIP)\n", sdata->dev->name, idx);
+			return -EINVAL;
+		}
+	} else if (idx < 0 || idx >= NUM_DEFAULT_KEYS) {
 		printk(KERN_DEBUG "%s: set_encrypt - invalid idx=%d\n",
 		       sdata->dev->name, idx);
 		return -EINVAL;
@@ -103,6 +110,9 @@ static int ieee80211_set_encryption(struct ieee80211_sub_if_data *sdata, u8 *sta
 
 		if (set_tx_key || (!sta && !sdata->default_key && key))
 			ieee80211_set_default_key(sdata, idx);
+		if (alg == ALG_AES_CMAC &&
+		    (set_tx_key || (!sta && !sdata->default_mgmt_key && key)))
+			ieee80211_set_default_mgmt_key(sdata, idx);
 	}
 
  out_unlock:
@@ -230,13 +240,15 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC ||
+	    sdata->vif.type == NL80211_IFTYPE_STATION)
 		sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_CHANNEL_SEL;
 
 	/* freq->e == 0: freq->m = channel; otherwise freq = m * 10^e */
 	if (freq->e == 0) {
 		if (freq->m < 0) {
-			if (sdata->vif.type == NL80211_IFTYPE_STATION)
+			if (sdata->vif.type == NL80211_IFTYPE_ADHOC ||
+			    sdata->vif.type == NL80211_IFTYPE_STATION)
 				sdata->u.sta.flags |=
 					IEEE80211_STA_AUTO_CHANNEL_SEL;
 			return 0;
@@ -549,10 +561,9 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 	else /* Automatic power level setting */
 		new_power_level = chan->max_power;
 
-	if (local->hw.conf.power_level != new_power_level) {
-		local->hw.conf.power_level = new_power_level;
+	local->user_power_level = new_power_level;
+	if (local->hw.conf.power_level != new_power_level)
 		reconf_flags |= IEEE80211_CONF_CHANGE_POWER;
-	}
 
 	if (local->hw.conf.radio_enabled != !(data->txpower.disabled)) {
 		local->hw.conf.radio_enabled = !(data->txpower.disabled);
@@ -836,6 +847,9 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 	int ret = 0, timeout = 0;
 	bool ps;
 
+	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
+		return -EOPNOTSUPP;
+
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EINVAL;
 
@@ -852,31 +866,49 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 		ps = true;
 		break;
 	default:                /* Otherwise we ignore */
-		break;
+		return -EINVAL;
 	}
+
+	if (wrq->flags & ~(IW_POWER_MODE | IW_POWER_TIMEOUT))
+		return -EINVAL;
 
 	if (wrq->flags & IW_POWER_TIMEOUT)
 		timeout = wrq->value / 1000;
 
-set:
-	if (ps == local->powersave && timeout == local->dynamic_ps_timeout)
+ set:
+	if (ps == local->powersave && timeout == conf->dynamic_ps_timeout)
 		return ret;
 
 	local->powersave = ps;
-	local->dynamic_ps_timeout = timeout;
+	conf->dynamic_ps_timeout = timeout;
 
-	if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
-		if (!(local->hw.flags & IEEE80211_HW_NO_STACK_DYNAMIC_PS) &&
-		    local->dynamic_ps_timeout > 0)
-			mod_timer(&local->dynamic_ps_timer, jiffies +
-				  msecs_to_jiffies(local->dynamic_ps_timeout));
-		else {
-			if (local->powersave)
-				conf->flags |= IEEE80211_CONF_PS;
-			else
-				conf->flags &= ~IEEE80211_CONF_PS;
+	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
+		ret = ieee80211_hw_config(local,
+					  IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT);
+
+	if (!(sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED))
+		return ret;
+
+	if (conf->dynamic_ps_timeout > 0 &&
+	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)) {
+		mod_timer(&local->dynamic_ps_timer, jiffies +
+			  msecs_to_jiffies(conf->dynamic_ps_timeout));
+	} else {
+		if (local->powersave) {
+			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+				ieee80211_send_nullfunc(local, sdata, 1);
+			conf->flags |= IEEE80211_CONF_PS;
+			ret = ieee80211_hw_config(local,
+					IEEE80211_CONF_CHANGE_PS);
+		} else {
+			conf->flags &= ~IEEE80211_CONF_PS;
+			ret = ieee80211_hw_config(local,
+					IEEE80211_CONF_CHANGE_PS);
+			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+				ieee80211_send_nullfunc(local, sdata, 0);
+			del_timer_sync(&local->dynamic_ps_timer);
+			cancel_work_sync(&local->dynamic_ps_enable_work);
 		}
-		ret = ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 
 	return ret;
@@ -903,11 +935,22 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 
 	switch (data->flags & IW_AUTH_INDEX) {
 	case IW_AUTH_WPA_VERSION:
-	case IW_AUTH_CIPHER_PAIRWISE:
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_WPA_ENABLED:
 	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
 	case IW_AUTH_KEY_MGMT:
+	case IW_AUTH_CIPHER_GROUP_MGMT:
+		break;
+	case IW_AUTH_CIPHER_PAIRWISE:
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+			if (data->value & (IW_AUTH_CIPHER_WEP40 |
+			    IW_AUTH_CIPHER_WEP104 | IW_AUTH_CIPHER_TKIP))
+				sdata->u.sta.flags |=
+					IEEE80211_STA_TKIP_WEP_USED;
+			else
+				sdata->u.sta.flags &=
+					~IEEE80211_STA_TKIP_WEP_USED;
+		}
 		break;
 	case IW_AUTH_DROP_UNENCRYPTED:
 		sdata->drop_unencrypted = !!data->value;
@@ -931,6 +974,17 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 		if (sdata->vif.type == NL80211_IFTYPE_STATION ||
 		    sdata->vif.type == NL80211_IFTYPE_ADHOC)
 			sdata->u.sta.auth_algs = data->value;
+		else
+			ret = -EOPNOTSUPP;
+		break;
+	case IW_AUTH_MFP:
+		if (!(sdata->local->hw.flags & IEEE80211_HW_MFP_CAPABLE)) {
+			ret = -EOPNOTSUPP;
+			break;
+		}
+		if (sdata->vif.type == NL80211_IFTYPE_STATION ||
+		    sdata->vif.type == NL80211_IFTYPE_ADHOC)
+			sdata->u.sta.mfp = data->value;
 		else
 			ret = -EOPNOTSUPP;
 		break;
@@ -1017,6 +1071,9 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 	case IW_ENCODE_ALG_CCMP:
 		alg = ALG_CCMP;
 		break;
+	case IW_ENCODE_ALG_AES_CMAC:
+		alg = ALG_AES_CMAC;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1025,20 +1082,41 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 		remove = 1;
 
 	idx = erq->flags & IW_ENCODE_INDEX;
-	if (idx < 1 || idx > 4) {
-		idx = -1;
-		if (!sdata->default_key)
-			idx = 0;
-		else for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-			if (sdata->default_key == sdata->keys[i]) {
-				idx = i;
-				break;
+	if (alg == ALG_AES_CMAC) {
+		if (idx < NUM_DEFAULT_KEYS + 1 ||
+		    idx > NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS) {
+			idx = -1;
+			if (!sdata->default_mgmt_key)
+				idx = 0;
+			else for (i = NUM_DEFAULT_KEYS;
+				  i < NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS;
+				  i++) {
+				if (sdata->default_mgmt_key == sdata->keys[i])
+				{
+					idx = i;
+					break;
+				}
 			}
-		}
-		if (idx < 0)
-			return -EINVAL;
-	} else
-		idx--;
+			if (idx < 0)
+				return -EINVAL;
+		} else
+			idx--;
+	} else {
+		if (idx < 1 || idx > 4) {
+			idx = -1;
+			if (!sdata->default_key)
+				idx = 0;
+			else for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
+				if (sdata->default_key == sdata->keys[i]) {
+					idx = i;
+					break;
+				}
+			}
+			if (idx < 0)
+				return -EINVAL;
+		} else
+			idx--;
+	}
 
 	return ieee80211_set_encryption(sdata, ext->addr.sa_data, idx, alg,
 					remove,

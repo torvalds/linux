@@ -91,53 +91,11 @@ static inline bool ath9k_hw_get_lower_upper_index(u8 target, u8 *pList,
 	return false;
 }
 
-static bool ath9k_hw_eeprom_read(struct ath_hal *ah, u32 off, u16 *data)
-{
-	(void)REG_READ(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
-
-	if (!ath9k_hw_wait(ah,
-			   AR_EEPROM_STATUS_DATA,
-			   AR_EEPROM_STATUS_DATA_BUSY |
-			   AR_EEPROM_STATUS_DATA_PROT_ACCESS, 0)) {
-		return false;
-	}
-
-	*data = MS(REG_READ(ah, AR_EEPROM_STATUS_DATA),
-		   AR_EEPROM_STATUS_DATA_VAL);
-
-	return true;
-}
-
-static int ath9k_hw_flash_map(struct ath_hal *ah)
-{
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	ahp->ah_cal_mem = ioremap(AR5416_EEPROM_START_ADDR, AR5416_EEPROM_MAX);
-
-	if (!ahp->ah_cal_mem) {
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"cannot remap eeprom region \n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static bool ath9k_hw_flash_read(struct ath_hal *ah, u32 off, u16 *data)
-{
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	*data = ioread16(ahp->ah_cal_mem + off);
-
-	return true;
-}
-
 static inline bool ath9k_hw_nvram_read(struct ath_hal *ah, u32 off, u16 *data)
 {
-	if (ath9k_hw_use_flash(ah))
-		return ath9k_hw_flash_read(ah, off, data);
-	else
-		return ath9k_hw_eeprom_read(ah, off, data);
+	struct ath_softc *sc = ah->ah_sc;
+
+	return sc->bus_ops->eeprom_read(ah, off, data);
 }
 
 static bool ath9k_hw_fill_4k_eeprom(struct ath_hal *ah)
@@ -2121,19 +2079,19 @@ void ath9k_hw_set_addac(struct ath_hal *ah, struct ath9k_channel *chan)
 static bool ath9k_hw_eeprom_set_def_board_values(struct ath_hal *ah,
 				      struct ath9k_channel *chan)
 {
+#define AR5416_VER_MASK (eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK)
 	struct modal_eep_header *pModal;
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	struct ar5416_eeprom_def *eep = &ahp->ah_eeprom.def;
 	int i, regChainOffset;
 	u8 txRxAttenLocal;
-	u16 ant_config;
 
 	pModal = &(eep->modalHeader[IS_CHAN_2GHZ(chan)]);
 
 	txRxAttenLocal = IS_CHAN_2GHZ(chan) ? 23 : 44;
 
-	ath9k_hw_get_eeprom_antenna_cfg(ah, chan, 0, &ant_config);
-	REG_WRITE(ah, AR_PHY_SWITCH_COM, ant_config);
+	REG_WRITE(ah, AR_PHY_SWITCH_COM,
+		  ath9k_hw_get_eeprom_antenna_cfg(ah, chan));
 
 	for (i = 0; i < AR5416_MAX_CHAINS; i++) {
 		if (AR_SREV_9280(ah)) {
@@ -2163,9 +2121,7 @@ static bool ath9k_hw_eeprom_set_def_board_values(struct ath_hal *ah,
 			     AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF));
 
 		if ((i == 0) || AR_SREV_5416_V20_OR_LATER(ah)) {
-			if ((eep->baseEepHeader.version &
-			     AR5416_EEP_VER_MINOR_MASK) >=
-			    AR5416_EEP_MINOR_VER_3) {
+			if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_3) {
 				txRxAttenLocal = pModal->txRxAttenCh[i];
 				if (AR_SREV_9280_10_OR_LATER(ah)) {
 					REG_RMW_FIELD(ah,
@@ -2332,8 +2288,7 @@ static bool ath9k_hw_eeprom_set_def_board_values(struct ath_hal *ah,
 			      pModal->thresh62);
 	}
 
-	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
-	    AR5416_EEP_MINOR_VER_2) {
+	if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_2) {
 		REG_RMW_FIELD(ah, AR_PHY_RF_CTL2,
 			      AR_PHY_TX_END_DATA_START,
 			      pModal->txFrameToDataStart);
@@ -2341,15 +2296,29 @@ static bool ath9k_hw_eeprom_set_def_board_values(struct ath_hal *ah,
 			      pModal->txFrameToPaOn);
 	}
 
-	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
-	    AR5416_EEP_MINOR_VER_3) {
+	if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_3) {
 		if (IS_CHAN_HT40(chan))
 			REG_RMW_FIELD(ah, AR_PHY_SETTLING,
 				      AR_PHY_SETTLING_SWITCH,
 				      pModal->swSettleHt40);
 	}
 
+	if (AR_SREV_9280_20(ah) && AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_20) {
+		if (IS_CHAN_HT20(chan))
+			REG_RMW_FIELD(ah, AR_AN_TOP1, AR_AN_TOP1_DACIPMODE,
+					eep->baseEepHeader.dacLpMode);
+		else if (eep->baseEepHeader.dacHiPwrMode_5G)
+			REG_RMW_FIELD(ah, AR_AN_TOP1, AR_AN_TOP1_DACIPMODE, 0);
+		else
+			REG_RMW_FIELD(ah, AR_AN_TOP1, AR_AN_TOP1_DACIPMODE,
+					eep->baseEepHeader.dacLpMode);
+
+		REG_RMW_FIELD(ah, AR_PHY_FRAME_CTL, AR_PHY_FRAME_CTL_TX_CLIP,
+				pModal->miscBits >> 2);
+	}
+
 	return true;
+#undef AR5416_VER_MASK
 }
 
 static bool ath9k_hw_eeprom_set_4k_board_values(struct ath_hal *ah,
@@ -2360,7 +2329,6 @@ static bool ath9k_hw_eeprom_set_4k_board_values(struct ath_hal *ah,
 	struct ar5416_eeprom_4k *eep = &ahp->ah_eeprom.map4k;
 	int regChainOffset;
 	u8 txRxAttenLocal;
-	u16 ant_config = 0;
 	u8 ob[5], db1[5], db2[5];
 	u8 ant_div_control1, ant_div_control2;
 	u32 regVal;
@@ -2370,8 +2338,8 @@ static bool ath9k_hw_eeprom_set_4k_board_values(struct ath_hal *ah,
 
 	txRxAttenLocal = 23;
 
-	ath9k_hw_get_eeprom_antenna_cfg(ah, chan, 0, &ant_config);
-	REG_WRITE(ah, AR_PHY_SWITCH_COM, ant_config);
+	REG_WRITE(ah, AR_PHY_SWITCH_COM,
+		  ath9k_hw_get_eeprom_antenna_cfg(ah, chan));
 
 	regChainOffset = 0;
 	REG_WRITE(ah, AR_PHY_SWITCH_CHAIN_0 + regChainOffset,
@@ -2554,70 +2522,39 @@ bool ath9k_hw_eeprom_set_board_values(struct ath_hal *ah,
 	return ath9k_eeprom_set_board_values[ahp->ah_eep_map](ah, chan);
 }
 
-static int ath9k_hw_get_def_eeprom_antenna_cfg(struct ath_hal *ah,
-				    struct ath9k_channel *chan,
-				    u8 index, u16 *config)
+static u16 ath9k_hw_get_def_eeprom_antenna_cfg(struct ath_hal *ah,
+					       struct ath9k_channel *chan)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	struct ar5416_eeprom_def *eep = &ahp->ah_eeprom.def;
 	struct modal_eep_header *pModal =
 		&(eep->modalHeader[IS_CHAN_2GHZ(chan)]);
-	struct base_eep_header *pBase = &eep->baseEepHeader;
 
-	switch (index) {
-	case 0:
-		*config = pModal->antCtrlCommon & 0xFFFF;
-		return 0;
-	case 1:
-		if (pBase->version >= 0x0E0D) {
-			if (pModal->useAnt1) {
-				*config =
-				((pModal->antCtrlCommon & 0xFFFF0000) >> 16);
-				return 0;
-			}
-		}
-		break;
-	default:
-		break;
-	}
-
-	return -EINVAL;
+	return pModal->antCtrlCommon & 0xFFFF;
 }
 
-static int ath9k_hw_get_4k_eeprom_antenna_cfg(struct ath_hal *ah,
-				    struct ath9k_channel *chan,
-				    u8 index, u16 *config)
+static u16 ath9k_hw_get_4k_eeprom_antenna_cfg(struct ath_hal *ah,
+					      struct ath9k_channel *chan)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	struct ar5416_eeprom_4k *eep = &ahp->ah_eeprom.map4k;
 	struct modal_eep_4k_header *pModal = &eep->modalHeader;
 
-	switch (index) {
-	case 0:
-		*config = pModal->antCtrlCommon & 0xFFFF;
-		return 0;
-	default:
-		break;
-	}
-
-	return -EINVAL;
+	return pModal->antCtrlCommon & 0xFFFF;
 }
 
-static int (*ath9k_get_eeprom_antenna_cfg[])(struct ath_hal *,
-					     struct ath9k_channel *,
-					     u8, u16 *) = {
+static u16 (*ath9k_get_eeprom_antenna_cfg[])(struct ath_hal *,
+					     struct ath9k_channel *) = {
 	ath9k_hw_get_def_eeprom_antenna_cfg,
 	ath9k_hw_get_4k_eeprom_antenna_cfg
 };
 
-int ath9k_hw_get_eeprom_antenna_cfg(struct ath_hal *ah,
-				    struct ath9k_channel *chan,
-				    u8 index, u16 *config)
+u16 ath9k_hw_get_eeprom_antenna_cfg(struct ath_hal *ah,
+				    struct ath9k_channel *chan)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 
-	return ath9k_get_eeprom_antenna_cfg[ahp->ah_eep_map](ah, chan,
-							     index, config);
+	return ath9k_get_eeprom_antenna_cfg[ahp->ah_eep_map](ah, chan);
 }
 
 static u8 ath9k_hw_get_4k_num_ant_config(struct ath_hal *ah,
@@ -2739,6 +2676,7 @@ static u32 ath9k_hw_get_eeprom_4k(struct ath_hal *ah,
 static u32 ath9k_hw_get_eeprom_def(struct ath_hal *ah,
 				   enum eeprom_param param)
 {
+#define AR5416_VER_MASK (pBase->version & AR5416_EEP_VER_MINOR_MASK)
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	struct ar5416_eeprom_def *eep = &ahp->ah_eeprom.def;
 	struct modal_eep_header *pModal = eep->modalHeader;
@@ -2774,7 +2712,7 @@ static u32 ath9k_hw_get_eeprom_def(struct ath_hal *ah,
 	case EEP_DB_2:
 		return pModal[1].db;
 	case EEP_MINOR_REV:
-		return pBase->version & AR5416_EEP_VER_MINOR_MASK;
+		return AR5416_VER_MASK;
 	case EEP_TX_MASK:
 		return pBase->txMask;
 	case EEP_RX_MASK:
@@ -2783,10 +2721,15 @@ static u32 ath9k_hw_get_eeprom_def(struct ath_hal *ah,
 		return pBase->rxGainType;
 	case EEP_TXGAIN_TYPE:
 		return pBase->txGainType;
-
+	case EEP_DAC_HPWR_5G:
+		if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_20)
+			return pBase->dacHiPwrMode_5G;
+		else
+			return 0;
 	default:
 		return 0;
 	}
+#undef AR5416_VER_MASK
 }
 
 static u32 (*ath9k_get_eeprom[])(struct ath_hal *, enum eeprom_param) = {
@@ -2806,9 +2749,6 @@ int ath9k_hw_eeprom_attach(struct ath_hal *ah)
 {
 	int status;
 	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	if (ath9k_hw_use_flash(ah))
-		ath9k_hw_flash_map(ah);
 
 	if (AR_SREV_9285(ah))
 		ahp->ah_eep_map = EEP_MAP_4KBITS;

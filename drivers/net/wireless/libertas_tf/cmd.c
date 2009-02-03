@@ -286,7 +286,7 @@ void lbtf_set_mode(struct lbtf_private *priv, enum lbtf_mode mode)
 	lbtf_cmd_async(priv, CMD_802_11_SET_MODE, &cmd.hdr, sizeof(cmd));
 }
 
-void lbtf_set_bssid(struct lbtf_private *priv, bool activate, u8 *bssid)
+void lbtf_set_bssid(struct lbtf_private *priv, bool activate, const u8 *bssid)
 {
 	struct cmd_ds_set_bssid cmd;
 

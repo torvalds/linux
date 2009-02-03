@@ -164,9 +164,9 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	bf = avp->av_bcbuf;
 	skb = (struct sk_buff *)bf->bf_mpdu;
 	if (skb) {
-		pci_unmap_single(sc->pdev, bf->bf_dmacontext,
+		dma_unmap_single(sc->dev, bf->bf_dmacontext,
 				 skb->len,
-				 PCI_DMA_TODEVICE);
+				 DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 	}
 
@@ -188,14 +188,14 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	}
 
 	bf->bf_buf_addr = bf->bf_dmacontext =
-		pci_map_single(sc->pdev, skb->data,
+		dma_map_single(sc->dev, skb->data,
 			       skb->len,
-			       PCI_DMA_TODEVICE);
-	if (unlikely(pci_dma_mapping_error(sc->pdev, bf->bf_buf_addr))) {
+			       DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(sc->dev, bf->bf_buf_addr))) {
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
 		DPRINTF(sc, ATH_DBG_CONFIG,
-			"pci_dma_mapping_error() on beaconing\n");
+			"dma_mapping_error() on beaconing\n");
 		return NULL;
 	}
 
@@ -220,7 +220,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 		 * acquires txq lock inside.
 		 */
 		if (sc->sc_nvaps > 1) {
-			ath_tx_draintxq(sc, cabq, false);
+			ath_draintxq(sc, cabq, false);
 			DPRINTF(sc, ATH_DBG_BEACON,
 				"flush previous cabq traffic\n");
 		}
@@ -343,9 +343,9 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 	bf = avp->av_bcbuf;
 	if (bf->bf_mpdu != NULL) {
 		skb = (struct sk_buff *)bf->bf_mpdu;
-		pci_unmap_single(sc->pdev, bf->bf_dmacontext,
+		dma_unmap_single(sc->dev, bf->bf_dmacontext,
 				 skb->len,
-				 PCI_DMA_TODEVICE);
+				 DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
 	}
@@ -402,14 +402,14 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 
 	bf->bf_mpdu = skb;
 	bf->bf_buf_addr = bf->bf_dmacontext =
-		pci_map_single(sc->pdev, skb->data,
+		dma_map_single(sc->dev, skb->data,
 			       skb->len,
-			       PCI_DMA_TODEVICE);
-	if (unlikely(pci_dma_mapping_error(sc->pdev, bf->bf_buf_addr))) {
+			       DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(sc->dev, bf->bf_buf_addr))) {
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
 		DPRINTF(sc, ATH_DBG_CONFIG,
-			"pci_dma_mapping_error() on beacon alloc\n");
+			"dma_mapping_error() on beacon alloc\n");
 		return -ENOMEM;
 	}
 
@@ -429,9 +429,9 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp)
 		bf = avp->av_bcbuf;
 		if (bf->bf_mpdu != NULL) {
 			struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
-			pci_unmap_single(sc->pdev, bf->bf_dmacontext,
+			dma_unmap_single(sc->dev, bf->bf_dmacontext,
 					 skb->len,
-					 PCI_DMA_TODEVICE);
+					 DMA_TO_DEVICE);
 			dev_kfree_skb_any(skb);
 			bf->bf_mpdu = NULL;
 		}

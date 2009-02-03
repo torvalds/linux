@@ -222,6 +222,7 @@ static const struct file_operations fops_interrupt = {
 	.owner = THIS_MODULE
 };
 
+
 int ath9k_init_debug(struct ath_softc *sc)
 {
 	sc->sc_debug.debug_mask = ath9k_debug;

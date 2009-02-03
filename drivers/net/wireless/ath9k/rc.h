@@ -90,7 +90,6 @@ struct ath_softc;
  */
 struct ath_rate_table {
 	int rate_cnt;
-	u8 rateCodeToIndex[256];
 	struct {
 		int valid;
 		int valid_single_stream;

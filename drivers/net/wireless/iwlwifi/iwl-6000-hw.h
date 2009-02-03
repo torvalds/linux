@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,47 +58,24 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  *****************************************************************************/
-
-#ifndef __iwl_3945_dev_h__
-#define __iwl_3945_dev_h__
-
-#define IWL_PCI_DEVICE(dev, subdev, cfg) \
-	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \
-	.subvendor = PCI_ANY_ID, .subdevice = (subdev), \
-	.driver_data = (kernel_ulong_t)&(cfg)
-
-#define IWL_SKU_G       0x1
-#define IWL_SKU_A       0x2
-
-/**
- * struct iwl_3945_cfg
- * @fw_name_pre: Firmware filename prefix. The api version and extension
- * 	(.ucode) will be added to filename before loading from disk. The
- * 	filename is constructed as fw_name_pre<api>.ucode.
- * @ucode_api_max: Highest version of uCode API supported by driver.
- * @ucode_api_min: Lowest version of uCode API supported by driver.
- *
- * We enable the driver to be backward compatible wrt API version. The
- * driver specifies which APIs it supports (with @ucode_api_max being the
- * highest and @ucode_api_min the lowest). Firmware will only be loaded if
- * it has a supported API version. The firmware's API version will be
- * stored in @iwl_priv, enabling the driver to make runtime changes based
- * on firmware version used.
- *
- * For example,
- * if (IWL_UCODE_API(priv->ucode_ver) >= 2) {
- * 	Driver interacts with Firmware API version >= 2.
- * } else {
- * 	Driver interacts with Firmware API version 1.
- * }
+/*
+ * Please use this file (iwl-6000-hw.h) only for hardware-related definitions.
+ * Use iwl-5000-commands.h for uCode API definitions.
  */
-struct iwl_3945_cfg {
-	const char *name;
-	const char *fw_name_pre;
-	const unsigned int ucode_api_max;
-	const unsigned int ucode_api_min;
-	unsigned int sku;
-};
 
-#endif /* __iwl_dev_h__ */
+#ifndef __iwl_6000_hw_h__
+#define __iwl_6000_hw_h__
+
+#define IWL60_RTC_INST_LOWER_BOUND		(0x000000)
+#define IWL60_RTC_INST_UPPER_BOUND		(0x040000)
+#define IWL60_RTC_DATA_LOWER_BOUND		(0x800000)
+#define IWL60_RTC_DATA_UPPER_BOUND		(0x814000)
+#define IWL60_RTC_INST_SIZE \
+	(IWL60_RTC_INST_UPPER_BOUND - IWL60_RTC_INST_LOWER_BOUND)
+#define IWL60_RTC_DATA_SIZE \
+	(IWL60_RTC_DATA_UPPER_BOUND - IWL60_RTC_DATA_LOWER_BOUND)
+
+#endif /* __iwl_6000_hw_h__ */
+

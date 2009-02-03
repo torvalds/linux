@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -25,73 +25,30 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/rfkill.h>
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
-static int rt2x00rfkill_toggle_radio(void *data, enum rfkill_state state)
+static void rt2x00rfkill_poll(struct input_polled_dev *poll_dev)
 {
-	struct rt2x00_dev *rt2x00dev = data;
-	int retval = 0;
-
-	if (unlikely(!rt2x00dev))
-		return 0;
-
-	/*
-	 * Only continue if there are enabled interfaces.
-	 */
-	if (!test_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags))
-		return 0;
-
-	if (state == RFKILL_STATE_UNBLOCKED) {
-		INFO(rt2x00dev, "RFKILL event: enabling radio.\n");
-		clear_bit(DEVICE_STATE_DISABLED_RADIO_HW, &rt2x00dev->flags);
-		retval = rt2x00lib_enable_radio(rt2x00dev);
-	} else if (state == RFKILL_STATE_SOFT_BLOCKED) {
-		INFO(rt2x00dev, "RFKILL event: disabling radio.\n");
-		set_bit(DEVICE_STATE_DISABLED_RADIO_HW, &rt2x00dev->flags);
-		rt2x00lib_disable_radio(rt2x00dev);
-	} else {
-		WARNING(rt2x00dev, "RFKILL event: unknown state %d.\n", state);
-	}
-
-	return retval;
-}
-
-static int rt2x00rfkill_get_state(void *data, enum rfkill_state *state)
-{
-	struct rt2x00_dev *rt2x00dev = data;
-
-	/*
-	 * rfkill_poll reports 1 when the key has been pressed and the
-	 * radio should be blocked.
-	 */
-	*state = rt2x00dev->ops->lib->rfkill_poll(rt2x00dev) ?
-	    RFKILL_STATE_SOFT_BLOCKED : RFKILL_STATE_UNBLOCKED;
-
-	return 0;
-}
-
-static void rt2x00rfkill_poll(struct work_struct *work)
-{
-	struct rt2x00_dev *rt2x00dev =
-	    container_of(work, struct rt2x00_dev, rfkill_work.work);
-	enum rfkill_state state;
+	struct rt2x00_dev *rt2x00dev = poll_dev->private;
+	int state, old_state;
 
 	if (!test_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state) ||
 	    !test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
 		return;
 
 	/*
-	 * Poll latest state and report it to rfkill who should sort
-	 * out if the state should be toggled or not.
+	 * Poll latest state, if the state is different then the previous state,
+	 * we should generate an input event.
 	 */
-	if (!rt2x00rfkill_get_state(rt2x00dev, &state))
-		rfkill_force_state(rt2x00dev->rfkill, state);
+	state = !!rt2x00dev->ops->lib->rfkill_poll(rt2x00dev);
+	old_state = !!test_bit(RFKILL_STATE_BLOCKED, &rt2x00dev->rfkill_state);
 
-	queue_delayed_work(rt2x00dev->hw->workqueue,
-			   &rt2x00dev->rfkill_work, RFKILL_POLL_INTERVAL);
+	if (old_state != state) {
+		input_report_switch(poll_dev->input, SW_RFKILL_ALL, state);
+		change_bit(RFKILL_STATE_BLOCKED, &rt2x00dev->rfkill_state);
+	}
 }
 
 void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
@@ -100,8 +57,8 @@ void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 	    test_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state))
 		return;
 
-	if (rfkill_register(rt2x00dev->rfkill)) {
-		ERROR(rt2x00dev, "Failed to register rfkill handler.\n");
+	if (input_register_polled_device(rt2x00dev->rfkill_poll_dev)) {
+		ERROR(rt2x00dev, "Failed to register polled device.\n");
 		return;
 	}
 
@@ -109,10 +66,10 @@ void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Force initial poll which will detect the initial device state,
-	 * and correctly sends the signal to the rfkill layer about this
+	 * and correctly sends the signal to the input layer about this
 	 * state.
 	 */
-	rt2x00rfkill_poll(&rt2x00dev->rfkill_work.work);
+	rt2x00rfkill_poll(rt2x00dev->rfkill_poll_dev);
 }
 
 void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev)
@@ -121,52 +78,50 @@ void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev)
 	    !test_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state))
 		return;
 
-	cancel_delayed_work_sync(&rt2x00dev->rfkill_work);
-
-	rfkill_unregister(rt2x00dev->rfkill);
+	input_unregister_polled_device(rt2x00dev->rfkill_poll_dev);
 
 	__clear_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state);
 }
 
 void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 {
-	struct device *dev = wiphy_dev(rt2x00dev->hw->wiphy);
+	struct input_polled_dev *poll_dev;
 
-	if (test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
+	if (test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state) ||
+	    !test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
 		return;
 
-	rt2x00dev->rfkill = rfkill_allocate(dev, RFKILL_TYPE_WLAN);
-	if (!rt2x00dev->rfkill) {
-		ERROR(rt2x00dev, "Failed to allocate rfkill handler.\n");
+	poll_dev = input_allocate_polled_device();
+	if (!poll_dev) {
+		ERROR(rt2x00dev, "Failed to allocate polled device.\n");
 		return;
 	}
+
+	poll_dev->private = rt2x00dev;
+	poll_dev->poll = rt2x00rfkill_poll;
+	poll_dev->poll_interval = RFKILL_POLL_INTERVAL;
+
+	poll_dev->input->name = rt2x00dev->ops->name;
+	poll_dev->input->phys = wiphy_name(rt2x00dev->hw->wiphy);
+	poll_dev->input->id.bustype = BUS_HOST;
+	poll_dev->input->id.vendor = 0x1814;
+	poll_dev->input->id.product = rt2x00dev->chip.rt;
+	poll_dev->input->id.version = rt2x00dev->chip.rev;
+	poll_dev->input->dev.parent = wiphy_dev(rt2x00dev->hw->wiphy);
+	poll_dev->input->evbit[0] = BIT(EV_SW);
+	poll_dev->input->swbit[0] = BIT(SW_RFKILL_ALL);
+
+	rt2x00dev->rfkill_poll_dev = poll_dev;
 
 	__set_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state);
-
-	rt2x00dev->rfkill->name = rt2x00dev->ops->name;
-	rt2x00dev->rfkill->data = rt2x00dev;
-	rt2x00dev->rfkill->toggle_radio = rt2x00rfkill_toggle_radio;
-	if (test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags)) {
-		rt2x00dev->rfkill->get_state = rt2x00rfkill_get_state;
-		rt2x00dev->rfkill->state =
-			rt2x00dev->ops->lib->rfkill_poll(rt2x00dev) ?
-			    RFKILL_STATE_SOFT_BLOCKED : RFKILL_STATE_UNBLOCKED;
-	} else {
-		rt2x00dev->rfkill->state = RFKILL_STATE_UNBLOCKED;
-	}
-
-	INIT_DELAYED_WORK(&rt2x00dev->rfkill_work, rt2x00rfkill_poll);
-
-	return;
 }
 
 void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev)
 {
-	if (!test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
+	if (!__test_and_clear_bit(RFKILL_STATE_ALLOCATED,
+				  &rt2x00dev->rfkill_state))
 		return;
 
-	cancel_delayed_work_sync(&rt2x00dev->rfkill_work);
-
-	rfkill_free(rt2x00dev->rfkill);
-	rt2x00dev->rfkill = NULL;
+	input_free_polled_device(rt2x00dev->rfkill_poll_dev);
+	rt2x00dev->rfkill_poll_dev = NULL;
 }

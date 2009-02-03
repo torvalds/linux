@@ -229,7 +229,9 @@ Who:	Jan Engelhardt <jengelh@computergmbh.de>
 ---------------------------
 
 What:	b43 support for firmware revision < 410
-When:	July 2008
+When:	The schedule was July 2008, but it was decided that we are going to keep the
+        code as long as there are no major maintanance headaches.
+	So it _could_ be removed _any_ time now, if it conflicts with something new.
 Why:	The support code for the old firmware hurts code readability/maintainability
 	and slightly hurts runtime performance. Bugfixes for the old firmware
 	are not provided by Broadcom anymore.

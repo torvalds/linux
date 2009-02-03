@@ -15,6 +15,7 @@ mac80211-y := \
 	michael.o \
 	tkip.o \
 	aes_ccm.o \
+	aes_cmac.o \
 	cfg.o \
 	rx.o \
 	spectmgmt.o \
@@ -36,6 +37,8 @@ mac80211-$(CONFIG_MAC80211_MESH) += \
 	mesh_pathtbl.o \
 	mesh_plink.o \
 	mesh_hwmp.o
+
+mac80211-$(CONFIG_PM) += pm.o
 
 # objects for PID algorithm
 rc80211_pid-y := rc80211_pid_algo.o

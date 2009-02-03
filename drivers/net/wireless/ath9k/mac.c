@@ -107,14 +107,32 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hal *ah, bool bIncTrigLevel)
 
 bool ath9k_hw_stoptxdma(struct ath_hal *ah, u32 q)
 {
+#define ATH9K_TX_STOP_DMA_TIMEOUT	4000    /* usec */
+#define ATH9K_TIME_QUANTUM		100     /* usec */
+
+	struct ath_hal_5416 *ahp = AH5416(ah);
+	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_tx_queue_info *qi;
 	u32 tsfLow, j, wait;
+	u32 wait_time = ATH9K_TX_STOP_DMA_TIMEOUT / ATH9K_TIME_QUANTUM;
+
+	if (q >= pCap->total_queues) {
+		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "invalid queue num %u\n", q);
+		return false;
+	}
+
+	qi = &ahp->ah_txq[q];
+	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
+		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "inactive queue\n");
+		return false;
+	}
 
 	REG_WRITE(ah, AR_Q_TXD, 1 << q);
 
-	for (wait = 1000; wait != 0; wait--) {
+	for (wait = wait_time; wait != 0; wait--) {
 		if (ath9k_hw_numtxpending(ah, q) == 0)
 			break;
-		udelay(100);
+		udelay(ATH9K_TIME_QUANTUM);
 	}
 
 	if (ath9k_hw_numtxpending(ah, q)) {
@@ -144,8 +162,7 @@ bool ath9k_hw_stoptxdma(struct ath_hal *ah, u32 q)
 		udelay(200);
 		REG_CLR_BIT(ah, AR_TIMER_MODE, AR_QUIET_TIMER_EN);
 
-		wait = 1000;
-
+		wait = wait_time;
 		while (ath9k_hw_numtxpending(ah, q)) {
 			if ((--wait) == 0) {
 				DPRINTF(ah->ah_sc, ATH_DBG_XMIT,
@@ -153,15 +170,17 @@ bool ath9k_hw_stoptxdma(struct ath_hal *ah, u32 q)
 					"msec after killing last frame\n");
 				break;
 			}
-			udelay(100);
+			udelay(ATH9K_TIME_QUANTUM);
 		}
 
 		REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_FORCE_CH_IDLE_HIGH);
 	}
 
 	REG_WRITE(ah, AR_Q_TXD, 0);
-
 	return wait != 0;
+
+#undef ATH9K_TX_STOP_DMA_TIMEOUT
+#undef ATH9K_TIME_QUANTUM
 }
 
 bool ath9k_hw_filltxdesc(struct ath_hal *ah, struct ath_desc *ds,

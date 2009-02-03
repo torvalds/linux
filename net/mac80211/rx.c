@@ -102,7 +102,7 @@ ieee80211_rx_radiotap_len(struct ieee80211_local *local,
 	return len;
 }
 
-/**
+/*
  * ieee80211_add_rx_radiotap_header - add radiotap header
  *
  * add a radiotap header containing all the fields which the hardware provided.
@@ -158,7 +158,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		 */
 		*pos = 0;
 	} else {
-		rthdr->it_present |= (1 << IEEE80211_RADIOTAP_RATE);
+		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_RATE);
 		*pos = rate->bitrate / 5;
 	}
 	pos++;
@@ -371,39 +371,50 @@ static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
 	rx->skb->priority = (tid > 7) ? 0 : tid;
 }
 
-static void ieee80211_verify_ip_alignment(struct ieee80211_rx_data *rx)
+/**
+ * DOC: Packet alignment
+ *
+ * Drivers always need to pass packets that are aligned to two-byte boundaries
+ * to the stack.
+ *
+ * Additionally, should, if possible, align the payload data in a way that
+ * guarantees that the contained IP header is aligned to a four-byte
+ * boundary. In the case of regular frames, this simply means aligning the
+ * payload to a four-byte boundary (because either the IP header is directly
+ * contained, or IV/RFC1042 headers that have a length divisible by four are
+ * in front of it).
+ *
+ * With A-MSDU frames, however, the payload data address must yield two modulo
+ * four because there are 14-byte 802.3 headers within the A-MSDU frames that
+ * push the IP header further back to a multiple of four again. Thankfully, the
+ * specs were sane enough this time around to require padding each A-MSDU
+ * subframe to a length that is a multiple of four.
+ *
+ * Padding like Atheros hardware adds which is inbetween the 802.11 header and
+ * the payload is not supported, the driver is required to move the 802.11
+ * header to be directly in front of the payload in that case.
+ */
+static void ieee80211_verify_alignment(struct ieee80211_rx_data *rx)
 {
-#ifdef CONFIG_MAC80211_DEBUG_PACKET_ALIGNMENT
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	int hdrlen;
+
+#ifndef CONFIG_MAC80211_DEBUG_PACKET_ALIGNMENT
+	return;
+#endif
+
+	if (WARN_ONCE((unsigned long)rx->skb->data & 1,
+		      "unaligned packet at 0x%p\n", rx->skb->data))
+		return;
 
 	if (!ieee80211_is_data_present(hdr->frame_control))
 		return;
 
-	/*
-	 * Drivers are required to align the payload data in a way that
-	 * guarantees that the contained IP header is aligned to a four-
-	 * byte boundary. In the case of regular frames, this simply means
-	 * aligning the payload to a four-byte boundary (because either
-	 * the IP header is directly contained, or IV/RFC1042 headers that
-	 * have a length divisible by four are in front of it.
-	 *
-	 * With A-MSDU frames, however, the payload data address must
-	 * yield two modulo four because there are 14-byte 802.3 headers
-	 * within the A-MSDU frames that push the IP header further back
-	 * to a multiple of four again. Thankfully, the specs were sane
-	 * enough this time around to require padding each A-MSDU subframe
-	 * to a length that is a multiple of four.
-	 *
-	 * Padding like atheros hardware adds which is inbetween the 802.11
-	 * header and the payload is not supported, the driver is required
-	 * to move the 802.11 header further back in that case.
-	 */
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	if (rx->flags & IEEE80211_RX_AMSDU)
 		hdrlen += ETH_HLEN;
-	WARN_ON_ONCE(((unsigned long)(rx->skb->data + hdrlen)) & 3);
-#endif
+	WARN_ONCE(((unsigned long)(rx->skb->data + hdrlen)) & 3,
+		  "unaligned IP payload at 0x%p\n", rx->skb->data + hdrlen);
 }
 
 
@@ -434,6 +445,52 @@ ieee80211_rx_h_passive_scan(struct ieee80211_rx_data *rx)
 
 	return RX_CONTINUE;
 }
+
+
+static int ieee80211_is_unicast_robust_mgmt_frame(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+
+	if (skb->len < 24 || is_multicast_ether_addr(hdr->addr1))
+		return 0;
+
+	return ieee80211_is_robust_mgmt_frame(hdr);
+}
+
+
+static int ieee80211_is_multicast_robust_mgmt_frame(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+
+	if (skb->len < 24 || !is_multicast_ether_addr(hdr->addr1))
+		return 0;
+
+	return ieee80211_is_robust_mgmt_frame(hdr);
+}
+
+
+/* Get the BIP key index from MMIE; return -1 if this is not a BIP frame */
+static int ieee80211_get_mmie_keyidx(struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *hdr = (struct ieee80211_mgmt *) skb->data;
+	struct ieee80211_mmie *mmie;
+
+	if (skb->len < 24 + sizeof(*mmie) ||
+	    !is_multicast_ether_addr(hdr->da))
+		return -1;
+
+	if (!ieee80211_is_robust_mgmt_frame((struct ieee80211_hdr *) hdr))
+		return -1; /* not a robust management frame */
+
+	mmie = (struct ieee80211_mmie *)
+		(skb->data + skb->len - sizeof(*mmie));
+	if (mmie->element_id != WLAN_EID_MMIE ||
+	    mmie->length != sizeof(*mmie) - 2)
+		return -1;
+
+	return le16_to_cpu(mmie->key_id);
+}
+
 
 static ieee80211_rx_result
 ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
@@ -550,21 +607,23 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	int hdrlen;
 	ieee80211_rx_result result = RX_DROP_UNUSABLE;
 	struct ieee80211_key *stakey = NULL;
+	int mmie_keyidx = -1;
 
 	/*
 	 * Key selection 101
 	 *
-	 * There are three types of keys:
+	 * There are four types of keys:
 	 *  - GTK (group keys)
+	 *  - IGTK (group keys for management frames)
 	 *  - PTK (pairwise keys)
 	 *  - STK (station-to-station pairwise keys)
 	 *
 	 * When selecting a key, we have to distinguish between multicast
 	 * (including broadcast) and unicast frames, the latter can only
-	 * use PTKs and STKs while the former always use GTKs. Unless, of
-	 * course, actual WEP keys ("pre-RSNA") are used, then unicast
-	 * frames can also use key indizes like GTKs. Hence, if we don't
-	 * have a PTK/STK we check the key index for a WEP key.
+	 * use PTKs and STKs while the former always use GTKs and IGTKs.
+	 * Unless, of course, actual WEP keys ("pre-RSNA") are used, then
+	 * unicast frames can also use key indices like GTKs. Hence, if we
+	 * don't have a PTK/STK we check the key index for a WEP key.
 	 *
 	 * Note that in a regular BSS, multicast frames are sent by the
 	 * AP only, associated stations unicast the frame to the AP first
@@ -577,8 +636,14 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	 * possible.
 	 */
 
-	if (!ieee80211_has_protected(hdr->frame_control))
-		return RX_CONTINUE;
+	if (!ieee80211_has_protected(hdr->frame_control)) {
+		if (!ieee80211_is_mgmt(hdr->frame_control) ||
+		    rx->sta == NULL || !test_sta_flags(rx->sta, WLAN_STA_MFP))
+			return RX_CONTINUE;
+		mmie_keyidx = ieee80211_get_mmie_keyidx(rx->skb);
+		if (mmie_keyidx < 0)
+			return RX_CONTINUE;
+	}
 
 	/*
 	 * No point in finding a key and decrypting if the frame is neither
@@ -592,6 +657,16 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 
 	if (!is_multicast_ether_addr(hdr->addr1) && stakey) {
 		rx->key = stakey;
+	} else if (mmie_keyidx >= 0) {
+		/* Broadcast/multicast robust management frame / BIP */
+		if ((rx->status->flag & RX_FLAG_DECRYPTED) &&
+		    (rx->status->flag & RX_FLAG_IV_STRIPPED))
+			return RX_CONTINUE;
+
+		if (mmie_keyidx < NUM_DEFAULT_KEYS ||
+		    mmie_keyidx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
+			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
+		rx->key = rcu_dereference(rx->sdata->keys[mmie_keyidx]);
 	} else {
 		/*
 		 * The device doesn't give us the IV so we won't be
@@ -653,6 +728,9 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		break;
 	case ALG_CCMP:
 		result = ieee80211_crypto_ccmp_decrypt(rx);
+		break;
+	case ALG_AES_CMAC:
+		result = ieee80211_crypto_aes_cmac_decrypt(rx);
 		break;
 	}
 
@@ -1101,6 +1179,15 @@ ieee80211_drop_unencrypted(struct ieee80211_rx_data *rx, __le16 fc)
 	/* Drop unencrypted frames if key is set. */
 	if (unlikely(!ieee80211_has_protected(fc) &&
 		     !ieee80211_is_nullfunc(fc) &&
+		     (!ieee80211_is_mgmt(fc) ||
+		      (ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
+		       rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP))) &&
+		     (rx->key || rx->sdata->drop_unencrypted)))
+		return -EACCES;
+	/* BIP does not use Protected field, so need to check MMIE */
+	if (unlikely(rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP) &&
+		     ieee80211_is_multicast_robust_mgmt_frame(rx->skb) &&
+		     ieee80211_get_mmie_keyidx(rx->skb) < 0 &&
 		     (rx->key || rx->sdata->drop_unencrypted)))
 		return -EACCES;
 
@@ -1267,10 +1354,37 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	}
 
 	if (skb) {
-		/* deliver to local stack */
-		skb->protocol = eth_type_trans(skb, dev);
-		memset(skb->cb, 0, sizeof(skb->cb));
-		netif_rx(skb);
+		int align __maybe_unused;
+
+#if defined(CONFIG_MAC80211_DEBUG_PACKET_ALIGNMENT) || !defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+		/*
+		 * 'align' will only take the values 0 or 2 here
+		 * since all frames are required to be aligned
+		 * to 2-byte boundaries when being passed to
+		 * mac80211. That also explains the __skb_push()
+		 * below.
+		 */
+		align = (unsigned long)skb->data & 4;
+		if (align) {
+			if (WARN_ON(skb_headroom(skb) < 3)) {
+				dev_kfree_skb(skb);
+				skb = NULL;
+			} else {
+				u8 *data = skb->data;
+				size_t len = skb->len;
+				u8 *new = __skb_push(skb, align);
+				memmove(new, data, len);
+				__skb_trim(skb, len);
+			}
+		}
+#endif
+
+		if (skb) {
+			/* deliver to local stack */
+			skb->protocol = eth_type_trans(skb, dev);
+			memset(skb->cb, 0, sizeof(skb->cb));
+			netif_rx(skb);
+		}
 	}
 
 	if (xmit_skb) {
@@ -1339,14 +1453,20 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 		if (remaining <= subframe_len + padding)
 			frame = skb;
 		else {
-			frame = dev_alloc_skb(local->hw.extra_tx_headroom +
-					      subframe_len);
+			/*
+			 * Allocate and reserve two bytes more for payload
+			 * alignment since sizeof(struct ethhdr) is 14.
+			 */
+			frame = dev_alloc_skb(
+				ALIGN(local->hw.extra_tx_headroom, 4) +
+				subframe_len + 2);
 
 			if (frame == NULL)
 				return RX_DROP_UNUSABLE;
 
-			skb_reserve(frame, local->hw.extra_tx_headroom +
-				    sizeof(struct ethhdr));
+			skb_reserve(frame,
+				    ALIGN(local->hw.extra_tx_headroom, 4) +
+				    sizeof(struct ethhdr) + 2);
 			memcpy(skb_put(frame, ntohs(len)), skb->data,
 				ntohs(len));
 
@@ -1547,12 +1667,65 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx)
 	return RX_CONTINUE;
 }
 
+static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
+					   struct ieee80211_mgmt *mgmt,
+					   size_t len)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	struct ieee80211_mgmt *resp;
+
+	if (compare_ether_addr(mgmt->da, sdata->dev->dev_addr) != 0) {
+		/* Not to own unicast address */
+		return;
+	}
+
+	if (compare_ether_addr(mgmt->sa, sdata->u.sta.bssid) != 0 ||
+	    compare_ether_addr(mgmt->bssid, sdata->u.sta.bssid) != 0) {
+		/* Not from the current AP. */
+		return;
+	}
+
+	if (sdata->u.sta.state == IEEE80211_STA_MLME_ASSOCIATE) {
+		/* Association in progress; ignore SA Query */
+		return;
+	}
+
+	if (len < 24 + 1 + sizeof(resp->u.action.u.sa_query)) {
+		/* Too short SA Query request frame */
+		return;
+	}
+
+	skb = dev_alloc_skb(sizeof(*resp) + local->hw.extra_tx_headroom);
+	if (skb == NULL)
+		return;
+
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+	resp = (struct ieee80211_mgmt *) skb_put(skb, 24);
+	memset(resp, 0, 24);
+	memcpy(resp->da, mgmt->sa, ETH_ALEN);
+	memcpy(resp->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(resp->bssid, sdata->u.sta.bssid, ETH_ALEN);
+	resp->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
+	skb_put(skb, 1 + sizeof(resp->u.action.u.sa_query));
+	resp->u.action.category = WLAN_CATEGORY_SA_QUERY;
+	resp->u.action.u.sa_query.action = WLAN_ACTION_SA_QUERY_RESPONSE;
+	memcpy(resp->u.action.u.sa_query.trans_id,
+	       mgmt->u.action.u.sa_query.trans_id,
+	       WLAN_SA_QUERY_TR_ID_LEN);
+
+	ieee80211_tx_skb(sdata, skb, 1);
+}
+
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_local *local = rx->local;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
+	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
+	struct ieee80211_bss *bss;
 	int len = rx->skb->len;
 
 	if (!ieee80211_is_action(mgmt->frame_control))
@@ -1562,6 +1735,9 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
+		return RX_DROP_MONITOR;
+
+	if (ieee80211_drop_unencrypted(rx, mgmt->frame_control))
 		return RX_DROP_MONITOR;
 
 	/* all categories we currently handle have action_code */
@@ -1601,6 +1777,42 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 				return RX_DROP_MONITOR;
 			ieee80211_process_measurement_req(sdata, mgmt, len);
 			break;
+		case WLAN_ACTION_SPCT_CHL_SWITCH:
+			if (len < (IEEE80211_MIN_ACTION_SIZE +
+				   sizeof(mgmt->u.action.u.chan_switch)))
+				return RX_DROP_MONITOR;
+
+			if (memcmp(mgmt->bssid, ifsta->bssid, ETH_ALEN) != 0)
+				return RX_DROP_MONITOR;
+
+			bss = ieee80211_rx_bss_get(local, ifsta->bssid,
+					   local->hw.conf.channel->center_freq,
+					   ifsta->ssid, ifsta->ssid_len);
+			if (!bss)
+				return RX_DROP_MONITOR;
+
+			ieee80211_process_chanswitch(sdata,
+				     &mgmt->u.action.u.chan_switch.sw_elem, bss);
+			ieee80211_rx_bss_put(local, bss);
+			break;
+		}
+		break;
+	case WLAN_CATEGORY_SA_QUERY:
+		if (len < (IEEE80211_MIN_ACTION_SIZE +
+			   sizeof(mgmt->u.action.u.sa_query)))
+			return RX_DROP_MONITOR;
+		switch (mgmt->u.action.u.sa_query.action) {
+		case WLAN_ACTION_SA_QUERY_REQUEST:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				return RX_DROP_MONITOR;
+			ieee80211_process_sa_query_req(sdata, mgmt, len);
+			break;
+		case WLAN_ACTION_SA_QUERY_RESPONSE:
+			/*
+			 * SA Query response is currently only used in AP mode
+			 * and it is processed in user space.
+			 */
+			return RX_CONTINUE;
 		}
 		break;
 	default:
@@ -1616,8 +1828,12 @@ static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
+		return RX_DROP_MONITOR;
+
+	if (ieee80211_drop_unencrypted(rx, mgmt->frame_control))
 		return RX_DROP_MONITOR;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif))
@@ -1956,7 +2172,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		rx.flags |= IEEE80211_RX_IN_SCAN;
 
 	ieee80211_parse_qos(&rx);
-	ieee80211_verify_ip_alignment(&rx);
+	ieee80211_verify_alignment(&rx);
 
 	skb = rx.skb;
 

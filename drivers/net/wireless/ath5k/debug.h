@@ -72,7 +72,6 @@ struct ath5k_dbg_info {
 	struct dentry		*debugfs_phydir;
 	struct dentry		*debugfs_debug;
 	struct dentry		*debugfs_registers;
-	struct dentry		*debugfs_tsf;
 	struct dentry		*debugfs_beacon;
 	struct dentry		*debugfs_reset;
 };

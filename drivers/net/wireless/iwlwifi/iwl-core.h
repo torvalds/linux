@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,7 @@ struct iwl_cmd;
 
 
 #define IWLWIFI_VERSION "1.3.27k"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2008 Intel Corporation"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2009 Intel Corporation"
 #define DRV_AUTHOR     "<ilw@linux.intel.com>"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
@@ -110,6 +110,14 @@ struct iwl_lib_ops {
 	void (*txq_inval_byte_cnt_tbl)(struct iwl_priv *priv,
 				       struct iwl_tx_queue *txq);
 	void (*txq_set_sched)(struct iwl_priv *priv, u32 mask);
+	int (*txq_attach_buf_to_tfd)(struct iwl_priv *priv,
+				     struct iwl_tx_queue *txq,
+				     dma_addr_t addr,
+				     u16 len, u8 reset, u8 pad);
+	void (*txq_free_tfd)(struct iwl_priv *priv,
+			     struct iwl_tx_queue *txq);
+	int (*txq_init)(struct iwl_priv *priv,
+			struct iwl_tx_queue *txq);
 	/* aggregations */
 	int (*txq_agg_enable)(struct iwl_priv *priv, int txq_id, int tx_fifo,
 			      int sta_id, int tid, u16 ssn_idx);
@@ -252,9 +260,18 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 * TX
 ******************************************************/
 int iwl_txq_ctx_reset(struct iwl_priv *priv);
+void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+				 struct iwl_tx_queue *txq,
+				 dma_addr_t addr, u16 len, u8 reset, u8 pad);
 int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
 void iwl_hw_txq_ctx_free(struct iwl_priv *priv);
+int iwl_hw_tx_queue_init(struct iwl_priv *priv,
+			 struct iwl_tx_queue *txq);
 int iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+		      int slots_num, u32 txq_id);
+void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id);
 int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn);
 int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid);
 int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id);
@@ -267,7 +284,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
  * RF -Kill - here and not in iwl-rfkill.h to be available when
  * RF-kill subsystem is not compiled.
  ****************************************************/
-void iwl_rf_kill(struct iwl_priv *priv);
+void iwl_bg_rf_kill(struct work_struct *work);
 void iwl_radio_kill_sw_disable_radio(struct iwl_priv *priv);
 int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv);
 
@@ -306,8 +323,29 @@ void iwl_init_scan_params(struct iwl_priv *priv);
 int iwl_scan_cancel(struct iwl_priv *priv);
 int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
 int iwl_scan_initiate(struct iwl_priv *priv);
+u16 iwl_fill_probe_req(struct iwl_priv *priv, enum ieee80211_band band,
+		       struct ieee80211_mgmt *frame, int left);
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
+u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
+			      enum ieee80211_band band,
+			      u8 n_probes);
+u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
+			       enum ieee80211_band band);
+void iwl_bg_scan_check(struct work_struct *data);
+void iwl_bg_abort_scan(struct work_struct *work);
+void iwl_bg_scan_completed(struct work_struct *work);
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
+int iwl_send_scan_abort(struct iwl_priv *priv);
+
+/* For faster active scanning, scan will move to the next channel if fewer than
+ * PLCP_QUIET_THRESH packets are heard on this channel within
+ * ACTIVE_QUIET_TIME after sending probe request.  This shortens the dwell
+ * time if it's a quiet channel (nothing responded to our probe, and there's
+ * no other traffic).
+ * Disable "quiet" feature by setting PLCP_QUIET_THRESH to 0. */
+#define IWL_ACTIVE_QUIET_TIME       __constant_cpu_to_le16(10)  /* msec */
+#define IWL_PLCP_QUIET_THRESH       __constant_cpu_to_le16(1)  /* packets */
+
 
 /*******************************************************************************
  * Calibrations - implemented in iwl-calib.c
@@ -342,6 +380,9 @@ int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
 
 int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 
+int iwl_send_card_state(struct iwl_priv *priv, u32 flags,
+			u8 meta_flag);
+
 /*****************************************************
  * PCI						     *
  *****************************************************/
@@ -354,6 +395,11 @@ void iwl_enable_interrupts(struct iwl_priv *priv);
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
 void iwl_dump_nic_event_log(struct iwl_priv *priv);
 
+/*****************************************************
+*  GEOS
+******************************************************/
+int iwlcore_init_geos(struct iwl_priv *priv);
+void iwlcore_free_geos(struct iwl_priv *priv);
 
 /*************** DRIVER STATUS FUNCTIONS   *****/
 
@@ -422,6 +468,7 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 }
 
 extern void iwl_rf_kill_ct_config(struct iwl_priv *priv);
+extern int iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags);
 extern int iwl_verify_ucode(struct iwl_priv *priv);
 extern int iwl_send_lq_cmd(struct iwl_priv *priv,

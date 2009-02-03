@@ -21,6 +21,23 @@
 #include "mesh.h"
 #include "led.h"
 
+/**
+ * DOC: Interface list locking
+ *
+ * The interface list in each struct ieee80211_local is protected
+ * three-fold:
+ *
+ * (1) modifications may only be done under the RTNL
+ * (2) modifications and readers are protected against each other by
+ *     the iflist_mtx.
+ * (3) modifications are done in an RCU manner so atomic readers
+ *     can traverse the list in RCU-safe blocks.
+ *
+ * As a consequence, reads (traversals) of the list can be protected
+ * by either the RTNL, the iflist_mtx or RCU.
+ */
+
+
 static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 {
 	int meshhdrlen;
@@ -383,6 +400,8 @@ static int ieee80211_stop(struct net_device *dev)
 		atomic_dec(&local->iff_promiscs);
 
 	dev_mc_unsync(local->mdev, dev);
+	del_timer_sync(&local->dynamic_ps_timer);
+	cancel_work_sync(&local->dynamic_ps_enable_work);
 
 	/* APs need special treatment */
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
@@ -441,6 +460,7 @@ static int ieee80211_stop(struct net_device *dev)
 						WLAN_REASON_DEAUTH_LEAVING);
 
 		memset(sdata->u.sta.bssid, 0, ETH_ALEN);
+		del_timer_sync(&sdata->u.sta.chswitch_timer);
 		del_timer_sync(&sdata->u.sta.timer);
 		/*
 		 * If the timer fired while we waited for it, it will have
@@ -450,6 +470,7 @@ static int ieee80211_stop(struct net_device *dev)
 		 * it no longer is.
 		 */
 		cancel_work_sync(&sdata->u.sta.work);
+		cancel_work_sync(&sdata->u.sta.chswitch_work);
 		/*
 		 * When we get here, the interface is marked down.
 		 * Call synchronize_rcu() to wait for the RX path
@@ -459,7 +480,8 @@ static int ieee80211_stop(struct net_device *dev)
 		synchronize_rcu();
 		skb_queue_purge(&sdata->u.sta.skb_queue);
 
-		sdata->u.sta.flags &= ~IEEE80211_STA_PRIVACY_INVOKED;
+		sdata->u.sta.flags &= ~(IEEE80211_STA_PRIVACY_INVOKED |
+					IEEE80211_STA_TKIP_WEP_USED);
 		kfree(sdata->u.sta.extra_ie);
 		sdata->u.sta.extra_ie = NULL;
 		sdata->u.sta.extra_ie_len = 0;
@@ -627,6 +649,13 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 		kfree(sdata->u.sta.assocreq_ies);
 		kfree(sdata->u.sta.assocresp_ies);
 		kfree_skb(sdata->u.sta.probe_resp);
+		kfree(sdata->u.sta.ie_probereq);
+		kfree(sdata->u.sta.ie_proberesp);
+		kfree(sdata->u.sta.ie_auth);
+		kfree(sdata->u.sta.ie_assocreq);
+		kfree(sdata->u.sta.ie_reassocreq);
+		kfree(sdata->u.sta.ie_deauth);
+		kfree(sdata->u.sta.ie_disassoc);
 		break;
 	case NL80211_IFTYPE_WDS:
 	case NL80211_IFTYPE_AP_VLAN:
@@ -788,7 +817,9 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 					    params->mesh_id_len,
 					    params->mesh_id);
 
+	mutex_lock(&local->iflist_mtx);
 	list_add_tail_rcu(&sdata->list, &local->interfaces);
+	mutex_unlock(&local->iflist_mtx);
 
 	if (new_dev)
 		*new_dev = ndev;
@@ -804,7 +835,10 @@ void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata)
 {
 	ASSERT_RTNL();
 
+	mutex_lock(&sdata->local->iflist_mtx);
 	list_del_rcu(&sdata->list);
+	mutex_unlock(&sdata->local->iflist_mtx);
+
 	synchronize_rcu();
 	unregister_netdevice(sdata->dev);
 }
@@ -820,7 +854,16 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 	ASSERT_RTNL();
 
 	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
+		/*
+		 * we cannot hold the iflist_mtx across unregister_netdevice,
+		 * but we only need to hold it for list modifications to lock
+		 * out readers since we're under the RTNL here as all other
+		 * writers.
+		 */
+		mutex_lock(&local->iflist_mtx);
 		list_del(&sdata->list);
+		mutex_unlock(&local->iflist_mtx);
+
 		unregister_netdevice(sdata->dev);
 	}
 }

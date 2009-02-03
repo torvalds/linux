@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2008 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -38,8 +38,10 @@
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
 
+#include "iwl-commands.h"
 #include "iwl-3945.h"
-#include "iwl-helpers.h"
+#include "iwl-core.h"
+#include "iwl-dev.h"
 
 
 static const struct {
@@ -67,8 +69,8 @@ static const struct {
 #define IWL_MAX_BLINK_TBL (ARRAY_SIZE(blink_tbl) - 1) /*Exclude Solid on*/
 #define IWL_SOLID_BLINK_IDX (ARRAY_SIZE(blink_tbl) - 1)
 
-static int iwl3945_led_cmd_callback(struct iwl3945_priv *priv,
-				    struct iwl3945_cmd *cmd,
+static int iwl3945_led_cmd_callback(struct iwl_priv *priv,
+				    struct iwl_cmd *cmd,
 				    struct sk_buff *skb)
 {
 	return 1;
@@ -80,27 +82,27 @@ static inline int iwl3945_brightness_to_idx(enum led_brightness brightness)
 }
 
 /* Send led command */
-static int iwl_send_led_cmd(struct iwl3945_priv *priv,
-			    struct iwl3945_led_cmd *led_cmd)
+static int iwl_send_led_cmd(struct iwl_priv *priv,
+			    struct iwl_led_cmd *led_cmd)
 {
-	struct iwl3945_host_cmd cmd = {
+	struct iwl_host_cmd cmd = {
 		.id = REPLY_LEDS_CMD,
-		.len = sizeof(struct iwl3945_led_cmd),
+		.len = sizeof(struct iwl_led_cmd),
 		.data = led_cmd,
 		.meta.flags = CMD_ASYNC,
 		.meta.u.callback = iwl3945_led_cmd_callback,
 	};
 
-	return iwl3945_send_cmd(priv, &cmd);
+	return iwl_send_cmd(priv, &cmd);
 }
 
 
 
 /* Set led on command */
-static int iwl3945_led_pattern(struct iwl3945_priv *priv, int led_id,
+static int iwl3945_led_pattern(struct iwl_priv *priv, int led_id,
 			       unsigned int idx)
 {
-	struct iwl3945_led_cmd led_cmd = {
+	struct iwl_led_cmd led_cmd = {
 		.id = led_id,
 		.interval = IWL_DEF_LED_INTRVL
 	};
@@ -114,11 +116,10 @@ static int iwl3945_led_pattern(struct iwl3945_priv *priv, int led_id,
 }
 
 
-#if 1
 /* Set led on command */
-static int iwl3945_led_on(struct iwl3945_priv *priv, int led_id)
+static int iwl3945_led_on(struct iwl_priv *priv, int led_id)
 {
-	struct iwl3945_led_cmd led_cmd = {
+	struct iwl_led_cmd led_cmd = {
 		.id = led_id,
 		.on = IWL_LED_SOLID,
 		.off = 0,
@@ -128,9 +129,9 @@ static int iwl3945_led_on(struct iwl3945_priv *priv, int led_id)
 }
 
 /* Set led off command */
-static int iwl3945_led_off(struct iwl3945_priv *priv, int led_id)
+static int iwl3945_led_off(struct iwl_priv *priv, int led_id)
 {
-	struct iwl3945_led_cmd led_cmd = {
+	struct iwl_led_cmd led_cmd = {
 		.id = led_id,
 		.on = 0,
 		.off = 0,
@@ -139,13 +140,11 @@ static int iwl3945_led_off(struct iwl3945_priv *priv, int led_id)
 	IWL_DEBUG_LED("led off %d\n", led_id);
 	return iwl_send_led_cmd(priv, &led_cmd);
 }
-#endif
-
 
 /*
  * brightness call back function for Tx/Rx LED
  */
-static int iwl3945_led_associated(struct iwl3945_priv *priv, int led_id)
+static int iwl3945_led_associated(struct iwl_priv *priv, int led_id)
 {
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status) ||
 	    !test_bit(STATUS_READY, &priv->status))
@@ -166,7 +165,7 @@ static void iwl3945_led_brightness_set(struct led_classdev *led_cdev,
 {
 	struct iwl3945_led *led = container_of(led_cdev,
 					       struct iwl3945_led, led_dev);
-	struct iwl3945_priv *priv = led->priv;
+	struct iwl_priv *priv = led->priv;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -202,7 +201,7 @@ static void iwl3945_led_brightness_set(struct led_classdev *led_cdev,
 /*
  * Register led class with the system
  */
-static int iwl3945_led_register_led(struct iwl3945_priv *priv,
+static int iwl3945_led_register_led(struct iwl_priv *priv,
 				   struct iwl3945_led *led,
 				   enum led_type type, u8 set_led,
 				   char *trigger)
@@ -219,7 +218,7 @@ static int iwl3945_led_register_led(struct iwl3945_priv *priv,
 
 	ret = led_classdev_register(device, &led->led_dev);
 	if (ret) {
-		IWL_ERROR("Error: failed to register led handler.\n");
+		IWL_ERR(priv, "Error: failed to register led handler.\n");
 		return ret;
 	}
 
@@ -234,7 +233,7 @@ static int iwl3945_led_register_led(struct iwl3945_priv *priv,
 /*
  * calculate blink rate according to last 2 sec Tx/Rx activities
  */
-static inline u8 get_blink_rate(struct iwl3945_priv *priv)
+static inline u8 get_blink_rate(struct iwl_priv *priv)
 {
 	int index;
 	u64 current_tpt = priv->rxtxpackets;
@@ -253,7 +252,7 @@ static inline u8 get_blink_rate(struct iwl3945_priv *priv)
 	return index;
 }
 
-static inline int is_rf_kill(struct iwl3945_priv *priv)
+static inline int is_rf_kill(struct iwl_priv *priv)
 {
 	return test_bit(STATUS_RF_KILL_HW, &priv->status) ||
 		test_bit(STATUS_RF_KILL_SW, &priv->status);
@@ -264,7 +263,7 @@ static inline int is_rf_kill(struct iwl3945_priv *priv)
  * happen very frequent we postpone led command to be called from
  * REPLY handler so we know ucode is up
  */
-void iwl3945_led_background(struct iwl3945_priv *priv)
+void iwl3945_led_background(struct iwl_priv *priv)
 {
 	u8 blink_idx;
 
@@ -304,7 +303,7 @@ void iwl3945_led_background(struct iwl3945_priv *priv)
 
 
 /* Register all led handler */
-int iwl3945_led_register(struct iwl3945_priv *priv)
+int iwl3945_led_register(struct iwl_priv *priv)
 {
 	char *trigger;
 	int ret;
@@ -316,66 +315,66 @@ int iwl3945_led_register(struct iwl3945_priv *priv)
 	priv->allow_blinking = 0;
 
 	trigger = ieee80211_get_radio_led_name(priv->hw);
-	snprintf(priv->led[IWL_LED_TRG_RADIO].name,
-		 sizeof(priv->led[IWL_LED_TRG_RADIO].name), "iwl-%s:radio",
+	snprintf(priv->led39[IWL_LED_TRG_RADIO].name,
+		 sizeof(priv->led39[IWL_LED_TRG_RADIO].name), "iwl-%s:radio",
 		 wiphy_name(priv->hw->wiphy));
 
-	priv->led[IWL_LED_TRG_RADIO].led_on = iwl3945_led_on;
-	priv->led[IWL_LED_TRG_RADIO].led_off = iwl3945_led_off;
-	priv->led[IWL_LED_TRG_RADIO].led_pattern = NULL;
+	priv->led39[IWL_LED_TRG_RADIO].led_on = iwl3945_led_on;
+	priv->led39[IWL_LED_TRG_RADIO].led_off = iwl3945_led_off;
+	priv->led39[IWL_LED_TRG_RADIO].led_pattern = NULL;
 
 	ret = iwl3945_led_register_led(priv,
-				   &priv->led[IWL_LED_TRG_RADIO],
+				   &priv->led39[IWL_LED_TRG_RADIO],
 				   IWL_LED_TRG_RADIO, 1, trigger);
 
 	if (ret)
 		goto exit_fail;
 
 	trigger = ieee80211_get_assoc_led_name(priv->hw);
-	snprintf(priv->led[IWL_LED_TRG_ASSOC].name,
-		 sizeof(priv->led[IWL_LED_TRG_ASSOC].name), "iwl-%s:assoc",
+	snprintf(priv->led39[IWL_LED_TRG_ASSOC].name,
+		 sizeof(priv->led39[IWL_LED_TRG_ASSOC].name), "iwl-%s:assoc",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl3945_led_register_led(priv,
-				   &priv->led[IWL_LED_TRG_ASSOC],
+				   &priv->led39[IWL_LED_TRG_ASSOC],
 				   IWL_LED_TRG_ASSOC, 0, trigger);
 
 	/* for assoc always turn led on */
-	priv->led[IWL_LED_TRG_ASSOC].led_on = iwl3945_led_on;
-	priv->led[IWL_LED_TRG_ASSOC].led_off = iwl3945_led_on;
-	priv->led[IWL_LED_TRG_ASSOC].led_pattern = NULL;
+	priv->led39[IWL_LED_TRG_ASSOC].led_on = iwl3945_led_on;
+	priv->led39[IWL_LED_TRG_ASSOC].led_off = iwl3945_led_on;
+	priv->led39[IWL_LED_TRG_ASSOC].led_pattern = NULL;
 
 	if (ret)
 		goto exit_fail;
 
 	trigger = ieee80211_get_rx_led_name(priv->hw);
-	snprintf(priv->led[IWL_LED_TRG_RX].name,
-		 sizeof(priv->led[IWL_LED_TRG_RX].name), "iwl-%s:RX",
+	snprintf(priv->led39[IWL_LED_TRG_RX].name,
+		 sizeof(priv->led39[IWL_LED_TRG_RX].name), "iwl-%s:RX",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl3945_led_register_led(priv,
-				   &priv->led[IWL_LED_TRG_RX],
+				   &priv->led39[IWL_LED_TRG_RX],
 				   IWL_LED_TRG_RX, 0, trigger);
 
-	priv->led[IWL_LED_TRG_RX].led_on = iwl3945_led_associated;
-	priv->led[IWL_LED_TRG_RX].led_off = iwl3945_led_associated;
-	priv->led[IWL_LED_TRG_RX].led_pattern = iwl3945_led_pattern;
+	priv->led39[IWL_LED_TRG_RX].led_on = iwl3945_led_associated;
+	priv->led39[IWL_LED_TRG_RX].led_off = iwl3945_led_associated;
+	priv->led39[IWL_LED_TRG_RX].led_pattern = iwl3945_led_pattern;
 
 	if (ret)
 		goto exit_fail;
 
 	trigger = ieee80211_get_tx_led_name(priv->hw);
-	snprintf(priv->led[IWL_LED_TRG_TX].name,
-		 sizeof(priv->led[IWL_LED_TRG_TX].name), "iwl-%s:TX",
+	snprintf(priv->led39[IWL_LED_TRG_TX].name,
+		 sizeof(priv->led39[IWL_LED_TRG_TX].name), "iwl-%s:TX",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl3945_led_register_led(priv,
-				   &priv->led[IWL_LED_TRG_TX],
+				   &priv->led39[IWL_LED_TRG_TX],
 				   IWL_LED_TRG_TX, 0, trigger);
 
-	priv->led[IWL_LED_TRG_TX].led_on = iwl3945_led_associated;
-	priv->led[IWL_LED_TRG_TX].led_off = iwl3945_led_associated;
-	priv->led[IWL_LED_TRG_TX].led_pattern = iwl3945_led_pattern;
+	priv->led39[IWL_LED_TRG_TX].led_on = iwl3945_led_associated;
+	priv->led39[IWL_LED_TRG_TX].led_off = iwl3945_led_associated;
+	priv->led39[IWL_LED_TRG_TX].led_pattern = iwl3945_led_pattern;
 
 	if (ret)
 		goto exit_fail;
@@ -402,11 +401,11 @@ static void iwl3945_led_unregister_led(struct iwl3945_led *led, u8 set_led)
 }
 
 /* Unregister all led handlers */
-void iwl3945_led_unregister(struct iwl3945_priv *priv)
+void iwl3945_led_unregister(struct iwl_priv *priv)
 {
-	iwl3945_led_unregister_led(&priv->led[IWL_LED_TRG_ASSOC], 0);
-	iwl3945_led_unregister_led(&priv->led[IWL_LED_TRG_RX], 0);
-	iwl3945_led_unregister_led(&priv->led[IWL_LED_TRG_TX], 0);
-	iwl3945_led_unregister_led(&priv->led[IWL_LED_TRG_RADIO], 1);
+	iwl3945_led_unregister_led(&priv->led39[IWL_LED_TRG_ASSOC], 0);
+	iwl3945_led_unregister_led(&priv->led39[IWL_LED_TRG_RX], 0);
+	iwl3945_led_unregister_led(&priv->led39[IWL_LED_TRG_TX], 0);
+	iwl3945_led_unregister_led(&priv->led39[IWL_LED_TRG_RADIO], 1);
 }
 
