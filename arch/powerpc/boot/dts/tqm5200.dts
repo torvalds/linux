@@ -17,6 +17,7 @@
 	compatible = "tqc,tqm5200";
 	#address-cells = <1>;
 	#size-cells = <1>;
+	interrupt-parent = <&mpc5200_pic>;
 
 	cpus {
 		#address-cells = <1>;
@@ -66,36 +67,33 @@
 			compatible = "fsl,mpc5200-gpt";
 			reg = <0x600 0x10>;
 			interrupts = <1 9 0>;
-			interrupt-parent = <&mpc5200_pic>;
 			fsl,has-wdt;
 		};
 
 		can@900 {
 			compatible = "fsl,mpc5200-mscan";
 			interrupts = <2 17 0>;
-			interrupt-parent = <&mpc5200_pic>;
 			reg = <0x900 0x80>;
 		};
 
 		can@980 {
 			compatible = "fsl,mpc5200-mscan";
 			interrupts = <2 18 0>;
-			interrupt-parent = <&mpc5200_pic>;
 			reg = <0x980 0x80>;
 		};
 
-		gpio@b00 {
+		gpio_simple: gpio@b00 {
 			compatible = "fsl,mpc5200-gpio";
 			reg = <0xb00 0x40>;
 			interrupts = <1 7 0>;
-			interrupt-parent = <&mpc5200_pic>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		usb@1000 {
 			compatible = "fsl,mpc5200-ohci","ohci-be";
 			reg = <0x1000 0xff>;
 			interrupts = <2 6 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		dma-controller@1200 {
@@ -105,7 +103,6 @@
 			              3 4 0  3 5 0  3 6 0  3 7 0
 			              3 8 0  3 9 0  3 10 0  3 11 0
 			              3 12 0  3 13 0  3 14 0  3 15 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		xlb@1f00 {
@@ -114,39 +111,28 @@
 		};
 
 		serial@2000 {		// PSC1
-			device_type = "serial";
 			compatible = "fsl,mpc5200-psc-uart";
-			port-number = <0>;  // Logical port assignment
 			reg = <0x2000 0x100>;
 			interrupts = <2 1 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		serial@2200 {		// PSC2
-			device_type = "serial";
 			compatible = "fsl,mpc5200-psc-uart";
-			port-number = <1>;  // Logical port assignment
 			reg = <0x2200 0x100>;
 			interrupts = <2 2 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		serial@2400 {		// PSC3
-			device_type = "serial";
 			compatible = "fsl,mpc5200-psc-uart";
-			port-number = <2>;  // Logical port assignment
 			reg = <0x2400 0x100>;
 			interrupts = <2 3 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		ethernet@3000 {
-			device_type = "network";
 			compatible = "fsl,mpc5200-fec";
 			reg = <0x3000 0x400>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <2 5 0>;
-			interrupt-parent = <&mpc5200_pic>;
 			phy-handle = <&phy0>;
 		};
 
@@ -156,10 +142,8 @@
 			compatible = "fsl,mpc5200-mdio";
 			reg = <0x3000 0x400>;       // fec range, since we need to setup fec interrupts
 			interrupts = <2 5 0>;   // these are for "mii command finished", not link changes & co.
-			interrupt-parent = <&mpc5200_pic>;
 
 			phy0: ethernet-phy@0 {
-				device_type = "ethernet-phy";
 				reg = <0>;
 			};
 		};
@@ -168,7 +152,6 @@
 			compatible = "fsl,mpc5200-ata";
 			reg = <0x3a00 0x100>;
 			interrupts = <2 7 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		i2c@3d40 {
@@ -177,7 +160,6 @@
 			compatible = "fsl,mpc5200-i2c","fsl-i2c";
 			reg = <0x3d40 0x40>;
 			interrupts = <2 16 0>;
-			interrupt-parent = <&mpc5200_pic>;
 			fsl5200-clocking;
 
 			 rtc@68 {
@@ -192,9 +174,8 @@
 		};
 	};
 
-	lpb {
-		model = "fsl,lpb";
-		compatible = "fsl,lpb";
+	localbus {
+		compatible = "fsl,mpc5200-lpb","simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges = <0 0 0xfc000000 0x02000000>;
@@ -223,7 +204,6 @@
 				 0xc000 0 0 4 &mpc5200_pic 0 0 3>;
 		clock-frequency = <0>; // From boot loader
 		interrupts = <2 8 0 2 9 0 2 10 0>;
-		interrupt-parent = <&mpc5200_pic>;
 		bus-range = <0 0>;
 		ranges = <0x42000000 0 0x80000000 0x80000000 0 0x10000000
 			  0x02000000 0 0x90000000 0x90000000 0 0x10000000
