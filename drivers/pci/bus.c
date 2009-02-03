@@ -133,7 +133,7 @@ int pci_bus_add_child(struct pci_bus *bus)
  *
  * Call hotplug for each new devices.
  */
-void pci_bus_add_devices(struct pci_bus *bus)
+void pci_bus_add_devices(const struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	struct pci_bus *child;

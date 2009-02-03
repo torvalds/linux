@@ -528,7 +528,7 @@ void pcibios_update_irq(struct pci_dev *, int irq);
 /* Generic PCI functions used internally */
 
 extern struct pci_bus *pci_find_bus(int domain, int busnr);
-void pci_bus_add_devices(struct pci_bus *bus);
+void pci_bus_add_devices(const struct pci_bus *bus);
 struct pci_bus *pci_scan_bus_parented(struct device *parent, int bus,
 				      struct pci_ops *ops, void *sysdata);
 static inline struct pci_bus * __devinit pci_scan_bus(int bus, struct pci_ops *ops,
