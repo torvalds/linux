@@ -192,11 +192,11 @@ static void ath9k_reg_apply_5ghz_beaconing_flags(struct wiphy *wiphy,
 		 * it by applying our static world regdomain by default during
 		 * probe */
 		if (!(reg_rule->flags & NL80211_RRF_NO_IBSS))
-			ch->flags &= ~NL80211_RRF_NO_IBSS;
+			ch->flags &= ~IEEE80211_CHAN_NO_IBSS;
 		if (!ath9k_is_radar_freq(ch->center_freq))
 			continue;
 		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
-			ch->flags &= ~NL80211_RRF_PASSIVE_SCAN;
+			ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
 	}
 }
 
