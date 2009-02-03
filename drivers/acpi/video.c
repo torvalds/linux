@@ -2006,6 +2006,12 @@ static int acpi_video_bus_add(struct acpi_device *device)
 			device->pnp.bus_id[3] = '0' + instance;
 		instance ++;
 	}
+	/* a hack to fix the duplicate name "VGA" problem on Pa 3553 */
+	if (!strcmp(device->pnp.bus_id, "VGA")) {
+		if (instance)
+			device->pnp.bus_id[3] = '0' + instance;
+		instance++;
+	}
 
 	video->device = device;
 	strcpy(acpi_device_name(device), ACPI_VIDEO_BUS_NAME);
