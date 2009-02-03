@@ -1237,7 +1237,7 @@ static void tsi108_init_phy(struct net_device *dev)
 	spin_lock_irqsave(&phy_lock, flags);
 
 	tsi108_write_mii(data, MII_BMCR, BMCR_RESET);
-	while (i--){
+	while (--i) {
 		if(!(tsi108_read_mii(data, MII_BMCR) & BMCR_RESET))
 			break;
 		udelay(10);

@@ -1981,6 +1981,7 @@ void iscsi_pool_free(struct iscsi_pool *q)
 		kfree(q->pool[i]);
 	if (q->pool)
 		kfree(q->pool);
+	kfree(q->queue);
 }
 EXPORT_SYMBOL_GPL(iscsi_pool_free);
 

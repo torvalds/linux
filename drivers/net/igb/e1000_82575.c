@@ -699,11 +699,18 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 
 	/* SGMII link check is done through the PCS register. */
 	if ((hw->phy.media_type != e1000_media_type_copper) ||
-	    (igb_sgmii_active_82575(hw)))
+	    (igb_sgmii_active_82575(hw))) {
 		ret_val = igb_get_pcs_speed_and_duplex_82575(hw, &speed,
 		                                             &duplex);
-	else
+		/*
+		 * Use this flag to determine if link needs to be checked or
+		 * not.  If  we have link clear the flag so that we do not
+		 * continue to check for link.
+		 */
+		hw->mac.get_link_status = !hw->mac.serdes_has_link;
+	} else {
 		ret_val = igb_check_for_copper_link(hw);
+	}
 
 	return ret_val;
 }

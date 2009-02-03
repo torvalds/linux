@@ -232,7 +232,7 @@ fw_card_bm_work(struct work_struct *work)
 	root_id = root_node->node_id;
 	grace = time_after(jiffies, card->reset_jiffies + DIV_ROUND_UP(HZ, 10));
 
-	if (card->bm_generation + 1 == generation ||
+	if (is_next_generation(generation, card->bm_generation) ||
 	    (card->bm_generation != generation && grace)) {
 		/*
 		 * This first step is to figure out who is IRM and
@@ -512,7 +512,7 @@ fw_core_remove_card(struct fw_card *card)
 	fw_core_initiate_bus_reset(card, 1);
 
 	mutex_lock(&card_mutex);
-	list_del(&card->link);
+	list_del_init(&card->link);
 	mutex_unlock(&card_mutex);
 
 	/* Set up the dummy driver. */

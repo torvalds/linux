@@ -1586,7 +1586,8 @@ static int mpeg_open(struct file *file)
 	lock_kernel();
 	list_for_each(list, &cx23885_devlist) {
 		h = list_entry(list, struct cx23885_dev, devlist);
-		if (h->v4l_device->minor == minor) {
+		if (h->v4l_device &&
+		    h->v4l_device->minor == minor) {
 			dev = h;
 			break;
 		}

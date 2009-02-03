@@ -84,6 +84,11 @@ struct cfq_data {
 	 */
 	struct cfq_rb_root service_tree;
 	unsigned int busy_queues;
+	/*
+	 * Used to track any pending rt requests so we can pre-empt current
+	 * non-RT cfqq in service when this value is non-zero.
+	 */
+	unsigned int busy_rt_queues;
 
 	int rq_in_driver;
 	int sync_flight;
@@ -562,6 +567,8 @@ static void cfq_add_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	BUG_ON(cfq_cfqq_on_rr(cfqq));
 	cfq_mark_cfqq_on_rr(cfqq);
 	cfqd->busy_queues++;
+	if (cfq_class_rt(cfqq))
+		cfqd->busy_rt_queues++;
 
 	cfq_resort_rr_list(cfqd, cfqq);
 }
@@ -581,6 +588,8 @@ static void cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 
 	BUG_ON(!cfqd->busy_queues);
 	cfqd->busy_queues--;
+	if (cfq_class_rt(cfqq))
+		cfqd->busy_rt_queues--;
 }
 
 /*
@@ -1005,6 +1014,20 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 		goto expire;
 
 	/*
+	 * If we have a RT cfqq waiting, then we pre-empt the current non-rt
+	 * cfqq.
+	 */
+	if (!cfq_class_rt(cfqq) && cfqd->busy_rt_queues) {
+		/*
+		 * We simulate this as cfqq timed out so that it gets to bank
+		 * the remaining of its time slice.
+		 */
+		cfq_log_cfqq(cfqd, cfqq, "preempt");
+		cfq_slice_expired(cfqd, 1);
+		goto new_queue;
+	}
+
+	/*
 	 * The active queue has requests and isn't expired, allow it to
 	 * dispatch.
 	 */
@@ -1065,6 +1088,13 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		}
 
 		if (RB_EMPTY_ROOT(&cfqq->sort_list))
+			break;
+
+		/*
+		 * If there is a non-empty RT cfqq waiting for current
+		 * cfqq's timeslice to complete, pre-empt this cfqq
+		 */
+		if (!cfq_class_rt(cfqq) && cfqd->busy_rt_queues)
 			break;
 
 	} while (dispatched < max_dispatch);
@@ -1801,6 +1831,12 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	if (rq_is_meta(rq) && !cfqq->meta_pending)
 		return 1;
 
+	/*
+	 * Allow an RT request to pre-empt an ongoing non-RT cfqq timeslice.
+	 */
+	if (cfq_class_rt(new_cfqq) && !cfq_class_rt(cfqq))
+		return 1;
+
 	if (!cfqd->active_cic || !cfq_cfqq_wait_request(cfqq))
 		return 0;
 
@@ -1870,7 +1906,8 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		/*
 		 * not the active queue - expire current slice if it is
 		 * idle and has expired it's mean thinktime or this new queue
-		 * has some old slice time left and is of higher priority
+		 * has some old slice time left and is of higher priority or
+		 * this new queue is RT and the current one is BE
 		 */
 		cfq_preempt_queue(cfqd, cfqq);
 		cfq_mark_cfqq_must_dispatch(cfqq);

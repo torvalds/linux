@@ -80,11 +80,8 @@ struct rb532_gpio_reg {
 /* Compact Flash GPIO pin */
 #define CF_GPIO_NUM		13
 
-extern void set_434_reg(unsigned reg_offs, unsigned bit, unsigned len, unsigned val);
-extern unsigned get_434_reg(unsigned reg_offs);
-extern void set_latch_u5(unsigned char or_mask, unsigned char nand_mask);
-extern unsigned char get_latch_u5(void);
 extern void rb532_gpio_set_ilevel(int bit, unsigned gpio);
 extern void rb532_gpio_set_istat(int bit, unsigned gpio);
+extern void rb532_gpio_set_func(unsigned gpio);
 
 #endif /* _RC32434_GPIO_H_ */

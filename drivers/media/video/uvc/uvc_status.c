@@ -1,7 +1,7 @@
 /*
  *      uvc_status.c  --  USB Video Class driver - Status endpoint
  *
- *      Copyright (C) 2007-2008
+ *      Copyright (C) 2007-2009
  *          Laurent Pinchart (laurent.pinchart@skynet.be)
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -12,7 +12,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>

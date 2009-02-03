@@ -2539,6 +2539,8 @@ static int stac92xx_build_pcms(struct hda_codec *codec)
 
 	info->name = "STAC92xx Analog";
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = stac92xx_pcm_analog_playback;
+	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
+		spec->multiout.dac_nids[0];
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = stac92xx_pcm_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[0];
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = spec->num_adcs;

@@ -2168,7 +2168,7 @@ static void gelic_wl_connected_event(struct gelic_wl_info *wl,
 		complete(&wl->assoc_done);
 		netif_carrier_on(port_to_netdev(wl_port(wl)));
 	} else
-		pr_debug("%s: event %#lx under wpa\n",
+		pr_debug("%s: event %#llx under wpa\n",
 				 __func__, event);
 }
 
