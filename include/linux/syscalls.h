@@ -108,8 +108,13 @@ struct old_linux_dirent;
 	asm ("\t.globl " #alias "\n\t.set " #alias ", " #name "\n"	\
 	     "\t.globl ." #alias "\n\t.set ." #alias ", ." #name)
 #else
+#ifdef CONFIG_ALPHA
+#define SYSCALL_ALIAS(alias, name)					\
+	asm ( #alias " = " #name "\n\t.globl " #alias)
+#else
 #define SYSCALL_ALIAS(alias, name)					\
 	asm ("\t.globl " #alias "\n\t.set " #alias ", " #name)
+#endif
 #endif
 
 #ifdef CONFIG_HAVE_SYSCALL_WRAPPERS

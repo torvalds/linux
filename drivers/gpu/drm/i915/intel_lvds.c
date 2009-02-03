@@ -311,7 +311,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	if (dev_priv->panel_fixed_mode != NULL) {
 		struct drm_display_mode *mode;
 
-		mutex_unlock(&dev->mode_config.mutex);
+		mutex_lock(&dev->mode_config.mutex);
 		mode = drm_mode_duplicate(dev, dev_priv->panel_fixed_mode);
 		drm_mode_probed_add(connector, mode);
 		mutex_unlock(&dev->mode_config.mutex);

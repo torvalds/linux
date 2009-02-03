@@ -31,6 +31,8 @@ inline u32 stb0899_do_div(u64 n, u32 d)
 	return n;
 }
 
+#if 0
+/* These functions are currently unused */
 /*
  * stb0899_calc_srate
  * Compute symbol rate
@@ -63,6 +65,7 @@ static u32 stb0899_get_srate(struct stb0899_state *state)
 
 	return stb0899_calc_srate(internal->master_clk, sfr);
 }
+#endif
 
 /*
  * stb0899_set_srate
