@@ -1065,8 +1065,10 @@ static int set_serial_info(struct tty_struct *tty,
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		if (((new_serial.flags & ~ASYNC_USR_MASK) !=
-		     (priv->flags & ~ASYNC_USR_MASK)))
+		     (priv->flags & ~ASYNC_USR_MASK))) {
+			unlock_kernel();
 			return -EPERM;
+		}
 		priv->flags = ((priv->flags & ~ASYNC_USR_MASK) |
 			       (new_serial.flags & ASYNC_USR_MASK));
 		priv->custom_divisor = new_serial.custom_divisor;
