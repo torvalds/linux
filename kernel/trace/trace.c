@@ -1402,27 +1402,25 @@ static enum print_line_t print_lat_fmt(struct trace_iterator *iter)
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
 	struct trace_event *event;
 	struct trace_entry *entry = iter->ent;
-	int ret;
 
 	test_cpu_buff_start(iter);
 
 	event = ftrace_find_event(entry->type);
 
 	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
-		ret = trace_print_lat_context(iter);
-		if (ret)
-			return ret;
+		if (!trace_print_lat_context(iter))
+			goto partial;
 	}
 
-	if (event && event->latency_trace) {
-		ret = event->latency_trace(iter, sym_flags);
-		if (ret)
-			return ret;
-		return TRACE_TYPE_HANDLED;
-	}
+	if (event && event->latency_trace)
+		return event->latency_trace(iter, sym_flags);
 
-	trace_seq_printf(s, "Unknown type %d\n", entry->type);
+	if (!trace_seq_printf(s, "Unknown type %d\n", entry->type))
+		goto partial;
+
 	return TRACE_TYPE_HANDLED;
+partial:
+	return TRACE_TYPE_PARTIAL_LINE;
 }
 
 static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
@@ -1431,7 +1429,6 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
 	struct trace_entry *entry;
 	struct trace_event *event;
-	int ret;
 
 	entry = iter->ent;
 
@@ -1440,22 +1437,19 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	event = ftrace_find_event(entry->type);
 
 	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
-		ret = trace_print_context(iter);
-		if (ret)
-			return ret;
+		if (!trace_print_context(iter))
+			goto partial;
 	}
 
-	if (event && event->trace) {
-		ret = event->trace(iter, sym_flags);
-		if (ret)
-			return ret;
-		return TRACE_TYPE_HANDLED;
-	}
-	ret = trace_seq_printf(s, "Unknown type %d\n", entry->type);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
+	if (event && event->trace)
+		return event->trace(iter, sym_flags);
+
+	if (!trace_seq_printf(s, "Unknown type %d\n", entry->type))
+		goto partial;
 
 	return TRACE_TYPE_HANDLED;
+partial:
+	return TRACE_TYPE_PARTIAL_LINE;
 }
 
 static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
@@ -1463,29 +1457,25 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry;
 	struct trace_event *event;
-	int ret;
 
 	entry = iter->ent;
 
 	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
-		ret = trace_seq_printf(s, "%d %d %llu ",
-			entry->pid, iter->cpu, iter->ts);
-		if (!ret)
-			return TRACE_TYPE_PARTIAL_LINE;
+		if (!trace_seq_printf(s, "%d %d %llu ",
+				      entry->pid, iter->cpu, iter->ts))
+			goto partial;
 	}
 
 	event = ftrace_find_event(entry->type);
-	if (event && event->raw) {
-		ret = event->raw(iter, 0);
-		if (ret)
-			return ret;
-		return TRACE_TYPE_HANDLED;
-	}
-	ret = trace_seq_printf(s, "%d ?\n", entry->type);
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
+	if (event && event->raw)
+		return event->raw(iter, 0);
+
+	if (!trace_seq_printf(s, "%d ?\n", entry->type))
+		goto partial;
 
 	return TRACE_TYPE_HANDLED;
+partial:
+	return TRACE_TYPE_PARTIAL_LINE;
 }
 
 static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
@@ -1504,8 +1494,11 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 	}
 
 	event = ftrace_find_event(entry->type);
-	if (event && event->hex)
-		event->hex(iter, 0);
+	if (event && event->hex) {
+		int ret = event->hex(iter, 0);
+		if (ret != TRACE_TYPE_HANDLED)
+			return ret;
+	}
 
 	SEQ_PUT_FIELD_RET(s, newline);
 
@@ -1544,7 +1537,7 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 
 	event = ftrace_find_event(entry->type);
 	if (event && event->binary)
-		event->binary(iter, 0);
+		return event->binary(iter, 0);
 
 	return TRACE_TYPE_HANDLED;
 }

@@ -173,7 +173,7 @@ static int trace_branch_print(struct trace_iterator *iter, int flags)
 			     field->line))
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 

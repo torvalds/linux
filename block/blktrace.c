@@ -1165,7 +1165,7 @@ static int blk_trace_event_print(struct trace_iterator *iter, int flags)
 	const u16 what = t->action & ((1 << BLK_TC_SHIFT) - 1);
 	int ret;
 
-	if (trace_print_context(iter))
+	if (!trace_print_context(iter))
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	if (unlikely(what == 0 || what > ARRAY_SIZE(what2act)))

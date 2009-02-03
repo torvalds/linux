@@ -286,55 +286,41 @@ seq_print_ip_sym(struct trace_seq *s, unsigned long ip, unsigned long sym_flags)
 	return ret;
 }
 
-static void
+static int
 lat_print_generic(struct trace_seq *s, struct trace_entry *entry, int cpu)
 {
 	int hardirq, softirq;
 	char *comm;
 
 	comm = trace_find_cmdline(entry->pid);
-
-	trace_seq_printf(s, "%8.8s-%-5d ", comm, entry->pid);
-	trace_seq_printf(s, "%3d", cpu);
-	trace_seq_printf(s, "%c%c",
-			(entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
-			 (entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ? 'X' : '.',
-			((entry->flags & TRACE_FLAG_NEED_RESCHED) ? 'N' : '.'));
-
 	hardirq = entry->flags & TRACE_FLAG_HARDIRQ;
 	softirq = entry->flags & TRACE_FLAG_SOFTIRQ;
-	if (hardirq && softirq) {
-		trace_seq_putc(s, 'H');
-	} else {
-		if (hardirq) {
-			trace_seq_putc(s, 'h');
-		} else {
-			if (softirq)
-				trace_seq_putc(s, 's');
-			else
-				trace_seq_putc(s, '.');
-		}
-	}
+
+	if (!trace_seq_printf(s, "%8.8s-%-5d %3d%c%c%c",
+			      comm, entry->pid, cpu,
+			      (entry->flags & TRACE_FLAG_IRQS_OFF) ? 'd' :
+				(entry->flags & TRACE_FLAG_IRQS_NOSUPPORT) ?
+				  'X' : '.',
+			      (entry->flags & TRACE_FLAG_NEED_RESCHED) ?
+				'N' : '.',
+			      (hardirq && softirq) ? 'H' :
+				hardirq ? 'h' : softirq ? 's' : '.'))
+		return 0;
 
 	if (entry->preempt_count)
-		trace_seq_printf(s, "%x", entry->preempt_count);
-	else
-		trace_seq_puts(s, ".");
+		return trace_seq_printf(s, "%x", entry->preempt_count);
+	return trace_seq_puts(s, ".");
 }
 
 static unsigned long preempt_mark_thresh = 100;
 
-static void
+static int
 lat_print_timestamp(struct trace_seq *s, u64 abs_usecs,
 		    unsigned long rel_usecs)
 {
-	trace_seq_printf(s, " %4lldus", abs_usecs);
-	if (rel_usecs > preempt_mark_thresh)
-		trace_seq_puts(s, "!: ");
-	else if (rel_usecs > 1)
-		trace_seq_puts(s, "+: ");
-	else
-		trace_seq_puts(s, " : ");
+	return trace_seq_printf(s, " %4lldus%c: ", abs_usecs,
+				rel_usecs > preempt_mark_thresh ? '!' :
+				  rel_usecs > 1 ? '+' : ' ');
 }
 
 int trace_print_context(struct trace_iterator *iter)
@@ -346,22 +332,14 @@ int trace_print_context(struct trace_iterator *iter)
 	unsigned long usec_rem = do_div(t, USEC_PER_SEC);
 	unsigned long secs = (unsigned long)t;
 
-	if (!trace_seq_printf(s, "%16s-%-5d ", comm, entry->pid))
-		goto partial;
-	if (!trace_seq_printf(s, "[%03d] ", entry->cpu))
-		goto partial;
-	if (!trace_seq_printf(s, "%5lu.%06lu: ", secs, usec_rem))
-		goto partial;
-
-	return 0;
-
-partial:
-	return TRACE_TYPE_PARTIAL_LINE;
+	return trace_seq_printf(s, "%16s-%-5d [%03d] %5lu.%06lu: ",
+				comm, entry->pid, entry->cpu, secs, usec_rem);
 }
 
 int trace_print_lat_context(struct trace_iterator *iter)
 {
 	u64 next_ts;
+	int ret;
 	struct trace_seq *s = &iter->seq;
 	struct trace_entry *entry = iter->ent,
 			   *next_entry = trace_find_next_entry(iter, NULL,
@@ -376,21 +354,22 @@ int trace_print_lat_context(struct trace_iterator *iter)
 
 	if (verbose) {
 		char *comm = trace_find_cmdline(entry->pid);
-		trace_seq_printf(s, "%16s %5d %3d %d %08x %08lx [%08lx]"
-				 " %ld.%03ldms (+%ld.%03ldms): ",
-				 comm,
-				 entry->pid, entry->cpu, entry->flags,
-				 entry->preempt_count, iter->idx,
-				 ns2usecs(iter->ts),
-				 abs_usecs/1000,
-				 abs_usecs % 1000, rel_usecs/1000,
-				 rel_usecs % 1000);
+		ret = trace_seq_printf(s, "%16s %5d %3d %d %08x %08lx [%08lx]"
+				       " %ld.%03ldms (+%ld.%03ldms): ", comm,
+				       entry->pid, entry->cpu, entry->flags,
+				       entry->preempt_count, iter->idx,
+				       ns2usecs(iter->ts),
+				       abs_usecs / USEC_PER_MSEC,
+				       abs_usecs % USEC_PER_MSEC,
+				       rel_usecs / USEC_PER_MSEC,
+				       rel_usecs % USEC_PER_MSEC);
 	} else {
-		lat_print_generic(s, entry, entry->cpu);
-		lat_print_timestamp(s, abs_usecs, rel_usecs);
+		ret = lat_print_generic(s, entry, entry->cpu);
+		if (ret)
+			ret = lat_print_timestamp(s, abs_usecs, rel_usecs);
 	}
 
-	return 0;
+	return ret;
 }
 
 static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
@@ -486,7 +465,7 @@ int unregister_ftrace_event(struct trace_event *event)
 
 int trace_nop_print(struct trace_iterator *iter, int flags)
 {
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 /* TRACE_FN */
@@ -506,7 +485,7 @@ static int trace_fn_latency(struct trace_iterator *iter, int flags)
 	if (!trace_seq_puts(s, ")\n"))
 		goto partial;
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 
  partial:
 	return TRACE_TYPE_PARTIAL_LINE;
@@ -533,7 +512,7 @@ static int trace_fn_trace(struct trace_iterator *iter, int flags)
 	if (!trace_seq_printf(s, "\n"))
 		goto partial;
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 
  partial:
 	return TRACE_TYPE_PARTIAL_LINE;
@@ -550,7 +529,7 @@ static int trace_fn_raw(struct trace_iterator *iter, int flags)
 			      field->parent_ip))
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 static int trace_fn_hex(struct trace_iterator *iter, int flags)
@@ -563,7 +542,7 @@ static int trace_fn_hex(struct trace_iterator *iter, int flags)
 	SEQ_PUT_HEX_FIELD_RET(s, field->ip);
 	SEQ_PUT_HEX_FIELD_RET(s, field->parent_ip);
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 static int trace_fn_bin(struct trace_iterator *iter, int flags)
@@ -576,7 +555,7 @@ static int trace_fn_bin(struct trace_iterator *iter, int flags)
 	SEQ_PUT_FIELD_RET(s, field->ip);
 	SEQ_PUT_FIELD_RET(s, field->parent_ip);
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 static struct trace_event trace_fn_event = {
@@ -611,7 +590,7 @@ static int trace_ctxwake_print(struct trace_iterator *iter, char *delim)
 			      T, comm))
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 static int trace_ctx_print(struct trace_iterator *iter, int flags)
@@ -644,7 +623,7 @@ static int trace_ctxwake_raw(struct trace_iterator *iter, char S)
 			      T))
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 static int trace_ctx_raw(struct trace_iterator *iter, int flags)
@@ -678,7 +657,7 @@ static int trace_ctxwake_hex(struct trace_iterator *iter, char S)
 	SEQ_PUT_HEX_FIELD_RET(s, field->next_prio);
 	SEQ_PUT_HEX_FIELD_RET(s, T);
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 static int trace_ctx_hex(struct trace_iterator *iter, int flags)
@@ -705,7 +684,7 @@ static int trace_ctxwake_bin(struct trace_iterator *iter, int flags)
 	SEQ_PUT_FIELD_RET(s, field->next_prio);
 	SEQ_PUT_FIELD_RET(s, field->next_state);
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 static struct trace_event trace_ctx_event = {
@@ -739,7 +718,7 @@ static int trace_special_print(struct trace_iterator *iter, int flags)
 			      field->arg3))
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 static int trace_special_hex(struct trace_iterator *iter, int flags)
@@ -753,7 +732,7 @@ static int trace_special_hex(struct trace_iterator *iter, int flags)
 	SEQ_PUT_HEX_FIELD_RET(s, field->arg2);
 	SEQ_PUT_HEX_FIELD_RET(s, field->arg3);
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 static int trace_special_bin(struct trace_iterator *iter, int flags)
@@ -767,7 +746,7 @@ static int trace_special_bin(struct trace_iterator *iter, int flags)
 	SEQ_PUT_FIELD_RET(s, field->arg2);
 	SEQ_PUT_FIELD_RET(s, field->arg3);
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 }
 
 static struct trace_event trace_special_event = {
@@ -801,7 +780,7 @@ static int trace_stack_print(struct trace_iterator *iter, int flags)
 			goto partial;
 	}
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 
  partial:
 	return TRACE_TYPE_PARTIAL_LINE;
@@ -830,7 +809,7 @@ static int trace_user_stack_print(struct trace_iterator *iter, int flags)
 	if (!trace_seq_putc(s, '\n'))
 		goto partial;
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 
  partial:
 	return TRACE_TYPE_PARTIAL_LINE;
@@ -859,7 +838,7 @@ static int trace_print_print(struct trace_iterator *iter, int flags)
 	if (!trace_seq_printf(s, ": %s", field->buf))
 		goto partial;
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 
  partial:
 	return TRACE_TYPE_PARTIAL_LINE;
@@ -874,7 +853,7 @@ static int trace_print_raw(struct trace_iterator *iter, int flags)
 	if (!trace_seq_printf(&iter->seq, "# %lx %s", field->ip, field->buf))
 		goto partial;
 
-	return 0;
+	return TRACE_TYPE_HANDLED;
 
  partial:
 	return TRACE_TYPE_PARTIAL_LINE;
