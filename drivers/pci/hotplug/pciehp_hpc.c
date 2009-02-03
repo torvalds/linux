@@ -672,10 +672,11 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		detected &= (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 			     PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
 			     PCI_EXP_SLTSTA_CC);
+		detected &= ~intr_loc;
 		intr_loc |= detected;
 		if (!intr_loc)
 			return IRQ_NONE;
-		if (detected && pciehp_writew(ctrl, PCI_EXP_SLTSTA, detected)) {
+		if (detected && pciehp_writew(ctrl, PCI_EXP_SLTSTA, intr_loc)) {
 			ctrl_err(ctrl, "%s: Cannot write to SLOTSTATUS\n",
 				 __func__);
 			return IRQ_NONE;
