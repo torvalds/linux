@@ -237,6 +237,7 @@ struct nubus_dirent
 	int mask;
 };
 
+#ifdef __KERNEL__
 struct nubus_board {
 	struct nubus_board* next;
 	struct nubus_dev* first_dev;
@@ -296,7 +297,6 @@ struct nubus_dev {
 	struct nubus_board* board;
 };
 
-#ifdef __KERNEL__
 /* This is all NuBus devices (used to find devices later on) */
 extern struct nubus_dev* nubus_devices;
 /* This is all NuBus cards */

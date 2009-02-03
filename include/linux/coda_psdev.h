@@ -6,6 +6,7 @@
 #define CODA_PSDEV_MAJOR 67
 #define MAX_CODADEVS  5	   /* how many do we allow */
 
+#ifdef __KERNEL__
 struct kstatfs;
 
 /* communication pending/processing queues */
@@ -24,7 +25,6 @@ static inline struct venus_comm *coda_vcp(struct super_block *sb)
 	return (struct venus_comm *)((sb)->s_fs_info);
 }
 
-#ifdef __KERNEL__
 /* upcalls */
 int venus_rootfid(struct super_block *sb, struct CodaFid *fidp);
 int venus_getattr(struct super_block *sb, struct CodaFid *fid,
