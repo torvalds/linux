@@ -51,13 +51,20 @@ static inline void __flush_cache_all(void)
 		"movec	%%d0,%%CACR\n\t"
 		: : : "d0", "a0" );
 #endif /* CONFIG_M5407 */
-#if defined(CONFIG_M527x) || defined(CONFIG_M528x)
+#if defined(CONFIG_M523x) || defined(CONFIG_M527x)
+	__asm__ __volatile__ (
+		"movel	#0x81400100, %%d0\n\t"
+		"movec	%%d0, %%CACR\n\t"
+		"nop\n\t"
+		: : : "d0" );
+#endif /* CONFIG_M523x || CONFIG_M527x */
+#if defined(CONFIG_M528x)
 	__asm__ __volatile__ (
 		"movel	#0x81000200, %%d0\n\t"
 		"movec	%%d0, %%CACR\n\t"
 		"nop\n\t"
 		: : : "d0" );
-#endif /* CONFIG_M527x || CONFIG_M528x */
+#endif /* CONFIG_M528x */
 #if defined(CONFIG_M5206) || defined(CONFIG_M5206e) || defined(CONFIG_M5272)
 	__asm__ __volatile__ (
 		"movel	#0x81000100, %%d0\n\t"

@@ -1393,35 +1393,35 @@ int pci_restore_standard_config(struct pci_dev *dev)
 	pci_power_t prev_state;
 	int error;
 
-	pci_restore_state(dev);
 	pci_update_current_state(dev, PCI_D0);
 
 	prev_state = dev->current_state;
 	if (prev_state == PCI_D0)
-		return 0;
+		goto Restore;
 
 	error = pci_raw_set_power_state(dev, PCI_D0, false);
 	if (error)
 		return error;
 
-	if (pci_is_bridge(dev)) {
-		if (prev_state > PCI_D1)
-			mdelay(PCI_PM_BUS_WAIT);
-	} else {
-		switch(prev_state) {
-		case PCI_D3cold:
-		case PCI_D3hot:
-			mdelay(pci_pm_d3_delay);
-			break;
-		case PCI_D2:
-			udelay(PCI_PM_D2_DELAY);
-			break;
-		}
+	/*
+	 * This assumes that we won't get a bus in B2 or B3 from the BIOS, but
+	 * we've made this assumption forever and it appears to be universally
+	 * satisfied.
+	 */
+	switch(prev_state) {
+	case PCI_D3cold:
+	case PCI_D3hot:
+		mdelay(pci_pm_d3_delay);
+		break;
+	case PCI_D2:
+		udelay(PCI_PM_D2_DELAY);
+		break;
 	}
 
 	dev->current_state = PCI_D0;
 
-	return 0;
+ Restore:
+	return pci_restore_state(dev);
 }
 
 /**

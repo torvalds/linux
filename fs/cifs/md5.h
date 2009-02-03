@@ -20,10 +20,10 @@ struct HMACMD5Context {
 };
 #endif				/* _HMAC_MD5_H */
 
-void MD5Init(struct MD5Context *context);
-void MD5Update(struct MD5Context *context, unsigned char const *buf,
+void cifs_MD5_init(struct MD5Context *context);
+void cifs_MD5_update(struct MD5Context *context, unsigned char const *buf,
 			unsigned len);
-void MD5Final(unsigned char digest[16], struct MD5Context *context);
+void cifs_MD5_final(unsigned char digest[16], struct MD5Context *context);
 
 /* The following definitions come from lib/hmacmd5.c  */
 

@@ -349,7 +349,6 @@ struct card_info {
 	u16 i2c_decoder, i2c_encoder;			/* I2C types */
 	u16 video_vfe, video_codec;			/* videocodec types */
 	u16 audio_chip;					/* audio type */
-	u16 vendor_id, device_id;	/* subsystem vendor/device ID */
 
 	int inputs;		/* number of video inputs */
 	struct input {
@@ -401,7 +400,6 @@ struct zoran {
 	char name[32];		/* name of this device */
 	struct pci_dev *pci_dev;	/* PCI device */
 	unsigned char revision;	/* revision of zr36057 */
-	unsigned int zr36057_adr;	/* bus address of IO mem returned by PCI BIOS */
 	unsigned char __iomem *zr36057_mem;/* pointer to mapped IO memory */
 
 	spinlock_t spinlock;	/* Spinlock */
@@ -490,16 +488,10 @@ struct zoran {
 	wait_queue_head_t test_q;
 };
 
-/*The following should be done in more portable way. It depends on define
-  of _ALPHA_BUZ in the Makefile.*/
-
-#ifdef _ALPHA_BUZ
-#define btwrite(dat,adr)    writel((dat), zr->zr36057_adr+(adr))
-#define btread(adr)         readl(zr->zr36057_adr+(adr))
-#else
+/* There was something called _ALPHA_BUZ that used the PCI address instead of
+ * the kernel iomapped address for btread/btwrite.  */
 #define btwrite(dat,adr)    writel((dat), zr->zr36057_mem+(adr))
 #define btread(adr)         readl(zr->zr36057_mem+(adr))
-#endif
 
 #define btand(dat,adr)      btwrite((dat) & btread(adr), adr)
 #define btor(dat,adr)       btwrite((dat) | btread(adr), adr)

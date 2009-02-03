@@ -1,6 +1,7 @@
 #ifndef __LINUX_IF_ADDR_H
 #define __LINUX_IF_ADDR_H
 
+#include <linux/types.h>
 #include <linux/netlink.h>
 
 struct ifaddrmsg

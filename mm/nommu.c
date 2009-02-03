@@ -1161,8 +1161,8 @@ error_free:
 	return ret;
 
 enomem:
-	printk("Allocation of length %lu from process %d failed\n",
-	       len, current->pid);
+	printk("Allocation of length %lu from process %d (%s) failed\n",
+	       len, current->pid, current->comm);
 	show_free_areas();
 	return -ENOMEM;
 }

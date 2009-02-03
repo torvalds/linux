@@ -9,9 +9,8 @@ config SUNRPC_XPRT_RDMA
 	depends on SUNRPC && INFINIBAND && EXPERIMENTAL
 	default SUNRPC && INFINIBAND
 	help
-	  This option enables an RPC client transport capability that
-	  allows the NFS client to mount servers via an RDMA-enabled
-	  transport.
+	  This option allows the NFS client and server to support
+	  an RDMA-enabled transport.
 
 	  To compile RPC client RDMA transport support as a module,
 	  choose M here: the module will be called xprtrdma.

@@ -276,6 +276,15 @@ static inline void fw_card_put(struct fw_card *card)
 extern void fw_schedule_bm_work(struct fw_card *card, unsigned long delay);
 
 /*
+ * Check whether new_generation is the immediate successor of old_generation.
+ * Take counter roll-over at 255 (as per to OHCI) into account.
+ */
+static inline bool is_next_generation(int new_generation, int old_generation)
+{
+	return (new_generation & 0xff) == ((old_generation + 1) & 0xff);
+}
+
+/*
  * The iso packet format allows for an immediate header/payload part
  * stored in 'header' immediately after the packet info plus an
  * indirect payload part that is pointer to by the 'payload' field.

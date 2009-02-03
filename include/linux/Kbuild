@@ -41,6 +41,7 @@ header-y += baycom.h
 header-y += bfs_fs.h
 header-y += blkpg.h
 header-y += bpqether.h
+header-y += bsg.h
 header-y += can.h
 header-y += cdk.h
 header-y += chio.h

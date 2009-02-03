@@ -162,7 +162,7 @@ static inline struct dentry *debugfs_create_x32(const char *name, mode_t mode,
 	return ERR_PTR(-ENODEV);
 }
 
-struct dentry *debugfs_create_size_t(const char *name, mode_t mode,
+static inline struct dentry *debugfs_create_size_t(const char *name, mode_t mode,
 				     struct dentry *parent,
 				     size_t *value)
 {
