@@ -2687,13 +2687,6 @@ static int sky2_poll(struct napi_struct *napi, int work_limit)
 			goto done;
 	}
 
-	/* Bug/Errata workaround?
-	 * Need to kick the TX irq moderation timer.
-	 */
-	if (sky2_read8(hw, STAT_TX_TIMER_CTRL) == TIM_START) {
-		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
-		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
-	}
 	napi_complete(napi);
 	sky2_read32(hw, B0_Y2_SP_LISR);
 done:
