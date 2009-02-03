@@ -4856,7 +4856,8 @@ S:	Supported
 
 XFS FILESYSTEM
 P:	Silicon Graphics Inc
-P:	Bill O'Donnell
+P:	Felix Blyakher
+M:	felixb@sgi.com
 M:	xfs-masters@oss.sgi.com
 L:	xfs@oss.sgi.com
 W:	http://oss.sgi.com/projects/xfs
