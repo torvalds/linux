@@ -491,7 +491,6 @@ ACPI_EXPORT_SYMBOL(acpi_get_table_by_index)
 static acpi_status acpi_tb_load_namespace(void)
 {
 	acpi_status status;
-	struct acpi_table_header *table;
 	u32 i;
 
 	ACPI_FUNCTION_TRACE(tb_load_namespace);
@@ -515,40 +514,12 @@ static acpi_status acpi_tb_load_namespace(void)
 		goto unlock_and_exit;
 	}
 
-	/*
-	 * Find DSDT table
-	 */
-	status =
-	    acpi_os_table_override(acpi_gbl_root_table_list.
-				   tables[ACPI_TABLE_INDEX_DSDT].pointer,
-				   &table);
-	if (ACPI_SUCCESS(status) && table) {
-		/*
-		 * DSDT table has been found
-		 */
-		acpi_tb_delete_table(&acpi_gbl_root_table_list.
-				     tables[ACPI_TABLE_INDEX_DSDT]);
-		acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].pointer =
-		    table;
-		acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].length =
-		    table->length;
-		acpi_gbl_root_table_list.tables[ACPI_TABLE_INDEX_DSDT].flags =
-		    ACPI_TABLE_ORIGIN_UNKNOWN;
-
-		ACPI_INFO((AE_INFO, "Table DSDT replaced by host OS"));
-		acpi_tb_print_table_header(0, table);
-
-		if (no_auto_ssdt == 0) {
-			printk(KERN_WARNING "ACPI: DSDT override uses original SSDTs unless \"acpi_no_auto_ssdt\"\n");
-		}
-	}
+	/* A valid DSDT is required */
 
 	status =
 	    acpi_tb_verify_table(&acpi_gbl_root_table_list.
 				 tables[ACPI_TABLE_INDEX_DSDT]);
 	if (ACPI_FAILURE(status)) {
-
-		/* A valid DSDT is required */
 
 		status = AE_NO_ACPI_TABLES;
 		goto unlock_and_exit;

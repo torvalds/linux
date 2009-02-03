@@ -287,7 +287,10 @@ u8 acpi_tb_checksum(u8 *buffer, u32 length)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Install an ACPI table into the global data structure.
+ * DESCRIPTION: Install an ACPI table into the global data structure. The
+ *              table override mechanism is implemented here to allow the host
+ *              OS to replace any table before it is installed in the root
+ *              table array.
  *
  ******************************************************************************/
 
@@ -295,7 +298,10 @@ void
 acpi_tb_install_table(acpi_physical_address address,
 		      u8 flags, char *signature, u32 table_index)
 {
-	struct acpi_table_header *table;
+	acpi_status status;
+	struct acpi_table_header *table_to_install;
+	struct acpi_table_header *mapped_table;
+	struct acpi_table_header *override_table = NULL;
 
 	if (!address) {
 		ACPI_ERROR((AE_INFO,
@@ -306,41 +312,68 @@ acpi_tb_install_table(acpi_physical_address address,
 
 	/* Map just the table header */
 
-	table = acpi_os_map_memory(address, sizeof(struct acpi_table_header));
-	if (!table) {
+	mapped_table =
+	    acpi_os_map_memory(address, sizeof(struct acpi_table_header));
+	if (!mapped_table) {
 		return;
 	}
 
-	/* If a particular signature is expected, signature must match */
+	/* If a particular signature is expected (DSDT/FACS), it must match */
 
-	if (signature && !ACPI_COMPARE_NAME(table->signature, signature)) {
+	if (signature && !ACPI_COMPARE_NAME(mapped_table->signature, signature)) {
 		ACPI_ERROR((AE_INFO,
-			    "Invalid signature 0x%X for ACPI table [%s]",
-			    *ACPI_CAST_PTR(u32, table->signature), signature));
+			    "Invalid signature 0x%X for ACPI table, expected [%s]",
+			    *ACPI_CAST_PTR(u32, mapped_table->signature),
+			    signature));
 		goto unmap_and_exit;
+	}
+
+	/*
+	 * ACPI Table Override:
+	 *
+	 * Before we install the table, let the host OS override it with a new
+	 * one if desired. Any table within the RSDT/XSDT can be replaced,
+	 * including the DSDT which is pointed to by the FADT.
+	 */
+	status = acpi_os_table_override(mapped_table, &override_table);
+	if (ACPI_SUCCESS(status) && override_table) {
+		ACPI_INFO((AE_INFO,
+			   "%4.4s @ 0x%p Table override, replaced with:",
+			   mapped_table->signature, ACPI_CAST_PTR(void,
+								  address)));
+
+		acpi_gbl_root_table_list.tables[table_index].pointer =
+		    override_table;
+		flags = ACPI_TABLE_ORIGIN_OVERRIDE;
+		address = ACPI_PTR_TO_PHYSADDR(override_table);
+
+		table_to_install = override_table;
+	} else {
+		table_to_install = mapped_table;
 	}
 
 	/* Initialize the table entry */
 
 	acpi_gbl_root_table_list.tables[table_index].address = address;
-	acpi_gbl_root_table_list.tables[table_index].length = table->length;
+	acpi_gbl_root_table_list.tables[table_index].length =
+	    table_to_install->length;
 	acpi_gbl_root_table_list.tables[table_index].flags = flags;
 
 	ACPI_MOVE_32_TO_32(&
 			   (acpi_gbl_root_table_list.tables[table_index].
-			    signature), table->signature);
+			    signature), table_to_install->signature);
 
-	acpi_tb_print_table_header(address, table);
+	acpi_tb_print_table_header(address, table_to_install);
 
 	if (table_index == ACPI_TABLE_INDEX_DSDT) {
 
 		/* Global integer width is based upon revision of the DSDT */
 
-		acpi_ut_set_integer_width(table->revision);
+		acpi_ut_set_integer_width(table_to_install->revision);
 	}
 
       unmap_and_exit:
-	acpi_os_unmap_memory(table, sizeof(struct acpi_table_header));
+	acpi_os_unmap_memory(mapped_table, sizeof(struct acpi_table_header));
 }
 
 /*******************************************************************************

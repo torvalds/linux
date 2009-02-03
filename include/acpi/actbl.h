@@ -310,8 +310,9 @@ struct acpi_table_desc {
 #define ACPI_TABLE_ORIGIN_UNKNOWN       (0)
 #define ACPI_TABLE_ORIGIN_MAPPED        (1)
 #define ACPI_TABLE_ORIGIN_ALLOCATED     (2)
-#define ACPI_TABLE_ORIGIN_MASK          (3)
-#define ACPI_TABLE_IS_LOADED            (4)
+#define ACPI_TABLE_ORIGIN_OVERRIDE      (4)
+#define ACPI_TABLE_ORIGIN_MASK          (7)
+#define ACPI_TABLE_IS_LOADED            (8)
 
 /*
  * Get the remaining ACPI tables

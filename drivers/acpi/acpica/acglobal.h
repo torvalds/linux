@@ -371,7 +371,6 @@ ACPI_EXTERN char *acpi_gbl_db_buffer;
 ACPI_EXTERN char *acpi_gbl_db_filename;
 ACPI_EXTERN u32 acpi_gbl_db_debug_level;
 ACPI_EXTERN u32 acpi_gbl_db_console_debug_level;
-ACPI_EXTERN struct acpi_table_header *acpi_gbl_db_table_ptr;
 ACPI_EXTERN struct acpi_namespace_node *acpi_gbl_db_scope_node;
 
 /*
