@@ -1849,12 +1849,12 @@ int dlm_assert_master_handler(struct o2net_msg *msg, u32 len, void *data,
 		if (!mle) {
 			if (res->owner != DLM_LOCK_RES_OWNER_UNKNOWN &&
 			    res->owner != assert->node_idx) {
-				mlog(ML_ERROR, "assert_master from "
-					  "%u, but current owner is "
-					  "%u! (%.*s)\n",
-				       assert->node_idx, res->owner,
-				       namelen, name);
-				goto kill;
+				mlog(ML_ERROR, "DIE! Mastery assert from %u, "
+				     "but current owner is %u! (%.*s)\n",
+				     assert->node_idx, res->owner, namelen,
+				     name);
+				__dlm_print_one_lock_resource(res);
+				BUG();
 			}
 		} else if (mle->type != DLM_MLE_MIGRATION) {
 			if (res->owner != DLM_LOCK_RES_OWNER_UNKNOWN) {
