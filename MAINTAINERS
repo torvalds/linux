@@ -4827,6 +4827,7 @@ P:	Ingo Molnar
 M:	mingo@redhat.com
 P:	H. Peter Anvin
 M:	hpa@zytor.com
+M:	x86@kernel.org
 L:	linux-kernel@vger.kernel.org
 T:	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 S:	Maintained
