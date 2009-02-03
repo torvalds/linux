@@ -160,6 +160,7 @@ struct b2062_freqdata {
 /* Initialize the 2062 radio. */
 static void lpphy_2062_init(struct b43_wldev *dev)
 {
+	struct ssb_bus *bus = dev->dev->bus;
 	u32 crystalfreq, pdiv, tmp, ref;
 	unsigned int i;
 	const struct b2062_freqdata *fd = NULL;
@@ -193,7 +194,11 @@ static void lpphy_2062_init(struct b43_wldev *dev)
 	else
 		b43_radio_mask(dev, B2062_N_TSSI_CTL0, ~0x1);
 
-	crystalfreq = 0;//FIXME
+	/* Get the crystal freq, in Hz. */
+	crystalfreq = bus->chipco.pmu.crystalfreq * 1000;
+
+	B43_WARN_ON(!(bus->chipco.capabilities & SSB_CHIPCO_CAP_PMU));
+	B43_WARN_ON(crystalfreq == 0);
 
 	if (crystalfreq >= 30000000) {
 		pdiv = 1;
@@ -219,13 +224,15 @@ static void lpphy_2062_init(struct b43_wldev *dev)
 			break;
 		}
 	}
-	if (B43_WARN_ON(!fd))
-		return;
+	if (!fd)
+		fd = &freqdata_tab[ARRAY_SIZE(freqdata_tab) - 1];
+	b43dbg(dev->wl, "b2062: Using crystal tab entry %u kHz.\n",
+	       fd->freq); /* FIXME: Keep this printk until the code is fully debugged. */
 
 	b43_radio_write(dev, B2062_S_RFPLL_CTL8,
 			((u16)(fd->data[1]) << 4) | fd->data[0]);
 	b43_radio_write(dev, B2062_S_RFPLL_CTL9,
-			((u16)(fd->data[3]) << 4) | fd->data[2]);//FIXME specs are different
+			((u16)(fd->data[3]) << 4) | fd->data[2]);
 	b43_radio_write(dev, B2062_S_RFPLL_CTL10, fd->data[4]);
 	b43_radio_write(dev, B2062_S_RFPLL_CTL11, fd->data[5]);
 }
