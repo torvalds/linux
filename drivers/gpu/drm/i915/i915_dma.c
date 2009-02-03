@@ -735,7 +735,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev_priv->num_fence_regs - dev_priv->fence_reg_start;
 		break;
 	default:
-		DRM_ERROR("Unknown parameter %d\n", param->param);
+		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 
@@ -775,7 +775,7 @@ static int i915_setparam(struct drm_device *dev, void *data,
 		dev_priv->fence_reg_start = param->value;
 		break;
 	default:
-		DRM_ERROR("unknown parameter %d\n", param->param);
+		DRM_DEBUG("unknown parameter %d\n", param->param);
 		return -EINVAL;
 	}
 
