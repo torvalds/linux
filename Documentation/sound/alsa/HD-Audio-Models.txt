@@ -56,6 +56,7 @@ ALC262
   sony-assamd	Sony ASSAMD
   toshiba-s06	Toshiba S06
   toshiba-rx1	Toshiba RX1
+  tyan		Tyan Thunder n6650W (S2915-E)
   ultra		Samsung Q1 Ultra Vista model
   lenovo-3000	Lenovo 3000 y410
   nec		NEC Versa S9100
