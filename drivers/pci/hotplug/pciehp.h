@@ -112,6 +112,7 @@ struct controller {
 	unsigned int no_cmd_complete:1;
 	unsigned int link_active_reporting:1;
 	unsigned int notification_enabled:1;
+	unsigned int power_fault_detected;
 };
 
 #define INT_BUTTON_IGNORE		0
