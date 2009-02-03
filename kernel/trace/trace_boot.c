@@ -28,13 +28,13 @@ void start_boot_trace(void)
 
 void enable_boot_trace(void)
 {
-	if (pre_initcalls_finished)
+	if (boot_trace && pre_initcalls_finished)
 		tracing_start_sched_switch_record();
 }
 
 void disable_boot_trace(void)
 {
-	if (pre_initcalls_finished)
+	if (boot_trace && pre_initcalls_finished)
 		tracing_stop_sched_switch_record();
 }
 
@@ -42,6 +42,9 @@ static int boot_trace_init(struct trace_array *tr)
 {
 	int cpu;
 	boot_trace = tr;
+
+	if (!tr)
+		return 0;
 
 	for_each_cpu(cpu, cpu_possible_mask)
 		tracing_reset(tr, cpu);
@@ -132,7 +135,7 @@ void trace_boot_call(struct boot_trace_call *bt, initcall_t fn)
 	unsigned long irq_flags;
 	struct trace_array *tr = boot_trace;
 
-	if (!pre_initcalls_finished)
+	if (!tr || !pre_initcalls_finished)
 		return;
 
 	/* Get its name now since this function could
@@ -164,7 +167,7 @@ void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn)
 	unsigned long irq_flags;
 	struct trace_array *tr = boot_trace;
 
-	if (!pre_initcalls_finished)
+	if (!tr || !pre_initcalls_finished)
 		return;
 
 	sprint_symbol(bt->func, (unsigned long)fn);

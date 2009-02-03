@@ -3167,12 +3167,9 @@ __init static int tracer_alloc_buffers(void)
 	trace_init_cmdlines();
 
 	register_tracer(&nop_trace);
+	current_trace = &nop_trace;
 #ifdef CONFIG_BOOT_TRACER
 	register_tracer(&boot_tracer);
-	current_trace = &boot_tracer;
-	current_trace->init(&global_trace);
-#else
-	current_trace = &nop_trace;
 #endif
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
