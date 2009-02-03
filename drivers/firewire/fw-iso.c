@@ -75,19 +75,21 @@ int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
 	kfree(buffer->pages);
  out:
 	buffer->pages = NULL;
+
 	return -ENOMEM;
 }
 
 int fw_iso_buffer_map(struct fw_iso_buffer *buffer, struct vm_area_struct *vma)
 {
 	unsigned long uaddr;
-	int i, ret;
+	int i, err;
 
 	uaddr = vma->vm_start;
 	for (i = 0; i < buffer->page_count; i++) {
-		ret = vm_insert_page(vma, uaddr, buffer->pages[i]);
-		if (ret)
-			return ret;
+		err = vm_insert_page(vma, uaddr, buffer->pages[i]);
+		if (err)
+			return err;
+
 		uaddr += PAGE_SIZE;
 	}
 

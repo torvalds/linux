@@ -761,7 +761,7 @@ static void fw_device_init(struct work_struct *work)
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
 	struct device *revived_dev;
-	int minor, err;
+	int minor, ret;
 
 	/*
 	 * All failure paths here set node->data to NULL, so that we
@@ -797,12 +797,12 @@ static void fw_device_init(struct work_struct *work)
 
 	fw_device_get(device);
 	down_write(&fw_device_rwsem);
-	err = idr_pre_get(&fw_device_idr, GFP_KERNEL) ?
+	ret = idr_pre_get(&fw_device_idr, GFP_KERNEL) ?
 	      idr_get_new(&fw_device_idr, device, &minor) :
 	      -ENOMEM;
 	up_write(&fw_device_rwsem);
 
-	if (err < 0)
+	if (ret < 0)
 		goto error;
 
 	device->device.bus = &fw_bus_type;

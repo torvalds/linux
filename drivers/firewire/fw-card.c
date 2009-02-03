@@ -404,7 +404,7 @@ int fw_card_add(struct fw_card *card,
 {
 	u32 *config_rom;
 	size_t length;
-	int err;
+	int ret;
 
 	card->max_receive = max_receive;
 	card->link_speed = link_speed;
@@ -415,13 +415,14 @@ int fw_card_add(struct fw_card *card,
 	list_add_tail(&card->link, &card_list);
 	mutex_unlock(&card_mutex);
 
-	err = card->driver->enable(card, config_rom, length);
-	if (err < 0) {
+	ret = card->driver->enable(card, config_rom, length);
+	if (ret < 0) {
 		mutex_lock(&card_mutex);
 		list_del(&card->link);
 		mutex_unlock(&card_mutex);
 	}
-	return err;
+
+	return ret;
 }
 EXPORT_SYMBOL(fw_card_add);
 

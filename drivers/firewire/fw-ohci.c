@@ -2459,11 +2459,12 @@ static int __devinit pci_probe(struct pci_dev *dev,
 		reg_read(ohci, OHCI1394_GUIDLo);
 
 	err = fw_card_add(&ohci->card, max_receive, link_speed, guid);
-	if (err < 0)
+	if (err)
 		goto fail_self_id;
 
 	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
 		  dev_name(&dev->dev), version >> 16, version & 0xff);
+
 	return 0;
 
  fail_self_id:
