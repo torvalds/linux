@@ -1068,13 +1068,16 @@ static void sky2_rx_submit(struct sky2_port *sky2,
 }
 
 
-static void sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
+static int sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 			    unsigned size)
 {
 	struct sk_buff *skb = re->skb;
 	int i;
 
 	re->data_addr = pci_map_single(pdev, skb->data, size, PCI_DMA_FROMDEVICE);
+	if (unlikely(pci_dma_mapping_error(pdev, re->data_addr)))
+		return -EIO;
+
 	pci_unmap_len_set(re, data_size, size);
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
@@ -1083,6 +1086,7 @@ static void sky2_rx_map_skb(struct pci_dev *pdev, struct rx_ring_info *re,
 						skb_shinfo(skb)->frags[i].page_offset,
 						skb_shinfo(skb)->frags[i].size,
 						PCI_DMA_FROMDEVICE);
+	return 0;
 }
 
 static void sky2_rx_unmap_skb(struct pci_dev *pdev, struct rx_ring_info *re)
@@ -1354,7 +1358,12 @@ static int sky2_rx_start(struct sky2_port *sky2)
 		if (!re->skb)
 			goto nomem;
 
-		sky2_rx_map_skb(hw->pdev, re, sky2->rx_data_size);
+		if (sky2_rx_map_skb(hw->pdev, re, sky2->rx_data_size)) {
+			dev_kfree_skb(re->skb);
+			re->skb = NULL;
+			goto nomem;
+		}
+
 		sky2_rx_submit(sky2, re);
 	}
 
@@ -1547,7 +1556,7 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	struct sky2_hw *hw = sky2->hw;
 	struct sky2_tx_le *le = NULL;
 	struct tx_ring_info *re;
-	unsigned i, len;
+	unsigned i, len, first_slot;
 	dma_addr_t mapping;
 	u16 mss;
 	u8 ctrl;
@@ -1555,12 +1564,16 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
  	if (unlikely(tx_avail(sky2) < tx_le_req(skb)))
   		return NETDEV_TX_BUSY;
 
-	if (unlikely(netif_msg_tx_queued(sky2)))
-		printk(KERN_DEBUG "%s: tx queued, slot %u, len %d\n",
-		       dev->name, sky2->tx_prod, skb->len);
-
 	len = skb_headlen(skb);
 	mapping = pci_map_single(hw->pdev, skb->data, len, PCI_DMA_TODEVICE);
+
+	if (pci_dma_mapping_error(hw->pdev, mapping))
+		goto mapping_error;
+
+	first_slot = sky2->tx_prod;
+	if (unlikely(netif_msg_tx_queued(sky2)))
+		printk(KERN_DEBUG "%s: tx queued, slot %u, len %d\n",
+		       dev->name, first_slot, skb->len);
 
 	/* Send high bits if needed */
 	if (sizeof(dma_addr_t) > sizeof(u32)) {
@@ -1648,6 +1661,9 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 		mapping = pci_map_page(hw->pdev, frag->page, frag->page_offset,
 				       frag->size, PCI_DMA_TODEVICE);
 
+		if (pci_dma_mapping_error(hw->pdev, mapping))
+			goto mapping_unwind;
+
 		if (sizeof(dma_addr_t) > sizeof(u32)) {
 			le = get_tx_le(sky2);
 			le->addr = cpu_to_le32(upper_32_bits(mapping));
@@ -1675,6 +1691,34 @@ static int sky2_xmit_frame(struct sk_buff *skb, struct net_device *dev)
 	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod);
 
 	dev->trans_start = jiffies;
+	return NETDEV_TX_OK;
+
+mapping_unwind:
+	for (i = first_slot; i != sky2->tx_prod; i = RING_NEXT(i, TX_RING_SIZE)) {
+		le = sky2->tx_le + i;
+		re = sky2->tx_ring + i;
+
+		switch(le->opcode & ~HW_OWNER) {
+		case OP_LARGESEND:
+		case OP_PACKET:
+			pci_unmap_single(hw->pdev,
+					 pci_unmap_addr(re, mapaddr),
+					 pci_unmap_len(re, maplen),
+					 PCI_DMA_TODEVICE);
+			break;
+		case OP_BUFFER:
+			pci_unmap_page(hw->pdev, pci_unmap_addr(re, mapaddr),
+				       pci_unmap_len(re, maplen),
+				       PCI_DMA_TODEVICE);
+			break;
+		}
+	}
+
+	sky2->tx_prod = first_slot;
+mapping_error:
+	if (net_ratelimit())
+		dev_warn(&hw->pdev->dev, "%s: tx mapping error\n", dev->name);
+	dev_kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -2191,7 +2235,11 @@ static struct sk_buff *receive_new(struct sky2_port *sky2,
 
 	prefetch(skb->data);
 	re->skb = nskb;
-	sky2_rx_map_skb(sky2->hw->pdev, re, hdr_space);
+	if (sky2_rx_map_skb(sky2->hw->pdev, re, hdr_space)) {
+		dev_kfree_skb(nskb);
+		re->skb = skb;
+		return NULL;
+	}
 
 	if (skb_shinfo(skb)->nr_frags)
 		skb_put_frags(skb, hdr_space, length);
