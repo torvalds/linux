@@ -36,13 +36,16 @@ extern void efx_process_channel_now(struct efx_channel *channel);
 extern void efx_flush_queues(struct efx_nic *efx);
 
 /* Ports */
+extern void efx_stats_disable(struct efx_nic *efx);
+extern void efx_stats_enable(struct efx_nic *efx);
 extern void efx_reconfigure_port(struct efx_nic *efx);
 extern void __efx_reconfigure_port(struct efx_nic *efx);
 
 /* Reset handling */
-extern void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd);
-extern int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd,
-			bool ok);
+extern void efx_reset_down(struct efx_nic *efx, enum reset_type method,
+			   struct ethtool_cmd *ecmd);
+extern int efx_reset_up(struct efx_nic *efx, enum reset_type method,
+			struct ethtool_cmd *ecmd, bool ok);
 
 /* Global */
 extern void efx_schedule_reset(struct efx_nic *efx, enum reset_type type);

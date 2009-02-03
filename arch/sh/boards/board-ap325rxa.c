@@ -18,8 +18,10 @@
 #include <linux/mtd/sh_flctl.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/smc911x.h>
+#include <linux/smsc911x.h>
 #include <linux/gpio.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/spi_gpio.h>
 #include <media/soc_camera_platform.h>
 #include <media/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
@@ -27,12 +29,14 @@
 #include <asm/clock.h>
 #include <cpu/sh7723.h>
 
-static struct smc911x_platdata smc911x_info = {
-	.flags = SMC911X_USE_32BIT,
-	.irq_flags = IRQF_TRIGGER_LOW,
+static struct smsc911x_platform_config smsc911x_config = {
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+	.flags		= SMSC911X_USE_32BIT,
 };
 
-static struct resource smc9118_resources[] = {
+static struct resource smsc9118_resources[] = {
 	[0] = {
 		.start	= 0xb6080000,
 		.end	= 0xb60fffff,
@@ -45,13 +49,13 @@ static struct resource smc9118_resources[] = {
 	}
 };
 
-static struct platform_device smc9118_device = {
-	.name		= "smc911x",
+static struct platform_device smsc9118_device = {
+	.name		= "smsc911x",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(smc9118_resources),
-	.resource	= smc9118_resources,
+	.num_resources	= ARRAY_SIZE(smsc9118_resources),
+	.resource	= smsc9118_resources,
 	.dev		= {
-		.platform_data = &smc911x_info,
+		.platform_data = &smsc911x_config,
 	},
 };
 
@@ -315,8 +319,22 @@ static struct platform_device ceu_device = {
 	},
 };
 
+struct spi_gpio_platform_data sdcard_cn3_platform_data = {
+	.sck = GPIO_PTD0,
+	.mosi = GPIO_PTD1,
+	.miso = GPIO_PTD2,
+	.num_chipselect = 1,
+};
+
+static struct platform_device sdcard_cn3_device = {
+	.name		= "spi_gpio",
+	.dev	= {
+		.platform_data	= &sdcard_cn3_platform_data,
+	},
+};
+
 static struct platform_device *ap325rxa_devices[] __initdata = {
-	&smc9118_device,
+	&smsc9118_device,
 	&ap325rxa_nor_flash_device,
 	&lcdc_device,
 	&ceu_device,
@@ -324,11 +342,21 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 	&camera_device,
 #endif
 	&nand_flash_device,
+	&sdcard_cn3_device,
 };
 
 static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8563", 0x51),
+	},
+};
+
+static struct spi_board_info ap325rxa_spi_devices[] = {
+	{
+		.modalias = "mmc_spi",
+		.max_speed_hz = 5000000,
+		.chip_select = 0,
+		.controller_data = (void *) GPIO_PTD5,
 	},
 };
 
@@ -428,6 +456,9 @@ static int __init ap325rxa_devices_setup(void)
 
 	i2c_register_board_info(0, ap325rxa_i2c_devices,
 				ARRAY_SIZE(ap325rxa_i2c_devices));
+
+	spi_register_board_info(ap325rxa_spi_devices,
+				ARRAY_SIZE(ap325rxa_spi_devices));
 
 	return platform_add_devices(ap325rxa_devices,
 				ARRAY_SIZE(ap325rxa_devices));

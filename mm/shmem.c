@@ -2628,7 +2628,7 @@ struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags)
 		goto close_file;
 
 #ifdef CONFIG_SHMEM
-	SHMEM_I(inode)->flags = flags & VM_ACCOUNT;
+	SHMEM_I(inode)->flags = (flags & VM_NORESERVE) ? 0 : VM_ACCOUNT;
 #endif
 	d_instantiate(dentry, inode);
 	inode->i_size = size;

@@ -824,10 +824,6 @@ static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 			    rx_ev_pause_frm ? " [PAUSE]" : "");
 	}
 #endif
-
-	if (unlikely(rx_ev_eth_crc_err && EFX_WORKAROUND_10750(efx) &&
-		     efx->phy_type == PHY_TYPE_SFX7101))
-		tenxpress_crc_err(efx);
 }
 
 /* Handle receive events that are not in-order. */
@@ -1887,7 +1883,7 @@ static int falcon_reset_macs(struct efx_nic *efx)
 
 	/* MAC stats will fail whilst the TX fifo is draining. Serialise
 	 * the drain sequence with the statistics fetch */
-	spin_lock(&efx->stats_lock);
+	efx_stats_disable(efx);
 
 	falcon_read(efx, &reg, MAC0_CTRL_REG_KER);
 	EFX_SET_OWORD_FIELD(reg, TXFIFO_DRAIN_EN_B0, 1);
@@ -1917,7 +1913,7 @@ static int falcon_reset_macs(struct efx_nic *efx)
 		udelay(10);
 	}
 
-	spin_unlock(&efx->stats_lock);
+	efx_stats_enable(efx);
 
 	/* If we've reset the EM block and the link is up, then
 	 * we'll have to kick the XAUI link so the PHY can recover */
@@ -2277,6 +2273,10 @@ int falcon_switch_mac(struct efx_nic *efx)
 	struct efx_mac_operations *old_mac_op = efx->mac_op;
 	efx_oword_t nic_stat;
 	unsigned strap_val;
+	int rc = 0;
+
+	/* Don't try to fetch MAC stats while we're switching MACs */
+	efx_stats_disable(efx);
 
 	/* Internal loopbacks override the phy speed setting */
 	if (efx->loopback_mode == LOOPBACK_GMAC) {
@@ -2287,16 +2287,12 @@ int falcon_switch_mac(struct efx_nic *efx)
 		efx->link_fd = true;
 	}
 
+	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 	efx->mac_op = (EFX_IS10G(efx) ?
 		       &falcon_xmac_operations : &falcon_gmac_operations);
-	if (old_mac_op == efx->mac_op)
-		return 0;
 
-	WARN_ON(!mutex_is_locked(&efx->mac_lock));
-
-	/* Not all macs support a mac-level link state */
-	efx->mac_up = true;
-
+	/* Always push the NIC_STAT_REG setting even if the mac hasn't
+	 * changed, because this function is run post online reset */
 	falcon_read(efx, &nic_stat, NIC_STAT_REG);
 	strap_val = EFX_IS10G(efx) ? 5 : 3;
 	if (falcon_rev(efx) >= FALCON_REV_B0) {
@@ -2309,9 +2305,17 @@ int falcon_switch_mac(struct efx_nic *efx)
 		BUG_ON(EFX_OWORD_FIELD(nic_stat, STRAP_PINS) != strap_val);
 	}
 
+	if (old_mac_op == efx->mac_op)
+		goto out;
 
 	EFX_LOG(efx, "selected %cMAC\n", EFX_IS10G(efx) ? 'X' : 'G');
-	return falcon_reset_macs(efx);
+	/* Not all macs support a mac-level link state */
+	efx->mac_up = true;
+
+	rc = falcon_reset_macs(efx);
+out:
+	efx_stats_enable(efx);
+	return rc;
 }
 
 /* This call is responsible for hooking in the MAC and PHY operations */

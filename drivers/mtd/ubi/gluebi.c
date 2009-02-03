@@ -28,7 +28,7 @@
  * eraseblock size is equivalent to the logical eraseblock size of the volume.
  */
 
-#include <asm/div64.h>
+#include <linux/math64.h>
 #include "ubi.h"
 
 /**
@@ -109,7 +109,6 @@ static int gluebi_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int err = 0, lnum, offs, total_read;
 	struct ubi_volume *vol;
 	struct ubi_device *ubi;
-	uint64_t tmp = from;
 
 	dbg_gen("read %zd bytes from offset %lld", len, from);
 
@@ -119,9 +118,7 @@ static int gluebi_read(struct mtd_info *mtd, loff_t from, size_t len,
 	vol = container_of(mtd, struct ubi_volume, gluebi_mtd);
 	ubi = vol->ubi;
 
-	offs = do_div(tmp, mtd->erasesize);
-	lnum = tmp;
-
+	lnum = div_u64_rem(from, mtd->erasesize, &offs);
 	total_read = len;
 	while (total_read) {
 		size_t to_read = mtd->erasesize - offs;
@@ -160,7 +157,6 @@ static int gluebi_write(struct mtd_info *mtd, loff_t to, size_t len,
 	int err = 0, lnum, offs, total_written;
 	struct ubi_volume *vol;
 	struct ubi_device *ubi;
-	uint64_t tmp = to;
 
 	dbg_gen("write %zd bytes to offset %lld", len, to);
 
@@ -173,8 +169,7 @@ static int gluebi_write(struct mtd_info *mtd, loff_t to, size_t len,
 	if (ubi->ro_mode)
 		return -EROFS;
 
-	offs = do_div(tmp, mtd->erasesize);
-	lnum = tmp;
+	lnum = div_u64_rem(to, mtd->erasesize, &offs);
 
 	if (len % mtd->writesize || offs % mtd->writesize)
 		return -EINVAL;

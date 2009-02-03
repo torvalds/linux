@@ -28,13 +28,13 @@ int v4l2_subdev_command(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 {
 	switch (cmd) {
 	case VIDIOC_QUERYCTRL:
-		return v4l2_subdev_call(sd, core, querymenu, arg);
+		return v4l2_subdev_call(sd, core, queryctrl, arg);
 	case VIDIOC_G_CTRL:
 		return v4l2_subdev_call(sd, core, g_ctrl, arg);
 	case VIDIOC_S_CTRL:
 		return v4l2_subdev_call(sd, core, s_ctrl, arg);
 	case VIDIOC_QUERYMENU:
-		return v4l2_subdev_call(sd, core, queryctrl, arg);
+		return v4l2_subdev_call(sd, core, querymenu, arg);
 	case VIDIOC_LOG_STATUS:
 		return v4l2_subdev_call(sd, core, log_status);
 	case VIDIOC_DBG_G_CHIP_IDENT:
