@@ -24,7 +24,7 @@ static inline void *dma_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *daddr, gfp_t gfp)
 {
 	struct dma_map_ops *ops = platform_dma_get_ops(dev);
-	return ops->alloc_coherent(dev, size, daddr, gfp | GFP_DMA);
+	return ops->alloc_coherent(dev, size, daddr, gfp);
 }
 
 static inline void dma_free_coherent(struct device *dev, size_t size,
