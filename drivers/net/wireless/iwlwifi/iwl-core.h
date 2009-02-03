@@ -211,6 +211,8 @@ struct iwl_cfg {
 	u16  eeprom_calib_ver;
 	const struct iwl_ops *ops;
 	const struct iwl_mod_params *mod_params;
+	u8   valid_tx_ant;
+	u8   valid_rx_ant;
 };
 
 /***************************
