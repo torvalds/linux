@@ -76,19 +76,6 @@ static int omap2_fclks_active(void)
 	return 0;
 }
 
-static int omap2_irq_pending(void)
-{
-	u32 pending_reg = 0x480fe098;
-	int i;
-
-	for (i = 0; i < 4; i++) {
-		if (omap_readl(pending_reg))
-			return 1;
-		pending_reg += 0x20;
-	}
-	return 0;
-}
-
 static void omap2_enter_full_retention(void)
 {
 	u32 l;
@@ -127,7 +114,7 @@ static void omap2_enter_full_retention(void)
 
 	/* One last check for pending IRQs to avoid extra latency due
 	 * to sleeping unnecessarily. */
-	if (omap2_irq_pending())
+	if (omap_irq_pending())
 		goto no_sleep;
 
 	/* Jump to SRAM suspend code */
@@ -262,13 +249,13 @@ static void omap2_pm_idle(void)
 	local_fiq_disable();
 
 	if (!omap2_can_sleep()) {
-		if (omap2_irq_pending())
+		if (omap_irq_pending())
 			goto out;
 		omap2_enter_mpu_retention();
 		goto out;
 	}
 
-	if (omap2_irq_pending())
+	if (omap_irq_pending())
 		goto out;
 
 	omap2_enter_full_retention();
