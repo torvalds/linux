@@ -2504,7 +2504,7 @@ noinline int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	u32 found_type;
+	u32 found_type = (u8)-1;
 	struct extent_buffer *leaf;
 	struct btrfs_file_extent_item *fi;
 	u64 extent_start = 0;
@@ -2691,6 +2691,8 @@ next:
 			if (pending_del_nr)
 				goto del_pending;
 			btrfs_release_path(root, path);
+			if (found_type == BTRFS_INODE_ITEM_KEY)
+				break;
 			goto search_again;
 		}
 
@@ -2707,6 +2709,8 @@ del_pending:
 			BUG_ON(ret);
 			pending_del_nr = 0;
 			btrfs_release_path(root, path);
+			if (found_type == BTRFS_INODE_ITEM_KEY)
+				break;
 			goto search_again;
 		}
 	}
