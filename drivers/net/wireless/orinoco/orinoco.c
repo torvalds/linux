@@ -3497,9 +3497,8 @@ static int orinoco_init(struct net_device *dev)
 	/* Get initial AP density */
 	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_CNFSYSTEMSCALE,
 				  &priv->ap_density);
-	if (err || priv->ap_density < 1 || priv->ap_density > 3) {
+	if (err || priv->ap_density < 1 || priv->ap_density > 3)
 		priv->has_sensitivity = 0;
-	}
 
 	/* Get initial RTS threshold */
 	err = hermes_read_wordrec(hw, USER_BAP, HERMES_RID_CNFRTSTHRESHOLD,
@@ -3811,9 +3810,8 @@ static int orinoco_hw_get_bitratelist(struct orinoco_private *priv,
 	*numrates = num;
 	num = min(num, max);
 
-	for (i = 0; i < num; i++) {
+	for (i = 0; i < num; i++)
 		rates[i] = (p[i] & 0x7f) * 500000; /* convert to bps */
-	}
 
 	return 0;
 }
@@ -4130,11 +4128,11 @@ static int orinoco_ioctl_setiwencode(struct net_device *dev,
 			index = priv->tx_key;
 
 		/* Adjust key length to a supported value */
-		if (erq->length > SMALL_KEY_SIZE) {
+		if (erq->length > SMALL_KEY_SIZE)
 			xlen = LARGE_KEY_SIZE;
-		} else if (erq->length > 0) {
+		else if (erq->length > 0)
 			xlen = SMALL_KEY_SIZE;
-		} else
+		else
 			xlen = 0;
 
 		/* Switch on WEP if off */
@@ -4256,9 +4254,8 @@ static int orinoco_ioctl_setessid(struct net_device *dev,
 	memset(priv->desired_essid, 0, sizeof(priv->desired_essid));
 
 	/* If not ANY, get the new ESSID */
-	if (erq->flags) {
+	if (erq->flags)
 		memcpy(priv->desired_essid, essidbuf, erq->length);
-	}
 
 	orinoco_unlock(priv, &flags);
 
@@ -4393,9 +4390,8 @@ static int orinoco_ioctl_getfreq(struct net_device *dev,
 
 	/* Locking done in there */
 	tmp = orinoco_hw_get_freq(priv);
-	if (tmp < 0) {
+	if (tmp < 0)
 		return tmp;
-	}
 
 	frq->m = tmp * 100000;
 	frq->e = 1;
