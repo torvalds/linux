@@ -24,6 +24,7 @@
 #include <linux/fsnotify.h>
 #include <linux/personality.h>
 #include <linux/security.h>
+#include <linux/ima.h>
 #include <linux/syscalls.h>
 #include <linux/mount.h>
 #include <linux/audit.h>
@@ -860,6 +861,8 @@ static int __link_path_walk(const char *name, struct nameidata *nd)
 		err = exec_permission_lite(inode);
 		if (err == -EAGAIN)
 			err = vfs_permission(nd, MAY_EXEC);
+		if (!err)
+			err = ima_path_check(&nd->path, MAY_EXEC);
  		if (err)
 			break;
 
@@ -1523,6 +1526,11 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 	}
 
 	error = vfs_permission(nd, acc_mode);
+	if (error)
+		return error;
+
+	error = ima_path_check(&nd->path,
+			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC));
 	if (error)
 		return error;
 	/*
