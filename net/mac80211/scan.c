@@ -327,6 +327,19 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	return bss;
 }
 
+void ieee80211_rx_bss_remove(struct ieee80211_sub_if_data *sdata, u8 *bssid,
+			     int freq, u8 *ssid, u8 ssid_len)
+{
+	struct ieee80211_bss *bss;
+	struct ieee80211_local *local = sdata->local;
+
+	bss = ieee80211_rx_bss_get(local, bssid, freq, ssid, ssid_len);
+	if (bss) {
+		atomic_dec(&bss->users);
+		ieee80211_rx_bss_put(local, bss);
+	}
+}
+
 ieee80211_rx_result
 ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 		  struct ieee80211_rx_status *rx_status)
