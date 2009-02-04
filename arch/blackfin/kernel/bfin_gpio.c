@@ -1053,9 +1053,15 @@ int bfin_gpio_request(unsigned gpio, const char *label)
 		local_irq_restore_hw(flags);
 		return -EBUSY;
 	}
-	if (unlikely(reserved_gpio_irq_map[gpio_bank(gpio)] & gpio_bit(gpio)))
+	if (unlikely(reserved_gpio_irq_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
 		printk(KERN_NOTICE "bfin-gpio: GPIO %d is already reserved as gpio-irq!"
 		       " (Documentation/blackfin/bfin-gpio-notes.txt)\n", gpio);
+	}
+#ifndef BF548_FAMILY
+	else {	/* Reset POLAR setting when acquiring a gpio for the first time */
+		set_gpio_polar(gpio, 0);
+	}
+#endif
 
 	reserved_gpio_map[gpio_bank(gpio)] |= gpio_bit(gpio);
 	set_label(gpio, label);
