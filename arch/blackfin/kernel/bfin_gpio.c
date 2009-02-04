@@ -1081,6 +1081,8 @@ void bfin_gpio_free(unsigned gpio)
 	if (check_gpio(gpio) < 0)
 		return;
 
+	might_sleep();
+
 	local_irq_save_hw(flags);
 
 	if (unlikely(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)))) {
