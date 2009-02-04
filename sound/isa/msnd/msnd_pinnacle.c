@@ -785,6 +785,9 @@ static int calibrate_signal;
 static int isapnp[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 module_param_array(isapnp, bool, NULL, 0444);
 MODULE_PARM_DESC(isapnp, "ISA PnP detection for specified soundcard.");
+#define has_isapnp(x) isapnp[x]
+#else
+#define has_isapnp(x) 0
 #endif
 
 MODULE_AUTHOR("Karsten Wiese <annabellesgarden@yahoo.de>");
@@ -888,7 +891,7 @@ static int __devinit snd_msnd_isa_probe(struct device *pdev, unsigned int idx)
 	struct snd_card *card;
 	struct snd_msnd *chip;
 
-	if (isapnp[idx] || cfg[idx] == SNDRV_AUTO_PORT) {
+	if (has_isapnp(idx) || cfg[idx] == SNDRV_AUTO_PORT) {
 		printk(KERN_INFO LOGNAME ": Assuming PnP mode\n");
 		return -ENODEV;
 	}
@@ -1082,7 +1085,7 @@ static int __devinit snd_msnd_pnp_detect(struct pnp_card_link *pcard,
 	int ret;
 
 	for ( ; idx < SNDRV_CARDS; idx++) {
-		if (isapnp[idx])
+		if (has_isapnp(idx))
 			break;
 	}
 	if (idx >= SNDRV_CARDS)
