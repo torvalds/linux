@@ -404,6 +404,10 @@ static hda_nid_t stac922x_mux_nids[2] = {
         0x12, 0x13,
 };
 
+static hda_nid_t stac927x_slave_dig_outs[2] = {
+	0x1f, 0,
+};
+
 static hda_nid_t stac927x_adc_nids[3] = {
         0x07, 0x08, 0x09
 };
@@ -5320,6 +5324,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
+	codec->slave_dig_outs = stac927x_slave_dig_outs;
 	spec->num_pins = ARRAY_SIZE(stac927x_pin_nids);
 	spec->pin_nids = stac927x_pin_nids;
 	spec->board_config = snd_hda_check_board_config(codec, STAC_927X_MODELS,
