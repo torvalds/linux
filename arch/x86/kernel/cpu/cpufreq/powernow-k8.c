@@ -794,7 +794,7 @@ static int find_psb_table(struct powernow_k8_data *data)
 	 * BIOS and Kernel Developer's Guide, which is available on
 	 * www.amd.com
 	 */
-	printk(KERN_ERR PFX "BIOS error - no PSB or ACPI _PSS objects\n");
+	printk(KERN_ERR FW_BUG PFX "No PSB or ACPI _PSS objects\n");
 	return -ENODEV;
 }
 
@@ -1218,6 +1218,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	struct powernow_k8_data *data;
 	cpumask_t oldmask;
 	int rc;
+	static int print_once;
 
 	if (!cpu_online(pol->cpu))
 		return -ENODEV;
@@ -1240,11 +1241,19 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 		 * an UP version, and is deprecated by AMD.
 		 */
 		if (num_online_cpus() != 1) {
-			printk(KERN_ERR FW_BUG PFX "Your BIOS does not provide"
-			       " ACPI _PSS objects in a way that Linux "
-			       "understands. Please report this to the Linux "
-			       "ACPI maintainers and complain to your BIOS "
-			       "vendor.\n");
+			/*
+			 * Replace this one with print_once as soon as such a
+			 * thing gets introduced
+			 */
+			if (!print_once) {
+				WARN_ONCE(1, KERN_ERR FW_BUG PFX "Your BIOS "
+					"does not provide ACPI _PSS objects "
+					"in a way that Linux understands. "
+					"Please report this to the Linux ACPI"
+					" maintainers and complain to your "
+					"BIOS vendor.\n");
+				print_once++;
+			}
 			kfree(data);
 			return -ENODEV;
 		}
