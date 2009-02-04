@@ -517,6 +517,9 @@ static void mmc_omap_detect(struct work_struct *work)
 {
 	struct mmc_omap_host *host = container_of(work, struct mmc_omap_host,
 						mmc_carddetect_work);
+	struct omap_mmc_slot_data *slot = &mmc_slot(host);
+
+	host->carddetect = slot->card_detect(slot->card_detect_irq);
 
 	sysfs_notify(&host->mmc->class_dev.kobj, NULL, "cover_switch");
 	if (host->carddetect) {
@@ -538,7 +541,6 @@ static irqreturn_t omap_mmc_cd_handler(int irq, void *dev_id)
 {
 	struct mmc_omap_host *host = (struct mmc_omap_host *)dev_id;
 
-	host->carddetect = mmc_slot(host).card_detect(irq);
 	schedule_work(&host->mmc_carddetect_work);
 
 	return IRQ_HANDLED;
