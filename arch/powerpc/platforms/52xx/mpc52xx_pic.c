@@ -163,8 +163,6 @@ static void mpc52xx_extirq_mask(unsigned int virq)
 	irq = irq_map[virq].hwirq;
 	l2irq = irq & MPC52xx_IRQ_L2_MASK;
 
-	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
-
 	io_be_clrbit(&intr->ctrl, 11 - l2irq);
 }
 
@@ -176,8 +174,6 @@ static void mpc52xx_extirq_unmask(unsigned int virq)
 	irq = irq_map[virq].hwirq;
 	l2irq = irq & MPC52xx_IRQ_L2_MASK;
 
-	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
-
 	io_be_setbit(&intr->ctrl, 11 - l2irq);
 }
 
@@ -188,8 +184,6 @@ static void mpc52xx_extirq_ack(unsigned int virq)
 
 	irq = irq_map[virq].hwirq;
 	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
-	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
 
 	io_be_setbit(&intr->ctrl, 27-l2irq);
 }
@@ -255,8 +249,6 @@ static void mpc52xx_main_mask(unsigned int virq)
 	irq = irq_map[virq].hwirq;
 	l2irq = irq & MPC52xx_IRQ_L2_MASK;
 
-	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
-
 	io_be_setbit(&intr->main_mask, 16 - l2irq);
 }
 
@@ -267,8 +259,6 @@ static void mpc52xx_main_unmask(unsigned int virq)
 
 	irq = irq_map[virq].hwirq;
 	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
-	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
 
 	io_be_clrbit(&intr->main_mask, 16 - l2irq);
 }
@@ -291,8 +281,6 @@ static void mpc52xx_periph_mask(unsigned int virq)
 	irq = irq_map[virq].hwirq;
 	l2irq = irq & MPC52xx_IRQ_L2_MASK;
 
-	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
-
 	io_be_setbit(&intr->per_mask, 31 - l2irq);
 }
 
@@ -303,8 +291,6 @@ static void mpc52xx_periph_unmask(unsigned int virq)
 
 	irq = irq_map[virq].hwirq;
 	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
-	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
 
 	io_be_clrbit(&intr->per_mask, 31 - l2irq);
 }
@@ -327,8 +313,6 @@ static void mpc52xx_sdma_mask(unsigned int virq)
 	irq = irq_map[virq].hwirq;
 	l2irq = irq & MPC52xx_IRQ_L2_MASK;
 
-	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
-
 	io_be_setbit(&sdma->IntMask, l2irq);
 }
 
@@ -340,8 +324,6 @@ static void mpc52xx_sdma_unmask(unsigned int virq)
 	irq = irq_map[virq].hwirq;
 	l2irq = irq & MPC52xx_IRQ_L2_MASK;
 
-	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
-
 	io_be_clrbit(&sdma->IntMask, l2irq);
 }
 
@@ -352,8 +334,6 @@ static void mpc52xx_sdma_ack(unsigned int virq)
 
 	irq = irq_map[virq].hwirq;
 	l2irq = irq & MPC52xx_IRQ_L2_MASK;
-
-	pr_debug("%s: irq=%x. l2=%d\n", __func__, irq, l2irq);
 
 	out_be32(&sdma->IntPend, 1 << l2irq);
 }
@@ -612,9 +592,6 @@ unsigned int mpc52xx_get_irq(void)
 			irq |= (MPC52xx_IRQ_L1_PERP << MPC52xx_IRQ_L1_OFFSET);
 		}
 	}
-
-	pr_debug("%s: irq=%x. virq=%d\n", __func__, irq,
-		 irq_linear_revmap(mpc52xx_irqhost, irq));
 
 	return irq_linear_revmap(mpc52xx_irqhost, irq);
 }
