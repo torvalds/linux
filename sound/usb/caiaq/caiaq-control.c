@@ -270,7 +270,6 @@ static struct caiaq_controller a8dj_controller[] = {
 	{ "GND lift for TC Vinyl mode", 	24 + 0 		},
 	{ "GND lift for TC CD/Line mode", 	24 + 1 		},
 	{ "GND lift for phono mode", 		24 + 2 		},
-	{ "GND lift for TC Vinyl mode", 	24 + 3 		},
 	{ "Software lock", 			40 		}
 };
 
