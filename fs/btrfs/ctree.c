@@ -388,16 +388,14 @@ noinline int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		WARN_ON(1);
 	}
 
-	spin_lock(&root->fs_info->hash_lock);
 	if (btrfs_header_generation(buf) == trans->transid &&
 	    btrfs_header_owner(buf) == root->root_key.objectid &&
 	    !btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN)) {
 		*cow_ret = buf;
-		spin_unlock(&root->fs_info->hash_lock);
 		WARN_ON(prealloc_dest);
 		return 0;
 	}
-	spin_unlock(&root->fs_info->hash_lock);
+
 	search_start = buf->start & ~((u64)(1024 * 1024 * 1024) - 1);
 	ret = __btrfs_cow_block(trans, root, buf, parent,
 				 parent_slot, cow_ret, search_start, 0,
@@ -1376,14 +1374,11 @@ again:
 			int wret;
 
 			/* is a cow on this block not required */
-			spin_lock(&root->fs_info->hash_lock);
 			if (btrfs_header_generation(b) == trans->transid &&
 			    btrfs_header_owner(b) == root->root_key.objectid &&
 			    !btrfs_header_flag(b, BTRFS_HEADER_FLAG_WRITTEN)) {
-				spin_unlock(&root->fs_info->hash_lock);
 				goto cow_done;
 			}
-			spin_unlock(&root->fs_info->hash_lock);
 
 			/* ok, we have to cow, is our old prealloc the right
 			 * size?

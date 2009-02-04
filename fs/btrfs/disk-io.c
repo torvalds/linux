@@ -1503,7 +1503,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->hashers);
 	INIT_LIST_HEAD(&fs_info->delalloc_inodes);
-	spin_lock_init(&fs_info->hash_lock);
 	spin_lock_init(&fs_info->delalloc_lock);
 	spin_lock_init(&fs_info->new_trans_lock);
 	spin_lock_init(&fs_info->ref_cache_lock);
@@ -2361,7 +2360,6 @@ int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 int btree_lock_page_hook(struct page *page)
 {
 	struct inode *inode = page->mapping->host;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_buffer *eb;
 	unsigned long len;
@@ -2376,9 +2374,7 @@ int btree_lock_page_hook(struct page *page)
 		goto out;
 
 	btrfs_tree_lock(eb);
-	spin_lock(&root->fs_info->hash_lock);
 	btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
-	spin_unlock(&root->fs_info->hash_lock);
 	btrfs_tree_unlock(eb);
 	free_extent_buffer(eb);
 out:

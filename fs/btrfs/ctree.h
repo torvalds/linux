@@ -703,7 +703,6 @@ struct btrfs_fs_info {
 	struct super_block *sb;
 	struct inode *btree_inode;
 	struct backing_dev_info bdi;
-	spinlock_t hash_lock;
 	struct mutex trans_mutex;
 	struct mutex tree_log_mutex;
 	struct mutex transaction_kthread_mutex;
