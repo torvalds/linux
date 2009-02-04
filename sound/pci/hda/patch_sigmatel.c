@@ -481,10 +481,17 @@ static hda_nid_t stac92hd83xxx_pin_nids[14] = {
 	0x0f, 0x10, 0x11, 0x12, 0x13,
 	0x1d, 0x1e, 0x1f, 0x20
 };
-static hda_nid_t stac92hd71bxx_pin_nids[11] = {
+
+#define STAC92HD71BXX_NUM_PINS 13
+static hda_nid_t stac92hd71bxx_pin_nids_4port[STAC92HD71BXX_NUM_PINS] = {
+	0x0a, 0x0b, 0x0c, 0x0d, 0x00,
+	0x00, 0x14, 0x18, 0x19, 0x1e,
+	0x1f, 0x20, 0x27
+};
+static hda_nid_t stac92hd71bxx_pin_nids_6port[STAC92HD71BXX_NUM_PINS] = {
 	0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
 	0x0f, 0x14, 0x18, 0x19, 0x1e,
-	0x1f,
+	0x1f, 0x20, 0x27
 };
 
 static hda_nid_t stac927x_pin_nids[14] = {
@@ -1745,28 +1752,32 @@ static struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 	{} /* terminator */
 };
 
-static unsigned int ref92hd71bxx_pin_configs[11] = {
+static unsigned int ref92hd71bxx_pin_configs[STAC92HD71BXX_NUM_PINS] = {
 	0x02214030, 0x02a19040, 0x01a19020, 0x01014010,
 	0x0181302e, 0x01014010, 0x01019020, 0x90a000f0,
-	0x90a000f0, 0x01452050, 0x01452050,
+	0x90a000f0, 0x01452050, 0x01452050, 0x00000000,
+	0x00000000
 };
 
-static unsigned int dell_m4_1_pin_configs[11] = {
+static unsigned int dell_m4_1_pin_configs[STAC92HD71BXX_NUM_PINS] = {
 	0x0421101f, 0x04a11221, 0x40f000f0, 0x90170110,
 	0x23a1902e, 0x23014250, 0x40f000f0, 0x90a000f0,
-	0x40f000f0, 0x4f0000f0, 0x4f0000f0,
+	0x40f000f0, 0x4f0000f0, 0x4f0000f0, 0x00000000,
+	0x00000000
 };
 
-static unsigned int dell_m4_2_pin_configs[11] = {
+static unsigned int dell_m4_2_pin_configs[STAC92HD71BXX_NUM_PINS] = {
 	0x0421101f, 0x04a11221, 0x90a70330, 0x90170110,
 	0x23a1902e, 0x23014250, 0x40f000f0, 0x40f000f0,
-	0x40f000f0, 0x044413b0, 0x044413b0,
+	0x40f000f0, 0x044413b0, 0x044413b0, 0x00000000,
+	0x00000000
 };
 
-static unsigned int dell_m4_3_pin_configs[11] = {
+static unsigned int dell_m4_3_pin_configs[STAC92HD71BXX_NUM_PINS] = {
 	0x0421101f, 0x04a11221, 0x90a70330, 0x90170110,
 	0x40f000f0, 0x40f000f0, 0x40f000f0, 0x90a000f0,
-	0x40f000f0, 0x044413b0, 0x044413b0,
+	0x40f000f0, 0x044413b0, 0x044413b0, 0x00000000,
+	0x00000000
 };
 
 static unsigned int *stac92hd71bxx_brd_tbl[STAC_92HD71BXX_MODELS] = {
@@ -2311,7 +2322,9 @@ static int stac92xx_save_bios_config_regs(struct hda_codec *codec)
 	for (i = 0; i < spec->num_pins; i++) {
 		hda_nid_t nid = spec->pin_nids[i];
 		unsigned int pin_cfg;
-		
+
+		if (!nid)
+			continue;
 		pin_cfg = snd_hda_codec_read(codec, nid, 0, 
 			AC_VERB_GET_CONFIG_DEFAULT, 0x00);	
 		snd_printdd(KERN_INFO "hda_codec: pin nid %2.2x bios pin config %8.8x\n",
@@ -2354,8 +2367,9 @@ static void stac92xx_set_config_regs(struct hda_codec *codec)
  		return;
 
 	for (i = 0; i < spec->num_pins; i++)
-		stac92xx_set_config_reg(codec, spec->pin_nids[i],
-					spec->pin_configs[i]);
+		if (spec->pin_nids[i] && spec->pin_configs[i])
+			stac92xx_set_config_reg(codec, spec->pin_nids[i],
+						spec->pin_configs[i]);
 }
 
 static int stac_save_pin_cfgs(struct hda_codec *codec, unsigned int *pins)
@@ -4952,9 +4966,21 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 
 	codec->spec = spec;
 	codec->patch_ops = stac92xx_patch_ops;
-	spec->num_pins = ARRAY_SIZE(stac92hd71bxx_pin_nids);
+	spec->num_pins = STAC92HD71BXX_NUM_PINS;
+	switch (codec->vendor_id) {
+	case 0x111d76b6:
+	case 0x111d76b7:
+		spec->pin_nids = stac92hd71bxx_pin_nids_4port;
+		break;
+	case 0x111d7603:
+	case 0x111d7608:
+		/* On 92HD75Bx 0x27 isn't a pin nid */
+		spec->num_pins--;
+		/* fallthrough */
+	default:
+		spec->pin_nids = stac92hd71bxx_pin_nids_6port;
+	}
 	spec->num_pwrs = ARRAY_SIZE(stac92hd71bxx_pwr_nids);
-	spec->pin_nids = stac92hd71bxx_pin_nids;
 	memcpy(&spec->private_dimux, &stac92hd71bxx_dmux,
 			sizeof(stac92hd71bxx_dmux));
 	spec->board_config = snd_hda_check_board_config(codec,
@@ -5018,7 +5044,8 @@ again:
 		/* disable VSW */
 		spec->init = &stac92hd71bxx_analog_core_init[HD_DISABLE_PORTF];
 		unmute_init++;
-		stac_change_pin_config(codec, 0xf, 0x40f000f0);
+		stac_change_pin_config(codec, 0x0f, 0x40f000f0);
+		stac_change_pin_config(codec, 0x19, 0x40f000f3);
 		break;
 	case 0x111d7603: /* 6 Port with Analog Mixer */
 		if ((codec->revision_id & 0xf) == 1)
