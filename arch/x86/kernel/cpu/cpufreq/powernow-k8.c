@@ -38,11 +38,9 @@
 
 #include <asm/msr.h>
 
-#ifdef CONFIG_X86_POWERNOW_K8_ACPI
 #include <linux/acpi.h>
 #include <linux/mutex.h>
 #include <acpi/processor.h>
-#endif
 
 #define PFX "powernow-k8: "
 #define VERSION "version 2.20.00"
@@ -800,7 +798,6 @@ static int find_psb_table(struct powernow_k8_data *data)
 	return -ENODEV;
 }
 
-#ifdef CONFIG_X86_POWERNOW_K8_ACPI
 static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data,
 		unsigned int index)
 {
@@ -1030,23 +1027,6 @@ static int get_transition_latency(struct powernow_k8_data *data)
 	return 1000 * max_latency;
 }
 
-#else
-static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
-{
-	return -ENODEV;
-}
-static void powernow_k8_cpu_exit_acpi(struct powernow_k8_data *data)
-{
-	return;
-}
-static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data,
-		unsigned int index)
-{
-	return;
-}
-static int get_transition_latency(struct powernow_k8_data *data) { return 0; }
-#endif /* CONFIG_X86_POWERNOW_K8_ACPI */
-
 /* Take a frequency, and issue the fid/vid transition command */
 static int transition_frequency_fidvid(struct powernow_k8_data *data,
 		unsigned int index)
@@ -1260,19 +1240,11 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 		 * an UP version, and is deprecated by AMD.
 		 */
 		if (num_online_cpus() != 1) {
-#ifndef CONFIG_ACPI_PROCESSOR
-			printk(KERN_ERR PFX
-				"ACPI Processor support is required for "
-				"SMP systems but is absent. Please load the "
-				"ACPI Processor module before starting this "
-				"driver.\n");
-#else
 			printk(KERN_ERR FW_BUG PFX "Your BIOS does not provide"
 			       " ACPI _PSS objects in a way that Linux "
 			       "understands. Please report this to the Linux "
 			       "ACPI maintainers and complain to your BIOS "
 			       "vendor.\n");
-#endif
 			kfree(data);
 			return -ENODEV;
 		}
