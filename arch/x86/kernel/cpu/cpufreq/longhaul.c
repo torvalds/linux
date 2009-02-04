@@ -511,13 +511,10 @@ static int __init longhaul_get_ranges(void)
 			}
 		}
 		if (min_i != j) {
-			unsigned int temp;
-			temp = longhaul_table[j].frequency;
-			longhaul_table[j].frequency = longhaul_table[min_i].frequency;
-			longhaul_table[min_i].frequency = temp;
-			temp = longhaul_table[j].index;
-			longhaul_table[j].index = longhaul_table[min_i].index;
-			longhaul_table[min_i].index = temp;
+			swap(longhaul_table[j].frequency,
+			     longhaul_table[min_i].frequency);
+			swap(longhaul_table[j].index,
+			     longhaul_table[min_i].index);
 		}
 	}
 
