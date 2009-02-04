@@ -94,7 +94,7 @@ static int control_put(struct snd_kcontrol *kcontrol,
 	if (pos & CNT_INTVAL) {
 		dev->control_state[pos & ~CNT_INTVAL]
 			= ucontrol->value.integer.value[0];
-		snd_usb_caiaq_send_command(dev, EP1_CMD_DIMM_LEDS,
+		snd_usb_caiaq_send_command(dev, EP1_CMD_WRITE_IO,
 				dev->control_state, sizeof(dev->control_state));
 	} else {
 		if (ucontrol->value.integer.value[0])
