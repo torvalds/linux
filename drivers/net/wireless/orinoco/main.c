@@ -1929,11 +1929,10 @@ static void orinoco_add_ext_scan_result(struct orinoco_private *priv,
 	}
 }
 
-static int orinoco_process_scan_results(struct net_device *dev,
+static int orinoco_process_scan_results(struct orinoco_private *priv,
 					unsigned char *buf,
 					int len)
 {
-	struct orinoco_private *priv = netdev_priv(dev);
 	int			offset;		/* In the scan data */
 	union hermes_scan_info *atom;
 	int			atom_len;
@@ -1967,7 +1966,8 @@ static int orinoco_process_scan_results(struct net_device *dev,
 			/* Sanity check for atom_len */
 			if (atom_len < sizeof(struct prism2_scan_apinfo)) {
 				printk(KERN_ERR "%s: Invalid atom_len in scan "
-				       "data: %d\n", dev->name, atom_len);
+				       "data: %d\n", priv->ndev->name,
+				       atom_len);
 				return -EIO;
 			}
 		} else
@@ -1980,7 +1980,7 @@ static int orinoco_process_scan_results(struct net_device *dev,
 	/* Check that we got an whole number of atoms */
 	if ((len - offset) % atom_len) {
 		printk(KERN_ERR "%s: Unexpected scan data length %d, "
-		       "atom_len %d, offset %d\n", dev->name, len,
+		       "atom_len %d, offset %d\n", priv->ndev->name, len,
 		       atom_len, offset);
 		return -EIO;
 	}
@@ -2187,7 +2187,7 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 		}
 #endif	/* ORINOCO_DEBUG */
 
-		if (orinoco_process_scan_results(dev, buf, len) == 0) {
+		if (orinoco_process_scan_results(priv, buf, len) == 0) {
 			/* Send an empty event to user space.
 			 * We don't send the received data on the event because
 			 * it would require us to do complex transcoding, and
