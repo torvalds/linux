@@ -1503,7 +1503,6 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 					     1, NULL);
 
 	sc->sc_config.txpowlimit = ATH_TXPOWER_MAX;
-	sc->sc_config.txpowlimit_override = 0;
 
 	/* 11n Capabilities */
 	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) {

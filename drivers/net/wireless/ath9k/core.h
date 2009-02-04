@@ -192,7 +192,6 @@ static inline void ath_debug_stat_rc(struct ath_softc *sc,
 struct ath_config {
 	u32 ath_aggr_prot;
 	u16 txpowlimit;
-	u16 txpowlimit_override;
 	u8 cabqReadytime;
 	u8 swBeaconProcess;
 };
@@ -206,21 +205,25 @@ struct ath_config {
 		(_bf)->bf_lastbf = NULL;			\
 		(_bf)->bf_next = NULL;				\
 		memset(&((_bf)->bf_state), 0,			\
-			    sizeof(struct ath_buf_state));	\
+		       sizeof(struct ath_buf_state));		\
 	} while (0)
 
+/**
+ * enum buffer_type - Buffer type flags
+ *
+ * @BUF_HT: Send this buffer using HT capabilities
+ * @BUF_AMPDU: This buffer is an ampdu, as part of an aggregate (during TX)
+ * @BUF_AGGR: Indicates whether the buffer can be aggregated
+ *	(used in aggregation scheduling)
+ * @BUF_RETRY: Indicates whether the buffer is retried
+ * @BUF_XRETRY: To denote excessive retries of the buffer
+ */
 enum buffer_type {
-	BUF_DATA		= BIT(0),
-	BUF_AGGR		= BIT(1),
+	BUF_HT			= BIT(1),
 	BUF_AMPDU		= BIT(2),
-	BUF_HT			= BIT(3),
+	BUF_AGGR		= BIT(3),
 	BUF_RETRY		= BIT(4),
 	BUF_XRETRY		= BIT(5),
-	BUF_SHORT_PREAMBLE	= BIT(6),
-	BUF_BAR			= BIT(7),
-	BUF_PSPOLL		= BIT(8),
-	BUF_AGGR_BURST		= BIT(9),
-	BUF_CALC_AIRTIME	= BIT(10),
 };
 
 struct ath_buf_state {
@@ -241,18 +244,13 @@ struct ath_buf_state {
 #define bf_retries      	bf_state.bfs_retries
 #define bf_seqno        	bf_state.bfs_seqno
 #define bf_tidno        	bf_state.bfs_tidno
-#define bf_rcs          	bf_state.bfs_rcs
 #define bf_keyix                bf_state.bfs_keyix
 #define bf_keytype      	bf_state.bfs_keytype
-#define bf_isdata(bf)		(bf->bf_state.bf_type & BUF_DATA)
-#define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
-#define bf_isampdu(bf)		(bf->bf_state.bf_type & BUF_AMPDU)
 #define bf_isht(bf)		(bf->bf_state.bf_type & BUF_HT)
+#define bf_isampdu(bf)		(bf->bf_state.bf_type & BUF_AMPDU)
+#define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
 #define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
 #define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
-#define bf_isbar(bf)		(bf->bf_state.bf_type & BUF_BAR)
-#define bf_ispspoll(bf) 	(bf->bf_state.bf_type & BUF_PSPOLL)
-#define bf_isaggrburst(bf)	(bf->bf_state.bf_type & BUF_AGGR_BURST)
 
 /*
  * Abstraction of a contiguous buffer to transmit/receive.  There is only
@@ -358,8 +356,6 @@ enum ATH_AGGR_STATUS {
 	ATH_AGGR_DONE,
 	ATH_AGGR_BAW_CLOSED,
 	ATH_AGGR_LIMITED,
-	ATH_AGGR_SHORTPKT,
-	ATH_AGGR_8K_LIMITED,
 };
 
 struct ath_txq {
@@ -658,7 +654,7 @@ struct ath_rfkill {
 #define ATH_MAX_SW_RETRIES      10
 #define ATH_CHAN_MAX            255
 #define IEEE80211_WEP_NKID      4       /* number of key ids */
-#define IEEE80211_RATE_VAL      0x7f
+
 /*
  * The key cache is used for h/w cipher state and also for
  * tracking station state such as the current tx antenna.

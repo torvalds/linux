@@ -1436,14 +1436,18 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
+	struct ieee80211_hdr *hdr;
 	int i, flags = 0;
 	u8 rix = 0, ctsrate = 0;
+	bool is_pspoll;
 
 	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
 
 	skb = (struct sk_buff *)bf->bf_mpdu;
 	tx_info = IEEE80211_SKB_CB(skb);
 	rates = tx_info->control.rates;
+	hdr = (struct ieee80211_hdr *)skb->data;
+	is_pspoll = ieee80211_is_pspoll(hdr->frame_control);
 
 	/*
 	 * We check if Short Preamble is needed for the CTS rate by
@@ -1506,7 +1510,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	/* set dur_update_en for l-sig computation except for PS-Poll frames */
 	ath9k_hw_set11n_ratescenario(sc->sc_ah, bf->bf_desc,
 				     bf->bf_lastbf->bf_desc,
-				     !bf_ispspoll(bf), ctsrate,
+				     !is_pspoll, ctsrate,
 				     0, series, 4, flags);
 
 	if (sc->sc_config.ath_aggr_prot && flags)
@@ -1534,12 +1538,6 @@ static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 
 	bf->bf_frmlen = skb->len + FCS_LEN - (hdrlen & 3);
 
-	if (ieee80211_is_data(fc))
-		bf->bf_state.bf_type |= BUF_DATA;
-	if (ieee80211_is_back_req(fc))
-		bf->bf_state.bf_type |= BUF_BAR;
-	if (ieee80211_is_pspoll(fc))
-		bf->bf_state.bf_type |= BUF_PSPOLL;
 	if ((conf_is_ht(&sc->hw->conf) && !is_pae(skb) &&
 	     (tx_info->flags & IEEE80211_TX_CTL_AMPDU)))
 		bf->bf_state.bf_type |= BUF_HT;
@@ -1843,6 +1841,7 @@ static int ath_tx_num_badfrms(struct ath_softc *sc, struct ath_buf *bf,
 static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds, int nbad)
 {
 	struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
 
@@ -1852,7 +1851,7 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds, int nbad)
 
 	if ((ds->ds_txstat.ts_status & ATH9K_TXERR_FILT) == 0 &&
 	    (bf->bf_flags & ATH9K_TXDESC_NOACK) == 0) {
-		if (bf_isdata(bf)) {
+		if (ieee80211_is_data(hdr->frame_control)) {
 			memcpy(&tx_info_priv->tx, &ds->ds_txstat,
 			       sizeof(tx_info_priv->tx));
 			tx_info_priv->n_frames = bf->bf_nframes;
