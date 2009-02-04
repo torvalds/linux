@@ -2420,6 +2420,9 @@ static int l2cap_disconn_ind(struct hci_conn *hcon, u8 reason)
 
 static inline void l2cap_check_encryption(struct sock *sk, u8 encrypt)
 {
+	if (sk->sk_type != SOCK_SEQPACKET)
+		return;
+
 	if (encrypt == 0x00) {
 		if (l2cap_pi(sk)->sec_level == BT_SECURITY_MEDIUM) {
 			l2cap_sock_clear_timer(sk);
