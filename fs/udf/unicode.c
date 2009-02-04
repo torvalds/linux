@@ -254,7 +254,7 @@ static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
 {
 	const uint8_t *ocu;
 	uint8_t cmp_id, ocu_len;
-	int i;
+	int i, len;
 
 
 	ocu_len = ocu_i->u_len;
@@ -279,8 +279,13 @@ static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
 		if (cmp_id == 16)
 			c = (c << 8) | ocu[i++];
 
-		utf_o->u_len += nls->uni2char(c, &utf_o->u_name[utf_o->u_len],
-					      UDF_NAME_LEN - utf_o->u_len);
+		len = nls->uni2char(c, &utf_o->u_name[utf_o->u_len],
+				    UDF_NAME_LEN - utf_o->u_len);
+		/* Valid character? */
+		if (len >= 0)
+			utf_o->u_len += len;
+		else
+			utf_o->u_name[utf_o->u_len++] = '?';
 	}
 	utf_o->u_cmpID = 8;
 
@@ -290,7 +295,8 @@ static int udf_CS0toNLS(struct nls_table *nls, struct ustr *utf_o,
 static int udf_NLStoCS0(struct nls_table *nls, dstring *ocu, struct ustr *uni,
 			int length)
 {
-	unsigned len, i, max_val;
+	int len;
+	unsigned i, max_val;
 	uint16_t uni_char;
 	int u_len;
 
@@ -302,8 +308,13 @@ try_again:
 	u_len = 0U;
 	for (i = 0U; i < uni->u_len; i++) {
 		len = nls->char2uni(&uni->u_name[i], uni->u_len - i, &uni_char);
-		if (len <= 0)
+		if (!len)
 			continue;
+		/* Invalid character, deal with it */
+		if (len < 0) {
+			len = 1;
+			uni_char = '?';
+		}
 
 		if (uni_char > max_val) {
 			max_val = 0xffffU;
