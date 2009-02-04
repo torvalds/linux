@@ -1075,7 +1075,7 @@ static void hpet_rtc_timer_reinit(void)
 		hpet_t1_cmp += delta;
 		hpet_writel(hpet_t1_cmp, HPET_T1_CMP);
 		lost_ints++;
-	} while ((long)(hpet_readl(HPET_COUNTER) - hpet_t1_cmp) > 0);
+	} while ((s32)(hpet_readl(HPET_COUNTER) - hpet_t1_cmp) > 0);
 
 	if (lost_ints) {
 		if (hpet_rtc_flags & RTC_PIE)
