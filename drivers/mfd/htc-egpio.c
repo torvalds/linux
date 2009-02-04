@@ -307,7 +307,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 
 	ei->nchips = pdata->num_chips;
 	ei->chip = kzalloc(sizeof(struct egpio_chip) * ei->nchips, GFP_KERNEL);
-	if (!ei) {
+	if (!ei->chip) {
 		ret = -ENOMEM;
 		goto fail;
 	}
