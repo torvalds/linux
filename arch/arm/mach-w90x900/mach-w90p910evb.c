@@ -36,24 +36,16 @@
 static struct map_desc w90p910_iodesc[] __initdata = {
 };
 
-static struct w90x900_uartcfg w90p910_uartcfgs[] = {
-	W90X900_UARTCFG(0, 0, 0, 0, 0),
-	W90X900_UARTCFG(1, 0, 0, 0, 0),
-	W90X900_UARTCFG(2, 0, 0, 0, 0),
-	W90X900_UARTCFG(3, 0, 0, 0, 0),
-	W90X900_UARTCFG(4, 0, 0, 0, 0),
-};
-
 /*Here should be your evb resourse,such as LCD*/
 
 static struct platform_device *w90p910evb_dev[] __initdata = {
+	&w90p910_serial_device,
 };
 
 static void __init w90p910evb_map_io(void)
 {
 	w90p910_map_io(w90p910_iodesc, ARRAY_SIZE(w90p910_iodesc));
 	w90p910_init_clocks(0);
-	w90p910_init_uarts(w90p910_uartcfgs, ARRAY_SIZE(w90p910_uartcfgs));
 }
 
 static void __init w90p910evb_init(void)
