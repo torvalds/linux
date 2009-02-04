@@ -1052,8 +1052,9 @@ void show_regs(struct pt_regs *fp)
 	char buf [150];
 	struct irqaction *action;
 	unsigned int i;
-	unsigned long flags;
+	unsigned long flags = 0;
 	unsigned int cpu = smp_processor_id();
+	unsigned char in_atomic = (bfin_read_IPEND() & 0x10) || in_atomic();
 
 	verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\t\t%s\n", print_tainted());
 	verbose_printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
@@ -1073,17 +1074,22 @@ void show_regs(struct pt_regs *fp)
 	}
 	verbose_printk(KERN_NOTICE "  EXCAUSE   : 0x%lx\n",
 		fp->seqstat & SEQSTAT_EXCAUSE);
-	for (i = 6; i <= 15 ; i++) {
+	for (i = 2; i <= 15 ; i++) {
 		if (fp->ipend & (1 << i)) {
-			decode_address(buf, bfin_read32(EVT0 + 4*i));
-			verbose_printk(KERN_NOTICE "  physical IVG%i asserted : %s\n", i, buf);
+			if (i != 4) {
+				decode_address(buf, bfin_read32(EVT0 + 4*i));
+				verbose_printk(KERN_NOTICE "  physical IVG%i asserted : %s\n", i, buf);
+			} else
+				verbose_printk(KERN_NOTICE "  interrupts disabled\n");
 		}
 	}
 
 	/* if no interrupts are going off, don't print this out */
 	if (fp->ipend & ~0x3F) {
 		for (i = 0; i < (NR_IRQS - 1); i++) {
-			spin_lock_irqsave(&irq_desc[i].lock, flags);
+			if (!in_atomic)
+				spin_lock_irqsave(&irq_desc[i].lock, flags);
+
 			action = irq_desc[i].action;
 			if (!action)
 				goto unlock;
@@ -1096,7 +1102,8 @@ void show_regs(struct pt_regs *fp)
 			}
 			verbose_printk("\n");
 unlock:
-			spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+			if (!in_atomic)
+				spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 		}
 	}
 
