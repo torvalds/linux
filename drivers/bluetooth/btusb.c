@@ -35,7 +35,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-#define VERSION "0.4"
+#define VERSION "0.5"
 
 static int ignore_dga;
 static int ignore_csr;
@@ -171,6 +171,7 @@ struct btusb_data {
 
 	__u8 cmdreq_type;
 
+	unsigned int sco_num;
 	int isoc_altsetting;
 	int suspend_count;
 };
@@ -496,11 +497,23 @@ static int btusb_open(struct hci_dev *hdev)
 		return 0;
 
 	err = btusb_submit_intr_urb(hdev, GFP_KERNEL);
+	if (err < 0)
+		goto failed;
+
+	err = btusb_submit_bulk_urb(hdev, GFP_KERNEL);
 	if (err < 0) {
-		clear_bit(BTUSB_INTR_RUNNING, &data->flags);
-		clear_bit(HCI_RUNNING, &hdev->flags);
+		usb_kill_anchored_urbs(&data->intr_anchor);
+		goto failed;
 	}
 
+	set_bit(BTUSB_BULK_RUNNING, &data->flags);
+	btusb_submit_bulk_urb(hdev, GFP_KERNEL);
+
+	return 0;
+
+failed:
+	clear_bit(BTUSB_INTR_RUNNING, &data->flags);
+	clear_bit(HCI_RUNNING, &hdev->flags);
 	return err;
 }
 
@@ -655,19 +668,10 @@ static void btusb_notify(struct hci_dev *hdev, unsigned int evt)
 
 	BT_DBG("%s evt %d", hdev->name, evt);
 
-	if (hdev->conn_hash.acl_num > 0) {
-		if (!test_and_set_bit(BTUSB_BULK_RUNNING, &data->flags)) {
-			if (btusb_submit_bulk_urb(hdev, GFP_ATOMIC) < 0)
-				clear_bit(BTUSB_BULK_RUNNING, &data->flags);
-			else
-				btusb_submit_bulk_urb(hdev, GFP_ATOMIC);
-		}
-	} else {
-		clear_bit(BTUSB_BULK_RUNNING, &data->flags);
-		usb_unlink_anchored_urbs(&data->bulk_anchor);
+	if (hdev->conn_hash.sco_num != data->sco_num) {
+		data->sco_num = hdev->conn_hash.sco_num;
+		schedule_work(&data->work);
 	}
-
-	schedule_work(&data->work);
 }
 
 static int inline __set_isoc_interface(struct hci_dev *hdev, int altsetting)
@@ -982,9 +986,11 @@ static int btusb_resume(struct usb_interface *intf)
 	}
 
 	if (test_bit(BTUSB_BULK_RUNNING, &data->flags)) {
-		if (btusb_submit_bulk_urb(hdev, GFP_NOIO) < 0)
+		err = btusb_submit_bulk_urb(hdev, GFP_NOIO);
+		if (err < 0) {
 			clear_bit(BTUSB_BULK_RUNNING, &data->flags);
-		else
+			return err;
+		} else
 			btusb_submit_bulk_urb(hdev, GFP_NOIO);
 	}
 
