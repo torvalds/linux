@@ -558,7 +558,7 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 };
 
-static int __init stamp_init(void)
+static int __init pnav_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
@@ -569,7 +569,7 @@ static int __init stamp_init(void)
 	return 0;
 }
 
-arch_initcall(stamp_init);
+arch_initcall(pnav_init);
 
 void bfin_get_ether_addr(char *addr)
 {

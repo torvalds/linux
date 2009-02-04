@@ -966,7 +966,7 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&bfin_gpios_device,
 };
 
-static int __init stamp_init(void)
+static int __init cm_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	i2c_register_board_info(0, bfin_i2c_board_info,
@@ -976,7 +976,7 @@ static int __init stamp_init(void)
 	return 0;
 }
 
-arch_initcall(stamp_init);
+arch_initcall(cm_init);
 
 void native_machine_restart(char *cmd)
 {

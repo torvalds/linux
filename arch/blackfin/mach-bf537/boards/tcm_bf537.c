@@ -615,7 +615,7 @@ static struct platform_device *cm_bf537_devices[] __initdata = {
 	&bfin_gpios_device,
 };
 
-static int __init cm_bf537_init(void)
+static int __init tcm_bf537_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	platform_add_devices(cm_bf537_devices, ARRAY_SIZE(cm_bf537_devices));
@@ -629,7 +629,7 @@ static int __init cm_bf537_init(void)
 	return 0;
 }
 
-arch_initcall(cm_bf537_init);
+arch_initcall(tcm_bf537_init);
 
 void bfin_get_ether_addr(char *addr)
 {
