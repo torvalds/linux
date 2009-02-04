@@ -3263,6 +3263,7 @@ static int ibmvfc_alloc_target(struct ibmvfc_host *vhost, u64 scsi_id)
 		return -ENOMEM;
 	}
 
+	memset(tgt, 0, sizeof(*tgt));
 	tgt->scsi_id = scsi_id;
 	tgt->new_scsi_id = scsi_id;
 	tgt->vhost = vhost;
@@ -3573,8 +3574,17 @@ static void ibmvfc_log_ae(struct ibmvfc_host *vhost, int events)
 static void ibmvfc_tgt_add_rport(struct ibmvfc_target *tgt)
 {
 	struct ibmvfc_host *vhost = tgt->vhost;
-	struct fc_rport *rport;
+	struct fc_rport *rport = tgt->rport;
 	unsigned long flags;
+
+	if (rport) {
+		tgt_dbg(tgt, "Setting rport roles\n");
+		fc_remote_port_rolechg(rport, tgt->ids.roles);
+		spin_lock_irqsave(vhost->host->host_lock, flags);
+		ibmvfc_set_tgt_action(tgt, IBMVFC_TGT_ACTION_NONE);
+		spin_unlock_irqrestore(vhost->host->host_lock, flags);
+		return;
+	}
 
 	tgt_dbg(tgt, "Adding rport\n");
 	rport = fc_remote_port_add(vhost->host, 0, &tgt->ids);
