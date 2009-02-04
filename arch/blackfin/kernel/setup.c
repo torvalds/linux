@@ -60,7 +60,7 @@ void __initdata *init_retx, *init_saved_retx, *init_saved_seqstat,
 #define BFIN_MEMMAP_MAX		128 /* number of entries in bfin_memmap */
 #define BFIN_MEMMAP_RAM		1
 #define BFIN_MEMMAP_RESERVED	2
-struct bfin_memmap {
+static struct bfin_memmap {
 	int nr_map;
 	struct bfin_memmap_entry {
 		unsigned long long addr; /* start of memory segment */
