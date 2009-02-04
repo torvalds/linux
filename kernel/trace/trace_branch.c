@@ -182,9 +182,6 @@ static struct trace_event trace_branch_event = {
 	.type	 	= TRACE_BRANCH,
 	.trace		= trace_branch_print,
 	.latency_trace	= trace_branch_print,
-	.raw		= trace_nop_print,
-	.hex		= trace_nop_print,
-	.binary		= trace_nop_print,
 };
 
 static struct tracer branch_trace __read_mostly =

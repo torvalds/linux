@@ -1243,8 +1243,6 @@ static struct trace_event trace_blk_event = {
 	.type	 	= TRACE_BLK,
 	.trace		= blk_trace_event_print,
 	.latency_trace	= blk_trace_event_print,
-	.raw		= trace_nop_print,
-	.hex		= trace_nop_print,
 	.binary		= blk_trace_event_print_binary,
 };
 

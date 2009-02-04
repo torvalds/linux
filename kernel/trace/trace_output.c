@@ -435,6 +435,17 @@ int register_ftrace_event(struct trace_event *event)
 	if (ftrace_find_event(event->type))
 		goto out;
 
+	if (event->trace == NULL)
+		event->trace = trace_nop_print;
+	if (event->latency_trace == NULL)
+		event->latency_trace = trace_nop_print;
+	if (event->raw == NULL)
+		event->raw = trace_nop_print;
+	if (event->hex == NULL)
+		event->hex = trace_nop_print;
+	if (event->binary == NULL)
+		event->binary = trace_nop_print;
+
 	key = event->type & (EVENT_HASHSIZE - 1);
 
 	hlist_add_head_rcu(&event->node, &event_hash[key]);
@@ -874,8 +885,6 @@ static struct trace_event trace_print_event = {
 	.trace		= trace_print_print,
 	.latency_trace	= trace_print_print,
 	.raw		= trace_print_raw,
-	.hex		= trace_nop_print,
-	.binary		= trace_nop_print,
 };
 
 static struct trace_event *events[] __initdata = {
