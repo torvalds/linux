@@ -1172,10 +1172,9 @@ EXPORT_SYMBOL(bfin_gpio_get_value);
  * lives here as we need to force all the GPIO states w/out going through
  * BUG() checks and such.
  */
-void bfin_gpio_reset_spi0_ssel1(void)
+void bfin_reset_boot_spi_cs(unsigned short pin)
 {
-	u16 gpio = P_IDENT(P_SPI0_SSEL1);
-
+	unsigned short gpio = P_IDENT(pin);
 	port_setup(gpio, GPIO_USAGE);
 	gpio_array[gpio_bank(gpio)]->data_set = gpio_bit(gpio);
 	AWA_DUMMY_READ(data_set);

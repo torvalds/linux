@@ -988,7 +988,7 @@ void native_machine_restart(char *cmd)
 {
 	/* workaround reboot hang when booting from SPI */
 	if ((bfin_read_SYSCR() & 0x7) == 0x3)
-		bfin_gpio_reset_spi0_ssel1();
+		bfin_reset_boot_spi_cs(P_DEFAULT_BOOT_SPI_CS);
 }
 
 void bfin_get_ether_addr(char *addr)
