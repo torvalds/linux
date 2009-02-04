@@ -372,6 +372,9 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		rfilt &= ~ATH9K_RX_FILTER_UCAST;
 	}
 
+	if (sc->rx.rxfilter & FIF_CONTROL)
+		rfilt |= ATH9K_RX_FILTER_CONTROL;
+
 	if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION ||
 	    sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC)
 		rfilt |= ATH9K_RX_FILTER_BEACON;
