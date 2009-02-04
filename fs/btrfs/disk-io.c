@@ -799,7 +799,7 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
 
 	if (ret == 0)
-		buf->flags |= EXTENT_UPTODATE;
+		set_bit(EXTENT_BUFFER_UPTODATE, &buf->bflags);
 	else
 		WARN_ON(1);
 	return buf;
@@ -813,6 +813,10 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	if (btrfs_header_generation(buf) ==
 	    root->fs_info->running_transaction->transid) {
 		WARN_ON(!btrfs_tree_locked(buf));
+
+		/* ugh, clear_extent_buffer_dirty can be expensive */
+		btrfs_set_lock_blocking(buf);
+
 		clear_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree,
 					  buf);
 	}
@@ -2311,6 +2315,8 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 	u64 transid = btrfs_header_generation(buf);
 	struct inode *btree_inode = root->fs_info->btree_inode;
 
+	btrfs_set_lock_blocking(buf);
+
 	WARN_ON(!btrfs_tree_locked(buf));
 	if (transid != root->fs_info->generation) {
 		printk(KERN_CRIT "btrfs transid mismatch buffer %llu, "
@@ -2353,7 +2359,7 @@ int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 	int ret;
 	ret = btree_read_extent_buffer_pages(root, buf, 0, parent_transid);
 	if (ret == 0)
-		buf->flags |= EXTENT_UPTODATE;
+		set_bit(EXTENT_BUFFER_UPTODATE, &buf->bflags);
 	return ret;
 }
 

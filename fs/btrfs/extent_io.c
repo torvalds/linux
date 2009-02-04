@@ -2990,7 +2990,9 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 	eb = kmem_cache_zalloc(extent_buffer_cache, mask);
 	eb->start = start;
 	eb->len = len;
-	mutex_init(&eb->mutex);
+	spin_lock_init(&eb->lock);
+	init_waitqueue_head(&eb->lock_wq);
+
 #if LEAK_DEBUG
 	spin_lock_irqsave(&leak_lock, flags);
 	list_add(&eb->leak_list, &buffers);
@@ -3071,8 +3073,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		unlock_page(p);
 	}
 	if (uptodate)
-		eb->flags |= EXTENT_UPTODATE;
-	eb->flags |= EXTENT_BUFFER_FILLED;
+		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 
 	spin_lock(&tree->buffer_lock);
 	exists = buffer_tree_insert(tree, start, &eb->rb_node);
@@ -3226,7 +3227,7 @@ int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
 	unsigned long num_pages;
 
 	num_pages = num_extent_pages(eb->start, eb->len);
-	eb->flags &= ~EXTENT_UPTODATE;
+	clear_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 
 	clear_extent_uptodate(tree, eb->start, eb->start + eb->len - 1,
 			      GFP_NOFS);
@@ -3297,7 +3298,7 @@ int extent_buffer_uptodate(struct extent_io_tree *tree,
 	struct page *page;
 	int pg_uptodate = 1;
 
-	if (eb->flags & EXTENT_UPTODATE)
+	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
 		return 1;
 
 	ret = test_range_bit(tree, eb->start, eb->start + eb->len - 1,
@@ -3333,7 +3334,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	struct bio *bio = NULL;
 	unsigned long bio_flags = 0;
 
-	if (eb->flags & EXTENT_UPTODATE)
+	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
 		return 0;
 
 	if (test_range_bit(tree, eb->start, eb->start + eb->len - 1,
@@ -3364,7 +3365,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	}
 	if (all_uptodate) {
 		if (start_i == 0)
-			eb->flags |= EXTENT_UPTODATE;
+			set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 		goto unlock_exit;
 	}
 
@@ -3400,7 +3401,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	}
 
 	if (!ret)
-		eb->flags |= EXTENT_UPTODATE;
+		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
 	return ret;
 
 unlock_exit:
@@ -3497,7 +3498,6 @@ int map_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		unmap_extent_buffer(eb, eb->map_token, km);
 		eb->map_token = NULL;
 		save = 1;
-		WARN_ON(!mutex_is_locked(&eb->mutex));
 	}
 	err = map_private_extent_buffer(eb, start, min_len, token, map,
 				       map_start, map_len, km);

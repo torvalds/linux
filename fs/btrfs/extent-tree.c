@@ -3407,7 +3407,10 @@ struct extent_buffer *btrfs_init_new_buffer(struct btrfs_trans_handle *trans,
 	btrfs_set_header_generation(buf, trans->transid);
 	btrfs_tree_lock(buf);
 	clean_tree_block(trans, root, buf);
+
+	btrfs_set_lock_blocking(buf);
 	btrfs_set_buffer_uptodate(buf);
+
 	if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
 		set_extent_dirty(&root->dirty_log_pages, buf->start,
 			 buf->start + buf->len - 1, GFP_NOFS);
@@ -3416,6 +3419,7 @@ struct extent_buffer *btrfs_init_new_buffer(struct btrfs_trans_handle *trans,
 			 buf->start + buf->len - 1, GFP_NOFS);
 	}
 	trans->blocks_used++;
+	/* this returns a buffer locked for blocking */
 	return buf;
 }
 
@@ -3752,6 +3756,7 @@ static noinline int walk_down_subtree(struct btrfs_trans_handle *trans,
 
 		next = read_tree_block(root, bytenr, blocksize, ptr_gen);
 		btrfs_tree_lock(next);
+		btrfs_set_lock_blocking(next);
 
 		ret = btrfs_lookup_extent_ref(trans, root, bytenr, blocksize,
 					      &refs);

@@ -50,6 +50,7 @@
 #include "tree-log.h"
 #include "ref-cache.h"
 #include "compression.h"
+#include "locking.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -2021,6 +2022,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
 
 	alloc_group_block = btrfs_inode_block_group(leaf, inode_item);
+
 	BTRFS_I(inode)->block_group = btrfs_find_block_group(root, 0,
 						alloc_group_block, 0);
 	btrfs_free_path(path);
@@ -2117,6 +2119,7 @@ noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
 		goto failed;
 	}
 
+	btrfs_unlock_up_safe(path, 1);
 	leaf = path->nodes[0];
 	inode_item = btrfs_item_ptr(leaf, path->slots[0],
 				  struct btrfs_inode_item);

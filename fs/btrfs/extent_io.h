@@ -22,6 +22,10 @@
 /* flags for bio submission */
 #define EXTENT_BIO_COMPRESSED 1
 
+/* these are bit numbers for test/set bit */
+#define EXTENT_BUFFER_UPTODATE 0
+#define EXTENT_BUFFER_BLOCKING 1
+
 /*
  * page->private values.  Every page that is controlled by the extent
  * map has page->private set to one.
@@ -95,11 +99,19 @@ struct extent_buffer {
 	unsigned long map_start;
 	unsigned long map_len;
 	struct page *first_page;
+	unsigned long bflags;
 	atomic_t refs;
-	int flags;
 	struct list_head leak_list;
 	struct rb_node rb_node;
-	struct mutex mutex;
+
+	/* the spinlock is used to protect most operations */
+	spinlock_t lock;
+
+	/*
+	 * when we keep the lock held while blocking, waiters go onto
+	 * the wq
+	 */
+	wait_queue_head_t lock_wq;
 };
 
 struct extent_map_tree;
