@@ -1404,15 +1404,6 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		return ret;
 	}
 
-	if (pdata && pdata->init) {
-		ret = pdata->init(wm8350);
-		if (ret != 0) {
-			dev_err(wm8350->dev, "Platform init() failed: %d\n",
-				ret);
-			goto err;
-		}
-	}
-
 	mutex_init(&wm8350->auxadc_mutex);
 	mutex_init(&wm8350->irq_mutex);
 	INIT_WORK(&wm8350->irq_work, wm8350_irq_worker);
@@ -1429,6 +1420,15 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 		goto err;
 	}
 	wm8350->chip_irq = irq;
+
+	if (pdata && pdata->init) {
+		ret = pdata->init(wm8350);
+		if (ret != 0) {
+			dev_err(wm8350->dev, "Platform init() failed: %d\n",
+				ret);
+			goto err;
+		}
+	}
 
 	wm8350_reg_write(wm8350, WM8350_SYSTEM_INTERRUPTS_MASK, 0x0);
 
