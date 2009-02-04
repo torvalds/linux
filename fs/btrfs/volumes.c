@@ -154,6 +154,7 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 loop:
 	spin_lock(&device->io_lock);
 
+loop_lock:
 	/* take all the bios off the list at once and process them
 	 * later on (without the lock held).  But, remember the
 	 * tail and other pointers so the bios can be properly reinserted
@@ -203,7 +204,7 @@ loop:
 		 * is now congested.  Back off and let other work structs
 		 * run instead
 		 */
-		if (pending && bdi_write_congested(bdi) &&
+		if (pending && bdi_write_congested(bdi) && num_run > 16 &&
 		    fs_info->fs_devices->open_devices > 1) {
 			struct bio *old_head;
 
@@ -215,7 +216,8 @@ loop:
 				tail->bi_next = old_head;
 			else
 				device->pending_bio_tail = tail;
-			device->running_pending = 0;
+
+			device->running_pending = 1;
 
 			spin_unlock(&device->io_lock);
 			btrfs_requeue_work(&device->work);
@@ -224,6 +226,11 @@ loop:
 	}
 	if (again)
 		goto loop;
+
+	spin_lock(&device->io_lock);
+	if (device->pending_bios)
+		goto loop_lock;
+	spin_unlock(&device->io_lock);
 done:
 	return 0;
 }

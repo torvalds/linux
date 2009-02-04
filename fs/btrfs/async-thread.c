@@ -349,6 +349,7 @@ int btrfs_requeue_work(struct btrfs_work *work)
 {
 	struct btrfs_worker_thread *worker = work->worker;
 	unsigned long flags;
+	int wake = 0;
 
 	if (test_and_set_bit(WORK_QUEUED_BIT, &work->flags))
 		goto out;
@@ -367,10 +368,16 @@ int btrfs_requeue_work(struct btrfs_work *work)
 			       &worker->workers->worker_list);
 		spin_unlock_irqrestore(&worker->workers->lock, flags);
 	}
+	if (!worker->working) {
+		wake = 1;
+		worker->working = 1;
+	}
 
 	spin_unlock_irqrestore(&worker->lock, flags);
-
+	if (wake)
+		wake_up_process(worker->task);
 out:
+
 	return 0;
 }
 
@@ -397,6 +404,7 @@ int btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work)
 	}
 
 	spin_lock_irqsave(&worker->lock, flags);
+
 	atomic_inc(&worker->num_pending);
 	check_busy_worker(worker);
 	list_add_tail(&work->list, &worker->pending);
