@@ -132,6 +132,8 @@ static inline void __remove_wait_queue(wait_queue_head_t *head,
 	list_del(&old->task_list);
 }
 
+void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
+			int nr_exclusive, int sync, void *key);
 void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
 extern void __wake_up_locked(wait_queue_head_t *q, unsigned int mode);
 extern void __wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr);
@@ -333,16 +335,19 @@ do {									\
 	for (;;) {							\
 		prepare_to_wait_exclusive(&wq, &__wait,			\
 					TASK_INTERRUPTIBLE);		\
-		if (condition)						\
+		if (condition) {					\
+			finish_wait(&wq, &__wait);			\
 			break;						\
+		}							\
 		if (!signal_pending(current)) {				\
 			schedule();					\
 			continue;					\
 		}							\
 		ret = -ERESTARTSYS;					\
+		abort_exclusive_wait(&wq, &__wait, 			\
+				TASK_INTERRUPTIBLE, NULL);		\
 		break;							\
 	}								\
-	finish_wait(&wq, &__wait);					\
 } while (0)
 
 #define wait_event_interruptible_exclusive(wq, condition)		\
@@ -431,6 +436,8 @@ extern long interruptible_sleep_on_timeout(wait_queue_head_t *q,
 void prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state);
 void prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state);
 void finish_wait(wait_queue_head_t *q, wait_queue_t *wait);
+void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait,
+			unsigned int mode, void *key);
 int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
 
