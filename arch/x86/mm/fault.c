@@ -775,6 +775,15 @@ static inline int access_error(unsigned long error_code, int write,
 	return 0;
 }
 
+static int fault_in_kernel_space(unsigned long address)
+{
+#ifdef CONFIG_X86_32
+	return address >= TASK_SIZE;
+#else /* !CONFIG_X86_32 */
+	return address >= TASK_SIZE64;
+#endif /* CONFIG_X86_32 */
+}
+
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
@@ -817,11 +826,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * (error_code & 4) == 0, and that the fault was not a
 	 * protection error (error_code & 9) == 0.
 	 */
-#ifdef CONFIG_X86_32
-	if (unlikely(address >= TASK_SIZE)) {
-#else
-	if (unlikely(address >= TASK_SIZE64)) {
-#endif
+	if (unlikely(fault_in_kernel_space(address))) {
 		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
 		    vmalloc_fault(address) >= 0)
 			return;
