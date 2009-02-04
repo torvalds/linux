@@ -19,6 +19,7 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
+#include <linux/sort.h>
 #include "compat.h"
 #include "hash.h"
 #include "crc32c.h"
@@ -1521,15 +1522,50 @@ out:
 	return ret;
 }
 
-int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		  struct extent_buffer *orig_buf, struct extent_buffer *buf,
-		  u32 *nr_extents)
+/* when a block goes through cow, we update the reference counts of
+ * everything that block points to.  The internal pointers of the block
+ * can be in just about any order, and it is likely to have clusters of
+ * things that are close together and clusters of things that are not.
+ *
+ * To help reduce the seeks that come with updating all of these reference
+ * counts, sort them by byte number before actual updates are done.
+ *
+ * struct refsort is used to match byte number to slot in the btree block.
+ * we sort based on the byte number and then use the slot to actually
+ * find the item.
+ */
+struct refsort {
+	u64 bytenr;
+	u32 slot;
+};
+
+/*
+ * for passing into sort()
+ */
+static int refsort_cmp(const void *a_void, const void *b_void)
+{
+	const struct refsort *a = a_void;
+	const struct refsort *b = b_void;
+
+	if (a->bytenr < b->bytenr)
+		return -1;
+	if (a->bytenr > b->bytenr)
+		return 1;
+	return 0;
+}
+
+
+noinline int btrfs_inc_ref(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root,
+			   struct extent_buffer *orig_buf,
+			   struct extent_buffer *buf, u32 *nr_extents)
 {
 	u64 bytenr;
 	u64 ref_root;
 	u64 orig_root;
 	u64 ref_generation;
 	u64 orig_generation;
+	struct refsort *sorted;
 	u32 nritems;
 	u32 nr_file_extents = 0;
 	struct btrfs_key key;
@@ -1538,6 +1574,8 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	int level;
 	int ret = 0;
 	int faili = 0;
+	int refi = 0;
+	int slot;
 	int (*process_func)(struct btrfs_trans_handle *, struct btrfs_root *,
 			    u64, u64, u64, u64, u64, u64, u64, u64);
 
@@ -1548,6 +1586,9 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 
 	nritems = btrfs_header_nritems(buf);
 	level = btrfs_header_level(buf);
+
+	sorted = kmalloc(sizeof(struct refsort) * nritems, GFP_NOFS);
+	BUG_ON(!sorted);
 
 	if (root->ref_cows) {
 		process_func = __btrfs_inc_extent_ref;
@@ -1561,6 +1602,11 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		process_func = __btrfs_update_extent_ref;
 	}
 
+	/*
+	 * we make two passes through the items.  In the first pass we
+	 * only record the byte number and slot.  Then we sort based on
+	 * byte number and do the actual work based on the sorted results
+	 */
 	for (i = 0; i < nritems; i++) {
 		cond_resched();
 		if (level == 0) {
@@ -1577,6 +1623,32 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 				continue;
 
 			nr_file_extents++;
+			sorted[refi].bytenr = bytenr;
+			sorted[refi].slot = i;
+			refi++;
+		} else {
+			bytenr = btrfs_node_blockptr(buf, i);
+			sorted[refi].bytenr = bytenr;
+			sorted[refi].slot = i;
+			refi++;
+		}
+	}
+	/*
+	 * if refi == 0, we didn't actually put anything into the sorted
+	 * array and we're done
+	 */
+	if (refi == 0)
+		goto out;
+
+	sort(sorted, refi, sizeof(struct refsort), refsort_cmp, NULL);
+
+	for (i = 0; i < refi; i++) {
+		cond_resched();
+		slot = sorted[i].slot;
+		bytenr = sorted[i].bytenr;
+
+		if (level == 0) {
+			btrfs_item_key_to_cpu(buf, &key, slot);
 
 			ret = process_func(trans, root, bytenr,
 					   orig_buf->start, buf->start,
@@ -1585,25 +1657,25 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 					   key.objectid);
 
 			if (ret) {
-				faili = i;
+				faili = slot;
 				WARN_ON(1);
 				goto fail;
 			}
 		} else {
-			bytenr = btrfs_node_blockptr(buf, i);
 			ret = process_func(trans, root, bytenr,
 					   orig_buf->start, buf->start,
 					   orig_root, ref_root,
 					   orig_generation, ref_generation,
 					   level - 1);
 			if (ret) {
-				faili = i;
+				faili = slot;
 				WARN_ON(1);
 				goto fail;
 			}
 		}
 	}
 out:
+	kfree(sorted);
 	if (nr_extents) {
 		if (level == 0)
 			*nr_extents = nr_file_extents;
@@ -1612,6 +1684,7 @@ out:
 	}
 	return 0;
 fail:
+	kfree(sorted);
 	WARN_ON(1);
 	return ret;
 }
