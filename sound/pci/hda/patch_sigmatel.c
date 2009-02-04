@@ -4944,7 +4944,16 @@ again:
 	return 0;
 }
 
-static struct hda_input_mux stac92hd71bxx_dmux = {
+static struct hda_input_mux stac92hd71bxx_dmux_nomixer = {
+	.num_items = 3,
+	.items = {
+		{ "Analog Inputs", 0x00 },
+		{ "Digital Mic 1", 0x02 },
+		{ "Digital Mic 2", 0x03 },
+	}
+};
+
+static struct hda_input_mux stac92hd71bxx_dmux_amixer = {
 	.num_items = 4,
 	.items = {
 		{ "Analog Inputs", 0x00 },
@@ -4954,11 +4963,57 @@ static struct hda_input_mux stac92hd71bxx_dmux = {
 	}
 };
 
+static int stac92hd71bxx_connected_ports(struct hda_codec *codec,
+					 hda_nid_t *nids, int num_nids)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	int idx, num;
+	unsigned int def_conf;
+
+	for (num = 0; num < num_nids; num++) {
+		for (idx = 0; idx < spec->num_pins; idx++)
+			if (spec->pin_nids[idx] == nids[num])
+				break;
+		if (idx >= spec->num_pins)
+			break;
+		def_conf = get_defcfg_connect(spec->pin_configs[idx]);
+		if (def_conf == AC_JACK_PORT_NONE)
+			break;
+	}
+	return num;
+}
+
+static int stac92hd71bxx_connected_smuxes(struct hda_codec *codec,
+					  hda_nid_t dig0pin)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	int idx;
+
+	for (idx = 0; idx < spec->num_pins; idx++)
+		if (spec->pin_nids[idx] == dig0pin)
+			break;
+	if ((idx + 2) >= spec->num_pins)
+		return 0;
+
+	/* dig1pin case */
+	if (get_defcfg_connect(spec->pin_configs[idx+1]) != AC_JACK_PORT_NONE)
+		return 2;
+
+	/* dig0pin + dig2pin case */
+	if (get_defcfg_connect(spec->pin_configs[idx+2]) != AC_JACK_PORT_NONE)
+		return 2;
+	if (get_defcfg_connect(spec->pin_configs[idx]) != AC_JACK_PORT_NONE)
+		return 1;
+	else
+		return 0;
+}
+
 static int patch_stac92hd71bxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
 	struct hda_verb *unmute_init = stac92hd71bxx_unmute_core_init;
 	int err = 0;
+	unsigned int ndmic_nids = 0;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -4981,8 +5036,6 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 		spec->pin_nids = stac92hd71bxx_pin_nids_6port;
 	}
 	spec->num_pwrs = ARRAY_SIZE(stac92hd71bxx_pwr_nids);
-	memcpy(&spec->private_dimux, &stac92hd71bxx_dmux,
-			sizeof(stac92hd71bxx_dmux));
 	spec->board_config = snd_hda_check_board_config(codec,
 							STAC_92HD71BXX_MODELS,
 							stac92hd71bxx_models,
@@ -5007,16 +5060,32 @@ again:
 		spec->gpio_data = 0x01;
 	}
 
+	spec->dmic_nids = stac92hd71bxx_dmic_nids;
+	spec->dmux_nids = stac92hd71bxx_dmux_nids;
+
 	switch (codec->vendor_id) {
 	case 0x111d76b6: /* 4 Port without Analog Mixer */
 	case 0x111d76b7:
 	case 0x111d76b4: /* 6 Port without Analog Mixer */
 	case 0x111d76b5:
+		memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_nomixer,
+		       sizeof(stac92hd71bxx_dmux_nomixer));
 		spec->mixer = stac92hd71bxx_mixer;
 		spec->init = stac92hd71bxx_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
+		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
+					stac92hd71bxx_dmic_nids,
+					STAC92HD71BXX_NUM_DMICS);
+		if (spec->num_dmics) {
+			spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
+			spec->dinput_mux = &spec->private_dimux;
+			ndmic_nids = ARRAY_SIZE(stac92hd71bxx_dmic_nids) - 1;
+		}
 		break;
 	case 0x111d7608: /* 5 Port with Analog Mixer */
+		memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_amixer,
+		       sizeof(stac92hd71bxx_dmux_amixer));
+		spec->private_dimux.num_items--;
 		switch (spec->board_config) {
 		case STAC_HP_M4:
 			/* Enable VREF power saving on GPIO1 detect */
@@ -5046,6 +5115,12 @@ again:
 		unmute_init++;
 		stac_change_pin_config(codec, 0x0f, 0x40f000f0);
 		stac_change_pin_config(codec, 0x19, 0x40f000f3);
+		stac92hd71bxx_dmic_nids[STAC92HD71BXX_NUM_DMICS - 1] = 0;
+		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
+					stac92hd71bxx_dmic_nids,
+					STAC92HD71BXX_NUM_DMICS - 1);
+		spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
+		ndmic_nids = ARRAY_SIZE(stac92hd71bxx_dmic_nids) - 2;
 		break;
 	case 0x111d7603: /* 6 Port with Analog Mixer */
 		if ((codec->revision_id & 0xf) == 1)
@@ -5055,10 +5130,17 @@ again:
 		spec->num_pwrs = 0;
 		/* fallthru */
 	default:
+		memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_amixer,
+		       sizeof(stac92hd71bxx_dmux_amixer));
 		spec->dinput_mux = &spec->private_dimux;
 		spec->mixer = stac92hd71bxx_analog_mixer;
 		spec->init = stac92hd71bxx_analog_core_init;
 		codec->slave_dig_outs = stac92hd71bxx_slave_dig_outs;
+		spec->num_dmics = stac92hd71bxx_connected_ports(codec,
+					stac92hd71bxx_dmic_nids,
+					STAC92HD71BXX_NUM_DMICS);
+		spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
+		ndmic_nids = ARRAY_SIZE(stac92hd71bxx_dmic_nids) - 1;
 	}
 
 	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
@@ -5071,13 +5153,12 @@ again:
 	spec->digbeep_nid = 0x26;
 	spec->mux_nids = stac92hd71bxx_mux_nids;
 	spec->adc_nids = stac92hd71bxx_adc_nids;
-	spec->dmic_nids = stac92hd71bxx_dmic_nids;
-	spec->dmux_nids = stac92hd71bxx_dmux_nids;
 	spec->smux_nids = stac92hd71bxx_smux_nids;
 	spec->pwr_nids = stac92hd71bxx_pwr_nids;
 
 	spec->num_muxes = ARRAY_SIZE(stac92hd71bxx_mux_nids);
 	spec->num_adcs = ARRAY_SIZE(stac92hd71bxx_adc_nids);
+	spec->num_smuxes = stac92hd71bxx_connected_smuxes(codec, 0x1e);
 
 	switch (spec->board_config) {
 	case STAC_HP_M4:
@@ -5097,17 +5178,11 @@ again:
 		spec->num_smuxes = 0;
 		spec->num_dmuxes = 0;
 		break;
-	default:
-		spec->num_dmics = STAC92HD71BXX_NUM_DMICS;
-		spec->num_smuxes = ARRAY_SIZE(stac92hd71bxx_smux_nids);
-		spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
 	};
 
 	spec->multiout.dac_nids = spec->dac_nids;
 	if (spec->dinput_mux)
-		spec->private_dimux.num_items +=
-			spec->num_dmics -
-				(ARRAY_SIZE(stac92hd71bxx_dmic_nids) - 1);
+		spec->private_dimux.num_items += spec->num_dmics - ndmic_nids;
 
 	err = stac92xx_parse_auto_config(codec, 0x21, 0x23);
 	if (!err) {
