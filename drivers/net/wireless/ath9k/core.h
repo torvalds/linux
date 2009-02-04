@@ -137,6 +137,8 @@ struct ath_legacy_rc_stats {
 
 struct ath_11n_rc_stats {
 	u32 success;
+	u32 retries;
+	u32 xretries;
 };
 
 struct ath_stats {
@@ -160,6 +162,8 @@ int ath9k_init_debug(struct ath_softc *sc);
 void ath9k_exit_debug(struct ath_softc *sc);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_rc(struct ath_softc *sc, struct sk_buff *skb);
+void ath_debug_stat_retries(struct ath_softc *sc, int rix,
+			    int xretries, int retries);
 
 #else
 
@@ -184,6 +188,11 @@ static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
 
 static inline void ath_debug_stat_rc(struct ath_softc *sc,
 				     struct sk_buff *skb)
+{
+}
+
+static inline void ath_debug_stat_retries(struct ath_softc *sc, int rix,
+					  int xretries, int retries)
 {
 }
 
