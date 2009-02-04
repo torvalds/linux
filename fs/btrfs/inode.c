@@ -360,6 +360,19 @@ again:
 	nr_pages = (end >> PAGE_CACHE_SHIFT) - (start >> PAGE_CACHE_SHIFT) + 1;
 	nr_pages = min(nr_pages, (128 * 1024UL) / PAGE_CACHE_SIZE);
 
+	/*
+	 * we don't want to send crud past the end of i_size through
+	 * compression, that's just a waste of CPU time.  So, if the
+	 * end of the file is before the start of our current
+	 * requested range of bytes, we bail out to the uncompressed
+	 * cleanup code that can deal with all of this.
+	 *
+	 * It isn't really the fastest way to fix things, but this is a
+	 * very uncommon corner.
+	 */
+	if (actual_end <= start)
+		goto cleanup_and_bail_uncompressed;
+
 	total_compressed = actual_end - start;
 
 	/* we want to make sure that amount of ram required to uncompress
@@ -504,6 +517,7 @@ again:
 			goto again;
 		}
 	} else {
+cleanup_and_bail_uncompressed:
 		/*
 		 * No compression, but we still need to write the pages in
 		 * the file we've been given so far.  redirty the locked
