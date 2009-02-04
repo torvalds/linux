@@ -1518,18 +1518,19 @@ again:
 			 */
 			if (prealloc_block.objectid &&
 			    prealloc_block.offset != b->len) {
-				btrfs_set_path_blocking(p);
+				btrfs_release_path(root, p);
 				btrfs_free_reserved_extent(root,
 					   prealloc_block.objectid,
 					   prealloc_block.offset);
 				prealloc_block.objectid = 0;
+				goto again;
 			}
 
 			/*
 			 * for higher level blocks, try not to allocate blocks
 			 * with the block and the parent locks held.
 			 */
-			if (level > 1 && !prealloc_block.objectid &&
+			if (level > 0 && !prealloc_block.objectid &&
 			    btrfs_path_lock_waiting(p, level)) {
 				u32 size = b->len;
 				u64 hint = b->start;
@@ -1614,7 +1615,9 @@ cow_done:
 				}
 				b = p->nodes[level];
 				slot = p->slots[level];
-			} else if (ins_len < 0) {
+			} else if (ins_len < 0 &&
+				   btrfs_header_nritems(b) <
+				   BTRFS_NODEPTRS_PER_BLOCK(root) / 4) {
 				int sret;
 
 				sret = reada_for_balance(root, p, level);
