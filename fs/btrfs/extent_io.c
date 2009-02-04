@@ -30,7 +30,7 @@ static LIST_HEAD(buffers);
 static LIST_HEAD(states);
 
 #define LEAK_DEBUG 0
-#ifdef LEAK_DEBUG
+#if LEAK_DEBUG
 static DEFINE_SPINLOCK(leak_lock);
 #endif
 
@@ -119,7 +119,7 @@ void extent_io_tree_init(struct extent_io_tree *tree,
 static struct extent_state *alloc_extent_state(gfp_t mask)
 {
 	struct extent_state *state;
-#ifdef LEAK_DEBUG
+#if LEAK_DEBUG
 	unsigned long flags;
 #endif
 
@@ -129,7 +129,7 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
 	state->state = 0;
 	state->private = 0;
 	state->tree = NULL;
-#ifdef LEAK_DEBUG
+#if LEAK_DEBUG
 	spin_lock_irqsave(&leak_lock, flags);
 	list_add(&state->leak_list, &states);
 	spin_unlock_irqrestore(&leak_lock, flags);
@@ -144,11 +144,11 @@ static void free_extent_state(struct extent_state *state)
 	if (!state)
 		return;
 	if (atomic_dec_and_test(&state->refs)) {
-#ifdef LEAK_DEBUG
+#if LEAK_DEBUG
 		unsigned long flags;
 #endif
 		WARN_ON(state->tree);
-#ifdef LEAK_DEBUG
+#if LEAK_DEBUG
 		spin_lock_irqsave(&leak_lock, flags);
 		list_del(&state->leak_list);
 		spin_unlock_irqrestore(&leak_lock, flags);
@@ -2983,7 +2983,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 						   gfp_t mask)
 {
 	struct extent_buffer *eb = NULL;
-#ifdef LEAK_DEBUG
+#if LEAK_DEBUG
 	unsigned long flags;
 #endif
 
@@ -2991,7 +2991,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 	eb->start = start;
 	eb->len = len;
 	mutex_init(&eb->mutex);
-#ifdef LEAK_DEBUG
+#if LEAK_DEBUG
 	spin_lock_irqsave(&leak_lock, flags);
 	list_add(&eb->leak_list, &buffers);
 	spin_unlock_irqrestore(&leak_lock, flags);
@@ -3003,7 +3003,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 
 static void __free_extent_buffer(struct extent_buffer *eb)
 {
-#ifdef LEAK_DEBUG
+#if LEAK_DEBUG
 	unsigned long flags;
 	spin_lock_irqsave(&leak_lock, flags);
 	list_del(&eb->leak_list);
