@@ -47,3 +47,9 @@ config IMA_AUDIT
 	  auditing messages can be enabled with 'ima_audit=1' on
 	  the kernel command line.
 
+config IMA_LSM_RULES
+	bool
+	depends on IMA && (SECURITY_SELINUX || SECURITY_SMACK)
+	default y
+	help
+	  Disabling this option will disregard LSM based policy rules

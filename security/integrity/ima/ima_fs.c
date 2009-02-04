@@ -19,9 +19,11 @@
 #include <linux/seq_file.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
+#include <linux/parser.h>
 
 #include "ima.h"
 
+static int valid_policy = 1;
 #define TMPBUFLEN 12
 static ssize_t ima_show_htable_value(char __user *buf, size_t count,
 				     loff_t *ppos, atomic_long_t *val)
@@ -237,11 +239,66 @@ static struct file_operations ima_ascii_measurements_ops = {
 	.release = seq_release,
 };
 
+static ssize_t ima_write_policy(struct file *file, const char __user *buf,
+				size_t datalen, loff_t *ppos)
+{
+	char *data;
+	int rc;
+
+	if (datalen >= PAGE_SIZE)
+		return -ENOMEM;
+	if (*ppos != 0) {
+		/* No partial writes. */
+		return -EINVAL;
+	}
+	data = kmalloc(datalen + 1, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	if (copy_from_user(data, buf, datalen)) {
+		kfree(data);
+		return -EFAULT;
+	}
+	*(data + datalen) = '\0';
+	rc = ima_parse_add_rule(data);
+	if (rc < 0) {
+		datalen = -EINVAL;
+		valid_policy = 0;
+	}
+
+	kfree(data);
+	return datalen;
+}
+
 static struct dentry *ima_dir;
 static struct dentry *binary_runtime_measurements;
 static struct dentry *ascii_runtime_measurements;
 static struct dentry *runtime_measurements_count;
 static struct dentry *violations;
+static struct dentry *ima_policy;
+
+/*
+ * ima_release_policy - start using the new measure policy rules.
+ *
+ * Initially, ima_measure points to the default policy rules, now
+ * point to the new policy rules, and remove the securityfs policy file.
+ */
+static int ima_release_policy(struct inode *inode, struct file *file)
+{
+	if (!valid_policy) {
+		ima_delete_rules();
+		return 0;
+	}
+	ima_update_policy();
+	securityfs_remove(ima_policy);
+	ima_policy = NULL;
+	return 0;
+}
+
+static struct file_operations ima_measure_policy_ops = {
+	.write = ima_write_policy,
+	.release = ima_release_policy
+};
 
 int ima_fs_init(void)
 {
@@ -276,13 +333,20 @@ int ima_fs_init(void)
 	if (IS_ERR(violations))
 		goto out;
 
-	return 0;
+	ima_policy = securityfs_create_file("policy",
+					    S_IRUSR | S_IRGRP | S_IWUSR,
+					    ima_dir, NULL,
+					    &ima_measure_policy_ops);
+	if (IS_ERR(ima_policy))
+		goto out;
 
+	return 0;
 out:
 	securityfs_remove(runtime_measurements_count);
 	securityfs_remove(ascii_runtime_measurements);
 	securityfs_remove(binary_runtime_measurements);
 	securityfs_remove(ima_dir);
+	securityfs_remove(ima_policy);
 	return -1;
 }
 
@@ -293,4 +357,5 @@ void __exit ima_fs_cleanup(void)
 	securityfs_remove(ascii_runtime_measurements);
 	securityfs_remove(binary_runtime_measurements);
 	securityfs_remove(ima_dir);
+	securityfs_remove(ima_policy);
 }

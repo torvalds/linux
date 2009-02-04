@@ -137,4 +137,28 @@ enum ima_hooks { PATH_CHECK = 1, FILE_MMAP, BPRM_CHECK };
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask);
 void ima_init_policy(void);
 void ima_update_policy(void);
+int ima_parse_add_rule(char *);
+void ima_delete_rules(void);
+
+/* LSM based policy rules require audit */
+#ifdef CONFIG_IMA_LSM_RULES
+
+#define security_filter_rule_init security_audit_rule_init
+#define security_filter_rule_match security_audit_rule_match
+
+#else
+
+static inline int security_filter_rule_init(u32 field, u32 op, char *rulestr,
+					    void **lsmrule)
+{
+	return -EINVAL;
+}
+
+static inline int security_filter_rule_match(u32 secid, u32 field, u32 op,
+					     void *lsmrule,
+					     struct audit_context *actx)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_IMA_LSM_RULES */
 #endif
