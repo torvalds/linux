@@ -434,16 +434,18 @@ static int pci_pm_default_resume(struct pci_dev *pci_dev)
 {
 	pci_fixup_device(pci_fixup_resume, pci_dev);
 
-	if (!pci_is_bridge(pci_dev))
-		pci_enable_wake(pci_dev, PCI_D0, false);
+	if (pci_is_bridge(pci_dev))
+		return 0;
 
+	pci_enable_wake(pci_dev, PCI_D0, false);
 	return pci_pm_reenable_device(pci_dev);
 }
 
 static void pci_pm_default_suspend_generic(struct pci_dev *pci_dev)
 {
-	/* If device is enabled at this point, disable it */
-	pci_disable_enabled_device(pci_dev);
+	/* If a non-bridge device is enabled at this point, disable it */
+	if (!pci_is_bridge(pci_dev))
+		pci_disable_enabled_device(pci_dev);
 	/*
 	 * Save state with interrupts enabled, because in principle the bus the
 	 * device is on may be put into a low power state after this code runs.
