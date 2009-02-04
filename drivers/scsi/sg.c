@@ -138,6 +138,7 @@ typedef struct sg_request {	/* SG_MAX_QUEUE requests outstanding per file */
 	volatile char done;	/* 0->before bh, 1->before read, 2->read */
 	struct request *rq;
 	struct bio *bio;
+	struct execute_work ew;
 } Sg_request;
 
 typedef struct sg_fd {		/* holds the state of a file descriptor */
@@ -1234,6 +1235,15 @@ sg_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
+static void sg_rq_end_io_usercontext(struct work_struct *work)
+{
+	struct sg_request *srp = container_of(work, struct sg_request, ew.work);
+	struct sg_fd *sfp = srp->parentfp;
+
+	sg_finish_rem_req(srp);
+	kref_put(&sfp->f_ref, sg_remove_sfp);
+}
+
 /*
  * This function is a "bottom half" handler that is called by the mid
  * level when a command is completed (or has failed).
@@ -1312,10 +1322,9 @@ static void sg_rq_end_io(struct request *rq, int uptodate)
 		 */
 		wake_up_interruptible(&sfp->read_wait);
 		kill_fasync(&sfp->async_qp, SIGPOLL, POLL_IN);
+		kref_put(&sfp->f_ref, sg_remove_sfp);
 	} else
-		sg_finish_rem_req(srp); /* call with srp->done == 0 */
-
-	kref_put(&sfp->f_ref, sg_remove_sfp);
+		execute_in_process_context(sg_rq_end_io_usercontext, &srp->ew);
 }
 
 static struct file_operations sg_fops = {
