@@ -400,7 +400,7 @@ int ima_parse_add_rule(char *rule)
 }
 
 /* ima_delete_rules called to cleanup invalid policy */
-void ima_delete_rules()
+void ima_delete_rules(void)
 {
 	struct ima_measure_rule_entry *entry, *tmp;
 
