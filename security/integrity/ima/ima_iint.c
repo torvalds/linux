@@ -126,6 +126,7 @@ struct ima_iint_cache *ima_iint_find_insert_get(struct inode *inode)
 
 	return iint;
 }
+EXPORT_SYMBOL_GPL(ima_iint_find_insert_get);
 
 /* iint_free - called when the iint refcount goes to zero */
 void iint_free(struct kref *kref)
@@ -134,6 +135,21 @@ void iint_free(struct kref *kref)
 						   refcount);
 	iint->version = 0;
 	iint->flags = 0UL;
+	if (iint->readcount != 0) {
+		printk(KERN_INFO "%s: readcount: %ld\n", __FUNCTION__,
+		       iint->readcount);
+		iint->readcount = 0;
+	}
+	if (iint->writecount != 0) {
+		printk(KERN_INFO "%s: writecount: %ld\n", __FUNCTION__,
+		       iint->writecount);
+		iint->writecount = 0;
+	}
+	if (iint->opencount != 0) {
+		printk(KERN_INFO "%s: opencount: %ld\n", __FUNCTION__,
+		       iint->opencount);
+		iint->opencount = 0;
+	}
 	kref_set(&iint->refcount, 1);
 	kmem_cache_free(iint_cache, iint);
 }
@@ -174,6 +190,7 @@ static void init_once(void *foo)
 	mutex_init(&iint->mutex);
 	iint->readcount = 0;
 	iint->writecount = 0;
+	iint->opencount = 0;
 	kref_set(&iint->refcount, 1);
 }
 

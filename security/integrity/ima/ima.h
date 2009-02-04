@@ -97,6 +97,7 @@ static inline unsigned long ima_hash_key(u8 *digest)
 
 /* iint cache flags */
 #define IMA_MEASURED		1
+#define IMA_IINT_DUMP_STACK	512
 
 /* integrity data associated with an inode */
 struct ima_iint_cache {
@@ -106,6 +107,7 @@ struct ima_iint_cache {
 	struct mutex mutex;	/* protects: version, flags, digest */
 	long readcount;		/* measured files readcount */
 	long writecount;	/* measured files writecount */
+	long opencount;		/* opens reference count */
 	struct kref refcount;	/* ima_iint_cache reference count */
 	struct rcu_head rcu;
 };

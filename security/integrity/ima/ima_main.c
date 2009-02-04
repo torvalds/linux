@@ -66,6 +66,19 @@ void ima_file_free(struct file *file)
 		return;
 
 	mutex_lock(&iint->mutex);
+	if (iint->opencount <= 0) {
+		printk(KERN_INFO
+		       "%s: %s open/free imbalance (r:%ld w:%ld o:%ld f:%ld)\n",
+		       __FUNCTION__, file->f_dentry->d_name.name,
+		       iint->readcount, iint->writecount,
+		       iint->opencount, atomic_long_read(&file->f_count));
+		if (!(iint->flags & IMA_IINT_DUMP_STACK)) {
+			dump_stack();
+			iint->flags |= IMA_IINT_DUMP_STACK;
+		}
+	}
+	iint->opencount--;
+
 	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		iint->readcount--;
 
@@ -119,6 +132,7 @@ static int get_path_measurement(struct ima_iint_cache *iint, struct file *file,
 		pr_info("%s dentry_open failed\n", filename);
 		return rc;
 	}
+	iint->opencount++;
 	iint->readcount++;
 
 	rc = ima_collect_measurement(iint, file);
@@ -159,6 +173,7 @@ int ima_path_check(struct path *path, int mask)
 		return 0;
 
 	mutex_lock(&iint->mutex);
+	iint->opencount++;
 	if ((mask & MAY_WRITE) || (mask == 0))
 		iint->writecount++;
 	else if (mask & (MAY_READ | MAY_EXEC))
@@ -219,6 +234,21 @@ out:
 	return rc;
 }
 
+static void opencount_get(struct file *file)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct ima_iint_cache *iint;
+
+	if (!ima_initialized || !S_ISREG(inode->i_mode))
+		return;
+	iint = ima_iint_find_insert_get(inode);
+	if (!iint)
+		return;
+	mutex_lock(&iint->mutex);
+	iint->opencount++;
+	mutex_unlock(&iint->mutex);
+}
+
 /**
  * ima_file_mmap - based on policy, collect/store measurement.
  * @file: pointer to the file to be measured (May be NULL)
@@ -240,6 +270,18 @@ int ima_file_mmap(struct file *file, unsigned long prot)
 		rc = process_measurement(file, file->f_dentry->d_name.name,
 					 MAY_EXEC, FILE_MMAP);
 	return 0;
+}
+
+/*
+ * ima_shm_check - IPC shm and shmat create/fput a file
+ *
+ * Maintain the opencount for these files to prevent unnecessary
+ * imbalance messages.
+ */
+void ima_shm_check(struct file *file)
+{
+	opencount_get(file);
+	return;
 }
 
 /**
