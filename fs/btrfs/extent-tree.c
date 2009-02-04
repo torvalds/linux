@@ -1533,6 +1533,11 @@ out:
  * struct refsort is used to match byte number to slot in the btree block.
  * we sort based on the byte number and then use the slot to actually
  * find the item.
+ *
+ * struct refsort is smaller than strcut btrfs_item and smaller than
+ * struct btrfs_key_ptr.  Since we're currently limited to the page size
+ * for a btree block, there's no way for a kmalloc of refsorts for a
+ * single node to be bigger than a page.
  */
 struct refsort {
 	u64 bytenr;
@@ -3457,35 +3462,72 @@ int btrfs_drop_leaf_ref(struct btrfs_trans_handle *trans,
 {
 	u64 leaf_owner;
 	u64 leaf_generation;
+	struct refsort *sorted;
 	struct btrfs_key key;
 	struct btrfs_file_extent_item *fi;
 	int i;
 	int nritems;
 	int ret;
+	int refi = 0;
+	int slot;
 
 	BUG_ON(!btrfs_is_leaf(leaf));
 	nritems = btrfs_header_nritems(leaf);
 	leaf_owner = btrfs_header_owner(leaf);
 	leaf_generation = btrfs_header_generation(leaf);
 
+	sorted = kmalloc(sizeof(*sorted) * nritems, GFP_NOFS);
+	/* we do this loop twice.  The first time we build a list
+	 * of the extents we have a reference on, then we sort the list
+	 * by bytenr.  The second time around we actually do the
+	 * extent freeing.
+	 */
 	for (i = 0; i < nritems; i++) {
 		u64 disk_bytenr;
 		cond_resched();
 
 		btrfs_item_key_to_cpu(leaf, &key, i);
+
+		/* only extents have references, skip everything else */
 		if (btrfs_key_type(&key) != BTRFS_EXTENT_DATA_KEY)
 			continue;
+
 		fi = btrfs_item_ptr(leaf, i, struct btrfs_file_extent_item);
+
+		/* inline extents live in the btree, they don't have refs */
 		if (btrfs_file_extent_type(leaf, fi) ==
 		    BTRFS_FILE_EXTENT_INLINE)
 			continue;
-		/*
-		 * FIXME make sure to insert a trans record that
-		 * repeats the snapshot del on crash
-		 */
+
 		disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
+
+		/* holes don't have refs */
 		if (disk_bytenr == 0)
 			continue;
+
+		sorted[refi].bytenr = disk_bytenr;
+		sorted[refi].slot = i;
+		refi++;
+	}
+
+	if (refi == 0)
+		goto out;
+
+	sort(sorted, refi, sizeof(struct refsort), refsort_cmp, NULL);
+
+	for (i = 0; i < refi; i++) {
+		u64 disk_bytenr;
+
+		disk_bytenr = sorted[i].bytenr;
+		slot = sorted[i].slot;
+
+		cond_resched();
+
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+		if (btrfs_key_type(&key) != BTRFS_EXTENT_DATA_KEY)
+			continue;
+
+		fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 
 		ret = __btrfs_free_extent(trans, root, disk_bytenr,
 				btrfs_file_extent_disk_num_bytes(leaf, fi),
@@ -3497,6 +3539,8 @@ int btrfs_drop_leaf_ref(struct btrfs_trans_handle *trans,
 		wake_up(&root->fs_info->transaction_throttle);
 		cond_resched();
 	}
+out:
+	kfree(sorted);
 	return 0;
 }
 
@@ -3506,9 +3550,25 @@ static noinline int cache_drop_leaf_ref(struct btrfs_trans_handle *trans,
 {
 	int i;
 	int ret;
-	struct btrfs_extent_info *info = ref->extents;
+	struct btrfs_extent_info *info;
+	struct refsort *sorted;
 
+	if (ref->nritems == 0)
+		return 0;
+
+	sorted = kmalloc(sizeof(*sorted) * ref->nritems, GFP_NOFS);
 	for (i = 0; i < ref->nritems; i++) {
+		sorted[i].bytenr = ref->extents[i].bytenr;
+		sorted[i].slot = i;
+	}
+	sort(sorted, ref->nritems, sizeof(struct refsort), refsort_cmp, NULL);
+
+	/*
+	 * the items in the ref were sorted when the ref was inserted
+	 * into the ref cache, so this is already in order
+	 */
+	for (i = 0; i < ref->nritems; i++) {
+		info = ref->extents + sorted[i].slot;
 		ret = __btrfs_free_extent(trans, root, info->bytenr,
 					  info->num_bytes, ref->bytenr,
 					  ref->owner, ref->generation,
@@ -3566,6 +3626,152 @@ static int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start,
 }
 
 /*
+ * this is used while deleting old snapshots, and it drops the refs
+ * on a whole subtree starting from a level 1 node.
+ *
+ * The idea is to sort all the leaf pointers, and then drop the
+ * ref on all the leaves in order.  Most of the time the leaves
+ * will have ref cache entries, so no leaf IOs will be required to
+ * find the extents they have references on.
+ *
+ * For each leaf, any references it has are also dropped in order
+ *
+ * This ends up dropping the references in something close to optimal
+ * order for reading and modifying the extent allocation tree.
+ */
+static noinline int drop_level_one_refs(struct btrfs_trans_handle *trans,
+					struct btrfs_root *root,
+					struct btrfs_path *path)
+{
+	u64 bytenr;
+	u64 root_owner;
+	u64 root_gen;
+	struct extent_buffer *eb = path->nodes[1];
+	struct extent_buffer *leaf;
+	struct btrfs_leaf_ref *ref;
+	struct refsort *sorted = NULL;
+	int nritems = btrfs_header_nritems(eb);
+	int ret;
+	int i;
+	int refi = 0;
+	int slot = path->slots[1];
+	u32 blocksize = btrfs_level_size(root, 0);
+	u32 refs;
+
+	if (nritems == 0)
+		goto out;
+
+	root_owner = btrfs_header_owner(eb);
+	root_gen = btrfs_header_generation(eb);
+	sorted = kmalloc(sizeof(*sorted) * nritems, GFP_NOFS);
+
+	/*
+	 * step one, sort all the leaf pointers so we don't scribble
+	 * randomly into the extent allocation tree
+	 */
+	for (i = slot; i < nritems; i++) {
+		sorted[refi].bytenr = btrfs_node_blockptr(eb, i);
+		sorted[refi].slot = i;
+		refi++;
+	}
+
+	/*
+	 * nritems won't be zero, but if we're picking up drop_snapshot
+	 * after a crash, slot might be > 0, so double check things
+	 * just in case.
+	 */
+	if (refi == 0)
+		goto out;
+
+	sort(sorted, refi, sizeof(struct refsort), refsort_cmp, NULL);
+
+	/*
+	 * the first loop frees everything the leaves point to
+	 */
+	for (i = 0; i < refi; i++) {
+		u64 ptr_gen;
+
+		bytenr = sorted[i].bytenr;
+
+		/*
+		 * check the reference count on this leaf.  If it is > 1
+		 * we just decrement it below and don't update any
+		 * of the refs the leaf points to.
+		 */
+		ret = drop_snap_lookup_refcount(root, bytenr, blocksize, &refs);
+		BUG_ON(ret);
+		if (refs != 1)
+			continue;
+
+		ptr_gen = btrfs_node_ptr_generation(eb, sorted[i].slot);
+
+		/*
+		 * the leaf only had one reference, which means the
+		 * only thing pointing to this leaf is the snapshot
+		 * we're deleting.  It isn't possible for the reference
+		 * count to increase again later
+		 *
+		 * The reference cache is checked for the leaf,
+		 * and if found we'll be able to drop any refs held by
+		 * the leaf without needing to read it in.
+		 */
+		ref = btrfs_lookup_leaf_ref(root, bytenr);
+		if (ref && ref->generation != ptr_gen) {
+			btrfs_free_leaf_ref(root, ref);
+			ref = NULL;
+		}
+		if (ref) {
+			ret = cache_drop_leaf_ref(trans, root, ref);
+			BUG_ON(ret);
+			btrfs_remove_leaf_ref(root, ref);
+			btrfs_free_leaf_ref(root, ref);
+		} else {
+			/*
+			 * the leaf wasn't in the reference cache, so
+			 * we have to read it.
+			 */
+			leaf = read_tree_block(root, bytenr, blocksize,
+					       ptr_gen);
+			ret = btrfs_drop_leaf_ref(trans, root, leaf);
+			BUG_ON(ret);
+			free_extent_buffer(leaf);
+		}
+		atomic_inc(&root->fs_info->throttle_gen);
+		wake_up(&root->fs_info->transaction_throttle);
+		cond_resched();
+	}
+
+	/*
+	 * run through the loop again to free the refs on the leaves.
+	 * This is faster than doing it in the loop above because
+	 * the leaves are likely to be clustered together.  We end up
+	 * working in nice chunks on the extent allocation tree.
+	 */
+	for (i = 0; i < refi; i++) {
+		bytenr = sorted[i].bytenr;
+		ret = __btrfs_free_extent(trans, root, bytenr,
+					blocksize, eb->start,
+					root_owner, root_gen, 0, 1);
+		BUG_ON(ret);
+
+		atomic_inc(&root->fs_info->throttle_gen);
+		wake_up(&root->fs_info->transaction_throttle);
+		cond_resched();
+	}
+out:
+	kfree(sorted);
+
+	/*
+	 * update the path to show we've processed the entire level 1
+	 * node.  This will get saved into the root's drop_snapshot_progress
+	 * field so these drops are not repeated again if this transaction
+	 * commits.
+	 */
+	path->slots[1] = nritems;
+	return 0;
+}
+
+/*
  * helper function for drop_snapshot, this walks down the tree dropping ref
  * counts as it goes.
  */
@@ -3580,7 +3786,6 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 	struct extent_buffer *next;
 	struct extent_buffer *cur;
 	struct extent_buffer *parent;
-	struct btrfs_leaf_ref *ref;
 	u32 blocksize;
 	int ret;
 	u32 refs;
@@ -3607,17 +3812,46 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 		if (path->slots[*level] >=
 		    btrfs_header_nritems(cur))
 			break;
+
+		/* the new code goes down to level 1 and does all the
+		 * leaves pointed to that node in bulk.  So, this check
+		 * for level 0 will always be false.
+		 *
+		 * But, the disk format allows the drop_snapshot_progress
+		 * field in the root to leave things in a state where
+		 * a leaf will need cleaning up here.  If someone crashes
+		 * with the old code and then boots with the new code,
+		 * we might find a leaf here.
+		 */
 		if (*level == 0) {
 			ret = btrfs_drop_leaf_ref(trans, root, cur);
 			BUG_ON(ret);
 			break;
 		}
+
+		/*
+		 * once we get to level one, process the whole node
+		 * at once, including everything below it.
+		 */
+		if (*level == 1) {
+			ret = drop_level_one_refs(trans, root, path);
+			BUG_ON(ret);
+			break;
+		}
+
 		bytenr = btrfs_node_blockptr(cur, path->slots[*level]);
 		ptr_gen = btrfs_node_ptr_generation(cur, path->slots[*level]);
 		blocksize = btrfs_level_size(root, *level - 1);
 
 		ret = drop_snap_lookup_refcount(root, bytenr, blocksize, &refs);
 		BUG_ON(ret);
+
+		/*
+		 * if there is more than one reference, we don't need
+		 * to read that node to drop any references it has.  We
+		 * just drop the ref we hold on that node and move on to the
+		 * next slot in this level.
+		 */
 		if (refs != 1) {
 			parent = path->nodes[*level];
 			root_owner = btrfs_header_owner(parent);
@@ -3636,46 +3870,12 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 
 			continue;
 		}
-		/*
-		 * at this point, we have a single ref, and since the
-		 * only place referencing this extent is a dead root
-		 * the reference count should never go higher.
-		 * So, we don't need to check it again
-		 */
-		if (*level == 1) {
-			ref = btrfs_lookup_leaf_ref(root, bytenr);
-			if (ref && ref->generation != ptr_gen) {
-				btrfs_free_leaf_ref(root, ref);
-				ref = NULL;
-			}
-			if (ref) {
-				ret = cache_drop_leaf_ref(trans, root, ref);
-				BUG_ON(ret);
-				btrfs_remove_leaf_ref(root, ref);
-				btrfs_free_leaf_ref(root, ref);
-				*level = 0;
-				break;
-			}
-		}
-		next = btrfs_find_tree_block(root, bytenr, blocksize);
-		if (!next || !btrfs_buffer_uptodate(next, ptr_gen)) {
-			free_extent_buffer(next);
 
-			next = read_tree_block(root, bytenr, blocksize,
-					       ptr_gen);
-			cond_resched();
-#if 0
-			/*
-			 * this is a debugging check and can go away
-			 * the ref should never go all the way down to 1
-			 * at this point
-			 */
-			ret = lookup_extent_ref(NULL, root, bytenr, blocksize,
-						&refs);
-			BUG_ON(ret);
-			WARN_ON(refs != 1);
-#endif
-		}
+		/*
+		 * we need to keep freeing things in the next level down.
+		 * read the block and loop around to process it
+		 */
+		next = read_tree_block(root, bytenr, blocksize, ptr_gen);
 		WARN_ON(*level <= 0);
 		if (path->nodes[*level-1])
 			free_extent_buffer(path->nodes[*level-1]);
@@ -3700,11 +3900,16 @@ out:
 	root_owner = btrfs_header_owner(parent);
 	root_gen = btrfs_header_generation(parent);
 
+	/*
+	 * cleanup and free the reference on the last node
+	 * we processed
+	 */
 	ret = __btrfs_free_extent(trans, root, bytenr, blocksize,
 				  parent->start, root_owner, root_gen,
 				  *level, 1);
 	free_extent_buffer(path->nodes[*level]);
 	path->nodes[*level] = NULL;
+
 	*level += 1;
 	BUG_ON(ret);
 
@@ -3824,6 +4029,13 @@ static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
 		if (slot < btrfs_header_nritems(path->nodes[i]) - 1) {
 			struct extent_buffer *node;
 			struct btrfs_disk_key disk_key;
+
+			/*
+			 * there is more work to do in this level.
+			 * Update the drop_progress marker to reflect
+			 * the work we've done so far, and then bump
+			 * the slot number
+			 */
 			node = path->nodes[i];
 			path->slots[i]++;
 			*level = i;
@@ -3835,6 +4047,11 @@ static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
 			return 0;
 		} else {
 			struct extent_buffer *parent;
+
+			/*
+			 * this whole node is done, free our reference
+			 * on it and go up one level
+			 */
 			if (path->nodes[*level] == root->node)
 				parent = path->nodes[*level];
 			else
@@ -4849,6 +5066,7 @@ int btrfs_reloc_tree_cache_ref(struct btrfs_trans_handle *trans,
 		ref->bytenr = buf->start;
 		ref->owner = btrfs_header_owner(buf);
 		ref->generation = btrfs_header_generation(buf);
+
 		ret = btrfs_add_leaf_ref(root, ref, 0);
 		WARN_ON(ret);
 		btrfs_free_leaf_ref(root, ref);

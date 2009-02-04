@@ -2441,6 +2441,8 @@ next_node:
 			ref->generation = leaf_gen;
 			ref->nritems = 0;
 
+			btrfs_sort_leaf_ref(ref);
+
 			ret = btrfs_add_leaf_ref(root, ref, 0);
 			WARN_ON(ret);
 			btrfs_free_leaf_ref(root, ref);
