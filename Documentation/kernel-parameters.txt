@@ -895,6 +895,15 @@ and is between 256 and 4096 characters. It is defined in the file
 	ihash_entries=	[KNL]
 			Set number of hash buckets for inode cache.
 
+	ima_audit=	[IMA]
+			Format: { "0" | "1" }
+			0 -- integrity auditing messages. (Default)
+			1 -- enable informational integrity auditing messages.
+
+	ima_hash=	[IMA]
+			Formt: { "sha1" | "md5" }
+			default: "sha1"
+
 	in2000=		[HW,SCSI]
 			See header of drivers/scsi/in2000.c.
 
