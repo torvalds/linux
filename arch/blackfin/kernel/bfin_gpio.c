@@ -977,9 +977,6 @@ void peripheral_free(unsigned short per)
 	if (!(per & P_DEFINED))
 		return;
 
-	if (check_gpio(ident) < 0)
-		return;
-
 	local_irq_save_hw(flags);
 
 	if (unlikely(!(reserved_peri_map[gpio_bank(ident)] & gpio_bit(ident)))) {
