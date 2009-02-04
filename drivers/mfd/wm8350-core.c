@@ -1238,7 +1238,7 @@ static int wm8350_create_cache(struct wm8350 *wm8350, int type, int mode)
 	}
 
 	wm8350->reg_cache =
-	    kzalloc(sizeof(u16) * (WM8350_MAX_REGISTER + 1), GFP_KERNEL);
+		kmalloc(sizeof(u16) * (WM8350_MAX_REGISTER + 1), GFP_KERNEL);
 	if (wm8350->reg_cache == NULL)
 		return -ENOMEM;
 
@@ -1246,17 +1246,20 @@ static int wm8350_create_cache(struct wm8350 *wm8350, int type, int mode)
 	 * a PMIC so the device many not be in a virgin state and we
 	 * can't rely on the silicon values.
 	 */
+	ret = wm8350->read_dev(wm8350, 0,
+			       sizeof(u16) * (WM8350_MAX_REGISTER + 1),
+			       wm8350->reg_cache);
+	if (ret < 0) {
+		dev_err(wm8350->dev,
+			"failed to read initial cache values\n");
+		goto out;
+	}
+
+	/* Mask out uncacheable/unreadable bits and the audio. */
 	for (i = 0; i < WM8350_MAX_REGISTER; i++) {
-		/* audio register range */
 		if (wm8350_reg_io_map[i].readable &&
 		    (i < WM8350_CLOCK_CONTROL_1 || i > WM8350_AIF_TEST)) {
-			ret = wm8350->read_dev(wm8350, i, 2, (char *)&value);
-			if (ret < 0) {
-				dev_err(wm8350->dev,
-				       "failed to read initial cache value\n");
-				goto out;
-			}
-			value = be16_to_cpu(value);
+			value = be16_to_cpu(wm8350->reg_cache[i]);
 			value &= wm8350_reg_io_map[i].readable;
 			value &= ~wm8350_reg_io_map[i].vol;
 			wm8350->reg_cache[i] = value;
