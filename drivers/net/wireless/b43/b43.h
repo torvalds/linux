@@ -120,6 +120,9 @@
 #define B43_MMIO_IFSCTL			0x688 /* Interframe space control */
 #define  B43_MMIO_IFSCTL_USE_EDCF	0x0004
 #define B43_MMIO_POWERUP_DELAY		0x6A8
+#define B43_MMIO_BTCOEX_CTL		0x6B4 /* Bluetooth Coexistence Control */
+#define B43_MMIO_BTCOEX_STAT		0x6B6 /* Bluetooth Coexistence Status */
+#define B43_MMIO_BTCOEX_TXCTL		0x6B8 /* Bluetooth Coexistence Transmit Control */
 
 /* SPROM boardflags_lo values */
 #define B43_BFL_BTCOEXIST		0x0001	/* implements Bluetooth coexistance */
