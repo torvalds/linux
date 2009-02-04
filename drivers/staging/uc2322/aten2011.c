@@ -335,7 +335,7 @@ static int handle_newLsr(struct ATENINTL_port *port, __u8 newLsr)
 {
 	struct async_icount *icount;
 
-	dbg("%s - %02x", __FUNCTION__, newLsr);
+	dbg("%s - %02x", __func__, newLsr);
 
 	if (newLsr & SERIAL_LSR_BI) {
 		/*
@@ -377,23 +377,23 @@ static void ATEN2011_control_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__,
+		dbg("%s - urb shutting down with status: %d", __func__,
 		    urb->status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__,
+		dbg("%s - nonzero urb status received: %d", __func__,
 		    urb->status);
 		goto exit;
 	}
 
 	ATEN2011_port = (struct ATENINTL_port *)urb->context;
 
-	dbg("%s urb buffer size is %d", __FUNCTION__, urb->actual_length);
-	dbg("%s ATEN2011_port->MsrLsr is %d port %d", __FUNCTION__,
+	dbg("%s urb buffer size is %d", __func__, urb->actual_length);
+	dbg("%s ATEN2011_port->MsrLsr is %d port %d", __func__,
 		ATEN2011_port->MsrLsr, ATEN2011_port->port_num);
 	data = urb->transfer_buffer;
 	regval = (__u8) data[0];
-	dbg("%s data is %x", __FUNCTION__, regval);
+	dbg("%s data is %x", __func__, regval);
 	if (ATEN2011_port->MsrLsr == 0)
 		handle_newMsr(ATEN2011_port, regval);
 	else if (ATEN2011_port->MsrLsr == 1)
@@ -453,11 +453,11 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __FUNCTION__,
+		dbg("%s - urb shutting down with status: %d", __func__,
 		    urb->status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __FUNCTION__,
+		dbg("%s - nonzero urb status received: %d", __func__,
 		    urb->status);
 		goto exit;
 	}
@@ -539,7 +539,7 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 	if (result) {
 		dev_err(&urb->dev->dev,
 			"%s - Error %d submitting interrupt urb\n",
-			__FUNCTION__, result);
+			__func__, result);
 	}
 
 	return;
@@ -702,7 +702,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 		urb->transfer_buffer =
 		    kmalloc(URB_TRANSFER_BUFFER_SIZE, GFP_KERNEL);
 		if (!urb->transfer_buffer) {
-			err("%s-out of memory for urb buffers.", __FUNCTION__);
+			err("%s-out of memory for urb buffers.", __func__);
 			continue;
 		}
 	}
@@ -898,7 +898,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 				   GFP_KERNEL);
 		if (response) {
 			dbg("%s - Error %d submitting interrupt urb",
-				__FUNCTION__, response);
+				__func__, response);
 		}
 
 	}
@@ -951,7 +951,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 		port->bulk_in_endpointAddress);
 	response = usb_submit_urb(ATEN2011_port->read_urb, GFP_KERNEL);
 	if (response) {
-		err("%s - Error %d submitting control urb", __FUNCTION__,
+		err("%s - Error %d submitting control urb", __func__,
 		    response);
 	}
 
@@ -1001,7 +1001,7 @@ static int ATEN2011_chars_in_buffer(struct tty_struct *tty)
 			chars += URB_TRANSFER_BUFFER_SIZE;
 		}
 	}
-	dbg("%s - returns %d", __FUNCTION__, chars);
+	dbg("%s - returns %d", __func__, chars);
 	return (chars);
 
 }
@@ -1029,7 +1029,7 @@ static void ATEN2011_block_until_tx_empty(struct tty_struct *tty,
 		/* No activity.. count down section */
 		wait--;
 		if (wait == 0) {
-			dbg("%s - TIMEOUT", __FUNCTION__);
+			dbg("%s - TIMEOUT", __func__);
 			return;
 		} else {
 			/* Reset timout value back to seconds */
@@ -1146,7 +1146,7 @@ static void ATEN2011_block_until_chase_response(struct tty_struct *tty,
 		/* No activity.. count down section */
 		wait--;
 		if (wait == 0) {
-			dbg("%s - TIMEOUT", __FUNCTION__);
+			dbg("%s - TIMEOUT", __func__);
 			return;
 		} else {
 			/* Reset timout value back to seconds */
@@ -1218,7 +1218,7 @@ static int ATEN2011_write_room(struct tty_struct *tty)
 		}
 	}
 
-	dbg("%s - returns %d", __FUNCTION__, room);
+	dbg("%s - returns %d", __func__, room);
 	return (room);
 
 }
@@ -1266,7 +1266,7 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 
 	if (urb == NULL) {
-		dbg("%s - no more free urbs", __FUNCTION__);
+		dbg("%s - no more free urbs", __func__);
 		goto exit;
 	}
 
@@ -1275,14 +1275,14 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 		    kmalloc(URB_TRANSFER_BUFFER_SIZE, GFP_KERNEL);
 
 		if (urb->transfer_buffer == NULL) {
-			err("%s no more kernel memory...", __FUNCTION__);
+			err("%s no more kernel memory...", __func__);
 			goto exit;
 		}
 	}
 	transfer_size = min(count, URB_TRANSFER_BUFFER_SIZE);
 
 	memcpy(urb->transfer_buffer, current_position, transfer_size);
-	/* usb_serial_debug_data (__FILE__, __FUNCTION__, transfer_size, urb->transfer_buffer); */
+	/* usb_serial_debug_data (__FILE__, __func__, transfer_size, urb->transfer_buffer); */
 
 	/* fill urb with data and submit  */
 	minor = port->serial->minor;
@@ -1319,7 +1319,7 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	if (status) {
 		err("%s - usb_submit_urb(write bulk) failed with status = %d",
-		    __FUNCTION__, status);
+		    __func__, status);
 		bytes_sent = status;
 		goto exit;
 	}
@@ -1353,7 +1353,7 @@ static void ATEN2011_throttle(struct tty_struct *tty)
 	dbg("%s", "Entering .......... ");
 
 	if (!tty) {
-		dbg("%s - no tty available", __FUNCTION__);
+		dbg("%s - no tty available", __func__);
 		return;
 	}
 
@@ -1390,14 +1390,14 @@ static void ATEN2011_unthrottle(struct tty_struct *tty)
 		return;
 
 	if (!ATEN2011_port->open) {
-		dbg("%s - port not opened", __FUNCTION__);
+		dbg("%s - port not opened", __func__);
 		return;
 	}
 
 	dbg("%s", "Entering .......... ");
 
 	if (!tty) {
-		dbg("%s - no tty available", __FUNCTION__);
+		dbg("%s - no tty available", __func__);
 		return;
 	}
 
@@ -1434,7 +1434,7 @@ static int ATEN2011_tiocmget(struct tty_struct *tty, struct file *file)
 	int status = 0;
 	ATEN2011_port = usb_get_serial_port_data(port);
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	if (ATEN2011_port == NULL)
 		return -ENODEV;
@@ -1451,7 +1451,7 @@ static int ATEN2011_tiocmget(struct tty_struct *tty, struct file *file)
 	    | ((msr & ATEN2011_MSR_RI) ? TIOCM_RI : 0)
 	    | ((msr & ATEN2011_MSR_DSR) ? TIOCM_DSR : 0);
 
-	dbg("%s - 0x%04X", __FUNCTION__, result);
+	dbg("%s - 0x%04X", __func__, result);
 
 	return result;
 }
@@ -1464,7 +1464,7 @@ static int ATEN2011_tiocmset(struct tty_struct *tty, struct file *file,
 	unsigned int mcr;
 	unsigned int status;
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	ATEN2011_port = usb_get_serial_port_data(port);
 
@@ -1516,7 +1516,7 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 		return;
 
 	if (!ATEN2011_port->open) {
-		dbg("%s - port not opened", __FUNCTION__);
+		dbg("%s - port not opened", __func__);
 		return;
 	}
 
@@ -1525,7 +1525,7 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 	cflag = tty->termios->c_cflag;
 
 	if (!cflag) {
-		dbg("%s %s", __FUNCTION__, "cflag is NULL");
+		dbg("%s %s", __func__, "cflag is NULL");
 		return;
 	}
 
@@ -1539,15 +1539,15 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 		}
 	}
 
-	dbg("%s - clfag %08x iflag %08x", __FUNCTION__,
+	dbg("%s - clfag %08x iflag %08x", __func__,
 	    tty->termios->c_cflag, RELEVANT_IFLAG(tty->termios->c_iflag));
 
 	if (old_termios) {
-		dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
+		dbg("%s - old clfag %08x old iflag %08x", __func__,
 		    old_termios->c_cflag, RELEVANT_IFLAG(old_termios->c_iflag));
 	}
 
-	dbg("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __func__, port->number);
 
 	/* change the port settings to the new ones specified */
 
@@ -1579,7 +1579,7 @@ static int get_lsr_info(struct tty_struct *tty,
 
 	count = ATEN2011_chars_in_buffer(tty);
 	if (count == 0) {
-		dbg("%s -- Empty", __FUNCTION__);
+		dbg("%s -- Empty", __func__);
 		result = TIOCSER_TEMT;
 	}
 
@@ -1599,7 +1599,7 @@ static int get_number_bytes_avail(struct tty_struct *tty,
 
 	result = tty->read_cnt;
 
-	dbg("%s(%d) = %d", __FUNCTION__, ATEN2011_port->port->number, result);
+	dbg("%s(%d) = %d", __func__, ATEN2011_port->port->number, result);
 	if (copy_to_user(value, &result, sizeof(int)))
 		return -EFAULT;
 
@@ -1682,7 +1682,7 @@ static int get_modem_info(struct ATENINTL_port *ATEN2011_port,
 	    |((msr & ATEN2011_MSR_RI) ? TIOCM_RI : 0)	/* 0x080 */
 	    |((msr & ATEN2011_MSR_DSR) ? TIOCM_DSR : 0);	/* 0x100 */
 
-	dbg("%s -- %x", __FUNCTION__, result);
+	dbg("%s -- %x", __func__, result);
 
 	if (copy_to_user(value, &result, sizeof(int)))
 		return -EFAULT;
@@ -1735,49 +1735,49 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 	if (ATEN2011_port == NULL)
 		return -1;
 
-	dbg("%s - port %d, cmd = 0x%x", __FUNCTION__, port->number, cmd);
+	dbg("%s - port %d, cmd = 0x%x", __func__, port->number, cmd);
 
 	switch (cmd) {
 		/* return number of bytes available */
 
 	case TIOCINQ:
-		dbg("%s (%d) TIOCINQ", __FUNCTION__, port->number);
+		dbg("%s (%d) TIOCINQ", __func__, port->number);
 		return get_number_bytes_avail(tty, ATEN2011_port, user_arg);
 		break;
 
 	case TIOCOUTQ:
-		dbg("%s (%d) TIOCOUTQ", __FUNCTION__, port->number);
+		dbg("%s (%d) TIOCOUTQ", __func__, port->number);
 		return put_user(ATEN2011_chars_in_buffer(tty), user_arg);
 		break;
 
 	case TIOCSERGETLSR:
-		dbg("%s (%d) TIOCSERGETLSR", __FUNCTION__, port->number);
+		dbg("%s (%d) TIOCSERGETLSR", __func__, port->number);
 		return get_lsr_info(tty, ATEN2011_port, user_arg);
 		return 0;
 
 	case TIOCMBIS:
 	case TIOCMBIC:
 	case TIOCMSET:
-		dbg("%s (%d) TIOCMSET/TIOCMBIC/TIOCMSET", __FUNCTION__,
+		dbg("%s (%d) TIOCMSET/TIOCMBIC/TIOCMSET", __func__,
 		    port->number);
 		ATENret = set_modem_info(ATEN2011_port, cmd, user_arg);
 		return ATENret;
 
 	case TIOCMGET:
-		dbg("%s (%d) TIOCMGET", __FUNCTION__, port->number);
+		dbg("%s (%d) TIOCMGET", __func__, port->number);
 		return get_modem_info(ATEN2011_port, user_arg);
 
 	case TIOCGSERIAL:
-		dbg("%s (%d) TIOCGSERIAL", __FUNCTION__, port->number);
+		dbg("%s (%d) TIOCGSERIAL", __func__, port->number);
 		return get_serial_info(ATEN2011_port,
 				       (struct serial_struct __user *)arg);
 
 	case TIOCSSERIAL:
-		dbg("%s (%d) TIOCSSERIAL", __FUNCTION__, port->number);
+		dbg("%s (%d) TIOCSSERIAL", __func__, port->number);
 		break;
 
 	case TIOCMIWAIT:
-		dbg("%s (%d) TIOCMIWAIT", __FUNCTION__, port->number);
+		dbg("%s (%d) TIOCMIWAIT", __func__, port->number);
 		cprev = ATEN2011_port->icount;
 		while (1) {
 			/* see if a signal did it */
@@ -1812,7 +1812,7 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 		icount.brk = cnow.brk;
 		icount.buf_overrun = cnow.buf_overrun;
 
-		dbg("%s (%d) TIOCGICOUNT RX=%d, TX=%d", __FUNCTION__,
+		dbg("%s (%d) TIOCGICOUNT RX=%d, TX=%d", __func__,
 		    port->number, icount.rx, icount.tx);
 		if (copy_to_user((void __user *)arg, &icount, sizeof(icount)))
 			return -EFAULT;
@@ -1828,7 +1828,7 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 static int ATEN2011_calc_baud_rate_divisor(int baudRate, int *divisor,
 					   __u16 * clk_sel_val)
 {
-	dbg("%s - %d", __FUNCTION__, baudRate);
+	dbg("%s - %d", __func__, baudRate);
 
 	if (baudRate <= 115200) {
 		*divisor = 115200 / baudRate;
@@ -1882,7 +1882,7 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 		minor = 0;
 	number = ATEN2011_port->port->number - minor;
 
-	dbg("%s - port = %d, baud = %d", __FUNCTION__,
+	dbg("%s - port = %d, baud = %d", __func__,
 	    ATEN2011_port->port->number, baudRate);
 	/* reset clk_uart_sel in spregOffset */
 	if (baudRate > 115200) {
@@ -1937,7 +1937,7 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 		/* Calculate the Divisor */
 
 		if (status) {
-			err("%s - bad baud rate", __FUNCTION__);
+			err("%s - bad baud rate", __func__);
 			dbg("%s", "bad baud rate");
 			return status;
 		}
@@ -1987,15 +1987,15 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 
 	serial = port->serial;
 
-	dbg("%s - port %d", __FUNCTION__, ATEN2011_port->port->number);
+	dbg("%s - port %d", __func__, ATEN2011_port->port->number);
 
 	if (!ATEN2011_port->open) {
-		dbg("%s - port not opened", __FUNCTION__);
+		dbg("%s - port not opened", __func__);
 		return;
 	}
 
 	if ((!tty) || (!tty->termios)) {
-		dbg("%s - no tty structures", __FUNCTION__);
+		dbg("%s - no tty structures", __func__);
 		return;
 	}
 
@@ -2035,14 +2035,14 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 	if (cflag & PARENB) {
 		if (cflag & PARODD) {
 			lParity = LCR_PAR_ODD;
-			dbg("%s - parity = odd", __FUNCTION__);
+			dbg("%s - parity = odd", __func__);
 		} else {
 			lParity = LCR_PAR_EVEN;
-			dbg("%s - parity = even", __FUNCTION__);
+			dbg("%s - parity = even", __func__);
 		}
 
 	} else {
-		dbg("%s - parity = none", __FUNCTION__);
+		dbg("%s - parity = none", __func__);
 	}
 
 	if (cflag & CMSPAR) {
@@ -2052,10 +2052,10 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 	/* Change the Stop bit */
 	if (cflag & CSTOPB) {
 		lStop = LCR_STOP_2;
-		dbg("%s - stop bits = 2", __FUNCTION__);
+		dbg("%s - stop bits = 2", __func__);
 	} else {
 		lStop = LCR_STOP_1;
-		dbg("%s - stop bits = 1", __FUNCTION__);
+		dbg("%s - stop bits = 1", __func__);
 	}
 
 	/* Update the LCR with the correct value */
@@ -2113,7 +2113,7 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 		baud = 9600;
 	}
 
-	dbg("%s - baud rate = %d", __FUNCTION__, baud);
+	dbg("%s - baud rate = %d", __func__, baud);
 	status = ATEN2011_send_cmd_write_baud_rate(ATEN2011_port, baud);
 
 	/* Enable Interrupts */
@@ -2191,7 +2191,7 @@ static int ATEN2011_startup(struct usb_serial *serial)
 	/* create our private serial structure */
 	ATEN2011_serial = kzalloc(sizeof(struct ATENINTL_serial), GFP_KERNEL);
 	if (ATEN2011_serial == NULL) {
-		err("%s - Out of memory", __FUNCTION__);
+		err("%s - Out of memory", __func__);
 		return -ENOMEM;
 	}
 
@@ -2213,7 +2213,7 @@ static int ATEN2011_startup(struct usb_serial *serial)
 		ATEN2011_port =
 		    kmalloc(sizeof(struct ATENINTL_port), GFP_KERNEL);
 		if (ATEN2011_port == NULL) {
-			err("%s - Out of memory", __FUNCTION__);
+			err("%s - Out of memory", __func__);
 			usb_set_serial_data(serial, NULL);
 			kfree(ATEN2011_serial);
 			return -ENOMEM;
