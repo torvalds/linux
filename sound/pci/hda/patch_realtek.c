@@ -30,6 +30,7 @@
 #include <sound/core.h>
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_beep.h"
 
 #define ALC880_FRONT_EVENT		0x01
 #define ALC880_DCVOL_EVENT		0x02
@@ -3187,6 +3188,7 @@ static void alc_free(struct hda_codec *codec)
 
 	alc_free_kctls(codec);
 	kfree(spec);
+	snd_hda_detach_beep_device(codec);
 	codec->spec = NULL; /* to be sure */
 }
 
@@ -4353,6 +4355,12 @@ static int patch_alc880(struct hda_codec *codec)
 			       "from BIOS.  Using 3-stack mode...\n");
 			board_config = ALC880_3ST;
 		}
+	}
+
+	err = snd_hda_attach_beep_device(codec, 0x1);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
 	}
 
 	if (board_config != ALC880_AUTO)
@@ -5882,6 +5890,12 @@ static int patch_alc260(struct hda_codec *codec)
 		}
 	}
 
+	err = snd_hda_attach_beep_device(codec, 0x1);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
+	}
+
 	if (board_config != ALC260_AUTO)
 		setup_preset(spec, &alc260_presets[board_config]);
 
@@ -7091,6 +7105,12 @@ static int patch_alc882(struct hda_codec *codec)
 			       "from BIOS.  Using base mode...\n");
 			board_config = ALC882_3ST_DIG;
 		}
+	}
+
+	err = snd_hda_attach_beep_device(codec, 0x1);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
 	}
 
 	if (board_config != ALC882_AUTO)
@@ -9093,6 +9113,12 @@ static int patch_alc883(struct hda_codec *codec)
 		}
 	}
 
+	err = snd_hda_attach_beep_device(codec, 0x1);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
+	}
+
 	if (board_config != ALC883_AUTO)
 		setup_preset(spec, &alc883_presets[board_config]);
 
@@ -11013,6 +11039,12 @@ static int patch_alc262(struct hda_codec *codec)
 		}
 	}
 
+	err = snd_hda_attach_beep_device(codec, 0x1);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
+	}
+
 	if (board_config != ALC262_AUTO)
 		setup_preset(spec, &alc262_presets[board_config]);
 
@@ -12051,6 +12083,12 @@ static int patch_alc268(struct hda_codec *codec)
 		}
 	}
 
+	err = snd_hda_attach_beep_device(codec, 0x1);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
+	}
+
 	if (board_config != ALC268_AUTO)
 		setup_preset(spec, &alc268_presets[board_config]);
 
@@ -12883,6 +12921,12 @@ static int patch_alc269(struct hda_codec *codec)
 			       "from BIOS.  Using base mode...\n");
 			board_config = ALC269_BASIC;
 		}
+	}
+
+	err = snd_hda_attach_beep_device(codec, 0x1);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
 	}
 
 	if (board_config != ALC269_AUTO)
@@ -13978,6 +14022,12 @@ static int patch_alc861(struct hda_codec *codec)
 		}
 	}
 
+	err = snd_hda_attach_beep_device(codec, 0x23);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
+	}
+
 	if (board_config != ALC861_AUTO)
 		setup_preset(spec, &alc861_presets[board_config]);
 
@@ -14922,6 +14972,12 @@ static int patch_alc861vd(struct hda_codec *codec)
 			       "from BIOS.  Using base mode...\n");
 			board_config = ALC861VD_3ST;
 		}
+	}
+
+	err = snd_hda_attach_beep_device(codec, 0x23);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
 	}
 
 	if (board_config != ALC861VD_AUTO)
@@ -16731,6 +16787,12 @@ static int patch_alc662(struct hda_codec *codec)
 			       "from BIOS.  Using base mode...\n");
 			board_config = ALC662_3ST_2ch_DIG;
 		}
+	}
+
+	err = snd_hda_attach_beep_device(codec, 0x1);
+	if (err < 0) {
+		alc_free(codec);
+		return err;
 	}
 
 	if (board_config != ALC662_AUTO)
