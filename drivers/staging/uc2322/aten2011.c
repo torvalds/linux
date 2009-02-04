@@ -191,18 +191,7 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 #define ATEN2011_MSR_CD		0x80	/* Current state of CD */
 
 
-/* 1: Enables the debugging -- 0: Disable the debugging */
-#define ATEN_DEBUG	0
-
-#ifdef ATEN_DEBUG
-static int debug = 0;
-#define DPRINTK(fmt, args...) printk( "%s: " fmt, __FUNCTION__ , ## args)
-
-#else
-static int debug = 0;
-#define DPRINTK(fmt, args...)
-
-#endif
+static int debug;
 
 /*
  * Version Information
@@ -233,7 +222,7 @@ static int set_reg_sync(struct usb_serial_port *port, __u16 reg, __u16 val)
 	struct usb_device *dev = port->serial->dev;
 	val = val & 0x00ff;
 
-	dbg("%s: is %x, value %x\n", __func__, reg, val);
+	dbg("%s: is %x, value %x", __func__, reg, val);
 
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0), ATEN_WRREQ,
 			       ATEN_WR_RTYPE, val, reg, NULL, 0,
@@ -248,7 +237,7 @@ static int get_reg_sync(struct usb_serial_port *port, __u16 reg, __u16 *val)
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), ATEN_RDREQ,
 			      ATEN_RD_RTYPE, 0, reg, val, VENDOR_READ_LENGTH,
 			      ATEN_WDR_TIMEOUT);
-	dbg("%s: offset is %x, return val %x\n", __func__, reg, *val);
+	dbg("%s: offset is %x, return val %x", __func__, reg, *val);
 	*val = (*val) & 0x00ff;
 	return ret;
 }
@@ -277,7 +266,7 @@ static int set_uart_reg(struct usb_serial_port *port, __u16 reg, __u16 val)
 		else
 			val |= (((__u16)port->number - minor) + 2) << 8;
 	}
-	dbg("%s: application number is %x\n", __func__, val);
+	dbg("%s: application number is %x", __func__, val);
 
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0), ATEN_WRREQ,
 			       ATEN_WR_RTYPE, val, reg, NULL, 0,
@@ -305,7 +294,7 @@ static int get_uart_reg(struct usb_serial_port *port, __u16 reg, __u16 *val)
 		else
 			wval = (((__u16) port->number - minor) + 2) << 8;
 	}
-	dbg("%s: application number is %x\n", __func__, wval);
+	dbg("%s: application number is %x", __func__, wval);
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), ATEN_RDREQ,
 			      ATEN_RD_RTYPE, wval, reg, val, VENDOR_READ_LENGTH,
 			      ATEN_WDR_TIMEOUT);
@@ -380,11 +369,6 @@ static void ATEN2011_control_callback(struct urb *urb)
 	struct ATENINTL_port *ATEN2011_port;
 	__u8 regval = 0x0;
 
-	if (!urb) {
-		DPRINTK("%s", "Invalid Pointer !!!!:\n");
-		return;
-	}
-
 	switch (urb->status) {
 	case 0:
 		/* success */
@@ -404,12 +388,12 @@ static void ATEN2011_control_callback(struct urb *urb)
 
 	ATEN2011_port = (struct ATENINTL_port *)urb->context;
 
-	DPRINTK("%s urb buffer size is %d\n", __FUNCTION__, urb->actual_length);
-	DPRINTK("%s ATEN2011_port->MsrLsr is %d port %d\n", __FUNCTION__,
+	dbg("%s urb buffer size is %d", __FUNCTION__, urb->actual_length);
+	dbg("%s ATEN2011_port->MsrLsr is %d port %d", __FUNCTION__,
 		ATEN2011_port->MsrLsr, ATEN2011_port->port_num);
 	data = urb->transfer_buffer;
 	regval = (__u8) data[0];
-	DPRINTK("%s data is %x\n", __FUNCTION__, regval);
+	dbg("%s data is %x", __FUNCTION__, regval);
 	if (ATEN2011_port->MsrLsr == 0)
 		handle_newMsr(ATEN2011_port, regval);
 	else if (ATEN2011_port->MsrLsr == 1)
@@ -457,13 +441,9 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 	__u16 wval;
 	int minor;
 
-	DPRINTK("%s", " : Entering\n");
+	dbg("%s", " : Entering");
 
 	ATEN2011_serial = (struct ATENINTL_serial *)urb->context;
-	if (!urb) {
-		DPRINTK("%s", "Invalid Pointer !!!!:\n");
-		return;
-	}
 
 	switch (urb->status) {
 	case 0:
@@ -494,7 +474,7 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 	 * Byte 5 FIFO status for both */
 
 	if (length && length > 5) {
-		DPRINTK("%s \n", "Wrong data !!!");
+		dbg("%s", "Wrong data !!!");
 		return;
 	}
 
@@ -529,24 +509,18 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 			      (__u16) (minor)) + 1) << 8;
 		if (ATEN2011_port->open != 0) {
 			if (sp[i] & 0x01) {
-				DPRINTK("SP%d No Interrupt !!!\n", i);
+				dbg("SP%d No Interrupt !!!", i);
 			} else {
 				switch (sp[i] & 0x0f) {
 				case SERIAL_IIR_RLS:
-					DPRINTK
-					    ("Serial Port %d: Receiver status error or ",
-					     i);
-					DPRINTK
-					    ("address bit detected in 9-bit mode\n");
+					dbg("Serial Port %d: Receiver status error or address bit detected in 9-bit mode", i);
 					ATEN2011_port->MsrLsr = 1;
 					ATEN2011_get_reg(ATEN2011_port, wval,
 							 LINE_STATUS_REGISTER,
 							 &Data);
 					break;
 				case SERIAL_IIR_MS:
-					DPRINTK
-					    ("Serial Port %d: Modem status change\n",
-					     i);
+					dbg("Serial Port %d: Modem status change", i);
 					ATEN2011_port->MsrLsr = 0;
 					ATEN2011_get_reg(ATEN2011_port, wval,
 							 MODEM_STATUS_REGISTER,
@@ -581,49 +555,38 @@ static void ATEN2011_bulk_in_callback(struct urb *urb)
 	struct ATENINTL_serial *ATEN2011_serial;
 	struct ATENINTL_port *ATEN2011_port;
 	struct tty_struct *tty;
-	if (!urb) {
-		DPRINTK("%s", "Invalid Pointer !!!!:\n");
-		return;
-	}
 
 	if (urb->status) {
-		DPRINTK("nonzero read bulk status received: %d", urb->status);
+		dbg("nonzero read bulk status received: %d", urb->status);
 		return;
 	}
 
 	ATEN2011_port = (struct ATENINTL_port *)urb->context;
-	if (!ATEN2011_port) {
-		DPRINTK("%s", "NULL ATEN2011_port pointer \n");
-		return;
-	}
 
 	port = (struct usb_serial_port *)ATEN2011_port->port;
 	serial = port->serial;
 
-	DPRINTK("%s\n", "Entering... \n");
+	dbg("%s", "Entering...");
 
 	data = urb->transfer_buffer;
 	ATEN2011_serial = usb_get_serial_data(serial);
-
-	DPRINTK("%s", "Entering ........... \n");
 
 	if (urb->actual_length) {
 		tty = tty_port_tty_get(&ATEN2011_port->port->port);
 		if (tty) {
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
-			DPRINTK(" %s \n", data);
 			tty_flip_buffer_push(tty);
 			tty_kref_put(tty);
 		}
 
 		ATEN2011_port->icount.rx += urb->actual_length;
-		DPRINTK("ATEN2011_port->icount.rx is %d:\n",
+		dbg("ATEN2011_port->icount.rx is %d:",
 			ATEN2011_port->icount.rx);
 	}
 
 	if (!ATEN2011_port->read_urb) {
-		DPRINTK("%s", "URB KILLED !!!\n");
+		dbg("%s", "URB KILLED !!!");
 		return;
 	}
 
@@ -633,9 +596,7 @@ static void ATEN2011_bulk_in_callback(struct urb *urb)
 		status = usb_submit_urb(ATEN2011_port->read_urb, GFP_ATOMIC);
 
 		if (status) {
-			DPRINTK
-			    (" usb_submit_urb(read bulk) failed, status = %d",
-			     status);
+			dbg("usb_submit_urb(read bulk) failed, status = %d", status);
 		}
 	}
 }
@@ -644,23 +605,15 @@ static void ATEN2011_bulk_out_data_callback(struct urb *urb)
 {
 	struct ATENINTL_port *ATEN2011_port;
 	struct tty_struct *tty;
-	if (!urb) {
-		DPRINTK("%s", "Invalid Pointer !!!!:\n");
-		return;
-	}
 
 	if (urb->status) {
-		DPRINTK("nonzero write bulk status received:%d\n", urb->status);
+		dbg("nonzero write bulk status received:%d", urb->status);
 		return;
 	}
 
 	ATEN2011_port = (struct ATENINTL_port *)urb->context;
-	if (!ATEN2011_port) {
-		DPRINTK("%s", "NULL ATEN2011_port pointer \n");
-		return;
-	}
 
-	DPRINTK("%s \n", "Entering .........");
+	dbg("%s", "Entering .........");
 
 	tty = tty_port_tty_get(&ATEN2011_port->port->port);
 
@@ -771,20 +724,20 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	Data = 0x0;
 	status = get_reg_sync(port, ATEN2011_port->SpRegOffset, &Data);
 	if (status < 0) {
-		DPRINTK("Reading Spreg failed\n");
+		dbg("Reading Spreg failed");
 		return -1;
 	}
 	Data |= 0x80;
 	status = set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
 	if (status < 0) {
-		DPRINTK("writing Spreg failed\n");
+		dbg("writing Spreg failed");
 		return -1;
 	}
 
 	Data &= ~0x80;
 	status = set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
 	if (status < 0) {
-		DPRINTK("writing Spreg failed\n");
+		dbg("writing Spreg failed");
 		return -1;
 	}
 
@@ -797,19 +750,17 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 		Data = 0x00;
 	status = set_uart_reg(port, SCRATCH_PAD_REGISTER, Data);
 	if (status < 0) {
-		DPRINTK("Writing SCRATCH_PAD_REGISTER failed status-0x%x\n",
-			status);
+		dbg("Writing SCRATCH_PAD_REGISTER failed status-0x%x", status);
 		return -1;
 	} else
-		DPRINTK("SCRATCH_PAD_REGISTER Writing success status%d\n",
-			status);
+		dbg("SCRATCH_PAD_REGISTER Writing success status%d", status);
 
 /**************************CHECK***************************/
 
 	Data = 0x0;
 	status = get_reg_sync(port, ATEN2011_port->ControlRegOffset, &Data);
 	if (status < 0) {
-		DPRINTK("Reading Controlreg failed\n");
+		dbg("Reading Controlreg failed");
 		return -1;
 	}
 	Data |= 0x08;		/* Driver done bit */
@@ -818,7 +769,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	status =
 	    set_reg_sync(port, ATEN2011_port->ControlRegOffset, Data);
 	if (status < 0) {
-		DPRINTK("writing Controlreg failed\n");
+		dbg("writing Controlreg failed");
 		return -1;
 	}
 	/*
@@ -830,21 +781,21 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	Data = 0x00;
 	status = set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
 	if (status < 0) {
-		DPRINTK("disableing interrupts failed\n");
+		dbg("disableing interrupts failed");
 		return -1;
 	}
 	/* Set FIFO_CONTROL_REGISTER to the default value */
 	Data = 0x00;
 	status = set_uart_reg(port, FIFO_CONTROL_REGISTER, Data);
 	if (status < 0) {
-		DPRINTK("Writing FIFO_CONTROL_REGISTER  failed\n");
+		dbg("Writing FIFO_CONTROL_REGISTER  failed");
 		return -1;
 	}
 
 	Data = 0xcf;		/* chk */
 	status = set_uart_reg(port, FIFO_CONTROL_REGISTER, Data);
 	if (status < 0) {
-		DPRINTK("Writing FIFO_CONTROL_REGISTER  failed\n");
+		dbg("Writing FIFO_CONTROL_REGISTER  failed");
 		return -1;
 	}
 
@@ -911,14 +862,6 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 	if (tty)
 		tty->low_latency = 1;
-/*
-	printk("port number is %d \n",port->number);
-	printk("serial number is %d \n",port->serial->minor);
-	printk("Bulkin endpoint is %d \n",port->bulk_in_endpointAddress);
-	printk("BulkOut endpoint is %d \n",port->bulk_out_endpointAddress);
-	printk("Interrupt endpoint is %d \n",port->interrupt_in_endpointAddress);
-	printk("port's number in the device is %d\n",ATEN2011_port->port_num);
-*/
 	/*
 	 * Check to see if we've set up our endpoint info yet
 	 * (can't set it up in ATEN2011_startup as the structures
@@ -954,7 +897,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 		    usb_submit_urb(ATEN2011_serial->interrupt_read_urb,
 				   GFP_KERNEL);
 		if (response) {
-			DPRINTK("%s - Error %d submitting interrupt urb",
+			dbg("%s - Error %d submitting interrupt urb",
 				__FUNCTION__, response);
 		}
 
@@ -966,13 +909,13 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	 * structures were not set up at that time.)
 	 */
 
-	DPRINTK("port number is %d \n", port->number);
-	DPRINTK("serial number is %d \n", port->serial->minor);
-	DPRINTK("Bulkin endpoint is %d \n", port->bulk_in_endpointAddress);
-	DPRINTK("BulkOut endpoint is %d \n", port->bulk_out_endpointAddress);
-	DPRINTK("Interrupt endpoint is %d \n",
+	dbg("port number is %d", port->number);
+	dbg("serial number is %d", port->serial->minor);
+	dbg("Bulkin endpoint is %d", port->bulk_in_endpointAddress);
+	dbg("BulkOut endpoint is %d", port->bulk_out_endpointAddress);
+	dbg("Interrupt endpoint is %d",
 		port->interrupt_in_endpointAddress);
-	DPRINTK("port's number in the device is %d\n", ATEN2011_port->port_num);
+	dbg("port's number in the device is %d", ATEN2011_port->port_num);
 	ATEN2011_port->bulk_in_buffer = port->bulk_in_buffer;
 	ATEN2011_port->bulk_in_endpoint = port->bulk_in_endpointAddress;
 	ATEN2011_port->read_urb = port->read_urb;
@@ -1004,7 +947,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 				  transfer_buffer_length,
 				  ATEN2011_bulk_in_callback, ATEN2011_port);
 
-	DPRINTK("ATEN2011_open: bulkin endpoint is %d\n",
+	dbg("ATEN2011_open: bulkin endpoint is %d",
 		port->bulk_in_endpointAddress);
 	response = usb_submit_urb(ATEN2011_port->read_urb, GFP_KERNEL);
 	if (response) {
@@ -1030,8 +973,7 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	ATEN2011_port->icount.tx = 0;
 	ATEN2011_port->icount.rx = 0;
 
-	DPRINTK
-	    ("\n\nusb_serial serial:%x       ATEN2011_port:%x\nATEN2011_serial:%x      usb_serial_port port:%x\n\n",
+	dbg("usb_serial serial:%x       ATEN2011_port:%x\nATEN2011_serial:%x      usb_serial_port port:%x",
 	     (unsigned int)serial, (unsigned int)ATEN2011_port,
 	     (unsigned int)ATEN2011_serial, (unsigned int)port);
 
@@ -1046,11 +988,11 @@ static int ATEN2011_chars_in_buffer(struct tty_struct *tty)
 	int chars = 0;
 	struct ATENINTL_port *ATEN2011_port;
 
-	/* DPRINTK("%s \n"," ATEN2011_chars_in_buffer:entering ..........."); */
+	/* dbg("%s"," ATEN2011_chars_in_buffer:entering ..........."); */
 
 	ATEN2011_port = usb_get_serial_port_data(port);
 	if (ATEN2011_port == NULL) {
-		DPRINTK("%s \n", "ATEN2011_break:leaving ...........");
+		dbg("%s", "ATEN2011_break:leaving ...........");
 		return -1;
 	}
 
@@ -1105,7 +1047,7 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	int no_urbs;
 	__u16 Data;
 
-	DPRINTK("%s\n", "ATEN2011_close:entering...");
+	dbg("%s", "ATEN2011_close:entering...");
 	serial = port->serial;
 
 	/* take the Adpater and port's private data */
@@ -1135,15 +1077,15 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	 * and interrupt read if they exists                  */
 	if (serial->dev) {
 		if (ATEN2011_port->write_urb) {
-			DPRINTK("%s", "Shutdown bulk write\n");
+			dbg("%s", "Shutdown bulk write");
 			usb_kill_urb(ATEN2011_port->write_urb);
 		}
 		if (ATEN2011_port->read_urb) {
-			DPRINTK("%s", "Shutdown bulk read\n");
+			dbg("%s", "Shutdown bulk read");
 			usb_kill_urb(ATEN2011_port->read_urb);
 		}
 		if ((&ATEN2011_port->control_urb)) {
-			DPRINTK("%s", "Shutdown control read\n");
+			dbg("%s", "Shutdown control read");
 			/* usb_kill_urb (ATEN2011_port->control_urb); */
 
 		}
@@ -1152,13 +1094,13 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 		/* kfree(ATEN2011_port->ctrl_buf); */
 	/* decrement the no.of open ports counter of an individual USB-serial adapter. */
 	ATEN2011_serial->NoOfOpenPorts--;
-	DPRINTK("NoOfOpenPorts in close%d:in port%d\n",
+	dbg("NoOfOpenPorts in close%d:in port%d",
 		ATEN2011_serial->NoOfOpenPorts, port->number);
 	if (ATEN2011_serial->NoOfOpenPorts == 0) {
 		/* stop the stus polling here */
 		ATEN2011_serial->status_polling_started = 0;
 		if (ATEN2011_serial->interrupt_read_urb) {
-			DPRINTK("%s", "Shutdown interrupt_read_urb\n");
+			dbg("%s", "Shutdown interrupt_read_urb");
 			/* ATEN2011_serial->interrupt_in_buffer=NULL; */
 			/* usb_kill_urb (ATEN2011_serial->interrupt_read_urb); */
 		}
@@ -1177,7 +1119,7 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	set_uart_reg(port, INTERRUPT_ENABLE_REGISTER, Data);
 
 	ATEN2011_port->open = 0;
-	DPRINTK("%s \n", "Leaving ............");
+	dbg("%s", "Leaving ............");
 
 }
 
@@ -1222,8 +1164,8 @@ static void ATEN2011_break(struct tty_struct *tty, int break_state)
 	struct ATENINTL_serial *ATEN2011_serial;
 	struct ATENINTL_port *ATEN2011_port;
 
-	DPRINTK("%s \n", "Entering ...........");
-	DPRINTK("ATEN2011_break: Start\n");
+	dbg("%s", "Entering ...........");
+	dbg("ATEN2011_break: Start");
 
 	serial = port->serial;
 
@@ -1250,7 +1192,7 @@ static void ATEN2011_break(struct tty_struct *tty, int break_state)
 	}
 
 	ATEN2011_port->shadowLCR = data;
-	DPRINTK("ATEN2011_break ATEN2011_port->shadowLCR is %x\n",
+	dbg("ATEN2011_break ATEN2011_port->shadowLCR is %x",
 		ATEN2011_port->shadowLCR);
 	set_uart_reg(port, LINE_CONTROL_REGISTER, ATEN2011_port->shadowLCR);
 
@@ -1266,7 +1208,7 @@ static int ATEN2011_write_room(struct tty_struct *tty)
 
 	ATEN2011_port = usb_get_serial_port_data(port);
 	if (ATEN2011_port == NULL) {
-		DPRINTK("%s \n", "ATEN2011_break:leaving ...........");
+		dbg("%s", "ATEN2011_break:leaving ...........");
 		return -1;
 	}
 
@@ -1296,19 +1238,19 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 	struct urb *urb;
 	const unsigned char *current_position = data;
 	unsigned char *data1;
-	DPRINTK("%s \n", "entering ...........");
+	dbg("%s", "entering ...........");
 
 	serial = port->serial;
 
 	ATEN2011_port = usb_get_serial_port_data(port);
 	if (ATEN2011_port == NULL) {
-		DPRINTK("%s", "ATEN2011_port is NULL\n");
+		dbg("%s", "ATEN2011_port is NULL");
 		return -1;
 	}
 
 	ATEN2011_serial = usb_get_serial_data(serial);
 	if (ATEN2011_serial == NULL) {
-		DPRINTK("%s", "ATEN2011_serial is NULL \n");
+		dbg("%s", "ATEN2011_serial is NULL");
 		return -1;
 	}
 
@@ -1318,7 +1260,7 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 	for (i = 0; i < NUM_URBS; ++i) {
 		if (ATEN2011_port->write_urb_pool[i]->status != -EINPROGRESS) {
 			urb = ATEN2011_port->write_urb_pool[i];
-			DPRINTK("\nURB:%d", i);
+			dbg("URB:%d", i);
 			break;
 		}
 	}
@@ -1368,9 +1310,9 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 				  ATEN2011_port);
 
 	data1 = urb->transfer_buffer;
-	DPRINTK("\nbulkout endpoint is %d", port->bulk_out_endpointAddress);
+	dbg("bulkout endpoint is %d", port->bulk_out_endpointAddress);
 	/* for(i=0;i < urb->actual_length;i++) */
-		/* DPRINTK("Data is %c\n ",data1[i]); */
+		/* dbg("Data is %c ",data1[i]); */
 
 	/* send it down the pipe */
 	status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -1383,7 +1325,7 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 	bytes_sent = transfer_size;
 	ATEN2011_port->icount.tx += transfer_size;
-	DPRINTK("ATEN2011_port->icount.tx is %d:\n", ATEN2011_port->icount.tx);
+	dbg("ATEN2011_port->icount.tx is %d:", ATEN2011_port->icount.tx);
       exit:
 
 	return bytes_sent;
@@ -1396,7 +1338,7 @@ static void ATEN2011_throttle(struct tty_struct *tty)
 	struct ATENINTL_port *ATEN2011_port;
 	int status;
 
-	DPRINTK("- port %d\n", port->number);
+	dbg("- port %d", port->number);
 
 	ATEN2011_port = usb_get_serial_port_data(port);
 
@@ -1404,11 +1346,11 @@ static void ATEN2011_throttle(struct tty_struct *tty)
 		return;
 
 	if (!ATEN2011_port->open) {
-		DPRINTK("%s\n", "port not opened");
+		dbg("%s", "port not opened");
 		return;
 	}
 
-	DPRINTK("%s", "Entering .......... \n");
+	dbg("%s", "Entering .......... ");
 
 	if (!tty) {
 		dbg("%s - no tty available", __FUNCTION__);
@@ -1452,7 +1394,7 @@ static void ATEN2011_unthrottle(struct tty_struct *tty)
 		return;
 	}
 
-	DPRINTK("%s", "Entering .......... \n");
+	dbg("%s", "Entering .......... ");
 
 	if (!tty) {
 		dbg("%s - no tty available", __FUNCTION__);
@@ -1492,7 +1434,7 @@ static int ATEN2011_tiocmget(struct tty_struct *tty, struct file *file)
 	int status = 0;
 	ATEN2011_port = usb_get_serial_port_data(port);
 
-	DPRINTK("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	if (ATEN2011_port == NULL)
 		return -ENODEV;
@@ -1509,7 +1451,7 @@ static int ATEN2011_tiocmget(struct tty_struct *tty, struct file *file)
 	    | ((msr & ATEN2011_MSR_RI) ? TIOCM_RI : 0)
 	    | ((msr & ATEN2011_MSR_DSR) ? TIOCM_DSR : 0);
 
-	DPRINTK("%s - 0x%04X", __FUNCTION__, result);
+	dbg("%s - 0x%04X", __FUNCTION__, result);
 
 	return result;
 }
@@ -1522,7 +1464,7 @@ static int ATEN2011_tiocmset(struct tty_struct *tty, struct file *file,
 	unsigned int mcr;
 	unsigned int status;
 
-	DPRINTK("%s - port %d", __FUNCTION__, port->number);
+	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	ATEN2011_port = usb_get_serial_port_data(port);
 
@@ -1548,7 +1490,7 @@ static int ATEN2011_tiocmset(struct tty_struct *tty, struct file *file,
 
 	status = set_uart_reg(port, MODEM_CONTROL_REGISTER, mcr);
 	if (status < 0) {
-		DPRINTK("setting MODEM_CONTROL_REGISTER Failed\n");
+		dbg("setting MODEM_CONTROL_REGISTER Failed");
 		return -1;
 	}
 
@@ -1564,7 +1506,7 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 	struct usb_serial *serial;
 	struct ATENINTL_port *ATEN2011_port;
 
-	DPRINTK("ATEN2011_set_termios: START\n");
+	dbg("ATEN2011_set_termios: START");
 
 	serial = port->serial;
 
@@ -1578,12 +1520,12 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 		return;
 	}
 
-	DPRINTK("%s\n", "setting termios - ");
+	dbg("%s", "setting termios - ");
 
 	cflag = tty->termios->c_cflag;
 
 	if (!cflag) {
-		DPRINTK("%s %s\n", __FUNCTION__, "cflag is NULL");
+		dbg("%s %s", __FUNCTION__, "cflag is NULL");
 		return;
 	}
 
@@ -1592,7 +1534,7 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 		if ((cflag == old_termios->c_cflag) &&
 		    (RELEVANT_IFLAG(tty->termios->c_iflag) ==
 		     RELEVANT_IFLAG(old_termios->c_iflag))) {
-			DPRINTK("%s\n", "Nothing to change");
+			dbg("%s", "Nothing to change");
 			return;
 		}
 	}
@@ -1612,7 +1554,7 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 	ATEN2011_change_port_settings(tty, ATEN2011_port, old_termios);
 
 	if (!ATEN2011_port->read_urb) {
-		DPRINTK("%s", "URB KILLED !!!!!\n");
+		dbg("%s", "URB KILLED !!!!!");
 		return;
 	}
 
@@ -1620,7 +1562,7 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 		ATEN2011_port->read_urb->dev = serial->dev;
 		status = usb_submit_urb(ATEN2011_port->read_urb, GFP_ATOMIC);
 		if (status) {
-			DPRINTK
+			dbg
 			    (" usb_submit_urb(read bulk) failed, status = %d",
 			     status);
 		}
@@ -1717,7 +1659,7 @@ static int set_modem_info(struct ATENINTL_port *ATEN2011_port, unsigned int cmd,
 	Data = ATEN2011_port->shadowMCR;
 	status = set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 	if (status < 0) {
-		DPRINTK("setting MODEM_CONTROL_REGISTER Failed\n");
+		dbg("setting MODEM_CONTROL_REGISTER Failed");
 		return -1;
 	}
 
@@ -1933,7 +1875,7 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 
 	port = (struct usb_serial_port *)ATEN2011_port->port;
 
-	DPRINTK("%s", "Entering .......... \n");
+	dbg("%s", "Entering .......... ");
 
 	minor = ATEN2011_port->port->serial->minor;
 	if (minor == SERIAL_TTY_NO_MINOR)
@@ -1954,7 +1896,7 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 		ATEN2011_port->shadowMCR = Data;
 		status = set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 		if (status < 0) {
-			DPRINTK("Writing spreg failed in set_serial_baud\n");
+			dbg("Writing spreg failed in set_serial_baud");
 			return -1;
 		}
 #endif
@@ -1967,7 +1909,7 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 		ATEN2011_port->shadowMCR = Data;
 		status = set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
 		if (status < 0) {
-			DPRINTK("Writing spreg failed in set_serial_baud\n");
+			dbg("Writing spreg failed in set_serial_baud");
 			return -1;
 		}
 #endif
@@ -1983,20 +1925,20 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 						    &clk_sel_val);
 		status = get_reg_sync(port, ATEN2011_port->SpRegOffset, &Data);
 		if (status < 0) {
-			DPRINTK("reading spreg failed in set_serial_baud\n");
+			dbg("reading spreg failed in set_serial_baud");
 			return -1;
 		}
 		Data = (Data & 0x8f) | clk_sel_val;
 		status = set_reg_sync(port, ATEN2011_port->SpRegOffset, Data);
 		if (status < 0) {
-			DPRINTK("Writing spreg failed in set_serial_baud\n");
+			dbg("Writing spreg failed in set_serial_baud");
 			return -1;
 		}
 		/* Calculate the Divisor */
 
 		if (status) {
 			err("%s - bad baud rate", __FUNCTION__);
-			DPRINTK("%s\n", "bad baud rate");
+			dbg("%s", "bad baud rate");
 			return status;
 		}
 		/* Enable access to divisor latch */
@@ -2006,11 +1948,11 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 
 		/* Write the divisor */
 		Data = (unsigned char)(divisor & 0xff);
-		DPRINTK("set_serial_baud Value to write DLL is %x\n", Data);
+		dbg("set_serial_baud Value to write DLL is %x", Data);
 		set_uart_reg(port, DIVISOR_LATCH_LSB, Data);
 
 		Data = (unsigned char)((divisor & 0xff00) >> 8);
-		DPRINTK("set_serial_baud Value to write DLM is %x\n", Data);
+		dbg("set_serial_baud Value to write DLM is %x", Data);
 		set_uart_reg(port, DIVISOR_LATCH_MSB, Data);
 
 		/* Disable access to divisor latch */
@@ -2057,7 +1999,7 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 		return;
 	}
 
-	DPRINTK("%s", "Entering .......... \n");
+	dbg("%s", "Entering .......... ");
 
 	lData = LCR_BITS_8;
 	lStop = LCR_STOP_1;
@@ -2121,8 +2063,8 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 	    ~(LCR_BITS_MASK | LCR_STOP_MASK | LCR_PAR_MASK);
 	ATEN2011_port->shadowLCR |= (lData | lParity | lStop);
 
-	DPRINTK
-	    ("ATEN2011_change_port_settings ATEN2011_port->shadowLCR is %x\n",
+	dbg
+	    ("ATEN2011_change_port_settings ATEN2011_port->shadowLCR is %x",
 	     ATEN2011_port->shadowLCR);
 	/* Disable Interrupts */
 	Data = 0x00;
@@ -2167,7 +2109,7 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 
 	if (!baud) {
 		/* pick a default, any default... */
-		DPRINTK("%s\n", "Picked default baud...");
+		dbg("%s", "Picked default baud...");
 		baud = 9600;
 	}
 
@@ -2184,13 +2126,13 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 		status = usb_submit_urb(ATEN2011_port->read_urb, GFP_ATOMIC);
 
 		if (status) {
-			DPRINTK
+			dbg
 			    (" usb_submit_urb(read bulk) failed, status = %d",
 			     status);
 		}
 	}
-	DPRINTK
-	    ("ATEN2011_change_port_settings ATEN2011_port->shadowLCR is End %x\n",
+	dbg
+	    ("ATEN2011_change_port_settings ATEN2011_port->shadowLCR is End %x",
 	     ATEN2011_port->shadowLCR);
 
 	return;
@@ -2235,16 +2177,16 @@ static int ATEN2011_startup(struct usb_serial *serial)
 	int minor;
 
 	__u16 Data;
-	DPRINTK("%s \n", " ATEN2011_startup :entering..........");
+	dbg("%s", " ATEN2011_startup :entering..........");
 
 	if (!serial) {
-		DPRINTK("%s\n", "Invalid Handler");
+		dbg("%s", "Invalid Handler");
 		return -1;
 	}
 
 	dev = serial->dev;
 
-	DPRINTK("%s\n", "Entering...");
+	dbg("%s", "Entering...");
 
 	/* create our private serial structure */
 	ATEN2011_serial = kzalloc(sizeof(struct ATENINTL_serial), GFP_KERNEL);
@@ -2331,12 +2273,12 @@ static int ATEN2011_startup(struct usb_serial *serial)
 		status = get_reg_sync(serial->port[i],
 				      ATEN2011_port->ControlRegOffset, &Data);
 		if (status < 0) {
-			DPRINTK("Reading ControlReg failed status-0x%x\n",
+			dbg("Reading ControlReg failed status-0x%x",
 				status);
 			break;
 		} else
-			DPRINTK
-			    ("ControlReg Reading success val is %x, status%d\n",
+			dbg
+			    ("ControlReg Reading success val is %x, status%d",
 			     Data, status);
 		Data |= 0x08;	/* setting driver done bit */
 		Data |= 0x04;	/* sp1_bit to have cts change reflect in modem status reg */
@@ -2345,13 +2287,13 @@ static int ATEN2011_startup(struct usb_serial *serial)
 		status = set_reg_sync(serial->port[i],
 				      ATEN2011_port->ControlRegOffset, Data);
 		if (status < 0) {
-			DPRINTK
-			    ("Writing ControlReg failed(rx_disable) status-0x%x\n",
+			dbg
+			    ("Writing ControlReg failed(rx_disable) status-0x%x",
 			     status);
 			break;
 		} else
-			DPRINTK
-			    ("ControlReg Writing success(rx_disable) status%d\n",
+			dbg
+			    ("ControlReg Writing success(rx_disable) status%d",
 			     status);
 
 		/*
@@ -2363,55 +2305,55 @@ static int ATEN2011_startup(struct usb_serial *serial)
 				      (__u16)(ATEN2011_port->DcrRegOffset + 0),
 				      Data);
 		if (status < 0) {
-			DPRINTK("Writing DCR0 failed status-0x%x\n", status);
+			dbg("Writing DCR0 failed status-0x%x", status);
 			break;
 		} else
-			DPRINTK("DCR0 Writing success status%d\n", status);
+			dbg("DCR0 Writing success status%d", status);
 
 		Data = 0x05;
 		status = set_reg_sync(serial->port[i],
 				      (__u16)(ATEN2011_port->DcrRegOffset + 1),
 				      Data);
 		if (status < 0) {
-			DPRINTK("Writing DCR1 failed status-0x%x\n", status);
+			dbg("Writing DCR1 failed status-0x%x", status);
 			break;
 		} else
-			DPRINTK("DCR1 Writing success status%d\n", status);
+			dbg("DCR1 Writing success status%d", status);
 
 		Data = 0x24;
 		status = set_reg_sync(serial->port[i],
 				      (__u16)(ATEN2011_port->DcrRegOffset + 2),
 				      Data);
 		if (status < 0) {
-			DPRINTK("Writing DCR2 failed status-0x%x\n", status);
+			dbg("Writing DCR2 failed status-0x%x", status);
 			break;
 		} else
-			DPRINTK("DCR2 Writing success status%d\n", status);
+			dbg("DCR2 Writing success status%d", status);
 
 		/* write values in clkstart0x0 and clkmulti 0x20 */
 		Data = 0x0;
 		status = set_reg_sync(serial->port[i], CLK_START_VALUE_REGISTER,
 				      Data);
 		if (status < 0) {
-			DPRINTK
-			    ("Writing CLK_START_VALUE_REGISTER failed status-0x%x\n",
+			dbg
+			    ("Writing CLK_START_VALUE_REGISTER failed status-0x%x",
 			     status);
 			break;
 		} else
-			DPRINTK
-			    ("CLK_START_VALUE_REGISTER Writing success status%d\n",
+			dbg
+			    ("CLK_START_VALUE_REGISTER Writing success status%d",
 			     status);
 
 		Data = 0x20;
 		status = set_reg_sync(serial->port[i], CLK_MULTI_REGISTER,
 				      Data);
 		if (status < 0) {
-			DPRINTK
-			    ("Writing CLK_MULTI_REGISTER failed status-0x%x\n",
+			dbg
+			    ("Writing CLK_MULTI_REGISTER failed status-0x%x",
 			     status);
 			break;
 		} else
-			DPRINTK("CLK_MULTI_REGISTER Writing success status%d\n",
+			dbg("CLK_MULTI_REGISTER Writing success status%d",
 				status);
 
 		/* Zero Length flag register */
@@ -2422,33 +2364,33 @@ static int ATEN2011_startup(struct usb_serial *serial)
 			status = set_reg_sync(serial->port[i],
 					      (__u16)(ZLP_REG1 + ((__u16)ATEN2011_port->port_num)),
 					      Data);
-			DPRINTK("ZLIP offset%x\n",
+			dbg("ZLIP offset%x",
 				(__u16) (ZLP_REG1 +
 					 ((__u16) ATEN2011_port->port_num)));
 			if (status < 0) {
-				DPRINTK
-				    ("Writing ZLP_REG%d failed status-0x%x\n",
+				dbg
+				    ("Writing ZLP_REG%d failed status-0x%x",
 				     i + 2, status);
 				break;
 			} else
-				DPRINTK("ZLP_REG%d Writing success status%d\n",
+				dbg("ZLP_REG%d Writing success status%d",
 					i + 2, status);
 		} else {
 			Data = 0xff;
 			status = set_reg_sync(serial->port[i],
 					      (__u16)(ZLP_REG1 + ((__u16)ATEN2011_port->port_num) - 0x1),
 					      Data);
-			DPRINTK("ZLIP offset%x\n",
+			dbg("ZLIP offset%x",
 				(__u16) (ZLP_REG1 +
 					 ((__u16) ATEN2011_port->port_num) -
 					 0x1));
 			if (status < 0) {
-				DPRINTK
-				    ("Writing ZLP_REG%d failed status-0x%x\n",
+				dbg
+				    ("Writing ZLP_REG%d failed status-0x%x",
 				     i + 1, status);
 				break;
 			} else
-				DPRINTK("ZLP_REG%d Writing success status%d\n",
+				dbg("ZLP_REG%d Writing success status%d",
 					i + 1, status);
 
 		}
@@ -2461,10 +2403,10 @@ static int ATEN2011_startup(struct usb_serial *serial)
 	Data = 0x0f;
 	status = set_reg_sync(serial->port[0], ZLP_REG5, Data);
 	if (status < 0) {
-		DPRINTK("Writing ZLP_REG5 failed status-0x%x\n", status);
+		dbg("Writing ZLP_REG5 failed status-0x%x", status);
 		return -1;
 	} else
-		DPRINTK("ZLP_REG5 Writing success status%d\n", status);
+		dbg("ZLP_REG5 Writing success status%d", status);
 
 	/* setting configuration feature to one */
 	usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
@@ -2476,14 +2418,8 @@ static void ATEN2011_shutdown(struct usb_serial *serial)
 {
 	int i;
 	struct ATENINTL_port *ATEN2011_port;
-	DPRINTK("%s \n", " shutdown :entering..........");
 
-	if (!serial) {
-		DPRINTK("%s", "Invalid Handler \n");
-		return;
-	}
-
-	/*      check for the ports to be closed,close the ports and disconnect         */
+	/* check for the ports to be closed,close the ports and disconnect */
 
 	/* free private structure allocated for serial port  *
 	 * stop reads and writes on all ports                */
@@ -2500,9 +2436,6 @@ static void ATEN2011_shutdown(struct usb_serial *serial)
 
 	kfree(usb_get_serial_data(serial));
 	usb_set_serial_data(serial, NULL);
-
-	DPRINTK("%s\n", "Thank u :: ");
-
 }
 
 static struct usb_serial_driver aten_serial_driver = {
