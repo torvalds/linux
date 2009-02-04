@@ -27,6 +27,7 @@
 #include <mach/clockdomain.h>
 #include <mach/powerdomain.h>
 #include <mach/control.h>
+#include <mach/serial.h>
 
 #include "cm.h"
 #include "cm-regbits-34xx.h"
@@ -168,10 +169,16 @@ static void omap_sram_idle(void)
 		return;
 	}
 	omap2_gpio_prepare_for_retention();
+	omap_uart_prepare_idle(0);
+	omap_uart_prepare_idle(1);
+	omap_uart_prepare_idle(2);
 
 	_omap_sram_idle(NULL, save_state);
 	cpu_init();
 
+	omap_uart_resume_idle(2);
+	omap_uart_resume_idle(1);
+	omap_uart_resume_idle(0);
 	omap2_gpio_resume_after_retention();
 }
 
@@ -204,6 +211,11 @@ static int omap3_fclks_active(void)
 				  CM_FCLKEN);
 	fck_per = cm_read_mod_reg(OMAP3430_PER_MOD,
 				  CM_FCLKEN);
+
+	/* Ignore UART clocks.  These are handled by UART core (serial.c) */
+	fck_core1 &= ~(OMAP3430_EN_UART1 | OMAP3430_EN_UART2);
+	fck_per &= ~OMAP3430_EN_UART3;
+
 	if (fck_core1 | fck_core3 | fck_sgx | fck_dss |
 	    fck_cam | fck_per | fck_usbhost)
 		return 1;
@@ -212,6 +224,8 @@ static int omap3_fclks_active(void)
 
 static int omap3_can_sleep(void)
 {
+	if (!omap_uart_can_sleep())
+		return 0;
 	if (omap3_fclks_active())
 		return 0;
 	return 1;
@@ -301,6 +315,7 @@ static int omap3_pm_suspend(void)
 			goto restore;
 	}
 
+	omap_uart_prepare_suspend();
 	omap_sram_idle();
 
 restore:

@@ -71,6 +71,11 @@ static int omap2_fclks_active(void)
 
 	f1 = cm_read_mod_reg(CORE_MOD, CM_FCLKEN1);
 	f2 = cm_read_mod_reg(CORE_MOD, OMAP24XX_CM_FCLKEN2);
+
+	/* Ignore UART clocks.  These are handled by UART core (serial.c) */
+	f1 &= ~(OMAP24XX_EN_UART1 | OMAP24XX_EN_UART2);
+	f2 &= ~OMAP24XX_EN_UART3;
+
 	if (f1 | f2)
 		return 1;
 	return 0;
@@ -117,12 +122,20 @@ static void omap2_enter_full_retention(void)
 	if (omap_irq_pending())
 		goto no_sleep;
 
+	omap_uart_prepare_idle(0);
+	omap_uart_prepare_idle(1);
+	omap_uart_prepare_idle(2);
+
 	/* Jump to SRAM suspend code */
 	omap2_sram_suspend(sdrc_read_reg(SDRC_DLLA_CTRL),
 			   OMAP_SDRC_REGADDR(SDRC_DLLA_CTRL),
 			   OMAP_SDRC_REGADDR(SDRC_POWER));
-no_sleep:
 
+	omap_uart_resume_idle(2);
+	omap_uart_resume_idle(1);
+	omap_uart_resume_idle(0);
+
+no_sleep:
 	if (omap2_pm_debug) {
 		unsigned long long tmp;
 
@@ -283,6 +296,7 @@ static int omap2_pm_suspend(void)
 	mir1 = omap_readl(0x480fe0a4);
 	omap_writel(1 << 5, 0x480fe0ac);
 
+	omap_uart_prepare_suspend();
 	omap2_enter_full_retention();
 
 	omap_writel(mir1, 0x480fe0a4);
