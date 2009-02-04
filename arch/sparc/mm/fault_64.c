@@ -225,6 +225,30 @@ cannot_handle:
 	unhandled_fault (address, current, regs);
 }
 
+static void noinline bogus_32bit_fault_tpc(struct pt_regs *regs)
+{
+	static int times;
+
+	if (times++ < 10)
+		printk(KERN_ERR "FAULT[%s:%d]: 32-bit process reports "
+		       "64-bit TPC [%lx]\n",
+		       current->comm, current->pid,
+		       regs->tpc);
+	show_regs(regs);
+}
+
+static void noinline bogus_32bit_fault_address(struct pt_regs *regs,
+					       unsigned long addr)
+{
+	static int times;
+
+	if (times++ < 10)
+		printk(KERN_ERR "FAULT[%s:%d]: 32-bit process "
+		       "reports 64-bit fault address [%lx]\n",
+		       current->comm, current->pid, addr);
+	show_regs(regs);
+}
+
 asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 {
 	struct mm_struct *mm = current->mm;
@@ -246,13 +270,20 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		BUG();
 
 	if (test_thread_flag(TIF_32BIT)) {
-		if (!(regs->tstate & TSTATE_PRIV))
-			regs->tpc &= 0xffffffff;
-		address &= 0xffffffff;
+		if (!(regs->tstate & TSTATE_PRIV)) {
+			if (unlikely((regs->tpc >> 32) != 0)) {
+				bogus_32bit_fault_tpc(regs);
+				goto intr_or_no_mm;
+			}
+		}
+		if (unlikely((address >> 32) != 0)) {
+			bogus_32bit_fault_address(regs, address);
+			goto intr_or_no_mm;
+		}
 	}
 
 	if (regs->tstate & TSTATE_PRIV) {
-		unsigned long eaddr, tpc = regs->tpc;
+		unsigned long tpc = regs->tpc;
 
 		/* Sanity check the PC. */
 		if ((tpc >= KERNBASE && tpc < (unsigned long) __init_end) ||
@@ -261,16 +292,6 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 		} else {
 			bad_kernel_pc(regs, address);
 			return;
-		}
-
-		insn = get_fault_insn(regs, insn);
-		eaddr = compute_effective_address(regs, insn, 0);
-		if (WARN_ON_ONCE((eaddr & PAGE_MASK) != (address & PAGE_MASK))){
-			printk(KERN_ERR "FAULT: Mismatch kernel fault "
-			       "address: addr[%lx] eaddr[%lx] TPC[%lx]\n",
-			       address, eaddr, tpc);
-			show_regs(regs);
-			goto handle_kernel_fault;
 		}
 	}
 
