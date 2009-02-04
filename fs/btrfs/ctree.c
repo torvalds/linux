@@ -3630,15 +3630,22 @@ noinline int btrfs_del_leaf(struct btrfs_trans_handle *trans,
 {
 	int ret;
 	u64 root_gen = btrfs_header_generation(path->nodes[1]);
+	u64 parent_start = path->nodes[1]->start;
+	u64 parent_owner = btrfs_header_owner(path->nodes[1]);
 
 	ret = del_ptr(trans, root, path, 1, path->slots[1]);
 	if (ret)
 		return ret;
 
+	/*
+	 * btrfs_free_extent is expensive, we want to make sure we
+	 * aren't holding any locks when we call it
+	 */
+	btrfs_unlock_up_safe(path, 0);
+
 	ret = btrfs_free_extent(trans, root, bytenr,
 				btrfs_level_size(root, 0),
-				path->nodes[1]->start,
-				btrfs_header_owner(path->nodes[1]),
+				parent_start, parent_owner,
 				root_gen, 0, 1);
 	return ret;
 }
