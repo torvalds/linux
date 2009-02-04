@@ -522,7 +522,7 @@ int paravirt_disable_iospace(void);
 					"=c" (__ecx)
 #define PVOP_CALL_CLOBBERS		PVOP_VCALL_CLOBBERS
 
-#define PVOP_VCALLEE_CLOBBERS		"=a" (__eax)
+#define PVOP_VCALLEE_CLOBBERS		"=a" (__eax), "=d" (__edx)
 #define PVOP_CALLEE_CLOBBERS		PVOP_VCALLEE_CLOBBERS
 
 #define EXTRA_CLOBBERS
