@@ -67,6 +67,9 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 /* Internal IMA function definitions */
 void ima_iintcache_init(void);
 int ima_init(void);
+void ima_cleanup(void);
+int ima_fs_init(void);
+void ima_fs_cleanup(void);
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 			   const char *op, struct inode *inode);
 int ima_calc_hash(struct file *file, char *digest);
@@ -115,6 +118,8 @@ void ima_store_measurement(struct ima_iint_cache *iint, struct file *file,
 			   const unsigned char *filename);
 int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode);
+void ima_template_show(struct seq_file *m, void *e,
+		       enum ima_show_type show);
 
 /* radix tree calls to lookup, insert, delete
  * integrity data associated with an inode.
