@@ -419,7 +419,7 @@ config SH_TMU
 
 config SH_CMT
 	bool "CMT timer support"
-	depends on SYS_SUPPORTS_CMT
+	depends on SYS_SUPPORTS_CMT && CPU_SH2
 	default y
 	help
 	  This enables the use of the CMT as the system timer.
