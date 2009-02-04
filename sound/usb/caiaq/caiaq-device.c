@@ -312,6 +312,12 @@ static void __devinit setup_card(struct snd_usb_caiaqdev *dev)
 		}
 
 		break;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ):
+		/* Audio 4 DJ - default input mode to phono */
+		dev->control_state[0] = 2;
+		snd_usb_caiaq_send_command(dev, EP1_CMD_WRITE_IO,
+			dev->control_state, 1);
+		break;
 	}
 	
 	if (dev->spec.num_analog_audio_out +
