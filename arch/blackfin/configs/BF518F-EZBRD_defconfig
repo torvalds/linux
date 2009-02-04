@@ -1,6 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.28-rc2
+# Fri Jan  9 17:58:41 2009
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
@@ -149,6 +150,7 @@ CONFIG_BF_REV_0_0=y
 # CONFIG_BF_REV_ANY is not set
 # CONFIG_BF_REV_NONE is not set
 CONFIG_BF51x=y
+CONFIG_MEM_MT48LC32M8A2_75=y
 CONFIG_BFIN518F_EZBRD=y
 
 #
@@ -598,7 +600,10 @@ CONFIG_PHYLIB=y
 # CONFIG_MDIO_BITBANG is not set
 CONFIG_NET_ETHERNET=y
 CONFIG_MII=y
-# CONFIG_BFIN_MAC is not set
+CONFIG_BFIN_MAC=y
+CONFIG_BFIN_TX_DESC_NUM=10
+CONFIG_BFIN_RX_DESC_NUM=20
+# CONFIG_BFIN_MAC_RMII is not set
 # CONFIG_SMC91X is not set
 # CONFIG_SMSC911X is not set
 # CONFIG_DM9000 is not set
@@ -679,7 +684,7 @@ CONFIG_VT_CONSOLE=y
 CONFIG_HW_CONSOLE=y
 # CONFIG_VT_HW_CONSOLE_BINDING is not set
 # CONFIG_DEVKMEM is not set
-# CONFIG_BFIN_JTAG_COMM is not set
+CONFIG_BFIN_JTAG_COMM=m
 # CONFIG_SERIAL_NONSTANDARD is not set
 
 #
