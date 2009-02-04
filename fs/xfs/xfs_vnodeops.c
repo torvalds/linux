@@ -2004,8 +2004,10 @@ xfs_link(
 	/* Return through std_return after this point. */
 
 	error = XFS_QM_DQATTACH(mp, sip, 0);
-	if (!error && sip != tdp)
-		error = XFS_QM_DQATTACH(mp, tdp, 0);
+	if (error)
+		goto std_return;
+
+	error = XFS_QM_DQATTACH(mp, tdp, 0);
 	if (error)
 		goto std_return;
 
