@@ -643,7 +643,9 @@ perf_counter_nmi_handler(struct notifier_block *self,
 }
 
 static __read_mostly struct notifier_block perf_counter_nmi_notifier = {
-	.notifier_call		= perf_counter_nmi_handler
+	.notifier_call		= perf_counter_nmi_handler,
+	.next			= NULL,
+	.priority		= 1
 };
 
 void __init init_hw_perf_counters(void)
