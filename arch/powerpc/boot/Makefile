@@ -235,7 +235,9 @@ image-$(CONFIG_PPC_ADDER875)		+= cuImage.adder875-uboot \
 					   dtbImage.adder875-redboot
 
 # Board ports in arch/powerpc/platform/52xx/Kconfig
-image-$(CONFIG_PPC_LITE5200)		+= cuImage.lite5200 cuImage.lite5200b
+image-$(CONFIG_PPC_LITE5200)		+= cuImage.lite5200 lite5200.dtb
+image-$(CONFIG_PPC_LITE5200)		+= cuImage.lite5200b lite5200b.dtb
+image-$(CONFIG_PPC_MEDIA5200)		+= cuImage.media5200 media5200.dtb
 
 # Board ports in arch/powerpc/platform/82xx/Kconfig
 image-$(CONFIG_MPC8272_ADS)		+= cuImage.mpc8272ads

@@ -35,6 +35,11 @@ config PPC_LITE5200
 	depends on PPC_MPC52xx
 	select DEFAULT_UIMAGE
 
+config PPC_MEDIA5200
+	bool "Freescale Media5200 Eval Board"
+	depends on PPC_MPC52xx
+	select DEFAULT_UIMAGE
+
 config PPC_MPC5200_BUGFIX
 	bool "MPC5200 (L25R) bugfix support"
 	depends on PPC_MPC52xx
