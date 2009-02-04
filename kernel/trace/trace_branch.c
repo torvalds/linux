@@ -160,7 +160,8 @@ trace_print_print(struct trace_seq *s, struct trace_entry *entry, int flags)
 	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int trace_branch_print(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_branch_print(struct trace_iterator *iter,
+					    int flags)
 {
 	struct trace_branch *field;
 

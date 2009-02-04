@@ -463,13 +463,14 @@ int unregister_ftrace_event(struct trace_event *event)
  * Standard events
  */
 
-int trace_nop_print(struct trace_iterator *iter, int flags)
+enum print_line_t trace_nop_print(struct trace_iterator *iter, int flags)
 {
 	return TRACE_TYPE_HANDLED;
 }
 
 /* TRACE_FN */
-static int trace_fn_latency(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_fn_latency(struct trace_iterator *iter,
+					  int flags)
 {
 	struct ftrace_entry *field;
 	struct trace_seq *s = &iter->seq;
@@ -491,7 +492,7 @@ static int trace_fn_latency(struct trace_iterator *iter, int flags)
 	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int trace_fn_trace(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_fn_trace(struct trace_iterator *iter, int flags)
 {
 	struct ftrace_entry *field;
 	struct trace_seq *s = &iter->seq;
@@ -518,7 +519,7 @@ static int trace_fn_trace(struct trace_iterator *iter, int flags)
 	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int trace_fn_raw(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_fn_raw(struct trace_iterator *iter, int flags)
 {
 	struct ftrace_entry *field;
 
@@ -532,7 +533,7 @@ static int trace_fn_raw(struct trace_iterator *iter, int flags)
 	return TRACE_TYPE_HANDLED;
 }
 
-static int trace_fn_hex(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_fn_hex(struct trace_iterator *iter, int flags)
 {
 	struct ftrace_entry *field;
 	struct trace_seq *s = &iter->seq;
@@ -545,7 +546,7 @@ static int trace_fn_hex(struct trace_iterator *iter, int flags)
 	return TRACE_TYPE_HANDLED;
 }
 
-static int trace_fn_bin(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_fn_bin(struct trace_iterator *iter, int flags)
 {
 	struct ftrace_entry *field;
 	struct trace_seq *s = &iter->seq;
@@ -568,7 +569,8 @@ static struct trace_event trace_fn_event = {
 };
 
 /* TRACE_CTX an TRACE_WAKE */
-static int trace_ctxwake_print(struct trace_iterator *iter, char *delim)
+static enum print_line_t trace_ctxwake_print(struct trace_iterator *iter,
+					     char *delim)
 {
 	struct ctx_switch_entry *field;
 	char *comm;
@@ -593,12 +595,13 @@ static int trace_ctxwake_print(struct trace_iterator *iter, char *delim)
 	return TRACE_TYPE_HANDLED;
 }
 
-static int trace_ctx_print(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_ctx_print(struct trace_iterator *iter, int flags)
 {
 	return trace_ctxwake_print(iter, "==>");
 }
 
-static int trace_wake_print(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_wake_print(struct trace_iterator *iter,
+					  int flags)
 {
 	return trace_ctxwake_print(iter, "  +");
 }
@@ -626,12 +629,12 @@ static int trace_ctxwake_raw(struct trace_iterator *iter, char S)
 	return TRACE_TYPE_HANDLED;
 }
 
-static int trace_ctx_raw(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_ctx_raw(struct trace_iterator *iter, int flags)
 {
 	return trace_ctxwake_raw(iter, 0);
 }
 
-static int trace_wake_raw(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_wake_raw(struct trace_iterator *iter, int flags)
 {
 	return trace_ctxwake_raw(iter, '+');
 }
@@ -660,17 +663,18 @@ static int trace_ctxwake_hex(struct trace_iterator *iter, char S)
 	return TRACE_TYPE_HANDLED;
 }
 
-static int trace_ctx_hex(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_ctx_hex(struct trace_iterator *iter, int flags)
 {
 	return trace_ctxwake_hex(iter, 0);
 }
 
-static int trace_wake_hex(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_wake_hex(struct trace_iterator *iter, int flags)
 {
 	return trace_ctxwake_hex(iter, '+');
 }
 
-static int trace_ctxwake_bin(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_ctxwake_bin(struct trace_iterator *iter,
+					   int flags)
 {
 	struct ctx_switch_entry *field;
 	struct trace_seq *s = &iter->seq;
@@ -706,7 +710,8 @@ static struct trace_event trace_wake_event = {
 };
 
 /* TRACE_SPECIAL */
-static int trace_special_print(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_special_print(struct trace_iterator *iter,
+					     int flags)
 {
 	struct special_entry *field;
 
@@ -721,7 +726,8 @@ static int trace_special_print(struct trace_iterator *iter, int flags)
 	return TRACE_TYPE_HANDLED;
 }
 
-static int trace_special_hex(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_special_hex(struct trace_iterator *iter,
+					   int flags)
 {
 	struct special_entry *field;
 	struct trace_seq *s = &iter->seq;
@@ -735,7 +741,8 @@ static int trace_special_hex(struct trace_iterator *iter, int flags)
 	return TRACE_TYPE_HANDLED;
 }
 
-static int trace_special_bin(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_special_bin(struct trace_iterator *iter,
+					   int flags)
 {
 	struct special_entry *field;
 	struct trace_seq *s = &iter->seq;
@@ -760,7 +767,8 @@ static struct trace_event trace_special_event = {
 
 /* TRACE_STACK */
 
-static int trace_stack_print(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_stack_print(struct trace_iterator *iter,
+					   int flags)
 {
 	struct stack_entry *field;
 	struct trace_seq *s = &iter->seq;
@@ -796,7 +804,8 @@ static struct trace_event trace_stack_event = {
 };
 
 /* TRACE_USER_STACK */
-static int trace_user_stack_print(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
+						int flags)
 {
 	struct userstack_entry *field;
 	struct trace_seq *s = &iter->seq;
@@ -825,7 +834,8 @@ static struct trace_event trace_user_stack_event = {
 };
 
 /* TRACE_PRINT */
-static int trace_print_print(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_print_print(struct trace_iterator *iter,
+					   int flags)
 {
 	struct print_entry *field;
 	struct trace_seq *s = &iter->seq;
@@ -844,7 +854,7 @@ static int trace_print_print(struct trace_iterator *iter, int flags)
 	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-static int trace_print_raw(struct trace_iterator *iter, int flags)
+static enum print_line_t trace_print_raw(struct trace_iterator *iter, int flags)
 {
 	struct print_entry *field;
 

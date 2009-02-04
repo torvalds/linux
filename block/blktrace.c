@@ -1158,7 +1158,8 @@ static struct {
 	[__BLK_TA_REMAP]	= {{  "A", "remap" },	   blk_log_remap },
 };
 
-static int blk_trace_event_print(struct trace_iterator *iter, int flags)
+static enum print_line_t blk_trace_event_print(struct trace_iterator *iter,
+					       int flags)
 {
 	struct trace_seq *s = &iter->seq;
 	const struct blk_io_trace *t = (struct blk_io_trace *)iter->ent;
@@ -1196,7 +1197,8 @@ static int blk_trace_synthesize_old_trace(struct trace_iterator *iter)
 				sizeof(old) - offset + t->pdu_len);
 }
 
-static int blk_trace_event_print_binary(struct trace_iterator *iter, int flags)
+static enum print_line_t
+blk_trace_event_print_binary(struct trace_iterator *iter, int flags)
 {
 	return blk_trace_synthesize_old_trace(iter) ?
 			TRACE_TYPE_HANDLED : TRACE_TYPE_PARTIAL_LINE;

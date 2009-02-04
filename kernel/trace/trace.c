@@ -1495,7 +1495,7 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 
 	event = ftrace_find_event(entry->type);
 	if (event && event->hex) {
-		int ret = event->hex(iter, 0);
+		enum print_line_t ret = event->hex(iter, 0);
 		if (ret != TRACE_TYPE_HANDLED)
 			return ret;
 	}
