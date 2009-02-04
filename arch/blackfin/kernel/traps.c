@@ -673,6 +673,14 @@ static void decode_instruction(unsigned short *address)
 			verbose_printk("RTI");
 		else if (opcode == 0x0012)
 			verbose_printk("RTX");
+		else if (opcode == 0x0013)
+			verbose_printk("RTN");
+		else if (opcode == 0x0014)
+			verbose_printk("RTE");
+		else if (opcode == 0x0025)
+			verbose_printk("EMUEXCPT");
+		else if (opcode == 0x0040 && opcode <= 0x0047)
+			verbose_printk("STI R%i", opcode & 7);
 		else if (opcode >= 0x0050 && opcode <= 0x0057)
 			verbose_printk("JUMP (P%i)", opcode & 7);
 		else if (opcode >= 0x0060 && opcode <= 0x0067)
@@ -681,6 +689,10 @@ static void decode_instruction(unsigned short *address)
 			verbose_printk("CALL (PC+P%i)", opcode & 7);
 		else if (opcode >= 0x0080 && opcode <= 0x0087)
 			verbose_printk("JUMP (PC+P%i)", opcode & 7);
+		else if (opcode >= 0x0090 && opcode <= 0x009F)
+			verbose_printk("RAISE 0x%x", opcode & 0xF);
+		else if (opcode >= 0x00A0 && opcode <= 0x00AF)
+			verbose_printk("EXCPT 0x%x", opcode & 0xF);
 		else if ((opcode >= 0x1000 && opcode <= 0x13FF) || (opcode >= 0x1800 && opcode <= 0x1BFF))
 			verbose_printk("IF !CC JUMP");
 		else if ((opcode >= 0x1400 && opcode <= 0x17ff) || (opcode >= 0x1c00 && opcode <= 0x1fff))
