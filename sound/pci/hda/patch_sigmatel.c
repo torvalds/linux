@@ -5184,7 +5184,7 @@ again:
 	if (spec->dinput_mux)
 		spec->private_dimux.num_items += spec->num_dmics - ndmic_nids;
 
-	err = stac92xx_parse_auto_config(codec, 0x21, 0x23);
+	err = stac92xx_parse_auto_config(codec, 0x21, 0);
 	if (!err) {
 		if (spec->board_config < 0) {
 			printk(KERN_WARNING "hda_codec: No auto-config is "
