@@ -277,16 +277,30 @@ static struct dentry *runtime_measurements_count;
 static struct dentry *violations;
 static struct dentry *ima_policy;
 
+static atomic_t policy_opencount = ATOMIC_INIT(1);
+/*
+ * ima_open_policy: sequentialize access to the policy file
+ */
+int ima_open_policy(struct inode * inode, struct file * filp)
+{
+	if (atomic_dec_and_test(&policy_opencount))
+		return 0;
+	return -EBUSY;
+}
+
 /*
  * ima_release_policy - start using the new measure policy rules.
  *
  * Initially, ima_measure points to the default policy rules, now
- * point to the new policy rules, and remove the securityfs policy file.
+ * point to the new policy rules, and remove the securityfs policy file,
+ * assuming a valid policy.
  */
 static int ima_release_policy(struct inode *inode, struct file *file)
 {
 	if (!valid_policy) {
 		ima_delete_rules();
+		valid_policy = 1;
+		atomic_set(&policy_opencount, 1);
 		return 0;
 	}
 	ima_update_policy();
@@ -296,6 +310,7 @@ static int ima_release_policy(struct inode *inode, struct file *file)
 }
 
 static struct file_operations ima_measure_policy_ops = {
+	.open = ima_open_policy,
 	.write = ima_write_policy,
 	.release = ima_release_policy
 };
