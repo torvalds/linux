@@ -1,4 +1,4 @@
-/* orinoco.c - (formerly known as dldwd_cs.c and orinoco_cs.c)
+/* main.c - (formerly known as dldwd_cs.c, orinoco_cs.c and orinoco.c)
  *
  * A driver for Hermes or Prism 2 chipset based PCMCIA wireless
  * adaptors, with Lucent/Agere, Intersil or Symbol firmware.
