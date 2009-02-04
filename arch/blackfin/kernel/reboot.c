@@ -21,7 +21,7 @@
  * the core reset.
  */
 __attribute__ ((__l1_text__, __noreturn__))
-static void _bfin_reset(void)
+static void bfin_reset(void)
 {
 	/* Wait for completion of "system" events such as cache line
 	 * line fills so that we avoid infinite stalls later on as
@@ -74,12 +74,6 @@ static void _bfin_reset(void)
 	while (1)
 		/* Issue core reset */
 		asm("raise 1");
-}
-
-__attribute__ ((__noreturn__))
-static void bfin_reset(void)
-{
-	_bfin_reset();
 }
 
 __attribute__((weak))
