@@ -565,7 +565,7 @@ config CGROUP_MEM_RES_CTLR
 	select MM_OWNER
 	help
 	  Provides a memory resource controller that manages both anonymous
-	  memory and page cache. (See Documentation/controllers/memory.txt)
+	  memory and page cache. (See Documentation/cgroups/memory.txt)
 
 	  Note that setting this option increases fixed memory overhead
 	  associated with each page of memory in the system. By this,

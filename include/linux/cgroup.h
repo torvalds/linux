@@ -342,7 +342,10 @@ int cgroup_task_count(const struct cgroup *cgrp);
 /* Return true if the cgroup is a descendant of the current cgroup */
 int cgroup_is_descendant(const struct cgroup *cgrp);
 
-/* Control Group subsystem type. See Documentation/cgroups.txt for details */
+/*
+ * Control Group subsystem type.
+ * See Documentation/cgroups/cgroups.txt for details
+ */
 
 struct cgroup_subsys {
 	struct cgroup_subsys_state *(*create)(struct cgroup_subsys *ss,
