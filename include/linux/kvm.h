@@ -48,7 +48,10 @@ struct kvm_irq_level {
 	 * For IA-64 (APIC model) IOAPIC0: irq 0-23; IOAPIC1: irq 24-47..
 	 * For X86 (standard AT mode) PIC0/1: irq 0-15. IOAPIC0: 0-23..
 	 */
-	__u32 irq;
+	union {
+		__u32 irq;
+		__s32 status;
+	};
 	__u32 level;
 };
 
@@ -402,6 +405,7 @@ struct kvm_trace_rec {
 #ifdef __KVM_HAVE_IOAPIC
 #define KVM_CAP_IRQ_ROUTING 25
 #endif
+#define KVM_CAP_IRQ_INJECT_STATUS 26
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -465,6 +469,7 @@ struct kvm_irq_routing {
 #define KVM_CREATE_PIT		  _IO(KVMIO,  0x64)
 #define KVM_GET_PIT		  _IOWR(KVMIO, 0x65, struct kvm_pit_state)
 #define KVM_SET_PIT		  _IOR(KVMIO,  0x66, struct kvm_pit_state)
+#define KVM_IRQ_LINE_STATUS	  _IOWR(KVMIO, 0x67, struct kvm_irq_level)
 #define KVM_REGISTER_COALESCED_MMIO \
 			_IOW(KVMIO,  0x67, struct kvm_coalesced_mmio_zone)
 #define KVM_UNREGISTER_COALESCED_MMIO \

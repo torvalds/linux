@@ -110,7 +110,7 @@ struct kvm_memory_slot {
 
 struct kvm_kernel_irq_routing_entry {
 	u32 gsi;
-	void (*set)(struct kvm_kernel_irq_routing_entry *e,
+	int (*set)(struct kvm_kernel_irq_routing_entry *e,
 		    struct kvm *kvm, int level);
 	union {
 		struct {
@@ -352,7 +352,7 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 				      struct kvm_irq_mask_notifier *kimn);
 void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask);
 
-void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level);
+int kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level);
 void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin);
 void kvm_register_irq_ack_notifier(struct kvm *kvm,
 				   struct kvm_irq_ack_notifier *kian);

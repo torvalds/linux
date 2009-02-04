@@ -29,22 +29,24 @@
 
 #include "ioapic.h"
 
-static void kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
-			    struct kvm *kvm, int level)
+static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
+			   struct kvm *kvm, int level)
 {
 #ifdef CONFIG_X86
-	kvm_pic_set_irq(pic_irqchip(kvm), e->irqchip.pin, level);
+	return kvm_pic_set_irq(pic_irqchip(kvm), e->irqchip.pin, level);
+#else
+	return -1;
 #endif
 }
 
-static void kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
-			       struct kvm *kvm, int level)
+static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
+			      struct kvm *kvm, int level)
 {
-	kvm_ioapic_set_irq(kvm->arch.vioapic, e->irqchip.pin, level);
+	return kvm_ioapic_set_irq(kvm->arch.vioapic, e->irqchip.pin, level);
 }
 
-static void kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
-			struct kvm *kvm, int level)
+static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
+		       struct kvm *kvm, int level)
 {
 	int vcpu_id;
 	struct kvm_vcpu *vcpu;
@@ -88,13 +90,20 @@ static void kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	default:
 		break;
 	}
+	return 1;
 }
 
-/* This should be called with the kvm->lock mutex held */
-void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
+/* This should be called with the kvm->lock mutex held
+ * Return value:
+ *  < 0   Interrupt was ignored (masked or not delivered for other reasons)
+ *  = 0   Interrupt was coalesced (previous irq is still pending)
+ *  > 0   Number of CPUs interrupt was delivered to
+ */
+int kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 {
 	struct kvm_kernel_irq_routing_entry *e;
 	unsigned long *irq_state, sig_level;
+	int ret = -1;
 
 	if (irq < KVM_IOAPIC_NUM_PINS) {
 		irq_state = (unsigned long *)&kvm->arch.irq_states[irq];
@@ -113,8 +122,14 @@ void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 	 * writes to the unused one.
 	 */
 	list_for_each_entry(e, &kvm->irq_routing, link)
-		if (e->gsi == irq)
-			e->set(e, kvm, sig_level);
+		if (e->gsi == irq) {
+			int r = e->set(e, kvm, sig_level);
+			if (r < 0)
+				continue;
+
+			ret = r + ((ret < 0) ? 0 : ret);
+		}
+	return ret;
 }
 
 void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
@@ -232,7 +247,7 @@ int setup_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 			e->set = kvm_set_pic_irq;
 			break;
 		case KVM_IRQCHIP_PIC_SLAVE:
-				e->set = kvm_set_pic_irq;
+			e->set = kvm_set_pic_irq;
 			delta = 8;
 			break;
 		case KVM_IRQCHIP_IOAPIC:

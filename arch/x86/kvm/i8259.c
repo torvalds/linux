@@ -77,12 +77,13 @@ void kvm_pic_clear_isr_ack(struct kvm *kvm)
 /*
  * set irq level. If an edge is detected, then the IRR is set to 1
  */
-static inline void pic_set_irq1(struct kvm_kpic_state *s, int irq, int level)
+static inline int pic_set_irq1(struct kvm_kpic_state *s, int irq, int level)
 {
-	int mask;
+	int mask, ret = 1;
 	mask = 1 << irq;
 	if (s->elcr & mask)	/* level triggered */
 		if (level) {
+			ret = !(s->irr & mask);
 			s->irr |= mask;
 			s->last_irr |= mask;
 		} else {
@@ -91,11 +92,15 @@ static inline void pic_set_irq1(struct kvm_kpic_state *s, int irq, int level)
 		}
 	else	/* edge triggered */
 		if (level) {
-			if ((s->last_irr & mask) == 0)
+			if ((s->last_irr & mask) == 0) {
+				ret = !(s->irr & mask);
 				s->irr |= mask;
+			}
 			s->last_irr |= mask;
 		} else
 			s->last_irr &= ~mask;
+
+	return (s->imr & mask) ? -1 : ret;
 }
 
 /*
@@ -172,16 +177,19 @@ void kvm_pic_update_irq(struct kvm_pic *s)
 	pic_unlock(s);
 }
 
-void kvm_pic_set_irq(void *opaque, int irq, int level)
+int kvm_pic_set_irq(void *opaque, int irq, int level)
 {
 	struct kvm_pic *s = opaque;
+	int ret = -1;
 
 	pic_lock(s);
 	if (irq >= 0 && irq < PIC_NUM_PINS) {
-		pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
+		ret = pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
 		pic_update_irq(s);
 	}
 	pic_unlock(s);
+
+	return ret;
 }
 
 /*

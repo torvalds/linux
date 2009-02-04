@@ -83,19 +83,22 @@ static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
 	return result;
 }
 
-static void ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx)
+static int ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx)
 {
 	union ioapic_redir_entry *pent;
+	int injected = -1;
 
 	pent = &ioapic->redirtbl[idx];
 
 	if (!pent->fields.mask) {
-		int injected = ioapic_deliver(ioapic, idx);
+		injected = ioapic_deliver(ioapic, idx);
 		if (injected && pent->fields.trig_mode == IOAPIC_LEVEL_TRIG)
 			pent->fields.remote_irr = 1;
 	}
 	if (!pent->fields.trig_mode)
 		ioapic->irr &= ~(1 << idx);
+
+	return injected;
 }
 
 static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
@@ -207,7 +210,7 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 	u8 trig_mode = ioapic->redirtbl[irq].fields.trig_mode;
 	u32 deliver_bitmask;
 	struct kvm_vcpu *vcpu;
-	int vcpu_id, r = 0;
+	int vcpu_id, r = -1;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
 		     "vector=%x trig_mode=%x\n",
@@ -247,7 +250,9 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 			deliver_bitmask &= ~(1 << vcpu_id);
 			vcpu = ioapic->kvm->vcpus[vcpu_id];
 			if (vcpu) {
-				r = ioapic_inj_irq(ioapic, vcpu, vector,
+				if (r < 0)
+					r = 0;
+				r += ioapic_inj_irq(ioapic, vcpu, vector,
 					       trig_mode, delivery_mode);
 			}
 		}
@@ -258,8 +263,10 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 				continue;
 			deliver_bitmask &= ~(1 << vcpu_id);
 			vcpu = ioapic->kvm->vcpus[vcpu_id];
-			if (vcpu)
+			if (vcpu) {
 				ioapic_inj_nmi(vcpu);
+				r = 1;
+			}
 			else
 				ioapic_debug("NMI to vcpu %d failed\n",
 						vcpu->vcpu_id);
@@ -273,11 +280,12 @@ static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 	return r;
 }
 
-void kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
+int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 {
 	u32 old_irr = ioapic->irr;
 	u32 mask = 1 << irq;
 	union ioapic_redir_entry entry;
+	int ret = 1;
 
 	if (irq >= 0 && irq < IOAPIC_NUM_PINS) {
 		entry = ioapic->redirtbl[irq];
@@ -288,9 +296,10 @@ void kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 			ioapic->irr |= mask;
 			if ((!entry.fields.trig_mode && old_irr != ioapic->irr)
 			    || !entry.fields.remote_irr)
-				ioapic_service(ioapic, irq);
+				ret = ioapic_service(ioapic, irq);
 		}
 	}
+	return ret;
 }
 
 static void __kvm_ioapic_update_eoi(struct kvm_ioapic *ioapic, int pin,
