@@ -1,13 +1,7 @@
 /*
- * Hermes download helper driver.
+ * Hermes download helper.
  *
- * This could be entirely merged into hermes.c.
- *
- * I'm keeping it separate to minimise the amount of merging between
- * kernel upgrades. It also means the memory overhead for drivers that
- * don't need firmware download low.
- *
- * This driver:
+ * This helper:
  *  - is capable of writing to the volatile area of the hermes device
  *  - is currently not capable of writing to non-volatile areas
  *  - provide helpers to identify and update plugin data
@@ -49,10 +43,6 @@
 #include <linux/delay.h>
 #include "hermes.h"
 #include "hermes_dld.h"
-
-MODULE_DESCRIPTION("Download helper for Lucent Hermes chipset");
-MODULE_AUTHOR("David Kilroy <kilroyd@gmail.com>");
-MODULE_LICENSE("Dual MPL/GPL");
 
 #define PFX "hermes_dld: "
 
@@ -347,7 +337,6 @@ int hermes_read_pda(hermes_t *hw,
 
 	return 0;
 }
-EXPORT_SYMBOL(hermes_read_pda);
 
 /* Parse PDA and write the records into the adapter
  *
@@ -376,7 +365,6 @@ int hermes_apply_pda(hermes_t *hw,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(hermes_apply_pda);
 
 /* Identify the total number of bytes in all blocks
  * including the header data.
@@ -398,7 +386,6 @@ hermes_blocks_length(const char *first_block)
 
 	return total_len;
 }
-EXPORT_SYMBOL(hermes_blocks_length);
 
 /*** Hermes programming ***/
 
@@ -452,7 +439,6 @@ int hermesi_program_init(hermes_t *hw, u32 offset)
 
 	return err;
 }
-EXPORT_SYMBOL(hermesi_program_init);
 
 /* Done programming data (Hermes I)
  *
@@ -488,7 +474,6 @@ int hermesi_program_end(hermes_t *hw)
 
 	return rc ? rc : err;
 }
-EXPORT_SYMBOL(hermesi_program_end);
 
 /* Program the data blocks */
 int hermes_program(hermes_t *hw, const char *first_block, const char *end)
@@ -550,19 +535,6 @@ int hermes_program(hermes_t *hw, const char *first_block, const char *end)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(hermes_program);
-
-static int __init init_hermes_dld(void)
-{
-	return 0;
-}
-
-static void __exit exit_hermes_dld(void)
-{
-}
-
-module_init(init_hermes_dld);
-module_exit(exit_hermes_dld);
 
 /*** Default plugging data for Hermes I ***/
 /* Values from wl_lkm_718/hcf/dhf.c */
@@ -727,4 +699,3 @@ int hermes_apply_pda_with_defaults(hermes_t *hw,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(hermes_apply_pda_with_defaults);
