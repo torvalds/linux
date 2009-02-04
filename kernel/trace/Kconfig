@@ -164,9 +164,8 @@ config BOOT_TRACER
 	  representation of the delays during initcalls - but the raw
 	  /debug/tracing/trace text output is readable too.
 
-	  ( Note that tracing self tests can't be enabled if this tracer is
-	    selected, because the self-tests are an initcall as well and that
-	    would invalidate the boot trace. )
+	  You must pass in ftrace=initcall to the kernel command line
+	  to enable this on bootup.
 
 config TRACE_BRANCH_PROFILING
 	bool "Trace likely/unlikely profiler"
@@ -326,7 +325,7 @@ config FTRACE_SELFTEST
 
 config FTRACE_STARTUP_TEST
 	bool "Perform a startup test on ftrace"
-	depends on TRACING && DEBUG_KERNEL && !BOOT_TRACER
+	depends on TRACING && DEBUG_KERNEL
 	select FTRACE_SELFTEST
 	help
 	  This option performs a series of startup tests on ftrace. On bootup
