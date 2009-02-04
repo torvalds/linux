@@ -820,11 +820,8 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	decode_address(buf, (unsigned int)stack);
 	printk(KERN_NOTICE " SP: [0x%p] %s\n", stack, buf);
 
-	addr = (unsigned int *)((unsigned int)stack & ~0x3F);
-
 	/* First thing is to look for a frame pointer */
-	for (addr = (unsigned int *)((unsigned int)stack & ~0xF), i = 0;
-		addr < endstack; addr++, i++) {
+	for (addr = (unsigned int *)((unsigned int)stack & ~0xF); addr < endstack; addr++) {
 		if (*addr & 0x1)
 			continue;
 		ins_addr = (unsigned short *)*addr;
@@ -834,7 +831,8 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 
 		if (fp) {
 			/* Let's check to see if it is a frame pointer */
-			while (fp >= (addr - 1) && fp < endstack && fp)
+			while (fp >= (addr - 1) && fp < endstack
+			       && fp && ((unsigned int) fp & 0x3) == 0)
 				fp = (unsigned int *)*fp;
 			if (fp == 0 || fp == endstack) {
 				fp = addr - 1;
