@@ -21,6 +21,7 @@
 #include <linux/hrtimer.h>
 #include <linux/tick.h>
 #include <linux/ktime.h>
+#include <linux/sched.h>
 
 /*
  * dbs is used in this file as a shortform for demandbased switching
@@ -203,11 +204,27 @@ static void ondemand_powersave_bias_init(void)
 /************************** sysfs interface ************************/
 static ssize_t show_sampling_rate_max(struct cpufreq_policy *policy, char *buf)
 {
+	static int print_once;
+
+	if (!print_once) {
+		printk(KERN_INFO "CPUFREQ: ondemand sampling_rate_max "
+		       "sysfs file is deprecated - used by: %s\n",
+		       current->comm);
+		print_once = 1;
+	}
 	return sprintf(buf, "%u\n", MAX_SAMPLING_RATE);
 }
 
 static ssize_t show_sampling_rate_min(struct cpufreq_policy *policy, char *buf)
 {
+	static int print_once;
+
+	if (!print_once) {
+		printk(KERN_INFO "CPUFREQ: ondemand sampling_rate_min "
+		       "sysfs file is deprecated - used by: %s\n",
+		       current->comm);
+		print_once = 1;
+	}
 	return sprintf(buf, "%u\n", MIN_SAMPLING_RATE);
 }
 

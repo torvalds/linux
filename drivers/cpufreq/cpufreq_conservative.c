@@ -140,11 +140,26 @@ static struct notifier_block dbs_cpufreq_notifier_block = {
 /************************** sysfs interface ************************/
 static ssize_t show_sampling_rate_max(struct cpufreq_policy *policy, char *buf)
 {
+	static int print_once;
+
+	if (!print_once) {
+		printk(KERN_INFO "CPUFREQ: conservative sampling_rate_max "
+		       "sysfs file is deprecated - used by: %s\n",
+		       current->comm);
+		print_once = 1;
+	}
 	return sprintf(buf, "%u\n", MAX_SAMPLING_RATE);
 }
 
 static ssize_t show_sampling_rate_min(struct cpufreq_policy *policy, char *buf)
 {
+	static int print_once;
+
+	if (!print_once) {
+		printk(KERN_INFO "CPUFREQ: conservative sampling_rate_max "
+		       "sysfs file is deprecated - used by: %s\n", current->comm);
+		print_once = 1;
+	}
 	return sprintf(buf, "%u\n", MIN_SAMPLING_RATE);
 }
 

@@ -119,8 +119,14 @@ want the kernel to look at the CPU usage and to make decisions on
 what to do about the frequency.  Typically this is set to values of
 around '10000' or more.
 
-show_sampling_rate_(min|max): the minimum and maximum sampling rates
-available that you may set 'sampling_rate' to.
+show_sampling_rate_(min|max): THIS INTERFACE IS DEPRECATED, DON'T USE IT.
+You can use wider ranges now and the general
+cpuinfo_transition_latency variable (cmp. with user-guide.txt) can be
+used to obtain exactly the same info:
+show_sampling_rate_min = transtition_latency * 500    / 1000
+show_sampling_rate_max = transtition_latency * 500000 / 1000
+(divided by 1000 is to illustrate that sampling rate is in us and
+transition latency is exported ns).
 
 up_threshold: defines what the average CPU usage between the samplings
 of 'sampling_rate' needs to be for the kernel to make a decision on
