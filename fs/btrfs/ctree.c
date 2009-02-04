@@ -1439,9 +1439,9 @@ noinline void btrfs_unlock_up_safe(struct btrfs_path *path, int level)
 
 	for (i = level; i < BTRFS_MAX_LEVEL; i++) {
 		if (!path->nodes[i])
-			break;
+			continue;
 		if (!path->locks[i])
-			break;
+			continue;
 		btrfs_tree_unlock(path->nodes[i]);
 		path->locks[i] = 0;
 	}
