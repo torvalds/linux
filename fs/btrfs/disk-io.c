@@ -1679,6 +1679,8 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 * low idle thresh
 	 */
 	fs_info->endio_workers.idle_thresh = 4;
+	fs_info->endio_meta_workers.idle_thresh = 4;
+
 	fs_info->endio_write_workers.idle_thresh = 64;
 	fs_info->endio_meta_write_workers.idle_thresh = 64;
 
