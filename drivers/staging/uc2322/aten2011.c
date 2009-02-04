@@ -21,9 +21,9 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/serial.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
-#include <asm/uaccess.h>
 
 
 #define ZLP_REG1		0x3A	/* Zero_Flag_Reg1 58 */
@@ -88,23 +88,22 @@
 #define ATENINTL_DEVICE_ID_2011		0x2011
 #define ATENINTL_DEVICE_ID_7820		0x7820
 
-static struct usb_device_id id_table [] = {
-	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL,ATENINTL_DEVICE_ID_2011) },
-	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL,ATENINTL_DEVICE_ID_7820) },
+static struct usb_device_id id_table[] = {
+	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL, ATENINTL_DEVICE_ID_2011) },
+	{ USB_DEVICE(USB_VENDOR_ID_ATENINTL, ATENINTL_DEVICE_ID_7820) },
 	{ } /* terminating entry */
 };
-MODULE_DEVICE_TABLE (usb, id_table);
+MODULE_DEVICE_TABLE(usb, id_table);
 
 /* This structure holds all of the local port information */
-struct ATENINTL_port
-{
+struct ATENINTL_port {
 	int		port_num;          /*Actual port number in the device(1,2,etc)*/
 	__u8		bulk_out_endpoint;   	/* the bulk out endpoint handle */
-	unsigned char 	*bulk_out_buffer;     	/* buffer used for the bulk out endpoint */
-	struct urb    	*write_urb;	     	/* write URB for this port */
-	__u8	      	bulk_in_endpoint;	/* the bulk in endpoint handle */
-	unsigned char 	*bulk_in_buffer;	/* the buffer we use for the bulk in endpoint */
-	struct urb   	*read_urb;	     	/* read URB for this port */
+	unsigned char	*bulk_out_buffer;     	/* buffer used for the bulk out endpoint */
+	struct urb	*write_urb;	     	/* write URB for this port */
+	__u8		bulk_in_endpoint;	/* the bulk in endpoint handle */
+	unsigned char	*bulk_in_buffer;	/* the buffer we use for the bulk in endpoint */
+	struct urb	*read_urb;	     	/* read URB for this port */
 	__u8		shadowLCR;		/* last LCR value received */
 	__u8		shadowMCR;		/* last MCR value received */
 	char		open;
@@ -114,29 +113,27 @@ struct ATENINTL_port
 	struct async_icount	icount;
 	struct usb_serial_port	*port;			/* loop back to the owner of this object */
 	/*Offsets*/
-	__u8 		SpRegOffset;
-	__u8 		ControlRegOffset;
-	__u8 		DcrRegOffset;
+	__u8		SpRegOffset;
+	__u8		ControlRegOffset;
+	__u8		DcrRegOffset;
 	/* for processing control URBS in interrupt context */
 	struct urb 	*control_urb;
-        char 		*ctrl_buf;
-	int  		MsrLsr;
+	char		*ctrl_buf;
+	int		MsrLsr;
 
-	struct urb      *write_urb_pool[NUM_URBS];
+	struct urb	*write_urb_pool[NUM_URBS];
 	/* we pass a pointer to this as the arguement sent to cypress_set_termios old_termios */
-        struct ktermios tmp_termios;        /* stores the old termios settings */
+	struct ktermios	tmp_termios;        /* stores the old termios settings */
 	spinlock_t 	lock;                   /* private lock */
 };
 
-
 /* This structure holds all of the individual serial device information */
-struct ATENINTL_serial
-{
+struct ATENINTL_serial {
 	__u8		interrupt_in_endpoint;		/* the interrupt endpoint handle */
-	unsigned char  *interrupt_in_buffer;		/* the buffer we use for the interrupt endpoint */
-	struct urb *	interrupt_read_urb;	/* our interrupt urb */
+	unsigned char	*interrupt_in_buffer;		/* the buffer we use for the interrupt endpoint */
+	struct urb	*interrupt_read_urb;	/* our interrupt urb */
 	__u8		bulk_in_endpoint;	/* the bulk in endpoint handle */
-	unsigned char  *bulk_in_buffer;		/* the buffer we use for the bulk in endpoint */
+	unsigned char	*bulk_in_buffer;		/* the buffer we use for the bulk in endpoint */
 	struct urb 	*read_urb;		/* our bulk read urb */
 	__u8		bulk_out_endpoint;	/* the bulk out endpoint handle */
 	struct usb_serial	*serial;	/* loop back to the owner of this object */
@@ -215,7 +212,7 @@ static int debug;
 
 /* set to 1 for RS485 mode and 0 for RS232 mode */
 /* FIXME make this somehow dynamic and not build time specific */
-static int RS485mode = 0;
+static int RS485mode;
 
 static int set_reg_sync(struct usb_serial_port *port, __u16 reg, __u16 val)
 {
@@ -314,18 +311,14 @@ static int handle_newMsr(struct ATENINTL_port *port, __u8 newMsr)
 		icount = &ATEN2011_port->icount;
 
 		/* update input line counters */
-		if (newMsr & ATEN_MSR_DELTA_CTS) {
+		if (newMsr & ATEN_MSR_DELTA_CTS)
 			icount->cts++;
-		}
-		if (newMsr & ATEN_MSR_DELTA_DSR) {
+		if (newMsr & ATEN_MSR_DELTA_DSR)
 			icount->dsr++;
-		}
-		if (newMsr & ATEN_MSR_DELTA_CD) {
+		if (newMsr & ATEN_MSR_DELTA_CD)
 			icount->dcd++;
-		}
-		if (newMsr & ATEN_MSR_DELTA_RI) {
+		if (newMsr & ATEN_MSR_DELTA_RI)
 			icount->rng++;
-		}
 	}
 
 	return 0;
@@ -347,18 +340,14 @@ static int handle_newLsr(struct ATENINTL_port *port, __u8 newLsr)
 
 	/* update input line counters */
 	icount = &port->icount;
-	if (newLsr & SERIAL_LSR_BI) {
+	if (newLsr & SERIAL_LSR_BI)
 		icount->brk++;
-	}
-	if (newLsr & SERIAL_LSR_OE) {
+	if (newLsr & SERIAL_LSR_OE)
 		icount->overrun++;
-	}
-	if (newLsr & SERIAL_LSR_PE) {
+	if (newLsr & SERIAL_LSR_PE)
 		icount->parity++;
-	}
-	if (newLsr & SERIAL_LSR_FE) {
+	if (newLsr & SERIAL_LSR_FE)
 		icount->frame++;
-	}
 
 	return 0;
 }
@@ -399,12 +388,12 @@ static void ATEN2011_control_callback(struct urb *urb)
 	else if (ATEN2011_port->MsrLsr == 1)
 		handle_newLsr(ATEN2011_port, regval);
 
-      exit:
+exit:
 	return;
 }
 
 static int ATEN2011_get_reg(struct ATENINTL_port *ATEN, __u16 Wval, __u16 reg,
-			    __u16 * val)
+			    __u16 *val)
 {
 	struct usb_device *dev = ATEN->port->serial->dev;
 	struct usb_ctrlrequest *dr = NULL;
@@ -531,7 +520,7 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 		}
 
 	}
-      exit:
+exit:
 	if (ATEN2011_serial->status_polling_started == 0)
 		return;
 
@@ -543,7 +532,6 @@ static void ATEN2011_interrupt_callback(struct urb *urb)
 	}
 
 	return;
-
 }
 
 static void ATEN2011_bulk_in_callback(struct urb *urb)
@@ -594,10 +582,8 @@ static void ATEN2011_bulk_in_callback(struct urb *urb)
 		ATEN2011_port->read_urb->dev = serial->dev;
 
 		status = usb_submit_urb(ATEN2011_port->read_urb, GFP_ATOMIC);
-
-		if (status) {
+		if (status)
 			dbg("usb_submit_urb(read bulk) failed, status = %d", status);
-		}
 	}
 }
 
@@ -660,28 +646,11 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 
 	if (ATEN2011_port == NULL)
 		return -ENODEV;
-/*
-	if (ATEN2011_port->ctrl_buf==NULL)
-        {
-                ATEN2011_port->ctrl_buf = kmalloc(16,GFP_KERNEL);
-                if (ATEN2011_port->ctrl_buf == NULL) {
-                        printk(", Can't allocate ctrl buff\n");
-                        return -ENOMEM;
-                }
-
-        }
-
-	if(!ATEN2011_port->control_urb)
-	{
-	ATEN2011_port->control_urb=kmalloc(sizeof(struct urb),GFP_KERNEL);
-	}
-*/
 
 	ATEN2011_serial = usb_get_serial_data(serial);
-
-	if (ATEN2011_serial == NULL) {
+	if (ATEN2011_serial == NULL)
 		return -ENODEV;
-	}
+
 	/* increment the number of opened ports counter here */
 	ATEN2011_serial->NoOfOpenPorts++;
 
@@ -996,13 +965,12 @@ static int ATEN2011_chars_in_buffer(struct tty_struct *tty)
 		return -1;
 	}
 
-	for (i = 0; i < NUM_URBS; ++i) {
-		if (ATEN2011_port->write_urb_pool[i]->status == -EINPROGRESS) {
+	for (i = 0; i < NUM_URBS; ++i)
+		if (ATEN2011_port->write_urb_pool[i]->status == -EINPROGRESS)
 			chars += URB_TRANSFER_BUFFER_SIZE;
-		}
-	}
+
 	dbg("%s - returns %d", __func__, chars);
-	return (chars);
+	return chars;
 
 }
 
@@ -1014,13 +982,11 @@ static void ATEN2011_block_until_tx_empty(struct tty_struct *tty,
 	int count;
 
 	while (1) {
-
 		count = ATEN2011_chars_in_buffer(tty);
 
 		/* Check for Buffer status */
-		if (count <= 0) {
+		if (count <= 0)
 			return;
-		}
 
 		/* Block the thread for a while */
 		interruptible_sleep_on_timeout(&ATEN2011_port->wait_chase,
@@ -1053,9 +1019,9 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	/* take the Adpater and port's private data */
 	ATEN2011_serial = usb_get_serial_data(serial);
 	ATEN2011_port = usb_get_serial_port_data(port);
-	if ((ATEN2011_serial == NULL) || (ATEN2011_port == NULL)) {
+	if ((ATEN2011_serial == NULL) || (ATEN2011_port == NULL))
 		return;
-	}
+
 	if (serial->dev) {
 		/* flush and block(wait) until tx is empty */
 		ATEN2011_block_until_tx_empty(tty, ATEN2011_port);
@@ -1065,13 +1031,8 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 		usb_kill_urb(ATEN2011_port->write_urb_pool[no_urbs]);
 	/* Freeing Write URBs */
 	for (no_urbs = 0; no_urbs < NUM_URBS; ++no_urbs) {
-		if (ATEN2011_port->write_urb_pool[no_urbs]) {
-			if (ATEN2011_port->write_urb_pool[no_urbs]->
-			    transfer_buffer)
-				kfree(ATEN2011_port->write_urb_pool[no_urbs]->
-				      transfer_buffer);
-			usb_free_urb(ATEN2011_port->write_urb_pool[no_urbs]);
-		}
+		kfree(ATEN2011_port->write_urb_pool[no_urbs]->transfer_buffer);
+		usb_free_urb(ATEN2011_port->write_urb_pool[no_urbs]);
 	}
 	/* While closing port, shutdown all bulk read, write  *
 	 * and interrupt read if they exists                  */
@@ -1107,11 +1068,10 @@ static void ATEN2011_close(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 	if (ATEN2011_port->write_urb) {
 		/* if this urb had a transfer buffer already (old tx) free it */
-		if (ATEN2011_port->write_urb->transfer_buffer != NULL) {
-			kfree(ATEN2011_port->write_urb->transfer_buffer);
-		}
+		kfree(ATEN2011_port->write_urb->transfer_buffer);
 		usb_free_urb(ATEN2011_port->write_urb);
 	}
+
 	/* clear the MCR & IER */
 	Data = 0x00;
 	set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
@@ -1172,24 +1132,21 @@ static void ATEN2011_break(struct tty_struct *tty, int break_state)
 	ATEN2011_serial = usb_get_serial_data(serial);
 	ATEN2011_port = usb_get_serial_port_data(port);
 
-	if ((ATEN2011_serial == NULL) || (ATEN2011_port == NULL)) {
+	if ((ATEN2011_serial == NULL) || (ATEN2011_port == NULL))
 		return;
-	}
 
 	/* flush and chase */
 	ATEN2011_port->chaseResponsePending = 1;
 
 	if (serial->dev) {
-
 		/* flush and block until tx is empty */
 		ATEN2011_block_until_chase_response(tty, ATEN2011_port);
 	}
 
-	if (break_state == -1) {
+	if (break_state == -1)
 		data = ATEN2011_port->shadowLCR | LCR_SET_BREAK;
-	} else {
+	else
 		data = ATEN2011_port->shadowLCR & ~LCR_SET_BREAK;
-	}
 
 	ATEN2011_port->shadowLCR = data;
 	dbg("ATEN2011_break ATEN2011_port->shadowLCR is %x",
@@ -1212,14 +1169,12 @@ static int ATEN2011_write_room(struct tty_struct *tty)
 		return -1;
 	}
 
-	for (i = 0; i < NUM_URBS; ++i) {
-		if (ATEN2011_port->write_urb_pool[i]->status != -EINPROGRESS) {
+	for (i = 0; i < NUM_URBS; ++i)
+		if (ATEN2011_port->write_urb_pool[i]->status != -EINPROGRESS)
 			room += URB_TRANSFER_BUFFER_SIZE;
-		}
-	}
 
 	dbg("%s - returns %d", __func__, room);
-	return (room);
+	return room;
 
 }
 
@@ -1286,8 +1241,8 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	/* fill urb with data and submit  */
 	minor = port->serial->minor;
-	if (minor == SERIAL_TTY_NO_MINOR) ;
-	minor = 0;
+	if (minor == SERIAL_TTY_NO_MINOR)
+		minor = 0;
 	if ((ATEN2011_serial->ATEN2011_spectrum_2or4ports == 2)
 	    && (((__u16) port->number - (__u16) (minor)) != 0)) {
 		usb_fill_bulk_urb(urb, ATEN2011_serial->serial->dev,
@@ -1326,10 +1281,9 @@ static int ATEN2011_write(struct tty_struct *tty, struct usb_serial_port *port,
 	bytes_sent = transfer_size;
 	ATEN2011_port->icount.tx += transfer_size;
 	dbg("ATEN2011_port->icount.tx is %d:", ATEN2011_port->icount.tx);
-      exit:
 
+exit:
 	return bytes_sent;
-
 }
 
 static void ATEN2011_throttle(struct tty_struct *tty)
@@ -1361,9 +1315,8 @@ static void ATEN2011_throttle(struct tty_struct *tty)
 	if (I_IXOFF(tty)) {
 		unsigned char stop_char = STOP_CHAR(tty);
 		status = ATEN2011_write(tty, port, &stop_char, 1);
-		if (status <= 0) {
+		if (status <= 0)
 			return;
-		}
 	}
 
 	/* if we are implementing RTS/CTS, toggle that line */
@@ -1371,10 +1324,8 @@ static void ATEN2011_throttle(struct tty_struct *tty)
 		ATEN2011_port->shadowMCR &= ~MCR_RTS;
 		status = set_uart_reg(port, MODEM_CONTROL_REGISTER,
 				      ATEN2011_port->shadowMCR);
-
-		if (status < 0) {
+		if (status < 0)
 			return;
-		}
 	}
 
 	return;
@@ -1405,9 +1356,8 @@ static void ATEN2011_unthrottle(struct tty_struct *tty)
 	if (I_IXOFF(tty)) {
 		unsigned char start_char = START_CHAR(tty);
 		status = ATEN2011_write(tty, port, &start_char, 1);
-		if (status <= 0) {
+		if (status <= 0)
 			return;
-		}
 	}
 
 	/* if we are implementing RTS/CTS, toggle that line */
@@ -1415,9 +1365,8 @@ static void ATEN2011_unthrottle(struct tty_struct *tty)
 		ATEN2011_port->shadowMCR |= MCR_RTS;
 		status = set_uart_reg(port, MODEM_CONTROL_REGISTER,
 				      ATEN2011_port->shadowMCR);
-		if (status < 0) {
+		if (status < 0)
 			return;
-		}
 	}
 
 	return;
@@ -1826,7 +1775,7 @@ static int ATEN2011_ioctl(struct tty_struct *tty, struct file *file,
 }
 
 static int ATEN2011_calc_baud_rate_divisor(int baudRate, int *divisor,
-					   __u16 * clk_sel_val)
+					   __u16 *clk_sel_val)
 {
 	dbg("%s - %d", __func__, baudRate);
 
@@ -1916,8 +1865,7 @@ static int ATEN2011_send_cmd_write_baud_rate(struct ATENINTL_port
 
 	}
 
-	if (1)			/* baudRate <= 115200) */
-	{
+	if (1)			/* baudRate <= 115200) */ {
 		clk_sel_val = 0x0;
 		Data = 0x0;
 		status =
@@ -2045,9 +1993,8 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 		dbg("%s - parity = none", __func__);
 	}
 
-	if (cflag & CMSPAR) {
+	if (cflag & CMSPAR)
 		lParity = lParity | 0x20;
-	}
 
 	/* Change the Stop bit */
 	if (cflag & CSTOPB) {
@@ -2090,16 +2037,13 @@ static void ATEN2011_change_port_settings(struct tty_struct *tty,
 	/* set up the MCR register and send it to the ATEN2011 */
 
 	ATEN2011_port->shadowMCR = MCR_MASTER_IE;
-	if (cflag & CBAUD) {
+	if (cflag & CBAUD)
 		ATEN2011_port->shadowMCR |= (MCR_DTR | MCR_RTS);
-	}
 
-	if (cflag & CRTSCTS) {
+	if (cflag & CRTSCTS)
 		ATEN2011_port->shadowMCR |= (MCR_XON_ANY);
-
-	} else {
+	else
 		ATEN2011_port->shadowMCR &= ~(MCR_XON_ANY);
-	}
 
 	Data = ATEN2011_port->shadowMCR;
 	set_uart_reg(port, MODEM_CONTROL_REGISTER, Data);
