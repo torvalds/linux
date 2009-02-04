@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/rwsem.h>
 #include <linux/xattr.h>
+#include <linux/security.h>
 #include "ctree.h"
 #include "btrfs_inode.h"
 #include "transaction.h"
@@ -329,4 +330,35 @@ int btrfs_removexattr(struct dentry *dentry, const char *name)
 	if (!btrfs_is_valid_xattr(name))
 		return -EOPNOTSUPP;
 	return __btrfs_setxattr(dentry->d_inode, name, NULL, 0, XATTR_REPLACE);
+}
+
+int btrfs_xattr_security_init(struct inode *inode, struct inode *dir)
+{
+	int err;
+	size_t len;
+	void *value;
+	char *suffix;
+	char *name;
+
+	err = security_inode_init_security(inode, dir, &suffix, &value, &len);
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			return 0;
+		return err;
+	}
+
+	name = kmalloc(XATTR_SECURITY_PREFIX_LEN + strlen(suffix) + 1,
+		       GFP_NOFS);
+	if (!name) {
+		err = -ENOMEM;
+	} else {
+		strcpy(name, XATTR_SECURITY_PREFIX);
+		strcpy(name + XATTR_SECURITY_PREFIX_LEN, suffix);
+		err = __btrfs_setxattr(inode, name, value, len, 0);
+		kfree(name);
+	}
+
+	kfree(suffix);
+	kfree(value);
+	return err;
 }

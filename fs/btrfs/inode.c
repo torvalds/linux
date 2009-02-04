@@ -90,6 +90,16 @@ static noinline int cow_file_range(struct inode *inode,
 				   u64 start, u64 end, int *page_started,
 				   unsigned long *nr_written, int unlock);
 
+static int btrfs_init_inode_security(struct inode *inode,  struct inode *dir)
+{
+	int err;
+
+	err = btrfs_init_acl(inode, dir);
+	if (!err)
+		err = btrfs_xattr_security_init(inode, dir);
+	return err;
+}
+
 /*
  * a very lame attempt at stopping writes when the FS is 85% full.  There
  * are countless ways this is incorrect, but it is better than nothing.
@@ -2037,6 +2047,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 		inode->i_mapping->backing_dev_info = &root->fs_info->bdi;
 		break;
 	default:
+		inode->i_op = &btrfs_special_inode_operations;
 		init_special_inode(inode, inode->i_mode, rdev);
 		break;
 	}
@@ -3584,7 +3595,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_acl(inode, dir);
+	err = btrfs_init_inode_security(inode, dir);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
@@ -3647,7 +3658,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_acl(inode, dir);
+	err = btrfs_init_inode_security(inode, dir);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
@@ -3770,7 +3781,7 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 
 	drop_on_err = 1;
 
-	err = btrfs_init_acl(inode, dir);
+	err = btrfs_init_inode_security(inode, dir);
 	if (err)
 		goto out_fail;
 
@@ -4732,7 +4743,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		goto out_unlock;
 
-	err = btrfs_init_acl(inode, dir);
+	err = btrfs_init_inode_security(inode, dir);
 	if (err) {
 		drop_inode = 1;
 		goto out_unlock;
@@ -5043,4 +5054,8 @@ static struct inode_operations btrfs_symlink_inode_operations = {
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,
 	.permission	= btrfs_permission,
+	.setxattr	= btrfs_setxattr,
+	.getxattr	= btrfs_getxattr,
+	.listxattr	= btrfs_listxattr,
+	.removexattr	= btrfs_removexattr,
 };
