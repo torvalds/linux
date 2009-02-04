@@ -37,7 +37,7 @@ module_param(gso, bool, 0444);
 #define MAX_PACKET_LEN (ETH_HLEN + VLAN_HLEN + ETH_DATA_LEN)
 #define GOOD_COPY_LEN	128
 
-#define VIRTNET_SEND_COMMAND_SG_MAX    1
+#define VIRTNET_SEND_COMMAND_SG_MAX    2
 
 struct virtnet_info
 {
@@ -661,31 +661,70 @@ static int virtnet_set_tx_csum(struct net_device *dev, u32 data)
 static void virtnet_set_rx_mode(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
-	struct scatterlist sg;
+	struct scatterlist sg[2];
 	u8 promisc, allmulti;
+	struct virtio_net_ctrl_mac *mac_data;
+	struct dev_addr_list *addr;
+	void *buf;
+	int i;
 
 	/* We can't dynamicaly set ndo_set_rx_mode, so return gracefully */
 	if (!virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_RX))
 		return;
 
-	promisc = ((dev->flags & IFF_PROMISC) != 0 || dev->uc_count > 0);
-	allmulti = ((dev->flags & IFF_ALLMULTI) != 0 || dev->mc_count > 0);
+	promisc = ((dev->flags & IFF_PROMISC) != 0);
+	allmulti = ((dev->flags & IFF_ALLMULTI) != 0);
 
-	sg_set_buf(&sg, &promisc, sizeof(promisc));
+	sg_set_buf(sg, &promisc, sizeof(promisc));
 
 	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_RX,
 				  VIRTIO_NET_CTRL_RX_PROMISC,
-				  &sg, 1, 0))
+				  sg, 1, 0))
 		dev_warn(&dev->dev, "Failed to %sable promisc mode.\n",
 			 promisc ? "en" : "dis");
 
-	sg_set_buf(&sg, &allmulti, sizeof(allmulti));
+	sg_set_buf(sg, &allmulti, sizeof(allmulti));
 
 	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_RX,
 				  VIRTIO_NET_CTRL_RX_ALLMULTI,
-				  &sg, 1, 0))
+				  sg, 1, 0))
 		dev_warn(&dev->dev, "Failed to %sable allmulti mode.\n",
 			 allmulti ? "en" : "dis");
+
+	/* MAC filter - use one buffer for both lists */
+	mac_data = buf = kzalloc(((dev->uc_count + dev->mc_count) * ETH_ALEN) +
+				 (2 * sizeof(mac_data->entries)), GFP_ATOMIC);
+	if (!buf) {
+		dev_warn(&dev->dev, "No memory for MAC address buffer\n");
+		return;
+	}
+
+	/* Store the unicast list and count in the front of the buffer */
+	mac_data->entries = dev->uc_count;
+	addr = dev->uc_list;
+	for (i = 0; i < dev->uc_count; i++, addr = addr->next)
+		memcpy(&mac_data->macs[i][0], addr->da_addr, ETH_ALEN);
+
+	sg_set_buf(&sg[0], mac_data,
+		   sizeof(mac_data->entries) + (dev->uc_count * ETH_ALEN));
+
+	/* multicast list and count fill the end */
+	mac_data = (void *)&mac_data->macs[dev->uc_count][0];
+
+	mac_data->entries = dev->mc_count;
+	addr = dev->mc_list;
+	for (i = 0; i < dev->mc_count; i++, addr = addr->next)
+		memcpy(&mac_data->macs[i][0], addr->da_addr, ETH_ALEN);
+
+	sg_set_buf(&sg[1], mac_data,
+		   sizeof(mac_data->entries) + (dev->mc_count * ETH_ALEN));
+
+	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_MAC,
+				  VIRTIO_NET_CTRL_MAC_TABLE_SET,
+				  sg, 2, 0))
+		dev_warn(&dev->dev, "Failed to set MAC fitler table.\n");
+
+	kfree(buf);
 }
 
 static struct ethtool_ops virtnet_ethtool_ops = {
