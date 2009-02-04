@@ -47,16 +47,15 @@ static inline void __delay(unsigned long loops)
 #include <linux/param.h>	/* needed for HZ */
 
 /*
- * Use only for very small delays ( < 1 msec).  Should probably use a
- * lookup table, really, as the multiplications take much too long with
- * short delays.  This is a "reasonable" implementation, though (and the
- * first constant multiplications gets optimized away if the delay is
- * a constant)
+ * close approximation borrowed from m68knommu to avoid 64-bit math
  */
+
+#define	HZSCALE		(268435456 / (1000000/HZ))
+
 static inline void udelay(unsigned long usecs)
 {
 	extern unsigned long loops_per_jiffy;
-	__delay(usecs * loops_per_jiffy / (1000000 / HZ));
+	__delay((((usecs * HZSCALE) >> 11) * (loops_per_jiffy >> 11)) >> 6);
 }
 
 #endif
