@@ -13,29 +13,7 @@
 
 static inline void __delay(unsigned long loops)
 {
-	if (ANOMALY_05000312) {
-		/* Interrupted loads to loop registers -> bad */
-		unsigned long tmp;
-		__asm__ __volatile__(
-			"[--SP] = LC0;"
-			"[--SP] = LT0;"
-			"[--SP] = LB0;"
-			"LSETUP (1f,1f) LC0 = %1;"
-			"1: NOP;"
-			/* We take advantage of the fact that LC0 is 0 at
-			 * the end of the loop.  Otherwise we'd need some
-			 * NOPs after the CLI here.
-			 */
-			"CLI %0;"
-			"LB0 = [SP++];"
-			"LT0 = [SP++];"
-			"LC0 = [SP++];"
-			"STI %0;"
-			: "=d" (tmp)
-			: "a" (loops)
-		);
-	} else
-		__asm__ __volatile__ (
+__asm__ __volatile__ (
 			"LSETUP(1f, 1f) LC0 = %0;"
 			"1: NOP;"
 			:
