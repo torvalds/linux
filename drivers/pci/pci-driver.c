@@ -355,6 +355,8 @@ static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 	int i = 0;
 
 	if (drv && drv->suspend) {
+		pci_power_t prev = pci_dev->current_state;
+
 		pci_dev->state_saved = false;
 
 		i = drv->suspend(pci_dev, state);
@@ -365,12 +367,16 @@ static int pci_legacy_suspend(struct device *dev, pm_message_t state)
 		if (pci_dev->state_saved)
 			goto Fixup;
 
-		if (WARN_ON_ONCE(pci_dev->current_state != PCI_D0))
+		if (pci_dev->current_state != PCI_D0
+		    && pci_dev->current_state != PCI_UNKNOWN) {
+			WARN_ONCE(pci_dev->current_state != prev,
+				"PCI PM: Device state not saved by %pF\n",
+				drv->suspend);
 			goto Fixup;
+		}
 	}
 
 	pci_save_state(pci_dev);
-	pci_dev->state_saved = true;
 	/*
 	 * This is for compatibility with existing code with legacy PM support.
 	 */
