@@ -727,6 +727,30 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	kfree(buf);
 }
 
+static void virnet_vlan_rx_add_vid(struct net_device *dev, u16 vid)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	struct scatterlist sg;
+
+	sg_set_buf(&sg, &vid, sizeof(vid));
+
+	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_VLAN,
+				  VIRTIO_NET_CTRL_VLAN_ADD, &sg, 1, 0))
+		dev_warn(&dev->dev, "Failed to add VLAN ID %d.\n", vid);
+}
+
+static void virnet_vlan_rx_kill_vid(struct net_device *dev, u16 vid)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	struct scatterlist sg;
+
+	sg_set_buf(&sg, &vid, sizeof(vid));
+
+	if (!virtnet_send_command(vi, VIRTIO_NET_CTRL_VLAN,
+				  VIRTIO_NET_CTRL_VLAN_DEL, &sg, 1, 0))
+		dev_warn(&dev->dev, "Failed to kill VLAN ID %d.\n", vid);
+}
+
 static struct ethtool_ops virtnet_ethtool_ops = {
 	.set_tx_csum = virtnet_set_tx_csum,
 	.set_sg = ethtool_op_set_sg,
@@ -753,6 +777,8 @@ static const struct net_device_ops virtnet_netdev = {
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_set_rx_mode     = virtnet_set_rx_mode,
 	.ndo_change_mtu	     = virtnet_change_mtu,
+	.ndo_vlan_rx_add_vid = virnet_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid = virnet_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = virtnet_netpoll,
 #endif
@@ -877,6 +903,9 @@ static int virtnet_probe(struct virtio_device *vdev)
 			err = PTR_ERR(vi->svq);
 			goto free_send;
 		}
+
+		if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_CTRL_VLAN))
+			dev->features |= NETIF_F_HW_VLAN_FILTER;
 	}
 
 	/* Initialize our empty receive and send queues. */
@@ -967,7 +996,7 @@ static unsigned int features[] = {
 	VIRTIO_NET_F_HOST_ECN, VIRTIO_NET_F_GUEST_TSO4, VIRTIO_NET_F_GUEST_TSO6,
 	VIRTIO_NET_F_GUEST_ECN, /* We don't yet handle UFO input. */
 	VIRTIO_NET_F_MRG_RXBUF, VIRTIO_NET_F_STATUS, VIRTIO_NET_F_CTRL_VQ,
-	VIRTIO_NET_F_CTRL_RX,
+	VIRTIO_NET_F_CTRL_RX, VIRTIO_NET_F_CTRL_VLAN,
 	VIRTIO_F_NOTIFY_ON_EMPTY,
 };
 

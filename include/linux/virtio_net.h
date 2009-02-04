@@ -25,6 +25,7 @@
 #define VIRTIO_NET_F_STATUS	16	/* virtio_net_config.status available */
 #define VIRTIO_NET_F_CTRL_VQ	17	/* Control channel available */
 #define VIRTIO_NET_F_CTRL_RX	18	/* Control channel RX mode support */
+#define VIRTIO_NET_F_CTRL_VLAN	19	/* Control channel VLAN filtering */
 
 #define VIRTIO_NET_S_LINK_UP	1	/* Link is up */
 
@@ -110,5 +111,18 @@ struct virtio_net_ctrl_mac {
 
 #define VIRTIO_NET_CTRL_MAC    1
  #define VIRTIO_NET_CTRL_MAC_TABLE_SET        0
+
+/*
+ * Control VLAN filtering
+ *
+ * The VLAN filter table is controlled via a simple ADD/DEL interface.
+ * VLAN IDs not added may be filterd by the hypervisor.  Del is the
+ * opposite of add.  Both commands expect an out entry containing a 2
+ * byte VLAN ID.  VLAN filterting is available with the
+ * VIRTIO_NET_F_CTRL_VLAN feature bit.
+ */
+#define VIRTIO_NET_CTRL_VLAN       2
+ #define VIRTIO_NET_CTRL_VLAN_ADD             0
+ #define VIRTIO_NET_CTRL_VLAN_DEL             1
 
 #endif /* _LINUX_VIRTIO_NET_H */
