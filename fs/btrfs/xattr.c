@@ -98,7 +98,7 @@ int __btrfs_setxattr(struct inode *inode, const char *name,
 	if (!path)
 		return -ENOMEM;
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_join_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, inode);
 
 	/* first lets see if we already have this xattr */
