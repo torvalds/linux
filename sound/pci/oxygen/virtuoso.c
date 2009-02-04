@@ -26,7 +26,7 @@
  * SPI 0 -> 1st PCM1796 (front)
  * SPI 1 -> 2nd PCM1796 (surround)
  * SPI 2 -> 3rd PCM1796 (center/LFE)
- * SPI 4 -> 4th PCM1796 (back)
+ * SPI 4 -> 4th PCM1796 (back) and EEPROM self-destruct (do not use!)
  *
  * GPIO 2 -> M0 of CS5381
  * GPIO 3 -> M1 of CS5381
@@ -207,6 +207,12 @@ static void xonar_gpio_changed(struct oxygen *chip);
 static inline void pcm1796_write_spi(struct oxygen *chip, unsigned int codec,
 				     u8 reg, u8 value)
 {
+	/*
+	 * We don't want to do writes on SPI 4 because the EEPROM, which shares
+	 * the same pin, might get confused and broken.  We'd better take care
+	 * that the driver works with the default register values ...
+	 */
+#if 0
 	/* maps ALSA channel pair number to SPI output */
 	static const u8 codec_map[4] = {
 		0, 1, 2, 4
@@ -217,6 +223,7 @@ static inline void pcm1796_write_spi(struct oxygen *chip, unsigned int codec,
 			 (codec_map[codec] << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_HI,
 			 (reg << 8) | value);
+#endif
 }
 
 static inline void pcm1796_write_i2c(struct oxygen *chip, unsigned int codec,
@@ -676,7 +683,7 @@ static void xonar_hdav_uart_input(struct oxygen *chip)
 	if (chip->uart_input_count >= 2 &&
 	    chip->uart_input[chip->uart_input_count - 2] == 'O' &&
 	    chip->uart_input[chip->uart_input_count - 1] == 'K') {
-		printk(KERN_DEBUG "message from Xonar HDAV HDMI chip received:");
+		printk(KERN_DEBUG "message from Xonar HDAV HDMI chip received:\n");
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
 				     chip->uart_input, chip->uart_input_count);
 		chip->uart_input_count = 0;
@@ -750,6 +757,9 @@ static const DECLARE_TLV_DB_SCALE(cs4362a_db_scale, -12700, 100, 0);
 
 static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 {
+	if (!strncmp(template->name, "Master Playback ", 16))
+		/* disable volume/mute because they would require SPI writes */
+		return 1;
 	if (!strncmp(template->name, "CD Capture ", 11))
 		/* CD in is actually connected to the video in pin */
 		template->private_value ^= AC97_CD ^ AC97_VIDEO;
@@ -840,9 +850,8 @@ static const struct oxygen_model model_xonar_d2 = {
 	.dac_volume_min = 0x0f,
 	.dac_volume_max = 0xff,
 	.misc_flags = OXYGEN_MISC_MIDI,
-	.function_flags = OXYGEN_FUNCTION_SPI |
-			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
-	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	.function_flags = OXYGEN_FUNCTION_SPI,
+	.dac_i2s_format = OXYGEN_I2S_FORMAT_I2S,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
@@ -899,6 +908,7 @@ static const struct oxygen_model model_xonar_hdav = {
 	.dac_channels = 8,
 	.dac_volume_min = 0x0f,
 	.dac_volume_max = 0xff,
+	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,

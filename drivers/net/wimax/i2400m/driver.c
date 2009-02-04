@@ -707,6 +707,22 @@ void i2400m_release(struct i2400m *i2400m)
 EXPORT_SYMBOL_GPL(i2400m_release);
 
 
+/*
+ * Debug levels control; see debug.h
+ */
+struct d_level D_LEVEL[] = {
+	D_SUBMODULE_DEFINE(control),
+	D_SUBMODULE_DEFINE(driver),
+	D_SUBMODULE_DEFINE(debugfs),
+	D_SUBMODULE_DEFINE(fw),
+	D_SUBMODULE_DEFINE(netdev),
+	D_SUBMODULE_DEFINE(rfkill),
+	D_SUBMODULE_DEFINE(rx),
+	D_SUBMODULE_DEFINE(tx),
+};
+size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
+
+
 static
 int __init i2400m_driver_init(void)
 {

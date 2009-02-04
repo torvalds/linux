@@ -395,7 +395,7 @@ struct drm_connector_funcs {
 	void (*save)(struct drm_connector *connector);
 	void (*restore)(struct drm_connector *connector);
 	enum drm_connector_status (*detect)(struct drm_connector *connector);
-	void (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
+	int (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
 	int (*set_property)(struct drm_connector *connector, struct drm_property *property,
 			     uint64_t val);
 	void (*destroy)(struct drm_connector *connector);
@@ -528,7 +528,8 @@ struct drm_mode_group {
  *
  */
 struct drm_mode_config {
-	struct mutex mutex; /* protects configuration and IDR */
+	struct mutex mutex; /* protects configuration (mode lists etc.) */
+	struct mutex idr_mutex; /* for IDR management */
 	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
 	/* this is limited to one for now */
 	int num_fb;

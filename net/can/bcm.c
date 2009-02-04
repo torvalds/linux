@@ -347,16 +347,42 @@ static void bcm_tx_timeout_tsklet(unsigned long data)
 	struct bcm_op *op = (struct bcm_op *)data;
 	struct bcm_msg_head msg_head;
 
-	/* create notification to user */
-	msg_head.opcode  = TX_EXPIRED;
-	msg_head.flags   = op->flags;
-	msg_head.count   = op->count;
-	msg_head.ival1   = op->ival1;
-	msg_head.ival2   = op->ival2;
-	msg_head.can_id  = op->can_id;
-	msg_head.nframes = 0;
+	if (op->kt_ival1.tv64 && (op->count > 0)) {
 
-	bcm_send_to_user(op, &msg_head, NULL, 0);
+		op->count--;
+		if (!op->count && (op->flags & TX_COUNTEVT)) {
+
+			/* create notification to user */
+			msg_head.opcode  = TX_EXPIRED;
+			msg_head.flags   = op->flags;
+			msg_head.count   = op->count;
+			msg_head.ival1   = op->ival1;
+			msg_head.ival2   = op->ival2;
+			msg_head.can_id  = op->can_id;
+			msg_head.nframes = 0;
+
+			bcm_send_to_user(op, &msg_head, NULL, 0);
+		}
+	}
+
+	if (op->kt_ival1.tv64 && (op->count > 0)) {
+
+		/* send (next) frame */
+		bcm_can_tx(op);
+		hrtimer_start(&op->timer,
+			      ktime_add(ktime_get(), op->kt_ival1),
+			      HRTIMER_MODE_ABS);
+
+	} else {
+		if (op->kt_ival2.tv64) {
+
+			/* send (next) frame */
+			bcm_can_tx(op);
+			hrtimer_start(&op->timer,
+				      ktime_add(ktime_get(), op->kt_ival2),
+				      HRTIMER_MODE_ABS);
+		}
+	}
 }
 
 /*
@@ -365,33 +391,10 @@ static void bcm_tx_timeout_tsklet(unsigned long data)
 static enum hrtimer_restart bcm_tx_timeout_handler(struct hrtimer *hrtimer)
 {
 	struct bcm_op *op = container_of(hrtimer, struct bcm_op, timer);
-	enum hrtimer_restart ret = HRTIMER_NORESTART;
 
-	if (op->kt_ival1.tv64 && (op->count > 0)) {
+	tasklet_schedule(&op->tsklet);
 
-		op->count--;
-		if (!op->count && (op->flags & TX_COUNTEVT))
-			tasklet_schedule(&op->tsklet);
-	}
-
-	if (op->kt_ival1.tv64 && (op->count > 0)) {
-
-		/* send (next) frame */
-		bcm_can_tx(op);
-		hrtimer_forward(hrtimer, ktime_get(), op->kt_ival1);
-		ret = HRTIMER_RESTART;
-
-	} else {
-		if (op->kt_ival2.tv64) {
-
-			/* send (next) frame */
-			bcm_can_tx(op);
-			hrtimer_forward(hrtimer, ktime_get(), op->kt_ival2);
-			ret = HRTIMER_RESTART;
-		}
-	}
-
-	return ret;
+	return HRTIMER_NORESTART;
 }
 
 /*

@@ -629,6 +629,7 @@ qla25xx_create_req_que(struct qla_hw_data *ha, uint16_t options,
 	req->ring_index = 0;
 	req->cnt = req->length;
 	req->id = que_id;
+	req->max_q_depth = ha->req_q_map[0]->max_q_depth;
 	mutex_unlock(&ha->vport_lock);
 
 	ret = qla25xx_init_req_que(base_vha, req, options);

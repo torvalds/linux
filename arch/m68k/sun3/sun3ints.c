@@ -105,7 +105,10 @@ void __init sun3_init_IRQ(void)
 	m68k_setup_irq_controller(&sun3_irq_controller, IRQ_AUTO_1, 7);
 	m68k_setup_user_interrupt(VEC_USER, 128, NULL);
 
-	request_irq(IRQ_AUTO_5, sun3_int5, 0, "int5", NULL);
-	request_irq(IRQ_AUTO_7, sun3_int7, 0, "int7", NULL);
-	request_irq(IRQ_USER+127, sun3_vec255, 0, "vec255", NULL);
+	if (request_irq(IRQ_AUTO_5, sun3_int5, 0, "int5", NULL))
+		pr_err("Couldn't register %s interrupt\n", "int5");
+	if (request_irq(IRQ_AUTO_7, sun3_int7, 0, "int7", NULL))
+		pr_err("Couldn't register %s interrupt\n", "int7");
+	if (request_irq(IRQ_USER+127, sun3_vec255, 0, "vec255", NULL))
+		pr_err("Couldn't register %s interrupt\n", "vec255");
 }

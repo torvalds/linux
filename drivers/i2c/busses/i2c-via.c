@@ -83,7 +83,6 @@ static struct i2c_algo_bit_data bit_data = {
 
 static struct i2c_adapter vt586b_adapter = {
 	.owner		= THIS_MODULE,
-	.id		= I2C_HW_B_VIA,
 	.class          = I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.name		= "VIA i2c",
 	.algo_data	= &bit_data,

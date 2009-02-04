@@ -1115,8 +1115,10 @@ static void cgroup_kill_sb(struct super_block *sb) {
 	}
 	write_unlock(&css_set_lock);
 
-	list_del(&root->root_list);
-	root_count--;
+	if (!list_empty(&root->root_list)) {
+		list_del(&root->root_list);
+		root_count--;
+	}
 
 	mutex_unlock(&cgroup_mutex);
 
@@ -2434,7 +2436,9 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
  err_remove:
 
+	cgroup_lock_hierarchy(root);
 	list_del(&cgrp->sibling);
+	cgroup_unlock_hierarchy(root);
 	root->number_of_cgroups--;
 
  err_destroy:
@@ -2507,7 +2511,7 @@ static int cgroup_clear_css_refs(struct cgroup *cgrp)
 	for_each_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
 		int refcnt;
-		do {
+		while (1) {
 			/* We can only remove a CSS with a refcnt==1 */
 			refcnt = atomic_read(&css->refcnt);
 			if (refcnt > 1) {
@@ -2521,7 +2525,10 @@ static int cgroup_clear_css_refs(struct cgroup *cgrp)
 			 * css_tryget() to spin until we set the
 			 * CSS_REMOVED bits or abort
 			 */
-		} while (atomic_cmpxchg(&css->refcnt, refcnt, 0) != refcnt);
+			if (atomic_cmpxchg(&css->refcnt, refcnt, 0) == refcnt)
+				break;
+			cpu_relax();
+		}
 	}
  done:
 	for_each_subsys(cgrp->root, ss) {
@@ -2991,20 +2998,21 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys,
 		mutex_unlock(&cgroup_mutex);
 		return 0;
 	}
-	task_lock(tsk);
-	cg = tsk->cgroups;
-	parent = task_cgroup(tsk, subsys->subsys_id);
 
 	/* Pin the hierarchy */
-	if (!atomic_inc_not_zero(&parent->root->sb->s_active)) {
+	if (!atomic_inc_not_zero(&root->sb->s_active)) {
 		/* We race with the final deactivate_super() */
 		mutex_unlock(&cgroup_mutex);
 		return 0;
 	}
 
 	/* Keep the cgroup alive */
+	task_lock(tsk);
+	parent = task_cgroup(tsk, subsys->subsys_id);
+	cg = tsk->cgroups;
 	get_css_set(cg);
 	task_unlock(tsk);
+
 	mutex_unlock(&cgroup_mutex);
 
 	/* Now do the VFS work to create a cgroup */
@@ -3043,7 +3051,7 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys,
 		mutex_unlock(&inode->i_mutex);
 		put_css_set(cg);
 
-		deactivate_super(parent->root->sb);
+		deactivate_super(root->sb);
 		/* The cgroup is still accessible in the VFS, but
 		 * we're not going to try to rmdir() it at this
 		 * point. */
@@ -3069,7 +3077,7 @@ int cgroup_clone(struct task_struct *tsk, struct cgroup_subsys *subsys,
 	mutex_lock(&cgroup_mutex);
 	put_css_set(cg);
 	mutex_unlock(&cgroup_mutex);
-	deactivate_super(parent->root->sb);
+	deactivate_super(root->sb);
 	return ret;
 }
 

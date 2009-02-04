@@ -294,14 +294,10 @@ static inline int __mlock_posix_error_return(long retval)
  *
  * return number of pages [> 0] to be removed from locked_vm on success
  * of "special" vmas.
- *
- * return negative error if vma spanning @start-@range disappears while
- * mmap semaphore is dropped.  Unlikely?
  */
 long mlock_vma_pages_range(struct vm_area_struct *vma,
 			unsigned long start, unsigned long end)
 {
-	struct mm_struct *mm = vma->vm_mm;
 	int nr_pages = (end - start) / PAGE_SIZE;
 	BUG_ON(!(vma->vm_flags & VM_LOCKED));
 
@@ -314,20 +310,8 @@ long mlock_vma_pages_range(struct vm_area_struct *vma,
 	if (!((vma->vm_flags & (VM_DONTEXPAND | VM_RESERVED)) ||
 			is_vm_hugetlb_page(vma) ||
 			vma == get_gate_vma(current))) {
-		long error;
-		downgrade_write(&mm->mmap_sem);
 
-		error = __mlock_vma_pages_range(vma, start, end, 1);
-
-		up_read(&mm->mmap_sem);
-		/* vma can change or disappear */
-		down_write(&mm->mmap_sem);
-		vma = find_vma(mm, start);
-		/* non-NULL vma must contain @start, but need to check @end */
-		if (!vma ||  end > vma->vm_end)
-			return -ENOMEM;
-
-		return 0;	/* hide other errors from mmap(), et al */
+		return __mlock_vma_pages_range(vma, start, end, 1);
 	}
 
 	/*
@@ -438,41 +422,14 @@ success:
 	vma->vm_flags = newflags;
 
 	if (lock) {
-		/*
-		 * mmap_sem is currently held for write.  Downgrade the write
-		 * lock to a read lock so that other faults, mmap scans, ...
-		 * while we fault in all pages.
-		 */
-		downgrade_write(&mm->mmap_sem);
-
 		ret = __mlock_vma_pages_range(vma, start, end, 1);
 
-		/*
-		 * Need to reacquire mmap sem in write mode, as our callers
-		 * expect this.  We have no support for atomically upgrading
-		 * a sem to write, so we need to check for ranges while sem
-		 * is unlocked.
-		 */
-		up_read(&mm->mmap_sem);
-		/* vma can change or disappear */
-		down_write(&mm->mmap_sem);
-		*prev = find_vma(mm, start);
-		/* non-NULL *prev must contain @start, but need to check @end */
-		if (!(*prev) || end > (*prev)->vm_end)
-			ret = -ENOMEM;
-		else if (ret > 0) {
+		if (ret > 0) {
 			mm->locked_vm -= ret;
 			ret = 0;
 		} else
 			ret = __mlock_posix_error_return(ret); /* translate if needed */
 	} else {
-		/*
-		 * TODO:  for unlocking, pages will already be resident, so
-		 * we don't need to wait for allocations/reclaim/pagein, ...
-		 * However, unlocking a very large region can still take a
-		 * while.  Should we downgrade the semaphore for both lock
-		 * AND unlock ?
-		 */
 		__mlock_vma_pages_range(vma, start, end, 0);
 	}
 
@@ -530,7 +487,7 @@ static int do_mlock(unsigned long start, size_t len, int on)
 	return error;
 }
 
-asmlinkage long sys_mlock(unsigned long start, size_t len)
+SYSCALL_DEFINE2(mlock, unsigned long, start, size_t, len)
 {
 	unsigned long locked;
 	unsigned long lock_limit;
@@ -558,7 +515,7 @@ asmlinkage long sys_mlock(unsigned long start, size_t len)
 	return error;
 }
 
-asmlinkage long sys_munlock(unsigned long start, size_t len)
+SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
 {
 	int ret;
 
@@ -595,7 +552,7 @@ out:
 	return 0;
 }
 
-asmlinkage long sys_mlockall(int flags)
+SYSCALL_DEFINE1(mlockall, int, flags)
 {
 	unsigned long lock_limit;
 	int ret = -EINVAL;
@@ -623,7 +580,7 @@ out:
 	return ret;
 }
 
-asmlinkage long sys_munlockall(void)
+SYSCALL_DEFINE0(munlockall)
 {
 	int ret;
 

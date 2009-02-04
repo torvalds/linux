@@ -270,8 +270,18 @@ struct dma_device {
 
 /* --- public DMA engine API --- */
 
+#ifdef CONFIG_DMA_ENGINE
 void dmaengine_get(void);
 void dmaengine_put(void);
+#else
+static inline void dmaengine_get(void)
+{
+}
+static inline void dmaengine_put(void)
+{
+}
+#endif
+
 dma_cookie_t dma_async_memcpy_buf_to_buf(struct dma_chan *chan,
 	void *dest, void *src, size_t len);
 dma_cookie_t dma_async_memcpy_buf_to_pg(struct dma_chan *chan,
@@ -285,6 +295,11 @@ void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 static inline void async_tx_ack(struct dma_async_tx_descriptor *tx)
 {
 	tx->flags |= DMA_CTRL_ACK;
+}
+
+static inline void async_tx_clear_ack(struct dma_async_tx_descriptor *tx)
+{
+	tx->flags &= ~DMA_CTRL_ACK;
 }
 
 static inline bool async_tx_test_ack(struct dma_async_tx_descriptor *tx)
@@ -390,10 +405,15 @@ static inline enum dma_status dma_async_is_complete(dma_cookie_t cookie,
 enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie);
 #ifdef CONFIG_DMA_ENGINE
 enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx);
+void dma_issue_pending_all(void);
 #else
 static inline enum dma_status dma_wait_for_async_tx(struct dma_async_tx_descriptor *tx)
 {
 	return DMA_SUCCESS;
+}
+static inline void dma_issue_pending_all(void)
+{
+	do { } while (0);
 }
 #endif
 
@@ -403,7 +423,6 @@ int dma_async_device_register(struct dma_device *device);
 void dma_async_device_unregister(struct dma_device *device);
 void dma_run_dependencies(struct dma_async_tx_descriptor *tx);
 struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type);
-void dma_issue_pending_all(void);
 #define dma_request_channel(mask, x, y) __dma_request_channel(&(mask), x, y)
 struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, void *fn_param);
 void dma_release_channel(struct dma_chan *chan);

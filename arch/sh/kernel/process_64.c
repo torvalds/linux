@@ -520,7 +520,6 @@ asmlinkage int sys_execve(char *ufilename, char **uargv,
 	int error;
 	char *filename;
 
-	lock_kernel();
 	filename = getname((char __user *)ufilename);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
@@ -537,7 +536,6 @@ asmlinkage int sys_execve(char *ufilename, char **uargv,
 	}
 	putname(filename);
 out:
-	unlock_kernel();
 	return error;
 }
 

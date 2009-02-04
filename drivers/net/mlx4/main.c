@@ -912,8 +912,8 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 	int i;
 
 	if (msi_x) {
-		nreq = min(dev->caps.num_eqs - dev->caps.reserved_eqs,
-			   num_possible_cpus() + 1);
+		nreq = min_t(int, dev->caps.num_eqs - dev->caps.reserved_eqs,
+			     num_possible_cpus() + 1);
 		entries = kcalloc(nreq, sizeof *entries, GFP_KERNEL);
 		if (!entries)
 			goto no_msi;

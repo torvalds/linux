@@ -35,7 +35,6 @@
 
 #define RTC_OFFSET 2082844800
 
-extern struct mac_booter_data mac_bi_data;
 static void (*rom_reset)(void);
 
 #ifdef CONFIG_ADB_CUDA

@@ -194,9 +194,9 @@ static int amradio_start(struct amradio_device *radio)
 		return retval;
 	}
 
-	mutex_unlock(&radio->lock);
-
 	radio->muted = 0;
+
+	mutex_unlock(&radio->lock);
 
 	return retval;
 }
@@ -230,9 +230,9 @@ static int amradio_stop(struct amradio_device *radio)
 		return retval;
 	}
 
-	mutex_unlock(&radio->lock);
-
 	radio->muted = 1;
+
+	mutex_unlock(&radio->lock);
 
 	return retval;
 }
@@ -284,9 +284,9 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 		return retval;
 	}
 
-	mutex_unlock(&radio->lock);
-
 	radio->stereo = 0;
+
+	mutex_unlock(&radio->lock);
 
 	return retval;
 }

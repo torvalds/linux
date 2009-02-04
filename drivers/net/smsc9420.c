@@ -1378,6 +1378,7 @@ static int smsc9420_open(struct net_device *dev)
 
 	/* test the IRQ connection to the ISR */
 	smsc_dbg(IFUP, "Testing ISR using IRQ %d", dev->irq);
+	pd->software_irq_signal = false;
 
 	spin_lock_irqsave(&pd->int_lock, flags);
 	/* configure interrupt deassertion timer and enable interrupts */
@@ -1393,8 +1394,6 @@ static int smsc9420_open(struct net_device *dev)
 	smsc9420_pci_flush_write(pd);
 
 	timeout = 1000;
-	pd->software_irq_signal = false;
-	smp_wmb();
 	while (timeout--) {
 		if (pd->software_irq_signal)
 			break;
@@ -1551,6 +1550,7 @@ static const struct net_device_ops smsc9420_netdev_ops = {
 	.ndo_set_multicast_list	= smsc9420_set_multicast_list,
 	.ndo_do_ioctl		= smsc9420_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= smsc9420_poll_controller,
 #endif /* CONFIG_NET_POLL_CONTROLLER */

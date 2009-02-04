@@ -1868,6 +1868,7 @@ qla24xx_disable_msix(struct qla_hw_data *ha)
 static int
 qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 {
+#define MIN_MSIX_COUNT	2
 	int i, ret;
 	struct msix_entry *entries;
 	struct qla_msix_entry *qentry;
@@ -1883,12 +1884,16 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 
 	ret = pci_enable_msix(ha->pdev, entries, ha->msix_count);
 	if (ret) {
+		if (ret < MIN_MSIX_COUNT)
+			goto msix_failed;
+
 		qla_printk(KERN_WARNING, ha,
 			"MSI-X: Failed to enable support -- %d/%d\n"
 			" Retry with %d vectors\n", ha->msix_count, ret, ret);
 		ha->msix_count = ret;
 		ret = pci_enable_msix(ha->pdev, entries, ha->msix_count);
 		if (ret) {
+msix_failed:
 			qla_printk(KERN_WARNING, ha, "MSI-X: Failed to enable"
 				" support, giving up -- %d/%d\n",
 				ha->msix_count, ret);

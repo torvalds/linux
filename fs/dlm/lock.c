@@ -412,9 +412,9 @@ static int search_rsb(struct dlm_ls *ls, char *name, int len, int b,
 		      unsigned int flags, struct dlm_rsb **r_ret)
 {
 	int error;
-	write_lock(&ls->ls_rsbtbl[b].lock);
+	spin_lock(&ls->ls_rsbtbl[b].lock);
 	error = _search_rsb(ls, name, len, b, flags, r_ret);
-	write_unlock(&ls->ls_rsbtbl[b].lock);
+	spin_unlock(&ls->ls_rsbtbl[b].lock);
 	return error;
 }
 
@@ -478,16 +478,16 @@ static int find_rsb(struct dlm_ls *ls, char *name, int namelen,
 		r->res_nodeid = nodeid;
 	}
 
-	write_lock(&ls->ls_rsbtbl[bucket].lock);
+	spin_lock(&ls->ls_rsbtbl[bucket].lock);
 	error = _search_rsb(ls, name, namelen, bucket, 0, &tmp);
 	if (!error) {
-		write_unlock(&ls->ls_rsbtbl[bucket].lock);
+		spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 		dlm_free_rsb(r);
 		r = tmp;
 		goto out;
 	}
 	list_add(&r->res_hashchain, &ls->ls_rsbtbl[bucket].list);
-	write_unlock(&ls->ls_rsbtbl[bucket].lock);
+	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 	error = 0;
  out:
 	*r_ret = r;
@@ -530,9 +530,9 @@ static void put_rsb(struct dlm_rsb *r)
 	struct dlm_ls *ls = r->res_ls;
 	uint32_t bucket = r->res_bucket;
 
-	write_lock(&ls->ls_rsbtbl[bucket].lock);
+	spin_lock(&ls->ls_rsbtbl[bucket].lock);
 	kref_put(&r->res_ref, toss_rsb);
-	write_unlock(&ls->ls_rsbtbl[bucket].lock);
+	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 }
 
 void dlm_put_rsb(struct dlm_rsb *r)
@@ -967,7 +967,7 @@ static int shrink_bucket(struct dlm_ls *ls, int b)
 
 	for (;;) {
 		found = 0;
-		write_lock(&ls->ls_rsbtbl[b].lock);
+		spin_lock(&ls->ls_rsbtbl[b].lock);
 		list_for_each_entry_reverse(r, &ls->ls_rsbtbl[b].toss,
 					    res_hashchain) {
 			if (!time_after_eq(jiffies, r->res_toss_time +
@@ -978,20 +978,20 @@ static int shrink_bucket(struct dlm_ls *ls, int b)
 		}
 
 		if (!found) {
-			write_unlock(&ls->ls_rsbtbl[b].lock);
+			spin_unlock(&ls->ls_rsbtbl[b].lock);
 			break;
 		}
 
 		if (kref_put(&r->res_ref, kill_rsb)) {
 			list_del(&r->res_hashchain);
-			write_unlock(&ls->ls_rsbtbl[b].lock);
+			spin_unlock(&ls->ls_rsbtbl[b].lock);
 
 			if (is_master(r))
 				dir_remove(r);
 			dlm_free_rsb(r);
 			count++;
 		} else {
-			write_unlock(&ls->ls_rsbtbl[b].lock);
+			spin_unlock(&ls->ls_rsbtbl[b].lock);
 			log_error(ls, "tossed rsb in use %s", r->res_name);
 		}
 	}
@@ -4224,7 +4224,7 @@ static struct dlm_rsb *find_purged_rsb(struct dlm_ls *ls, int bucket)
 {
 	struct dlm_rsb *r, *r_ret = NULL;
 
-	read_lock(&ls->ls_rsbtbl[bucket].lock);
+	spin_lock(&ls->ls_rsbtbl[bucket].lock);
 	list_for_each_entry(r, &ls->ls_rsbtbl[bucket].list, res_hashchain) {
 		if (!rsb_flag(r, RSB_LOCKS_PURGED))
 			continue;
@@ -4233,7 +4233,7 @@ static struct dlm_rsb *find_purged_rsb(struct dlm_ls *ls, int bucket)
 		r_ret = r;
 		break;
 	}
-	read_unlock(&ls->ls_rsbtbl[bucket].lock);
+	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
 	return r_ret;
 }
 

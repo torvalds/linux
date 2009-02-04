@@ -968,8 +968,8 @@ static inline int pick_optimal_cpu(int this_cpu, cpumask_t *mask)
 	if ((this_cpu != -1) && cpu_isset(this_cpu, *mask))
 		return this_cpu;
 
-	first = first_cpu(*mask);
-	if (first != NR_CPUS)
+	first = cpumask_first(mask);
+	if (first < nr_cpu_ids)
 		return first;
 
 	return -1;

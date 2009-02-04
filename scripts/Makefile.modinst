@@ -17,8 +17,7 @@ __modinst: $(modules)
 	@:
 
 quiet_cmd_modules_install = INSTALL $@
-      cmd_modules_install = mkdir -p $(2); \
-			    $(mod_strip_cmd) $@ $(2)/$(notdir $@) || cp $@ $(2)
+      cmd_modules_install = mkdir -p $(2); cp $@ $(2) ; $(mod_strip_cmd) $(2)/$(notdir $@)
 
 # Modules built outside the kernel source tree go into extra by default
 INSTALL_MOD_DIR ?= extra

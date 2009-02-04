@@ -1649,9 +1649,7 @@ static char *rndis_translate_scan(struct net_device *dev,
 				  char *end_buf,
 				  struct ndis_80211_bssid_ex *bssid)
 {
-#ifdef DEBUG
 	struct usbnet *usbdev = netdev_priv(dev);
-#endif
 	u8 *ie;
 	char *current_val;
 	int bssid_len, ie_len, i;
