@@ -1138,7 +1138,7 @@ xfs_mountfs(
 		error = xfs_mount_log_sb(mp, mp->m_update_flags);
 		if (error) {
 			cmn_err(CE_WARN, "XFS: failed to write sb changes");
-			goto out_rele_rip;
+			goto out_rtunmount;
 		}
 	}
 
@@ -1147,7 +1147,7 @@ xfs_mountfs(
 	 */
 	error = XFS_QM_INIT(mp, &quotamount, &quotaflags);
 	if (error)
-		goto out_rele_rip;
+		goto out_rtunmount;
 
 	/*
 	 * Finish recovering the file system.  This part needed to be
@@ -1157,7 +1157,7 @@ xfs_mountfs(
 	error = xfs_log_mount_finish(mp);
 	if (error) {
 		cmn_err(CE_WARN, "XFS: log mount finish failed");
-		goto out_rele_rip;
+		goto out_rtunmount;
 	}
 
 	/*
@@ -1165,7 +1165,7 @@ xfs_mountfs(
 	 */
 	error = XFS_QM_MOUNT(mp, quotamount, quotaflags);
 	if (error)
-		goto out_rele_rip;
+		goto out_rtunmount;
 
 	/*
 	 * Now we are mounted, reserve a small amount of unused space for
@@ -1189,6 +1189,8 @@ xfs_mountfs(
 
 	return 0;
 
+ out_rtunmount:
+	xfs_rtunmount_inodes(mp);
  out_rele_rip:
 	IRELE(rip);
  out_log_dealloc:
@@ -1219,10 +1221,7 @@ xfs_unmountfs(
 	 */
 	XFS_QM_UNMOUNT(mp);
 
-	if (mp->m_rbmip)
-		IRELE(mp->m_rbmip);
-	if (mp->m_rsumip)
-		IRELE(mp->m_rsumip);
+	xfs_rtunmount_inodes(mp);
 	IRELE(mp->m_rootip);
 
 	/*
