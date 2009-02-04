@@ -37,6 +37,7 @@
 #define KVM_REQ_PENDING_TIMER      5
 #define KVM_REQ_UNHALT             6
 #define KVM_REQ_MMU_SYNC           7
+#define KVM_REQ_KVMCLOCK_UPDATE    8
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID	0
 
