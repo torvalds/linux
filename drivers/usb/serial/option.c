@@ -274,12 +274,6 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 #define ERICSSON_VENDOR_ID			0x0bdb
 #define ERICSSON_PRODUCT_F3507G			0x1900
 
-/* Pantech products */
-#define PANTECH_VENDOR_ID			0x106c
-#define PANTECH_PRODUCT_PC5740			0x3701
-#define PANTECH_PRODUCT_PC5750			0x3702  /* PX-500 */
-#define PANTECH_PRODUCT_UM150			0x3711
-
 static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
@@ -488,9 +482,6 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_MF628) },
 	{ USB_DEVICE(ZTE_VENDOR_ID, ZTE_PRODUCT_CDMA_TECH) },
 	{ USB_DEVICE(ERICSSON_VENDOR_ID, ERICSSON_PRODUCT_F3507G) },
-	{ USB_DEVICE(PANTECH_VENDOR_ID, PANTECH_PRODUCT_PC5740) },
-	{ USB_DEVICE(PANTECH_VENDOR_ID, PANTECH_PRODUCT_PC5750) },
-	{ USB_DEVICE(PANTECH_VENDOR_ID, PANTECH_PRODUCT_UM150) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
