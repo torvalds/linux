@@ -588,8 +588,10 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
 	    obj_priv->tiling_mode != I915_TILING_NONE) {
 		ret = i915_gem_object_get_fence_reg(obj, write);
-		if (ret != 0)
+		if (ret) {
+			mutex_unlock(&dev->struct_mutex);
 			return VM_FAULT_SIGBUS;
+		}
 	}
 
 	pfn = ((dev->agp->base + obj_priv->gtt_offset) >> PAGE_SHIFT) +
