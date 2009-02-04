@@ -41,11 +41,6 @@ struct attrlist_cursor_kern;
 #define IO_INVIS	0x00020		/* don't update inode timestamps */
 
 /*
- * Flags for xfs_inode_flush
- */
-#define FLUSH_SYNC		1	/* wait for flush to complete	*/
-
-/*
  * Flush/Invalidate options for vop_toss/flush/flushinval_pages.
  */
 #define FI_NONE			0	/* none */

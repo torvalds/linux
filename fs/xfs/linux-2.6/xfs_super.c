@@ -990,26 +990,57 @@ xfs_fs_write_inode(
 	int			sync)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
 	int			error = 0;
-	int			flags = 0;
 
 	xfs_itrace_entry(ip);
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return XFS_ERROR(EIO);
+
 	if (sync) {
 		error = xfs_wait_on_pages(ip, 0, -1);
 		if (error)
-			goto out_error;
-		flags |= FLUSH_SYNC;
+			goto out;
 	}
-	error = xfs_inode_flush(ip, flags);
 
-out_error:
+	/*
+	 * Bypass inodes which have already been cleaned by
+	 * the inode flush clustering code inside xfs_iflush
+	 */
+	if (xfs_inode_clean(ip))
+		goto out;
+
+	/*
+	 * We make this non-blocking if the inode is contended, return
+	 * EAGAIN to indicate to the caller that they did not succeed.
+	 * This prevents the flush path from blocking on inodes inside
+	 * another operation right now, they get caught later by xfs_sync.
+	 */
+	if (sync) {
+		xfs_ilock(ip, XFS_ILOCK_SHARED);
+		xfs_iflock(ip);
+
+		error = xfs_iflush(ip, XFS_IFLUSH_SYNC);
+	} else {
+		error = EAGAIN;
+		if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED))
+			goto out;
+		if (xfs_ipincount(ip) || !xfs_iflock_nowait(ip))
+			goto out_unlock;
+
+		error = xfs_iflush(ip, XFS_IFLUSH_ASYNC_NOBLOCK);
+	}
+
+ out_unlock:
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+ out:
 	/*
 	 * if we failed to write out the inode then mark
 	 * it dirty again so we'll try again later.
 	 */
 	if (error)
 		xfs_mark_inode_dirty_sync(ip);
-
 	return -error;
 }
 

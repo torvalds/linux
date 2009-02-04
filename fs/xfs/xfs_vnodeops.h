@@ -38,7 +38,6 @@ int xfs_readdir(struct xfs_inode	*dp, void *dirent, size_t bufsize,
 int xfs_symlink(struct xfs_inode *dp, struct xfs_name *link_name,
 		const char *target_path, mode_t mode, struct xfs_inode **ipp,
 		cred_t *credp);
-int xfs_inode_flush(struct xfs_inode *ip, int flags);
 int xfs_set_dmattrs(struct xfs_inode *ip, u_int evmask, u_int16_t state);
 int xfs_reclaim(struct xfs_inode *ip);
 int xfs_change_file_space(struct xfs_inode *ip, int cmd,
