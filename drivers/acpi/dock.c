@@ -984,7 +984,7 @@ static int dock_add(acpi_handle handle)
 
 	ret = device_create_file(&dock_device->dev, &dev_attr_docked);
 	if (ret) {
-		printk("Error %d adding sysfs file\n", ret);
+		printk(KERN_ERR "Error %d adding sysfs file\n", ret);
 		platform_device_unregister(dock_device);
 		kfree(dock_station);
 		dock_station = NULL;
@@ -992,7 +992,7 @@ static int dock_add(acpi_handle handle)
 	}
 	ret = device_create_file(&dock_device->dev, &dev_attr_undock);
 	if (ret) {
-		printk("Error %d adding sysfs file\n", ret);
+		printk(KERN_ERR "Error %d adding sysfs file\n", ret);
 		device_remove_file(&dock_device->dev, &dev_attr_docked);
 		platform_device_unregister(dock_device);
 		kfree(dock_station);
@@ -1001,7 +1001,7 @@ static int dock_add(acpi_handle handle)
 	}
 	ret = device_create_file(&dock_device->dev, &dev_attr_uid);
 	if (ret) {
-		printk("Error %d adding sysfs file\n", ret);
+		printk(KERN_ERR "Error %d adding sysfs file\n", ret);
 		device_remove_file(&dock_device->dev, &dev_attr_docked);
 		device_remove_file(&dock_device->dev, &dev_attr_undock);
 		platform_device_unregister(dock_device);
@@ -1011,7 +1011,7 @@ static int dock_add(acpi_handle handle)
 	}
 	ret = device_create_file(&dock_device->dev, &dev_attr_flags);
 	if (ret) {
-		printk("Error %d adding sysfs file\n", ret);
+		printk(KERN_ERR "Error %d adding sysfs file\n", ret);
 		device_remove_file(&dock_device->dev, &dev_attr_docked);
 		device_remove_file(&dock_device->dev, &dev_attr_undock);
 		device_remove_file(&dock_device->dev, &dev_attr_uid);

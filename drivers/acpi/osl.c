@@ -228,10 +228,10 @@ void acpi_os_vprintf(const char *fmt, va_list args)
 	if (acpi_in_debugger) {
 		kdb_printf("%s", buffer);
 	} else {
-		printk("%s", buffer);
+		printk(KERN_CONT "%s", buffer);
 	}
 #else
-	printk("%s", buffer);
+	printk(KERN_CONT "%s", buffer);
 #endif
 }
 
