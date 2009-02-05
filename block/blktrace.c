@@ -245,7 +245,7 @@ record_it:
 			if (pid != 0 &&
 			    !(blk_tracer_flags.val & TRACE_BLK_OPT_CLASSIC) &&
 			    (trace_flags & TRACE_ITER_STACKTRACE) != 0)
-				__trace_stack(blk_tr, NULL, flags, 5, pc);
+				__trace_stack(blk_tr, flags, 5, pc);
 			trace_wake_up();
 			return;
 		}

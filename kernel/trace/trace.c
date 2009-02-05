@@ -776,7 +776,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 }
 
 void
-trace_function(struct trace_array *tr, struct trace_array_cpu *data,
+trace_function(struct trace_array *tr,
 	       unsigned long ip, unsigned long parent_ip, unsigned long flags,
 	       int pc)
 {
@@ -802,7 +802,6 @@ trace_function(struct trace_array *tr, struct trace_array_cpu *data,
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static void __trace_graph_entry(struct trace_array *tr,
-				struct trace_array_cpu *data,
 				struct ftrace_graph_ent *trace,
 				unsigned long flags,
 				int pc)
@@ -826,7 +825,6 @@ static void __trace_graph_entry(struct trace_array *tr,
 }
 
 static void __trace_graph_return(struct trace_array *tr,
-				struct trace_array_cpu *data,
 				struct ftrace_graph_ret *trace,
 				unsigned long flags,
 				int pc)
@@ -856,11 +854,10 @@ ftrace(struct trace_array *tr, struct trace_array_cpu *data,
        int pc)
 {
 	if (likely(!atomic_read(&data->disabled)))
-		trace_function(tr, data, ip, parent_ip, flags, pc);
+		trace_function(tr, ip, parent_ip, flags, pc);
 }
 
 static void __ftrace_trace_stack(struct trace_array *tr,
-				 struct trace_array_cpu *data,
 				 unsigned long flags,
 				 int skip, int pc)
 {
@@ -891,27 +888,24 @@ static void __ftrace_trace_stack(struct trace_array *tr,
 }
 
 static void ftrace_trace_stack(struct trace_array *tr,
-			       struct trace_array_cpu *data,
 			       unsigned long flags,
 			       int skip, int pc)
 {
 	if (!(trace_flags & TRACE_ITER_STACKTRACE))
 		return;
 
-	__ftrace_trace_stack(tr, data, flags, skip, pc);
+	__ftrace_trace_stack(tr, flags, skip, pc);
 }
 
 void __trace_stack(struct trace_array *tr,
-		   struct trace_array_cpu *data,
 		   unsigned long flags,
 		   int skip, int pc)
 {
-	__ftrace_trace_stack(tr, data, flags, skip, pc);
+	__ftrace_trace_stack(tr, flags, skip, pc);
 }
 
 static void ftrace_trace_userstack(struct trace_array *tr,
-		   struct trace_array_cpu *data,
-		   unsigned long flags, int pc)
+				   unsigned long flags, int pc)
 {
 #ifdef CONFIG_STACKTRACE
 	struct ring_buffer_event *event;
@@ -942,20 +936,17 @@ static void ftrace_trace_userstack(struct trace_array *tr,
 #endif
 }
 
-void __trace_userstack(struct trace_array *tr,
-		   struct trace_array_cpu *data,
-		   unsigned long flags)
+void __trace_userstack(struct trace_array *tr, unsigned long flags)
 {
-	ftrace_trace_userstack(tr, data, flags, preempt_count());
+	ftrace_trace_userstack(tr, flags, preempt_count());
 }
 
 static void
-ftrace_trace_special(void *__tr, void *__data,
+ftrace_trace_special(void *__tr,
 		     unsigned long arg1, unsigned long arg2, unsigned long arg3,
 		     int pc)
 {
 	struct ring_buffer_event *event;
-	struct trace_array_cpu *data = __data;
 	struct trace_array *tr = __tr;
 	struct special_entry *entry;
 	unsigned long irq_flags;
@@ -971,8 +962,8 @@ ftrace_trace_special(void *__tr, void *__data,
 	entry->arg2			= arg2;
 	entry->arg3			= arg3;
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
-	ftrace_trace_stack(tr, data, irq_flags, 4, pc);
-	ftrace_trace_userstack(tr, data, irq_flags, pc);
+	ftrace_trace_stack(tr, irq_flags, 4, pc);
+	ftrace_trace_userstack(tr, irq_flags, pc);
 
 	trace_wake_up();
 }
@@ -981,12 +972,11 @@ void
 __trace_special(void *__tr, void *__data,
 		unsigned long arg1, unsigned long arg2, unsigned long arg3)
 {
-	ftrace_trace_special(__tr, __data, arg1, arg2, arg3, preempt_count());
+	ftrace_trace_special(__tr, arg1, arg2, arg3, preempt_count());
 }
 
 void
 tracing_sched_switch_trace(struct trace_array *tr,
-			   struct trace_array_cpu *data,
 			   struct task_struct *prev,
 			   struct task_struct *next,
 			   unsigned long flags, int pc)
@@ -1010,13 +1000,12 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->next_state		= next->state;
 	entry->next_cpu	= task_cpu(next);
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
-	ftrace_trace_stack(tr, data, flags, 5, pc);
-	ftrace_trace_userstack(tr, data, flags, pc);
+	ftrace_trace_stack(tr, flags, 5, pc);
+	ftrace_trace_userstack(tr, flags, pc);
 }
 
 void
 tracing_sched_wakeup_trace(struct trace_array *tr,
-			   struct trace_array_cpu *data,
 			   struct task_struct *wakee,
 			   struct task_struct *curr,
 			   unsigned long flags, int pc)
@@ -1040,8 +1029,8 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->next_state		= wakee->state;
 	entry->next_cpu			= task_cpu(wakee);
 	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
-	ftrace_trace_stack(tr, data, flags, 6, pc);
-	ftrace_trace_userstack(tr, data, flags, pc);
+	ftrace_trace_stack(tr, flags, 6, pc);
+	ftrace_trace_userstack(tr, flags, pc);
 
 	trace_wake_up();
 }
@@ -1064,7 +1053,7 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 	data = tr->data[cpu];
 
 	if (likely(atomic_inc_return(&data->disabled) == 1))
-		ftrace_trace_special(tr, data, arg1, arg2, arg3, pc);
+		ftrace_trace_special(tr, arg1, arg2, arg3, pc);
 
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
@@ -1092,7 +1081,7 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	disabled = atomic_inc_return(&data->disabled);
 	if (likely(disabled == 1)) {
 		pc = preempt_count();
-		__trace_graph_entry(tr, data, trace, flags, pc);
+		__trace_graph_entry(tr, trace, flags, pc);
 	}
 	/* Only do the atomic if it is not already set */
 	if (!test_tsk_trace_graph(current))
@@ -1118,7 +1107,7 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 	disabled = atomic_inc_return(&data->disabled);
 	if (likely(disabled == 1)) {
 		pc = preempt_count();
-		__trace_graph_return(tr, data, trace, flags, pc);
+		__trace_graph_return(tr, trace, flags, pc);
 	}
 	if (!trace->depth)
 		clear_tsk_trace_graph(current);

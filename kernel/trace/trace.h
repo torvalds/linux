@@ -419,14 +419,12 @@ void ftrace(struct trace_array *tr,
 			    unsigned long parent_ip,
 			    unsigned long flags, int pc);
 void tracing_sched_switch_trace(struct trace_array *tr,
-				struct trace_array_cpu *data,
 				struct task_struct *prev,
 				struct task_struct *next,
 				unsigned long flags, int pc);
 void tracing_record_cmdline(struct task_struct *tsk);
 
 void tracing_sched_wakeup_trace(struct trace_array *tr,
-				struct trace_array_cpu *data,
 				struct task_struct *wakee,
 				struct task_struct *cur,
 				unsigned long flags, int pc);
@@ -436,7 +434,6 @@ void trace_special(struct trace_array *tr,
 		   unsigned long arg2,
 		   unsigned long arg3, int pc);
 void trace_function(struct trace_array *tr,
-		    struct trace_array_cpu *data,
 		    unsigned long ip,
 		    unsigned long parent_ip,
 		    unsigned long flags, int pc);
@@ -462,7 +459,6 @@ void update_max_tr_single(struct trace_array *tr,
 			  struct task_struct *tsk, int cpu);
 
 void __trace_stack(struct trace_array *tr,
-		   struct trace_array_cpu *data,
 		   unsigned long flags,
 		   int skip, int pc);
 

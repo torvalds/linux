@@ -43,7 +43,7 @@ probe_sched_switch(struct rq *__rq, struct task_struct *prev,
 	data = ctx_trace->data[cpu];
 
 	if (likely(!atomic_read(&data->disabled)))
-		tracing_sched_switch_trace(ctx_trace, data, prev, next, flags, pc);
+		tracing_sched_switch_trace(ctx_trace, prev, next, flags, pc);
 
 	local_irq_restore(flags);
 }
@@ -66,7 +66,7 @@ probe_sched_wakeup(struct rq *__rq, struct task_struct *wakee, int success)
 	data = ctx_trace->data[cpu];
 
 	if (likely(!atomic_read(&data->disabled)))
-		tracing_sched_wakeup_trace(ctx_trace, data, wakee, current,
+		tracing_sched_wakeup_trace(ctx_trace, wakee, current,
 					   flags, pc);
 
 	local_irq_restore(flags);

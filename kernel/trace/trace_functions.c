@@ -78,7 +78,7 @@ function_trace_call_preempt_only(unsigned long ip, unsigned long parent_ip)
 	disabled = atomic_inc_return(&data->disabled);
 
 	if (likely(disabled == 1))
-		trace_function(tr, data, ip, parent_ip, flags, pc);
+		trace_function(tr, ip, parent_ip, flags, pc);
 
 	atomic_dec(&data->disabled);
 	ftrace_preempt_enable(resched);
@@ -108,7 +108,7 @@ function_trace_call(unsigned long ip, unsigned long parent_ip)
 
 	if (likely(disabled == 1)) {
 		pc = preempt_count();
-		trace_function(tr, data, ip, parent_ip, flags, pc);
+		trace_function(tr, ip, parent_ip, flags, pc);
 	}
 
 	atomic_dec(&data->disabled);
@@ -139,7 +139,7 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip)
 
 	if (likely(disabled == 1)) {
 		pc = preempt_count();
-		trace_function(tr, data, ip, parent_ip, flags, pc);
+		trace_function(tr, ip, parent_ip, flags, pc);
 		/*
 		 * skip over 5 funcs:
 		 *    __ftrace_trace_stack,
@@ -148,7 +148,7 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip)
 		 *    ftrace_list_func
 		 *    ftrace_call
 		 */
-		__trace_stack(tr, data, flags, 5, pc);
+		__trace_stack(tr, flags, 5, pc);
 	}
 
 	atomic_dec(&data->disabled);

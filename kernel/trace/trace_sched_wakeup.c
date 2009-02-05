@@ -72,7 +72,7 @@ wakeup_tracer_call(unsigned long ip, unsigned long parent_ip)
 	if (task_cpu(wakeup_task) != cpu)
 		goto unlock;
 
-	trace_function(tr, data, ip, parent_ip, flags, pc);
+	trace_function(tr, ip, parent_ip, flags, pc);
 
  unlock:
 	__raw_spin_unlock(&wakeup_lock);
@@ -152,8 +152,8 @@ probe_wakeup_sched_switch(struct rq *rq, struct task_struct *prev,
 	if (unlikely(!tracer_enabled || next != wakeup_task))
 		goto out_unlock;
 
-	trace_function(wakeup_trace, data, CALLER_ADDR1, CALLER_ADDR2, flags, pc);
-	tracing_sched_switch_trace(wakeup_trace, data, prev, next, flags, pc);
+	trace_function(wakeup_trace, CALLER_ADDR1, CALLER_ADDR2, flags, pc);
+	tracing_sched_switch_trace(wakeup_trace, prev, next, flags, pc);
 
 	/*
 	 * usecs conversion is slow so we try to delay the conversion
@@ -254,10 +254,8 @@ probe_wakeup(struct rq *rq, struct task_struct *p, int success)
 
 	data = wakeup_trace->data[wakeup_cpu];
 	data->preempt_timestamp = ftrace_now(cpu);
-	tracing_sched_wakeup_trace(wakeup_trace, data, p, current,
-				   flags, pc);
-	trace_function(wakeup_trace, data, CALLER_ADDR1, CALLER_ADDR2,
-		       flags, pc);
+	tracing_sched_wakeup_trace(wakeup_trace, p, current, flags, pc);
+	trace_function(wakeup_trace, CALLER_ADDR1, CALLER_ADDR2, flags, pc);
 
 out_locked:
 	__raw_spin_unlock(&wakeup_lock);
