@@ -434,6 +434,12 @@ static inline int pte_none(pte_t pte)
 	return !pte.pte;
 }
 
+#define __HAVE_ARCH_PTE_SAME
+static inline int pte_same(pte_t a, pte_t b)
+{
+	return a.pte == b.pte;
+}
+
 #endif	/* __ASSEMBLY__ */
 
 #ifdef CONFIG_X86_32

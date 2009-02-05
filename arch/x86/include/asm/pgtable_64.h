@@ -134,8 +134,6 @@ static inline void native_pgd_clear(pgd_t *pgd)
 	native_set_pgd(pgd, native_make_pgd(0));
 }
 
-#define pte_same(a, b)		((a).pte == (b).pte)
-
 #endif /* !__ASSEMBLY__ */
 
 #define PMD_SIZE	(_AC(1, UL) << PMD_SHIFT)
