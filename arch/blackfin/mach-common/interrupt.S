@@ -195,7 +195,7 @@ ENDPROC(_evt_ivhw)
 /* Interrupt routine for evt2 (NMI).
  * We don't actually use this, so just return.
  * For inner circle type details, please see:
- * http://docs.blackfin.uclinux.org/doku.php?id=linux:nmi
+ * http://docs.blackfin.uclinux.org/doku.php?id=linux-kernel:nmi
  */
 ENTRY(_evt_nmi)
 .weak _evt_nmi

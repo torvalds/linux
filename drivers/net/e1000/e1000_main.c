@@ -940,7 +940,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		err = pci_enable_device(pdev);
 	} else {
 		bars = pci_select_bars(pdev, IORESOURCE_MEM);
-		err = pci_enable_device(pdev);
+		err = pci_enable_device_mem(pdev);
 	}
 	if (err)
 		return err;
