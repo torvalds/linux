@@ -429,6 +429,11 @@ static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
 }
 #endif	/* CONFIG_PARAVIRT */
 
+static inline int pte_none(pte_t pte)
+{
+	return !pte.pte;
+}
+
 #endif	/* __ASSEMBLY__ */
 
 #ifdef CONFIG_X86_32

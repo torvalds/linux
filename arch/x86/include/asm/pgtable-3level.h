@@ -151,11 +151,6 @@ static inline int pte_same(pte_t a, pte_t b)
 	return a.pte_low == b.pte_low && a.pte_high == b.pte_high;
 }
 
-static inline int pte_none(pte_t pte)
-{
-	return !pte.pte_low && !pte.pte_high;
-}
-
 /*
  * Bits 0, 6 and 7 are taken in the low part of the pte,
  * put the 32 bits of offset into the high part.
