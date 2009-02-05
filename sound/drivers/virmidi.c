@@ -98,7 +98,9 @@ static int __devinit snd_virmidi_probe(struct platform_device *devptr)
 	vmidi->card = card;
 
 	if (midi_devs[dev] > MAX_MIDI_DEVICES) {
-		snd_printk("too much midi devices for virmidi %d: force to use %d\n", dev, MAX_MIDI_DEVICES);
+		snd_printk(KERN_WARNING
+			   "too much midi devices for virmidi %d: "
+			   "force to use %d\n", dev, MAX_MIDI_DEVICES);
 		midi_devs[dev] = MAX_MIDI_DEVICES;
 	}
 	for (idx = 0; idx < midi_devs[dev]; idx++) {
