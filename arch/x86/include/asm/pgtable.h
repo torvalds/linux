@@ -506,6 +506,11 @@ static inline unsigned pud_index(unsigned long address)
 {
 	return (address >> PUD_SHIFT) & (PTRS_PER_PUD - 1);
 }
+
+static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
+{
+	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(address);
+}
 #endif	/* PAGETABLE_LEVELS > 3 */
 
 #endif	/* __ASSEMBLY__ */
