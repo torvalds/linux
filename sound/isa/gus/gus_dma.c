@@ -78,7 +78,8 @@ static void snd_gf1_dma_program(struct snd_gus_card * gus,
 	snd_gf1_dma_ack(gus);
 	snd_dma_program(gus->gf1.dma1, buf_addr, count, dma_cmd & SNDRV_GF1_DMA_READ ? DMA_MODE_READ : DMA_MODE_WRITE);
 #if 0
-	snd_printk("address = 0x%x, count = 0x%x, dma_cmd = 0x%x\n", address << 1, count, dma_cmd);
+	snd_printk(KERN_DEBUG "address = 0x%x, count = 0x%x, dma_cmd = 0x%x\n",
+		   address << 1, count, dma_cmd);
 #endif
 	spin_lock_irqsave(&gus->reg_lock, flags);
 	if (gus->gf1.enh_mode) {
