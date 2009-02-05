@@ -1,5 +1,5 @@
-#ifndef _ASM_M68KNOMMU_UNALIGNED_H
-#define _ASM_M68KNOMMU_UNALIGNED_H
+#ifndef _ASM_M68K_UNALIGNED_H
+#define _ASM_M68K_UNALIGNED_H
 
 
 #ifdef CONFIG_COLDFIRE
@@ -22,4 +22,4 @@
 
 #endif
 
-#endif /* _ASM_M68KNOMMU_UNALIGNED_H */
+#endif /* _ASM_M68K_UNALIGNED_H */
