@@ -776,6 +776,39 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 		(need_resched() ? TRACE_FLAG_NEED_RESCHED : 0);
 }
 
+struct ring_buffer_event *trace_buffer_lock_reserve(struct trace_array *tr,
+						    unsigned char type,
+						    unsigned long len,
+						    unsigned long flags, int pc)
+{
+	struct ring_buffer_event *event;
+
+	event = ring_buffer_lock_reserve(tr->buffer, len);
+	if (event != NULL) {
+		struct trace_entry *ent = ring_buffer_event_data(event);
+
+		tracing_generic_entry_update(ent, flags, pc);
+		ent->type = type;
+	}
+
+	return event;
+}
+static void ftrace_trace_stack(struct trace_array *tr,
+			       unsigned long flags, int skip, int pc);
+static void ftrace_trace_userstack(struct trace_array *tr,
+				   unsigned long flags, int pc);
+
+void trace_buffer_unlock_commit(struct trace_array *tr,
+				struct ring_buffer_event *event,
+				unsigned long flags, int pc)
+{
+	ring_buffer_unlock_commit(tr->buffer, event);
+
+	ftrace_trace_stack(tr, flags, 6, pc);
+	ftrace_trace_userstack(tr, flags, pc);
+	trace_wake_up();
+}
+
 void
 trace_function(struct trace_array *tr,
 	       unsigned long ip, unsigned long parent_ip, unsigned long flags,
@@ -788,12 +821,11 @@ trace_function(struct trace_array *tr,
 	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
 		return;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_FN, sizeof(*entry),
+					  flags, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, flags, pc);
-	entry->ent.type			= TRACE_FN;
 	entry->ip			= ip;
 	entry->parent_ip		= parent_ip;
 	ring_buffer_unlock_commit(tr->buffer, event);
@@ -811,12 +843,11 @@ static void __trace_graph_entry(struct trace_array *tr,
 	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
 		return;
 
-	event = ring_buffer_lock_reserve(global_trace.buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(&global_trace, TRACE_GRAPH_ENT,
+					  sizeof(*entry), flags, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, flags, pc);
-	entry->ent.type			= TRACE_GRAPH_ENT;
 	entry->graph_ent			= *trace;
 	ring_buffer_unlock_commit(global_trace.buffer, event);
 }
@@ -832,12 +863,11 @@ static void __trace_graph_return(struct trace_array *tr,
 	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
 		return;
 
-	event = ring_buffer_lock_reserve(global_trace.buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(&global_trace, TRACE_GRAPH_RET,
+					  sizeof(*entry), flags, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, flags, pc);
-	entry->ent.type			= TRACE_GRAPH_RET;
 	entry->ret				= *trace;
 	ring_buffer_unlock_commit(global_trace.buffer, event);
 }
@@ -861,13 +891,11 @@ static void __ftrace_trace_stack(struct trace_array *tr,
 	struct stack_entry *entry;
 	struct stack_trace trace;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_STACK,
+					  sizeof(*entry), flags, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, flags, pc);
-	entry->ent.type		= TRACE_STACK;
-
 	memset(&entry->caller, 0, sizeof(entry->caller));
 
 	trace.nr_entries	= 0;
@@ -908,12 +936,11 @@ static void ftrace_trace_userstack(struct trace_array *tr,
 	if (!(trace_flags & TRACE_ITER_USERSTACKTRACE))
 		return;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_USER_STACK,
+					  sizeof(*entry), flags, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, flags, pc);
-	entry->ent.type		= TRACE_USER_STACK;
 
 	memset(&entry->caller, 0, sizeof(entry->caller));
 
@@ -941,20 +968,15 @@ ftrace_trace_special(void *__tr,
 	struct trace_array *tr = __tr;
 	struct special_entry *entry;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_SPECIAL,
+					  sizeof(*entry), 0, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0, pc);
-	entry->ent.type			= TRACE_SPECIAL;
 	entry->arg1			= arg1;
 	entry->arg2			= arg2;
 	entry->arg3			= arg3;
-	ring_buffer_unlock_commit(tr->buffer, event);
-	ftrace_trace_stack(tr, 0, 4, pc);
-	ftrace_trace_userstack(tr, 0, pc);
-
-	trace_wake_up();
+	trace_buffer_unlock_commit(tr, event, 0, pc);
 }
 
 void
@@ -973,12 +995,11 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_CTX,
+					  sizeof(*entry), flags, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, flags, pc);
-	entry->ent.type			= TRACE_CTX;
 	entry->prev_pid			= prev->pid;
 	entry->prev_prio		= prev->prio;
 	entry->prev_state		= prev->state;
@@ -986,9 +1007,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 	entry->next_prio		= next->prio;
 	entry->next_state		= next->state;
 	entry->next_cpu	= task_cpu(next);
-	ring_buffer_unlock_commit(tr->buffer, event);
-	ftrace_trace_stack(tr, flags, 5, pc);
-	ftrace_trace_userstack(tr, flags, pc);
+	trace_buffer_unlock_commit(tr, event, flags, pc);
 }
 
 void
@@ -1000,12 +1019,11 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_WAKE,
+					  sizeof(*entry), flags, pc);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, flags, pc);
-	entry->ent.type			= TRACE_WAKE;
 	entry->prev_pid			= curr->pid;
 	entry->prev_prio		= curr->prio;
 	entry->prev_state		= curr->state;
@@ -1013,11 +1031,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->next_prio		= wakee->prio;
 	entry->next_state		= wakee->state;
 	entry->next_cpu			= task_cpu(wakee);
-	ring_buffer_unlock_commit(tr->buffer, event);
-	ftrace_trace_stack(tr, flags, 6, pc);
-	ftrace_trace_userstack(tr, flags, pc);
-
-	trace_wake_up();
+	trace_buffer_unlock_commit(tr, event, flags, pc);
 }
 
 void
@@ -2825,12 +2839,10 @@ int trace_vprintk(unsigned long ip, int depth, const char *fmt, va_list args)
 	trace_buf[len] = 0;
 
 	size = sizeof(*entry) + len + 1;
-	event = ring_buffer_lock_reserve(tr->buffer, size);
+	event = trace_buffer_lock_reserve(tr, TRACE_PRINT, size, irq_flags, pc);
 	if (!event)
 		goto out_unlock;
 	entry = ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, irq_flags, pc);
-	entry->ent.type			= TRACE_PRINT;
 	entry->ip			= ip;
 	entry->depth			= depth;
 

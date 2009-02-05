@@ -276,13 +276,12 @@ void kmemtrace_mark_alloc_node(enum kmemtrace_type_id type_id,
 	if (!kmem_tracing_enabled)
 		return;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_KMEM_ALLOC,
+					  sizeof(*entry), 0, 0);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0, 0);
 
-	entry->ent.type = TRACE_KMEM_ALLOC;
 	entry->call_site = call_site;
 	entry->ptr = ptr;
 	entry->bytes_req = bytes_req;
@@ -290,9 +289,7 @@ void kmemtrace_mark_alloc_node(enum kmemtrace_type_id type_id,
 	entry->gfp_flags = gfp_flags;
 	entry->node	=	node;
 
-	ring_buffer_unlock_commit(tr->buffer, event);
-
-	trace_wake_up();
+	trace_buffer_unlock_commit(tr, event, 0, 0);
 }
 EXPORT_SYMBOL(kmemtrace_mark_alloc_node);
 
@@ -307,20 +304,16 @@ void kmemtrace_mark_free(enum kmemtrace_type_id type_id,
 	if (!kmem_tracing_enabled)
 		return;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_KMEM_FREE,
+					  sizeof(*entry), 0, 0);
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0, 0);
-
-	entry->ent.type = TRACE_KMEM_FREE;
 	entry->type_id	= type_id;
 	entry->call_site = call_site;
 	entry->ptr = ptr;
 
-	ring_buffer_unlock_commit(tr->buffer, event);
-
-	trace_wake_up();
+	trace_buffer_unlock_commit(tr, event, 0, 0);
 }
 EXPORT_SYMBOL(kmemtrace_mark_free);
 

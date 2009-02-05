@@ -124,17 +124,13 @@ void trace_power_end(struct power_trace *it)
 	it->end = ktime_get();
 	data = tr->data[smp_processor_id()];
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_POWER,
+					  sizeof(*entry), 0, 0);
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0, 0);
-	entry->ent.type = TRACE_POWER;
 	entry->state_data = *it;
-	ring_buffer_unlock_commit(tr->buffer, event);
-
-	trace_wake_up();
-
+	trace_buffer_unlock_commit(tr, event, 0, 0);
  out:
 	preempt_enable();
 }
@@ -159,17 +155,13 @@ void trace_power_mark(struct power_trace *it, unsigned int type,
 	it->end = it->stamp;
 	data = tr->data[smp_processor_id()];
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_POWER,
+					  sizeof(*entry), 0, 0);
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0, 0);
-	entry->ent.type = TRACE_POWER;
 	entry->state_data = *it;
-	ring_buffer_unlock_commit(tr->buffer, event);
-
-	trace_wake_up();
-
+	trace_buffer_unlock_commit(tr, event, 0, 0);
  out:
 	preempt_enable();
 }

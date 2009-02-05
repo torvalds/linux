@@ -187,19 +187,15 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	cpu = raw_smp_processor_id();
 
 	if (blk_tr) {
-		struct trace_entry *ent;
 		tracing_record_cmdline(current);
 
-		event = ring_buffer_lock_reserve(blk_tr->buffer,
-						 sizeof(*t) + pdu_len);
+		pc = preempt_count();
+		event = trace_buffer_lock_reserve(blk_tr, TRACE_BLK,
+						  sizeof(*t) + pdu_len,
+						  0, pc);
 		if (!event)
 			return;
-
-		ent = ring_buffer_event_data(event);
-		t = (struct blk_io_trace *)ent;
-		pc = preempt_count();
-		tracing_generic_entry_update(ent, 0, pc);
-		ent->type = TRACE_BLK;
+		t = ring_buffer_event_data(event);
 		goto record_it;
 	}
 
@@ -241,12 +237,7 @@ record_it:
 			memcpy((void *) t + sizeof(*t), pdu_data, pdu_len);
 
 		if (blk_tr) {
-			ring_buffer_unlock_commit(blk_tr->buffer, event);
-			if (pid != 0 &&
-			    !(blk_tracer_flags.val & TRACE_BLK_OPT_CLASSIC) &&
-			    (trace_flags & TRACE_ITER_STACKTRACE) != 0)
-				__trace_stack(blk_tr, 0, 5, pc);
-			trace_wake_up();
+			trace_buffer_unlock_commit(blk_tr, event, 0, pc);
 			return;
 		}
 	}

@@ -307,19 +307,17 @@ static void __trace_mmiotrace_rw(struct trace_array *tr,
 {
 	struct ring_buffer_event *event;
 	struct trace_mmiotrace_rw *entry;
+	int pc = preempt_count();
 
-	event	= ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_MMIO_RW,
+					  sizeof(*entry), 0, pc);
 	if (!event) {
 		atomic_inc(&dropped_count);
 		return;
 	}
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0, preempt_count());
-	entry->ent.type			= TRACE_MMIO_RW;
 	entry->rw			= *rw;
-	ring_buffer_unlock_commit(tr->buffer, event);
-
-	trace_wake_up();
+	trace_buffer_unlock_commit(tr, event, 0, pc);
 }
 
 void mmio_trace_rw(struct mmiotrace_rw *rw)
@@ -335,19 +333,17 @@ static void __trace_mmiotrace_map(struct trace_array *tr,
 {
 	struct ring_buffer_event *event;
 	struct trace_mmiotrace_map *entry;
+	int pc = preempt_count();
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_MMIO_MAP,
+					  sizeof(*entry), 0, pc);
 	if (!event) {
 		atomic_inc(&dropped_count);
 		return;
 	}
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0, preempt_count());
-	entry->ent.type			= TRACE_MMIO_MAP;
 	entry->map			= *map;
-	ring_buffer_unlock_commit(tr->buffer, event);
-
-	trace_wake_up();
+	trace_buffer_unlock_commit(tr, event, 0, pc);
 }
 
 void mmio_trace_mapping(struct mmiotrace_map *map)

@@ -189,16 +189,15 @@ void trace_hw_branch(u64 from, u64 to)
 	if (atomic_inc_return(&tr->data[cpu]->disabled) != 1)
 		goto out;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	event = trace_buffer_lock_reserve(tr, TRACE_HW_BRANCHES,
+					  sizeof(*entry), 0, 0);
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, 0, from);
-	entry->ent.type = TRACE_HW_BRANCHES;
 	entry->ent.cpu = cpu;
 	entry->from = from;
 	entry->to   = to;
-	ring_buffer_unlock_commit(tr->buffer, event);
+	trace_buffer_unlock_commit(tr, event, 0, 0);
 
  out:
 	atomic_dec(&tr->data[cpu]->disabled);

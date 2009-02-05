@@ -52,14 +52,13 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	if (atomic_inc_return(&tr->data[cpu]->disabled) != 1)
 		goto out;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	pc = preempt_count();
+	event = trace_buffer_lock_reserve(tr, TRACE_BRANCH,
+					  sizeof(*entry), flags, pc);
 	if (!event)
 		goto out;
 
-	pc = preempt_count();
 	entry	= ring_buffer_event_data(event);
-	tracing_generic_entry_update(&entry->ent, flags, pc);
-	entry->ent.type		= TRACE_BRANCH;
 
 	/* Strip off the path, only save the file */
 	p = f->file + strlen(f->file);
