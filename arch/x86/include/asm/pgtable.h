@@ -599,6 +599,11 @@ static inline int pgd_bad(pgd_t pgd)
 {
 	return (pgd_val(pgd) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
+
+static inline int pgd_none(pgd_t pgd)
+{
+	return !pgd_val(pgd);
+}
 #endif	/* PAGETABLE_LEVELS > 3 */
 
 #endif	/* __ASSEMBLY__ */

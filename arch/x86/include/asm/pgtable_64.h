@@ -67,8 +67,6 @@ extern void paging_init(void);
 	printk("%s:%d: bad pgd %p(%016lx).\n",		\
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
-#define pgd_none(x)	(!pgd_val(x))
-
 struct mm_struct;
 
 void set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte);
