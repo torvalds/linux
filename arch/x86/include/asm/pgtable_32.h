@@ -95,13 +95,6 @@ extern unsigned long pg0[];
 # include <asm/pgtable-2level.h>
 #endif
 
-/*
- * Conversion functions: convert a page and protection to a page entry,
- * and a page entry and page directory to the page they refer to.
- */
-#define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
-
-
 static inline int pud_large(pud_t pud) { return 0; }
 
 /*

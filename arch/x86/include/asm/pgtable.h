@@ -489,6 +489,15 @@ static inline unsigned pmd_index(unsigned long address)
 	return (address >> PMD_SHIFT) & (PTRS_PER_PMD - 1);
 }
 
+/*
+ * Conversion functions: convert a page and protection to a page entry,
+ * and a page entry and page directory to the page they refer to.
+ *
+ * (Currently stuck as a macro because of indirect forward reference
+ * to linux/mm.h:page_to_nid())
+ */
+#define mk_pte(page, pgprot)   pfn_pte(page_to_pfn(page), (pgprot))
+
 #if PAGETABLE_LEVELS > 2
 static inline int pud_present(pud_t pud)
 {
