@@ -33,7 +33,7 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	struct trace_array *tr = branch_tracer;
 	struct ring_buffer_event *event;
 	struct trace_branch *entry;
-	unsigned long flags, irq_flags;
+	unsigned long flags;
 	int cpu, pc;
 	const char *p;
 
@@ -52,8 +52,7 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	if (atomic_inc_return(&tr->data[cpu]->disabled) != 1)
 		goto out;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
-					 &irq_flags);
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
 	if (!event)
 		goto out;
 
@@ -75,7 +74,7 @@ probe_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 	entry->line = f->line;
 	entry->correct = val == expect;
 
-	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+	ring_buffer_unlock_commit(tr->buffer, event);
 
  out:
 	atomic_dec(&tr->data[cpu]->disabled);

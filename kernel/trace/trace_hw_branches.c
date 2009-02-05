@@ -175,7 +175,7 @@ void trace_hw_branch(u64 from, u64 to)
 	struct trace_array *tr = hw_branch_trace;
 	struct ring_buffer_event *event;
 	struct hw_branch_entry *entry;
-	unsigned long irq1, irq2;
+	unsigned long irq1;
 	int cpu;
 
 	if (unlikely(!tr))
@@ -189,7 +189,7 @@ void trace_hw_branch(u64 from, u64 to)
 	if (atomic_inc_return(&tr->data[cpu]->disabled) != 1)
 		goto out;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry), &irq2);
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
@@ -198,7 +198,7 @@ void trace_hw_branch(u64 from, u64 to)
 	entry->ent.cpu = cpu;
 	entry->from = from;
 	entry->to   = to;
-	ring_buffer_unlock_commit(tr->buffer, event, irq2);
+	ring_buffer_unlock_commit(tr->buffer, event);
 
  out:
 	atomic_dec(&tr->data[cpu]->disabled);

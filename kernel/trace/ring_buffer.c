@@ -1257,7 +1257,6 @@ static DEFINE_PER_CPU(int, rb_need_resched);
  * ring_buffer_lock_reserve - reserve a part of the buffer
  * @buffer: the ring buffer to reserve from
  * @length: the length of the data to reserve (excluding event header)
- * @flags: a pointer to save the interrupt flags
  *
  * Returns a reseverd event on the ring buffer to copy directly to.
  * The user of this interface will need to get the body to write into
@@ -1270,9 +1269,7 @@ static DEFINE_PER_CPU(int, rb_need_resched);
  * If NULL is returned, then nothing has been allocated or locked.
  */
 struct ring_buffer_event *
-ring_buffer_lock_reserve(struct ring_buffer *buffer,
-			 unsigned long length,
-			 unsigned long *flags)
+ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
@@ -1339,15 +1336,13 @@ static void rb_commit(struct ring_buffer_per_cpu *cpu_buffer,
  * ring_buffer_unlock_commit - commit a reserved
  * @buffer: The buffer to commit to
  * @event: The event pointer to commit.
- * @flags: the interrupt flags received from ring_buffer_lock_reserve.
  *
  * This commits the data to the ring buffer, and releases any locks held.
  *
  * Must be paired with ring_buffer_lock_reserve.
  */
 int ring_buffer_unlock_commit(struct ring_buffer *buffer,
-			      struct ring_buffer_event *event,
-			      unsigned long flags)
+			      struct ring_buffer_event *event)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	int cpu = raw_smp_processor_id();

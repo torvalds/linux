@@ -272,13 +272,11 @@ void kmemtrace_mark_alloc_node(enum kmemtrace_type_id type_id,
 	struct ring_buffer_event *event;
 	struct kmemtrace_alloc_entry *entry;
 	struct trace_array *tr = kmemtrace_array;
-	unsigned long irq_flags;
 
 	if (!kmem_tracing_enabled)
 		return;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
-					 &irq_flags);
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
@@ -292,7 +290,7 @@ void kmemtrace_mark_alloc_node(enum kmemtrace_type_id type_id,
 	entry->gfp_flags = gfp_flags;
 	entry->node	=	node;
 
-	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+	ring_buffer_unlock_commit(tr->buffer, event);
 
 	trace_wake_up();
 }
@@ -305,13 +303,11 @@ void kmemtrace_mark_free(enum kmemtrace_type_id type_id,
 	struct ring_buffer_event *event;
 	struct kmemtrace_free_entry *entry;
 	struct trace_array *tr = kmemtrace_array;
-	unsigned long irq_flags;
 
 	if (!kmem_tracing_enabled)
 		return;
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
-					 &irq_flags);
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
 	if (!event)
 		return;
 	entry	= ring_buffer_event_data(event);
@@ -322,7 +318,7 @@ void kmemtrace_mark_free(enum kmemtrace_type_id type_id,
 	entry->call_site = call_site;
 	entry->ptr = ptr;
 
-	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+	ring_buffer_unlock_commit(tr->buffer, event);
 
 	trace_wake_up();
 }

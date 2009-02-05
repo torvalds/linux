@@ -74,13 +74,10 @@ void ring_buffer_free(struct ring_buffer *buffer);
 
 int ring_buffer_resize(struct ring_buffer *buffer, unsigned long size);
 
-struct ring_buffer_event *
-ring_buffer_lock_reserve(struct ring_buffer *buffer,
-			 unsigned long length,
-			 unsigned long *flags);
+struct ring_buffer_event *ring_buffer_lock_reserve(struct ring_buffer *buffer,
+						   unsigned long length);
 int ring_buffer_unlock_commit(struct ring_buffer *buffer,
-			      struct ring_buffer_event *event,
-			      unsigned long flags);
+			      struct ring_buffer_event *event);
 int ring_buffer_write(struct ring_buffer *buffer,
 		      unsigned long length, void *data);
 

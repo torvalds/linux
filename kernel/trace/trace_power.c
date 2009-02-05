@@ -115,7 +115,6 @@ void trace_power_end(struct power_trace *it)
 	struct ring_buffer_event *event;
 	struct trace_power *entry;
 	struct trace_array_cpu *data;
-	unsigned long irq_flags;
 	struct trace_array *tr = power_trace;
 
 	if (!trace_power_enabled)
@@ -125,15 +124,14 @@ void trace_power_end(struct power_trace *it)
 	it->end = ktime_get();
 	data = tr->data[smp_processor_id()];
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
-					 &irq_flags);
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	tracing_generic_entry_update(&entry->ent, 0, 0);
 	entry->ent.type = TRACE_POWER;
 	entry->state_data = *it;
-	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+	ring_buffer_unlock_commit(tr->buffer, event);
 
 	trace_wake_up();
 
@@ -148,7 +146,6 @@ void trace_power_mark(struct power_trace *it, unsigned int type,
 	struct ring_buffer_event *event;
 	struct trace_power *entry;
 	struct trace_array_cpu *data;
-	unsigned long irq_flags;
 	struct trace_array *tr = power_trace;
 
 	if (!trace_power_enabled)
@@ -162,15 +159,14 @@ void trace_power_mark(struct power_trace *it, unsigned int type,
 	it->end = it->stamp;
 	data = tr->data[smp_processor_id()];
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
-					 &irq_flags);
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	tracing_generic_entry_update(&entry->ent, 0, 0);
 	entry->ent.type = TRACE_POWER;
 	entry->state_data = *it;
-	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+	ring_buffer_unlock_commit(tr->buffer, event);
 
 	trace_wake_up();
 

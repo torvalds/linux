@@ -132,7 +132,6 @@ void trace_boot_call(struct boot_trace_call *bt, initcall_t fn)
 {
 	struct ring_buffer_event *event;
 	struct trace_boot_call *entry;
-	unsigned long irq_flags;
 	struct trace_array *tr = boot_trace;
 
 	if (!tr || !pre_initcalls_finished)
@@ -144,15 +143,14 @@ void trace_boot_call(struct boot_trace_call *bt, initcall_t fn)
 	sprint_symbol(bt->func, (unsigned long)fn);
 	preempt_disable();
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
-					 &irq_flags);
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	tracing_generic_entry_update(&entry->ent, 0, 0);
 	entry->ent.type = TRACE_BOOT_CALL;
 	entry->boot_call = *bt;
-	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+	ring_buffer_unlock_commit(tr->buffer, event);
 
 	trace_wake_up();
 
@@ -164,7 +162,6 @@ void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn)
 {
 	struct ring_buffer_event *event;
 	struct trace_boot_ret *entry;
-	unsigned long irq_flags;
 	struct trace_array *tr = boot_trace;
 
 	if (!tr || !pre_initcalls_finished)
@@ -173,15 +170,14 @@ void trace_boot_ret(struct boot_trace_ret *bt, initcall_t fn)
 	sprint_symbol(bt->func, (unsigned long)fn);
 	preempt_disable();
 
-	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry),
-					 &irq_flags);
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
 	tracing_generic_entry_update(&entry->ent, 0, 0);
 	entry->ent.type = TRACE_BOOT_RET;
 	entry->boot_ret = *bt;
-	ring_buffer_unlock_commit(tr->buffer, event, irq_flags);
+	ring_buffer_unlock_commit(tr->buffer, event);
 
 	trace_wake_up();
 

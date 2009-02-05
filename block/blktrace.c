@@ -165,7 +165,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	struct task_struct *tsk = current;
 	struct ring_buffer_event *event = NULL;
 	struct blk_io_trace *t;
-	unsigned long flags;
+	unsigned long flags = 0;
 	unsigned long *sequence;
 	pid_t pid;
 	int cpu, pc = 0;
@@ -191,7 +191,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		tracing_record_cmdline(current);
 
 		event = ring_buffer_lock_reserve(blk_tr->buffer,
-						 sizeof(*t) + pdu_len, &flags);
+						 sizeof(*t) + pdu_len);
 		if (!event)
 			return;
 
@@ -241,11 +241,11 @@ record_it:
 			memcpy((void *) t + sizeof(*t), pdu_data, pdu_len);
 
 		if (blk_tr) {
-			ring_buffer_unlock_commit(blk_tr->buffer, event, flags);
+			ring_buffer_unlock_commit(blk_tr->buffer, event);
 			if (pid != 0 &&
 			    !(blk_tracer_flags.val & TRACE_BLK_OPT_CLASSIC) &&
 			    (trace_flags & TRACE_ITER_STACKTRACE) != 0)
-				__trace_stack(blk_tr, flags, 5, pc);
+				__trace_stack(blk_tr, 0, 5, pc);
 			trace_wake_up();
 			return;
 		}
