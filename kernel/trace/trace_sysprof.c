@@ -226,15 +226,6 @@ static void stop_stack_timers(void)
 		stop_stack_timer(cpu);
 }
 
-static void start_stack_trace(struct trace_array *tr)
-{
-	mutex_lock(&sample_timer_lock);
-	tracing_reset_online_cpus(tr);
-	start_stack_timers();
-	tracer_enabled = 1;
-	mutex_unlock(&sample_timer_lock);
-}
-
 static void stop_stack_trace(struct trace_array *tr)
 {
 	mutex_lock(&sample_timer_lock);
@@ -247,7 +238,10 @@ static int stack_trace_init(struct trace_array *tr)
 {
 	sysprof_trace = tr;
 
-	start_stack_trace(tr);
+	mutex_lock(&sample_timer_lock);
+	start_stack_timers();
+	tracer_enabled = 1;
+	mutex_unlock(&sample_timer_lock);
 	return 0;
 }
 

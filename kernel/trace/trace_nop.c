@@ -48,7 +48,6 @@ static void stop_nop_trace(struct trace_array *tr)
 static int nop_trace_init(struct trace_array *tr)
 {
 	ctx_trace = tr;
-	tracing_reset_online_cpus(tr);
 	start_nop_trace(tr);
 	return 0;
 }

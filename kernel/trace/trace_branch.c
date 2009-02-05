@@ -131,7 +131,6 @@ static void stop_branch_trace(struct trace_array *tr)
 
 static int branch_trace_init(struct trace_array *tr)
 {
-	tracing_reset_online_cpus(tr);
 	start_branch_trace(tr);
 	return 0;
 }

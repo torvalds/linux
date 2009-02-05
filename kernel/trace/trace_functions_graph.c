@@ -56,7 +56,6 @@ static int graph_trace_init(struct trace_array *tr)
 					&trace_graph_entry);
 	if (ret)
 		return ret;
-	tracing_reset_online_cpus(tr);
 	tracing_start_cmdline_record();
 
 	return 0;

@@ -1086,8 +1086,6 @@ static void blk_tracer_print_header(struct seq_file *m)
 
 static void blk_tracer_start(struct trace_array *tr)
 {
-	tracing_reset_online_cpus(tr);
-
 	mutex_lock(&blk_probe_mutex);
 	if (atomic_add_return(1, &blk_probes_ref) == 1)
 		if (blk_register_tracepoints())

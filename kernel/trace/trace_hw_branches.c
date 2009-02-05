@@ -132,7 +132,6 @@ static int bts_trace_init(struct trace_array *tr)
 	hw_branch_trace = tr;
 
 	register_hotcpu_notifier(&bts_hotcpu_notifier);
-	tracing_reset_online_cpus(tr);
 	bts_trace_start(tr);
 
 	return 0;

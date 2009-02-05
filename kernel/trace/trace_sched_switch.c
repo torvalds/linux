@@ -185,12 +185,6 @@ void tracing_sched_switch_assign_trace(struct trace_array *tr)
 	ctx_trace = tr;
 }
 
-static void start_sched_trace(struct trace_array *tr)
-{
-	tracing_reset_online_cpus(tr);
-	tracing_start_sched_switch_record();
-}
-
 static void stop_sched_trace(struct trace_array *tr)
 {
 	tracing_stop_sched_switch_record();
@@ -199,7 +193,7 @@ static void stop_sched_trace(struct trace_array *tr)
 static int sched_switch_trace_init(struct trace_array *tr)
 {
 	ctx_trace = tr;
-	start_sched_trace(tr);
+	tracing_start_sched_switch_record();
 	return 0;
 }
 

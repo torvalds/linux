@@ -24,32 +24,21 @@ static struct trace_array	*func_trace;
 static void tracing_start_function_trace(void);
 static void tracing_stop_function_trace(void);
 
-static void start_function_trace(struct trace_array *tr)
+static int function_trace_init(struct trace_array *tr)
 {
 	func_trace = tr;
 	tr->cpu = get_cpu();
-	tracing_reset_online_cpus(tr);
 	put_cpu();
 
 	tracing_start_cmdline_record();
 	tracing_start_function_trace();
-}
-
-static void stop_function_trace(struct trace_array *tr)
-{
-	tracing_stop_function_trace();
-	tracing_stop_cmdline_record();
-}
-
-static int function_trace_init(struct trace_array *tr)
-{
-	start_function_trace(tr);
 	return 0;
 }
 
 static void function_trace_reset(struct trace_array *tr)
 {
-	stop_function_trace(tr);
+	tracing_stop_function_trace();
+	tracing_stop_cmdline_record();
 }
 
 static void function_trace_start(struct trace_array *tr)

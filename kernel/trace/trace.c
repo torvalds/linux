@@ -2171,6 +2171,12 @@ tracing_set_trace_read(struct file *filp, char __user *ubuf,
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
 }
 
+int tracer_init(struct tracer *t, struct trace_array *tr)
+{
+	tracing_reset_online_cpus(tr);
+	return t->init(tr);
+}
+
 static int tracing_set_tracer(const char *buf)
 {
 	struct trace_array *tr = &global_trace;
@@ -2195,7 +2201,7 @@ static int tracing_set_tracer(const char *buf)
 
 	current_trace = t;
 	if (t->init) {
-		ret = t->init(tr);
+		ret = tracer_init(t, tr);
 		if (ret)
 			goto out;
 	}

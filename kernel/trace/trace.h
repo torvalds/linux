@@ -395,6 +395,7 @@ struct trace_iterator {
 	cpumask_var_t		started;
 };
 
+int tracer_init(struct tracer *t, struct trace_array *tr);
 int tracing_is_enabled(void);
 void trace_wake_up(void);
 void tracing_reset(struct trace_array *tr, int cpu);
