@@ -286,7 +286,8 @@ int snd_cs4236_create(struct snd_card *card,
 	if (hardware == WSS_HW_DETECT)
 		hardware = WSS_HW_DETECT3;
 	if (cport < 0x100) {
-		snd_printk("please, specify control port for CS4236+ chips\n");
+		snd_printk(KERN_ERR "please, specify control port "
+			   "for CS4236+ chips\n");
 		return -ENODEV;
 	}
 	err = snd_wss_create(card, port, cport,
@@ -295,7 +296,8 @@ int snd_cs4236_create(struct snd_card *card,
 		return err;
 
 	if (!(chip->hardware & WSS_HW_CS4236B_MASK)) {
-	        snd_printk("CS4236+: MODE3 and extended registers not available, hardware=0x%x\n",chip->hardware);
+		snd_printk(KERN_ERR "CS4236+: MODE3 and extended registers "
+			   "not available, hardware=0x%x\n", chip->hardware);
 		snd_device_free(card, chip);
 		return -ENODEV;
 	}
@@ -303,16 +305,19 @@ int snd_cs4236_create(struct snd_card *card,
 	{
 		int idx;
 		for (idx = 0; idx < 8; idx++)
-			snd_printk("CD%i = 0x%x\n", idx, inb(chip->cport + idx));
+			snd_printk(KERN_DEBUG "CD%i = 0x%x\n",
+				   idx, inb(chip->cport + idx));
 		for (idx = 0; idx < 9; idx++)
-			snd_printk("C%i = 0x%x\n", idx, snd_cs4236_ctrl_in(chip, idx));
+			snd_printk(KERN_DEBUG "C%i = 0x%x\n",
+				   idx, snd_cs4236_ctrl_in(chip, idx));
 	}
 #endif
 	ver1 = snd_cs4236_ctrl_in(chip, 1);
 	ver2 = snd_cs4236_ext_in(chip, CS4236_VERSION);
 	snd_printdd("CS4236: [0x%lx] C1 (version) = 0x%x, ext = 0x%x\n", cport, ver1, ver2);
 	if (ver1 != ver2) {
-		snd_printk("CS4236+ chip detected, but control port 0x%lx is not valid\n", cport);
+		snd_printk(KERN_ERR "CS4236+ chip detected, but "
+			   "control port 0x%lx is not valid\n", cport);
 		snd_device_free(card, chip);
 		return -ENODEV;
 	}
@@ -883,7 +888,8 @@ static int snd_cs4236_get_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	ucontrol->value.integer.value[0] = chip->image[CS4231_ALT_FEATURE_1] & 0x02 ? 1 : 0;
 #if 0
-	printk("get valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",
+	printk(KERN_DEBUG "get valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, "
+	       "C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",
 			snd_wss_in(chip, CS4231_ALT_FEATURE_1),
 			snd_cs4236_ctrl_in(chip, 3),
 			snd_cs4236_ctrl_in(chip, 4),
@@ -920,7 +926,8 @@ static int snd_cs4236_put_iec958_switch(struct snd_kcontrol *kcontrol, struct sn
 	mutex_unlock(&chip->mce_mutex);
 
 #if 0
-	printk("set valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",
+	printk(KERN_DEBUG "set valid: ALT = 0x%x, C3 = 0x%x, C4 = 0x%x, "
+	       "C5 = 0x%x, C6 = 0x%x, C8 = 0x%x\n",
 			snd_wss_in(chip, CS4231_ALT_FEATURE_1),
 			snd_cs4236_ctrl_in(chip, 3),
 			snd_cs4236_ctrl_in(chip, 4),
