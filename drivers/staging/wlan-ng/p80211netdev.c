@@ -135,12 +135,6 @@ int wlan_wext_write = 1;
 module_param(wlan_wext_write, int, 0644);
 MODULE_PARM_DESC(wlan_wext_write, "enable write wireless extensions");
 
-#ifdef WLAN_INCLUDE_DEBUG
-int wlan_debug=0;
-module_param(wlan_debug, int, 0644);
-MODULE_PARM_DESC(wlan_debug, "p80211 debug level");
-#endif
-
 /*================================================================*/
 /* Function Definitions */
 

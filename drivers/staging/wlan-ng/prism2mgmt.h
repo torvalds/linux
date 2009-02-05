@@ -64,7 +64,6 @@
 /*=============================================================*/
 /*------ Static variable externs ------------------------------*/
 
-extern int	prism2_debug;
 extern int      prism2_reset_holdtime;
 extern int      prism2_reset_settletime;
 /*=============================================================*/

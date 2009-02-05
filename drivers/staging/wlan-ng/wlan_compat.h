@@ -48,34 +48,20 @@
 #ifndef _WLAN_COMPAT_H
 #define _WLAN_COMPAT_H
 
+#undef netdevice_t
+typedef struct net_device netdevice_t;
+
 /*=============================================================*/
 /*------ OS Portability Macros --------------------------------*/
 /*=============================================================*/
 
-#ifndef WLAN_DBVAR
-#define WLAN_DBVAR	wlan_debug
-#endif
 
 #include <linux/hardirq.h>
 #include <linux/ctype.h>
 
-#if defined(WLAN_INCLUDE_DEBUG)
-	#define WLAN_HEX_DUMP( l, x, p, n)	if( WLAN_DBVAR >= (l) ){ \
-		int __i__; \
-		printk(KERN_DEBUG x ":"); \
-		for( __i__=0; __i__ < (n); __i__++) \
-			printk( " %02x", ((u8*)(p))[__i__]); \
-		printk("\n"); }
+#define WLAN_HEX_DUMP( l, s, p, n)
 
-	#define WLAN_LOG_DEBUG(l,x,args...) if ( WLAN_DBVAR >= (l)) printk(KERN_DEBUG "%s(%lu): " x ,  __func__, (preempt_count() & PREEMPT_MASK), ##args );
-#else
-	#define WLAN_HEX_DUMP( l, s, p, n)
-
-	#define WLAN_LOG_DEBUG(l, s, args...)
-#endif
-
-#undef netdevice_t
-typedef struct net_device netdevice_t;
+#define WLAN_LOG_DEBUG(l, s, args...)
 
 /*=============================================================*/
 /*--- General Macros ------------------------------------------*/
@@ -107,9 +93,5 @@ typedef struct net_device netdevice_t;
 /*=============================================================*/
 /*--- Variables -----------------------------------------------*/
 /*=============================================================*/
-
-#ifdef WLAN_INCLUDE_DEBUG
-extern int wlan_debug;
-#endif
 
 #endif /* _WLAN_COMPAT_H */

@@ -112,7 +112,6 @@
 
 /*================================================================*/
 /* System Includes */
-#define WLAN_DBVAR	prism2_debug
 
 #include <linux/version.h>
 
@@ -169,13 +168,6 @@ typedef enum cmd_mode CMD_MODE;
 /* Local Macros */
 
 #define ROUNDUP64(a) (((a)+63)&~63)
-
-/*================================================================*/
-/* Local Types */
-
-/*================================================================*/
-/* Local Static Definitions */
-extern int prism2_debug;
 
 /*================================================================*/
 /* Local Function Declarations */

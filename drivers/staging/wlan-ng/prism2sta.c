@@ -52,7 +52,6 @@
 
 /*================================================================*/
 /* System Includes */
-#define WLAN_DBVAR	prism2_debug
 
 #include <linux/version.h>
 #include <linux/module.h>
@@ -114,12 +113,6 @@ int      prism2_reset_holdtime=30;	/* Reset hold time in ms */
 int	 prism2_reset_settletime=100;	/* Reset settle time in ms */
 
 static int	prism2_doreset=0;		/* Do a reset at init? */
-
-#ifdef WLAN_INCLUDE_DEBUG
-int prism2_debug=0;
-module_param( prism2_debug, int, 0644);
-MODULE_PARM_DESC(prism2_debug, "prism2 debugging");
-#endif
 
 module_param( prism2_doreset, int, 0644);
 MODULE_PARM_DESC(prism2_doreset, "Issue a reset on initialization");
