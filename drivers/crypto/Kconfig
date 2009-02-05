@@ -200,4 +200,13 @@ config CRYPTO_DEV_IXP4XX
 	help
 	  Driver for the IXP4xx NPE crypto engine.
 
+config CRYPTO_DEV_PPC4XX
+	tristate "Driver AMCC PPC4xx crypto accelerator"
+	depends on PPC && 4xx
+	select CRYPTO_HASH
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	help
+	  This option allows you to have support for AMCC crypto acceleration.
+
 endif # CRYPTO_HW
