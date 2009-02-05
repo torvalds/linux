@@ -400,7 +400,7 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
 }
 
 /**
- * fsl_ssi_prepare: prepare the SSI.
+ * fsl_ssi_hw_params - program the sample size
  *
  * Most of the SSI registers have been programmed in the startup function,
  * but the word length must be programmed here.  Unfortunately, programming
@@ -412,20 +412,19 @@ static int fsl_ssi_startup(struct snd_pcm_substream *substream,
  * Note: The SxCCR.DC and SxCCR.PM bits are only used if the SSI is the
  * clock master.
  */
-static int fsl_ssi_prepare(struct snd_pcm_substream *substream,
-			   struct snd_soc_dai *dai)
+static int fsl_ssi_hw_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *hw_params, struct snd_soc_dai *cpu_dai)
 {
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct fsl_ssi_private *ssi_private = rtd->dai->cpu_dai->private_data;
-
-	struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+	struct fsl_ssi_private *ssi_private = cpu_dai->private_data;
 
 	if (substream == ssi_private->first_stream) {
+		struct ccsr_ssi __iomem *ssi = ssi_private->ssi;
+		unsigned int sample_size =
+			snd_pcm_format_width(params_format(hw_params));
 		u32 wl;
 
 		/* The SSI should always be disabled at this points (SSIEN=0) */
-		wl = CCSR_SSI_SxCCR_WL(snd_pcm_format_width(runtime->format));
+		wl = CCSR_SSI_SxCCR_WL(sample_size);
 
 		/* In synchronous mode, the SSI uses STCCR for capture */
 		clrsetbits_be32(&ssi->stccr, CCSR_SSI_SxCCR_WL_MASK, wl);
@@ -579,7 +578,7 @@ static struct snd_soc_dai fsl_ssi_dai_template = {
 	},
 	.ops = {
 		.startup = fsl_ssi_startup,
-		.prepare = fsl_ssi_prepare,
+		.hw_params = fsl_ssi_hw_params,
 		.shutdown = fsl_ssi_shutdown,
 		.trigger = fsl_ssi_trigger,
 		.set_sysclk = fsl_ssi_set_sysclk,
