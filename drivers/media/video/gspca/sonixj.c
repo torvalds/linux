@@ -234,7 +234,7 @@ static __u32 ctrl_dis[] = {
 						/* SENSOR_MI0360 1 */
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
 						/* SENSOR_MO4000 2 */
-	0,
+	(1 << VFLIP_IDX),
 						/* SENSOR_MT9V111 3 */
 	(1 << INFRARED_IDX) | (1 << VFLIP_IDX),
 						/* SENSOR_OM6802 4 */
