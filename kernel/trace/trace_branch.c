@@ -143,23 +143,6 @@ static void branch_trace_reset(struct trace_array *tr)
 	stop_branch_trace(tr);
 }
 
-static int
-trace_print_print(struct trace_seq *s, struct trace_entry *entry, int flags)
-{
-	struct print_entry *field;
-
-	trace_assign_type(field, entry);
-
-	if (seq_print_ip_sym(s, field->ip, flags))
-		goto partial;
-
-	if (trace_seq_printf(s, ": %s", field->buf))
-		goto partial;
-
- partial:
-	return TRACE_TYPE_PARTIAL_LINE;
-}
-
 static enum print_line_t trace_branch_print(struct trace_iterator *iter,
 					    int flags)
 {
