@@ -164,6 +164,9 @@ static int gfar_of_init(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	struct device_node *np = priv->node;
 	char bus_name[MII_BUS_ID_SIZE];
+	const u32 *stash;
+	const u32 *stash_len;
+	const u32 *stash_idx;
 
 	if (!np || !of_device_is_available(np))
 		return -ENODEV;
@@ -192,6 +195,26 @@ static int gfar_of_init(struct net_device *dev)
 			goto err_out;
 		}
 	}
+
+	stash = of_get_property(np, "bd-stash", NULL);
+
+	if(stash) {
+		priv->device_flags |= FSL_GIANFAR_DEV_HAS_BD_STASHING;
+		priv->bd_stash_en = 1;
+	}
+
+	stash_len = of_get_property(np, "rx-stash-len", NULL);
+
+	if (stash_len)
+		priv->rx_stash_size = *stash_len;
+
+	stash_idx = of_get_property(np, "rx-stash-idx", NULL);
+
+	if (stash_idx)
+		priv->rx_stash_index = *stash_idx;
+
+	if (stash_len || stash_idx)
+		priv->device_flags |= FSL_GIANFAR_DEV_HAS_BUF_STASHING;
 
 	mac_addr = of_get_mac_address(np);
 	if (mac_addr)

@@ -53,6 +53,9 @@ static ssize_t gfar_set_bd_stash(struct device *dev,
 	u32 temp;
 	unsigned long flags;
 
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_BD_STASHING))
+		return count;
+
 	/* Find out the new setting */
 	if (!strncmp("on", buf, count - 1) || !strncmp("1", buf, count - 1))
 		new_setting = 1;
@@ -99,6 +102,9 @@ static ssize_t gfar_set_rx_stash_size(struct device *dev,
 	unsigned int length = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
+
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_BUF_STASHING))
+		return count;
 
 	spin_lock_irqsave(&priv->rxlock, flags);
 	if (length > priv->rx_buffer_size)
@@ -151,6 +157,9 @@ static ssize_t gfar_set_rx_stash_index(struct device *dev,
 	unsigned short index = simple_strtoul(buf, NULL, 0);
 	u32 temp;
 	unsigned long flags;
+
+	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_BUF_STASHING))
+		return count;
 
 	spin_lock_irqsave(&priv->rxlock, flags);
 	if (index > priv->rx_stash_size)
@@ -294,12 +303,9 @@ void gfar_init_sysfs(struct net_device *dev)
 	int rc;
 
 	/* Initialize the default values */
-	priv->rx_stash_size = DEFAULT_STASH_LENGTH;
-	priv->rx_stash_index = DEFAULT_STASH_INDEX;
 	priv->fifo_threshold = DEFAULT_FIFO_TX_THR;
 	priv->fifo_starve = DEFAULT_FIFO_TX_STARVE;
 	priv->fifo_starve_off = DEFAULT_FIFO_TX_STARVE_OFF;
-	priv->bd_stash_en = DEFAULT_BD_STASH;
 
 	/* Create our sysfs files */
 	rc = device_create_file(&dev->dev, &dev_attr_bd_stash);
