@@ -478,6 +478,17 @@ static inline struct page *pmd_page(pmd_t pmd)
 	return pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT);
 }
 
+/*
+ * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
+ *
+ * this macro returns the index of the entry in the pmd page which would
+ * control the given virtual address
+ */
+static inline unsigned pmd_index(unsigned long address)
+{
+	return (address >> PMD_SHIFT) & (PTRS_PER_PMD - 1);
+}
+
 #if PAGETABLE_LEVELS > 2
 static inline int pud_present(pud_t pud)
 {

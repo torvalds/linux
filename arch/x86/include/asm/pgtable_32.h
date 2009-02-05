@@ -105,15 +105,6 @@ extern unsigned long pg0[];
 static inline int pud_large(pud_t pud) { return 0; }
 
 /*
- * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
- *
- * this macro returns the index of the entry in the pmd page which would
- * control the given virtual address
- */
-#define pmd_index(address)				\
-	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
-
-/*
  * the pte page can be thought of an array like this: pte_t[PTRS_PER_PTE]
  *
  * this macro returns the index of the entry in the pte page which would
