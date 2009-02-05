@@ -182,7 +182,6 @@ static inline int pmd_bad(pmd_t pmd)
 #define pgd_page_vaddr(pgd)						\
 	((unsigned long)__va((unsigned long)pgd_val((pgd)) & PTE_PFN_MASK))
 #define pgd_page(pgd)		(pfn_to_page(pgd_val((pgd)) >> PAGE_SHIFT))
-#define pgd_present(pgd) (pgd_val(pgd) & _PAGE_PRESENT)
 static inline int pgd_large(pgd_t pgd) { return 0; }
 #define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
 

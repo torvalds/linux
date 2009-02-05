@@ -452,6 +452,13 @@ static inline int pud_present(pud_t pud)
 }
 #endif	/* PAGETABLE_LEVELS > 2 */
 
+#if PAGETABLE_LEVELS > 3
+static inline int pgd_present(pgd_t pgd)
+{
+	return pgd_val(pgd) & _PAGE_PRESENT;
+}
+#endif	/* PAGETABLE_LEVELS > 3 */
+
 #endif	/* __ASSEMBLY__ */
 
 #ifdef CONFIG_X86_32
