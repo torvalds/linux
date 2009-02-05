@@ -155,7 +155,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 	if (test_taint(TAINT_DIE) || did_panic)
 		return;
 
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	do_each_thread(g, t) {
 		if (!--max_count)
 			goto unlock;
@@ -171,7 +171,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 			check_hung_task(t, now, timeout);
 	} while_each_thread(g, t);
  unlock:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 }
 
 static void update_poll_jiffies(void)
