@@ -445,6 +445,11 @@ static inline int pte_present(pte_t a)
 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
 }
 
+static inline int pmd_present(pmd_t pmd)
+{
+	return pmd_val(pmd) & _PAGE_PRESENT;
+}
+
 #if PAGETABLE_LEVELS > 2
 static inline int pud_present(pud_t pud)
 {

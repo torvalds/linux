@@ -208,7 +208,6 @@ static inline int pud_large(pud_t pte)
 #define pmd_offset(dir, address) ((pmd_t *)pud_page_vaddr(*(dir)) + \
 				  pmd_index(address))
 #define pmd_none(x)	(!pmd_val((x)))
-#define pmd_present(x)	(pmd_val((x)) & _PAGE_PRESENT)
 #define pfn_pmd(nr, prot) (__pmd(((nr) << PAGE_SHIFT) | pgprot_val((prot))))
 #define pmd_pfn(x)  ((pmd_val((x)) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 
