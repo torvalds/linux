@@ -1354,11 +1354,11 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @get_tsf: Get the current TSF timer value from firmware/hardware. Currently,
  *	this is only used for IBSS mode BSSID merging and debugging. Is not a
- *	required function. Must be atomic.
+ *	required function.
  *
  * @set_tsf: Set the TSF timer to the specified value in the firmware/hardware.
  *      Currently, this is only used for IBSS mode debugging. Is not a
- *	required function. Must be atomic.
+ *	required function.
  *
  * @reset_tsf: Reset the TSF timer and allow firmware/hardware to synchronize
  *	with other STAs in the IBSS. This is only used in IBSS mode. This
