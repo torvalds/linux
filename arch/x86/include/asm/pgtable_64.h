@@ -154,11 +154,6 @@ static inline void native_pgd_clear(pgd_t *pgd)
 
 #ifndef __ASSEMBLY__
 
-static inline int pud_bad(pud_t pud)
-{
-	return (pud_val(pud) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;
-}
-
 static inline int pmd_bad(pmd_t pmd)
 {
 	return (pmd_val(pmd) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;

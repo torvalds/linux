@@ -23,11 +23,6 @@ static inline int pud_none(pud_t pud)
 	return pud_val(pud) == 0;
 }
 
-static inline int pud_bad(pud_t pud)
-{
-	return (pud_val(pud) & ~(PTE_PFN_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
-}
-
 /* Rules for using set_pte: the pte being assigned *must* be
  * either not present or in a state where the hardware will
  * not attempt to update the pte.  In places where this is
