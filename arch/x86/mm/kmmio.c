@@ -232,28 +232,32 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
 
 	ctx = &get_cpu_var(kmmio_ctx);
 	if (ctx->active) {
-		disarm_kmmio_fault_page(faultpage);
 		if (addr == ctx->addr) {
 			/*
-			 * On SMP we sometimes get recursive probe hits on the
-			 * same address. Context is already saved, fall out.
+			 * A second fault on the same page means some other
+			 * condition needs handling by do_page_fault(), the
+			 * page really not being present is the most common.
 			 */
-			pr_debug("kmmio: duplicate probe hit on CPU %d, for "
-						"address 0x%08lx.\n",
-						smp_processor_id(), addr);
-			ret = 1;
-			goto no_kmmio_ctx;
-		}
-		/*
-		 * Prevent overwriting already in-flight context.
-		 * This should not happen, let's hope disarming at least
-		 * prevents a panic.
-		 */
-		pr_emerg("kmmio: recursive probe hit on CPU %d, "
+			pr_debug("kmmio: secondary hit for 0x%08lx CPU %d.\n",
+					addr, smp_processor_id());
+
+			if (!faultpage->old_presence)
+				pr_info("kmmio: unexpected secondary hit for "
+					"address 0x%08lx on CPU %d.\n", addr,
+					smp_processor_id());
+		} else {
+			/*
+			 * Prevent overwriting already in-flight context.
+			 * This should not happen, let's hope disarming at
+			 * least prevents a panic.
+			 */
+			pr_emerg("kmmio: recursive probe hit on CPU %d, "
 					"for address 0x%08lx. Ignoring.\n",
 					smp_processor_id(), addr);
-		pr_emerg("kmmio: previous hit was at 0x%08lx.\n",
-					ctx->addr);
+			pr_emerg("kmmio: previous hit was at 0x%08lx.\n",
+						ctx->addr);
+			disarm_kmmio_fault_page(faultpage);
+		}
 		goto no_kmmio_ctx;
 	}
 	ctx->active++;
@@ -305,7 +309,7 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	struct kmmio_context *ctx = &get_cpu_var(kmmio_ctx);
 
 	if (!ctx->active) {
-		pr_debug("kmmio: spurious debug trap on CPU %d.\n",
+		pr_warning("kmmio: spurious debug trap on CPU %d.\n",
 							smp_processor_id());
 		goto out;
 	}
