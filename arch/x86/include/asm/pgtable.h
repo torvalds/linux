@@ -468,6 +468,11 @@ static inline int pmd_none(pmd_t pmd)
 	return !(unsigned long)native_pmd_val(pmd);
 }
 
+static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+{
+	return (unsigned long)__va(pmd_val(pmd) & PTE_PFN_MASK);
+}
+
 #if PAGETABLE_LEVELS > 2
 static inline int pud_present(pud_t pud)
 {
