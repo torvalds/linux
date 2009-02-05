@@ -194,7 +194,6 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
 #define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
 #define pud_offset(pgd, address)					\
 	((pud_t *)pgd_page_vaddr(*(pgd)) + pud_index((address)))
-#define pud_present(pud) (pud_val((pud)) & _PAGE_PRESENT)
 
 static inline int pud_large(pud_t pte)
 {

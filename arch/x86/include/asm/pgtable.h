@@ -445,6 +445,13 @@ static inline int pte_present(pte_t a)
 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
 }
 
+#if PAGETABLE_LEVELS > 2
+static inline int pud_present(pud_t pud)
+{
+	return pud_val(pud) & _PAGE_PRESENT;
+}
+#endif	/* PAGETABLE_LEVELS > 2 */
+
 #endif	/* __ASSEMBLY__ */
 
 #ifdef CONFIG_X86_32
