@@ -62,7 +62,11 @@ static inline void snd_cs46xx_poke(struct snd_cs46xx *chip, unsigned long reg, u
 	unsigned int bank = reg >> 16;
 	unsigned int offset = reg & 0xffff;
 
-	/*if (bank == 0) printk("snd_cs46xx_poke: %04X - %08X\n",reg >> 2,val); */
+	/*
+	if (bank == 0)
+		printk(KERN_DEBUG "snd_cs46xx_poke: %04X - %08X\n",
+		       reg >> 2,val);
+	*/
 	writel(val, chip->region.idx[bank+1].remap_addr + offset);
 }
 

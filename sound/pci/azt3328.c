@@ -211,25 +211,25 @@ MODULE_SUPPORTED_DEVICE("{{Aztech,AZF3328}}");
 #endif
 
 #if DEBUG_MIXER
-#define snd_azf3328_dbgmixer(format, args...) printk(format, ##args)
+#define snd_azf3328_dbgmixer(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbgmixer(format, args...)
 #endif
 
 #if DEBUG_PLAY_REC
-#define snd_azf3328_dbgplay(format, args...) printk(KERN_ERR format, ##args)
+#define snd_azf3328_dbgplay(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbgplay(format, args...)
 #endif
 
 #if DEBUG_MISC
-#define snd_azf3328_dbgtimer(format, args...) printk(KERN_ERR format, ##args)
+#define snd_azf3328_dbgtimer(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbgtimer(format, args...)
 #endif
 
 #if DEBUG_GAME
-#define snd_azf3328_dbggame(format, args...) printk(KERN_ERR format, ##args)
+#define snd_azf3328_dbggame(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbggame(format, args...)
 #endif
