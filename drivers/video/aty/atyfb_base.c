@@ -1978,7 +1978,7 @@ static int aty_power_mgmt(int sleep, struct atyfb_par *par)
 
 	return timeout ? 0 : -EIO;
 }
-#endif
+#endif /* CONFIG_PPC_PMAC */
 
 static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
@@ -2002,9 +2002,15 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	par->asleep = 1;
 	par->lock_blank = 1;
 
+	/* Because we may change PCI D state ourselves, we need to
+	 * first save the config space content so the core can
+	 * restore it properly on resume.
+	 */
+	pci_save_state(pdev);
+
 #ifdef CONFIG_PPC_PMAC
 	/* Set chip to "suspend" mode */
-	if (aty_power_mgmt(1, par)) {
+	if (machine_is(powermac) && aty_power_mgmt(1, par)) {
 		par->asleep = 0;
 		par->lock_blank = 0;
 		atyfb_blank(FB_BLANK_UNBLANK, info);
@@ -2047,11 +2053,15 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 
 	acquire_console_sem();
 
+	/* PCI state will have been restored by the core, so
+	 * we should be in D0 now with our config space fully
+	 * restored
+	 */
+
 #ifdef CONFIG_PPC_PMAC
-	if (pdev->dev.power.power_state.event == 2)
+	if (machine_is(powermac) &&
+	    pdev->dev.power.power_state.event == PM_EVENT_SUSPEND)
 		aty_power_mgmt(0, par);
-#else
-	pci_set_power_state(pdev, PCI_D0);
 #endif
 
 	aty_resume_chip(info);
