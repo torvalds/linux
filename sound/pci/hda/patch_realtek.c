@@ -8265,7 +8265,7 @@ static void alc888_6st_dell_unsol_event(struct hda_codec *codec,
 {
 	switch (res >> 26) {
 	case ALC880_HP_EVENT:
-		printk("hp_event\n");
+		/* printk(KERN_DEBUG "hp_event\n"); */
 		alc888_6st_dell_front_automute(codec);
 		break;
 	}
@@ -16564,7 +16564,7 @@ static int alc662_auto_create_extra_out(struct alc_spec *spec, hda_nid_t pin,
 
 	if (alc880_is_fixed_pin(pin)) {
 		nid = alc880_idx_to_dac(alc880_fixed_pin_idx(pin));
-                /* printk("DAC nid=%x\n",nid); */
+		/* printk(KERN_DEBUG "DAC nid=%x\n",nid); */
 		/* specify the DAC as the extra output */
 		if (!spec->multiout.hp_nid)
 			spec->multiout.hp_nid = nid;
