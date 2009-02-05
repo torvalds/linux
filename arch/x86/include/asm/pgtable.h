@@ -429,6 +429,16 @@ static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
 }
 #endif	/* CONFIG_PARAVIRT */
 
+#endif	/* __ASSEMBLY__ */
+
+#ifdef CONFIG_X86_32
+# include "pgtable_32.h"
+#else
+# include "pgtable_64.h"
+#endif
+
+#ifndef __ASSEMBLY__
+
 static inline int pte_none(pte_t pte)
 {
 	return !pte.pte;
@@ -482,12 +492,6 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
 #endif	/* PAGETABLE_LEVELS > 3 */
 
 #endif	/* __ASSEMBLY__ */
-
-#ifdef CONFIG_X86_32
-# include "pgtable_32.h"
-#else
-# include "pgtable_64.h"
-#endif
 
 /*
  * the pgd page can be thought of an array like this: pgd_t[PTRS_PER_PGD]
