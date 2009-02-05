@@ -35,6 +35,7 @@
 #define IEEE80211_TX_OK		0
 #define IEEE80211_TX_AGAIN	1
 #define IEEE80211_TX_FRAG_AGAIN	2
+#define IEEE80211_TX_PENDING	3
 
 /* misc utils */
 
@@ -1085,7 +1086,7 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 
 	if (skb) {
 		if (netif_subqueue_stopped(local->mdev, skb))
-			return IEEE80211_TX_AGAIN;
+			return IEEE80211_TX_PENDING;
 
 		ret = local->ops->tx(local_to_hw(local), skb);
 		if (ret)
@@ -1211,8 +1212,9 @@ retry:
 		 * queues, there's no reason for a driver to reject
 		 * a frame there, warn and drop it.
 		 */
-		if (WARN_ON(info->flags & IEEE80211_TX_CTL_AMPDU))
-			goto drop;
+		if (ret != IEEE80211_TX_PENDING)
+			if (WARN_ON(info->flags & IEEE80211_TX_CTL_AMPDU))
+				goto drop;
 
 		store = &local->pending_packet[queue];
 
