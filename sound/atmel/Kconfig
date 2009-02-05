@@ -8,4 +8,12 @@ config SND_ATMEL_ABDAC
 	help
 	  ALSA sound driver for the Atmel Audio Bitstream DAC (ABDAC).
 
+config SND_ATMEL_AC97C
+	tristate "Atmel AC97 Controller (AC97C) driver"
+	select SND_PCM
+	select SND_AC97_CODEC
+	depends on DW_DMAC && AVR32
+	help
+	  ALSA sound driver for the Atmel AC97 controller.
+
 endmenu
