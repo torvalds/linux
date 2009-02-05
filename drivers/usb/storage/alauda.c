@@ -307,7 +307,8 @@ static int alauda_init_media(struct us_data *us)
 		data[0], data[1], data[2], data[3]);
 	media_info = alauda_card_find_id(data[1]);
 	if (media_info == NULL) {
-		printk("alauda_init_media: Unrecognised media signature: "
+		printk(KERN_WARNING
+			"alauda_init_media: Unrecognised media signature: "
 			"%02X %02X %02X %02X\n",
 			data[0], data[1], data[2], data[3]);
 		return USB_STOR_TRANSPORT_ERROR;
@@ -518,7 +519,8 @@ static int alauda_read_map(struct us_data *us, unsigned int zone)
 
 		/* check even parity */
 		if (parity[data[6] ^ data[7]]) {
-			printk("alauda_read_map: Bad parity in LBA for block %d"
+			printk(KERN_WARNING
+			       "alauda_read_map: Bad parity in LBA for block %d"
 			       " (%02X %02X)\n", i, data[6], data[7]);
 			pba_to_lba[i] = UNUSABLE;
 			continue;
@@ -538,13 +540,16 @@ static int alauda_read_map(struct us_data *us, unsigned int zone)
 		 */
 
 		if (lba_offset >= uzonesize) {
-			printk("alauda_read_map: Bad low LBA %d for block %d\n",
+			printk(KERN_WARNING
+			       "alauda_read_map: Bad low LBA %d for block %d\n",
 			       lba_real, blocknum);
 			continue;
 		}
 
 		if (lba_to_pba[lba_offset] != UNDEF) {
-			printk("alauda_read_map: LBA %d seen for PBA %d and %d\n",
+			printk(KERN_WARNING
+			       "alauda_read_map: "
+			       "LBA %d seen for PBA %d and %d\n",
 			       lba_real, lba_to_pba[lba_offset], blocknum);
 			continue;
 		}
@@ -712,13 +717,15 @@ static int alauda_write_lba(struct us_data *us, u16 lba,
 	if (pba == 1) {
 		/* Maybe it is impossible to write to PBA 1.
 		   Fake success, but don't do anything. */
-		printk("alauda_write_lba: avoid writing to pba 1\n");
+		printk(KERN_WARNING
+		       "alauda_write_lba: avoid writing to pba 1\n");
 		return USB_STOR_TRANSPORT_GOOD;
 	}
 
 	new_pba = alauda_find_unused_pba(&MEDIA_INFO(us), zone);
 	if (!new_pba) {
-		printk("alauda_write_lba: Out of unused blocks\n");
+		printk(KERN_WARNING
+		       "alauda_write_lba: Out of unused blocks\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -818,7 +825,7 @@ static int alauda_read_data(struct us_data *us, unsigned long address,
 	len = min(sectors, blocksize) * (pagesize + 64);
 	buffer = kmalloc(len, GFP_NOIO);
 	if (buffer == NULL) {
-		printk("alauda_read_data: Out of memory\n");
+		printk(KERN_WARNING "alauda_read_data: Out of memory\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -911,7 +918,7 @@ static int alauda_write_data(struct us_data *us, unsigned long address,
 	len = min(sectors, blocksize) * pagesize;
 	buffer = kmalloc(len, GFP_NOIO);
 	if (buffer == NULL) {
-		printk("alauda_write_data: Out of memory\n");
+		printk(KERN_WARNING "alauda_write_data: Out of memory\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -921,7 +928,7 @@ static int alauda_write_data(struct us_data *us, unsigned long address,
 	 */
 	blockbuffer = kmalloc((pagesize + 64) * blocksize, GFP_NOIO);
 	if (blockbuffer == NULL) {
-		printk("alauda_write_data: Out of memory\n");
+		printk(KERN_WARNING "alauda_write_data: Out of memory\n");
 		kfree(buffer);
 		return USB_STOR_TRANSPORT_ERROR;
 	}

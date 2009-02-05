@@ -703,7 +703,9 @@ static int sddr55_read_map(struct us_data *us) {
 		
 		if (info->lba_to_pba[lba + zone * 1000] != NOT_ALLOCATED &&
 		    !info->force_read_only) {
-			printk("sddr55: map inconsistency at LBA %04X\n", lba + zone * 1000);
+			printk(KERN_WARNING
+			       "sddr55: map inconsistency at LBA %04X\n",
+			       lba + zone * 1000);
 			info->force_read_only = 1;
 		}
 
