@@ -917,6 +917,9 @@ asmlinkage void __init xen_start_kernel(void)
 	have_vcpu_info_placement = 0;
 #endif
 
+	/* setup percpu state */
+	load_percpu_segment(0);
+
 	xen_smp_init();
 
 	/* Get mfn list */

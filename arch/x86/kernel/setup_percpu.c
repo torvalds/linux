@@ -122,7 +122,7 @@ void __init setup_per_cpu_areas(void)
 		 * area.  Reload any changed state for the boot CPU.
 		 */
 		if (cpu == boot_cpu_id)
-			switch_to_new_gdt();
+			switch_to_new_gdt(cpu);
 
 		DBG("PERCPU: cpu %4d %p\n", cpu, ptr);
 	}
