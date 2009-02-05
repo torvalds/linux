@@ -85,8 +85,6 @@ extern void set_pmd_pfn(unsigned long, unsigned long, pgprot_t);
 /* The boot page tables (all created as a single array) */
 extern unsigned long pg0[];
 
-#define pmd_bad(x) ((pmd_val(x) & (PTE_FLAGS_MASK & ~_PAGE_USER)) != _KERNPG_TABLE)
-
 #define pages_to_mb(x) ((x) >> (20-PAGE_SHIFT))
 
 #ifdef CONFIG_X86_PAE

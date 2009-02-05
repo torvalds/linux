@@ -154,11 +154,6 @@ static inline void native_pgd_clear(pgd_t *pgd)
 
 #ifndef __ASSEMBLY__
 
-static inline int pmd_bad(pmd_t pmd)
-{
-	return (pmd_val(pmd) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;
-}
-
 #define pages_to_mb(x)	((x) >> (20 - PAGE_SHIFT))   /* FIXME: is this right? */
 
 /*
