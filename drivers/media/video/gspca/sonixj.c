@@ -45,7 +45,7 @@ struct sd {
 	u8 blue;
 	u8 red;
 	u8 gamma;
-	u8 vflip;			/* ov7630 only */
+	u8 vflip;			/* ov7630/ov7648 only */
 	u8 infrared;			/* mt9v111 only */
 
 	s8 ag_cnt;
@@ -192,7 +192,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
-/* ov7630 only */
+/* ov7630/ov7648 only */
 #define VFLIP_IDX 6
 	{
 	    {
@@ -202,7 +202,7 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-#define VFLIP_DEF 1
+#define VFLIP_DEF 0			/* vflip def = 1 for ov7630 */
 		.default_value = VFLIP_DEF,
 	    },
 	    .set = sd_setvflip,
@@ -240,7 +240,7 @@ static __u32 ctrl_dis[] = {
 						/* SENSOR_OM6802 4 */
 	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX),
 						/* SENSOR_OV7630 5 */
-	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX),
+	(1 << INFRARED_IDX),
 						/* SENSOR_OV7648 6 */
 	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX),
 						/* SENSOR_OV7660 7 */
@@ -669,7 +669,8 @@ static const u8 ov7648_sensor_init[][8] = {
 	{0xb1, 0x21, 0x2d, 0x85, 0x00, 0x00, 0x00, 0x10},
 /*...*/
 /*	{0xa1, 0x21, 0x12, 0x08, 0x00, 0x00, 0x00, 0x10}, jfm done */
-/*	{0xa1, 0x21, 0x75, 0x06, 0x00, 0x00, 0x00, 0x10}, jfm done */
+/*	{0xa1, 0x21, 0x75, 0x06, 0x00, 0x00, 0x00, 0x10},   * COMN
+							 * set by setvflip */
 	{0xa1, 0x21, 0x19, 0x02, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x10, 0x32, 0x00, 0x00, 0x00, 0x10},
 /*	{0xa1, 0x21, 0x16, 0x00, 0x00, 0x00, 0x00, 0x10}, jfm done */
@@ -1303,7 +1304,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->gamma = GAMMA_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->ag_cnt = -1;
-	sd->vflip = VFLIP_DEF;
+	if (sd->sensor != SENSOR_OV7630)
+		sd->vflip = 0;
+	else
+		sd->vflip = 1;
 	sd->infrared = INFRARED_DEF;
 
 	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
@@ -1563,16 +1567,39 @@ static void setautogain(struct gspca_dev *gspca_dev)
 
 	if (gspca_dev->ctrl_dis & (1 << AUTOGAIN_IDX))
 		return;
+	switch (sd->sensor) {
+	case SENSOR_OV7630:
+	case SENSOR_OV7648: {
+		u8 comb;
+
+		if (sd->sensor == SENSOR_OV7630)
+			comb = 0xc0;
+		else
+			comb = 0xa0;
+		if (sd->autogain)
+			comb |= 0x02;
+		i2c_w1(&sd->gspca_dev, 0x13, comb);
+		return;
+	    }
+	}
 	if (sd->autogain)
 		sd->ag_cnt = AG_CNT_START;
 	else
 		sd->ag_cnt = -1;
 }
 
+/* ov7630/ov7648 only */
 static void setvflip(struct sd *sd)
 {
-	i2c_w1(&sd->gspca_dev, 0x75,			/* COMN */
-		sd->vflip ? 0x82 : 0x02);
+	u8 comn;
+
+	if (sd->sensor == SENSOR_OV7630)
+		comn = 0x02;
+	else
+		comn = 0x06;
+	if (sd->vflip)
+		comn |= 0x80;
+	i2c_w1(&sd->gspca_dev, 0x75, comn);
 }
 
 static void setinfrared(struct sd *sd)
