@@ -1,14 +1,14 @@
 /*
-	Asm versions of Xen pv-ops, suitable for either direct use or inlining.
-	The inline versions are the same as the direct-use versions, with the
-	pre- and post-amble chopped off.
-
-	This code is encoded for size rather than absolute efficiency,
-	with a view to being able to inline as much as possible.
-
-	We only bother with direct forms (ie, vcpu in percpu data) of
-	the operations here; the indirect forms are better handled in
-	C, since they're generally too large to inline anyway.
+ * Asm versions of Xen pv-ops, suitable for either direct use or
+ * inlining.  The inline versions are the same as the direct-use
+ * versions, with the pre- and post-amble chopped off.
+ *
+ * This code is encoded for size rather than absolute efficiency, with
+ * a view to being able to inline as much as possible.
+ *
+ * We only bother with direct forms (ie, vcpu in percpu data) of the
+ * operations here; the indirect forms are better handled in C, since
+ * they're generally too large to inline anyway.
  */
 
 #include <asm/asm-offsets.h>
@@ -18,17 +18,19 @@
 #include "xen-asm.h"
 
 /*
-	Enable events.  This clears the event mask and tests the pending
-	event status with one and operation.  If there are pending
-	events, then enter the hypervisor to get them handled.
+ * Enable events.  This clears the event mask and tests the pending
+ * event status with one and operation.  If there are pending events,
+ * then enter the hypervisor to get them handled.
  */
 ENTRY(xen_irq_enable_direct)
 	/* Unmask events */
 	movb $0, PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_mask
 
-	/* Preempt here doesn't matter because that will deal with
-	   any pending interrupts.  The pending check may end up being
-	   run on the wrong CPU, but that doesn't hurt. */
+	/*
+	 * Preempt here doesn't matter because that will deal with any
+	 * pending interrupts.  The pending check may end up being run
+	 * on the wrong CPU, but that doesn't hurt.
+	 */
 
 	/* Test for pending */
 	testb $0xff, PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_pending
@@ -43,8 +45,8 @@ ENDPATCH(xen_irq_enable_direct)
 
 
 /*
-	Disabling events is simply a matter of making the event mask
-	non-zero.
+ * Disabling events is simply a matter of making the event mask
+ * non-zero.
  */
 ENTRY(xen_irq_disable_direct)
 	movb $1, PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_mask
@@ -54,18 +56,18 @@ ENDPATCH(xen_irq_disable_direct)
 	RELOC(xen_irq_disable_direct, 0)
 
 /*
-	(xen_)save_fl is used to get the current interrupt enable status.
-	Callers expect the status to be in X86_EFLAGS_IF, and other bits
-	may be set in the return value.  We take advantage of this by
-	making sure that X86_EFLAGS_IF has the right value (and other bits
-	in that byte are 0), but other bits in the return value are
-	undefined.  We need to toggle the state of the bit, because
-	Xen and x86 use opposite senses (mask vs enable).
+ * (xen_)save_fl is used to get the current interrupt enable status.
+ * Callers expect the status to be in X86_EFLAGS_IF, and other bits
+ * may be set in the return value.  We take advantage of this by
+ * making sure that X86_EFLAGS_IF has the right value (and other bits
+ * in that byte are 0), but other bits in the return value are
+ * undefined.  We need to toggle the state of the bit, because Xen and
+ * x86 use opposite senses (mask vs enable).
  */
 ENTRY(xen_save_fl_direct)
 	testb $0xff, PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_mask
 	setz %ah
-	addb %ah,%ah
+	addb %ah, %ah
 ENDPATCH(xen_save_fl_direct)
 	ret
 	ENDPROC(xen_save_fl_direct)
@@ -73,12 +75,11 @@ ENDPATCH(xen_save_fl_direct)
 
 
 /*
-	In principle the caller should be passing us a value return
-	from xen_save_fl_direct, but for robustness sake we test only
-	the X86_EFLAGS_IF flag rather than the whole byte. After
-	setting the interrupt mask state, it checks for unmasked
-	pending events and enters the hypervisor to get them delivered
-	if so.
+ * In principle the caller should be passing us a value return from
+ * xen_save_fl_direct, but for robustness sake we test only the
+ * X86_EFLAGS_IF flag rather than the whole byte. After setting the
+ * interrupt mask state, it checks for unmasked pending events and
+ * enters the hypervisor to get them delivered if so.
  */
 ENTRY(xen_restore_fl_direct)
 #ifdef CONFIG_X86_64
@@ -87,9 +88,11 @@ ENTRY(xen_restore_fl_direct)
 	testb $X86_EFLAGS_IF>>8, %ah
 #endif
 	setz PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_mask
-	/* Preempt here doesn't matter because that will deal with
-	   any pending interrupts.  The pending check may end up being
-	   run on the wrong CPU, but that doesn't hurt. */
+	/*
+	 * Preempt here doesn't matter because that will deal with any
+	 * pending interrupts.  The pending check may end up being run
+	 * on the wrong CPU, but that doesn't hurt.
+	 */
 
 	/* check for unmasked and pending */
 	cmpw $0x0001, PER_CPU_VAR(xen_vcpu_info) + XEN_vcpu_info_pending
@@ -103,8 +106,8 @@ ENDPATCH(xen_restore_fl_direct)
 
 
 /*
-	Force an event check by making a hypercall,
-	but preserve regs before making the call.
+ * Force an event check by making a hypercall, but preserve regs
+ * before making the call.
  */
 check_events:
 #ifdef CONFIG_X86_32
@@ -137,4 +140,3 @@ check_events:
 	pop %rax
 #endif
 	ret
-
