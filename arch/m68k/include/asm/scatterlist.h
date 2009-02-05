@@ -11,7 +11,7 @@ struct scatterlist {
 	unsigned int offset;
 	unsigned int length;
 
-	__u32 dma_address;	/* A place to hang host-specific addresses at. */
+	dma_addr_t dma_address;	/* A place to hang host-specific addresses at. */
 };
 
 /* This is bogus and should go away. */
