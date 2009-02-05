@@ -450,6 +450,13 @@ static inline int pmd_present(pmd_t pmd)
 	return pmd_val(pmd) & _PAGE_PRESENT;
 }
 
+static inline int pmd_none(pmd_t pmd)
+{
+	/* Only check low word on 32-bit platforms, since it might be
+	   out of sync with upper half. */
+	return !(unsigned long)native_pmd_val(pmd);
+}
+
 #if PAGETABLE_LEVELS > 2
 static inline int pud_present(pud_t pud)
 {
