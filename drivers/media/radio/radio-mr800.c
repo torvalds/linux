@@ -87,6 +87,16 @@ devices, that would be 76 and 91.  */
 #define FREQ_MAX 108.0
 #define FREQ_MUL 16000
 
+/*
+ * Commands that device should understand
+ * List isnt full and will be updated with implementation of new functions
+ */
+#define AMRADIO_SET_MUTE	0xab
+
+/* Comfortable defines for amradio_set_mute */
+#define AMRADIO_START		0x00
+#define AMRADIO_STOP		0x01
+
 /* module parameter */
 static int radio_nr = -1;
 module_param(radio_nr, int, 0);
@@ -169,40 +179,8 @@ static struct usb_driver usb_amradio_driver = {
 	.supports_autosuspend	= 0,
 };
 
-/* switch on radio. Send 8 bytes to device. */
-static int amradio_start(struct amradio_device *radio)
-{
-	int retval;
-	int size;
-
-	mutex_lock(&radio->lock);
-
-	radio->buffer[0] = 0x00;
-	radio->buffer[1] = 0x55;
-	radio->buffer[2] = 0xaa;
-	radio->buffer[3] = 0x00;
-	radio->buffer[4] = 0xab;
-	radio->buffer[5] = 0x00;
-	radio->buffer[6] = 0x00;
-	radio->buffer[7] = 0x00;
-
-	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
-		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
-
-	if (retval) {
-		mutex_unlock(&radio->lock);
-		return retval;
-	}
-
-	radio->muted = 0;
-
-	mutex_unlock(&radio->lock);
-
-	return retval;
-}
-
-/* switch off radio */
-static int amradio_stop(struct amradio_device *radio)
+/* switch on/off the radio. Send 8 bytes to device */
+static int amradio_set_mute(struct amradio_device *radio, char argument)
 {
 	int retval;
 	int size;
@@ -217,8 +195,8 @@ static int amradio_stop(struct amradio_device *radio)
 	radio->buffer[1] = 0x55;
 	radio->buffer[2] = 0xaa;
 	radio->buffer[3] = 0x00;
-	radio->buffer[4] = 0xab;
-	radio->buffer[5] = 0x01;
+	radio->buffer[4] = AMRADIO_SET_MUTE;
+	radio->buffer[5] = argument;
 	radio->buffer[6] = 0x00;
 	radio->buffer[7] = 0x00;
 
@@ -230,7 +208,7 @@ static int amradio_stop(struct amradio_device *radio)
 		return retval;
 	}
 
-	radio->muted = 1;
+	radio->muted = argument;
 
 	mutex_unlock(&radio->lock);
 
@@ -451,14 +429,14 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->value) {
-			retval = amradio_stop(radio);
+			retval = amradio_set_mute(radio, AMRADIO_STOP);
 			if (retval < 0) {
 				amradio_dev_warn(&radio->videodev->dev,
 					"amradio_stop failed\n");
 				return -1;
 			}
 		} else {
-			retval = amradio_start(radio);
+			retval = amradio_set_mute(radio, AMRADIO_START);
 			if (retval < 0) {
 				amradio_dev_warn(&radio->videodev->dev,
 					"amradio_start failed\n");
@@ -517,7 +495,7 @@ static int usb_amradio_open(struct file *file)
 	radio->users = 1;
 	radio->muted = 1;
 
-	retval = amradio_start(radio);
+	retval = amradio_set_mute(radio, AMRADIO_START);
 	if (retval < 0) {
 		amradio_dev_warn(&radio->videodev->dev,
 			"radio did not start up properly\n");
@@ -547,7 +525,7 @@ static int usb_amradio_close(struct file *file)
 	radio->users = 0;
 
 	if (!radio->removed) {
-		retval = amradio_stop(radio);
+		retval = amradio_set_mute(radio, AMRADIO_STOP);
 		if (retval < 0)
 			amradio_dev_warn(&radio->videodev->dev,
 				"amradio_stop failed\n");
@@ -562,7 +540,7 @@ static int usb_amradio_suspend(struct usb_interface *intf, pm_message_t message)
 	struct amradio_device *radio = usb_get_intfdata(intf);
 	int retval;
 
-	retval = amradio_stop(radio);
+	retval = amradio_set_mute(radio, AMRADIO_STOP);
 	if (retval < 0)
 		dev_warn(&intf->dev, "amradio_stop failed\n");
 
@@ -577,7 +555,7 @@ static int usb_amradio_resume(struct usb_interface *intf)
 	struct amradio_device *radio = usb_get_intfdata(intf);
 	int retval;
 
-	retval = amradio_start(radio);
+	retval = amradio_set_mute(radio, AMRADIO_START);
 	if (retval < 0)
 		dev_warn(&intf->dev, "amradio_start failed\n");
 
