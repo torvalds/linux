@@ -93,10 +93,15 @@ devices, that would be 76 and 91.  */
  */
 #define AMRADIO_SET_FREQ	0xa4
 #define AMRADIO_SET_MUTE	0xab
+#define AMRADIO_SET_MONO	0xae
 
 /* Comfortable defines for amradio_set_mute */
 #define AMRADIO_START		0x00
 #define AMRADIO_STOP		0x01
+
+/* Comfortable defines for amradio_set_stereo */
+#define WANT_STEREO		0x00
+#define WANT_MONO		0x01
 
 /* module parameter */
 static int radio_nr = -1;
@@ -263,12 +268,48 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 		return retval;
 	}
 
-	radio->stereo = 0;
+	mutex_unlock(&radio->lock);
+
+	return retval;
+}
+
+static int amradio_set_stereo(struct amradio_device *radio, char argument)
+{
+	int retval;
+	int size;
+
+	/* safety check */
+	if (radio->removed)
+		return -EIO;
+
+	mutex_lock(&radio->lock);
+
+	radio->buffer[0] = 0x00;
+	radio->buffer[1] = 0x55;
+	radio->buffer[2] = 0xaa;
+	radio->buffer[3] = 0x00;
+	radio->buffer[4] = AMRADIO_SET_MONO;
+	radio->buffer[5] = argument;
+	radio->buffer[6] = 0x00;
+	radio->buffer[7] = 0x00;
+
+	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
+		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
+
+	if (retval < 0 || size != BUFFER_LENGTH) {
+		radio->stereo = -1;
+		mutex_unlock(&radio->lock);
+		return retval;
+	}
+
+	radio->stereo = 1;
 
 	mutex_unlock(&radio->lock);
 
 	return retval;
 }
+
+
 
 /* USB subsystem interface begins here */
 
@@ -307,6 +348,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	int retval;
 
 	/* safety check */
 	if (radio->removed)
@@ -318,7 +360,16 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 /* TODO: Add function which look is signal stereo or not
  * 	amradio_getstat(radio);
  */
-	radio->stereo = -1;
+
+/* we call amradio_set_stereo to set radio->stereo
+ * Honestly, amradio_getstat should cover this in future and
+ * amradio_set_stereo shouldn't be here
+ */
+	retval = amradio_set_stereo(radio, WANT_STEREO);
+	if (retval < 0)
+		amradio_dev_warn(&radio->videodev->dev,
+			"set stereo failed\n");
+
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = FREQ_MIN * FREQ_MUL;
@@ -339,6 +390,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
 	struct amradio_device *radio = video_get_drvdata(video_devdata(file));
+	int retval;
 
 	/* safety check */
 	if (radio->removed)
@@ -346,6 +398,25 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 
 	if (v->index > 0)
 		return -EINVAL;
+
+	/* mono/stereo selector */
+	switch (v->audmode) {
+	case V4L2_TUNER_MODE_MONO:
+		retval = amradio_set_stereo(radio, WANT_MONO);
+		if (retval < 0)
+			amradio_dev_warn(&radio->videodev->dev,
+				"set mono failed\n");
+		break;
+	case V4L2_TUNER_MODE_STEREO:
+		retval = amradio_set_stereo(radio, WANT_STEREO);
+		if (retval < 0)
+			amradio_dev_warn(&radio->videodev->dev,
+				"set stereo failed\n");
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -505,6 +576,11 @@ static int usb_amradio_open(struct file *file)
 		return -EIO;
 	}
 
+	retval = amradio_set_stereo(radio, WANT_STEREO);
+	if (retval < 0)
+		amradio_dev_warn(&radio->videodev->dev,
+			"set stereo failed\n");
+
 	retval = amradio_setfreq(radio, radio->curfreq);
 	if (retval < 0)
 		amradio_dev_warn(&radio->videodev->dev,
@@ -646,6 +722,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	radio->users = 0;
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = 95.16 * FREQ_MUL;
+	radio->stereo = -1;
 
 	mutex_init(&radio->lock);
 
