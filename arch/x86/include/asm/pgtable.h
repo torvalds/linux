@@ -504,6 +504,12 @@ static inline struct page *pud_page(pud_t pud)
 {
 	return pfn_to_page(pud_val(pud) >> PAGE_SHIFT);
 }
+
+/* Find an entry in the second-level page table.. */
+static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
+{
+	return (pmd_t *)pud_page_vaddr(*pud) + pmd_index(address);
+}
 #endif	/* PAGETABLE_LEVELS > 2 */
 
 #if PAGETABLE_LEVELS > 3

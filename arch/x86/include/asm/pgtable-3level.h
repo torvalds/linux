@@ -115,10 +115,6 @@ static inline void pud_clear(pud_t *pudp)
 		write_cr3(pgd);
 }
 
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(pud, address) ((pmd_t *)pud_page_vaddr(*(pud)) +	\
-				  pmd_index(address))
-
 #ifdef CONFIG_SMP
 static inline pte_t native_ptep_get_and_clear(pte_t *ptep)
 {
