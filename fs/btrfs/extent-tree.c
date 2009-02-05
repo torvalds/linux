@@ -3582,6 +3582,7 @@ static noinline int cache_drop_leaf_ref(struct btrfs_trans_handle *trans,
 		info++;
 	}
 
+	kfree(sorted);
 	return 0;
 }
 
