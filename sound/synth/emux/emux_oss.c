@@ -132,7 +132,7 @@ snd_emux_open_seq_oss(struct snd_seq_oss_arg *arg, void *closure)
 	p = snd_emux_create_port(emu, tmpname, 32,
 				 1, &callback);
 	if (p == NULL) {
-		snd_printk("can't create port\n");
+		snd_printk(KERN_ERR "can't create port\n");
 		snd_emux_dec_count(emu);
 		mutex_unlock(&emu->register_mutex);
 		return -ENOMEM;
