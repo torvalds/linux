@@ -519,6 +519,11 @@ static inline int pmd_bad(pmd_t pmd)
 	return (pmd_val(pmd) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
 
+static inline unsigned long pages_to_mb(unsigned long npg)
+{
+	return npg >> (20 - PAGE_SHIFT);
+}
+
 #if PAGETABLE_LEVELS > 2
 static inline int pud_present(pud_t pud)
 {

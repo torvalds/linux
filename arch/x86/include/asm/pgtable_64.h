@@ -154,8 +154,6 @@ static inline void native_pgd_clear(pgd_t *pgd)
 
 #ifndef __ASSEMBLY__
 
-#define pages_to_mb(x)	((x) >> (20 - PAGE_SHIFT))   /* FIXME: is this right? */
-
 /*
  * Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
