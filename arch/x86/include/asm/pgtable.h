@@ -236,7 +236,7 @@ static inline unsigned long pte_pfn(pte_t pte)
 
 static inline int pmd_large(pmd_t pte)
 {
-	return (pmd_val(pte) & (_PAGE_PSE | _PAGE_PRESENT)) ==
+	return (pmd_flags(pte) & (_PAGE_PSE | _PAGE_PRESENT)) ==
 		(_PAGE_PSE | _PAGE_PRESENT);
 }
 
@@ -458,7 +458,7 @@ static inline int pte_present(pte_t a)
 
 static inline int pmd_present(pmd_t pmd)
 {
-	return pmd_val(pmd) & _PAGE_PRESENT;
+	return pmd_flags(pmd) & _PAGE_PRESENT;
 }
 
 static inline int pmd_none(pmd_t pmd)
@@ -516,7 +516,7 @@ static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long address)
 
 static inline int pmd_bad(pmd_t pmd)
 {
-	return (pmd_val(pmd) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;
+	return (pmd_flags(pmd) & ~_PAGE_USER) != _KERNPG_TABLE;
 }
 
 static inline unsigned long pages_to_mb(unsigned long npg)
@@ -535,7 +535,7 @@ static inline int pud_none(pud_t pud)
 
 static inline int pud_present(pud_t pud)
 {
-	return pud_val(pud) & _PAGE_PRESENT;
+	return pud_flags(pud) & _PAGE_PRESENT;
 }
 
 static inline unsigned long pud_page_vaddr(pud_t pud)
@@ -561,20 +561,20 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 
 static inline int pud_large(pud_t pud)
 {
-	return (pud_val(pud) & (_PAGE_PSE | _PAGE_PRESENT)) ==
+	return (pud_flags(pud) & (_PAGE_PSE | _PAGE_PRESENT)) ==
 		(_PAGE_PSE | _PAGE_PRESENT);
 }
 
 static inline int pud_bad(pud_t pud)
 {
-	return (pud_val(pud) & ~(PTE_PFN_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
+	return (pud_flags(pud) & ~(_KERNPG_TABLE | _PAGE_USER)) != 0;
 }
 #endif	/* PAGETABLE_LEVELS > 2 */
 
 #if PAGETABLE_LEVELS > 3
 static inline int pgd_present(pgd_t pgd)
 {
-	return pgd_val(pgd) & _PAGE_PRESENT;
+	return pgd_flags(pgd) & _PAGE_PRESENT;
 }
 
 static inline unsigned long pgd_page_vaddr(pgd_t pgd)
@@ -600,7 +600,7 @@ static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
 
 static inline int pgd_bad(pgd_t pgd)
 {
-	return (pgd_val(pgd) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;
+	return (pgd_flags(pgd) & ~_PAGE_USER) != _KERNPG_TABLE;
 }
 
 static inline int pgd_none(pgd_t pgd)
