@@ -500,6 +500,12 @@ static inline struct page *pgd_page(pgd_t pgd)
 {
 	return pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT);
 }
+
+/* to find an entry in a page-table-directory. */
+static inline unsigned pud_index(unsigned long address)
+{
+	return (address >> PUD_SHIFT) & (PTRS_PER_PUD - 1);
+}
 #endif	/* PAGETABLE_LEVELS > 3 */
 
 #endif	/* __ASSEMBLY__ */

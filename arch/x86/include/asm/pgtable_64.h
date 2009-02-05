@@ -183,8 +183,6 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
 #define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
 
 /* PUD - Level3 access */
-/* to find an entry in a page-table-directory. */
-#define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
 #define pud_offset(pgd, address)					\
 	((pud_t *)pgd_page_vaddr(*(pgd)) + pud_index((address)))
 
