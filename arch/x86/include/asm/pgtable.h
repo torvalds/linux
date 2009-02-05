@@ -469,6 +469,11 @@ static inline int pgd_present(pgd_t pgd)
 {
 	return pgd_val(pgd) & _PAGE_PRESENT;
 }
+
+static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+{
+	return (unsigned long)__va((unsigned long)pgd_val(pgd) & PTE_PFN_MASK);
+}
 #endif	/* PAGETABLE_LEVELS > 3 */
 
 #endif	/* __ASSEMBLY__ */
