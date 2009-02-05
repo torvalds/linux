@@ -465,7 +465,7 @@ static inline int pmd_none(pmd_t pmd)
 {
 	/* Only check low word on 32-bit platforms, since it might be
 	   out of sync with upper half. */
-	return !(unsigned long)native_pmd_val(pmd);
+	return (unsigned long)native_pmd_val(pmd) == 0;
 }
 
 static inline unsigned long pmd_page_vaddr(pmd_t pmd)
@@ -530,7 +530,7 @@ static inline unsigned long pages_to_mb(unsigned long npg)
 #if PAGETABLE_LEVELS > 2
 static inline int pud_none(pud_t pud)
 {
-	return pud_val(pud) == 0;
+	return native_pud_val(pud) == 0;
 }
 
 static inline int pud_present(pud_t pud)
@@ -605,7 +605,7 @@ static inline int pgd_bad(pgd_t pgd)
 
 static inline int pgd_none(pgd_t pgd)
 {
-	return !pgd_val(pgd);
+	return !native_pgd_val(pgd);
 }
 #endif	/* PAGETABLE_LEVELS > 3 */
 
