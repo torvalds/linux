@@ -113,7 +113,7 @@ static void ftrace_mod_code(void)
 					     MCOUNT_INSN_SIZE);
 }
 
-void ftrace_nmi_enter(void)
+void arch_ftrace_nmi_enter(void)
 {
 	atomic_inc(&in_nmi);
 	/* Must have in_nmi seen before reading write flag */
@@ -124,7 +124,7 @@ void ftrace_nmi_enter(void)
 	}
 }
 
-void ftrace_nmi_exit(void)
+void arch_ftrace_nmi_exit(void)
 {
 	/* Finish all executions before clearing in_nmi */
 	smp_wmb();
@@ -376,12 +376,12 @@ int ftrace_disable_ftrace_graph_caller(void)
  */
 static atomic_t in_nmi;
 
-void ftrace_nmi_enter(void)
+void arch_ftrace_nmi_enter(void)
 {
 	atomic_inc(&in_nmi);
 }
 
-void ftrace_nmi_exit(void)
+void arch_ftrace_nmi_exit(void)
 {
 	atomic_dec(&in_nmi);
 }
