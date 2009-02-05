@@ -230,6 +230,37 @@ static int cpu_clock_sample(const clockid_t which_clock, struct task_struct *p,
 	return 0;
 }
 
+void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
+{
+	struct sighand_struct *sighand;
+	struct signal_struct *sig;
+	struct task_struct *t;
+
+	*times = INIT_CPUTIME;
+
+	rcu_read_lock();
+	sighand = rcu_dereference(tsk->sighand);
+	if (!sighand)
+		goto out;
+
+	sig = tsk->signal;
+
+	t = tsk;
+	do {
+		times->utime = cputime_add(times->utime, t->utime);
+		times->stime = cputime_add(times->stime, t->stime);
+		times->sum_exec_runtime += t->se.sum_exec_runtime;
+
+		t = next_thread(t);
+	} while (t != tsk);
+
+	times->utime = cputime_add(times->utime, sig->utime);
+	times->stime = cputime_add(times->stime, sig->stime);
+	times->sum_exec_runtime += sig->sum_sched_runtime;
+out:
+	rcu_read_unlock();
+}
+
 /*
  * Sample a process (thread group) clock for the given group_leader task.
  * Must be called with tasklist_lock held for reading.
@@ -476,6 +507,29 @@ static void clear_dead_task(struct k_itimer *timer, union cpu_time_count now)
 }
 
 /*
+ * Enable the process wide cpu timer accounting.
+ *
+ * serialized using ->sighand->siglock
+ */
+static void start_process_timers(struct task_struct *tsk)
+{
+	tsk->signal->cputimer.running = 1;
+	barrier();
+}
+
+/*
+ * Release the process wide timer accounting -- timer stops ticking when
+ * nobody cares about it.
+ *
+ * serialized using ->sighand->siglock
+ */
+static void stop_process_timers(struct task_struct *tsk)
+{
+	tsk->signal->cputimer.running = 0;
+	barrier();
+}
+
+/*
  * Insert the timer on the appropriate list before any timers that
  * expire later.  This must be called with the tasklist_lock held
  * for reading, and interrupts disabled.
@@ -494,6 +548,9 @@ static void arm_timer(struct k_itimer *timer, union cpu_time_count now)
 
 	BUG_ON(!irqs_disabled());
 	spin_lock(&p->sighand->siglock);
+
+	if (!CPUCLOCK_PERTHREAD(timer->it_clock))
+		start_process_timers(p);
 
 	listpos = head;
 	if (CPUCLOCK_WHICH(timer->it_clock) == CPUCLOCK_SCHED) {
@@ -987,13 +1044,15 @@ static void check_process_timers(struct task_struct *tsk,
 	    sig->rlim[RLIMIT_CPU].rlim_cur == RLIM_INFINITY &&
 	    list_empty(&timers[CPUCLOCK_VIRT]) &&
 	    cputime_eq(sig->it_virt_expires, cputime_zero) &&
-	    list_empty(&timers[CPUCLOCK_SCHED]))
+	    list_empty(&timers[CPUCLOCK_SCHED])) {
+		stop_process_timers(tsk);
 		return;
+	}
 
 	/*
 	 * Collect the current process totals.
 	 */
-	thread_group_cputime(tsk, &cputime);
+	thread_group_cputimer(tsk, &cputime);
 	utime = cputime.utime;
 	ptime = cputime_add(utime, cputime.stime);
 	sum_sched_runtime = cputime.sum_exec_runtime;
@@ -1259,7 +1318,7 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 	if (!task_cputime_zero(&sig->cputime_expires)) {
 		struct task_cputime group_sample;
 
-		thread_group_cputime(tsk, &group_sample);
+		thread_group_cputimer(tsk, &group_sample);
 		if (task_cputime_expired(&group_sample, &sig->cputime_expires))
 			return 1;
 	}
@@ -1329,6 +1388,33 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 }
 
 /*
+ * Sample a process (thread group) timer for the given group_leader task.
+ * Must be called with tasklist_lock held for reading.
+ */
+static int cpu_timer_sample_group(const clockid_t which_clock,
+				  struct task_struct *p,
+				  union cpu_time_count *cpu)
+{
+	struct task_cputime cputime;
+
+	thread_group_cputimer(p, &cputime);
+	switch (CPUCLOCK_WHICH(which_clock)) {
+	default:
+		return -EINVAL;
+	case CPUCLOCK_PROF:
+		cpu->cpu = cputime_add(cputime.utime, cputime.stime);
+		break;
+	case CPUCLOCK_VIRT:
+		cpu->cpu = cputime.utime;
+		break;
+	case CPUCLOCK_SCHED:
+		cpu->sched = cputime.sum_exec_runtime + task_delta_exec(p);
+		break;
+	}
+	return 0;
+}
+
+/*
  * Set one of the process-wide special case CPU timers.
  * The tsk->sighand->siglock must be held by the caller.
  * The *newval argument is relative and we update it to be absolute, *oldval
@@ -1341,7 +1427,8 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 	struct list_head *head;
 
 	BUG_ON(clock_idx == CPUCLOCK_SCHED);
-	cpu_clock_sample_group(clock_idx, tsk, &now);
+	start_process_timers(tsk);
+	cpu_timer_sample_group(clock_idx, tsk, &now);
 
 	if (oldval) {
 		if (!cputime_eq(*oldval, cputime_zero)) {
