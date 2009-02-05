@@ -318,6 +318,15 @@
 			fsl,descriptor-types-mask = <0x3ab0ebf>;
 		};
 
+		sdhci@2e000 {
+			compatible = "fsl,mpc8378-esdhc", "fsl,mpc8379-esdhc";
+			reg = <0x2e000 0x1000>;
+			interrupts = <42 0x8>;
+			interrupt-parent = <&ipic>;
+			/* Filled in by U-Boot */
+			clock-frequency = <0>;
+		};
+
 		/* IPIC
 		 * interrupts cell = <intr #, sense>
 		 * sense values match linux IORESOURCE_IRQ_* defines:
