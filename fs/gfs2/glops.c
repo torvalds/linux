@@ -37,19 +37,24 @@
 static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
-	unsigned int blocks;
 	struct list_head *head = &gl->gl_ail_list;
 	struct gfs2_bufdata *bd;
 	struct buffer_head *bh;
-	int error;
+	struct gfs2_trans tr;
 
-	blocks = atomic_read(&gl->gl_ail_count);
-	if (!blocks)
+	memset(&tr, 0, sizeof(tr));
+	tr.tr_revokes = atomic_read(&gl->gl_ail_count);
+
+	if (!tr.tr_revokes)
 		return;
 
-	error = gfs2_trans_begin(sdp, 0, blocks);
-	if (gfs2_assert_withdraw(sdp, !error))
-		return;
+	/* A shortened, inline version of gfs2_trans_begin() */
+	tr.tr_reserved = 1 + gfs2_struct2blk(sdp, tr.tr_revokes, sizeof(u64));
+	tr.tr_ip = (unsigned long)__builtin_return_address(0);
+	INIT_LIST_HEAD(&tr.tr_list_buf);
+	gfs2_log_reserve(sdp, tr.tr_reserved);
+	BUG_ON(current->journal_info);
+	current->journal_info = &tr;
 
 	gfs2_log_lock(sdp);
 	while (!list_empty(head)) {

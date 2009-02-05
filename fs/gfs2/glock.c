@@ -167,6 +167,7 @@ static void glock_free(struct gfs2_glock *gl)
 
 static void gfs2_glock_hold(struct gfs2_glock *gl)
 {
+	GLOCK_BUG_ON(gl, atomic_read(&gl->gl_ref) == 0);
 	atomic_inc(&gl->gl_ref);
 }
 
@@ -206,16 +207,15 @@ int gfs2_glock_put(struct gfs2_glock *gl)
 			atomic_dec(&lru_count);
 		}
 		spin_unlock(&lru_lock);
-		GLOCK_BUG_ON(gl, !list_empty(&gl->gl_lru));
 		GLOCK_BUG_ON(gl, !list_empty(&gl->gl_holders));
 		glock_free(gl);
 		rv = 1;
 		goto out;
 	}
-	write_unlock(gl_lock_addr(gl->gl_hash));
 	/* 1 for being hashed, 1 for having state != LM_ST_UNLOCKED */
 	if (atomic_read(&gl->gl_ref) == 2)
 		gfs2_glock_schedule_for_reclaim(gl);
+	write_unlock(gl_lock_addr(gl->gl_hash));
 out:
 	return rv;
 }
@@ -597,10 +597,11 @@ __acquires(&gl->gl_spin)
 
 	GLOCK_BUG_ON(gl, test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags));
 
+	down_read(&gfs2_umount_flush_sem);
 	if (test_bit(GLF_DEMOTE, &gl->gl_flags) &&
 	    gl->gl_demote_state != gl->gl_state) {
 		if (find_first_holder(gl))
-			goto out;
+			goto out_unlock;
 		if (nonblock)
 			goto out_sched;
 		set_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
@@ -611,23 +612,26 @@ __acquires(&gl->gl_spin)
 			gfs2_demote_wake(gl);
 		ret = do_promote(gl);
 		if (ret == 0)
-			goto out;
+			goto out_unlock;
 		if (ret == 2)
-			return;
+			goto out_sem;
 		gh = find_first_waiter(gl);
 		gl->gl_target = gh->gh_state;
 		if (!(gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
 			do_error(gl, 0); /* Fail queued try locks */
 	}
 	do_xmote(gl, gh, gl->gl_target);
+out_sem:
+	up_read(&gfs2_umount_flush_sem);
 	return;
 
 out_sched:
 	gfs2_glock_hold(gl);
 	if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
 		gfs2_glock_put(gl);
-out:
+out_unlock:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
+	goto out_sem;
 }
 
 static void glock_work_func(struct work_struct *work)
@@ -1225,7 +1229,6 @@ void gfs2_glock_cb(struct gfs2_glock *gl, unsigned int state)
 void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
 {
 	struct lm_lockstruct *ls = &gl->gl_sbd->sd_lockstruct;
-	down_read(&gfs2_umount_flush_sem);
 	gl->gl_reply = ret;
 	if (unlikely(test_bit(DFL_BLOCK_LOCKS, &ls->ls_flags))) {
 		struct gfs2_holder *gh;
@@ -1236,16 +1239,13 @@ void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
 		    ((ret & ~LM_OUT_ST_MASK) != 0))
 			set_bit(GLF_FROZEN, &gl->gl_flags);
 		spin_unlock(&gl->gl_spin);
-		if (test_bit(GLF_FROZEN, &gl->gl_flags)) {
-			up_read(&gfs2_umount_flush_sem);
+		if (test_bit(GLF_FROZEN, &gl->gl_flags))
 			return;
-		}
 	}
 	set_bit(GLF_REPLY_PENDING, &gl->gl_flags);
 	gfs2_glock_hold(gl);
 	if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
 		gfs2_glock_put(gl);
-	up_read(&gfs2_umount_flush_sem);
 }
 
 /**
@@ -1389,12 +1389,10 @@ static void thaw_glock(struct gfs2_glock *gl)
 {
 	if (!test_and_clear_bit(GLF_FROZEN, &gl->gl_flags))
 		return;
-	down_read(&gfs2_umount_flush_sem);
 	set_bit(GLF_REPLY_PENDING, &gl->gl_flags);
 	gfs2_glock_hold(gl);
 	if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
 		gfs2_glock_put(gl);
-	up_read(&gfs2_umount_flush_sem);
 }
 
 /**
@@ -1580,7 +1578,7 @@ static const char *gflags2str(char *buf, const unsigned long *gflags)
 	if (test_bit(GLF_REPLY_PENDING, gflags))
 		*p++ = 'r';
 	if (test_bit(GLF_INITIAL, gflags))
-		*p++ = 'i';
+		*p++ = 'I';
 	if (test_bit(GLF_FROZEN, gflags))
 		*p++ = 'F';
 	*p = 0;
