@@ -222,7 +222,10 @@ static int check_ignored_ctl(struct mixer_build *state, int unitid, int control)
 	for (p = state->map; p->id; p++) {
 		if (p->id == unitid && ! p->name &&
 		    (! control || ! p->control || control == p->control)) {
-			// printk("ignored control %d:%d\n", unitid, control);
+			/*
+			printk(KERN_DEBUG "ignored control %d:%d\n",
+			       unitid, control);
+			*/
 			return 1;
 		}
 	}

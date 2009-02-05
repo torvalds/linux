@@ -1419,9 +1419,11 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	subs->cur_audiofmt = fmt;
 
 #if 0
-	printk("setting done: format = %d, rate = %d..%d, channels = %d\n",
+	printk(KERN_DEBUG
+	       "setting done: format = %d, rate = %d..%d, channels = %d\n",
 	       fmt->format, fmt->rate_min, fmt->rate_max, fmt->channels);
-	printk("  datapipe = 0x%0x, syncpipe = 0x%0x\n",
+	printk(KERN_DEBUG
+	       "  datapipe = 0x%0x, syncpipe = 0x%0x\n",
 	       subs->datapipe, subs->syncpipe);
 #endif
 
