@@ -185,7 +185,6 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
 
 /* PUD - Level3 access */
 /* to find an entry in a page-table-directory. */
-#define pud_page(pud)	(pfn_to_page(pud_val((pud)) >> PAGE_SHIFT))
 #define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
 #define pud_offset(pgd, address)					\
 	((pud_t *)pgd_page_vaddr(*(pgd)) + pud_index((address)))

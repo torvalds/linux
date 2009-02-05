@@ -438,6 +438,7 @@ static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
 #endif
 
 #ifndef __ASSEMBLY__
+#include <linux/mm_types.h>
 
 static inline int pte_none(pte_t pte)
 {
@@ -476,6 +477,11 @@ static inline int pud_present(pud_t pud)
 static inline unsigned long pud_page_vaddr(pud_t pud)
 {
 	return (unsigned long)__va((unsigned long)pud_val(pud) & PTE_PFN_MASK);
+}
+
+static inline struct page *pud_page(pud_t pud)
+{
+	return pfn_to_page(pud_val(pud) >> PAGE_SHIFT);
 }
 #endif	/* PAGETABLE_LEVELS > 2 */
 

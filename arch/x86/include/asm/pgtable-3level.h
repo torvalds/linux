@@ -115,8 +115,6 @@ static inline void pud_clear(pud_t *pudp)
 		write_cr3(pgd);
 }
 
-#define pud_page(pud) pfn_to_page(pud_val(pud) >> PAGE_SHIFT)
-
 /* Find an entry in the second-level page table.. */
 #define pmd_offset(pud, address) ((pmd_t *)pud_page_vaddr(*(pud)) +	\
 				  pmd_index(address))
