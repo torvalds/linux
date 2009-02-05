@@ -184,12 +184,6 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
 
 /* PUD - Level3 access */
 
-static inline int pud_large(pud_t pte)
-{
-	return (pud_val(pte) & (_PAGE_PSE | _PAGE_PRESENT)) ==
-		(_PAGE_PSE | _PAGE_PRESENT);
-}
-
 /* PMD  - Level 2 access */
 #define pte_to_pgoff(pte) ((pte_val((pte)) & PHYSICAL_PAGE_MASK) >> PAGE_SHIFT)
 #define pgoff_to_pte(off) ((pte_t) { .pte = ((off) << PAGE_SHIFT) |	\

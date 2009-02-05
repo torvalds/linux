@@ -540,6 +540,12 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 {
 	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
 }
+
+static inline int pud_large(pud_t pud)
+{
+	return (pud_val(pud) & (_PAGE_PSE | _PAGE_PRESENT)) ==
+		(_PAGE_PSE | _PAGE_PRESENT);
+}
 #endif	/* PAGETABLE_LEVELS > 2 */
 
 #if PAGETABLE_LEVELS > 3

@@ -95,8 +95,6 @@ extern unsigned long pg0[];
 # include <asm/pgtable-2level.h>
 #endif
 
-static inline int pud_large(pud_t pud) { return 0; }
-
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address)					\
 	((pte_t *)kmap_atomic_pte(pmd_page(*(dir)), KM_PTE0) +		\
