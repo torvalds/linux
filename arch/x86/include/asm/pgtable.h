@@ -473,6 +473,11 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 	return (unsigned long)__va(pmd_val(pmd) & PTE_PFN_MASK);
 }
 
+static inline struct page *pmd_page(pmd_t pmd)
+{
+	return pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT);
+}
+
 #if PAGETABLE_LEVELS > 2
 static inline int pud_present(pud_t pud)
 {

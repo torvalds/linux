@@ -191,8 +191,6 @@ static inline int pud_large(pud_t pte)
 }
 
 /* PMD  - Level 2 access */
-#define pmd_page(pmd)		(pfn_to_page(pmd_val((pmd)) >> PAGE_SHIFT))
-
 #define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
 #define pmd_offset(dir, address) ((pmd_t *)pud_page_vaddr(*(dir)) + \
 				  pmd_index(address))

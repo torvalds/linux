@@ -124,8 +124,6 @@ static inline int pud_large(pud_t pud) { return 0; }
 #define pte_offset_kernel(dir, address)				\
 	((pte_t *)pmd_page_vaddr(*(dir)) +  pte_index((address)))
 
-#define pmd_page(pmd) (pfn_to_page(pmd_val((pmd)) >> PAGE_SHIFT))
-
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address)					\
 	((pte_t *)kmap_atomic_pte(pmd_page(*(dir)), KM_PTE0) +		\
