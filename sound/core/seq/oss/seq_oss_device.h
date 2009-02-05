@@ -181,7 +181,7 @@ char *enabled_str(int bool);
 /* for debug */
 #ifdef SNDRV_SEQ_OSS_DEBUG
 extern int seq_oss_debug;
-#define debug_printk(x)	do { if (seq_oss_debug > 0) snd_printk x; } while (0)
+#define debug_printk(x)	do { if (seq_oss_debug > 0) snd_printd x; } while (0)
 #else
 #define debug_printk(x)	/**/
 #endif
