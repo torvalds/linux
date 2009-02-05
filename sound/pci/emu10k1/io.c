@@ -226,7 +226,9 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 				break;
 
 			if (timeout > 1000) {
-                		snd_printk("emu10k1:I2C:timeout status=0x%x\n", status);
+                		snd_printk(KERN_WARNING
+					   "emu10k1:I2C:timeout status=0x%x\n",
+					   status);
 				break;
 			}
 		}
