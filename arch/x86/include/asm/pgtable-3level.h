@@ -18,11 +18,6 @@
 	printk("%s:%d: bad pgd %p(%016Lx).\n",				\
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
-static inline int pud_none(pud_t pud)
-{
-	return pud_val(pud) == 0;
-}
-
 /* Rules for using set_pte: the pte being assigned *must* be
  * either not present or in a state where the hardware will
  * not attempt to update the pte.  In places where this is

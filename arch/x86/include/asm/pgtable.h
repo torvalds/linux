@@ -525,6 +525,11 @@ static inline unsigned long pages_to_mb(unsigned long npg)
 }
 
 #if PAGETABLE_LEVELS > 2
+static inline int pud_none(pud_t pud)
+{
+	return pud_val(pud) == 0;
+}
+
 static inline int pud_present(pud_t pud)
 {
 	return pud_val(pud) & _PAGE_PRESENT;

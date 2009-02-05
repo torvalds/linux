@@ -68,7 +68,6 @@ extern void paging_init(void);
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
 #define pgd_none(x)	(!pgd_val(x))
-#define pud_none(x)	(!pud_val(x))
 
 struct mm_struct;
 
