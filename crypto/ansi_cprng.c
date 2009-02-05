@@ -132,9 +132,15 @@ static int _get_more_prng_bytes(struct prng_context *ctx)
 			 */
 			if (!memcmp(ctx->rand_data, ctx->last_rand_data,
 					DEFAULT_BLK_SZ)) {
+				if (fips_enabled) {
+					panic("cprng %p Failed repetition check!\n",
+						ctx);
+				}
+
 				printk(KERN_ERR
 					"ctx %p Failed repetition check!\n",
 					ctx);
+
 				ctx->flags |= PRNG_NEED_RESET;
 				return -EINVAL;
 			}
