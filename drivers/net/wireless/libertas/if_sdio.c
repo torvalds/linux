@@ -209,6 +209,9 @@ static int if_sdio_handle_event(struct if_sdio_card *card,
 		event = sdio_readb(card->func, IF_SDIO_EVENT, &ret);
 		if (ret)
 			goto out;
+
+		/* right shift 3 bits to get the event id */
+		event >>= 3;
 	} else {
 		if (size < 4) {
 			lbs_deb_sdio("event packet too small (%d bytes)\n",
@@ -920,6 +923,9 @@ static int if_sdio_probe(struct sdio_func *func,
 	ret = lbs_start_card(priv);
 	if (ret)
 		goto err_activate_card;
+
+	if (priv->fwcapinfo & FW_CAPINFO_PS)
+		priv->ps_supported = 1;
 
 out:
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
