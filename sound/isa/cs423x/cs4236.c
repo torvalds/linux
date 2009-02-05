@@ -382,16 +382,18 @@ static void snd_card_cs4236_free(struct snd_card *card)
 	release_and_free_resource(acard->res_sb_port);
 }
 
-static struct snd_card *snd_cs423x_card_new(int dev)
+static int snd_cs423x_card_new(int dev, struct snd_card **cardp)
 {
 	struct snd_card *card;
+	int err;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_card_cs4236));
-	if (card == NULL)
-		return NULL;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_card_cs4236), &card);
+	if (err < 0)
+		return err;
 	card->private_free = snd_card_cs4236_free;
-	return card;
+	*cardp = card;
+	return 0;
 }
 
 static int __devinit snd_cs423x_probe(struct snd_card *card, int dev)
@@ -512,9 +514,9 @@ static int __devinit snd_cs423x_isa_probe(struct device *pdev,
 	struct snd_card *card;
 	int err;
 
-	card = snd_cs423x_card_new(dev);
-	if (! card)
-		return -ENOMEM;
+	err = snd_cs423x_card_new(dev, &card);
+	if (err < 0)
+		return err;
 	snd_card_set_dev(card, pdev);
 	if ((err = snd_cs423x_probe(card, dev)) < 0) {
 		snd_card_free(card);
@@ -594,9 +596,9 @@ static int __devinit snd_cs4232_pnpbios_detect(struct pnp_dev *pdev,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 
-	card = snd_cs423x_card_new(dev);
-	if (! card)
-		return -ENOMEM;
+	err = snd_cs423x_card_new(dev, &card);
+	if (err < 0)
+		return err;
 	if ((err = snd_card_cs4232_pnp(dev, card->private_data, pdev)) < 0) {
 		printk(KERN_ERR "PnP BIOS detection failed for " IDENT "\n");
 		snd_card_free(card);
@@ -656,9 +658,9 @@ static int __devinit snd_cs423x_pnpc_detect(struct pnp_card_link *pcard,
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
 
-	card = snd_cs423x_card_new(dev);
-	if (! card)
-		return -ENOMEM;
+	res = snd_cs423x_card_new(dev, &card);
+	if (res < 0)
+		return res;
 	if ((res = snd_card_cs423x_pnpc(dev, card->private_data, pcard, pid)) < 0) {
 		printk(KERN_ERR "isapnp detection failed and probing for " IDENT
 		       " is not supported\n");

@@ -130,23 +130,26 @@ static struct snd_vx_hardware vxp440_hw = {
 /*
  * create vxpocket instance
  */
-static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl,
-					     struct pcmcia_device *link)
+static int snd_vxpocket_new(struct snd_card *card, int ibl,
+			    struct pcmcia_device *link,
+			    struct snd_vxpocket **chip_ret)
 {
 	struct vx_core *chip;
 	struct snd_vxpocket *vxp;
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_vxpocket_dev_free,
 	};
+	int err;
 
 	chip = snd_vx_create(card, &vxpocket_hw, &snd_vxpocket_ops,
 			     sizeof(struct snd_vxpocket) - sizeof(struct vx_core));
-	if (! chip)
-		return NULL;
+	if (!chip)
+		return -ENOMEM;
 
-	if (snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops) < 0) {
+	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
+	if (err < 0) {
 		kfree(chip);
-		return NULL;
+		return err;
 	}
 	chip->ibl.size = ibl;
 
@@ -169,7 +172,8 @@ static struct snd_vxpocket *snd_vxpocket_new(struct snd_card *card, int ibl,
 	link->conf.ConfigIndex = 1;
 	link->conf.Present = PRESENT_OPTION;
 
-	return vxp;
+	*chip_ret = vxp;
+	return 0;
 }
 
 
@@ -292,7 +296,7 @@ static int vxpocket_probe(struct pcmcia_device *p_dev)
 {
 	struct snd_card *card;
 	struct snd_vxpocket *vxp;
-	int i;
+	int i, err;
 
 	/* find an empty slot from the card list */
 	for (i = 0; i < SNDRV_CARDS; i++) {
@@ -307,16 +311,16 @@ static int vxpocket_probe(struct pcmcia_device *p_dev)
 		return -ENODEV; /* disabled explicitly */
 
 	/* ok, create a card instance */
-	card = snd_card_new(index[i], id[i], THIS_MODULE, 0);
-	if (card == NULL) {
+	err = snd_card_create(index[i], id[i], THIS_MODULE, 0, &card);
+	if (err < 0) {
 		snd_printk(KERN_ERR "vxpocket: cannot create a card instance\n");
-		return -ENOMEM;
+		return err;
 	}
 
-	vxp = snd_vxpocket_new(card, ibl[i], p_dev);
-	if (! vxp) {
+	err = snd_vxpocket_new(card, ibl[i], p_dev, &vxp);
+	if (err < 0) {
 		snd_card_free(card);
-		return -ENODEV;
+		return err;
 	}
 	card->private_data = vxp;
 
