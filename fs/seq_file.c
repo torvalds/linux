@@ -102,6 +102,7 @@ static int traverse(struct seq_file *m, loff_t offset)
 		p = m->op->next(m, p, &index);
 	}
 	m->op->stop(m, p);
+	m->index = index;
 	return error;
 
 Eoverflow:
