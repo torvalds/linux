@@ -582,7 +582,7 @@ extern const char *dev_driver_string(const struct device *dev);
 #if defined(DEBUG)
 #define dev_dbg(dev, format, arg...)		\
 	dev_printk(KERN_DEBUG , dev , format , ## arg)
-#elif defined(CONFIG_DYNAMIC_PRINTK_DEBUG)
+#elif defined(CONFIG_DYNAMIC_DEBUG)
 #define dev_dbg(dev, format, ...) do { \
 	dynamic_dev_dbg(dev, format, ##__VA_ARGS__); \
 	} while (0)
