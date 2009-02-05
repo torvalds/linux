@@ -669,7 +669,7 @@ static int usb_amradio_probe(struct usb_interface *intf,
 	video_set_drvdata(radio->videodev, radio);
 	retval = video_register_device(radio->videodev,	VFL_TYPE_RADIO,	radio_nr);
 	if (retval < 0) {
-		dev_warn(&intf->dev, "could not register video device\n");
+		dev_err(&intf->dev, "could not register video device\n");
 		video_device_release(radio->videodev);
 		kfree(radio->buffer);
 		kfree(radio);
