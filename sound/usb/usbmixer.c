@@ -78,7 +78,6 @@ struct usb_mixer_interface {
 
 	/* Sound Blaster remote control stuff */
 	const struct rc_config *rc_cfg;
-	unsigned long rc_hwdep_open;
 	u32 rc_code;
 	wait_queue_head_t rc_waitq;
 	struct urb *rc_urb;
@@ -1797,24 +1796,6 @@ static void snd_usb_soundblaster_remote_complete(struct urb *urb)
 	wake_up(&mixer->rc_waitq);
 }
 
-static int snd_usb_sbrc_hwdep_open(struct snd_hwdep *hw, struct file *file)
-{
-	struct usb_mixer_interface *mixer = hw->private_data;
-
-	if (test_and_set_bit(0, &mixer->rc_hwdep_open))
-		return -EBUSY;
-	return 0;
-}
-
-static int snd_usb_sbrc_hwdep_release(struct snd_hwdep *hw, struct file *file)
-{
-	struct usb_mixer_interface *mixer = hw->private_data;
-
-	clear_bit(0, &mixer->rc_hwdep_open);
-	smp_mb__after_clear_bit();
-	return 0;
-}
-
 static long snd_usb_sbrc_hwdep_read(struct snd_hwdep *hw, char __user *buf,
 				     long count, loff_t *offset)
 {
@@ -1867,9 +1848,8 @@ static int snd_usb_soundblaster_remote_init(struct usb_mixer_interface *mixer)
 	hwdep->iface = SNDRV_HWDEP_IFACE_SB_RC;
 	hwdep->private_data = mixer;
 	hwdep->ops.read = snd_usb_sbrc_hwdep_read;
-	hwdep->ops.open = snd_usb_sbrc_hwdep_open;
-	hwdep->ops.release = snd_usb_sbrc_hwdep_release;
 	hwdep->ops.poll = snd_usb_sbrc_hwdep_poll;
+	hwdep->exclusive = 1;
 
 	mixer->rc_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!mixer->rc_urb)
