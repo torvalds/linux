@@ -97,14 +97,6 @@ extern unsigned long pg0[];
 
 static inline int pud_large(pud_t pud) { return 0; }
 
-/*
- * the pte page can be thought of an array like this: pte_t[PTRS_PER_PTE]
- *
- * this macro returns the index of the entry in the pte page which would
- * control the given virtual address
- */
-#define pte_index(address)					\
-	(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address)				\
 	((pte_t *)pmd_page_vaddr(*(dir)) +  pte_index((address)))
 

@@ -198,7 +198,6 @@ static inline int pud_large(pud_t pte)
 
 /* PTE - Level 1 access. */
 
-#define pte_index(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address) ((pte_t *) pmd_page_vaddr(*(dir)) + \
 					 pte_index((address)))
 
