@@ -431,7 +431,10 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (radio->removed)
 		return -EIO;
 
+	mutex_lock(&radio->lock);
 	radio->curfreq = f->frequency;
+	mutex_unlock(&radio->lock);
+
 	retval = amradio_setfreq(radio, radio->curfreq);
 	if (retval < 0)
 		amradio_dev_warn(&radio->videodev->dev,
@@ -599,7 +602,9 @@ static int usb_amradio_close(struct file *file)
 	if (!radio)
 		return -ENODEV;
 
+	mutex_lock(&radio->lock);
 	radio->users = 0;
+	mutex_unlock(&radio->lock);
 
 	if (!radio->removed) {
 		retval = amradio_set_mute(radio, AMRADIO_STOP);
