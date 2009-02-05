@@ -133,7 +133,4 @@ do {						\
 #define kern_addr_valid(kaddr)	(0)
 #endif
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)	\
-	remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 #endif /* _ASM_X86_PGTABLE_32_H */

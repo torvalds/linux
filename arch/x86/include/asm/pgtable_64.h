@@ -205,9 +205,6 @@ extern int direct_gbpages;
 extern int kern_addr_valid(unsigned long addr);
 extern void cleanup_highmap(void);
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)	\
-	remap_pfn_range(vma, vaddr, pfn, size, prot)
-
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
