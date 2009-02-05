@@ -2272,9 +2272,17 @@ config GELIC_WIRELESS_OLD_PSK_INTERFACE
 
           If unsure, say N.
 
+config FSL_PQ_MDIO
+	tristate "Freescale PQ MDIO"
+	depends on FSL_SOC
+	select PHYLIB
+	help
+	  This driver supports the MDIO bus used by the gianfar and UCC drivers.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on FSL_SOC
+	select FSL_PQ_MDIO
 	select PHYLIB
 	select CRC32
 	help
@@ -2284,6 +2292,7 @@ config GIANFAR
 config UCC_GETH
 	tristate "Freescale QE Gigabit Ethernet"
 	depends on QUICC_ENGINE
+	select FSL_PQ_MDIO
 	select PHYLIB
 	help
 	  This driver supports the Gigabit Ethernet mode of the QUICC Engine,

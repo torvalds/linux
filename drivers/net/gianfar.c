@@ -93,7 +93,7 @@
 #include <linux/of.h>
 
 #include "gianfar.h"
-#include "gianfar_mii.h"
+#include "fsl_pq_mdio.h"
 
 #define TX_TIMEOUT      (1*HZ)
 #undef BRIEF_GFAR_ERRORS
@@ -253,7 +253,7 @@ static int gfar_of_init(struct net_device *dev)
 		of_node_put(phy);
 		of_node_put(mdio);
 
-		gfar_mdio_bus_name(bus_name, mdio);
+		fsl_pq_mdio_bus_name(bus_name, mdio);
 		snprintf(priv->phy_bus_id, sizeof(priv->phy_bus_id), "%s:%02x",
 				bus_name, *id);
 	}
@@ -420,7 +420,7 @@ static int gfar_probe(struct of_device *ofdev,
 		priv->hash_width = 8;
 
 		priv->hash_regs[0] = &priv->regs->gaddr0;
-                priv->hash_regs[1] = &priv->regs->gaddr1;
+		priv->hash_regs[1] = &priv->regs->gaddr1;
 		priv->hash_regs[2] = &priv->regs->gaddr2;
 		priv->hash_regs[3] = &priv->regs->gaddr3;
 		priv->hash_regs[4] = &priv->regs->gaddr4;
@@ -836,7 +836,7 @@ void stop_gfar(struct net_device *dev)
 		free_irq(priv->interruptTransmit, dev);
 		free_irq(priv->interruptReceive, dev);
 	} else {
- 		free_irq(priv->interruptTransmit, dev);
+		free_irq(priv->interruptTransmit, dev);
 	}
 
 	free_skb_resources(priv);
@@ -1829,6 +1829,8 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 				skb_put(skb, pkt_len);
 				dev->stats.rx_bytes += pkt_len;
 
+				if (in_irq() || irqs_disabled())
+					printk("Interrupt problem!\n");
 				gfar_process_frame(dev, skb, amount_pull);
 
 			} else {
@@ -2302,23 +2304,12 @@ static struct of_platform_driver gfar_driver = {
 
 static int __init gfar_init(void)
 {
-	int err = gfar_mdio_init();
-
-	if (err)
-		return err;
-
-	err = of_register_platform_driver(&gfar_driver);
-
-	if (err)
-		gfar_mdio_exit();
-
-	return err;
+	return of_register_platform_driver(&gfar_driver);
 }
 
 static void __exit gfar_exit(void)
 {
 	of_unregister_platform_driver(&gfar_driver);
-	gfar_mdio_exit();
 }
 
 module_init(gfar_init);

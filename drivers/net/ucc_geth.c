@@ -39,7 +39,7 @@
 #include <asm/ucc_fast.h>
 
 #include "ucc_geth.h"
-#include "ucc_geth_mii.h"
+#include "fsl_pq_mdio.h"
 
 #undef DEBUG
 
@@ -1557,7 +1557,7 @@ static int init_phy(struct net_device *dev)
 	of_node_put(phy);
 	of_node_put(mdio);
 
-	uec_mdio_bus_name(bus_name, mdio);
+	fsl_pq_mdio_bus_name(bus_name, mdio);
 	snprintf(phy_id, sizeof(phy_id), "%s:%02x",
                                 bus_name, *id);
 
@@ -3657,7 +3657,8 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		if (err)
 			return -1;
 
-		snprintf(ug_info->mdio_bus, MII_BUS_ID_SIZE, "%x", res.start);
+		snprintf(ug_info->mdio_bus, MII_BUS_ID_SIZE, "%x",
+				res.start&0xfffff);
 	}
 
 	/* get the phy interface type, or default to MII */
@@ -3803,11 +3804,6 @@ static int __init ucc_geth_init(void)
 {
 	int i, ret;
 
-	ret = uec_mdio_init();
-
-	if (ret)
-		return ret;
-
 	if (netif_msg_drv(&debug))
 		printk(KERN_INFO "ucc_geth: " DRV_DESC "\n");
 	for (i = 0; i < 8; i++)
@@ -3816,16 +3812,12 @@ static int __init ucc_geth_init(void)
 
 	ret = of_register_platform_driver(&ucc_geth_driver);
 
-	if (ret)
-		uec_mdio_exit();
-
 	return ret;
 }
 
 static void __exit ucc_geth_exit(void)
 {
 	of_unregister_platform_driver(&ucc_geth_driver);
-	uec_mdio_exit();
 }
 
 module_init(ucc_geth_init);
