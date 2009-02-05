@@ -756,7 +756,14 @@ static int snd_vt1724_playback_pro_prepare(struct snd_pcm_substream *substream)
 
 	spin_unlock_irq(&ice->reg_lock);
 
-	/* printk("pro prepare: ch = %d, addr = 0x%x, buffer = 0x%x, period = 0x%x\n", substream->runtime->channels, (unsigned int)substream->runtime->dma_addr, snd_pcm_lib_buffer_bytes(substream), snd_pcm_lib_period_bytes(substream)); */
+	/*
+	printk(KERN_DEBUG "pro prepare: ch = %d, addr = 0x%x, "
+	       "buffer = 0x%x, period = 0x%x\n",
+	       substream->runtime->channels,
+	       (unsigned int)substream->runtime->dma_addr,
+	       snd_pcm_lib_buffer_bytes(substream),
+	       snd_pcm_lib_period_bytes(substream));
+	*/
 	return 0;
 }
 
@@ -2133,7 +2140,9 @@ unsigned char snd_vt1724_read_i2c(struct snd_ice1712 *ice,
 	wait_i2c_busy(ice);
 	val = inb(ICEREG1724(ice, I2C_DATA));
 	mutex_unlock(&ice->i2c_mutex);
-	/* printk("i2c_read: [0x%x,0x%x] = 0x%x\n", dev, addr, val); */
+	/*
+	printk(KERN_DEBUG "i2c_read: [0x%x,0x%x] = 0x%x\n", dev, addr, val);
+	*/
 	return val;
 }
 
@@ -2142,7 +2151,9 @@ void snd_vt1724_write_i2c(struct snd_ice1712 *ice,
 {
 	mutex_lock(&ice->i2c_mutex);
 	wait_i2c_busy(ice);
-	/* printk("i2c_write: [0x%x,0x%x] = 0x%x\n", dev, addr, data); */
+	/*
+	printk(KERN_DEBUG "i2c_write: [0x%x,0x%x] = 0x%x\n", dev, addr, data);
+	*/
 	outb(addr, ICEREG1724(ice, I2C_BYTE_ADDR));
 	outb(data, ICEREG1724(ice, I2C_DATA));
 	outb(dev | VT1724_I2C_WRITE, ICEREG1724(ice, I2C_DEV_ADDR));
