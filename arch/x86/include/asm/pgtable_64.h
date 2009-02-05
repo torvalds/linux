@@ -179,7 +179,6 @@ static inline int pmd_bad(pmd_t pmd)
 /*
  * Level 4 access.
  */
-#define pgd_page(pgd)		(pfn_to_page(pgd_val((pgd)) >> PAGE_SHIFT))
 static inline int pgd_large(pgd_t pgd) { return 0; }
 #define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
 
