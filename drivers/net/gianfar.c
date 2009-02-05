@@ -1181,6 +1181,8 @@ static int gfar_enet_open(struct net_device *dev)
 
 	napi_enable(&priv->napi);
 
+	skb_queue_head_init(&priv->rx_recycle);
+
 	/* Initialize a bunch of registers */
 	init_registers(dev);
 
@@ -1399,6 +1401,7 @@ static int gfar_close(struct net_device *dev)
 
 	napi_disable(&priv->napi);
 
+	skb_queue_purge(&priv->rx_recycle);
 	cancel_work_sync(&priv->reset_task);
 	stop_gfar(dev);
 
@@ -1595,7 +1598,17 @@ static int gfar_clean_tx_ring(struct net_device *dev)
 			bdp = next_txbd(bdp, base, tx_ring_size);
 		}
 
-		dev_kfree_skb_any(skb);
+		/*
+		 * If there's room in the queue (limit it to rx_buffer_size)
+		 * we add this skb back into the pool, if it's the right size
+		 */
+		if (skb_queue_len(&priv->rx_recycle) < priv->rx_ring_size &&
+				skb_recycle_check(skb, priv->rx_buffer_size +
+					RXBUF_ALIGNMENT))
+			__skb_queue_head(&priv->rx_recycle, skb);
+		else
+			dev_kfree_skb_any(skb);
+
 		priv->tx_skbuff[skb_dirtytx] = NULL;
 
 		skb_dirtytx = (skb_dirtytx + 1) &
@@ -1668,8 +1681,10 @@ struct sk_buff * gfar_new_skb(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	struct sk_buff *skb = NULL;
 
-	/* We have to allocate the skb, so keep trying till we succeed */
-	skb = netdev_alloc_skb(dev, priv->rx_buffer_size + RXBUF_ALIGNMENT);
+	skb = __skb_dequeue(&priv->rx_recycle);
+	if (!skb)
+		skb = netdev_alloc_skb(dev,
+				priv->rx_buffer_size + RXBUF_ALIGNMENT);
 
 	if (!skb)
 		return NULL;
@@ -1817,7 +1832,7 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 			if (unlikely(!newskb))
 				newskb = skb;
 			else if (skb)
-				dev_kfree_skb_any(skb);
+				__skb_queue_head(&priv->rx_recycle, skb);
 		} else {
 			/* Increment the number of packets */
 			dev->stats.rx_packets++;

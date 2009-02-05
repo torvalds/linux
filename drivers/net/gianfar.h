@@ -758,6 +758,8 @@ struct gfar_private {
 	unsigned int rx_stash_size;
 	unsigned int rx_stash_index;
 
+	struct sk_buff_head rx_recycle;
+
 	struct vlan_group *vlgrp;
 
 	/* Unprotected fields */
