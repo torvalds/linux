@@ -191,8 +191,6 @@ static inline int pud_large(pud_t pte)
 }
 
 /* PMD  - Level 2 access */
-#define pmd_pfn(x)  ((pmd_val((x)) & __PHYSICAL_MASK) >> PAGE_SHIFT)
-
 #define pte_to_pgoff(pte) ((pte_val((pte)) & PHYSICAL_PAGE_MASK) >> PAGE_SHIFT)
 #define pgoff_to_pte(off) ((pte_t) { .pte = ((off) << PAGE_SHIFT) |	\
 					    _PAGE_FILE })

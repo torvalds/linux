@@ -510,6 +510,11 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
 {
 	return (pmd_t *)pud_page_vaddr(*pud) + pmd_index(address);
 }
+
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
+}
 #endif	/* PAGETABLE_LEVELS > 2 */
 
 #if PAGETABLE_LEVELS > 3
