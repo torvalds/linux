@@ -522,23 +522,24 @@ int register_tracer(struct tracer *type)
 	tracing_selftest_running = false;
 	mutex_unlock(&trace_types_lock);
 
-	if (!ret && default_bootup_tracer) {
-		if (!strncmp(default_bootup_tracer, type->name,
-			     BOOTUP_TRACER_SIZE)) {
-			printk(KERN_INFO "Starting tracer '%s'\n",
-			       type->name);
-			/* Do we want this tracer to start on bootup? */
-			tracing_set_tracer(type->name);
-			default_bootup_tracer = NULL;
-			/* disable other selftests, since this will break it. */
-			tracing_selftest_disabled = 1;
-#ifdef CONFIG_FTRACE_STARTUP_TEST
-			printk(KERN_INFO "Disabling FTRACE selftests due"
-			       " to running tracer '%s'\n", type->name);
-#endif
-		}
-	}
+	if (ret || !default_bootup_tracer)
+		goto out_unlock;
 
+	if (strncmp(default_bootup_tracer, type->name, BOOTUP_TRACER_SIZE))
+		goto out_unlock;
+
+	printk(KERN_INFO "Starting tracer '%s'\n", type->name);
+	/* Do we want this tracer to start on bootup? */
+	tracing_set_tracer(type->name);
+	default_bootup_tracer = NULL;
+	/* disable other selftests, since this will break it. */
+	tracing_selftest_disabled = 1;
+#ifdef CONFIG_FTRACE_STARTUP_TEST
+	printk(KERN_INFO "Disabling FTRACE selftests due to running tracer '%s'\n",
+	       type->name);
+#endif
+
+ out_unlock:
 	lock_kernel();
 	return ret;
 }
