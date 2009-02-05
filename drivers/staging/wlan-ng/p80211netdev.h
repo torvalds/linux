@@ -55,9 +55,13 @@
 
 #include <linux/interrupt.h>
 #include <linux/wireless.h>
+#include <linux/netdevice.h>
 
 /*================================================================*/
 /* Constants */
+
+#undef netdevice_t
+typedef struct net_device netdevice_t;
 
 #define WLAN_RELEASE	"0.3.0-staging"
 

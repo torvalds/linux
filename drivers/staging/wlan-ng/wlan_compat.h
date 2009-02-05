@@ -48,9 +48,6 @@
 #ifndef _WLAN_COMPAT_H
 #define _WLAN_COMPAT_H
 
-#undef netdevice_t
-typedef struct net_device netdevice_t;
-
 /*=============================================================*/
 /*------ OS Portability Macros --------------------------------*/
 /*=============================================================*/
