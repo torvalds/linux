@@ -638,19 +638,23 @@ static int usb_amradio_probe(struct usb_interface *intf,
 
 	radio = kmalloc(sizeof(struct amradio_device), GFP_KERNEL);
 
-	if (!radio)
+	if (!radio) {
+		dev_err(&intf->dev, "kmalloc for amradio_device failed\n");
 		return -ENOMEM;
+	}
 
 	radio->buffer = kmalloc(BUFFER_LENGTH, GFP_KERNEL);
 
-	if (!(radio->buffer)) {
+	if (!radio->buffer) {
+		dev_err(&intf->dev, "kmalloc for radio->buffer failed\n");
 		kfree(radio);
 		return -ENOMEM;
 	}
 
 	radio->videodev = video_device_alloc();
 
-	if (!(radio->videodev)) {
+	if (!radio->videodev) {
+		dev_err(&intf->dev, "video_device_alloc failed\n");
 		kfree(radio->buffer);
 		kfree(radio);
 		return -ENOMEM;
