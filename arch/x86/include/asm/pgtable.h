@@ -509,6 +509,11 @@ static inline unsigned pte_index(unsigned long address)
 	return (address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
 }
 
+static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long address)
+{
+	return (pte_t *)pmd_page_vaddr(*pmd) + pte_index(address);
+}
+
 #if PAGETABLE_LEVELS > 2
 static inline int pud_present(pud_t pud)
 {

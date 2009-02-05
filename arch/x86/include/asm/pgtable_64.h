@@ -198,9 +198,6 @@ static inline int pud_large(pud_t pte)
 
 /* PTE - Level 1 access. */
 
-#define pte_offset_kernel(dir, address) ((pte_t *) pmd_page_vaddr(*(dir)) + \
-					 pte_index((address)))
-
 /* x86-64 always has all page tables mapped. */
 #define pte_offset_map(dir, address) pte_offset_kernel((dir), (address))
 #define pte_offset_map_nested(dir, address) pte_offset_kernel((dir), (address))
