@@ -565,6 +565,22 @@ stop_queue:
 	goto done;
 }
 
+static int virtnet_set_mac_address(struct net_device *dev, void *p)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	struct virtio_device *vdev = vi->vdev;
+	int ret;
+
+	ret = eth_mac_addr(dev, p);
+	if (ret)
+		return ret;
+
+	vdev->config->set(vdev, offsetof(struct virtio_net_config, mac),
+			  dev->dev_addr, dev->addr_len);
+
+	return 0;
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void virtnet_netpoll(struct net_device *dev)
 {
@@ -774,7 +790,7 @@ static const struct net_device_ops virtnet_netdev = {
 	.ndo_stop   	     = virtnet_close,
 	.ndo_start_xmit      = start_xmit,
 	.ndo_validate_addr   = eth_validate_addr,
-	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_set_mac_address = virtnet_set_mac_address,
 	.ndo_set_rx_mode     = virtnet_set_rx_mode,
 	.ndo_change_mtu	     = virtnet_change_mtu,
 	.ndo_vlan_rx_add_vid = virnet_vlan_rx_add_vid,
@@ -860,8 +876,11 @@ static int virtnet_probe(struct virtio_device *vdev)
 		vdev->config->get(vdev,
 				  offsetof(struct virtio_net_config, mac),
 				  dev->dev_addr, dev->addr_len);
-	} else
+	} else {
 		random_ether_addr(dev->dev_addr);
+		vdev->config->set(vdev, offsetof(struct virtio_net_config, mac),
+				  dev->dev_addr, dev->addr_len);
+	}
 
 	/* Set up our device-specific information */
 	vi = netdev_priv(dev);
