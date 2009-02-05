@@ -214,7 +214,7 @@ static int amradio_set_mute(struct amradio_device *radio, char argument)
 	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
 		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
 
-	if (retval) {
+	if (retval < 0 || size != BUFFER_LENGTH) {
 		mutex_unlock(&radio->lock);
 		return retval;
 	}
@@ -251,7 +251,7 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
 		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
 
-	if (retval) {
+	if (retval < 0 || size != BUFFER_LENGTH) {
 		mutex_unlock(&radio->lock);
 		return retval;
 	}
@@ -268,7 +268,7 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 	retval = usb_bulk_msg(radio->usbdev, usb_sndintpipe(radio->usbdev, 2),
 		(void *) (radio->buffer), BUFFER_LENGTH, &size, USB_TIMEOUT);
 
-	if (retval) {
+	if (retval < 0 || size != BUFFER_LENGTH) {
 		mutex_unlock(&radio->lock);
 		return retval;
 	}
