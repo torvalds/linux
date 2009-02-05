@@ -71,6 +71,7 @@ int
 nf_tproxy_assign_sock(struct sk_buff *skb, struct sock *sk)
 {
 	if (inet_sk(sk)->transparent) {
+		skb_orphan(skb);
 		skb->sk = sk;
 		skb->destructor = nf_tproxy_destructor;
 		return 1;
