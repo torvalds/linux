@@ -91,6 +91,7 @@ devices, that would be 76 and 91.  */
  * Commands that device should understand
  * List isnt full and will be updated with implementation of new functions
  */
+#define AMRADIO_SET_FREQ	0xa4
 #define AMRADIO_SET_MUTE	0xab
 
 /* Comfortable defines for amradio_set_mute */
@@ -220,7 +221,7 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 {
 	int retval;
 	int size;
-	unsigned short freq_send = 0x13 + (freq >> 3) / 25;
+	unsigned short freq_send = 0x10 + (freq >> 3) / 25;
 
 	/* safety check */
 	if (radio->removed)
@@ -232,7 +233,7 @@ static int amradio_setfreq(struct amradio_device *radio, int freq)
 	radio->buffer[1] = 0x55;
 	radio->buffer[2] = 0xaa;
 	radio->buffer[3] = 0x03;
-	radio->buffer[4] = 0xa4;
+	radio->buffer[4] = AMRADIO_SET_FREQ;
 	radio->buffer[5] = 0x00;
 	radio->buffer[6] = 0x00;
 	radio->buffer[7] = 0x08;
