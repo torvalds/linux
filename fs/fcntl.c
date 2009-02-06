@@ -189,7 +189,9 @@ static int setfl(int fd, struct file * filp, unsigned long arg)
 		}
 	}
 
+	spin_lock(&filp->f_lock);
 	filp->f_flags = (arg & SETFL_MASK) | (filp->f_flags & ~SETFL_MASK);
+	spin_unlock(&filp->f_lock);
  out:
 	unlock_kernel();
 	return error;
