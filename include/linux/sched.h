@@ -2208,8 +2208,6 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
 	unsigned long flags;
 
-	WARN_ON(!cputimer->running);
-
 	spin_lock_irqsave(&cputimer->lock, flags);
 	*times = cputimer->cputime;
 	spin_unlock_irqrestore(&cputimer->lock, flags);
