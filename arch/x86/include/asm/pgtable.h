@@ -317,13 +317,9 @@ static inline int pte_present(pte_t a)
 	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
 }
 
-static inline int pte_hidden(pte_t x)
+static inline int pte_hidden(pte_t pte)
 {
-#ifdef CONFIG_KMEMCHECK
-	return pte_flags(x) & _PAGE_HIDDEN;
-#else
-	return 0;
-#endif
+	return pte_flags(pte) & _PAGE_HIDDEN;
 }
 
 static inline int pmd_present(pmd_t pmd)
