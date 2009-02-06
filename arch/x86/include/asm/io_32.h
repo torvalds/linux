@@ -54,47 +54,6 @@
 #define xlate_dev_kmem_ptr(p)	p
 
 /**
- *	virt_to_phys	-	map virtual addresses to physical
- *	@address: address to remap
- *
- *	The returned physical address is the physical (CPU) mapping for
- *	the memory address given. It is only valid to use this function on
- *	addresses directly mapped or allocated via kmalloc.
- *
- *	This function does not give bus mappings for DMA transfers. In
- *	almost all conceivable cases a device driver should not be using
- *	this function
- */
-
-static inline unsigned long virt_to_phys(volatile void *address)
-{
-	return __pa(address);
-}
-
-/**
- *	phys_to_virt	-	map physical address to virtual
- *	@address: address to remap
- *
- *	The returned virtual address is a current CPU mapping for
- *	the memory address given. It is only valid to use this function on
- *	addresses that have a kernel mapping
- *
- *	This function does not handle bus mappings for DMA transfers. In
- *	almost all conceivable cases a device driver should not be using
- *	this function
- */
-
-static inline void *phys_to_virt(unsigned long address)
-{
-	return __va(address);
-}
-
-/*
- * Change "struct page" to physical address.
- */
-#define page_to_phys(page)    ((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
-
-/**
  * ioremap     -   map bus memory into CPU space
  * @offset:    bus address of the memory
  * @size:      size of the resource to map
@@ -122,22 +81,6 @@ static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
 }
 
 extern void iounmap(volatile void __iomem *addr);
-
-/*
- * ISA I/O bus memory addresses are 1:1 with the physical address.
- */
-#define isa_virt_to_bus virt_to_phys
-#define isa_page_to_bus page_to_phys
-#define isa_bus_to_virt phys_to_virt
-
-/*
- * However PCI ones are not necessarily 1:1 and therefore these interfaces
- * are forbidden in portable PCI drivers.
- *
- * Allow them on x86 for legacy drivers, though.
- */
-#define virt_to_bus virt_to_phys
-#define bus_to_virt phys_to_virt
 
 static inline void
 memset_io(volatile void __iomem *addr, unsigned char val, int count)
