@@ -1226,9 +1226,11 @@ static struct v4l2_queryctrl si470x_v4l2_queryctrl[] = {
 static int si470x_vidioc_querycap(struct file *file, void *priv,
 		struct v4l2_capability *capability)
 {
+	struct si470x_device *radio = video_drvdata(file);
+
 	strlcpy(capability->driver, DRIVER_NAME, sizeof(capability->driver));
 	strlcpy(capability->card, DRIVER_CARD, sizeof(capability->card));
-	sprintf(capability->bus_info, "USB");
+	usb_make_path(radio->usbdev, capability->bus_info, sizeof(capability->bus_info));
 	capability->version = DRIVER_KERNEL_VERSION;
 	capability->capabilities = V4L2_CAP_HW_FREQ_SEEK |
 		V4L2_CAP_TUNER | V4L2_CAP_RADIO;
