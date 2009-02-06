@@ -2799,9 +2799,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
 	hw->fc.send_xon = true;
 
-	/* select 10G link by default */
-	hw->mac.link_mode_select = IXGBE_AUTOC_LMS_10G_LINK_NO_AN;
-
 	/* enable itr by default in dynamic mode */
 	adapter->itr_setting = 1;
 	adapter->eitr_param = 20000;

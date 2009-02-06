@@ -80,9 +80,6 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	/* Clear the VLAN filter table */
 	hw->mac.ops.clear_vfta(hw);
 
-	/* Set up link */
-	hw->mac.ops.setup_link(hw);
-
 	/* Clear statistics registers */
 	hw->mac.ops.clear_hw_cntrs(hw);
 

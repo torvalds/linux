@@ -146,18 +146,12 @@ static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
                                              bool *autoneg)
 {
 	s32 status = 0;
-	s32 autoc_reg;
 
-	autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
-
-	if (hw->mac.link_settings_loaded) {
-		autoc_reg &= ~IXGBE_AUTOC_LMS_ATTACH_TYPE;
-		autoc_reg &= ~IXGBE_AUTOC_LMS_MASK;
-		autoc_reg |= hw->mac.link_attach_type;
-		autoc_reg |= hw->mac.link_mode_select;
-	}
-
-	switch (autoc_reg & IXGBE_AUTOC_LMS_MASK) {
+	/*
+	 * Determine link capabilities based on the stored value of AUTOC,
+	 * which represents EEPROM defaults.
+	 */
+	switch (hw->mac.orig_autoc & IXGBE_AUTOC_LMS_MASK) {
 	case IXGBE_AUTOC_LMS_1G_LINK_NO_AN:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
 		*autoneg = false;
@@ -176,9 +170,9 @@ static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
 	case IXGBE_AUTOC_LMS_KX4_AN:
 	case IXGBE_AUTOC_LMS_KX4_AN_1G_AN:
 		*speed = IXGBE_LINK_SPEED_UNKNOWN;
-		if (autoc_reg & IXGBE_AUTOC_KX4_SUPP)
+		if (hw->mac.orig_autoc & IXGBE_AUTOC_KX4_SUPP)
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
-		if (autoc_reg & IXGBE_AUTOC_KX_SUPP)
+		if (hw->mac.orig_autoc & IXGBE_AUTOC_KX_SUPP)
 			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
 		*autoneg = true;
 		break;
@@ -390,27 +384,17 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw)
 	u32 i;
 	s32 status = 0;
 
-	autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
-
-	if (hw->mac.link_settings_loaded) {
-		autoc_reg &= ~IXGBE_AUTOC_LMS_ATTACH_TYPE;
-		autoc_reg &= ~IXGBE_AUTOC_LMS_MASK;
-		autoc_reg |= hw->mac.link_attach_type;
-		autoc_reg |= hw->mac.link_mode_select;
-
-		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
-		IXGBE_WRITE_FLUSH(hw);
-		msleep(50);
-	}
-
 	/* Restart link */
+	autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
 
 	/* Only poll for autoneg to complete if specified to do so */
 	if (hw->phy.autoneg_wait_to_complete) {
-		if (hw->mac.link_mode_select == IXGBE_AUTOC_LMS_KX4_AN ||
-		    hw->mac.link_mode_select == IXGBE_AUTOC_LMS_KX4_AN_1G_AN) {
+		if ((autoc_reg & IXGBE_AUTOC_LMS_MASK) ==
+		     IXGBE_AUTOC_LMS_KX4_AN ||
+		    (autoc_reg & IXGBE_AUTOC_LMS_MASK) ==
+		     IXGBE_AUTOC_LMS_KX4_AN_1G_AN) {
 			links_reg = 0; /* Just in case Autoneg time = 0 */
 			for (i = 0; i < IXGBE_AUTO_NEG_TIME; i++) {
 				links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
@@ -534,37 +518,43 @@ out:
  *  Set the link speed in the AUTOC register and restarts link.
  **/
 static s32 ixgbe_setup_mac_link_speed_82598(struct ixgbe_hw *hw,
-                                            ixgbe_link_speed speed, bool autoneg,
-                                            bool autoneg_wait_to_complete)
+                                           ixgbe_link_speed speed, bool autoneg,
+                                           bool autoneg_wait_to_complete)
 {
-	s32 status = 0;
+	s32              status            = 0;
+	ixgbe_link_speed link_capabilities = IXGBE_LINK_SPEED_UNKNOWN;
+	u32              curr_autoc        = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	u32              autoc             = curr_autoc;
+	u32              link_mode         = autoc & IXGBE_AUTOC_LMS_MASK;
 
-	/* If speed is 10G, then check for CX4 or XAUI. */
-	if ((speed == IXGBE_LINK_SPEED_10GB_FULL) &&
-	    (!(hw->mac.link_attach_type & IXGBE_AUTOC_10G_KX4))) {
-		hw->mac.link_mode_select = IXGBE_AUTOC_LMS_10G_LINK_NO_AN;
-	} else if ((speed == IXGBE_LINK_SPEED_1GB_FULL) && (!autoneg)) {
-		hw->mac.link_mode_select = IXGBE_AUTOC_LMS_1G_LINK_NO_AN;
-	} else if (autoneg) {
-		/* BX mode - Autonegotiate 1G */
-		if (!(hw->mac.link_attach_type & IXGBE_AUTOC_1G_PMA_PMD))
-			hw->mac.link_mode_select = IXGBE_AUTOC_LMS_1G_AN;
-		else /* KX/KX4 mode */
-			hw->mac.link_mode_select = IXGBE_AUTOC_LMS_KX4_AN_1G_AN;
-	} else {
+	/* Check to see if speed passed in is supported. */
+	ixgbe_get_link_capabilities_82598(hw, &link_capabilities, &autoneg);
+	speed &= link_capabilities;
+
+	if (speed == IXGBE_LINK_SPEED_UNKNOWN)
 		status = IXGBE_ERR_LINK_SETUP;
+
+	/* Set KX4/KX support according to speed requested */
+	else if (link_mode == IXGBE_AUTOC_LMS_KX4_AN ||
+	         link_mode == IXGBE_AUTOC_LMS_KX4_AN_1G_AN) {
+		autoc &= ~IXGBE_AUTOC_KX4_KX_SUPP_MASK;
+		if (speed & IXGBE_LINK_SPEED_10GB_FULL)
+			autoc |= IXGBE_AUTOC_KX4_SUPP;
+		if (speed & IXGBE_LINK_SPEED_1GB_FULL)
+			autoc |= IXGBE_AUTOC_KX_SUPP;
+		if (autoc != curr_autoc)
+			IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc);
 	}
 
 	if (status == 0) {
 		hw->phy.autoneg_wait_to_complete = autoneg_wait_to_complete;
 
-		hw->mac.link_settings_loaded = true;
 		/*
 		 * Setup and restart the link based on the new values in
 		 * ixgbe_hw This will write the AUTOC register based on the new
 		 * stored values
 		 */
-		ixgbe_setup_mac_link_82598(hw);
+		status = ixgbe_setup_mac_link_82598(hw);
 	}
 
 	return status;
@@ -586,10 +576,6 @@ static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw)
 
 	/* Restart autonegotiation on PHY */
 	status = hw->phy.ops.setup_link(hw);
-
-	/* Set MAC to KX/KX4 autoneg, which defaults to Parallel detection */
-	hw->mac.link_attach_type = (IXGBE_AUTOC_10G_KX4 | IXGBE_AUTOC_1G_KX);
-	hw->mac.link_mode_select = IXGBE_AUTOC_LMS_KX4_AN;
 
 	/* Set up MAC */
 	ixgbe_setup_mac_link_82598(hw);
@@ -616,10 +602,6 @@ static s32 ixgbe_setup_copper_link_speed_82598(struct ixgbe_hw *hw,
 	/* Setup the PHY according to input speed */
 	status = hw->phy.ops.setup_link_speed(hw, speed, autoneg,
 	                                      autoneg_wait_to_complete);
-
-	/* Set MAC to KX/KX4 autoneg, which defaults to Parallel detection */
-	hw->mac.link_attach_type = (IXGBE_AUTOC_10G_KX4 | IXGBE_AUTOC_1G_KX);
-	hw->mac.link_mode_select = IXGBE_AUTOC_LMS_KX4_AN;
 
 	/* Set up MAC */
 	ixgbe_setup_mac_link_82598(hw);
@@ -720,24 +702,16 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_GHECCR, gheccr);
 
 	/*
-	 * AUTOC register which stores link settings gets cleared
-	 * and reloaded from EEPROM after reset. We need to restore
-	 * our stored value from init in case SW changed the attach
-	 * type or speed.  If this is the first time and link settings
-	 * have not been stored, store default settings from AUTOC.
+	 * Store the original AUTOC value if it has not been
+	 * stored off yet.  Otherwise restore the stored original
+	 * AUTOC value since the reset operation sets back to deaults.
 	 */
 	autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
-	if (hw->mac.link_settings_loaded) {
-		autoc &= ~(IXGBE_AUTOC_LMS_ATTACH_TYPE);
-		autoc &= ~(IXGBE_AUTOC_LMS_MASK);
-		autoc |= hw->mac.link_attach_type;
-		autoc |= hw->mac.link_mode_select;
-		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc);
-	} else {
-		hw->mac.link_attach_type =
-		                         (autoc & IXGBE_AUTOC_LMS_ATTACH_TYPE);
-		hw->mac.link_mode_select = (autoc & IXGBE_AUTOC_LMS_MASK);
-		hw->mac.link_settings_loaded = true;
+	if (hw->mac.orig_link_settings_stored == false) {
+		hw->mac.orig_autoc = autoc;
+		hw->mac.orig_link_settings_stored = true;
+	} else if (autoc != hw->mac.orig_autoc) {
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, hw->mac.orig_autoc);
 	}
 
 	/* Store the permanent mac address */

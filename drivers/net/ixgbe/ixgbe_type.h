@@ -721,6 +721,7 @@
 #define IXGBE_LED_OFF           0xF
 
 /* AUTOC Bit Masks */
+#define IXGBE_AUTOC_KX4_KX_SUPP_MASK 0xC0000000
 #define IXGBE_AUTOC_KX4_SUPP    0x80000000
 #define IXGBE_AUTOC_KX_SUPP     0x40000000
 #define IXGBE_AUTOC_PAUSE       0x30000000
@@ -1456,11 +1457,11 @@ struct ixgbe_mac_info {
 	u32                             max_tx_queues;
 	u32                             max_rx_queues;
 	u32                             max_msix_vectors;
-	u32                             link_attach_type;
-	u32                             link_mode_select;
-	bool                            link_settings_loaded;
+	u32                             orig_autoc;
+	u32                             orig_autoc2;
+	bool                            orig_link_settings_stored;
 	bool                            autoneg;
-	bool                            autoneg_failed;
+	bool                            autoneg_succeeded;
 };
 
 struct ixgbe_phy_info {
