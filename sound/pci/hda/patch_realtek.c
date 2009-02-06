@@ -1037,6 +1037,7 @@ do_sku:
 		case 0x10ec0267:
 		case 0x10ec0268:
 		case 0x10ec0269:
+		case 0x10ec0272:
 		case 0x10ec0660:
 		case 0x10ec0662:
 		case 0x10ec0663:
@@ -1065,6 +1066,7 @@ do_sku:
 		case 0x10ec0882:
 		case 0x10ec0883:
 		case 0x10ec0885:
+		case 0x10ec0887:
 		case 0x10ec0889:
 			snd_hda_codec_write(codec, 0x20, 0,
 					    AC_VERB_SET_COEF_INDEX, 7);
@@ -8515,6 +8517,8 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1558, 0, "Clevo laptop", ALC883_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x15d9, 0x8780, "Supermicro PDSBA", ALC883_3ST_6ch),
 	SND_PCI_QUIRK(0x161f, 0x2054, "Medion laptop", ALC883_MEDION),
+	SND_PCI_QUIRK(0x1734, 0x1107, "FSC AMILO Xi2550",
+		      ALC883_FUJITSU_PI2515),
 	SND_PCI_QUIRK(0x1734, 0x1108, "Fujitsu AMILO Pi2515", ALC883_FUJITSU_PI2515),
 	SND_PCI_QUIRK(0x1734, 0x113d, "Fujitsu AMILO Xa3530",
 		ALC888_FUJITSU_XA3530),
