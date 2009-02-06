@@ -888,11 +888,14 @@ void igb_reset(struct igb_adapter *adapter)
 	/* Repartition Pba for greater than 9k mtu
 	 * To take effect CTRL.RST is required.
 	 */
-	if (mac->type != e1000_82576) {
-	pba = E1000_PBA_34K;
-	}
-	else {
+	switch (mac->type) {
+	case e1000_82576:
 		pba = E1000_PBA_64K;
+		break;
+	case e1000_82575:
+	default:
+		pba = E1000_PBA_34K;
+		break;
 	}
 
 	if ((adapter->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN) &&
