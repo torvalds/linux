@@ -2314,13 +2314,10 @@ static void igb_watchdog_task(struct work_struct *work)
 	struct igb_adapter *adapter = container_of(work,
 					struct igb_adapter, watchdog_task);
 	struct e1000_hw *hw = &adapter->hw;
-
 	struct net_device *netdev = adapter->netdev;
 	struct igb_ring *tx_ring = adapter->tx_ring;
-	struct e1000_mac_info *mac = &adapter->hw.mac;
 	u32 link;
 	u32 eics = 0;
-	s32 ret_val;
 	int i;
 
 	link = igb_has_link(adapter);
@@ -2365,6 +2362,7 @@ static void igb_watchdog_task(struct work_struct *work)
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
 
+			/* link state has changed, schedule phy info update */
 			if (!test_bit(__IGB_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
@@ -2378,6 +2376,8 @@ static void igb_watchdog_task(struct work_struct *work)
 			       netdev->name);
 			netif_carrier_off(netdev);
 			netif_tx_stop_all_queues(netdev);
+
+			/* link state has changed, schedule phy info update */
 			if (!test_bit(__IGB_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
 					  round_jiffies(jiffies + 2 * HZ));
@@ -2387,9 +2387,9 @@ static void igb_watchdog_task(struct work_struct *work)
 link_up:
 	igb_update_stats(adapter);
 
-	mac->tx_packet_delta = adapter->stats.tpt - adapter->tpt_old;
+	hw->mac.tx_packet_delta = adapter->stats.tpt - adapter->tpt_old;
 	adapter->tpt_old = adapter->stats.tpt;
-	mac->collision_delta = adapter->stats.colc - adapter->colc_old;
+	hw->mac.collision_delta = adapter->stats.colc - adapter->colc_old;
 	adapter->colc_old = adapter->stats.colc;
 
 	adapter->gorc = adapter->stats.gorc - adapter->gorc_old;
