@@ -42,13 +42,6 @@
 #include <media/v4l2-chip-ident.h>
 #include <linux/i2c-id.h>
 
-static int cx18_vbi_streaming(struct cx18 *cx)
-{
-	struct cx18_stream *s_vbi = &cx->streams[CX18_ENC_STREAM_TYPE_VBI];
-	return (s_vbi->handle != CX18_INVALID_TASK_HANDLE) &&
-		test_bit(CX18_F_S_STREAMING, &s_vbi->s_flags);
-}
-
 u16 cx18_service2vbi(int type)
 {
 	switch (type) {
@@ -312,7 +305,11 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	if (ret)
 		return ret;
 
-	if (!cx18_raw_vbi(cx) && cx18_vbi_streaming(cx))
+	/*
+	 * Changing the Encoder's Raw VBI parameters won't have any effect
+	 * if any analog capture is ongoing
+	 */
+	if (!cx18_raw_vbi(cx) && atomic_read(&cx->ana_capturing) > 0)
 		return -EBUSY;
 
 	/*
@@ -345,8 +342,13 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 
 	cx18_try_fmt_sliced_vbi_cap(file, fh, fmt);
 
-	if (cx18_raw_vbi(cx) && cx18_vbi_streaming(cx))
+	/*
+	 * Changing the Encoder's Raw VBI parameters won't have any effect
+	 * if any analog capture is ongoing
+	 */
+	if (cx18_raw_vbi(cx) && atomic_read(&cx->ana_capturing) > 0)
 		return -EBUSY;
+
 	/*
 	 * Set the service_lines requested in the digitizer/slicer registers.
 	 * Note, cx18_av_vbi() wipes some "impossible" service lines in the

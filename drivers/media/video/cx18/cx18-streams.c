@@ -349,6 +349,14 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	/* setup VBI registers */
 	cx18_av_cmd(cx, VIDIOC_S_FMT, &cx->vbi.in);
 
+	/*
+	 * Send the CX18_CPU_SET_RAW_VBI_PARAM API command to setup Encoder Raw
+	 * VBI when the first analog capture channel starts, as once it starts
+	 * (e.g. MPEG), we can't effect any change in the Encoder Raw VBI setup
+	 * (i.e. for the VBI capture channels).  We also send it for each
+	 * analog capture channel anyway just to make sure we get the proper
+	 * behavior
+	 */
 	if (raw) {
 		lines = cx->vbi.count * 2;
 	} else {
@@ -410,8 +418,7 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	CX18_DEBUG_INFO("Setup VBI h: %d lines %x bpl %d fr %d %x %x\n",
 			data[0], data[1], data[2], data[3], data[4], data[5]);
 
-	if (s->type == CX18_ENC_STREAM_TYPE_VBI)
-		cx18_api(cx, CX18_CPU_SET_RAW_VBI_PARAM, 6, data);
+	cx18_api(cx, CX18_CPU_SET_RAW_VBI_PARAM, 6, data);
 }
 
 struct cx18_queue *cx18_stream_put_buf_fw(struct cx18_stream *s,
@@ -460,8 +467,8 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	u32 data[MAX_MB_ARGUMENTS];
 	struct cx18 *cx = s->cx;
 	struct cx18_buffer *buf;
-	int ts = 0;
 	int captype = 0;
+	struct cx18_api_func_private priv;
 
 	if (s->video_dev == NULL && s->dvb.enabled == 0)
 		return -EINVAL;
@@ -479,7 +486,6 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 
 	case CX18_ENC_STREAM_TYPE_TS:
 		captype = CAPTURE_CHANNEL_TYPE_TS;
-		ts = 1;
 		break;
 	case CX18_ENC_STREAM_TYPE_YUV:
 		captype = CAPTURE_CHANNEL_TYPE_YUV;
@@ -488,8 +494,16 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		captype = CAPTURE_CHANNEL_TYPE_PCM;
 		break;
 	case CX18_ENC_STREAM_TYPE_VBI:
+#ifdef CX18_ENCODER_PARSES_SLICED
 		captype = cx18_raw_vbi(cx) ?
 		     CAPTURE_CHANNEL_TYPE_VBI : CAPTURE_CHANNEL_TYPE_SLICED_VBI;
+#else
+		/*
+		 * Currently we set things up so that Sliced VBI from the
+		 * digitizer is handled as Raw VBI by the encoder
+		 */
+		captype = CAPTURE_CHANNEL_TYPE_VBI;
+#endif
 		cx->vbi.frame = 0;
 		cx->vbi.inserted_frame = 0;
 		memset(cx->vbi.sliced_mpeg_size,
@@ -499,10 +513,6 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 		return -EINVAL;
 	}
 
-	/* mute/unmute video */
-	cx18_vapi(cx, CX18_CPU_SET_VIDEO_MUTE, 2,
-		  s->handle, !!test_bit(CX18_F_I_RADIO_USER, &cx->i_flags));
-
 	/* Clear Streamoff flags in case left from last capture */
 	clear_bit(CX18_F_S_STREAMOFF, &s->s_flags);
 
@@ -510,31 +520,62 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	s->handle = data[0];
 	cx18_vapi(cx, CX18_CPU_SET_CHANNEL_TYPE, 2, s->handle, captype);
 
-	if (atomic_read(&cx->ana_capturing) == 0 && !ts) {
-		struct cx18_api_func_private priv;
-
-		/* Stuff from Windows, we don't know what it is */
+	/*
+	 * For everything but CAPTURE_CHANNEL_TYPE_TS, play it safe and
+	 * set up all the parameters, as it is not obvious which parameters the
+	 * firmware shares across capture channel types and which it does not.
+	 *
+	 * Some of the cx18_vapi() calls below apply to only certain capture
+	 * channel types.  We're hoping there's no harm in calling most of them
+	 * anyway, as long as the values are all consistent.  Setting some
+	 * shared parameters will have no effect once an analog capture channel
+	 * has started streaming.
+	 */
+	if (captype != CAPTURE_CHANNEL_TYPE_TS) {
 		cx18_vapi(cx, CX18_CPU_SET_VER_CROP_LINE, 2, s->handle, 0);
 		cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 3, s->handle, 3, 1);
 		cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 3, s->handle, 8, 0);
 		cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 3, s->handle, 4, 1);
-		cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 2, s->handle, 12);
 
+		/*
+		 * Audio related reset according to
+		 * Documentation/video4linux/cx2341x/fw-encoder-api.txt
+		 */
+		if (atomic_read(&cx->ana_capturing) == 0)
+			cx18_vapi(cx, CX18_CPU_SET_MISC_PARAMETERS, 2,
+				  s->handle, 12);
+
+		/*
+		 * Number of lines for Field 1 & Field 2 according to
+		 * Documentation/video4linux/cx2341x/fw-encoder-api.txt
+		 * FIXME - currently we set this to 0 & 0 but things seem OK
+		 */
 		cx18_vapi(cx, CX18_CPU_SET_CAPTURE_LINE_NO, 3,
-			       s->handle, cx->digitizer, cx->digitizer);
+			  s->handle, cx->digitizer, cx->digitizer);
 
-		/* Setup VBI */
 		if (cx->v4l2_cap & V4L2_CAP_VBI_CAPTURE)
 			cx18_vbi_setup(s);
 
-		/* assign program index info.
-		   Mask 7: select I/P/B, Num_req: 400 max */
+		/*
+		 * assign program index info.
+		 * Mask 7: select I/P/B, Num_req: 400 max
+		 * FIXME - currently we have this hardcoded as disabled
+		 */
 		cx18_vapi_result(cx, data, CX18_CPU_SET_INDEXTABLE, 1, 0);
 
-		/* Setup API for Stream */
+		/* Call out to the common CX2341x API setup for user controls */
 		priv.cx = cx;
 		priv.s = s;
 		cx2341x_update(&priv, cx18_api_func, NULL, &cx->params);
+
+		/*
+		 * When starting a capture and we're set for radio,
+		 * ensure the video is muted, despite the user control.
+		 */
+		if (!cx->params.video_mute &&
+		    test_bit(CX18_F_I_RADIO_USER, &cx->i_flags))
+			cx18_vapi(cx, CX18_CPU_SET_VIDEO_MUTE, 2, s->handle,
+				  (cx->params.video_mute_yuv << 8) | 1);
 	}
 
 	if (atomic_read(&cx->tot_capturing) == 0) {
@@ -578,7 +619,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	}
 
 	/* you're live! sit back and await interrupts :) */
-	if (!ts)
+	if (captype != CAPTURE_CHANNEL_TYPE_TS)
 		atomic_inc(&cx->ana_capturing);
 	atomic_inc(&cx->tot_capturing);
 	return 0;
