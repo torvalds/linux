@@ -4341,6 +4341,11 @@ static int igb_resume(struct pci_dev *pdev)
 	/* e1000_power_up_phy(adapter); */
 
 	igb_reset(adapter);
+
+	/* let the f/w know that the h/w is now under the control of the
+	 * driver. */
+	igb_get_hw_control(adapter);
+
 	wr32(E1000_WUS, ~0);
 
 	if (netif_running(netdev)) {
@@ -4350,10 +4355,6 @@ static int igb_resume(struct pci_dev *pdev)
 	}
 
 	netif_device_attach(netdev);
-
-	/* let the f/w know that the h/w is now under the control of the
-	 * driver. */
-	igb_get_hw_control(adapter);
 
 	return 0;
 }
