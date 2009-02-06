@@ -367,25 +367,6 @@ int ftrace_disable_ftrace_graph_caller(void)
 	return ftrace_mod_jmp(ip, old_offset, new_offset);
 }
 
-#else /* CONFIG_DYNAMIC_FTRACE */
-
-/*
- * These functions are picked from those used on
- * this page for dynamic ftrace. They have been
- * simplified to ignore all traces in NMI context.
- */
-static atomic_t nmi_running;
-
-void arch_ftrace_nmi_enter(void)
-{
-	atomic_inc(&nmi_running);
-}
-
-void arch_ftrace_nmi_exit(void)
-{
-	atomic_dec(&nmi_running);
-}
-
 #endif /* !CONFIG_DYNAMIC_FTRACE */
 
 /* Add a function return address to the trace stack on thread info.*/
@@ -475,7 +456,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 				&return_to_handler;
 
 	/* Nmi's are currently unsupported */
-	if (unlikely(atomic_read(&nmi_running)))
+	if (unlikely(in_nmi()))
 		return;
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
