@@ -4191,6 +4191,9 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		         "PCI-Express slot is required.\n");
 	}
 
+	/* save off EEPROM version number */
+	hw->eeprom.ops.read(hw, 0x29, &adapter->eeprom_version);
+
 	/* reset the hardware with the new settings */
 	hw->mac.ops.start_hw(hw);
 

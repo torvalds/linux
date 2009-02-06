@@ -310,6 +310,8 @@ struct ixgbe_adapter {
 	struct work_struct watchdog_task;
 	struct work_struct sfp_task;
 	struct timer_list sfp_timer;
+
+	u16 eeprom_version;
 };
 
 enum ixbge_state_t {

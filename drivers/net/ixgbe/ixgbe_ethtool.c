@@ -679,10 +679,17 @@ static void ixgbe_get_drvinfo(struct net_device *netdev,
                               struct ethtool_drvinfo *drvinfo)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	char firmware_version[32];
 
 	strncpy(drvinfo->driver, ixgbe_driver_name, 32);
 	strncpy(drvinfo->version, ixgbe_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
+
+	sprintf(firmware_version, "%d.%d-%d",
+	        (adapter->eeprom_version & 0xF000) >> 12,
+	        (adapter->eeprom_version & 0x0FF0) >> 4,
+	        adapter->eeprom_version & 0x000F);
+
+	strncpy(drvinfo->fw_version, firmware_version, 32);
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
 	drvinfo->n_stats = IXGBE_STATS_LEN;
 	drvinfo->regdump_len = ixgbe_get_regs_len(netdev);
