@@ -1077,6 +1077,8 @@ int __init mx31_clocks_init(unsigned long fref)
 	u32 reg;
 	struct clk **clkp;
 
+	mxc_set_cpu_type(MXC_CPU_MX31);
+
 	ckih_rate = fref;
 
 	for (clkp = mxc_clks; clkp < mxc_clks + ARRAY_SIZE(mxc_clks); clkp++)

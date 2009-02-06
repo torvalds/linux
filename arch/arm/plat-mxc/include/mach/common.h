@@ -23,5 +23,6 @@ extern int mx27_clocks_init(unsigned long fref);
 extern int mx31_clocks_init(unsigned long fref);
 extern int mxc_register_gpios(void);
 extern int mxc_register_device(struct platform_device *pdev, void *data);
+extern void mxc_set_cpu_type(unsigned int type);
 
 #endif

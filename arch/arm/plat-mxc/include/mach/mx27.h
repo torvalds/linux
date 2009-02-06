@@ -120,9 +120,6 @@ extern int mx27_revision(void);
 
 /* Mandatory defines used globally */
 
-/* this is an i.MX27 CPU */
-#define cpu_is_mx27()		(1)
-
 /* this CPU supports up to 192 GPIOs (don't forget the baseboard!) */
 #define ARCH_NR_GPIOS		(192 + 16)
 

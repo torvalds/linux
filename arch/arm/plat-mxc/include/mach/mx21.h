@@ -54,9 +54,6 @@
 
 #define IRAM_BASE_ADDR          0xFFFFE800	/* internal ram */
 
-/* this is an i.MX21 CPU */
-#define cpu_is_mx21()		(1)
-
 /* this CPU supports up to 192 GPIOs (don't forget the baseboard!) */
 #define ARCH_NR_GPIOS		(6*32 + 16)
 
