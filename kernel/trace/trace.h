@@ -616,12 +616,12 @@ extern struct tracer nop_trace;
  * preempt_enable (after a disable), a schedule might take place
  * causing an infinite recursion.
  *
- * To prevent this, we read the need_recshed flag before
+ * To prevent this, we read the need_resched flag before
  * disabling preemption. When we want to enable preemption we
  * check the flag, if it is set, then we call preempt_enable_no_resched.
  * Otherwise, we call preempt_enable.
  *
- * The rational for doing the above is that if need resched is set
+ * The rational for doing the above is that if need_resched is set
  * and we have yet to reschedule, we are either in an atomic location
  * (where we do not need to check for scheduling) or we are inside
  * the scheduler and do not want to resched.
@@ -642,7 +642,7 @@ static inline int ftrace_preempt_disable(void)
  *
  * This is a scheduler safe way to enable preemption and not miss
  * any preemption checks. The disabled saved the state of preemption.
- * If resched is set, then we were either inside an atomic or
+ * If resched is set, then we are either inside an atomic or
  * are inside the scheduler (we would have already scheduled
  * otherwise). In this case, we do not want to call normal
  * preempt_enable, but preempt_enable_no_resched instead.
