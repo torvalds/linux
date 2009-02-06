@@ -2771,6 +2771,8 @@ static inline bool igb_tx_csum_adv(struct igb_adapter *adapter,
 		if (adapter->flags & IGB_FLAG_NEED_CTX_IDX)
 			context_desc->mss_l4len_idx =
 				cpu_to_le32(tx_ring->queue_index << 4);
+		else
+			context_desc->mss_l4len_idx = 0;
 
 		buffer_info->time_stamp = jiffies;
 		buffer_info->next_to_watch = i;
@@ -3040,8 +3042,8 @@ static void igb_tx_timeout(struct net_device *netdev)
 	/* Do the reset outside of interrupt context */
 	adapter->tx_timeout_count++;
 	schedule_work(&adapter->reset_task);
-	wr32(E1000_EICS, adapter->eims_enable_mask &
-		~(E1000_EIMS_TCP_TIMER | E1000_EIMS_OTHER));
+	wr32(E1000_EICS,
+	     (adapter->eims_enable_mask & ~adapter->eims_other));
 }
 
 static void igb_reset_task(struct work_struct *work)
