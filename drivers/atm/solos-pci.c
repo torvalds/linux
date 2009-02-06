@@ -1104,7 +1104,8 @@ static int fpga_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		iowrite32(0xF0, card->config_regs + FLAGS_ADDR);
 	}
 
-	card->nr_ports = 2; /* FIXME: Detect daughterboard */
+	data32 = ioread32(card->config_regs + PORTS);
+	card->nr_ports = (data32 & 0x000000FF);
 
 	pci_set_drvdata(dev, card);
 
