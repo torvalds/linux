@@ -515,29 +515,23 @@ out:
  **/
 s32 igb_read_mac_addr(struct e1000_hw *hw)
 {
-	s32  ret_val = 0;
-	u16 offset, nvm_data, i;
+	u32 rar_high;
+	u32 rar_low;
+	u16 i;
 
-	for (i = 0; i < ETH_ALEN; i += 2) {
-		offset = i >> 1;
-		ret_val = hw->nvm.ops.read_nvm(hw, offset, 1, &nvm_data);
-		if (ret_val) {
-			hw_dbg("NVM Read Error\n");
-			goto out;
-		}
-		hw->mac.perm_addr[i] = (u8)(nvm_data & 0xFF);
-		hw->mac.perm_addr[i+1] = (u8)(nvm_data >> 8);
-	}
+	rar_high = rd32(E1000_RAH(0));
+	rar_low = rd32(E1000_RAL(0));
 
-	/* Flip last bit of mac address if we're on second port */
-	if (hw->bus.func == E1000_FUNC_1)
-		hw->mac.perm_addr[5] ^= 1;
+	for (i = 0; i < E1000_RAL_MAC_ADDR_LEN; i++)
+		hw->mac.perm_addr[i] = (u8)(rar_low >> (i*8));
+
+	for (i = 0; i < E1000_RAH_MAC_ADDR_LEN; i++)
+		hw->mac.perm_addr[i+4] = (u8)(rar_high >> (i*8));
 
 	for (i = 0; i < ETH_ALEN; i++)
 		hw->mac.addr[i] = hw->mac.perm_addr[i];
 
-out:
-	return ret_val;
+	return 0;
 }
 
 /**
