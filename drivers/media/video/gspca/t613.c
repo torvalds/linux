@@ -681,19 +681,19 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			| reg_r(gspca_dev, 0x07);
 	switch (sensor_id) {
 	case 0x0801:
-		PDEBUG(D_CONF, "sensor tas5130a");
+		PDEBUG(D_PROBE, "sensor tas5130a");
 		sd->sensor = SENSOR_TAS5130A;
 		break;
 	case 0x0803:
-		PDEBUG(D_CONF, "sensor 'other'");
+		PDEBUG(D_PROBE, "sensor 'other'");
 		sd->sensor = SENSOR_OTHER;
 		break;
 	case 0x0807:
-		PDEBUG(D_CONF, "sensor om6802");
+		PDEBUG(D_PROBE, "sensor om6802");
 		sd->sensor = SENSOR_OM6802;
 		break;
 	default:
-		PDEBUG(D_CONF, "unknown sensor %04x", sensor_id);
+		PDEBUG(D_ERR|D_PROBE, "unknown sensor %04x", sensor_id);
 		return -EINVAL;
 	}
 
