@@ -1946,11 +1946,14 @@ static inline int l2cap_connect_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hd
 		l2cap_pi(sk)->dcid = dcid;
 		l2cap_pi(sk)->conf_state |= L2CAP_CONF_REQ_SENT;
 
+		l2cap_pi(sk)->conf_state &= ~L2CAP_CONF_CONNECT_PEND;
+
 		l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_CONF_REQ,
 					l2cap_build_conf_req(sk, req), req);
 		break;
 
 	case L2CAP_CR_PEND:
+		l2cap_pi(sk)->conf_state |= L2CAP_CONF_CONNECT_PEND;
 		break;
 
 	default:
@@ -2477,6 +2480,11 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 
 	for (sk = l->head; sk; sk = l2cap_pi(sk)->next_c) {
 		bh_lock_sock(sk);
+
+		if (l2cap_pi(sk)->conf_state & L2CAP_CONF_CONNECT_PEND) {
+			bh_unlock_sock(sk);
+			continue;
+		}
 
 		if (!status && (sk->sk_state == BT_CONNECTED ||
 						sk->sk_state == BT_CONFIG)) {
