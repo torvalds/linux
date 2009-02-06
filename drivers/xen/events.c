@@ -54,7 +54,7 @@ static DEFINE_PER_CPU(int, ipi_to_irq[XEN_NR_IPIS]) = {[0 ... XEN_NR_IPIS-1] = -
 
 /* Interrupt types. */
 enum xen_irq_type {
-	IRQT_UNBOUND,
+	IRQT_UNBOUND = 0,
 	IRQT_PIRQ,
 	IRQT_VIRQ,
 	IRQT_IPI,
@@ -101,9 +101,6 @@ static inline unsigned long *cpu_evtchn_mask(int cpu)
 {
 	return cpu_evtchn_mask_p[cpu].bits;
 }
-
-/* Reference counts for bindings to IRQs. */
-static int irq_bindcount[NR_IRQS];
 
 /* Xen will never allocate port zero for any purpose. */
 #define VALID_EVTCHN(chn)	((chn) != 0)
@@ -330,9 +327,8 @@ static int find_unbound_irq(void)
 	int irq;
 	struct irq_desc *desc;
 
-	/* Only allocate from dynirq range */
 	for (irq = 0; irq < nr_irqs; irq++)
-		if (irq_bindcount[irq] == 0)
+		if (irq_info[irq].type == IRQT_UNBOUND)
 			break;
 
 	if (irq == nr_irqs)
@@ -364,8 +360,6 @@ int bind_evtchn_to_irq(unsigned int evtchn)
 		evtchn_to_irq[evtchn] = irq;
 		irq_info[irq] = mk_evtchn_info(evtchn);
 	}
-
-	irq_bindcount[irq]++;
 
 	spin_unlock(&irq_mapping_update_lock);
 
@@ -403,8 +397,6 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
 
-	irq_bindcount[irq]++;
-
  out:
 	spin_unlock(&irq_mapping_update_lock);
 	return irq;
@@ -441,8 +433,6 @@ static int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 		bind_evtchn_to_cpu(evtchn, cpu);
 	}
 
-	irq_bindcount[irq]++;
-
 	spin_unlock(&irq_mapping_update_lock);
 
 	return irq;
@@ -455,7 +445,7 @@ static void unbind_from_irq(unsigned int irq)
 
 	spin_lock(&irq_mapping_update_lock);
 
-	if ((--irq_bindcount[irq] == 0) && VALID_EVTCHN(evtchn)) {
+	if (VALID_EVTCHN(evtchn)) {
 		close.port = evtchn;
 		if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
 			BUG();
@@ -681,6 +671,8 @@ out:
 /* Rebind a new event channel to an existing irq. */
 void rebind_evtchn_irq(int evtchn, int irq)
 {
+	struct irq_info *info = info_for_irq(irq);
+
 	/* Make sure the irq is masked, since the new event channel
 	   will also be masked. */
 	disable_irq(irq);
@@ -690,8 +682,8 @@ void rebind_evtchn_irq(int evtchn, int irq)
 	/* After resume the irq<->evtchn mappings are all cleared out */
 	BUG_ON(evtchn_to_irq[evtchn] != -1);
 	/* Expect irq to have been bound before,
-	   so the bindcount should be non-0 */
-	BUG_ON(irq_bindcount[irq] == 0);
+	   so there should be a proper type */
+	BUG_ON(info->type == IRQT_UNBOUND);
 
 	evtchn_to_irq[evtchn] = irq;
 	irq_info[irq] = mk_evtchn_info(evtchn);
@@ -947,10 +939,6 @@ void __init xen_init_IRQ(void)
 	/* No event channels are 'live' right now. */
 	for (i = 0; i < NR_EVENT_CHANNELS; i++)
 		mask_evtchn(i);
-
-	/* Dynamic IRQ space is currently unbound. Zero the refcnts. */
-	for (i = 0; i < nr_irqs; i++)
-		irq_bindcount[i] = 0;
 
 	irq_ctx_init(smp_processor_id());
 }
