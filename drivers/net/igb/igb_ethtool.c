@@ -287,15 +287,15 @@ static int igb_set_rx_csum(struct net_device *netdev, u32 data)
 
 static u32 igb_get_tx_csum(struct net_device *netdev)
 {
-	return (netdev->features & NETIF_F_HW_CSUM) != 0;
+	return (netdev->features & NETIF_F_IP_CSUM) != 0;
 }
 
 static int igb_set_tx_csum(struct net_device *netdev, u32 data)
 {
 	if (data)
-		netdev->features |= NETIF_F_HW_CSUM;
+		netdev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
 	else
-		netdev->features &= ~NETIF_F_HW_CSUM;
+		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
 
 	return 0;
 }
@@ -304,15 +304,13 @@ static int igb_set_tso(struct net_device *netdev, u32 data)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 
-	if (data)
+	if (data) {
 		netdev->features |= NETIF_F_TSO;
-	else
-		netdev->features &= ~NETIF_F_TSO;
-
-	if (data)
 		netdev->features |= NETIF_F_TSO6;
-	else
+	} else {
+		netdev->features &= ~NETIF_F_TSO;
 		netdev->features &= ~NETIF_F_TSO6;
+	}
 
 	dev_info(&adapter->pdev->dev, "TSO is %s\n",
 		 data ? "Enabled" : "Disabled");
