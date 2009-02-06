@@ -3202,7 +3202,6 @@ static void alc_free(struct hda_codec *codec)
 	alc_free_kctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
-	codec->spec = NULL; /* to be sure */
 }
 
 #ifdef SND_HDA_NEEDS_RESUME
