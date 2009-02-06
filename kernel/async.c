@@ -138,15 +138,18 @@ static void run_one_entry(void)
 
 	/* 3) run it (and print duration)*/
 	if (initcall_debug && system_state == SYSTEM_BOOTING) {
-		printk("calling  %lli_%pF @ %i\n", entry->cookie, entry->func, task_pid_nr(current));
+		printk("calling  %lli_%pF @ %i\n", (long long)entry->cookie,
+			entry->func, task_pid_nr(current));
 		calltime = ktime_get();
 	}
 	entry->func(entry->data, entry->cookie);
 	if (initcall_debug && system_state == SYSTEM_BOOTING) {
 		rettime = ktime_get();
 		delta = ktime_sub(rettime, calltime);
-		printk("initcall %lli_%pF returned 0 after %lld usecs\n", entry->cookie,
-			entry->func, ktime_to_ns(delta) >> 10);
+		printk("initcall %lli_%pF returned 0 after %lld usecs\n",
+			(long long)entry->cookie,
+			entry->func,
+			(long long)ktime_to_ns(delta) >> 10);
 	}
 
 	/* 4) remove it from the running queue */
@@ -247,7 +250,8 @@ void async_synchronize_cookie_special(async_cookie_t cookie, struct list_head *r
 		delta = ktime_sub(endtime, starttime);
 
 		printk("async_continuing @ %i after %lli usec\n",
-			task_pid_nr(current), ktime_to_ns(delta) >> 10);
+			task_pid_nr(current),
+			(long long)ktime_to_ns(delta) >> 10);
 	}
 }
 EXPORT_SYMBOL_GPL(async_synchronize_cookie_special);

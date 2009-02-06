@@ -219,9 +219,6 @@ int efx_ethtool_set_settings(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
-	if (EFX_WORKAROUND_13963(efx) && !ecmd->autoneg)
-		return -EINVAL;
-
 	/* Falcon GMAC does not support 1000Mbps HD */
 	if (ecmd->speed == SPEED_1000 && ecmd->duplex != DUPLEX_FULL) {
 		EFX_LOG(efx, "rejecting unsupported 1000Mbps HD"

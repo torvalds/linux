@@ -51,7 +51,8 @@ Built-in netconsole starts immediately after the TCP stack is
 initialized and attempts to bring up the supplied dev at the supplied
 address.
 
-The remote host can run either 'netcat -u -l -p <port>' or syslogd.
+The remote host can run either 'netcat -u -l -p <port>',
+'nc -l -u <port>' or syslogd.
 
 Dynamic reconfiguration:
 ========================

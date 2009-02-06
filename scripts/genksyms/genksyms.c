@@ -43,7 +43,7 @@ int cur_line = 1;
 char *cur_filename;
 
 static int flag_debug, flag_dump_defs, flag_reference, flag_dump_types,
-	   flag_preserve, flag_warnings, flag_asm;
+	   flag_preserve, flag_warnings;
 static const char *arch = "";
 static const char *mod_prefix = "";
 
@@ -610,11 +610,8 @@ void export_symbol(const char *name)
 		if (flag_dump_defs)
 			fputs(">\n", debugfile);
 
-		/* Used as assembly source or a linker script. */
-		printf(flag_asm
-		       ? ".equiv %s__crc_%s, %#08lx\n"
-		       : "%s__crc_%s = %#08lx ;\n",
-		       mod_prefix, name, crc);
+		/* Used as a linker script. */
+		printf("%s__crc_%s = 0x%08lx ;\n", mod_prefix, name, crc);
 	}
 }
 
@@ -651,10 +648,9 @@ void error_with_pos(const char *fmt, ...)
 
 static void genksyms_usage(void)
 {
-	fputs("Usage:\n" "genksyms [-aAdDTwqhV] > /path/to/.tmp_obj.ver\n" "\n"
+	fputs("Usage:\n" "genksyms [-adDTwqhV] > /path/to/.tmp_obj.ver\n" "\n"
 #ifdef __GNU_LIBRARY__
 	      "  -a, --arch            Select architecture\n"
-	      "  -A, --asm             Generate assembly rather than linker script\n"
 	      "  -d, --debug           Increment the debug level (repeatable)\n"
 	      "  -D, --dump            Dump expanded symbol defs (for debugging only)\n"
 	      "  -r, --reference file  Read reference symbols from a file\n"
@@ -666,7 +662,6 @@ static void genksyms_usage(void)
 	      "  -V, --version         Print the release version\n"
 #else				/* __GNU_LIBRARY__ */
 	      "  -a                    Select architecture\n"
-	      "  -A                    Generate assembly rather than linker script\n"
 	      "  -d                    Increment the debug level (repeatable)\n"
 	      "  -D                    Dump expanded symbol defs (for debugging only)\n"
 	      "  -r file               Read reference symbols from a file\n"
@@ -688,7 +683,6 @@ int main(int argc, char **argv)
 #ifdef __GNU_LIBRARY__
 	struct option long_opts[] = {
 		{"arch", 1, 0, 'a'},
-		{"asm", 0, 0, 'A'},
 		{"debug", 0, 0, 'd'},
 		{"warnings", 0, 0, 'w'},
 		{"quiet", 0, 0, 'q'},
@@ -701,10 +695,10 @@ int main(int argc, char **argv)
 		{0, 0, 0, 0}
 	};
 
-	while ((o = getopt_long(argc, argv, "a:dwqVADr:T:ph",
+	while ((o = getopt_long(argc, argv, "a:dwqVDr:T:ph",
 				&long_opts[0], NULL)) != EOF)
 #else				/* __GNU_LIBRARY__ */
-	while ((o = getopt(argc, argv, "a:dwqVADr:T:ph")) != EOF)
+	while ((o = getopt(argc, argv, "a:dwqVDr:T:ph")) != EOF)
 #endif				/* __GNU_LIBRARY__ */
 		switch (o) {
 		case 'a':
@@ -721,9 +715,6 @@ int main(int argc, char **argv)
 			break;
 		case 'V':
 			fputs("genksyms version 2.5.60\n", stderr);
-			break;
-		case 'A':
-			flag_asm = 1;
 			break;
 		case 'D':
 			flag_dump_defs = 1;
