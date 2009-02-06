@@ -820,8 +820,11 @@ void xen_irq_resume(void)
 
 static struct irq_chip xen_dynamic_chip __read_mostly = {
 	.name		= "xen-dyn",
+
+	.disable	= disable_dynirq,
 	.mask		= disable_dynirq,
 	.unmask		= enable_dynirq,
+
 	.ack		= ack_dynirq,
 	.set_affinity	= set_affinity_irq,
 	.retrigger	= retrigger_dynirq,
