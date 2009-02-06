@@ -118,8 +118,12 @@ struct v4l2_subdev_video_ops {
 	int (*querystd)(struct v4l2_subdev *sd, v4l2_std_id *std);
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
-	int (*s_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+	int (*enum_fmt)(struct v4l2_subdev *sd, struct v4l2_fmtdesc *fmtdesc);
 	int (*g_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+	int (*try_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+	int (*s_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+	int (*g_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
+	int (*s_parm)(struct v4l2_subdev *sd, struct v4l2_streamparm *param);
 };
 
 struct v4l2_subdev_ops {

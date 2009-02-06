@@ -98,6 +98,10 @@ int v4l2_subdev_command(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 		return v4l2_subdev_call(sd, video, g_vbi_data, arg);
 	case VIDIOC_G_SLICED_VBI_CAP:
 		return v4l2_subdev_call(sd, video, g_sliced_vbi_cap, arg);
+	case VIDIOC_ENUM_FMT:
+		return v4l2_subdev_call(sd, video, enum_fmt, arg);
+	case VIDIOC_TRY_FMT:
+		return v4l2_subdev_call(sd, video, try_fmt, arg);
 	case VIDIOC_S_FMT:
 		return v4l2_subdev_call(sd, video, s_fmt, arg);
 	case VIDIOC_G_FMT:
@@ -112,6 +116,10 @@ int v4l2_subdev_command(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 		return v4l2_subdev_call(sd, video, s_stream, 1);
 	case VIDIOC_STREAMOFF:
 		return v4l2_subdev_call(sd, video, s_stream, 0);
+	case VIDIOC_S_PARM:
+		return v4l2_subdev_call(sd, video, s_parm, arg);
+	case VIDIOC_G_PARM:
+		return v4l2_subdev_call(sd, video, g_parm, arg);
 
 	default:
 		return v4l2_subdev_call(sd, core, ioctl, cmd, arg);
