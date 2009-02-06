@@ -82,7 +82,7 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
  * are the same as what exists.
  */
 
-static atomic_t in_nmi = ATOMIC_INIT(0);
+static atomic_t nmi_running = ATOMIC_INIT(0);
 static int mod_code_status;		/* holds return value of text write */
 static int mod_code_write;		/* set when NMI should do the write */
 static void *mod_code_ip;		/* holds the IP to write to */
@@ -115,8 +115,8 @@ static void ftrace_mod_code(void)
 
 void arch_ftrace_nmi_enter(void)
 {
-	atomic_inc(&in_nmi);
-	/* Must have in_nmi seen before reading write flag */
+	atomic_inc(&nmi_running);
+	/* Must have nmi_running seen before reading write flag */
 	smp_mb();
 	if (mod_code_write) {
 		ftrace_mod_code();
@@ -126,19 +126,19 @@ void arch_ftrace_nmi_enter(void)
 
 void arch_ftrace_nmi_exit(void)
 {
-	/* Finish all executions before clearing in_nmi */
+	/* Finish all executions before clearing nmi_running */
 	smp_wmb();
-	atomic_dec(&in_nmi);
+	atomic_dec(&nmi_running);
 }
 
 static void wait_for_nmi(void)
 {
-	if (!atomic_read(&in_nmi))
+	if (!atomic_read(&nmi_running))
 		return;
 
 	do {
 		cpu_relax();
-	} while(atomic_read(&in_nmi));
+	} while (atomic_read(&nmi_running));
 
 	nmi_wait_count++;
 }
@@ -374,16 +374,16 @@ int ftrace_disable_ftrace_graph_caller(void)
  * this page for dynamic ftrace. They have been
  * simplified to ignore all traces in NMI context.
  */
-static atomic_t in_nmi;
+static atomic_t nmi_running;
 
 void arch_ftrace_nmi_enter(void)
 {
-	atomic_inc(&in_nmi);
+	atomic_inc(&nmi_running);
 }
 
 void arch_ftrace_nmi_exit(void)
 {
-	atomic_dec(&in_nmi);
+	atomic_dec(&nmi_running);
 }
 
 #endif /* !CONFIG_DYNAMIC_FTRACE */
@@ -475,7 +475,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 				&return_to_handler;
 
 	/* Nmi's are currently unsupported */
-	if (unlikely(atomic_read(&in_nmi)))
+	if (unlikely(atomic_read(&nmi_running)))
 		return;
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
