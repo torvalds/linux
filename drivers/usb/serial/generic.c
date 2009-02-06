@@ -188,6 +188,7 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 
 	return c ? -EIO : 0;
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_resume);
 
 void usb_serial_generic_close(struct tty_struct *tty,
 			struct usb_serial_port *port, struct file *filp)
