@@ -229,6 +229,7 @@ struct hda_multi_out {
 	hda_nid_t hp_nid;	/* optional DAC for HP, 0 when not exists */
 	hda_nid_t extra_out_nid[3];	/* optional DACs, 0 when not exists */
 	hda_nid_t dig_out_nid;	/* digital out audio widget */
+	hda_nid_t *slave_dig_outs;
 	int max_channels;	/* currently supported analog channels */
 	int dig_out_used;	/* current usage of digital out (HDA_DIG_XXX) */
 	int no_share_stream;	/* don't share a stream with multiple pins */

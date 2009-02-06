@@ -349,6 +349,7 @@ struct alc_config_preset {
 	hda_nid_t *dac_nids;
 	hda_nid_t dig_out_nid;		/* optional */
 	hda_nid_t hp_nid;		/* optional */
+	hda_nid_t *slave_dig_outs;
 	unsigned int num_adc_nids;
 	hda_nid_t *adc_nids;
 	hda_nid_t *capsrc_nids;
@@ -824,6 +825,7 @@ static void setup_preset(struct alc_spec *spec,
 	spec->multiout.num_dacs = preset->num_dacs;
 	spec->multiout.dac_nids = preset->dac_nids;
 	spec->multiout.dig_out_nid = preset->dig_out_nid;
+	spec->multiout.slave_dig_outs = preset->slave_dig_outs;
 	spec->multiout.hp_nid = preset->hp_nid;
 
 	spec->num_mux_defs = preset->num_mux_defs;
@@ -3107,6 +3109,7 @@ static int alc_build_pcms(struct hda_codec *codec)
 	/* SPDIF for stream index #1 */
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
 		codec->num_pcms = 2;
+	        codec->slave_dig_outs = spec->multiout.slave_dig_outs;
 		info = spec->pcm_rec + 1;
 		info->name = spec->stream_name_digital;
 		if (spec->dig_out_type)
@@ -8603,6 +8606,10 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	{}
 };
 
+static hda_nid_t alc1200_slave_dig_outs[] = {
+	ALC883_DIGOUT_NID, 0,
+};
+
 static struct alc_config_preset alc883_presets[] = {
 	[ALC883_3ST_2ch_DIG] = {
 		.mixers = { alc883_3ST_2ch_mixer },
@@ -8943,6 +8950,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.dac_nids = alc883_dac_nids,
 		.dig_out_nid = ALC1200_DIGOUT_NID,
 		.dig_in_nid = ALC883_DIGIN_NID,
+		.slave_dig_outs = alc1200_slave_dig_outs,
 		.num_channel_mode = ARRAY_SIZE(alc883_sixstack_modes),
 		.channel_mode = alc883_sixstack_modes,
 		.input_mux = &alc883_capture_source,
