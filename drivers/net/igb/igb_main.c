@@ -2261,6 +2261,46 @@ static void igb_update_phy_info(unsigned long data)
 }
 
 /**
+ * igb_has_link - check shared code for link and determine up/down
+ * @adapter: pointer to driver private info
+ **/
+static bool igb_has_link(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	bool link_active = false;
+	s32 ret_val = 0;
+
+	/* get_link_status is set on LSC (link status) interrupt or
+	 * rx sequence error interrupt.  get_link_status will stay
+	 * false until the e1000_check_for_link establishes link
+	 * for copper adapters ONLY
+	 */
+	switch (hw->phy.media_type) {
+	case e1000_media_type_copper:
+		if (hw->mac.get_link_status) {
+			ret_val = hw->mac.ops.check_for_link(hw);
+			link_active = !hw->mac.get_link_status;
+		} else {
+			link_active = true;
+		}
+		break;
+	case e1000_media_type_fiber:
+		ret_val = hw->mac.ops.check_for_link(hw);
+		link_active = !!(rd32(E1000_STATUS) & E1000_STATUS_LU);
+		break;
+	case e1000_media_type_internal_serdes:
+		ret_val = hw->mac.ops.check_for_link(hw);
+		link_active = hw->mac.serdes_has_link;
+		break;
+	default:
+	case e1000_media_type_unknown:
+		break;
+	}
+
+	return link_active;
+}
+
+/**
  * igb_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
@@ -2285,24 +2325,9 @@ static void igb_watchdog_task(struct work_struct *work)
 	s32 ret_val;
 	int i;
 
-	if ((netif_carrier_ok(netdev)) &&
-	    (rd32(E1000_STATUS) & E1000_STATUS_LU))
+	link = igb_has_link(adapter);
+	if ((netif_carrier_ok(netdev)) && link)
 		goto link_up;
-
-	ret_val = hw->mac.ops.check_for_link(&adapter->hw);
-	if ((ret_val == E1000_ERR_PHY) &&
-	    (hw->phy.type == e1000_phy_igp_3) &&
-	    (rd32(E1000_CTRL) &
-	     E1000_PHY_CTRL_GBE_DISABLE))
-		dev_info(&adapter->pdev->dev,
-			 "Gigabit has been disabled, downgrading speed\n");
-
-	if ((hw->phy.media_type == e1000_media_type_internal_serdes) &&
-	    !(rd32(E1000_TXCW) & E1000_TXCW_ANE))
-		link = mac->serdes_has_link;
-	else
-		link = rd32(E1000_STATUS) &
-				      E1000_STATUS_LU;
 
 	if (link) {
 		if (!netif_carrier_ok(netdev)) {
