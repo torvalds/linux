@@ -501,7 +501,7 @@ s32 e1000e_check_for_fiber_link(struct e1000_hw *hw)
 		ew32(TXCW, mac->txcw);
 		ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 
-		mac->serdes_has_link = 1;
+		mac->serdes_has_link = true;
 	}
 
 	return 0;
@@ -566,7 +566,7 @@ s32 e1000e_check_for_serdes_link(struct e1000_hw *hw)
 		ew32(TXCW, mac->txcw);
 		ew32(CTRL, (ctrl & ~E1000_CTRL_SLU));
 
-		mac->serdes_has_link = 1;
+		mac->serdes_has_link = true;
 	} else if (!(E1000_TXCW_ANE & er32(TXCW))) {
 		/*
 		 * If we force link for non-auto-negotiation switch, check
