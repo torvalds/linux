@@ -119,7 +119,7 @@ static int sxg_poll(struct napi_struct *napi, int budget);
 static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId);
 static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId,
 			 int *sxg_napi_continue, int *work_done, int budget);
-static void sxg_complete_slow_send(struct adapter_t *adapter, int irq_context);
+static void sxg_complete_slow_send(struct adapter_t *adapter);
 static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter,
 					struct sxg_event *Event);
 static void sxg_process_rcv_error(struct adapter_t *adapter, u32 ErrorStatus);
@@ -1274,7 +1274,7 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 	}
 	/* Slowpath send completions */
 	if (Isr & SXG_ISR_SPSEND) {
-		sxg_complete_slow_send(adapter, 1);
+		sxg_complete_slow_send(adapter);
 	}
 	/* Dump */
 	if (Isr & SXG_ISR_UPC) {
@@ -1477,11 +1477,10 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId,
  *
  * Arguments -
  *	adapter		- A pointer to our adapter structure
- *	irq_context	- An integer to denote if we are in interrupt context
  * Return
  *	None
  */
-static void sxg_complete_slow_send(struct adapter_t *adapter, int irq_context)
+static void sxg_complete_slow_send(struct adapter_t *adapter)
 {
 	struct sxg_xmt_ring *XmtRing = &adapter->XmtRings[0];
 	struct sxg_ring_info *XmtRingInfo = &adapter->XmtRingZeroInfo;
@@ -1496,12 +1495,7 @@ static void sxg_complete_slow_send(struct adapter_t *adapter, int irq_context)
 	 * This means two different processors can both be running/
 	 * through this loop. Be *very* careful.
 	 */
-	if(irq_context) {
-		if(!spin_trylock(&adapter->XmtZeroLock))
-			goto lock_busy;
-	}
-	else
-		spin_lock_irqsave(&adapter->XmtZeroLock, flags);
+	spin_lock_irqsave(&adapter->XmtZeroLock, flags);
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "CmpSnds",
 		  adapter, XmtRingInfo->Head, XmtRingInfo->Tail, 0);
@@ -1545,36 +1539,23 @@ static void sxg_complete_slow_send(struct adapter_t *adapter, int irq_context)
 				 * chimney send, which results in a double trip
 				 * in SxgTcpOuput
 				 */
-				if(irq_context)
-					spin_unlock(&adapter->XmtZeroLock);
-				else
-					spin_unlock_irqrestore(
-						&adapter->XmtZeroLock, flags);
+				spin_unlock_irqrestore(
+					&adapter->XmtZeroLock, flags);
 
 				SxgSgl->DumbPacket = NULL;
 				SXG_COMPLETE_DUMB_SEND(adapter, skb,
 							FirstSgeAddress,
 							FirstSgeLength);
-				SXG_FREE_SGL_BUFFER(adapter, SxgSgl, NULL,
-						irq_context);
+				SXG_FREE_SGL_BUFFER(adapter, SxgSgl, NULL);
 				/* and reacquire.. */
-				if(irq_context) {
-					if(!spin_trylock(&adapter->XmtZeroLock))
-						goto lock_busy;
-				}
-				else
-					spin_lock_irqsave(&adapter->XmtZeroLock, flags);
+				spin_lock_irqsave(&adapter->XmtZeroLock, flags);
 			}
 			break;
 		default:
 			ASSERT(0);
 		}
 	}
-	if(irq_context)
-		spin_unlock(&adapter->XmtZeroLock);
-	else
-		spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
-lock_busy:
+	spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "CmpSnd",
 		  adapter, XmtRingInfo->Head, XmtRingInfo->Tail, 0);
 }
@@ -2468,7 +2449,7 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 		 */
 
 		spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
-		sxg_complete_slow_send(adapter, 0);
+		sxg_complete_slow_send(adapter);
 		spin_lock_irqsave(&adapter->XmtZeroLock, flags);
 		SXG_GET_CMD(XmtRing, XmtRingInfo, XmtCmd, SxgSgl);
 		if (XmtCmd == NULL) {
@@ -3781,22 +3762,16 @@ static void sxg_allocate_sgl_buffer_complete(struct adapter_t *adapter,
 	unsigned long sgl_flags;
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "AlSglCmp",
 		  adapter, SxgSgl, Length, 0);
-	if(!in_irq())
-		spin_lock_irqsave(&adapter->SglQLock, sgl_flags);
-	else
-		spin_lock(&adapter->SglQLock);
+	spin_lock_irqsave(&adapter->SglQLock, sgl_flags);
 	adapter->AllSglBufferCount++;
 	/* PhysicalAddress; */
 	SxgSgl->PhysicalAddress = PhysicalAddress;
 	/* Initialize backpointer once */
 	SxgSgl->adapter = adapter;
 	InsertTailList(&adapter->AllSglBuffers, &SxgSgl->AllList);
-	if(!in_irq())
-		spin_unlock_irqrestore(&adapter->SglQLock, sgl_flags);
-	else
-		spin_unlock(&adapter->SglQLock);
+	spin_unlock_irqrestore(&adapter->SglQLock, sgl_flags);
 	SxgSgl->State = SXG_BUFFER_BUSY;
-	SXG_FREE_SGL_BUFFER(adapter, SxgSgl, NULL, in_irq());
+	SXG_FREE_SGL_BUFFER(adapter, SxgSgl, NULL);
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAlSgl",
 		  adapter, SxgSgl, Length, 0);
 }

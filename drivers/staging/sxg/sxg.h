@@ -244,20 +244,14 @@ struct sxg_stats {
 }
 
 /* SGL macros */
-#define SXG_FREE_SGL_BUFFER(_pAdapt, _Sgl, _NB, _irq) {				\
-	if(!_irq)								\
-		spin_lock_irqsave(&(_pAdapt)->SglQLock, sgl_flags);		\
-	else									\
-		spin_lock(&(_pAdapt)->SglQLock);				\
+#define SXG_FREE_SGL_BUFFER(_pAdapt, _Sgl, _NB) {				\
+	spin_lock_irqsave(&(_pAdapt)->SglQLock, sgl_flags);			\
 	(_pAdapt)->FreeSglBufferCount++;					\
 	ASSERT((_pAdapt)->AllSglBufferCount >= (_pAdapt)->FreeSglBufferCount);	\
 	ASSERT(!((_Sgl)->State & SXG_BUFFER_FREE));				\
 	(_Sgl)->State = SXG_BUFFER_FREE;					\
 	InsertTailList(&(_pAdapt)->FreeSglBuffers, &(_Sgl)->FreeList);		\
-	if(!_irq)								\
-		spin_unlock_irqrestore(&(_pAdapt)->SglQLock, sgl_flags);	\
-	else									\
-		spin_unlock(&(_pAdapt)->SglQLock);				\
+	spin_unlock_irqrestore(&(_pAdapt)->SglQLock, sgl_flags);		\
 }
 
 /*
@@ -280,7 +274,7 @@ struct sxg_stats {
 	if(!_irq)							\
 		spin_lock_irqsave(&(_pAdapt)->SglQLock, sgl_flags);	\
 	else								\
-		spin_lock(&(_pAdapt)->SglQLock);			\
+		spin_lock_irqsave(&(_pAdapt)->SglQLock, sgl_flags);	\
 	if((_pAdapt)->FreeSglBufferCount) {				\
 		ASSERT(!(IsListEmpty(&(_pAdapt)->FreeSglBuffers)));	\
 		_ple = RemoveHeadList(&(_pAdapt)->FreeSglBuffers);	\
@@ -294,7 +288,7 @@ struct sxg_stats {
 	if(!_irq)							\
 		spin_unlock_irqrestore(&(_pAdapt)->SglQLock, sgl_flags);\
 	else								\
-		spin_unlock(&(_pAdapt)->SglQLock);			\
+		spin_unlock_irqrestore(&(_pAdapt)->SglQLock, sgl_flags);\
 }
 
 /*
