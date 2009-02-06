@@ -492,19 +492,9 @@ static void mxc_init_i2c(void)
  */
 static struct map_desc mx31ads_io_desc[] __initdata = {
 	{
-		.virtual	= AIPS1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS1_BASE_ADDR),
-		.length		= AIPS1_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
 		.virtual	= SPBA0_BASE_ADDR_VIRT,
 		.pfn		= __phys_to_pfn(SPBA0_BASE_ADDR),
 		.length		= SPBA0_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= AIPS2_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
-		.length		= AIPS2_SIZE,
 		.type		= MT_DEVICE_NONSHARED
 	}, {
 		.virtual	= CS4_BASE_ADDR_VIRT,

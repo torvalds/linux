@@ -59,32 +59,6 @@ static inline void mxc_init_imx_uart(void)
 }
 
 /*!
- * This structure defines static mappings for the i.MX31PDK board.
- */
-static struct map_desc mx31pdk_io_desc[] __initdata = {
-	{
-		.virtual	= AIPS1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS1_BASE_ADDR),
-		.length		= AIPS1_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= AIPS2_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
-		.length		= AIPS2_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-/*!
- * Set up static virtual mappings.
- */
-static void __init mx31pdk_map_io(void)
-{
-	mxc_map_io();
-	iotable_init(mx31pdk_io_desc, ARRAY_SIZE(mx31pdk_io_desc));
-}
-
-/*!
  * Board specific initialization.
  */
 static void __init mxc_board_init(void)
@@ -110,7 +84,7 @@ MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	.phys_io	= AIPS1_BASE_ADDR,
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
-	.map_io         = mx31pdk_map_io,
+	.map_io         = mxc_map_io,
 	.init_irq       = mxc_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &mx31pdk_timer,

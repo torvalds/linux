@@ -103,32 +103,6 @@ static void __init mxc_board_init(void)
 	}
 }
 
-/*
- * This structure defines static mappings for the mx31moboard.
- */
-static struct map_desc mx31moboard_io_desc[] __initdata = {
-	{
-		.virtual	= AIPS1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS1_BASE_ADDR),
-		.length		= AIPS1_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= AIPS2_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
-		.length		= AIPS2_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-/*
- * Set up static virtual mappings.
- */
-void __init mx31moboard_map_io(void)
-{
-	mxc_map_io();
-	iotable_init(mx31moboard_io_desc, ARRAY_SIZE(mx31moboard_io_desc));
-}
-
 static void __init mx31moboard_timer_init(void)
 {
 	mx31_clocks_init(26000000);
@@ -143,7 +117,7 @@ MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
 	.phys_io	= AIPS1_BASE_ADDR,
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
-	.map_io         = mx31moboard_map_io,
+	.map_io         = mxc_map_io,
 	.init_irq       = mxc_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &mx31moboard_timer,
