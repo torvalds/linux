@@ -84,6 +84,7 @@ struct platform_device mxc_uart_device2 = {
 	.num_resources = ARRAY_SIZE(uart2),
 };
 
+#ifdef CONFIG_ARCH_MX31
 static struct resource uart3[] = {
 	{
 		.start = UART4_BASE_ADDR,
@@ -121,6 +122,7 @@ struct platform_device mxc_uart_device4 = {
 	.resource = uart4,
 	.num_resources = ARRAY_SIZE(uart4),
 };
+#endif /* CONFIG_ARCH_MX31 */
 
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {
@@ -166,8 +168,8 @@ struct platform_device mxc_w1_master_device = {
 
 static struct resource mxc_nand_resources[] = {
 	{
-		.start	= NFC_BASE_ADDR,
-		.end	= NFC_BASE_ADDR + 0xfff,
+		.start	= 0, /* runtime dependent */
+		.end	= 0,
 		.flags	= IORESOURCE_MEM
 	}, {
 		.start	= MXC_INT_NANDFC,
@@ -290,3 +292,40 @@ struct platform_device mx3_fb = {
 		.coherent_dma_mask = 0xffffffff,
        },
 };
+
+#ifdef CONFIG_ARCH_MX35
+static struct resource mxc_fec_resources[] = {
+	{
+		.start	= MXC_FEC_BASE_ADDR,
+		.end	= MXC_FEC_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM
+	}, {
+		.start	= MXC_INT_FEC,
+		.end	= MXC_INT_FEC,
+		.flags	= IORESOURCE_IRQ
+	},
+};
+
+struct platform_device mxc_fec_device = {
+	.name = "fec",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_fec_resources),
+	.resource = mxc_fec_resources,
+};
+#endif
+
+static int mx3_devices_init(void)
+{
+	if (cpu_is_mx31()) {
+		mxc_nand_resources[0].start = MX31_NFC_BASE_ADDR;
+		mxc_nand_resources[0].end = MX31_NFC_BASE_ADDR + 0xfff;
+	}
+	if (cpu_is_mx35()) {
+		mxc_nand_resources[0].start = MX35_NFC_BASE_ADDR;
+		mxc_nand_resources[0].end = MX35_NFC_BASE_ADDR + 0xfff;
+	}
+
+	return 0;
+}
+
+subsys_initcall(mx3_devices_init);
