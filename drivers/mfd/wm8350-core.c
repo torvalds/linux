@@ -1438,7 +1438,21 @@ int wm8350_device_init(struct wm8350 *wm8350, int irq,
 	mutex_init(&wm8350->irq_mutex);
 	INIT_WORK(&wm8350->irq_work, wm8350_irq_worker);
 	if (irq) {
-		ret = request_irq(irq, wm8350_irq, 0,
+		int flags = 0;
+
+		if (pdata && pdata->irq_high) {
+			flags |= IRQF_TRIGGER_HIGH;
+
+			wm8350_set_bits(wm8350, WM8350_SYSTEM_CONTROL_1,
+					WM8350_IRQ_POL);
+		} else {
+			flags |= IRQF_TRIGGER_LOW;
+
+			wm8350_clear_bits(wm8350, WM8350_SYSTEM_CONTROL_1,
+					  WM8350_IRQ_POL);
+		}
+
+		ret = request_irq(irq, wm8350_irq, flags,
 				  "wm8350", wm8350);
 		if (ret != 0) {
 			dev_err(wm8350->dev, "Failed to request IRQ: %d\n",
