@@ -64,6 +64,7 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/rtnetlink.h>
+#include <net/sock.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -95,6 +96,8 @@ struct tun_file {
 	wait_queue_head_t	read_wait;
 };
 
+struct tun_sock;
+
 struct tun_struct {
 	struct tun_file		*tfile;
 	unsigned int 		flags;
@@ -107,11 +110,23 @@ struct tun_struct {
 	struct fasync_struct	*fasync;
 
 	struct tap_filter       txflt;
+	struct sock		*sk;
+	struct socket		socket;
 
 #ifdef TUN_DEBUG
 	int debug;
 #endif
 };
+
+struct tun_sock {
+	struct sock		sk;
+	struct tun_struct	*tun;
+};
+
+static inline struct tun_sock *tun_sk(struct sock *sk)
+{
+	return container_of(sk, struct tun_sock, sk);
+}
 
 static int tun_attach(struct tun_struct *tun, struct file *file)
 {
@@ -461,7 +476,8 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 {
 	struct tun_file *tfile = file->private_data;
 	struct tun_struct *tun = __tun_get(tfile);
-	unsigned int mask = POLLOUT | POLLWRNORM;
+	struct sock *sk = tun->sk;
+	unsigned int mask = 0;
 
 	if (!tun)
 		return POLLERR;
@@ -473,6 +489,11 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 	if (!skb_queue_empty(&tun->readq))
 		mask |= POLLIN | POLLRDNORM;
 
+	if (sock_writeable(sk) ||
+	    (!test_and_set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags) &&
+	     sock_writeable(sk)))
+		mask |= POLLOUT | POLLWRNORM;
+
 	if (tun->dev->reg_state != NETREG_REGISTERED)
 		mask = POLLERR;
 
@@ -482,66 +503,35 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 
 /* prepad is the amount to reserve at front.  len is length after that.
  * linear is a hint as to how much to copy (usually headers). */
-static struct sk_buff *tun_alloc_skb(size_t prepad, size_t len, size_t linear,
-				     gfp_t gfp)
+static inline struct sk_buff *tun_alloc_skb(struct tun_struct *tun,
+					    size_t prepad, size_t len,
+					    size_t linear, int noblock)
 {
+	struct sock *sk = tun->sk;
 	struct sk_buff *skb;
-	unsigned int i;
-
-	skb = alloc_skb(prepad + len, gfp|__GFP_NOWARN);
-	if (skb) {
-		skb_reserve(skb, prepad);
-		skb_put(skb, len);
-		return skb;
-	}
+	int err;
 
 	/* Under a page?  Don't bother with paged skb. */
 	if (prepad + len < PAGE_SIZE)
-		return NULL;
+		linear = len;
 
-	/* Start with a normal skb, and add pages. */
-	skb = alloc_skb(prepad + linear, gfp);
+	skb = sock_alloc_send_pskb(sk, prepad + linear, len - linear, noblock,
+				   &err);
 	if (!skb)
-		return NULL;
+		return ERR_PTR(err);
 
 	skb_reserve(skb, prepad);
 	skb_put(skb, linear);
-
-	len -= linear;
-
-	for (i = 0; i < MAX_SKB_FRAGS; i++) {
-		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
-
-		f->page = alloc_page(gfp|__GFP_ZERO);
-		if (!f->page)
-			break;
-
-		f->page_offset = 0;
-		f->size = PAGE_SIZE;
-
-		skb->data_len += PAGE_SIZE;
-		skb->len += PAGE_SIZE;
-		skb->truesize += PAGE_SIZE;
-		skb_shinfo(skb)->nr_frags++;
-
-		if (len < PAGE_SIZE) {
-			len = 0;
-			break;
-		}
-		len -= PAGE_SIZE;
-	}
-
-	/* Too large, or alloc fail? */
-	if (unlikely(len)) {
-		kfree_skb(skb);
-		skb = NULL;
-	}
+	skb->data_len = len - linear;
+	skb->len += len - linear;
 
 	return skb;
 }
 
 /* Get packet from user space buffer */
-static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv, size_t count)
+static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
+				       struct iovec *iv, size_t count,
+				       int noblock)
 {
 	struct tun_pi pi = { 0, cpu_to_be16(ETH_P_IP) };
 	struct sk_buff *skb;
@@ -573,9 +563,11 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 			return -EINVAL;
 	}
 
-	if (!(skb = tun_alloc_skb(align, len, gso.hdr_len, GFP_KERNEL))) {
-		tun->dev->stats.rx_dropped++;
-		return -ENOMEM;
+	skb = tun_alloc_skb(tun, align, len, gso.hdr_len, noblock);
+	if (IS_ERR(skb)) {
+		if (PTR_ERR(skb) != -EAGAIN)
+			tun->dev->stats.rx_dropped++;
+		return PTR_ERR(skb);
 	}
 
 	if (skb_copy_datagram_from_iovec(skb, 0, iv, len)) {
@@ -661,7 +653,8 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 			      unsigned long count, loff_t pos)
 {
-	struct tun_struct *tun = tun_get(iocb->ki_filp);
+	struct file *file = iocb->ki_filp;
+	struct tun_struct *tun = file->private_data;
 	ssize_t result;
 
 	if (!tun)
@@ -669,7 +662,8 @@ static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 
 	DBG(KERN_INFO "%s: tun_chr_write %ld\n", tun->dev->name, count);
 
-	result = tun_get_user(tun, (struct iovec *) iv, iov_length(iv, count));
+	result = tun_get_user(tun, (struct iovec *)iv, iov_length(iv, count),
+			      file->f_flags & O_NONBLOCK);
 
 	tun_put(tun);
 	return result;
@@ -828,11 +822,40 @@ static struct rtnl_link_ops tun_link_ops __read_mostly = {
 	.validate	= tun_validate,
 };
 
+static void tun_sock_write_space(struct sock *sk)
+{
+	struct tun_struct *tun;
+
+	if (!sock_writeable(sk))
+		return;
+
+	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
+		wake_up_interruptible_sync(sk->sk_sleep);
+
+	if (!test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags))
+		return;
+
+	tun = container_of(sk, struct tun_sock, sk)->tun;
+	kill_fasync(&tun->fasync, SIGIO, POLL_OUT);
+}
+
+static void tun_sock_destruct(struct sock *sk)
+{
+	dev_put(container_of(sk, struct tun_sock, sk)->tun->dev);
+}
+
+static struct proto tun_proto = {
+	.name		= "tun",
+	.owner		= THIS_MODULE,
+	.obj_size	= sizeof(struct tun_sock),
+};
 
 static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 {
+	struct sock *sk;
 	struct tun_struct *tun;
 	struct net_device *dev;
+	struct tun_file *tfile = file->private_data;
 	int err;
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
@@ -885,14 +908,31 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		tun->flags = flags;
 		tun->txflt.count = 0;
 
+		err = -ENOMEM;
+		sk = sk_alloc(net, AF_UNSPEC, GFP_KERNEL, &tun_proto);
+		if (!sk)
+			goto err_free_dev;
+
+		/* This ref count is for tun->sk. */
+		dev_hold(dev);
+		sock_init_data(&tun->socket, sk);
+		sk->sk_write_space = tun_sock_write_space;
+		sk->sk_destruct = tun_sock_destruct;
+		sk->sk_sndbuf = INT_MAX;
+		sk->sk_sleep = &tfile->read_wait;
+
+		tun->sk = sk;
+		container_of(sk, struct tun_sock, sk)->tun = tun;
+
 		tun_net_init(dev);
 
 		if (strchr(dev->name, '%')) {
 			err = dev_alloc_name(dev, dev->name);
 			if (err < 0)
-				goto err_free_dev;
+				goto err_free_sk;
 		}
 
+		err = -EINVAL;
 		err = register_netdevice(tun->dev);
 		if (err < 0)
 			goto err_free_dev;
@@ -928,6 +968,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	strcpy(ifr->ifr_name, tun->dev->name);
 	return 0;
 
+ err_free_sk:
+	sock_put(sk);
  err_free_dev:
 	free_netdev(dev);
  failed:
@@ -1012,6 +1054,7 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 	struct tun_struct *tun;
 	void __user* argp = (void __user*)arg;
 	struct ifreq ifr;
+	int sndbuf;
 	int ret;
 
 	if (cmd == TUNSETIFF || _IOC_TYPE(cmd) == 0x89)
@@ -1151,6 +1194,22 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		ret = dev_set_mac_address(tun->dev, &ifr.ifr_hwaddr);
 		rtnl_unlock();
 		break;
+
+	case TUNGETSNDBUF:
+		sndbuf = tun->sk->sk_sndbuf;
+		if (copy_to_user(argp, &sndbuf, sizeof(sndbuf)))
+			ret = -EFAULT;
+		break;
+
+	case TUNSETSNDBUF:
+		if (copy_from_user(&sndbuf, argp, sizeof(sndbuf))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		tun->sk->sk_sndbuf = sndbuf;
+		break;
+
 	default:
 		ret = -EINVAL;
 		break;
@@ -1218,8 +1277,10 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 		__tun_detach(tun);
 
 		/* If desireable, unregister the netdevice. */
-		if (!(tun->flags & TUN_PERSIST))
+		if (!(tun->flags & TUN_PERSIST)) {
+			sock_put(tun->sk);
 			unregister_netdevice(tun->dev);
+		}
 
 		rtnl_unlock();
 	}
