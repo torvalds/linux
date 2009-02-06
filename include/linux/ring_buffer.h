@@ -124,9 +124,18 @@ unsigned long ring_buffer_overrun_cpu(struct ring_buffer *buffer, int cpu);
 u64 ring_buffer_time_stamp(int cpu);
 void ring_buffer_normalize_time_stamp(int cpu, u64 *ts);
 
+/*
+ * The below functions are fine to use outside the tracing facility.
+ */
+#ifdef CONFIG_RING_BUFFER
 void tracing_on(void);
 void tracing_off(void);
 void tracing_off_permanent(void);
+#else
+static inline void tracing_on(void) { }
+static inline void tracing_off(void) { }
+static inline void tracing_off_permanent(void) { }
+#endif
 
 void *ring_buffer_alloc_read_page(struct ring_buffer *buffer);
 void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data);
