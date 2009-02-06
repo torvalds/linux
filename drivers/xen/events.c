@@ -595,25 +595,6 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-
-static void xen_do_irq(unsigned irq, struct pt_regs *regs)
-{
-	struct pt_regs *old_regs = set_irq_regs(regs);
-
-	if (WARN_ON(irq == -1))
-		return;
-
-	exit_idle();
-	irq_enter();
-
-	//printk("cpu %d handling irq %d\n", smp_processor_id(), info->irq);
-	handle_irq(irq, regs);
-
-	irq_exit();
-
-	set_irq_regs(old_regs);
-}
-
 /*
  * Search the CPUs pending events bitmasks.  For each one found, map
  * the event number to an irq, and feed it into do_IRQ() for
@@ -626,10 +607,14 @@ static void xen_do_irq(unsigned irq, struct pt_regs *regs)
 void xen_evtchn_do_upcall(struct pt_regs *regs)
 {
 	int cpu = get_cpu();
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __get_cpu_var(xen_vcpu);
 	static DEFINE_PER_CPU(unsigned, nesting_count);
  	unsigned count;
+
+	exit_idle();
+	irq_enter();
 
 	do {
 		unsigned long pending_words;
@@ -654,7 +639,8 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 				int port = (word_idx * BITS_PER_LONG) + bit_idx;
 				int irq = evtchn_to_irq[port];
 
-				xen_do_irq(irq, regs);
+				if (irq != -1)
+					handle_irq(irq, regs);
 			}
 		}
 
@@ -665,6 +651,9 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 	} while(count != 1);
 
 out:
+	irq_exit();
+	set_irq_regs(old_regs);
+
 	put_cpu();
 }
 
