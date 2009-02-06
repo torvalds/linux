@@ -63,7 +63,6 @@ void igb_mta_set(struct e1000_hw *hw, u32 hash_value);
 void igb_put_hw_semaphore(struct e1000_hw *hw);
 void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index);
 s32  igb_check_alt_mac_addr(struct e1000_hw *hw);
-void igb_remove_device(struct e1000_hw *hw);
 void igb_reset_adaptive(struct e1000_hw *hw);
 void igb_update_adaptive(struct e1000_hw *hw);
 void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value);

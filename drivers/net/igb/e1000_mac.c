@@ -37,19 +37,6 @@
 static s32 igb_set_default_fc(struct e1000_hw *hw);
 static s32 igb_set_fc_watermarks(struct e1000_hw *hw);
 
-/**
- *  igb_remove_device - Free device specific structure
- *  @hw: pointer to the HW structure
- *
- *  If a device specific structure was allocated, this function will
- *  free it.
- **/
-void igb_remove_device(struct e1000_hw *hw)
-{
-	/* Freeing the dev_spec member of e1000_hw structure */
-	kfree(hw->dev_spec);
-}
-
 static s32 igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
 {
 	struct igb_adapter *adapter = hw->back;

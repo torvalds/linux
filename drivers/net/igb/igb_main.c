@@ -1329,7 +1329,6 @@ err_eeprom:
 	if (hw->flash_address)
 		iounmap(hw->flash_address);
 
-	igb_remove_device(hw);
 	igb_free_queues(adapter);
 err_sw_init:
 err_hw_init:
@@ -1389,7 +1388,6 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	if (!igb_check_reset_block(&adapter->hw))
 		igb_reset_phy(&adapter->hw);
 
-	igb_remove_device(&adapter->hw);
 	igb_reset_interrupt_capability(adapter);
 
 	igb_free_queues(adapter);

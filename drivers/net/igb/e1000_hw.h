@@ -565,9 +565,12 @@ struct e1000_fc_info {
 	enum e1000_fc_type original_type;
 };
 
+struct e1000_dev_spec_82575 {
+	bool sgmii_active;
+};
+
 struct e1000_hw {
 	void *back;
-	void *dev_spec;
 
 	u8 __iomem *hw_addr;
 	u8 __iomem *flash_address;
@@ -580,7 +583,9 @@ struct e1000_hw {
 	struct e1000_bus_info  bus;
 	struct e1000_host_mng_dhcp_cookie mng_cookie;
 
-	u32 dev_spec_size;
+	union {
+		struct e1000_dev_spec_82575	_82575;
+	} dev_spec;
 
 	u16 device_id;
 	u16 subsystem_vendor_id;

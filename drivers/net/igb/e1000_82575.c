@@ -62,17 +62,12 @@ static bool igb_sgmii_active_82575(struct e1000_hw *);
 static s32  igb_reset_init_script_82575(struct e1000_hw *);
 static s32  igb_read_mac_addr_82575(struct e1000_hw *);
 
-
-struct e1000_dev_spec_82575 {
-	bool sgmii_active;
-};
-
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	struct e1000_mac_info *mac = &hw->mac;
-	struct e1000_dev_spec_82575 *dev_spec;
+	struct e1000_dev_spec_82575 * dev_spec = &hw->dev_spec._82575;
 	u32 eecd;
 	s32 ret_val;
 	u16 size;
@@ -93,17 +88,6 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		return -E1000_ERR_MAC_INIT;
 		break;
 	}
-
-	/* MAC initialization */
-	hw->dev_spec_size = sizeof(struct e1000_dev_spec_82575);
-
-	/* Device-specific structure allocation */
-	hw->dev_spec = kzalloc(hw->dev_spec_size, GFP_KERNEL);
-
-	if (!hw->dev_spec)
-		return -ENOMEM;
-
-	dev_spec = (struct e1000_dev_spec_82575 *)hw->dev_spec;
 
 	/* Set media type */
 	/*
@@ -1234,20 +1218,12 @@ out:
  **/
 static bool igb_sgmii_active_82575(struct e1000_hw *hw)
 {
-	struct e1000_dev_spec_82575 *dev_spec;
-	bool ret_val;
+	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
 
-	if (hw->mac.type != e1000_82575) {
-		ret_val = false;
-		goto out;
-	}
+	if (hw->mac.type != e1000_82575 && hw->mac.type != e1000_82576)
+		return false;
 
-	dev_spec = (struct e1000_dev_spec_82575 *)hw->dev_spec;
-
-	ret_val = dev_spec->sgmii_active;
-
-out:
-	return ret_val;
+	return dev_spec->sgmii_active;
 }
 
 /**
