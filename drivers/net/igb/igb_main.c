@@ -543,6 +543,11 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter)
 	int err;
 	int numvecs, i;
 
+	/* Number of supported queues. */
+	/* Having more queues than CPUs doesn't make sense. */
+	adapter->num_rx_queues = min_t(u32, IGB_MAX_RX_QUEUES, num_online_cpus());
+	adapter->num_tx_queues = min_t(u32, IGB_MAX_TX_QUEUES, num_online_cpus());
+
 	numvecs = adapter->num_tx_queues + adapter->num_rx_queues + 1;
 	adapter->msix_entries = kcalloc(numvecs, sizeof(struct msix_entry),
 					GFP_KERNEL);
@@ -1449,11 +1454,6 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 	adapter->rx_ps_hdr_size = 0; /* disable packet split */
 	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
-
-	/* Number of supported queues. */
-	/* Having more queues than CPUs doesn't make sense. */
-	adapter->num_rx_queues = min_t(u32, IGB_MAX_RX_QUEUES, num_online_cpus());
-	adapter->num_tx_queues = min_t(u32, IGB_MAX_TX_QUEUES, num_online_cpus());
 
 	/* This call may decrease the number of queues depending on
 	 * interrupt mode. */
