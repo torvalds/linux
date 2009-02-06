@@ -39,6 +39,7 @@ extern void fixup_irqs(void);
 extern unsigned int do_IRQ(struct pt_regs *regs);
 extern void init_IRQ(void);
 extern void native_init_IRQ(void);
+extern bool handle_irq(unsigned irq, struct pt_regs *regs);
 
 /* Interrupt vector management */
 extern DECLARE_BITMAP(used_vectors, NR_VECTORS);

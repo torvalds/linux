@@ -48,6 +48,20 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 #endif
 }
 
+bool handle_irq(unsigned irq, struct pt_regs *regs)
+{
+	struct irq_desc *desc;
+
+	stack_overflow_check(regs);
+
+	desc = irq_to_desc(irq);
+	if (unlikely(!desc))
+		return false;
+
+	generic_handle_irq_desc(irq, desc);
+	return true;
+}
+
 /*
  * do_IRQ handles all normal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
@@ -56,7 +70,6 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 asmlinkage unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	struct irq_desc *desc;
 
 	/* high bit used in ret_from_ code  */
 	unsigned vector = ~regs->orig_ax;
@@ -64,14 +77,10 @@ asmlinkage unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
 
 	exit_idle();
 	irq_enter();
+
 	irq = __get_cpu_var(vector_irq)[vector];
 
-	stack_overflow_check(regs);
-
-	desc = irq_to_desc(irq);
-	if (likely(desc))
-		generic_handle_irq_desc(irq, desc);
-	else {
+	if (!handle_irq(irq, regs)) {
 		if (!disable_apic)
 			ack_APIC_irq();
 

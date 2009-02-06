@@ -191,6 +191,26 @@ static inline int
 execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq) { return 0; }
 #endif
 
+bool handle_irq(unsigned irq, struct pt_regs *regs)
+{
+	struct irq_desc *desc;
+	int overflow;
+
+	overflow = check_stack_overflow();
+
+	desc = irq_to_desc(irq);
+	if (unlikely(!desc))
+		return false;
+
+	if (!execute_on_irq_stack(overflow, desc, irq)) {
+		if (unlikely(overflow))
+			print_stack_overflow();
+		desc->handle_irq(irq, desc);
+	}
+
+	return true;
+}
+
 /*
  * do_IRQ handles all normal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
@@ -200,29 +220,17 @@ unsigned int do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 	/* high bit used in ret_from_ code */
-	int overflow;
 	unsigned vector = ~regs->orig_ax;
-	struct irq_desc *desc;
 	unsigned irq;
-
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
 	irq = __get_cpu_var(vector_irq)[vector];
 
-	overflow = check_stack_overflow();
-
-	desc = irq_to_desc(irq);
-	if (unlikely(!desc)) {
+	if (!handle_irq(irq, regs)) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d vector %#x cpu %d\n",
 					__func__, irq, vector, smp_processor_id());
 		BUG();
-	}
-
-	if (!execute_on_irq_stack(overflow, desc, irq)) {
-		if (unlikely(overflow))
-			print_stack_overflow();
-		desc->handle_irq(irq, desc);
 	}
 
 	irq_exit();
