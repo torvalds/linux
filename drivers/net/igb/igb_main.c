@@ -3803,6 +3803,7 @@ static bool igb_clean_rx_irq_adv(struct igb_ring *rx_ring,
 	unsigned int total_bytes = 0, total_packets = 0;
 
 	i = rx_ring->next_to_clean;
+	buffer_info = &rx_ring->buffer_info[i];
 	rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
 	staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 
@@ -3810,7 +3811,30 @@ static bool igb_clean_rx_irq_adv(struct igb_ring *rx_ring,
 		if (*work_done >= budget)
 			break;
 		(*work_done)++;
-		buffer_info = &rx_ring->buffer_info[i];
+
+		skb = buffer_info->skb;
+		prefetch(skb->data - NET_IP_ALIGN);
+		buffer_info->skb = NULL;
+
+		i++;
+		if (i == rx_ring->count)
+			i = 0;
+		next_rxd = E1000_RX_DESC_ADV(*rx_ring, i);
+		prefetch(next_rxd);
+		next_buffer = &rx_ring->buffer_info[i];
+
+		length = le16_to_cpu(rx_desc->wb.upper.length);
+		cleaned = true;
+		cleaned_count++;
+
+		if (!adapter->rx_ps_hdr_size) {
+			pci_unmap_single(pdev, buffer_info->dma,
+					 adapter->rx_buffer_len +
+					   NET_IP_ALIGN,
+					 PCI_DMA_FROMDEVICE);
+			skb_put(skb, length);
+			goto send_up;
+		}
 
 		/* HW will not DMA in data larger than the given buffer, even
 		 * if it parses the (NFS, of course) header to be larger.  In
@@ -3821,22 +3845,6 @@ static bool igb_clean_rx_irq_adv(struct igb_ring *rx_ring,
 		  E1000_RXDADV_HDRBUFLEN_MASK) >> E1000_RXDADV_HDRBUFLEN_SHIFT;
 		if (hlen > adapter->rx_ps_hdr_size)
 			hlen = adapter->rx_ps_hdr_size;
-
-		length = le16_to_cpu(rx_desc->wb.upper.length);
-		cleaned = true;
-		cleaned_count++;
-
-		skb = buffer_info->skb;
-		prefetch(skb->data - NET_IP_ALIGN);
-		buffer_info->skb = NULL;
-		if (!adapter->rx_ps_hdr_size) {
-			pci_unmap_single(pdev, buffer_info->dma,
-					 adapter->rx_buffer_len +
-					   NET_IP_ALIGN,
-					 PCI_DMA_FROMDEVICE);
-			skb_put(skb, length);
-			goto send_up;
-		}
 
 		if (!skb_shinfo(skb)->nr_frags) {
 			pci_unmap_single(pdev, buffer_info->dma,
@@ -3867,13 +3875,6 @@ static bool igb_clean_rx_irq_adv(struct igb_ring *rx_ring,
 
 			skb->truesize += length;
 		}
-send_up:
-		i++;
-		if (i == rx_ring->count)
-			i = 0;
-		next_rxd = E1000_RX_DESC_ADV(*rx_ring, i);
-		prefetch(next_rxd);
-		next_buffer = &rx_ring->buffer_info[i];
 
 		if (!(staterr & E1000_RXD_STAT_EOP)) {
 			buffer_info->skb = next_buffer->skb;
@@ -3882,7 +3883,7 @@ send_up:
 			next_buffer->dma = 0;
 			goto next_desc;
 		}
-
+send_up:
 		if (staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) {
 			dev_kfree_skb_irq(skb);
 			goto next_desc;
@@ -3909,7 +3910,6 @@ next_desc:
 		/* use prefetched values */
 		rx_desc = next_rxd;
 		buffer_info = next_buffer;
-
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
 
