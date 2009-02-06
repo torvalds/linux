@@ -196,32 +196,45 @@ static void ddebug_change(const struct ddebug_query *query,
 }
 
 /*
- * Wrapper around strsep() to collapse the multiple empty tokens
- * that it returns when fed sequences of separator characters.
- * Now, if we had strtok_r()...
- */
-static inline char *nearly_strtok_r(char **p, const char *sep)
-{
-	char *r;
-
-	while ((r = strsep(p, sep)) != NULL && *r == '\0')
-		;
-	return r;
-}
-
-/*
  * Split the buffer `buf' into space-separated words.
- * Return the number of such words or <0 on error.
+ * Handles simple " and ' quoting, i.e. without nested,
+ * embedded or escaped \".  Return the number of words
+ * or <0 on error.
  */
 static int ddebug_tokenize(char *buf, char *words[], int maxwords)
 {
 	int nwords = 0;
 
-	while (nwords < maxwords &&
-	       (words[nwords] = nearly_strtok_r(&buf, " \t\r\n")) != NULL)
-		nwords++;
-	if (buf)
-		return -EINVAL;	/* ran out of words[] before bytes */
+	while (*buf) {
+		char *end;
+
+		/* Skip leading whitespace */
+		while (*buf && isspace(*buf))
+			buf++;
+		if (!*buf)
+			break;	/* oh, it was trailing whitespace */
+
+		/* Run `end' over a word, either whitespace separated or quoted */
+		if (*buf == '"' || *buf == '\'') {
+			int quote = *buf++;
+			for (end = buf ; *end && *end != quote ; end++)
+				;
+			if (!*end)
+				return -EINVAL;	/* unclosed quote */
+		} else {
+			for (end = buf ; *end && !isspace(*end) ; end++)
+				;
+			BUG_ON(end == buf);
+		}
+		/* Here `buf' is the start of the word, `end' is one past the end */
+
+		if (nwords == maxwords)
+			return -EINVAL;	/* ran out of words[] before bytes */
+		if (*end)
+			*end++ = '\0';	/* terminate the word */
+		words[nwords++] = buf;
+		buf = end;
+	}
 
 	if (verbose) {
 		int i;

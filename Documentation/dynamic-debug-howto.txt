@@ -49,10 +49,10 @@ via:
 
 nullarbor:~ # cat <debugfs>/dynamic_debug/control
 # filename:lineno [module]function flags format
-/usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svc_rdma.c:323 [svcxprt_rdma]svc_rdma_cleanup - "SVCRDMA\040Module\040Removed,\040deregister\040RPC\040RDMA\040transport\012"
-/usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svc_rdma.c:341 [svcxprt_rdma]svc_rdma_init - "\011max_inline\040\040\040\040\040\040\040:\040%d\012"
-/usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svc_rdma.c:340 [svcxprt_rdma]svc_rdma_init - "\011sq_depth\040\040\040\040\040\040\040\040\040:\040%d\012"
-/usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svc_rdma.c:338 [svcxprt_rdma]svc_rdma_init - "\011max_requests\040\040\040\040\040:\040%d\012"
+/usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svc_rdma.c:323 [svcxprt_rdma]svc_rdma_cleanup - "SVCRDMA Module Removed, deregister RPC RDMA transport\012"
+/usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svc_rdma.c:341 [svcxprt_rdma]svc_rdma_init - "\011max_inline       : %d\012"
+/usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svc_rdma.c:340 [svcxprt_rdma]svc_rdma_init - "\011sq_depth         : %d\012"
+/usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svc_rdma.c:338 [svcxprt_rdma]svc_rdma_init - "\011max_requests     : %d\012"
 ...
 
 
@@ -72,7 +72,7 @@ you can view all the debug statement callsites with any non-default flags:
 
 nullarbor:~ # awk '$3 != "-"' <debugfs>/dynamic_debug/control
 # filename:lineno [module]function flags format
-/usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svcsock.c:1603 [sunrpc]svc_send p "svc_process:\040st_sendto\040returned\040%d\012"
+/usr/src/packages/BUILD/sgi-enhancednfs-1.4/default/net/sunrpc/svcsock.c:1603 [sunrpc]svc_send p "svc_process: st_sendto returned %d\012"
 
 
 Command Language Reference
@@ -166,11 +166,15 @@ format
     entire format, only some part.  Whitespace and other
     special characters can be escaped using C octal character
     escape \ooo notation, e.g. the space character is \040.
+    Alternatively, the string can be enclosed in double quote
+    characters (") or single quote characters (').
     Examples:
 
     format svcrdma:	    // many of the NFS/RDMA server dprintks
     format readahead	    // some dprintks in the readahead cache
-    format nfsd:\040SETATTR // how to match a format with whitespace
+    format nfsd:\040SETATTR // one way to match a format with whitespace
+    format "nfsd: SETATTR"  // a neater way to match a format with whitespace
+    format 'nfsd: SETATTR'  // yet another way to match a format with whitespace
 
 line
     The given line number or range of line numbers is compared
@@ -229,4 +233,8 @@ nullarbor:~ # echo -n 'func svc_process +p' >
 
 // disable all 12 messages in the function svc_process()
 nullarbor:~ # echo -n 'func svc_process -p' >
+				<debugfs>/dynamic_debug/control
+
+// enable messages for NFS calls READ, READLINK, READDIR and READDIR+.
+nullarbor:~ # echo -n 'format "nfsd: READ" +p' >
 				<debugfs>/dynamic_debug/control
