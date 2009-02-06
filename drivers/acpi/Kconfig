@@ -9,6 +9,7 @@ menuconfig ACPI
 	depends on PCI
 	depends on PM
 	select PNP
+	select CPU_IDLE
 	default y
 	---help---
 	  Advanced Configuration and Power Interface (ACPI) support for 
