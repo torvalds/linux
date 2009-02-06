@@ -3708,13 +3708,13 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 	u32 events;
 
 	events = readl(base + NvRegMSIXIrqStatus) & NVREG_IRQ_RX_ALL;
-	writel(NVREG_IRQ_RX_ALL, base + NvRegMSIXIrqStatus);
 
 	if (events) {
-		napi_schedule(&np->napi);
 		/* disable receive interrupts on the nic */
 		writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
 		pci_push(base);
+		writel(NVREG_IRQ_RX_ALL, base + NvRegMSIXIrqStatus);
+		napi_schedule(&np->napi);
 	}
 	return IRQ_HANDLED;
 }
