@@ -676,7 +676,7 @@ struct adapter_t {
 	u32		DumpCmdRunning:1;	/* Dump command in progress */
 	u32		DebugRunning:1;		/* AGDB debug in progress */
 	u32		JumboEnabled:1;		/* Jumbo frames enabled */
-	u32		MsiEnabled:1;		/* MSI interrupt enabled */
+	u32		msi_enabled:1;		/* MSI interrupt enabled */
 	u32		RssEnabled:1;		/* RSS Enabled */
 	u32		FailOnBadEeprom:1;	/* Fail on Bad Eeprom */
 	u32		DiagStart:1;		/* Init adapter for diagnostic start */
@@ -709,6 +709,9 @@ struct adapter_t {
 	/*	PSXG_DUMP_CMD	DumpBuffer; */			/* 68k - Cmd and Buffer */
 	/*	dma_addr_t	PDumpBuffer; */		/* Physical address */
 	/*#endif */ /* SXG_FAILURE_DUMP */
+	/*MSI-X related data elements*/
+	u32 nr_msix_entries;
+	struct msix_entry *msi_entries;
 };
 
 #if SLIC_DUMP_ENABLED

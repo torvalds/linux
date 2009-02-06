@@ -132,6 +132,9 @@ void sxg_free_sgl_buffers(struct adapter_t *adapter);
 void sxg_unmap_resources(struct adapter_t *adapter);
 void sxg_free_mcast_addrs(struct adapter_t *adapter);
 void sxg_collect_statistics(struct adapter_t *adapter);
+static int sxg_register_interrupt(struct adapter_t *adapter);
+static void sxg_remove_isr(struct adapter_t *adapter);
+static irqreturn_t sxg_isr(int irq, void *dev_id);
 
 #define XXXTODO 0
 
@@ -249,6 +252,131 @@ static struct sxg_driver SxgDriver;
 static struct sxg_trace_buffer LSxgTraceBuffer;
 #endif /* ATKDBG */
 static struct sxg_trace_buffer *SxgTraceBuffer = NULL;
+
+/*
+ * MSI Related API's
+ */
+int sxg_register_intr(struct adapter_t *adapter);
+int sxg_enable_msi_x(struct adapter_t *adapter);
+int sxg_add_msi_isr(struct adapter_t *adapter);
+void sxg_remove_msix_isr(struct adapter_t *adapter);
+int sxg_set_interrupt_capability(struct adapter_t *adapter);
+
+int sxg_set_interrupt_capability(struct adapter_t *adapter)
+{
+	int ret;
+
+	ret = sxg_enable_msi_x(adapter);
+	if (ret != STATUS_SUCCESS) {
+		adapter->msi_enabled = FALSE;
+		DBG_ERROR("sxg_set_interrupt_capability MSI-X Disable\n");
+	} else {
+		adapter->msi_enabled = TRUE;
+		DBG_ERROR("sxg_set_interrupt_capability MSI-X Enable\n");
+	}
+	return ret;
+}
+
+int sxg_register_intr(struct adapter_t *adapter)
+{
+	int ret = 0;
+
+	if (adapter->msi_enabled) {
+		ret = sxg_add_msi_isr(adapter);
+	}
+	else {
+		DBG_ERROR("MSI-X Enable Failed. Using Pin INT\n");
+		ret = sxg_register_interrupt(adapter);
+		if (ret != STATUS_SUCCESS) {
+			DBG_ERROR("sxg_register_interrupt Failed\n");
+		}
+	}
+	return ret;
+}
+
+int sxg_enable_msi_x(struct adapter_t *adapter)
+{
+	int ret;
+
+	adapter->nr_msix_entries = 1;
+	adapter->msi_entries =  kmalloc(adapter->nr_msix_entries *
+					sizeof(struct msix_entry),GFP_KERNEL);
+	if (!adapter->msi_entries) {
+		DBG_ERROR("%s:MSI Entries memory allocation Failed\n",__func__);
+		return -ENOMEM;
+	}
+	memset(adapter->msi_entries, 0, adapter->nr_msix_entries *
+		sizeof(struct msix_entry));
+
+	ret = pci_enable_msix(adapter->pcidev, adapter->msi_entries,
+				adapter->nr_msix_entries);
+	if (ret) {
+		DBG_ERROR("Enabling MSI-X with %d vectors failed\n",
+				adapter->nr_msix_entries);
+		/*Should try with less vector returned.*/
+		kfree(adapter->msi_entries);
+		return STATUS_FAILURE; /*MSI-X Enable failed.*/
+	}
+	return (STATUS_SUCCESS);
+}
+
+int sxg_add_msi_isr(struct adapter_t *adapter)
+{
+	int ret,i;
+
+	if (!adapter->intrregistered) {
+		for (i=0; i<adapter->nr_msix_entries; i++) {
+			ret = request_irq (adapter->msi_entries[i].vector,
+					sxg_isr,
+					IRQF_SHARED,
+					adapter->netdev->name,
+					adapter->netdev);
+			if (ret) {
+				DBG_ERROR("sxg: MSI-X request_irq (%s) "
+					"FAILED [%x]\n", adapter->netdev->name,
+					 ret);
+				return (ret);
+			}
+		}
+	}
+	adapter->msi_enabled = TRUE;
+	adapter->intrregistered = 1;
+	adapter->IntRegistered = TRUE;
+	return (STATUS_SUCCESS);
+}
+
+void sxg_remove_msix_isr(struct adapter_t *adapter)
+{
+	int i,vector;
+	struct net_device *netdev = adapter->netdev;
+
+	for(i=0; i< adapter->nr_msix_entries;i++)
+	{
+		vector = adapter->msi_entries[i].vector;
+		DBG_ERROR("%s : Freeing IRQ vector#%d\n",__FUNCTION__,vector);
+		free_irq(vector,netdev);
+	}
+}
+
+
+static void sxg_remove_isr(struct adapter_t *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	if (adapter->msi_enabled)
+		sxg_remove_msix_isr(adapter);
+	else
+		free_irq(adapter->netdev->irq, netdev);
+}
+
+void sxg_reset_interrupt_capability(struct adapter_t *adapter)
+{
+	if (adapter->msi_enabled) {
+		pci_disable_msix(adapter->pcidev);
+		kfree(adapter->msi_entries);
+		adapter->msi_entries = NULL;
+	}
+	return;
+}
 
 /*
  * sxg_download_microcode
@@ -462,7 +590,7 @@ static int sxg_allocate_resources(struct adapter_t *adapter)
 	/* Windows tells us how many CPUs it plans to use for */
 	/* RSS */
 	RssIds = SXG_RSS_CPU_COUNT(adapter);
-	IsrCount = adapter->MsiEnabled ? RssIds : 1;
+	IsrCount = adapter->msi_enabled ? RssIds : 1;
 
 	DBG_ERROR("%s Setup the spinlocks\n", __func__);
 
@@ -950,6 +1078,9 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	netdev->get_stats = sxg_get_stats;
 	netdev->set_multicast_list = sxg_mcast_set_list;
 	SET_ETHTOOL_OPS(netdev, &sxg_nic_ethtool_ops);
+	err = sxg_set_interrupt_capability(adapter);
+	if (err != STATUS_SUCCESS)
+		DBG_ERROR("Cannot enable MSI-X capability\n");
 
 	strcpy(netdev->name, "eth%d");
 	/*  strcpy(netdev->name, pci_name(pcidev)); */
@@ -1025,7 +1156,6 @@ static void sxg_disable_interrupt(struct adapter_t *adapter)
 		  adapter, adapter->InterruptsEnabled, 0, 0);
 	/* For now, RSS is disabled with line based interrupts */
 	ASSERT(adapter->RssEnabled == FALSE);
-	ASSERT(adapter->MsiEnabled == FALSE);
 	/* Turn off interrupts by writing to the icr register. */
 	WRITE_REG(adapter->UcodeRegs[0].Icr, SXG_ICR(0, SXG_ICR_DISABLE), TRUE);
 
@@ -1053,7 +1183,6 @@ static void sxg_enable_interrupt(struct adapter_t *adapter)
 		  adapter, adapter->InterruptsEnabled, 0, 0);
 	/* For now, RSS is disabled with line based interrupts */
 	ASSERT(adapter->RssEnabled == FALSE);
-	ASSERT(adapter->MsiEnabled == FALSE);
 	/* Turn on interrupts by writing to the icr register. */
 	WRITE_REG(adapter->UcodeRegs[0].Icr, SXG_ICR(0, SXG_ICR_ENABLE), TRUE);
 
@@ -1154,7 +1283,6 @@ static void sxg_handle_interrupt(struct adapter_t *adapter, int *work_done,
 		  adapter, adapter->IsrCopy[0], 0, 0);
 	/* For now, RSS is disabled with line based interrupts */
 	ASSERT(adapter->RssEnabled == FALSE);
-	ASSERT(adapter->MsiEnabled == FALSE);
 
 	adapter->IsrCopy[0] = adapter->Isr[0];
 	adapter->Isr[0] = 0;
@@ -1197,7 +1325,6 @@ static int sxg_poll(struct napi_struct *napi, int budget)
 		netif_rx_complete(napi);
 		WRITE_REG(adapter->UcodeRegs[0].Isr, 0, TRUE);
 	}
-
 	return work_done;
 }
 
@@ -1845,7 +1972,6 @@ static int sxg_register_interrupt(struct adapter_t *adapter)
 		adapter->intrregistered = 1;
 		adapter->IntRegistered = TRUE;
 		/* Disable RSS with line-based interrupts */
-		adapter->MsiEnabled = FALSE;
 		adapter->RssEnabled = FALSE;
 		DBG_ERROR("sxg: %s AllocAdaptRsrcs adapter[%p] dev->irq[%x]\n",
 			  __func__, adapter, adapter->netdev->irq);
@@ -1919,9 +2045,9 @@ static int sxg_if_init(struct adapter_t *adapter)
 		}
 		DBG_ERROR("\n");
 	}
-	status = sxg_register_interrupt(adapter);
+	status = sxg_register_intr(adapter);
 	if (status != STATUS_SUCCESS) {
-		DBG_ERROR("sxg_if_init: sxg_register_interrupt FAILED %x\n",
+		DBG_ERROR("sxg_if_init: sxg_register_intr FAILED %x\n",
 			  status);
 		sxg_deregister_interrupt(adapter);
 		return (status);
@@ -2081,8 +2207,8 @@ int sxg_second_open(struct net_device * dev)
         SXG_ENABLE_ALL_INTERRUPTS(adapter);
 
 	netif_carrier_on(dev);
-        spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
         sxg_register_interrupt(adapter);
+	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
 	return (STATUS_SUCCESS);
 
 }
@@ -2099,6 +2225,7 @@ static void __devexit sxg_entry_remove(struct pci_dev *pcidev)
 
 	/* Deallocate Resources */
 	unregister_netdev(dev);
+	sxg_reset_interrupt_capability(adapter);
 	sxg_free_resources(adapter);
 
 	ASSERT(adapter);
@@ -2133,7 +2260,7 @@ static int sxg_entry_halt(struct net_device *dev)
 	unsigned long flags;
 
 	RssIds = SXG_RSS_CPU_COUNT(adapter);
-	IsrCount = adapter->MsiEnabled ? RssIds : 1;
+	IsrCount = adapter->msi_enabled ? RssIds : 1;
 
 	napi_disable(&adapter->napi);
 	spin_lock_irqsave(&sxg_global.driver_lock, sxg_global.flags);
@@ -2146,9 +2273,6 @@ static int sxg_entry_halt(struct net_device *dev)
 	adapter->devflags_prev = 0;
 	DBG_ERROR("sxg: %s (%s) set adapter[%p] state to ADAPT_DOWN(%d)\n",
 		  __func__, dev->name, adapter, adapter->state);
-
-	DBG_ERROR("sxg: %s (%s) EXIT\n", __func__, dev->name);
-	DBG_ERROR("sxg: %s EXIT\n", __func__);
 
 	/* Disable interrupts */
 	SXG_DISABLE_ALL_INTERRUPTS(adapter);
@@ -2196,11 +2320,13 @@ static int sxg_entry_halt(struct net_device *dev)
 	memset(adapter->XmtRingZeroIndex, 0, sizeof(u32));
 	spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
 
-
 	for (i = 0; i < SXG_MAX_RSS; i++) {
 		adapter->NextEvent[i] = 0;
 	}
 	atomic_set(&adapter->pending_allocations, 0);
+	adapter->intrregistered = 0;
+	sxg_remove_isr(adapter);
+	DBG_ERROR("sxg: %s (%s) EXIT\n", __FUNCTION__, dev->name);
 	return (STATUS_SUCCESS);
 }
 
@@ -3451,9 +3577,8 @@ void sxg_unmap_resources(struct adapter_t *adapter)
 void sxg_free_resources(struct adapter_t *adapter)
 {
 	u32 RssIds, IsrCount;
-	struct net_device *netdev = adapter->netdev;
 	RssIds = SXG_RSS_CPU_COUNT(adapter);
-	IsrCount = adapter->MsiEnabled ? RssIds : 1;
+	IsrCount = adapter->msi_enabled ? RssIds : 1;
 
 	if (adapter->BasicAllocations == FALSE) {
 		/*
@@ -3462,9 +3587,6 @@ void sxg_free_resources(struct adapter_t *adapter)
 		 */
 		return;
 	}
-
-	/* Free Irq */
-	free_irq(adapter->netdev->irq, netdev);
 
 	if (!(IsListEmpty(&adapter->AllRcvBlocks))) {
 		sxg_free_rcvblocks(adapter);
@@ -3877,7 +3999,7 @@ static int sxg_initialize_adapter(struct adapter_t *adapter)
 		  adapter, 0, 0, 0);
 
 	RssIds = 1;		/*  XXXTODO  SXG_RSS_CPU_COUNT(adapter); */
-	IsrCount = adapter->MsiEnabled ? RssIds : 1;
+	IsrCount = adapter->msi_enabled ? RssIds : 1;
 
 	/*
 	 * Sanity check SXG_UCODE_REGS structure definition to
