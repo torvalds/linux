@@ -113,6 +113,8 @@ static int test_24bit_addr(unsigned long ip, unsigned long addr)
 	return create_branch((unsigned int *)ip, addr, 0);
 }
 
+#ifdef CONFIG_MODULES
+
 static int is_bl_op(unsigned int op)
 {
 	return (op & 0xfc000003) == 0x48000001;
@@ -324,6 +326,7 @@ __ftrace_make_nop(struct module *mod,
 	return 0;
 }
 #endif /* PPC64 */
+#endif /* CONFIG_MODULES */
 
 int ftrace_make_nop(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
@@ -343,6 +346,7 @@ int ftrace_make_nop(struct module *mod,
 		return ftrace_modify_code(ip, old, new);
 	}
 
+#ifdef CONFIG_MODULES
 	/*
 	 * Out of range jumps are called from modules.
 	 * We should either already have a pointer to the module
@@ -367,9 +371,13 @@ int ftrace_make_nop(struct module *mod,
 		mod = rec->arch.mod;
 
 	return __ftrace_make_nop(mod, rec, addr);
-
+#else
+	/* We should not get here without modules */
+	return -EINVAL;
+#endif /* CONFIG_MODULES */
 }
 
+#ifdef CONFIG_MODULES
 #ifdef CONFIG_PPC64
 static int
 __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
@@ -458,6 +466,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return 0;
 }
 #endif /* CONFIG_PPC64 */
+#endif /* CONFIG_MODULES */
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
@@ -476,6 +485,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return ftrace_modify_code(ip, old, new);
 	}
 
+#ifdef CONFIG_MODULES
 	/*
 	 * Out of range jumps are called from modules.
 	 * Being that we are converting from nop, it had better
@@ -487,6 +497,10 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	}
 
 	return __ftrace_make_call(rec, addr);
+#else
+	/* We should not get here without modules */
+	return -EINVAL;
+#endif /* CONFIG_MODULES */
 }
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
