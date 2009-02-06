@@ -1984,6 +1984,8 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 	}
 	for (dig_mix = dig_in_ctls; dig_mix->name; dig_mix++) {
 		kctl = snd_ctl_new1(dig_mix, codec);
+		if (!kctl)
+			return -ENOMEM;
 		kctl->private_value = nid;
 		err = snd_hda_ctl_add(codec, kctl);
 		if (err < 0)
