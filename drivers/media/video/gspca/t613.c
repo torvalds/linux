@@ -685,7 +685,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		sd->sensor = SENSOR_TAS5130A;
 		break;
 	case 0x0803:
-		PDEBUG(D_CONF, "sensor om6802");
+		PDEBUG(D_CONF, "sensor 'other'");
 		sd->sensor = SENSOR_OTHER;
 		break;
 	case 0x0807:
