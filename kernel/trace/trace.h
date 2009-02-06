@@ -63,13 +63,13 @@ struct ftrace_entry {
 
 /* Function call entry */
 struct ftrace_graph_ent_entry {
-	struct trace_entry			ent;
+	struct trace_entry		ent;
 	struct ftrace_graph_ent		graph_ent;
 };
 
 /* Function return entry */
 struct ftrace_graph_ret_entry {
-	struct trace_entry			ent;
+	struct trace_entry		ent;
 	struct ftrace_graph_ret		ret;
 };
 extern struct tracer boot_tracer;
@@ -309,7 +309,8 @@ extern void __ftrace_bad_type(void);
 enum print_line_t {
 	TRACE_TYPE_PARTIAL_LINE	= 0,	/* Retry after flushing the seq */
 	TRACE_TYPE_HANDLED	= 1,
-	TRACE_TYPE_UNHANDLED	= 2	/* Relay to other output functions */
+	TRACE_TYPE_UNHANDLED	= 2,	/* Relay to other output functions */
+	TRACE_TYPE_NO_CONSUME	= 3	/* Handled but ask to not consume */
 };
 
 

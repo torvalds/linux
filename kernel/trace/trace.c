@@ -2468,8 +2468,8 @@ waitagain:
 			iter->seq.len = len;
 			break;
 		}
-
-		trace_consume(iter);
+		if (ret != TRACE_TYPE_NO_CONSUME)
+			trace_consume(iter);
 
 		if (iter->seq.len >= cnt)
 			break;

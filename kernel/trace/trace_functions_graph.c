@@ -212,8 +212,8 @@ verif_pid(struct trace_seq *s, pid_t pid, int cpu, pid_t *last_pids_cpu)
 	return ret;
 }
 
-static bool
-trace_branch_is_leaf(struct trace_iterator *iter,
+static struct ftrace_graph_ret_entry *
+get_return_for_leaf(struct trace_iterator *iter,
 		struct ftrace_graph_ent_entry *curr)
 {
 	struct ring_buffer_iter *ring_iter;
@@ -222,24 +222,33 @@ trace_branch_is_leaf(struct trace_iterator *iter,
 
 	ring_iter = iter->buffer_iter[iter->cpu];
 
-	if (!ring_iter)
-		return false;
-
-	event = ring_buffer_iter_peek(ring_iter, NULL);
+	/* First peek to compare current entry and the next one */
+	if (ring_iter)
+		event = ring_buffer_iter_peek(ring_iter, NULL);
+	else {
+	/* We need to consume the current entry to see the next one */
+		ring_buffer_consume(iter->tr->buffer, iter->cpu, NULL);
+		event = ring_buffer_peek(iter->tr->buffer, iter->cpu,
+					NULL);
+	}
 
 	if (!event)
-		return false;
+		return NULL;
 
 	next = ring_buffer_event_data(event);
 
 	if (next->ent.type != TRACE_GRAPH_RET)
-		return false;
+		return NULL;
 
 	if (curr->ent.pid != next->ent.pid ||
 			curr->graph_ent.func != next->ret.func)
-		return false;
+		return NULL;
 
-	return true;
+	/* this is a leaf, now advance the iterator */
+	if (ring_iter)
+		ring_buffer_read(ring_iter, NULL);
+
+	return next;
 }
 
 /* Signal a overhead of time execution to the output */
@@ -376,18 +385,15 @@ static int print_graph_abs_time(u64 t, struct trace_seq *s)
 /* Case of a leaf function on its call entry */
 static enum print_line_t
 print_graph_entry_leaf(struct trace_iterator *iter,
-		struct ftrace_graph_ent_entry *entry, struct trace_seq *s)
+		struct ftrace_graph_ent_entry *entry,
+		struct ftrace_graph_ret_entry *ret_entry, struct trace_seq *s)
 {
-	struct ftrace_graph_ret_entry *ret_entry;
 	struct ftrace_graph_ret *graph_ret;
-	struct ring_buffer_event *event;
 	struct ftrace_graph_ent *call;
 	unsigned long long duration;
 	int ret;
 	int i;
 
-	event = ring_buffer_read(iter->buffer_iter[iter->cpu], NULL);
-	ret_entry = ring_buffer_event_data(event);
 	graph_ret = &ret_entry->ret;
 	call = &entry->graph_ent;
 	duration = graph_ret->rettime - graph_ret->calltime;
@@ -457,7 +463,11 @@ print_graph_entry_nested(struct ftrace_graph_ent_entry *entry,
 	if (!ret)
 		return TRACE_TYPE_PARTIAL_LINE;
 
-	return TRACE_TYPE_HANDLED;
+	/*
+	 * we already consumed the current entry to check the next one
+	 * and see if this is a leaf.
+	 */
+	return TRACE_TYPE_NO_CONSUME;
 }
 
 static enum print_line_t
@@ -469,6 +479,7 @@ print_graph_entry(struct ftrace_graph_ent_entry *field, struct trace_seq *s,
 	pid_t *last_entry = iter->private;
 	struct trace_entry *ent = iter->ent;
 	struct ftrace_graph_ent *call = &field->graph_ent;
+	struct ftrace_graph_ret_entry *leaf_ret;
 
 	/* Pid */
 	if (verif_pid(s, ent->pid, cpu, last_entry) == TRACE_TYPE_PARTIAL_LINE)
@@ -504,8 +515,9 @@ print_graph_entry(struct ftrace_graph_ent_entry *field, struct trace_seq *s,
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
 
-	if (trace_branch_is_leaf(iter, field))
-		return print_graph_entry_leaf(iter, field, s);
+	leaf_ret = get_return_for_leaf(iter, field);
+	if (leaf_ret)
+		return print_graph_entry_leaf(iter, field, leaf_ret, s);
 	else
 		return print_graph_entry_nested(field, s, iter->ent->pid, cpu);
 
