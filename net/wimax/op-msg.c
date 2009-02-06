@@ -258,7 +258,6 @@ EXPORT_SYMBOL_GPL(wimax_msg_len);
  */
 int wimax_msg_send(struct wimax_dev *wimax_dev, struct sk_buff *skb)
 {
-	int result;
 	struct device *dev = wimax_dev->net_dev->dev.parent;
 	void *msg = skb->data;
 	size_t size = skb->len;
@@ -266,11 +265,9 @@ int wimax_msg_send(struct wimax_dev *wimax_dev, struct sk_buff *skb)
 
 	d_printf(1, dev, "CTX: wimax msg, %zu bytes\n", size);
 	d_dump(2, dev, msg, size);
-	result = genlmsg_multicast(skb, 0, wimax_gnl_mcg.id, GFP_KERNEL);
-	d_printf(1, dev, "CTX: genl multicast result %d\n", result);
-	if (result == -ESRCH)	/* Nobody connected, ignore it */
-		result = 0;	/* btw, the skb is freed already */
-	return result;
+	genlmsg_multicast(skb, 0, wimax_gnl_mcg.id, GFP_KERNEL);
+	d_printf(1, dev, "CTX: genl multicast done\n");
+	return 0;
 }
 EXPORT_SYMBOL_GPL(wimax_msg_send);
 

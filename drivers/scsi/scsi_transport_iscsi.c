@@ -966,15 +966,7 @@ iscsi_if_transport_lookup(struct iscsi_transport *tt)
 static int
 iscsi_broadcast_skb(struct sk_buff *skb, gfp_t gfp)
 {
-	int rc;
-
-	rc = netlink_broadcast(nls, skb, 0, 1, gfp);
-	if (rc < 0) {
-		printk(KERN_ERR "iscsi: can not broadcast skb (%d)\n", rc);
-		return rc;
-	}
-
-	return 0;
+	return netlink_broadcast(nls, skb, 0, 1, gfp);
 }
 
 static int
@@ -1207,7 +1199,7 @@ int iscsi_session_event(struct iscsi_cls_session *session,
 	 * the user and when the daemon is restarted it will handle it
 	 */
 	rc = iscsi_broadcast_skb(skb, GFP_KERNEL);
-	if (rc < 0)
+	if (rc == -ESRCH)
 		iscsi_cls_session_printk(KERN_ERR, session,
 					 "Cannot notify userspace of session "
 					 "event %u. Check iscsi daemon\n",

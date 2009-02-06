@@ -1057,10 +1057,7 @@ static void send_warning(const struct dquot *dquot, const char warntype)
 		goto attr_err_out;
 	genlmsg_end(skb, msg_head);
 
-	ret = genlmsg_multicast(skb, 0, quota_genl_family.id, GFP_NOFS);
-	if (ret < 0 && ret != -ESRCH)
-		printk(KERN_ERR
-			"VFS: Failed to send notification message: %d\n", ret);
+	genlmsg_multicast(skb, 0, quota_genl_family.id, GFP_NOFS);
 	return;
 attr_err_out:
 	printk(KERN_ERR "VFS: Not enough space to compose quota message!\n");
