@@ -61,6 +61,12 @@
 #error PREEMPT_ACTIVE is too low!
 #endif
 
+#define NMI_OFFSET	(PREEMPT_ACTIVE << 1)
+
+#if NMI_OFFSET >= 0x80000000
+#error PREEMPT_ACTIVE too high!
+#endif
+
 #define hardirq_count()	(preempt_count() & HARDIRQ_MASK)
 #define softirq_count()	(preempt_count() & SOFTIRQ_MASK)
 #define irq_count()	(preempt_count() & (HARDIRQ_MASK | SOFTIRQ_MASK))
@@ -72,6 +78,11 @@
 #define in_irq()		(hardirq_count())
 #define in_softirq()		(softirq_count())
 #define in_interrupt()		(irq_count())
+
+/*
+ * Are we in NMI context?
+ */
+#define in_nmi()	(preempt_count() & NMI_OFFSET)
 
 #if defined(CONFIG_PREEMPT)
 # define PREEMPT_INATOMIC_BASE kernel_locked()
@@ -167,6 +178,8 @@ extern void irq_exit(void);
 #define nmi_enter()				\
 	do {					\
 		ftrace_nmi_enter();		\
+		BUG_ON(in_nmi());		\
+		add_preempt_count(NMI_OFFSET);	\
 		lockdep_off();			\
 		rcu_nmi_enter();		\
 		__irq_enter();			\
@@ -177,6 +190,8 @@ extern void irq_exit(void);
 		__irq_exit();			\
 		rcu_nmi_exit();			\
 		lockdep_on();			\
+		BUG_ON(!in_nmi());		\
+		sub_preempt_count(NMI_OFFSET);	\
 		ftrace_nmi_exit();		\
 	} while (0)
 
