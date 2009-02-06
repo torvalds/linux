@@ -1112,6 +1112,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->has_gem = 1;
 #endif
 
+	dev->driver->get_vblank_counter = i915_get_vblank_counter;
+	if (IS_GM45(dev))
+		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
+
 	i915_gem_load(dev);
 
 	/* Init HWS */

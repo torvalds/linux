@@ -1371,6 +1371,9 @@
 #define   PIPE_FRAME_LOW_SHIFT    24
 #define   PIPE_PIXEL_MASK         0x00ffffff
 #define   PIPE_PIXEL_SHIFT        0
+/* GM45+ just has to be different */
+#define PIPEA_FRMCOUNT_GM45	0x70040
+#define PIPEA_FLIPCOUNT_GM45	0x70044
 
 /* Cursor A & B regs */
 #define CURACNTR		0x70080
@@ -1439,6 +1442,9 @@
 #define PIPEBSTAT		0x71024
 #define PIPEBFRAMEHIGH		0x71040
 #define PIPEBFRAMEPIXEL		0x71044
+#define PIPEB_FRMCOUNT_GM45	0x71040
+#define PIPEB_FLIPCOUNT_GM45	0x71044
+
 
 /* Display B control */
 #define DSPBCNTR		0x71180
