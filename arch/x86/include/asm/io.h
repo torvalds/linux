@@ -138,6 +138,37 @@ static inline void *phys_to_virt(phys_addr_t address)
 #define virt_to_bus virt_to_phys
 #define bus_to_virt phys_to_virt
 
+/**
+ * ioremap     -   map bus memory into CPU space
+ * @offset:    bus address of the memory
+ * @size:      size of the resource to map
+ *
+ * ioremap performs a platform specific sequence of operations to
+ * make bus memory CPU accessible via the readb/readw/readl/writeb/
+ * writew/writel functions and the other mmio helpers. The returned
+ * address is not guaranteed to be usable directly as a virtual
+ * address.
+ *
+ * If the area you are trying to map is a PCI BAR you should have a
+ * look at pci_iomap().
+ */
+extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
+extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
+extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size,
+				unsigned long prot_val);
+
+/*
+ * The default ioremap() behavior is non-cached:
+ */
+static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
+{
+	return ioremap_nocache(offset, size);
+}
+
+extern void iounmap(volatile void __iomem *addr);
+
+extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
+
 
 #ifdef CONFIG_X86_32
 # include "io_32.h"

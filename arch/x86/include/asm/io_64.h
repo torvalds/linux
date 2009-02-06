@@ -144,28 +144,6 @@ __OUTS(l)
 
 #include <asm-generic/iomap.h>
 
-/*
- * This one maps high address device memory and turns off caching for that area.
- * it's useful if some control registers are in such an area and write combining
- * or read caching is not desirable:
- */
-extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
-extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
-extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size,
-				unsigned long prot_val);
-
-/*
- * The default ioremap() behavior is non-cached:
- */
-static inline void __iomem *ioremap(resource_size_t offset, unsigned long size)
-{
-	return ioremap_nocache(offset, size);
-}
-
-extern void iounmap(volatile void __iomem *addr);
-
-extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
-
 void __memcpy_fromio(void *, unsigned long, unsigned);
 void __memcpy_toio(unsigned long, const void *, unsigned);
 
