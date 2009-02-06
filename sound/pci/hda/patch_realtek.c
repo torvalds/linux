@@ -12690,7 +12690,7 @@ static int alc269_auto_create_analog_input_ctls(struct alc_spec *spec,
 static int alc269_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	int i, err;
+	int err;
 	static hda_nid_t alc269_ignore[] = { 0x1d, 0 };
 
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
