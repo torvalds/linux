@@ -16,5 +16,6 @@ obj-$(CONFIG_PA11)	+= pci-dma.o
 obj-$(CONFIG_PCI)	+= pci.o
 obj-$(CONFIG_MODULES)	+= module.o
 obj-$(CONFIG_64BIT)	+= binfmt_elf32.o sys_parisc32.o signal32.o
+obj-$(CONFIG_STACKTRACE)+= stacktrace.o
 # only supported for PCX-W/U in 64-bit mode at the moment
 obj-$(CONFIG_64BIT)	+= perf.o perf_asm.o

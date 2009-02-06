@@ -75,6 +75,9 @@ config GENERIC_HARDIRQS
 config GENERIC_IRQ_PROBE
 	def_bool y
 
+config HAVE_LATENCYTOP_SUPPORT
+        def_bool y
+
 config IRQ_PER_CPU
 	bool
 	default y
@@ -82,6 +85,9 @@ config IRQ_PER_CPU
 # unless you want to implement ACPI on PA-RISC ... ;-)
 config PM
 	bool
+
+config STACKTRACE_SUPPORT
+	def_bool y
 
 config ISA_DMA_API
 	bool
