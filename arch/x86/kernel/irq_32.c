@@ -211,33 +211,6 @@ bool handle_irq(unsigned irq, struct pt_regs *regs)
 	return true;
 }
 
-/*
- * do_IRQ handles all normal device IRQ's (the special
- * SMP cross-CPU interrupts have their own specific
- * handlers).
- */
-unsigned int do_IRQ(struct pt_regs *regs)
-{
-	struct pt_regs *old_regs;
-	/* high bit used in ret_from_ code */
-	unsigned vector = ~regs->orig_ax;
-	unsigned irq;
-
-	old_regs = set_irq_regs(regs);
-	irq_enter();
-	irq = __get_cpu_var(vector_irq)[vector];
-
-	if (!handle_irq(irq, regs)) {
-		printk(KERN_EMERG "%s: cannot handle IRQ %d vector %#x cpu %d\n",
-					__func__, irq, vector, smp_processor_id());
-		BUG();
-	}
-
-	irq_exit();
-	set_irq_regs(old_regs);
-	return 1;
-}
-
 #ifdef CONFIG_HOTPLUG_CPU
 #include <asm/genapic.h>
 
