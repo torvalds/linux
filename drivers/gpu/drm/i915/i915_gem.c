@@ -2480,13 +2480,15 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	if (dev_priv->mm.wedged) {
 		DRM_ERROR("Execbuf while wedged\n");
 		mutex_unlock(&dev->struct_mutex);
-		return -EIO;
+		ret = -EIO;
+		goto pre_mutex_err;
 	}
 
 	if (dev_priv->mm.suspended) {
 		DRM_ERROR("Execbuf while VT-switched.\n");
 		mutex_unlock(&dev->struct_mutex);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto pre_mutex_err;
 	}
 
 	/* Look up object handles */
