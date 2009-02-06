@@ -3519,7 +3519,7 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 }
 
 /**
- * igb_intr - Interrupt Handler
+ * igb_intr - Legacy Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
  **/
@@ -3531,7 +3531,6 @@ static irqreturn_t igb_intr(int irq, void *data)
 	/* Interrupt Auto-Mask...upon reading ICR, interrupts are masked.  No
 	 * need for the IMC write */
 	u32 icr = rd32(E1000_ICR);
-	u32 eicr = 0;
 	if (!icr)
 		return IRQ_NONE;  /* Not our interrupt */
 
@@ -3546,8 +3545,6 @@ static irqreturn_t igb_intr(int irq, void *data)
 		/* HW is reporting DMA is out of sync */
 		adapter->stats.doosync++;
 	}
-
-	eicr = rd32(E1000_EICR);
 
 	if (icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 		hw->mac.get_link_status = 1;
