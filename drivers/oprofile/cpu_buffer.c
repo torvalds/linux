@@ -161,7 +161,7 @@ struct op_sample
 {
 	entry->event = ring_buffer_lock_reserve
 		(op_ring_buffer_write, sizeof(struct op_sample) +
-		 size * sizeof(entry->sample->data[0]), &entry->irq_flags);
+		 size * sizeof(entry->sample->data[0]));
 	if (entry->event)
 		entry->sample = ring_buffer_event_data(entry->event);
 	else
@@ -178,8 +178,7 @@ struct op_sample
 
 int op_cpu_buffer_write_commit(struct op_entry *entry)
 {
-	return ring_buffer_unlock_commit(op_ring_buffer_write, entry->event,
-					 entry->irq_flags);
+	return ring_buffer_unlock_commit(op_ring_buffer_write, entry->event);
 }
 
 struct op_sample *op_cpu_buffer_read_entry(struct op_entry *entry, int cpu)
