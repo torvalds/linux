@@ -25,8 +25,8 @@
 #include "cx18-driver.h"
 
 /*
- * For sliced VBI output, we set up to use VIP-1.1, 10-bit mode,
- * NN counts 4 bytes Dwords, an IDID of 0x00 0x80 or one with the VBI line #.
+ * For sliced VBI output, we set up to use VIP-1.1, 8-bit mode,
+ * NN counts 1 byte Dwords, an IDID with the VBI line # in it.
  * Thus, according to the VIP-2 Spec, our VBI ancillary data lines
  * (should!) look like:
  *	4 byte EAV code:          0xff 0x00 0x00 0xRP
@@ -35,8 +35,8 @@
  *	1 byte data identifier:   ne010iii (parity bits, 010, DID bits)
  *	1 byte secondary data id: nessssss (parity bits, SDID bits)
  *	1 byte data word count:   necccccc (parity bits, NN Dword count)
- *	2 byte Internal DID:	  0x00 0x80 (programmed value)
- *	4*NN data bytes
+ *	2 byte Internal DID:	  VBI-line-# 0x80
+ *	NN data bytes
  *	1 byte checksum
  *	Fill bytes needed to fil out to 4*NN bytes of payload
  *
@@ -65,7 +65,7 @@ struct vbi_anc_data {
 	u8 sdid;
 	u8 data_count;
 	u8 idid[2];
-	u8 payload[1]; /* 4*data_count of payload */
+	u8 payload[1]; /* data_count of payload */
 	/* u8 checksum; */
 	/* u8 fill[]; Variable number of fill bytes */
 };
@@ -215,6 +215,7 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 		cx18_av_write(cx, 0x406, 0x13);
 		cx18_av_write(cx, 0x47f, vbi_offset);
 
+		/* Force impossible lines to 0 */
 		if (is_pal) {
 			for (i = 0; i <= 6; i++)
 				svbi->service_lines[0][i] =
@@ -229,6 +230,7 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 					svbi->service_lines[1][i] = 0;
 		}
 
+		/* Build register values for requested service lines */
 		for (i = 7; i <= 23; i++) {
 			for (x = 0; x <= 1; x++) {
 				switch (svbi->service_lines[1-x][i]) {
@@ -242,7 +244,7 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 					lcr[i] |= 6 << (4 * x);
 					break;
 				case V4L2_SLICED_VPS:
-					lcr[i] |= 9 << (4 * x);
+					lcr[i] |= 7 << (4 * x); /*'840 differs*/
 					break;
 				}
 			}
