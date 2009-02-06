@@ -65,10 +65,6 @@ struct ext4_sb_info {
 	struct blockgroup_lock s_blockgroup_lock;
 	struct proc_dir_entry *s_proc;
 
-	/* root of the per fs reservation window tree */
-	spinlock_t s_rsv_window_lock;
-	struct rb_root s_rsv_window_root;
-
 	/* Journaling */
 	struct inode *s_journal_inode;
 	struct journal_s *s_journal;

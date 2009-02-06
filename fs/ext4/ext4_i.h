@@ -33,9 +33,6 @@ typedef __u32 ext4_lblk_t;
 /* data type for block group number */
 typedef unsigned int ext4_group_t;
 
-#define rsv_start rsv_window._rsv_start
-#define rsv_end rsv_window._rsv_end
-
 /*
  * storage for cached extent
  */
