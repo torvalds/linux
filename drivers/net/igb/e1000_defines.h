@@ -413,6 +413,7 @@
 /* LAN connected device generates an interrupt */
 #define E1000_ICR_PHYINT        0x00001000
 #define E1000_ICR_EPRST         0x00100000 /* ME handware reset occurs */
+#define E1000_ICR_DOUTSYNC      0x10000000 /* NIC DMA out of sync */
 
 /* Extended Interrupt Cause Read */
 #define E1000_EICR_RX_QUEUE0    0x00000001 /* Rx Queue 0 Interrupt */
@@ -441,7 +442,8 @@
     E1000_IMS_TXDW   |    \
     E1000_IMS_RXDMT0 |    \
     E1000_IMS_RXSEQ  |    \
-    E1000_IMS_LSC)
+    E1000_IMS_LSC    |    \
+    E1000_IMS_DOUTSYNC)
 
 /* Interrupt Mask Set */
 #define E1000_IMS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
@@ -449,6 +451,7 @@
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* rx timer intr */
+#define E1000_IMS_DOUTSYNC  E1000_ICR_DOUTSYNC /* NIC DMA out of sync */
 
 /* Extended Interrupt Mask Set */
 #define E1000_EIMS_TCP_TIMER    E1000_EICR_TCP_TIMER /* TCP Timer */
@@ -457,6 +460,7 @@
 /* Interrupt Cause Set */
 #define E1000_ICS_LSC       E1000_ICR_LSC       /* Link Status Change */
 #define E1000_ICS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
+#define E1000_ICS_DOUTSYNC  E1000_ICR_DOUTSYNC /* NIC DMA out of sync */
 
 /* Extended Interrupt Cause Set */
 

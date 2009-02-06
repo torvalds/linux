@@ -359,6 +359,7 @@ struct e1000_hw_stats {
 	u64 lenerrs;
 	u64 scvpc;
 	u64 hrmpc;
+	u64 doosync;
 };
 
 struct e1000_phy_stats {

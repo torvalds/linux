@@ -88,6 +88,7 @@ static const struct igb_stats igb_gstrings_stats[] = {
 	{ "rx_long_byte_count", IGB_STAT(stats.gorc) },
 	{ "rx_csum_offload_good", IGB_STAT(hw_csum_good) },
 	{ "rx_csum_offload_errors", IGB_STAT(hw_csum_err) },
+	{ "tx_dma_out_of_sync", IGB_STAT(stats.doosync) },
 	{ "alloc_rx_buff_failed", IGB_STAT(alloc_rx_buff_failed) },
 	{ "tx_smbus", IGB_STAT(stats.mgptc) },
 	{ "rx_smbus", IGB_STAT(stats.mgprc) },

@@ -689,7 +689,7 @@ static void igb_irq_enable(struct igb_adapter *adapter)
 		wr32(E1000_EIAC, adapter->eims_enable_mask);
 		wr32(E1000_EIAM, adapter->eims_enable_mask);
 		wr32(E1000_EIMS, adapter->eims_enable_mask);
-		wr32(E1000_IMS, E1000_IMS_LSC);
+		wr32(E1000_IMS, E1000_IMS_LSC | E1000_IMS_DOUTSYNC);
 	} else {
 		wr32(E1000_IMS, IMS_ENABLE_MASK);
 		wr32(E1000_IAM, IMS_ENABLE_MASK);
@@ -3287,6 +3287,11 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 	u32 icr = rd32(E1000_ICR);
 
 	/* reading ICR causes bit 31 of EICR to be cleared */
+
+	if(icr & E1000_ICR_DOUTSYNC) {
+		/* HW is reporting DMA is out of sync */
+		adapter->stats.doosync++;
+	}
 	if (!(icr & E1000_ICR_LSC))
 		goto no_link_interrupt;
 	hw->mac.get_link_status = 1;
@@ -3295,7 +3300,7 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 		mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	
 no_link_interrupt:
-	wr32(E1000_IMS, E1000_IMS_LSC);
+	wr32(E1000_IMS, E1000_IMS_LSC | E1000_IMS_DOUTSYNC);
 	wr32(E1000_EIMS, adapter->eims_other);
 
 	return IRQ_HANDLED;
@@ -3499,6 +3504,11 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 
 	igb_write_itr(adapter->rx_ring);
 
+	if(icr & E1000_ICR_DOUTSYNC) {
+		/* HW is reporting DMA is out of sync */
+		adapter->stats.doosync++;
+	}
+
 	if (icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 		hw->mac.get_link_status = 1;
 		if (!test_bit(__IGB_DOWN, &adapter->state))
@@ -3533,6 +3543,11 @@ static irqreturn_t igb_intr(int irq, void *data)
 	 * not set, then the adapter didn't send an interrupt */
 	if (!(icr & E1000_ICR_INT_ASSERTED))
 		return IRQ_NONE;
+
+	if(icr & E1000_ICR_DOUTSYNC) {
+		/* HW is reporting DMA is out of sync */
+		adapter->stats.doosync++;
+	}
 
 	eicr = rd32(E1000_EICR);
 
