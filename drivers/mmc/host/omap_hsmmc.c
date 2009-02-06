@@ -376,6 +376,32 @@ static void mmc_omap_report_irq(struct mmc_omap_host *host, u32 status)
 }
 #endif  /* CONFIG_MMC_DEBUG */
 
+/*
+ * MMC controller internal state machines reset
+ *
+ * Used to reset command or data internal state machines, using respectively
+ *  SRC or SRD bit of SYSCTL register
+ * Can be called from interrupt context
+ */
+static inline void mmc_omap_reset_controller_fsm(struct mmc_omap_host *host,
+		unsigned long bit)
+{
+	unsigned long i = 0;
+	unsigned long limit = (loops_per_jiffy *
+				msecs_to_jiffies(MMC_TIMEOUT_MS));
+
+	OMAP_HSMMC_WRITE(host->base, SYSCTL,
+			 OMAP_HSMMC_READ(host->base, SYSCTL) | bit);
+
+	while ((OMAP_HSMMC_READ(host->base, SYSCTL) & bit) &&
+		(i++ < limit))
+		cpu_relax();
+
+	if (OMAP_HSMMC_READ(host->base, SYSCTL) & bit)
+		dev_err(mmc_dev(host->mmc),
+			"Timeout waiting on controller reset in %s\n",
+			__func__);
+}
 
 /*
  * MMC controller IRQ handler
@@ -404,13 +430,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 			(status & CMD_CRC)) {
 			if (host->cmd) {
 				if (status & CMD_TIMEOUT) {
-					OMAP_HSMMC_WRITE(host->base, SYSCTL,
-						OMAP_HSMMC_READ(host->base,
-								SYSCTL) | SRC);
-					while (OMAP_HSMMC_READ(host->base,
-							SYSCTL) & SRC)
-						;
-
+					mmc_omap_reset_controller_fsm(host, SRC);
 					host->cmd->error = -ETIMEDOUT;
 				} else {
 					host->cmd->error = -EILSEQ;
@@ -419,12 +439,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 			}
 			if (host->data) {
 				mmc_dma_cleanup(host);
-				OMAP_HSMMC_WRITE(host->base, SYSCTL,
-					OMAP_HSMMC_READ(host->base,
-							SYSCTL) | SRD);
-				while (OMAP_HSMMC_READ(host->base,
-						SYSCTL) & SRD)
-					;
+				mmc_omap_reset_controller_fsm(host, SRD);
 			}
 		}
 		if ((status & DATA_TIMEOUT) ||
@@ -434,12 +449,7 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 					mmc_dma_cleanup(host);
 				else
 					host->data->error = -EILSEQ;
-				OMAP_HSMMC_WRITE(host->base, SYSCTL,
-					OMAP_HSMMC_READ(host->base,
-							SYSCTL) | SRD);
-				while (OMAP_HSMMC_READ(host->base,
-						SYSCTL) & SRD)
-					;
+				mmc_omap_reset_controller_fsm(host, SRD);
 				end_trans = 1;
 			}
 		}
@@ -547,11 +557,7 @@ static void mmc_omap_detect(struct work_struct *work)
 	if (host->carddetect) {
 		mmc_detect_change(host->mmc, (HZ * 200) / 1000);
 	} else {
-		OMAP_HSMMC_WRITE(host->base, SYSCTL,
-			OMAP_HSMMC_READ(host->base, SYSCTL) | SRD);
-		while (OMAP_HSMMC_READ(host->base, SYSCTL) & SRD)
-			;
-
+		mmc_omap_reset_controller_fsm(host, SRD);
 		mmc_detect_change(host->mmc, (HZ * 50) / 1000);
 	}
 }
