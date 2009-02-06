@@ -123,6 +123,8 @@ void hci_add_sco(struct hci_conn *conn, __u16 handle)
 	conn->state = BT_CONNECT;
 	conn->out = 1;
 
+	conn->attempt++;
+
 	cp.handle   = cpu_to_le16(handle);
 	cp.pkt_type = cpu_to_le16(conn->pkt_type);
 
@@ -138,6 +140,8 @@ void hci_setup_sync(struct hci_conn *conn, __u16 handle)
 
 	conn->state = BT_CONNECT;
 	conn->out = 1;
+
+	conn->attempt++;
 
 	cp.handle   = cpu_to_le16(handle);
 	cp.pkt_type = cpu_to_le16(conn->pkt_type);
@@ -216,12 +220,13 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 		break;
 	case SCO_LINK:
 		if (lmp_esco_capable(hdev))
-			conn->pkt_type = hdev->esco_type & SCO_ESCO_MASK;
+			conn->pkt_type = (hdev->esco_type & SCO_ESCO_MASK) |
+					(hdev->esco_type & EDR_ESCO_MASK);
 		else
 			conn->pkt_type = hdev->pkt_type & SCO_PTYPE_MASK;
 		break;
 	case ESCO_LINK:
-		conn->pkt_type = hdev->esco_type;
+		conn->pkt_type = hdev->esco_type & ~EDR_ESCO_MASK;
 		break;
 	}
 
