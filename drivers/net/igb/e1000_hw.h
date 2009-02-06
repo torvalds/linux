@@ -484,7 +484,6 @@ struct e1000_mac_info {
 	bool asf_firmware_present;
 	bool autoneg;
 	bool autoneg_failed;
-	bool disable_av;
 	bool disable_hw_init_bits;
 	bool get_link_status;
 	bool ifs_params_forced;

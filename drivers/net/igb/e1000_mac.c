@@ -200,7 +200,8 @@ void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 
 	rar_high = ((u32) addr[4] | ((u32) addr[5] << 8));
 
-	if (!hw->mac.disable_av)
+	/* If MAC address zero, no need to set the AV bit */
+	if (rar_low || rar_high)
 		rar_high |= E1000_RAH_AV;
 
 	wr32(E1000_RAL(index), rar_low);
