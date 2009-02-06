@@ -2227,8 +2227,8 @@ static void igb_set_multi(struct net_device *netdev)
 
 	if (!netdev->mc_count) {
 		/* nothing to program, so clear mc list */
-		igb_update_mc_addr_list_82575(hw, NULL, 0, 1,
-					  mac->rar_entry_count);
+		igb_update_mc_addr_list(hw, NULL, 0, 1,
+					mac->rar_entry_count);
 		return;
 	}
 
@@ -2245,8 +2245,7 @@ static void igb_set_multi(struct net_device *netdev)
 		memcpy(mta_list + (i*ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
 		mc_ptr = mc_ptr->next;
 	}
-	igb_update_mc_addr_list_82575(hw, mta_list, i, 1,
-	                              mac->rar_entry_count);
+	igb_update_mc_addr_list(hw, mta_list, i, 1, mac->rar_entry_count);
 	kfree(mta_list);
 }
 

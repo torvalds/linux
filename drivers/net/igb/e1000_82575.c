@@ -787,7 +787,7 @@ static void igb_init_rx_addrs_82575(struct e1000_hw *hw, u16 rar_count)
 }
 
 /**
- *  igb_update_mc_addr_list_82575 - Update Multicast addresses
+ *  igb_update_mc_addr_list - Update Multicast addresses
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program
  *  @mc_addr_count: number of multicast addresses to program
@@ -799,9 +799,9 @@ static void igb_init_rx_addrs_82575(struct e1000_hw *hw, u16 rar_count)
  *  The parameter rar_count will usually be hw->mac.rar_entry_count
  *  unless there are workarounds that change this.
  **/
-void igb_update_mc_addr_list_82575(struct e1000_hw *hw,
-                                   u8 *mc_addr_list, u32 mc_addr_count,
-                                   u32 rar_used_count, u32 rar_count)
+void igb_update_mc_addr_list(struct e1000_hw *hw,
+                             u8 *mc_addr_list, u32 mc_addr_count,
+                             u32 rar_used_count, u32 rar_count)
 {
 	u32 hash_value;
 	u32 i;
