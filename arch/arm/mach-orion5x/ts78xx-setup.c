@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
 #include <linux/m48t86.h>
@@ -40,12 +39,6 @@
 #define TS78XX_FPGA_REGS_RTC_CTRL	(TS78XX_FPGA_REGS_VIRT_BASE | 0x808)
 #define TS78XX_FPGA_REGS_RTC_DATA	(TS78XX_FPGA_REGS_VIRT_BASE | 0x80c)
 
-/*
- * 512kB NOR flash Device
- */
-#define TS78XX_NOR_BOOT_BASE		0xff800000
-#define TS78XX_NOR_BOOT_SIZE		SZ_512K
-
 /*****************************************************************************
  * I/O Address Mapping
  ****************************************************************************/
@@ -63,41 +56,6 @@ void __init ts78xx_map_io(void)
 	orion5x_map_io();
 	iotable_init(ts78xx_io_desc, ARRAY_SIZE(ts78xx_io_desc));
 }
-
-/*****************************************************************************
- * 512kB NOR Boot Flash - the chip is a M25P40
- ****************************************************************************/
-static struct mtd_partition ts78xx_nor_boot_flash_resources[] = {
-	{
-		.name		= "ts-bootrom",
-		.offset		= 0,
-		/* only the first 256kB is used */
-		.size		= SZ_256K,
-		.mask_flags	= MTD_WRITEABLE,
-	},
-};
-
-static struct physmap_flash_data ts78xx_nor_boot_flash_data = {
-	.width		= 1,
-	.parts		= ts78xx_nor_boot_flash_resources,
-	.nr_parts	= ARRAY_SIZE(ts78xx_nor_boot_flash_resources),
-};
-
-static struct resource ts78xx_nor_boot_flash_resource = {
-	.flags		= IORESOURCE_MEM,
-	.start		= TS78XX_NOR_BOOT_BASE,
-	.end		= TS78XX_NOR_BOOT_BASE + TS78XX_NOR_BOOT_SIZE - 1,
-};
-
-static struct platform_device ts78xx_nor_boot_flash = {
-	.name		= "physmap-flash",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &ts78xx_nor_boot_flash_data,
-	},
-	.num_resources	= 1,
-	.resource	= &ts78xx_nor_boot_flash_resource,
-};
 
 /*****************************************************************************
  * Ethernet
@@ -256,10 +214,6 @@ static void __init ts78xx_init(void)
 	orion5x_uart0_init();
 	orion5x_uart1_init();
 	orion5x_xor_init();
-
-	orion5x_setup_dev_boot_win(TS78XX_NOR_BOOT_BASE,
-				   TS78XX_NOR_BOOT_SIZE);
-	platform_device_register(&ts78xx_nor_boot_flash);
 
 	if (!ts78xx_rtc_init())
 		printk(KERN_INFO "TS-78xx RTC not detected or enabled\n");
