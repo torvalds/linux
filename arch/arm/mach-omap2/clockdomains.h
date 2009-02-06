@@ -182,7 +182,7 @@ static struct clockdomain sgx_clkdm = {
 	.pwrdm		= { .name = "sgx_pwrdm" },
 	.flags		= CLKDM_CAN_HWSUP_SWSUP,
 	.clktrctrl_mask = OMAP3430ES2_CLKTRCTRL_SGX_MASK,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430ES2),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 };
 
 /*
@@ -237,7 +237,7 @@ static struct clockdomain usbhost_clkdm = {
 	.pwrdm		= { .name = "usbhost_pwrdm" },
 	.flags		= CLKDM_CAN_HWSUP_SWSUP,
 	.clktrctrl_mask = OMAP3430ES2_CLKTRCTRL_USBHOST_MASK,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430ES2),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 };
 
 static struct clockdomain per_clkdm = {
@@ -287,7 +287,7 @@ static struct clockdomain dpll4_clkdm = {
 static struct clockdomain dpll5_clkdm = {
 	.name		= "dpll5_clkdm",
 	.pwrdm		= { .name = "dpll5_pwrdm" },
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430ES2),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2),
 };
 
 #endif   /* CONFIG_ARCH_OMAP34XX */
