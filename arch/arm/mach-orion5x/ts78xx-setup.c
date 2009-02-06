@@ -181,6 +181,14 @@ static struct orion5x_mpp_mode ts78xx_mpp_modes[] __initdata = {
 	{ 17, MPP_UART },
 	{ 18, MPP_UART },
 	{ 19, MPP_UART },
+	/*
+	 * MPP[20] PCI Clock Out 1
+	 * MPP[21] PCI Clock Out 0
+	 * MPP[22] Unused
+	 * MPP[23] Unused
+	 * MPP[24] Unused
+	 * MPP[25] Unused
+	 */
 	{ -1 },
 };
 
@@ -194,15 +202,6 @@ static void __init ts78xx_init(void)
 	ts78xx_print_board_id();
 
 	orion5x_mpp_conf(ts78xx_mpp_modes);
-
-	/*
-	 * MPP[20] PCI Clock Out 1
-	 * MPP[21] PCI Clock Out 0
-	 * MPP[22] Unused
-	 * MPP[23] Unused
-	 * MPP[24] Unused
-	 * MPP[25] Unused
-	 */
 
 	/*
 	 * Configure peripherals.
