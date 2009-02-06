@@ -1096,8 +1096,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	mmio_len = pci_resource_len(pdev, 0);
 
 	err = -EIO;
-	adapter->hw.hw_addr = ioremap(mmio_start, mmio_len);
-	if (!adapter->hw.hw_addr)
+	hw->hw_addr = ioremap(mmio_start, mmio_len);
+	if (!hw->hw_addr)
 		goto err_ioremap;
 
 	netdev->netdev_ops = &igb_netdev_ops;
@@ -1357,9 +1357,7 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
-#ifdef CONFIG_IGB_DCA
 	struct e1000_hw *hw = &adapter->hw;
-#endif
 	int err;
 
 	/* flush_scheduled work may reschedule our watchdog task, so
@@ -1392,9 +1390,9 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 
 	igb_free_queues(adapter);
 
-	iounmap(adapter->hw.hw_addr);
-	if (adapter->hw.flash_address)
-		iounmap(adapter->hw.flash_address);
+	iounmap(hw->hw_addr);
+	if (hw->flash_address)
+		iounmap(hw->flash_address);
 	pci_release_selected_regions(pdev, pci_select_bars(pdev,
 	                             IORESOURCE_MEM));
 
@@ -1784,7 +1782,7 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	rctl &= ~(E1000_RCTL_LBM_TCVR | E1000_RCTL_LBM_MAC);
 
 	rctl |= E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_RDMTS_HALF |
-		(adapter->hw.mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
+		(hw->mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 
 	/*
 	 * enable stripping of CRC. It's unlikely this will break BMC
@@ -2176,15 +2174,16 @@ static void igb_clean_all_rx_rings(struct igb_adapter *adapter)
 static int igb_set_mac(struct net_device *netdev, void *p)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-	memcpy(adapter->hw.mac.addr, addr->sa_data, netdev->addr_len);
+	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
-	adapter->hw.mac.ops.rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
 
 	return 0;
 }
@@ -4140,7 +4139,7 @@ static void igb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 vfta, index;
 
-	if ((adapter->hw.mng_cookie.status &
+	if ((hw->mng_cookie.status &
 	     E1000_MNG_DHCP_COOKIE_STATUS_VLAN) &&
 	    (vid == adapter->mng_vlan_id))
 		return;
