@@ -858,6 +858,10 @@ void igb_down(struct igb_adapter *adapter)
 
 	netdev->tx_queue_len = adapter->tx_queue_len;
 	netif_carrier_off(netdev);
+
+	/* record the stats before reset*/
+	igb_update_stats(adapter);
+
 	adapter->link_speed = 0;
 	adapter->link_duplex = 0;
 
