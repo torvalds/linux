@@ -812,6 +812,11 @@ struct fe_priv {
 
 	/* power saved state */
 	u32 saved_config_space[NV_PCI_REGSZ_MAX/4];
+
+	/* for different msi-x irq type */
+	char name_rx[IFNAMSIZ + 3];       /* -rx    */
+	char name_tx[IFNAMSIZ + 3];       /* -tx    */
+	char name_other[IFNAMSIZ + 6];    /* -other */
 };
 
 /*
@@ -3918,21 +3923,27 @@ static int nv_request_irq(struct net_device *dev, int intr_test)
 			np->msi_flags |= NV_MSI_X_ENABLED;
 			if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT && !intr_test) {
 				/* Request irq for rx handling */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector, &nv_nic_irq_rx, IRQF_SHARED, dev->name, dev) != 0) {
+				sprintf(np->name_rx, "%s-rx", dev->name);
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_RX].vector,
+						&nv_nic_irq_rx, IRQF_SHARED, np->name_rx, dev) != 0) {
 					printk(KERN_INFO "forcedeth: request_irq failed for rx %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;
 					goto out_err;
 				}
 				/* Request irq for tx handling */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector, &nv_nic_irq_tx, IRQF_SHARED, dev->name, dev) != 0) {
+				sprintf(np->name_tx, "%s-tx", dev->name);
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_TX].vector,
+						&nv_nic_irq_tx, IRQF_SHARED, np->name_tx, dev) != 0) {
 					printk(KERN_INFO "forcedeth: request_irq failed for tx %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;
 					goto out_free_rx;
 				}
 				/* Request irq for link and timer handling */
-				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector, &nv_nic_irq_other, IRQF_SHARED, dev->name, dev) != 0) {
+				sprintf(np->name_other, "%s-other", dev->name);
+				if (request_irq(np->msi_x_entry[NV_MSI_X_VECTOR_OTHER].vector,
+						&nv_nic_irq_other, IRQF_SHARED, np->name_other, dev) != 0) {
 					printk(KERN_INFO "forcedeth: request_irq failed for link %d\n", ret);
 					pci_disable_msix(np->pci_dev);
 					np->msi_flags &= ~NV_MSI_X_ENABLED;
