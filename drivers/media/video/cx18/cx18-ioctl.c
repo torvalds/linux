@@ -160,10 +160,8 @@ static int cx18_g_fmt_vid_cap(struct file *file, void *fh,
 	pixfmt->priv = 0;
 	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
 		pixfmt->pixelformat = V4L2_PIX_FMT_HM12;
-		/* YUV size is (Y=(h*w) + UV=(h*(w/2))) */
-		pixfmt->sizeimage =
-			pixfmt->height * pixfmt->width +
-			pixfmt->height * (pixfmt->width / 2);
+		/* YUV size is (Y=(h*720) + UV=(h*(720/2))) */
+		pixfmt->sizeimage = pixfmt->height * 720 * 3 / 2;
 		pixfmt->bytesperline = 720;
 	} else {
 		pixfmt->pixelformat = V4L2_PIX_FMT_MPEG;
@@ -228,11 +226,18 @@ static int cx18_try_fmt_vid_cap(struct file *file, void *fh,
 	struct cx18 *cx = id->cx;
 	int w = fmt->fmt.pix.width;
 	int h = fmt->fmt.pix.height;
+	int min_h = 2;
 
 	w = min(w, 720);
-	w = max(w, 1);
+	w = max(w, 2);
+	if (id->type == CX18_ENC_STREAM_TYPE_YUV) {
+		/* YUV height must be a multiple of 32 */
+		h &= ~0x1f;
+		min_h = 32;
+	}
 	h = min(h, cx->is_50hz ? 576 : 480);
-	h = max(h, 2);
+	h = max(h, min_h);
+
 	cx18_g_fmt_vid_cap(file, fh, fmt);
 	fmt->fmt.pix.width = w;
 	fmt->fmt.pix.height = h;
