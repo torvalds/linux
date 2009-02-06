@@ -593,12 +593,12 @@ static int igb_get_eeprom(struct net_device *netdev,
 		return -ENOMEM;
 
 	if (hw->nvm.type == e1000_nvm_eeprom_spi)
-		ret_val = hw->nvm.ops.read_nvm(hw, first_word,
+		ret_val = hw->nvm.ops.read(hw, first_word,
 					    last_word - first_word + 1,
 					    eeprom_buff);
 	else {
 		for (i = 0; i < last_word - first_word + 1; i++) {
-			ret_val = hw->nvm.ops.read_nvm(hw, first_word + i, 1,
+			ret_val = hw->nvm.ops.read(hw, first_word + i, 1,
 						    &eeprom_buff[i]);
 			if (ret_val)
 				break;
@@ -645,14 +645,14 @@ static int igb_set_eeprom(struct net_device *netdev,
 	if (eeprom->offset & 1) {
 		/* need read/modify/write of first changed EEPROM word */
 		/* only the second byte of the word is being modified */
-		ret_val = hw->nvm.ops.read_nvm(hw, first_word, 1,
+		ret_val = hw->nvm.ops.read(hw, first_word, 1,
 					    &eeprom_buff[0]);
 		ptr++;
 	}
 	if (((eeprom->offset + eeprom->len) & 1) && (ret_val == 0)) {
 		/* need read/modify/write of last changed EEPROM word */
 		/* only the first byte of the word is being modified */
-		ret_val = hw->nvm.ops.read_nvm(hw, last_word, 1,
+		ret_val = hw->nvm.ops.read(hw, last_word, 1,
 				   &eeprom_buff[last_word - first_word]);
 	}
 
@@ -665,7 +665,7 @@ static int igb_set_eeprom(struct net_device *netdev,
 	for (i = 0; i < last_word - first_word + 1; i++)
 		eeprom_buff[i] = cpu_to_le16(eeprom_buff[i]);
 
-	ret_val = hw->nvm.ops.write_nvm(hw, first_word,
+	ret_val = hw->nvm.ops.write(hw, first_word,
 				     last_word - first_word + 1, eeprom_buff);
 
 	/* Update the checksum over the first part of the EEPROM if needed
@@ -689,7 +689,7 @@ static void igb_get_drvinfo(struct net_device *netdev,
 
 	/* EEPROM image version # is reported as firmware version # for
 	 * 82575 controllers */
-	adapter->hw.nvm.ops.read_nvm(&adapter->hw, 5, 1, &eeprom_data);
+	adapter->hw.nvm.ops.read(&adapter->hw, 5, 1, &eeprom_data);
 	sprintf(firmware_version, "%d.%d-%d",
 		(eeprom_data & 0xF000) >> 12,
 		(eeprom_data & 0x0FF0) >> 4,
@@ -1056,7 +1056,7 @@ static int igb_eeprom_test(struct igb_adapter *adapter, u64 *data)
 	*data = 0;
 	/* Read and add up the contents of the EEPROM */
 	for (i = 0; i < (NVM_CHECKSUM_REG + 1); i++) {
-		if ((adapter->hw.nvm.ops.read_nvm(&adapter->hw, i, 1, &temp))
+		if ((adapter->hw.nvm.ops.read(&adapter->hw, i, 1, &temp))
 		    < 0) {
 			*data = 1;
 			break;

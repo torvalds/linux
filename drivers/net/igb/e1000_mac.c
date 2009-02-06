@@ -135,7 +135,7 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 	u16 offset, nvm_alt_mac_addr_offset, nvm_data;
 	u8 alt_mac_addr[ETH_ALEN];
 
-	ret_val = hw->nvm.ops.read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
+	ret_val = hw->nvm.ops.read(hw, NVM_ALT_MAC_ADDR_PTR, 1,
 				 &nvm_alt_mac_addr_offset);
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");
@@ -152,7 +152,7 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 
 	for (i = 0; i < ETH_ALEN; i += 2) {
 		offset = nvm_alt_mac_addr_offset + (i >> 1);
-		ret_val = hw->nvm.ops.read_nvm(hw, offset, 1, &nvm_data);
+		ret_val = hw->nvm.ops.read(hw, offset, 1, &nvm_data);
 		if (ret_val) {
 			hw_dbg("NVM Read Error\n");
 			goto out;
@@ -575,8 +575,7 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 	 * control setting, then the variable hw->fc will
 	 * be initialized based on a value in the EEPROM.
 	 */
-	ret_val = hw->nvm.ops.read_nvm(hw, NVM_INIT_CONTROL2_REG, 1,
-				       &nvm_data);
+	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL2_REG, 1, &nvm_data);
 
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");
@@ -1028,7 +1027,7 @@ static s32 igb_valid_led_default(struct e1000_hw *hw, u16 *data)
 {
 	s32 ret_val;
 
-	ret_val = hw->nvm.ops.read_nvm(hw, NVM_ID_LED_SETTINGS, 1, data);
+	ret_val = hw->nvm.ops.read(hw, NVM_ID_LED_SETTINGS, 1, data);
 	if (ret_val) {
 		hw_dbg("NVM Read Error\n");
 		goto out;

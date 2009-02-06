@@ -1429,10 +1429,10 @@ static struct e1000_phy_operations e1000_phy_ops_82575 = {
 };
 
 static struct e1000_nvm_operations e1000_nvm_ops_82575 = {
-	.acquire_nvm          = igb_acquire_nvm_82575,
-	.read_nvm             = igb_read_nvm_eerd,
-	.release_nvm          = igb_release_nvm_82575,
-	.write_nvm            = igb_write_nvm_spi,
+	.acquire              = igb_acquire_nvm_82575,
+	.read                 = igb_read_nvm_eerd,
+	.release              = igb_release_nvm_82575,
+	.write                = igb_write_nvm_spi,
 };
 
 const struct e1000_info e1000_82575_info = {
