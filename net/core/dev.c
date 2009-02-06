@@ -2391,7 +2391,8 @@ void *skb_gro_header(struct sk_buff *skb, unsigned int hlen)
 		return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
 
 	return page_address(skb_shinfo(skb)->frags[0].page) +
-	       skb_shinfo(skb)->frags[0].page_offset + offset;
+	       skb_shinfo(skb)->frags[0].page_offset +
+	       offset - skb_headlen(skb);
 }
 EXPORT_SYMBOL(skb_gro_header);
 

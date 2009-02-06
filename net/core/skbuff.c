@@ -2678,6 +2678,17 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	p = nskb;
 
 merge:
+	if (skb_gro_offset(skb) > skb_headlen(skb)) {
+		skb_shinfo(skb)->frags[0].page_offset +=
+			skb_gro_offset(skb) - skb_headlen(skb);
+		skb_shinfo(skb)->frags[0].size -=
+			skb_gro_offset(skb) - skb_headlen(skb);
+		skb_gro_reset_offset(skb);
+		skb_gro_pull(skb, skb_headlen(skb));
+	}
+
+	__skb_pull(skb, skb_gro_offset(skb));
+
 	p->prev->next = skb;
 	p->prev = skb;
 	skb_header_release(skb);
