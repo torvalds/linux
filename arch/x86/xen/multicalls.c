@@ -170,14 +170,14 @@ void xen_mc_flush(void)
 	} else
 		BUG_ON(b->argidx != 0);
 
-	local_irq_restore(flags);
-
 	for (i = 0; i < b->cbidx; i++) {
 		struct callback *cb = &b->callbacks[i];
 
 		(*cb->fn)(cb->data);
 	}
 	b->cbidx = 0;
+
+	local_irq_restore(flags);
 
 	WARN_ON(ret);
 }
