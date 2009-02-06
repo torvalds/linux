@@ -1016,7 +1016,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	struct pci_dev *us_dev;
 	const struct e1000_info *ei = igb_info_tbl[ent->driver_data];
 	unsigned long mmio_start, mmio_len;
-	int i, err, pci_using_dac, pos;
+	int err, pci_using_dac, pos;
 	u16 eeprom_data = 0, state = 0;
 	u16 eeprom_apme_mask = IGB_EEPROM_APME;
 	u32 part_num;
@@ -1128,8 +1128,9 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	/* Initialize skew-specific constants */
 	err = ei->get_invariants(hw);
 	if (err)
-		goto err_hw_init;
+		goto err_sw_init;
 
+	/* setup the private structure */
 	err = igb_sw_init(adapter);
 	if (err)
 		goto err_sw_init;
@@ -1219,14 +1220,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	INIT_WORK(&adapter->reset_task, igb_reset_task);
 	INIT_WORK(&adapter->watchdog_task, igb_watchdog_task);
 
-	/* Initialize link & ring properties that are user-changeable */
-	adapter->tx_ring->count = 256;
-	for (i = 0; i < adapter->num_tx_queues; i++)
-		adapter->tx_ring[i].count = adapter->tx_ring->count;
-	adapter->rx_ring->count = 256;
-	for (i = 0; i < adapter->num_rx_queues; i++)
-		adapter->rx_ring[i].count = adapter->rx_ring->count;
-
+	/* Initialize link properties that are user-changeable */
 	adapter->fc_autoneg = true;
 	hw->mac.autoneg = true;
 	hw->phy.autoneg_advertised = 0x2f;
@@ -1334,7 +1328,6 @@ err_eeprom:
 
 	igb_free_queues(adapter);
 err_sw_init:
-err_hw_init:
 	iounmap(hw->hw_addr);
 err_ioremap:
 	free_netdev(netdev);
