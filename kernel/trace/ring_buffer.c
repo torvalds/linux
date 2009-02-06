@@ -8,6 +8,7 @@
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
+#include <linux/hardirq.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/mutex.h>
@@ -18,35 +19,6 @@
 #include <linux/fs.h>
 
 #include "trace.h"
-
-/*
- * Since the write to the buffer is still not fully lockless,
- * we must be careful with NMIs. The locks in the writers
- * are taken when a write crosses to a new page. The locks
- * protect against races with the readers (this will soon
- * be fixed with a lockless solution).
- *
- * Because we can not protect against NMIs, and we want to
- * keep traces reentrant, we need to manage what happens
- * when we are in an NMI.
- */
-static DEFINE_PER_CPU(int, rb_in_nmi);
-
-void ftrace_nmi_enter(void)
-{
-	__get_cpu_var(rb_in_nmi)++;
-	/* call arch specific handler too */
-	arch_ftrace_nmi_enter();
-}
-
-void ftrace_nmi_exit(void)
-{
-	arch_ftrace_nmi_exit();
-	__get_cpu_var(rb_in_nmi)--;
-	/* NMIs are not recursive */
-	WARN_ON_ONCE(__get_cpu_var(rb_in_nmi));
-}
-
 
 /*
  * A fast way to enable or disable all ring buffers is to
@@ -1027,12 +999,23 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 
 		local_irq_save(flags);
 		/*
+		 * Since the write to the buffer is still not
+		 * fully lockless, we must be careful with NMIs.
+		 * The locks in the writers are taken when a write
+		 * crosses to a new page. The locks protect against
+		 * races with the readers (this will soon be fixed
+		 * with a lockless solution).
+		 *
+		 * Because we can not protect against NMIs, and we
+		 * want to keep traces reentrant, we need to manage
+		 * what happens when we are in an NMI.
+		 *
 		 * NMIs can happen after we take the lock.
 		 * If we are in an NMI, only take the lock
 		 * if it is not already taken. Otherwise
 		 * simply fail.
 		 */
-		if (unlikely(__get_cpu_var(rb_in_nmi))) {
+		if (unlikely(in_nmi())) {
 			if (!__raw_spin_trylock(&cpu_buffer->lock))
 				goto out_unlock;
 		} else

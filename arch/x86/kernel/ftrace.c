@@ -113,7 +113,7 @@ static void ftrace_mod_code(void)
 					     MCOUNT_INSN_SIZE);
 }
 
-void arch_ftrace_nmi_enter(void)
+void ftrace_nmi_enter(void)
 {
 	atomic_inc(&nmi_running);
 	/* Must have nmi_running seen before reading write flag */
@@ -124,7 +124,7 @@ void arch_ftrace_nmi_enter(void)
 	}
 }
 
-void arch_ftrace_nmi_exit(void)
+void ftrace_nmi_exit(void)
 {
 	/* Finish all executions before clearing nmi_running */
 	smp_wmb();
