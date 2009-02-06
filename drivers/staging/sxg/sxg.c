@@ -146,6 +146,7 @@ static int sxg_initialize_adapter(struct adapter_t *adapter);
 static void sxg_stock_rcv_buffers(struct adapter_t *adapter);
 static void sxg_complete_descriptor_blocks(struct adapter_t *adapter,
 					   unsigned char Index);
+int sxg_change_mtu (struct net_device *netdev, int new_mtu);
 static int sxg_initialize_link(struct adapter_t *adapter);
 static int sxg_phy_init(struct adapter_t *adapter);
 static void sxg_link_event(struct adapter_t *adapter);
@@ -942,6 +943,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	netdev->stop = sxg_entry_halt;
 	netdev->hard_start_xmit = sxg_send_packets;
 	netdev->do_ioctl = sxg_ioctl;
+	netdev->change_mtu = sxg_change_mtu;
 #if XXXTODO
 	netdev->set_mac_address = sxg_mac_set_address;
 #endif
@@ -1327,6 +1329,7 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId,
 	struct sxg_rcv_data_buffer_hdr *RcvDataBufferHdr;
 #endif
 	u32 ReturnStatus = 0;
+	int sxg_rcv_data_buffers = SXG_RCV_DATA_BUFFERS;
 
 	ASSERT((adapter->State == SXG_STATE_RUNNING) ||
 	       (adapter->State == SXG_STATE_PAUSING) ||
@@ -1410,7 +1413,10 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId,
 		 *    sxg_complete_descriptor_blocks failed to allocate
 		 *    receive buffers.
 		 */
-		if (adapter->RcvBuffersOnCard < SXG_RCV_DATA_BUFFERS) {
+		if (adapter->JumboEnabled)
+			sxg_rcv_data_buffers = SXG_JUMBO_RCV_DATA_BUFFERS;
+
+		if (adapter->RcvBuffersOnCard < sxg_rcv_data_buffers) {
 			sxg_stock_rcv_buffers(adapter);
 		}
 		/*
@@ -1967,6 +1973,57 @@ static int sxg_entry_open(struct net_device *dev)
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
 	int status;
 	static int turn;
+	int sxg_initial_rcv_data_buffers = SXG_INITIAL_RCV_DATA_BUFFERS;
+	int i;
+
+	if (adapter->JumboEnabled == TRUE) {
+		sxg_initial_rcv_data_buffers =
+					SXG_INITIAL_JUMBO_RCV_DATA_BUFFERS;
+		SXG_INITIALIZE_RING(adapter->RcvRingZeroInfo,
+					SXG_JUMBO_RCV_RING_SIZE);
+	}
+
+	/*
+	* Allocate receive data buffers.  We allocate a block of buffers and
+	* a corresponding descriptor block at once.  See sxghw.h:SXG_RCV_BLOCK
+	*/
+
+	for (i = 0; i < sxg_initial_rcv_data_buffers;
+			i += SXG_RCV_DESCRIPTORS_PER_BLOCK)
+	{
+		status = sxg_allocate_buffer_memory(adapter,
+		SXG_RCV_BLOCK_SIZE(SXG_RCV_DATA_HDR_SIZE),
+					SXG_BUFFER_TYPE_RCV);
+		if (status != STATUS_SUCCESS)
+			return status;
+	}
+	/*
+	 * NBL resource allocation can fail in the 'AllocateComplete' routine,
+	 * which doesn't return status.  Make sure we got the number of buffers
+	 * we requested
+	 */
+
+	if (adapter->FreeRcvBufferCount < sxg_initial_rcv_data_buffers) {
+		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XAResF6",
+			adapter, adapter->FreeRcvBufferCount, SXG_MAX_ENTRIES,
+			0);
+		return (STATUS_RESOURCES);
+	}
+	/*
+	 * The microcode expects it to be downloaded on every open.
+	 */
+	DBG_ERROR("sxg: %s ENTER sxg_download_microcode\n", __FUNCTION__);
+	if (sxg_download_microcode(adapter, SXG_UCODE_SAHARA)) {
+		DBG_ERROR("sxg: %s ENTER sxg_adapter_set_hwaddr\n",
+				__FUNCTION__);
+		sxg_read_config(adapter);
+	} else {
+		adapter->state = ADAPT_FAIL;
+		adapter->linkstate = LINK_DOWN;
+		DBG_ERROR("sxg_download_microcode FAILED status[%x]\n",
+				status);
+	}
+	msleep(5);
 
 	if (turn) {
 		sxg_second_open(adapter->netdev);
@@ -2089,11 +2146,19 @@ static void __devexit sxg_entry_remove(struct pci_dev *pcidev)
 static int sxg_entry_halt(struct net_device *dev)
 {
 	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(dev);
+	struct sxg_hw_regs *HwRegs = adapter->HwRegs;
+	int i;
+	u32 RssIds, IsrCount;
+	unsigned long flags;
+
+	RssIds = SXG_RSS_CPU_COUNT(adapter);
+	IsrCount = adapter->MsiEnabled ? RssIds : 1;
 
 	napi_disable(&adapter->napi);
 	spin_lock_irqsave(&sxg_global.driver_lock, sxg_global.flags);
 	DBG_ERROR("sxg: %s (%s) ENTER\n", __func__, dev->name);
 
+	WRITE_REG(adapter->UcodeRegs[0].RcvCmd, 0, true);
 	netif_stop_queue(adapter->netdev);
 	adapter->state = ADAPT_DOWN;
 	adapter->linkstate = LINK_DOWN;
@@ -2104,13 +2169,57 @@ static int sxg_entry_halt(struct net_device *dev)
 	DBG_ERROR("sxg: %s (%s) EXIT\n", __func__, dev->name);
 	DBG_ERROR("sxg: %s EXIT\n", __func__);
 
-        /* Disable interrupts */
-        SXG_DISABLE_ALL_INTERRUPTS(adapter);
+	/* Disable interrupts */
+	SXG_DISABLE_ALL_INTERRUPTS(adapter);
 
 	netif_carrier_off(dev);
 	spin_unlock_irqrestore(&sxg_global.driver_lock, sxg_global.flags);
 
 	sxg_deregister_interrupt(adapter);
+	WRITE_REG(HwRegs->Reset, 0xDEAD, FLUSH);
+	mdelay(5000);
+	spin_lock(&adapter->RcvQLock);
+	/* Free all the blocks and the buffers, moved from remove() routine */
+	if (!(IsListEmpty(&adapter->AllRcvBlocks))) {
+		sxg_free_rcvblocks(adapter);
+	}
+
+
+	InitializeListHead(&adapter->FreeRcvBuffers);
+	InitializeListHead(&adapter->FreeRcvBlocks);
+	InitializeListHead(&adapter->AllRcvBlocks);
+	InitializeListHead(&adapter->FreeSglBuffers);
+	InitializeListHead(&adapter->AllSglBuffers);
+
+	adapter->FreeRcvBufferCount = 0;
+	adapter->FreeRcvBlockCount = 0;
+	adapter->AllRcvBlockCount = 0;
+	adapter->RcvBuffersOnCard = 0;
+	adapter->PendingRcvCount = 0;
+
+	memset(adapter->RcvRings, 0, sizeof(struct sxg_rcv_ring) * 1);
+	memset(adapter->EventRings, 0, sizeof(struct sxg_event_ring) * RssIds);
+	memset(adapter->Isr, 0, sizeof(u32) * IsrCount);
+	for (i = 0; i < SXG_MAX_RING_SIZE; i++)
+		adapter->RcvRingZeroInfo.Context[i] = NULL;
+	SXG_INITIALIZE_RING(adapter->RcvRingZeroInfo, SXG_RCV_RING_SIZE);
+	SXG_INITIALIZE_RING(adapter->XmtRingZeroInfo, SXG_XMT_RING_SIZE);
+
+	spin_unlock(&adapter->RcvQLock);
+
+	spin_lock_irqsave(&adapter->XmtZeroLock, flags);
+	adapter->AllSglBufferCount = 0;
+	adapter->FreeSglBufferCount = 0;
+	adapter->PendingXmtCount = 0;
+	memset(adapter->XmtRings, 0, sizeof(struct sxg_xmt_ring) * 1);
+	memset(adapter->XmtRingZeroIndex, 0, sizeof(u32));
+	spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
+
+
+	for (i = 0; i < SXG_MAX_RSS; i++) {
+		adapter->NextEvent[i] = 0;
+	}
+	atomic_set(&adapter->pending_allocations, 0);
 	return (STATUS_SUCCESS);
 }
 
@@ -2392,6 +2501,20 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 	 */
 	phys_addr = pci_map_single(adapter->pcidev, skb->data, skb->len,
 			   PCI_DMA_TODEVICE);
+
+	/*
+	 * SAHARA SGL WORKAROUND
+	 * See if the SGL straddles a 64k boundary.  If so, skip to
+	 * the start of the next 64k boundary and continue
+ 	 */
+
+	if (SXG_INVALID_SGL(phys_addr,skb->data_len))
+	{
+		spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
+		/* Silently drop this packet */
+		printk(KERN_EMERG"Dropped a packet for 64k boundary problem\n");
+		return STATUS_SUCCESS;
+	}
 	memset(XmtCmd, '\0', sizeof(*XmtCmd));
 	XmtCmd->Buffer.FirstSgeAddress = phys_addr;
 	XmtCmd->Buffer.FirstSgeLength = DataLength;
@@ -2836,6 +2959,37 @@ static void sxg_indicate_link_state(struct adapter_t *adapter,
 			  __func__);
 		netif_stop_queue(adapter->netdev);
 	}
+}
+
+/*
+ * sxg_change_mtu - Change the Maximum Transfer Unit
+ *  * @returns 0 on success, negative on failure
+ */
+int sxg_change_mtu (struct net_device *netdev, int new_mtu)
+{
+	struct adapter_t *adapter = (struct adapter_t *) netdev_priv(netdev);
+
+	if (!((new_mtu == SXG_DEFAULT_MTU) || (new_mtu == SXG_JUMBO_MTU)))
+		return -EINVAL;
+
+	if(new_mtu == netdev->mtu)
+		return 0;
+
+	netdev->mtu = new_mtu;
+
+	if (new_mtu == SXG_JUMBO_MTU) {
+		adapter->JumboEnabled = TRUE;
+		adapter->FrameSize = JUMBOMAXFRAME;
+		adapter->ReceiveBufferSize = SXG_RCV_JUMBO_BUFFER_SIZE;
+	} else {
+		adapter->JumboEnabled = FALSE;
+		adapter->FrameSize = ETHERMAXFRAME;
+		adapter->ReceiveBufferSize = SXG_RCV_DATA_BUFFER_SIZE;
+	}
+
+	sxg_entry_halt(netdev);
+	sxg_entry_open(netdev);
+	return 0;
 }
 
 /*
@@ -3742,6 +3896,7 @@ static int sxg_initialize_adapter(struct adapter_t *adapter)
 	u32 RssIds, IsrCount;
 	u32 i;
 	int status;
+	int sxg_rcv_ring_size = SXG_RCV_RING_SIZE;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "InitAdpt",
 		  adapter, 0, 0, 0);
@@ -3796,7 +3951,9 @@ static int sxg_initialize_adapter(struct adapter_t *adapter)
 	/* Receive ring base and size */
 	WRITE_REG64(adapter,
 		    adapter->UcodeRegs[0].RcvBase, adapter->PRcvRings, 0);
-	WRITE_REG(adapter->UcodeRegs[0].RcvSize, SXG_RCV_RING_SIZE, TRUE);
+	if (adapter->JumboEnabled == TRUE)
+		sxg_rcv_ring_size = SXG_JUMBO_RCV_RING_SIZE;
+	WRITE_REG(adapter->UcodeRegs[0].RcvSize, sxg_rcv_ring_size, TRUE);
 
 	/* Populate the card with receive buffers */
 	sxg_stock_rcv_buffers(adapter);
@@ -3933,6 +4090,8 @@ no_memory:
 static void sxg_stock_rcv_buffers(struct adapter_t *adapter)
 {
 	struct sxg_rcv_descriptor_block_hdr *RcvDescriptorBlockHdr;
+	int sxg_rcv_data_buffers = SXG_RCV_DATA_BUFFERS;
+	int sxg_min_rcv_data_buffers = SXG_MIN_RCV_DATA_BUFFERS;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "StockBuf",
 		  adapter, adapter->RcvBuffersOnCard,
@@ -3943,7 +4102,9 @@ static void sxg_stock_rcv_buffers(struct adapter_t *adapter)
 	 * we haven't exceeded our maximum.. get another block of buffers
 	 * None of this needs to be SMP safe.  It's round numbers.
 	 */
-	if ((adapter->FreeRcvBufferCount < SXG_MIN_RCV_DATA_BUFFERS) &&
+	if (adapter->JumboEnabled == TRUE)
+		sxg_min_rcv_data_buffers = SXG_MIN_JUMBO_RCV_DATA_BUFFERS;
+	if ((adapter->FreeRcvBufferCount < sxg_min_rcv_data_buffers) &&
 	    (adapter->AllRcvBlockCount < SXG_MAX_RCV_BLOCKS) &&
 	    (atomic_read(&adapter->pending_allocations) == 0)) {
 		sxg_allocate_buffer_memory(adapter,
@@ -3953,7 +4114,9 @@ static void sxg_stock_rcv_buffers(struct adapter_t *adapter)
 	}
 	/* Now grab the RcvQLock lock and proceed */
 	spin_lock(&adapter->RcvQLock);
-	while (adapter->RcvBuffersOnCard < SXG_RCV_DATA_BUFFERS) {
+	if (adapter->JumboEnabled)
+		sxg_rcv_data_buffers = SXG_JUMBO_RCV_DATA_BUFFERS;
+	while (adapter->RcvBuffersOnCard < sxg_rcv_data_buffers) {
 		struct list_entry *_ple;
 
 		/* Get a descriptor block */

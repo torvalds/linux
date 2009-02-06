@@ -418,6 +418,7 @@ struct sxg_event_ring {
 #define SXG_XMT_RING_SIZE	128		/* Start with 128 */
 #define SXG_RCV_RING_SIZE	128		/* Start with 128 */
 #define SXG_MAX_ENTRIES     4096
+#define SXG_JUMBO_RCV_RING_SIZE       32
 
 /* Structure and macros to manage a ring */
 struct sxg_ring_info {
@@ -713,6 +714,11 @@ enum sxg_buffer_type {
 /* Minimum amount and when to get more */
 #define SXG_MIN_RCV_DATA_BUFFERS	4096
 #define SXG_MAX_RCV_BLOCKS		256	/* = 32k receive buffers */
+/* Amount to give to the card in case of jumbo frames */
+#define SXG_JUMBO_RCV_DATA_BUFFERS		2048
+/* Initial pool of buffers in case of jumbo buffers */
+#define SXG_INITIAL_JUMBO_RCV_DATA_BUFFERS	4096
+#define SXG_MIN_JUMBO_RCV_DATA_BUFFERS		1024
 
 /* Receive buffer header */
 struct sxg_rcv_data_buffer_hdr {
@@ -874,10 +880,8 @@ extern struct sxg_sgl_pool_properties SxgSglPoolProperties[];
  * We currently workaround this issue by allocating SGL buffers
  * in 64k blocks and skipping over buffers that straddle the boundary.
  */
-#define SXG_INVALID_SGL(_SxgSgl)					\
-	(((_SxgSgl)->PhysicalAddress.LowPart & 0xFFFF0000) !=		\
-	 (((_SxgSgl)->PhysicalAddress.LowPart +				\
-	   SXG_SGL_SIZE((_SxgSgl)->Pool)) & 0xFFFF0000))
+#define SXG_INVALID_SGL(phys_addr,len) \
+	(((phys_addr >> 16) != ( (phys_addr + len) >> 16 )))
 
 /*
  * Allocate SGLs in blocks so we can skip over invalid entries.

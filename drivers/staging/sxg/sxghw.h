@@ -271,10 +271,10 @@ struct sxg_hw_regs {
 /*
  * Macro to determine RCV_CONFIG_BUFLEN based on maximum frame size.
  * We add 18 bytes for Sahara receive status and padding, plus 4 bytes for CRC,
- * and round up to nearest 16 byte boundary
+ * and round up to nearest 32 byte boundary
  */
 #define RCV_CONFIG_BUFSIZE(_MaxFrame)					\
-		((((_MaxFrame) + 22) + 15) & RCV_CONFIG_BUFLEN_MASK)
+		((((_MaxFrame) + 22) + 31) & RCV_CONFIG_BUFLEN_MASK)
 
 /* XmtConfig register reset */
 #define	XMT_CONFIG_RESET		0x80000000

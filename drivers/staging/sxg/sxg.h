@@ -108,7 +108,6 @@ struct sxg_stats {
 
 #define SXG_DROP_DUMB_SEND(_pAdapt, _skb) {                            	\
 	ASSERT(_skb);							\
-    dev_kfree_skb(_skb);                                                \
 }
 
 /*
@@ -132,6 +131,9 @@ struct sxg_stats {
         skb->next = NULL;                                               \
 	_RcvDataBufferHdr->PhysicalAddress = pci_map_single(adapter->pcidev,\
 	    _RcvDataBufferHdr->skb->data, BufferSize, PCI_DMA_FROMDEVICE);	\
+	if (SXG_INVALID_SGL(_RcvDataBufferHdr->PhysicalAddress,BufferSize))  \
+		printk(KERN_EMERG "SXG_ALLOCATE_RCV_PACKET: RCV packet" \
+					"non-64k boundary aligned\n");	\
     } else {                                                            \
     	(_RcvDataBufferHdr)->skb = NULL;                                \
     }                                                                  	\
@@ -757,6 +759,9 @@ struct slic_crash_info {
 
 #define ETHERMAXFRAME   1514
 #define JUMBOMAXFRAME   9014
+
+#define SXG_JUMBO_MTU 9000
+#define SXG_DEFAULT_MTU 1500
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
 #define   SXG_GET_ADDR_LOW(_addr)  (u32)((u64)(_addr) & 0x00000000FFFFFFFF)
