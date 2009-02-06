@@ -187,7 +187,6 @@ struct req_que;
  * SCSI Request Block
  */
 typedef struct srb {
-	struct scsi_qla_host *vha;	/* HA the SP is queued on */
 	struct req_que *que;
 	struct fc_port *fcport;
 
@@ -2136,7 +2135,6 @@ struct qla_msix_entry {
 /* Work events.  */
 enum qla_work_type {
 	QLA_EVT_AEN,
-	QLA_EVT_HWE_LOG,
 };
 
 
@@ -2151,10 +2149,6 @@ struct qla_work_evt {
 			enum fc_host_event_code code;
 			u32 data;
 		} aen;
-		struct {
-			uint16_t code;
-			uint16_t d1, d2, d3;
-		} hwe;
 	} u;
 };
 
@@ -2309,6 +2303,7 @@ struct qla_hw_data {
 #define PORT_SPEED_2GB  0x01
 #define PORT_SPEED_4GB  0x03
 #define PORT_SPEED_8GB  0x04
+#define PORT_SPEED_10GB	0x13
 	uint16_t	link_data_rate;         /* F/W operating speed */
 
 	uint8_t		current_topology;
@@ -2328,6 +2323,7 @@ struct qla_hw_data {
 
 #define PCI_DEVICE_ID_QLOGIC_ISP2532    0x2532
 #define PCI_DEVICE_ID_QLOGIC_ISP8432    0x8432
+#define PCI_DEVICE_ID_QLOGIC_ISP8001	0x8001
 	uint32_t	device_type;
 #define DT_ISP2100                      BIT_0
 #define DT_ISP2200                      BIT_1
@@ -2342,7 +2338,8 @@ struct qla_hw_data {
 #define DT_ISP5432                      BIT_10
 #define DT_ISP2532                      BIT_11
 #define DT_ISP8432                      BIT_12
-#define DT_ISP_LAST                     (DT_ISP8432 << 1)
+#define DT_ISP8001			BIT_13
+#define DT_ISP_LAST			(DT_ISP8001 << 1)
 
 #define DT_IIDMA                        BIT_26
 #define DT_FWI2                         BIT_27
@@ -2364,6 +2361,7 @@ struct qla_hw_data {
 #define IS_QLA5432(ha)  (DT_MASK(ha) & DT_ISP5432)
 #define IS_QLA2532(ha)  (DT_MASK(ha) & DT_ISP2532)
 #define IS_QLA8432(ha)  (DT_MASK(ha) & DT_ISP8432)
+#define IS_QLA8001(ha)	(DT_MASK(ha) & DT_ISP8001)
 
 #define IS_QLA23XX(ha)  (IS_QLA2300(ha) || IS_QLA2312(ha) || IS_QLA2322(ha) || \
 			IS_QLA6312(ha) || IS_QLA6322(ha))
@@ -2373,8 +2371,11 @@ struct qla_hw_data {
 #define IS_QLA84XX(ha)  (IS_QLA8432(ha))
 #define IS_QLA24XX_TYPE(ha)     (IS_QLA24XX(ha) || IS_QLA54XX(ha) || \
 				IS_QLA84XX(ha))
+#define IS_QLA81XX(ha)		(IS_QLA8001(ha))
 #define IS_QLA2XXX_MIDTYPE(ha)	(IS_QLA24XX(ha) || IS_QLA84XX(ha) || \
-				IS_QLA25XX(ha))
+				IS_QLA25XX(ha) || IS_QLA81XX(ha))
+#define IS_NOPOLLING_TYPE(ha)	((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && \
+				(ha)->flags.msix_enabled)
 
 #define IS_IIDMA_CAPABLE(ha)    ((ha)->device_type & DT_IIDMA)
 #define IS_FWI2_CAPABLE(ha)     ((ha)->device_type & DT_FWI2)
@@ -2472,6 +2473,9 @@ struct qla_hw_data {
 	uint8_t		fw_seriallink_options[4];
 	uint16_t	fw_seriallink_options24[4];
 
+	uint8_t		mpi_version[4];
+	uint32_t	mpi_capabilities;
+
 	/* Firmware dump information. */
 	struct qla2xxx_fw_dump *fw_dump;
 	uint32_t	fw_dump_len;
@@ -2480,6 +2484,7 @@ struct qla_hw_data {
 	dma_addr_t	eft_dma;
 	void		*eft;
 
+	uint32_t	chain_offset;
 	struct dentry *dfs_dir;
 	struct dentry *dfs_fce;
 	dma_addr_t	fce_dma;
@@ -2488,10 +2493,6 @@ struct qla_hw_data {
 	uint16_t	fce_mb[8];
 	uint64_t	fce_wr, fce_rd;
 	struct mutex	fce_mutex;
-
-	uint32_t	hw_event_start;
-	uint32_t	hw_event_ptr;
-	uint32_t	hw_event_pause_errors;
 
 	uint32_t	pci_attr;
 	uint16_t	chip_revision;
@@ -2522,6 +2523,12 @@ struct qla_hw_data {
 	uint8_t 	fcode_revision[16];
 	uint32_t	fw_revision[4];
 
+	/* Offsets for flash/nvram access (set to ~0 if not used). */
+	uint32_t	flash_conf_off;
+	uint32_t	flash_data_off;
+	uint32_t	nvram_conf_off;
+	uint32_t	nvram_data_off;
+
 	uint32_t	fdt_wrt_disable;
 	uint32_t	fdt_erase_cmd;
 	uint32_t	fdt_block_size;
@@ -2533,7 +2540,6 @@ struct qla_hw_data {
 	uint32_t        flt_region_boot;
 	uint32_t        flt_region_fw;
 	uint32_t        flt_region_vpd_nvram;
-	uint32_t        flt_region_hw_event;
 	uint32_t        flt_region_npiv_conf;
 
 	/* Needed for BEACON */
@@ -2737,6 +2743,7 @@ typedef struct scsi_qla_host {
 #define OPTROM_SIZE_2322	0x100000
 #define OPTROM_SIZE_24XX	0x100000
 #define OPTROM_SIZE_25XX	0x200000
+#define OPTROM_SIZE_81XX	0x400000
 
 #include "qla_gbl.h"
 #include "qla_dbg.h"

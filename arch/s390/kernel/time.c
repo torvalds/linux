@@ -160,7 +160,7 @@ void init_cpu_timer(void)
 	cd->min_delta_ns	= 1;
 	cd->max_delta_ns	= LONG_MAX;
 	cd->rating		= 400;
-	cd->cpumask		= cpumask_of_cpu(cpu);
+	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= s390_next_event;
 	cd->set_mode		= s390_set_mode;
 
@@ -399,8 +399,10 @@ static struct workqueue_struct *time_sync_wq;
 
 static void __init time_init_wq(void)
 {
-	if (!time_sync_wq)
-		time_sync_wq = create_singlethread_workqueue("timesync");
+	if (time_sync_wq)
+		return;
+	time_sync_wq = create_singlethread_workqueue("timesync");
+	stop_machine_create();
 }
 
 /*

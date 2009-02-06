@@ -69,10 +69,7 @@ static int __init dm_zero_init(void)
 
 static void __exit dm_zero_exit(void)
 {
-	int r = dm_unregister_target(&zero_target);
-
-	if (r < 0)
-		DMERR("unregister failed %d", r);
+	dm_unregister_target(&zero_target);
 }
 
 module_init(dm_zero_init)

@@ -153,7 +153,7 @@ static int vdc_send_attr(struct vio_driver_state *vio)
 	pkt.vdisk_block_size = port->vdisk_block_size;
 	pkt.max_xfer_size = port->max_xfer_size;
 
-	viodbg(HS, "SEND ATTR xfer_mode[0x%x] blksz[%u] max_xfer[%lu]\n",
+	viodbg(HS, "SEND ATTR xfer_mode[0x%x] blksz[%u] max_xfer[%llu]\n",
 	       pkt.xfer_mode, pkt.vdisk_block_size, pkt.max_xfer_size);
 
 	return vio_ldc_send(&port->vio, &pkt, sizeof(pkt));
@@ -164,8 +164,8 @@ static int vdc_handle_attr(struct vio_driver_state *vio, void *arg)
 	struct vdc_port *port = to_vdc_port(vio);
 	struct vio_disk_attr_info *pkt = arg;
 
-	viodbg(HS, "GOT ATTR stype[0x%x] ops[%lx] disk_size[%lu] disk_type[%x] "
-	       "xfer_mode[0x%x] blksz[%u] max_xfer[%lu]\n",
+	viodbg(HS, "GOT ATTR stype[0x%x] ops[%llx] disk_size[%llu] disk_type[%x] "
+	       "xfer_mode[0x%x] blksz[%u] max_xfer[%llu]\n",
 	       pkt->tag.stype, pkt->operations,
 	       pkt->vdisk_size, pkt->vdisk_type,
 	       pkt->xfer_mode, pkt->vdisk_block_size,
@@ -753,7 +753,7 @@ static int __devinit vdc_port_probe(struct vio_dev *vdev,
 
 	err = -ENODEV;
 	if ((vdev->dev_no << PARTITION_SHIFT) & ~(u64)MINORMASK) {
-		printk(KERN_ERR PFX "Port id [%lu] too large.\n",
+		printk(KERN_ERR PFX "Port id [%llu] too large.\n",
 		       vdev->dev_no);
 		goto err_out_release_mdesc;
 	}

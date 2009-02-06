@@ -8,16 +8,20 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/module.h>
 
 #include <asm/openprom.h>
 #include <asm/oplib.h>
 
 struct linux_romvec *romvec;
+EXPORT_SYMBOL(romvec);
+
 enum prom_major_version prom_vers;
 unsigned int prom_rev, prom_prev;
 
 /* The root node of the prom device tree. */
 int prom_root_node;
+EXPORT_SYMBOL(prom_root_node);
 
 /* Pointer to the device tree operations structure. */
 struct linux_nodeops *prom_nodeops;

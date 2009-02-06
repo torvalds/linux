@@ -30,11 +30,11 @@
 #if defined(CONFIG_40x) || defined(CONFIG_8xx)
 static inline void _tlbil_all(void)
 {
-	asm volatile ("sync; tlbia; isync" : : : "memory")
+	asm volatile ("sync; tlbia; isync" : : : "memory");
 }
 static inline void _tlbil_pid(unsigned int pid)
 {
-	asm volatile ("sync; tlbia; isync" : : : "memory")
+	asm volatile ("sync; tlbia; isync" : : : "memory");
 }
 #else /* CONFIG_40x || CONFIG_8xx */
 extern void _tlbil_all(void);
@@ -47,7 +47,7 @@ extern void _tlbil_pid(unsigned int pid);
 #ifdef CONFIG_8xx
 static inline void _tlbil_va(unsigned long address, unsigned int pid)
 {
-	asm volatile ("tlbie %0; sync" : : "r" (address) : "memory")
+	asm volatile ("tlbie %0; sync" : : "r" (address) : "memory");
 }
 #else /* CONFIG_8xx */
 extern void _tlbil_va(unsigned long address, unsigned int pid);
@@ -75,6 +75,15 @@ extern void _tlbia(void);
 #endif /* CONFIG_PPC_MMU_NOHASH */
 
 #ifdef CONFIG_PPC32
+
+struct tlbcam {
+	u32	MAS0;
+	u32	MAS1;
+	u32	MAS2;
+	u32	MAS3;
+	u32	MAS7;
+};
+
 extern void mapin_ram(void);
 extern int map_page(unsigned long va, phys_addr_t pa, int flags);
 extern void setbat(int index, unsigned long virt, phys_addr_t phys,
@@ -90,8 +99,6 @@ extern unsigned int rtas_data, rtas_size;
 struct hash_pte;
 extern struct hash_pte *Hash, *Hash_end;
 extern unsigned long Hash_size, Hash_mask;
-
-extern unsigned int num_tlbcam_entries;
 #endif
 
 extern unsigned long ioremap_bot;

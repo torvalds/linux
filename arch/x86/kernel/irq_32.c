@@ -15,9 +15,9 @@
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
+#include <linux/uaccess.h>
 
 #include <asm/apic.h>
-#include <asm/uaccess.h>
 
 DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 EXPORT_PER_CPU_SYMBOL(irq_stat);
@@ -93,7 +93,7 @@ execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq)
 		return 0;
 
 	/* build the stack frame on the IRQ stack */
-	isp = (u32 *) ((char*)irqctx + sizeof(*irqctx));
+	isp = (u32 *) ((char *)irqctx + sizeof(*irqctx));
 	irqctx->tinfo.task = curctx->tinfo.task;
 	irqctx->tinfo.previous_esp = current_stack_pointer;
 
@@ -137,7 +137,7 @@ void __cpuinit irq_ctx_init(int cpu)
 
 	hardirq_ctx[cpu] = irqctx;
 
-	irqctx = (union irq_ctx*) &softirq_stack[cpu*THREAD_SIZE];
+	irqctx = (union irq_ctx *) &softirq_stack[cpu*THREAD_SIZE];
 	irqctx->tinfo.task		= NULL;
 	irqctx->tinfo.exec_domain	= NULL;
 	irqctx->tinfo.cpu		= cpu;
@@ -147,7 +147,7 @@ void __cpuinit irq_ctx_init(int cpu)
 	softirq_ctx[cpu] = irqctx;
 
 	printk(KERN_DEBUG "CPU %u irqstacks, hard=%p soft=%p\n",
-	       cpu,hardirq_ctx[cpu],softirq_ctx[cpu]);
+	       cpu, hardirq_ctx[cpu], softirq_ctx[cpu]);
 }
 
 void irq_ctx_exit(int cpu)
@@ -174,7 +174,7 @@ asmlinkage void do_softirq(void)
 		irqctx->tinfo.previous_esp = current_stack_pointer;
 
 		/* build the stack frame on the softirq stack */
-		isp = (u32*) ((char*)irqctx + sizeof(*irqctx));
+		isp = (u32 *) ((char *)irqctx + sizeof(*irqctx));
 
 		call_on_stack(__do_softirq, isp);
 		/*
@@ -233,27 +233,28 @@ unsigned int do_IRQ(struct pt_regs *regs)
 #ifdef CONFIG_HOTPLUG_CPU
 #include <mach_apic.h>
 
-void fixup_irqs(cpumask_t map)
+/* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
+void fixup_irqs(void)
 {
 	unsigned int irq;
 	static int warned;
 	struct irq_desc *desc;
 
 	for_each_irq_desc(irq, desc) {
-		cpumask_t mask;
+		const struct cpumask *affinity;
 
 		if (!desc)
 			continue;
 		if (irq == 2)
 			continue;
 
-		cpus_and(mask, desc->affinity, map);
-		if (any_online_cpu(mask) == NR_CPUS) {
+		affinity = &desc->affinity;
+		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 			printk("Breaking affinity for irq %i\n", irq);
-			mask = map;
+			affinity = cpu_all_mask;
 		}
 		if (desc->chip->set_affinity)
-			desc->chip->set_affinity(irq, mask);
+			desc->chip->set_affinity(irq, affinity);
 		else if (desc->action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}

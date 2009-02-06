@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/acpi.h>
 #include <asm/e820.h>
-#include "pci.h"
+#include <asm/pci_x86.h>
 
 /* Assume systems with more busses have correct MCFG */
 #define mmcfg_virt_addr ((void __iomem *) fix_to_virt(FIX_PCIE_MCFG))

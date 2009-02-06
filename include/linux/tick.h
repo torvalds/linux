@@ -84,10 +84,10 @@ static inline void tick_cancel_sched_timer(int cpu) { }
 
 # ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 extern struct tick_device *tick_get_broadcast_device(void);
-extern cpumask_t *tick_get_broadcast_mask(void);
+extern struct cpumask *tick_get_broadcast_mask(void);
 
 #  ifdef CONFIG_TICK_ONESHOT
-extern cpumask_t *tick_get_broadcast_oneshot_mask(void);
+extern struct cpumask *tick_get_broadcast_oneshot_mask(void);
 #  endif
 
 # endif /* BROADCAST */

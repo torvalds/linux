@@ -37,7 +37,7 @@
 #include "../pci.h"
 #include "cpqphp.h"
 #include "cpqphp_nvram.h"
-#include "../../../arch/x86/pci/pci.h"	/* horrible hack showing how processor dependent we are... */
+#include <asm/pci_x86.h>
 
 
 u8 cpqhp_nic_irq;
@@ -171,7 +171,7 @@ int cpqhp_set_irq (u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num)
 		fakebus->number = bus_num;
 		dbg("%s: dev %d, bus %d, pin %d, num %d\n",
 		    __func__, dev_num, bus_num, int_pin, irq_num);
-		rc = pcibios_set_irq_routing(fakedev, int_pin - 0x0a, irq_num);
+		rc = pcibios_set_irq_routing(fakedev, int_pin - 1, irq_num);
 		kfree(fakedev);
 		kfree(fakebus);
 		dbg("%s: rc %d\n", __func__, rc);

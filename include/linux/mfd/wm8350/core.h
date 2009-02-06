@@ -29,6 +29,7 @@
  */
 #define WM8350_RESET_ID                         0x00
 #define WM8350_ID                               0x01
+#define WM8350_REVISION				0x02
 #define WM8350_SYSTEM_CONTROL_1                 0x03
 #define WM8350_SYSTEM_CONTROL_2                 0x04
 #define WM8350_SYSTEM_HIBERNATE                 0x05
@@ -57,6 +58,10 @@
 #define WM8350_OVER_CURRENT_INT_STATUS_MASK     0x25
 #define WM8350_GPIO_INT_STATUS_MASK             0x26
 #define WM8350_COMPARATOR_INT_STATUS_MASK       0x27
+#define WM8350_CHARGER_OVERRIDES		0xE2
+#define WM8350_MISC_OVERRIDES			0xE3
+#define WM8350_COMPARATOR_OVERRIDES		0xE7
+#define WM8350_STATE_MACHINE_STATUS		0xE9
 
 #define WM8350_MAX_REGISTER                     0xFF
 
@@ -75,6 +80,11 @@
 #define WM8350_CHIP_REV_MASK                    0x7000
 #define WM8350_CONF_STS_MASK                    0x0C00
 #define WM8350_CUST_ID_MASK                     0x00FF
+
+/*
+ * R2 (0x02) - Revision
+ */
+#define WM8350_MASK_REV_MASK			0x00FF
 
 /*
  * R3 (0x03) - System Control 1
@@ -523,6 +533,35 @@
 #define WM8350_DC2_STS                          0x0002
 #define WM8350_DC1_STS                          0x0001
 
+/*
+ * R226 (0xE2) - Charger status
+ */
+#define WM8350_CHG_BATT_HOT_OVRDE		0x8000
+#define WM8350_CHG_BATT_COLD_OVRDE		0x4000
+
+/*
+ * R227 (0xE3) - Misc Overrides
+ */
+#define WM8350_USB_LIMIT_OVRDE			0x0400
+
+/*
+ * R227 (0xE7) - Comparator Overrides
+ */
+#define WM8350_USB_FB_OVRDE			0x8000
+#define WM8350_WALL_FB_OVRDE			0x4000
+#define WM8350_BATT_FB_OVRDE			0x2000
+
+
+/*
+ * R233 (0xE9) - State Machinine Status
+ */
+#define WM8350_USB_SM_MASK			0x0700
+#define WM8350_USB_SM_SHIFT			8
+
+#define WM8350_USB_SM_100_SLV   1
+#define WM8350_USB_SM_500_SLV   5
+#define WM8350_USB_SM_STDBY_SLV 7
+
 /* WM8350 wake up conditions */
 #define WM8350_IRQ_WKUP_OFF_STATE		43
 #define WM8350_IRQ_WKUP_HIB_STATE		44
@@ -536,6 +575,7 @@
 #define WM8350_REV_E				0x4
 #define WM8350_REV_F				0x5
 #define WM8350_REV_G				0x6
+#define WM8350_REV_H				0x7
 
 #define WM8350_NUM_IRQ				63
 
@@ -549,6 +589,14 @@ extern const u16 wm8350_mode0_defaults[];
 extern const u16 wm8350_mode1_defaults[];
 extern const u16 wm8350_mode2_defaults[];
 extern const u16 wm8350_mode3_defaults[];
+extern const u16 wm8351_mode0_defaults[];
+extern const u16 wm8351_mode1_defaults[];
+extern const u16 wm8351_mode2_defaults[];
+extern const u16 wm8351_mode3_defaults[];
+extern const u16 wm8352_mode0_defaults[];
+extern const u16 wm8352_mode1_defaults[];
+extern const u16 wm8352_mode2_defaults[];
+extern const u16 wm8352_mode3_defaults[];
 
 struct wm8350;
 
@@ -558,8 +606,6 @@ struct wm8350_irq {
 };
 
 struct wm8350 {
-	int rev;		/* chip revision */
-
 	struct device *dev;
 
 	/* device IO */
@@ -571,6 +617,8 @@ struct wm8350 {
 	int (*write_dev)(struct wm8350 *wm8350, char reg, int size,
 			 void *src);
 	u16 *reg_cache;
+
+	struct mutex auxadc_mutex;
 
 	/* Interrupt handling */
 	struct work_struct irq_work;

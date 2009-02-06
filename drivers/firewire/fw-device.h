@@ -21,12 +21,14 @@
 
 #include <linux/fs.h>
 #include <linux/cdev.h>
+#include <linux/idr.h>
 #include <linux/rwsem.h>
 #include <asm/atomic.h>
 
 enum fw_device_state {
 	FW_DEVICE_INITIALIZING,
 	FW_DEVICE_RUNNING,
+	FW_DEVICE_GONE,
 	FW_DEVICE_SHUTDOWN,
 };
 
@@ -99,6 +101,7 @@ void fw_device_cdev_update(struct fw_device *device);
 void fw_device_cdev_remove(struct fw_device *device);
 
 extern struct rw_semaphore fw_device_rwsem;
+extern struct idr fw_device_idr;
 extern int fw_cdev_major;
 
 /*

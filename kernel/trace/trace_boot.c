@@ -42,7 +42,7 @@ static int boot_trace_init(struct trace_array *tr)
 	int cpu;
 	boot_trace = tr;
 
-	for_each_cpu_mask(cpu, cpu_possible_map)
+	for_each_cpu(cpu, cpu_possible_mask)
 		tracing_reset(tr, cpu);
 
 	tracing_sched_switch_assign_trace(tr);

@@ -56,19 +56,9 @@ extern unsigned long mmap_min_addr;
 
 extern struct kmem_cache *vm_area_cachep;
 
-/*
- * This struct defines the per-mm list of VMAs for uClinux. If CONFIG_MMU is
- * disabled, then there's a single shared list of VMAs maintained by the
- * system, and mm's subscribe to these individually
- */
-struct vm_list_struct {
-	struct vm_list_struct	*next;
-	struct vm_area_struct	*vma;
-};
-
 #ifndef CONFIG_MMU
-extern struct rb_root nommu_vma_tree;
-extern struct rw_semaphore nommu_vma_sem;
+extern struct rb_root nommu_region_tree;
+extern struct rw_semaphore nommu_region_sem;
 
 extern unsigned int kobjsize(const void *objp);
 #endif
@@ -270,7 +260,6 @@ static inline int put_page_testzero(struct page *page)
  */
 static inline int get_page_unless_zero(struct page *page)
 {
-	VM_BUG_ON(PageTail(page));
 	return atomic_inc_not_zero(&page->_count);
 }
 
@@ -717,6 +706,11 @@ static inline int page_mapped(struct page *page)
 
 #define VM_FAULT_ERROR	(VM_FAULT_OOM | VM_FAULT_SIGBUS)
 
+/*
+ * Can be called by the pagefault handler when it gets a VM_FAULT_OOM.
+ */
+extern void pagefault_out_of_memory(void);
+
 #define offset_in_page(p)	((unsigned long)(p) & ~PAGE_MASK)
 
 extern void show_free_areas(void);
@@ -1056,6 +1050,7 @@ extern void memmap_init_zone(unsigned long, int, unsigned long,
 				unsigned long, enum memmap_context);
 extern void setup_per_zone_pages_min(void);
 extern void mem_init(void);
+extern void __init mmap_init(void);
 extern void show_mem(void);
 extern void si_meminfo(struct sysinfo * val);
 extern void si_meminfo_node(struct sysinfo *val, int nid);
@@ -1066,6 +1061,9 @@ extern void setup_per_cpu_pageset(void);
 #else
 static inline void setup_per_cpu_pageset(void) {}
 #endif
+
+/* nommu.c */
+extern atomic_t mmap_pages_allocated;
 
 /* prio_tree.c */
 void vma_prio_tree_add(struct vm_area_struct *, struct vm_area_struct *old);

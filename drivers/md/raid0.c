@@ -53,11 +53,10 @@ static int raid0_congested(void *data, int bits)
 static int create_strip_zones (mddev_t *mddev)
 {
 	int i, c, j;
-	sector_t current_offset, curr_zone_offset;
+	sector_t current_start, curr_zone_start;
 	sector_t min_spacing;
 	raid0_conf_t *conf = mddev_to_conf(mddev);
 	mdk_rdev_t *smallest, *rdev1, *rdev2, *rdev;
-	struct list_head *tmp1, *tmp2;
 	struct strip_zone *zone;
 	int cnt;
 	char b[BDEVNAME_SIZE];
@@ -67,19 +66,19 @@ static int create_strip_zones (mddev_t *mddev)
 	 */
 	conf->nr_strip_zones = 0;
  
-	rdev_for_each(rdev1, tmp1, mddev) {
-		printk("raid0: looking at %s\n",
+	list_for_each_entry(rdev1, &mddev->disks, same_set) {
+		printk(KERN_INFO "raid0: looking at %s\n",
 			bdevname(rdev1->bdev,b));
 		c = 0;
-		rdev_for_each(rdev2, tmp2, mddev) {
-			printk("raid0:   comparing %s(%llu)",
+		list_for_each_entry(rdev2, &mddev->disks, same_set) {
+			printk(KERN_INFO "raid0:   comparing %s(%llu)",
 			       bdevname(rdev1->bdev,b),
 			       (unsigned long long)rdev1->size);
-			printk(" with %s(%llu)\n",
+			printk(KERN_INFO " with %s(%llu)\n",
 			       bdevname(rdev2->bdev,b),
 			       (unsigned long long)rdev2->size);
 			if (rdev2 == rdev1) {
-				printk("raid0:   END\n");
+				printk(KERN_INFO "raid0:   END\n");
 				break;
 			}
 			if (rdev2->size == rdev1->size)
@@ -88,19 +87,20 @@ static int create_strip_zones (mddev_t *mddev)
 				 * Not unique, don't count it as a new
 				 * group
 				 */
-				printk("raid0:   EQUAL\n");
+				printk(KERN_INFO "raid0:   EQUAL\n");
 				c = 1;
 				break;
 			}
-			printk("raid0:   NOT EQUAL\n");
+			printk(KERN_INFO "raid0:   NOT EQUAL\n");
 		}
 		if (!c) {
-			printk("raid0:   ==> UNIQUE\n");
+			printk(KERN_INFO "raid0:   ==> UNIQUE\n");
 			conf->nr_strip_zones++;
-			printk("raid0: %d zones\n", conf->nr_strip_zones);
+			printk(KERN_INFO "raid0: %d zones\n",
+				conf->nr_strip_zones);
 		}
 	}
-	printk("raid0: FINAL %d zones\n", conf->nr_strip_zones);
+	printk(KERN_INFO "raid0: FINAL %d zones\n", conf->nr_strip_zones);
 
 	conf->strip_zone = kzalloc(sizeof(struct strip_zone)*
 				conf->nr_strip_zones, GFP_KERNEL);
@@ -119,16 +119,17 @@ static int create_strip_zones (mddev_t *mddev)
 	cnt = 0;
 	smallest = NULL;
 	zone->dev = conf->devlist;
-	rdev_for_each(rdev1, tmp1, mddev) {
+	list_for_each_entry(rdev1, &mddev->disks, same_set) {
 		int j = rdev1->raid_disk;
 
 		if (j < 0 || j >= mddev->raid_disks) {
-			printk("raid0: bad disk number %d - aborting!\n", j);
+			printk(KERN_ERR "raid0: bad disk number %d - "
+				"aborting!\n", j);
 			goto abort;
 		}
 		if (zone->dev[j]) {
-			printk("raid0: multiple devices for %d - aborting!\n",
-				j);
+			printk(KERN_ERR "raid0: multiple devices for %d - "
+				"aborting!\n", j);
 			goto abort;
 		}
 		zone->dev[j] = rdev1;
@@ -149,16 +150,16 @@ static int create_strip_zones (mddev_t *mddev)
 		cnt++;
 	}
 	if (cnt != mddev->raid_disks) {
-		printk("raid0: too few disks (%d of %d) - aborting!\n",
-			cnt, mddev->raid_disks);
+		printk(KERN_ERR "raid0: too few disks (%d of %d) - "
+			"aborting!\n", cnt, mddev->raid_disks);
 		goto abort;
 	}
 	zone->nb_dev = cnt;
-	zone->size = smallest->size * cnt;
-	zone->zone_offset = 0;
+	zone->sectors = smallest->size * cnt * 2;
+	zone->zone_start = 0;
 
-	current_offset = smallest->size;
-	curr_zone_offset = zone->size;
+	current_start = smallest->size * 2;
+	curr_zone_start = zone->sectors;
 
 	/* now do the other zones */
 	for (i = 1; i < conf->nr_strip_zones; i++)
@@ -166,40 +167,41 @@ static int create_strip_zones (mddev_t *mddev)
 		zone = conf->strip_zone + i;
 		zone->dev = conf->strip_zone[i-1].dev + mddev->raid_disks;
 
-		printk("raid0: zone %d\n", i);
-		zone->dev_offset = current_offset;
+		printk(KERN_INFO "raid0: zone %d\n", i);
+		zone->dev_start = current_start;
 		smallest = NULL;
 		c = 0;
 
 		for (j=0; j<cnt; j++) {
 			char b[BDEVNAME_SIZE];
 			rdev = conf->strip_zone[0].dev[j];
-			printk("raid0: checking %s ...", bdevname(rdev->bdev,b));
-			if (rdev->size > current_offset)
-			{
-				printk(" contained as device %d\n", c);
+			printk(KERN_INFO "raid0: checking %s ...",
+				bdevname(rdev->bdev, b));
+			if (rdev->size > current_start / 2) {
+				printk(KERN_INFO " contained as device %d\n",
+					c);
 				zone->dev[c] = rdev;
 				c++;
 				if (!smallest || (rdev->size <smallest->size)) {
 					smallest = rdev;
-					printk("  (%llu) is smallest!.\n", 
+					printk(KERN_INFO "  (%llu) is smallest!.\n",
 						(unsigned long long)rdev->size);
 				}
 			} else
-				printk(" nope.\n");
+				printk(KERN_INFO " nope.\n");
 		}
 
 		zone->nb_dev = c;
-		zone->size = (smallest->size - current_offset) * c;
-		printk("raid0: zone->nb_dev: %d, size: %llu\n",
-			zone->nb_dev, (unsigned long long)zone->size);
+		zone->sectors = (smallest->size * 2 - current_start) * c;
+		printk(KERN_INFO "raid0: zone->nb_dev: %d, sectors: %llu\n",
+			zone->nb_dev, (unsigned long long)zone->sectors);
 
-		zone->zone_offset = curr_zone_offset;
-		curr_zone_offset += zone->size;
+		zone->zone_start = curr_zone_start;
+		curr_zone_start += zone->sectors;
 
-		current_offset = smallest->size;
-		printk("raid0: current zone offset: %llu\n",
-			(unsigned long long)current_offset);
+		current_start = smallest->size * 2;
+		printk(KERN_INFO "raid0: current zone start: %llu\n",
+			(unsigned long long)current_start);
 	}
 
 	/* Now find appropriate hash spacing.
@@ -210,16 +212,16 @@ static int create_strip_zones (mddev_t *mddev)
 	 * strip though as it's size has no bearing on the efficacy of the hash
 	 * table.
 	 */
-	conf->hash_spacing = curr_zone_offset;
-	min_spacing = curr_zone_offset;
+	conf->spacing = curr_zone_start;
+	min_spacing = curr_zone_start;
 	sector_div(min_spacing, PAGE_SIZE/sizeof(struct strip_zone*));
 	for (i=0; i < conf->nr_strip_zones-1; i++) {
-		sector_t sz = 0;
-		for (j=i; j<conf->nr_strip_zones-1 &&
-			     sz < min_spacing ; j++)
-			sz += conf->strip_zone[j].size;
-		if (sz >= min_spacing && sz < conf->hash_spacing)
-			conf->hash_spacing = sz;
+		sector_t s = 0;
+		for (j = i; j < conf->nr_strip_zones - 1 &&
+				s < min_spacing; j++)
+			s += conf->strip_zone[j].sectors;
+		if (s >= min_spacing && s < conf->spacing)
+			conf->spacing = s;
 	}
 
 	mddev->queue->unplug_fn = raid0_unplug;
@@ -227,7 +229,7 @@ static int create_strip_zones (mddev_t *mddev)
 	mddev->queue->backing_dev_info.congested_fn = raid0_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
 
-	printk("raid0: done.\n");
+	printk(KERN_INFO "raid0: done.\n");
 	return 0;
  abort:
 	return 1;
@@ -262,10 +264,9 @@ static int raid0_mergeable_bvec(struct request_queue *q,
 static int raid0_run (mddev_t *mddev)
 {
 	unsigned  cur=0, i=0, nb_zone;
-	s64 size;
+	s64 sectors;
 	raid0_conf_t *conf;
 	mdk_rdev_t *rdev;
-	struct list_head *tmp;
 
 	if (mddev->chunk_size == 0) {
 		printk(KERN_ERR "md/raid0: non-zero chunk size required.\n");
@@ -291,54 +292,54 @@ static int raid0_run (mddev_t *mddev)
 
 	/* calculate array device size */
 	mddev->array_sectors = 0;
-	rdev_for_each(rdev, tmp, mddev)
+	list_for_each_entry(rdev, &mddev->disks, same_set)
 		mddev->array_sectors += rdev->size * 2;
 
-	printk("raid0 : md_size is %llu blocks.\n", 
-		(unsigned long long)mddev->array_sectors / 2);
-	printk("raid0 : conf->hash_spacing is %llu blocks.\n",
-		(unsigned long long)conf->hash_spacing);
+	printk(KERN_INFO "raid0 : md_size is %llu sectors.\n",
+		(unsigned long long)mddev->array_sectors);
+	printk(KERN_INFO "raid0 : conf->spacing is %llu sectors.\n",
+		(unsigned long long)conf->spacing);
 	{
-		sector_t s = mddev->array_sectors / 2;
-		sector_t space = conf->hash_spacing;
+		sector_t s = mddev->array_sectors;
+		sector_t space = conf->spacing;
 		int round;
-		conf->preshift = 0;
+		conf->sector_shift = 0;
 		if (sizeof(sector_t) > sizeof(u32)) {
 			/*shift down space and s so that sector_div will work */
 			while (space > (sector_t) (~(u32)0)) {
 				s >>= 1;
 				space >>= 1;
 				s += 1; /* force round-up */
-				conf->preshift++;
+				conf->sector_shift++;
 			}
 		}
 		round = sector_div(s, (u32)space) ? 1 : 0;
 		nb_zone = s + round;
 	}
-	printk("raid0 : nb_zone is %d.\n", nb_zone);
+	printk(KERN_INFO "raid0 : nb_zone is %d.\n", nb_zone);
 
-	printk("raid0 : Allocating %Zd bytes for hash.\n",
+	printk(KERN_INFO "raid0 : Allocating %zu bytes for hash.\n",
 				nb_zone*sizeof(struct strip_zone*));
 	conf->hash_table = kmalloc (sizeof (struct strip_zone *)*nb_zone, GFP_KERNEL);
 	if (!conf->hash_table)
 		goto out_free_conf;
-	size = conf->strip_zone[cur].size;
+	sectors = conf->strip_zone[cur].sectors;
 
 	conf->hash_table[0] = conf->strip_zone + cur;
 	for (i=1; i< nb_zone; i++) {
-		while (size <= conf->hash_spacing) {
+		while (sectors <= conf->spacing) {
 			cur++;
-			size += conf->strip_zone[cur].size;
+			sectors += conf->strip_zone[cur].sectors;
 		}
-		size -= conf->hash_spacing;
+		sectors -= conf->spacing;
 		conf->hash_table[i] = conf->strip_zone + cur;
 	}
-	if (conf->preshift) {
-		conf->hash_spacing >>= conf->preshift;
-		/* round hash_spacing up so when we divide by it, we
+	if (conf->sector_shift) {
+		conf->spacing >>= conf->sector_shift;
+		/* round spacing up so when we divide by it, we
 		 * err on the side of too-low, which is safest
 		 */
-		conf->hash_spacing++;
+		conf->spacing++;
 	}
 
 	/* calculate the max read-ahead size.
@@ -387,12 +388,12 @@ static int raid0_stop (mddev_t *mddev)
 static int raid0_make_request (struct request_queue *q, struct bio *bio)
 {
 	mddev_t *mddev = q->queuedata;
-	unsigned int sect_in_chunk, chunksize_bits,  chunk_size, chunk_sects;
+	unsigned int sect_in_chunk, chunksect_bits, chunk_sects;
 	raid0_conf_t *conf = mddev_to_conf(mddev);
 	struct strip_zone *zone;
 	mdk_rdev_t *tmp_dev;
 	sector_t chunk;
-	sector_t block, rsect;
+	sector_t sector, rsect;
 	const int rw = bio_data_dir(bio);
 	int cpu;
 
@@ -407,11 +408,9 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 		      bio_sectors(bio));
 	part_stat_unlock();
 
-	chunk_size = mddev->chunk_size >> 10;
 	chunk_sects = mddev->chunk_size >> 9;
-	chunksize_bits = ffz(~chunk_size);
-	block = bio->bi_sector >> 1;
-	
+	chunksect_bits = ffz(~chunk_sects);
+	sector = bio->bi_sector;
 
 	if (unlikely(chunk_sects < (bio->bi_sector & (chunk_sects - 1)) + (bio->bi_size >> 9))) {
 		struct bio_pair *bp;
@@ -434,28 +433,27 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
  
 
 	{
-		sector_t x = block >> conf->preshift;
-		sector_div(x, (u32)conf->hash_spacing);
+		sector_t x = sector >> conf->sector_shift;
+		sector_div(x, (u32)conf->spacing);
 		zone = conf->hash_table[x];
 	}
- 
-	while (block >= (zone->zone_offset + zone->size)) 
+
+	while (sector >= zone->zone_start + zone->sectors)
 		zone++;
-    
-	sect_in_chunk = bio->bi_sector & ((chunk_size<<1) -1);
+
+	sect_in_chunk = bio->bi_sector & (chunk_sects - 1);
 
 
 	{
-		sector_t x =  (block - zone->zone_offset) >> chunksize_bits;
+		sector_t x = (sector - zone->zone_start) >> chunksect_bits;
 
 		sector_div(x, zone->nb_dev);
 		chunk = x;
 
-		x = block >> chunksize_bits;
+		x = sector >> chunksect_bits;
 		tmp_dev = zone->dev[sector_div(x, zone->nb_dev)];
 	}
-	rsect = (((chunk << chunksize_bits) + zone->dev_offset)<<1)
-		+ sect_in_chunk;
+	rsect = (chunk << chunksect_bits) + zone->dev_start + sect_in_chunk;
  
 	bio->bi_bdev = tmp_dev->bdev;
 	bio->bi_sector = rsect + tmp_dev->data_offset;
@@ -467,7 +465,7 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 
 bad_map:
 	printk("raid0_make_request bug: can't convert block across chunks"
-		" or bigger than %dk %llu %d\n", chunk_size, 
+		" or bigger than %dk %llu %d\n", chunk_sects / 2,
 		(unsigned long long)bio->bi_sector, bio->bi_size >> 10);
 
 	bio_io_error(bio);
@@ -492,10 +490,10 @@ static void raid0_status (struct seq_file *seq, mddev_t *mddev)
 			seq_printf(seq, "%s/", bdevname(
 				conf->strip_zone[j].dev[k]->bdev,b));
 
-		seq_printf(seq, "] zo=%d do=%d s=%d\n",
-				conf->strip_zone[j].zone_offset,
-				conf->strip_zone[j].dev_offset,
-				conf->strip_zone[j].size);
+		seq_printf(seq, "] zs=%d ds=%d s=%d\n",
+				conf->strip_zone[j].zone_start,
+				conf->strip_zone[j].dev_start,
+				conf->strip_zone[j].sectors);
 	}
 #endif
 	seq_printf(seq, " %dk chunks", mddev->chunk_size/1024);

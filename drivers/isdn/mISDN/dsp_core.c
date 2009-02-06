@@ -191,6 +191,8 @@ dsp_rx_off_member(struct dsp *dsp)
 	struct mISDN_ctrl_req	cq;
 	int rx_off = 1;
 
+	memset(&cq, 0, sizeof(cq));
+
 	if (!dsp->features_rx_off)
 		return;
 
@@ -249,6 +251,32 @@ dsp_rx_off(struct dsp *dsp)
 	}
 }
 
+/* enable "fill empty" feature */
+static void
+dsp_fill_empty(struct dsp *dsp)
+{
+	struct mISDN_ctrl_req	cq;
+
+	memset(&cq, 0, sizeof(cq));
+
+	if (!dsp->ch.peer) {
+		if (dsp_debug & DEBUG_DSP_CORE)
+			printk(KERN_DEBUG "%s: no peer, no fill_empty\n",
+				__func__);
+		return;
+	}
+	cq.op = MISDN_CTRL_FILL_EMPTY;
+	cq.p1 = 1;
+	if (dsp->ch.peer->ctrl(dsp->ch.peer, CONTROL_CHANNEL, &cq)) {
+		printk(KERN_DEBUG "%s: CONTROL_CHANNEL failed\n",
+			__func__);
+		return;
+	}
+	if (dsp_debug & DEBUG_DSP_CORE)
+		printk(KERN_DEBUG "%s: %s set fill_empty = 1\n",
+			__func__, dsp->name);
+}
+
 static int
 dsp_control_req(struct dsp *dsp, struct mISDNhead *hh, struct sk_buff *skb)
 {
@@ -273,8 +301,9 @@ dsp_control_req(struct dsp *dsp, struct mISDNhead *hh, struct sk_buff *skb)
 		if (dsp_debug & DEBUG_DSP_CORE)
 			printk(KERN_DEBUG "%s: start dtmf\n", __func__);
 		if (len == sizeof(int)) {
-			printk(KERN_NOTICE "changing DTMF Threshold "
-				"to %d\n", *((int *)data));
+			if (dsp_debug & DEBUG_DSP_CORE)
+				printk(KERN_NOTICE "changing DTMF Threshold "
+					"to %d\n", *((int *)data));
 			dsp->dtmf.treshold = (*(int *)data) * 10000;
 		}
 		/* init goertzel */
@@ -593,8 +622,6 @@ get_features(struct mISDNchannel *ch)
 	struct dsp		*dsp = container_of(ch, struct dsp, ch);
 	struct mISDN_ctrl_req	cq;
 
-	if (dsp_options & DSP_OPT_NOHARDWARE)
-		return;
 	if (!ch->peer) {
 		if (dsp_debug & DEBUG_DSP_CORE)
 			printk(KERN_DEBUG "%s: no peer, no features\n",
@@ -610,6 +637,10 @@ get_features(struct mISDNchannel *ch)
 	}
 	if (cq.op & MISDN_CTRL_RX_OFF)
 		dsp->features_rx_off = 1;
+	if (cq.op & MISDN_CTRL_FILL_EMPTY)
+		dsp->features_fill_empty = 1;
+	if (dsp_options & DSP_OPT_NOHARDWARE)
+		return;
 	if ((cq.op & MISDN_CTRL_HW_FEATURES_OP)) {
 		cq.op = MISDN_CTRL_HW_FEATURES;
 		*((u_long *)&cq.p1) = (u_long)&dsp->features;
@@ -837,11 +868,14 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 		}
 		if (dsp->hdlc) {
 			/* hdlc */
-			spin_lock_irqsave(&dsp_lock, flags);
-			if (dsp->b_active) {
-				skb_queue_tail(&dsp->sendq, skb);
-				schedule_work(&dsp->workq);
+			if (!dsp->b_active) {
+				ret = -EIO;
+				break;
 			}
+			hh->prim = PH_DATA_REQ;
+			spin_lock_irqsave(&dsp_lock, flags);
+			skb_queue_tail(&dsp->sendq, skb);
+			schedule_work(&dsp->workq);
 			spin_unlock_irqrestore(&dsp_lock, flags);
 			return 0;
 		}
@@ -865,6 +899,9 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 		if (dsp->dtmf.hardware || dsp->dtmf.software)
 			dsp_dtmf_goertzel_init(dsp);
 		get_features(ch);
+		/* enable fill_empty feature */
+		if (dsp->features_fill_empty)
+			dsp_fill_empty(dsp);
 		/* send ph_activate */
 		hh->prim = PH_ACTIVATE_REQ;
 		if (ch->peer)
@@ -1105,7 +1142,7 @@ static int dsp_init(void)
 	} else {
 		poll = 8;
 		while (poll <= MAX_POLL) {
-			tics = poll * HZ / 8000;
+			tics = (poll * HZ) / 8000;
 			if (tics * 8000 == poll * HZ) {
 				dsp_tics = tics;
 				dsp_poll = poll;

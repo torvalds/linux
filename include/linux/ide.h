@@ -33,23 +33,12 @@
 #endif
 
 /*
- * Used to indicate "no IRQ", should be a value that cannot be an IRQ
- * number.
- */
- 
-#define IDE_NO_IRQ		(-1)
-
-typedef unsigned char	byte;	/* used everywhere */
-
-/*
  * Probably not wise to fiddle with these
  */
+#define IDE_DEFAULT_MAX_FAILURES	1
 #define ERROR_MAX	8	/* Max read/write errors per sector */
 #define ERROR_RESET	3	/* Reset controller every 4th retry */
 #define ERROR_RECAL	1	/* Recalibrate every 2nd retry */
-
-#define HWIF(drive)		((ide_hwif_t *)((drive)->hwif))
-#define HWGROUP(drive)		((ide_hwgroup_t *)(HWIF(drive)->hwgroup))
 
 /*
  * Definitions for accessing IDE controller registers
@@ -191,9 +180,6 @@ typedef struct hw_regs_s {
 	struct device	*dev, *parent;
 	unsigned long	config;
 } hw_regs_t;
-
-void ide_init_port_data(struct hwif_s *, unsigned int);
-void ide_init_port_hw(struct hwif_s *, hw_regs_t *);
 
 static inline void ide_std_init_ports(hw_regs_t *hw,
 				      unsigned long io_addr,
@@ -403,6 +389,7 @@ enum {
  * This is used for several packet commands (not for READ/WRITE commands).
  */
 #define IDE_PC_BUFFER_SIZE	256
+#define ATAPI_WAIT_PC		(60 * HZ)
 
 struct ide_atapi_pc {
 	/* actual packet bytes */
@@ -439,18 +426,14 @@ struct ide_atapi_pc {
 	struct idetape_bh *bh;
 	char *b_data;
 
-	/* idescsi only for now */
 	struct scatterlist *sg;
 	unsigned int sg_cnt;
-
-	struct scsi_cmnd *scsi_cmd;
-	void (*done) (struct scsi_cmnd *);
 
 	unsigned long timeout;
 };
 
 struct ide_devset;
-struct ide_driver_s;
+struct ide_driver;
 
 #ifdef CONFIG_BLK_DEV_IDEACPI
 struct ide_acpi_drive_link;
@@ -480,53 +463,53 @@ enum {
 
 	/* ide-cd */
 	/* Drive cannot eject the disc. */
-	IDE_AFLAG_NO_EJECT		= (1 << 3),
+	IDE_AFLAG_NO_EJECT		= (1 << 1),
 	/* Drive is a pre ATAPI 1.2 drive. */
-	IDE_AFLAG_PRE_ATAPI12		= (1 << 4),
+	IDE_AFLAG_PRE_ATAPI12		= (1 << 2),
 	/* TOC addresses are in BCD. */
-	IDE_AFLAG_TOCADDR_AS_BCD	= (1 << 5),
+	IDE_AFLAG_TOCADDR_AS_BCD	= (1 << 3),
 	/* TOC track numbers are in BCD. */
-	IDE_AFLAG_TOCTRACKS_AS_BCD	= (1 << 6),
+	IDE_AFLAG_TOCTRACKS_AS_BCD	= (1 << 4),
 	/*
 	 * Drive does not provide data in multiples of SECTOR_SIZE
 	 * when more than one interrupt is needed.
 	 */
-	IDE_AFLAG_LIMIT_NFRAMES		= (1 << 7),
+	IDE_AFLAG_LIMIT_NFRAMES		= (1 << 5),
 	/* Saved TOC information is current. */
-	IDE_AFLAG_TOC_VALID		= (1 << 9),
+	IDE_AFLAG_TOC_VALID		= (1 << 6),
 	/* We think that the drive door is locked. */
-	IDE_AFLAG_DOOR_LOCKED		= (1 << 10),
+	IDE_AFLAG_DOOR_LOCKED		= (1 << 7),
 	/* SET_CD_SPEED command is unsupported. */
-	IDE_AFLAG_NO_SPEED_SELECT	= (1 << 11),
-	IDE_AFLAG_VERTOS_300_SSD	= (1 << 12),
-	IDE_AFLAG_VERTOS_600_ESD	= (1 << 13),
-	IDE_AFLAG_SANYO_3CD		= (1 << 14),
-	IDE_AFLAG_FULL_CAPS_PAGE	= (1 << 15),
-	IDE_AFLAG_PLAY_AUDIO_OK		= (1 << 16),
-	IDE_AFLAG_LE_SPEED_FIELDS	= (1 << 17),
+	IDE_AFLAG_NO_SPEED_SELECT	= (1 << 8),
+	IDE_AFLAG_VERTOS_300_SSD	= (1 << 9),
+	IDE_AFLAG_VERTOS_600_ESD	= (1 << 10),
+	IDE_AFLAG_SANYO_3CD		= (1 << 11),
+	IDE_AFLAG_FULL_CAPS_PAGE	= (1 << 12),
+	IDE_AFLAG_PLAY_AUDIO_OK		= (1 << 13),
+	IDE_AFLAG_LE_SPEED_FIELDS	= (1 << 14),
 
 	/* ide-floppy */
 	/* Avoid commands not supported in Clik drive */
-	IDE_AFLAG_CLIK_DRIVE		= (1 << 19),
+	IDE_AFLAG_CLIK_DRIVE		= (1 << 15),
 	/* Requires BH algorithm for packets */
-	IDE_AFLAG_ZIP_DRIVE		= (1 << 20),
+	IDE_AFLAG_ZIP_DRIVE		= (1 << 16),
 	/* Supports format progress report */
-	IDE_AFLAG_SRFP			= (1 << 22),
+	IDE_AFLAG_SRFP			= (1 << 17),
 
 	/* ide-tape */
-	IDE_AFLAG_IGNORE_DSC		= (1 << 23),
+	IDE_AFLAG_IGNORE_DSC		= (1 << 18),
 	/* 0 When the tape position is unknown */
-	IDE_AFLAG_ADDRESS_VALID		= (1 <<	24),
+	IDE_AFLAG_ADDRESS_VALID		= (1 <<	19),
 	/* Device already opened */
-	IDE_AFLAG_BUSY			= (1 << 25),
+	IDE_AFLAG_BUSY			= (1 << 20),
 	/* Attempt to auto-detect the current user block size */
-	IDE_AFLAG_DETECT_BS		= (1 << 26),
+	IDE_AFLAG_DETECT_BS		= (1 << 21),
 	/* Currently on a filemark */
-	IDE_AFLAG_FILEMARK		= (1 << 27),
+	IDE_AFLAG_FILEMARK		= (1 << 22),
 	/* 0 = no tape is loaded, so we don't rewind after ejecting */
-	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 28),
+	IDE_AFLAG_MEDIUM_PRESENT	= (1 << 23),
 
-	IDE_AFLAG_NO_AUTOCLOSE		= (1 << 29),
+	IDE_AFLAG_NO_AUTOCLOSE		= (1 << 24),
 };
 
 /* device flags */
@@ -565,28 +548,26 @@ enum {
 	IDE_DFLAG_NODMA			= (1 << 16),
 	/* powermanagment told us not to do anything, so sleep nicely */
 	IDE_DFLAG_BLOCKED		= (1 << 17),
-	/* ide-scsi emulation */
-	IDE_DFLAG_SCSI			= (1 << 18),
 	/* sleeping & sleep field valid */
-	IDE_DFLAG_SLEEPING		= (1 << 19),
-	IDE_DFLAG_POST_RESET		= (1 << 20),
-	IDE_DFLAG_UDMA33_WARNED		= (1 << 21),
-	IDE_DFLAG_LBA48			= (1 << 22),
+	IDE_DFLAG_SLEEPING		= (1 << 18),
+	IDE_DFLAG_POST_RESET		= (1 << 19),
+	IDE_DFLAG_UDMA33_WARNED		= (1 << 20),
+	IDE_DFLAG_LBA48			= (1 << 21),
 	/* status of write cache */
-	IDE_DFLAG_WCACHE		= (1 << 23),
+	IDE_DFLAG_WCACHE		= (1 << 22),
 	/* used for ignoring ATA_DF */
-	IDE_DFLAG_NOWERR		= (1 << 24),
+	IDE_DFLAG_NOWERR		= (1 << 23),
 	/* retrying in PIO */
-	IDE_DFLAG_DMA_PIO_RETRY		= (1 << 25),
-	IDE_DFLAG_LBA			= (1 << 26),
+	IDE_DFLAG_DMA_PIO_RETRY		= (1 << 24),
+	IDE_DFLAG_LBA			= (1 << 25),
 	/* don't unload heads */
-	IDE_DFLAG_NO_UNLOAD		= (1 << 27),
+	IDE_DFLAG_NO_UNLOAD		= (1 << 26),
 	/* heads unloaded, please don't reset port */
-	IDE_DFLAG_PARKED		= (1 << 28),
-	IDE_DFLAG_MEDIA_CHANGED		= (1 << 29),
+	IDE_DFLAG_PARKED		= (1 << 27),
+	IDE_DFLAG_MEDIA_CHANGED		= (1 << 28),
 	/* write protect */
-	IDE_DFLAG_WP			= (1 << 30),
-	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 31),
+	IDE_DFLAG_WP			= (1 << 29),
+	IDE_DFLAG_FORMAT_IN_PROGRESS	= (1 << 30),
 };
 
 struct ide_drive_s {
@@ -596,7 +577,6 @@ struct ide_drive_s {
 	struct request_queue	*queue;	/* request queue */
 
 	struct request		*rq;	/* current request */
-	struct ide_drive_s 	*next;	/* circular list of hwgroup drives */
 	void		*driver_data;	/* extra driver data */
 	u16			*id;	/* identification info */
 #ifdef CONFIG_IDE_PROC_FS
@@ -610,8 +590,6 @@ struct ide_drive_s {
 	unsigned long dev_flags;
 
 	unsigned long sleep;		/* sleep until this time */
-	unsigned long service_start;	/* time we started last request */
-	unsigned long service_time;	/* service time of last request */
 	unsigned long timeout;		/* max time to wait for irq */
 
 	special_t	special;	/* special action flags */
@@ -672,6 +650,8 @@ struct ide_drive_s {
 	int  (*pc_io_buffers)(struct ide_drive_s *, struct ide_atapi_pc *,
 			      unsigned int, int);
 
+	ide_startstop_t (*irq_handler)(struct ide_drive_s *);
+
 	unsigned long atapi_flags;
 
 	struct ide_atapi_pc request_sense_pc;
@@ -694,7 +674,6 @@ struct ide_tp_ops {
 	void	(*exec_command)(struct hwif_s *, u8);
 	u8	(*read_status)(struct hwif_s *);
 	u8	(*read_altstatus)(struct hwif_s *);
-	u8	(*read_sff_dma_status)(struct hwif_s *);
 
 	void	(*set_irq)(struct hwif_s *, int);
 
@@ -755,14 +734,17 @@ struct ide_dma_ops {
 	int	(*dma_test_irq)(struct ide_drive_s *);
 	void	(*dma_lost_irq)(struct ide_drive_s *);
 	void	(*dma_timeout)(struct ide_drive_s *);
+	/*
+	 * The following method is optional and only required to be
+	 * implemented for the SFF-8038i compatible controllers.
+	 */
+	u8	(*dma_sff_read_status)(struct hwif_s *);
 };
 
 struct ide_host;
 
 typedef struct hwif_s {
-	struct hwif_s *next;		/* for linked-list in ide_hwgroup_t */
 	struct hwif_s *mate;		/* other hwif from same PCI chip */
-	struct hwgroup_s *hwgroup;	/* actually (ide_hwgroup_t *) */
 	struct proc_dir_entry *proc;	/* /proc/ide/ directory entry */
 
 	struct ide_host *host;
@@ -773,7 +755,7 @@ typedef struct hwif_s {
 
 	unsigned long	sata_scr[SATA_NR_PORTS];
 
-	ide_drive_t	drives[MAX_DRIVES];	/* drive info */
+	ide_drive_t	*devices[MAX_DRIVES + 1];
 
 	u8 major;	/* our major number */
 	u8 index;	/* 0 for ide0; 1 for ide1; ... */
@@ -839,7 +821,7 @@ typedef struct hwif_s {
 	unsigned	extra_ports;	/* number of extra dma ports */
 
 	unsigned	present    : 1;	/* this interface exists */
-	unsigned	sg_mapped  : 1;	/* sg_table and sg_nents are ready */
+	unsigned	busy	   : 1; /* serializes devices on a port */
 
 	struct device		gendev;
 	struct device		*portdev;
@@ -851,18 +833,48 @@ typedef struct hwif_s {
 #ifdef CONFIG_BLK_DEV_IDEACPI
 	struct ide_acpi_hwif_link *acpidata;
 #endif
+
+	/* IRQ handler, if active */
+	ide_startstop_t	(*handler)(ide_drive_t *);
+
+	/* BOOL: polling active & poll_timeout field valid */
+	unsigned int polling : 1;
+
+	/* current drive */
+	ide_drive_t *cur_dev;
+
+	/* current request */
+	struct request *rq;
+
+	/* failsafe timer */
+	struct timer_list timer;
+	/* timeout value during long polls */
+	unsigned long poll_timeout;
+	/* queried upon timeouts */
+	int (*expiry)(ide_drive_t *);
+
+	int req_gen;
+	int req_gen_timer;
+
+	spinlock_t lock;
 } ____cacheline_internodealigned_in_smp ide_hwif_t;
 
 #define MAX_HOST_PORTS 4
 
 struct ide_host {
-	ide_hwif_t	*ports[MAX_HOST_PORTS];
+	ide_hwif_t	*ports[MAX_HOST_PORTS + 1];
 	unsigned int	n_ports;
 	struct device	*dev[2];
 	unsigned int	(*init_chipset)(struct pci_dev *);
 	unsigned long	host_flags;
 	void		*host_priv;
+	ide_hwif_t	*cur_port;	/* for hosts requiring serialization */
+
+	/* used for hosts requiring serialization */
+	volatile unsigned long	host_busy;
 };
+
+#define IDE_HOST_BUSY 0
 
 /*
  *  internal ide interrupt handler type
@@ -872,40 +884,6 @@ typedef int (ide_expiry_t)(ide_drive_t *);
 
 /* used by ide-cd, ide-floppy, etc. */
 typedef void (xfer_func_t)(ide_drive_t *, struct request *rq, void *, unsigned);
-
-typedef struct hwgroup_s {
-		/* irq handler, if active */
-	ide_startstop_t	(*handler)(ide_drive_t *);
-
-		/* BOOL: protects all fields below */
-	volatile int busy;
-		/* BOOL: wake us up on timer expiry */
-	unsigned int sleeping	: 1;
-		/* BOOL: polling active & poll_timeout field valid */
-	unsigned int polling	: 1;
-
-		/* current drive */
-	ide_drive_t *drive;
-		/* ptr to current hwif in linked-list */
-	ide_hwif_t *hwif;
-
-		/* current request */
-	struct request *rq;
-
-		/* failsafe timer */
-	struct timer_list timer;
-		/* timeout value during long polls */
-	unsigned long poll_timeout;
-		/* queried upon timeouts */
-	int (*expiry)(ide_drive_t *);
-
-	int req_gen;
-	int req_gen_timer;
-
-	spinlock_t lock;
-} ide_hwgroup_t;
-
-typedef struct ide_driver_s ide_driver_t;
 
 extern struct mutex ide_setting_mtx;
 
@@ -1032,8 +1010,8 @@ void ide_proc_register_port(ide_hwif_t *);
 void ide_proc_port_register_devices(ide_hwif_t *);
 void ide_proc_unregister_device(ide_drive_t *);
 void ide_proc_unregister_port(ide_hwif_t *);
-void ide_proc_register_driver(ide_drive_t *, ide_driver_t *);
-void ide_proc_unregister_driver(ide_drive_t *, ide_driver_t *);
+void ide_proc_register_driver(ide_drive_t *, struct ide_driver *);
+void ide_proc_unregister_driver(ide_drive_t *, struct ide_driver *);
 
 read_proc_t proc_ide_read_capacity;
 read_proc_t proc_ide_read_geometry;
@@ -1060,8 +1038,10 @@ static inline void ide_proc_register_port(ide_hwif_t *hwif) { ; }
 static inline void ide_proc_port_register_devices(ide_hwif_t *hwif) { ; }
 static inline void ide_proc_unregister_device(ide_drive_t *drive) { ; }
 static inline void ide_proc_unregister_port(ide_hwif_t *hwif) { ; }
-static inline void ide_proc_register_driver(ide_drive_t *drive, ide_driver_t *driver) { ; }
-static inline void ide_proc_unregister_driver(ide_drive_t *drive, ide_driver_t *driver) { ; }
+static inline void ide_proc_register_driver(ide_drive_t *drive,
+					    struct ide_driver *driver) { ; }
+static inline void ide_proc_unregister_driver(ide_drive_t *drive,
+					      struct ide_driver *driver) { ; }
 #define PROC_IDE_READ_RETURN(page,start,off,count,eof,len) return 0;
 #endif
 
@@ -1130,11 +1110,10 @@ void ide_check_pm_state(ide_drive_t *, struct request *);
  * The gendriver.owner field should be set to the module owner of this driver.
  * The gendriver.name field should be set to the name of this driver
  */
-struct ide_driver_s {
+struct ide_driver {
 	const char			*version;
 	ide_startstop_t	(*do_request)(ide_drive_t *, struct request *, sector_t);
 	int		(*end_request)(ide_drive_t *, int, int);
-	ide_startstop_t	(*error)(ide_drive_t *, struct request *rq, u8, u8);
 	struct device_driver	gen_driver;
 	int		(*probe)(ide_drive_t *);
 	void		(*remove)(ide_drive_t *);
@@ -1146,7 +1125,7 @@ struct ide_driver_s {
 #endif
 };
 
-#define to_ide_driver(drv) container_of(drv, ide_driver_t, gen_driver)
+#define to_ide_driver(drv) container_of(drv, struct ide_driver, gen_driver)
 
 int ide_device_get(ide_drive_t *);
 void ide_device_put(ide_drive_t *);
@@ -1178,9 +1157,7 @@ void ide_execute_pkt_cmd(ide_drive_t *);
 
 void ide_pad_transfer(ide_drive_t *, int, int);
 
-ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
-
-ide_startstop_t ide_error (ide_drive_t *drive, const char *msg, byte stat);
+ide_startstop_t ide_error(ide_drive_t *, const char *, u8);
 
 void ide_fix_driveid(u16 *);
 
@@ -1204,7 +1181,6 @@ void ide_tf_dump(const char *, struct ide_taskfile *);
 void ide_exec_command(ide_hwif_t *, u8);
 u8 ide_read_status(ide_hwif_t *);
 u8 ide_read_altstatus(ide_hwif_t *);
-u8 ide_read_sff_dma_status(ide_hwif_t *);
 
 void ide_set_irq(ide_hwif_t *, int);
 
@@ -1258,14 +1234,11 @@ int ide_set_media_lock(ide_drive_t *, struct gendisk *, int);
 void ide_create_request_sense_cmd(ide_drive_t *, struct ide_atapi_pc *);
 void ide_retry_pc(ide_drive_t *, struct gendisk *);
 
-static inline unsigned long ide_scsi_get_timeout(struct ide_atapi_pc *pc)
-{
-	return max_t(unsigned long, WAIT_CMD, pc->timeout - jiffies);
-}
+int ide_cd_expiry(ide_drive_t *);
 
-int ide_scsi_expiry(ide_drive_t *);
+int ide_cd_get_xferlen(struct request *);
 
-ide_startstop_t ide_issue_pc(ide_drive_t *, unsigned int, ide_expiry_t *);
+ide_startstop_t ide_issue_pc(ide_drive_t *);
 
 ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 
@@ -1322,11 +1295,11 @@ static inline int ide_hwif_setup_dma(ide_hwif_t *hwif,
 }
 #endif
 
-typedef struct ide_pci_enablebit_s {
+struct ide_pci_enablebit {
 	u8	reg;	/* byte pci reg holding the enable-bit */
 	u8	mask;	/* mask to isolate the enable-bit */
 	u8	val;	/* value of masked reg when "enabled" */
-} ide_pci_enablebit_t;
+};
 
 enum {
 	/* Uses ISA control ports not PCI ones. */
@@ -1415,7 +1388,8 @@ struct ide_port_info {
 	const struct ide_port_ops	*port_ops;
 	const struct ide_dma_ops	*dma_ops;
 
-	ide_pci_enablebit_t	enablebits[2];
+	struct ide_pci_enablebit	enablebits[2];
+
 	hwif_chipset_t		chipset;
 
 	u16			max_sectors;	/* if < than the default one */
@@ -1487,6 +1461,7 @@ void ide_dma_exec_cmd(ide_drive_t *, u8);
 extern void ide_dma_start(ide_drive_t *);
 int ide_dma_end(ide_drive_t *);
 int ide_dma_test_irq(ide_drive_t *);
+u8 ide_dma_sff_read_status(ide_hwif_t *);
 extern const struct ide_dma_ops sff_dma_ops;
 #else
 static inline int config_drive_for_dma(ide_drive_t *drive) { return 0; }
@@ -1524,15 +1499,13 @@ static inline void ide_acpi_port_init_devices(ide_hwif_t *hwif) { ; }
 static inline void ide_acpi_set_state(ide_hwif_t *hwif, int on) {}
 #endif
 
-void ide_remove_port_from_hwgroup(ide_hwif_t *);
-void ide_unregister(ide_hwif_t *);
-
 void ide_register_region(struct gendisk *);
 void ide_unregister_region(struct gendisk *);
 
 void ide_undecoded_slave(ide_drive_t *);
 
 void ide_port_apply_params(ide_hwif_t *);
+int ide_sysfs_register_port(ide_hwif_t *);
 
 struct ide_host *ide_host_alloc(const struct ide_port_info *, hw_regs_t **);
 void ide_host_free(struct ide_host *);
@@ -1610,23 +1583,9 @@ static inline void ide_set_max_pio(ide_drive_t *drive)
 	ide_set_pio(drive, 255);
 }
 
-extern spinlock_t ide_lock;
-extern struct mutex ide_cfg_mtx;
-/*
- * Structure locking:
- *
- * ide_cfg_mtx and hwgroup->lock together protect changes to
- * ide_hwif_t->next
- * ide_drive_t->next
- *
- * ide_hwgroup_t->busy: hwgroup->lock
- * ide_hwgroup_t->hwif: hwgroup->lock
- * ide_hwif_t->{hwgroup,mate}: constant, no locking
- * ide_drive_t->hwif: constant, no locking
- */
+char *ide_media_string(ide_drive_t *);
 
-#define local_irq_set(flags)	do { local_save_flags((flags)); local_irq_enable_in_hardirq(); } while (0)
-
+extern struct device_attribute ide_dev_attrs[];
 extern struct bus_type ide_bus_type;
 extern struct class *ide_port_class;
 
@@ -1642,8 +1601,15 @@ static inline int hwif_to_node(ide_hwif_t *hwif)
 
 static inline ide_drive_t *ide_get_pair_dev(ide_drive_t *drive)
 {
-	ide_drive_t *peer = &drive->hwif->drives[(drive->dn ^ 1) & 1];
+	ide_drive_t *peer = drive->hwif->devices[(drive->dn ^ 1) & 1];
 
 	return (peer->dev_flags & IDE_DFLAG_PRESENT) ? peer : NULL;
 }
+
+#define ide_port_for_each_dev(i, dev, port) \
+	for ((i) = 0; ((dev) = (port)->devices[i]) || (i) < MAX_DRIVES; (i)++)
+
+#define ide_host_for_each_port(i, port, host) \
+	for ((i) = 0; ((port) = (host)->ports[i]) || (i) < MAX_HOST_PORTS; (i)++)
+
 #endif /* _IDE_H */

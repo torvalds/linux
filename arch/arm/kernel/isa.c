@@ -16,6 +16,7 @@
 #include <linux/fs.h>
 #include <linux/sysctl.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 static unsigned int isa_membase, isa_portbase, isa_portshift;
 

@@ -5,7 +5,7 @@
 int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 {
 	ide_drive_t *drive = dev->driver_data, *pair = ide_get_pair_dev(drive);
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
@@ -39,7 +39,7 @@ int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 int generic_ide_resume(struct device *dev)
 {
 	ide_drive_t *drive = dev->driver_data, *pair = ide_get_pair_dev(drive);
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
@@ -67,7 +67,7 @@ int generic_ide_resume(struct device *dev)
 	blk_put_request(rq);
 
 	if (err == 0 && dev->driver) {
-		ide_driver_t *drv = to_ide_driver(dev->driver);
+		struct ide_driver *drv = to_ide_driver(dev->driver);
 
 		if (drv->resume)
 			drv->resume(drive);
@@ -186,15 +186,13 @@ void ide_complete_pm_request(ide_drive_t *drive, struct request *rq)
 	       blk_pm_suspend_request(rq) ? "suspend" : "resume");
 #endif
 	spin_lock_irqsave(q->queue_lock, flags);
-	if (blk_pm_suspend_request(rq)) {
+	if (blk_pm_suspend_request(rq))
 		blk_stop_queue(q);
-	} else {
+	else
 		drive->dev_flags &= ~IDE_DFLAG_BLOCKED;
-		blk_start_queue(q);
-	}
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
-	drive->hwif->hwgroup->rq = NULL;
+	drive->hwif->rq = NULL;
 
 	if (blk_end_request(rq, 0, 0))
 		BUG();
@@ -219,6 +217,8 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		 * point.
 		 */
 		ide_hwif_t *hwif = drive->hwif;
+		struct request_queue *q = drive->queue;
+		unsigned long flags;
 		int rc;
 #ifdef DEBUG_PM
 		printk("%s: Wakeup request inited, waiting for !BSY...\n", drive->name);
@@ -231,5 +231,9 @@ void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		rc = ide_wait_not_busy(hwif, 100000);
 		if (rc)
 			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);
+
+		spin_lock_irqsave(q->queue_lock, flags);
+		blk_start_queue(q);
+		spin_unlock_irqrestore(q->queue_lock, flags);
 	}
 }

@@ -7,15 +7,14 @@
  *
  */
 
-typedef struct { volatile int counter; } atomic_t;
+#include <linux/compiler.h>
+#include <linux/types.h>
+#include <asm/system.h>
 
 #define ATOMIC_INIT(i)	( (atomic_t) { (i) } )
 
 #define atomic_read(v)		((v)->counter)
 #define atomic_set(v,i)		((v)->counter = (i))
-
-#include <linux/compiler.h>
-#include <asm/system.h>
 
 #if defined(CONFIG_GUSA_RB)
 #include <asm/atomic-grb.h>

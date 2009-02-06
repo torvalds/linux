@@ -788,6 +788,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	int i, ret;
 	int nr_pages = 0;
 	unsigned int len = 0;
+	unsigned int offset = map_data ? map_data->offset & ~PAGE_MASK : 0;
 
 	for (i = 0; i < iov_count; i++) {
 		unsigned long uaddr;
@@ -814,35 +815,42 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	bio->bi_rw |= (!write_to_vm << BIO_RW);
 
 	ret = 0;
-	i = 0;
-	while (len) {
-		unsigned int bytes;
 
-		if (map_data)
-			bytes = 1U << (PAGE_SHIFT + map_data->page_order);
-		else
-			bytes = PAGE_SIZE;
+	if (map_data) {
+		nr_pages = 1 << map_data->page_order;
+		i = map_data->offset / PAGE_SIZE;
+	}
+	while (len) {
+		unsigned int bytes = PAGE_SIZE;
+
+		bytes -= offset;
 
 		if (bytes > len)
 			bytes = len;
 
 		if (map_data) {
-			if (i == map_data->nr_entries) {
+			if (i == map_data->nr_entries * nr_pages) {
 				ret = -ENOMEM;
 				break;
 			}
-			page = map_data->pages[i++];
-		} else
+
+			page = map_data->pages[i / nr_pages];
+			page += (i % nr_pages);
+
+			i++;
+		} else {
 			page = alloc_page(q->bounce_gfp | gfp_mask);
-		if (!page) {
-			ret = -ENOMEM;
-			break;
+			if (!page) {
+				ret = -ENOMEM;
+				break;
+			}
 		}
 
-		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes)
+		if (bio_add_pc_page(q, bio, page, bytes, offset) < bytes)
 			break;
 
 		len -= bytes;
+		offset = 0;
 	}
 
 	if (ret)
@@ -851,7 +859,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 	/*
 	 * success
 	 */
-	if (!write_to_vm) {
+	if (!write_to_vm && (!map_data || !map_data->null_mapped)) {
 		ret = __bio_copy_iov(bio, bio->bi_io_vec, iov, iov_count, 0, 0);
 		if (ret)
 			goto cleanup;

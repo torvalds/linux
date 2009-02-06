@@ -24,7 +24,7 @@
  */
 
 #include <linux/err.h>
-#include <asm/div64.h>
+#include <linux/math64.h>
 #include "ubi.h"
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
@@ -205,7 +205,6 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	int i, err, vol_id = req->vol_id, do_free = 1;
 	struct ubi_volume *vol;
 	struct ubi_vtbl_record vtbl_rec;
-	uint64_t bytes;
 	dev_t dev;
 
 	if (ubi->ro_mode)
@@ -255,10 +254,8 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 	/* Calculate how many eraseblocks are requested */
 	vol->usable_leb_size = ubi->leb_size - ubi->leb_size % req->alignment;
-	bytes = req->bytes;
-	if (do_div(bytes, vol->usable_leb_size))
-		vol->reserved_pebs = 1;
-	vol->reserved_pebs += bytes;
+	vol->reserved_pebs += div_u64(req->bytes + vol->usable_leb_size - 1,
+				      vol->usable_leb_size);
 
 	/* Reserve physical eraseblocks */
 	if (vol->reserved_pebs > ubi->avail_pebs) {
@@ -301,10 +298,10 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 		vol->used_bytes =
 			(long long)vol->used_ebs * vol->usable_leb_size;
 	} else {
-		bytes = vol->used_bytes;
-		vol->last_eb_bytes = do_div(bytes, vol->usable_leb_size);
-		vol->used_ebs = bytes;
-		if (vol->last_eb_bytes)
+		vol->used_ebs = div_u64_rem(vol->used_bytes,
+					    vol->usable_leb_size,
+					    &vol->last_eb_bytes);
+		if (vol->last_eb_bytes != 0)
 			vol->used_ebs += 1;
 		else
 			vol->last_eb_bytes = vol->usable_leb_size;
@@ -329,7 +326,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	vol->dev.devt = dev;
 	vol->dev.class = ubi_class;
 
-	sprintf(&vol->dev.bus_id[0], "%s_%d", ubi->ubi_name, vol->vol_id);
+	dev_set_name(&vol->dev, "%s_%d", ubi->ubi_name, vol->vol_id);
 	err = device_register(&vol->dev);
 	if (err) {
 		ubi_err("cannot register device");
@@ -678,7 +675,7 @@ int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol)
 	vol->dev.parent = &ubi->dev;
 	vol->dev.devt = dev;
 	vol->dev.class = ubi_class;
-	sprintf(&vol->dev.bus_id[0], "%s_%d", ubi->ubi_name, vol->vol_id);
+	dev_set_name(&vol->dev, "%s_%d", ubi->ubi_name, vol->vol_id);
 	err = device_register(&vol->dev);
 	if (err)
 		goto out_gluebi;

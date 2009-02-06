@@ -88,7 +88,6 @@
  */
 #include <linux/module.h>
 #include <linux/ctype.h>
-#include <linux/version.h>
 #include <linux/usb.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>

@@ -1,11 +1,12 @@
 /**
  * @file buffer_sync.c
  *
- * @remark Copyright 2002 OProfile authors
+ * @remark Copyright 2002-2009 OProfile authors
  * @remark Read the file COPYING
  *
  * @author John Levon <levon@movementarian.org>
  * @author Barry Kasindorf
+ * @author Robert Richter <robert.richter@amd.com>
  *
  * This is the core of the buffer management. Each
  * CPU buffer is processed and entered into the
@@ -200,7 +201,7 @@ static inline unsigned long fast_get_dcookie(struct path *path)
 {
 	unsigned long cookie;
 
-	if (path->dentry->d_cookie)
+	if (path->dentry->d_flags & DCACHE_COOKIE)
 		return (unsigned long)path->dentry;
 	get_dcookie(path, &cookie);
 	return cookie;
@@ -315,87 +316,72 @@ static void add_trace_begin(void)
 	add_event_entry(TRACE_BEGIN_CODE);
 }
 
-#ifdef CONFIG_OPROFILE_IBS
-
-#define IBS_FETCH_CODE_SIZE	2
-#define IBS_OP_CODE_SIZE	5
-
-/*
- * Add IBS fetch and op entries to event buffer
- */
-static void add_ibs_begin(int cpu, int code, struct mm_struct *mm)
+static void add_data(struct op_entry *entry, struct mm_struct *mm)
 {
-	unsigned long rip;
-	int i, count;
-	unsigned long ibs_cookie = 0;
+	unsigned long code, pc, val;
+	unsigned long cookie;
 	off_t offset;
-	struct op_sample *sample;
 
-	sample = cpu_buffer_read_entry(cpu);
-	if (!sample)
-		goto Error;
-	rip = sample->eip;
-
-#ifdef __LP64__
-	rip += sample->event << 32;
-#endif
+	if (!op_cpu_buffer_get_data(entry, &code))
+		return;
+	if (!op_cpu_buffer_get_data(entry, &pc))
+		return;
+	if (!op_cpu_buffer_get_size(entry))
+		return;
 
 	if (mm) {
-		ibs_cookie = lookup_dcookie(mm, rip, &offset);
+		cookie = lookup_dcookie(mm, pc, &offset);
 
-		if (ibs_cookie == NO_COOKIE)
-			offset = rip;
-		if (ibs_cookie == INVALID_COOKIE) {
+		if (cookie == NO_COOKIE)
+			offset = pc;
+		if (cookie == INVALID_COOKIE) {
 			atomic_inc(&oprofile_stats.sample_lost_no_mapping);
-			offset = rip;
+			offset = pc;
 		}
-		if (ibs_cookie != last_cookie) {
-			add_cookie_switch(ibs_cookie);
-			last_cookie = ibs_cookie;
+		if (cookie != last_cookie) {
+			add_cookie_switch(cookie);
+			last_cookie = cookie;
 		}
 	} else
-		offset = rip;
+		offset = pc;
 
 	add_event_entry(ESCAPE_CODE);
 	add_event_entry(code);
 	add_event_entry(offset);	/* Offset from Dcookie */
 
-	/* we send the Dcookie offset, but send the raw Linear Add also*/
-	add_event_entry(sample->eip);
-	add_event_entry(sample->event);
-
-	if (code == IBS_FETCH_CODE)
-		count = IBS_FETCH_CODE_SIZE;	/*IBS FETCH is 2 int64s*/
-	else
-		count = IBS_OP_CODE_SIZE;	/*IBS OP is 5 int64s*/
-
-	for (i = 0; i < count; i++) {
-		sample = cpu_buffer_read_entry(cpu);
-		if (!sample)
-			goto Error;
-		add_event_entry(sample->eip);
-		add_event_entry(sample->event);
-	}
-
-	return;
-
-Error:
-	return;
+	while (op_cpu_buffer_get_data(entry, &val))
+		add_event_entry(val);
 }
 
-#endif
-
-static void add_sample_entry(unsigned long offset, unsigned long event)
+static inline void add_sample_entry(unsigned long offset, unsigned long event)
 {
 	add_event_entry(offset);
 	add_event_entry(event);
 }
 
 
-static int add_us_sample(struct mm_struct *mm, struct op_sample *s)
+/*
+ * Add a sample to the global event buffer. If possible the
+ * sample is converted into a persistent dentry/offset pair
+ * for later lookup from userspace. Return 0 on failure.
+ */
+static int
+add_sample(struct mm_struct *mm, struct op_sample *s, int in_kernel)
 {
 	unsigned long cookie;
 	off_t offset;
+
+	if (in_kernel) {
+		add_sample_entry(s->eip, s->event);
+		return 1;
+	}
+
+	/* add userspace sample */
+
+	if (!mm) {
+		atomic_inc(&oprofile_stats.sample_lost_no_mm);
+		return 0;
+	}
 
 	cookie = lookup_dcookie(mm, s->eip, &offset);
 
@@ -412,25 +398,6 @@ static int add_us_sample(struct mm_struct *mm, struct op_sample *s)
 	add_sample_entry(offset, s->event);
 
 	return 1;
-}
-
-
-/* Add a sample to the global event buffer. If possible the
- * sample is converted into a persistent dentry/offset pair
- * for later lookup from userspace.
- */
-static int
-add_sample(struct mm_struct *mm, struct op_sample *s, int in_kernel)
-{
-	if (in_kernel) {
-		add_sample_entry(s->eip, s->event);
-		return 1;
-	} else if (mm) {
-		return add_us_sample(mm, s);
-	} else {
-		atomic_inc(&oprofile_stats.sample_lost_no_mm);
-	}
-	return 0;
 }
 
 
@@ -526,66 +493,69 @@ void sync_buffer(int cpu)
 {
 	struct mm_struct *mm = NULL;
 	struct mm_struct *oldmm;
+	unsigned long val;
 	struct task_struct *new;
 	unsigned long cookie = 0;
 	int in_kernel = 1;
 	sync_buffer_state state = sb_buffer_start;
 	unsigned int i;
 	unsigned long available;
+	unsigned long flags;
+	struct op_entry entry;
+	struct op_sample *sample;
 
 	mutex_lock(&buffer_mutex);
 
 	add_cpu_switch(cpu);
 
-	cpu_buffer_reset(cpu);
-	available = cpu_buffer_entries(cpu);
+	op_cpu_buffer_reset(cpu);
+	available = op_cpu_buffer_entries(cpu);
 
 	for (i = 0; i < available; ++i) {
-		struct op_sample *s = cpu_buffer_read_entry(cpu);
-		if (!s)
+		sample = op_cpu_buffer_read_entry(&entry, cpu);
+		if (!sample)
 			break;
 
-		if (is_code(s->eip)) {
-			switch (s->event) {
-			case 0:
-			case CPU_IS_KERNEL:
-				/* kernel/userspace switch */
-				in_kernel = s->event;
-				if (state == sb_buffer_start)
-					state = sb_sample_start;
-				add_kernel_ctx_switch(s->event);
-				break;
-			case CPU_TRACE_BEGIN:
+		if (is_code(sample->eip)) {
+			flags = sample->event;
+			if (flags & TRACE_BEGIN) {
 				state = sb_bt_start;
 				add_trace_begin();
-				break;
-#ifdef CONFIG_OPROFILE_IBS
-			case IBS_FETCH_BEGIN:
-				state = sb_bt_start;
-				add_ibs_begin(cpu, IBS_FETCH_CODE, mm);
-				break;
-			case IBS_OP_BEGIN:
-				state = sb_bt_start;
-				add_ibs_begin(cpu, IBS_OP_CODE, mm);
-				break;
-#endif
-			default:
+			}
+			if (flags & KERNEL_CTX_SWITCH) {
+				/* kernel/userspace switch */
+				in_kernel = flags & IS_KERNEL;
+				if (state == sb_buffer_start)
+					state = sb_sample_start;
+				add_kernel_ctx_switch(flags & IS_KERNEL);
+			}
+			if (flags & USER_CTX_SWITCH
+			    && op_cpu_buffer_get_data(&entry, &val)) {
 				/* userspace context switch */
+				new = (struct task_struct *)val;
 				oldmm = mm;
-				new = (struct task_struct *)s->event;
 				release_mm(oldmm);
 				mm = take_tasks_mm(new);
 				if (mm != oldmm)
 					cookie = get_exec_dcookie(mm);
 				add_user_ctx_switch(new, cookie);
-				break;
 			}
-		} else if (state >= sb_bt_start &&
-			   !add_sample(mm, s, in_kernel)) {
-			if (state == sb_bt_start) {
-				state = sb_bt_ignore;
-				atomic_inc(&oprofile_stats.bt_lost_no_mapping);
-			}
+			if (op_cpu_buffer_get_size(&entry))
+				add_data(&entry, mm);
+			continue;
+		}
+
+		if (state < sb_bt_start)
+			/* ignore sample */
+			continue;
+
+		if (add_sample(mm, sample, in_kernel))
+			continue;
+
+		/* ignore backtraces if failed to add a sample */
+		if (state == sb_bt_start) {
+			state = sb_bt_ignore;
+			atomic_inc(&oprofile_stats.bt_lost_no_mapping);
 		}
 	}
 	release_mm(mm);

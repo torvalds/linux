@@ -14,7 +14,7 @@
 #define __ASM_ARCH_SPI_H __FILE__
 
 struct s3c2410_spi_info {
-	unsigned long		 pin_cs;	/* simple gpio cs */
+	int			 pin_cs;	/* simple gpio cs */
 	unsigned int		 num_cs;	/* total chipselects */
 	int			 bus_num;       /* bus number to use. */
 

@@ -17,7 +17,6 @@
 #include <linux/nfsd/export.h>
 #include <linux/lockd/lockd.h>
 #include <linux/lockd/share.h>
-#include <linux/lockd/sm_inter.h>
 #include <linux/module.h>
 #include <linux/mount.h>
 

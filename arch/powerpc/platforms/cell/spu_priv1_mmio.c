@@ -80,10 +80,10 @@ static void cpu_affinity_set(struct spu *spu, int cpu)
 	u64 route;
 
 	if (nr_cpus_node(spu->node)) {
-		cpumask_t spumask = node_to_cpumask(spu->node);
-		cpumask_t cpumask = node_to_cpumask(cpu_to_node(cpu));
+		const struct cpumask *spumask = cpumask_of_node(spu->node),
+			*cpumask = cpumask_of_node(cpu_to_node(cpu));
 
-		if (!cpus_intersects(spumask, cpumask))
+		if (!cpumask_intersects(spumask, cpumask))
 			return;
 	}
 

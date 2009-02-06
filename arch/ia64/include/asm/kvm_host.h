@@ -23,17 +23,6 @@
 #ifndef __ASM_KVM_HOST_H
 #define __ASM_KVM_HOST_H
 
-
-#include <linux/types.h>
-#include <linux/mm.h>
-#include <linux/kvm.h>
-#include <linux/kvm_para.h>
-#include <linux/kvm_types.h>
-
-#include <asm/pal.h>
-#include <asm/sal.h>
-
-#define KVM_MAX_VCPUS 4
 #define KVM_MEMORY_SLOTS 32
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
@@ -50,70 +39,132 @@
 #define EXIT_REASON_EXTERNAL_INTERRUPT	6
 #define EXIT_REASON_IPI			7
 #define EXIT_REASON_PTC_G		8
+#define EXIT_REASON_DEBUG		20
 
 /*Define vmm address space and vm data space.*/
-#define KVM_VMM_SIZE (16UL<<20)
+#define KVM_VMM_SIZE (__IA64_UL_CONST(16)<<20)
 #define KVM_VMM_SHIFT 24
-#define KVM_VMM_BASE 0xD000000000000000UL
-#define VMM_SIZE (8UL<<20)
+#define KVM_VMM_BASE 0xD000000000000000
+#define VMM_SIZE (__IA64_UL_CONST(8)<<20)
 
 /*
  * Define vm_buffer, used by PAL Services, base address.
- * Note: vmbuffer is in the VMM-BLOCK, the size must be < 8M
+ * Note: vm_buffer is in the VMM-BLOCK, the size must be < 8M
  */
 #define KVM_VM_BUFFER_BASE (KVM_VMM_BASE + VMM_SIZE)
-#define KVM_VM_BUFFER_SIZE (8UL<<20)
+#define KVM_VM_BUFFER_SIZE (__IA64_UL_CONST(8)<<20)
 
-/*Define Virtual machine data layout.*/
-#define KVM_VM_DATA_SHIFT  24
-#define KVM_VM_DATA_SIZE (1UL << KVM_VM_DATA_SHIFT)
-#define KVM_VM_DATA_BASE (KVM_VMM_BASE + KVM_VMM_SIZE)
+/*
+ * kvm guest's data area looks as follow:
+ *
+ *            +----------------------+	-------	KVM_VM_DATA_SIZE
+ *	      |	    vcpu[n]'s data   |	 |     ___________________KVM_STK_OFFSET
+ *     	      |			     |	 |    /			  |
+ *     	      |	       ..........    |	 |   /vcpu's struct&stack |
+ *     	      |	       ..........    |	 |  /---------------------|---- 0
+ *	      |	    vcpu[5]'s data   |	 | /	   vpd		  |
+ *	      |	    vcpu[4]'s data   |	 |/-----------------------|
+ *	      |	    vcpu[3]'s data   |	 /	   vtlb		  |
+ *	      |	    vcpu[2]'s data   |	/|------------------------|
+ *	      |	    vcpu[1]'s data   |/  |	   vhpt		  |
+ *	      |	    vcpu[0]'s data   |____________________________|
+ *            +----------------------+	 |
+ *	      |	   memory dirty log  |	 |
+ *            +----------------------+	 |
+ *	      |	   vm's data struct  |	 |
+ *            +----------------------+	 |
+ *	      |			     |	 |
+ *	      |			     |	 |
+ *	      |			     |	 |
+ *	      |			     |	 |
+ *	      |			     |	 |
+ *	      |			     |	 |
+ *	      |			     |	 |
+ *	      |	  vm's p2m table  |	 |
+ *	      |			     |	 |
+ *            |			     |	 |
+ *	      |			     |	 |  |
+ * vm's data->|			     |   |  |
+ *	      +----------------------+ ------- 0
+ * To support large memory, needs to increase the size of p2m.
+ * To support more vcpus, needs to ensure it has enough space to
+ * hold vcpus' data.
+ */
 
+#define KVM_VM_DATA_SHIFT	26
+#define KVM_VM_DATA_SIZE	(__IA64_UL_CONST(1) << KVM_VM_DATA_SHIFT)
+#define KVM_VM_DATA_BASE	(KVM_VMM_BASE + KVM_VM_DATA_SIZE)
 
-#define KVM_P2M_BASE    KVM_VM_DATA_BASE
-#define KVM_P2M_OFS     0
-#define KVM_P2M_SIZE    (8UL << 20)
+#define KVM_P2M_BASE		KVM_VM_DATA_BASE
+#define KVM_P2M_SIZE		(__IA64_UL_CONST(24) << 20)
 
-#define KVM_VHPT_BASE   (KVM_P2M_BASE + KVM_P2M_SIZE)
-#define KVM_VHPT_OFS    KVM_P2M_SIZE
-#define KVM_VHPT_BLOCK_SIZE   (2UL << 20)
-#define VHPT_SHIFT      18
-#define VHPT_SIZE       (1UL << VHPT_SHIFT)
-#define VHPT_NUM_ENTRIES (1<<(VHPT_SHIFT-5))
+#define VHPT_SHIFT		16
+#define VHPT_SIZE		(__IA64_UL_CONST(1) << VHPT_SHIFT)
+#define VHPT_NUM_ENTRIES	(__IA64_UL_CONST(1) << (VHPT_SHIFT-5))
 
-#define KVM_VTLB_BASE   (KVM_VHPT_BASE+KVM_VHPT_BLOCK_SIZE)
-#define KVM_VTLB_OFS    (KVM_VHPT_OFS+KVM_VHPT_BLOCK_SIZE)
-#define KVM_VTLB_BLOCK_SIZE   (1UL<<20)
-#define VTLB_SHIFT      17
-#define VTLB_SIZE       (1UL<<VTLB_SHIFT)
-#define VTLB_NUM_ENTRIES (1<<(VTLB_SHIFT-5))
+#define VTLB_SHIFT		16
+#define VTLB_SIZE		(__IA64_UL_CONST(1) << VTLB_SHIFT)
+#define VTLB_NUM_ENTRIES	(1UL << (VHPT_SHIFT-5))
 
-#define KVM_VPD_BASE   (KVM_VTLB_BASE+KVM_VTLB_BLOCK_SIZE)
-#define KVM_VPD_OFS    (KVM_VTLB_OFS+KVM_VTLB_BLOCK_SIZE)
-#define KVM_VPD_BLOCK_SIZE   (2UL<<20)
-#define VPD_SHIFT       16
-#define VPD_SIZE        (1UL<<VPD_SHIFT)
+#define VPD_SHIFT		16
+#define VPD_SIZE		(__IA64_UL_CONST(1) << VPD_SHIFT)
 
-#define KVM_VCPU_BASE   (KVM_VPD_BASE+KVM_VPD_BLOCK_SIZE)
-#define KVM_VCPU_OFS    (KVM_VPD_OFS+KVM_VPD_BLOCK_SIZE)
-#define KVM_VCPU_BLOCK_SIZE   (2UL<<20)
-#define VCPU_SHIFT 18
-#define VCPU_SIZE (1UL<<VCPU_SHIFT)
-#define MAX_VCPU_NUM KVM_VCPU_BLOCK_SIZE/VCPU_SIZE
+#define VCPU_STRUCT_SHIFT	16
+#define VCPU_STRUCT_SIZE	(__IA64_UL_CONST(1) << VCPU_STRUCT_SHIFT)
 
-#define KVM_VM_BASE     (KVM_VCPU_BASE+KVM_VCPU_BLOCK_SIZE)
-#define KVM_VM_OFS      (KVM_VCPU_OFS+KVM_VCPU_BLOCK_SIZE)
-#define KVM_VM_BLOCK_SIZE     (1UL<<19)
+#define KVM_STK_OFFSET		VCPU_STRUCT_SIZE
 
-#define KVM_MEM_DIRTY_LOG_BASE (KVM_VM_BASE+KVM_VM_BLOCK_SIZE)
-#define KVM_MEM_DIRTY_LOG_OFS  (KVM_VM_OFS+KVM_VM_BLOCK_SIZE)
-#define KVM_MEM_DIRTY_LOG_SIZE (1UL<<19)
+#define KVM_VM_STRUCT_SHIFT	19
+#define KVM_VM_STRUCT_SIZE	(__IA64_UL_CONST(1) << KVM_VM_STRUCT_SHIFT)
 
-/* Get vpd, vhpt, tlb, vcpu, base*/
-#define VPD_ADDR(n) (KVM_VPD_BASE+n*VPD_SIZE)
-#define VHPT_ADDR(n) (KVM_VHPT_BASE+n*VHPT_SIZE)
-#define VTLB_ADDR(n) (KVM_VTLB_BASE+n*VTLB_SIZE)
-#define VCPU_ADDR(n) (KVM_VCPU_BASE+n*VCPU_SIZE)
+#define KVM_MEM_DIRY_LOG_SHIFT	19
+#define KVM_MEM_DIRTY_LOG_SIZE (__IA64_UL_CONST(1) << KVM_MEM_DIRY_LOG_SHIFT)
+
+#ifndef __ASSEMBLY__
+
+/*Define the max vcpus and memory for Guests.*/
+#define KVM_MAX_VCPUS	(KVM_VM_DATA_SIZE - KVM_P2M_SIZE - KVM_VM_STRUCT_SIZE -\
+			KVM_MEM_DIRTY_LOG_SIZE) / sizeof(struct kvm_vcpu_data)
+#define KVM_MAX_MEM_SIZE (KVM_P2M_SIZE >> 3 << PAGE_SHIFT)
+
+#define VMM_LOG_LEN 256
+
+#include <linux/types.h>
+#include <linux/mm.h>
+#include <linux/kvm.h>
+#include <linux/kvm_para.h>
+#include <linux/kvm_types.h>
+
+#include <asm/pal.h>
+#include <asm/sal.h>
+#include <asm/page.h>
+
+struct kvm_vcpu_data {
+	char vcpu_vhpt[VHPT_SIZE];
+	char vcpu_vtlb[VTLB_SIZE];
+	char vcpu_vpd[VPD_SIZE];
+	char vcpu_struct[VCPU_STRUCT_SIZE];
+};
+
+struct kvm_vm_data {
+	char kvm_p2m[KVM_P2M_SIZE];
+	char kvm_vm_struct[KVM_VM_STRUCT_SIZE];
+	char kvm_mem_dirty_log[KVM_MEM_DIRTY_LOG_SIZE];
+	struct kvm_vcpu_data vcpu_data[KVM_MAX_VCPUS];
+};
+
+#define VCPU_BASE(n)	KVM_VM_DATA_BASE + \
+				offsetof(struct kvm_vm_data, vcpu_data[n])
+#define VM_BASE		KVM_VM_DATA_BASE + \
+				offsetof(struct kvm_vm_data, kvm_vm_struct)
+#define KVM_MEM_DIRTY_LOG_BASE	KVM_VM_DATA_BASE + \
+				offsetof(struct kvm_vm_data, kvm_mem_dirty_log)
+
+#define VHPT_BASE(n) (VCPU_BASE(n) + offsetof(struct kvm_vcpu_data, vcpu_vhpt))
+#define VTLB_BASE(n) (VCPU_BASE(n) + offsetof(struct kvm_vcpu_data, vcpu_vtlb))
+#define VPD_BASE(n)  (VCPU_BASE(n) + offsetof(struct kvm_vcpu_data, vcpu_vpd))
+#define VCPU_STRUCT_BASE(n)	(VCPU_BASE(n) + \
+				offsetof(struct kvm_vcpu_data, vcpu_struct))
 
 /*IO section definitions*/
 #define IOREQ_READ      1
@@ -389,6 +440,7 @@ struct kvm_vcpu_arch {
 
 	unsigned long opcode;
 	unsigned long cause;
+	char log_buf[VMM_LOG_LEN];
 	union context host;
 	union context guest;
 };
@@ -403,20 +455,19 @@ struct kvm_sal_data {
 };
 
 struct kvm_arch {
+	spinlock_t dirty_log_lock;
+
 	unsigned long	vm_base;
 	unsigned long	metaphysical_rr0;
 	unsigned long	metaphysical_rr4;
 	unsigned long	vmm_init_rr;
-	unsigned long	vhpt_base;
-	unsigned long	vtlb_base;
-	unsigned long 	vpd_base;
-	spinlock_t dirty_log_lock;
+
 	struct kvm_ioapic *vioapic;
 	struct kvm_vm_stat stat;
 	struct kvm_sal_data rdv_sal_data;
 
 	struct list_head assigned_dev_head;
-	struct dmar_domain *intel_iommu_domain;
+	struct iommu_domain *iommu_domain;
 	struct hlist_head irq_ack_notifier_list;
 
 	unsigned long irq_sources_bitmap;
@@ -512,7 +563,7 @@ struct kvm_pt_regs {
 
 static inline struct kvm_pt_regs *vcpu_regs(struct kvm_vcpu *v)
 {
-	return (struct kvm_pt_regs *) ((unsigned long) v + IA64_STK_OFFSET) - 1;
+	return (struct kvm_pt_regs *) ((unsigned long) v + KVM_STK_OFFSET) - 1;
 }
 
 typedef int kvm_vmm_entry(void);
@@ -531,5 +582,6 @@ int kvm_pal_emul(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run);
 void kvm_sal_emul(struct kvm_vcpu *vcpu);
 
 static inline void kvm_inject_nmi(struct kvm_vcpu *vcpu) {}
+#endif /* __ASSEMBLY__*/
 
 #endif

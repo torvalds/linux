@@ -1,7 +1,7 @@
 /*
  *	x86 SMP booting functions
  *
- *	(c) 1995 Alan Cox, Building #3 <alan@redhat.com>
+ *	(c) 1995 Alan Cox, Building #3 <alan@lxorguk.ukuu.org.uk>
  *	(c) 1998, 1999, 2000 Ingo Molnar <mingo@redhat.com>
  *	Copyright 2001 Andi Kleen, SuSE Labs.
  *
@@ -102,15 +102,6 @@ EXPORT_SYMBOL(smp_num_siblings);
 /* Last level cache ID of each logical CPU */
 DEFINE_PER_CPU(u16, cpu_llc_id) = BAD_APICID;
 
-/* bitmap of online cpus */
-cpumask_t cpu_online_map __read_mostly;
-EXPORT_SYMBOL(cpu_online_map);
-
-cpumask_t cpu_callin_map;
-cpumask_t cpu_callout_map;
-cpumask_t cpu_possible_map;
-EXPORT_SYMBOL(cpu_possible_map);
-
 /* representing HT siblings of each logical CPU */
 DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
@@ -125,9 +116,6 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 static atomic_t init_deasserted;
 
-
-/* representing cpus for which sibling maps can be computed */
-static cpumask_t cpu_sibling_setup_map;
 
 /* Set if we find a B stepping CPU */
 static int __cpuinitdata smp_b_stepping;
@@ -146,7 +134,7 @@ EXPORT_SYMBOL(cpu_to_node_map);
 static void map_cpu_to_node(int cpu, int node)
 {
 	printk(KERN_INFO "Mapping cpu %d to node %d\n", cpu, node);
-	cpu_set(cpu, node_to_cpumask_map[node]);
+	cpumask_set_cpu(cpu, &node_to_cpumask_map[node]);
 	cpu_to_node_map[cpu] = node;
 }
 
@@ -157,7 +145,7 @@ static void unmap_cpu_to_node(int cpu)
 
 	printk(KERN_INFO "Unmapping cpu %d from all nodes\n", cpu);
 	for (node = 0; node < MAX_NUMNODES; node++)
-		cpu_clear(cpu, node_to_cpumask_map[node]);
+		cpumask_clear_cpu(cpu, &node_to_cpumask_map[node]);
 	cpu_to_node_map[cpu] = 0;
 }
 #else /* !(CONFIG_NUMA && CONFIG_X86_32) */
@@ -215,7 +203,7 @@ static void __cpuinit smp_callin(void)
 	 */
 	phys_id = read_apic_id();
 	cpuid = smp_processor_id();
-	if (cpu_isset(cpuid, cpu_callin_map)) {
+	if (cpumask_test_cpu(cpuid, cpu_callin_mask)) {
 		panic("%s: phys CPU#%d, CPU#%d already present??\n", __func__,
 					phys_id, cpuid);
 	}
@@ -237,7 +225,7 @@ static void __cpuinit smp_callin(void)
 		/*
 		 * Has the boot CPU finished it's STARTUP sequence?
 		 */
-		if (cpu_isset(cpuid, cpu_callout_map))
+		if (cpumask_test_cpu(cpuid, cpu_callout_mask))
 			break;
 		cpu_relax();
 	}
@@ -280,7 +268,7 @@ static void __cpuinit smp_callin(void)
 	/*
 	 * Allow the master to continue.
 	 */
-	cpu_set(cpuid, cpu_callin_map);
+	cpumask_set_cpu(cpuid, cpu_callin_mask);
 }
 
 static int __cpuinitdata unsafe_smp;
@@ -338,7 +326,7 @@ notrace static void __cpuinit start_secondary(void *unused)
 	ipi_call_lock();
 	lock_vector_lock();
 	__setup_vector_irq(smp_processor_id());
-	cpu_set(smp_processor_id(), cpu_online_map);
+	set_cpu_online(smp_processor_id(), true);
 	unlock_vector_lock();
 	ipi_call_unlock();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
@@ -444,50 +432,52 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 	int i;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
-	cpu_set(cpu, cpu_sibling_setup_map);
+	cpumask_set_cpu(cpu, cpu_sibling_setup_mask);
 
 	if (smp_num_siblings > 1) {
-		for_each_cpu_mask_nr(i, cpu_sibling_setup_map) {
-			if (c->phys_proc_id == cpu_data(i).phys_proc_id &&
-			    c->cpu_core_id == cpu_data(i).cpu_core_id) {
-				cpu_set(i, per_cpu(cpu_sibling_map, cpu));
-				cpu_set(cpu, per_cpu(cpu_sibling_map, i));
-				cpu_set(i, per_cpu(cpu_core_map, cpu));
-				cpu_set(cpu, per_cpu(cpu_core_map, i));
-				cpu_set(i, c->llc_shared_map);
-				cpu_set(cpu, cpu_data(i).llc_shared_map);
+		for_each_cpu(i, cpu_sibling_setup_mask) {
+			struct cpuinfo_x86 *o = &cpu_data(i);
+
+			if (c->phys_proc_id == o->phys_proc_id &&
+			    c->cpu_core_id == o->cpu_core_id) {
+				cpumask_set_cpu(i, cpu_sibling_mask(cpu));
+				cpumask_set_cpu(cpu, cpu_sibling_mask(i));
+				cpumask_set_cpu(i, cpu_core_mask(cpu));
+				cpumask_set_cpu(cpu, cpu_core_mask(i));
+				cpumask_set_cpu(i, &c->llc_shared_map);
+				cpumask_set_cpu(cpu, &o->llc_shared_map);
 			}
 		}
 	} else {
-		cpu_set(cpu, per_cpu(cpu_sibling_map, cpu));
+		cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
 	}
 
-	cpu_set(cpu, c->llc_shared_map);
+	cpumask_set_cpu(cpu, &c->llc_shared_map);
 
 	if (current_cpu_data.x86_max_cores == 1) {
-		per_cpu(cpu_core_map, cpu) = per_cpu(cpu_sibling_map, cpu);
+		cpumask_copy(cpu_core_mask(cpu), cpu_sibling_mask(cpu));
 		c->booted_cores = 1;
 		return;
 	}
 
-	for_each_cpu_mask_nr(i, cpu_sibling_setup_map) {
+	for_each_cpu(i, cpu_sibling_setup_mask) {
 		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
 		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
-			cpu_set(i, c->llc_shared_map);
-			cpu_set(cpu, cpu_data(i).llc_shared_map);
+			cpumask_set_cpu(i, &c->llc_shared_map);
+			cpumask_set_cpu(cpu, &cpu_data(i).llc_shared_map);
 		}
 		if (c->phys_proc_id == cpu_data(i).phys_proc_id) {
-			cpu_set(i, per_cpu(cpu_core_map, cpu));
-			cpu_set(cpu, per_cpu(cpu_core_map, i));
+			cpumask_set_cpu(i, cpu_core_mask(cpu));
+			cpumask_set_cpu(cpu, cpu_core_mask(i));
 			/*
 			 *  Does this new cpu bringup a new core?
 			 */
-			if (cpus_weight(per_cpu(cpu_sibling_map, cpu)) == 1) {
+			if (cpumask_weight(cpu_sibling_mask(cpu)) == 1) {
 				/*
 				 * for each core in package, increment
 				 * the booted_cores for this new cpu
 				 */
-				if (first_cpu(per_cpu(cpu_sibling_map, i)) == i)
+				if (cpumask_first(cpu_sibling_mask(i)) == i)
 					c->booted_cores++;
 				/*
 				 * increment the core count for all
@@ -502,7 +492,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 }
 
 /* maps the cpu to the sched domain representing multi-core */
-cpumask_t cpu_coregroup_map(int cpu)
+const struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	/*
@@ -510,9 +500,14 @@ cpumask_t cpu_coregroup_map(int cpu)
 	 * And for power savings, we return cpu_core_map
 	 */
 	if (sched_mc_power_savings || sched_smt_power_savings)
-		return per_cpu(cpu_core_map, cpu);
+		return cpu_core_mask(cpu);
 	else
-		return c->llc_shared_map;
+		return &c->llc_shared_map;
+}
+
+cpumask_t cpu_coregroup_map(int cpu)
+{
+	return *cpu_coregroup_mask(cpu);
 }
 
 static void impress_friends(void)
@@ -524,7 +519,7 @@ static void impress_friends(void)
 	 */
 	pr_debug("Before bogomips.\n");
 	for_each_possible_cpu(cpu)
-		if (cpu_isset(cpu, cpu_callout_map))
+		if (cpumask_test_cpu(cpu, cpu_callout_mask))
 			bogosum += cpu_data(cpu).loops_per_jiffy;
 	printk(KERN_INFO
 		"Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
@@ -905,19 +900,19 @@ do_rest:
 		 * allow APs to start initializing.
 		 */
 		pr_debug("Before Callout %d.\n", cpu);
-		cpu_set(cpu, cpu_callout_map);
+		cpumask_set_cpu(cpu, cpu_callout_mask);
 		pr_debug("After Callout %d.\n", cpu);
 
 		/*
 		 * Wait 5s total for a response
 		 */
 		for (timeout = 0; timeout < 50000; timeout++) {
-			if (cpu_isset(cpu, cpu_callin_map))
+			if (cpumask_test_cpu(cpu, cpu_callin_mask))
 				break;	/* It has booted */
 			udelay(100);
 		}
 
-		if (cpu_isset(cpu, cpu_callin_map)) {
+		if (cpumask_test_cpu(cpu, cpu_callin_mask)) {
 			/* number CPUs logically, starting from 1 (BSP is 0) */
 			pr_debug("OK.\n");
 			printk(KERN_INFO "CPU%d: ", cpu);
@@ -942,9 +937,14 @@ restore_state:
 	if (boot_error) {
 		/* Try to put things back the way they were before ... */
 		numa_remove_cpu(cpu); /* was set by numa_add_cpu */
-		cpu_clear(cpu, cpu_callout_map); /* was set by do_boot_cpu() */
-		cpu_clear(cpu, cpu_initialized); /* was set by cpu_init() */
-		cpu_clear(cpu, cpu_present_map);
+
+		/* was set by do_boot_cpu() */
+		cpumask_clear_cpu(cpu, cpu_callout_mask);
+
+		/* was set by cpu_init() */
+		cpumask_clear_cpu(cpu, cpu_initialized_mask);
+
+		set_cpu_present(cpu, false);
 		per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
 	}
 
@@ -978,7 +978,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	/*
 	 * Already booted CPU?
 	 */
-	if (cpu_isset(cpu, cpu_callin_map)) {
+	if (cpumask_test_cpu(cpu, cpu_callin_mask)) {
 		pr_debug("do_boot_cpu %d Already started\n", cpu);
 		return -ENOSYS;
 	}
@@ -1033,8 +1033,9 @@ int __cpuinit native_cpu_up(unsigned int cpu)
  */
 static __init void disable_smp(void)
 {
-	cpu_present_map = cpumask_of_cpu(0);
-	cpu_possible_map = cpumask_of_cpu(0);
+	/* use the read/write pointers to the present and possible maps */
+	cpumask_copy(&cpu_present_map, cpumask_of(0));
+	cpumask_copy(&cpu_possible_map, cpumask_of(0));
 	smpboot_clear_io_apic_irqs();
 
 	if (smp_found_config)
@@ -1042,8 +1043,8 @@ static __init void disable_smp(void)
 	else
 		physid_set_mask_of_physid(0, &phys_cpu_present_map);
 	map_cpu_to_logical_apicid();
-	cpu_set(0, per_cpu(cpu_sibling_map, 0));
-	cpu_set(0, per_cpu(cpu_core_map, 0));
+	cpumask_set_cpu(0, cpu_sibling_mask(0));
+	cpumask_set_cpu(0, cpu_core_mask(0));
 }
 
 /*
@@ -1065,14 +1066,14 @@ static int __init smp_sanity_check(unsigned max_cpus)
 		nr = 0;
 		for_each_present_cpu(cpu) {
 			if (nr >= 8)
-				cpu_clear(cpu, cpu_present_map);
+				set_cpu_present(cpu, false);
 			nr++;
 		}
 
 		nr = 0;
 		for_each_possible_cpu(cpu) {
 			if (nr >= 8)
-				cpu_clear(cpu, cpu_possible_map);
+				set_cpu_possible(cpu, false);
 			nr++;
 		}
 
@@ -1155,7 +1156,7 @@ static void __init smp_cpu_index_default(void)
 	for_each_possible_cpu(i) {
 		c = &cpu_data(i);
 		/* mark all to hotplug */
-		c->cpu_index = NR_CPUS;
+		c->cpu_index = nr_cpu_ids;
 	}
 }
 
@@ -1168,7 +1169,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	preempt_disable();
 	smp_cpu_index_default();
 	current_cpu_data = boot_cpu_data;
-	cpu_callin_map = cpumask_of_cpu(0);
+	cpumask_copy(cpu_callin_mask, cpumask_of(0));
 	mb();
 	/*
 	 * Setup boot CPU information
@@ -1243,8 +1244,8 @@ void __init native_smp_prepare_boot_cpu(void)
 	init_gdt(me);
 #endif
 	switch_to_new_gdt();
-	/* already set me in cpu_online_map in boot_cpu_init() */
-	cpu_set(me, cpu_callout_map);
+	/* already set me in cpu_online_mask in boot_cpu_init() */
+	cpumask_set_cpu(me, cpu_callout_mask);
 	per_cpu(cpu_state, me) = CPU_ONLINE;
 }
 
@@ -1260,6 +1261,15 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	check_nmi_watchdog();
 }
 
+static int __initdata setup_possible_cpus = -1;
+static int __init _setup_possible_cpus(char *str)
+{
+	get_option(&str, &setup_possible_cpus);
+	return 0;
+}
+early_param("possible_cpus", _setup_possible_cpus);
+
+
 /*
  * cpu_possible_map should be static, it cannot change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
@@ -1272,7 +1282,7 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
  *
  * Three ways to find out the number of additional hotplug CPUs:
  * - If the BIOS specified disabled CPUs in ACPI/mptables use that.
- * - The user can overwrite it with additional_cpus=NUM
+ * - The user can overwrite it with possible_cpus=NUM
  * - Otherwise don't reserve additional CPUs.
  * We do this because additional CPUs waste a lot of memory.
  * -AK
@@ -1285,15 +1295,25 @@ __init void prefill_possible_map(void)
 	if (!num_processors)
 		num_processors = 1;
 
-	possible = num_processors + disabled_cpus;
-	if (possible > NR_CPUS)
-		possible = NR_CPUS;
+	if (setup_possible_cpus == -1)
+		possible = num_processors + disabled_cpus;
+	else
+		possible = setup_possible_cpus;
+
+	total_cpus = max_t(int, possible, num_processors + disabled_cpus);
+
+	if (possible > CONFIG_NR_CPUS) {
+		printk(KERN_WARNING
+			"%d Processors exceeds NR_CPUS limit of %d\n",
+			possible, CONFIG_NR_CPUS);
+		possible = CONFIG_NR_CPUS;
+	}
 
 	printk(KERN_INFO "SMP: Allowing %d CPUs, %d hotplug CPUs\n",
 		possible, max_t(int, possible - num_processors, 0));
 
 	for (i = 0; i < possible; i++)
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 
 	nr_cpu_ids = possible;
 }
@@ -1305,31 +1325,31 @@ static void remove_siblinginfo(int cpu)
 	int sibling;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
-	for_each_cpu_mask_nr(sibling, per_cpu(cpu_core_map, cpu)) {
-		cpu_clear(cpu, per_cpu(cpu_core_map, sibling));
+	for_each_cpu(sibling, cpu_core_mask(cpu)) {
+		cpumask_clear_cpu(cpu, cpu_core_mask(sibling));
 		/*/
 		 * last thread sibling in this cpu core going down
 		 */
-		if (cpus_weight(per_cpu(cpu_sibling_map, cpu)) == 1)
+		if (cpumask_weight(cpu_sibling_mask(cpu)) == 1)
 			cpu_data(sibling).booted_cores--;
 	}
 
-	for_each_cpu_mask_nr(sibling, per_cpu(cpu_sibling_map, cpu))
-		cpu_clear(cpu, per_cpu(cpu_sibling_map, sibling));
-	cpus_clear(per_cpu(cpu_sibling_map, cpu));
-	cpus_clear(per_cpu(cpu_core_map, cpu));
+	for_each_cpu(sibling, cpu_sibling_mask(cpu))
+		cpumask_clear_cpu(cpu, cpu_sibling_mask(sibling));
+	cpumask_clear(cpu_sibling_mask(cpu));
+	cpumask_clear(cpu_core_mask(cpu));
 	c->phys_proc_id = 0;
 	c->cpu_core_id = 0;
-	cpu_clear(cpu, cpu_sibling_setup_map);
+	cpumask_clear_cpu(cpu, cpu_sibling_setup_mask);
 }
 
 static void __ref remove_cpu_from_maps(int cpu)
 {
-	cpu_clear(cpu, cpu_online_map);
-	cpu_clear(cpu, cpu_callout_map);
-	cpu_clear(cpu, cpu_callin_map);
+	set_cpu_online(cpu, false);
+	cpumask_clear_cpu(cpu, cpu_callout_mask);
+	cpumask_clear_cpu(cpu, cpu_callin_mask);
 	/* was set by cpu_init() */
-	cpu_clear(cpu, cpu_initialized);
+	cpumask_clear_cpu(cpu, cpu_initialized_mask);
 	numa_remove_cpu(cpu);
 }
 
@@ -1352,7 +1372,7 @@ void cpu_disable_common(void)
 	lock_vector_lock();
 	remove_cpu_from_maps(cpu);
 	unlock_vector_lock();
-	fixup_irqs(cpu_online_map);
+	fixup_irqs();
 }
 
 int native_cpu_disable(void)

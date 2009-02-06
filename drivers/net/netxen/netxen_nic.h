@@ -146,7 +146,7 @@
 
 #define MAX_RX_BUFFER_LENGTH		1760
 #define MAX_RX_JUMBO_BUFFER_LENGTH 	8062
-#define MAX_RX_LRO_BUFFER_LENGTH	((48*1024)-512)
+#define MAX_RX_LRO_BUFFER_LENGTH	(8062)
 #define RX_DMA_MAP_LEN			(MAX_RX_BUFFER_LENGTH - 2)
 #define RX_JUMBO_DMA_MAP_LEN	\
 	(MAX_RX_JUMBO_BUFFER_LENGTH - 2)
@@ -207,11 +207,11 @@
 
 #define MAX_CMD_DESCRIPTORS		4096
 #define MAX_RCV_DESCRIPTORS		16384
-#define MAX_CMD_DESCRIPTORS_HOST	(MAX_CMD_DESCRIPTORS / 4)
-#define MAX_RCV_DESCRIPTORS_1G		(MAX_RCV_DESCRIPTORS / 4)
-#define MAX_RCV_DESCRIPTORS_10G		8192
+#define MAX_CMD_DESCRIPTORS_HOST	1024
+#define MAX_RCV_DESCRIPTORS_1G		2048
+#define MAX_RCV_DESCRIPTORS_10G		4096
 #define MAX_JUMBO_RCV_DESCRIPTORS	1024
-#define MAX_LRO_RCV_DESCRIPTORS		64
+#define MAX_LRO_RCV_DESCRIPTORS		8
 #define MAX_RCVSTATUS_DESCRIPTORS	MAX_RCV_DESCRIPTORS
 #define MAX_JUMBO_RCV_DESC	MAX_JUMBO_RCV_DESCRIPTORS
 #define MAX_RCV_DESC		MAX_RCV_DESCRIPTORS
@@ -308,27 +308,16 @@ struct netxen_ring_ctx {
 #define netxen_set_cmd_desc_ctxid(cmd_desc, var)	\
 	((cmd_desc)->port_ctxid |= ((var) << 4 & 0xF0))
 
-#define netxen_set_cmd_desc_flags(cmd_desc, val)	\
-	(cmd_desc)->flags_opcode = ((cmd_desc)->flags_opcode & \
-		~cpu_to_le16(0x7f)) | cpu_to_le16((val) & 0x7f)
-#define netxen_set_cmd_desc_opcode(cmd_desc, val)	\
-	(cmd_desc)->flags_opcode = ((cmd_desc)->flags_opcode & \
-		~cpu_to_le16((u16)0x3f << 7)) | cpu_to_le16(((val) & 0x3f) << 7)
+#define netxen_set_tx_port(_desc, _port) \
+	(_desc)->port_ctxid = ((_port) & 0xf) | (((_port) << 4) & 0xf0)
 
-#define netxen_set_cmd_desc_num_of_buff(cmd_desc, val)	\
-	(cmd_desc)->num_of_buffers_total_length = \
-		((cmd_desc)->num_of_buffers_total_length & \
-		~cpu_to_le32(0xff)) | cpu_to_le32((val) & 0xff)
-#define netxen_set_cmd_desc_totallength(cmd_desc, val)	\
-	(cmd_desc)->num_of_buffers_total_length = \
-		((cmd_desc)->num_of_buffers_total_length & \
-		~cpu_to_le32((u32)0xffffff << 8)) | \
-		cpu_to_le32(((val) & 0xffffff) << 8)
+#define netxen_set_tx_flags_opcode(_desc, _flags, _opcode) \
+	(_desc)->flags_opcode = \
+	cpu_to_le16(((_flags) & 0x7f) | (((_opcode) & 0x3f) << 7))
 
-#define netxen_get_cmd_desc_opcode(cmd_desc)	\
-	((le16_to_cpu((cmd_desc)->flags_opcode) >> 7) & 0x003f)
-#define netxen_get_cmd_desc_totallength(cmd_desc)	\
-	((le32_to_cpu((cmd_desc)->num_of_buffers_total_length) >> 8) & 0xffffff)
+#define netxen_set_tx_frags_len(_desc, _frags, _len) \
+	(_desc)->num_of_buffers_total_length = \
+	cpu_to_le32(((_frags) & 0xff) | (((_len) & 0xffffff) << 8))
 
 struct cmd_desc_type0 {
 	u8 tcp_hdr_offset;	/* For LSO only */
@@ -510,7 +499,8 @@ typedef enum {
 	NETXEN_BRDTYPE_P3_10G_SFP_CT = 0x002a,
 	NETXEN_BRDTYPE_P3_10G_SFP_QT = 0x002b,
 	NETXEN_BRDTYPE_P3_10G_CX4 = 0x0031,
-	NETXEN_BRDTYPE_P3_10G_XFP = 0x0032
+	NETXEN_BRDTYPE_P3_10G_XFP = 0x0032,
+	NETXEN_BRDTYPE_P3_10G_TP = 0x0080
 
 } netxen_brdtype_t;
 
@@ -757,7 +747,7 @@ extern char netxen_nic_driver_name[];
  */
 struct netxen_skb_frag {
 	u64 dma;
-	u32 length;
+	ulong length;
 };
 
 #define _netxen_set_bits(config_word, start, bits, val)	{\
@@ -783,13 +773,7 @@ struct netxen_skb_frag {
 struct netxen_cmd_buffer {
 	struct sk_buff *skb;
 	struct netxen_skb_frag frag_array[MAX_BUFFERS_PER_CMD + 1];
-	u32 total_length;
-	u32 mss;
-	u16 port;
-	u8 cmd;
-	u8 frag_count;
-	unsigned long time_stamp;
-	u32 state;
+	u32 frag_count;
 };
 
 /* In rx_buffer, we do not need multiple fragments as is a single buffer */
@@ -876,7 +860,6 @@ struct nx_host_rds_ring {
 	u32 skb_size;
 	struct netxen_rx_buffer *rx_buf_arr;	/* rx buffers for receive   */
 	struct list_head free_list;
-	int begin_alloc;
 };
 
 /*
@@ -995,31 +978,31 @@ struct netxen_recv_context {
  */
 
 typedef struct {
-	u64 host_phys_addr;	/* Ring base addr */
-	u32 ring_size;		/* Ring entries */
-	u16 msi_index;
-	u16 rsvd;		/* Padding */
+	__le64 host_phys_addr;	/* Ring base addr */
+	__le32 ring_size;		/* Ring entries */
+	__le16 msi_index;
+	__le16 rsvd;		/* Padding */
 } nx_hostrq_sds_ring_t;
 
 typedef struct {
-	u64 host_phys_addr;	/* Ring base addr */
-	u64 buff_size;		/* Packet buffer size */
-	u32 ring_size;		/* Ring entries */
-	u32 ring_kind;		/* Class of ring */
+	__le64 host_phys_addr;	/* Ring base addr */
+	__le64 buff_size;		/* Packet buffer size */
+	__le32 ring_size;		/* Ring entries */
+	__le32 ring_kind;		/* Class of ring */
 } nx_hostrq_rds_ring_t;
 
 typedef struct {
-	u64 host_rsp_dma_addr;	/* Response dma'd here */
-	u32 capabilities[4];	/* Flag bit vector */
-	u32 host_int_crb_mode;	/* Interrupt crb usage */
-	u32 host_rds_crb_mode;	/* RDS crb usage */
+	__le64 host_rsp_dma_addr;	/* Response dma'd here */
+	__le32 capabilities[4];	/* Flag bit vector */
+	__le32 host_int_crb_mode;	/* Interrupt crb usage */
+	__le32 host_rds_crb_mode;	/* RDS crb usage */
 	/* These ring offsets are relative to data[0] below */
-	u32 rds_ring_offset;	/* Offset to RDS config */
-	u32 sds_ring_offset;	/* Offset to SDS config */
-	u16 num_rds_rings;	/* Count of RDS rings */
-	u16 num_sds_rings;	/* Count of SDS rings */
-	u16 rsvd1;		/* Padding */
-	u16 rsvd2;		/* Padding */
+	__le32 rds_ring_offset;	/* Offset to RDS config */
+	__le32 sds_ring_offset;	/* Offset to SDS config */
+	__le16 num_rds_rings;	/* Count of RDS rings */
+	__le16 num_sds_rings;	/* Count of SDS rings */
+	__le16 rsvd1;		/* Padding */
+	__le16 rsvd2;		/* Padding */
 	u8  reserved[128]; 	/* reserve space for future expansion*/
 	/* MUST BE 64-bit aligned.
 	   The following is packed:
@@ -1029,24 +1012,24 @@ typedef struct {
 } nx_hostrq_rx_ctx_t;
 
 typedef struct {
-	u32 host_producer_crb;	/* Crb to use */
-	u32 rsvd1;		/* Padding */
+	__le32 host_producer_crb;	/* Crb to use */
+	__le32 rsvd1;		/* Padding */
 } nx_cardrsp_rds_ring_t;
 
 typedef struct {
-	u32 host_consumer_crb;	/* Crb to use */
-	u32 interrupt_crb;	/* Crb to use */
+	__le32 host_consumer_crb;	/* Crb to use */
+	__le32 interrupt_crb;	/* Crb to use */
 } nx_cardrsp_sds_ring_t;
 
 typedef struct {
 	/* These ring offsets are relative to data[0] below */
-	u32 rds_ring_offset;	/* Offset to RDS config */
-	u32 sds_ring_offset;	/* Offset to SDS config */
-	u32 host_ctx_state;	/* Starting State */
-	u32 num_fn_per_port;	/* How many PCI fn share the port */
-	u16 num_rds_rings;	/* Count of RDS rings */
-	u16 num_sds_rings;	/* Count of SDS rings */
-	u16 context_id;		/* Handle for context */
+	__le32 rds_ring_offset;	/* Offset to RDS config */
+	__le32 sds_ring_offset;	/* Offset to SDS config */
+	__le32 host_ctx_state;	/* Starting State */
+	__le32 num_fn_per_port;	/* How many PCI fn share the port */
+	__le16 num_rds_rings;	/* Count of RDS rings */
+	__le16 num_sds_rings;	/* Count of SDS rings */
+	__le16 context_id;		/* Handle for context */
 	u8  phys_port;		/* Physical id of port */
 	u8  virt_port;		/* Virtual/Logical id of port */
 	u8  reserved[128];	/* save space for future expansion */
@@ -1072,34 +1055,34 @@ typedef struct {
  */
 
 typedef struct {
-	u64 host_phys_addr;	/* Ring base addr */
-	u32 ring_size;		/* Ring entries */
-	u32 rsvd;		/* Padding */
+	__le64 host_phys_addr;	/* Ring base addr */
+	__le32 ring_size;		/* Ring entries */
+	__le32 rsvd;		/* Padding */
 } nx_hostrq_cds_ring_t;
 
 typedef struct {
-	u64 host_rsp_dma_addr;	/* Response dma'd here */
-	u64 cmd_cons_dma_addr;	/*  */
-	u64 dummy_dma_addr;	/*  */
-	u32 capabilities[4];	/* Flag bit vector */
-	u32 host_int_crb_mode;	/* Interrupt crb usage */
-	u32 rsvd1;		/* Padding */
-	u16 rsvd2;		/* Padding */
-	u16 interrupt_ctl;
-	u16 msi_index;
-	u16 rsvd3;		/* Padding */
+	__le64 host_rsp_dma_addr;	/* Response dma'd here */
+	__le64 cmd_cons_dma_addr;	/*  */
+	__le64 dummy_dma_addr;	/*  */
+	__le32 capabilities[4];	/* Flag bit vector */
+	__le32 host_int_crb_mode;	/* Interrupt crb usage */
+	__le32 rsvd1;		/* Padding */
+	__le16 rsvd2;		/* Padding */
+	__le16 interrupt_ctl;
+	__le16 msi_index;
+	__le16 rsvd3;		/* Padding */
 	nx_hostrq_cds_ring_t cds_ring;	/* Desc of cds ring */
 	u8  reserved[128];	/* future expansion */
 } nx_hostrq_tx_ctx_t;
 
 typedef struct {
-	u32 host_producer_crb;	/* Crb to use */
-	u32 interrupt_crb;	/* Crb to use */
+	__le32 host_producer_crb;	/* Crb to use */
+	__le32 interrupt_crb;	/* Crb to use */
 } nx_cardrsp_cds_ring_t;
 
 typedef struct {
-	u32 host_ctx_state;	/* Starting state */
-	u16 context_id;		/* Handle for context */
+	__le32 host_ctx_state;	/* Starting state */
+	__le16 context_id;		/* Handle for context */
 	u8  phys_port;		/* Physical id of port */
 	u8  virt_port;		/* Virtual/Logical id of port */
 	nx_cardrsp_cds_ring_t cds_ring;	/* Card cds settings */
@@ -1202,9 +1185,9 @@ enum {
 #define VPORT_MISS_MODE_ACCEPT_MULTI	2 /* accept unmatched multicast */
 
 typedef struct {
-	u64 qhdr;
-	u64 req_hdr;
-	u64 words[6];
+	__le64 qhdr;
+	__le64 req_hdr;
+	__le64 words[6];
 } nx_nic_req_t;
 
 typedef struct {
@@ -1486,8 +1469,6 @@ void netxen_release_tx_buffers(struct netxen_adapter *adapter);
 
 void netxen_initialize_adapter_ops(struct netxen_adapter *adapter);
 int netxen_init_firmware(struct netxen_adapter *adapter);
-void netxen_tso_check(struct netxen_adapter *adapter,
-		      struct cmd_desc_type0 *desc, struct sk_buff *skb);
 void netxen_nic_clear_stats(struct netxen_adapter *adapter);
 void netxen_watchdog_task(struct work_struct *work);
 void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx,
@@ -1496,6 +1477,7 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter);
 u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctx, int max);
 void netxen_p2_nic_set_multi(struct net_device *netdev);
 void netxen_p3_nic_set_multi(struct net_device *netdev);
+void netxen_p3_free_mac_list(struct netxen_adapter *adapter);
 int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32);
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
 

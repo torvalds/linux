@@ -886,7 +886,7 @@ asmlinkage void early_printk(const char *fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	n = vscnprintf(buf, 512, fmt, ap);
+	n = vscnprintf(buf, sizeof(buf), fmt, ap);
 	early_console->write(early_console, buf, n);
 	va_end(ap);
 }

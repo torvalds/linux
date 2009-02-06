@@ -148,7 +148,7 @@ int read_eeprom(char *buffer, int eeprom_size, int size)
 	send_byte(W_HEADER);
 	recv_ack();
 
-	/* EEPROM with size of more then 2K need two byte addressing */
+	/* EEPROM with size of more than 2K need two byte addressing */
 	if (eeprom_size > 2048) {
 		send_byte(0x00);
 		recv_ack();

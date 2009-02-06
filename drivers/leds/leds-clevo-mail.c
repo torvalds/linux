@@ -142,6 +142,7 @@ static struct led_classdev clevo_mail_led = {
 	.name			= "clevo::mail",
 	.brightness_set		= clevo_mail_led_set,
 	.blink_set		= clevo_mail_led_blink,
+	.flags			= LED_CORE_SUSPENDRESUME,
 };
 
 static int __init clevo_mail_led_probe(struct platform_device *pdev)
@@ -155,29 +156,9 @@ static int clevo_mail_led_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int clevo_mail_led_suspend(struct platform_device *dev,
-				  pm_message_t state)
-{
-	led_classdev_suspend(&clevo_mail_led);
-	return 0;
-}
-
-static int clevo_mail_led_resume(struct platform_device *dev)
-{
-	led_classdev_resume(&clevo_mail_led);
-	return 0;
-}
-#else
-#define clevo_mail_led_suspend    NULL
-#define clevo_mail_led_resume     NULL
-#endif
-
 static struct platform_driver clevo_mail_led_driver = {
 	.probe		= clevo_mail_led_probe,
 	.remove		= clevo_mail_led_remove,
-	.suspend	= clevo_mail_led_suspend,
-	.resume		= clevo_mail_led_resume,
 	.driver		= {
 		.name		= KBUILD_MODNAME,
 		.owner		= THIS_MODULE,

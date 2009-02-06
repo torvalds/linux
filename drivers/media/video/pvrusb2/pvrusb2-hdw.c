@@ -3655,7 +3655,7 @@ void pvr2_hdw_device_reset(struct pvr2_hdw *hdw)
 	int ret;
 	pvr2_trace(PVR2_TRACE_INIT,"Performing a device reset...");
 	ret = usb_lock_device_for_reset(hdw->usb_dev,NULL);
-	if (ret == 1) {
+	if (ret == 0) {
 		ret = usb_reset_device(hdw->usb_dev);
 		usb_unlock_device(hdw->usb_dev);
 	} else {
@@ -4732,26 +4732,25 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 
 
 int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
-			     u32 match_type, u32 match_chip, u64 reg_id,
-			     int setFl,u64 *val_ptr)
+			     struct v4l2_dbg_match *match, u64 reg_id,
+			     int setFl, u64 *val_ptr)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	struct pvr2_i2c_client *cp;
-	struct v4l2_register req;
+	struct v4l2_dbg_register req;
 	int stat = 0;
 	int okFl = 0;
 
 	if (!capable(CAP_SYS_ADMIN)) return -EPERM;
 
-	req.match_type = match_type;
-	req.match_chip = match_chip;
+	req.match = *match;
 	req.reg = reg_id;
 	if (setFl) req.val = *val_ptr;
 	mutex_lock(&hdw->i2c_list_lock); do {
 		list_for_each_entry(cp, &hdw->i2c_clients, list) {
 			if (!v4l2_chip_match_i2c_client(
 				    cp->client,
-				    req.match_type, req.match_chip)) {
+				    &req.match)) {
 				continue;
 			}
 			stat = pvr2_i2c_client_cmd(

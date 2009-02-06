@@ -316,7 +316,7 @@ static int av7110_dvb_c_switch(struct saa7146_fh *fh)
 	return 0;
 }
 
-static int av7110_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
+static long av7110_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 {
 	struct saa7146_dev *dev = fh->dev;
 	struct av7110 *av7110 = (struct av7110*) dev->ext_priv;
@@ -567,7 +567,7 @@ static int av7110_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int av7110_vbi_reset(struct inode *inode, struct file *file)
+static int av7110_vbi_reset(struct file *file)
 {
 	struct saa7146_fh *fh = file->private_data;
 	struct saa7146_dev *dev = fh->dev;

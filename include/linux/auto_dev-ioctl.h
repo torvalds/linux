@@ -10,6 +10,7 @@
 #ifndef _LINUX_AUTO_DEV_IOCTL_H
 #define _LINUX_AUTO_DEV_IOCTL_H
 
+#include <linux/string.h>
 #include <linux/types.h>
 
 #define AUTOFS_DEVICE_NAME		"autofs"
@@ -25,6 +26,60 @@
  * An ioctl interface for autofs mount point control.
  */
 
+struct args_protover {
+	__u32	version;
+};
+
+struct args_protosubver {
+	__u32	sub_version;
+};
+
+struct args_openmount {
+	__u32	devid;
+};
+
+struct args_ready {
+	__u32	token;
+};
+
+struct args_fail {
+	__u32	token;
+	__s32	status;
+};
+
+struct args_setpipefd {
+	__s32	pipefd;
+};
+
+struct args_timeout {
+	__u64	timeout;
+};
+
+struct args_requester {
+	__u32	uid;
+	__u32	gid;
+};
+
+struct args_expire {
+	__u32	how;
+};
+
+struct args_askumount {
+	__u32	may_umount;
+};
+
+struct args_ismountpoint {
+	union {
+		struct args_in {
+			__u32	type;
+		} in;
+		struct args_out {
+			__u32	devid;
+			__u32	magic;
+		} out;
+	};
+};
+
 /*
  * All the ioctls use this structure.
  * When sending a path size must account for the total length
@@ -39,20 +94,32 @@ struct autofs_dev_ioctl {
 				 * including this struct */
 	__s32 ioctlfd;		/* automount command fd */
 
-	__u32 arg1;		/* Command parameters */
-	__u32 arg2;
+	/* Command parameters */
+
+	union {
+		struct args_protover		protover;
+		struct args_protosubver		protosubver;
+		struct args_openmount		openmount;
+		struct args_ready		ready;
+		struct args_fail		fail;
+		struct args_setpipefd		setpipefd;
+		struct args_timeout		timeout;
+		struct args_requester		requester;
+		struct args_expire		expire;
+		struct args_askumount		askumount;
+		struct args_ismountpoint	ismountpoint;
+	};
 
 	char path[0];
 };
 
 static inline void init_autofs_dev_ioctl(struct autofs_dev_ioctl *in)
 {
+	memset(in, 0, sizeof(struct autofs_dev_ioctl));
 	in->ver_major = AUTOFS_DEV_IOCTL_VERSION_MAJOR;
 	in->ver_minor = AUTOFS_DEV_IOCTL_VERSION_MINOR;
 	in->size = sizeof(struct autofs_dev_ioctl);
 	in->ioctlfd = -1;
-	in->arg1 = 0;
-	in->arg2 = 0;
 	return;
 }
 

@@ -298,7 +298,6 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 struct i2c_adapter amd756_smbus = {
 	.owner		= THIS_MODULE,
-	.id		= I2C_HW_SMBUS_AMD756,
 	.class          = I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.algo		= &smbus_algorithm,
 };
@@ -380,8 +379,9 @@ static int __devinit amd756_probe(struct pci_dev *pdev,
 	/* set up the sysfs linkage to our parent device */
 	amd756_smbus.dev.parent = &pdev->dev;
 
-	sprintf(amd756_smbus.name, "SMBus %s adapter at %04x",
-		chipname[id->driver_data], amd756_ioport);
+	snprintf(amd756_smbus.name, sizeof(amd756_smbus.name),
+		 "SMBus %s adapter at %04x", chipname[id->driver_data],
+		 amd756_ioport);
 
 	error = i2c_add_adapter(&amd756_smbus);
 	if (error) {

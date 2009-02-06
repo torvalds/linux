@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/jiffies.h>
 #include <linux/smp.h>
 #include <linux/io.h>
 

@@ -1981,7 +1981,7 @@ static struct lh7a40x_udc memory = {
 		   .ep0 = &memory.ep[0].ep,
 		   .name = driver_name,
 		   .dev = {
-			   .bus_id = "gadget",
+			   .init_name = "gadget",
 			   .release = nop_release,
 			   },
 		   },

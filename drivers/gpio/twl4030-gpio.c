@@ -202,37 +202,6 @@ static int twl4030_get_gpio_datain(int gpio)
 	return ret;
 }
 
-/*
- * Configure debounce timing value for a GPIO pin on TWL4030
- */
-int twl4030_set_gpio_debounce(int gpio, int enable)
-{
-	u8 d_bnk = gpio >> 3;
-	u8 d_msk = BIT(gpio & 0x7);
-	u8 reg = 0;
-	u8 base = 0;
-	int ret = 0;
-
-	if (unlikely((gpio >= TWL4030_GPIO_MAX)
-		|| !(gpio_usage_count & BIT(gpio))))
-		return -EPERM;
-
-	base = REG_GPIO_DEBEN1 + d_bnk;
-	mutex_lock(&gpio_lock);
-	ret = gpio_twl4030_read(base);
-	if (ret >= 0) {
-		if (enable)
-			reg = ret | d_msk;
-		else
-			reg = ret & ~d_msk;
-
-		ret = gpio_twl4030_write(base, reg);
-	}
-	mutex_unlock(&gpio_lock);
-	return ret;
-}
-EXPORT_SYMBOL(twl4030_set_gpio_debounce);
-
 /*----------------------------------------------------------------------*/
 
 static int twl_request(struct gpio_chip *chip, unsigned offset)
@@ -405,6 +374,23 @@ static int __devinit gpio_twl4030_pulls(u32 ups, u32 downs)
 				REG_GPIOPUPDCTR1, 5);
 }
 
+static int __devinit gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
+{
+	u8		message[4];
+
+	/* 30 msec of debouncing is always used for MMC card detect,
+	 * and is optional for everything else.
+	 */
+	message[1] = (debounce & 0xff) | (mmc_cd & 0x03);
+	debounce >>= 8;
+	message[2] = (debounce & 0xff);
+	debounce >>= 8;
+	message[3] = (debounce & 0x03);
+
+	return twl4030_i2c_write(TWL4030_MODULE_GPIO, message,
+				REG_GPIO_DEBEN1, 3);
+}
+
 static int gpio_twl4030_remove(struct platform_device *pdev);
 
 static int __devinit gpio_twl4030_probe(struct platform_device *pdev)
@@ -437,6 +423,12 @@ no_irqs:
 	if (ret)
 		dev_dbg(&pdev->dev, "pullups %.05x %.05x --> %d\n",
 				pdata->pullups, pdata->pulldowns,
+				ret);
+
+	ret = gpio_twl4030_debounce(pdata->debounce, pdata->mmc_cd);
+	if (ret)
+		dev_dbg(&pdev->dev, "debounce %.03x %.01x --> %d\n",
+				pdata->debounce, pdata->mmc_cd,
 				ret);
 
 	twl_gpiochip.base = pdata->gpio_base;

@@ -137,6 +137,7 @@ config BLK_DEV_DELKIN
 
 config BLK_DEV_IDECD
 	tristate "Include IDE/ATAPI CDROM support"
+	select IDE_ATAPI
 	---help---
 	  If you have a CD-ROM drive using the ATAPI protocol, say Y. ATAPI is
 	  a newer protocol used by IDE CD-ROM and TAPE drives, similar to the
@@ -184,23 +185,6 @@ config BLK_DEV_IDETAPE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ide-tape.
-
-config BLK_DEV_IDESCSI
-	tristate "SCSI emulation support (DEPRECATED)"
-	depends on SCSI
-	select IDE_ATAPI
-	---help---
-	  WARNING: ide-scsi is no longer needed for cd writing applications!
-	  The 2.6 kernel supports direct writing to ide-cd, which eliminates
-	  the need for ide-scsi + the entire scsi stack just for writing a
-	  cd. The new method is more efficient in every way.
-
-	  This will provide SCSI host adapter emulation for IDE ATAPI devices,
-	  and will allow you to use a SCSI device driver instead of a native
-	  ATAPI driver.
-
-	  If both this SCSI emulation and native ATAPI support are compiled
-	  into the kernel, the native support will be used.
 
 config BLK_DEV_IDEACPI
 	bool "IDE ACPI support"
@@ -481,6 +465,16 @@ config BLK_DEV_CS5535
 
 	  It is safe to say Y to this question.
 
+config BLK_DEV_CS5536
+	tristate "CS5536 chipset support"
+	depends on X86_32
+	select BLK_DEV_IDEDMA_PCI
+	help
+	  This option enables support for the AMD CS5536
+	  companion chip used with the Geode LX processor family.
+
+	  If unsure, say N.
+
 config BLK_DEV_HPT366
 	tristate "HPT36X/37X chipset support"
 	select BLK_DEV_IDEDMA_PCI
@@ -526,6 +520,13 @@ config BLK_DEV_PIIX
 	  This driver adds explicit support for Intel PIIX and ICH chips.
 	  This allows the kernel to change PIO, DMA and UDMA speeds and to
 	  configure the chip to optimum performance.
+
+config BLK_DEV_IT8172
+	tristate "IT8172 IDE support"
+	select BLK_DEV_IDEDMA_PCI
+	help
+	  This driver adds support for the IDE controller on the
+	  IT8172 System Controller.
 
 config BLK_DEV_IT8213
 	tristate "IT8213 IDE support"
@@ -709,11 +710,6 @@ config BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
        bool "MDMA2+DbDMA IDE for AMD Alchemy Au1200"
        depends on SOC_AU1200 && BLK_DEV_IDE_AU1XXX
 endchoice
-
-config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
-       int "Maximum transfer size (KB) per request (up to 128)"
-       default "128"
-       depends on BLK_DEV_IDE_AU1XXX
 
 config BLK_DEV_IDE_TX4938
 	tristate "TX4938 internal IDE support"

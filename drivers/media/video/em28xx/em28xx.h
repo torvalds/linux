@@ -94,7 +94,7 @@
 #define EM2882_BOARD_KWORLD_VS_DVBT		  54
 #define EM2882_BOARD_TERRATEC_HYBRID_XS		  55
 #define EM2882_BOARD_PINNACLE_HYBRID_PRO	  56
-#define EM2883_BOARD_KWORLD_HYBRID_A316		  57
+#define EM2883_BOARD_KWORLD_HYBRID_330U                  57
 #define EM2820_BOARD_COMPRO_VIDEOMATE_FORYOU	  58
 #define EM2883_BOARD_HAUPPAUGE_WINTV_HVR_850	  60
 #define EM2820_BOARD_PROLINK_PLAYTV_BOX4_USB2	  61
@@ -300,12 +300,31 @@ enum em28xx_amux {
 };
 
 enum em28xx_aout {
+	/* AC97 outputs */
 	EM28XX_AOUT_MASTER = 1 << 0,
 	EM28XX_AOUT_LINE   = 1 << 1,
 	EM28XX_AOUT_MONO   = 1 << 2,
 	EM28XX_AOUT_LFE    = 1 << 3,
 	EM28XX_AOUT_SURR   = 1 << 4,
+
+	/* PCM IN Mixer - used by AC97_RECORD_SELECT register */
+	EM28XX_AOUT_PCM_IN = 1 << 7,
+
+	/* Bits 10-8 are used to indicate the PCM IN record select */
+	EM28XX_AOUT_PCM_MIC_PCM = 0 << 8,
+	EM28XX_AOUT_PCM_CD	= 1 << 8,
+	EM28XX_AOUT_PCM_VIDEO	= 2 << 8,
+	EM28XX_AOUT_PCM_AUX	= 3 << 8,
+	EM28XX_AOUT_PCM_LINE	= 4 << 8,
+	EM28XX_AOUT_PCM_STEREO	= 5 << 8,
+	EM28XX_AOUT_PCM_MONO	= 6 << 8,
+	EM28XX_AOUT_PCM_PHONE	= 7 << 8,
 };
+
+static inline int ac97_return_record_select(int a_out)
+{
+	return (a_out & 0x700) >> 8;
+}
 
 struct em28xx_reg_seq {
 	int reg;
@@ -473,7 +492,7 @@ struct em28xx {
 	unsigned long i2c_hash;	/* i2c devicelist hash -
 				   for boards with generic ID */
 
-	struct em28xx_audio *adev;
+	struct em28xx_audio adev;
 
 	/* states */
 	enum em28xx_dev_state state;
@@ -583,7 +602,7 @@ int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
 void em28xx_wake_i2c(struct em28xx *dev);
 void em28xx_remove_from_devlist(struct em28xx *dev);
 void em28xx_add_into_devlist(struct em28xx *dev);
-struct em28xx *em28xx_get_device(struct inode *inode,
+struct em28xx *em28xx_get_device(int minor,
 				 enum v4l2_buf_type *fh_type,
 				 int *has_radio);
 int em28xx_register_extension(struct em28xx_ops *dev);

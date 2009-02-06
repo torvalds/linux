@@ -216,7 +216,8 @@ static int __meminit __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 	return 0;
 }
 
-static int __meminit __add_section(struct zone *zone, unsigned long phys_start_pfn)
+static int __meminit __add_section(int nid, struct zone *zone,
+					unsigned long phys_start_pfn)
 {
 	int nr_pages = PAGES_PER_SECTION;
 	int ret;
@@ -234,7 +235,7 @@ static int __meminit __add_section(struct zone *zone, unsigned long phys_start_p
 	if (ret < 0)
 		return ret;
 
-	return register_new_memory(__pfn_to_section(phys_start_pfn));
+	return register_new_memory(nid, __pfn_to_section(phys_start_pfn));
 }
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
@@ -273,8 +274,8 @@ static int __remove_section(struct zone *zone, struct mem_section *ms)
  * call this function after deciding the zone to which to
  * add the new pages.
  */
-int __ref __add_pages(struct zone *zone, unsigned long phys_start_pfn,
-		 unsigned long nr_pages)
+int __ref __add_pages(int nid, struct zone *zone, unsigned long phys_start_pfn,
+			unsigned long nr_pages)
 {
 	unsigned long i;
 	int err = 0;
@@ -284,7 +285,7 @@ int __ref __add_pages(struct zone *zone, unsigned long phys_start_pfn,
 	end_sec = pfn_to_section_nr(phys_start_pfn + nr_pages - 1);
 
 	for (i = start_sec; i <= end_sec; i++) {
-		err = __add_section(zone, i << PFN_SECTION_SHIFT);
+		err = __add_section(nid, zone, i << PFN_SECTION_SHIFT);
 
 		/*
 		 * EEXIST is finally dealt with by ioresource collision
@@ -626,14 +627,11 @@ int scan_lru_pages(unsigned long start, unsigned long end)
 }
 
 static struct page *
-hotremove_migrate_alloc(struct page *page,
-			unsigned long private,
-			int **x)
+hotremove_migrate_alloc(struct page *page, unsigned long private, int **x)
 {
-	/* This should be improoooooved!! */
-	return alloc_page(GFP_HIGHUSER_PAGECACHE);
+	/* This should be improooooved!! */
+	return alloc_page(GFP_HIGHUSER_MOVABLE);
 }
-
 
 #define NR_OFFLINE_AT_ONCE_PAGES	(256)
 static int

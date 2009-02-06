@@ -1325,6 +1325,8 @@ source "drivers/regulator/Kconfig"
 
 source "drivers/uio/Kconfig"
 
+source "drivers/staging/Kconfig"
+
 endmenu
 
 source "fs/Kconfig"

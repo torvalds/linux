@@ -18,14 +18,15 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(call_function_lock);
 enum {
 	CSD_FLAG_WAIT		= 0x01,
 	CSD_FLAG_ALLOC		= 0x02,
+	CSD_FLAG_LOCK		= 0x04,
 };
 
 struct call_function_data {
 	struct call_single_data csd;
 	spinlock_t lock;
 	unsigned int refs;
-	cpumask_t cpumask;
 	struct rcu_head rcu_head;
+	unsigned long cpumask_bits[];
 };
 
 struct call_single_queue {
@@ -110,13 +111,13 @@ void generic_smp_call_function_interrupt(void)
 	list_for_each_entry_rcu(data, &call_function_queue, csd.list) {
 		int refs;
 
-		if (!cpu_isset(cpu, data->cpumask))
+		if (!cpumask_test_cpu(cpu, to_cpumask(data->cpumask_bits)))
 			continue;
 
 		data->csd.func(data->csd.info);
 
 		spin_lock(&data->lock);
-		cpu_clear(cpu, data->cpumask);
+		cpumask_clear_cpu(cpu, to_cpumask(data->cpumask_bits));
 		WARN_ON(data->refs == 0);
 		data->refs--;
 		refs = data->refs;
@@ -186,6 +187,9 @@ void generic_smp_call_function_single_interrupt(void)
 			if (data_flags & CSD_FLAG_WAIT) {
 				smp_wmb();
 				data->flags &= ~CSD_FLAG_WAIT;
+			} else if (data_flags & CSD_FLAG_LOCK) {
+				smp_wmb();
+				data->flags &= ~CSD_FLAG_LOCK;
 			} else if (data_flags & CSD_FLAG_ALLOC)
 				kfree(data);
 		}
@@ -195,6 +199,8 @@ void generic_smp_call_function_single_interrupt(void)
 		smp_read_barrier_depends();
 	}
 }
+
+static DEFINE_PER_CPU(struct call_single_data, csd_data);
 
 /*
  * smp_call_function_single - Run a function on a specific CPU
@@ -223,15 +229,39 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		local_irq_save(flags);
 		func(info);
 		local_irq_restore(flags);
-	} else if ((unsigned)cpu < NR_CPUS && cpu_online(cpu)) {
-		struct call_single_data *data = NULL;
+	} else if ((unsigned)cpu < nr_cpu_ids && cpu_online(cpu)) {
+		struct call_single_data *data;
 
 		if (!wait) {
+			/*
+			 * We are calling a function on a single CPU
+			 * and we are not going to wait for it to finish.
+			 * We first try to allocate the data, but if we
+			 * fail, we fall back to use a per cpu data to pass
+			 * the information to that CPU. Since all callers
+			 * of this code will use the same data, we must
+			 * synchronize the callers to prevent a new caller
+			 * from corrupting the data before the callee
+			 * can access it.
+			 *
+			 * The CSD_FLAG_LOCK is used to let us know when
+			 * the IPI handler is done with the data.
+			 * The first caller will set it, and the callee
+			 * will clear it. The next caller must wait for
+			 * it to clear before we set it again. This
+			 * will make sure the callee is done with the
+			 * data before a new caller will use it.
+			 */
 			data = kmalloc(sizeof(*data), GFP_ATOMIC);
 			if (data)
 				data->flags = CSD_FLAG_ALLOC;
-		}
-		if (!data) {
+			else {
+				data = &per_cpu(csd_data, me);
+				while (data->flags & CSD_FLAG_LOCK)
+					cpu_relax();
+				data->flags = CSD_FLAG_LOCK;
+			}
+		} else {
 			data = &d;
 			data->flags = CSD_FLAG_WAIT;
 		}
@@ -266,50 +296,18 @@ void __smp_call_function_single(int cpu, struct call_single_data *data)
 	generic_exec_single(cpu, data);
 }
 
-/* Dummy function */
-static void quiesce_dummy(void *unused)
-{
-}
-
-/*
- * Ensure stack based data used in call function mask is safe to free.
- *
- * This is needed by smp_call_function_mask when using on-stack data, because
- * a single call function queue is shared by all CPUs, and any CPU may pick up
- * the data item on the queue at any time before it is deleted. So we need to
- * ensure that all CPUs have transitioned through a quiescent state after
- * this call.
- *
- * This is a very slow function, implemented by sending synchronous IPIs to
- * all possible CPUs. For this reason, we have to alloc data rather than use
- * stack based data even in the case of synchronous calls. The stack based
- * data is then just used for deadlock/oom fallback which will be very rare.
- *
- * If a faster scheme can be made, we could go back to preferring stack based
- * data -- the data allocation/free is non-zero cost.
- */
-static void smp_call_function_mask_quiesce_stack(cpumask_t mask)
-{
-	struct call_single_data data;
-	int cpu;
-
-	data.func = quiesce_dummy;
-	data.info = NULL;
-
-	for_each_cpu_mask(cpu, mask) {
-		data.flags = CSD_FLAG_WAIT;
-		generic_exec_single(cpu, &data);
-	}
-}
+/* FIXME: Shim for archs using old arch_send_call_function_ipi API. */
+#ifndef arch_send_call_function_ipi_mask
+#define arch_send_call_function_ipi_mask(maskp) \
+	arch_send_call_function_ipi(*(maskp))
+#endif
 
 /**
- * smp_call_function_mask(): Run a function on a set of other CPUs.
- * @mask: The set of cpus to run on.
+ * smp_call_function_many(): Run a function on a set of other CPUs.
+ * @mask: The set of cpus to run on (only runs on online subset).
  * @func: The function to run. This must be fast and non-blocking.
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait (atomically) until function has completed on other CPUs.
- *
- * Returns 0 on success, else a negative status code.
  *
  * If @wait is true, then returns once @func has returned. Note that @wait
  * will be implicitly turned on in case of allocation failures, since
@@ -319,53 +317,57 @@ static void smp_call_function_mask_quiesce_stack(cpumask_t mask)
  * hardware interrupt handler or from a bottom half handler. Preemption
  * must be disabled when calling this function.
  */
-int smp_call_function_mask(cpumask_t mask, void (*func)(void *), void *info,
-			   int wait)
+void smp_call_function_many(const struct cpumask *mask,
+			    void (*func)(void *), void *info,
+			    bool wait)
 {
-	struct call_function_data d;
-	struct call_function_data *data = NULL;
-	cpumask_t allbutself;
+	struct call_function_data *data;
 	unsigned long flags;
-	int cpu, num_cpus;
-	int slowpath = 0;
+	int cpu, next_cpu;
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
 
-	cpu = smp_processor_id();
-	allbutself = cpu_online_map;
-	cpu_clear(cpu, allbutself);
-	cpus_and(mask, mask, allbutself);
-	num_cpus = cpus_weight(mask);
+	/* So, what's a CPU they want?  Ignoring this one. */
+	cpu = cpumask_first_and(mask, cpu_online_mask);
+	if (cpu == smp_processor_id())
+		cpu = cpumask_next_and(cpu, mask, cpu_online_mask);
+	/* No online cpus?  We're done. */
+	if (cpu >= nr_cpu_ids)
+		return;
 
-	/*
-	 * If zero CPUs, return. If just a single CPU, turn this request
-	 * into a targetted single call instead since it's faster.
-	 */
-	if (!num_cpus)
-		return 0;
-	else if (num_cpus == 1) {
-		cpu = first_cpu(mask);
-		return smp_call_function_single(cpu, func, info, wait);
+	/* Do we have another CPU which isn't us? */
+	next_cpu = cpumask_next_and(cpu, mask, cpu_online_mask);
+	if (next_cpu == smp_processor_id())
+		next_cpu = cpumask_next_and(next_cpu, mask, cpu_online_mask);
+
+	/* Fastpath: do that cpu by itself. */
+	if (next_cpu >= nr_cpu_ids) {
+		smp_call_function_single(cpu, func, info, wait);
+		return;
 	}
 
-	data = kmalloc(sizeof(*data), GFP_ATOMIC);
-	if (data) {
-		data->csd.flags = CSD_FLAG_ALLOC;
-		if (wait)
-			data->csd.flags |= CSD_FLAG_WAIT;
-	} else {
-		data = &d;
-		data->csd.flags = CSD_FLAG_WAIT;
-		wait = 1;
-		slowpath = 1;
+	data = kmalloc(sizeof(*data) + cpumask_size(), GFP_ATOMIC);
+	if (unlikely(!data)) {
+		/* Slow path. */
+		for_each_online_cpu(cpu) {
+			if (cpu == smp_processor_id())
+				continue;
+			if (cpumask_test_cpu(cpu, mask))
+				smp_call_function_single(cpu, func, info, wait);
+		}
+		return;
 	}
 
 	spin_lock_init(&data->lock);
+	data->csd.flags = CSD_FLAG_ALLOC;
+	if (wait)
+		data->csd.flags |= CSD_FLAG_WAIT;
 	data->csd.func = func;
 	data->csd.info = info;
-	data->refs = num_cpus;
-	data->cpumask = mask;
+	cpumask_and(to_cpumask(data->cpumask_bits), mask, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), to_cpumask(data->cpumask_bits));
+	data->refs = cpumask_weight(to_cpumask(data->cpumask_bits));
 
 	spin_lock_irqsave(&call_function_lock, flags);
 	list_add_tail_rcu(&data->csd.list, &call_function_queue);
@@ -377,18 +379,13 @@ int smp_call_function_mask(cpumask_t mask, void (*func)(void *), void *info,
 	smp_mb();
 
 	/* Send a message to all CPUs in the map */
-	arch_send_call_function_ipi(mask);
+	arch_send_call_function_ipi_mask(to_cpumask(data->cpumask_bits));
 
 	/* optionally wait for the CPUs to complete */
-	if (wait) {
+	if (wait)
 		csd_flag_wait(&data->csd);
-		if (unlikely(slowpath))
-			smp_call_function_mask_quiesce_stack(mask);
-	}
-
-	return 0;
 }
-EXPORT_SYMBOL(smp_call_function_mask);
+EXPORT_SYMBOL(smp_call_function_many);
 
 /**
  * smp_call_function(): Run a function on all other CPUs.
@@ -396,7 +393,7 @@ EXPORT_SYMBOL(smp_call_function_mask);
  * @info: An arbitrary pointer to pass to the function.
  * @wait: If true, wait (atomically) until function has completed on other CPUs.
  *
- * Returns 0 on success, else a negative status code.
+ * Returns 0.
  *
  * If @wait is true, then returns once @func has returned; otherwise
  * it returns just before the target cpu calls @func. In case of allocation
@@ -407,12 +404,10 @@ EXPORT_SYMBOL(smp_call_function_mask);
  */
 int smp_call_function(void (*func)(void *), void *info, int wait)
 {
-	int ret;
-
 	preempt_disable();
-	ret = smp_call_function_mask(cpu_online_map, func, info, wait);
+	smp_call_function_many(cpu_online_mask, func, info, wait);
 	preempt_enable();
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(smp_call_function);
 

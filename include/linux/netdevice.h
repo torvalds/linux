@@ -313,10 +313,11 @@ struct napi_struct {
 #ifdef CONFIG_NETPOLL
 	spinlock_t		poll_lock;
 	int			poll_owner;
-	struct net_device	*dev;
 #endif
+	struct net_device	*dev;
 	struct list_head	dev_list;
 	struct sk_buff		*gro_list;
+	struct sk_buff		*skb;
 };
 
 enum
@@ -466,7 +467,7 @@ struct netdev_queue {
  *     This function is called when network device transistions to the down
  *     state.
  *
- * int (*ndo_hard_start_xmit)(struct sk_buff *skb, struct net_device *dev);
+ * int (*ndo_start_xmit)(struct sk_buff *skb, struct net_device *dev);
  *	Called when a packet needs to be transmitted.
  *	Must return NETDEV_TX_OK , NETDEV_TX_BUSY, or NETDEV_TX_LOCKED,
  *	Required can not be NULL.
@@ -794,6 +795,7 @@ struct net_device
 	       NETREG_UNREGISTERING,	/* called unregister_netdevice */
 	       NETREG_UNREGISTERED,	/* completed unregister todo */
 	       NETREG_RELEASED,		/* called free_netdev */
+	       NETREG_DUMMY,		/* dummy device for NAPI poll */
 	} reg_state;
 
 	/* Called from unregister, can be used to call free_netdev */
@@ -990,6 +992,9 @@ struct napi_gro_cb {
 
 	/* Number of segments aggregated. */
 	int count;
+
+	/* Free the skb? */
+	int free;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
@@ -1009,6 +1014,14 @@ struct packet_type {
 	int			(*gro_complete)(struct sk_buff *skb);
 	void			*af_packet_priv;
 	struct list_head	list;
+};
+
+struct napi_gro_fraginfo {
+	skb_frag_t frags[MAX_SKB_FRAGS];
+	unsigned int nr_frags;
+	unsigned int ip_summed;
+	unsigned int len;
+	__wsum csum;
 };
 
 #include <linux/interrupt.h>
@@ -1065,6 +1078,8 @@ extern void		free_netdev(struct net_device *dev);
 extern void		synchronize_net(void);
 extern int 		register_netdevice_notifier(struct notifier_block *nb);
 extern int		unregister_netdevice_notifier(struct notifier_block *nb);
+extern int		init_dummy_netdev(struct net_device *dev);
+
 extern int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
 extern struct net_device	*dev_get_by_index(struct net *net, int ifindex);
 extern struct net_device	*__dev_get_by_index(struct net *net, int ifindex);
@@ -1113,9 +1128,6 @@ struct softnet_data
 	struct sk_buff		*completion_queue;
 
 	struct napi_struct	backlog;
-#ifdef CONFIG_NET_DMA
-	struct dma_chan		*net_dma;
-#endif
 };
 
 DECLARE_PER_CPU(struct softnet_data,softnet_data);
@@ -1361,8 +1373,16 @@ extern int		netif_rx_ni(struct sk_buff *skb);
 #define HAVE_NETIF_RECEIVE_SKB 1
 extern int		netif_receive_skb(struct sk_buff *skb);
 extern void		napi_gro_flush(struct napi_struct *napi);
+extern int		dev_gro_receive(struct napi_struct *napi,
+					struct sk_buff *skb);
 extern int		napi_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb);
+extern void		napi_reuse_skb(struct napi_struct *napi,
+				       struct sk_buff *skb);
+extern struct sk_buff *	napi_fraginfo_skb(struct napi_struct *napi,
+					  struct napi_gro_fraginfo *info);
+extern int		napi_gro_frags(struct napi_struct *napi,
+				       struct napi_gro_fraginfo *info);
 extern void		netif_nit_deliver(struct sk_buff *skb);
 extern int		dev_valid_name(const char *name);
 extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);

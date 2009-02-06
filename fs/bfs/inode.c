@@ -213,6 +213,9 @@ static void bfs_put_super(struct super_block *s)
 {
 	struct bfs_sb_info *info = BFS_SB(s);
 
+	if (!info)
+		return;
+
 	brelse(info->si_sbh);
 	mutex_destroy(&info->bfs_lock);
 	kfree(info->si_imap);
@@ -327,6 +330,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	unsigned i, imap_len;
 	struct bfs_sb_info *info;
 	long ret = -EINVAL;
+	unsigned long i_sblock, i_eblock, i_eoff, s_size;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -350,6 +354,12 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 
 	s->s_magic = BFS_MAGIC;
 	info->si_sbh = bh;
+
+	if (le32_to_cpu(bfs_sb->s_start) > le32_to_cpu(bfs_sb->s_end)) {
+		printf("Superblock is corrupted\n");
+		goto out;
+	}
+
 	info->si_lasti = (le32_to_cpu(bfs_sb->s_start) - BFS_BSIZE) /
 					sizeof(struct bfs_inode)
 					+ BFS_ROOT_INO - 1;
@@ -380,6 +390,18 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 			- le32_to_cpu(bfs_sb->s_start)) >> BFS_BSIZE_BITS;
 	info->si_freei = 0;
 	info->si_lf_eblk = 0;
+
+	/* can we read the last block? */
+	bh = sb_bread(s, info->si_blocks - 1);
+	if (!bh) {
+		printf("Last block not available: %lu\n", info->si_blocks - 1);
+		iput(inode);
+		ret = -EIO;
+		kfree(info->si_imap);
+		goto out;
+	}
+	brelse(bh);
+
 	bh = NULL;
 	for (i = BFS_ROOT_INO; i <= info->si_lasti; i++) {
 		struct bfs_inode *di;
@@ -396,6 +418,29 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 			continue;
 
 		di = (struct bfs_inode *)bh->b_data + off;
+
+		/* test if filesystem is not corrupted */
+
+		i_eoff = le32_to_cpu(di->i_eoffset);
+		i_sblock = le32_to_cpu(di->i_sblock);
+		i_eblock = le32_to_cpu(di->i_eblock);
+		s_size = le32_to_cpu(bfs_sb->s_end);
+
+		if (i_sblock > info->si_blocks ||
+			i_eblock > info->si_blocks ||
+			i_sblock > i_eblock ||
+			i_eoff > s_size ||
+			i_sblock * BFS_BSIZE > i_eoff) {
+
+			printf("Inode 0x%08x corrupted\n", i);
+
+			brelse(bh);
+			s->s_root = NULL;
+			kfree(info->si_imap);
+			kfree(info);
+			s->s_fs_info = NULL;
+			return -EIO;
+		}
 
 		if (!di->i_ino) {
 			info->si_freei++;

@@ -536,24 +536,24 @@ static void __init report_platform_properties(void)
 
 	v = mdesc_get_property(hp, pn, "hostid", NULL);
 	if (v)
-		printk("PLATFORM: hostid [%08lx]\n", *v);
+		printk("PLATFORM: hostid [%08llx]\n", *v);
 	v = mdesc_get_property(hp, pn, "serial#", NULL);
 	if (v)
-		printk("PLATFORM: serial# [%08lx]\n", *v);
+		printk("PLATFORM: serial# [%08llx]\n", *v);
 	v = mdesc_get_property(hp, pn, "stick-frequency", NULL);
-	printk("PLATFORM: stick-frequency [%08lx]\n", *v);
+	printk("PLATFORM: stick-frequency [%08llx]\n", *v);
 	v = mdesc_get_property(hp, pn, "mac-address", NULL);
 	if (v)
-		printk("PLATFORM: mac-address [%lx]\n", *v);
+		printk("PLATFORM: mac-address [%llx]\n", *v);
 	v = mdesc_get_property(hp, pn, "watchdog-resolution", NULL);
 	if (v)
-		printk("PLATFORM: watchdog-resolution [%lu ms]\n", *v);
+		printk("PLATFORM: watchdog-resolution [%llu ms]\n", *v);
 	v = mdesc_get_property(hp, pn, "watchdog-max-timeout", NULL);
 	if (v)
-		printk("PLATFORM: watchdog-max-timeout [%lu ms]\n", *v);
+		printk("PLATFORM: watchdog-max-timeout [%llu ms]\n", *v);
 	v = mdesc_get_property(hp, pn, "max-cpus", NULL);
 	if (v)
-		printk("PLATFORM: max-cpus [%lu]\n", *v);
+		printk("PLATFORM: max-cpus [%llu]\n", *v);
 
 #ifdef CONFIG_SMP
 	{

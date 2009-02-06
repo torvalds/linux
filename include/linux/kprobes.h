@@ -49,6 +49,13 @@
 
 /* Attach to insert probes on any functions which should be ignored*/
 #define __kprobes	__attribute__((__section__(".kprobes.text"))) notrace
+#else /* CONFIG_KPROBES */
+typedef int kprobe_opcode_t;
+struct arch_specific_insn {
+	int dummy;
+};
+#define __kprobes	notrace
+#endif /* CONFIG_KPROBES */
 
 struct kprobe;
 struct pt_regs;
@@ -68,9 +75,6 @@ struct kprobe {
 
 	/* list of kprobes for multi-handler support */
 	struct list_head list;
-
-	/* Indicates that the corresponding module has been ref counted */
-	unsigned int mod_refcounted;
 
 	/*count the number of times this probe was temporarily disarmed */
 	unsigned long nmissed;
@@ -103,7 +107,18 @@ struct kprobe {
 
 	/* copy of the original instruction */
 	struct arch_specific_insn ainsn;
+
+	/* Indicates various status flags.  Protected by kprobe_mutex. */
+	u32 flags;
 };
+
+/* Kprobe status flags */
+#define KPROBE_FLAG_GONE	1 /* breakpoint has already gone */
+
+static inline int kprobe_gone(struct kprobe *p)
+{
+	return p->flags & KPROBE_FLAG_GONE;
+}
 
 /*
  * Special probe type that uses setjmp-longjmp type tricks to resume
@@ -123,23 +138,6 @@ struct jprobe {
 /* For backward compatibility with old code using JPROBE_ENTRY() */
 #define JPROBE_ENTRY(handler)	(handler)
 
-DECLARE_PER_CPU(struct kprobe *, current_kprobe);
-DECLARE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
-
-#ifdef CONFIG_KRETPROBES
-extern void arch_prepare_kretprobe(struct kretprobe_instance *ri,
-				   struct pt_regs *regs);
-extern int arch_trampoline_kprobe(struct kprobe *p);
-#else /* CONFIG_KRETPROBES */
-static inline void arch_prepare_kretprobe(struct kretprobe *rp,
-					struct pt_regs *regs)
-{
-}
-static inline int arch_trampoline_kprobe(struct kprobe *p)
-{
-	return 0;
-}
-#endif /* CONFIG_KRETPROBES */
 /*
  * Function-return probe -
  * Note:
@@ -180,6 +178,25 @@ struct kprobe_blackpoint {
 	unsigned long range;
 };
 
+#ifdef CONFIG_KPROBES
+DECLARE_PER_CPU(struct kprobe *, current_kprobe);
+DECLARE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
+
+#ifdef CONFIG_KRETPROBES
+extern void arch_prepare_kretprobe(struct kretprobe_instance *ri,
+				   struct pt_regs *regs);
+extern int arch_trampoline_kprobe(struct kprobe *p);
+#else /* CONFIG_KRETPROBES */
+static inline void arch_prepare_kretprobe(struct kretprobe *rp,
+					struct pt_regs *regs)
+{
+}
+static inline int arch_trampoline_kprobe(struct kprobe *p)
+{
+	return 0;
+}
+#endif /* CONFIG_KRETPROBES */
+
 extern struct kretprobe_blackpoint kretprobe_blacklist[];
 
 static inline void kretprobe_assert(struct kretprobe_instance *ri,
@@ -201,7 +218,6 @@ static inline int init_test_probes(void)
 }
 #endif /* CONFIG_KPROBES_SANITY_TEST */
 
-extern struct mutex kprobe_mutex;
 extern int arch_prepare_kprobe(struct kprobe *p);
 extern void arch_arm_kprobe(struct kprobe *p);
 extern void arch_disarm_kprobe(struct kprobe *p);
@@ -256,10 +272,6 @@ void kprobe_flush_task(struct task_struct *tk);
 void recycle_rp_inst(struct kretprobe_instance *ri, struct hlist_head *head);
 
 #else /* CONFIG_KPROBES */
-
-#define __kprobes	notrace
-struct jprobe;
-struct kretprobe;
 
 static inline struct kprobe *get_kprobe(void *addr)
 {

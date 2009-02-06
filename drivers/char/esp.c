@@ -2054,6 +2054,15 @@ static void esp_hangup(struct tty_struct *tty)
 	wake_up_interruptible(&info->port.open_wait);
 }
 
+static int esp_carrier_raised(struct tty_port *port)
+{
+	struct esp_struct *info = container_of(port, struct esp_struct, port);
+	serial_out(info, UART_ESI_CMD1, ESI_GET_UART_STAT);
+	if (serial_in(info, UART_ESI_STAT2) & UART_MSR_DCD)
+		return 1;
+	return 0;
+}
+
 /*
  * ------------------------------------------------------------
  * esp_open() and friends
@@ -2066,17 +2075,19 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	int		retval;
 	int		do_clocal = 0;
 	unsigned long	flags;
+	int		cd;
+	struct tty_port *port = &info->port;
 
 	/*
 	 * If the device is in the middle of being closed, then block
 	 * until it's done, and then try again.
 	 */
 	if (tty_hung_up_p(filp) ||
-	    (info->port.flags & ASYNC_CLOSING)) {
-		if (info->port.flags & ASYNC_CLOSING)
-			interruptible_sleep_on(&info->port.close_wait);
+	    (port->flags & ASYNC_CLOSING)) {
+		if (port->flags & ASYNC_CLOSING)
+			interruptible_sleep_on(&port->close_wait);
 #ifdef SERIAL_DO_RESTART
-		if (info->port.flags & ASYNC_HUP_NOTIFY)
+		if (port->flags & ASYNC_HUP_NOTIFY)
 			return -EAGAIN;
 		else
 			return -ERESTARTSYS;
@@ -2091,7 +2102,7 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	 */
 	if ((filp->f_flags & O_NONBLOCK) ||
 	    (tty->flags & (1 << TTY_IO_ERROR))) {
-		info->port.flags |= ASYNC_NORMAL_ACTIVE;
+		port->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
 
@@ -2101,20 +2112,20 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 	/*
 	 * Block waiting for the carrier detect and the line to become
 	 * free (i.e., not in use by the callout).  While we are in
-	 * this loop, info->port.count is dropped by one, so that
+	 * this loop, port->count is dropped by one, so that
 	 * rs_close() knows when to free things.  We restore it upon
 	 * exit, either normal or abnormal.
 	 */
 	retval = 0;
-	add_wait_queue(&info->port.open_wait, &wait);
+	add_wait_queue(&port->open_wait, &wait);
 #ifdef SERIAL_DEBUG_OPEN
 	printk(KERN_DEBUG "block_til_ready before block: ttys%d, count = %d\n",
-	       info->line, info->port.count);
+	       info->line, port->count);
 #endif
 	spin_lock_irqsave(&info->lock, flags);
 	if (!tty_hung_up_p(filp))
-		info->port.count--;
-	info->port.blocked_open++;
+		port->count--;
+	port->blocked_open++;
 	while (1) {
 		if ((tty->termios->c_cflag & CBAUD)) {
 			unsigned int scratch;
@@ -2129,9 +2140,9 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) ||
-		    !(info->port.flags & ASYNC_INITIALIZED)) {
+		    !(port->flags & ASYNC_INITIALIZED)) {
 #ifdef SERIAL_DO_RESTART
-			if (info->port.flags & ASYNC_HUP_NOTIFY)
+			if (port->flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
 				retval = -ERESTARTSYS;
@@ -2141,11 +2152,9 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 			break;
 		}
 
-		serial_out(info, UART_ESI_CMD1, ESI_GET_UART_STAT);
-		if (serial_in(info, UART_ESI_STAT2) & UART_MSR_DCD)
-			do_clocal = 1;
+		cd = tty_port_carrier_raised(port);
 
-		if (!(info->port.flags & ASYNC_CLOSING) &&
+		if (!(port->flags & ASYNC_CLOSING) &&
 		    (do_clocal))
 			break;
 		if (signal_pending(current)) {
@@ -2154,25 +2163,25 @@ static int block_til_ready(struct tty_struct *tty, struct file *filp,
 		}
 #ifdef SERIAL_DEBUG_OPEN
 		printk(KERN_DEBUG "block_til_ready blocking: ttys%d, count = %d\n",
-		       info->line, info->port.count);
+		       info->line, port->count);
 #endif
 		spin_unlock_irqrestore(&info->lock, flags);
 		schedule();
 		spin_lock_irqsave(&info->lock, flags);
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(&info->port.open_wait, &wait);
+	remove_wait_queue(&port->open_wait, &wait);
 	if (!tty_hung_up_p(filp))
-		info->port.count++;
-	info->port.blocked_open--;
+		port->count++;
+	port->blocked_open--;
 	spin_unlock_irqrestore(&info->lock, flags);
 #ifdef SERIAL_DEBUG_OPEN
 	printk(KERN_DEBUG "block_til_ready after blocking: ttys%d, count = %d\n",
-	       info->line, info->port.count);
+	       info->line, port->count);
 #endif
 	if (retval)
 		return retval;
-	info->port.flags |= ASYNC_NORMAL_ACTIVE;
+	port->flags |= ASYNC_NORMAL_ACTIVE;
 	return 0;
 }
 
@@ -2329,6 +2338,10 @@ static const struct tty_operations esp_ops = {
 	.tiocmset = esp_tiocmset,
 };
 
+static const struct tty_port_operations esp_port_ops = {
+	.esp_carrier_raised,
+};
+
 /*
  * The serial driver boot-time initialization code!
  */
@@ -2415,6 +2428,8 @@ static int __init espserial_init(void)
 	offset = 0;
 
 	do {
+		tty_port_init(&info->port);
+		info->port.ops = &esp_port_ops;
 		info->io_port = esp[i] + offset;
 		info->irq = irq[i];
 		info->line = (i * 8) + (offset / 8);
@@ -2437,8 +2452,6 @@ static int __init espserial_init(void)
 		info->config.flow_off = flow_off;
 		info->config.pio_threshold = pio_threshold;
 		info->next_port = ports;
-		init_waitqueue_head(&info->port.open_wait);
-		init_waitqueue_head(&info->port.close_wait);
 		init_waitqueue_head(&info->delta_msr_wait);
 		init_waitqueue_head(&info->break_wait);
 		ports = info;

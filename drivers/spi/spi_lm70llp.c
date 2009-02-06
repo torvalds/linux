@@ -1,5 +1,5 @@
 /*
- * spi_lm70llp.c - driver for lm70llp eval board for the LM70 sensor
+ * spi_lm70llp.c - driver for LM70EVAL-LLP board for the LM70 sensor
  *
  * Copyright (C) 2006 Kaiwan N Billimoria <kaiwan@designergraphix.com>
  *
@@ -40,8 +40,12 @@
  * master controller driver.  The hwmon/lm70 driver is a "SPI protocol
  * driver", layered on top of this one and usable without the lm70llp.
  *
+ * Datasheet and Schematic:
  * The LM70 is a temperature sensor chip from National Semiconductor; its
  * datasheet is available at http://www.national.com/pf/LM/LM70.html
+ * The schematic for this particular board (the LM70EVAL-LLP) is
+ * available (on page 4) here:
+ *  http://www.national.com/appinfo/tempsensors/files/LM70LLPEVALmanual.pdf
  *
  * Also see Documentation/spi/spi-lm70llp.  The SPI<->parport code here is
  * (heavily) based on spi-butterfly by David Brownell.
@@ -64,7 +68,7 @@
  *
  * Note that parport pin 13 actually gets inverted by the transistor
  * arrangement which lets either the parport or the LM70 drive the
- * SI/SO signal.
+ * SI/SO signal (see the schematic for details).
  */
 
 #define DRVNAME		"spi-lm70llp"
@@ -106,12 +110,16 @@ static inline struct spi_lm70llp *spidev_to_pp(struct spi_device *spi)
 static inline void deassertCS(struct spi_lm70llp *pp)
 {
 	u8 data = parport_read_data(pp->port);
+
+	data &= ~0x80;		/* pull D7/SI-out low while de-asserted */
 	parport_write_data(pp->port, data | nCS);
 }
 
 static inline void assertCS(struct spi_lm70llp *pp)
 {
 	u8 data = parport_read_data(pp->port);
+
+	data |= 0x80;		/* pull D7/SI-out high so lm70 drives SO-in */
 	parport_write_data(pp->port, data & ~nCS);
 }
 
@@ -184,22 +192,7 @@ static void lm70_chipselect(struct spi_device *spi, int value)
  */
 static u32 lm70_txrx(struct spi_device *spi, unsigned nsecs, u32 word, u8 bits)
 {
-	static u32 sio=0;
-	static int first_time=1;
-
-	/* First time: perform SPI bitbang and return the LSB of
-	 * the result of the SPI call.
-	 */
-	if (first_time) {
-		sio = bitbang_txrx_be_cpha0(spi, nsecs, 0, word, bits);
-		first_time=0;
-		return (sio & 0x00ff);
-	}
-	/* Return the MSB of the result of the SPI call */
-	else {
-		first_time=1;
-		return (sio >> 8);
-	}
+	return bitbang_txrx_be_cpha0(spi, nsecs, 0, word, bits);
 }
 
 static void spi_lm70llp_attach(struct parport *p)
@@ -287,16 +280,15 @@ static void spi_lm70llp_attach(struct parport *p)
 	pp->spidev_lm70 = spi_new_device(pp->bitbang.master, &pp->info);
 	if (pp->spidev_lm70)
 		dev_dbg(&pp->spidev_lm70->dev, "spidev_lm70 at %s\n",
-				pp->spidev_lm70->dev.bus_id);
+				dev_name(&pp->spidev_lm70->dev));
 	else {
 		printk(KERN_WARNING "%s: spi_new_device failed\n", DRVNAME);
 		status = -ENODEV;
 		goto out_bitbang_stop;
 	}
-	pp->spidev_lm70->bits_per_word = 16;
+	pp->spidev_lm70->bits_per_word = 8;
 
 	lm70llp = pp;
-
 	return;
 
 out_bitbang_stop:
@@ -326,7 +318,6 @@ static void spi_lm70llp_detach(struct parport *p)
 
 	/* power down */
 	parport_write_data(pp->port, 0);
-	msleep(10);
 
 	parport_release(pp->pd);
 	parport_unregister_device(pp->pd);

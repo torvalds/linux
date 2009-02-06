@@ -764,7 +764,6 @@ static inline int nfsd_dosync(struct file *filp, struct dentry *dp,
 
 	return err;
 }
-	
 
 static int
 nfsd_sync(struct file *filp)
@@ -1211,7 +1210,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	dirp = dentry->d_inode;
 
 	err = nfserr_notdir;
-	if(!dirp->i_op || !dirp->i_op->lookup)
+	if (!dirp->i_op->lookup)
 		goto out;
 	/*
 	 * Check whether the response file handle has been verified yet.
@@ -1347,7 +1346,7 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	/* Get all the sanity checks out of the way before
 	 * we lock the parent. */
 	err = nfserr_notdir;
-	if(!dirp->i_op || !dirp->i_op->lookup)
+	if (!dirp->i_op->lookup)
 		goto out;
 	fh_lock_nested(fhp, I_MUTEX_PARENT);
 
@@ -1482,7 +1481,7 @@ nfsd_readlink(struct svc_rqst *rqstp, struct svc_fh *fhp, char *buf, int *lenp)
 	inode = dentry->d_inode;
 
 	err = nfserr_inval;
-	if (!inode->i_op || !inode->i_op->readlink)
+	if (!inode->i_op->readlink)
 		goto out;
 
 	touch_atime(fhp->fh_export->ex_path.mnt, dentry);
@@ -2162,7 +2161,7 @@ nfsd_set_posix_acl(struct svc_fh *fhp, int type, struct posix_acl *acl)
 	size_t size;
 	int error;
 
-	if (!IS_POSIXACL(inode) || !inode->i_op ||
+	if (!IS_POSIXACL(inode) ||
 	    !inode->i_op->setxattr || !inode->i_op->removexattr)
 		return -EOPNOTSUPP;
 	switch(type) {

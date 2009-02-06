@@ -17,10 +17,10 @@
 #include <linux/module.h>
 #include <linux/time.h>
 #include <linux/mca.h>
+#include <linux/nmi.h>
 
 #include <asm/i8253.h>
 #include <asm/hpet.h>
-#include <asm/nmi.h>
 #include <asm/vgtod.h>
 #include <asm/time.h>
 #include <asm/timer.h>

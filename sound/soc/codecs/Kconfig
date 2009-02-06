@@ -1,3 +1,13 @@
+# Helper to resolve issues with configs that have SPI enabled but I2C
+# modular, meaning we can't build the codec driver in with I2C support.
+# We use an ordered list of conditional defaults to pick the appropriate
+# setting - SPI can't be modular so that case doesn't need to be covered.
+config SND_SOC_I2C_AND_SPI
+	tristate
+	default m if I2C=m
+	default y if I2C=y
+	default y if SPI_MASTER=y
+
 config SND_SOC_ALL_CODECS
 	tristate "Build all ASoC CODEC drivers"
 	select SND_SOC_AC97_CODEC if SND_SOC_AC97_BUS
@@ -14,12 +24,12 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
-	select SND_SOC_WM8510 if (I2C || SPI_MASTER)
+	select SND_SOC_WM8510 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8580 if I2C
-	select SND_SOC_WM8728 if (I2C || SPI_MASTER)
-	select SND_SOC_WM8731 if (I2C || SPI_MASTER)
-	select SND_SOC_WM8750 if (I2C || SPI_MASTER)
-	select SND_SOC_WM8753 if (I2C || SPI_MASTER)
+	select SND_SOC_WM8728 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8731 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8750 if SND_SOC_I2C_AND_SPI
+	select SND_SOC_WM8753 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8900 if I2C
 	select SND_SOC_WM8903 if I2C
 	select SND_SOC_WM8971 if I2C

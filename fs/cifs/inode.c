@@ -1285,6 +1285,11 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 	cifsInode = CIFS_I(direntry->d_inode);
 	cifsInode->time = 0;	/* force revalidate to go get info when
 				   needed */
+
+	cifsInode = CIFS_I(inode);
+	cifsInode->time = 0;	/* force revalidate to get parent dir info
+				   since cached search results now invalid */
+
 	direntry->d_inode->i_ctime = inode->i_ctime = inode->i_mtime =
 		current_fs_time(inode->i_sb);
 
@@ -1641,7 +1646,7 @@ do_expand:
 	i_size_write(inode, offset);
 	spin_unlock(&inode->i_lock);
 out_truncate:
-	if (inode->i_op && inode->i_op->truncate)
+	if (inode->i_op->truncate)
 		inode->i_op->truncate(inode);
 	return 0;
 out_sig:

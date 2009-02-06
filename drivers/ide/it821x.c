@@ -68,6 +68,8 @@
 
 #define DRV_NAME "it821x"
 
+#define QUIRK_VORTEX86 1
+
 struct it821x_dev
 {
 	unsigned int smart:1,		/* Are we in smart raid mode */
@@ -79,6 +81,7 @@ struct it821x_dev
 	u16	pio[2];			/* Cached PIO values */
 	u16	mwdma[2];		/* Cached MWDMA values */
 	u16	udma[2];		/* Cached UDMA values (per drive) */
+	u16	quirks;
 };
 
 #define ATA_66		0
@@ -167,11 +170,9 @@ static void it821x_clock_strategy(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	ide_drive_t *pair;
+	ide_drive_t *pair = ide_get_pair_dev(drive);
 	int clock, altclock, sel = 0;
 	u8 unit = drive->dn & 1, v;
-
-	pair = &hwif->drives[1 - unit];
 
 	if(itdev->want[0][0] > itdev->want[1][0]) {
 		clock = itdev->want[0][1];
@@ -239,14 +240,12 @@ static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	ide_drive_t *pair;
+	ide_drive_t *pair = ide_get_pair_dev(drive);
 	u8 unit = drive->dn & 1, set_pio = pio;
 
 	/* Spec says 89 ref driver uses 88 */
 	static u16 pio_timings[]= { 0xAA88, 0xA382, 0xA181, 0x3332, 0x3121 };
 	static u8 pio_want[]    = { ATA_66, ATA_66, ATA_66, ATA_66, ATA_ANY };
-
-	pair = &hwif->drives[1 - unit];
 
 	/*
 	 * Compute the best PIO mode we can for a given device. We must
@@ -279,7 +278,7 @@ static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
  *	the shared MWDMA/PIO timing register.
  */
 
-static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
+static void it821x_tune_mwdma(ide_drive_t *drive, u8 mode_wanted)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -316,7 +315,7 @@ static void it821x_tune_mwdma (ide_drive_t *drive, byte mode_wanted)
  *	controller when doing UDMA modes in pass through.
  */
 
-static void it821x_tune_udma (ide_drive_t *drive, byte mode_wanted)
+static void it821x_tune_udma(ide_drive_t *drive, u8 mode_wanted)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
@@ -516,6 +515,7 @@ static struct ide_dma_ops it821x_pass_through_dma_ops = {
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 /**
@@ -560,8 +560,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	 *	this is necessary.
 	 */
 
-	pci_read_config_byte(dev, 0x08, &conf);
-	if (conf == 0x10) {
+	if (dev->revision == 0x10) {
 		idev->timing10 = 1;
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 		if (idev->smart == 0)
@@ -580,6 +579,12 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 
 	hwif->ultra_mask = ATA_UDMA6;
 	hwif->mwdma_mask = ATA_MWDMA2;
+
+	/* Vortex86SX quirk: prevent Ultra-DMA mode to fix BadCRC issue */
+	if (idev->quirks & QUIRK_VORTEX86) {
+		if (dev->revision == 0x11)
+			hwif->ultra_mask = 0;
+	}
 }
 
 static void it8212_disable_raid(struct pci_dev *dev)
@@ -652,6 +657,8 @@ static int __devinit it821x_init_one(struct pci_dev *dev, const struct pci_devic
 		return -ENOMEM;
 	}
 
+	itdevs->quirks = id->driver_data;
+
 	rc = ide_pci_init_one(dev, &it821x_chipset, itdevs);
 	if (rc)
 		kfree(itdevs);
@@ -671,6 +678,7 @@ static void __devexit it821x_remove(struct pci_dev *dev)
 static const struct pci_device_id it821x_pci_tbl[] = {
 	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8211), 0 },
 	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8212), 0 },
+	{ PCI_VDEVICE(RDC, PCI_DEVICE_ID_RDC_D1010), QUIRK_VORTEX86 },
 	{ 0, },
 };
 

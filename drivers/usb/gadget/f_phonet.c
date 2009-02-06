@@ -279,6 +279,13 @@ static int pn_net_mtu(struct net_device *dev, int new_mtu)
 	return err;
 }
 
+static const struct net_device_ops pn_netdev_ops = {
+	.ndo_open	= pn_net_open,
+	.ndo_stop	= pn_net_close,
+	.ndo_start_xmit	= pn_net_xmit,
+	.ndo_change_mtu	= pn_net_mtu,
+};
+
 static void pn_net_setup(struct net_device *dev)
 {
 	dev->features		= 0;
@@ -290,12 +297,9 @@ static void pn_net_setup(struct net_device *dev)
 	dev->addr_len		= 1;
 	dev->tx_queue_len	= 1;
 
+	dev->netdev_ops		= &pn_netdev_ops;
 	dev->destructor		= free_netdev;
 	dev->header_ops		= &phonet_header_ops;
-	dev->open		= pn_net_open;
-	dev->stop		= pn_net_close;
-	dev->hard_start_xmit	= pn_net_xmit; /* mandatory */
-	dev->change_mtu		= pn_net_mtu;
 }
 
 /*-------------------------------------------------------------------------*/

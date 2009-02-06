@@ -55,6 +55,9 @@ static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 static void i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
 static int i915_gem_evict_something(struct drm_device *dev);
+static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
+				struct drm_i915_gem_pwrite *args,
+				struct drm_file *file_priv);
 
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end)
@@ -386,8 +389,10 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	 * pread/pwrite currently are reading and writing from the CPU
 	 * perspective, requiring manual detiling by the client.
 	 */
-	if (obj_priv->tiling_mode == I915_TILING_NONE &&
-	    dev->gtt_total != 0)
+	if (obj_priv->phys_obj)
+		ret = i915_gem_phys_pwrite(dev, obj, args, file_priv);
+	else if (obj_priv->tiling_mode == I915_TILING_NONE &&
+		 dev->gtt_total != 0)
 		ret = i915_gem_gtt_pwrite(dev, obj, args, file_priv);
 	else
 		ret = i915_gem_shmem_pwrite(dev, obj, args, file_priv);
@@ -1445,7 +1450,7 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *reg)
 
 	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
 	    (obj_priv->gtt_offset & (obj->size - 1))) {
-		WARN(1, "%s: object not 1M or size aligned\n", __FUNCTION__);
+		WARN(1, "%s: object not 1M or size aligned\n", __func__);
 		return;
 	}
 
@@ -1478,7 +1483,7 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 
 	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
 	    (obj_priv->gtt_offset & (obj->size - 1))) {
-		WARN(1, "%s: object not 1M or size aligned\n", __FUNCTION__);
+		WARN(1, "%s: object not 1M or size aligned\n", __func__);
 		return;
 	}
 
@@ -1623,6 +1628,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	struct drm_mm_node *free_space;
 	int page_count, ret;
 
+	if (dev_priv->mm.suspended)
+		return -EBUSY;
 	if (alignment == 0)
 		alignment = PAGE_SIZE;
 	if (alignment & (PAGE_SIZE - 1)) {
@@ -2641,7 +2648,7 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	if (obj_priv->gtt_space == NULL) {
 		ret = i915_gem_object_bind_to_gtt(obj, alignment);
 		if (ret != 0) {
-			if (ret != -ERESTARTSYS)
+			if (ret != -EBUSY && ret != -ERESTARTSYS)
 				DRM_ERROR("Failure to bind: %d", ret);
 			return ret;
 		}
@@ -2855,6 +2862,9 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 
 	while (obj_priv->pin_count > 0)
 		i915_gem_object_unpin(obj);
+
+	if (obj_priv->phys_obj)
+		i915_gem_detach_phys_object(dev, obj);
 
 	i915_gem_object_unbind(obj);
 
@@ -3219,20 +3229,21 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 		dev_priv->mm.wedged = 0;
 	}
 
-	ret = i915_gem_init_ringbuffer(dev);
-	if (ret != 0)
-		return ret;
-
 	dev_priv->mm.gtt_mapping = io_mapping_create_wc(dev->agp->base,
 							dev->agp->agp_info.aper_size
 							* 1024 * 1024);
 
 	mutex_lock(&dev->struct_mutex);
+	dev_priv->mm.suspended = 0;
+
+	ret = i915_gem_init_ringbuffer(dev);
+	if (ret != 0)
+		return ret;
+
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
 	BUG_ON(!list_empty(&dev_priv->mm.request_list));
-	dev_priv->mm.suspended = 0;
 	mutex_unlock(&dev->struct_mutex);
 
 	drm_irq_install(dev);
@@ -3289,4 +3300,181 @@ i915_gem_load(struct drm_device *dev)
 		dev_priv->num_fence_regs = 8;
 
 	i915_gem_detect_bit_6_swizzle(dev);
+}
+
+/*
+ * Create a physically contiguous memory object for this object
+ * e.g. for cursor + overlay regs
+ */
+int i915_gem_init_phys_object(struct drm_device *dev,
+			      int id, int size)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_phys_object *phys_obj;
+	int ret;
+
+	if (dev_priv->mm.phys_objs[id - 1] || !size)
+		return 0;
+
+	phys_obj = drm_calloc(1, sizeof(struct drm_i915_gem_phys_object), DRM_MEM_DRIVER);
+	if (!phys_obj)
+		return -ENOMEM;
+
+	phys_obj->id = id;
+
+	phys_obj->handle = drm_pci_alloc(dev, size, 0, 0xffffffff);
+	if (!phys_obj->handle) {
+		ret = -ENOMEM;
+		goto kfree_obj;
+	}
+#ifdef CONFIG_X86
+	set_memory_wc((unsigned long)phys_obj->handle->vaddr, phys_obj->handle->size / PAGE_SIZE);
+#endif
+
+	dev_priv->mm.phys_objs[id - 1] = phys_obj;
+
+	return 0;
+kfree_obj:
+	drm_free(phys_obj, sizeof(struct drm_i915_gem_phys_object), DRM_MEM_DRIVER);
+	return ret;
+}
+
+void i915_gem_free_phys_object(struct drm_device *dev, int id)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_phys_object *phys_obj;
+
+	if (!dev_priv->mm.phys_objs[id - 1])
+		return;
+
+	phys_obj = dev_priv->mm.phys_objs[id - 1];
+	if (phys_obj->cur_obj) {
+		i915_gem_detach_phys_object(dev, phys_obj->cur_obj);
+	}
+
+#ifdef CONFIG_X86
+	set_memory_wb((unsigned long)phys_obj->handle->vaddr, phys_obj->handle->size / PAGE_SIZE);
+#endif
+	drm_pci_free(dev, phys_obj->handle);
+	kfree(phys_obj);
+	dev_priv->mm.phys_objs[id - 1] = NULL;
+}
+
+void i915_gem_free_all_phys_object(struct drm_device *dev)
+{
+	int i;
+
+	for (i = I915_GEM_PHYS_CURSOR_0; i <= I915_MAX_PHYS_OBJECT; i++)
+		i915_gem_free_phys_object(dev, i);
+}
+
+void i915_gem_detach_phys_object(struct drm_device *dev,
+				 struct drm_gem_object *obj)
+{
+	struct drm_i915_gem_object *obj_priv;
+	int i;
+	int ret;
+	int page_count;
+
+	obj_priv = obj->driver_private;
+	if (!obj_priv->phys_obj)
+		return;
+
+	ret = i915_gem_object_get_page_list(obj);
+	if (ret)
+		goto out;
+
+	page_count = obj->size / PAGE_SIZE;
+
+	for (i = 0; i < page_count; i++) {
+		char *dst = kmap_atomic(obj_priv->page_list[i], KM_USER0);
+		char *src = obj_priv->phys_obj->handle->vaddr + (i * PAGE_SIZE);
+
+		memcpy(dst, src, PAGE_SIZE);
+		kunmap_atomic(dst, KM_USER0);
+	}
+	drm_clflush_pages(obj_priv->page_list, page_count);
+	drm_agp_chipset_flush(dev);
+out:
+	obj_priv->phys_obj->cur_obj = NULL;
+	obj_priv->phys_obj = NULL;
+}
+
+int
+i915_gem_attach_phys_object(struct drm_device *dev,
+			    struct drm_gem_object *obj, int id)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv;
+	int ret = 0;
+	int page_count;
+	int i;
+
+	if (id > I915_MAX_PHYS_OBJECT)
+		return -EINVAL;
+
+	obj_priv = obj->driver_private;
+
+	if (obj_priv->phys_obj) {
+		if (obj_priv->phys_obj->id == id)
+			return 0;
+		i915_gem_detach_phys_object(dev, obj);
+	}
+
+
+	/* create a new object */
+	if (!dev_priv->mm.phys_objs[id - 1]) {
+		ret = i915_gem_init_phys_object(dev, id,
+						obj->size);
+		if (ret) {
+			DRM_ERROR("failed to init phys object %d size: %zu\n", id, obj->size);
+			goto out;
+		}
+	}
+
+	/* bind to the object */
+	obj_priv->phys_obj = dev_priv->mm.phys_objs[id - 1];
+	obj_priv->phys_obj->cur_obj = obj;
+
+	ret = i915_gem_object_get_page_list(obj);
+	if (ret) {
+		DRM_ERROR("failed to get page list\n");
+		goto out;
+	}
+
+	page_count = obj->size / PAGE_SIZE;
+
+	for (i = 0; i < page_count; i++) {
+		char *src = kmap_atomic(obj_priv->page_list[i], KM_USER0);
+		char *dst = obj_priv->phys_obj->handle->vaddr + (i * PAGE_SIZE);
+
+		memcpy(dst, src, PAGE_SIZE);
+		kunmap_atomic(src, KM_USER0);
+	}
+
+	return 0;
+out:
+	return ret;
+}
+
+static int
+i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
+		     struct drm_i915_gem_pwrite *args,
+		     struct drm_file *file_priv)
+{
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	void *obj_addr;
+	int ret;
+	char __user *user_data;
+
+	user_data = (char __user *) (uintptr_t) args->data_ptr;
+	obj_addr = obj_priv->phys_obj->handle->vaddr + args->offset;
+
+	DRM_ERROR("obj_addr %p, %lld\n", obj_addr, args->size);
+	ret = copy_from_user(obj_addr, user_data, args->size);
+	if (ret)
+		return -EFAULT;
+
+	drm_agp_chipset_flush(dev);
+	return 0;
 }

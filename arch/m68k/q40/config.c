@@ -36,7 +36,6 @@
 #include <asm/machdep.h>
 #include <asm/q40_master.h>
 
-extern irqreturn_t q40_process_int(int level, struct pt_regs *regs);
 extern void q40_init_IRQ(void);
 static void q40_get_model(char *model);
 extern void q40_sched_init(irq_handler_t handler);
@@ -47,8 +46,6 @@ static unsigned int q40_get_ss(void);
 static int q40_set_clock_mmss(unsigned long);
 static int q40_get_rtc_pll(struct rtc_pll_info *pll);
 static int q40_set_rtc_pll(struct rtc_pll_info *pll);
-extern void q40_waitbut(void);
-void q40_set_vectors(void);
 
 extern void q40_mksound(unsigned int /*freq*/, unsigned int /*ticks*/);
 

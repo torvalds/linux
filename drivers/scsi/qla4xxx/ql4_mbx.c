@@ -392,7 +392,7 @@ int qla4xxx_get_firmware_status(struct scsi_qla_host * ha)
 		ha->iocb_hiwat -= IOCB_HIWAT_CUSHION;
 	else
 		dev_info(&ha->pdev->dev, "WARNING!!!  You have less than %d "
-			   "firmare IOCBs available (%d).\n",
+			   "firmware IOCBs available (%d).\n",
 			   IOCB_HIWAT_CUSHION, ha->iocb_hiwat);
 
 	return QLA_SUCCESS;

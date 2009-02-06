@@ -1,6 +1,4 @@
 /*
- *  fs/nfs/nfs4xdr.c
- *
  *  Server-side XDR for NFSv4
  *
  *  Copyright (c) 2002 The Regents of the University of Michigan.

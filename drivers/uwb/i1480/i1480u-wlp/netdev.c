@@ -41,7 +41,7 @@
 
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
-#include <linux/uwb/debug.h>
+
 #include "i1480u-wlp.h"
 
 struct i1480u_cmd_set_ip_mas {
@@ -207,6 +207,11 @@ int i1480u_open(struct net_device *net_dev)
 	result = i1480u_rx_setup(i1480u);		/* Alloc RX stuff */
 	if (result < 0)
 		goto error_rx_setup;
+
+	result = uwb_radio_start(&wlp->pal);
+	if (result < 0)
+		goto error_radio_start;
+
 	netif_wake_queue(net_dev);
 #ifdef i1480u_FLOW_CONTROL
 	result = usb_submit_urb(i1480u->notif_urb, GFP_KERNEL);;
@@ -215,25 +220,20 @@ int i1480u_open(struct net_device *net_dev)
 		goto error_notif_urb_submit;
 	}
 #endif
-	i1480u->uwb_notifs_handler.cb = i1480u_uwb_notifs_cb;
-	i1480u->uwb_notifs_handler.data = i1480u;
-	if (uwb_bg_joined(rc))
-		netif_carrier_on(net_dev);
-	else
-		netif_carrier_off(net_dev);
-	uwb_notifs_register(rc, &i1480u->uwb_notifs_handler);
 	/* Interface is up with an address, now we can create WSS */
 	result = wlp_wss_setup(net_dev, &wlp->wss);
 	if (result < 0) {
 		dev_err(dev, "Can't create WSS: %d. \n", result);
-		goto error_notif_deregister;
+		goto error_wss_setup;
 	}
 	return 0;
-error_notif_deregister:
-	uwb_notifs_deregister(rc, &i1480u->uwb_notifs_handler);
+error_wss_setup:
 #ifdef i1480u_FLOW_CONTROL
+	usb_kill_urb(i1480u->notif_urb);
 error_notif_urb_submit:
 #endif
+	uwb_radio_stop(&wlp->pal);
+error_radio_start:
 	netif_stop_queue(net_dev);
 	i1480u_rx_release(i1480u);
 error_rx_setup:
@@ -248,29 +248,19 @@ int i1480u_stop(struct net_device *net_dev)
 {
 	struct i1480u *i1480u = netdev_priv(net_dev);
 	struct wlp *wlp = &i1480u->wlp;
-	struct uwb_rc *rc = wlp->rc;
 
 	BUG_ON(wlp->rc == NULL);
 	wlp_wss_remove(&wlp->wss);
-	uwb_notifs_deregister(rc, &i1480u->uwb_notifs_handler);
 	netif_carrier_off(net_dev);
 #ifdef i1480u_FLOW_CONTROL
 	usb_kill_urb(i1480u->notif_urb);
 #endif
 	netif_stop_queue(net_dev);
+	uwb_radio_stop(&wlp->pal);
 	i1480u_rx_release(i1480u);
 	i1480u_tx_release(i1480u);
 	return 0;
 }
-
-
-/** Report statistics */
-struct net_device_stats *i1480u_get_stats(struct net_device *net_dev)
-{
-	struct i1480u *i1480u = netdev_priv(net_dev);
-	return &i1480u->stats;
-}
-
 
 /**
  *
@@ -301,34 +291,6 @@ int i1480u_change_mtu(struct net_device *net_dev, int mtu)
 		return -ERANGE;
 	net_dev->mtu = mtu;
 	return 0;
-}
-
-
-/**
- * Callback function to handle events from UWB
- * When we see other devices we know the carrier is ok,
- * if we are the only device in the beacon group we set the carrier
- * state to off.
- * */
-void i1480u_uwb_notifs_cb(void *data, struct uwb_dev *uwb_dev,
-			  enum uwb_notifs event)
-{
-	struct i1480u *i1480u = data;
-	struct net_device *net_dev = i1480u->net_dev;
-	struct device *dev = &i1480u->usb_iface->dev;
-	switch (event) {
-	case UWB_NOTIF_BG_JOIN:
-		netif_carrier_on(net_dev);
-		dev_info(dev, "Link is up\n");
-		break;
-	case UWB_NOTIF_BG_LEAVE:
-		netif_carrier_off(net_dev);
-		dev_info(dev, "Link is down\n");
-		break;
-	default:
-		dev_err(dev, "don't know how to handle event %d from uwb\n",
-				event);
-	}
 }
 
 /**

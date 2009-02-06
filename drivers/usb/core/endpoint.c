@@ -276,7 +276,7 @@ static void ep_device_release(struct device *dev)
 	kfree(ep_dev);
 }
 
-int usb_create_ep_files(struct device *parent,
+int usb_create_ep_devs(struct device *parent,
 			struct usb_host_endpoint *endpoint,
 			struct usb_device *udev)
 {
@@ -340,7 +340,7 @@ exit:
 	return retval;
 }
 
-void usb_remove_ep_files(struct usb_host_endpoint *endpoint)
+void usb_remove_ep_devs(struct usb_host_endpoint *endpoint)
 {
 	struct ep_device *ep_dev = endpoint->ep_dev;
 

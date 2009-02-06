@@ -105,15 +105,6 @@ u8 ide_read_altstatus(ide_hwif_t *hwif)
 }
 EXPORT_SYMBOL_GPL(ide_read_altstatus);
 
-u8 ide_read_sff_dma_status(ide_hwif_t *hwif)
-{
-	if (hwif->host_flags & IDE_HFLAG_MMIO)
-		return readb((void __iomem *)(hwif->dma_base + ATA_DMA_STATUS));
-	else
-		return inb(hwif->dma_base + ATA_DMA_STATUS);
-}
-EXPORT_SYMBOL_GPL(ide_read_sff_dma_status);
-
 void ide_set_irq(ide_hwif_t *hwif, int on)
 {
 	u8 ctl = ATA_DEVCTL_OBS;
@@ -388,7 +379,6 @@ const struct ide_tp_ops default_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
-	.read_sff_dma_status	= ide_read_sff_dma_status,
 
 	.set_irq		= ide_set_irq,
 
@@ -451,7 +441,7 @@ EXPORT_SYMBOL(ide_fixstring);
  */
 int drive_is_ready (ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	u8 stat			= 0;
 
 	if (drive->waiting_for_dma)
@@ -503,7 +493,8 @@ static int __ide_wait_stat(ide_drive_t *drive, u8 good, u8 bad, unsigned long ti
 	stat = tp_ops->read_status(hwif);
 
 	if (stat & ATA_BUSY) {
-		local_irq_set(flags);
+		local_save_flags(flags);
+		local_irq_enable_in_hardirq();
 		timeout += jiffies;
 		while ((stat = tp_ops->read_status(hwif)) & ATA_BUSY) {
 			if (time_after(jiffies, timeout)) {
@@ -822,25 +813,25 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 static void __ide_set_handler (ide_drive_t *drive, ide_handler_t *handler,
 		      unsigned int timeout, ide_expiry_t *expiry)
 {
-	ide_hwgroup_t *hwgroup = HWGROUP(drive);
+	ide_hwif_t *hwif = drive->hwif;
 
-	BUG_ON(hwgroup->handler);
-	hwgroup->handler	= handler;
-	hwgroup->expiry		= expiry;
-	hwgroup->timer.expires	= jiffies + timeout;
-	hwgroup->req_gen_timer	= hwgroup->req_gen;
-	add_timer(&hwgroup->timer);
+	BUG_ON(hwif->handler);
+	hwif->handler		= handler;
+	hwif->expiry		= expiry;
+	hwif->timer.expires	= jiffies + timeout;
+	hwif->req_gen_timer	= hwif->req_gen;
+	add_timer(&hwif->timer);
 }
 
 void ide_set_handler (ide_drive_t *drive, ide_handler_t *handler,
 		      unsigned int timeout, ide_expiry_t *expiry)
 {
-	ide_hwgroup_t *hwgroup = drive->hwif->hwgroup;
+	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
 
-	spin_lock_irqsave(&hwgroup->lock, flags);
+	spin_lock_irqsave(&hwif->lock, flags);
 	__ide_set_handler(drive, handler, timeout, expiry);
-	spin_unlock_irqrestore(&hwgroup->lock, flags);
+	spin_unlock_irqrestore(&hwif->lock, flags);
 }
 
 EXPORT_SYMBOL(ide_set_handler);
@@ -863,10 +854,9 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 			 unsigned timeout, ide_expiry_t *expiry)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	unsigned long flags;
 
-	spin_lock_irqsave(&hwgroup->lock, flags);
+	spin_lock_irqsave(&hwif->lock, flags);
 	__ide_set_handler(drive, handler, timeout, expiry);
 	hwif->tp_ops->exec_command(hwif, cmd);
 	/*
@@ -876,26 +866,25 @@ void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
 	 * FIXME: we could skip this delay with care on non shared devices
 	 */
 	ndelay(400);
-	spin_unlock_irqrestore(&hwgroup->lock, flags);
+	spin_unlock_irqrestore(&hwif->lock, flags);
 }
 EXPORT_SYMBOL(ide_execute_command);
 
 void ide_execute_pkt_cmd(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	unsigned long flags;
 
-	spin_lock_irqsave(&hwgroup->lock, flags);
+	spin_lock_irqsave(&hwif->lock, flags);
 	hwif->tp_ops->exec_command(hwif, ATA_CMD_PACKET);
 	ndelay(400);
-	spin_unlock_irqrestore(&hwgroup->lock, flags);
+	spin_unlock_irqrestore(&hwif->lock, flags);
 }
 EXPORT_SYMBOL_GPL(ide_execute_pkt_cmd);
 
 static inline void ide_complete_drive_reset(ide_drive_t *drive, int err)
 {
-	struct request *rq = drive->hwif->hwgroup->rq;
+	struct request *rq = drive->hwif->rq;
 
 	if (rq && blk_special_request(rq) && rq->cmd[0] == REQ_DRIVE_RESET)
 		ide_end_request(drive, err ? err : 1, 0);
@@ -913,7 +902,6 @@ static ide_startstop_t do_reset1 (ide_drive_t *, int);
 static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	u8 stat;
 
 	SELECT_DRIVE(drive);
@@ -923,20 +911,20 @@ static ide_startstop_t atapi_reset_pollfunc (ide_drive_t *drive)
 	if (OK_STAT(stat, 0, ATA_BUSY))
 		printk("%s: ATAPI reset complete\n", drive->name);
 	else {
-		if (time_before(jiffies, hwgroup->poll_timeout)) {
+		if (time_before(jiffies, hwif->poll_timeout)) {
 			ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20, NULL);
 			/* continue polling */
 			return ide_started;
 		}
 		/* end of polling */
-		hwgroup->polling = 0;
+		hwif->polling = 0;
 		printk("%s: ATAPI reset timed-out, status=0x%02x\n",
 				drive->name, stat);
 		/* do it the old fashioned way */
 		return do_reset1(drive, 1);
 	}
 	/* done polling */
-	hwgroup->polling = 0;
+	hwif->polling = 0;
 	ide_complete_drive_reset(drive, 0);
 	return ide_stopped;
 }
@@ -968,8 +956,7 @@ static void ide_reset_report_error(ide_hwif_t *hwif, u8 err)
  */
 static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 {
-	ide_hwgroup_t *hwgroup	= HWGROUP(drive);
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 	u8 tmp;
 	int err = 0;
@@ -986,7 +973,7 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 	tmp = hwif->tp_ops->read_status(hwif);
 
 	if (!OK_STAT(tmp, 0, ATA_BUSY)) {
-		if (time_before(jiffies, hwgroup->poll_timeout)) {
+		if (time_before(jiffies, hwif->poll_timeout)) {
 			ide_set_handler(drive, &reset_pollfunc, HZ/20, NULL);
 			/* continue polling */
 			return ide_started;
@@ -1007,7 +994,7 @@ static ide_startstop_t reset_pollfunc (ide_drive_t *drive)
 		}
 	}
 out:
-	hwgroup->polling = 0;	/* done polling */
+	hwif->polling = 0;	/* done polling */
 	ide_complete_drive_reset(drive, err);
 	return ide_stopped;
 }
@@ -1081,18 +1068,18 @@ static void pre_reset(ide_drive_t *drive)
 static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	struct ide_io_ports *io_ports = &hwif->io_ports;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
 	const struct ide_port_ops *port_ops;
+	ide_drive_t *tdrive;
 	unsigned long flags, timeout;
-	unsigned int unit;
+	int i;
 	DEFINE_WAIT(wait);
 
-	spin_lock_irqsave(&hwgroup->lock, flags);
+	spin_lock_irqsave(&hwif->lock, flags);
 
 	/* We must not reset with running handlers */
-	BUG_ON(hwgroup->handler != NULL);
+	BUG_ON(hwif->handler != NULL);
 
 	/* For an ATAPI device, first try an ATAPI SRST. */
 	if (drive->media != ide_disk && !do_not_try_atapi) {
@@ -1101,10 +1088,10 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		udelay (20);
 		tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
 		ndelay(400);
-		hwgroup->poll_timeout = jiffies + WAIT_WORSTCASE;
-		hwgroup->polling = 1;
+		hwif->poll_timeout = jiffies + WAIT_WORSTCASE;
+		hwif->polling = 1;
 		__ide_set_handler(drive, &atapi_reset_pollfunc, HZ/20, NULL);
-		spin_unlock_irqrestore(&hwgroup->lock, flags);
+		spin_unlock_irqrestore(&hwif->lock, flags);
 		return ide_started;
 	}
 
@@ -1114,9 +1101,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 
 		prepare_to_wait(&ide_park_wq, &wait, TASK_UNINTERRUPTIBLE);
 		timeout = jiffies;
-		for (unit = 0; unit < MAX_DRIVES; unit++) {
-			ide_drive_t *tdrive = &hwif->drives[unit];
-
+		ide_port_for_each_dev(i, tdrive, hwif) {
 			if (tdrive->dev_flags & IDE_DFLAG_PRESENT &&
 			    tdrive->dev_flags & IDE_DFLAG_PARKED &&
 			    time_after(tdrive->sleep, timeout))
@@ -1127,9 +1112,9 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 		if (time_before_eq(timeout, now))
 			break;
 
-		spin_unlock_irqrestore(&hwgroup->lock, flags);
+		spin_unlock_irqrestore(&hwif->lock, flags);
 		timeout = schedule_timeout_uninterruptible(timeout - now);
-		spin_lock_irqsave(&hwgroup->lock, flags);
+		spin_lock_irqsave(&hwif->lock, flags);
 	} while (timeout);
 	finish_wait(&ide_park_wq, &wait);
 
@@ -1137,11 +1122,11 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	 * First, reset any device state data we were maintaining
 	 * for any of the drives on this interface.
 	 */
-	for (unit = 0; unit < MAX_DRIVES; ++unit)
-		pre_reset(&hwif->drives[unit]);
+	ide_port_for_each_dev(i, tdrive, hwif)
+		pre_reset(tdrive);
 
 	if (io_ports->ctl_addr == 0) {
-		spin_unlock_irqrestore(&hwgroup->lock, flags);
+		spin_unlock_irqrestore(&hwif->lock, flags);
 		ide_complete_drive_reset(drive, -ENXIO);
 		return ide_stopped;
 	}
@@ -1164,8 +1149,8 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	tp_ops->set_irq(hwif, drive->quirk_list == 2);
 	/* more than enough time */
 	udelay(10);
-	hwgroup->poll_timeout = jiffies + WAIT_WORSTCASE;
-	hwgroup->polling = 1;
+	hwif->poll_timeout = jiffies + WAIT_WORSTCASE;
+	hwif->polling = 1;
 	__ide_set_handler(drive, &reset_pollfunc, HZ/20, NULL);
 
 	/*
@@ -1177,7 +1162,7 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	if (port_ops && port_ops->resetproc)
 		port_ops->resetproc(drive);
 
-	spin_unlock_irqrestore(&hwgroup->lock, flags);
+	spin_unlock_irqrestore(&hwif->lock, flags);
 	return ide_started;
 }
 
@@ -1221,6 +1206,3 @@ int ide_wait_not_busy(ide_hwif_t *hwif, unsigned long timeout)
 	}
 	return -EBUSY;
 }
-
-EXPORT_SYMBOL_GPL(ide_wait_not_busy);
-

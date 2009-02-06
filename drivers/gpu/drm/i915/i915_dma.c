@@ -177,6 +177,14 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 
+	master_priv->sarea = drm_getsarea(dev);
+	if (master_priv->sarea) {
+		master_priv->sarea_priv = (drm_i915_sarea_t *)
+			((u8 *)master_priv->sarea->handle + init->sarea_priv_offset);
+	} else {
+		DRM_DEBUG("sarea not found assuming DRI2 userspace\n");
+	}
+
 	if (init->ring_size != 0) {
 		if (dev_priv->ring.ring_obj != NULL) {
 			i915_dma_cleanup(dev);
@@ -827,6 +835,7 @@ static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
 	struct pci_dev *bridge_dev;
 	u16 tmp = 0;
 	unsigned long overhead;
+	unsigned long stolen;
 
 	bridge_dev = pci_get_bus_and_slot(0, PCI_DEVFN(0,0));
 	if (!bridge_dev) {
@@ -866,36 +875,55 @@ static int i915_probe_agp(struct drm_device *dev, unsigned long *aperture_size,
 	else
 		overhead = (*aperture_size / 1024) + 4096;
 
-	switch (tmp & INTEL_855_GMCH_GMS_MASK) {
-	case INTEL_855_GMCH_GMS_STOLEN_1M:
-		break; /* 1M already */
-	case INTEL_855_GMCH_GMS_STOLEN_4M:
-		*preallocated_size *= 4;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_8M:
-		*preallocated_size *= 8;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_16M:
-		*preallocated_size *= 16;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_32M:
-		*preallocated_size *= 32;
-		break;
-	case INTEL_915G_GMCH_GMS_STOLEN_48M:
-		*preallocated_size *= 48;
-		break;
-	case INTEL_915G_GMCH_GMS_STOLEN_64M:
-		*preallocated_size *= 64;
-		break;
+	switch (tmp & INTEL_GMCH_GMS_MASK) {
 	case INTEL_855_GMCH_GMS_DISABLED:
 		DRM_ERROR("video memory is disabled\n");
 		return -1;
+	case INTEL_855_GMCH_GMS_STOLEN_1M:
+		stolen = 1 * 1024 * 1024;
+		break;
+	case INTEL_855_GMCH_GMS_STOLEN_4M:
+		stolen = 4 * 1024 * 1024;
+		break;
+	case INTEL_855_GMCH_GMS_STOLEN_8M:
+		stolen = 8 * 1024 * 1024;
+		break;
+	case INTEL_855_GMCH_GMS_STOLEN_16M:
+		stolen = 16 * 1024 * 1024;
+		break;
+	case INTEL_855_GMCH_GMS_STOLEN_32M:
+		stolen = 32 * 1024 * 1024;
+		break;
+	case INTEL_915G_GMCH_GMS_STOLEN_48M:
+		stolen = 48 * 1024 * 1024;
+		break;
+	case INTEL_915G_GMCH_GMS_STOLEN_64M:
+		stolen = 64 * 1024 * 1024;
+		break;
+	case INTEL_GMCH_GMS_STOLEN_128M:
+		stolen = 128 * 1024 * 1024;
+		break;
+	case INTEL_GMCH_GMS_STOLEN_256M:
+		stolen = 256 * 1024 * 1024;
+		break;
+	case INTEL_GMCH_GMS_STOLEN_96M:
+		stolen = 96 * 1024 * 1024;
+		break;
+	case INTEL_GMCH_GMS_STOLEN_160M:
+		stolen = 160 * 1024 * 1024;
+		break;
+	case INTEL_GMCH_GMS_STOLEN_224M:
+		stolen = 224 * 1024 * 1024;
+		break;
+	case INTEL_GMCH_GMS_STOLEN_352M:
+		stolen = 352 * 1024 * 1024;
+		break;
 	default:
 		DRM_ERROR("unexpected GMCH_GMS value: 0x%02x\n",
-			tmp & INTEL_855_GMCH_GMS_MASK);
+			tmp & INTEL_GMCH_GMS_MASK);
 		return -1;
 	}
-	*preallocated_size -= overhead;
+	*preallocated_size = stolen - overhead;
 
 	return 0;
 }
@@ -916,11 +944,12 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	dev->mode_config.fb_base = drm_get_resource_start(dev, fb_bar) &
 		0xff000000;
 
-	DRM_DEBUG("*** fb base 0x%08lx\n", dev->mode_config.fb_base);
-
-	if (IS_MOBILE(dev) || (IS_I9XX(dev) && !IS_I965G(dev) && !IS_G33(dev)))
+	if (IS_MOBILE(dev) || IS_I9XX(dev))
 		dev_priv->cursor_needs_physical = true;
 	else
+		dev_priv->cursor_needs_physical = false;
+
+	if (IS_I965G(dev) || IS_G33(dev))
 		dev_priv->cursor_needs_physical = false;
 
 	ret = i915_probe_agp(dev, &agp_size, &prealloc_size);
@@ -1131,6 +1160,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_modeset_cleanup(dev);
+
+		i915_gem_free_all_phys_object(dev);
 
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_cleanup_ringbuffer(dev);

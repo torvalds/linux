@@ -68,7 +68,7 @@ static struct pci_dev *isa_dev;
 
 static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	ide_hwif_t *hwif = HWIF(drive);
+	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct ide_timing *t = ide_timing_find_mode(XFER_PIO_0 + pio);
 	int s_time = t->setup, a_time = t->active, c_time = t->cycle;
@@ -150,7 +150,7 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 
 static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 speed1		= speed;
 	u8 unit			= drive->dn & 1;
@@ -198,7 +198,7 @@ static void ali_set_dma_mode(ide_drive_t *drive, const u8 speed)
 static int ali15x3_dma_setup(ide_drive_t *drive)
 {
 	if (m5229_revision < 0xC2 && drive->media != ide_disk) {
-		if (rq_data_dir(drive->hwif->hwgroup->rq))
+		if (rq_data_dir(drive->hwif->rq))
 			return 1;	/* try PIO instead of DMA */
 	}
 	return ide_dma_setup(drive);
@@ -490,8 +490,6 @@ static int __devinit init_dma_ali15x3(ide_hwif_t *hwif,
 	if (ide_allocate_dma_engine(hwif))
 		return -1;
 
-	hwif->dma_ops = &sff_dma_ops;
-
 	return 0;
 }
 
@@ -511,6 +509,7 @@ static const struct ide_dma_ops ali_dma_ops = {
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_timeout		= ide_dma_timeout,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_port_info ali15x3_chipset __devinitdata = {
@@ -519,6 +518,7 @@ static const struct ide_port_info ali15x3_chipset __devinitdata = {
 	.init_hwif	= init_hwif_ali15x3,
 	.init_dma	= init_dma_ali15x3,
 	.port_ops	= &ali_port_ops,
+	.dma_ops	= &sff_dma_ops,
 	.pio_mask	= ATA_PIO5,
 	.swdma_mask	= ATA_SWDMA2,
 	.mwdma_mask	= ATA_MWDMA2,

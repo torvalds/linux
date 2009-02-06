@@ -1196,83 +1196,53 @@ zoran_close_end_session (struct file *file)
  *   Open a zoran card. Right now the flags stuff is just playing
  */
 
-static int
-zoran_open (struct inode *inode,
-	    struct file  *file)
+static int zoran_open(struct file *file)
 {
-	unsigned int minor = iminor(inode);
-	struct zoran *zr = NULL;
+	struct zoran *zr = video_drvdata(file);
 	struct zoran_fh *fh;
-	int i, res, first_open = 0, have_module_locks = 0;
+	int res, first_open = 0;
+
+	dprintk(2, KERN_INFO "%s: zoran_open(%s, pid=[%d]), users(-)=%d\n",
+		ZR_DEVNAME(zr), current->comm, task_pid_nr(current), zr->user + 1);
 
 	lock_kernel();
-	/* find the device */
-	for (i = 0; i < zoran_num; i++) {
-		if (zoran[i]->video_dev->minor == minor) {
-			zr = zoran[i];
-			break;
-		}
-	}
-
-	if (!zr) {
-		dprintk(1, KERN_ERR "%s: device not found!\n", ZORAN_NAME);
-		res = -ENODEV;
-		goto open_unlock_and_return;
-	}
 
 	/* see fs/device.c - the kernel already locks during open(),
 	 * so locking ourselves only causes deadlocks */
 	/*mutex_lock(&zr->resource_lock);*/
+
+	if (zr->user >= 2048) {
+		dprintk(1, KERN_ERR "%s: too many users (%d) on device\n",
+			ZR_DEVNAME(zr), zr->user);
+		res = -EBUSY;
+		goto fail_unlock;
+	}
 
 	if (!zr->decoder) {
 		dprintk(1,
 			KERN_ERR "%s: no TV decoder loaded for device!\n",
 			ZR_DEVNAME(zr));
 		res = -EIO;
-		goto open_unlock_and_return;
+		goto fail_unlock;
 	}
 
-	/* try to grab a module lock */
-	if (!try_module_get(THIS_MODULE)) {
-		dprintk(1,
-			KERN_ERR
-			"%s: failed to acquire my own lock! PANIC!\n",
-			ZR_DEVNAME(zr));
-		res = -ENODEV;
-		goto open_unlock_and_return;
-	}
 	if (!try_module_get(zr->decoder->driver->driver.owner)) {
 		dprintk(1,
 			KERN_ERR
-			"%s: failed to grab ownership of i2c decoder\n",
+			"%s: failed to grab ownership of video decoder\n",
 			ZR_DEVNAME(zr));
 		res = -EIO;
-		module_put(THIS_MODULE);
-		goto open_unlock_and_return;
+		goto fail_unlock;
 	}
 	if (zr->encoder &&
 	    !try_module_get(zr->encoder->driver->driver.owner)) {
 		dprintk(1,
 			KERN_ERR
-			"%s: failed to grab ownership of i2c encoder\n",
+			"%s: failed to grab ownership of video encoder\n",
 			ZR_DEVNAME(zr));
 		res = -EIO;
-		module_put(zr->decoder->driver->driver.owner);
-		module_put(THIS_MODULE);
-		goto open_unlock_and_return;
+		goto fail_decoder;
 	}
-
-	have_module_locks = 1;
-
-	if (zr->user >= 2048) {
-		dprintk(1, KERN_ERR "%s: too many users (%d) on device\n",
-			ZR_DEVNAME(zr), zr->user);
-		res = -EBUSY;
-		goto open_unlock_and_return;
-	}
-
-	dprintk(1, KERN_INFO "%s: zoran_open(%s, pid=[%d]), users(-)=%d\n",
-		ZR_DEVNAME(zr), current->comm, task_pid_nr(current), zr->user);
 
 	/* now, create the open()-specific file_ops struct */
 	fh = kzalloc(sizeof(struct zoran_fh), GFP_KERNEL);
@@ -1282,7 +1252,7 @@ zoran_open (struct inode *inode,
 			"%s: zoran_open() - allocation of zoran_fh failed\n",
 			ZR_DEVNAME(zr));
 		res = -ENOMEM;
-		goto open_unlock_and_return;
+		goto fail_encoder;
 	}
 	/* used to be BUZ_MAX_WIDTH/HEIGHT, but that gives overflows
 	 * on norm-change! */
@@ -1293,9 +1263,8 @@ zoran_open (struct inode *inode,
 			KERN_ERR
 			"%s: zoran_open() - allocation of overlay_mask failed\n",
 			ZR_DEVNAME(zr));
-		kfree(fh);
 		res = -ENOMEM;
-		goto open_unlock_and_return;
+		goto fail_fh;
 	}
 
 	if (zr->user++ == 0)
@@ -1320,34 +1289,30 @@ zoran_open (struct inode *inode,
 
 	return 0;
 
-open_unlock_and_return:
-	/* if we grabbed locks, release them accordingly */
-	if (have_module_locks) {
-		module_put(zr->decoder->driver->driver.owner);
-		if (zr->encoder) {
-			module_put(zr->encoder->driver->driver.owner);
-		}
-		module_put(THIS_MODULE);
-	}
-
-	/* if there's no device found, we didn't obtain the lock either */
-	if (zr) {
-		/*mutex_unlock(&zr->resource_lock);*/
-	}
+fail_fh:
+	kfree(fh);
+fail_encoder:
+	if (zr->encoder)
+		module_put(zr->encoder->driver->driver.owner);
+fail_decoder:
+	module_put(zr->decoder->driver->driver.owner);
+fail_unlock:
 	unlock_kernel();
+
+	dprintk(2, KERN_INFO "%s: open failed (%d), users(-)=%d\n",
+		ZR_DEVNAME(zr), res, zr->user);
 
 	return res;
 }
 
 static int
-zoran_close (struct inode *inode,
-	     struct file  *file)
+zoran_close(struct file  *file)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
 
-	dprintk(1, KERN_INFO "%s: zoran_close(%s, pid=[%d]), users(+)=%d\n",
-		ZR_DEVNAME(zr), current->comm, task_pid_nr(current), zr->user);
+	dprintk(2, KERN_INFO "%s: zoran_close(%s, pid=[%d]), users(+)=%d\n",
+		ZR_DEVNAME(zr), current->comm, task_pid_nr(current), zr->user - 1);
 
 	/* kernel locks (fs/device.c), so don't do that ourselves
 	 * (prevents deadlocks) */
@@ -1393,10 +1358,8 @@ zoran_close (struct inode *inode,
 
 	/* release locks on the i2c modules */
 	module_put(zr->decoder->driver->driver.owner);
-	if (zr->encoder) {
-		 module_put(zr->encoder->driver->driver.owner);
-	}
-	module_put(THIS_MODULE);
+	if (zr->encoder)
+		module_put(zr->encoder->driver->driver.owner);
 
 	/*mutex_unlock(&zr->resource_lock);*/
 
@@ -1940,7 +1903,7 @@ zoran_set_input (struct zoran *zr,
  *   ioctl routine
  */
 
-static int zoran_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long zoran_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
@@ -4191,11 +4154,10 @@ static int zoran_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 }
 
 
-static int
-zoran_ioctl (struct inode *inode,
-	     struct file  *file,
-	     unsigned int  cmd,
-	     unsigned long arg)
+static long
+zoran_ioctl(struct file  *file,
+	    unsigned int  cmd,
+	    unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, zoran_do_ioctl);
 }
@@ -4620,15 +4582,11 @@ zoran_mmap (struct file           *file,
 	return 0;
 }
 
-static const struct file_operations zoran_fops = {
+static const struct v4l2_file_operations zoran_fops = {
 	.owner = THIS_MODULE,
 	.open = zoran_open,
 	.release = zoran_close,
 	.ioctl = zoran_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek = no_llseek,
 	.read = zoran_read,
 	.write = zoran_write,
 	.mmap = zoran_mmap,

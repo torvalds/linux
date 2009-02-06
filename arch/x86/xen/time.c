@@ -132,8 +132,7 @@ static void do_stolen_accounting(void)
 	*snap = state;
 
 	/* Add the appropriate number of ticks of stolen time,
-	   including any left-overs from last time.  Passing NULL to
-	   account_steal_time accounts the time as stolen. */
+	   including any left-overs from last time. */
 	stolen = runnable + offline + __get_cpu_var(residual_stolen);
 
 	if (stolen < 0)
@@ -141,11 +140,10 @@ static void do_stolen_accounting(void)
 
 	ticks = iter_div_u64_rem(stolen, NS_PER_TICK, &stolen);
 	__get_cpu_var(residual_stolen) = stolen;
-	account_steal_time(NULL, ticks);
+	account_steal_ticks(ticks);
 
 	/* Add the appropriate number of ticks of blocked time,
-	   including any left-overs from last time.  Passing idle to
-	   account_steal_time accounts the time as idle/wait. */
+	   including any left-overs from last time. */
 	blocked += __get_cpu_var(residual_blocked);
 
 	if (blocked < 0)
@@ -153,7 +151,7 @@ static void do_stolen_accounting(void)
 
 	ticks = iter_div_u64_rem(blocked, NS_PER_TICK, &blocked);
 	__get_cpu_var(residual_blocked) = blocked;
-	account_steal_time(idle_task(smp_processor_id()), ticks);
+	account_idle_ticks(ticks);
 }
 
 /*
@@ -437,7 +435,7 @@ void xen_setup_timer(int cpu)
 	evt = &per_cpu(xen_clock_events, cpu);
 	memcpy(evt, xen_clockevent, sizeof(*evt));
 
-	evt->cpumask = cpumask_of_cpu(cpu);
+	evt->cpumask = cpumask_of(cpu);
 	evt->irq = irq;
 
 	setup_runstate_info(cpu);

@@ -194,11 +194,6 @@ static inline unsigned short ext_depth(struct inode *inode)
 	return le16_to_cpu(ext_inode_hdr(inode)->eh_depth);
 }
 
-static inline void ext4_ext_tree_changed(struct inode *inode)
-{
-	EXT4_I(inode)->i_ext_generation++;
-}
-
 static inline void
 ext4_ext_invalidate_cache(struct inode *inode)
 {

@@ -205,7 +205,7 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 {
 	struct resource	*regs;
 	struct rtc_at32ap700x *rtc;
-	int irq = -1;
+	int irq;
 	int ret;
 
 	rtc = kzalloc(sizeof(struct rtc_at32ap700x), GFP_KERNEL);
@@ -222,7 +222,7 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
+	if (irq <= 0) {
 		dev_dbg(&pdev->dev, "could not get irq\n");
 		ret = -ENXIO;
 		goto out;

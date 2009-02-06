@@ -28,10 +28,6 @@
 #include <linux/workqueue.h>
 #include "wusbhc.h"
 
-#undef D_LOCAL
-#define D_LOCAL 4
-#include <linux/uwb/debug.h>
-
 static ssize_t wusb_disconnect_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t size)

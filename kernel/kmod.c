@@ -51,8 +51,8 @@ char modprobe_path[KMOD_PATH_LEN] = "/sbin/modprobe";
 
 /**
  * request_module - try to load a kernel module
- * @fmt:     printf style format string for the name of the module
- * @varargs: arguements as specified in the format string
+ * @fmt: printf style format string for the name of the module
+ * @...: arguments as specified in the format string
  *
  * Load a module using the user mode module loader. The function returns
  * zero on success or a negative errno code on failure. Note that a

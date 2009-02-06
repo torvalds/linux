@@ -1,22 +1,12 @@
-/************************************************************
-
-* Copyright (C) 2006-2008, Analog Devices. All Rights Reserved
-*
-* FILE bfin5xx_spi.h
-* PROGRAMMER(S): Luke Yang (Analog Devices Inc.)
-*
-*
-* DATE OF CREATION: March. 10th 2006
-*
-* SYNOPSIS:
-*
-* DESCRIPTION: header file for SPI controller driver for Blackfin5xx.
-**************************************************************
-
-* MODIFICATION HISTORY:
-* March 10, 2006  bfin5xx_spi.h Created. (Luke Yang)
-
-************************************************************/
+/*
+ * Blackfin On-Chip SPI Driver
+ *
+ * Copyright 2004-2008 Analog Devices Inc.
+ *
+ * Enter bugs at http://blackfin.uclinux.org/
+ *
+ * Licensed under the GPL-2 or later.
+ */
 
 #ifndef _SPI_CHANNEL_H_
 #define _SPI_CHANNEL_H_

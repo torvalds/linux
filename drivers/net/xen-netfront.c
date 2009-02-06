@@ -1105,6 +1105,16 @@ static void xennet_uninit(struct net_device *dev)
 	gnttab_free_grant_references(np->gref_rx_head);
 }
 
+static const struct net_device_ops xennet_netdev_ops = {
+	.ndo_open            = xennet_open,
+	.ndo_uninit          = xennet_uninit,
+	.ndo_stop            = xennet_close,
+	.ndo_start_xmit      = xennet_start_xmit,
+	.ndo_change_mtu	     = xennet_change_mtu,
+	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_validate_addr   = eth_validate_addr,
+};
+
 static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev)
 {
 	int i, err;
@@ -1161,12 +1171,9 @@ static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev
 		goto exit_free_tx;
 	}
 
-	netdev->open            = xennet_open;
-	netdev->hard_start_xmit = xennet_start_xmit;
-	netdev->stop            = xennet_close;
+	netdev->netdev_ops	= &xennet_netdev_ops;
+
 	netif_napi_add(netdev, &np->napi, xennet_poll, 64);
-	netdev->uninit          = xennet_uninit;
-	netdev->change_mtu	= xennet_change_mtu;
 	netdev->features        = NETIF_F_IP_CSUM;
 
 	SET_ETHTOOL_OPS(netdev, &xennet_ethtool_ops);

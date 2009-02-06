@@ -124,34 +124,22 @@ int scsi_eh_scmd_add(struct scsi_cmnd *scmd, int eh_flag)
 enum blk_eh_timer_return scsi_times_out(struct request *req)
 {
 	struct scsi_cmnd *scmd = req->special;
-	enum blk_eh_timer_return (*eh_timed_out)(struct scsi_cmnd *);
 	enum blk_eh_timer_return rtn = BLK_EH_NOT_HANDLED;
 
 	scsi_log_completion(scmd, TIMEOUT_ERROR);
 
 	if (scmd->device->host->transportt->eh_timed_out)
-		eh_timed_out = scmd->device->host->transportt->eh_timed_out;
+		rtn = scmd->device->host->transportt->eh_timed_out(scmd);
 	else if (scmd->device->host->hostt->eh_timed_out)
-		eh_timed_out = scmd->device->host->hostt->eh_timed_out;
-	else
-		eh_timed_out = NULL;
+		rtn = scmd->device->host->hostt->eh_timed_out(scmd);
 
-	if (eh_timed_out) {
-		rtn = eh_timed_out(scmd);
-		switch (rtn) {
-		case BLK_EH_NOT_HANDLED:
-			break;
-		default:
-			return rtn;
-		}
-	}
-
-	if (unlikely(!scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD))) {
+	if (unlikely(rtn == BLK_EH_NOT_HANDLED &&
+		     !scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD))) {
 		scmd->result |= DID_TIME_OUT << 16;
-		return BLK_EH_HANDLED;
+		rtn = BLK_EH_HANDLED;
 	}
 
-	return BLK_EH_NOT_HANDLED;
+	return rtn;
 }
 
 /**
@@ -1650,7 +1638,7 @@ int scsi_error_handler(void *data)
 	 * We use TASK_INTERRUPTIBLE so that the thread is not
 	 * counted against the load average as a running process.
 	 * We never actually get interrupted because kthread_run
-	 * disables singal delivery for the created thread.
+	 * disables signal delivery for the created thread.
 	 */
 	set_current_state(TASK_INTERRUPTIBLE);
 	while (!kthread_should_stop()) {

@@ -39,6 +39,18 @@ void handle_bad_irq(unsigned int irq, struct irq_desc *desc)
 	ack_bad_irq(irq);
 }
 
+#if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_HARDIRQS)
+static void __init init_irq_default_affinity(void)
+{
+	alloc_bootmem_cpumask_var(&irq_default_affinity);
+	cpumask_setall(irq_default_affinity);
+}
+#else
+static void __init init_irq_default_affinity(void)
+{
+}
+#endif
+
 /*
  * Linux has a controller-independent interrupt architecture.
  * Every controller has a 'controller-template', that is used
@@ -55,10 +67,6 @@ void handle_bad_irq(unsigned int irq, struct irq_desc *desc)
  */
 int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
-
-void __init __attribute__((weak)) arch_early_irq_init(void)
-{
-}
 
 #ifdef CONFIG_SPARSE_IRQ
 static struct irq_desc irq_desc_init = {
@@ -90,13 +98,11 @@ void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr)
 		desc->kstat_irqs = (unsigned int *)ptr;
 }
 
-void __attribute__((weak)) arch_init_chip_data(struct irq_desc *desc, int cpu)
-{
-}
-
 static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
 {
 	memcpy(desc, &irq_desc_init, sizeof(struct irq_desc));
+
+	spin_lock_init(&desc->lock);
 	desc->irq = irq;
 #ifdef CONFIG_SMP
 	desc->cpu = cpu;
@@ -134,11 +140,13 @@ static struct irq_desc irq_desc_legacy[NR_IRQS_LEGACY] __cacheline_aligned_in_sm
 /* FIXME: use bootmem alloc ...*/
 static unsigned int kstat_irqs_legacy[NR_IRQS_LEGACY][NR_CPUS];
 
-void __init early_irq_init(void)
+int __init early_irq_init(void)
 {
 	struct irq_desc *desc;
 	int legacy_count;
 	int i;
+
+	init_irq_default_affinity();
 
 	desc = irq_desc_legacy;
 	legacy_count = ARRAY_SIZE(irq_desc_legacy);
@@ -146,6 +154,7 @@ void __init early_irq_init(void)
 	for (i = 0; i < legacy_count; i++) {
 		desc[i].irq = i;
 		desc[i].kstat_irqs = kstat_irqs_legacy[i];
+		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
 
 		irq_desc_ptrs[i] = desc + i;
 	}
@@ -153,7 +162,7 @@ void __init early_irq_init(void)
 	for (i = legacy_count; i < NR_IRQS; i++)
 		irq_desc_ptrs[i] = NULL;
 
-	arch_early_irq_init();
+	return arch_early_irq_init();
 }
 
 struct irq_desc *irq_to_desc(unsigned int irq)
@@ -203,7 +212,7 @@ out_unlock:
 	return desc;
 }
 
-#else
+#else /* !CONFIG_SPARSE_IRQ */
 
 struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	[0 ... NR_IRQS-1] = {
@@ -218,7 +227,33 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	}
 };
 
-#endif
+int __init early_irq_init(void)
+{
+	struct irq_desc *desc;
+	int count;
+	int i;
+
+	init_irq_default_affinity();
+
+	desc = irq_desc;
+	count = ARRAY_SIZE(irq_desc);
+
+	for (i = 0; i < count; i++)
+		desc[i].irq = i;
+
+	return arch_early_irq_init();
+}
+
+struct irq_desc *irq_to_desc(unsigned int irq)
+{
+	return (irq < NR_IRQS) ? irq_desc + irq : NULL;
+}
+
+struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
+{
+	return irq_to_desc(irq);
+}
+#endif /* !CONFIG_SPARSE_IRQ */
 
 /*
  * What should we do if we get a hw irq event on an illegal vector?
@@ -428,9 +463,6 @@ void early_init_irq_lock_class(void)
 	int i;
 
 	for_each_irq_desc(i, desc) {
-		if (!desc)
-			continue;
-
 		lockdep_set_class(&desc->lock, &irq_desc_lock_class);
 	}
 }
@@ -439,7 +471,7 @@ void early_init_irq_lock_class(void)
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	return desc->kstat_irqs[cpu];
+	return desc ? desc->kstat_irqs[cpu] : 0;
 }
 #endif
 EXPORT_SYMBOL(kstat_irqs_cpu);

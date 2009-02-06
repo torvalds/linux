@@ -66,8 +66,12 @@
 
 #define bfin_read_SIC_IMASK(x)		bfin_read32(SICA_IMASK0 + (x << 2))
 #define bfin_write_SIC_IMASK(x, val)	bfin_write32((SICA_IMASK0 + (x << 2)), val)
+#define bfin_read_SICB_IMASK(x)		bfin_read32(SICB_IMASK0 + (x << 2))
+#define bfin_write_SICB_IMASK(x, val)	bfin_write32((SICB_IMASK0 + (x << 2)), val)
 #define bfin_read_SIC_ISR(x)		bfin_read32(SICA_ISR0 + (x << 2))
 #define bfin_write_SIC_ISR(x, val)	bfin_write32((SICA_ISR0 + (x << 2)), val)
+#define bfin_read_SICB_ISR(x)		bfin_read32(SICB_ISR0 + (x << 2))
+#define bfin_write_SICB_ISR(x, val)	bfin_write32((SICB_ISR0 + (x << 2)), val)
 
 #define BFIN_UART_NR_PORTS      1
 

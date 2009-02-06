@@ -140,7 +140,7 @@ struct ksdazzle_cb {
 	struct usb_device *usbdev;	/* init: probe_irda */
 	struct net_device *netdev;	/* network layer */
 	struct irlap_cb *irlap;	/* The link layer we are binded to */
-	struct net_device_stats stats;	/* network statistics */
+
 	struct qos_info qos;
 
 	struct urb *tx_urb;
@@ -278,7 +278,7 @@ static void ksdazzle_send_irq(struct urb *urb)
 				case -EPIPE:
 					break;
 				default:
-					kingsun->stats.tx_errors++;
+					netdev->stats.tx_errors++;
 					netif_start_queue(netdev);
 				}
 			}
@@ -329,12 +329,12 @@ static int ksdazzle_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 		case -EPIPE:
 			break;
 		default:
-			kingsun->stats.tx_errors++;
+			netdev->stats.tx_errors++;
 			netif_start_queue(netdev);
 		}
 	} else {
-		kingsun->stats.tx_packets++;
-		kingsun->stats.tx_bytes += skb->len;
+		netdev->stats.tx_packets++;
+		netdev->stats.tx_bytes += skb->len;
 
 	}
 
@@ -348,9 +348,10 @@ static int ksdazzle_hard_xmit(struct sk_buff *skb, struct net_device *netdev)
 static void ksdazzle_rcv_irq(struct urb *urb)
 {
 	struct ksdazzle_cb *kingsun = urb->context;
+	struct net_device *netdev = kingsun->netdev;
 
 	/* in process of stopping, just drop data */
-	if (!netif_running(kingsun->netdev)) {
+	if (!netif_running(netdev)) {
 		kingsun->receiving = 0;
 		return;
 	}
@@ -368,7 +369,7 @@ static void ksdazzle_rcv_irq(struct urb *urb)
 		unsigned int i;
 
 		for (i = 0; i < urb->actual_length; i++) {
-			async_unwrap_char(kingsun->netdev, &kingsun->stats,
+			async_unwrap_char(netdev, &netdev->stats,
 					  &kingsun->rx_unwrap_buff, bytes[i]);
 		}
 		kingsun->receiving =
@@ -562,16 +563,6 @@ static int ksdazzle_net_ioctl(struct net_device *netdev, struct ifreq *rq,
 }
 
 /*
- * Get device stats (for /proc/net/dev and ifconfig)
- */
-static struct net_device_stats *ksdazzle_net_get_stats(struct net_device
-						       *netdev)
-{
-	struct ksdazzle_cb *kingsun = netdev_priv(netdev);
-	return &kingsun->stats;
-}
-
-/*
  * This routine is called by the USB subsystem for each new device
  * in the system. We need to check if the device is ours, and in
  * this case start handling it.
@@ -696,7 +687,6 @@ static int ksdazzle_probe(struct usb_interface *intf,
 	net->hard_start_xmit = ksdazzle_hard_xmit;
 	net->open = ksdazzle_net_open;
 	net->stop = ksdazzle_net_close;
-	net->get_stats = ksdazzle_net_get_stats;
 	net->do_ioctl = ksdazzle_net_ioctl;
 
 	ret = register_netdev(net);

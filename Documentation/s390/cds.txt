@@ -98,7 +98,7 @@ platform. Some of the interface routines are specific to Linux/390 and some
 of them can be found on other Linux platforms implementations too.
 Miscellaneous function prototypes, data declarations, and macro definitions
 can be found in the architecture specific C header file
-linux/include/asm-s390/irq.h.
+linux/arch/s390/include/asm/irq.h.
 
 Overview of CDS interface concepts
 

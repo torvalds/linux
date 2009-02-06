@@ -72,8 +72,8 @@ static int read_block(struct inode *inode, void *addr, unsigned int block,
 		return err;
 	}
 
-	ubifs_assert(le64_to_cpu(dn->ch.sqnum) > ubifs_inode(inode)->creat_sqnum);
-
+	ubifs_assert(le64_to_cpu(dn->ch.sqnum) >
+		     ubifs_inode(inode)->creat_sqnum);
 	len = le32_to_cpu(dn->size);
 	if (len <= 0 || len > UBIFS_BLOCK_SIZE)
 		goto dump;
@@ -219,7 +219,8 @@ static void release_existing_page_budget(struct ubifs_info *c)
 }
 
 static int write_begin_slow(struct address_space *mapping,
-			    loff_t pos, unsigned len, struct page **pagep)
+			    loff_t pos, unsigned len, struct page **pagep,
+			    unsigned flags)
 {
 	struct inode *inode = mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -247,14 +248,14 @@ static int write_begin_slow(struct address_space *mapping,
 	if (unlikely(err))
 		return err;
 
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (unlikely(!page)) {
 		ubifs_release_budget(c, &req);
 		return -ENOMEM;
 	}
 
 	if (!PageUptodate(page)) {
-		if (!(pos & PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
+		if (!(pos & ~PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
 			SetPageChecked(page);
 		else {
 			err = do_readpage(page);
@@ -431,20 +432,19 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 	int uninitialized_var(err), appending = !!(pos + len > inode->i_size);
 	struct page *page;
 
-
 	ubifs_assert(ubifs_inode(inode)->ui_size == inode->i_size);
 
 	if (unlikely(c->ro_media))
 		return -EROFS;
 
 	/* Try out the fast-path part first */
-	page = __grab_cache_page(mapping, index);
+	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (unlikely(!page))
 		return -ENOMEM;
 
 	if (!PageUptodate(page)) {
 		/* The page is not loaded from the flash */
-		if (!(pos & PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
+		if (!(pos & ~PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
 			/*
 			 * We change whole page so no need to load it. But we
 			 * have to set the @PG_checked flag to make the further
@@ -483,7 +483,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		page_cache_release(page);
 
-		return write_begin_slow(mapping, pos, len, pagep);
+		return write_begin_slow(mapping, pos, len, pagep, flags);
 	}
 
 	/*
@@ -1540,7 +1540,7 @@ static int ubifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-struct address_space_operations ubifs_file_address_operations = {
+const struct address_space_operations ubifs_file_address_operations = {
 	.readpage       = ubifs_readpage,
 	.writepage      = ubifs_writepage,
 	.write_begin    = ubifs_write_begin,
@@ -1550,7 +1550,7 @@ struct address_space_operations ubifs_file_address_operations = {
 	.releasepage    = ubifs_releasepage,
 };
 
-struct inode_operations ubifs_file_inode_operations = {
+const struct inode_operations ubifs_file_inode_operations = {
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
 #ifdef CONFIG_UBIFS_FS_XATTR
@@ -1561,14 +1561,14 @@ struct inode_operations ubifs_file_inode_operations = {
 #endif
 };
 
-struct inode_operations ubifs_symlink_inode_operations = {
+const struct inode_operations ubifs_symlink_inode_operations = {
 	.readlink    = generic_readlink,
 	.follow_link = ubifs_follow_link,
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
 };
 
-struct file_operations ubifs_file_operations = {
+const struct file_operations ubifs_file_operations = {
 	.llseek         = generic_file_llseek,
 	.read           = do_sync_read,
 	.write          = do_sync_write,

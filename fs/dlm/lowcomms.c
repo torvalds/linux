@@ -295,6 +295,7 @@ static int add_sock(struct socket *sock, struct connection *con)
 	con->sock->sk->sk_write_space = lowcomms_write_space;
 	con->sock->sk->sk_state_change = lowcomms_state_change;
 	con->sock->sk->sk_user_data = con;
+	con->sock->sk->sk_allocation = GFP_NOFS;
 	return 0;
 }
 
@@ -823,7 +824,6 @@ static void sctp_init_assoc(struct connection *con)
 	len = e->len;
 	offset = e->offset;
 	spin_unlock(&con->writequeue_lock);
-	kmap(e->page);
 
 	/* Send the first block off the write queue */
 	iov[0].iov_base = page_address(e->page)+offset;
@@ -854,7 +854,6 @@ static void sctp_init_assoc(struct connection *con)
 
 		if (e->len == 0 && e->users == 0) {
 			list_del(&e->list);
-			kunmap(e->page);
 			free_entry(e);
 		}
 		spin_unlock(&con->writequeue_lock);
@@ -1203,8 +1202,6 @@ void *dlm_lowcomms_get_buffer(int nodeid, int len, gfp_t allocation, char **ppc)
 
 	if (e) {
 	got_one:
-		if (users == 0)
-			kmap(e->page);
 		*ppc = page_address(e->page) + offset;
 		return e;
 	}
@@ -1233,7 +1230,6 @@ void dlm_lowcomms_commit_buffer(void *mh)
 	if (users)
 		goto out;
 	e->len = e->end - e->offset;
-	kunmap(e->page);
 	spin_unlock(&con->writequeue_lock);
 
 	if (!test_and_set_bit(CF_WRITE_PENDING, &con->flags)) {
@@ -1272,7 +1268,6 @@ static void send_to_sock(struct connection *con)
 		offset = e->offset;
 		BUG_ON(len == 0 && e->users == 0);
 		spin_unlock(&con->writequeue_lock);
-		kmap(e->page);
 
 		ret = 0;
 		if (len) {
@@ -1294,7 +1289,6 @@ static void send_to_sock(struct connection *con)
 
 		if (e->len == 0 && e->users == 0) {
 			list_del(&e->list);
-			kunmap(e->page);
 			free_entry(e);
 			continue;
 		}

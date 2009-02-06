@@ -1583,8 +1583,7 @@ cyberpro_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto failed_release;
 
 	cfb->dev = dev;
-	cfb->region = ioremap(pci_resource_start(dev, 0),
-			      pci_resource_len(dev, 0));
+	cfb->region = pci_ioremap_bar(dev, 0);
 	if (!cfb->region)
 		goto failed_ioremap;
 

@@ -193,10 +193,8 @@
 #define CKEN_MINI_IM	48	/* < Mini-IM */
 #define CKEN_MINI_LCD	49	/* < Mini LCD */
 
-#if defined(CONFIG_CPU_PXA310)
 #define CKEN_MMC3	5	/* < MMC3 Clock Enable */
 #define CKEN_MVED	43	/* < MVED clock enable */
-#endif
 
 /* Note: GCU clock enable bit differs on PXA300/PXA310 and PXA320 */
 #define PXA300_CKEN_GRAPHICS	42	/* Graphics controller clock enable */

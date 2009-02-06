@@ -128,6 +128,14 @@
 	.bInterfaceClass = USB_CLASS_AUDIO,
 	.bInterfaceSubClass = USB_SUBCLASS_AUDIO_CONTROL
 },
+{
+	USB_DEVICE(0x046d, 0x0990),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Logitech, Inc.",
+		.product_name = "QuickCam Pro 9000",
+		.ifnum = QUIRK_NO_INTERFACE
+	}
+},
 
 /*
  * Yamaha devices

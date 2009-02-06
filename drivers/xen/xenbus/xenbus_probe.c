@@ -40,6 +40,7 @@
 #include <linux/ctype.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
+#include <linux/proc_fs.h>
 #include <linux/notifier.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
@@ -55,7 +56,10 @@
 #include "xenbus_comms.h"
 #include "xenbus_probe.h"
 
+
 int xen_store_evtchn;
+EXPORT_SYMBOL(xen_store_evtchn);
+
 struct xenstore_domain_interface *xen_store_interface;
 static unsigned long xen_store_mfn;
 
@@ -99,15 +103,15 @@ static int xenbus_uevent(struct device *_dev, struct kobj_uevent_env *env)
 }
 
 /* device/<type>/<id> => <type>-<id> */
-static int frontend_bus_id(char bus_id[BUS_ID_SIZE], const char *nodename)
+static int frontend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
 {
 	nodename = strchr(nodename, '/');
-	if (!nodename || strlen(nodename + 1) >= BUS_ID_SIZE) {
+	if (!nodename || strlen(nodename + 1) >= XEN_BUS_ID_SIZE) {
 		printk(KERN_WARNING "XENBUS: bad frontend %s\n", nodename);
 		return -EINVAL;
 	}
 
-	strlcpy(bus_id, nodename + 1, BUS_ID_SIZE);
+	strlcpy(bus_id, nodename + 1, XEN_BUS_ID_SIZE);
 	if (!strchr(bus_id, '/')) {
 		printk(KERN_WARNING "XENBUS: bus_id %s no slash\n", bus_id);
 		return -EINVAL;
@@ -166,6 +170,9 @@ static int read_backend_details(struct xenbus_device *xendev)
 	return read_otherend_details(xendev, "backend-id", "backend");
 }
 
+static struct device_attribute xenbus_dev_attrs[] = {
+	__ATTR_NULL
+};
 
 /* Bus type for frontend drivers. */
 static struct xen_bus_type xenbus_frontend = {
@@ -174,12 +181,13 @@ static struct xen_bus_type xenbus_frontend = {
 	.get_bus_id = frontend_bus_id,
 	.probe = xenbus_probe_frontend,
 	.bus = {
-		.name     = "xen",
-		.match    = xenbus_match,
-		.uevent   = xenbus_uevent,
-		.probe    = xenbus_dev_probe,
-		.remove   = xenbus_dev_remove,
-		.shutdown = xenbus_dev_shutdown,
+		.name      = "xen",
+		.match     = xenbus_match,
+		.uevent    = xenbus_uevent,
+		.probe     = xenbus_dev_probe,
+		.remove    = xenbus_dev_remove,
+		.shutdown  = xenbus_dev_shutdown,
+		.dev_attrs = xenbus_dev_attrs,
 	},
 };
 
@@ -460,6 +468,7 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 		      const char *type,
 		      const char *nodename)
 {
+	char devname[XEN_BUS_ID_SIZE];
 	int err;
 	struct xenbus_device *xendev;
 	size_t stringlen;
@@ -494,9 +503,11 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 	xendev->dev.bus = &bus->bus;
 	xendev->dev.release = xenbus_dev_release;
 
-	err = bus->get_bus_id(xendev->dev.bus_id, xendev->nodename);
+	err = bus->get_bus_id(devname, xendev->nodename);
 	if (err)
 		goto fail;
+
+	dev_set_name(&xendev->dev, devname);
 
 	/* Register with generic device framework. */
 	err = device_register(&xendev->dev);
@@ -611,7 +622,7 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 {
 	int exists, rootlen;
 	struct xenbus_device *dev;
-	char type[BUS_ID_SIZE];
+	char type[XEN_BUS_ID_SIZE];
 	const char *p, *root;
 
 	if (char_count(node, '/') < 2)
@@ -625,8 +636,8 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 
 	/* backend/<type>/... or device/<type>/... */
 	p = strchr(node, '/') + 1;
-	snprintf(type, BUS_ID_SIZE, "%.*s", (int)strcspn(p, "/"), p);
-	type[BUS_ID_SIZE-1] = '\0';
+	snprintf(type, XEN_BUS_ID_SIZE, "%.*s", (int)strcspn(p, "/"), p);
+	type[XEN_BUS_ID_SIZE-1] = '\0';
 
 	rootlen = strsep_len(node, '/', bus->levels);
 	if (rootlen < 0)
@@ -674,7 +685,7 @@ static int suspend_dev(struct device *dev, void *data)
 		err = drv->suspend(xdev);
 	if (err)
 		printk(KERN_WARNING
-		       "xenbus: suspend %s failed: %i\n", dev->bus_id, err);
+		       "xenbus: suspend %s failed: %i\n", dev_name(dev), err);
 	return 0;
 }
 
@@ -695,7 +706,7 @@ static int suspend_cancel_dev(struct device *dev, void *data)
 	if (err)
 		printk(KERN_WARNING
 		       "xenbus: suspend_cancel %s failed: %i\n",
-		       dev->bus_id, err);
+		       dev_name(dev), err);
 	return 0;
 }
 
@@ -717,7 +728,7 @@ static int resume_dev(struct device *dev, void *data)
 	if (err) {
 		printk(KERN_WARNING
 		       "xenbus: resume (talk_to_otherend) %s failed: %i\n",
-		       dev->bus_id, err);
+		       dev_name(dev), err);
 		return err;
 	}
 
@@ -728,7 +739,7 @@ static int resume_dev(struct device *dev, void *data)
 		if (err) {
 			printk(KERN_WARNING
 			       "xenbus: resume %s failed: %i\n",
-			       dev->bus_id, err);
+			       dev_name(dev), err);
 			return err;
 		}
 	}
@@ -737,7 +748,7 @@ static int resume_dev(struct device *dev, void *data)
 	if (err) {
 		printk(KERN_WARNING
 		       "xenbus_probe: resume (watch_otherend) %s failed: "
-		       "%d.\n", dev->bus_id, err);
+		       "%d.\n", dev_name(dev), err);
 		return err;
 	}
 
@@ -848,6 +859,14 @@ static int __init xenbus_probe_init(void)
 
 	if (!xen_initial_domain())
 		xenbus_probe(NULL);
+
+#ifdef CONFIG_XEN_COMPAT_XENFS
+	/*
+	 * Create xenfs mountpoint in /proc for compatibility with
+	 * utilities that expect to find "xenbus" under "/proc/xen".
+	 */
+	proc_mkdir("xen", NULL);
+#endif
 
 	return 0;
 

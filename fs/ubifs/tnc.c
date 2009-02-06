@@ -443,6 +443,11 @@ static int tnc_read_node_nm(struct ubifs_info *c, struct ubifs_zbranch *zbr,
  * This function performs that same function as ubifs_read_node except that
  * it does not require that there is actually a node present and instead
  * the return code indicates if a node was read.
+ *
+ * Note, this function does not check CRC of data nodes if @c->no_chk_data_crc
+ * is true (it is controlled by corresponding mount option). However, if
+ * @c->always_chk_crc is true, @c->no_chk_data_crc is ignored and CRC is always
+ * checked.
  */
 static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 			 int len, int lnum, int offs)
@@ -470,9 +475,8 @@ static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 	if (node_len != len)
 		return 0;
 
-	if (type == UBIFS_DATA_NODE && !c->always_chk_crc)
-		if (c->no_chk_data_crc)
-			return 0;
+	if (type == UBIFS_DATA_NODE && !c->always_chk_crc && c->no_chk_data_crc)
+		return 1;
 
 	crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
 	node_crc = le32_to_cpu(ch->crc);
@@ -1506,7 +1510,7 @@ out:
  *
  * Note, if the bulk-read buffer length (@bu->buf_len) is known, this function
  * makes sure bulk-read nodes fit the buffer. Otherwise, this function prepares
- * maxumum possible amount of nodes for bulk-read.
+ * maximum possible amount of nodes for bulk-read.
  */
 int ubifs_tnc_get_bu_keys(struct ubifs_info *c, struct bu_info *bu)
 {
@@ -2245,12 +2249,11 @@ int ubifs_tnc_replace(struct ubifs_info *c, const union ubifs_key *key,
 			if (found) {
 				/* Ensure the znode is dirtied */
 				if (znode->cnext || !ubifs_zn_dirty(znode)) {
-					    znode = dirty_cow_bottom_up(c,
-									znode);
-					    if (IS_ERR(znode)) {
-						    err = PTR_ERR(znode);
-						    goto out_unlock;
-					    }
+					znode = dirty_cow_bottom_up(c, znode);
+					if (IS_ERR(znode)) {
+						err = PTR_ERR(znode);
+						goto out_unlock;
+					}
 				}
 				zbr = &znode->zbranch[n];
 				lnc_free(zbr);
@@ -2317,11 +2320,11 @@ int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
 
 		/* Ensure the znode is dirtied */
 		if (znode->cnext || !ubifs_zn_dirty(znode)) {
-			    znode = dirty_cow_bottom_up(c, znode);
-			    if (IS_ERR(znode)) {
-				    err = PTR_ERR(znode);
-				    goto out_unlock;
-			    }
+			znode = dirty_cow_bottom_up(c, znode);
+			if (IS_ERR(znode)) {
+				err = PTR_ERR(znode);
+				goto out_unlock;
+			}
 		}
 
 		if (found == 1) {
@@ -2627,11 +2630,11 @@ int ubifs_tnc_remove_range(struct ubifs_info *c, union ubifs_key *from_key,
 
 		/* Ensure the znode is dirtied */
 		if (znode->cnext || !ubifs_zn_dirty(znode)) {
-			    znode = dirty_cow_bottom_up(c, znode);
-			    if (IS_ERR(znode)) {
-				    err = PTR_ERR(znode);
-				    goto out_unlock;
-			    }
+			znode = dirty_cow_bottom_up(c, znode);
+			if (IS_ERR(znode)) {
+				err = PTR_ERR(znode);
+				goto out_unlock;
+			}
 		}
 
 		/* Remove all keys in range except the first */

@@ -84,7 +84,6 @@ struct dccp_ackvec_record {
 struct sock;
 struct sk_buff;
 
-#ifdef CONFIG_IP_DCCP_ACKVEC
 extern int dccp_ackvec_init(void);
 extern void dccp_ackvec_exit(void);
 
@@ -106,52 +105,4 @@ static inline int dccp_ackvec_pending(const struct dccp_ackvec *av)
 {
 	return av->av_vec_len;
 }
-#else /* CONFIG_IP_DCCP_ACKVEC */
-static inline int dccp_ackvec_init(void)
-{
-	return 0;
-}
-
-static inline void dccp_ackvec_exit(void)
-{
-}
-
-static inline struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
-{
-	return NULL;
-}
-
-static inline void dccp_ackvec_free(struct dccp_ackvec *av)
-{
-}
-
-static inline int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
-				  const u64 ackno, const u8 state)
-{
-	return -1;
-}
-
-static inline void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av,
-					       struct sock *sk, const u64 ackno)
-{
-}
-
-static inline int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
-				    const u64 *ackno, const u8 opt,
-				    const u8 *value, const u8 len)
-{
-	return -1;
-}
-
-static inline int dccp_insert_option_ackvec(const struct sock *sk,
-					    const struct sk_buff *skb)
-{
-	return -1;
-}
-
-static inline int dccp_ackvec_pending(const struct dccp_ackvec *av)
-{
-	return 0;
-}
-#endif /* CONFIG_IP_DCCP_ACKVEC */
 #endif /* _ACKVEC_H */

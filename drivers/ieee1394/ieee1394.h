@@ -54,9 +54,7 @@
 #define IEEE1394_SPEED_800	0x03
 #define IEEE1394_SPEED_1600	0x04
 #define IEEE1394_SPEED_3200	0x05
-
-/* The current highest tested speed supported by the subsystem */
-#define IEEE1394_SPEED_MAX	IEEE1394_SPEED_800
+#define IEEE1394_SPEED_MAX	IEEE1394_SPEED_3200
 
 /* Maps speed values above to a string representation */
 extern const char *hpsb_speedto_str[];
@@ -120,6 +118,9 @@ extern const char *hpsb_speedto_str[];
 #define PHY_05_ENAB_MULTI	0x01 /* Ena. Multispeed Packet Concatenation */
 
 #include <asm/byteorder.h>
+
+/* '1' '3' '9' '4' in ASCII */
+#define IEEE1394_BUSID_MAGIC	cpu_to_be32(0x31333934)
 
 #ifdef __BIG_ENDIAN_BITFIELD
 

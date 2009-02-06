@@ -75,6 +75,15 @@ static struct device_attribute element_attributes[] = {
 	__ATTR(args, 0444, attr_show_args, NULL),
 };
 
+static void
+mISDN_dsp_dev_release(struct device *dev)
+{
+	struct dsp_element_entry *entry =
+		container_of(dev, struct dsp_element_entry, dev);
+	list_del(&entry->list);
+	kfree(entry);
+}
+
 int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 {
 	struct dsp_element_entry *entry;
@@ -83,24 +92,25 @@ int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 	if (!elem)
 		return -EINVAL;
 
-	entry = kzalloc(sizeof(struct dsp_element_entry), GFP_KERNEL);
+	entry = kzalloc(sizeof(struct dsp_element_entry), GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
 
 	entry->elem = elem;
 
 	entry->dev.class = elements_class;
+	entry->dev.release = mISDN_dsp_dev_release;
 	dev_set_drvdata(&entry->dev, elem);
-	snprintf(entry->dev.bus_id, BUS_ID_SIZE, elem->name);
+	dev_set_name(&entry->dev, elem->name);
 	ret = device_register(&entry->dev);
 	if (ret) {
 		printk(KERN_ERR "%s: failed to register %s\n",
 			__func__, elem->name);
 		goto err1;
 	}
+	list_add_tail(&entry->list, &dsp_elements);
 
-	for (i = 0; i < (sizeof(element_attributes)
-		/ sizeof(struct device_attribute)); ++i)
+	for (i = 0; i < ARRAY_SIZE(element_attributes); ++i) {
 		ret = device_create_file(&entry->dev,
 				&element_attributes[i]);
 		if (ret) {
@@ -108,15 +118,17 @@ int mISDN_dsp_element_register(struct mISDN_dsp_element *elem)
 				__func__);
 			goto err2;
 		}
+	}
 
-	list_add_tail(&entry->list, &dsp_elements);
-
+#ifdef PIPELINE_DEBUG
 	printk(KERN_DEBUG "%s: %s registered\n", __func__, elem->name);
+#endif
 
 	return 0;
 
 err2:
 	device_unregister(&entry->dev);
+	return ret;
 err1:
 	kfree(entry);
 	return ret;
@@ -132,11 +144,11 @@ void mISDN_dsp_element_unregister(struct mISDN_dsp_element *elem)
 
 	list_for_each_entry_safe(entry, n, &dsp_elements, list)
 		if (entry->elem == elem) {
-			list_del(&entry->list);
 			device_unregister(&entry->dev);
-			kfree(entry);
+#ifdef PIPELINE_DEBUG
 			printk(KERN_DEBUG "%s: %s unregistered\n",
 				__func__, elem->name);
+#endif
 			return;
 		}
 	printk(KERN_ERR "%s: element %s not in list.\n", __func__, elem->name);
@@ -173,7 +185,9 @@ void dsp_pipeline_module_exit(void)
 		kfree(entry);
 	}
 
+#ifdef PIPELINE_DEBUG
 	printk(KERN_DEBUG "%s: dsp pipeline module exited\n", __func__);
+#endif
 }
 
 int dsp_pipeline_init(struct dsp_pipeline *pipeline)
@@ -239,7 +253,7 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 	if (!len)
 		return 0;
 
-	dup = kmalloc(len + 1, GFP_KERNEL);
+	dup = kmalloc(len + 1, GFP_ATOMIC);
 	if (!dup)
 		return 0;
 	strcpy(dup, cfg);
@@ -256,9 +270,9 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 				elem = entry->elem;
 
 				pipeline_entry = kmalloc(sizeof(struct
-					dsp_pipeline_entry), GFP_KERNEL);
+					dsp_pipeline_entry), GFP_ATOMIC);
 				if (!pipeline_entry) {
-					printk(KERN_DEBUG "%s: failed to add "
+					printk(KERN_ERR "%s: failed to add "
 					    "entry to pipeline: %s (out of "
 					    "memory)\n", __func__, elem->name);
 					incomplete = 1;
@@ -286,7 +300,7 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 						    args : "");
 #endif
 					} else {
-						printk(KERN_DEBUG "%s: failed "
+						printk(KERN_ERR "%s: failed "
 						  "to add entry to pipeline: "
 						  "%s (new() returned NULL)\n",
 						  __func__, elem->name);
@@ -301,7 +315,7 @@ int dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg)
 		if (found)
 			found = 0;
 		else {
-			printk(KERN_DEBUG "%s: element not found, skipping: "
+			printk(KERN_ERR "%s: element not found, skipping: "
 				"%s\n", __func__, name);
 			incomplete = 1;
 		}

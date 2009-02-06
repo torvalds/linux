@@ -41,15 +41,15 @@ extern unsigned int mcf_timerlevel;
 
 static struct mcf_platform_uart m532x_uart_platform[] = {
 	{
-		.mapbase	= MCF_MBAR + MCFUART_BASE1,
+		.mapbase	= MCFUART_BASE1,
 		.irq		= MCFINT_VECBASE + MCFINT_UART0,
 	},
 	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE2,
+		.mapbase 	= MCFUART_BASE2,
 		.irq		= MCFINT_VECBASE + MCFINT_UART1,
 	},
 	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE3,
+		.mapbase 	= MCFUART_BASE3,
 		.irq		= MCFINT_VECBASE + MCFINT_UART2,
 	},
 	{ },
@@ -108,7 +108,7 @@ void mcf_settimericr(unsigned int timer, unsigned int level)
 		default: irq = 32; icr = MCFSIM_ICR_TIMER1; break;
 		}
 		
-		icrp = (volatile unsigned char *) (MCF_MBAR + icr);
+		icrp = (volatile unsigned char *) (icr);
 		*icrp = level;
 		mcf_enable_irq0(irq);
 	}

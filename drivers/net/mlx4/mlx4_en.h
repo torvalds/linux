@@ -115,6 +115,10 @@ enum {
 };
 #define MLX4_EN_MAX_RX_FRAGS	4
 
+/* Maximum ring sizes */
+#define MLX4_EN_MAX_TX_SIZE	8192
+#define MLX4_EN_MAX_RX_SIZE	8192
+
 /* Minimum ring size for our page-allocation sceme to work */
 #define MLX4_EN_MIN_RX_SIZE	(MLX4_EN_ALLOC_SIZE / SMP_CACHE_BYTES)
 #define MLX4_EN_MIN_TX_SIZE	(4096 / TXBB_SIZE)
@@ -202,6 +206,7 @@ struct mlx4_en_tx_info {
 	u32 nr_txbb;
 	u8 linear;
 	u8 data_offset;
+	u8 inl;
 };
 
 

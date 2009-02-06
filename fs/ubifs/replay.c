@@ -144,7 +144,7 @@ static int set_bud_lprops(struct ubifs_info *c, struct replay_entry *r)
 		/*
 		 * If the replay order was perfect the dirty space would now be
 		 * zero. The order is not perfect because the the journal heads
-		 * race with eachother. This is not a problem but is does mean
+		 * race with each other. This is not a problem but is does mean
 		 * that the dirty space may temporarily exceed c->leb_size
 		 * during the replay.
 		 */
@@ -656,7 +656,7 @@ out_dump:
  * @dirty: amount of dirty space from padding and deletion nodes
  *
  * This function inserts a reference node to the replay tree and returns zero
- * in case of success ort a negative error code in case of failure.
+ * in case of success or a negative error code in case of failure.
  */
 static int insert_ref_node(struct ubifs_info *c, int lnum, int offs,
 			   unsigned long long sqnum, int free, int dirty)
@@ -883,7 +883,7 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 		 * This means that we reached end of log and now
 		 * look to the older log data, which was already
 		 * committed but the eraseblock was not erased (UBIFS
-		 * only unmaps it). So this basically means we have to
+		 * only un-maps it). So this basically means we have to
 		 * exit with "end of log" code.
 		 */
 		err = 1;
@@ -1061,6 +1061,15 @@ int ubifs_replay_journal(struct ubifs_info *c)
 	err = apply_replay_tree(c);
 	if (err)
 		goto out;
+
+	/*
+	 * UBIFS budgeting calculations use @c->budg_uncommitted_idx variable
+	 * to roughly estimate index growth. Things like @c->min_idx_lebs
+	 * depend on it. This means we have to initialize it to make sure
+	 * budgeting works properly.
+	 */
+	c->budg_uncommitted_idx = atomic_long_read(&c->dirty_zn_cnt);
+	c->budg_uncommitted_idx *= c->max_idx_node_sz;
 
 	ubifs_assert(c->bud_bytes <= c->max_bud_bytes || c->need_recovery);
 	dbg_mnt("finished, log head LEB %d:%d, max_sqnum %llu, "

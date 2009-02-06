@@ -478,7 +478,10 @@ void __cpuinit tlb_init(void)
 	probe_tlb(config);
 	write_c0_pagemask(PM_DEFAULT_MASK);
 	write_c0_wired(0);
-	write_c0_framemask(0);
+	if (current_cpu_type() == CPU_R10000 ||
+	    current_cpu_type() == CPU_R12000 ||
+	    current_cpu_type() == CPU_R14000)
+		write_c0_framemask(0);
 	temp_tlb_entry = current_cpu_data.tlbsize - 1;
 
         /* From this point on the ARC firmware is dead.  */

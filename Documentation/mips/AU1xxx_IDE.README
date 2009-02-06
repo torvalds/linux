@@ -44,7 +44,7 @@ FILES, CONFIGS AND COMPATABILITY
 
 Two files are introduced:
 
-  a) 'include/asm-mips/mach-au1x00/au1xxx_ide.h'
+  a) 'arch/mips/include/asm/mach-au1x00/au1xxx_ide.h'
      containes : struct _auide_hwif
                  timing parameters for PIO mode 0/1/2/3/4
                  timing parameters for MWDMA 0/1/2
@@ -52,14 +52,12 @@ Two files are introduced:
   b) 'drivers/ide/mips/au1xxx-ide.c'
      contains the functionality of the AU1XXX IDE driver
 
-Four configs variables are introduced:
+Following extra configs variables are introduced:
 
   CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA    - enable the PIO+DBDMA mode
   CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA  - enable the MWDMA mode
   CONFIG_BLK_DEV_IDE_AU1XXX_BURSTABLE_ON - set Burstable FIFO in DBDMA
                                            controller
-  CONFIG_BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ - maximum transfer size
-                                           per descriptor
 
 
 SUPPORTED IDE MODES
@@ -87,7 +85,6 @@ CONFIG_BLK_DEV_IDEDMA_PCI=y
 CONFIG_IDEDMA_PCI_AUTO=y
 CONFIG_BLK_DEV_IDE_AU1XXX=y
 CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
-CONFIG_BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ=128
 CONFIG_BLK_DEV_IDEDMA=y
 CONFIG_IDEDMA_AUTO=y
 
@@ -105,7 +102,6 @@ CONFIG_BLK_DEV_IDEDMA_PCI=y
 CONFIG_IDEDMA_PCI_AUTO=y
 CONFIG_BLK_DEV_IDE_AU1XXX=y
 CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
-CONFIG_BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ=128
 CONFIG_BLK_DEV_IDEDMA=y
 CONFIG_IDEDMA_AUTO=y
 

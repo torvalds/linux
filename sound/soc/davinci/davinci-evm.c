@@ -26,7 +26,6 @@
 #include "davinci-pcm.h"
 #include "davinci-i2s.h"
 
-#define EVM_CODEC_CLOCK 22579200
 
 #define AUDIO_FORMAT (SND_SOC_DAIFMT_DSP_B | \
 		SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_IB_NF)
@@ -37,6 +36,21 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	int ret = 0;
+	unsigned sysclk;
+
+	/* ASP1 on DM355 EVM is clocked by an external oscillator */
+	if (machine_is_davinci_dm355_evm())
+		sysclk = 27000000;
+
+	/* ASP0 in DM6446 EVM is clocked by U55, as configured by
+	 * board-dm644x-evm.c using GPIOs from U18.  There are six
+	 * options; here we "know" we use a 48 KHz sample rate.
+	 */
+	else if (machine_is_davinci_evm())
+		sysclk = 12288000;
+
+	else
+		return -EINVAL;
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, AUDIO_FORMAT);
@@ -49,8 +63,7 @@ static int evm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* set the codec system clock */
-	ret = snd_soc_dai_set_sysclk(codec_dai, 0, EVM_CODEC_CLOCK,
-					    SND_SOC_CLOCK_OUT);
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0, sysclk, SND_SOC_CLOCK_OUT);
 	if (ret < 0)
 		return ret;
 

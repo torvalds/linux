@@ -181,7 +181,7 @@ void __init omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 		}
 		size = OMAP1_MMC_SIZE;
 
-		omap_mmc_add(i, base, size, irq, mmc_data[i]);
+		omap_mmc_add("mmci-omap", i, base, size, irq, mmc_data[i]);
 	};
 }
 

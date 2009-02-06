@@ -424,7 +424,7 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	                      0, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
 	if (ret < 0)
 		goto err_out;
-	if (buf[0] != 0x06 || buf[1] != 0x00) {
+	if (buf[0] != 0x06) {
 		ret = -ENODEV;
 		goto err_out;
 	}
@@ -437,8 +437,7 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	                      TSC10_RATE_150, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
 	if (ret < 0)
 		goto err_out;
-	if ((buf[0] != 0x06 || buf[1] != 0x00) &&
-	    (buf[0] != 0x15 || buf[1] != 0x01)) {
+	if ((buf[0] != 0x06) && (buf[0] != 0x15 || buf[1] != 0x01)) {
 		ret = -ENODEV;
 		goto err_out;
 	}

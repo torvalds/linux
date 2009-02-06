@@ -28,65 +28,107 @@
 #include <sysdev/fsl_pci.h>
 
 #if defined(CONFIG_PPC_85xx) || defined(CONFIG_PPC_86xx)
+static int __init setup_one_atmu(struct ccsr_pci __iomem *pci,
+	unsigned int index, const struct resource *res,
+	resource_size_t offset)
+{
+	resource_size_t pci_addr = res->start - offset;
+	resource_size_t phys_addr = res->start;
+	resource_size_t size = res->end - res->start + 1;
+	u32 flags = 0x80044000; /* enable & mem R/W */
+	unsigned int i;
+
+	pr_debug("PCI MEM resource start 0x%016llx, size 0x%016llx.\n",
+		(u64)res->start, (u64)size);
+
+	if (res->flags & IORESOURCE_PREFETCH)
+		flags |= 0x10000000; /* enable relaxed ordering */
+
+	for (i = 0; size > 0; i++) {
+		unsigned int bits = min(__ilog2(size),
+					__ffs(pci_addr | phys_addr));
+
+		if (index + i >= 5)
+			return -1;
+
+		out_be32(&pci->pow[index + i].potar, pci_addr >> 12);
+		out_be32(&pci->pow[index + i].potear, (u64)pci_addr >> 44);
+		out_be32(&pci->pow[index + i].powbar, phys_addr >> 12);
+		out_be32(&pci->pow[index + i].powar, flags | (bits - 1));
+
+		pci_addr += (resource_size_t)1U << bits;
+		phys_addr += (resource_size_t)1U << bits;
+		size -= (resource_size_t)1U << bits;
+	}
+
+	return i;
+}
+
 /* atmu setup for fsl pci/pcie controller */
-void __init setup_pci_atmu(struct pci_controller *hose, struct resource *rsrc)
+static void __init setup_pci_atmu(struct pci_controller *hose,
+				  struct resource *rsrc)
 {
 	struct ccsr_pci __iomem *pci;
-	int i;
+	int i, j, n;
 
 	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
 		    (u64)rsrc->start, (u64)rsrc->end - (u64)rsrc->start + 1);
 	pci = ioremap(rsrc->start, rsrc->end - rsrc->start + 1);
+	if (!pci) {
+	    dev_err(hose->parent, "Unable to map ATMU registers\n");
+	    return;
+	}
 
-	/* Disable all windows (except powar0 since its ignored) */
+	/* Disable all windows (except powar0 since it's ignored) */
 	for(i = 1; i < 5; i++)
 		out_be32(&pci->pow[i].powar, 0);
 	for(i = 0; i < 3; i++)
 		out_be32(&pci->piw[i].piwar, 0);
 
 	/* Setup outbound MEM window */
-	for(i = 0; i < 3; i++)
-		if (hose->mem_resources[i].flags & IORESOURCE_MEM){
-			resource_size_t pci_addr_start =
-				 hose->mem_resources[i].start -
-				 hose->pci_mem_offset;
-			pr_debug("PCI MEM resource start 0x%016llx, size 0x%016llx.\n",
-				(u64)hose->mem_resources[i].start,
-				(u64)hose->mem_resources[i].end
-				  - (u64)hose->mem_resources[i].start + 1);
-			out_be32(&pci->pow[i+1].potar, (pci_addr_start >> 12));
-			out_be32(&pci->pow[i+1].potear, 0);
-			out_be32(&pci->pow[i+1].powbar,
-				(hose->mem_resources[i].start >> 12));
-			/* Enable, Mem R/W */
-			out_be32(&pci->pow[i+1].powar, 0x80044000
-				| (__ilog2(hose->mem_resources[i].end
-				- hose->mem_resources[i].start + 1) - 1));
-		}
+	for(i = 0, j = 1; i < 3; i++) {
+		if (!(hose->mem_resources[i].flags & IORESOURCE_MEM))
+			continue;
+
+		n = setup_one_atmu(pci, j, &hose->mem_resources[i],
+				   hose->pci_mem_offset);
+
+		if (n < 0 || j >= 5) {
+			pr_err("Ran out of outbound PCI ATMUs for resource %d!\n", i);
+			hose->mem_resources[i].flags |= IORESOURCE_DISABLED;
+		} else
+			j += n;
+	}
 
 	/* Setup outbound IO window */
-	if (hose->io_resource.flags & IORESOURCE_IO){
-		pr_debug("PCI IO resource start 0x%016llx, size 0x%016llx, "
-			 "phy base 0x%016llx.\n",
-			(u64)hose->io_resource.start,
-			(u64)hose->io_resource.end - (u64)hose->io_resource.start + 1,
-			(u64)hose->io_base_phys);
-		out_be32(&pci->pow[i+1].potar, (hose->io_resource.start >> 12));
-		out_be32(&pci->pow[i+1].potear, 0);
-		out_be32(&pci->pow[i+1].powbar, (hose->io_base_phys >> 12));
-		/* Enable, IO R/W */
-		out_be32(&pci->pow[i+1].powar, 0x80088000
-			| (__ilog2(hose->io_resource.end
-			- hose->io_resource.start + 1) - 1));
+	if (hose->io_resource.flags & IORESOURCE_IO) {
+		if (j >= 5) {
+			pr_err("Ran out of outbound PCI ATMUs for IO resource\n");
+		} else {
+			pr_debug("PCI IO resource start 0x%016llx, size 0x%016llx, "
+				 "phy base 0x%016llx.\n",
+				(u64)hose->io_resource.start,
+				(u64)hose->io_resource.end - (u64)hose->io_resource.start + 1,
+				(u64)hose->io_base_phys);
+			out_be32(&pci->pow[j].potar, (hose->io_resource.start >> 12));
+			out_be32(&pci->pow[j].potear, 0);
+			out_be32(&pci->pow[j].powbar, (hose->io_base_phys >> 12));
+			/* Enable, IO R/W */
+			out_be32(&pci->pow[j].powar, 0x80088000
+				| (__ilog2(hose->io_resource.end
+				- hose->io_resource.start + 1) - 1));
+		}
 	}
 
 	/* Setup 2G inbound Memory Window @ 1 */
 	out_be32(&pci->piw[2].pitar, 0x00000000);
 	out_be32(&pci->piw[2].piwbar,0x00000000);
 	out_be32(&pci->piw[2].piwar, PIWAR_2G);
+
+	iounmap(pci);
 }
 
-void __init setup_pci_cmd(struct pci_controller *hose)
+static void __init setup_pci_cmd(struct pci_controller *hose)
 {
 	u16 cmd;
 	int cap_x;
@@ -130,7 +172,7 @@ static void __init quirk_fsl_pcie_header(struct pci_dev *dev)
 	return ;
 }
 
-int __init fsl_pcie_check_link(struct pci_controller *hose)
+static int __init fsl_pcie_check_link(struct pci_controller *hose)
 {
 	u32 val;
 	early_read_config_dword(hose, 0, 0, PCIE_LTSSM, &val);

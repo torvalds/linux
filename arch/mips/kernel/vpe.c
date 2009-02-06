@@ -1454,7 +1454,7 @@ static int __init vpe_module_init(void)
 	device_initialize(&vpe_device);
 	vpe_device.class	= &vpe_class,
 	vpe_device.parent	= NULL,
-	strlcpy(vpe_device.bus_id, "vpe1", BUS_ID_SIZE);
+	dev_set_name(&vpe_device, "vpe1");
 	vpe_device.devt = MKDEV(major, minor);
 	err = device_add(&vpe_device);
 	if (err) {

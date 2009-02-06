@@ -3148,7 +3148,7 @@ static void put_cam(struct cpia_camera_ops* ops)
 }
 
 /* ------------------------- V4L interface --------------------- */
-static int cpia_open(struct inode *inode, struct file *file)
+static int cpia_open(struct file *file)
 {
 	struct video_device *dev = video_devdata(file);
 	struct cam_data *cam = video_get_drvdata(dev);
@@ -3225,7 +3225,7 @@ static int cpia_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-static int cpia_close(struct inode *inode, struct file *file)
+static int cpia_close(struct file *file)
 {
 	struct  video_device *dev = file->private_data;
 	struct cam_data *cam = video_get_drvdata(dev);
@@ -3333,7 +3333,7 @@ static ssize_t cpia_read(struct file *file, char __user *buf,
 	return cam->decompressed_frame.count;
 }
 
-static int cpia_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long cpia_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = file->private_data;
 	struct cam_data *cam = video_get_drvdata(dev);
@@ -3720,7 +3720,7 @@ static int cpia_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return retval;
 }
 
-static int cpia_ioctl(struct inode *inode, struct file *file,
+static long cpia_ioctl(struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, cpia_do_ioctl);
@@ -3780,17 +3780,13 @@ static int cpia_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static const struct file_operations cpia_fops = {
+static const struct v4l2_file_operations cpia_fops = {
 	.owner		= THIS_MODULE,
 	.open		= cpia_open,
 	.release       	= cpia_close,
 	.read		= cpia_read,
 	.mmap		= cpia_mmap,
 	.ioctl          = cpia_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= v4l_compat_ioctl32,
-#endif
-	.llseek         = no_llseek,
 };
 
 static struct video_device cpia_template = {

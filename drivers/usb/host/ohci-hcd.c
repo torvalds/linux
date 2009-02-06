@@ -589,14 +589,14 @@ static int ohci_run (struct ohci_hcd *ohci)
 		/* also: power/overcurrent flags in roothub.a */
 	}
 
-	/* Reset USB nearly "by the book".  RemoteWakeupConnected was
-	 * saved if boot firmware (BIOS/SMM/...) told us it's connected,
-	 * or if bus glue did the same (e.g. for PCI add-in cards with
-	 * PCI PM support).
+	/* Reset USB nearly "by the book".  RemoteWakeupConnected has
+	 * to be checked in case boot firmware (BIOS/SMM/...) has set up
+	 * wakeup in a way the bus isn't aware of (e.g., legacy PCI PM).
+	 * If the bus glue detected wakeup capability then it should
+	 * already be enabled; if so we'll just enable it again.
 	 */
-	if ((ohci->hc_control & OHCI_CTRL_RWC) != 0
-			&& !device_may_wakeup(hcd->self.controller))
-		device_init_wakeup(hcd->self.controller, 1);
+	if ((ohci->hc_control & OHCI_CTRL_RWC) != 0)
+		device_set_wakeup_capable(hcd->self.controller, 1);
 
 	switch (ohci->hc_control & OHCI_CTRL_HCFS) {
 	case OHCI_USB_OPER:

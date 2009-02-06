@@ -1,7 +1,7 @@
 /*
  *      uvc_v4l2.c  --  USB Video Class driver - V4L2 API
  *
- *      Copyright (C) 2005-2008
+ *      Copyright (C) 2005-2009
  *          Laurent Pinchart (laurent.pinchart@skynet.be)
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -37,7 +37,7 @@
  * must be grouped (for instance the Red Balance, Blue Balance and Do White
  * Balance V4L2 controls use the White Balance Component UVC control) or
  * otherwise translated. The approach we take here is to use a translation
- * table for the controls which can be mapped directly, and handle the others
+ * table for the controls that can be mapped directly, and handle the others
  * manually.
  */
 static int uvc_v4l2_query_menu(struct uvc_video_device *video,
@@ -189,7 +189,7 @@ static int uvc_v4l2_try_format(struct uvc_video_device *video,
 		probe->dwMaxVideoFrameSize =
 			video->streaming->ctrl.dwMaxVideoFrameSize;
 
-	/* Probe the device */
+	/* Probe the device. */
 	if ((ret = uvc_probe_video(video, probe)) < 0)
 		goto done;
 
@@ -354,11 +354,11 @@ static int uvc_v4l2_set_streamparm(struct uvc_video_device *video,
  *
  * Each open instance of a UVC device can either be in a privileged or
  * unprivileged state. Only a single instance can be in a privileged state at
- * a given time. Trying to perform an operation which requires privileges will
+ * a given time. Trying to perform an operation that requires privileges will
  * automatically acquire the required privileges if possible, or return -EBUSY
  * otherwise. Privileges are dismissed when closing the instance.
  *
- * Operations which require privileges are:
+ * Operations that require privileges are:
  *
  * - VIDIOC_S_INPUT
  * - VIDIOC_S_PARM
@@ -406,7 +406,7 @@ static int uvc_has_privileges(struct uvc_fh *handle)
  * V4L2 file operations
  */
 
-static int uvc_v4l2_open(struct inode *inode, struct file *file)
+static int uvc_v4l2_open(struct file *file)
 {
 	struct uvc_video_device *video;
 	struct uvc_fh *handle;
@@ -444,7 +444,7 @@ done:
 	return ret;
 }
 
-static int uvc_v4l2_release(struct inode *inode, struct file *file)
+static int uvc_v4l2_release(struct file *file)
 {
 	struct uvc_video_device *video = video_drvdata(file);
 	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
@@ -472,12 +472,12 @@ static int uvc_v4l2_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
 	struct uvc_video_device *video = video_get_drvdata(vdev);
 	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
-	int ret = 0;
+	long ret = 0;
 
 	switch (cmd) {
 	/* Query capabilities */
@@ -996,7 +996,7 @@ static int uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return ret;
 }
 
-static int uvc_v4l2_ioctl(struct inode *inode, struct file *file,
+static long uvc_v4l2_ioctl(struct file *file,
 		     unsigned int cmd, unsigned long arg)
 {
 	if (uvc_trace_param & UVC_TRACE_IOCTL) {
@@ -1097,13 +1097,11 @@ static unsigned int uvc_v4l2_poll(struct file *file, poll_table *wait)
 	return uvc_queue_poll(&video->queue, file, wait);
 }
 
-struct file_operations uvc_fops = {
+const struct v4l2_file_operations uvc_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uvc_v4l2_open,
 	.release	= uvc_v4l2_release,
 	.ioctl		= uvc_v4l2_ioctl,
-	.compat_ioctl	= v4l_compat_ioctl32,
-	.llseek		= no_llseek,
 	.read		= uvc_v4l2_read,
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,

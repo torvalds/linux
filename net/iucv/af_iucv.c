@@ -494,7 +494,21 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 	if (err) {
 		iucv_path_free(iucv->path);
 		iucv->path = NULL;
-		err = -ECONNREFUSED;
+		switch (err) {
+		case 0x0b:	/* Target communicator is not logged on */
+			err = -ENETUNREACH;
+			break;
+		case 0x0d:	/* Max connections for this guest exceeded */
+		case 0x0e:	/* Max connections for target guest exceeded */
+			err = -EAGAIN;
+			break;
+		case 0x0f:	/* Missing IUCV authorization */
+			err = -EACCES;
+			break;
+		default:
+			err = -ECONNREFUSED;
+			break;
+		}
 		goto done;
 	}
 
@@ -507,6 +521,13 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 		release_sock(sk);
 		return -ECONNREFUSED;
 	}
+
+	if (err) {
+		iucv_path_sever(iucv->path, NULL);
+		iucv_path_free(iucv->path);
+		iucv->path = NULL;
+	}
+
 done:
 	release_sock(sk);
 	return err;
@@ -1021,12 +1042,14 @@ static int iucv_callback_connreq(struct iucv_path *path,
 	ASCEBC(user_data, sizeof(user_data));
 	if (sk->sk_state != IUCV_LISTEN) {
 		err = iucv_path_sever(path, user_data);
+		iucv_path_free(path);
 		goto fail;
 	}
 
 	/* Check for backlog size */
 	if (sk_acceptq_is_full(sk)) {
 		err = iucv_path_sever(path, user_data);
+		iucv_path_free(path);
 		goto fail;
 	}
 
@@ -1034,6 +1057,7 @@ static int iucv_callback_connreq(struct iucv_path *path,
 	nsk = iucv_sock_alloc(NULL, SOCK_STREAM, GFP_ATOMIC);
 	if (!nsk) {
 		err = iucv_path_sever(path, user_data);
+		iucv_path_free(path);
 		goto fail;
 	}
 
@@ -1057,6 +1081,8 @@ static int iucv_callback_connreq(struct iucv_path *path,
 	err = iucv_path_accept(path, &af_iucv_handler, nuser_data, nsk);
 	if (err) {
 		err = iucv_path_sever(path, user_data);
+		iucv_path_free(path);
+		iucv_sock_kill(nsk);
 		goto fail;
 	}
 

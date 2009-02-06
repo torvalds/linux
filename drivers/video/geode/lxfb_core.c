@@ -379,20 +379,17 @@ static int __init lxfb_map_video_memory(struct fb_info *info,
 	if (info->screen_base == NULL)
 		return ret;
 
-	par->gp_regs = ioremap(pci_resource_start(dev, 1),
-				pci_resource_len(dev, 1));
+	par->gp_regs = pci_ioremap_bar(dev, 1);
 
 	if (par->gp_regs == NULL)
 		return ret;
 
-	par->dc_regs = ioremap(pci_resource_start(dev, 2),
-			       pci_resource_len(dev, 2));
+	par->dc_regs = pci_ioremap_bar(dev, 2);
 
 	if (par->dc_regs == NULL)
 		return ret;
 
-	par->vp_regs = ioremap(pci_resource_start(dev, 3),
-			       pci_resource_len(dev, 3));
+	par->vp_regs = pci_ioremap_bar(dev, 3);
 
 	if (par->vp_regs == NULL)
 		return ret;

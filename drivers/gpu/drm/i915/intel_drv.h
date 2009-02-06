@@ -53,6 +53,7 @@
 #define INTEL_OUTPUT_SDVO 3
 #define INTEL_OUTPUT_LVDS 4
 #define INTEL_OUTPUT_TVOUT 5
+#define INTEL_OUTPUT_HDMI 6
 
 #define INTEL_DVO_CHIP_NONE 0
 #define INTEL_DVO_CHIP_LVDS 1
@@ -88,6 +89,7 @@ struct intel_crtc {
 	struct drm_crtc base;
 	int pipe;
 	int plane;
+	struct drm_gem_object *cursor_bo;
 	uint32_t cursor_addr;
 	u8 lut_r[256], lut_g[256], lut_b[256];
 	int dpms_mode;
@@ -108,7 +110,8 @@ int intel_ddc_get_modes(struct intel_output *intel_output);
 extern bool intel_ddc_probe(struct intel_output *intel_output);
 
 extern void intel_crt_init(struct drm_device *dev);
-extern void intel_sdvo_init(struct drm_device *dev, int output_device);
+extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
+extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
 extern void intel_lvds_init(struct drm_device *dev);

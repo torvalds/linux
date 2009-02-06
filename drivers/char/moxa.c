@@ -206,6 +206,7 @@ static void moxa_poll(unsigned long);
 static void moxa_set_tty_param(struct tty_struct *, struct ktermios *);
 static void moxa_setup_empty_event(struct tty_struct *);
 static void moxa_shut_down(struct tty_struct *);
+static int moxa_carrier_raised(struct tty_port *);
 /*
  * moxa board interface functions:
  */
@@ -403,6 +404,10 @@ static const struct tty_operations moxa_ops = {
 	.break_ctl = moxa_break_ctl,
 	.tiocmget = moxa_tiocmget,
 	.tiocmset = moxa_tiocmset,
+};
+
+static const struct tty_port_operations moxa_port_ops = {
+	.carrier_raised = moxa_carrier_raised,
 };
 
 static struct tty_driver *moxaDriver;
@@ -826,6 +831,7 @@ static int moxa_init_board(struct moxa_board_conf *brd, struct device *dev)
 
 	for (i = 0, p = brd->ports; i < MAX_PORTS_PER_BOARD; i++, p++) {
 		tty_port_init(&p->port);
+		p->port.ops = &moxa_port_ops;
 		p->type = PORT_16550A;
 		p->cflag = B9600 | CS8 | CREAD | CLOCAL | HUPCL;
 	}
@@ -1115,15 +1121,27 @@ static void moxa_close_port(struct tty_struct *tty)
 	tty_port_tty_set(&ch->port, NULL);
 }
 
+static int moxa_carrier_raised(struct tty_port *port)
+{
+	struct moxa_port *ch = container_of(port, struct moxa_port, port);
+	int dcd;
+
+	spin_lock_bh(&moxa_lock);
+	dcd = ch->DCDState;
+	spin_unlock_bh(&moxa_lock);
+	return dcd;
+}
+
 static int moxa_block_till_ready(struct tty_struct *tty, struct file *filp,
 			    struct moxa_port *ch)
 {
+	struct tty_port *port = &ch->port;
 	DEFINE_WAIT(wait);
 	int retval = 0;
 	u8 dcd;
 
 	while (1) {
-		prepare_to_wait(&ch->port.open_wait, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(&port->open_wait, &wait, TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp)) {
 #ifdef SERIAL_DO_RESTART
 			retval = -ERESTARTSYS;
@@ -1132,9 +1150,7 @@ static int moxa_block_till_ready(struct tty_struct *tty, struct file *filp,
 #endif
 			break;
 		}
-		spin_lock_bh(&moxa_lock);
-		dcd = ch->DCDState;
-		spin_unlock_bh(&moxa_lock);
+		dcd = tty_port_carrier_raised(port);
 		if (dcd)
 			break;
 
@@ -1144,7 +1160,7 @@ static int moxa_block_till_ready(struct tty_struct *tty, struct file *filp,
 		}
 		schedule();
 	}
-	finish_wait(&ch->port.open_wait, &wait);
+	finish_wait(&port->open_wait, &wait);
 
 	return retval;
 }

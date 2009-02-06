@@ -52,7 +52,7 @@ struct ti_lynx {
         void __iomem *local_rom;
         void __iomem *local_ram;
         void __iomem *aux_port;
-	quadlet_t bus_info_block[5];
+	__be32 bus_info_block[5];
 
         /*
          * use local RAM of LOCALRAM_SIZE bytes for PCLs, which allows for

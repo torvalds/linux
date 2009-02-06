@@ -38,7 +38,10 @@ struct stop_machine_data {
 static unsigned int num_threads;
 static atomic_t thread_ack;
 static DEFINE_MUTEX(lock);
-
+/* setup_lock protects refcount, stop_machine_wq and stop_machine_work. */
+static DEFINE_MUTEX(setup_lock);
+/* Users of stop_machine. */
+static int refcount;
 static struct workqueue_struct *stop_machine_wq;
 static struct stop_machine_data active, idle;
 static const cpumask_t *active_cpus;
@@ -69,10 +72,10 @@ static void stop_cpu(struct work_struct *unused)
 	int err;
 
 	if (!active_cpus) {
-		if (cpu == first_cpu(cpu_online_map))
+		if (cpu == cpumask_first(cpu_online_mask))
 			smdata = &active;
 	} else {
-		if (cpu_isset(cpu, *active_cpus))
+		if (cpumask_test_cpu(cpu, active_cpus))
 			smdata = &active;
 	}
 	/* Simple state machine */
@@ -109,7 +112,44 @@ static int chill(void *unused)
 	return 0;
 }
 
-int __stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)
+int stop_machine_create(void)
+{
+	mutex_lock(&setup_lock);
+	if (refcount)
+		goto done;
+	stop_machine_wq = create_rt_workqueue("kstop");
+	if (!stop_machine_wq)
+		goto err_out;
+	stop_machine_work = alloc_percpu(struct work_struct);
+	if (!stop_machine_work)
+		goto err_out;
+done:
+	refcount++;
+	mutex_unlock(&setup_lock);
+	return 0;
+
+err_out:
+	if (stop_machine_wq)
+		destroy_workqueue(stop_machine_wq);
+	mutex_unlock(&setup_lock);
+	return -ENOMEM;
+}
+EXPORT_SYMBOL_GPL(stop_machine_create);
+
+void stop_machine_destroy(void)
+{
+	mutex_lock(&setup_lock);
+	refcount--;
+	if (refcount)
+		goto done;
+	destroy_workqueue(stop_machine_wq);
+	free_percpu(stop_machine_work);
+done:
+	mutex_unlock(&setup_lock);
+}
+EXPORT_SYMBOL_GPL(stop_machine_destroy);
+
+int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
 {
 	struct work_struct *sm_work;
 	int i, ret;
@@ -142,23 +182,18 @@ int __stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)
 	return ret;
 }
 
-int stop_machine(int (*fn)(void *), void *data, const cpumask_t *cpus)
+int stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
 {
 	int ret;
 
+	ret = stop_machine_create();
+	if (ret)
+		return ret;
 	/* No CPUs can come up or down during this. */
 	get_online_cpus();
 	ret = __stop_machine(fn, data, cpus);
 	put_online_cpus();
-
+	stop_machine_destroy();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(stop_machine);
-
-static int __init stop_machine_init(void)
-{
-	stop_machine_wq = create_rt_workqueue("kstop");
-	stop_machine_work = alloc_percpu(struct work_struct);
-	return 0;
-}
-core_initcall(stop_machine_init);

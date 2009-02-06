@@ -46,7 +46,7 @@ void dynamic_irq_init(unsigned int irq)
 	desc->irq_count = 0;
 	desc->irqs_unhandled = 0;
 #ifdef CONFIG_SMP
-	cpus_setall(desc->affinity);
+	cpumask_setall(&desc->affinity);
 #endif
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
@@ -383,6 +383,7 @@ handle_level_irq(unsigned int irq, struct irq_desc *desc)
 out_unlock:
 	spin_unlock(&desc->lock);
 }
+EXPORT_SYMBOL_GPL(handle_level_irq);
 
 /**
  *	handle_fasteoi_irq - irq handler for transparent controllers
@@ -593,6 +594,7 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 	}
 	spin_unlock_irqrestore(&desc->lock, flags);
 }
+EXPORT_SYMBOL_GPL(__set_irq_handler);
 
 void
 set_irq_chip_and_handler(unsigned int irq, struct irq_chip *chip,

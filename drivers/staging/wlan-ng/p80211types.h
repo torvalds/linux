@@ -80,13 +80,13 @@
 
 #define P80211_TYPE_OCTETSTR		1	/* pascal array of bytes */
 #define P80211_TYPE_DISPLAYSTR		2	/* pascal array of bytes containing ascii */
-#define P80211_TYPE_INT			4	/* UINT32 min and max limited by 32 bits */
-#define P80211_TYPE_ENUMINT		5	/* UINT32 holding a numeric
+#define P80211_TYPE_int			4	/* u32 min and max limited by 32 bits */
+#define P80211_TYPE_ENUMint		5	/* u32 holding a numeric
 						   code that can be mapped
 						   to a textual name */
 #define P80211_TYPE_UNKDATA		6	/* Data item containing an
 						   unknown data type */
-#define P80211_TYPE_INTARRAY		7	/* Array of 32-bit integers. */
+#define P80211_TYPE_intARRAY		7	/* Array of 32-bit integers. */
 #define P80211_TYPE_BITARRAY		8	/* Array of bits. */
 #define P80211_TYPE_MACARRAY		9	/* Array of MAC addresses. */
 
@@ -243,7 +243,7 @@
 					/* is a DID-LEN-DATA triple */
 					/* with a max size of 4+4+384 */
 
-#define P80211_SET_INT(item, value) do { \
+#define P80211_SET_int(item, value) do { \
 	(item).data   = (value); \
 	(item).status = P80211ENUM_msgitem_status_data_ok; \
 	} while(0)
@@ -279,9 +279,9 @@
 
 #define P80211ITEM_SETFLAGS(q, r, c)	( q | r | c )
 
-#define P80211ITEM_ISREQUIRED(flags)	(((UINT32)(flags & ISREQUIRED)) >> 31 )
-#define P80211ITEM_ISREQUEST(flags)	(((UINT32)(flags & ISREQUEST)) >> 30 )
-#define P80211ITEM_ISCONFIRM(flags)	(((UINT32)(flags & ISCONFIRM)) >> 29 )
+#define P80211ITEM_ISREQUIRED(flags)	(((u32)(flags & ISREQUIRED)) >> 31 )
+#define P80211ITEM_ISREQUEST(flags)	(((u32)(flags & ISREQUEST)) >> 30 )
+#define P80211ITEM_ISCONFIRM(flags)	(((u32)(flags & ISCONFIRM)) >> 29 )
 
 /*----------------------------------------------------------------*/
 /* The following macro creates a name for an enum */
@@ -320,7 +320,7 @@
 #define P80211DID_MASK_ACCESS 		(0x00000003UL)
 
 
-#define P80211DID_MK(a,m,l)	((((UINT32)(a)) & (m)) << (l))
+#define P80211DID_MK(a,m,l)	((((u32)(a)) & (m)) << (l))
 
 #define P80211DID_MKSECTION(a)	P80211DID_MK(a, \
 					P80211DID_MASK_SECTION, \
@@ -347,7 +347,7 @@
 						(a) )
 
 
-#define P80211DID_GET(a,m,l)	((((UINT32)(a)) >> (l)) & (m))
+#define P80211DID_GET(a,m,l)	((((u32)(a)) >> (l)) & (m))
 
 #define P80211DID_SECTION(a)	P80211DID_GET(a, \
 					P80211DID_MASK_SECTION, \
@@ -373,17 +373,17 @@
 
 /*----------------------------------------------------------------*/
 /* The following structure types are used for the represenation */
-/*  of ENUMINT type metadata. */
+/*  of ENUMint type metadata. */
 
 typedef struct p80211enumpair
 {
-	UINT32			val;
+	u32			val;
 	char			*name;
 } p80211enumpair_t;
 
 typedef struct p80211enum
 {
-	INT			nitems;
+	int			nitems;
 	p80211enumpair_t	*list;
 } p80211enum_t;
 
@@ -394,137 +394,137 @@ typedef struct p80211enum
 /* Template pascal string */
 typedef struct p80211pstr
 {
-	UINT8		len;
+	u8		len;
 } __WLAN_ATTRIB_PACK__ p80211pstr_t;
 
 typedef struct p80211pstrd
 {
-	UINT8		len;
-	UINT8		data[0];
+	u8		len;
+	u8		data[0];
 } __WLAN_ATTRIB_PACK__ p80211pstrd_t;
 
 /* Maximum pascal string */
 typedef struct p80211pstr255
 {
-	UINT8		len;
-	UINT8		data[MAXLEN_PSTR255];
+	u8		len;
+	u8		data[MAXLEN_PSTR255];
 } __WLAN_ATTRIB_PACK__ p80211pstr255_t;
 
 /* pascal string for macaddress and bssid */
 typedef struct p80211pstr6
 {
-	UINT8		len;
-	UINT8		data[MAXLEN_PSTR6];
+	u8		len;
+	u8		data[MAXLEN_PSTR6];
 } __WLAN_ATTRIB_PACK__ p80211pstr6_t;
 
 /* pascal string for channel list */
 typedef struct p80211pstr14
 {
-	UINT8		len;
-	UINT8		data[MAXLEN_PSTR14];
+	u8		len;
+	u8		data[MAXLEN_PSTR14];
 } __WLAN_ATTRIB_PACK__ p80211pstr14_t;
 
 /* pascal string for ssid */
 typedef struct p80211pstr32
 {
-	UINT8		len;
-	UINT8		data[MAXLEN_PSTR32];
+	u8		len;
+	u8		data[MAXLEN_PSTR32];
 } __WLAN_ATTRIB_PACK__ p80211pstr32_t;
 
 /* MAC address array */
 typedef struct p80211macarray
 {
-	UINT32		cnt;
-	UINT8		data[1][MAXLEN_PSTR6];
+	u32		cnt;
+	u8		data[1][MAXLEN_PSTR6];
 } __WLAN_ATTRIB_PACK__ p80211macarray_t;
 
 /* prototype template */
 typedef struct p80211item
 {
-	UINT32		did;
-	UINT16		status;
-	UINT16		len;
+	u32		did;
+	u16		status;
+	u16		len;
 } __WLAN_ATTRIB_PACK__ p80211item_t;
 
 /* prototype template w/ data item */
 typedef struct p80211itemd
 {
-	UINT32		did;
-	UINT16		status;
-	UINT16		len;
-	UINT8		data[0];
+	u32		did;
+	u16		status;
+	u16		len;
+	u8		data[0];
 } __WLAN_ATTRIB_PACK__ p80211itemd_t;
 
-/* message data item for INT, BOUNDEDINT, ENUMINT */
+/* message data item for int, BOUNDEDINT, ENUMINT */
 typedef struct p80211item_uint32
 {
-	UINT32		did;
-	UINT16		status;
-	UINT16		len;
-	UINT32		data;
+	u32		did;
+	u16		status;
+	u16		len;
+	u32		data;
 } __WLAN_ATTRIB_PACK__ p80211item_uint32_t;
 
 /* message data item for OCTETSTR, DISPLAYSTR */
 typedef struct p80211item_pstr6
 {
-	UINT32		did;
-	UINT16		status;
-	UINT16		len;
+	u32		did;
+	u16		status;
+	u16		len;
 	p80211pstr6_t	data;
 } __WLAN_ATTRIB_PACK__ p80211item_pstr6_t;
 
 /* message data item for OCTETSTR, DISPLAYSTR */
 typedef struct p80211item_pstr14
 {
-	UINT32			did;
-	UINT16			status;
-	UINT16			len;
+	u32			did;
+	u16			status;
+	u16			len;
 	p80211pstr14_t		data;
 } __WLAN_ATTRIB_PACK__ p80211item_pstr14_t;
 
 /* message data item for OCTETSTR, DISPLAYSTR */
 typedef struct p80211item_pstr32
 {
-	UINT32			did;
-	UINT16			status;
-	UINT16			len;
+	u32			did;
+	u16			status;
+	u16			len;
 	p80211pstr32_t		data;
 } __WLAN_ATTRIB_PACK__ p80211item_pstr32_t;
 
 /* message data item for OCTETSTR, DISPLAYSTR */
 typedef struct p80211item_pstr255
 {
-	UINT32			did;
-	UINT16			status;
-	UINT16			len;
+	u32			did;
+	u16			status;
+	u16			len;
 	p80211pstr255_t		data;
 } __WLAN_ATTRIB_PACK__ p80211item_pstr255_t;
 
 /* message data item for UNK 392, namely mib items */
 typedef struct  p80211item_unk392
 {
-	UINT32		did;
-	UINT16		status;
-	UINT16		len;
-	UINT8		data[MAXLEN_MIBATTRIBUTE];
+	u32		did;
+	u16		status;
+	u16		len;
+	u8		data[MAXLEN_MIBATTRIBUTE];
 } __WLAN_ATTRIB_PACK__ p80211item_unk392_t;
 
 /* message data item for UNK 1025, namely p2 pdas */
 typedef struct  p80211item_unk1024
 {
-	UINT32		did;
-	UINT16		status;
-	UINT16		len;
-	UINT8		data[1024];
+	u32		did;
+	u16		status;
+	u16		len;
+	u8		data[1024];
 }  __WLAN_ATTRIB_PACK__ p80211item_unk1024_t;
 
 /* message data item for UNK 4096, namely p2 download chunks */
 typedef struct  p80211item_unk4096
 {
-	UINT32		did;
-	UINT16		status;
-	UINT16		len;
-	UINT8		data[4096];
+	u32		did;
+	u16		status;
+	u16		len;
+	u8		data[4096];
 }  __WLAN_ATTRIB_PACK__ p80211item_unk4096_t;
 
 struct catlistitem;
@@ -534,9 +534,9 @@ struct catlistitem;
 /*  metadata items.  Some components may choose to use more, */
 /*  less or different metadata items. */
 
-typedef void (*p80211_totext_t)( struct catlistitem *, UINT32 did, UINT8* itembuf, char *textbuf);
-typedef void (*p80211_fromtext_t)( struct catlistitem *, UINT32 did, UINT8* itembuf, char *textbuf);
-typedef UINT32 (*p80211_valid_t)( struct catlistitem *, UINT32 did, UINT8* itembuf);
+typedef void (*p80211_totext_t)( struct catlistitem *, u32 did, u8* itembuf, char *textbuf);
+typedef void (*p80211_fromtext_t)( struct catlistitem *, u32 did, u8* itembuf, char *textbuf);
+typedef u32 (*p80211_valid_t)( struct catlistitem *, u32 did, u8* itembuf);
 
 
 /*================================================================*/
@@ -575,8 +575,8 @@ extern p80211enum_t MKENUMNAME(p2preamble);
 /* The following declare some utility functions for use with the */
 /*  p80211enum_t type. */
 
-UINT32 p80211enum_text2int(p80211enum_t *ep, char *text);
-UINT32 p80211enum_int2text(p80211enum_t *ep, UINT32 val, char *text);
+u32 p80211enum_text2int(p80211enum_t *ep, char *text);
+u32 p80211enum_int2text(p80211enum_t *ep, u32 val, char *text);
 void p80211_error2text(int err_code, char *err_str);
 
 /*----------------------------------------------------------------*/
@@ -591,85 +591,85 @@ void p80211_error2text(int err_code, char *err_str);
 
 /*-- DISPLAYSTR ------------------------------------------------------*/
 /* pstr ==> cstr */
-void p80211_totext_displaystr( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+void p80211_totext_displaystr( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 /* cstr ==> pstr */
-void p80211_fromtext_displaystr( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+void p80211_fromtext_displaystr( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 /* function that checks validity of a displaystr binary value */
-UINT32 p80211_isvalid_displaystr( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
+u32 p80211_isvalid_displaystr( struct catlistitem *metalist, u32 did, u8 *itembuf );
 
 /*-- OCTETSTR --------------------------------------------------------*/
 /* pstr ==> "xx:xx:...." */
-void p80211_totext_octetstr( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+void p80211_totext_octetstr( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 /* "xx:xx:...." ==> pstr */
-void p80211_fromtext_octetstr( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+void p80211_fromtext_octetstr( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 /* function that checks validity of an octetstr binary value */
-UINT32 p80211_isvalid_octetstr( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
+u32 p80211_isvalid_octetstr( struct catlistitem *metalist, u32 did, u8 *itembuf );
 
-/*-- INT -------------------------------------------------------------*/
-/* UINT32 ==> %d */
-void p80211_totext_int( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+/*-- int -------------------------------------------------------------*/
+/* u32 ==> %d */
+void p80211_totext_int( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
-/* %d ==> UINT32 */
-void p80211_fromtext_int( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+/* %d ==> u32 */
+void p80211_fromtext_int( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 /* function that checks validity of an int's binary value (always successful) */
-UINT32 p80211_isvalid_int( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
+u32 p80211_isvalid_int( struct catlistitem *metalist, u32 did, u8 *itembuf );
 
-/*-- ENUMINT ---------------------------------------------------------*/
-/* UINT32 ==> <valuename> */
-void p80211_totext_enumint( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+/*-- ENUMint ---------------------------------------------------------*/
+/* u32 ==> <valuename> */
+void p80211_totext_enumint( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
-/* <valuename> ==> UINT32 */
-void p80211_fromtext_enumint( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+/* <valuename> ==> u32 */
+void p80211_fromtext_enumint( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 /* function that checks validity of an enum's binary value */
-UINT32 p80211_isvalid_enumint( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
+u32 p80211_isvalid_enumint( struct catlistitem *metalist, u32 did, u8 *itembuf );
 
-/*-- INTARRAY --------------------------------------------------------*/
-/* UINT32[] => %d,%d,%d,... */
-void p80211_totext_intarray( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+/*-- intARRAY --------------------------------------------------------*/
+/* u32[] => %d,%d,%d,... */
+void p80211_totext_intarray( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
-/* %d,%d,%d,... ==> UINT32[] */
-void p80211_fromtext_intarray( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+/* %d,%d,%d,... ==> u32[] */
+void p80211_fromtext_intarray( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 /* function that checks validity of an integer array's value */
-UINT32 p80211_isvalid_intarray( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
+u32 p80211_isvalid_intarray( struct catlistitem *metalist, u32 did, u8 *itembuf );
 
 /*-- BITARRAY --------------------------------------------------------*/
-/* UINT32 ==> %d,%d,%d,... */
-void p80211_totext_bitarray( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+/* u32 ==> %d,%d,%d,... */
+void p80211_totext_bitarray( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
-/* %d,%d,%d,... ==> UINT32 */
-void p80211_fromtext_bitarray( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+/* %d,%d,%d,... ==> u32 */
+void p80211_fromtext_bitarray( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 /* function that checks validity of a bit array's value */
-UINT32 p80211_isvalid_bitarray( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
+u32 p80211_isvalid_bitarray( struct catlistitem *metalist, u32 did, u8 *itembuf );
 
 /*-- MACARRAY --------------------------------------------------------*/
-void p80211_totext_macarray( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+void p80211_totext_macarray( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
-void p80211_fromtext_macarray( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+void p80211_fromtext_macarray( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 /* function that checks validity of a MAC address array's value */
-UINT32 p80211_isvalid_macarray( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
+u32 p80211_isvalid_macarray( struct catlistitem *metalist, u32 did, u8 *itembuf );
 
 /*-- MIBATTRIUBTE ------------------------------------------------------*/
 /* <mibvalue> ==> <textual representation identified in MIB metadata> */
-void p80211_totext_getmibattribute( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
-void p80211_totext_setmibattribute( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+void p80211_totext_getmibattribute( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
+void p80211_totext_setmibattribute( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 
 /* <textual representation identified in MIB metadata> ==> <mibvalue> */
-void p80211_fromtext_getmibattribute( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
-void p80211_fromtext_setmibattribute( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf, char *textbuf );
+void p80211_fromtext_getmibattribute( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
+void p80211_fromtext_setmibattribute( struct catlistitem *metalist, u32 did, u8 *itembuf, char *textbuf );
 
 /* function that checks validity of a mibitem's binary value */
-UINT32 p80211_isvalid_getmibattribute( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
-UINT32 p80211_isvalid_setmibattribute( struct catlistitem *metalist, UINT32 did, UINT8 *itembuf );
+u32 p80211_isvalid_getmibattribute( struct catlistitem *metalist, u32 did, u8 *itembuf );
+u32 p80211_isvalid_setmibattribute( struct catlistitem *metalist, u32 did, u8 *itembuf );
 
 #endif /* _P80211TYPES_H */
 

@@ -17,6 +17,9 @@
 
 #include <linux/irq.h>
 
+struct device_node;
+struct qe_ic;
+
 #define NUM_OF_QE_IC_GROUPS	6
 
 /* Flags when we init the QE IC */
@@ -54,16 +57,26 @@ enum qe_ic_grp_id {
 	QE_IC_GRP_RISCB		/* QE interrupt controller RISC group B */
 };
 
+#ifdef CONFIG_QUICC_ENGINE
 void qe_ic_init(struct device_node *node, unsigned int flags,
 		void (*low_handler)(unsigned int irq, struct irq_desc *desc),
 		void (*high_handler)(unsigned int irq, struct irq_desc *desc));
+unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic);
+unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic);
+#else
+static inline void qe_ic_init(struct device_node *node, unsigned int flags,
+		void (*low_handler)(unsigned int irq, struct irq_desc *desc),
+		void (*high_handler)(unsigned int irq, struct irq_desc *desc))
+{}
+static inline unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic)
+{ return 0; }
+static inline unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
+{ return 0; }
+#endif /* CONFIG_QUICC_ENGINE */
+
 void qe_ic_set_highest_priority(unsigned int virq, int high);
 int qe_ic_set_priority(unsigned int virq, unsigned int priority);
 int qe_ic_set_high_priority(unsigned int virq, unsigned int priority, int high);
-
-struct qe_ic;
-unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic);
-unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic);
 
 static inline void qe_ic_cascade_low_ipic(unsigned int irq,
 					  struct irq_desc *desc)

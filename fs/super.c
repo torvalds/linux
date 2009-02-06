@@ -38,6 +38,7 @@
 #include <linux/kobject.h>
 #include <linux/mutex.h>
 #include <linux/file.h>
+#include <linux/async.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -71,6 +72,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
 		INIT_HLIST_HEAD(&s->s_anon);
 		INIT_LIST_HEAD(&s->s_inodes);
 		INIT_LIST_HEAD(&s->s_dentry_lru);
+		INIT_LIST_HEAD(&s->s_async_list);
 		init_rwsem(&s->s_umount);
 		mutex_init(&s->s_lock);
 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
@@ -289,11 +291,18 @@ void generic_shutdown_super(struct super_block *sb)
 {
 	const struct super_operations *sop = sb->s_op;
 
+
 	if (sb->s_root) {
 		shrink_dcache_for_umount(sb);
 		fsync_super(sb);
 		lock_super(sb);
 		sb->s_flags &= ~MS_ACTIVE;
+
+		/*
+		 * wait for asynchronous fs operations to finish before going further
+		 */
+		async_synchronize_full_special(&sb->s_async_list);
+
 		/* bad name - it should be evict_inodes() */
 		invalidate_inodes(sb);
 		lock_kernel();
@@ -461,6 +470,7 @@ restart:
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 		down_read(&sb->s_umount);
+		async_synchronize_full_special(&sb->s_async_list);
 		if (sb->s_root && (wait || sb->s_dirt))
 			sb->s_op->sync_fs(sb, wait);
 		up_read(&sb->s_umount);
@@ -534,7 +544,7 @@ rescan:
 	return NULL;
 }
 
-asmlinkage long sys_ustat(unsigned dev, struct ustat __user * ubuf)
+SYSCALL_DEFINE2(ustat, unsigned, dev, struct ustat __user *, ubuf)
 {
         struct super_block *s;
         struct ustat tmp;
@@ -800,6 +810,7 @@ int get_sb_bdev(struct file_system_type *fs_type,
 		}
 
 		s->s_flags |= MS_ACTIVE;
+		bdev->bd_super = s;
 	}
 
 	return simple_set_mnt(mnt, s);
@@ -819,6 +830,7 @@ void kill_block_super(struct super_block *sb)
 	struct block_device *bdev = sb->s_bdev;
 	fmode_t mode = sb->s_mode;
 
+	bdev->bd_super = 0;
 	generic_shutdown_super(sb);
 	sync_blockdev(bdev);
 	close_bdev_exclusive(bdev, mode);

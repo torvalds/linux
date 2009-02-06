@@ -779,6 +779,22 @@ static void __devinit natsemi_init_media (struct net_device *dev)
 
 }
 
+static const struct net_device_ops natsemi_netdev_ops = {
+	.ndo_open		= netdev_open,
+	.ndo_stop		= netdev_close,
+	.ndo_start_xmit		= start_tx,
+	.ndo_get_stats		= get_stats,
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_change_mtu		= natsemi_change_mtu,
+	.ndo_do_ioctl		= netdev_ioctl,
+	.ndo_tx_timeout 	= ns_tx_timeout,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= natsemi_poll_controller,
+#endif
+};
+
 static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
@@ -911,20 +927,9 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 	if (find_cnt < MAX_UNITS  &&  full_duplex[find_cnt])
 		np->full_duplex = 1;
 
-	/* The chip-specific entries in the device structure. */
-	dev->open = &netdev_open;
-	dev->hard_start_xmit = &start_tx;
-	dev->stop = &netdev_close;
-	dev->get_stats = &get_stats;
-	dev->set_multicast_list = &set_rx_mode;
-	dev->change_mtu = &natsemi_change_mtu;
-	dev->do_ioctl = &netdev_ioctl;
-	dev->tx_timeout = &ns_tx_timeout;
+	dev->netdev_ops = &natsemi_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = &natsemi_poll_controller;
-#endif
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 
 	if (mtu)

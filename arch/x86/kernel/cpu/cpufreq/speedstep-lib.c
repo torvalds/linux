@@ -139,6 +139,15 @@ static unsigned int pentium_core_get_frequency(void)
 	case 3:
 		fsb = 166667;
 		break;
+	case 2:
+		fsb = 200000;
+		break;
+	case 0:
+		fsb = 266667;
+		break;
+	case 4:
+		fsb = 333333;
+		break;
 	default:
 		printk(KERN_ERR "PCORE - MSR_FSB_FREQ undefined value");
 	}

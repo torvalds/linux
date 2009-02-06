@@ -10,12 +10,6 @@ struct fs_struct {
 	struct path root, pwd;
 };
 
-#define INIT_FS {				\
-	.count		= ATOMIC_INIT(1),	\
-	.lock		= RW_LOCK_UNLOCKED,	\
-	.umask		= 0022, \
-}
-
 extern struct kmem_cache *fs_cachep;
 
 extern void exit_fs(struct task_struct *);

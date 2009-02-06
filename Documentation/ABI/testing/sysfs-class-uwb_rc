@@ -32,14 +32,16 @@ Contact:        linux-usb@vger.kernel.org
 Description:
                 Write:
 
-                <channel> [<bpst offset>]
+                <channel>
 
-                to start beaconing on a specific channel, or stop
-                beaconing if <channel> is -1.  Valid channels depends
-                on the radio controller's supported band groups.
+                to force a specific channel to be used when beaconing,
+                or, if <channel> is -1, to prohibit beaconing.  If
+                <channel> is 0, then the default channel selection
+                algorithm will be used.  Valid channels depends on the
+                radio controller's supported band groups.
 
-                <bpst offset> may be used to try and join a specific
-                beacon group if more than one was found during a scan.
+                Reading returns the currently active channel, or -1 if
+                the radio controller is not beaconing.
 
 What:           /sys/class/uwb_rc/uwbN/scan
 Date:           July 2008

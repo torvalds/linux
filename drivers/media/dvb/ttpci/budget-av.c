@@ -1493,7 +1493,7 @@ static struct saa7146_extension_ioctls ioctls[] = {
 	{0, 0}
 };
 
-static int av_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
+static long av_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 {
 	struct saa7146_dev *dev = fh->dev;
 	struct budget_av *budget_av = (struct budget_av *) dev->ext_priv;

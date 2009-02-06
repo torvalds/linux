@@ -60,178 +60,7 @@
 #include <linux/completion.h>
 #include <linux/device.h>
 
-
-/* default maximum number of failures */
-#define IDE_DEFAULT_MAX_FAILURES 	1
-
 struct class *ide_port_class;
-
-static const u8 ide_hwif_to_major[] = { IDE0_MAJOR, IDE1_MAJOR,
-					IDE2_MAJOR, IDE3_MAJOR,
-					IDE4_MAJOR, IDE5_MAJOR,
-					IDE6_MAJOR, IDE7_MAJOR,
-					IDE8_MAJOR, IDE9_MAJOR };
-
-DEFINE_MUTEX(ide_cfg_mtx);
-
-static void ide_port_init_devices_data(ide_hwif_t *);
-
-/*
- * Do not even *think* about calling this!
- */
-void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
-{
-	/* bulk initialize hwif & drive info with zeros */
-	memset(hwif, 0, sizeof(ide_hwif_t));
-
-	/* fill in any non-zero initial values */
-	hwif->index	= index;
-	hwif->major	= ide_hwif_to_major[index];
-
-	hwif->name[0]	= 'i';
-	hwif->name[1]	= 'd';
-	hwif->name[2]	= 'e';
-	hwif->name[3]	= '0' + index;
-
-	init_completion(&hwif->gendev_rel_comp);
-
-	hwif->tp_ops = &default_tp_ops;
-
-	ide_port_init_devices_data(hwif);
-}
-
-static void ide_port_init_devices_data(ide_hwif_t *hwif)
-{
-	int unit;
-
-	for (unit = 0; unit < MAX_DRIVES; ++unit) {
-		ide_drive_t *drive = &hwif->drives[unit];
-		u8 j = (hwif->index * MAX_DRIVES) + unit;
-
-		memset(drive, 0, sizeof(*drive));
-
-		drive->media			= ide_disk;
-		drive->select			= (unit << 4) | ATA_DEVICE_OBS;
-		drive->hwif			= hwif;
-		drive->ready_stat		= ATA_DRDY;
-		drive->bad_wstat		= BAD_W_STAT;
-		drive->special.b.recalibrate	= 1;
-		drive->special.b.set_geometry	= 1;
-		drive->name[0]			= 'h';
-		drive->name[1]			= 'd';
-		drive->name[2]			= 'a' + j;
-		drive->max_failures		= IDE_DEFAULT_MAX_FAILURES;
-
-		INIT_LIST_HEAD(&drive->list);
-		init_completion(&drive->gendev_rel_comp);
-	}
-}
-
-static void __ide_port_unregister_devices(ide_hwif_t *hwif)
-{
-	int i;
-
-	for (i = 0; i < MAX_DRIVES; i++) {
-		ide_drive_t *drive = &hwif->drives[i];
-
-		if (drive->dev_flags & IDE_DFLAG_PRESENT) {
-			device_unregister(&drive->gendev);
-			wait_for_completion(&drive->gendev_rel_comp);
-		}
-	}
-}
-
-void ide_port_unregister_devices(ide_hwif_t *hwif)
-{
-	mutex_lock(&ide_cfg_mtx);
-	__ide_port_unregister_devices(hwif);
-	hwif->present = 0;
-	ide_port_init_devices_data(hwif);
-	mutex_unlock(&ide_cfg_mtx);
-}
-EXPORT_SYMBOL_GPL(ide_port_unregister_devices);
-
-/**
- *	ide_unregister		-	free an IDE interface
- *	@hwif: IDE interface
- *
- *	Perform the final unregister of an IDE interface. At the moment
- *	we don't refcount interfaces so this will also get split up.
- *
- *	Locking:
- *	The caller must not hold the IDE locks
- *	The drive present/vanishing is not yet properly locked
- *	Take care with the callbacks. These have been split to avoid
- *	deadlocking the IDE layer. The shutdown callback is called
- *	before we take the lock and free resources. It is up to the
- *	caller to be sure there is no pending I/O here, and that
- *	the interface will not be reopened (present/vanishing locking
- *	isn't yet done BTW). After we commit to the final kill we
- *	call the cleanup callback with the ide locks held.
- *
- *	Unregister restores the hwif structures to the default state.
- *	This is raving bonkers.
- */
-
-void ide_unregister(ide_hwif_t *hwif)
-{
-	ide_hwif_t *g;
-	ide_hwgroup_t *hwgroup;
-	int irq_count = 0;
-
-	BUG_ON(in_interrupt());
-	BUG_ON(irqs_disabled());
-
-	mutex_lock(&ide_cfg_mtx);
-
-	if (hwif->present) {
-		__ide_port_unregister_devices(hwif);
-		hwif->present = 0;
-	}
-
-	ide_proc_unregister_port(hwif);
-
-	hwgroup = hwif->hwgroup;
-	/*
-	 * free the irq if we were the only hwif using it
-	 */
-	g = hwgroup->hwif;
-	do {
-		if (g->irq == hwif->irq)
-			++irq_count;
-		g = g->next;
-	} while (g != hwgroup->hwif);
-	if (irq_count == 1)
-		free_irq(hwif->irq, hwgroup);
-
-	ide_remove_port_from_hwgroup(hwif);
-
-	device_unregister(hwif->portdev);
-	device_unregister(&hwif->gendev);
-	wait_for_completion(&hwif->gendev_rel_comp);
-
-	/*
-	 * Remove us from the kernel's knowledge
-	 */
-	blk_unregister_region(MKDEV(hwif->major, 0), MAX_DRIVES<<PARTN_BITS);
-	kfree(hwif->sg_table);
-	unregister_blkdev(hwif->major, hwif->name);
-
-	ide_release_dma_engine(hwif);
-
-	mutex_unlock(&ide_cfg_mtx);
-}
-
-void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
-{
-	memcpy(&hwif->io_ports, &hw->io_ports, sizeof(hwif->io_ports));
-	hwif->irq = hw->irq;
-	hwif->chipset = hw->chipset;
-	hwif->dev = hw->dev;
-	hwif->gendev.parent = hw->parent ? hw->parent : hw->dev;
-	hwif->ack_intr = hw->ack_intr;
-	hwif->config_data = hw->config;
-}
 
 /*
  *	Locks for IDE setting functionality
@@ -330,7 +159,6 @@ static int set_pio_mode_abuse(ide_hwif_t *hwif, u8 req_pio)
 static int set_pio_mode(ide_drive_t *drive, int arg)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
 	const struct ide_port_ops *port_ops = hwif->port_ops;
 
 	if (arg < 0 || arg > 255)
@@ -345,9 +173,9 @@ static int set_pio_mode(ide_drive_t *drive, int arg)
 			unsigned long flags;
 
 			/* take lock for IDE_DFLAG_[NO_]UNMASK/[NO_]IO_32BIT */
-			spin_lock_irqsave(&hwgroup->lock, flags);
+			spin_lock_irqsave(&hwif->lock, flags);
 			port_ops->set_pio_mode(drive, arg);
-			spin_unlock_irqrestore(&hwgroup->lock, flags);
+			spin_unlock_irqrestore(&hwif->lock, flags);
 		} else
 			port_ops->set_pio_mode(drive, arg);
 	} else {
@@ -440,88 +268,20 @@ static int ide_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-static char *media_string(ide_drive_t *drive)
-{
-	switch (drive->media) {
-	case ide_disk:
-		return "disk";
-	case ide_cdrom:
-		return "cdrom";
-	case ide_tape:
-		return "tape";
-	case ide_floppy:
-		return "floppy";
-	case ide_optical:
-		return "optical";
-	default:
-		return "UNKNOWN";
-	}
-}
-
-static ssize_t media_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", media_string(drive));
-}
-
-static ssize_t drivename_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", drive->name);
-}
-
-static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "ide:m-%s\n", media_string(drive));
-}
-
-static ssize_t model_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_PROD]);
-}
-
-static ssize_t firmware_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_FW_REV]);
-}
-
-static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	ide_drive_t *drive = to_ide_device(dev);
-	return sprintf(buf, "%s\n", (char *)&drive->id[ATA_ID_SERNO]);
-}
-
-static struct device_attribute ide_dev_attrs[] = {
-	__ATTR_RO(media),
-	__ATTR_RO(drivename),
-	__ATTR_RO(modalias),
-	__ATTR_RO(model),
-	__ATTR_RO(firmware),
-	__ATTR(serial, 0400, serial_show, NULL),
-	__ATTR(unload_heads, 0644, ide_park_show, ide_park_store),
-	__ATTR_NULL
-};
-
 static int ide_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	ide_drive_t *drive = to_ide_device(dev);
 
-	add_uevent_var(env, "MEDIA=%s", media_string(drive));
+	add_uevent_var(env, "MEDIA=%s", ide_media_string(drive));
 	add_uevent_var(env, "DRIVENAME=%s", drive->name);
-	add_uevent_var(env, "MODALIAS=ide:m-%s", media_string(drive));
+	add_uevent_var(env, "MODALIAS=ide:m-%s", ide_media_string(drive));
 	return 0;
 }
 
 static int generic_ide_probe(struct device *dev)
 {
 	ide_drive_t *drive = to_ide_device(dev);
-	ide_driver_t *drv = to_ide_driver(dev->driver);
+	struct ide_driver *drv = to_ide_driver(dev->driver);
 
 	return drv->probe ? drv->probe(drive) : -ENODEV;
 }
@@ -529,7 +289,7 @@ static int generic_ide_probe(struct device *dev)
 static int generic_ide_remove(struct device *dev)
 {
 	ide_drive_t *drive = to_ide_device(dev);
-	ide_driver_t *drv = to_ide_driver(dev->driver);
+	struct ide_driver *drv = to_ide_driver(dev->driver);
 
 	if (drv->remove)
 		drv->remove(drive);
@@ -540,7 +300,7 @@ static int generic_ide_remove(struct device *dev)
 static void generic_ide_shutdown(struct device *dev)
 {
 	ide_drive_t *drive = to_ide_device(dev);
-	ide_driver_t *drv = to_ide_driver(dev->driver);
+	struct ide_driver *drv = to_ide_driver(dev->driver);
 
 	if (dev->driver && drv->shutdown)
 		drv->shutdown(drive);
@@ -728,6 +488,7 @@ MODULE_PARM_DESC(ignore_cable, "ignore cable detection");
 
 void ide_port_apply_params(ide_hwif_t *hwif)
 {
+	ide_drive_t *drive;
 	int i;
 
 	if (ide_ignore_cable & (1 << hwif->index)) {
@@ -736,8 +497,8 @@ void ide_port_apply_params(ide_hwif_t *hwif)
 		hwif->cbl = ATA_CBL_PATA40_SHORT;
 	}
 
-	for (i = 0; i < MAX_DRIVES; i++)
-		ide_dev_apply_params(&hwif->drives[i], i);
+	ide_port_for_each_dev(i, drive, hwif)
+		ide_dev_apply_params(drive, i);
 }
 
 /*

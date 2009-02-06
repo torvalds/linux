@@ -263,8 +263,12 @@ static ssize_t dev_attribute_show(struct device *dev,
 	return ret;
 }
 
-/* Fake "release" method for UBI devices */
-static void dev_release(struct device *dev) { }
+static void dev_release(struct device *dev)
+{
+	struct ubi_device *ubi = container_of(dev, struct ubi_device, dev);
+
+	kfree(ubi);
+}
 
 /**
  * ubi_sysfs_init - initialize sysfs for an UBI device.
@@ -280,7 +284,7 @@ static int ubi_sysfs_init(struct ubi_device *ubi)
 	ubi->dev.release = dev_release;
 	ubi->dev.devt = ubi->cdev.dev;
 	ubi->dev.class = ubi_class;
-	sprintf(&ubi->dev.bus_id[0], UBI_NAME_STR"%d", ubi->ubi_num);
+	dev_set_name(&ubi->dev, UBI_NAME_STR"%d", ubi->ubi_num);
 	err = device_register(&ubi->dev);
 	if (err)
 		return err;
@@ -380,7 +384,7 @@ static void free_user_volumes(struct ubi_device *ubi)
  */
 static int uif_init(struct ubi_device *ubi)
 {
-	int i, err, do_free = 0;
+	int i, err;
 	dev_t dev;
 
 	sprintf(ubi->ubi_name, UBI_NAME_STR "%d", ubi->ubi_num);
@@ -427,13 +431,10 @@ static int uif_init(struct ubi_device *ubi)
 
 out_volumes:
 	kill_volumes(ubi);
-	do_free = 0;
 out_sysfs:
 	ubi_sysfs_close(ubi);
 	cdev_del(&ubi->cdev);
 out_unreg:
-	if (do_free)
-		free_user_volumes(ubi);
 	unregister_chrdev_region(ubi->cdev.dev, ubi->vtbl_slots + 1);
 	ubi_err("cannot initialize UBI %s, error %d", ubi->ubi_name, err);
 	return err;
@@ -561,7 +562,7 @@ static int io_init(struct ubi_device *ubi)
 	 */
 
 	ubi->peb_size   = ubi->mtd->erasesize;
-	ubi->peb_count  = ubi->mtd->size / ubi->mtd->erasesize;
+	ubi->peb_count  = mtd_div_by_eb(ubi->mtd->size, ubi->mtd);
 	ubi->flash_size = ubi->mtd->size;
 
 	if (ubi->mtd->block_isbad && ubi->mtd->block_markbad)
@@ -815,19 +816,20 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	if (err)
 		goto out_free;
 
+	err = -ENOMEM;
 	ubi->peb_buf1 = vmalloc(ubi->peb_size);
 	if (!ubi->peb_buf1)
 		goto out_free;
 
 	ubi->peb_buf2 = vmalloc(ubi->peb_size);
 	if (!ubi->peb_buf2)
-		 goto out_free;
+		goto out_free;
 
 #ifdef CONFIG_MTD_UBI_DEBUG
 	mutex_init(&ubi->dbg_buf_mutex);
 	ubi->dbg_peb_buf = vmalloc(ubi->peb_size);
 	if (!ubi->dbg_peb_buf)
-		 goto out_free;
+		goto out_free;
 #endif
 
 	err = attach_by_scanning(ubi);
@@ -946,6 +948,12 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	if (ubi->bgt_thread)
 		kthread_stop(ubi->bgt_thread);
 
+	/*
+	 * Get a reference to the device in order to prevent 'dev_release()'
+	 * from freeing @ubi object.
+	 */
+	get_device(&ubi->dev);
+
 	uif_close(ubi);
 	ubi_wl_close(ubi);
 	free_internal_volumes(ubi);
@@ -957,7 +965,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	vfree(ubi->dbg_peb_buf);
 #endif
 	ubi_msg("mtd%d is detached from ubi%d", ubi->mtd->index, ubi->ubi_num);
-	kfree(ubi);
+	put_device(&ubi->dev);
 	return 0;
 }
 

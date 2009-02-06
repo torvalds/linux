@@ -89,6 +89,7 @@ static int max_id = 64;
 static int max_channel = 3;
 static int init_timeout = 5;
 static int max_requests = IBMVSCSI_MAX_REQUESTS_DEFAULT;
+static int max_events = IBMVSCSI_MAX_REQUESTS_DEFAULT + 2;
 
 static struct scsi_transport_template *ibmvscsi_transport_template;
 
@@ -1060,7 +1061,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	}
 
 	sdev_printk(KERN_INFO, cmd->device,
-                    "aborting command. lun 0x%lx, tag 0x%lx\n",
+                    "aborting command. lun 0x%llx, tag 0x%llx\n",
 		    (((u64) lun) << 48), (u64) found_evt);
 
 	wait_for_completion(&evt->comp);
@@ -1081,7 +1082,7 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	if (rsp_rc) {
 		if (printk_ratelimit())
 			sdev_printk(KERN_WARNING, cmd->device,
-				    "abort code %d for task tag 0x%lx\n",
+				    "abort code %d for task tag 0x%llx\n",
 				    rsp_rc, tsk_mgmt->task_tag);
 		return FAILED;
 	}
@@ -1101,12 +1102,12 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 
 	if (found_evt == NULL) {
 		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
-		sdev_printk(KERN_INFO, cmd->device, "aborted task tag 0x%lx completed\n",
+		sdev_printk(KERN_INFO, cmd->device, "aborted task tag 0x%llx completed\n",
 			    tsk_mgmt->task_tag);
 		return SUCCESS;
 	}
 
-	sdev_printk(KERN_INFO, cmd->device, "successfully aborted task tag 0x%lx\n",
+	sdev_printk(KERN_INFO, cmd->device, "successfully aborted task tag 0x%llx\n",
 		    tsk_mgmt->task_tag);
 
 	cmd->result = (DID_ABORT << 16);
@@ -1181,7 +1182,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	sdev_printk(KERN_INFO, cmd->device, "resetting device. lun 0x%lx\n",
+	sdev_printk(KERN_INFO, cmd->device, "resetting device. lun 0x%llx\n",
 		    (((u64) lun) << 48));
 
 	wait_for_completion(&evt->comp);
@@ -1202,7 +1203,7 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	if (rsp_rc) {
 		if (printk_ratelimit())
 			sdev_printk(KERN_WARNING, cmd->device,
-				    "reset code %d for task tag 0x%lx\n",
+				    "reset code %d for task tag 0x%llx\n",
 				    rsp_rc, tsk_mgmt->task_tag);
 		return FAILED;
 	}
@@ -1633,7 +1634,7 @@ static struct scsi_host_template driver_template = {
 static unsigned long ibmvscsi_get_desired_dma(struct vio_dev *vdev)
 {
 	/* iu_storage data allocated in initialize_event_pool */
-	unsigned long desired_io = max_requests * sizeof(union viosrp_iu);
+	unsigned long desired_io = max_events * sizeof(union viosrp_iu);
 
 	/* add io space for sg data */
 	desired_io += (IBMVSCSI_MAX_SECTORS_DEFAULT * 512 *
@@ -1657,7 +1658,6 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 
 	vdev->dev.driver_data = NULL;
 
-	driver_template.can_queue = max_requests - 2;
 	host = scsi_host_alloc(&driver_template, sizeof(*hostdata));
 	if (!host) {
 		dev_err(&vdev->dev, "couldn't allocate host data\n");
@@ -1673,12 +1673,12 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	atomic_set(&hostdata->request_limit, -1);
 	hostdata->host->max_sectors = IBMVSCSI_MAX_SECTORS_DEFAULT;
 
-	rc = ibmvscsi_ops->init_crq_queue(&hostdata->queue, hostdata, max_requests);
+	rc = ibmvscsi_ops->init_crq_queue(&hostdata->queue, hostdata, max_events);
 	if (rc != 0 && rc != H_RESOURCE) {
 		dev_err(&vdev->dev, "couldn't initialize crq. rc=%d\n", rc);
 		goto init_crq_failed;
 	}
-	if (initialize_event_pool(&hostdata->pool, max_requests, hostdata) != 0) {
+	if (initialize_event_pool(&hostdata->pool, max_events, hostdata) != 0) {
 		dev_err(&vdev->dev, "couldn't initialize event pool\n");
 		goto init_pool_failed;
 	}
@@ -1730,7 +1730,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
       add_host_failed:
 	release_event_pool(&hostdata->pool, hostdata);
       init_pool_failed:
-	ibmvscsi_ops->release_crq_queue(&hostdata->queue, hostdata, max_requests);
+	ibmvscsi_ops->release_crq_queue(&hostdata->queue, hostdata, max_events);
       init_crq_failed:
 	scsi_host_put(host);
       scsi_host_alloc_failed:
@@ -1742,7 +1742,7 @@ static int ibmvscsi_remove(struct vio_dev *vdev)
 	struct ibmvscsi_host_data *hostdata = vdev->dev.driver_data;
 	release_event_pool(&hostdata->pool, hostdata);
 	ibmvscsi_ops->release_crq_queue(&hostdata->queue, hostdata,
-					max_requests);
+					max_events);
 
 	srp_remove_host(hostdata->host);
 	scsi_remove_host(hostdata->host);
@@ -1778,6 +1778,10 @@ static struct srp_function_template ibmvscsi_transport_functions = {
 int __init ibmvscsi_module_init(void)
 {
 	int ret;
+
+	/* Ensure we have two requests to do error recovery */
+	driver_template.can_queue = max_requests;
+	max_events = max_requests + 2;
 
 	if (firmware_has_feature(FW_FEATURE_ISERIES))
 		ibmvscsi_ops = &iseriesvscsi_ops;

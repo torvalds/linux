@@ -151,7 +151,7 @@ struct i2c_driver {
 	 * has been dynamically allocated by the driver in the function above,
 	 * it must be freed here.  (LEGACY I2C DRIVERS ONLY)
 	 */
-	int (*detach_client)(struct i2c_client *);
+	int (*detach_client)(struct i2c_client *) __deprecated;
 
 	/* Standard driver model interfaces, for "new style" i2c drivers.
 	 * With the driver model, device enumeration is NEVER done by drivers;
@@ -393,11 +393,7 @@ static inline void i2c_set_adapdata(struct i2c_adapter *dev, void *data)
 #define I2C_CLASS_TV_ANALOG	(1<<1)	/* bttv + friends */
 #define I2C_CLASS_TV_DIGITAL	(1<<2)	/* dvb cards */
 #define I2C_CLASS_DDC		(1<<3)	/* DDC bus on graphics adapters */
-#define I2C_CLASS_CAM_ANALOG	(1<<4)	/* camera with analog CCD */
-#define I2C_CLASS_CAM_DIGITAL	(1<<5)	/* most webcams */
-#define I2C_CLASS_SOUND		(1<<6)	/* sound devices */
 #define I2C_CLASS_SPD		(1<<7)	/* SPD EEPROMs and similar */
-#define I2C_CLASS_ALL		(UINT_MAX) /* all of the above */
 
 /* i2c_client_address_data is the struct for holding default client
  * addresses for a driver and for the parameters supplied on the
@@ -433,8 +429,10 @@ static inline int i2c_add_driver(struct i2c_driver *driver)
 	return i2c_register_driver(THIS_MODULE, driver);
 }
 
-extern int i2c_attach_client(struct i2c_client *);
-extern int i2c_detach_client(struct i2c_client *);
+/* These are deprecated, your driver should use the standard .probe()
+ * and .remove() methods instead. */
+extern int __deprecated i2c_attach_client(struct i2c_client *);
+extern int __deprecated i2c_detach_client(struct i2c_client *);
 
 extern struct i2c_client *i2c_use_client(struct i2c_client *client);
 extern void i2c_release_client(struct i2c_client *client);

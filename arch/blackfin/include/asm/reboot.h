@@ -1,7 +1,7 @@
 /*
- * include/asm-blackfin/reboot.h - shutdown/reboot header
+ * reboot.h - shutdown/reboot header
  *
- * Copyright 2004-2007 Analog Devices Inc.
+ * Copyright 2004-2008 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -15,6 +15,6 @@ extern void native_machine_halt(void);
 extern void native_machine_power_off(void);
 
 /* common reboot workarounds */
-extern void bfin_gpio_reset_spi0_ssel1(void);
+extern void bfin_reset_boot_spi_cs(unsigned short pin);
 
 #endif

@@ -1300,6 +1300,8 @@ EXPORT_SYMBOL_GPL(snd_soc_test_bits);
 /**
  * snd_soc_new_pcms - create new sound card and pcms
  * @socdev: the SoC audio device
+ * @idx: ALSA card index
+ * @xid: card identification
  *
  * Create a new sound card based upon the codec and interface pcms.
  *
@@ -1472,7 +1474,7 @@ EXPORT_SYMBOL_GPL(snd_soc_set_runtime_hwparams);
  * snd_soc_cnew - create new control
  * @_template: control template
  * @data: control private data
- * @lnng_name: control long name
+ * @long_name: control long name
  *
  * Create a new mixer control from a template control.
  *
@@ -1522,7 +1524,7 @@ EXPORT_SYMBOL_GPL(snd_soc_info_enum_double);
 /**
  * snd_soc_get_enum_double - enumerated double mixer get callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to get the value of a double enumerated mixer.
  *
@@ -1551,7 +1553,7 @@ EXPORT_SYMBOL_GPL(snd_soc_get_enum_double);
 /**
  * snd_soc_put_enum_double - enumerated double mixer put callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to set the value of a double enumerated mixer.
  *
@@ -1581,6 +1583,80 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 	return snd_soc_update_bits(codec, e->reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_enum_double);
+
+/**
+ * snd_soc_get_value_enum_double - semi enumerated double mixer get callback
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Callback to get the value of a double semi enumerated mixer.
+ *
+ * Semi enumerated mixer: the enumerated items are referred as values. Can be
+ * used for handling bitfield coded enumeration for example.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_get_value_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned short reg_val, val, mux;
+
+	reg_val = snd_soc_read(codec, e->reg);
+	val = (reg_val >> e->shift_l) & e->mask;
+	for (mux = 0; mux < e->max; mux++) {
+		if (val == e->values[mux])
+			break;
+	}
+	ucontrol->value.enumerated.item[0] = mux;
+	if (e->shift_l != e->shift_r) {
+		val = (reg_val >> e->shift_r) & e->mask;
+		for (mux = 0; mux < e->max; mux++) {
+			if (val == e->values[mux])
+				break;
+		}
+		ucontrol->value.enumerated.item[1] = mux;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_value_enum_double);
+
+/**
+ * snd_soc_put_value_enum_double - semi enumerated double mixer put callback
+ * @kcontrol: mixer control
+ * @ucontrol: control element information
+ *
+ * Callback to set the value of a double semi enumerated mixer.
+ *
+ * Semi enumerated mixer: the enumerated items are referred as values. Can be
+ * used for handling bitfield coded enumeration for example.
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned short val;
+	unsigned short mask;
+
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
+		return -EINVAL;
+	val = e->values[ucontrol->value.enumerated.item[0]] << e->shift_l;
+	mask = e->mask << e->shift_l;
+	if (e->shift_l != e->shift_r) {
+		if (ucontrol->value.enumerated.item[1] > e->max - 1)
+			return -EINVAL;
+		val |= e->values[ucontrol->value.enumerated.item[1]] << e->shift_r;
+		mask |= e->mask << e->shift_r;
+	}
+
+	return snd_soc_update_bits(codec, e->reg, mask, val);
+}
+EXPORT_SYMBOL_GPL(snd_soc_put_value_enum_double);
 
 /**
  * snd_soc_info_enum_ext - external enumerated single mixer info callback
@@ -1668,7 +1744,7 @@ EXPORT_SYMBOL_GPL(snd_soc_info_volsw);
 /**
  * snd_soc_get_volsw - single mixer get callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to get the value of a single mixer control.
  *
@@ -1707,7 +1783,7 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw);
 /**
  * snd_soc_put_volsw - single mixer put callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to set the value of a single mixer control.
  *
@@ -1775,7 +1851,7 @@ EXPORT_SYMBOL_GPL(snd_soc_info_volsw_2r);
 /**
  * snd_soc_get_volsw_2r - double mixer get callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to get the value of a double mixer control that spans 2 registers.
  *
@@ -1812,7 +1888,7 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw_2r);
 /**
  * snd_soc_put_volsw_2r - double mixer set callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to set the value of a double mixer control that spans 2 registers.
  *
@@ -1882,7 +1958,7 @@ EXPORT_SYMBOL_GPL(snd_soc_info_volsw_s8);
 /**
  * snd_soc_get_volsw_s8 - signed mixer get callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to get the value of a signed mixer control.
  *
@@ -1909,7 +1985,7 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw_s8);
 /**
  * snd_soc_put_volsw_sgn - signed mixer put callback
  * @kcontrol: mixer control
- * @uinfo: control element information
+ * @ucontrol: control element information
  *
  * Callback to set the value of a signed mixer control.
  *
@@ -1954,7 +2030,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_set_sysclk);
 /**
  * snd_soc_dai_set_clkdiv - configure DAI clock dividers.
  * @dai: DAI
- * @clk_id: DAI specific clock divider ID
+ * @div_id: DAI specific clock divider ID
  * @div: new clock divisor.
  *
  * Configures the clock dividers. This is used to derive the best DAI bit and
@@ -2060,7 +2136,7 @@ EXPORT_SYMBOL_GPL(snd_soc_dai_digital_mute);
 /**
  * snd_soc_register_card - Register a card with the ASoC core
  *
- * @param card Card to register
+ * @card: Card to register
  *
  * Note that currently this is an internal only function: it will be
  * exposed to machine drivers after further backporting of ASoC v2
@@ -2087,7 +2163,7 @@ static int snd_soc_register_card(struct snd_soc_card *card)
 /**
  * snd_soc_unregister_card - Unregister a card with the ASoC core
  *
- * @param card Card to unregister
+ * @card: Card to unregister
  *
  * Note that currently this is an internal only function: it will be
  * exposed to machine drivers after further backporting of ASoC v2
@@ -2107,7 +2183,7 @@ static int snd_soc_unregister_card(struct snd_soc_card *card)
 /**
  * snd_soc_register_dai - Register a DAI with the ASoC core
  *
- * @param dai DAI to register
+ * @dai: DAI to register
  */
 int snd_soc_register_dai(struct snd_soc_dai *dai)
 {
@@ -2134,7 +2210,7 @@ EXPORT_SYMBOL_GPL(snd_soc_register_dai);
 /**
  * snd_soc_unregister_dai - Unregister a DAI from the ASoC core
  *
- * @param dai DAI to unregister
+ * @dai: DAI to unregister
  */
 void snd_soc_unregister_dai(struct snd_soc_dai *dai)
 {
@@ -2149,8 +2225,8 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
 /**
  * snd_soc_register_dais - Register multiple DAIs with the ASoC core
  *
- * @param dai Array of DAIs to register
- * @param count Number of DAIs
+ * @dai: Array of DAIs to register
+ * @count: Number of DAIs
  */
 int snd_soc_register_dais(struct snd_soc_dai *dai, size_t count)
 {
@@ -2175,8 +2251,8 @@ EXPORT_SYMBOL_GPL(snd_soc_register_dais);
 /**
  * snd_soc_unregister_dais - Unregister multiple DAIs from the ASoC core
  *
- * @param dai Array of DAIs to unregister
- * @param count Number of DAIs
+ * @dai: Array of DAIs to unregister
+ * @count: Number of DAIs
  */
 void snd_soc_unregister_dais(struct snd_soc_dai *dai, size_t count)
 {
@@ -2190,7 +2266,7 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_dais);
 /**
  * snd_soc_register_platform - Register a platform with the ASoC core
  *
- * @param platform platform to register
+ * @platform: platform to register
  */
 int snd_soc_register_platform(struct snd_soc_platform *platform)
 {
@@ -2213,7 +2289,7 @@ EXPORT_SYMBOL_GPL(snd_soc_register_platform);
 /**
  * snd_soc_unregister_platform - Unregister a platform from the ASoC core
  *
- * @param platform platform to unregister
+ * @platform: platform to unregister
  */
 void snd_soc_unregister_platform(struct snd_soc_platform *platform)
 {
@@ -2228,7 +2304,7 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_platform);
 /**
  * snd_soc_register_codec - Register a codec with the ASoC core
  *
- * @param codec codec to register
+ * @codec: codec to register
  */
 int snd_soc_register_codec(struct snd_soc_codec *codec)
 {
@@ -2255,7 +2331,7 @@ EXPORT_SYMBOL_GPL(snd_soc_register_codec);
 /**
  * snd_soc_unregister_codec - Unregister a codec from the ASoC core
  *
- * @param codec codec to unregister
+ * @codec: codec to unregister
  */
 void snd_soc_unregister_codec(struct snd_soc_codec *codec)
 {

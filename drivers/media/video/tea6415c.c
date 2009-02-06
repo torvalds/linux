@@ -122,7 +122,7 @@ static int switch_matrix(struct i2c_client *client, int i, int o)
 	return ret;
 }
 
-static int tea6415c_ioctl(struct v4l2_subdev *sd, unsigned cmd, void *arg)
+static long tea6415c_ioctl(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 {
 	if (cmd == TEA6415C_SWITCH) {
 		struct i2c_client *client = v4l2_get_subdevdata(sd);

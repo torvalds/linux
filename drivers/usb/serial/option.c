@@ -158,6 +158,13 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 #define HUAWEI_PRODUCT_E143E			0x143E
 #define HUAWEI_PRODUCT_E143F			0x143F
 
+#define QUANTA_VENDOR_ID			0x0408
+#define QUANTA_PRODUCT_Q101			0xEA02
+#define QUANTA_PRODUCT_Q111			0xEA03
+#define QUANTA_PRODUCT_GLX			0xEA04
+#define QUANTA_PRODUCT_GKE			0xEA05
+#define QUANTA_PRODUCT_GLE			0xEA06
+
 #define NOVATELWIRELESS_VENDOR_ID		0x1410
 
 /* YISO PRODUCTS */
@@ -224,7 +231,7 @@ static int  option_send_setup(struct tty_struct *tty, struct usb_serial_port *po
 #define ONDA_VENDOR_ID				0x19d2
 #define ONDA_PRODUCT_MSA501HS			0x0001
 #define ONDA_PRODUCT_ET502HS			0x0002
-#define ONDA_PRODUCT_MT503HS			0x0200
+#define ONDA_PRODUCT_MT503HS			0x2000
 
 #define BANDRICH_VENDOR_ID			0x1A8D
 #define BANDRICH_PRODUCT_C100_1			0x1002
@@ -298,6 +305,11 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_MODEM_GT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_MODEM_EX) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_ETNA_KOI_MODEM) },
+	{ USB_DEVICE(QUANTA_VENDOR_ID, QUANTA_PRODUCT_Q101) },
+	{ USB_DEVICE(QUANTA_VENDOR_ID, QUANTA_PRODUCT_Q111) },
+	{ USB_DEVICE(QUANTA_VENDOR_ID, QUANTA_PRODUCT_GLX) },
+	{ USB_DEVICE(QUANTA_VENDOR_ID, QUANTA_PRODUCT_GKE) },
+	{ USB_DEVICE(QUANTA_VENDOR_ID, QUANTA_PRODUCT_GLE) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E600, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E220, 0xff, 0xff, 0xff) },
 	{ USB_DEVICE_AND_INTERFACE_INFO(HUAWEI_VENDOR_ID, HUAWEI_PRODUCT_E220BIS, 0xff, 0xff, 0xff) },
@@ -522,9 +534,9 @@ static int debug;
 /* per port private data */
 
 #define N_IN_URB 4
-#define N_OUT_URB 1
+#define N_OUT_URB 4
 #define IN_BUFLEN 4096
-#define OUT_BUFLEN 128
+#define OUT_BUFLEN 4096
 
 struct option_port_private {
 	/* Input endpoints and buffer for this port */
@@ -654,10 +666,6 @@ static int option_write(struct tty_struct *tty, struct usb_serial_port *port,
 			usb_unlink_urb(this_urb);
 			continue;
 		}
-		if (this_urb->status != 0)
-			dbg("usb_write %p failed (err=%d)",
-				this_urb, this_urb->status);
-
 		dbg("%s: endpoint %d buf %d", __func__,
 			usb_pipeendpoint(this_urb->pipe), i);
 
@@ -669,8 +677,7 @@ static int option_write(struct tty_struct *tty, struct usb_serial_port *port,
 		err = usb_submit_urb(this_urb, GFP_ATOMIC);
 		if (err) {
 			dbg("usb_submit_urb %p (write bulk) failed "
-				"(%d, has %d)", this_urb,
-				err, this_urb->status);
+				"(%d)", this_urb, err);
 			clear_bit(i, &portdata->out_busy);
 			continue;
 		}

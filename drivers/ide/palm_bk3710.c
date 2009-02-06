@@ -324,8 +324,6 @@ static int __devinit palm_bk3710_init_dma(ide_hwif_t *hwif,
 
 	hwif->dma_base = hwif->io_ports.data_addr - IDE_PALM_ATA_PRI_REG_OFFSET;
 
-	hwif->dma_ops = &sff_dma_ops;
-
 	return 0;
 }
 
@@ -338,6 +336,7 @@ static const struct ide_port_ops palm_bk3710_ports_ops = {
 static struct ide_port_info __devinitdata palm_bk3710_port_info = {
 	.init_dma		= palm_bk3710_init_dma,
 	.port_ops		= &palm_bk3710_ports_ops,
+	.dma_ops		= &sff_dma_ops,
 	.host_flags		= IDE_HFLAG_MMIO,
 	.pio_mask		= ATA_PIO4,
 	.mwdma_mask		= ATA_MWDMA2,
@@ -347,7 +346,8 @@ static int __init palm_bk3710_probe(struct platform_device *pdev)
 {
 	struct clk *clk;
 	struct resource *mem, *irq;
-	unsigned long base, rate;
+	void __iomem *base;
+	unsigned long rate;
 	int i, rc;
 	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
@@ -383,11 +383,13 @@ static int __init palm_bk3710_probe(struct platform_device *pdev)
 	base = IO_ADDRESS(mem->start);
 
 	/* Configure the Palm Chip controller */
-	palm_bk3710_chipinit((void __iomem *)base);
+	palm_bk3710_chipinit(base);
 
 	for (i = 0; i < IDE_NR_PORTS - 2; i++)
-		hw.io_ports_array[i] = base + IDE_PALM_ATA_PRI_REG_OFFSET + i;
-	hw.io_ports.ctl_addr = base + IDE_PALM_ATA_PRI_CTL_OFFSET;
+		hw.io_ports_array[i] = (unsigned long)
+				(base + IDE_PALM_ATA_PRI_REG_OFFSET + i);
+	hw.io_ports.ctl_addr = (unsigned long)
+			(base + IDE_PALM_ATA_PRI_CTL_OFFSET);
 	hw.irq = irq->start;
 	hw.dev = &pdev->dev;
 	hw.chipset = ide_palm3710;

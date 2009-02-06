@@ -1,7 +1,6 @@
 menuconfig IP_DCCP
 	tristate "The DCCP Protocol (EXPERIMENTAL)"
 	depends on INET && EXPERIMENTAL
-	select IP_DCCP_CCID2
 	---help---
 	  Datagram Congestion Control Protocol (RFC 4340)
 
@@ -24,9 +23,6 @@ config INET_DCCP_DIAG
 	depends on INET_DIAG
 	def_tristate y if (IP_DCCP = y && INET_DIAG = y)
 	def_tristate m
-
-config IP_DCCP_ACKVEC
-	bool
 
 source "net/dccp/ccids/Kconfig"
 

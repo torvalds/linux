@@ -59,7 +59,7 @@ config DMA7_UARTTX
 	default 10
 config TIMER0
 	int "TIMER0"
-	default 11
+	default 8
 config TIMER1
 	int "TIMER1"
 	default 11

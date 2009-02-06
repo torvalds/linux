@@ -49,7 +49,7 @@
 
 u32 num_var_ranges = 0;
 
-unsigned int mtrr_usage_table[MAX_VAR_RANGES];
+unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 static DEFINE_MUTEX(mtrr_mutex);
 
 u64 size_or_mask, size_and_mask;
@@ -574,7 +574,7 @@ struct mtrr_value {
 	unsigned long	lsize;
 };
 
-static struct mtrr_value mtrr_state[MAX_VAR_RANGES];
+static struct mtrr_value mtrr_state[MTRR_MAX_VAR_RANGES];
 
 static int mtrr_save(struct sys_device * sysdev, pm_message_t state)
 {
@@ -824,16 +824,14 @@ static int enable_mtrr_cleanup __initdata =
 
 static int __init disable_mtrr_cleanup_setup(char *str)
 {
-	if (enable_mtrr_cleanup != -1)
-		enable_mtrr_cleanup = 0;
+	enable_mtrr_cleanup = 0;
 	return 0;
 }
 early_param("disable_mtrr_cleanup", disable_mtrr_cleanup_setup);
 
 static int __init enable_mtrr_cleanup_setup(char *str)
 {
-	if (enable_mtrr_cleanup != -1)
-		enable_mtrr_cleanup = 1;
+	enable_mtrr_cleanup = 1;
 	return 0;
 }
 early_param("enable_mtrr_cleanup", enable_mtrr_cleanup_setup);
@@ -1596,8 +1594,7 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 
 	/* kvm/qemu doesn't have mtrr set right, don't trim them all */
 	if (!highest_pfn) {
-		WARN(!kvm_para_available(), KERN_WARNING
-				"WARNING: strange, CPU MTRRs all blank?\n");
+		printk(KERN_INFO "CPU MTRRs all blank - virtualized system.\n");
 		return 0;
 	}
 

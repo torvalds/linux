@@ -307,7 +307,7 @@ static void em28xx_ir_work(struct work_struct *work)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-void em28xx_ir_start(struct em28xx_IR *ir)
+static void em28xx_ir_start(struct em28xx_IR *ir)
 {
 	setup_timer(&ir->timer, ir_timer, (unsigned long)ir);
 	INIT_WORK(&ir->work, em28xx_ir_work);

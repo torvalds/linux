@@ -320,7 +320,7 @@ void hpsb_unregister_highlevel(struct hpsb_highlevel *hl)
  */
 u64 hpsb_allocate_and_register_addrspace(struct hpsb_highlevel *hl,
 					 struct hpsb_host *host,
-					 struct hpsb_address_ops *ops,
+					 const struct hpsb_address_ops *ops,
 					 u64 size, u64 alignment,
 					 u64 start, u64 end)
 {
@@ -407,7 +407,8 @@ u64 hpsb_allocate_and_register_addrspace(struct hpsb_highlevel *hl,
  * are automatically deallocated together with the hpsb_highlevel @hl.
  */
 int hpsb_register_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
-			    struct hpsb_address_ops *ops, u64 start, u64 end)
+			    const struct hpsb_address_ops *ops,
+			    u64 start, u64 end)
 {
 	struct hpsb_address_serve *as;
 	struct list_head *lh;
@@ -420,7 +421,7 @@ int hpsb_register_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
 		return 0;
 	}
 
-	as = kmalloc(sizeof(*as), GFP_ATOMIC);
+	as = kmalloc(sizeof(*as), GFP_KERNEL);
 	if (!as)
 		return 0;
 
@@ -477,7 +478,7 @@ int hpsb_unregister_addrspace(struct hpsb_highlevel *hl, struct hpsb_host *host,
 	return retval;
 }
 
-static struct hpsb_address_ops dummy_ops;
+const static struct hpsb_address_ops dummy_ops;
 
 /* dummy address spaces as lower and upper bounds of the host's a.s. list */
 static void init_hpsb_highlevel(struct hpsb_host *host)

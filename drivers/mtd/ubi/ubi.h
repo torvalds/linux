@@ -74,6 +74,13 @@
 #define UBI_IO_RETRIES 3
 
 /*
+ * Length of the protection queue. The length is effectively equivalent to the
+ * number of (global) erase cycles PEBs are protected from the wear-leveling
+ * worker.
+ */
+#define UBI_PROT_QUEUE_LEN 10
+
+/*
  * Error codes returned by the I/O sub-system.
  *
  * UBI_IO_PEB_EMPTY: the physical eraseblock is empty, i.e. it contains only
@@ -95,7 +102,8 @@ enum {
 
 /**
  * struct ubi_wl_entry - wear-leveling entry.
- * @rb: link in the corresponding RB-tree
+ * @u.rb: link in the corresponding (free/used) RB-tree
+ * @u.list: link in the protection queue
  * @ec: erase counter
  * @pnum: physical eraseblock number
  *
@@ -104,7 +112,10 @@ enum {
  * RB-trees. See WL sub-system for details.
  */
 struct ubi_wl_entry {
-	struct rb_node rb;
+	union {
+		struct rb_node rb;
+		struct list_head list;
+	} u;
 	int ec;
 	int pnum;
 };
@@ -195,6 +206,7 @@ struct ubi_volume_desc;
  * @upd_marker: %1 if the update marker is set for this volume
  * @updating: %1 if the volume is being updated
  * @changing_leb: %1 if the atomic LEB change ioctl command is in progress
+ * @direct_writes: %1 if direct writes are enabled for this volume
  *
  * @gluebi_desc: gluebi UBI volume descriptor
  * @gluebi_refcount: reference count of the gluebi MTD device
@@ -242,6 +254,7 @@ struct ubi_volume {
 	unsigned int upd_marker:1;
 	unsigned int updating:1;
 	unsigned int changing_leb:1;
+	unsigned int direct_writes:1;
 
 #ifdef CONFIG_MTD_UBI_GLUEBI
 	/*
@@ -288,12 +301,13 @@ struct ubi_wl_entry;
  * @beb_rsvd_level: normal level of PEBs reserved for bad PEB handling
  *
  * @autoresize_vol_id: ID of the volume which has to be auto-resized at the end
- *                     of UBI ititializetion
+ *                     of UBI initialization
  * @vtbl_slots: how many slots are available in the volume table
  * @vtbl_size: size of the volume table in bytes
  * @vtbl: in-RAM volume table copy
  * @volumes_mutex: protects on-flash volume table and serializes volume
- *                 changes, like creation, deletion, update, re-size and re-name
+ *                 changes, like creation, deletion, update, re-size,
+ *                 re-name and set property
  *
  * @max_ec: current highest erase counter value
  * @mean_ec: current mean erase counter value
@@ -306,18 +320,17 @@ struct ubi_wl_entry;
  * @used: RB-tree of used physical eraseblocks
  * @free: RB-tree of free physical eraseblocks
  * @scrub: RB-tree of physical eraseblocks which need scrubbing
- * @prot: protection trees
- * @prot.pnum: protection tree indexed by physical eraseblock numbers
- * @prot.aec: protection tree indexed by absolute erase counter value
- * @wl_lock: protects the @used, @free, @prot, @lookuptbl, @abs_ec, @move_from,
- *           @move_to, @move_to_put @erase_pending, @wl_scheduled, and @works
- *           fields
+ * @pq: protection queue (contain physical eraseblocks which are temporarily
+ *      protected from the wear-leveling worker)
+ * @pq_head: protection queue head
+ * @wl_lock: protects the @used, @free, @pq, @pq_head, @lookuptbl, @move_from,
+ * 	     @move_to, @move_to_put @erase_pending, @wl_scheduled and @works
+ * 	     fields
  * @move_mutex: serializes eraseblock moves
- * @work_sem: sycnhronizes the WL worker with use tasks
+ * @work_sem: synchronizes the WL worker with use tasks
  * @wl_scheduled: non-zero if the wear-leveling was scheduled
  * @lookuptbl: a table to quickly find a &struct ubi_wl_entry object for any
  *             physical eraseblock
- * @abs_ec: absolute erase counter
  * @move_from: physical eraseblock from where the data is being moved
  * @move_to: physical eraseblock where the data is being moved to
  * @move_to_put: if the "to" PEB was put
@@ -351,11 +364,11 @@ struct ubi_wl_entry;
  *
  * @peb_buf1: a buffer of PEB size used for different purposes
  * @peb_buf2: another buffer of PEB size used for different purposes
- * @buf_mutex: proptects @peb_buf1 and @peb_buf2
+ * @buf_mutex: protects @peb_buf1 and @peb_buf2
  * @ckvol_mutex: serializes static volume checking when opening
- * @mult_mutex: serializes operations on multiple volumes, like re-nameing
+ * @mult_mutex: serializes operations on multiple volumes, like re-naming
  * @dbg_peb_buf: buffer of PEB size used for debugging
- * @dbg_buf_mutex: proptects @dbg_peb_buf
+ * @dbg_buf_mutex: protects @dbg_peb_buf
  */
 struct ubi_device {
 	struct cdev cdev;
@@ -392,16 +405,13 @@ struct ubi_device {
 	struct rb_root used;
 	struct rb_root free;
 	struct rb_root scrub;
-	struct {
-		struct rb_root pnum;
-		struct rb_root aec;
-	} prot;
+	struct list_head pq[UBI_PROT_QUEUE_LEN];
+	int pq_head;
 	spinlock_t wl_lock;
 	struct mutex move_mutex;
 	struct rw_semaphore work_sem;
 	int wl_scheduled;
 	struct ubi_wl_entry **lookuptbl;
-	unsigned long long abs_ec;
 	struct ubi_wl_entry *move_from;
 	struct ubi_wl_entry *move_to;
 	int move_to_put;
@@ -442,9 +452,9 @@ struct ubi_device {
 };
 
 extern struct kmem_cache *ubi_wl_entry_slab;
-extern struct file_operations ubi_ctrl_cdev_operations;
-extern struct file_operations ubi_cdev_operations;
-extern struct file_operations ubi_vol_cdev_operations;
+extern const struct file_operations ubi_ctrl_cdev_operations;
+extern const struct file_operations ubi_cdev_operations;
+extern const struct file_operations ubi_vol_cdev_operations;
 extern struct class *ubi_class;
 extern struct mutex ubi_devices_mutex;
 

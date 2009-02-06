@@ -2,8 +2,10 @@
 #error "Please don't include <linux/compiler-gcc4.h> directly, include <linux/compiler.h> instead."
 #endif
 
-/* These definitions are for GCC v4.x.  */
-#include <linux/compiler-gcc.h>
+/* GCC 4.1.[01] miscompiles __weak */
+#if __GNUC_MINOR__ == 1 && __GNUC_PATCHLEVEL__ <= 1
+# error Your version of gcc miscompiles the __weak directive
+#endif
 
 #define __used			__attribute__((__used__))
 #define __must_check 		__attribute__((warn_unused_result))
@@ -16,7 +18,7 @@
  */
 #define uninitialized_var(x) x = x
 
-#if !(__GNUC__ == 4 && __GNUC_MINOR__ < 3)
+#if __GNUC_MINOR__ >= 3
 /* Mark functions as cold. gcc will assume any path leading to a call
    to them will be unlikely.  This means a lot of manual unlikely()s
    are unnecessary now for any paths leading to the usual suspects

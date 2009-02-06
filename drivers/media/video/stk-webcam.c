@@ -664,7 +664,7 @@ static void stk_free_buffers(struct stk_camera *dev)
 
 /* v4l file operations */
 
-static int v4l_stk_open(struct inode *inode, struct file *fp)
+static int v4l_stk_open(struct file *fp)
 {
 	struct stk_camera *dev;
 	struct video_device *vdev;
@@ -684,7 +684,7 @@ static int v4l_stk_open(struct inode *inode, struct file *fp)
 	return 0;
 }
 
-static int v4l_stk_release(struct inode *inode, struct file *fp)
+static int v4l_stk_release(struct file *fp)
 {
 	struct stk_camera *dev = fp->private_data;
 
@@ -1281,7 +1281,7 @@ static int stk_vidioc_enum_framesizes(struct file *filp,
 	}
 }
 
-static struct file_operations v4l_stk_fops = {
+static struct v4l2_file_operations v4l_stk_fops = {
 	.owner = THIS_MODULE,
 	.open = v4l_stk_open,
 	.release = v4l_stk_release,
@@ -1289,10 +1289,6 @@ static struct file_operations v4l_stk_fops = {
 	.poll = v4l_stk_poll,
 	.mmap = v4l_stk_mmap,
 	.ioctl = video_ioctl2,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl = v4l_compat_ioctl32,
-#endif
-	.llseek = no_llseek
 };
 
 static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {

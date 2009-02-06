@@ -239,7 +239,7 @@ void resume_map_numa_kva(pgd_t *pgd_base)
 		start_pfn = node_remap_start_pfn[node];
 		size = node_remap_size[node];
 
-		printk(KERN_DEBUG "%s: node %d\n", __FUNCTION__, node);
+		printk(KERN_DEBUG "%s: node %d\n", __func__, node);
 
 		for (pfn = 0; pfn < size; pfn += PTRS_PER_PTE) {
 			unsigned long vaddr = start_va + (pfn << PAGE_SHIFT);
@@ -251,7 +251,7 @@ void resume_map_numa_kva(pgd_t *pgd_base)
 						PAGE_KERNEL_LARGE_EXEC));
 
 			printk(KERN_DEBUG "%s: %08lx -> pfn %08lx\n",
-				__FUNCTION__, vaddr, start_pfn + pfn);
+				__func__, vaddr, start_pfn + pfn);
 		}
 	}
 }

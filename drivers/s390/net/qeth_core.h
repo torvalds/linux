@@ -643,7 +643,6 @@ struct qeth_card_options {
 	int macaddr_mode;
 	int fake_broadcast;
 	int add_hhlen;
-	int fake_ll;
 	int layer2;
 	enum qeth_large_send_types large_send;
 	int performance_stats;

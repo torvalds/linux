@@ -12,6 +12,7 @@
 #include <net/net_namespace.h>
 
 extern struct files_struct init_files;
+extern struct fs_struct init_fs;
 
 #define INIT_KIOCTX(name, which_mm) \
 {							\
@@ -47,6 +48,12 @@ extern struct files_struct init_files;
 	.posix_timers	 = LIST_HEAD_INIT(sig.posix_timers),		\
 	.cpu_timers	= INIT_CPU_TIMERS(sig.cpu_timers),		\
 	.rlim		= INIT_RLIMITS,					\
+	.cputime	= { .totals = {					\
+		.utime = cputime_zero,					\
+		.stime = cputime_zero,					\
+		.sum_exec_runtime = 0,					\
+		.lock = __SPIN_LOCK_UNLOCKED(sig.cputime.totals.lock),	\
+	}, },								\
 }
 
 extern struct nsproxy init_nsproxy;

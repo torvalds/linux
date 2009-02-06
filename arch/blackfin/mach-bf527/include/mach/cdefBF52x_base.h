@@ -31,7 +31,6 @@
 #ifndef _CDEF_BF52X_H
 #define _CDEF_BF52X_H
 
-#include <asm/system.h>
 #include <asm/blackfin.h>
 
 #include "defBF52x_base.h"
@@ -43,57 +42,9 @@
 
 /* Clock and System Control	(0xFFC00000 - 0xFFC000FF)								*/
 #define bfin_read_PLL_CTL()			bfin_read16(PLL_CTL)
-/* Writing to PLL_CTL initiates a PLL relock sequence. */
-static __inline__ void bfin_write_PLL_CTL(unsigned int val)
-{
-	unsigned long flags, iwr0, iwr1;
-
-	if (val == bfin_read_PLL_CTL())
-		return;
-
-	local_irq_save(flags);
-	/* Enable the PLL Wakeup bit in SIC IWR */
-	iwr0 = bfin_read32(SIC_IWR0);
-	iwr1 = bfin_read32(SIC_IWR1);
-	/* Only allow PPL Wakeup) */
-	bfin_write32(SIC_IWR0, IWR_ENABLE(0));
-	bfin_write32(SIC_IWR1, 0);
-
-	bfin_write16(PLL_CTL, val);
-	SSYNC();
-	asm("IDLE;");
-
-	bfin_write32(SIC_IWR0, iwr0);
-	bfin_write32(SIC_IWR1, iwr1);
-	local_irq_restore(flags);
-}
 #define bfin_read_PLL_DIV()			bfin_read16(PLL_DIV)
 #define bfin_write_PLL_DIV(val)			bfin_write16(PLL_DIV, val)
 #define bfin_read_VR_CTL()			bfin_read16(VR_CTL)
-/* Writing to VR_CTL initiates a PLL relock sequence. */
-static __inline__ void bfin_write_VR_CTL(unsigned int val)
-{
-	unsigned long flags, iwr0, iwr1;
-
-	if (val == bfin_read_VR_CTL())
-		return;
-
-	local_irq_save(flags);
-	/* Enable the PLL Wakeup bit in SIC IWR */
-	iwr0 = bfin_read32(SIC_IWR0);
-	iwr1 = bfin_read32(SIC_IWR1);
-	/* Only allow PPL Wakeup) */
-	bfin_write32(SIC_IWR0, IWR_ENABLE(0));
-	bfin_write32(SIC_IWR1, 0);
-
-	bfin_write16(VR_CTL, val);
-	SSYNC();
-	asm("IDLE;");
-
-	bfin_write32(SIC_IWR0, iwr0);
-	bfin_write32(SIC_IWR1, iwr1);
-	local_irq_restore(flags);
-}
 #define bfin_read_PLL_STAT()			bfin_read16(PLL_STAT)
 #define bfin_write_PLL_STAT(val)		bfin_write16(PLL_STAT, val)
 #define bfin_read_PLL_LOCKCNT()			bfin_read16(PLL_LOCKCNT)
@@ -1200,5 +1151,58 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 #define bfin_write_NFC_DATA_WR(val)		bfin_write16(NFC_DATA_WR, val)
 #define bfin_read_NFC_DATA_RD()			bfin_read16(NFC_DATA_RD)
 #define bfin_write_NFC_DATA_RD(val)		bfin_write16(NFC_DATA_RD, val)
+
+/* These need to be last due to the cdef/linux inter-dependencies */
+#include <asm/irq.h>
+
+/* Writing to PLL_CTL initiates a PLL relock sequence. */
+static __inline__ void bfin_write_PLL_CTL(unsigned int val)
+{
+	unsigned long flags, iwr0, iwr1;
+
+	if (val == bfin_read_PLL_CTL())
+		return;
+
+	local_irq_save_hw(flags);
+	/* Enable the PLL Wakeup bit in SIC IWR */
+	iwr0 = bfin_read32(SIC_IWR0);
+	iwr1 = bfin_read32(SIC_IWR1);
+	/* Only allow PPL Wakeup) */
+	bfin_write32(SIC_IWR0, IWR_ENABLE(0));
+	bfin_write32(SIC_IWR1, 0);
+
+	bfin_write16(PLL_CTL, val);
+	SSYNC();
+	asm("IDLE;");
+
+	bfin_write32(SIC_IWR0, iwr0);
+	bfin_write32(SIC_IWR1, iwr1);
+	local_irq_restore_hw(flags);
+}
+
+/* Writing to VR_CTL initiates a PLL relock sequence. */
+static __inline__ void bfin_write_VR_CTL(unsigned int val)
+{
+	unsigned long flags, iwr0, iwr1;
+
+	if (val == bfin_read_VR_CTL())
+		return;
+
+	local_irq_save_hw(flags);
+	/* Enable the PLL Wakeup bit in SIC IWR */
+	iwr0 = bfin_read32(SIC_IWR0);
+	iwr1 = bfin_read32(SIC_IWR1);
+	/* Only allow PPL Wakeup) */
+	bfin_write32(SIC_IWR0, IWR_ENABLE(0));
+	bfin_write32(SIC_IWR1, 0);
+
+	bfin_write16(VR_CTL, val);
+	SSYNC();
+	asm("IDLE;");
+
+	bfin_write32(SIC_IWR0, iwr0);
+	bfin_write32(SIC_IWR1, iwr1);
+	local_irq_restore_hw(flags);
+}
 
 #endif /* _CDEF_BF52X_H */

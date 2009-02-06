@@ -36,8 +36,11 @@ static struct _cache_table cache_table[] __cpuinitdata =
 {
 	{ 0x06, LVL_1_INST, 8 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x08, LVL_1_INST, 16 },	/* 4-way set assoc, 32 byte line size */
+	{ 0x09, LVL_1_INST, 32 },	/* 4-way set assoc, 64 byte line size */
 	{ 0x0a, LVL_1_DATA, 8 },	/* 2 way set assoc, 32 byte line size */
 	{ 0x0c, LVL_1_DATA, 16 },	/* 4-way set assoc, 32 byte line size */
+	{ 0x0d, LVL_1_DATA, 16 },	/* 4-way set assoc, 64 byte line size */
+	{ 0x21, LVL_2,      256 },	/* 8-way set assoc, 64 byte line size */
 	{ 0x22, LVL_3,      512 },	/* 4-way set assoc, sectored cache, 64 byte line size */
 	{ 0x23, LVL_3,      1024 },	/* 8-way set assoc, sectored cache, 64 byte line size */
 	{ 0x25, LVL_3,      2048 },	/* 8-way set assoc, sectored cache, 64 byte line size */
@@ -85,6 +88,18 @@ static struct _cache_table cache_table[] __cpuinitdata =
 	{ 0x85, LVL_2,    2048 },	/* 8-way set assoc, 32 byte line size */
 	{ 0x86, LVL_2,     512 },	/* 4-way set assoc, 64 byte line size */
 	{ 0x87, LVL_2,    1024 },	/* 8-way set assoc, 64 byte line size */
+	{ 0xd0, LVL_3,     512 },	/* 4-way set assoc, 64 byte line size */
+	{ 0xd1, LVL_3,    1024 },	/* 4-way set assoc, 64 byte line size */
+	{ 0xd2, LVL_3,    2048 },	/* 4-way set assoc, 64 byte line size */
+	{ 0xd6, LVL_3,    1024 },	/* 8-way set assoc, 64 byte line size */
+	{ 0xd7, LVL_3,    2038 },	/* 8-way set assoc, 64 byte line size */
+	{ 0xd8, LVL_3,    4096 },	/* 12-way set assoc, 64 byte line size */
+	{ 0xdc, LVL_3,    2048 },	/* 12-way set assoc, 64 byte line size */
+	{ 0xdd, LVL_3,    4096 },	/* 12-way set assoc, 64 byte line size */
+	{ 0xde, LVL_3,    8192 },	/* 12-way set assoc, 64 byte line size */
+	{ 0xe2, LVL_3,    2048 },	/* 16-way set assoc, 64 byte line size */
+	{ 0xe3, LVL_3,    4096 },	/* 16-way set assoc, 64 byte line size */
+	{ 0xe4, LVL_3,    8192 },	/* 16-way set assoc, 64 byte line size */
 	{ 0x00, 0, 0}
 };
 
@@ -534,12 +549,29 @@ static void __cpuinit free_cache_attributes(unsigned int cpu)
 	per_cpu(cpuid4_info, cpu) = NULL;
 }
 
+static void __cpuinit get_cpu_leaves(void *_retval)
+{
+	int j, *retval = _retval, cpu = smp_processor_id();
+
+	/* Do cpuid and store the results */
+	for (j = 0; j < num_cache_leaves; j++) {
+		struct _cpuid4_info *this_leaf;
+		this_leaf = CPUID4_INFO_IDX(cpu, j);
+		*retval = cpuid4_cache_lookup(j, this_leaf);
+		if (unlikely(*retval < 0)) {
+			int i;
+
+			for (i = 0; i < j; i++)
+				cache_remove_shared_cpu_map(cpu, i);
+			break;
+		}
+		cache_shared_cpu_map_setup(cpu, j);
+	}
+}
+
 static int __cpuinit detect_cache_attributes(unsigned int cpu)
 {
-	struct _cpuid4_info	*this_leaf;
-	unsigned long		j;
 	int			retval;
-	cpumask_t		oldmask;
 
 	if (num_cache_leaves == 0)
 		return -ENOENT;
@@ -549,27 +581,7 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 	if (per_cpu(cpuid4_info, cpu) == NULL)
 		return -ENOMEM;
 
-	oldmask = current->cpus_allowed;
-	retval = set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-	if (retval)
-		goto out;
-
-	/* Do cpuid and store the results */
-	for (j = 0; j < num_cache_leaves; j++) {
-		this_leaf = CPUID4_INFO_IDX(cpu, j);
-		retval = cpuid4_cache_lookup(j, this_leaf);
-		if (unlikely(retval < 0)) {
-			int i;
-
-			for (i = 0; i < j; i++)
-				cache_remove_shared_cpu_map(cpu, i);
-			break;
-		}
-		cache_shared_cpu_map_setup(cpu, j);
-	}
-	set_cpus_allowed_ptr(current, &oldmask);
-
-out:
+	smp_call_function_single(cpu, get_cpu_leaves, &retval, true);
 	if (retval) {
 		kfree(per_cpu(cpuid4_info, cpu));
 		per_cpu(cpuid4_info, cpu) = NULL;
@@ -626,8 +638,8 @@ static ssize_t show_shared_cpu_map_func(struct _cpuid4_info *this_leaf,
 		cpumask_t *mask = &this_leaf->shared_cpu_map;
 
 		n = type?
-			cpulist_scnprintf(buf, len-2, *mask):
-			cpumask_scnprintf(buf, len-2, *mask);
+			cpulist_scnprintf(buf, len-2, mask) :
+			cpumask_scnprintf(buf, len-2, mask);
 		buf[n++] = '\n';
 		buf[n] = '\0';
 	}

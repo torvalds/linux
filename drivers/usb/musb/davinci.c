@@ -32,9 +32,10 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/memory.h>
-#include <asm/arch/gpio.h>
+#include <mach/hardware.h>
+#include <mach/memory.h>
+#include <mach/gpio.h>
+
 #include <asm/mach-types.h>
 
 #include "musb_core.h"
@@ -362,6 +363,12 @@ static irqreturn_t davinci_interrupt(int irq, void *__hci)
 	if (retval != IRQ_HANDLED)
 		DBG(5, "unhandled? %08x\n", tmp);
 	return IRQ_HANDLED;
+}
+
+int musb_platform_set_mode(struct musb *musb, u8 mode)
+{
+	/* EVM can't do this (right?) */
+	return -EIO;
 }
 
 int __init musb_platform_init(struct musb *musb)

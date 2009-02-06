@@ -358,6 +358,7 @@ struct fc_rport {	/* aka fc_starget_attrs */
 #define FC_RPORT_DEVLOSS_PENDING	0x01
 #define FC_RPORT_SCAN_PENDING		0x02
 #define FC_RPORT_FAST_FAIL_TIMEDOUT	0x04
+#define FC_RPORT_DEVLOSS_CALLBK_DONE	0x08
 
 #define	dev_to_rport(d)				\
 	container_of(d, struct fc_rport, dev)

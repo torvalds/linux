@@ -44,14 +44,26 @@
 #ifndef __ACENV_H__
 #define __ACENV_H__
 
-/*
+/* Types for ACPI_MUTEX_TYPE */
+
+#define ACPI_BINARY_SEMAPHORE       0
+#define ACPI_OSL_MUTEX              1
+
+/* Types for DEBUGGER_THREADING */
+
+#define DEBUGGER_SINGLE_THREADED    0
+#define DEBUGGER_MULTI_THREADED     1
+
+/******************************************************************************
+ *
  * Configuration for ACPI tools and utilities
- */
+ *
+ *****************************************************************************/
 
 #ifdef ACPI_LIBRARY
 /*
  * Note: The non-debug version of the acpi_library does not contain any
- * debug support, for minimimal size. The debug version uses ACPI_FULL_DEBUG
+ * debug support, for minimal size. The debug version uses ACPI_FULL_DEBUG
  */
 #define ACPI_USE_LOCAL_CACHE
 #endif
@@ -73,17 +85,6 @@
 #define ACPI_DEBUGGER
 #define ACPI_MUTEX_DEBUG
 #define ACPI_DBG_TRACK_ALLOCATIONS
-#endif
-
-#ifdef ACPI_DASM_APP
-#ifndef MSDOS
-#define ACPI_DEBUG_OUTPUT
-#endif
-#define ACPI_APPLICATION
-#define ACPI_DISASSEMBLER
-#define ACPI_NO_METHOD_EXECUTION
-#define ACPI_LARGE_NAMESPACE_NODE
-#define ACPI_DATA_TABLE_DISASSEMBLY
 #endif
 
 #ifdef ACPI_APPLICATION
@@ -179,6 +180,19 @@
 
 /*! [End] no source code translation !*/
 
+/******************************************************************************
+ *
+ * Miscellaneous configuration
+ *
+ *****************************************************************************/
+
+/*
+ * Are mutexes supported by the host? default is no, use binary semaphores.
+ */
+#ifndef ACPI_MUTEX_TYPE
+#define ACPI_MUTEX_TYPE             ACPI_BINARY_SEMAPHORE
+#endif
+
 /*
  * Debugger threading model
  * Use single threaded if the entire subsystem is contained in an application
@@ -187,9 +201,6 @@
  * By default the model is single threaded if ACPI_APPLICATION is set,
  * multi-threaded if ACPI_APPLICATION is not set.
  */
-#define DEBUGGER_SINGLE_THREADED    0
-#define DEBUGGER_MULTI_THREADED     1
-
 #ifndef DEBUGGER_THREADING
 #ifdef ACPI_APPLICATION
 #define DEBUGGER_THREADING          DEBUGGER_SINGLE_THREADED

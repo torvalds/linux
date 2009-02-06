@@ -320,6 +320,8 @@ no_space:
 	dbg_err("LPT out of space at LEB %d:%d needing %d, done_ltab %d, "
 		"done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
 	dbg_dump_lpt_info(c);
+	dbg_dump_lpt_lebs(c);
+	dump_stack();
 	return err;
 }
 
@@ -546,29 +548,31 @@ static int write_cnodes(struct ubifs_info *c)
 no_space:
 	ubifs_err("LPT out of space mismatch");
 	dbg_err("LPT out of space mismatch at LEB %d:%d needing %d, done_ltab "
-	        "%d, done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
+		"%d, done_lsave %d", lnum, offs, len, done_ltab, done_lsave);
 	dbg_dump_lpt_info(c);
+	dbg_dump_lpt_lebs(c);
+	dump_stack();
 	return err;
 }
 
 /**
- * next_pnode - find next pnode.
+ * next_pnode_to_dirty - find next pnode to dirty.
  * @c: UBIFS file-system description object
  * @pnode: pnode
  *
- * This function returns the next pnode or %NULL if there are no more pnodes.
+ * This function returns the next pnode to dirty or %NULL if there are no more
+ * pnodes.  Note that pnodes that have never been written (lnum == 0) are
+ * skipped.
  */
-static struct ubifs_pnode *next_pnode(struct ubifs_info *c,
-				      struct ubifs_pnode *pnode)
+static struct ubifs_pnode *next_pnode_to_dirty(struct ubifs_info *c,
+					       struct ubifs_pnode *pnode)
 {
 	struct ubifs_nnode *nnode;
 	int iip;
 
 	/* Try to go right */
 	nnode = pnode->parent;
-	iip = pnode->iip + 1;
-	if (iip < UBIFS_LPT_FANOUT) {
-		/* We assume here that LEB zero is never an LPT LEB */
+	for (iip = pnode->iip + 1; iip < UBIFS_LPT_FANOUT; iip++) {
 		if (nnode->nbranch[iip].lnum)
 			return ubifs_get_pnode(c, nnode, iip);
 	}
@@ -579,8 +583,11 @@ static struct ubifs_pnode *next_pnode(struct ubifs_info *c,
 		nnode = nnode->parent;
 		if (!nnode)
 			return NULL;
-		/* We assume here that LEB zero is never an LPT LEB */
-	} while (iip >= UBIFS_LPT_FANOUT || !nnode->nbranch[iip].lnum);
+		for (; iip < UBIFS_LPT_FANOUT; iip++) {
+			if (nnode->nbranch[iip].lnum)
+				break;
+		}
+       } while (iip >= UBIFS_LPT_FANOUT);
 
 	/* Go right */
 	nnode = ubifs_get_nnode(c, nnode, iip);
@@ -589,12 +596,29 @@ static struct ubifs_pnode *next_pnode(struct ubifs_info *c,
 
 	/* Go down to level 1 */
 	while (nnode->level > 1) {
-		nnode = ubifs_get_nnode(c, nnode, 0);
+		for (iip = 0; iip < UBIFS_LPT_FANOUT; iip++) {
+			if (nnode->nbranch[iip].lnum)
+				break;
+		}
+		if (iip >= UBIFS_LPT_FANOUT) {
+			/*
+			 * Should not happen, but we need to keep going
+			 * if it does.
+			 */
+			iip = 0;
+		}
+		nnode = ubifs_get_nnode(c, nnode, iip);
 		if (IS_ERR(nnode))
 			return (void *)nnode;
 	}
 
-	return ubifs_get_pnode(c, nnode, 0);
+	for (iip = 0; iip < UBIFS_LPT_FANOUT; iip++)
+		if (nnode->nbranch[iip].lnum)
+			break;
+	if (iip >= UBIFS_LPT_FANOUT)
+		/* Should not happen, but we need to keep going if it does */
+		iip = 0;
+	return ubifs_get_pnode(c, nnode, iip);
 }
 
 /**
@@ -684,7 +708,7 @@ static int make_tree_dirty(struct ubifs_info *c)
 	pnode = pnode_lookup(c, 0);
 	while (pnode) {
 		do_make_pnode_dirty(c, pnode);
-		pnode = next_pnode(c, pnode);
+		pnode = next_pnode_to_dirty(c, pnode);
 		if (IS_ERR(pnode))
 			return PTR_ERR(pnode);
 	}
@@ -749,7 +773,7 @@ static void lpt_tgc_start(struct ubifs_info *c)
  * LPT trivial garbage collection is where a LPT LEB contains only dirty and
  * free space and so may be reused as soon as the next commit is completed.
  * This function is called after the commit is completed (master node has been
- * written) and unmaps LPT LEBs that were marked for trivial GC.
+ * written) and un-maps LPT LEBs that were marked for trivial GC.
  */
 static int lpt_tgc_end(struct ubifs_info *c)
 {
@@ -1025,7 +1049,7 @@ static int make_node_dirty(struct ubifs_info *c, int node_type, int node_num,
  * @c: UBIFS file-system description object
  * @node_type: LPT node type
  */
-static int get_lpt_node_len(struct ubifs_info *c, int node_type)
+static int get_lpt_node_len(const struct ubifs_info *c, int node_type)
 {
 	switch (node_type) {
 	case UBIFS_LPT_NNODE:
@@ -1046,7 +1070,7 @@ static int get_lpt_node_len(struct ubifs_info *c, int node_type)
  * @buf: buffer
  * @len: length of buffer
  */
-static int get_pad_len(struct ubifs_info *c, uint8_t *buf, int len)
+static int get_pad_len(const struct ubifs_info *c, uint8_t *buf, int len)
 {
 	int offs, pad_len;
 
@@ -1063,7 +1087,8 @@ static int get_pad_len(struct ubifs_info *c, uint8_t *buf, int len)
  * @buf: buffer
  * @node_num: node number is returned here
  */
-static int get_lpt_node_type(struct ubifs_info *c, uint8_t *buf, int *node_num)
+static int get_lpt_node_type(const struct ubifs_info *c, uint8_t *buf,
+			     int *node_num)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
 	int pos = 0, node_type;
@@ -1081,7 +1106,7 @@ static int get_lpt_node_type(struct ubifs_info *c, uint8_t *buf, int *node_num)
  *
  * This function returns %1 if the buffer contains a node or %0 if it does not.
  */
-static int is_a_node(struct ubifs_info *c, uint8_t *buf, int len)
+static int is_a_node(const struct ubifs_info *c, uint8_t *buf, int len)
 {
 	uint8_t *addr = buf + UBIFS_LPT_CRC_BYTES;
 	int pos = 0, node_type, node_len;
@@ -1104,7 +1129,6 @@ static int is_a_node(struct ubifs_info *c, uint8_t *buf, int len)
 		return 0;
 	return 1;
 }
-
 
 /**
  * lpt_gc_lnum - garbage collect a LPT LEB.
@@ -1463,7 +1487,7 @@ void ubifs_lpt_free(struct ubifs_info *c, int wr_only)
 #ifdef CONFIG_UBIFS_FS_DEBUG
 
 /**
- * dbg_is_all_ff - determine if a buffer contains only 0xff bytes.
+ * dbg_is_all_ff - determine if a buffer contains only 0xFF bytes.
  * @buf: buffer
  * @len: buffer length
  */
@@ -1488,7 +1512,7 @@ static int dbg_is_nnode_dirty(struct ubifs_info *c, int lnum, int offs)
 	struct ubifs_nnode *nnode;
 	int hght;
 
-	/* Entire tree is in memory so first_nnode / next_nnode are ok */
+	/* Entire tree is in memory so first_nnode / next_nnode are OK */
 	nnode = first_nnode(c, &hght);
 	for (; nnode; nnode = next_nnode(c, nnode, &hght)) {
 		struct ubifs_nbranch *branch;
@@ -1602,7 +1626,10 @@ static int dbg_check_ltab_lnum(struct ubifs_info *c, int lnum)
 {
 	int err, len = c->leb_size, dirty = 0, node_type, node_num, node_len;
 	int ret;
-	void *buf = c->dbg_buf;
+	void *buf = c->dbg->buf;
+
+	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+		return 0;
 
 	dbg_lp("LEB %d", lnum);
 	err = ubi_read(c->ubi, lnum, buf, 0, c->leb_size);
@@ -1704,6 +1731,9 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
 	long long free = 0;
 	int i;
 
+	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+		return 0;
+
 	for (i = 0; i < c->lpt_lebs; i++) {
 		if (c->ltab[i].tgc || c->ltab[i].cmt)
 			continue;
@@ -1716,6 +1746,8 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
 		dbg_err("LPT space error: free %lld lpt_sz %lld",
 			free, c->lpt_sz);
 		dbg_dump_lpt_info(c);
+		dbg_dump_lpt_lebs(c);
+		dump_stack();
 		return -EINVAL;
 	}
 	return 0;
@@ -1731,15 +1763,19 @@ int dbg_chk_lpt_free_spc(struct ubifs_info *c)
  */
 int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 {
+	struct ubifs_debug_info *d = c->dbg;
 	long long chk_lpt_sz, lpt_sz;
 	int err = 0;
 
+	if (!(ubifs_chk_flags & UBIFS_CHK_LPROPS))
+		return 0;
+
 	switch (action) {
 	case 0:
-		c->chk_lpt_sz = 0;
-		c->chk_lpt_sz2 = 0;
-		c->chk_lpt_lebs = 0;
-		c->chk_lpt_wastage = 0;
+		d->chk_lpt_sz = 0;
+		d->chk_lpt_sz2 = 0;
+		d->chk_lpt_lebs = 0;
+		d->chk_lpt_wastage = 0;
 		if (c->dirty_pn_cnt > c->pnode_cnt) {
 			dbg_err("dirty pnodes %d exceed max %d",
 				c->dirty_pn_cnt, c->pnode_cnt);
@@ -1752,35 +1788,35 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 		}
 		return err;
 	case 1:
-		c->chk_lpt_sz += len;
+		d->chk_lpt_sz += len;
 		return 0;
 	case 2:
-		c->chk_lpt_sz += len;
-		c->chk_lpt_wastage += len;
-		c->chk_lpt_lebs += 1;
+		d->chk_lpt_sz += len;
+		d->chk_lpt_wastage += len;
+		d->chk_lpt_lebs += 1;
 		return 0;
 	case 3:
 		chk_lpt_sz = c->leb_size;
-		chk_lpt_sz *= c->chk_lpt_lebs;
+		chk_lpt_sz *= d->chk_lpt_lebs;
 		chk_lpt_sz += len - c->nhead_offs;
-		if (c->chk_lpt_sz != chk_lpt_sz) {
+		if (d->chk_lpt_sz != chk_lpt_sz) {
 			dbg_err("LPT wrote %lld but space used was %lld",
-				c->chk_lpt_sz, chk_lpt_sz);
+				d->chk_lpt_sz, chk_lpt_sz);
 			err = -EINVAL;
 		}
-		if (c->chk_lpt_sz > c->lpt_sz) {
+		if (d->chk_lpt_sz > c->lpt_sz) {
 			dbg_err("LPT wrote %lld but lpt_sz is %lld",
-				c->chk_lpt_sz, c->lpt_sz);
+				d->chk_lpt_sz, c->lpt_sz);
 			err = -EINVAL;
 		}
-		if (c->chk_lpt_sz2 && c->chk_lpt_sz != c->chk_lpt_sz2) {
+		if (d->chk_lpt_sz2 && d->chk_lpt_sz != d->chk_lpt_sz2) {
 			dbg_err("LPT layout size %lld but wrote %lld",
-				c->chk_lpt_sz, c->chk_lpt_sz2);
+				d->chk_lpt_sz, d->chk_lpt_sz2);
 			err = -EINVAL;
 		}
-		if (c->chk_lpt_sz2 && c->new_nhead_offs != len) {
+		if (d->chk_lpt_sz2 && d->new_nhead_offs != len) {
 			dbg_err("LPT new nhead offs: expected %d was %d",
-				c->new_nhead_offs, len);
+				d->new_nhead_offs, len);
 			err = -EINVAL;
 		}
 		lpt_sz = (long long)c->pnode_cnt * c->pnode_sz;
@@ -1788,26 +1824,146 @@ int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len)
 		lpt_sz += c->ltab_sz;
 		if (c->big_lpt)
 			lpt_sz += c->lsave_sz;
-		if (c->chk_lpt_sz - c->chk_lpt_wastage > lpt_sz) {
+		if (d->chk_lpt_sz - d->chk_lpt_wastage > lpt_sz) {
 			dbg_err("LPT chk_lpt_sz %lld + waste %lld exceeds %lld",
-				c->chk_lpt_sz, c->chk_lpt_wastage, lpt_sz);
+				d->chk_lpt_sz, d->chk_lpt_wastage, lpt_sz);
 			err = -EINVAL;
 		}
-		if (err)
+		if (err) {
 			dbg_dump_lpt_info(c);
-		c->chk_lpt_sz2 = c->chk_lpt_sz;
-		c->chk_lpt_sz = 0;
-		c->chk_lpt_wastage = 0;
-		c->chk_lpt_lebs = 0;
-		c->new_nhead_offs = len;
+			dbg_dump_lpt_lebs(c);
+			dump_stack();
+		}
+		d->chk_lpt_sz2 = d->chk_lpt_sz;
+		d->chk_lpt_sz = 0;
+		d->chk_lpt_wastage = 0;
+		d->chk_lpt_lebs = 0;
+		d->new_nhead_offs = len;
 		return err;
 	case 4:
-		c->chk_lpt_sz += len;
-		c->chk_lpt_wastage += len;
+		d->chk_lpt_sz += len;
+		d->chk_lpt_wastage += len;
 		return 0;
 	default:
 		return -EINVAL;
 	}
+}
+
+/**
+ * dbg_dump_lpt_leb - dump an LPT LEB.
+ * @c: UBIFS file-system description object
+ * @lnum: LEB number to dump
+ *
+ * This function dumps an LEB from LPT area. Nodes in this area are very
+ * different to nodes in the main area (e.g., they do not have common headers,
+ * they do not have 8-byte alignments, etc), so we have a separate function to
+ * dump LPT area LEBs. Note, LPT has to be locked by the caller.
+ */
+static void dump_lpt_leb(const struct ubifs_info *c, int lnum)
+{
+	int err, len = c->leb_size, node_type, node_num, node_len, offs;
+	void *buf = c->dbg->buf;
+
+	printk(KERN_DEBUG "(pid %d) start dumping LEB %d\n",
+	       current->pid, lnum);
+	err = ubi_read(c->ubi, lnum, buf, 0, c->leb_size);
+	if (err) {
+		ubifs_err("cannot read LEB %d, error %d", lnum, err);
+		return;
+	}
+	while (1) {
+		offs = c->leb_size - len;
+		if (!is_a_node(c, buf, len)) {
+			int pad_len;
+
+			pad_len = get_pad_len(c, buf, len);
+			if (pad_len) {
+				printk(KERN_DEBUG "LEB %d:%d, pad %d bytes\n",
+				       lnum, offs, pad_len);
+				buf += pad_len;
+				len -= pad_len;
+				continue;
+			}
+			if (len)
+				printk(KERN_DEBUG "LEB %d:%d, free %d bytes\n",
+				       lnum, offs, len);
+			break;
+		}
+
+		node_type = get_lpt_node_type(c, buf, &node_num);
+		switch (node_type) {
+		case UBIFS_LPT_PNODE:
+		{
+			node_len = c->pnode_sz;
+			if (c->big_lpt)
+				printk(KERN_DEBUG "LEB %d:%d, pnode num %d\n",
+				       lnum, offs, node_num);
+			else
+				printk(KERN_DEBUG "LEB %d:%d, pnode\n",
+				       lnum, offs);
+			break;
+		}
+		case UBIFS_LPT_NNODE:
+		{
+			int i;
+			struct ubifs_nnode nnode;
+
+			node_len = c->nnode_sz;
+			if (c->big_lpt)
+				printk(KERN_DEBUG "LEB %d:%d, nnode num %d, ",
+				       lnum, offs, node_num);
+			else
+				printk(KERN_DEBUG "LEB %d:%d, nnode, ",
+				       lnum, offs);
+			err = ubifs_unpack_nnode(c, buf, &nnode);
+			for (i = 0; i < UBIFS_LPT_FANOUT; i++) {
+				printk("%d:%d", nnode.nbranch[i].lnum,
+				       nnode.nbranch[i].offs);
+				if (i != UBIFS_LPT_FANOUT - 1)
+					printk(", ");
+			}
+			printk("\n");
+			break;
+		}
+		case UBIFS_LPT_LTAB:
+			node_len = c->ltab_sz;
+			printk(KERN_DEBUG "LEB %d:%d, ltab\n",
+			       lnum, offs);
+			break;
+		case UBIFS_LPT_LSAVE:
+			node_len = c->lsave_sz;
+			printk(KERN_DEBUG "LEB %d:%d, lsave len\n", lnum, offs);
+			break;
+		default:
+			ubifs_err("LPT node type %d not recognized", node_type);
+			return;
+		}
+
+		buf += node_len;
+		len -= node_len;
+	}
+
+	printk(KERN_DEBUG "(pid %d) finish dumping LEB %d\n",
+	       current->pid, lnum);
+}
+
+/**
+ * dbg_dump_lpt_lebs - dump LPT lebs.
+ * @c: UBIFS file-system description object
+ *
+ * This function dumps all LPT LEBs. The caller has to make sure the LPT is
+ * locked.
+ */
+void dbg_dump_lpt_lebs(const struct ubifs_info *c)
+{
+	int i;
+
+	printk(KERN_DEBUG "(pid %d) start dumping all LPT LEBs\n",
+	       current->pid);
+	for (i = 0; i < c->lpt_lebs; i++)
+		dump_lpt_leb(c, i + c->lpt_first);
+	printk(KERN_DEBUG "(pid %d) finish dumping all LPT LEBs\n",
+	       current->pid);
 }
 
 #endif /* CONFIG_UBIFS_FS_DEBUG */

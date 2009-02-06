@@ -336,7 +336,7 @@ static int vnet_walk_rx_one(struct vnet_port *port,
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
-	viodbg(DATA, "vio_walk_rx_one desc[%02x:%02x:%08x:%08x:%lx:%lx]\n",
+	viodbg(DATA, "vio_walk_rx_one desc[%02x:%02x:%08x:%08x:%llx:%llx]\n",
 	       desc->hdr.state, desc->hdr.ack,
 	       desc->size, desc->ncookies,
 	       desc->cookies[0].cookie_addr,
@@ -394,14 +394,14 @@ static int vnet_rx(struct vnet_port *port, void *msgbuf)
 	struct vio_dring_state *dr = &port->vio.drings[VIO_DRIVER_RX_RING];
 	struct vio_driver_state *vio = &port->vio;
 
-	viodbg(DATA, "vnet_rx stype_env[%04x] seq[%016lx] rcv_nxt[%016lx]\n",
+	viodbg(DATA, "vnet_rx stype_env[%04x] seq[%016llx] rcv_nxt[%016llx]\n",
 	       pkt->tag.stype_env, pkt->seq, dr->rcv_nxt);
 
 	if (unlikely(pkt->tag.stype_env != VIO_DRING_DATA))
 		return 0;
 	if (unlikely(pkt->seq != dr->rcv_nxt)) {
-		printk(KERN_ERR PFX "RX out of sequence seq[0x%lx] "
-		       "rcv_nxt[0x%lx]\n", pkt->seq, dr->rcv_nxt);
+		printk(KERN_ERR PFX "RX out of sequence seq[0x%llx] "
+		       "rcv_nxt[0x%llx]\n", pkt->seq, dr->rcv_nxt);
 		return 0;
 	}
 

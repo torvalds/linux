@@ -70,7 +70,7 @@ int pnp_register_protocol(struct pnp_protocol *protocol)
 	spin_unlock(&pnp_lock);
 
 	protocol->number = nodenum;
-	sprintf(protocol->dev.bus_id, "pnp%d", nodenum);
+	dev_set_name(&protocol->dev, "pnp%d", nodenum);
 	return device_register(&protocol->dev);
 }
 
@@ -145,8 +145,7 @@ struct pnp_dev *pnp_alloc_dev(struct pnp_protocol *protocol, int id, char *pnpid
 	dev->dev.coherent_dma_mask = dev->dma_mask;
 	dev->dev.release = &pnp_release_device;
 
-	sprintf(dev->dev.bus_id, "%02x:%02x", dev->protocol->number,
-		dev->number);
+	dev_set_name(&dev->dev, "%02x:%02x", dev->protocol->number, dev->number);
 
 	dev_id = pnp_add_id(dev, pnpid);
 	if (!dev_id) {

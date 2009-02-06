@@ -77,12 +77,14 @@ mainmenu "Linux Kernel Configuration"
 config S390
 	def_bool y
 	select USE_GENERIC_SMP_HELPERS if SMP
+	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_FUNCTION_TRACER
 	select HAVE_OPROFILE
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_KVM if 64BIT
 	select HAVE_ARCH_TRACEHOOK
+	select INIT_ALL_POSSIBLE
 
 source "init/Kconfig"
 
@@ -298,7 +300,7 @@ config WARN_STACK
 	  This option enables the compiler options -mwarn-framesize and
 	  -mwarn-dynamicstack. If the compiler supports these options it
 	  will generate warnings for function which either use alloca or
-	  create a stack frame bigger then CONFIG_WARN_STACK_SIZE.
+	  create a stack frame bigger than CONFIG_WARN_STACK_SIZE.
 
 	  Say N if you are unsure.
 

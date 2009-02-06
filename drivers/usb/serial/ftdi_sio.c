@@ -660,6 +660,8 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(PAPOUCH_VID, PAPOUCH_QUIDO4x4_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_DOMINTELL_DGQG_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_DOMINTELL_DUSB_PID) },
+	{ USB_DEVICE(ALTI2_VID, ALTI2_N3_PID) },
+	{ USB_DEVICE(FTDI_VID, DIEBOLD_BCS_SE923_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
@@ -1054,6 +1056,8 @@ static int set_serial_info(struct tty_struct *tty,
 
 	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
 		return -EFAULT;
+
+	lock_kernel();
 	old_priv = *priv;
 
 	/* Do error checking and permission checking */
@@ -1069,8 +1073,10 @@ static int set_serial_info(struct tty_struct *tty,
 	}
 
 	if ((new_serial.baud_base != priv->baud_base) &&
-	    (new_serial.baud_base < 9600))
+	    (new_serial.baud_base < 9600)) {
+	    	unlock_kernel();
 		return -EINVAL;
+	}
 
 	/* Make the changes - these are privileged changes! */
 
@@ -1098,8 +1104,11 @@ check_and_exit:
 	     (priv->flags & ASYNC_SPD_MASK)) ||
 	    (((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST) &&
 	     (old_priv.custom_divisor != priv->custom_divisor))) {
+		unlock_kernel();
 		change_speed(tty, port);
 	}
+	else
+		unlock_kernel();
 	return 0;
 
 } /* set_serial_info */
@@ -2023,7 +2032,7 @@ static void ftdi_process_read(struct work_struct *work)
 			spin_unlock_irqrestore(&priv->rx_lock, flags);
 			dbg("%s - deferring remainder until unthrottled",
 					__func__);
-			return;
+			goto out;
 		}
 		spin_unlock_irqrestore(&priv->rx_lock, flags);
 		/* if the port is closed stop trying to read */

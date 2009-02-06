@@ -99,13 +99,21 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 static inline int blk_cpu_to_group(int cpu)
 {
 #ifdef CONFIG_SCHED_MC
-	cpumask_t mask = cpu_coregroup_map(cpu);
-	return first_cpu(mask);
+	const struct cpumask *mask = cpu_coregroup_mask(cpu);
+	return cpumask_first(mask);
 #elif defined(CONFIG_SCHED_SMT)
 	return first_cpu(per_cpu(cpu_sibling_map, cpu));
 #else
 	return cpu;
 #endif
+}
+
+static inline int blk_do_io_stat(struct request_queue *q)
+{
+	if (q)
+		return blk_queue_io_stat(q);
+
+	return 0;
 }
 
 #endif

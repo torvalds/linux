@@ -15,6 +15,8 @@
 #ifndef _MD_P_H
 #define _MD_P_H
 
+#include <linux/types.h>
+
 /*
  * RAID superblock.
  *
@@ -193,6 +195,8 @@ static inline __u64 md_event(mdp_super_t *sb) {
 	__u64 ev = sb->events_hi;
 	return (ev<<32)| sb->events_lo;
 }
+
+#define MD_SUPERBLOCK_1_TIME_SEC_MASK ((1ULL<<40) - 1)
 
 /*
  * The version-1 superblock :

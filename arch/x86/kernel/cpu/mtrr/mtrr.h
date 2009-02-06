@@ -8,11 +8,6 @@
 #define MTRRcap_MSR     0x0fe
 #define MTRRdefType_MSR 0x2ff
 
-#define MTRRphysBase_MSR(reg) (0x200 + 2 * (reg))
-#define MTRRphysMask_MSR(reg) (0x200 + 2 * (reg) + 1)
-
-#define NUM_FIXED_RANGES 88
-#define MAX_VAR_RANGES 256
 #define MTRRfix64K_00000_MSR 0x250
 #define MTRRfix16K_80000_MSR 0x258
 #define MTRRfix16K_A0000_MSR 0x259
@@ -29,11 +24,7 @@
 #define MTRR_CHANGE_MASK_VARIABLE  0x02
 #define MTRR_CHANGE_MASK_DEFTYPE   0x04
 
-/* In the Intel processor's MTRR interface, the MTRR type is always held in
-   an 8 bit field: */
-typedef u8 mtrr_type;
-
-extern unsigned int mtrr_usage_table[MAX_VAR_RANGES];
+extern unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 
 struct mtrr_ops {
 	u32	vendor;
@@ -68,13 +59,6 @@ struct set_mtrr_context {
 	u32 deftype_lo;
 	u32 deftype_hi;
 	u32 ccr3;
-};
-
-struct mtrr_var_range {
-	u32 base_lo;
-	u32 base_hi;
-	u32 mask_lo;
-	u32 mask_hi;
 };
 
 void set_mtrr_done(struct set_mtrr_context *ctxt);

@@ -7,7 +7,7 @@
 #include <linux/nodemask.h>
 #include <mach_apic.h>
 #include <asm/mpspec.h>
-#include "pci.h"
+#include <asm/pci_x86.h>
 
 #define XQUAD_PORTIO_BASE 0xfe400000
 #define XQUAD_PORTIO_QUAD 0x40000  /* 256k per quad. */

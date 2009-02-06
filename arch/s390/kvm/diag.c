@@ -47,7 +47,7 @@ static int __diag_ipl_functions(struct kvm_vcpu *vcpu)
 	vcpu->run->s390_reset_flags |= KVM_S390_RESET_IPL;
 	vcpu->run->s390_reset_flags |= KVM_S390_RESET_CPU_INIT;
 	vcpu->run->exit_reason = KVM_EXIT_S390_RESET;
-	VCPU_EVENT(vcpu, 3, "requesting userspace resets %lx",
+	VCPU_EVENT(vcpu, 3, "requesting userspace resets %llx",
 	  vcpu->run->s390_reset_flags);
 	return -EREMOTE;
 }

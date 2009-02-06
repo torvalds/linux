@@ -435,14 +435,10 @@ void ql_dump_wqicb(struct wqicb *wqicb)
 	printk(KERN_ERR PFX "wqicb->cq_id_rss = %d.\n",
 	       le16_to_cpu(wqicb->cq_id_rss));
 	printk(KERN_ERR PFX "wqicb->rid = 0x%x.\n", le16_to_cpu(wqicb->rid));
-	printk(KERN_ERR PFX "wqicb->wq_addr_lo = 0x%.08x.\n",
-	       le32_to_cpu(wqicb->addr_lo));
-	printk(KERN_ERR PFX "wqicb->wq_addr_hi = 0x%.08x.\n",
-	       le32_to_cpu(wqicb->addr_hi));
-	printk(KERN_ERR PFX "wqicb->wq_cnsmr_idx_addr_lo = 0x%.08x.\n",
-	       le32_to_cpu(wqicb->cnsmr_idx_addr_lo));
-	printk(KERN_ERR PFX "wqicb->wq_cnsmr_idx_addr_hi = 0x%.08x.\n",
-	       le32_to_cpu(wqicb->cnsmr_idx_addr_hi));
+	printk(KERN_ERR PFX "wqicb->wq_addr = 0x%llx.\n",
+	       (unsigned long long) le64_to_cpu(wqicb->addr));
+	printk(KERN_ERR PFX "wqicb->wq_cnsmr_idx_addr = 0x%llx.\n",
+	       (unsigned long long) le64_to_cpu(wqicb->cnsmr_idx_addr));
 }
 
 void ql_dump_tx_ring(struct tx_ring *tx_ring)
@@ -455,10 +451,11 @@ void ql_dump_tx_ring(struct tx_ring *tx_ring)
 	printk(KERN_ERR PFX "tx_ring->base = %p.\n", tx_ring->wq_base);
 	printk(KERN_ERR PFX "tx_ring->base_dma = 0x%llx.\n",
 	       (unsigned long long) tx_ring->wq_base_dma);
-	printk(KERN_ERR PFX "tx_ring->cnsmr_idx_sh_reg = %p.\n",
-	       tx_ring->cnsmr_idx_sh_reg);
-	printk(KERN_ERR PFX "tx_ring->cnsmr_idx_sh_reg_dma = 0x%llx.\n",
-	       (unsigned long long) tx_ring->cnsmr_idx_sh_reg_dma);
+	printk(KERN_ERR PFX
+	       "tx_ring->cnsmr_idx_sh_reg, addr = 0x%p, value = %d.\n",
+	       tx_ring->cnsmr_idx_sh_reg,
+	       tx_ring->cnsmr_idx_sh_reg
+			? ql_read_sh_reg(tx_ring->cnsmr_idx_sh_reg) : 0);
 	printk(KERN_ERR PFX "tx_ring->size = %d.\n", tx_ring->wq_size);
 	printk(KERN_ERR PFX "tx_ring->len = %d.\n", tx_ring->wq_len);
 	printk(KERN_ERR PFX "tx_ring->prod_idx_db_reg = %p.\n",
@@ -510,30 +507,22 @@ void ql_dump_cqicb(struct cqicb *cqicb)
 	printk(KERN_ERR PFX "cqicb->msix_vect = %d.\n", cqicb->msix_vect);
 	printk(KERN_ERR PFX "cqicb->flags = %x.\n", cqicb->flags);
 	printk(KERN_ERR PFX "cqicb->len = %d.\n", le16_to_cpu(cqicb->len));
-	printk(KERN_ERR PFX "cqicb->addr_lo = %x.\n",
-	       le32_to_cpu(cqicb->addr_lo));
-	printk(KERN_ERR PFX "cqicb->addr_hi = %x.\n",
-	       le32_to_cpu(cqicb->addr_hi));
-	printk(KERN_ERR PFX "cqicb->prod_idx_addr_lo = %x.\n",
-	       le32_to_cpu(cqicb->prod_idx_addr_lo));
-	printk(KERN_ERR PFX "cqicb->prod_idx_addr_hi = %x.\n",
-	       le32_to_cpu(cqicb->prod_idx_addr_hi));
+	printk(KERN_ERR PFX "cqicb->addr = 0x%llx.\n",
+	       (unsigned long long) le64_to_cpu(cqicb->addr));
+	printk(KERN_ERR PFX "cqicb->prod_idx_addr = 0x%llx.\n",
+	       (unsigned long long) le64_to_cpu(cqicb->prod_idx_addr));
 	printk(KERN_ERR PFX "cqicb->pkt_delay = 0x%.04x.\n",
 	       le16_to_cpu(cqicb->pkt_delay));
 	printk(KERN_ERR PFX "cqicb->irq_delay = 0x%.04x.\n",
 	       le16_to_cpu(cqicb->irq_delay));
-	printk(KERN_ERR PFX "cqicb->lbq_addr_lo = %x.\n",
-	       le32_to_cpu(cqicb->lbq_addr_lo));
-	printk(KERN_ERR PFX "cqicb->lbq_addr_hi = %x.\n",
-	       le32_to_cpu(cqicb->lbq_addr_hi));
+	printk(KERN_ERR PFX "cqicb->lbq_addr = 0x%llx.\n",
+	       (unsigned long long) le64_to_cpu(cqicb->lbq_addr));
 	printk(KERN_ERR PFX "cqicb->lbq_buf_size = 0x%.04x.\n",
 	       le16_to_cpu(cqicb->lbq_buf_size));
 	printk(KERN_ERR PFX "cqicb->lbq_len = 0x%.04x.\n",
 	       le16_to_cpu(cqicb->lbq_len));
-	printk(KERN_ERR PFX "cqicb->sbq_addr_lo = %x.\n",
-	       le32_to_cpu(cqicb->sbq_addr_lo));
-	printk(KERN_ERR PFX "cqicb->sbq_addr_hi = %x.\n",
-	       le32_to_cpu(cqicb->sbq_addr_hi));
+	printk(KERN_ERR PFX "cqicb->sbq_addr = 0x%llx.\n",
+	       (unsigned long long) le64_to_cpu(cqicb->sbq_addr));
 	printk(KERN_ERR PFX "cqicb->sbq_buf_size = 0x%.04x.\n",
 	       le16_to_cpu(cqicb->sbq_buf_size));
 	printk(KERN_ERR PFX "cqicb->sbq_len = 0x%.04x.\n",
@@ -558,9 +547,10 @@ void ql_dump_rx_ring(struct rx_ring *rx_ring)
 	printk(KERN_ERR PFX "rx_ring->cq_size = %d.\n", rx_ring->cq_size);
 	printk(KERN_ERR PFX "rx_ring->cq_len = %d.\n", rx_ring->cq_len);
 	printk(KERN_ERR PFX
-	       "rx_ring->prod_idx_sh_reg, addr = %p, value = %d.\n",
+	       "rx_ring->prod_idx_sh_reg, addr = 0x%p, value = %d.\n",
 	       rx_ring->prod_idx_sh_reg,
-	       rx_ring->prod_idx_sh_reg ? *(rx_ring->prod_idx_sh_reg) : 0);
+	       rx_ring->prod_idx_sh_reg
+			? ql_read_sh_reg(rx_ring->prod_idx_sh_reg) : 0);
 	printk(KERN_ERR PFX "rx_ring->prod_idx_sh_reg_dma = %llx.\n",
 	       (unsigned long long) rx_ring->prod_idx_sh_reg_dma);
 	printk(KERN_ERR PFX "rx_ring->cnsmr_idx_db_reg = %p.\n",
@@ -809,10 +799,8 @@ void ql_dump_ib_mac_rsp(struct ib_mac_iocb_rsp *ib_mac_rsp)
 
 	printk(KERN_ERR PFX "data_len	= %d\n",
 	       le32_to_cpu(ib_mac_rsp->data_len));
-	printk(KERN_ERR PFX "data_addr_hi    = 0x%x\n",
-	       le32_to_cpu(ib_mac_rsp->data_addr_hi));
-	printk(KERN_ERR PFX "data_addr_lo    = 0x%x\n",
-	       le32_to_cpu(ib_mac_rsp->data_addr_lo));
+	printk(KERN_ERR PFX "data_addr    = 0x%llx\n",
+	       (unsigned long long) le64_to_cpu(ib_mac_rsp->data_addr));
 	if (ib_mac_rsp->flags3 & IB_MAC_IOCB_RSP_RSS_MASK)
 		printk(KERN_ERR PFX "rss    = %x\n",
 		       le32_to_cpu(ib_mac_rsp->rss));
@@ -821,20 +809,15 @@ void ql_dump_ib_mac_rsp(struct ib_mac_iocb_rsp *ib_mac_rsp)
 		       le16_to_cpu(ib_mac_rsp->vlan_id));
 
 	printk(KERN_ERR PFX "flags4 = %s%s%s.\n",
-	       le32_to_cpu(ib_mac_rsp->
-			   flags4) & IB_MAC_IOCB_RSP_HV ? "HV " : "",
-	       le32_to_cpu(ib_mac_rsp->
-			   flags4) & IB_MAC_IOCB_RSP_HS ? "HS " : "",
-	       le32_to_cpu(ib_mac_rsp->
-			   flags4) & IB_MAC_IOCB_RSP_HL ? "HL " : "");
+		ib_mac_rsp->flags4 & IB_MAC_IOCB_RSP_HV ? "HV " : "",
+		ib_mac_rsp->flags4 & IB_MAC_IOCB_RSP_HS ? "HS " : "",
+		ib_mac_rsp->flags4 & IB_MAC_IOCB_RSP_HL ? "HL " : "");
 
-	if (le32_to_cpu(ib_mac_rsp->flags4) & IB_MAC_IOCB_RSP_HV) {
+	if (ib_mac_rsp->flags4 & IB_MAC_IOCB_RSP_HV) {
 		printk(KERN_ERR PFX "hdr length	= %d.\n",
 		       le32_to_cpu(ib_mac_rsp->hdr_len));
-		printk(KERN_ERR PFX "hdr addr_hi    = 0x%x.\n",
-		       le32_to_cpu(ib_mac_rsp->hdr_addr_hi));
-		printk(KERN_ERR PFX "hdr addr_lo    = 0x%x.\n",
-		       le32_to_cpu(ib_mac_rsp->hdr_addr_lo));
+		printk(KERN_ERR PFX "hdr addr    = 0x%llx.\n",
+		       (unsigned long long) le64_to_cpu(ib_mac_rsp->hdr_addr));
 	}
 }
 #endif

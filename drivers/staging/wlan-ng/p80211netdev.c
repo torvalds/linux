@@ -79,15 +79,12 @@
 #include <linux/ethtool.h>
 #endif
 
-#if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
-#endif
 #include <net/net_namespace.h>
 
 /*================================================================*/
 /* Project Includes */
 
-#include "version.h"
 #include "wlan_compat.h"
 #include "p80211types.h"
 #include "p80211hdr.h"
@@ -111,15 +108,6 @@
 /* Local Types */
 
 /*================================================================*/
-/* Local Static Definitions */
-
-#define __NO_VERSION__		/* prevent the static definition */
-
-#ifdef CONFIG_PROC_FS
-static struct proc_dir_entry	*proc_p80211;
-#endif
-
-/*================================================================*/
 /* Local Function Declarations */
 
 /* Support functions */
@@ -135,73 +123,24 @@ static void p80211knetdev_set_multicast_list(netdevice_t *dev);
 static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd);
 static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr);
 static void p80211knetdev_tx_timeout(netdevice_t *netdev);
-static int p80211_rx_typedrop( wlandevice_t *wlandev, UINT16 fc);
+static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc);
 
-#ifdef CONFIG_PROC_FS
-static int
-p80211netdev_proc_read(
-	char	*page,
-	char	**start,
-	off_t	offset,
-	int	count,
-	int	*eof,
-	void	*data);
+int wlan_watchdog = 5000;
+module_param(wlan_watchdog, int, 0644);
+MODULE_PARM_DESC(wlan_watchdog, "transmit timeout in milliseconds");
+
+int wlan_wext_write = 1;
+module_param(wlan_wext_write, int, 0644);
+MODULE_PARM_DESC(wlan_wext_write, "enable write wireless extensions");
+
+#ifdef WLAN_INCLUDE_DEBUG
+int wlan_debug=0;
+module_param(wlan_debug, int, 0644);
+MODULE_PARM_DESC(wlan_debug, "p80211 debug level");
 #endif
 
 /*================================================================*/
 /* Function Definitions */
-
-/*----------------------------------------------------------------
-* p80211knetdev_startup
-*
-* Initialize the wlandevice/netdevice part of 802.11 services at
-* load time.
-*
-* Arguments:
-*	none
-*
-* Returns:
-*	nothing
-----------------------------------------------------------------*/
-void p80211netdev_startup(void)
-{
-	DBFENTER;
-
-#ifdef CONFIG_PROC_FS
-	if (init_net.proc_net != NULL) {
-		proc_p80211 = create_proc_entry(
-				"p80211",
-				(S_IFDIR|S_IRUGO|S_IXUGO),
-				init_net.proc_net);
-	}
-#endif
-	DBFEXIT;
-	return;
-}
-
-/*----------------------------------------------------------------
-* p80211knetdev_shutdown
-*
-* Shutdown the wlandevice/netdevice part of 802.11 services at
-* unload time.
-*
-* Arguments:
-*	none
-*
-* Returns:
-*	nothing
-----------------------------------------------------------------*/
-void
-p80211netdev_shutdown(void)
-{
-	DBFENTER;
-#ifdef CONFIG_PROC_FS
-	if (proc_p80211 != NULL) {
-		remove_proc_entry("p80211", init_net.proc_net);
-	}
-#endif
-	DBFEXIT;
-}
 
 /*----------------------------------------------------------------
 * p80211knetdev_init
@@ -285,10 +224,7 @@ static int p80211knetdev_open( netdevice_t *netdev )
 	if ( wlandev->open != NULL) {
 		result = wlandev->open(wlandev);
 		if ( result == 0 ) {
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,3,43) )
-			netdev->interrupt = 0;
-#endif
-			p80211netdev_start_queue(wlandev);
+			netif_start_queue(wlandev->netdev);
 			wlandev->state = WLAN_DEVICE_OPEN;
 		}
 	} else {
@@ -323,7 +259,7 @@ static int p80211knetdev_stop( netdevice_t *netdev )
 		result = wlandev->close(wlandev);
 	}
 
-	p80211netdev_stop_queue(wlandev);
+	netif_stop_queue(wlandev->netdev);
 	wlandev->state = WLAN_DEVICE_CLOSED;
 
 	DBFEXIT;
@@ -376,7 +312,7 @@ static void p80211netdev_rx_bh(unsigned long arg)
 	struct sk_buff *skb = NULL;
 	netdevice_t     *dev = wlandev->netdev;
 	p80211_hdr_a3_t *hdr;
-	UINT16 fc;
+	u16 fc;
 
         DBFENTER;
 
@@ -478,15 +414,6 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 	memset(&p80211_hdr, 0, sizeof(p80211_hdr_t));
 	memset(&p80211_wep, 0, sizeof(p80211_metawep_t));
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-	if ( test_and_set_bit(0, (void*)&(netdev->tbusy)) != 0 ) {
-		/* We've been called w/ tbusy set, has the tx */
-		/* path stalled?   */
-		WLAN_LOG_DEBUG(1, "called when tbusy set\n");
-		result = 1;
-		goto failed;
-	}
-#else
 	if ( netif_queue_stopped(netdev) ) {
 		WLAN_LOG_DEBUG(1, "called when queue stopped.\n");
 		result = 1;
@@ -494,12 +421,6 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 	}
 
 	netif_stop_queue(netdev);
-
-	/* No timeout handling here, 2.3.38+ kernels call the
-	 * timeout function directly.
-	 * TODO: Add timeout handling.
-	*/
-#endif
 
 	/* Check to see that a valid mode is set */
 	switch( wlandev->macmode ) {
@@ -513,7 +434,7 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 		 * TODO: we need a saner way to handle this
 		 */
 		if(skb->protocol != ETH_P_80211_RAW) {
-			p80211netdev_start_queue(wlandev);
+			netif_start_queue(wlandev->netdev);
 			WLAN_LOG_NOTICE(
 				"Tx attempt prior to association, frame dropped.\n");
 			wlandev->linux_stats.tx_dropped++;
@@ -557,7 +478,7 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 	if ( txresult == 0) {
 		/* success and more buf */
 		/* avail, re: hw_txdata */
-		p80211netdev_wake_queue(wlandev);
+		netif_wake_queue(wlandev->netdev);
 		result = 0;
 	} else if ( txresult == 1 ) {
 		/* success, no more avail */
@@ -619,7 +540,7 @@ static void p80211knetdev_set_multicast_list(netdevice_t *dev)
 
 static int p80211netdev_ethtool(wlandevice_t *wlandev, void __user *useraddr)
 {
-	UINT32 ethcmd;
+	u32 ethcmd;
 	struct ethtool_drvinfo info;
 	struct ethtool_value edata;
 
@@ -686,7 +607,7 @@ static int p80211netdev_ethtool(wlandevice_t *wlandev, void __user *useraddr)
 *		-EFAULT memory fault copying msg from user buffer
 *		-ENOMEM unable to allocate kernel msg buffer
 *		-ENOSYS	bad magic, it the cmd really for us?
-*		-EINTR	sleeping on cmd, awakened by signal, cmd cancelled.
+*		-EintR	sleeping on cmd, awakened by signal, cmd cancelled.
 *
 * Call Context:
 *	Process thread (ioctl caller).  TODO: SMP support may require
@@ -697,20 +618,10 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 	int			result = 0;
 	p80211ioctl_req_t	*req = (p80211ioctl_req_t*)ifr;
 	wlandevice_t		*wlandev = dev->ml_priv;
-	UINT8			*msgbuf;
+	u8			*msgbuf;
 	DBFENTER;
 
 	WLAN_LOG_DEBUG(2, "rx'd ioctl, cmd=%d, len=%d\n", cmd, req->len);
-
-#if WIRELESS_EXT < 13
-	/* Is this a wireless extensions ioctl? */
-	if ((cmd >= SIOCIWFIRST) && (cmd <= SIOCIWLAST)) {
-		if ((result = p80211wext_support_ioctl(dev, ifr, cmd))
-		    != (-EOPNOTSUPP)) {
-			goto bail;
-		}
-	}
-#endif
 
 #ifdef SIOCETHTOOL
 	if (cmd == SIOCETHTOOL) {
@@ -792,15 +703,9 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 
 	DBFENTER;
 	/* If we're running, we don't allow MAC address changes */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-	if ( dev->start) {
-		return -EBUSY;
-	}
-#else
 	if (netif_running(dev)) {
 		return -EBUSY;
 	}
-#endif
 
 	/* Set up some convenience pointers. */
 	mibattr = &dot11req.mibattribute;
@@ -833,7 +738,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	resultcode->data = 0;
 
 	/* now fire the request */
-	result = p80211req_dorequest(dev->ml_priv, (UINT8 *)&dot11req);
+	result = p80211req_dorequest(dev->ml_priv, (u8 *)&dot11req);
 
 	/* If the request wasn't successful, report an error and don't
 	 * change the netdev address
@@ -909,13 +814,11 @@ int wlan_setup(wlandevice_t *wlandev)
 		     (unsigned long)wlandev);
 
 	/* Allocate and initialize the struct device */
-	dev = kmalloc(sizeof(netdevice_t), GFP_ATOMIC);
+	dev = alloc_netdev(0,"wlan%d",ether_setup);
 	if ( dev == NULL ) {
 		WLAN_LOG_ERROR("Failed to alloc netdev.\n");
 		result = 1;
 	} else {
-		memset( dev, 0, sizeof(netdevice_t));
-		ether_setup(dev);
 		wlandev->netdev = dev;
 		dev->ml_priv = wlandev;
 		dev->hard_start_xmit =	p80211knetdev_hard_start_xmit;
@@ -930,21 +833,12 @@ int wlan_setup(wlandevice_t *wlandev)
 		dev->open =		p80211knetdev_open;
 		dev->stop =		p80211knetdev_stop;
 
-#ifdef CONFIG_NET_WIRELESS
-#if ((WIRELESS_EXT < 17) && (WIRELESS_EXT < 21))
+#if (WIRELESS_EXT < 21)
 		dev->get_wireless_stats = p80211wext_get_wireless_stats;
 #endif
-#if WIRELESS_EXT > 12
 		dev->wireless_handlers = &p80211wext_handler_def;
-#endif
-#endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,3,38) )
-		dev->tbusy = 1;
-		dev->start = 0;
-#else
 		netif_stop_queue(dev);
-#endif
 #ifdef HAVE_CHANGE_MTU
 		dev->change_mtu = wlan_change_mtu;
 #endif
@@ -1027,44 +921,12 @@ int wlan_unsetup(wlandevice_t *wlandev)
 int register_wlandev(wlandevice_t *wlandev)
 {
 	int		i = 0;
-	netdevice_t	*dev = wlandev->netdev;
 
 	DBFENTER;
 
-	i = dev_alloc_name(wlandev->netdev, "wlan%d");
-	if (i >= 0) {
-		i = register_netdev(wlandev->netdev);
-	}
-	if (i != 0) {
-		return -EIO;
-	}
-
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0) )
-	dev->name = wlandev->name;
-#else
-	strcpy(wlandev->name, dev->name);
-#endif
-
-#ifdef CONFIG_PROC_FS
-	if (proc_p80211) {
-		wlandev->procdir = proc_mkdir(wlandev->name, proc_p80211);
-		if ( wlandev->procdir )
-			wlandev->procwlandev =
-				create_proc_read_entry("wlandev", 0,
-						       wlandev->procdir,
-						       p80211netdev_proc_read,
-						       wlandev);
-		if (wlandev->nsd_proc_read)
-			create_proc_read_entry("nsd", 0,
-					       wlandev->procdir,
-					       wlandev->nsd_proc_read,
-					       wlandev);
-	}
-#endif
-
-#ifdef CONFIG_HOTPLUG
-	p80211_run_sbin_hotplug(wlandev, WLAN_HOTPLUG_REGISTER);
-#endif
+	i = register_netdev(wlandev->netdev);
+	if (i)
+		return i;
 
 	DBFEXIT;
 	return 0;
@@ -1094,22 +956,6 @@ int unregister_wlandev(wlandevice_t *wlandev)
 
 	DBFENTER;
 
-#ifdef CONFIG_HOTPLUG
-	p80211_run_sbin_hotplug(wlandev, WLAN_HOTPLUG_REMOVE);
-#endif
-
-#ifdef CONFIG_PROC_FS
-	if ( wlandev->procwlandev ) {
-		remove_proc_entry("wlandev", wlandev->procdir);
-	}
-	if ( wlandev->nsd_proc_read ) {
-		remove_proc_entry("nsd", wlandev->procdir);
-	}
-	if (wlandev->procdir) {
-		remove_proc_entry(wlandev->name, proc_p80211);
-	}
-#endif
-
 	unregister_netdev(wlandev->netdev);
 
 	/* Now to clean out the rx queue */
@@ -1121,76 +967,6 @@ int unregister_wlandev(wlandevice_t *wlandev)
 	return 0;
 }
 
-#ifdef CONFIG_PROC_FS
-/*----------------------------------------------------------------
-* proc_read
-*
-* Read function for /proc/net/p80211/<device>/wlandev
-*
-* Arguments:
-*	buf
-*	start
-*	offset
-*	count
-*	eof
-*	data
-* Returns:
-*	zero on success, non-zero otherwise.
-* Call Context:
-*	Can be either interrupt or not.
-----------------------------------------------------------------*/
-static int
-p80211netdev_proc_read(
-	char	*page,
-	char	**start,
-	off_t	offset,
-	int	count,
-	int	*eof,
-	void	*data)
-{
-	char	 *p = page;
-	wlandevice_t *wlandev = (wlandevice_t *) data;
-
-	DBFENTER;
-	if (offset != 0) {
-		*eof = 1;
-		goto exit;
-	}
-
-	p += sprintf(p, "p80211 version: %s (%s)\n\n",
-		     WLAN_RELEASE, WLAN_BUILD_DATE);
-	p += sprintf(p, "name       : %s\n", wlandev->name);
-	p += sprintf(p, "nsd name   : %s\n", wlandev->nsdname);
-	p += sprintf(p, "address    : %02x:%02x:%02x:%02x:%02x:%02x\n",
-		     wlandev->netdev->dev_addr[0], wlandev->netdev->dev_addr[1], wlandev->netdev->dev_addr[2],
-		     wlandev->netdev->dev_addr[3], wlandev->netdev->dev_addr[4], wlandev->netdev->dev_addr[5]);
-	p += sprintf(p, "nsd caps   : %s%s%s%s%s%s%s%s%s%s\n",
-		     (wlandev->nsdcaps & P80211_NSDCAP_HARDWAREWEP) ? "wep_hw " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_TIEDWEP) ? "wep_tied " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_NOHOSTWEP) ? "wep_hw_only " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_PBCC) ? "pbcc " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_SHORT_PREAMBLE) ? "short_preamble " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_AGILITY) ? "agility " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_AP_RETRANSMIT) ? "ap_retransmit " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_HWFRAGMENT) ? "hw_frag " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_AUTOJOIN) ? "autojoin " : "",
-		     (wlandev->nsdcaps & P80211_NSDCAP_NOSCAN) ? "" : "scan ");
-
-
-	p += sprintf(p, "bssid      : %02x:%02x:%02x:%02x:%02x:%02x\n",
-		     wlandev->bssid[0], wlandev->bssid[1], wlandev->bssid[2],
-		     wlandev->bssid[3], wlandev->bssid[4], wlandev->bssid[5]);
-
-	p += sprintf(p, "Enabled    : %s%s\n",
-		     (wlandev->shortpreamble) ? "short_preamble " : "",
-		     (wlandev->hostwep & HOSTWEP_PRIVACYINVOKED) ? "privacy" : "");
-
-
- exit:
-	DBFEXIT;
-	return (p - page);
-}
-#endif
 
 /*----------------------------------------------------------------
 * p80211netdev_hwremoved
@@ -1227,7 +1003,7 @@ void p80211netdev_hwremoved(wlandevice_t *wlandev)
 	DBFENTER;
 	wlandev->hwremoved = 1;
 	if ( wlandev->state == WLAN_DEVICE_OPEN) {
-		p80211netdev_stop_queue(wlandev);
+		netif_stop_queue(wlandev->netdev);
 	}
 
 	netif_device_detach(wlandev->netdev);
@@ -1257,10 +1033,10 @@ void p80211netdev_hwremoved(wlandevice_t *wlandev)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static int p80211_rx_typedrop( wlandevice_t *wlandev, UINT16 fc)
+static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc)
 {
-	UINT16	ftype;
-	UINT16	fstype;
+	u16	ftype;
+	u16	fstype;
 	int	drop = 0;
 	/* Classify frame, increment counter */
 	ftype = WLAN_GET_FC_FTYPE(fc);
@@ -1416,75 +1192,6 @@ static int p80211_rx_typedrop( wlandevice_t *wlandev, UINT16 fc)
 	return drop;
 }
 
-#ifdef CONFIG_HOTPLUG
-/* Notify userspace when a netdevice event occurs,
- * by running '/sbin/hotplug net' with certain
- * environment variables set.
- */
-int p80211_run_sbin_hotplug(wlandevice_t *wlandev, char *action)
-{
-        char *argv[3], *envp[7], ifname[12 + IFNAMSIZ], action_str[32];
-	char nsdname[32], wlan_wext[32];
-        int i;
-
-	if (wlandev) {
-		sprintf(ifname, "INTERFACE=%s", wlandev->name);
-		sprintf(nsdname, "NSDNAME=%s", wlandev->nsdname);
-	} else {
-		sprintf(ifname, "INTERFACE=null");
-		sprintf(nsdname, "NSDNAME=null");
-	}
-
-	sprintf(wlan_wext, "WLAN_WEXT=%s", wlan_wext_write ? "y" : "");
-        sprintf(action_str, "ACTION=%s", action);
-
-        i = 0;
-        argv[i++] = hotplug_path;
-        argv[i++] = "wlan";
-        argv[i] = NULL;
-
-        i = 0;
-        /* minimal command environment */
-        envp [i++] = "HOME=/";
-        envp [i++] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
-        envp [i++] = ifname;
-        envp [i++] = action_str;
-        envp [i++] = nsdname;
-        envp [i++] = wlan_wext;
-        envp [i] = NULL;
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,62))
-        return call_usermodehelper(argv [0], argv, envp);
-#else
-        return call_usermodehelper(argv [0], argv, envp, 0);
-#endif
-}
-
-#endif
-
-
-void    p80211_suspend(wlandevice_t *wlandev)
-{
-	DBFENTER;
-
-#ifdef CONFIG_HOTPLUG
-	p80211_run_sbin_hotplug(wlandev, WLAN_HOTPLUG_SUSPEND);
-#endif
-
-	DBFEXIT;
-}
-
-void    p80211_resume(wlandevice_t *wlandev)
-{
-	DBFENTER;
-
-#ifdef CONFIG_HOTPLUG
-	p80211_run_sbin_hotplug(wlandev, WLAN_HOTPLUG_RESUME);
-#endif
-
-	DBFEXIT;
-}
-
 static void p80211knetdev_tx_timeout( netdevice_t *netdev)
 {
 	wlandevice_t	*wlandev = netdev->ml_priv;
@@ -1495,7 +1202,7 @@ static void p80211knetdev_tx_timeout( netdevice_t *netdev)
 	} else {
 		WLAN_LOG_WARNING("Implement tx_timeout for %s\n",
 				 wlandev->nsdname);
-		p80211netdev_wake_queue(wlandev);
+		netif_wake_queue(wlandev->netdev);
 	}
 
 	DBFEXIT;

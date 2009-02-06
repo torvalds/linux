@@ -75,14 +75,22 @@ full_name_hash(const unsigned char *name, unsigned int len)
 	return end_name_hash(hash);
 }
 
-struct dcookie_struct;
-
-#define DNAME_INLINE_LEN_MIN 36
+/*
+ * Try to keep struct dentry aligned on 64 byte cachelines (this will
+ * give reasonable cacheline footprint with larger lines without the
+ * large memory footprint increase).
+ */
+#ifdef CONFIG_64BIT
+#define DNAME_INLINE_LEN_MIN 32 /* 192 bytes */
+#else
+#define DNAME_INLINE_LEN_MIN 40 /* 128 bytes */
+#endif
 
 struct dentry {
 	atomic_t d_count;
 	unsigned int d_flags;		/* protected by d_lock */
 	spinlock_t d_lock;		/* per dentry lock */
+	int d_mounted;
 	struct inode *d_inode;		/* Where the name belongs to - NULL is
 					 * negative */
 	/*
@@ -107,10 +115,7 @@ struct dentry {
 	struct dentry_operations *d_op;
 	struct super_block *d_sb;	/* The root of the dentry tree */
 	void *d_fsdata;			/* fs-specific data */
-#ifdef CONFIG_PROFILING
-	struct dcookie_struct *d_cookie; /* cookie, if any */
-#endif
-	int d_mounted;
+
 	unsigned char d_iname[DNAME_INLINE_LEN_MIN];	/* small names */
 };
 
@@ -176,6 +181,8 @@ d_iput:		no		no		no       yes
 #define DCACHE_UNHASHED		0x0010	
 
 #define DCACHE_INOTIFY_PARENT_WATCHED	0x0020 /* Parent inode is watched */
+
+#define DCACHE_COOKIE		0x0040	/* For use by dcookie subsystem */
 
 extern spinlock_t dcache_lock;
 extern seqlock_t rename_lock;

@@ -101,7 +101,7 @@ unlock:
 /* Handle bad interrupts */
 static struct irq_desc bad_irq_desc = {
 	.handle_irq = handle_bad_irq,
-	.lock = SPIN_LOCK_UNLOCKED
+	.lock = __SPIN_LOCK_UNLOCKED(bad_irq_desc.lock),
 };
 
 /*
@@ -174,7 +174,7 @@ static void route_irq(struct irq_desc *desc, unsigned int irq, unsigned int cpu)
 	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", irq, desc->cpu, cpu);
 
 	spin_lock_irq(&desc->lock);
-	desc->chip->set_affinity(irq, cpumask_of_cpu(cpu));
+	desc->chip->set_affinity(irq, cpumask_of(cpu));
 	spin_unlock_irq(&desc->lock);
 }
 

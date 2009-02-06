@@ -24,8 +24,7 @@
  */
 
 #include <linux/wlp.h>
-#define D_LOCAL 6
-#include <linux/uwb/debug.h>
+
 #include "wlp-internal.h"
 
 static
@@ -105,24 +104,18 @@ static inline void wlp_set_attr_hdr(struct wlp_attr_hdr *hdr, unsigned type,
 #define wlp_set(type, type_code, name)					\
 static size_t wlp_set_##name(struct wlp_attr_##name *attr, type value)	\
 {									\
-	d_fnstart(6, NULL, "(attribute %p)\n", attr);			\
 	wlp_set_attr_hdr(&attr->hdr, type_code,				\
 			 sizeof(*attr) - sizeof(struct wlp_attr_hdr));	\
 	attr->name = value;						\
-	d_dump(6, NULL, attr, sizeof(*attr));				\
-	d_fnend(6, NULL, "(attribute %p)\n", attr);			\
 	return sizeof(*attr);						\
 }
 
 #define wlp_pset(type, type_code, name)					\
 static size_t wlp_set_##name(struct wlp_attr_##name *attr, type value)	\
 {									\
-	d_fnstart(6, NULL, "(attribute %p)\n", attr);			\
 	wlp_set_attr_hdr(&attr->hdr, type_code,				\
 			 sizeof(*attr) - sizeof(struct wlp_attr_hdr));	\
 	attr->name = *value;						\
-	d_dump(6, NULL, attr, sizeof(*attr));				\
-	d_fnend(6, NULL, "(attribute %p)\n", attr);			\
 	return sizeof(*attr);						\
 }
 
@@ -139,11 +132,8 @@ static size_t wlp_set_##name(struct wlp_attr_##name *attr, type value)	\
 static size_t wlp_set_##name(struct wlp_attr_##name *attr, type value,	\
 				size_t len)				\
 {									\
-	d_fnstart(6, NULL, "(attribute %p)\n", attr);			\
 	wlp_set_attr_hdr(&attr->hdr, type_code, len);			\
 	memcpy(attr->name, value, len);					\
-	d_dump(6, NULL, attr, sizeof(*attr) + len);			\
-	d_fnend(6, NULL, "(attribute %p)\n", attr);			\
 	return sizeof(*attr) + len;					\
 }
 
@@ -182,7 +172,7 @@ static size_t wlp_set_wss_info(struct wlp_attr_wss_info *attr,
 	size_t datalen;
 	void *ptr = attr->wss_info;
 	size_t used = sizeof(*attr);
-	d_fnstart(6, NULL, "(attribute %p)\n", attr);
+
 	datalen = sizeof(struct wlp_wss_info) + strlen(wss->name);
 	wlp_set_attr_hdr(&attr->hdr, WLP_ATTR_WSS_INFO, datalen);
 	used = wlp_set_wssid(ptr, &wss->wssid);
@@ -190,9 +180,6 @@ static size_t wlp_set_wss_info(struct wlp_attr_wss_info *attr,
 	used += wlp_set_accept_enrl(ptr + used, wss->accept_enroll);
 	used += wlp_set_wss_sec_status(ptr + used, wss->secure_status);
 	used += wlp_set_wss_bcast(ptr + used, &wss->bcast);
-	d_dump(6, NULL, attr, sizeof(*attr) + datalen);
-	d_fnend(6, NULL, "(attribute %p, used %d)\n",
-		attr, (int)(sizeof(*attr) + used));
 	return sizeof(*attr) + used;
 }
 
@@ -414,7 +401,6 @@ static ssize_t wlp_get_wss_info_attrs(struct wlp *wlp,
 	size_t used = 0;
 	ssize_t result = -EINVAL;
 
-	d_printf(6, dev, "WLP: WSS info: Retrieving WSS name\n");
 	result = wlp_get_wss_name(wlp, ptr, info->name, buflen);
 	if (result < 0) {
 		dev_err(dev, "WLP: unable to obtain WSS name from "
@@ -422,7 +408,7 @@ static ssize_t wlp_get_wss_info_attrs(struct wlp *wlp,
 		goto error_parse;
 	}
 	used += result;
-	d_printf(6, dev, "WLP: WSS info: Retrieving accept enroll\n");
+
 	result = wlp_get_accept_enrl(wlp, ptr + used, &info->accept_enroll,
 				     buflen - used);
 	if (result < 0) {
@@ -437,7 +423,7 @@ static ssize_t wlp_get_wss_info_attrs(struct wlp *wlp,
 		goto error_parse;
 	}
 	used += result;
-	d_printf(6, dev, "WLP: WSS info: Retrieving secure status\n");
+
 	result = wlp_get_wss_sec_status(wlp, ptr + used, &info->sec_status,
 					buflen - used);
 	if (result < 0) {
@@ -452,7 +438,7 @@ static ssize_t wlp_get_wss_info_attrs(struct wlp *wlp,
 		goto error_parse;
 	}
 	used += result;
-	d_printf(6, dev, "WLP: WSS info: Retrieving broadcast\n");
+
 	result = wlp_get_wss_bcast(wlp, ptr + used, &info->bcast,
 				   buflen - used);
 	if (result < 0) {
@@ -530,7 +516,7 @@ static ssize_t wlp_get_wss_info(struct wlp *wlp, struct wlp_attr_wss_info *attr,
 	len = result;
 	used = sizeof(*attr);
 	ptr = attr;
-	d_printf(6, dev, "WLP: WSS info: Retrieving WSSID\n");
+
 	result = wlp_get_wssid(wlp, ptr + used, wssid, buflen - used);
 	if (result < 0) {
 		dev_err(dev, "WLP: unable to obtain WSSID from WSS info.\n");
@@ -553,8 +539,6 @@ static ssize_t wlp_get_wss_info(struct wlp *wlp, struct wlp_attr_wss_info *attr,
 		goto out;
 	}
 	result = used;
-	d_printf(6, dev, "WLP: Successfully parsed WLP information "
-		 "attribute. used %zu bytes\n", used);
 out:
 	return result;
 }
@@ -598,8 +582,6 @@ static ssize_t wlp_get_all_wss_info(struct wlp *wlp,
 	struct wlp_wssid_e *wssid_e;
 	char buf[WLP_WSS_UUID_STRSIZE];
 
-	d_fnstart(6, dev, "wlp %p, attr %p, neighbor %p, wss %p, buflen %d \n",
-		  wlp, attr, neighbor, wss, (int)buflen);
 	if (buflen < 0)
 		goto out;
 
@@ -638,8 +620,7 @@ static ssize_t wlp_get_all_wss_info(struct wlp *wlp,
 			wss->accept_enroll = wss_info.accept_enroll;
 			wss->state = WLP_WSS_STATE_PART_ENROLLED;
 			wlp_wss_uuid_print(buf, sizeof(buf), &wssid);
-			d_printf(2, dev, "WLP: Found WSS %s. Enrolling.\n",
-				 buf);
+			dev_dbg(dev, "WLP: Found WSS %s. Enrolling.\n", buf);
 		} else {
 			wssid_e = wlp_create_wssid_e(wlp, neighbor);
 			if (wssid_e == NULL) {
@@ -660,9 +641,6 @@ error_parse:
 	if (result < 0 && !enroll) /* this was a discovery */
 		wlp_remove_neighbor_tmp_info(neighbor);
 out:
-	d_fnend(6, dev, "wlp %p, attr %p, neighbor %p, wss %p, buflen %d, "
-		"result %d \n", wlp, attr, neighbor, wss, (int)buflen,
-		(int)result);
 	return result;
 
 }
@@ -718,7 +696,6 @@ static int wlp_build_assoc_d1(struct wlp *wlp, struct wlp_wss *wss,
 	struct sk_buff *_skb;
 	void *d1_itr;
 
-	d_fnstart(6, dev, "wlp %p\n", wlp);
 	if (wlp->dev_info == NULL) {
 		result = __wlp_setup_device_info(wlp);
 		if (result < 0) {
@@ -728,24 +705,6 @@ static int wlp_build_assoc_d1(struct wlp *wlp, struct wlp_wss *wss,
 		}
 	}
 	info = wlp->dev_info;
-	d_printf(6, dev, "Local properties:\n"
-		 "Device name (%d bytes): %s\n"
-		 "Model name (%d bytes): %s\n"
-		 "Manufacturer (%d bytes): %s\n"
-		 "Model number (%d bytes): %s\n"
-		 "Serial number (%d bytes): %s\n"
-		 "Primary device type: \n"
-		 " Category: %d \n"
-		 " OUI: %02x:%02x:%02x \n"
-		 " OUI Subdivision: %u \n",
-		 (int)strlen(info->name), info->name,
-		 (int)strlen(info->model_name), info->model_name,
-		 (int)strlen(info->manufacturer), info->manufacturer,
-		 (int)strlen(info->model_nr),  info->model_nr,
-		 (int)strlen(info->serial), info->serial,
-		 info->prim_dev_type.category,
-		 info->prim_dev_type.OUI[0], info->prim_dev_type.OUI[1],
-		 info->prim_dev_type.OUI[2], info->prim_dev_type.OUIsubdiv);
 	_skb = dev_alloc_skb(sizeof(*_d1)
 		      + sizeof(struct wlp_attr_uuid_e)
 		      + sizeof(struct wlp_attr_wss_sel_mthd)
@@ -768,7 +727,6 @@ static int wlp_build_assoc_d1(struct wlp *wlp, struct wlp_wss *wss,
 		goto error;
 	}
 	_d1 = (void *) _skb->data;
-	d_printf(6, dev, "D1 starts at %p \n", _d1);
 	_d1->hdr.mux_hdr = cpu_to_le16(WLP_PROTOCOL_ID);
 	_d1->hdr.type = WLP_FRAME_ASSOCIATION;
 	_d1->type = WLP_ASSOC_D1;
@@ -791,25 +749,8 @@ static int wlp_build_assoc_d1(struct wlp *wlp, struct wlp_wss *wss,
 	used += wlp_set_prim_dev_type(d1_itr + used, &info->prim_dev_type);
 	used += wlp_set_wlp_assc_err(d1_itr + used, WLP_ASSOC_ERROR_NONE);
 	skb_put(_skb, sizeof(*_d1) + used);
-	d_printf(6, dev, "D1 message:\n");
-	d_dump(6, dev, _d1, sizeof(*_d1)
-		     + sizeof(struct wlp_attr_uuid_e)
-		     + sizeof(struct wlp_attr_wss_sel_mthd)
-		     + sizeof(struct wlp_attr_dev_name)
-		     + strlen(info->name)
-		     + sizeof(struct wlp_attr_manufacturer)
-		     + strlen(info->manufacturer)
-		     + sizeof(struct wlp_attr_model_name)
-		     + strlen(info->model_name)
-		     + sizeof(struct wlp_attr_model_nr)
-		     + strlen(info->model_nr)
-		     + sizeof(struct wlp_attr_serial)
-		     + strlen(info->serial)
-		     + sizeof(struct wlp_attr_prim_dev_type)
-		     + sizeof(struct wlp_attr_wlp_assc_err));
 	*skb = _skb;
 error:
-	d_fnend(6, dev, "wlp %p, result = %d\n", wlp, result);
 	return result;
 }
 
@@ -837,7 +778,6 @@ int wlp_build_assoc_d2(struct wlp *wlp, struct wlp_wss *wss,
 	void *d2_itr;
 	size_t mem_needed;
 
-	d_fnstart(6, dev, "wlp %p\n", wlp);
 	if (wlp->dev_info == NULL) {
 		result = __wlp_setup_device_info(wlp);
 		if (result < 0) {
@@ -847,24 +787,6 @@ int wlp_build_assoc_d2(struct wlp *wlp, struct wlp_wss *wss,
 		}
 	}
 	info = wlp->dev_info;
-	d_printf(6, dev, "Local properties:\n"
-		 "Device name (%d bytes): %s\n"
-		 "Model name (%d bytes): %s\n"
-		 "Manufacturer (%d bytes): %s\n"
-		 "Model number (%d bytes): %s\n"
-		 "Serial number (%d bytes): %s\n"
-		 "Primary device type: \n"
-		 " Category: %d \n"
-		 " OUI: %02x:%02x:%02x \n"
-		 " OUI Subdivision: %u \n",
-		 (int)strlen(info->name), info->name,
-		 (int)strlen(info->model_name), info->model_name,
-		 (int)strlen(info->manufacturer), info->manufacturer,
-		 (int)strlen(info->model_nr),  info->model_nr,
-		 (int)strlen(info->serial), info->serial,
-		 info->prim_dev_type.category,
-		 info->prim_dev_type.OUI[0], info->prim_dev_type.OUI[1],
-		 info->prim_dev_type.OUI[2], info->prim_dev_type.OUIsubdiv);
 	mem_needed = sizeof(*_d2)
 		      + sizeof(struct wlp_attr_uuid_e)
 		      + sizeof(struct wlp_attr_uuid_r)
@@ -892,7 +814,6 @@ int wlp_build_assoc_d2(struct wlp *wlp, struct wlp_wss *wss,
 		goto error;
 	}
 	_d2 = (void *) _skb->data;
-	d_printf(6, dev, "D2 starts at %p \n", _d2);
 	_d2->hdr.mux_hdr = cpu_to_le16(WLP_PROTOCOL_ID);
 	_d2->hdr.type = WLP_FRAME_ASSOCIATION;
 	_d2->type = WLP_ASSOC_D2;
@@ -917,11 +838,8 @@ int wlp_build_assoc_d2(struct wlp *wlp, struct wlp_wss *wss,
 	used += wlp_set_prim_dev_type(d2_itr + used, &info->prim_dev_type);
 	used += wlp_set_wlp_assc_err(d2_itr + used, WLP_ASSOC_ERROR_NONE);
 	skb_put(_skb, sizeof(*_d2) + used);
-	d_printf(6, dev, "D2 message:\n");
-	d_dump(6, dev, _d2, mem_needed);
 	*skb = _skb;
 error:
-	d_fnend(6, dev, "wlp %p, result = %d\n", wlp, result);
 	return result;
 }
 
@@ -947,7 +865,6 @@ int wlp_build_assoc_f0(struct wlp *wlp, struct sk_buff **skb,
 	struct sk_buff *_skb;
 	struct wlp_nonce tmp;
 
-	d_fnstart(6, dev, "wlp %p\n", wlp);
 	_skb = dev_alloc_skb(sizeof(*f0));
 	if (_skb == NULL) {
 		dev_err(dev, "WLP: Unable to allocate memory for F0 "
@@ -955,7 +872,6 @@ int wlp_build_assoc_f0(struct wlp *wlp, struct sk_buff **skb,
 		goto error_alloc;
 	}
 	f0 = (void *) _skb->data;
-	d_printf(6, dev, "F0 starts at %p \n", f0);
 	f0->f0_hdr.hdr.mux_hdr = cpu_to_le16(WLP_PROTOCOL_ID);
 	f0->f0_hdr.hdr.type = WLP_FRAME_ASSOCIATION;
 	f0->f0_hdr.type = WLP_ASSOC_F0;
@@ -969,7 +885,6 @@ int wlp_build_assoc_f0(struct wlp *wlp, struct sk_buff **skb,
 	*skb = _skb;
 	result = 0;
 error_alloc:
-	d_fnend(6, dev, "wlp %p, result %d \n", wlp, result);
 	return result;
 }
 
@@ -1242,12 +1157,9 @@ void wlp_handle_d1_frame(struct work_struct *ws)
 	enum wlp_wss_sel_mthd sel_mthd = 0;
 	struct wlp_device_info dev_info;
 	enum wlp_assc_error assc_err;
-	char uuid[WLP_WSS_UUID_STRSIZE];
 	struct sk_buff *resp = NULL;
 
 	/* Parse D1 frame */
-	d_fnstart(6, dev, "WLP: handle D1 frame. wlp = %p, skb = %p\n",
-		  wlp, skb);
 	mutex_lock(&wss->mutex);
 	mutex_lock(&wlp->mutex); /* to access wlp->uuid */
 	memset(&dev_info, 0, sizeof(dev_info));
@@ -1258,30 +1170,6 @@ void wlp_handle_d1_frame(struct work_struct *ws)
 		kfree_skb(skb);
 		goto out;
 	}
-	wlp_wss_uuid_print(uuid, sizeof(uuid), &uuid_e);
-	d_printf(6, dev, "From D1 frame:\n"
-		 "UUID-E: %s\n"
-		 "Selection method: %d\n"
-		 "Device name (%d bytes): %s\n"
-		 "Model name (%d bytes): %s\n"
-		 "Manufacturer (%d bytes): %s\n"
-		 "Model number (%d bytes): %s\n"
-		 "Serial number (%d bytes): %s\n"
-		 "Primary device type: \n"
-		 " Category: %d \n"
-		 " OUI: %02x:%02x:%02x \n"
-		 " OUI Subdivision: %u \n",
-		 uuid, sel_mthd,
-		 (int)strlen(dev_info.name), dev_info.name,
-		 (int)strlen(dev_info.model_name), dev_info.model_name,
-		 (int)strlen(dev_info.manufacturer), dev_info.manufacturer,
-		 (int)strlen(dev_info.model_nr),  dev_info.model_nr,
-		 (int)strlen(dev_info.serial), dev_info.serial,
-		 dev_info.prim_dev_type.category,
-		 dev_info.prim_dev_type.OUI[0],
-		 dev_info.prim_dev_type.OUI[1],
-		 dev_info.prim_dev_type.OUI[2],
-		 dev_info.prim_dev_type.OUIsubdiv);
 
 	kfree_skb(skb);
 	if (!wlp_uuid_is_set(&wlp->uuid)) {
@@ -1316,7 +1204,6 @@ out:
 	kfree(frame_ctx);
 	mutex_unlock(&wlp->mutex);
 	mutex_unlock(&wss->mutex);
-	d_fnend(6, dev, "WLP: handle D1 frame. wlp = %p\n", wlp);
 }
 
 /**
@@ -1546,10 +1433,8 @@ int wlp_parse_c3c4_frame(struct wlp *wlp, struct sk_buff *skb,
 	void *ptr = skb->data;
 	size_t len = skb->len;
 	size_t used;
-	char buf[WLP_WSS_UUID_STRSIZE];
 	struct wlp_frame_assoc *assoc = ptr;
 
-	d_fnstart(6, dev, "wlp %p, skb %p \n", wlp, skb);
 	used = sizeof(*assoc);
 	result = wlp_get_wssid(wlp, ptr + used, wssid, len - used);
 	if (result < 0) {
@@ -1572,14 +1457,7 @@ int wlp_parse_c3c4_frame(struct wlp *wlp, struct sk_buff *skb,
 			wlp_assoc_frame_str(assoc->type));
 		goto error_parse;
 	}
-	wlp_wss_uuid_print(buf, sizeof(buf), wssid);
-	d_printf(6, dev, "WLP: parsed: WSSID %s, tag 0x%02x, virt "
-		 "%02x:%02x:%02x:%02x:%02x:%02x \n", buf, *tag,
-		 virt_addr->data[0], virt_addr->data[1], virt_addr->data[2],
-		 virt_addr->data[3], virt_addr->data[4], virt_addr->data[5]);
-
 error_parse:
-	d_fnend(6, dev, "wlp %p, skb %p, result = %d \n", wlp, skb, result);
 	return result;
 }
 
@@ -1600,7 +1478,6 @@ int wlp_build_assoc_c1c2(struct wlp *wlp, struct wlp_wss *wss,
 	} *c;
 	struct sk_buff *_skb;
 
-	d_fnstart(6, dev, "wlp %p, wss %p \n", wlp, wss);
 	_skb = dev_alloc_skb(sizeof(*c));
 	if (_skb == NULL) {
 		dev_err(dev, "WLP: Unable to allocate memory for C1/C2 "
@@ -1608,7 +1485,6 @@ int wlp_build_assoc_c1c2(struct wlp *wlp, struct wlp_wss *wss,
 		goto error_alloc;
 	}
 	c = (void *) _skb->data;
-	d_printf(6, dev, "C1/C2 starts at %p \n", c);
 	c->c_hdr.hdr.mux_hdr = cpu_to_le16(WLP_PROTOCOL_ID);
 	c->c_hdr.hdr.type = WLP_FRAME_ASSOCIATION;
 	c->c_hdr.type = type;
@@ -1616,12 +1492,9 @@ int wlp_build_assoc_c1c2(struct wlp *wlp, struct wlp_wss *wss,
 	wlp_set_msg_type(&c->c_hdr.msg_type, type);
 	wlp_set_wssid(&c->wssid, &wss->wssid);
 	skb_put(_skb, sizeof(*c));
-	d_printf(6, dev, "C1/C2 message:\n");
-	d_dump(6, dev, c, sizeof(*c));
 	*skb = _skb;
 	result = 0;
 error_alloc:
-	d_fnend(6, dev, "wlp %p, wss %p, result %d \n", wlp, wss, result);
 	return result;
 }
 
@@ -1660,7 +1533,6 @@ int wlp_build_assoc_c3c4(struct wlp *wlp, struct wlp_wss *wss,
 	} *c;
 	struct sk_buff *_skb;
 
-	d_fnstart(6, dev, "wlp %p, wss %p \n", wlp, wss);
 	_skb = dev_alloc_skb(sizeof(*c));
 	if (_skb == NULL) {
 		dev_err(dev, "WLP: Unable to allocate memory for C3/C4 "
@@ -1668,7 +1540,6 @@ int wlp_build_assoc_c3c4(struct wlp *wlp, struct wlp_wss *wss,
 		goto error_alloc;
 	}
 	c = (void *) _skb->data;
-	d_printf(6, dev, "C3/C4 starts at %p \n", c);
 	c->c_hdr.hdr.mux_hdr = cpu_to_le16(WLP_PROTOCOL_ID);
 	c->c_hdr.hdr.type = WLP_FRAME_ASSOCIATION;
 	c->c_hdr.type = type;
@@ -1678,12 +1549,9 @@ int wlp_build_assoc_c3c4(struct wlp *wlp, struct wlp_wss *wss,
 	wlp_set_wss_tag(&c->wss_tag, wss->tag);
 	wlp_set_wss_virt(&c->wss_virt, &wss->virtual_addr);
 	skb_put(_skb, sizeof(*c));
-	d_printf(6, dev, "C3/C4 message:\n");
-	d_dump(6, dev, c, sizeof(*c));
 	*skb = _skb;
 	result = 0;
 error_alloc:
-	d_fnend(6, dev, "wlp %p, wss %p, result %d \n", wlp, wss, result);
 	return result;
 }
 
@@ -1709,10 +1577,7 @@ static int wlp_send_assoc_##type(struct wlp *wlp, struct wlp_wss *wss,	\
 	struct device *dev = &wlp->rc->uwb_dev.dev;			\
 	int result;							\
 	struct sk_buff *skb = NULL;					\
-	d_fnstart(6, dev, "wlp %p, wss %p, neighbor: %02x:%02x\n",	\
-		  wlp, wss, dev_addr->data[1], dev_addr->data[0]);	\
-	d_printf(6, dev, "WLP: Constructing %s frame. \n",		\
-		 wlp_assoc_frame_str(id));				\
+									\
 	/* Build the frame */						\
 	result = wlp_build_assoc_##type(wlp, wss, &skb);		\
 	if (result < 0) {						\
@@ -1721,9 +1586,6 @@ static int wlp_send_assoc_##type(struct wlp *wlp, struct wlp_wss *wss,	\
 		goto error_build_assoc;					\
 	}								\
 	/* Send the frame */						\
-	d_printf(6, dev, "Transmitting %s frame to %02x:%02x \n",	\
-		 wlp_assoc_frame_str(id),				\
-		 dev_addr->data[1], dev_addr->data[0]);			\
 	BUG_ON(wlp->xmit_frame == NULL);				\
 	result = wlp->xmit_frame(wlp, skb, dev_addr);			\
 	if (result < 0) {						\
@@ -1740,8 +1602,6 @@ error_xmit:								\
 	/* We could try again ... */					\
 	dev_kfree_skb_any(skb);/*we need to free if tx fails*/		\
 error_build_assoc:							\
-	d_fnend(6, dev, "wlp %p, wss %p, neighbor: %02x:%02x\n",	\
-		wlp, wss, dev_addr->data[1], dev_addr->data[0]);	\
 	return result;							\
 }
 
@@ -1794,12 +1654,9 @@ void wlp_handle_c1_frame(struct work_struct *ws)
 	struct uwb_dev_addr *src = &frame_ctx->src;
 	int result;
 	struct wlp_uuid wssid;
-	char buf[WLP_WSS_UUID_STRSIZE];
 	struct sk_buff *resp = NULL;
 
 	/* Parse C1 frame */
-	d_fnstart(6, dev, "WLP: handle C1 frame. wlp = %p, c1 = %p\n",
-		  wlp, c1);
 	mutex_lock(&wss->mutex);
 	result = wlp_get_wssid(wlp, (void *)c1 + sizeof(*c1), &wssid,
 			       len - sizeof(*c1));
@@ -1807,12 +1664,8 @@ void wlp_handle_c1_frame(struct work_struct *ws)
 		dev_err(dev, "WLP: unable to obtain WSSID from C1 frame.\n");
 		goto out;
 	}
-	wlp_wss_uuid_print(buf, sizeof(buf), &wssid);
-	d_printf(6, dev, "Received C1 frame with WSSID %s \n", buf);
 	if (!memcmp(&wssid, &wss->wssid, sizeof(wssid))
 	    && wss->state == WLP_WSS_STATE_ACTIVE) {
-		d_printf(6, dev, "WSSID from C1 frame is known locally "
-			 "and is active\n");
 		/* Construct C2 frame */
 		result = wlp_build_assoc_c2(wlp, wss, &resp);
 		if (result < 0) {
@@ -1820,8 +1673,6 @@ void wlp_handle_c1_frame(struct work_struct *ws)
 			goto out;
 		}
 	} else {
-		d_printf(6, dev, "WSSID from C1 frame is not known locally "
-			 "or is not active\n");
 		/* Construct F0 frame */
 		result = wlp_build_assoc_f0(wlp, &resp, WLP_ASSOC_ERROR_INV);
 		if (result < 0) {
@@ -1830,8 +1681,6 @@ void wlp_handle_c1_frame(struct work_struct *ws)
 		}
 	}
 	/* Send C2 frame */
-	d_printf(6, dev, "Transmitting response (C2/F0) frame to %02x:%02x \n",
-		 src->data[1], src->data[0]);
 	BUG_ON(wlp->xmit_frame == NULL);
 	result = wlp->xmit_frame(wlp, resp, src);
 	if (result < 0) {
@@ -1846,7 +1695,6 @@ out:
 	kfree_skb(frame_ctx->skb);
 	kfree(frame_ctx);
 	mutex_unlock(&wss->mutex);
-	d_fnend(6, dev, "WLP: handle C1 frame. wlp = %p\n", wlp);
 }
 
 /**
@@ -1868,27 +1716,20 @@ void wlp_handle_c3_frame(struct work_struct *ws)
 	struct sk_buff *skb = frame_ctx->skb;
 	struct uwb_dev_addr *src = &frame_ctx->src;
 	int result;
-	char buf[WLP_WSS_UUID_STRSIZE];
 	struct sk_buff *resp = NULL;
 	struct wlp_uuid wssid;
 	u8 tag;
 	struct uwb_mac_addr virt_addr;
 
 	/* Parse C3 frame */
-	d_fnstart(6, dev, "WLP: handle C3 frame. wlp = %p, skb = %p\n",
-		  wlp, skb);
 	mutex_lock(&wss->mutex);
 	result = wlp_parse_c3c4_frame(wlp, skb, &wssid, &tag, &virt_addr);
 	if (result < 0) {
 		dev_err(dev, "WLP: unable to obtain values from C3 frame.\n");
 		goto out;
 	}
-	wlp_wss_uuid_print(buf, sizeof(buf), &wssid);
-	d_printf(6, dev, "Received C3 frame with WSSID %s \n", buf);
 	if (!memcmp(&wssid, &wss->wssid, sizeof(wssid))
 	    && wss->state >= WLP_WSS_STATE_ACTIVE) {
-		d_printf(6, dev, "WSSID from C3 frame is known locally "
-			 "and is active\n");
 		result = wlp_eda_update_node(&wlp->eda, src, wss,
 					     (void *) virt_addr.data, tag,
 					     WLP_WSS_CONNECTED);
@@ -1913,8 +1754,6 @@ void wlp_handle_c3_frame(struct work_struct *ws)
 			}
 		}
 	} else {
-		d_printf(6, dev, "WSSID from C3 frame is not known locally "
-			 "or is not active\n");
 		/* Construct F0 frame */
 		result = wlp_build_assoc_f0(wlp, &resp, WLP_ASSOC_ERROR_INV);
 		if (result < 0) {
@@ -1923,8 +1762,6 @@ void wlp_handle_c3_frame(struct work_struct *ws)
 		}
 	}
 	/* Send C4 frame */
-	d_printf(6, dev, "Transmitting response (C4/F0) frame to %02x:%02x \n",
-		 src->data[1], src->data[0]);
 	BUG_ON(wlp->xmit_frame == NULL);
 	result = wlp->xmit_frame(wlp, resp, src);
 	if (result < 0) {
@@ -1939,8 +1776,6 @@ out:
 	kfree_skb(frame_ctx->skb);
 	kfree(frame_ctx);
 	mutex_unlock(&wss->mutex);
-	d_fnend(6, dev, "WLP: handle C3 frame. wlp = %p, skb = %p\n",
-		wlp, skb);
 }
 
 

@@ -963,7 +963,7 @@ static int tvp5150_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 
 
 static int tvp5150_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_chip_ident *chip)
+				struct v4l2_dbg_chip_ident *chip)
 {
 	int rev;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -977,25 +977,24 @@ static int tvp5150_g_chip_ident(struct v4l2_subdev *sd,
 
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-static int tvp5150_g_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
+static int tvp5150_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!v4l2_chip_match_i2c_client(client,
-				reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	reg->val = tvp5150_read(sd, reg->reg & 0xff);
+	reg->size = 1;
 	return 0;
 }
 
-static int tvp5150_s_register(struct v4l2_subdev *sd, struct v4l2_register *reg)
+static int tvp5150_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	if (!v4l2_chip_match_i2c_client(client,
-				reg->match_type, reg->match_chip))
+	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;

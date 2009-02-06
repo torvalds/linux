@@ -201,8 +201,7 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 int coda_fsync(struct file *coda_file, struct dentry *coda_dentry, int datasync)
 {
 	struct file *host_file;
-	struct dentry *host_dentry;
-	struct inode *host_inode, *coda_inode = coda_dentry->d_inode;
+	struct inode *coda_inode = coda_dentry->d_inode;
 	struct coda_file_info *cfi;
 	int err = 0;
 
@@ -214,14 +213,7 @@ int coda_fsync(struct file *coda_file, struct dentry *coda_dentry, int datasync)
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 	host_file = cfi->cfi_container;
 
-	if (host_file->f_op && host_file->f_op->fsync) {
-		host_dentry = host_file->f_path.dentry;
-		host_inode = host_dentry->d_inode;
-		mutex_lock(&host_inode->i_mutex);
-		err = host_file->f_op->fsync(host_file, host_dentry, datasync);
-		mutex_unlock(&host_inode->i_mutex);
-	}
-
+	err = vfs_fsync(host_file, host_file->f_path.dentry, datasync);
 	if ( !err && !datasync ) {
 		lock_kernel();
 		err = venus_fsync(coda_inode->i_sb, coda_i2f(coda_inode));

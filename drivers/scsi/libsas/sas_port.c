@@ -113,7 +113,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	sas_port_add_phy(port->port, phy->phy);
 
 	SAS_DPRINTK("%s added to %s, phy_mask:0x%x (%16llx)\n",
-		    phy->phy->dev.bus_id,port->port->dev.bus_id,
+		    dev_name(&phy->phy->dev), dev_name(&port->port->dev),
 		    port->phy_mask,
 		    SAS_ADDR(port->attached_sas_addr));
 

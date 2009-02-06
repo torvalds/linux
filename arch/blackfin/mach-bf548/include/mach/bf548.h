@@ -104,6 +104,18 @@
 
 #define AMGCTLVAL	(V_AMBEN | V_AMCKEN)
 
+#if defined(CONFIG_BF542M)
+# define CONFIG_BF542
+#elif defined(CONFIG_BF544M)
+# define CONFIG_BF544
+#elif defined(CONFIG_BF547M)
+# define CONFIG_BF547
+#elif defined(CONFIG_BF548M)
+# define CONFIG_BF548
+#elif defined(CONFIG_BF549M)
+# define CONFIG_BF549
+#endif
+
 #if defined(CONFIG_BF542)
 # define CPU   "BF542"
 # define CPUID 0x27de
@@ -122,7 +134,7 @@
 #endif
 
 #ifndef CPU
-#error Unknown CPU type - This kernel doesn't seem to be configured properly
+#error "Unknown CPU type - This kernel doesn't seem to be configured properly"
 #endif
 
 #endif	/* __MACH_BF48_H__  */

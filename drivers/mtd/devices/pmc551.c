@@ -34,7 +34,7 @@
  *	aperture size, not the dram size, and the V370PDC supplies no
  *	other method for memory size discovery.  This problem is
  *	mostly only relevant when compiled as a module, as the
- *	unloading of the module with an aperture size smaller then
+ *	unloading of the module with an aperture size smaller than
  *	the ram will cause the driver to detect the onboard memory
  *	size to be equal to the aperture size when the module is
  *	reloaded.  Soooo, to help, the module supports an msize

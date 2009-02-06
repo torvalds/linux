@@ -120,7 +120,7 @@ static struct sms_board sms_boards[] = {
 		.name	= "Hauppauge WinTV MiniCard",
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
-		.lna_ctrl  = 1,
+		.lna_ctrl  = -1,
 	},
 };
 
@@ -131,9 +131,10 @@ struct sms_board *sms_get_board(int id)
 	return &sms_boards[id];
 }
 
-static int sms_set_gpio(struct smscore_device_t *coredev, u32 pin, int enable)
+static int sms_set_gpio(struct smscore_device_t *coredev, int pin, int enable)
 {
-	int ret;
+	int lvl, ret;
+	u32 gpio;
 	struct smscore_gpio_config gpioconfig = {
 		.direction            = SMS_GPIO_DIRECTION_OUTPUT,
 		.pullupdown           = SMS_GPIO_PULLUPDOWN_NONE,
@@ -145,12 +146,20 @@ static int sms_set_gpio(struct smscore_device_t *coredev, u32 pin, int enable)
 	if (pin == 0)
 		return -EINVAL;
 
-	ret = smscore_configure_gpio(coredev, pin, &gpioconfig);
+	if (pin < 0) {
+		/* inverted gpio */
+		gpio = pin * -1;
+		lvl = enable ? 0 : 1;
+	} else {
+		gpio = pin;
+		lvl = enable ? 1 : 0;
+	}
 
+	ret = smscore_configure_gpio(coredev, gpio, &gpioconfig);
 	if (ret < 0)
 		return ret;
 
-	return smscore_set_gpio(coredev, pin, enable);
+	return smscore_set_gpio(coredev, gpio, lvl);
 }
 
 int sms_board_setup(struct smscore_device_t *coredev)

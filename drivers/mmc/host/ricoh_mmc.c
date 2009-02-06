@@ -11,9 +11,10 @@
 
 /*
  * This is a conceptually ridiculous driver, but it is required by the way
- * the Ricoh multi-function R5C832 works. This chip implements firewire
- * and four different memory card controllers. Two of those controllers are
- * an SDHCI controller and a proprietary MMC controller. The linux SDHCI
+ * the Ricoh multi-function chips (R5CXXX) work. These chips implement
+ * the four main memory card controllers (SD, MMC, MS, xD) and one or both
+ * of cardbus or firewire. It happens that they implement SD and MMC
+ * support as separate controllers (and PCI functions). The linux SDHCI
  * driver supports MMC cards but the chip detects MMC cards in hardware
  * and directs them to the MMC controller - so the SDHCI driver never sees
  * them. To get around this, we must disable the useless MMC controller.
@@ -21,8 +22,10 @@
  * a detection event occurs immediately, even if the MMC card is already
  * in the reader.
  *
- * The relevant registers live on the firewire function, so this is unavoidably
- * ugly. Such is life.
+ * It seems to be the case that the relevant PCI registers to deactivate the
+ * MMC controller live on PCI function 0, which might be the cardbus controller
+ * or the firewire controller, depending on the particular chip in question. As
+ * such, it makes what this driver has to do unavoidably ugly. Such is life.
  */
 
 #include <linux/pci.h>
@@ -143,6 +146,7 @@ static int __devinit ricoh_mmc_probe(struct pci_dev *pdev,
 		pci_get_device(PCI_VENDOR_ID_RICOH,
 			PCI_DEVICE_ID_RICOH_RL5C476, fw_dev))) {
 		if (PCI_SLOT(pdev->devfn) == PCI_SLOT(fw_dev->devfn) &&
+		    PCI_FUNC(fw_dev->devfn) == 0 &&
 		    pdev->bus == fw_dev->bus) {
 			if (ricoh_mmc_disable(fw_dev) != 0)
 				return -ENODEV;
@@ -160,6 +164,7 @@ static int __devinit ricoh_mmc_probe(struct pci_dev *pdev,
 	    (fw_dev = pci_get_device(PCI_VENDOR_ID_RICOH,
 					PCI_DEVICE_ID_RICOH_R5C832, fw_dev))) {
 		if (PCI_SLOT(pdev->devfn) == PCI_SLOT(fw_dev->devfn) &&
+		    PCI_FUNC(fw_dev->devfn) == 0 &&
 		    pdev->bus == fw_dev->bus) {
 			if (ricoh_mmc_disable(fw_dev) != 0)
 				return -ENODEV;
@@ -172,7 +177,7 @@ static int __devinit ricoh_mmc_probe(struct pci_dev *pdev,
 
 	if (!ctrlfound) {
 		printk(KERN_WARNING DRIVER_NAME
-		       ": Main firewire function not found. Cannot disable controller.\n");
+		       ": Main Ricoh function not found. Cannot disable controller.\n");
 		return -ENODEV;
 	}
 
@@ -191,7 +196,7 @@ static void __devexit ricoh_mmc_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static int ricoh_mmc_suspend(struct pci_dev *pdev, pm_message_t state)
+static int ricoh_mmc_suspend_late(struct pci_dev *pdev, pm_message_t state)
 {
 	struct pci_dev *fw_dev = NULL;
 
@@ -205,7 +210,7 @@ static int ricoh_mmc_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int ricoh_mmc_resume(struct pci_dev *pdev)
+static int ricoh_mmc_resume_early(struct pci_dev *pdev)
 {
 	struct pci_dev *fw_dev = NULL;
 
@@ -224,8 +229,8 @@ static struct pci_driver ricoh_mmc_driver = {
 	.id_table =	pci_ids,
 	.probe = 	ricoh_mmc_probe,
 	.remove =	__devexit_p(ricoh_mmc_remove),
-	.suspend =	ricoh_mmc_suspend,
-	.resume =	ricoh_mmc_resume,
+	.suspend_late =	ricoh_mmc_suspend_late,
+	.resume_early =	ricoh_mmc_resume_early,
 };
 
 /*****************************************************************************\

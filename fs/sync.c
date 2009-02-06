@@ -36,7 +36,7 @@ static void do_sync(unsigned long wait)
 		laptop_sync_completion();
 }
 
-asmlinkage long sys_sync(void)
+SYSCALL_DEFINE0(sync)
 {
 	do_sync(1);
 	return 0;
@@ -75,14 +75,39 @@ int file_fsync(struct file *filp, struct dentry *dentry, int datasync)
 	return ret;
 }
 
-long do_fsync(struct file *file, int datasync)
+/**
+ * vfs_fsync - perform a fsync or fdatasync on a file
+ * @file:		file to sync
+ * @dentry:		dentry of @file
+ * @data:		only perform a fdatasync operation
+ *
+ * Write back data and metadata for @file to disk.  If @datasync is
+ * set only metadata needed to access modified file data is written.
+ *
+ * In case this function is called from nfsd @file may be %NULL and
+ * only @dentry is set.  This can only happen when the filesystem
+ * implements the export_operations API.
+ */
+int vfs_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
-	int ret;
-	int err;
-	struct address_space *mapping = file->f_mapping;
+	const struct file_operations *fop;
+	struct address_space *mapping;
+	int err, ret;
 
-	if (!file->f_op || !file->f_op->fsync) {
-		/* Why?  We can still call filemap_fdatawrite */
+	/*
+	 * Get mapping and operations from the file in case we have
+	 * as file, or get the default values for them in case we
+	 * don't have a struct file available.  Damn nfsd..
+	 */
+	if (file) {
+		mapping = file->f_mapping;
+		fop = file->f_op;
+	} else {
+		mapping = dentry->d_inode->i_mapping;
+		fop = dentry->d_inode->i_fop;
+	}
+
+	if (!fop || !fop->fsync) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -94,7 +119,7 @@ long do_fsync(struct file *file, int datasync)
 	 * livelocks in fsync_buffers_list().
 	 */
 	mutex_lock(&mapping->host->i_mutex);
-	err = file->f_op->fsync(file, file->f_path.dentry, datasync);
+	err = fop->fsync(file, dentry, datasync);
 	if (!ret)
 		ret = err;
 	mutex_unlock(&mapping->host->i_mutex);
@@ -104,28 +129,29 @@ long do_fsync(struct file *file, int datasync)
 out:
 	return ret;
 }
+EXPORT_SYMBOL(vfs_fsync);
 
-static long __do_fsync(unsigned int fd, int datasync)
+static int do_fsync(unsigned int fd, int datasync)
 {
 	struct file *file;
 	int ret = -EBADF;
 
 	file = fget(fd);
 	if (file) {
-		ret = do_fsync(file, datasync);
+		ret = vfs_fsync(file, file->f_path.dentry, datasync);
 		fput(file);
 	}
 	return ret;
 }
 
-asmlinkage long sys_fsync(unsigned int fd)
+SYSCALL_DEFINE1(fsync, unsigned int, fd)
 {
-	return __do_fsync(fd, 0);
+	return do_fsync(fd, 0);
 }
 
-asmlinkage long sys_fdatasync(unsigned int fd)
+SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
 {
-	return __do_fsync(fd, 1);
+	return do_fsync(fd, 1);
 }
 
 /*
@@ -175,8 +201,8 @@ asmlinkage long sys_fdatasync(unsigned int fd)
  * already-instantiated disk blocks, there are no guarantees here that the data
  * will be available after a crash.
  */
-asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
-					unsigned int flags)
+SYSCALL_DEFINE(sync_file_range)(int fd, loff_t offset, loff_t nbytes,
+				unsigned int flags)
 {
 	int ret;
 	struct file *file;
@@ -236,14 +262,32 @@ out_put:
 out:
 	return ret;
 }
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+asmlinkage long SyS_sync_file_range(long fd, loff_t offset, loff_t nbytes,
+				    long flags)
+{
+	return SYSC_sync_file_range((int) fd, offset, nbytes,
+				    (unsigned int) flags);
+}
+SYSCALL_ALIAS(sys_sync_file_range, SyS_sync_file_range);
+#endif
 
 /* It would be nice if people remember that not all the world's an i386
    when they introduce new system calls */
-asmlinkage long sys_sync_file_range2(int fd, unsigned int flags,
-				     loff_t offset, loff_t nbytes)
+SYSCALL_DEFINE(sync_file_range2)(int fd, unsigned int flags,
+				 loff_t offset, loff_t nbytes)
 {
 	return sys_sync_file_range(fd, offset, nbytes, flags);
 }
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+asmlinkage long SyS_sync_file_range2(long fd, long flags,
+				     loff_t offset, loff_t nbytes)
+{
+	return SYSC_sync_file_range2((int) fd, (unsigned int) flags,
+				     offset, nbytes);
+}
+SYSCALL_ALIAS(sys_sync_file_range2, SyS_sync_file_range2);
+#endif
 
 /*
  * `endbyte' is inclusive
@@ -269,7 +313,7 @@ int do_sync_mapping_range(struct address_space *mapping, loff_t offset,
 
 	if (flags & SYNC_FILE_RANGE_WRITE) {
 		ret = __filemap_fdatawrite_range(mapping, offset, endbyte,
-						WB_SYNC_NONE);
+						WB_SYNC_ALL);
 		if (ret < 0)
 			goto out;
 	}

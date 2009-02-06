@@ -40,6 +40,9 @@
 #ifndef node_to_cpumask
 #define node_to_cpumask(node)	((void)node, cpu_online_map)
 #endif
+#ifndef cpumask_of_node
+#define cpumask_of_node(node)	((void)node, cpu_online_mask)
+#endif
 #ifndef node_to_first_cpu
 #define node_to_first_cpu(node)	((void)(node),0)
 #endif
@@ -54,9 +57,18 @@
 				)
 #endif
 
+#ifndef cpumask_of_pcibus
+#define cpumask_of_pcibus(bus)	(pcibus_to_node(bus) == -1 ?		\
+				 cpu_all_mask :				\
+				 cpumask_of_node(pcibus_to_node(bus)))
+#endif
+
 #endif	/* CONFIG_NUMA */
 
-/* returns pointer to cpumask for specified node */
+/*
+ * returns pointer to cpumask for specified node
+ * Deprecated: use "const struct cpumask *mask = cpumask_of_node(node)"
+ */
 #ifndef node_to_cpumask_ptr
 
 #define	node_to_cpumask_ptr(v, node) 					\

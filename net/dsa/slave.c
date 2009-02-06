@@ -286,6 +286,42 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_sset_count		= dsa_slave_get_sset_count,
 };
 
+#ifdef CONFIG_NET_DSA_TAG_DSA
+static const struct net_device_ops dsa_netdev_ops = {
+	.ndo_open	 	= dsa_slave_open,
+	.ndo_stop		= dsa_slave_close,
+	.ndo_start_xmit		= dsa_xmit,
+	.ndo_change_rx_flags	= dsa_slave_change_rx_flags,
+	.ndo_set_rx_mode	= dsa_slave_set_rx_mode,
+	.ndo_set_multicast_list = dsa_slave_set_rx_mode,
+	.ndo_set_mac_address	= dsa_slave_set_mac_address,
+	.ndo_do_ioctl		= dsa_slave_ioctl,
+};
+#endif
+#ifdef CONFIG_NET_DSA_TAG_EDSA
+static const struct net_device_ops edsa_netdev_ops = {
+	.ndo_open	 	= dsa_slave_open,
+	.ndo_stop		= dsa_slave_close,
+	.ndo_start_xmit		= edsa_xmit,
+	.ndo_change_rx_flags	= dsa_slave_change_rx_flags,
+	.ndo_set_rx_mode	= dsa_slave_set_rx_mode,
+	.ndo_set_multicast_list = dsa_slave_set_rx_mode,
+	.ndo_set_mac_address	= dsa_slave_set_mac_address,
+	.ndo_do_ioctl		= dsa_slave_ioctl,
+};
+#endif
+#ifdef CONFIG_NET_DSA_TAG_TRAILER
+static const struct net_device_ops trailer_netdev_ops = {
+	.ndo_open	 	= dsa_slave_open,
+	.ndo_stop		= dsa_slave_close,
+	.ndo_start_xmit		= trailer_xmit,
+	.ndo_change_rx_flags	= dsa_slave_change_rx_flags,
+	.ndo_set_rx_mode	= dsa_slave_set_rx_mode,
+	.ndo_set_multicast_list = dsa_slave_set_rx_mode,
+	.ndo_set_mac_address	= dsa_slave_set_mac_address,
+	.ndo_do_ioctl		= dsa_slave_ioctl,
+};
+#endif
 
 /* slave device setup *******************************************************/
 struct net_device *
@@ -306,32 +342,27 @@ dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	SET_ETHTOOL_OPS(slave_dev, &dsa_slave_ethtool_ops);
 	memcpy(slave_dev->dev_addr, master->dev_addr, ETH_ALEN);
 	slave_dev->tx_queue_len = 0;
+
 	switch (ds->tag_protocol) {
 #ifdef CONFIG_NET_DSA_TAG_DSA
 	case htons(ETH_P_DSA):
-		slave_dev->hard_start_xmit = dsa_xmit;
+		slave_dev->netdev_ops = &dsa_netdev_ops;
 		break;
 #endif
 #ifdef CONFIG_NET_DSA_TAG_EDSA
 	case htons(ETH_P_EDSA):
-		slave_dev->hard_start_xmit = edsa_xmit;
+		slave_dev->netdev_ops = &edsa_netdev_ops;
 		break;
 #endif
 #ifdef CONFIG_NET_DSA_TAG_TRAILER
 	case htons(ETH_P_TRAILER):
-		slave_dev->hard_start_xmit = trailer_xmit;
+		slave_dev->netdev_ops = &trailer_netdev_ops;
 		break;
 #endif
 	default:
 		BUG();
 	}
-	slave_dev->open = dsa_slave_open;
-	slave_dev->stop = dsa_slave_close;
-	slave_dev->change_rx_flags = dsa_slave_change_rx_flags;
-	slave_dev->set_rx_mode = dsa_slave_set_rx_mode;
-	slave_dev->set_multicast_list = dsa_slave_set_rx_mode;
-	slave_dev->set_mac_address = dsa_slave_set_mac_address;
-	slave_dev->do_ioctl = dsa_slave_ioctl;
+
 	SET_NETDEV_DEV(slave_dev, parent);
 	slave_dev->vlan_features = master->vlan_features;
 

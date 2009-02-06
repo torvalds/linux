@@ -906,7 +906,7 @@ sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
  * @dir:  R/W or both.
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-mapping.txt
+ * See Documentation/PCI/PCI-DMA-mapping.txt
  */
 dma_addr_t
 sba_map_single_attrs(struct device *dev, void *addr, size_t size, int dir,
@@ -1024,7 +1024,7 @@ sba_mark_clean(struct ioc *ioc, dma_addr_t iova, size_t size)
  * @dir:  R/W or both.
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-mapping.txt
+ * See Documentation/PCI/PCI-DMA-mapping.txt
  */
 void sba_unmap_single_attrs(struct device *dev, dma_addr_t iova, size_t size,
 			    int dir, struct dma_attrs *attrs)
@@ -1102,7 +1102,7 @@ EXPORT_SYMBOL(sba_unmap_single_attrs);
  * @size:  number of bytes mapped in driver buffer.
  * @dma_handle:  IOVA of new buffer.
  *
- * See Documentation/DMA-mapping.txt
+ * See Documentation/PCI/PCI-DMA-mapping.txt
  */
 void *
 sba_alloc_coherent (struct device *dev, size_t size, dma_addr_t *dma_handle, gfp_t flags)
@@ -1165,7 +1165,7 @@ sba_alloc_coherent (struct device *dev, size_t size, dma_addr_t *dma_handle, gfp
  * @vaddr:  virtual address IOVA of "consistent" buffer.
  * @dma_handler:  IO virtual address of "consistent" buffer.
  *
- * See Documentation/DMA-mapping.txt
+ * See Documentation/PCI/PCI-DMA-mapping.txt
  */
 void sba_free_coherent (struct device *dev, size_t size, void *vaddr, dma_addr_t dma_handle)
 {
@@ -1420,7 +1420,7 @@ sba_coalesce_chunks(struct ioc *ioc, struct device *dev,
  * @dir:  R/W or both.
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-mapping.txt
+ * See Documentation/PCI/PCI-DMA-mapping.txt
  */
 int sba_map_sg_attrs(struct device *dev, struct scatterlist *sglist, int nents,
 		     int dir, struct dma_attrs *attrs)
@@ -1512,7 +1512,7 @@ EXPORT_SYMBOL(sba_map_sg_attrs);
  * @dir:  R/W or both.
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-mapping.txt
+ * See Documentation/PCI/PCI-DMA-mapping.txt
  */
 void sba_unmap_sg_attrs(struct device *dev, struct scatterlist *sglist,
 			int nents, int dir, struct dma_attrs *attrs)

@@ -307,10 +307,7 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 
 	/* We really mean to ignore the return result here.  Two
 	 * PCI controller share the same interrupt numbers and
-	 * drive the same front-end hardware.  Whichever of the
-	 * two get in here first will register the IRQ handler
-	 * the second will just error out since we do not pass in
-	 * IRQF_SHARED.
+	 * drive the same front-end hardware.
 	 */
 	err = request_irq(op->irqs[1], psycho_ue_intr, IRQF_SHARED,
 			  "PSYCHO_UE", pbm);

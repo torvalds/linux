@@ -297,7 +297,7 @@ static inline unsigned long fast_get_dcookie(struct path *path)
 {
 	unsigned long cookie;
 
-	if (path->dentry->d_cookie)
+	if (path->dentry->d_flags & DCACHE_COOKIE)
 		return (unsigned long)path->dentry;
 	get_dcookie(path, &cookie);
 	return cookie;

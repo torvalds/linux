@@ -48,7 +48,6 @@ extern unsigned long mvme16x_gettimeoffset (void);
 extern int mvme16x_hwclk (int, struct rtc_time *);
 extern int mvme16x_set_clock_mmss (unsigned long);
 extern void mvme16x_reset (void);
-extern void mvme16x_waitbut(void);
 
 int bcd2int (unsigned char b);
 

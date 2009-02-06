@@ -206,6 +206,8 @@ dasd_feature_list(char *str, char **endp)
 			features |= DASD_FEATURE_USEDIAG;
 		else if (len == 6 && !strncmp(str, "erplog", 6))
 			features |= DASD_FEATURE_ERPLOG;
+		else if (len == 8 && !strncmp(str, "failfast", 8))
+			features |= DASD_FEATURE_FAILFAST;
 		else {
 			MESSAGE(KERN_WARNING,
 				"unsupported feature: %*s, "
@@ -667,6 +669,51 @@ dasd_device_from_cdev(struct ccw_device *cdev)
  */
 
 /*
+ * failfast controls the behaviour, if no path is available
+ */
+static ssize_t dasd_ff_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	struct dasd_devmap *devmap;
+	int ff_flag;
+
+	devmap = dasd_find_busid(dev->bus_id);
+	if (!IS_ERR(devmap))
+		ff_flag = (devmap->features & DASD_FEATURE_FAILFAST) != 0;
+	else
+		ff_flag = (DASD_FEATURE_DEFAULT & DASD_FEATURE_FAILFAST) != 0;
+	return snprintf(buf, PAGE_SIZE, ff_flag ? "1\n" : "0\n");
+}
+
+static ssize_t dasd_ff_store(struct device *dev, struct device_attribute *attr,
+	      const char *buf, size_t count)
+{
+	struct dasd_devmap *devmap;
+	int val;
+	char *endp;
+
+	devmap = dasd_devmap_from_cdev(to_ccwdev(dev));
+	if (IS_ERR(devmap))
+		return PTR_ERR(devmap);
+
+	val = simple_strtoul(buf, &endp, 0);
+	if (((endp + 1) < (buf + count)) || (val > 1))
+		return -EINVAL;
+
+	spin_lock(&dasd_devmap_lock);
+	if (val)
+		devmap->features |= DASD_FEATURE_FAILFAST;
+	else
+		devmap->features &= ~DASD_FEATURE_FAILFAST;
+	if (devmap->device)
+		devmap->device->features = devmap->features;
+	spin_unlock(&dasd_devmap_lock);
+	return count;
+}
+
+static DEVICE_ATTR(failfast, 0644, dasd_ff_show, dasd_ff_store);
+
+/*
  * readonly controls the readonly status of a dasd
  */
 static ssize_t
@@ -1020,6 +1067,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_use_diag.attr,
 	&dev_attr_eer_enabled.attr,
 	&dev_attr_erplog.attr,
+	&dev_attr_failfast.attr,
 	NULL,
 };
 

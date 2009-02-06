@@ -31,7 +31,8 @@
 #include <linux/bootmem.h>
 #include <linux/uaccess.h>
 #include <asm/bfin-global.h>
-#include <asm/l1layout.h>
+#include <asm/pda.h>
+#include <asm/cplbinit.h>
 #include "blackfin_sram.h"
 
 /*
@@ -52,6 +53,11 @@ static unsigned long empty_bad_page_table;
 static unsigned long empty_bad_page;
 
 unsigned long empty_zero_page;
+
+extern unsigned long exception_stack[NR_CPUS][1024];
+
+struct blackfin_pda cpu_pda[NR_CPUS];
+EXPORT_SYMBOL(cpu_pda);
 
 /*
  * paging_init() continues the virtual memory environment setup which
@@ -98,6 +104,32 @@ void __init paging_init(void)
 	}
 }
 
+asmlinkage void init_pda(void)
+{
+	unsigned int cpu = raw_smp_processor_id();
+
+	/* Initialize the PDA fields holding references to other parts
+	   of the memory. The content of such memory is still
+	   undefined at the time of the call, we are only setting up
+	   valid pointers to it. */
+	memset(&cpu_pda[cpu], 0, sizeof(cpu_pda[cpu]));
+
+	cpu_pda[0].next = &cpu_pda[1];
+	cpu_pda[1].next = &cpu_pda[0];
+
+	cpu_pda[cpu].ex_stack = exception_stack[cpu + 1];
+
+#ifdef CONFIG_SMP
+	cpu_pda[cpu].imask = 0x1f;
+#endif
+}
+
+void __cpuinit reserve_pda(void)
+{
+	printk(KERN_INFO "PDA for CPU%u reserved at %p\n", smp_processor_id(),
+					&cpu_pda[smp_processor_id()]);
+}
+
 void __init mem_init(void)
 {
 	unsigned int codek = 0, datak = 0, initk = 0;
@@ -141,21 +173,13 @@ void __init mem_init(void)
 
 static int __init sram_init(void)
 {
-	unsigned long tmp;
-
 	/* Initialize the blackfin L1 Memory. */
 	bfin_sram_init();
 
-	/* Allocate this once; never free it.  We assume this gives us a
-	   pointer to the start of L1 scratchpad memory; panic if it
-	   doesn't.  */
-	tmp = (unsigned long)l1sram_alloc(sizeof(struct l1_scratch_task_info));
-	if (tmp != (unsigned long)L1_SCRATCH_TASK_INFO) {
-		printk(KERN_EMERG "mem_init(): Did not get the right address from l1sram_alloc: %08lx != %08lx\n",
-			tmp, (unsigned long)L1_SCRATCH_TASK_INFO);
-		panic("No L1, time to give up\n");
-	}
-
+	/* Reserve the PDA space for the boot CPU right after we
+	 * initialized the scratch memory allocator.
+	 */
+	reserve_pda();
 	return 0;
 }
 pure_initcall(sram_init);

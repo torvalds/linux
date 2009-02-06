@@ -168,13 +168,13 @@ static const char *get_v4l_name(int v4l_type)
  * This is part of Video 4 Linux API. The procedure handles ioctl() calls.
  *
  */
-static int pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
+static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_v4l2 *vp = fh->vhead;
 	struct pvr2_v4l2_dev *dev_info = fh->dev_info;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
-	int ret = -EINVAL;
+	long ret = -EINVAL;
 
 	if (pvrusb2_debug & PVR2_TRACE_V4LIOCTL) {
 		v4l_print_ioctl(pvr2_hdw_get_driver_name(hdw),cmd);
@@ -851,11 +851,11 @@ static int pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_DBG_G_REGISTER:
 	{
 		u64 val;
-		struct v4l2_register *req = (struct v4l2_register *)arg;
+		struct v4l2_dbg_register *req = (struct v4l2_dbg_register *)arg;
 		if (cmd == VIDIOC_DBG_S_REGISTER) val = req->val;
 		ret = pvr2_hdw_register_access(
-			hdw,req->match_type,req->match_chip,req->reg,
-			cmd == VIDIOC_DBG_S_REGISTER,&val);
+			hdw, &req->match, req->reg,
+			cmd == VIDIOC_DBG_S_REGISTER, &val);
 		if (cmd == VIDIOC_DBG_G_REGISTER) req->val = val;
 		break;
 	}
@@ -871,20 +871,20 @@ static int pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	if (ret < 0) {
 		if (pvrusb2_debug & PVR2_TRACE_V4LIOCTL) {
 			pvr2_trace(PVR2_TRACE_V4LIOCTL,
-				   "pvr2_v4l2_do_ioctl failure, ret=%d",ret);
+				   "pvr2_v4l2_do_ioctl failure, ret=%ld", ret);
 		} else {
 			if (pvrusb2_debug & PVR2_TRACE_V4LIOCTL) {
 				pvr2_trace(PVR2_TRACE_V4LIOCTL,
-					   "pvr2_v4l2_do_ioctl failure, ret=%d"
-					   " command was:",ret);
+					   "pvr2_v4l2_do_ioctl failure, ret=%ld"
+					   " command was:", ret);
 				v4l_print_ioctl(pvr2_hdw_get_driver_name(hdw),
 						cmd);
 			}
 		}
 	} else {
 		pvr2_trace(PVR2_TRACE_V4LIOCTL,
-			   "pvr2_v4l2_do_ioctl complete, ret=%d (0x%x)",
-			   ret,ret);
+			   "pvr2_v4l2_do_ioctl complete, ret=%ld (0x%lx)",
+			   ret, ret);
 	}
 	return ret;
 }
@@ -948,7 +948,7 @@ static void pvr2_v4l2_internal_check(struct pvr2_channel *chp)
 }
 
 
-static int pvr2_v4l2_ioctl(struct inode *inode, struct file *file,
+static long pvr2_v4l2_ioctl(struct file *file,
 			   unsigned int cmd, unsigned long arg)
 {
 
@@ -960,7 +960,7 @@ static int pvr2_v4l2_ioctl(struct inode *inode, struct file *file,
 }
 
 
-static int pvr2_v4l2_release(struct inode *inode, struct file *file)
+static int pvr2_v4l2_release(struct file *file)
 {
 	struct pvr2_v4l2_fh *fhp = file->private_data;
 	struct pvr2_v4l2 *vp = fhp->vhead;
@@ -1008,7 +1008,7 @@ static int pvr2_v4l2_release(struct inode *inode, struct file *file)
 }
 
 
-static int pvr2_v4l2_open(struct inode *inode, struct file *file)
+static int pvr2_v4l2_open(struct file *file)
 {
 	struct pvr2_v4l2_dev *dip; /* Our own context pointer */
 	struct pvr2_v4l2_fh *fhp;
@@ -1235,13 +1235,12 @@ static unsigned int pvr2_v4l2_poll(struct file *file, poll_table *wait)
 }
 
 
-static const struct file_operations vdev_fops = {
+static const struct v4l2_file_operations vdev_fops = {
 	.owner      = THIS_MODULE,
 	.open       = pvr2_v4l2_open,
 	.release    = pvr2_v4l2_release,
 	.read       = pvr2_v4l2_read,
 	.ioctl      = pvr2_v4l2_ioctl,
-	.llseek     = no_llseek,
 	.poll       = pvr2_v4l2_poll,
 };
 

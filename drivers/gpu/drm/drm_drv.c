@@ -294,6 +294,7 @@ EXPORT_SYMBOL(drm_init);
  */
 static void drm_cleanup(struct drm_device * dev)
 {
+	struct drm_map_list *r_list, *list_temp;
 	DRM_DEBUG("\n");
 
 	if (!dev) {
@@ -314,16 +315,19 @@ static void drm_cleanup(struct drm_device * dev)
 		DRM_DEBUG("mtrr_del=%d\n", retval);
 	}
 
+	if (dev->driver->unload)
+		dev->driver->unload(dev);
+
 	if (drm_core_has_AGP(dev) && dev->agp) {
 		drm_free(dev->agp, sizeof(*dev->agp), DRM_MEM_AGPLISTS);
 		dev->agp = NULL;
 	}
 
-	if (dev->driver->unload)
-		dev->driver->unload(dev);
-
 	drm_ht_remove(&dev->map_hash);
 	drm_ctxbitmap_cleanup(dev);
+
+	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
+		drm_rmmap(dev, r_list->map);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);

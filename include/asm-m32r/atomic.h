@@ -9,6 +9,7 @@
  *    Copyright (C) 2004  Hirokazu Takata <takata at linux-m32r.org>
  */
 
+#include <linux/types.h>
 #include <asm/assembler.h>
 #include <asm/system.h>
 
@@ -16,13 +17,6 @@
  * Atomic operations that C can't guarantee us.  Useful for
  * resource counting etc..
  */
-
-/*
- * Make sure gcc doesn't try to be clever and move things around
- * on us. We need to use _exactly_ the address the user gave us,
- * not some alias that contains the same information.
- */
-typedef struct { volatile int counter; } atomic_t;
 
 #define ATOMIC_INIT(i)	{ (i) }
 

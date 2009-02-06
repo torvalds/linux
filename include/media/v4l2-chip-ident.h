@@ -2,7 +2,7 @@
     v4l2 chip identifiers header
 
     This header provides a list of chip identifiers that can be returned
-    through the VIDIOC_G_CHIP_IDENT ioctl.
+    through the VIDIOC_DBG_G_CHIP_IDENT ioctl.
 
     Copyright (C) 2007 Hans Verkuil <hverkuil@xs4all.nl>
 
@@ -24,7 +24,7 @@
 #ifndef V4L2_CHIP_IDENT_H_
 #define V4L2_CHIP_IDENT_H_
 
-/* VIDIOC_G_CHIP_IDENT: identifies the actual chip installed on the board */
+/* VIDIOC_DBG_G_CHIP_IDENT: identifies the actual chip installed on the board */
 enum {
 	/* general idents: reserved range 0-49 */
 	V4L2_IDENT_NONE      = 0,       /* No chip matched */

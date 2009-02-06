@@ -1,6 +1,7 @@
 #ifndef __LINUX_TC_EM_META_H
 #define __LINUX_TC_EM_META_H
 
+#include <linux/types.h>
 #include <linux/pkt_cls.h>
 
 enum

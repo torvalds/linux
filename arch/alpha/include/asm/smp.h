@@ -45,7 +45,6 @@ extern struct cpuinfo_alpha cpu_data[NR_CPUS];
 #define raw_smp_processor_id()	(current_thread_info()->cpu)
 
 extern int smp_num_cpus;
-#define cpu_possible_map	cpu_present_map
 
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi(cpumask_t mask);

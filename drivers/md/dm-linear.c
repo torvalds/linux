@@ -142,6 +142,7 @@ static struct target_type linear_target = {
 	.status = linear_status,
 	.ioctl  = linear_ioctl,
 	.merge  = linear_merge,
+	.features = DM_TARGET_SUPPORTS_BARRIERS,
 };
 
 int __init dm_linear_init(void)
@@ -156,8 +157,5 @@ int __init dm_linear_init(void)
 
 void dm_linear_exit(void)
 {
-	int r = dm_unregister_target(&linear_target);
-
-	if (r < 0)
-		DMERR("unregister failed %d", r);
+	dm_unregister_target(&linear_target);
 }

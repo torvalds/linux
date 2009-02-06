@@ -934,9 +934,8 @@ struct kimage *kexec_crash_image;
 
 static DEFINE_MUTEX(kexec_mutex);
 
-asmlinkage long sys_kexec_load(unsigned long entry, unsigned long nr_segments,
-				struct kexec_segment __user *segments,
-				unsigned long flags)
+SYSCALL_DEFINE4(kexec_load, unsigned long, entry, unsigned long, nr_segments,
+		struct kexec_segment __user *, segments, unsigned long, flags)
 {
 	struct kimage **dest_image, *image;
 	int result;
@@ -1116,7 +1115,7 @@ void crash_save_cpu(struct pt_regs *regs, int cpu)
 	struct elf_prstatus prstatus;
 	u32 *buf;
 
-	if ((cpu < 0) || (cpu >= NR_CPUS))
+	if ((cpu < 0) || (cpu >= nr_cpu_ids))
 		return;
 
 	/* Using ELF notes here is opportunistic.

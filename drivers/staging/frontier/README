@@ -1,0 +1,28 @@
+This directory contains the USB Tranzport and Alphatrack Kernel drivers for Linux.
+
+At present the tranzport does reads/writes of 8 byte cmds to /dev/tranzport0 to control
+the lights and screen and wheel
+
+At present the alphatrack accepts reads/writes of 12 byte cmds to /dev/tranzport0 to control
+the lights and screen and fader.
+
+Both drivers also have some sysfs hooks that are non-functional at the moment.
+
+The API is currently closely tied to the ardour revision and WILL change.
+
+A sysfs interface is PERFECT for simple userspace apps to do fun things with the
+lights and screen. It's fairly lousy for handling input events and very lousy
+for watching the state of the shuttle wheel.
+
+A linux input events interface is great for the input events and shuttle wheel. It's
+theoretically OK on LEDs. A Fader can be mapped to an absolute mouse device.
+But there is no LCD support at all.
+
+In the end this is going to be driven by a midi layer, which handles all those
+cases via a defined API, but - among other things - is slow, doesn't do
+flow control, and is a LOT of extra work. Frankly, I'd like to keep the
+core driver simple because the only realtime work really required is
+the bottom half interrupt handler and the output overlapping.
+
+Exposing some sort of clean aio api to userspace would be perfect. What that
+API looks like? Gah. beats me.

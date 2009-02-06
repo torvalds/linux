@@ -202,7 +202,6 @@ static const struct ide_tp_ops tx4938ide_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= ide_read_status,
 	.read_altstatus		= ide_read_altstatus,
-	.read_sff_dma_status	= ide_read_sff_dma_status,
 
 	.set_irq		= ide_set_irq,
 
@@ -216,16 +215,17 @@ static const struct ide_tp_ops tx4938ide_tp_ops = {
 #endif	/* __BIG_ENDIAN */
 
 static const struct ide_port_ops tx4938ide_port_ops = {
-	.set_pio_mode = tx4938ide_set_pio_mode,
+	.set_pio_mode		= tx4938ide_set_pio_mode,
 };
 
 static const struct ide_port_info tx4938ide_port_info __initdata = {
-	.port_ops = &tx4938ide_port_ops,
+	.port_ops		= &tx4938ide_port_ops,
 #ifdef __BIG_ENDIAN
-	.tp_ops = &tx4938ide_tp_ops,
+	.tp_ops			= &tx4938ide_tp_ops,
 #endif
-	.host_flags = IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
-	.pio_mask = ATA_PIO5,
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
+	.pio_mask		= ATA_PIO5,
+	.chipset		= ide_generic,
 };
 
 static int __init tx4938ide_probe(struct platform_device *pdev)

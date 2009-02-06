@@ -31,7 +31,7 @@ anyways).
 
 After detecting the processor type, the kernel patches out sections of code
 that shouldn't be used by writing nop's over it. Using cpufeatures requires
-just 2 macros (found in include/asm-ppc/cputable.h), as seen in head.S
+just 2 macros (found in arch/powerpc/include/asm/cputable.h), as seen in head.S
 transfer_to_handler:
 
 	#ifdef CONFIG_ALTIVEC

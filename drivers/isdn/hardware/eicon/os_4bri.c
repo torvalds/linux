@@ -997,7 +997,7 @@ diva_4bri_start_adapter(PISDN_ADAPTER IoAdapter,
 	diva_xdi_display_adapter_features(IoAdapter->ANum);
 
 	for (i = 0; i < IoAdapter->tasks; i++) {
-		DBG_LOG(("A(%d) %s adapter successfull started",
+		DBG_LOG(("A(%d) %s adapter successfully started",
 			 IoAdapter->QuadroList->QuadroAdapter[i]->ANum,
 			 (IoAdapter->tasks == 1) ? "BRI 2.0" : "4BRI"))
 		diva_xdi_didd_register_adapter(IoAdapter->QuadroList->QuadroAdapter[i]->ANum);

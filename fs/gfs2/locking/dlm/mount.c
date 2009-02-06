@@ -194,17 +194,25 @@ out:
 static void gdlm_recovery_done(void *lockspace, unsigned int jid,
                                unsigned int message)
 {
+	char env_jid[20];
+	char env_status[20];
+	char *envp[] = { env_jid, env_status, NULL };
 	struct gdlm_ls *ls = lockspace;
 	ls->recover_jid_done = jid;
 	ls->recover_jid_status = message;
-	kobject_uevent(&ls->kobj, KOBJ_CHANGE);
+	sprintf(env_jid, "JID=%d", jid);
+	sprintf(env_status, "RECOVERY=%s",
+		message == LM_RD_SUCCESS ? "Done" : "Failed");
+	kobject_uevent_env(&ls->kobj, KOBJ_CHANGE, envp);
 }
 
 static void gdlm_others_may_mount(void *lockspace)
 {
+	char *message = "FIRSTMOUNT=Done";
+	char *envp[] = { message, NULL };
 	struct gdlm_ls *ls = lockspace;
 	ls->first_done = 1;
-	kobject_uevent(&ls->kobj, KOBJ_CHANGE);
+	kobject_uevent_env(&ls->kobj, KOBJ_CHANGE, envp);
 }
 
 /* Userspace gets the offline uevent, blocks new gfs locks on

@@ -99,7 +99,7 @@ MODULE_PARM_DESC(use_lro, " Large Receive Offload, 1: enable, 0: disable, "
 
 static int port_name_cnt;
 static LIST_HEAD(adapter_list);
-u64 ehea_driver_flags;
+static unsigned long ehea_driver_flags;
 struct work_struct ehea_rereg_mr_task;
 static DEFINE_MUTEX(dlpar_mem_lock);
 struct ehea_fw_handle_array ehea_fw_handles;
@@ -132,7 +132,7 @@ void ehea_dump(void *adr, int len, char *msg)
 	int x;
 	unsigned char *deb = adr;
 	for (x = 0; x < len; x += 16) {
-		printk(DRV_NAME " %s adr=%p ofs=%04x %016lx %016lx\n", msg,
+		printk(DRV_NAME " %s adr=%p ofs=%04x %016llx %016llx\n", msg,
 			  deb, x, *((u64 *)&deb[0]), *((u64 *)&deb[8]));
 		deb += 16;
 	}
@@ -883,7 +883,7 @@ static irqreturn_t ehea_qp_aff_irq_handler(int irq, void *param)
 
 	while (eqe) {
 		qp_token = EHEA_BMASK_GET(EHEA_EQE_QP_TOKEN, eqe->entry);
-		ehea_error("QP aff_err: entry=0x%lx, token=0x%x",
+		ehea_error("QP aff_err: entry=0x%llx, token=0x%x",
 			   eqe->entry, qp_token);
 
 		qp = port->port_res[qp_token].qp;
@@ -1159,7 +1159,7 @@ static void ehea_parse_eqe(struct ehea_adapter *adapter, u64 eqe)
 		netif_stop_queue(port->netdev);
 		break;
 	default:
-		ehea_error("unknown event code %x, eqe=0x%lX", ec, eqe);
+		ehea_error("unknown event code %x, eqe=0x%llX", ec, eqe);
 		break;
 	}
 }
@@ -1971,7 +1971,7 @@ static void ehea_set_multicast_list(struct net_device *dev)
 		}
 
 		if (dev->mc_count > port->adapter->max_mc_mac) {
-			ehea_info("Mcast registration limit reached (0x%lx). "
+			ehea_info("Mcast registration limit reached (0x%llx). "
 				  "Use ALLMULTI!",
 				  port->adapter->max_mc_mac);
 			goto out;

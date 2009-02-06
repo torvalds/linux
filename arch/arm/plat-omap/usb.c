@@ -77,38 +77,6 @@
 
 /*-------------------------------------------------------------------------*/
 
-#if	defined(CONFIG_ARCH_OMAP_OTG) || defined(CONFIG_USB_MUSB_OTG)
-
-static struct otg_transceiver *xceiv;
-
-/**
- * otg_get_transceiver - find the (single) OTG transceiver driver
- *
- * Returns the transceiver driver, after getting a refcount to it; or
- * null if there is no such transceiver.  The caller is responsible for
- * releasing that count.
- */
-struct otg_transceiver *otg_get_transceiver(void)
-{
-	if (xceiv)
-		get_device(xceiv->dev);
-	return xceiv;
-}
-EXPORT_SYMBOL(otg_get_transceiver);
-
-int otg_set_transceiver(struct otg_transceiver *x)
-{
-	if (xceiv && x)
-		return -EBUSY;
-	xceiv = x;
-	return 0;
-}
-EXPORT_SYMBOL(otg_set_transceiver);
-
-#endif
-
-/*-------------------------------------------------------------------------*/
-
 #if defined(CONFIG_ARCH_OMAP_OTG) || defined(CONFIG_ARCH_OMAP15XX)
 
 static void omap2_usb_devconf_clear(u8 port, u32 mask)
@@ -463,15 +431,6 @@ bad:
 
 /*-------------------------------------------------------------------------*/
 
-#if	defined(CONFIG_USB_GADGET_OMAP) || \
-	defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) || \
-	(defined(CONFIG_USB_OTG) && defined(CONFIG_ARCH_OMAP_OTG))
-static void usb_release(struct device *dev)
-{
-	/* normally not freed */
-}
-#endif
-
 #ifdef	CONFIG_USB_GADGET_OMAP
 
 static struct resource udc_resources[] = {
@@ -498,7 +457,6 @@ static struct platform_device udc_device = {
 	.name		= "omap_udc",
 	.id		= -1,
 	.dev = {
-		.release		= usb_release,
 		.dma_mask		= &udc_dmamask,
 		.coherent_dma_mask	= 0xffffffff,
 	},
@@ -529,7 +487,6 @@ static struct platform_device ohci_device = {
 	.name			= "ohci",
 	.id			= -1,
 	.dev = {
-		.release		= usb_release,
 		.dma_mask		= &ohci_dmamask,
 		.coherent_dma_mask	= 0xffffffff,
 	},
@@ -556,9 +513,6 @@ static struct resource otg_resources[] = {
 static struct platform_device otg_device = {
 	.name		= "omap_otg",
 	.id		= -1,
-	.dev = {
-		.release		= usb_release,
-	},
 	.num_resources	= ARRAY_SIZE(otg_resources),
 	.resource	= otg_resources,
 };

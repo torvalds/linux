@@ -131,12 +131,6 @@ struct task_struct *task_for_booting_cpu;
  */
 DEFINE_PER_CPU(int, cpu_state);
 
-/* Bitmasks of currently online, and possible CPUs */
-cpumask_t cpu_online_map;
-EXPORT_SYMBOL(cpu_online_map);
-cpumask_t cpu_possible_map = CPU_MASK_NONE;
-EXPORT_SYMBOL(cpu_possible_map);
-
 cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
 EXPORT_SYMBOL(cpu_core_map);
 DEFINE_PER_CPU_SHARED_ALIGNED(cpumask_t, cpu_sibling_map);
@@ -688,7 +682,7 @@ int migrate_platform_irqs(unsigned int cpu)
 {
 	int new_cpei_cpu;
 	irq_desc_t *desc = NULL;
-	cpumask_t 	mask;
+	const struct cpumask *mask;
 	int 		retval = 0;
 
 	/*
@@ -701,7 +695,7 @@ int migrate_platform_irqs(unsigned int cpu)
 			 * Now re-target the CPEI to a different processor
 			 */
 			new_cpei_cpu = any_online_cpu(cpu_online_map);
-			mask = cpumask_of_cpu(new_cpei_cpu);
+			mask = cpumask_of(new_cpei_cpu);
 			set_cpei_target_cpu(new_cpei_cpu);
 			desc = irq_desc + ia64_cpe_irq;
 			/*

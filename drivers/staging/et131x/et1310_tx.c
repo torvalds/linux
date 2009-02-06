@@ -1345,7 +1345,6 @@ void et131x_free_busy_send_packets(struct et131x_adapter *pAdapter)
 {
 	PMP_TCB pMpTcb;
 	struct list_head *pEntry;
-	struct sk_buff *pPacket = NULL;
 	unsigned long lockflags;
 	uint32_t FreeCounter = 0;
 
@@ -1358,8 +1357,6 @@ void et131x_free_busy_send_packets(struct et131x_adapter *pAdapter)
 		spin_unlock_irqrestore(&pAdapter->SendWaitLock, lockflags);
 
 		pEntry = pAdapter->TxRing.SendWaitQueue.next;
-
-		pPacket = NULL;
 	}
 
 	pAdapter->TxRing.nWaitSend = 0;

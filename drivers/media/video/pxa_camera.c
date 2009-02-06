@@ -34,11 +34,9 @@
 
 #include <linux/videodev2.h>
 
-#include <asm/dma.h>
+#include <mach/dma.h>
 #include <mach/pxa-regs.h>
 #include <mach/camera.h>
-
-#include "pxa_camera.h"
 
 #define PXA_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 5)
 #define PXA_CAM_DRV_NAME "pxa27x-camera"

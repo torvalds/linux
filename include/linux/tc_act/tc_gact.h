@@ -1,6 +1,7 @@
 #ifndef __LINUX_TC_GACT_H
 #define __LINUX_TC_GACT_H
 
+#include <linux/types.h>
 #include <linux/pkt_cls.h>
 
 #define TCA_ACT_GACT 5

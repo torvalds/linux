@@ -96,7 +96,7 @@ ide_startstop_t ide_dma_intr(ide_drive_t *drive)
 
 	if (OK_STAT(stat, DRIVE_READY, drive->bad_wstat | ATA_DRQ)) {
 		if (!dma_stat) {
-			struct request *rq = hwif->hwgroup->rq;
+			struct request *rq = hwif->rq;
 
 			task_end_request(drive, rq, stat);
 			return ide_stopped;

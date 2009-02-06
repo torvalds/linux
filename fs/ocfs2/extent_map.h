@@ -57,4 +57,28 @@ int ocfs2_xattr_get_clusters(struct inode *inode, u32 v_cluster,
 			     u32 *p_cluster, u32 *num_clusters,
 			     struct ocfs2_extent_list *el);
 
+int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
+			   struct buffer_head *bhs[], int flags,
+			   int (*validate)(struct super_block *sb,
+					   struct buffer_head *bh));
+static inline int ocfs2_read_virt_block(struct inode *inode, u64 v_block,
+					struct buffer_head **bh,
+					int (*validate)(struct super_block *sb,
+							struct buffer_head *bh))
+{
+	int status = 0;
+
+	if (bh == NULL) {
+		printk("ocfs2: bh == NULL\n");
+		status = -EINVAL;
+		goto bail;
+	}
+
+	status = ocfs2_read_virt_blocks(inode, v_block, 1, bh, 0, validate);
+
+bail:
+	return status;
+}
+
+
 #endif  /* _EXTENT_MAP_H */

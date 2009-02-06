@@ -36,6 +36,7 @@ enum clock_event_nofitiers {
 	CLOCK_EVT_NOTIFY_BROADCAST_EXIT,
 	CLOCK_EVT_NOTIFY_SUSPEND,
 	CLOCK_EVT_NOTIFY_RESUME,
+	CLOCK_EVT_NOTIFY_CPU_DYING,
 	CLOCK_EVT_NOTIFY_CPU_DEAD,
 };
 
@@ -82,13 +83,13 @@ struct clock_event_device {
 	int			shift;
 	int			rating;
 	int			irq;
-	cpumask_t		cpumask;
+	const struct cpumask	*cpumask;
 	int			(*set_next_event)(unsigned long evt,
 						  struct clock_event_device *);
 	void			(*set_mode)(enum clock_event_mode mode,
 					    struct clock_event_device *);
 	void			(*event_handler)(struct clock_event_device *);
-	void			(*broadcast)(cpumask_t mask);
+	void			(*broadcast)(const struct cpumask *mask);
 	struct list_head	list;
 	enum clock_event_mode	mode;
 	ktime_t			next_event;

@@ -125,7 +125,7 @@ void __cpuinit sb1250_clockevent_init(void)
 	cd->min_delta_ns	= clockevent_delta2ns(2, cd);
 	cd->rating		= 200;
 	cd->irq			= irq;
-	cd->cpumask		= cpumask_of_cpu(cpu);
+	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= sibyte_next_event;
 	cd->set_mode		= sibyte_set_mode;
 	clockevents_register_device(cd);
@@ -147,6 +147,6 @@ void __cpuinit sb1250_clockevent_init(void)
 	action->name	= name;
 	action->dev_id	= cd;
 
-	irq_set_affinity(irq, cpumask_of_cpu(cpu));
+	irq_set_affinity(irq, cpumask_of(cpu));
 	setup_irq(irq, action);
 }

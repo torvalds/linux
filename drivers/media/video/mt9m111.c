@@ -514,14 +514,14 @@ static int mt9m111_try_fmt(struct soc_camera_device *icd,
 }
 
 static int mt9m111_get_chip_id(struct soc_camera_device *icd,
-			       struct v4l2_chip_ident *id)
+			       struct v4l2_dbg_chip_ident *id)
 {
 	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
 
-	if (id->match_type != V4L2_CHIP_MATCH_I2C_ADDR)
+	if (id->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
 		return -EINVAL;
 
-	if (id->match_chip != mt9m111->client->addr)
+	if (id->match.addr != mt9m111->client->addr)
 		return -ENODEV;
 
 	id->ident	= mt9m111->model;
@@ -532,18 +532,19 @@ static int mt9m111_get_chip_id(struct soc_camera_device *icd,
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int mt9m111_get_register(struct soc_camera_device *icd,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	int val;
 
 	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
 
-	if (reg->match_type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x2ff)
+	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x2ff)
 		return -EINVAL;
-	if (reg->match_chip != mt9m111->client->addr)
+	if (reg->match.addr != mt9m111->client->addr)
 		return -ENODEV;
 
 	val = mt9m111_reg_read(icd, reg->reg);
+	reg->size = 2;
 	reg->val = (u64)val;
 
 	if (reg->val > 0xffff)
@@ -553,14 +554,14 @@ static int mt9m111_get_register(struct soc_camera_device *icd,
 }
 
 static int mt9m111_set_register(struct soc_camera_device *icd,
-				struct v4l2_register *reg)
+				struct v4l2_dbg_register *reg)
 {
 	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
 
-	if (reg->match_type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x2ff)
+	if (reg->match.type != V4L2_CHIP_MATCH_I2C_ADDR || reg->reg > 0x2ff)
 		return -EINVAL;
 
-	if (reg->match_chip != mt9m111->client->addr)
+	if (reg->match.addr != mt9m111->client->addr)
 		return -ENODEV;
 
 	if (mt9m111_reg_write(icd, reg->reg, reg->val) < 0)

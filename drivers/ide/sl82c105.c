@@ -140,7 +140,7 @@ static inline void sl82c105_reset_host(struct pci_dev *dev)
  */
 static void sl82c105_dma_lost_irq(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u32 val, mask		= hwif->channel ? CTRL_IDE_IRQB : CTRL_IDE_IRQA;
 	u8 dma_cmd;
@@ -177,7 +177,7 @@ static void sl82c105_dma_lost_irq(ide_drive_t *drive)
  */
 static void sl82c105_dma_start(ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= HWIF(drive);
+	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	int reg 		= 0x44 + drive->dn * 4;
 
@@ -299,6 +299,7 @@ static const struct ide_dma_ops sl82c105_dma_ops = {
 	.dma_test_irq		= ide_dma_test_irq,
 	.dma_lost_irq		= sl82c105_dma_lost_irq,
 	.dma_timeout		= sl82c105_dma_timeout,
+	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
 static const struct ide_port_info sl82c105_chipset __devinitdata = {
@@ -309,10 +310,6 @@ static const struct ide_port_info sl82c105_chipset __devinitdata = {
 	.dma_ops	= &sl82c105_dma_ops,
 	.host_flags	= IDE_HFLAG_IO_32BIT |
 			  IDE_HFLAG_UNMASK_IRQS |
-/* FIXME: check for Compatibility mode in generic IDE PCI code */
-#if defined(CONFIG_LOPEC) || defined(CONFIG_SANDPOINT)
-			  IDE_HFLAG_FORCE_LEGACY_IRQS |
-#endif
 			  IDE_HFLAG_SERIALIZE_DMA |
 			  IDE_HFLAG_NO_AUTODMA,
 	.pio_mask	= ATA_PIO5,

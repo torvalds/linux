@@ -29,6 +29,7 @@ typedef pte_t *pte_addr_t;
 #define PAGE_COPY		__pgprot(0)	/* these mean nothing to NO_MM */
 #define PAGE_READONLY		__pgprot(0)	/* these mean nothing to NO_MM */
 #define PAGE_KERNEL		__pgprot(0)	/* these mean nothing to NO_MM */
+#define pgprot_noncached(prot)	(prot)
 
 extern void paging_init(void);
 

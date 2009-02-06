@@ -155,7 +155,6 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	ip->i_fop = &jfs_file_operations;
 	ip->i_mapping->a_ops = &jfs_aops;
 
-	insert_inode_hash(ip);
 	mark_inode_dirty(ip);
 
 	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
@@ -171,9 +170,12 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 	if (rc) {
 		free_ea_wmap(ip);
 		ip->i_nlink = 0;
+		unlock_new_inode(ip);
 		iput(ip);
-	} else
+	} else {
 		d_instantiate(dentry, ip);
+		unlock_new_inode(ip);
+	}
 
       out2:
 	free_UCSname(&dname);
@@ -289,7 +291,6 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	ip->i_op = &jfs_dir_inode_operations;
 	ip->i_fop = &jfs_dir_operations;
 
-	insert_inode_hash(ip);
 	mark_inode_dirty(ip);
 
 	/* update parent directory inode */
@@ -306,9 +307,12 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	if (rc) {
 		free_ea_wmap(ip);
 		ip->i_nlink = 0;
+		unlock_new_inode(ip);
 		iput(ip);
-	} else
+	} else {
 		d_instantiate(dentry, ip);
+		unlock_new_inode(ip);
+	}
 
       out2:
 	free_UCSname(&dname);
@@ -1019,7 +1023,6 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 		goto out3;
 	}
 
-	insert_inode_hash(ip);
 	mark_inode_dirty(ip);
 
 	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
@@ -1039,9 +1042,12 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	if (rc) {
 		free_ea_wmap(ip);
 		ip->i_nlink = 0;
+		unlock_new_inode(ip);
 		iput(ip);
-	} else
+	} else {
 		d_instantiate(dentry, ip);
+		unlock_new_inode(ip);
+	}
 
       out2:
 	free_UCSname(&dname);
@@ -1399,7 +1405,6 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	jfs_ip->dev = new_encode_dev(rdev);
 	init_special_inode(ip, ip->i_mode, rdev);
 
-	insert_inode_hash(ip);
 	mark_inode_dirty(ip);
 
 	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
@@ -1417,9 +1422,12 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 	if (rc) {
 		free_ea_wmap(ip);
 		ip->i_nlink = 0;
+		unlock_new_inode(ip);
 		iput(ip);
-	} else
+	} else {
 		d_instantiate(dentry, ip);
+		unlock_new_inode(ip);
+	}
 
       out1:
 	free_UCSname(&dname);

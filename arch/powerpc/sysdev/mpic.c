@@ -435,7 +435,7 @@ static void __init mpic_scan_ht_msi(struct mpic *mpic, u8 __iomem *devbase,
 		addr = addr | ((u64)readl(base + HT_MSI_ADDR_HI) << 32);
 	}
 
-	printk(KERN_DEBUG "mpic:   - HT:%02x.%x %s MSI mapping found @ 0x%lx\n",
+	printk(KERN_DEBUG "mpic:   - HT:%02x.%x %s MSI mapping found @ 0x%llx\n",
 		PCI_SLOT(devfn), PCI_FUNC(devfn),
 		flags & HT_MSI_FLAGS_ENABLE ? "enabled" : "disabled", addr);
 
@@ -806,7 +806,7 @@ static void mpic_end_ipi(unsigned int irq)
 
 #endif /* CONFIG_SMP */
 
-void mpic_set_affinity(unsigned int irq, cpumask_t cpumask)
+void mpic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 {
 	struct mpic *mpic = mpic_from_irq(irq);
 	unsigned int src = mpic_irq_to_hw(irq);
@@ -818,7 +818,7 @@ void mpic_set_affinity(unsigned int irq, cpumask_t cpumask)
 	} else {
 		cpumask_t tmp;
 
-		cpus_and(tmp, cpumask, cpu_online_map);
+		cpumask_and(&tmp, cpumask, cpu_online_mask);
 
 		mpic_irq_write(src, MPIC_INFO(IRQ_DESTINATION),
 			       mpic_physmask(cpus_addr(tmp)[0]));

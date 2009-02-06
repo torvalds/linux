@@ -1,0 +1,28 @@
+config COMEDI
+	tristate "Data Acquision support (comedi)"
+	default N
+	depends on m
+	---help---
+	  Enable support a wide range of data acquision devices
+	  for Linux.
+
+config COMEDI_RT
+	tristate "Comedi Real-time support"
+	depends on COMEDI && RT
+	default N
+	---help---
+	  Enable Real time support for the Comedi core.
+
+config COMEDI_PCI_DRIVERS
+	tristate "Comedi PCI drivers"
+	depends on COMEDI && PCI
+	default N
+	---help---
+	  Enable lots of comedi PCI drivers to be built
+
+config COMEDI_USB_DRIVERS
+	tristate "Comedi USB drivers"
+	depends on COMEDI && USB
+	default N
+	---help---
+	  Enable lots of comedi USB drivers to be built

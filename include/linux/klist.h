@@ -13,7 +13,6 @@
 #define _LINUX_KLIST_H
 
 #include <linux/spinlock.h>
-#include <linux/completion.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 
@@ -23,7 +22,7 @@ struct klist {
 	struct list_head	k_list;
 	void			(*get)(struct klist_node *);
 	void			(*put)(struct klist_node *);
-};
+} __attribute__ ((aligned (4)));
 
 #define KLIST_INIT(_name, _get, _put)					\
 	{ .k_lock	= __SPIN_LOCK_UNLOCKED(_name.k_lock),		\
@@ -41,7 +40,6 @@ struct klist_node {
 	void			*n_klist;	/* never access directly */
 	struct list_head	n_node;
 	struct kref		n_ref;
-	struct completion	n_removed;
 };
 
 extern void klist_add_tail(struct klist_node *n, struct klist *k);

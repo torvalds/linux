@@ -18,7 +18,7 @@ static void probe_subsys_event(struct inode *inode, struct file *file)
 		inode->i_ino);
 }
 
-int __init tp_sample_trace_init(void)
+static int __init tp_sample_trace_init(void)
 {
 	int ret;
 
@@ -30,7 +30,7 @@ int __init tp_sample_trace_init(void)
 
 module_init(tp_sample_trace_init);
 
-void __exit tp_sample_trace_exit(void)
+static void __exit tp_sample_trace_exit(void)
 {
 	unregister_trace_subsys_event(probe_subsys_event);
 	tracepoint_synchronize_unregister();

@@ -1,13 +1,17 @@
-/*****************************************************************************
-*
-*        BF-533/2/1 Specific Declarations
-*
-****************************************************************************/
+/* mach/dma.h - arch-specific DMA defines
+ *
+ * Copyright 2004-2008 Analog Devices Inc.
+ *
+ * Licensed under the GPL-2 or later.
+ */
 
 #ifndef _MACH_DMA_H_
 #define _MACH_DMA_H_
 
-#define MAX_BLACKFIN_DMA_CHANNEL 36
+#define MAX_DMA_CHANNELS 36
+
+/* [#4267] IMDMA channels have no PERIPHERAL_MAP MMR */
+#define MAX_DMA_SUSPEND_CHANNELS 32
 
 #define CH_PPI0			0
 #define CH_PPI			(CH_PPI0)

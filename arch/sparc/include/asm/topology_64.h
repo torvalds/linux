@@ -16,8 +16,12 @@ static inline cpumask_t node_to_cpumask(int node)
 {
 	return numa_cpumask_lookup_table[node];
 }
+#define cpumask_of_node(node) (&numa_cpumask_lookup_table[node])
 
-/* Returns a pointer to the cpumask of CPUs on Node 'node'. */
+/*
+ * Returns a pointer to the cpumask of CPUs on Node 'node'.
+ * Deprecated: use "const struct cpumask *mask = cpumask_of_node(node)"
+ */
 #define node_to_cpumask_ptr(v, node)		\
 		cpumask_t *v = &(numa_cpumask_lookup_table[node])
 
@@ -26,9 +30,7 @@ static inline cpumask_t node_to_cpumask(int node)
 
 static inline int node_to_first_cpu(int node)
 {
-	cpumask_t tmp;
-	tmp = node_to_cpumask(node);
-	return first_cpu(tmp);
+	return cpumask_first(cpumask_of_node(node));
 }
 
 struct pci_bus;
@@ -45,6 +47,10 @@ static inline int pcibus_to_node(struct pci_bus *pbus)
 	(pcibus_to_node(bus) == -1 ? \
 	 CPU_MASK_ALL : \
 	 node_to_cpumask(pcibus_to_node(bus)))
+#define cpumask_of_pcibus(bus)	\
+	(pcibus_to_node(bus) == -1 ? \
+	 CPU_MASK_ALL_PTR : \
+	 cpumask_of_node(pcibus_to_node(bus)))
 
 #define SD_NODE_INIT (struct sched_domain) {		\
 	.min_interval		= 8,			\
@@ -77,10 +83,13 @@ static inline int pcibus_to_node(struct pci_bus *pbus)
 #define topology_core_id(cpu)			(cpu_data(cpu).core_id)
 #define topology_core_siblings(cpu)		(cpu_core_map[cpu])
 #define topology_thread_siblings(cpu)		(per_cpu(cpu_sibling_map, cpu))
+#define topology_core_cpumask(cpu)		(&cpu_core_map[cpu])
+#define topology_thread_cpumask(cpu)		(&per_cpu(cpu_sibling_map, cpu))
 #define mc_capable()				(sparc64_multi_core)
 #define smt_capable()				(sparc64_multi_core)
 #endif /* CONFIG_SMP */
 
 #define cpu_coregroup_map(cpu)			(cpu_core_map[cpu])
+#define cpu_coregroup_mask(cpu)			(&cpu_core_map[cpu])
 
 #endif /* _ASM_SPARC64_TOPOLOGY_H */

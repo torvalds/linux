@@ -144,8 +144,8 @@ static void print_dump_header(const struct phyp_dump_header *ph)
 		ph->first_offset_section);
 	printk(KERN_INFO "dump disk sections should be zero\n");
 	printk(KERN_INFO "dump disk section = %d\n", ph->dump_disk_section);
-	printk(KERN_INFO "block num = %ld\n", ph->block_num_dd);
-	printk(KERN_INFO "number of blocks = %ld\n", ph->num_of_blocks_dd);
+	printk(KERN_INFO "block num = %lld\n", ph->block_num_dd);
+	printk(KERN_INFO "number of blocks = %lld\n", ph->num_of_blocks_dd);
 	printk(KERN_INFO "dump disk offset = %d\n", ph->offset_dd);
 	printk(KERN_INFO "Max auto time= %d\n", ph->maxtime_to_auto);
 
@@ -154,33 +154,33 @@ static void print_dump_header(const struct phyp_dump_header *ph)
 	printk(KERN_INFO "cpu dump_flags =%d\n", ph->cpu_data.dump_flags);
 	printk(KERN_INFO "cpu source_type =%d\n", ph->cpu_data.source_type);
 	printk(KERN_INFO "cpu error_flags =%d\n", ph->cpu_data.error_flags);
-	printk(KERN_INFO "cpu source_address =%lx\n",
+	printk(KERN_INFO "cpu source_address =%llx\n",
 		ph->cpu_data.source_address);
-	printk(KERN_INFO "cpu source_length =%lx\n",
+	printk(KERN_INFO "cpu source_length =%llx\n",
 		ph->cpu_data.source_length);
-	printk(KERN_INFO "cpu length_copied =%lx\n",
+	printk(KERN_INFO "cpu length_copied =%llx\n",
 		ph->cpu_data.length_copied);
 
 	printk(KERN_INFO " HPTE AREA \n");
 	printk(KERN_INFO "HPTE dump_flags =%d\n", ph->hpte_data.dump_flags);
 	printk(KERN_INFO "HPTE source_type =%d\n", ph->hpte_data.source_type);
 	printk(KERN_INFO "HPTE error_flags =%d\n", ph->hpte_data.error_flags);
-	printk(KERN_INFO "HPTE source_address =%lx\n",
+	printk(KERN_INFO "HPTE source_address =%llx\n",
 		ph->hpte_data.source_address);
-	printk(KERN_INFO "HPTE source_length =%lx\n",
+	printk(KERN_INFO "HPTE source_length =%llx\n",
 		ph->hpte_data.source_length);
-	printk(KERN_INFO "HPTE length_copied =%lx\n",
+	printk(KERN_INFO "HPTE length_copied =%llx\n",
 		ph->hpte_data.length_copied);
 
 	printk(KERN_INFO " SRSD AREA \n");
 	printk(KERN_INFO "SRSD dump_flags =%d\n", ph->kernel_data.dump_flags);
 	printk(KERN_INFO "SRSD source_type =%d\n", ph->kernel_data.source_type);
 	printk(KERN_INFO "SRSD error_flags =%d\n", ph->kernel_data.error_flags);
-	printk(KERN_INFO "SRSD source_address =%lx\n",
+	printk(KERN_INFO "SRSD source_address =%llx\n",
 		ph->kernel_data.source_address);
-	printk(KERN_INFO "SRSD source_length =%lx\n",
+	printk(KERN_INFO "SRSD source_length =%llx\n",
 		ph->kernel_data.source_length);
-	printk(KERN_INFO "SRSD length_copied =%lx\n",
+	printk(KERN_INFO "SRSD length_copied =%llx\n",
 		ph->kernel_data.length_copied);
 #endif
 }
@@ -367,8 +367,8 @@ static ssize_t show_release_region(struct kobject *kobj,
 	/* total reserved size - start of scratch area */
 	second_addr_range = phyp_dump_info->init_reserve_size -
 				phyp_dump_info->reserved_scratch_size;
-	return sprintf(buf, "CPU:0x%lx-0x%lx: HPTE:0x%lx-0x%lx:"
-			    " DUMP:0x%lx-0x%lx, 0x%lx-0x%lx:\n",
+	return sprintf(buf, "CPU:0x%llx-0x%llx: HPTE:0x%llx-0x%llx:"
+			    " DUMP:0x%llx-0x%llx, 0x%lx-0x%llx:\n",
 		phdr.cpu_data.destination_address,
 		phdr.cpu_data.length_copied,
 		phdr.hpte_data.destination_address,

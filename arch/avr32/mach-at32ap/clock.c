@@ -198,7 +198,7 @@ dump_clock(struct clk *parent, struct clkinf *r)
 	unsigned	i;
 
 	/* skip clocks coupled to devices that aren't registered */
-	if (parent->dev && !parent->dev->bus_id[0] && !parent->users)
+	if (parent->dev && !dev_name(parent->dev) && !parent->users)
 		return;
 
 	/* <nest spaces> name <pad to end> */
@@ -214,7 +214,7 @@ dump_clock(struct clk *parent, struct clkinf *r)
 		parent->users ? "on" : "off",	/* NOTE: not-paranoid!! */
 		clk_get_rate(parent));
 	if (parent->dev)
-		seq_printf(r->s, ", for %s", parent->dev->bus_id);
+		seq_printf(r->s, ", for %s", dev_name(parent->dev));
 	seq_printf(r->s, "\n");
 
 	/* cost of this scan is small, but not linear... */

@@ -187,7 +187,7 @@ int gp8psk_bcm4500_reload(struct dvb_usb_device *d)
 	/* load BCM4500 firmware */
 	if (gp_product_id == USB_PID_GENPIX_8PSK_REV_1_WARM)
 		if (gp8psk_load_bcm4500fw(d))
-			return EINVAL;
+			return -EINVAL;
 	return 0;
 }
 

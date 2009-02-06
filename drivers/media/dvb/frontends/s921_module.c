@@ -136,7 +136,7 @@ static int s921_write(void *dev, u8 reg, u8 val) {
 	};
 
 	if((err = i2c_transfer(state->i2c, &i2cmsgs, 1))<0) {
-		printk("%s i2c_transfer error %d\n", __FUNCTION__, err);
+		printk("%s i2c_transfer error %d\n", __func__, err);
 		if (err < 0)
 			return err;
 		else

@@ -132,7 +132,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	/* this should work for most non-highmem platforms */
 	zone = pgdata->node_zones;
 
-	return __add_pages(zone, start_pfn, nr_pages);
+	return __add_pages(nid, zone, start_pfn, nr_pages);
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
 

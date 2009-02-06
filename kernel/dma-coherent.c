@@ -98,7 +98,7 @@ EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
  * @size:	size of requested memory area
  * @dma_handle:	This will be filled with the correct dma handle
  * @ret:	This pointer will be filled with the virtual address
- * 		to allocated area.
+ *		to allocated area.
  *
  * This function should be only called from per-arch dma_alloc_coherent()
  * to support allocation from per-device coherent memory pools.
@@ -109,20 +109,41 @@ EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
 int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 				       dma_addr_t *dma_handle, void **ret)
 {
-	struct dma_coherent_mem *mem = dev ? dev->dma_mem : NULL;
+	struct dma_coherent_mem *mem;
 	int order = get_order(size);
+	int pageno;
 
-	if (mem) {
-		int page = bitmap_find_free_region(mem->bitmap, mem->size,
-						     order);
-		if (page >= 0) {
-			*dma_handle = mem->device_base + (page << PAGE_SHIFT);
-			*ret = mem->virt_base + (page << PAGE_SHIFT);
-			memset(*ret, 0, size);
-		} else if (mem->flags & DMA_MEMORY_EXCLUSIVE)
-			*ret = NULL;
-	}
-	return (mem != NULL);
+	if (!dev)
+		return 0;
+	mem = dev->dma_mem;
+	if (!mem)
+		return 0;
+
+	*ret = NULL;
+
+	if (unlikely(size > (mem->size << PAGE_SHIFT)))
+		goto err;
+
+	pageno = bitmap_find_free_region(mem->bitmap, mem->size, order);
+	if (unlikely(pageno < 0))
+		goto err;
+
+	/*
+	 * Memory was found in the per-device area.
+	 */
+	*dma_handle = mem->device_base + (pageno << PAGE_SHIFT);
+	*ret = mem->virt_base + (pageno << PAGE_SHIFT);
+	memset(*ret, 0, size);
+
+	return 1;
+
+err:
+	/*
+	 * In the case where the allocation can not be satisfied from the
+	 * per-device area, try to fall back to generic memory if the
+	 * constraints allow it.
+	 */
+	return mem->flags & DMA_MEMORY_EXCLUSIVE;
 }
 EXPORT_SYMBOL(dma_alloc_from_coherent);
 

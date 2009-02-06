@@ -45,7 +45,7 @@ config USB_HIDDEV
 	  If unsure, say Y.
 
 menu "USB HID Boot Protocol drivers"
-	depends on USB!=n && USB_HID!=y
+	depends on USB!=n && USB_HID!=y && EMBEDDED
 
 config USB_KBD
 	tristate "USB HIDBP Keyboard (simple Boot) support"

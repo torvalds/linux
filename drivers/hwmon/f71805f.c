@@ -39,6 +39,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 #include <linux/ioport.h>
+#include <linux/acpi.h>
 #include <asm/io.h>
 
 static unsigned short force_id;
@@ -1455,6 +1456,10 @@ static int __init f71805f_device_add(unsigned short address,
 	}
 
 	res.name = pdev->name;
+	err = acpi_check_resource_conflict(&res);
+	if (err)
+		goto exit_device_put;
+
 	err = platform_device_add_resources(pdev, &res, 1);
 	if (err) {
 		printk(KERN_ERR DRVNAME ": Device resource addition failed "

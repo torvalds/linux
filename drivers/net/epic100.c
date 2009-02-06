@@ -308,7 +308,18 @@ static int epic_close(struct net_device *dev);
 static struct net_device_stats *epic_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 
-
+static const struct net_device_ops epic_netdev_ops = {
+	.ndo_open		= epic_open,
+	.ndo_stop		= epic_close,
+	.ndo_start_xmit		= epic_start_xmit,
+	.ndo_tx_timeout 	= epic_tx_timeout,
+	.ndo_get_stats		= epic_get_stats,
+	.ndo_set_multicast_list = set_rx_mode,
+	.ndo_do_ioctl 		= netdev_ioctl,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 static int __devinit epic_init_one (struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
@@ -483,15 +494,9 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	dev->if_port = ep->default_port = option;
 
 	/* The Epic-specific entries in the device structure. */
-	dev->open = &epic_open;
-	dev->hard_start_xmit = &epic_start_xmit;
-	dev->stop = &epic_close;
-	dev->get_stats = &epic_get_stats;
-	dev->set_multicast_list = &set_rx_mode;
-	dev->do_ioctl = &netdev_ioctl;
+	dev->netdev_ops = &epic_netdev_ops;
 	dev->ethtool_ops = &netdev_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	dev->tx_timeout = &epic_tx_timeout;
 	netif_napi_add(dev, &ep->napi, epic_poll, 64);
 
 	ret = register_netdev(dev);

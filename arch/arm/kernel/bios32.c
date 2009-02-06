@@ -480,33 +480,6 @@ EXPORT_SYMBOL(pcibios_bus_to_resource);
 #endif
 
 /*
- * This is the standard PCI-PCI bridge swizzling algorithm:
- *
- *   Dev: 0  1  2  3
- *    A   A  B  C  D
- *    B   B  C  D  A
- *    C   C  D  A  B
- *    D   D  A  B  C
- *        ^^^^^^^^^^ irq pin on bridge
- */
-u8 __devinit pci_std_swizzle(struct pci_dev *dev, u8 *pinp)
-{
-	int pin = *pinp - 1;
-
-	while (dev->bus->self) {
-		pin = (pin + PCI_SLOT(dev->devfn)) & 3;
-		/*
-		 * move up the chain of bridges,
-		 * swizzling as we go.
-		 */
-		dev = dev->bus->self;
-	}
-	*pinp = pin + 1;
-
-	return PCI_SLOT(dev->devfn);
-}
-
-/*
  * Swizzle the device pin each time we cross a bridge.
  * This might update pin and returns the slot number.
  */

@@ -81,7 +81,7 @@ struct radix_tree_preload {
 	int nr;
 	struct radix_tree_node *nodes[RADIX_TREE_MAX_PATH];
 };
-DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
+static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
 
 static inline gfp_t root_gfp_mask(struct radix_tree_root *root)
 {
@@ -640,13 +640,14 @@ EXPORT_SYMBOL(radix_tree_tag_get);
  *
  *	Returns: the index of the hole if found, otherwise returns an index
  *	outside of the set specified (in which case 'return - index >= max_scan'
- *	will be true).
+ *	will be true). In rare cases of index wrap-around, 0 will be returned.
  *
  *	radix_tree_next_hole may be called under rcu_read_lock. However, like
- *	radix_tree_gang_lookup, this will not atomically search a snapshot of the
- *	tree at a single point in time. For example, if a hole is created at index
- *	5, then subsequently a hole is created at index 10, radix_tree_next_hole
- *	covering both indexes may return 10 if called under rcu_read_lock.
+ *	radix_tree_gang_lookup, this will not atomically search a snapshot of
+ *	the tree at a single point in time. For example, if a hole is created
+ *	at index 5, then subsequently a hole is created at index 10,
+ *	radix_tree_next_hole covering both indexes may return 10 if called
+ *	under rcu_read_lock.
  */
 unsigned long radix_tree_next_hole(struct radix_tree_root *root,
 				unsigned long index, unsigned long max_scan)

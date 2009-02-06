@@ -136,28 +136,44 @@ static int stutter_pause_test = 0;
 #endif
 int rcutorture_runnable = RCUTORTURE_RUNNABLE_INIT;
 
-#define FULLSTOP_SIGNALED 1	/* Bail due to signal. */
-#define FULLSTOP_CLEANUP  2	/* Orderly shutdown. */
-static int fullstop;		/* stop generating callbacks at test end. */
-DEFINE_MUTEX(fullstop_mutex);	/* protect fullstop transitions and */
-				/*  spawning of kthreads. */
+/* Mediate rmmod and system shutdown.  Concurrent rmmod & shutdown illegal! */
+
+#define FULLSTOP_DONTSTOP 0	/* Normal operation. */
+#define FULLSTOP_SHUTDOWN 1	/* System shutdown with rcutorture running. */
+#define FULLSTOP_RMMOD    2	/* Normal rmmod of rcutorture. */
+static int fullstop = FULLSTOP_RMMOD;
+DEFINE_MUTEX(fullstop_mutex);	/* Protect fullstop transitions and spawning */
+				/*  of kthreads. */
 
 /*
- * Detect and respond to a signal-based shutdown.
+ * Detect and respond to a system shutdown.
  */
 static int
 rcutorture_shutdown_notify(struct notifier_block *unused1,
 			   unsigned long unused2, void *unused3)
 {
-	if (fullstop)
-		return NOTIFY_DONE;
-	if (signal_pending(current)) {
-		mutex_lock(&fullstop_mutex);
-		if (!ACCESS_ONCE(fullstop))
-			fullstop = FULLSTOP_SIGNALED;
-		mutex_unlock(&fullstop_mutex);
-	}
+	mutex_lock(&fullstop_mutex);
+	if (fullstop == FULLSTOP_DONTSTOP)
+		fullstop = FULLSTOP_SHUTDOWN;
+	else
+		printk(KERN_WARNING /* but going down anyway, so... */
+		       "Concurrent 'rmmod rcutorture' and shutdown illegal!\n");
+	mutex_unlock(&fullstop_mutex);
 	return NOTIFY_DONE;
+}
+
+/*
+ * Absorb kthreads into a kernel function that won't return, so that
+ * they won't ever access module text or data again.
+ */
+static void rcutorture_shutdown_absorb(char *title)
+{
+	if (ACCESS_ONCE(fullstop) == FULLSTOP_SHUTDOWN) {
+		printk(KERN_NOTICE
+		       "rcutorture thread %s parking due to system shutdown\n",
+		       title);
+		schedule_timeout_uninterruptible(MAX_SCHEDULE_TIMEOUT);
+	}
 }
 
 /*
@@ -221,13 +237,14 @@ rcu_random(struct rcu_random_state *rrsp)
 }
 
 static void
-rcu_stutter_wait(void)
+rcu_stutter_wait(char *title)
 {
-	while ((stutter_pause_test || !rcutorture_runnable) && !fullstop) {
+	while (stutter_pause_test || !rcutorture_runnable) {
 		if (rcutorture_runnable)
 			schedule_timeout_interruptible(1);
 		else
 			schedule_timeout_interruptible(round_jiffies_relative(HZ));
+		rcutorture_shutdown_absorb(title);
 	}
 }
 
@@ -289,7 +306,7 @@ rcu_torture_cb(struct rcu_head *p)
 	int i;
 	struct rcu_torture *rp = container_of(p, struct rcu_torture, rtort_rcu);
 
-	if (fullstop) {
+	if (fullstop != FULLSTOP_DONTSTOP) {
 		/* Test is ending, just drop callbacks on the floor. */
 		/* The next initialization will pick up the pieces. */
 		return;
@@ -621,10 +638,11 @@ rcu_torture_writer(void *arg)
 		}
 		rcu_torture_current_version++;
 		oldbatch = cur_ops->completed();
-		rcu_stutter_wait();
-	} while (!kthread_should_stop() && !fullstop);
+		rcu_stutter_wait("rcu_torture_writer");
+	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
 	VERBOSE_PRINTK_STRING("rcu_torture_writer task stopping");
-	while (!kthread_should_stop() && fullstop != FULLSTOP_SIGNALED)
+	rcutorture_shutdown_absorb("rcu_torture_writer");
+	while (!kthread_should_stop())
 		schedule_timeout_uninterruptible(1);
 	return 0;
 }
@@ -645,11 +663,12 @@ rcu_torture_fakewriter(void *arg)
 		schedule_timeout_uninterruptible(1 + rcu_random(&rand)%10);
 		udelay(rcu_random(&rand) & 0x3ff);
 		cur_ops->sync();
-		rcu_stutter_wait();
-	} while (!kthread_should_stop() && !fullstop);
+		rcu_stutter_wait("rcu_torture_fakewriter");
+	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
 
 	VERBOSE_PRINTK_STRING("rcu_torture_fakewriter task stopping");
-	while (!kthread_should_stop() && fullstop != FULLSTOP_SIGNALED)
+	rcutorture_shutdown_absorb("rcu_torture_fakewriter");
+	while (!kthread_should_stop())
 		schedule_timeout_uninterruptible(1);
 	return 0;
 }
@@ -754,12 +773,13 @@ rcu_torture_reader(void *arg)
 		preempt_enable();
 		cur_ops->readunlock(idx);
 		schedule();
-		rcu_stutter_wait();
-	} while (!kthread_should_stop() && !fullstop);
+		rcu_stutter_wait("rcu_torture_reader");
+	} while (!kthread_should_stop() && fullstop == FULLSTOP_DONTSTOP);
 	VERBOSE_PRINTK_STRING("rcu_torture_reader task stopping");
+	rcutorture_shutdown_absorb("rcu_torture_reader");
 	if (irqreader && cur_ops->irqcapable)
 		del_timer_sync(&t);
-	while (!kthread_should_stop() && fullstop != FULLSTOP_SIGNALED)
+	while (!kthread_should_stop())
 		schedule_timeout_uninterruptible(1);
 	return 0;
 }
@@ -856,7 +876,8 @@ rcu_torture_stats(void *arg)
 	do {
 		schedule_timeout_interruptible(stat_interval * HZ);
 		rcu_torture_stats_print();
-	} while (!kthread_should_stop() && !fullstop);
+		rcutorture_shutdown_absorb("rcu_torture_stats");
+	} while (!kthread_should_stop());
 	VERBOSE_PRINTK_STRING("rcu_torture_stats task stopping");
 	return 0;
 }
@@ -924,7 +945,8 @@ rcu_torture_shuffle(void *arg)
 	do {
 		schedule_timeout_interruptible(shuffle_interval * HZ);
 		rcu_torture_shuffle_tasks();
-	} while (!kthread_should_stop() && !fullstop);
+		rcutorture_shutdown_absorb("rcu_torture_shuffle");
+	} while (!kthread_should_stop());
 	VERBOSE_PRINTK_STRING("rcu_torture_shuffle task stopping");
 	return 0;
 }
@@ -939,10 +961,11 @@ rcu_torture_stutter(void *arg)
 	do {
 		schedule_timeout_interruptible(stutter * HZ);
 		stutter_pause_test = 1;
-		if (!kthread_should_stop() && !fullstop)
+		if (!kthread_should_stop())
 			schedule_timeout_interruptible(stutter * HZ);
 		stutter_pause_test = 0;
-	} while (!kthread_should_stop() && !fullstop);
+		rcutorture_shutdown_absorb("rcu_torture_stutter");
+	} while (!kthread_should_stop());
 	VERBOSE_PRINTK_STRING("rcu_torture_stutter task stopping");
 	return 0;
 }
@@ -969,15 +992,16 @@ rcu_torture_cleanup(void)
 	int i;
 
 	mutex_lock(&fullstop_mutex);
-	if (!fullstop) {
-		/* If being signaled, let it happen, then exit. */
+	if (fullstop == FULLSTOP_SHUTDOWN) {
+		printk(KERN_WARNING /* but going down anyway, so... */
+		       "Concurrent 'rmmod rcutorture' and shutdown illegal!\n");
 		mutex_unlock(&fullstop_mutex);
-		schedule_timeout_interruptible(10 * HZ);
+		schedule_timeout_uninterruptible(10);
 		if (cur_ops->cb_barrier != NULL)
 			cur_ops->cb_barrier();
 		return;
 	}
-	fullstop = FULLSTOP_CLEANUP;
+	fullstop = FULLSTOP_RMMOD;
 	mutex_unlock(&fullstop_mutex);
 	unregister_reboot_notifier(&rcutorture_nb);
 	if (stutter_task) {
@@ -1077,7 +1101,7 @@ rcu_torture_init(void)
 	else
 		nrealreaders = 2 * num_online_cpus();
 	rcu_torture_print_module_parms("Start of test");
-	fullstop = 0;
+	fullstop = FULLSTOP_DONTSTOP;
 
 	/* Set up the freelist. */
 

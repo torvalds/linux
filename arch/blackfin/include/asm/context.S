@@ -303,9 +303,14 @@
 	RETI = [sp++];
 	RETS = [sp++];
 
-	p0.h = _irq_flags;
-	p0.l = _irq_flags;
+#ifdef CONFIG_SMP
+	GET_PDA(p0, r0);
+	r0 = [p0 + PDA_IRQFLAGS];
+#else
+	p0.h = _bfin_irq_flags;
+	p0.l = _bfin_irq_flags;
 	r0 = [p0];
+#endif
 	sti r0;
 
 	sp += 4;	/* Skip Reserved */
@@ -353,3 +358,41 @@
 	csync;
 .endm
 
+.macro save_context_cplb
+	[--sp] = (R7:0, P5:0);
+	[--sp] = fp;
+
+	[--sp] = a0.x;
+	[--sp] = a0.w;
+	[--sp] = a1.x;
+	[--sp] = a1.w;
+
+	[--sp] = LC0;
+	[--sp] = LC1;
+	[--sp] = LT0;
+	[--sp] = LT1;
+	[--sp] = LB0;
+	[--sp] = LB1;
+
+	[--sp] = RETS;
+.endm
+
+.macro restore_context_cplb
+	RETS = [sp++];
+
+	LB1 = [sp++];
+	LB0 = [sp++];
+	LT1 = [sp++];
+	LT0 = [sp++];
+	LC1 = [sp++];
+	LC0 = [sp++];
+
+	a1.w = [sp++];
+	a1.x = [sp++];
+	a0.w = [sp++];
+	a0.x = [sp++];
+
+	fp = [sp++];
+
+	(R7:0, P5:0) = [SP++];
+.endm

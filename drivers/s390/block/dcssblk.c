@@ -18,7 +18,6 @@
 #include <asm/io.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
-#include <asm/s390_rdev.h>
 
 #define DCSSBLK_NAME "dcssblk"
 #define DCSSBLK_MINORS_PER_DISK 1
@@ -946,7 +945,7 @@ dcssblk_check_params(void)
 static void __exit
 dcssblk_exit(void)
 {
-	s390_root_dev_unregister(dcssblk_root_dev);
+	root_device_unregister(dcssblk_root_dev);
 	unregister_blkdev(dcssblk_major, DCSSBLK_NAME);
 }
 
@@ -955,22 +954,22 @@ dcssblk_init(void)
 {
 	int rc;
 
-	dcssblk_root_dev = s390_root_dev_register("dcssblk");
+	dcssblk_root_dev = root_device_register("dcssblk");
 	if (IS_ERR(dcssblk_root_dev))
 		return PTR_ERR(dcssblk_root_dev);
 	rc = device_create_file(dcssblk_root_dev, &dev_attr_add);
 	if (rc) {
-		s390_root_dev_unregister(dcssblk_root_dev);
+		root_device_unregister(dcssblk_root_dev);
 		return rc;
 	}
 	rc = device_create_file(dcssblk_root_dev, &dev_attr_remove);
 	if (rc) {
-		s390_root_dev_unregister(dcssblk_root_dev);
+		root_device_unregister(dcssblk_root_dev);
 		return rc;
 	}
 	rc = register_blkdev(0, DCSSBLK_NAME);
 	if (rc < 0) {
-		s390_root_dev_unregister(dcssblk_root_dev);
+		root_device_unregister(dcssblk_root_dev);
 		return rc;
 	}
 	dcssblk_major = rc;

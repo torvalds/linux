@@ -42,7 +42,7 @@
 #endif
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
-MODULE_DESCRIPTION("caiaq USB audio, version 1.3.9");
+MODULE_DESCRIPTION("caiaq USB audio, version 1.3.10");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, RigKontrol3},"
@@ -446,7 +446,7 @@ static int __devinit snd_probe(struct usb_interface *intf,
 	if (!card)
 		return -ENOMEM;
 			
-	dev_set_drvdata(&intf->dev, card);
+	usb_set_intfdata(intf, card);
 	ret = init_card(caiaqdev(card));
 	if (ret < 0) {
 		log("unable to init card! (ret=%d)\n", ret);
@@ -460,7 +460,7 @@ static int __devinit snd_probe(struct usb_interface *intf,
 static void snd_disconnect(struct usb_interface *intf)
 {
 	struct snd_usb_caiaqdev *dev;
-	struct snd_card *card = dev_get_drvdata(&intf->dev);
+	struct snd_card *card = usb_get_intfdata(intf);
 
 	debug("%s(%p)\n", __func__, intf);
 

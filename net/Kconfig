@@ -24,14 +24,6 @@ if NET
 
 menu "Networking options"
 
-config NET_NS
-	bool "Network namespace support"
-	default n
-	depends on EXPERIMENTAL && NAMESPACES
-	help
-	  Allow user space to create what appear to be multiple instances
-	  of the network stack.
-
 config COMPAT_NET_DEV_OPS
        def_bool y
 
@@ -253,6 +245,8 @@ source "net/wireless/Kconfig"
 source "net/mac80211/Kconfig"
 
 endif # WIRELESS
+
+source "net/wimax/Kconfig"
 
 source "net/rfkill/Kconfig"
 source "net/9p/Kconfig"

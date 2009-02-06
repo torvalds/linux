@@ -26,12 +26,10 @@
 
 #include <linux/etherdevice.h>
 #include <linux/wlp.h>
-#define D_LOCAL 5
-#include <linux/uwb/debug.h>
+
 #include "wlp-internal.h"
 
-
-/**
+/*
  * Direct incoming association msg to correct parsing routine
  *
  * We only expect D1, E1, C1, C3 messages as new. All other incoming
@@ -48,35 +46,31 @@ void wlp_direct_assoc_frame(struct wlp *wlp, struct sk_buff *skb,
 	struct device *dev = &wlp->rc->uwb_dev.dev;
 	struct wlp_frame_assoc *assoc = (void *) skb->data;
 	struct wlp_assoc_frame_ctx *frame_ctx;
-	d_fnstart(5, dev, "wlp %p, skb %p\n", wlp, skb);
+
 	frame_ctx = kmalloc(sizeof(*frame_ctx), GFP_ATOMIC);
 	if (frame_ctx == NULL) {
 		dev_err(dev, "WLP: Unable to allocate memory for association "
 			"frame handling.\n");
 		kfree_skb(skb);
-		goto out;
+		return;
 	}
 	frame_ctx->wlp = wlp;
 	frame_ctx->skb = skb;
 	frame_ctx->src = *src;
 	switch (assoc->type) {
 	case WLP_ASSOC_D1:
-		d_printf(5, dev, "Received a D1 frame.\n");
 		INIT_WORK(&frame_ctx->ws, wlp_handle_d1_frame);
 		schedule_work(&frame_ctx->ws);
 		break;
 	case WLP_ASSOC_E1:
-		d_printf(5, dev, "Received a E1 frame. FIXME?\n");
 		kfree_skb(skb); /* Temporary until we handle it */
 		kfree(frame_ctx); /* Temporary until we handle it */
 		break;
 	case WLP_ASSOC_C1:
-		d_printf(5, dev, "Received a C1 frame.\n");
 		INIT_WORK(&frame_ctx->ws, wlp_handle_c1_frame);
 		schedule_work(&frame_ctx->ws);
 		break;
 	case WLP_ASSOC_C3:
-		d_printf(5, dev, "Received a C3 frame.\n");
 		INIT_WORK(&frame_ctx->ws, wlp_handle_c3_frame);
 		schedule_work(&frame_ctx->ws);
 		break;
@@ -87,11 +81,9 @@ void wlp_direct_assoc_frame(struct wlp *wlp, struct sk_buff *skb,
 		kfree(frame_ctx);
 		break;
 	}
-out:
-	d_fnend(5, dev, "wlp %p\n", wlp);
 }
 
-/**
+/*
  * Process incoming association frame
  *
  * Although it could be possible to deal with some incoming association
@@ -112,7 +104,6 @@ void wlp_receive_assoc_frame(struct wlp *wlp, struct sk_buff *skb,
 	struct wlp_frame_assoc *assoc = (void *) skb->data;
 	struct wlp_session *session = wlp->session;
 	u8 version;
-	d_fnstart(5, dev, "wlp %p, skb %p\n", wlp, skb);
 
 	if (wlp_get_version(wlp, &assoc->version, &version,
 			    sizeof(assoc->version)) < 0)
@@ -150,14 +141,12 @@ void wlp_receive_assoc_frame(struct wlp *wlp, struct sk_buff *skb,
 	} else {
 		wlp_direct_assoc_frame(wlp, skb, src);
 	}
-	d_fnend(5, dev, "wlp %p\n", wlp);
 	return;
 error:
 	kfree_skb(skb);
-	d_fnend(5, dev, "wlp %p\n", wlp);
 }
 
-/**
+/*
  * Verify incoming frame is from connected neighbor, prep to pass to WLP client
  *
  * Verification proceeds according to WLP 0.99 [7.3.1]. The source address
@@ -176,7 +165,6 @@ int wlp_verify_prep_rx_frame(struct wlp *wlp, struct sk_buff *skb,
 	struct wlp_eda_node eda_entry;
 	struct wlp_frame_std_abbrv_hdr *hdr = (void *) skb->data;
 
-	d_fnstart(6, dev, "wlp %p, skb %p \n", wlp, skb);
 	/*verify*/
 	result = wlp_copy_eda_node(&wlp->eda, src, &eda_entry);
 	if (result < 0) {
@@ -207,11 +195,10 @@ int wlp_verify_prep_rx_frame(struct wlp *wlp, struct sk_buff *skb,
 	/*prep*/
 	skb_pull(skb, sizeof(*hdr));
 out:
-	d_fnend(6, dev, "wlp %p, skb %p, result = %d \n", wlp, skb, result);
 	return result;
 }
 
-/**
+/*
  * Receive a WLP frame from device
  *
  * @returns: 1 if calling function should free the skb
@@ -226,14 +213,12 @@ int wlp_receive_frame(struct device *dev, struct wlp *wlp, struct sk_buff *skb,
 	struct wlp_frame_hdr *hdr;
 	int result = 0;
 
-	d_fnstart(6, dev, "skb (%p), len (%u)\n", skb, len);
 	if (len < sizeof(*hdr)) {
 		dev_err(dev, "Not enough data to parse WLP header.\n");
 		result = -EINVAL;
 		goto out;
 	}
 	hdr = ptr;
-	d_dump(6, dev, hdr, sizeof(*hdr));
 	if (le16_to_cpu(hdr->mux_hdr) != WLP_PROTOCOL_ID) {
 		dev_err(dev, "Not a WLP frame type.\n");
 		result = -EINVAL;
@@ -270,7 +255,6 @@ int wlp_receive_frame(struct device *dev, struct wlp *wlp, struct sk_buff *skb,
 				"WLP header.\n");
 			goto out;
 		}
-		d_printf(5, dev, "Association frame received.\n");
 		wlp_receive_assoc_frame(wlp, skb, src);
 		break;
 	default:
@@ -283,13 +267,12 @@ out:
 		kfree_skb(skb);
 		result = 0;
 	}
-	d_fnend(6, dev, "skb (%p)\n", skb);
 	return result;
 }
 EXPORT_SYMBOL_GPL(wlp_receive_frame);
 
 
-/**
+/*
  * Verify frame from network stack, prepare for further transmission
  *
  * @skb:   the socket buffer that needs to be prepared for transmission (it
@@ -343,9 +326,7 @@ int wlp_prepare_tx_frame(struct device *dev, struct wlp *wlp,
 	int result = -EINVAL;
 	struct ethhdr *eth_hdr = (void *) skb->data;
 
-	d_fnstart(6, dev, "wlp (%p), skb (%p) \n", wlp, skb);
 	if (is_broadcast_ether_addr(eth_hdr->h_dest)) {
-		d_printf(6, dev, "WLP: handling broadcast frame. \n");
 		result = wlp_eda_for_each(&wlp->eda, wlp_wss_send_copy, skb);
 		if (result < 0) {
 			if (printk_ratelimit())
@@ -357,7 +338,6 @@ int wlp_prepare_tx_frame(struct device *dev, struct wlp *wlp,
 		result = 1;
 		/* Frame will be transmitted by WLP. */
 	} else {
-		d_printf(6, dev, "WLP: handling unicast frame. \n");
 		result = wlp_eda_for_virtual(&wlp->eda, eth_hdr->h_dest, dst,
 					     wlp_wss_prep_hdr, skb);
 		if (unlikely(result < 0)) {
@@ -368,7 +348,6 @@ int wlp_prepare_tx_frame(struct device *dev, struct wlp *wlp,
 		}
 	}
 out:
-	d_fnend(6, dev, "wlp (%p), skb (%p). result = %d \n", wlp, skb, result);
 	return result;
 }
 EXPORT_SYMBOL_GPL(wlp_prepare_tx_frame);

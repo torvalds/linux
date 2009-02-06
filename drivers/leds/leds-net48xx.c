@@ -33,25 +33,8 @@ static void net48xx_error_led_set(struct led_classdev *led_cdev,
 static struct led_classdev net48xx_error_led = {
 	.name		= "net48xx::error",
 	.brightness_set	= net48xx_error_led_set,
+	.flags		= LED_CORE_SUSPENDRESUME,
 };
-
-#ifdef CONFIG_PM
-static int net48xx_led_suspend(struct platform_device *dev,
-		pm_message_t state)
-{
-	led_classdev_suspend(&net48xx_error_led);
-	return 0;
-}
-
-static int net48xx_led_resume(struct platform_device *dev)
-{
-	led_classdev_resume(&net48xx_error_led);
-	return 0;
-}
-#else
-#define net48xx_led_suspend NULL
-#define net48xx_led_resume NULL
-#endif
 
 static int net48xx_led_probe(struct platform_device *pdev)
 {
@@ -67,8 +50,6 @@ static int net48xx_led_remove(struct platform_device *pdev)
 static struct platform_driver net48xx_led_driver = {
 	.probe		= net48xx_led_probe,
 	.remove		= net48xx_led_remove,
-	.suspend	= net48xx_led_suspend,
-	.resume		= net48xx_led_resume,
 	.driver		= {
 		.name		= DRVNAME,
 		.owner		= THIS_MODULE,
