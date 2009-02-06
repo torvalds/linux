@@ -1085,12 +1085,15 @@ EXPORT_SYMBOL(usb_serial_suspend);
 int usb_serial_resume(struct usb_interface *intf)
 {
 	struct usb_serial *serial = usb_get_intfdata(intf);
+	int rv;
 
 	serial->suspending = 0;
 	if (serial->type->resume)
-		return serial->type->resume(serial);
+		rv = serial->type->resume(serial);
+	else
+		rv = usb_serial_generic_resume(serial);
 
-	return 0;
+	return rv;
 }
 EXPORT_SYMBOL(usb_serial_resume);
 
