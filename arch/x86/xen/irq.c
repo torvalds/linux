@@ -19,21 +19,6 @@ void xen_force_evtchn_callback(void)
 	(void)HYPERVISOR_xen_version(0, NULL);
 }
 
-static void __init __xen_init_IRQ(void)
-{
-	int i;
-
-	/* Create identity vector->irq map */
-	for(i = 0; i < NR_VECTORS; i++) {
-		int cpu;
-
-		for_each_possible_cpu(cpu)
-			per_cpu(vector_irq, cpu)[i] = i;
-	}
-
-	xen_init_IRQ();
-}
-
 static unsigned long xen_save_fl(void)
 {
 	struct vcpu_info *vcpu;
@@ -127,7 +112,7 @@ static void xen_halt(void)
 }
 
 static const struct pv_irq_ops xen_irq_ops __initdata = {
-	.init_IRQ = __xen_init_IRQ,
+	.init_IRQ = xen_init_IRQ,
 
 	.save_fl = PV_CALLEE_SAVE(xen_save_fl),
 	.restore_fl = PV_CALLEE_SAVE(xen_restore_fl),

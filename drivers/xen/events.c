@@ -30,6 +30,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/irq.h>
+#include <asm/idle.h>
 #include <asm/sync_bitops.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
@@ -517,6 +518,24 @@ irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 }
 
 
+static void xen_do_irq(unsigned irq, struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	if (WARN_ON(irq == -1))
+		return;
+
+	exit_idle();
+	irq_enter();
+
+	//printk("cpu %d handling irq %d\n", smp_processor_id(), info->irq);
+	handle_irq(irq, regs);
+
+	irq_exit();
+
+	set_irq_regs(old_regs);
+}
+
 /*
  * Search the CPUs pending events bitmasks.  For each one found, map
  * the event number to an irq, and feed it into do_IRQ() for
@@ -557,8 +576,7 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 				int port = (word_idx * BITS_PER_LONG) + bit_idx;
 				int irq = evtchn_to_irq[port];
 
-				if (irq != -1)
-					xen_do_IRQ(irq, regs);
+				xen_do_irq(irq, regs);
 			}
 		}
 
