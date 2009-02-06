@@ -223,7 +223,8 @@ struct l2cap_conn {
 };
 
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
-#define L2CAP_INFO_FEAT_MASK_REQ_SENT	0x02
+#define L2CAP_INFO_FEAT_MASK_REQ_SENT	0x04
+#define L2CAP_INFO_FEAT_MASK_REQ_DONE	0x08
 
 /* ----- L2CAP channel and socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
