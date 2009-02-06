@@ -67,4 +67,11 @@ config MACH_QONG
 	  Include support for Dave/DENX QongEVB-LITE platform. This includes
 	  specific configurations for the board and its peripherals.
 
+config MACH_PCM043
+	bool "Support Phytec pcm043 (i.MX35) platforms"
+	select ARCH_MX35
+	help
+	  Include support for Phytec pcm043 platform. This includes
+	  specific configurations for the board and its peripherals.
+
 endif

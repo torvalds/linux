@@ -34,6 +34,9 @@
 #ifdef CONFIG_MACH_QONG
 #include <mach/board-qong.h>
 #endif
+#ifdef CONFIG_MACH_PCM043
+#include <mach/board-pcm043.h>
+#endif
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
