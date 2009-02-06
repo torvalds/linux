@@ -179,7 +179,7 @@ void xen_mc_flush(void)
 	}
 	b->cbidx = 0;
 
-	BUG_ON(ret);
+	WARN_ON(ret);
 }
 
 struct multicall_space __xen_mc_entry(size_t args)
