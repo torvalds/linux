@@ -2951,11 +2951,8 @@ static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	unsigned int first;
 	unsigned int tx_flags = 0;
-	unsigned int len;
 	u8 hdr_len = 0;
 	int tso = 0;
-
-	len = skb_headlen(skb);
 
 	if (test_bit(__IGB_DOWN, &adapter->state)) {
 		dev_kfree_skb_any(skb);
