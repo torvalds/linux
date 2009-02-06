@@ -707,11 +707,11 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		 * has completed.  We read this twice because this reg has
 		 * some "sticky" (latched) bits.
 		 */
-		ret_val = hw->phy.ops.read_phy_reg(hw, PHY_STATUS,
+		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS,
 						   &mii_status_reg);
 		if (ret_val)
 			goto out;
-		ret_val = hw->phy.ops.read_phy_reg(hw, PHY_STATUS,
+		ret_val = hw->phy.ops.read_reg(hw, PHY_STATUS,
 						   &mii_status_reg);
 		if (ret_val)
 			goto out;
@@ -729,11 +729,11 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		 * Page Ability Register (Address 5) to determine how
 		 * flow control was negotiated.
 		 */
-		ret_val = hw->phy.ops.read_phy_reg(hw, PHY_AUTONEG_ADV,
+		ret_val = hw->phy.ops.read_reg(hw, PHY_AUTONEG_ADV,
 					    &mii_nway_adv_reg);
 		if (ret_val)
 			goto out;
-		ret_val = hw->phy.ops.read_phy_reg(hw, PHY_LP_ABILITY,
+		ret_val = hw->phy.ops.read_reg(hw, PHY_LP_ABILITY,
 					    &mii_nway_lp_ability_reg);
 		if (ret_val)
 			goto out;

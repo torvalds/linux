@@ -44,7 +44,6 @@ enum e1000_smart_speed {
 s32  igb_check_downshift(struct e1000_hw *hw);
 s32  igb_check_reset_block(struct e1000_hw *hw);
 s32  igb_copper_link_autoneg(struct e1000_hw *hw);
-s32  igb_phy_force_speed_duplex(struct e1000_hw *hw);
 s32  igb_copper_link_setup_igp(struct e1000_hw *hw);
 s32  igb_copper_link_setup_m88(struct e1000_hw *hw);
 s32  igb_phy_force_speed_duplex_igp(struct e1000_hw *hw);

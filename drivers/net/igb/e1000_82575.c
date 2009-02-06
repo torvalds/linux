@@ -179,13 +179,13 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 
 	/* PHY function pointers */
 	if (igb_sgmii_active_82575(hw)) {
-		phy->ops.reset_phy          = igb_phy_hw_reset_sgmii_82575;
-		phy->ops.read_phy_reg       = igb_read_phy_reg_sgmii_82575;
-		phy->ops.write_phy_reg      = igb_write_phy_reg_sgmii_82575;
+		phy->ops.reset              = igb_phy_hw_reset_sgmii_82575;
+		phy->ops.read_reg           = igb_read_phy_reg_sgmii_82575;
+		phy->ops.write_reg          = igb_write_phy_reg_sgmii_82575;
 	} else {
-		phy->ops.reset_phy          = igb_phy_hw_reset;
-		phy->ops.read_phy_reg       = igb_read_phy_reg_igp;
-		phy->ops.write_phy_reg      = igb_write_phy_reg_igp;
+		phy->ops.reset              = igb_phy_hw_reset;
+		phy->ops.read_reg           = igb_read_phy_reg_igp;
+		phy->ops.write_reg          = igb_write_phy_reg_igp;
 	}
 
 	/* Set phy->phy_addr and phy->id. */
@@ -435,7 +435,7 @@ static s32 igb_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 	 * SFP documentation requires the following to configure the SPF module
 	 * to work on SGMII.  No further documentation is given.
 	 */
-	ret_val = hw->phy.ops.write_phy_reg(hw, 0x1B, 0x8084);
+	ret_val = hw->phy.ops.write_reg(hw, 0x1B, 0x8084);
 	if (ret_val)
 		goto out;
 
@@ -464,28 +464,28 @@ static s32 igb_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
 	s32 ret_val;
 	u16 data;
 
-	ret_val = phy->ops.read_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, &data);
+	ret_val = phy->ops.read_reg(hw, IGP02E1000_PHY_POWER_MGMT, &data);
 	if (ret_val)
 		goto out;
 
 	if (active) {
 		data |= IGP02E1000_PM_D0_LPLU;
-		ret_val = phy->ops.write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT,
+		ret_val = phy->ops.write_reg(hw, IGP02E1000_PHY_POWER_MGMT,
 						 data);
 		if (ret_val)
 			goto out;
 
 		/* When LPLU is enabled, we should disable SmartSpeed */
-		ret_val = phy->ops.read_phy_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
+		ret_val = phy->ops.read_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
 						&data);
 		data &= ~IGP01E1000_PSCFR_SMART_SPEED;
-		ret_val = phy->ops.write_phy_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
+		ret_val = phy->ops.write_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
 						 data);
 		if (ret_val)
 			goto out;
 	} else {
 		data &= ~IGP02E1000_PM_D0_LPLU;
-		ret_val = phy->ops.write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT,
+		ret_val = phy->ops.write_reg(hw, IGP02E1000_PHY_POWER_MGMT,
 						 data);
 		/*
 		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
@@ -494,24 +494,24 @@ static s32 igb_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
 		 * SmartSpeed, so performance is maintained.
 		 */
 		if (phy->smart_speed == e1000_smart_speed_on) {
-			ret_val = phy->ops.read_phy_reg(hw,
+			ret_val = phy->ops.read_reg(hw,
 					IGP01E1000_PHY_PORT_CONFIG, &data);
 			if (ret_val)
 				goto out;
 
 			data |= IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = phy->ops.write_phy_reg(hw,
+			ret_val = phy->ops.write_reg(hw,
 					IGP01E1000_PHY_PORT_CONFIG, data);
 			if (ret_val)
 				goto out;
 		} else if (phy->smart_speed == e1000_smart_speed_off) {
-			ret_val = phy->ops.read_phy_reg(hw,
+			ret_val = phy->ops.read_reg(hw,
 					IGP01E1000_PHY_PORT_CONFIG, &data);
 			if (ret_val)
 				goto out;
 
 			data &= ~IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = phy->ops.write_phy_reg(hw,
+			ret_val = phy->ops.write_reg(hw,
 					IGP01E1000_PHY_PORT_CONFIG, data);
 			if (ret_val)
 				goto out;
@@ -1035,7 +1035,7 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		 * depending on user settings.
 		 */
 		hw_dbg("Forcing Speed and Duplex\n");
-		ret_val = igb_phy_force_speed_duplex(hw);
+		ret_val = hw->phy.ops.force_speed_duplex(hw);
 		if (ret_val) {
 			hw_dbg("Error Forcing Speed and Duplex\n");
 			goto out;
@@ -1423,9 +1423,9 @@ static struct e1000_mac_operations e1000_mac_ops_82575 = {
 };
 
 static struct e1000_phy_operations e1000_phy_ops_82575 = {
-	.acquire_phy          = igb_acquire_phy_82575,
+	.acquire              = igb_acquire_phy_82575,
 	.get_cfg_done         = igb_get_cfg_done_82575,
-	.release_phy          = igb_release_phy_82575,
+	.release              = igb_release_phy_82575,
 };
 
 static struct e1000_nvm_operations e1000_nvm_ops_82575 = {
