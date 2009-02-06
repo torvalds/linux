@@ -34,7 +34,6 @@ unsigned long __read_mostly sysctl_hung_task_check_count = PID_MAX_LIMIT;
  * Zero means infinite timeout - no checking done:
  */
 unsigned long __read_mostly sysctl_hung_task_timeout_secs = 120;
-static unsigned long __read_mostly hung_task_poll_jiffies;
 
 unsigned long __read_mostly sysctl_hung_task_warnings = 10;
 
@@ -69,33 +68,17 @@ static struct notifier_block panic_block = {
 	.notifier_call = hung_task_panic,
 };
 
-/*
- * Returns seconds, approximately.  We don't need nanosecond
- * resolution, and we don't need to waste time with a big divide when
- * 2^30ns == 1.074s.
- */
-static unsigned long get_timestamp(void)
-{
-	int this_cpu = raw_smp_processor_id();
-
-	return cpu_clock(this_cpu) >> 30LL;  /* 2^30 ~= 10^9 */
-}
-
-static void check_hung_task(struct task_struct *t, unsigned long now,
-			    unsigned long timeout)
+static void check_hung_task(struct task_struct *t, unsigned long timeout)
 {
 	unsigned long switch_count = t->nvcsw + t->nivcsw;
 
 	if (t->flags & PF_FROZEN)
 		return;
 
-	if (switch_count != t->last_switch_count || !t->last_switch_timestamp) {
+	if (switch_count != t->last_switch_count) {
 		t->last_switch_count = switch_count;
-		t->last_switch_timestamp = now;
 		return;
 	}
-	if ((long)(now - t->last_switch_timestamp) < timeout)
-		return;
 	if (!sysctl_hung_task_warnings)
 		return;
 	sysctl_hung_task_warnings--;
@@ -111,7 +94,6 @@ static void check_hung_task(struct task_struct *t, unsigned long now,
 	sched_show_task(t);
 	__debug_show_held_locks(t);
 
-	t->last_switch_timestamp = now;
 	touch_nmi_watchdog();
 
 	if (sysctl_hung_task_panic)
@@ -145,7 +127,6 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 {
 	int max_count = sysctl_hung_task_check_count;
 	int batch_count = HUNG_TASK_BATCHING;
-	unsigned long now = get_timestamp();
 	struct task_struct *g, *t;
 
 	/*
@@ -168,19 +149,16 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 		}
 		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
 		if (t->state == TASK_UNINTERRUPTIBLE)
-			check_hung_task(t, now, timeout);
+			check_hung_task(t, timeout);
 	} while_each_thread(g, t);
  unlock:
 	rcu_read_unlock();
 }
 
-static void update_poll_jiffies(void)
+static unsigned long timeout_jiffies(unsigned long timeout)
 {
 	/* timeout of 0 will disable the watchdog */
-	if (sysctl_hung_task_timeout_secs == 0)
-		hung_task_poll_jiffies = MAX_SCHEDULE_TIMEOUT;
-	else
-		hung_task_poll_jiffies = sysctl_hung_task_timeout_secs * HZ / 2;
+	return timeout ? timeout * HZ : MAX_SCHEDULE_TIMEOUT;
 }
 
 /*
@@ -197,8 +175,6 @@ int proc_dohung_task_timeout_secs(struct ctl_table *table, int write,
 	if (ret || !write)
 		goto out;
 
-	update_poll_jiffies();
-
 	wake_up_process(watchdog_task);
 
  out:
@@ -211,20 +187,14 @@ int proc_dohung_task_timeout_secs(struct ctl_table *table, int write,
 static int watchdog(void *dummy)
 {
 	set_user_nice(current, 0);
-	update_poll_jiffies();
 
 	for ( ; ; ) {
-		unsigned long timeout;
+		unsigned long timeout = sysctl_hung_task_timeout_secs;
 
-		while (schedule_timeout_interruptible(hung_task_poll_jiffies));
+		while (schedule_timeout_interruptible(timeout_jiffies(timeout)))
+			timeout = sysctl_hung_task_timeout_secs;
 
-		/*
-		 * Need to cache timeout here to avoid timeout being set
-		 * to 0 via sysctl while inside check_hung_*_tasks().
-		 */
-		timeout = sysctl_hung_task_timeout_secs;
-		if (timeout)
-			check_hung_uninterruptible_tasks(timeout);
+		check_hung_uninterruptible_tasks(timeout);
 	}
 
 	return 0;
