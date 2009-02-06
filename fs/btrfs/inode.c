@@ -3491,7 +3491,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 
 	inode->i_uid = current_fsuid();
 
-	if (dir->i_mode & S_ISGID) {
+	if (dir && (dir->i_mode & S_ISGID)) {
 		inode->i_gid = dir->i_gid;
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
