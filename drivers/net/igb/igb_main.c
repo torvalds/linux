@@ -3943,9 +3943,16 @@ static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 	struct igb_buffer *buffer_info;
 	struct sk_buff *skb;
 	unsigned int i;
+	int bufsz;
 
 	i = rx_ring->next_to_use;
 	buffer_info = &rx_ring->buffer_info[i];
+
+	if (adapter->rx_ps_hdr_size)
+		bufsz = adapter->rx_ps_hdr_size;
+	else
+		bufsz = adapter->rx_buffer_len;
+	bufsz += NET_IP_ALIGN;
 
 	while (cleaned_count--) {
 		rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
@@ -3962,23 +3969,14 @@ static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 				buffer_info->page_offset ^= PAGE_SIZE / 2;
 			}
 			buffer_info->page_dma =
-				pci_map_page(pdev,
-					     buffer_info->page,
+				pci_map_page(pdev, buffer_info->page,
 					     buffer_info->page_offset,
 					     PAGE_SIZE / 2,
 					     PCI_DMA_FROMDEVICE);
 		}
 
 		if (!buffer_info->skb) {
-			int bufsz;
-
-			if (adapter->rx_ps_hdr_size)
-				bufsz = adapter->rx_ps_hdr_size;
-			else
-				bufsz = adapter->rx_buffer_len;
-			bufsz += NET_IP_ALIGN;
 			skb = netdev_alloc_skb(netdev, bufsz);
-
 			if (!skb) {
 				adapter->alloc_rx_buff_failed++;
 				goto no_buffers;
@@ -3994,7 +3992,6 @@ static void igb_alloc_rx_buffers_adv(struct igb_ring *rx_ring,
 			buffer_info->dma = pci_map_single(pdev, skb->data,
 							  bufsz,
 							  PCI_DMA_FROMDEVICE);
-
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
 		 * each write-back erases this info. */
