@@ -46,10 +46,10 @@ extern int pciehp_force;
 extern struct workqueue_struct *pciehp_wq;
 
 #define dbg(format, arg...)						\
-	do {								\
-		if (pciehp_debug)					\
-			printk("%s: " format, MY_NAME , ## arg);	\
-	} while (0)
+do {									\
+	if (pciehp_debug)						\
+		printk(KERN_DEBUG "%s: " format, MY_NAME , ## arg);	\
+} while (0)
 #define err(format, arg...)						\
 	printk(KERN_ERR "%s: " format, MY_NAME , ## arg)
 #define info(format, arg...)						\
@@ -60,7 +60,7 @@ extern struct workqueue_struct *pciehp_wq;
 #define ctrl_dbg(ctrl, format, arg...)					\
 	do {								\
 		if (pciehp_debug)					\
-			dev_printk(, &ctrl->pcie->device,		\
+			dev_printk(KERN_DEBUG, &ctrl->pcie->device,	\
 					format, ## arg);		\
 	} while (0)
 #define ctrl_err(ctrl, format, arg...)					\
