@@ -179,6 +179,10 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 	if (streamtype != CX18_ENC_STREAM_TYPE_VBI)
 		return;
 
+	/*
+	 * The CX23418 sends us data that is 32 bit LE swapped, but we want
+	 * the raw VBI bytes in the order they were in the raster line
+	 */
 	cx18_buf_swap(buf);
 
 	/*
@@ -190,17 +194,27 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 	if (cx18_raw_vbi(cx)) {
 		u8 type;
 
-		/* Skip 12 bytes of header that gets stuffed in */
+		/*
+		 * We've set up to get a field's worth of VBI data at a time.
+		 * Skip 12 bytes of header prefixing the first field or the
+		 * last 12 bytes in the last VBI line from the first field that
+		 * prefixes the second field.
+		 */
 		size -= 12;
 		memcpy(p, &buf->buf[12], size);
 		type = p[3];
 
+		/* Extrapolate the last 12 bytes of the field's last line */
+		memset(&p[size], (int) p[size - 1], 12);
+
 		size = buf->bytesused = compress_raw_buf(cx, p, size);
 
-		/* second field of the frame? */
 		if (type == raw_vbi_sav_rp[1]) {
-			/* Dirty hack needed for backwards
-			   compatibility of old VBI software. */
+			/*
+			 * Hack needed for compatibility with old VBI software.
+			 * Write the frame # at the end of the last line of the
+			 * second field
+			 */
 			p += size - 4;
 			memcpy(p, &cx->vbi.frame, 4);
 			cx->vbi.frame++;
@@ -210,7 +224,7 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 
 	/* Sliced VBI data with data insertion */
 
-	pts = (q[0] == 0x3fffffff) ? q[2] : 0;
+	pts = (be32_to_cpu(q[0] == 0x3fffffff)) ? be32_to_cpu(q[2]) : 0;
 
 	/* first field */
 	/* compress_sliced_buf() will skip the 12 bytes of header */
