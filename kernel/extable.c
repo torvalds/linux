@@ -41,7 +41,7 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
 	return e;
 }
 
-__notrace_funcgraph int core_kernel_text(unsigned long addr)
+int core_kernel_text(unsigned long addr)
 {
 	if (addr >= (unsigned long)_stext &&
 	    addr <= (unsigned long)_etext)
@@ -54,7 +54,7 @@ __notrace_funcgraph int core_kernel_text(unsigned long addr)
 	return 0;
 }
 
-__notrace_funcgraph int __kernel_text_address(unsigned long addr)
+int __kernel_text_address(unsigned long addr)
 {
 	if (core_kernel_text(addr))
 		return 1;

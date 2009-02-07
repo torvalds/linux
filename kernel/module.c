@@ -2735,7 +2735,7 @@ int is_module_address(unsigned long addr)
 
 
 /* Is this a valid kernel address? */
-__notrace_funcgraph struct module *__module_text_address(unsigned long addr)
+struct module *__module_text_address(unsigned long addr)
 {
 	struct module *mod;
 

@@ -491,13 +491,6 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		return;
 	}
 
-	if (unlikely(!__kernel_text_address(old))) {
-		ftrace_graph_stop();
-		*parent = old;
-		WARN_ON(1);
-		return;
-	}
-
 	calltime = cpu_clock(raw_smp_processor_id());
 
 	if (push_return_trace(old, calltime,
