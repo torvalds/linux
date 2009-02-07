@@ -479,9 +479,6 @@ struct cx18 {
 	unsigned long dualwatch_jiffies;
 	u32 dualwatch_stereo_mode;
 
-	/* Digitizer type */
-	int digitizer;		/* 0x00EF = saa7114 0x00FO = saa7115 0x0106 = mic */
-
 	struct mutex serialize_lock;    /* mutex used to serialize open/close/start/stop/ioctl operations */
 	struct cx18_options options; 	/* User options */
 	int stream_buffers[CX18_MAX_STREAMS]; /* # of buffers for each stream */
