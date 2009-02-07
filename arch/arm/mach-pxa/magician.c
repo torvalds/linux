@@ -25,6 +25,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -65,6 +66,11 @@ static unsigned long magician_pin_config[] __initdata = {
 	GPIO29_I2S_SDATA_IN,
 	GPIO31_I2S_SYNC,
 	GPIO113_I2S_SYSCLK,
+
+	/* SSP 1 */
+	GPIO23_SSP1_SCLK,
+	GPIO24_SSP1_SFRM,
+	GPIO25_SSP1_TXD,
 
 	/* SSP 2 */
 	GPIO19_SSP2_SCLK,
@@ -148,22 +154,31 @@ static struct pxaficp_platform_data magician_ficp_info = {
  * GPIO Keys
  */
 
+#define INIT_KEY(_code, _gpio, _desc)	\
+	{				\
+		.code   = KEY_##_code,	\
+		.gpio   = _gpio,	\
+		.desc   = _desc,	\
+		.type   = EV_KEY,	\
+		.wakeup = 1,		\
+	}
+
 static struct gpio_keys_button magician_button_table[] = {
-	{KEY_POWER,      GPIO0_MAGICIAN_KEY_POWER,      0, "Power button"},
-	{KEY_ESC,        GPIO37_MAGICIAN_KEY_HANGUP,    0, "Hangup button"},
-	{KEY_F10,        GPIO38_MAGICIAN_KEY_CONTACTS,  0, "Contacts button"},
-	{KEY_CALENDAR,   GPIO90_MAGICIAN_KEY_CALENDAR,  0, "Calendar button"},
-	{KEY_CAMERA,     GPIO91_MAGICIAN_KEY_CAMERA,    0, "Camera button"},
-	{KEY_UP,         GPIO93_MAGICIAN_KEY_UP,        0, "Up button"},
-	{KEY_DOWN,       GPIO94_MAGICIAN_KEY_DOWN,      0, "Down button"},
-	{KEY_LEFT,       GPIO95_MAGICIAN_KEY_LEFT,      0, "Left button"},
-	{KEY_RIGHT,      GPIO96_MAGICIAN_KEY_RIGHT,     0, "Right button"},
-	{KEY_KPENTER,    GPIO97_MAGICIAN_KEY_ENTER,     0, "Action button"},
-	{KEY_RECORD,     GPIO98_MAGICIAN_KEY_RECORD,    0, "Record button"},
-	{KEY_VOLUMEUP,   GPIO100_MAGICIAN_KEY_VOL_UP,   0, "Volume up"},
-	{KEY_VOLUMEDOWN, GPIO101_MAGICIAN_KEY_VOL_DOWN, 0, "Volume down"},
-	{KEY_PHONE,      GPIO102_MAGICIAN_KEY_PHONE,    0, "Phone button"},
-	{KEY_PLAY,       GPIO99_MAGICIAN_HEADPHONE_IN,  0, "Headset button"},
+	INIT_KEY(POWER,      GPIO0_MAGICIAN_KEY_POWER,      "Power button"),
+	INIT_KEY(ESC,        GPIO37_MAGICIAN_KEY_HANGUP,    "Hangup button"),
+	INIT_KEY(F10,        GPIO38_MAGICIAN_KEY_CONTACTS,  "Contacts button"),
+	INIT_KEY(CALENDAR,   GPIO90_MAGICIAN_KEY_CALENDAR,  "Calendar button"),
+	INIT_KEY(CAMERA,     GPIO91_MAGICIAN_KEY_CAMERA,    "Camera button"),
+	INIT_KEY(UP,         GPIO93_MAGICIAN_KEY_UP,        "Up button"),
+	INIT_KEY(DOWN,       GPIO94_MAGICIAN_KEY_DOWN,      "Down button"),
+	INIT_KEY(LEFT,       GPIO95_MAGICIAN_KEY_LEFT,      "Left button"),
+	INIT_KEY(RIGHT,      GPIO96_MAGICIAN_KEY_RIGHT,     "Right button"),
+	INIT_KEY(KPENTER,    GPIO97_MAGICIAN_KEY_ENTER,     "Action button"),
+	INIT_KEY(RECORD,     GPIO98_MAGICIAN_KEY_RECORD,    "Record button"),
+	INIT_KEY(VOLUMEUP,   GPIO100_MAGICIAN_KEY_VOL_UP,   "Volume up"),
+	INIT_KEY(VOLUMEDOWN, GPIO101_MAGICIAN_KEY_VOL_DOWN, "Volume down"),
+	INIT_KEY(PHONE,      GPIO102_MAGICIAN_KEY_PHONE,    "Phone button"),
+	INIT_KEY(PLAY,       GPIO99_MAGICIAN_HEADPHONE_IN,  "Headset button"),
 };
 
 static struct gpio_keys_platform_data gpio_keys_data = {
@@ -511,6 +526,31 @@ static struct platform_device pasic3 = {
 };
 
 /*
+ * USB "Transceiver"
+ */
+
+static struct resource gpio_vbus_resource = {
+	.flags = IORESOURCE_IRQ,
+	.start = IRQ_MAGICIAN_VBUS,
+	.end   = IRQ_MAGICIAN_VBUS,
+};
+
+static struct gpio_vbus_mach_info gpio_vbus_info = {
+	.gpio_pullup = GPIO27_MAGICIAN_USBC_PUEN,
+	.gpio_vbus   = EGPIO_MAGICIAN_CABLE_STATE_USB,
+};
+
+static struct platform_device gpio_vbus = {
+	.name          = "gpio-vbus",
+	.id            = -1,
+	.num_resources = 1,
+	.resource      = &gpio_vbus_resource,
+	.dev = {
+		.platform_data = &gpio_vbus_info,
+	},
+};
+
+/*
  * External power
  */
 
@@ -587,14 +627,14 @@ static struct resource power_supply_resources[] = {
 	[0] = {
 		.name  = "ac",
 		.flags = IORESOURCE_IRQ,
-		.start = IRQ_MAGICIAN_AC,
-		.end   = IRQ_MAGICIAN_AC,
+		.start = IRQ_MAGICIAN_VBUS,
+		.end   = IRQ_MAGICIAN_VBUS,
 	},
 	[1] = {
 		.name  = "usb",
 		.flags = IORESOURCE_IRQ,
-		.start = IRQ_MAGICIAN_AC,
-		.end   = IRQ_MAGICIAN_AC,
+		.start = IRQ_MAGICIAN_VBUS,
+		.end   = IRQ_MAGICIAN_VBUS,
 	},
 };
 
@@ -688,11 +728,9 @@ static void magician_set_vpp(struct map_info *map, int vpp)
 	gpio_set_value(EGPIO_MAGICIAN_FLASH_VPP, vpp);
 }
 
-#define PXA_CS_SIZE		0x04000000
-
 static struct resource strataflash_resource = {
 	.start = PXA_CS0_PHYS,
-	.end   = PXA_CS0_PHYS + PXA_CS_SIZE - 1,
+	.end   = PXA_CS0_PHYS + SZ_64M - 1,
 	.flags = IORESOURCE_MEM,
 };
 
@@ -720,6 +758,7 @@ static struct platform_device *devices[] __initdata = {
 	&egpio,
 	&backlight,
 	&pasic3,
+	&gpio_vbus,
 	&power_supply,
 	&strataflash,
 	&leds_gpio,
@@ -743,6 +782,7 @@ static void __init magician_init(void)
 		gpio_direction_output(GPIO83_MAGICIAN_nIR_EN, 1);
 		pxa_set_ficp_info(&magician_ficp_info);
 	}
+	pxa27x_set_i2c_power_info(NULL);
 	pxa_set_i2c_info(NULL);
 	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
