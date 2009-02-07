@@ -148,6 +148,11 @@ struct saa7146_dev
 	struct saa7146_dma		d_rps1;
 };
 
+static inline struct saa7146_dev *to_saa7146_dev(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct saa7146_dev, v4l2_dev);
+}
+
 /* from saa7146_i2c.c */
 int saa7146_i2c_adapter_prepare(struct saa7146_dev *dev, struct i2c_adapter *i2c_adapter, u32 bitrate);
 

@@ -516,7 +516,7 @@ err_free:
 static void saa7146_remove_one(struct pci_dev *pdev)
 {
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pdev);
-	struct saa7146_dev *dev = container_of(v4l2_dev, struct saa7146_dev, v4l2_dev);
+	struct saa7146_dev *dev = to_saa7146_dev(v4l2_dev);
 	struct {
 		void *addr;
 		dma_addr_t dma;
