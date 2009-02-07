@@ -2,8 +2,8 @@
 # USB Storage driver configuration
 #
 
-comment "NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may also be needed;"
-comment "see USB_STORAGE Help for more information"
+comment "NOTE: USB_STORAGE depends on SCSI but BLK_DEV_SD may"
+comment "also be needed; see USB_STORAGE Help for more info"
 	depends on USB
 
 config USB_STORAGE
