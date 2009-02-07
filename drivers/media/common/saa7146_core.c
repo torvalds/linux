@@ -363,13 +363,16 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 		ERR(("out of memory.\n"));
 		goto out;
 	}
+	err = v4l2_device_register(&pci->dev, &dev->v4l2_dev);
+	if (err)
+		goto err_free;
 
 	DEB_EE(("pci:%p\n",pci));
 
 	err = pci_enable_device(pci);
 	if (err < 0) {
 		ERR(("pci_enable_device() failed.\n"));
-		goto err_free;
+		goto err_unreg;
 	}
 
 	/* enable bus-mastering */
@@ -452,8 +455,6 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 	INFO(("found saa7146 @ mem %p (revision %d, irq %d) (0x%04x,0x%04x).\n", dev->mem, dev->revision, pci->irq, pci->subsystem_vendor, pci->subsystem_device));
 	dev->ext = ext;
 
-	pci_set_drvdata(pci, dev);
-
 	mutex_init(&dev->lock);
 	spin_lock_init(&dev->int_slock);
 	spin_lock_init(&dev->slock);
@@ -477,7 +478,7 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 
 	if (ext->attach(dev, pci_ext)) {
 		DEB_D(("ext->attach() failed for %p. skipping device.\n",dev));
-		goto err_unprobe;
+		goto err_free_i2c;
 	}
 
 	INIT_LIST_HEAD(&dev->item);
@@ -488,8 +489,6 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 out:
 	return err;
 
-err_unprobe:
-	pci_set_drvdata(pci, NULL);
 err_free_i2c:
 	pci_free_consistent(pci, SAA7146_RPS_MEM, dev->d_i2c.cpu_addr,
 			    dev->d_i2c.dma_handle);
@@ -507,6 +506,8 @@ err_release:
 	pci_release_region(pci, 0);
 err_disable:
 	pci_disable_device(pci);
+err_unreg:
+	v4l2_device_unregister(&dev->v4l2_dev);
 err_free:
 	kfree(dev);
 	goto out;
@@ -514,7 +515,8 @@ err_free:
 
 static void saa7146_remove_one(struct pci_dev *pdev)
 {
-	struct saa7146_dev* dev = pci_get_drvdata(pdev);
+	struct v4l2_device *v4l2_dev = pci_get_drvdata(pdev);
+	struct saa7146_dev *dev = container_of(v4l2_dev, struct saa7146_dev, v4l2_dev);
 	struct {
 		void *addr;
 		dma_addr_t dma;
@@ -528,6 +530,7 @@ static void saa7146_remove_one(struct pci_dev *pdev)
 	DEB_EE(("dev:%p\n",dev));
 
 	dev->ext->detach(dev);
+	v4l2_device_unregister(&dev->v4l2_dev);
 
 	/* shut down all video dma transfers */
 	saa7146_write(dev, MC1, 0x00ff0000);

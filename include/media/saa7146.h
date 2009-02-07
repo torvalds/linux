@@ -13,6 +13,7 @@
 #include <linux/stringify.h>
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
+#include <media/v4l2-device.h>
 
 #include <linux/vmalloc.h>	/* for vmalloc() */
 #include <linux/mm.h>		/* for vmalloc_to_page() */
@@ -109,6 +110,8 @@ struct saa7146_dev
 	struct module			*module;
 
 	struct list_head		item;
+
+	struct v4l2_device 		v4l2_dev;
 
 	/* different device locks */
 	spinlock_t			slock;
