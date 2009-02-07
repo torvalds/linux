@@ -103,12 +103,11 @@ static void copy_vbi_data(struct cx18 *cx, int lines, u32 pts_stamp)
 }
 
 /* Compress raw VBI format, removes leading SAV codes and surplus space
-   after the field.
-   Returns new compressed size. */
+   after the frame.  Returns new compressed size. */
 static u32 compress_raw_buf(struct cx18 *cx, u8 *buf, u32 size)
 {
 	u32 line_size = vbi_active_samples;
-	u32 lines = cx->vbi.count;
+	u32 lines = cx->vbi.count * 2;
 	u8 sav1 = raw_vbi_sav_rp[0];
 	u8 sav2 = raw_vbi_sav_rp[1];
 	u8 *q = buf;
@@ -195,30 +194,26 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 		u8 type;
 
 		/*
-		 * We've set up to get a field's worth of VBI data at a time.
-		 * Skip 12 bytes of header prefixing the first field or the
-		 * last 12 bytes in the last VBI line from the first field that
-		 * prefixes the second field.
+		 * We've set up to get a frame's worth of VBI data at a time.
+		 * Skip 12 bytes of header prefixing the first field.
 		 */
 		size -= 12;
 		memcpy(p, &buf->buf[12], size);
 		type = p[3];
 
-		/* Extrapolate the last 12 bytes of the field's last line */
+		/* Extrapolate the last 12 bytes of the frame's last line */
 		memset(&p[size], (int) p[size - 1], 12);
+		size += 12;
 
 		size = buf->bytesused = compress_raw_buf(cx, p, size);
 
-		if (type == raw_vbi_sav_rp[1]) {
-			/*
-			 * Hack needed for compatibility with old VBI software.
-			 * Write the frame # at the end of the last line of the
-			 * second field
-			 */
-			p += size - 4;
-			memcpy(p, &cx->vbi.frame, 4);
-			cx->vbi.frame++;
-		}
+		/*
+		 * Hack needed for compatibility with old VBI software.
+		 * Write the frame # at the last 4 bytes of the frame
+		 */
+		p += size - 4;
+		memcpy(p, &cx->vbi.frame, 4);
+		cx->vbi.frame++;
 		return;
 	}
 

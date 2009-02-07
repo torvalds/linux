@@ -448,34 +448,38 @@ static void cx18_process_options(struct cx18 *cx)
 	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_MPG] = enc_mpg_bufsize;
 	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_IDX] = enc_idx_bufsize;
 	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_YUV] = enc_yuv_bufsize;
-	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_VBI] = 0; /* computed later */
+	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_VBI] = vbi_active_samples * 36;
 	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_PCM] = enc_pcm_bufsize;
 	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_RAD] = 0; /* control no data */
 
-	/* Except for VBI ensure stream_buffers & stream_buf_size are valid */
+	/* Ensure stream_buffers & stream_buf_size are valid */
 	for (i = 0; i < CX18_MAX_STREAMS; i++) {
-		/* User said to use 0 buffers */
-		if (cx->stream_buffers[i] == 0) {
-			cx->options.megabytes[i] = 0;
-			cx->stream_buf_size[i] = 0;
-			continue;
-		}
-		/* User said to use 0 MB total */
-		if (cx->options.megabytes[i] <= 0) {
+		if (cx->stream_buffers[i] == 0 ||     /* User said 0 buffers */
+		    cx->options.megabytes[i] <= 0 ||  /* User said 0 MB total */
+		    cx->stream_buf_size[i] <= 0) {    /* User said buf size 0 */
 			cx->options.megabytes[i] = 0;
 			cx->stream_buffers[i] = 0;
 			cx->stream_buf_size[i] = 0;
 			continue;
 		}
-		/* VBI is computed later or user said buffer has size 0 */
-		if (cx->stream_buf_size[i] <= 0) {
-			if (i != CX18_ENC_STREAM_TYPE_VBI) {
-				cx->options.megabytes[i] = 0;
-				cx->stream_buffers[i] = 0;
-				cx->stream_buf_size[i] = 0;
+		/*
+		 * VBI is a special case where the stream_buf_size is fixed
+		 * and already in bytes
+		 */
+		if (i == CX18_ENC_STREAM_TYPE_VBI) {
+			if (cx->stream_buffers[i] < 0) {
+				cx->stream_buffers[i] =
+					cx->options.megabytes[i] * 1024 * 1024
+					/ cx->stream_buf_size[i];
+			} else {
+				/* N.B. This might round down to 0 */
+				cx->options.megabytes[i] =
+					cx->stream_buffers[i]
+					* cx->stream_buf_size[i]/(1024 * 1024);
 			}
 			continue;
 		}
+		/* All other streams have stream_buf_size in kB at this point */
 		if (cx->stream_buffers[i] < 0) {
 			cx->stream_buffers[i] = cx->options.megabytes[i] * 1024
 						/ cx->stream_buf_size[i];
@@ -732,7 +736,6 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 {
 	int retval = 0;
 	int i;
-	int vbi_buf_size;
 	u32 devtype;
 	struct cx18 *cx;
 
@@ -887,23 +890,6 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		cx->is_out_50hz = 1;
 	}
 	cx->params.video_gop_size = cx->is_60hz ? 15 : 12;
-
-	/*
-	 * FIXME: setting the buffer size based on the tuner standard is
-	 * suboptimal, as the CVBS and SVideo inputs could use a different std
-	 * and the buffer could end up being too small in that case.
-	 */
-	vbi_buf_size = vbi_active_samples * (cx->is_60hz ? 24 : 36) / 2;
-	cx->stream_buf_size[CX18_ENC_STREAM_TYPE_VBI] = vbi_buf_size;
-
-	if (cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] < 0)
-		cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] =
-		   cx->options.megabytes[CX18_ENC_STREAM_TYPE_VBI] * 1024 * 1024
-		   / vbi_buf_size;
-	else
-		cx->options.megabytes[CX18_ENC_STREAM_TYPE_VBI] =
-		     cx->stream_buffers[CX18_ENC_STREAM_TYPE_VBI] * vbi_buf_size
-		     / (1024 * 1024);
 
 	if (cx->options.radio > 0)
 		cx->v4l2_cap |= V4L2_CAP_RADIO;
