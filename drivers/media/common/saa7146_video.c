@@ -1124,7 +1124,7 @@ static int vidioc_g_chip_ident(struct file *file, void *__fh,
 
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
-	if (v4l2_chip_match_host(&chip->match)) {
+	if (chip->match.type == V4L2_CHIP_MATCH_HOST && !chip->match.addr) {
 		chip->ident = V4L2_IDENT_SAA7146;
 		return 0;
 	}
