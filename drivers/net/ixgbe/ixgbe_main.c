@@ -2350,8 +2350,6 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 		                      adapter->ring_feature[RING_F_DCB].indices;
 		ret = true;
 	} else {
-		adapter->ring_feature[RING_F_DCB].mask = 0;
-		adapter->ring_feature[RING_F_DCB].indices = 0;
 		ret = false;
 	}
 
@@ -2371,8 +2369,6 @@ static inline bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 		                      adapter->ring_feature[RING_F_RSS].indices;
 		ret = true;
 	} else {
-		adapter->ring_feature[RING_F_RSS].mask = 0;
-		adapter->ring_feature[RING_F_RSS].indices = 0;
 		ret = false;
 	}
 
