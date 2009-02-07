@@ -407,7 +407,6 @@ static inline local_t *__module_ref_addr(struct module *mod, int cpu)
 static inline void __module_get(struct module *module)
 {
 	if (module) {
-		BUG_ON(module_refcount(module) == 0);
 		local_inc(__module_ref_addr(module, get_cpu()));
 		put_cpu();
 	}
