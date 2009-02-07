@@ -25,7 +25,7 @@
 #include <linux/time.h>
 #include <trace/block.h>
 #include <linux/uaccess.h>
-#include <../kernel/trace/trace_output.h>
+#include "trace_output.h"
 
 static unsigned int blktrace_seq __read_mostly = 1;
 
