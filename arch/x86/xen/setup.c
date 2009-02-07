@@ -19,6 +19,7 @@
 
 #include <xen/page.h>
 #include <xen/interface/callback.h>
+#include <xen/interface/memory.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/memory.h>
 #include <xen/features.h>
@@ -107,13 +108,46 @@ static unsigned long __init xen_return_unused_memory(unsigned long max_pfn,
 
 char * __init xen_memory_setup(void)
 {
+	static struct e820entry map[E820MAX] __initdata;
+
 	unsigned long max_pfn = xen_start_info->nr_pages;
+	unsigned long long mem_end;
+	int rc;
+	struct xen_memory_map memmap;
+	int i;
 
 	max_pfn = min(MAX_DOMAIN_PAGES, max_pfn);
+	mem_end = PFN_PHYS(max_pfn);
+
+	memmap.nr_entries = E820MAX;
+	set_xen_guest_handle(memmap.buffer, map);
+
+	rc = HYPERVISOR_memory_op(XENMEM_memory_map, &memmap);
+	if (rc == -ENOSYS) {
+		memmap.nr_entries = 1;
+		map[0].addr = 0ULL;
+		map[0].size = mem_end;
+		/* 8MB slack (to balance backend allocations). */
+		map[0].size += 8ULL << 20;
+		map[0].type = E820_RAM;
+		rc = 0;
+	}
+	BUG_ON(rc);
 
 	e820.nr_map = 0;
-
-	e820_add_region(0, PFN_PHYS((u64)max_pfn), E820_RAM);
+	for (i = 0; i < memmap.nr_entries; i++) {
+		unsigned long long end = map[i].addr + map[i].size;
+		if (map[i].type == E820_RAM) {
+			if (map[i].addr > mem_end)
+				continue;
+			if (end > mem_end) {
+				/* Truncate region to max_mem. */
+				map[i].size -= end - mem_end;
+			}
+		}
+		if (map[i].size > 0)
+			e820_add_region(map[i].addr, map[i].size, map[i].type);
+	}
 
 	/*
 	 * Even though this is normal, usable memory under Xen, reserve
