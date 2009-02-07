@@ -446,11 +446,17 @@ static void vv_callback(struct saa7146_dev *dev, unsigned long status)
 
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 {
-	struct saa7146_vv *vv = kzalloc(sizeof(struct saa7146_vv), GFP_KERNEL);
+	struct saa7146_vv *vv;
+	int err;
 
+	err = v4l2_device_register(&dev->pci->dev, &dev->v4l2_dev);
+	if (err)
+		return err;
+
+	vv = kzalloc(sizeof(struct saa7146_vv), GFP_KERNEL);
 	if (vv == NULL) {
 		ERR(("out of memory. aborting.\n"));
-		return -1;
+		return -ENOMEM;
 	}
 	ext_vv->ops = saa7146_video_ioctl_ops;
 	ext_vv->core_ops = &saa7146_video_ioctl_ops;
@@ -496,6 +502,7 @@ int saa7146_vv_release(struct saa7146_dev* dev)
 
 	DEB_EE(("dev:%p\n",dev));
 
+	v4l2_device_unregister(&dev->v4l2_dev);
 	pci_free_consistent(dev->pci, SAA7146_CLIPPING_MEM, vv->d_clipping.cpu_addr, vv->d_clipping.dma_handle);
 	kfree(vv);
 	dev->vv_data = NULL;

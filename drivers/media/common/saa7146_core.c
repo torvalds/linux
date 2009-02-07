@@ -363,16 +363,13 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 		ERR(("out of memory.\n"));
 		goto out;
 	}
-	err = v4l2_device_register(&pci->dev, &dev->v4l2_dev);
-	if (err)
-		goto err_free;
 
 	DEB_EE(("pci:%p\n",pci));
 
 	err = pci_enable_device(pci);
 	if (err < 0) {
 		ERR(("pci_enable_device() failed.\n"));
-		goto err_unreg;
+		goto err_free;
 	}
 
 	/* enable bus-mastering */
@@ -480,6 +477,10 @@ static int saa7146_init_one(struct pci_dev *pci, const struct pci_device_id *ent
 		DEB_D(("ext->attach() failed for %p. skipping device.\n",dev));
 		goto err_free_i2c;
 	}
+	/* V4L extensions will set the pci drvdata to the v4l2_device in the
+	   attach() above. So for those cards that do not use V4L we have to
+	   set it explicitly. */
+	pci_set_drvdata(pci, &dev->v4l2_dev);
 
 	INIT_LIST_HEAD(&dev->item);
 	list_add_tail(&dev->item,&saa7146_devices);
@@ -506,8 +507,6 @@ err_release:
 	pci_release_region(pci, 0);
 err_disable:
 	pci_disable_device(pci);
-err_unreg:
-	v4l2_device_unregister(&dev->v4l2_dev);
 err_free:
 	kfree(dev);
 	goto out;
@@ -530,7 +529,8 @@ static void saa7146_remove_one(struct pci_dev *pdev)
 	DEB_EE(("dev:%p\n",dev));
 
 	dev->ext->detach(dev);
-	v4l2_device_unregister(&dev->v4l2_dev);
+	/* Zero the PCI drvdata after use. */
+	pci_set_drvdata(pdev, NULL);
 
 	/* shut down all video dma transfers */
 	saa7146_write(dev, MC1, 0x00ff0000);
