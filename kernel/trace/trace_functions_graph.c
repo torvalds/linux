@@ -750,6 +750,9 @@ static struct tracer graph_trace __read_mostly = {
 	.print_line	= print_graph_function,
 	.print_header	= print_graph_headers,
 	.flags		= &tracer_flags,
+#ifdef CONFIG_FTRACE_SELFTEST
+	.selftest	= trace_selftest_startup_function_graph,
+#endif
 };
 
 static __init int init_graph_trace(void)

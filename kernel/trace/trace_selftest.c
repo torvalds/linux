@@ -13,6 +13,8 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_PRINT:
 	case TRACE_SPECIAL:
 	case TRACE_BRANCH:
+	case TRACE_GRAPH_ENT:
+	case TRACE_GRAPH_RET:
 		return 1;
 	}
 	return 0;
@@ -226,6 +228,54 @@ trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 	return ret;
 }
 #endif /* CONFIG_FUNCTION_TRACER */
+
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+/*
+ * Pretty much the same than for the function tracer from which the selftest
+ * has been borrowed.
+ */
+int
+trace_selftest_startup_function_graph(struct tracer *trace,
+					struct trace_array *tr)
+{
+	int ret;
+	unsigned long count;
+
+	ret = tracer_init(trace, tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		goto out;
+	}
+
+	/* Sleep for a 1/10 of a second */
+	msleep(100);
+
+	tracing_stop();
+
+	/* check the trace buffer */
+	ret = trace_test_buffer(tr, &count);
+
+	trace->reset(tr);
+	tracing_start();
+
+	if (!ret && !count) {
+		printk(KERN_CONT ".. no entries found ..");
+		ret = -1;
+		goto out;
+	}
+
+	/* Don't test dynamic tracing, the function tracer already did */
+
+out:
+	/* Stop it if we failed */
+	if (ret)
+		ftrace_graph_stop();
+
+	return ret;
+}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+
 
 #ifdef CONFIG_IRQSOFF_TRACER
 int

@@ -500,6 +500,8 @@ extern int DYN_FTRACE_TEST_NAME(void);
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 extern int trace_selftest_startup_function(struct tracer *trace,
 					   struct trace_array *tr);
+extern int trace_selftest_startup_function_graph(struct tracer *trace,
+						 struct trace_array *tr);
 extern int trace_selftest_startup_irqsoff(struct tracer *trace,
 					  struct trace_array *tr);
 extern int trace_selftest_startup_preemptoff(struct tracer *trace,
