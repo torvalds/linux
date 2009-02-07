@@ -102,7 +102,7 @@
 enum {
 	NvRegIrqStatus = 0x000,
 #define NVREG_IRQSTAT_MIIEVENT	0x040
-#define NVREG_IRQSTAT_MASK		0x81ff
+#define NVREG_IRQSTAT_MASK		0x83ff
 	NvRegIrqMask = 0x004,
 #define NVREG_IRQ_RX_ERROR		0x0001
 #define NVREG_IRQ_RX			0x0002
@@ -113,7 +113,7 @@ enum {
 #define NVREG_IRQ_LINK			0x0040
 #define NVREG_IRQ_RX_FORCED		0x0080
 #define NVREG_IRQ_TX_FORCED		0x0100
-#define NVREG_IRQ_RECOVER_ERROR		0x8000
+#define NVREG_IRQ_RECOVER_ERROR		0x8200
 #define NVREG_IRQMASK_THROUGHPUT	0x00df
 #define NVREG_IRQMASK_CPU		0x0060
 #define NVREG_IRQ_TX_ALL		(NVREG_IRQ_TX_ERR|NVREG_IRQ_TX_OK|NVREG_IRQ_TX_FORCED)
@@ -4073,13 +4073,15 @@ static void nv_do_nic_poll(unsigned long data)
 
 	if (np->recover_error) {
 		np->recover_error = 0;
-		printk(KERN_INFO "forcedeth: MAC in recoverable error state\n");
+		printk(KERN_INFO "%s: MAC in recoverable error state\n", dev->name);
 		if (netif_running(dev)) {
 			netif_tx_lock_bh(dev);
 			netif_addr_lock(dev);
 			spin_lock(&np->lock);
 			/* stop engines */
 			nv_stop_rxtx(dev);
+			if (np->driver_data & DEV_HAS_POWER_CNTRL)
+				nv_mac_reset(dev);
 			nv_txrx_reset(dev);
 			/* drain rx queue */
 			nv_drain_rxtx(dev);
@@ -4097,6 +4099,11 @@ static void nv_do_nic_poll(unsigned long data)
 			pci_push(base);
 			writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
 			pci_push(base);
+			/* clear interrupts */
+			if (!(np->msi_flags & NV_MSI_X_ENABLED))
+				writel(NVREG_IRQSTAT_MASK, base + NvRegIrqStatus);
+			else
+				writel(NVREG_IRQSTAT_MASK, base + NvRegMSIXIrqStatus);
 
 			/* restart rx engine */
 			nv_start_rxtx(dev);
