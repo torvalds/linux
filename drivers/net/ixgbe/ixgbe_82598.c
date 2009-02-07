@@ -255,6 +255,102 @@ static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_fc_enable_82598 - Enable flow control
+ *  @hw: pointer to hardware structure
+ *  @packetbuf_num: packet buffer number (0-7)
+ *
+ *  Enable flow control according to the current settings.
+ **/
+static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
+{
+	s32 ret_val = 0;
+	u32 fctrl_reg;
+	u32 rmcs_reg;
+	u32 reg;
+
+	fctrl_reg = IXGBE_READ_REG(hw, IXGBE_FCTRL);
+	fctrl_reg &= ~(IXGBE_FCTRL_RFCE | IXGBE_FCTRL_RPFCE);
+
+	rmcs_reg = IXGBE_READ_REG(hw, IXGBE_RMCS);
+	rmcs_reg &= ~(IXGBE_RMCS_TFCE_PRIORITY | IXGBE_RMCS_TFCE_802_3X);
+
+	/*
+	 * The possible values of fc.current_mode are:
+	 * 0: Flow control is completely disabled
+	 * 1: Rx flow control is enabled (we can receive pause frames,
+	 *    but not send pause frames).
+	 * 2:  Tx flow control is enabled (we can send pause frames but
+	 *     we do not support receiving pause frames).
+	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
+	 * other: Invalid.
+	 */
+	switch (hw->fc.current_mode) {
+	case ixgbe_fc_none:
+		/* Flow control completely disabled by software override. */
+		break;
+	case ixgbe_fc_rx_pause:
+		/*
+		 * Rx Flow control is enabled and Tx Flow control is
+		 * disabled by software override. Since there really
+		 * isn't a way to advertise that we are capable of RX
+		 * Pause ONLY, we will advertise that we support both
+		 * symmetric and asymmetric Rx PAUSE.  Later, we will
+		 * disable the adapter's ability to send PAUSE frames.
+		 */
+		fctrl_reg |= IXGBE_FCTRL_RFCE;
+		break;
+	case ixgbe_fc_tx_pause:
+		/*
+		 * Tx Flow control is enabled, and Rx Flow control is
+		 * disabled by software override.
+		 */
+		rmcs_reg |= IXGBE_RMCS_TFCE_802_3X;
+		break;
+	case ixgbe_fc_full:
+		/* Flow control (both Rx and Tx) is enabled by SW override. */
+		fctrl_reg |= IXGBE_FCTRL_RFCE;
+		rmcs_reg |= IXGBE_RMCS_TFCE_802_3X;
+		break;
+	default:
+		hw_dbg(hw, "Flow control param set incorrectly\n");
+		ret_val = -IXGBE_ERR_CONFIG;
+		goto out;
+		break;
+	}
+
+	/* Enable 802.3x based flow control settings. */
+	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl_reg);
+	IXGBE_WRITE_REG(hw, IXGBE_RMCS, rmcs_reg);
+
+	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
+	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
+		if (hw->fc.send_xon) {
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL(packetbuf_num),
+			                (hw->fc.low_water | IXGBE_FCRTL_XONE));
+		} else {
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL(packetbuf_num),
+			                hw->fc.low_water);
+		}
+
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTH(packetbuf_num),
+		                (hw->fc.high_water | IXGBE_FCRTH_FCEN));
+	}
+
+	/* Configure pause time (2 TCs per register) */
+	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num));
+	if ((packetbuf_num & 1) == 0)
+		reg = (reg & 0xFFFF0000) | hw->fc.pause_time;
+	else
+		reg = (reg & 0x0000FFFF) | (hw->fc.pause_time << 16);
+	IXGBE_WRITE_REG(hw, IXGBE_FCTTV(packetbuf_num / 2), reg);
+
+	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, (hw->fc.pause_time >> 1));
+
+out:
+	return ret_val;
+}
+
+/**
  *  ixgbe_setup_fc_82598 - Configure flow control settings
  *  @hw: pointer to hardware structure
  *  @packetbuf_num: packet buffer number (0-7)
@@ -264,110 +360,64 @@ static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_setup_fc_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 {
-	u32 frctl_reg;
-	u32 rmcs_reg;
+	s32 ret_val = 0;
+	ixgbe_link_speed speed;
+	bool link_up;
 
+	/* Validate the packetbuf configuration */
 	if (packetbuf_num < 0 || packetbuf_num > 7) {
 		hw_dbg(hw, "Invalid packet buffer number [%d], expected range is"
 		          " 0-7\n", packetbuf_num);
+		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+		goto out;
 	}
 
-	frctl_reg = IXGBE_READ_REG(hw, IXGBE_FCTRL);
-	frctl_reg &= ~(IXGBE_FCTRL_RFCE | IXGBE_FCTRL_RPFCE);
-
-	rmcs_reg = IXGBE_READ_REG(hw, IXGBE_RMCS);
-	rmcs_reg &= ~(IXGBE_RMCS_TFCE_PRIORITY | IXGBE_RMCS_TFCE_802_3X);
-
 	/*
-	 * 10 gig parts do not have a word in the EEPROM to determine the
-	 * default flow control setting, so we explicitly set it to full.
-	 */
-	if (hw->fc.type == ixgbe_fc_default)
-		hw->fc.type = ixgbe_fc_full;
-
-	/*
-	 * We want to save off the original Flow Control configuration just in
-	 * case we get disconnected and then reconnected into a different hub
-	 * or switch with different Flow Control capabilities.
-	 */
-	hw->fc.original_type = hw->fc.type;
-
-	/*
-	 * The possible values of the "flow_control" parameter are:
-	 * 0: Flow control is completely disabled
-	 * 1: Rx flow control is enabled (we can receive pause frames but not
-	 *    send pause frames).
-	 * 2: Tx flow control is enabled (we can send pause frames but we do not
-	 *    support receiving pause frames)
-	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
-	 * other: Invalid.
-	 */
-	switch (hw->fc.type) {
-	case ixgbe_fc_none:
-		break;
-	case ixgbe_fc_rx_pause:
-		/*
-		 * Rx Flow control is enabled,
-		 * and Tx Flow control is disabled.
-		 */
-		frctl_reg |= IXGBE_FCTRL_RFCE;
-		break;
-	case ixgbe_fc_tx_pause:
-		/*
-		 * Tx Flow control is enabled, and Rx Flow control is disabled,
-		 * by a software over-ride.
-		 */
-		rmcs_reg |= IXGBE_RMCS_TFCE_802_3X;
-		break;
-	case ixgbe_fc_full:
-		/*
-		 * Flow control (both Rx and Tx) is enabled by a software
-		 * over-ride.
-		 */
-		frctl_reg |= IXGBE_FCTRL_RFCE;
-		rmcs_reg |= IXGBE_RMCS_TFCE_802_3X;
-		break;
-	default:
-		/* We should never get here.  The value should be 0-3. */
-		hw_dbg(hw, "Flow control param set incorrectly\n");
-		break;
-	}
-
-	/* Enable 802.3x based flow control settings. */
-	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, frctl_reg);
-	IXGBE_WRITE_REG(hw, IXGBE_RMCS, rmcs_reg);
-
-	/*
-	 * Check for invalid software configuration, zeros are completely
-	 * invalid for all parameters used past this point, and if we enable
-	 * flow control with zero water marks, we blast flow control packets.
+	 * Validate the water mark configuration.  Zero water marks are invalid
+	 * because it causes the controller to just blast out fc packets.
 	 */
 	if (!hw->fc.low_water || !hw->fc.high_water || !hw->fc.pause_time) {
-		hw_dbg(hw, "Flow control structure initialized incorrectly\n");
-		return IXGBE_ERR_INVALID_LINK_SETTINGS;
+		hw_dbg(hw, "Invalid water mark configuration\n");
+		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+		goto out;
 	}
 
 	/*
-	 * We need to set up the Receive Threshold high and low water
-	 * marks as well as (optionally) enabling the transmission of
-	 * XON frames.
+	 * Validate the requested mode.  Strict IEEE mode does not allow
+	 * ixgbe_fc_rx_pause because it will cause testing anomalies.
 	 */
-	if (hw->fc.type & ixgbe_fc_tx_pause) {
-		if (hw->fc.send_xon) {
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTL(packetbuf_num),
-			                (hw->fc.low_water | IXGBE_FCRTL_XONE));
-		} else {
-			IXGBE_WRITE_REG(hw, IXGBE_FCRTL(packetbuf_num),
-			                hw->fc.low_water);
-		}
-		IXGBE_WRITE_REG(hw, IXGBE_FCRTH(packetbuf_num),
-		                (hw->fc.high_water)|IXGBE_FCRTH_FCEN);
+	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {
+		hw_dbg(hw, "ixgbe_fc_rx_pause not valid in strict IEEE mode\n");
+		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
+		goto out;
 	}
 
-	IXGBE_WRITE_REG(hw, IXGBE_FCTTV(0), hw->fc.pause_time);
-	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, (hw->fc.pause_time >> 1));
+	/*
+	 * 10gig parts do not have a word in the EEPROM to determine the
+	 * default flow control setting, so we explicitly set it to full.
+	 */
+	if (hw->fc.requested_mode == ixgbe_fc_default)
+		hw->fc.requested_mode = ixgbe_fc_full;
 
-	return 0;
+	/*
+	 * Save off the requested flow control mode for use later.  Depending
+	 * on the link partner's capabilities, we may or may not use this mode.
+	 */
+
+	hw->fc.current_mode = hw->fc.requested_mode;
+
+	/* Decide whether to use autoneg or not. */
+	hw->mac.ops.check_link(hw, &speed, &link_up, false);
+	if (hw->phy.multispeed_fiber && (speed == IXGBE_LINK_SPEED_1GB_FULL))
+		ret_val = ixgbe_fc_autoneg(hw);
+
+	if (ret_val)
+		goto out;
+
+	ret_val = ixgbe_fc_enable_82598(hw, packetbuf_num);
+
+out:
+	return ret_val;
 }
 
 /**
@@ -414,7 +464,6 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw)
 	 * case we get disconnected and then reconnected into a different hub
 	 * or switch with different Flow Control capabilities.
 	 */
-	hw->fc.original_type = hw->fc.type;
 	ixgbe_setup_fc_82598(hw, 0);
 
 	/* Add delay to filter out noises during initial link setup */

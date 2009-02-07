@@ -224,13 +224,13 @@ static void ixgbe_get_pauseparam(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	pause->autoneg = (hw->fc.type == ixgbe_fc_full ? 1 : 0);
+	pause->autoneg = (hw->fc.current_mode == ixgbe_fc_full ? 1 : 0);
 
-	if (hw->fc.type == ixgbe_fc_rx_pause) {
+	if (hw->fc.current_mode == ixgbe_fc_rx_pause) {
 		pause->rx_pause = 1;
-	} else if (hw->fc.type == ixgbe_fc_tx_pause) {
+	} else if (hw->fc.current_mode == ixgbe_fc_tx_pause) {
 		pause->tx_pause = 1;
-	} else if (hw->fc.type == ixgbe_fc_full) {
+	} else if (hw->fc.current_mode == ixgbe_fc_full) {
 		pause->rx_pause = 1;
 		pause->tx_pause = 1;
 	}
@@ -244,22 +244,17 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 
 	if ((pause->autoneg == AUTONEG_ENABLE) ||
 	    (pause->rx_pause && pause->tx_pause))
-		hw->fc.type = ixgbe_fc_full;
+		hw->fc.requested_mode = ixgbe_fc_full;
 	else if (pause->rx_pause && !pause->tx_pause)
-		hw->fc.type = ixgbe_fc_rx_pause;
+		hw->fc.requested_mode = ixgbe_fc_rx_pause;
 	else if (!pause->rx_pause && pause->tx_pause)
-		hw->fc.type = ixgbe_fc_tx_pause;
+		hw->fc.requested_mode = ixgbe_fc_tx_pause;
 	else if (!pause->rx_pause && !pause->tx_pause)
-		hw->fc.type = ixgbe_fc_none;
+		hw->fc.requested_mode = ixgbe_fc_none;
 	else
 		return -EINVAL;
 
-	hw->fc.original_type = hw->fc.type;
-
-	if (netif_running(netdev))
-		ixgbe_reinit_locked(adapter);
-	else
-		ixgbe_reset(adapter);
+	hw->mac.ops.setup_fc(hw, 0);
 
 	return 0;
 }

@@ -1487,6 +1487,144 @@ s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw)
 }
 
 /**
+ *  ixgbe_fc_autoneg - Configure flow control
+ *  @hw: pointer to hardware structure
+ *
+ *  Negotiates flow control capabilities with link partner using autoneg and
+ *  applies the results.
+ **/
+s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
+{
+	s32 ret_val = 0;
+	u32 i, reg, pcs_anadv_reg, pcs_lpab_reg;
+
+	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+
+	/*
+	 * The possible values of fc.current_mode are:
+	 * 0:  Flow control is completely disabled
+	 * 1:  Rx flow control is enabled (we can receive pause frames,
+	 *     but not send pause frames).
+	 * 2:  Tx flow control is enabled (we can send pause frames but
+	 *     we do not support receiving pause frames).
+	 * 3:  Both Rx and Tx flow control (symmetric) are enabled.
+	 * other: Invalid.
+	 */
+	switch (hw->fc.current_mode) {
+	case ixgbe_fc_none:
+		/* Flow control completely disabled by software override. */
+		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+	case ixgbe_fc_rx_pause:
+		/*
+		 * Rx Flow control is enabled and Tx Flow control is
+		 * disabled by software override. Since there really
+		 * isn't a way to advertise that we are capable of RX
+		 * Pause ONLY, we will advertise that we support both
+		 * symmetric and asymmetric Rx PAUSE.  Later, we will
+		 * disable the adapter's ability to send PAUSE frames.
+		 */
+		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+	case ixgbe_fc_tx_pause:
+		/*
+		 * Tx Flow control is enabled, and Rx Flow control is
+		 * disabled by software override.
+		 */
+		reg |= (IXGBE_PCS1GANA_ASM_PAUSE);
+		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE);
+		break;
+	case ixgbe_fc_full:
+		/* Flow control (both Rx and Tx) is enabled by SW override. */
+		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		break;
+	default:
+		hw_dbg(hw, "Flow control param set incorrectly\n");
+		ret_val = -IXGBE_ERR_CONFIG;
+		goto out;
+		break;
+	}
+
+	IXGBE_WRITE_REG(hw, IXGBE_PCS1GANA, reg);
+	reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLCTL);
+
+	/* Set PCS register for autoneg */
+	/* Enable and restart autoneg */
+	reg |= IXGBE_PCS1GLCTL_AN_ENABLE | IXGBE_PCS1GLCTL_AN_RESTART;
+
+	/* Disable AN timeout */
+	if (hw->fc.strict_ieee)
+		reg &= ~IXGBE_PCS1GLCTL_AN_1G_TIMEOUT_EN;
+
+	hw_dbg(hw, "Configuring Autoneg; PCS_LCTL = 0x%08X\n", reg);
+	IXGBE_WRITE_REG(hw, IXGBE_PCS1GLCTL, reg);
+
+	/* See if autonegotiation has succeeded */
+	hw->mac.autoneg_succeeded = 0;
+	for (i = 0; i < FIBER_LINK_UP_LIMIT; i++) {
+		msleep(10);
+		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GLSTA);
+		if ((reg & (IXGBE_PCS1GLSTA_LINK_OK |
+		     IXGBE_PCS1GLSTA_AN_COMPLETE)) ==
+		    (IXGBE_PCS1GLSTA_LINK_OK |
+		     IXGBE_PCS1GLSTA_AN_COMPLETE)) {
+			if (!(reg & IXGBE_PCS1GLSTA_AN_TIMED_OUT))
+				hw->mac.autoneg_succeeded = 1;
+			break;
+		}
+	}
+
+	if (!hw->mac.autoneg_succeeded) {
+		/* Autoneg failed to achieve a link, so we turn fc off */
+		hw->fc.current_mode = ixgbe_fc_none;
+		hw_dbg(hw, "Flow Control = NONE.\n");
+		goto out;
+	}
+
+	/*
+	 * Read the AN advertisement and LP ability registers and resolve
+	 * local flow control settings accordingly
+	 */
+	pcs_anadv_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
+	pcs_lpab_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANLP);
+	if ((pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		(pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE)) {
+		/*
+		 * Now we need to check if the user selected Rx ONLY
+		 * of pause frames.  In this case, we had to advertise
+		 * FULL flow control because we could not advertise RX
+		 * ONLY. Hence, we must now check to see if we need to
+		 * turn OFF the TRANSMISSION of PAUSE frames.
+		 */
+		if (hw->fc.requested_mode == ixgbe_fc_full) {
+			hw->fc.current_mode = ixgbe_fc_full;
+			hw_dbg(hw, "Flow Control = FULL.\n");
+		} else {
+			hw->fc.current_mode = ixgbe_fc_rx_pause;
+			hw_dbg(hw, "Flow Control = RX PAUSE frames only.\n");
+		}
+	} else if (!(pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_anadv_reg & IXGBE_PCS1GANA_ASM_PAUSE) &&
+		   (pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_lpab_reg & IXGBE_PCS1GANA_ASM_PAUSE)) {
+		hw->fc.current_mode = ixgbe_fc_tx_pause;
+		hw_dbg(hw, "Flow Control = TX PAUSE frames only.\n");
+	} else if ((pcs_anadv_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_anadv_reg & IXGBE_PCS1GANA_ASM_PAUSE) &&
+		   !(pcs_lpab_reg & IXGBE_PCS1GANA_SYM_PAUSE) &&
+		   (pcs_lpab_reg & IXGBE_PCS1GANA_ASM_PAUSE)) {
+		hw->fc.current_mode = ixgbe_fc_rx_pause;
+		hw_dbg(hw, "Flow Control = RX PAUSE frames only.\n");
+	} else {
+		hw->fc.current_mode = ixgbe_fc_none;
+		hw_dbg(hw, "Flow Control = NONE.\n");
+	}
+
+out:
+	return ret_val;
+}
+
+/**
  *  ixgbe_disable_pcie_master - Disable PCI-express master access
  *  @hw: pointer to hardware structure
  *

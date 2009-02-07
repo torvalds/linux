@@ -1954,11 +1954,43 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 		                       (adapter->rx_ring[i].count - 1));
 }
 
+/**
+ * ixgbe_link_config - set up initial link with default speed and duplex
+ * @hw: pointer to private hardware struct
+ *
+ * Returns 0 on success, negative on failure
+ **/
+static int ixgbe_link_config(struct ixgbe_hw *hw)
+{
+	u32 autoneg;
+	bool link_up = false;
+	u32 ret = IXGBE_ERR_LINK_SETUP;
+
+	if (hw->mac.ops.check_link)
+		ret = hw->mac.ops.check_link(hw, &autoneg, &link_up, false);
+
+	if (ret)
+		goto link_cfg_out;
+
+	if (hw->mac.ops.get_link_capabilities)
+		ret = hw->mac.ops.get_link_capabilities(hw, &autoneg,
+		                                        &hw->mac.autoneg);
+	if (ret)
+		goto link_cfg_out;
+
+	if (hw->mac.ops.setup_link_speed)
+		ret = hw->mac.ops.setup_link_speed(hw, autoneg, true, link_up);
+
+link_cfg_out:
+	return ret;
+}
+
 static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ixgbe_hw *hw = &adapter->hw;
 	int i, j = 0;
+	int err;
 	int max_frame = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	u32 txdctl, rxdctl, mhadd;
 	u32 gpie;
@@ -2038,6 +2070,10 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	IXGBE_READ_REG(hw, IXGBE_EICR);
 
 	ixgbe_irq_enable(adapter);
+
+	err = ixgbe_link_config(hw);
+	if (err)
+		dev_err(&adapter->pdev->dev, "link_config FAILED %d\n", err);
 
 	/* enable transmits */
 	netif_tx_start_all_queues(netdev);
@@ -2792,8 +2828,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->flags |= IXGBE_FLAG_FAN_FAIL_CAPABLE;
 
 	/* default flow control settings */
-	hw->fc.original_type = ixgbe_fc_none;
-	hw->fc.type = ixgbe_fc_none;
+	hw->fc.requested_mode = ixgbe_fc_none;
 	hw->fc.high_water = IXGBE_DEFAULT_FCRTH;
 	hw->fc.low_water = IXGBE_DEFAULT_FCRTL;
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
@@ -3916,37 +3951,6 @@ static void ixgbe_netpoll(struct net_device *netdev)
 }
 #endif
 
-/**
- * ixgbe_link_config - set up initial link with default speed and duplex
- * @hw: pointer to private hardware struct
- *
- * Returns 0 on success, negative on failure
- **/
-static int ixgbe_link_config(struct ixgbe_hw *hw)
-{
-	u32 autoneg;
-	bool link_up = false;
-	u32 ret = IXGBE_ERR_LINK_SETUP;
-
-	if (hw->mac.ops.check_link)
-		ret = hw->mac.ops.check_link(hw, &autoneg, &link_up, false);
-
-	if (ret || !link_up)
-		goto link_cfg_out;
-
-	if (hw->mac.ops.get_link_capabilities)
-		ret = hw->mac.ops.get_link_capabilities(hw, &autoneg,
-		                                        &hw->mac.autoneg);
-	if (ret)
-		goto link_cfg_out;
-
-	if (hw->mac.ops.setup_link_speed)
-		ret = hw->mac.ops.setup_link_speed(hw, autoneg, true, true);
-
-link_cfg_out:
-	return ret;
-}
-
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open 		= ixgbe_open,
 	.ndo_stop		= ixgbe_close,
@@ -4196,13 +4200,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	/* reset the hardware with the new settings */
 	hw->mac.ops.start_hw(hw);
-
-	/* link_config depends on start_hw being called at least once */
-	err = ixgbe_link_config(hw);
-	if (err) {
-		dev_err(&pdev->dev, "setup_link_speed FAILED %d\n", err);
-		goto err_register;
-	}
 
 	netif_carrier_off(netdev);
 

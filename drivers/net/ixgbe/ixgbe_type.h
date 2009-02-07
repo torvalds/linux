@@ -771,6 +771,28 @@
 #define IXGBE_LINK_UP_TIME      90 /* 9.0 Seconds */
 #define IXGBE_AUTO_NEG_TIME     45 /* 4.5 Seconds */
 
+#define FIBER_LINK_UP_LIMIT     50
+
+/* PCS1GLSTA Bit Masks */
+#define IXGBE_PCS1GLSTA_LINK_OK         1
+#define IXGBE_PCS1GLSTA_SYNK_OK         0x10
+#define IXGBE_PCS1GLSTA_AN_COMPLETE     0x10000
+#define IXGBE_PCS1GLSTA_AN_PAGE_RX      0x20000
+#define IXGBE_PCS1GLSTA_AN_TIMED_OUT    0x40000
+#define IXGBE_PCS1GLSTA_AN_REMOTE_FAULT 0x80000
+#define IXGBE_PCS1GLSTA_AN_ERROR_RWS    0x100000
+
+#define IXGBE_PCS1GANA_SYM_PAUSE        0x80
+#define IXGBE_PCS1GANA_ASM_PAUSE        0x100
+
+/* PCS1GLCTL Bit Masks */
+#define IXGBE_PCS1GLCTL_AN_1G_TIMEOUT_EN  0x00040000 /* PCS 1G autoneg to en */
+#define IXGBE_PCS1GLCTL_FLV_LINK_UP     1
+#define IXGBE_PCS1GLCTL_FORCE_LINK      0x20
+#define IXGBE_PCS1GLCTL_LOW_LINK_LATCH  0x40
+#define IXGBE_PCS1GLCTL_AN_ENABLE       0x10000
+#define IXGBE_PCS1GLCTL_AN_RESTART      0x20000
+
 /* SW Semaphore Register bitmasks */
 #define IXGBE_SWSM_SMBI 0x00000001 /* Driver Semaphore bit */
 #define IXGBE_SWSM_SWESMBI 0x00000002 /* FW Semaphore bit */
@@ -1270,7 +1292,7 @@ enum ixgbe_media_type {
 };
 
 /* Flow Control Settings */
-enum ixgbe_fc_type {
+enum ixgbe_fc_mode {
 	ixgbe_fc_none = 0,
 	ixgbe_fc_rx_pause,
 	ixgbe_fc_tx_pause,
@@ -1294,8 +1316,8 @@ struct ixgbe_fc_info {
 	u16 pause_time; /* Flow Control Pause timer */
 	bool send_xon; /* Flow control send XON */
 	bool strict_ieee; /* Strict IEEE mode */
-	enum ixgbe_fc_type type; /* Type of flow control */
-	enum ixgbe_fc_type original_type;
+	enum ixgbe_fc_mode current_mode; /* FC mode in effect */
+	enum ixgbe_fc_mode requested_mode; /* FC mode requested by caller */
 };
 
 /* Statistics counters collected by the MAC */
@@ -1475,6 +1497,7 @@ struct ixgbe_phy_info {
 	bool                            reset_disable;
 	ixgbe_autoneg_advertised        autoneg_advertised;
 	bool                            autoneg_wait_to_complete;
+	bool                            multispeed_fiber;
 };
 
 struct ixgbe_hw {
