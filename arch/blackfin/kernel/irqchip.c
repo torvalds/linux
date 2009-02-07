@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <asm/trace.h>
+#include <asm/pda.h>
 
 static atomic_t irq_err_count;
 static spinlock_t irq_controller_lock;
@@ -91,8 +92,13 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
  skip:
 		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS)
+	} else if (i == NR_IRQS) {
+		seq_printf(p, "NMI: ");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", cpu_pda[j].__nmi_count);
+		seq_printf(p, "     CORE  Non Maskable Interrupt\n");
 		seq_printf(p, "Err: %10u\n",  atomic_read(&irq_err_count));
+	}
 	return 0;
 }
 

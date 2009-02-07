@@ -1026,7 +1026,7 @@ static int poch_ioctl(struct inode *inode, struct file *filp,
 		}
 		break;
 	case POCH_IOC_GET_COUNTERS:
-		if (access_ok(VERIFY_WRITE, argp, sizeof(struct poch_counters)))
+		if (!access_ok(VERIFY_WRITE, argp, sizeof(struct poch_counters)))
 			return -EFAULT;
 
 		spin_lock_irq(&channel->counters_lock);

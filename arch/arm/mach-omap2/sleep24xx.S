@@ -93,9 +93,8 @@ ENTRY(omap24xx_cpu_suspend)
 	orr	r4, r4, #0x40		@ enable self refresh on idle req
 	mov	r5, #0x2000		@ set delay (DPLL relock + DLL relock)
 	str	r4, [r2]		@ make it so
-	mov	r2, #0
 	nop
-	mcr	p15, 0, r2, c7, c0, 4	@ wait for interrupt
+	mcr	p15, 0, r3, c7, c0, 4	@ wait for interrupt
 	nop
 loop:
 	subs	r5, r5, #0x1		@ awake, wait just a bit

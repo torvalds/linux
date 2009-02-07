@@ -858,7 +858,7 @@ void __init vmi_init(void)
 #endif
 }
 
-void vmi_activate(void)
+void __init vmi_activate(void)
 {
 	unsigned long flags;
 

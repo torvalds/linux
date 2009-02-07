@@ -321,8 +321,13 @@ static struct platform_device isp1362_hcd_device = {
 #endif
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+static struct platform_device bfin_mii_bus = {
+	.name = "bfin_mii_bus",
+};
+
 static struct platform_device bfin_mac_device = {
 	.name = "bfin_mac",
+	.dev.platform_data = &bfin_mii_bus,
 };
 #endif
 
@@ -1068,7 +1073,6 @@ static struct adp5588_kpad_platform_data adp5588_kpad_data = {
 };
 #endif
 
-#ifdef CONFIG_I2C_BOARDINFO
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_JOYSTICK_AD7142) || defined(CONFIG_JOYSTICK_AD7142_MODULE)
 	{
@@ -1102,7 +1106,6 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 	},
 #endif
 };
-#endif
 
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
 static struct platform_device bfin_sport0_uart_device = {
@@ -1217,6 +1220,7 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+	&bfin_mii_bus,
 	&bfin_mac_device,
 #endif
 
@@ -1284,12 +1288,8 @@ static struct platform_device *stamp_devices[] __initdata = {
 static int __init stamp_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
-
-#ifdef CONFIG_I2C_BOARDINFO
 	i2c_register_board_info(0, bfin_i2c_board_info,
 				ARRAY_SIZE(bfin_i2c_board_info));
-#endif
-
 	bfin_plat_nand_init();
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
@@ -1307,7 +1307,7 @@ void native_machine_restart(char *cmd)
 {
 	/* workaround reboot hang when booting from SPI */
 	if ((bfin_read_SYSCR() & 0x7) == 0x3)
-		bfin_gpio_reset_spi0_ssel1();
+		bfin_reset_boot_spi_cs(P_DEFAULT_BOOT_SPI_CS);
 }
 
 /*

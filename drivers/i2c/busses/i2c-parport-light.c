@@ -115,7 +115,6 @@ static struct i2c_algo_bit_data parport_algo_data = {
 static struct i2c_adapter parport_adapter = {
 	.owner		= THIS_MODULE,
 	.class		= I2C_CLASS_HWMON,
-	.id		= I2C_HW_B_LP,
 	.algo_data	= &parport_algo_data,
 	.name		= "Parallel port adapter (light)",
 };

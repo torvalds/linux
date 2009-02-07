@@ -41,7 +41,7 @@ menuconfig FB
 	  You need an utility program called fbset to make full use of frame
 	  buffer devices. Please read <file:Documentation/fb/framebuffer.txt>
 	  and the Framebuffer-HOWTO at
-	  <http://www.tahallah.demon.co.uk/programming/prog.html> for more
+	  <http://www.munted.org.uk/programming/Framebuffer-HOWTO-1.2.html> for more
 	  information.
 
 	  Say Y here and to the driver for your graphics board below if you
@@ -2122,6 +2122,18 @@ config FB_PRE_INIT_FB
 	---help---
 	  Select this option if display contents should be inherited as set by
 	  the bootloader.
+
+config FB_MX3
+       tristate "MX3 Framebuffer support"
+       depends on FB && MX3_IPU
+       select FB_CFB_FILLRECT
+       select FB_CFB_COPYAREA
+       select FB_CFB_IMAGEBLIT
+       default y
+       help
+         This is a framebuffer device for the i.MX31 LCD Controller. So
+         far only synchronous displays are supported. If you plan to use
+         an LCD display with your i.MX31 system, say Y here.
 
 source "drivers/video/omap/Kconfig"
 

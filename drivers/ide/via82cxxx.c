@@ -448,6 +448,11 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 		d.host_flags |= IDE_HFLAG_FORCE_LEGACY_IRQS;
 #endif
 
+#ifdef CONFIG_AMIGAONE
+	if (machine_is(amigaone))
+		d.host_flags |= IDE_HFLAG_FORCE_LEGACY_IRQS;
+#endif
+
 	d.udma_mask = via_config->udma_mask;
 
 	vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);

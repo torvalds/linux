@@ -1,0 +1,21 @@
+config AFS_FS
+	tristate "Andrew File System support (AFS) (EXPERIMENTAL)"
+	depends on INET && EXPERIMENTAL
+	select AF_RXRPC
+	help
+	  If you say Y here, you will get an experimental Andrew File System
+	  driver. It currently only supports unsecured read-only AFS access.
+
+	  See <file:Documentation/filesystems/afs.txt> for more information.
+
+	  If unsure, say N.
+
+config AFS_DEBUG
+	bool "AFS dynamic debugging"
+	depends on AFS_FS
+	help
+	  Say Y here to make runtime controllable debugging messages appear.
+
+	  See <file:Documentation/filesystems/afs.txt> for more information.
+
+	  If unsure, say N.

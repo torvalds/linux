@@ -1,0 +1,31 @@
+config BTRFS_FS
+	tristate "Btrfs filesystem (EXPERIMENTAL) Unstable disk format"
+	depends on EXPERIMENTAL
+	select LIBCRC32C
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
+	help
+	  Btrfs is a new filesystem with extents, writable snapshotting,
+	  support for multiple devices and many more features.
+
+	  Btrfs is highly experimental, and THE DISK FORMAT IS NOT YET
+	  FINALIZED.  You should say N here unless you are interested in
+	  testing Btrfs with non-critical data.
+
+	  To compile this file system support as a module, choose M here. The
+	  module will be called btrfs.
+
+	  If unsure, say N.
+
+config BTRFS_FS_POSIX_ACL
+	bool "Btrfs POSIX Access Control Lists"
+	depends on BTRFS_FS
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  To learn more about Access Control Lists, visit the POSIX ACLs for
+	  Linux website <http://acl.bestbits.at/>.
+
+	  If you don't know what Access Control Lists are, say N

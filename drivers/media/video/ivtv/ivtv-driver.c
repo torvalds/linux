@@ -949,8 +949,10 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	itv->instance = atomic_inc_return(&ivtv_instance) - 1;
 
 	retval = v4l2_device_register(&dev->dev, &itv->device);
-	if (retval)
+	if (retval) {
+		kfree(itv);
 		return retval;
+	}
 	/* "ivtv + PCI ID" is a bit of a mouthful, so use
 	   "ivtv + instance" instead. */
 	snprintf(itv->device.name, sizeof(itv->device.name),

@@ -719,13 +719,19 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 		__enqueue_entity(cfs_rq, se);
 }
 
-static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static void __clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (cfs_rq->last == se)
 		cfs_rq->last = NULL;
 
 	if (cfs_rq->next == se)
 		cfs_rq->next = NULL;
+}
+
+static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	for_each_sched_entity(se)
+		__clear_buddies(cfs_rq_of(se), se);
 }
 
 static void
@@ -768,8 +774,14 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 
 	ideal_runtime = sched_slice(cfs_rq, curr);
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
-	if (delta_exec > ideal_runtime)
+	if (delta_exec > ideal_runtime) {
 		resched_task(rq_of(cfs_rq)->curr);
+		/*
+		 * The current task ran long enough, ensure it doesn't get
+		 * re-elected due to buddy favours.
+		 */
+		clear_buddies(cfs_rq, curr);
+	}
 }
 
 static void
@@ -1179,19 +1191,14 @@ wake_affine(struct sched_domain *this_sd, struct rq *this_rq,
 	    int idx, unsigned long load, unsigned long this_load,
 	    unsigned int imbalance)
 {
-	struct task_struct *curr = this_rq->curr;
-	struct task_group *tg;
 	unsigned long tl = this_load;
 	unsigned long tl_per_task;
+	struct task_group *tg;
 	unsigned long weight;
 	int balanced;
 
 	if (!(this_sd->flags & SD_WAKE_AFFINE) || !sched_feat(AFFINE_WAKEUPS))
 		return 0;
-
-	if (sync && (curr->se.avg_overlap > sysctl_sched_migration_cost ||
-			p->se.avg_overlap > sysctl_sched_migration_cost))
-		sync = 0;
 
 	/*
 	 * If sync wakeup then subtract the (maximum possible)
@@ -1419,9 +1426,7 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 	if (!sched_feat(WAKEUP_PREEMPT))
 		return;
 
-	if (sched_feat(WAKEUP_OVERLAP) && (sync ||
-			(se->avg_overlap < sysctl_sched_migration_cost &&
-			 pse->avg_overlap < sysctl_sched_migration_cost))) {
+	if (sched_feat(WAKEUP_OVERLAP) && sync) {
 		resched_task(curr);
 		return;
 	}
@@ -1452,6 +1457,11 @@ static struct task_struct *pick_next_task_fair(struct rq *rq)
 
 	do {
 		se = pick_next_entity(cfs_rq);
+		/*
+		 * If se was a buddy, clear it so that it will have to earn
+		 * the favour again.
+		 */
+		__clear_buddies(cfs_rq, se);
 		set_next_entity(cfs_rq, se);
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);

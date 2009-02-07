@@ -618,7 +618,7 @@ static struct p9_fid *p9_fid_create(struct p9_client *clnt)
 		return ERR_PTR(-ENOMEM);
 
 	ret = p9_idpool_get(clnt->fidpool);
-	if (fid->fid < 0) {
+	if (ret < 0) {
 		ret = -ENOSPC;
 		goto error;
 	}

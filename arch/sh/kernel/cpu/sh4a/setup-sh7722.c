@@ -158,7 +158,7 @@ static struct resource jpu_resources[] = {
 	[0] = {
 		.name	= "JPU",
 		.start	= 0xfea00000,
-		.end	= 0xfea102d0,
+		.end	= 0xfea102d3,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
