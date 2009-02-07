@@ -1,3 +1,4 @@
 obj-$(CONFIG_XENFS) += xenfs.o
 
-xenfs-objs = super.o xenbus.o
+xenfs-y			  = super.o xenbus.o
+xenfs-$(CONFIG_XEN_DOM0) += xenstored.o
