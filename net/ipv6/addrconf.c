@@ -2224,10 +2224,24 @@ int addrconf_del_ifaddr(struct net *net, void __user *arg)
 	return err;
 }
 
+static void add_addr(struct inet6_dev *idev, const struct in6_addr *addr,
+		     int plen, int scope)
+{
+	struct inet6_ifaddr *ifp;
+
+	ifp = ipv6_add_addr(idev, addr, plen, scope, IFA_F_PERMANENT);
+	if (!IS_ERR(ifp)) {
+		spin_lock_bh(&ifp->lock);
+		ifp->flags &= ~IFA_F_TENTATIVE;
+		spin_unlock_bh(&ifp->lock);
+		ipv6_ifa_notify(RTM_NEWADDR, ifp);
+		in6_ifa_put(ifp);
+	}
+}
+
 #if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)
 static void sit_add_v4_addrs(struct inet6_dev *idev)
 {
-	struct inet6_ifaddr * ifp;
 	struct in6_addr addr;
 	struct net_device *dev;
 	struct net *net = dev_net(idev->dev);
@@ -2246,14 +2260,7 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 	}
 
 	if (addr.s6_addr32[3]) {
-		ifp = ipv6_add_addr(idev, &addr, 128, scope, IFA_F_PERMANENT);
-		if (!IS_ERR(ifp)) {
-			spin_lock_bh(&ifp->lock);
-			ifp->flags &= ~IFA_F_TENTATIVE;
-			spin_unlock_bh(&ifp->lock);
-			ipv6_ifa_notify(RTM_NEWADDR, ifp);
-			in6_ifa_put(ifp);
-		}
+		add_addr(idev, &addr, 128, scope);
 		return;
 	}
 
@@ -2281,15 +2288,7 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 				else
 					plen = 96;
 
-				ifp = ipv6_add_addr(idev, &addr, plen, flag,
-						    IFA_F_PERMANENT);
-				if (!IS_ERR(ifp)) {
-					spin_lock_bh(&ifp->lock);
-					ifp->flags &= ~IFA_F_TENTATIVE;
-					spin_unlock_bh(&ifp->lock);
-					ipv6_ifa_notify(RTM_NEWADDR, ifp);
-					in6_ifa_put(ifp);
-				}
+				add_addr(idev, &addr, plen, flag);
 			}
 		}
 	}
@@ -2299,7 +2298,6 @@ static void sit_add_v4_addrs(struct inet6_dev *idev)
 static void init_loopback(struct net_device *dev)
 {
 	struct inet6_dev  *idev;
-	struct inet6_ifaddr * ifp;
 
 	/* ::1 */
 
@@ -2310,14 +2308,7 @@ static void init_loopback(struct net_device *dev)
 		return;
 	}
 
-	ifp = ipv6_add_addr(idev, &in6addr_loopback, 128, IFA_HOST, IFA_F_PERMANENT);
-	if (!IS_ERR(ifp)) {
-		spin_lock_bh(&ifp->lock);
-		ifp->flags &= ~IFA_F_TENTATIVE;
-		spin_unlock_bh(&ifp->lock);
-		ipv6_ifa_notify(RTM_NEWADDR, ifp);
-		in6_ifa_put(ifp);
-	}
+	add_addr(idev, &in6addr_loopback, 128, IFA_HOST);
 }
 
 static void addrconf_add_linklocal(struct inet6_dev *idev, struct in6_addr *addr)
