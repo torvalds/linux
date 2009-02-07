@@ -697,7 +697,7 @@ static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 		if (IS_CAPTURE_ACTIVE(fh) != 0) {
 			DEB_D(("V4L2_CID_HFLIP while active capture.\n"));
 			mutex_unlock(&dev->lock);
-			return -EINVAL;
+			return -EBUSY;
 		}
 		vv->hflip = c->value;
 		break;
@@ -705,7 +705,7 @@ static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 		if (IS_CAPTURE_ACTIVE(fh) != 0) {
 			DEB_D(("V4L2_CID_VFLIP while active capture.\n"));
 			mutex_unlock(&dev->lock);
-			return -EINVAL;
+			return -EBUSY;
 		}
 		vv->vflip = c->value;
 		break;
