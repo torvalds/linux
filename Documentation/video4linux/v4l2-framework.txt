@@ -134,7 +134,7 @@ The recommended approach is as follows:
 
 static atomic_t drv_instance = ATOMIC_INIT(0);
 
-static int __devinit drv_probe(struct pci_dev *dev,
+static int __devinit drv_probe(struct pci_dev *pdev,
 				const struct pci_device_id *pci_id)
 {
 	...
@@ -218,7 +218,7 @@ to add new ops and categories.
 
 A sub-device driver initializes the v4l2_subdev struct using:
 
-	v4l2_subdev_init(subdev, &ops);
+	v4l2_subdev_init(sd, &ops);
 
 Afterwards you need to initialize subdev->name with a unique name and set the
 module owner. This is done for you if you use the i2c helper functions.
@@ -226,7 +226,7 @@ module owner. This is done for you if you use the i2c helper functions.
 A device (bridge) driver needs to register the v4l2_subdev with the
 v4l2_device:
 
-	int err = v4l2_device_register_subdev(device, subdev);
+	int err = v4l2_device_register_subdev(v4l2_dev, sd);
 
 This can fail if the subdev module disappeared before it could be registered.
 After this function was called successfully the subdev->dev field points to
@@ -234,17 +234,17 @@ the v4l2_device.
 
 You can unregister a sub-device using:
 
-	v4l2_device_unregister_subdev(subdev);
+	v4l2_device_unregister_subdev(sd);
 
-Afterwards the subdev module can be unloaded and subdev->dev == NULL.
+Afterwards the subdev module can be unloaded and sd->dev == NULL.
 
 You can call an ops function either directly:
 
-	err = subdev->ops->core->g_chip_ident(subdev, &chip);
+	err = sd->ops->core->g_chip_ident(sd, &chip);
 
 but it is better and easier to use this macro:
 
-	err = v4l2_subdev_call(subdev, core, g_chip_ident, &chip);
+	err = v4l2_subdev_call(sd, core, g_chip_ident, &chip);
 
 The macro will to the right NULL pointer checks and returns -ENODEV if subdev
 is NULL, -ENOIOCTLCMD if either subdev->core or subdev->core->g_chip_ident is
@@ -252,12 +252,12 @@ NULL, or the actual result of the subdev->ops->core->g_chip_ident ops.
 
 It is also possible to call all or a subset of the sub-devices:
 
-	v4l2_device_call_all(dev, 0, core, g_chip_ident, &chip);
+	v4l2_device_call_all(v4l2_dev, 0, core, g_chip_ident, &chip);
 
 Any subdev that does not support this ops is skipped and error results are
 ignored. If you want to check for errors use this:
 
-	err = v4l2_device_call_until_err(dev, 0, core, g_chip_ident, &chip);
+	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_chip_ident, &chip);
 
 Any error except -ENOIOCTLCMD will exit the loop with that error. If no
 errors (except -ENOIOCTLCMD) occured, then 0 is returned.
@@ -505,8 +505,8 @@ There are a few useful helper functions:
 
 You can set/get driver private data in the video_device struct using:
 
-void *video_get_drvdata(struct video_device *dev);
-void video_set_drvdata(struct video_device *dev, void *data);
+void *video_get_drvdata(struct video_device *vdev);
+void video_set_drvdata(struct video_device *vdev, void *data);
 
 Note that you can safely call video_set_drvdata() before calling
 video_register_device().
