@@ -730,12 +730,13 @@ static int video_open(struct file *file)
 	lock_kernel();
 	list_for_each(list, &cx23885_devlist) {
 		h = list_entry(list, struct cx23885_dev, devlist);
-		if (h->video_dev->minor == minor) {
+		if (h->video_dev &&
+		    h->video_dev->minor == minor) {
 			dev  = h;
 			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		}
 		if (h->vbi_dev &&
-		   h->vbi_dev->minor == minor) {
+		    h->vbi_dev->minor == minor) {
 			dev  = h;
 			type = V4L2_BUF_TYPE_VBI_CAPTURE;
 		}

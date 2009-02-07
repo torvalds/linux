@@ -40,9 +40,7 @@
 #define I2C_DRIVERID_SAA7185B	13	/* video encoder		*/
 #define I2C_DRIVERID_SAA7110	22	/* video decoder		*/
 #define I2C_DRIVERID_SAA5249	24	/* SAA5249 and compatibles	*/
-#define I2C_DRIVERID_PCF8583	25	/* real time clock		*/
 #define I2C_DRIVERID_TDA7432	27	/* Stereo sound processor	*/
-#define I2C_DRIVERID_TVMIXER    28      /* Mixer driver for tv cards    */
 #define I2C_DRIVERID_TVAUDIO    29      /* Generic TV sound driver      */
 #define I2C_DRIVERID_TDA9875    32      /* TV sound decoder chip        */
 #define I2C_DRIVERID_BT819	40     /* video decoder			*/
@@ -54,7 +52,6 @@
 #define I2C_DRIVERID_SAA7191	57	/* video decoder		*/
 #define I2C_DRIVERID_INDYCAM	58	/* SGI IndyCam			*/
 #define I2C_DRIVERID_OVCAMCHIP	61	/* OmniVision CMOS image sens.	*/
-#define I2C_DRIVERID_MAX6900	63	/* MAX6900 real-time clock	*/
 #define I2C_DRIVERID_SAA6752HS	67	/* MPEG2 encoder		*/
 #define I2C_DRIVERID_TVEEPROM	68	/* TV EEPROM			*/
 #define I2C_DRIVERID_WM8775	69	/* wm8775 audio processor	*/
@@ -62,23 +59,16 @@
 #define I2C_DRIVERID_CX25840	71	/* cx2584x video encoder	*/
 #define I2C_DRIVERID_SAA7127	72	/* saa7127 video encoder	*/
 #define I2C_DRIVERID_SAA711X	73	/* saa711x video encoders	*/
-#define I2C_DRIVERID_AKITAIOEXP	74	/* IO Expander on Sharp SL-C1000 */
 #define I2C_DRIVERID_INFRARED	75	/* I2C InfraRed on Video boards */
 #define I2C_DRIVERID_TVP5150	76	/* TVP5150 video decoder        */
 #define I2C_DRIVERID_WM8739	77	/* wm8739 audio processor	*/
 #define I2C_DRIVERID_UPD64083	78	/* upd64083 video processor	*/
 #define I2C_DRIVERID_UPD64031A	79	/* upd64031a video processor	*/
 #define I2C_DRIVERID_SAA717X	80	/* saa717x video encoder	*/
-#define I2C_DRIVERID_DS1672	81	/* Dallas/Maxim DS1672 RTC	*/
 #define I2C_DRIVERID_BT866	85	/* Conexant bt866 video encoder */
 #define I2C_DRIVERID_KS0127	86	/* Samsung ks0127 video decoder */
 #define I2C_DRIVERID_TLV320AIC23B 87	/* TI TLV320AIC23B audio codec  */
-#define I2C_DRIVERID_WM8731	89	/* Wolfson WM8731 audio codec */
-#define I2C_DRIVERID_WM8750	90	/* Wolfson WM8750 audio codec */
-#define I2C_DRIVERID_WM8753	91	/* Wolfson WM8753 audio codec */
-#define I2C_DRIVERID_LM4857 	92 	/* LM4857 Audio Amplifier */
 #define I2C_DRIVERID_VP27SMPX	93	/* Panasonic VP27s tuner internal MPX */
-#define I2C_DRIVERID_CS4270	94	/* Cirrus Logic 4270 audio codec */
 #define I2C_DRIVERID_M52790 	95      /* Mitsubishi M52790SP/FP AV switch */
 #define I2C_DRIVERID_CS5345	96	/* cs5345 audio processor	*/
 
@@ -89,74 +79,23 @@
  */
 
 /* --- Bit algorithm adapters						*/
-#define I2C_HW_B_LP		0x010000 /* Parallel port Philips style */
 #define I2C_HW_B_BT848		0x010005 /* BT848 video boards */
-#define I2C_HW_B_VIA		0x010007 /* Via vt82c586b */
-#define I2C_HW_B_HYDRA		0x010008 /* Apple Hydra Mac I/O */
-#define I2C_HW_B_I810		0x01000a /* Intel I810 */
-#define I2C_HW_B_VOO		0x01000b /* 3dfx Voodoo 3 / Banshee */
-#define I2C_HW_B_SCX200		0x01000e /* Nat'l Semi SCx200 I2C */
 #define I2C_HW_B_RIVA		0x010010 /* Riva based graphics cards */
-#define I2C_HW_B_IOC		0x010011 /* IOC bit-wiggling */
-#define I2C_HW_B_IXP2000	0x010016 /* GPIO on IXP2000 systems */
 #define I2C_HW_B_ZR36067	0x010019 /* Zoran-36057/36067 based boards */
-#define I2C_HW_B_PCILYNX	0x01001a /* TI PCILynx I2C adapter */
 #define I2C_HW_B_CX2388x	0x01001b /* connexant 2388x based tv cards */
-#define I2C_HW_B_NVIDIA		0x01001c /* nvidia framebuffer driver */
-#define I2C_HW_B_SAVAGE		0x01001d /* savage framebuffer driver */
-#define I2C_HW_B_RADEON		0x01001e /* radeon framebuffer driver */
 #define I2C_HW_B_EM28XX		0x01001f /* em28xx video capture cards */
 #define I2C_HW_B_CX2341X	0x010020 /* Conexant CX2341X MPEG encoder cards */
-#define I2C_HW_B_INTELFB	0x010021 /* intel framebuffer driver */
 #define I2C_HW_B_CX23885	0x010022 /* conexant 23885 based tv cards (bus1) */
 #define I2C_HW_B_AU0828		0x010023 /* auvitek au0828 usb bridge */
-
-/* --- PCF 8584 based algorithms					*/
-#define I2C_HW_P_ELEK		0x020002 /* Elektor ISA Bus inteface card */
-
-/* --- PCA 9564 based algorithms */
-#define I2C_HW_A_ISA		0x1a0000 /* generic ISA Bus interface card */
-
-/* --- PowerPC on-chip adapters						*/
-#define I2C_HW_OCP		0x120000 /* IBM on-chip I2C adapter */
-
-/* --- Broadcom SiByte adapters						*/
-#define I2C_HW_SIBYTE		0x150000
 
 /* --- SGI adapters							*/
 #define I2C_HW_SGI_VINO		0x160000
 
-/* --- XSCALE on-chip adapters                          */
-#define I2C_HW_IOP3XX		0x140000
-
-/* --- Au1550 PSC adapters adapters					*/
-#define I2C_HW_AU1550_PSC	0x1b0000
-
 /* --- SMBus only adapters						*/
-#define I2C_HW_SMBUS_PIIX4	0x040000
-#define I2C_HW_SMBUS_ALI15X3	0x040001
-#define I2C_HW_SMBUS_VIA2	0x040002
-#define I2C_HW_SMBUS_I801	0x040004
-#define I2C_HW_SMBUS_AMD756	0x040005
-#define I2C_HW_SMBUS_SIS5595	0x040006
-#define I2C_HW_SMBUS_ALI1535	0x040007
-#define I2C_HW_SMBUS_SIS630	0x040008
-#define I2C_HW_SMBUS_SIS96X	0x040009
-#define I2C_HW_SMBUS_AMD8111	0x04000a
-#define I2C_HW_SMBUS_SCX200	0x04000b
-#define I2C_HW_SMBUS_NFORCE2	0x04000c
 #define I2C_HW_SMBUS_W9968CF	0x04000d
 #define I2C_HW_SMBUS_OV511	0x04000e /* OV511(+) USB 1.1 webcam ICs */
 #define I2C_HW_SMBUS_OV518	0x04000f /* OV518(+) USB 1.1 webcam ICs */
 #define I2C_HW_SMBUS_CAFE	0x040012 /* Marvell 88ALP01 "CAFE" cam  */
-#define I2C_HW_SMBUS_ALI1563	0x040013
-
-/* --- MCP107 adapter */
-#define I2C_HW_MPC107		0x0d0000
-
-/* --- Embedded adapters */
-#define I2C_HW_MV64XXX		0x190000
-#define I2C_HW_BLACKFIN		0x190001 /* ADI Blackfin I2C TWI driver */
 
 /* --- Miscellaneous adapters */
 #define I2C_HW_SAA7146		0x060000 /* SAA7146 video decoder bus */

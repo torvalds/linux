@@ -206,6 +206,7 @@ struct ubi_volume_desc;
  * @upd_marker: %1 if the update marker is set for this volume
  * @updating: %1 if the volume is being updated
  * @changing_leb: %1 if the atomic LEB change ioctl command is in progress
+ * @direct_writes: %1 if direct writes are enabled for this volume
  *
  * @gluebi_desc: gluebi UBI volume descriptor
  * @gluebi_refcount: reference count of the gluebi MTD device
@@ -253,6 +254,7 @@ struct ubi_volume {
 	unsigned int upd_marker:1;
 	unsigned int updating:1;
 	unsigned int changing_leb:1;
+	unsigned int direct_writes:1;
 
 #ifdef CONFIG_MTD_UBI_GLUEBI
 	/*
@@ -304,7 +306,8 @@ struct ubi_wl_entry;
  * @vtbl_size: size of the volume table in bytes
  * @vtbl: in-RAM volume table copy
  * @volumes_mutex: protects on-flash volume table and serializes volume
- *                 changes, like creation, deletion, update, re-size and re-name
+ *                 changes, like creation, deletion, update, re-size,
+ *                 re-name and set property
  *
  * @max_ec: current highest erase counter value
  * @mean_ec: current mean erase counter value
@@ -449,9 +452,9 @@ struct ubi_device {
 };
 
 extern struct kmem_cache *ubi_wl_entry_slab;
-extern struct file_operations ubi_ctrl_cdev_operations;
-extern struct file_operations ubi_cdev_operations;
-extern struct file_operations ubi_vol_cdev_operations;
+extern const struct file_operations ubi_ctrl_cdev_operations;
+extern const struct file_operations ubi_cdev_operations;
+extern const struct file_operations ubi_vol_cdev_operations;
 extern struct class *ubi_class;
 extern struct mutex ubi_devices_mutex;
 

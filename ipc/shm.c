@@ -368,14 +368,14 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 		file = hugetlb_file_setup(name, size);
 		shp->mlock_user = current_user();
 	} else {
-		int acctflag = VM_ACCOUNT;
+		int acctflag = 0;
 		/*
 		 * Do not allow no accounting for OVERCOMMIT_NEVER, even
 	 	 * if it's asked for.
 		 */
 		if  ((shmflg & SHM_NORESERVE) &&
 				sysctl_overcommit_memory != OVERCOMMIT_NEVER)
-			acctflag = 0;
+			acctflag = VM_NORESERVE;
 		file = shmem_file_setup(name, size, acctflag);
 	}
 	error = PTR_ERR(file);
@@ -440,7 +440,7 @@ static inline int shm_more_checks(struct kern_ipc_perm *ipcp,
 	return 0;
 }
 
-asmlinkage long sys_shmget (key_t key, size_t size, int shmflg)
+SYSCALL_DEFINE3(shmget, key_t, key, size_t, size, int, shmflg)
 {
 	struct ipc_namespace *ns;
 	struct ipc_ops shm_ops;
@@ -565,11 +565,15 @@ static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
 			struct hstate *h = hstate_file(shp->shm_file);
 			*rss += pages_per_huge_page(h) * mapping->nrpages;
 		} else {
+#ifdef CONFIG_SHMEM
 			struct shmem_inode_info *info = SHMEM_I(inode);
 			spin_lock(&info->lock);
 			*rss += inode->i_mapping->nrpages;
 			*swp += info->swapped;
 			spin_unlock(&info->lock);
+#else
+			*rss += inode->i_mapping->nrpages;
+#endif
 		}
 
 		total++;
@@ -621,7 +625,7 @@ out_up:
 	return err;
 }
 
-asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf)
+SYSCALL_DEFINE3(shmctl, int, shmid, int, cmd, struct shmid_ds __user *, buf)
 {
 	struct shmid_kernel *shp;
 	int err, version;
@@ -939,7 +943,7 @@ out_put_dentry:
 	goto out_nattch;
 }
 
-asmlinkage long sys_shmat(int shmid, char __user *shmaddr, int shmflg)
+SYSCALL_DEFINE3(shmat, int, shmid, char __user *, shmaddr, int, shmflg)
 {
 	unsigned long ret;
 	long err;
@@ -955,7 +959,7 @@ asmlinkage long sys_shmat(int shmid, char __user *shmaddr, int shmflg)
  * detach and kill segment if marked destroyed.
  * The work is done in shm_close.
  */
-asmlinkage long sys_shmdt(char __user *shmaddr)
+SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma, *next;

@@ -871,7 +871,7 @@ struct ide_host {
 	ide_hwif_t	*cur_port;	/* for hosts requiring serialization */
 
 	/* used for hosts requiring serialization */
-	volatile long	host_busy;
+	volatile unsigned long	host_busy;
 };
 
 #define IDE_HOST_BUSY 0

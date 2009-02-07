@@ -220,7 +220,7 @@ static int af9005_get_post_vit_ber(struct dvb_frontend *fe,
 				   u16 * abort_count)
 {
 	u32 loc_cw_count = 0, loc_err_count;
-	u16 loc_abort_count;
+	u16 loc_abort_count = 0;
 	int ret;
 
 	ret =

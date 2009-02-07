@@ -351,6 +351,9 @@ static int gfar_probe(struct of_device *ofdev,
 	/* Reset MAC layer */
 	gfar_write(&priv->regs->maccfg1, MACCFG1_SOFT_RESET);
 
+	/* We need to delay at least 3 TX clocks */
+	udelay(2);
+
 	tempval = (MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
 	gfar_write(&priv->regs->maccfg1, tempval);
 
@@ -1423,15 +1426,11 @@ static void gfar_vlan_rx_register(struct net_device *dev,
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	unsigned long flags;
-	struct vlan_group *old_grp;
 	u32 tempval;
 
 	spin_lock_irqsave(&priv->rxlock, flags);
 
-	old_grp = priv->vlgrp;
-
-	if (old_grp == grp)
-		return;
+	priv->vlgrp = grp;
 
 	if (grp) {
 		/* Enable VLAN tag insertion */
@@ -1622,10 +1621,18 @@ static int gfar_clean_tx_ring(struct net_device *dev)
 static void gfar_schedule_cleanup(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->txlock, flags);
+	spin_lock(&priv->rxlock);
+
 	if (netif_rx_schedule_prep(&priv->napi)) {
 		gfar_write(&priv->regs->imask, IMASK_RTX_DISABLED);
 		__netif_rx_schedule(&priv->napi);
 	}
+
+	spin_unlock(&priv->rxlock);
+	spin_unlock_irqrestore(&priv->txlock, flags);
 }
 
 /* Interrupt Handler for Transmit complete */

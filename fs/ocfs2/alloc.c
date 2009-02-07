@@ -5390,6 +5390,9 @@ int ocfs2_remove_btree_range(struct inode *inode,
 		goto out;
 	}
 
+	vfs_dq_free_space_nodirty(inode,
+				  ocfs2_clusters_to_bytes(inode->i_sb, len));
+
 	ret = ocfs2_remove_extent(inode, et, cpos, len, handle, meta_ac,
 				  dealloc);
 	if (ret) {

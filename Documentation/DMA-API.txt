@@ -5,7 +5,7 @@
 
 This document describes the DMA API.  For a more gentle introduction
 phrased in terms of the pci_ equivalents (and actual examples) see
-DMA-mapping.txt
+Documentation/PCI/PCI-DMA-mapping.txt.
 
 This API is split into two pieces.  Part I describes the API and the
 corresponding pci_ API.  Part II describes the extensions to the API
@@ -170,16 +170,15 @@ Returns: 0 if successful and a negative error if not.
 u64
 dma_get_required_mask(struct device *dev)
 
-After setting the mask with dma_set_mask(), this API returns the
-actual mask (within that already set) that the platform actually
-requires to operate efficiently.  Usually this means the returned mask
+This API returns the mask that the platform requires to
+operate efficiently.  Usually this means the returned mask
 is the minimum required to cover all of memory.  Examining the
 required mask gives drivers with variable descriptor sizes the
 opportunity to use smaller descriptors as necessary.
 
 Requesting the required mask does not alter the current mask.  If you
-wish to take advantage of it, you should issue another dma_set_mask()
-call to lower the mask again.
+wish to take advantage of it, you should issue a dma_set_mask()
+call to set the mask to the value returned.
 
 
 Part Id - Streaming DMA mappings

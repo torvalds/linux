@@ -516,6 +516,19 @@ void wimax_dev_rm(struct wimax_dev *wimax_dev)
 }
 EXPORT_SYMBOL_GPL(wimax_dev_rm);
 
+
+/* Debug framework control of debug levels */
+struct d_level D_LEVEL[] = {
+	D_SUBMODULE_DEFINE(debugfs),
+	D_SUBMODULE_DEFINE(id_table),
+	D_SUBMODULE_DEFINE(op_msg),
+	D_SUBMODULE_DEFINE(op_reset),
+	D_SUBMODULE_DEFINE(op_rfkill),
+	D_SUBMODULE_DEFINE(stack),
+};
+size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
+
+
 struct genl_family wimax_gnl_family = {
 	.id = GENL_ID_GENERATE,
 	.name = "WiMAX",

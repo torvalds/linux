@@ -333,7 +333,7 @@ static void radeon_pm_enable_dynamic_mode(struct radeonfb_info *rinfo)
 	if (!rinfo->has_CRTC2) {
                 tmp = INPLL(pllSCLK_CNTL);
 
-		if ((INREG(CONFIG_CNTL) & CFG_ATI_REV_ID_MASK) > CFG_ATI_REV_A13)
+		if ((INREG(CNFG_CNTL) & CFG_ATI_REV_ID_MASK) > CFG_ATI_REV_A13)
                     tmp &= ~(SCLK_CNTL__FORCE_CP	| SCLK_CNTL__FORCE_RB);
                 tmp &= ~(SCLK_CNTL__FORCE_HDP		| SCLK_CNTL__FORCE_DISP1 |
 			 SCLK_CNTL__FORCE_TOP		| SCLK_CNTL__FORCE_SE   |
@@ -468,9 +468,9 @@ static void radeon_pm_enable_dynamic_mode(struct radeonfb_info *rinfo)
 
 	/*RAGE_6::A11 A12 A12N1 A13, RV250::A11 A12, R300*/
 	if ((rinfo->family == CHIP_FAMILY_RV250 &&
-	     ((INREG(CONFIG_CNTL) & CFG_ATI_REV_ID_MASK) < CFG_ATI_REV_A13)) ||
+	     ((INREG(CNFG_CNTL) & CFG_ATI_REV_ID_MASK) < CFG_ATI_REV_A13)) ||
 	    ((rinfo->family == CHIP_FAMILY_RV100) &&
-	     ((INREG(CONFIG_CNTL) & CFG_ATI_REV_ID_MASK) <= CFG_ATI_REV_A13))) {
+	     ((INREG(CNFG_CNTL) & CFG_ATI_REV_ID_MASK) <= CFG_ATI_REV_A13))) {
 		tmp |= SCLK_CNTL__FORCE_CP;
 		tmp |= SCLK_CNTL__FORCE_VIP;
 	}
@@ -486,7 +486,7 @@ static void radeon_pm_enable_dynamic_mode(struct radeonfb_info *rinfo)
 		/* RV200::A11 A12 RV250::A11 A12 */
 		if (((rinfo->family == CHIP_FAMILY_RV200) ||
 		     (rinfo->family == CHIP_FAMILY_RV250)) &&
-		    ((INREG(CONFIG_CNTL) & CFG_ATI_REV_ID_MASK) < CFG_ATI_REV_A13))
+		    ((INREG(CNFG_CNTL) & CFG_ATI_REV_ID_MASK) < CFG_ATI_REV_A13))
 			tmp |= SCLK_MORE_CNTL__FORCEON;
 
 		OUTPLL(pllSCLK_MORE_CNTL, tmp);
@@ -497,7 +497,7 @@ static void radeon_pm_enable_dynamic_mode(struct radeonfb_info *rinfo)
 	/* RV200::A11 A12, RV250::A11 A12 */
 	if (((rinfo->family == CHIP_FAMILY_RV200) ||
 	     (rinfo->family == CHIP_FAMILY_RV250)) &&
-	    ((INREG(CONFIG_CNTL) & CFG_ATI_REV_ID_MASK) < CFG_ATI_REV_A13)) {
+	    ((INREG(CNFG_CNTL) & CFG_ATI_REV_ID_MASK) < CFG_ATI_REV_A13)) {
 		tmp = INPLL(pllPLL_PWRMGT_CNTL);
 		tmp |= PLL_PWRMGT_CNTL__TCL_BYPASS_DISABLE;
 		OUTPLL(pllPLL_PWRMGT_CNTL, tmp);
@@ -702,7 +702,7 @@ static void radeon_pm_restore_regs(struct radeonfb_info *rinfo)
 	OUTREG(DISPLAY_BASE_ADDR, rinfo->save_regs[31]);
 	OUTREG(MC_AGP_LOCATION, rinfo->save_regs[32]);
 	OUTREG(CRTC2_DISPLAY_BASE_ADDR, rinfo->save_regs[33]);
-	OUTREG(CONFIG_MEMSIZE, rinfo->video_ram);
+	OUTREG(CNFG_MEMSIZE, rinfo->video_ram);
 
 	OUTREG(DISP_MISC_CNTL, rinfo->save_regs[9]);
 	OUTREG(DISP_PWR_MAN, rinfo->save_regs[10]);
@@ -1723,7 +1723,7 @@ static void radeon_reinitialize_M10(struct radeonfb_info *rinfo)
 	OUTREG(CRTC2_DISPLAY_BASE_ADDR, rinfo->save_regs[33]);
 	OUTREG(MC_FB_LOCATION, rinfo->save_regs[30]);
 	OUTREG(OV0_BASE_ADDR, rinfo->save_regs[80]);
-	OUTREG(CONFIG_MEMSIZE, rinfo->video_ram);
+	OUTREG(CNFG_MEMSIZE, rinfo->video_ram);
 	OUTREG(BUS_CNTL, rinfo->save_regs[36]);
 	OUTREG(BUS_CNTL1, rinfo->save_regs[14]);
 	OUTREG(MPP_TB_CONFIG, rinfo->save_regs[37]);
@@ -1961,7 +1961,7 @@ static void radeon_pm_m9p_reconfigure_mc(struct radeonfb_info *rinfo)
 	OUTMC(rinfo, ixMC_CHP_IO_CNTL_B1, rinfo->save_regs[68] /*0x141555ff*/);
 	OUTMC(rinfo, ixMC_IMP_CNTL_0, rinfo->save_regs[71] /*0x00009249*/);
 	OUTREG(MC_IND_INDEX, 0);
-	OUTREG(CONFIG_MEMSIZE, rinfo->video_ram);
+	OUTREG(CNFG_MEMSIZE, rinfo->video_ram);
 
 	mdelay(20);
 }
@@ -2361,7 +2361,7 @@ static void radeon_reinitialize_QW(struct radeonfb_info *rinfo)
 	OUTMC(rinfo, ixMC_IMP_CNTL_0, 0x00009249);
 	OUTREG(MC_IND_INDEX, 0);
 
-	OUTREG(CONFIG_MEMSIZE, rinfo->video_ram);
+	OUTREG(CNFG_MEMSIZE, rinfo->video_ram);
 
 	radeon_pm_full_reset_sdram(rinfo);
 

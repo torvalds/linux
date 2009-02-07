@@ -1,6 +1,7 @@
 config COMEDI
 	tristate "Data Acquision support (comedi)"
 	default N
+	depends on m
 	---help---
 	  Enable support a wide range of data acquision devices
 	  for Linux.

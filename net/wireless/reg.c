@@ -421,6 +421,31 @@ static u32 freq_max_bandwidth(const struct ieee80211_freq_range *freq_range,
 	return 0;
 }
 
+/**
+ * freq_in_rule_band - tells us if a frequency is in a frequency band
+ * @freq_range: frequency rule we want to query
+ * @freq_khz: frequency we are inquiring about
+ *
+ * This lets us know if a specific frequency rule is or is not relevant to
+ * a specific frequency's band. Bands are device specific and artificial
+ * definitions (the "2.4 GHz band" and the "5 GHz band"), however it is
+ * safe for now to assume that a frequency rule should not be part of a
+ * frequency's band if the start freq or end freq are off by more than 2 GHz.
+ * This resolution can be lowered and should be considered as we add
+ * regulatory rule support for other "bands".
+ **/
+static bool freq_in_rule_band(const struct ieee80211_freq_range *freq_range,
+	u32 freq_khz)
+{
+#define ONE_GHZ_IN_KHZ	1000000
+	if (abs(freq_khz - freq_range->start_freq_khz) <= (2 * ONE_GHZ_IN_KHZ))
+		return true;
+	if (abs(freq_khz - freq_range->end_freq_khz) <= (2 * ONE_GHZ_IN_KHZ))
+		return true;
+	return false;
+#undef ONE_GHZ_IN_KHZ
+}
+
 /* Converts a country IE to a regulatory domain. A regulatory domain
  * structure has a lot of information which the IE doesn't yet have,
  * so for the other values we use upper max values as we will intersect
@@ -473,6 +498,7 @@ static struct ieee80211_regdomain *country_ie_2_rd(
 	 * calculate the number of reg rules we will need. We will need one
 	 * for each channel subband */
 	while (country_ie_len >= 3) {
+		int end_channel = 0;
 		struct ieee80211_country_ie_triplet *triplet =
 			(struct ieee80211_country_ie_triplet *) country_ie;
 		int cur_sub_max_channel = 0, cur_channel = 0;
@@ -484,9 +510,25 @@ static struct ieee80211_regdomain *country_ie_2_rd(
 			continue;
 		}
 
+		/* 2 GHz */
+		if (triplet->chans.first_channel <= 14)
+			end_channel = triplet->chans.first_channel +
+				triplet->chans.num_channels;
+		else
+			/*
+			 * 5 GHz -- For example in country IEs if the first
+			 * channel given is 36 and the number of channels is 4
+			 * then the individual channel numbers defined for the
+			 * 5 GHz PHY by these parameters are: 36, 40, 44, and 48
+			 * and not 36, 37, 38, 39.
+			 *
+			 * See: http://tinyurl.com/11d-clarification
+			 */
+			end_channel =  triplet->chans.first_channel +
+				(4 * (triplet->chans.num_channels - 1));
+
 		cur_channel = triplet->chans.first_channel;
-		cur_sub_max_channel = ieee80211_channel_to_frequency(
-			cur_channel + triplet->chans.num_channels);
+		cur_sub_max_channel = end_channel;
 
 		/* Basic sanity check */
 		if (cur_sub_max_channel < cur_channel)
@@ -538,6 +580,7 @@ static struct ieee80211_regdomain *country_ie_2_rd(
 
 	/* This time around we fill in the rd */
 	while (country_ie_len >= 3) {
+		int end_channel = 0;
 		struct ieee80211_country_ie_triplet *triplet =
 			(struct ieee80211_country_ie_triplet *) country_ie;
 		struct ieee80211_reg_rule *reg_rule = NULL;
@@ -559,6 +602,14 @@ static struct ieee80211_regdomain *country_ie_2_rd(
 
 		reg_rule->flags = flags;
 
+		/* 2 GHz */
+		if (triplet->chans.first_channel <= 14)
+			end_channel = triplet->chans.first_channel +
+				triplet->chans.num_channels;
+		else
+			end_channel =  triplet->chans.first_channel +
+				(4 * (triplet->chans.num_channels - 1));
+
 		/* The +10 is since the regulatory domain expects
 		 * the actual band edge, not the center of freq for
 		 * its start and end freqs, assuming 20 MHz bandwidth on
@@ -568,8 +619,7 @@ static struct ieee80211_regdomain *country_ie_2_rd(
 				triplet->chans.first_channel) - 10);
 		freq_range->end_freq_khz =
 			MHZ_TO_KHZ(ieee80211_channel_to_frequency(
-				triplet->chans.first_channel +
-					triplet->chans.num_channels) + 10);
+				end_channel) + 10);
 
 		/* Large arbitrary values, we intersect later */
 		/* Increment this if we ever support >= 40 MHz channels
@@ -748,12 +798,23 @@ static u32 map_regdom_flags(u32 rd_flags)
  * 	this value to the maximum allowed bandwidth.
  * @reg_rule: the regulatory rule which we have for this frequency
  *
- * Use this function to get the regulatory rule for a specific frequency.
+ * Use this function to get the regulatory rule for a specific frequency on
+ * a given wireless device. If the device has a specific regulatory domain
+ * it wants to follow we respect that unless a country IE has been received
+ * and processed already.
+ *
+ * Returns 0 if it was able to find a valid regulatory rule which does
+ * apply to the given center_freq otherwise it returns non-zero. It will
+ * also return -ERANGE if we determine the given center_freq does not even have
+ * a regulatory rule for a frequency range in the center_freq's band. See
+ * freq_in_rule_band() for our current definition of a band -- this is purely
+ * subjective and right now its 802.11 specific.
  */
 static int freq_reg_info(u32 center_freq, u32 *bandwidth,
 			 const struct ieee80211_reg_rule **reg_rule)
 {
 	int i;
+	bool band_rule_found = false;
 	u32 max_bandwidth = 0;
 
 	if (!cfg80211_regdomain)
@@ -767,7 +828,15 @@ static int freq_reg_info(u32 center_freq, u32 *bandwidth,
 		rr = &cfg80211_regdomain->reg_rules[i];
 		fr = &rr->freq_range;
 		pr = &rr->power_rule;
+
+		/* We only need to know if one frequency rule was
+		 * was in center_freq's band, that's enough, so lets
+		 * not overwrite it once found */
+		if (!band_rule_found)
+			band_rule_found = freq_in_rule_band(fr, center_freq);
+
 		max_bandwidth = freq_max_bandwidth(fr, center_freq);
+
 		if (max_bandwidth && *bandwidth <= max_bandwidth) {
 			*reg_rule = rr;
 			*bandwidth = max_bandwidth;
@@ -775,23 +844,64 @@ static int freq_reg_info(u32 center_freq, u32 *bandwidth,
 		}
 	}
 
+	if (!band_rule_found)
+		return -ERANGE;
+
 	return !max_bandwidth;
 }
 
-static void handle_channel(struct ieee80211_channel *chan)
+static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
+			   unsigned int chan_idx)
 {
 	int r;
-	u32 flags = chan->orig_flags;
+	u32 flags;
 	u32 max_bandwidth = 0;
 	const struct ieee80211_reg_rule *reg_rule = NULL;
 	const struct ieee80211_power_rule *power_rule = NULL;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *chan;
+
+	sband = wiphy->bands[band];
+	BUG_ON(chan_idx >= sband->n_channels);
+	chan = &sband->channels[chan_idx];
+
+	flags = chan->orig_flags;
 
 	r = freq_reg_info(MHZ_TO_KHZ(chan->center_freq),
 		&max_bandwidth, &reg_rule);
 
 	if (r) {
-		flags |= IEEE80211_CHAN_DISABLED;
-		chan->flags = flags;
+		/* This means no regulatory rule was found in the country IE
+		 * with a frequency range on the center_freq's band, since
+		 * IEEE-802.11 allows for a country IE to have a subset of the
+		 * regulatory information provided in a country we ignore
+		 * disabling the channel unless at least one reg rule was
+		 * found on the center_freq's band. For details see this
+		 * clarification:
+		 *
+		 * http://tinyurl.com/11d-clarification
+		 */
+		if (r == -ERANGE &&
+		    last_request->initiator == REGDOM_SET_BY_COUNTRY_IE) {
+#ifdef CONFIG_CFG80211_REG_DEBUG
+			printk(KERN_DEBUG "cfg80211: Leaving channel %d MHz "
+				"intact on %s - no rule found in band on "
+				"Country IE\n",
+				chan->center_freq, wiphy_name(wiphy));
+#endif
+		} else {
+		/* In this case we know the country IE has at least one reg rule
+		 * for the band so we respect its band definitions */
+#ifdef CONFIG_CFG80211_REG_DEBUG
+			if (last_request->initiator == REGDOM_SET_BY_COUNTRY_IE)
+				printk(KERN_DEBUG "cfg80211: Disabling "
+					"channel %d MHz on %s due to "
+					"Country IE\n",
+					chan->center_freq, wiphy_name(wiphy));
+#endif
+			flags |= IEEE80211_CHAN_DISABLED;
+			chan->flags = flags;
+		}
 		return;
 	}
 
@@ -808,12 +918,16 @@ static void handle_channel(struct ieee80211_channel *chan)
 		chan->max_power = (int) MBM_TO_DBM(power_rule->max_eirp);
 }
 
-static void handle_band(struct ieee80211_supported_band *sband)
+static void handle_band(struct wiphy *wiphy, enum ieee80211_band band)
 {
-	int i;
+	unsigned int i;
+	struct ieee80211_supported_band *sband;
+
+	BUG_ON(!wiphy->bands[band]);
+	sband = wiphy->bands[band];
 
 	for (i = 0; i < sband->n_channels; i++)
-		handle_channel(&sband->channels[i]);
+		handle_channel(wiphy, band, i);
 }
 
 static bool ignore_reg_update(struct wiphy *wiphy, enum reg_set_by setby)
@@ -840,7 +954,7 @@ void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby)
 	enum ieee80211_band band;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (wiphy->bands[band])
-			handle_band(wiphy->bands[band]);
+			handle_band(wiphy, band);
 		if (wiphy->reg_notifier)
 			wiphy->reg_notifier(wiphy, setby);
 	}
@@ -1170,7 +1284,7 @@ static void reg_country_ie_process_debug(
 	if (intersected_rd) {
 		printk(KERN_DEBUG "cfg80211: We intersect both of these "
 			"and get:\n");
-		print_regdomain_info(rd);
+		print_regdomain_info(intersected_rd);
 		return;
 	}
 	printk(KERN_DEBUG "cfg80211: Intersection between both failed\n");

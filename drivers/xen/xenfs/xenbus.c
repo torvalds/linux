@@ -291,7 +291,7 @@ static void watch_fired(struct xenbus_watch *watch,
 static int xenbus_write_transaction(unsigned msg_type,
 				    struct xenbus_file_priv *u)
 {
-	int rc, ret;
+	int rc;
 	void *reply;
 	struct xenbus_transaction_holder *trans = NULL;
 	LIST_HEAD(staging_q);
@@ -326,15 +326,14 @@ static int xenbus_write_transaction(unsigned msg_type,
 	}
 
 	mutex_lock(&u->reply_mutex);
-	ret = queue_reply(&staging_q, &u->u.msg, sizeof(u->u.msg));
-	if (!ret)
-		ret = queue_reply(&staging_q, reply, u->u.msg.len);
-	if (!ret) {
+	rc = queue_reply(&staging_q, &u->u.msg, sizeof(u->u.msg));
+	if (!rc)
+		rc = queue_reply(&staging_q, reply, u->u.msg.len);
+	if (!rc) {
 		list_splice_tail(&staging_q, &u->read_buffers);
 		wake_up(&u->read_waitq);
 	} else {
 		queue_cleanup(&staging_q);
-		rc = ret;
 	}
 	mutex_unlock(&u->reply_mutex);
 

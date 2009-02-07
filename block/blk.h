@@ -108,4 +108,12 @@ static inline int blk_cpu_to_group(int cpu)
 #endif
 }
 
+static inline int blk_do_io_stat(struct request_queue *q)
+{
+	if (q)
+		return blk_queue_io_stat(q);
+
+	return 0;
+}
+
 #endif

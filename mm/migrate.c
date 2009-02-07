@@ -1055,10 +1055,10 @@ out:
  * Move a list of pages in the address space of the currently executing
  * process.
  */
-asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
-			const void __user * __user *pages,
-			const int __user *nodes,
-			int __user *status, int flags)
+SYSCALL_DEFINE6(move_pages, pid_t, pid, unsigned long, nr_pages,
+		const void __user * __user *, pages,
+		const int __user *, nodes,
+		int __user *, status, int, flags)
 {
 	const struct cred *cred = current_cred(), *tcred;
 	struct task_struct *task;

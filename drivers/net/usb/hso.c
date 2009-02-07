@@ -455,6 +455,7 @@ static const struct usb_device_id hso_ids[] = {
 	{icon321_port_device(0x0af0, 0xd033)},	/* Icon-322 */
 	{USB_DEVICE(0x0af0, 0x7301)},		/* GE40x */
 	{USB_DEVICE(0x0af0, 0x7361)},		/* GE40x */
+	{USB_DEVICE(0x0af0, 0x7381)},		/* GE40x */
 	{USB_DEVICE(0x0af0, 0x7401)},		/* GI 0401 */
 	{USB_DEVICE(0x0af0, 0x7501)},		/* GTM 382 */
 	{USB_DEVICE(0x0af0, 0x7601)},		/* GE40x */
@@ -462,7 +463,8 @@ static const struct usb_device_id hso_ids[] = {
 	{USB_DEVICE(0x0af0, 0x7801)},
 	{USB_DEVICE(0x0af0, 0x7901)},
 	{USB_DEVICE(0x0af0, 0x7361)},
-	{icon321_port_device(0x0af0, 0xd051)},
+	{USB_DEVICE(0x0af0, 0xd057)},
+	{USB_DEVICE(0x0af0, 0xd055)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, hso_ids);
@@ -1297,6 +1299,7 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 	/* setup */
 	spin_lock_irq(&serial->serial_lock);
 	tty->driver_data = serial;
+	tty_kref_put(serial->tty);
 	serial->tty = tty_kref_get(tty);
 	spin_unlock_irq(&serial->serial_lock);
 
@@ -1792,8 +1795,8 @@ static int mux_device_request(struct hso_serial *serial, u8 type, u16 port,
 
 	/* initialize */
 	ctrl_req->wValue = 0;
-	ctrl_req->wIndex = hso_port_to_mux(port);
-	ctrl_req->wLength = size;
+	ctrl_req->wIndex = cpu_to_le16(hso_port_to_mux(port));
+	ctrl_req->wLength = cpu_to_le16(size);
 
 	if (type == USB_CDC_GET_ENCAPSULATED_RESPONSE) {
 		/* Reading command */
@@ -2043,9 +2046,8 @@ static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 		return -2;
 	}
 
-	spin_lock(&serial->serial_lock);
+	/* All callers to put_rxbuf_data hold serial_lock */
 	tty = tty_kref_get(serial->tty);
-	spin_unlock(&serial->serial_lock);
 
 	/* Push data to tty */
 	if (tty) {
@@ -2053,8 +2055,10 @@ static int put_rxbuf_data(struct urb *urb, struct hso_serial *serial)
 			serial->curr_rx_urb_offset;
 		D1("data to push to tty");
 		while (write_length_remaining) {
-			if (test_bit(TTY_THROTTLED, &tty->flags))
+			if (test_bit(TTY_THROTTLED, &tty->flags)) {
+				tty_kref_put(tty);
 				return -1;
+			}
 			curr_write_len =  tty_insert_flip_string
 				(tty, urb->transfer_buffer +
 				 serial->curr_rx_urb_offset,
