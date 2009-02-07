@@ -48,76 +48,6 @@ static DEFINE_MUTEX(clocks_mutex);
  * Standard clock functions defined in include/linux/clk.h
  *-------------------------------------------------------------------------*/
 
-/*
- * All the code inside #ifndef CONFIG_COMMON_CLKDEV can be removed once all
- * MXC architectures have switched to using clkdev.
- */
-#ifndef CONFIG_COMMON_CLKDEV
-/*
- * Retrieve a clock by name.
- *
- * Note that we first try to use device id on the bus
- * and clock name. If this fails, we try to use "<name>.<id>". If this fails,
- * we try to use clock name only.
- * The reference count to the clock's module owner ref count is incremented.
- */
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	struct clk *p, *clk = ERR_PTR(-ENOENT);
-	int idno;
-	const char *str;
-
-	if (id == NULL)
-		return clk;
-
-	if (dev == NULL || dev->bus != &platform_bus_type)
-		idno = -1;
-	else
-		idno = to_platform_device(dev)->id;
-
-	mutex_lock(&clocks_mutex);
-
-	list_for_each_entry(p, &clocks, node) {
-		if (p->id == idno &&
-		    strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
-			clk = p;
-			goto found;
-		}
-	}
-
-	str = strrchr(id, '.');
-	if (str) {
-		int cnt = str - id;
-		str++;
-		idno = simple_strtol(str, NULL, 10);
-		list_for_each_entry(p, &clocks, node) {
-			if (p->id == idno &&
-			    strlen(p->name) == cnt &&
-			    strncmp(id, p->name, cnt) == 0 &&
-			    try_module_get(p->owner)) {
-				clk = p;
-				goto found;
-			}
-		}
-	}
-
-	list_for_each_entry(p, &clocks, node) {
-		if (strcmp(id, p->name) == 0 && try_module_get(p->owner)) {
-			clk = p;
-			goto found;
-		}
-	}
-
-	printk(KERN_WARNING "clk: Unable to get requested clock: %s\n", id);
-
-found:
-	mutex_unlock(&clocks_mutex);
-
-	return clk;
-}
-EXPORT_SYMBOL(clk_get);
-#endif
-
 static void __clk_disable(struct clk *clk)
 {
 	if (clk == NULL || IS_ERR(clk))
@@ -194,16 +124,6 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
-#ifndef CONFIG_COMMON_CLKDEV
-/* Decrement the clock's module reference count */
-void clk_put(struct clk *clk)
-{
-	if (clk && !IS_ERR(clk))
-		module_put(clk->owner);
-}
-EXPORT_SYMBOL(clk_put);
-#endif
-
 /* Round the requested clock rate to the nearest supported
  * rate that is less than or equal to the requested rate.
  * This is dependent on the clock's current parent.
@@ -265,80 +185,6 @@ struct clk *clk_get_parent(struct clk *clk)
 	return clk->parent;
 }
 EXPORT_SYMBOL(clk_get_parent);
-
-#ifndef CONFIG_COMMON_CLKDEV
-/*
- * Add a new clock to the clock tree.
- */
-int clk_register(struct clk *clk)
-{
-	if (clk == NULL || IS_ERR(clk))
-		return -EINVAL;
-
-	mutex_lock(&clocks_mutex);
-	list_add(&clk->node, &clocks);
-	mutex_unlock(&clocks_mutex);
-
-	return 0;
-}
-EXPORT_SYMBOL(clk_register);
-
-/* Remove a clock from the clock tree */
-void clk_unregister(struct clk *clk)
-{
-	if (clk == NULL || IS_ERR(clk))
-		return;
-
-	mutex_lock(&clocks_mutex);
-	list_del(&clk->node);
-	mutex_unlock(&clocks_mutex);
-}
-EXPORT_SYMBOL(clk_unregister);
-
-#ifdef CONFIG_PROC_FS
-static int mxc_clock_read_proc(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
-{
-	struct clk *clkp;
-	char *p = page;
-	int len;
-
-	list_for_each_entry(clkp, &clocks, node) {
-		p += sprintf(p, "%s-%d:\t\t%lu, %d", clkp->name, clkp->id,
-				clk_get_rate(clkp), clkp->usecount);
-		if (clkp->parent)
-			p += sprintf(p, ", %s-%d\n", clkp->parent->name,
-				     clkp->parent->id);
-		else
-			p += sprintf(p, "\n");
-	}
-
-	len = (p - page) - off;
-	if (len < 0)
-		len = 0;
-
-	*eof = (len <= count) ? 1 : 0;
-	*start = page + off;
-
-	return len;
-}
-
-static int __init mxc_setup_proc_entry(void)
-{
-	struct proc_dir_entry *res;
-
-	res = create_proc_read_entry("cpu/clocks", 0, NULL,
-				     mxc_clock_read_proc, NULL);
-	if (!res) {
-		printk(KERN_ERR "Failed to create proc/cpu/clocks\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-late_initcall(mxc_setup_proc_entry);
-#endif /* CONFIG_PROC_FS */
-#endif
 
 /*
  * Get the resulting clock rate from a PLL register value and the input
