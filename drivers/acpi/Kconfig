@@ -287,7 +287,7 @@ config ACPI_CONTAINER
 	  support physical cpu/memory hot-plug.
 
 	  If one selects "m", this driver can be loaded with
-	  "modprobe acpi_container".
+	  "modprobe container".
 
 config ACPI_HOTPLUG_MEMORY
 	tristate "Memory Hotplug"
