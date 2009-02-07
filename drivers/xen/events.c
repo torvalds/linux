@@ -115,26 +115,27 @@ static struct irq_info mk_unbound_info(void)
 
 static struct irq_info mk_evtchn_info(unsigned short evtchn)
 {
-	return (struct irq_info) { .type = IRQT_EVTCHN, .evtchn = evtchn };
+	return (struct irq_info) { .type = IRQT_EVTCHN, .evtchn = evtchn,
+			.cpu = 0 };
 }
 
 static struct irq_info mk_ipi_info(unsigned short evtchn, enum ipi_vector ipi)
 {
 	return (struct irq_info) { .type = IRQT_IPI, .evtchn = evtchn,
-			.u.ipi = ipi };
+			.cpu = 0, .u.ipi = ipi };
 }
 
 static struct irq_info mk_virq_info(unsigned short evtchn, unsigned short virq)
 {
 	return (struct irq_info) { .type = IRQT_VIRQ, .evtchn = evtchn,
-			.u.virq = virq };
+			.cpu = 0, .u.virq = virq };
 }
 
 static struct irq_info mk_pirq_info(unsigned short evtchn,
 				    unsigned short gsi, unsigned short vector)
 {
 	return (struct irq_info) { .type = IRQT_PIRQ, .evtchn = evtchn,
-			.u.pirq = { .gsi = gsi, .vector = vector } };
+			.cpu = 0, .u.pirq = { .gsi = gsi, .vector = vector } };
 }
 
 /*
@@ -375,6 +376,7 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 	spin_lock(&irq_mapping_update_lock);
 
 	irq = per_cpu(ipi_to_irq, cpu)[ipi];
+
 	if (irq == -1) {
 		irq = find_unbound_irq();
 		if (irq < 0)
@@ -391,7 +393,6 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 
 		evtchn_to_irq[evtchn] = irq;
 		irq_info[irq] = mk_ipi_info(evtchn, ipi);
-
 		per_cpu(ipi_to_irq, cpu)[ipi] = irq;
 
 		bind_evtchn_to_cpu(evtchn, cpu);
