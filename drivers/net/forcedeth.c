@@ -4763,7 +4763,7 @@ static int nv_set_tx_csum(struct net_device *dev, u32 data)
 	struct fe_priv *np = netdev_priv(dev);
 
 	if (np->driver_data & DEV_HAS_CHECKSUM)
-		return ethtool_op_set_tx_hw_csum(dev, data);
+		return ethtool_op_set_tx_csum(dev, data);
 	else
 		return -EOPNOTSUPP;
 }
