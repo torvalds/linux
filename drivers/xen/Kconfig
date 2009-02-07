@@ -18,6 +18,16 @@ config XEN_SCRUB_PAGES
 	  secure, but slightly less efficient.
 	  If in doubt, say yes.
 
+config XEN_DEV_EVTCHN
+	tristate "Xen /dev/xen/evtchn device"
+	depends on XEN
+	default y
+	help
+	  The evtchn driver allows a userspace process to triger event
+	  channels and to receive notification of an event channel
+	  firing.
+	  If in doubt, say yes.
+
 config XENFS
 	tristate "Xen filesystem"
 	depends on XEN
