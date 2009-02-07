@@ -20,7 +20,6 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/random.h>
-#include <linux/version.h>
 #include <asm/div64.h>
 #include "compat.h"
 #include "ctree.h"
@@ -104,10 +103,8 @@ static noinline struct btrfs_device *__find_device(struct list_head *head,
 						   u64 devid, u8 *uuid)
 {
 	struct btrfs_device *dev;
-	struct list_head *cur;
 
-	list_for_each(cur, head) {
-		dev = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(dev, head, dev_list) {
 		if (dev->devid == devid &&
 		    (!uuid || !memcmp(dev->uuid, uuid, BTRFS_UUID_SIZE))) {
 			return dev;
@@ -118,11 +115,9 @@ static noinline struct btrfs_device *__find_device(struct list_head *head,
 
 static noinline struct btrfs_fs_devices *find_fsid(u8 *fsid)
 {
-	struct list_head *cur;
 	struct btrfs_fs_devices *fs_devices;
 
-	list_for_each(cur, &fs_uuids) {
-		fs_devices = list_entry(cur, struct btrfs_fs_devices, list);
+	list_for_each_entry(fs_devices, &fs_uuids, list) {
 		if (memcmp(fsid, fs_devices->fsid, BTRFS_FSID_SIZE) == 0)
 			return fs_devices;
 	}
@@ -159,6 +154,7 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 loop:
 	spin_lock(&device->io_lock);
 
+loop_lock:
 	/* take all the bios off the list at once and process them
 	 * later on (without the lock held).  But, remember the
 	 * tail and other pointers so the bios can be properly reinserted
@@ -208,7 +204,7 @@ loop:
 		 * is now congested.  Back off and let other work structs
 		 * run instead
 		 */
-		if (pending && bdi_write_congested(bdi) &&
+		if (pending && bdi_write_congested(bdi) && num_run > 16 &&
 		    fs_info->fs_devices->open_devices > 1) {
 			struct bio *old_head;
 
@@ -220,7 +216,8 @@ loop:
 				tail->bi_next = old_head;
 			else
 				device->pending_bio_tail = tail;
-			device->running_pending = 0;
+
+			device->running_pending = 1;
 
 			spin_unlock(&device->io_lock);
 			btrfs_requeue_work(&device->work);
@@ -229,6 +226,11 @@ loop:
 	}
 	if (again)
 		goto loop;
+
+	spin_lock(&device->io_lock);
+	if (device->pending_bios)
+		goto loop_lock;
+	spin_unlock(&device->io_lock);
 done:
 	return 0;
 }
@@ -345,14 +347,11 @@ error:
 
 int btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices)
 {
-	struct list_head *tmp;
-	struct list_head *cur;
-	struct btrfs_device *device;
+	struct btrfs_device *device, *next;
 
 	mutex_lock(&uuid_mutex);
 again:
-	list_for_each_safe(cur, tmp, &fs_devices->devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry_safe(device, next, &fs_devices->devices, dev_list) {
 		if (device->in_fs_metadata)
 			continue;
 
@@ -383,14 +382,12 @@ again:
 
 static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 {
-	struct list_head *cur;
 	struct btrfs_device *device;
 
 	if (--fs_devices->opened > 0)
 		return 0;
 
-	list_for_each(cur, &fs_devices->devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		if (device->bdev) {
 			close_bdev_exclusive(device->bdev, device->mode);
 			fs_devices->open_devices--;
@@ -439,7 +436,6 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 {
 	struct block_device *bdev;
 	struct list_head *head = &fs_devices->devices;
-	struct list_head *cur;
 	struct btrfs_device *device;
 	struct block_device *latest_bdev = NULL;
 	struct buffer_head *bh;
@@ -450,8 +446,7 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 	int seeding = 1;
 	int ret = 0;
 
-	list_for_each(cur, head) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(device, head, dev_list) {
 		if (device->bdev)
 			continue;
 		if (!device->name)
@@ -578,7 +573,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 		       *(unsigned long long *)disk_super->fsid,
 		       *(unsigned long long *)(disk_super->fsid + 8));
 	}
-	printk(KERN_INFO "devid %llu transid %llu %s\n",
+	printk(KERN_CONT "devid %llu transid %llu %s\n",
 	       (unsigned long long)devid, (unsigned long long)transid, path);
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
 
@@ -1017,14 +1012,12 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	}
 
 	if (strcmp(device_path, "missing") == 0) {
-		struct list_head *cur;
 		struct list_head *devices;
 		struct btrfs_device *tmp;
 
 		device = NULL;
 		devices = &root->fs_info->fs_devices->devices;
-		list_for_each(cur, devices) {
-			tmp = list_entry(cur, struct btrfs_device, dev_list);
+		list_for_each_entry(tmp, devices, dev_list) {
 			if (tmp->in_fs_metadata && !tmp->bdev) {
 				device = tmp;
 				break;
@@ -1280,7 +1273,6 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device;
 	struct block_device *bdev;
-	struct list_head *cur;
 	struct list_head *devices;
 	struct super_block *sb = root->fs_info->sb;
 	u64 total_bytes;
@@ -1304,8 +1296,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	mutex_lock(&root->fs_info->volume_mutex);
 
 	devices = &root->fs_info->fs_devices->devices;
-	list_for_each(cur, devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(device, devices, dev_list) {
 		if (device->bdev == bdev) {
 			ret = -EEXIST;
 			goto error;
@@ -1704,7 +1695,6 @@ static u64 div_factor(u64 num, int factor)
 int btrfs_balance(struct btrfs_root *dev_root)
 {
 	int ret;
-	struct list_head *cur;
 	struct list_head *devices = &dev_root->fs_info->fs_devices->devices;
 	struct btrfs_device *device;
 	u64 old_size;
@@ -1723,8 +1713,7 @@ int btrfs_balance(struct btrfs_root *dev_root)
 	dev_root = dev_root->fs_info->dev_root;
 
 	/* step one make some room on all the devices */
-	list_for_each(cur, devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(device, devices, dev_list) {
 		old_size = device->total_bytes;
 		size_to_free = div_factor(old_size, 1);
 		size_to_free = min(size_to_free, (u64)1 * 1024 * 1024);

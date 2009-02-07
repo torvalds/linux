@@ -1021,6 +1021,14 @@ M:	mb@bu3sch.de
 W:	http://bu3sch.de/btgpio.php
 S:	Maintained
 
+BTRFS FILE SYSTEM
+P:	Chris Mason
+M:	chris.mason@oracle.com
+L:	linux-btrfs@vger.kernel.org
+W:	http://btrfs.wiki.kernel.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/mason/btrfs-unstable.git
+S:	Maintained
+
 BTTV VIDEO4LINUX DRIVER
 P:	Mauro Carvalho Chehab
 M:	mchehab@infradead.org
