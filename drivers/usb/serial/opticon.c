@@ -14,6 +14,7 @@
 #include <linux/tty.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
+#include <linux/serial.h>
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
@@ -110,7 +111,6 @@ static void opticon_bulk_callback(struct urb *urb)
 					priv->rts = false;
 				else
 					priv->rts = true;
-				/* FIXME change the RTS level */
 			} else {
 			dev_dbg(&priv->udev->dev,
 				"Unknown data packet received from the device:"
@@ -341,6 +341,67 @@ static void opticon_unthrottle(struct tty_struct *tty)
 							__func__, result);
 }
 
+static int opticon_tiocmget(struct tty_struct *tty, struct file *file)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	unsigned long flags;
+	int result = 0;
+
+	dbg("%s - port %d", __func__, port->number);
+
+	spin_lock_irqsave(&priv->lock, flags);
+	if (priv->rts)
+		result = TIOCM_RTS;
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	dbg("%s - %x", __func__, result);
+	return result;
+}
+
+static int get_serial_info(struct opticon_private *priv,
+			   struct serial_struct __user *serial)
+{
+	struct serial_struct tmp;
+
+	if (!serial)
+		return -EFAULT;
+
+	memset(&tmp, 0x00, sizeof(tmp));
+
+	/* fake emulate a 16550 uart to make userspace code happy */
+	tmp.type		= PORT_16550A;
+	tmp.line		= priv->serial->minor;
+	tmp.port		= 0;
+	tmp.irq			= 0;
+	tmp.flags		= ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
+	tmp.xmit_fifo_size	= 1024;
+	tmp.baud_base		= 9600;
+	tmp.close_delay		= 5*HZ;
+	tmp.closing_wait	= 30*HZ;
+
+	if (copy_to_user(serial, &tmp, sizeof(*serial)))
+		return -EFAULT;
+	return 0;
+}
+
+static int opticon_ioctl(struct tty_struct *tty, struct file *file,
+			 unsigned int cmd, unsigned long arg)
+{
+	struct usb_serial_port *port = tty->driver_data;
+	struct opticon_private *priv = usb_get_serial_data(port->serial);
+
+	dbg("%s - port %d, cmd = 0x%x", __func__, port->number, cmd);
+
+	switch (cmd) {
+	case TIOCGSERIAL:
+		return get_serial_info(priv,
+				       (struct serial_struct __user *)arg);
+	}
+
+	return -ENOIOCTLCMD;
+}
+
 static int opticon_startup(struct usb_serial *serial)
 {
 	struct opticon_private *priv;
@@ -475,6 +536,8 @@ static struct usb_serial_driver opticon_device = {
 	.shutdown =		opticon_shutdown,
 	.throttle = 		opticon_throttle,
 	.unthrottle =		opticon_unthrottle,
+	.ioctl =		opticon_ioctl,
+	.tiocmget =		opticon_tiocmget,
 };
 
 static int __init opticon_init(void)
