@@ -124,11 +124,13 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 	static char *prev_map;
 	static unsigned long prev_size;
 
+	if (prev_map) {
+		early_iounmap(prev_map, prev_size);
+		prev_map = NULL;
+	}
+
 	if (!phys || !size)
 		return NULL;
-
-	if (prev_map)
-		early_iounmap(prev_map, prev_size);
 
 	prev_size = size;
 	prev_map = early_ioremap(phys, size);

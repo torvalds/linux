@@ -694,6 +694,12 @@ void __init acpi_early_init(void)
 	if (!acpi_strict)
 		acpi_gbl_enable_interpreter_slack = TRUE;
 
+	/*
+	 * Doing a zero-sized mapping will clear out the previous
+	 * __acpi_map_table() mapping, if any.
+	 */
+	__acpi_map_table(0, 0);
+
 	acpi_gbl_permanent_mmap = 1;
 
 	status = acpi_reallocate_root_table();
