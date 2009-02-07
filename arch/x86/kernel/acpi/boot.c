@@ -127,9 +127,6 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 	if (!phys || !size)
 		return NULL;
 
-	if (phys+size <= (max_low_pfn_mapped << PAGE_SHIFT))
-		return __va(phys);
-
 	if (prev_map)
 		early_iounmap(prev_map, prev_size);
 
