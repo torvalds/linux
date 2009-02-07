@@ -559,6 +559,15 @@ void unregister_tracer(struct tracer *type)
 
  found:
 	*t = (*t)->next;
+
+	if (type == current_trace && tracer_enabled) {
+		tracer_enabled = 0;
+		tracing_stop();
+		if (current_trace->stop)
+			current_trace->stop(&global_trace);
+		current_trace = &nop_trace;
+	}
+
 	if (strlen(type->name) != max_tracer_type_len)
 		goto out;
 
