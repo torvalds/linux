@@ -1,4 +1,5 @@
 #include <media/saa7146_vv.h>
+#include <media/v4l2-chip-ident.h>
 
 static int max_memory = 32;
 
@@ -209,6 +210,7 @@ static struct v4l2_queryctrl controls[] = {
 		.step		= 1,
 		.default_value	= 128,
 		.type		= V4L2_CTRL_TYPE_INTEGER,
+		.flags 		= V4L2_CTRL_FLAG_SLIDER,
 	},{
 		.id		= V4L2_CID_CONTRAST,
 		.name		= "Contrast",
@@ -217,6 +219,7 @@ static struct v4l2_queryctrl controls[] = {
 		.step		= 1,
 		.default_value	= 64,
 		.type		= V4L2_CTRL_TYPE_INTEGER,
+		.flags 		= V4L2_CTRL_FLAG_SLIDER,
 	},{
 		.id		= V4L2_CID_SATURATION,
 		.name		= "Saturation",
@@ -225,15 +228,16 @@ static struct v4l2_queryctrl controls[] = {
 		.step		= 1,
 		.default_value	= 64,
 		.type		= V4L2_CTRL_TYPE_INTEGER,
+		.flags 		= V4L2_CTRL_FLAG_SLIDER,
 	},{
 		.id		= V4L2_CID_VFLIP,
-		.name		= "Vertical flip",
+		.name		= "Vertical Flip",
 		.minimum	= 0,
 		.maximum	= 1,
 		.type		= V4L2_CTRL_TYPE_BOOLEAN,
 	},{
 		.id		= V4L2_CID_HFLIP,
-		.name		= "Horizontal flip",
+		.name		= "Horizontal Flip",
 		.minimum	= 0,
 		.maximum	= 1,
 		.type		= V4L2_CTRL_TYPE_BOOLEAN,
@@ -1112,6 +1116,22 @@ static int vidioc_streamoff(struct file *file, void *__fh, enum v4l2_buf_type ty
 	return err;
 }
 
+static int vidioc_g_chip_ident(struct file *file, void *__fh,
+		struct v4l2_dbg_chip_ident *chip)
+{
+	struct saa7146_fh *fh = __fh;
+	struct saa7146_dev *dev = fh->dev;
+
+	chip->ident = V4L2_IDENT_NONE;
+	chip->revision = 0;
+	if (v4l2_chip_match_host(&chip->match)) {
+		chip->ident = V4L2_IDENT_SAA7146;
+		return 0;
+	}
+	return v4l2_device_call_until_err(&dev->v4l2_dev, 0,
+			core, g_chip_ident, chip);
+}
+
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 static int vidiocgmbuf(struct file *file, void *__fh, struct video_mbuf *mbuf)
 {
@@ -1152,6 +1172,7 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_try_fmt_vid_overlay  = vidioc_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_overlay    = vidioc_s_fmt_vid_overlay,
 	.vidioc_g_fmt_vbi_cap        = vidioc_g_fmt_vbi_cap,
+	.vidioc_g_chip_ident         = vidioc_g_chip_ident,
 
 	.vidioc_overlay 	     = vidioc_overlay,
 	.vidioc_g_fbuf  	     = vidioc_g_fbuf,

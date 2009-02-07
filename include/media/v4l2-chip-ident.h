@@ -63,6 +63,9 @@ enum {
 	V4L2_IDENT_OV7720 = 251,
 	V4L2_IDENT_OV7725 = 252,
 
+	/* module saa7146: reserved range 300-309 */
+	V4L2_IDENT_SAA7146 = 300,
+
 	/* Conexant MPEG encoder/decoders: reserved range 410-420 */
 	V4L2_IDENT_CX23415 = 415,
 	V4L2_IDENT_CX23416 = 416,
@@ -74,8 +77,20 @@ enum {
 	/* module tvp5150 */
 	V4L2_IDENT_TVP5150 = 5150,
 
+	/* module saa5246a: just ident 5246 */
+	V4L2_IDENT_SAA5246A = 5246,
+
+	/* module saa5249: just ident 5249 */
+	V4L2_IDENT_SAA5249 = 5249,
+
 	/* module cs5345: just ident 5345 */
 	V4L2_IDENT_CS5345 = 5345,
+
+	/* module tea6415c: just ident 6415 */
+	V4L2_IDENT_TEA6415C = 6415,
+
+	/* module tea6420: just ident 6420 */
+	V4L2_IDENT_TEA6420 = 6420,
 
 	/* module saa6752hs: reserved range 6750-6759 */
 	V4L2_IDENT_SAA6752HS = 6752,
@@ -86,6 +101,9 @@ enum {
 
 	/* module wm8775: just ident 8775 */
 	V4L2_IDENT_WM8775 = 8775,
+
+	/* module tda9840: just ident 9840 */
+	V4L2_IDENT_TDA9840 = 9840,
 
 	/* module tw9910: just ident 9910 */
 	V4L2_IDENT_TW9910 = 9910,
