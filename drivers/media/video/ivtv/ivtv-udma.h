@@ -35,13 +35,13 @@ void ivtv_udma_start(struct ivtv *itv);
 
 static inline void ivtv_udma_sync_for_device(struct ivtv *itv)
 {
-	pci_dma_sync_single_for_device((struct pci_dev *)itv->dev, itv->udma.SG_handle,
+	pci_dma_sync_single_for_device(itv->pdev, itv->udma.SG_handle,
 		sizeof(itv->udma.SGarray), PCI_DMA_TODEVICE);
 }
 
 static inline void ivtv_udma_sync_for_cpu(struct ivtv *itv)
 {
-	pci_dma_sync_single_for_cpu((struct pci_dev *)itv->dev, itv->udma.SG_handle,
+	pci_dma_sync_single_for_cpu(itv->pdev, itv->udma.SG_handle,
 		sizeof(itv->udma.SGarray), PCI_DMA_TODEVICE);
 }
 

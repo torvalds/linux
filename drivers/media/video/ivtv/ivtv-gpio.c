@@ -384,7 +384,7 @@ int ivtv_gpio_init(struct ivtv *itv)
 	write_reg(itv->card->gpio_init.initial_value | pin, IVTV_REG_GPIO_OUT);
 	write_reg(itv->card->gpio_init.direction | pin, IVTV_REG_GPIO_DIR);
 	v4l2_subdev_init(&itv->sd_gpio, &subdev_ops);
-	snprintf(itv->sd_gpio.name, sizeof(itv->sd_gpio.name), "%s-gpio", itv->device.name);
+	snprintf(itv->sd_gpio.name, sizeof(itv->sd_gpio.name), "%s-gpio", itv->v4l2_dev.name);
 	itv->sd_gpio.grp_id = IVTV_HW_GPIO;
-	return v4l2_device_register_subdev(&itv->device, &itv->sd_gpio);
+	return v4l2_device_register_subdev(&itv->v4l2_dev, &itv->sd_gpio);
 }

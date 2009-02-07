@@ -770,7 +770,7 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 
 	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
-	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->dev));
+	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
 	vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 	vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
 	return 0;
@@ -1517,12 +1517,12 @@ static int ivtv_log_status(struct file *file, void *fh)
 	}
 	IVTV_INFO("Tuner:  %s\n",
 		test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? "Radio" : "TV");
-	cx2341x_log_status(&itv->params, itv->device.name);
+	cx2341x_log_status(&itv->params, itv->v4l2_dev.name);
 	IVTV_INFO("Status flags:    0x%08lx\n", itv->i_flags);
 	for (i = 0; i < IVTV_MAX_STREAMS; i++) {
 		struct ivtv_stream *s = &itv->streams[i];
 
-		if (s->v4l2dev == NULL || s->buffers == 0)
+		if (s->vdev == NULL || s->buffers == 0)
 			continue;
 		IVTV_INFO("Stream %s: status 0x%04lx, %d%% of %d KiB (%d buffers) in use\n", s->name, s->s_flags,
 				(s->buffers - s->q_free.buffers) * 100 / s->buffers,

@@ -991,7 +991,7 @@ int ivtv_v4l2_open(struct file *filp)
 	mutex_lock(&itv->serialize_lock);
 	if (ivtv_init_on_first_open(itv)) {
 		IVTV_ERR("Failed to initialize on minor %d\n",
-				s->v4l2dev->minor);
+				vdev->minor);
 		mutex_unlock(&itv->serialize_lock);
 		return -ENXIO;
 	}

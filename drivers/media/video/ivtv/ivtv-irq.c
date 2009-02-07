@@ -46,7 +46,7 @@ static void ivtv_pio_work_handler(struct ivtv *itv)
 
 	IVTV_DEBUG_HI_DMA("ivtv_pio_work_handler\n");
 	if (itv->cur_pio_stream < 0 || itv->cur_pio_stream >= IVTV_MAX_STREAMS ||
-			s->v4l2dev == NULL || !ivtv_use_pio(s)) {
+			s->vdev == NULL || !ivtv_use_pio(s)) {
 		itv->cur_pio_stream = -1;
 		/* trigger PIO complete user interrupt */
 		write_reg(IVTV_IRQ_ENC_PIO_COMPLETE, 0x44);
@@ -109,7 +109,7 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 	int rc;
 
 	/* sanity checks */
-	if (s->v4l2dev == NULL) {
+	if (s->vdev == NULL) {
 		IVTV_DEBUG_WARN("Stream %s not started\n", s->name);
 		return -1;
 	}
