@@ -11,7 +11,7 @@
 
 #include <linux/init.h>
 #include <linux/debugfs.h>
-#include <linux/ftrace.h>
+#include <trace/power.h>
 #include <linux/kallsyms.h>
 #include <linux/module.h>
 

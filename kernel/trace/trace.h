@@ -10,6 +10,7 @@
 #include <linux/ftrace.h>
 #include <trace/boot.h>
 #include <trace/kmemtrace.h>
+#include <trace/power.h>
 
 enum trace_type {
 	__TRACE_FIRST_TYPE = 0,
