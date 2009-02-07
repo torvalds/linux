@@ -1105,7 +1105,7 @@ int dev_open(struct net_device *dev)
 		/*
 		 *	Enable NET_DMA
 		 */
-		dmaengine_get();
+		net_dmaengine_get();
 
 		/*
 		 *	Initialize multicasting status
@@ -1187,7 +1187,7 @@ int dev_close(struct net_device *dev)
 	/*
 	 *	Shutdown NET_DMA
 	 */
-	dmaengine_put();
+	net_dmaengine_put();
 
 	return 0;
 }

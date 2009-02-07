@@ -2221,6 +2221,8 @@ static int gem_do_start(struct net_device *dev)
 
 	gp->running = 1;
 
+	napi_enable(&gp->napi);
+
 	if (gp->lstate == link_up) {
 		netif_carrier_on(gp->dev);
 		gem_set_link_modes(gp);
@@ -2237,6 +2239,8 @@ static int gem_do_start(struct net_device *dev)
 
 		spin_lock_irqsave(&gp->lock, flags);
 		spin_lock(&gp->tx_lock);
+
+		napi_disable(&gp->napi);
 
 		gp->running =  0;
 		gem_reset(gp);
@@ -2338,8 +2342,6 @@ static int gem_open(struct net_device *dev)
 	if (!gp->asleep)
 		rc = gem_do_start(dev);
 	gp->opened = (rc == 0);
-	if (gp->opened)
-		napi_enable(&gp->napi);
 
 	mutex_unlock(&gp->pm_mutex);
 
@@ -2476,8 +2478,6 @@ static int gem_resume(struct pci_dev *pdev)
 
 		/* Re-attach net device */
 		netif_device_attach(dev);
-
-		napi_enable(&gp->napi);
 	}
 
 	spin_lock_irqsave(&gp->lock, flags);
