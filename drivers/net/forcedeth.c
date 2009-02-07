@@ -589,6 +589,9 @@ union ring_type {
 #define NV_MSI_X_VECTOR_TX    0x1
 #define NV_MSI_X_VECTOR_OTHER 0x2
 
+#define NV_MSI_PRIV_OFFSET 0x68
+#define NV_MSI_PRIV_VALUE  0xffffffff
+
 #define NV_RESTART_TX         0x1
 #define NV_RESTART_RX         0x2
 
@@ -6073,6 +6076,8 @@ static int nv_resume(struct pci_dev *pdev)
 	/* restore non-pci configuration space */
 	for (i = 0;i <= np->register_size/sizeof(u32); i++)
 		writel(np->saved_config_space[i], base+i*sizeof(u32));
+
+	pci_write_config_dword(pdev, NV_MSI_PRIV_OFFSET, NV_MSI_PRIV_VALUE);
 
 	netif_device_attach(dev);
 	if (netif_running(dev)) {
