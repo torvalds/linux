@@ -24,6 +24,7 @@
 #endif
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-chip-ident.h>
 #include <linux/video_decoder.h>
 
 #define dbgarg(cmd, fmt, arg...) \
@@ -1745,6 +1746,8 @@ static long __video_do_ioctl(struct file *file,
 
 		if (!ops->vidioc_g_chip_ident)
 			break;
+		p->ident = V4L2_IDENT_NONE;
+		p->revision = 0;
 		ret = ops->vidioc_g_chip_ident(file, fh, p);
 		if (!ret)
 			dbgarg(cmd, "chip_ident=%u, revision=0x%x\n", p->ident, p->revision);
