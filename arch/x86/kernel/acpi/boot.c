@@ -121,21 +121,18 @@ enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_PIC;
  */
 char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 {
-	static char *prev_map;
-	static unsigned long prev_size;
-
-	if (prev_map) {
-		early_iounmap(prev_map, prev_size);
-		prev_map = NULL;
-	}
 
 	if (!phys || !size)
 		return NULL;
 
-	prev_size = size;
-	prev_map = early_ioremap(phys, size);
+	return early_ioremap(phys, size);
+}
+void __init __acpi_unmap_table(char *map, unsigned long size)
+{
+	if (!map || !size)
+		return;
 
-	return prev_map;
+	early_iounmap(map, size);
 }
 
 #ifdef CONFIG_PCI_MMCONFIG
