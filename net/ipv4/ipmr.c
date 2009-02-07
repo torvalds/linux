@@ -1243,8 +1243,7 @@ static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 		vif->dev->stats.tx_bytes += skb->len;
 		vif->dev->stats.tx_packets++;
 		ipmr_cache_report(net, skb, vifi, IGMPMSG_WHOLEPKT);
-		kfree_skb(skb);
-		return;
+		goto out_free;
 	}
 #endif
 
