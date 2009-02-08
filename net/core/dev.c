@@ -215,13 +215,6 @@ static inline struct hlist_head *dev_index_hash(struct net *net, int ifindex)
 	return &net->dev_index_head[ifindex & ((1 << NETDEV_HASHBITS) - 1)];
 }
 
-static inline void *skb_gro_mac_header(struct sk_buff *skb)
-{
-	return skb_mac_header(skb) < skb->data ? skb_mac_header(skb) :
-	       page_address(skb_shinfo(skb)->frags[0].page) +
-	       skb_shinfo(skb)->frags[0].page_offset;
-}
-
 /* Device list insertion */
 static int list_netdevice(struct net_device *dev)
 {
@@ -2415,28 +2408,15 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, head, list) {
-		struct sk_buff *p;
-		void *mac;
-
 		if (ptype->type != type || ptype->dev || !ptype->gro_receive)
 			continue;
 
 		skb_set_network_header(skb, skb_gro_offset(skb));
-		mac = skb_gro_mac_header(skb);
 		mac_len = skb->network_header - skb->mac_header;
 		skb->mac_len = mac_len;
 		NAPI_GRO_CB(skb)->same_flow = 0;
 		NAPI_GRO_CB(skb)->flush = 0;
 		NAPI_GRO_CB(skb)->free = 0;
-
-		for (p = napi->gro_list; p; p = p->next) {
-			if (!NAPI_GRO_CB(p)->same_flow)
-				continue;
-
-			if (p->mac_len != mac_len ||
-			    memcmp(skb_mac_header(p), mac, mac_len))
-				NAPI_GRO_CB(p)->same_flow = 0;
-		}
 
 		pp = ptype->gro_receive(&napi->gro_list, skb);
 		break;
@@ -2492,7 +2472,8 @@ static int __napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	struct sk_buff *p;
 
 	for (p = napi->gro_list; p; p = p->next) {
-		NAPI_GRO_CB(p)->same_flow = 1;
+		NAPI_GRO_CB(p)->same_flow = !compare_ether_header(
+			skb_mac_header(p), skb_gro_mac_header(skb));
 		NAPI_GRO_CB(p)->flush = 0;
 	}
 
