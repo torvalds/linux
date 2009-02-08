@@ -27,6 +27,9 @@ static void omap1_init_ext_clk(struct clk * clk);
 static int omap1_select_table_rate(struct clk * clk, unsigned long rate);
 static long omap1_round_to_table_rate(struct clk * clk, unsigned long rate);
 
+static int omap1_clk_set_rate_ckctl_arm(struct clk *clk, unsigned long rate);
+static long omap1_clk_round_rate_ckctl_arm(struct clk *clk, unsigned long rate);
+
 struct mpu_rate {
 	unsigned long		rate;
 	unsigned long		xtal;
@@ -189,9 +192,11 @@ static struct clk arm_ck = {
 	.ops		= &clkops_null,
 	.parent		= &ck_dpll1,
 	.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  CLOCK_IN_OMAP310 | RATE_CKCTL | RATE_PROPAGATES,
+			  CLOCK_IN_OMAP310 | RATE_PROPAGATES,
 	.rate_offset	= CKCTL_ARMDIV_OFFSET,
 	.recalc		= &omap1_ckctl_recalc,
+	.round_rate	= omap1_clk_round_rate_ckctl_arm,
+	.set_rate	= omap1_clk_set_rate_ckctl_arm,
 };
 
 static struct arm_idlect1_clk armper_ck = {
@@ -200,12 +205,13 @@ static struct arm_idlect1_clk armper_ck = {
 		.ops		= &clkops_generic,
 		.parent		= &ck_dpll1,
 		.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-				  CLOCK_IN_OMAP310 | RATE_CKCTL |
-				  CLOCK_IDLE_CONTROL,
+				  CLOCK_IN_OMAP310 | CLOCK_IDLE_CONTROL,
 		.enable_reg	= (void __iomem *)ARM_IDLECT2,
 		.enable_bit	= EN_PERCK,
 		.rate_offset	= CKCTL_PERDIV_OFFSET,
 		.recalc		= &omap1_ckctl_recalc,
+		.round_rate	= omap1_clk_round_rate_ckctl_arm,
+		.set_rate	= omap1_clk_set_rate_ckctl_arm,
 	},
 	.idlect_shift	= 2,
 };
@@ -279,22 +285,24 @@ static struct clk dsp_ck = {
 	.name		= "dsp_ck",
 	.ops		= &clkops_generic,
 	.parent		= &ck_dpll1,
-	.flags		= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  RATE_CKCTL,
+	.flags		= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX,
 	.enable_reg	= (void __iomem *)ARM_CKCTL,
 	.enable_bit	= EN_DSPCK,
 	.rate_offset	= CKCTL_DSPDIV_OFFSET,
 	.recalc		= &omap1_ckctl_recalc,
+	.round_rate	= omap1_clk_round_rate_ckctl_arm,
+	.set_rate	= omap1_clk_set_rate_ckctl_arm,
 };
 
 static struct clk dspmmu_ck = {
 	.name		= "dspmmu_ck",
 	.ops		= &clkops_null,
 	.parent		= &ck_dpll1,
-	.flags		= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  RATE_CKCTL,
+	.flags		= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX,
 	.rate_offset	= CKCTL_DSPMMUDIV_OFFSET,
 	.recalc		= &omap1_ckctl_recalc,
+	.round_rate	= omap1_clk_round_rate_ckctl_arm,
+	.set_rate	= omap1_clk_set_rate_ckctl_arm,
 };
 
 static struct clk dspper_ck = {
@@ -302,11 +310,12 @@ static struct clk dspper_ck = {
 	.ops		= &clkops_dspck,
 	.parent		= &ck_dpll1,
 	.flags		= CLOCK_IN_OMAP310 | CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
-			  RATE_CKCTL | VIRTUAL_IO_ADDRESS,
+			  VIRTUAL_IO_ADDRESS,
 	.enable_reg	= DSP_IDLECT2,
 	.enable_bit	= EN_PERCK,
 	.rate_offset	= CKCTL_PERDIV_OFFSET,
 	.recalc		= &omap1_ckctl_recalc_dsp_domain,
+	.round_rate	= omap1_clk_round_rate_ckctl_arm,
 	.set_rate	= &omap1_clk_set_rate_dsp_domain,
 };
 
@@ -340,10 +349,11 @@ static struct arm_idlect1_clk tc_ck = {
 		.parent		= &ck_dpll1,
 		.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP16XX |
 				  CLOCK_IN_OMAP730 | CLOCK_IN_OMAP310 |
-				  RATE_CKCTL | RATE_PROPAGATES |
-				  CLOCK_IDLE_CONTROL,
+				  RATE_PROPAGATES | CLOCK_IDLE_CONTROL,
 		.rate_offset	= CKCTL_TCDIV_OFFSET,
 		.recalc		= &omap1_ckctl_recalc,
+		.round_rate	= omap1_clk_round_rate_ckctl_arm,
+		.set_rate	= omap1_clk_set_rate_ckctl_arm,
 	},
 	.idlect_shift	= 6,
 };
@@ -466,11 +476,13 @@ static struct clk lcd_ck_16xx = {
 	.name		= "lcd_ck",
 	.ops		= &clkops_generic,
 	.parent		= &ck_dpll1,
-	.flags		= CLOCK_IN_OMAP16XX | CLOCK_IN_OMAP730 | RATE_CKCTL,
+	.flags		= CLOCK_IN_OMAP16XX | CLOCK_IN_OMAP730,
 	.enable_reg	= (void __iomem *)ARM_IDLECT2,
 	.enable_bit	= EN_LCDCK,
 	.rate_offset	= CKCTL_LCDDIV_OFFSET,
 	.recalc		= &omap1_ckctl_recalc,
+	.round_rate	= omap1_clk_round_rate_ckctl_arm,
+	.set_rate	= omap1_clk_set_rate_ckctl_arm,
 };
 
 static struct arm_idlect1_clk lcd_ck_1510 = {
@@ -479,11 +491,13 @@ static struct arm_idlect1_clk lcd_ck_1510 = {
 		.ops		= &clkops_generic,
 		.parent		= &ck_dpll1,
 		.flags		= CLOCK_IN_OMAP1510 | CLOCK_IN_OMAP310 |
-				  RATE_CKCTL | CLOCK_IDLE_CONTROL,
+				  CLOCK_IDLE_CONTROL,
 		.enable_reg	= (void __iomem *)ARM_IDLECT2,
 		.enable_bit	= EN_LCDCK,
 		.rate_offset	= CKCTL_LCDDIV_OFFSET,
 		.recalc		= &omap1_ckctl_recalc,
+		.round_rate	= omap1_clk_round_rate_ckctl_arm,
+		.set_rate	= omap1_clk_set_rate_ckctl_arm,
 	},
 	.idlect_shift	= 3,
 };

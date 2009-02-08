@@ -216,9 +216,6 @@ static int calc_dsor_exp(struct clk *clk, unsigned long rate)
 	struct clk * parent;
 	unsigned  dsor_exp;
 
-	if (unlikely(!(clk->flags & RATE_CKCTL)))
-		return -EINVAL;
-
 	parent = clk->parent;
 	if (unlikely(parent == NULL))
 		return -EIO;
@@ -307,26 +304,52 @@ static int omap1_select_table_rate(struct clk * clk, unsigned long rate)
 
 static int omap1_clk_set_rate_dsp_domain(struct clk *clk, unsigned long rate)
 {
-	int  ret = -EINVAL;
-	int  dsor_exp;
-	__u16  regval;
+	int dsor_exp;
+	u16 regval;
 
-	if (clk->flags & RATE_CKCTL) {
-		dsor_exp = calc_dsor_exp(clk, rate);
-		if (dsor_exp > 3)
-			dsor_exp = -EINVAL;
-		if (dsor_exp < 0)
-			return dsor_exp;
+	dsor_exp = calc_dsor_exp(clk, rate);
+	if (dsor_exp > 3)
+		dsor_exp = -EINVAL;
+	if (dsor_exp < 0)
+		return dsor_exp;
 
-		regval = __raw_readw(DSP_CKCTL);
-		regval &= ~(3 << clk->rate_offset);
-		regval |= dsor_exp << clk->rate_offset;
-		__raw_writew(regval, DSP_CKCTL);
-		clk->rate = clk->parent->rate / (1 << dsor_exp);
-		ret = 0;
-	}
+	regval = __raw_readw(DSP_CKCTL);
+	regval &= ~(3 << clk->rate_offset);
+	regval |= dsor_exp << clk->rate_offset;
+	__raw_writew(regval, DSP_CKCTL);
+	clk->rate = clk->parent->rate / (1 << dsor_exp);
 
-	return ret;
+	return 0;
+}
+
+static long omap1_clk_round_rate_ckctl_arm(struct clk *clk, unsigned long rate)
+{
+	int dsor_exp = calc_dsor_exp(clk, rate);
+	if (dsor_exp < 0)
+		return dsor_exp;
+	if (dsor_exp > 3)
+		dsor_exp = 3;
+	return clk->parent->rate / (1 << dsor_exp);
+}
+
+static int omap1_clk_set_rate_ckctl_arm(struct clk *clk, unsigned long rate)
+{
+	int dsor_exp;
+	u16 regval;
+
+	dsor_exp = calc_dsor_exp(clk, rate);
+	if (dsor_exp > 3)
+		dsor_exp = -EINVAL;
+	if (dsor_exp < 0)
+		return dsor_exp;
+
+	regval = omap_readw(ARM_CKCTL);
+	regval &= ~(3 << clk->rate_offset);
+	regval |= dsor_exp << clk->rate_offset;
+	regval = verify_ckctl_value(regval);
+	omap_writew(regval, ARM_CKCTL);
+	clk->rate = clk->parent->rate / (1 << dsor_exp);
+	return 0;
 }
 
 static long omap1_round_to_table_rate(struct clk * clk, unsigned long rate)
@@ -572,19 +595,8 @@ static const struct clkops clkops_generic = {
 
 static long omap1_clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	int dsor_exp;
-
 	if (clk->flags & RATE_FIXED)
 		return clk->rate;
-
-	if (clk->flags & RATE_CKCTL) {
-		dsor_exp = calc_dsor_exp(clk, rate);
-		if (dsor_exp < 0)
-			return dsor_exp;
-		if (dsor_exp > 3)
-			dsor_exp = 3;
-		return clk->parent->rate / (1 << dsor_exp);
-	}
 
 	if (clk->round_rate != NULL)
 		return clk->round_rate(clk, rate);
@@ -595,27 +607,9 @@ static long omap1_clk_round_rate(struct clk *clk, unsigned long rate)
 static int omap1_clk_set_rate(struct clk *clk, unsigned long rate)
 {
 	int  ret = -EINVAL;
-	int  dsor_exp;
-	__u16  regval;
 
 	if (clk->set_rate)
 		ret = clk->set_rate(clk, rate);
-	else if (clk->flags & RATE_CKCTL) {
-		dsor_exp = calc_dsor_exp(clk, rate);
-		if (dsor_exp > 3)
-			dsor_exp = -EINVAL;
-		if (dsor_exp < 0)
-			return dsor_exp;
-
-		regval = omap_readw(ARM_CKCTL);
-		regval &= ~(3 << clk->rate_offset);
-		regval |= dsor_exp << clk->rate_offset;
-		regval = verify_ckctl_value(regval);
-		omap_writew(regval, ARM_CKCTL);
-		clk->rate = clk->parent->rate / (1 << dsor_exp);
-		ret = 0;
-	}
-
 	return ret;
 }
 

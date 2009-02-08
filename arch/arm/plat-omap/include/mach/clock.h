@@ -124,7 +124,7 @@ extern void clk_enable_init_clocks(void);
 extern const struct clkops clkops_null;
 
 /* Clock flags */
-#define RATE_CKCTL		(1 << 0)	/* Main fixed ratio clocks */
+/* bit 0 is free */
 #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
 #define RATE_PROPAGATES		(1 << 2)	/* Program children too */
 /* bits 3-4 are free */
