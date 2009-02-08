@@ -2108,6 +2108,8 @@ static struct snd_pci_quirk stac922x_cfg_tbl[] = {
 		      "ECS/PC chips", STAC_ECS_202),
 	SND_PCI_QUIRK(0x1019, 0x2820,
 		      "ECS/PC chips", STAC_ECS_202),
+	SND_PCI_QUIRK(0x1019, 0x2950,
+		      "ECS/PC chips", STAC_ECS_202),
 	{} /* terminator */
 };
 
