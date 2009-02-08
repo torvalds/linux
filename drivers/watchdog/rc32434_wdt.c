@@ -34,7 +34,7 @@
 #include <asm/time.h>
 #include <asm/mach-rc32434/integ.h>
 
-#define VERSION "0.3"
+#define VERSION "0.4"
 
 static struct {
 	unsigned long inuse;
@@ -242,10 +242,10 @@ static struct miscdevice rc32434_wdt_miscdev = {
 	.fops	= &rc32434_wdt_fops,
 };
 
-static char banner[] = KERN_INFO KBUILD_MODNAME
+static char banner[] __devinitdata = KERN_INFO KBUILD_MODNAME
 		": Watchdog Timer version " VERSION ", timer margin: %d sec\n";
 
-static int rc32434_wdt_probe(struct platform_device *pdev)
+static int __devinit rc32434_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *r;
@@ -280,7 +280,7 @@ unmap:
 	return ret;
 }
 
-static int rc32434_wdt_remove(struct platform_device *pdev)
+static int __devexit rc32434_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&rc32434_wdt_miscdev);
 	iounmap(wdt_reg);
@@ -289,8 +289,8 @@ static int rc32434_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver rc32434_wdt = {
 	.probe	= rc32434_wdt_probe,
-	.remove = rc32434_wdt_remove,
-	.driver = {
+	.remove	= __devexit_p(rc32434_wdt_remove),
+	.driver	= {
 		.name = "rc32434_wdt",
 	}
 };
