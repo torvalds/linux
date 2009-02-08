@@ -34,7 +34,7 @@
 
 #define PFX KBUILD_MODNAME ": "
 
-#define VERSION "0.4"
+#define VERSION "0.5"
 
 static struct {
 	unsigned long inuse;
@@ -58,6 +58,9 @@ extern unsigned int idt_cpu_freq;
 #define WATCHDOG_TIMEOUT 20
 
 static int timeout = WATCHDOG_TIMEOUT;
+module_param(timeout, int, 0);
+MODULE_PARM_DESC(timeout, "Watchdog timeout value, in seconds (default="
+		WATCHDOG_TIMEOUT ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
@@ -67,6 +70,21 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 /* apply or and nand masks to data read from addr and write back */
 #define SET_BITS(addr, or, nand) \
 	writel((readl(&addr) | or) & ~nand, &addr)
+
+static int rc32434_wdt_set(int new_timeout)
+{
+	int max_to = WTCOMP2SEC((u32)-1);
+
+	if (new_timeout < 0 || new_timeout > max_to) {
+		printk(KERN_ERR PFX "timeout value must be between 0 and %d",
+			max_to);
+		return -EINVAL;
+	}
+	timeout = new_timeout;
+	writel(SEC2WTCOMP(timeout), &wdt_reg->wtcompare);
+
+	return 0;
+}
 
 static void rc32434_wdt_start(void)
 {
@@ -85,6 +103,9 @@ static void rc32434_wdt_start(void)
 
 	SET_BITS(wdt_reg->errcs, or, nand);
 
+	/* set the timeout (either default or based on module param) */
+	rc32434_wdt_set(timeout);
+
 	/* reset WTC timeout bit and enable WDT */
 	nand = 1 << RC32434_WTC_TO;
 	or = 1 << RC32434_WTC_EN;
@@ -100,21 +121,6 @@ static void rc32434_wdt_stop(void)
 	SET_BITS(wdt_reg->wtc, 0, 1 << RC32434_WTC_EN);
 
 	printk(KERN_INFO PFX "Stopped watchdog timer.\n");
-}
-
-static int rc32434_wdt_set(int new_timeout)
-{
-	int max_to = WTCOMP2SEC((u32)-1);
-
-	if (new_timeout < 0 || new_timeout > max_to) {
-		printk(KERN_ERR PFX "timeout value must be between 0 and %d",
-			max_to);
-		return -EINVAL;
-	}
-	timeout = new_timeout;
-	writel(SEC2WTCOMP(timeout), &wdt_reg->wtcompare);
-
-	return 0;
 }
 
 static void rc32434_wdt_ping(void)
@@ -262,6 +268,15 @@ static int __devinit rc32434_wdt_probe(struct platform_device *pdev)
 	if (!wdt_reg) {
 		printk(KERN_ERR PFX "failed to remap I/O resources\n");
 		return -ENXIO;
+	}
+
+	/* Check that the heartbeat value is within it's range;
+	 * if not reset to the default */
+	if (rc32434_wdt_set(timeout)) {
+		rc32434_wdt_set(WATCHDOG_TIMEOUT);
+		printk(KERN_INFO PFX
+			"timeout value must be between 0 and %d\n",
+			WTCOMP2SEC((u32)-1));
 	}
 
 	ret = misc_register(&rc32434_wdt_miscdev);
