@@ -61,7 +61,7 @@ static int em28xx_isoc_audio_deinit(struct em28xx *dev)
 	int i;
 
 	dprintk("Stopping isoc\n");
-	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
+	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
 		if (!irqs_disabled())
 			usb_kill_urb(dev->adev.urb[i]);
 		else
@@ -73,7 +73,6 @@ static int em28xx_isoc_audio_deinit(struct em28xx *dev)
 		dev->adev.transfer_buffer[i] = NULL;
 	}
 
-	dev->isoc_ctl.num_bufs = 0;
 	return 0;
 }
 
@@ -157,8 +156,6 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 
 	dprintk("Starting isoc transfers\n");
 
-	dev->isoc_ctl.num_bufs = 0;
-
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
 		struct urb *urb;
 		int j, k;
@@ -200,19 +197,10 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
 		errCode = usb_submit_urb(dev->adev.urb[i], GFP_ATOMIC);
 		if (errCode) {
-			if (dev->isoc_ctl.num_bufs == 0) {
-				usb_free_urb(dev->adev.urb[i]);
-				dev->adev.urb[i] = NULL;
-				kfree(dev->adev.transfer_buffer[i]);
-				dev->adev.transfer_buffer[i] = NULL;
-			} else
-				em28xx_isoc_audio_deinit(dev);
+			em28xx_isoc_audio_deinit(dev);
 
 			return errCode;
 		}
-		mutex_lock(&dev->lock);
-		dev->isoc_ctl.num_bufs++;
-		mutex_unlock(&dev->lock);
 	}
 
 	return 0;
