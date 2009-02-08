@@ -48,9 +48,6 @@
 #ifndef _LINUX_P80211REQ_H
 #define _LINUX_P80211REQ_H
 
-/*================================================================*/
-/* Function Declarations */
-
-int	p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf);
+int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf);
 
 #endif
