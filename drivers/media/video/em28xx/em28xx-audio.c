@@ -56,7 +56,7 @@ MODULE_PARM_DESC(debug, "activates debug info");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 
-static int em28xx_isoc_audio_deinit(struct em28xx *dev)
+static int em28xx_deinit_isoc_audio(struct em28xx *dev)
 {
 	int i;
 
@@ -66,6 +66,7 @@ static int em28xx_isoc_audio_deinit(struct em28xx *dev)
 			usb_kill_urb(dev->adev.urb[i]);
 		else
 			usb_unlink_urb(dev->adev.urb[i]);
+
 		usb_free_urb(dev->adev.urb[i]);
 		dev->adev.urb[i] = NULL;
 
@@ -87,6 +88,20 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	unsigned int             stride;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime   *runtime;
+
+	switch (urb->status) {
+	case 0:             /* success */
+	case -ETIMEDOUT:    /* NAK */
+		break;
+	case -ECONNRESET:   /* kill */
+	case -ENOENT:
+	case -ESHUTDOWN:
+		return;
+	default:            /* error */
+		dprintk("urb completition error %d.\n", urb->status);
+		break;
+	}
+
 	if (dev->adev.capture_pcm_substream) {
 		substream = dev->adev.capture_pcm_substream;
 		runtime = substream->runtime;
@@ -197,8 +212,7 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
 		errCode = usb_submit_urb(dev->adev.urb[i], GFP_ATOMIC);
 		if (errCode) {
-			em28xx_isoc_audio_deinit(dev);
-
+			em28xx_deinit_isoc_audio(dev);
 			return errCode;
 		}
 	}
@@ -218,7 +232,7 @@ static int em28xx_cmd(struct em28xx *dev, int cmd, int arg)
 			em28xx_init_audio_isoc(dev);
 		} else if (dev->adev.capture_stream == STREAM_ON && arg == 0) {
 			dev->adev.capture_stream = STREAM_OFF;
-			em28xx_isoc_audio_deinit(dev);
+			em28xx_deinit_isoc_audio(dev);
 		} else {
 			printk(KERN_ERR "An underrun very likely occurred. "
 					"Ignoring it.\n");

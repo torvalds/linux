@@ -827,6 +827,19 @@ static void em28xx_irq_callback(struct urb *urb)
 	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
 	int rc, i;
 
+	switch (urb->status) {
+	case 0:             /* success */
+	case -ETIMEDOUT:    /* NAK */
+		break;
+	case -ECONNRESET:   /* kill */
+	case -ENOENT:
+	case -ESHUTDOWN:
+		return;
+	default:            /* error */
+		em28xx_isocdbg("urb completition error %d.\n", urb->status);
+		break;
+	}
+
 	/* Copy data from URB */
 	spin_lock(&dev->slock);
 	rc = dev->isoc_ctl.isoc_copy(dev, urb);
