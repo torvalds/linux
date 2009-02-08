@@ -79,14 +79,15 @@ static int __init dummy_probe(struct pcie_device *dev)
 	struct slot *slot, *tmp;
 	struct pci_dev *pdev = dev->port;
 	struct pci_bus *pbus = pdev->subordinate;
-	if (!(slot = kzalloc(sizeof(*slot), GFP_KERNEL)))
-		return -ENOMEM;
 	/* Note: pciehp_detect_mode != PCIEHP_DETECT_ACPI here */
 	if (pciehp_get_hp_hw_control_from_firmware(pdev))
 		return -ENODEV;
 	if (!(pos = pci_find_capability(pdev, PCI_CAP_ID_EXP)))
 		return -ENODEV;
 	pci_read_config_dword(pdev, pos + PCI_EXP_SLTCAP, &slot_cap);
+	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
+	if (!slot)
+		return -ENOMEM;
 	slot->number = slot_cap >> 19;
 	list_for_each_entry(tmp, &dummy_slots, slot_list) {
 		if (tmp->number == slot->number)
