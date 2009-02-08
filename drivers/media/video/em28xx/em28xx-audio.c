@@ -231,7 +231,7 @@ static int em28xx_cmd(struct em28xx *dev, int cmd, int arg)
 			dev->adev.capture_stream = STREAM_OFF;
 			em28xx_deinit_isoc_audio(dev);
 		} else {
-			printk(KERN_ERR "An underrun very likely occurred. "
+			em28xx_errdev("An underrun very likely occurred. "
 					"Ignoring it.\n");
 		}
 		return 0;
