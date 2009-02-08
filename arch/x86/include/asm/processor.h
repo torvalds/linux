@@ -393,6 +393,8 @@ union irq_stack_union {
 };
 
 DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
+DECLARE_INIT_PER_CPU(irq_stack_union);
+
 DECLARE_PER_CPU(char *, irq_stack_ptr);
 #endif
 

@@ -34,6 +34,12 @@
 #define PER_CPU_VAR(var)	per_cpu__##var
 #endif	/* SMP */
 
+#ifdef CONFIG_X86_64_SMP
+#define INIT_PER_CPU_VAR(var)  init_per_cpu__##var
+#else
+#define INIT_PER_CPU_VAR(var)  per_cpu__##var
+#endif
+
 #else /* ...!ASSEMBLY */
 
 #include <linux/stringify.h>
@@ -43,6 +49,22 @@
 #define __my_cpu_offset		percpu_read(this_cpu_off)
 #else
 #define __percpu_arg(x)		"%" #x
+#endif
+
+/*
+ * Initialized pointers to per-cpu variables needed for the boot
+ * processor need to use these macros to get the proper address
+ * offset from __per_cpu_load on SMP.
+ *
+ * There also must be an entry in vmlinux_64.lds.S
+ */
+#define DECLARE_INIT_PER_CPU(var) \
+       extern typeof(per_cpu_var(var)) init_per_cpu_var(var)
+
+#ifdef CONFIG_X86_64_SMP
+#define init_per_cpu_var(var)  init_per_cpu__##var
+#else
+#define init_per_cpu_var(var)  per_cpu_var(var)
 #endif
 
 /* For arch-specific code, we can use direct single-insn ops (they
