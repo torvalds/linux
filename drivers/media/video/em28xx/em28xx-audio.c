@@ -381,19 +381,27 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 				      int cmd)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
+	int retval;
 
 	dprintk("Should %s capture\n", (cmd == SNDRV_PCM_TRIGGER_START)?
 				       "start": "stop");
+
+	spin_lock(&dev->adev.slock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 1);
-		return 0;
+		retval = 0;
+		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 0);
-		return 0;
+		retval = 0;
+		break;
 	default:
-		return -EINVAL;
+		retval = -EINVAL;
 	}
+
+	spin_unlock(&dev->adev.slock);
+	return retval;
 }
 
 static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
