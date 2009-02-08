@@ -1263,7 +1263,7 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	if (!ops || !ops->gro_receive)
 		goto out_unlock;
 
-	if (iph->version != 4 || iph->ihl != 5)
+	if (*(u8 *)iph != 0x45)
 		goto out_unlock;
 
 	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
@@ -1281,17 +1281,18 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 
 		iph2 = ip_hdr(p);
 
-		if (iph->protocol != iph2->protocol ||
-		    iph->tos != iph2->tos ||
-		    memcmp(&iph->saddr, &iph2->saddr, 8)) {
+		if ((iph->protocol ^ iph2->protocol) |
+		    (iph->tos ^ iph2->tos) |
+		    (iph->saddr ^ iph2->saddr) |
+		    (iph->daddr ^ iph2->daddr)) {
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
 
 		/* All fields must match except length and checksum. */
 		NAPI_GRO_CB(p)->flush |=
-			memcmp(&iph->frag_off, &iph2->frag_off, 4) ||
-			(u16)(ntohs(iph2->id) + NAPI_GRO_CB(p)->count) != id;
+			(iph->ttl ^ iph2->ttl) |
+			((u16)(ntohs(iph2->id) + NAPI_GRO_CB(p)->count) ^ id);
 
 		NAPI_GRO_CB(p)->flush |= flush;
 	}
