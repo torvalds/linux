@@ -2755,6 +2755,7 @@ i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 	if (obj_priv->pin_filp != NULL && obj_priv->pin_filp != file_priv) {
 		DRM_ERROR("Already pinned in i915_gem_pin_ioctl(): %d\n",
 			  args->handle);
+		drm_gem_object_unreference(obj);
 		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
