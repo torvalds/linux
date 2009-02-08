@@ -31,6 +31,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/ftrace.h>
 
 #include <asm/system.h>
 #include <asm/atomic.h>
@@ -120,7 +121,7 @@ halt_processor(void)
 }
 
 
-irqreturn_t
+irqreturn_t __irq_entry
 ipi_interrupt(int irq, void *dev_id) 
 {
 	int this_cpu = smp_processor_id();

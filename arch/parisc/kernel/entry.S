@@ -2185,6 +2185,33 @@ syscall_do_resched:
 ENDPROC(syscall_exit)
 
 
+#ifdef CONFIG_FUNCTION_TRACER
+	.import ftrace_function_trampoline,code
+ENTRY(_mcount)
+	copy	%r3, %arg2
+	b	ftrace_function_trampoline
+	nop
+ENDPROC(_mcount)
+
+ENTRY(return_to_handler)
+	load32	return_trampoline, %rp
+	copy	%ret0, %arg0
+	copy	%ret1, %arg1
+	b	ftrace_return_to_handler
+	nop
+return_trampoline:
+	copy	%ret0, %rp
+	copy	%r23, %ret0
+	copy	%r24, %ret1
+
+.globl ftrace_stub
+ftrace_stub:
+	bv	%r0(%rp)
+	nop
+ENDPROC(return_to_handler)
+#endif	/* CONFIG_FUNCTION_TRACER */
+
+
 get_register:
 	/*
 	 * get_register is used by the non access tlb miss handlers to
