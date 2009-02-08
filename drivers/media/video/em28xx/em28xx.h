@@ -113,6 +113,10 @@
 #define EM28XX_BOARD_NOT_VALIDATED 1
 #define EM28XX_BOARD_VALIDATED	   0
 
+/* Params for em28xx_cmd() audio */
+#define EM28XX_START_AUDIO      1
+#define EM28XX_STOP_AUDIO       0
+
 /* maximum number of em28xx boards */
 #define EM28XX_MAXBOARDS 4 /*FIXME: should be bigger */
 

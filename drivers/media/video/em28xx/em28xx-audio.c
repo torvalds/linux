@@ -224,10 +224,10 @@ static int em28xx_cmd(struct em28xx *dev, int cmd, int arg)
 
 	switch (cmd) {
 	case EM28XX_CAPTURE_STREAM_EN:
-		if (dev->adev.capture_stream == STREAM_OFF && arg == 1) {
+		if (dev->adev.capture_stream == STREAM_OFF && arg == EM28XX_START_AUDIO) {
 			dev->adev.capture_stream = STREAM_ON;
 			em28xx_init_audio_isoc(dev);
-		} else if (dev->adev.capture_stream == STREAM_ON && arg == 0) {
+		} else if (dev->adev.capture_stream == STREAM_ON && arg == EM28XX_STOP_AUDIO) {
 			dev->adev.capture_stream = STREAM_OFF;
 			em28xx_deinit_isoc_audio(dev);
 		} else {
@@ -369,7 +369,7 @@ static int snd_em28xx_hw_capture_free(struct snd_pcm_substream *substream)
 	dprintk("Stop capture, if needed\n");
 
 	if (dev->adev.capture_stream == STREAM_ON)
-		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 0);
+		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, EM28XX_STOP_AUDIO);
 
 	return 0;
 }
@@ -391,11 +391,11 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 	spin_lock(&dev->adev.slock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 1);
+		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, EM28XX_START_AUDIO);
 		retval = 0;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 0);
+		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, EM28XX_STOP_AUDIO);
 		retval = 0;
 		break;
 	default:
