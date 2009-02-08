@@ -39,6 +39,7 @@ struct iscsi_segment {
 	unsigned int		total_copied;
 
 	struct hash_desc	*hash;
+	unsigned char		padbuf[ISCSI_PAD_LEN];
 	unsigned char		recv_digest[ISCSI_DIGEST_SIZE];
 	unsigned char		digest[ISCSI_DIGEST_SIZE];
 	unsigned int		digest_len;

@@ -311,7 +311,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	if (dev_priv->panel_fixed_mode != NULL) {
 		struct drm_display_mode *mode;
 
-		mutex_unlock(&dev->mode_config.mutex);
+		mutex_lock(&dev->mode_config.mutex);
 		mode = drm_mode_duplicate(dev, dev_priv->panel_fixed_mode);
 		drm_mode_probed_add(connector, mode);
 		mutex_unlock(&dev->mode_config.mutex);
@@ -340,6 +340,18 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
+static int intel_lvds_set_property(struct drm_connector *connector,
+				   struct drm_property *property,
+				   uint64_t value)
+{
+	struct drm_device *dev = connector->dev;
+
+	if (property == dev->mode_config.dpms_property && connector->encoder)
+		intel_lvds_dpms(connector->encoder, (uint32_t)(value & 0xf));
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs intel_lvds_helper_funcs = {
 	.dpms = intel_lvds_dpms,
 	.mode_fixup = intel_lvds_mode_fixup,
@@ -359,6 +371,7 @@ static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.restore = intel_lvds_restore,
 	.detect = intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.set_property = intel_lvds_set_property,
 	.destroy = intel_lvds_destroy,
 };
 
@@ -456,6 +469,13 @@ void intel_lvds_init(struct drm_device *dev)
 		dev_priv->panel_fixed_mode =
 			drm_mode_duplicate(dev, dev_priv->vbt_mode);
 		mutex_unlock(&dev->mode_config.mutex);
+		if (dev_priv->panel_fixed_mode) {
+			dev_priv->panel_fixed_mode->type |=
+				DRM_MODE_TYPE_PREFERRED;
+			drm_mode_probed_add(connector,
+					    dev_priv->panel_fixed_mode);
+			goto out;
+		}
 	}
 
 	/*

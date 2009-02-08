@@ -1186,6 +1186,8 @@ struct ucc_geth_private {
 	int oldspeed;
 	int oldduplex;
 	int oldlink;
+
+	struct device_node *node;
 };
 
 void uec_set_ethtool_ops(struct net_device *netdev);

@@ -1,6 +1,6 @@
 /***************************************************************************
  *                                                                         *
- *  Copyright 2003 LSI Corporation.  All rights reserved.            *
+ *  Copyright (c) 2000-2008 LSI Corporation.  All rights reserved.         *
  *                                                                         *
  * Description                                                             *
  * ------------                                                            *
@@ -73,6 +73,8 @@
 #define IOP_LOGINFO_CODE_TARGET_MODE_ABORT_EXACT_IO          (0x00070004)
 #define IOP_LOGINFO_CODE_TARGET_MODE_ABORT_EXACT_IO_REQ      (0x00070005)
 
+#define IOP_LOGINFO_CODE_LOG_TIMESTAMP_EVENT                 (0x00080000)
+
 /****************************************************************************/
 /* PL LOGINFO_CODE defines, valid if IOC_LOGINFO_ORIGINATOR = PL            */
 /****************************************************************************/
@@ -92,7 +94,7 @@
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_OPEN_TIMEOUT_EXP       (0x0000000C)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_UNUSED_0D              (0x0000000D)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_DVTBLE_ACCSS_FAIL      (0x0000000E)
-#define PL_LOGINFO_SUB CODE_OPEN_FAIL_BAD_DEST               (0x00000011)
+#define PL_LOGINFO_SUB_CODE_OPEN_FAIL_BAD_DEST               (0x00000011)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_RATE_NOT_SUPP          (0x00000012)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_PROT_NOT_SUPP          (0x00000013)
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_RESERVED_ABANDON0      (0x00000014)
@@ -159,10 +161,11 @@
 
 #define PL_LOGINFO_SUB_CODE_INVALID_SGL                      (0x00000200)
 #define PL_LOGINFO_SUB_CODE_WRONG_REL_OFF_OR_FRAME_LENGTH    (0x00000300)
-#define PL_LOGINFO_SUB_CODE_FRAME_XFER_ERROR                 (0x00000400) /* Bits 0-3 encode Transport Status Register (offset 0x08) */
-                                                                          /* Bit 0 is Status Bit 0: FrameXferErr */
-                                                                          /* Bit 1 & 2 are Status Bits 16 and 17: FrameXmitErrStatus */
-                                                                          /* Bit 3 is Status Bit 18 WriteDataLengthGTDataLengthErr */
+#define PL_LOGINFO_SUB_CODE_FRAME_XFER_ERROR                 (0x00000400)
+/* Bits 0-3 encode Transport Status Register (offset 0x08) */
+/* Bit 0 is Status Bit 0: FrameXferErr */
+/* Bit 1 & 2 are Status Bits 16 and 17: FrameXmitErrStatus */
+/* Bit 3 is Status Bit 18 WriteDataLenghtGTDataLengthErr */
 
 #define PL_LOGINFO_SUB_CODE_TX_FM_CONNECTED_LOW              (0x00000500)
 #define PL_LOGINFO_SUB_CODE_SATA_NON_NCQ_RW_ERR_BIT_SET      (0x00000600)
@@ -177,6 +180,11 @@
 #define PL_LOGINFO_SUB_CODE_DISCOVERY_REMOTE_SEP_RESET       (0x00000E01)
 #define PL_LOGINFO_SUB_CODE_SECOND_OPEN                      (0x00000F00)
 #define PL_LOGINFO_SUB_CODE_DSCVRY_SATA_INIT_TIMEOUT         (0x00001000)
+#define PL_LOGINFO_SUB_CODE_BREAK_ON_SATA_CONNECTION         (0x00002000)
+/* not currently used in mainline */
+#define PL_LOGINFO_SUB_CODE_BREAK_ON_STUCK_LINK              (0x00003000)
+#define PL_LOGINFO_SUB_CODE_BREAK_ON_STUCK_LINK_AIP          (0x00004000)
+#define PL_LOGINFO_SUB_CODE_BREAK_ON_INCOMPLETE_BREAK_RCVD   (0x00005000)
 
 #define PL_LOGINFO_CODE_ENCL_MGMT_SMP_FRAME_FAILURE          (0x00200000) /* Can't get SMP Frame */
 #define PL_LOGINFO_CODE_ENCL_MGMT_SMP_READ_ERROR             (0x00200010) /* Error occured on SMP Read */
@@ -243,6 +251,8 @@
 #define IR_LOGINFO_VOLUME_ACTIVATE_VOLUME_FAILED               (0x00010014)
 /* Activation failed trying to import the volume */
 #define IR_LOGINFO_VOLUME_ACTIVATING_IMPORT_VOLUME_FAILED      (0x00010015)
+/* Activation failed trying to import the volume */
+#define IR_LOGINFO_VOLUME_ACTIVATING_TOO_MANY_PHYS_DISKS       (0x00010016)
 
 /* Phys Disk failed, too many phys disks */
 #define IR_LOGINFO_PHYSDISK_CREATE_TOO_MANY_DISKS              (0x00010020)
@@ -284,6 +294,21 @@
 #define IR_LOGINFO_COMPAT_ERROR_NON_64K_STRIPE_SIZE            (0x0001003C)
 /* Compatibility Error : IME size limited to < 2TB */
 #define IR_LOGINFO_COMPAT_ERROR_IME_VOL_NOT_CURRENTLY_SUPPORTED (0x0001003D)
+
+/* Device Firmware Update: DFU can only be started once */
+#define IR_LOGINFO_DEV_FW_UPDATE_ERR_DFU_IN_PROGRESS            (0x00010050)
+/* Device Firmware Update: Volume must be Optimal/Active/non-Quiesced */
+#define IR_LOGINFO_DEV_FW_UPDATE_ERR_DEVICE_IN_INVALID_STATE    (0x00010051)
+/* Device Firmware Update: DFU Timeout cannot be zero */
+#define IR_LOGINFO_DEV_FW_UPDATE_ERR_INVALID_TIMEOUT            (0x00010052)
+/* Device Firmware Update: CREATE TIMER FAILED */
+#define IR_LOGINFO_DEV_FW_UPDATE_ERR_NO_TIMERS                  (0x00010053)
+/* Device Firmware Update: Failed to read SAS_IO_UNIT_PG_1 */
+#define IR_LOGINFO_DEV_FW_UPDATE_ERR_READING_CFG_PAGE           (0x00010054)
+/* Device Firmware Update: Invalid SAS_IO_UNIT_PG_1 value(s) */
+#define IR_LOGINFO_DEV_FW_UPDATE_ERR_PORT_IO_TIMEOUTS_REQUIRED  (0x00010055)
+/* Device Firmware Update: Unable to allocate memory for page */
+#define IR_LOGINFO_DEV_FW_UPDATE_ERR_ALLOC_CFG_PAGE             (0x00010056)
 
 
 /****************************************************************************/

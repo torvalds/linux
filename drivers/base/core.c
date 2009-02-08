@@ -777,10 +777,16 @@ static void device_remove_class_symlinks(struct device *dev)
 int dev_set_name(struct device *dev, const char *fmt, ...)
 {
 	va_list vargs;
+	char *s;
 
 	va_start(vargs, fmt);
 	vsnprintf(dev->bus_id, sizeof(dev->bus_id), fmt, vargs);
 	va_end(vargs);
+
+	/* ewww... some of these buggers have / in the name... */
+	while ((s = strchr(dev->bus_id, '/')))
+		*s = '!';
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dev_set_name);
@@ -1274,7 +1280,7 @@ EXPORT_SYMBOL_GPL(__root_device_register);
 
 /**
  * root_device_unregister - unregister and free a root device
- * @root: device going away.
+ * @dev: device going away
  *
  * This function unregisters and cleans up a device that was created by
  * root_device_register().

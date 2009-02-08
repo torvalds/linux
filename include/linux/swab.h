@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
-#include <asm/byteorder.h>
+#include <asm/swab.h>
 
 /*
  * casts are necessary for constants, because we never know how for sure

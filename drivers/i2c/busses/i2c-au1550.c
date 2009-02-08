@@ -400,7 +400,6 @@ i2c_au1550_probe(struct platform_device *pdev)
 	priv->xfer_timeout = 200;
 	priv->ack_timeout = 200;
 
-	priv->adap.id = I2C_HW_AU1550_PSC;
 	priv->adap.nr = pdev->id;
 	priv->adap.algo = &au1550_algo;
 	priv->adap.algo_data = priv;

@@ -432,8 +432,6 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	if (via_clock < 20000 || via_clock > 50000) {
 		printk(KERN_WARNING DRV_NAME ": User given PCI clock speed "
 			"impossible (%d), using 33 MHz instead.\n", via_clock);
-		printk(KERN_WARNING DRV_NAME ": Use ide0=ata66 if you want "
-			"to assume 80-wire cable.\n");
 		via_clock = 33333;
 	}
 
@@ -447,6 +445,11 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 
 #ifdef CONFIG_PPC_CHRP
 	if (machine_is(chrp) && _chrp_type == _CHRP_Pegasos)
+		d.host_flags |= IDE_HFLAG_FORCE_LEGACY_IRQS;
+#endif
+
+#ifdef CONFIG_AMIGAONE
+	if (machine_is(amigaone))
 		d.host_flags |= IDE_HFLAG_FORCE_LEGACY_IRQS;
 #endif
 

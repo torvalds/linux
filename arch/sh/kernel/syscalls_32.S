@@ -58,7 +58,7 @@ ENTRY(sys_call_table)
 	.long sys_mkdir
 	.long sys_rmdir		/* 40 */
 	.long sys_dup
-	.long sys_pipe
+	.long sys_sh_pipe
 	.long sys_times
 	.long sys_ni_syscall	/* old prof syscall holder */
 	.long sys_brk		/* 45 */
@@ -105,7 +105,7 @@ ENTRY(sys_call_table)
 	.long sys_uselib
 	.long sys_swapon
 	.long sys_reboot
-	.long old_readdir
+	.long sys_old_readdir
 	.long old_mmap		/* 90 */
 	.long sys_munmap
 	.long sys_truncate

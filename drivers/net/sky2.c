@@ -1403,9 +1403,6 @@ static int sky2_up(struct net_device *dev)
 
  	}
 
-	if (netif_msg_ifup(sky2))
-		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
-
 	netif_carrier_off(dev);
 
 	/* must be power of 2 */
@@ -1484,6 +1481,9 @@ static int sky2_up(struct net_device *dev)
 	sky2_write32(hw, B0_IMSK, imask);
 
 	sky2_set_multicast(dev);
+
+	if (netif_msg_ifup(sky2))
+		printk(KERN_INFO PFX "%s: enabling interface\n", dev->name);
 	return 0;
 
 err_out:

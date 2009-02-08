@@ -333,11 +333,23 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 					      req_type & _PAGE_CACHE_MASK);
 	}
 
-	is_range_ram = pagerange_is_ram(start, end);
-	if (is_range_ram == 1)
-		return reserve_ram_pages_type(start, end, req_type, new_type);
-	else if (is_range_ram < 0)
-		return -EINVAL;
+	if (new_type)
+		*new_type = actual_type;
+
+	/*
+	 * For legacy reasons, some parts of the physical address range in the
+	 * legacy 1MB region is treated as non-RAM (even when listed as RAM in
+	 * the e820 tables).  So we will track the memory attributes of this
+	 * legacy 1MB region using the linear memtype_list always.
+	 */
+	if (end >= ISA_END_ADDRESS) {
+		is_range_ram = pagerange_is_ram(start, end);
+		if (is_range_ram == 1)
+			return reserve_ram_pages_type(start, end, req_type,
+						      new_type);
+		else if (is_range_ram < 0)
+			return -EINVAL;
+	}
 
 	new  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
 	if (!new)
@@ -346,9 +358,6 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	new->start	= start;
 	new->end	= end;
 	new->type	= actual_type;
-
-	if (new_type)
-		*new_type = actual_type;
 
 	spin_lock(&memtype_lock);
 
@@ -437,11 +446,19 @@ int free_memtype(u64 start, u64 end)
 	if (is_ISA_range(start, end - 1))
 		return 0;
 
-	is_range_ram = pagerange_is_ram(start, end);
-	if (is_range_ram == 1)
-		return free_ram_pages_type(start, end);
-	else if (is_range_ram < 0)
-		return -EINVAL;
+	/*
+	 * For legacy reasons, some parts of the physical address range in the
+	 * legacy 1MB region is treated as non-RAM (even when listed as RAM in
+	 * the e820 tables).  So we will track the memory attributes of this
+	 * legacy 1MB region using the linear memtype_list always.
+	 */
+	if (end >= ISA_END_ADDRESS) {
+		is_range_ram = pagerange_is_ram(start, end);
+		if (is_range_ram == 1)
+			return free_ram_pages_type(start, end);
+		else if (is_range_ram < 0)
+			return -EINVAL;
+	}
 
 	spin_lock(&memtype_lock);
 	list_for_each_entry(entry, &memtype_list, nd) {
@@ -505,35 +522,6 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 }
 #endif /* CONFIG_STRICT_DEVMEM */
 
-/*
- * Change the memory type for the physial address range in kernel identity
- * mapping space if that range is a part of identity map.
- */
-static int kernel_map_sync_memtype(u64 base, unsigned long size,
-					unsigned long flags)
-{
-	unsigned long id_sz;
-	int ret;
-
-	if (!pat_enabled || base >= __pa(high_memory))
-		return 0;
-
-	id_sz = (__pa(high_memory) < base + size) ?
-						__pa(high_memory) - base :
-						size;
-
-	ret = ioremap_change_attr((unsigned long)__va(base), id_sz, flags);
-	/*
-	 * -EFAULT return means that the addr was not valid and did not have
-	 * any identity mapping. That case is a success for
-	 * kernel_map_sync_memtype.
-	 */
-	if (ret == -EFAULT)
-		ret = 0;
-
-	return ret;
-}
-
 int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t *vma_prot)
 {
@@ -584,7 +572,9 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	if (retval < 0)
 		return 0;
 
-	if (kernel_map_sync_memtype(offset, size, flags)) {
+	if (((pfn < max_low_pfn_mapped) ||
+	     (pfn >= (1UL<<(32 - PAGE_SHIFT)) && pfn < max_pfn_mapped)) &&
+	    ioremap_change_attr((unsigned long)__va(offset), size, flags) < 0) {
 		free_memtype(offset, offset + size);
 		printk(KERN_INFO
 		"%s:%d /dev/mem ioremap_change_attr failed %s for %Lx-%Lx\n",
@@ -632,7 +622,7 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 				int strict_prot)
 {
 	int is_ram = 0;
-	int ret;
+	int id_sz, ret;
 	unsigned long flags;
 	unsigned long want_flags = (pgprot_val(*vma_prot) & _PAGE_CACHE_MASK);
 
@@ -673,7 +663,15 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 				     flags);
 	}
 
-	if (kernel_map_sync_memtype(paddr, size, flags)) {
+	/* Need to keep identity mapping in sync */
+	if (paddr >= __pa(high_memory))
+		return 0;
+
+	id_sz = (__pa(high_memory) < paddr + size) ?
+				__pa(high_memory) - paddr :
+				size;
+
+	if (ioremap_change_attr((unsigned long)__va(paddr), id_sz, flags) < 0) {
 		free_memtype(paddr, paddr + size);
 		printk(KERN_ERR
 			"%s:%d reserve_pfn_range ioremap_change_attr failed %s "

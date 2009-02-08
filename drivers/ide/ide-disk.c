@@ -633,7 +633,7 @@ static void ide_disk_setup(ide_drive_t *drive)
 	printk(KERN_INFO "%s: max request size: %dKiB\n", drive->name,
 		q->max_sectors / 2);
 
-	if (ata_id_is_ssd(id) || ata_id_is_cfa(id))
+	if (ata_id_is_ssd(id))
 		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
 
 	/* calculate drive capacity, and select LBA if possible */

@@ -1451,7 +1451,14 @@ static const struct snd_soc_dai wm8753_all_dai[] = {
 },
 };
 
-struct snd_soc_dai wm8753_dai[2];
+struct snd_soc_dai wm8753_dai[] = {
+	{
+		.name = "WM8753 DAI 0",
+	},
+	{
+		.name = "WM8753 DAI 1",
+	},
+};
 EXPORT_SYMBOL_GPL(wm8753_dai);
 
 static void wm8753_set_dai_mode(struct snd_soc_codec *codec, unsigned int mode)

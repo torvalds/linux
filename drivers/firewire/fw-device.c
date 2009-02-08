@@ -25,6 +25,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/idr.h>
+#include <linux/jiffies.h>
 #include <linux/string.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
@@ -634,26 +635,6 @@ struct fw_device *fw_device_get_by_devt(dev_t devt)
 	return device;
 }
 
-static void fw_device_shutdown(struct work_struct *work)
-{
-	struct fw_device *device =
-		container_of(work, struct fw_device, work.work);
-	int minor = MINOR(device->device.devt);
-
-	fw_device_cdev_remove(device);
-	device_for_each_child(&device->device, NULL, shutdown_unit);
-	device_unregister(&device->device);
-
-	down_write(&fw_device_rwsem);
-	idr_remove(&fw_device_idr, minor);
-	up_write(&fw_device_rwsem);
-	fw_device_put(device);
-}
-
-static struct device_type fw_device_type = {
-	.release	= fw_device_release,
-};
-
 /*
  * These defines control the retry behavior for reading the config
  * rom.  It shouldn't be necessary to tweak these; if the device
@@ -668,11 +649,97 @@ static struct device_type fw_device_type = {
 #define MAX_RETRIES	10
 #define RETRY_DELAY	(3 * HZ)
 #define INITIAL_DELAY	(HZ / 2)
+#define SHUTDOWN_DELAY	(2 * HZ)
+
+static void fw_device_shutdown(struct work_struct *work)
+{
+	struct fw_device *device =
+		container_of(work, struct fw_device, work.work);
+	int minor = MINOR(device->device.devt);
+
+	if (time_is_after_jiffies(device->card->reset_jiffies + SHUTDOWN_DELAY)
+	    && !list_empty(&device->card->link)) {
+		schedule_delayed_work(&device->work, SHUTDOWN_DELAY);
+		return;
+	}
+
+	if (atomic_cmpxchg(&device->state,
+			   FW_DEVICE_GONE,
+			   FW_DEVICE_SHUTDOWN) != FW_DEVICE_GONE)
+		return;
+
+	fw_device_cdev_remove(device);
+	device_for_each_child(&device->device, NULL, shutdown_unit);
+	device_unregister(&device->device);
+
+	down_write(&fw_device_rwsem);
+	idr_remove(&fw_device_idr, minor);
+	up_write(&fw_device_rwsem);
+
+	fw_device_put(device);
+}
+
+static struct device_type fw_device_type = {
+	.release	= fw_device_release,
+};
+
+static void fw_device_update(struct work_struct *work);
+
+/*
+ * If a device was pending for deletion because its node went away but its
+ * bus info block and root directory header matches that of a newly discovered
+ * device, revive the existing fw_device.
+ * The newly allocated fw_device becomes obsolete instead.
+ */
+static int lookup_existing_device(struct device *dev, void *data)
+{
+	struct fw_device *old = fw_device(dev);
+	struct fw_device *new = data;
+	struct fw_card *card = new->card;
+	int match = 0;
+
+	down_read(&fw_device_rwsem); /* serialize config_rom access */
+	spin_lock_irq(&card->lock);  /* serialize node access */
+
+	if (memcmp(old->config_rom, new->config_rom, 6 * 4) == 0 &&
+	    atomic_cmpxchg(&old->state,
+			   FW_DEVICE_GONE,
+			   FW_DEVICE_RUNNING) == FW_DEVICE_GONE) {
+		struct fw_node *current_node = new->node;
+		struct fw_node *obsolete_node = old->node;
+
+		new->node = obsolete_node;
+		new->node->data = new;
+		old->node = current_node;
+		old->node->data = old;
+
+		old->max_speed = new->max_speed;
+		old->node_id = current_node->node_id;
+		smp_wmb();  /* update node_id before generation */
+		old->generation = card->generation;
+		old->config_rom_retries = 0;
+		fw_notify("rediscovered device %s\n", dev_name(dev));
+
+		PREPARE_DELAYED_WORK(&old->work, fw_device_update);
+		schedule_delayed_work(&old->work, 0);
+
+		if (current_node == card->root_node)
+			fw_schedule_bm_work(card, 0);
+
+		match = 1;
+	}
+
+	spin_unlock_irq(&card->lock);
+	up_read(&fw_device_rwsem);
+
+	return match;
+}
 
 static void fw_device_init(struct work_struct *work)
 {
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
+	struct device *revived_dev;
 	int minor, err;
 
 	/*
@@ -693,6 +760,15 @@ static void fw_device_init(struct work_struct *work)
 				fw_schedule_bm_work(device->card, 0);
 			fw_device_release(&device->device);
 		}
+		return;
+	}
+
+	revived_dev = device_find_child(device->card->device,
+					device, lookup_existing_device);
+	if (revived_dev) {
+		put_device(revived_dev);
+		fw_device_release(&device->device);
+
 		return;
 	}
 
@@ -734,9 +810,10 @@ static void fw_device_init(struct work_struct *work)
 	 * fw_node_event().
 	 */
 	if (atomic_cmpxchg(&device->state,
-		    FW_DEVICE_INITIALIZING,
-		    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN) {
-		fw_device_shutdown(work);
+			   FW_DEVICE_INITIALIZING,
+			   FW_DEVICE_RUNNING) == FW_DEVICE_GONE) {
+		PREPARE_DELAYED_WORK(&device->work, fw_device_shutdown);
+		schedule_delayed_work(&device->work, SHUTDOWN_DELAY);
 	} else {
 		if (device->config_rom_retries)
 			fw_notify("created device %s: GUID %08x%08x, S%d00, "
@@ -847,8 +924,8 @@ static void fw_device_refresh(struct work_struct *work)
 
 	case REREAD_BIB_UNCHANGED:
 		if (atomic_cmpxchg(&device->state,
-			    FW_DEVICE_INITIALIZING,
-			    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN)
+				   FW_DEVICE_INITIALIZING,
+				   FW_DEVICE_RUNNING) == FW_DEVICE_GONE)
 			goto gone;
 
 		fw_device_update(work);
@@ -879,8 +956,8 @@ static void fw_device_refresh(struct work_struct *work)
 	create_units(device);
 
 	if (atomic_cmpxchg(&device->state,
-		    FW_DEVICE_INITIALIZING,
-		    FW_DEVICE_RUNNING) == FW_DEVICE_SHUTDOWN)
+			   FW_DEVICE_INITIALIZING,
+			   FW_DEVICE_RUNNING) == FW_DEVICE_GONE)
 		goto gone;
 
 	fw_notify("refreshed device %s\n", dev_name(&device->device));
@@ -890,8 +967,9 @@ static void fw_device_refresh(struct work_struct *work)
  give_up:
 	fw_notify("giving up on refresh of device %s\n", dev_name(&device->device));
  gone:
-	atomic_set(&device->state, FW_DEVICE_SHUTDOWN);
-	fw_device_shutdown(work);
+	atomic_set(&device->state, FW_DEVICE_GONE);
+	PREPARE_DELAYED_WORK(&device->work, fw_device_shutdown);
+	schedule_delayed_work(&device->work, SHUTDOWN_DELAY);
  out:
 	if (node_id == card->root_node->node_id)
 		fw_schedule_bm_work(card, 0);
@@ -995,9 +1073,10 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		 */
 		device = node->data;
 		if (atomic_xchg(&device->state,
-				FW_DEVICE_SHUTDOWN) == FW_DEVICE_RUNNING) {
+				FW_DEVICE_GONE) == FW_DEVICE_RUNNING) {
 			PREPARE_DELAYED_WORK(&device->work, fw_device_shutdown);
-			schedule_delayed_work(&device->work, 0);
+			schedule_delayed_work(&device->work,
+				list_empty(&card->link) ? 0 : SHUTDOWN_DELAY);
 		}
 		break;
 	}

@@ -12,11 +12,11 @@ file at first.
 
 ==================================
 これは、
-linux-2.6.24/Documentation/stable_kernel_rules.txt
+linux-2.6.29/Documentation/stable_kernel_rules.txt
 の和訳です。
 
 翻訳団体： JF プロジェクト < http://www.linux.or.jp/JF/ >
-翻訳日： 2007/12/30
+翻訳日： 2009/1/14
 翻訳者： Tsugikazu Shibata <tshibata at ab dot jp dot nec dot com>
 校正者： 武井伸光さん、<takei at webmasters dot gr dot jp>
          かねこさん (Seiji Kaneko) <skaneko at a2 dot mbn dot or dot jp>
@@ -38,12 +38,15 @@ linux-2.6.24/Documentation/stable_kernel_rules.txt
  - ビルドエラー(CONFIG_BROKENになっているものを除く), oops, ハング、デー
    タ破壊、現実のセキュリティ問題、その他 "ああ、これはダメだね"という
    ようなものを修正しなければならない。短く言えば、重大な問題。
+ - 新しい device ID とクオークも受け入れられる。
  - どのように競合状態が発生するかの説明も一緒に書かれていない限り、
    "理論的には競合状態になる"ようなものは不可。
  - いかなる些細な修正も含めることはできない。(スペルの修正、空白のクリー
    ンアップなど)
- - 対応するサブシステムメンテナが受け入れたものでなければならない。
  - Documentation/SubmittingPatches の規則に従ったものでなければならない。
+ - パッチ自体か同等の修正が Linus のツリーに既に存在しなければならない。
+　 Linus のツリーでのコミットID を -stable へのパッチ投稿の際に引用す
+   ること。
 
 -stable ツリーにパッチを送付する手続き-
 
@@ -52,8 +55,10 @@ linux-2.6.24/Documentation/stable_kernel_rules.txt
  - 送信者はパッチがキューに受け付けられた際には ACK を、却下された場合
    には NAK を受け取る。この反応は開発者たちのスケジュールによって、数
    日かかる場合がある。
- - もし受け取られたら、パッチは他の開発者たちのレビューのために
-   -stable キューに追加される。
+ - もし受け取られたら、パッチは他の開発者たちと関連するサブシステムの
+   メンテナーによるレビューのために -stable キューに追加される。
+ - パッチに stable@kernel.org のアドレスが付加されているときには、それ
+   が Linus のツリーに入る時に自動的に stable チームに email される。
  - セキュリティパッチはこのエイリアス (stable@kernel.org) に送られるべ
    きではなく、代わりに security@kernel.org のアドレスに送られる。
 

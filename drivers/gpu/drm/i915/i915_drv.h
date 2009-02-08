@@ -72,6 +72,18 @@ enum pipe {
 #define WATCH_INACTIVE	0
 #define WATCH_PWRITE	0
 
+#define I915_GEM_PHYS_CURSOR_0 1
+#define I915_GEM_PHYS_CURSOR_1 2
+#define I915_GEM_PHYS_OVERLAY_REGS 3
+#define I915_MAX_PHYS_OBJECT (I915_GEM_PHYS_OVERLAY_REGS)
+
+struct drm_i915_gem_phys_object {
+	int id;
+	struct page **page_list;
+	drm_dma_handle_t *handle;
+	struct drm_gem_object *cur_obj;
+};
+
 typedef struct _drm_i915_ring_buffer {
 	int tail_mask;
 	unsigned long Size;
@@ -358,6 +370,9 @@ typedef struct drm_i915_private {
 		uint32_t bit_6_swizzle_x;
 		/** Bit 6 swizzling required for Y tiling */
 		uint32_t bit_6_swizzle_y;
+
+		/* storage for physical objects */
+		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
 	} mm;
 } drm_i915_private_t;
 
@@ -436,6 +451,9 @@ struct drm_i915_gem_object {
 	/** User space pin count and filp owning the pin */
 	uint32_t user_pin_count;
 	struct drm_file *pin_filp;
+
+	/** for phy allocated objects */
+	struct drm_i915_gem_phys_object *phys_obj;
 };
 
 /**
@@ -598,6 +616,11 @@ int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
+int i915_gem_attach_phys_object(struct drm_device *dev,
+				struct drm_gem_object *obj, int id);
+void i915_gem_detach_phys_object(struct drm_device *dev,
+				 struct drm_gem_object *obj);
+void i915_gem_free_all_phys_object(struct drm_device *dev);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
