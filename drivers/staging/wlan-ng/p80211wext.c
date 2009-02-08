@@ -740,9 +740,9 @@ static int p80211wext_siwessid(netdevice_t *dev,
 	memcpy(msg.ssid.data.data, essid, length);
 	msg.ssid.data.len = length;
 
-	WLAN_LOG_DEBUG(1,"autojoin_ssid for %s \n",essid);
+	pr_debug("autojoin_ssid for %s \n",essid);
 	result = p80211req_dorequest(wlandev, (u8*)&msg);
-        WLAN_LOG_DEBUG(1,"autojoin_ssid %d\n",result);
+        pr_debug("autojoin_ssid %d\n",result);
 
 	if (result) {
 		err = -EFAULT;
@@ -1331,12 +1331,12 @@ wext_translate_bss(struct iw_request_info *info, char *current_ev,
 		size = min_t(unsigned short, IW_ESSID_MAX_SIZE, bss->ssid.data.len);
 		memset(&essid, 0, sizeof (essid));
 		memcpy(&essid, bss->ssid.data.data, size);
-		WLAN_LOG_DEBUG(1, " essid size = %d\n", size);
+		pr_debug(" essid size = %d\n", size);
 		iwe.u.data.length = size;
 		iwe.u.data.flags = 1;
 		iwe.cmd = SIOCGIWESSID;
 		current_ev = iwe_stream_add_point(info, current_ev, end_buf, &iwe, &essid[0]);
-		WLAN_LOG_DEBUG(1, " essid size OK.\n");
+		pr_debug(" essid size OK.\n");
 	}
 
 	switch (bss->bsstype.data) {
@@ -1441,7 +1441,7 @@ static int p80211wext_set_encodeext(struct net_device *dev,
   struct iw_point *encoding = &wrqu->encoding;
   int idx = encoding->flags & IW_ENCODE_INDEX;
 
-  WLAN_LOG_DEBUG(1,"set_encode_ext flags[%d] alg[%d] keylen[%d]\n",ext->ext_flags,(int)ext->alg,(int)ext->key_len);
+  pr_debug("set_encode_ext flags[%d] alg[%d] keylen[%d]\n",ext->ext_flags,(int)ext->alg,(int)ext->key_len);
 
 
   if ( ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY ) {
@@ -1453,7 +1453,7 @@ static int p80211wext_set_encodeext(struct net_device *dev,
       } else
 	idx--;
     }
-    WLAN_LOG_DEBUG(1,"setting default key (%d)\n",idx);
+    pr_debug("setting default key (%d)\n",idx);
     result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID, idx);
     if ( result )
       return -EFAULT;
@@ -1462,7 +1462,7 @@ static int p80211wext_set_encodeext(struct net_device *dev,
 
   if ( ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY ) {
     if (!(ext->alg & IW_ENCODE_ALG_WEP)) {
-      WLAN_LOG_DEBUG(1,"asked to set a non wep key :(");
+      pr_debug("asked to set a non wep key :(");
       return -EINVAL;
     }
     if (idx) {
@@ -1471,7 +1471,7 @@ static int p80211wext_set_encodeext(struct net_device *dev,
       else
 	idx--;
     }
-    WLAN_LOG_DEBUG(1,"Set WEP key (%d)\n",idx);
+    pr_debug("Set WEP key (%d)\n",idx);
     wlandev->wep_keylens[idx] = ext->key_len;
     memcpy(wlandev->wep_keys[idx], ext->key, ext->key_len);
 
@@ -1497,7 +1497,7 @@ static int p80211wext_set_encodeext(struct net_device *dev,
     }
     msg.msgcode = DIDmsg_dot11req_mibset;
     result = p80211req_dorequest(wlandev,(u8*)&msg);
-    WLAN_LOG_DEBUG(1,"result (%d)\n",result);
+    pr_debug("result (%d)\n",result);
   }
   return result;
 }
@@ -1516,22 +1516,22 @@ static int p80211wext_get_encodeext(struct net_device *dev,
 	int max_len;
 	int idx;
 
-	WLAN_LOG_DEBUG(1,"get_encode_ext flags[%d] alg[%d] keylen[%d]\n",ext->ext_flags,(int)ext->alg,(int)ext->key_len);
+	pr_debug("get_encode_ext flags[%d] alg[%d] keylen[%d]\n",ext->ext_flags,(int)ext->alg,(int)ext->key_len);
 
 
 	max_len = encoding->length - sizeof(*ext);
 	if ( max_len <= 0) {
-		WLAN_LOG_DEBUG(1,"get_encodeext max_len [%d] invalid\n",max_len);
+		pr_debug("get_encodeext max_len [%d] invalid\n",max_len);
 		result = -EINVAL;
 		goto exit;
 	}
 	idx = encoding->flags & IW_ENCODE_INDEX;
 
-	WLAN_LOG_DEBUG(1,"get_encode_ext index [%d]\n",idx);
+	pr_debug("get_encode_ext index [%d]\n",idx);
 
 	if (idx) {
 		if (idx < 1 || idx > NUM_WEPKEYS ) {
-			WLAN_LOG_DEBUG(1,"get_encode_ext invalid key index [%d]\n",idx);
+			pr_debug("get_encode_ext invalid key index [%d]\n",idx);
 			result = -EINVAL;
 			goto exit;
 		}
@@ -1563,11 +1563,11 @@ static int p80211_wext_set_iwauth (struct net_device *dev,
   struct iw_param *param = &wrqu->param;
   int result =0;
 
-  WLAN_LOG_DEBUG(1,"set_iwauth flags[%d]\n",(int)param->flags & IW_AUTH_INDEX );
+  pr_debug("set_iwauth flags[%d]\n",(int)param->flags & IW_AUTH_INDEX );
 
   switch (param->flags & IW_AUTH_INDEX) {
   case IW_AUTH_DROP_UNENCRYPTED:
-    WLAN_LOG_DEBUG(1,"drop_unencrypted %d\n",param->value);
+    pr_debug("drop_unencrypted %d\n",param->value);
     if (param->value)
       result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted, P80211ENUM_truth_true);
     else
@@ -1575,7 +1575,7 @@ static int p80211_wext_set_iwauth (struct net_device *dev,
     break;
 
   case IW_AUTH_PRIVACY_INVOKED:
-    WLAN_LOG_DEBUG(1,"privacy invoked %d\n",param->value);
+    pr_debug("privacy invoked %d\n",param->value);
     if ( param->value)
       result = p80211wext_dorequest(wlandev, DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked, P80211ENUM_truth_true);
     else
@@ -1585,14 +1585,14 @@ static int p80211_wext_set_iwauth (struct net_device *dev,
 
   case IW_AUTH_80211_AUTH_ALG:
     if ( param->value & IW_AUTH_ALG_OPEN_SYSTEM ) {
-      WLAN_LOG_DEBUG(1,"set open_system\n");
+      pr_debug("set open_system\n");
       wlandev->hostwep &= ~HOSTWEP_SHAREDKEY;
     } else if ( param->value & IW_AUTH_ALG_SHARED_KEY) {
-      WLAN_LOG_DEBUG(1,"set shared key\n");
+      pr_debug("set shared key\n");
       wlandev->hostwep |= HOSTWEP_SHAREDKEY;
     } else {
       /* don't know what to do know :( */
-      WLAN_LOG_DEBUG(1,"unknown AUTH_ALG (%d)\n",param->value);
+      pr_debug("unknown AUTH_ALG (%d)\n",param->value);
       result = -EINVAL;
     }
     break;
@@ -1615,7 +1615,7 @@ static int p80211_wext_get_iwauth (struct net_device *dev,
   struct iw_param *param = &wrqu->param;
   int result =0;
 
-  WLAN_LOG_DEBUG(1,"get_iwauth flags[%d]\n",(int)param->flags & IW_AUTH_INDEX );
+  pr_debug("get_iwauth flags[%d]\n",(int)param->flags & IW_AUTH_INDEX );
 
   switch (param->flags & IW_AUTH_INDEX) {
   case IW_AUTH_DROP_UNENCRYPTED:

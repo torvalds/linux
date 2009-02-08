@@ -359,20 +359,20 @@ get_active_ctlx(hfa384x_t *hw)
 void
 dbprint_urb(struct urb* urb)
 {
-	WLAN_LOG_DEBUG(3,"urb->pipe=0x%08x\n", urb->pipe);
-	WLAN_LOG_DEBUG(3,"urb->status=0x%08x\n", urb->status);
-	WLAN_LOG_DEBUG(3,"urb->transfer_flags=0x%08x\n", urb->transfer_flags);
-	WLAN_LOG_DEBUG(3,"urb->transfer_buffer=0x%08x\n", (unsigned int)urb->transfer_buffer);
-	WLAN_LOG_DEBUG(3,"urb->transfer_buffer_length=0x%08x\n", urb->transfer_buffer_length);
-	WLAN_LOG_DEBUG(3,"urb->actual_length=0x%08x\n", urb->actual_length);
-	WLAN_LOG_DEBUG(3,"urb->bandwidth=0x%08x\n", urb->bandwidth);
-	WLAN_LOG_DEBUG(3,"urb->setup_packet(ctl)=0x%08x\n", (unsigned int)urb->setup_packet);
-	WLAN_LOG_DEBUG(3,"urb->start_frame(iso/irq)=0x%08x\n", urb->start_frame);
-	WLAN_LOG_DEBUG(3,"urb->interval(irq)=0x%08x\n", urb->interval);
-	WLAN_LOG_DEBUG(3,"urb->error_count(iso)=0x%08x\n", urb->error_count);
-	WLAN_LOG_DEBUG(3,"urb->timeout=0x%08x\n", urb->timeout);
-	WLAN_LOG_DEBUG(3,"urb->context=0x%08x\n", (unsigned int)urb->context);
-	WLAN_LOG_DEBUG(3,"urb->complete=0x%08x\n", (unsigned int)urb->complete);
+	pr_debug("urb->pipe=0x%08x\n", urb->pipe);
+	pr_debug("urb->status=0x%08x\n", urb->status);
+	pr_debug("urb->transfer_flags=0x%08x\n", urb->transfer_flags);
+	pr_debug("urb->transfer_buffer=0x%08x\n", (unsigned int)urb->transfer_buffer);
+	pr_debug("urb->transfer_buffer_length=0x%08x\n", urb->transfer_buffer_length);
+	pr_debug("urb->actual_length=0x%08x\n", urb->actual_length);
+	pr_debug("urb->bandwidth=0x%08x\n", urb->bandwidth);
+	pr_debug("urb->setup_packet(ctl)=0x%08x\n", (unsigned int)urb->setup_packet);
+	pr_debug("urb->start_frame(iso/irq)=0x%08x\n", urb->start_frame);
+	pr_debug("urb->interval(irq)=0x%08x\n", urb->interval);
+	pr_debug("urb->error_count(iso)=0x%08x\n", urb->error_count);
+	pr_debug("urb->timeout=0x%08x\n", urb->timeout);
+	pr_debug("urb->context=0x%08x\n", (unsigned int)urb->context);
+	pr_debug("urb->complete=0x%08x\n", (unsigned int)urb->complete);
 }
 #endif
 
@@ -725,7 +725,7 @@ usbctlx_get_status(const hfa384x_usb_cmdresp_t *cmdresp,
 	result->resp1 = hfa384x2host_16(cmdresp->resp1);
 	result->resp2 = hfa384x2host_16(cmdresp->resp2);
 
-	WLAN_LOG_DEBUG(4, "cmdresult:status=0x%04x "
+	pr_debug("cmdresult:status=0x%04x "
 	                  "resp0=0x%04x resp1=0x%04x resp2=0x%04x\n",
 	                result->status,
 	                result->resp0,
@@ -860,7 +860,7 @@ static int usbctlx_rmem_completor_fn(usbctlx_completor_t *head)
 {
 	usbctlx_rmem_completor_t *complete = (usbctlx_rmem_completor_t*)head;
 
-	WLAN_LOG_DEBUG(4,"rmemresp:len=%d\n", complete->rmemresp->frmlen);
+	pr_debug("rmemresp:len=%d\n", complete->rmemresp->frmlen);
 	memcpy(complete->data, complete->rmemresp->data, complete->len);
 	return 0;
 }
@@ -1095,7 +1095,7 @@ hfa384x_cmd_initialize(hfa384x_t *hw)
 	result = hfa384x_docmd_wait(hw, &cmd);
 
 
-	WLAN_LOG_DEBUG(3,"cmdresp.init: "
+	pr_debug("cmdresp.init: "
 		"status=0x%04x, resp0=0x%04x, "
 		"resp1=0x%04x, resp2=0x%04x\n",
 		cmd.result.status,
@@ -1277,7 +1277,7 @@ int hfa384x_cmd_download(hfa384x_t *hw, u16 mode, u16 lowaddr,
 	int	result = 0;
 	hfa384x_metacmd_t cmd;
 
-	WLAN_LOG_DEBUG(5,
+	printk(KERN_DEBUG
 		"mode=%d, lowaddr=0x%04x, highaddr=0x%04x, codelen=%d\n",
 		mode, lowaddr, highaddr, codelen);
 
@@ -1564,7 +1564,7 @@ hfa384x_docmd(
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.cmdreq);
 
-	WLAN_LOG_DEBUG(4, "cmdreq: cmd=0x%04x "
+	pr_debug("cmdreq: cmd=0x%04x "
 		"parm0=0x%04x parm1=0x%04x parm2=0x%04x\n",
 		cmd->cmd,
 		cmd->parm0,
@@ -1836,14 +1836,14 @@ hfa384x_dormem(
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.rmemreq);
 
-	WLAN_LOG_DEBUG(4,
+	pr_debug(
 		"type=0x%04x frmlen=%d offset=0x%04x page=0x%04x\n",
 		ctlx->outbuf.rmemreq.type,
 		ctlx->outbuf.rmemreq.frmlen,
 		ctlx->outbuf.rmemreq.offset,
 		ctlx->outbuf.rmemreq.page);
 
-	WLAN_LOG_DEBUG(4,"pktsize=%zd\n",
+	pr_debug("pktsize=%zd\n",
 		ROUNDUP64(sizeof(ctlx->outbuf.rmemreq)));
 
 	ctlx->reapable = mode;
@@ -1918,7 +1918,7 @@ hfa384x_dowmem(
 	int			result;
 	hfa384x_usbctlx_t	*ctlx;
 
-	WLAN_LOG_DEBUG(5, "page=0x%04x offset=0x%04x len=%d\n",
+	pr_debug("page=0x%04x offset=0x%04x len=%d\n",
 		page,offset,len);
 
 	ctlx = usbctlx_alloc();
@@ -2109,7 +2109,7 @@ int hfa384x_drvr_flashdl_enable(hfa384x_t *hw)
 	/* Check that a port isn't active */
 	for ( i = 0; i < HFA384x_PORTID_MAX; i++) {
 		if ( hw->port_enabled[i] ) {
-			WLAN_LOG_DEBUG(1,"called when port enabled.\n");
+			pr_debug("called when port enabled.\n");
 			return -EINVAL;
 		}
 	}
@@ -2133,7 +2133,7 @@ int hfa384x_drvr_flashdl_enable(hfa384x_t *hw)
 	}
 	hw->dltimeout = hfa384x2host_16(hw->dltimeout);
 
-	WLAN_LOG_DEBUG(1,"flashdl_enable\n");
+	pr_debug("flashdl_enable\n");
 
 	hw->dlstate = HFA384x_DLSTATE_FLASHENABLED;
 
@@ -2167,7 +2167,7 @@ int hfa384x_drvr_flashdl_disable(hfa384x_t *hw)
 		return -EINVAL;
 	}
 
-	WLAN_LOG_DEBUG(1,"flashdl_enable\n");
+	pr_debug("flashdl_enable\n");
 
 	/* There isn't much we can do at this point, so I don't */
 	/*  bother  w/ the return value */
@@ -2229,7 +2229,7 @@ hfa384x_drvr_flashdl_write(
 	int		i;
 	int		j;
 
-	WLAN_LOG_DEBUG(5,"daddr=0x%08x len=%d\n", daddr, len);
+	pr_debug("daddr=0x%08x len=%d\n", daddr, len);
 
 	/* Check that we're in the flash download state */
 	if ( hw->dlstate != HFA384x_DLSTATE_FLASHENABLED ) {
@@ -2242,7 +2242,7 @@ hfa384x_drvr_flashdl_write(
 	/* NOTE: dlbuffer RID stores the address in AUX format */
 	dlbufaddr = HFA384x_ADDR_AUX_MKFLAT(
 			hw->bufinfo.page, hw->bufinfo.offset);
-	WLAN_LOG_DEBUG(5,
+	pr_debug(
 		"dlbuf.page=0x%04x dlbuf.offset=0x%04x dlbufaddr=0x%08x\n",
 		hw->bufinfo.page, hw->bufinfo.offset, dlbufaddr);
 
@@ -2496,7 +2496,7 @@ hfa384x_drvr_ramdl_disable(hfa384x_t *hw)
 		return -EINVAL;
 	}
 
-	WLAN_LOG_DEBUG(3,"ramdl_disable()\n");
+	pr_debug("ramdl_disable()\n");
 
 	/* There isn't much we can do at this point, so I don't */
 	/*  bother  w/ the return value */
@@ -2555,7 +2555,7 @@ hfa384x_drvr_ramdl_enable(hfa384x_t *hw, u32 exeaddr)
 		return -EINVAL;
 	}
 
-	WLAN_LOG_DEBUG(3,"ramdl_enable, exeaddr=0x%08x\n", exeaddr);
+	pr_debug("ramdl_enable, exeaddr=0x%08x\n", exeaddr);
 
 	/* Call the download(1,addr) function */
 	lowaddr = HFA384x_ADDR_CMD_MKOFF(exeaddr);
@@ -2568,7 +2568,7 @@ hfa384x_drvr_ramdl_enable(hfa384x_t *hw, u32 exeaddr)
 		/* Set the download state */
 		hw->dlstate = HFA384x_DLSTATE_RAMENABLED;
 	} else {
-		WLAN_LOG_DEBUG(1,
+		pr_debug(
 			"cmd_download(0x%04x, 0x%04x) failed, result=%d.\n",
 			lowaddr,
 			hiaddr,
@@ -2773,7 +2773,7 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len)
 	result = pdaok ? 0 : -ENODATA;
 
 	if ( result ) {
-		WLAN_LOG_DEBUG(3,"Failure: pda is not okay\n");
+		pr_debug("Failure: pda is not okay\n");
 	}
 
 	return result;
@@ -2893,9 +2893,9 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 			usb_kill_urb(&hw->rx_urb);
 			goto done;
 		} else {
-			WLAN_LOG_DEBUG(0, "First cmd_initialize() failed (result %d),\n",
+			pr_debug("First cmd_initialize() failed (result %d),\n",
 				result1);
-			WLAN_LOG_DEBUG(0, "but second attempt succeeded. All should be ok\n");
+			pr_debug("but second attempt succeeded. All should be ok\n");
 		}
 	} else if (result2 != 0) {
 		printk(KERN_WARNING
@@ -3490,18 +3490,18 @@ static void hfa384x_usbin_callback(struct urb *urb)
 
 	case -ENODEV:
 	case -ESHUTDOWN:
-		WLAN_LOG_DEBUG(3,"status=%d, device removed.\n", urb->status);
+		pr_debug("status=%d, device removed.\n", urb->status);
 		action = ABORT;
 		break;
 
 	case -ENOENT:
 	case -ECONNRESET:
-		WLAN_LOG_DEBUG(3,"status=%d, urb explicitly unlinked.\n", urb->status);
+		pr_debug("status=%d, urb explicitly unlinked.\n", urb->status);
 		action = ABORT;
 		break;
 
 	default:
-		WLAN_LOG_DEBUG(3,"urb status=%d, transfer flags=0x%x\n",
+		pr_debug("urb status=%d, transfer flags=0x%x\n",
 		                 urb->status, urb->transfer_flags);
 		++(wlandev->linux_stats.rx_errors);
 		action = RESUBMIT;
@@ -3561,17 +3561,17 @@ static void hfa384x_usbin_callback(struct urb *urb)
 		break;
 
 	case HFA384x_USB_BUFAVAIL:
-		WLAN_LOG_DEBUG(3,"Received BUFAVAIL packet, frmlen=%d\n",
+		pr_debug("Received BUFAVAIL packet, frmlen=%d\n",
 			usbin->bufavail.frmlen);
 		break;
 
 	case HFA384x_USB_ERROR:
-		WLAN_LOG_DEBUG(3,"Received USB_ERROR packet, errortype=%d\n",
+		pr_debug("Received USB_ERROR packet, errortype=%d\n",
 			usbin->usberror.errortype);
 		break;
 
 	default:
-		WLAN_LOG_DEBUG(3,"Unrecognized USBIN packet, type=%x, status=%d\n",
+		pr_debug("Unrecognized USBIN packet, type=%x, status=%d\n",
 			usbin->type, urb_status);
 		break;
 	} /* switch */
@@ -3670,7 +3670,7 @@ retry:
 			 * our request has been acknowledged. Odd,
 			 * but our OUT URB is still alive...
 			 */
-			WLAN_LOG_DEBUG(0, "Causality violation: please reboot Universe, or email linux-wlan-devel@lists.linux-wlan.com\n");
+			pr_debug("Causality violation: please reboot Universe, or email linux-wlan-devel@lists.linux-wlan.com\n");
 			ctlx->state = CTLX_RESP_COMPLETE;
 			break;
 
@@ -3828,7 +3828,7 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 			hfa384x_int_rxmonitor( wlandev, &usbin->rxfrm);
 			dev_kfree_skb(skb);
 		} else {
-			WLAN_LOG_DEBUG(3,"Received monitor frame: FCSerr set\n");
+			pr_debug("Received monitor frame: FCSerr set\n");
 		}
 		break;
 
@@ -3889,7 +3889,7 @@ static void hfa384x_int_rxmonitor( wlandevice_t *wlandev, hfa384x_usb_rxfrm_t *r
 	if ( skblen >
 	     (sizeof(p80211_caphdr_t) +
 	      WLAN_HDR_A4_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN) ) {
-		WLAN_LOG_DEBUG(1, "overlen frm: len=%zd\n",
+		pr_debug("overlen frm: len=%zd\n",
 			       skblen - sizeof(p80211_caphdr_t));
 	}
 
@@ -4076,7 +4076,7 @@ static void hfa384x_ctlxout_callback(struct urb *urb)
 	hfa384x_usbctlx_t	*ctlx;
 	unsigned long	flags;
 
-	WLAN_LOG_DEBUG(3,"urb->status=%d\n", urb->status);
+	pr_debug("urb->status=%d\n", urb->status);
 #ifdef DEBUG_USB
 	dbprint_urb(urb);
 #endif
@@ -4324,7 +4324,7 @@ hfa384x_usb_throttlefn(unsigned long data)
 	 * We need to check BOTH the RX and the TX throttle controls,
 	 * so we use the bitwise OR instead of the logical OR.
 	 */
-	WLAN_LOG_DEBUG(3, "flags=0x%lx\n", hw->usb_flags);
+	pr_debug("flags=0x%lx\n", hw->usb_flags);
 	if ( !hw->wlandev->hwremoved &&
 	     (
 	       (test_and_clear_bit(THROTTLE_RX, &hw->usb_flags) &&
@@ -4464,14 +4464,14 @@ hfa384x_isgood_pdrcode(u16 pdrcode)
 	default:
 		if ( pdrcode < 0x1000 ) {
 			/* code is OK, but we don't know exactly what it is */
-			WLAN_LOG_DEBUG(3,
+			pr_debug(
 				"Encountered unknown PDR#=0x%04x, "
 				"assuming it's ok.\n",
 				pdrcode);
 			return 1;
 		} else {
 			/* bad code */
-			WLAN_LOG_DEBUG(3,
+			pr_debug(
 				"Encountered unknown PDR#=0x%04x, "
 				"(>=0x1000), assuming it's bad.\n",
 				pdrcode);

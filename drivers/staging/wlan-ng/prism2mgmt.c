@@ -284,8 +284,6 @@ int prism2mgmt_scan(wlandevice_t *wlandev, void *msgp)
         /* Issue the scan request */
         hw->scanflag = 0;
 
-	WLAN_HEX_DUMP(5,"hscanreq", &scanreq, sizeof(scanreq));
-
         result = hfa384x_drvr_setconfig( hw,
                         HFA384x_RID_HOSTSCAN, &scanreq,
                         sizeof(hfa384x_HostScanRequest_data_t));
@@ -385,7 +383,7 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 	if (count > 32)  count = 32;
 
 	if (req->bssindex.data >= count) {
-		WLAN_LOG_DEBUG(0, "requested index (%d) out of range (%d)\n",
+		pr_debug("requested index (%d) out of range (%d)\n",
 				req->bssindex.data, count);
 		result = 2;
 		req->resultcode.data = P80211ENUM_resultcode_invalid_parameters;
@@ -667,7 +665,7 @@ int prism2mgmt_start(wlandevice_t *wlandev, void *msgp)
 
 	goto done;
 failed:
-	WLAN_LOG_DEBUG(1, "Failed to set a config option, result=%d\n", result);
+	pr_debug("Failed to set a config option, result=%d\n", result);
 	msg->resultcode.data = P80211ENUM_resultcode_invalid_parameters;
 
 done:
@@ -1108,7 +1106,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		/* Disable monitor mode */
 		result = hfa384x_cmd_monitor(hw, HFA384x_MONITOR_DISABLE);
 		if ( result ) {
-			WLAN_LOG_DEBUG(1,
+			pr_debug(
 				"failed to disable monitor mode, result=%d\n",
 				result);
 			goto failed;
@@ -1116,7 +1114,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		/* Disable port 0 */
 		result = hfa384x_drvr_disable(hw, 0);
 		if ( result ) {
-			WLAN_LOG_DEBUG(1,
+			pr_debug(
 			"failed to disable port 0 after sniffing, result=%d\n",
 			result);
 			goto failed;
@@ -1129,7 +1127,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 				HFA384x_RID_CNFWEPFLAGS,
 				hw->presniff_wepflags);
 		if ( result ) {
-			WLAN_LOG_DEBUG(1,
+			pr_debug(
 			"failed to restore wepflags=0x%04x, result=%d\n",
 			hw->presniff_wepflags,
 			result);
@@ -1142,7 +1140,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			result = hfa384x_drvr_setconfig16(hw,
 				HFA384x_RID_CNFPORTTYPE, word);
 			if ( result ) {
-				WLAN_LOG_DEBUG(1,
+				pr_debug(
 				"failed to restore porttype, result=%d\n",
 				result);
 				goto failed;
@@ -1151,7 +1149,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			/* Enable the port */
 			result = hfa384x_drvr_enable(hw, 0);
 			if ( result ) {
-				WLAN_LOG_DEBUG(1, "failed to enable port to presniff setting, result=%d\n", result);
+				pr_debug("failed to enable port to presniff setting, result=%d\n", result);
 				goto failed;
 			}
 		} else {
@@ -1173,7 +1171,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 								  HFA384x_RID_CNFPORTTYPE,
 								  &(hw->presniff_port_type));
 				if ( result ) {
-					WLAN_LOG_DEBUG(1,"failed to read porttype, result=%d\n", result);
+					pr_debug("failed to read porttype, result=%d\n", result);
 					goto failed;
 				}
 				/* Save the wepflags state */
@@ -1181,13 +1179,13 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 								  HFA384x_RID_CNFWEPFLAGS,
 								  &(hw->presniff_wepflags));
 				if ( result ) {
-					WLAN_LOG_DEBUG(1,"failed to read wepflags, result=%d\n", result);
+					pr_debug("failed to read wepflags, result=%d\n", result);
 					goto failed;
 				}
 				hfa384x_drvr_stop(hw);
 				result = hfa384x_drvr_start(hw);
 				if ( result ) {
-					WLAN_LOG_DEBUG(1,
+					pr_debug(
 						       "failed to restart the card for sniffing, result=%d\n",
 						       result);
 					goto failed;
@@ -1196,7 +1194,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 				/* Disable the port */
 				result = hfa384x_drvr_disable(hw, 0);
 				if ( result ) {
-					WLAN_LOG_DEBUG(1,
+					pr_debug(
 						       "failed to enable port for sniffing, result=%d\n",
 						       result);
 					goto failed;
@@ -1213,7 +1211,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		hw->sniff_channel=word;
 
 		if ( result ) {
-			WLAN_LOG_DEBUG(1,
+			pr_debug(
 				       "failed to set channel %d, result=%d\n",
 					       word,
 				       result);
@@ -1227,7 +1225,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			result = hfa384x_drvr_setconfig16(hw,
 							  HFA384x_RID_CNFPORTTYPE, word);
 			if ( result ) {
-				WLAN_LOG_DEBUG(1,
+				pr_debug(
 					       "failed to set porttype %d, result=%d\n",
 					       word,
 					       result);
@@ -1241,7 +1239,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			}
 
 			if ( result ) {
-				WLAN_LOG_DEBUG(1,
+				pr_debug(
 					       "failed to set wepflags=0x%04x, result=%d\n",
 					       word,
 					       result);
@@ -1266,7 +1264,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		/* Enable the port */
 		result = hfa384x_drvr_enable(hw, 0);
 		if ( result ) {
-			WLAN_LOG_DEBUG(1,
+			pr_debug(
 			"failed to enable port for sniffing, result=%d\n",
 			result);
 			goto failed;
@@ -1274,7 +1272,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		/* Enable monitor mode */
 		result = hfa384x_cmd_monitor(hw, HFA384x_MONITOR_ENABLE);
 		if ( result ) {
-			WLAN_LOG_DEBUG(1,
+			pr_debug(
 			"failed to enable monitor mode, result=%d\n",
 			result);
 			goto failed;

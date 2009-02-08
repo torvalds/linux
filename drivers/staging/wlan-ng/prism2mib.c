@@ -366,7 +366,7 @@ int prism2mgmt_mibset_mibget(wlandevice_t *wlandev, void *msgp)
 
 	if (msg->resultcode.data == P80211ENUM_resultcode_success) {
 		if (result != 0) {
-			WLAN_LOG_DEBUG(1, "get/set failure, result=%d\n",
+			pr_debug("get/set failure, result=%d\n",
 					result);
 			msg->resultcode.data =
 				 P80211ENUM_resultcode_implementation_failure;
@@ -1067,7 +1067,7 @@ void prism2mgmt_set_oprateset(u16 *rate, p80211pstrd_t *pstr)
 			*rate |= BIT(3);
 			break;
 		default:
-			WLAN_LOG_DEBUG(1, "Unrecoginzed Rate of %d\n",
+			pr_debug("Unrecoginzed Rate of %d\n",
 				*datarate);
 			break;
 		}

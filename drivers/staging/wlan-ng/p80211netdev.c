@@ -344,7 +344,7 @@ static void p80211netdev_rx_bh(unsigned long arg)
 					netif_rx_ni(skb);
 					continue;
 				}
-				WLAN_LOG_DEBUG(1, "p80211_to_ether failed.\n");
+				pr_debug( "p80211_to_ether failed.\n");
 			}
 		}
 		dev_kfree_skb(skb);
@@ -392,7 +392,7 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 	memset(&p80211_wep, 0, sizeof(p80211_metawep_t));
 
 	if ( netif_queue_stopped(netdev) ) {
-		WLAN_LOG_DEBUG(1, "called when queue stopped.\n");
+		pr_debug("called when queue stopped.\n");
 		result = 1;
 		goto failed;
 	}
@@ -433,7 +433,7 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 	} else {
 		if ( skb_ether_to_p80211(wlandev, wlandev->ethconv, skb, &p80211_hdr, &p80211_wep) != 0 ) {
 			/* convert failed */
-			WLAN_LOG_DEBUG(1, "ether_to_80211(%d) failed.\n",
+			pr_debug("ether_to_80211(%d) failed.\n",
 					wlandev->ethconv);
 			result = 1;
 			goto failed;
@@ -459,17 +459,17 @@ static int p80211knetdev_hard_start_xmit( struct sk_buff *skb, netdevice_t *netd
 		result = 0;
 	} else if ( txresult == 1 ) {
 		/* success, no more avail */
-		WLAN_LOG_DEBUG(3, "txframe success, no more bufs\n");
+		pr_debug("txframe success, no more bufs\n");
 		/* netdev->tbusy = 1;  don't set here, irqhdlr */
 		/*   may have already cleared it */
 		result = 0;
 	} else if ( txresult == 2 ) {
 		/* alloc failure, drop frame */
-		WLAN_LOG_DEBUG(3, "txframe returned alloc_fail\n");
+		pr_debug("txframe returned alloc_fail\n");
 		result = 1;
 	} else {
 		/* buffer full or queue busy, drop frame. */
-		WLAN_LOG_DEBUG(3, "txframe returned full or busy\n");
+		pr_debug("txframe returned full or busy\n");
 		result = 1;
 	}
 
@@ -593,7 +593,7 @@ static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
 	wlandevice_t		*wlandev = dev->ml_priv;
 	u8			*msgbuf;
 
-	WLAN_LOG_DEBUG(2, "rx'd ioctl, cmd=%d, len=%d\n", cmd, req->len);
+	pr_debug("rx'd ioctl, cmd=%d, len=%d\n", cmd, req->len);
 
 #ifdef SIOCETHTOOL
 	if (cmd == SIOCETHTOOL) {
@@ -992,7 +992,7 @@ static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc)
 	ftype = WLAN_GET_FC_FTYPE(fc);
 	fstype = WLAN_GET_FC_FSTYPE(fc);
 #if 0
-	WLAN_LOG_DEBUG(4,
+	pr_debug(
 		"rx_typedrop : ftype=%d fstype=%d.\n", ftype, fstype);
 #endif
 	switch ( ftype ) {
@@ -1002,7 +1002,7 @@ static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc)
 			drop = 1;
 			break;
 		}
-		WLAN_LOG_DEBUG(3, "rx'd mgmt:\n");
+		pr_debug("rx'd mgmt:\n");
 		wlandev->rx.mgmt++;
 		switch( fstype ) {
 		case WLAN_FSTYPE_ASSOCREQ:
@@ -1064,7 +1064,7 @@ static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc)
 			drop = 1;
 			break;
 		}
-		WLAN_LOG_DEBUG(3, "rx'd ctl:\n");
+		pr_debug("rx'd ctl:\n");
 		wlandev->rx.ctl++;
 		switch( fstype ) {
 		case WLAN_FSTYPE_PSPOLL:
@@ -1116,19 +1116,19 @@ static int p80211_rx_typedrop( wlandevice_t *wlandev, u16 fc)
 			wlandev->rx.data__cfack_cfpoll++;
 			break;
 		case WLAN_FSTYPE_NULL:
-			WLAN_LOG_DEBUG(3, "rx'd data:null\n");
+			pr_debug("rx'd data:null\n");
 			wlandev->rx.null++;
 			break;
 		case WLAN_FSTYPE_CFACK:
-			WLAN_LOG_DEBUG(3, "rx'd data:cfack\n");
+			pr_debug("rx'd data:cfack\n");
 			wlandev->rx.cfack++;
 			break;
 		case WLAN_FSTYPE_CFPOLL:
-			WLAN_LOG_DEBUG(3, "rx'd data:cfpoll\n");
+			pr_debug("rx'd data:cfpoll\n");
 			wlandev->rx.cfpoll++;
 			break;
 		case WLAN_FSTYPE_CFACK_CFPOLL:
-			WLAN_LOG_DEBUG(3, "rx'd data:cfack_cfpoll\n");
+			pr_debug("rx'd data:cfack_cfpoll\n");
 			wlandev->rx.cfack_cfpoll++;
 			break;
 		default:
