@@ -45,7 +45,6 @@ enum trace_type {
  */
 struct trace_entry {
 	unsigned char		type;
-	unsigned char		cpu;
 	unsigned char		flags;
 	unsigned char		preempt_count;
 	int			pid;

@@ -1531,7 +1531,7 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 
 	if (trace_flags & TRACE_ITER_CONTEXT_INFO) {
 		SEQ_PUT_FIELD_RET(s, entry->pid);
-		SEQ_PUT_FIELD_RET(s, entry->cpu);
+		SEQ_PUT_FIELD_RET(s, iter->cpu);
 		SEQ_PUT_FIELD_RET(s, iter->ts);
 	}
 
