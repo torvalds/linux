@@ -314,6 +314,9 @@ struct napi_struct {
 	spinlock_t		poll_lock;
 	int			poll_owner;
 #endif
+
+	unsigned int		gro_count;
+
 	struct net_device	*dev;
 	struct list_head	dev_list;
 	struct sk_buff		*gro_list;

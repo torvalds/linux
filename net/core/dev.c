@@ -2372,6 +2372,7 @@ void napi_gro_flush(struct napi_struct *napi)
 		napi_gro_complete(skb);
 	}
 
+	napi->gro_count = 0;
 	napi->gro_list = NULL;
 }
 EXPORT_SYMBOL(napi_gro_flush);
@@ -2402,7 +2403,6 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 	struct packet_type *ptype;
 	__be16 type = skb->protocol;
 	struct list_head *head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
-	int count = 0;
 	int same_flow;
 	int mac_len;
 	int ret;
@@ -2430,8 +2430,6 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 		NAPI_GRO_CB(skb)->free = 0;
 
 		for (p = napi->gro_list; p; p = p->next) {
-			count++;
-
 			if (!NAPI_GRO_CB(p)->same_flow)
 				continue;
 
@@ -2457,15 +2455,16 @@ int dev_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 		*pp = nskb->next;
 		nskb->next = NULL;
 		napi_gro_complete(nskb);
-		count--;
+		napi->gro_count--;
 	}
 
 	if (same_flow)
 		goto ok;
 
-	if (NAPI_GRO_CB(skb)->flush || count >= MAX_GRO_SKBS)
+	if (NAPI_GRO_CB(skb)->flush || napi->gro_count >= MAX_GRO_SKBS)
 		goto normal;
 
+	napi->gro_count++;
 	NAPI_GRO_CB(skb)->count = 1;
 	skb_shinfo(skb)->gso_size = skb_gro_len(skb);
 	skb->next = napi->gro_list;
@@ -2713,6 +2712,7 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 		    int (*poll)(struct napi_struct *, int), int weight)
 {
 	INIT_LIST_HEAD(&napi->poll_list);
+	napi->gro_count = 0;
 	napi->gro_list = NULL;
 	napi->skb = NULL;
 	napi->poll = poll;
@@ -2741,6 +2741,7 @@ void netif_napi_del(struct napi_struct *napi)
 	}
 
 	napi->gro_list = NULL;
+	napi->gro_count = 0;
 }
 EXPORT_SYMBOL(netif_napi_del);
 
@@ -5246,6 +5247,7 @@ static int __init net_dev_init(void)
 		queue->backlog.poll = process_backlog;
 		queue->backlog.weight = weight_p;
 		queue->backlog.gro_list = NULL;
+		queue->backlog.gro_count = 0;
 	}
 
 	dev_boot_phase = 0;
