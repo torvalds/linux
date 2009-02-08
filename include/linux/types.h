@@ -1,6 +1,8 @@
 #ifndef _LINUX_TYPES_H
 #define _LINUX_TYPES_H
 
+#include <asm/types.h>
+
 #ifndef __ASSEMBLY__
 #ifdef	__KERNEL__
 
@@ -10,7 +12,6 @@
 #endif
 
 #include <linux/posix_types.h>
-#include <asm/types.h>
 
 #ifndef __KERNEL_STRICT_NAMES
 
