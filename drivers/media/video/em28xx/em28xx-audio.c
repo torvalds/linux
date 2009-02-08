@@ -313,7 +313,9 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 		dprintk("changing alternate number to 7\n");
 	}
 
+	mutex_lock(&dev->lock);
 	dev->adev.users++;
+	mutex_unlock(&dev->lock);
 
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	dev->adev.capture_pcm_substream = substream;
@@ -328,12 +330,12 @@ err:
 static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
-	dev->adev.users--;
 
 	dprintk("closing device\n");
 
 	dev->mute = 1;
 	mutex_lock(&dev->lock);
+	dev->adev.users--;
 	em28xx_audio_analog_set(dev);
 	mutex_unlock(&dev->lock);
 
