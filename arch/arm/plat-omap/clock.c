@@ -207,18 +207,7 @@ EXPORT_SYMBOL(clk_set_parent);
 
 struct clk *clk_get_parent(struct clk *clk)
 {
-	unsigned long flags;
-	struct clk * ret = NULL;
-
-	if (clk == NULL || IS_ERR(clk))
-		return ret;
-
-	spin_lock_irqsave(&clockfw_lock, flags);
-	if (arch_clock->clk_get_parent)
-		ret = arch_clock->clk_get_parent(clk);
-	spin_unlock_irqrestore(&clockfw_lock, flags);
-
-	return ret;
+	return clk->parent;
 }
 EXPORT_SYMBOL(clk_get_parent);
 
