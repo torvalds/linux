@@ -132,11 +132,31 @@ static const struct tda827x_data tda827x_table[] = {
 	{ .lomax =         0, .spd = 0, .bs = 0, .bp = 0, .cp = 0, .gc3 = 0, .div1p5 = 0}
 };
 
+static int tuner_transfer(struct dvb_frontend *fe,
+			  struct i2c_msg *msg,
+			  const int size)
+{
+	int rc;
+	struct tda827x_priv *priv = fe->tuner_priv;
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+	rc = i2c_transfer(priv->i2c_adap, msg, size);
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	if (rc >= 0 && rc != size)
+		return -EIO;
+
+	return rc;
+}
+
 static int tda827xo_set_params(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *params)
 {
 	struct tda827x_priv *priv = fe->tuner_priv;
 	u8 buf[14];
+	int rc;
 
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };
@@ -183,27 +203,29 @@ static int tda827xo_set_params(struct dvb_frontend *fe,
 	buf[13] = 0x40;
 
 	msg.len = 14;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(priv->i2c_adap, &msg, 1) != 1) {
-		printk("%s: could not write to tuner at addr: 0x%02x\n",
-		       __func__, priv->i2c_addr << 1);
-		return -EIO;
-	}
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
+
 	msleep(500);
 	/* correct CP value */
 	buf[0] = 0x30;
 	buf[1] = 0x50 + tda827x_table[i].cp;
 	msg.len = 2;
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
 
 	priv->frequency = params->frequency;
 	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
 
 	return 0;
+
+err:
+	printk(KERN_ERR "%s: could not write to tuner at addr: 0x%02x\n",
+	       __func__, priv->i2c_addr << 1);
+	return rc;
 }
 
 static int tda827xo_sleep(struct dvb_frontend *fe)
@@ -214,9 +236,7 @@ static int tda827xo_sleep(struct dvb_frontend *fe)
 			       .buf = buf, .len = sizeof(buf) };
 
 	dprintk("%s:\n", __func__);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	if (priv->cfg && priv->cfg->sleep)
 		priv->cfg->sleep(fe);
@@ -266,44 +286,44 @@ static int tda827xo_set_analog_params(struct dvb_frontend *fe,
 
 	msg.buf = tuner_reg;
 	msg.len = 8;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	msg.buf = reg2;
 	msg.len = 2;
 	reg2[0] = 0x80;
 	reg2[1] = 0;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	reg2[0] = 0x60;
 	reg2[1] = 0xbf;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	reg2[0] = 0x30;
 	reg2[1] = tuner_reg[4] + 0x80;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	msleep(1);
 	reg2[0] = 0x30;
 	reg2[1] = tuner_reg[4] + 4;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	msleep(1);
 	reg2[0] = 0x30;
 	reg2[1] = tuner_reg[4];
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	msleep(550);
 	reg2[0] = 0x30;
 	reg2[1] = (tuner_reg[4] & 0xfc) + tda827x_table[i].cp;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	reg2[0] = 0x60;
 	reg2[1] = 0x3f;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	reg2[0] = 0x80;
 	reg2[1] = 0x08;   /* Vsync en */
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	priv->frequency = params->frequency;
 
@@ -317,7 +337,7 @@ static void tda827xo_agcf(struct dvb_frontend *fe)
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = data, .len = 2};
 
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 }
 
 /* ------------------------------------------------------------------ */
@@ -398,13 +418,8 @@ static int tda827xa_sleep(struct dvb_frontend *fe)
 			       .buf = buf, .len = sizeof(buf) };
 
 	dprintk("%s:\n", __func__);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
 
-	i2c_transfer(priv->i2c_adap, &msg, 1);
-
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
+	tuner_transfer(fe, &msg, 1);
 
 	if (priv->cfg && priv->cfg->sleep)
 		priv->cfg->sleep(fe);
@@ -455,7 +470,7 @@ static void tda827xa_lna_gain(struct dvb_frontend *fe, int high,
 		buf[1] = high ? 0 : 1;
 		if (priv->cfg->config == 2)
 			buf[1] = high ? 1 : 0;
-		i2c_transfer(priv->i2c_adap, &msg, 1);
+		tuner_transfer(fe, &msg, 1);
 		break;
 	case 3: /* switch with GPIO of saa713x */
 		if (fe->callback)
@@ -474,7 +489,7 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0,
 			       .buf = buf, .len = sizeof(buf) };
 
-	int i, tuner_freq, if_freq;
+	int i, tuner_freq, if_freq, rc;
 	u32 N;
 
 	dprintk("%s:\n", __func__);
@@ -516,35 +531,32 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 	buf[9] = 0x24;
 	buf[10] = 0x00;
 	msg.len = 11;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(priv->i2c_adap, &msg, 1) != 1) {
-		printk("%s: could not write to tuner at addr: 0x%02x\n",
-		       __func__, priv->i2c_addr << 1);
-		return -EIO;
-	}
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
+
 	buf[0] = 0x90;
 	buf[1] = 0xff;
 	buf[2] = 0x60;
 	buf[3] = 0x00;
 	buf[4] = 0x59;  // lpsel, for 6MHz + 2
 	msg.len = 5;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
 
 	buf[0] = 0xa0;
 	buf[1] = 0x40;
 	msg.len = 2;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
 
 	msleep(11);
 	msg.flags = I2C_M_RD;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
 	msg.flags = 0;
 
 	buf[1] >>= 4;
@@ -553,49 +565,55 @@ static int tda827xa_set_params(struct dvb_frontend *fe,
 		tda827xa_lna_gain(fe, 0, NULL);
 		buf[0] = 0x60;
 		buf[1] = 0x0c;
-		if (fe->ops.i2c_gate_ctrl)
-			fe->ops.i2c_gate_ctrl(fe, 1);
-		i2c_transfer(priv->i2c_adap, &msg, 1);
+		rc = tuner_transfer(fe, &msg, 1);
+		if (rc < 0)
+			goto err;
 	}
 
 	buf[0] = 0xc0;
 	buf[1] = 0x99;    // lpsel, for 6MHz + 2
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
 
 	buf[0] = 0x60;
 	buf[1] = 0x3c;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
 
 	/* correct CP value */
 	buf[0] = 0x30;
 	buf[1] = 0x10 + tda827xa_dvbt[i].scr;
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
 
 	msleep(163);
 	buf[0] = 0xc0;
 	buf[1] = 0x39;  // lpsel, for 6MHz + 2
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
 
 	msleep(3);
 	/* freeze AGC1 */
 	buf[0] = 0x50;
 	buf[1] = 0x4f + (tda827xa_dvbt[i].gc3 << 4);
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	rc = tuner_transfer(fe, &msg, 1);
+	if (rc < 0)
+		goto err;
 
 	priv->frequency = params->frequency;
 	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
 
+
 	return 0;
+
+err:
+	printk(KERN_ERR "%s: could not write to tuner at addr: 0x%02x\n",
+	       __func__, priv->i2c_addr << 1);
+	return rc;
 }
 
 
@@ -643,7 +661,7 @@ static int tda827xa_set_analog_params(struct dvb_frontend *fe,
 	tuner_reg[9] = 0x20;
 	tuner_reg[10] = 0x00;
 	msg.len = 11;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	tuner_reg[0] = 0x90;
 	tuner_reg[1] = 0xff;
@@ -651,19 +669,19 @@ static int tda827xa_set_analog_params(struct dvb_frontend *fe,
 	tuner_reg[3] = 0;
 	tuner_reg[4] = 0x99 + (priv->lpsel << 1);
 	msg.len = 5;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	tuner_reg[0] = 0xa0;
 	tuner_reg[1] = 0xc0;
 	msg.len = 2;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	tuner_reg[0] = 0x30;
 	tuner_reg[1] = 0x10 + tda827xa_analog[i].scr;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	msg.flags = I2C_M_RD;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 	msg.flags = 0;
 	tuner_reg[1] >>= 4;
 	dprintk("AGC2 gain is: %d\n", tuner_reg[1]);
@@ -673,24 +691,24 @@ static int tda827xa_set_analog_params(struct dvb_frontend *fe,
 	msleep(100);
 	tuner_reg[0] = 0x60;
 	tuner_reg[1] = 0x3c;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	msleep(163);
 	tuner_reg[0] = 0x50;
 	tuner_reg[1] = 0x8f + (tda827xa_analog[i].gc3 << 4);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	tuner_reg[0] = 0x80;
 	tuner_reg[1] = 0x28;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	tuner_reg[0] = 0xb0;
 	tuner_reg[1] = 0x01;
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	tuner_reg[0] = 0xc0;
 	tuner_reg[1] = 0x19 + (priv->lpsel << 1);
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 
 	priv->frequency = params->frequency;
 
@@ -703,7 +721,7 @@ static void tda827xa_agcf(struct dvb_frontend *fe)
 	unsigned char data[] = {0x80, 0x2c};
 	struct i2c_msg msg = {.addr = priv->i2c_addr, .flags = 0,
 			      .buf = data, .len = 2};
-	i2c_transfer(priv->i2c_adap, &msg, 1);
+	tuner_transfer(fe, &msg, 1);
 }
 
 /* ------------------------------------------------------------------ */
@@ -792,16 +810,19 @@ static struct dvb_tuner_ops tda827xa_tuner_ops = {
 };
 
 static int tda827x_probe_version(struct dvb_frontend *fe)
-{	u8 data;
+{
+	u8 data;
+	int rc;
 	struct tda827x_priv *priv = fe->tuner_priv;
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = I2C_M_RD,
 			       .buf = &data, .len = 1 };
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(priv->i2c_adap, &msg, 1) != 1) {
+
+	rc = tuner_transfer(fe, &msg, 1);
+
+	if (rc < 0) {
 		printk("%s: could not read from tuner at addr: 0x%02x\n",
 		       __func__, msg.addr << 1);
-		return -EIO;
+		return rc;
 	}
 	if ((data & 0x3c) == 0) {
 		dprintk("tda827x tuner found\n");
