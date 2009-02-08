@@ -566,8 +566,11 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	u8 data;
 	struct i2c_msg msg = { .flags = I2C_M_RD, .buf = &data, .len = 1 };
 
-	if (NULL == analog_ops->i2c_gate_ctrl)
+	if (!analog_ops->i2c_gate_ctrl) {
+		printk(KERN_ERR "tda8290: no gate control were provided!\n");
+
 		return -EINVAL;
+	}
 
 	analog_ops->i2c_gate_ctrl(fe, 1);
 
@@ -615,6 +618,7 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 
 	if (ret != 1) {
 		tuner_warn("tuner access failed!\n");
+		analog_ops->i2c_gate_ctrl(fe, 0);
 		return -EREMOTEIO;
 	}
 
