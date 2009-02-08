@@ -152,9 +152,6 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	}
 	urb->status = 0;
 
-	if (dev->adev.shutdown)
-		return;
-
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status < 0) {
 		em28xx_errdev("resubmit of audio urb failed (error=%i)\n",
@@ -340,13 +337,6 @@ static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 	em28xx_audio_analog_set(dev);
 	mutex_unlock(&dev->lock);
 
-	if (dev->adev.users == 0 && dev->adev.shutdown == 1) {
-		dprintk("audio users: %d\n", dev->adev.users);
-		dprintk("disabling audio stream!\n");
-		dev->adev.shutdown = 0;
-		dprintk("released lock\n");
-		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 0);
-	}
 	return 0;
 }
 
@@ -399,7 +389,7 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 1);
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
-		dev->adev.shutdown = 1;
+		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 0);
 		return 0;
 	default:
 		return -EINVAL;

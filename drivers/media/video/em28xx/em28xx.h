@@ -423,7 +423,7 @@ struct em28xx_audio {
 	unsigned int hwptr_done_capture;
 	struct snd_card            *sndcard;
 
-	int users, shutdown;
+	int users;
 	enum em28xx_stream_state capture_stream;
 	spinlock_t slock;
 };
