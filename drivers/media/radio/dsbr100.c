@@ -452,7 +452,10 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	if (radio->removed)
 		return -EIO;
 
+	mutex_lock(&radio->lock);
 	radio->curfreq = f->frequency;
+	mutex_unlock(&radio->lock);
+
 	retval = dsbr100_setfreq(radio, radio->curfreq);
 	if (retval < 0)
 		dev_warn(&radio->usbdev->dev, "Set frequency failed\n");
@@ -603,7 +606,10 @@ static int usb_dsbr100_close(struct file *file)
 	if (!radio)
 		return -ENODEV;
 
+	mutex_lock(&radio->lock);
 	radio->users = 0;
+	mutex_unlock(&radio->lock);
+
 	if (!radio->removed) {
 		retval = dsbr100_stop(radio);
 		if (retval < 0) {
