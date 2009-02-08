@@ -5072,6 +5072,8 @@ again:
 	switch (codec->vendor_id) {
 	case 0x111d76b6: /* 4 Port without Analog Mixer */
 	case 0x111d76b7:
+		unmute_init++;
+		/* fallthru */
 	case 0x111d76b4: /* 6 Port without Analog Mixer */
 	case 0x111d76b5:
 		memcpy(&spec->private_dimux, &stac92hd71bxx_dmux_nomixer,
