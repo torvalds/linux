@@ -131,7 +131,7 @@ static int _osd_print_system_info(struct osd_dev *od, void *caps)
 
 	pFirst = get_attrs[a++].val_ptr;
 	OSD_INFO("OSD_ATTR_RI_PRODUCT_REVISION_LEVEL [%u]\n",
-		get_unaligned_be32(pFirst));
+		pFirst ? get_unaligned_be32(pFirst) : ~0U);
 
 	pFirst = get_attrs[a++].val_ptr;
 	OSD_INFO("OSD_ATTR_RI_PRODUCT_SERIAL_NUMBER [%s]\n",
@@ -143,15 +143,18 @@ static int _osd_print_system_info(struct osd_dev *od, void *caps)
 
 	pFirst = get_attrs[a++].val_ptr;
 	OSD_INFO("OSD_ATTR_RI_TOTAL_CAPACITY [0x%llx]\n",
-		_LLU(get_unaligned_be64(pFirst)));
+		pFirst ? _LLU(get_unaligned_be64(pFirst)) : ~0ULL);
 
 	pFirst = get_attrs[a++].val_ptr;
 	OSD_INFO("OSD_ATTR_RI_USED_CAPACITY [0x%llx]\n",
-		_LLU(get_unaligned_be64(pFirst)));
+		pFirst ? _LLU(get_unaligned_be64(pFirst)) : ~0ULL);
 
 	pFirst = get_attrs[a++].val_ptr;
 	OSD_INFO("OSD_ATTR_RI_NUMBER_OF_PARTITIONS [%llu]\n",
-		_LLU(get_unaligned_be64(pFirst)));
+		pFirst ? _LLU(get_unaligned_be64(pFirst)) : ~0ULL);
+
+	if (a >= nelem)
+		goto out;
 
 	/* FIXME: Where are the time utilities */
 	pFirst = get_attrs[a++].val_ptr;
