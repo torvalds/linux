@@ -2698,7 +2698,7 @@ static int handle_triple_fault(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	unsigned long exit_qualification;
-	int size, down, in, string, rep;
+	int size, in, string;
 	unsigned port;
 
 	++vcpu->stat.io_exits;
@@ -2714,8 +2714,6 @@ static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	size = (exit_qualification & 7) + 1;
 	in = (exit_qualification & 8) != 0;
-	down = (vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_DF) != 0;
-	rep = (exit_qualification & 32) != 0;
 	port = exit_qualification >> 16;
 
 	skip_emulated_instruction(vcpu);
