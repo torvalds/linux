@@ -47,7 +47,6 @@
 #ifndef _P80211MKMETADEF_H
 #define _P80211MKMETADEF_H
 
-
 #define DIDmsg_dot11req_mibget \
 			(P80211DID_MKSECTION(1) | \
 			P80211DID_MKGROUP(1))
