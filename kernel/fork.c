@@ -817,17 +817,17 @@ static void posix_cpu_timers_init_group(struct signal_struct *sig)
 static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct signal_struct *sig;
-	int ret;
 
 	if (clone_flags & CLONE_THREAD) {
-		ret = thread_group_cputime_clone_thread(current);
-		if (likely(!ret)) {
-			atomic_inc(&current->signal->count);
-			atomic_inc(&current->signal->live);
-		}
-		return ret;
+		atomic_inc(&current->signal->count);
+		atomic_inc(&current->signal->live);
+		return 0;
 	}
 	sig = kmem_cache_alloc(signal_cachep, GFP_KERNEL);
+
+	if (sig)
+		posix_cpu_timers_init_group(sig);
+
 	tsk->signal = sig;
 	if (!sig)
 		return -ENOMEM;
@@ -863,8 +863,6 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	task_lock(current->group_leader);
 	memcpy(sig->rlim, current->signal->rlim, sizeof sig->rlim);
 	task_unlock(current->group_leader);
-
-	posix_cpu_timers_init_group(sig);
 
 	acct_init_pacct(&sig->pacct);
 

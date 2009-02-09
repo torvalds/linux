@@ -34,6 +34,7 @@ extern void qla24xx_update_fw_options(scsi_qla_host_t *);
 extern void qla81xx_update_fw_options(scsi_qla_host_t *);
 extern int qla2x00_load_risc(struct scsi_qla_host *, uint32_t *);
 extern int qla24xx_load_risc(scsi_qla_host_t *, uint32_t *);
+extern int qla81xx_load_risc(scsi_qla_host_t *, uint32_t *);
 
 extern int qla2x00_loop_resync(scsi_qla_host_t *);
 

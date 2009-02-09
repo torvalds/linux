@@ -73,6 +73,8 @@ int xfs_dqreq_num;
 int xfs_dqerror_mod = 33;
 #endif
 
+static struct lock_class_key xfs_dquot_other_class;
+
 /*
  * Allocate and initialize a dquot. We don't always allocate fresh memory;
  * we try to reclaim a free dquot if the number of incore dquots are above
@@ -139,7 +141,15 @@ xfs_qm_dqinit(
 		 ASSERT(dqp->q_trace);
 		 xfs_dqtrace_entry(dqp, "DQRECLAIMED_INIT");
 #endif
-	 }
+	}
+
+	/*
+	 * In either case we need to make sure group quotas have a different
+	 * lock class than user quotas, to make sure lockdep knows we can
+	 * locks of one of each at the same time.
+	 */
+	if (!(type & XFS_DQ_USER))
+		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_other_class);
 
 	/*
 	 * log item gets initialized later
@@ -421,7 +431,7 @@ xfs_qm_dqalloc(
 	/*
 	 * Initialize the bmap freelist prior to calling bmapi code.
 	 */
-	XFS_BMAP_INIT(&flist, &firstblock);
+	xfs_bmap_init(&flist, &firstblock);
 	xfs_ilock(quotip, XFS_ILOCK_EXCL);
 	/*
 	 * Return if this type of quotas is turned off while we didn't
@@ -1383,6 +1393,12 @@ xfs_dqunlock_nonotify(
 	mutex_unlock(&(dqp->q_qlock));
 }
 
+/*
+ * Lock two xfs_dquot structures.
+ *
+ * To avoid deadlocks we always lock the quota structure with
+ * the lowerd id first.
+ */
 void
 xfs_dqlock2(
 	xfs_dquot_t	*d1,
@@ -1392,18 +1408,16 @@ xfs_dqlock2(
 		ASSERT(d1 != d2);
 		if (be32_to_cpu(d1->q_core.d_id) >
 		    be32_to_cpu(d2->q_core.d_id)) {
-			xfs_dqlock(d2);
-			xfs_dqlock(d1);
+			mutex_lock(&d2->q_qlock);
+			mutex_lock_nested(&d1->q_qlock, XFS_QLOCK_NESTED);
 		} else {
-			xfs_dqlock(d1);
-			xfs_dqlock(d2);
+			mutex_lock(&d1->q_qlock);
+			mutex_lock_nested(&d2->q_qlock, XFS_QLOCK_NESTED);
 		}
-	} else {
-		if (d1) {
-			xfs_dqlock(d1);
-		} else if (d2) {
-			xfs_dqlock(d2);
-		}
+	} else if (d1) {
+		mutex_lock(&d1->q_qlock);
+	} else if (d2) {
+		mutex_lock(&d2->q_qlock);
 	}
 }
 

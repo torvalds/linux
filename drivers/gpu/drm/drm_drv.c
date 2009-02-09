@@ -294,6 +294,7 @@ EXPORT_SYMBOL(drm_init);
  */
 static void drm_cleanup(struct drm_device * dev)
 {
+	struct drm_map_list *r_list, *list_temp;
 	DRM_DEBUG("\n");
 
 	if (!dev) {
@@ -324,6 +325,9 @@ static void drm_cleanup(struct drm_device * dev)
 
 	drm_ht_remove(&dev->map_hash);
 	drm_ctxbitmap_cleanup(dev);
+
+	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
+		drm_rmmap(dev, r_list->map);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);

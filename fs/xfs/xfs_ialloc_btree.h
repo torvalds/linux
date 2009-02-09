@@ -36,7 +36,6 @@ typedef	__uint64_t	xfs_inofree_t;
 #define	XFS_INODES_PER_CHUNK_LOG	(XFS_NBBYLOG + 3)
 #define	XFS_INOBT_ALL_FREE	((xfs_inofree_t)-1)
 
-#define	XFS_INOBT_MASKN(i,n)		xfs_inobt_maskn(i,n)
 static inline xfs_inofree_t xfs_inobt_maskn(int i, int n)
 {
 	return (((n) >= XFS_INODES_PER_CHUNK ? \

@@ -649,7 +649,8 @@ static int ide_register_port(ide_hwif_t *hwif)
 	/* register with global device tree */
 	dev_set_name(&hwif->gendev, hwif->name);
 	hwif->gendev.driver_data = hwif;
-	hwif->gendev.parent = hwif->dev;
+	if (hwif->gendev.parent == NULL)
+		hwif->gendev.parent = hwif->dev;
 	hwif->gendev.release = hwif_release_dev;
 
 	ret = device_register(&hwif->gendev);
