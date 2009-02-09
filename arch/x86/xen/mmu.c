@@ -70,6 +70,13 @@
 
 #define MMU_UPDATE_HISTO	30
 
+/*
+ * Protects atomic reservation decrease/increase against concurrent increases.
+ * Also protects non-atomic updates of current_pages and driver_pages, and
+ * balloon lists.
+ */
+DEFINE_SPINLOCK(xen_reservation_lock);
+
 #ifdef CONFIG_XEN_DEBUG_FS
 
 static struct {
