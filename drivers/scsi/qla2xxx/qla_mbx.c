@@ -3090,8 +3090,7 @@ verify_done:
 }
 
 int
-qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req,
-	uint8_t options)
+qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 {
 	int rval;
 	unsigned long flags;
@@ -3101,7 +3100,7 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req,
 	struct qla_hw_data *ha = vha->hw;
 
 	mcp->mb[0] = MBC_INITIALIZE_MULTIQ;
-	mcp->mb[1] = options;
+	mcp->mb[1] = req->options;
 	mcp->mb[2] = MSW(LSD(req->dma));
 	mcp->mb[3] = LSW(LSD(req->dma));
 	mcp->mb[6] = MSW(MSD(req->dma));
@@ -3128,7 +3127,7 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req,
 	mcp->tov = 60;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	if (!(options & BIT_0)) {
+	if (!(req->options & BIT_0)) {
 		WRT_REG_DWORD(&reg->req_q_in, 0);
 		WRT_REG_DWORD(&reg->req_q_out, 0);
 	}
@@ -3142,8 +3141,7 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req,
 }
 
 int
-qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp,
-	uint8_t options)
+qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 {
 	int rval;
 	unsigned long flags;
@@ -3153,7 +3151,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp,
 	struct qla_hw_data *ha = vha->hw;
 
 	mcp->mb[0] = MBC_INITIALIZE_MULTIQ;
-	mcp->mb[1] = options;
+	mcp->mb[1] = rsp->options;
 	mcp->mb[2] = MSW(LSD(rsp->dma));
 	mcp->mb[3] = LSW(LSD(rsp->dma));
 	mcp->mb[6] = MSW(MSD(rsp->dma));
@@ -3178,7 +3176,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp,
 	mcp->tov = 60;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	if (!(options & BIT_0)) {
+	if (!(rsp->options & BIT_0)) {
 		WRT_REG_DWORD(&reg->rsp_q_out, 0);
 		WRT_REG_DWORD(&reg->rsp_q_in, 0);
 	}

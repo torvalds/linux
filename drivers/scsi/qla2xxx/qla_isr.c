@@ -1707,7 +1707,6 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 	struct qla_hw_data *ha;
 	struct rsp_que *rsp;
 	struct device_reg_24xx __iomem *reg;
-	uint16_t msix_disabled_hccr = 0;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -1720,16 +1719,7 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 
 	spin_lock_irq(&ha->hardware_lock);
 
-	msix_disabled_hccr = rsp->options;
-	if (!rsp->id)
-		msix_disabled_hccr &= __constant_cpu_to_le32(BIT_22);
-	else
-		msix_disabled_hccr &= __constant_cpu_to_le32(BIT_6);
-
 	qla24xx_process_response_queue(rsp);
-
-	if (!msix_disabled_hccr)
-		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 
 	spin_unlock_irq(&ha->hardware_lock);
 
