@@ -261,6 +261,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_LAST_DISPATCH         3
 #define I915_PARAM_CHIPSET_ID            4
 #define I915_PARAM_HAS_GEM               5
+#define I915_PARAM_NUM_FENCES_AVAIL      6
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -272,6 +273,7 @@ typedef struct drm_i915_getparam {
 #define I915_SETPARAM_USE_MI_BATCHBUFFER_START            1
 #define I915_SETPARAM_TEX_LRU_LOG_GRANULARITY             2
 #define I915_SETPARAM_ALLOW_BATCHBUFFER                   3
+#define I915_SETPARAM_NUM_USED_FENCES                     4
 
 typedef struct drm_i915_setparam {
 	int param;

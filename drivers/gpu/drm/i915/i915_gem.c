@@ -52,7 +52,7 @@ static void i915_gem_object_free_page_list(struct drm_gem_object *obj);
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
-static void i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
+static int i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write);
 static void i915_gem_clear_fence_reg(struct drm_gem_object *obj);
 static int i915_gem_evict_something(struct drm_device *dev);
 static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
@@ -567,6 +567,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	pgoff_t page_offset;
 	unsigned long pfn;
 	int ret = 0;
+	bool write = !!(vmf->flags & FAULT_FLAG_WRITE);
 
 	/* We don't use vmf->pgoff since that has the fake offset */
 	page_offset = ((unsigned long)vmf->virtual_address - vma->vm_start) >>
@@ -585,8 +586,13 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Need a new fence register? */
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE &&
-	    obj_priv->tiling_mode != I915_TILING_NONE)
-		i915_gem_object_get_fence_reg(obj);
+	    obj_priv->tiling_mode != I915_TILING_NONE) {
+		ret = i915_gem_object_get_fence_reg(obj, write);
+		if (ret) {
+			mutex_unlock(&dev->struct_mutex);
+			return VM_FAULT_SIGBUS;
+		}
+	}
 
 	pfn = ((dev->agp->base + obj_priv->gtt_offset) >> PAGE_SHIFT) +
 		page_offset;
@@ -1211,7 +1217,7 @@ i915_gem_object_wait_rendering(struct drm_gem_object *obj)
 /**
  * Unbinds an object from the GTT aperture.
  */
-static int
+int
 i915_gem_object_unbind(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
@@ -1445,21 +1451,26 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *reg)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	int regnum = obj_priv->fence_reg;
+	int tile_width;
 	uint32_t val;
 	uint32_t pitch_val;
 
 	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
 	    (obj_priv->gtt_offset & (obj->size - 1))) {
-		WARN(1, "%s: object not 1M or size aligned\n", __func__);
+		WARN(1, "%s: object 0x%08x not 1M or size (0x%x) aligned\n",
+		     __func__, obj_priv->gtt_offset, obj->size);
 		return;
 	}
 
-	if (obj_priv->tiling_mode == I915_TILING_Y && (IS_I945G(dev) ||
-						       IS_I945GM(dev) ||
-						       IS_G33(dev)))
-		pitch_val = (obj_priv->stride / 128) - 1;
+	if (obj_priv->tiling_mode == I915_TILING_Y &&
+	    HAS_128_BYTE_Y_TILING(dev))
+		tile_width = 128;
 	else
-		pitch_val = (obj_priv->stride / 512) - 1;
+		tile_width = 512;
+
+	/* Note: pitch better be a power of two tile widths */
+	pitch_val = obj_priv->stride / tile_width;
+	pitch_val = ffs(pitch_val) - 1;
 
 	val = obj_priv->gtt_offset;
 	if (obj_priv->tiling_mode == I915_TILING_Y)
@@ -1483,7 +1494,8 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 
 	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
 	    (obj_priv->gtt_offset & (obj->size - 1))) {
-		WARN(1, "%s: object not 1M or size aligned\n", __func__);
+		WARN(1, "%s: object 0x%08x not 1M or size aligned\n",
+		     __func__, obj_priv->gtt_offset);
 		return;
 	}
 
@@ -1503,6 +1515,7 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
 /**
  * i915_gem_object_get_fence_reg - set up a fence reg for an object
  * @obj: object to map through a fence reg
+ * @write: object is about to be written
  *
  * When mapping objects through the GTT, userspace wants to be able to write
  * to them without having to worry about swizzling if the object is tiled.
@@ -1513,8 +1526,8 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *reg)
  * It then sets up the reg based on the object's properties: address, pitch
  * and tiling format.
  */
-static void
-i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
+static int
+i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write)
 {
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1527,12 +1540,18 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 		WARN(1, "allocating a fence for non-tiled object?\n");
 		break;
 	case I915_TILING_X:
-		WARN(obj_priv->stride & (512 - 1),
-		     "object is X tiled but has non-512B pitch\n");
+		if (!obj_priv->stride)
+			return -EINVAL;
+		WARN((obj_priv->stride & (512 - 1)),
+		     "object 0x%08x is X tiled but has non-512B pitch\n",
+		     obj_priv->gtt_offset);
 		break;
 	case I915_TILING_Y:
-		WARN(obj_priv->stride & (128 - 1),
-		     "object is Y tiled but has non-128B pitch\n");
+		if (!obj_priv->stride)
+			return -EINVAL;
+		WARN((obj_priv->stride & (128 - 1)),
+		     "object 0x%08x is Y tiled but has non-128B pitch\n",
+		     obj_priv->gtt_offset);
 		break;
 	}
 
@@ -1563,10 +1582,11 @@ try_again:
 		 * objects to finish before trying again.
 		 */
 		if (i == dev_priv->num_fence_regs) {
-			ret = i915_gem_object_wait_rendering(reg->obj);
+			ret = i915_gem_object_set_to_gtt_domain(reg->obj, 0);
 			if (ret) {
-				WARN(ret, "wait_rendering failed: %d\n", ret);
-				return;
+				WARN(ret != -ERESTARTSYS,
+				     "switch to GTT domain failed: %d\n", ret);
+				return ret;
 			}
 			goto try_again;
 		}
@@ -1591,6 +1611,8 @@ try_again:
 		i915_write_fence_reg(reg);
 	else
 		i830_write_fence_reg(reg);
+
+	return 0;
 }
 
 /**
@@ -1631,7 +1653,7 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	if (dev_priv->mm.suspended)
 		return -EBUSY;
 	if (alignment == 0)
-		alignment = PAGE_SIZE;
+		alignment = i915_gem_get_gtt_alignment(obj);
 	if (alignment & (PAGE_SIZE - 1)) {
 		DRM_ERROR("Invalid object alignment requested %u\n", alignment);
 		return -EINVAL;
@@ -2652,6 +2674,14 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 				DRM_ERROR("Failure to bind: %d", ret);
 			return ret;
 		}
+		/*
+		 * Pre-965 chips need a fence register set up in order to
+		 * properly handle tiled surfaces.
+		 */
+		if (!IS_I965G(dev) &&
+		    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
+		    obj_priv->tiling_mode != I915_TILING_NONE)
+			i915_gem_object_get_fence_reg(obj, true);
 	}
 	obj_priv->pin_count++;
 
@@ -3229,10 +3259,6 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 		dev_priv->mm.wedged = 0;
 	}
 
-	dev_priv->mm.gtt_mapping = io_mapping_create_wc(dev->agp->base,
-							dev->agp->agp_info.aper_size
-							* 1024 * 1024);
-
 	mutex_lock(&dev->struct_mutex);
 	dev_priv->mm.suspended = 0;
 
@@ -3255,7 +3281,6 @@ int
 i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
@@ -3264,7 +3289,6 @@ i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 	ret = i915_gem_idle(dev);
 	drm_irq_uninstall(dev);
 
-	io_mapping_free(dev_priv->mm.gtt_mapping);
 	return ret;
 }
 
@@ -3272,6 +3296,9 @@ void
 i915_gem_lastclose(struct drm_device *dev)
 {
 	int ret;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
 
 	ret = i915_gem_idle(dev);
 	if (ret)
@@ -3294,7 +3321,7 @@ i915_gem_load(struct drm_device *dev)
 	/* Old X drivers will take 0-2 for front, back, depth buffers */
 	dev_priv->fence_reg_start = 3;
 
-	if (IS_I965G(dev))
+	if (IS_I965G(dev) || IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
 		dev_priv->num_fence_regs = 16;
 	else
 		dev_priv->num_fence_regs = 8;
