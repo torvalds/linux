@@ -43,6 +43,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/types.h>
+
 #ifdef CONFIG_X86_PAE
 typedef u64	pteval_t;
 typedef u64	pmdval_t;

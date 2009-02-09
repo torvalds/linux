@@ -4,7 +4,7 @@
  * para-virtualization: those hooks are defined here. */
 
 #ifdef CONFIG_PARAVIRT
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/asm.h>
 
 /* Bitmask of what can be clobbered: usually at least eax. */
