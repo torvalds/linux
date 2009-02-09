@@ -1,8 +1,12 @@
 #ifndef _ASM_STACKPROTECTOR_H
 #define _ASM_STACKPROTECTOR_H 1
 
+#ifdef CONFIG_CC_STACKPROTECTOR
+
 #include <asm/tsc.h>
 #include <asm/processor.h>
+#include <asm/percpu.h>
+#include <linux/random.h>
 
 /*
  * Initialize the stackprotector canary value.
@@ -35,4 +39,5 @@ static __always_inline void boot_init_stack_canary(void)
 	percpu_write(irq_stack_union.stack_canary, canary);
 }
 
-#endif
+#endif	/* CC_STACKPROTECTOR */
+#endif	/* _ASM_STACKPROTECTOR_H */
