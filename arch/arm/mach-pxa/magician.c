@@ -204,7 +204,7 @@ static struct platform_device gpio_keys = {
 static struct resource egpio_resources[] = {
 	[0] = {
 		.start = PXA_CS3_PHYS,
-		.end   = PXA_CS3_PHYS + 0x20,
+		.end   = PXA_CS3_PHYS + 0x20 - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
