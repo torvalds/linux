@@ -435,7 +435,7 @@ static struct gpio_led gpio_leds[] = {
 	},
 	{
 		.name = "magician::phone_bl",
-		.default_trigger = "none",
+		.default_trigger = "backlight",
 		.gpio = GPIO103_MAGICIAN_LED_KP,
 	},
 };
