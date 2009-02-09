@@ -32,48 +32,80 @@
 /*
  * Used to modify RF Banks before writing them to AR5K_RF_BUFFER
  */
-static unsigned int ath5k_hw_rfregs_op(u32 *rf, u32 offset, u32 reg, u32 bits,
-		u32 first, u32 col, bool set)
+static unsigned int ath5k_hw_rfb_op(struct ath5k_hw *ah,
+					const struct ath5k_rf_reg *rf_regs,
+					u32 val, u8 reg_id, bool set)
 {
-	u32 mask, entry, last, data, shift, position;
-	s32 left;
+	const struct ath5k_rf_reg *rfreg = NULL;
+	u8 offset, bank, num_bits, col, position;
+	u16 entry;
+	u32 mask, data, last_bit, bits_shifted, first_bit;
+	u32 *rfb;
+	s32 bits_left;
 	int i;
 
 	data = 0;
+	rfb = ah->ah_rf_banks;
 
-	if (rf == NULL)
+	for (i = 0; i < ah->ah_rf_regs_count; i++) {
+		if (rf_regs[i].index == reg_id) {
+			rfreg = &rf_regs[i];
+			break;
+		}
+	}
+
+	if (rfb == NULL || rfreg == NULL) {
+		ATH5K_PRINTF("Rf register not found!\n");
 		/* should not happen */
 		return 0;
+	}
 
-	if (!(col <= 3 && bits <= 32 && first + bits <= 319)) {
+	bank = rfreg->bank;
+	num_bits = rfreg->field.len;
+	first_bit = rfreg->field.pos;
+	col = rfreg->field.col;
+
+	/* first_bit is an offset from bank's
+	 * start. Since we have all banks on
+	 * the same array, we use this offset
+	 * to mark each bank's start */
+	offset = ah->ah_offset[bank];
+
+	/* Boundary check */
+	if (!(col <= 3 && num_bits <= 32 && first_bit + num_bits <= 319)) {
 		ATH5K_PRINTF("invalid values at offset %u\n", offset);
 		return 0;
 	}
 
-	entry = ((first - 1) / 8) + offset;
-	position = (first - 1) % 8;
+	entry = ((first_bit - 1) / 8) + offset;
+	position = (first_bit - 1) % 8;
 
 	if (set)
-		data = ath5k_hw_bitswap(reg, bits);
+		data = ath5k_hw_bitswap(val, num_bits);
 
-	for (i = shift = 0, left = bits; left > 0; position = 0, entry++, i++) {
-		last = (position + left > 8) ? 8 : position + left;
-		mask = (((1 << last) - 1) ^ ((1 << position) - 1)) << (col * 8);
+	for (bits_shifted = 0, bits_left = num_bits; bits_left > 0;
+	position = 0, entry++) {
+
+		last_bit = (position + bits_left > 8) ? 8 :
+					position + bits_left;
+
+		mask = (((1 << last_bit) - 1) ^ ((1 << position) - 1)) <<
+								(col * 8);
 
 		if (set) {
-			rf[entry] &= ~mask;
-			rf[entry] |= ((data << position) << (col * 8)) & mask;
+			rfb[entry] &= ~mask;
+			rfb[entry] |= ((data << position) << (col * 8)) & mask;
 			data >>= (8 - position);
 		} else {
-			data = (((rf[entry] & mask) >> (col * 8)) >> position)
-				<< shift;
-			shift += last - position;
+			data |= (((rfb[entry] & mask) >> (col * 8)) >> position)
+				<< bits_shifted;
+			bits_shifted += last_bit - position;
 		}
 
-		left -= 8 - position;
+		bits_left -= 8 - position;
 	}
 
-	data = set ? 1 : ath5k_hw_bitswap(data, bits);
+	data = set ? 1 : ath5k_hw_bitswap(data, num_bits);
 
 	return data;
 }
@@ -167,6 +199,7 @@ static u32 ath5k_hw_rf_gainf_corr(struct ath5k_hw *ah)
 	u32 *rf;
 	const struct ath5k_gain_opt *go;
 	const struct ath5k_gain_opt_step *g_step;
+	const struct ath5k_rf_reg *rf_regs;
 
 	/* Only RF5112 Rev. 2 supports it */
 	if ((ah->ah_radio != AR5K_RF5112) ||
@@ -174,6 +207,8 @@ static u32 ath5k_hw_rf_gainf_corr(struct ath5k_hw *ah)
 		return 0;
 
 	go = &rfgain_opt_5112;
+	rf_regs = rf_regs_5112a;
+	ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_5112a);
 
 	g_step = &go->go_step[ah->ah_gain.g_step_idx];
 
@@ -184,11 +219,11 @@ static u32 ath5k_hw_rf_gainf_corr(struct ath5k_hw *ah)
 	ah->ah_gain.g_f_corr = 0;
 
 	/* No VGA (Variable Gain Amplifier) override, skip */
-	if (ath5k_hw_rfregs_op(rf, ah->ah_offset[7], 0, 1, 36, 0, false) != 1)
+	if (ath5k_hw_rfb_op(ah, rf_regs, 0, AR5K_RF_MIXVGA_OVR, false) != 1)
 		return 0;
 
 	/* Mix gain stepping */
-	step = ath5k_hw_rfregs_op(rf, ah->ah_offset[7], 0, 4, 32, 0, false);
+	step = ath5k_hw_rfb_op(ah, rf_regs, 0, AR5K_RF_MIXGAIN_STEP, false);
 
 	/* Mix gain override */
 	mix = g_step->gos_param[0];
@@ -217,6 +252,7 @@ static u32 ath5k_hw_rf_gainf_corr(struct ath5k_hw *ah)
  * their detection window) so we must ignore it */
 static bool ath5k_hw_rf_check_gainf_readback(struct ath5k_hw *ah)
 {
+	const struct ath5k_rf_reg *rf_regs;
 	u32 step, mix_ovr, level[4];
 	u32 *rf;
 
@@ -226,8 +262,13 @@ static bool ath5k_hw_rf_check_gainf_readback(struct ath5k_hw *ah)
 	rf = ah->ah_rf_banks;
 
 	if (ah->ah_radio == AR5K_RF5111) {
-		step = ath5k_hw_rfregs_op(rf, ah->ah_offset[7], 0, 6, 37, 0,
-				false);
+
+		rf_regs = rf_regs_5111;
+		ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_5111);
+
+		step = ath5k_hw_rfb_op(ah, rf_regs, 0, AR5K_RF_RFGAIN_STEP,
+			false);
+
 		level[0] = 0;
 		level[1] = (step == 63) ? 50 : step + 4;
 		level[2] = (step != 63) ? 64 : level[0];
@@ -238,8 +279,13 @@ static bool ath5k_hw_rf_check_gainf_readback(struct ath5k_hw *ah)
 		ah->ah_gain.g_low = level[0] +
 			(step == 63 ? AR5K_GAIN_DYN_ADJUST_LO_MARGIN : 0);
 	} else {
-		mix_ovr = ath5k_hw_rfregs_op(rf, ah->ah_offset[7], 0, 1, 36, 0,
-				false);
+
+		rf_regs = rf_regs_5112;
+		ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_5112);
+
+		mix_ovr = ath5k_hw_rfb_op(ah, rf_regs, 0, AR5K_RF_MIXVGA_OVR,
+			false);
+
 		level[0] = level[2] = 0;
 
 		if (mix_ovr == 1) {
@@ -451,339 +497,318 @@ int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq)
 * RF Registers setup *
 \********************/
 
-/*
- * Read EEPROM Calibration data, modify RF Banks and Initialize RF5111
- */
-static int ath5k_hw_rf5111_rfregs(struct ath5k_hw *ah,
-		struct ieee80211_channel *channel, unsigned int mode)
-{
-	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-	u32 *rf;
-	const unsigned int rf_size = ARRAY_SIZE(rfb_5111);
-	unsigned int i;
-	int obdb = -1, bank = -1;
-	u32 ee_mode;
-
-	AR5K_ASSERT_ENTRY(mode, AR5K_MODE_MAX);
-
-	rf = ah->ah_rf_banks;
-
-	/* Copy values to modify them */
-	for (i = 0; i < rf_size; i++) {
-		if (rfb_5111[i].rfb_bank >= AR5K_RF5111_INI_RF_MAX_BANKS) {
-			ATH5K_ERR(ah->ah_sc, "invalid bank\n");
-			return -EINVAL;
-		}
-
-		if (bank != rfb_5111[i].rfb_bank) {
-			bank = rfb_5111[i].rfb_bank;
-			ah->ah_offset[bank] = i;
-		}
-
-		rf[i] = rfb_5111[i].rfb_mode_data[mode];
-	}
-
-	/* Modify bank 0 */
-	if (channel->hw_value & CHANNEL_2GHZ) {
-		if (channel->hw_value & CHANNEL_CCK)
-			ee_mode = AR5K_EEPROM_MODE_11B;
-		else
-			ee_mode = AR5K_EEPROM_MODE_11G;
-		obdb = 0;
-
-		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[0],
-				ee->ee_ob[ee_mode][obdb], 3, 119, 0, true))
-			return -EINVAL;
-
-		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[0],
-				ee->ee_ob[ee_mode][obdb], 3, 122, 0, true))
-			return -EINVAL;
-
-		obdb = 1;
-	/* Modify bank 6 */
-	} else {
-		/* For 11a, Turbo and XR */
-		ee_mode = AR5K_EEPROM_MODE_11A;
-		obdb =	 channel->center_freq >= 5725 ? 3 :
-			(channel->center_freq >= 5500 ? 2 :
-			(channel->center_freq >= 5260 ? 1 :
-			 (channel->center_freq > 4000 ? 0 : -1)));
-
-		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-				ee->ee_pwd_84, 1, 51, 3, true))
-			return -EINVAL;
-
-		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-				ee->ee_pwd_90, 1, 45, 3, true))
-			return -EINVAL;
-	}
-
-	if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-			!ee->ee_xpd[ee_mode], 1, 95, 0, true))
-		return -EINVAL;
-
-	if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-			ee->ee_x_gain[ee_mode], 4, 96, 0, true))
-		return -EINVAL;
-
-	if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6], obdb >= 0 ?
-			ee->ee_ob[ee_mode][obdb] : 0, 3, 104, 0, true))
-		return -EINVAL;
-
-	if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6], obdb >= 0 ?
-			ee->ee_db[ee_mode][obdb] : 0, 3, 107, 0, true))
-		return -EINVAL;
-
-	/* Modify bank 7 */
-	if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[7],
-			ee->ee_i_gain[ee_mode], 6, 29, 0, true))
-		return -EINVAL;
-
-	if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[7],
-			ee->ee_xpd[ee_mode], 1, 4, 0, true))
-		return -EINVAL;
-
-	/* Write RF values */
-	for (i = 0; i < rf_size; i++) {
-		AR5K_REG_WAIT(i);
-		ath5k_hw_reg_write(ah, rf[i], rfb_5111[i].rfb_ctrl_register);
-	}
-
-	ah->ah_gain.g_state = AR5K_RFGAIN_ACTIVE;
-
-	return 0;
-}
 
 /*
- * Read EEPROM Calibration data, modify RF Banks and Initialize RF5112
+ * Setup RF registers by writing rf buffer on hw
  */
-static int ath5k_hw_rf5112_rfregs(struct ath5k_hw *ah,
-		struct ieee80211_channel *channel, unsigned int mode)
-{
-	const struct ath5k_ini_rfbuffer *rf_ini;
-	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-	u32 *rf;
-	unsigned int rf_size, i;
-	int obdb = -1, bank = -1;
-	u32 ee_mode;
-
-	AR5K_ASSERT_ENTRY(mode, AR5K_MODE_MAX);
-
-	rf = ah->ah_rf_banks;
-
-	if (ah->ah_radio_5ghz_revision >= AR5K_SREV_RAD_5112A) {
-		rf_ini = rfb_5112a;
-		rf_size = ARRAY_SIZE(rfb_5112a);
-	} else {
-		rf_ini = rfb_5112;
-		rf_size = ARRAY_SIZE(rfb_5112);
-	}
-
-	/* Copy values to modify them */
-	for (i = 0; i < rf_size; i++) {
-		if (rf_ini[i].rfb_bank >= AR5K_RF5112_INI_RF_MAX_BANKS) {
-			ATH5K_ERR(ah->ah_sc, "invalid bank\n");
-			return -EINVAL;
-		}
-
-		if (bank != rf_ini[i].rfb_bank) {
-			bank = rf_ini[i].rfb_bank;
-			ah->ah_offset[bank] = i;
-		}
-
-		rf[i] = rf_ini[i].rfb_mode_data[mode];
-	}
-
-	/* Modify bank 6 */
-	if (channel->hw_value & CHANNEL_2GHZ) {
-		if (channel->hw_value & CHANNEL_OFDM)
-			ee_mode = AR5K_EEPROM_MODE_11G;
-		else
-			ee_mode = AR5K_EEPROM_MODE_11B;
-		obdb = 0;
-
-		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-				ee->ee_ob[ee_mode][obdb], 3, 287, 0, true))
-			return -EINVAL;
-
-		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-				ee->ee_ob[ee_mode][obdb], 3, 290, 0, true))
-			return -EINVAL;
-	} else {
-		/* For 11a, Turbo and XR */
-		ee_mode = AR5K_EEPROM_MODE_11A;
-		obdb = channel->center_freq >= 5725 ? 3 :
-		    (channel->center_freq >= 5500 ? 2 :
-			(channel->center_freq >= 5260 ? 1 :
-			    (channel->center_freq > 4000 ? 0 : -1)));
-
-		if (obdb == -1)
-			return -EINVAL;
-
-		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-				ee->ee_ob[ee_mode][obdb], 3, 279, 0, true))
-			return -EINVAL;
-
-		if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-				ee->ee_ob[ee_mode][obdb], 3, 282, 0, true))
-			return -EINVAL;
-	}
-
-	ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-	    ee->ee_x_gain[ee_mode], 2, 270, 0, true);
-	ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-	    ee->ee_x_gain[ee_mode], 2, 257, 0, true);
-
-	if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[6],
-			ee->ee_xpd[ee_mode], 1, 302, 0, true))
-		return -EINVAL;
-
-	/* Modify bank 7 */
-	if (!ath5k_hw_rfregs_op(rf, ah->ah_offset[7],
-			ee->ee_i_gain[ee_mode], 6, 14, 0, true))
-		return -EINVAL;
-
-	/* Write RF values */
-	for (i = 0; i < rf_size; i++)
-		ath5k_hw_reg_write(ah, rf[i], rf_ini[i].rfb_ctrl_register);
-
-
-	ah->ah_gain.g_state = AR5K_RFGAIN_ACTIVE;
-
-	return 0;
-}
-
-/*
- * Initialize RF5413/5414 and future chips
- * (until we come up with a better solution)
- */
-static int ath5k_hw_rf5413_rfregs(struct ath5k_hw *ah,
-		struct ieee80211_channel *channel, unsigned int mode)
-{
-	const struct ath5k_ini_rfbuffer *rf_ini;
-	u32 *rf;
-	unsigned int rf_size, i;
-	int bank = -1;
-
-	AR5K_ASSERT_ENTRY(mode, AR5K_MODE_MAX);
-
-	rf = ah->ah_rf_banks;
-
-	switch (ah->ah_radio) {
-	case AR5K_RF5413:
-		rf_ini = rfb_5413;
-		rf_size = ARRAY_SIZE(rfb_5413);
-		break;
-	case AR5K_RF2413:
-		rf_ini = rfb_2413;
-		rf_size = ARRAY_SIZE(rfb_2413);
-
-		if (mode < 2) {
-			ATH5K_ERR(ah->ah_sc,
-				"invalid channel mode: %i\n", mode);
-			return -EINVAL;
-		}
-
-		break;
-	case AR5K_RF2425:
-		rf_ini = rfb_2425;
-		rf_size = ARRAY_SIZE(rfb_2425);
-
-		if (mode < 2) {
-			ATH5K_ERR(ah->ah_sc,
-				"invalid channel mode: %i\n", mode);
-			return -EINVAL;
-		}
-
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	/* Copy values to modify them */
-	for (i = 0; i < rf_size; i++) {
-		if (rf_ini[i].rfb_bank >= AR5K_RF5112_INI_RF_MAX_BANKS) {
-			ATH5K_ERR(ah->ah_sc, "invalid bank\n");
-			return -EINVAL;
-		}
-
-		if (bank != rf_ini[i].rfb_bank) {
-			bank = rf_ini[i].rfb_bank;
-			ah->ah_offset[bank] = i;
-		}
-
-		rf[i] = rf_ini[i].rfb_mode_data[mode];
-	}
-
-	/*
-	 * After compairing dumps from different cards
-	 * we get the same RF_BUFFER settings (diff returns
-	 * 0 lines). It seems that RF_BUFFER settings are static
-	 * and are written unmodified (no EEPROM stuff
-	 * is used because calibration data would be
-	 * different between different cards and would result
-	 * different RF_BUFFER settings)
-	 */
-
-	/* Write RF values */
-	for (i = 0; i < rf_size; i++)
-		ath5k_hw_reg_write(ah, rf[i], rf_ini[i].rfb_ctrl_register);
-
-	return 0;
-}
-
-/*
- * Initialize RF
- */
-int ath5k_hw_rfregs(struct ath5k_hw *ah, struct ieee80211_channel *channel,
+int ath5k_hw_rfregs_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		unsigned int mode)
 {
-	int (*func)(struct ath5k_hw *, struct ieee80211_channel *, unsigned int);
-	int ret;
+	const struct ath5k_rf_reg *rf_regs;
+	const struct ath5k_ini_rfbuffer *ini_rfb;
+	const struct ath5k_gain_opt *go = NULL;
+	const struct ath5k_gain_opt_step *g_step;
+	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
+	u8 ee_mode = 0;
+	u32 *rfb;
+	int i, obdb = -1, bank = -1;
 
 	switch (ah->ah_radio) {
 	case AR5K_RF5111:
-		ah->ah_rf_banks_size = sizeof(rfb_5111);
-		func = ath5k_hw_rf5111_rfregs;
+		rf_regs = rf_regs_5111;
+		ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_5111);
+		ini_rfb = rfb_5111;
+		ah->ah_rf_banks_size = ARRAY_SIZE(rfb_5111);
+		go = &rfgain_opt_5111;
 		break;
 	case AR5K_RF5112:
-		if (ah->ah_radio_5ghz_revision >= AR5K_SREV_RAD_5112A)
-			ah->ah_rf_banks_size = sizeof(rfb_5112a);
-		else
-			ah->ah_rf_banks_size = sizeof(rfb_5112);
-		func = ath5k_hw_rf5112_rfregs;
-		break;
-	case AR5K_RF5413:
-		ah->ah_rf_banks_size = sizeof(rfb_5413);
-		func = ath5k_hw_rf5413_rfregs;
+		if (ah->ah_radio_5ghz_revision >= AR5K_SREV_RAD_5112A) {
+			rf_regs = rf_regs_5112a;
+			ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_5112a);
+			ini_rfb = rfb_5112a;
+			ah->ah_rf_banks_size = ARRAY_SIZE(rfb_5112a);
+		} else {
+			rf_regs = rf_regs_5112;
+			ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_5112);
+			ini_rfb = rfb_5112;
+			ah->ah_rf_banks_size = ARRAY_SIZE(rfb_5112);
+		}
+		go = &rfgain_opt_5112;
 		break;
 	case AR5K_RF2413:
-		ah->ah_rf_banks_size = sizeof(rfb_2413);
-		func = ath5k_hw_rf5413_rfregs;
+		rf_regs = rf_regs_2413;
+		ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_2413);
+		ini_rfb = rfb_2413;
+		ah->ah_rf_banks_size = ARRAY_SIZE(rfb_2413);
+		break;
+	case AR5K_RF2316:
+		rf_regs = rf_regs_2316;
+		ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_2316);
+		ini_rfb = rfb_2316;
+		ah->ah_rf_banks_size = ARRAY_SIZE(rfb_2316);
+		break;
+	case AR5K_RF5413:
+		rf_regs = rf_regs_5413;
+		ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_5413);
+		ini_rfb = rfb_5413;
+		ah->ah_rf_banks_size = ARRAY_SIZE(rfb_5413);
+		break;
+	case AR5K_RF2317:
+		rf_regs = rf_regs_2425;
+		ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_2425);
+		ini_rfb = rfb_2317;
+		ah->ah_rf_banks_size = ARRAY_SIZE(rfb_2317);
 		break;
 	case AR5K_RF2425:
-		ah->ah_rf_banks_size = sizeof(rfb_2425);
-		func = ath5k_hw_rf5413_rfregs;
+		rf_regs = rf_regs_2425;
+		ah->ah_rf_regs_count = ARRAY_SIZE(rf_regs_2425);
+		if (ah->ah_mac_srev < AR5K_SREV_AR2417) {
+			ini_rfb = rfb_2425;
+			ah->ah_rf_banks_size = ARRAY_SIZE(rfb_2425);
+		} else {
+			ini_rfb = rfb_2417;
+			ah->ah_rf_banks_size = ARRAY_SIZE(rfb_2417);
+		}
 		break;
 	default:
 		return -EINVAL;
 	}
 
+	/* If it's the first time we set rf buffer, allocate
+	 * ah->ah_rf_banks based on ah->ah_rf_banks_size
+	 * we set above */
 	if (ah->ah_rf_banks == NULL) {
-		/* XXX do extra checks? */
-		ah->ah_rf_banks = kmalloc(ah->ah_rf_banks_size, GFP_KERNEL);
+		ah->ah_rf_banks = kmalloc(sizeof(u32) * ah->ah_rf_banks_size,
+								GFP_KERNEL);
 		if (ah->ah_rf_banks == NULL) {
 			ATH5K_ERR(ah->ah_sc, "out of memory\n");
 			return -ENOMEM;
 		}
 	}
 
-	ret = func(ah, channel, mode);
+	/* Copy values to modify them */
+	rfb = ah->ah_rf_banks;
 
-	return ret;
+	for (i = 0; i < ah->ah_rf_banks_size; i++) {
+		if (ini_rfb[i].rfb_bank >= AR5K_MAX_RF_BANKS) {
+			ATH5K_ERR(ah->ah_sc, "invalid bank\n");
+			return -EINVAL;
+		}
+
+		/* Bank changed, write down the offset */
+		if (bank != ini_rfb[i].rfb_bank) {
+			bank = ini_rfb[i].rfb_bank;
+			ah->ah_offset[bank] = i;
+		}
+
+		rfb[i] = ini_rfb[i].rfb_mode_data[mode];
+	}
+
+	/* Set Output and Driver bias current (OB/DB) */
+	if (channel->hw_value & CHANNEL_2GHZ) {
+
+		if (channel->hw_value & CHANNEL_CCK)
+			ee_mode = AR5K_EEPROM_MODE_11B;
+		else
+			ee_mode = AR5K_EEPROM_MODE_11G;
+
+		/* For RF511X/RF211X combination we
+		 * use b_OB and b_DB parameters stored
+		 * in eeprom on ee->ee_ob[ee_mode][0]
+		 *
+		 * For all other chips we use OB/DB for 2Ghz
+		 * stored in the b/g modal section just like
+		 * 802.11a on ee->ee_ob[ee_mode][1] */
+		if ((ah->ah_radio == AR5K_RF5111) ||
+		(ah->ah_radio == AR5K_RF5112))
+			obdb = 0;
+		else
+			obdb = 1;
+
+		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_ob[ee_mode][obdb],
+						AR5K_RF_OB_2GHZ, true);
+
+		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_db[ee_mode][obdb],
+						AR5K_RF_DB_2GHZ, true);
+
+	/* RF5111 always needs OB/DB for 5GHz, even if we use 2GHz */
+	} else if ((channel->hw_value & CHANNEL_5GHZ) ||
+			(ah->ah_radio == AR5K_RF5111)) {
+
+		/* For 11a, Turbo and XR we need to choose
+		 * OB/DB based on frequency range */
+		ee_mode = AR5K_EEPROM_MODE_11A;
+		obdb =	 channel->center_freq >= 5725 ? 3 :
+			(channel->center_freq >= 5500 ? 2 :
+			(channel->center_freq >= 5260 ? 1 :
+			 (channel->center_freq > 4000 ? 0 : -1)));
+
+		if (obdb < 0)
+			return -EINVAL;
+
+		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_ob[ee_mode][obdb],
+						AR5K_RF_OB_5GHZ, true);
+
+		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_db[ee_mode][obdb],
+						AR5K_RF_DB_5GHZ, true);
+	}
+
+	g_step = &go->go_step[ah->ah_gain.g_step_idx];
+
+	/* Bank Modifications (chip-specific) */
+	if (ah->ah_radio == AR5K_RF5111) {
+
+		/* Set gain_F settings according to current step */
+		if (channel->hw_value & CHANNEL_OFDM) {
+
+			AR5K_REG_WRITE_BITS(ah, AR5K_PHY_FRAME_CTL,
+					AR5K_PHY_FRAME_CTL_TX_CLIP,
+					g_step->gos_param[0]);
+
+			ath5k_hw_rfb_op(ah, rf_regs, g_step->gos_param[1],
+							AR5K_RF_PWD_90, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, g_step->gos_param[2],
+							AR5K_RF_PWD_84, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, g_step->gos_param[3],
+						AR5K_RF_RFGAIN_SEL, true);
+
+			/* We programmed gain_F parameters, switch back
+			 * to active state */
+			ah->ah_gain.g_state = AR5K_RFGAIN_ACTIVE;
+
+		}
+
+		/* Bank 6/7 setup */
+
+		ath5k_hw_rfb_op(ah, rf_regs, !ee->ee_xpd[ee_mode],
+						AR5K_RF_PWD_XPD, true);
+
+		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_x_gain[ee_mode],
+						AR5K_RF_XPD_GAIN, true);
+
+		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_i_gain[ee_mode],
+						AR5K_RF_GAIN_I, true);
+
+		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_xpd[ee_mode],
+						AR5K_RF_PLO_SEL, true);
+
+		/* TODO: Half/quarter channel support */
+	}
+
+	if (ah->ah_radio == AR5K_RF5112) {
+
+		/* Set gain_F settings according to current step */
+		if (channel->hw_value & CHANNEL_OFDM) {
+
+			ath5k_hw_rfb_op(ah, rf_regs, g_step->gos_param[0],
+						AR5K_RF_MIXGAIN_OVR, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, g_step->gos_param[1],
+						AR5K_RF_PWD_138, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, g_step->gos_param[2],
+						AR5K_RF_PWD_137, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, g_step->gos_param[3],
+						AR5K_RF_PWD_136, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, g_step->gos_param[4],
+						AR5K_RF_PWD_132, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, g_step->gos_param[5],
+						AR5K_RF_PWD_131, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, g_step->gos_param[6],
+						AR5K_RF_PWD_130, true);
+
+			/* We programmed gain_F parameters, switch back
+			 * to active state */
+			ah->ah_gain.g_state = AR5K_RFGAIN_ACTIVE;
+		}
+
+		/* Bank 6/7 setup */
+
+		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_xpd[ee_mode],
+						AR5K_RF_XPD_SEL, true);
+
+		if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112A) {
+			/* Rev. 1 supports only one xpd */
+			ath5k_hw_rfb_op(ah, rf_regs,
+						ee->ee_x_gain[ee_mode],
+						AR5K_RF_XPD_GAIN, true);
+
+		} else {
+			/* TODO: Set high and low gain bits */
+			ath5k_hw_rfb_op(ah, rf_regs,
+						ee->ee_x_gain[ee_mode],
+						AR5K_RF_PD_GAIN_LO, true);
+			ath5k_hw_rfb_op(ah, rf_regs,
+						ee->ee_x_gain[ee_mode],
+						AR5K_RF_PD_GAIN_HI, true);
+
+			/* Lower synth voltage on Rev 2 */
+			ath5k_hw_rfb_op(ah, rf_regs, 2,
+					AR5K_RF_HIGH_VC_CP, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, 2,
+					AR5K_RF_MID_VC_CP, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, 2,
+					AR5K_RF_LOW_VC_CP, true);
+
+			ath5k_hw_rfb_op(ah, rf_regs, 2,
+					AR5K_RF_PUSH_UP, true);
+
+			/* Decrease power consumption on 5213+ BaseBand */
+			if (ah->ah_phy_revision >= AR5K_SREV_PHY_5212A) {
+				ath5k_hw_rfb_op(ah, rf_regs, 1,
+						AR5K_RF_PAD2GND, true);
+
+				ath5k_hw_rfb_op(ah, rf_regs, 1,
+						AR5K_RF_XB2_LVL, true);
+
+				ath5k_hw_rfb_op(ah, rf_regs, 1,
+						AR5K_RF_XB5_LVL, true);
+
+				ath5k_hw_rfb_op(ah, rf_regs, 1,
+						AR5K_RF_PWD_167, true);
+
+				ath5k_hw_rfb_op(ah, rf_regs, 1,
+						AR5K_RF_PWD_166, true);
+			}
+		}
+
+		ath5k_hw_rfb_op(ah, rf_regs, ee->ee_i_gain[ee_mode],
+						AR5K_RF_GAIN_I, true);
+
+		/* TODO: Half/quarter channel support */
+
+	}
+
+	if (ah->ah_radio == AR5K_RF5413 &&
+	channel->hw_value & CHANNEL_2GHZ) {
+
+		ath5k_hw_rfb_op(ah, rf_regs, 1, AR5K_RF_DERBY_CHAN_SEL_MODE,
+									true);
+
+		/* Set optimum value for early revisions (on pci-e chips) */
+		if (ah->ah_mac_srev >= AR5K_SREV_AR5424 &&
+		ah->ah_mac_srev < AR5K_SREV_AR5413)
+			ath5k_hw_rfb_op(ah, rf_regs, ath5k_hw_bitswap(6, 3),
+						AR5K_RF_PWD_ICLOBUF_2G, true);
+
+	}
+
+	/* Write RF banks on hw */
+	for (i = 0; i < ah->ah_rf_banks_size; i++) {
+		AR5K_REG_WAIT(i);
+		ath5k_hw_reg_write(ah, rfb[i], ini_rfb[i].rfb_ctrl_register);
+	}
+
+	return 0;
 }
-
-
 
 
 /**************************\

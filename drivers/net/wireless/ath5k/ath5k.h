@@ -165,9 +165,6 @@
 #define AR5K_INI_VAL_XR			0
 #define AR5K_INI_VAL_MAX		5
 
-#define AR5K_RF5111_INI_RF_MAX_BANKS	AR5K_MAX_RF_BANKS
-#define AR5K_RF5112_INI_RF_MAX_BANKS	AR5K_MAX_RF_BANKS
-
 /* Used for BSSID etc manipulation */
 #define AR5K_LOW_ID(_a)(				\
 (_a)[0] | (_a)[1] << 8 | (_a)[2] << 16 | (_a)[3] << 24	\
@@ -342,6 +339,7 @@ struct ath5k_srev_name {
 
 #define AR5K_SREV_PHY_5211	0x30
 #define AR5K_SREV_PHY_5212	0x41
+#define	AR5K_SREV_PHY_5212A	0x42
 #define AR5K_SREV_PHY_2112B	0x43
 #define AR5K_SREV_PHY_2413	0x45
 #define AR5K_SREV_PHY_5413	0x61
@@ -1083,8 +1081,9 @@ struct ath5k_hw {
 	u32			ah_txq_isr;
 	u32			*ah_rf_banks;
 	size_t			ah_rf_banks_size;
+	size_t			ah_rf_regs_count;
 	struct ath5k_gain	ah_gain;
-	u32			ah_offset[AR5K_MAX_RF_BANKS];
+	u8			ah_offset[AR5K_MAX_RF_BANKS];
 
 	struct {
 		u16		txp_pcdac[AR5K_EEPROM_POWER_TABLE_SIZE];
@@ -1232,7 +1231,9 @@ extern int ath5k_hw_disable_pspoll(struct ath5k_hw *ah);
 extern int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel);
 
 /* Initialize RF */
-extern int ath5k_hw_rfregs(struct ath5k_hw *ah, struct ieee80211_channel *channel, unsigned int mode);
+extern int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
+				struct ieee80211_channel *channel,
+				unsigned int mode);
 extern int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq);
 extern enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah);
 extern int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah);

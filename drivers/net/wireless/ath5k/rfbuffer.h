@@ -17,6 +17,33 @@
  *
  */
 
+
+/*
+ * There are some special registers on the RF chip
+ * that control various operation settings related mostly to
+ * the analog parts (channel, gain adjustment etc).
+ *
+ * We don't write on those registers directly but
+ * we send a data packet on the chip, using a special register,
+ * that holds all the settings we need. After we 've sent the
+ * data packet, we write on another special register to notify hw
+ * to apply the settings. This is done so that control registers
+ * can be dynamicaly programmed during operation and the settings
+ * are applied faster on the hw.
+ *
+ * We call each data packet an "RF Bank" and all the data we write
+ * (all RF Banks) "RF Buffer". This file holds initial RF Buffer
+ * data for the different RF chips, and various info to match RF
+ * Buffer offsets with specific RF registers so that we can access
+ * them. We tweak these settings on rfregs_init function.
+ *
+ * Also check out reg.h and U.S. Patent 6677779 B1 (about buffer
+ * registers and control registers):
+ *
+ * http://www.google.com/patents?id=qNURAAAAEBAJ
+ */
+
+
 /*
  * Struct to hold default mode specific RF
  * register values (RF Banks)
@@ -72,15 +99,28 @@ enum ath5k_rf_regs_idx {
 	AR5K_RF_XB2_LVL,
 	AR5K_RF_XB5_LVL,
 	AR5K_RF_PWD_ICLOBUF_2G,
+	AR5K_RF_PWD_84,
+	AR5K_RF_PWD_90,
+	AR5K_RF_PWD_130,
+	AR5K_RF_PWD_131,
+	AR5K_RF_PWD_132,
+	AR5K_RF_PWD_136,
+	AR5K_RF_PWD_137,
+	AR5K_RF_PWD_138,
+	AR5K_RF_PWD_166,
+	AR5K_RF_PWD_167,
 	AR5K_RF_DERBY_CHAN_SEL_MODE,
 	/* BANK 7 */
 	AR5K_RF_GAIN_I,
 	AR5K_RF_PLO_SEL,
 	AR5K_RF_RFGAIN_SEL,
+	AR5K_RF_RFGAIN_STEP,
 	AR5K_RF_WAIT_S,
 	AR5K_RF_WAIT_I,
 	AR5K_RF_MAX_TIME,
+	AR5K_RF_MIXVGA_OVR,
 	AR5K_RF_MIXGAIN_OVR,
+	AR5K_RF_MIXGAIN_STEP,
 	AR5K_RF_PD_DELAY_A,
 	AR5K_RF_PD_DELAY_B,
 	AR5K_RF_PD_DELAY_XR,
@@ -118,19 +158,21 @@ enum ath5k_rf_regs_idx {
 #define	AR5K_RF5111_MAX_TIME		{ 2, 49,  0 }
 
 static const struct ath5k_rf_reg rf_regs_5111[] = {
-	{6, AR5K_RF_OB_2GHZ,	AR5K_RF5111_OB_2GHZ},
-	{6, AR5K_RF_DB_2GHZ,	AR5K_RF5111_DB_2GHZ},
-	{6, AR5K_RF_OB_5GHZ,	AR5K_RF5111_OB_5GHZ},
-	{6, AR5K_RF_DB_5GHZ,	AR5K_RF5111_DB_5GHZ},
-	{6, AR5K_RF_PWD_XPD,	AR5K_RF5111_PWD_XPD},
-	{6, AR5K_RF_XPD_GAIN,	AR5K_RF5111_XPD_GAIN},
-	{7, AR5K_RF_GAIN_I,	AR5K_RF5111_GAIN_I},
-	{7, AR5K_RF_PLO_SEL,	AR5K_RF5111_PLO_SEL},
-	{7, AR5K_RF_RFGAIN_SEL,	AR5K_RF5111_RFGAIN_SEL},
-	{7, AR5K_RF_WAIT_S,	AR5K_RF5111_WAIT_S},
-	{7, AR5K_RF_WAIT_I,	AR5K_RF5111_WAIT_I},
-	{7, AR5K_RF_MAX_TIME,	AR5K_RF5111_MAX_TIME}
-
+	{6, AR5K_RF_OB_2GHZ,		AR5K_RF5111_OB_2GHZ},
+	{6, AR5K_RF_DB_2GHZ,		AR5K_RF5111_DB_2GHZ},
+	{6, AR5K_RF_OB_5GHZ,		AR5K_RF5111_OB_5GHZ},
+	{6, AR5K_RF_DB_5GHZ,		AR5K_RF5111_DB_5GHZ},
+	{6, AR5K_RF_PWD_XPD,		AR5K_RF5111_PWD_XPD},
+	{6, AR5K_RF_XPD_GAIN,		AR5K_RF5111_XPD_GAIN},
+	{6, AR5K_RF_PWD_84,		AR5K_RF5111_PWD(84)},
+	{6, AR5K_RF_PWD_90,		AR5K_RF5111_PWD(90)},
+	{7, AR5K_RF_GAIN_I,		AR5K_RF5111_GAIN_I},
+	{7, AR5K_RF_PLO_SEL,		AR5K_RF5111_PLO_SEL},
+	{7, AR5K_RF_RFGAIN_SEL,		AR5K_RF5111_RFGAIN_SEL},
+	{7, AR5K_RF_RFGAIN_STEP,	AR5K_RF5111_RFGAIN_STEP},
+	{7, AR5K_RF_WAIT_S,		AR5K_RF5111_WAIT_S},
+	{7, AR5K_RF_WAIT_I,		AR5K_RF5111_WAIT_I},
+	{7, AR5K_RF_MAX_TIME,		AR5K_RF5111_MAX_TIME}
 };
 
 /* Default mode specific settings */
@@ -273,8 +315,16 @@ static const struct ath5k_rf_reg rf_regs_5112[] = {
 	{6, AR5K_RF_FIXED_BIAS_B,	AR5K_RF5112_FIXED_BIAS_B},
 	{6, AR5K_RF_XPD_SEL,		AR5K_RF5112_XPD_SEL},
 	{6, AR5K_RF_XPD_GAIN,		AR5K_RF5112_XPD_GAIN},
+	{6, AR5K_RF_PWD_130,		AR5K_RF5112_PWD(130)},
+	{6, AR5K_RF_PWD_131,		AR5K_RF5112_PWD(131)},
+	{6, AR5K_RF_PWD_132,		AR5K_RF5112_PWD(132)},
+	{6, AR5K_RF_PWD_136,		AR5K_RF5112_PWD(136)},
+	{6, AR5K_RF_PWD_137,		AR5K_RF5112_PWD(137)},
+	{6, AR5K_RF_PWD_138,		AR5K_RF5112_PWD(138)},
 	{7, AR5K_RF_GAIN_I,		AR5K_RF5112X_GAIN_I},
+	{7, AR5K_RF_MIXVGA_OVR,		AR5K_RF5112X_MIXVGA_OVR},
 	{7, AR5K_RF_MIXGAIN_OVR,	AR5K_RF5112X_MIXGAIN_OVR},
+	{7, AR5K_RF_MIXGAIN_STEP,	AR5K_RF5112X_MIXGAIN_STEP},
 	{7, AR5K_RF_PD_DELAY_A,		AR5K_RF5112X_PD_DELAY_A},
 	{7, AR5K_RF_PD_DELAY_B,		AR5K_RF5112X_PD_DELAY_B},
 	{7, AR5K_RF_PD_DELAY_XR,	AR5K_RF5112X_PD_DELAY_XR},
@@ -419,7 +469,7 @@ static const struct ath5k_ini_rfbuffer rfb_5112[] = {
 #define	AR5K_RF5112A_HIGH_VC_CP		{ 2, 90,  2 }
 #define	AR5K_RF5112A_MID_VC_CP		{ 2, 92,  2 }
 #define	AR5K_RF5112A_LOW_VC_CP		{ 2, 94,  2 }
-#define	AR5K_RF5112A_PUSH_UP		{ 2, 94,  2 }
+#define	AR5K_RF5112A_PUSH_UP		{ 1, 254,  2 }
 
 /* Power consumption */
 #define	AR5K_RF5112A_PAD2GND		{ 1, 281, 1 }
@@ -436,6 +486,14 @@ static const struct ath5k_rf_reg rf_regs_5112a[] = {
 	{6, AR5K_RF_XPD_SEL,		AR5K_RF5112A_XPD_SEL},
 	{6, AR5K_RF_PD_GAIN_LO,		AR5K_RF5112A_PDGAINLO},
 	{6, AR5K_RF_PD_GAIN_HI,		AR5K_RF5112A_PDGAINHI},
+	{6, AR5K_RF_PWD_130,		AR5K_RF5112A_PWD(130)},
+	{6, AR5K_RF_PWD_131,		AR5K_RF5112A_PWD(131)},
+	{6, AR5K_RF_PWD_132,		AR5K_RF5112A_PWD(132)},
+	{6, AR5K_RF_PWD_136,		AR5K_RF5112A_PWD(136)},
+	{6, AR5K_RF_PWD_137,		AR5K_RF5112A_PWD(137)},
+	{6, AR5K_RF_PWD_138,		AR5K_RF5112A_PWD(138)},
+	{6, AR5K_RF_PWD_166,		AR5K_RF5112A_PWD(166)},
+	{6, AR5K_RF_PWD_167,		AR5K_RF5112A_PWD(167)},
 	{6, AR5K_RF_HIGH_VC_CP,		AR5K_RF5112A_HIGH_VC_CP},
 	{6, AR5K_RF_MID_VC_CP,		AR5K_RF5112A_MID_VC_CP},
 	{6, AR5K_RF_LOW_VC_CP,		AR5K_RF5112A_LOW_VC_CP},
@@ -444,7 +502,9 @@ static const struct ath5k_rf_reg rf_regs_5112a[] = {
 	{6, AR5K_RF_XB2_LVL,		AR5K_RF5112A_XB2_LVL},
 	{6, AR5K_RF_XB5_LVL,		AR5K_RF5112A_XB5_LVL},
 	{7, AR5K_RF_GAIN_I,		AR5K_RF5112X_GAIN_I},
+	{7, AR5K_RF_MIXVGA_OVR,		AR5K_RF5112X_MIXVGA_OVR},
 	{7, AR5K_RF_MIXGAIN_OVR,	AR5K_RF5112X_MIXGAIN_OVR},
+	{7, AR5K_RF_MIXGAIN_STEP,	AR5K_RF5112X_MIXGAIN_STEP},
 	{7, AR5K_RF_PD_DELAY_A,		AR5K_RF5112X_PD_DELAY_A},
 	{7, AR5K_RF_PD_DELAY_B,		AR5K_RF5112X_PD_DELAY_B},
 	{7, AR5K_RF_PD_DELAY_XR,	AR5K_RF5112X_PD_DELAY_XR},

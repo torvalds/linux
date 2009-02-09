@@ -2101,34 +2101,10 @@
 /*
  * RF Buffer register
  *
- * There are some special control registers on the RF chip
- * that hold various operation settings related mostly to
- * the analog parts (channel, gain adjustment etc).
- *
- * We don't write on those registers directly but
- * we send a data packet on the buffer register and
- * then write on another special register to notify hw
- * to apply the settings. This is done so that control registers
- * can be dynamicaly programmed during operation and the settings
- * are applied faster on the hw.
- *
- * We sent such data packets during rf initialization and channel change
- * through ath5k_hw_rf*_rfregs and ath5k_hw_rf*_channel functions.
- *
- * The data packets we send during initializadion are inside ath5k_ini_rf
- * struct (see ath5k_hw.h) and each one is related to an "rf register bank".
- * We use *rfregs functions to modify them  acording to current operation
- * mode and eeprom values and pass them all together to the chip.
- *
  * It's obvious from the code that 0x989c is the buffer register but
  * for the other special registers that we write to after sending each
  * packet, i have no idea. So i'll name them BUFFER_CONTROL_X registers
  * for now. It's interesting that they are also used for some other operations.
- *
- * Also check out hw.h and U.S. Patent 6677779 B1 (about buffer
- * registers and control registers):
- *
- * http://www.google.com/patents?id=qNURAAAAEBAJ
  */
 
 #define AR5K_RF_BUFFER			0x989c

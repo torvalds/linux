@@ -600,7 +600,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		/*
 		 * Write RF registers
 		 */
-		ret = ath5k_hw_rfregs(ah, channel, mode);
+		ret = ath5k_hw_rfregs_init(ah, channel, mode);
 		if (ret)
 			return ret;
 
