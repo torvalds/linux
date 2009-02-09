@@ -1132,7 +1132,6 @@ int hfa384x_drvr_flashdl_enable(hfa384x_t *hw);
 int hfa384x_drvr_flashdl_disable(hfa384x_t *hw);
 int hfa384x_drvr_flashdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len);
 int hfa384x_drvr_getconfig(hfa384x_t *hw, u16 rid, void *buf, u16 len);
-int hfa384x_drvr_handover(hfa384x_t *hw, u8 *addr);
 int hfa384x_drvr_ramdl_enable(hfa384x_t *hw, u32 exeaddr);
 int hfa384x_drvr_ramdl_disable(hfa384x_t *hw);
 int hfa384x_drvr_ramdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len);
@@ -1187,12 +1186,6 @@ int hfa384x_cmd_monitor(hfa384x_t *hw, u16 enable);
 int
 hfa384x_cmd_download(hfa384x_t *hw,
 		     u16 mode, u16 lowaddr, u16 highaddr, u16 codelen);
-void
-hfa384x_copy_from_aux(hfa384x_t *hw,
-		      u32 cardaddr, u32 auxctl, void *buf, unsigned int len);
-void
-hfa384x_copy_to_aux(hfa384x_t *hw,
-		    u32 cardaddr, u32 auxctl, void *buf, unsigned int len);
 
 #endif /* __KERNEL__ */
 

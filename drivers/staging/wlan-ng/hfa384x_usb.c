@@ -1194,68 +1194,6 @@ int hfa384x_cmd_download(hfa384x_t *hw, u16 mode, u16 lowaddr,
 }
 
 /*----------------------------------------------------------------
-* hfa384x_copy_from_aux
-*
-* Copies a collection of bytes from the controller memory.  The
-* Auxiliary port MUST be enabled prior to calling this function.
-* We _might_ be in a download state.
-*
-* Arguments:
-*	hw		device structure
-*	cardaddr	address in hfa384x data space to read
-*	auxctl		address space select
-*	buf		ptr to destination host buffer
-*	len		length of data to transfer (in bytes)
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*	buf contains the data copied
-*
-* Call context:
-*	process
-*	interrupt
-----------------------------------------------------------------*/
-void
-hfa384x_copy_from_aux(hfa384x_t *hw, u32 cardaddr, u32 auxctl, void *buf,
-		      unsigned int len)
-{
-	printk(KERN_ERR "not used in USB.\n");
-}
-
-/*----------------------------------------------------------------
-* hfa384x_copy_to_aux
-*
-* Copies a collection of bytes to the controller memory.  The
-* Auxiliary port MUST be enabled prior to calling this function.
-* We _might_ be in a download state.
-*
-* Arguments:
-*	hw		device structure
-*	cardaddr	address in hfa384x data space to read
-*	auxctl		address space select
-*	buf		ptr to destination host buffer
-*	len		length of data to transfer (in bytes)
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*	Controller memory now contains a copy of buf
-*
-* Call context:
-*	process
-*	interrupt
-----------------------------------------------------------------*/
-void
-hfa384x_copy_to_aux(hfa384x_t *hw, u32 cardaddr, u32 auxctl, void *buf,
-		    unsigned int len)
-{
-	printk(KERN_ERR "not used in USB.\n");
-}
-
-/*----------------------------------------------------------------
 * hfa384x_corereset
 *
 * Perform a reset of the hfa38xx MAC core.  We assume that the hw
@@ -2293,31 +2231,6 @@ hfa384x_drvr_setconfig_async(hfa384x_t *hw,
 {
 	return hfa384x_dowrid_async(hw, rid, buf, len,
 				    hfa384x_cb_status, usercb, usercb_data);
-}
-
-/*----------------------------------------------------------------
-* hfa384x_drvr_handover
-*
-* Sends a handover notification to the MAC.
-*
-* Arguments:
-*	hw		device structure
-*	addr		address of station that's left
-*
-* Returns:
-*	zero		success.
-*	-ERESTARTSYS	received signal while waiting for semaphore.
-*	-EIO		failed to write to bap, or failed in cmd.
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
-int hfa384x_drvr_handover(hfa384x_t *hw, u8 *addr)
-{
-	printk(KERN_ERR "Not currently supported in USB!\n");
-	return -EIO;
 }
 
 /*----------------------------------------------------------------
