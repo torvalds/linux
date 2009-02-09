@@ -111,6 +111,7 @@ enum ath5k_rf_regs_idx {
 #define	AR5K_RF5111_GAIN_I		{ 6, 29,  0 }
 #define	AR5K_RF5111_PLO_SEL		{ 1, 4,   0 }
 #define	AR5K_RF5111_RFGAIN_SEL		{ 1, 36,  0 }
+#define AR5K_RF5111_RFGAIN_STEP		{ 6, 37,  0 }
 /* Only on AR5212 BaseBand and up */
 #define	AR5K_RF5111_WAIT_S		{ 5, 19,  0 }
 #define	AR5K_RF5111_WAIT_I		{ 5, 24,  0 }
@@ -235,7 +236,9 @@ static const struct ath5k_ini_rfbuffer rfb_5111[] = {
 
 /* BANK 7 (Common)			len  pos col */
 #define	AR5K_RF5112X_GAIN_I		{ 6, 14,  0 }
+#define	AR5K_RF5112X_MIXVGA_OVR		{ 1, 36,  0 }
 #define	AR5K_RF5112X_MIXGAIN_OVR	{ 2, 37,  0 }
+#define AR5K_RF5112X_MIXGAIN_STEP	{ 4, 32,  0 }
 #define	AR5K_RF5112X_PD_DELAY_A		{ 4, 58,  0 }
 #define	AR5K_RF5112X_PD_DELAY_B		{ 4, 62,  0 }
 #define	AR5K_RF5112X_PD_DELAY_XR	{ 4, 66,  0 }

@@ -649,48 +649,20 @@ struct ath5k_beacon_state {
 
 enum ath5k_rfgain {
 	AR5K_RFGAIN_INACTIVE = 0,
+	AR5K_RFGAIN_ACTIVE,
 	AR5K_RFGAIN_READ_REQUESTED,
 	AR5K_RFGAIN_NEED_CHANGE,
 };
 
-#define AR5K_GAIN_CRN_FIX_BITS_5111		4
-#define AR5K_GAIN_CRN_FIX_BITS_5112		7
-#define AR5K_GAIN_CRN_MAX_FIX_BITS		AR5K_GAIN_CRN_FIX_BITS_5112
-#define AR5K_GAIN_DYN_ADJUST_HI_MARGIN		15
-#define AR5K_GAIN_DYN_ADJUST_LO_MARGIN		20
-#define AR5K_GAIN_CCK_PROBE_CORR		5
-#define AR5K_GAIN_CCK_OFDM_GAIN_DELTA		15
-#define AR5K_GAIN_STEP_COUNT			10
-#define AR5K_GAIN_PARAM_TX_CLIP			0
-#define AR5K_GAIN_PARAM_PD_90			1
-#define AR5K_GAIN_PARAM_PD_84			2
-#define AR5K_GAIN_PARAM_GAIN_SEL		3
-#define AR5K_GAIN_PARAM_MIX_ORN			0
-#define AR5K_GAIN_PARAM_PD_138			1
-#define AR5K_GAIN_PARAM_PD_137			2
-#define AR5K_GAIN_PARAM_PD_136			3
-#define AR5K_GAIN_PARAM_PD_132			4
-#define AR5K_GAIN_PARAM_PD_131			5
-#define AR5K_GAIN_PARAM_PD_130			6
-#define AR5K_GAIN_CHECK_ADJUST(_g) 		\
-	((_g)->g_current <= (_g)->g_low || (_g)->g_current >= (_g)->g_high)
-
-struct ath5k_gain_opt_step {
-	s16				gos_param[AR5K_GAIN_CRN_MAX_FIX_BITS];
-	s32				gos_gain;
-};
-
 struct ath5k_gain {
-	u32			g_step_idx;
-	u32			g_current;
-	u32			g_target;
-	u32			g_low;
-	u32			g_high;
-	u32			g_f_corr;
-	u32			g_active;
-	const struct ath5k_gain_opt_step	*g_step;
+	u8			g_step_idx;
+	u8			g_current;
+	u8			g_target;
+	u8			g_low;
+	u8			g_high;
+	u8			g_f_corr;
+	u8			g_state;
 };
-
 
 /********************\
   COMMON DEFINITIONS
@@ -1053,7 +1025,6 @@ struct ath5k_hw {
 	bool			ah_running;
 	bool			ah_single_chip;
 	bool			ah_combined_mic;
-	enum ath5k_rfgain	ah_rf_gain;
 
 	u32			ah_mac_srev;
 	u16			ah_mac_version;
@@ -1262,9 +1233,9 @@ extern int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_cha
 
 /* Initialize RF */
 extern int ath5k_hw_rfregs(struct ath5k_hw *ah, struct ieee80211_channel *channel, unsigned int mode);
-extern int ath5k_hw_rfgain(struct ath5k_hw *ah, unsigned int freq);
-extern enum ath5k_rfgain ath5k_hw_get_rf_gain(struct ath5k_hw *ah);
-extern int ath5k_hw_set_rfgain_opt(struct ath5k_hw *ah);
+extern int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq);
+extern enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah);
+extern int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah);
 /* PHY/RF channel functions */
 extern bool ath5k_channel_ok(struct ath5k_hw *ah, u16 freq, unsigned int flags);
 extern int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel);

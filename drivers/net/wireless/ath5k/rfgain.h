@@ -441,12 +441,38 @@ static const struct ath5k_ini_rfgain rfgain_2425[] = {
 	{ AR5K_RF_GAIN(63),	{ 0x00000000, 0x000000f9 } },
 };
 
+#define AR5K_GAIN_CRN_FIX_BITS_5111		4
+#define AR5K_GAIN_CRN_FIX_BITS_5112		7
+#define AR5K_GAIN_CRN_MAX_FIX_BITS		AR5K_GAIN_CRN_FIX_BITS_5112
+#define AR5K_GAIN_DYN_ADJUST_HI_MARGIN		15
+#define AR5K_GAIN_DYN_ADJUST_LO_MARGIN		20
+#define AR5K_GAIN_CCK_PROBE_CORR		5
+#define AR5K_GAIN_CCK_OFDM_GAIN_DELTA		15
+#define AR5K_GAIN_STEP_COUNT			10
+
+/* Check if our current measurement is inside our
+ * current variable attenuation window */
+#define AR5K_GAIN_CHECK_ADJUST(_g) 		\
+	((_g)->g_current <= (_g)->g_low || (_g)->g_current >= (_g)->g_high)
+
+struct ath5k_gain_opt_step {
+	s8				gos_param[AR5K_GAIN_CRN_MAX_FIX_BITS];
+	s8				gos_gain;
+};
+
 struct ath5k_gain_opt {
-	u32			go_default;
-	u32			go_steps_count;
+	u8				go_default;
+	u8				go_steps_count;
 	const struct ath5k_gain_opt_step	go_step[AR5K_GAIN_STEP_COUNT];
 };
 
+/*
+ * Parameters on gos_param:
+ * 1) Tx clip PHY register
+ * 2) PWD 90 RF register
+ * 3) PWD 84 RF register
+ * 4) RFGainSel RF register
+ */
 static const struct ath5k_gain_opt rfgain_opt_5111 = {
 	4,
 	9,
@@ -463,6 +489,16 @@ static const struct ath5k_gain_opt rfgain_opt_5111 = {
 	}
 };
 
+/*
+ * Parameters on gos_param:
+ * 1) Mixgain ovr RF register
+ * 2) PWD 138 RF register
+ * 3) PWD 137 RF register
+ * 4) PWD 136 RF register
+ * 5) PWD 132 RF register
+ * 6) PWD 131 RF register
+ * 7) PWD 130 RF register
+ */
 static const struct ath5k_gain_opt rfgain_opt_5112 = {
 	1,
 	8,

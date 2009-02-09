@@ -441,9 +441,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	s_led[1] = ath5k_hw_reg_read(ah, AR5K_GPIOCR);
 	s_led[2] = ath5k_hw_reg_read(ah, AR5K_GPIODO);
 
-	if (change_channel && ah->ah_rf_banks != NULL)
-		ath5k_hw_get_rf_gain(ah);
-
 
 	/*Wakeup the device*/
 	ret = ath5k_hw_nic_wakeup(ah, channel->hw_value, false);
@@ -530,7 +527,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		 * Write initial RF gain settings
 		 * This should work for both 5111/5112
 		 */
-		ret = ath5k_hw_rfgain(ah, freq);
+		ret = ath5k_hw_rfgain_init(ah, freq);
 		if (ret)
 			return ret;
 

@@ -331,7 +331,7 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
 	ath5k_hw_set_opmode(ah);
 
-	ath5k_hw_set_rfgain_opt(ah);
+	ath5k_hw_rfgain_opt_init(ah);
 
 	return ah;
 err_free:
