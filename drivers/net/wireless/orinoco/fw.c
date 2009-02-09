@@ -22,7 +22,7 @@ struct fw_info {
 	u16 pda_size;
 };
 
-const static struct fw_info orinoco_fw[] = {
+static const struct fw_info orinoco_fw[] = {
 	{ NULL, "agere_sta_fw.bin", "agere_ap_fw.bin", 0x00390000, 1000 },
 	{ NULL, "prism_sta_fw.bin", "prism_ap_fw.bin", 0, 1024 },
 	{ "symbol_sp24t_prim_fw", "symbol_sp24t_sec_fw", NULL, 0x00003100, 512 }
