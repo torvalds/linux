@@ -182,7 +182,6 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 	case VIDIOC_S_FMT:
 	{
 		int is_pal = !(state->std & V4L2_STD_525_60);
-		int vbi_offset = is_pal ? 1 : 0;
 		int i, x;
 		u8 lcr[24];
 
@@ -199,7 +198,7 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 			cx18_av_std_setup(cx);
 
 			/* VBI Offset */
-			cx18_av_write(cx, 0x47f, vbi_offset);
+			cx18_av_write(cx, 0x47f, state->slicer_line_delay);
 			cx18_av_write(cx, 0x404, 0x2e);
 			break;
 		}
@@ -213,7 +212,7 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 		/* Sliced VBI */
 		cx18_av_write(cx, 0x404, 0x32);	/* Ancillary data */
 		cx18_av_write(cx, 0x406, 0x13);
-		cx18_av_write(cx, 0x47f, vbi_offset);
+		cx18_av_write(cx, 0x47f, state->slicer_line_delay);
 
 		/* Force impossible lines to 0 */
 		if (is_pal) {
@@ -261,7 +260,8 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 		}
 
 		cx18_av_write(cx, 0x43c, 0x16);
-		cx18_av_write(cx, 0x474, is_pal ? 0x2a : 0x22);
+		/* FIXME - should match vblank set in cx18_av_std_setup() */
+		cx18_av_write(cx, 0x474, is_pal ? 0x2a : 26);
 		break;
 	}
 
@@ -286,7 +286,7 @@ int cx18_av_vbi(struct cx18 *cx, unsigned int cmd, void *arg)
 		did = anc->did;
 		sdid = anc->sdid & 0xf;
 		l = anc->idid[0] & 0x3f;
-		l += state->vbi_line_offset;
+		l += state->slicer_line_offset;
 		p = anc->payload;
 
 		/* Decode the SDID set by the slicer */

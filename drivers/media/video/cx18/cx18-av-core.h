@@ -79,11 +79,28 @@ struct cx18_av_state {
 	enum cx18_av_audio_input aud_input;
 	u32 audclk_freq;
 	int audmode;
-	int vbi_line_offset;
 	int default_volume;
 	u32 id;
 	u32 rev;
 	int is_initialized;
+
+	/*
+	 * The VBI slicer starts operating and counting lines, begining at
+	 * slicer line count of 1, at D lines after the deassertion of VRESET
+	 * This staring field line, S, is 6 or 10 for 625 or 525 line systems.
+	 * Sliced ancillary data captured on VBI slicer line M is sent at the
+	 * beginning of the next VBI slicer line, VBI slicer line count N = M+1.
+	 * Thus when the VBI slicer reports a VBI slicer line number with
+	 * ancillary data, the IDID0 byte indicates VBI slicer line N.
+	 * The actual field line that the captured data comes from is
+	 * L = M+(S+D-1) = N-1+(S+D-1) = N + (S+D-2).
+	 *
+	 * D is the slicer_line_delay value programmed into register 0x47f.
+	 * (S+D-2) is the slicer_line_offset used to convert slicer reported
+	 * line counts to actual field lines.
+	 */
+	int slicer_line_delay;
+	int slicer_line_offset;
 };
 
 

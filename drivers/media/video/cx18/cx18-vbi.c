@@ -221,13 +221,22 @@ void cx18_process_vbi_data(struct cx18 *cx, struct cx18_buffer *buf,
 
 	pts = (be32_to_cpu(q[0] == 0x3fffffff)) ? be32_to_cpu(q[2]) : 0;
 
+	/*
+	 * For calls to compress_sliced_buf(), ensure there are an integral
+	 * number of lines by shifting the real data up over the 12 bytes header
+	 * that got stuffed in.
+	 * FIXME - there's a smarter way to do this with pointers, but for some
+	 * reason I can't get it to work correctly right now.
+	 */
+	memcpy(p, &buf->buf[12], size-12);
+
 	/* first field */
-	/* compress_sliced_buf() will skip the 12 bytes of header */
 	lines = compress_sliced_buf(cx, 0, p, size / 2, sliced_vbi_eav_rp[0]);
-	/* second field */
-	/* experimentation shows that the second half does not always
-	   begin at the exact address. So start a bit earlier
-	   (hence 32). */
+	/*
+	 * second field
+	 * In case the second half does not always begin at the exact address,
+	 * start a bit earlier (hence 32).
+	 */
 	lines = compress_sliced_buf(cx, lines, p + size / 2 - 32,
 			size / 2 + 32, sliced_vbi_eav_rp[1]);
 	/* always return at least one empty line */

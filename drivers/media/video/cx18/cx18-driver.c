@@ -633,7 +633,9 @@ static void __devinit cx18_init_struct2(struct cx18 *cx)
 	cx->av_state.aud_input = CX18_AV_AUDIO8;
 	cx->av_state.audclk_freq = 48000;
 	cx->av_state.audmode = V4L2_TUNER_MODE_LANG1;
-	cx->av_state.vbi_line_offset = 8;
+	cx->av_state.slicer_line_delay = 0;
+	cx->av_state.slicer_line_offset =
+		(10 + cx->av_state.slicer_line_delay - 2);
 }
 
 static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,

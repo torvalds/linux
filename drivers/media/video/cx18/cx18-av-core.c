@@ -172,11 +172,11 @@ static void cx18_av_initialize(struct cx18 *cx)
 	/*
 	 * Initial VBI setup
 	 * VIP-1.1, 10 bit mode, enable Raw, disable sliced,
-	 * don't clamp raw samples when codes are in use, 4 byte user D-words,
-	 * programmed IDID, RP code V bit transition on VBLANK, data during
+	 * don't clamp raw samples when codes are in use, 1 byte user D-words,
+	 * IDID0 has line #, RP code V bit transition on VBLANK, data during
 	 * blanking intervals
 	 */
-	cx18_av_write4(cx, CXADEC_OUT_CTRL1, 0x4010252e);
+	cx18_av_write4(cx, CXADEC_OUT_CTRL1, 0x4013252e);
 
 	/* Set the video input.
 	   The setting in MODE_CTRL gets lost when we do the above setup */
@@ -218,6 +218,7 @@ void cx18_av_std_setup(struct cx18 *cx)
 		cx18_av_write(cx, 0x49f, 0x14);
 
 	if (std & V4L2_STD_625_50) {
+		/* FIXME - revisit these for Sliced VBI */
 		hblank = 132;
 		hactive = 720;
 		burst = 93;
@@ -241,13 +242,34 @@ void cx18_av_std_setup(struct cx18 *cx)
 			sc = 672351;
 		}
 	} else {
+		/*
+		 * The following relationships of half line counts should hold:
+		 * 525 = vsync + vactive + vblank656
+		 * 12 = vblank656 - vblank
+		 *
+		 * vsync:     always 6 half-lines of vsync pulses
+		 * vactive:   half lines of active video
+		 * vblank656: half lines, after line 3, of blanked video
+		 * vblank:    half lines, after line 9, of blanked video
+		 *
+		 * vblank656 starts counting from the falling edge of the first
+		 * 	vsync pulse (start of line 4)
+		 * vblank starts counting from the after the 6 vsync pulses and
+		 * 	6 equalization pulses (start of line 10)
+		 *
+		 * For 525 line systems the driver will extract VBI information
+		 * from lines 10 through 21.  To avoid the EAV RP code from
+		 * toggling at the start of hblank at line 22, where sliced VBI
+		 * data from line 21 is stuffed, also treat line 22 as blanked.
+		 */
+		vblank656 = 38; /* lines  4 through  22 */
+		vblank = 26;	/* lines 10 through  22 */
+		vactive = 481;  /* lines 23 through 262.5 */
+
 		hactive = 720;
 		hblank = 122;
-		vactive = 487;
 		luma_lpf = 1;
 		uv_lpf = 1;
-		vblank = 26;
-		vblank656 = 26;
 
 		src_decimation = 0x21f;
 		if (std == V4L2_STD_PAL_60) {
@@ -330,14 +352,14 @@ void cx18_av_std_setup(struct cx18 *cx)
 	cx18_av_write(cx, 0x47d, 0xff & sc >> 8);
 	cx18_av_write(cx, 0x47e, 0xff & sc >> 16);
 
-	/* Sets VBI parameters */
 	if (std & V4L2_STD_625_50) {
-		cx18_av_write(cx, 0x47f, 0x01);
-		state->vbi_line_offset = 5;
+		state->slicer_line_delay = 1;
+		state->slicer_line_offset = (6 + state->slicer_line_delay - 2);
 	} else {
-		cx18_av_write(cx, 0x47f, 0x00);
-		state->vbi_line_offset = 8;
+		state->slicer_line_delay = 0;
+		state->slicer_line_offset = (10 + state->slicer_line_delay - 2);
 	}
+	cx18_av_write(cx, 0x47f, state->slicer_line_delay);
 }
 
 /* ----------------------------------------------------------------------- */

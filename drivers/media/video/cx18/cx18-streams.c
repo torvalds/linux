@@ -360,9 +360,16 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	if (raw) {
 		lines = cx->vbi.count * 2;
 	} else {
-		lines = cx->is_60hz ? 24 : 38;
-		if (cx->is_60hz)
-			lines += 2;
+		/*
+		 * For 525/60 systems, according to the VIP 2 & BT.656 std:
+		 * The EAV RP code's Field bit toggles on line 4, a few lines
+		 * after the Vertcal Blank bit has already toggled.
+		 * Tell the encoder to capture 21-4+1=18 lines per field,
+		 * since we want lines 10 through 21.
+		 *
+		 * FIXME - revisit for 625/50 systems
+		 */
+		lines = cx->is_60hz ? (21 - 4 + 1) * 2 : 38;
 	}
 
 	data[0] = s->handle;
@@ -402,9 +409,13 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 		 *
 		 * Since the V bit is only allowed to toggle in the EAV RP code,
 		 * just before the first active region line, these two
-		 * are problematic and we have to ignore them:
+		 * are problematic:
 		 * 0x90 (Task                         HorizontalBlank)
 		 * 0xd0 (Task EvenField               HorizontalBlank)
+		 *
+		 * We have set the digitzer to consider the first active line
+		 * as part of VerticalBlank as well so we don't have to look for
+		 * these problem codes nor lose the last line of sliced data.
 		 */
 		data[4] = 0xB0F0B0F0;
 		/*
