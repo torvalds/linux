@@ -487,7 +487,7 @@ static int ath9k_hw_init_macaddr(struct ath_hw *ah)
 
 	sum = 0;
 	for (i = 0; i < 3; i++) {
-		eeval = ath9k_hw_get_eeprom(ah, AR_EEPROM_MAC(i));
+		eeval = ah->eep_ops->get_eeprom(ah, AR_EEPROM_MAC(i));
 		sum += eeval;
 		ah->macaddr[2 * i] = eeval >> 8;
 		ah->macaddr[2 * i + 1] = eeval & 0xff;
@@ -506,8 +506,8 @@ static void ath9k_hw_init_rxgain_ini(struct ath_hw *ah)
 {
 	u32 rxgain_type;
 
-	if (ath9k_hw_get_eeprom(ah, EEP_MINOR_REV) >= AR5416_EEP_MINOR_VER_17) {
-		rxgain_type = ath9k_hw_get_eeprom(ah, EEP_RXGAIN_TYPE);
+	if (ah->eep_ops->get_eeprom(ah, EEP_MINOR_REV) >= AR5416_EEP_MINOR_VER_17) {
+		rxgain_type = ah->eep_ops->get_eeprom(ah, EEP_RXGAIN_TYPE);
 
 		if (rxgain_type == AR5416_EEP_RXGAIN_13DB_BACKOFF)
 			INIT_INI_ARRAY(&ah->ah_iniModesRxGain,
@@ -532,8 +532,8 @@ static void ath9k_hw_init_txgain_ini(struct ath_hw *ah)
 {
 	u32 txgain_type;
 
-	if (ath9k_hw_get_eeprom(ah, EEP_MINOR_REV) >= AR5416_EEP_MINOR_VER_19) {
-		txgain_type = ath9k_hw_get_eeprom(ah, EEP_TXGAIN_TYPE);
+	if (ah->eep_ops->get_eeprom(ah, EEP_MINOR_REV) >= AR5416_EEP_MINOR_VER_19) {
+		txgain_type = ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE);
 
 		if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER)
 			INIT_INI_ARRAY(&ah->ah_iniModesTxGain,
@@ -1238,7 +1238,7 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 
 	REG_WRITE(ah, AR_PHY(0), 0x00000007);
 	REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_EXTERNAL_RADIO);
-	ath9k_hw_set_addac(ah, chan);
+	ah->eep_ops->set_addac(ah, chan);
 
 	if (AR_SREV_5416_V22_OR_LATER(ah)) {
 		REG_WRITE_ARRAY(&ah->ah_iniAddac, 1, regWrites);
@@ -1306,12 +1306,12 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	ath9k_hw_set_regs(ah, chan, macmode);
 	ath9k_hw_init_chain_masks(ah);
 
-	status = ath9k_hw_set_txpower(ah, chan,
-				      ath9k_regd_get_ctl(ah, chan),
-				      channel->max_antenna_gain * 2,
-				      channel->max_power * 2,
-				      min((u32) MAX_RATE_POWER,
-					  (u32) ah->regulatory.power_limit));
+	status = ah->eep_ops->set_txpower(ah, chan,
+				  ath9k_regd_get_ctl(ah, chan),
+				  channel->max_antenna_gain * 2,
+				  channel->max_power * 2,
+				  min((u32) MAX_RATE_POWER,
+				      (u32) ah->regulatory.power_limit));
 	if (status != 0) {
 		DPRINTF(ah->ah_sc, ATH_DBG_POWER_MGMT,
 			"error init'ing transmit power\n");
@@ -1632,12 +1632,12 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 		}
 	}
 
-	if (ath9k_hw_set_txpower(ah, chan,
-				 ath9k_regd_get_ctl(ah, chan),
-				 channel->max_antenna_gain * 2,
-				 channel->max_power * 2,
-				 min((u32) MAX_RATE_POWER,
-				     (u32) ah->regulatory.power_limit)) != 0) {
+	if (ah->eep_ops->set_txpower(ah, chan,
+			     ath9k_regd_get_ctl(ah, chan),
+			     channel->max_antenna_gain * 2,
+			     channel->max_power * 2,
+			     min((u32) MAX_RATE_POWER,
+				 (u32) ah->regulatory.power_limit)) != 0) {
 		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 			"error init'ing transmit power\n");
 		return false;
@@ -1703,7 +1703,7 @@ static void ath9k_hw_9280_spur_mitigate(struct ath_hw *ah, struct ath9k_channel 
 
 	ah->ah_config.spurmode = SPUR_ENABLE_EEPROM;
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
-		cur_bb_spur = ath9k_hw_eeprom_get_spur_chan(ah, i, is2GHz);
+		cur_bb_spur = ah->eep_ops->get_spur_channel(ah, i, is2GHz);
 
 		if (is2GHz)
 			cur_bb_spur = (cur_bb_spur / 10) + AR_BASE_FREQ_2GHZ;
@@ -1946,7 +1946,7 @@ static void ath9k_hw_spur_mitigate(struct ath_hw *ah, struct ath9k_channel *chan
 	memset(&mask_p, 0, sizeof(int8_t) * 123);
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
-		cur_bb_spur = ath9k_hw_eeprom_get_spur_chan(ah, i, is2GHz);
+		cur_bb_spur = ah->eep_ops->get_spur_channel(ah, i, is2GHz);
 		if (AR_NO_SPUR == cur_bb_spur)
 			break;
 		cur_bb_spur = cur_bb_spur - (chan->channel * 10);
@@ -2211,7 +2211,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	else
 		ath9k_hw_spur_mitigate(ah, chan);
 
-	if (!ath9k_hw_eeprom_set_board_values(ah, chan)) {
+	if (!ah->eep_ops->set_board_values(ah, chan)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 			"error setting board options\n");
 		return -EIO;
@@ -3092,14 +3092,14 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
 	u16 capField = 0, eeval;
 
-	eeval = ath9k_hw_get_eeprom(ah, EEP_REG_0);
+	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_0);
 
 	ah->regulatory.current_rd = eeval;
 
-	eeval = ath9k_hw_get_eeprom(ah, EEP_REG_1);
+	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_1);
 	ah->regulatory.current_rd_ext = eeval;
 
-	capField = ath9k_hw_get_eeprom(ah, EEP_OP_CAP);
+	capField = ah->eep_ops->get_eeprom(ah, EEP_OP_CAP);
 
 	if (ah->ah_opmode != NL80211_IFTYPE_AP &&
 	    ah->hw_version.subvendorid == AR_SUBVENDOR_ID_NEW_A) {
@@ -3112,7 +3112,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			"regdomain mapped to 0x%x\n", ah->regulatory.current_rd);
 	}
 
-	eeval = ath9k_hw_get_eeprom(ah, EEP_OP_MODE);
+	eeval = ah->eep_ops->get_eeprom(ah, EEP_OP_MODE);
 	bitmap_zero(pCap->wireless_modes, ATH9K_MODE_MAX);
 
 	if (eeval & AR5416_OPFLAGS_11A) {
@@ -3146,11 +3146,11 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		}
 	}
 
-	pCap->tx_chainmask = ath9k_hw_get_eeprom(ah, EEP_TX_MASK);
+	pCap->tx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_TX_MASK);
 	if ((ah->ah_isPciExpress)
 	    || (eeval & AR5416_OPFLAGS_11A)) {
 		pCap->rx_chainmask =
-			ath9k_hw_get_eeprom(ah, EEP_RX_MASK);
+			ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
 	} else {
 		pCap->rx_chainmask =
 			(ath9k_hw_gpio_get(ah, 0)) ? 0x5 : 0x7;
@@ -3226,7 +3226,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	pCap->hw_caps |= ATH9K_HW_CAP_ENHANCEDPM;
 
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-	ah->ah_rfsilent = ath9k_hw_get_eeprom(ah, EEP_RF_SILENT);
+	ah->ah_rfsilent = ah->eep_ops->get_eeprom(ah, EEP_RF_SILENT);
 	if (ah->ah_rfsilent & EEP_RFSILENT_ENABLED) {
 		ah->ah_rfkill_gpio =
 			MS(ah->ah_rfsilent, EEP_RFSILENT_GPIO_SEL);
@@ -3266,9 +3266,9 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	pCap->reg_cap |= AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND;
 
 	pCap->num_antcfg_5ghz =
-		ath9k_hw_get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_5GHZ);
+		ah->eep_ops->get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_5GHZ);
 	pCap->num_antcfg_2ghz =
-		ath9k_hw_get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_2GHZ);
+		ah->eep_ops->get_num_ant_config(ah, ATH9K_HAL_FREQ_BAND_2GHZ);
 
 	if (AR_SREV_9280_10_OR_LATER(ah) && btcoex_enable) {
 		pCap->hw_caps |= ATH9K_HW_CAP_BT_COEX;
@@ -3613,12 +3613,12 @@ bool ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit)
 
 	ah->regulatory.power_limit = min(limit, (u32) MAX_RATE_POWER);
 
-	if (ath9k_hw_set_txpower(ah, chan,
-				 ath9k_regd_get_ctl(ah, chan),
-				 channel->max_antenna_gain * 2,
-				 channel->max_power * 2,
-				 min((u32) MAX_RATE_POWER,
-				     (u32) ah->regulatory.power_limit)) != 0)
+	if (ah->eep_ops->set_txpower(ah, chan,
+			     ath9k_regd_get_ctl(ah, chan),
+			     channel->max_antenna_gain * 2,
+			     channel->max_power * 2,
+			     min((u32) MAX_RATE_POWER,
+				 (u32) ah->regulatory.power_limit)) != 0)
 		return false;
 
 	return true;

@@ -430,6 +430,7 @@ struct ath_hw {
 		struct ar5416_eeprom_def def;
 		struct ar5416_eeprom_4k map4k;
 	} ah_eeprom;
+	const struct eeprom_ops *eep_ops;
 
 	bool sw_mgmt_crypto;
 	bool ah_isPciExpress;

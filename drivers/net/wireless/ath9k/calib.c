@@ -172,10 +172,10 @@ static bool getNoiseFloorThresh(struct ath_hw *ah,
 {
 	switch (band) {
 	case IEEE80211_BAND_5GHZ:
-		*nft = (int8_t)ath9k_hw_get_eeprom(ah, EEP_NFTHRESH_5);
+		*nft = (int8_t)ah->eep_ops->get_eeprom(ah, EEP_NFTHRESH_5);
 		break;
 	case IEEE80211_BAND_2GHZ:
-		*nft = (int8_t)ath9k_hw_get_eeprom(ah, EEP_NFTHRESH_2);
+		*nft = (int8_t)ah->eep_ops->get_eeprom(ah, EEP_NFTHRESH_2);
 		break;
 	default:
 		BUG_ON(1);

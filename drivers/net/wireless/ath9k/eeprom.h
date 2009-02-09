@@ -464,38 +464,10 @@ struct eeprom_ops {
 	u16 (*get_spur_channel)(struct ath_hw *ah, u16 i, bool is2GHz);
 };
 
-#define ar5416_get_eep_ver(_ah) \
-	(((_ah)->ah_eeprom.def.baseEepHeader.version >> 12) & 0xF)
-#define ar5416_get_eep_rev(_ah) \
-	(((_ah)->ah_eeprom.def.baseEepHeader.version) & 0xFFF)
 #define ar5416_get_ntxchains(_txchainmask)			\
-	(((_txchainmask >> 2) & 1) +				\
+	(((_txchainmask >> 2) & 1) +                            \
 	 ((_txchainmask >> 1) & 1) + (_txchainmask & 1))
 
-#define ar5416_get_eep4k_ver(_ah) \
-	(((_ah)->ah_eeprom.map4k.baseEepHeader.version >> 12) & 0xF)
-#define ar5416_get_eep4k_rev(_ah) \
-	(((_ah)->ah_eeprom.map4k.baseEepHeader.version) & 0xFFF)
-
-int ath9k_hw_set_txpower(struct ath_hw *ah, struct ath9k_channel *chan,
-			 u16 cfgCtl, u8 twiceAntennaReduction,
-			 u8 twiceMaxRegulatoryPower, u8 powerLimit);
-void ath9k_hw_set_addac(struct ath_hw *ah, struct ath9k_channel *chan);
-bool ath9k_hw_set_power_per_rate_table(struct ath_hw *ah,
-		       struct ath9k_channel *chan, int16_t *ratesArray,
-		       u16 cfgCtl, u8 AntennaReduction,
-		       u8 twiceMaxRegulatoryPower, u8 powerLimit);
-bool ath9k_hw_set_power_cal_table(struct ath_hw *ah,
-				  struct ath9k_channel *chan,
-				  int16_t *pTxPowerIndexOffset);
-bool ath9k_hw_eeprom_set_board_values(struct ath_hw *ah,
-				      struct ath9k_channel *chan);
-u16 ath9k_hw_get_eeprom_antenna_cfg(struct ath_hw *ah,
-				    struct ath9k_channel *chan);
-u8 ath9k_hw_get_num_ant_config(struct ath_hw *ah,
-			       enum ieee80211_band freq_band);
-u16 ath9k_hw_eeprom_get_spur_chan(struct ath_hw *ah, u16 i, bool is2GHz);
-u32 ath9k_hw_get_eeprom(struct ath_hw *ah, enum eeprom_param param);
 int ath9k_hw_eeprom_attach(struct ath_hw *ah);
 
 #endif /* EEPROM_H */
