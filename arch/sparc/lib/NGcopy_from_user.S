@@ -5,14 +5,9 @@
 
 #define EX_LD(x)		\
 98:	x;			\
-	.section .fixup;	\
-	.align 4;		\
-99:	wr	%g0, ASI_AIUS, %asi;\
-	ret;			\
-	 restore %g0, 1, %o0;	\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, 99b;		\
+	.word 98b, __ret_one_asi;\
 	.text;			\
 	.align 4;
 
