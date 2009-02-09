@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_PGTABLE_H
 #define _ASM_X86_PGTABLE_H
 
+#include <asm/page.h>
+
 #define FIRST_USER_ADDRESS	0
 
 #define _PAGE_BIT_PRESENT	0	/* is present */
@@ -527,6 +529,13 @@ static inline unsigned long pages_to_mb(unsigned long npg)
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)	\
 	remap_pfn_range(vma, vaddr, pfn, size, prot)
+
+#if PAGETABLE_LEVELS == 2
+static inline int pud_large(pud_t pud)
+{
+	return 0;
+}
+#endif
 
 #if PAGETABLE_LEVELS > 2
 static inline int pud_none(pud_t pud)

@@ -139,10 +139,6 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 	return pmd.pmd;
 }
 
-static inline pmdval_t pmd_flags(pmd_t pmd)
-{
-	return native_pmd_val(pmd) & PTE_FLAGS_MASK;
-}
 #else  /* PAGETABLE_LEVELS == 2 */
 #include <asm-generic/pgtable-nopmd.h>
 
@@ -151,6 +147,11 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 	return native_pgd_val(pmd.pud.pgd);
 }
 #endif	/* PAGETABLE_LEVELS >= 3 */
+
+static inline pmdval_t pmd_flags(pmd_t pmd)
+{
+	return native_pmd_val(pmd) & PTE_FLAGS_MASK;
+}
 
 static inline pte_t native_make_pte(pteval_t val)
 {
