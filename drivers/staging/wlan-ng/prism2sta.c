@@ -1134,8 +1134,7 @@ static void prism2sta_inf_hostscanresults(wlandevice_t *wlandev,
 	if (nbss > 32)
 		nbss = 32;
 
-	if (hw->scanresults)
-		kfree(hw->scanresults);
+	kfree(hw->scanresults);
 
 	hw->scanresults = kmalloc(sizeof(hfa384x_InfFrame_t), GFP_ATOMIC);
 	memcpy(hw->scanresults, inf, sizeof(hfa384x_InfFrame_t));
@@ -1966,10 +1965,8 @@ static wlandevice_t *create_wlan(void)
 
 	if (!wlandev || !hw) {
 		printk(KERN_ERR "%s: Memory allocation failure.\n", dev_info);
-		if (wlandev)
-			kfree(wlandev);
-		if (hw)
-			kfree(hw);
+		kfree(wlandev);
+		kfree(hw);
 		return NULL;
 	}
 

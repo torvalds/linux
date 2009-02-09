@@ -165,10 +165,8 @@ static int prism2sta_probe_usb(struct usb_interface *interface,
 	goto done;
 
 failed:
-	if (wlandev)
-		kfree(wlandev);
-	if (hw)
-		kfree(hw);
+	kfree(wlandev);
+	kfree(hw);
 	wlandev = NULL;
 
 done:
