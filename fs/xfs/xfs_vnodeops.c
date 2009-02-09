@@ -2004,8 +2004,10 @@ xfs_link(
 	/* Return through std_return after this point. */
 
 	error = XFS_QM_DQATTACH(mp, sip, 0);
-	if (!error && sip != tdp)
-		error = XFS_QM_DQATTACH(mp, tdp, 0);
+	if (error)
+		goto std_return;
+
+	error = XFS_QM_DQATTACH(mp, tdp, 0);
 	if (error)
 		goto std_return;
 
@@ -2585,51 +2587,6 @@ std_return:
 
 	goto std_return;
 }
-
-int
-xfs_inode_flush(
-	xfs_inode_t	*ip,
-	int		flags)
-{
-	xfs_mount_t	*mp = ip->i_mount;
-	int		error = 0;
-
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return XFS_ERROR(EIO);
-
-	/*
-	 * Bypass inodes which have already been cleaned by
-	 * the inode flush clustering code inside xfs_iflush
-	 */
-	if (xfs_inode_clean(ip))
-		return 0;
-
-	/*
-	 * We make this non-blocking if the inode is contended,
-	 * return EAGAIN to indicate to the caller that they
-	 * did not succeed. This prevents the flush path from
-	 * blocking on inodes inside another operation right
-	 * now, they get caught later by xfs_sync.
-	 */
-	if (flags & FLUSH_SYNC) {
-		xfs_ilock(ip, XFS_ILOCK_SHARED);
-		xfs_iflock(ip);
-	} else if (xfs_ilock_nowait(ip, XFS_ILOCK_SHARED)) {
-		if (xfs_ipincount(ip) || !xfs_iflock_nowait(ip)) {
-			xfs_iunlock(ip, XFS_ILOCK_SHARED);
-			return EAGAIN;
-		}
-	} else {
-		return EAGAIN;
-	}
-
-	error = xfs_iflush(ip, (flags & FLUSH_SYNC) ? XFS_IFLUSH_SYNC
-						    : XFS_IFLUSH_ASYNC_NOBLOCK);
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-
-	return error;
-}
-
 
 int
 xfs_set_dmattrs(

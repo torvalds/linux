@@ -2288,6 +2288,16 @@ xfs_rtmount_inodes(
 	return 0;
 }
 
+void
+xfs_rtunmount_inodes(
+	struct xfs_mount	*mp)
+{
+	if (mp->m_rbmip)
+		IRELE(mp->m_rbmip);
+	if (mp->m_rsumip)
+		IRELE(mp->m_rsumip);
+}
+
 /*
  * Pick an extent for allocation at the start of a new realtime file.
  * Use the sequence number stored in the atime field of the bitmap inode.

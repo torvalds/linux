@@ -624,10 +624,9 @@ xfs_trans_dqresv(
 	xfs_qcnt_t	*resbcountp;
 	xfs_quotainfo_t	*q = mp->m_quotainfo;
 
-	if (! (flags & XFS_QMOPT_DQLOCK)) {
-		xfs_dqlock(dqp);
-	}
-	ASSERT(XFS_DQ_IS_LOCKED(dqp));
+
+	xfs_dqlock(dqp);
+
 	if (flags & XFS_TRANS_DQ_RES_BLKS) {
 		hardlimit = be64_to_cpu(dqp->q_core.d_blk_hardlimit);
 		if (!hardlimit)
@@ -740,10 +739,8 @@ xfs_trans_dqresv(
 	ASSERT(dqp->q_res_icount >= be64_to_cpu(dqp->q_core.d_icount));
 
 error_return:
-	if (! (flags & XFS_QMOPT_DQLOCK)) {
-		xfs_dqunlock(dqp);
-	}
-	return (error);
+	xfs_dqunlock(dqp);
+	return error;
 }
 
 
@@ -753,8 +750,7 @@ error_return:
  * grp/prj quotas is important, because this follows a both-or-nothing
  * approach.
  *
- * flags = XFS_QMOPT_DQLOCK indicate if dquot(s) need to be locked.
- *	   XFS_QMOPT_FORCE_RES evades limit enforcement. Used by chown.
+ * flags = XFS_QMOPT_FORCE_RES evades limit enforcement. Used by chown.
  *	   XFS_QMOPT_ENOSPC returns ENOSPC not EDQUOT.  Used by pquota.
  *	   XFS_TRANS_DQ_RES_BLKS reserves regular disk blocks
  *	   XFS_TRANS_DQ_RES_RTBLKS reserves realtime disk blocks
