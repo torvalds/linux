@@ -3479,9 +3479,9 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	sub_handle = 0;
 	list_for_each_entry(msidesc, &dev->msi_list, list) {
 		irq = create_irq_nr(irq_want);
-		irq_want++;
 		if (irq == 0)
 			return -1;
+		irq_want = irq + 1;
 #ifdef CONFIG_INTR_REMAP
 		if (!intr_remapping_enabled)
 			goto no_ir;
@@ -3825,11 +3825,17 @@ int __init arch_probe_nr_irqs(void)
 {
 	int nr;
 
-	nr = ((8 * nr_cpu_ids) > (32 * nr_ioapics) ?
-		(NR_VECTORS + (8 * nr_cpu_ids)) :
-		(NR_VECTORS + (32 * nr_ioapics)));
+	if (nr_irqs > (NR_VECTORS * nr_cpu_ids))
+		nr_irqs = NR_VECTORS * nr_cpu_ids;
 
-	if (nr < nr_irqs && nr > nr_irqs_gsi)
+	nr = nr_irqs_gsi + 8 * nr_cpu_ids;
+#if defined(CONFIG_PCI_MSI) || defined(CONFIG_HT_IRQ)
+	/*
+	 * for MSI and HT dyn irq
+	 */
+	nr += nr_irqs_gsi * 16;
+#endif
+	if (nr < nr_irqs)
 		nr_irqs = nr;
 
 	return 0;
