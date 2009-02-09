@@ -180,7 +180,7 @@ xfs_parseargs(
 	int			dswidth = 0;
 	int			iosize = 0;
 	int			dmapi_implies_ikeep = 1;
-	uchar_t			iosizelog = 0;
+	__uint8_t		iosizelog = 0;
 
 	/*
 	 * Copy binary VFS mount flags we are interested in.
