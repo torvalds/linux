@@ -359,10 +359,6 @@ EXPORT_SYMBOL(warn_slowpath);
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 
-#ifndef GCC_HAS_SP
-#warning You have selected the CONFIG_CC_STACKPROTECTOR option, but the gcc used does not support this.
-#endif
-
 /*
  * Called when gcc's -fstack-protector feature is used, and
  * gcc detects corruption of the on-stack canary value
