@@ -1760,7 +1760,8 @@ static int comedi_open(struct inode *inode, struct file *file)
 	const unsigned minor = iminor(inode);
 	struct comedi_device_file_info *dev_file_info =
 	    comedi_get_device_file_info(minor);
-	comedi_device *dev = dev_file_info->device;
+	comedi_device *dev = dev_file_info ? dev_file_info->device : NULL;
+
 	if (dev == NULL) {
 		DPRINTK("invalid minor number\n");
 		return -ENODEV;
