@@ -2028,18 +2028,24 @@ static int __pcie_flr(struct pci_dev *dev, int probe)
 	pci_block_user_cfg_access(dev);
 
 	/* Wait for Transaction Pending bit clean */
+	pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
+	if (!(status & PCI_EXP_DEVSTA_TRPND))
+		goto transaction_done;
+
 	msleep(100);
 	pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
-	if (status & PCI_EXP_DEVSTA_TRPND) {
-		dev_info(&dev->dev, "Busy after 100ms while trying to reset; "
-			"sleeping for 1 second\n");
-		ssleep(1);
-		pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
-		if (status & PCI_EXP_DEVSTA_TRPND)
-			dev_info(&dev->dev, "Still busy after 1s; "
-				"proceeding with reset anyway\n");
-	}
+	if (!(status & PCI_EXP_DEVSTA_TRPND))
+		goto transaction_done;
 
+	dev_info(&dev->dev, "Busy after 100ms while trying to reset; "
+			"sleeping for 1 second\n");
+	ssleep(1);
+	pci_read_config_word(dev, exppos + PCI_EXP_DEVSTA, &status);
+	if (status & PCI_EXP_DEVSTA_TRPND)
+		dev_info(&dev->dev, "Still busy after 1s; "
+				"proceeding with reset anyway\n");
+
+transaction_done:
 	pci_write_config_word(dev, exppos + PCI_EXP_DEVCTL,
 				PCI_EXP_DEVCTL_BCR_FLR);
 	mdelay(100);
@@ -2066,18 +2072,24 @@ static int __pci_af_flr(struct pci_dev *dev, int probe)
 	pci_block_user_cfg_access(dev);
 
 	/* Wait for Transaction Pending bit clean */
+	pci_read_config_byte(dev, cappos + PCI_AF_STATUS, &status);
+	if (!(status & PCI_AF_STATUS_TP))
+		goto transaction_done;
+
 	msleep(100);
 	pci_read_config_byte(dev, cappos + PCI_AF_STATUS, &status);
-	if (status & PCI_AF_STATUS_TP) {
-		dev_info(&dev->dev, "Busy after 100ms while trying to"
-				" reset; sleeping for 1 second\n");
-		ssleep(1);
-		pci_read_config_byte(dev,
-				cappos + PCI_AF_STATUS, &status);
-		if (status & PCI_AF_STATUS_TP)
-			dev_info(&dev->dev, "Still busy after 1s; "
-					"proceeding with reset anyway\n");
-	}
+	if (!(status & PCI_AF_STATUS_TP))
+		goto transaction_done;
+
+	dev_info(&dev->dev, "Busy after 100ms while trying to"
+			" reset; sleeping for 1 second\n");
+	ssleep(1);
+	pci_read_config_byte(dev, cappos + PCI_AF_STATUS, &status);
+	if (status & PCI_AF_STATUS_TP)
+		dev_info(&dev->dev, "Still busy after 1s; "
+				"proceeding with reset anyway\n");
+
+transaction_done:
 	pci_write_config_byte(dev, cappos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
 	mdelay(100);
 
