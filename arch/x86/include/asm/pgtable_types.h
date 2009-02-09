@@ -217,4 +217,10 @@ extern pte_t *lookup_address(unsigned long address, unsigned int *level);
 
 #endif	/* !__ASSEMBLY__ */
 
+#ifdef CONFIG_X86_32
+# include "pgtable_32_types.h"
+#else
+# include "pgtable_64_types.h"
+#endif
+
 #endif /* _ASM_X86_PGTABLE_DEFS_H */
