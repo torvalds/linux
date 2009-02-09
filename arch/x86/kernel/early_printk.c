@@ -14,6 +14,7 @@
 #include <xen/hvc-console.h>
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
+#include <asm/pgtable.h>
 #include <linux/usb/ehci_def.h>
 
 /* Simple VGA output */
