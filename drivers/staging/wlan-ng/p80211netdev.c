@@ -755,12 +755,6 @@ int wlan_setup(wlandevice_t *wlandev)
 		dev->ml_priv = wlandev;
 		dev->hard_start_xmit = p80211knetdev_hard_start_xmit;
 		dev->get_stats = p80211knetdev_get_stats;
-#ifdef HAVE_PRIVATE_IOCTL
-		dev->do_ioctl = p80211knetdev_do_ioctl;
-#endif
-#ifdef HAVE_MULTICAST
-		dev->set_multicast_list = p80211knetdev_set_multicast_list;
-#endif
 		dev->init = p80211knetdev_init;
 		dev->open = p80211knetdev_open;
 		dev->stop = p80211knetdev_stop;
@@ -771,16 +765,6 @@ int wlan_setup(wlandevice_t *wlandev)
 		dev->wireless_handlers = &p80211wext_handler_def;
 
 		netif_stop_queue(dev);
-#ifdef HAVE_CHANGE_MTU
-		dev->change_mtu = wlan_change_mtu;
-#endif
-#ifdef HAVE_SET_MAC_ADDR
-		dev->set_mac_address = p80211knetdev_set_mac_address;
-#endif
-#ifdef HAVE_TX_TIMEOUT
-		dev->tx_timeout = &p80211knetdev_tx_timeout;
-		dev->watchdog_timeo = (wlan_watchdog * HZ) / 1000;
-#endif
 		netif_carrier_off(dev);
 	}
 
