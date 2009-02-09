@@ -805,7 +805,7 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_
 		l2cap_pi(sk)->sport = la->l2_psm;
 		sk->sk_state = BT_BOUND;
 
-		if (btohs(la->l2_psm) == 0x0001)
+		if (btohs(la->l2_psm) == 0x0001 || btohs(la->l2_psm) == 0x0003)
 			l2cap_pi(sk)->sec_level = BT_SECURITY_SDP;
 	}
 
@@ -852,6 +852,9 @@ static int l2cap_do_connect(struct sock *sk)
 			auth_type = HCI_AT_NO_BONDING_MITM;
 		else
 			auth_type = HCI_AT_NO_BONDING;
+
+		if (l2cap_pi(sk)->sec_level == BT_SECURITY_LOW)
+			l2cap_pi(sk)->sec_level = BT_SECURITY_SDP;
 	} else {
 		switch (l2cap_pi(sk)->sec_level) {
 		case BT_SECURITY_HIGH:

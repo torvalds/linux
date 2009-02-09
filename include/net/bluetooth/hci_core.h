@@ -597,6 +597,9 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status, __u8 encr
 {
 	struct list_head *p;
 
+	if (conn->sec_level == BT_SECURITY_SDP)
+		conn->sec_level = BT_SECURITY_LOW;
+
 	hci_proto_encrypt_cfm(conn, status, encrypt);
 
 	read_lock_bh(&hci_cb_list_lock);
