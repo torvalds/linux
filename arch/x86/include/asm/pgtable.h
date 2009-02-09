@@ -398,13 +398,18 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 
 static inline int pud_large(pud_t pud)
 {
-	return (pud_flags(pud) & (_PAGE_PSE | _PAGE_PRESENT)) ==
+	return (pud_val(pud) & (_PAGE_PSE | _PAGE_PRESENT)) ==
 		(_PAGE_PSE | _PAGE_PRESENT);
 }
 
 static inline int pud_bad(pud_t pud)
 {
 	return (pud_flags(pud) & ~(_KERNPG_TABLE | _PAGE_USER)) != 0;
+}
+#else
+static inline int pud_large(pud_t pud)
+{
+	return 0;
 }
 #endif	/* PAGETABLE_LEVELS > 2 */
 
