@@ -90,9 +90,10 @@ static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 	if (offset != offsetof(struct user_regs_struct, gs))
 		retval = *pt_regs_access(task_pt_regs(task), offset);
 	else {
-		retval = task->thread.gs;
 		if (task == current)
-			savesegment(gs, retval);
+			retval = get_user_gs(task_pt_regs(task));
+		else
+			retval = task_user_gs(task);
 	}
 	return retval;
 }
@@ -126,13 +127,10 @@ static int set_segment_reg(struct task_struct *task,
 		break;
 
 	case offsetof(struct user_regs_struct, gs):
-		task->thread.gs = value;
 		if (task == current)
-			/*
-			 * The user-mode %gs is not affected by
-			 * kernel entry, so we must update the CPU.
-			 */
-			loadsegment(gs, value);
+			set_user_gs(task_pt_regs(task), value);
+		else
+			task_user_gs(task) = value;
 	}
 
 	return 0;

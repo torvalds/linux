@@ -50,27 +50,23 @@
 # define FIX_EFLAGS	__FIX_EFLAGS
 #endif
 
-#define COPY(x)			{		\
-	get_user_ex(regs->x, &sc->x);		\
-}
+#define COPY(x)			do {			\
+	get_user_ex(regs->x, &sc->x);			\
+} while (0)
 
-#define COPY_SEG(seg)		{			\
-		unsigned short tmp;			\
-		get_user_ex(tmp, &sc->seg);		\
-		regs->seg = tmp;			\
-}
+#define GET_SEG(seg)		({			\
+	unsigned short tmp;				\
+	get_user_ex(tmp, &sc->seg);			\
+	tmp;						\
+})
 
-#define COPY_SEG_CPL3(seg)	{			\
-		unsigned short tmp;			\
-		get_user_ex(tmp, &sc->seg);		\
-		regs->seg = tmp | 3;			\
-}
+#define COPY_SEG(seg)		do {			\
+	regs->seg = GET_SEG(seg);			\
+} while (0)
 
-#define GET_SEG(seg)		{			\
-		unsigned short tmp;			\
-		get_user_ex(tmp, &sc->seg);		\
-		loadsegment(seg, tmp);			\
-}
+#define COPY_SEG_CPL3(seg)	do {			\
+	regs->seg = GET_SEG(seg) | 3;			\
+} while (0)
 
 static int
 restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
@@ -86,7 +82,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	get_user_try {
 
 #ifdef CONFIG_X86_32
-		GET_SEG(gs);
+		set_user_gs(regs, GET_SEG(gs));
 		COPY_SEG(fs);
 		COPY_SEG(es);
 		COPY_SEG(ds);
@@ -138,12 +134,7 @@ setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 	put_user_try {
 
 #ifdef CONFIG_X86_32
-		{
-			unsigned int tmp;
-
-			savesegment(gs, tmp);
-			put_user_ex(tmp, (unsigned int __user *)&sc->gs);
-		}
+		put_user_ex(get_user_gs(regs), (unsigned int __user *)&sc->gs);
 		put_user_ex(regs->fs, (unsigned int __user *)&sc->fs);
 		put_user_ex(regs->es, (unsigned int __user *)&sc->es);
 		put_user_ex(regs->ds, (unsigned int __user *)&sc->ds);

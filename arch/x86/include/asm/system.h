@@ -182,6 +182,15 @@ extern void native_load_gs_index(unsigned);
 #define savesegment(seg, value)				\
 	asm("mov %%" #seg ",%0":"=r" (value) : : "memory")
 
+/*
+ * x86_32 user gs accessors.
+ */
+#ifdef CONFIG_X86_32
+#define get_user_gs(regs)	(u16)({unsigned long v; savesegment(gs, v); v;})
+#define set_user_gs(regs, v)	loadsegment(gs, (unsigned long)(v))
+#define task_user_gs(tsk)	((tsk)->thread.gs)
+#endif
+
 static inline unsigned long get_limit(unsigned long segment)
 {
 	unsigned long __limit;

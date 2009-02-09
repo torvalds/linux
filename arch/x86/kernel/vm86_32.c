@@ -158,7 +158,7 @@ struct pt_regs *save_v86_state(struct kernel_vm86_regs *regs)
 	ret = KVM86->regs32;
 
 	ret->fs = current->thread.saved_fs;
-	loadsegment(gs, current->thread.saved_gs);
+	set_user_gs(ret, current->thread.saved_gs);
 
 	return ret;
 }
@@ -323,7 +323,7 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
 	info->regs32->ax = 0;
 	tsk->thread.saved_sp0 = tsk->thread.sp0;
 	tsk->thread.saved_fs = info->regs32->fs;
-	savesegment(gs, tsk->thread.saved_gs);
+	tsk->thread.saved_gs = get_user_gs(info->regs32);
 
 	tss = &per_cpu(init_tss, get_cpu());
 	tsk->thread.sp0 = (unsigned long) &info->VM86_TSS_ESP0;

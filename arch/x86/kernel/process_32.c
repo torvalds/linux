@@ -131,7 +131,7 @@ void __show_regs(struct pt_regs *regs, int all)
 	if (user_mode_vm(regs)) {
 		sp = regs->sp;
 		ss = regs->ss & 0xffff;
-		savesegment(gs, gs);
+		gs = get_user_gs(regs);
 	} else {
 		sp = (unsigned long) (&regs->sp);
 		savesegment(ss, ss);
@@ -304,7 +304,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 
 	p->thread.ip = (unsigned long) ret_from_fork;
 
-	savesegment(gs, p->thread.gs);
+	task_user_gs(p) = get_user_gs(regs);
 
 	tsk = current;
 	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
@@ -342,7 +342,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 void
 start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 {
-	__asm__("movl %0, %%gs" : : "r"(0));
+	set_user_gs(regs, 0);
 	regs->fs		= 0;
 	set_fs(USER_DS);
 	regs->ds		= __USER_DS;

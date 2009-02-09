@@ -124,7 +124,7 @@ do {						\
 	pr_reg[7] = regs->ds & 0xffff;		\
 	pr_reg[8] = regs->es & 0xffff;		\
 	pr_reg[9] = regs->fs & 0xffff;		\
-	savesegment(gs, pr_reg[10]);		\
+	pr_reg[10] = get_user_gs(regs);		\
 	pr_reg[11] = regs->orig_ax;		\
 	pr_reg[12] = regs->ip;			\
 	pr_reg[13] = regs->cs & 0xffff;		\
