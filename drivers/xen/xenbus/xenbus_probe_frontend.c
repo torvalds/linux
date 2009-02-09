@@ -62,6 +62,17 @@ static int xenbus_probe_frontend(struct xen_bus_type *bus, const char *type, con
 	return err;
 }
 
+static int xenbus_uevent_frontend(struct device *_dev, struct kobj_uevent_env *env)
+{
+	struct xenbus_device *dev = to_xenbus_device(_dev);
+
+	if (add_uevent_var(env, "MODALIAS=xen:%s", dev->devicetype))
+		return -ENOMEM;
+
+	return 0;
+}
+
+
 static void backend_changed(struct xenbus_watch *watch,
 			    const char **vec, unsigned int len)
 {
@@ -81,7 +92,7 @@ static struct xen_bus_type xenbus_frontend = {
 	.bus = {
 		.name     = "xen",
 		.match    = xenbus_match,
-		.uevent   = xenbus_uevent,
+		.uevent   = xenbus_uevent_frontend,
 		.probe    = xenbus_dev_probe,
 		.remove   = xenbus_dev_remove,
 		.shutdown = xenbus_dev_shutdown,
@@ -232,8 +243,25 @@ int __xenbus_register_frontend(struct xenbus_driver *drv,
 }
 EXPORT_SYMBOL_GPL(__xenbus_register_frontend);
 
+static int frontend_probe_and_watch(struct notifier_block *notifier,
+				   unsigned long event,
+				   void *data)
+{
+	/* Enumerate devices in xenstore and watch for changes. */
+	xenbus_probe_devices(&xenbus_frontend);
+	printk(KERN_CRIT "%s devices probed ok\n", __func__);
+	register_xenbus_watch(&fe_watch);
+	printk(KERN_CRIT "%s watch add ok ok\n", __func__);
+	printk(KERN_CRIT "%s all done\n", __func__);
+	return NOTIFY_DONE;
+}
+
+
 static int __init xenbus_probe_frontend_init(void)
 {
+	static struct notifier_block xenstore_notifier = {
+		.notifier_call = frontend_probe_and_watch
+	};
 	int err;
 
 	DPRINTK("");
@@ -246,14 +274,7 @@ static int __init xenbus_probe_frontend_init(void)
 	}
 	printk(KERN_CRIT "%s bus registered ok\n", __func__);
 
-	if (!xen_initial_domain()) {
-		/* Enumerate devices in xenstore and watch for changes. */
-		xenbus_probe_devices(&xenbus_frontend);
-		printk(KERN_CRIT "%s devices probed ok\n", __func__);
-		register_xenbus_watch(&fe_watch);
-		printk(KERN_CRIT "%s watch add ok ok\n", __func__);
-		printk(KERN_CRIT "%s all done\n", __func__);
-	}
+	register_xenstore_notifier(&xenstore_notifier);
 
 	return 0;
 }

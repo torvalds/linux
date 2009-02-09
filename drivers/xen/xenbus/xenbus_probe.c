@@ -95,17 +95,6 @@ int xenbus_match(struct device *_dev, struct device_driver *_drv)
 EXPORT_SYMBOL_GPL(xenbus_match);
 
 
-int xenbus_uevent(struct device *_dev, struct kobj_uevent_env *env)
-{
-	struct xenbus_device *dev = to_xenbus_device(_dev);
-
-	if (add_uevent_var(env, "MODALIAS=xen:%s", dev->devicetype))
-		return -ENOMEM;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(xenbus_uevent);
-
 static void free_otherend_details(struct xenbus_device *dev)
 {
 	kfree(dev->otherend);
@@ -689,6 +678,8 @@ EXPORT_SYMBOL_GPL(unregister_xenstore_notifier);
 void xenbus_probe(struct work_struct *unused)
 {
 	xenstored_ready = 1;
+
+	printk(KERN_CRIT "xenbus_probe wake_waiting\n");
 
 	/* Notify others that xenstore is up */
 	blocking_notifier_call_chain(&xenstore_chain, 0, NULL);

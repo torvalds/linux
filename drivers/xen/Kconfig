@@ -29,6 +29,14 @@ config XEN_DEV_EVTCHN
 	  firing.
 	  If in doubt, say yes.
 
+config XEN_BACKEND
+	tristate "Backend driver support"
+	depends on XEN_DOM0
+	default y
+	help
+	  Support for backend device drivers that provide I/O services
+	  to other virtual machines.
+
 config XENFS
 	tristate "Xen filesystem"
 	default y

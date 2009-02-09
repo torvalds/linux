@@ -60,7 +60,6 @@ extern int xenbus_probe_devices(struct xen_bus_type *bus);
 
 extern void xenbus_dev_changed(const char *node, struct xen_bus_type *bus);
 
-extern int xenbus_uevent(struct device *_dev, struct kobj_uevent_env *env);
 extern void xenbus_dev_shutdown(struct device *_dev);
 
 extern int xenbus_dev_suspend(struct device *dev, pm_message_t state);
