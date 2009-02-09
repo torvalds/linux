@@ -185,6 +185,7 @@ struct l2cap_info_rsp {
 /* info type */
 #define L2CAP_IT_CL_MTU     0x0001
 #define L2CAP_IT_FEAT_MASK  0x0002
+#define L2CAP_IT_FIXED_CHAN 0x0003
 
 /* info result */
 #define L2CAP_IR_SUCCESS    0x0000

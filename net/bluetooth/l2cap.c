@@ -50,9 +50,10 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
-#define VERSION "2.12"
+#define VERSION "2.13"
 
-static u32 l2cap_feat_mask = 0x0000;
+static u32 l2cap_feat_mask = 0x0080;
+static u8 l2cap_fixed_chan[8] = { 0x02, };
 
 static const struct proto_ops l2cap_sock_ops;
 
@@ -456,9 +457,8 @@ static void l2cap_info_timeout(unsigned long arg)
 {
 	struct l2cap_conn *conn = (void *) arg;
 
-	conn->info_ident = 0;
-
 	conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_DONE;
+	conn->info_ident = 0;
 
 	l2cap_conn_start(conn);
 }
@@ -1793,10 +1793,10 @@ static inline int l2cap_command_rej(struct l2cap_conn *conn, struct l2cap_cmd_hd
 
 	if ((conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT) &&
 					cmd->ident == conn->info_ident) {
-		conn->info_ident = 0;
 		del_timer(&conn->info_timer);
 
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_DONE;
+		conn->info_ident = 0;
 
 		l2cap_conn_start(conn);
 	}
@@ -2165,6 +2165,14 @@ static inline int l2cap_information_req(struct l2cap_conn *conn, struct l2cap_cm
 		put_unaligned(cpu_to_le32(l2cap_feat_mask), (__le32 *) rsp->data);
 		l2cap_send_cmd(conn, cmd->ident,
 					L2CAP_INFO_RSP, sizeof(buf), buf);
+	} else if (type == L2CAP_IT_FIXED_CHAN) {
+		u8 buf[12];
+		struct l2cap_info_rsp *rsp = (struct l2cap_info_rsp *) buf;
+		rsp->type   = cpu_to_le16(L2CAP_IT_FIXED_CHAN);
+		rsp->result = cpu_to_le16(L2CAP_IR_SUCCESS);
+		memcpy(buf + 4, l2cap_fixed_chan, 8);
+		l2cap_send_cmd(conn, cmd->ident,
+					L2CAP_INFO_RSP, sizeof(buf), buf);
 	} else {
 		struct l2cap_info_rsp rsp;
 		rsp.type   = cpu_to_le16(type);
@@ -2186,14 +2194,28 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn, struct l2cap_cm
 
 	BT_DBG("type 0x%4.4x result 0x%2.2x", type, result);
 
-	conn->info_ident = 0;
-
 	del_timer(&conn->info_timer);
 
 	if (type == L2CAP_IT_FEAT_MASK) {
 		conn->feat_mask = get_unaligned_le32(rsp->data);
 
+		if (conn->feat_mask & 0x0080) {
+			struct l2cap_info_req req;
+			req.type = cpu_to_le16(L2CAP_IT_FIXED_CHAN);
+
+			conn->info_ident = l2cap_get_ident(conn);
+
+			l2cap_send_cmd(conn, conn->info_ident,
+					L2CAP_INFO_REQ, sizeof(req), &req);
+		} else {
+			conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_DONE;
+			conn->info_ident = 0;
+
+			l2cap_conn_start(conn);
+		}
+	} else if (type == L2CAP_IT_FIXED_CHAN) {
 		conn->info_state |= L2CAP_INFO_FEAT_MASK_REQ_DONE;
+		conn->info_ident = 0;
 
 		l2cap_conn_start(conn);
 	}
@@ -2589,7 +2611,7 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 			goto drop;
 
 		skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, skb->len),
-			      skb->len);
+								skb->len);
 		conn->rx_len = len - skb->len;
 	} else {
 		BT_DBG("Cont: frag len %d (expecting %d)", skb->len, conn->rx_len);
@@ -2611,7 +2633,7 @@ static int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 fl
 		}
 
 		skb_copy_from_linear_data(skb, skb_put(conn->rx_skb, skb->len),
-			      skb->len);
+								skb->len);
 		conn->rx_len -= skb->len;
 
 		if (!conn->rx_len) {
