@@ -29,43 +29,43 @@
 #define FPU_WRITE_BIT 0x10
 
 static int reg_offset[] = {
-	offsetof(struct math_emu_info, regs.ax),
-	offsetof(struct math_emu_info, regs.cx),
-	offsetof(struct math_emu_info, regs.dx),
-	offsetof(struct math_emu_info, regs.bx),
-	offsetof(struct math_emu_info, regs.sp),
-	offsetof(struct math_emu_info, regs.bp),
-	offsetof(struct math_emu_info, regs.si),
-	offsetof(struct math_emu_info, regs.di)
+	offsetof(struct pt_regs, ax),
+	offsetof(struct pt_regs, cx),
+	offsetof(struct pt_regs, dx),
+	offsetof(struct pt_regs, bx),
+	offsetof(struct pt_regs, sp),
+	offsetof(struct pt_regs, bp),
+	offsetof(struct pt_regs, si),
+	offsetof(struct pt_regs, di)
 };
 
-#define REG_(x) (*(long *)(reg_offset[(x)]+(u_char *) FPU_info))
+#define REG_(x) (*(long *)(reg_offset[(x)] + (u_char *)FPU_info->regs))
 
 static int reg_offset_vm86[] = {
-	offsetof(struct math_emu_info, regs.cs),
-	offsetof(struct math_emu_info, vm86.ds),
-	offsetof(struct math_emu_info, vm86.es),
-	offsetof(struct math_emu_info, vm86.fs),
-	offsetof(struct math_emu_info, vm86.gs),
-	offsetof(struct math_emu_info, regs.ss),
-	offsetof(struct math_emu_info, vm86.ds)
+	offsetof(struct pt_regs, cs),
+	offsetof(struct kernel_vm86_regs, ds),
+	offsetof(struct kernel_vm86_regs, es),
+	offsetof(struct kernel_vm86_regs, fs),
+	offsetof(struct kernel_vm86_regs, gs),
+	offsetof(struct pt_regs, ss),
+	offsetof(struct kernel_vm86_regs, ds)
 };
 
 #define VM86_REG_(x) (*(unsigned short *) \
-		      (reg_offset_vm86[((unsigned)x)]+(u_char *) FPU_info))
+		(reg_offset_vm86[((unsigned)x)] + (u_char *)FPU_info->regs))
 
 static int reg_offset_pm[] = {
-	offsetof(struct math_emu_info, regs.cs),
-	offsetof(struct math_emu_info, regs.ds),
-	offsetof(struct math_emu_info, regs.es),
-	offsetof(struct math_emu_info, regs.fs),
-	offsetof(struct math_emu_info, regs.ds), /* dummy, not saved on stack */
-	offsetof(struct math_emu_info, regs.ss),
-	offsetof(struct math_emu_info, regs.ds)
+	offsetof(struct pt_regs, cs),
+	offsetof(struct pt_regs, ds),
+	offsetof(struct pt_regs, es),
+	offsetof(struct pt_regs, fs),
+	offsetof(struct pt_regs, ds),	/* dummy, not saved on stack */
+	offsetof(struct pt_regs, ss),
+	offsetof(struct pt_regs, ds)
 };
 
 #define PM_REG_(x) (*(unsigned short *) \
-		      (reg_offset_pm[((unsigned)x)]+(u_char *) FPU_info))
+		(reg_offset_pm[((unsigned)x)] + (u_char *)FPU_info->regs))
 
 /* Decode the SIB byte. This function assumes mod != 0 */
 static int sib(int mod, unsigned long *fpu_eip)
@@ -346,34 +346,34 @@ void __user *FPU_get_address_16(u_char FPU_modrm, unsigned long *fpu_eip,
 	}
 	switch (rm) {
 	case 0:
-		address += FPU_info->regs.bx + FPU_info->regs.si;
+		address += FPU_info->regs->bx + FPU_info->regs->si;
 		break;
 	case 1:
-		address += FPU_info->regs.bx + FPU_info->regs.di;
+		address += FPU_info->regs->bx + FPU_info->regs->di;
 		break;
 	case 2:
-		address += FPU_info->regs.bp + FPU_info->regs.si;
+		address += FPU_info->regs->bp + FPU_info->regs->si;
 		if (addr_modes.override.segment == PREFIX_DEFAULT)
 			addr_modes.override.segment = PREFIX_SS_;
 		break;
 	case 3:
-		address += FPU_info->regs.bp + FPU_info->regs.di;
+		address += FPU_info->regs->bp + FPU_info->regs->di;
 		if (addr_modes.override.segment == PREFIX_DEFAULT)
 			addr_modes.override.segment = PREFIX_SS_;
 		break;
 	case 4:
-		address += FPU_info->regs.si;
+		address += FPU_info->regs->si;
 		break;
 	case 5:
-		address += FPU_info->regs.di;
+		address += FPU_info->regs->di;
 		break;
 	case 6:
-		address += FPU_info->regs.bp;
+		address += FPU_info->regs->bp;
 		if (addr_modes.override.segment == PREFIX_DEFAULT)
 			addr_modes.override.segment = PREFIX_SS_;
 		break;
 	case 7:
-		address += FPU_info->regs.bx;
+		address += FPU_info->regs->bx;
 		break;
 	}
 
