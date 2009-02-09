@@ -160,6 +160,7 @@
 
 #define AR_SREV_VERSION_9100                  0x014
 
+#define AR_SREV_9100(ah) ((ah->ah_macVersion) == AR_SREV_VERSION_9100)
 #define AR_SREV_5416_V20_OR_LATER(_ah) \
 	(AR_SREV_9100((_ah)) || AR_SREV_5416_20_OR_LATER(_ah))
 #define AR_SREV_5416_V22_OR_LATER(_ah) \

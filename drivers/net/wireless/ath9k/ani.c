@@ -14,10 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "core.h"
-#include "hw.h"
-#include "reg.h"
-#include "phy.h"
+#include "ath9k.h"
 
 static int ath9k_hw_get_ani_channel_idx(struct ath_hal *ah,
 					struct ath9k_channel *chan)

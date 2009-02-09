@@ -16,9 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include "core.h"
-#include "hw.h"
-#include "regd.h"
+#include "ath9k.h"
 #include "regd_common.h"
 
 /*

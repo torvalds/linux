@@ -16,9 +16,7 @@
 
 #include <linux/nl80211.h>
 #include <linux/pci.h>
-#include "core.h"
-#include "reg.h"
-#include "hw.h"
+#include "ath9k.h"
 
 static struct pci_device_id ath_pci_id_table[] __devinitdata = {
 	{ PCI_VDEVICE(ATHEROS, 0x0023) }, /* PCI   */

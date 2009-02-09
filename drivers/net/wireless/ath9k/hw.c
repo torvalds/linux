@@ -17,10 +17,7 @@
 #include <linux/io.h>
 #include <asm/unaligned.h>
 
-#include "core.h"
-#include "hw.h"
-#include "reg.h"
-#include "phy.h"
+#include "ath9k.h"
 #include "initvals.h"
 
 static int btcoex_enable;

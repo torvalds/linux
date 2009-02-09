@@ -15,7 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "core.h"
+#include "ath9k.h"
 
 static struct ath_rate_table ar5416_11na_ratetable = {
 	42,

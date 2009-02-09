@@ -14,10 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "core.h"
-#include "hw.h"
-#include "reg.h"
-#include "phy.h"
+#include "ath9k.h"
 
 static void ath9k_hw_analog_shift_rmw(struct ath_hal *ah,
 				      u32 reg, u32 mask,

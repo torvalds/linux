@@ -19,9 +19,7 @@
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
 #include <linux/ath9k_platform.h>
-#include "core.h"
-#include "reg.h"
-#include "hw.h"
+#include "ath9k.h"
 
 /* return bus cachesize in 4B word units */
 static void ath_ahb_read_cachesize(struct ath_softc *sc, int *csz)

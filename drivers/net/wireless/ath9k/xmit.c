@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "core.h"
+#include "ath9k.h"
 
 #define BITS_PER_BYTE           8
 #define OFDM_PLCP_BITS          22

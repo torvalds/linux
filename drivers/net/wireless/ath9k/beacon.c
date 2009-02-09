@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "core.h"
+#include "ath9k.h"
 
 /*
  *  This function will modify certain transmit queue properties depending on
