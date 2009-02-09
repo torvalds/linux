@@ -406,16 +406,19 @@ enum {
 	ATH9K_RESET_COLD,
 };
 
-struct ath_hal {
-	u32 ah_magic;
-	u16 ah_devid;
-	u16 ah_subvendorid;
-	u32 ah_macVersion;
-	u16 ah_macRev;
-	u16 ah_phyRev;
-	u16 ah_analog5GhzRev;
-	u16 ah_analog2GhzRev;
+struct ath9k_hw_version {
+	u32 magic;
+	u16 devid;
+	u16 subvendorid;
+	u32 macVersion;
+	u16 macRev;
+	u16 phyRev;
+	u16 analog5GhzRev;
+	u16 analog2GhzRev;
+};
 
+struct ath_hal {
+	struct ath9k_hw_version hw_version;
 	void __iomem *ah_sh;
 	struct ath_softc *ah_sc;
 

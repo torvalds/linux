@@ -1989,7 +1989,7 @@ static void ath9k_hw_set_def_addac(struct ath_hal *ah,
 	struct ar5416_eeprom_def *eep = &ahp->ah_eeprom.def;
 	u8 biaslevel;
 
-	if (ah->ah_macVersion != AR_SREV_VERSION_9160)
+	if (ah->hw_version.macVersion != AR_SREV_VERSION_9160)
 		return;
 
 	if (ar5416_get_eep_rev(ahp) < AR5416_EEP_MINOR_VER_7)
@@ -2043,7 +2043,7 @@ static void ath9k_hw_set_4k_addac(struct ath_hal *ah,
 	struct ar5416_eeprom_4k *eep = &ahp->ah_eeprom.map4k;
 	u8 biaslevel;
 
-	if (ah->ah_macVersion != AR_SREV_VERSION_9160)
+	if (ah->hw_version.macVersion != AR_SREV_VERSION_9160)
 		return;
 
 	if (ar5416_get_eep_rev(ahp) < AR5416_EEP_MINOR_VER_7)
