@@ -86,8 +86,10 @@ MODULE_PARM_DESC(radio_nr, "radio device number");
 MODULE_PARM_DESC(tuner,    "tuner type");
 MODULE_PARM_DESC(card,     "card type");
 
-static DEFINE_MUTEX(devlist_lock);
+DEFINE_MUTEX(saa7134_devlist_lock);
+EXPORT_SYMBOL(saa7134_devlist_lock);
 LIST_HEAD(saa7134_devlist);
+EXPORT_SYMBOL(saa7134_devlist);
 static LIST_HEAD(mops_list);
 static unsigned int saa7134_devcount;
 
@@ -991,6 +993,18 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 
 	v4l2_prio_init(&dev->prio);
 
+	mutex_lock(&saa7134_devlist_lock);
+	list_for_each_entry(mops, &mops_list, next)
+		mpeg_ops_attach(mops, dev);
+	list_add_tail(&dev->devlist, &saa7134_devlist);
+	mutex_unlock(&saa7134_devlist_lock);
+
+	/* check for signal */
+	saa7134_irq_video_signalchange(dev);
+
+	if (TUNER_ABSENT != dev->tuner_type)
+		saa_call_all(dev, core, s_standby, 0);
+
 	/* register v4l devices */
 	if (saa7134_no_overlay > 0)
 		printk(KERN_INFO "%s: Overlay support disabled.\n", dev->name);
@@ -1028,21 +1042,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	/* everything worked */
 	saa7134_devcount++;
 
-	mutex_lock(&devlist_lock);
-	list_for_each_entry(mops, &mops_list, next)
-		mpeg_ops_attach(mops, dev);
-	list_add_tail(&dev->devlist,&saa7134_devlist);
-	mutex_unlock(&devlist_lock);
-
-	/* check for signal */
-	saa7134_irq_video_signalchange(dev);
-
-	if (saa7134_dmasound_init && !dev->dmasound.priv_data) {
+	if (saa7134_dmasound_init && !dev->dmasound.priv_data)
 		saa7134_dmasound_init(dev);
-	}
-
-	if (TUNER_ABSENT != dev->tuner_type)
-		saa_call_all(dev, core, s_standby, 0);
 
 	return 0;
 
@@ -1093,11 +1094,11 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 	saa7134_hwfini(dev);
 
 	/* unregister */
-	mutex_lock(&devlist_lock);
+	mutex_lock(&saa7134_devlist_lock);
 	list_del(&dev->devlist);
 	list_for_each_entry(mops, &mops_list, next)
 		mpeg_ops_detach(mops, dev);
-	mutex_unlock(&devlist_lock);
+	mutex_unlock(&saa7134_devlist_lock);
 	saa7134_devcount--;
 
 	saa7134_i2c_unregister(dev);
@@ -1254,11 +1255,11 @@ int saa7134_ts_register(struct saa7134_mpeg_ops *ops)
 {
 	struct saa7134_dev *dev;
 
-	mutex_lock(&devlist_lock);
+	mutex_lock(&saa7134_devlist_lock);
 	list_for_each_entry(dev, &saa7134_devlist, devlist)
 		mpeg_ops_attach(ops, dev);
 	list_add_tail(&ops->next,&mops_list);
-	mutex_unlock(&devlist_lock);
+	mutex_unlock(&saa7134_devlist_lock);
 	return 0;
 }
 
@@ -1266,11 +1267,11 @@ void saa7134_ts_unregister(struct saa7134_mpeg_ops *ops)
 {
 	struct saa7134_dev *dev;
 
-	mutex_lock(&devlist_lock);
+	mutex_lock(&saa7134_devlist_lock);
 	list_del(&ops->next);
 	list_for_each_entry(dev, &saa7134_devlist, devlist)
 		mpeg_ops_detach(ops, dev);
-	mutex_unlock(&devlist_lock);
+	mutex_unlock(&saa7134_devlist_lock);
 }
 
 EXPORT_SYMBOL(saa7134_ts_register);
@@ -1314,7 +1315,6 @@ module_exit(saa7134_fini);
 /* ----------------------------------------------------------- */
 
 EXPORT_SYMBOL(saa7134_set_gpio);
-EXPORT_SYMBOL(saa7134_devlist);
 EXPORT_SYMBOL(saa7134_boards);
 
 /* ----------------- for the DMA sound modules --------------- */

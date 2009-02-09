@@ -1335,7 +1335,7 @@ static int video_open(struct file *file)
 	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	int radio = 0;
 
-	lock_kernel();
+	mutex_lock(&saa7134_devlist_lock);
 	list_for_each_entry(dev, &saa7134_devlist, devlist) {
 		if (dev->video_dev && (dev->video_dev->minor == minor))
 			goto found;
@@ -1348,19 +1348,20 @@ static int video_open(struct file *file)
 			goto found;
 		}
 	}
-	unlock_kernel();
+	mutex_unlock(&saa7134_devlist_lock);
 	return -ENODEV;
- found:
+
+found:
+	mutex_unlock(&saa7134_devlist_lock);
 
 	dprintk("open minor=%d radio=%d type=%s\n",minor,radio,
 		v4l2_type_names[type]);
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);
-	if (NULL == fh) {
-		unlock_kernel();
+	if (NULL == fh)
 		return -ENOMEM;
-	}
+
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -1393,7 +1394,6 @@ static int video_open(struct file *file)
 		/* switch to video/vbi mode */
 		video_mux(dev,dev->ctl_input);
 	}
-	unlock_kernel();
 	return 0;
 }
 
