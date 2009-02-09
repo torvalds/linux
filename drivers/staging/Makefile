@@ -30,3 +30,4 @@ obj-$(CONFIG_TRANZPORT)		+= frontier/
 obj-$(CONFIG_EPL)		+= epl/
 obj-$(CONFIG_ANDROID)		+= android/
 obj-$(CONFIG_DST)		+= dst/
+obj-$(CONFIG_POHMELFS)		+= pohmelfs/

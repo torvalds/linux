@@ -95,5 +95,7 @@ source "drivers/staging/android/Kconfig"
 
 source "drivers/staging/dst/Kconfig"
 
+source "drivers/staging/pohmelfs/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
