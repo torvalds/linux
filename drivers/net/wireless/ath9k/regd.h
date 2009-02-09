@@ -45,6 +45,18 @@ struct country_code_to_enum_rd {
 	const char *isoName;
 };
 
+struct ath9k_regulatory {
+	char alpha2[2];
+	u16 country_code;
+	u16 max_power_level;
+	u32 tp_scale;
+	u16 current_rd;
+	u16 current_rd_ext;
+	u16 current_rd_inuse;
+	int16_t power_limit;
+	struct reg_dmn_pair_mapping *regpair;
+};
+
 enum CountryCode {
 	CTRY_ALBANIA = 8,
 	CTRY_ALGERIA = 12,

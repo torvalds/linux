@@ -1232,9 +1232,9 @@ static bool ath9k_hw_set_def_power_per_rate_table(struct ath_hal *ah,
 
 	maxRegAllowedPower = twiceMaxRegulatoryPower + twiceLargestAntenna;
 
-	if (ah->ah_tpScale != ATH9K_TP_SCALE_MAX) {
+	if (ah->regulatory.tp_scale != ATH9K_TP_SCALE_MAX) {
 		maxRegAllowedPower -=
-			(tpScaleReductionTable[(ah->ah_tpScale)] * 2);
+			(tpScaleReductionTable[(ah->regulatory.tp_scale)] * 2);
 	}
 
 	scaledPower = min(powerLimit, maxRegAllowedPower);
@@ -1510,9 +1510,9 @@ static bool ath9k_hw_set_4k_power_per_rate_table(struct ath_hal *ah,
 
 	maxRegAllowedPower = twiceMaxRegulatoryPower + twiceLargestAntenna;
 
-	if (ah->ah_tpScale != ATH9K_TP_SCALE_MAX) {
+	if (ah->regulatory.tp_scale != ATH9K_TP_SCALE_MAX) {
 		maxRegAllowedPower -=
-			(tpScaleReductionTable[(ah->ah_tpScale)] * 2);
+			(tpScaleReductionTable[(ah->regulatory.tp_scale)] * 2);
 	}
 
 	scaledPower = min(powerLimit, maxRegAllowedPower);
@@ -1823,10 +1823,10 @@ static int ath9k_hw_def_set_txpower(struct ath_hal *ah,
 		i = rateHt20_0;
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
-		ah->ah_maxPowerLevel =
+		ah->regulatory.max_power_level =
 			ratesArray[i] + AR5416_PWR_TABLE_OFFSET * 2;
 	else
-		ah->ah_maxPowerLevel = ratesArray[i];
+		ah->regulatory.max_power_level = ratesArray[i];
 
 	return 0;
 }
@@ -1951,10 +1951,10 @@ static int ath9k_hw_4k_set_txpower(struct ath_hal *ah,
 		i = rateHt20_0;
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
-		ah->ah_maxPowerLevel =
+		ah->regulatory.max_power_level =
 			ratesArray[i] + AR5416_PWR_TABLE_OFFSET * 2;
 	else
-		ah->ah_maxPowerLevel = ratesArray[i];
+		ah->regulatory.max_power_level = ratesArray[i];
 
 	return 0;
 }

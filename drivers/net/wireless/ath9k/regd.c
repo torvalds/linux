@@ -108,7 +108,7 @@ static const struct ieee80211_regdomain ath9k_world_regdom_67_68_6A = {
 
 static u16 ath9k_regd_get_eepromRD(struct ath_hal *ah)
 {
-	return ah->ah_currentRD & ~WORLDWIDE_ROAMING_FLAG;
+	return ah->regulatory.current_rd & ~WORLDWIDE_ROAMING_FLAG;
 }
 
 u16 ath9k_regd_get_rd(struct ath_hal *ah)
@@ -129,7 +129,7 @@ const struct ieee80211_regdomain *ath9k_default_world_regdomain(void)
 
 const struct ieee80211_regdomain *ath9k_world_regdomain(struct ath_hal *ah)
 {
-	switch (ah->regpair->regDmnEnum) {
+	switch (ah->regulatory.regpair->regDmnEnum) {
 	case 0x60:
 	case 0x61:
 	case 0x62:
@@ -284,7 +284,7 @@ void ath9k_reg_apply_world_flags(struct wiphy *wiphy, enum reg_set_by setby)
 	struct ath_softc *sc = hw->priv;
 	struct ath_hal *ah = sc->sc_ah;
 
-	switch (ah->regpair->regDmnEnum) {
+	switch (ah->regulatory.regpair->regDmnEnum) {
 	case 0x60:
 	case 0x63:
 	case 0x66:
@@ -413,30 +413,30 @@ int ath9k_regd_init(struct ath_hal *ah)
 		return -EINVAL;
 	}
 
-	ah->ah_countryCode = ath9k_regd_get_default_country(ah);
+	ah->regulatory.country_code = ath9k_regd_get_default_country(ah);
 
-	if (ah->ah_countryCode == CTRY_DEFAULT &&
+	if (ah->regulatory.country_code == CTRY_DEFAULT &&
 	    ath9k_regd_get_eepromRD(ah) == CTRY_DEFAULT)
-		ah->ah_countryCode = CTRY_UNITED_STATES;
+		ah->regulatory.country_code = CTRY_UNITED_STATES;
 
-	if (ah->ah_countryCode == CTRY_DEFAULT) {
+	if (ah->regulatory.country_code == CTRY_DEFAULT) {
 		regdmn = ath9k_regd_get_eepromRD(ah);
 		country = NULL;
 	} else {
-		country = ath9k_regd_find_country(ah->ah_countryCode);
+		country = ath9k_regd_find_country(ah->regulatory.country_code);
 		if (country == NULL) {
 			DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
 				"Country is NULL!!!!, cc= %d\n",
-				ah->ah_countryCode);
+				ah->regulatory.country_code);
 			return -EINVAL;
 		} else
 			regdmn = country->regDmnEnum;
 	}
 
-	ah->ah_currentRDInUse = regdmn;
-	ah->regpair = ath9k_get_regpair(regdmn);
+	ah->regulatory.current_rd_inuse = regdmn;
+	ah->regulatory.regpair = ath9k_get_regpair(regdmn);
 
-	if (!ah->regpair) {
+	if (!ah->regulatory.regpair) {
 		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
 			"No regulatory domain pair found, cannot continue\n");
 		return -EINVAL;
@@ -446,18 +446,18 @@ int ath9k_regd_init(struct ath_hal *ah)
 		country = ath9k_regd_find_country_by_rd(regdmn);
 
 	if (country) {
-		ah->alpha2[0] = country->isoName[0];
-		ah->alpha2[1] = country->isoName[1];
+		ah->regulatory.alpha2[0] = country->isoName[0];
+		ah->regulatory.alpha2[1] = country->isoName[1];
 	} else {
-		ah->alpha2[0] = '0';
-		ah->alpha2[1] = '0';
+		ah->regulatory.alpha2[0] = '0';
+		ah->regulatory.alpha2[1] = '0';
 	}
 
 	DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
 		"Country alpha2 being used: %c%c\n"
-		"Regpair detected: 0x%0x\n",
-		ah->alpha2[0], ah->alpha2[1],
-		ah->regpair->regDmnEnum);
+		"Regulatory.Regpair detected: 0x%0x\n",
+		ah->regulatory.alpha2[0], ah->regulatory.alpha2[1],
+		ah->regulatory.regpair->regDmnEnum);
 
 	return 0;
 }
@@ -466,8 +466,8 @@ u32 ath9k_regd_get_ctl(struct ath_hal *ah, struct ath9k_channel *chan)
 {
 	u32 ctl = NO_CTL;
 
-	if (!ah->regpair ||
-	    (ah->ah_countryCode == CTRY_DEFAULT && isWwrSKU(ah))) {
+	if (!ah->regulatory.regpair ||
+	    (ah->regulatory.country_code == CTRY_DEFAULT && isWwrSKU(ah))) {
 		if (IS_CHAN_B(chan))
 			ctl = SD_NO_CTL | CTL_11B;
 		else if (IS_CHAN_G(chan))
@@ -478,11 +478,11 @@ u32 ath9k_regd_get_ctl(struct ath_hal *ah, struct ath9k_channel *chan)
 	}
 
 	if (IS_CHAN_B(chan))
-		ctl = ah->regpair->reg_2ghz_ctl | CTL_11B;
+		ctl = ah->regulatory.regpair->reg_2ghz_ctl | CTL_11B;
 	else if (IS_CHAN_G(chan))
-		ctl = ah->regpair->reg_5ghz_ctl | CTL_11G;
+		ctl = ah->regulatory.regpair->reg_5ghz_ctl | CTL_11G;
 	else
-		ctl = ah->regpair->reg_5ghz_ctl | CTL_11A;
+		ctl = ah->regulatory.regpair->reg_5ghz_ctl | CTL_11A;
 
 	return ctl;
 }

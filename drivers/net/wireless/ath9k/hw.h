@@ -425,17 +425,9 @@ struct ath_hal {
 	enum nl80211_iftype ah_opmode;
 	struct ath9k_ops_config ah_config;
 	struct ath9k_hw_capabilities ah_caps;
-
-	u16 ah_countryCode;
+	struct ath9k_regulatory regulatory;
 	u32 ah_flags;
-	int16_t ah_powerLimit;
-	u16 ah_maxPowerLevel;
-	u32 ah_tpScale;
-	u16 ah_currentRD;
-	u16 ah_currentRDExt;
-	u16 ah_currentRDInUse;
-	char alpha2[2];
-	struct reg_dmn_pair_mapping *regpair;
+
 	enum ath9k_power_mode ah_power_mode;
 	enum ath9k_power_mode ah_restore_mode;
 
