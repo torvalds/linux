@@ -660,6 +660,7 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 
 	kfree(root);
 }
+EXPORT_SYMBOL_GPL(xenbus_dev_changed);
 
 static void frontend_changed(struct xenbus_watch *watch,
 			     const char **vec, unsigned int len)
