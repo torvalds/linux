@@ -452,6 +452,7 @@ static const struct v4l2_queryctrl video_ctrls[] = {
 		.name          = "y offset odd field",
 		.minimum       = 0,
 		.maximum       = 128,
+		.step          = 1,
 		.default_value = 0,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
 	},{
@@ -459,6 +460,7 @@ static const struct v4l2_queryctrl video_ctrls[] = {
 		.name          = "y offset even field",
 		.minimum       = 0,
 		.maximum       = 128,
+		.step          = 1,
 		.default_value = 0,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
 	},{
