@@ -353,6 +353,12 @@ struct tracer {
 	ssize_t			(*read)(struct trace_iterator *iter,
 					struct file *filp, char __user *ubuf,
 					size_t cnt, loff_t *ppos);
+	ssize_t			(*splice_read)(struct trace_iterator *iter,
+					       struct file *filp,
+					       loff_t *ppos,
+					       struct pipe_inode_info *pipe,
+					       size_t len,
+					       unsigned int flags);
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 	int			(*selftest)(struct tracer *trace,
 					    struct trace_array *tr);
