@@ -55,6 +55,48 @@ struct xen_memory_reservation {
 DEFINE_GUEST_HANDLE_STRUCT(xen_memory_reservation);
 
 /*
+ * An atomic exchange of memory pages. If return code is zero then
+ * @out.extent_list provides GMFNs of the newly-allocated memory.
+ * Returns zero on complete success, otherwise a negative error code.
+ * On complete success then always @nr_exchanged == @in.nr_extents.
+ * On partial success @nr_exchanged indicates how much work was done.
+ */
+#define XENMEM_exchange             11
+struct xen_memory_exchange {
+    /*
+     * [IN] Details of memory extents to be exchanged (GMFN bases).
+     * Note that @in.address_bits is ignored and unused.
+     */
+    struct xen_memory_reservation in;
+
+    /*
+     * [IN/OUT] Details of new memory extents.
+     * We require that:
+     *  1. @in.domid == @out.domid
+     *  2. @in.nr_extents  << @in.extent_order ==
+     *     @out.nr_extents << @out.extent_order
+     *  3. @in.extent_start and @out.extent_start lists must not overlap
+     *  4. @out.extent_start lists GPFN bases to be populated
+     *  5. @out.extent_start is overwritten with allocated GMFN bases
+     */
+    struct xen_memory_reservation out;
+
+    /*
+     * [OUT] Number of input extents that were successfully exchanged:
+     *  1. The first @nr_exchanged input extents were successfully
+     *     deallocated.
+     *  2. The corresponding first entries in the output extent list correctly
+     *     indicate the GMFNs that were successfully exchanged.
+     *  3. All other input and output extents are untouched.
+     *  4. If not all input exents are exchanged then the return code of this
+     *     command will be non-zero.
+     *  5. THIS FIELD MUST BE INITIALISED TO ZERO BY THE CALLER!
+     */
+    unsigned long nr_exchanged;
+};
+
+DEFINE_GUEST_HANDLE_STRUCT(xen_memory_exchange);
+/*
  * Returns the maximum machine frame number of mapped RAM in this system.
  * This command always succeeds (it never returns an error code).
  * arg == NULL.

@@ -53,6 +53,7 @@
 #include <asm/paravirt.h>
 #include <asm/e820.h>
 #include <asm/linkage.h>
+#include <asm/page.h>
 
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
@@ -2026,6 +2027,206 @@ void __init xen_init_mmu_ops(void)
 	x86_init.paging.pagetable_setup_done = xen_pagetable_setup_done;
 	pv_mmu_ops = xen_mmu_ops;
 }
+
+/* Protected by xen_reservation_lock. */
+#define MAX_CONTIG_ORDER 9 /* 2MB */
+static unsigned long discontig_frames[1<<MAX_CONTIG_ORDER];
+
+#define VOID_PTE (mfn_pte(0, __pgprot(0)))
+static void xen_zap_pfn_range(unsigned long vaddr, unsigned int order,
+				unsigned long *in_frames,
+				unsigned long *out_frames)
+{
+	int i;
+	struct multicall_space mcs;
+
+	xen_mc_batch();
+	for (i = 0; i < (1UL<<order); i++, vaddr += PAGE_SIZE) {
+		mcs = __xen_mc_entry(0);
+
+		if (in_frames)
+			in_frames[i] = virt_to_mfn(vaddr);
+
+		MULTI_update_va_mapping(mcs.mc, vaddr, VOID_PTE, 0);
+		set_phys_to_machine(virt_to_pfn(vaddr), INVALID_P2M_ENTRY);
+
+		if (out_frames)
+			out_frames[i] = virt_to_pfn(vaddr);
+	}
+	xen_mc_issue(0);
+}
+
+/*
+ * Update the pfn-to-mfn mappings for a virtual address range, either to
+ * point to an array of mfns, or contiguously from a single starting
+ * mfn.
+ */
+static void xen_remap_exchanged_ptes(unsigned long vaddr, int order,
+				     unsigned long *mfns,
+				     unsigned long first_mfn)
+{
+	unsigned i, limit;
+	unsigned long mfn;
+
+	xen_mc_batch();
+
+	limit = 1u << order;
+	for (i = 0; i < limit; i++, vaddr += PAGE_SIZE) {
+		struct multicall_space mcs;
+		unsigned flags;
+
+		mcs = __xen_mc_entry(0);
+		if (mfns)
+			mfn = mfns[i];
+		else
+			mfn = first_mfn + i;
+
+		if (i < (limit - 1))
+			flags = 0;
+		else {
+			if (order == 0)
+				flags = UVMF_INVLPG | UVMF_ALL;
+			else
+				flags = UVMF_TLB_FLUSH | UVMF_ALL;
+		}
+
+		MULTI_update_va_mapping(mcs.mc, vaddr,
+				mfn_pte(mfn, PAGE_KERNEL), flags);
+
+		set_phys_to_machine(virt_to_pfn(vaddr), mfn);
+	}
+
+	xen_mc_issue(0);
+}
+
+/*
+ * Perform the hypercall to exchange a region of our pfns to point to
+ * memory with the required contiguous alignment.  Takes the pfns as
+ * input, and populates mfns as output.
+ *
+ * Returns a success code indicating whether the hypervisor was able to
+ * satisfy the request or not.
+ */
+static int xen_exchange_memory(unsigned long extents_in, unsigned int order_in,
+			       unsigned long *pfns_in,
+			       unsigned long extents_out,
+			       unsigned int order_out,
+			       unsigned long *mfns_out,
+			       unsigned int address_bits)
+{
+	long rc;
+	int success;
+
+	struct xen_memory_exchange exchange = {
+		.in = {
+			.nr_extents   = extents_in,
+			.extent_order = order_in,
+			.extent_start = pfns_in,
+			.domid        = DOMID_SELF
+		},
+		.out = {
+			.nr_extents   = extents_out,
+			.extent_order = order_out,
+			.extent_start = mfns_out,
+			.address_bits = address_bits,
+			.domid        = DOMID_SELF
+		}
+	};
+
+	BUG_ON(extents_in << order_in != extents_out << order_out);
+
+	rc = HYPERVISOR_memory_op(XENMEM_exchange, &exchange);
+	success = (exchange.nr_exchanged == extents_in);
+
+	BUG_ON(!success && ((exchange.nr_exchanged != 0) || (rc == 0)));
+	BUG_ON(success && (rc != 0));
+
+	return success;
+}
+
+int xen_create_contiguous_region(unsigned long vstart, unsigned int order,
+				 unsigned int address_bits)
+{
+	unsigned long *in_frames = discontig_frames, out_frame;
+	unsigned long  flags;
+	int            success;
+
+	/*
+	 * Currently an auto-translated guest will not perform I/O, nor will
+	 * it require PAE page directories below 4GB. Therefore any calls to
+	 * this function are redundant and can be ignored.
+	 */
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return 0;
+
+	if (unlikely(order > MAX_CONTIG_ORDER))
+		return -ENOMEM;
+
+	memset((void *) vstart, 0, PAGE_SIZE << order);
+
+	vm_unmap_aliases();
+
+	spin_lock_irqsave(&xen_reservation_lock, flags);
+
+	/* 1. Zap current PTEs, remembering MFNs. */
+	xen_zap_pfn_range(vstart, order, in_frames, NULL);
+
+	/* 2. Get a new contiguous memory extent. */
+	out_frame = virt_to_pfn(vstart);
+	success = xen_exchange_memory(1UL << order, 0, in_frames,
+				      1, order, &out_frame,
+				      address_bits);
+
+	/* 3. Map the new extent in place of old pages. */
+	if (success)
+		xen_remap_exchanged_ptes(vstart, order, NULL, out_frame);
+	else
+		xen_remap_exchanged_ptes(vstart, order, in_frames, 0);
+
+	spin_unlock_irqrestore(&xen_reservation_lock, flags);
+
+	return success ? 0 : -ENOMEM;
+}
+EXPORT_SYMBOL_GPL(xen_create_contiguous_region);
+
+void xen_destroy_contiguous_region(unsigned long vstart, unsigned int order)
+{
+	unsigned long *out_frames = discontig_frames, in_frame;
+	unsigned long  flags;
+	int success;
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
+	if (unlikely(order > MAX_CONTIG_ORDER))
+		return;
+
+	memset((void *) vstart, 0, PAGE_SIZE << order);
+
+	vm_unmap_aliases();
+
+	spin_lock_irqsave(&xen_reservation_lock, flags);
+
+	/* 1. Find start MFN of contiguous extent. */
+	in_frame = virt_to_mfn(vstart);
+
+	/* 2. Zap current PTEs. */
+	xen_zap_pfn_range(vstart, order, NULL, out_frames);
+
+	/* 3. Do the exchange for non-contiguous MFNs. */
+	success = xen_exchange_memory(1, order, &in_frame, 1UL << order,
+					0, out_frames, 0);
+
+	/* 4. Map new pages in place of old pages. */
+	if (success)
+		xen_remap_exchanged_ptes(vstart, order, out_frames, 0);
+	else
+		xen_remap_exchanged_ptes(vstart, order, NULL, in_frame);
+
+	spin_unlock_irqrestore(&xen_reservation_lock, flags);
+}
+EXPORT_SYMBOL_GPL(xen_destroy_contiguous_region);
 
 #ifdef CONFIG_XEN_DEBUG_FS
 
