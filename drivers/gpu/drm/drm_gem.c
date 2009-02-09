@@ -295,8 +295,10 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 		return -EBADF;
 
 again:
-	if (idr_pre_get(&dev->object_name_idr, GFP_KERNEL) == 0)
-		return -ENOMEM;
+	if (idr_pre_get(&dev->object_name_idr, GFP_KERNEL) == 0) {
+		ret = -ENOMEM;
+		goto err;
+	}
 
 	spin_lock(&dev->object_name_lock);
 	if (obj->name) {
@@ -310,12 +312,8 @@ again:
 	if (ret == -EAGAIN)
 		goto again;
 
-	if (ret != 0) {
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(obj);
-		mutex_unlock(&dev->struct_mutex);
-		return ret;
-	}
+	if (ret != 0)
+		goto err;
 
 	/*
 	 * Leave the reference from the lookup around as the
@@ -324,6 +322,12 @@ again:
 	args->name = (uint64_t) obj->name;
 
 	return 0;
+
+err:
+	mutex_lock(&dev->struct_mutex);
+	drm_gem_object_unreference(obj);
+	mutex_unlock(&dev->struct_mutex);
+	return ret;
 }
 
 /**
