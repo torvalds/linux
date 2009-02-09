@@ -189,7 +189,6 @@ extern int		xfs_qm_vop_chown_reserve(xfs_trans_t *, xfs_inode_t *,
 /* list stuff */
 extern void		xfs_qm_freelist_append(xfs_frlist_t *, xfs_dquot_t *);
 extern void		xfs_qm_freelist_unlink(xfs_dquot_t *);
-extern int		xfs_qm_freelist_lock_nowait(xfs_qm_t *);
 
 /* system call interface */
 extern int		xfs_qm_quotactl(struct xfs_mount *, int, int,
