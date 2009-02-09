@@ -495,6 +495,7 @@ static void __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
 		goto out;
 
 again:
+	inc_irq_stat(apic_perf_irqs);
 	ack = status;
 	for_each_bit(bit, (unsigned long *)&status, X86_PMC_IDX_MAX) {
 		struct perf_counter *counter = cpuc->counters[bit];
@@ -570,7 +571,6 @@ void perf_counter_unthrottle(void)
 void smp_perf_counter_interrupt(struct pt_regs *regs)
 {
 	irq_enter();
-	inc_irq_stat(apic_perf_irqs);
 	apic_write(APIC_LVTPC, LOCAL_PERF_VECTOR);
 	__smp_perf_counter_interrupt(regs, 0);
 
