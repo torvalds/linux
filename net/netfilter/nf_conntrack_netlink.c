@@ -434,7 +434,7 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 	} else
 		return NOTIFY_DONE;
 
-	if (!nfnetlink_has_listeners(group))
+	if (!item->report && !nfnetlink_has_listeners(group))
 		return NOTIFY_DONE;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_ATOMIC);
@@ -1502,7 +1502,8 @@ static int ctnetlink_expect_event(struct notifier_block *this,
 	} else
 		return NOTIFY_DONE;
 
-	if (!nfnetlink_has_listeners(NFNLGRP_CONNTRACK_EXP_NEW))
+	if (!item->report &&
+	    !nfnetlink_has_listeners(NFNLGRP_CONNTRACK_EXP_NEW))
 		return NOTIFY_DONE;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_ATOMIC);
