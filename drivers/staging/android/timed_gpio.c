@@ -50,7 +50,7 @@ static ssize_t gpio_enable_show(struct device *dev, struct device_attribute *att
 	if (hrtimer_active(&gpio_data->timer)) {
 		ktime_t r = hrtimer_get_remaining(&gpio_data->timer);
 		struct timeval t = ktime_to_timeval(r);
-		remaining = t.tv_sec * 1000 + t.tv_usec;
+		remaining = t.tv_sec * 1000 + t.tv_usec / 1000;
 	} else
 		remaining = 0;
 
