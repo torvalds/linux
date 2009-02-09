@@ -2537,14 +2537,48 @@ static void tracing_spd_release_pipe(struct splice_pipe_desc *spd,
 }
 
 static struct pipe_buf_operations tracing_pipe_buf_ops = {
-	.can_merge = 0,
-	.map = generic_pipe_buf_map,
-	.unmap = generic_pipe_buf_unmap,
-	.confirm = generic_pipe_buf_confirm,
-	.release = tracing_pipe_buf_release,
-	.steal = generic_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
+	.can_merge		= 0,
+	.map			= generic_pipe_buf_map,
+	.unmap			= generic_pipe_buf_unmap,
+	.confirm		= generic_pipe_buf_confirm,
+	.release		= tracing_pipe_buf_release,
+	.steal			= generic_pipe_buf_steal,
+	.get			= generic_pipe_buf_get,
 };
+
+static size_t
+tracing_fill_pipe_page(struct page *pages, size_t rem,
+			struct trace_iterator *iter)
+{
+	size_t count;
+	int ret;
+
+	/* Seq buffer is page-sized, exactly what we need. */
+	for (;;) {
+		count = iter->seq.len;
+		ret = print_trace_line(iter);
+		count = iter->seq.len - count;
+		if (rem < count) {
+			rem = 0;
+			iter->seq.len -= count;
+			break;
+		}
+		if (ret == TRACE_TYPE_PARTIAL_LINE) {
+			iter->seq.len -= count;
+			break;
+		}
+
+		trace_consume(iter);
+		rem -= count;
+		if (!find_next_entry_inc(iter))	{
+			rem = 0;
+			iter->ent = NULL;
+			break;
+		}
+	}
+
+	return rem;
+}
 
 static ssize_t tracing_splice_read_pipe(struct file *filp,
 					loff_t *ppos,
@@ -2556,15 +2590,15 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 	struct partial_page partial[PIPE_BUFFERS];
 	struct trace_iterator *iter = filp->private_data;
 	struct splice_pipe_desc spd = {
-		.pages = pages,
-		.partial = partial,
-		.nr_pages = 0, /* This gets updated below. */
-		.flags = flags,
-		.ops = &tracing_pipe_buf_ops,
-		.spd_release = tracing_spd_release_pipe,
+		.pages		= pages,
+		.partial	= partial,
+		.nr_pages	= 0, /* This gets updated below. */
+		.flags		= flags,
+		.ops		= &tracing_pipe_buf_ops,
+		.spd_release	= tracing_spd_release_pipe,
 	};
 	ssize_t ret;
-	size_t count, rem;
+	size_t rem;
 	unsigned int i;
 
 	mutex_lock(&trace_types_lock);
@@ -2573,45 +2607,25 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 		ret = iter->trace->splice_read(iter, filp,
 					       ppos, pipe, len, flags);
 		if (ret)
-			goto out;
+			goto out_err;
 	}
 
 	ret = tracing_wait_pipe(filp);
 	if (ret <= 0)
-		goto out;
+		goto out_err;
 
 	if (!iter->ent && !find_next_entry_inc(iter)) {
 		ret = -EFAULT;
-		goto out;
+		goto out_err;
 	}
 
 	/* Fill as many pages as possible. */
 	for (i = 0, rem = len; i < PIPE_BUFFERS && rem; i++) {
 		pages[i] = alloc_page(GFP_KERNEL);
+		if (!pages[i])
+			break;
 
-		/* Seq buffer is page-sized, exactly what we need. */
-		for (;;) {
-			count = iter->seq.len;
-			ret = print_trace_line(iter);
-			count = iter->seq.len - count;
-			if (rem < count) {
-				rem = 0;
-				iter->seq.len -= count;
-				break;
-			}
-			if (ret == TRACE_TYPE_PARTIAL_LINE) {
-				iter->seq.len -= count;
-				break;
-			}
-
-			trace_consume(iter);
-			rem -= count;
-			if (!find_next_entry_inc(iter))	{
-				rem = 0;
-				iter->ent = NULL;
-				break;
-			}
-		}
+		rem = tracing_fill_pipe_page(pages[i], rem, iter);
 
 		/* Copy the data into the page, so we can start over. */
 		ret = trace_seq_to_buffer(&iter->seq,
@@ -2633,7 +2647,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 
 	return splice_to_pipe(pipe, &spd);
 
-out:
+out_err:
 	mutex_unlock(&trace_types_lock);
 
 	return ret;
