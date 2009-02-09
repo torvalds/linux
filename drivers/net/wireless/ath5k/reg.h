@@ -187,6 +187,7 @@
 #define AR5K_TXCFG_FRMPAD_DIS		0x00002000	/* [5211+] */
 #define AR5K_TXCFG_RDY_CBR_DIS		0x00004000	/* Ready time CBR disable [5211+] */
 #define AR5K_TXCFG_JUMBO_FRM_MODE	0x00008000	/* Jumbo frame mode [5211+] */
+#define	AR5K_TXCFG_DCU_DBL_BUF_DIS	0x00008000	/* Disable double buffering on DCU */
 #define AR5K_TXCFG_DCU_CACHING_DIS	0x00010000	/* Disable DCU caching */
 
 /*
@@ -753,7 +754,7 @@
  */
 #define AR5K_DCU_SEQNUM_BASE		0x1140
 #define	AR5K_DCU_SEQNUM_M		0x00000fff
-#define	AR5K_QUEUE_DFS_SEQNUM(_q)	AR5K_QUEUE_REG(AR5K_DCU_SEQNUM_BASE, _q)
+#define	AR5K_QUEUE_DCU_SEQNUM(_q)	AR5K_QUEUE_REG(AR5K_DCU_SEQNUM_BASE, _q)
 
 /*
  * DCU global IFS SIFS register
@@ -1467,7 +1468,7 @@
 #define AR5K_ADDAC_TEST_TRIG_PTY	0x00020000	/* Trigger polarity */
 #define AR5K_ADDAC_TEST_RXCONT		0x00040000	/* Continuous capture */
 #define AR5K_ADDAC_TEST_CAPTURE		0x00080000	/* Begin capture */
-#define AR5K_ADDAC_TEST_TST_ARM		0x00100000	/* Test ARM (Adaptive Radio Mode ?) */
+#define AR5K_ADDAC_TEST_TST_ARM		0x00100000	/* ARM rx buffer for capture */
 
 /*
  * Default antenna register [5211+]
@@ -1679,7 +1680,7 @@
  * TSF parameter register
  */
 #define AR5K_TSF_PARM			0x8104			/* Register Address */
-#define AR5K_TSF_PARM_INC_M		0x000000ff	/* Mask for TSF increment */
+#define AR5K_TSF_PARM_INC		0x000000ff	/* Mask for TSF increment */
 #define AR5K_TSF_PARM_INC_S		0
 
 /*
@@ -1691,7 +1692,7 @@
 #define AR5K_QOS_NOACK_BIT_OFFSET	0x00000070	/* ??? */
 #define AR5K_QOS_NOACK_BIT_OFFSET_S	4
 #define AR5K_QOS_NOACK_BYTE_OFFSET	0x00000180	/* ??? */
-#define AR5K_QOS_NOACK_BYTE_OFFSET_S	8
+#define AR5K_QOS_NOACK_BYTE_OFFSET_S	7
 
 /*
  * PHY error filter register
@@ -1850,15 +1851,14 @@
  * TST_2 (Misc config parameters)
  */
 #define	AR5K_PHY_TST2			0x9800			/* Register Address */
-#define AR5K_PHY_TST2_TRIG_SEL		0x00000001	/* Trigger select (?) (field ?) */
-#define AR5K_PHY_TST2_TRIG		0x00000010	/* Trigger (?) (field ?) */
-#define AR5K_PHY_TST2_CBUS_MODE		0x00000100	/* Cardbus mode (?) */
-/* bit reserved */
+#define AR5K_PHY_TST2_TRIG_SEL		0x00000007	/* Trigger select (?)*/
+#define AR5K_PHY_TST2_TRIG		0x00000010	/* Trigger (?) */
+#define AR5K_PHY_TST2_CBUS_MODE		0x00000060	/* Cardbus mode (?) */
 #define AR5K_PHY_TST2_CLK32		0x00000400	/* CLK_OUT is CLK32 (32Khz external) */
 #define AR5K_PHY_TST2_CHANCOR_DUMP_EN	0x00000800	/* Enable Chancor dump (?) */
 #define AR5K_PHY_TST2_EVEN_CHANCOR_DUMP	0x00001000	/* Even Chancor dump (?) */
 #define AR5K_PHY_TST2_RFSILENT_EN	0x00002000	/* Enable RFSILENT */
-#define AR5K_PHY_TST2_ALT_RFDATA	0x00004000	/* Alternate RFDATA (5-2GHz switch) */
+#define AR5K_PHY_TST2_ALT_RFDATA	0x00004000	/* Alternate RFDATA (5-2GHz switch ?) */
 #define AR5K_PHY_TST2_MINI_OBS_EN	0x00008000	/* Enable mini OBS (?) */
 #define AR5K_PHY_TST2_RX2_IS_RX5_INV	0x00010000	/* 2GHz rx path is the 5GHz path inverted (?) */
 #define AR5K_PHY_TST2_SLOW_CLK160	0x00020000	/* Slow CLK160 (?) */
@@ -1928,8 +1928,8 @@
 #define	AR5K_PHY_RF_CTL2_TXF2TXD_START_S	0
 
 #define AR5K_PHY_RF_CTL3		0x9828			/* Register Address */
-#define AR5K_PHY_RF_CTL3_TXE2XLNA_ON	0x0000000f	/* TX end to XLNA on */
-#define	AR5K_PHY_RF_CTL3_TXE2XLNA_ON_S	0
+#define AR5K_PHY_RF_CTL3_TXE2XLNA_ON	0x0000ff00	/* TX end to XLNA on */
+#define	AR5K_PHY_RF_CTL3_TXE2XLNA_ON_S	8
 
 #define	AR5K_PHY_ADC_CTL			0x982c
 #define	AR5K_PHY_ADC_CTL_INBUFGAIN_OFF		0x00000003
@@ -1963,7 +1963,7 @@
 #define	AR5K_PHY_SETTLING_AGC		0x0000007f	/* AGC settling time */
 #define	AR5K_PHY_SETTLING_AGC_S		0
 #define	AR5K_PHY_SETTLING_SWITCH	0x00003f80	/* Switch settlig time */
-#define	AR5K_PHY_SETTLINK_SWITCH_S	7
+#define	AR5K_PHY_SETTLING_SWITCH_S	7
 
 /*
  * PHY Gain registers
@@ -2069,14 +2069,14 @@
  * PHY sleep registers [5112+]
  */
 #define AR5K_PHY_SCR			0x9870
-#define AR5K_PHY_SCR_32MHZ		0x0000001f
 
 #define AR5K_PHY_SLMT			0x9874
 #define AR5K_PHY_SLMT_32MHZ		0x0000007f
 
 #define AR5K_PHY_SCAL			0x9878
 #define AR5K_PHY_SCAL_32MHZ		0x0000000e
-
+#define	AR5K_PHY_SCAL_32MHZ_2417	0x0000000a
+#define	AR5K_PHY_SCAL_32MHZ_HB63	0x00000032
 
 /*
  * PHY PLL (Phase Locked Loop) control register
@@ -2156,7 +2156,8 @@
 #define	AR5K_PHY_ANT_CTL_TXRX_EN	0x00000001	/* Enable TX/RX (?) */
 #define	AR5K_PHY_ANT_CTL_SECTORED_ANT	0x00000004	/* Sectored Antenna */
 #define	AR5K_PHY_ANT_CTL_HITUNE5	0x00000008	/* Hitune5 (?) */
-#define	AR5K_PHY_ANT_CTL_SWTABLE_IDLE	0x00000010	/* Switch table idle (?) */
+#define	AR5K_PHY_ANT_CTL_SWTABLE_IDLE	0x000003f0	/* Switch table idle (?) */
+#define	AR5K_PHY_ANT_CTL_SWTABLE_IDLE_S	4
 
 /*
  * PHY receiver delay register [5111+]
@@ -2196,7 +2197,7 @@
 #define	AR5K_PHY_OFDM_SELFCORR			0x9924			/* Register Address */
 #define	AR5K_PHY_OFDM_SELFCORR_CYPWR_THR1_EN	0x00000001	/* Enable cyclic RSSI thr 1 */
 #define	AR5K_PHY_OFDM_SELFCORR_CYPWR_THR1	0x000000fe	/* Mask for Cyclic RSSI threshold 1 */
-#define	AR5K_PHY_OFDM_SELFCORR_CYPWR_THR1_S	0
+#define	AR5K_PHY_OFDM_SELFCORR_CYPWR_THR1_S	1
 #define	AR5K_PHY_OFDM_SELFCORR_CYPWR_THR3	0x00000100	/* Cyclic RSSI threshold 3 (field) (?) */
 #define	AR5K_PHY_OFDM_SELFCORR_RSSI_1ATHR_EN	0x00008000	/* Enable 1A RSSI threshold (?) */
 #define	AR5K_PHY_OFDM_SELFCORR_RSSI_1ATHR	0x00010000	/* 1A RSSI threshold (field) (?) */
@@ -2279,6 +2280,15 @@
 			AR5K_PHY_FRAME_CTL_TIMING_ERR
 
 /*
+ * PHY Tx Power adjustment register [5212A+]
+ */
+#define	AR5K_PHY_TX_PWR_ADJ			0x994c
+#define	AR5K_PHY_TX_PWR_ADJ_CCK_GAIN_DELTA	0x00000fc0
+#define	AR5K_PHY_TX_PWR_ADJ_CCK_GAIN_DELTA_S	6
+#define	AR5K_PHY_TX_PWR_ADJ_CCK_PCDAC_INDEX	0x00fc0000
+#define	AR5K_PHY_TX_PWR_ADJ_CCK_PCDAC_INDEX_S	18
+
+/*
  * PHY radar detection register [5111+]
  */
 #define	AR5K_PHY_RADAR			0x9954
@@ -2331,7 +2341,7 @@
 #define AR5K_PHY_SIGMA_DELTA_FILT2_S	3
 #define AR5K_PHY_SIGMA_DELTA_FILT1	0x00001f00
 #define AR5K_PHY_SIGMA_DELTA_FILT1_S	8
-#define AR5K_PHY_SIGMA_DELTA_ADC_CLIP	0x01ff3000
+#define AR5K_PHY_SIGMA_DELTA_ADC_CLIP	0x01ffe000
 #define AR5K_PHY_SIGMA_DELTA_ADC_CLIP_S	13
 
 /*
@@ -2459,17 +2469,7 @@
 #define AR5K_PHY_SDELAY			0x99f4
 #define AR5K_PHY_SDELAY_32MHZ		0x000000ff
 #define AR5K_PHY_SPENDING		0x99f8
-#define AR5K_PHY_SPENDING_14		0x00000014
-#define AR5K_PHY_SPENDING_18		0x00000018
-#define AR5K_PHY_SPENDING_RF5111	0x00000018
-#define AR5K_PHY_SPENDING_RF5112	0x00000014
-/* #define AR5K_PHY_SPENDING_RF5112A	0x0000000e */
-/* #define AR5K_PHY_SPENDING_RF5424	0x00000012 */
-#define AR5K_PHY_SPENDING_RF5413	0x00000018
-#define AR5K_PHY_SPENDING_RF2413	0x00000018
-#define AR5K_PHY_SPENDING_RF2316	0x00000018
-#define AR5K_PHY_SPENDING_RF2317	0x00000018
-#define AR5K_PHY_SPENDING_RF2425	0x00000014
+
 
 /*
  * PHY PAPD I (power?) table (?)

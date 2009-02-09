@@ -222,6 +222,7 @@
 #endif
 
 /* Initial values */
+#define	AR5K_INIT_CYCRSSI_THR1			2
 #define AR5K_INIT_TX_LATENCY			502
 #define AR5K_INIT_USEC				39
 #define AR5K_INIT_USEC_TURBO			79
@@ -313,7 +314,7 @@ struct ath5k_srev_name {
 #define AR5K_SREV_AR5424	0x90 /* Condor */
 #define AR5K_SREV_AR5413	0xa4 /* Eagle lite */
 #define AR5K_SREV_AR5414	0xa0 /* Eagle */
-#define AR5K_SREV_AR2415	0xb0 /* Cobra */
+#define AR5K_SREV_AR2415	0xb0 /* Talon */
 #define AR5K_SREV_AR5416	0xc0 /* PCI-E */
 #define AR5K_SREV_AR5418	0xca /* PCI-E */
 #define AR5K_SREV_AR2425	0xe0 /* Swan */
@@ -331,7 +332,7 @@ struct ath5k_srev_name {
 #define	AR5K_SREV_RAD_2112B	0x46
 #define AR5K_SREV_RAD_2413	0x50
 #define AR5K_SREV_RAD_5413	0x60
-#define AR5K_SREV_RAD_2316	0x70
+#define AR5K_SREV_RAD_2316	0x70 /* Cobra SoC */
 #define AR5K_SREV_RAD_2317	0x80
 #define AR5K_SREV_RAD_5424	0xa0 /* Mostly same as 5413 */
 #define AR5K_SREV_RAD_2425	0xa2
@@ -340,7 +341,7 @@ struct ath5k_srev_name {
 #define AR5K_SREV_PHY_5211	0x30
 #define AR5K_SREV_PHY_5212	0x41
 #define	AR5K_SREV_PHY_5212A	0x42
-#define AR5K_SREV_PHY_2112B	0x43
+#define AR5K_SREV_PHY_5212B	0x43
 #define AR5K_SREV_PHY_2413	0x45
 #define AR5K_SREV_PHY_5413	0x61
 #define AR5K_SREV_PHY_2425	0x70
@@ -1030,7 +1031,6 @@ struct ath5k_hw {
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
-	u32			ah_phy_spending;
 
 	enum ath5k_version	ah_version;
 	enum ath5k_radio	ah_radio;
@@ -1156,6 +1156,7 @@ extern void ath5k_hw_update_mib_counters(struct ath5k_hw *ah, struct ieee80211_l
 /* EEPROM access functions */
 extern int ath5k_eeprom_init(struct ath5k_hw *ah);
 extern int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac);
+extern bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah);
 
 /* Protocol Control Unit Functions */
 extern int ath5k_hw_set_opmode(struct ath5k_hw *ah);
@@ -1258,6 +1259,7 @@ extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, unsigned int power);
 
 /*
  * Translate usec to hw clock units
+ * TODO: Half/quarter rate
  */
 static inline unsigned int ath5k_hw_htoclock(unsigned int usec, bool turbo)
 {
@@ -1266,6 +1268,7 @@ static inline unsigned int ath5k_hw_htoclock(unsigned int usec, bool turbo)
 
 /*
  * Translate hw clock units to usec
+ * TODO: Half/quarter rate
  */
 static inline unsigned int ath5k_hw_clocktoh(unsigned int clock, bool turbo)
 {
