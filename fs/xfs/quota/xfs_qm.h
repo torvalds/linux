@@ -173,6 +173,16 @@ extern void		xfs_qm_dqdetach(xfs_inode_t *);
 extern int		xfs_qm_dqpurge_all(xfs_mount_t *, uint);
 extern void		xfs_qm_dqrele_all_inodes(xfs_mount_t *, uint);
 
+/* quota ops */
+extern int		xfs_qm_scall_trunc_qfiles(xfs_mount_t *, uint);
+extern int		xfs_qm_scall_getquota(xfs_mount_t *, xfs_dqid_t, uint,
+					fs_disk_quota_t *);
+extern int		xfs_qm_scall_setqlim(xfs_mount_t *, xfs_dqid_t, uint,
+					fs_disk_quota_t *);
+extern int		xfs_qm_scall_getqstat(xfs_mount_t *, fs_quota_stat_t *);
+extern int		xfs_qm_scall_quotaon(xfs_mount_t *, uint);
+extern int		xfs_qm_scall_quotaoff(xfs_mount_t *, uint);
+
 /* vop stuff */
 extern int		xfs_qm_vop_dqalloc(xfs_mount_t *, xfs_inode_t *,
 					uid_t, gid_t, prid_t, uint,
@@ -189,10 +199,6 @@ extern int		xfs_qm_vop_chown_reserve(xfs_trans_t *, xfs_inode_t *,
 /* list stuff */
 extern void		xfs_qm_freelist_append(xfs_frlist_t *, xfs_dquot_t *);
 extern void		xfs_qm_freelist_unlink(xfs_dquot_t *);
-
-/* system call interface */
-extern int		xfs_qm_quotactl(struct xfs_mount *, int, int,
-				xfs_caddr_t);
 
 #ifdef DEBUG
 extern int		xfs_qm_internalqcheck(xfs_mount_t *);

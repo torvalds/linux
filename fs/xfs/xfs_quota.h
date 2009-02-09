@@ -18,6 +18,8 @@
 #ifndef __XFS_QUOTA_H__
 #define __XFS_QUOTA_H__
 
+struct xfs_trans;
+
 /*
  * The ondisk form of a dquot structure.
  */

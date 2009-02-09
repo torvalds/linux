@@ -68,7 +68,6 @@
 #include <linux/freezer.h>
 #include <linux/parser.h>
 
-static struct quotactl_ops xfs_quotactl_operations;
 static struct super_operations xfs_super_operations;
 static kmem_zone_t *xfs_ioend_zone;
 mempool_t *xfs_ioend_pool;
@@ -1333,57 +1332,6 @@ xfs_fs_show_options(
 	return -xfs_showargs(XFS_M(mnt->mnt_sb), m);
 }
 
-STATIC int
-xfs_fs_quotasync(
-	struct super_block	*sb,
-	int			type)
-{
-	return -XFS_QM_QUOTACTL(XFS_M(sb), Q_XQUOTASYNC, 0, NULL);
-}
-
-STATIC int
-xfs_fs_getxstate(
-	struct super_block	*sb,
-	struct fs_quota_stat	*fqs)
-{
-	return -XFS_QM_QUOTACTL(XFS_M(sb), Q_XGETQSTAT, 0, (caddr_t)fqs);
-}
-
-STATIC int
-xfs_fs_setxstate(
-	struct super_block	*sb,
-	unsigned int		flags,
-	int			op)
-{
-	return -XFS_QM_QUOTACTL(XFS_M(sb), op, 0, (caddr_t)&flags);
-}
-
-STATIC int
-xfs_fs_getxquota(
-	struct super_block	*sb,
-	int			type,
-	qid_t			id,
-	struct fs_disk_quota	*fdq)
-{
-	return -XFS_QM_QUOTACTL(XFS_M(sb),
-				 (type == USRQUOTA) ? Q_XGETQUOTA :
-				  ((type == GRPQUOTA) ? Q_XGETGQUOTA :
-				   Q_XGETPQUOTA), id, (caddr_t)fdq);
-}
-
-STATIC int
-xfs_fs_setxquota(
-	struct super_block	*sb,
-	int			type,
-	qid_t			id,
-	struct fs_disk_quota	*fdq)
-{
-	return -XFS_QM_QUOTACTL(XFS_M(sb),
-				 (type == USRQUOTA) ? Q_XSETQLIM :
-				  ((type == GRPQUOTA) ? Q_XSETGQLIM :
-				   Q_XSETPQLIM), id, (caddr_t)fdq);
-}
-
 /*
  * This function fills in xfs_mount_t fields based on mount args.
  * Note: the superblock _has_ now been read in.
@@ -1466,7 +1414,9 @@ xfs_fs_fill_super(
 	sb_min_blocksize(sb, BBSIZE);
 	sb->s_xattr = xfs_xattr_handlers;
 	sb->s_export_op = &xfs_export_operations;
+#ifdef CONFIG_XFS_QUOTA
 	sb->s_qcop = &xfs_quotactl_operations;
+#endif
 	sb->s_op = &xfs_super_operations;
 
 	error = xfs_dmops_get(mp);
@@ -1607,14 +1557,6 @@ static struct super_operations xfs_super_operations = {
 	.statfs			= xfs_fs_statfs,
 	.remount_fs		= xfs_fs_remount,
 	.show_options		= xfs_fs_show_options,
-};
-
-static struct quotactl_ops xfs_quotactl_operations = {
-	.quota_sync		= xfs_fs_quotasync,
-	.get_xstate		= xfs_fs_getxstate,
-	.set_xstate		= xfs_fs_setxstate,
-	.get_xquota		= xfs_fs_getxquota,
-	.set_xquota		= xfs_fs_setxquota,
 };
 
 static struct file_system_type xfs_fs_type = {
