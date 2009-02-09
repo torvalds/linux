@@ -41,7 +41,7 @@ dotraplinkage void do_int3(struct pt_regs *, long);
 dotraplinkage void do_overflow(struct pt_regs *, long);
 dotraplinkage void do_bounds(struct pt_regs *, long);
 dotraplinkage void do_invalid_op(struct pt_regs *, long);
-dotraplinkage void do_device_not_available(struct pt_regs *, long);
+dotraplinkage void do_device_not_available(struct pt_regs);
 dotraplinkage void do_coprocessor_segment_overrun(struct pt_regs *, long);
 dotraplinkage void do_invalid_TSS(struct pt_regs *, long);
 dotraplinkage void do_segment_not_present(struct pt_regs *, long);
@@ -77,7 +77,7 @@ extern int panic_on_unrecovered_nmi;
 extern int kstack_depth_to_print;
 
 void math_error(void __user *);
-asmlinkage void math_emulate(long);
+void math_emulate(struct math_emu_info *);
 #ifdef CONFIG_X86_32
 unsigned long patch_espfix_desc(unsigned long, unsigned long);
 #else
