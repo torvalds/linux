@@ -186,7 +186,7 @@
 	/*CFI_REL_OFFSET gs, PT_GS*/
 .endm
 .macro SET_KERNEL_GS reg
-	xorl \reg, \reg
+	movl $(__KERNEL_STACK_CANARY), \reg
 	movl \reg, %gs
 .endm
 

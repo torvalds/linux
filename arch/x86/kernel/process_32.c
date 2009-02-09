@@ -212,6 +212,7 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.ds = __USER_DS;
 	regs.es = __USER_DS;
 	regs.fs = __KERNEL_PERCPU;
+	regs.gs = __KERNEL_STACK_CANARY;
 	regs.orig_ax = -1;
 	regs.ip = (unsigned long) kernel_thread_helper;
 	regs.cs = __KERNEL_CS | get_kernel_rpl();

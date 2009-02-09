@@ -23,6 +23,22 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 #ifdef CONFIG_X86_32
 
+#ifdef CONFIG_CC_STACKPROTECTOR
+#define __switch_canary							\
+	"movl "__percpu_arg([current_task])",%%ebx\n\t"			\
+	"movl %P[task_canary](%%ebx),%%ebx\n\t"				\
+	"movl %%ebx,"__percpu_arg([stack_canary])"\n\t"
+#define __switch_canary_oparam						\
+	, [stack_canary] "=m" (per_cpu_var(stack_canary))
+#define __switch_canary_iparam						\
+	, [current_task] "m" (per_cpu_var(current_task))		\
+	, [task_canary] "i" (offsetof(struct task_struct, stack_canary))
+#else	/* CC_STACKPROTECTOR */
+#define __switch_canary
+#define __switch_canary_oparam
+#define __switch_canary_iparam
+#endif	/* CC_STACKPROTECTOR */
+
 /*
  * Saving eflags is important. It switches not only IOPL between tasks,
  * it also protects other tasks from NT leaking through sysenter etc.
@@ -46,6 +62,7 @@ do {									\
 		     "pushl %[next_ip]\n\t"	/* restore EIP   */	\
 		     "jmp __switch_to\n"	/* regparm call  */	\
 		     "1:\t"						\
+		     __switch_canary					\
 		     "popl %%ebp\n\t"		/* restore EBP   */	\
 		     "popfl\n"			/* restore flags */	\
 									\
@@ -58,6 +75,8 @@ do {									\
 		       "=b" (ebx), "=c" (ecx), "=d" (edx),		\
 		       "=S" (esi), "=D" (edi)				\
 		       							\
+		       __switch_canary_oparam				\
+									\
 		       /* input parameters: */				\
 		     : [next_sp]  "m" (next->thread.sp),		\
 		       [next_ip]  "m" (next->thread.ip),		\
@@ -65,6 +84,8 @@ do {									\
 		       /* regparm parameters for __switch_to(): */	\
 		       [prev]     "a" (prev),				\
 		       [next]     "d" (next)				\
+									\
+		       __switch_canary_iparam				\
 									\
 		     : /* reloaded segment registers */			\
 			"memory");					\
