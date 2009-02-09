@@ -396,7 +396,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 
 	qla2x00_start_timer(vha, qla2x00_timer, WATCH_INTERVAL);
 
-	memset(vha->req_ques, 0, sizeof(vha->req_ques) * QLA_MAX_HOST_QUES);
+	memset(vha->req_ques, 0, sizeof(vha->req_ques));
 	vha->req_ques[0] = ha->req_q_map[0]->id;
 	host->can_queue = ha->req_q_map[0]->length + 128;
 	host->this_id = 255;
