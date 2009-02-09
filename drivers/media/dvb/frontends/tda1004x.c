@@ -162,7 +162,7 @@ static int tda1004x_read_byte(struct tda1004x_state *state, int reg)
 	if (ret != 2) {
 		dprintk("%s: error reg=0x%x, ret=%i\n", __func__, reg,
 			ret);
-		return -1;
+		return -EINVAL;
 	}
 
 	dprintk("%s: success reg=0x%x, data=0x%x, ret=%i\n", __func__,
@@ -481,16 +481,18 @@ static void tda10046_init_plls(struct dvb_frontend* fe)
 static int tda10046_fwupload(struct dvb_frontend* fe)
 {
 	struct tda1004x_state* state = fe->demodulator_priv;
-	int ret;
+	int ret, confc4;
 	const struct firmware *fw;
 
 	/* reset + wake up chip */
 	if (state->config->xtal_freq == TDA10046_XTAL_4M) {
-		tda1004x_write_byteI(state, TDA1004X_CONFC4, 0);
+		confc4 = 0;
 	} else {
 		dprintk("%s: 16MHz Xtal, reducing I2C speed\n", __func__);
-		tda1004x_write_byteI(state, TDA1004X_CONFC4, 0x80);
+		confc4 = 0x80;
 	}
+	tda1004x_write_byteI(state, TDA1004X_CONFC4, confc4);
+
 	tda1004x_write_mask(state, TDA10046H_CONF_TRISTATE1, 1, 0);
 	/* set GPIO 1 and 3 */
 	if (state->config->gpio_config != TDA10046_GPTRI) {
@@ -508,12 +510,28 @@ static int tda10046_fwupload(struct dvb_frontend* fe)
 	if (tda1004x_check_upload_ok(state) == 0)
 		return 0;
 
+	/*
+	   For i2c normal work, we need to slow down the bus speed.
+	   However, the slow down breaks the eeprom firmware load.
+	   So, use normal speed for eeprom booting and then restore the
+	   i2c speed after that. Tested with MSI TV @nyware A/D board,
+	   that comes with firmware version 29 inside their eeprom.
+
+	   It should also be noticed that no other I2C transfer should
+	   be in course while booting from eeprom, otherwise, tda10046
+	   goes into an instable state. So, proper locking are needed
+	   at the i2c bus master.
+	 */
 	printk(KERN_INFO "tda1004x: trying to boot from eeprom\n");
-	tda1004x_write_mask(state, TDA1004X_CONFC4, 4, 4);
+	tda1004x_write_byteI(state, TDA1004X_CONFC4, 4);
 	msleep(300);
-	/* don't re-upload unless necessary */
+	tda1004x_write_byteI(state, TDA1004X_CONFC4, confc4);
+
+	/* Checks if eeprom firmware went without troubles */
 	if (tda1004x_check_upload_ok(state) == 0)
 		return 0;
+
+	/* eeprom firmware didn't work. Load one manually. */
 
 	if (state->config->request_firmware != NULL) {
 		/* request the firmware, this will block until someone uploads it */
