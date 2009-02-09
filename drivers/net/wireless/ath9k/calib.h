@@ -56,14 +56,14 @@ struct ar5416IniArray {
 
 #define INSERT_CAL(_ahp, _perCal)					\
 	do {								\
-		if ((_ahp)->ah_cal_list_last == NULL) {			\
-			(_ahp)->ah_cal_list =				\
-				(_ahp)->ah_cal_list_last = (_perCal);	\
-			((_ahp)->ah_cal_list_last)->calNext = (_perCal); \
+		if ((_ahp)->cal_list_last == NULL) {			\
+			(_ahp)->cal_list =				\
+				(_ahp)->cal_list_last = (_perCal);	\
+			((_ahp)->cal_list_last)->calNext = (_perCal); \
 		} else {						\
-			((_ahp)->ah_cal_list_last)->calNext = (_perCal); \
-			(_ahp)->ah_cal_list_last = (_perCal);		\
-			(_perCal)->calNext = (_ahp)->ah_cal_list;	\
+			((_ahp)->cal_list_last)->calNext = (_perCal); \
+			(_ahp)->cal_list_last = (_perCal);		\
+			(_perCal)->calNext = (_ahp)->cal_list;	\
 		}							\
 	} while (0)
 

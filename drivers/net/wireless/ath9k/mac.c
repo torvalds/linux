@@ -21,18 +21,18 @@ static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 {
 	DPRINTF(ah->ah_sc, ATH_DBG_INTERRUPT,
 		"tx ok 0x%x err 0x%x desc 0x%x eol 0x%x urn 0x%x\n",
-		ah->ah_txOkInterruptMask, ah->ah_txErrInterruptMask,
-		ah->ah_txDescInterruptMask, ah->ah_txEolInterruptMask,
-		ah->ah_txUrnInterruptMask);
+		ah->txok_interrupt_mask, ah->txerr_interrupt_mask,
+		ah->txdesc_interrupt_mask, ah->txeol_interrupt_mask,
+		ah->txurn_interrupt_mask);
 
 	REG_WRITE(ah, AR_IMR_S0,
-		  SM(ah->ah_txOkInterruptMask, AR_IMR_S0_QCU_TXOK)
-		  | SM(ah->ah_txDescInterruptMask, AR_IMR_S0_QCU_TXDESC));
+		  SM(ah->txok_interrupt_mask, AR_IMR_S0_QCU_TXOK)
+		  | SM(ah->txdesc_interrupt_mask, AR_IMR_S0_QCU_TXDESC));
 	REG_WRITE(ah, AR_IMR_S1,
-		  SM(ah->ah_txErrInterruptMask, AR_IMR_S1_QCU_TXERR)
-		  | SM(ah->ah_txEolInterruptMask, AR_IMR_S1_QCU_TXEOL));
+		  SM(ah->txerr_interrupt_mask, AR_IMR_S1_QCU_TXERR)
+		  | SM(ah->txeol_interrupt_mask, AR_IMR_S1_QCU_TXEOL));
 	REG_RMW_FIELD(ah, AR_IMR_S2,
-		      AR_IMR_S2_QCU_TXURN, ah->ah_txUrnInterruptMask);
+		      AR_IMR_S2_QCU_TXURN, ah->txurn_interrupt_mask);
 }
 
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q)
@@ -75,10 +75,10 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 	u32 txcfg, curLevel, newLevel;
 	enum ath9k_int omask;
 
-	if (ah->ah_txTrigLevel >= MAX_TX_FIFO_THRESHOLD)
+	if (ah->tx_trig_level >= MAX_TX_FIFO_THRESHOLD)
 		return false;
 
-	omask = ath9k_hw_set_interrupts(ah, ah->ah_maskReg & ~ATH9K_INT_GLOBAL);
+	omask = ath9k_hw_set_interrupts(ah, ah->mask_reg & ~ATH9K_INT_GLOBAL);
 
 	txcfg = REG_READ(ah, AR_TXCFG);
 	curLevel = MS(txcfg, AR_FTRIG);
@@ -94,7 +94,7 @@ bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel)
 
 	ath9k_hw_set_interrupts(ah, omask);
 
-	ah->ah_txTrigLevel = newLevel;
+	ah->tx_trig_level = newLevel;
 
 	return newLevel != curLevel;
 }
@@ -104,7 +104,7 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 #define ATH9K_TX_STOP_DMA_TIMEOUT	4000    /* usec */
 #define ATH9K_TIME_QUANTUM		100     /* usec */
 
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath9k_tx_queue_info *qi;
 	u32 tsfLow, j, wait;
 	u32 wait_time = ATH9K_TX_STOP_DMA_TIMEOUT / ATH9K_TIME_QUANTUM;
@@ -114,7 +114,7 @@ bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q)
 		return false;
 	}
 
-	qi = &ah->ah_txq[q];
+	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "inactive queue\n");
 		return false;
@@ -296,7 +296,7 @@ void ath9k_hw_set11n_txdesc(struct ath_hw *ah, struct ath_desc *ds,
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 
-	txPower += ah->ah_txPowerIndexOffset;
+	txPower += ah->txpower_indexoffset;
 	if (txPower > 63)
 		txPower = 63;
 
@@ -442,15 +442,15 @@ void ath9k_hw_set11n_virtualmorefrag(struct ath_hw *ah, struct ath_desc *ds,
 
 void ath9k_hw_gettxintrtxqs(struct ath_hw *ah, u32 *txqs)
 {
-	*txqs &= ah->ah_intrTxqs;
-	ah->ah_intrTxqs &= ~(*txqs);
+	*txqs &= ah->intr_txqs;
+	ah->intr_txqs &= ~(*txqs);
 }
 
 bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 			    const struct ath9k_tx_queue_info *qinfo)
 {
 	u32 cw;
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
@@ -458,7 +458,7 @@ bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 		return false;
 	}
 
-	qi = &ah->ah_txq[q];
+	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "inactive queue\n");
 		return false;
@@ -517,7 +517,7 @@ bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 bool ath9k_hw_get_txq_props(struct ath_hw *ah, int q,
 			    struct ath9k_tx_queue_info *qinfo)
 {
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
@@ -525,7 +525,7 @@ bool ath9k_hw_get_txq_props(struct ath_hw *ah, int q,
 		return false;
 	}
 
-	qi = &ah->ah_txq[q];
+	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "inactive queue\n");
 		return false;
@@ -553,7 +553,7 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 			  const struct ath9k_tx_queue_info *qinfo)
 {
 	struct ath9k_tx_queue_info *qi;
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	int q;
 
 	switch (type) {
@@ -571,7 +571,7 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 		break;
 	case ATH9K_TX_QUEUE_DATA:
 		for (q = 0; q < pCap->total_queues; q++)
-			if (ah->ah_txq[q].tqi_type ==
+			if (ah->txq[q].tqi_type ==
 			    ATH9K_TX_QUEUE_INACTIVE)
 				break;
 		if (q == pCap->total_queues) {
@@ -587,7 +587,7 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 
 	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "queue %u\n", q);
 
-	qi = &ah->ah_txq[q];
+	qi = &ah->txq[q];
 	if (qi->tqi_type != ATH9K_TX_QUEUE_INACTIVE) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE,
 			"tx queue %u already active\n", q);
@@ -616,14 +616,14 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 
 bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q)
 {
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "invalid queue num %u\n", q);
 		return false;
 	}
-	qi = &ah->ah_txq[q];
+	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "inactive queue %u\n", q);
 		return false;
@@ -632,11 +632,11 @@ bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q)
 	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "release queue %u\n", q);
 
 	qi->tqi_type = ATH9K_TX_QUEUE_INACTIVE;
-	ah->ah_txOkInterruptMask &= ~(1 << q);
-	ah->ah_txErrInterruptMask &= ~(1 << q);
-	ah->ah_txDescInterruptMask &= ~(1 << q);
-	ah->ah_txEolInterruptMask &= ~(1 << q);
-	ah->ah_txUrnInterruptMask &= ~(1 << q);
+	ah->txok_interrupt_mask &= ~(1 << q);
+	ah->txerr_interrupt_mask &= ~(1 << q);
+	ah->txdesc_interrupt_mask &= ~(1 << q);
+	ah->txeol_interrupt_mask &= ~(1 << q);
+	ah->txurn_interrupt_mask &= ~(1 << q);
 	ath9k_hw_set_txq_interrupts(ah, qi);
 
 	return true;
@@ -644,8 +644,8 @@ bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q)
 
 bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 {
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
-	struct ath9k_channel *chan = ah->ah_curchan;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
+	struct ath9k_channel *chan = ah->curchan;
 	struct ath9k_tx_queue_info *qi;
 	u32 cwMin, chanCwMin, value;
 
@@ -654,7 +654,7 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 		return false;
 	}
 
-	qi = &ah->ah_txq[q];
+	qi = &ah->txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "inactive queue %u\n", q);
 		return true;
@@ -742,9 +742,9 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 			  | AR_Q_MISC_CBR_INCR_DIS1
 			  | AR_Q_MISC_CBR_INCR_DIS0);
 		value = (qi->tqi_readyTime -
-			 (ah->ah_config.sw_beacon_response_time -
-			  ah->ah_config.dma_beacon_response_time) -
-			 ah->ah_config.additional_swba_backoff) * 1024;
+			 (ah->config.sw_beacon_response_time -
+			  ah->config.dma_beacon_response_time) -
+			 ah->config.additional_swba_backoff) * 1024;
 		REG_WRITE(ah, AR_QRDYTIMECFG(q),
 			  value | AR_Q_RDYTIMECFG_EN);
 		REG_WRITE(ah, AR_DMISC(q), REG_READ(ah, AR_DMISC(q))
@@ -772,25 +772,25 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	}
 
 	if (qi->tqi_qflags & TXQ_FLAG_TXOKINT_ENABLE)
-		ah->ah_txOkInterruptMask |= 1 << q;
+		ah->txok_interrupt_mask |= 1 << q;
 	else
-		ah->ah_txOkInterruptMask &= ~(1 << q);
+		ah->txok_interrupt_mask &= ~(1 << q);
 	if (qi->tqi_qflags & TXQ_FLAG_TXERRINT_ENABLE)
-		ah->ah_txErrInterruptMask |= 1 << q;
+		ah->txerr_interrupt_mask |= 1 << q;
 	else
-		ah->ah_txErrInterruptMask &= ~(1 << q);
+		ah->txerr_interrupt_mask &= ~(1 << q);
 	if (qi->tqi_qflags & TXQ_FLAG_TXDESCINT_ENABLE)
-		ah->ah_txDescInterruptMask |= 1 << q;
+		ah->txdesc_interrupt_mask |= 1 << q;
 	else
-		ah->ah_txDescInterruptMask &= ~(1 << q);
+		ah->txdesc_interrupt_mask &= ~(1 << q);
 	if (qi->tqi_qflags & TXQ_FLAG_TXEOLINT_ENABLE)
-		ah->ah_txEolInterruptMask |= 1 << q;
+		ah->txeol_interrupt_mask |= 1 << q;
 	else
-		ah->ah_txEolInterruptMask &= ~(1 << q);
+		ah->txeol_interrupt_mask &= ~(1 << q);
 	if (qi->tqi_qflags & TXQ_FLAG_TXURNINT_ENABLE)
-		ah->ah_txUrnInterruptMask |= 1 << q;
+		ah->txurn_interrupt_mask |= 1 << q;
 	else
-		ah->ah_txUrnInterruptMask &= ~(1 << q);
+		ah->txurn_interrupt_mask &= ~(1 << q);
 	ath9k_hw_set_txq_interrupts(ah, qi);
 
 	return true;
@@ -865,7 +865,7 @@ bool ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 
 	ads->ds_ctl1 = size & AR_BufLen;
 	if (flags & ATH9K_RXDESC_INTREQ)

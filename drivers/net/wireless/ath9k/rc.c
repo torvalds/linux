@@ -1394,13 +1394,13 @@ static void ath_rc_init(struct ath_softc *sc,
 	u8 i, j, k, hi = 0, hthi = 0;
 
 	/* FIXME: Adhoc */
-	if ((sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION) ||
-	    (sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC)) {
+	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) ||
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)) {
 		bool is_cw_40 = sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		rate_table = ath_choose_rate_table(sc, sband->band,
 						   sta->ht_cap.ht_supported,
 						   is_cw_40);
-	} else if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP) {
+	} else if (sc->sc_ah->opmode == NL80211_IFTYPE_AP) {
 		/* cur_rate_table would be set on init through config() */
 		rate_table = sc->cur_rate_table;
 	}
@@ -1412,7 +1412,7 @@ static void ath_rc_init(struct ath_softc *sc,
 
 	if (sta->ht_cap.ht_supported) {
 		ath_rc_priv->ht_cap = WLAN_RC_HT_FLAG;
-		if (sc->sc_ah->ah_caps.tx_chainmask != 1)
+		if (sc->sc_ah->caps.tx_chainmask != 1)
 			ath_rc_priv->ht_cap |= WLAN_RC_DS_FLAG;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 			ath_rc_priv->ht_cap |= WLAN_RC_40_FLAG;
@@ -1519,7 +1519,7 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 	 */
 	if (tx_info_priv->tx.ts_flags &
 	    (ATH9K_TX_DATA_UNDERRUN | ATH9K_TX_DELIM_UNDERRUN) &&
-	    ((sc->sc_ah->ah_txTrigLevel) >= ath_rc_priv->tx_triglevel_max)) {
+	    ((sc->sc_ah->tx_trig_level) >= ath_rc_priv->tx_triglevel_max)) {
 		tx_status = 1;
 		is_underrun = 1;
 	}
@@ -1628,7 +1628,7 @@ static void *ath_rate_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp
 	}
 
 	rate_priv->rssi_down_time = jiffies_to_msecs(jiffies);
-	rate_priv->tx_triglevel_max = sc->sc_ah->ah_caps.tx_triglevel_max;
+	rate_priv->tx_triglevel_max = sc->sc_ah->caps.tx_triglevel_max;
 
 	return rate_priv;
 }

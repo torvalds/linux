@@ -420,152 +420,148 @@ struct ath9k_hw_version {
 struct ath_hw {
 	struct ath_softc *ah_sc;
 	struct ath9k_hw_version hw_version;
-	struct ath9k_ops_config ah_config;
-	struct ath9k_hw_capabilities ah_caps;
+	struct ath9k_ops_config config;
+	struct ath9k_hw_capabilities caps;
 	struct ath9k_regulatory regulatory;
-	struct ath9k_channel ah_channels[38];
-	struct ath9k_channel *ah_curchan;
+	struct ath9k_channel channels[38];
+	struct ath9k_channel *curchan;
 
 	union {
 		struct ar5416_eeprom_def def;
 		struct ar5416_eeprom_4k map4k;
-	} ah_eeprom;
+	} eeprom;
 	const struct eeprom_ops *eep_ops;
+	enum ath9k_eep_map eep_map;
 
 	bool sw_mgmt_crypto;
-	bool ah_isPciExpress;
+	bool is_pciexpress;
 	u8 macaddr[ETH_ALEN];
-	u16 ah_txTrigLevel;
-	u16 ah_rfsilent;
-	u32 ah_rfkill_gpio;
-	u32 ah_rfkill_polarity;
-	u32 ah_btactive_gpio;
-	u32 ah_wlanactive_gpio;
+	u16 tx_trig_level;
+	u16 rfsilent;
+	u32 rfkill_gpio;
+	u32 rfkill_polarity;
+	u32 btactive_gpio;
+	u32 wlanactive_gpio;
 	u32 ah_flags;
-	enum nl80211_iftype ah_opmode;
 
-	enum ath9k_power_mode ah_power_mode;
-	enum ath9k_power_mode ah_restore_mode;
+	enum nl80211_iftype opmode;
+	enum ath9k_power_mode power_mode;
+	enum ath9k_power_mode restore_mode;
 
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
-	struct ar5416Stats ah_stats;
-	struct ath9k_tx_queue_info ah_txq[ATH9K_NUM_TX_QUEUES];
+	struct ar5416Stats stats;
+	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
 
-	int16_t ah_curchanRadIndex;
-	u32 ah_maskReg;
-	u32 ah_txOkInterruptMask;
-	u32 ah_txErrInterruptMask;
-	u32 ah_txDescInterruptMask;
-	u32 ah_txEolInterruptMask;
-	u32 ah_txUrnInterruptMask;
-	bool ah_chipFullSleep;
-	u32 ah_atimWindow;
-	u16 ah_antennaSwitchSwap;
-	enum ath9k_ant_setting ah_diversityControl;
+	int16_t curchan_rad_index;
+	u32 mask_reg;
+	u32 txok_interrupt_mask;
+	u32 txerr_interrupt_mask;
+	u32 txdesc_interrupt_mask;
+	u32 txeol_interrupt_mask;
+	u32 txurn_interrupt_mask;
+	bool chip_fullsleep;
+	u32 atim_window;
+	u16 antenna_switch_swap;
+	enum ath9k_ant_setting diversity_control;
 
 	/* Calibration */
-	enum hal_cal_types ah_suppCals;
-	struct hal_cal_list ah_iqCalData;
-	struct hal_cal_list ah_adcGainCalData;
-	struct hal_cal_list ah_adcDcCalInitData;
-	struct hal_cal_list ah_adcDcCalData;
-	struct hal_cal_list *ah_cal_list;
-	struct hal_cal_list *ah_cal_list_last;
-	struct hal_cal_list *ah_cal_list_curr;
-#define ah_totalPowerMeasI ah_Meas0.unsign
-#define ah_totalPowerMeasQ ah_Meas1.unsign
-#define ah_totalIqCorrMeas ah_Meas2.sign
-#define ah_totalAdcIOddPhase  ah_Meas0.unsign
-#define ah_totalAdcIEvenPhase ah_Meas1.unsign
-#define ah_totalAdcQOddPhase  ah_Meas2.unsign
-#define ah_totalAdcQEvenPhase ah_Meas3.unsign
-#define ah_totalAdcDcOffsetIOddPhase  ah_Meas0.sign
-#define ah_totalAdcDcOffsetIEvenPhase ah_Meas1.sign
-#define ah_totalAdcDcOffsetQOddPhase  ah_Meas2.sign
-#define ah_totalAdcDcOffsetQEvenPhase ah_Meas3.sign
+	enum hal_cal_types supp_cals;
+	struct hal_cal_list iq_caldata;
+	struct hal_cal_list adcgain_caldata;
+	struct hal_cal_list adcdc_calinitdata;
+	struct hal_cal_list adcdc_caldata;
+	struct hal_cal_list *cal_list;
+	struct hal_cal_list *cal_list_last;
+	struct hal_cal_list *cal_list_curr;
+#define totalPowerMeasI meas0.unsign
+#define totalPowerMeasQ meas1.unsign
+#define totalIqCorrMeas meas2.sign
+#define totalAdcIOddPhase  meas0.unsign
+#define totalAdcIEvenPhase meas1.unsign
+#define totalAdcQOddPhase  meas2.unsign
+#define totalAdcQEvenPhase meas3.unsign
+#define totalAdcDcOffsetIOddPhase  meas0.sign
+#define totalAdcDcOffsetIEvenPhase meas1.sign
+#define totalAdcDcOffsetQOddPhase  meas2.sign
+#define totalAdcDcOffsetQEvenPhase meas3.sign
 	union {
 		u32 unsign[AR5416_MAX_CHAINS];
 		int32_t sign[AR5416_MAX_CHAINS];
-	} ah_Meas0;
+	} meas0;
 	union {
 		u32 unsign[AR5416_MAX_CHAINS];
 		int32_t sign[AR5416_MAX_CHAINS];
-	} ah_Meas1;
+	} meas1;
 	union {
 		u32 unsign[AR5416_MAX_CHAINS];
 		int32_t sign[AR5416_MAX_CHAINS];
-	} ah_Meas2;
+	} meas2;
 	union {
 		u32 unsign[AR5416_MAX_CHAINS];
 		int32_t sign[AR5416_MAX_CHAINS];
-	} ah_Meas3;
-	u16 ah_CalSamples;
+	} meas3;
+	u16 cal_samples;
 
-	u32 ah_staId1Defaults;
-	u32 ah_miscMode;
+	u32 sta_id1_defaults;
+	u32 misc_mode;
 	enum {
 		AUTO_32KHZ,
 		USE_32KHZ,
 		DONT_USE_32KHZ,
-	} ah_enable32kHzClock;
+	} enable_32kHz_clock;
 
 	/* RF */
-	u32 *ah_analogBank0Data;
-	u32 *ah_analogBank1Data;
-	u32 *ah_analogBank2Data;
-	u32 *ah_analogBank3Data;
-	u32 *ah_analogBank6Data;
-	u32 *ah_analogBank6TPCData;
-	u32 *ah_analogBank7Data;
-	u32 *ah_addac5416_21;
-	u32 *ah_bank6Temp;
+	u32 *analogBank0Data;
+	u32 *analogBank1Data;
+	u32 *analogBank2Data;
+	u32 *analogBank3Data;
+	u32 *analogBank6Data;
+	u32 *analogBank6TPCData;
+	u32 *analogBank7Data;
+	u32 *addac5416_21;
+	u32 *bank6Temp;
 
-	int16_t ah_txPowerIndexOffset;
-	u32 ah_beaconInterval;
-	u32 ah_slottime;
-	u32 ah_acktimeout;
-	u32 ah_ctstimeout;
-	u32 ah_globaltxtimeout;
-	u8 ah_gBeaconRate;
-	u32 ah_gpioSelect;
-	u32 ah_polarity;
-	u32 ah_gpioBit;
+	int16_t txpower_indexoffset;
+	u32 beacon_interval;
+	u32 slottime;
+	u32 acktimeout;
+	u32 ctstimeout;
+	u32 globaltxtimeout;
+	u8 gbeacon_rate;
 
 	/* ANI */
-	u32 ah_procPhyErr;
-	bool ah_hasHwPhyCounters;
-	u32 ah_aniPeriod;
-	struct ar5416AniState *ah_curani;
-	struct ar5416AniState ah_ani[255];
-	int ah_totalSizeDesired[5];
-	int ah_coarseHigh[5];
-	int ah_coarseLow[5];
-	int ah_firpwr[5];
-	enum ath9k_ani_cmd ah_ani_function;
+	u32 proc_phyerr;
+	bool has_hw_phycounters;
+	u32 aniperiod;
+	struct ar5416AniState *curani;
+	struct ar5416AniState ani[255];
+	int totalSizeDesired[5];
+	int coarse_high[5];
+	int coarse_low[5];
+	int firpwr[5];
+	enum ath9k_ani_cmd ani_function;
 
-	u32 ah_intrTxqs;
-	bool ah_intrMitigation;
-	enum ath9k_ht_extprotspacing ah_extprotspacing;
-	u8 ah_txchainmask;
-	u8 ah_rxchainmask;
+	u32 intr_txqs;
+	bool intr_mitigation;
+	enum ath9k_ht_extprotspacing extprotspacing;
+	u8 txchainmask;
+	u8 rxchainmask;
 
-	struct ar5416IniArray ah_iniModes;
-	struct ar5416IniArray ah_iniCommon;
-	struct ar5416IniArray ah_iniBank0;
-	struct ar5416IniArray ah_iniBB_RfGain;
-	struct ar5416IniArray ah_iniBank1;
-	struct ar5416IniArray ah_iniBank2;
-	struct ar5416IniArray ah_iniBank3;
-	struct ar5416IniArray ah_iniBank6;
-	struct ar5416IniArray ah_iniBank6TPC;
-	struct ar5416IniArray ah_iniBank7;
-	struct ar5416IniArray ah_iniAddac;
-	struct ar5416IniArray ah_iniPcieSerdes;
-	struct ar5416IniArray ah_iniModesAdditional;
-	struct ar5416IniArray ah_iniModesRxGain;
-	struct ar5416IniArray ah_iniModesTxGain;
-	/* To indicate EEPROM mapping used */
-	enum hal_eep_map ah_eep_map;
+	struct ar5416IniArray iniModes;
+	struct ar5416IniArray iniCommon;
+	struct ar5416IniArray iniBank0;
+	struct ar5416IniArray iniBB_RfGain;
+	struct ar5416IniArray iniBank1;
+	struct ar5416IniArray iniBank2;
+	struct ar5416IniArray iniBank3;
+	struct ar5416IniArray iniBank6;
+	struct ar5416IniArray iniBank6TPC;
+	struct ar5416IniArray iniBank7;
+	struct ar5416IniArray iniAddac;
+	struct ar5416IniArray iniPcieSerdes;
+	struct ar5416IniArray iniModesAdditional;
+	struct ar5416IniArray iniModesRxGain;
+	struct ar5416IniArray iniModesTxGain;
 };
 
 /* Attach, Detach, Reset */

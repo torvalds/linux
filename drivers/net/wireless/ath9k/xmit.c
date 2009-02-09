@@ -308,7 +308,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			 * when perform internal reset in this routine.
 			 * Only enable reset in STA mode for now.
 			 */
-			if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION)
+			if (sc->sc_ah->opmode == NL80211_IFTYPE_STATION)
 				needreset = 1;
 		}
 	}
@@ -1072,7 +1072,7 @@ void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 		DPRINTF(sc, ATH_DBG_XMIT, "Unable to stop TxDMA. Reset HAL!\n");
 
 		spin_lock_bh(&sc->sc_resetlock);
-		r = ath9k_hw_reset(ah, sc->sc_ah->ah_curchan, true);
+		r = ath9k_hw_reset(ah, sc->sc_ah->curchan, true);
 		if (r)
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"Unable to reset hardware; reset status %u\n",
@@ -1477,7 +1477,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	}
 
 	/* For AR5416 - RTS cannot be followed by a frame larger than 8K */
-	if (bf_isaggr(bf) && (bf->bf_al > sc->sc_ah->ah_caps.rts_aggr_limit))
+	if (bf_isaggr(bf) && (bf->bf_al > sc->sc_ah->caps.rts_aggr_limit))
 		flags &= ~(ATH9K_TXDESC_RTSENA);
 
 	for (i = 0; i < 4; i++) {

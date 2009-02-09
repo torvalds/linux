@@ -533,7 +533,7 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 #define ATH9K_KEY_XOR                 0xaa
 
 #define ATH9K_IS_MIC_ENABLED(ah)					\
-	((ah)->ah_staId1Defaults & AR_STA_ID1_CRPT_MIC_ENABLE)
+	((ah)->sta_id1_defaults & AR_STA_ID1_CRPT_MIC_ENABLE)
 
 #define ANTSWAP_AB 0x0001
 #define REDUCE_CHAIN_0 0x00000050

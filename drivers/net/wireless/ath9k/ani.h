@@ -20,12 +20,12 @@
 #define HAL_PROCESS_ANI           0x00000001
 #define ATH9K_RSSI_EP_MULTIPLIER  (1<<7)
 
-#define DO_ANI(ah) (((ah)->ah_procPhyErr & HAL_PROCESS_ANI))
+#define DO_ANI(ah) (((ah)->proc_phyerr & HAL_PROCESS_ANI))
 
 #define HAL_EP_RND(x, mul)						\
 	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
 #define BEACON_RSSI(ahp)					\
-	HAL_EP_RND(ahp->ah_stats.ast_nodestats.ns_avgbrssi,	\
+	HAL_EP_RND(ahp->stats.ast_nodestats.ns_avgbrssi,	\
 		   ATH9K_RSSI_EP_MULTIPLIER)
 
 #define ATH9K_ANI_OFDM_TRIG_HIGH          500
@@ -118,7 +118,7 @@ struct ar5416Stats {
 	struct ath9k_mib_stats ast_mibstats;
 	struct ath9k_node_stats ast_nodestats;
 };
-#define ah_mibStats ah_stats.ast_mibstats
+#define ah_mibStats stats.ast_mibstats
 
 void ath9k_ani_reset(struct ath_hw *ah);
 void ath9k_hw_ani_monitor(struct ath_hw *ah,

@@ -45,7 +45,7 @@ static u32 ath9k_hw_mac_usec(struct ath_hw *ah, u32 clks)
 {
 	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
 
-	if (!ah->ah_curchan) /* should really check for CCK instead */
+	if (!ah->curchan) /* should really check for CCK instead */
 		return clks / ATH9K_CLOCK_RATE_CCK;
 	if (conf->channel->band == IEEE80211_BAND_2GHZ)
 		return clks / ATH9K_CLOCK_RATE_2GHZ_OFDM;
@@ -67,7 +67,7 @@ static u32 ath9k_hw_mac_clks(struct ath_hw *ah, u32 usecs)
 {
 	struct ieee80211_conf *conf = &ah->ah_sc->hw->conf;
 
-	if (!ah->ah_curchan) /* should really check for CCK instead */
+	if (!ah->curchan) /* should really check for CCK instead */
 		return usecs *ATH9K_CLOCK_RATE_CCK;
 	if (conf->channel->band == IEEE80211_BAND_2GHZ)
 		return usecs *ATH9K_CLOCK_RATE_2GHZ_OFDM;
@@ -118,7 +118,7 @@ bool ath9k_get_channel_edges(struct ath_hw *ah,
 			     u16 flags, u16 *low,
 			     u16 *high)
 {
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 
 	if (flags & CHANNEL_5GHZ) {
 		*low = pCap->low_5ghz_chan;
@@ -155,15 +155,15 @@ u16 ath9k_hw_computetxtime(struct ath_hw *ah,
 		txTime = CCK_SIFS_TIME + phyTime + ((numBits * 1000) / kbps);
 		break;
 	case WLAN_RC_PHY_OFDM:
-		if (ah->ah_curchan && IS_CHAN_QUARTER_RATE(ah->ah_curchan)) {
+		if (ah->curchan && IS_CHAN_QUARTER_RATE(ah->curchan)) {
 			bitsPerSymbol =	(kbps * OFDM_SYMBOL_TIME_QUARTER) / 1000;
 			numBits = OFDM_PLCP_BITS + (frameLen << 3);
 			numSymbols = DIV_ROUND_UP(numBits, bitsPerSymbol);
 			txTime = OFDM_SIFS_TIME_QUARTER
 				+ OFDM_PREAMBLE_TIME_QUARTER
 				+ (numSymbols * OFDM_SYMBOL_TIME_QUARTER);
-		} else if (ah->ah_curchan &&
-			   IS_CHAN_HALF_RATE(ah->ah_curchan)) {
+		} else if (ah->curchan &&
+			   IS_CHAN_HALF_RATE(ah->curchan)) {
 			bitsPerSymbol =	(kbps * OFDM_SYMBOL_TIME_HALF) / 1000;
 			numBits = OFDM_PLCP_BITS + (frameLen << 3);
 			numSymbols = DIV_ROUND_UP(numBits, bitsPerSymbol);
@@ -216,7 +216,7 @@ void ath9k_hw_get_channel_centers(struct ath_hw *ah,
 		centers->synth_center - (extoff * HT40_CHANNEL_CENTER_SHIFT);
 	centers->ext_center =
 		centers->synth_center + (extoff *
-			 ((ah->ah_extprotspacing == ATH9K_HT_EXTPROTSPACING_20) ?
+			 ((ah->extprotspacing == ATH9K_HT_EXTPROTSPACING_20) ?
 			  HT40_CHANNEL_CENTER_SHIFT : 15));
 }
 
@@ -235,7 +235,7 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 		ah->hw_version.macVersion =
 			(val & AR_SREV_VERSION2) >> AR_SREV_TYPE2_S;
 		ah->hw_version.macRev = MS(val, AR_SREV_REVISION2);
-		ah->ah_isPciExpress = (val & AR_SREV_TYPE2_HOST_MODE) ? 0 : 1;
+		ah->is_pciexpress = (val & AR_SREV_TYPE2_HOST_MODE) ? 0 : 1;
 	} else {
 		if (!AR_SREV_9100(ah))
 			ah->hw_version.macVersion = MS(val, AR_SREV_VERSION);
@@ -243,7 +243,7 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 		ah->hw_version.macRev = val & AR_SREV_REVISION;
 
 		if (ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCIE)
-			ah->ah_isPciExpress = true;
+			ah->is_pciexpress = true;
 	}
 }
 
@@ -355,40 +355,40 @@ static void ath9k_hw_set_defaults(struct ath_hw *ah)
 {
 	int i;
 
-	ah->ah_config.dma_beacon_response_time = 2;
-	ah->ah_config.sw_beacon_response_time = 10;
-	ah->ah_config.additional_swba_backoff = 0;
-	ah->ah_config.ack_6mb = 0x0;
-	ah->ah_config.cwm_ignore_extcca = 0;
-	ah->ah_config.pcie_powersave_enable = 0;
-	ah->ah_config.pcie_l1skp_enable = 0;
-	ah->ah_config.pcie_clock_req = 0;
-	ah->ah_config.pcie_power_reset = 0x100;
-	ah->ah_config.pcie_restore = 0;
-	ah->ah_config.pcie_waen = 0;
-	ah->ah_config.analog_shiftreg = 1;
-	ah->ah_config.ht_enable = 1;
-	ah->ah_config.ofdm_trig_low = 200;
-	ah->ah_config.ofdm_trig_high = 500;
-	ah->ah_config.cck_trig_high = 200;
-	ah->ah_config.cck_trig_low = 100;
-	ah->ah_config.enable_ani = 1;
-	ah->ah_config.noise_immunity_level = 4;
-	ah->ah_config.ofdm_weaksignal_det = 1;
-	ah->ah_config.cck_weaksignal_thr = 0;
-	ah->ah_config.spur_immunity_level = 2;
-	ah->ah_config.firstep_level = 0;
-	ah->ah_config.rssi_thr_high = 40;
-	ah->ah_config.rssi_thr_low = 7;
-	ah->ah_config.diversity_control = 0;
-	ah->ah_config.antenna_switch_swap = 0;
+	ah->config.dma_beacon_response_time = 2;
+	ah->config.sw_beacon_response_time = 10;
+	ah->config.additional_swba_backoff = 0;
+	ah->config.ack_6mb = 0x0;
+	ah->config.cwm_ignore_extcca = 0;
+	ah->config.pcie_powersave_enable = 0;
+	ah->config.pcie_l1skp_enable = 0;
+	ah->config.pcie_clock_req = 0;
+	ah->config.pcie_power_reset = 0x100;
+	ah->config.pcie_restore = 0;
+	ah->config.pcie_waen = 0;
+	ah->config.analog_shiftreg = 1;
+	ah->config.ht_enable = 1;
+	ah->config.ofdm_trig_low = 200;
+	ah->config.ofdm_trig_high = 500;
+	ah->config.cck_trig_high = 200;
+	ah->config.cck_trig_low = 100;
+	ah->config.enable_ani = 1;
+	ah->config.noise_immunity_level = 4;
+	ah->config.ofdm_weaksignal_det = 1;
+	ah->config.cck_weaksignal_thr = 0;
+	ah->config.spur_immunity_level = 2;
+	ah->config.firstep_level = 0;
+	ah->config.rssi_thr_high = 40;
+	ah->config.rssi_thr_low = 7;
+	ah->config.diversity_control = 0;
+	ah->config.antenna_switch_swap = 0;
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
-		ah->ah_config.spurchans[i][0] = AR_NO_SPUR;
-		ah->ah_config.spurchans[i][1] = AR_NO_SPUR;
+		ah->config.spurchans[i][0] = AR_NO_SPUR;
+		ah->config.spurchans[i][1] = AR_NO_SPUR;
 	}
 
-	ah->ah_config.intr_mitigation = 1;
+	ah->config.intr_mitigation = 1;
 }
 
 static struct ath_hw *ath9k_hw_newstate(u16 devid, struct ath_softc *sc,
@@ -418,19 +418,19 @@ static struct ath_hw *ath9k_hw_newstate(u16 devid, struct ath_softc *sc,
 
 	ah->regulatory.power_limit = MAX_RATE_POWER;
 	ah->regulatory.tp_scale = ATH9K_TP_SCALE_MAX;
-	ah->ah_atimWindow = 0;
-	ah->ah_diversityControl = ah->ah_config.diversity_control;
-	ah->ah_antennaSwitchSwap =
-		ah->ah_config.antenna_switch_swap;
-	ah->ah_staId1Defaults = AR_STA_ID1_CRPT_MIC_ENABLE;
-	ah->ah_beaconInterval = 100;
-	ah->ah_enable32kHzClock = DONT_USE_32KHZ;
-	ah->ah_slottime = (u32) -1;
-	ah->ah_acktimeout = (u32) -1;
-	ah->ah_ctstimeout = (u32) -1;
-	ah->ah_globaltxtimeout = (u32) -1;
+	ah->atim_window = 0;
+	ah->diversity_control = ah->config.diversity_control;
+	ah->antenna_switch_swap =
+		ah->config.antenna_switch_swap;
+	ah->sta_id1_defaults = AR_STA_ID1_CRPT_MIC_ENABLE;
+	ah->beacon_interval = 100;
+	ah->enable_32kHz_clock = DONT_USE_32KHZ;
+	ah->slottime = (u32) -1;
+	ah->acktimeout = (u32) -1;
+	ah->ctstimeout = (u32) -1;
+	ah->globaltxtimeout = (u32) -1;
 
-	ah->ah_gBeaconRate = 0;
+	ah->gbeacon_rate = 0;
 
 	return ah;
 }
@@ -510,19 +510,19 @@ static void ath9k_hw_init_rxgain_ini(struct ath_hw *ah)
 		rxgain_type = ah->eep_ops->get_eeprom(ah, EEP_RXGAIN_TYPE);
 
 		if (rxgain_type == AR5416_EEP_RXGAIN_13DB_BACKOFF)
-			INIT_INI_ARRAY(&ah->ah_iniModesRxGain,
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9280Modes_backoff_13db_rxgain_9280_2,
 			ARRAY_SIZE(ar9280Modes_backoff_13db_rxgain_9280_2), 6);
 		else if (rxgain_type == AR5416_EEP_RXGAIN_23DB_BACKOFF)
-			INIT_INI_ARRAY(&ah->ah_iniModesRxGain,
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9280Modes_backoff_23db_rxgain_9280_2,
 			ARRAY_SIZE(ar9280Modes_backoff_23db_rxgain_9280_2), 6);
 		else
-			INIT_INI_ARRAY(&ah->ah_iniModesRxGain,
+			INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9280Modes_original_rxgain_9280_2,
 			ARRAY_SIZE(ar9280Modes_original_rxgain_9280_2), 6);
 	} else {
-		INIT_INI_ARRAY(&ah->ah_iniModesRxGain,
+		INIT_INI_ARRAY(&ah->iniModesRxGain,
 			ar9280Modes_original_rxgain_9280_2,
 			ARRAY_SIZE(ar9280Modes_original_rxgain_9280_2), 6);
 	}
@@ -536,15 +536,15 @@ static void ath9k_hw_init_txgain_ini(struct ath_hw *ah)
 		txgain_type = ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE);
 
 		if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER)
-			INIT_INI_ARRAY(&ah->ah_iniModesTxGain,
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9280Modes_high_power_tx_gain_9280_2,
 			ARRAY_SIZE(ar9280Modes_high_power_tx_gain_9280_2), 6);
 		else
-			INIT_INI_ARRAY(&ah->ah_iniModesTxGain,
+			INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9280Modes_original_tx_gain_9280_2,
 			ARRAY_SIZE(ar9280Modes_original_tx_gain_9280_2), 6);
 	} else {
-		INIT_INI_ARRAY(&ah->ah_iniModesTxGain,
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
 		ar9280Modes_original_tx_gain_9280_2,
 		ARRAY_SIZE(ar9280Modes_original_tx_gain_9280_2), 6);
 	}
@@ -592,8 +592,8 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 
 	ath9k_hw_set_defaults(ah);
 
-	if (ah->ah_config.intr_mitigation != 0)
-		ah->ah_intrMitigation = true;
+	if (ah->config.intr_mitigation != 0)
+		ah->intr_mitigation = true;
 
 	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
 		DPRINTF(sc, ATH_DBG_RESET, "Couldn't reset chip\n");
@@ -607,18 +607,18 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 		goto bad;
 	}
 
-	if (ah->ah_config.serialize_regmode == SER_REG_MODE_AUTO) {
+	if (ah->config.serialize_regmode == SER_REG_MODE_AUTO) {
 		if (ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) {
-			ah->ah_config.serialize_regmode =
+			ah->config.serialize_regmode =
 				SER_REG_MODE_ON;
 		} else {
-			ah->ah_config.serialize_regmode =
+			ah->config.serialize_regmode =
 				SER_REG_MODE_OFF;
 		}
 	}
 
 	DPRINTF(sc, ATH_DBG_RESET, "serialize_regmode is %d\n",
-		ah->ah_config.serialize_regmode);
+		ah->config.serialize_regmode);
 
 	if ((ah->hw_version.macVersion != AR_SREV_VERSION_5416_PCI) &&
 	    (ah->hw_version.macVersion != AR_SREV_VERSION_5416_PCIE) &&
@@ -633,41 +633,41 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 	}
 
 	if (AR_SREV_9100(ah)) {
-		ah->ah_iqCalData.calData = &iq_cal_multi_sample;
-		ah->ah_suppCals = IQ_MISMATCH_CAL;
-		ah->ah_isPciExpress = false;
+		ah->iq_caldata.calData = &iq_cal_multi_sample;
+		ah->supp_cals = IQ_MISMATCH_CAL;
+		ah->is_pciexpress = false;
 	}
 	ah->hw_version.phyRev = REG_READ(ah, AR_PHY_CHIP_ID);
 
 	if (AR_SREV_9160_10_OR_LATER(ah)) {
 		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			ah->ah_iqCalData.calData = &iq_cal_single_sample;
-			ah->ah_adcGainCalData.calData =
+			ah->iq_caldata.calData = &iq_cal_single_sample;
+			ah->adcgain_caldata.calData =
 				&adc_gain_cal_single_sample;
-			ah->ah_adcDcCalData.calData =
+			ah->adcdc_caldata.calData =
 				&adc_dc_cal_single_sample;
-			ah->ah_adcDcCalInitData.calData =
+			ah->adcdc_calinitdata.calData =
 				&adc_init_dc_cal;
 		} else {
-			ah->ah_iqCalData.calData = &iq_cal_multi_sample;
-			ah->ah_adcGainCalData.calData =
+			ah->iq_caldata.calData = &iq_cal_multi_sample;
+			ah->adcgain_caldata.calData =
 				&adc_gain_cal_multi_sample;
-			ah->ah_adcDcCalData.calData =
+			ah->adcdc_caldata.calData =
 				&adc_dc_cal_multi_sample;
-			ah->ah_adcDcCalInitData.calData =
+			ah->adcdc_calinitdata.calData =
 				&adc_init_dc_cal;
 		}
-		ah->ah_suppCals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
+		ah->supp_cals = ADC_GAIN_CAL | ADC_DC_CAL | IQ_MISMATCH_CAL;
 	}
 
 	if (AR_SREV_9160(ah)) {
-		ah->ah_config.enable_ani = 1;
-		ah->ah_ani_function = (ATH9K_ANI_SPUR_IMMUNITY_LEVEL |
+		ah->config.enable_ani = 1;
+		ah->ani_function = (ATH9K_ANI_SPUR_IMMUNITY_LEVEL |
 					ATH9K_ANI_FIRSTEP_LEVEL);
 	} else {
-		ah->ah_ani_function = ATH9K_ANI_ALL;
+		ah->ani_function = ATH9K_ANI_ALL;
 		if (AR_SREV_9280_10_OR_LATER(ah)) {
-			ah->ah_ani_function &=	~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
+			ah->ani_function &=	~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
 		}
 	}
 
@@ -676,137 +676,137 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 		ah->hw_version.macVersion, ah->hw_version.macRev);
 
 	if (AR_SREV_9285_12_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->ah_iniModes, ar9285Modes_9285_1_2,
+		INIT_INI_ARRAY(&ah->iniModes, ar9285Modes_9285_1_2,
 			       ARRAY_SIZE(ar9285Modes_9285_1_2), 6);
-		INIT_INI_ARRAY(&ah->ah_iniCommon, ar9285Common_9285_1_2,
+		INIT_INI_ARRAY(&ah->iniCommon, ar9285Common_9285_1_2,
 			       ARRAY_SIZE(ar9285Common_9285_1_2), 2);
 
-		if (ah->ah_config.pcie_clock_req) {
-			INIT_INI_ARRAY(&ah->ah_iniPcieSerdes,
+		if (ah->config.pcie_clock_req) {
+			INIT_INI_ARRAY(&ah->iniPcieSerdes,
 			ar9285PciePhy_clkreq_off_L1_9285_1_2,
 			ARRAY_SIZE(ar9285PciePhy_clkreq_off_L1_9285_1_2), 2);
 		} else {
-			INIT_INI_ARRAY(&ah->ah_iniPcieSerdes,
+			INIT_INI_ARRAY(&ah->iniPcieSerdes,
 			ar9285PciePhy_clkreq_always_on_L1_9285_1_2,
 			ARRAY_SIZE(ar9285PciePhy_clkreq_always_on_L1_9285_1_2),
 				  2);
 		}
 	} else if (AR_SREV_9285_10_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->ah_iniModes, ar9285Modes_9285,
+		INIT_INI_ARRAY(&ah->iniModes, ar9285Modes_9285,
 			       ARRAY_SIZE(ar9285Modes_9285), 6);
-		INIT_INI_ARRAY(&ah->ah_iniCommon, ar9285Common_9285,
+		INIT_INI_ARRAY(&ah->iniCommon, ar9285Common_9285,
 			       ARRAY_SIZE(ar9285Common_9285), 2);
 
-		if (ah->ah_config.pcie_clock_req) {
-			INIT_INI_ARRAY(&ah->ah_iniPcieSerdes,
+		if (ah->config.pcie_clock_req) {
+			INIT_INI_ARRAY(&ah->iniPcieSerdes,
 			ar9285PciePhy_clkreq_off_L1_9285,
 			ARRAY_SIZE(ar9285PciePhy_clkreq_off_L1_9285), 2);
 		} else {
-			INIT_INI_ARRAY(&ah->ah_iniPcieSerdes,
+			INIT_INI_ARRAY(&ah->iniPcieSerdes,
 			ar9285PciePhy_clkreq_always_on_L1_9285,
 			ARRAY_SIZE(ar9285PciePhy_clkreq_always_on_L1_9285), 2);
 		}
 	} else if (AR_SREV_9280_20_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->ah_iniModes, ar9280Modes_9280_2,
+		INIT_INI_ARRAY(&ah->iniModes, ar9280Modes_9280_2,
 			       ARRAY_SIZE(ar9280Modes_9280_2), 6);
-		INIT_INI_ARRAY(&ah->ah_iniCommon, ar9280Common_9280_2,
+		INIT_INI_ARRAY(&ah->iniCommon, ar9280Common_9280_2,
 			       ARRAY_SIZE(ar9280Common_9280_2), 2);
 
-		if (ah->ah_config.pcie_clock_req) {
-			INIT_INI_ARRAY(&ah->ah_iniPcieSerdes,
+		if (ah->config.pcie_clock_req) {
+			INIT_INI_ARRAY(&ah->iniPcieSerdes,
 			       ar9280PciePhy_clkreq_off_L1_9280,
 			       ARRAY_SIZE(ar9280PciePhy_clkreq_off_L1_9280),2);
 		} else {
-			INIT_INI_ARRAY(&ah->ah_iniPcieSerdes,
+			INIT_INI_ARRAY(&ah->iniPcieSerdes,
 			       ar9280PciePhy_clkreq_always_on_L1_9280,
 			       ARRAY_SIZE(ar9280PciePhy_clkreq_always_on_L1_9280), 2);
 		}
-		INIT_INI_ARRAY(&ah->ah_iniModesAdditional,
+		INIT_INI_ARRAY(&ah->iniModesAdditional,
 			       ar9280Modes_fast_clock_9280_2,
 			       ARRAY_SIZE(ar9280Modes_fast_clock_9280_2), 3);
 	} else if (AR_SREV_9280_10_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->ah_iniModes, ar9280Modes_9280,
+		INIT_INI_ARRAY(&ah->iniModes, ar9280Modes_9280,
 			       ARRAY_SIZE(ar9280Modes_9280), 6);
-		INIT_INI_ARRAY(&ah->ah_iniCommon, ar9280Common_9280,
+		INIT_INI_ARRAY(&ah->iniCommon, ar9280Common_9280,
 			       ARRAY_SIZE(ar9280Common_9280), 2);
 	} else if (AR_SREV_9160_10_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->ah_iniModes, ar5416Modes_9160,
+		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9160,
 			       ARRAY_SIZE(ar5416Modes_9160), 6);
-		INIT_INI_ARRAY(&ah->ah_iniCommon, ar5416Common_9160,
+		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common_9160,
 			       ARRAY_SIZE(ar5416Common_9160), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBank0, ar5416Bank0_9160,
+		INIT_INI_ARRAY(&ah->iniBank0, ar5416Bank0_9160,
 			       ARRAY_SIZE(ar5416Bank0_9160), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBB_RfGain, ar5416BB_RfGain_9160,
+		INIT_INI_ARRAY(&ah->iniBB_RfGain, ar5416BB_RfGain_9160,
 			       ARRAY_SIZE(ar5416BB_RfGain_9160), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank1, ar5416Bank1_9160,
+		INIT_INI_ARRAY(&ah->iniBank1, ar5416Bank1_9160,
 			       ARRAY_SIZE(ar5416Bank1_9160), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBank2, ar5416Bank2_9160,
+		INIT_INI_ARRAY(&ah->iniBank2, ar5416Bank2_9160,
 			       ARRAY_SIZE(ar5416Bank2_9160), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBank3, ar5416Bank3_9160,
+		INIT_INI_ARRAY(&ah->iniBank3, ar5416Bank3_9160,
 			       ARRAY_SIZE(ar5416Bank3_9160), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank6, ar5416Bank6_9160,
+		INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6_9160,
 			       ARRAY_SIZE(ar5416Bank6_9160), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank6TPC, ar5416Bank6TPC_9160,
+		INIT_INI_ARRAY(&ah->iniBank6TPC, ar5416Bank6TPC_9160,
 			       ARRAY_SIZE(ar5416Bank6TPC_9160), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank7, ar5416Bank7_9160,
+		INIT_INI_ARRAY(&ah->iniBank7, ar5416Bank7_9160,
 			       ARRAY_SIZE(ar5416Bank7_9160), 2);
 		if (AR_SREV_9160_11(ah)) {
-			INIT_INI_ARRAY(&ah->ah_iniAddac,
+			INIT_INI_ARRAY(&ah->iniAddac,
 				       ar5416Addac_91601_1,
 				       ARRAY_SIZE(ar5416Addac_91601_1), 2);
 		} else {
-			INIT_INI_ARRAY(&ah->ah_iniAddac, ar5416Addac_9160,
+			INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac_9160,
 				       ARRAY_SIZE(ar5416Addac_9160), 2);
 		}
 	} else if (AR_SREV_9100_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->ah_iniModes, ar5416Modes_9100,
+		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9100,
 			       ARRAY_SIZE(ar5416Modes_9100), 6);
-		INIT_INI_ARRAY(&ah->ah_iniCommon, ar5416Common_9100,
+		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common_9100,
 			       ARRAY_SIZE(ar5416Common_9100), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBank0, ar5416Bank0_9100,
+		INIT_INI_ARRAY(&ah->iniBank0, ar5416Bank0_9100,
 			       ARRAY_SIZE(ar5416Bank0_9100), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBB_RfGain, ar5416BB_RfGain_9100,
+		INIT_INI_ARRAY(&ah->iniBB_RfGain, ar5416BB_RfGain_9100,
 			       ARRAY_SIZE(ar5416BB_RfGain_9100), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank1, ar5416Bank1_9100,
+		INIT_INI_ARRAY(&ah->iniBank1, ar5416Bank1_9100,
 			       ARRAY_SIZE(ar5416Bank1_9100), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBank2, ar5416Bank2_9100,
+		INIT_INI_ARRAY(&ah->iniBank2, ar5416Bank2_9100,
 			       ARRAY_SIZE(ar5416Bank2_9100), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBank3, ar5416Bank3_9100,
+		INIT_INI_ARRAY(&ah->iniBank3, ar5416Bank3_9100,
 			       ARRAY_SIZE(ar5416Bank3_9100), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank6, ar5416Bank6_9100,
+		INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6_9100,
 			       ARRAY_SIZE(ar5416Bank6_9100), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank6TPC, ar5416Bank6TPC_9100,
+		INIT_INI_ARRAY(&ah->iniBank6TPC, ar5416Bank6TPC_9100,
 			       ARRAY_SIZE(ar5416Bank6TPC_9100), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank7, ar5416Bank7_9100,
+		INIT_INI_ARRAY(&ah->iniBank7, ar5416Bank7_9100,
 			       ARRAY_SIZE(ar5416Bank7_9100), 2);
-		INIT_INI_ARRAY(&ah->ah_iniAddac, ar5416Addac_9100,
+		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac_9100,
 			       ARRAY_SIZE(ar5416Addac_9100), 2);
 	} else {
-		INIT_INI_ARRAY(&ah->ah_iniModes, ar5416Modes,
+		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes,
 			       ARRAY_SIZE(ar5416Modes), 6);
-		INIT_INI_ARRAY(&ah->ah_iniCommon, ar5416Common,
+		INIT_INI_ARRAY(&ah->iniCommon, ar5416Common,
 			       ARRAY_SIZE(ar5416Common), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBank0, ar5416Bank0,
+		INIT_INI_ARRAY(&ah->iniBank0, ar5416Bank0,
 			       ARRAY_SIZE(ar5416Bank0), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBB_RfGain, ar5416BB_RfGain,
+		INIT_INI_ARRAY(&ah->iniBB_RfGain, ar5416BB_RfGain,
 			       ARRAY_SIZE(ar5416BB_RfGain), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank1, ar5416Bank1,
+		INIT_INI_ARRAY(&ah->iniBank1, ar5416Bank1,
 			       ARRAY_SIZE(ar5416Bank1), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBank2, ar5416Bank2,
+		INIT_INI_ARRAY(&ah->iniBank2, ar5416Bank2,
 			       ARRAY_SIZE(ar5416Bank2), 2);
-		INIT_INI_ARRAY(&ah->ah_iniBank3, ar5416Bank3,
+		INIT_INI_ARRAY(&ah->iniBank3, ar5416Bank3,
 			       ARRAY_SIZE(ar5416Bank3), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank6, ar5416Bank6,
+		INIT_INI_ARRAY(&ah->iniBank6, ar5416Bank6,
 			       ARRAY_SIZE(ar5416Bank6), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank6TPC, ar5416Bank6TPC,
+		INIT_INI_ARRAY(&ah->iniBank6TPC, ar5416Bank6TPC,
 			       ARRAY_SIZE(ar5416Bank6TPC), 3);
-		INIT_INI_ARRAY(&ah->ah_iniBank7, ar5416Bank7,
+		INIT_INI_ARRAY(&ah->iniBank7, ar5416Bank7,
 			       ARRAY_SIZE(ar5416Bank7), 2);
-		INIT_INI_ARRAY(&ah->ah_iniAddac, ar5416Addac,
+		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac,
 			       ARRAY_SIZE(ar5416Addac), 2);
 	}
 
-	if (ah->ah_isPciExpress)
+	if (ah->is_pciexpress)
 		ath9k_hw_configpcipowersave(ah, 0);
 	else
 		ath9k_hw_disablepcie(ah);
@@ -824,15 +824,15 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 		ath9k_hw_init_txgain_ini(ah);
 
 	if (ah->hw_version.devid == AR9280_DEVID_PCI) {
-		for (i = 0; i < ah->ah_iniModes.ia_rows; i++) {
-			u32 reg = INI_RA(&ah->ah_iniModes, i, 0);
+		for (i = 0; i < ah->iniModes.ia_rows; i++) {
+			u32 reg = INI_RA(&ah->iniModes, i, 0);
 
-			for (j = 1; j < ah->ah_iniModes.ia_columns; j++) {
-				u32 val = INI_RA(&ah->ah_iniModes, i, j);
+			for (j = 1; j < ah->iniModes.ia_columns; j++) {
+				u32 val = INI_RA(&ah->iniModes, i, j);
 
-				INI_RA(&ah->ah_iniModes, i, j) =
+				INI_RA(&ah->iniModes, i, j) =
 					ath9k_hw_ini_fixup(ah,
-							   &ah->ah_eeprom.def,
+							   &ah->eeprom.def,
 							   reg, val);
 			}
 		}
@@ -853,9 +853,9 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 	}
 
 	if (AR_SREV_9285(ah))
-		ah->ah_txTrigLevel = (AR_FTRIG_256B >> AR_FTRIG_S);
+		ah->tx_trig_level = (AR_FTRIG_256B >> AR_FTRIG_S);
 	else
-		ah->ah_txTrigLevel = (AR_FTRIG_512B >> AR_FTRIG_S);
+		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
 
 	ath9k_init_nfcal_hist_buffer(ah);
 
@@ -974,8 +974,8 @@ static void ath9k_hw_init_chain_masks(struct ath_hw *ah)
 {
 	int rx_chainmask, tx_chainmask;
 
-	rx_chainmask = ah->ah_rxchainmask;
-	tx_chainmask = ah->ah_txchainmask;
+	rx_chainmask = ah->rxchainmask;
+	tx_chainmask = ah->txchainmask;
 
 	switch (rx_chainmask) {
 	case 0x5:
@@ -1010,23 +1010,23 @@ static void ath9k_hw_init_chain_masks(struct ath_hw *ah)
 static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 					  enum nl80211_iftype opmode)
 {
-	ah->ah_maskReg = AR_IMR_TXERR |
+	ah->mask_reg = AR_IMR_TXERR |
 		AR_IMR_TXURN |
 		AR_IMR_RXERR |
 		AR_IMR_RXORN |
 		AR_IMR_BCNMISC;
 
-	if (ah->ah_intrMitigation)
-		ah->ah_maskReg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
+	if (ah->intr_mitigation)
+		ah->mask_reg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
 	else
-		ah->ah_maskReg |= AR_IMR_RXOK;
+		ah->mask_reg |= AR_IMR_RXOK;
 
-	ah->ah_maskReg |= AR_IMR_TXOK;
+	ah->mask_reg |= AR_IMR_TXOK;
 
 	if (opmode == NL80211_IFTYPE_AP)
-		ah->ah_maskReg |= AR_IMR_MIB;
+		ah->mask_reg |= AR_IMR_MIB;
 
-	REG_WRITE(ah, AR_IMR, ah->ah_maskReg);
+	REG_WRITE(ah, AR_IMR, ah->mask_reg);
 	REG_WRITE(ah, AR_IMR_S2, REG_READ(ah, AR_IMR_S2) | AR_IMR_S2_GTT);
 
 	if (!AR_SREV_9100(ah)) {
@@ -1040,12 +1040,12 @@ static bool ath9k_hw_set_ack_timeout(struct ath_hw *ah, u32 us)
 {
 	if (us > ath9k_hw_mac_to_usec(ah, MS(0xffffffff, AR_TIME_OUT_ACK))) {
 		DPRINTF(ah->ah_sc, ATH_DBG_RESET, "bad ack timeout %u\n", us);
-		ah->ah_acktimeout = (u32) -1;
+		ah->acktimeout = (u32) -1;
 		return false;
 	} else {
 		REG_RMW_FIELD(ah, AR_TIME_OUT,
 			      AR_TIME_OUT_ACK, ath9k_hw_mac_to_clks(ah, us));
-		ah->ah_acktimeout = us;
+		ah->acktimeout = us;
 		return true;
 	}
 }
@@ -1054,12 +1054,12 @@ static bool ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us)
 {
 	if (us > ath9k_hw_mac_to_usec(ah, MS(0xffffffff, AR_TIME_OUT_CTS))) {
 		DPRINTF(ah->ah_sc, ATH_DBG_RESET, "bad cts timeout %u\n", us);
-		ah->ah_ctstimeout = (u32) -1;
+		ah->ctstimeout = (u32) -1;
 		return false;
 	} else {
 		REG_RMW_FIELD(ah, AR_TIME_OUT,
 			      AR_TIME_OUT_CTS, ath9k_hw_mac_to_clks(ah, us));
-		ah->ah_ctstimeout = us;
+		ah->ctstimeout = us;
 		return true;
 	}
 }
@@ -1069,31 +1069,31 @@ static bool ath9k_hw_set_global_txtimeout(struct ath_hw *ah, u32 tu)
 	if (tu > 0xFFFF) {
 		DPRINTF(ah->ah_sc, ATH_DBG_XMIT,
 			"bad global tx timeout %u\n", tu);
-		ah->ah_globaltxtimeout = (u32) -1;
+		ah->globaltxtimeout = (u32) -1;
 		return false;
 	} else {
 		REG_RMW_FIELD(ah, AR_GTXTO, AR_GTXTO_TIMEOUT_LIMIT, tu);
-		ah->ah_globaltxtimeout = tu;
+		ah->globaltxtimeout = tu;
 		return true;
 	}
 }
 
 static void ath9k_hw_init_user_settings(struct ath_hw *ah)
 {
-	DPRINTF(ah->ah_sc, ATH_DBG_RESET, "ah->ah_miscMode 0x%x\n",
-		ah->ah_miscMode);
+	DPRINTF(ah->ah_sc, ATH_DBG_RESET, "ah->misc_mode 0x%x\n",
+		ah->misc_mode);
 
-	if (ah->ah_miscMode != 0)
+	if (ah->misc_mode != 0)
 		REG_WRITE(ah, AR_PCU_MISC,
-			  REG_READ(ah, AR_PCU_MISC) | ah->ah_miscMode);
-	if (ah->ah_slottime != (u32) -1)
-		ath9k_hw_setslottime(ah, ah->ah_slottime);
-	if (ah->ah_acktimeout != (u32) -1)
-		ath9k_hw_set_ack_timeout(ah, ah->ah_acktimeout);
-	if (ah->ah_ctstimeout != (u32) -1)
-		ath9k_hw_set_cts_timeout(ah, ah->ah_ctstimeout);
-	if (ah->ah_globaltxtimeout != (u32) -1)
-		ath9k_hw_set_global_txtimeout(ah, ah->ah_globaltxtimeout);
+			  REG_READ(ah, AR_PCU_MISC) | ah->misc_mode);
+	if (ah->slottime != (u32) -1)
+		ath9k_hw_setslottime(ah, ah->slottime);
+	if (ah->acktimeout != (u32) -1)
+		ath9k_hw_set_ack_timeout(ah, ah->acktimeout);
+	if (ah->ctstimeout != (u32) -1)
+		ath9k_hw_set_cts_timeout(ah, ah->ctstimeout);
+	if (ah->globaltxtimeout != (u32) -1)
+		ath9k_hw_set_global_txtimeout(ah, ah->globaltxtimeout);
 }
 
 const char *ath9k_hw_probe(u16 vendorid, u16 devid)
@@ -1194,7 +1194,7 @@ static u32 ath9k_hw_ini_fixup(struct ath_hw *ah,
 			      struct ar5416_eeprom_def *pEepData,
 			      u32 reg, u32 value)
 {
-	if (ah->ah_eep_map == EEP_MAP_4KBITS)
+	if (ah->eep_map == EEP_MAP_4KBITS)
 		return value;
 	else
 		return ath9k_hw_def_ini_fixup(ah, pEepData, reg, value);
@@ -1241,34 +1241,34 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	ah->eep_ops->set_addac(ah, chan);
 
 	if (AR_SREV_5416_V22_OR_LATER(ah)) {
-		REG_WRITE_ARRAY(&ah->ah_iniAddac, 1, regWrites);
+		REG_WRITE_ARRAY(&ah->iniAddac, 1, regWrites);
 	} else {
 		struct ar5416IniArray temp;
 		u32 addacSize =
-			sizeof(u32) * ah->ah_iniAddac.ia_rows *
-			ah->ah_iniAddac.ia_columns;
+			sizeof(u32) * ah->iniAddac.ia_rows *
+			ah->iniAddac.ia_columns;
 
-		memcpy(ah->ah_addac5416_21,
-		       ah->ah_iniAddac.ia_array, addacSize);
+		memcpy(ah->addac5416_21,
+		       ah->iniAddac.ia_array, addacSize);
 
-		(ah->ah_addac5416_21)[31 * ah->ah_iniAddac.ia_columns + 1] = 0;
+		(ah->addac5416_21)[31 * ah->iniAddac.ia_columns + 1] = 0;
 
-		temp.ia_array = ah->ah_addac5416_21;
-		temp.ia_columns = ah->ah_iniAddac.ia_columns;
-		temp.ia_rows = ah->ah_iniAddac.ia_rows;
+		temp.ia_array = ah->addac5416_21;
+		temp.ia_columns = ah->iniAddac.ia_columns;
+		temp.ia_rows = ah->iniAddac.ia_rows;
 		REG_WRITE_ARRAY(&temp, 1, regWrites);
 	}
 
 	REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_INTERNAL_ADDAC);
 
-	for (i = 0; i < ah->ah_iniModes.ia_rows; i++) {
-		u32 reg = INI_RA(&ah->ah_iniModes, i, 0);
-		u32 val = INI_RA(&ah->ah_iniModes, i, modesIndex);
+	for (i = 0; i < ah->iniModes.ia_rows; i++) {
+		u32 reg = INI_RA(&ah->iniModes, i, 0);
+		u32 val = INI_RA(&ah->iniModes, i, modesIndex);
 
 		REG_WRITE(ah, reg, val);
 
 		if (reg >= 0x7800 && reg < 0x78a0
-		    && ah->ah_config.analog_shiftreg) {
+		    && ah->config.analog_shiftreg) {
 			udelay(100);
 		}
 
@@ -1276,19 +1276,19 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	}
 
 	if (AR_SREV_9280(ah))
-		REG_WRITE_ARRAY(&ah->ah_iniModesRxGain, modesIndex, regWrites);
+		REG_WRITE_ARRAY(&ah->iniModesRxGain, modesIndex, regWrites);
 
 	if (AR_SREV_9280(ah))
-		REG_WRITE_ARRAY(&ah->ah_iniModesTxGain, modesIndex, regWrites);
+		REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
 
-	for (i = 0; i < ah->ah_iniCommon.ia_rows; i++) {
-		u32 reg = INI_RA(&ah->ah_iniCommon, i, 0);
-		u32 val = INI_RA(&ah->ah_iniCommon, i, 1);
+	for (i = 0; i < ah->iniCommon.ia_rows; i++) {
+		u32 reg = INI_RA(&ah->iniCommon, i, 0);
+		u32 val = INI_RA(&ah->iniCommon, i, 1);
 
 		REG_WRITE(ah, reg, val);
 
 		if (reg >= 0x7800 && reg < 0x78a0
-		    && ah->ah_config.analog_shiftreg) {
+		    && ah->config.analog_shiftreg) {
 			udelay(100);
 		}
 
@@ -1298,7 +1298,7 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	ath9k_hw_write_regs(ah, modesIndex, freqIndex, regWrites);
 
 	if (AR_SREV_9280_20(ah) && IS_CHAN_A_5MHZ_SPACED(chan)) {
-		REG_WRITE_ARRAY(&ah->ah_iniModesAdditional, modesIndex,
+		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex,
 				regWrites);
 	}
 
@@ -1366,7 +1366,7 @@ static inline void ath9k_hw_set_dma(struct ath_hw *ah)
 	regval = REG_READ(ah, AR_TXCFG) & ~AR_TXCFG_DMASZ_MASK;
 	REG_WRITE(ah, AR_TXCFG, regval | AR_TXCFG_DMASZ_128B);
 
-	REG_RMW_FIELD(ah, AR_TXCFG, AR_FTRIG, ah->ah_txTrigLevel);
+	REG_RMW_FIELD(ah, AR_TXCFG, AR_FTRIG, ah->tx_trig_level);
 
 	regval = REG_READ(ah, AR_RXCFG) & ~AR_RXCFG_DMASZ_MASK;
 	REG_WRITE(ah, AR_RXCFG, regval | AR_RXCFG_DMASZ_128B);
@@ -1566,7 +1566,7 @@ static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 		    (chan->chanmode == CHANNEL_G_HT40PLUS))
 			phymode |= AR_PHY_FC_DYN2040_PRI_CH;
 
-		if (ah->ah_extprotspacing == ATH9K_HT_EXTPROTSPACING_25)
+		if (ah->extprotspacing == ATH9K_HT_EXTPROTSPACING_25)
 			phymode |= AR_PHY_FC_DYN2040_EXT_CH;
 	}
 	REG_WRITE(ah, AR_PHY_TURBO, phymode);
@@ -1586,7 +1586,7 @@ static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
 		return false;
 
-	ah->ah_chipFullSleep = false;
+	ah->chip_fullsleep = false;
 	ath9k_hw_init_pll(ah, chan);
 	ath9k_hw_set_rfmode(ah, chan);
 
@@ -1701,7 +1701,7 @@ static void ath9k_hw_9280_spur_mitigate(struct ath_hw *ah, struct ath9k_channel 
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 	freq = centers.synth_center;
 
-	ah->ah_config.spurmode = SPUR_ENABLE_EEPROM;
+	ah->config.spurmode = SPUR_ENABLE_EEPROM;
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		cur_bb_spur = ah->eep_ops->get_spur_channel(ah, i, is2GHz);
 
@@ -2123,21 +2123,21 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 {
 	u32 saveLedState;
 	struct ath_softc *sc = ah->ah_sc;
-	struct ath9k_channel *curchan = ah->ah_curchan;
+	struct ath9k_channel *curchan = ah->curchan;
 	u32 saveDefAntenna;
 	u32 macStaId1;
 	int i, rx_chainmask, r;
 
-	ah->ah_extprotspacing = sc->ht_extprotspacing;
-	ah->ah_txchainmask = sc->tx_chainmask;
-	ah->ah_rxchainmask = sc->rx_chainmask;
+	ah->extprotspacing = sc->ht_extprotspacing;
+	ah->txchainmask = sc->tx_chainmask;
+	ah->rxchainmask = sc->rx_chainmask;
 
 	if (AR_SREV_9285(ah)) {
-		ah->ah_txchainmask &= 0x1;
-		ah->ah_rxchainmask &= 0x1;
+		ah->txchainmask &= 0x1;
+		ah->rxchainmask &= 0x1;
 	} else if (AR_SREV_9280(ah)) {
-		ah->ah_txchainmask &= 0x3;
-		ah->ah_rxchainmask &= 0x3;
+		ah->txchainmask &= 0x3;
+		ah->rxchainmask &= 0x3;
 	}
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
@@ -2147,16 +2147,16 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		ath9k_hw_getnf(ah, curchan);
 
 	if (bChannelChange &&
-	    (ah->ah_chipFullSleep != true) &&
-	    (ah->ah_curchan != NULL) &&
-	    (chan->channel != ah->ah_curchan->channel) &&
+	    (ah->chip_fullsleep != true) &&
+	    (ah->curchan != NULL) &&
+	    (chan->channel != ah->curchan->channel) &&
 	    ((chan->channelFlags & CHANNEL_ALL) ==
-	     (ah->ah_curchan->channelFlags & CHANNEL_ALL)) &&
+	     (ah->curchan->channelFlags & CHANNEL_ALL)) &&
 	    (!AR_SREV_9280(ah) || (!IS_CHAN_A_5MHZ_SPACED(chan) &&
-				   !IS_CHAN_A_5MHZ_SPACED(ah->ah_curchan)))) {
+				   !IS_CHAN_A_5MHZ_SPACED(ah->curchan)))) {
 
 		if (ath9k_hw_channel_change(ah, chan, sc->tx_chan_width)) {
-			ath9k_hw_loadnf(ah, ah->ah_curchan);
+			ath9k_hw_loadnf(ah, ah->curchan);
 			ath9k_hw_start_nfcal(ah);
 			return 0;
 		}
@@ -2223,10 +2223,10 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	REG_WRITE(ah, AR_STA_ID1, get_unaligned_le16(ah->macaddr + 4)
 		  | macStaId1
 		  | AR_STA_ID1_RTS_USE_DEF
-		  | (ah->ah_config.
+		  | (ah->config.
 		     ack_6mb ? AR_STA_ID1_ACKCTS_6MB : 0)
-		  | ah->ah_staId1Defaults);
-	ath9k_hw_set_operating_mode(ah, ah->ah_opmode);
+		  | ah->sta_id1_defaults);
+	ath9k_hw_set_operating_mode(ah, ah->opmode);
 
 	REG_WRITE(ah, AR_BSSMSKL, get_unaligned_le32(sc->bssidmask));
 	REG_WRITE(ah, AR_BSSMSKU, get_unaligned_le16(sc->bssidmask + 4));
@@ -2252,15 +2252,15 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	for (i = 0; i < AR_NUM_DCU; i++)
 		REG_WRITE(ah, AR_DQCUMASK(i), 1 << i);
 
-	ah->ah_intrTxqs = 0;
-	for (i = 0; i < ah->ah_caps.total_queues; i++)
+	ah->intr_txqs = 0;
+	for (i = 0; i < ah->caps.total_queues; i++)
 		ath9k_hw_resettxqueue(ah, i);
 
-	ath9k_hw_init_interrupt_masks(ah, ah->ah_opmode);
+	ath9k_hw_init_interrupt_masks(ah, ah->opmode);
 	ath9k_hw_init_qos(ah);
 
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
 		ath9k_enable_rfkill(ah);
 #endif
 	ath9k_hw_init_user_settings(ah);
@@ -2272,7 +2272,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	REG_WRITE(ah, AR_OBS, 8);
 
-	if (ah->ah_intrMitigation) {
+	if (ah->intr_mitigation) {
 
 		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, 500);
 		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, 2000);
@@ -2283,7 +2283,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (!ath9k_hw_init_cal(ah, chan))
 		return -EIO;;
 
-	rx_chainmask = ah->ah_rxchainmask;
+	rx_chainmask = ah->rxchainmask;
 	if ((rx_chainmask == 0x5) || (rx_chainmask == 0x3)) {
 		REG_WRITE(ah, AR_PHY_RX_CHAINMASK, rx_chainmask);
 		REG_WRITE(ah, AR_PHY_CAL_CHAINMASK, rx_chainmask);
@@ -2321,7 +2321,7 @@ bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry)
 {
 	u32 keyType;
 
-	if (entry >= ah->ah_caps.keycache_size) {
+	if (entry >= ah->caps.keycache_size) {
 		DPRINTF(ah->ah_sc, ATH_DBG_KEYCACHE,
 			"entry %u out of range\n", entry);
 		return false;
@@ -2348,7 +2348,7 @@ bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry)
 
 	}
 
-	if (ah->ah_curchan == NULL)
+	if (ah->curchan == NULL)
 		return true;
 
 	return true;
@@ -2358,7 +2358,7 @@ bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
 {
 	u32 macHi, macLo;
 
-	if (entry >= ah->ah_caps.keycache_size) {
+	if (entry >= ah->caps.keycache_size) {
 		DPRINTF(ah->ah_sc, ATH_DBG_KEYCACHE,
 			"entry %u out of range\n", entry);
 		return false;
@@ -2386,7 +2386,7 @@ bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 				 const struct ath9k_keyval *k,
 				 const u8 *mac, int xorKey)
 {
-	const struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	const struct ath9k_hw_capabilities *pCap = &ah->caps;
 	u32 key0, key1, key2, key3, key4;
 	u32 keyType;
 	u32 xorMask = xorKey ?
@@ -2462,7 +2462,7 @@ bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 		REG_WRITE(ah, AR_KEYTABLE_TYPE(entry), keyType);
 		(void) ath9k_hw_keysetmac(ah, entry, mac);
 
-		if (ah->ah_miscMode & AR_PCU_MIC_NEW_LOC_ENA) {
+		if (ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA) {
 			u32 mic0, mic1, mic2, mic3, mic4;
 
 			mic0 = get_unaligned_le32(k->kv_mic + 0);
@@ -2506,7 +2506,7 @@ bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 		(void) ath9k_hw_keysetmac(ah, entry, mac);
 	}
 
-	if (ah->ah_curchan == NULL)
+	if (ah->curchan == NULL)
 		return true;
 
 	return true;
@@ -2514,7 +2514,7 @@ bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 
 bool ath9k_hw_keyisvalid(struct ath_hw *ah, u16 entry)
 {
-	if (entry < ah->ah_caps.keycache_size) {
+	if (entry < ah->caps.keycache_size) {
 		u32 val = REG_READ(ah, AR_KEYTABLE_MAC1(entry));
 		if (val & AR_KEYTABLE_VALID)
 			return true;
@@ -2544,7 +2544,7 @@ static void ath9k_set_power_network_sleep(struct ath_hw *ah, int setChip)
 {
 	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
 	if (setChip) {
-		struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+		struct ath9k_hw_capabilities *pCap = &ah->caps;
 
 		if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
 			REG_WRITE(ah, AR_RTC_FORCE_WAKE,
@@ -2608,7 +2608,7 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 	};
 
 	DPRINTF(ah->ah_sc, ATH_DBG_POWER_MGMT, "%s -> %s (%s)\n",
-		modes[ah->ah_power_mode], modes[mode],
+		modes[ah->power_mode], modes[mode],
 		setChip ? "set chip " : "");
 
 	switch (mode) {
@@ -2617,7 +2617,7 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 		break;
 	case ATH9K_PM_FULL_SLEEP:
 		ath9k_set_power_sleep(ah, setChip);
-		ah->ah_chipFullSleep = true;
+		ah->chip_fullsleep = true;
 		break;
 	case ATH9K_PM_NETWORK_SLEEP:
 		ath9k_set_power_network_sleep(ah, setChip);
@@ -2627,7 +2627,7 @@ bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode)
 			"Unknown power mode %u\n", mode);
 		return false;
 	}
-	ah->ah_power_mode = mode;
+	ah->power_mode = mode;
 
 	return status;
 }
@@ -2636,19 +2636,19 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 {
 	u8 i;
 
-	if (ah->ah_isPciExpress != true)
+	if (ah->is_pciexpress != true)
 		return;
 
-	if (ah->ah_config.pcie_powersave_enable == 2)
+	if (ah->config.pcie_powersave_enable == 2)
 		return;
 
 	if (restore)
 		return;
 
 	if (AR_SREV_9280_20_OR_LATER(ah)) {
-		for (i = 0; i < ah->ah_iniPcieSerdes.ia_rows; i++) {
-			REG_WRITE(ah, INI_RA(&ah->ah_iniPcieSerdes, i, 0),
-				  INI_RA(&ah->ah_iniPcieSerdes, i, 1));
+		for (i = 0; i < ah->iniPcieSerdes.ia_rows; i++) {
+			REG_WRITE(ah, INI_RA(&ah->iniPcieSerdes, i, 0),
+				  INI_RA(&ah->iniPcieSerdes, i, 1));
 		}
 		udelay(1000);
 	} else if (AR_SREV_9280(ah) &&
@@ -2660,7 +2660,7 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 		REG_WRITE(ah, AR_PCIE_SERDES, 0x13160820);
 		REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980560);
 
-		if (ah->ah_config.pcie_clock_req)
+		if (ah->config.pcie_clock_req)
 			REG_WRITE(ah, AR_PCIE_SERDES, 0x401deffc);
 		else
 			REG_WRITE(ah, AR_PCIE_SERDES, 0x401deffd);
@@ -2687,8 +2687,8 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 
 	REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 
-	if (ah->ah_config.pcie_waen) {
-		REG_WRITE(ah, AR_WA, ah->ah_config.pcie_waen);
+	if (ah->config.pcie_waen) {
+		REG_WRITE(ah, AR_WA, ah->config.pcie_waen);
 	} else {
 		if (AR_SREV_9285(ah))
 			REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);
@@ -2726,7 +2726,7 @@ bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 {
 	u32 isr = 0;
 	u32 mask2 = 0;
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	u32 sync_cause = 0;
 	bool fatal_int = false;
 
@@ -2776,7 +2776,7 @@ bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 
 		*masked = isr & ATH9K_INT_COMMON;
 
-		if (ah->ah_intrMitigation) {
+		if (ah->intr_mitigation) {
 			if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM))
 				*masked |= ATH9K_INT_RX;
 		}
@@ -2791,12 +2791,12 @@ bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 			*masked |= ATH9K_INT_TX;
 
 			s0_s = REG_READ(ah, AR_ISR_S0_S);
-			ah->ah_intrTxqs |= MS(s0_s, AR_ISR_S0_QCU_TXOK);
-			ah->ah_intrTxqs |= MS(s0_s, AR_ISR_S0_QCU_TXDESC);
+			ah->intr_txqs |= MS(s0_s, AR_ISR_S0_QCU_TXOK);
+			ah->intr_txqs |= MS(s0_s, AR_ISR_S0_QCU_TXDESC);
 
 			s1_s = REG_READ(ah, AR_ISR_S1_S);
-			ah->ah_intrTxqs |= MS(s1_s, AR_ISR_S1_QCU_TXERR);
-			ah->ah_intrTxqs |= MS(s1_s, AR_ISR_S1_QCU_TXEOL);
+			ah->intr_txqs |= MS(s1_s, AR_ISR_S1_QCU_TXERR);
+			ah->intr_txqs |= MS(s1_s, AR_ISR_S1_QCU_TXEOL);
 		}
 
 		if (isr & AR_ISR_RXORN) {
@@ -2855,14 +2855,14 @@ bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 
 enum ath9k_int ath9k_hw_intrget(struct ath_hw *ah)
 {
-	return ah->ah_maskReg;
+	return ah->mask_reg;
 }
 
 enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 {
-	u32 omask = ah->ah_maskReg;
+	u32 omask = ah->mask_reg;
 	u32 mask, mask2;
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 
 	DPRINTF(ah->ah_sc, ATH_DBG_INTERRUPT, "0x%x => 0x%x\n", omask, ints);
 
@@ -2883,18 +2883,18 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 	mask2 = 0;
 
 	if (ints & ATH9K_INT_TX) {
-		if (ah->ah_txOkInterruptMask)
+		if (ah->txok_interrupt_mask)
 			mask |= AR_IMR_TXOK;
-		if (ah->ah_txDescInterruptMask)
+		if (ah->txdesc_interrupt_mask)
 			mask |= AR_IMR_TXDESC;
-		if (ah->ah_txErrInterruptMask)
+		if (ah->txerr_interrupt_mask)
 			mask |= AR_IMR_TXERR;
-		if (ah->ah_txEolInterruptMask)
+		if (ah->txeol_interrupt_mask)
 			mask |= AR_IMR_TXEOL;
 	}
 	if (ints & ATH9K_INT_RX) {
 		mask |= AR_IMR_RXERR;
-		if (ah->ah_intrMitigation)
+		if (ah->intr_mitigation)
 			mask |= AR_IMR_RXMINTR | AR_IMR_RXINTM;
 		else
 			mask |= AR_IMR_RXOK | AR_IMR_RXDESC;
@@ -2932,7 +2932,7 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 					   AR_IMR_S2_TSFOOR |
 					   AR_IMR_S2_GTT | AR_IMR_S2_CST);
 	REG_WRITE(ah, AR_IMR_S2, mask | mask2);
-	ah->ah_maskReg = ints;
+	ah->mask_reg = ints;
 
 	if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
 		if (ints & ATH9K_INT_TIM_TIMER)
@@ -2970,9 +2970,9 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 {
 	int flags = 0;
 
-	ah->ah_beaconInterval = beacon_period;
+	ah->beacon_interval = beacon_period;
 
-	switch (ah->ah_opmode) {
+	switch (ah->opmode) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_MONITOR:
 		REG_WRITE(ah, AR_NEXT_TBTT_TIMER, TU_TO_USEC(next_beacon));
@@ -2985,18 +2985,18 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 			    AR_TXCFG_ADHOC_BEACON_ATIM_TX_POLICY);
 		REG_WRITE(ah, AR_NEXT_NDP_TIMER,
 			  TU_TO_USEC(next_beacon +
-				     (ah->ah_atimWindow ? ah->
-				      ah_atimWindow : 1)));
+				     (ah->atim_window ? ah->
+				      atim_window : 1)));
 		flags |= AR_NDP_TIMER_EN;
 	case NL80211_IFTYPE_AP:
 		REG_WRITE(ah, AR_NEXT_TBTT_TIMER, TU_TO_USEC(next_beacon));
 		REG_WRITE(ah, AR_NEXT_DMA_BEACON_ALERT,
 			  TU_TO_USEC(next_beacon -
-				     ah->ah_config.
+				     ah->config.
 				     dma_beacon_response_time));
 		REG_WRITE(ah, AR_NEXT_SWBA,
 			  TU_TO_USEC(next_beacon -
-				     ah->ah_config.
+				     ah->config.
 				     sw_beacon_response_time));
 		flags |=
 			AR_TBTT_TIMER_EN | AR_DBA_TIMER_EN | AR_SWBA_TIMER_EN;
@@ -3004,7 +3004,7 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 	default:
 		DPRINTF(ah->ah_sc, ATH_DBG_BEACON,
 			"%s: unsupported opmode: %d\n",
-			__func__, ah->ah_opmode);
+			__func__, ah->opmode);
 		return;
 		break;
 	}
@@ -3027,7 +3027,7 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 				    const struct ath9k_beacon_state *bs)
 {
 	u32 nextTbtt, beaconintval, dtimperiod, beacontimeout;
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 
 	REG_WRITE(ah, AR_NEXT_TBTT_TIMER, TU_TO_USEC(bs->bs_nexttbtt));
 
@@ -3089,7 +3089,7 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 
 bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 {
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	u16 capField = 0, eeval;
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_0);
@@ -3101,7 +3101,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	capField = ah->eep_ops->get_eeprom(ah, EEP_OP_CAP);
 
-	if (ah->ah_opmode != NL80211_IFTYPE_AP &&
+	if (ah->opmode != NL80211_IFTYPE_AP &&
 	    ah->hw_version.subvendorid == AR_SUBVENDOR_ID_NEW_A) {
 		if (ah->regulatory.current_rd == 0x64 ||
 		    ah->regulatory.current_rd == 0x65)
@@ -3117,7 +3117,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	if (eeval & AR5416_OPFLAGS_11A) {
 		set_bit(ATH9K_MODE_11A, pCap->wireless_modes);
-		if (ah->ah_config.ht_enable) {
+		if (ah->config.ht_enable) {
 			if (!(eeval & AR5416_OPFLAGS_N_5G_HT20))
 				set_bit(ATH9K_MODE_11NA_HT20,
 					pCap->wireless_modes);
@@ -3133,7 +3133,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	if (eeval & AR5416_OPFLAGS_11G) {
 		set_bit(ATH9K_MODE_11B, pCap->wireless_modes);
 		set_bit(ATH9K_MODE_11G, pCap->wireless_modes);
-		if (ah->ah_config.ht_enable) {
+		if (ah->config.ht_enable) {
 			if (!(eeval & AR5416_OPFLAGS_N_2G_HT20))
 				set_bit(ATH9K_MODE_11NG_HT20,
 					pCap->wireless_modes);
@@ -3147,7 +3147,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	pCap->tx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_TX_MASK);
-	if ((ah->ah_isPciExpress)
+	if ((ah->is_pciexpress)
 	    || (eeval & AR5416_OPFLAGS_11A)) {
 		pCap->rx_chainmask =
 			ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
@@ -3157,7 +3157,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	if (!(AR_SREV_9280(ah) && (ah->hw_version.macRev == 0)))
-		ah->ah_miscMode |= AR_PCU_MIC_NEW_LOC_ENA;
+		ah->misc_mode |= AR_PCU_MIC_NEW_LOC_ENA;
 
 	pCap->low_2ghz_chan = 2312;
 	pCap->high_2ghz_chan = 2732;
@@ -3175,7 +3175,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	pCap->hw_caps |= ATH9K_HW_CAP_CHAN_SPREAD;
 
-	if (ah->ah_config.ht_enable)
+	if (ah->config.ht_enable)
 		pCap->hw_caps |= ATH9K_HW_CAP_HT;
 	else
 		pCap->hw_caps &= ~ATH9K_HW_CAP_HT;
@@ -3226,12 +3226,12 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	pCap->hw_caps |= ATH9K_HW_CAP_ENHANCEDPM;
 
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-	ah->ah_rfsilent = ah->eep_ops->get_eeprom(ah, EEP_RF_SILENT);
-	if (ah->ah_rfsilent & EEP_RFSILENT_ENABLED) {
-		ah->ah_rfkill_gpio =
-			MS(ah->ah_rfsilent, EEP_RFSILENT_GPIO_SEL);
-		ah->ah_rfkill_polarity =
-			MS(ah->ah_rfsilent, EEP_RFSILENT_POLARITY);
+	ah->rfsilent = ah->eep_ops->get_eeprom(ah, EEP_RF_SILENT);
+	if (ah->rfsilent & EEP_RFSILENT_ENABLED) {
+		ah->rfkill_gpio =
+			MS(ah->rfsilent, EEP_RFSILENT_GPIO_SEL);
+		ah->rfkill_polarity =
+			MS(ah->rfsilent, EEP_RFSILENT_POLARITY);
 
 		pCap->hw_caps |= ATH9K_HW_CAP_RFSILENT;
 	}
@@ -3272,8 +3272,8 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	if (AR_SREV_9280_10_OR_LATER(ah) && btcoex_enable) {
 		pCap->hw_caps |= ATH9K_HW_CAP_BT_COEX;
-		ah->ah_btactive_gpio = 6;
-		ah->ah_wlanactive_gpio = 5;
+		ah->btactive_gpio = 6;
+		ah->wlanactive_gpio = 5;
 	}
 
 	return true;
@@ -3282,7 +3282,7 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 *result)
 {
-	const struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	const struct ath9k_hw_capabilities *pCap = &ah->caps;
 
 	switch (type) {
 	case ATH9K_CAP_CIPHER:
@@ -3302,17 +3302,17 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 		case 0:
 			return true;
 		case 1:
-			return (ah->ah_staId1Defaults &
+			return (ah->sta_id1_defaults &
 				AR_STA_ID1_CRPT_MIC_ENABLE) ? true :
 			false;
 		}
 	case ATH9K_CAP_TKIP_SPLIT:
-		return (ah->ah_miscMode & AR_PCU_MIC_NEW_LOC_ENA) ?
+		return (ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA) ?
 			false : true;
 	case ATH9K_CAP_WME_TKIPMIC:
 		return 0;
 	case ATH9K_CAP_PHYCOUNTERS:
-		return ah->ah_hasHwPhyCounters ? 0 : -ENXIO;
+		return ah->has_hw_phycounters ? 0 : -ENXIO;
 	case ATH9K_CAP_DIVERSITY:
 		return (REG_READ(ah, AR_PHY_CCK_DETECT) &
 			AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV) ?
@@ -3327,14 +3327,14 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			if (REG_READ(ah, AR_STA_ID1) & AR_STA_ID1_ADHOC) {
 				return false;
 			} else {
-				return (ah->ah_staId1Defaults &
+				return (ah->sta_id1_defaults &
 					AR_STA_ID1_MCAST_KSRCH) ? true :
 					false;
 			}
 		}
 		return false;
 	case ATH9K_CAP_TSF_ADJUST:
-		return (ah->ah_miscMode & AR_PCU_TX_ADD_TSF) ?
+		return (ah->misc_mode & AR_PCU_TX_ADD_TSF) ?
 			true : false;
 	case ATH9K_CAP_RFSILENT:
 		if (capability == 3)
@@ -3373,10 +3373,10 @@ bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 	switch (type) {
 	case ATH9K_CAP_TKIP_MIC:
 		if (setting)
-			ah->ah_staId1Defaults |=
+			ah->sta_id1_defaults |=
 				AR_STA_ID1_CRPT_MIC_ENABLE;
 		else
-			ah->ah_staId1Defaults &=
+			ah->sta_id1_defaults &=
 				~AR_STA_ID1_CRPT_MIC_ENABLE;
 		return true;
 	case ATH9K_CAP_DIVERSITY:
@@ -3389,15 +3389,15 @@ bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 		return true;
 	case ATH9K_CAP_MCAST_KEYSRCH:
 		if (setting)
-			ah->ah_staId1Defaults |= AR_STA_ID1_MCAST_KSRCH;
+			ah->sta_id1_defaults |= AR_STA_ID1_MCAST_KSRCH;
 		else
-			ah->ah_staId1Defaults &= ~AR_STA_ID1_MCAST_KSRCH;
+			ah->sta_id1_defaults &= ~AR_STA_ID1_MCAST_KSRCH;
 		return true;
 	case ATH9K_CAP_TSF_ADJUST:
 		if (setting)
-			ah->ah_miscMode |= AR_PCU_TX_ADD_TSF;
+			ah->misc_mode |= AR_PCU_TX_ADD_TSF;
 		else
-			ah->ah_miscMode &= ~AR_PCU_TX_ADD_TSF;
+			ah->misc_mode &= ~AR_PCU_TX_ADD_TSF;
 		return true;
 	default:
 		return false;
@@ -3440,7 +3440,7 @@ void ath9k_hw_cfg_gpio_input(struct ath_hw *ah, u32 gpio)
 {
 	u32 gpio_shift;
 
-	ASSERT(gpio < ah->ah_caps.num_gpio_pins);
+	ASSERT(gpio < ah->caps.num_gpio_pins);
 
 	gpio_shift = gpio << 1;
 
@@ -3455,7 +3455,7 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 #define MS_REG_READ(x, y) \
 	(MS(REG_READ(ah, AR_GPIO_IN_OUT), x##_GPIO_IN_VAL) & (AR_GPIO_BIT(y)))
 
-	if (gpio >= ah->ah_caps.num_gpio_pins)
+	if (gpio >= ah->caps.num_gpio_pins)
 		return 0xffffffff;
 
 	if (AR_SREV_9285_10_OR_LATER(ah))
@@ -3496,7 +3496,7 @@ void ath9k_enable_rfkill(struct ath_hw *ah)
 	REG_CLR_BIT(ah, AR_GPIO_INPUT_MUX2,
 		    AR_GPIO_INPUT_MUX2_RFSILENT);
 
-	ath9k_hw_cfg_gpio_input(ah, ah->ah_rfkill_gpio);
+	ath9k_hw_cfg_gpio_input(ah, ah->rfkill_gpio);
 	REG_SET_BIT(ah, AR_PHY_TEST, RFSILENT_BB);
 }
 #endif
@@ -3534,7 +3534,7 @@ bool ath9k_hw_setantennaswitch(struct ath_hw *ah,
 			*antenna_cfgd = true;
 			break;
 		case ATH9K_ANT_FIXED_B:
-			if (ah->ah_caps.tx_chainmask >
+			if (ah->caps.tx_chainmask >
 			    ATH9K_ANTENNA1_CHAINMASK) {
 				*tx_chainmask = ATH9K_ANTENNA1_CHAINMASK;
 			}
@@ -3550,7 +3550,7 @@ bool ath9k_hw_setantennaswitch(struct ath_hw *ah,
 			break;
 		}
 	} else {
-		ah->ah_diversityControl = settings;
+		ah->diversity_control = settings;
 	}
 
 	return true;
@@ -3608,7 +3608,7 @@ bool ath9k_hw_disable(struct ath_hw *ah)
 
 bool ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit)
 {
-	struct ath9k_channel *chan = ah->ah_curchan;
+	struct ath9k_channel *chan = ah->curchan;
 	struct ieee80211_channel *channel = chan->chan;
 
 	ah->regulatory.power_limit = min(limit, (u32) MAX_RATE_POWER);
@@ -3631,7 +3631,7 @@ void ath9k_hw_setmac(struct ath_hw *ah, const u8 *mac)
 
 void ath9k_hw_setopmode(struct ath_hw *ah)
 {
-	ath9k_hw_set_operating_mode(ah, ah->ah_opmode);
+	ath9k_hw_set_operating_mode(ah, ah->opmode);
 }
 
 void ath9k_hw_setmcastfilter(struct ath_hw *ah, u32 filter0, u32 filter1)
@@ -3690,9 +3690,9 @@ void ath9k_hw_reset_tsf(struct ath_hw *ah)
 bool ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting)
 {
 	if (setting)
-		ah->ah_miscMode |= AR_PCU_TX_ADD_TSF;
+		ah->misc_mode |= AR_PCU_TX_ADD_TSF;
 	else
-		ah->ah_miscMode &= ~AR_PCU_TX_ADD_TSF;
+		ah->misc_mode &= ~AR_PCU_TX_ADD_TSF;
 
 	return true;
 }
@@ -3701,11 +3701,11 @@ bool ath9k_hw_setslottime(struct ath_hw *ah, u32 us)
 {
 	if (us < ATH9K_SLOT_TIME_9 || us > ath9k_hw_mac_to_usec(ah, 0xffff)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_RESET, "bad slot time %u\n", us);
-		ah->ah_slottime = (u32) -1;
+		ah->slottime = (u32) -1;
 		return false;
 	} else {
 		REG_WRITE(ah, AR_D_GBL_IFS_SLOT, ath9k_hw_mac_to_clks(ah, us));
-		ah->ah_slottime = us;
+		ah->slottime = us;
 		return true;
 	}
 }
@@ -3715,7 +3715,7 @@ void ath9k_hw_set11nmac2040(struct ath_hw *ah, enum ath9k_ht_macmode mode)
 	u32 macmode;
 
 	if (mode == ATH9K_HT_MACMODE_2040 &&
-	    !ah->ah_config.cwm_ignore_extcca)
+	    !ah->config.cwm_ignore_extcca)
 		macmode = AR_2040_JOINED_RX_CLEAR;
 	else
 		macmode = 0;
@@ -3740,12 +3740,12 @@ void ath9k_hw_btcoex_enable(struct ath_hw *ah)
 	/* Set input mux for bt_active to gpio pin */
 	REG_RMW_FIELD(ah, AR_GPIO_INPUT_MUX1,
 			AR_GPIO_INPUT_MUX1_BT_ACTIVE,
-			ah->ah_btactive_gpio);
+			ah->btactive_gpio);
 
 	/* Configure the desired gpio port for input */
-	ath9k_hw_cfg_gpio_input(ah, ah->ah_btactive_gpio);
+	ath9k_hw_cfg_gpio_input(ah, ah->btactive_gpio);
 
 	/* Configure the desired GPIO port for TX_FRAME output */
-	ath9k_hw_cfg_output(ah, ah->ah_wlanactive_gpio,
+	ath9k_hw_cfg_output(ah, ah->wlanactive_gpio,
 			    AR_GPIO_OUTPUT_MUX_AS_TX_FRAME);
 }

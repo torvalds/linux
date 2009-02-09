@@ -441,7 +441,7 @@ struct ath9k_country_entry {
 	u8 iso[3];
 };
 
-enum hal_eep_map {
+enum ath9k_eep_map {
 	EEP_MAP_DEFAULT = 0x0,
 	EEP_MAP_4KBITS,
 	EEP_MAP_MAX

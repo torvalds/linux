@@ -135,7 +135,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 		 * discard the frame. Enable this if you want to see
 		 * error frames in Monitor mode.
 		 */
-		if (sc->sc_ah->ah_opmode != NL80211_IFTYPE_MONITOR)
+		if (sc->sc_ah->opmode != NL80211_IFTYPE_MONITOR)
 			goto rx_next;
 	} else if (ds->ds_rxstat.rs_status != 0) {
 		if (ds->ds_rxstat.rs_status & ATH9K_RXERR_CRC)
@@ -161,7 +161,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 		 * decryption and MIC failures. For monitor mode,
 		 * we also ignore the CRC error.
 		 */
-		if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_MONITOR) {
+		if (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR) {
 			if (ds->ds_rxstat.rs_status &
 			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
 			      ATH9K_RXERR_CRC))
@@ -241,7 +241,7 @@ static void ath_opmode_init(struct ath_softc *sc)
 	ath9k_hw_setrxfilter(ah, rfilt);
 
 	/* configure bssid mask */
-	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
 		ath9k_hw_setbssidmask(sc);
 
 	/* configure operational mode */
@@ -360,13 +360,13 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		| ATH9K_RX_FILTER_MCAST;
 
 	/* If not a STA, enable processing of Probe Requests */
-	if (sc->sc_ah->ah_opmode != NL80211_IFTYPE_STATION)
+	if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
 	/* Can't set HOSTAP into promiscous mode */
-	if (((sc->sc_ah->ah_opmode != NL80211_IFTYPE_AP) &&
+	if (((sc->sc_ah->opmode != NL80211_IFTYPE_AP) &&
 	     (sc->rx.rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (sc->sc_ah->ah_opmode == NL80211_IFTYPE_MONITOR)) {
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR)) {
 		rfilt |= ATH9K_RX_FILTER_PROM;
 		/* ??? To prevent from sending ACK */
 		rfilt &= ~ATH9K_RX_FILTER_UCAST;
@@ -375,13 +375,13 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->rx.rxfilter & FIF_CONTROL)
 		rfilt |= ATH9K_RX_FILTER_CONTROL;
 
-	if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION ||
-	    sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC)
+	if (sc->sc_ah->opmode == NL80211_IFTYPE_STATION ||
+	    sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
 	/* If in HOSTAP mode, want to enable reception of PSPOLL frames
 	   & beacon frames */
-	if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP)
+	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP)
 		rfilt |= (ATH9K_RX_FILTER_BEACON | ATH9K_RX_FILTER_PSPOLL);
 
 	return rfilt;
