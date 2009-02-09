@@ -809,7 +809,7 @@ static void ath_txq_drain_pending_buffers(struct ath_softc *sc,
 
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_tx_queue_info qi;
 	int qnum;
 
@@ -926,7 +926,7 @@ struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb)
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *qinfo)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	int error = 0;
 	struct ath9k_tx_queue_info qi;
 
@@ -1047,7 +1047,7 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 
 void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_txq *txq;
 	int i, npend = 0;
 
@@ -1165,7 +1165,7 @@ int ath_tx_setup(struct ath_softc *sc, int haltype)
 static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 			     struct list_head *head)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf;
 
 	/*
@@ -1580,7 +1580,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	struct list_head bf_head;
 	struct ath_desc *ds;
 	struct ath_atx_tid *tid;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	int frm_type;
 
 	frm_type = get_hw_packet_type(skb);
@@ -1879,7 +1879,7 @@ static void ath_wake_mac80211_queue(struct ath_softc *sc, struct ath_txq *txq)
 
 static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf, *lastbf, *bf_held = NULL;
 	struct list_head bf_head;
 	struct ath_desc *ds;

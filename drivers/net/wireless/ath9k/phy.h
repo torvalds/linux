@@ -17,19 +17,19 @@
 #ifndef PHY_H
 #define PHY_H
 
-bool ath9k_hw_ar9280_set_channel(struct ath_hal *ah,
+bool ath9k_hw_ar9280_set_channel(struct ath_hw *ah,
 				 struct ath9k_channel
 				 *chan);
-bool ath9k_hw_set_channel(struct ath_hal *ah,
+bool ath9k_hw_set_channel(struct ath_hw *ah,
 			  struct ath9k_channel *chan);
-void ath9k_hw_write_regs(struct ath_hal *ah, u32 modesIndex,
+void ath9k_hw_write_regs(struct ath_hw *ah, u32 modesIndex,
 			 u32 freqIndex, int regWrites);
-bool ath9k_hw_set_rf_regs(struct ath_hal *ah,
+bool ath9k_hw_set_rf_regs(struct ath_hw *ah,
 			  struct ath9k_channel *chan,
 			  u16 modesIndex);
-void ath9k_hw_decrease_chain_power(struct ath_hal *ah,
+void ath9k_hw_decrease_chain_power(struct ath_hw *ah,
 				   struct ath9k_channel *chan);
-bool ath9k_hw_init_rf(struct ath_hal *ah,
+bool ath9k_hw_init_rf(struct ath_hw *ah,
 		      int *status);
 
 #define AR_PHY_BASE     0x9800
@@ -533,7 +533,7 @@ bool ath9k_hw_init_rf(struct ath_hal *ah,
 #define ATH9K_KEY_XOR                 0xaa
 
 #define ATH9K_IS_MIC_ENABLED(ah)					\
-	(AH5416(ah)->ah_staId1Defaults & AR_STA_ID1_CRPT_MIC_ENABLE)
+	((ah)->ah_staId1Defaults & AR_STA_ID1_CRPT_MIC_ENABLE)
 
 #define ANTSWAP_AB 0x0001
 #define REDUCE_CHAIN_0 0x00000050

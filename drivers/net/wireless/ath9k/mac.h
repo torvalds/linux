@@ -619,58 +619,58 @@ enum ath9k_ht_extprotspacing {
 	ATH9K_HT_EXTPROTSPACING_25 = 1,
 };
 
-struct ath_hal;
+struct ath_hw;
 struct ath9k_channel;
 struct ath_rate_table;
 
-u32 ath9k_hw_gettxbuf(struct ath_hal *ah, u32 q);
-bool ath9k_hw_puttxbuf(struct ath_hal *ah, u32 q, u32 txdp);
-bool ath9k_hw_txstart(struct ath_hal *ah, u32 q);
-u32 ath9k_hw_numtxpending(struct ath_hal *ah, u32 q);
-bool ath9k_hw_updatetxtriglevel(struct ath_hal *ah, bool bIncTrigLevel);
-bool ath9k_hw_stoptxdma(struct ath_hal *ah, u32 q);
-bool ath9k_hw_filltxdesc(struct ath_hal *ah, struct ath_desc *ds,
+u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q);
+bool ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp);
+bool ath9k_hw_txstart(struct ath_hw *ah, u32 q);
+u32 ath9k_hw_numtxpending(struct ath_hw *ah, u32 q);
+bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel);
+bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q);
+bool ath9k_hw_filltxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			 u32 segLen, bool firstSeg,
 			 bool lastSeg, const struct ath_desc *ds0);
-void ath9k_hw_cleartxdesc(struct ath_hal *ah, struct ath_desc *ds);
-int ath9k_hw_txprocdesc(struct ath_hal *ah, struct ath_desc *ds);
-void ath9k_hw_set11n_txdesc(struct ath_hal *ah, struct ath_desc *ds,
+void ath9k_hw_cleartxdesc(struct ath_hw *ah, struct ath_desc *ds);
+int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds);
+void ath9k_hw_set11n_txdesc(struct ath_hw *ah, struct ath_desc *ds,
 			    u32 pktLen, enum ath9k_pkt_type type, u32 txPower,
 			    u32 keyIx, enum ath9k_key_type keyType, u32 flags);
-void ath9k_hw_set11n_ratescenario(struct ath_hal *ah, struct ath_desc *ds,
+void ath9k_hw_set11n_ratescenario(struct ath_hw *ah, struct ath_desc *ds,
 				  struct ath_desc *lastds,
 				  u32 durUpdateEn, u32 rtsctsRate,
 				  u32 rtsctsDuration,
 				  struct ath9k_11n_rate_series series[],
 				  u32 nseries, u32 flags);
-void ath9k_hw_set11n_aggr_first(struct ath_hal *ah, struct ath_desc *ds,
+void ath9k_hw_set11n_aggr_first(struct ath_hw *ah, struct ath_desc *ds,
 				u32 aggrLen);
-void ath9k_hw_set11n_aggr_middle(struct ath_hal *ah, struct ath_desc *ds,
+void ath9k_hw_set11n_aggr_middle(struct ath_hw *ah, struct ath_desc *ds,
 				 u32 numDelims);
-void ath9k_hw_set11n_aggr_last(struct ath_hal *ah, struct ath_desc *ds);
-void ath9k_hw_clr11n_aggr(struct ath_hal *ah, struct ath_desc *ds);
-void ath9k_hw_set11n_burstduration(struct ath_hal *ah, struct ath_desc *ds,
+void ath9k_hw_set11n_aggr_last(struct ath_hw *ah, struct ath_desc *ds);
+void ath9k_hw_clr11n_aggr(struct ath_hw *ah, struct ath_desc *ds);
+void ath9k_hw_set11n_burstduration(struct ath_hw *ah, struct ath_desc *ds,
 				   u32 burstDuration);
-void ath9k_hw_set11n_virtualmorefrag(struct ath_hal *ah, struct ath_desc *ds,
+void ath9k_hw_set11n_virtualmorefrag(struct ath_hw *ah, struct ath_desc *ds,
 				     u32 vmf);
-void ath9k_hw_gettxintrtxqs(struct ath_hal *ah, u32 *txqs);
-bool ath9k_hw_set_txq_props(struct ath_hal *ah, int q,
+void ath9k_hw_gettxintrtxqs(struct ath_hw *ah, u32 *txqs);
+bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 			    const struct ath9k_tx_queue_info *qinfo);
-bool ath9k_hw_get_txq_props(struct ath_hal *ah, int q,
+bool ath9k_hw_get_txq_props(struct ath_hw *ah, int q,
 			    struct ath9k_tx_queue_info *qinfo);
-int ath9k_hw_setuptxqueue(struct ath_hal *ah, enum ath9k_tx_queue type,
+int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 			  const struct ath9k_tx_queue_info *qinfo);
-bool ath9k_hw_releasetxqueue(struct ath_hal *ah, u32 q);
-bool ath9k_hw_resettxqueue(struct ath_hal *ah, u32 q);
-int ath9k_hw_rxprocdesc(struct ath_hal *ah, struct ath_desc *ds,
+bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q);
+bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q);
+int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 			u32 pa, struct ath_desc *nds, u64 tsf);
-bool ath9k_hw_setuprxdesc(struct ath_hal *ah, struct ath_desc *ds,
+bool ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags);
-bool ath9k_hw_setrxabort(struct ath_hal *ah, bool set);
-void ath9k_hw_putrxbuf(struct ath_hal *ah, u32 rxdp);
-void ath9k_hw_rxena(struct ath_hal *ah);
-void ath9k_hw_startpcureceive(struct ath_hal *ah);
-void ath9k_hw_stoppcurecv(struct ath_hal *ah);
-bool ath9k_hw_stopdmarecv(struct ath_hal *ah);
+bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set);
+void ath9k_hw_putrxbuf(struct ath_hw *ah, u32 rxdp);
+void ath9k_hw_rxena(struct ath_hw *ah);
+void ath9k_hw_startpcureceive(struct ath_hw *ah);
+void ath9k_hw_stoppcurecv(struct ath_hw *ah);
+bool ath9k_hw_stopdmarecv(struct ath_hw *ah);
 
 #endif /* MAC_H */

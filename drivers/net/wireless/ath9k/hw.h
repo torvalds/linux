@@ -42,8 +42,8 @@
 #define AR5416_MAGIC		0x19641014
 
 /* Register read/write primitives */
-#define REG_WRITE(_ah, _reg, _val) iowrite32(_val, _ah->ah_sh + _reg)
-#define REG_READ(_ah, _reg) ioread32(_ah->ah_sh + _reg)
+#define REG_WRITE(_ah, _reg, _val) iowrite32(_val, _ah->ah_sc->mem + _reg)
+#define REG_READ(_ah, _reg) ioread32(_ah->ah_sc->mem + _reg)
 
 #define SM(_v, _f)  (((_v) << _f##_S) & _f)
 #define MS(_v, _f)  (((_v) & _f) >> _f##_S)
@@ -417,46 +417,38 @@ struct ath9k_hw_version {
 	u16 analog2GhzRev;
 };
 
-struct ath_hal {
-	struct ath9k_hw_version hw_version;
-	void __iomem *ah_sh;
+struct ath_hw {
 	struct ath_softc *ah_sc;
-
-	enum nl80211_iftype ah_opmode;
+	struct ath9k_hw_version hw_version;
 	struct ath9k_ops_config ah_config;
 	struct ath9k_hw_capabilities ah_caps;
 	struct ath9k_regulatory regulatory;
-	u32 ah_flags;
-	u8 macaddr[ETH_ALEN];
-
-	enum ath9k_power_mode ah_power_mode;
-	enum ath9k_power_mode ah_restore_mode;
-
 	struct ath9k_channel ah_channels[38];
 	struct ath9k_channel *ah_curchan;
 
+	union {
+		struct ar5416_eeprom_def def;
+		struct ar5416_eeprom_4k map4k;
+	} ah_eeprom;
+
+	bool sw_mgmt_crypto;
 	bool ah_isPciExpress;
+	u8 macaddr[ETH_ALEN];
 	u16 ah_txTrigLevel;
 	u16 ah_rfsilent;
 	u32 ah_rfkill_gpio;
 	u32 ah_rfkill_polarity;
 	u32 ah_btactive_gpio;
 	u32 ah_wlanactive_gpio;
+	u32 ah_flags;
+	enum nl80211_iftype ah_opmode;
+
+	enum ath9k_power_mode ah_power_mode;
+	enum ath9k_power_mode ah_restore_mode;
 
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
-
-	bool sw_mgmt_crypto;
-};
-
-struct ath_hal_5416 {
-	struct ath_hal ah;
-	union {
-		struct ar5416_eeprom_def def;
-		struct ar5416_eeprom_4k map4k;
-	} ah_eeprom;
 	struct ar5416Stats ah_stats;
 	struct ath9k_tx_queue_info ah_txq[ATH9K_NUM_TX_QUEUES];
-	void __iomem *ah_cal_mem;
 
 	int16_t ah_curchanRadIndex;
 	u32 ah_maskReg;
@@ -574,85 +566,83 @@ struct ath_hal_5416 {
 	/* To indicate EEPROM mapping used */
 	enum hal_eep_map ah_eep_map;
 };
-#define AH5416(_ah) ((struct ath_hal_5416 *)(_ah))
 
 /* Attach, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
-void ath9k_hw_detach(struct ath_hal *ah);
-struct ath_hal *ath9k_hw_attach(u16 devid, struct ath_softc *sc,
-				void __iomem *mem, int *error);
-void ath9k_hw_rfdetach(struct ath_hal *ah);
-int ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
+void ath9k_hw_detach(struct ath_hw *ah);
+struct ath_hw *ath9k_hw_attach(u16 devid, struct ath_softc *sc, int *error);
+void ath9k_hw_rfdetach(struct ath_hw *ah);
+int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
-bool ath9k_hw_fill_cap_info(struct ath_hal *ah);
-bool ath9k_hw_getcapability(struct ath_hal *ah, enum ath9k_capability_type type,
+bool ath9k_hw_fill_cap_info(struct ath_hw *ah);
+bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 *result);
-bool ath9k_hw_setcapability(struct ath_hal *ah, enum ath9k_capability_type type,
+bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 setting, int *status);
 
 /* Key Cache Management */
-bool ath9k_hw_keyreset(struct ath_hal *ah, u16 entry);
-bool ath9k_hw_keysetmac(struct ath_hal *ah, u16 entry, const u8 *mac);
-bool ath9k_hw_set_keycache_entry(struct ath_hal *ah, u16 entry,
+bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry);
+bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac);
+bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 				 const struct ath9k_keyval *k,
 				 const u8 *mac, int xorKey);
-bool ath9k_hw_keyisvalid(struct ath_hal *ah, u16 entry);
+bool ath9k_hw_keyisvalid(struct ath_hw *ah, u16 entry);
 
 /* GPIO / RFKILL / Antennae */
-void ath9k_hw_cfg_gpio_input(struct ath_hal *ah, u32 gpio);
-u32 ath9k_hw_gpio_get(struct ath_hal *ah, u32 gpio);
-void ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,
+void ath9k_hw_cfg_gpio_input(struct ath_hw *ah, u32 gpio);
+u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio);
+void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 			 u32 ah_signal_type);
-void ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio, u32 val);
+void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
 #if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-void ath9k_enable_rfkill(struct ath_hal *ah);
+void ath9k_enable_rfkill(struct ath_hw *ah);
 #endif
-u32 ath9k_hw_getdefantenna(struct ath_hal *ah);
-void ath9k_hw_setantenna(struct ath_hal *ah, u32 antenna);
-bool ath9k_hw_setantennaswitch(struct ath_hal *ah,
+u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
+void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
+bool ath9k_hw_setantennaswitch(struct ath_hw *ah,
 			       enum ath9k_ant_setting settings,
 			       struct ath9k_channel *chan,
 			       u8 *tx_chainmask, u8 *rx_chainmask,
 			       u8 *antenna_cfgd);
 
 /* General Operation */
-bool ath9k_hw_wait(struct ath_hal *ah, u32 reg, u32 mask, u32 val);
+bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
-bool ath9k_get_channel_edges(struct ath_hal *ah, u16 flags, u16 *low, u16 *high);
-u16 ath9k_hw_computetxtime(struct ath_hal *ah, struct ath_rate_table *rates,
+bool ath9k_get_channel_edges(struct ath_hw *ah, u16 flags, u16 *low, u16 *high);
+u16 ath9k_hw_computetxtime(struct ath_hw *ah, struct ath_rate_table *rates,
 			   u32 frameLen, u16 rateix, bool shortPreamble);
-void ath9k_hw_get_channel_centers(struct ath_hal *ah,
+void ath9k_hw_get_channel_centers(struct ath_hw *ah,
 				  struct ath9k_channel *chan,
 				  struct chan_centers *centers);
-u32 ath9k_hw_getrxfilter(struct ath_hal *ah);
-void ath9k_hw_setrxfilter(struct ath_hal *ah, u32 bits);
-bool ath9k_hw_phy_disable(struct ath_hal *ah);
-bool ath9k_hw_disable(struct ath_hal *ah);
-bool ath9k_hw_set_txpowerlimit(struct ath_hal *ah, u32 limit);
-void ath9k_hw_setmac(struct ath_hal *ah, const u8 *mac);
-void ath9k_hw_setopmode(struct ath_hal *ah);
-void ath9k_hw_setmcastfilter(struct ath_hal *ah, u32 filter0, u32 filter1);
+u32 ath9k_hw_getrxfilter(struct ath_hw *ah);
+void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits);
+bool ath9k_hw_phy_disable(struct ath_hw *ah);
+bool ath9k_hw_disable(struct ath_hw *ah);
+bool ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit);
+void ath9k_hw_setmac(struct ath_hw *ah, const u8 *mac);
+void ath9k_hw_setopmode(struct ath_hw *ah);
+void ath9k_hw_setmcastfilter(struct ath_hw *ah, u32 filter0, u32 filter1);
 void ath9k_hw_setbssidmask(struct ath_softc *sc);
 void ath9k_hw_write_associd(struct ath_softc *sc);
-u64 ath9k_hw_gettsf64(struct ath_hal *ah);
-void ath9k_hw_settsf64(struct ath_hal *ah, u64 tsf64);
-void ath9k_hw_reset_tsf(struct ath_hal *ah);
-bool ath9k_hw_set_tsfadjust(struct ath_hal *ah, u32 setting);
-bool ath9k_hw_setslottime(struct ath_hal *ah, u32 us);
-void ath9k_hw_set11nmac2040(struct ath_hal *ah, enum ath9k_ht_macmode mode);
-void ath9k_hw_beaconinit(struct ath_hal *ah, u32 next_beacon, u32 beacon_period);
-void ath9k_hw_set_sta_beacon_timers(struct ath_hal *ah,
+u64 ath9k_hw_gettsf64(struct ath_hw *ah);
+void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
+void ath9k_hw_reset_tsf(struct ath_hw *ah);
+bool ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
+bool ath9k_hw_setslottime(struct ath_hw *ah, u32 us);
+void ath9k_hw_set11nmac2040(struct ath_hw *ah, enum ath9k_ht_macmode mode);
+void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
+void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 				    const struct ath9k_beacon_state *bs);
-bool ath9k_hw_setpower(struct ath_hal *ah,
+bool ath9k_hw_setpower(struct ath_hw *ah,
 		       enum ath9k_power_mode mode);
-void ath9k_hw_configpcipowersave(struct ath_hal *ah, int restore);
+void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore);
 
 /* Interrupt Handling */
-bool ath9k_hw_intrpend(struct ath_hal *ah);
-bool ath9k_hw_getisr(struct ath_hal *ah, enum ath9k_int *masked);
-enum ath9k_int ath9k_hw_intrget(struct ath_hal *ah);
-enum ath9k_int ath9k_hw_set_interrupts(struct ath_hal *ah, enum ath9k_int ints);
+bool ath9k_hw_intrpend(struct ath_hw *ah);
+bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked);
+enum ath9k_int ath9k_hw_intrget(struct ath_hw *ah);
+enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints);
 
-void ath9k_hw_btcoex_enable(struct ath_hal *ah);
+void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 
 #endif

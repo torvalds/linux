@@ -106,17 +106,17 @@ static const struct ieee80211_regdomain ath9k_world_regdom_67_68_6A = {
 	}
 };
 
-static u16 ath9k_regd_get_eepromRD(struct ath_hal *ah)
+static u16 ath9k_regd_get_eepromRD(struct ath_hw *ah)
 {
 	return ah->regulatory.current_rd & ~WORLDWIDE_ROAMING_FLAG;
 }
 
-u16 ath9k_regd_get_rd(struct ath_hal *ah)
+u16 ath9k_regd_get_rd(struct ath_hw *ah)
 {
 	return ath9k_regd_get_eepromRD(ah);
 }
 
-bool ath9k_is_world_regd(struct ath_hal *ah)
+bool ath9k_is_world_regd(struct ath_hw *ah)
 {
 	return isWwrSKU(ah);
 }
@@ -127,7 +127,7 @@ const struct ieee80211_regdomain *ath9k_default_world_regdomain(void)
 	return &ath9k_world_regdom_64;
 }
 
-const struct ieee80211_regdomain *ath9k_world_regdomain(struct ath_hal *ah)
+const struct ieee80211_regdomain *ath9k_world_regdomain(struct ath_hw *ah)
 {
 	switch (ah->regulatory.regpair->regDmnEnum) {
 	case 0x60:
@@ -282,7 +282,7 @@ void ath9k_reg_apply_world_flags(struct wiphy *wiphy, enum reg_set_by setby)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct ath_softc *sc = hw->priv;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 
 	switch (ah->regulatory.regpair->regDmnEnum) {
 	case 0x60:
@@ -322,7 +322,7 @@ int ath9k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 	return 0;
 }
 
-bool ath9k_regd_is_eeprom_valid(struct ath_hal *ah)
+bool ath9k_regd_is_eeprom_valid(struct ath_hw *ah)
 {
 	u16 rd = ath9k_regd_get_eepromRD(ah);
 	int i;
@@ -371,7 +371,7 @@ ath9k_regd_find_country_by_rd(int regdmn)
 }
 
 /* Returns the map of the EEPROM set RD to a country code */
-static u16 ath9k_regd_get_default_country(struct ath_hal *ah)
+static u16 ath9k_regd_get_default_country(struct ath_hw *ah)
 {
 	u16 rd;
 
@@ -402,7 +402,7 @@ ath9k_get_regpair(int regdmn)
 	return NULL;
 }
 
-int ath9k_regd_init(struct ath_hal *ah)
+int ath9k_regd_init(struct ath_hw *ah)
 {
 	struct country_code_to_enum_rd *country = NULL;
 	int regdmn;
@@ -462,7 +462,7 @@ int ath9k_regd_init(struct ath_hal *ah)
 	return 0;
 }
 
-u32 ath9k_regd_get_ctl(struct ath_hal *ah, struct ath9k_channel *chan)
+u32 ath9k_regd_get_ctl(struct ath_hw *ah, struct ath9k_channel *chan)
 {
 	u32 ctl = NO_CTL;
 

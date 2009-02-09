@@ -20,7 +20,7 @@
 #define HAL_PROCESS_ANI           0x00000001
 #define ATH9K_RSSI_EP_MULTIPLIER  (1<<7)
 
-#define DO_ANI(ah) ((AH5416(ah)->ah_procPhyErr & HAL_PROCESS_ANI))
+#define DO_ANI(ah) (((ah)->ah_procPhyErr & HAL_PROCESS_ANI))
 
 #define HAL_EP_RND(x, mul)						\
 	((((x)%(mul)) >= ((mul)/2)) ? ((x) + ((mul) - 1)) / (mul) : (x)/(mul))
@@ -120,19 +120,19 @@ struct ar5416Stats {
 };
 #define ah_mibStats ah_stats.ast_mibstats
 
-void ath9k_ani_reset(struct ath_hal *ah);
-void ath9k_hw_ani_monitor(struct ath_hal *ah,
+void ath9k_ani_reset(struct ath_hw *ah);
+void ath9k_hw_ani_monitor(struct ath_hw *ah,
 			  const struct ath9k_node_stats *stats,
 			  struct ath9k_channel *chan);
-bool ath9k_hw_phycounters(struct ath_hal *ah);
-void ath9k_enable_mib_counters(struct ath_hal *ah);
-void ath9k_hw_disable_mib_counters(struct ath_hal *ah);
-u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hal *ah, u32 *rxc_pcnt,
+bool ath9k_hw_phycounters(struct ath_hw *ah);
+void ath9k_enable_mib_counters(struct ath_hw *ah);
+void ath9k_hw_disable_mib_counters(struct ath_hw *ah);
+u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah, u32 *rxc_pcnt,
 				  u32 *rxf_pcnt, u32 *txf_pcnt);
-void ath9k_hw_procmibevent(struct ath_hal *ah,
+void ath9k_hw_procmibevent(struct ath_hw *ah,
 			   const struct ath9k_node_stats *stats);
-void ath9k_hw_ani_setup(struct ath_hal *ah);
-void ath9k_hw_ani_attach(struct ath_hal *ah);
-void ath9k_hw_ani_detach(struct ath_hal *ah);
+void ath9k_hw_ani_setup(struct ath_hw *ah);
+void ath9k_hw_ani_attach(struct ath_hw *ah);
+void ath9k_hw_ani_detach(struct ath_hw *ah);
 
 #endif /* ANI_H */

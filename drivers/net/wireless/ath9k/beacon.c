@@ -23,7 +23,7 @@
 */
 static int ath_beaconq_config(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_tx_queue_info qi;
 
 	ath9k_hw_get_txq_props(ah, sc->beacon.beaconq, &qi);
@@ -66,7 +66,7 @@ static void ath_beacon_setup(struct ath_softc *sc,
 			     struct ath_vif *avp, struct ath_buf *bf)
 {
 	struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_desc *ds;
 	struct ath9k_11n_rate_series series[4];
 	struct ath_rate_table *rt;
@@ -248,7 +248,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 static void ath_beacon_start_adhoc(struct ath_softc *sc, int if_id)
 {
 	struct ieee80211_vif *vif;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf;
 	struct ath_vif *avp;
 	struct sk_buff *skb;
@@ -276,7 +276,7 @@ static void ath_beacon_start_adhoc(struct ath_softc *sc, int if_id)
 		sc->beacon.beaconq, ito64(bf->bf_daddr), bf->bf_desc);
 }
 
-int ath_beaconq_setup(struct ath_hal *ah)
+int ath_beaconq_setup(struct ath_hw *ah)
 {
 	struct ath9k_tx_queue_info qi;
 
@@ -444,7 +444,7 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
 void ath9k_beacon_tasklet(unsigned long data)
 {
 	struct ath_softc *sc = (struct ath_softc *)data;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf = NULL;
 	int slot, if_id;
 	u32 bfaddr;
@@ -619,7 +619,7 @@ void ath9k_beacon_tasklet(unsigned long data)
 void ath_beacon_config(struct ath_softc *sc, int if_id)
 {
 	struct ieee80211_vif *vif;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_beacon_config conf;
 	struct ath_vif *avp;
 	enum nl80211_iftype opmode;

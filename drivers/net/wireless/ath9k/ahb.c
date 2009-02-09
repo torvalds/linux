@@ -32,7 +32,7 @@ static void ath_ahb_cleanup(struct ath_softc *sc)
 	iounmap(sc->mem);
 }
 
-static bool ath_ahb_eeprom_read(struct ath_hal *ah, u32 off, u16 *data)
+static bool ath_ahb_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
 {
 	struct ath_softc *sc = ah->ah_sc;
 	struct platform_device *pdev = to_platform_device(sc->dev);
@@ -65,7 +65,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	int ret = 0;
-	struct ath_hal *ah;
+	struct ath_hw *ah;
 
 	if (!pdev->dev.platform_data) {
 		dev_err(&pdev->dev, "no platform data specified\n");

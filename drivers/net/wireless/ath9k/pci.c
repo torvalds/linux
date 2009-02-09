@@ -56,7 +56,7 @@ static void ath_pci_cleanup(struct ath_softc *sc)
 	pci_disable_device(pdev);
 }
 
-static bool ath_pci_eeprom_read(struct ath_hal *ah, u32 off, u16 *data)
+static bool ath_pci_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
 {
 	(void)REG_READ(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
 
@@ -87,7 +87,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	u8 csz;
 	u32 val;
 	int ret = 0;
-	struct ath_hal *ah;
+	struct ath_hw *ah;
 
 	if (pci_enable_device(pdev))
 		return -EIO;

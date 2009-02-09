@@ -26,7 +26,7 @@
  */
 static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_desc *ds;
 	struct sk_buff *skb;
 
@@ -233,7 +233,7 @@ rx_next:
 
 static void ath_opmode_init(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	u32 rfilt, mfilt[2];
 
 	/* configure rx filter */
@@ -391,7 +391,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 
 int ath_startrecv(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf, *tbf;
 
 	spin_lock_bh(&sc->rx.rxbuflock);
@@ -421,7 +421,7 @@ start_recv:
 
 bool ath_stoprecv(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	bool stopped;
 
 	ath9k_hw_stoppcurecv(ah);
@@ -452,7 +452,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 	struct ath_desc *ds;
 	struct sk_buff *skb = NULL, *requeue_skb;
 	struct ieee80211_rx_status rx_status;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ieee80211_hdr *hdr;
 	int hdrlen, padsize, retval;
 	bool decrypt_error = false;

@@ -44,7 +44,7 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	char buf[1024];
 	unsigned int len = 0;
 	u32 val[ATH9K_NUM_DMA_DEBUG_REGS];

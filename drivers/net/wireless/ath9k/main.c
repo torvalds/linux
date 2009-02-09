@@ -137,7 +137,7 @@ static void ath_cache_conf_rate(struct ath_softc *sc,
 
 static void ath_update_txpow(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	u32 txpow;
 
 	if (sc->curtxpow != sc->config.txpowlimit) {
@@ -234,7 +234,7 @@ static void ath_setup_rates(struct ath_softc *sc, enum ieee80211_band band)
 */
 static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	bool fastcc = true, stopped;
 	struct ieee80211_hw *hw = sc->hw;
 	struct ieee80211_channel *channel = hw->conf.channel;
@@ -309,7 +309,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 static void ath_ani_calibrate(unsigned long data)
 {
 	struct ath_softc *sc;
-	struct ath_hal *ah;
+	struct ath_hw *ah;
 	bool longcal = false;
 	bool shortcal = false;
 	bool aniflag = false;
@@ -479,7 +479,7 @@ static void ath9k_tasklet(unsigned long data)
 irqreturn_t ath_isr(int irq, void *dev)
 {
 	struct ath_softc *sc = dev;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	enum ath9k_int status;
 	bool sched = false;
 
@@ -1091,7 +1091,7 @@ fail:
 
 static void ath_radio_enable(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ieee80211_channel *channel = sc->hw->conf.channel;
 	int r;
 
@@ -1132,7 +1132,7 @@ static void ath_radio_enable(struct ath_softc *sc)
 
 static void ath_radio_disable(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ieee80211_channel *channel = sc->hw->conf.channel;
 	int r;
 
@@ -1167,7 +1167,7 @@ static void ath_radio_disable(struct ath_softc *sc)
 
 static bool ath_is_rfkill_set(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 
 	return ath9k_hw_gpio_get(ah, ah->ah_rfkill_gpio) ==
 				  ah->ah_rfkill_polarity;
@@ -1345,7 +1345,7 @@ void ath_detach(struct ath_softc *sc)
 
 static int ath_init(u16 devid, struct ath_softc *sc)
 {
-	struct ath_hal *ah = NULL;
+	struct ath_hw *ah = NULL;
 	int status;
 	int error = 0, i;
 	int csz = 0;
@@ -1370,7 +1370,7 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	/* XXX assert csz is non-zero */
 	sc->cachelsz = csz << 2;	/* convert to bytes */
 
-	ah = ath9k_hw_attach(devid, sc, sc->mem, &status);
+	ah = ath9k_hw_attach(devid, sc, &status);
 	if (ah == NULL) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to attach hardware; HAL status %d\n", status);
@@ -1671,7 +1671,7 @@ detach:
 
 int ath_reset(struct ath_softc *sc, bool retry_tx)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ieee80211_hw *hw = sc->hw;
 	int r;
 
@@ -2272,7 +2272,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 				  struct ieee80211_if_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	u32 rfilt = 0;
 	int error, i;
