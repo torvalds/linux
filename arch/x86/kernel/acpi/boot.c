@@ -872,7 +872,7 @@ static struct {
 	DECLARE_BITMAP(pin_programmed, MP_MAX_IOAPIC_PIN + 1);
 } mp_ioapic_routing[MAX_IO_APICS];
 
-static int mp_find_ioapic(int gsi)
+int mp_find_ioapic(int gsi)
 {
 	int i = 0;
 
