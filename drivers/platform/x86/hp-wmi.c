@@ -463,9 +463,11 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 
 	return 0;
 register_wwan_err:
-	rfkill_unregister(bluetooth_rfkill);
+	if (bluetooth_rfkill)
+		rfkill_unregister(bluetooth_rfkill);
 register_bluetooth_error:
-	rfkill_unregister(wifi_rfkill);
+	if (wifi_rfkill)
+		rfkill_unregister(wifi_rfkill);
 add_sysfs_error:
 	cleanup_sysfs(device);
 	return err;

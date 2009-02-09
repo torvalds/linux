@@ -1418,10 +1418,10 @@ int pci_restore_standard_config(struct pci_dev *dev)
 		break;
 	}
 
-	dev->current_state = PCI_D0;
+	pci_update_current_state(dev, PCI_D0);
 
  Restore:
-	return pci_restore_state(dev);
+	return dev->state_saved ? pci_restore_state(dev) : 0;
 }
 
 /**

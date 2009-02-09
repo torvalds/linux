@@ -21,38 +21,36 @@
 static inline void
 __mutex_fastpath_lock(atomic_t *count, void (*fail_fn)(atomic_t *))
 {
-	int __ex_flag, __res;
+	int __done, __res;
 
 	__asm__ __volatile__ (
 		"movli.l	@%2, %0	\n"
 		"add		#-1, %0	\n"
 		"movco.l	%0, @%2	\n"
 		"movt		%1	\n"
-		: "=&z" (__res), "=&r" (__ex_flag)
+		: "=&z" (__res), "=&r" (__done)
 		: "r" (&(count)->counter)
 		: "t");
 
-	__res |= !__ex_flag;
-	if (unlikely(__res != 0))
+	if (unlikely(!__done || __res != 0))
 		fail_fn(count);
 }
 
 static inline int
 __mutex_fastpath_lock_retval(atomic_t *count, int (*fail_fn)(atomic_t *))
 {
-	int __ex_flag, __res;
+	int __done, __res;
 
 	__asm__ __volatile__ (
 		"movli.l	@%2, %0	\n"
 		"add		#-1, %0	\n"
 		"movco.l	%0, @%2	\n"
 		"movt		%1	\n"
-		: "=&z" (__res), "=&r" (__ex_flag)
+		: "=&z" (__res), "=&r" (__done)
 		: "r" (&(count)->counter)
 		: "t");
 
-	__res |= !__ex_flag;
-	if (unlikely(__res != 0))
+	if (unlikely(!__done || __res != 0))
 		__res = fail_fn(count);
 
 	return __res;
@@ -61,19 +59,18 @@ __mutex_fastpath_lock_retval(atomic_t *count, int (*fail_fn)(atomic_t *))
 static inline void
 __mutex_fastpath_unlock(atomic_t *count, void (*fail_fn)(atomic_t *))
 {
-	int __ex_flag, __res;
+	int __done, __res;
 
 	__asm__ __volatile__ (
 		"movli.l	@%2, %0	\n\t"
 		"add		#1, %0	\n\t"
 		"movco.l	%0, @%2 \n\t"
 		"movt		%1	\n\t"
-		: "=&z" (__res), "=&r" (__ex_flag)
+		: "=&z" (__res), "=&r" (__done)
 		: "r" (&(count)->counter)
 		: "t");
 
-	__res |= !__ex_flag;
-	if (unlikely(__res <= 0))
+	if (unlikely(!__done || __res <= 0))
 		fail_fn(count);
 }
 

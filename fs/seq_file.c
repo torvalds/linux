@@ -54,6 +54,64 @@ int seq_open(struct file *file, const struct seq_operations *op)
 }
 EXPORT_SYMBOL(seq_open);
 
+static int traverse(struct seq_file *m, loff_t offset)
+{
+	loff_t pos = 0, index;
+	int error = 0;
+	void *p;
+
+	m->version = 0;
+	index = 0;
+	m->count = m->from = 0;
+	if (!offset) {
+		m->index = index;
+		return 0;
+	}
+	if (!m->buf) {
+		m->buf = kmalloc(m->size = PAGE_SIZE, GFP_KERNEL);
+		if (!m->buf)
+			return -ENOMEM;
+	}
+	p = m->op->start(m, &index);
+	while (p) {
+		error = PTR_ERR(p);
+		if (IS_ERR(p))
+			break;
+		error = m->op->show(m, p);
+		if (error < 0)
+			break;
+		if (unlikely(error)) {
+			error = 0;
+			m->count = 0;
+		}
+		if (m->count == m->size)
+			goto Eoverflow;
+		if (pos + m->count > offset) {
+			m->from = offset - pos;
+			m->count -= m->from;
+			m->index = index;
+			break;
+		}
+		pos += m->count;
+		m->count = 0;
+		if (pos == offset) {
+			index++;
+			m->index = index;
+			break;
+		}
+		p = m->op->next(m, p, &index);
+	}
+	m->op->stop(m, p);
+	m->index = index;
+	return error;
+
+Eoverflow:
+	m->op->stop(m, p);
+	kfree(m->buf);
+	m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
+	return !m->buf ? -ENOMEM : -EAGAIN;
+}
+
 /**
  *	seq_read -	->read() method for sequential files.
  *	@file: the file to read from
@@ -185,63 +243,6 @@ Efault:
 	goto Done;
 }
 EXPORT_SYMBOL(seq_read);
-
-static int traverse(struct seq_file *m, loff_t offset)
-{
-	loff_t pos = 0, index;
-	int error = 0;
-	void *p;
-
-	m->version = 0;
-	index = 0;
-	m->count = m->from = 0;
-	if (!offset) {
-		m->index = index;
-		return 0;
-	}
-	if (!m->buf) {
-		m->buf = kmalloc(m->size = PAGE_SIZE, GFP_KERNEL);
-		if (!m->buf)
-			return -ENOMEM;
-	}
-	p = m->op->start(m, &index);
-	while (p) {
-		error = PTR_ERR(p);
-		if (IS_ERR(p))
-			break;
-		error = m->op->show(m, p);
-		if (error < 0)
-			break;
-		if (unlikely(error)) {
-			error = 0;
-			m->count = 0;
-		}
-		if (m->count == m->size)
-			goto Eoverflow;
-		if (pos + m->count > offset) {
-			m->from = offset - pos;
-			m->count -= m->from;
-			m->index = index;
-			break;
-		}
-		pos += m->count;
-		m->count = 0;
-		if (pos == offset) {
-			index++;
-			m->index = index;
-			break;
-		}
-		p = m->op->next(m, p, &index);
-	}
-	m->op->stop(m, p);
-	return error;
-
-Eoverflow:
-	m->op->stop(m, p);
-	kfree(m->buf);
-	m->buf = kmalloc(m->size <<= 1, GFP_KERNEL);
-	return !m->buf ? -ENOMEM : -EAGAIN;
-}
 
 /**
  *	seq_lseek -	->llseek() method for sequential files.

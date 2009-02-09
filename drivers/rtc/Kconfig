@@ -241,6 +241,12 @@ config RTC_DRV_M41T80_WDT
 	  If you say Y here you will get support for the
 	  watchdog timer in the ST M41T60 and M41T80 RTC chips series.
 
+config RTC_DRV_DM355EVM
+	tristate "TI DaVinci DM355 EVM RTC"
+	depends on MFD_DM355EVM_MSP
+	help
+	  Supports the RTC firmware in the MSP430 on the DM355 EVM.
+
 config RTC_DRV_TWL92330
 	boolean "TI TWL92330/Menelaus"
 	depends on MENELAUS
