@@ -395,7 +395,7 @@ static bool xen_iomap_pte(pte_t pte)
 	return pte_flags(pte) & _PAGE_IOMAP;
 }
 
-static void xen_set_iomap_pte(pte_t *ptep, pte_t pteval)
+void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
 {
 	struct multicall_space mcs;
 	struct mmu_update *u;
@@ -407,9 +407,15 @@ static void xen_set_iomap_pte(pte_t *ptep, pte_t pteval)
 	u->ptr = arbitrary_virt_to_machine(ptep).maddr;
 	u->val = pte_val_ma(pteval);
 
-	MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, DOMID_IO);
+	MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, domid);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
+}
+EXPORT_SYMBOL_GPL(xen_set_domain_pte);
+
+static void xen_set_iomap_pte(pte_t *ptep, pte_t pteval)
+{
+	xen_set_domain_pte(ptep, pteval, DOMID_IO);
 }
 
 static void xen_extend_mmu_update(const struct mmu_update *update)

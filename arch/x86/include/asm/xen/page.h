@@ -159,6 +159,7 @@ static inline pte_t __pte_ma(pteval_t x)
 
 #define pgd_val_ma(x)	((x).pgd)
 
+void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid);
 
 xmaddr_t arbitrary_virt_to_machine(void *address);
 unsigned long arbitrary_virt_to_mfn(void *vaddr);
