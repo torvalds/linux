@@ -608,6 +608,8 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 		}
 		seq_printf(s, ",data=%s", state);
 	}
+	if (args->ar_discard)
+		seq_printf(s, ",discard");
 
 	return 0;
 }

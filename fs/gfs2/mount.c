@@ -41,6 +41,8 @@ enum {
 	Opt_data_writeback,
 	Opt_data_ordered,
 	Opt_meta,
+	Opt_discard,
+	Opt_nodiscard,
 	Opt_err,
 };
 
@@ -65,6 +67,8 @@ static const match_table_t tokens = {
 	{Opt_data_writeback, "data=writeback"},
 	{Opt_data_ordered, "data=ordered"},
 	{Opt_meta, "meta"},
+	{Opt_discard, "discard"},
+	{Opt_nodiscard, "nodiscard"},
 	{Opt_err, NULL}
 };
 
@@ -156,6 +160,12 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 			break;
 		case Opt_meta:
 			args->ar_meta = 1;
+			break;
+		case Opt_discard:
+			args->ar_discard = 1;
+			break;
+		case Opt_nodiscard:
+			args->ar_discard = 0;
 			break;
 		case Opt_err:
 		default:

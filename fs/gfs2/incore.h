@@ -416,7 +416,7 @@ struct gfs2_args {
 	unsigned int ar_suiddir:1;		/* suiddir support */
 	unsigned int ar_data:2;			/* ordered/writeback */
 	unsigned int ar_meta:1;			/* mount metafs */
-	unsigned int ar_num_glockd;		/* Number of glockd threads */
+	unsigned int ar_discard:1;		/* discard requests */
 };
 
 struct gfs2_tune {

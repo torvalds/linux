@@ -14,6 +14,7 @@
 #include <linux/fs.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/prefetch.h>
+#include <linux/blkdev.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -830,6 +831,58 @@ void gfs2_rgrp_bh_put(struct gfs2_rgrpd *rgd)
 	spin_unlock(&sdp->sd_rindex_spin);
 }
 
+static void gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
+				    const struct gfs2_bitmap *bi)
+{
+	struct super_block *sb = sdp->sd_vfs;
+	struct block_device *bdev = sb->s_bdev;
+	const unsigned int sects_per_blk = sdp->sd_sb.sb_bsize /
+					   bdev_hardsect_size(sb->s_bdev);
+	u64 blk;
+	sector_t start;
+	sector_t nr_sects = 0;
+	int rv;
+	unsigned int x;
+
+	for (x = 0; x < bi->bi_len; x++) {
+		const u8 *orig = bi->bi_bh->b_data + bi->bi_offset + x;
+		const u8 *clone = bi->bi_clone + bi->bi_offset + x;
+		u8 diff = ~(*orig | (*orig >> 1)) & (*clone | (*clone >> 1));
+		diff &= 0x55;
+		if (diff == 0)
+			continue;
+		blk = offset + ((bi->bi_start + x) * GFS2_NBBY);
+		blk *= sects_per_blk; /* convert to sectors */
+		while(diff) {
+			if (diff & 1) {
+				if (nr_sects == 0)
+					goto start_new_extent;
+				if ((start + nr_sects) != blk) {
+					rv = blkdev_issue_discard(bdev, start,
+							    nr_sects, GFP_NOFS);
+					if (rv)
+						goto fail;
+					nr_sects = 0;
+start_new_extent:
+					start = blk;
+				}
+				nr_sects += sects_per_blk;
+			}
+			diff >>= 2;
+			blk += sects_per_blk;
+		}
+	}
+	if (nr_sects) {
+		rv = blkdev_issue_discard(bdev, start, nr_sects, GFP_NOFS);
+		if (rv)
+			goto fail;
+	}
+	return;
+fail:
+	fs_warn(sdp, "error %d on discard request, turning discards off for this filesystem", rv);
+	sdp->sd_args.ar_discard = 0;
+}
+
 void gfs2_rgrp_repolish_clones(struct gfs2_rgrpd *rgd)
 {
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
@@ -840,6 +893,8 @@ void gfs2_rgrp_repolish_clones(struct gfs2_rgrpd *rgd)
 		struct gfs2_bitmap *bi = rgd->rd_bits + x;
 		if (!bi->bi_clone)
 			continue;
+		if (sdp->sd_args.ar_discard)
+			gfs2_rgrp_send_discards(sdp, rgd->rd_data0, bi);
 		memcpy(bi->bi_clone + bi->bi_offset,
 		       bi->bi_bh->b_data + bi->bi_offset, bi->bi_len);
 	}
