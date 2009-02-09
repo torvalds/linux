@@ -438,13 +438,7 @@ static int prism2mib_uint32(mibrec_t *mib,
 	if (isget) {
 		result = hfa384x_drvr_getconfig16(hw, mib->parm1, wordbuf);
 		*uint32 = *wordbuf;
-		/* [MSM] Removed, getconfig16 returns the value in host order.
-		 * prism2mgmt_prism2int2p80211int(wordbuf, uint32);
-		 */
 	} else {
-		/* [MSM] Removed, setconfig16 expects host order.
-		 * prism2mgmt_p80211int2prism2int(wordbuf, uint32);
-		 */
 		*wordbuf = *uint32;
 		result = hfa384x_drvr_setconfig16(hw, mib->parm1, *wordbuf);
 	}
@@ -491,9 +485,6 @@ static int prism2mib_flag(mibrec_t *mib,
 
 	result = hfa384x_drvr_getconfig16(hw, mib->parm1, wordbuf);
 	if (result == 0) {
-		/* [MSM] Removed, getconfig16 returns the value in host order.
-		 * prism2mgmt_prism2int2p80211int(wordbuf, &flags);
-		 */
 		flags = *wordbuf;
 		if (isget) {
 			*uint32 = (flags & mib->parm2) ?
@@ -503,9 +494,6 @@ static int prism2mib_flag(mibrec_t *mib,
 				flags |= mib->parm2;
 			else
 				flags &= ~mib->parm2;
-			/* [MSM] Removed, setconfig16 expects host order.
-			 * prism2mgmt_p80211int2prism2int(wordbuf, &flags);
-			 */
 			*wordbuf = flags;
 			result =
 			    hfa384x_drvr_setconfig16(hw, mib->parm1, *wordbuf);
@@ -846,184 +834,7 @@ void prism2mgmt_bytearea2pstr(u8 *bytearea, p80211pstrd_t *pstr, int len)
 	memcpy(pstr->data, bytearea, len);
 }
 
-/*----------------------------------------------------------------
-* prism2mgmt_prism2int2p80211int
-*
-* Convert an hfa384x integer into a wlan integer
-*
-* Arguments:
-*	prism2enum	pointer to hfa384x integer
-*	wlanenum	pointer to p80211 integer
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
 
-void prism2mgmt_prism2int2p80211int(u16 *prism2int, u32 *wlanint)
-{
-	*wlanint = (u32) hfa384x2host_16(*prism2int);
-}
 
-/*----------------------------------------------------------------
-* prism2mgmt_p80211int2prism2int
-*
-* Convert a wlan integer into an hfa384x integer
-*
-* Arguments:
-*	prism2enum	pointer to hfa384x integer
-*	wlanenum	pointer to p80211 integer
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
 
-void prism2mgmt_p80211int2prism2int(u16 *prism2int, u32 *wlanint)
-{
-	*prism2int = host2hfa384x_16((u16) (*wlanint));
-}
 
-/*----------------------------------------------------------------
-* prism2mgmt_prism2enum2p80211enum
-*
-* Convert the hfa384x enumerated int into a p80211 enumerated int
-*
-* Arguments:
-*	prism2enum	pointer to hfa384x integer
-*	wlanenum	pointer to p80211 integer
-*	rid		hfa384x record id
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-void prism2mgmt_prism2enum2p80211enum(u16 *prism2enum, u32 *wlanenum, u16 rid)
-{
-	/* At the moment, the need for this functionality hasn't
-	   presented itself. All the wlan enumerated values are
-	   a 1-to-1 match against the Prism2 enumerated values */
-	return;
-}
-
-/*----------------------------------------------------------------
-* prism2mgmt_p80211enum2prism2enum
-*
-* Convert the p80211 enumerated int into an hfa384x enumerated int
-*
-* Arguments:
-*	prism2enum	pointer to hfa384x integer
-*	wlanenum	pointer to p80211 integer
-*	rid		hfa384x record id
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-void prism2mgmt_p80211enum2prism2enum(u16 *prism2enum, u32 *wlanenum, u16 rid)
-{
-	/* At the moment, the need for this functionality hasn't
-	   presented itself. All the wlan enumerated values are
-	   a 1-to-1 match against the Prism2 enumerated values */
-	return;
-}
-
-/*----------------------------------------------------------------
-* prism2mgmt_get_oprateset
-*
-* Convert the hfa384x bit area into a wlan octet string.
-*
-* Arguments:
-*	rate		Prism2 bit area
-*	pstr		wlan octet string
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-void prism2mgmt_get_oprateset(u16 *rate, p80211pstrd_t *pstr)
-{
-	u8 len;
-	u8 *datarate;
-
-	len = 0;
-	datarate = pstr->data;
-
-	/* 1 Mbps */
-	if (BIT(0) & (*rate)) {
-		len += (u8) 1;
-		*datarate = (u8) 2;
-		datarate++;
-	}
-
-	/* 2 Mbps */
-	if (BIT(1) & (*rate)) {
-		len += (u8) 1;
-		*datarate = (u8) 4;
-		datarate++;
-	}
-
-	/* 5.5 Mbps */
-	if (BIT(2) & (*rate)) {
-		len += (u8) 1;
-		*datarate = (u8) 11;
-		datarate++;
-	}
-
-	/* 11 Mbps */
-	if (BIT(3) & (*rate)) {
-		len += (u8) 1;
-		*datarate = (u8) 22;
-		datarate++;
-	}
-
-	pstr->len = len;
-
-	return;
-}
-
-/*----------------------------------------------------------------
-* prism2mgmt_set_oprateset
-*
-* Convert the wlan octet string into an hfa384x bit area.
-*
-* Arguments:
-*	rate		Prism2 bit area
-*	pstr		wlan octet string
-*
-* Returns:
-*	Nothing
-*
-----------------------------------------------------------------*/
-void prism2mgmt_set_oprateset(u16 *rate, p80211pstrd_t *pstr)
-{
-	u8 *datarate;
-	int i;
-
-	*rate = 0;
-
-	datarate = pstr->data;
-
-	for (i = 0; i < pstr->len; i++, datarate++) {
-		switch (*datarate) {
-		case 2:	/* 1 Mbps */
-			*rate |= BIT(0);
-			break;
-		case 4:	/* 2 Mbps */
-			*rate |= BIT(1);
-			break;
-		case 11:	/* 5.5 Mbps */
-			*rate |= BIT(2);
-			break;
-		case 22:	/* 11 Mbps */
-			*rate |= BIT(3);
-			break;
-		default:
-			pr_debug("Unrecoginzed Rate of %d\n",
-			       *datarate);
-			break;
-		}
-	}
-
-	return;
-}

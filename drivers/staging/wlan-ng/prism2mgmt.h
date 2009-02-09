@@ -95,20 +95,6 @@ void prism2mgmt_bytearea2pstr(u8 *bytearea, p80211pstrd_t *pstr, int len);
 void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr);
 void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr);
 
-/* integer conversion functions */
-void prism2mgmt_prism2int2p80211int(u16 *prism2int, u32 *wlanint);
-void prism2mgmt_p80211int2prism2int(u16 *prism2int, u32 *wlanint);
-
-/* enumerated integer conversion functions */
-void prism2mgmt_prism2enum2p80211enum(u16 *prism2enum, u32 *wlanenum,
-				      u16 rid);
-void prism2mgmt_p80211enum2prism2enum(u16 *prism2enum, u32 *wlanenum,
-				      u16 rid);
-
-/* functions to convert a bit area to/from an Operational Rate Set */
-void prism2mgmt_get_oprateset(u16 *rate, p80211pstrd_t *pstr);
-void prism2mgmt_set_oprateset(u16 *rate, p80211pstrd_t *pstr);
-
 /* functions to convert Group Addresses */
 void prism2mgmt_get_grpaddr(u32 did, p80211pstrd_t *pstr, hfa384x_t *priv);
 int prism2mgmt_set_grpaddr(u32 did,
