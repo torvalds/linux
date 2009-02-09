@@ -236,7 +236,7 @@ static inline unsigned long pte_pfn(pte_t pte)
 
 static inline int pmd_large(pmd_t pte)
 {
-	return (pmd_val(pte) & (_PAGE_PSE | _PAGE_PRESENT)) ==
+	return (pmd_flags(pte) & (_PAGE_PSE | _PAGE_PRESENT)) ==
 		(_PAGE_PSE | _PAGE_PRESENT);
 }
 
@@ -436,6 +436,180 @@ static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
 #else
 # include "pgtable_64.h"
 #endif
+
+#ifndef __ASSEMBLY__
+#include <linux/mm_types.h>
+
+static inline int pte_none(pte_t pte)
+{
+	return !pte.pte;
+}
+
+#define __HAVE_ARCH_PTE_SAME
+static inline int pte_same(pte_t a, pte_t b)
+{
+	return a.pte == b.pte;
+}
+
+static inline int pte_present(pte_t a)
+{
+	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
+}
+
+static inline int pmd_present(pmd_t pmd)
+{
+	return pmd_flags(pmd) & _PAGE_PRESENT;
+}
+
+static inline int pmd_none(pmd_t pmd)
+{
+	/* Only check low word on 32-bit platforms, since it might be
+	   out of sync with upper half. */
+	return (unsigned long)native_pmd_val(pmd) == 0;
+}
+
+static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+{
+	return (unsigned long)__va(pmd_val(pmd) & PTE_PFN_MASK);
+}
+
+static inline struct page *pmd_page(pmd_t pmd)
+{
+	return pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT);
+}
+
+/*
+ * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
+ *
+ * this macro returns the index of the entry in the pmd page which would
+ * control the given virtual address
+ */
+static inline unsigned pmd_index(unsigned long address)
+{
+	return (address >> PMD_SHIFT) & (PTRS_PER_PMD - 1);
+}
+
+/*
+ * Conversion functions: convert a page and protection to a page entry,
+ * and a page entry and page directory to the page they refer to.
+ *
+ * (Currently stuck as a macro because of indirect forward reference
+ * to linux/mm.h:page_to_nid())
+ */
+#define mk_pte(page, pgprot)   pfn_pte(page_to_pfn(page), (pgprot))
+
+/*
+ * the pte page can be thought of an array like this: pte_t[PTRS_PER_PTE]
+ *
+ * this function returns the index of the entry in the pte page which would
+ * control the given virtual address
+ */
+static inline unsigned pte_index(unsigned long address)
+{
+	return (address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
+}
+
+static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long address)
+{
+	return (pte_t *)pmd_page_vaddr(*pmd) + pte_index(address);
+}
+
+static inline int pmd_bad(pmd_t pmd)
+{
+	return (pmd_flags(pmd) & ~_PAGE_USER) != _KERNPG_TABLE;
+}
+
+static inline unsigned long pages_to_mb(unsigned long npg)
+{
+	return npg >> (20 - PAGE_SHIFT);
+}
+
+#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)	\
+	remap_pfn_range(vma, vaddr, pfn, size, prot)
+
+#if PAGETABLE_LEVELS > 2
+static inline int pud_none(pud_t pud)
+{
+	return native_pud_val(pud) == 0;
+}
+
+static inline int pud_present(pud_t pud)
+{
+	return pud_flags(pud) & _PAGE_PRESENT;
+}
+
+static inline unsigned long pud_page_vaddr(pud_t pud)
+{
+	return (unsigned long)__va((unsigned long)pud_val(pud) & PTE_PFN_MASK);
+}
+
+static inline struct page *pud_page(pud_t pud)
+{
+	return pfn_to_page(pud_val(pud) >> PAGE_SHIFT);
+}
+
+/* Find an entry in the second-level page table.. */
+static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
+{
+	return (pmd_t *)pud_page_vaddr(*pud) + pmd_index(address);
+}
+
+static inline unsigned long pmd_pfn(pmd_t pmd)
+{
+	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
+}
+
+static inline int pud_large(pud_t pud)
+{
+	return (pud_flags(pud) & (_PAGE_PSE | _PAGE_PRESENT)) ==
+		(_PAGE_PSE | _PAGE_PRESENT);
+}
+
+static inline int pud_bad(pud_t pud)
+{
+	return (pud_flags(pud) & ~(_KERNPG_TABLE | _PAGE_USER)) != 0;
+}
+#endif	/* PAGETABLE_LEVELS > 2 */
+
+#if PAGETABLE_LEVELS > 3
+static inline int pgd_present(pgd_t pgd)
+{
+	return pgd_flags(pgd) & _PAGE_PRESENT;
+}
+
+static inline unsigned long pgd_page_vaddr(pgd_t pgd)
+{
+	return (unsigned long)__va((unsigned long)pgd_val(pgd) & PTE_PFN_MASK);
+}
+
+static inline struct page *pgd_page(pgd_t pgd)
+{
+	return pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT);
+}
+
+/* to find an entry in a page-table-directory. */
+static inline unsigned pud_index(unsigned long address)
+{
+	return (address >> PUD_SHIFT) & (PTRS_PER_PUD - 1);
+}
+
+static inline pud_t *pud_offset(pgd_t *pgd, unsigned long address)
+{
+	return (pud_t *)pgd_page_vaddr(*pgd) + pud_index(address);
+}
+
+static inline int pgd_bad(pgd_t pgd)
+{
+	return (pgd_flags(pgd) & ~_PAGE_USER) != _KERNPG_TABLE;
+}
+
+static inline int pgd_none(pgd_t pgd)
+{
+	return !native_pgd_val(pgd);
+}
+#endif	/* PAGETABLE_LEVELS > 3 */
+
+#endif	/* __ASSEMBLY__ */
 
 /*
  * the pgd page can be thought of an array like this: pgd_t[PTRS_PER_PGD]

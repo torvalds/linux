@@ -13,7 +13,6 @@
 #include <asm/setup.h>
 #include <xen/hvc-console.h>
 #include <asm/pci-direct.h>
-#include <asm/pgtable.h>
 #include <asm/fixmap.h>
 #include <linux/usb/ehci_def.h>
 
