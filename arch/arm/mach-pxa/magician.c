@@ -626,13 +626,15 @@ static struct pda_power_pdata power_supply_info = {
 static struct resource power_supply_resources[] = {
 	[0] = {
 		.name  = "ac",
-		.flags = IORESOURCE_IRQ,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
+		         IORESOURCE_IRQ_LOWEDGE,
 		.start = IRQ_MAGICIAN_VBUS,
 		.end   = IRQ_MAGICIAN_VBUS,
 	},
 	[1] = {
 		.name  = "usb",
-		.flags = IORESOURCE_IRQ,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE |
+		         IORESOURCE_IRQ_LOWEDGE,
 		.start = IRQ_MAGICIAN_VBUS,
 		.end   = IRQ_MAGICIAN_VBUS,
 	},
