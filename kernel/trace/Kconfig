@@ -305,6 +305,7 @@ config WORKQUEUE_TRACER
 config BLK_DEV_IO_TRACE
 	bool "Support for tracing block io actions"
 	depends on SYSFS
+	depends on BLOCK
 	select RELAY
 	select DEBUG_FS
 	select TRACEPOINTS
