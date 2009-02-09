@@ -235,7 +235,6 @@ struct xfs_qmops xfs_qmcore_xfs = {
 	.xfs_dqvopchownresv	= xfs_qm_vop_chown_reserve,
 	.xfs_dqstatvfs		= xfs_qm_statvfs,
 	.xfs_dqsync		= xfs_qm_sync,
-	.xfs_quotactl		= xfs_qm_quotactl,
 	.xfs_dqtrxops		= &xfs_trans_dquot_ops,
 };
 EXPORT_SYMBOL(xfs_qmcore_xfs);

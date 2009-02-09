@@ -69,8 +69,6 @@ STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);
 
 STATIC void	xfs_qm_freelist_init(xfs_frlist_t *);
 STATIC void	xfs_qm_freelist_destroy(xfs_frlist_t *);
-STATIC int	xfs_qm_mplist_nowait(xfs_mount_t *);
-STATIC int	xfs_qm_dqhashlock_nowait(xfs_dquot_t *);
 
 STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
 STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
@@ -219,7 +217,7 @@ xfs_qm_hold_quotafs_ref(
 	 * the structure could disappear between the entry to this routine and
 	 * a HOLD operation if not locked.
 	 */
-	XFS_QM_LOCK(xfs_Gqm);
+	mutex_lock(&xfs_Gqm_lock);
 
 	if (xfs_Gqm == NULL)
 		xfs_Gqm = xfs_Gqm_init();
@@ -228,8 +226,8 @@ xfs_qm_hold_quotafs_ref(
 	 * debugging and statistical purposes, but ...
 	 * Just take a reference and get out.
 	 */
-	XFS_QM_HOLD(xfs_Gqm);
-	XFS_QM_UNLOCK(xfs_Gqm);
+	xfs_Gqm->qm_nrefs++;
+	mutex_unlock(&xfs_Gqm_lock);
 
 	return 0;
 }
@@ -277,13 +275,12 @@ xfs_qm_rele_quotafs_ref(
 	 * Destroy the entire XQM. If somebody mounts with quotaon, this'll
 	 * be restarted.
 	 */
-	XFS_QM_LOCK(xfs_Gqm);
-	XFS_QM_RELE(xfs_Gqm);
-	if (xfs_Gqm->qm_nrefs == 0) {
+	mutex_lock(&xfs_Gqm_lock);
+	if (--xfs_Gqm->qm_nrefs == 0) {
 		xfs_qm_destroy(xfs_Gqm);
 		xfs_Gqm = NULL;
 	}
-	XFS_QM_UNLOCK(xfs_Gqm);
+	mutex_unlock(&xfs_Gqm_lock);
 }
 
 /*
@@ -577,10 +574,10 @@ xfs_qm_dqpurge_int(
 			continue;
 		}
 
-		if (! xfs_qm_dqhashlock_nowait(dqp)) {
+		if (!mutex_trylock(&dqp->q_hash->qh_lock)) {
 			nrecl = XFS_QI_MPLRECLAIMS(mp);
 			xfs_qm_mplist_unlock(mp);
-			XFS_DQ_HASH_LOCK(dqp->q_hash);
+			mutex_lock(&dqp->q_hash->qh_lock);
 			xfs_qm_mplist_lock(mp);
 
 			/*
@@ -590,7 +587,7 @@ xfs_qm_dqpurge_int(
 			 * this point, but somebody might be taking things off.
 			 */
 			if (nrecl != XFS_QI_MPLRECLAIMS(mp)) {
-				XFS_DQ_HASH_UNLOCK(dqp->q_hash);
+				mutex_unlock(&dqp->q_hash->qh_lock);
 				goto again;
 			}
 		}
@@ -2028,7 +2025,7 @@ xfs_qm_shake_freelist(
 		 * a dqlookup process that holds the hashlock that is
 		 * waiting for the freelist lock.
 		 */
-		if (! xfs_qm_dqhashlock_nowait(dqp)) {
+		if (!mutex_trylock(&dqp->q_hash->qh_lock)) {
 			xfs_dqfunlock(dqp);
 			xfs_dqunlock(dqp);
 			dqp = dqp->dq_flnext;
@@ -2045,7 +2042,7 @@ xfs_qm_shake_freelist(
 			/* XXX put a sentinel so that we can come back here */
 			xfs_dqfunlock(dqp);
 			xfs_dqunlock(dqp);
-			XFS_DQ_HASH_UNLOCK(hash);
+			mutex_unlock(&hash->qh_lock);
 			xfs_qm_freelist_unlock(xfs_Gqm);
 			if (++restarts >= XFS_QM_RECLAIM_MAX_RESTARTS)
 				return nreclaimed;
@@ -2062,7 +2059,7 @@ xfs_qm_shake_freelist(
 		XQM_HASHLIST_REMOVE(hash, dqp);
 		xfs_dqfunlock(dqp);
 		xfs_qm_mplist_unlock(dqp->q_mount);
-		XFS_DQ_HASH_UNLOCK(hash);
+		mutex_unlock(&hash->qh_lock);
 
  off_freelist:
 		XQM_FREELIST_REMOVE(dqp);
@@ -2204,7 +2201,7 @@ xfs_qm_dqreclaim_one(void)
 			continue;
 		}
 
-		if (! xfs_qm_dqhashlock_nowait(dqp))
+		if (!mutex_trylock(&dqp->q_hash->qh_lock))
 			goto mplistunlock;
 
 		ASSERT(dqp->q_nrefs == 0);
@@ -2213,7 +2210,7 @@ xfs_qm_dqreclaim_one(void)
 		XQM_HASHLIST_REMOVE(dqp->q_hash, dqp);
 		XQM_FREELIST_REMOVE(dqp);
 		dqpout = dqp;
-		XFS_DQ_HASH_UNLOCK(dqp->q_hash);
+		mutex_unlock(&dqp->q_hash->qh_lock);
  mplistunlock:
 		xfs_qm_mplist_unlock(dqp->q_mount);
 		xfs_dqfunlock(dqp);
@@ -2715,35 +2712,4 @@ void
 xfs_qm_freelist_append(xfs_frlist_t *ql, xfs_dquot_t *dq)
 {
 	xfs_qm_freelist_insert((xfs_frlist_t *)ql->qh_prev, dq);
-}
-
-STATIC int
-xfs_qm_dqhashlock_nowait(
-	xfs_dquot_t *dqp)
-{
-	int locked;
-
-	locked = mutex_trylock(&((dqp)->q_hash->qh_lock));
-	return locked;
-}
-
-int
-xfs_qm_freelist_lock_nowait(
-	xfs_qm_t *xqm)
-{
-	int locked;
-
-	locked = mutex_trylock(&(xqm->qm_dqfreelist.qh_lock));
-	return locked;
-}
-
-STATIC int
-xfs_qm_mplist_nowait(
-	xfs_mount_t	*mp)
-{
-	int locked;
-
-	ASSERT(mp->m_quotainfo);
-	locked = mutex_trylock(&(XFS_QI_MPLLOCK(mp)));
-	return locked;
 }

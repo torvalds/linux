@@ -109,19 +109,6 @@ enum {
 
 #define XFS_DQHOLD(dqp)		((dqp)->q_nrefs++)
 
-#ifdef DEBUG
-static inline int
-XFS_DQ_IS_LOCKED(xfs_dquot_t *dqp)
-{
-	if (mutex_trylock(&dqp->q_qlock)) {
-		mutex_unlock(&dqp->q_qlock);
-		return 0;
-	}
-	return 1;
-}
-#endif
-
-
 /*
  * Manage the q_flush completion queue embedded in the dquot.  This completion
  * queue synchronizes processes attempting to flush the in-core dquot back to
@@ -142,6 +129,7 @@ static inline void xfs_dqfunlock(xfs_dquot_t *dqp)
 	complete(&dqp->q_flush);
 }
 
+#define XFS_DQ_IS_LOCKED(dqp)	(mutex_is_locked(&((dqp)->q_qlock)))
 #define XFS_DQ_IS_ON_FREELIST(dqp)  ((dqp)->dq_flnext != (dqp))
 #define XFS_DQ_IS_DIRTY(dqp)	((dqp)->dq_flags & XFS_DQ_DIRTY)
 #define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)

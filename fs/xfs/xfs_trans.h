@@ -343,7 +343,7 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 	  (128 * (9 + XFS_ALLOCFREE_LOG_COUNT(mp, 4))) + \
 	  (128 * 5) + \
 	  XFS_ALLOCFREE_LOG_RES(mp, 1) + \
-	   (128 * (2 + XFS_IALLOC_BLOCKS(mp) + XFS_IN_MAXLEVELS(mp) + \
+	   (128 * (2 + XFS_IALLOC_BLOCKS(mp) + (mp)->m_in_maxlevels + \
 	    XFS_ALLOCFREE_LOG_COUNT(mp, 1))))))
 
 #define	XFS_ITRUNCATE_LOG_RES(mp)   ((mp)->m_reservations.tr_itruncate)
@@ -449,9 +449,9 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 	  (128 * (4 + XFS_DIROP_LOG_COUNT(mp)))), \
 	 (2 * (mp)->m_sb.sb_sectsize + \
 	  XFS_FSB_TO_B((mp), XFS_IALLOC_BLOCKS((mp))) + \
-	  XFS_FSB_TO_B((mp), XFS_IN_MAXLEVELS(mp)) + \
+	  XFS_FSB_TO_B((mp), (mp)->m_in_maxlevels) + \
 	  XFS_ALLOCFREE_LOG_RES(mp, 1) + \
-	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + XFS_IN_MAXLEVELS(mp) + \
+	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + (mp)->m_in_maxlevels + \
 	   XFS_ALLOCFREE_LOG_COUNT(mp, 1))))))
 
 #define	XFS_SYMLINK_LOG_RES(mp)	((mp)->m_reservations.tr_symlink)
@@ -481,9 +481,9 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 	  (128 * (3 + XFS_DIROP_LOG_COUNT(mp)))), \
 	 (3 * (mp)->m_sb.sb_sectsize + \
 	  XFS_FSB_TO_B((mp), XFS_IALLOC_BLOCKS((mp))) + \
-	  XFS_FSB_TO_B((mp), XFS_IN_MAXLEVELS(mp)) + \
+	  XFS_FSB_TO_B((mp), (mp)->m_in_maxlevels) + \
 	  XFS_ALLOCFREE_LOG_RES(mp, 1) + \
-	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + XFS_IN_MAXLEVELS(mp) + \
+	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + (mp)->m_in_maxlevels + \
 	   XFS_ALLOCFREE_LOG_COUNT(mp, 1))))))
 
 #define	XFS_CREATE_LOG_RES(mp)	((mp)->m_reservations.tr_create)
@@ -513,7 +513,7 @@ xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 	 MAX((__uint16_t)XFS_FSB_TO_B((mp), 1), XFS_INODE_CLUSTER_SIZE(mp)) + \
 	 (128 * 5) + \
 	  XFS_ALLOCFREE_LOG_RES(mp, 1) + \
-	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + XFS_IN_MAXLEVELS(mp) + \
+	  (128 * (2 + XFS_IALLOC_BLOCKS(mp) + (mp)->m_in_maxlevels + \
 	   XFS_ALLOCFREE_LOG_COUNT(mp, 1))))
 
 
