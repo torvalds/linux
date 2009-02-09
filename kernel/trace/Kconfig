@@ -9,6 +9,9 @@ config USER_STACKTRACE_SUPPORT
 config NOP_TRACER
 	bool
 
+config HAVE_FTRACE_NMI_ENTER
+	bool
+
 config HAVE_FUNCTION_TRACER
 	bool
 
@@ -36,6 +39,11 @@ config TRACER_MAX_TRACE
 
 config RING_BUFFER
 	bool
+
+config FTRACE_NMI_ENTER
+       bool
+       depends on HAVE_FTRACE_NMI_ENTER
+       default y
 
 config TRACING
 	bool

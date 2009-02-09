@@ -465,7 +465,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 	 * it is not enabled then do nothing.
 	 *
 	 * If this record is not to be traced and
-	 * it is enabled then disabled it.
+	 * it is enabled then disable it.
 	 *
 	 */
 	if (rec->flags & FTRACE_FL_NOTRACE) {
@@ -485,7 +485,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 		if (fl == (FTRACE_FL_FILTER | FTRACE_FL_ENABLED))
 			return 0;
 
-		/* Record is not filtered and is not enabled do nothing */
+		/* Record is not filtered or enabled, do nothing */
 		if (!fl)
 			return 0;
 
@@ -507,7 +507,7 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 
 		} else {
 
-			/* if record is not enabled do nothing */
+			/* if record is not enabled, do nothing */
 			if (!(rec->flags & FTRACE_FL_ENABLED))
 				return 0;
 

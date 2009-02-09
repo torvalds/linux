@@ -333,7 +333,7 @@ int trace_print_context(struct trace_iterator *iter)
 	unsigned long secs = (unsigned long)t;
 
 	return trace_seq_printf(s, "%16s-%-5d [%03d] %5lu.%06lu: ",
-				comm, entry->pid, entry->cpu, secs, usec_rem);
+				comm, entry->pid, iter->cpu, secs, usec_rem);
 }
 
 int trace_print_lat_context(struct trace_iterator *iter)
@@ -356,7 +356,7 @@ int trace_print_lat_context(struct trace_iterator *iter)
 		char *comm = trace_find_cmdline(entry->pid);
 		ret = trace_seq_printf(s, "%16s %5d %3d %d %08x %08lx [%08lx]"
 				       " %ld.%03ldms (+%ld.%03ldms): ", comm,
-				       entry->pid, entry->cpu, entry->flags,
+				       entry->pid, iter->cpu, entry->flags,
 				       entry->preempt_count, iter->idx,
 				       ns2usecs(iter->ts),
 				       abs_usecs / USEC_PER_MSEC,
@@ -364,7 +364,7 @@ int trace_print_lat_context(struct trace_iterator *iter)
 				       rel_usecs / USEC_PER_MSEC,
 				       rel_usecs % USEC_PER_MSEC);
 	} else {
-		ret = lat_print_generic(s, entry, entry->cpu);
+		ret = lat_print_generic(s, entry, iter->cpu);
 		if (ret)
 			ret = lat_print_timestamp(s, abs_usecs, rel_usecs);
 	}

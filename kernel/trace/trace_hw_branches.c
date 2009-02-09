@@ -158,7 +158,7 @@ static enum print_line_t bts_trace_print_line(struct trace_iterator *iter)
 	trace_assign_type(it, entry);
 
 	if (entry->type == TRACE_HW_BRANCHES) {
-		if (trace_seq_printf(seq, "%4d  ", entry->cpu) &&
+		if (trace_seq_printf(seq, "%4d  ", iter->cpu) &&
 		    seq_print_ip_sym(seq, it->to, symflags) &&
 		    trace_seq_printf(seq, "\t  <-  ") &&
 		    seq_print_ip_sym(seq, it->from, symflags) &&
@@ -193,7 +193,8 @@ void trace_hw_branch(u64 from, u64 to)
 	if (!event)
 		goto out;
 	entry	= ring_buffer_event_data(event);
-	entry->ent.cpu = cpu;
+	tracing_generic_entry_update(&entry->ent, 0, from);
+	entry->ent.type = TRACE_HW_BRANCHES;
 	entry->from = from;
 	entry->to   = to;
 	trace_buffer_unlock_commit(tr, event, 0, 0);

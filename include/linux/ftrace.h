@@ -140,7 +140,7 @@ static inline int ftrace_disable_ftrace_graph_caller(void) { return 0; }
 #endif
 
 /**
- * ftrace_make_nop - convert code into top
+ * ftrace_make_nop - convert code into nop
  * @mod: module structure if called by module load initialization
  * @rec: the mcount call site record
  * @addr: the address that the call site should be calling

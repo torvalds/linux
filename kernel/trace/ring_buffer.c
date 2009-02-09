@@ -4,9 +4,11 @@
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
  */
 #include <linux/ring_buffer.h>
+#include <linux/ftrace_irq.h>
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
+#include <linux/hardirq.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/mutex.h>
@@ -982,6 +984,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	struct ring_buffer *buffer = cpu_buffer->buffer;
 	struct ring_buffer_event *event;
 	unsigned long flags;
+	bool lock_taken = false;
 
 	commit_page = cpu_buffer->commit_page;
 	/* we just need to protect against interrupts */
@@ -995,7 +998,30 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		struct buffer_page *next_page = tail_page;
 
 		local_irq_save(flags);
-		__raw_spin_lock(&cpu_buffer->lock);
+		/*
+		 * Since the write to the buffer is still not
+		 * fully lockless, we must be careful with NMIs.
+		 * The locks in the writers are taken when a write
+		 * crosses to a new page. The locks protect against
+		 * races with the readers (this will soon be fixed
+		 * with a lockless solution).
+		 *
+		 * Because we can not protect against NMIs, and we
+		 * want to keep traces reentrant, we need to manage
+		 * what happens when we are in an NMI.
+		 *
+		 * NMIs can happen after we take the lock.
+		 * If we are in an NMI, only take the lock
+		 * if it is not already taken. Otherwise
+		 * simply fail.
+		 */
+		if (unlikely(in_nmi())) {
+			if (!__raw_spin_trylock(&cpu_buffer->lock))
+				goto out_unlock;
+		} else
+			__raw_spin_lock(&cpu_buffer->lock);
+
+		lock_taken = true;
 
 		rb_inc_page(cpu_buffer, &next_page);
 
@@ -1097,7 +1123,8 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	if (tail <= BUF_PAGE_SIZE)
 		local_set(&tail_page->write, tail);
 
-	__raw_spin_unlock(&cpu_buffer->lock);
+	if (likely(lock_taken))
+		__raw_spin_unlock(&cpu_buffer->lock);
 	local_irq_restore(flags);
 	return NULL;
 }
