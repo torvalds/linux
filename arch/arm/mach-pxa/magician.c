@@ -483,8 +483,6 @@ static struct pasic3_led pasic3_leds[] = {
 	},
 };
 
-static struct platform_device pasic3;
-
 static struct pasic3_leds_machinfo pasic3_leds_info = {
 	.num_leds   = ARRAY_SIZE(pasic3_leds),
 	.power_gpio = EGPIO_MAGICIAN_LED_POWER,
