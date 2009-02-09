@@ -97,11 +97,11 @@ static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
 	 * Unfortunately this means we may get 8 KB here from the
 	 * kernel... and that is actually what is observed on some
 	 * systems :( */
-	skb = dev_alloc_skb(len + sc->sc_cachelsz - 1);
+	skb = dev_alloc_skb(len + sc->cachelsz - 1);
 	if (skb != NULL) {
-		off = ((unsigned long) skb->data) % sc->sc_cachelsz;
+		off = ((unsigned long) skb->data) % sc->cachelsz;
 		if (off != 0)
-			skb_reserve(skb, sc->sc_cachelsz - off);
+			skb_reserve(skb, sc->cachelsz - off);
 	} else {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"skbuff alloc of size %u failed\n", len);
@@ -210,7 +210,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 	rx_status->mactime = ath_extend_tsf(sc, ds->ds_rxstat.rs_tstamp);
 	rx_status->band = sc->hw->conf.channel->band;
 	rx_status->freq =  sc->hw->conf.channel->center_freq;
-	rx_status->noise = sc->sc_ani.sc_noise_floor;
+	rx_status->noise = sc->ani.noise_floor;
 	rx_status->signal = rx_status->noise + ds->ds_rxstat.rs_rssi;
 	rx_status->antenna = ds->ds_rxstat.rs_antenna;
 
@@ -242,13 +242,13 @@ static void ath_opmode_init(struct ath_softc *sc)
 
 	/* configure bssid mask */
 	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath9k_hw_setbssidmask(ah, sc->sc_bssidmask);
+		ath9k_hw_setbssidmask(ah, sc->bssidmask);
 
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);
 
 	/* Handle any link-level address change. */
-	ath9k_hw_setmac(ah, sc->sc_myaddr);
+	ath9k_hw_setmac(ah, sc->macaddr);
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
@@ -267,11 +267,11 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 		spin_lock_init(&sc->rx.rxbuflock);
 
 		sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
-					   min(sc->sc_cachelsz,
+					   min(sc->cachelsz,
 					       (u16)64));
 
 		DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
-			sc->sc_cachelsz, sc->rx.bufsize);
+			sc->cachelsz, sc->rx.bufsize);
 
 		/* Initialize rx descriptors */
 
@@ -593,7 +593,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			   && !decrypt_error && skb->len >= hdrlen + 4) {
 			keyix = skb->data[hdrlen + 3] >> 6;
 
-			if (test_bit(keyix, sc->sc_keymap))
+			if (test_bit(keyix, sc->keymap))
 				rx_status.flag |= RX_FLAG_DECRYPTED;
 		}
 		if (ah->sw_mgmt_crypto &&

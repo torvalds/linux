@@ -2158,9 +2158,9 @@ int ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 	u32 macStaId1;
 	int i, rx_chainmask, r;
 
-	ahp->ah_extprotspacing = sc->sc_ht_extprotspacing;
-	ahp->ah_txchainmask = sc->sc_tx_chainmask;
-	ahp->ah_rxchainmask = sc->sc_rx_chainmask;
+	ahp->ah_extprotspacing = sc->ht_extprotspacing;
+	ahp->ah_txchainmask = sc->tx_chainmask;
+	ahp->ah_rxchainmask = sc->rx_chainmask;
 
 	if (AR_SREV_9285(ah)) {
 		ahp->ah_txchainmask &= 0x1;

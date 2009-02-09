@@ -970,14 +970,14 @@ int ath_cabq_update(struct ath_softc *sc)
 	/*
 	 * Ensure the readytime % is within the bounds.
 	 */
-	if (sc->sc_config.cabqReadytime < ATH9K_READY_TIME_LO_BOUND)
-		sc->sc_config.cabqReadytime = ATH9K_READY_TIME_LO_BOUND;
-	else if (sc->sc_config.cabqReadytime > ATH9K_READY_TIME_HI_BOUND)
-		sc->sc_config.cabqReadytime = ATH9K_READY_TIME_HI_BOUND;
+	if (sc->config.cabqReadytime < ATH9K_READY_TIME_LO_BOUND)
+		sc->config.cabqReadytime = ATH9K_READY_TIME_LO_BOUND;
+	else if (sc->config.cabqReadytime > ATH9K_READY_TIME_HI_BOUND)
+		sc->config.cabqReadytime = ATH9K_READY_TIME_HI_BOUND;
 
 	ath_get_beaconconfig(sc, ATH_IF_ID_ANY, &conf);
 	qi.tqi_readyTime =
-		(conf.beacon_interval * sc->sc_config.cabqReadytime) / 100;
+		(conf.beacon_interval * sc->config.cabqReadytime) / 100;
 	ath_txq_update(sc, qnum, &qi);
 
 	return 0;
@@ -1471,7 +1471,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 		flags = ATH9K_TXDESC_RTSENA;
 
 	/* FIXME: Handle aggregation protection */
-	if (sc->sc_config.ath_aggr_prot &&
+	if (sc->config.ath_aggr_prot &&
 	    (!bf_isaggr(bf) || (bf_isaggr(bf) && bf->bf_al < 8192))) {
 		flags = ATH9K_TXDESC_RTSENA;
 	}
@@ -1486,7 +1486,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 
 		rix = rates[i].idx;
 		series[i].Tries = rates[i].count;
-		series[i].ChSel = sc->sc_tx_chainmask;
+		series[i].ChSel = sc->tx_chainmask;
 
 		if (rates[i].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 			series[i].Rate = rt->info[rix].ratecode |
@@ -1513,7 +1513,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 				     !is_pspoll, ctsrate,
 				     0, series, 4, flags);
 
-	if (sc->sc_config.ath_aggr_prot && flags)
+	if (sc->config.ath_aggr_prot && flags)
 		ath9k_hw_set11n_burstduration(sc->sc_ah, bf->bf_desc, 8192);
 }
 

@@ -63,7 +63,7 @@ static void ath_bstuck_process(struct ath_softc *sc)
  *  Beacons are always sent out at the lowest rate, and are not retried.
 */
 static void ath_beacon_setup(struct ath_softc *sc,
-			     struct ath_vap *avp, struct ath_buf *bf)
+			     struct ath_vif *avp, struct ath_buf *bf)
 {
 	struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
 	struct ath_hal *ah = sc->sc_ah;
@@ -96,7 +96,7 @@ static void ath_beacon_setup(struct ath_softc *sc,
 		 * SWBA's
 		 * XXX assumes two antenna
 		 */
-		antenna = ((sc->beacon.ast_be_xmit / sc->sc_nbcnvaps) & 1 ? 2 : 1);
+		antenna = ((sc->beacon.ast_be_xmit / sc->nbcnvifs) & 1 ? 2 : 1);
 	}
 
 	ds->ds_data = bf->bf_buf_addr;
@@ -132,24 +132,24 @@ static void ath_beacon_setup(struct ath_softc *sc,
 	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
 	series[0].Tries = 1;
 	series[0].Rate = rate;
-	series[0].ChSel = sc->sc_tx_chainmask;
+	series[0].ChSel = sc->tx_chainmask;
 	series[0].RateFlags = (ctsrate) ? ATH9K_RATESERIES_RTS_CTS : 0;
 	ath9k_hw_set11n_ratescenario(ah, ds, ds, 0,
 		ctsrate, ctsduration, series, 4, 0);
 }
 
-/* Generate beacon frame and queue cab data for a vap */
+/* Generate beacon frame and queue cab data for a VIF */
 static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 {
 	struct ath_buf *bf;
-	struct ath_vap *avp;
+	struct ath_vif *avp;
 	struct sk_buff *skb;
 	struct ath_txq *cabq;
 	struct ieee80211_vif *vif;
 	struct ieee80211_tx_info *info;
 	int cabq_depth;
 
-	vif = sc->sc_vaps[if_id];
+	vif = sc->vifs[if_id];
 	ASSERT(vif);
 
 	avp = (void *)vif->drv_priv;
@@ -204,10 +204,10 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	/*
 	 * if the CABQ traffic from previous DTIM is pending and the current
 	 *  beacon is also a DTIM.
-	 *  1) if there is only one vap let the cab traffic continue.
-	 *  2) if there are more than one vap and we are using staggered
+	 *  1) if there is only one vif let the cab traffic continue.
+	 *  2) if there are more than one vif and we are using staggered
 	 *     beacons, then drain the cabq by dropping all the frames in
-	 *     the cabq so that the current vaps cab traffic can be scheduled.
+	 *     the cabq so that the current vifs cab traffic can be scheduled.
 	 */
 	spin_lock_bh(&cabq->axq_lock);
 	cabq_depth = cabq->axq_depth;
@@ -219,7 +219,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 		 * the lock again which is a common function and that
 		 * acquires txq lock inside.
 		 */
-		if (sc->sc_nvaps > 1) {
+		if (sc->nvifs > 1) {
 			ath_draintxq(sc, cabq, false);
 			DPRINTF(sc, ATH_DBG_BEACON,
 				"flush previous cabq traffic\n");
@@ -250,10 +250,10 @@ static void ath_beacon_start_adhoc(struct ath_softc *sc, int if_id)
 	struct ieee80211_vif *vif;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
-	struct ath_vap *avp;
+	struct ath_vif *avp;
 	struct sk_buff *skb;
 
-	vif = sc->sc_vaps[if_id];
+	vif = sc->vifs[if_id];
 	ASSERT(vif);
 
 	avp = (void *)vif->drv_priv;
@@ -291,13 +291,13 @@ int ath_beaconq_setup(struct ath_hal *ah)
 int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 {
 	struct ieee80211_vif *vif;
-	struct ath_vap *avp;
+	struct ath_vif *avp;
 	struct ieee80211_hdr *hdr;
 	struct ath_buf *bf;
 	struct sk_buff *skb;
 	__le64 tstamp;
 
-	vif = sc->sc_vaps[if_id];
+	vif = sc->vifs[if_id];
 	ASSERT(vif);
 
 	avp = (void *)vif->drv_priv;
@@ -314,7 +314,7 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 		    !(sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_VEOL)) {
 			int slot;
 			/*
-			 * Assign the vap to a beacon xmit slot. As
+			 * Assign the vif to a beacon xmit slot. As
 			 * above, this cannot fail to find one.
 			 */
 			avp->av_bslot = 0;
@@ -335,7 +335,7 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 				}
 			BUG_ON(sc->beacon.bslot[avp->av_bslot] != ATH_IF_ID_ANY);
 			sc->beacon.bslot[avp->av_bslot] = if_id;
-			sc->sc_nbcnvaps++;
+			sc->nbcnvifs++;
 		}
 	}
 
@@ -384,8 +384,8 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 		 * timestamp then convert to TSF units and handle
 		 * byte swapping before writing it in the frame.
 		 * The hardware will then add this each time a beacon
-		 * frame is sent.  Note that we align vap's 1..N
-		 * and leave vap 0 untouched.  This means vap 0
+		 * frame is sent.  Note that we align vif's 1..N
+		 * and leave vif 0 untouched.  This means vap 0
 		 * has a timestamp in one beacon interval while the
 		 * others get a timestamp aligned to the next interval.
 		 */
@@ -416,14 +416,14 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 	return 0;
 }
 
-void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp)
+void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp)
 {
 	if (avp->av_bcbuf != NULL) {
 		struct ath_buf *bf;
 
 		if (avp->av_bslot != -1) {
 			sc->beacon.bslot[avp->av_bslot] = ATH_IF_ID_ANY;
-			sc->sc_nbcnvaps--;
+			sc->nbcnvifs--;
 		}
 
 		bf = avp->av_bcbuf;
@@ -597,7 +597,7 @@ void ath9k_beacon_tasklet(unsigned long data)
 		ath9k_hw_puttxbuf(ah, sc->beacon.beaconq, bfaddr);
 		ath9k_hw_txstart(ah, sc->beacon.beaconq);
 
-		sc->beacon.ast_be_xmit += bc;     /* XXX per-vap? */
+		sc->beacon.ast_be_xmit += bc;     /* XXX per-vif? */
 	}
 }
 
@@ -621,12 +621,12 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 	struct ieee80211_vif *vif;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_beacon_config conf;
-	struct ath_vap *avp;
+	struct ath_vif *avp;
 	enum nl80211_iftype opmode;
 	u32 nexttbtt, intval;
 
 	if (if_id != ATH_IF_ID_ANY) {
-		vif = sc->sc_vaps[if_id];
+		vif = sc->vifs[if_id];
 		ASSERT(vif);
 		avp = (void *)vif->drv_priv;
 		opmode = avp->av_opmode;
@@ -781,8 +781,8 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 
 		ath9k_hw_set_interrupts(ah, 0);
 		ath9k_hw_set_sta_beacon_timers(ah, &bs);
-		sc->sc_imask |= ATH9K_INT_BMISS;
-		ath9k_hw_set_interrupts(ah, sc->sc_imask);
+		sc->imask |= ATH9K_INT_BMISS;
+		ath9k_hw_set_interrupts(ah, sc->imask);
 	} else {
 		u64 tsf;
 		u32 tsftu;
@@ -819,7 +819,7 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 			 */
 			intval |= ATH9K_BEACON_ENA;
 			if (!(ah->ah_caps.hw_caps & ATH9K_HW_CAP_VEOL))
-				sc->sc_imask |= ATH9K_INT_SWBA;
+				sc->imask |= ATH9K_INT_SWBA;
 			ath_beaconq_config(sc);
 		} else if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP) {
 			/*
@@ -827,12 +827,12 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 			 * SWBA interrupts to prepare beacon frames.
 			 */
 			intval |= ATH9K_BEACON_ENA;
-			sc->sc_imask |= ATH9K_INT_SWBA;   /* beacon prepare */
+			sc->imask |= ATH9K_INT_SWBA;   /* beacon prepare */
 			ath_beaconq_config(sc);
 		}
 		ath9k_hw_beaconinit(ah, nexttbtt, intval);
 		sc->beacon.bmisscnt = 0;
-		ath9k_hw_set_interrupts(ah, sc->sc_imask);
+		ath9k_hw_set_interrupts(ah, sc->imask);
 		/*
 		 * When using a self-linked beacon descriptor in
 		 * ibss mode load it once here.

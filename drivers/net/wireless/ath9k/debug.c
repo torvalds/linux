@@ -24,7 +24,7 @@ void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...)
 	if (!sc)
 		return;
 
-	if (sc->sc_debug.debug_mask & dbg_mask) {
+	if (sc->debug.debug_mask & dbg_mask) {
 		va_list args;
 
 		va_start(args, fmt);
@@ -130,41 +130,41 @@ static const struct file_operations fops_dma = {
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
 {
 	if (status)
-		sc->sc_debug.stats.istats.total++;
+		sc->debug.stats.istats.total++;
 	if (status & ATH9K_INT_RX)
-		sc->sc_debug.stats.istats.rxok++;
+		sc->debug.stats.istats.rxok++;
 	if (status & ATH9K_INT_RXEOL)
-		sc->sc_debug.stats.istats.rxeol++;
+		sc->debug.stats.istats.rxeol++;
 	if (status & ATH9K_INT_RXORN)
-		sc->sc_debug.stats.istats.rxorn++;
+		sc->debug.stats.istats.rxorn++;
 	if (status & ATH9K_INT_TX)
-		sc->sc_debug.stats.istats.txok++;
+		sc->debug.stats.istats.txok++;
 	if (status & ATH9K_INT_TXURN)
-		sc->sc_debug.stats.istats.txurn++;
+		sc->debug.stats.istats.txurn++;
 	if (status & ATH9K_INT_MIB)
-		sc->sc_debug.stats.istats.mib++;
+		sc->debug.stats.istats.mib++;
 	if (status & ATH9K_INT_RXPHY)
-		sc->sc_debug.stats.istats.rxphyerr++;
+		sc->debug.stats.istats.rxphyerr++;
 	if (status & ATH9K_INT_RXKCM)
-		sc->sc_debug.stats.istats.rx_keycache_miss++;
+		sc->debug.stats.istats.rx_keycache_miss++;
 	if (status & ATH9K_INT_SWBA)
-		sc->sc_debug.stats.istats.swba++;
+		sc->debug.stats.istats.swba++;
 	if (status & ATH9K_INT_BMISS)
-		sc->sc_debug.stats.istats.bmiss++;
+		sc->debug.stats.istats.bmiss++;
 	if (status & ATH9K_INT_BNR)
-		sc->sc_debug.stats.istats.bnr++;
+		sc->debug.stats.istats.bnr++;
 	if (status & ATH9K_INT_CST)
-		sc->sc_debug.stats.istats.cst++;
+		sc->debug.stats.istats.cst++;
 	if (status & ATH9K_INT_GTT)
-		sc->sc_debug.stats.istats.gtt++;
+		sc->debug.stats.istats.gtt++;
 	if (status & ATH9K_INT_TIM)
-		sc->sc_debug.stats.istats.tim++;
+		sc->debug.stats.istats.tim++;
 	if (status & ATH9K_INT_CABEND)
-		sc->sc_debug.stats.istats.cabend++;
+		sc->debug.stats.istats.cabend++;
 	if (status & ATH9K_INT_DTIMSYNC)
-		sc->sc_debug.stats.istats.dtimsync++;
+		sc->debug.stats.istats.dtimsync++;
 	if (status & ATH9K_INT_DTIM)
-		sc->sc_debug.stats.istats.dtim++;
+		sc->debug.stats.istats.dtim++;
 }
 
 static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
@@ -175,41 +175,41 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 	unsigned int len = 0;
 
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "RX", sc->sc_debug.stats.istats.rxok);
+		"%8s: %10u\n", "RX", sc->debug.stats.istats.rxok);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "RXEOL", sc->sc_debug.stats.istats.rxeol);
+		"%8s: %10u\n", "RXEOL", sc->debug.stats.istats.rxeol);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "RXORN", sc->sc_debug.stats.istats.rxorn);
+		"%8s: %10u\n", "RXORN", sc->debug.stats.istats.rxorn);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "TX", sc->sc_debug.stats.istats.txok);
+		"%8s: %10u\n", "TX", sc->debug.stats.istats.txok);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "TXURN", sc->sc_debug.stats.istats.txurn);
+		"%8s: %10u\n", "TXURN", sc->debug.stats.istats.txurn);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "MIB", sc->sc_debug.stats.istats.mib);
+		"%8s: %10u\n", "MIB", sc->debug.stats.istats.mib);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "RXPHY", sc->sc_debug.stats.istats.rxphyerr);
+		"%8s: %10u\n", "RXPHY", sc->debug.stats.istats.rxphyerr);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "RXKCM", sc->sc_debug.stats.istats.rx_keycache_miss);
+		"%8s: %10u\n", "RXKCM", sc->debug.stats.istats.rx_keycache_miss);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "SWBA", sc->sc_debug.stats.istats.swba);
+		"%8s: %10u\n", "SWBA", sc->debug.stats.istats.swba);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "BMISS", sc->sc_debug.stats.istats.bmiss);
+		"%8s: %10u\n", "BMISS", sc->debug.stats.istats.bmiss);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "BNR", sc->sc_debug.stats.istats.bnr);
+		"%8s: %10u\n", "BNR", sc->debug.stats.istats.bnr);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "CST", sc->sc_debug.stats.istats.cst);
+		"%8s: %10u\n", "CST", sc->debug.stats.istats.cst);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "GTT", sc->sc_debug.stats.istats.gtt);
+		"%8s: %10u\n", "GTT", sc->debug.stats.istats.gtt);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "TIM", sc->sc_debug.stats.istats.tim);
+		"%8s: %10u\n", "TIM", sc->debug.stats.istats.tim);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "CABEND", sc->sc_debug.stats.istats.cabend);
+		"%8s: %10u\n", "CABEND", sc->debug.stats.istats.cabend);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "DTIMSYNC", sc->sc_debug.stats.istats.dtimsync);
+		"%8s: %10u\n", "DTIMSYNC", sc->debug.stats.istats.dtimsync);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "DTIM", sc->sc_debug.stats.istats.dtim);
+		"%8s: %10u\n", "DTIM", sc->debug.stats.istats.dtim);
 	len += snprintf(buf + len, sizeof(buf) - len,
-		"%8s: %10u\n", "TOTAL", sc->sc_debug.stats.istats.total);
+		"%8s: %10u\n", "TOTAL", sc->debug.stats.istats.total);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -231,7 +231,7 @@ static void ath_debug_stat_11n_rc(struct ath_softc *sc, struct sk_buff *skb)
 	final_ts_idx = tx_info_priv->tx.ts_rateindex;
 	idx = sc->cur_rate_table->info[rates[final_ts_idx].idx].dot11rate;
 
-	sc->sc_debug.stats.n_rcstats[idx].success++;
+	sc->debug.stats.n_rcstats[idx].success++;
 }
 
 static void ath_debug_stat_legacy_rc(struct ath_softc *sc, struct sk_buff *skb)
@@ -245,7 +245,7 @@ static void ath_debug_stat_legacy_rc(struct ath_softc *sc, struct sk_buff *skb)
 	final_ts_idx = tx_info_priv->tx.ts_rateindex;
 	idx = rates[final_ts_idx].idx;
 
-	sc->sc_debug.stats.legacy_rcstats[idx].success++;
+	sc->debug.stats.legacy_rcstats[idx].success++;
 }
 
 void ath_debug_stat_rc(struct ath_softc *sc, struct sk_buff *skb)
@@ -263,8 +263,8 @@ void ath_debug_stat_retries(struct ath_softc *sc, int rix,
 	if (conf_is_ht(&sc->hw->conf)) {
 		int idx = sc->cur_rate_table->info[rix].dot11rate;
 
-		sc->sc_debug.stats.n_rcstats[idx].xretries += xretries;
-		sc->sc_debug.stats.n_rcstats[idx].retries += retries;
+		sc->debug.stats.n_rcstats[idx].xretries += xretries;
+		sc->debug.stats.n_rcstats[idx].retries += retries;
 	}
 }
 
@@ -283,9 +283,9 @@ static ssize_t ath_read_file_stat_11n_rc(struct file *file,
 	for (i = 0; i <= 15; i++) {
 		len += snprintf(buf + len, sizeof(buf) - len,
 				"%5s%3d: %8u %8u %8u\n", "MCS", i,
-				sc->sc_debug.stats.n_rcstats[i].success,
-				sc->sc_debug.stats.n_rcstats[i].retries,
-				sc->sc_debug.stats.n_rcstats[i].xretries);
+				sc->debug.stats.n_rcstats[i].success,
+				sc->debug.stats.n_rcstats[i].retries,
+				sc->debug.stats.n_rcstats[i].xretries);
 	}
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
@@ -305,7 +305,7 @@ static ssize_t ath_read_file_stat_legacy_rc(struct file *file,
 	for (i = 0; i < sc->cur_rate_table->rate_cnt; i++) {
 		len += snprintf(buf + len, sizeof(buf) - len, "%5u: %12u\n",
 				sc->cur_rate_table->info[i].ratekbps / 1000,
-				sc->sc_debug.stats.legacy_rcstats[i].success);
+				sc->debug.stats.legacy_rcstats[i].success);
 	}
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
@@ -330,34 +330,34 @@ static const struct file_operations fops_rcstat = {
 
 int ath9k_init_debug(struct ath_softc *sc)
 {
-	sc->sc_debug.debug_mask = ath9k_debug;
+	sc->debug.debug_mask = ath9k_debug;
 
-	sc->sc_debug.debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!sc->sc_debug.debugfs_root)
+	sc->debug.debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
+	if (!sc->debug.debugfs_root)
 		goto err;
 
-	sc->sc_debug.debugfs_phy = debugfs_create_dir(wiphy_name(sc->hw->wiphy),
-						      sc->sc_debug.debugfs_root);
-	if (!sc->sc_debug.debugfs_phy)
+	sc->debug.debugfs_phy = debugfs_create_dir(wiphy_name(sc->hw->wiphy),
+						      sc->debug.debugfs_root);
+	if (!sc->debug.debugfs_phy)
 		goto err;
 
-	sc->sc_debug.debugfs_dma = debugfs_create_file("dma", S_IRUGO,
-				       sc->sc_debug.debugfs_phy, sc, &fops_dma);
-	if (!sc->sc_debug.debugfs_dma)
+	sc->debug.debugfs_dma = debugfs_create_file("dma", S_IRUGO,
+				       sc->debug.debugfs_phy, sc, &fops_dma);
+	if (!sc->debug.debugfs_dma)
 		goto err;
 
-	sc->sc_debug.debugfs_interrupt = debugfs_create_file("interrupt",
+	sc->debug.debugfs_interrupt = debugfs_create_file("interrupt",
 						     S_IRUGO,
-						     sc->sc_debug.debugfs_phy,
+						     sc->debug.debugfs_phy,
 						     sc, &fops_interrupt);
-	if (!sc->sc_debug.debugfs_interrupt)
+	if (!sc->debug.debugfs_interrupt)
 		goto err;
 
-	sc->sc_debug.debugfs_rcstat = debugfs_create_file("rcstat",
+	sc->debug.debugfs_rcstat = debugfs_create_file("rcstat",
 						  S_IRUGO,
-						  sc->sc_debug.debugfs_phy,
+						  sc->debug.debugfs_phy,
 						  sc, &fops_rcstat);
-	if (!sc->sc_debug.debugfs_rcstat)
+	if (!sc->debug.debugfs_rcstat)
 		goto err;
 
 	return 0;
@@ -368,9 +368,9 @@ err:
 
 void ath9k_exit_debug(struct ath_softc *sc)
 {
-	debugfs_remove(sc->sc_debug.debugfs_rcstat);
-	debugfs_remove(sc->sc_debug.debugfs_interrupt);
-	debugfs_remove(sc->sc_debug.debugfs_dma);
-	debugfs_remove(sc->sc_debug.debugfs_phy);
-	debugfs_remove(sc->sc_debug.debugfs_root);
+	debugfs_remove(sc->debug.debugfs_rcstat);
+	debugfs_remove(sc->debug.debugfs_interrupt);
+	debugfs_remove(sc->debug.debugfs_dma);
+	debugfs_remove(sc->debug.debugfs_phy);
+	debugfs_remove(sc->debug.debugfs_root);
 }

@@ -104,13 +104,13 @@ enum buffer_type {
 };
 
 struct ath_buf_state {
-	int bfs_nframes;		/* # frames in aggregate */
-	u16 bfs_al;			/* length of aggregate */
-	u16 bfs_frmlen;			/* length of frame */
-	int bfs_seqno;			/* sequence number */
-	int bfs_tidno;			/* tid of this frame */
-	int bfs_retries;		/* current retries */
-	u32 bf_type;			/* BUF_* (enum buffer_type) */
+	int bfs_nframes;
+	u16 bfs_al;
+	u16 bfs_frmlen;
+	int bfs_seqno;
+	int bfs_tidno;
+	int bfs_retries;
+	u32 bf_type;
 	u32 bfs_keyix;
 	enum ath9k_key_type bfs_keytype;
 };
@@ -129,10 +129,6 @@ struct ath_buf_state {
 #define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
 #define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
 
-/*
- * Abstraction of a contiguous buffer to transmit/receive.  There is only
- * a single hw descriptor encapsulated here.
- */
 struct ath_buf {
 	struct list_head list;
 	struct ath_buf *bf_lastbf;	/* last buf of this unit (a frame or
@@ -143,22 +139,20 @@ struct ath_buf {
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
 	u32 bf_status;
-	u16 bf_flags;			/* tx descriptor flags */
-	struct ath_buf_state bf_state;	/* buffer state */
+	u16 bf_flags;
+	struct ath_buf_state bf_state;
 	dma_addr_t bf_dmacontext;
 };
 
 #define ATH_RXBUF_RESET(_bf)    ((_bf)->bf_status = 0)
 #define ATH_BUFSTATUS_STALE     0x00000002
 
-/* DMA state for tx/rx descriptors */
-
 struct ath_descdma {
 	const char *dd_name;
-	struct ath_desc *dd_desc;	/* descriptors  */
-	dma_addr_t dd_desc_paddr;	/* physical addr of dd_desc  */
-	u32 dd_desc_len;		/* size of dd_desc  */
-	struct ath_buf *dd_bufptr;	/* associated buffers */
+	struct ath_desc *dd_desc;
+	dma_addr_t dd_desc_paddr;
+	u32 dd_desc_len;
+	struct ath_buf *dd_bufptr;
 	dma_addr_t dd_dmacontext;
 };
 
@@ -246,15 +240,15 @@ enum ATH_AGGR_STATUS {
 };
 
 struct ath_txq {
-	u32 axq_qnum;			/* hardware q number */
-	u32 *axq_link;			/* link ptr in last TX desc */
-	struct list_head axq_q;		/* transmit queue */
+	u32 axq_qnum;
+	u32 *axq_link;
+	struct list_head axq_q;
 	spinlock_t axq_lock;
-	u32 axq_depth;			/* queue depth */
-	u8 axq_aggr_depth;		/* aggregates queued */
-	u32 axq_totalqueued;		/* total ever queued */
-	bool stopped;			/* Is mac80211 queue stopped ? */
-	struct ath_buf *axq_linkbuf;	/* virtual addr of last buffer*/
+	u32 axq_depth;
+	u8 axq_aggr_depth;
+	u32 axq_totalqueued;
+	bool stopped;
+	struct ath_buf *axq_linkbuf;
 
 	/* first desc of the last descriptor that contains CTS */
 	struct ath_desc *axq_lastdsWithCTS;
@@ -270,45 +264,39 @@ struct ath_txq {
 #define AGGR_ADDBA_COMPLETE  BIT(2)
 #define AGGR_ADDBA_PROGRESS  BIT(3)
 
-/* per TID aggregate tx state for a destination */
 struct ath_atx_tid {
-	struct list_head list;		/* round-robin tid entry */
-	struct list_head buf_q;		/* pending buffers */
+	struct list_head list;
+	struct list_head buf_q;
 	struct ath_node *an;
 	struct ath_atx_ac *ac;
-	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS]; /* active tx frames */
+	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];
 	u16 seq_start;
 	u16 seq_next;
 	u16 baw_size;
 	int tidno;
-	int baw_head;			/* first un-acked tx buffer */
-	int baw_tail;			/* next unused tx buffer slot */
+	int baw_head;	/* first un-acked tx buffer */
+	int baw_tail;	/* next unused tx buffer slot */
 	int sched;
 	int paused;
 	u8 state;
 	int addba_exchangeattempts;
 };
 
-/* per access-category aggregate tx state for a destination */
 struct ath_atx_ac {
-	int sched;			/* dest-ac is scheduled */
-	int qnum;			/* H/W queue number associated
-					   with this AC */
-	struct list_head list;		/* round-robin txq entry */
-	struct list_head tid_q;		/* queue of TIDs with buffers */
+	int sched;
+	int qnum;
+	struct list_head list;
+	struct list_head tid_q;
 };
 
-/* per-frame tx control block */
 struct ath_tx_control {
 	struct ath_txq *txq;
 	int if_id;
 };
 
-/* per frame tx status block */
 struct ath_xmit_status {
-	int retries;	/* number of retries to successufully
-			   transmit this frame */
-	int flags;	/* status of transmit */
+	int retries;
+	int flags;
 #define ATH_TX_ERROR        0x01
 #define ATH_TX_XRETRY       0x02
 #define ATH_TX_BAR          0x04
@@ -396,21 +384,21 @@ int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
 
 /********/
-/* VAPs */
+/* VIFs */
 /********/
 
 /*
  * Define the scheme that we select MAC address for multiple
- * BSS on the same radio. The very first VAP will just use the MAC
- * address from the EEPROM. For the next 3 VAPs, we set the
+ * BSS on the same radio. The very first VIF will just use the MAC
+ * address from the EEPROM. For the next 3 VIFs, we set the
  * U/L bit (bit 1) in MAC address, and use the next two bits as the
- * index of the VAP.
+ * index of the VIF.
  */
 
-#define ATH_SET_VAP_BSSID_MASK(bssid_mask) \
+#define ATH_SET_VIF_BSSID_MASK(bssid_mask) \
 	((bssid_mask)[0] &= ~(((ATH_BCBUF-1)<<2)|0x02))
 
-struct ath_vap {
+struct ath_vif {
 	int av_bslot;
 	enum nl80211_iftype av_opmode;
 	struct ath_buf *av_bcbuf;
@@ -469,7 +457,7 @@ void ath9k_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, int if_id);
 int ath_beaconq_setup(struct ath_hal *ah);
 int ath_beacon_alloc(struct ath_softc *sc, int if_id);
-void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp);
+void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
 void ath_beacon_sync(struct ath_softc *sc, int if_id);
 
 /*******/
@@ -485,12 +473,12 @@ void ath_beacon_sync(struct ath_softc *sc, int if_id);
 #define ATH_RESTART_CALINTERVAL 1200000 /* 20 minutes between calibrations */
 
 struct ath_ani {
-	bool sc_caldone;
-	int16_t sc_noise_floor;
-	unsigned int sc_longcal_timer;
-	unsigned int sc_shortcal_timer;
-	unsigned int sc_resetcal_timer;
-	unsigned int sc_checkani_timer;
+	bool caldone;
+	int16_t noise_floor;
+	unsigned int longcal_timer;
+	unsigned int shortcal_timer;
+	unsigned int resetcal_timer;
+	unsigned int checkani_timer;
 	struct timer_list timer;
 };
 
@@ -591,31 +579,31 @@ struct ath_softc {
 	spinlock_t sc_resetlock;
 	struct mutex mutex;
 
-	u8 sc_curbssid[ETH_ALEN];
-	u8 sc_myaddr[ETH_ALEN];
-	u8 sc_bssidmask[ETH_ALEN];
-	u32 sc_intrstatus;
+	u8 curbssid[ETH_ALEN];
+	u8 macaddr[ETH_ALEN];
+	u8 bssidmask[ETH_ALEN];
+	u32 intrstatus;
 	u32 sc_flags; /* SC_OP_* */
-	u16 sc_curtxpow;
-	u16 sc_curaid;
-	u16 sc_cachelsz;
-	u8 sc_nbcnvaps;
-	u16 sc_nvaps;
-	u8 sc_tx_chainmask;
-	u8 sc_rx_chainmask;
-	u32 sc_keymax;
-	DECLARE_BITMAP(sc_keymap, ATH_KEYMAX);
-	u8 sc_splitmic;
+	u16 curtxpow;
+	u16 curaid;
+	u16 cachelsz;
+	u8 nbcnvifs;
+	u16 nvifs;
+	u8 tx_chainmask;
+	u8 rx_chainmask;
+	u32 keymax;
+	DECLARE_BITMAP(keymap, ATH_KEYMAX);
+	u8 splitmic;
 	atomic_t ps_usecount;
-	enum ath9k_int sc_imask;
-	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
+	enum ath9k_int imask;
+	enum ath9k_ht_extprotspacing ht_extprotspacing;
 	enum ath9k_ht_macmode tx_chan_width;
 
-	struct ath_config sc_config;
+	struct ath_config config;
 	struct ath_rx rx;
 	struct ath_tx tx;
 	struct ath_beacon beacon;
-	struct ieee80211_vif *sc_vaps[ATH_BCBUF];
+	struct ieee80211_vif *vifs[ATH_BCBUF];
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
 	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
 	struct ath_rate_table *cur_rate_table;
@@ -632,10 +620,10 @@ struct ath_softc {
 	int led_off_cnt;
 
 	struct ath_rfkill rf_kill;
-	struct ath_ani sc_ani;
-	struct ath9k_node_stats sc_halstats;
+	struct ath_ani ani;
+	struct ath9k_node_stats nodestats;
 #ifdef CONFIG_ATH9K_DEBUG
-	struct ath9k_debug sc_debug;
+	struct ath9k_debug debug;
 #endif
 	struct ath_bus_ops *bus_ops;
 };
