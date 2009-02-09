@@ -1767,7 +1767,7 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 		       AFMT_S8 | AFMT_U16_LE |
 		       AFMT_U16_BE |
 			AFMT_S32_LE | AFMT_S32_BE |
-			AFMT_S24_LE | AFMT_S24_LE |
+			AFMT_S24_LE | AFMT_S24_BE |
 			AFMT_S24_PACKED;
 	params = kmalloc(sizeof(*params), GFP_KERNEL);
 	if (!params)

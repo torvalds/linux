@@ -136,7 +136,7 @@ ENTRY(mcount)
 	ldmia sp!, {r0-r3, pc}
 
 trace:
-	ldr r1, [fp, #-4]
+	ldr r1, [fp, #-4]			@ lr of instrumented routine
 	mov r0, lr
 	sub r0, r0, #MCOUNT_INSN_SIZE
 	mov lr, pc

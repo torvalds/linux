@@ -453,7 +453,7 @@ static struct platform_driver sa1100_mtd_driver = {
 	.resume		= sa1100_mtd_resume,
 	.shutdown	= sa1100_mtd_shutdown,
 	.driver		= {
-		.name	= "flash",
+		.name	= "sa1100-mtd",
 		.owner	= THIS_MODULE,
 	},
 };
@@ -474,4 +474,4 @@ module_exit(sa1100_mtd_exit);
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("SA1100 CFI map driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:flash");
+MODULE_ALIAS("platform:sa1100-mtd");
