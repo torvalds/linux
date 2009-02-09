@@ -128,10 +128,10 @@ static int uart_mxc_port1_exit(struct platform_device *pdev)
 	return 0;
 }
 
-static int mxc_uart2_pins[] = { PE10_PF_UART3_CTS,
+static int mxc_uart2_pins[] = { PE8_PF_UART3_TXD,
 				PE9_PF_UART3_RXD,
 				PE10_PF_UART3_CTS,
-				PE9_PF_UART3_RXD };
+				PE11_PF_UART3_RTS };
 
 static int uart_mxc_port2_init(struct platform_device *pdev)
 {
