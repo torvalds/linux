@@ -31,10 +31,11 @@
  */
 
 #include "common.h"
-#include <xen/evtchn.h>
+#include <xen/events.h>
+#include <xen/grant_table.h>
 #include <linux/kthread.h>
 
-static kmem_cache_t *blkif_cachep;
+static struct kmem_cache *blkif_cachep;
 
 blkif_t *blkif_alloc(domid_t domid)
 {
@@ -107,22 +108,22 @@ int blkif_map(blkif_t *blkif, unsigned long shared_page, unsigned int evtchn)
 	switch (blkif->blk_protocol) {
 	case BLKIF_PROTOCOL_NATIVE:
 	{
-		blkif_sring_t *sring;
-		sring = (blkif_sring_t *)blkif->blk_ring_area->addr;
+		struct blkif_sring *sring;
+		sring = (struct blkif_sring *)blkif->blk_ring_area->addr;
 		BACK_RING_INIT(&blkif->blk_rings.native, sring, PAGE_SIZE);
 		break;
 	}
 	case BLKIF_PROTOCOL_X86_32:
 	{
-		blkif_x86_32_sring_t *sring_x86_32;
-		sring_x86_32 = (blkif_x86_32_sring_t *)blkif->blk_ring_area->addr;
+		struct blkif_x86_32_sring *sring_x86_32;
+		sring_x86_32 = (struct blkif_x86_32_sring *)blkif->blk_ring_area->addr;
 		BACK_RING_INIT(&blkif->blk_rings.x86_32, sring_x86_32, PAGE_SIZE);
 		break;
 	}
 	case BLKIF_PROTOCOL_X86_64:
 	{
-		blkif_x86_64_sring_t *sring_x86_64;
-		sring_x86_64 = (blkif_x86_64_sring_t *)blkif->blk_ring_area->addr;
+		struct blkif_x86_64_sring *sring_x86_64;
+		sring_x86_64 = (struct blkif_x86_64_sring *)blkif->blk_ring_area->addr;
 		BACK_RING_INIT(&blkif->blk_rings.x86_64, sring_x86_64, PAGE_SIZE);
 		break;
 	}
@@ -177,5 +178,5 @@ void blkif_free(blkif_t *blkif)
 void __init blkif_interface_init(void)
 {
 	blkif_cachep = kmem_cache_create("blkif_cache", sizeof(blkif_t),
-					 0, 0, NULL, NULL);
+					 0, 0, NULL);
 }

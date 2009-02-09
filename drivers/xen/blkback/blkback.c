@@ -39,8 +39,12 @@
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/delay.h>
+#include <linux/freezer.h>
 #include <xen/balloon.h>
-#include <asm/hypervisor.h>
+#include <xen/events.h>
+#include <xen/page.h>
+#include <asm/xen/hypervisor.h>
+#include <asm/xen/hypercall.h>
 #include "common.h"
 
 /*
@@ -106,7 +110,7 @@ static inline unsigned long vaddr(pending_req_t *req, int seg)
 
 static int do_block_io_op(blkif_t *blkif);
 static void dispatch_rw_block_io(blkif_t *blkif,
-				 blkif_request_t *req,
+				 struct blkif_request *req,
 				 pending_req_t *pending_req);
 static void make_response(blkif_t *blkif, u64 id,
 			  unsigned short op, int st);
@@ -153,7 +157,7 @@ static void unplug_queue(blkif_t *blkif)
 
 static void plug_queue(blkif_t *blkif, struct block_device *bdev)
 {
-	request_queue_t *q = bdev_get_queue(bdev);
+	struct request_queue *q = bdev_get_queue(bdev);
 
 	if (q == blkif->plug)
 		return;
@@ -268,13 +272,10 @@ static void __end_block_io_op(pending_req_t *pending_req, int error)
 	}
 }
 
-static int end_block_io_op(struct bio *bio, unsigned int done, int error)
+static void end_block_io_op(struct bio *bio, int error)
 {
-	if (bio->bi_size != 0)
-		return 1;
 	__end_block_io_op(bio->bi_private, error);
 	bio_put(bio);
-	return error;
 }
 
 
@@ -288,7 +289,7 @@ static void blkif_notify_work(blkif_t *blkif)
 	wake_up(&blkif->wq);
 }
 
-irqreturn_t blkif_be_int(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t blkif_be_int(int irq, void *dev_id)
 {
 	blkif_notify_work(dev_id);
 	return IRQ_HANDLED;
@@ -302,8 +303,8 @@ irqreturn_t blkif_be_int(int irq, void *dev_id, struct pt_regs *regs)
 
 static int do_block_io_op(blkif_t *blkif)
 {
-	blkif_back_rings_t *blk_rings = &blkif->blk_rings;
-	blkif_request_t req;
+	union blkif_back_rings *blk_rings = &blkif->blk_rings;
+	struct blkif_request req;
 	pending_req_t *pending_req;
 	RING_IDX rc, rp;
 	int more_to_do = 0;
@@ -379,7 +380,7 @@ static int do_block_io_op(blkif_t *blkif)
 }
 
 static void dispatch_rw_block_io(blkif_t *blkif,
-				 blkif_request_t *req,
+				 struct blkif_request *req,
 				 pending_req_t *pending_req)
 {
 	extern void ll_rw_block(int rw, int nr, struct buffer_head * bhs[]);
@@ -560,9 +561,9 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 static void make_response(blkif_t *blkif, u64 id,
 			  unsigned short op, int st)
 {
-	blkif_response_t  resp;
+	struct blkif_response  resp;
 	unsigned long     flags;
-	blkif_back_rings_t *blk_rings = &blkif->blk_rings;
+	union blkif_back_rings *blk_rings = &blkif->blk_rings;
 	int more_to_do = 0;
 	int notify;
 
@@ -614,7 +615,8 @@ static int __init blkif_init(void)
 {
 	int i, mmap_pages;
 
-	if (!is_running_on_xen())
+	printk(KERN_CRIT "***blkif_init\n");
+	if (!xen_pv_domain())
 		return -ENODEV;
 
 	mmap_pages = blkif_reqs * BLKIF_MAX_SEGMENTS_PER_REQUEST;

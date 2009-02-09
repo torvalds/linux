@@ -40,8 +40,7 @@
 #include <xen/evtchn.h>
 #include <asm/hypervisor.h>
 #include <xen/blkif.h>
-#include <xen/gnttab.h>
-#include <xen/driver_util.h>
+#include <xen/grant_table.h>
 #include <xen/xenbus.h>
 
 #define DPRINTK(_f, _a...)			\
@@ -66,7 +65,7 @@ typedef struct blkif_st {
 	unsigned int      irq;
 	/* Comms information. */
 	enum blkif_protocol blk_protocol;
-	blkif_back_rings_t blk_rings;
+	union blkif_back_rings blk_rings;
 	struct vm_struct *blk_ring_area;
 	/* The VBD attached to this interface. */
 	struct vbd        vbd;
@@ -79,7 +78,7 @@ typedef struct blkif_st {
 	wait_queue_head_t   wq;
 	struct task_struct  *xenblkd;
 	unsigned int        waiting_reqs;
-	request_queue_t     *plug;
+	struct request_queue     *plug;
 
 	/* statistics */
 	unsigned long       st_print;
@@ -130,7 +129,7 @@ void blkif_interface_init(void);
 
 void blkif_xenbus_init(void);
 
-irqreturn_t blkif_be_int(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t blkif_be_int(int irq, void *dev_id);
 int blkif_schedule(void *arg);
 
 int blkback_barrier(struct xenbus_transaction xbt,

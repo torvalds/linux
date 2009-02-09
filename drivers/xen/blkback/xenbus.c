@@ -238,8 +238,8 @@ static int blkback_probe(struct xenbus_device *dev,
 	/* setup back pointer */
 	be->blkif->be = be;
 
-	err = xenbus_watch_path2(dev, dev->nodename, "physical-device",
-				 &be->backend_watch, backend_changed);
+	err = xenbus_watch_pathfmt(dev, &be->backend_watch, backend_changed,
+				   "%s/%s", dev->nodename, "physical-device");
 	if (err)
 		goto fail;
 
@@ -537,5 +537,6 @@ static struct xenbus_driver blkback = {
 
 void blkif_xenbus_init(void)
 {
-	xenbus_register_backend(&blkback);
+	/* XXX must_check */
+	(void)xenbus_register_backend(&blkback);
 }

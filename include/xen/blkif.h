@@ -77,12 +77,11 @@ DEFINE_RING_TYPES(blkif_x86_32, struct blkif_x86_32_request, struct blkif_x86_32
 DEFINE_RING_TYPES(blkif_x86_64, struct blkif_x86_64_request, struct blkif_x86_64_response);
 
 union blkif_back_rings {
-	blkif_back_ring_t        native;
-	blkif_common_back_ring_t common;
-	blkif_x86_32_back_ring_t x86_32;
-	blkif_x86_64_back_ring_t x86_64;
+	struct blkif_back_ring        native;
+	struct blkif_common_back_ring common;
+	struct blkif_x86_32_back_ring x86_32;
+	struct blkif_x86_64_back_ring x86_64;
 };
-typedef union blkif_back_rings blkif_back_rings_t;
 
 enum blkif_protocol {
 	BLKIF_PROTOCOL_NATIVE = 1,
@@ -90,7 +89,7 @@ enum blkif_protocol {
 	BLKIF_PROTOCOL_X86_64 = 3,
 };
 
-static void inline blkif_get_x86_32_req(blkif_request_t *dst, blkif_x86_32_request_t *src)
+static void inline blkif_get_x86_32_req(struct blkif_request *dst, struct blkif_x86_32_request *src)
 {
 	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST;
 	dst->operation = src->operation;
@@ -105,7 +104,7 @@ static void inline blkif_get_x86_32_req(blkif_request_t *dst, blkif_x86_32_reque
 		dst->seg[i] = src->seg[i];
 }
 
-static void inline blkif_get_x86_64_req(blkif_request_t *dst, blkif_x86_64_request_t *src)
+static void inline blkif_get_x86_64_req(struct blkif_request *dst, struct blkif_x86_64_request *src)
 {
 	int i, n = BLKIF_MAX_SEGMENTS_PER_REQUEST;
 	dst->operation = src->operation;
