@@ -272,7 +272,7 @@ struct additional_sensor_data {
 	const u8 stream[4];
 };
 
-const static struct additional_sensor_data sensor_data[] = {
+static const struct additional_sensor_data sensor_data[] = {
     {				/* OM6802 */
 	.data1 =
 		{0xc2, 0x28, 0x0f, 0x22, 0xcd, 0x27, 0x2c, 0x06,
