@@ -96,6 +96,8 @@ static int xenfs_fill_super(struct super_block *sb, void *data, int silent)
 				  &xsd_kva_file_ops, NULL, S_IRUSR|S_IWUSR);
 		xenfs_create_file(sb, sb->s_root, "xsd_port",
 				  &xsd_port_file_ops, NULL, S_IRUSR|S_IWUSR);
+		xenfs_create_file(sb, sb->s_root, "privcmd",
+				  &privcmd_file_ops, NULL, S_IRUSR|S_IWUSR);
 	}
 
 	return rc;
