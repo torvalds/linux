@@ -219,7 +219,7 @@ xfs_qm_hold_quotafs_ref(
 	 * the structure could disappear between the entry to this routine and
 	 * a HOLD operation if not locked.
 	 */
-	XFS_QM_LOCK(xfs_Gqm);
+	mutex_lock(&xfs_Gqm_lock);
 
 	if (xfs_Gqm == NULL)
 		xfs_Gqm = xfs_Gqm_init();
@@ -228,8 +228,8 @@ xfs_qm_hold_quotafs_ref(
 	 * debugging and statistical purposes, but ...
 	 * Just take a reference and get out.
 	 */
-	XFS_QM_HOLD(xfs_Gqm);
-	XFS_QM_UNLOCK(xfs_Gqm);
+	xfs_Gqm->qm_nrefs++;
+	mutex_unlock(&xfs_Gqm_lock);
 
 	return 0;
 }
@@ -277,13 +277,12 @@ xfs_qm_rele_quotafs_ref(
 	 * Destroy the entire XQM. If somebody mounts with quotaon, this'll
 	 * be restarted.
 	 */
-	XFS_QM_LOCK(xfs_Gqm);
-	XFS_QM_RELE(xfs_Gqm);
-	if (xfs_Gqm->qm_nrefs == 0) {
+	mutex_lock(&xfs_Gqm_lock);
+	if (--xfs_Gqm->qm_nrefs == 0) {
 		xfs_qm_destroy(xfs_Gqm);
 		xfs_Gqm = NULL;
 	}
-	XFS_QM_UNLOCK(xfs_Gqm);
+	mutex_unlock(&xfs_Gqm_lock);
 }
 
 /*
