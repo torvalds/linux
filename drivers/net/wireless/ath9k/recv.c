@@ -242,13 +242,13 @@ static void ath_opmode_init(struct ath_softc *sc)
 
 	/* configure bssid mask */
 	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath9k_hw_setbssidmask(ah, sc->bssidmask);
+		ath9k_hw_setbssidmask(sc);
 
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);
 
 	/* Handle any link-level address change. */
-	ath9k_hw_setmac(ah, sc->macaddr);
+	ath9k_hw_setmac(ah, sc->sc_ah->macaddr);
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;

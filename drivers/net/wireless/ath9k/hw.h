@@ -427,6 +427,7 @@ struct ath_hal {
 	struct ath9k_hw_capabilities ah_caps;
 	struct ath9k_regulatory regulatory;
 	u32 ah_flags;
+	u8 macaddr[ETH_ALEN];
 
 	enum ath9k_power_mode ah_power_mode;
 	enum ath9k_power_mode ah_restore_mode;
@@ -456,11 +457,6 @@ struct ath_hal_5416 {
 	struct ar5416Stats ah_stats;
 	struct ath9k_tx_queue_info ah_txq[ATH9K_NUM_TX_QUEUES];
 	void __iomem *ah_cal_mem;
-
-	u8 ah_macaddr[ETH_ALEN];
-	u8 ah_bssid[ETH_ALEN];
-	u8 ah_bssidmask[ETH_ALEN];
-	u16 ah_assocId;
 
 	int16_t ah_curchanRadIndex;
 	u32 ah_maskReg;
@@ -633,13 +629,11 @@ void ath9k_hw_setrxfilter(struct ath_hal *ah, u32 bits);
 bool ath9k_hw_phy_disable(struct ath_hal *ah);
 bool ath9k_hw_disable(struct ath_hal *ah);
 bool ath9k_hw_set_txpowerlimit(struct ath_hal *ah, u32 limit);
-void ath9k_hw_getmac(struct ath_hal *ah, u8 *mac);
-bool ath9k_hw_setmac(struct ath_hal *ah, const u8 *mac);
+void ath9k_hw_setmac(struct ath_hal *ah, const u8 *mac);
 void ath9k_hw_setopmode(struct ath_hal *ah);
 void ath9k_hw_setmcastfilter(struct ath_hal *ah, u32 filter0, u32 filter1);
-void ath9k_hw_getbssidmask(struct ath_hal *ah, u8 *mask);
-bool ath9k_hw_setbssidmask(struct ath_hal *ah, const u8 *mask);
-void ath9k_hw_write_associd(struct ath_hal *ah, const u8 *bssid, u16 assocId);
+void ath9k_hw_setbssidmask(struct ath_softc *sc);
+void ath9k_hw_write_associd(struct ath_softc *sc);
 u64 ath9k_hw_gettsf64(struct ath_hal *ah);
 void ath9k_hw_settsf64(struct ath_hal *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hal *ah);

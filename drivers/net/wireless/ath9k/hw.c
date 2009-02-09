@@ -392,8 +392,6 @@ static struct ath_hal_5416 *ath9k_hw_newstate(u16 devid,
 					      void __iomem *mem,
 					      int *status)
 {
-	static const u8 defbssidmask[ETH_ALEN] =
-		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	struct ath_hal_5416 *ahp;
 	struct ath_hal *ah;
 
@@ -432,7 +430,6 @@ static struct ath_hal_5416 *ath9k_hw_newstate(u16 devid,
 	ahp->ah_acktimeout = (u32) -1;
 	ahp->ah_ctstimeout = (u32) -1;
 	ahp->ah_globaltxtimeout = (u32) -1;
-	memcpy(&ahp->ah_bssidmask, defbssidmask, ETH_ALEN);
 
 	ahp->ah_gBeaconRate = 0;
 
@@ -488,19 +485,18 @@ static int ath9k_hw_init_macaddr(struct ath_hal *ah)
 	u32 sum;
 	int i;
 	u16 eeval;
-	struct ath_hal_5416 *ahp = AH5416(ah);
 
 	sum = 0;
 	for (i = 0; i < 3; i++) {
 		eeval = ath9k_hw_get_eeprom(ah, AR_EEPROM_MAC(i));
 		sum += eeval;
-		ahp->ah_macaddr[2 * i] = eeval >> 8;
-		ahp->ah_macaddr[2 * i + 1] = eeval & 0xff;
+		ah->macaddr[2 * i] = eeval >> 8;
+		ah->macaddr[2 * i + 1] = eeval & 0xff;
 	}
 	if (sum == 0 || sum == 0xffff * 3) {
 		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
 			"mac address read failed: %pM\n",
-			ahp->ah_macaddr);
+			ah->macaddr);
 		return -EADDRNOTAVAIL;
 	}
 
@@ -2251,8 +2247,8 @@ int ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_decrease_chain_power(ah, chan);
 
-	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(ahp->ah_macaddr));
-	REG_WRITE(ah, AR_STA_ID1, get_unaligned_le16(ahp->ah_macaddr + 4)
+	REG_WRITE(ah, AR_STA_ID0, get_unaligned_le32(ah->macaddr));
+	REG_WRITE(ah, AR_STA_ID1, get_unaligned_le16(ah->macaddr + 4)
 		  | macStaId1
 		  | AR_STA_ID1_RTS_USE_DEF
 		  | (ah->ah_config.
@@ -2260,14 +2256,14 @@ int ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
 		  | ahp->ah_staId1Defaults);
 	ath9k_hw_set_operating_mode(ah, ah->ah_opmode);
 
-	REG_WRITE(ah, AR_BSSMSKL, get_unaligned_le32(ahp->ah_bssidmask));
-	REG_WRITE(ah, AR_BSSMSKU, get_unaligned_le16(ahp->ah_bssidmask + 4));
+	REG_WRITE(ah, AR_BSSMSKL, get_unaligned_le32(sc->bssidmask));
+	REG_WRITE(ah, AR_BSSMSKU, get_unaligned_le16(sc->bssidmask + 4));
 
 	REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
 
-	REG_WRITE(ah, AR_BSS_ID0, get_unaligned_le32(ahp->ah_bssid));
-	REG_WRITE(ah, AR_BSS_ID1, get_unaligned_le16(ahp->ah_bssid + 4) |
-		  ((ahp->ah_assocId & 0x3fff) << AR_BSS_ID1_AID_S));
+	REG_WRITE(ah, AR_BSS_ID0, get_unaligned_le32(sc->curbssid));
+	REG_WRITE(ah, AR_BSS_ID1, get_unaligned_le16(sc->curbssid + 4) |
+		  ((sc->curaid & 0x3fff) << AR_BSS_ID1_AID_S));
 
 	REG_WRITE(ah, AR_ISR, ~0);
 
@@ -3669,20 +3665,9 @@ bool ath9k_hw_set_txpowerlimit(struct ath_hal *ah, u32 limit)
 	return true;
 }
 
-void ath9k_hw_getmac(struct ath_hal *ah, u8 *mac)
+void ath9k_hw_setmac(struct ath_hal *ah, const u8 *mac)
 {
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	memcpy(mac, ahp->ah_macaddr, ETH_ALEN);
-}
-
-bool ath9k_hw_setmac(struct ath_hal *ah, const u8 *mac)
-{
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	memcpy(ahp->ah_macaddr, mac, ETH_ALEN);
-
-	return true;
+	memcpy(ah->macaddr, mac, ETH_ALEN);
 }
 
 void ath9k_hw_setopmode(struct ath_hal *ah)
@@ -3696,35 +3681,17 @@ void ath9k_hw_setmcastfilter(struct ath_hal *ah, u32 filter0, u32 filter1)
 	REG_WRITE(ah, AR_MCAST_FIL1, filter1);
 }
 
-void ath9k_hw_getbssidmask(struct ath_hal *ah, u8 *mask)
+void ath9k_hw_setbssidmask(struct ath_softc *sc)
 {
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	memcpy(mask, ahp->ah_bssidmask, ETH_ALEN);
+	REG_WRITE(sc->sc_ah, AR_BSSMSKL, get_unaligned_le32(sc->bssidmask));
+	REG_WRITE(sc->sc_ah, AR_BSSMSKU, get_unaligned_le16(sc->bssidmask + 4));
 }
 
-bool ath9k_hw_setbssidmask(struct ath_hal *ah, const u8 *mask)
+void ath9k_hw_write_associd(struct ath_softc *sc)
 {
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	memcpy(ahp->ah_bssidmask, mask, ETH_ALEN);
-
-	REG_WRITE(ah, AR_BSSMSKL, get_unaligned_le32(ahp->ah_bssidmask));
-	REG_WRITE(ah, AR_BSSMSKU, get_unaligned_le16(ahp->ah_bssidmask + 4));
-
-	return true;
-}
-
-void ath9k_hw_write_associd(struct ath_hal *ah, const u8 *bssid, u16 assocId)
-{
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	memcpy(ahp->ah_bssid, bssid, ETH_ALEN);
-	ahp->ah_assocId = assocId;
-
-	REG_WRITE(ah, AR_BSS_ID0, get_unaligned_le32(ahp->ah_bssid));
-	REG_WRITE(ah, AR_BSS_ID1, get_unaligned_le16(ahp->ah_bssid + 4) |
-		  ((assocId & 0x3fff) << AR_BSS_ID1_AID_S));
+	REG_WRITE(sc->sc_ah, AR_BSS_ID0, get_unaligned_le32(sc->curbssid));
+	REG_WRITE(sc->sc_ah, AR_BSS_ID1, get_unaligned_le16(sc->curbssid + 4) |
+		  ((sc->curaid & 0x3fff) << AR_BSS_ID1_AID_S));
 }
 
 u64 ath9k_hw_gettsf64(struct ath_hal *ah)
