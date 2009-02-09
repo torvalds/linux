@@ -50,6 +50,7 @@ static unsigned long xen_save_fl(void)
 	*/
 	return (-flags) & X86_EFLAGS_IF;
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_save_fl);
 
 static void xen_restore_fl(unsigned long flags)
 {
@@ -76,6 +77,7 @@ static void xen_restore_fl(unsigned long flags)
 			xen_force_evtchn_callback();
 	}
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_restore_fl);
 
 static void xen_irq_disable(void)
 {
@@ -86,6 +88,7 @@ static void xen_irq_disable(void)
 	percpu_read(xen_vcpu)->evtchn_upcall_mask = 1;
 	preempt_enable_no_resched();
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_irq_disable);
 
 static void xen_irq_enable(void)
 {
@@ -106,6 +109,7 @@ static void xen_irq_enable(void)
 	if (unlikely(vcpu->evtchn_upcall_pending))
 		xen_force_evtchn_callback();
 }
+PV_CALLEE_SAVE_REGS_THUNK(xen_irq_enable);
 
 static void xen_safe_halt(void)
 {
@@ -124,10 +128,12 @@ static void xen_halt(void)
 
 static const struct pv_irq_ops xen_irq_ops __initdata = {
 	.init_IRQ = __xen_init_IRQ,
-	.save_fl = xen_save_fl,
-	.restore_fl = xen_restore_fl,
-	.irq_disable = xen_irq_disable,
-	.irq_enable = xen_irq_enable,
+
+	.save_fl = PV_CALLEE_SAVE(xen_save_fl),
+	.restore_fl = PV_CALLEE_SAVE(xen_restore_fl),
+	.irq_disable = PV_CALLEE_SAVE(xen_irq_disable),
+	.irq_enable = PV_CALLEE_SAVE(xen_irq_enable),
+
 	.safe_halt = xen_safe_halt,
 	.halt = xen_halt,
 #ifdef CONFIG_X86_64

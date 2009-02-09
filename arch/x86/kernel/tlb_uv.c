@@ -259,7 +259,7 @@ const struct cpumask *uv_flush_send_and_wait(int cpu, int this_blade,
 		 * the cpu's, all of which are still in the mask.
 		 */
 		__get_cpu_var(ptcstats).ptc_i++;
-		return 0;
+		return flush_mask;
 	}
 
 	/*

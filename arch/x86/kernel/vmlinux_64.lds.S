@@ -22,6 +22,7 @@ PHDRS {
 #ifdef CONFIG_SMP
 	percpu PT_LOAD FLAGS(7);	/* RWE */
 #endif
+	data.init2 PT_LOAD FLAGS(7);	/* RWE */
 	note PT_NOTE FLAGS(0);	/* ___ */
 }
 SECTIONS
@@ -215,7 +216,7 @@ SECTIONS
   /*
    * percpu offsets are zero-based on SMP.  PERCPU_VADDR() changes the
    * output PHDR, so the next output section - __data_nosave - should
-   * switch it back to data.init.  Also, pda should be at the head of
+   * start another section data.init2.  Also, pda should be at the head of
    * percpu area.  Preallocate it and define the percpu offset symbol
    * so that it can be accessed as a percpu variable.
    */
@@ -232,7 +233,7 @@ SECTIONS
   __nosave_begin = .;
   .data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
       *(.data.nosave)
-  } :data.init	/* switch back to data.init, see PERCPU_VADDR() above */
+  } :data.init2 /* use another section data.init2, see PERCPU_VADDR() above */
   . = ALIGN(PAGE_SIZE);
   __nosave_end = .;
 

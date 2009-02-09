@@ -11,101 +11,28 @@
 	generally too large to inline anyway.
  */
 
-#include <linux/linkage.h>
-
-#include <asm/asm-offsets.h>
+//#include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
-#include <asm/percpu.h>
 #include <asm/processor-flags.h>
 #include <asm/segment.h>
 
 #include <xen/interface/xen.h>
 
-#define RELOC(x, v)	.globl x##_reloc; x##_reloc=v
-#define ENDPATCH(x)	.globl x##_end; x##_end=.
-
-/* Pseudo-flag used for virtual NMI, which we don't implement yet */
-#define XEN_EFLAGS_NMI	0x80000000
+#include "xen-asm.h"
 
 /*
-	Enable events.  This clears the event mask and tests the pending
-	event status with one and operation.  If there are pending
-	events, then enter the hypervisor to get them handled.
+	Force an event check by making a hypercall,
+	but preserve regs before making the call.
  */
-ENTRY(xen_irq_enable_direct)
-	/* Unmask events */
-	movb $0, PER_CPU_VAR(xen_vcpu_info)+XEN_vcpu_info_mask
-
-	/* Preempt here doesn't matter because that will deal with
-	   any pending interrupts.  The pending check may end up being
-	   run on the wrong CPU, but that doesn't hurt. */
-
-	/* Test for pending */
-	testb $0xff, PER_CPU_VAR(xen_vcpu_info)+XEN_vcpu_info_pending
-	jz 1f
-
-2:	call check_events
-1:
-ENDPATCH(xen_irq_enable_direct)
+check_events:
+	push %eax
+	push %ecx
+	push %edx
+	call xen_force_evtchn_callback
+	pop %edx
+	pop %ecx
+	pop %eax
 	ret
-	ENDPROC(xen_irq_enable_direct)
-	RELOC(xen_irq_enable_direct, 2b+1)
-
-
-/*
-	Disabling events is simply a matter of making the event mask
-	non-zero.
- */
-ENTRY(xen_irq_disable_direct)
-	movb $1, PER_CPU_VAR(xen_vcpu_info)+XEN_vcpu_info_mask
-ENDPATCH(xen_irq_disable_direct)
-	ret
-	ENDPROC(xen_irq_disable_direct)
-	RELOC(xen_irq_disable_direct, 0)
-
-/*
-	(xen_)save_fl is used to get the current interrupt enable status.
-	Callers expect the status to be in X86_EFLAGS_IF, and other bits
-	may be set in the return value.  We take advantage of this by
-	making sure that X86_EFLAGS_IF has the right value (and other bits
-	in that byte are 0), but other bits in the return value are
-	undefined.  We need to toggle the state of the bit, because
-	Xen and x86 use opposite senses (mask vs enable).
- */
-ENTRY(xen_save_fl_direct)
-	testb $0xff, PER_CPU_VAR(xen_vcpu_info)+XEN_vcpu_info_mask
-	setz %ah
-	addb %ah,%ah
-ENDPATCH(xen_save_fl_direct)
-	ret
-	ENDPROC(xen_save_fl_direct)
-	RELOC(xen_save_fl_direct, 0)
-
-
-/*
-	In principle the caller should be passing us a value return
-	from xen_save_fl_direct, but for robustness sake we test only
-	the X86_EFLAGS_IF flag rather than the whole byte. After
-	setting the interrupt mask state, it checks for unmasked
-	pending events and enters the hypervisor to get them delivered
-	if so.
- */
-ENTRY(xen_restore_fl_direct)
-	testb $X86_EFLAGS_IF>>8, %ah
-	setz PER_CPU_VAR(xen_vcpu_info)+XEN_vcpu_info_mask
-	/* Preempt here doesn't matter because that will deal with
-	   any pending interrupts.  The pending check may end up being
-	   run on the wrong CPU, but that doesn't hurt. */
-
-	/* check for unmasked and pending */
-	cmpw $0x0001, PER_CPU_VAR(xen_vcpu_info)+XEN_vcpu_info_pending
-	jz 1f
-2:	call check_events
-1:
-ENDPATCH(xen_restore_fl_direct)
-	ret
-	ENDPROC(xen_restore_fl_direct)
-	RELOC(xen_restore_fl_direct, 2b+1)
 
 /*
 	We can't use sysexit directly, because we're not running in ring0.
@@ -289,17 +216,3 @@ ENTRY(xen_iret_crit_fixup)
 	lea 4(%edi),%esp		/* point esp to new frame */
 2:	jmp xen_do_upcall
 
-
-/*
-	Force an event check by making a hypercall,
-	but preserve regs before making the call.
- */
-check_events:
-	push %eax
-	push %ecx
-	push %edx
-	call xen_force_evtchn_callback
-	pop %edx
-	pop %ecx
-	pop %eax
-	ret
