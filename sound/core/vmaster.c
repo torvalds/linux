@@ -340,8 +340,20 @@ static void master_free(struct snd_kcontrol *kcontrol)
 }
 
 
-/*
- * Create a virtual master control with the given name
+/**
+ * snd_ctl_make_virtual_master - Create a virtual master control
+ * @name: name string of the control element to create
+ * @tlv: optional TLV int array for dB information
+ *
+ * Creates a virtual matster control with the given name string.
+ * Returns the created control element, or NULL for errors (ENOMEM).
+ *
+ * After creating a vmaster element, you can add the slave controls
+ * via snd_ctl_add_slave() or snd_ctl_add_slave_uncached().
+ *
+ * The optional argument @tlv can be used to specify the TLV information
+ * for dB scale of the master control.  It should be a single element
+ * with #SNDRV_CTL_TLVT_DB_SCALE type, and should be the max 0dB.
  */
 struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 						 const unsigned int *tlv)
