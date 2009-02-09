@@ -23,11 +23,11 @@ static int ath9k_hw_get_ani_channel_idx(struct ath_hal *ah,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ahp->ah_ani); i++) {
-		if (ahp->ah_ani[i].c.channel == chan->channel)
+		if (ahp->ah_ani[i].c &&
+		    ahp->ah_ani[i].c->channel == chan->channel)
 			return i;
-		if (ahp->ah_ani[i].c.channel == 0) {
-			ahp->ah_ani[i].c.channel = chan->channel;
-			ahp->ah_ani[i].c.channelFlags = chan->channelFlags;
+		if (ahp->ah_ani[i].c == NULL) {
+			ahp->ah_ani[i].c = chan;
 			return i;
 		}
 	}

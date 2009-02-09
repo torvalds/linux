@@ -72,6 +72,33 @@ struct ath9k_node_stats {
 	u32 ns_avgtxrate;
 };
 
+struct ar5416AniState {
+	struct ath9k_channel *c;
+	u8 noiseImmunityLevel;
+	u8 spurImmunityLevel;
+	u8 firstepLevel;
+	u8 ofdmWeakSigDetectOff;
+	u8 cckWeakSigThreshold;
+	u32 listenTime;
+	u32 ofdmTrigHigh;
+	u32 ofdmTrigLow;
+	int32_t cckTrigHigh;
+	int32_t cckTrigLow;
+	int32_t rssiThrLow;
+	int32_t rssiThrHigh;
+	u32 noiseFloor;
+	u32 txFrameCount;
+	u32 rxFrameCount;
+	u32 cycleCount;
+	u32 ofdmPhyErrCount;
+	u32 cckPhyErrCount;
+	u32 ofdmPhyErrBase;
+	u32 cckPhyErrBase;
+	int16_t pktRssi[2];
+	int16_t ofdmErrRssi[2];
+	int16_t cckErrRssi[2];
+};
+
 struct ar5416Stats {
 	u32 ast_ani_niup;
 	u32 ast_ani_nidown;
