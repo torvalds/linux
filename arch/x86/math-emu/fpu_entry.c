@@ -659,7 +659,7 @@ static int valid_prefix(u_char *Byte, u_char __user **fpu_eip,
 	}
 }
 
-void math_abort(struct info *info, unsigned int signal)
+void math_abort(struct math_emu_info *info, unsigned int signal)
 {
 	FPU_EIP = FPU_ORIG_EIP;
 	current->thread.trap_no = 16;
