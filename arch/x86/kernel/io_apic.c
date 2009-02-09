@@ -3466,40 +3466,6 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc, int irq)
 	return 0;
 }
 
-int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *msidesc)
-{
-	unsigned int irq;
-	int ret;
-	unsigned int irq_want;
-
-	irq_want = nr_irqs_gsi;
-	irq = create_irq_nr(irq_want);
-	if (irq == 0)
-		return -1;
-
-#ifdef CONFIG_INTR_REMAP
-	if (!intr_remapping_enabled)
-		goto no_ir;
-
-	ret = msi_alloc_irte(dev, irq, 1);
-	if (ret < 0)
-		goto error;
-no_ir:
-#endif
-	ret = setup_msi_irq(dev, msidesc, irq);
-	if (ret < 0) {
-		destroy_irq(irq);
-		return ret;
-	}
-	return 0;
-
-#ifdef CONFIG_INTR_REMAP
-error:
-	destroy_irq(irq);
-	return ret;
-#endif
-}
-
 int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
 	unsigned int irq;
