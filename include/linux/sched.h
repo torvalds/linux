@@ -137,6 +137,8 @@ extern unsigned long nr_running(void);
 extern unsigned long nr_uninterruptible(void);
 extern unsigned long nr_active(void);
 extern unsigned long nr_iowait(void);
+extern u64 cpu_nr_switches(int cpu);
+extern u64 cpu_nr_migrations(int cpu);
 
 struct seq_file;
 struct cfs_rq;

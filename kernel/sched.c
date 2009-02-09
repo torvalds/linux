@@ -558,6 +558,7 @@ struct rq {
 	struct load_weight load;
 	unsigned long nr_load_updates;
 	u64 nr_switches;
+	u64 nr_migrations_in;
 
 	struct cfs_rq cfs;
 	struct rt_rq rt;
@@ -1908,6 +1909,7 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 #endif
 	if (old_cpu != new_cpu) {
 		p->se.nr_migrations++;
+		new_rq->nr_migrations_in++;
 #ifdef CONFIG_SCHEDSTATS
 		if (task_hot(p, old_rq->clock, NULL))
 			schedstat_inc(p, se.nr_forced2_migrations);
@@ -2808,6 +2810,21 @@ unsigned long nr_active(void)
 		uninterruptible = 0;
 
 	return running + uninterruptible;
+}
+
+/*
+ * Externally visible per-cpu scheduler statistics:
+ * cpu_nr_switches(cpu) - number of context switches on that cpu
+ * cpu_nr_migrations(cpu) - number of migrations into that cpu
+ */
+u64 cpu_nr_switches(int cpu)
+{
+	return cpu_rq(cpu)->nr_switches;
+}
+
+u64 cpu_nr_migrations(int cpu)
+{
+	return cpu_rq(cpu)->nr_migrations_in;
 }
 
 /*

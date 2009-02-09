@@ -20,6 +20,8 @@
 #include <linux/anon_inodes.h>
 #include <linux/kernel_stat.h>
 #include <linux/perf_counter.h>
+#include <linux/mm.h>
+#include <linux/vmstat.h>
 
 /*
  * Each CPU has a list of per CPU counters:
@@ -502,7 +504,6 @@ perf_install_in_context(struct perf_counter_context *ctx,
 {
 	struct task_struct *task = ctx->task;
 
-	counter->ctx = ctx;
 	if (!task) {
 		/*
 		 * Per cpu counters are installed via an smp call and
@@ -1417,11 +1418,19 @@ static const struct hw_perf_counter_ops perf_ops_task_clock = {
 	.read		= task_clock_perf_counter_read,
 };
 
-static u64 get_page_faults(void)
-{
-	struct task_struct *curr = current;
+#ifdef CONFIG_VM_EVENT_COUNTERS
+#define cpu_page_faults()	__get_cpu_var(vm_event_states).event[PGFAULT]
+#else
+#define cpu_page_faults()	0
+#endif
 
-	return curr->maj_flt + curr->min_flt;
+static u64 get_page_faults(struct perf_counter *counter)
+{
+	struct task_struct *curr = counter->ctx->task;
+
+	if (curr)
+		return curr->maj_flt + curr->min_flt;
+	return cpu_page_faults();
 }
 
 static void page_faults_perf_counter_update(struct perf_counter *counter)
@@ -1430,7 +1439,7 @@ static void page_faults_perf_counter_update(struct perf_counter *counter)
 	s64 delta;
 
 	prev = atomic64_read(&counter->hw.prev_count);
-	now = get_page_faults();
+	now = get_page_faults(counter);
 
 	atomic64_set(&counter->hw.prev_count, now);
 
@@ -1446,11 +1455,7 @@ static void page_faults_perf_counter_read(struct perf_counter *counter)
 
 static int page_faults_perf_counter_enable(struct perf_counter *counter)
 {
-	/*
-	 * page-faults is a per-task value already,
-	 * so we dont have to clear it on switch-in.
-	 */
-
+	atomic64_set(&counter->hw.prev_count, get_page_faults(counter));
 	return 0;
 }
 
@@ -1465,11 +1470,13 @@ static const struct hw_perf_counter_ops perf_ops_page_faults = {
 	.read		= page_faults_perf_counter_read,
 };
 
-static u64 get_context_switches(void)
+static u64 get_context_switches(struct perf_counter *counter)
 {
-	struct task_struct *curr = current;
+	struct task_struct *curr = counter->ctx->task;
 
-	return curr->nvcsw + curr->nivcsw;
+	if (curr)
+		return curr->nvcsw + curr->nivcsw;
+	return cpu_nr_switches(smp_processor_id());
 }
 
 static void context_switches_perf_counter_update(struct perf_counter *counter)
@@ -1478,7 +1485,7 @@ static void context_switches_perf_counter_update(struct perf_counter *counter)
 	s64 delta;
 
 	prev = atomic64_read(&counter->hw.prev_count);
-	now = get_context_switches();
+	now = get_context_switches(counter);
 
 	atomic64_set(&counter->hw.prev_count, now);
 
@@ -1494,11 +1501,7 @@ static void context_switches_perf_counter_read(struct perf_counter *counter)
 
 static int context_switches_perf_counter_enable(struct perf_counter *counter)
 {
-	/*
-	 * ->nvcsw + curr->nivcsw is a per-task value already,
-	 * so we dont have to clear it on switch-in.
-	 */
-
+	atomic64_set(&counter->hw.prev_count, get_context_switches(counter));
 	return 0;
 }
 
@@ -1513,9 +1516,13 @@ static const struct hw_perf_counter_ops perf_ops_context_switches = {
 	.read		= context_switches_perf_counter_read,
 };
 
-static inline u64 get_cpu_migrations(void)
+static inline u64 get_cpu_migrations(struct perf_counter *counter)
 {
-	return current->se.nr_migrations;
+	struct task_struct *curr = counter->ctx->task;
+
+	if (curr)
+		return curr->se.nr_migrations;
+	return cpu_nr_migrations(smp_processor_id());
 }
 
 static void cpu_migrations_perf_counter_update(struct perf_counter *counter)
@@ -1524,7 +1531,7 @@ static void cpu_migrations_perf_counter_update(struct perf_counter *counter)
 	s64 delta;
 
 	prev = atomic64_read(&counter->hw.prev_count);
-	now = get_cpu_migrations();
+	now = get_cpu_migrations(counter);
 
 	atomic64_set(&counter->hw.prev_count, now);
 
@@ -1540,11 +1547,7 @@ static void cpu_migrations_perf_counter_read(struct perf_counter *counter)
 
 static int cpu_migrations_perf_counter_enable(struct perf_counter *counter)
 {
-	/*
-	 * se.nr_migrations is a per-task value already,
-	 * so we dont have to clear it on switch-in.
-	 */
-
+	atomic64_set(&counter->hw.prev_count, get_cpu_migrations(counter));
 	return 0;
 }
 
@@ -1569,7 +1572,14 @@ sw_perf_counter_init(struct perf_counter *counter)
 		hw_ops = &perf_ops_cpu_clock;
 		break;
 	case PERF_COUNT_TASK_CLOCK:
-		hw_ops = &perf_ops_task_clock;
+		/*
+		 * If the user instantiates this as a per-cpu counter,
+		 * use the cpu_clock counter instead.
+		 */
+		if (counter->ctx->task)
+			hw_ops = &perf_ops_task_clock;
+		else
+			hw_ops = &perf_ops_cpu_clock;
 		break;
 	case PERF_COUNT_PAGE_FAULTS:
 		hw_ops = &perf_ops_page_faults;
@@ -1592,6 +1602,7 @@ sw_perf_counter_init(struct perf_counter *counter)
 static struct perf_counter *
 perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 		   int cpu,
+		   struct perf_counter_context *ctx,
 		   struct perf_counter *group_leader,
 		   gfp_t gfpflags)
 {
@@ -1623,6 +1634,7 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	counter->wakeup_pending		= 0;
 	counter->group_leader		= group_leader;
 	counter->hw_ops			= NULL;
+	counter->ctx			= ctx;
 
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
 	if (hw_event->disabled)
@@ -1631,7 +1643,7 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	hw_ops = NULL;
 	if (!hw_event->raw && hw_event->type < 0)
 		hw_ops = sw_perf_counter_init(counter);
-	if (!hw_ops)
+	else
 		hw_ops = hw_perf_counter_init(counter);
 
 	if (!hw_ops) {
@@ -1707,7 +1719,8 @@ sys_perf_counter_open(struct perf_counter_hw_event *hw_event_uptr __user,
 	}
 
 	ret = -EINVAL;
-	counter = perf_counter_alloc(&hw_event, cpu, group_leader, GFP_KERNEL);
+	counter = perf_counter_alloc(&hw_event, cpu, ctx, group_leader,
+				     GFP_KERNEL);
 	if (!counter)
 		goto err_put_context;
 
@@ -1777,15 +1790,14 @@ inherit_counter(struct perf_counter *parent_counter,
 		parent_counter = parent_counter->parent;
 
 	child_counter = perf_counter_alloc(&parent_counter->hw_event,
-					    parent_counter->cpu, group_leader,
-					    GFP_KERNEL);
+					   parent_counter->cpu, child_ctx,
+					   group_leader, GFP_KERNEL);
 	if (!child_counter)
 		return NULL;
 
 	/*
 	 * Link it up in the child's context:
 	 */
-	child_counter->ctx = child_ctx;
 	child_counter->task = child;
 	list_add_counter(child_counter, child_ctx);
 	child_ctx->nr_counters++;
