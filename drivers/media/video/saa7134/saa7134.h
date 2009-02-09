@@ -446,7 +446,6 @@ struct saa7134_dmasound {
 	unsigned int               bufsize;
 	struct saa7134_pgtable     pt;
 	struct videobuf_dmabuf     dma;
-	wait_queue_head_t          wq;
 	unsigned int               dma_blk;
 	unsigned int               read_offset;
 	unsigned int               read_count;
