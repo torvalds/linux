@@ -15,6 +15,7 @@ extern int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 
 extern struct lock_class_key irq_desc_lock_class;
 extern void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr);
+extern void clear_kstat_irqs(struct irq_desc *desc);
 extern spinlock_t sparse_irq_lock;
 extern struct irq_desc *irq_desc_ptrs[NR_IRQS];
 

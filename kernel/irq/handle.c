@@ -242,6 +242,11 @@ struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
 }
 #endif /* !CONFIG_SPARSE_IRQ */
 
+void clear_kstat_irqs(struct irq_desc *desc)
+{
+	memset(desc->kstat_irqs, 0, nr_cpu_ids * sizeof(*(desc->kstat_irqs)));
+}
+
 /*
  * What should we do if we get a hw irq event on an illegal vector?
  * Each architecture has to answer this themself.
