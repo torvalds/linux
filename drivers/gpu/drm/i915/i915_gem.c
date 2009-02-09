@@ -1457,7 +1457,7 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *reg)
 
 	if ((obj_priv->gtt_offset & ~I915_FENCE_START_MASK) ||
 	    (obj_priv->gtt_offset & (obj->size - 1))) {
-		WARN(1, "%s: object 0x%08x not 1M or size (0x%x) aligned\n",
+		WARN(1, "%s: object 0x%08x not 1M or size (0x%zx) aligned\n",
 		     __func__, obj_priv->gtt_offset, obj->size);
 		return;
 	}
