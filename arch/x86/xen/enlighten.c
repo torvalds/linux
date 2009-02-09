@@ -323,13 +323,14 @@ static void load_TLS_descriptor(struct thread_struct *t,
 static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 {
 	/*
-	 * XXX sleazy hack: If we're being called in a lazy-cpu zone,
-	 * it means we're in a context switch, and %gs has just been
-	 * saved.  This means we can zero it out to prevent faults on
-	 * exit from the hypervisor if the next process has no %gs.
-	 * Either way, it has been saved, and the new value will get
-	 * loaded properly.  This will go away as soon as Xen has been
-	 * modified to not save/restore %gs for normal hypercalls.
+	 * XXX sleazy hack: If we're being called in a lazy-cpu zone
+	 * and lazy gs handling is enabled, it means we're in a
+	 * context switch, and %gs has just been saved.  This means we
+	 * can zero it out to prevent faults on exit from the
+	 * hypervisor if the next process has no %gs.  Either way, it
+	 * has been saved, and the new value will get loaded properly.
+	 * This will go away as soon as Xen has been modified to not
+	 * save/restore %gs for normal hypercalls.
 	 *
 	 * On x86_64, this hack is not used for %gs, because gs points
 	 * to KERNEL_GS_BASE (and uses it for PDA references), so we
@@ -341,7 +342,7 @@ static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 	 */
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_CPU) {
 #ifdef CONFIG_X86_32
-		loadsegment(gs, 0);
+		lazy_load_gs(0);
 #else
 		loadsegment(fs, 0);
 #endif

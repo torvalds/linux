@@ -79,7 +79,7 @@ do {						\
 #ifdef CONFIG_X86_32
 #define deactivate_mm(tsk, mm)			\
 do {						\
-	set_user_gs(task_pt_regs(tsk), 0);	\
+	lazy_load_gs(0);			\
 } while (0)
 #else
 #define deactivate_mm(tsk, mm)			\

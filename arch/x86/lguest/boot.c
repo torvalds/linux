@@ -283,7 +283,7 @@ static void lguest_load_tls(struct thread_struct *t, unsigned int cpu)
 	/* There's one problem which normal hardware doesn't have: the Host
 	 * can't handle us removing entries we're currently using.  So we clear
 	 * the GS register here: if it's needed it'll be reloaded anyway. */
-	loadsegment(gs, 0);
+	lazy_load_gs(0);
 	lazy_hcall(LHCALL_LOAD_TLS, __pa(&t->tls_array), cpu, 0);
 }
 

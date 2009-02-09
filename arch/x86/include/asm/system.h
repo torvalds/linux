@@ -186,10 +186,20 @@ extern void native_load_gs_index(unsigned);
  * x86_32 user gs accessors.
  */
 #ifdef CONFIG_X86_32
+#ifdef CONFIG_X86_32_LAZY_GS
 #define get_user_gs(regs)	(u16)({unsigned long v; savesegment(gs, v); v;})
 #define set_user_gs(regs, v)	loadsegment(gs, (unsigned long)(v))
 #define task_user_gs(tsk)	((tsk)->thread.gs)
-#endif
+#define lazy_save_gs(v)		savesegment(gs, (v))
+#define lazy_load_gs(v)		loadsegment(gs, (v))
+#else	/* X86_32_LAZY_GS */
+#define get_user_gs(regs)	(u16)((regs)->gs)
+#define set_user_gs(regs, v)	do { (regs)->gs = (v); } while (0)
+#define task_user_gs(tsk)	(task_pt_regs(tsk)->gs)
+#define lazy_save_gs(v)		do { } while (0)
+#define lazy_load_gs(v)		do { } while (0)
+#endif	/* X86_32_LAZY_GS */
+#endif	/* X86_32 */
 
 static inline unsigned long get_limit(unsigned long segment)
 {

@@ -75,10 +75,7 @@ static inline bool invalid_selector(u16 value)
 static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
 	BUILD_BUG_ON(offsetof(struct pt_regs, bx) != 0);
-	regno >>= 2;
-	if (regno > FS)
-		--regno;
-	return &regs->bx + regno;
+	return &regs->bx + (regno >> 2);
 }
 
 static u16 get_segment_reg(struct task_struct *task, unsigned long offset)

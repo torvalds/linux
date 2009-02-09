@@ -30,12 +30,13 @@
  *	1C(%esp) - %ds
  *	20(%esp) - %es
  *	24(%esp) - %fs
- *	28(%esp) - orig_eax
- *	2C(%esp) - %eip
- *	30(%esp) - %cs
- *	34(%esp) - %eflags
- *	38(%esp) - %oldesp
- *	3C(%esp) - %oldss
+ *	28(%esp) - %gs		saved iff !CONFIG_X86_32_LAZY_GS
+ *	2C(%esp) - orig_eax
+ *	30(%esp) - %eip
+ *	34(%esp) - %cs
+ *	38(%esp) - %eflags
+ *	3C(%esp) - %oldesp
+ *	40(%esp) - %oldss
  *
  * "current" is in register %ebx during any slow entries.
  */
@@ -101,8 +102,99 @@
 #define resume_userspace_sig	resume_userspace
 #endif
 
+/*
+ * User gs save/restore
+ *
+ * %gs is used for userland TLS and kernel only uses it for stack
+ * canary which is required to be at %gs:20 by gcc.  Read the comment
+ * at the top of stackprotector.h for more info.
+ *
+ * Local labels 98 and 99 are used.
+ */
+#ifdef CONFIG_X86_32_LAZY_GS
+
+ /* unfortunately push/pop can't be no-op */
+.macro PUSH_GS
+	pushl $0
+	CFI_ADJUST_CFA_OFFSET 4
+.endm
+.macro POP_GS pop=0
+	addl $(4 + \pop), %esp
+	CFI_ADJUST_CFA_OFFSET -(4 + \pop)
+.endm
+.macro POP_GS_EX
+.endm
+
+ /* all the rest are no-op */
+.macro PTGS_TO_GS
+.endm
+.macro PTGS_TO_GS_EX
+.endm
+.macro GS_TO_REG reg
+.endm
+.macro REG_TO_PTGS reg
+.endm
+.macro SET_KERNEL_GS reg
+.endm
+
+#else	/* CONFIG_X86_32_LAZY_GS */
+
+.macro PUSH_GS
+	pushl %gs
+	CFI_ADJUST_CFA_OFFSET 4
+	/*CFI_REL_OFFSET gs, 0*/
+.endm
+
+.macro POP_GS pop=0
+98:	popl %gs
+	CFI_ADJUST_CFA_OFFSET -4
+	/*CFI_RESTORE gs*/
+  .if \pop <> 0
+	add $\pop, %esp
+	CFI_ADJUST_CFA_OFFSET -\pop
+  .endif
+.endm
+.macro POP_GS_EX
+.pushsection .fixup, "ax"
+99:	movl $0, (%esp)
+	jmp 98b
+.section __ex_table, "a"
+	.align 4
+	.long 98b, 99b
+.popsection
+.endm
+
+.macro PTGS_TO_GS
+98:	mov PT_GS(%esp), %gs
+.endm
+.macro PTGS_TO_GS_EX
+.pushsection .fixup, "ax"
+99:	movl $0, PT_GS(%esp)
+	jmp 98b
+.section __ex_table, "a"
+	.align 4
+	.long 98b, 99b
+.popsection
+.endm
+
+.macro GS_TO_REG reg
+	movl %gs, \reg
+	/*CFI_REGISTER gs, \reg*/
+.endm
+.macro REG_TO_PTGS reg
+	movl \reg, PT_GS(%esp)
+	/*CFI_REL_OFFSET gs, PT_GS*/
+.endm
+.macro SET_KERNEL_GS reg
+	xorl \reg, \reg
+	movl \reg, %gs
+.endm
+
+#endif	/* CONFIG_X86_32_LAZY_GS */
+
 .macro SAVE_ALL
 	cld
+	PUSH_GS
 	pushl %fs
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET fs, 0;*/
@@ -138,6 +230,7 @@
 	movl %edx, %es
 	movl $(__KERNEL_PERCPU), %edx
 	movl %edx, %fs
+	SET_KERNEL_GS %edx
 .endm
 
 .macro RESTORE_INT_REGS
@@ -164,7 +257,7 @@
 	CFI_RESTORE eax
 .endm
 
-.macro RESTORE_REGS
+.macro RESTORE_REGS pop=0
 	RESTORE_INT_REGS
 1:	popl %ds
 	CFI_ADJUST_CFA_OFFSET -4
@@ -175,6 +268,7 @@
 3:	popl %fs
 	CFI_ADJUST_CFA_OFFSET -4
 	/*CFI_RESTORE fs;*/
+	POP_GS \pop
 .pushsection .fixup, "ax"
 4:	movl $0, (%esp)
 	jmp 1b
@@ -188,6 +282,7 @@
 	.long 2b, 5b
 	.long 3b, 6b
 .popsection
+	POP_GS_EX
 .endm
 
 .macro RING0_INT_FRAME
@@ -368,6 +463,7 @@ sysenter_exit:
 	xorl %ebp,%ebp
 	TRACE_IRQS_ON
 1:	mov  PT_FS(%esp), %fs
+	PTGS_TO_GS
 	ENABLE_INTERRUPTS_SYSEXIT
 
 #ifdef CONFIG_AUDITSYSCALL
@@ -416,6 +512,7 @@ sysexit_audit:
 	.align 4
 	.long 1b,2b
 .popsection
+	PTGS_TO_GS_EX
 ENDPROC(ia32_sysenter_target)
 
 	# system call handler stub
@@ -458,8 +555,7 @@ restore_all:
 restore_nocheck:
 	TRACE_IRQS_IRET
 restore_nocheck_notrace:
-	RESTORE_REGS
-	addl $4, %esp			# skip orig_eax/error_code
+	RESTORE_REGS 4			# skip orig_eax/error_code
 	CFI_ADJUST_CFA_OFFSET -4
 irq_return:
 	INTERRUPT_RETURN
@@ -1078,7 +1174,10 @@ ENTRY(page_fault)
 	CFI_ADJUST_CFA_OFFSET 4
 	ALIGN
 error_code:
-	/* the function address is in %fs's slot on the stack */
+	/* the function address is in %gs's slot on the stack */
+	pushl %fs
+	CFI_ADJUST_CFA_OFFSET 4
+	/*CFI_REL_OFFSET fs, 0*/
 	pushl %es
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET es, 0*/
@@ -1107,20 +1206,15 @@ error_code:
 	CFI_ADJUST_CFA_OFFSET 4
 	CFI_REL_OFFSET ebx, 0
 	cld
-	pushl %fs
-	CFI_ADJUST_CFA_OFFSET 4
-	/*CFI_REL_OFFSET fs, 0*/
 	movl $(__KERNEL_PERCPU), %ecx
 	movl %ecx, %fs
 	UNWIND_ESPFIX_STACK
-	popl %ecx
-	CFI_ADJUST_CFA_OFFSET -4
-	/*CFI_REGISTER es, ecx*/
-	movl PT_FS(%esp), %edi		# get the function address
+	GS_TO_REG %ecx
+	movl PT_GS(%esp), %edi		# get the function address
 	movl PT_ORIG_EAX(%esp), %edx	# get the error code
 	movl $-1, PT_ORIG_EAX(%esp)	# no syscall to restart
-	mov  %ecx, PT_FS(%esp)
-	/*CFI_REL_OFFSET fs, ES*/
+	REG_TO_PTGS %ecx
+	SET_KERNEL_GS %ecx
 	movl $(__USER_DS), %ecx
 	movl %ecx, %ds
 	movl %ecx, %es
