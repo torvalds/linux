@@ -273,7 +273,7 @@ typedef struct xfs_mount {
 	uint			m_inobt_mnr[2];	/* min inobt btree records */
 	uint			m_ag_maxlevels;	/* XFS_AG_MAXLEVELS */
 	uint			m_bm_maxlevels[2]; /* XFS_BM_MAXLEVELS */
-	uint			m_in_maxlevels;	/* XFS_IN_MAXLEVELS */
+	uint			m_in_maxlevels;	/* max inobt btree levels. */
 	struct xfs_perag	*m_perag;	/* per-ag accounting info */
 	struct rw_semaphore	m_peraglock;	/* lock for m_perag (pointer) */
 	struct mutex		m_growlock;	/* growfs mutex */
