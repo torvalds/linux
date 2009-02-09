@@ -457,15 +457,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 * 5210 only comes with RF5110
 	 */
 	if (ah->ah_version != AR5K_AR5210) {
-		if (ah->ah_radio != AR5K_RF5111 &&
-			ah->ah_radio != AR5K_RF5112 &&
-			ah->ah_radio != AR5K_RF5413 &&
-			ah->ah_radio != AR5K_RF2413 &&
-			ah->ah_radio != AR5K_RF2425) {
-			ATH5K_ERR(ah->ah_sc,
-				"invalid phy radio: %u\n", ah->ah_radio);
-			return -EINVAL;
-		}
 
 		switch (channel->hw_value & CHANNEL_MODES) {
 		case CHANNEL_A:
@@ -510,10 +501,10 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 			return -EINVAL;
 		}
 
-		/* PHY access enable */
-		ath5k_hw_reg_write(ah, AR5K_PHY_SHIFT_5GHZ, AR5K_PHY(0));
-
 	}
+
+	/* PHY access enable */
+	ath5k_hw_reg_write(ah, AR5K_PHY_SHIFT_5GHZ, AR5K_PHY(0));
 
 	ret = ath5k_hw_write_initvals(ah, mode, change_channel);
 	if (ret)

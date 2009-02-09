@@ -811,6 +811,8 @@
 
 /*
  * DCU transmit filter table 0 (32 entries)
+ * each entry contains a 32bit slice of the
+ * 128bit tx filter for each DCU (4 slices per DCU)
  */
 #define AR5K_DCU_TX_FILTER_0_BASE	0x1038
 #define	AR5K_DCU_TX_FILTER_0(_n)	(AR5K_DCU_TX_FILTER_0_BASE + (_n * 64))
@@ -819,7 +821,7 @@
  * DCU transmit filter table 1 (16 entries)
  */
 #define AR5K_DCU_TX_FILTER_1_BASE	0x103c
-#define	AR5K_DCU_TX_FILTER_1(_n)	(AR5K_DCU_TX_FILTER_1_BASE + ((_n - 32) * 64))
+#define	AR5K_DCU_TX_FILTER_1(_n)	(AR5K_DCU_TX_FILTER_1_BASE + (_n * 64))
 
 /*
  * DCU clear transmit filter register
@@ -1447,7 +1449,7 @@
 				AR5K_TSF_U32_5210 : AR5K_TSF_U32_5211)
 
 /*
- * Last beacon timestamp register
+ * Last beacon timestamp register (Read Only)
  */
 #define AR5K_LAST_TSTP	0x8080
 
@@ -2219,9 +2221,7 @@
 #define	AR5K_PHY_CTL_LOW_FREQ_SLE_EN	0x00000080	/* Enable low freq sleep */
 
 /*
- * PHY PAPD probe register [5111+ (?)]
- * Is this only present in 5212 ?
- * Because it's always 0 in 5211 initialization code
+ * PHY PAPD probe register [5111+]
  */
 #define	AR5K_PHY_PAPD_PROBE		0x9930
 #define	AR5K_PHY_PAPD_PROBE_SH_HI_PAR	0x00000001
@@ -2363,21 +2363,21 @@
 #define AR5K_PHY_BIN_MASK2_4_MASK_4	0x00003fff
 #define AR5K_PHY_BIN_MASK2_4_MASK_4_S	0
 
-#define AR_PHY_TIMING_9			0x9998
-#define AR_PHY_TIMING_10		0x999c
-#define AR_PHY_TIMING_10_PILOT_MASK_2	0x000fffff
-#define AR_PHY_TIMING_10_PILOT_MASK_2_S	0
+#define AR5K_PHY_TIMING_9			0x9998
+#define AR5K_PHY_TIMING_10			0x999c
+#define AR5K_PHY_TIMING_10_PILOT_MASK_2		0x000fffff
+#define AR5K_PHY_TIMING_10_PILOT_MASK_2_S	0
 
 /*
  * Spur mitigation control
  */
-#define AR_PHY_TIMING_11			0x99a0		/* Register address */
-#define AR_PHY_TIMING_11_SPUR_DELTA_PHASE	0x000fffff	/* Spur delta phase */
-#define AR_PHY_TIMING_11_SPUR_DELTA_PHASE_S	0
-#define AR_PHY_TIMING_11_SPUR_FREQ_SD		0x3ff00000	/* Freq sigma delta */
-#define AR_PHY_TIMING_11_SPUR_FREQ_SD_S	20
-#define AR_PHY_TIMING_11_USE_SPUR_IN_AGC	0x40000000	/* Spur filter in AGC detector */
-#define AR_PHY_TIMING_11_USE_SPUR_IN_SELFCOR	0x80000000	/* Spur filter in OFDM self correlator */
+#define AR5K_PHY_TIMING_11			0x99a0		/* Register address */
+#define AR5K_PHY_TIMING_11_SPUR_DELTA_PHASE	0x000fffff	/* Spur delta phase */
+#define AR5K_PHY_TIMING_11_SPUR_DELTA_PHASE_S	0
+#define AR5K_PHY_TIMING_11_SPUR_FREQ_SD		0x3ff00000	/* Freq sigma delta */
+#define AR5K_PHY_TIMING_11_SPUR_FREQ_SD_S	20
+#define AR5K_PHY_TIMING_11_USE_SPUR_IN_AGC	0x40000000	/* Spur filter in AGC detector */
+#define AR5K_PHY_TIMING_11_USE_SPUR_IN_SELFCOR	0x80000000	/* Spur filter in OFDM self correlator */
 
 /*
  * Gain tables
@@ -2481,11 +2481,7 @@
 /*
  * PHY PCDAC TX power table
  */
-#define	AR5K_PHY_PCDAC_TXPOWER_BASE_5211	0xa180
-#define AR5K_PHY_PCDAC_TXPOWER_BASE_2413	0xa280
-#define AR5K_PHY_PCDAC_TXPOWER_BASE	(ah->ah_radio >= AR5K_RF2413 ? \
-					AR5K_PHY_PCDAC_TXPOWER_BASE_2413 :\
-					AR5K_PHY_PCDAC_TXPOWER_BASE_5211)
+#define	AR5K_PHY_PCDAC_TXPOWER_BASE	0xa180
 #define	AR5K_PHY_PCDAC_TXPOWER(_n)	(AR5K_PHY_PCDAC_TXPOWER_BASE + ((_n) << 2))
 
 /*
@@ -2566,3 +2562,9 @@
 #define	AR5K_PHY_TPC_RG5_PD_GAIN_BOUNDARY_3_S	16
 #define	AR5K_PHY_TPC_RG5_PD_GAIN_BOUNDARY_4	0x0FC00000
 #define	AR5K_PHY_TPC_RG5_PD_GAIN_BOUNDARY_4_S	22
+
+/*
+ * PHY PDADC Tx power table
+ */
+#define AR5K_PHY_PDADC_TXPOWER_BASE	0xa280
+#define	AR5K_PHY_PDADC_TXPOWER(_n)	(AR5K_PHY_PDADC_TXPOWER_BASE + ((_n) << 2))
