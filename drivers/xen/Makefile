@@ -1,4 +1,4 @@
-obj-y	+= grant-table.o features.o events.o manage.o
+obj-y	+= grant-table.o features.o events.o manage.o biomerge.o
 obj-y	+= xenbus/
 
 nostackp := $(call cc-option, -fno-stack-protector)
