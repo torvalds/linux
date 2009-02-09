@@ -2406,7 +2406,7 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
  * to swap with a page in the ring buffer.
  *
  * for example:
- *	rpage = ring_buffer_alloc_page(buffer);
+ *	rpage = ring_buffer_alloc_read_page(buffer);
  *	if (!rpage)
  *		return error;
  *	ret = ring_buffer_read_page(buffer, &rpage, cpu, 0);
@@ -2461,18 +2461,17 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	 */
 	if (cpu_buffer->reader_page == cpu_buffer->commit_page) {
 		unsigned int read = cpu_buffer->reader_page->read;
+		unsigned int commit = rb_page_commit(cpu_buffer->reader_page);
 
 		if (full)
 			goto out;
 		/* The writer is still on the reader page, we must copy */
-		bpage = cpu_buffer->reader_page->page;
 		memcpy(bpage->data,
 		       cpu_buffer->reader_page->page->data + read,
-		       local_read(&bpage->commit) - read);
+		       commit - read);
 
 		/* consume what was read */
-		cpu_buffer->reader_page += read;
-
+		cpu_buffer->reader_page->read = commit;
 	} else {
 		/* swap the pages */
 		rb_init_page(bpage);
