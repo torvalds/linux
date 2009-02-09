@@ -58,8 +58,6 @@ static inline pudval_t native_pud_val(pud_t pud)
 	return pud.pud;
 }
 #else	/* PAGETABLE_LEVELS == 3 */
-#include <asm-generic/pgtable-nopud.h>
-
 static inline pudval_t native_pud_val(pud_t pud)
 {
 	return native_pgd_val(pud.pgd);
@@ -82,8 +80,6 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 }
 
 #else  /* PAGETABLE_LEVELS == 2 */
-#include <asm-generic/pgtable-nopmd.h>
-
 static inline pmdval_t native_pmd_val(pmd_t pmd)
 {
 	return native_pgd_val(pmd.pud.pgd);

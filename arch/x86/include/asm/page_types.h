@@ -53,10 +53,14 @@ typedef struct { pgprotval_t pgprot; } pgprot_t;
 
 #if PAGETABLE_LEVELS > 3
 typedef struct { pudval_t pud; } pud_t;
+#else
+#include <asm-generic/pgtable-nopud.h>
 #endif
 
 #if PAGETABLE_LEVELS > 2
 typedef struct { pmdval_t pmd; } pmd_t;
+#else
+#include <asm-generic/pgtable-nopmd.h>
 #endif
 
 typedef struct page *pgtable_t;
