@@ -25,7 +25,7 @@
 #define PREAMBLE					\
 	rd		%asi, %g1;			\
 	cmp		%g1, ASI_AIUS;			\
-	bne,pn		%icc, memcpy_user_stub;		\
+	bne,pn		%icc, ___copy_in_user;		\
 	 nop
 #endif
 
