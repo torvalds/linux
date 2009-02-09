@@ -1757,7 +1757,6 @@ void do_become_nonbusy(comedi_device *dev, comedi_subdevice *s)
 
 static int comedi_open(struct inode *inode, struct file *file)
 {
-	char mod[32];
 	const unsigned minor = iminor(inode);
 	struct comedi_device_file_info *dev_file_info =
 	    comedi_get_device_file_info(minor);
@@ -1793,10 +1792,9 @@ static int comedi_open(struct inode *inode, struct file *file)
 
 	dev->in_request_module = 1;
 
-	sprintf(mod, "char-major-%i-%i", COMEDI_MAJOR, dev->minor);
 #ifdef CONFIG_KMOD
 	mutex_unlock(&dev->mutex);
-	request_module(mod);
+	request_module("char-major-%i-%i", COMEDI_MAJOR, dev->minor);
 	mutex_lock(&dev->mutex);
 #endif
 
