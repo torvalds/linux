@@ -391,19 +391,14 @@ int hci_conn_check_link_mode(struct hci_conn *conn)
 EXPORT_SYMBOL(hci_conn_check_link_mode);
 
 /* Authenticate remote device */
-static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level)
+static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 {
 	BT_DBG("conn %p", conn);
 
-	if (sec_level > conn->sec_level)
-		conn->link_mode &= ~HCI_LM_AUTH;
-
-	conn->sec_level = sec_level;
-
-	if (sec_level == BT_SECURITY_HIGH)
-		conn->auth_type |= 0x01;
-
-	if (conn->link_mode & HCI_LM_AUTH)
+	if (sec_level > conn->sec_level) {
+		conn->sec_level = sec_level;
+		conn->auth_type = auth_type;
+	} else if (conn->link_mode & HCI_LM_AUTH)
 		return 1;
 
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->pend)) {
@@ -417,7 +412,7 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level)
 }
 
 /* Enable security */
-int hci_conn_security(struct hci_conn *conn, __u8 sec_level)
+int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 {
 	BT_DBG("conn %p", conn);
 
@@ -426,18 +421,18 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level)
 
 	if (sec_level == BT_SECURITY_LOW) {
 		if (conn->ssp_mode > 0 && conn->hdev->ssp_mode > 0)
-			return hci_conn_auth(conn, sec_level);
+			return hci_conn_auth(conn, sec_level, auth_type);
 		else
 			return 1;
 	}
 
 	if (conn->link_mode & HCI_LM_ENCRYPT)
-		return hci_conn_auth(conn, sec_level);
+		return hci_conn_auth(conn, sec_level, auth_type);
 
 	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
 		return 0;
 
-	if (hci_conn_auth(conn, sec_level)) {
+	if (hci_conn_auth(conn, sec_level, auth_type)) {
 		struct hci_cp_set_conn_encrypt cp;
 		cp.handle  = cpu_to_le16(conn->handle);
 		cp.encrypt = 1;

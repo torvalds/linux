@@ -226,8 +226,22 @@ static int rfcomm_l2sock_create(struct socket **sock)
 static inline int rfcomm_check_security(struct rfcomm_dlc *d)
 {
 	struct sock *sk = d->session->sock->sk;
+	__u8 auth_type;
 
-	return hci_conn_security(l2cap_pi(sk)->conn->hcon, d->sec_level);
+	switch (d->sec_level) {
+	case BT_SECURITY_HIGH:
+		auth_type = HCI_AT_GENERAL_BONDING_MITM;
+		break;
+	case BT_SECURITY_MEDIUM:
+		auth_type = HCI_AT_GENERAL_BONDING;
+		break;
+	default:
+		auth_type = HCI_AT_NO_BONDING;
+		break;
+	}
+
+	return hci_conn_security(l2cap_pi(sk)->conn->hcon, d->sec_level,
+								auth_type);
 }
 
 /* ---- RFCOMM DLCs ---- */

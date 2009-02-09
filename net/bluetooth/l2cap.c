@@ -263,8 +263,22 @@ static void l2cap_chan_del(struct sock *sk, int err)
 static inline int l2cap_check_security(struct sock *sk)
 {
 	struct l2cap_conn *conn = l2cap_pi(sk)->conn;
+	__u8 auth_type;
 
-	return hci_conn_security(conn->hcon, l2cap_pi(sk)->sec_level);
+	switch (l2cap_pi(sk)->sec_level) {
+	case BT_SECURITY_HIGH:
+		auth_type = HCI_AT_GENERAL_BONDING_MITM;
+		break;
+	case BT_SECURITY_MEDIUM:
+		auth_type = HCI_AT_GENERAL_BONDING;
+		break;
+	default:
+		auth_type = HCI_AT_NO_BONDING;
+		break;
+	}
+
+	return hci_conn_security(conn->hcon, l2cap_pi(sk)->sec_level,
+								auth_type);
 }
 
 static inline u8 l2cap_get_ident(struct l2cap_conn *conn)
