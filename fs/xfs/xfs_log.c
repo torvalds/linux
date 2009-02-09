@@ -1164,32 +1164,8 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 	log->l_iclog_hsize = BBSIZE;
 	log->l_iclog_heads = 1;
 
-	/*
-	 * For 16KB, we use 3 32KB buffers.  For 32KB block sizes, we use
-	 * 4 32KB buffers.  For 64KB block sizes, we use 8 32KB buffers.
-	 */
-	if (mp->m_sb.sb_blocksize >= 16*1024) {
-		log->l_iclog_size = XLOG_BIG_RECORD_BSIZE;
-		log->l_iclog_size_log = XLOG_BIG_RECORD_BSHIFT;
-		if (mp->m_logbufs <= 0) {
-			switch (mp->m_sb.sb_blocksize) {
-			    case 16*1024:			/* 16 KB */
-				log->l_iclog_bufs = 3;
-				break;
-			    case 32*1024:			/* 32 KB */
-				log->l_iclog_bufs = 4;
-				break;
-			    case 64*1024:			/* 64 KB */
-				log->l_iclog_bufs = 8;
-				break;
-			    default:
-				xlog_panic("XFS: Invalid blocksize");
-				break;
-			}
-		}
-	}
-
-done:	/* are we being asked to make the sizes selected above visible? */
+done:
+	/* are we being asked to make the sizes selected above visible? */
 	if (mp->m_logbufs == 0)
 		mp->m_logbufs = log->l_iclog_bufs;
 	if (mp->m_logbsize == 0)
