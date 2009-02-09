@@ -3165,6 +3165,7 @@ static int __init ioapic_init_sysfs(void)
 
 device_initcall(ioapic_init_sysfs);
 
+static int nr_irqs_gsi = NR_IRQS_LEGACY;
 /*
  * Dynamic irq allocate and deallocation
  */
@@ -3179,11 +3180,11 @@ unsigned int create_irq_nr(unsigned int irq_want)
 	struct irq_desc *desc_new = NULL;
 
 	irq = 0;
+	if (irq_want < nr_irqs_gsi)
+		irq_want = nr_irqs_gsi;
+
 	spin_lock_irqsave(&vector_lock, flags);
 	for (new = irq_want; new < nr_irqs; new++) {
-		if (platform_legacy_irq(new))
-			continue;
-
 		desc_new = irq_to_desc_alloc_cpu(new, cpu);
 		if (!desc_new) {
 			printk(KERN_INFO "can not get irq_desc for %d\n", new);
@@ -3208,7 +3209,6 @@ unsigned int create_irq_nr(unsigned int irq_want)
 	return irq;
 }
 
-static int nr_irqs_gsi = NR_IRQS_LEGACY;
 int create_irq(void)
 {
 	unsigned int irq_want;

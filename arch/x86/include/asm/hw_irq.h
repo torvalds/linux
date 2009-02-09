@@ -25,8 +25,6 @@
 #include <asm/irq.h>
 #include <asm/sections.h>
 
-#define platform_legacy_irq(irq)	((irq) < 16)
-
 /* Interrupt handlers registered during init_IRQ */
 extern void apic_timer_interrupt(void);
 extern void error_interrupt(void);
@@ -58,7 +56,7 @@ extern void make_8259A_irq(unsigned int irq);
 extern void init_8259A(int aeoi);
 
 /* IOAPIC */
-#define IO_APIC_IRQ(x) (((x) >= 16) || ((1<<(x)) & io_apic_irqs))
+#define IO_APIC_IRQ(x) (((x) >= NR_IRQS_LEGACY) || ((1<<(x)) & io_apic_irqs))
 extern unsigned long io_apic_irqs;
 
 extern void init_VISWS_APIC_irqs(void);
