@@ -2388,6 +2388,63 @@ tracing_poll_pipe(struct file *filp, poll_table *poll_table)
 	}
 }
 
+/* Must be called with trace_types_lock mutex held. */
+static int tracing_wait_pipe(struct file *filp)
+{
+	struct trace_iterator *iter = filp->private_data;
+
+	while (trace_empty(iter)) {
+
+		if ((filp->f_flags & O_NONBLOCK)) {
+			return -EAGAIN;
+		}
+
+		/*
+		 * This is a make-shift waitqueue. The reason we don't use
+		 * an actual wait queue is because:
+		 *  1) we only ever have one waiter
+		 *  2) the tracing, traces all functions, we don't want
+		 *     the overhead of calling wake_up and friends
+		 *     (and tracing them too)
+		 *     Anyway, this is really very primitive wakeup.
+		 */
+		set_current_state(TASK_INTERRUPTIBLE);
+		iter->tr->waiter = current;
+
+		mutex_unlock(&trace_types_lock);
+
+		/* sleep for 100 msecs, and try again. */
+		schedule_timeout(HZ/10);
+
+		mutex_lock(&trace_types_lock);
+
+		iter->tr->waiter = NULL;
+
+		if (signal_pending(current)) {
+			return -EINTR;
+		}
+
+		if (iter->trace != current_trace)
+			return 0;
+
+		/*
+		 * We block until we read something and tracing is disabled.
+		 * We still block if tracing is disabled, but we have never
+		 * read anything. This allows a user to cat this file, and
+		 * then enable tracing. But after we have read something,
+		 * we give an EOF when tracing is again disabled.
+		 *
+		 * iter->pos will be 0 if we haven't read anything.
+		 */
+		if (!tracer_enabled && iter->pos)
+			break;
+
+		continue;
+	}
+
+	return 1;
+}
+
 /*
  * Consumer reader.
  */
@@ -2413,61 +2470,15 @@ tracing_read_pipe(struct file *filp, char __user *ubuf,
 	}
 
 waitagain:
-	sret = 0;
-	while (trace_empty(iter)) {
-
-		if ((filp->f_flags & O_NONBLOCK)) {
-			sret = -EAGAIN;
-			goto out;
-		}
-
-		/*
-		 * This is a make-shift waitqueue. The reason we don't use
-		 * an actual wait queue is because:
-		 *  1) we only ever have one waiter
-		 *  2) the tracing, traces all functions, we don't want
-		 *     the overhead of calling wake_up and friends
-		 *     (and tracing them too)
-		 *     Anyway, this is really very primitive wakeup.
-		 */
-		set_current_state(TASK_INTERRUPTIBLE);
-		iter->tr->waiter = current;
-
-		mutex_unlock(&trace_types_lock);
-
-		/* sleep for 100 msecs, and try again. */
-		schedule_timeout(HZ/10);
-
-		mutex_lock(&trace_types_lock);
-
-		iter->tr->waiter = NULL;
-
-		if (signal_pending(current)) {
-			sret = -EINTR;
-			goto out;
-		}
-
-		if (iter->trace != current_trace)
-			goto out;
-
-		/*
-		 * We block until we read something and tracing is disabled.
-		 * We still block if tracing is disabled, but we have never
-		 * read anything. This allows a user to cat this file, and
-		 * then enable tracing. But after we have read something,
-		 * we give an EOF when tracing is again disabled.
-		 *
-		 * iter->pos will be 0 if we haven't read anything.
-		 */
-		if (!tracer_enabled && iter->pos)
-			break;
-
-		continue;
-	}
+	sret = tracing_wait_pipe(filp);
+	if (sret <= 0)
+		goto out;
 
 	/* stop when tracing is finished */
-	if (trace_empty(iter))
+	if (trace_empty(iter)) {
+		sret = 0;
 		goto out;
+	}
 
 	if (cnt >= PAGE_SIZE)
 		cnt = PAGE_SIZE - 1;
