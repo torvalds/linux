@@ -447,6 +447,23 @@ enum hal_eep_map {
 	EEP_MAP_MAX
 };
 
+struct eeprom_ops {
+	int (*check_eeprom)(struct ath_hw *hw);
+	u32 (*get_eeprom)(struct ath_hw *hw, enum eeprom_param param);
+	bool (*fill_eeprom)(struct ath_hw *hw);
+	int (*get_eeprom_ver)(struct ath_hw *hw);
+	int (*get_eeprom_rev)(struct ath_hw *hw);
+	u8 (*get_num_ant_config)(struct ath_hw *hw, enum ieee80211_band band);
+	u16 (*get_eeprom_antenna_cfg)(struct ath_hw *hw,
+				      struct ath9k_channel *chan);
+	bool (*set_board_values)(struct ath_hw *hw, struct ath9k_channel *chan);
+	void (*set_addac)(struct ath_hw *hw, struct ath9k_channel *chan);
+	int (*set_txpower)(struct ath_hw *hw, struct ath9k_channel *chan,
+			   u16 cfgCtl, u8 twiceAntennaReduction,
+			   u8 twiceMaxRegulatoryPower, u8 powerLimit);
+	u16 (*get_spur_channel)(struct ath_hw *ah, u16 i, bool is2GHz);
+};
+
 #define ar5416_get_eep_ver(_ah) \
 	(((_ah)->ah_eeprom.def.baseEepHeader.version >> 12) & 0xF)
 #define ar5416_get_eep_rev(_ah) \
