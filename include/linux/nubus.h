@@ -12,6 +12,7 @@
 #ifndef LINUX_NUBUS_H
 #define LINUX_NUBUS_H
 
+#include <linux/types.h>
 #ifdef __KERNEL__
 #include <asm/nubus.h>
 #endif

@@ -351,6 +351,9 @@ static int gfar_probe(struct of_device *ofdev,
 	/* Reset MAC layer */
 	gfar_write(&priv->regs->maccfg1, MACCFG1_SOFT_RESET);
 
+	/* We need to delay at least 3 TX clocks */
+	udelay(2);
+
 	tempval = (MACCFG1_TX_FLOW | MACCFG1_RX_FLOW);
 	gfar_write(&priv->regs->maccfg1, tempval);
 

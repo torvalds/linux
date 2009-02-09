@@ -103,6 +103,16 @@ static void msix_set_enable(struct pci_dev *dev, int enable)
 	}
 }
 
+/*
+ * Essentially, this is ((1 << (1 << x)) - 1), but without the
+ * undefinedness of a << 32.
+ */
+static inline __attribute_const__ u32 msi_mask(unsigned x)
+{
+	static const u32 mask[] = { 1, 2, 4, 0xf, 0xff, 0xffff, 0xffffffff };
+	return mask[x];
+}
+
 static void msix_flush_writes(struct irq_desc *desc)
 {
 	struct msi_desc *entry;
@@ -407,8 +417,7 @@ static int msi_capability_init(struct pci_dev *dev)
 
 		/* All MSIs are unmasked by default, Mask them all */
 		pci_read_config_dword(dev, base, &maskbits);
-		temp = (1 << multi_msi_capable(control));
-		temp = ((temp - 1) & ~temp);
+		temp = msi_mask((control & PCI_MSI_FLAGS_QMASK) >> 1);
 		maskbits |= temp;
 		pci_write_config_dword(dev, base, maskbits);
 		entry->msi_attrib.maskbits_mask = temp;

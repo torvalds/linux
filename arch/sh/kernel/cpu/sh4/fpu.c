@@ -423,7 +423,7 @@ static int ieee_fpe_handler(struct pt_regs *regs)
 		int m;
 		unsigned int hx;
 
-		m = (finsn >> 9) & 0x7;
+		m = (finsn >> 8) & 0x7;
 		hx = tsk->thread.fpu.hard.fp_regs[m];
 
 		if ((tsk->thread.fpu.hard.fpscr & FPSCR_CAUSE_ERROR)

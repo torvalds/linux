@@ -1090,6 +1090,15 @@ int vma_wants_writenotify(struct vm_area_struct *vma)
 		mapping_cap_account_dirty(vma->vm_file->f_mapping);
 }
 
+/*
+ * We account for memory if it's a private writeable mapping,
+ * and VM_NORESERVE wasn't set.
+ */
+static inline int accountable_mapping(unsigned int vm_flags)
+{
+	return (vm_flags & (VM_NORESERVE | VM_SHARED | VM_WRITE)) == VM_WRITE;
+}
+
 unsigned long mmap_region(struct file *file, unsigned long addr,
 			  unsigned long len, unsigned long flags,
 			  unsigned int vm_flags, unsigned long pgoff,
@@ -1117,23 +1126,24 @@ munmap_back:
 	if (!may_expand_vm(mm, len >> PAGE_SHIFT))
 		return -ENOMEM;
 
-	if (flags & MAP_NORESERVE)
+	/*
+	 * Set 'VM_NORESERVE' if we should not account for the
+	 * memory use of this mapping. We only honor MAP_NORESERVE
+	 * if we're allowed to overcommit memory.
+	 */
+	if ((flags & MAP_NORESERVE) && sysctl_overcommit_memory != OVERCOMMIT_NEVER)
+		vm_flags |= VM_NORESERVE;
+	if (!accountable)
 		vm_flags |= VM_NORESERVE;
 
-	if (accountable && (!(flags & MAP_NORESERVE) ||
-			    sysctl_overcommit_memory == OVERCOMMIT_NEVER)) {
-		if (vm_flags & VM_SHARED) {
-			/* Check memory availability in shmem_file_setup? */
-			vm_flags |= VM_ACCOUNT;
-		} else if (vm_flags & VM_WRITE) {
-			/*
-			 * Private writable mapping: check memory availability
-			 */
-			charged = len >> PAGE_SHIFT;
-			if (security_vm_enough_memory(charged))
-				return -ENOMEM;
-			vm_flags |= VM_ACCOUNT;
-		}
+	/*
+	 * Private writable mapping: check memory availability
+	 */
+	if (accountable_mapping(vm_flags)) {
+		charged = len >> PAGE_SHIFT;
+		if (security_vm_enough_memory(charged))
+			return -ENOMEM;
+		vm_flags |= VM_ACCOUNT;
 	}
 
 	/*
@@ -1183,14 +1193,6 @@ munmap_back:
 		if (error)
 			goto free_vma;
 	}
-
-	/* We set VM_ACCOUNT in a shared mapping's vm_flags, to inform
-	 * shmem_zero_setup (perhaps called through /dev/zero's ->mmap)
-	 * that memory reservation must be checked; but that reservation
-	 * belongs to shared memory object, not to vma: so now clear it.
-	 */
-	if ((vm_flags & (VM_SHARED|VM_ACCOUNT)) == (VM_SHARED|VM_ACCOUNT))
-		vma->vm_flags &= ~VM_ACCOUNT;
 
 	/* Can addr have changed??
 	 *

@@ -11,13 +11,13 @@
 #define HI_STAT                                0x004C  
 #define BUS_CNTL1                              0x0034
 #define I2C_CNTL_1			       0x0094  
-#define CONFIG_CNTL                            0x00E0  
-#define CONFIG_MEMSIZE                         0x00F8  
-#define CONFIG_APER_0_BASE                     0x0100  
-#define CONFIG_APER_1_BASE                     0x0104  
-#define CONFIG_APER_SIZE                       0x0108  
-#define CONFIG_REG_1_BASE                      0x010C  
-#define CONFIG_REG_APER_SIZE                   0x0110  
+#define CNFG_CNTL                              0x00E0
+#define CNFG_MEMSIZE                           0x00F8
+#define CNFG_APER_0_BASE                       0x0100
+#define CNFG_APER_1_BASE                       0x0104
+#define CNFG_APER_SIZE                         0x0108
+#define CNFG_REG_1_BASE                        0x010C
+#define CNFG_REG_APER_SIZE                     0x0110
 #define PAD_AGPINPUT_DELAY                     0x0164  
 #define PAD_CTLR_STRENGTH                      0x0168  
 #define PAD_CTLR_UPDATE                        0x016C
@@ -509,7 +509,7 @@
 /* CLOCK_CNTL_INDEX bit constants */
 #define PLL_WR_EN                                  0x00000080
 
-/* CONFIG_CNTL bit constants */
+/* CNFG_CNTL bit constants */
 #define CFG_VGA_RAM_EN                             0x00000100
 #define CFG_ATI_REV_ID_MASK			   (0xf << 16)
 #define CFG_ATI_REV_A11				   (0 << 16)
@@ -980,7 +980,7 @@
 
 /* masks */
 
-#define CONFIG_MEMSIZE_MASK		0x1f000000
+#define CNFG_MEMSIZE_MASK		0x1f000000
 #define MEM_CFG_TYPE			0x40000000
 #define DST_OFFSET_MASK			0x003fffff
 #define DST_PITCH_MASK			0x3fc00000

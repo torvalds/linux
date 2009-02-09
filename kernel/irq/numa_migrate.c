@@ -78,7 +78,7 @@ static struct irq_desc *__real_move_irq_desc(struct irq_desc *old_desc,
 	desc = irq_desc_ptrs[irq];
 
 	if (desc && old_desc != desc)
-			goto out_unlock;
+		goto out_unlock;
 
 	node = cpu_to_node(cpu);
 	desc = kzalloc_node(sizeof(*desc), GFP_ATOMIC, node);
@@ -97,10 +97,15 @@ static struct irq_desc *__real_move_irq_desc(struct irq_desc *old_desc,
 	}
 
 	irq_desc_ptrs[irq] = desc;
+	spin_unlock_irqrestore(&sparse_irq_lock, flags);
 
 	/* free the old one */
 	free_one_irq_desc(old_desc, desc);
+	spin_unlock(&old_desc->lock);
 	kfree(old_desc);
+	spin_lock(&desc->lock);
+
+	return desc;
 
 out_unlock:
 	spin_unlock_irqrestore(&sparse_irq_lock, flags);

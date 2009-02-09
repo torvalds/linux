@@ -458,7 +458,11 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	BUILD_HANDLER fpe fpe fpe silent		/* #15 */
 	BUILD_HANDLER mdmx mdmx sti silent		/* #22 */
 #ifdef 	CONFIG_HARDWARE_WATCHPOINTS
-	BUILD_HANDLER watch watch sti silent		/* #23 */
+	/*
+	 * For watch, interrupts will be enabled after the watch
+	 * registers are read.
+	 */
+	BUILD_HANDLER watch watch cli silent		/* #23 */
 #else
 	BUILD_HANDLER watch watch sti verbose		/* #23 */
 #endif

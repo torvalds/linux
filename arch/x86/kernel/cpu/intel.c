@@ -30,7 +30,7 @@
 static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 {
 	/* Unmask CPUID levels if masked: */
-	if (c->x86 == 6 && c->x86_model >= 15) {
+	if (c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xd)) {
 		u64 misc_enable;
 
 		rdmsrl(MSR_IA32_MISC_ENABLE, misc_enable);

@@ -157,7 +157,7 @@ usbvision_i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[], int num)
 	struct i2c_msg *pmsg;
 	struct usb_usbvision *usbvision;
 	int i, ret;
-	unsigned char addr;
+	unsigned char addr = 0;
 
 	usbvision = (struct usb_usbvision *)i2c_get_adapdata(i2c_adap);
 
