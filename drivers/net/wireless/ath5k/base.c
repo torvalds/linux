@@ -2884,7 +2884,7 @@ ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&sc->lock);
 	if (sc->vif != vif) {
@@ -2910,9 +2910,7 @@ ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 		ath5k_beacon_update(sc, beacon);
 	}
-	mutex_unlock(&sc->lock);
 
-	return ath5k_reset_wake(sc);
 unlock:
 	mutex_unlock(&sc->lock);
 	return ret;
