@@ -306,13 +306,13 @@ static struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle)
 }
 
 /**
- * pci_osc_control_set - commit requested control to Firmware
+ * acpi_pci_osc_control_set - commit requested control to Firmware
  * @handle: acpi_handle for the target ACPI object
  * @flags: driver's requested control bits
  *
  * Attempt to take control from Firmware on requested control bits.
  **/
-acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
+acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 flags)
 {
 	acpi_status status;
 	u32 control_req, result, capbuf[3];
@@ -359,7 +359,7 @@ out:
 	mutex_unlock(&osc_lock);
 	return status;
 }
-EXPORT_SYMBOL(pci_osc_control_set);
+EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
 static int __devinit acpi_pci_root_add(struct acpi_device *device)
 {

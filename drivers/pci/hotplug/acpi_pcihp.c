@@ -30,9 +30,8 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/acpi.h>
 #include <linux/pci-acpi.h>
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
 
 #define MY_NAME	"acpi_pcihp"
 
@@ -408,7 +407,7 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags)
 		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
 		dbg("Trying to get hotplug control for %s\n",
 				(char *)string.pointer);
-		status = pci_osc_control_set(handle, flags);
+		status = acpi_pci_osc_control_set(handle, flags);
 		if (ACPI_SUCCESS(status))
 			goto got_one;
 		kfree(string.pointer);
