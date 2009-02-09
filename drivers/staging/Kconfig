@@ -103,5 +103,7 @@ source "drivers/staging/uc2322/Kconfig"
 
 source "drivers/staging/b3dfg/Kconfig"
 
+source "drivers/staging/phison/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
