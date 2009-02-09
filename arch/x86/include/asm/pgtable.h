@@ -473,10 +473,11 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 	return (unsigned long)__va(pmd_val(pmd) & PTE_PFN_MASK);
 }
 
-static inline struct page *pmd_page(pmd_t pmd)
-{
-	return pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT);
-}
+/*
+ * Currently stuck as a macro due to indirect forward reference to
+ * linux/mmzone.h's __section_mem_map_addr() definition:
+ */
+#define pmd_page(pmd)	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
 
 /*
  * the pmd page can be thought of an array like this: pmd_t[PTRS_PER_PMD]
@@ -543,10 +544,11 @@ static inline unsigned long pud_page_vaddr(pud_t pud)
 	return (unsigned long)__va((unsigned long)pud_val(pud) & PTE_PFN_MASK);
 }
 
-static inline struct page *pud_page(pud_t pud)
-{
-	return pfn_to_page(pud_val(pud) >> PAGE_SHIFT);
-}
+/*
+ * Currently stuck as a macro due to indirect forward reference to
+ * linux/mmzone.h's __section_mem_map_addr() definition:
+ */
+#define pud_page(pud)		pfn_to_page(pud_val(pud) >> PAGE_SHIFT)
 
 /* Find an entry in the second-level page table.. */
 static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
@@ -582,10 +584,11 @@ static inline unsigned long pgd_page_vaddr(pgd_t pgd)
 	return (unsigned long)__va((unsigned long)pgd_val(pgd) & PTE_PFN_MASK);
 }
 
-static inline struct page *pgd_page(pgd_t pgd)
-{
-	return pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT);
-}
+/*
+ * Currently stuck as a macro due to indirect forward reference to
+ * linux/mmzone.h's __section_mem_map_addr() definition:
+ */
+#define pgd_page(pgd)		pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
 
 /* to find an entry in a page-table-directory. */
 static inline unsigned pud_index(unsigned long address)
