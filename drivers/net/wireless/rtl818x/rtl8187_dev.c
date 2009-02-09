@@ -213,7 +213,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		kfree_skb(skb);
-		return -ENOMEM;
+		return NETDEV_TX_OK;
 	}
 
 	flags = skb->len;
@@ -273,6 +273,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	usb_fill_bulk_urb(urb, priv->udev, usb_sndbulkpipe(priv->udev, ep),
 			  buf, skb->len, rtl8187_tx_cb, skb);
+	urb->transfer_flags |= URB_ZERO_PACKET;
 	usb_anchor_urb(urb, &priv->anchored);
 	rc = usb_submit_urb(urb, GFP_ATOMIC);
 	if (rc < 0) {
@@ -281,7 +282,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	}
 	usb_free_urb(urb);
 
-	return rc;
+	return NETDEV_TX_OK;
 }
 
 static void rtl8187_rx_cb(struct urb *urb)
@@ -1471,6 +1472,7 @@ static void __devexit rtl8187_disconnect(struct usb_interface *intf)
 	ieee80211_unregister_hw(dev);
 
 	priv = dev->priv;
+	usb_reset_device(priv->udev);
 	usb_put_dev(interface_to_usbdev(intf));
 	ieee80211_free_hw(dev);
 }

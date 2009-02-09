@@ -568,7 +568,7 @@ update_domain_attr_tree(struct sched_domain_attr *dattr, struct cpuset *c)
  * load balancing domains (sched domains) as specified by that partial
  * partition.
  *
- * See "What is sched_load_balance" in Documentation/cpusets.txt
+ * See "What is sched_load_balance" in Documentation/cgroups/cpusets.txt
  * for a background explanation of this.
  *
  * Does not return errors, on the theory that the callers of this

@@ -228,7 +228,7 @@ enum {
 };
 
 #define REG_DOMAIN_2GHZ_MASK    (REQ_MASK & \
-	(!(ADHOC_NO_11A | DISALLOW_ADHOC_11A | DISALLOW_ADHOC_11A_TURB)))
+	(~(ADHOC_NO_11A | DISALLOW_ADHOC_11A | DISALLOW_ADHOC_11A_TURB)))
 #define REG_DOMAIN_5GHZ_MASK    REQ_MASK
 
 static struct reg_dmn_pair_mapping regDomainPairs[] = {

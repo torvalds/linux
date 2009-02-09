@@ -1,8 +1,6 @@
 #ifndef _XTENSA_BYTEORDER_H
 #define _XTENSA_BYTEORDER_H
 
-#include <asm/swab.h>
-
 #ifdef __XTENSA_EL__
 #include <linux/byteorder/little_endian.h>
 #elif defined(__XTENSA_EB__)

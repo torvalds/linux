@@ -14,4 +14,3 @@ unifdef-y += gcc_intrin.h
 unifdef-y += intrinsics.h
 unifdef-y += perfmon.h
 unifdef-y += ustack.h
-unifdef-y += swab.h

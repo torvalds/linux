@@ -9,7 +9,6 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 
-#include <asm/spinlock.h>
 #include <asm/system.h>
 #include <asm/cpudata.h>
 #include <asm/uaccess.h>
@@ -22,16 +21,6 @@ struct poll {
 	short events;
 	short revents;
 };
-
-/* used by various drivers */
-#ifdef CONFIG_SMP
-/* Out of line rw-locking implementation. */
-EXPORT_SYMBOL(__read_lock);
-EXPORT_SYMBOL(__read_unlock);
-EXPORT_SYMBOL(__write_lock);
-EXPORT_SYMBOL(__write_unlock);
-EXPORT_SYMBOL(__write_trylock);
-#endif /* CONFIG_SMP */
 
 /* from helpers.S */
 EXPORT_SYMBOL(__flushw_user);

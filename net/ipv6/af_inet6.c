@@ -797,6 +797,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 	unsigned int nlen;
 	int flush = 1;
 	int proto;
+	__wsum csum;
 
 	if (unlikely(!pskb_may_pull(skb, sizeof(*iph))))
 		goto out;
@@ -808,6 +809,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 
 	rcu_read_lock();
 	proto = ipv6_gso_pull_exthdrs(skb, iph->nexthdr);
+	iph = ipv6_hdr(skb);
 	IPV6_GRO_CB(skb)->proto = proto;
 	ops = rcu_dereference(inet6_protos[proto]);
 	if (!ops || !ops->gro_receive)
@@ -839,7 +841,12 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 
 	NAPI_GRO_CB(skb)->flush |= flush;
 
+	csum = skb->csum;
+	skb_postpull_rcsum(skb, iph, skb_network_header_len(skb));
+
 	pp = ops->gro_receive(head, skb);
+
+	skb->csum = csum;
 
 out_unlock:
 	rcu_read_unlock();

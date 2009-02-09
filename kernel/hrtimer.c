@@ -614,7 +614,9 @@ void clock_was_set(void)
  */
 void hres_timers_resume(void)
 {
-	/* Retrigger the CPU local events: */
+	WARN_ONCE(!irqs_disabled(),
+		  KERN_INFO "hres_timers_resume() called with IRQs enabled!");
+
 	retrigger_next_event(NULL);
 }
 
@@ -1467,8 +1469,8 @@ out:
 	return ret;
 }
 
-asmlinkage long
-sys_nanosleep(struct timespec __user *rqtp, struct timespec __user *rmtp)
+SYSCALL_DEFINE2(nanosleep, struct timespec __user *, rqtp,
+		struct timespec __user *, rmtp)
 {
 	struct timespec tu;
 

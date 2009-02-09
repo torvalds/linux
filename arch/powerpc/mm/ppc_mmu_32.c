@@ -123,9 +123,9 @@ void __init setbat(int index, unsigned long virt, phys_addr_t phys,
 	int wimgxpp;
 	struct ppc_bat *bat = BATS[index];
 
-	if (((flags & _PAGE_NO_CACHE) == 0) &&
-	    cpu_has_feature(CPU_FTR_NEED_COHERENT))
-		flags |= _PAGE_COHERENT;
+	if ((flags & _PAGE_NO_CACHE) ||
+	    (cpu_has_feature(CPU_FTR_NEED_COHERENT) == 0))
+		flags &= ~_PAGE_COHERENT;
 
 	bl = (size >> 17) - 1;
 	if (PVR_VER(mfspr(SPRN_PVR)) != 1) {

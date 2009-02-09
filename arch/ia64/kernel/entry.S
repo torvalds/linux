@@ -1442,7 +1442,7 @@ sys_call_table:
 	data8 sys_mkdir				// 1055
 	data8 sys_rmdir
 	data8 sys_dup
-	data8 sys_pipe
+	data8 sys_ia64_pipe
 	data8 sys_times
 	data8 ia64_brk				// 1060
 	data8 sys_setgid
