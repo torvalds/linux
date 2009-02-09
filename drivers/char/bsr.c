@@ -140,7 +140,7 @@ static int bsr_open(struct inode * inode, struct file * filp)
 	return 0;
 }
 
-const static struct file_operations bsr_fops = {
+static const struct file_operations bsr_fops = {
 	.owner = THIS_MODULE,
 	.mmap  = bsr_mmap,
 	.open  = bsr_open,
