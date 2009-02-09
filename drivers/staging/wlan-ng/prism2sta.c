@@ -71,8 +71,6 @@
 #include <linux/if_ether.h>
 #include <linux/bitops.h>
 
-#include "wlan_compat.h"
-
 /*================================================================*/
 /* Project Includes */
 

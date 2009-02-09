@@ -62,8 +62,6 @@
 #include <net/sock.h>
 #include <linux/netlink.h>
 
-#include "wlan_compat.h"
-
 #include "p80211types.h"
 #include "p80211hdr.h"
 #include "p80211mgmt.h"

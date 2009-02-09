@@ -51,9 +51,6 @@
 /*================================================================*/
 /* Project Includes */
 
-#ifndef _WLAN_COMPAT_H
-#include "wlan_compat.h"
-#endif
 
 #define WLAN_DEVNAMELEN_MAX	16
 

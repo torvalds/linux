@@ -57,8 +57,6 @@
 #include <linux/random.h>
 #include <linux/kernel.h>
 
-#include "wlan_compat.h"
-
 // #define WEP_DEBUG
 
 /*================================================================*/

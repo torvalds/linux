@@ -103,9 +103,6 @@
 /*================================================================*/
 /* Project Includes */
 
-#ifndef  _WLAN_COMPAT_H
-#include "wlan_compat.h"
-#endif
 
 #ifndef  _P80211HDR_H
 #include "p80211hdr.h"

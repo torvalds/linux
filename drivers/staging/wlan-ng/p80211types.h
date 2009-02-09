@@ -61,9 +61,6 @@
 /* Project Includes */
 /*================================================================*/
 
-#ifndef _WLAN_COMPAT_H
-#include "wlan_compat.h"
-#endif
 
 /*----------------------------------------------------------------*/
 /* The following constants are indexes into the Mib Category List */

@@ -128,8 +128,6 @@
 #include <linux/usb.h>
 #include <linux/byteorder/generic.h>
 
-#include "wlan_compat.h"
-
 #define SUBMIT_URB(u,f)  usb_submit_urb(u,f)
 
 /*================================================================*/

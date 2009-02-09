@@ -73,8 +73,6 @@
 #include <linux/usb.h>
 #include <linux/bitops.h>
 
-#include "wlan_compat.h"
-
 /*================================================================*/
 /* Project Includes */
 
