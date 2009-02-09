@@ -4599,6 +4599,7 @@ init_e1_port(struct hfc_multi *hc, struct hm_map *m)
 			printk(KERN_ERR "%s: no memory for coeffs\n",
 			    __func__);
 			ret = -ENOMEM;
+			kfree(bch);
 			goto free_chan;
 		}
 		bch->nr = ch;
@@ -4767,6 +4768,7 @@ init_multi_port(struct hfc_multi *hc, int pt)
 			printk(KERN_ERR "%s: no memory for coeffs\n",
 			    __func__);
 			ret = -ENOMEM;
+			kfree(bch);
 			goto free_chan;
 		}
 		bch->nr = ch + 1;
