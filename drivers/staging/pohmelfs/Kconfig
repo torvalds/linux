@@ -1,6 +1,8 @@
 config POHMELFS
 	tristate "POHMELFS filesystem support"
 	select CONNECTOR
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_HMAC
 	help
 	  POHMELFS stands for Parallel Optimized Host Message Exchange Layered File System.
 	  This is a network filesystem which supports coherent caching of data and metadata
