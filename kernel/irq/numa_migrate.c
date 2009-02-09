@@ -17,16 +17,11 @@ static void init_copy_kstat_irqs(struct irq_desc *old_desc,
 				 struct irq_desc *desc,
 				 int cpu, int nr)
 {
-	unsigned long bytes;
-
 	init_kstat_irqs(desc, cpu, nr);
 
-	if (desc->kstat_irqs != old_desc->kstat_irqs) {
-		/* Compute how many bytes we need per irq and allocate them */
-		bytes = nr * sizeof(unsigned int);
-
-		memcpy(desc->kstat_irqs, old_desc->kstat_irqs, bytes);
-	}
+	if (desc->kstat_irqs != old_desc->kstat_irqs)
+		memcpy(desc->kstat_irqs, old_desc->kstat_irqs,
+			 nr * sizeof(*desc->kstat_irqs));
 }
 
 static void free_kstat_irqs(struct irq_desc *old_desc, struct irq_desc *desc)
