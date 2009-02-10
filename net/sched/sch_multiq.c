@@ -202,7 +202,7 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 	int i;
 
 	if (!netif_is_multiqueue(qdisc_dev(sch)))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	if (nla_len(opt) < sizeof(*qopt))
 		return -EINVAL;
 
