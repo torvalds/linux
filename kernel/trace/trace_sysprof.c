@@ -238,6 +238,8 @@ static int stack_trace_init(struct trace_array *tr)
 {
 	sysprof_trace = tr;
 
+	tracing_start_cmdline_record();
+
 	mutex_lock(&sample_timer_lock);
 	start_stack_timers();
 	tracer_enabled = 1;
@@ -247,6 +249,7 @@ static int stack_trace_init(struct trace_array *tr)
 
 static void stack_trace_reset(struct trace_array *tr)
 {
+	tracing_stop_cmdline_record();
 	stop_stack_trace(tr);
 }
 
