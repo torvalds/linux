@@ -791,5 +791,16 @@ struct cfg80211_bss *cfg80211_get_mesh(struct wiphy *wiphy,
 				       const u8 *meshid, size_t meshidlen,
 				       const u8 *meshcfg);
 void cfg80211_put_bss(struct cfg80211_bss *bss);
+/**
+ * cfg80211_unlink_bss - unlink BSS from internal data structures
+ * @wiphy: the wiphy
+ * @bss: the bss to remove
+ *
+ * This function removes the given BSS from the internal data structures
+ * thereby making it no longer show up in scan results etc. Use this
+ * function when you detect a BSS is gone. Normally BSSes will also time
+ * out, so it is not necessary to use this function at all.
+ */
+void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 
 #endif /* __NET_CFG80211_H */

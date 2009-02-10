@@ -432,6 +432,27 @@ void cfg80211_put_bss(struct cfg80211_bss *pub)
 }
 EXPORT_SYMBOL(cfg80211_put_bss);
 
+void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
+{
+	struct cfg80211_registered_device *dev = wiphy_to_dev(wiphy);
+	struct cfg80211_internal_bss *bss;
+
+	if (WARN_ON(!pub))
+		return;
+
+	bss = container_of(pub, struct cfg80211_internal_bss, pub);
+
+	spin_lock_bh(&dev->bss_lock);
+
+	list_del(&bss->list);
+	rb_erase(&bss->rbn, &dev->bss_tree);
+
+	spin_unlock_bh(&dev->bss_lock);
+
+	kref_put(&bss->ref, bss_release);
+}
+EXPORT_SYMBOL(cfg80211_unlink_bss);
+
 #ifdef CONFIG_WIRELESS_EXT
 int cfg80211_wext_siwscan(struct net_device *dev,
 			  struct iw_request_info *info,
