@@ -13,6 +13,9 @@
  */
 
 /* TODO:
+ * figure out how to avoid that the "current BSS" expires
+ * clean up IBSS code (in MLME), see why it adds a BSS to the list
+ * use cfg80211's BSS handling (depends on IBSS TODO above)
  * order BSS list by RSSI(?) ("quality of AP")
  * scan result table filtering (by capability (privacy, IBSS/BSS, WPA/RSN IE,
  *    SSID)
@@ -225,10 +228,26 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_mgmt *mgmt,
 			  size_t len,
 			  struct ieee802_11_elems *elems,
-			  int freq, bool beacon)
+			  struct ieee80211_channel *channel,
+			  bool beacon)
 {
 	struct ieee80211_bss *bss;
-	int clen;
+	int clen, freq = channel->center_freq;
+	enum cfg80211_signal_type sigtype = CFG80211_SIGNAL_TYPE_NONE;
+	s32 signal = 0;
+
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
+		sigtype = CFG80211_SIGNAL_TYPE_MBM;
+		signal = rx_status->signal * 100;
+	} else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC) {
+		sigtype = CFG80211_SIGNAL_TYPE_UNSPEC;
+		signal = (rx_status->signal * 100) / local->hw.max_signal;
+	}
+
+	cfg80211_put_bss(
+		cfg80211_inform_bss_frame(local->hw.wiphy, channel,
+					  mgmt, len, signal, sigtype,
+					  GFP_ATOMIC));
 
 #ifdef CONFIG_MAC80211_MESH
 	if (elems->mesh_config)
@@ -401,7 +420,7 @@ ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 
 	bss = ieee80211_bss_info_update(sdata->local, rx_status,
 					mgmt, skb->len, &elems,
-					freq, beacon);
+					channel, beacon);
 	if (bss)
 		ieee80211_rx_bss_put(sdata->local, bss);
 
@@ -439,26 +458,22 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	ieee80211_tx_skb(sdata, skb, 0);
 }
 
-void ieee80211_scan_completed(struct ieee80211_hw *hw)
+void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
-	union iwreq_data wrqu;
 
 	if (WARN_ON(!local->hw_scanning && !local->sw_scanning))
 		return;
 
-	local->last_scan_completed = jiffies;
-	memset(&wrqu, 0, sizeof(wrqu));
+	if (WARN_ON(!local->scan_req))
+		return;
 
-	/*
-	 * local->scan_sdata could have been NULLed by the interface
-	 * down code in case we were scanning on an interface that is
-	 * being taken down.
-	 */
-	sdata = local->scan_sdata;
-	if (sdata)
-		wireless_send_event(sdata->dev, SIOCGIWSCAN, &wrqu, NULL);
+	if (local->scan_req != &local->int_scan_req)
+		cfg80211_scan_done(local->scan_req, aborted);
+	local->scan_req = NULL;
+
+	local->last_scan_completed = jiffies;
 
 	if (local->hw_scanning) {
 		local->hw_scanning = false;
@@ -520,9 +535,8 @@ void ieee80211_scan_work(struct work_struct *work)
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, scan_work.work);
 	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
-	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
-	int skip;
+	int skip, i;
 	unsigned long next_delay = 0;
 
 	/*
@@ -533,33 +547,13 @@ void ieee80211_scan_work(struct work_struct *work)
 
 	switch (local->scan_state) {
 	case SCAN_SET_CHANNEL:
-		/*
-		 * Get current scan band. scan_band may be IEEE80211_NUM_BANDS
-		 * after we successfully scanned the last channel of the last
-		 * band (and the last band is supported by the hw)
-		 */
-		if (local->scan_band < IEEE80211_NUM_BANDS)
-			sband = local->hw.wiphy->bands[local->scan_band];
-		else
-			sband = NULL;
-
-		/*
-		 * If we are at an unsupported band and have more bands
-		 * left to scan, advance to the next supported one.
-		 */
-		while (!sband && local->scan_band < IEEE80211_NUM_BANDS - 1) {
-			local->scan_band++;
-			sband = local->hw.wiphy->bands[local->scan_band];
-			local->scan_channel_idx = 0;
-		}
-
 		/* if no more bands/channels left, complete scan */
-		if (!sband || local->scan_channel_idx >= sband->n_channels) {
-			ieee80211_scan_completed(local_to_hw(local));
+		if (local->scan_channel_idx >= local->scan_req->n_channels) {
+			ieee80211_scan_completed(local_to_hw(local), false);
 			return;
 		}
 		skip = 0;
-		chan = &sband->channels[local->scan_channel_idx];
+		chan = local->scan_req->channels[local->scan_channel_idx];
 
 		if (chan->flags & IEEE80211_CHAN_DISABLED ||
 		    (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
@@ -575,15 +569,6 @@ void ieee80211_scan_work(struct work_struct *work)
 
 		/* advance state machine to next channel/band */
 		local->scan_channel_idx++;
-		if (local->scan_channel_idx >= sband->n_channels) {
-			/*
-			 * scan_band may end up == IEEE80211_NUM_BANDS, but
-			 * we'll catch that case above and complete the scan
-			 * if that is the case.
-			 */
-			local->scan_band++;
-			local->scan_channel_idx = 0;
-		}
 
 		if (skip)
 			break;
@@ -596,10 +581,14 @@ void ieee80211_scan_work(struct work_struct *work)
 		next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
 		local->scan_state = SCAN_SET_CHANNEL;
 
-		if (local->scan_channel->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+		if (local->scan_channel->flags & IEEE80211_CHAN_PASSIVE_SCAN ||
+		    !local->scan_req->n_ssids)
 			break;
-		ieee80211_send_probe_req(sdata, NULL, local->scan_ssid,
-					 local->scan_ssid_len);
+		for (i = 0; i < local->scan_req->n_ssids; i++)
+			ieee80211_send_probe_req(
+				sdata, NULL,
+				local->scan_req->ssids[i].ssid,
+				local->scan_req->ssids[i].ssid_len);
 		next_delay = IEEE80211_CHANNEL_TIME;
 		break;
 	}
@@ -610,13 +599,18 @@ void ieee80211_scan_work(struct work_struct *work)
 
 
 int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
-			 u8 *ssid, size_t ssid_len)
+			 struct cfg80211_scan_request *req)
 {
 	struct ieee80211_local *local = scan_sdata->local;
 	struct ieee80211_sub_if_data *sdata;
 
-	if (ssid_len > IEEE80211_MAX_SSID_LEN)
+	if (!req)
 		return -EINVAL;
+
+	if (local->scan_req && local->scan_req != req)
+		return -EBUSY;
+
+	local->scan_req = req;
 
 	/* MLME-SCAN.request (page 118)  page 144 (11.1.3.1)
 	 * BSSType: INFRASTRUCTURE, INDEPENDENT, ANY_BSS
@@ -645,7 +639,7 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 		int rc;
 
 		local->hw_scanning = true;
-		rc = local->ops->hw_scan(local_to_hw(local), ssid, ssid_len);
+		rc = local->ops->hw_scan(local_to_hw(local), req);
 		if (rc) {
 			local->hw_scanning = false;
 			return rc;
@@ -678,15 +672,10 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 	}
 	mutex_unlock(&local->iflist_mtx);
 
-	if (ssid) {
-		local->scan_ssid_len = ssid_len;
-		memcpy(local->scan_ssid, ssid, ssid_len);
-	} else
-		local->scan_ssid_len = 0;
 	local->scan_state = SCAN_SET_CHANNEL;
 	local->scan_channel_idx = 0;
-	local->scan_band = IEEE80211_BAND_2GHZ;
 	local->scan_sdata = scan_sdata;
+	local->scan_req = req;
 
 	netif_addr_lock_bh(local->mdev);
 	local->filter_flags |= FIF_BCN_PRBRESP_PROMISC;
@@ -706,13 +695,21 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 
 
 int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
-			   u8 *ssid, size_t ssid_len)
+			   struct cfg80211_scan_request *req)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_sta *ifsta;
 
+	if (!req)
+		return -EINVAL;
+
+	if (local->scan_req && local->scan_req != req)
+		return -EBUSY;
+
+	local->scan_req = req;
+
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
-		return ieee80211_start_scan(sdata, ssid, ssid_len);
+		return ieee80211_start_scan(sdata, req);
 
 	/*
 	 * STA has a state machine that might need to defer scanning
@@ -727,241 +724,8 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ifsta = &sdata->u.sta;
-
-	ifsta->scan_ssid_len = ssid_len;
-	if (ssid_len)
-		memcpy(ifsta->scan_ssid, ssid, ssid_len);
 	set_bit(IEEE80211_STA_REQ_SCAN, &ifsta->request);
 	queue_work(local->hw.workqueue, &ifsta->work);
 
 	return 0;
-}
-
-
-static void ieee80211_scan_add_ies(struct iw_request_info *info,
-				   struct ieee80211_bss *bss,
-				   char **current_ev, char *end_buf)
-{
-	u8 *pos, *end, *next;
-	struct iw_event iwe;
-
-	if (bss == NULL || bss->ies == NULL)
-		return;
-
-	/*
-	 * If needed, fragment the IEs buffer (at IE boundaries) into short
-	 * enough fragments to fit into IW_GENERIC_IE_MAX octet messages.
-	 */
-	pos = bss->ies;
-	end = pos + bss->ies_len;
-
-	while (end - pos > IW_GENERIC_IE_MAX) {
-		next = pos + 2 + pos[1];
-		while (next + 2 + next[1] - pos < IW_GENERIC_IE_MAX)
-			next = next + 2 + next[1];
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVGENIE;
-		iwe.u.data.length = next - pos;
-		*current_ev = iwe_stream_add_point(info, *current_ev,
-						   end_buf, &iwe, pos);
-
-		pos = next;
-	}
-
-	if (end > pos) {
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVGENIE;
-		iwe.u.data.length = end - pos;
-		*current_ev = iwe_stream_add_point(info, *current_ev,
-						   end_buf, &iwe, pos);
-	}
-}
-
-
-static char *
-ieee80211_scan_result(struct ieee80211_local *local,
-		      struct iw_request_info *info,
-		      struct ieee80211_bss *bss,
-		      char *current_ev, char *end_buf)
-{
-	struct iw_event iwe;
-	char *buf;
-
-	if (time_after(jiffies,
-		       bss->last_update + IEEE80211_SCAN_RESULT_EXPIRE))
-		return current_ev;
-
-	memset(&iwe, 0, sizeof(iwe));
-	iwe.cmd = SIOCGIWAP;
-	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
-	memcpy(iwe.u.ap_addr.sa_data, bss->bssid, ETH_ALEN);
-	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,
-					  IW_EV_ADDR_LEN);
-
-	memset(&iwe, 0, sizeof(iwe));
-	iwe.cmd = SIOCGIWESSID;
-	if (bss_mesh_cfg(bss)) {
-		iwe.u.data.length = bss_mesh_id_len(bss);
-		iwe.u.data.flags = 1;
-		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
-						  &iwe, bss_mesh_id(bss));
-	} else {
-		iwe.u.data.length = bss->ssid_len;
-		iwe.u.data.flags = 1;
-		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
-						  &iwe, bss->ssid);
-	}
-
-	if (bss->capability & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)
-	    || bss_mesh_cfg(bss)) {
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = SIOCGIWMODE;
-		if (bss_mesh_cfg(bss))
-			iwe.u.mode = IW_MODE_MESH;
-		else if (bss->capability & WLAN_CAPABILITY_ESS)
-			iwe.u.mode = IW_MODE_MASTER;
-		else
-			iwe.u.mode = IW_MODE_ADHOC;
-		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
-						  &iwe, IW_EV_UINT_LEN);
-	}
-
-	memset(&iwe, 0, sizeof(iwe));
-	iwe.cmd = SIOCGIWFREQ;
-	iwe.u.freq.m = ieee80211_frequency_to_channel(bss->freq);
-	iwe.u.freq.e = 0;
-	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,
-					  IW_EV_FREQ_LEN);
-
-	memset(&iwe, 0, sizeof(iwe));
-	iwe.cmd = SIOCGIWFREQ;
-	iwe.u.freq.m = bss->freq;
-	iwe.u.freq.e = 6;
-	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,
-					  IW_EV_FREQ_LEN);
-	memset(&iwe, 0, sizeof(iwe));
-	iwe.cmd = IWEVQUAL;
-	iwe.u.qual.qual = bss->qual;
-	iwe.u.qual.level = bss->signal;
-	iwe.u.qual.noise = bss->noise;
-	iwe.u.qual.updated = local->wstats_flags;
-	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,
-					  IW_EV_QUAL_LEN);
-
-	memset(&iwe, 0, sizeof(iwe));
-	iwe.cmd = SIOCGIWENCODE;
-	if (bss->capability & WLAN_CAPABILITY_PRIVACY)
-		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
-	else
-		iwe.u.data.flags = IW_ENCODE_DISABLED;
-	iwe.u.data.length = 0;
-	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
-					  &iwe, "");
-
-	ieee80211_scan_add_ies(info, bss, &current_ev, end_buf);
-
-	if (bss->supp_rates_len > 0) {
-		/* display all supported rates in readable format */
-		char *p = current_ev + iwe_stream_lcp_len(info);
-		int i;
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = SIOCGIWRATE;
-		/* Those two flags are ignored... */
-		iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
-
-		for (i = 0; i < bss->supp_rates_len; i++) {
-			iwe.u.bitrate.value = ((bss->supp_rates[i] &
-							0x7f) * 500000);
-			p = iwe_stream_add_value(info, current_ev, p,
-					end_buf, &iwe, IW_EV_PARAM_LEN);
-		}
-		current_ev = p;
-	}
-
-	buf = kmalloc(30, GFP_ATOMIC);
-	if (buf) {
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		sprintf(buf, "tsf=%016llx", (unsigned long long)(bss->timestamp));
-		iwe.u.data.length = strlen(buf);
-		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
-						  &iwe, buf);
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		sprintf(buf, " Last beacon: %dms ago",
-			jiffies_to_msecs(jiffies - bss->last_update));
-		iwe.u.data.length = strlen(buf);
-		current_ev = iwe_stream_add_point(info, current_ev,
-						  end_buf, &iwe, buf);
-		kfree(buf);
-	}
-
-	if (bss_mesh_cfg(bss)) {
-		u8 *cfg = bss_mesh_cfg(bss);
-		buf = kmalloc(50, GFP_ATOMIC);
-		if (buf) {
-			memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, "Mesh network (version %d)", cfg[0]);
-			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(info, current_ev,
-							  end_buf,
-							  &iwe, buf);
-			sprintf(buf, "Path Selection Protocol ID: "
-				"0x%02X%02X%02X%02X", cfg[1], cfg[2], cfg[3],
-							cfg[4]);
-			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(info, current_ev,
-							  end_buf,
-							  &iwe, buf);
-			sprintf(buf, "Path Selection Metric ID: "
-				"0x%02X%02X%02X%02X", cfg[5], cfg[6], cfg[7],
-							cfg[8]);
-			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(info, current_ev,
-							  end_buf,
-							  &iwe, buf);
-			sprintf(buf, "Congestion Control Mode ID: "
-				"0x%02X%02X%02X%02X", cfg[9], cfg[10],
-							cfg[11], cfg[12]);
-			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(info, current_ev,
-							  end_buf,
-							  &iwe, buf);
-			sprintf(buf, "Channel Precedence: "
-				"0x%02X%02X%02X%02X", cfg[13], cfg[14],
-							cfg[15], cfg[16]);
-			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(info, current_ev,
-							  end_buf,
-							  &iwe, buf);
-			kfree(buf);
-		}
-	}
-
-	return current_ev;
-}
-
-
-int ieee80211_scan_results(struct ieee80211_local *local,
-			   struct iw_request_info *info,
-			   char *buf, size_t len)
-{
-	char *current_ev = buf;
-	char *end_buf = buf + len;
-	struct ieee80211_bss *bss;
-
-	spin_lock_bh(&local->bss_lock);
-	list_for_each_entry(bss, &local->bss_list, list) {
-		if (buf + len - current_ev <= IW_EV_ADDR_LEN) {
-			spin_unlock_bh(&local->bss_lock);
-			return -E2BIG;
-		}
-		current_ev = ieee80211_scan_result(local, info, bss,
-						       current_ev, end_buf);
-	}
-	spin_unlock_bh(&local->bss_lock);
-	return current_ev - buf;
 }

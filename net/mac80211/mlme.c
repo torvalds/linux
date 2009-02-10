@@ -1743,7 +1743,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	}
 
 	bss = ieee80211_bss_info_update(local, rx_status, mgmt, len, elems,
-					freq, beacon);
+					channel, beacon);
 	if (!bss)
 		return;
 
@@ -2162,7 +2162,15 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata,
 
 	printk(KERN_DEBUG "%s: No active IBSS STAs - trying to scan for other "
 	       "IBSS networks with same SSID (merge)\n", sdata->dev->name);
-	ieee80211_request_scan(sdata, ifsta->ssid, ifsta->ssid_len);
+
+	/* XXX maybe racy? */
+	if (sdata->local->scan_req)
+		return;
+
+	memcpy(sdata->local->int_scan_req.ssids[0].ssid,
+	       ifsta->ssid, IEEE80211_MAX_SSID_LEN);
+	sdata->local->int_scan_req.ssids[0].ssid_len = ifsta->ssid_len;
+	ieee80211_request_scan(sdata, &sdata->local->int_scan_req);
 }
 
 
@@ -2378,8 +2386,15 @@ dont_join:
 			      IEEE80211_SCAN_INTERVAL)) {
 		printk(KERN_DEBUG "%s: Trigger new scan to find an IBSS to "
 		       "join\n", sdata->dev->name);
-		return ieee80211_request_scan(sdata, ifsta->ssid,
-					      ifsta->ssid_len);
+
+		/* XXX maybe racy? */
+		if (local->scan_req)
+			return -EBUSY;
+
+		memcpy(local->int_scan_req.ssids[0].ssid,
+		       ifsta->ssid, IEEE80211_MAX_SSID_LEN);
+		local->int_scan_req.ssids[0].ssid_len = ifsta->ssid_len;
+		return ieee80211_request_scan(sdata, &local->int_scan_req);
 	} else if (ifsta->state != IEEE80211_STA_MLME_IBSS_JOINED) {
 		int interval = IEEE80211_SCAN_INTERVAL;
 
@@ -2478,11 +2493,16 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata,
 	} else {
 		if (ifsta->assoc_scan_tries < IEEE80211_ASSOC_SCANS_MAX_TRIES) {
 			ifsta->assoc_scan_tries++;
+			/* XXX maybe racy? */
+			if (local->scan_req)
+				return -1;
+			memcpy(local->int_scan_req.ssids[0].ssid,
+			       ifsta->ssid, IEEE80211_MAX_SSID_LEN);
 			if (ifsta->flags & IEEE80211_STA_AUTO_SSID_SEL)
-				ieee80211_start_scan(sdata, NULL, 0);
+				local->int_scan_req.ssids[0].ssid_len = 0;
 			else
-				ieee80211_start_scan(sdata, ifsta->ssid,
-							 ifsta->ssid_len);
+				local->int_scan_req.ssids[0].ssid_len = ifsta->ssid_len;
+			ieee80211_start_scan(sdata, &local->int_scan_req);
 			ifsta->state = IEEE80211_STA_MLME_AUTHENTICATE;
 			set_bit(IEEE80211_STA_REQ_AUTH, &ifsta->request);
 		} else {
@@ -2520,8 +2540,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 	    ifsta->state != IEEE80211_STA_MLME_AUTHENTICATE &&
 	    ifsta->state != IEEE80211_STA_MLME_ASSOCIATE &&
 	    test_and_clear_bit(IEEE80211_STA_REQ_SCAN, &ifsta->request)) {
-		ieee80211_start_scan(sdata, ifsta->scan_ssid,
-				     ifsta->scan_ssid_len);
+		ieee80211_start_scan(sdata, local->scan_req);
 		return;
 	}
 

@@ -522,7 +522,7 @@ static int ieee80211_stop(struct net_device *dev)
 			 * scan event to userspace -- the scan is incomplete.
 			 */
 			if (local->sw_scanning)
-				ieee80211_scan_completed(&local->hw);
+				ieee80211_scan_completed(&local->hw, true);
 		}
 
 		conf.vif = &sdata->vif;

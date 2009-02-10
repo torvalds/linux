@@ -2678,11 +2678,19 @@ static void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 }
 
-static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
+static int iwl_mac_hw_scan(struct ieee80211_hw *hw,
+			   struct cfg80211_scan_request *req)
 {
 	unsigned long flags;
 	struct iwl_priv *priv = hw->priv;
 	int ret;
+	u8 *ssid = NULL;
+	size_t ssid_len = 0;
+
+	if (req->n_ssids) {
+		ssid = req->ssids[0].ssid;
+		ssid_len = req->ssids[0].ssid_len;
+	}
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -2718,7 +2726,7 @@ static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
 
 	if (ssid_len) {
 		priv->one_direct_scan = 1;
-		priv->direct_ssid_len =  min_t(u8, ssid_len, IW_ESSID_MAX_SIZE);
+		priv->direct_ssid_len = ssid_len;
 		memcpy(priv->direct_ssid, ssid, priv->direct_ssid_len);
 	} else {
 		priv->one_direct_scan = 0;

@@ -1406,7 +1406,8 @@ struct ieee80211_ops {
 	void (*update_tkip_key)(struct ieee80211_hw *hw,
 			struct ieee80211_key_conf *conf, const u8 *address,
 			u32 iv32, u16 *phase1key);
-	int (*hw_scan)(struct ieee80211_hw *hw, u8 *ssid, size_t len);
+	int (*hw_scan)(struct ieee80211_hw *hw,
+		       struct cfg80211_scan_request *req);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
@@ -1844,8 +1845,9 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw);
  * mac80211 that the scan finished.
  *
  * @hw: the hardware that finished the scan
+ * @aborted: set to true if scan was aborted
  */
-void ieee80211_scan_completed(struct ieee80211_hw *hw);
+void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted);
 
 /**
  * ieee80211_iterate_active_interfaces - iterate active interfaces

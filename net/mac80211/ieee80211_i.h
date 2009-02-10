@@ -294,8 +294,6 @@ struct ieee80211_if_sta {
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	enum ieee80211_sta_mlme_state state;
 	size_t ssid_len;
-	u8 scan_ssid[IEEE80211_MAX_SSID_LEN];
-	size_t scan_ssid_len;
 	u16 aid;
 	u16 ap_capab, capab;
 	u8 *extra_ie; /* to be added to the end of AssocReq */
@@ -658,17 +656,18 @@ struct ieee80211_local {
 
 	/* Scanning and BSS list */
 	bool sw_scanning, hw_scanning;
+	struct cfg80211_ssid scan_ssid;
+	struct cfg80211_scan_request int_scan_req;
+	struct cfg80211_scan_request *scan_req;
+	struct ieee80211_channel *scan_channel;
 	int scan_channel_idx;
-	enum ieee80211_band scan_band;
 
 	enum { SCAN_SET_CHANNEL, SCAN_SEND_PROBE } scan_state;
 	unsigned long last_scan_completed;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data *scan_sdata;
-	struct ieee80211_channel *oper_channel, *scan_channel, *csa_channel;
 	enum nl80211_channel_type oper_channel_type;
-	u8 scan_ssid[IEEE80211_MAX_SSID_LEN];
-	size_t scan_ssid_len;
+	struct ieee80211_channel *oper_channel, *csa_channel;
 	struct list_head bss_list;
 	struct ieee80211_bss *bss_hash[STA_HASH_SIZE];
 	spinlock_t bss_lock;
@@ -929,7 +928,7 @@ void ieee80211_send_pspoll(struct ieee80211_local *local,
 
 /* scan/BSS handling */
 int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
-			   u8 *ssid, size_t ssid_len);
+			   struct cfg80211_scan_request *req);
 int ieee80211_scan_results(struct ieee80211_local *local,
 			   struct iw_request_info *info,
 			   char *buf, size_t len);
@@ -944,14 +943,15 @@ int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
 int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
-			 u8 *ssid, size_t ssid_len);
+			 struct cfg80211_scan_request *req);
 struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
 			  struct ieee80211_mgmt *mgmt,
 			  size_t len,
 			  struct ieee802_11_elems *elems,
-			  int freq, bool beacon);
+			  struct ieee80211_channel *channel,
+			  bool beacon);
 struct ieee80211_bss *
 ieee80211_rx_bss_add(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len);

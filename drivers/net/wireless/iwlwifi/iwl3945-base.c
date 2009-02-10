@@ -4442,14 +4442,22 @@ static void iwl3945_bss_info_changed(struct ieee80211_hw *hw,
 
 }
 
-static int iwl3945_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
+static int iwl3945_mac_hw_scan(struct ieee80211_hw *hw,
+			       struct cfg80211_scan_request *req)
 {
 	int rc = 0;
 	unsigned long flags;
 	struct iwl_priv *priv = hw->priv;
+	size_t len = 0;
+	u8 *ssid = NULL;
 	DECLARE_SSID_BUF(ssid_buf);
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	if (req->n_ssids) {
+		ssid = req->ssids[0].ssid;
+		len = req->ssids[0].ssid_len;
+	}
 
 	mutex_lock(&priv->mutex);
 	spin_lock_irqsave(&priv->lock, flags);
@@ -4478,9 +4486,8 @@ static int iwl3945_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
 			       print_ssid(ssid_buf, ssid, len), len);
 
 		priv->one_direct_scan = 1;
-		priv->direct_ssid_len = (u8)
-		    min((u8) len, (u8) IW_ESSID_MAX_SIZE);
-		memcpy(priv->direct_ssid, ssid, priv->direct_ssid_len);
+		priv->direct_ssid_len = len;
+		memcpy(priv->direct_ssid, ssid, len);
 	} else
 		priv->one_direct_scan = 0;
 
@@ -5411,6 +5418,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->custom_regulatory = true;
+
+	hw->wiphy->max_scan_ssids = 1;
 
 	/* 4 EDCA QOS priorities */
 	hw->queues = 4;

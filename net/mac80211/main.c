@@ -733,6 +733,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 		return NULL;
 
 	wiphy->privid = mac80211_wiphy_privid;
+	wiphy->max_scan_ssids = 4;
 
 	local = wiphy_priv(wiphy);
 	local->hw.wiphy = wiphy;
@@ -817,24 +818,32 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	enum ieee80211_band band;
 	struct net_device *mdev;
 	struct ieee80211_master_priv *mpriv;
+	int channels, i, j;
 
 	/*
 	 * generic code guarantees at least one band,
 	 * set this very early because much code assumes
 	 * that hw.conf.channel is assigned
 	 */
+	channels = 0;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		struct ieee80211_supported_band *sband;
 
 		sband = local->hw.wiphy->bands[band];
-		if (sband) {
+		if (sband && !local->oper_channel) {
 			/* init channel we're on */
 			local->hw.conf.channel =
 			local->oper_channel =
 			local->scan_channel = &sband->channels[0];
-			break;
 		}
+		if (sband)
+			channels += sband->n_channels;
 	}
+
+	local->int_scan_req.n_channels = channels;
+	local->int_scan_req.channels = kzalloc(sizeof(void *) * channels, GFP_KERNEL);
+	if (!local->int_scan_req.channels)
+		return -ENOMEM;
 
 	/* if low-level driver supports AP, we also support VLAN */
 	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_AP))
@@ -845,7 +854,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)
-		return result;
+		goto fail_wiphy_register;
 
 	/*
 	 * We use the number of queues for feature tests (QoS, HT) internally
@@ -948,6 +957,20 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	ieee80211_led_init(local);
 
+	/* alloc internal scan request */
+	i = 0;
+	local->int_scan_req.ssids = &local->scan_ssid;
+	local->int_scan_req.n_ssids = 1;
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		if (!hw->wiphy->bands[band])
+			continue;
+		for (j = 0; j < hw->wiphy->bands[band]->n_channels; j++) {
+			local->int_scan_req.channels[i] =
+				&hw->wiphy->bands[band]->channels[j];
+			i++;
+		}
+	}
+
 	return 0;
 
 fail_wep:
@@ -966,6 +989,8 @@ fail_workqueue:
 		free_netdev(local->mdev);
 fail_mdev_alloc:
 	wiphy_unregister(local->hw.wiphy);
+fail_wiphy_register:
+	kfree(local->int_scan_req.channels);
 	return result;
 }
 EXPORT_SYMBOL(ieee80211_register_hw);
@@ -1011,6 +1036,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	ieee80211_wep_free(local);
 	ieee80211_led_exit(local);
 	free_netdev(local->mdev);
+	kfree(local->int_scan_req.channels);
 }
 EXPORT_SYMBOL(ieee80211_unregister_hw);
 

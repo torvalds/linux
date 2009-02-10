@@ -173,8 +173,9 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 	range->num_encoding_sizes = 2;
 	range->max_encoding_tokens = NUM_DEFAULT_KEYS;
 
+	/* cfg80211 requires this, and enforces 0..100 */
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
-		range->max_qual.level = local->hw.max_signal;
+		range->max_qual.level = 100;
 	else if  (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		range->max_qual.level = -110;
 	else
@@ -412,58 +413,6 @@ static int ieee80211_ioctl_giwap(struct net_device *dev,
 	}
 
 	return -EOPNOTSUPP;
-}
-
-
-static int ieee80211_ioctl_siwscan(struct net_device *dev,
-				   struct iw_request_info *info,
-				   union iwreq_data *wrqu, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct iw_scan_req *req = NULL;
-	u8 *ssid = NULL;
-	size_t ssid_len = 0;
-
-	if (!netif_running(dev))
-		return -ENETDOWN;
-
-	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
-	    sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT)
-		return -EOPNOTSUPP;
-
-	/* if SSID was specified explicitly then use that */
-	if (wrqu->data.length == sizeof(struct iw_scan_req) &&
-	    wrqu->data.flags & IW_SCAN_THIS_ESSID) {
-		req = (struct iw_scan_req *)extra;
-		ssid = req->essid;
-		ssid_len = req->essid_len;
-	}
-
-	return ieee80211_request_scan(sdata, ssid, ssid_len);
-}
-
-
-static int ieee80211_ioctl_giwscan(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_point *data, char *extra)
-{
-	int res;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (local->sw_scanning || local->hw_scanning)
-		return -EAGAIN;
-
-	res = ieee80211_scan_results(local, info, extra, data->length);
-	if (res >= 0) {
-		data->length = res;
-		return 0;
-	}
-	data->length = 0;
-	return res;
 }
 
 
@@ -1165,8 +1114,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) ieee80211_ioctl_giwap,		/* SIOCGIWAP */
 	(iw_handler) ieee80211_ioctl_siwmlme,		/* SIOCSIWMLME */
 	(iw_handler) NULL,				/* SIOCGIWAPLIST */
-	(iw_handler) ieee80211_ioctl_siwscan,		/* SIOCSIWSCAN */
-	(iw_handler) ieee80211_ioctl_giwscan,		/* SIOCGIWSCAN */
+	(iw_handler) cfg80211_wext_siwscan,		/* SIOCSIWSCAN */
+	(iw_handler) cfg80211_wext_giwscan,		/* SIOCGIWSCAN */
 	(iw_handler) ieee80211_ioctl_siwessid,		/* SIOCSIWESSID */
 	(iw_handler) ieee80211_ioctl_giwessid,		/* SIOCGIWESSID */
 	(iw_handler) NULL,				/* SIOCSIWNICKN */
