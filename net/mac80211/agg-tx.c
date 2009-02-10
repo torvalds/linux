@@ -41,7 +41,8 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 	memset(mgmt, 0, 24);
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
-	if (sdata->vif.type == NL80211_IFTYPE_AP)
+	if (sdata->vif.type == NL80211_IFTYPE_AP ||
+	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		memcpy(mgmt->bssid, sdata->dev->dev_addr, ETH_ALEN);
 	else
 		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
@@ -177,6 +178,19 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		printk(KERN_DEBUG "Could not find the station\n");
 #endif
 		ret = -ENOENT;
+		goto exit;
+	}
+
+	/*
+	 * The aggregation code is not prepared to handle
+	 * anything but STA/AP due to the BSSID handling.
+	 * IBSS could work in the code but isn't supported
+	 * by drivers or the standard.
+	 */
+	if (sta->sdata->vif.type != NL80211_IFTYPE_STATION &&
+	    sta->sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
+	    sta->sdata->vif.type != NL80211_IFTYPE_AP) {
+		ret = -EINVAL;
 		goto exit;
 	}
 
