@@ -2180,6 +2180,33 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 			   "mount option supported"));
 }
 
+static int
+is_path_accessible(int xid, struct cifsTconInfo *tcon,
+		   struct cifs_sb_info *cifs_sb, const char *full_path)
+{
+	int rc;
+	__u64 inode_num;
+	FILE_ALL_INFO *pfile_info;
+
+	rc = CIFSGetSrvInodeNumber(xid, tcon, full_path, &inode_num,
+				   cifs_sb->local_nls,
+				   cifs_sb->mnt_cifs_flags &
+						CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc != -EOPNOTSUPP)
+		return rc;
+
+	pfile_info = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
+	if (pfile_info == NULL)
+		return -ENOMEM;
+
+	rc = CIFSSMBQPathInfo(xid, tcon, full_path, pfile_info,
+			      0 /* not legacy */, cifs_sb->local_nls,
+			      cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	kfree(pfile_info);
+	return rc;
+}
+
 int
 cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	   char *mount_data, const char *devname)
@@ -2190,6 +2217,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	struct cifsSesInfo *pSesInfo = NULL;
 	struct cifsTconInfo *tcon = NULL;
 	struct TCP_Server_Info *srvTcp = NULL;
+	char   *full_path;
 
 	xid = GetXid();
 
@@ -2425,6 +2453,23 @@ mount_fail_check:
 	if (!(tcon->ses->capabilities & CAP_LARGE_READ_X))
 		cifs_sb->rsize = min(cifs_sb->rsize,
 			       (tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE));
+
+	if (!rc && cifs_sb->prepathlen) {
+		/* build_path_to_root works only when we have a valid tcon */
+		full_path = cifs_build_path_to_root(cifs_sb);
+		if (full_path == NULL) {
+			rc = -ENOMEM;
+			goto mount_fail_check;
+		}
+		rc = is_path_accessible(xid, tcon, cifs_sb, full_path);
+		if (rc) {
+			cERROR(1, ("Path %s in not accessible: %d",
+						full_path, rc));
+			kfree(full_path);
+			goto mount_fail_check;
+		}
+		kfree(full_path);
+	}
 
 	/* volume_info->password is freed above when existing session found
 	(in which case it is not needed anymore) but when new sesion is created

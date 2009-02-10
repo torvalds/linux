@@ -621,7 +621,7 @@ static const struct inode_operations cifs_ipc_inode_ops = {
 	.lookup = cifs_lookup,
 };
 
-static char *build_path_to_root(struct cifs_sb_info *cifs_sb)
+char *cifs_build_path_to_root(struct cifs_sb_info *cifs_sb)
 {
 	int pplen = cifs_sb->prepathlen;
 	int dfsplen;
@@ -678,7 +678,7 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 		return inode;
 
 	cifs_sb = CIFS_SB(inode->i_sb);
-	full_path = build_path_to_root(cifs_sb);
+	full_path = cifs_build_path_to_root(cifs_sb);
 	if (full_path == NULL)
 		return ERR_PTR(-ENOMEM);
 
