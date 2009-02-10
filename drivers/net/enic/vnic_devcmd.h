@@ -191,7 +191,7 @@ enum vnic_devcmd_cmd {
 	CMD_INIT_STATUS		= _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 31),
 
 	/* INT13 API: (u64)a0=paddr to vnic_int13_params struct
-	 *            (u8)a1=INT13_CMD_xxx */
+	 *            (u32)a1=INT13_CMD_xxx */
 	CMD_INT13               = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_FC, 32),
 
 	/* logical uplink enable/disable: (u64)a0: 0/1=disable/enable */
@@ -207,6 +207,11 @@ enum vnic_devcmd_cmd {
 	 * in:  (u32)a0=cmd
 	 * out: (u32)a0=errno, 0:valid cmd, a1=supported VNIC_STF_* bits */
 	CMD_CAPABILITY		= _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 36),
+
+	/* persistent binding info
+	 * in:  (u64)a0=paddr of arg
+	 *      (u32)a1=CMD_PERBI_XXX */
+	CMD_PERBI               = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_FC, 37),
 };
 
 /* flags for CMD_OPEN */
@@ -259,6 +264,7 @@ struct vnic_devcmd_notify {
 	u32 status;		/* status bits (see VNIC_STF_*) */
 	u32 error;		/* error code (see ERR_*) for first ERR */
 	u32 link_down_cnt;	/* running count of link down transitions */
+	u32 perbi_rebuild_cnt;	/* running count of perbi rebuilds */
 };
 #define VNIC_STF_FATAL_ERR	0x0001	/* fatal fw error */
 #define VNIC_STF_STD_PAUSE	0x0002	/* standard link-level pause on */

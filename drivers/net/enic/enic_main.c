@@ -1866,7 +1866,6 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
-
 	enic->csum_rx_enabled = ENIC_SETTING(enic, RXCSUM);
 
 	enic->lro_mgr.max_aggr = ENIC_LRO_MAX_AGGR;
@@ -1877,7 +1876,6 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	enic->lro_mgr.dev = netdev;
 	enic->lro_mgr.ip_summed = CHECKSUM_COMPLETE;
 	enic->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
-
 
 	err = register_netdev(netdev);
 	if (err) {
