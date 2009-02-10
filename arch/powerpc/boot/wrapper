@@ -186,6 +186,9 @@ cuboot*)
     *-mpc85*|*-tqm85*|*-sbc85*)
         platformo=$object/cuboot-85xx.o
         ;;
+    *-amigaone)
+        link_address='0x800000'
+        ;;
     esac
     ;;
 ps3)
