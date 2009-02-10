@@ -1176,11 +1176,16 @@ static int ieee80211_set_channel(struct wiphy *wiphy,
 	return ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
 }
 
-static int set_mgmt_extra_ie_sta(struct ieee80211_if_sta *ifsta, u8 subtype,
-				 u8 *ies, size_t ies_len)
+static int set_mgmt_extra_ie_sta(struct ieee80211_sub_if_data *sdata,
+				 u8 subtype, u8 *ies, size_t ies_len)
 {
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+
 	switch (subtype) {
 	case IEEE80211_STYPE_PROBE_REQ >> 4:
+		if (local->ops->hw_scan)
+			break;
 		kfree(ifsta->ie_probereq);
 		ifsta->ie_probereq = ies;
 		ifsta->ie_probereq_len = ies_len;
@@ -1244,7 +1249,7 @@ static int ieee80211_set_mgmt_extra_ie(struct wiphy *wiphy,
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
-		ret = set_mgmt_extra_ie_sta(&sdata->u.sta, params->subtype,
+		ret = set_mgmt_extra_ie_sta(sdata, params->subtype,
 					    ies, ies_len);
 		break;
 	default:
