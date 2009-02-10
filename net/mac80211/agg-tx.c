@@ -18,6 +18,31 @@
 #include "ieee80211_i.h"
 #include "wme.h"
 
+/**
+ * DOC: TX aggregation
+ *
+ * Aggregation on the TX side requires setting the hardware flag
+ * %IEEE80211_HW_AMPDU_AGGREGATION as well as, if present, the @ampdu_queues
+ * hardware parameter to the number of hardware AMPDU queues. If there are no
+ * hardware queues then the driver will (currently) have to do all frame
+ * buffering.
+ *
+ * When TX aggregation is started by some subsystem (usually the rate control
+ * algorithm would be appropriate) by calling the
+ * ieee80211_start_tx_ba_session() function, the driver will be notified via
+ * its @ampdu_action function, with the %IEEE80211_AMPDU_TX_START action.
+ *
+ * In response to that, the driver is later required to call the
+ * ieee80211_start_tx_ba_cb() (or ieee80211_start_tx_ba_cb_irqsafe())
+ * function, which will start the aggregation session.
+ *
+ * Similarly, when the aggregation session is stopped by
+ * ieee80211_stop_tx_ba_session(), the driver's @ampdu_action function will
+ * be called with the action %IEEE80211_AMPDU_TX_STOP. In this case, the
+ * call must not fail, and the driver must later call ieee80211_stop_tx_ba_cb()
+ * (or ieee80211_stop_tx_ba_cb_irqsafe()).
+ */
+
 static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 					 const u8 *da, u16 tid,
 					 u8 dialog_token, u16 start_seq_num,
@@ -363,6 +388,31 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 }
 EXPORT_SYMBOL(ieee80211_start_tx_ba_cb);
 
+void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_hw *hw,
+				      const u8 *ra, u16 tid)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_ra_tid *ra_tid;
+	struct sk_buff *skb = dev_alloc_skb(0);
+
+	if (unlikely(!skb)) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		if (net_ratelimit())
+			printk(KERN_WARNING "%s: Not enough memory, "
+			       "dropping start BA session", skb->dev->name);
+#endif
+		return;
+	}
+	ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
+	memcpy(&ra_tid->ra, ra, ETH_ALEN);
+	ra_tid->tid = tid;
+
+	skb->pkt_type = IEEE80211_ADDBA_MSG;
+	skb_queue_tail(&local->skb_queue, skb);
+	tasklet_schedule(&local->tasklet);
+}
+EXPORT_SYMBOL(ieee80211_start_tx_ba_cb_irqsafe);
+
 
 int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 				 u8 *ra, u16 tid,
@@ -492,31 +542,6 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 }
 EXPORT_SYMBOL(ieee80211_stop_tx_ba_cb);
 
-void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_hw *hw,
-				      const u8 *ra, u16 tid)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_ra_tid *ra_tid;
-	struct sk_buff *skb = dev_alloc_skb(0);
-
-	if (unlikely(!skb)) {
-#ifdef CONFIG_MAC80211_HT_DEBUG
-		if (net_ratelimit())
-			printk(KERN_WARNING "%s: Not enough memory, "
-			       "dropping start BA session", skb->dev->name);
-#endif
-		return;
-	}
-	ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
-	memcpy(&ra_tid->ra, ra, ETH_ALEN);
-	ra_tid->tid = tid;
-
-	skb->pkt_type = IEEE80211_ADDBA_MSG;
-	skb_queue_tail(&local->skb_queue, skb);
-	tasklet_schedule(&local->tasklet);
-}
-EXPORT_SYMBOL(ieee80211_start_tx_ba_cb_irqsafe);
-
 void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw,
 				     const u8 *ra, u16 tid)
 {
@@ -541,6 +566,7 @@ void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw,
 	tasklet_schedule(&local->tasklet);
 }
 EXPORT_SYMBOL(ieee80211_stop_tx_ba_cb_irqsafe);
+
 
 void ieee80211_process_addba_resp(struct ieee80211_local *local,
 				  struct sta_info *sta,
