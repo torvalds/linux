@@ -90,7 +90,10 @@ static inline void flush(void)
 {
 }
 
-#define __raw_writel(d,ad) do { *((volatile unsigned int *)(ad)) = (d); } while(0)
+#define __raw_writel(d, ad)			\
+	do {							\
+		*((volatile unsigned int __force *)(ad)) = (d); \
+	} while (0)
 
 /* CONFIG_S3C_BOOT_WATCHDOG
  *
