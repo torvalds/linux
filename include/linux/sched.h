@@ -2209,6 +2209,7 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cputimer->lock, flags);
+	cputimer->running = 1;
 	*times = cputimer->cputime;
 	spin_unlock_irqrestore(&cputimer->lock, flags);
 }

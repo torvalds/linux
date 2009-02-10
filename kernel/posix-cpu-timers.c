@@ -488,7 +488,7 @@ void posix_cpu_timers_exit_group(struct task_struct *tsk)
 {
 	struct task_cputime cputime;
 
-	thread_group_cputime(tsk, &cputime);
+	thread_group_cputimer(tsk, &cputime);
 	cleanup_timers(tsk->signal->cpu_timers,
 		       cputime.utime, cputime.stime, cputime.sum_exec_runtime);
 }
@@ -504,29 +504,6 @@ static void clear_dead_task(struct k_itimer *timer, union cpu_time_count now)
 	timer->it.cpu.expires = cpu_time_sub(timer->it_clock,
 					     timer->it.cpu.expires,
 					     now);
-}
-
-/*
- * Enable the process wide cpu timer accounting.
- *
- * serialized using ->sighand->siglock
- */
-static void start_process_timers(struct task_struct *tsk)
-{
-	tsk->signal->cputimer.running = 1;
-	barrier();
-}
-
-/*
- * Release the process wide timer accounting -- timer stops ticking when
- * nobody cares about it.
- *
- * serialized using ->sighand->siglock
- */
-static void stop_process_timers(struct task_struct *tsk)
-{
-	tsk->signal->cputimer.running = 0;
-	barrier();
 }
 
 /*
@@ -548,9 +525,6 @@ static void arm_timer(struct k_itimer *timer, union cpu_time_count now)
 
 	BUG_ON(!irqs_disabled());
 	spin_lock(&p->sighand->siglock);
-
-	if (!CPUCLOCK_PERTHREAD(timer->it_clock))
-		start_process_timers(p);
 
 	listpos = head;
 	if (CPUCLOCK_WHICH(timer->it_clock) == CPUCLOCK_SCHED) {
@@ -1021,6 +995,19 @@ static void check_thread_timers(struct task_struct *tsk,
 	}
 }
 
+static void stop_process_timers(struct task_struct *tsk)
+{
+	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
+	unsigned long flags;
+
+	if (!cputimer->running)
+		return;
+
+	spin_lock_irqsave(&cputimer->lock, flags);
+	cputimer->running = 0;
+	spin_unlock_irqrestore(&cputimer->lock, flags);
+}
+
 /*
  * Check for any per-thread CPU timers that have fired and move them
  * off the tsk->*_timers list onto the firing list.  Per-thread timers
@@ -1427,7 +1414,6 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 	struct list_head *head;
 
 	BUG_ON(clock_idx == CPUCLOCK_SCHED);
-	start_process_timers(tsk);
 	cpu_timer_sample_group(clock_idx, tsk, &now);
 
 	if (oldval) {
