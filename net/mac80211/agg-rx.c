@@ -17,8 +17,8 @@
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 
-static void __ieee80211_sta_stop_rx_ba_session(struct sta_info *sta, u16 tid,
-					       u16 initiator, u16 reason)
+void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
+				    u16 initiator, u16 reason)
 {
 	struct ieee80211_local *local = sta->local;
 	struct ieee80211_hw *hw = &local->hw;
@@ -96,7 +96,7 @@ void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *r
 		return;
 	}
 
-	__ieee80211_sta_stop_rx_ba_session(sta, tid, initiator, reason);
+	__ieee80211_stop_rx_ba_session(sta, tid, initiator, reason);
 
 	rcu_read_unlock();
 }

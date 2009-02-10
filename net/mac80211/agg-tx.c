@@ -123,10 +123,10 @@ void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u1
 	ieee80211_tx_skb(sdata, skb, 0);
 }
 
-static int __ieee80211_stop_tx_ba_session(struct ieee80211_local *local,
-					  struct sta_info *sta, u16 tid,
-					  enum ieee80211_back_parties initiator)
+static int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
+					   enum ieee80211_back_parties initiator)
 {
+	struct ieee80211_local *local = sta->local;
 	int ret;
 	u8 *state;
 
@@ -165,7 +165,6 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 	u16 tid = *(u8 *)data;
 	struct sta_info *sta = container_of((void *)data,
 		struct sta_info, timer_to_tid[tid]);
-	struct ieee80211_local *local = sta->local;
 	u8 *state;
 
 	state = &sta->ampdu_mlme.tid_state_tx[tid];
@@ -186,7 +185,7 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 	printk(KERN_DEBUG "addBA response timer expired on tid %d\n", tid);
 #endif
 
-	__ieee80211_stop_tx_ba_session(local, sta, tid, WLAN_BACK_INITIATOR);
+	___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR);
 	spin_unlock_bh(&sta->lock);
 }
 
@@ -427,6 +426,32 @@ void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_start_tx_ba_cb_irqsafe);
 
+int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
+				   enum ieee80211_back_parties initiator)
+{
+	u8 *state;
+	int ret;
+
+	/* check if the TID is in aggregation */
+	state = &sta->ampdu_mlme.tid_state_tx[tid];
+	spin_lock_bh(&sta->lock);
+
+	if (*state != HT_AGG_STATE_OPERATIONAL) {
+		ret = -ENOENT;
+		goto unlock;
+	}
+
+#ifdef CONFIG_MAC80211_HT_DEBUG
+	printk(KERN_DEBUG "Tx BA session stop requested for %pM tid %u\n",
+	       sta->sta.addr, tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+
+	ret = ___ieee80211_stop_tx_ba_session(sta, tid, initiator);
+
+ unlock:
+	spin_unlock_bh(&sta->lock);
+	return ret;
+}
 
 int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 				 u8 *ra, u16 tid,
@@ -434,7 +459,6 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct sta_info *sta;
-	u8 *state;
 	int ret = 0;
 
 	if (WARN_ON(!local->ops->ampdu_action))
@@ -450,27 +474,8 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 		return -ENOENT;
 	}
 
-	/* check if the TID is in aggregation */
-	state = &sta->ampdu_mlme.tid_state_tx[tid];
-	spin_lock_bh(&sta->lock);
-
-	if (*state != HT_AGG_STATE_OPERATIONAL) {
-		ret = -ENOENT;
-		goto unlock;
-	}
-
-#ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "Tx BA session stop requested for %pM tid %u\n",
-	       ra, tid);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
-
-	ret = __ieee80211_stop_tx_ba_session(local, sta, tid, initiator);
-
- unlock:
-	spin_unlock_bh(&sta->lock);
-
+	ret = __ieee80211_stop_tx_ba_session(sta, tid, initiator);
 	rcu_read_unlock();
-
 	return ret;
 }
 EXPORT_SYMBOL(ieee80211_stop_tx_ba_session);
@@ -623,11 +628,9 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Resuming TX aggregation for tid %d\n", tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
-		spin_unlock_bh(&sta->lock);
 	} else {
 		sta->ampdu_mlme.addba_req_num[tid]++;
-		__ieee80211_stop_tx_ba_session(local, sta, tid,
-					       WLAN_BACK_INITIATOR);
-		spin_unlock_bh(&sta->lock);
+		___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR);
 	}
+	spin_unlock_bh(&sta->lock);
 }
