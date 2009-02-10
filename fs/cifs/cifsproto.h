@@ -92,6 +92,8 @@ extern u64 cifs_UnixTimeToNT(struct timespec);
 extern __le64 cnvrtDosCifsTm(__u16 date, __u16 time);
 extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
 
+extern struct inode *cifs_new_inode(struct super_block *sb,
+				    unsigned long *inum);
 extern int cifs_get_inode_info(struct inode **pinode,
 			const unsigned char *search_path,
 			FILE_ALL_INFO *pfile_info,
