@@ -33,7 +33,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco 10G Ethernet Driver"
-#define DRV_VERSION		"1.0.0.648"
+#define DRV_VERSION		"1.0.0.933"
 #define DRV_COPYRIGHT		"Copyright 2008 Cisco Systems, Inc"
 #define PFX			DRV_NAME ": "
 
