@@ -268,65 +268,48 @@ config X86_BIGSMP
 	---help---
 	  This option is needed for the systems that have more than 8 CPUs
 
-config X86_NON_STANDARD
-	bool "Support for non-standard x86 platforms"
+config X86_EXTENDED_PLATFORM
+	bool "Support for extended (non-PC) x86 platforms"
+	default y
 	---help---
 	  If you disable this option then the kernel will only support
 	  standard PC platforms. (which covers the vast majority of
 	  systems out there.)
 
 	  If you enable this option then you'll be able to select a number
-	  of less common non-PC x86 platforms: VisWS, RDC321, SGI/UV.
+	  of non-PC x86 platforms.
 
 	  If you have one of these systems, or if you want to build a
 	  generic distribution kernel, say Y here - otherwise say N.
 
-config X86_VISWS
-	bool "SGI 320/540 (Visual Workstation)"
-	depends on X86_32 && PCI && X86_MPPARSE && PCI_GODIRECT
-	depends on X86_NON_STANDARD
-	---help---
-	  The SGI Visual Workstation series is an IA32-based workstation
-	  based on SGI systems chips with some legacy PC hardware attached.
-
-	  Say Y here to create a kernel to run on the SGI 320 or 540.
-
-	  A kernel compiled for the Visual Workstation will run on general
-	  PCs as well. See <file:Documentation/sgi-visws.txt> for details.
-
-config X86_RDC321X
-	bool "RDC R-321x SoC"
-	depends on X86_32
-	depends on X86_NON_STANDARD
-	select M486
-	select X86_REBOOTFIXUPS
-	---help---
-	  This option is needed for RDC R-321x system-on-chip, also known
-	  as R-8610-(G).
-	  If you don't have one of these chips, you should say N here.
-
-config X86_UV
-	bool "SGI Ultraviolet"
-	depends on X86_64
-	depends on X86_NON_STANDARD
-	---help---
-	  This option is needed in order to support SGI Ultraviolet systems.
-	  If you don't have one of these, you should say N here.
+# This is an alphabetically sorted list of 64 bit extended platforms
+# Please maintain the alphabetic order if and when there are additions
 
 config X86_VSMP
-	bool "Support for ScaleMP vSMP"
+	bool "ScaleMP vSMP"
 	select PARAVIRT
 	depends on X86_64 && PCI
-	depends on X86_NON_STANDARD
+	depends on X86_EXTENDED_PLATFORM
 	---help---
 	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
 	  supposed to run on these EM64T-based machines.  Only choose this option
 	  if you have one of these machines.
 
+config X86_UV
+	bool "SGI Ultraviolet"
+	depends on X86_64
+	depends on X86_EXTENDED_PLATFORM
+	---help---
+	  This option is needed in order to support SGI Ultraviolet systems.
+	  If you don't have one of these, you should say N here.
+
+# Following is an alphabetically sorted list of 32 bit extended platforms
+# Please maintain the alphabetic order if and when there are additions
+
 config X86_ELAN
 	bool "AMD Elan"
 	depends on X86_32
-	depends on X86_NON_STANDARD
+	depends on X86_EXTENDED_PLATFORM
 	---help---
 	  Select this for an AMD Elan processor.
 
@@ -334,15 +317,28 @@ config X86_ELAN
 
 	  If unsure, choose "PC-compatible" instead.
 
+config X86_RDC321X
+	bool "RDC R-321x SoC"
+	depends on X86_32
+	depends on X86_EXTENDED_PLATFORM
+	select M486
+	select X86_REBOOTFIXUPS
+	---help---
+	  This option is needed for RDC R-321x system-on-chip, also known
+	  as R-8610-(G).
+	  If you don't have one of these chips, you should say N here.
+
 config X86_32_NON_STANDARD
 	bool "Support non-standard 32-bit SMP architectures"
 	depends on X86_32 && SMP
-	depends on X86_NON_STANDARD
+	depends on X86_EXTENDED_PLATFORM
 	---help---
 	  This option compiles in the NUMAQ, Summit, bigsmp, ES7000, default
 	  subarchitectures.  It is intended for a generic binary kernel.
 	  if you select them all, kernel will probe it one by one. and will
 	  fallback to default.
+
+# Alphabetically sorted list of Non standard 32 bit platforms
 
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
@@ -356,6 +352,19 @@ config X86_NUMAQ
 	  of Flat Logical.  You will need a new lynxer.elf file to flash your
 	  firmware with - send email to <Martin.Bligh@us.ibm.com>.
 
+config X86_VISWS
+	bool "SGI 320/540 (Visual Workstation)"
+	depends on X86_32 && PCI && X86_MPPARSE && PCI_GODIRECT
+	depends on X86_32_NON_STANDARD
+	---help---
+	  The SGI Visual Workstation series is an IA32-based workstation
+	  based on SGI systems chips with some legacy PC hardware attached.
+
+	  Say Y here to create a kernel to run on the SGI 320 or 540.
+
+	  A kernel compiled for the Visual Workstation will run on general
+	  PCs as well. See <file:Documentation/sgi-visws.txt> for details.
+
 config X86_SUMMIT
 	bool "Summit/EXA (IBM x440)"
 	depends on X86_32_NON_STANDARD
@@ -364,7 +373,7 @@ config X86_SUMMIT
 	  In particular, it is needed for the x440.
 
 config X86_ES7000
-	bool "Support for Unisys ES7000 IA32 series"
+	bool "Unisys ES7000 IA32 series"
 	depends on X86_32_NON_STANDARD && X86_BIGSMP
 	---help---
 	  Support for Unisys ES7000 systems.  Say 'Y' here if this kernel is
