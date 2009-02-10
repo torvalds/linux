@@ -1205,6 +1205,7 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 		if (auth_alg != WLAN_AUTH_OPEN || auth_transaction != 1)
 			return;
 		ieee80211_send_auth(sdata, ifsta, 2, NULL, 0, 0);
+		return;
 	}
 
 	if (auth_alg != ifsta->auth_alg ||
