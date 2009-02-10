@@ -609,7 +609,7 @@ static void hostap_ap_tx_cb(struct sk_buff *skb, int ok, void *data)
 	skb->dev = ap->local->apdev;
 	skb_pull(skb, hostap_80211_get_hdrlen(fc));
 	skb->pkt_type = PACKET_OTHERHOST;
-	skb->protocol = __constant_htons(ETH_P_802_2);
+	skb->protocol = cpu_to_be16(ETH_P_802_2);
 	memset(skb->cb, 0, sizeof(skb->cb));
 	netif_rx(skb);
 }
@@ -2281,7 +2281,7 @@ void hostap_rx(struct net_device *dev, struct sk_buff *skb,
 	    WLAN_FC_GET_STYPE(fc) == IEEE80211_STYPE_BEACON)
 		goto drop;
 
-	skb->protocol = __constant_htons(ETH_P_HOSTAP);
+	skb->protocol = cpu_to_be16(ETH_P_HOSTAP);
 	handle_ap_item(local, skb, rx_stats);
 	return;
 
@@ -2310,7 +2310,7 @@ static void schedule_packet_send(local_info_t *local, struct sta_info *sta)
 	hdr = (struct ieee80211_hdr_4addr *) skb_put(skb, 16);
 
 	/* Generate a fake pspoll frame to start packet delivery */
-	hdr->frame_ctl = __constant_cpu_to_le16(
+	hdr->frame_ctl = cpu_to_le16(
 		IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL);
 	memcpy(hdr->addr1, local->dev->dev_addr, ETH_ALEN);
 	memcpy(hdr->addr2, sta->addr, ETH_ALEN);
@@ -2754,7 +2754,7 @@ ap_tx_ret hostap_handle_sta_tx(local_info_t *local, struct hostap_tx_data *tx)
 	if (meta->flags & HOSTAP_TX_FLAGS_ADD_MOREDATA) {
 		/* indicate to STA that more frames follow */
 		hdr->frame_ctl |=
-			__constant_cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+			cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 	}
 
 	if (meta->flags & HOSTAP_TX_FLAGS_BUFFERED_FRAME) {

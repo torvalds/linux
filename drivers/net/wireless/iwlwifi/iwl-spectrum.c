@@ -154,9 +154,9 @@ static int iwl_get_measurement(struct iwl_priv *priv,
 	switch (spectrum_resp_status) {
 	case 0:		/* Command will be handled */
 		if (res->u.spectrum.id != 0xff) {
-			IWL_DEBUG_INFO
-			    ("Replaced existing measurement: %d\n",
-			     res->u.spectrum.id);
+			IWL_DEBUG_INFO(priv,
+				"Replaced existing measurement: %d\n",
+				res->u.spectrum.id);
 			priv->measurement_status &= ~MEASUREMENT_READY;
 		}
 		priv->measurement_status |= MEASUREMENT_ACTIVE;
@@ -181,7 +181,7 @@ static void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 	struct iwl_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
 	if (!report->state) {
-		IWL_DEBUG(IWL_DL_11H,
+		IWL_DEBUG_11H(priv,
 			"Spectrum Measure Notification: Start\n");
 		return;
 	}

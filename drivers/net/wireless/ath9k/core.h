@@ -131,8 +131,18 @@ struct ath_interrupt_stats {
 	u32 dtim;
 };
 
+struct ath_legacy_rc_stats {
+	u32 success;
+};
+
+struct ath_11n_rc_stats {
+	u32 success;
+};
+
 struct ath_stats {
 	struct ath_interrupt_stats istats;
+	struct ath_legacy_rc_stats legacy_rcstats[12]; /* max(11a,11b,11g) */
+	struct ath_11n_rc_stats n_rcstats[16]; /* 0..15 MCS rates */
 };
 
 struct ath9k_debug {
@@ -141,6 +151,7 @@ struct ath9k_debug {
 	struct dentry *debugfs_phy;
 	struct dentry *debugfs_dma;
 	struct dentry *debugfs_interrupt;
+	struct dentry *debugfs_rcstat;
 	struct ath_stats stats;
 };
 
@@ -148,6 +159,7 @@ void DPRINTF(struct ath_softc *sc, int dbg_mask, const char *fmt, ...);
 int ath9k_init_debug(struct ath_softc *sc);
 void ath9k_exit_debug(struct ath_softc *sc);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
+void ath_debug_stat_rc(struct ath_softc *sc, struct sk_buff *skb);
 
 #else
 
@@ -167,6 +179,11 @@ static inline void ath9k_exit_debug(struct ath_softc *sc)
 
 static inline void ath_debug_stat_interrupt(struct ath_softc *sc,
 					    enum ath9k_int status)
+{
+}
+
+static inline void ath_debug_stat_rc(struct ath_softc *sc,
+				     struct sk_buff *skb)
 {
 }
 
@@ -233,7 +250,6 @@ struct ath_buf_state {
 #define bf_isht(bf)		(bf->bf_state.bf_type & BUF_HT)
 #define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
 #define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
-#define bf_isshpreamble(bf)	(bf->bf_state.bf_type & BUF_SHORT_PREAMBLE)
 #define bf_isbar(bf)		(bf->bf_state.bf_type & BUF_BAR)
 #define bf_ispspoll(bf) 	(bf->bf_state.bf_type & BUF_PSPOLL)
 #define bf_isaggrburst(bf)	(bf->bf_state.bf_type & BUF_AGGR_BURST)
@@ -600,6 +616,8 @@ struct ath_ani {
 /********************/
 
 #define ATH_LED_PIN	1
+#define ATH_LED_ON_DURATION_IDLE	350	/* in msecs */
+#define ATH_LED_OFF_DURATION_IDLE	250	/* in msecs */
 
 enum ath_led_type {
 	ATH_LED_RADIO,
@@ -656,12 +674,6 @@ struct ath_rfkill {
 #define ATH_RSSI_DUMMY_MARKER   0x127
 #define ATH_RATE_DUMMY_MARKER   0
 
-enum PROT_MODE {
-	PROT_M_NONE = 0,
-	PROT_M_RTSCTS,
-	PROT_M_CTSONLY
-};
-
 #define SC_OP_INVALID		BIT(0)
 #define SC_OP_BEACONS		BIT(1)
 #define SC_OP_RXAGGR		BIT(2)
@@ -677,6 +689,7 @@ enum PROT_MODE {
 #define SC_OP_RFKILL_SW_BLOCKED	BIT(12)
 #define SC_OP_RFKILL_HW_BLOCKED	BIT(13)
 #define SC_OP_WAIT_FOR_BEACON	BIT(14)
+#define SC_OP_LED_ON		BIT(15)
 
 struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
@@ -712,7 +725,6 @@ struct ath_softc {
 	u8 sc_splitmic;
 	atomic_t ps_usecount;
 	enum ath9k_int sc_imask;
-	enum PROT_MODE sc_protmode;
 	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
 	enum ath9k_ht_macmode tx_chan_width;
 
@@ -725,10 +737,17 @@ struct ath_softc {
 	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
 	struct ath_rate_table *cur_rate_table;
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
+
 	struct ath_led radio_led;
 	struct ath_led assoc_led;
 	struct ath_led tx_led;
 	struct ath_led rx_led;
+	struct delayed_work ath_led_blink_work;
+	int led_on_duration;
+	int led_off_duration;
+	int led_on_cnt;
+	int led_off_cnt;
+
 	struct ath_rfkill rf_kill;
 	struct ath_ani sc_ani;
 	struct ath9k_node_stats sc_halstats;

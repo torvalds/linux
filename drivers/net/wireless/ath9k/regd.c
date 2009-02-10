@@ -154,12 +154,20 @@ const struct ieee80211_regdomain *ath9k_world_regdomain(struct ath_hal *ah)
 	}
 }
 
-/* Enable adhoc on 5 GHz if allowed by 11d */
-static void ath9k_reg_apply_5ghz_adhoc_flags(struct wiphy *wiphy,
+/* Frequency is one where radar detection is required */
+static bool ath9k_is_radar_freq(u16 center_freq)
+{
+	return (center_freq >= 5260 && center_freq <= 5700);
+}
+
+/*
+ * Enable adhoc on 5 GHz if allowed by 11d.
+ * Remove passive scan if channel is allowed by 11d,
+ * except when on radar frequencies.
+ */
+static void ath9k_reg_apply_5ghz_beaconing_flags(struct wiphy *wiphy,
 					     enum reg_set_by setby)
 {
-	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct ath_softc *sc = hw->priv;
 	struct ieee80211_supported_band *sband;
 	const struct ieee80211_reg_rule *reg_rule;
 	struct ieee80211_channel *ch;
@@ -169,8 +177,7 @@ static void ath9k_reg_apply_5ghz_adhoc_flags(struct wiphy *wiphy,
 
 	if (setby != REGDOM_SET_BY_COUNTRY_IE)
 		return;
-	if (!test_bit(ATH9K_MODE_11A,
-	    sc->sc_ah->ah_caps.wireless_modes))
+	if (!wiphy->bands[IEEE80211_BAND_5GHZ])
 		return;
 
 	sband = wiphy->bands[IEEE80211_BAND_5GHZ];
@@ -185,7 +192,11 @@ static void ath9k_reg_apply_5ghz_adhoc_flags(struct wiphy *wiphy,
 		 * it by applying our static world regdomain by default during
 		 * probe */
 		if (!(reg_rule->flags & NL80211_RRF_NO_IBSS))
-			ch->flags &= ~NL80211_RRF_NO_IBSS;
+			ch->flags &= ~IEEE80211_CHAN_NO_IBSS;
+		if (!ath9k_is_radar_freq(ch->center_freq))
+			continue;
+		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN))
+			ch->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
 	}
 }
 
@@ -250,9 +261,7 @@ void ath9k_reg_apply_radar_flags(struct wiphy *wiphy)
 
 	for (i = 0; i < sband->n_channels; i++) {
 		ch = &sband->channels[i];
-		if (ch->center_freq < 5260)
-			continue;
-		if (ch->center_freq > 5700)
+		if (!ath9k_is_radar_freq(ch->center_freq))
 			continue;
 		/* We always enable radar detection/DFS on this
 		 * frequency range. Additionally we also apply on
@@ -282,10 +291,10 @@ void ath9k_reg_apply_world_flags(struct wiphy *wiphy, enum reg_set_by setby)
 	case 0x63:
 	case 0x66:
 	case 0x67:
-		ath9k_reg_apply_5ghz_adhoc_flags(wiphy, setby);
+		ath9k_reg_apply_5ghz_beaconing_flags(wiphy, setby);
 		break;
 	case 0x68:
-		ath9k_reg_apply_5ghz_adhoc_flags(wiphy, setby);
+		ath9k_reg_apply_5ghz_beaconing_flags(wiphy, setby);
 		ath9k_reg_apply_active_scan_flags(wiphy, setby);
 		break;
 	}

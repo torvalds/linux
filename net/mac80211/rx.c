@@ -86,8 +86,7 @@ ieee80211_rx_radiotap_len(struct ieee80211_local *local,
 
 	if (status->flag & RX_FLAG_TSFT)
 		len += 8;
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DB ||
-	    local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		len += 1;
 	if (local->hw.flags & IEEE80211_HW_NOISE_DBM)
 		len += 1;
@@ -198,14 +197,6 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	/* IEEE80211_RADIOTAP_ANTENNA */
 	*pos = status->antenna;
 	pos++;
-
-	/* IEEE80211_RADIOTAP_DB_ANTSIGNAL */
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DB) {
-		*pos = status->signal;
-		rthdr->it_present |=
-			cpu_to_le32(1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL);
-		pos++;
-	}
 
 	/* IEEE80211_RADIOTAP_DB_ANTNOISE is not used */
 
@@ -1225,12 +1216,12 @@ ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 
 	switch (hdr->frame_control &
 		cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
-	case __constant_cpu_to_le16(IEEE80211_FCTL_TODS):
+	case cpu_to_le16(IEEE80211_FCTL_TODS):
 		if (unlikely(sdata->vif.type != NL80211_IFTYPE_AP &&
 			     sdata->vif.type != NL80211_IFTYPE_AP_VLAN))
 			return -1;
 		break;
-	case __constant_cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
+	case cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
 		if (unlikely(sdata->vif.type != NL80211_IFTYPE_WDS &&
 			     sdata->vif.type != NL80211_IFTYPE_MESH_POINT))
 			return -1;
@@ -1244,13 +1235,13 @@ ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 			}
 		}
 		break;
-	case __constant_cpu_to_le16(IEEE80211_FCTL_FROMDS):
+	case cpu_to_le16(IEEE80211_FCTL_FROMDS):
 		if (sdata->vif.type != NL80211_IFTYPE_STATION ||
 		    (is_multicast_ether_addr(dst) &&
 		     !compare_ether_addr(src, dev->dev_addr)))
 			return -1;
 		break;
-	case __constant_cpu_to_le16(0):
+	case cpu_to_le16(0):
 		if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
 			return -1;
 		break;

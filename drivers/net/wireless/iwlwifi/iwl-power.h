@@ -42,38 +42,26 @@ enum {
 	IWL_POWER_INDEX_5,
 	IWL_POWER_AUTO,
 	IWL_POWER_MAX = IWL_POWER_AUTO,
-	IWL39_POWER_AC = IWL_POWER_AUTO, /* 0x06 */
-	IWL_POWER_AC,
-	IWL39_POWER_BATTERY = IWL_POWER_AC, /* 0x07 */
-	IWL39_POWER_LIMIT = IWL_POWER_AC,
-	IWL_POWER_BATTERY,
 };
 
 enum {
 	IWL_POWER_SYS_AUTO,
 	IWL_POWER_SYS_AC,
 	IWL_POWER_SYS_BATTERY,
+	IWL_POWER_SYS_MAX,
 };
 
-#define IWL_POWER_LIMIT		0x08
-#define IWL_POWER_MASK		0x0F
-#define IWL_POWER_ENABLED	0x10
-
-#define IWL_POWER_RANGE_0  (0)
-#define IWL_POWER_RANGE_1  (1)
-
-#define IWL_POWER_LEVEL(x)	((x) & IWL_POWER_MASK)
 
 /* Power management (not Tx power) structures */
 
-#define NOSLP __constant_cpu_to_le16(0), 0, 0
+#define NOSLP cpu_to_le16(0), 0, 0
 #define SLP IWL_POWER_DRIVER_ALLOW_SLEEP_MSK, 0, 0
-#define SLP_TOUT(T) __constant_cpu_to_le32((T) * MSEC_TO_USEC)
-#define SLP_VEC(X0, X1, X2, X3, X4) {__constant_cpu_to_le32(X0), \
-				     __constant_cpu_to_le32(X1), \
-				     __constant_cpu_to_le32(X2), \
-				     __constant_cpu_to_le32(X3), \
-				     __constant_cpu_to_le32(X4)}
+#define SLP_TOUT(T) cpu_to_le32((T) * MSEC_TO_USEC)
+#define SLP_VEC(X0, X1, X2, X3, X4) {cpu_to_le32(X0), \
+				     cpu_to_le32(X1), \
+				     cpu_to_le32(X2), \
+				     cpu_to_le32(X3), \
+				     cpu_to_le32(X4)}
 struct iwl_power_vec_entry {
 	struct iwl_powertable_cmd cmd;
 	u8 no_dtim;

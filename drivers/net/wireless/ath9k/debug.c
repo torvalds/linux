@@ -222,6 +222,98 @@ static const struct file_operations fops_interrupt = {
 	.owner = THIS_MODULE
 };
 
+static void ath_debug_stat_11n_rc(struct ath_softc *sc, struct sk_buff *skb)
+{
+	struct ath_tx_info_priv *tx_info_priv = NULL;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_rate *rates = tx_info->status.rates;
+	int final_ts_idx, idx;
+
+	tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
+	final_ts_idx = tx_info_priv->tx.ts_rateindex;
+	idx = sc->cur_rate_table->info[rates[final_ts_idx].idx].dot11rate;
+
+	sc->sc_debug.stats.n_rcstats[idx].success++;
+}
+
+static void ath_debug_stat_legacy_rc(struct ath_softc *sc, struct sk_buff *skb)
+{
+	struct ath_tx_info_priv *tx_info_priv = NULL;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_rate *rates = tx_info->status.rates;
+	int final_ts_idx, idx;
+
+	tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
+	final_ts_idx = tx_info_priv->tx.ts_rateindex;
+	idx = rates[final_ts_idx].idx;
+
+	sc->sc_debug.stats.legacy_rcstats[idx].success++;
+}
+
+void ath_debug_stat_rc(struct ath_softc *sc, struct sk_buff *skb)
+{
+	if (conf_is_ht(&sc->hw->conf))
+		ath_debug_stat_11n_rc(sc, skb);
+	else
+		ath_debug_stat_legacy_rc(sc, skb);
+}
+
+static ssize_t ath_read_file_stat_11n_rc(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[512];
+	unsigned int len = 0;
+	int i = 0;
+
+	len += sprintf(buf, "%7s %13s\n\n", "Rate", "Success");
+
+	for (i = 0; i <= 15; i++) {
+		len += snprintf(buf + len, sizeof(buf) - len,
+				"%5s%3d: %8u\n", "MCS", i,
+				sc->sc_debug.stats.n_rcstats[i].success);
+	}
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath_read_file_stat_legacy_rc(struct file *file,
+					    char __user *user_buf,
+					    size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[512];
+	unsigned int len = 0;
+	int i = 0;
+
+	len += sprintf(buf, "%7s %13s\n\n", "Rate", "Success");
+
+	for (i = 0; i < sc->cur_rate_table->rate_cnt; i++) {
+		len += snprintf(buf + len, sizeof(buf) - len, "%5u: %12u\n",
+				sc->cur_rate_table->info[i].ratekbps / 1000,
+				sc->sc_debug.stats.legacy_rcstats[i].success);
+	}
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+
+	if (conf_is_ht(&sc->hw->conf))
+		return ath_read_file_stat_11n_rc(file, user_buf, count, ppos);
+	else
+		return ath_read_file_stat_legacy_rc(file, user_buf, count ,ppos);
+}
+
+static const struct file_operations fops_rcstat = {
+	.read = read_file_rcstat,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
 
 int ath9k_init_debug(struct ath_softc *sc)
 {
@@ -248,6 +340,13 @@ int ath9k_init_debug(struct ath_softc *sc)
 	if (!sc->sc_debug.debugfs_interrupt)
 		goto err;
 
+	sc->sc_debug.debugfs_rcstat = debugfs_create_file("rcstat",
+						  S_IRUGO,
+						  sc->sc_debug.debugfs_phy,
+						  sc, &fops_rcstat);
+	if (!sc->sc_debug.debugfs_rcstat)
+		goto err;
+
 	return 0;
 err:
 	ath9k_exit_debug(sc);
@@ -256,6 +355,7 @@ err:
 
 void ath9k_exit_debug(struct ath_softc *sc)
 {
+	debugfs_remove(sc->sc_debug.debugfs_rcstat);
 	debugfs_remove(sc->sc_debug.debugfs_interrupt);
 	debugfs_remove(sc->sc_debug.debugfs_dma);
 	debugfs_remove(sc->sc_debug.debugfs_phy);

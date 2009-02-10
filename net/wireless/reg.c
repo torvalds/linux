@@ -57,7 +57,7 @@ static u32 supported_bandwidths[] = {
 /* Central wireless core regulatory domains, we only need two,
  * the current one and a world regulatory domain in case we have no
  * information to give us an alpha2 */
-static const struct ieee80211_regdomain *cfg80211_regdomain;
+const struct ieee80211_regdomain *cfg80211_regdomain;
 
 /* We use this as a place for the rd structure built from the
  * last parsed country IE to rest until CRDA gets back to us with

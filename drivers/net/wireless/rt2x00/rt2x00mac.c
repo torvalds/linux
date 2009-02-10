@@ -431,8 +431,10 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw,
 	/*
 	 * Update the beacon.
 	 */
-	if (conf->changed & IEEE80211_IFCC_BEACON)
-		status = rt2x00queue_update_beacon(rt2x00dev, vif);
+	if (conf->changed & (IEEE80211_IFCC_BEACON |
+			     IEEE80211_IFCC_BEACON_ENABLED))
+		status = rt2x00queue_update_beacon(rt2x00dev, vif,
+						   conf->enable_beacon);
 
 	return status;
 }

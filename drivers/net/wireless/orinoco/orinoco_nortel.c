@@ -9,12 +9,12 @@
  *
  * Some of this code is borrowed from orinoco_plx.c
  *	Copyright (C) 2001 Daniel Barlow
- * Some of this code is borrowed from orinoco_pci.c 
+ * Some of this code is borrowed from orinoco_pci.c
  *  Copyright (C) 2001 Jean Tourrilhes
  * Some of this code is "inspired" by linux-wlan-ng-0.1.10, but nothing
  * has been copied from it. linux-wlan-ng-0.1.10 is originally :
  *	Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
- * 
+ *
  * The contents of this file are subject to the Mozilla Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License
@@ -103,9 +103,8 @@ static int orinoco_nortel_hw_init(struct orinoco_pci_card *card)
 	iowrite16(0x8, card->bridge_io + 2);
 	for (i = 0; i < 30; i++) {
 		mdelay(30);
-		if (ioread16(card->bridge_io) & 0x10) {
+		if (ioread16(card->bridge_io) & 0x10)
 			break;
-		}
 	}
 	if (i == 30) {
 		printk(KERN_ERR PFX "brg1 timed out\n");

@@ -935,6 +935,32 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 /*	 LED functions		*/
 /********************************/
 
+static void ath_led_blink_work(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+					    ath_led_blink_work.work);
+
+	if (!(sc->sc_flags & SC_OP_LED_ASSOCIATED))
+		return;
+	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
+			  (sc->sc_flags & SC_OP_LED_ON) ? 1 : 0);
+
+	queue_delayed_work(sc->hw->workqueue, &sc->ath_led_blink_work,
+			   (sc->sc_flags & SC_OP_LED_ON) ?
+			   msecs_to_jiffies(sc->led_off_duration) :
+			   msecs_to_jiffies(sc->led_on_duration));
+
+	sc->led_on_duration =
+			max((ATH_LED_ON_DURATION_IDLE - sc->led_on_cnt), 25);
+	sc->led_off_duration =
+			max((ATH_LED_OFF_DURATION_IDLE - sc->led_off_cnt), 10);
+	sc->led_on_cnt = sc->led_off_cnt = 0;
+	if (sc->sc_flags & SC_OP_LED_ON)
+		sc->sc_flags &= ~SC_OP_LED_ON;
+	else
+		sc->sc_flags |= SC_OP_LED_ON;
+}
+
 static void ath_led_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness)
 {
@@ -944,16 +970,27 @@ static void ath_led_brightness(struct led_classdev *led_cdev,
 	switch (brightness) {
 	case LED_OFF:
 		if (led->led_type == ATH_LED_ASSOC ||
-		    led->led_type == ATH_LED_RADIO)
+		    led->led_type == ATH_LED_RADIO) {
+			ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
+				(led->led_type == ATH_LED_RADIO));
 			sc->sc_flags &= ~SC_OP_LED_ASSOCIATED;
-		ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
-				(led->led_type == ATH_LED_RADIO) ? 1 :
-				!!(sc->sc_flags & SC_OP_LED_ASSOCIATED));
+			if (led->led_type == ATH_LED_RADIO)
+				sc->sc_flags &= ~SC_OP_LED_ON;
+		} else {
+			sc->led_off_cnt++;
+		}
 		break;
 	case LED_FULL:
-		if (led->led_type == ATH_LED_ASSOC)
+		if (led->led_type == ATH_LED_ASSOC) {
 			sc->sc_flags |= SC_OP_LED_ASSOCIATED;
-		ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 0);
+			queue_delayed_work(sc->hw->workqueue,
+					   &sc->ath_led_blink_work, 0);
+		} else if (led->led_type == ATH_LED_RADIO) {
+			ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 0);
+			sc->sc_flags |= SC_OP_LED_ON;
+		} else {
+			sc->led_on_cnt++;
+		}
 		break;
 	default:
 		break;
@@ -989,6 +1026,7 @@ static void ath_unregister_led(struct ath_led *led)
 
 static void ath_deinit_leds(struct ath_softc *sc)
 {
+	cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	ath_unregister_led(&sc->assoc_led);
 	sc->sc_flags &= ~SC_OP_LED_ASSOCIATED;
 	ath_unregister_led(&sc->tx_led);
@@ -1008,9 +1046,11 @@ static void ath_init_leds(struct ath_softc *sc)
 	/* LED off, active low */
 	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
 
+	INIT_DELAYED_WORK(&sc->ath_led_blink_work, ath_led_blink_work);
+
 	trigger = ieee80211_get_radio_led_name(sc->hw);
 	snprintf(sc->radio_led.name, sizeof(sc->radio_led.name),
-		"ath9k-%s:radio", wiphy_name(sc->hw->wiphy));
+		"ath9k-%s::radio", wiphy_name(sc->hw->wiphy));
 	ret = ath_register_led(sc, &sc->radio_led, trigger);
 	sc->radio_led.led_type = ATH_LED_RADIO;
 	if (ret)
@@ -1018,7 +1058,7 @@ static void ath_init_leds(struct ath_softc *sc)
 
 	trigger = ieee80211_get_assoc_led_name(sc->hw);
 	snprintf(sc->assoc_led.name, sizeof(sc->assoc_led.name),
-		"ath9k-%s:assoc", wiphy_name(sc->hw->wiphy));
+		"ath9k-%s::assoc", wiphy_name(sc->hw->wiphy));
 	ret = ath_register_led(sc, &sc->assoc_led, trigger);
 	sc->assoc_led.led_type = ATH_LED_ASSOC;
 	if (ret)
@@ -1026,7 +1066,7 @@ static void ath_init_leds(struct ath_softc *sc)
 
 	trigger = ieee80211_get_tx_led_name(sc->hw);
 	snprintf(sc->tx_led.name, sizeof(sc->tx_led.name),
-		"ath9k-%s:tx", wiphy_name(sc->hw->wiphy));
+		"ath9k-%s::tx", wiphy_name(sc->hw->wiphy));
 	ret = ath_register_led(sc, &sc->tx_led, trigger);
 	sc->tx_led.led_type = ATH_LED_TX;
 	if (ret)
@@ -1034,7 +1074,7 @@ static void ath_init_leds(struct ath_softc *sc)
 
 	trigger = ieee80211_get_rx_led_name(sc->hw);
 	snprintf(sc->rx_led.name, sizeof(sc->rx_led.name),
-		"ath9k-%s:rx", wiphy_name(sc->hw->wiphy));
+		"ath9k-%s::rx", wiphy_name(sc->hw->wiphy));
 	ret = ath_register_led(sc, &sc->rx_led, trigger);
 	sc->rx_led.led_type = ATH_LED_RX;
 	if (ret)
@@ -1217,7 +1257,7 @@ static int ath_init_sw_rfkill(struct ath_softc *sc)
 	}
 
 	snprintf(sc->rf_kill.rfkill_name, sizeof(sc->rf_kill.rfkill_name),
-		"ath9k-%s:rfkill", wiphy_name(sc->hw->wiphy));
+		"ath9k-%s::rfkill", wiphy_name(sc->hw->wiphy));
 	sc->rf_kill.rfkill->name = sc->rf_kill.rfkill_name;
 	sc->rf_kill.rfkill->data = sc;
 	sc->rf_kill.rfkill->toggle_radio = ath_sw_toggle_radio;
@@ -1957,25 +1997,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)
 		sc->sc_imask |= ATH9K_INT_CST;
 
-	/*
-	 * Enable MIB interrupts when there are hardware phy counters.
-	 * Note we only do this (at the moment) for station mode.
-	 */
-	if (ath9k_hw_phycounters(sc->sc_ah) &&
-	    ((sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION) ||
-	     (sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC)))
-		sc->sc_imask |= ATH9K_INT_MIB;
-	/*
-	 * Some hardware processes the TIM IE and fires an
-	 * interrupt when the TIM bit is set.  For hardware
-	 * that does, if not overridden by configuration,
-	 * enable the TIM interrupt when operating as station.
-	 */
-	if ((sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_ENHANCEDPM) &&
-	    (sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION) &&
-	    !sc->sc_config.swBeaconProcess)
-		sc->sc_imask |= ATH9K_INT_TIM;
-
 	ath_cache_conf_rate(sc, &hw->conf);
 
 	sc->sc_flags &= ~SC_OP_INVALID;
@@ -2123,6 +2144,27 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	/* Set the device opmode */
 	sc->sc_ah->ah_opmode = ic_opmode;
+
+	/*
+	 * Enable MIB interrupts when there are hardware phy counters.
+	 * Note we only do this (at the moment) for station mode.
+	 */
+	if (ath9k_hw_phycounters(sc->sc_ah) &&
+	    ((conf->type == NL80211_IFTYPE_STATION) ||
+	     (conf->type == NL80211_IFTYPE_ADHOC)))
+		sc->sc_imask |= ATH9K_INT_MIB;
+	/*
+	 * Some hardware processes the TIM IE and fires an
+	 * interrupt when the TIM bit is set.  For hardware
+	 * that does, if not overridden by configuration,
+	 * enable the TIM interrupt when operating as station.
+	 */
+	if ((sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_ENHANCEDPM) &&
+	    (conf->type == NL80211_IFTYPE_STATION) &&
+	    !sc->sc_config.swBeaconProcess)
+		sc->sc_imask |= ATH9K_INT_TIM;
+
+	ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_imask);
 
 	if (conf->type == NL80211_IFTYPE_AP) {
 		/* TODO: is this a suitable place to start ANI for AP mode? */

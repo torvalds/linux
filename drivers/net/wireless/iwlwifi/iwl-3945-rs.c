@@ -183,7 +183,7 @@ static int iwl3945_rate_scale_flush_windows(struct iwl3945_rs_sta *rs_sta)
 	int unflushed = 0;
 	int i;
 	unsigned long flags;
-	struct iwl_priv *priv = rs_sta->priv;
+	struct iwl_priv *priv __maybe_unused = rs_sta->priv;
 
 	/*
 	 * For each rate, if we have collected data on that rate
@@ -197,7 +197,7 @@ static int iwl3945_rate_scale_flush_windows(struct iwl3945_rs_sta *rs_sta)
 		spin_lock_irqsave(&rs_sta->lock, flags);
 		if (time_after(jiffies, rs_sta->win[i].stamp +
 			       IWL_RATE_WIN_FLUSH)) {
-			IWL_DEBUG_RATE("flushing %d samples of rate "
+			IWL_DEBUG_RATE(priv, "flushing %d samples of rate "
 				       "index %d\n",
 				       rs_sta->win[i].counter, i);
 			iwl3945_clear_window(&rs_sta->win[i]);
@@ -216,12 +216,12 @@ static int iwl3945_rate_scale_flush_windows(struct iwl3945_rs_sta *rs_sta)
 static void iwl3945_bg_rate_scale_flush(unsigned long data)
 {
 	struct iwl3945_rs_sta *rs_sta = (void *)data;
-	struct iwl_priv *priv = rs_sta->priv;
+	struct iwl_priv *priv __maybe_unused = rs_sta->priv;
 	int unflushed = 0;
 	unsigned long flags;
 	u32 packet_count, duration, pps;
 
-	IWL_DEBUG_RATE("enter\n");
+	IWL_DEBUG_RATE(priv, "enter\n");
 
 	unflushed = iwl3945_rate_scale_flush_windows(rs_sta);
 
@@ -236,7 +236,7 @@ static void iwl3945_bg_rate_scale_flush(unsigned long data)
 		duration =
 		    jiffies_to_msecs(jiffies - rs_sta->last_partial_flush);
 
-		IWL_DEBUG_RATE("Tx'd %d packets in %dms\n",
+		IWL_DEBUG_RATE(priv, "Tx'd %d packets in %dms\n",
 			       packet_count, duration);
 
 		/* Determine packets per second */
@@ -256,7 +256,7 @@ static void iwl3945_bg_rate_scale_flush(unsigned long data)
 
 		rs_sta->flush_time = msecs_to_jiffies(duration);
 
-		IWL_DEBUG_RATE("new flush period: %d msec ave %d\n",
+		IWL_DEBUG_RATE(priv, "new flush period: %d msec ave %d\n",
 			       duration, packet_count);
 
 		mod_timer(&rs_sta->rate_scale_flush, jiffies +
@@ -274,7 +274,7 @@ static void iwl3945_bg_rate_scale_flush(unsigned long data)
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
-	IWL_DEBUG_RATE("leave\n");
+	IWL_DEBUG_RATE(priv, "leave\n");
 }
 
 /**
@@ -290,10 +290,10 @@ static void iwl3945_collect_tx_data(struct iwl3945_rs_sta *rs_sta,
 {
 	unsigned long flags;
 	s32 fail_count;
-	struct iwl_priv *priv = rs_sta->priv;
+	struct iwl_priv *priv __maybe_unused = rs_sta->priv;
 
 	if (!retries) {
-		IWL_DEBUG_RATE("leave: retries == 0 -- should be at least 1\n");
+		IWL_DEBUG_RATE(priv, "leave: retries == 0 -- should be at least 1\n");
 		return;
 	}
 
@@ -347,7 +347,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	int i;
 
-	IWL_DEBUG_RATE("enter\n");
+	IWL_DEBUG_RATE(priv, "enter\n");
 
 	/* TODO: what is a good starting rate for STA? About middle? Maybe not
 	 * the lowest or the highest rate.. Could consider using RSSI from
@@ -370,7 +370,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	}
 
 
-	IWL_DEBUG_RATE("leave\n");
+	IWL_DEBUG_RATE(priv, "leave\n");
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
@@ -396,11 +396,11 @@ static void *rs_alloc_sta(void *iwl_priv, struct ieee80211_sta *sta, gfp_t gfp)
 	 *	as well just put all the information there.
 	 */
 
-	IWL_DEBUG_RATE("enter\n");
+	IWL_DEBUG_RATE(priv, "enter\n");
 
 	rs_sta = kzalloc(sizeof(struct iwl3945_rs_sta), gfp);
 	if (!rs_sta) {
-		IWL_DEBUG_RATE("leave: ENOMEM\n");
+		IWL_DEBUG_RATE(priv, "leave: ENOMEM\n");
 		return NULL;
 	}
 
@@ -428,7 +428,7 @@ static void *rs_alloc_sta(void *iwl_priv, struct ieee80211_sta *sta, gfp_t gfp)
 	for (i = 0; i < IWL_RATE_COUNT_3945; i++)
 		iwl3945_clear_window(&rs_sta->win[i]);
 
-	IWL_DEBUG_RATE("leave\n");
+	IWL_DEBUG_RATE(priv, "leave\n");
 
 	return rs_sta;
 }
@@ -438,14 +438,14 @@ static void rs_free_sta(void *iwl_priv, struct ieee80211_sta *sta,
 {
 	struct iwl3945_sta_priv *psta = (void *) sta->drv_priv;
 	struct iwl3945_rs_sta *rs_sta = priv_sta;
-	struct iwl_priv *priv = rs_sta->priv;
+	struct iwl_priv *priv __maybe_unused = rs_sta->priv;
 
 	psta->rs_sta = NULL;
 
-	IWL_DEBUG_RATE("enter\n");
+	IWL_DEBUG_RATE(priv, "enter\n");
 	del_timer_sync(&rs_sta->rate_scale_flush);
 	kfree(rs_sta);
-	IWL_DEBUG_RATE("leave\n");
+	IWL_DEBUG_RATE(priv, "leave\n");
 }
 
 
@@ -466,18 +466,18 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 	struct iwl3945_rs_sta *rs_sta = priv_sta;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	IWL_DEBUG_RATE("enter\n");
+	IWL_DEBUG_RATE(priv, "enter\n");
 
 	retries = info->status.rates[0].count;
 
 	first_index = sband->bitrates[info->status.rates[0].idx].hw_value;
 	if ((first_index < 0) || (first_index >= IWL_RATE_COUNT_3945)) {
-		IWL_DEBUG_RATE("leave: Rate out of bounds: %d\n", first_index);
+		IWL_DEBUG_RATE(priv, "leave: Rate out of bounds: %d\n", first_index);
 		return;
 	}
 
 	if (!priv_sta) {
-		IWL_DEBUG_RATE("leave: No STA priv data to update!\n");
+		IWL_DEBUG_RATE(priv, "leave: No STA priv data to update!\n");
 		return;
 	}
 
@@ -511,7 +511,7 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 		iwl3945_collect_tx_data(rs_sta,
 				    &rs_sta->win[scale_rate_index],
 				    0, current_count, scale_rate_index);
-		IWL_DEBUG_RATE("Update rate %d for %d retries.\n",
+		IWL_DEBUG_RATE(priv, "Update rate %d for %d retries.\n",
 			       scale_rate_index, current_count);
 
 		retries -= current_count;
@@ -521,7 +521,7 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 
 
 	/* Update the last index window with success/failure based on ACK */
-	IWL_DEBUG_RATE("Update rate %d with %s.\n",
+	IWL_DEBUG_RATE(priv, "Update rate %d with %s.\n",
 		       last_index,
 		       (info->flags & IEEE80211_TX_STAT_ACK) ?
 		       "success" : "failure");
@@ -546,7 +546,7 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
-	IWL_DEBUG_RATE("leave\n");
+	IWL_DEBUG_RATE(priv, "leave\n");
 
 	return;
 }
@@ -556,7 +556,7 @@ static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,
 {
 	u8 high = IWL_RATE_INVALID;
 	u8 low = IWL_RATE_INVALID;
-	struct iwl_priv *priv = rs_sta->priv;
+	struct iwl_priv *priv __maybe_unused = rs_sta->priv;
 
 	/* 802.11A walks to the next literal adjacent rate in
 	 * the rate table */
@@ -596,7 +596,7 @@ static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,
 			break;
 		if (rate_mask & (1 << low))
 			break;
-		IWL_DEBUG_RATE("Skipping masked lower rate: %d\n", low);
+		IWL_DEBUG_RATE(priv, "Skipping masked lower rate: %d\n", low);
 	}
 
 	high = index;
@@ -609,7 +609,7 @@ static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,
 			break;
 		if (rate_mask & (1 << high))
 			break;
-		IWL_DEBUG_RATE("Skipping masked higher rate: %d\n", high);
+		IWL_DEBUG_RATE(priv, "Skipping masked higher rate: %d\n", high);
 	}
 
 	return (high << 8) | low;
@@ -655,7 +655,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
-	IWL_DEBUG_RATE("enter\n");
+	IWL_DEBUG_RATE(priv, "enter\n");
 
 	if (sta)
 		rate_mask = sta->supp_rates[sband->band];
@@ -666,7 +666,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
 	    is_multicast_ether_addr(hdr->addr1) ||
 	    !sta || !priv_sta) {
-		IWL_DEBUG_RATE("leave: No STA priv data to update!\n");
+		IWL_DEBUG_RATE(priv, "leave: No STA priv data to update!\n");
 		if (!rate_mask)
 			info->control.rates[0].idx =
 					rate_lowest_index(sband, NULL);
@@ -693,7 +693,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 		u8 sta_id = iwl3945_hw_find_station(priv, hdr->addr1);
 
 		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_RATE("LQ: ADD station %pm\n",
+			IWL_DEBUG_RATE(priv, "LQ: ADD station %pm\n",
 				       hdr->addr1);
 			sta_id = iwl3945_add_station(priv,
 				    hdr->addr1, 0, CMD_ASYNC);
@@ -728,7 +728,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	     (window->success_counter < IWL_RATE_MIN_SUCCESS_TH))) {
 		spin_unlock_irqrestore(&rs_sta->lock, flags);
 
-		IWL_DEBUG_RATE("Invalid average_tpt on rate %d: "
+		IWL_DEBUG_RATE(priv, "Invalid average_tpt on rate %d: "
 			       "counter: %d, success_counter: %d, "
 			       "expected_tpt is %sNULL\n",
 			       index,
@@ -761,7 +761,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	scale_action = 1;
 
 	if ((window->success_ratio < IWL_RATE_DECREASE_TH) || !current_tpt) {
-		IWL_DEBUG_RATE("decrease rate because of low success_ratio\n");
+		IWL_DEBUG_RATE(priv, "decrease rate because of low success_ratio\n");
 		scale_action = -1;
 	} else if ((low_tpt == IWL_INVALID_VALUE) &&
 		   (high_tpt == IWL_INVALID_VALUE))
@@ -769,7 +769,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	else if ((low_tpt != IWL_INVALID_VALUE) &&
 		 (high_tpt != IWL_INVALID_VALUE) &&
 		 (low_tpt < current_tpt) && (high_tpt < current_tpt)) {
-		IWL_DEBUG_RATE("No action -- low [%d] & high [%d] < "
+		IWL_DEBUG_RATE(priv, "No action -- low [%d] & high [%d] < "
 			       "current_tpt [%d]\n",
 			       low_tpt, high_tpt, current_tpt);
 		scale_action = 0;
@@ -778,14 +778,14 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 			if (high_tpt > current_tpt)
 				scale_action = 1;
 			else {
-				IWL_DEBUG_RATE
-				    ("decrease rate because of high tpt\n");
+				IWL_DEBUG_RATE(priv,
+				    "decrease rate because of high tpt\n");
 				scale_action = -1;
 			}
 		} else if (low_tpt != IWL_INVALID_VALUE) {
 			if (low_tpt > current_tpt) {
-				IWL_DEBUG_RATE
-				    ("decrease rate because of low tpt\n");
+				IWL_DEBUG_RATE(priv,
+				    "decrease rate because of low tpt\n");
 				scale_action = -1;
 			} else
 				scale_action = 1;
@@ -797,7 +797,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 			scale_action = 0;
 	} else if (scale_action == 1) {
 		if (window->success_ratio < IWL_SUCCESS_UP_TH) {
-			IWL_DEBUG_RATE("No action -- success_ratio [%d] < "
+			IWL_DEBUG_RATE(priv, "No action -- success_ratio [%d] < "
 			       "SUCCESS UP\n", window->success_ratio);
 			scale_action = 0;
 		}
@@ -820,7 +820,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 		break;
 	}
 
-	IWL_DEBUG_RATE("Selected %d (action %d) - low %d high %d\n",
+	IWL_DEBUG_RATE(priv, "Selected %d (action %d) - low %d high %d\n",
 		       index, scale_action, low, high);
 
  out:
@@ -832,7 +832,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	else
 		info->control.rates[0].idx = rs_sta->last_txrate_idx;
 
-	IWL_DEBUG_RATE("leave: %d\n", index);
+	IWL_DEBUG_RATE(priv, "leave: %d\n", index);
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -915,7 +915,7 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 	struct ieee80211_sta *sta;
 	struct iwl3945_sta_priv *psta;
 
-	IWL_DEBUG_RATE("enter\n");
+	IWL_DEBUG_RATE(priv, "enter\n");
 
 	rcu_read_lock();
 
@@ -934,7 +934,7 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 	switch (priv->band) {
 	case IEEE80211_BAND_2GHZ:
 		/* TODO: this always does G, not a regression */
-		if (priv->active39_rxon.flags & RXON_FLG_TGG_PROTECT_MSK) {
+		if (priv->active_rxon.flags & RXON_FLG_TGG_PROTECT_MSK) {
 			rs_sta->tgg = 1;
 			rs_sta->expected_tpt = iwl3945_expected_tpt_g_prot;
 		} else
@@ -955,11 +955,11 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 	if (rssi == 0)
 		rssi = IWL_MIN_RSSI_VAL;
 
-	IWL_DEBUG(IWL_DL_INFO | IWL_DL_RATE, "Network RSSI: %d\n", rssi);
+	IWL_DEBUG_RATE(priv, "Network RSSI: %d\n", rssi);
 
 	rs_sta->start_rate = iwl3945_get_rate_index_by_rssi(rssi, priv->band);
 
-	IWL_DEBUG_RATE("leave: rssi %d assign rate index: "
+	IWL_DEBUG_RATE(priv, "leave: rssi %d assign rate index: "
 		       "%d (plcp 0x%x)\n", rssi, rs_sta->start_rate,
 		       iwl3945_rates[rs_sta->start_rate].plcp);
 	rcu_read_unlock();

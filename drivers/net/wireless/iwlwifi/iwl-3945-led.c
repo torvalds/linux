@@ -137,7 +137,7 @@ static int iwl3945_led_off(struct iwl_priv *priv, int led_id)
 		.off = 0,
 		.interval = IWL_DEF_LED_INTRVL
 	};
-	IWL_DEBUG_LED("led off %d\n", led_id);
+	IWL_DEBUG_LED(priv, "led off %d\n", led_id);
 	return iwl_send_led_cmd(priv, &led_cmd);
 }
 
@@ -174,7 +174,7 @@ static void iwl3945_led_brightness_set(struct led_classdev *led_cdev,
 	case LED_FULL:
 		if (led->type == IWL_LED_TRG_ASSOC) {
 			priv->allow_blinking = 1;
-			IWL_DEBUG_LED("MAC is  associated\n");
+			IWL_DEBUG_LED(priv, "MAC is  associated\n");
 		}
 		if (led->led_on)
 			led->led_on(priv, IWL_LED_LINK);
@@ -182,7 +182,7 @@ static void iwl3945_led_brightness_set(struct led_classdev *led_cdev,
 	case LED_OFF:
 		if (led->type == IWL_LED_TRG_ASSOC) {
 			priv->allow_blinking = 0;
-			IWL_DEBUG_LED("MAC is disassociated\n");
+			IWL_DEBUG_LED(priv, "MAC is disassociated\n");
 		}
 		if (led->led_off)
 			led->led_off(priv, IWL_LED_LINK);
@@ -316,7 +316,7 @@ int iwl3945_led_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_radio_led_name(priv->hw);
 	snprintf(priv->led39[IWL_LED_TRG_RADIO].name,
-		 sizeof(priv->led39[IWL_LED_TRG_RADIO].name), "iwl-%s:radio",
+		 sizeof(priv->led39[IWL_LED_TRG_RADIO].name), "iwl-%s::radio",
 		 wiphy_name(priv->hw->wiphy));
 
 	priv->led39[IWL_LED_TRG_RADIO].led_on = iwl3945_led_on;
@@ -332,7 +332,7 @@ int iwl3945_led_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_assoc_led_name(priv->hw);
 	snprintf(priv->led39[IWL_LED_TRG_ASSOC].name,
-		 sizeof(priv->led39[IWL_LED_TRG_ASSOC].name), "iwl-%s:assoc",
+		 sizeof(priv->led39[IWL_LED_TRG_ASSOC].name), "iwl-%s::assoc",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl3945_led_register_led(priv,
@@ -349,7 +349,7 @@ int iwl3945_led_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_rx_led_name(priv->hw);
 	snprintf(priv->led39[IWL_LED_TRG_RX].name,
-		 sizeof(priv->led39[IWL_LED_TRG_RX].name), "iwl-%s:RX",
+		 sizeof(priv->led39[IWL_LED_TRG_RX].name), "iwl-%s::RX",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl3945_led_register_led(priv,
@@ -365,7 +365,7 @@ int iwl3945_led_register(struct iwl_priv *priv)
 
 	trigger = ieee80211_get_tx_led_name(priv->hw);
 	snprintf(priv->led39[IWL_LED_TRG_TX].name,
-		 sizeof(priv->led39[IWL_LED_TRG_TX].name), "iwl-%s:TX",
+		 sizeof(priv->led39[IWL_LED_TRG_TX].name), "iwl-%s::TX",
 		 wiphy_name(priv->hw->wiphy));
 
 	ret = iwl3945_led_register_led(priv,

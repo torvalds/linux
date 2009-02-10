@@ -67,6 +67,18 @@ extern struct iwl_cfg iwl100_bgn_cfg;
 /* shared structures from iwl-5000.c */
 extern struct iwl_mod_params iwl50_mod_params;
 extern struct iwl_ops iwl5000_ops;
+extern struct iwl_lib_ops iwl5000_lib;
+extern struct iwl_hcmd_ops iwl5000_hcmd;
+extern struct iwl_hcmd_utils_ops iwl5000_hcmd_utils;
+
+/* shared functions from iwl-5000.c */
+extern u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len);
+extern u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd,
+				     u8 *data);
+extern void iwl5000_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
+				    __le32 *tx_flags);
+extern int iwl5000_calc_rssi(struct iwl_priv *priv,
+			     struct iwl_rx_phy_res *rx_resp);
 
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD	110 /* in Celsius */
@@ -1078,13 +1090,6 @@ struct iwl_priv {
 
 	/*For 3945*/
 #define IWL_DEFAULT_TX_POWER 0x0F
-	/* We declare this const so it can only be
-	 * changed via explicit cast within the
-	 * routines that actually update the physical
-	 * hardware */
-	const struct iwl3945_rxon_cmd active39_rxon;
-	struct iwl3945_rxon_cmd staging39_rxon;
-	struct iwl3945_rxon_cmd recovery39_rxon;
 
 	struct iwl3945_notif_statistics statistics_39;
 

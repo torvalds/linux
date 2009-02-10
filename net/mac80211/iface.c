@@ -591,19 +591,6 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
 	dev_mc_sync(local->mdev, dev);
 }
 
-static void ieee80211_if_setup(struct net_device *dev)
-{
-	ether_setup(dev);
-	dev->hard_start_xmit = ieee80211_subif_start_xmit;
-	dev->wireless_handlers = &ieee80211_iw_handler_def;
-	dev->set_multicast_list = ieee80211_set_multicast_list;
-	dev->change_mtu = ieee80211_change_mtu;
-	dev->open = ieee80211_open;
-	dev->stop = ieee80211_stop;
-	dev->destructor = free_netdev;
-	/* we will validate the address ourselves in ->open */
-	dev->validate_addr = NULL;
-}
 /*
  * Called when the netdev is removed or, by the code below, before
  * the interface type changes.
@@ -671,6 +658,34 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 	WARN_ON(flushed);
 }
 
+static const struct net_device_ops ieee80211_dataif_ops = {
+	.ndo_open		= ieee80211_open,
+	.ndo_stop		= ieee80211_stop,
+	.ndo_uninit		= ieee80211_teardown_sdata,
+	.ndo_start_xmit		= ieee80211_subif_start_xmit,
+	.ndo_set_multicast_list = ieee80211_set_multicast_list,
+	.ndo_change_mtu 	= ieee80211_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+};
+
+static const struct net_device_ops ieee80211_monitorif_ops = {
+	.ndo_open		= ieee80211_open,
+	.ndo_stop		= ieee80211_stop,
+	.ndo_uninit		= ieee80211_teardown_sdata,
+	.ndo_start_xmit		= ieee80211_monitor_start_xmit,
+	.ndo_set_multicast_list = ieee80211_set_multicast_list,
+	.ndo_change_mtu 	= ieee80211_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+};
+
+static void ieee80211_if_setup(struct net_device *dev)
+{
+	ether_setup(dev);
+	dev->netdev_ops = &ieee80211_dataif_ops;
+	dev->wireless_handlers = &ieee80211_iw_handler_def;
+	dev->destructor = free_netdev;
+}
+
 /*
  * Helper function to initialise an interface to a specific type.
  */
@@ -682,7 +697,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 
 	/* and set some type-dependent values */
 	sdata->vif.type = type;
-	sdata->dev->hard_start_xmit = ieee80211_subif_start_xmit;
+	sdata->dev->netdev_ops = &ieee80211_dataif_ops;
 	sdata->wdev.iftype = type;
 
 	/* only monitor differs */
@@ -703,7 +718,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		break;
 	case NL80211_IFTYPE_MONITOR:
 		sdata->dev->type = ARPHRD_IEEE80211_RADIOTAP;
-		sdata->dev->hard_start_xmit = ieee80211_monitor_start_xmit;
+		sdata->dev->netdev_ops = &ieee80211_monitorif_ops;
 		sdata->u.mntr_flags = MONITOR_FLAG_CONTROL |
 				      MONITOR_FLAG_OTHER_BSS;
 		break;
@@ -808,8 +823,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	ret = register_netdevice(ndev);
 	if (ret)
 		goto fail;
-
-	ndev->uninit = ieee80211_teardown_sdata;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) &&
 	    params && params->mesh_id_len)

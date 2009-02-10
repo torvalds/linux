@@ -150,6 +150,7 @@ config IPW2200_DEBUG
 
 config LIBIPW
 	tristate
+	depends on PCI && WLAN_80211
 	select WIRELESS_EXT
 	select CRYPTO
 	select CRYPTO_ARC4

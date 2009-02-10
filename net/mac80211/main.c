@@ -791,6 +791,23 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 }
 EXPORT_SYMBOL(ieee80211_alloc_hw);
 
+static const struct net_device_ops ieee80211_master_ops = {
+	.ndo_start_xmit = ieee80211_master_start_xmit,
+	.ndo_open = ieee80211_master_open,
+	.ndo_stop = ieee80211_master_stop,
+	.ndo_set_multicast_list = ieee80211_master_set_multicast_list,
+	.ndo_select_queue = ieee80211_select_queue,
+};
+
+static void ieee80211_master_setup(struct net_device *mdev)
+{
+	mdev->type = ARPHRD_IEEE80211;
+	mdev->netdev_ops = &ieee80211_master_ops;
+	mdev->header_ops = &ieee80211_header_ops;
+	mdev->tx_queue_len = 1000;
+	mdev->addr_len = ETH_ALEN;
+}
+
 int ieee80211_register_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -840,7 +857,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		hw->ampdu_queues = 0;
 
 	mdev = alloc_netdev_mq(sizeof(struct ieee80211_master_priv),
-			       "wmaster%d", ether_setup,
+			       "wmaster%d", ieee80211_master_setup,
 			       ieee80211_num_queues(hw));
 	if (!mdev)
 		goto fail_mdev_alloc;
@@ -850,13 +867,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	local->mdev = mdev;
 
 	ieee80211_rx_bss_list_init(local);
-
-	mdev->hard_start_xmit = ieee80211_master_start_xmit;
-	mdev->open = ieee80211_master_open;
-	mdev->stop = ieee80211_master_stop;
-	mdev->type = ARPHRD_IEEE80211;
-	mdev->header_ops = &ieee80211_header_ops;
-	mdev->set_multicast_list = ieee80211_master_set_multicast_list;
 
 	local->hw.workqueue =
 		create_singlethread_workqueue(wiphy_name(local->hw.wiphy));
@@ -884,7 +894,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	local->hw.conf.listen_interval = local->hw.max_listen_interval;
 
 	local->wstats_flags |= local->hw.flags & (IEEE80211_HW_SIGNAL_UNSPEC |
-						  IEEE80211_HW_SIGNAL_DB |
 						  IEEE80211_HW_SIGNAL_DBM) ?
 			       IW_QUAL_QUAL_UPDATED : IW_QUAL_QUAL_INVALID;
 	local->wstats_flags |= local->hw.flags & IEEE80211_HW_NOISE_DBM ?
@@ -923,8 +932,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		       wiphy_name(local->hw.wiphy), result);
 		goto fail_wep;
 	}
-
-	local->mdev->select_queue = ieee80211_select_queue;
 
 	/* add one default STA interface if supported */
 	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_STATION)) {

@@ -46,7 +46,7 @@
 #include "iwl-5000-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL100_UCODE_API_MAX 1
+#define IWL100_UCODE_API_MAX 2
 
 /* Lowest firmware API version supported */
 #define IWL100_UCODE_API_MIN 1
@@ -66,5 +66,8 @@ struct iwl_cfg iwl100_bgn_cfg = {
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
 	.mod_params = &iwl50_mod_params,
+	.valid_tx_ant = ANT_A,
+	.valid_rx_ant = ANT_AB,
+	.need_pll_cfg = true,
 };
 

@@ -211,6 +211,9 @@ struct iwl_cfg {
 	u16  eeprom_calib_ver;
 	const struct iwl_ops *ops;
 	const struct iwl_mod_params *mod_params;
+	u8   valid_tx_ant;
+	u8   valid_rx_ant;
+	bool need_pll_cfg;
 };
 
 /***************************
@@ -221,11 +224,25 @@ struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 		struct ieee80211_ops *hw_ops);
 void iwl_hw_detect(struct iwl_priv *priv);
 void iwl_reset_qos(struct iwl_priv *priv);
+void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt);
+int iwl_check_rxon_cmd(struct iwl_priv *priv);
+int iwl_full_rxon_required(struct iwl_priv *priv);
 void iwl_set_rxon_chain(struct iwl_priv *priv);
 int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info);
 u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_sta_ht_cap *sta_ht_inf);
+void iwl_set_flags_for_band(struct iwl_priv *priv, enum ieee80211_band band);
+void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode);
+int iwl_set_decrypted_flag(struct iwl_priv *priv,
+			   struct ieee80211_hdr *hdr,
+			   u32 decrypt_res,
+			   struct ieee80211_rx_status *stats);
+void iwl_irq_handle_error(struct iwl_priv *priv);
+void iwl_configure_filter(struct ieee80211_hw *hw,
+			  unsigned int changed_flags,
+			  unsigned int *total_flags,
+			  int mc_count, struct dev_addr_list *mc_list);
 int iwl_hw_nic_init(struct iwl_priv *priv);
 int iwl_setup_mac(struct iwl_priv *priv);
 int iwl_set_hw_params(struct iwl_priv *priv);
@@ -253,6 +270,7 @@ void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 			       struct iwl_rx_mem_buffer *rxb);
 void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb);
+void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 
 /* TX helpers */
 
@@ -295,6 +313,10 @@ int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv);
 void iwl_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 			      struct ieee80211_tx_info *info);
 int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
+
+u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv);
+
+void iwl_set_rate(struct iwl_priv *priv);
 
 u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx);
 
@@ -343,8 +365,8 @@ int iwl_send_scan_abort(struct iwl_priv *priv);
  * time if it's a quiet channel (nothing responded to our probe, and there's
  * no other traffic).
  * Disable "quiet" feature by setting PLCP_QUIET_THRESH to 0. */
-#define IWL_ACTIVE_QUIET_TIME       __constant_cpu_to_le16(10)  /* msec */
-#define IWL_PLCP_QUIET_THRESH       __constant_cpu_to_le16(1)  /* packets */
+#define IWL_ACTIVE_QUIET_TIME       cpu_to_le16(10)  /* msec */
+#define IWL_PLCP_QUIET_THRESH       cpu_to_le16(1)  /* packets */
 
 
 /*******************************************************************************

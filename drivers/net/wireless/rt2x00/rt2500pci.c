@@ -1093,21 +1093,10 @@ static int rt2500pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 
 static void rt2500pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
-
+	/*
+	 * Disable power
+	 */
 	rt2x00pci_register_write(rt2x00dev, PWRCSR0, 0);
-
-	/*
-	 * Disable synchronisation.
-	 */
-	rt2x00pci_register_write(rt2x00dev, CSR14, 0);
-
-	/*
-	 * Cancel RX and TX.
-	 */
-	rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
-	rt2x00_set_field32(&reg, TXCSR0_ABORT, 1);
-	rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
 }
 
 static int rt2500pci_set_state(struct rt2x00_dev *rt2x00dev,
@@ -1301,6 +1290,20 @@ static void rt2500pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, TXCSR0_KICK_TX, (queue == QID_AC_BK));
 	rt2x00_set_field32(&reg, TXCSR0_KICK_ATIM, (queue == QID_ATIM));
 	rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
+}
+
+static void rt2500pci_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
+				    const enum data_queue_qid qid)
+{
+	u32 reg;
+
+	if (qid == QID_BEACON) {
+		rt2x00pci_register_write(rt2x00dev, CSR14, 0);
+	} else {
+		rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
+		rt2x00_set_field32(&reg, TXCSR0_ABORT, 1);
+		rt2x00pci_register_write(rt2x00dev, TXCSR0, reg);
+	}
 }
 
 /*
@@ -1905,6 +1908,7 @@ static const struct rt2x00lib_ops rt2500pci_rt2x00_ops = {
 	.write_tx_data		= rt2x00pci_write_tx_data,
 	.write_beacon		= rt2500pci_write_beacon,
 	.kick_tx_queue		= rt2500pci_kick_tx_queue,
+	.kill_tx_queue		= rt2500pci_kill_tx_queue,
 	.fill_rxdone		= rt2500pci_fill_rxdone,
 	.config_filter		= rt2500pci_config_filter,
 	.config_intf		= rt2500pci_config_intf,

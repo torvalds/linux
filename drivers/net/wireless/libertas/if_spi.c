@@ -42,6 +42,7 @@ struct if_spi_packet {
 struct if_spi_card {
 	struct spi_device		*spi;
 	struct lbs_private		*priv;
+	struct libertas_spi_platform_data *pdata;
 
 	char				helper_fw_name[FIRMWARE_NAME_MAX];
 	char				main_fw_name[FIRMWARE_NAME_MAX];
@@ -1022,6 +1023,17 @@ static int __devinit if_spi_probe(struct spi_device *spi)
 
 	lbs_deb_enter(LBS_DEB_SPI);
 
+	if (!pdata) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (pdata->setup) {
+		err = pdata->setup(spi);
+		if (err)
+			goto out;
+	}
+
 	/* Allocate card structure to represent this specific device */
 	card = kzalloc(sizeof(struct if_spi_card), GFP_KERNEL);
 	if (!card) {
@@ -1029,6 +1041,7 @@ static int __devinit if_spi_probe(struct spi_device *spi)
 		goto out;
 	}
 	spi_set_drvdata(spi, card);
+	card->pdata = pdata;
 	card->spi = spi;
 	card->gpio_cs = pdata->gpio_cs;
 	card->prev_xfer_time = jiffies;
@@ -1158,6 +1171,8 @@ static int __devexit libertas_spi_remove(struct spi_device *spi)
 	if_spi_terminate_spi_thread(card);
 	lbs_remove_card(priv); /* will call free_netdev */
 	gpio_free(card->gpio_cs);
+	if (card->pdata->teardown)
+		card->pdata->teardown(spi);
 	free_if_spi_card(card);
 	lbs_deb_leave(LBS_DEB_SPI);
 	return 0;

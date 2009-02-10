@@ -1,7 +1,7 @@
 /* orinoco_tmd.c
  *
  * Driver for Prism II devices which would usually be driven by orinoco_cs,
- * but are connected to the PCI bus by a TMD7160. 
+ * but are connected to the PCI bus by a TMD7160.
  *
  * Copyright (C) 2003 Joerg Dorchain <joerg AT dorchain.net>
  * based heavily upon orinoco_plx.c Copyright (C) 2001 Daniel Barlow

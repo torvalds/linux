@@ -125,11 +125,11 @@ static int iwl_generic_cmd_callback(struct iwl_priv *priv,
 	switch (cmd->hdr.cmd) {
 	case REPLY_TX_LINK_QUALITY_CMD:
 	case SENSITIVITY_CMD:
-		IWL_DEBUG_HC_DUMP("back from %s (0x%08X)\n",
+		IWL_DEBUG_HC_DUMP(priv, "back from %s (0x%08X)\n",
 				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 				break;
 	default:
-		IWL_DEBUG_HC("back from %s (0x%08X)\n",
+		IWL_DEBUG_HC(priv, "back from %s (0x%08X)\n",
 				get_cmd_string(cmd->hdr.cmd), pkt->hdr.flags);
 	}
 #endif
@@ -211,13 +211,13 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	}
 
 	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
-		IWL_DEBUG_INFO("Command %s aborted: RF KILL Switch\n",
+		IWL_DEBUG_INFO(priv, "Command %s aborted: RF KILL Switch\n",
 			       get_cmd_string(cmd->id));
 		ret = -ECANCELED;
 		goto fail;
 	}
 	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
-		IWL_DEBUG_INFO("Command %s failed: FW Error\n",
+		IWL_DEBUG_INFO(priv, "Command %s failed: FW Error\n",
 			       get_cmd_string(cmd->id));
 		ret = -EIO;
 		goto fail;
