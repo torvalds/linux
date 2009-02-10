@@ -125,6 +125,8 @@
 #define _PTEIDX_SECONDARY	0x8
 #define _PTEIDX_GROUP_IX	0x7
 
+/* To make some generic powerpc code happy */
+#define _PAGE_HWEXEC		0
 
 /*
  * POWER4 and newer have per page execute protection, older chips can only
@@ -285,6 +287,10 @@ static inline unsigned long pte_update(struct mm_struct *mm,
 	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY)
 	: "cc" );
 
+	/* huge pages use the old page table lock */
+	if (!huge)
+		assert_pte_locked(mm, addr);
+
 	if (old & _PAGE_HASHPTE)
 		hpte_need_flush(mm, addr, ptep, old, huge);
 	return old;
@@ -359,23 +365,11 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 	pte_update(mm, addr, ptep, ~0UL, 0);
 }
 
-/*
- * set_pte stores a linux PTE into the linux page table.
- */
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pte)
-{
-	if (pte_present(*ptep))
-		pte_clear(mm, addr, ptep);
-	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
-	*ptep = pte;
-}
 
 /* Set the dirty and/or accessed bits atomically in a linux PTE, this
  * function doesn't need to flush the hash entry
  */
-#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
-static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry, int dirty)
+static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 {
 	unsigned long bits = pte_val(entry) &
 		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
@@ -392,15 +386,6 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry, int dirty)
 	:"r" (bits), "r" (ptep), "m" (*ptep), "i" (_PAGE_BUSY)
 	:"cc");
 }
-#define  ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
-({									   \
-	int __changed = !pte_same(*(__ptep), __entry);			   \
-	if (__changed) {						   \
-		__ptep_set_access_flags(__ptep, __entry, __dirty);    	   \
-		flush_tlb_page_nohash(__vma, __address);		   \
-	}								   \
-	__changed;							   \
-})
 
 #define __HAVE_ARCH_PTE_SAME
 #define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HPTEFLAGS) == 0)

@@ -99,7 +99,7 @@ static inline void *kmap_atomic_prot(struct page *page, enum km_type type, pgpro
 #ifdef CONFIG_DEBUG_HIGHMEM
 	BUG_ON(!pte_none(*(kmap_pte-idx)));
 #endif
-	__set_pte_at(&init_mm, vaddr, kmap_pte-idx, mk_pte(page, prot));
+	__set_pte_at(&init_mm, vaddr, kmap_pte-idx, mk_pte(page, prot), 1);
 	local_flush_tlb_page(NULL, vaddr);
 
 	return (void*) vaddr;

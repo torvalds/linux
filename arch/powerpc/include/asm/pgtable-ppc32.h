@@ -429,6 +429,8 @@ extern int icache_44x_need_flush;
 #define PMD_PAGE_SIZE(pmd)	bad_call_to_PMD_PAGE_SIZE()
 #endif
 
+#define _PAGE_HPTEFLAGS _PAGE_HASHPTE
+
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 
 
@@ -667,44 +669,6 @@ static inline unsigned long long pte_update(pte_t *p,
 #endif /* CONFIG_PTE_64BIT */
 
 /*
- * set_pte stores a linux PTE into the linux page table.
- * On machines which use an MMU hash table we avoid changing the
- * _PAGE_HASHPTE bit.
- */
-
-static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pte)
-{
-#if (_PAGE_HASHPTE != 0) && defined(CONFIG_SMP) && !defined(CONFIG_PTE_64BIT)
-	pte_update(ptep, ~_PAGE_HASHPTE, pte_val(pte) & ~_PAGE_HASHPTE);
-#elif defined(CONFIG_PTE_64BIT) && defined(CONFIG_SMP)
-#if _PAGE_HASHPTE != 0
-	if (pte_val(*ptep) & _PAGE_HASHPTE)
-		flush_hash_entry(mm, ptep, addr);
-#endif
-	__asm__ __volatile__("\
-		stw%U0%X0 %2,%0\n\
-		eieio\n\
-		stw%U0%X0 %L2,%1"
-	: "=m" (*ptep), "=m" (*((unsigned char *)ptep+4))
-	: "r" (pte) : "memory");
-#else
-	*ptep = __pte((pte_val(*ptep) & _PAGE_HASHPTE)
-		      | (pte_val(pte) & ~_PAGE_HASHPTE));
-#endif
-}
-
-
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t pte)
-{
-#if defined(CONFIG_PTE_64BIT) && defined(CONFIG_SMP) && defined(CONFIG_DEBUG_VM)
-	WARN_ON(pte_present(*ptep));
-#endif
-	__set_pte_at(mm, addr, ptep, pte);
-}
-
-/*
  * 2.6 calls this without flushing the TLB entry; this is wrong
  * for our hash-based implementation, we fix that up here.
  */
@@ -744,23 +708,13 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
 }
 
 
-#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
-static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry, int dirty)
+static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 {
 	unsigned long bits = pte_val(entry) &
-		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW);
+		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW |
+		 _PAGE_HWEXEC | _PAGE_EXEC);
 	pte_update(ptep, 0, bits);
 }
-
-#define  ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
-({									   \
-	int __changed = !pte_same(*(__ptep), __entry);			   \
-	if (__changed) {						   \
-		__ptep_set_access_flags(__ptep, __entry, __dirty);         \
-		flush_tlb_page_nohash(__vma, __address);		   \
-	}								   \
-	__changed;							   \
-})
 
 #define __HAVE_ARCH_PTE_SAME
 #define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HASHPTE) == 0)
