@@ -793,10 +793,9 @@ static void zd_process_intr(struct work_struct *work)
 	struct zd_mac *mac = container_of(work, struct zd_mac, process_intr);
 
 	int_status = le16_to_cpu(*(__le16 *)(mac->intr_buffer+4));
-	if (int_status & INT_CFG_NEXT_BCN) {
-		if (net_ratelimit())
-			dev_dbg_f(zd_mac_dev(mac), "INT_CFG_NEXT_BCN\n");
-	} else
+	if (int_status & INT_CFG_NEXT_BCN)
+		dev_dbg_f_limit(zd_mac_dev(mac), "INT_CFG_NEXT_BCN\n");
+	else
 		dev_dbg_f(zd_mac_dev(mac), "Unsupported interrupt\n");
 
 	zd_chip_enable_hwint(&mac->chip);
