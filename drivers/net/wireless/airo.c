@@ -4727,7 +4727,7 @@ static int proc_stats_rid_open( struct inode *inode,
 	StatsRid stats;
 	int i, j;
 	__le32 *vals = stats.vals;
-	int len = le16_to_cpu(stats.len);
+	int len;
 
 	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
@@ -4738,6 +4738,7 @@ static int proc_stats_rid_open( struct inode *inode,
 	}
 
 	readStatsRid(apriv, &stats, rid, 1);
+	len = le16_to_cpu(stats.len);
 
         j = 0;
 	for(i=0; statsLabels[i]!=(char *)-1 && i*4<len; i++) {
