@@ -808,9 +808,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	bss_info_changed |= BSS_CHANGED_ASSOC;
 	ifsta->flags |= IEEE80211_STA_ASSOCIATED;
 
-	if (sdata->vif.type != NL80211_IFTYPE_STATION)
-		return;
-
 	bss = ieee80211_rx_bss_get(local, ifsta->bssid,
 				   conf->channel->center_freq,
 				   ifsta->ssid, ifsta->ssid_len);
@@ -1169,6 +1166,30 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 			    elems.challenge_len + 2, 1);
 }
 
+static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
+					struct ieee80211_if_sta *ifsta,
+					struct ieee80211_mgmt *mgmt,
+					size_t len)
+{
+	u16 auth_alg, auth_transaction, status_code;
+
+	if (len < 24 + 6)
+		return;
+
+	auth_alg = le16_to_cpu(mgmt->u.auth.auth_alg);
+	auth_transaction = le16_to_cpu(mgmt->u.auth.auth_transaction);
+	status_code = le16_to_cpu(mgmt->u.auth.status_code);
+
+	/*
+	 * IEEE 802.11 standard does not require authentication in IBSS
+	 * networks and most implementations do not seem to use it.
+	 * However, try to reply to authentication attempts if someone
+	 * has actually implemented this.
+	 */
+	if (auth_alg == WLAN_AUTH_OPEN && auth_transaction == 1)
+		ieee80211_send_auth(sdata, ifsta, 2, NULL, 0, 0);
+}
+
 static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 				   struct ieee80211_if_sta *ifsta,
 				   struct ieee80211_mgmt *mgmt,
@@ -1176,37 +1197,21 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 {
 	u16 auth_alg, auth_transaction, status_code;
 
-	if (ifsta->state != IEEE80211_STA_MLME_AUTHENTICATE &&
-	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
+	if (ifsta->state != IEEE80211_STA_MLME_AUTHENTICATE)
 		return;
 
 	if (len < 24 + 6)
 		return;
 
-	if (sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-	    memcmp(ifsta->bssid, mgmt->sa, ETH_ALEN) != 0)
+	if (memcmp(ifsta->bssid, mgmt->sa, ETH_ALEN) != 0)
 		return;
 
-	if (sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-	    memcmp(ifsta->bssid, mgmt->bssid, ETH_ALEN) != 0)
+	if (memcmp(ifsta->bssid, mgmt->bssid, ETH_ALEN) != 0)
 		return;
 
 	auth_alg = le16_to_cpu(mgmt->u.auth.auth_alg);
 	auth_transaction = le16_to_cpu(mgmt->u.auth.auth_transaction);
 	status_code = le16_to_cpu(mgmt->u.auth.status_code);
-
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		/*
-		 * IEEE 802.11 standard does not require authentication in IBSS
-		 * networks and most implementations do not seem to use it.
-		 * However, try to reply to authentication attempts if someone
-		 * has actually implemented this.
-		 */
-		if (auth_alg != WLAN_AUTH_OPEN || auth_transaction != 1)
-			return;
-		ieee80211_send_auth(sdata, ifsta, 2, NULL, 0, 0);
-		return;
-	}
 
 	if (auth_alg != ifsta->auth_alg ||
 	    auth_transaction != ifsta->auth_transaction)
@@ -1762,74 +1767,85 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	/* was just updated in ieee80211_bss_info_update */
 	beacon_timestamp = bss->cbss.tsf;
 
-	/*
-	 * In STA mode, the remaining parameters should not be overridden
-	 * by beacons because they're not necessarily accurate there.
-	 */
-	if (sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-	    bss->last_probe_resp && beacon) {
-		ieee80211_rx_bss_put(local, bss);
-		return;
-	}
+	if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
+		goto put_bss;
 
 	/* check if we need to merge IBSS */
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC && beacon &&
-	    (!(sdata->u.sta.flags & IEEE80211_STA_BSSID_SET)) &&
-	    bss->cbss.capability & WLAN_CAPABILITY_IBSS &&
-	    bss->cbss.channel == local->oper_channel &&
-	    elems->ssid_len == sdata->u.sta.ssid_len &&
+
+	/* merge only on beacons (???) */
+	if (!beacon)
+		goto put_bss;
+
+	/* we use a fixed BSSID */
+	if (sdata->u.sta.flags & IEEE80211_STA_BSSID_SET)
+		goto put_bss;
+
+	/* not an IBSS */
+	if (!(bss->cbss.capability & WLAN_CAPABILITY_IBSS))
+		goto put_bss;
+
+	/* different channel */
+	if (bss->cbss.channel != local->oper_channel)
+		goto put_bss;
+
+	/* different SSID */
+	if (elems->ssid_len != sdata->u.sta.ssid_len ||
 	    memcmp(elems->ssid, sdata->u.sta.ssid,
-				sdata->u.sta.ssid_len) == 0) {
-		if (rx_status->flag & RX_FLAG_TSFT) {
-			/* in order for correct IBSS merging we need mactime
-			 *
-			 * since mactime is defined as the time the first data
-			 * symbol of the frame hits the PHY, and the timestamp
-			 * of the beacon is defined as "the time that the data
-			 * symbol containing the first bit of the timestamp is
-			 * transmitted to the PHY plus the transmitting STA’s
-			 * delays through its local PHY from the MAC-PHY
-			 * interface to its interface with the WM"
-			 * (802.11 11.1.2) - equals the time this bit arrives at
-			 * the receiver - we have to take into account the
-			 * offset between the two.
-			 * e.g: at 1 MBit that means mactime is 192 usec earlier
-			 * (=24 bytes * 8 usecs/byte) than the beacon timestamp.
-			 */
-			int rate;
-			if (rx_status->flag & RX_FLAG_HT) {
-				rate = 65; /* TODO: HT rates */
-			} else {
-				rate = local->hw.wiphy->bands[band]->
-					bitrates[rx_status->rate_idx].bitrate;
-			}
-			rx_timestamp = rx_status->mactime + (24 * 8 * 10 / rate);
-		} else if (local && local->ops && local->ops->get_tsf)
-			/* second best option: get current TSF */
-			rx_timestamp = local->ops->get_tsf(local_to_hw(local));
+				sdata->u.sta.ssid_len))
+		goto put_bss;
+
+	if (rx_status->flag & RX_FLAG_TSFT) {
+		/*
+		 * For correct IBSS merging we need mactime; since mactime is
+		 * defined as the time the first data symbol of the frame hits
+		 * the PHY, and the timestamp of the beacon is defined as "the
+		 * time that the data symbol containing the first bit of the
+		 * timestamp is transmitted to the PHY plus the transmitting
+		 * STA's delays through its local PHY from the MAC-PHY
+		 * interface to its interface with the WM" (802.11 11.1.2)
+		 * - equals the time this bit arrives at the receiver - we have
+		 * to take into account the offset between the two.
+		 *
+		 * E.g. at 1 MBit that means mactime is 192 usec earlier
+		 * (=24 bytes * 8 usecs/byte) than the beacon timestamp.
+		 */
+		int rate;
+
+		if (rx_status->flag & RX_FLAG_HT)
+			rate = 65; /* TODO: HT rates */
 		else
-			/* can't merge without knowing the TSF */
-			rx_timestamp = -1LLU;
+			rate = local->hw.wiphy->bands[band]->
+				bitrates[rx_status->rate_idx].bitrate;
+
+		rx_timestamp = rx_status->mactime + (24 * 8 * 10 / rate);
+	} else if (local && local->ops && local->ops->get_tsf)
+		/* second best option: get current TSF */
+		rx_timestamp = local->ops->get_tsf(local_to_hw(local));
+	else
+		/* can't merge without knowing the TSF */
+		rx_timestamp = -1LLU;
+
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
-		printk(KERN_DEBUG "RX beacon SA=%pM BSSID="
-		       "%pM TSF=0x%llx BCN=0x%llx diff=%lld @%lu\n",
-		       mgmt->sa, mgmt->bssid,
-		       (unsigned long long)rx_timestamp,
-		       (unsigned long long)beacon_timestamp,
-		       (unsigned long long)(rx_timestamp - beacon_timestamp),
-		       jiffies);
-#endif /* CONFIG_MAC80211_IBSS_DEBUG */
-		if (beacon_timestamp > rx_timestamp) {
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-			printk(KERN_DEBUG "%s: beacon TSF higher than "
-			       "local TSF - IBSS merge with BSSID %pM\n",
-			       sdata->dev->name, mgmt->bssid);
+	printk(KERN_DEBUG "RX beacon SA=%pM BSSID="
+	       "%pM TSF=0x%llx BCN=0x%llx diff=%lld @%lu\n",
+	       mgmt->sa, mgmt->bssid,
+	       (unsigned long long)rx_timestamp,
+	       (unsigned long long)beacon_timestamp,
+	       (unsigned long long)(rx_timestamp - beacon_timestamp),
+	       jiffies);
 #endif
-			ieee80211_sta_join_ibss(sdata, &sdata->u.sta, bss);
-			ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, supp_rates);
-		}
+
+	if (beacon_timestamp > rx_timestamp) {
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
+		printk(KERN_DEBUG "%s: beacon TSF higher than "
+		       "local TSF - IBSS merge with BSSID %pM\n",
+		       sdata->dev->name, mgmt->bssid);
+#endif
+		ieee80211_sta_join_ibss(sdata, &sdata->u.sta, bss);
+		ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, supp_rates);
 	}
 
+ put_bss:
 	ieee80211_rx_bss_put(local, bss);
 }
 
@@ -1993,8 +2009,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *resp;
 	u8 *pos, *end;
 
-	if (sdata->vif.type != NL80211_IFTYPE_ADHOC ||
-	    ifsta->state != IEEE80211_STA_MLME_IBSS_JOINED ||
+	if (ifsta->state != IEEE80211_STA_MLME_IBSS_JOINED ||
 	    len < 24 + 2 || !ifsta->probe_resp)
 		return;
 
@@ -2098,31 +2113,54 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	mgmt = (struct ieee80211_mgmt *) skb->data;
 	fc = le16_to_cpu(mgmt->frame_control);
 
-	switch (fc & IEEE80211_FCTL_STYPE) {
-	case IEEE80211_STYPE_PROBE_REQ:
-		ieee80211_rx_mgmt_probe_req(sdata, ifsta, mgmt, skb->len);
-		break;
-	case IEEE80211_STYPE_PROBE_RESP:
-		ieee80211_rx_mgmt_probe_resp(sdata, mgmt, skb->len, rx_status);
-		break;
-	case IEEE80211_STYPE_BEACON:
-		ieee80211_rx_mgmt_beacon(sdata, mgmt, skb->len, rx_status);
-		break;
-	case IEEE80211_STYPE_AUTH:
-		ieee80211_rx_mgmt_auth(sdata, ifsta, mgmt, skb->len);
-		break;
-	case IEEE80211_STYPE_ASSOC_RESP:
-		ieee80211_rx_mgmt_assoc_resp(sdata, ifsta, mgmt, skb->len, 0);
-		break;
-	case IEEE80211_STYPE_REASSOC_RESP:
-		ieee80211_rx_mgmt_assoc_resp(sdata, ifsta, mgmt, skb->len, 1);
-		break;
-	case IEEE80211_STYPE_DEAUTH:
-		ieee80211_rx_mgmt_deauth(sdata, ifsta, mgmt, skb->len);
-		break;
-	case IEEE80211_STYPE_DISASSOC:
-		ieee80211_rx_mgmt_disassoc(sdata, ifsta, mgmt, skb->len);
-		break;
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+		switch (fc & IEEE80211_FCTL_STYPE) {
+		case IEEE80211_STYPE_PROBE_REQ:
+			ieee80211_rx_mgmt_probe_req(sdata, ifsta, mgmt,
+						    skb->len);
+			break;
+		case IEEE80211_STYPE_PROBE_RESP:
+			ieee80211_rx_mgmt_probe_resp(sdata, mgmt, skb->len,
+						     rx_status);
+			break;
+		case IEEE80211_STYPE_BEACON:
+			ieee80211_rx_mgmt_beacon(sdata, mgmt, skb->len,
+						 rx_status);
+			break;
+		case IEEE80211_STYPE_AUTH:
+			ieee80211_rx_mgmt_auth_ibss(sdata, ifsta, mgmt,
+						    skb->len);
+			break;
+		}
+	} else { /* NL80211_IFTYPE_STATION */
+		switch (fc & IEEE80211_FCTL_STYPE) {
+		case IEEE80211_STYPE_PROBE_RESP:
+			ieee80211_rx_mgmt_probe_resp(sdata, mgmt, skb->len,
+						     rx_status);
+			break;
+		case IEEE80211_STYPE_BEACON:
+			ieee80211_rx_mgmt_beacon(sdata, mgmt, skb->len,
+						 rx_status);
+			break;
+		case IEEE80211_STYPE_AUTH:
+			ieee80211_rx_mgmt_auth(sdata, ifsta, mgmt, skb->len);
+			break;
+		case IEEE80211_STYPE_ASSOC_RESP:
+			ieee80211_rx_mgmt_assoc_resp(sdata, ifsta, mgmt,
+						     skb->len, 0);
+			break;
+		case IEEE80211_STYPE_REASSOC_RESP:
+			ieee80211_rx_mgmt_assoc_resp(sdata, ifsta, mgmt,
+						     skb->len, 1);
+			break;
+		case IEEE80211_STYPE_DEAUTH:
+			ieee80211_rx_mgmt_deauth(sdata, ifsta, mgmt, skb->len);
+			break;
+		case IEEE80211_STYPE_DISASSOC:
+			ieee80211_rx_mgmt_disassoc(sdata, ifsta, mgmt,
+						   skb->len);
+			break;
+		}
 	}
 
 	kfree_skb(skb);
