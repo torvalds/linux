@@ -2666,7 +2666,6 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 			REG_WRITE(ah, INI_RA(&ah->iniPcieSerdes, i, 0),
 				  INI_RA(&ah->iniPcieSerdes, i, 1));
 		}
-		udelay(1000);
 	} else if (AR_SREV_9280(ah) &&
 		   (ah->hw_version.macRev == AR_SREV_REVISION_9280_10)) {
 		REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fd00);
@@ -2690,7 +2689,6 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 		/* Load the new settings */
 		REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
 
-		udelay(1000);
 	} else {
 		REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
 		REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
@@ -2713,6 +2711,8 @@ void ath9k_hw_configpcipowersave(struct ath_hw *ah, int restore)
 		/* Load the new settings */
 		REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
 	}
+
+	udelay(1000);
 
 	/* set bit 19 to allow forcing of pcie core into L1 state */
 	REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
