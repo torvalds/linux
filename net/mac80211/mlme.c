@@ -954,7 +954,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	netif_tx_stop_all_queues(sdata->dev);
 	netif_carrier_off(sdata->dev);
 
-	ieee80211_sta_tear_down_BA_sessions(sdata, sta->sta.addr);
+	ieee80211_sta_tear_down_BA_sessions(sta);
 
 	if (self_disconnected) {
 		if (deauth)

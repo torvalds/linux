@@ -153,15 +153,15 @@ u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	return changed;
 }
 
-void ieee80211_sta_tear_down_BA_sessions(struct ieee80211_sub_if_data *sdata, u8 *addr)
+void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta)
 {
-	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_local *local = sta->local;
 	int i;
 
 	for (i = 0; i <  STA_TID_NUM; i++) {
-		ieee80211_stop_tx_ba_session(&local->hw, addr, i,
+		ieee80211_stop_tx_ba_session(&local->hw, sta->sta.addr, i,
 					     WLAN_BACK_INITIATOR);
-		ieee80211_sta_stop_rx_ba_session(sdata, addr, i,
+		ieee80211_sta_stop_rx_ba_session(sta->sdata, sta->sta.addr, i,
 						 WLAN_BACK_RECIPIENT,
 						 WLAN_REASON_QSTA_LEAVE_QBSS);
 	}
