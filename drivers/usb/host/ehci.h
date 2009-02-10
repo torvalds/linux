@@ -342,6 +342,9 @@ struct ehci_qh {
 #define	QH_STATE_UNLINK_WAIT	4		/* LINKED and on reclaim q */
 #define	QH_STATE_COMPLETING	5		/* don't touch token.HALT */
 
+	u8			xacterrs;	/* XactErr retry counter */
+#define	QH_XACTERR_MAX		32		/* XactErr retry limit */
+
 	/* periodic schedule info */
 	u8			usecs;		/* intr bandwidth */
 	u8			gap_uf;		/* uframes split/csplit gap */
