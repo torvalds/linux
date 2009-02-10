@@ -37,7 +37,6 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/pgalloc.h>
-#include <xen/evtchn.h>
 #include <asm/hypervisor.h>
 #include <xen/blkif.h>
 #include <xen/grant_table.h>
