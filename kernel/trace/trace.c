@@ -80,7 +80,7 @@ static int dummy_set_flag(u32 old_flags, u32 bit, int set)
  * of the tracer is successful. But that is the only place that sets
  * this back to zero.
  */
-int tracing_disabled = 1;
+static int tracing_disabled = 1;
 
 static DEFINE_PER_CPU(local_t, ftrace_cpu_disabled);
 
@@ -626,7 +626,7 @@ static int cmdline_idx;
 static DEFINE_SPINLOCK(trace_cmdline_lock);
 
 /* temporary disable recording */
-atomic_t trace_record_cmdline_disabled __read_mostly;
+static atomic_t trace_record_cmdline_disabled __read_mostly;
 
 static void trace_init_cmdlines(void)
 {
@@ -983,10 +983,12 @@ static void ftrace_trace_userstack(struct trace_array *tr,
 #endif
 }
 
-void __trace_userstack(struct trace_array *tr, unsigned long flags)
+#ifdef UNUSED
+static void __trace_userstack(struct trace_array *tr, unsigned long flags)
 {
 	ftrace_trace_userstack(tr, flags, preempt_count());
 }
+#endif /* UNUSED */
 
 static void
 ftrace_trace_special(void *__tr,
@@ -1720,7 +1722,7 @@ int tracing_open_generic(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-int tracing_release(struct inode *inode, struct file *file)
+static int tracing_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = (struct seq_file *)file->private_data;
 	struct trace_iterator *iter = m->private;
