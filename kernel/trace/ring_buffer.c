@@ -91,7 +91,7 @@ EXPORT_SYMBOL_GPL(tracing_off);
  * tracing_off_permanent - permanently disable ring buffers
  *
  * This function, once called, will disable all ring buffers
- * permanenty.
+ * permanently.
  */
 void tracing_off_permanent(void)
 {
@@ -210,7 +210,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_event_data);
 
 struct buffer_data_page {
 	u64		 time_stamp;	/* page time stamp */
-	local_t		 commit;	/* write commited index */
+	local_t		 commit;	/* write committed index */
 	unsigned char	 data[];	/* data of buffer page */
 };
 
@@ -260,7 +260,7 @@ struct ring_buffer_per_cpu {
 	struct list_head		pages;
 	struct buffer_page		*head_page;	/* read from head */
 	struct buffer_page		*tail_page;	/* write to tail */
-	struct buffer_page		*commit_page;	/* commited pages */
+	struct buffer_page		*commit_page;	/* committed pages */
 	struct buffer_page		*reader_page;
 	unsigned long			overrun;
 	unsigned long			entries;
@@ -303,7 +303,7 @@ struct ring_buffer_iter {
  * check_pages - integrity check of buffer pages
  * @cpu_buffer: CPU buffer with pages to test
  *
- * As a safty measure we check to make sure the data pages have not
+ * As a safety measure we check to make sure the data pages have not
  * been corrupted.
  */
 static int rb_check_pages(struct ring_buffer_per_cpu *cpu_buffer)
