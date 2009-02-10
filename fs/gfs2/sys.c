@@ -36,6 +36,30 @@ static ssize_t fsname_show(struct gfs2_sbd *sdp, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%s\n", sdp->sd_fsname);
 }
 
+static int gfs2_uuid_valid(const u8 *uuid)
+{
+	int i;
+
+	for (i = 0; i < 16; i++) {
+		if (uuid[i])
+			return 1;
+	}
+	return 0;
+}
+
+static ssize_t uuid_show(struct gfs2_sbd *sdp, char *buf)
+{
+	const u8 *uuid = sdp->sd_sb.sb_uuid;
+	buf[0] = '\0';
+	if (!gfs2_uuid_valid(uuid))
+		return 0;
+	return snprintf(buf, PAGE_SIZE, "%02X%02X%02X%02X-%02X%02X-"
+			"%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X\n",
+			uuid[0], uuid[1], uuid[2], uuid[3], uuid[4], uuid[5],
+			uuid[6], uuid[7], uuid[8], uuid[9], uuid[10], uuid[11],
+			uuid[12], uuid[13], uuid[14], uuid[15]);
+}
+
 static ssize_t freeze_show(struct gfs2_sbd *sdp, char *buf)
 {
 	unsigned int count;
@@ -158,6 +182,7 @@ static struct gfs2_attr gfs2_attr_##name = __ATTR(name, mode, show, store)
 
 GFS2_ATTR(id,                  0444, id_show,       NULL);
 GFS2_ATTR(fsname,              0444, fsname_show,   NULL);
+GFS2_ATTR(uuid,                0444, uuid_show,     NULL);
 GFS2_ATTR(freeze,              0644, freeze_show,   freeze_store);
 GFS2_ATTR(withdraw,            0644, withdraw_show, withdraw_store);
 GFS2_ATTR(statfs_sync,         0200, NULL,          statfs_sync_store);
@@ -168,6 +193,7 @@ GFS2_ATTR(quota_refresh_group, 0200, NULL,          quota_refresh_group_store);
 static struct attribute *gfs2_attrs[] = {
 	&gfs2_attr_id.attr,
 	&gfs2_attr_fsname.attr,
+	&gfs2_attr_uuid.attr,
 	&gfs2_attr_freeze.attr,
 	&gfs2_attr_withdraw.attr,
 	&gfs2_attr_statfs_sync.attr,
@@ -598,12 +624,23 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	kobject_put(&sdp->sd_kobj);
 }
 
+
 static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
 		       struct kobj_uevent_env *env)
 {
 	struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
+	const u8 *uuid = sdp->sd_sb.sb_uuid;
+
 	add_uevent_var(env, "LOCKTABLE=%s", sdp->sd_table_name);
 	add_uevent_var(env, "LOCKPROTO=%s", sdp->sd_proto_name);
+	if (gfs2_uuid_valid(uuid)) {
+		add_uevent_var(env, "UUID=%02X%02X%02X%02X-%02X%02X-%02X%02X-"
+			       "%02X%02X-%02X%02X%02X%02X%02X%02X",
+			       uuid[0], uuid[1], uuid[2], uuid[3], uuid[4],
+			       uuid[5], uuid[6], uuid[7], uuid[8], uuid[9],
+			       uuid[10], uuid[11], uuid[12], uuid[13],
+			       uuid[14], uuid[15]);
+	}
 	return 0;
 }
 

@@ -470,6 +470,7 @@ struct gfs2_sb_host {
 
 	char sb_lockproto[GFS2_LOCKNAME_LEN];
 	char sb_locktable[GFS2_LOCKNAME_LEN];
+	u8 sb_uuid[16];
 };
 
 /*
