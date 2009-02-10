@@ -141,7 +141,7 @@ static void iwl_power_init_handle(struct iwl_priv *priv)
 	int size = sizeof(struct iwl_power_vec_entry) * IWL_POWER_MAX;
 	struct iwl_powertable_cmd *cmd;
 	int i;
-	u16 pci_pm;
+	u16 lctl;
 
 	IWL_DEBUG_POWER(priv, "Initialize power \n");
 
@@ -153,14 +153,14 @@ static void iwl_power_init_handle(struct iwl_priv *priv)
 	memcpy(&pow_data->pwr_range_1[0], &range_1[0], size);
 	memcpy(&pow_data->pwr_range_2[0], &range_2[0], size);
 
-	pci_read_config_word(priv->pci_dev, PCI_CFG_LINK_CTRL, &pci_pm);
+	lctl = iwl_pcie_link_ctl(priv);
 
 	IWL_DEBUG_POWER(priv, "adjust power command flags\n");
 
 	for (i = 0; i < IWL_POWER_MAX; i++) {
 		cmd = &pow_data->pwr_range_0[i].cmd;
 
-		if (pci_pm & PCI_CFG_LINK_CTRL_VAL_L0S_EN)
+		if (lctl & PCI_CFG_LINK_CTRL_VAL_L0S_EN)
 			cmd->flags &= ~IWL_POWER_PCI_PM_MSK;
 		else
 			cmd->flags |= IWL_POWER_PCI_PM_MSK;

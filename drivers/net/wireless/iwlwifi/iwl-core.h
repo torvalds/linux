@@ -410,6 +410,14 @@ int iwl_send_card_state(struct iwl_priv *priv, u32 flags,
  *****************************************************/
 void iwl_disable_interrupts(struct iwl_priv *priv);
 void iwl_enable_interrupts(struct iwl_priv *priv);
+static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
+{
+	int pos;
+	u16 pci_lnk_ctl;
+	pos = pci_find_capability(priv->pci_dev, PCI_CAP_ID_EXP);
+	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
+	return pci_lnk_ctl;
+}
 
 /*****************************************************
 *  Error Handling Debugging

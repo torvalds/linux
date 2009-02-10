@@ -381,27 +381,30 @@ out:
 static void iwl4965_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
-	u32 val;
+	u16 dctl;
 	u16 radio_cfg;
-	u16 link;
+	u16 lctl;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if ((priv->rev_id & 0x80) == 0x80 && (priv->rev_id & 0x7f) < 8) {
-		pci_read_config_dword(priv->pci_dev, PCI_REG_WUM8, &val);
+		int pos = pci_find_capability(priv->pci_dev, PCI_CAP_ID_EXP);
+		pci_read_config_word(priv->pci_dev, pos + PCI_EXP_DEVCTL, &dctl);
+
 		/* Enable No Snoop field */
-		pci_write_config_dword(priv->pci_dev, PCI_REG_WUM8,
-				       val & ~(1 << 11));
+		pci_write_config_word(priv->pci_dev, pos + PCI_EXP_DEVCTL,
+					dctl & ~PCI_EXP_DEVCTL_NOSNOOP_EN);
 	}
 
-	pci_read_config_word(priv->pci_dev, PCI_CFG_LINK_CTRL, &link);
+	lctl = iwl_pcie_link_ctl(priv);
 
-	/* L1 is enabled by BIOS */
-	if ((link & PCI_CFG_LINK_CTRL_VAL_L1_EN) == PCI_CFG_LINK_CTRL_VAL_L1_EN)
-		/* disable L0S disabled L1A enabled */
+	/* HW bug W/A - negligible power consumption */
+	/* L1-ASPM is enabled by BIOS */
+	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) == PCI_CFG_LINK_CTRL_VAL_L1_EN)
+		/* L1-ASPM enabled: disable L0S  */
 		iwl_set_bit(priv, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 	else
-		/* L0S enabled L1A disabled */
+		/* L1-ASPM disabled: enable L0S */
 		iwl_clear_bit(priv, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 
 	radio_cfg = iwl_eeprom_query16(priv, EEPROM_RADIO_CONFIG);
