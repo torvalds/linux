@@ -61,6 +61,7 @@
 static s32 e1000_get_phy_id_82571(struct e1000_hw *hw);
 static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw);
 static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw);
+static s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw);
 static s32 e1000_write_nvm_eewr_82571(struct e1000_hw *hw, u16 offset,
 				      u16 words, u16 *data);
 static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw);
@@ -250,7 +251,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	case e1000_media_type_internal_serdes:
 		func->setup_physical_interface =
 			e1000_setup_fiber_serdes_link_82571;
-		func->check_for_link = e1000e_check_for_serdes_link;
+		func->check_for_link = e1000_check_for_serdes_link_82571;
 		func->get_link_up_info =
 			e1000e_get_speed_and_duplex_fiber_serdes;
 		break;
@@ -830,6 +831,10 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 		hw->dev_spec.e82571.alt_mac_addr_is_present)
 			e1000e_set_laa_state_82571(hw, true);
 
+	/* Reinitialize the 82571 serdes link state machine */
+	if (hw->phy.media_type == e1000_media_type_internal_serdes)
+		hw->mac.serdes_link_state = e1000_serdes_link_down;
+
 	return 0;
 }
 
@@ -1212,6 +1217,131 @@ static s32 e1000_setup_fiber_serdes_link_82571(struct e1000_hw *hw)
 	}
 
 	return e1000e_setup_fiber_serdes_link(hw);
+}
+
+/**
+ *  e1000_check_for_serdes_link_82571 - Check for link (Serdes)
+ *  @hw: pointer to the HW structure
+ *
+ *  Checks for link up on the hardware.  If link is not up and we have
+ *  a signal, then we need to force link up.
+ **/
+s32 e1000_check_for_serdes_link_82571(struct e1000_hw *hw)
+{
+	struct e1000_mac_info *mac = &hw->mac;
+	u32 rxcw;
+	u32 ctrl;
+	u32 status;
+	s32 ret_val = 0;
+
+	ctrl = er32(CTRL);
+	status = er32(STATUS);
+	rxcw = er32(RXCW);
+
+	if ((rxcw & E1000_RXCW_SYNCH) && !(rxcw & E1000_RXCW_IV)) {
+
+		/* Receiver is synchronized with no invalid bits.  */
+		switch (mac->serdes_link_state) {
+		case e1000_serdes_link_autoneg_complete:
+			if (!(status & E1000_STATUS_LU)) {
+				/*
+				 * We have lost link, retry autoneg before
+				 * reporting link failure
+				 */
+				mac->serdes_link_state =
+				    e1000_serdes_link_autoneg_progress;
+				hw_dbg(hw, "AN_UP     -> AN_PROG\n");
+			}
+		break;
+
+		case e1000_serdes_link_forced_up:
+			/*
+			 * If we are receiving /C/ ordered sets, re-enable
+			 * auto-negotiation in the TXCW register and disable
+			 * forced link in the Device Control register in an
+			 * attempt to auto-negotiate with our link partner.
+			 */
+			if (rxcw & E1000_RXCW_C) {
+				/* Enable autoneg, and unforce link up */
+				ew32(TXCW, mac->txcw);
+				ew32(CTRL,
+				    (ctrl & ~E1000_CTRL_SLU));
+				mac->serdes_link_state =
+				    e1000_serdes_link_autoneg_progress;
+				hw_dbg(hw, "FORCED_UP -> AN_PROG\n");
+			}
+			break;
+
+		case e1000_serdes_link_autoneg_progress:
+			/*
+			 * If the LU bit is set in the STATUS register,
+			 * autoneg has completed sucessfully. If not,
+			 * try foring the link because the far end may be
+			 * available but not capable of autonegotiation.
+			 */
+			if (status & E1000_STATUS_LU)  {
+				mac->serdes_link_state =
+				    e1000_serdes_link_autoneg_complete;
+				hw_dbg(hw, "AN_PROG   -> AN_UP\n");
+			} else {
+				/*
+				 * Disable autoneg, force link up and
+				 * full duplex, and change state to forced
+				 */
+				ew32(TXCW,
+				    (mac->txcw & ~E1000_TXCW_ANE));
+				ctrl |= (E1000_CTRL_SLU | E1000_CTRL_FD);
+				ew32(CTRL, ctrl);
+
+				/* Configure Flow Control after link up. */
+				ret_val =
+				    e1000e_config_fc_after_link_up(hw);
+				if (ret_val) {
+					hw_dbg(hw, "Error config flow control\n");
+					break;
+				}
+				mac->serdes_link_state =
+				    e1000_serdes_link_forced_up;
+				hw_dbg(hw, "AN_PROG   -> FORCED_UP\n");
+			}
+			mac->serdes_has_link = true;
+			break;
+
+		case e1000_serdes_link_down:
+		default:
+			/* The link was down but the receiver has now gained
+			 * valid sync, so lets see if we can bring the link
+			 * up. */
+			ew32(TXCW, mac->txcw);
+			ew32(CTRL,
+			    (ctrl & ~E1000_CTRL_SLU));
+			mac->serdes_link_state =
+			    e1000_serdes_link_autoneg_progress;
+			hw_dbg(hw, "DOWN      -> AN_PROG\n");
+			break;
+		}
+	} else {
+		if (!(rxcw & E1000_RXCW_SYNCH)) {
+			mac->serdes_has_link = false;
+			mac->serdes_link_state = e1000_serdes_link_down;
+			hw_dbg(hw, "ANYSTATE  -> DOWN\n");
+		} else {
+			/*
+			 * We have sync, and can tolerate one
+			 * invalid (IV) codeword before declaring
+			 * link down, so reread to look again
+			 */
+			udelay(10);
+			rxcw = er32(RXCW);
+			if (rxcw & E1000_RXCW_IV) {
+				mac->serdes_link_state = e1000_serdes_link_down;
+				mac->serdes_has_link = false;
+				hw_dbg(hw, "ANYSTATE  -> DOWN\n");
+			}
+		}
+	}
+
+	return ret_val;
 }
 
 /**

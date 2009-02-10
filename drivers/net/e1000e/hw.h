@@ -459,6 +459,13 @@ enum e1000_smart_speed {
 	e1000_smart_speed_off
 };
 
+enum e1000_serdes_link_state {
+	e1000_serdes_link_down = 0,
+	e1000_serdes_link_autoneg_progress,
+	e1000_serdes_link_autoneg_complete,
+	e1000_serdes_link_forced_up
+};
+
 /* Receive Descriptor */
 struct e1000_rx_desc {
 	__le64 buffer_addr; /* Address of the descriptor's data buffer */
@@ -787,6 +794,7 @@ struct e1000_mac_info {
 	bool in_ifs_mode;
 	bool serdes_has_link;
 	bool tx_pkt_filtering;
+	enum e1000_serdes_link_state serdes_link_state;
 };
 
 struct e1000_phy_info {
