@@ -987,6 +987,9 @@ u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 			struct ieee80211_ht_info *hti,
 			u16 ap_ht_cap_flags);
 void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u16 ssn);
+void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
+			  const u8 *da, u16 tid,
+			  u16 initiator, u16 reason_code);
 
 void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,
 				u16 tid, u16 initiator, u16 reason);
