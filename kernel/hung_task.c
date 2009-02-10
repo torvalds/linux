@@ -72,7 +72,13 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 {
 	unsigned long switch_count = t->nvcsw + t->nivcsw;
 
-	if (t->flags & PF_FROZEN)
+	/*
+	 * Ensure the task is not frozen.
+	 * Also, when a freshly created task is scheduled once, changes
+	 * its state to TASK_UNINTERRUPTIBLE without having ever been
+	 * switched out once, it musn't be checked.
+	 */
+	if (unlikely(t->flags & PF_FROZEN || !switch_count))
 		return;
 
 	if (switch_count != t->last_switch_count) {
