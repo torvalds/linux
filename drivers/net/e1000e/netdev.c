@@ -1153,7 +1153,7 @@ static irqreturn_t e1000_intr_msi(int irq, void *data)
 	 * read ICR disables interrupts using IAM
 	 */
 
-	if (icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+	if (icr & E1000_ICR_LSC) {
 		hw->mac.get_link_status = 1;
 		/*
 		 * ICH8 workaround-- Call gig speed drop workaround on cable
@@ -1219,7 +1219,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 	 * IMC write
 	 */
 
-	if (icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
+	if (icr & E1000_ICR_LSC) {
 		hw->mac.get_link_status = 1;
 		/*
 		 * ICH8 workaround-- Call gig speed drop workaround on cable
