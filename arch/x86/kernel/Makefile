@@ -24,24 +24,6 @@ CFLAGS_vsyscall_64.o	:= $(PROFILING) -g0 $(nostackp)
 CFLAGS_hpet.o		:= $(nostackp)
 CFLAGS_tsc.o		:= $(nostackp)
 CFLAGS_paravirt.o	:= $(nostackp)
-#
-# On x86_32, register frame is passed verbatim on stack as struct
-# pt_regs.  gcc considers the parameter to belong to the callee and
-# with -fstack-protector it copies pt_regs to the callee's stack frame
-# to put the structure after the stack canary causing changes made by
-# the exception handlers to be lost.  Turn off stack protector for all
-# files containing functions which take struct pt_regs from register
-# frame.
-#
-# The proper way to fix this is to teach gcc that the argument belongs
-# to the caller for these functions, oh well...
-#
-ifdef CONFIG_X86_32
-CFLAGS_process_32.o	:= $(nostackp)
-CFLAGS_vm86_32.o	:= $(nostackp)
-CFLAGS_signal.o		:= $(nostackp)
-CFLAGS_traps.o		:= $(nostackp)
-endif
 
 obj-y			:= process_$(BITS).o signal.o entry_$(BITS).o
 obj-y			+= traps.o irq.o irq_$(BITS).o dumpstack_$(BITS).o
