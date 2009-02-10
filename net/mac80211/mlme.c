@@ -511,6 +511,39 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb(sdata, skb, ifsta->flags & IEEE80211_STA_MFP_ENABLED);
 }
 
+void ieee80211_send_pspoll(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+	struct ieee80211_pspoll *pspoll;
+	struct sk_buff *skb;
+	u16 fc;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*pspoll));
+	if (!skb) {
+		printk(KERN_DEBUG "%s: failed to allocate buffer for "
+		       "pspoll frame\n", sdata->dev->name);
+		return;
+	}
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	pspoll = (struct ieee80211_pspoll *) skb_put(skb, sizeof(*pspoll));
+	memset(pspoll, 0, sizeof(*pspoll));
+	fc = IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL | IEEE80211_FCTL_PM;
+	pspoll->frame_control = cpu_to_le16(fc);
+	pspoll->aid = cpu_to_le16(ifsta->aid);
+
+	/* aid in PS-Poll has its two MSBs each set to 1 */
+	pspoll->aid |= cpu_to_le16(1 << 15 | 1 << 14);
+
+	memcpy(pspoll->bssid, ifsta->bssid, ETH_ALEN);
+	memcpy(pspoll->ta, sdata->dev->dev_addr, ETH_ALEN);
+
+	ieee80211_tx_skb(sdata, skb, 0);
+
+	return;
+}
+
 /* MLME */
 static void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 					 struct ieee80211_bss *bss)
@@ -1868,9 +1901,24 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		directed_tim = ieee80211_check_tim(&elems, ifsta->aid);
 
 		if (directed_tim) {
-			local->hw.conf.flags &= ~IEEE80211_CONF_PS;
-			ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
-			ieee80211_send_nullfunc(local, sdata, 0);
+			if (local->hw.conf.dynamic_ps_timeout > 0) {
+				local->hw.conf.flags &= ~IEEE80211_CONF_PS;
+				ieee80211_hw_config(local,
+						    IEEE80211_CONF_CHANGE_PS);
+				ieee80211_send_nullfunc(local, sdata, 0);
+			} else {
+				local->pspolling = true;
+
+				/*
+				 * Here is assumed that the driver will be
+				 * able to send ps-poll frame and receive a
+				 * response even though power save mode is
+				 * enabled, but some drivers might require
+				 * to disable power save here. This needs
+				 * to be investigated.
+				 */
+				ieee80211_send_pspoll(local, sdata);
+			}
 		}
 	}
 

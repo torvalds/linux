@@ -731,6 +731,39 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	return result;
 }
 
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_check_more_data(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_local *local;
+	struct ieee80211_hdr *hdr;
+	struct sk_buff *skb;
+
+	local = rx->local;
+	skb = rx->skb;
+	hdr = (struct ieee80211_hdr *) skb->data;
+
+	if (!local->pspolling)
+		return RX_CONTINUE;
+
+	if (!ieee80211_has_fromds(hdr->frame_control))
+		/* this is not from AP */
+		return RX_CONTINUE;
+
+	if (!ieee80211_is_data(hdr->frame_control))
+		return RX_CONTINUE;
+
+	if (!ieee80211_has_moredata(hdr->frame_control)) {
+		/* AP has no more frames buffered for us */
+		local->pspolling = false;
+		return RX_CONTINUE;
+	}
+
+	/* more data bit is set, let's request a new frame from the AP */
+	ieee80211_send_pspoll(local, rx->sdata);
+
+	return RX_CONTINUE;
+}
+
 static void ap_sta_ps_start(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -1987,6 +2020,7 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_sub_if_data *sdata,
 	CALL_RXH(ieee80211_rx_h_passive_scan)
 	CALL_RXH(ieee80211_rx_h_check)
 	CALL_RXH(ieee80211_rx_h_decrypt)
+	CALL_RXH(ieee80211_rx_h_check_more_data)
 	CALL_RXH(ieee80211_rx_h_sta_process)
 	CALL_RXH(ieee80211_rx_h_defragment)
 	CALL_RXH(ieee80211_rx_h_ps_poll)
