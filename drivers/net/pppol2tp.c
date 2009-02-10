@@ -2647,7 +2647,7 @@ static __net_exit void pppol2tp_exit_net(struct net *net)
 	kfree(pn);
 }
 
-static __net_initdata struct pernet_operations pppol2tp_net_ops = {
+static struct pernet_operations pppol2tp_net_ops = {
 	.init = pppol2tp_init_net,
 	.exit = pppol2tp_exit_net,
 };

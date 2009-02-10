@@ -1175,7 +1175,7 @@ static __net_exit void pppoe_exit_net(struct net *net)
 	kfree(pn);
 }
 
-static __net_initdata struct pernet_operations pppoe_net_ops = {
+static struct pernet_operations pppoe_net_ops = {
 	.init = pppoe_init_net,
 	.exit = pppoe_exit_net,
 };

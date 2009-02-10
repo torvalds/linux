@@ -901,7 +901,7 @@ static __net_exit void ppp_exit_net(struct net *net)
 	kfree(pn);
 }
 
-static __net_initdata struct pernet_operations ppp_net_ops = {
+static struct pernet_operations ppp_net_ops = {
 	.init = ppp_init_net,
 	.exit = ppp_exit_net,
 };
