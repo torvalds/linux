@@ -532,10 +532,10 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	}
 
 	/* Check if we do have FAT channels */
-	if (priv->cfg->ops->lib->eeprom_ops.regulatory_bands[5] >=
-	    priv->cfg->eeprom_size &&
-	    priv->cfg->ops->lib->eeprom_ops.regulatory_bands[6] >=
-	    priv->cfg->eeprom_size)
+	if (priv->cfg->ops->lib->eeprom_ops.regulatory_bands[5] ==
+	    EEPROM_REGULATORY_BAND_NO_FAT &&
+	    priv->cfg->ops->lib->eeprom_ops.regulatory_bands[6] ==
+	    EEPROM_REGULATORY_BAND_NO_FAT)
 		return 0;
 
 	/* Two additional EEPROM bands for 2.4 and 5 GHz FAT channels */

@@ -370,6 +370,8 @@ struct iwl_eeprom_calib_info {
  */
 #define EEPROM_4965_REGULATORY_BAND_52_FAT_CHANNELS (2*0xA8)	/* 22 bytes */
 
+#define EEPROM_REGULATORY_BAND_NO_FAT			(0)
+
 struct iwl_eeprom_ops {
 	const u32 regulatory_bands[7];
 	int (*verify_signature) (struct iwl_priv *priv);
