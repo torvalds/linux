@@ -973,7 +973,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			ssb_dma_unmap_single(bp->sdev, mapping, len,
 					     DMA_TO_DEVICE);
 
-		bounce_skb = __dev_alloc_skb(len, GFP_ATOMIC | GFP_DMA);
+		bounce_skb = __netdev_alloc_skb(dev, len, GFP_ATOMIC | GFP_DMA);
 		if (!bounce_skb)
 			goto err_out;
 
