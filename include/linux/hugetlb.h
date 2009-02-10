@@ -159,9 +159,9 @@ static inline void set_file_hugepages(struct file *file)
 }
 #else /* !CONFIG_HUGETLBFS */
 
-#define is_file_hugepages(file)		0
-#define set_file_hugepages(file)	BUG()
-#define hugetlb_file_setup(name,size)	ERR_PTR(-ENOSYS)
+#define is_file_hugepages(file)			0
+#define set_file_hugepages(file)		BUG()
+#define hugetlb_file_setup(name,size,acctflag)	ERR_PTR(-ENOSYS)
 
 #endif /* !CONFIG_HUGETLBFS */
 
