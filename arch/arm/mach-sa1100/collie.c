@@ -86,6 +86,7 @@ static struct scoop_pcmcia_config collie_pcmcia_config = {
 static struct mcp_plat_data collie_mcp_data = {
 	.mccr0		= MCCR0_ADM | MCCR0_ExtClk,
 	.sclk_rate	= 9216000,
+	.gpio_base	= COLLIE_TC35143_GPIO_BASE,
 };
 
 #ifdef CONFIG_SHARP_LOCOMO
