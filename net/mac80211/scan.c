@@ -14,11 +14,7 @@
 
 /* TODO:
  * figure out how to avoid that the "current BSS" expires
- * clean up IBSS code (in MLME), see why it adds a BSS to the list
- * use cfg80211's BSS handling (depends on IBSS TODO above)
- * order BSS list by RSSI(?) ("quality of AP")
- * scan result table filtering (by capability (privacy, IBSS/BSS, WPA/RSN IE,
- *    SSID)
+ * use cfg80211's BSS handling
  */
 
 #include <linux/wireless.h>
@@ -107,7 +103,7 @@ static void __ieee80211_rx_bss_hash_del(struct ieee80211_local *local,
 	}
 }
 
-struct ieee80211_bss *
+static struct ieee80211_bss *
 ieee80211_rx_bss_add(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len)
 {
