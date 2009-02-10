@@ -12,10 +12,7 @@
  * published by the Free Software Foundation.
  */
 
-/* TODO:
- * figure out how to avoid that the "current BSS" expires
- * use cfg80211's BSS handling
- */
+/* TODO: figure out how to avoid that the "current BSS" expires */
 
 #include <linux/wireless.h>
 #include <linux/if_arp.h>
@@ -30,192 +27,29 @@
 #define IEEE80211_CHANNEL_TIME (HZ / 33)
 #define IEEE80211_PASSIVE_CHANNEL_TIME (HZ / 5)
 
-void ieee80211_rx_bss_list_init(struct ieee80211_local *local)
-{
-	spin_lock_init(&local->bss_lock);
-	INIT_LIST_HEAD(&local->bss_list);
-}
-
-void ieee80211_rx_bss_list_deinit(struct ieee80211_local *local)
-{
-	struct ieee80211_bss *bss, *tmp;
-
-	list_for_each_entry_safe(bss, tmp, &local->bss_list, list)
-		ieee80211_rx_bss_put(local, bss);
-}
-
 struct ieee80211_bss *
 ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len)
 {
-	struct ieee80211_bss *bss;
-
-	spin_lock_bh(&local->bss_lock);
-	bss = local->bss_hash[STA_HASH(bssid)];
-	while (bss) {
-		if (!bss_mesh_cfg(bss) &&
-		    !memcmp(bss->bssid, bssid, ETH_ALEN) &&
-		    bss->freq == freq &&
-		    bss->ssid_len == ssid_len &&
-		    (ssid_len == 0 || !memcmp(bss->ssid, ssid, ssid_len))) {
-			atomic_inc(&bss->users);
-			break;
-		}
-		bss = bss->hnext;
-	}
-	spin_unlock_bh(&local->bss_lock);
-	return bss;
+	return (void *)cfg80211_get_bss(local->hw.wiphy,
+					ieee80211_get_channel(local->hw.wiphy,
+							      freq),
+					bssid, ssid, ssid_len,
+					0, 0);
 }
 
-/* Caller must hold local->bss_lock */
-static void __ieee80211_rx_bss_hash_add(struct ieee80211_local *local,
-					struct ieee80211_bss *bss)
+static void ieee80211_rx_bss_free(struct cfg80211_bss *cbss)
 {
-	u8 hash_idx;
+	struct ieee80211_bss *bss = (void *)cbss;
 
-	if (bss_mesh_cfg(bss))
-		hash_idx = mesh_id_hash(bss_mesh_id(bss),
-					bss_mesh_id_len(bss));
-	else
-		hash_idx = STA_HASH(bss->bssid);
-
-	bss->hnext = local->bss_hash[hash_idx];
-	local->bss_hash[hash_idx] = bss;
-}
-
-/* Caller must hold local->bss_lock */
-static void __ieee80211_rx_bss_hash_del(struct ieee80211_local *local,
-					struct ieee80211_bss *bss)
-{
-	struct ieee80211_bss *b, *prev = NULL;
-	b = local->bss_hash[STA_HASH(bss->bssid)];
-	while (b) {
-		if (b == bss) {
-			if (!prev)
-				local->bss_hash[STA_HASH(bss->bssid)] =
-					bss->hnext;
-			else
-				prev->hnext = bss->hnext;
-			break;
-		}
-		prev = b;
-		b = b->hnext;
-	}
-}
-
-static struct ieee80211_bss *
-ieee80211_rx_bss_add(struct ieee80211_local *local, u8 *bssid, int freq,
-		     u8 *ssid, u8 ssid_len)
-{
-	struct ieee80211_bss *bss;
-
-	bss = kzalloc(sizeof(*bss), GFP_ATOMIC);
-	if (!bss)
-		return NULL;
-	atomic_set(&bss->users, 2);
-	memcpy(bss->bssid, bssid, ETH_ALEN);
-	bss->freq = freq;
-	if (ssid && ssid_len <= IEEE80211_MAX_SSID_LEN) {
-		memcpy(bss->ssid, ssid, ssid_len);
-		bss->ssid_len = ssid_len;
-	}
-
-	spin_lock_bh(&local->bss_lock);
-	/* TODO: order by RSSI? */
-	list_add_tail(&bss->list, &local->bss_list);
-	__ieee80211_rx_bss_hash_add(local, bss);
-	spin_unlock_bh(&local->bss_lock);
-	return bss;
-}
-
-#ifdef CONFIG_MAC80211_MESH
-static struct ieee80211_bss *
-ieee80211_rx_mesh_bss_get(struct ieee80211_local *local, u8 *mesh_id, int mesh_id_len,
-			  u8 *mesh_cfg, int freq)
-{
-	struct ieee80211_bss *bss;
-
-	spin_lock_bh(&local->bss_lock);
-	bss = local->bss_hash[mesh_id_hash(mesh_id, mesh_id_len)];
-	while (bss) {
-		if (bss_mesh_cfg(bss) &&
-		    !memcmp(bss_mesh_cfg(bss), mesh_cfg, MESH_CFG_CMP_LEN) &&
-		    bss->freq == freq &&
-		    mesh_id_len == bss->mesh_id_len &&
-		    (mesh_id_len == 0 || !memcmp(bss->mesh_id, mesh_id,
-						 mesh_id_len))) {
-			atomic_inc(&bss->users);
-			break;
-		}
-		bss = bss->hnext;
-	}
-	spin_unlock_bh(&local->bss_lock);
-	return bss;
-}
-
-static struct ieee80211_bss *
-ieee80211_rx_mesh_bss_add(struct ieee80211_local *local, u8 *mesh_id, int mesh_id_len,
-			  u8 *mesh_cfg, int mesh_config_len, int freq)
-{
-	struct ieee80211_bss *bss;
-
-	if (mesh_config_len != IEEE80211_MESH_CONFIG_LEN)
-		return NULL;
-
-	bss = kzalloc(sizeof(*bss), GFP_ATOMIC);
-	if (!bss)
-		return NULL;
-
-	bss->mesh_cfg = kmalloc(MESH_CFG_CMP_LEN, GFP_ATOMIC);
-	if (!bss->mesh_cfg) {
-		kfree(bss);
-		return NULL;
-	}
-
-	if (mesh_id_len && mesh_id_len <= IEEE80211_MAX_MESH_ID_LEN) {
-		bss->mesh_id = kmalloc(mesh_id_len, GFP_ATOMIC);
-		if (!bss->mesh_id) {
-			kfree(bss->mesh_cfg);
-			kfree(bss);
-			return NULL;
-		}
-		memcpy(bss->mesh_id, mesh_id, mesh_id_len);
-	}
-
-	atomic_set(&bss->users, 2);
-	memcpy(bss->mesh_cfg, mesh_cfg, MESH_CFG_CMP_LEN);
-	bss->mesh_id_len = mesh_id_len;
-	bss->freq = freq;
-	spin_lock_bh(&local->bss_lock);
-	/* TODO: order by RSSI? */
-	list_add_tail(&bss->list, &local->bss_list);
-	__ieee80211_rx_bss_hash_add(local, bss);
-	spin_unlock_bh(&local->bss_lock);
-	return bss;
-}
-#endif
-
-static void ieee80211_rx_bss_free(struct ieee80211_bss *bss)
-{
-	kfree(bss->ies);
 	kfree(bss_mesh_id(bss));
 	kfree(bss_mesh_cfg(bss));
-	kfree(bss);
 }
 
 void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_bss *bss)
 {
-	local_bh_disable();
-	if (!atomic_dec_and_lock(&bss->users, &local->bss_lock)) {
-		local_bh_enable();
-		return;
-	}
-
-	__ieee80211_rx_bss_hash_del(local, bss);
-	list_del(&bss->list);
-	spin_unlock_bh(&local->bss_lock);
-	ieee80211_rx_bss_free(bss);
+	cfg80211_put_bss((struct cfg80211_bss *)bss);
 }
 
 struct ieee80211_bss *
@@ -228,7 +62,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			  bool beacon)
 {
 	struct ieee80211_bss *bss;
-	int clen, freq = channel->center_freq;
+	int clen;
 	enum cfg80211_signal_type sigtype = CFG80211_SIGNAL_TYPE_NONE;
 	s32 signal = 0;
 
@@ -240,48 +74,20 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		signal = (rx_status->signal * 100) / local->hw.max_signal;
 	}
 
-	cfg80211_put_bss(
-		cfg80211_inform_bss_frame(local->hw.wiphy, channel,
-					  mgmt, len, signal, sigtype,
-					  GFP_ATOMIC));
+	bss = (void *)cfg80211_inform_bss_frame(local->hw.wiphy, channel,
+						mgmt, len, signal, sigtype,
+						GFP_ATOMIC);
 
-#ifdef CONFIG_MAC80211_MESH
-	if (elems->mesh_config)
-		bss = ieee80211_rx_mesh_bss_get(local, elems->mesh_id,
-				elems->mesh_id_len, elems->mesh_config, freq);
-	else
-#endif
-		bss = ieee80211_rx_bss_get(local, mgmt->bssid, freq,
-					   elems->ssid, elems->ssid_len);
-	if (!bss) {
-#ifdef CONFIG_MAC80211_MESH
-		if (elems->mesh_config)
-			bss = ieee80211_rx_mesh_bss_add(local, elems->mesh_id,
-				elems->mesh_id_len, elems->mesh_config,
-				elems->mesh_config_len, freq);
-		else
-#endif
-			bss = ieee80211_rx_bss_add(local, mgmt->bssid, freq,
-						  elems->ssid, elems->ssid_len);
-		if (!bss)
-			return NULL;
-	} else {
-#if 0
-		/* TODO: order by RSSI? */
-		spin_lock_bh(&local->bss_lock);
-		list_move_tail(&bss->list, &local->bss_list);
-		spin_unlock_bh(&local->bss_lock);
-#endif
-	}
+	if (!bss)
+		return NULL;
+
+	bss->cbss.free_priv = ieee80211_rx_bss_free;
 
 	/* save the ERP value so that it is available at association time */
 	if (elems->erp_info && elems->erp_info_len >= 1) {
 		bss->erp_value = elems->erp_info[0];
 		bss->has_erp_value = 1;
 	}
-
-	bss->beacon_int = le16_to_cpu(mgmt->u.beacon.beacon_int);
-	bss->capability = le16_to_cpu(mgmt->u.beacon.capab_info);
 
 	if (elems->tim) {
 		struct ieee80211_tim_ie *tim_ie =
@@ -311,33 +117,10 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 		bss->supp_rates_len += clen;
 	}
 
-	bss->band = rx_status->band;
-
-	bss->timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
-	bss->last_update = jiffies;
-	bss->signal = rx_status->signal;
-	bss->noise = rx_status->noise;
-	bss->qual = rx_status->qual;
 	bss->wmm_used = elems->wmm_param || elems->wmm_info;
 
 	if (!beacon)
 		bss->last_probe_resp = jiffies;
-
-	/*
-	 * For probe responses, or if we don't have any information yet,
-	 * use the IEs from the beacon.
-	 */
-	if (!bss->ies || !beacon) {
-		if (bss->ies == NULL || bss->ies_len < elems->total_len) {
-			kfree(bss->ies);
-			bss->ies = kmalloc(elems->total_len, GFP_ATOMIC);
-		}
-		if (bss->ies) {
-			memcpy(bss->ies, elems->ie_start, elems->total_len);
-			bss->ies_len = elems->total_len;
-		} else
-			bss->ies_len = 0;
-	}
 
 	return bss;
 }
@@ -350,7 +133,7 @@ void ieee80211_rx_bss_remove(struct ieee80211_sub_if_data *sdata, u8 *bssid,
 
 	bss = ieee80211_rx_bss_get(local, bssid, freq, ssid, ssid_len);
 	if (bss) {
-		atomic_dec(&bss->users);
+		cfg80211_unlink_bss(local->hw.wiphy, (void *)bss);
 		ieee80211_rx_bss_put(local, bss);
 	}
 }

@@ -55,10 +55,10 @@ static u8 *ieee80211_bss_get_ie(struct ieee80211_bss *bss, u8 ie)
 {
 	u8 *end, *pos;
 
-	pos = bss->ies;
+	pos = bss->cbss.information_elements;
 	if (pos == NULL)
 		return NULL;
-	end = pos + bss->ies_len;
+	end = pos + bss->cbss.len_information_elements;
 
 	while (pos + 1 < end) {
 		if (pos + 2 + pos[1] > end)
@@ -289,7 +289,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 				   local->hw.conf.channel->center_freq,
 				   ifsta->ssid, ifsta->ssid_len);
 	if (bss) {
-		if (bss->capability & WLAN_CAPABILITY_PRIVACY)
+		if (bss->cbss.capability & WLAN_CAPABILITY_PRIVACY)
 			capab |= WLAN_CAPABILITY_PRIVACY;
 		if (bss->wmm_used)
 			wmm = 1;
@@ -300,7 +300,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		 * b-only mode) */
 		rates_len = ieee80211_compatible_rates(bss, sband, &rates);
 
-		if ((bss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT) &&
+		if ((bss->cbss.capability & WLAN_CAPABILITY_SPECTRUM_MGMT) &&
 		    (local->hw.flags & IEEE80211_HW_SPECTRUM_MGMT))
 			capab |= WLAN_CAPABILITY_SPECTRUM_MGMT;
 
@@ -816,12 +816,12 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 				   ifsta->ssid, ifsta->ssid_len);
 	if (bss) {
 		/* set timing information */
-		sdata->vif.bss_conf.beacon_int = bss->beacon_int;
-		sdata->vif.bss_conf.timestamp = bss->timestamp;
+		sdata->vif.bss_conf.beacon_int = bss->cbss.beacon_interval;
+		sdata->vif.bss_conf.timestamp = bss->cbss.tsf;
 		sdata->vif.bss_conf.dtim_period = bss->dtim_period;
 
 		bss_info_changed |= ieee80211_handle_bss_capability(sdata,
-			bss->capability, bss->has_erp_value, bss->erp_value);
+			bss->cbss.capability, bss->has_erp_value, bss->erp_value);
 
 		ieee80211_rx_bss_put(local, bss);
 	}
@@ -1041,7 +1041,7 @@ static int ieee80211_privacy_mismatch(struct ieee80211_sub_if_data *sdata,
 	if (!bss)
 		return 0;
 
-	bss_privacy = !!(bss->capability & WLAN_CAPABILITY_PRIVACY);
+	bss_privacy = !!(bss->cbss.capability & WLAN_CAPABILITY_PRIVACY);
 	wep_privacy = !!ieee80211_sta_wep_configured(sdata);
 	privacy_invoked = !!(ifsta->flags & IEEE80211_STA_PRIVACY_INVOKED);
 
@@ -1416,8 +1416,6 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	/* Add STA entry for the AP */
 	sta = sta_info_get(local, ifsta->bssid);
 	if (!sta) {
-		struct ieee80211_bss *bss;
-
 		newsta = true;
 
 		sta = sta_info_alloc(sdata, ifsta->bssid, GFP_ATOMIC);
@@ -1426,15 +1424,6 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 			       " the AP\n", sdata->dev->name);
 			rcu_read_unlock();
 			return;
-		}
-		bss = ieee80211_rx_bss_get(local, ifsta->bssid,
-					   local->hw.conf.channel->center_freq,
-					   ifsta->ssid, ifsta->ssid_len);
-		if (bss) {
-			sta->last_signal = bss->signal;
-			sta->last_qual = bss->qual;
-			sta->last_noise = bss->noise;
-			ieee80211_rx_bss_put(local, bss);
 		}
 
 		/* update new sta with its last rx activity */
@@ -1691,10 +1680,11 @@ static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				   struct ieee80211_bss *bss)
 {
 	return __ieee80211_sta_join_ibss(sdata, ifsta,
-					 bss->bssid, bss->beacon_int,
-					 bss->freq,
+					 bss->cbss.bssid,
+					 bss->cbss.beacon_interval,
+					 bss->cbss.channel->center_freq,
 					 bss->supp_rates_len, bss->supp_rates,
-					 bss->capability);
+					 bss->cbss.capability);
 }
 
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
@@ -1769,7 +1759,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* was just updated in ieee80211_bss_info_update */
-	beacon_timestamp = bss->timestamp;
+	beacon_timestamp = bss->cbss.tsf;
 
 	/*
 	 * In STA mode, the remaining parameters should not be overridden
@@ -1784,8 +1774,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	/* check if we need to merge IBSS */
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC && beacon &&
 	    (!(sdata->u.sta.flags & IEEE80211_STA_BSSID_SET)) &&
-	    bss->capability & WLAN_CAPABILITY_IBSS &&
-	    bss->freq == local->oper_channel->center_freq &&
+	    bss->cbss.capability & WLAN_CAPABILITY_IBSS &&
+	    bss->cbss.channel == local->oper_channel &&
 	    elems->ssid_len == sdata->u.sta.ssid_len &&
 	    memcmp(elems->ssid, sdata->u.sta.ssid,
 				sdata->u.sta.ssid_len) == 0) {
@@ -2230,37 +2220,6 @@ static void ieee80211_sta_reset_auth(struct ieee80211_sub_if_data *sdata,
 	netif_carrier_off(sdata->dev);
 }
 
-
-static int ieee80211_sta_match_ssid(struct ieee80211_if_sta *ifsta,
-				    const char *ssid, int ssid_len)
-{
-	int tmp, hidden_ssid;
-
-	if (ssid_len == ifsta->ssid_len &&
-	    !memcmp(ifsta->ssid, ssid, ssid_len))
-		return 1;
-
-	if (ifsta->flags & IEEE80211_STA_AUTO_BSSID_SEL)
-		return 0;
-
-	hidden_ssid = 1;
-	tmp = ssid_len;
-	while (tmp--) {
-		if (ssid[tmp] != '\0') {
-			hidden_ssid = 0;
-			break;
-		}
-	}
-
-	if (hidden_ssid && (ifsta->ssid_len == ssid_len || ssid_len == 0))
-		return 1;
-
-	if (ssid_len == 1 && ssid[0] == ' ')
-		return 1;
-
-	return 0;
-}
-
 static int ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_if_sta *ifsta)
 {
@@ -2319,8 +2278,6 @@ static int ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_bss *bss;
-	int found = 0;
-	u8 bssid[ETH_ALEN];
 	int active_ibss;
 
 	if (ifsta->ssid_len == 0)
@@ -2331,56 +2288,39 @@ static int ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: sta_find_ibss (active_ibss=%d)\n",
 	       sdata->dev->name, active_ibss);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
-	spin_lock_bh(&local->bss_lock);
-	list_for_each_entry(bss, &local->bss_list, list) {
-		if (ifsta->ssid_len != bss->ssid_len ||
-		    memcmp(ifsta->ssid, bss->ssid, bss->ssid_len) != 0
-		    || !(bss->capability & WLAN_CAPABILITY_IBSS))
-			continue;
-		if ((ifsta->flags & IEEE80211_STA_BSSID_SET) &&
-		    memcmp(ifsta->bssid, bss->bssid, ETH_ALEN) != 0)
-			continue;
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-		printk(KERN_DEBUG "   bssid=%pM found\n", bss->bssid);
-#endif /* CONFIG_MAC80211_IBSS_DEBUG */
-		memcpy(bssid, bss->bssid, ETH_ALEN);
-		found = 1;
-		if (active_ibss || memcmp(bssid, ifsta->bssid, ETH_ALEN) != 0)
-			break;
-	}
-	spin_unlock_bh(&local->bss_lock);
 
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-	if (found)
-		printk(KERN_DEBUG "   sta_find_ibss: selected %pM current "
-		       "%pM\n", bssid, ifsta->bssid);
-#endif /* CONFIG_MAC80211_IBSS_DEBUG */
+	if (active_ibss)
+		return 0;
 
-	if (found &&
-	    ((!(ifsta->flags & IEEE80211_STA_PREV_BSSID_SET)) ||
-	     memcmp(ifsta->bssid, bssid, ETH_ALEN) != 0)) {
-		int ret;
-		int search_freq;
-
-		if (ifsta->flags & IEEE80211_STA_AUTO_CHANNEL_SEL)
-			search_freq = bss->freq;
-		else
-			search_freq = local->hw.conf.channel->center_freq;
-
-		bss = ieee80211_rx_bss_get(local, bssid, search_freq,
+	if (ifsta->flags & IEEE80211_STA_BSSID_SET)
+		bss = ieee80211_rx_bss_get(local, ifsta->bssid, 0,
 					   ifsta->ssid, ifsta->ssid_len);
-		if (!bss)
-			goto dont_join;
+	else
+		bss = (void *)cfg80211_get_ibss(local->hw.wiphy,
+						NULL,
+						ifsta->ssid, ifsta->ssid_len);
+
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
+	if (bss)
+		printk(KERN_DEBUG "   sta_find_ibss: selected %pM current "
+		       "%pM\n", bss->cbss.bssid, ifsta->bssid);
+#endif /* CONFIG_MAC80211_IBSS_DEBUG */
+
+	if (bss &&
+	    (!(ifsta->flags & IEEE80211_STA_PREV_BSSID_SET) ||
+	     memcmp(ifsta->bssid, bss->cbss.bssid, ETH_ALEN))) {
+		int ret;
 
 		printk(KERN_DEBUG "%s: Selected IBSS BSSID %pM"
 		       " based on configured SSID\n",
-		       sdata->dev->name, bssid);
+		       sdata->dev->name, bss->cbss.bssid);
+
 		ret = ieee80211_sta_join_ibss(sdata, ifsta, bss);
 		ieee80211_rx_bss_put(local, bss);
 		return ret;
-	}
+	} else if (bss)
+		ieee80211_rx_bss_put(local, bss);
 
-dont_join:
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "   did not try to join ibss\n");
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
@@ -2436,51 +2376,44 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_if_sta *ifsta)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_bss *bss, *selected = NULL;
-	int top_rssi = 0, freq;
+	struct ieee80211_bss *bss;
+	u8 *bssid = ifsta->bssid, *ssid = ifsta->ssid;
+	u8 ssid_len = ifsta->ssid_len;
+	u16 capa_mask = WLAN_CAPABILITY_ESS;
+	u16 capa_val = WLAN_CAPABILITY_ESS;
+	struct ieee80211_channel *chan = local->oper_channel;
 
-	spin_lock_bh(&local->bss_lock);
-	freq = local->oper_channel->center_freq;
-	list_for_each_entry(bss, &local->bss_list, list) {
-		if (!(bss->capability & WLAN_CAPABILITY_ESS))
-			continue;
-
-		if ((ifsta->flags & (IEEE80211_STA_AUTO_SSID_SEL |
-			IEEE80211_STA_AUTO_BSSID_SEL |
-			IEEE80211_STA_AUTO_CHANNEL_SEL)) &&
-		    (!!(bss->capability & WLAN_CAPABILITY_PRIVACY) ^
-		     !!sdata->default_key))
-			continue;
-
-		if (!(ifsta->flags & IEEE80211_STA_AUTO_CHANNEL_SEL) &&
-		    bss->freq != freq)
-			continue;
-
-		if (!(ifsta->flags & IEEE80211_STA_AUTO_BSSID_SEL) &&
-		    memcmp(bss->bssid, ifsta->bssid, ETH_ALEN))
-			continue;
-
-		if (!(ifsta->flags & IEEE80211_STA_AUTO_SSID_SEL) &&
-		    !ieee80211_sta_match_ssid(ifsta, bss->ssid, bss->ssid_len))
-			continue;
-
-		if (!selected || top_rssi < bss->signal) {
-			selected = bss;
-			top_rssi = bss->signal;
-		}
+	if (ifsta->flags & (IEEE80211_STA_AUTO_SSID_SEL |
+			    IEEE80211_STA_AUTO_BSSID_SEL |
+			    IEEE80211_STA_AUTO_CHANNEL_SEL)) {
+		capa_mask |= WLAN_CAPABILITY_PRIVACY;
+		if (sdata->default_key)
+			capa_val |= WLAN_CAPABILITY_PRIVACY;
 	}
-	if (selected)
-		atomic_inc(&selected->users);
-	spin_unlock_bh(&local->bss_lock);
 
-	if (selected) {
-		ieee80211_set_freq(sdata, selected->freq);
+	if (ifsta->flags & IEEE80211_STA_AUTO_CHANNEL_SEL)
+		chan = NULL;
+
+	if (ifsta->flags & IEEE80211_STA_AUTO_BSSID_SEL)
+		bssid = NULL;
+
+	if (ifsta->flags & IEEE80211_STA_AUTO_SSID_SEL) {
+		ssid = NULL;
+		ssid_len = 0;
+	}
+
+	bss = (void *)cfg80211_get_bss(local->hw.wiphy, chan,
+				       bssid, ssid, ssid_len,
+				       capa_mask, capa_val);
+
+	if (bss) {
+		ieee80211_set_freq(sdata, bss->cbss.channel->center_freq);
 		if (!(ifsta->flags & IEEE80211_STA_SSID_SET))
-			ieee80211_sta_set_ssid(sdata, selected->ssid,
-					       selected->ssid_len);
-		ieee80211_sta_set_bssid(sdata, selected->bssid);
-		ieee80211_sta_def_wmm_params(sdata, selected->supp_rates_len,
-						    selected->supp_rates);
+			ieee80211_sta_set_ssid(sdata, bss->ssid,
+					       bss->ssid_len);
+		ieee80211_sta_set_bssid(sdata, bss->cbss.bssid);
+		ieee80211_sta_def_wmm_params(sdata, bss->supp_rates_len,
+						    bss->supp_rates);
 		if (sdata->u.sta.mfp == IEEE80211_MFP_REQUIRED)
 			sdata->u.sta.flags |= IEEE80211_STA_MFP_ENABLED;
 		else
@@ -2489,14 +2422,14 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata,
 		/* Send out direct probe if no probe resp was received or
 		 * the one we have is outdated
 		 */
-		if (!selected->last_probe_resp ||
-		    time_after(jiffies, selected->last_probe_resp
+		if (!bss->last_probe_resp ||
+		    time_after(jiffies, bss->last_probe_resp
 					+ IEEE80211_SCAN_RESULT_EXPIRE))
 			ifsta->state = IEEE80211_STA_MLME_DIRECT_PROBE;
 		else
 			ifsta->state = IEEE80211_STA_MLME_AUTHENTICATE;
 
-		ieee80211_rx_bss_put(local, selected);
+		ieee80211_rx_bss_put(local, bss);
 		ieee80211_sta_reset_auth(sdata, ifsta);
 		return 0;
 	} else {

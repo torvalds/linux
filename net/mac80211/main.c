@@ -734,6 +734,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	wiphy->privid = mac80211_wiphy_privid;
 	wiphy->max_scan_ssids = 4;
+	/* Yes, putting cfg80211_bss into ieee80211_bss is a hack */
+	wiphy->bss_priv_size = sizeof(struct ieee80211_bss) -
+			       sizeof(struct cfg80211_bss);
 
 	local = wiphy_priv(wiphy);
 	local->hw.wiphy = wiphy;
@@ -877,8 +880,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	mpriv->local = local;
 	local->mdev = mdev;
 
-	ieee80211_rx_bss_list_init(local);
-
 	local->hw.workqueue =
 		create_singlethread_workqueue(wiphy_name(local->hw.wiphy));
 	if (!local->hw.workqueue) {
@@ -1018,7 +1019,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	rtnl_unlock();
 
-	ieee80211_rx_bss_list_deinit(local);
 	ieee80211_clear_tx_pending(local);
 	sta_info_stop(local);
 	rate_control_deinitialize(local);

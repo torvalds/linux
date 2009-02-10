@@ -275,16 +275,6 @@ u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata, struct mesh_t
 		& tbl->hash_mask;
 }
 
-u8 mesh_id_hash(u8 *mesh_id, int mesh_id_len)
-{
-	if (!mesh_id_len)
-		return 1;
-	else if (mesh_id_len == 1)
-		return (u8) mesh_id[0];
-	else
-		return (u8) (mesh_id[0] + 2 * mesh_id[1]);
-}
-
 struct mesh_table *mesh_table_alloc(int size_order)
 {
 	int i;
