@@ -79,6 +79,40 @@ static int irq_in_use(unsigned int irq)
 	return rc;
 }
 
+/**
+ * eeh_disable_irq - disable interrupt for the recovering device
+ */
+static void eeh_disable_irq(struct pci_dev *dev)
+{
+	struct device_node *dn = pci_device_to_OF_node(dev);
+
+	/* Don't disable MSI and MSI-X interrupts. They are
+	 * effectively disabled by the DMA Stopped state
+	 * when an EEH error occurs.
+	*/
+	if (dev->msi_enabled || dev->msix_enabled)
+		return;
+
+	if (!irq_in_use(dev->irq))
+		return;
+
+	PCI_DN(dn)->eeh_mode |= EEH_MODE_IRQ_DISABLED;
+	disable_irq_nosync(dev->irq);
+}
+
+/**
+ * eeh_enable_irq - enable interrupt for the recovering device
+ */
+static void eeh_enable_irq(struct pci_dev *dev)
+{
+	struct device_node *dn = pci_device_to_OF_node(dev);
+
+	if ((PCI_DN(dn)->eeh_mode) & EEH_MODE_IRQ_DISABLED) {
+		PCI_DN(dn)->eeh_mode &= ~EEH_MODE_IRQ_DISABLED;
+		enable_irq(dev->irq);
+	}
+}
+
 /* ------------------------------------------------------- */
 /**
  * eeh_report_error - report pci error to each device driver
@@ -98,11 +132,8 @@ static void eeh_report_error(struct pci_dev *dev, void *userdata)
 	if (!driver)
 		return;
 
-	if (irq_in_use (dev->irq)) {
-		struct device_node *dn = pci_device_to_OF_node(dev);
-		PCI_DN(dn)->eeh_mode |= EEH_MODE_IRQ_DISABLED;
-		disable_irq_nosync(dev->irq);
-	}
+	eeh_disable_irq(dev);
+
 	if (!driver->err_handler ||
 	    !driver->err_handler->error_detected)
 		return;
@@ -147,15 +178,12 @@ static void eeh_report_reset(struct pci_dev *dev, void *userdata)
 {
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver = dev->driver;
-	struct device_node *dn = pci_device_to_OF_node(dev);
 
 	if (!driver)
 		return;
 
-	if ((PCI_DN(dn)->eeh_mode) & EEH_MODE_IRQ_DISABLED) {
-		PCI_DN(dn)->eeh_mode &= ~EEH_MODE_IRQ_DISABLED;
-		enable_irq(dev->irq);
-	}
+	eeh_enable_irq(dev);
+
 	if (!driver->err_handler ||
 	    !driver->err_handler->slot_reset)
 		return;
@@ -174,17 +202,14 @@ static void eeh_report_reset(struct pci_dev *dev, void *userdata)
 static void eeh_report_resume(struct pci_dev *dev, void *userdata)
 {
 	struct pci_driver *driver = dev->driver;
-	struct device_node *dn = pci_device_to_OF_node(dev);
 
 	dev->error_state = pci_channel_io_normal;
 
 	if (!driver)
 		return;
 
-	if ((PCI_DN(dn)->eeh_mode) & EEH_MODE_IRQ_DISABLED) {
-		PCI_DN(dn)->eeh_mode &= ~EEH_MODE_IRQ_DISABLED;
-		enable_irq(dev->irq);
-	}
+	eeh_enable_irq(dev);
+
 	if (!driver->err_handler ||
 	    !driver->err_handler->resume)
 		return;
@@ -208,15 +233,12 @@ static void eeh_report_failure(struct pci_dev *dev, void *userdata)
 	if (!driver)
 		return;
 
-	if (irq_in_use (dev->irq)) {
-		struct device_node *dn = pci_device_to_OF_node(dev);
-		PCI_DN(dn)->eeh_mode |= EEH_MODE_IRQ_DISABLED;
-		disable_irq_nosync(dev->irq);
-	}
-	if (!driver->err_handler)
+	eeh_disable_irq(dev);
+
+	if (!driver->err_handler ||
+	    !driver->err_handler->error_detected)
 		return;
-	if (!driver->err_handler->error_detected)
-		return;
+
 	driver->err_handler->error_detected(dev, pci_channel_io_perm_failure);
 }
 
