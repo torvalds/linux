@@ -76,6 +76,7 @@ static void netxen_nic_poll_controller(struct net_device *netdev);
 #endif
 static irqreturn_t netxen_intr(int irq, void *data);
 static irqreturn_t netxen_msi_intr(int irq, void *data);
+static irqreturn_t netxen_msix_intr(int irq, void *data);
 
 /*  PCI Device ID Table  */
 #define ENTRY(device) \
@@ -1084,7 +1085,9 @@ static int netxen_nic_open(struct net_device *netdev)
 			for (ring = 0; ring < adapter->max_rds_rings; ring++)
 				netxen_post_rx_buffers(adapter, ctx, ring);
 		}
-		if (NETXEN_IS_MSI_FAMILY(adapter))
+		if (adapter->flags & NETXEN_NIC_MSIX_ENABLED)
+			handler = netxen_msix_intr;
+		else if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
 			handler = netxen_msi_intr;
 		else {
 			flags |= IRQF_SHARED;
@@ -1607,6 +1610,14 @@ static irqreturn_t netxen_msi_intr(int irq, void *data)
 	/* clear interrupt */
 	adapter->pci_write_immediate(adapter,
 			msi_tgt_status[adapter->ahw.pci_func], 0xffffffff);
+
+	napi_schedule(&adapter->napi);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t netxen_msix_intr(int irq, void *data)
+{
+	struct netxen_adapter *adapter = data;
 
 	napi_schedule(&adapter->napi);
 	return IRQ_HANDLED;
