@@ -2064,9 +2064,10 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_sub_if_data *sdata,
 /* main receive path */
 
 static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
-				u8 *bssid, struct ieee80211_rx_data *rx,
+				struct ieee80211_rx_data *rx,
 				struct ieee80211_hdr *hdr)
 {
+	u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len, sdata->vif.type);
 	int multicast = is_multicast_ether_addr(hdr->addr1);
 
 	switch (sdata->vif.type) {
@@ -2169,7 +2170,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	int prepares;
 	struct ieee80211_sub_if_data *prev = NULL;
 	struct sk_buff *skb_new;
-	u8 *bssid;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	memset(&rx, 0, sizeof(rx));
@@ -2208,9 +2208,8 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		if (sdata->vif.type == NL80211_IFTYPE_MONITOR)
 			continue;
 
-		bssid = ieee80211_get_bssid(hdr, skb->len, sdata->vif.type);
 		rx.flags |= IEEE80211_RX_RA_MATCH;
-		prepares = prepare_for_handlers(sdata, bssid, &rx, hdr);
+		prepares = prepare_for_handlers(sdata, &rx, hdr);
 
 		if (!prepares)
 			continue;
