@@ -78,11 +78,18 @@ void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *r
 			sta->ampdu_mlme.tid_rx[tid]->reorder_buf[i] = NULL;
 		}
 	}
+
+	spin_lock_bh(&sta->lock);
 	/* free resources */
 	kfree(sta->ampdu_mlme.tid_rx[tid]->reorder_buf);
-	kfree(sta->ampdu_mlme.tid_rx[tid]);
-	sta->ampdu_mlme.tid_rx[tid] = NULL;
+
+	if (!sta->ampdu_mlme.tid_rx[tid]->shutdown) {
+		kfree(sta->ampdu_mlme.tid_rx[tid]);
+		sta->ampdu_mlme.tid_rx[tid] = NULL;
+	}
+
 	sta->ampdu_mlme.tid_state_rx[tid] = HT_AGG_STATE_IDLE;
+	spin_unlock_bh(&sta->lock);
 
 	rcu_read_unlock();
 }
