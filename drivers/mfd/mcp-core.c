@@ -17,11 +17,11 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/mfd/mcp.h>
 
 #include <mach/dma.h>
 #include <asm/system.h>
 
-#include "mcp.h"
 
 #define to_mcp(d)		container_of(d, struct mcp, attached_device)
 #define to_mcp_driver(d)	container_of(d, struct mcp_driver, drv)

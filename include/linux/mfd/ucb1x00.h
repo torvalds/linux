@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/mfd/ucb1x00.h
+ *  linux/include/mfd/ucb1x00.h
  *
  *  Copyright (C) 2001 Russell King, All Rights Reserved.
  *
@@ -10,6 +10,7 @@
 #ifndef UCB1200_H
 #define UCB1200_H
 
+#include <linux/mfd/mcp.h>
 #define UCB_IO_DATA	0x00
 #define UCB_IO_DIR	0x01
 
@@ -100,7 +101,6 @@
 #define UCB_MODE_DYN_VFLAG_ENA	(1 << 12)
 #define UCB_MODE_AUD_OFF_CAN	(1 << 13)
 
-#include "mcp.h"
 
 struct ucb1x00_irq {
 	void *devid;

@@ -10,6 +10,8 @@
 #ifndef MCP_H
 #define MCP_H
 
+#include <mach/dma.h>
+
 struct mcp_ops;
 
 struct mcp {

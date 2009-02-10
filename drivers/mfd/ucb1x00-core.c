@@ -25,11 +25,11 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
+#include <linux/mfd/ucb1x00.h>
 
 #include <mach/dma.h>
 #include <mach/hardware.h>
 
-#include "ucb1x00.h"
 
 static DEFINE_MUTEX(ucb1x00_mutex);
 static LIST_HEAD(ucb1x00_drivers);
