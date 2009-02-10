@@ -116,6 +116,7 @@ struct kvm_kernel_irq_routing_entry {
 			unsigned irqchip;
 			unsigned pin;
 		} irqchip;
+		struct msi_msg msi;
 	};
 	struct list_head link;
 };
@@ -327,7 +328,6 @@ struct kvm_assigned_dev_kernel {
 	int host_irq;
 	bool host_irq_disabled;
 	int guest_irq;
-	struct msi_msg guest_msi;
 #define KVM_ASSIGNED_DEV_GUEST_INTX	(1 << 0)
 #define KVM_ASSIGNED_DEV_GUEST_MSI	(1 << 1)
 #define KVM_ASSIGNED_DEV_HOST_INTX	(1 << 8)

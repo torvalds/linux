@@ -20,6 +20,11 @@
  */
 
 #include <linux/kvm_host.h>
+
+#ifdef CONFIG_X86
+#include <asm/msidef.h>
+#endif
+
 #include "irq.h"
 
 #include "ioapic.h"
@@ -38,17 +43,70 @@ static void kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 	kvm_ioapic_set_irq(kvm->arch.vioapic, e->irqchip.pin, level);
 }
 
+static void kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
+			struct kvm *kvm, int level)
+{
+	int vcpu_id;
+	struct kvm_vcpu *vcpu;
+	struct kvm_ioapic *ioapic = ioapic_irqchip(kvm);
+	int dest_id = (e->msi.address_lo & MSI_ADDR_DEST_ID_MASK)
+			>> MSI_ADDR_DEST_ID_SHIFT;
+	int vector = (e->msi.data & MSI_DATA_VECTOR_MASK)
+			>> MSI_DATA_VECTOR_SHIFT;
+	int dest_mode = test_bit(MSI_ADDR_DEST_MODE_SHIFT,
+				(unsigned long *)&e->msi.address_lo);
+	int trig_mode = test_bit(MSI_DATA_TRIGGER_SHIFT,
+				(unsigned long *)&e->msi.data);
+	int delivery_mode = test_bit(MSI_DATA_DELIVERY_MODE_SHIFT,
+				(unsigned long *)&e->msi.data);
+	u32 deliver_bitmask;
+
+	BUG_ON(!ioapic);
+
+	deliver_bitmask = kvm_ioapic_get_delivery_bitmask(ioapic,
+				dest_id, dest_mode);
+	/* IOAPIC delivery mode value is the same as MSI here */
+	switch (delivery_mode) {
+	case IOAPIC_LOWEST_PRIORITY:
+		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm, vector,
+				deliver_bitmask);
+		if (vcpu != NULL)
+			kvm_apic_set_irq(vcpu, vector, trig_mode);
+		else
+			printk(KERN_INFO "kvm: null lowest priority vcpu!\n");
+		break;
+	case IOAPIC_FIXED:
+		for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
+			if (!(deliver_bitmask & (1 << vcpu_id)))
+				continue;
+			deliver_bitmask &= ~(1 << vcpu_id);
+			vcpu = ioapic->kvm->vcpus[vcpu_id];
+			if (vcpu)
+				kvm_apic_set_irq(vcpu, vector, trig_mode);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 /* This should be called with the kvm->lock mutex held */
 void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 {
 	struct kvm_kernel_irq_routing_entry *e;
-	unsigned long *irq_state = (unsigned long *)&kvm->arch.irq_states[irq];
+	unsigned long *irq_state, sig_level;
 
-	/* Logical OR for level trig interrupt */
-	if (level)
-		set_bit(irq_source_id, irq_state);
-	else
-		clear_bit(irq_source_id, irq_state);
+	if (irq < KVM_IOAPIC_NUM_PINS) {
+		irq_state = (unsigned long *)&kvm->arch.irq_states[irq];
+
+		/* Logical OR for level trig interrupt */
+		if (level)
+			set_bit(irq_source_id, irq_state);
+		else
+			clear_bit(irq_source_id, irq_state);
+		sig_level = !!(*irq_state);
+	} else /* Deal with MSI/MSI-X */
+		sig_level = 1;
 
 	/* Not possible to detect if the guest uses the PIC or the
 	 * IOAPIC.  So set the bit in both. The guest will ignore
@@ -56,7 +114,7 @@ void kvm_set_irq(struct kvm *kvm, int irq_source_id, int irq, int level)
 	 */
 	list_for_each_entry(e, &kvm->irq_routing, link)
 		if (e->gsi == irq)
-			e->set(e, kvm, !!(*irq_state));
+			e->set(e, kvm, sig_level);
 }
 
 void kvm_notify_acked_irq(struct kvm *kvm, unsigned irqchip, unsigned pin)
@@ -185,6 +243,12 @@ int setup_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 		}
 		e->irqchip.irqchip = ue->u.irqchip.irqchip;
 		e->irqchip.pin = ue->u.irqchip.pin + delta;
+		break;
+	case KVM_IRQ_ROUTING_MSI:
+		e->set = kvm_set_msi;
+		e->msi.address_lo = ue->u.msi.address_lo;
+		e->msi.address_hi = ue->u.msi.address_hi;
+		e->msi.data = ue->u.msi.data;
 		break;
 	default:
 		goto out;

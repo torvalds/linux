@@ -47,10 +47,6 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 
-#ifdef CONFIG_X86
-#include <asm/msidef.h>
-#endif
-
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
 #include "coalesced_mmio.h"
 #endif
@@ -85,57 +81,6 @@ static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,
 static bool kvm_rebooting;
 
 #ifdef KVM_CAP_DEVICE_ASSIGNMENT
-
-#ifdef CONFIG_X86
-static void assigned_device_msi_dispatch(struct kvm_assigned_dev_kernel *dev)
-{
-	int vcpu_id;
-	struct kvm_vcpu *vcpu;
-	struct kvm_ioapic *ioapic = ioapic_irqchip(dev->kvm);
-	int dest_id = (dev->guest_msi.address_lo & MSI_ADDR_DEST_ID_MASK)
-			>> MSI_ADDR_DEST_ID_SHIFT;
-	int vector = (dev->guest_msi.data & MSI_DATA_VECTOR_MASK)
-			>> MSI_DATA_VECTOR_SHIFT;
-	int dest_mode = test_bit(MSI_ADDR_DEST_MODE_SHIFT,
-				(unsigned long *)&dev->guest_msi.address_lo);
-	int trig_mode = test_bit(MSI_DATA_TRIGGER_SHIFT,
-				(unsigned long *)&dev->guest_msi.data);
-	int delivery_mode = test_bit(MSI_DATA_DELIVERY_MODE_SHIFT,
-				(unsigned long *)&dev->guest_msi.data);
-	u32 deliver_bitmask;
-
-	BUG_ON(!ioapic);
-
-	deliver_bitmask = kvm_ioapic_get_delivery_bitmask(ioapic,
-				dest_id, dest_mode);
-	/* IOAPIC delivery mode value is the same as MSI here */
-	switch (delivery_mode) {
-	case IOAPIC_LOWEST_PRIORITY:
-		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm, vector,
-				deliver_bitmask);
-		if (vcpu != NULL)
-			kvm_apic_set_irq(vcpu, vector, trig_mode);
-		else
-			printk(KERN_INFO "kvm: null lowest priority vcpu!\n");
-		break;
-	case IOAPIC_FIXED:
-		for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
-			if (!(deliver_bitmask & (1 << vcpu_id)))
-				continue;
-			deliver_bitmask &= ~(1 << vcpu_id);
-			vcpu = ioapic->kvm->vcpus[vcpu_id];
-			if (vcpu)
-				kvm_apic_set_irq(vcpu, vector, trig_mode);
-		}
-		break;
-	default:
-		printk(KERN_INFO "kvm: unsupported MSI delivery mode\n");
-	}
-}
-#else
-static void assigned_device_msi_dispatch(struct kvm_assigned_dev_kernel *dev) {}
-#endif
-
 static struct kvm_assigned_dev_kernel *kvm_find_assigned_dev(struct list_head *head,
 						      int assigned_dev_id)
 {
@@ -162,13 +107,10 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 	 * finer-grained lock, update this
 	 */
 	mutex_lock(&assigned_dev->kvm->lock);
-	if (assigned_dev->irq_requested_type & KVM_ASSIGNED_DEV_GUEST_INTX)
-		kvm_set_irq(assigned_dev->kvm,
-			    assigned_dev->irq_source_id,
-			    assigned_dev->guest_irq, 1);
-	else if (assigned_dev->irq_requested_type &
-				KVM_ASSIGNED_DEV_GUEST_MSI) {
-		assigned_device_msi_dispatch(assigned_dev);
+	kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
+		    assigned_dev->guest_irq, 1);
+
+	if (assigned_dev->irq_requested_type & KVM_ASSIGNED_DEV_GUEST_MSI) {
 		enable_irq(assigned_dev->host_irq);
 		assigned_dev->host_irq_disabled = false;
 	}
@@ -331,17 +273,15 @@ static int assigned_device_update_msi(struct kvm *kvm,
 {
 	int r;
 
+	adev->guest_irq = airq->guest_irq;
 	if (airq->flags & KVM_DEV_IRQ_ASSIGN_ENABLE_MSI) {
 		/* x86 don't care upper address of guest msi message addr */
 		adev->irq_requested_type |= KVM_ASSIGNED_DEV_GUEST_MSI;
 		adev->irq_requested_type &= ~KVM_ASSIGNED_DEV_GUEST_INTX;
-		adev->guest_msi.address_lo = airq->guest_msi.addr_lo;
-		adev->guest_msi.data = airq->guest_msi.data;
 		adev->ack_notifier.gsi = -1;
 	} else if (msi2intx) {
 		adev->irq_requested_type |= KVM_ASSIGNED_DEV_GUEST_INTX;
 		adev->irq_requested_type &= ~KVM_ASSIGNED_DEV_GUEST_MSI;
-		adev->guest_irq = airq->guest_irq;
 		adev->ack_notifier.gsi = airq->guest_irq;
 	} else {
 		/*

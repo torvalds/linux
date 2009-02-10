@@ -410,8 +410,16 @@ struct kvm_irq_routing_irqchip {
 	__u32 pin;
 };
 
+struct kvm_irq_routing_msi {
+	__u32 address_lo;
+	__u32 address_hi;
+	__u32 data;
+	__u32 pad;
+};
+
 /* gsi routing entry types */
 #define KVM_IRQ_ROUTING_IRQCHIP 1
+#define KVM_IRQ_ROUTING_MSI 2
 
 struct kvm_irq_routing_entry {
 	__u32 gsi;
@@ -420,6 +428,7 @@ struct kvm_irq_routing_entry {
 	__u32 pad;
 	union {
 		struct kvm_irq_routing_irqchip irqchip;
+		struct kvm_irq_routing_msi msi;
 		__u32 pad[8];
 	} u;
 };
