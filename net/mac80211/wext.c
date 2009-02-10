@@ -145,6 +145,21 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 	return -EOPNOTSUPP;
 }
 
+static u8 ieee80211_get_wstats_flags(struct ieee80211_local *local)
+{
+	u8 wstats_flags = 0;
+
+	wstats_flags |= local->hw.flags & (IEEE80211_HW_SIGNAL_UNSPEC |
+					   IEEE80211_HW_SIGNAL_DBM) ?
+				IW_QUAL_QUAL_UPDATED : IW_QUAL_QUAL_INVALID;
+	wstats_flags |= local->hw.flags & IEEE80211_HW_NOISE_DBM ?
+				IW_QUAL_NOISE_UPDATED : IW_QUAL_NOISE_INVALID;
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+		wstats_flags |= IW_QUAL_DBM;
+
+	return wstats_flags;
+}
+
 static int ieee80211_ioctl_giwrange(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_point *data, char *extra)
@@ -187,13 +202,13 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 		range->max_qual.noise = 0;
 
 	range->max_qual.qual = 100;
-	range->max_qual.updated = local->wstats_flags;
+	range->max_qual.updated = ieee80211_get_wstats_flags(local);
 
 	range->avg_qual.qual = 50;
 	/* not always true but better than nothing */
 	range->avg_qual.level = range->max_qual.level / 2;
 	range->avg_qual.noise = range->max_qual.noise / 2;
-	range->avg_qual.updated = local->wstats_flags;
+	range->avg_qual.updated = ieee80211_get_wstats_flags(local);
 
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
 			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
@@ -979,7 +994,7 @@ static struct iw_statistics *ieee80211_get_wireless_stats(struct net_device *dev
 		wstats->qual.level = sta->last_signal;
 		wstats->qual.qual = sta->last_qual;
 		wstats->qual.noise = sta->last_noise;
-		wstats->qual.updated = local->wstats_flags;
+		wstats->qual.updated = ieee80211_get_wstats_flags(local);
 	}
 
 	rcu_read_unlock();
