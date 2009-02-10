@@ -11885,7 +11885,7 @@ static struct snd_pci_quirk alc268_cfg_tbl[] = {
 
 static struct alc_config_preset alc268_presets[] = {
 	[ALC267_QUANTA_IL1] = {
-		.mixers = { alc267_quanta_il1_mixer },
+		.mixers = { alc267_quanta_il1_mixer, alc268_beep_mixer },
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc267_quanta_il1_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -11967,7 +11967,8 @@ static struct alc_config_preset alc268_presets[] = {
 	},
 	[ALC268_ACER_ASPIRE_ONE] = {
 		.mixers = { alc268_acer_aspire_one_mixer,
-				alc268_capture_alt_mixer },
+			    alc268_beep_mixer,
+			    alc268_capture_alt_mixer },
 		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
 				alc268_acer_aspire_one_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
@@ -12036,7 +12037,7 @@ static int patch_alc268(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
 	int board_config;
-	int err;
+	int i, has_beep, err;
 
 	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -12091,13 +12092,28 @@ static int patch_alc268(struct hda_codec *codec)
 
 	spec->stream_digital_playback = &alc268_pcm_digital_playback;
 
-	if (!query_amp_caps(codec, 0x1d, HDA_INPUT))
-		/* override the amp caps for beep generator */
-		snd_hda_override_amp_caps(codec, 0x1d, HDA_INPUT,
+	has_beep = 0;
+	for (i = 0; i < spec->num_mixers; i++) {
+		if (spec->mixers[i] == alc268_beep_mixer) {
+			has_beep = 1;
+			break;
+		}
+	}
+
+	if (has_beep) {
+		err = snd_hda_attach_beep_device(codec, 0x1);
+		if (err < 0) {
+			alc_free(codec);
+			return err;
+		}
+		if (!query_amp_caps(codec, 0x1d, HDA_INPUT))
+			/* override the amp caps for beep generator */
+			snd_hda_override_amp_caps(codec, 0x1d, HDA_INPUT,
 					  (0x0c << AC_AMPCAP_OFFSET_SHIFT) |
 					  (0x0c << AC_AMPCAP_NUM_STEPS_SHIFT) |
 					  (0x07 << AC_AMPCAP_STEP_SIZE_SHIFT) |
 					  (0 << AC_AMPCAP_MUTE_SHIFT));
+	}
 
 	if (!spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
