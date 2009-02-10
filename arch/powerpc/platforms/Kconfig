@@ -28,6 +28,7 @@ source "arch/powerpc/platforms/86xx/Kconfig"
 source "arch/powerpc/platforms/embedded6xx/Kconfig"
 source "arch/powerpc/platforms/44x/Kconfig"
 source "arch/powerpc/platforms/40x/Kconfig"
+source "arch/powerpc/platforms/amigaone/Kconfig"
 
 config PPC_NATIVE
 	bool
