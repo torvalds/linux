@@ -133,7 +133,7 @@
 # define SCSPTR3	0xffed0024	/* 16 bit SCIF */
 # define SCSPTR4	0xffee0024	/* 16 bit SCIF */
 # define SCSPTR5	0xffef0024	/* 16 bit SCIF */
-# define SCIF_OPER	0x0001		/* Overrun error bit */
+# define SCIF_ORER	0x0001		/* Overrun error bit */
 # define SCSCR_INIT(port)	0x3a	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7201) || \
       defined(CONFIG_CPU_SUBTYPE_SH7203) || \
