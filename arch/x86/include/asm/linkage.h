@@ -18,6 +18,13 @@
 #define asmregparm __attribute__((regparm(3)))
 
 /*
+ * For syscalls that need a pointer to the pt_regs struct (ie. fork).
+ * The regs pointer is passed in %eax as the first argument.  The
+ * remaining function arguments remain on the stack.
+ */
+#define ptregscall __attribute__((regparm(1)))
+
+/*
  * Make sure the compiler doesn't do anything stupid with the
  * arguments on the stack - they are owned by the *caller*, not
  * the callee. This just fools gcc into not spilling into them,

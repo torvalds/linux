@@ -197,9 +197,8 @@ out:
 static int do_vm86_irq_handling(int subfunction, int irqnumber);
 static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk);
 
-asmlinkage int sys_vm86old(struct pt_regs regs)
+ptregscall int sys_vm86old(struct pt_regs *regs, struct vm86_struct __user *v86)
 {
-	struct vm86_struct __user *v86 = (struct vm86_struct __user *)regs.bx;
 	struct kernel_vm86_struct info; /* declare this _on top_,
 					 * this avoids wasting of stack space.
 					 * This remains on the stack until we
@@ -218,7 +217,7 @@ asmlinkage int sys_vm86old(struct pt_regs regs)
 	if (tmp)
 		goto out;
 	memset(&info.vm86plus, 0, (int)&info.regs32 - (int)&info.vm86plus);
-	info.regs32 = &regs;
+	info.regs32 = regs;
 	tsk->thread.vm86_info = v86;
 	do_sys_vm86(&info, tsk);
 	ret = 0;	/* we never return here */
@@ -227,7 +226,7 @@ out:
 }
 
 
-asmlinkage int sys_vm86(struct pt_regs regs)
+ptregscall int sys_vm86(struct pt_regs *regs, unsigned long cmd, unsigned long arg)
 {
 	struct kernel_vm86_struct info; /* declare this _on top_,
 					 * this avoids wasting of stack space.
@@ -239,12 +238,12 @@ asmlinkage int sys_vm86(struct pt_regs regs)
 	struct vm86plus_struct __user *v86;
 
 	tsk = current;
-	switch (regs.bx) {
+	switch (cmd) {
 	case VM86_REQUEST_IRQ:
 	case VM86_FREE_IRQ:
 	case VM86_GET_IRQ_BITS:
 	case VM86_GET_AND_RESET_IRQ:
-		ret = do_vm86_irq_handling(regs.bx, (int)regs.cx);
+		ret = do_vm86_irq_handling(cmd, (int)arg);
 		goto out;
 	case VM86_PLUS_INSTALL_CHECK:
 		/*
@@ -261,14 +260,14 @@ asmlinkage int sys_vm86(struct pt_regs regs)
 	ret = -EPERM;
 	if (tsk->thread.saved_sp0)
 		goto out;
-	v86 = (struct vm86plus_struct __user *)regs.cx;
+	v86 = (struct vm86plus_struct __user *)arg;
 	tmp = copy_vm86_regs_from_user(&info.regs, &v86->regs,
 				       offsetof(struct kernel_vm86_struct, regs32) -
 				       sizeof(info.regs));
 	ret = -EFAULT;
 	if (tmp)
 		goto out;
-	info.regs32 = &regs;
+	info.regs32 = regs;
 	info.vm86plus.is_vm86pus = 1;
 	tsk->thread.vm86_info = (struct vm86_struct __user *)v86;
 	do_sys_vm86(&info, tsk);

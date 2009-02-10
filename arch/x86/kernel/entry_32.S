@@ -697,6 +697,26 @@ syscall_badsys:
 END(syscall_badsys)
 	CFI_ENDPROC
 
+/*
+ * System calls that need a pt_regs pointer.
+ */
+#define PTREGSCALL(name) \
+	ALIGN; \
+ptregs_##name: \
+	leal 4(%esp),%eax; \
+	jmp sys_##name;
+
+PTREGSCALL(iopl)
+PTREGSCALL(fork)
+PTREGSCALL(clone)
+PTREGSCALL(vfork)
+PTREGSCALL(execve)
+PTREGSCALL(sigaltstack)
+PTREGSCALL(sigreturn)
+PTREGSCALL(rt_sigreturn)
+PTREGSCALL(vm86)
+PTREGSCALL(vm86old)
+
 .macro FIXUP_ESPFIX_STACK
 	/* since we are on a wrong stack, we cant make it a C code :( */
 	PER_CPU(gdt_page, %ebx)

@@ -549,39 +549,28 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 #endif /* CONFIG_X86_32 */
 
 #ifdef CONFIG_X86_32
-asmlinkage int sys_sigaltstack(unsigned long bx)
-{
-	/*
-	 * This is needed to make gcc realize it doesn't own the
-	 * "struct pt_regs"
-	 */
-	struct pt_regs *regs = (struct pt_regs *)&bx;
-	const stack_t __user *uss = (const stack_t __user *)bx;
-	stack_t __user *uoss = (stack_t __user *)regs->cx;
-
-	return do_sigaltstack(uss, uoss, regs->sp);
-}
+ptregscall int
+sys_sigaltstack(struct pt_regs *regs, const stack_t __user *uss,
+		stack_t __user *uoss)
 #else /* !CONFIG_X86_32 */
 asmlinkage long
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		struct pt_regs *regs)
+#endif /* CONFIG_X86_32 */
 {
 	return do_sigaltstack(uss, uoss, regs->sp);
 }
-#endif /* CONFIG_X86_32 */
 
 /*
  * Do a signal return; undo the signal stack.
  */
 #ifdef CONFIG_X86_32
-asmlinkage unsigned long sys_sigreturn(unsigned long __unused)
+ptregscall unsigned long sys_sigreturn(struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
-	struct pt_regs *regs;
 	unsigned long ax;
 	sigset_t set;
 
-	regs = (struct pt_regs *) &__unused;
 	frame = (struct sigframe __user *)(regs->sp - 8);
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
@@ -640,23 +629,13 @@ badframe:
 }
 
 #ifdef CONFIG_X86_32
-/*
- * Note: do not pass in pt_regs directly as with tail-call optimization
- * GCC will incorrectly stomp on the caller's frame and corrupt user-space
- * register state:
- */
-asmlinkage int sys_rt_sigreturn(unsigned long __unused)
-{
-	struct pt_regs *regs = (struct pt_regs *)&__unused;
-
-	return do_rt_sigreturn(regs);
-}
+ptregscall int sys_rt_sigreturn(struct pt_regs *regs)
 #else /* !CONFIG_X86_32 */
 asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
+#endif /* CONFIG_X86_32 */
 {
 	return do_rt_sigreturn(regs);
 }
-#endif /* CONFIG_X86_32 */
 
 /*
  * OK, we're invoking a handler:
