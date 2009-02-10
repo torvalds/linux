@@ -116,8 +116,11 @@ static bool is_bss(struct cfg80211_bss *a,
 {
 	const u8 *ssidie;
 
-	if (compare_ether_addr(a->bssid, bssid))
+	if (bssid && compare_ether_addr(a->bssid, bssid))
 		return false;
+
+	if (!ssid)
+		return true;
 
 	ssidie = find_ie(WLAN_EID_SSID,
 			 a->information_elements,
@@ -199,7 +202,8 @@ static int cmp_bss(struct cfg80211_bss *a,
 struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 				      struct ieee80211_channel *channel,
 				      const u8 *bssid,
-				      const u8 *ssid, size_t ssid_len)
+				      const u8 *ssid, size_t ssid_len,
+				      u16 capa_mask, u16 capa_val)
 {
 	struct cfg80211_registered_device *dev = wiphy_to_dev(wiphy);
 	struct cfg80211_internal_bss *bss, *res = NULL;
@@ -207,6 +211,8 @@ struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 	spin_lock_bh(&dev->bss_lock);
 
 	list_for_each_entry(bss, &dev->bss_list, list) {
+		if ((bss->pub.capability & capa_mask) != capa_val)
+			continue;
 		if (channel && bss->pub.channel != channel)
 			continue;
 		if (is_bss(&bss->pub, bssid, ssid, ssid_len)) {

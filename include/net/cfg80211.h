@@ -785,7 +785,17 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 				      struct ieee80211_channel *channel,
 				      const u8 *bssid,
-				      const u8 *ssid, size_t ssid_len);
+				      const u8 *ssid, size_t ssid_len,
+				      u16 capa_mask, u16 capa_val);
+static inline struct cfg80211_bss *
+cfg80211_get_ibss(struct wiphy *wiphy,
+		  struct ieee80211_channel *channel,
+		  const u8 *ssid, size_t ssid_len)
+{
+	return cfg80211_get_bss(wiphy, channel, NULL, ssid, ssid_len,
+				WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
+}
+
 struct cfg80211_bss *cfg80211_get_mesh(struct wiphy *wiphy,
 				       struct ieee80211_channel *channel,
 				       const u8 *meshid, size_t meshidlen,
