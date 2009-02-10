@@ -500,7 +500,12 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 		} else
 			netif_tx_wake_all_queues(sdata->dev);
 
-		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON_ENABLED);
+		/* re-enable beaconing */
+		if (sdata->vif.type == NL80211_IFTYPE_AP ||
+		    sdata->vif.type == NL80211_IFTYPE_ADHOC ||
+		    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+			ieee80211_if_config(sdata,
+					    IEEE80211_IFCC_BEACON_ENABLED);
 	}
 	mutex_unlock(&local->iflist_mtx);
 
@@ -656,7 +661,12 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 		if (!netif_running(sdata->dev))
 			continue;
 
-		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON_ENABLED);
+		/* disable beaconing */
+		if (sdata->vif.type == NL80211_IFTYPE_AP ||
+		    sdata->vif.type == NL80211_IFTYPE_ADHOC ||
+		    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+			ieee80211_if_config(sdata,
+					    IEEE80211_IFCC_BEACON_ENABLED);
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
