@@ -33,7 +33,7 @@
 #ifdef CONFIG_DYNAMIC_FTRACE
 static unsigned int ftrace_nop_replace(void)
 {
-	return PPC_NOP_INSTR;
+	return PPC_INST_NOP;
 }
 
 static unsigned int
@@ -302,7 +302,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EINVAL;
 	}
 
-	op = PPC_NOP_INSTR;
+	op = PPC_INST_NOP;
 
 	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
 		return -EPERM;
@@ -380,7 +380,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	 *  b +8; ld r2,40(r1)
 	 */
 	if (((op[0] != 0x48000008) || (op[1] != 0xe8410028)) &&
-	    ((op[0] != PPC_NOP_INSTR) || (op[1] != PPC_NOP_INSTR))) {
+	    ((op[0] != PPC_INST_NOP) || (op[1] != PPC_INST_NOP))) {
 		printk(KERN_ERR "Expected NOPs but have %x %x\n", op[0], op[1]);
 		return -EINVAL;
 	}
@@ -423,7 +423,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EFAULT;
 
 	/* It should be pointing to a nop */
-	if (op != PPC_NOP_INSTR) {
+	if (op != PPC_INST_NOP) {
 		printk(KERN_ERR "Expected NOP but have %x\n", op);
 		return -EINVAL;
 	}

@@ -279,7 +279,7 @@ label:
 	lwz	r11,GPR11(r8);						      \
 	mfspr	r8,DEBUG_SPRG;						      \
 									      \
-	RFDI;								      \
+	PPC_RFDI;								      \
 	b	.;							      \
 									      \
 	/* continue normal handling for a debug exception... */		      \
