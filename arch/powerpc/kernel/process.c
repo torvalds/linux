@@ -33,6 +33,7 @@
 #include <linux/mqueue.h>
 #include <linux/hardirq.h>
 #include <linux/utsname.h>
+#include <linux/ftrace.h>
 #include <linux/kernel_stat.h>
 
 #include <asm/pgtable.h>
@@ -1008,6 +1009,14 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	unsigned long sp, ip, lr, newsp;
 	int count = 0;
 	int firstframe = 1;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	int curr_frame = current->curr_ret_stack;
+	extern void return_to_handler(void);
+	unsigned long addr = (unsigned long)return_to_handler;
+#ifdef CONFIG_PPC64
+	addr = *(unsigned long*)addr;
+#endif
+#endif
 
 	sp = (unsigned long) stack;
 	if (tsk == NULL)
@@ -1030,6 +1039,13 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		ip = stack[STACK_FRAME_LR_SAVE];
 		if (!firstframe || ip != lr) {
 			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+			if (ip == addr && curr_frame >= 0) {
+				printk(" (%pS)",
+				       (void *)current->ret_stack[curr_frame].ret);
+				curr_frame--;
+			}
+#endif
 			if (firstframe)
 				printk(" (unreliable)");
 			printk("\n");

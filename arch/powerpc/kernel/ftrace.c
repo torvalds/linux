@@ -5,6 +5,9 @@
  *
  * Thanks goes out to P.A. Semi, Inc for supplying me with a PPC64 box.
  *
+ * Added function graph tracer code, taken from x86 that was written
+ * by Frederic Weisbecker, and ported to PPC by Steven Rostedt.
+ *
  */
 
 #include <linux/spinlock.h>
@@ -20,8 +23,6 @@
 #include <asm/code-patching.h>
 #include <asm/ftrace.h>
 
-static unsigned int ftrace_nop = PPC_NOP_INSTR;
-
 #ifdef CONFIG_PPC32
 # define GET_ADDR(addr) addr
 #else
@@ -29,6 +30,8 @@ static unsigned int ftrace_nop = PPC_NOP_INSTR;
 # define GET_ADDR(addr) (*(unsigned long *)addr)
 #endif
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+static unsigned int ftrace_nop = PPC_NOP_INSTR;
 
 static unsigned int ftrace_calc_offset(long ip, long addr)
 {
@@ -525,3 +528,75 @@ int __init ftrace_dyn_arch_init(void *data)
 
 	return 0;
 }
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+
+/*
+ * Hook the return address and push it in the stack of return addrs
+ * in current thread info.
+ */
+void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
+{
+	unsigned long old;
+	unsigned long long calltime;
+	int faulted;
+	struct ftrace_graph_ent trace;
+	unsigned long return_hooker = (unsigned long)
+				&return_to_handler;
+
+	if (unlikely(atomic_read(&current->tracing_graph_pause)))
+		return;
+
+	return_hooker = GET_ADDR(return_hooker);
+
+	/*
+	 * Protect against fault, even if it shouldn't
+	 * happen. This tool is too much intrusive to
+	 * ignore such a protection.
+	 */
+	asm volatile(
+		"1: " PPC_LL "%[old], 0(%[parent])\n"
+		"2: " PPC_STL "%[return_hooker], 0(%[parent])\n"
+		"   li %[faulted], 0\n"
+		"3:"
+
+		".section .fixup, \"ax\"\n"
+		"4: li %[faulted], 1\n"
+		"   b 3b\n"
+		".previous\n"
+
+		".section __ex_table,\"a\"\n"
+			PPC_LONG_ALIGN "\n"
+			PPC_LONG "1b,4b\n"
+			PPC_LONG "2b,4b\n"
+		".previous"
+
+		: [old] "=r" (old), [faulted] "=r" (faulted)
+		: [parent] "r" (parent), [return_hooker] "r" (return_hooker)
+		: "memory"
+	);
+
+	if (unlikely(faulted)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
+		return;
+	}
+
+	calltime = cpu_clock(raw_smp_processor_id());
+
+	if (ftrace_push_return_trace(old, calltime,
+				self_addr, &trace.depth) == -EBUSY) {
+		*parent = old;
+		return;
+	}
+
+	trace.func = self_addr;
+
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace)) {
+		current->curr_ret_stack--;
+		*parent = old;
+	}
+}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */

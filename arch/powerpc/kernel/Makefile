@@ -18,12 +18,10 @@ CFLAGS_REMOVE_cputable.o = -pg -mno-sched-epilog
 CFLAGS_REMOVE_prom_init.o = -pg -mno-sched-epilog
 CFLAGS_REMOVE_btext.o = -pg -mno-sched-epilog
 CFLAGS_REMOVE_prom.o = -pg -mno-sched-epilog
-
-ifdef CONFIG_DYNAMIC_FTRACE
-# dynamic ftrace setup.
+# do not trace tracer code
 CFLAGS_REMOVE_ftrace.o = -pg -mno-sched-epilog
-endif
-
+# timers used by tracing
+CFLAGS_REMOVE_time.o = -pg -mno-sched-epilog
 endif
 
 obj-y				:= cputable.o ptrace.o syscalls.o \
@@ -95,6 +93,7 @@ obj-$(CONFIG_AUDIT)		+= audit.o
 obj64-$(CONFIG_AUDIT)		+= compat_audit.o
 
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
+obj-$(CONFIG_FUNCTION_GRAPH_TRACER)	+= ftrace.o
 
 obj-$(CONFIG_8XX_MINIMAL_FPEMU) += softemu8xx.o
 
