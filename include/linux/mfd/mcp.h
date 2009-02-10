@@ -26,6 +26,7 @@ struct mcp {
 	dma_device_t	dma_telco_rd;
 	dma_device_t	dma_telco_wr;
 	struct device	attached_device;
+	int		gpio_base;
 };
 
 struct mcp_ops {
