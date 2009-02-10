@@ -186,30 +186,30 @@ verif_pid(struct trace_seq *s, pid_t pid, int cpu, pid_t *last_pids_cpu)
 	ret = trace_seq_printf(s,
 		" ------------------------------------------\n");
 	if (!ret)
-		TRACE_TYPE_PARTIAL_LINE;
+		return TRACE_TYPE_PARTIAL_LINE;
 
 	ret = print_graph_cpu(s, cpu);
 	if (ret == TRACE_TYPE_PARTIAL_LINE)
-		TRACE_TYPE_PARTIAL_LINE;
+		return TRACE_TYPE_PARTIAL_LINE;
 
 	ret = print_graph_proc(s, prev_pid);
 	if (ret == TRACE_TYPE_PARTIAL_LINE)
-		TRACE_TYPE_PARTIAL_LINE;
+		return TRACE_TYPE_PARTIAL_LINE;
 
 	ret = trace_seq_printf(s, " => ");
 	if (!ret)
-		TRACE_TYPE_PARTIAL_LINE;
+		return TRACE_TYPE_PARTIAL_LINE;
 
 	ret = print_graph_proc(s, pid);
 	if (ret == TRACE_TYPE_PARTIAL_LINE)
-		TRACE_TYPE_PARTIAL_LINE;
+		return TRACE_TYPE_PARTIAL_LINE;
 
 	ret = trace_seq_printf(s,
 		"\n ------------------------------------------\n\n");
 	if (!ret)
-		TRACE_TYPE_PARTIAL_LINE;
+		return TRACE_TYPE_PARTIAL_LINE;
 
-	return ret;
+	return TRACE_TYPE_HANDLED;
 }
 
 static struct ftrace_graph_ret_entry *
