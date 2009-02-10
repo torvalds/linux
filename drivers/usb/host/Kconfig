@@ -120,7 +120,7 @@ config USB_ISP116X_HCD
 
 config USB_ISP1760_HCD
 	tristate "ISP 1760 HCD support"
-	depends on USB && EXPERIMENTAL && (PCI || PPC_OF)
+	depends on USB && EXPERIMENTAL
 	---help---
 	  The ISP1760 chip is a USB 2.0 host controller.
 
