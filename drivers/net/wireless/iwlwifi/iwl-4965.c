@@ -381,20 +381,10 @@ out:
 static void iwl4965_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
-	u16 dctl;
 	u16 radio_cfg;
 	u16 lctl;
 
 	spin_lock_irqsave(&priv->lock, flags);
-
-	if ((priv->rev_id & 0x80) == 0x80 && (priv->rev_id & 0x7f) < 8) {
-		int pos = pci_find_capability(priv->pci_dev, PCI_CAP_ID_EXP);
-		pci_read_config_word(priv->pci_dev, pos + PCI_EXP_DEVCTL, &dctl);
-
-		/* Enable No Snoop field */
-		pci_write_config_word(priv->pci_dev, pos + PCI_EXP_DEVCTL,
-					dctl & ~PCI_EXP_DEVCTL_NOSNOOP_EN);
-	}
 
 	lctl = iwl_pcie_link_ctl(priv);
 
