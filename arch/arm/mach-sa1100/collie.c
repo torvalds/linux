@@ -26,6 +26,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/timer.h>
 #include <linux/gpio.h>
+#include <linux/pda_power.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -87,6 +88,69 @@ static struct mcp_plat_data collie_mcp_data = {
 	.mccr0		= MCCR0_ADM | MCCR0_ExtClk,
 	.sclk_rate	= 9216000,
 	.gpio_base	= COLLIE_TC35143_GPIO_BASE,
+};
+
+/*
+ * Collie AC IN
+ */
+static int collie_power_init(struct device *dev)
+{
+	int ret = gpio_request(COLLIE_GPIO_AC_IN, "ac in");
+	if (ret)
+		goto err_gpio_req;
+
+	ret = gpio_direction_input(COLLIE_GPIO_AC_IN);
+	if (ret)
+		goto err_gpio_in;
+
+	return 0;
+
+err_gpio_in:
+	gpio_free(COLLIE_GPIO_AC_IN);
+err_gpio_req:
+	return ret;
+}
+
+static void collie_power_exit(struct device *dev)
+{
+	gpio_free(COLLIE_GPIO_AC_IN);
+}
+
+static int collie_power_ac_online(void)
+{
+	return gpio_get_value(COLLIE_GPIO_AC_IN) == 2;
+}
+
+static char *collie_ac_supplied_to[] = {
+	"main-battery",
+	"backup-battery",
+};
+
+static struct pda_power_pdata collie_power_data = {
+	.init			= collie_power_init,
+	.is_ac_online		= collie_power_ac_online,
+	.exit			= collie_power_exit,
+	.supplied_to		= collie_ac_supplied_to,
+	.num_supplicants	= ARRAY_SIZE(collie_ac_supplied_to),
+};
+
+static struct resource collie_power_resource[] = {
+	{
+		.name		= "ac",
+		.start		= gpio_to_irq(COLLIE_GPIO_AC_IN),
+		.end		= gpio_to_irq(COLLIE_GPIO_AC_IN),
+		.flags		= IORESOURCE_IRQ |
+				  IORESOURCE_IRQ_HIGHEDGE |
+				  IORESOURCE_IRQ_LOWEDGE,
+	},
+};
+
+static struct platform_device collie_power_device = {
+	.name			= "pda-power",
+	.id			= -1,
+	.dev.platform_data	= &collie_power_data,
+	.resource		= collie_power_resource,
+	.num_resources		= ARRAY_SIZE(collie_power_resource),
 };
 
 #ifdef CONFIG_SHARP_LOCOMO
@@ -180,6 +244,7 @@ struct platform_device collie_locomo_device = {
 static struct platform_device *devices[] __initdata = {
 	&collie_locomo_device,
 	&colliescoop_device,
+	&collie_power_device,
 };
 
 static struct mtd_partition collie_partitions[] = {
