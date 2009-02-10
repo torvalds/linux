@@ -1176,6 +1176,21 @@ nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *resfhp,
 	return 0;
 }
 
+/* HPUX client sometimes creates a file in mode 000, and sets size to 0.
+ * setting size to 0 may fail for some specific file systems by the permission
+ * checking which requires WRITE permission but the mode is 000.
+ * we ignore the resizing(to 0) on the just new created file, since the size is
+ * 0 after file created.
+ *
+ * call this only after vfs_create() is called.
+ * */
+static void
+nfsd_check_ignore_resizing(struct iattr *iap)
+{
+	if ((iap->ia_valid & ATTR_SIZE) && (iap->ia_size == 0))
+		iap->ia_valid &= ~ATTR_SIZE;
+}
+
 /*
  * Create a file (regular, directory, device, fifo); UNIX sockets 
  * not yet implemented.
@@ -1271,6 +1286,8 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	switch (type) {
 	case S_IFREG:
 		host_err = vfs_create(dirp, dchild, iap->ia_mode, NULL);
+		if (!host_err)
+			nfsd_check_ignore_resizing(iap);
 		break;
 	case S_IFDIR:
 		host_err = vfs_mkdir(dirp, dchild, iap->ia_mode);
@@ -1423,6 +1440,8 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		err = nfserrno(nfsd_sync_dir(dentry));
 		/* setattr will sync the child (or not) */
 	}
+
+	nfsd_check_ignore_resizing(iap);
 
 	if (createmode == NFS3_CREATE_EXCLUSIVE) {
 		/* Cram the verifier into atime/mtime */
