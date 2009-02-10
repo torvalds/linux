@@ -376,7 +376,7 @@ void cfg80211_dev_free(struct cfg80211_registered_device *drv)
 	mutex_destroy(&drv->mtx);
 	mutex_destroy(&drv->devlist_mtx);
 	list_for_each_entry_safe(scan, tmp, &drv->bss_list, list)
-		kfree(scan);
+		cfg80211_put_bss(&scan->pub);
 	kfree(drv);
 }
 

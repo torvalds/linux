@@ -567,6 +567,7 @@ enum cfg80211_signal_type {
  * @len_information_elements: total length of the information elements
  * @signal: signal strength value
  * @signal_type: signal type
+ * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
 struct cfg80211_bss {
@@ -582,6 +583,7 @@ struct cfg80211_bss {
 	s32 signal;
 	enum cfg80211_signal_type signal_type;
 
+	void (*free_priv)(struct cfg80211_bss *bss);
 	u8 priv[0] __attribute__((__aligned__(sizeof(void *))));
 };
 
