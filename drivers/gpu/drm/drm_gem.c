@@ -301,27 +301,25 @@ again:
 	}
 
 	spin_lock(&dev->object_name_lock);
-	if (obj->name) {
-		args->name = obj->name;
+	if (!obj->name) {
+		ret = idr_get_new_above(&dev->object_name_idr, obj, 1,
+					&obj->name);
+		args->name = (uint64_t) obj->name;
 		spin_unlock(&dev->object_name_lock);
-		return 0;
+
+		if (ret == -EAGAIN)
+			goto again;
+
+		if (ret != 0)
+			goto err;
+
+		/* Allocate a reference for the name table.  */
+		drm_gem_object_reference(obj);
+	} else {
+		args->name = (uint64_t) obj->name;
+		spin_unlock(&dev->object_name_lock);
+		ret = 0;
 	}
-	ret = idr_get_new_above(&dev->object_name_idr, obj, 1,
-				 &obj->name);
-	spin_unlock(&dev->object_name_lock);
-	if (ret == -EAGAIN)
-		goto again;
-
-	if (ret != 0)
-		goto err;
-
-	/*
-	 * Leave the reference from the lookup around as the
-	 * name table now holds one
-	 */
-	args->name = (uint64_t) obj->name;
-
-	return 0;
 
 err:
 	mutex_lock(&dev->struct_mutex);
@@ -452,6 +450,7 @@ drm_gem_object_handle_free(struct kref *kref)
 	spin_lock(&dev->object_name_lock);
 	if (obj->name) {
 		idr_remove(&dev->object_name_idr, obj->name);
+		obj->name = 0;
 		spin_unlock(&dev->object_name_lock);
 		/*
 		 * The object name held a reference to this object, drop
