@@ -56,7 +56,7 @@ void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
 	case IOAPIC_LOWEST_PRIORITY:
 		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm,
 				entry->fields.vector, deliver_bitmask);
-		*deliver_bitmask = 1 << vcpu->vcpu_id;
+		__set_bit(vcpu->vcpu_id, deliver_bitmask);
 		break;
 	case IOAPIC_FIXED:
 	case IOAPIC_NMI:
@@ -76,9 +76,11 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 	struct kvm_vcpu *vcpu;
 	struct kvm_ioapic *ioapic = ioapic_irqchip(kvm);
 	union kvm_ioapic_redirect_entry entry;
-	unsigned long deliver_bitmask;
+	DECLARE_BITMAP(deliver_bitmask, KVM_MAX_VCPUS);
 
 	BUG_ON(!ioapic);
+
+	bitmap_zero(deliver_bitmask, KVM_MAX_VCPUS);
 
 	entry.bits = 0;
 	entry.fields.dest_id = (e->msi.address_lo &
@@ -95,16 +97,15 @@ static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 
 	/* TODO Deal with RH bit of MSI message address */
 
-	kvm_get_intr_delivery_bitmask(ioapic, &entry, &deliver_bitmask);
+	kvm_get_intr_delivery_bitmask(ioapic, &entry, deliver_bitmask);
 
-	if (!deliver_bitmask) {
+	if (find_first_bit(deliver_bitmask, KVM_MAX_VCPUS) >= KVM_MAX_VCPUS) {
 		printk(KERN_WARNING "kvm: no destination for MSI delivery!");
 		return -1;
 	}
-	for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
-		if (!(deliver_bitmask & (1 << vcpu_id)))
-			continue;
-		deliver_bitmask &= ~(1 << vcpu_id);
+	while ((vcpu_id = find_first_bit(deliver_bitmask,
+					KVM_MAX_VCPUS)) < KVM_MAX_VCPUS) {
+		__clear_bit(vcpu_id, deliver_bitmask);
 		vcpu = ioapic->kvm->vcpus[vcpu_id];
 		if (vcpu) {
 			if (r < 0)

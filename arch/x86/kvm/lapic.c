@@ -483,9 +483,10 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 
 	struct kvm_vcpu *target;
 	struct kvm_vcpu *vcpu;
-	unsigned long lpr_map = 0;
+	DECLARE_BITMAP(lpr_map, KVM_MAX_VCPUS);
 	int i;
 
+	bitmap_zero(lpr_map, KVM_MAX_VCPUS);
 	apic_debug("icr_high 0x%x, icr_low 0x%x, "
 		   "short_hand 0x%x, dest 0x%x, trig_mode 0x%x, level 0x%x, "
 		   "dest_mode 0x%x, delivery_mode 0x%x, vector 0x%x\n",
@@ -500,7 +501,7 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 		if (vcpu->arch.apic &&
 		    apic_match_dest(vcpu, apic, short_hand, dest, dest_mode)) {
 			if (delivery_mode == APIC_DM_LOWEST)
-				set_bit(vcpu->vcpu_id, &lpr_map);
+				__set_bit(vcpu->vcpu_id, lpr_map);
 			else
 				__apic_accept_irq(vcpu->arch.apic, delivery_mode,
 						  vector, level, trig_mode);
@@ -508,7 +509,7 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 	}
 
 	if (delivery_mode == APIC_DM_LOWEST) {
-		target = kvm_get_lowest_prio_vcpu(vcpu->kvm, vector, &lpr_map);
+		target = kvm_get_lowest_prio_vcpu(vcpu->kvm, vector, lpr_map);
 		if (target != NULL)
 			__apic_accept_irq(target->arch.apic, delivery_mode,
 					  vector, level, trig_mode);
