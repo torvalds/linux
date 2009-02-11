@@ -81,4 +81,13 @@ struct user{
 #define HOST_TEXT_START_ADDR (u.start_code)
 #define HOST_STACK_END_ADDR (u.start_stack + u.u_ssize * NBPG)
 
+/*
+ * User specific VFP registers. If only VFPv2 is present, registers 16 to 31
+ * are ignored by the ptrace system call.
+ */
+struct user_vfp {
+	unsigned long long fpregs[32];
+	unsigned long fpscr;
+};
+
 #endif /* _ARM_USER_H */
