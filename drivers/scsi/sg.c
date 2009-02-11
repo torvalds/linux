@@ -98,7 +98,6 @@ static int scatter_elem_sz = SG_SCATTER_SZ;
 static int scatter_elem_sz_prev = SG_SCATTER_SZ;
 
 #define SG_SECTOR_SZ 512
-#define SG_SECTOR_MSK (SG_SECTOR_SZ - 1)
 
 static int sg_add(struct device *, struct class_interface *);
 static void sg_remove(struct device *, struct class_interface *);
@@ -1723,8 +1722,8 @@ sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size)
 		return -EFAULT;
 	if (0 == blk_size)
 		++blk_size;	/* don't know why */
-/* round request up to next highest SG_SECTOR_SZ byte boundary */
-	blk_size = (blk_size + SG_SECTOR_MSK) & (~SG_SECTOR_MSK);
+	/* round request up to next highest SG_SECTOR_SZ byte boundary */
+	blk_size = ALIGN(blk_size, SG_SECTOR_SZ);
 	SCSI_LOG_TIMEOUT(4, printk("sg_build_indirect: buff_size=%d, blk_size=%d\n",
 				   buff_size, blk_size));
 
