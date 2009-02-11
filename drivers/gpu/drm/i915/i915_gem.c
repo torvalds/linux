@@ -607,8 +607,6 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	case -EAGAIN:
 		return VM_FAULT_OOM;
 	case -EFAULT:
-	case -EBUSY:
-		DRM_ERROR("can't insert pfn??  fault or busy...\n");
 		return VM_FAULT_SIGBUS;
 	default:
 		return VM_FAULT_NOPAGE;
@@ -682,6 +680,30 @@ out_free_list:
 	drm_free(list->map, sizeof(struct drm_map_list), DRM_MEM_DRIVER);
 
 	return ret;
+}
+
+static void
+i915_gem_free_mmap_offset(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_gem_mm *mm = dev->mm_private;
+	struct drm_map_list *list;
+
+	list = &obj->map_list;
+	drm_ht_remove_item(&mm->offset_hash, &list->hash);
+
+	if (list->file_offset_node) {
+		drm_mm_put_block(list->file_offset_node);
+		list->file_offset_node = NULL;
+	}
+
+	if (list->map) {
+		drm_free(list->map, sizeof(struct drm_map), DRM_MEM_DRIVER);
+		list->map = NULL;
+	}
+
+	obj_priv->mmap_offset = 0;
 }
 
 /**
@@ -2896,9 +2918,6 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 void i915_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_gem_mm *mm = dev->mm_private;
-	struct drm_map_list *list;
-	struct drm_map *map;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 
 	while (obj_priv->pin_count > 0)
@@ -2909,19 +2928,7 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 
 	i915_gem_object_unbind(obj);
 
-	list = &obj->map_list;
-	drm_ht_remove_item(&mm->offset_hash, &list->hash);
-
-	if (list->file_offset_node) {
-		drm_mm_put_block(list->file_offset_node);
-		list->file_offset_node = NULL;
-	}
-
-	map = list->map;
-	if (map) {
-		drm_free(map, sizeof(*map), DRM_MEM_DRIVER);
-		list->map = NULL;
-	}
+	i915_gem_free_mmap_offset(obj);
 
 	drm_free(obj_priv->page_cpu_valid, 1, DRM_MEM_DRIVER);
 	drm_free(obj->driver_private, 1, DRM_MEM_DRIVER);

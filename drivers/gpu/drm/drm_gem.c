@@ -463,6 +463,26 @@ drm_gem_object_handle_free(struct kref *kref)
 }
 EXPORT_SYMBOL(drm_gem_object_handle_free);
 
+void drm_gem_vm_open(struct vm_area_struct *vma)
+{
+	struct drm_gem_object *obj = vma->vm_private_data;
+
+	drm_gem_object_reference(obj);
+}
+EXPORT_SYMBOL(drm_gem_vm_open);
+
+void drm_gem_vm_close(struct vm_area_struct *vma)
+{
+	struct drm_gem_object *obj = vma->vm_private_data;
+	struct drm_device *dev = obj->dev;
+
+	mutex_lock(&dev->struct_mutex);
+	drm_gem_object_unreference(obj);
+	mutex_unlock(&dev->struct_mutex);
+}
+EXPORT_SYMBOL(drm_gem_vm_close);
+
+
 /**
  * drm_gem_mmap - memory map routine for GEM objects
  * @filp: DRM file pointer
@@ -523,6 +543,14 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	prot |= _PAGE_CACHE_WC;
 #endif
 	vma->vm_page_prot = __pgprot(prot);
+
+	/* Take a ref for this mapping of the object, so that the fault
+	 * handler can dereference the mmap offset's pointer to the object.
+	 * This reference is cleaned up by the corresponding vm_close
+	 * (which should happen whether the vma was created by this call, or
+	 * by a vm_open due to mremap or partial unmap or whatever).
+	 */
+	drm_gem_object_reference(obj);
 
 	vma->vm_file = filp;	/* Needed for drm_vm_open() */
 	drm_vm_open_locked(vma);
