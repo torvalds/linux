@@ -3159,6 +3159,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	if (ring->map.handle == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
 		memset(&dev_priv->ring, 0, sizeof(dev_priv->ring));
+		i915_gem_object_unpin(obj);
 		drm_gem_object_unreference(obj);
 		return -EINVAL;
 	}
