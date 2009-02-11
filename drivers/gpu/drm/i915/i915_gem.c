@@ -1595,18 +1595,32 @@ try_again:
 
 	/* None available, try to steal one or wait for a user to finish */
 	if (i == dev_priv->num_fence_regs) {
+		uint32_t seqno = dev_priv->mm.next_gem_seqno;
 		loff_t offset;
 
 		if (avail == 0)
 			return -ENOMEM;
 
-		/* Could try to use LRU here instead... */
 		for (i = dev_priv->fence_reg_start;
 		     i < dev_priv->num_fence_regs; i++) {
+			uint32_t this_seqno;
+
 			reg = &dev_priv->fence_regs[i];
 			old_obj_priv = reg->obj->driver_private;
-			if (!old_obj_priv->pin_count)
+
+			if (old_obj_priv->pin_count)
+				continue;
+
+			/* i915 uses fences for GPU access to tiled buffers */
+			if (IS_I965G(dev) || !old_obj_priv->active)
 				break;
+
+			/* find the seqno of the first available fence */
+			this_seqno = old_obj_priv->last_rendering_seqno;
+			if (this_seqno != 0 &&
+			    reg->obj->write_domain == 0 &&
+			    i915_seqno_passed(seqno, this_seqno))
+				seqno = this_seqno;
 		}
 
 		/*
@@ -1614,14 +1628,24 @@ try_again:
 		 * objects to finish before trying again.
 		 */
 		if (i == dev_priv->num_fence_regs) {
-			ret = i915_gem_object_set_to_gtt_domain(reg->obj, 0);
-			if (ret) {
-				WARN(ret != -ERESTARTSYS,
-				     "switch to GTT domain failed: %d\n", ret);
-				return ret;
+			if (seqno == dev_priv->mm.next_gem_seqno) {
+				i915_gem_flush(dev,
+					       I915_GEM_GPU_DOMAINS,
+					       I915_GEM_GPU_DOMAINS);
+				seqno = i915_add_request(dev,
+							 I915_GEM_GPU_DOMAINS);
+				if (seqno == 0)
+					return -ENOMEM;
 			}
+
+			ret = i915_wait_request(dev, seqno);
+			if (ret)
+				return ret;
 			goto try_again;
 		}
+
+		BUG_ON(old_obj_priv->active ||
+		       (reg->obj->write_domain & I915_GEM_GPU_DOMAINS));
 
 		/*
 		 * Zap this virtual mapping so we can set up a fence again
