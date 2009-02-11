@@ -140,7 +140,6 @@ config HAVE_CPUMASK_OF_CPU_MAP
 
 config ARCH_HIBERNATION_POSSIBLE
 	def_bool y
-	depends on !SMP
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
