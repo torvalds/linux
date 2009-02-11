@@ -16,6 +16,7 @@ struct mm_struct;
 #include <asm/cpufeature.h>
 #include <asm/system.h>
 #include <asm/page.h>
+#include <asm/pgtable_types.h>
 #include <asm/percpu.h>
 #include <asm/msr.h>
 #include <asm/desc_defs.h>

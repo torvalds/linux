@@ -71,17 +71,6 @@ extern unsigned long phys_base;
 extern unsigned long __phys_addr(unsigned long);
 #define __phys_reloc_hide(x)	(x)
 
-/*
- * These are used to make use of C type-checking..
- */
-typedef unsigned long	pteval_t;
-typedef unsigned long	pmdval_t;
-typedef unsigned long	pudval_t;
-typedef unsigned long	pgdval_t;
-typedef unsigned long	pgprotval_t;
-
-typedef struct { pteval_t pte; } pte_t;
-
 #define vmemmap ((struct page *)VMEMMAP_START)
 
 extern unsigned long init_memory_mapping(unsigned long start,

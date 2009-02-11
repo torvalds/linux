@@ -25,6 +25,66 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 extern spinlock_t pgd_lock;
 extern struct list_head pgd_list;
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else  /* !CONFIG_PARAVIRT */
+#define set_pte(ptep, pte)		native_set_pte(ptep, pte)
+#define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
+
+#define set_pte_present(mm, addr, ptep, pte)				\
+	native_set_pte_present(mm, addr, ptep, pte)
+#define set_pte_atomic(ptep, pte)					\
+	native_set_pte_atomic(ptep, pte)
+
+#define set_pmd(pmdp, pmd)		native_set_pmd(pmdp, pmd)
+
+#ifndef __PAGETABLE_PUD_FOLDED
+#define set_pgd(pgdp, pgd)		native_set_pgd(pgdp, pgd)
+#define pgd_clear(pgd)			native_pgd_clear(pgd)
+#endif
+
+#ifndef set_pud
+# define set_pud(pudp, pud)		native_set_pud(pudp, pud)
+#endif
+
+#ifndef __PAGETABLE_PMD_FOLDED
+#define pud_clear(pud)			native_pud_clear(pud)
+#endif
+
+#define pte_clear(mm, addr, ptep)	native_pte_clear(mm, addr, ptep)
+#define pmd_clear(pmd)			native_pmd_clear(pmd)
+
+#define pte_update(mm, addr, ptep)              do { } while (0)
+#define pte_update_defer(mm, addr, ptep)        do { } while (0)
+
+static inline void __init paravirt_pagetable_setup_start(pgd_t *base)
+{
+	native_pagetable_setup_start(base);
+}
+
+static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
+{
+	native_pagetable_setup_done(base);
+}
+
+#define pgd_val(x)	native_pgd_val(x)
+#define __pgd(x)	native_make_pgd(x)
+
+#ifndef __PAGETABLE_PUD_FOLDED
+#define pud_val(x)	native_pud_val(x)
+#define __pud(x)	native_make_pud(x)
+#endif
+
+#ifndef __PAGETABLE_PMD_FOLDED
+#define pmd_val(x)	native_pmd_val(x)
+#define __pmd(x)	native_make_pmd(x)
+#endif
+
+#define pte_val(x)	native_pte_val(x)
+#define __pte(x)	native_make_pte(x)
+
+#endif	/* CONFIG_PARAVIRT */
+
 /*
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
@@ -213,49 +273,6 @@ static inline int is_new_memtype_allowed(unsigned long flags,
 
 	return 1;
 }
-
-#ifdef CONFIG_PARAVIRT
-#include <asm/paravirt.h>
-#else  /* !CONFIG_PARAVIRT */
-#define set_pte(ptep, pte)		native_set_pte(ptep, pte)
-#define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
-
-#define set_pte_present(mm, addr, ptep, pte)				\
-	native_set_pte_present(mm, addr, ptep, pte)
-#define set_pte_atomic(ptep, pte)					\
-	native_set_pte_atomic(ptep, pte)
-
-#define set_pmd(pmdp, pmd)		native_set_pmd(pmdp, pmd)
-
-#ifndef __PAGETABLE_PUD_FOLDED
-#define set_pgd(pgdp, pgd)		native_set_pgd(pgdp, pgd)
-#define pgd_clear(pgd)			native_pgd_clear(pgd)
-#endif
-
-#ifndef set_pud
-# define set_pud(pudp, pud)		native_set_pud(pudp, pud)
-#endif
-
-#ifndef __PAGETABLE_PMD_FOLDED
-#define pud_clear(pud)			native_pud_clear(pud)
-#endif
-
-#define pte_clear(mm, addr, ptep)	native_pte_clear(mm, addr, ptep)
-#define pmd_clear(pmd)			native_pmd_clear(pmd)
-
-#define pte_update(mm, addr, ptep)              do { } while (0)
-#define pte_update_defer(mm, addr, ptep)        do { } while (0)
-
-static inline void __init paravirt_pagetable_setup_start(pgd_t *base)
-{
-	native_pagetable_setup_start(base);
-}
-
-static inline void __init paravirt_pagetable_setup_done(pgd_t *base)
-{
-	native_pagetable_setup_done(base);
-}
-#endif	/* CONFIG_PARAVIRT */
 
 #endif	/* __ASSEMBLY__ */
 

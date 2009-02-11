@@ -31,28 +31,6 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
 	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
 #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
 
-#ifdef CONFIG_PARAVIRT
-#include <asm/paravirt.h>
-#else  /* !CONFIG_PARAVIRT */
-
-#define pgd_val(x)	native_pgd_val(x)
-#define __pgd(x)	native_make_pgd(x)
-
-#ifndef __PAGETABLE_PUD_FOLDED
-#define pud_val(x)	native_pud_val(x)
-#define __pud(x)	native_make_pud(x)
-#endif
-
-#ifndef __PAGETABLE_PMD_FOLDED
-#define pmd_val(x)	native_pmd_val(x)
-#define __pmd(x)	native_make_pmd(x)
-#endif
-
-#define pte_val(x)	native_pte_val(x)
-#define __pte(x)	native_make_pte(x)
-
-#endif	/* CONFIG_PARAVIRT */
-
 #define __pa(x)		__phys_addr((unsigned long)(x))
 #define __pa_nodebug(x)	__phys_addr_nodebug((unsigned long)(x))
 /* __pa_symbol should be used for C visible symbols.

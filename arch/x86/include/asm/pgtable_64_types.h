@@ -1,6 +1,22 @@
 #ifndef _ASM_X86_PGTABLE_64_DEFS_H
 #define _ASM_X86_PGTABLE_64_DEFS_H
 
+#ifndef __ASSEMBLY__
+#include <linux/types.h>
+
+/*
+ * These are used to make use of C type-checking..
+ */
+typedef unsigned long	pteval_t;
+typedef unsigned long	pmdval_t;
+typedef unsigned long	pudval_t;
+typedef unsigned long	pgdval_t;
+typedef unsigned long	pgprotval_t;
+
+typedef struct { pteval_t pte; } pte_t;
+
+#endif	/* !__ASSEMBLY__ */
+
 #define SHARED_KERNEL_PMD	0
 
 /*

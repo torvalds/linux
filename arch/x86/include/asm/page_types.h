@@ -46,106 +46,15 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/types.h>
-
-typedef struct { pgdval_t pgd; } pgd_t;
-typedef struct { pgprotval_t pgprot; } pgprot_t;
-
-static inline pgd_t native_make_pgd(pgdval_t val)
-{
-	return (pgd_t) { val };
-}
-
-static inline pgdval_t native_pgd_val(pgd_t pgd)
-{
-	return pgd.pgd;
-}
-
-static inline pgdval_t pgd_flags(pgd_t pgd)
-{
-	return native_pgd_val(pgd) & PTE_FLAGS_MASK;
-}
-
-#if PAGETABLE_LEVELS > 3
-typedef struct { pudval_t pud; } pud_t;
-
-static inline pud_t native_make_pud(pmdval_t val)
-{
-	return (pud_t) { val };
-}
-
-static inline pudval_t native_pud_val(pud_t pud)
-{
-	return pud.pud;
-}
-#else
-#include <asm-generic/pgtable-nopud.h>
-
-static inline pudval_t native_pud_val(pud_t pud)
-{
-	return native_pgd_val(pud.pgd);
-}
-#endif
-
-#if PAGETABLE_LEVELS > 2
-typedef struct { pmdval_t pmd; } pmd_t;
-
-static inline pmd_t native_make_pmd(pmdval_t val)
-{
-	return (pmd_t) { val };
-}
-
-static inline pmdval_t native_pmd_val(pmd_t pmd)
-{
-	return pmd.pmd;
-}
-#else
-#include <asm-generic/pgtable-nopmd.h>
-
-static inline pmdval_t native_pmd_val(pmd_t pmd)
-{
-	return native_pgd_val(pmd.pud.pgd);
-}
-#endif
-
-static inline pudval_t pud_flags(pud_t pud)
-{
-	return native_pud_val(pud) & PTE_FLAGS_MASK;
-}
-
-static inline pmdval_t pmd_flags(pmd_t pmd)
-{
-	return native_pmd_val(pmd) & PTE_FLAGS_MASK;
-}
-
-static inline pte_t native_make_pte(pteval_t val)
-{
-	return (pte_t) { .pte = val };
-}
-
-static inline pteval_t native_pte_val(pte_t pte)
-{
-	return pte.pte;
-}
-
-static inline pteval_t pte_flags(pte_t pte)
-{
-	return native_pte_val(pte) & PTE_FLAGS_MASK;
-}
-
-#define pgprot_val(x)	((x).pgprot)
-#define __pgprot(x)	((pgprot_t) { (x) } )
-
-
-typedef struct page *pgtable_t;
+struct pgprot;
 
 extern int page_is_ram(unsigned long pagenr);
 extern int pagerange_is_ram(unsigned long start, unsigned long end);
 extern int devmem_is_allowed(unsigned long pagenr);
 extern void map_devmem(unsigned long pfn, unsigned long size,
-		       pgprot_t vma_prot);
+		       struct pgprot vma_prot);
 extern void unmap_devmem(unsigned long pfn, unsigned long size,
-			 pgprot_t vma_prot);
+			 struct pgprot vma_prot);
 
 extern unsigned long max_low_pfn_mapped;
 extern unsigned long max_pfn_mapped;
