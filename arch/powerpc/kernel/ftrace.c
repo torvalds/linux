@@ -567,6 +567,10 @@ int ftrace_disable_ftrace_graph_caller(void)
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
+#ifdef CONFIG_PPC64
+extern void mod_return_to_handler(void);
+#endif
+
 /*
  * Hook the return address and push it in the stack of return addrs
  * in current thread info.
@@ -577,11 +581,16 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	unsigned long long calltime;
 	int faulted;
 	struct ftrace_graph_ent trace;
-	unsigned long return_hooker = (unsigned long)
-				&return_to_handler;
+	unsigned long return_hooker = (unsigned long)&return_to_handler;
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
+
+#if CONFIG_PPC64
+	/* non core kernel code needs to save and restore the TOC */
+	if (REGION_ID(self_addr) != KERNEL_REGION_ID)
+		return_hooker = (unsigned long)&mod_return_to_handler;
+#endif
 
 	return_hooker = GET_ADDR(return_hooker);
 
