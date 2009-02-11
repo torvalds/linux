@@ -419,12 +419,16 @@ static int hdmi_setup_channel_allocation(struct hda_codec *codec,
 	/*
 	 * CA defaults to 0 for basic stereo audio
 	 */
-	if (!eld->eld_ver)
-		return 0;
-	if (!eld->spk_alloc)
-		return 0;
 	if (channels <= 2)
 		return 0;
+
+	/*
+	 * HDMI sink's ELD info cannot always be retrieved for now, e.g.
+	 * in console or for audio devices. Assume the highest speakers
+	 * configuration, to _not_ prohibit multi-channel audio playback.
+	 */
+	if (!eld->spk_alloc)
+		eld->spk_alloc = 0xffff;
 
 	/*
 	 * expand ELD's speaker allocation mask
