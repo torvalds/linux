@@ -20,6 +20,7 @@
 
 #include "u_serial.h"
 #include "gadget_chips.h"
+#include "linux/usb/android_composite.h"
 
 
 /*
@@ -783,11 +784,22 @@ int acm_bind_config(struct usb_configuration *c, u8 port_num)
 	return status;
 }
 
-int __init acm_function_add(struct usb_composite_dev *cdev,
-	struct usb_configuration *c)
+int acm_function_bind_config(struct usb_configuration *c)
 {
 	int ret = acm_bind_config(c, 0);
 	if (ret == 0)
 		gserial_setup(c->cdev->gadget, 1);
 	return ret;
 }
+
+static struct android_usb_function acm_function = {
+	.name = "acm",
+	.bind_config = acm_function_bind_config,
+};
+
+static int __init init(void)
+{
+	android_register_function(&acm_function);
+	return 0;
+}
+module_init(init);
