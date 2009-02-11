@@ -1268,8 +1268,8 @@ static void sxg_interrupt(struct adapter_t *adapter)
 {
 	WRITE_REG(adapter->UcodeRegs[0].Icr, SXG_ICR(0, SXG_ICR_MASK), TRUE);
 
-	if (netif_rx_schedule_prep(&adapter->napi)) {
-		__netif_rx_schedule(&adapter->napi);
+	if (napi_schedule_prep(&adapter->napi)) {
+		__napi_schedule(&adapter->napi);
 	}
 }
 
@@ -1322,7 +1322,7 @@ static int sxg_poll(struct napi_struct *napi, int budget)
 	sxg_handle_interrupt(adapter, &work_done, budget);
 
 	if (work_done < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		WRITE_REG(adapter->UcodeRegs[0].Isr, 0, TRUE);
 	}
 	return work_done;
