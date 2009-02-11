@@ -1557,7 +1557,8 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 	struct drm_i915_fence_reg *reg = NULL;
-	int i, ret;
+	struct drm_i915_gem_object *old_obj_priv = NULL;
+	int i, ret, avail;
 
 	switch (obj_priv->tiling_mode) {
 	case I915_TILING_NONE:
@@ -1581,16 +1582,23 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write)
 
 	/* First try to find a free reg */
 try_again:
+	avail = 0;
 	for (i = dev_priv->fence_reg_start; i < dev_priv->num_fence_regs; i++) {
 		reg = &dev_priv->fence_regs[i];
 		if (!reg->obj)
 			break;
+
+		old_obj_priv = reg->obj->driver_private;
+		if (!old_obj_priv->pin_count)
+		    avail++;
 	}
 
 	/* None available, try to steal one or wait for a user to finish */
 	if (i == dev_priv->num_fence_regs) {
-		struct drm_i915_gem_object *old_obj_priv = NULL;
 		loff_t offset;
+
+		if (avail == 0)
+			return -ENOMEM;
 
 		/* Could try to use LRU here instead... */
 		for (i = dev_priv->fence_reg_start;
