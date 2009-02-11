@@ -1794,7 +1794,7 @@ config PCI_MMCONFIG
 
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
-	depends on X86_64 && PCI_MSI && ACPI && EXPERIMENTAL
+	depends on PCI_MSI && ACPI && EXPERIMENTAL
 	help
 	  DMA remapping (DMAR) devices support enables independent address
 	  translations for Direct Memory Access (DMA) from devices.

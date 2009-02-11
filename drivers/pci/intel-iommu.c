@@ -2315,7 +2315,7 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 error:
 	if (iova)
 		__free_iova(&domain->iovad, iova);
-	printk(KERN_ERR"Device %s request: %lx@%llx dir %d --- failed\n",
+	printk(KERN_ERR"Device %s request: %zx@%llx dir %d --- failed\n",
 		pci_name(pdev), size, (unsigned long long)paddr, dir);
 	return 0;
 }
@@ -2411,7 +2411,7 @@ void intel_unmap_single(struct device *dev, dma_addr_t dev_addr, size_t size,
 	start_addr = iova->pfn_lo << PAGE_SHIFT;
 	size = aligned_size((u64)dev_addr, size);
 
-	pr_debug("Device %s unmapping: %lx@%llx\n",
+	pr_debug("Device %s unmapping: %zx@%llx\n",
 		pci_name(pdev), size, (unsigned long long)start_addr);
 
 	/*  clear the whole page */
@@ -2469,8 +2469,6 @@ void intel_free_coherent(struct device *hwdev, size_t size, void *vaddr,
 	free_pages((unsigned long)vaddr, order);
 }
 
-#define SG_ENT_VIRT_ADDRESS(sg)	(sg_virt((sg)))
-
 void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 		    int nelems, int dir)
 {
@@ -2480,7 +2478,7 @@ void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	unsigned long start_addr;
 	struct iova *iova;
 	size_t size = 0;
-	void *addr;
+	phys_addr_t addr;
 	struct scatterlist *sg;
 	struct intel_iommu *iommu;
 
@@ -2496,7 +2494,7 @@ void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	if (!iova)
 		return;
 	for_each_sg(sglist, sg, nelems, i) {
-		addr = SG_ENT_VIRT_ADDRESS(sg);
+		addr = page_to_phys(sg_page(sg)) + sg->offset;
 		size += aligned_size((u64)addr, sg->length);
 	}
 
@@ -2523,7 +2521,7 @@ static int intel_nontranslate_map_sg(struct device *hddev,
 
 	for_each_sg(sglist, sg, nelems, i) {
 		BUG_ON(!sg_page(sg));
-		sg->dma_address = virt_to_bus(SG_ENT_VIRT_ADDRESS(sg));
+		sg->dma_address = page_to_phys(sg_page(sg)) + sg->offset;
 		sg->dma_length = sg->length;
 	}
 	return nelems;
@@ -2532,7 +2530,7 @@ static int intel_nontranslate_map_sg(struct device *hddev,
 int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 		 int dir)
 {
-	void *addr;
+	phys_addr_t addr;
 	int i;
 	struct pci_dev *pdev = to_pci_dev(hwdev);
 	struct dmar_domain *domain;
@@ -2556,8 +2554,7 @@ int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 	iommu = domain_get_iommu(domain);
 
 	for_each_sg(sglist, sg, nelems, i) {
-		addr = SG_ENT_VIRT_ADDRESS(sg);
-		addr = (void *)virt_to_phys(addr);
+		addr = page_to_phys(sg_page(sg)) + sg->offset;
 		size += aligned_size((u64)addr, sg->length);
 	}
 
@@ -2580,8 +2577,7 @@ int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int nelems,
 	start_addr = iova->pfn_lo << PAGE_SHIFT;
 	offset = 0;
 	for_each_sg(sglist, sg, nelems, i) {
-		addr = SG_ENT_VIRT_ADDRESS(sg);
-		addr = (void *)virt_to_phys(addr);
+		addr = page_to_phys(sg_page(sg)) + sg->offset;
 		size = aligned_size((u64)addr, sg->length);
 		ret = domain_page_mapping(domain, start_addr + offset,
 			((u64)addr) & PAGE_MASK,
