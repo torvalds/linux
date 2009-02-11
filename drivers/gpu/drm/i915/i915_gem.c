@@ -3119,6 +3119,27 @@ i915_gem_init_hws(struct drm_device *dev)
 	return 0;
 }
 
+static void
+i915_gem_cleanup_hws(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_gem_object *obj = dev_priv->hws_obj;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	if (dev_priv->hws_obj == NULL)
+		return;
+
+	kunmap(obj_priv->page_list[0]);
+	i915_gem_object_unpin(obj);
+	drm_gem_object_unreference(obj);
+	dev_priv->hws_obj = NULL;
+	memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
+	dev_priv->hw_status_page = NULL;
+
+	/* Write high address into HWS_PGA when disabling. */
+	I915_WRITE(HWS_PGA, 0x1ffff000);
+}
+
 int
 i915_gem_init_ringbuffer(struct drm_device *dev)
 {
@@ -3136,6 +3157,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	obj = drm_gem_object_alloc(dev, 128 * 1024);
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate ringbuffer\n");
+		i915_gem_cleanup_hws(dev);
 		return -ENOMEM;
 	}
 	obj_priv = obj->driver_private;
@@ -3143,6 +3165,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	ret = i915_gem_object_pin(obj, 4096);
 	if (ret != 0) {
 		drm_gem_object_unreference(obj);
+		i915_gem_cleanup_hws(dev);
 		return ret;
 	}
 
@@ -3162,6 +3185,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 		memset(&dev_priv->ring, 0, sizeof(dev_priv->ring));
 		i915_gem_object_unpin(obj);
 		drm_gem_object_unreference(obj);
+		i915_gem_cleanup_hws(dev);
 		return -EINVAL;
 	}
 	ring->ring_obj = obj;
@@ -3241,20 +3265,7 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 	dev_priv->ring.ring_obj = NULL;
 	memset(&dev_priv->ring, 0, sizeof(dev_priv->ring));
 
-	if (dev_priv->hws_obj != NULL) {
-		struct drm_gem_object *obj = dev_priv->hws_obj;
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
-
-		kunmap(obj_priv->page_list[0]);
-		i915_gem_object_unpin(obj);
-		drm_gem_object_unreference(obj);
-		dev_priv->hws_obj = NULL;
-		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
-		dev_priv->hw_status_page = NULL;
-
-		/* Write high address into HWS_PGA when disabling. */
-		I915_WRITE(HWS_PGA, 0x1ffff000);
-	}
+	i915_gem_cleanup_hws(dev);
 }
 
 int
