@@ -5292,10 +5292,9 @@ static int patch_stac927x(struct hda_codec *codec)
 							stac927x_models,
 							stac927x_cfg_tbl);
  again:
-	if (spec->board_config < 0 || !stac927x_brd_tbl[spec->board_config]) {
-		if (spec->board_config < 0)
-			snd_printdd(KERN_INFO "hda_codec: Unknown model for"
-				    "STAC927x, using BIOS defaults\n");
+	if (spec->board_config < 0) {
+		snd_printdd(KERN_INFO "hda_codec: Unknown model for"
+			    "STAC927x, using BIOS defaults\n");
 		err = stac92xx_save_bios_config_regs(codec);
 	} else
 		err = stac_save_pin_cfgs(codec,
