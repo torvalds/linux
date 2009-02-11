@@ -42,8 +42,10 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	list_for_each_entry(entry, &dev->msi_list, list) {
 		ret = arch_setup_msi_irq(dev, entry);
-		if (ret)
+		if (ret < 0)
 			return ret;
+		if (ret > 0)
+			return -ENOSPC;
 	}
 
 	return 0;
@@ -487,7 +489,9 @@ static int msix_capability_init(struct pci_dev *dev,
 	}
 
 	ret = arch_setup_msi_irqs(dev, nvec, PCI_CAP_ID_MSIX);
-	if (ret) {
+	if (ret < 0) {
+		/* If we had some success report the number of irqs
+		 * we succeeded in setting up. */
 		int avail = 0;
 		list_for_each_entry(entry, &dev->msi_list, list) {
 			if (entry->irq != 0) {
@@ -495,14 +499,13 @@ static int msix_capability_init(struct pci_dev *dev,
 			}
 		}
 
-		msi_free_irqs(dev);
+		if (avail != 0)
+			ret = avail;
+	}
 
-		/* If we had some success report the number of irqs
-		 * we succeeded in setting up.
-		 */
-		if (avail == 0)
-			avail = ret;
-		return avail;
+	if (ret) {
+		msi_free_irqs(dev);
+		return ret;
 	}
 
 	i = 0;
