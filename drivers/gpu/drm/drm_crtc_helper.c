@@ -775,8 +775,12 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 fail_set_mode:
 	set->crtc->enabled = save_enabled;
 	count = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (!connector->encoder)
+			continue;
+
 		connector->encoder->crtc = save_crtcs[count++];
+	}
 fail_no_encoder:
 	kfree(save_crtcs);
 	count = 0;
