@@ -204,6 +204,11 @@ static int serial_open (struct tty_struct *tty, struct file *filp)
 		goto bailout_kref_put;
 	}
 
+	if (port->serial->disconnected) {
+		retval = -ENODEV;
+		goto bailout_kref_put;
+	}
+
 	if (mutex_lock_interruptible(&port->mutex)) {
 		retval = -ERESTARTSYS;
 		goto bailout_kref_put;
