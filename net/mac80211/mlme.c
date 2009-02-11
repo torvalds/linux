@@ -1528,7 +1528,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 					 elems.wmm_param_len);
 
 	if (elems.ht_info_elem && elems.wmm_param &&
-	    (ifsta->flags & IEEE80211_STA_WMM_ENABLED))
+	    (ifsta->flags & IEEE80211_STA_WMM_ENABLED) &&
+	    !(ifsta->flags & IEEE80211_STA_TKIP_WEP_USED))
 		changed |= ieee80211_enable_ht(sdata, elems.ht_info_elem,
 					       ap_ht_cap_flags);
 
@@ -1954,7 +1955,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			erp_valid, erp_value);
 
 
-	if (elems.ht_cap_elem && elems.ht_info_elem && elems.wmm_param) {
+	if (elems.ht_cap_elem && elems.ht_info_elem && elems.wmm_param &&
+	    !(ifsta->flags & IEEE80211_STA_TKIP_WEP_USED)) {
 		struct sta_info *sta;
 		struct ieee80211_supported_band *sband;
 		u16 ap_ht_cap_flags;
