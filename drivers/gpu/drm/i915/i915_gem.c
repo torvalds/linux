@@ -758,8 +758,11 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 
 	if (!obj_priv->mmap_offset) {
 		ret = i915_gem_create_mmap_offset(obj);
-		if (ret)
+		if (ret) {
+			drm_gem_object_unreference(obj);
+			mutex_unlock(&dev->struct_mutex);
 			return ret;
+		}
 	}
 
 	args->offset = obj_priv->mmap_offset;
