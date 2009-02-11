@@ -25,13 +25,11 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 #define __switch_canary							\
-	"movl "__percpu_arg([current_task])",%%ebx\n\t"			\
-	"movl %P[task_canary](%%ebx),%%ebx\n\t"				\
-	"movl %%ebx,"__percpu_arg([stack_canary])"\n\t"
+	"movl %P[task_canary](%[next]), %%ebx\n\t"			\
+	"movl %%ebx, "__percpu_arg([stack_canary])"\n\t"
 #define __switch_canary_oparam						\
 	, [stack_canary] "=m" (per_cpu_var(stack_canary))
 #define __switch_canary_iparam						\
-	, [current_task] "m" (per_cpu_var(current_task))		\
 	, [task_canary] "i" (offsetof(struct task_struct, stack_canary))
 #else	/* CC_STACKPROTECTOR */
 #define __switch_canary
@@ -60,9 +58,9 @@ do {									\
 		     "movl %[next_sp],%%esp\n\t"	/* restore ESP   */ \
 		     "movl $1f,%[prev_ip]\n\t"	/* save    EIP   */	\
 		     "pushl %[next_ip]\n\t"	/* restore EIP   */	\
+		     __switch_canary					\
 		     "jmp __switch_to\n"	/* regparm call  */	\
 		     "1:\t"						\
-		     __switch_canary					\
 		     "popl %%ebp\n\t"		/* restore EBP   */	\
 		     "popfl\n"			/* restore flags */	\
 									\
