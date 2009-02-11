@@ -213,7 +213,7 @@ static void fill_fake_finddataunix(FILE_UNIX_BASIC_INFO *pfnd_dat,
  * guaranteed to be unique.
  */
 struct inode *
-cifs_new_inode(struct super_block *sb, unsigned long *inum)
+cifs_new_inode(struct super_block *sb, __u64 *inum)
 {
 	struct inode *inode;
 
@@ -228,7 +228,7 @@ cifs_new_inode(struct super_block *sb, unsigned long *inum)
 	 *     if serverino is disabled, perhaps we should be using iunique()?
 	 */
 	if (inum && (CIFS_SB(sb)->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM))
-		inode->i_ino = *inum;
+		inode->i_ino = (unsigned long) *inum;
 
 	/*
 	 * must set this here instead of cifs_alloc_inode since VFS will
@@ -276,8 +276,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 	/* get new inode */
 	if (*pinode == NULL) {
-		*pinode = cifs_new_inode(sb, (unsigned long *)
-						&find_data.UniqueId);
+		*pinode = cifs_new_inode(sb, &find_data.UniqueId);
 		if (*pinode == NULL) {
 			rc = -ENOMEM;
 			goto cgiiu_exit;
@@ -499,6 +498,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	/* get new inode */
 	if (*pinode == NULL) {
 		__u64 inode_num;
+		__u64 *pinum = &inode_num;
 
 		/* Is an i_ino of zero legal? Can we use that to check
 		   if the server supports returning inode numbers?  Are
@@ -518,20 +518,20 @@ int cifs_get_inode_info(struct inode **pinode,
 			int rc1 = 0;
 
 			rc1 = CIFSGetSrvInodeNumber(xid, pTcon,
-					full_path, &inode_num,
+					full_path, pinum,
 					cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (rc1) {
 				cFYI(1, ("GetSrvInodeNum rc %d", rc1));
+				pinum = NULL;
 				/* BB EOPNOSUPP disable SERVER_INUM? */
 			}
-			*pinode = cifs_new_inode(sb, (unsigned long *)
-							&inode_num);
 		} else {
-			*pinode = cifs_new_inode(sb, NULL);
+			pinum = NULL;
 		}
 
+		*pinode = cifs_new_inode(sb, pinum);
 		if (*pinode == NULL) {
 			rc = -ENOMEM;
 			goto cgii_exit;
@@ -1148,8 +1148,8 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			else
 				direntry->d_op = &cifs_dentry_ops;
 
-			newinode = cifs_new_inode(inode->i_sb, (unsigned long *)
-							&pInfo->UniqueId);
+			newinode = cifs_new_inode(inode->i_sb,
+						  &pInfo->UniqueId);
 			if (newinode == NULL) {
 				kfree(pInfo);
 				goto mkdir_get_info;

@@ -61,7 +61,7 @@ static inline void dump_cifs_file_struct(struct file *file, char *label)
 static int
 construct_dentry(struct qstr *qstring, struct file *file,
 		 struct inode **ptmp_inode, struct dentry **pnew_dentry,
-		 unsigned long *inum)
+		 __u64 *inum)
 {
 	struct dentry *tmp_dentry = NULL;
 	struct super_block *sb = file->f_path.dentry->d_sb;
@@ -820,7 +820,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 /* inode num, inode type and filename returned */
 static int cifs_get_name_from_search_buf(struct qstr *pqst,
 	char *current_entry, __u16 level, unsigned int unicode,
-	struct cifs_sb_info *cifs_sb, int max_len, ino_t *pinum)
+	struct cifs_sb_info *cifs_sb, int max_len, __u64 *pinum)
 {
 	int rc = 0;
 	unsigned int len = 0;
@@ -903,7 +903,7 @@ static int cifs_filldir(char *pfindEntry, struct file *file,
 	struct qstr qstring;
 	struct cifsFileInfo *pCifsF;
 	unsigned int obj_type;
-	ino_t  inum;
+	__u64  inum;
 	struct cifs_sb_info *cifs_sb;
 	struct inode *tmp_inode;
 	struct dentry *tmp_dentry;
