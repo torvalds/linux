@@ -32,7 +32,7 @@
 #include <asm/uaccess.h>
 
 #include <media/rds.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 
 /* Addresses to scan */
@@ -74,7 +74,7 @@ MODULE_LICENSE("GPL");
 #define dprintk     if (debug) printk
 
 struct saa6588 {
-	struct i2c_client *client;
+	struct v4l2_subdev sd;
 	struct work_struct work;
 	struct timer_list timer;
 	spinlock_t lock;
@@ -87,6 +87,11 @@ struct saa6588 {
 	wait_queue_head_t read_queue;
 	int data_available_for_read;
 };
+
+static inline struct saa6588 *to_saa6588(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct saa6588, sd);
+}
 
 /* ---------------------------------------------------------------------- */
 
@@ -257,6 +262,7 @@ static void block_to_buf(struct saa6588 *s, unsigned char *blockbuf)
 
 static void saa6588_i2c_poll(struct saa6588 *s)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&s->sd);
 	unsigned long flags;
 	unsigned char tmpbuf[6];
 	unsigned char blocknum;
@@ -264,7 +270,7 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 
 	/* Although we only need 3 bytes, we have to read at least 6.
 	   SAA6588 returns garbage otherwise */
-	if (6 != i2c_master_recv(s->client, &tmpbuf[0], 6)) {
+	if (6 != i2c_master_recv(client, &tmpbuf[0], 6)) {
 		if (debug > 1)
 			dprintk(PREFIX "read error!\n");
 		return;
@@ -332,6 +338,7 @@ static void saa6588_work(struct work_struct *work)
 
 static int saa6588_configure(struct saa6588 *s)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&s->sd);
 	unsigned char buf[3];
 	int rc;
 
@@ -379,7 +386,7 @@ static int saa6588_configure(struct saa6588 *s)
 	dprintk(PREFIX "writing: 0w=0x%02x 1w=0x%02x 2w=0x%02x\n",
 		buf[0], buf[1], buf[2]);
 
-	rc = i2c_master_send(s->client, buf, 3);
+	rc = i2c_master_send(client, buf, 3);
 	if (rc != 3)
 		printk(PREFIX "i2c i/o error: rc == %d (should be 3)\n", rc);
 
@@ -388,63 +395,10 @@ static int saa6588_configure(struct saa6588 *s)
 
 /* ---------------------------------------------------------------------- */
 
-static int saa6588_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static long saa6588_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	struct saa6588 *s;
-
-	v4l_info(client, "saa6588 found @ 0x%x (%s)\n",
-			client->addr << 1, client->adapter->name);
-
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
-	if (s == NULL)
-		return -ENOMEM;
-
-	s->client = client;
-	s->buf_size = bufblocks * 3;
-
-	s->buffer = kmalloc(s->buf_size, GFP_KERNEL);
-	if (s->buffer == NULL) {
-		kfree(s);
-		return -ENOMEM;
-	}
-	spin_lock_init(&s->lock);
-	s->block_count = 0;
-	s->wr_index = 0;
-	s->rd_index = 0;
-	s->last_blocknum = 0xff;
-	init_waitqueue_head(&s->read_queue);
-	s->data_available_for_read = 0;
-	i2c_set_clientdata(client, s);
-
-	saa6588_configure(s);
-
-	/* start polling via eventd */
-	INIT_WORK(&s->work, saa6588_work);
-	init_timer(&s->timer);
-	s->timer.function = saa6588_timer;
-	s->timer.data = (unsigned long)s;
-	schedule_work(&s->work);
-	return 0;
-}
-
-static int saa6588_remove(struct i2c_client *client)
-{
-	struct saa6588 *s = i2c_get_clientdata(client);
-
-	del_timer_sync(&s->timer);
-	flush_scheduled_work();
-
-	kfree(s->buffer);
-	kfree(s);
-	return 0;
-}
-
-static int saa6588_command(struct i2c_client *client, unsigned int cmd,
-							void *arg)
-{
-	struct saa6588 *s = i2c_get_clientdata(client);
-	struct rds_command *a = (struct rds_command *)arg;
+	struct saa6588 *s = to_saa6588(sd);
+	struct rds_command *a = arg;
 
 	switch (cmd) {
 		/* --- open() for /dev/radio --- */
@@ -472,8 +426,81 @@ static int saa6588_command(struct i2c_client *client, unsigned int cmd,
 
 	default:
 		/* nothing */
-		break;
+		return -ENOIOCTLCMD;
 	}
+	return 0;
+}
+
+static int saa6588_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+}
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops saa6588_core_ops = {
+	.ioctl = saa6588_ioctl,
+};
+
+static const struct v4l2_subdev_ops saa6588_ops = {
+	.core = &saa6588_core_ops,
+};
+
+/* ---------------------------------------------------------------------- */
+
+static int saa6588_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct saa6588 *s;
+	struct v4l2_subdev *sd;
+
+	v4l_info(client, "saa6588 found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
+
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	if (s == NULL)
+		return -ENOMEM;
+
+	s->buf_size = bufblocks * 3;
+
+	s->buffer = kmalloc(s->buf_size, GFP_KERNEL);
+	if (s->buffer == NULL) {
+		kfree(s);
+		return -ENOMEM;
+	}
+	sd = &s->sd;
+	v4l2_i2c_subdev_init(sd, client, &saa6588_ops);
+	spin_lock_init(&s->lock);
+	s->block_count = 0;
+	s->wr_index = 0;
+	s->rd_index = 0;
+	s->last_blocknum = 0xff;
+	init_waitqueue_head(&s->read_queue);
+	s->data_available_for_read = 0;
+
+	saa6588_configure(s);
+
+	/* start polling via eventd */
+	INIT_WORK(&s->work, saa6588_work);
+	init_timer(&s->timer);
+	s->timer.function = saa6588_timer;
+	s->timer.data = (unsigned long)s;
+	schedule_work(&s->work);
+	return 0;
+}
+
+static int saa6588_remove(struct i2c_client *client)
+{
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct saa6588 *s = to_saa6588(sd);
+
+	v4l2_device_unregister_subdev(sd);
+
+	del_timer_sync(&s->timer);
+	flush_scheduled_work();
+
+	kfree(s->buffer);
+	kfree(s);
 	return 0;
 }
 
