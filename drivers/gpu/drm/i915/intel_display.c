@@ -1606,7 +1606,9 @@ intel_user_framebuffer_create(struct drm_device *dev,
 
 	ret = intel_framebuffer_create(dev, mode_cmd, &fb, obj);
 	if (ret) {
+		mutex_lock(&dev->struct_mutex);
 		drm_gem_object_unreference(obj);
+		mutex_unlock(&dev->struct_mutex);
 		return NULL;
 	}
 
