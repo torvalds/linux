@@ -791,6 +791,7 @@ dbg_hid(const char *fmt, ...)
 		__FILE__ , ## arg)
 #endif /* HID_FF */
 
+#ifdef __KERNEL__
 #ifdef CONFIG_HID_COMPAT
 #define HID_COMPAT_LOAD_DRIVER(name)	\
 /* prototype to avoid sparse warning */	\
@@ -804,6 +805,7 @@ EXPORT_SYMBOL(hid_compat_##name)
 	extern void hid_compat_##name(void);	\
 	hid_compat_##name();			\
 } while (0)
+#endif /* __KERNEL__ */
 
 #endif
 

@@ -6,13 +6,13 @@
 
 comment "OTG and related infrastructure"
 
-if USB || USB_GADGET
-
 config USB_OTG_UTILS
 	bool
 	help
 	  Select this to make sure the build includes objects from
 	  the OTG infrastructure directory.
+
+if USB || USB_GADGET
 
 #
 # USB Transceiver Drivers

@@ -262,11 +262,11 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 			BOOTMEM_DEFAULT);
 
 	/*
-	 * reserve physical page 0 - it's a special BIOS page on many boxes,
-	 * enabling clean reboots, SMP operation, laptop functions.
+	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
 	 */
-	reserve_bootmem(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET,
-			BOOTMEM_DEFAULT);
+	if (CONFIG_ZERO_PAGE_OFFSET != 0)
+		reserve_bootmem(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET,
+				BOOTMEM_DEFAULT);
 
 	sparse_memory_present_with_active_regions(0);
 

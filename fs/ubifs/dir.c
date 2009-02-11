@@ -482,30 +482,29 @@ static int ubifs_dir_release(struct inode *dir, struct file *file)
 }
 
 /**
- * lock_2_inodes - lock two UBIFS inodes.
+ * lock_2_inodes - a wrapper for locking two UBIFS inodes.
  * @inode1: first inode
  * @inode2: second inode
+ *
+ * We do not implement any tricks to guarantee strict lock ordering, because
+ * VFS has already done it for us on the @i_mutex. So this is just a simple
+ * wrapper function.
  */
 static void lock_2_inodes(struct inode *inode1, struct inode *inode2)
 {
-	if (inode1->i_ino < inode2->i_ino) {
-		mutex_lock_nested(&ubifs_inode(inode1)->ui_mutex, WB_MUTEX_2);
-		mutex_lock_nested(&ubifs_inode(inode2)->ui_mutex, WB_MUTEX_3);
-	} else {
-		mutex_lock_nested(&ubifs_inode(inode2)->ui_mutex, WB_MUTEX_2);
-		mutex_lock_nested(&ubifs_inode(inode1)->ui_mutex, WB_MUTEX_3);
-	}
+	mutex_lock_nested(&ubifs_inode(inode1)->ui_mutex, WB_MUTEX_1);
+	mutex_lock_nested(&ubifs_inode(inode2)->ui_mutex, WB_MUTEX_2);
 }
 
 /**
- * unlock_2_inodes - unlock two UBIFS inodes inodes.
+ * unlock_2_inodes - a wrapper for unlocking two UBIFS inodes.
  * @inode1: first inode
  * @inode2: second inode
  */
 static void unlock_2_inodes(struct inode *inode1, struct inode *inode2)
 {
-	mutex_unlock(&ubifs_inode(inode1)->ui_mutex);
 	mutex_unlock(&ubifs_inode(inode2)->ui_mutex);
+	mutex_unlock(&ubifs_inode(inode1)->ui_mutex);
 }
 
 static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
@@ -527,6 +526,8 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 	dbg_gen("dent '%.*s' to ino %lu (nlink %d) in dir ino %lu",
 		dentry->d_name.len, dentry->d_name.name, inode->i_ino,
 		inode->i_nlink, dir->i_ino);
+	ubifs_assert(mutex_is_locked(&dir->i_mutex));
+	ubifs_assert(mutex_is_locked(&inode->i_mutex));
 	err = dbg_check_synced_i_size(inode);
 	if (err)
 		return err;
@@ -580,6 +581,8 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 	dbg_gen("dent '%.*s' from ino %lu (nlink %d) in dir ino %lu",
 		dentry->d_name.len, dentry->d_name.name, inode->i_ino,
 		inode->i_nlink, dir->i_ino);
+	ubifs_assert(mutex_is_locked(&dir->i_mutex));
+	ubifs_assert(mutex_is_locked(&inode->i_mutex));
 	err = dbg_check_synced_i_size(inode);
 	if (err)
 		return err;
@@ -667,7 +670,8 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	dbg_gen("directory '%.*s', ino %lu in dir ino %lu", dentry->d_name.len,
 		dentry->d_name.name, inode->i_ino, dir->i_ino);
-
+	ubifs_assert(mutex_is_locked(&dir->i_mutex));
+	ubifs_assert(mutex_is_locked(&inode->i_mutex));
 	err = check_dir_empty(c, dentry->d_inode);
 	if (err)
 		return err;
@@ -922,59 +926,30 @@ out_budg:
 }
 
 /**
- * lock_3_inodes - lock three UBIFS inodes for rename.
+ * lock_3_inodes - a wrapper for locking three UBIFS inodes.
  * @inode1: first inode
  * @inode2: second inode
  * @inode3: third inode
  *
- * For 'ubifs_rename()', @inode1 may be the same as @inode2 whereas @inode3 may
- * be null.
+ * This function is used for 'ubifs_rename()' and @inode1 may be the same as
+ * @inode2 whereas @inode3 may be %NULL.
+ *
+ * We do not implement any tricks to guarantee strict lock ordering, because
+ * VFS has already done it for us on the @i_mutex. So this is just a simple
+ * wrapper function.
  */
 static void lock_3_inodes(struct inode *inode1, struct inode *inode2,
 			  struct inode *inode3)
 {
-	struct inode *i1, *i2, *i3;
-
-	if (!inode3) {
-		if (inode1 != inode2) {
-			lock_2_inodes(inode1, inode2);
-			return;
-		}
-		mutex_lock_nested(&ubifs_inode(inode1)->ui_mutex, WB_MUTEX_1);
-		return;
-	}
-
-	if (inode1 == inode2) {
-		lock_2_inodes(inode1, inode3);
-		return;
-	}
-
-	/* 3 different inodes */
-	if (inode1 < inode2) {
-		i3 = inode2;
-		if (inode1 < inode3) {
-			i1 = inode1;
-			i2 = inode3;
-		} else {
-			i1 = inode3;
-			i2 = inode1;
-		}
-	} else {
-		i3 = inode1;
-		if (inode2 < inode3) {
-			i1 = inode2;
-			i2 = inode3;
-		} else {
-			i1 = inode3;
-			i2 = inode2;
-		}
-	}
-	mutex_lock_nested(&ubifs_inode(i1)->ui_mutex, WB_MUTEX_1);
-	lock_2_inodes(i2, i3);
+	mutex_lock_nested(&ubifs_inode(inode1)->ui_mutex, WB_MUTEX_1);
+	if (inode2 != inode1)
+		mutex_lock_nested(&ubifs_inode(inode2)->ui_mutex, WB_MUTEX_2);
+	if (inode3)
+		mutex_lock_nested(&ubifs_inode(inode3)->ui_mutex, WB_MUTEX_3);
 }
 
 /**
- * unlock_3_inodes - unlock three UBIFS inodes for rename.
+ * unlock_3_inodes - a wrapper for unlocking three UBIFS inodes for rename.
  * @inode1: first inode
  * @inode2: second inode
  * @inode3: third inode
@@ -982,11 +957,11 @@ static void lock_3_inodes(struct inode *inode1, struct inode *inode2,
 static void unlock_3_inodes(struct inode *inode1, struct inode *inode2,
 			    struct inode *inode3)
 {
-	mutex_unlock(&ubifs_inode(inode1)->ui_mutex);
-	if (inode1 != inode2)
-		mutex_unlock(&ubifs_inode(inode2)->ui_mutex);
 	if (inode3)
 		mutex_unlock(&ubifs_inode(inode3)->ui_mutex);
+	if (inode1 != inode2)
+		mutex_unlock(&ubifs_inode(inode2)->ui_mutex);
+	mutex_unlock(&ubifs_inode(inode1)->ui_mutex);
 }
 
 static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
@@ -1020,6 +995,11 @@ static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		"dir ino %lu", old_dentry->d_name.len, old_dentry->d_name.name,
 		old_inode->i_ino, old_dir->i_ino, new_dentry->d_name.len,
 		new_dentry->d_name.name, new_dir->i_ino);
+	ubifs_assert(mutex_is_locked(&old_dir->i_mutex));
+	ubifs_assert(mutex_is_locked(&new_dir->i_mutex));
+	if (unlink)
+		ubifs_assert(mutex_is_locked(&new_inode->i_mutex));
+
 
 	if (unlink && is_dir) {
 		err = check_dir_empty(c, new_inode);
@@ -1199,7 +1179,7 @@ int ubifs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	return 0;
 }
 
-struct inode_operations ubifs_dir_inode_operations = {
+const struct inode_operations ubifs_dir_inode_operations = {
 	.lookup      = ubifs_lookup,
 	.create      = ubifs_create,
 	.link        = ubifs_link,
@@ -1219,7 +1199,7 @@ struct inode_operations ubifs_dir_inode_operations = {
 #endif
 };
 
-struct file_operations ubifs_dir_operations = {
+const struct file_operations ubifs_dir_operations = {
 	.llseek         = ubifs_dir_llseek,
 	.release        = ubifs_dir_release,
 	.read           = generic_read_dir,

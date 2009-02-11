@@ -1789,6 +1789,8 @@ static int dbg_gpio_show(struct seq_file *s, void *unused)
 /* FIXME for at least omap2, show pullup/pulldown state */
 
 			irqstat = irq_desc[irq].status;
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP24XX) ||	\
+		defined(CONFIG_ARCH_OMAP34XX)
 			if (is_in && ((bank->suspend_wakeup & mask)
 					|| irqstat & IRQ_TYPE_SENSE_MASK)) {
 				char	*trigger = NULL;
@@ -1818,6 +1820,7 @@ static int dbg_gpio_show(struct seq_file *s, void *unused)
 						(bank->suspend_wakeup & mask)
 							? " wakeup" : "");
 			}
+#endif
 			seq_printf(s, "\n");
 		}
 

@@ -561,7 +561,10 @@ netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 	}
 	ring->tx_pending = adapter->max_tx_desc_count;
 
-	ring->rx_max_pending = MAX_RCV_DESCRIPTORS;
+	if (adapter->ahw.board_type == NETXEN_NIC_GBE)
+		ring->rx_max_pending = MAX_RCV_DESCRIPTORS_1G;
+	else
+		ring->rx_max_pending = MAX_RCV_DESCRIPTORS_10G;
 	ring->tx_max_pending = MAX_CMD_DESCRIPTORS_HOST;
 	ring->rx_jumbo_max_pending = MAX_JUMBO_RCV_DESCRIPTORS;
 	ring->rx_mini_max_pending = 0;

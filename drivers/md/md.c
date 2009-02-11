@@ -1481,6 +1481,11 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 		if (find_rdev_nr(mddev, rdev->desc_nr))
 			return -EBUSY;
 	}
+	if (mddev->max_disks && rdev->desc_nr >= mddev->max_disks) {
+		printk(KERN_WARNING "md: %s: array is limited to %d devices\n",
+		       mdname(mddev), mddev->max_disks);
+		return -EBUSY;
+	}
 	bdevname(rdev->bdev,b);
 	while ( (s=strchr(b, '/')) != NULL)
 		*s = '!';
@@ -2441,6 +2446,15 @@ static void analyze_sbs(mddev_t * mddev)
 
 	i = 0;
 	rdev_for_each(rdev, tmp, mddev) {
+		if (rdev->desc_nr >= mddev->max_disks ||
+		    i > mddev->max_disks) {
+			printk(KERN_WARNING
+			       "md: %s: %s: only %d devices permitted\n",
+			       mdname(mddev), bdevname(rdev->bdev, b),
+			       mddev->max_disks);
+			kick_rdev_from_array(rdev);
+			continue;
+		}
 		if (rdev != freshest)
 			if (super_types[mddev->major_version].
 			    validate_super(mddev, rdev)) {
@@ -4614,13 +4628,6 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 	 * noticed in interrupt contexts ...
 	 */
 
-	if (rdev->desc_nr == mddev->max_disks) {
-		printk(KERN_WARNING "%s: can not hot-add to full array!\n",
-			mdname(mddev));
-		err = -EBUSY;
-		goto abort_unbind_export;
-	}
-
 	rdev->raid_disk = -1;
 
 	md_update_sb(mddev, 1);
@@ -4633,9 +4640,6 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 	md_wakeup_thread(mddev->thread);
 	md_new_event(mddev);
 	return 0;
-
-abort_unbind_export:
-	unbind_rdev_from_array(rdev);
 
 abort_export:
 	export_rdev(rdev);

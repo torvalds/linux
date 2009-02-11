@@ -15,6 +15,7 @@
 #ifndef _LINUX_CGROUPSTATS_H
 #define _LINUX_CGROUPSTATS_H
 
+#include <linux/types.h>
 #include <linux/taskstats.h>
 
 /*

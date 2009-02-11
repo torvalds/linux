@@ -85,5 +85,6 @@
 #define P_SPI0_MOSI	(P_DONTCARE)
 #define P_SPI0_MISO	(P_DONTCARE)
 #define P_SPI0_SCK	(P_DONTCARE)
+#define P_DEFAULT_BOOT_SPI_CS P_SPI0_SSEL2
 
 #endif /* _MACH_PORTMUX_H_ */

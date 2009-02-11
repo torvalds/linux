@@ -40,6 +40,18 @@ void handle_bad_irq(unsigned int irq, struct irq_desc *desc)
 	ack_bad_irq(irq);
 }
 
+#if defined(CONFIG_SMP) && defined(CONFIG_GENERIC_HARDIRQS)
+static void __init init_irq_default_affinity(void)
+{
+	alloc_bootmem_cpumask_var(&irq_default_affinity);
+	cpumask_setall(irq_default_affinity);
+}
+#else
+static void __init init_irq_default_affinity(void)
+{
+}
+#endif
+
 /*
  * Linux has a controller-independent interrupt architecture.
  * Every controller has a 'controller-template', that is used
@@ -132,6 +144,8 @@ int __init early_irq_init(void)
 	struct irq_desc *desc;
 	int legacy_count;
 	int i;
+
+	init_irq_default_affinity();
 
 	 /* initialize nr_irqs based on nr_cpu_ids */
 	arch_probe_nr_irqs();
@@ -228,6 +242,8 @@ int __init early_irq_init(void)
 	struct irq_desc *desc;
 	int count;
 	int i;
+
+	init_irq_default_affinity();
 
 	printk(KERN_INFO "NR_IRQS:%d\n", NR_IRQS);
 
