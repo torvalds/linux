@@ -427,11 +427,13 @@ static int ape_sg_to_chdma_table(struct scatterlist *sgl, int nents, int first, 
 		dma_addr_t next = sg_dma_address(&sgl[i + 1]);
 		/* length of this entry i */
 		len = sg_dma_len(&sgl[i]);
-		printk(KERN_DEBUG "%04d: addr=0x%08x length=0x%08x\n", i, addr, len);
+		printk(KERN_DEBUG "%04d: addr=0x%Lx length=0x%08x\n", i,
+			(unsigned long long)addr, len);
 		/* entry i + 1 is non-contiguous with entry i? */
 		if (next != addr + len) {
 			/* TODO create entry here (we could overwrite i) */
-			printk(KERN_DEBUG "%4d: cont_addr=0x%08x cont_len=0x%08x\n", j, cont_addr, cont_len);
+			printk(KERN_DEBUG "%4d: cont_addr=0x%Lx cont_len=0x%08x\n", j,
+				(unsigned long long)cont_addr, cont_len);
 			/* set descriptor for contiguous transfer */
 			ape_chdma_desc_set(&desc[j], cont_addr, ep_addr, cont_len);
 			/* next end point memory address */
@@ -447,8 +449,10 @@ static int ape_sg_to_chdma_table(struct scatterlist *sgl, int nents, int first, 
 		addr = next;
 	}
 	/* TODO create entry here  (we could overwrite i) */
-	printk(KERN_DEBUG "%04d: addr=0x%08x length=0x%08x\n", i, addr, len);
-	printk(KERN_DEBUG "%4d: cont_addr=0x%08x length=0x%08x\n", j, cont_addr, cont_len);
+	printk(KERN_DEBUG "%04d: addr=0x%Lx length=0x%08x\n", i,
+		(unsigned long long)addr, len);
+	printk(KERN_DEBUG "%4d: cont_addr=0x%Lx length=0x%08x\n", j,
+		(unsigned long long)cont_addr, cont_len);
 	j++;
 	return j;
 }
