@@ -1958,14 +1958,13 @@ __perf_counter_exit_task(struct task_struct *child,
 		sync_child_counter(child_counter, parent_counter);
 		list_for_each_entry_safe(sub, tmp, &child_counter->sibling_list,
 					 list_entry) {
-			if (sub->parent)
+			if (sub->parent) {
 				sync_child_counter(sub, sub->parent);
-			kfree(sub);
+				kfree(sub);
+			}
 		}
-	}
-
-	if (!child_counter->filp || !atomic_long_read(&child_counter->filp->f_count))
 		kfree(child_counter);
+	}
 }
 
 /*
