@@ -32,6 +32,8 @@
 #include <asm/uaccess.h>
 
 #include <media/rds.h>
+#include <media/v4l2-common.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = {
@@ -72,7 +74,7 @@ MODULE_LICENSE("GPL");
 #define dprintk     if (debug) printk
 
 struct saa6588 {
-	struct i2c_client client;
+	struct i2c_client *client;
 	struct work_struct work;
 	struct timer_list timer;
 	spinlock_t lock;
@@ -85,9 +87,6 @@ struct saa6588 {
 	wait_queue_head_t read_queue;
 	int data_available_for_read;
 };
-
-static struct i2c_driver driver;
-static struct i2c_client client_template;
 
 /* ---------------------------------------------------------------------- */
 
@@ -265,7 +264,7 @@ static void saa6588_i2c_poll(struct saa6588 *s)
 
 	/* Although we only need 3 bytes, we have to read at least 6.
 	   SAA6588 returns garbage otherwise */
-	if (6 != i2c_master_recv(&s->client, &tmpbuf[0], 6)) {
+	if (6 != i2c_master_recv(s->client, &tmpbuf[0], 6)) {
 		if (debug > 1)
 			dprintk(PREFIX "read error!\n");
 		return;
@@ -380,7 +379,8 @@ static int saa6588_configure(struct saa6588 *s)
 	dprintk(PREFIX "writing: 0w=0x%02x 1w=0x%02x 2w=0x%02x\n",
 		buf[0], buf[1], buf[2]);
 
-	if (3 != (rc = i2c_master_send(&s->client, buf, 3)))
+	rc = i2c_master_send(s->client, buf, 3);
+	if (rc != 3)
 		printk(PREFIX "i2c i/o error: rc == %d (should be 3)\n", rc);
 
 	return 0;
@@ -388,33 +388,34 @@ static int saa6588_configure(struct saa6588 *s)
 
 /* ---------------------------------------------------------------------- */
 
-static int saa6588_attach(struct i2c_adapter *adap, int addr, int kind)
+static int saa6588_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct saa6588 *s;
-	client_template.adapter = adap;
-	client_template.addr = addr;
 
-	printk(PREFIX "chip found @ 0x%x\n", addr << 1);
+	v4l_info(client, "saa6588 found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
 
-	if (NULL == (s = kmalloc(sizeof(*s), GFP_KERNEL)))
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	if (s == NULL)
 		return -ENOMEM;
 
+	s->client = client;
 	s->buf_size = bufblocks * 3;
 
-	if (NULL == (s->buffer = kmalloc(s->buf_size, GFP_KERNEL))) {
+	s->buffer = kmalloc(s->buf_size, GFP_KERNEL);
+	if (s->buffer == NULL) {
 		kfree(s);
 		return -ENOMEM;
 	}
 	spin_lock_init(&s->lock);
-	s->client = client_template;
 	s->block_count = 0;
 	s->wr_index = 0;
 	s->rd_index = 0;
 	s->last_blocknum = 0xff;
 	init_waitqueue_head(&s->read_queue);
 	s->data_available_for_read = 0;
-	i2c_set_clientdata(&s->client, s);
-	i2c_attach_client(&s->client);
+	i2c_set_clientdata(client, s);
 
 	saa6588_configure(s);
 
@@ -427,21 +428,13 @@ static int saa6588_attach(struct i2c_adapter *adap, int addr, int kind)
 	return 0;
 }
 
-static int saa6588_probe(struct i2c_adapter *adap)
-{
-	if (adap->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adap, &addr_data, saa6588_attach);
-	return 0;
-}
-
-static int saa6588_detach(struct i2c_client *client)
+static int saa6588_remove(struct i2c_client *client)
 {
 	struct saa6588 *s = i2c_get_clientdata(client);
 
 	del_timer_sync(&s->timer);
 	flush_scheduled_work();
 
-	i2c_detach_client(client);
 	kfree(s->buffer);
 	kfree(s);
 	return 0;
@@ -486,38 +479,17 @@ static int saa6588_command(struct i2c_client *client, unsigned int cmd,
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver driver = {
-	.driver = {
-		.name = "saa6588",
-	},
-	.id = -1,		/* FIXME */
-	.attach_adapter = saa6588_probe,
-	.detach_client = saa6588_detach,
-	.command = saa6588_command,
+static const struct i2c_device_id saa6588_id[] = {
+	{ "saa6588", 0 },
+	{ }
 };
+MODULE_DEVICE_TABLE(i2c, saa6588_id);
 
-static struct i2c_client client_template = {
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa6588",
-	.driver = &driver,
+	.command = saa6588_command,
+	.probe = saa6588_probe,
+	.remove = saa6588_remove,
+	.legacy_class = I2C_CLASS_TV_ANALOG,
+	.id_table = saa6588_id,
 };
-
-static int __init saa6588_init_module(void)
-{
-	return i2c_add_driver(&driver);
-}
-
-static void __exit saa6588_cleanup_module(void)
-{
-	i2c_del_driver(&driver);
-}
-
-module_init(saa6588_init_module);
-module_exit(saa6588_cleanup_module);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
