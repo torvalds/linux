@@ -29,7 +29,9 @@
 int __init init_ocfs2_uptodate_cache(void);
 void exit_ocfs2_uptodate_cache(void);
 
-void ocfs2_metadata_cache_init(struct inode *inode);
+void ocfs2_metadata_cache_init(struct ocfs2_caching_info *ci,
+			       spinlock_t *cache_lock,
+			       struct mutex *io_mutex);
 void ocfs2_metadata_cache_purge(struct inode *inode);
 
 int ocfs2_buffer_uptodate(struct inode *inode,

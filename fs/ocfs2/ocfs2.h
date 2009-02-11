@@ -51,17 +51,36 @@
 /* For struct ocfs2_blockcheck_stats */
 #include "blockcheck.h"
 
+
+/* Caching of metadata buffers */
+
 /* Most user visible OCFS2 inodes will have very few pieces of
  * metadata, but larger files (including bitmaps, etc) must be taken
  * into account when designing an access scheme. We allow a small
  * amount of inlined blocks to be stored on an array and grow the
  * structure into a rb tree when necessary. */
-#define OCFS2_INODE_MAX_CACHE_ARRAY 2
+#define OCFS2_CACHE_INFO_MAX_ARRAY 2
+
+/* Flags for ocfs2_caching_info */
+
+enum ocfs2_caching_info_flags {
+	/* Indicates that the metadata cache is using the inline array */
+	OCFS2_CACHE_FL_INLINE	= 1<<1,
+};
 
 struct ocfs2_caching_info {
+	/*
+	 * The parent structure provides the locks, but because the
+	 * parent structure can differ, struct ocfs2_caching_info needs
+	 * its own pointers to them.
+	 */
+	spinlock_t		*ci_lock;
+	struct mutex		*ci_io_mutex;
+
+	unsigned int		ci_flags;
 	unsigned int		ci_num_cached;
 	union {
-		sector_t	ci_array[OCFS2_INODE_MAX_CACHE_ARRAY];
+	sector_t	ci_array[OCFS2_CACHE_INFO_MAX_ARRAY];
 		struct rb_root	ci_tree;
 	} ci_cache;
 };

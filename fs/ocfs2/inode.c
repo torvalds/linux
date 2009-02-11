@@ -1118,7 +1118,8 @@ void ocfs2_clear_inode(struct inode *inode)
 			"Clear inode of %llu, inode has %u cache items\n",
 			(unsigned long long)oi->ip_blkno, oi->ip_metadata_cache.ci_num_cached);
 
-	mlog_bug_on_msg(!(oi->ip_flags & OCFS2_INODE_CACHE_INLINE),
+	mlog_bug_on_msg(!(oi->ip_metadata_cache.ci_flags &
+			  OCFS2_CACHE_FL_INLINE),
 			"Clear inode of %llu, inode has a bad flag\n",
 			(unsigned long long)oi->ip_blkno);
 
@@ -1145,7 +1146,7 @@ void ocfs2_clear_inode(struct inode *inode)
 			(unsigned long long)oi->ip_blkno, oi->ip_open_count);
 
 	/* Clear all other flags. */
-	oi->ip_flags = OCFS2_INODE_CACHE_INLINE;
+	oi->ip_flags = 0;
 	oi->ip_created_trans = 0;
 	oi->ip_last_trans = 0;
 	oi->ip_dir_start_lookup = 0;
