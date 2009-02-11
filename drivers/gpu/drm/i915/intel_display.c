@@ -343,7 +343,7 @@ intel_wait_for_vblank(struct drm_device *dev)
 	udelay(20000);
 }
 
-static void
+static int
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		    struct drm_framebuffer *old_fb)
 {
@@ -361,11 +361,21 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	int dspstride = (pipe == 0) ? DSPASTRIDE : DSPBSTRIDE;
 	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
 	u32 dspcntr, alignment;
+	int ret;
 
 	/* no fb bound */
 	if (!crtc->fb) {
 		DRM_DEBUG("No FB bound\n");
-		return;
+		return 0;
+	}
+
+	switch (pipe) {
+	case 0:
+	case 1:
+		break;
+	default:
+		DRM_ERROR("Can't update pipe %d in SAREA\n", pipe);
+		return -EINVAL;
 	}
 
 	intel_fb = to_intel_framebuffer(crtc->fb);
@@ -383,20 +393,24 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	case I915_TILING_Y:
 		/* FIXME: Is this true? */
 		DRM_ERROR("Y tiled not allowed for scan out buffers\n");
-		return;
+		return -EINVAL;
 	default:
 		BUG();
 	}
 
-	if (i915_gem_object_pin(intel_fb->obj, alignment))
-		return;
+	mutex_lock(&dev->struct_mutex);
+	ret = i915_gem_object_pin(intel_fb->obj, alignment);
+	if (ret != 0) {
+		mutex_unlock(&dev->struct_mutex);
+		return ret;
+	}
 
-	i915_gem_object_set_to_gtt_domain(intel_fb->obj, 1);
-
-	Start = obj_priv->gtt_offset;
-	Offset = y * crtc->fb->pitch + x * (crtc->fb->bits_per_pixel / 8);
-
-	I915_WRITE(dspstride, crtc->fb->pitch);
+	ret = i915_gem_object_set_to_gtt_domain(intel_fb->obj, 1);
+	if (ret != 0) {
+		i915_gem_object_unpin(intel_fb->obj);
+		mutex_unlock(&dev->struct_mutex);
+		return ret;
+	}
 
 	dspcntr = I915_READ(dspcntr_reg);
 	/* Mask out pixel format bits in case we change it */
@@ -417,11 +431,17 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		break;
 	default:
 		DRM_ERROR("Unknown color depth\n");
-		return;
+		i915_gem_object_unpin(intel_fb->obj);
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
 	}
 	I915_WRITE(dspcntr_reg, dspcntr);
 
+	Start = obj_priv->gtt_offset;
+	Offset = y * crtc->fb->pitch + x * (crtc->fb->bits_per_pixel / 8);
+
 	DRM_DEBUG("Writing base %08lX %08lX %d %d\n", Start, Offset, x, y);
+	I915_WRITE(dspstride, crtc->fb->pitch);
 	if (IS_I965G(dev)) {
 		I915_WRITE(dspbase, Offset);
 		I915_READ(dspbase);
@@ -438,27 +458,24 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		intel_fb = to_intel_framebuffer(old_fb);
 		i915_gem_object_unpin(intel_fb->obj);
 	}
+	mutex_unlock(&dev->struct_mutex);
 
 	if (!dev->primary->master)
-		return;
+		return 0;
 
 	master_priv = dev->primary->master->driver_priv;
 	if (!master_priv->sarea_priv)
-		return;
+		return 0;
 
-	switch (pipe) {
-	case 0:
-		master_priv->sarea_priv->pipeA_x = x;
-		master_priv->sarea_priv->pipeA_y = y;
-		break;
-	case 1:
+	if (pipe) {
 		master_priv->sarea_priv->pipeB_x = x;
 		master_priv->sarea_priv->pipeB_y = y;
-		break;
-	default:
-		DRM_ERROR("Can't update pipe %d in SAREA\n", pipe);
-		break;
+	} else {
+		master_priv->sarea_priv->pipeA_x = x;
+		master_priv->sarea_priv->pipeA_y = y;
 	}
+
+	return 0;
 }
 
 
@@ -706,11 +723,11 @@ static int intel_panel_fitter_pipe (struct drm_device *dev)
 	return 1;
 }
 
-static void intel_crtc_mode_set(struct drm_crtc *crtc,
-				struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode,
-				int x, int y,
-				struct drm_framebuffer *old_fb)
+static int intel_crtc_mode_set(struct drm_crtc *crtc,
+			       struct drm_display_mode *mode,
+			       struct drm_display_mode *adjusted_mode,
+			       int x, int y,
+			       struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -737,6 +754,7 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_crt = false, is_lvds = false, is_tv = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
+	int ret;
 
 	drm_vblank_pre_modeset(dev, pipe);
 
@@ -777,7 +795,7 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 	ok = intel_find_best_PLL(crtc, adjusted_mode->clock, refclk, &clock);
 	if (!ok) {
 		DRM_ERROR("Couldn't find PLL settings for mode!\n");
-		return;
+		return -EINVAL;
 	}
 
 	fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
@@ -948,9 +966,13 @@ static void intel_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(dspcntr_reg, dspcntr);
 
 	/* Flush the plane changes */
-	intel_pipe_set_base(crtc, x, y, old_fb);
+	ret = intel_pipe_set_base(crtc, x, y, old_fb);
+	if (ret != 0)
+	    return ret;
 
 	drm_vblank_post_modeset(dev, pipe);
+
+	return 0;
 }
 
 /** Loads the palette/gamma unit for the CRTC with the prepared values */
