@@ -1202,6 +1202,8 @@ S:	Supported
 CONTROL GROUPS (CGROUPS)
 P:	Paul Menage
 M:	menage@google.com
+P:	Li Zefan
+M:	lizf@cn.fujitsu.com
 L:	containers@lists.linux-foundation.org
 S:	Maintained
 
