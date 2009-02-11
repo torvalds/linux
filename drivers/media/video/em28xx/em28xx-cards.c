@@ -1297,6 +1297,26 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 		} },
 	},
+	[EM2820_BOARD_IODATA_GVMVP_SZ] = {
+		.name       = "IO-DATA GV-MVP/SZ",
+		.tuner_type   = TUNER_PHILIPS_FM1236_MK3,
+		.tuner_gpio   = default_tuner_gpio,
+		.tda9887_conf = TDA9887_PRESENT,
+		.decoder      = EM28XX_TVP5150,
+		.input        = { {
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = EM28XX_AMUX_VIDEO,
+		}, { /* Composite has not been tested yet */
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = EM28XX_AMUX_VIDEO,
+		}, { /* S-video has not been tested yet */
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = TVP5150_SVIDEO,
+			.amux     = EM28XX_AMUX_VIDEO,
+		} },
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1396,6 +1416,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2800_BOARD_LEADTEK_WINFAST_USBII },
 	{ USB_DEVICE(0x093b, 0xa005),
 			.driver_info = EM2861_BOARD_PLEXTOR_PX_TV100U },
+	{ USB_DEVICE(0x04bb, 0x0515),
+			.driver_info = EM2820_BOARD_IODATA_GVMVP_SZ },
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, em28xx_id_table);
@@ -1589,6 +1611,16 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		em28xx_write_regs(dev, 0x08, "\xf8", 1);
 		break;
 
+	case EM2820_BOARD_IODATA_GVMVP_SZ:
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xff);
+		msleep(70);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xf7);
+		msleep(10);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfe);
+		msleep(70);
+		em28xx_write_reg(dev, EM28XX_R08_GPIO, 0xfd);
+		msleep(70);
+		break;
 	}
 
 	em28xx_gpio_set(dev, dev->board.tuner_gpio);
