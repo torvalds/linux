@@ -85,7 +85,7 @@ static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
 
 static int ioapic_service(struct kvm_ioapic *ioapic, unsigned int idx)
 {
-	union ioapic_redir_entry *pent;
+	union kvm_ioapic_redirect_entry *pent;
 	int injected = -1;
 
 	pent = &ioapic->redirtbl[idx];
@@ -284,7 +284,7 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 {
 	u32 old_irr = ioapic->irr;
 	u32 mask = 1 << irq;
-	union ioapic_redir_entry entry;
+	union kvm_ioapic_redirect_entry entry;
 	int ret = 1;
 
 	if (irq >= 0 && irq < IOAPIC_NUM_PINS) {
@@ -305,7 +305,7 @@ int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level)
 static void __kvm_ioapic_update_eoi(struct kvm_ioapic *ioapic, int pin,
 				    int trigger_mode)
 {
-	union ioapic_redir_entry *ent;
+	union kvm_ioapic_redirect_entry *ent;
 
 	ent = &ioapic->redirtbl[pin];
 
