@@ -2898,7 +2898,7 @@ static int ad1988_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = AD1988_SPDIF_OUT;
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = AD1988_SPDIF_IN;

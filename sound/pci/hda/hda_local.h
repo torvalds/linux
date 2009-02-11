@@ -355,10 +355,11 @@ struct auto_pin_cfg {
 	int line_out_type;	/* AUTO_PIN_XXX_OUT */
 	hda_nid_t hp_pins[AUTO_CFG_MAX_OUTS];
 	hda_nid_t input_pins[AUTO_PIN_LAST];
-	hda_nid_t dig_out_pin;
+	int dig_outs;
+	hda_nid_t dig_out_pins[2];
 	hda_nid_t dig_in_pin;
 	hda_nid_t mono_out_pin;
-	int dig_out_type; /* HDA_PCM_TYPE_XXX */
+	int dig_out_type[2]; /* HDA_PCM_TYPE_XXX */
 	int dig_in_type; /* HDA_PCM_TYPE_XXX */
 };
 

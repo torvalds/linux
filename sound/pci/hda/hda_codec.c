@@ -3423,11 +3423,13 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			break;
 		case AC_JACK_SPDIF_OUT:
 		case AC_JACK_DIG_OTHER_OUT:
-			cfg->dig_out_pin = nid;
-			if (loc == AC_JACK_LOC_HDMI)
-				cfg->dig_out_type = HDA_PCM_TYPE_HDMI;
-			else
-				cfg->dig_out_type = HDA_PCM_TYPE_SPDIF;
+			if (cfg->dig_outs >= ARRAY_SIZE(cfg->dig_out_pins))
+				continue;
+			cfg->dig_out_pins[cfg->dig_outs] = nid;
+			cfg->dig_out_type[cfg->dig_outs] =
+				(loc == AC_JACK_LOC_HDMI) ?
+				HDA_PCM_TYPE_HDMI : HDA_PCM_TYPE_SPDIF;
+			cfg->dig_outs++;
 			break;
 		case AC_JACK_SPDIF_IN:
 		case AC_JACK_DIG_OTHER_IN:
@@ -3541,8 +3543,9 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		   cfg->hp_pins[1], cfg->hp_pins[2],
 		   cfg->hp_pins[3], cfg->hp_pins[4]);
 	snd_printd("   mono: mono_out=0x%x\n", cfg->mono_out_pin);
-	if (cfg->dig_out_pin)
-		snd_printd("   dig-out=0x%x\n", cfg->dig_out_pin);
+	if (cfg->dig_outs)
+		snd_printd("   dig-out=0x%x/0x%x\n",
+			   cfg->dig_out_pins[0], cfg->dig_out_pins[1]);
 	snd_printd("   inputs: mic=0x%x, fmic=0x%x, line=0x%x, fline=0x%x,"
 		   " cd=0x%x, aux=0x%x\n",
 		   cfg->input_pins[AUTO_PIN_MIC],

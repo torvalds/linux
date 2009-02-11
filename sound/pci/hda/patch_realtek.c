@@ -4291,7 +4291,7 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = ALC880_DIGOUT_NID;
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = ALC880_DIGIN_NID;
@@ -5658,7 +5658,7 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = ALC260_DIGOUT_NID;
 	if (spec->kctls.list)
 		add_mixer(spec, spec->kctls.list);
@@ -10626,7 +10626,7 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 	if (!spec->autocfg.line_outs) {
-		if (spec->autocfg.dig_out_pin || spec->autocfg.dig_in_pin) {
+		if (spec->autocfg.dig_outs || spec->autocfg.dig_in_pin) {
 			spec->multiout.max_channels = 2;
 			spec->no_analog = 1;
 			goto dig_only;
@@ -10643,9 +10643,9 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
  dig_only:
-	if (spec->autocfg.dig_out_pin) {
+	if (spec->autocfg.dig_outs) {
 		spec->multiout.dig_out_nid = ALC262_DIGOUT_NID;
-		spec->dig_out_type = spec->autocfg.dig_out_type;
+		spec->dig_out_type = spec->autocfg.dig_out_type[0];
 	}
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = ALC262_DIGIN_NID;
@@ -11807,7 +11807,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	spec->multiout.max_channels = 2;
 
 	/* digital only support output */
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = ALC268_DIGOUT_NID;
 
 	if (spec->kctls.list)
@@ -12722,7 +12722,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = ALC269_DIGOUT_NID;
 
 	if (spec->kctls.list)
@@ -13779,7 +13779,7 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = ALC861_DIGOUT_NID;
 
 	if (spec->kctls.list)
@@ -14881,7 +14881,7 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = ALC861VD_DIGOUT_NID;
 
 	if (spec->kctls.list)
@@ -16689,7 +16689,7 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = ALC880_DIGOUT_NID;
 
 	if (spec->kctls.list)

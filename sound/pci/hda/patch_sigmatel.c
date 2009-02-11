@@ -2546,7 +2546,7 @@ static int stac92xx_build_pcms(struct hda_codec *codec)
 		codec->num_pcms++;
 		info++;
 		info->name = "STAC92xx Digital";
-		info->pcm_type = spec->autocfg.dig_out_type;
+		info->pcm_type = spec->autocfg.dig_out_type[0];
 		if (spec->multiout.dig_out_nid) {
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK] = stac92xx_pcm_digital_playback;
 			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->multiout.dig_out_nid;
@@ -3706,7 +3706,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 	if (spec->multiout.max_channels > 2)
 		spec->surr_switch = 1;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = dig_out;
 	if (dig_in && spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = dig_in;
@@ -3819,7 +3819,7 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = 0x05;
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = 0x04;
@@ -4069,8 +4069,8 @@ static int stac92xx_init(struct hda_codec *codec)
 	for (i = 0; i < spec->num_dmics; i++)
 		stac92xx_auto_set_pinctl(codec, spec->dmic_nids[i],
 					AC_PINCTL_IN_EN);
-	if (cfg->dig_out_pin)
-		stac92xx_auto_set_pinctl(codec, cfg->dig_out_pin,
+	if (cfg->dig_out_pins[0])
+		stac92xx_auto_set_pinctl(codec, cfg->dig_out_pins[0],
 					 AC_PINCTL_OUT_EN);
 	if (cfg->dig_in_pin)
 		stac92xx_auto_set_pinctl(codec, cfg->dig_in_pin,

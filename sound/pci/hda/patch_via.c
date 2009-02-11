@@ -1354,7 +1354,7 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = VT1708_DIGOUT_NID;
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = VT1708_DIGIN_NID;
@@ -1827,7 +1827,7 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = VT1709_DIGOUT_NID;
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = VT1709_DIGIN_NID;
@@ -2371,7 +2371,7 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = VT1708B_DIGOUT_NID;
 	if (spec->autocfg.dig_in_pin)
 		spec->dig_in_nid = VT1708B_DIGIN_NID;
@@ -2836,7 +2836,7 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = VT1708S_DIGOUT_NID;
 
 	spec->extra_dig_out_nid = 0x15;
@@ -3155,7 +3155,7 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 
-	if (spec->autocfg.dig_out_pin)
+	if (spec->autocfg.dig_outs)
 		spec->multiout.dig_out_nid = VT1702_DIGOUT_NID;
 
 	spec->extra_dig_out_nid = 0x1B;
