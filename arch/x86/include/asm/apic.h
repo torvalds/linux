@@ -139,12 +139,35 @@ struct apic_ops {
 
 extern struct apic_ops *apic_ops;
 
-#define apic_read (apic_ops->read)
-#define apic_write (apic_ops->write)
-#define apic_icr_read (apic_ops->icr_read)
-#define apic_icr_write (apic_ops->icr_write)
-#define apic_wait_icr_idle (apic_ops->wait_icr_idle)
-#define safe_apic_wait_icr_idle (apic_ops->safe_wait_icr_idle)
+static inline u32 apic_read(u32 reg)
+{
+	return apic_ops->read(reg);
+}
+
+static inline void apic_write(u32 reg, u32 val)
+{
+	apic_ops->write(reg, val);
+}
+
+static inline u64 apic_icr_read(void)
+{
+	return apic_ops->icr_read();
+}
+
+static inline void apic_icr_write(u32 low, u32 high)
+{
+	apic_ops->icr_write(low, high);
+}
+
+static inline void apic_wait_icr_idle(void)
+{
+	apic_ops->wait_icr_idle();
+}
+
+static inline u32 safe_apic_wait_icr_idle(void)
+{
+	return apic_ops->safe_wait_icr_idle();
+}
 
 extern int get_physical_broadcast(void);
 

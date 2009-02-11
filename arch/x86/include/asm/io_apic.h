@@ -169,6 +169,12 @@ extern void reinit_intr_remapped_IO_APIC(int);
 
 extern void probe_nr_irqs_gsi(void);
 
+extern int setup_ioapic_entry(int apic, int irq,
+			      struct IO_APIC_route_entry *entry,
+			      unsigned int destination, int trigger,
+			      int polarity, int vector);
+extern void ioapic_write_entry(int apic, int pin,
+			       struct IO_APIC_route_entry e);
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
 static const int timer_through_8259 = 0;
