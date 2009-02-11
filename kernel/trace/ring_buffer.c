@@ -91,7 +91,7 @@ EXPORT_SYMBOL_GPL(tracing_off);
  * tracing_off_permanent - permanently disable ring buffers
  *
  * This function, once called, will disable all ring buffers
- * permanenty.
+ * permanently.
  */
 void tracing_off_permanent(void)
 {
@@ -210,7 +210,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_event_data);
 
 struct buffer_data_page {
 	u64		 time_stamp;	/* page time stamp */
-	local_t		 commit;	/* write commited index */
+	local_t		 commit;	/* write committed index */
 	unsigned char	 data[];	/* data of buffer page */
 };
 
@@ -260,7 +260,7 @@ struct ring_buffer_per_cpu {
 	struct list_head		pages;
 	struct buffer_page		*head_page;	/* read from head */
 	struct buffer_page		*tail_page;	/* write to tail */
-	struct buffer_page		*commit_page;	/* commited pages */
+	struct buffer_page		*commit_page;	/* committed pages */
 	struct buffer_page		*reader_page;
 	unsigned long			overrun;
 	unsigned long			entries;
@@ -303,7 +303,7 @@ struct ring_buffer_iter {
  * check_pages - integrity check of buffer pages
  * @cpu_buffer: CPU buffer with pages to test
  *
- * As a safty measure we check to make sure the data pages have not
+ * As a safety measure we check to make sure the data pages have not
  * been corrupted.
  */
 static int rb_check_pages(struct ring_buffer_per_cpu *cpu_buffer)
@@ -2332,13 +2332,14 @@ int ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 EXPORT_SYMBOL_GPL(ring_buffer_swap_cpu);
 
 static void rb_remove_entries(struct ring_buffer_per_cpu *cpu_buffer,
-			      struct buffer_data_page *bpage)
+			      struct buffer_data_page *bpage,
+			      unsigned int offset)
 {
 	struct ring_buffer_event *event;
 	unsigned long head;
 
 	__raw_spin_lock(&cpu_buffer->lock);
-	for (head = 0; head < local_read(&bpage->commit);
+	for (head = offset; head < local_read(&bpage->commit);
 	     head += rb_event_length(event)) {
 
 		event = __rb_data_page_index(bpage, head);
@@ -2406,12 +2407,12 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
  * to swap with a page in the ring buffer.
  *
  * for example:
- *	rpage = ring_buffer_alloc_page(buffer);
+ *	rpage = ring_buffer_alloc_read_page(buffer);
  *	if (!rpage)
  *		return error;
  *	ret = ring_buffer_read_page(buffer, &rpage, cpu, 0);
- *	if (ret)
- *		process_page(rpage);
+ *	if (ret >= 0)
+ *		process_page(rpage, ret);
  *
  * When @full is set, the function will not return true unless
  * the writer is off the reader page.
@@ -2422,8 +2423,8 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
  *  responsible for that.
  *
  * Returns:
- *  1 if data has been transferred
- *  0 if no data has been transferred.
+ *  >=0 if data has been transferred, returns the offset of consumed data.
+ *  <0 if no data has been transferred.
  */
 int ring_buffer_read_page(struct ring_buffer *buffer,
 			    void **data_page, int cpu, int full)
@@ -2432,7 +2433,8 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	struct ring_buffer_event *event;
 	struct buffer_data_page *bpage;
 	unsigned long flags;
-	int ret = 0;
+	unsigned int read;
+	int ret = -1;
 
 	if (!data_page)
 		return 0;
@@ -2454,25 +2456,29 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	/* check for data */
 	if (!local_read(&cpu_buffer->reader_page->page->commit))
 		goto out;
+
+	read = cpu_buffer->reader_page->read;
 	/*
 	 * If the writer is already off of the read page, then simply
 	 * switch the read page with the given page. Otherwise
 	 * we need to copy the data from the reader to the writer.
 	 */
 	if (cpu_buffer->reader_page == cpu_buffer->commit_page) {
-		unsigned int read = cpu_buffer->reader_page->read;
+		unsigned int commit = rb_page_commit(cpu_buffer->reader_page);
+		struct buffer_data_page *rpage = cpu_buffer->reader_page->page;
 
 		if (full)
 			goto out;
 		/* The writer is still on the reader page, we must copy */
-		bpage = cpu_buffer->reader_page->page;
-		memcpy(bpage->data,
-		       cpu_buffer->reader_page->page->data + read,
-		       local_read(&bpage->commit) - read);
+		memcpy(bpage->data + read, rpage->data + read, commit - read);
 
 		/* consume what was read */
-		cpu_buffer->reader_page += read;
+		cpu_buffer->reader_page->read = commit;
 
+		/* update bpage */
+		local_set(&bpage->commit, commit);
+		if (!read)
+			bpage->time_stamp = rpage->time_stamp;
 	} else {
 		/* swap the pages */
 		rb_init_page(bpage);
@@ -2481,10 +2487,10 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 		cpu_buffer->reader_page->read = 0;
 		*data_page = bpage;
 	}
-	ret = 1;
+	ret = read;
 
 	/* update the entry counter */
-	rb_remove_entries(cpu_buffer, bpage);
+	rb_remove_entries(cpu_buffer, bpage, read);
  out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 

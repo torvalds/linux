@@ -91,8 +91,6 @@ void trace_likely_condition(struct ftrace_branch_data *f, int val, int expect)
 
 int enable_branch_tracing(struct trace_array *tr)
 {
-	int ret = 0;
-
 	mutex_lock(&branch_tracing_mutex);
 	branch_tracer = tr;
 	/*
@@ -103,7 +101,7 @@ int enable_branch_tracing(struct trace_array *tr)
 	branch_tracing_enabled++;
 	mutex_unlock(&branch_tracing_mutex);
 
-	return ret;
+	return 0;
 }
 
 void disable_branch_tracing(void)

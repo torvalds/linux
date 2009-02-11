@@ -1963,7 +1963,7 @@ tracing_trace_options_read(struct file *filp, char __user *ubuf,
 	struct tracer_opt *trace_opts = current_trace->flags->opts;
 
 
-	/* calulate max size */
+	/* calculate max size */
 	for (i = 0; trace_options[i]; i++) {
 		len += strlen(trace_options[i]);
 		len += 3; /* "no" and space */

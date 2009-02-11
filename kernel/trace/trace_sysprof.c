@@ -88,7 +88,7 @@ static void backtrace_address(void *data, unsigned long addr, int reliable)
 	}
 }
 
-const static struct stacktrace_ops backtrace_ops = {
+static const struct stacktrace_ops backtrace_ops = {
 	.warning		= backtrace_warning,
 	.warning_symbol		= backtrace_warning_symbol,
 	.stack			= backtrace_stack,

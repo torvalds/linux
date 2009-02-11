@@ -8,7 +8,7 @@ struct ring_buffer;
 struct ring_buffer_iter;
 
 /*
- * Don't reference this struct directly, use functions below.
+ * Don't refer to this struct directly, use functions below.
  */
 struct ring_buffer_event {
 	u32		type:2, len:3, time_delta:27;

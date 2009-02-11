@@ -75,7 +75,7 @@ static void bts_trace_start(struct trace_array *tr)
 }
 
 /*
- * Start tracing on the current cpu.
+ * Stop tracing on the current cpu.
  * The argument is ignored.
  *
  * pre: bts_tracer_mutex must be locked.
