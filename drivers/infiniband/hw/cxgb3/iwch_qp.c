@@ -195,15 +195,12 @@ static int build_inv_stag(union t3_wr *wqe, struct ib_send_wr *wr,
 	return 0;
 }
 
-/*
- * TBD: this is going to be moved to firmware. Missing pdid/qpid check for now.
- */
 static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 			    u32 num_sgle, u32 * pbl_addr, u8 * page_size)
 {
 	int i;
 	struct iwch_mr *mhp;
-	u32 offset;
+	u64 offset;
 	for (i = 0; i < num_sgle; i++) {
 
 		mhp = get_mhp(rhp, (sg_list[i].lkey) >> 8);
@@ -235,8 +232,8 @@ static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 			return -EINVAL;
 		}
 		offset = sg_list[i].addr - mhp->attr.va_fbo;
-		offset += ((u32) mhp->attr.va_fbo) %
-		          (1UL << (12 + mhp->attr.page_size));
+		offset += mhp->attr.va_fbo &
+			  ((1UL << (12 + mhp->attr.page_size)) - 1);
 		pbl_addr[i] = ((mhp->attr.pbl_addr -
 			        rhp->rdev.rnic_info.pbl_base) >> 3) +
 			      (offset >> (12 + mhp->attr.page_size));
