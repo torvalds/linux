@@ -245,7 +245,7 @@ static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs,
 {
 	struct snd_pcm_runtime *runtime = subs->runtime;
 
-	dprintk("Alocating vbuffer\n");
+	dprintk("Allocating vbuffer\n");
 	if (runtime->dma_area) {
 		if (runtime->dma_bytes > size)
 			return 0;
@@ -409,8 +409,7 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
 						    *substream)
 {
-       unsigned long flags;
-
+	unsigned long flags;
 	struct em28xx *dev;
 	snd_pcm_uframes_t hwptr_done;
 

@@ -161,7 +161,8 @@
 */
 
 /* time to wait when stopping the isoc transfer */
-#define EM28XX_URB_TIMEOUT       msecs_to_jiffies(EM28XX_NUM_BUFS * EM28XX_NUM_PACKETS)
+#define EM28XX_URB_TIMEOUT \
+			msecs_to_jiffies(EM28XX_NUM_BUFS * EM28XX_NUM_PACKETS)
 
 /* time in msecs to wait for i2c writes to finish */
 #define EM2800_I2C_WRITE_TIMEOUT 20
@@ -530,7 +531,8 @@ struct em28xx {
 	int num_alt;		/* Number of alternative settings */
 	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
 	struct urb *urb[EM28XX_NUM_BUFS];	/* urb for isoc transfers */
-	char *transfer_buffer[EM28XX_NUM_BUFS];	/* transfer buffers for isoc transfer */
+	char *transfer_buffer[EM28XX_NUM_BUFS];	/* transfer buffers for isoc
+						   transfer */
 	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
 
 	/* helper funcs that call usb_control_msg */

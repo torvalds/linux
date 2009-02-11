@@ -244,7 +244,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Hauppauge WinTV USB 2",
 		.tuner_type   = TUNER_PHILIPS_FM1236_MK3,
 		.tda9887_conf = TDA9887_PRESENT |
-				TDA9887_PORT1_ACTIVE|
+				TDA9887_PORT1_ACTIVE |
 				TDA9887_PORT2_ACTIVE,
 		.decoder      = EM28XX_TVP5150,
 		.has_msp34xx  = 1,
@@ -517,7 +517,7 @@ struct em28xx_board em28xx_boards[] = {
 	},
 	[EM2861_BOARD_YAKUMO_MOVIE_MIXER] = {
 		.name          = "Yakumo MovieMixer",
-		.tuner_type   = TUNER_ABSENT,	/* Capture only device */
+		.tuner_type    = TUNER_ABSENT,	/* Capture only device */
 		.decoder       = EM28XX_TVP5150,
 		.input         = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -861,11 +861,11 @@ struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 	[EM2800_BOARD_GRABBEEX_USB2800] = {
-		.name         = "eMPIA Technology, Inc. GrabBeeX+ Video Encoder",
-		.is_em2800    = 1,
-		.decoder      = EM28XX_SAA711X,
-		.tuner_type   = TUNER_ABSENT, /* capture only board */
-		.input        = { {
+		.name       = "eMPIA Technology, Inc. GrabBeeX+ Video Encoder",
+		.is_em2800  = 1,
+		.decoder    = EM28XX_SAA711X,
+		.tuner_type = TUNER_ABSENT, /* capture only board */
+		.input      = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = EM28XX_AMUX_LINE_IN,
@@ -1217,7 +1217,9 @@ struct em28xx_board em28xx_boards[] = {
 		.has_dvb      = 1,
 		.dvb_gpio     = kworld_330u_digital,
 		.xclk             = EM28XX_XCLK_FREQUENCY_12MHZ,
-		.i2c_speed        = EM28XX_I2C_CLK_WAIT_ENABLE | EM28XX_I2C_EEPROM_ON_BOARD | EM28XX_I2C_EEPROM_KEY_VALID,
+		.i2c_speed        = EM28XX_I2C_CLK_WAIT_ENABLE |
+				    EM28XX_I2C_EEPROM_ON_BOARD |
+				    EM28XX_I2C_EEPROM_KEY_VALID,
 		.input        = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
@@ -1299,7 +1301,7 @@ struct em28xx_board em28xx_boards[] = {
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
 /* table of devices that work with this driver */
-struct usb_device_id em28xx_id_table [] = {
+struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0xeb1a, 0x2750),
 			.driver_info = EM2750_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2751),
@@ -1401,7 +1403,7 @@ MODULE_DEVICE_TABLE(usb, em28xx_id_table);
 /*
  * EEPROM hash table for devices with generic USB IDs
  */
-static struct em28xx_hash_table em28xx_eeprom_hash [] = {
+static struct em28xx_hash_table em28xx_eeprom_hash[] = {
 	/* P/N: SA 60002070465 Tuner: TVF7533-MF */
 	{0x6ce05a8f, EM2820_BOARD_PROLINK_PLAYTV_USB2, TUNER_YMEC_TVF_5533MF},
 	{0x72cc5a8b, EM2820_BOARD_PROLINK_PLAYTV_BOX4_USB2, TUNER_YMEC_TVF_5533MF},
@@ -1433,7 +1435,7 @@ int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
 }
 EXPORT_SYMBOL_GPL(em28xx_tuner_callback);
 
-static void inline em28xx_set_model(struct em28xx *dev)
+static inline void em28xx_set_model(struct em28xx *dev)
 {
 	memcpy(&dev->board, &em28xx_boards[dev->model], sizeof(dev->board));
 

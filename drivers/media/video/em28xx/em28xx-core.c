@@ -33,8 +33,8 @@
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 
 static unsigned int core_debug;
-module_param(core_debug,int,0644);
-MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
+module_param(core_debug, int, 0644);
+MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
 
 #define em28xx_coredbg(fmt, arg...) do {\
 	if (core_debug) \
@@ -42,8 +42,8 @@ MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 			 dev->name, __func__ , ##arg); } while (0)
 
 static unsigned int reg_debug;
-module_param(reg_debug,int,0644);
-MODULE_PARM_DESC(reg_debug,"enable debug messages [URB reg]");
+module_param(reg_debug, int, 0644);
+MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
 
 #define em28xx_regdbg(fmt, arg...) do {\
 	if (reg_debug) \
@@ -77,7 +77,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 		return -EINVAL;
 
 	if (reg_debug) {
-		printk( KERN_DEBUG "(pipe 0x%08x): "
+		printk(KERN_DEBUG "(pipe 0x%08x): "
 			"IN:  %02x %02x %02x %02x %02x %02x %02x %02x ",
 			pipe,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
@@ -154,7 +154,7 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	if (reg_debug) {
 		int byte;
 
-		printk( KERN_DEBUG "(pipe 0x%08x): "
+		printk(KERN_DEBUG "(pipe 0x%08x): "
 			"OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
 			pipe,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
@@ -462,7 +462,8 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 		if (dev->ctl_aoutput & EM28XX_AOUT_PCM_IN) {
 			int sel = ac97_return_record_select(dev->ctl_aoutput);
 
-			/* Use the same input for both left and right channels */
+			/* Use the same input for both left and right
+			   channels */
 			sel |= (sel << 8);
 
 			em28xx_write_ac97(dev, AC97_RECORD_SELECT, sel);
@@ -698,7 +699,7 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 		em28xx_write_regs(dev, EM28XX_R32_VSCALELOW, (char *)buf, 2);
 		/* it seems that both H and V scalers must be active
 		   to work correctly */
-		mode = (h || v)? 0x30: 0x00;
+		mode = (h || v) ? 0x30 : 0x00;
 	}
 	return em28xx_write_reg_bits(dev, EM28XX_R26_COMPR, mode, 0x30);
 }
@@ -958,7 +959,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 			em28xx_err("unable to allocate %i bytes for transfer"
 					" buffer %i%s\n",
 					sb_size, i,
-					in_interrupt()?" while in int":"");
+					in_interrupt() ? " while in int" : "");
 			em28xx_uninit_isoc(dev);
 			return -ENOMEM;
 		}

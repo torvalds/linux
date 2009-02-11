@@ -402,10 +402,12 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 				 dev->name);
 		break;
 	case 2:
-		printk(KERN_INFO "%s:\tI2S audio, sample rate=32k\n", dev->name);
+		printk(KERN_INFO "%s:\tI2S audio, sample rate=32k\n",
+				 dev->name);
 		break;
 	case 3:
-		printk(KERN_INFO "%s:\tI2S audio, 3 sample rates\n", dev->name);
+		printk(KERN_INFO "%s:\tI2S audio, 3 sample rates\n",
+				 dev->name);
 		break;
 	}
 

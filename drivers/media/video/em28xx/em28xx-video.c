@@ -186,7 +186,8 @@ static void em28xx_copy_video(struct em28xx *dev,
 		em28xx_isocdbg("Overflow of %zi bytes past buffer end (1)\n",
 			       ((char *)startwrite + lencopy) -
 			       ((char *)outp + buf->vb.size));
-		lencopy = remain = (char *)outp + buf->vb.size - (char *)startwrite;
+		remain = (char *)outp + buf->vb.size - (char *)startwrite;
+		lencopy = remain;
 	}
 	if (lencopy <= 0)
 		return;
@@ -202,7 +203,8 @@ static void em28xx_copy_video(struct em28xx *dev,
 		else
 			lencopy = bytesperline;
 
-		if ((char *)startwrite + lencopy > (char *)outp + buf->vb.size) {
+		if ((char *)startwrite + lencopy > (char *)outp +
+		    buf->vb.size) {
 			em28xx_isocdbg("Overflow of %zi bytes past buffer end (2)\n",
 				       ((char *)startwrite + lencopy) -
 				       ((char *)outp + buf->vb.size));
@@ -347,7 +349,7 @@ static inline int em28xx_isoc_copy(struct em28xx *dev, struct urb *urb)
 		}
 		if (p[0] == 0x22 && p[1] == 0x5a) {
 			em28xx_isocdbg("Video frame %d, length=%i, %s\n", p[2],
-				       len, (p[2] & 1)? "odd" : "even");
+				       len, (p[2] & 1) ? "odd" : "even");
 
 			if (!(p[2] & 1)) {
 				if (buf != NULL)
@@ -476,7 +478,9 @@ fail:
 static void
 buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 {
-	struct em28xx_buffer    *buf     = container_of(vb, struct em28xx_buffer, vb);
+	struct em28xx_buffer    *buf     = container_of(vb,
+							struct em28xx_buffer,
+							vb);
 	struct em28xx_fh        *fh      = vq->priv_data;
 	struct em28xx           *dev     = fh->dev;
 	struct em28xx_dmaqueue  *vidq    = &dev->vidq;
@@ -489,7 +493,9 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 static void buffer_release(struct videobuf_queue *vq,
 				struct videobuf_buffer *vb)
 {
-	struct em28xx_buffer   *buf  = container_of(vb, struct em28xx_buffer, vb);
+	struct em28xx_buffer   *buf  = container_of(vb,
+						    struct em28xx_buffer,
+						    vb);
 	struct em28xx_fh       *fh   = vq->priv_data;
 	struct em28xx          *dev  = (struct em28xx *)fh->dev;
 
@@ -557,7 +563,7 @@ static int res_get(struct em28xx_fh *fh)
 
 static int res_check(struct em28xx_fh *fh)
 {
-	return (fh->stream_on);
+	return fh->stream_on;
 }
 
 static void res_free(struct em28xx_fh *fh)
@@ -791,7 +797,7 @@ out:
 	return rc;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
@@ -1436,7 +1442,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	return (videobuf_reqbufs(&fh->vb_vidq, rb));
+	return videobuf_reqbufs(&fh->vb_vidq, rb);
 }
 
 static int vidioc_querybuf(struct file *file, void *priv,
@@ -1450,7 +1456,7 @@ static int vidioc_querybuf(struct file *file, void *priv,
 	if (rc < 0)
 		return rc;
 
-	return (videobuf_querybuf(&fh->vb_vidq, b));
+	return videobuf_querybuf(&fh->vb_vidq, b);
 }
 
 static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
@@ -1463,7 +1469,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	if (rc < 0)
 		return rc;
 
-	return (videobuf_qbuf(&fh->vb_vidq, b));
+	return videobuf_qbuf(&fh->vb_vidq, b);
 }
 
 static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
@@ -1476,8 +1482,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	if (rc < 0)
 		return rc;
 
-	return (videobuf_dqbuf(&fh->vb_vidq, b,
-				file->f_flags & O_NONBLOCK));
+	return videobuf_dqbuf(&fh->vb_vidq, b, file->f_flags & O_NONBLOCK);
 }
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
@@ -1786,7 +1791,7 @@ em28xx_v4l2_read(struct file *filp, char __user *buf, size_t count,
  * em28xx_v4l2_poll()
  * will allocate buffers when called for the first time
  */
-static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table * wait)
+static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table *wait)
 {
 	struct em28xx_fh *fh = filp->private_data;
 	struct em28xx *dev = fh->dev;
@@ -1939,8 +1944,8 @@ static struct video_device em28xx_radio_template = {
 
 
 static struct video_device *em28xx_vdev_init(struct em28xx *dev,
-					     const struct video_device *template,
-					     const char *type_name)
+					const struct video_device *template,
+					const char *type_name)
 {
 	struct video_device *vfd;
 
@@ -1989,8 +1994,9 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	/* enable vbi capturing */
 
 /*	em28xx_write_reg(dev, EM28XX_R0E_AUDIOSRC, 0xc0); audio register */
-       val = (u8)em28xx_read_reg(dev, EM28XX_R0F_XCLK);
-       em28xx_write_reg(dev, EM28XX_R0F_XCLK, (EM28XX_XCLK_AUDIO_UNMUTE | val));
+	val = (u8)em28xx_read_reg(dev, EM28XX_R0F_XCLK);
+	em28xx_write_reg(dev, EM28XX_R0F_XCLK,
+			 (EM28XX_XCLK_AUDIO_UNMUTE | val));
 	em28xx_write_reg(dev, EM28XX_R11_VINCTRL, 0x51);
 
 	em28xx_set_outfmt(dev);
@@ -2025,7 +2031,8 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	}
 
 	if (em28xx_boards[dev->model].radio.type == EM28XX_RADIO) {
-		dev->radio_dev = em28xx_vdev_init(dev, &em28xx_radio_template, "radio");
+		dev->radio_dev = em28xx_vdev_init(dev, &em28xx_radio_template,
+						  "radio");
 		if (!dev->radio_dev) {
 			em28xx_errdev("cannot allocate video_device.\n");
 			return -ENODEV;
