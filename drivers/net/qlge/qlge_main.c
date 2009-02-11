@@ -76,7 +76,6 @@ MODULE_PARM_DESC(irq_type, "0 = MSI-X, 1 = MSI, 2 = Legacy.");
 
 static struct pci_device_id qlge_pci_tbl[] __devinitdata = {
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID)},
-	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, QLGE_DEVICE_ID1)},
 	/* required last entry */
 	{0,}
 };
@@ -127,12 +126,12 @@ static int ql_sem_trylock(struct ql_adapter *qdev, u32 sem_mask)
 
 int ql_sem_spinlock(struct ql_adapter *qdev, u32 sem_mask)
 {
-	unsigned int seconds = 3;
+	unsigned int wait_count = 30;
 	do {
 		if (!ql_sem_trylock(qdev, sem_mask))
 			return 0;
-		ssleep(1);
-	} while (--seconds);
+		udelay(100);
+	} while (--wait_count);
 	return -ETIMEDOUT;
 }
 
@@ -642,7 +641,7 @@ static void ql_enable_all_completion_interrupts(struct ql_adapter *qdev)
 
 }
 
-static int ql_read_flash_word(struct ql_adapter *qdev, int offset, u32 *data)
+static int ql_read_flash_word(struct ql_adapter *qdev, int offset, __le32 *data)
 {
 	int status = 0;
 	/* wait for reg to come ready */
@@ -657,8 +656,11 @@ static int ql_read_flash_word(struct ql_adapter *qdev, int offset, u32 *data)
 			FLASH_ADDR, FLASH_ADDR_RDY, FLASH_ADDR_ERR);
 	if (status)
 		goto exit;
-	/* get the data */
-	*data = ql_read32(qdev, FLASH_DATA);
+	 /* This data is stored on flash as an array of
+	 * __le32.  Since ql_read32() returns cpu endian
+	 * we need to swap it back.
+	 */
+	*data = cpu_to_le32(ql_read32(qdev, FLASH_DATA));
 exit:
 	return status;
 }
@@ -667,13 +669,20 @@ static int ql_get_flash_params(struct ql_adapter *qdev)
 {
 	int i;
 	int status;
-	u32 *p = (u32 *)&qdev->flash;
+	__le32 *p = (__le32 *)&qdev->flash;
+	u32 offset = 0;
+
+	/* Second function's parameters follow the first
+	 * function's.
+	 */
+	if (qdev->func)
+		offset = sizeof(qdev->flash) / sizeof(u32);
 
 	if (ql_sem_spinlock(qdev, SEM_FLASH_MASK))
 		return -ETIMEDOUT;
 
 	for (i = 0; i < sizeof(qdev->flash) / sizeof(u32); i++, p++) {
-		status = ql_read_flash_word(qdev, i, p);
+		status = ql_read_flash_word(qdev, i+offset, p);
 		if (status) {
 			QPRINTK(qdev, IFUP, ERR, "Error reading flash.\n");
 			goto exit;
@@ -1545,7 +1554,7 @@ static void ql_process_chip_ae_intr(struct ql_adapter *qdev,
 static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 {
 	struct ql_adapter *qdev = rx_ring->qdev;
-	u32 prod = le32_to_cpu(*rx_ring->prod_idx_sh_reg);
+	u32 prod = ql_read_sh_reg(rx_ring->prod_idx_sh_reg);
 	struct ob_mac_iocb_rsp *net_rsp = NULL;
 	int count = 0;
 
@@ -1571,7 +1580,7 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 		}
 		count++;
 		ql_update_cq(rx_ring);
-		prod = le32_to_cpu(*rx_ring->prod_idx_sh_reg);
+		prod = ql_read_sh_reg(rx_ring->prod_idx_sh_reg);
 	}
 	ql_write_cq_idx(rx_ring);
 	if (netif_queue_stopped(qdev->ndev) && net_rsp != NULL) {
@@ -1591,7 +1600,7 @@ static int ql_clean_outbound_rx_ring(struct rx_ring *rx_ring)
 static int ql_clean_inbound_rx_ring(struct rx_ring *rx_ring, int budget)
 {
 	struct ql_adapter *qdev = rx_ring->qdev;
-	u32 prod = le32_to_cpu(*rx_ring->prod_idx_sh_reg);
+	u32 prod = ql_read_sh_reg(rx_ring->prod_idx_sh_reg);
 	struct ql_net_rsp_iocb *net_rsp;
 	int count = 0;
 
@@ -1624,7 +1633,7 @@ static int ql_clean_inbound_rx_ring(struct rx_ring *rx_ring, int budget)
 		}
 		count++;
 		ql_update_cq(rx_ring);
-		prod = le32_to_cpu(*rx_ring->prod_idx_sh_reg);
+		prod = ql_read_sh_reg(rx_ring->prod_idx_sh_reg);
 		if (count == budget)
 			break;
 	}
@@ -1787,7 +1796,7 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 	 * Check the default queue and wake handler if active.
 	 */
 	rx_ring = &qdev->rx_ring[0];
-	if (le32_to_cpu(*rx_ring->prod_idx_sh_reg) != rx_ring->cnsmr_idx) {
+	if (ql_read_sh_reg(rx_ring->prod_idx_sh_reg) != rx_ring->cnsmr_idx) {
 		QPRINTK(qdev, INTR, INFO, "Waking handler for rx_ring[0].\n");
 		ql_disable_completion_interrupt(qdev, intr_context->intr);
 		queue_delayed_work_on(smp_processor_id(), qdev->q_workqueue,
@@ -1801,7 +1810,7 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 		 */
 		for (i = 1; i < qdev->rx_ring_count; i++) {
 			rx_ring = &qdev->rx_ring[i];
-			if (le32_to_cpu(*rx_ring->prod_idx_sh_reg) !=
+			if (ql_read_sh_reg(rx_ring->prod_idx_sh_reg) !=
 			    rx_ring->cnsmr_idx) {
 				QPRINTK(qdev, INTR, INFO,
 					"Waking handler for rx_ring[%d].\n", i);
@@ -2356,28 +2365,6 @@ static void ql_tx_ring_clean(struct ql_adapter *qdev)
 	}
 }
 
-static void ql_free_ring_cb(struct ql_adapter *qdev)
-{
-	kfree(qdev->ring_mem);
-}
-
-static int ql_alloc_ring_cb(struct ql_adapter *qdev)
-{
-	/* Allocate space for tx/rx ring control blocks. */
-	qdev->ring_mem_size =
-	    (qdev->tx_ring_count * sizeof(struct tx_ring)) +
-	    (qdev->rx_ring_count * sizeof(struct rx_ring));
-	qdev->ring_mem = kmalloc(qdev->ring_mem_size, GFP_KERNEL);
-	if (qdev->ring_mem == NULL) {
-		return -ENOMEM;
-	} else {
-		qdev->rx_ring = qdev->ring_mem;
-		qdev->tx_ring = qdev->ring_mem +
-		    (qdev->rx_ring_count * sizeof(struct rx_ring));
-	}
-	return 0;
-}
-
 static void ql_free_mem_resources(struct ql_adapter *qdev)
 {
 	int i;
@@ -2467,12 +2454,9 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	bq_len = (rx_ring->cq_len == 65536) ? 0 : (u16) rx_ring->cq_len;
 	cqicb->len = cpu_to_le16(bq_len | LEN_V | LEN_CPP_CONT);
 
-	cqicb->addr_lo = cpu_to_le32(rx_ring->cq_base_dma);
-	cqicb->addr_hi = cpu_to_le32((u64) rx_ring->cq_base_dma >> 32);
+	cqicb->addr = cpu_to_le64(rx_ring->cq_base_dma);
 
-	cqicb->prod_idx_addr_lo = cpu_to_le32(rx_ring->prod_idx_sh_reg_dma);
-	cqicb->prod_idx_addr_hi =
-	    cpu_to_le32((u64) rx_ring->prod_idx_sh_reg_dma >> 32);
+	cqicb->prod_idx_addr = cpu_to_le64(rx_ring->prod_idx_sh_reg_dma);
 
 	/*
 	 * Set up the control block load flags.
@@ -2483,10 +2467,8 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	if (rx_ring->lbq_len) {
 		cqicb->flags |= FLAGS_LL;	/* Load lbq values */
 		*((u64 *) rx_ring->lbq_base_indirect) = rx_ring->lbq_base_dma;
-		cqicb->lbq_addr_lo =
-		    cpu_to_le32(rx_ring->lbq_base_indirect_dma);
-		cqicb->lbq_addr_hi =
-		    cpu_to_le32((u64) rx_ring->lbq_base_indirect_dma >> 32);
+		cqicb->lbq_addr =
+		    cpu_to_le64(rx_ring->lbq_base_indirect_dma);
 		bq_len = (rx_ring->lbq_buf_size == 65536) ? 0 :
 			(u16) rx_ring->lbq_buf_size;
 		cqicb->lbq_buf_size = cpu_to_le16(bq_len);
@@ -2501,10 +2483,8 @@ static int ql_start_rx_ring(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 	if (rx_ring->sbq_len) {
 		cqicb->flags |= FLAGS_LS;	/* Load sbq values */
 		*((u64 *) rx_ring->sbq_base_indirect) = rx_ring->sbq_base_dma;
-		cqicb->sbq_addr_lo =
-		    cpu_to_le32(rx_ring->sbq_base_indirect_dma);
-		cqicb->sbq_addr_hi =
-		    cpu_to_le32((u64) rx_ring->sbq_base_indirect_dma >> 32);
+		cqicb->sbq_addr =
+		    cpu_to_le64(rx_ring->sbq_base_indirect_dma);
 		cqicb->sbq_buf_size =
 		    cpu_to_le16(((rx_ring->sbq_buf_size / 2) + 8) & 0xfffffff8);
 		bq_len = (rx_ring->sbq_len == 65536) ? 0 :
@@ -2611,12 +2591,9 @@ static int ql_start_tx_ring(struct ql_adapter *qdev, struct tx_ring *tx_ring)
 				   Q_FLAGS_LB | Q_FLAGS_LI | Q_FLAGS_LO);
 	wqicb->cq_id_rss = cpu_to_le16(tx_ring->cq_id);
 	wqicb->rid = 0;
-	wqicb->addr_lo = cpu_to_le32(tx_ring->wq_base_dma);
-	wqicb->addr_hi = cpu_to_le32((u64) tx_ring->wq_base_dma >> 32);
+	wqicb->addr = cpu_to_le64(tx_ring->wq_base_dma);
 
-	wqicb->cnsmr_idx_addr_lo = cpu_to_le32(tx_ring->cnsmr_idx_sh_reg_dma);
-	wqicb->cnsmr_idx_addr_hi =
-	    cpu_to_le32((u64) tx_ring->cnsmr_idx_sh_reg_dma >> 32);
+	wqicb->cnsmr_idx_addr = cpu_to_le64(tx_ring->cnsmr_idx_sh_reg_dma);
 
 	ql_init_tx_ring(qdev, tx_ring);
 
@@ -2746,14 +2723,14 @@ static void ql_resolve_queues_to_irqs(struct ql_adapter *qdev)
 				 * Outbound queue is for outbound completions only.
 				 */
 				intr_context->handler = qlge_msix_tx_isr;
-				sprintf(intr_context->name, "%s-txq-%d",
+				sprintf(intr_context->name, "%s-tx-%d",
 					qdev->ndev->name, i);
 			} else {
 				/*
 				 * Inbound queues handle unicast frames only.
 				 */
 				intr_context->handler = qlge_msix_rx_isr;
-				sprintf(intr_context->name, "%s-rxq-%d",
+				sprintf(intr_context->name, "%s-rx-%d",
 					qdev->ndev->name, i);
 			}
 		}
@@ -3247,7 +3224,6 @@ static int qlge_close(struct net_device *ndev)
 		msleep(1);
 	ql_adapter_down(qdev);
 	ql_release_adapter_resources(qdev);
-	ql_free_ring_cb(qdev);
 	return 0;
 }
 
@@ -3273,8 +3249,8 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 	 * This limitation can be removed when requested.
 	 */
 
-	if (cpu_cnt > 8)
-		cpu_cnt = 8;
+	if (cpu_cnt > MAX_CPUS)
+		cpu_cnt = MAX_CPUS;
 
 	/*
 	 * rx_ring[0] is always the default queue.
@@ -3293,9 +3269,6 @@ static int ql_configure_rings(struct ql_adapter *qdev)
 	 * completion handler rx_rings.
 	 */
 	qdev->rx_ring_count = qdev->tx_ring_count + qdev->rss_ring_count + 1;
-
-	if (ql_alloc_ring_cb(qdev))
-		return -ENOMEM;
 
 	for (i = 0; i < qdev->tx_ring_count; i++) {
 		tx_ring = &qdev->tx_ring[i];
@@ -3393,7 +3366,6 @@ static int qlge_open(struct net_device *ndev)
 
 error_up:
 	ql_release_adapter_resources(qdev);
-	ql_free_ring_cb(qdev);
 	return err;
 }
 
@@ -3864,7 +3836,7 @@ static int qlge_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	struct ql_adapter *qdev = netdev_priv(ndev);
-	int err;
+	int err, i;
 
 	netif_device_detach(ndev);
 
@@ -3873,6 +3845,9 @@ static int qlge_suspend(struct pci_dev *pdev, pm_message_t state)
 		if (!err)
 			return err;
 	}
+
+	for (i = qdev->rss_ring_first_cq_id; i < qdev->rx_ring_count; i++)
+		netif_napi_del(&qdev->rx_ring[i].napi);
 
 	err = pci_save_state(pdev);
 	if (err)

@@ -3048,7 +3048,7 @@ retry:
 			WARN_ON(ret <= 0);
 			printk(KERN_ERR "%s: ext4_ext_get_blocks "
 				    "returned error inode#%lu, block=%u, "
-				    "max_blocks=%lu", __func__,
+				    "max_blocks=%u", __func__,
 				    inode->i_ino, block, max_blocks);
 #endif
 			ext4_mark_inode_dirty(handle, inode);

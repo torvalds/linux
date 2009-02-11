@@ -48,11 +48,11 @@ static int cifs_calculate_signature(const struct smb_hdr *cifs_pdu,
 	if ((cifs_pdu == NULL) || (signature == NULL) || (key == NULL))
 		return -EINVAL;
 
-	MD5Init(&context);
-	MD5Update(&context, (char *)&key->data, key->len);
-	MD5Update(&context, cifs_pdu->Protocol, cifs_pdu->smb_buf_length);
+	cifs_MD5_init(&context);
+	cifs_MD5_update(&context, (char *)&key->data, key->len);
+	cifs_MD5_update(&context, cifs_pdu->Protocol, cifs_pdu->smb_buf_length);
 
-	MD5Final(signature, &context);
+	cifs_MD5_final(signature, &context);
 	return 0;
 }
 
@@ -96,8 +96,8 @@ static int cifs_calc_signature2(const struct kvec *iov, int n_vec,
 	if ((iov == NULL) || (signature == NULL) || (key == NULL))
 		return -EINVAL;
 
-	MD5Init(&context);
-	MD5Update(&context, (char *)&key->data, key->len);
+	cifs_MD5_init(&context);
+	cifs_MD5_update(&context, (char *)&key->data, key->len);
 	for (i = 0; i < n_vec; i++) {
 		if (iov[i].iov_len == 0)
 			continue;
@@ -110,13 +110,13 @@ static int cifs_calc_signature2(const struct kvec *iov, int n_vec,
 		if (i == 0) {
 			if (iov[0].iov_len <= 8) /* cmd field at offset 9 */
 				break; /* nothing to sign or corrupt header */
-			MD5Update(&context, iov[0].iov_base+4,
+			cifs_MD5_update(&context, iov[0].iov_base+4,
 				  iov[0].iov_len-4);
 		} else
-			MD5Update(&context, iov[i].iov_base, iov[i].iov_len);
+			cifs_MD5_update(&context, iov[i].iov_base, iov[i].iov_len);
 	}
 
-	MD5Final(signature, &context);
+	cifs_MD5_final(signature, &context);
 
 	return 0;
 }

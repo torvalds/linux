@@ -21,23 +21,10 @@ static inline void syscall_rollback(struct task_struct *task,
 	 */
 }
 
-static inline bool syscall_has_error(struct pt_regs *regs)
-{
-	return (regs->sr & 0x1) ? true : false;
-}
-static inline void syscall_set_error(struct pt_regs *regs)
-{
-	regs->sr |= 0x1;
-}
-static inline void syscall_clear_error(struct pt_regs *regs)
-{
-	regs->sr &= ~0x1;
-}
-
 static inline long syscall_get_error(struct task_struct *task,
 				     struct pt_regs *regs)
 {
-	return syscall_has_error(regs) ? regs->regs[9] : 0;
+	return IS_ERR_VALUE(regs->regs[9]) ? regs->regs[9] : 0;
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
@@ -50,13 +37,10 @@ static inline void syscall_set_return_value(struct task_struct *task,
 					    struct pt_regs *regs,
 					    int error, long val)
 {
-	if (error) {
-		syscall_set_error(regs);
+	if (error)
 		regs->regs[9] = -error;
-	} else {
-		syscall_clear_error(regs);
+	else
 		regs->regs[9] = val;
-	}
 }
 
 static inline void syscall_get_arguments(struct task_struct *task,

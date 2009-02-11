@@ -106,7 +106,7 @@
 	.private_value = (unsigned long)&xenum }
 #define SOC_VALUE_ENUM(xname, xenum) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,\
-	.info = snd_soc_info_value_enum_double, \
+	.info = snd_soc_info_enum_double, \
 	.get = snd_soc_get_value_enum_double, \
 	.put = snd_soc_put_value_enum_double, \
 	.private_value = (unsigned long)&xenum }
@@ -211,8 +211,6 @@ int snd_soc_get_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
-int snd_soc_info_value_enum_double(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo);
 int snd_soc_get_value_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_value_enum_double(struct snd_kcontrol *kcontrol,
@@ -414,17 +412,6 @@ struct soc_mixer_control {
 
 /* enumerated kcontrol */
 struct soc_enum {
-	unsigned short reg;
-	unsigned short reg2;
-	unsigned char shift_l;
-	unsigned char shift_r;
-	unsigned int max;
-	const char **texts;
-	void *dapm;
-};
-
-/* semi enumerated kcontrol */
-struct soc_value_enum {
 	unsigned short reg;
 	unsigned short reg2;
 	unsigned char shift_l;

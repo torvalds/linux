@@ -58,14 +58,11 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	 * seconds. This is to serialize actual issuing of mailbox cmds during
 	 * non ISP abort time.
 	 */
-	if (!abort_active) {
-		if (!wait_for_completion_timeout(&ha->mbx_cmd_comp,
-		    mcp->tov * HZ)) {
-			/* Timeout occurred. Return error. */
-			DEBUG2_3_11(printk("%s(%ld): cmd access timeout. "
-			    "Exiting.\n", __func__, base_vha->host_no));
-			return QLA_FUNCTION_TIMEOUT;
-		}
+	if (!wait_for_completion_timeout(&ha->mbx_cmd_comp, mcp->tov * HZ)) {
+		/* Timeout occurred. Return error. */
+		DEBUG2_3_11(printk("%s(%ld): cmd access timeout. "
+		    "Exiting.\n", __func__, base_vha->host_no));
+		return QLA_FUNCTION_TIMEOUT;
 	}
 
 	ha->flags.mbox_busy = 1;
@@ -265,8 +262,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 	}
 
 	/* Allow next mbx cmd to come in. */
-	if (!abort_active)
-		complete(&ha->mbx_cmd_comp);
+	complete(&ha->mbx_cmd_comp);
 
 	if (rval) {
 		DEBUG2_3_11(printk("%s(%ld): **** FAILED. mbx0=%x, mbx1=%x, "

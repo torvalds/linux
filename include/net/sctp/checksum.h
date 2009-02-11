@@ -79,5 +79,5 @@ static inline __be32 sctp_update_cksum(__u8 *buffer, __u16 length, __be32 crc32)
 
 static inline __be32 sctp_end_cksum(__be32 crc32)
 {
-	return ~crc32;
+	return (__force __be32)~cpu_to_le32((__force u32)crc32);
 }

@@ -238,6 +238,98 @@ config AUDIT_TREE
 	def_bool y
 	depends on AUDITSYSCALL && INOTIFY
 
+menu "RCU Subsystem"
+
+choice
+	prompt "RCU Implementation"
+	default CLASSIC_RCU
+
+config CLASSIC_RCU
+	bool "Classic RCU"
+	help
+	  This option selects the classic RCU implementation that is
+	  designed for best read-side performance on non-realtime
+	  systems.
+
+	  Select this option if you are unsure.
+
+config TREE_RCU
+	bool "Tree-based hierarchical RCU"
+	help
+	  This option selects the RCU implementation that is
+	  designed for very large SMP system with hundreds or
+	  thousands of CPUs.
+
+config PREEMPT_RCU
+	bool "Preemptible RCU"
+	depends on PREEMPT
+	help
+	  This option reduces the latency of the kernel by making certain
+	  RCU sections preemptible. Normally RCU code is non-preemptible, if
+	  this option is selected then read-only RCU sections become
+	  preemptible. This helps latency, but may expose bugs due to
+	  now-naive assumptions about each RCU read-side critical section
+	  remaining on a given CPU through its execution.
+
+endchoice
+
+config RCU_TRACE
+	bool "Enable tracing for RCU"
+	depends on TREE_RCU || PREEMPT_RCU
+	help
+	  This option provides tracing in RCU which presents stats
+	  in debugfs for debugging RCU implementation.
+
+	  Say Y here if you want to enable RCU tracing
+	  Say N if you are unsure.
+
+config RCU_FANOUT
+	int "Tree-based hierarchical RCU fanout value"
+	range 2 64 if 64BIT
+	range 2 32 if !64BIT
+	depends on TREE_RCU
+	default 64 if 64BIT
+	default 32 if !64BIT
+	help
+	  This option controls the fanout of hierarchical implementations
+	  of RCU, allowing RCU to work efficiently on machines with
+	  large numbers of CPUs.  This value must be at least the cube
+	  root of NR_CPUS, which allows NR_CPUS up to 32,768 for 32-bit
+	  systems and up to 262,144 for 64-bit systems.
+
+	  Select a specific number if testing RCU itself.
+	  Take the default if unsure.
+
+config RCU_FANOUT_EXACT
+	bool "Disable tree-based hierarchical RCU auto-balancing"
+	depends on TREE_RCU
+	default n
+	help
+	  This option forces use of the exact RCU_FANOUT value specified,
+	  regardless of imbalances in the hierarchy.  This is useful for
+	  testing RCU itself, and might one day be useful on systems with
+	  strong NUMA behavior.
+
+	  Without RCU_FANOUT_EXACT, the code will balance the hierarchy.
+
+	  Say N if unsure.
+
+config TREE_RCU_TRACE
+	def_bool RCU_TRACE && TREE_RCU
+	select DEBUG_FS
+	help
+	  This option provides tracing for the TREE_RCU implementation,
+	  permitting Makefile to trivially select kernel/rcutree_trace.c.
+
+config PREEMPT_RCU_TRACE
+	def_bool RCU_TRACE && PREEMPT_RCU
+	select DEBUG_FS
+	help
+	  This option provides tracing for the PREEMPT_RCU implementation,
+	  permitting Makefile to trivially select kernel/rcupreempt_trace.c.
+
+endmenu # "RCU Subsystem"
+
 config IKCONFIG
 	tristate "Kernel .config support"
 	---help---
@@ -323,25 +415,25 @@ config CGROUP_SCHED
 	  This option allows you to create arbitrary task groups
 	  using the "cgroup" pseudo filesystem and control
 	  the cpu bandwidth allocated to each such task group.
-	  Refer to Documentation/cgroups.txt for more information
-	  on "cgroup" pseudo filesystem.
+	  Refer to Documentation/cgroups/cgroups.txt for more
+	  information on "cgroup" pseudo filesystem.
 
 endchoice
 
-menu "Control Group support"
-config CGROUPS
-	bool "Control Group support"
+menuconfig CGROUPS
+	boolean "Control Group support"
 	help
-	  This option add support for grouping sets of processes together, for
+	  This option adds support for grouping sets of processes together, for
 	  use with process control subsystems such as Cpusets, CFS, memory
 	  controls or device isolation.
 	  See
-		- Documentation/cpusets.txt	(Cpusets)
 		- Documentation/scheduler/sched-design-CFS.txt	(CFS)
-		- Documentation/cgroups/ (features for grouping, isolation)
-		- Documentation/controllers/ (features for resource control)
+		- Documentation/cgroups/ (features for grouping, isolation
+					  and resource control)
 
 	  Say N if unsure.
+
+if CGROUPS
 
 config CGROUP_DEBUG
 	bool "Example debug cgroup subsystem"
@@ -350,24 +442,24 @@ config CGROUP_DEBUG
 	help
 	  This option enables a simple cgroup subsystem that
 	  exports useful debugging information about the cgroups
-	  framework
+	  framework.
 
-	  Say N if unsure
+	  Say N if unsure.
 
 config CGROUP_NS
-        bool "Namespace cgroup subsystem"
-        depends on CGROUPS
-        help
-          Provides a simple namespace cgroup subsystem to
-          provide hierarchical naming of sets of namespaces,
-          for instance virtual servers and checkpoint/restart
-          jobs.
+	bool "Namespace cgroup subsystem"
+	depends on CGROUPS
+	help
+	  Provides a simple namespace cgroup subsystem to
+	  provide hierarchical naming of sets of namespaces,
+	  for instance virtual servers and checkpoint/restart
+	  jobs.
 
 config CGROUP_FREEZER
-        bool "control group freezer subsystem"
-        depends on CGROUPS
-        help
-          Provides a way to freeze and unfreeze all tasks in a
+	bool "Freezer cgroup subsystem"
+	depends on CGROUPS
+	help
+	  Provides a way to freeze and unfreeze all tasks in a
 	  cgroup.
 
 config CGROUP_DEVICE
@@ -388,18 +480,23 @@ config CPUSETS
 
 	  Say N if unsure.
 
+config PROC_PID_CPUSET
+	bool "Include legacy /proc/<pid>/cpuset file"
+	depends on CPUSETS
+	default y
+
 config CGROUP_CPUACCT
 	bool "Simple CPU accounting cgroup subsystem"
 	depends on CGROUPS
 	help
 	  Provides a simple Resource Controller for monitoring the
-	  total CPU consumed by the tasks in a cgroup
+	  total CPU consumed by the tasks in a cgroup.
 
 config RESOURCE_COUNTERS
 	bool "Resource counters"
 	help
 	  This option enables controller independent resource accounting
-          infrastructure that works with cgroups
+	  infrastructure that works with cgroups.
 	depends on CGROUPS
 
 config CGROUP_MEM_RES_CTLR
@@ -425,9 +522,6 @@ config CGROUP_MEM_RES_CTLR
 	  This config option also selects MM_OWNER config option, which
 	  could in turn add some fork/exit overhead.
 
-config MM_OWNER
-	bool
-
 config CGROUP_MEM_RES_CTLR_SWAP
 	bool "Memory Resource Controller Swap Extension(EXPERIMENTAL)"
 	depends on CGROUP_MEM_RES_CTLR && SWAP && EXPERIMENTAL
@@ -444,8 +538,10 @@ config CGROUP_MEM_RES_CTLR_SWAP
 	  there will be no overhead from this. Even when you set this config=y,
 	  if boot option "noswapaccount" is set, swap will not be accounted.
 
+endif # CGROUPS
 
-endmenu
+config MM_OWNER
+	bool
 
 config SYSFS_DEPRECATED
 	bool
@@ -482,11 +578,6 @@ config SYSFS_DEPRECATED_V2
 	  older userspace tools, you might need to say Y here. Do not say Y,
 	  if the original kernel, that came with your distribution, has
 	  this option set to N.
-
-config PROC_PID_CPUSET
-	bool "Include legacy /proc/<pid>/cpuset file"
-	depends on CPUSETS
-	default y
 
 config RELAY
 	bool "Kernel->user space relay support (formerly relayfs)"
@@ -541,6 +632,14 @@ config PID_NS
 
 	  Unless you want to work with an experimental feature
 	  say N here.
+
+config NET_NS
+	bool "Network namespace"
+	default n
+	depends on NAMESPACES && EXPERIMENTAL && NET
+	help
+	  Allow user space to create what appear to be multiple instances
+	  of the network stack.
 
 config BLK_DEV_INITRD
 	bool "Initial RAM filesystem and RAM disk (initramfs/initrd) support"
@@ -625,13 +724,6 @@ config KALLSYMS_ALL
 	   and you don't care about adding 300k to the size of your kernel.
 
 	   Say N.
-
-config KALLSYMS_STRIP_GENERATED
-	bool "Strip machine generated symbols from kallsyms"
-	depends on KALLSYMS_ALL
-	default y
-	help
-	  Say N if you want kallsyms to retain even machine generated symbols.
 
 config KALLSYMS_EXTRA_PASS
 	bool "Do an extra kallsyms pass"
@@ -973,90 +1065,3 @@ source "block/Kconfig"
 config PREEMPT_NOTIFIERS
 	bool
 
-choice
-	prompt "RCU Implementation"
-	default CLASSIC_RCU
-
-config CLASSIC_RCU
-	bool "Classic RCU"
-	help
-	  This option selects the classic RCU implementation that is
-	  designed for best read-side performance on non-realtime
-	  systems.
-
-	  Select this option if you are unsure.
-
-config TREE_RCU
-	bool "Tree-based hierarchical RCU"
-	help
-	  This option selects the RCU implementation that is
-	  designed for very large SMP system with hundreds or
-	  thousands of CPUs.
-
-config PREEMPT_RCU
-	bool "Preemptible RCU"
-	depends on PREEMPT
-	help
-	  This option reduces the latency of the kernel by making certain
-	  RCU sections preemptible. Normally RCU code is non-preemptible, if
-	  this option is selected then read-only RCU sections become
-	  preemptible. This helps latency, but may expose bugs due to
-	  now-naive assumptions about each RCU read-side critical section
-	  remaining on a given CPU through its execution.
-
-endchoice
-
-config RCU_TRACE
-	bool "Enable tracing for RCU"
-	depends on TREE_RCU || PREEMPT_RCU
-	help
-	  This option provides tracing in RCU which presents stats
-	  in debugfs for debugging RCU implementation.
-
-	  Say Y here if you want to enable RCU tracing
-	  Say N if you are unsure.
-
-config RCU_FANOUT
-	int "Tree-based hierarchical RCU fanout value"
-	range 2 64 if 64BIT
-	range 2 32 if !64BIT
-	depends on TREE_RCU
-	default 64 if 64BIT
-	default 32 if !64BIT
-	help
-	  This option controls the fanout of hierarchical implementations
-	  of RCU, allowing RCU to work efficiently on machines with
-	  large numbers of CPUs.  This value must be at least the cube
-	  root of NR_CPUS, which allows NR_CPUS up to 32,768 for 32-bit
-	  systems and up to 262,144 for 64-bit systems.
-
-	  Select a specific number if testing RCU itself.
-	  Take the default if unsure.
-
-config RCU_FANOUT_EXACT
-	bool "Disable tree-based hierarchical RCU auto-balancing"
-	depends on TREE_RCU
-	default n
-	help
-	  This option forces use of the exact RCU_FANOUT value specified,
-	  regardless of imbalances in the hierarchy.  This is useful for
-	  testing RCU itself, and might one day be useful on systems with
-	  strong NUMA behavior.
-
-	  Without RCU_FANOUT_EXACT, the code will balance the hierarchy.
-
-	  Say N if unsure.
-
-config TREE_RCU_TRACE
-	def_bool RCU_TRACE && TREE_RCU
-	select DEBUG_FS
-	help
-	  This option provides tracing for the TREE_RCU implementation,
-	  permitting Makefile to trivially select kernel/rcutree_trace.c.
-
-config PREEMPT_RCU_TRACE
-	def_bool RCU_TRACE && PREEMPT_RCU
-	select DEBUG_FS
-	help
-	  This option provides tracing for the PREEMPT_RCU implementation,
-	  permitting Makefile to trivially select kernel/rcupreempt_trace.c.

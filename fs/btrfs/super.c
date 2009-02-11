@@ -37,7 +37,7 @@
 #include <linux/ctype.h>
 #include <linux/namei.h>
 #include <linux/miscdevice.h>
-#include <linux/version.h>
+#include <linux/magic.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -51,7 +51,6 @@
 #include "export.h"
 #include "compression.h"
 
-#define BTRFS_SUPER_MAGIC 0x9123683E
 
 static struct super_operations btrfs_super_ops;
 
@@ -582,18 +581,20 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 {
 	struct btrfs_ioctl_vol_args *vol;
 	struct btrfs_fs_devices *fs_devices;
-	int ret = 0;
-	int len;
+	int ret = -ENOTTY;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	vol = kmalloc(sizeof(*vol), GFP_KERNEL);
+	if (!vol)
+		return -ENOMEM;
+
 	if (copy_from_user(vol, (void __user *)arg, sizeof(*vol))) {
 		ret = -EFAULT;
 		goto out;
 	}
-	len = strnlen(vol->name, BTRFS_PATH_NAME_MAX);
+
 	switch (cmd) {
 	case BTRFS_IOC_SCAN_DEV:
 		ret = btrfs_scan_one_device(vol->name, FMODE_READ,

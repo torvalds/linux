@@ -78,7 +78,8 @@ fw-shipped- += keyspan/mpr.fw keyspan/usa18x.fw keyspan/usa19.fw	\
 	keyspan/usa28.fw keyspan/usa28xa.fw keyspan/usa28xb.fw		\
 	keyspan/usa28x.fw keyspan/usa49w.fw keyspan/usa49wlc.fw
 endif
-fw-shipped-$(CONFIG_USB_SERIAL_TI) += ti_3410.fw ti_5052.fw
+fw-shipped-$(CONFIG_USB_SERIAL_TI) += ti_3410.fw ti_5052.fw \
+				      mts_cdma.fw mts_gsm.fw mts_edge.fw
 fw-shipped-$(CONFIG_USB_SERIAL_EDGEPORT) += edgeport/boot.fw edgeport/boot2.fw \
 					    edgeport/down.fw edgeport/down2.fw
 fw-shipped-$(CONFIG_USB_SERIAL_EDGEPORT_TI) += edgeport/down3.bin

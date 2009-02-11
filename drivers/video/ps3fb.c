@@ -1006,7 +1006,7 @@ static int ps3fb_xdr_settings(u64 xdr_lpar, struct device *dev)
 			__func__, status);
 		return -ENXIO;
 	}
-	dev_dbg(dev, "video:%p ioif:%lx lpar:%lx size:%lx\n",
+	dev_dbg(dev, "video:%p ioif:%lx lpar:%llx size:%lx\n",
 		ps3fb_videomemory.address, GPU_IOIF, xdr_lpar,
 		ps3fb_videomemory.size);
 
@@ -1133,7 +1133,7 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 			__func__, status);
 		goto err;
 	}
-	dev_dbg(&dev->core, "ddr:lpar:0x%lx\n", ddr_lpar);
+	dev_dbg(&dev->core, "ddr:lpar:0x%llx\n", ddr_lpar);
 
 	status = lv1_gpu_context_allocate(ps3fb.memory_handle, 0,
 					  &ps3fb.context_handle,

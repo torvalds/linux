@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2007-2008 Yan Burman
  *  Copyright (C) 2008 Eric Piel
- *  Copyright (C) 2008 Pavel Machek
+ *  Copyright (C) 2008-2009 Pavel Machek
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include <linux/freezer.h>
 #include <linux/version.h>
 #include <linux/uaccess.h>
+#include <linux/leds.h>
 #include <acpi/acpi_drivers.h>
 #include <asm/atomic.h>
 #include "lis3lv02d.h"
@@ -43,6 +44,36 @@
 #define DRIVER_NAME     "lis3lv02d"
 #define ACPI_MDPS_CLASS "accelerometer"
 
+/* Delayed LEDs infrastructure ------------------------------------ */
+
+/* Special LED class that can defer work */
+struct delayed_led_classdev {
+	struct led_classdev led_classdev;
+	struct work_struct work;
+	enum led_brightness new_brightness;
+
+	unsigned int led;		/* For driver */
+	void (*set_brightness)(struct delayed_led_classdev *data, enum led_brightness value);
+};
+
+static inline void delayed_set_status_worker(struct work_struct *work)
+{
+	struct delayed_led_classdev *data =
+			container_of(work, struct delayed_led_classdev, work);
+
+	data->set_brightness(data, data->new_brightness);
+}
+
+static inline void delayed_sysfs_set(struct led_classdev *led_cdev,
+			      enum led_brightness brightness)
+{
+	struct delayed_led_classdev *data = container_of(led_cdev,
+			     struct delayed_led_classdev, led_classdev);
+	data->new_brightness = brightness;
+	schedule_work(&data->work);
+}
+
+/* HP-specific accelerometer driver ------------------------------------ */
 
 /* For automatic insertion of the module */
 static struct acpi_device_id lis3lv02d_device_ids[] = {
@@ -122,7 +153,10 @@ static struct axis_conversion lis3lv02d_axis_y_inverted = {1, -2, 3};
 static struct axis_conversion lis3lv02d_axis_x_inverted = {-1, 2, 3};
 static struct axis_conversion lis3lv02d_axis_z_inverted = {1, 2, -3};
 static struct axis_conversion lis3lv02d_axis_xy_rotated_left = {-2, 1, 3};
+static struct axis_conversion lis3lv02d_axis_xy_rotated_left_usd = {-2, 1, -3};
 static struct axis_conversion lis3lv02d_axis_xy_swap_inverted = {-2, -1, 3};
+static struct axis_conversion lis3lv02d_axis_xy_rotated_right = {2, -1, 3};
+static struct axis_conversion lis3lv02d_axis_xy_swap_yz_inverted = {2, -1, -3};
 
 #define AXIS_DMI_MATCH(_ident, _name, _axis) {		\
 	.ident = _ident,				\
@@ -141,10 +175,12 @@ static struct dmi_system_id lis3lv02d_dmi_ids[] = {
 	AXIS_DMI_MATCH("NC2510", "HP Compaq 2510", y_inverted),
 	AXIS_DMI_MATCH("NC8510", "HP Compaq 8510", xy_swap_inverted),
 	AXIS_DMI_MATCH("HP2133", "HP 2133", xy_rotated_left),
+	AXIS_DMI_MATCH("NC653x", "HP Compaq 653", xy_rotated_left_usd),
+	AXIS_DMI_MATCH("NC673x", "HP Compaq 673", xy_rotated_left_usd),
+	AXIS_DMI_MATCH("NC651xx", "HP Compaq 651", xy_rotated_right),
+	AXIS_DMI_MATCH("NC671xx", "HP Compaq 671", xy_swap_yz_inverted),
 	{ NULL, }
 /* Laptop models without axis info (yet):
- * "NC651xx" "HP Compaq 651"
- * "NC671xx" "HP Compaq 671"
  * "NC6910" "HP Compaq 6910"
  * HP Compaq 8710x Notebook PC / Mobile Workstation
  * "NC2400" "HP Compaq nc2400"
@@ -154,10 +190,33 @@ static struct dmi_system_id lis3lv02d_dmi_ids[] = {
  */
 };
 
+static void hpled_set(struct delayed_led_classdev *led_cdev, enum led_brightness value)
+{
+	acpi_handle handle = adev.device->handle;
+	unsigned long long ret; /* Not used when writing */
+	union acpi_object in_obj[1];
+	struct acpi_object_list args = { 1, in_obj };
+
+	in_obj[0].type          = ACPI_TYPE_INTEGER;
+	in_obj[0].integer.value = !!value;
+
+	acpi_evaluate_integer(handle, "ALED", &args, &ret);
+}
+
+static struct delayed_led_classdev hpled_led = {
+	.led_classdev = {
+		.name			= "hp::hddprotect",
+		.default_trigger	= "none",
+		.brightness_set		= delayed_sysfs_set,
+		.flags                  = LED_CORE_SUSPENDRESUME,
+	},
+	.set_brightness = hpled_set,
+};
 
 static int lis3lv02d_add(struct acpi_device *device)
 {
 	u8 val;
+	int ret;
 
 	if (!device)
 		return -EINVAL;
@@ -183,7 +242,19 @@ static int lis3lv02d_add(struct acpi_device *device)
 		adev.ac = lis3lv02d_axis_normal;
 	}
 
-	return lis3lv02d_init_device(&adev);
+	INIT_WORK(&hpled_led.work, delayed_set_status_worker);
+	ret = led_classdev_register(NULL, &hpled_led.led_classdev);
+	if (ret)
+		return ret;
+
+	ret = lis3lv02d_init_device(&adev);
+	if (ret) {
+		flush_work(&hpled_led.work);
+		led_classdev_unregister(&hpled_led.led_classdev);
+		return ret;
+	}
+
+	return ret;
 }
 
 static int lis3lv02d_remove(struct acpi_device *device, int type)
@@ -193,6 +264,9 @@ static int lis3lv02d_remove(struct acpi_device *device, int type)
 
 	lis3lv02d_joystick_disable();
 	lis3lv02d_poweroff(device->handle);
+
+	flush_work(&hpled_led.work);
+	led_classdev_unregister(&hpled_led.led_classdev);
 
 	return lis3lv02d_remove_fs();
 }
@@ -256,7 +330,7 @@ static void __exit lis3lv02d_exit_module(void)
 	acpi_bus_unregister_driver(&lis3lv02d_driver);
 }
 
-MODULE_DESCRIPTION("Glue between LIS3LV02Dx and HP ACPI BIOS");
+MODULE_DESCRIPTION("Glue between LIS3LV02Dx and HP ACPI BIOS and support for disk protection LED.");
 MODULE_AUTHOR("Yan Burman, Eric Piel, Pavel Machek");
 MODULE_LICENSE("GPL");
 

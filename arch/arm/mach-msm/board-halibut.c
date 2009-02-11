@@ -27,6 +27,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
+#include <mach/irqs.h>
 #include <mach/board.h>
 #include <mach/msm_iomap.h>
 

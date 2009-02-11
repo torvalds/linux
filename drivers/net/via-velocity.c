@@ -855,6 +855,7 @@ static const struct net_device_ops velocity_netdev_ops = {
 	.ndo_start_xmit		= velocity_xmit,
 	.ndo_get_stats		= velocity_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_set_multicast_list	= velocity_set_multi,
 	.ndo_change_mtu		= velocity_change_mtu,
 	.ndo_do_ioctl		= velocity_ioctl,
@@ -1301,7 +1302,7 @@ static void velocity_free_rd_ring(struct velocity_info *vptr)
 static int velocity_init_td_ring(struct velocity_info *vptr)
 {
 	dma_addr_t curr;
-	unsigned int j;
+	int j;
 
 	/* Init the TD ring entries */
 	for (j = 0; j < vptr->tx.numq; j++) {

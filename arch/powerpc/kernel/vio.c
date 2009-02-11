@@ -492,14 +492,14 @@ static void *vio_dma_iommu_alloc_coherent(struct device *dev, size_t size,
 	struct vio_dev *viodev = to_vio_dev(dev);
 	void *ret;
 
-	if (vio_cmo_alloc(viodev, roundup(size, IOMMU_PAGE_SIZE))) {
+	if (vio_cmo_alloc(viodev, roundup(size, PAGE_SIZE))) {
 		atomic_inc(&viodev->cmo.allocs_failed);
 		return NULL;
 	}
 
 	ret = dma_iommu_ops.alloc_coherent(dev, size, dma_handle, flag);
 	if (unlikely(ret == NULL)) {
-		vio_cmo_dealloc(viodev, roundup(size, IOMMU_PAGE_SIZE));
+		vio_cmo_dealloc(viodev, roundup(size, PAGE_SIZE));
 		atomic_inc(&viodev->cmo.allocs_failed);
 	}
 
@@ -513,7 +513,7 @@ static void vio_dma_iommu_free_coherent(struct device *dev, size_t size,
 
 	dma_iommu_ops.free_coherent(dev, size, vaddr, dma_handle);
 
-	vio_cmo_dealloc(viodev, roundup(size, IOMMU_PAGE_SIZE));
+	vio_cmo_dealloc(viodev, roundup(size, PAGE_SIZE));
 }
 
 static dma_addr_t vio_dma_iommu_map_page(struct device *dev, struct page *page,
@@ -572,6 +572,7 @@ static int vio_dma_iommu_map_sg(struct device *dev, struct scatterlist *sglist,
 	if (unlikely(!ret)) {
 		vio_cmo_dealloc(viodev, alloc_size);
 		atomic_inc(&viodev->cmo.allocs_failed);
+		return ret;
 	}
 
 	for (sgl = sglist, count = 0; count < ret; count++, sgl++)

@@ -62,6 +62,25 @@ config MV_XOR
 	---help---
 	  Enable support for the Marvell XOR engine.
 
+config MX3_IPU
+	bool "MX3x Image Processing Unit support"
+	depends on ARCH_MX3
+	select DMA_ENGINE
+	default y
+	help
+	  If you plan to use the Image Processing unit in the i.MX3x, say
+	  Y here. If unsure, select Y.
+
+config MX3_IPU_IRQS
+	int "Number of dynamically mapped interrupts for IPU"
+	depends on MX3_IPU
+	range 2 137
+	default 4
+	help
+	  Out of 137 interrupt sources on i.MX31 IPU only very few are used.
+	  To avoid bloating the irq_desc[] array we allocate a sufficient
+	  number of IRQ slots and map them dynamically to specific sources.
+
 config DMA_ENGINE
 	bool
 
