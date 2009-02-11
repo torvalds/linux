@@ -344,14 +344,35 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	/* we don't need to track ampdu queues */
-	if (queue < ieee80211_num_regular_queues(hw)) {
-		__clear_bit(reason, &local->queue_stop_reasons[queue]);
-
-		if (local->queue_stop_reasons[queue] != 0)
-			/* someone still has this queue stopped */
+	if (queue >= hw->queues) {
+		if (local->ampdu_ac_queue[queue - hw->queues] < 0)
 			return;
+
+		/*
+		 * for virtual aggregation queues, we need to refcount the
+		 * internal mac80211 disable (multiple times!), keep track of
+		 * driver disable _and_ make sure the regular queue is
+		 * actually enabled.
+		 */
+		if (reason == IEEE80211_QUEUE_STOP_REASON_AGGREGATION)
+			local->amdpu_ac_stop_refcnt[queue - hw->queues]--;
+		else
+			__clear_bit(reason, &local->queue_stop_reasons[queue]);
+
+		if (local->queue_stop_reasons[queue] ||
+		    local->amdpu_ac_stop_refcnt[queue - hw->queues])
+			return;
+
+		/* now go on to treat the corresponding regular queue */
+		queue = local->ampdu_ac_queue[queue - hw->queues];
+		reason = IEEE80211_QUEUE_STOP_REASON_AGGREGATION;
 	}
+
+	__clear_bit(reason, &local->queue_stop_reasons[queue]);
+
+	if (local->queue_stop_reasons[queue] != 0)
+		/* someone still has this queue stopped */
+		return;
 
 	if (test_bit(queue, local->queues_pending)) {
 		set_bit(queue, local->queues_pending_run);
@@ -361,8 +382,8 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 	}
 }
 
-static void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
-					   enum queue_stop_reason reason)
+void ieee80211_wake_queue_by_reason(struct ieee80211_hw *hw, int queue,
+				    enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	unsigned long flags;
@@ -384,15 +405,33 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	/* we don't need to track ampdu queues */
-	if (queue < ieee80211_num_regular_queues(hw))
-		__set_bit(reason, &local->queue_stop_reasons[queue]);
+	if (queue >= hw->queues) {
+		if (local->ampdu_ac_queue[queue - hw->queues] < 0)
+			return;
+
+		/*
+		 * for virtual aggregation queues, we need to refcount the
+		 * internal mac80211 disable (multiple times!), keep track of
+		 * driver disable _and_ make sure the regular queue is
+		 * actually enabled.
+		 */
+		if (reason == IEEE80211_QUEUE_STOP_REASON_AGGREGATION)
+			local->amdpu_ac_stop_refcnt[queue - hw->queues]++;
+		else
+			__set_bit(reason, &local->queue_stop_reasons[queue]);
+
+		/* now go on to treat the corresponding regular queue */
+		queue = local->ampdu_ac_queue[queue - hw->queues];
+		reason = IEEE80211_QUEUE_STOP_REASON_AGGREGATION;
+	}
+
+	__set_bit(reason, &local->queue_stop_reasons[queue]);
 
 	netif_stop_subqueue(local->mdev, queue);
 }
 
-static void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
-					   enum queue_stop_reason reason)
+void ieee80211_stop_queue_by_reason(struct ieee80211_hw *hw, int queue,
+				    enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	unsigned long flags;
@@ -418,7 +457,7 @@ void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 
-	for (i = 0; i < ieee80211_num_queues(hw); i++)
+	for (i = 0; i < hw->queues; i++)
 		__ieee80211_stop_queue(hw, i, reason);
 
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
@@ -434,6 +473,16 @@ EXPORT_SYMBOL(ieee80211_stop_queues);
 int ieee80211_queue_stopped(struct ieee80211_hw *hw, int queue)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+	unsigned long flags;
+
+	if (queue >= hw->queues) {
+		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+		queue = local->ampdu_ac_queue[queue - hw->queues];
+		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+		if (queue < 0)
+			return true;
+	}
+
 	return __netif_subqueue_stopped(local->mdev, queue);
 }
 EXPORT_SYMBOL(ieee80211_queue_stopped);

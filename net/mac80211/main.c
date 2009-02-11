@@ -705,7 +705,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops)
 {
 	struct ieee80211_local *local;
-	int priv_size;
+	int priv_size, i;
 	struct wiphy *wiphy;
 
 	/* Ensure 32-byte alignment of our private data and hw private data.
@@ -778,6 +778,11 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 		  ieee80211_dynamic_ps_disable_work);
 	setup_timer(&local->dynamic_ps_timer,
 		    ieee80211_dynamic_ps_timer, (unsigned long) local);
+
+	for (i = 0; i < IEEE80211_MAX_AMPDU_QUEUES; i++)
+		local->ampdu_ac_queue[i] = -1;
+	/* using an s8 won't work with more than that */
+	BUILD_BUG_ON(IEEE80211_MAX_AMPDU_QUEUES > 127);
 
 	sta_info_init(local);
 
@@ -872,7 +877,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	mdev = alloc_netdev_mq(sizeof(struct ieee80211_master_priv),
 			       "wmaster%d", ieee80211_master_setup,
-			       ieee80211_num_queues(hw));
+			       hw->queues);
 	if (!mdev)
 		goto fail_mdev_alloc;
 

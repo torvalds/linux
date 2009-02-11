@@ -1022,11 +1022,6 @@ static inline int ieee80211_num_regular_queues(struct ieee80211_hw *hw)
 	return hw->queues;
 }
 
-static inline int ieee80211_num_queues(struct ieee80211_hw *hw)
-{
-	return hw->queues + hw->ampdu_queues;
-}
-
 static inline struct ieee80211_rate *
 ieee80211_get_tx_rate(const struct ieee80211_hw *hw,
 		      const struct ieee80211_tx_info *c)

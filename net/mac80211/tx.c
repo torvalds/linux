@@ -876,7 +876,6 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
 	return TX_CONTINUE;
 }
 
-
 /* actual transmit path */
 
 /*
@@ -1016,12 +1015,20 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 	tx->sta = sta_info_get(local, hdr->addr1);
 
 	if (tx->sta && ieee80211_is_data_qos(hdr->frame_control)) {
+		unsigned long flags;
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
 
+		spin_lock_irqsave(&tx->sta->lock, flags);
 		state = &tx->sta->ampdu_mlme.tid_state_tx[tid];
-		if (*state == HT_AGG_STATE_OPERATIONAL)
+		if (*state == HT_AGG_STATE_OPERATIONAL) {
 			info->flags |= IEEE80211_TX_CTL_AMPDU;
+			if (local->hw.ampdu_queues)
+				skb_set_queue_mapping(
+					skb, tx->local->hw.queues +
+					     tx->sta->tid_to_tx_q[tid]);
+		}
+		spin_unlock_irqrestore(&tx->sta->lock, flags);
 	}
 
 	if (is_multicast_ether_addr(hdr->addr1)) {
@@ -1085,7 +1092,8 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 	int ret, i;
 
 	if (skb) {
-		if (netif_subqueue_stopped(local->mdev, skb))
+		if (ieee80211_queue_stopped(&local->hw,
+					    skb_get_queue_mapping(skb)))
 			return IEEE80211_TX_PENDING;
 
 		ret = local->ops->tx(local_to_hw(local), skb);
@@ -1101,8 +1109,8 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 			info = IEEE80211_SKB_CB(tx->extra_frag[i]);
 			info->flags &= ~(IEEE80211_TX_CTL_CLEAR_PS_FILT |
 					 IEEE80211_TX_CTL_FIRST_FRAGMENT);
-			if (netif_subqueue_stopped(local->mdev,
-						   tx->extra_frag[i]))
+			if (ieee80211_queue_stopped(&local->hw,
+					skb_get_queue_mapping(tx->extra_frag[i])))
 				return IEEE80211_TX_FRAG_AGAIN;
 
 			ret = local->ops->tx(local_to_hw(local),
