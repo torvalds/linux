@@ -43,7 +43,8 @@ static unsigned char *ftrace_nop_replace(void)
 	return (char *)&ftrace_nop;
 }
 
-static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
+static unsigned char *
+ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 {
 	static unsigned int op;
 
@@ -55,8 +56,9 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 	 */
 	addr = GET_ADDR(addr);
 
-	/* Set to "bl addr" */
-	op = 0x48000001 | (ftrace_calc_offset(ip, addr) & 0x03fffffc);
+	/* if (link) set op to 'bl' else 'b' */
+	op = 0x48000000 | (link ? 1 : 0);
+	op |= (ftrace_calc_offset(ip, addr) & 0x03fffffc);
 
 	/*
 	 * No locking needed, this must be called via kstop_machine
@@ -344,7 +346,7 @@ int ftrace_make_nop(struct module *mod,
 	 */
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
-		old = ftrace_call_replace(ip, addr);
+		old = ftrace_call_replace(ip, addr, 1);
 		new = ftrace_nop_replace();
 		return ftrace_modify_code(ip, old, new);
 	}
@@ -484,7 +486,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
 		old = ftrace_nop_replace();
-		new = ftrace_call_replace(ip, addr);
+		new = ftrace_call_replace(ip, addr, 1);
 		return ftrace_modify_code(ip, old, new);
 	}
 
@@ -513,7 +515,7 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	int ret;
 
 	memcpy(old, &ftrace_call, MCOUNT_INSN_SIZE);
-	new = ftrace_call_replace(ip, (unsigned long)func);
+	new = ftrace_call_replace(ip, (unsigned long)func, 1);
 	ret = ftrace_modify_code(ip, old, new);
 
 	return ret;
@@ -531,6 +533,39 @@ int __init ftrace_dyn_arch_init(void *data)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern void ftrace_graph_call(void);
+extern void ftrace_graph_stub(void);
+
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	unsigned long ip = (unsigned long)(&ftrace_graph_call);
+	unsigned long addr = (unsigned long)(&ftrace_graph_caller);
+	unsigned long stub = (unsigned long)(&ftrace_graph_stub);
+	unsigned char old[MCOUNT_INSN_SIZE], *new;
+
+	new = ftrace_call_replace(ip, stub, 0);
+	memcpy(old, new, MCOUNT_INSN_SIZE);
+	new = ftrace_call_replace(ip, addr, 0);
+
+	return ftrace_modify_code(ip, old, new);
+}
+
+int ftrace_disable_ftrace_graph_caller(void)
+{
+	unsigned long ip = (unsigned long)(&ftrace_graph_call);
+	unsigned long addr = (unsigned long)(&ftrace_graph_caller);
+	unsigned long stub = (unsigned long)(&ftrace_graph_stub);
+	unsigned char old[MCOUNT_INSN_SIZE], *new;
+
+	new = ftrace_call_replace(ip, addr, 0);
+	memcpy(old, new, MCOUNT_INSN_SIZE);
+	new = ftrace_call_replace(ip, stub, 0);
+
+	return ftrace_modify_code(ip, old, new);
+}
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 /*
  * Hook the return address and push it in the stack of return addrs
