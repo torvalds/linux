@@ -439,7 +439,7 @@ int DMAbuf_sync(int dev)
 			DMAbuf_launch_output(dev, dmap);
 		adev->dmap_out->flags |= DMA_SYNCING;
 		adev->dmap_out->underrun_count = 0;
-		while (!signal_pending(current) && n++ <= adev->dmap_out->nbufs && 
+		while (!signal_pending(current) && n++ < adev->dmap_out->nbufs &&
 		       adev->dmap_out->qlen && adev->dmap_out->underrun_count == 0) {
 			long t = dmabuf_timeout(dmap);
 			spin_unlock_irqrestore(&dmap->lock,flags);
