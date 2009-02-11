@@ -85,6 +85,11 @@
 			interrupt-parent = <&mpic>;
 			dfsrr;
 
+			dtt@50 {
+				compatible = "national,lm75";
+				reg = <0x50>;
+			};
+
 			rtc@68 {
 				compatible = "dallas,ds1337";
 				reg = <0x68>;
@@ -335,14 +340,14 @@
 		can0@2,0 {
 			compatible = "intel,82527"; // Bosch CC770
 			reg = <2 0x0 0x100>;
-			interrupts = <4 0>;
+			interrupts = <4 1>;
 			interrupt-parent = <&mpic>;
 		};
 
 		can1@2,100 {
 			compatible = "intel,82527"; // Bosch CC770
 			reg = <2 0x100 0x100>;
-			interrupts = <4 0>;
+			interrupts = <4 1>;
 			interrupt-parent = <&mpic>;
 		};
 	};

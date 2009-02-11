@@ -103,10 +103,15 @@ invstr:	mflr	r6				/* Make it accessible */
 	or	r7,r7,r4
 	mtspr	SPRN_MAS6,r7
 	tlbsx	0,r6				/* search MSR[IS], SPID=PID0 */
-#ifndef CONFIG_E200
 	mfspr	r7,SPRN_MAS1
 	andis.	r7,r7,MAS1_VALID@h
 	bne	match_TLB
+
+	mfspr	r7,SPRN_MMUCFG
+	rlwinm	r7,r7,21,28,31			/* extract MMUCFG[NPIDS] */
+	cmpwi	r7,3
+	bne	match_TLB			/* skip if NPIDS != 3 */
+
 	mfspr	r7,SPRN_PID1
 	slwi	r7,r7,16
 	or	r7,r7,r4
@@ -120,7 +125,7 @@ invstr:	mflr	r6				/* Make it accessible */
 	or	r7,r7,r4
 	mtspr	SPRN_MAS6,r7
 	tlbsx	0,r6				/* Fall through, we had to match */
-#endif
+
 match_TLB:
 	mfspr	r7,SPRN_MAS0
 	rlwinm	r3,r7,16,20,31			/* Extract MAS0(Entry) */
@@ -215,14 +220,19 @@ skpinv:	addi	r6,r6,1				/* Increment */
 
 /* 4. Clear out PIDs & Search info */
 	li	r6,0
+	mtspr   SPRN_MAS6,r6
 	mtspr	SPRN_PID0,r6
-#ifndef CONFIG_E200
+
+	mfspr	r7,SPRN_MMUCFG
+	rlwinm	r7,r7,21,28,31			/* extract MMUCFG[NPIDS] */
+	cmpwi	r7,3
+	bne	2f				/* skip if NPIDS != 3 */
+
 	mtspr	SPRN_PID1,r6
 	mtspr	SPRN_PID2,r6
-#endif
-	mtspr	SPRN_MAS6,r6
 
 /* 5. Invalidate mapping we started in */
+2:
 	lis	r7,0x1000	/* Set MAS0(TLBSEL) = 1 */
 	rlwimi	r7,r3,16,4,15	/* Setup MAS0 = TLBSEL | ESEL(r3) */
 	mtspr	SPRN_MAS0,r7
@@ -298,19 +308,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	SET_IVOR(12, WatchdogTimer);
 	SET_IVOR(13, DataTLBError);
 	SET_IVOR(14, InstructionTLBError);
-	SET_IVOR(15, DebugDebug);
-#if defined(CONFIG_E500) && !defined(CONFIG_PPC_E500MC)
 	SET_IVOR(15, DebugCrit);
-#endif
-	SET_IVOR(32, SPEUnavailable);
-	SET_IVOR(33, SPEFloatingPointData);
-	SET_IVOR(34, SPEFloatingPointRound);
-#ifndef CONFIG_E200
-	SET_IVOR(35, PerformanceMonitor);
-#endif
-#ifdef CONFIG_PPC_E500MC
-	SET_IVOR(36, Doorbell);
-#endif
 
 	/* Establish the interrupt vector base */
 	lis	r4,interrupt_base@h	/* IVPR only uses the high 16-bits */
@@ -328,12 +326,6 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	mfspr	r2,SPRN_HID0
 	oris	r2,r2,HID0_DOZE@h
 	mtspr	SPRN_HID0, r2
-#endif
-#ifdef CONFIG_E200
-	/* enable dedicated debug exception handling resources (Debug APU) */
-	mfspr	r2,SPRN_HID0
-	ori	r2,r2,HID0_DAPUEN@l
-	mtspr	SPRN_HID0,r2
 #endif
 
 #if !defined(CONFIG_BDI_SWITCH)
@@ -706,15 +698,11 @@ interrupt_base:
 	/* Performance Monitor */
 	EXCEPTION(0x2060, PerformanceMonitor, performance_monitor_exception, EXC_XFER_STD)
 
-#ifdef CONFIG_PPC_E500MC
 	EXCEPTION(0x2070, Doorbell, unknown_exception, EXC_XFER_STD)
-#endif
 
 	/* Debug Interrupt */
 	DEBUG_DEBUG_EXCEPTION
-#if defined(CONFIG_E500) && !defined(CONFIG_PPC_E500MC)
 	DEBUG_CRIT_EXCEPTION
-#endif
 
 /*
  * Local functions
@@ -896,6 +884,45 @@ KernelSPE:
 /*
  * Global functions
  */
+
+/* Adjust or setup IVORs for e200 */
+_GLOBAL(__setup_e200_ivors)
+	li	r3,DebugDebug@l
+	mtspr	SPRN_IVOR15,r3
+	li	r3,SPEUnavailable@l
+	mtspr	SPRN_IVOR32,r3
+	li	r3,SPEFloatingPointData@l
+	mtspr	SPRN_IVOR33,r3
+	li	r3,SPEFloatingPointRound@l
+	mtspr	SPRN_IVOR34,r3
+	sync
+	blr
+
+/* Adjust or setup IVORs for e500v1/v2 */
+_GLOBAL(__setup_e500_ivors)
+	li	r3,DebugCrit@l
+	mtspr	SPRN_IVOR15,r3
+	li	r3,SPEUnavailable@l
+	mtspr	SPRN_IVOR32,r3
+	li	r3,SPEFloatingPointData@l
+	mtspr	SPRN_IVOR33,r3
+	li	r3,SPEFloatingPointRound@l
+	mtspr	SPRN_IVOR34,r3
+	li	r3,PerformanceMonitor@l
+	mtspr	SPRN_IVOR35,r3
+	sync
+	blr
+
+/* Adjust or setup IVORs for e500mc */
+_GLOBAL(__setup_e500mc_ivors)
+	li	r3,DebugDebug@l
+	mtspr	SPRN_IVOR15,r3
+	li	r3,PerformanceMonitor@l
+	mtspr	SPRN_IVOR35,r3
+	li	r3,Doorbell@l
+	mtspr	SPRN_IVOR36,r3
+	sync
+	blr
 
 /*
  * extern void loadcam_entry(unsigned int index)
