@@ -757,6 +757,7 @@ static struct tracer graph_trace __read_mostly = {
 	.name	     	= "function_graph",
 	.open		= graph_trace_open,
 	.close		= graph_trace_close,
+	.wait_pipe	= poll_wait_pipe,
 	.init	     	= graph_trace_init,
 	.reset	     	= graph_trace_reset,
 	.print_line	= print_graph_function,

@@ -225,6 +225,7 @@ static struct tracer function_trace __read_mostly =
 	.init		= function_trace_init,
 	.reset		= function_trace_reset,
 	.start		= function_trace_start,
+	.wait_pipe	= poll_wait_pipe,
 	.flags		= &func_flags,
 	.set_flag	= func_set_flag,
 #ifdef CONFIG_FTRACE_SELFTEST
