@@ -2452,6 +2452,55 @@ IR_KEYTAB_TYPE ir_codes_kworld_plus_tv_analog[IR_KEYTAB_SIZE] = {
 };
 EXPORT_SYMBOL_GPL(ir_codes_kworld_plus_tv_analog);
 
+/* Kaiomy TVnPC U2
+   Mauro Carvalho Chehab <mchehab@infradead.org>
+ */
+IR_KEYTAB_TYPE ir_codes_kaiomy[IR_KEYTAB_SIZE] = {
+	[0x43] = KEY_POWER2,
+	[0x01] = KEY_LIST,
+	[0x0b] = KEY_ZOOM,
+	[0x03] = KEY_POWER,
+
+	[0x04] = KEY_1,
+	[0x08] = KEY_2,
+	[0x02] = KEY_3,
+
+	[0x0f] = KEY_4,
+	[0x05] = KEY_5,
+	[0x06] = KEY_6,
+
+	[0x0c] = KEY_7,
+	[0x0d] = KEY_8,
+	[0x0a] = KEY_9,
+
+	[0x11] = KEY_0,
+
+	[0x09] = KEY_CHANNELUP,
+	[0x07] = KEY_CHANNELDOWN,
+
+	[0x0e] = KEY_VOLUMEUP,
+	[0x13] = KEY_VOLUMEDOWN,
+
+	[0x10] = KEY_HOME,
+	[0x12] = KEY_ENTER,
+
+	[0x14] = KEY_RECORD,
+	[0x15] = KEY_STOP,
+	[0x16] = KEY_PLAY,
+	[0x17] = KEY_MUTE,
+
+	[0x18] = KEY_UP,
+	[0x19] = KEY_DOWN,
+	[0x1a] = KEY_LEFT,
+	[0x1b] = KEY_RIGHT,
+
+	[0x1c] = KEY_RED,
+	[0x1d] = KEY_GREEN,
+	[0x1e] = KEY_YELLOW,
+	[0x1f] = KEY_BLUE,
+};
+EXPORT_SYMBOL_GPL(ir_codes_kaiomy);
+
 IR_KEYTAB_TYPE ir_codes_avermedia_a16d[IR_KEYTAB_SIZE] = {
 	[0x20] = KEY_LIST,
 	[0x00] = KEY_POWER,
