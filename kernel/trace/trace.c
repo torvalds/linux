@@ -2571,8 +2571,7 @@ static struct pipe_buf_operations tracing_pipe_buf_ops = {
 };
 
 static size_t
-tracing_fill_pipe_page(struct page *pages, size_t rem,
-			struct trace_iterator *iter)
+tracing_fill_pipe_page(size_t rem, struct trace_iterator *iter)
 {
 	size_t count;
 	int ret;
@@ -2649,7 +2648,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 		if (!pages[i])
 			break;
 
-		rem = tracing_fill_pipe_page(pages[i], rem, iter);
+		rem = tracing_fill_pipe_page(rem, iter);
 
 		/* Copy the data into the page, so we can start over. */
 		ret = trace_seq_to_buffer(&iter->seq,
