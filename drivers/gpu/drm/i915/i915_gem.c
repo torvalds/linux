@@ -1580,6 +1580,7 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write)
 	}
 
 	/* First try to find a free reg */
+try_again:
 	for (i = dev_priv->fence_reg_start; i < dev_priv->num_fence_regs; i++) {
 		reg = &dev_priv->fence_regs[i];
 		if (!reg->obj)
@@ -1591,7 +1592,6 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj, bool write)
 		struct drm_i915_gem_object *old_obj_priv = NULL;
 		loff_t offset;
 
-try_again:
 		/* Could try to use LRU here instead... */
 		for (i = dev_priv->fence_reg_start;
 		     i < dev_priv->num_fence_regs; i++) {
