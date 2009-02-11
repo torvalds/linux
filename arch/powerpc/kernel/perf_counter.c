@@ -16,6 +16,7 @@
 #include <asm/reg.h>
 #include <asm/pmc.h>
 #include <asm/machdep.h>
+#include <asm/firmware.h>
 
 struct cpu_hw_counters {
 	int n_counters;
@@ -214,6 +215,36 @@ static int power_check_constraints(unsigned int event[], int n_ev)
 	return 0;
 }
 
+/*
+ * Check if newly-added counters have consistent settings for
+ * exclude_{user,kernel,hv} with each other and any previously
+ * added counters.
+ */
+static int check_excludes(struct perf_counter **ctrs, int n_prev, int n_new)
+{
+	int eu, ek, eh;
+	int i, n;
+	struct perf_counter *counter;
+
+	n = n_prev + n_new;
+	if (n <= 1)
+		return 0;
+
+	eu = ctrs[0]->hw_event.exclude_user;
+	ek = ctrs[0]->hw_event.exclude_kernel;
+	eh = ctrs[0]->hw_event.exclude_hv;
+	if (n_prev == 0)
+		n_prev = 1;
+	for (i = n_prev; i < n; ++i) {
+		counter = ctrs[i];
+		if (counter->hw_event.exclude_user != eu ||
+		    counter->hw_event.exclude_kernel != ek ||
+		    counter->hw_event.exclude_hv != eh)
+			return -EAGAIN;
+	}
+	return 0;
+}
+
 static void power_perf_read(struct perf_counter *counter)
 {
 	long val, delta, prev;
@@ -324,6 +355,20 @@ void hw_perf_restore(u64 disable)
 	}
 
 	/*
+	 * Add in MMCR0 freeze bits corresponding to the
+	 * hw_event.exclude_* bits for the first counter.
+	 * We have already checked that all counters have the
+	 * same values for these bits as the first counter.
+	 */
+	counter = cpuhw->counter[0];
+	if (counter->hw_event.exclude_user)
+		cpuhw->mmcr[0] |= MMCR0_FCP;
+	if (counter->hw_event.exclude_kernel)
+		cpuhw->mmcr[0] |= MMCR0_FCS;
+	if (counter->hw_event.exclude_hv)
+		cpuhw->mmcr[0] |= MMCR0_FCHV;
+
+	/*
 	 * Write the new configuration to MMCR* with the freeze
 	 * bit set and set the hardware counters to their initial values.
 	 * Then unfreeze the counters.
@@ -424,6 +469,8 @@ int hw_perf_group_sched_in(struct perf_counter *group_leader,
 			   &cpuhw->counter[n0], &cpuhw->events[n0]);
 	if (n < 0)
 		return -EAGAIN;
+	if (check_excludes(cpuhw->counter, n0, n))
+		return -EAGAIN;
 	if (power_check_constraints(cpuhw->events, n + n0))
 		return -EAGAIN;
 	cpuhw->n_counters = n0 + n;
@@ -476,6 +523,8 @@ static int power_perf_enable(struct perf_counter *counter)
 		goto out;
 	cpuhw->counter[n0] = counter;
 	cpuhw->events[n0] = counter->hw.config;
+	if (check_excludes(cpuhw->counter, n0, 1))
+		goto out;
 	if (power_check_constraints(cpuhw->events, n0 + 1))
 		goto out;
 
@@ -555,6 +604,17 @@ hw_perf_counter_init(struct perf_counter *counter)
 	counter->hw.idx = 0;
 
 	/*
+	 * If we are not running on a hypervisor, force the
+	 * exclude_hv bit to 0 so that we don't care what
+	 * the user set it to.  This also means that we don't
+	 * set the MMCR0_FCHV bit, which unconditionally freezes
+	 * the counters on the PPC970 variants used in Apple G5
+	 * machines (since MSR.HV is always 1 on those machines).
+	 */
+	if (!firmware_has_feature(FW_FEATURE_LPAR))
+		counter->hw_event.exclude_hv = 0;
+	
+	/*
 	 * If this is in a group, check if it can go on with all the
 	 * other hardware counters in the group.  We assume the counter
 	 * hasn't been linked into its leader's sibling list at this point.
@@ -566,11 +626,13 @@ hw_perf_counter_init(struct perf_counter *counter)
 		if (n < 0)
 			return NULL;
 	}
-	events[n++] = ev;
-	if (power_check_constraints(events, n))
+	events[n] = ev;
+	if (check_excludes(ctrs, n, 1))
+		return NULL;
+	if (power_check_constraints(events, n + 1))
 		return NULL;
 
-	counter->hw.config = events[n - 1];
+	counter->hw.config = events[n];
 	atomic64_set(&counter->hw.period_left, counter->hw_event.irq_period);
 	return &power_perf_ops;
 }
