@@ -377,10 +377,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		alignment = 64 * 1024;
 		break;
 	case I915_TILING_X:
-		if (IS_I9XX(dev))
-			alignment = 1024 * 1024;
-		else
-			alignment = 512 * 1024;
+		/* pin() will align the object as required by fence */
+		alignment = 0;
 		break;
 	case I915_TILING_Y:
 		/* FIXME: Is this true? */
