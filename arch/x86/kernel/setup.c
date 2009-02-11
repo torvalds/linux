@@ -936,9 +936,7 @@ void __init setup_arch(char **cmdline_p)
 	map_vsyscall();
 #endif
 
-#ifdef CONFIG_X86_32
 	generic_apic_probe();
-#endif
 
 	early_quirks();
 

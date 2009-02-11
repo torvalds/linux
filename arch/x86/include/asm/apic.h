@@ -33,7 +33,13 @@
 	} while (0)
 
 
+#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_32)
 extern void generic_apic_probe(void);
+#else
+static inline void generic_apic_probe(void)
+{
+}
+#endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
 
