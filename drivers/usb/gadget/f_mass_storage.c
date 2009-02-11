@@ -73,9 +73,8 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
-#include <linux/usb/android.h>
+#include <linux/usb/android_composite.h>
 
-#include "f_mass_storage.h"
 #include "gadget_chips.h"
 
 
@@ -2711,7 +2710,7 @@ fsg_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	switch_dev_unregister(&fsg->sdev);
 }
 
-static int __init
+static int
 fsg_function_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
@@ -2902,6 +2901,7 @@ static int __init fsg_probe(struct platform_device *pdev)
 
 		if (pdata->release)
 			fsg->release = pdata->release;
+		fsg->nluns = pdata->nluns;
 	}
 
 	return 0;
@@ -2912,18 +2912,16 @@ static struct platform_driver fsg_platform_driver = {
 	.probe = fsg_probe,
 };
 
-int __init mass_storage_function_add(struct usb_composite_dev *cdev,
-	struct usb_configuration *c, int nluns)
+int mass_storage_bind_config(struct usb_configuration *c)
 {
 	int		rc;
 	struct fsg_dev	*fsg;
 
-	printk(KERN_INFO "mass_storage_function_add\n");
+	printk(KERN_INFO "mass_storage_bind_config\n");
 	rc = fsg_alloc();
 	if (rc)
 		return rc;
 	fsg = the_fsg;
-	fsg->nluns = nluns;
 
 	spin_lock_init(&fsg->lock);
 	init_rwsem(&fsg->filesem);
@@ -2945,7 +2943,7 @@ int __init mass_storage_function_add(struct usb_composite_dev *cdev,
 	wake_lock_init(&the_fsg->wake_lock, WAKE_LOCK_SUSPEND,
 			   "usb_mass_storage");
 
-	fsg->cdev = cdev;
+	fsg->cdev = c->cdev;
 	fsg->function.name = shortname;
 	fsg->function.descriptors = fs_function;
 	fsg->function.bind = fsg_function_bind;
@@ -2972,4 +2970,16 @@ err_switch_dev_register:
 	return rc;
 }
 
+static struct android_usb_function mass_storage_function = {
+	.name = "usb_mass_storage",
+	.bind_config = mass_storage_bind_config,
+};
+
+static int __init init(void)
+{
+	printk(KERN_INFO "f_mass_storage init\n");
+	android_register_function(&mass_storage_function);
+	return 0;
+}
+module_init(init);
 
