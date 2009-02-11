@@ -916,6 +916,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	memcpy(local->mdev->dev_addr, local->hw.wiphy->perm_addr, ETH_ALEN);
 	SET_NETDEV_DEV(local->mdev, wiphy_dev(local->hw.wiphy));
+	local->mdev->features |= NETIF_F_NETNS_LOCAL;
 
 	result = register_netdevice(local->mdev);
 	if (result < 0)
