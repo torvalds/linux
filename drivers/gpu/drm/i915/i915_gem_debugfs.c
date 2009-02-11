@@ -41,6 +41,26 @@
 #define FLUSHING_LIST	2
 #define INACTIVE_LIST	3
 
+static const char *get_pin_flag(struct drm_i915_gem_object *obj_priv)
+{
+	if (obj_priv->user_pin_count > 0)
+		return "P";
+	else if (obj_priv->pin_count > 0)
+		return "p";
+	else
+		return " ";
+}
+
+static const char *get_tiling_flag(struct drm_i915_gem_object *obj_priv)
+{
+    switch (obj_priv->tiling_mode) {
+    default:
+    case I915_TILING_NONE: return " ";
+    case I915_TILING_X: return "X";
+    case I915_TILING_Y: return "Y";
+    }
+}
+
 static int i915_gem_object_list_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -70,19 +90,11 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 
 	list_for_each_entry(obj_priv, head, list)
 	{
-		char *pin_description;
 		struct drm_gem_object *obj = obj_priv->obj;
-
-		if (obj_priv->user_pin_count > 0)
-			pin_description = "P";
-		else if (obj_priv->pin_count > 0)
-			pin_description = "p";
-		else
-			pin_description = " ";
 
 		seq_printf(m, "    %p: %s %08x %08x %d",
 			   obj,
-			   pin_description,
+			   get_pin_flag(obj_priv),
 			   obj->read_domains, obj->write_domain,
 			   obj_priv->last_rendering_seqno);
 
@@ -161,6 +173,41 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int i;
+
+	seq_printf(m, "Reserved fences = %d\n", dev_priv->fence_reg_start);
+	seq_printf(m, "Total fences = %d\n", dev_priv->num_fence_regs);
+	for (i = 0; i < dev_priv->num_fence_regs; i++) {
+		struct drm_gem_object *obj = dev_priv->fence_regs[i].obj;
+
+		if (obj == NULL) {
+			seq_printf(m, "Fenced object[%2d] = unused\n", i);
+		} else {
+			struct drm_i915_gem_object *obj_priv;
+
+			obj_priv = obj->driver_private;
+			seq_printf(m, "Fenced object[%2d] = %p: %s "
+				   "%08x %08x %08x %s %08x %08x %d",
+				   i, obj, get_pin_flag(obj_priv),
+				   obj_priv->gtt_offset,
+				   obj->size, obj_priv->stride,
+				   get_tiling_flag(obj_priv),
+				   obj->read_domains, obj->write_domain,
+				   obj_priv->last_rendering_seqno);
+			if (obj->name)
+				seq_printf(m, " (name: %d)", obj->name);
+			seq_printf(m, "\n");
+		}
+	}
+
+	return 0;
+}
+
 static int i915_hws_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -187,6 +234,7 @@ static struct drm_info_list i915_gem_debugfs_list[] = {
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
 	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
+	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},
 	{"i915_gem_interrupt", i915_interrupt_info, 0},
 	{"i915_gem_hws", i915_hws_info, 0},
 };
