@@ -57,6 +57,8 @@ static void dasd_device_tasklet(struct dasd_device *);
 static void dasd_block_tasklet(struct dasd_block *);
 static void do_kick_device(struct work_struct *);
 static void dasd_return_cqr_cb(struct dasd_ccw_req *, void *);
+static void dasd_device_timeout(unsigned long);
+static void dasd_block_timeout(unsigned long);
 
 /*
  * SECTION: Operations on the device structure.
@@ -99,6 +101,8 @@ struct dasd_device *dasd_alloc_device(void)
 		     (unsigned long) device);
 	INIT_LIST_HEAD(&device->ccw_queue);
 	init_timer(&device->timer);
+	device->timer.function = dasd_device_timeout;
+	device->timer.data = (unsigned long) device;
 	INIT_WORK(&device->kick_work, do_kick_device);
 	device->state = DASD_STATE_NEW;
 	device->target = DASD_STATE_NEW;
@@ -138,6 +142,8 @@ struct dasd_block *dasd_alloc_block(void)
 	INIT_LIST_HEAD(&block->ccw_queue);
 	spin_lock_init(&block->queue_lock);
 	init_timer(&block->timer);
+	block->timer.function = dasd_block_timeout;
+	block->timer.data = (unsigned long) block;
 
 	return block;
 }
@@ -915,19 +921,10 @@ static void dasd_device_timeout(unsigned long ptr)
  */
 void dasd_device_set_timer(struct dasd_device *device, int expires)
 {
-	if (expires == 0) {
-		if (timer_pending(&device->timer))
-			del_timer(&device->timer);
-		return;
-	}
-	if (timer_pending(&device->timer)) {
-		if (mod_timer(&device->timer, jiffies + expires))
-			return;
-	}
-	device->timer.function = dasd_device_timeout;
-	device->timer.data = (unsigned long) device;
-	device->timer.expires = jiffies + expires;
-	add_timer(&device->timer);
+	if (expires == 0)
+		del_timer(&device->timer);
+	else
+		mod_timer(&device->timer, jiffies + expires);
 }
 
 /*
@@ -935,8 +932,7 @@ void dasd_device_set_timer(struct dasd_device *device, int expires)
  */
 void dasd_device_clear_timer(struct dasd_device *device)
 {
-	if (timer_pending(&device->timer))
-		del_timer(&device->timer);
+	del_timer(&device->timer);
 }
 
 static void dasd_handle_killed_request(struct ccw_device *cdev,
@@ -1586,19 +1582,10 @@ static void dasd_block_timeout(unsigned long ptr)
  */
 void dasd_block_set_timer(struct dasd_block *block, int expires)
 {
-	if (expires == 0) {
-		if (timer_pending(&block->timer))
-			del_timer(&block->timer);
-		return;
-	}
-	if (timer_pending(&block->timer)) {
-		if (mod_timer(&block->timer, jiffies + expires))
-			return;
-	}
-	block->timer.function = dasd_block_timeout;
-	block->timer.data = (unsigned long) block;
-	block->timer.expires = jiffies + expires;
-	add_timer(&block->timer);
+	if (expires == 0)
+		del_timer(&block->timer);
+	else
+		mod_timer(&block->timer, jiffies + expires);
 }
 
 /*
@@ -1606,8 +1593,7 @@ void dasd_block_set_timer(struct dasd_block *block, int expires)
  */
 void dasd_block_clear_timer(struct dasd_block *block)
 {
-	if (timer_pending(&block->timer))
-		del_timer(&block->timer);
+	del_timer(&block->timer);
 }
 
 /*
