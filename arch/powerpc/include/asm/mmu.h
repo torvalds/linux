@@ -36,9 +36,9 @@
  */
 #define MMU_FTR_USE_TLBIVAX_BCAST	ASM_CONST(0x00040000)
 
-/* Enable use of tlbilx invalidate-by-PID variant.
+/* Enable use of tlbilx invalidate instructions.
  */
-#define MMU_FTR_USE_TLBILX_PID		ASM_CONST(0x00080000)
+#define MMU_FTR_USE_TLBILX		ASM_CONST(0x00080000)
 
 /* This indicates that the processor cannot handle multiple outstanding
  * broadcast tlbivax or tlbsync. This makes the code use a spinlock
