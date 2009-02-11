@@ -692,8 +692,8 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 #endif
 			mpf_found = mpf;
 
-			printk(KERN_INFO "found SMP MP-table at [%p] %08lx\n",
-			       mpf, virt_to_phys(mpf));
+			printk(KERN_INFO "found SMP MP-table at [%p] %llx\n",
+			       mpf, (u64)virt_to_phys(mpf));
 
 			if (!reserve)
 				return 1;
@@ -1011,7 +1011,7 @@ static int __init update_mp_table(void)
 	if (!smp_check_mpc(mpc, oem, str))
 		return 0;
 
-	printk(KERN_INFO "mpf: %lx\n", virt_to_phys(mpf));
+	printk(KERN_INFO "mpf: %llx\n", (u64)virt_to_phys(mpf));
 	printk(KERN_INFO "physptr: %x\n", mpf->physptr);
 
 	if (mpc_new_phys && mpc->length > mpc_new_length) {
