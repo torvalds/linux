@@ -1692,7 +1692,13 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	u32 lock;
 	u32 ord_len = sizeof(lock);
 
-	/* Quite if manually disabled. */
+	/* Age scan list entries found before suspend */
+	if (priv->suspend_time) {
+		ieee80211_networks_age(priv->ieee, priv->suspend_time);
+		priv->suspend_time = 0;
+	}
+
+	/* Quiet if manually disabled. */
 	if (priv->status & STATUS_RF_KILL_SW) {
 		IPW_DEBUG_INFO("%s: Radio is disabled by Manual Disable "
 			       "switch\n", priv->net_dev->name);
@@ -6415,6 +6421,8 @@ static int ipw2100_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	pci_disable_device(pci_dev);
 	pci_set_power_state(pci_dev, PCI_D3hot);
 
+	priv->suspend_at = get_seconds();
+
 	mutex_unlock(&priv->action_mutex);
 
 	return 0;
@@ -6457,6 +6465,8 @@ static int ipw2100_resume(struct pci_dev *pci_dev)
 	/* Set the device back into the PRESENT state; this will also wake
 	 * the queue of needed */
 	netif_device_attach(dev);
+
+	priv->suspend_time = get_seconds() - priv->suspend_at;
 
 	/* Bring the device back up */
 	if (!(priv->status & STATUS_RF_KILL_SW))

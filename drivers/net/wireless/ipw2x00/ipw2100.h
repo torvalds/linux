@@ -591,6 +591,10 @@ struct ipw2100_priv {
 
 	int user_requested_scan;
 
+	/* Track time in suspend */
+	unsigned long suspend_at;
+	unsigned long suspend_time;
+
 	u32 interrupts;
 	int tx_interrupts;
 	int rx_interrupts;

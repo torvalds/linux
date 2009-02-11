@@ -11238,6 +11238,12 @@ static int ipw_up(struct ipw_priv *priv)
 {
 	int rc, i, j;
 
+	/* Age scan list entries found before suspend */
+	if (priv->suspend_time) {
+		ieee80211_networks_age(priv->ieee, priv->suspend_time);
+		priv->suspend_time = 0;
+	}
+
 	if (priv->status & STATUS_EXIT_PENDING)
 		return -EIO;
 
@@ -11838,6 +11844,8 @@ static int ipw_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
+	priv->suspend_at = get_seconds();
+
 	return 0;
 }
 
@@ -11872,6 +11880,8 @@ static int ipw_pci_resume(struct pci_dev *pdev)
 	/* Set the device back into the PRESENT state; this will also wake
 	 * the queue of needed */
 	netif_device_attach(dev);
+
+	priv->suspend_time = get_seconds() - priv->suspend_at;
 
 	/* Bring the device back up */
 	queue_work(priv->workqueue, &priv->up);
