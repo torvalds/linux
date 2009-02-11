@@ -3448,6 +3448,7 @@ out_kill_eq:
 	ehea_destroy_eq(adapter->neq);
 
 out_free_ad:
+	list_del(&adapter->list);
 	kfree(adapter);
 
 out:
