@@ -209,7 +209,7 @@ int dirty_bytes_handler(struct ctl_table *table, int write,
 		struct file *filp, void __user *buffer, size_t *lenp,
 		loff_t *ppos)
 {
-	int old_bytes = vm_dirty_bytes;
+	unsigned long old_bytes = vm_dirty_bytes;
 	int ret;
 
 	ret = proc_doulongvec_minmax(table, write, filp, buffer, lenp, ppos);
