@@ -306,6 +306,7 @@ static int jbusmc_print_dimm(int syndrome_code,
 		buf[1] = '?';
 		buf[2] = '?';
 		buf[3] = '\0';
+		return 0;
 	}
 	p = dp->controller;
 	prop = &p->layout;
