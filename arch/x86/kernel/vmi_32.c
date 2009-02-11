@@ -321,6 +321,16 @@ static void vmi_release_pmd(unsigned long pfn)
 }
 
 /*
+ * We use the pgd_free hook for releasing the pgd page:
+ */
+static void vmi_pgd_free(struct mm_struct *mm, pgd_t *pgd)
+{
+	unsigned long pfn = __pa(pgd) >> PAGE_SHIFT;
+
+	vmi_ops.release_page(pfn, VMI_PAGE_L2);
+}
+
+/*
  * Helper macros for MMU update flags.  We can defer updates until a flush
  * or page invalidation only if the update is to the current address space
  * (otherwise, there is no flush).  We must check against init_mm, since
@@ -762,6 +772,7 @@ static inline int __init activate_vmi(void)
 	if (vmi_ops.release_page) {
 		pv_mmu_ops.release_pte = vmi_release_pte;
 		pv_mmu_ops.release_pmd = vmi_release_pmd;
+		pv_mmu_ops.pgd_free = vmi_pgd_free;
 	}
 
 	/* Set linear is needed in all cases */
