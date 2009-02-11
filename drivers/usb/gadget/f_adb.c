@@ -30,11 +30,7 @@
 #include <linux/device.h>
 #include <linux/miscdevice.h>
 
-#include <linux/usb/ch9.h>
-#include <linux/usb/composite.h>
-#include <linux/usb/gadget.h>
-
-#include "f_adb.h"
+#include <linux/usb/android_composite.h>
 
 #define BULK_BUFFER_SIZE           4096
 
@@ -126,14 +122,11 @@ static struct usb_descriptor_header *hs_adb_descs[] = {
 	NULL,
 };
 
-/* used when adb function is disabled */
-static struct usb_descriptor_header *null_adb_descs[] = {
-	NULL,
-};
-
 
 /* temporary variable used between adb_open() and adb_gadget_bind() */
 static struct adb_dev *_adb_dev;
+
+static atomic_t adb_enable_excl;
 
 static inline struct adb_dev *func_to_dev(struct usb_function *f)
 {
@@ -489,7 +482,40 @@ static struct miscdevice adb_device = {
 	.fops = &adb_fops,
 };
 
-static int __init
+static int adb_enable_open(struct inode *ip, struct file *fp)
+{
+	if (atomic_inc_return(&adb_enable_excl) != 1) {
+		atomic_dec(&adb_enable_excl);
+		return -EBUSY;
+	}
+
+	printk(KERN_INFO "enabling adb\n");
+	android_enable_function(&_adb_dev->function, 1);
+
+	return 0;
+}
+
+static int adb_enable_release(struct inode *ip, struct file *fp)
+{
+	printk(KERN_INFO "disabling adb\n");
+	android_enable_function(&_adb_dev->function, 0);
+	atomic_dec(&adb_enable_excl);
+	return 0;
+}
+
+static const struct file_operations adb_enable_fops = {
+	.owner =   THIS_MODULE,
+	.open =    adb_enable_open,
+	.release = adb_enable_release,
+};
+
+static struct miscdevice adb_enable_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "android_adb_enable",
+	.fops = &adb_enable_fops,
+};
+
+static int
 adb_function_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
@@ -544,6 +570,7 @@ adb_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	spin_unlock_irq(&dev->lock);
 
 	misc_deregister(&adb_device);
+	misc_deregister(&adb_enable_device);
 	kfree(_adb_dev);
 	_adb_dev = NULL;
 }
@@ -594,13 +621,12 @@ static void adb_function_disable(struct usb_function *f)
 	VDBG(cdev, "%s disabled\n", dev->function.name);
 }
 
-int __init adb_function_add(struct usb_composite_dev *cdev,
-	struct usb_configuration *c)
+static int adb_bind_config(struct usb_configuration *c)
 {
 	struct adb_dev *dev;
 	int ret;
 
-	printk(KERN_INFO "adb_function_add\n");
+	printk(KERN_INFO "adb_bind_config\n");
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -619,14 +645,17 @@ int __init adb_function_add(struct usb_composite_dev *cdev,
 	INIT_LIST_HEAD(&dev->rx_done);
 	INIT_LIST_HEAD(&dev->tx_idle);
 
-	dev->cdev = cdev;
+	dev->cdev = c->cdev;
 	dev->function.name = "adb";
-	dev->function.descriptors = null_adb_descs;
-	dev->function.hs_descriptors = null_adb_descs;
+	dev->function.descriptors = fs_adb_descs;
+	dev->function.hs_descriptors = hs_adb_descs;
 	dev->function.bind = adb_function_bind;
 	dev->function.unbind = adb_function_unbind;
 	dev->function.set_alt = adb_function_set_alt;
 	dev->function.disable = adb_function_disable;
+
+	/* start disabled */
+	dev->function.hidden = 1;
 
 	/* _adb_dev must be set before calling usb_gadget_register_driver */
 	_adb_dev = dev;
@@ -634,12 +663,18 @@ int __init adb_function_add(struct usb_composite_dev *cdev,
 	ret = misc_register(&adb_device);
 	if (ret)
 		goto err1;
-	ret = usb_add_function(c, &dev->function);
+	ret = misc_register(&adb_enable_device);
 	if (ret)
 		goto err2;
 
+	ret = usb_add_function(c, &dev->function);
+	if (ret)
+		goto err3;
+
 	return 0;
 
+err3:
+	misc_deregister(&adb_enable_device);
 err2:
 	misc_deregister(&adb_device);
 err1:
@@ -648,21 +683,15 @@ err1:
 	return ret;
 }
 
-void adb_function_enable(int enable)
+static struct android_usb_function adb_function = {
+	.name = "adb",
+	.bind_config = adb_bind_config,
+};
+
+static int __init init(void)
 {
-	struct adb_dev *dev = _adb_dev;
-
-	if (dev) {
-		DBG(dev->cdev, "adb_function_enable(%s)\n",
-			enable ? "true" : "false");
-
-		if (enable) {
-			dev->function.descriptors = fs_adb_descs;
-			dev->function.hs_descriptors = hs_adb_descs;
-		} else {
-			dev->function.descriptors = null_adb_descs;
-			dev->function.hs_descriptors = null_adb_descs;
-		}
-	}
+	printk(KERN_INFO "f_adb init\n");
+	android_register_function(&adb_function);
+	return 0;
 }
-
+module_init(init);

@@ -838,13 +838,30 @@ config USB_G_PRINTER
 	  which includes sample code for accessing the device file.
 
 config USB_ANDROID
-	tristate "Android Gadget"
+	boolean "Android Gadget"
 	depends on SWITCH
 	help
-	  The Android gadget provides mass storage and adb transport.
+	  The Android gadget driver supports multiple USB functions.
+	  The functions can be configured via a board file and may be
+	  enabled and disabled dynamically.
 
-	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "g_android".
+config USB_ANDROID_ACM
+	boolean "Android gadget ACM function"
+	depends on USB_ANDROID
+	help
+	  Provides adb function for adb gadget driver.
+
+config USB_ANDROID_ADB
+	boolean "Android gadget adb function"
+	depends on USB_ANDROID
+	help
+	  Provides adb function for adb gadget driver.
+
+config USB_ANDROID_MASS_STORAGE
+	boolean "Android gadget mass storage function"
+	depends on USB_ANDROID && SWITCH
+	help
+	  Provides USB mass storage function for adb gadget driver.
 
 config USB_CDC_COMPOSITE
 	tristate "CDC Composite Device (Ethernet and ACM)"
