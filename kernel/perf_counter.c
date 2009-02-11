@@ -1145,12 +1145,12 @@ static int perf_release(struct inode *inode, struct file *file)
 	mutex_lock(&counter->mutex);
 
 	perf_counter_remove_from_context(counter);
-	put_context(ctx);
 
 	mutex_unlock(&counter->mutex);
 	mutex_unlock(&ctx->mutex);
 
 	kfree(counter);
+	put_context(ctx);
 
 	return 0;
 }
