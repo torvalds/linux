@@ -3058,11 +3058,8 @@ static int handle_task_switch(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 static int handle_ept_violation(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u64 exit_qualification;
-	enum emulation_result er;
 	gpa_t gpa;
-	unsigned long hva;
 	int gla_validity;
-	int r;
 
 	exit_qualification = vmcs_read64(EXIT_QUALIFICATION);
 
@@ -3085,32 +3082,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
-	hva = gfn_to_hva(vcpu->kvm, gpa >> PAGE_SHIFT);
-	if (!kvm_is_error_hva(hva)) {
-		r = kvm_mmu_page_fault(vcpu, gpa & PAGE_MASK, 0);
-		if (r < 0) {
-			printk(KERN_ERR "EPT: Not enough memory!\n");
-			return -ENOMEM;
-		}
-		return 1;
-	} else {
-		/* must be MMIO */
-		er = emulate_instruction(vcpu, kvm_run, 0, 0, 0);
-
-		if (er == EMULATE_FAIL) {
-			printk(KERN_ERR
-			 "EPT: Fail to handle EPT violation vmexit!er is %d\n",
-			 er);
-			printk(KERN_ERR "EPT: GPA: 0x%lx, GVA: 0x%lx\n",
-			 (long unsigned int)vmcs_read64(GUEST_PHYSICAL_ADDRESS),
-			 (long unsigned int)vmcs_read64(GUEST_LINEAR_ADDRESS));
-			printk(KERN_ERR "EPT: Exit qualification is 0x%lx\n",
-				(long unsigned int)exit_qualification);
-			return -ENOTSUPP;
-		} else if (er == EMULATE_DO_MMIO)
-			return 0;
-	}
-	return 1;
+	return kvm_mmu_page_fault(vcpu, gpa & PAGE_MASK, 0);
 }
 
 static int handle_nmi_window(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
