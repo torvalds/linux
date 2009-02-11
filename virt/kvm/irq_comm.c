@@ -49,8 +49,9 @@ void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
 {
 	struct kvm_vcpu *vcpu;
 
-	*deliver_bitmask = kvm_ioapic_get_delivery_bitmask(ioapic,
-				entry->fields.dest_id, entry->fields.dest_mode);
+	kvm_ioapic_get_delivery_bitmask(ioapic, entry->fields.dest_id,
+					entry->fields.dest_mode,
+					deliver_bitmask);
 	switch (entry->fields.delivery_mode) {
 	case IOAPIC_LOWEST_PRIORITY:
 		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm,
