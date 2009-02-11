@@ -450,7 +450,7 @@ static ssize_t stlc45xx_sysfs_store_cal_rssi(struct device *dev,
 	mutex_lock(&stlc->mutex);
 
 	if (count != RSSI_CAL_ARRAY_LEN) {
-		stlc45xx_error("invalid cal_rssi length: %d", count);
+		stlc45xx_error("invalid cal_rssi length: %zu", count);
 		count = 0;
 		goto out_unlock;
 	}
@@ -506,7 +506,7 @@ static ssize_t stlc45xx_sysfs_store_cal_channels(struct device *dev,
 	mutex_lock(&stlc->mutex);
 
 	if (count != CHANNEL_CAL_ARRAY_LEN) {
-		stlc45xx_error("invalid cal_channels size: %d ", count);
+		stlc45xx_error("invalid cal_channels size: %zu ", count);
 		count = 0;
 		goto out_unlock;
 	}
@@ -715,7 +715,7 @@ static int stlc45xx_txbuffer_find(struct stlc45xx *stlc, size_t len)
 		/* not enough room */
 		pos = -1;
 
-	stlc45xx_debug(DEBUG_TXBUFFER, "txbuffer: find %d B: 0x%x", len, pos);
+	stlc45xx_debug(DEBUG_TXBUFFER, "txbuffer: find %zu B: 0x%x", len, pos);
 
 out:
 	return pos;
@@ -848,13 +848,13 @@ static int stlc45xx_request_firmware(struct stlc45xx *stlc)
 	}
 
 	if (fw->size % 4) {
-		stlc45xx_error("firmware size is not multiple of 32bit: %d",
+		stlc45xx_error("firmware size is not multiple of 32bit: %zu",
 			       fw->size);
 		return -EILSEQ; /* Illegal byte sequence  */;
 	}
 
 	if (fw->size < 1000) {
-		stlc45xx_error("firmware is too small: %d", fw->size);
+		stlc45xx_error("firmware is too small: %zu", fw->size);
 		return -EILSEQ;
 	}
 
@@ -1505,7 +1505,7 @@ static int stlc45xx_tx_frame(struct stlc45xx *stlc, u32 address,
 
 	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
 
-	stlc45xx_debug(DEBUG_TX, "tx frame 0x%p %d B", buf, len);
+	stlc45xx_debug(DEBUG_TX, "tx frame 0x%p %zu B", buf, len);
 	stlc45xx_dump(DEBUG_TX_CONTENT, buf, len);
 
 	stlc45xx_wakeup(stlc);
