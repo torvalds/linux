@@ -39,11 +39,11 @@ extern void set_pmd_pfn(unsigned long, unsigned long, pgprot_t);
  * newer 3-level PAE-mode page tables.
  */
 #ifdef CONFIG_X86_PAE
-# include <asm/pgtable-3level-defs.h>
+# include <asm/pgtable-3level_types.h>
 # define PMD_SIZE	(1UL << PMD_SHIFT)
 # define PMD_MASK	(~(PMD_SIZE - 1))
 #else
-# include <asm/pgtable-2level-defs.h>
+# include <asm/pgtable-2level_types.h>
 #endif
 
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
