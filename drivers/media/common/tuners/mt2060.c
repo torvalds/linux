@@ -278,7 +278,7 @@ static void mt2060_calibrate(struct mt2060_priv *priv)
 	while (i++ < 10 && mt2060_readreg(priv, REG_MISC_STAT, &b) == 0 && (b & (1 << 6)) == 0)
 		msleep(20);
 
-	if (i < 10) {
+	if (i <= 10) {
 		mt2060_readreg(priv, REG_FM_FREQ, &priv->fmfreq); // now find out, what is fmreq used for :)
 		dprintk("calibration was successful: %d", (int)priv->fmfreq);
 	} else
