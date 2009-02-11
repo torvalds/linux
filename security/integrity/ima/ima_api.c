@@ -15,7 +15,7 @@
 #include <linux/module.h>
 
 #include "ima.h"
-static char *IMA_TEMPLATE_NAME = "ima";
+static const char *IMA_TEMPLATE_NAME = "ima";
 
 /*
  * ima_store_template - store ima template measurements

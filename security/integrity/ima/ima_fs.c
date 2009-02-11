@@ -137,7 +137,7 @@ static int ima_measurements_show(struct seq_file *m, void *v)
 	ima_putc(m, &namelen, sizeof namelen);
 
 	/* 4th:  template name */
-	ima_putc(m, e->template_name, namelen);
+	ima_putc(m, (void *)e->template_name, namelen);
 
 	/* 5th:  template specific data */
 	ima_template_show(m, (struct ima_template_data *)&e->template,

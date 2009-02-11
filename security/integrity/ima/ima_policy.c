@@ -12,7 +12,6 @@
  */
 #include <linux/module.h>
 #include <linux/list.h>
-#include <linux/audit.h>
 #include <linux/security.h>
 #include <linux/magic.h>
 #include <linux/parser.h>
@@ -239,8 +238,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 	char *p;
 	int result = 0;
 
-	ab = audit_log_start(current->audit_context, GFP_KERNEL,
-			     AUDIT_INTEGRITY_STATUS);
+	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_INTEGRITY_RULE);
 
 	entry->action = -1;
 	while ((p = strsep(&rule, " \n")) != NULL) {
@@ -345,15 +343,14 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
 						   AUDIT_SUBJ_TYPE);
 			break;
 		case Opt_err:
-			printk(KERN_INFO "%s: unknown token: %s\n",
-			       __FUNCTION__, p);
+			audit_log_format(ab, "UNKNOWN=%s ", p);
 			break;
 		}
 	}
 	if (entry->action == UNKNOWN)
 		result = -EINVAL;
 
-	audit_log_format(ab, "res=%d", result);
+	audit_log_format(ab, "res=%d", !result ? 0 : 1);
 	audit_log_end(ab);
 	return result;
 }
@@ -367,7 +364,7 @@ static int ima_parse_rule(char *rule, struct ima_measure_rule_entry *entry)
  */
 int ima_parse_add_rule(char *rule)
 {
-	const char *op = "add_rule";
+	const char *op = "update_policy";
 	struct ima_measure_rule_entry *entry;
 	int result = 0;
 	int audit_info = 0;
@@ -394,8 +391,12 @@ int ima_parse_add_rule(char *rule)
 		mutex_lock(&ima_measure_mutex);
 		list_add_tail(&entry->list, &measure_policy_rules);
 		mutex_unlock(&ima_measure_mutex);
-	} else
+	} else {
 		kfree(entry);
+		integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL,
+				    NULL, op, "invalid policy", result,
+				    audit_info);
+	}
 	return result;
 }
 

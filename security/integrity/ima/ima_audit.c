@@ -22,16 +22,18 @@ static int ima_audit;
 static int __init ima_audit_setup(char *str)
 {
 	unsigned long audit;
-	int rc;
-	char *op;
+	int rc, result = 0;
+	char *op = "ima_audit";
+	char *cause;
 
 	rc = strict_strtoul(str, 0, &audit);
 	if (rc || audit > 1)
-		printk(KERN_INFO "ima: invalid ima_audit value\n");
+		result = 1;
 	else
 		ima_audit = audit;
-	op = ima_audit ? "ima_audit_enabled" : "ima_audit_not_enabled";
-	integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL, NULL, NULL, op, 0, 0);
+	cause = ima_audit ? "enabled" : "not_enabled";
+	integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL, NULL,
+			    op, cause, result, 0);
 	return 1;
 }
 __setup("ima_audit=", ima_audit_setup);
@@ -47,20 +49,21 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 		return;
 
 	ab = audit_log_start(current->audit_context, GFP_KERNEL, audit_msgno);
-	audit_log_format(ab, "integrity: pid=%d uid=%u auid=%u",
+	audit_log_format(ab, "integrity: pid=%d uid=%u auid=%u ses=%u",
 			 current->pid, current->cred->uid,
-			 audit_get_loginuid(current));
+			 audit_get_loginuid(current),
+			 audit_get_sessionid(current));
 	audit_log_task_context(ab);
 	switch (audit_msgno) {
 	case AUDIT_INTEGRITY_DATA:
 	case AUDIT_INTEGRITY_METADATA:
 	case AUDIT_INTEGRITY_PCR:
+	case AUDIT_INTEGRITY_STATUS:
 		audit_log_format(ab, " op=%s cause=%s", op, cause);
 		break;
 	case AUDIT_INTEGRITY_HASH:
 		audit_log_format(ab, " op=%s hash=%s", op, cause);
 		break;
-	case AUDIT_INTEGRITY_STATUS:
 	default:
 		audit_log_format(ab, " op=%s", op);
 	}
@@ -73,6 +76,6 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 	if (inode)
 		audit_log_format(ab, " dev=%s ino=%lu",
 				 inode->i_sb->s_id, inode->i_ino);
-	audit_log_format(ab, " res=%d", result);
+	audit_log_format(ab, " res=%d", !result ? 0 : 1);
 	audit_log_end(ab);
 }

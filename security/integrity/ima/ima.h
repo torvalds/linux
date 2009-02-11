@@ -47,7 +47,7 @@ struct ima_template_data {
 
 struct ima_template_entry {
 	u8 digest[IMA_DIGEST_SIZE];	/* sha1 or md5 measurement hash */
-	char *template_name;
+	const char *template_name;
 	int template_len;
 	struct ima_template_data template;
 };
