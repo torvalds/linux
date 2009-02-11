@@ -2201,18 +2201,7 @@ static inline int spin_needbreak(spinlock_t *lock)
  * Thread group CPU time accounting.
  */
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times);
-
-static inline
-void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
-{
-	struct thread_group_cputimer *cputimer = &tsk->signal->cputimer;
-	unsigned long flags;
-
-	spin_lock_irqsave(&cputimer->lock, flags);
-	cputimer->running = 1;
-	*times = cputimer->cputime;
-	spin_unlock_irqrestore(&cputimer->lock, flags);
-}
+void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times);
 
 static inline void thread_group_cputime_init(struct signal_struct *sig)
 {
