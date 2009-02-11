@@ -152,11 +152,25 @@ static void dump_instr(struct pt_regs *regs)
 
 static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 {
-	unsigned int fp;
+	unsigned int fp, mode;
 	int ok = 1;
 
 	printk("Backtrace: ");
-	fp = regs->ARM_fp;
+
+	if (!tsk)
+		tsk = current;
+
+	if (regs) {
+		fp = regs->ARM_fp;
+		mode = processor_mode(regs);
+	} else if (tsk != current) {
+		fp = thread_saved_fp(tsk);
+		mode = 0x10;
+	} else {
+		asm("mov %0, fp" : "=r" (fp) : : "cc");
+		mode = 0x10;
+	}
+
 	if (!fp) {
 		printk("no frame pointer");
 		ok = 0;
@@ -168,29 +182,19 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	printk("\n");
 
 	if (ok)
-		c_backtrace(fp, processor_mode(regs));
+		c_backtrace(fp, mode);
 }
 
 void dump_stack(void)
 {
-	__backtrace();
+	dump_backtrace(NULL, NULL);
 }
 
 EXPORT_SYMBOL(dump_stack);
 
 void show_stack(struct task_struct *tsk, unsigned long *sp)
 {
-	unsigned long fp;
-
-	if (!tsk)
-		tsk = current;
-
-	if (tsk != current)
-		fp = thread_saved_fp(tsk);
-	else
-		asm("mov %0, fp" : "=r" (fp) : : "cc");
-
-	c_backtrace(fp, 0x10);
+	dump_backtrace(NULL, tsk);
 	barrier();
 }
 
