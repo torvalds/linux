@@ -65,7 +65,7 @@ static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 }
 
 struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
-				       unsigned long bitmap);
+				       unsigned long *bitmap);
 void kvm_ioapic_update_eoi(struct kvm *kvm, int vector, int trigger_mode);
 int kvm_ioapic_init(struct kvm *kvm);
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level);

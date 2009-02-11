@@ -409,7 +409,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 }
 
 static struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
-				       unsigned long bitmap)
+				       unsigned long *bitmap)
 {
 	int last;
 	int next;
@@ -421,7 +421,7 @@ static struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
 	do {
 		if (++next == KVM_MAX_VCPUS)
 			next = 0;
-		if (kvm->vcpus[next] == NULL || !test_bit(next, &bitmap))
+		if (kvm->vcpus[next] == NULL || !test_bit(next, bitmap))
 			continue;
 		apic = kvm->vcpus[next]->arch.apic;
 		if (apic && apic_enabled(apic))
@@ -437,7 +437,7 @@ static struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
 }
 
 struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
-		unsigned long bitmap)
+		unsigned long *bitmap)
 {
 	struct kvm_lapic *apic;
 
@@ -508,7 +508,7 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 	}
 
 	if (delivery_mode == APIC_DM_LOWEST) {
-		target = kvm_get_lowest_prio_vcpu(vcpu->kvm, vector, lpr_map);
+		target = kvm_get_lowest_prio_vcpu(vcpu->kvm, vector, &lpr_map);
 		if (target != NULL)
 			__apic_accept_irq(target->arch.apic, delivery_mode,
 					  vector, level, trig_mode);
