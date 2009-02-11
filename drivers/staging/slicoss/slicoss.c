@@ -1267,7 +1267,7 @@ static int slic_mcast_add_list(struct adapter *adapter, char *address)
 	}
 
 	/* Doesn't already exist.  Allocate a structure to hold it */
-	mcaddr = kmalloc(sizeof(struct mcast_address), GFP_KERNEL);
+	mcaddr = kmalloc(sizeof(struct mcast_address), GFP_ATOMIC);
 	if (mcaddr == NULL)
 		return 1;
 
@@ -2291,7 +2291,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 	}
 	if (!physcard) {
 		/* no structure allocated for this physical card yet */
-		physcard = kzalloc(sizeof(struct physcard), GFP_KERNEL);
+		physcard = kzalloc(sizeof(struct physcard), GFP_ATOMIC);
 		ASSERT(physcard);
 
 		physcard->next = slic_global.phys_card;
