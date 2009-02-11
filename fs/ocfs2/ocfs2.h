@@ -68,14 +68,14 @@ enum ocfs2_caching_info_flags {
 	OCFS2_CACHE_FL_INLINE	= 1<<1,
 };
 
+struct ocfs2_caching_operations;
 struct ocfs2_caching_info {
 	/*
 	 * The parent structure provides the locks, but because the
-	 * parent structure can differ, struct ocfs2_caching_info needs
-	 * its own pointers to them.
+	 * parent structure can differ, it provides locking operations
+	 * to struct ocfs2_caching_info.
 	 */
-	spinlock_t		*ci_lock;
-	struct mutex		*ci_io_mutex;
+	const struct ocfs2_caching_operations *ci_ops;
 
 	unsigned int		ci_flags;
 	unsigned int		ci_num_cached;

@@ -118,6 +118,7 @@ static inline struct ocfs2_inode_info *OCFS2_I(struct inode *inode)
 extern struct kmem_cache *ocfs2_inode_cache;
 
 extern const struct address_space_operations ocfs2_aops;
+extern const struct ocfs2_caching_operations ocfs2_inode_caching_ops;
 
 void ocfs2_clear_inode(struct inode *inode);
 void ocfs2_delete_inode(struct inode *inode);
