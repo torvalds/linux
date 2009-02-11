@@ -62,6 +62,18 @@ static void bss_release(struct kref *ref)
 }
 
 /* must hold dev->bss_lock! */
+void cfg80211_bss_age(struct cfg80211_registered_device *dev,
+                      unsigned long age_secs)
+{
+	struct cfg80211_internal_bss *bss;
+	unsigned long age_jiffies = msecs_to_jiffies(age_secs * MSEC_PER_SEC);
+
+	list_for_each_entry(bss, &dev->bss_list, list) {
+		bss->ts -= age_jiffies;
+	}
+}
+
+/* must hold dev->bss_lock! */
 void cfg80211_bss_expire(struct cfg80211_registered_device *dev)
 {
 	struct cfg80211_internal_bss *bss, *tmp;
@@ -584,6 +596,15 @@ static void ieee80211_scan_add_ies(struct iw_request_info *info,
 	}
 }
 
+static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
+{
+	unsigned long end = jiffies;
+
+	if (end >= start)
+		return jiffies_to_msecs(end - start);
+
+	return jiffies_to_msecs(end + (MAX_JIFFY_OFFSET - start) + 1);
+}
 
 static char *
 ieee80211_bss(struct iw_request_info *info,
@@ -763,8 +784,8 @@ ieee80211_bss(struct iw_request_info *info,
 						  &iwe, buf);
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVCUSTOM;
-		sprintf(buf, " Last beacon: %dms ago",
-			jiffies_to_msecs(jiffies - bss->ts));
+		sprintf(buf, " Last beacon: %ums ago",
+			elapsed_jiffies_msecs(bss->ts));
 		iwe.u.data.length = strlen(buf);
 		current_ev = iwe_stream_add_point(info, current_ev,
 						  end_buf, &iwe, buf);

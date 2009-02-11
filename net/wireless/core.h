@@ -49,6 +49,7 @@ struct cfg80211_registered_device {
 	struct rb_root bss_tree;
 	u32 bss_generation;
 	struct cfg80211_scan_request *scan_req; /* protected by RTNL */
+	unsigned long suspend_at;
 
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
@@ -113,5 +114,7 @@ void ieee80211_set_bitrate_flags(struct wiphy *wiphy);
 void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby);
 
 void cfg80211_bss_expire(struct cfg80211_registered_device *dev);
+void cfg80211_bss_age(struct cfg80211_registered_device *dev,
+                      unsigned long age_secs);
 
 #endif /* __NET_WIRELESS_CORE_H */
