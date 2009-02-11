@@ -49,11 +49,6 @@ static struct hda_verb pinout_enable_verb[] = {
 	{} /* terminator */
 };
 
-static struct hda_verb pinout_disable_verb[] = {
-	{PIN_NID, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x00},
-	{}
-};
-
 static struct hda_verb unsolicited_response_verb[] = {
 	{PIN_NID, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN |
 						  INTEL_HDMI_EVENT_TAG},
@@ -248,10 +243,6 @@ static void hdmi_write_dip_byte(struct hda_codec *codec, hda_nid_t nid,
 
 static void hdmi_enable_output(struct hda_codec *codec)
 {
-	/* Enable Audio InfoFrame Transmission */
-	hdmi_set_dip_index(codec, PIN_NID, 0x0, 0x0);
-	snd_hda_codec_write(codec, PIN_NID, 0, AC_VERB_SET_HDMI_DIP_XMIT,
-						AC_DIPXMIT_BEST);
 	/* Unmute */
 	if (get_wcaps(codec, PIN_NID) & AC_WCAP_OUT_AMP)
 		snd_hda_codec_write(codec, PIN_NID, 0,
@@ -260,17 +251,24 @@ static void hdmi_enable_output(struct hda_codec *codec)
 	snd_hda_sequence_write(codec, pinout_enable_verb);
 }
 
-static void hdmi_disable_output(struct hda_codec *codec)
+/*
+ * Enable Audio InfoFrame Transmission
+ */
+static void hdmi_start_infoframe_trans(struct hda_codec *codec)
 {
-	snd_hda_sequence_write(codec, pinout_disable_verb);
-	if (get_wcaps(codec, PIN_NID) & AC_WCAP_OUT_AMP)
-		snd_hda_codec_write(codec, PIN_NID, 0,
-				AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+	hdmi_set_dip_index(codec, PIN_NID, 0x0, 0x0);
+	snd_hda_codec_write(codec, PIN_NID, 0, AC_VERB_SET_HDMI_DIP_XMIT,
+						AC_DIPXMIT_BEST);
+}
 
-	/*
-	 * FIXME: noises may arise when playing music after reloading the
-	 * kernel module, until the next X restart or monitor repower.
-	 */
+/*
+ * Disable Audio InfoFrame Transmission
+ */
+static void hdmi_stop_infoframe_trans(struct hda_codec *codec)
+{
+	hdmi_set_dip_index(codec, PIN_NID, 0x0, 0x0);
+	snd_hda_codec_write(codec, PIN_NID, 0, AC_VERB_SET_HDMI_DIP_XMIT,
+						AC_DIPXMIT_DISABLE);
 }
 
 static int hdmi_get_channel_count(struct hda_codec *codec)
@@ -489,6 +487,7 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec,
 	hdmi_setup_channel_mapping(codec, &ai);
 
 	hdmi_fill_audio_infoframe(codec, &ai);
+	hdmi_start_infoframe_trans(codec);
 }
 
 
@@ -566,7 +565,7 @@ static int intel_hdmi_playback_pcm_close(struct hda_pcm_stream *hinfo,
 {
 	struct intel_hdmi_spec *spec = codec->spec;
 
-	hdmi_disable_output(codec);
+	hdmi_stop_infoframe_trans(codec);
 
 	return snd_hda_multi_out_dig_close(codec, &spec->multiout);
 }
@@ -585,8 +584,6 @@ static int intel_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	hdmi_set_channel_count(codec, substream->runtime->channels);
 
 	hdmi_setup_audio_infoframe(codec, substream);
-
-	hdmi_enable_output(codec);
 
 	return 0;
 }
@@ -632,8 +629,7 @@ static int intel_hdmi_build_controls(struct hda_codec *codec)
 
 static int intel_hdmi_init(struct hda_codec *codec)
 {
-	/* disable audio output as early as possible */
-	hdmi_disable_output(codec);
+	hdmi_enable_output(codec);
 
 	snd_hda_sequence_write(codec, unsolicited_response_verb);
 
