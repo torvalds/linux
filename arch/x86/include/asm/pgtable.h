@@ -242,64 +242,78 @@ static inline int pmd_large(pmd_t pte)
 		(_PAGE_PSE | _PAGE_PRESENT);
 }
 
+static inline pte_t pte_set_flags(pte_t pte, pteval_t set)
+{
+	pteval_t v = native_pte_val(pte);
+
+	return native_make_pte(v | set);
+}
+
+static inline pte_t pte_clear_flags(pte_t pte, pteval_t clear)
+{
+	pteval_t v = native_pte_val(pte);
+
+	return native_make_pte(v & ~clear);
+}
+
 static inline pte_t pte_mkclean(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~_PAGE_DIRTY);
+	return pte_clear_flags(pte, _PAGE_DIRTY);
 }
 
 static inline pte_t pte_mkold(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~_PAGE_ACCESSED);
+	return pte_clear_flags(pte, _PAGE_ACCESSED);
 }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~_PAGE_RW);
+	return pte_clear_flags(pte, _PAGE_RW);
 }
 
 static inline pte_t pte_mkexec(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~_PAGE_NX);
+	return pte_clear_flags(pte, _PAGE_NX);
 }
 
 static inline pte_t pte_mkdirty(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_DIRTY);
+	return pte_set_flags(pte, _PAGE_DIRTY);
 }
 
 static inline pte_t pte_mkyoung(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_ACCESSED);
+	return pte_set_flags(pte, _PAGE_ACCESSED);
 }
 
 static inline pte_t pte_mkwrite(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_RW);
+	return pte_set_flags(pte, _PAGE_RW);
 }
 
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_PSE);
+	return pte_set_flags(pte, _PAGE_PSE);
 }
 
 static inline pte_t pte_clrhuge(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~_PAGE_PSE);
+	return pte_clear_flags(pte, _PAGE_PSE);
 }
 
 static inline pte_t pte_mkglobal(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_GLOBAL);
+	return pte_set_flags(pte, _PAGE_GLOBAL);
 }
 
 static inline pte_t pte_clrglobal(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~_PAGE_GLOBAL);
+	return pte_clear_flags(pte, _PAGE_GLOBAL);
 }
 
 static inline pte_t pte_mkspecial(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_SPECIAL);
+	return pte_set_flags(pte, _PAGE_SPECIAL);
 }
 
 extern pteval_t __supported_pte_mask;

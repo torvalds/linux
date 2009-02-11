@@ -60,6 +60,24 @@
 # error SPURIOUS_APIC_VECTOR definition error
 #endif
 
+unsigned int num_processors;
+unsigned disabled_cpus __cpuinitdata;
+/* Processor that is doing the boot up */
+unsigned int boot_cpu_physical_apicid = -1U;
+EXPORT_SYMBOL(boot_cpu_physical_apicid);
+unsigned int max_physical_apicid;
+
+/* Bitmask of physically existing CPUs */
+physid_mask_t phys_cpu_present_map;
+
+/*
+ * Map cpu index to physical APIC ID
+ */
+DEFINE_EARLY_PER_CPU(u16, x86_cpu_to_apicid, BAD_APICID);
+DEFINE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid, BAD_APICID);
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
+
 #ifdef CONFIG_X86_32
 /*
  * Knob to control our willingness to enable the local APIC.
@@ -1130,6 +1148,13 @@ void __cpuinit setup_local_APIC(void)
 	unsigned int value;
 	int i, j;
 
+	if (disable_apic) {
+#ifdef CONFIG_X86_IO_APIC
+		disable_ioapic_setup();
+#endif
+		return;
+	}
+
 #ifdef CONFIG_X86_32
 	/* Pound the ESR really hard over the head with a big hammer - mbligh */
 	if (lapic_is_integrated() && esr_disable) {
@@ -1570,11 +1595,11 @@ int apic_version[MAX_APICS];
 
 int __init APIC_init_uniprocessor(void)
 {
-#ifdef CONFIG_X86_64
 	if (disable_apic) {
 		pr_info("Apic disabled\n");
 		return -1;
 	}
+#ifdef CONFIG_X86_64
 	if (!cpu_has_apic) {
 		disable_apic = 1;
 		pr_info("Apic disabled by BIOS\n");
@@ -1877,17 +1902,8 @@ void __cpuinit generic_processor_info(int apicid, int version)
 #endif
 
 #if defined(CONFIG_X86_SMP) || defined(CONFIG_X86_64)
-	/* are we being called early in kernel startup? */
-	if (early_per_cpu_ptr(x86_cpu_to_apicid)) {
-		u16 *cpu_to_apicid = early_per_cpu_ptr(x86_cpu_to_apicid);
-		u16 *bios_cpu_apicid = early_per_cpu_ptr(x86_bios_cpu_apicid);
-
-		cpu_to_apicid[cpu] = apicid;
-		bios_cpu_apicid[cpu] = apicid;
-	} else {
-		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
-		per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
-	}
+	early_per_cpu(x86_cpu_to_apicid, cpu) = apicid;
+	early_per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
 #endif
 
 	set_cpu_possible(cpu, true);

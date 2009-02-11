@@ -20,11 +20,11 @@ static struct proc_dir_entry *root_irq_dir;
 static int irq_affinity_proc_show(struct seq_file *m, void *v)
 {
 	struct irq_desc *desc = irq_to_desc((long)m->private);
-	const struct cpumask *mask = &desc->affinity;
+	const struct cpumask *mask = desc->affinity;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (desc->status & IRQ_MOVE_PENDING)
-		mask = &desc->pending_mask;
+		mask = desc->pending_mask;
 #endif
 	seq_cpumask(m, mask);
 	seq_putc(m, '\n');

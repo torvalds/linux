@@ -10,9 +10,12 @@
 extern const char xen_hypervisor_callback[];
 extern const char xen_failsafe_callback[];
 
+extern void *xen_initial_gdt;
+
 struct trap_info;
 void xen_copy_trap_info(struct trap_info *traps);
 
+DECLARE_PER_CPU(struct vcpu_info, xen_vcpu_info);
 DECLARE_PER_CPU(unsigned long, xen_cr3);
 DECLARE_PER_CPU(unsigned long, xen_current_cr3);
 
@@ -22,6 +25,13 @@ extern struct shared_info *HYPERVISOR_shared_info;
 
 void xen_setup_mfn_list_list(void);
 void xen_setup_shared_info(void);
+void xen_setup_machphys_mapping(void);
+pgd_t *xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn);
+void xen_ident_map_ISA(void);
+void xen_reserve_top(void);
+
+void xen_leave_lazy(void);
+void xen_post_allocator_init(void);
 
 char * __init xen_memory_setup(void);
 void __init xen_arch_setup(void);

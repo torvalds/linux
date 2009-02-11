@@ -25,6 +25,7 @@
 #include <asm/ipi.h>
 #include <asm/genapic.h>
 #include <asm/pgtable.h>
+#include <asm/uv/uv.h>
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/bios.h>

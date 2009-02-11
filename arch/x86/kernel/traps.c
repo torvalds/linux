@@ -59,7 +59,6 @@
 #ifdef CONFIG_X86_64
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
-#include <asm/pda.h>
 #else
 #include <asm/processor-flags.h>
 #include <asm/arch_hooks.h>

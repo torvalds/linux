@@ -106,7 +106,8 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		const struct stacktrace_ops *ops, void *data)
 {
 	const unsigned cpu = get_cpu();
-	unsigned long *irqstack_end = (unsigned long *)cpu_pda(cpu)->irqstackptr;
+	unsigned long *irq_stack_end =
+		(unsigned long *)per_cpu(irq_stack_ptr, cpu);
 	unsigned used = 0;
 	struct thread_info *tinfo;
 	int graph = 0;
@@ -160,23 +161,23 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			stack = (unsigned long *) estack_end[-2];
 			continue;
 		}
-		if (irqstack_end) {
-			unsigned long *irqstack;
-			irqstack = irqstack_end -
-				(IRQSTACKSIZE - 64) / sizeof(*irqstack);
+		if (irq_stack_end) {
+			unsigned long *irq_stack;
+			irq_stack = irq_stack_end -
+				(IRQ_STACK_SIZE - 64) / sizeof(*irq_stack);
 
-			if (stack >= irqstack && stack < irqstack_end) {
+			if (stack >= irq_stack && stack < irq_stack_end) {
 				if (ops->stack(data, "IRQ") < 0)
 					break;
 				bp = print_context_stack(tinfo, stack, bp,
-					ops, data, irqstack_end, &graph);
+					ops, data, irq_stack_end, &graph);
 				/*
 				 * We link to the next stack (which would be
 				 * the process stack normally) the last
 				 * pointer (index -1 to end) in the IRQ stack:
 				 */
-				stack = (unsigned long *) (irqstack_end[-1]);
-				irqstack_end = NULL;
+				stack = (unsigned long *) (irq_stack_end[-1]);
+				irq_stack_end = NULL;
 				ops->stack(data, "EOI");
 				continue;
 			}
@@ -199,10 +200,10 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	unsigned long *stack;
 	int i;
 	const int cpu = smp_processor_id();
-	unsigned long *irqstack_end =
-		(unsigned long *) (cpu_pda(cpu)->irqstackptr);
-	unsigned long *irqstack =
-		(unsigned long *) (cpu_pda(cpu)->irqstackptr - IRQSTACKSIZE);
+	unsigned long *irq_stack_end =
+		(unsigned long *)(per_cpu(irq_stack_ptr, cpu));
+	unsigned long *irq_stack =
+		(unsigned long *)(per_cpu(irq_stack_ptr, cpu) - IRQ_STACK_SIZE);
 
 	/*
 	 * debugging aid: "show_stack(NULL, NULL);" prints the
@@ -218,9 +219,9 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 
 	stack = sp;
 	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (stack >= irqstack && stack <= irqstack_end) {
-			if (stack == irqstack_end) {
-				stack = (unsigned long *) (irqstack_end[-1]);
+		if (stack >= irq_stack && stack <= irq_stack_end) {
+			if (stack == irq_stack_end) {
+				stack = (unsigned long *) (irq_stack_end[-1]);
 				printk(" <EOI> ");
 			}
 		} else {
@@ -241,7 +242,7 @@ void show_registers(struct pt_regs *regs)
 	int i;
 	unsigned long sp;
 	const int cpu = smp_processor_id();
-	struct task_struct *cur = cpu_pda(cpu)->pcurrent;
+	struct task_struct *cur = current;
 
 	sp = regs->sp;
 	printk("CPU %d ", cpu);

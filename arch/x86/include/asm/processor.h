@@ -378,6 +378,22 @@ union thread_xstate {
 
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(struct orig_ist, orig_ist);
+
+union irq_stack_union {
+	char irq_stack[IRQ_STACK_SIZE];
+	/*
+	 * GCC hardcodes the stack canary as %gs:40.  Since the
+	 * irq_stack is the object at %gs:0, we reserve the bottom
+	 * 48 bytes of the irq stack for the canary.
+	 */
+	struct {
+		char gs_base[40];
+		unsigned long stack_canary;
+	};
+};
+
+DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
+DECLARE_PER_CPU(char *, irq_stack_ptr);
 #endif
 
 extern void print_cpu_info(struct cpuinfo_x86 *);
@@ -752,9 +768,9 @@ extern int sysenter_setup(void);
 extern struct desc_ptr		early_gdt_descr;
 
 extern void cpu_set_gdt(int);
-extern void switch_to_new_gdt(void);
+extern void switch_to_new_gdt(int);
+extern void load_percpu_segment(int);
 extern void cpu_init(void);
-extern void init_gdt(int cpu);
 
 static inline unsigned long get_debugctlmsr(void)
 {
