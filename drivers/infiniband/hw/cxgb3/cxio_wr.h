@@ -604,6 +604,12 @@ struct t3_cqe {
 #define CQE_STATUS(x)     (G_CQE_STATUS(be32_to_cpu((x).header)))
 #define CQE_OPCODE(x)     (G_CQE_OPCODE(be32_to_cpu((x).header)))
 
+#define CQE_SEND_OPCODE(x)( \
+	(G_CQE_OPCODE(be32_to_cpu((x).header)) == T3_SEND) || \
+	(G_CQE_OPCODE(be32_to_cpu((x).header)) == T3_SEND_WITH_SE) || \
+	(G_CQE_OPCODE(be32_to_cpu((x).header)) == T3_SEND_WITH_INV) || \
+	(G_CQE_OPCODE(be32_to_cpu((x).header)) == T3_SEND_WITH_SE_INV))
+
 #define CQE_LEN(x)        (be32_to_cpu((x).len))
 
 /* used for RQ completion processing */
