@@ -197,6 +197,12 @@ config LEDS_DAC124S085
 	  This option enables support for DAC124S085 SPI DAC from NatSemi,
 	  which can be used to control up to four LEDs.
 
+config LEDS_PWM
+	tristate "PWM driven LED Support"
+	depends on LEDS_CLASS && HAVE_PWM
+	help
+	  This option enables support for pwm driven LEDs
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS
