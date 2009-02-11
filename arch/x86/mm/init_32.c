@@ -692,7 +692,7 @@ void __init find_low_pfn_range(void)
 			max_pfn = MAXMEM_PFN + highmem_pages;
 		if (highmem_pages + MAXMEM_PFN > max_pfn) {
 			printk(KERN_WARNING "only %luMB highmem pages "
-				"available, ignoring highmem size of %uMB.\n",
+				"available, ignoring highmem size of %luMB.\n",
 				pages_to_mb(max_pfn - MAXMEM_PFN),
 				pages_to_mb(highmem_pages));
 			highmem_pages = 0;
