@@ -237,15 +237,16 @@ int snd_rawmidi_kernel_open(struct snd_card *card, int device, int subdevice,
 		rfile->input = rfile->output = NULL;
 	mutex_lock(&register_mutex);
 	rmidi = snd_rawmidi_search(card, device);
-	mutex_unlock(&register_mutex);
 	if (rmidi == NULL) {
-		err = -ENODEV;
-		goto __error1;
+		mutex_unlock(&register_mutex);
+		return -ENODEV;
 	}
 	if (!try_module_get(rmidi->card->module)) {
-		err = -EFAULT;
-		goto __error1;
+		mutex_unlock(&register_mutex);
+		return -ENXIO;
 	}
+	mutex_unlock(&register_mutex);
+
 	if (!(mode & SNDRV_RAWMIDI_LFLG_NOOPENLOCK))
 		mutex_lock(&rmidi->open_mutex);
 	if (mode & SNDRV_RAWMIDI_LFLG_INPUT) {
@@ -370,10 +371,9 @@ int snd_rawmidi_kernel_open(struct snd_card *card, int device, int subdevice,
 		snd_rawmidi_runtime_free(sinput);
 	if (output != NULL)
 		snd_rawmidi_runtime_free(soutput);
-	module_put(rmidi->card->module);
 	if (!(mode & SNDRV_RAWMIDI_LFLG_NOOPENLOCK))
 		mutex_unlock(&rmidi->open_mutex);
-      __error1:
+	module_put(rmidi->card->module);
 	return err;
 }
 
