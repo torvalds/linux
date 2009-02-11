@@ -1279,7 +1279,22 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_RADIO,
 			.amux     = EM28XX_AMUX_LINE_IN,
 		}
-	}
+	},
+	[EM2860_BOARD_EASYCAP] = {
+		.name         = "Easy Cap Capture DC-60",
+		.vchannels    = 2,
+		.tuner_type   = TUNER_ABSENT,
+		.decoder      = EM28XX_SAA711X,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = EM28XX_AMUX_LINE_IN,
+		} },
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1568,6 +1583,10 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 		em28xx_write_regs(dev, 0x08, "\x6b", 1);
 
 		break;
+	case EM2860_BOARD_EASYCAP:
+		em28xx_write_regs(dev, 0x08, "\xf8", 1);
+		break;
+
 	}
 
 	em28xx_gpio_set(dev, dev->board.tuner_gpio);
