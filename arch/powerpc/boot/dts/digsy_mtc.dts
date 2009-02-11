@@ -1,8 +1,9 @@
 /*
- * Motion-PRO board Device Tree Source
+ * Digsy MTC board Device Tree Source
  *
- * Copyright (C) 2007 Semihalf
- * Marian Balakowicz <m8@semihalf.com>
+ * Copyright (C) 2009 Semihalf
+ *
+ * Based on the CM5200 by M. Balakowicz
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -13,8 +14,8 @@
 /dts-v1/;
 
 / {
-	model = "promess,motionpro";
-	compatible = "promess,motionpro";
+	model = "intercontrol,digsy-mtc";
+	compatible = "intercontrol,digsy-mtc";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&mpc5200_pic>;
@@ -28,8 +29,8 @@
 			reg = <0>;
 			d-cache-line-size = <32>;
 			i-cache-line-size = <32>;
-			d-cache-size = <0x4000>;	// L1, 16K
-			i-cache-size = <0x4000>;	// L1, 16K
+			d-cache-size = <0x4000>;		// L1, 16K
+			i-cache-size = <0x4000>;		// L1, 16K
 			timebase-frequency = <0>;	// from bootloader
 			bus-frequency = <0>;		// from bootloader
 			clock-frequency = <0>;		// from bootloader
@@ -38,7 +39,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0x04000000>;	// 64MB
+		reg = <0x00000000 0x02000000>;	// 32MB
 	};
 
 	soc5200@f0000000 {
@@ -100,31 +101,16 @@
 			interrupts = <1 14 0>;
 		};
 
-		motionpro-led@660 {	// Motion-PRO status LED
-			compatible = "promess,motionpro-led";
-			label = "motionpro-statusled";
+		timer@660 {	// General Purpose Timer
+			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
 			reg = <0x660 0x10>;
 			interrupts = <1 15 0>;
-			blink-delay = <100>; // 100 msec
 		};
 
-		motionpro-led@670 {	// Motion-PRO ready LED
-			compatible = "promess,motionpro-led";
-			label = "motionpro-readyled";
+		timer@670 {	// General Purpose Timer
+			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
 			reg = <0x670 0x10>;
 			interrupts = <1 16 0>;
-		};
-
-		rtc@800 {	// Real time clock
-			compatible = "fsl,mpc5200b-rtc","fsl,mpc5200-rtc";
-			reg = <0x800 0x100>;
-			interrupts = <1 5 0 1 6 0>;
-		};
-
-		can@980 {
-			compatible = "fsl,mpc5200b-mscan","fsl,mpc5200-mscan";
-			interrupts = <2 18 0>;
-			reg = <0x980 0x80>;
 		};
 
 		gpio_simple: gpio@b00 {
@@ -169,25 +155,16 @@
 			reg = <0x1f00 0x100>;
 		};
 
-		serial@2000 {		// PSC1
+		serial@2400 {		// PSC3
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
-			reg = <0x2000 0x100>;
-			interrupts = <2 1 0>;
+			reg = <0x2400 0x100>;
+			interrupts = <2 3 0>;
 		};
 
-		// PSC2 in spi master mode 
-		spi@2200 {		// PSC2
-			compatible = "fsl,mpc5200b-psc-spi","fsl,mpc5200-psc-spi";
-			cell-index = <1>;
-			reg = <0x2200 0x100>;
-			interrupts = <2 2 0>;
-		};
-
-		// PSC5 in uart mode
-		serial@2800 {		// PSC5
+		serial@2600 {		// PSC4
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
-			reg = <0x2800 0x100>;
-			interrupts = <2 12 0>;
+			reg = <0x2600 0x100>;
+			interrupts = <2 11 0>;
 		};
 
 		ethernet@3000 {
@@ -205,8 +182,8 @@
 			reg = <0x3000 0x400>;       // fec range, since we need to setup fec interrupts
 			interrupts = <2 5 0>;   // these are for "mii command finished", not link changes & co.
 
-			phy0: ethernet-phy@2 {
-				reg = <2>;
+			phy0: ethernet-phy@0 {
+				reg = <0>;
 			};
 		};
 
@@ -216,13 +193,18 @@
 			interrupts = <2 7 0>;
 		};
 
-		i2c@3d40 {
+		i2c@3d00 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "fsl,mpc5200b-i2c","fsl,mpc5200-i2c","fsl-i2c";
-			reg = <0x3d40 0x40>;
-			interrupts = <2 16 0>;
+			reg = <0x3d00 0x40>;
+			interrupts = <2 15 0>;
 			fsl5200-clocking;
+
+			rtc@50 {
+				compatible = "at,24c08";
+				reg = <0x50>;
+			};
 
 			rtc@68 {
 				compatible = "dallas,ds1339";
@@ -236,50 +218,37 @@
 		};
 	};
 
-	localbus {
+	lpb {
 		compatible = "fsl,mpc5200b-lpb","simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
-		ranges = <0 0 0xff000000 0x01000000
-			  1 0 0x50000000 0x00010000
-			  2 0 0x50010000 0x00010000
-			  3 0 0x50020000 0x00010000>;
-
-		// 8-bit DualPort SRAM on LocalPlus Bus CS1
-		kollmorgen@1,0 {
-			compatible = "promess,motionpro-kollmorgen";
-			reg = <1 0 0x10000>;
-			interrupts = <1 1 0>;
-		};
-
-		// 8-bit board CPLD on LocalPlus Bus CS2
-		cpld@2,0 {
-			compatible = "promess,motionpro-cpld";
-			reg = <2 0 0x10000>;
-		};
-
-		// 8-bit custom Anybus Module on LocalPlus Bus CS3
-		anybus@3,0 {
-			compatible = "promess,motionpro-anybus";
-			reg = <3 0 0x10000>;
-		};
-		pro_module_general@3,0 {
-			compatible = "promess,pro_module_general";
-			reg = <3 0 3>;
-		};
-		pro_module_dio@3,800 {
-			compatible = "promess,pro_module_dio";
-			reg = <3 0x800 2>;
-		};
+		ranges = <0 0 0xff000000 0x1000000>;
 
 		// 16-bit flash device at LocalPlus Bus CS0
 		flash@0,0 {
 			compatible = "cfi-flash";
-			reg = <0 0 0x01000000>;
+			reg = <0 0 0x1000000>;
 			bank-width = <2>;
 			device-width = <2>;
 			#size-cells = <1>;
 			#address-cells = <1>;
+
+			partition@0 {
+				label = "kernel";
+				reg = <0x0 0x00200000>;
+			};
+			partition@200000 {
+				label = "root";
+				reg = <0x00200000 0x00300000>;
+			};
+			partition@500000 {
+				label = "user";
+				reg = <0x00500000 0x00a00000>;
+			};
+			partition@f00000 {
+				label = "u-boot";
+				reg = <0x00f00000 0x100000>;
+			};
 		};
 	};
 };

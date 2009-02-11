@@ -21,7 +21,12 @@ config PPC_MPC5200_SIMPLE
 	    and if there is a PCI bus node defined in the device tree.
 
 	  Boards that are compatible with this generic platform support
-	  are: 'tqc,tqm5200', 'promess,motionpro', 'schindler,cm5200'.
+	  are:
+	     intercontrol,digsy-mtc
+	     phytec,pcm030
+	     promess,motionpro
+	     schindler,cm5200
+	     tqc,tqm5200
 
 config PPC_EFIKA
 	bool "bPlan Efika 5k2. MPC5200B based computer"
@@ -32,6 +37,11 @@ config PPC_EFIKA
 
 config PPC_LITE5200
 	bool "Freescale Lite5200 Eval Board"
+	depends on PPC_MPC52xx
+	select DEFAULT_UIMAGE
+
+config PPC_MEDIA5200
+	bool "Freescale Media5200 Eval Board"
 	depends on PPC_MPC52xx
 	select DEFAULT_UIMAGE
 
