@@ -476,6 +476,18 @@ static int __init vfp_init(void)
 		 * in place; report VFP support to userspace.
 		 */
 		elf_hwcap |= HWCAP_VFP;
+#ifdef CONFIG_VFPv3
+		if (VFP_arch >= 3) {
+			elf_hwcap |= HWCAP_VFPv3;
+
+			/*
+			 * Check for VFPv3 D16. CPUs in this configuration
+			 * only have 16 x 64bit registers.
+			 */
+			if (((fmrx(MVFR0) & MVFR0_A_SIMD_MASK)) == 1)
+				elf_hwcap |= HWCAP_VFPv3D16;
+		}
+#endif
 #ifdef CONFIG_NEON
 		/*
 		 * Check for the presence of the Advanced SIMD
