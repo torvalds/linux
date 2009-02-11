@@ -1,5 +1,6 @@
 #include <linux/etherdevice.h>
 #include <net/lib80211.h>
+#include <linux/if_arp.h>
 
 #include "hostap_80211.h"
 #include "hostap.h"
@@ -17,10 +18,10 @@ static unsigned char bridge_tunnel_header[] =
 void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 			  struct hostap_80211_rx_status *rx_stats)
 {
-	struct ieee80211_hdr_4addr *hdr;
+	struct ieee80211_hdr *hdr;
 	u16 fc;
 
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
+	hdr = (struct ieee80211_hdr *) skb->data;
 
 	printk(KERN_DEBUG "%s: RX signal=%d noise=%d rate=%d len=%d "
 	       "jiffies=%ld\n",
@@ -30,9 +31,10 @@ void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 	if (skb->len < 2)
 		return;
 
-	fc = le16_to_cpu(hdr->frame_ctl);
+	fc = le16_to_cpu(hdr->frame_control);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d)%s%s",
-	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
+	       fc, (fc & IEEE80211_FCTL_FTYPE) >> 2,
+	       (fc & IEEE80211_FCTL_STYPE) >> 4,
 	       fc & IEEE80211_FCTL_TODS ? " [ToDS]" : "",
 	       fc & IEEE80211_FCTL_FROMDS ? " [FromDS]" : "");
 
@@ -42,7 +44,7 @@ void hostap_dump_rx_80211(const char *name, struct sk_buff *skb,
 	}
 
 	printk(" dur=0x%04x seq=0x%04x\n", le16_to_cpu(hdr->duration_id),
-	       le16_to_cpu(hdr->seq_ctl));
+	       le16_to_cpu(hdr->seq_ctrl));
 
 	printk(KERN_DEBUG "   A1=%pM", hdr->addr1);
 	printk(" A2=%pM", hdr->addr2);
@@ -63,7 +65,7 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 	int hdrlen, phdrlen, head_need, tail_need;
 	u16 fc;
 	int prism_header, ret;
-	struct ieee80211_hdr_4addr *fhdr;
+	struct ieee80211_hdr *fhdr;
 
 	iface = netdev_priv(dev);
 	local = iface->local;
@@ -84,8 +86,8 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 		phdrlen = 0;
 	}
 
-	fhdr = (struct ieee80211_hdr_4addr *) skb->data;
-	fc = le16_to_cpu(fhdr->frame_ctl);
+	fhdr = (struct ieee80211_hdr *) skb->data;
+	fc = le16_to_cpu(fhdr->frame_control);
 
 	if (type == PRISM2_RX_MGMT && (fc & IEEE80211_FCTL_VERS)) {
 		printk(KERN_DEBUG "%s: dropped management frame with header "
@@ -94,7 +96,7 @@ int prism2_rx_80211(struct net_device *dev, struct sk_buff *skb,
 		return 0;
 	}
 
-	hdrlen = hostap_80211_get_hdrlen(fc);
+	hdrlen = hostap_80211_get_hdrlen(fhdr->frame_control);
 
 	/* check if there is enough room for extra data; if not, expand skb
 	 * buffer to be large enough for the changes */
@@ -247,21 +249,21 @@ prism2_frag_cache_find(local_info_t *local, unsigned int seq,
 
 /* Called only as a tasklet (software IRQ) */
 static struct sk_buff *
-prism2_frag_cache_get(local_info_t *local, struct ieee80211_hdr_4addr *hdr)
+prism2_frag_cache_get(local_info_t *local, struct ieee80211_hdr *hdr)
 {
 	struct sk_buff *skb = NULL;
 	u16 sc;
 	unsigned int frag, seq;
 	struct prism2_frag_entry *entry;
 
-	sc = le16_to_cpu(hdr->seq_ctl);
-	frag = WLAN_GET_SEQ_FRAG(sc);
-	seq = WLAN_GET_SEQ_SEQ(sc) >> 4;
+	sc = le16_to_cpu(hdr->seq_ctrl);
+	frag = sc & IEEE80211_SCTL_FRAG;
+	seq = (sc & IEEE80211_SCTL_SEQ) >> 4;
 
 	if (frag == 0) {
 		/* Reserve enough space to fit maximum frame length */
 		skb = dev_alloc_skb(local->dev->mtu +
-				    sizeof(struct ieee80211_hdr_4addr) +
+				    sizeof(struct ieee80211_hdr) +
 				    8 /* LLC */ +
 				    2 /* alignment */ +
 				    8 /* WEP */ + ETH_ALEN /* WDS */);
@@ -299,14 +301,14 @@ prism2_frag_cache_get(local_info_t *local, struct ieee80211_hdr_4addr *hdr)
 
 /* Called only as a tasklet (software IRQ) */
 static int prism2_frag_cache_invalidate(local_info_t *local,
-					struct ieee80211_hdr_4addr *hdr)
+					struct ieee80211_hdr *hdr)
 {
 	u16 sc;
 	unsigned int seq;
 	struct prism2_frag_entry *entry;
 
-	sc = le16_to_cpu(hdr->seq_ctl);
-	seq = WLAN_GET_SEQ_SEQ(sc) >> 4;
+	sc = le16_to_cpu(hdr->seq_ctrl);
+	seq = (sc & IEEE80211_SCTL_SEQ) >> 4;
 
 	entry = prism2_frag_cache_find(local, seq, -1, hdr->addr2, hdr->addr1);
 
@@ -472,10 +474,8 @@ hostap_rx_frame_mgmt(local_info_t *local, struct sk_buff *skb,
 		     struct hostap_80211_rx_status *rx_stats, u16 type,
 		     u16 stype)
 {
-	if (local->iw_mode == IW_MODE_MASTER) {
-		hostap_update_sta_ps(local, (struct ieee80211_hdr_4addr *)
-				     skb->data);
-	}
+	if (local->iw_mode == IW_MODE_MASTER)
+		hostap_update_sta_ps(local, (struct ieee80211_hdr *) skb->data);
 
 	if (local->hostapd && type == IEEE80211_FTYPE_MGMT) {
 		if (stype == IEEE80211_STYPE_BEACON &&
@@ -552,8 +552,8 @@ static struct net_device *prism2_rx_get_wds(local_info_t *local,
 
 
 static int
-hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr_4addr *hdr,
-		    u16 fc, struct net_device **wds)
+hostap_rx_frame_wds(local_info_t *local, struct ieee80211_hdr *hdr, u16 fc,
+		    struct net_device **wds)
 {
 	/* FIX: is this really supposed to accept WDS frames only in Master
 	 * mode? What about Repeater or Managed with WDS frames? */
@@ -611,14 +611,14 @@ static int hostap_is_eapol_frame(local_info_t *local, struct sk_buff *skb)
 {
 	struct net_device *dev = local->dev;
 	u16 fc, ethertype;
-	struct ieee80211_hdr_4addr *hdr;
+	struct ieee80211_hdr *hdr;
 	u8 *pos;
 
 	if (skb->len < 24)
 		return 0;
 
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
-	fc = le16_to_cpu(hdr->frame_ctl);
+	hdr = (struct ieee80211_hdr *) skb->data;
+	fc = le16_to_cpu(hdr->frame_control);
 
 	/* check that the frame is unicast frame to us */
 	if ((fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
@@ -651,14 +651,14 @@ static int
 hostap_rx_frame_decrypt(local_info_t *local, struct sk_buff *skb,
 			struct lib80211_crypt_data *crypt)
 {
-	struct ieee80211_hdr_4addr *hdr;
+	struct ieee80211_hdr *hdr;
 	int res, hdrlen;
 
 	if (crypt == NULL || crypt->ops->decrypt_mpdu == NULL)
 		return 0;
 
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
-	hdrlen = hostap_80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
+	hdr = (struct ieee80211_hdr *) skb->data;
+	hdrlen = hostap_80211_get_hdrlen(hdr->frame_control);
 
 	if (local->tkip_countermeasures &&
 	    strcmp(crypt->ops->name, "TKIP") == 0) {
@@ -689,14 +689,14 @@ static int
 hostap_rx_frame_decrypt_msdu(local_info_t *local, struct sk_buff *skb,
 			     int keyidx, struct lib80211_crypt_data *crypt)
 {
-	struct ieee80211_hdr_4addr *hdr;
+	struct ieee80211_hdr *hdr;
 	int res, hdrlen;
 
 	if (crypt == NULL || crypt->ops->decrypt_msdu == NULL)
 		return 0;
 
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
-	hdrlen = hostap_80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
+	hdr = (struct ieee80211_hdr *) skb->data;
+	hdrlen = hostap_80211_get_hdrlen(hdr->frame_control);
 
 	atomic_inc(&crypt->refcnt);
 	res = crypt->ops->decrypt_msdu(skb, keyidx, hdrlen, crypt->priv);
@@ -720,7 +720,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
-	struct ieee80211_hdr_4addr *hdr;
+	struct ieee80211_hdr *hdr;
 	size_t hdrlen;
 	u16 fc, type, stype, sc;
 	struct net_device *wds = NULL;
@@ -747,18 +747,18 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	dev = local->ddev;
 	iface = netdev_priv(dev);
 
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
+	hdr = (struct ieee80211_hdr *) skb->data;
 	stats = hostap_get_stats(dev);
 
 	if (skb->len < 10)
 		goto rx_dropped;
 
-	fc = le16_to_cpu(hdr->frame_ctl);
-	type = WLAN_FC_GET_TYPE(fc);
-	stype = WLAN_FC_GET_STYPE(fc);
-	sc = le16_to_cpu(hdr->seq_ctl);
-	frag = WLAN_GET_SEQ_FRAG(sc);
-	hdrlen = hostap_80211_get_hdrlen(fc);
+	fc = le16_to_cpu(hdr->frame_control);
+	type = fc & IEEE80211_FCTL_FTYPE;
+	stype = fc & IEEE80211_FCTL_STYPE;
+	sc = le16_to_cpu(hdr->seq_ctrl);
+	frag = sc & IEEE80211_SCTL_FRAG;
+	hdrlen = hostap_80211_get_hdrlen(hdr->frame_control);
 
 	/* Put this code here so that we avoid duplicating it in all
 	 * Rx paths. - Jean II */
@@ -918,7 +918,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	if (local->host_decrypt && (fc & IEEE80211_FCTL_PROTECTED) &&
 	    (keyidx = hostap_rx_frame_decrypt(local, skb, crypt)) < 0)
 		goto rx_dropped;
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
+	hdr = (struct ieee80211_hdr *) skb->data;
 
 	/* skb: hdr + (possibly fragmented) plaintext payload */
 
@@ -931,7 +931,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 			printk(KERN_DEBUG "%s: Rx cannot get skb from "
 			       "fragment cache (morefrag=%d seq=%u frag=%u)\n",
 			       dev->name, (fc & IEEE80211_FCTL_MOREFRAGS) != 0,
-			       WLAN_GET_SEQ_SEQ(sc) >> 4, frag);
+			       (sc & IEEE80211_SCTL_SEQ) >> 4, frag);
 			goto rx_dropped;
 		}
 
@@ -972,7 +972,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		/* this was the last fragment and the frame will be
 		 * delivered, so remove skb from fragment cache */
 		skb = frag_skb;
-		hdr = (struct ieee80211_hdr_4addr *) skb->data;
+		hdr = (struct ieee80211_hdr *) skb->data;
 		prism2_frag_cache_invalidate(local, hdr);
 	}
 
@@ -983,7 +983,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 	    hostap_rx_frame_decrypt_msdu(local, skb, keyidx, crypt))
 		goto rx_dropped;
 
-	hdr = (struct ieee80211_hdr_4addr *) skb->data;
+	hdr = (struct ieee80211_hdr *) skb->data;
 	if (crypt && !(fc & IEEE80211_FCTL_PROTECTED) && !local->open_wep) {
 		if (local->ieee_802_1x &&
 		    hostap_is_eapol_frame(local, skb)) {
