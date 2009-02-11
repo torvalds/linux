@@ -7,10 +7,11 @@
  * the Free Software Foundation, version 2 of the License.
  */
 
-#include <linux/fs.h>
-
 #ifndef _LINUX_IMA_H
 #define _LINUX_IMA_H
+
+#include <linux/fs.h>
+struct linux_binprm;
 
 #ifdef CONFIG_IMA
 extern int ima_bprm_check(struct linux_binprm *bprm);
