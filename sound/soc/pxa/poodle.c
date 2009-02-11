@@ -77,7 +77,7 @@ static void poodle_ext_control(struct snd_soc_codec *codec)
 static int poodle_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->socdev->codec;
+	struct snd_soc_codec *codec = rtd->socdev->card->codec;
 
 	/* check the jack status at stream startup */
 	poodle_ext_control(codec);
