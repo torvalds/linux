@@ -3537,6 +3537,12 @@ S:	Maintained
 PXA MMCI DRIVER
 S:	Orphan
 
+PXA RTC DRIVER
+P:	Robert Jarzmik
+M:	robert.jarzmik@free.fr
+L:	rtc-linux@googlegroups.com
+S:	Maintained
+
 QLOGIC QLA2XXX FC-SCSI DRIVER
 P:	Andrew Vasquez
 M:	linux-driver@qlogic.com
