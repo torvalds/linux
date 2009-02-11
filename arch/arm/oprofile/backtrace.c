@@ -18,15 +18,14 @@
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>
-
-#include "../kernel/stacktrace.h"
+#include <asm/stacktrace.h>
 
 static int report_trace(struct stackframe *frame, void *d)
 {
 	unsigned int *depth = d;
 
 	if (*depth) {
-		oprofile_add_trace(frame->lr);
+		oprofile_add_trace(frame->pc);
 		(*depth)--;
 	}
 
@@ -70,9 +69,12 @@ void arm_backtrace(struct pt_regs * const regs, unsigned int depth)
 	struct frame_tail *tail = ((struct frame_tail *) regs->ARM_fp) - 1;
 
 	if (!user_mode(regs)) {
-		unsigned long base = ((unsigned long)regs) & ~(THREAD_SIZE - 1);
-		walk_stackframe(regs->ARM_fp, base, base + THREAD_SIZE,
-				report_trace, &depth);
+		struct stackframe frame;
+		frame.fp = regs->ARM_fp;
+		frame.sp = regs->ARM_sp;
+		frame.lr = regs->ARM_lr;
+		frame.pc = regs->ARM_pc;
+		walk_stackframe(&frame, report_trace, &depth);
 		return;
 	}
 
