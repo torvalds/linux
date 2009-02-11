@@ -43,53 +43,74 @@ static int kvm_set_ioapic_irq(struct kvm_kernel_irq_routing_entry *e,
 	return kvm_ioapic_set_irq(kvm->arch.vioapic, e->irqchip.pin, level);
 }
 
+void kvm_get_intr_delivery_bitmask(struct kvm_ioapic *ioapic,
+				   union kvm_ioapic_redirect_entry *entry,
+				   unsigned long *deliver_bitmask)
+{
+	struct kvm_vcpu *vcpu;
+
+	*deliver_bitmask = kvm_ioapic_get_delivery_bitmask(ioapic,
+				entry->fields.dest_id, entry->fields.dest_mode);
+	switch (entry->fields.delivery_mode) {
+	case IOAPIC_LOWEST_PRIORITY:
+		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm,
+				entry->fields.vector, *deliver_bitmask);
+		*deliver_bitmask = 1 << vcpu->vcpu_id;
+		break;
+	case IOAPIC_FIXED:
+	case IOAPIC_NMI:
+		break;
+	default:
+		if (printk_ratelimit())
+			printk(KERN_INFO "kvm: unsupported delivery mode %d\n",
+				entry->fields.delivery_mode);
+		*deliver_bitmask = 0;
+	}
+}
+
 static int kvm_set_msi(struct kvm_kernel_irq_routing_entry *e,
 		       struct kvm *kvm, int level)
 {
 	int vcpu_id, r = -1;
 	struct kvm_vcpu *vcpu;
 	struct kvm_ioapic *ioapic = ioapic_irqchip(kvm);
-	int dest_id = (e->msi.address_lo & MSI_ADDR_DEST_ID_MASK)
-			>> MSI_ADDR_DEST_ID_SHIFT;
-	int vector = (e->msi.data & MSI_DATA_VECTOR_MASK)
-			>> MSI_DATA_VECTOR_SHIFT;
-	int dest_mode = test_bit(MSI_ADDR_DEST_MODE_SHIFT,
-				(unsigned long *)&e->msi.address_lo);
-	int trig_mode = test_bit(MSI_DATA_TRIGGER_SHIFT,
-				(unsigned long *)&e->msi.data);
-	int delivery_mode = test_bit(MSI_DATA_DELIVERY_MODE_SHIFT,
-				(unsigned long *)&e->msi.data);
-	u32 deliver_bitmask;
+	union kvm_ioapic_redirect_entry entry;
+	unsigned long deliver_bitmask;
 
 	BUG_ON(!ioapic);
 
-	deliver_bitmask = kvm_ioapic_get_delivery_bitmask(ioapic,
-				dest_id, dest_mode);
-	/* IOAPIC delivery mode value is the same as MSI here */
-	switch (delivery_mode) {
-	case IOAPIC_LOWEST_PRIORITY:
-		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm, vector,
-				deliver_bitmask);
-		if (vcpu != NULL)
-			r = kvm_apic_set_irq(vcpu, vector, trig_mode);
-		else
-			printk(KERN_INFO "kvm: null lowest priority vcpu!\n");
-		break;
-	case IOAPIC_FIXED:
-		for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
-			if (!(deliver_bitmask & (1 << vcpu_id)))
-				continue;
-			deliver_bitmask &= ~(1 << vcpu_id);
-			vcpu = ioapic->kvm->vcpus[vcpu_id];
-			if (vcpu) {
-				if (r < 0)
-					r = 0;
-				r += kvm_apic_set_irq(vcpu, vector, trig_mode);
-			}
+	entry.bits = 0;
+	entry.fields.dest_id = (e->msi.address_lo &
+			MSI_ADDR_DEST_ID_MASK) >> MSI_ADDR_DEST_ID_SHIFT;
+	entry.fields.vector = (e->msi.data &
+			MSI_DATA_VECTOR_MASK) >> MSI_DATA_VECTOR_SHIFT;
+	entry.fields.dest_mode = test_bit(MSI_ADDR_DEST_MODE_SHIFT,
+			(unsigned long *)&e->msi.address_lo);
+	entry.fields.trig_mode = test_bit(MSI_DATA_TRIGGER_SHIFT,
+			(unsigned long *)&e->msi.data);
+	entry.fields.delivery_mode = test_bit(
+			MSI_DATA_DELIVERY_MODE_SHIFT,
+			(unsigned long *)&e->msi.data);
+
+	/* TODO Deal with RH bit of MSI message address */
+
+	kvm_get_intr_delivery_bitmask(ioapic, &entry, &deliver_bitmask);
+
+	if (!deliver_bitmask) {
+		printk(KERN_WARNING "kvm: no destination for MSI delivery!");
+		return -1;
+	}
+	for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
+		if (!(deliver_bitmask & (1 << vcpu_id)))
+			continue;
+		deliver_bitmask &= ~(1 << vcpu_id);
+		vcpu = ioapic->kvm->vcpus[vcpu_id];
+		if (vcpu) {
+			if (r < 0)
+				r = 0;
+			r += kvm_apic_set_irq(vcpu, entry.fields.vector,
+					      entry.fields.trig_mode);
 		}
-		break;
-	default:
-		break;
 	}
 	return r;
 }

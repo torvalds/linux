@@ -203,79 +203,56 @@ u32 kvm_ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 
 static int ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 {
-	u8 dest = ioapic->redirtbl[irq].fields.dest_id;
-	u8 dest_mode = ioapic->redirtbl[irq].fields.dest_mode;
-	u8 delivery_mode = ioapic->redirtbl[irq].fields.delivery_mode;
-	u8 vector = ioapic->redirtbl[irq].fields.vector;
-	u8 trig_mode = ioapic->redirtbl[irq].fields.trig_mode;
-	u32 deliver_bitmask;
+	union kvm_ioapic_redirect_entry entry = ioapic->redirtbl[irq];
+	unsigned long deliver_bitmask;
 	struct kvm_vcpu *vcpu;
 	int vcpu_id, r = -1;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
 		     "vector=%x trig_mode=%x\n",
-		     dest, dest_mode, delivery_mode, vector, trig_mode);
+		     entry.fields.dest, entry.fields.dest_mode,
+		     entry.fields.delivery_mode, entry.fields.vector,
+		     entry.fields.trig_mode);
 
-	deliver_bitmask = kvm_ioapic_get_delivery_bitmask(ioapic, dest,
-							  dest_mode);
+	kvm_get_intr_delivery_bitmask(ioapic, &entry, &deliver_bitmask);
 	if (!deliver_bitmask) {
 		ioapic_debug("no target on destination\n");
 		return 0;
 	}
 
-	switch (delivery_mode) {
-	case IOAPIC_LOWEST_PRIORITY:
-		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm, vector,
-				deliver_bitmask);
+	/* Always delivery PIT interrupt to vcpu 0 */
 #ifdef CONFIG_X86
-		if (irq == 0)
-			vcpu = ioapic->kvm->vcpus[0];
+	if (irq == 0)
+		deliver_bitmask = 1;
 #endif
-		if (vcpu != NULL)
-			r = ioapic_inj_irq(ioapic, vcpu, vector,
-				       trig_mode, delivery_mode);
-		else
-			ioapic_debug("null lowest prio vcpu: "
-				     "mask=%x vector=%x delivery_mode=%x\n",
-				     deliver_bitmask, vector, IOAPIC_LOWEST_PRIORITY);
-		break;
-	case IOAPIC_FIXED:
-#ifdef CONFIG_X86
-		if (irq == 0)
-			deliver_bitmask = 1;
-#endif
-		for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
-			if (!(deliver_bitmask & (1 << vcpu_id)))
-				continue;
-			deliver_bitmask &= ~(1 << vcpu_id);
-			vcpu = ioapic->kvm->vcpus[vcpu_id];
-			if (vcpu) {
+
+	for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
+		if (!(deliver_bitmask & (1 << vcpu_id)))
+			continue;
+		deliver_bitmask &= ~(1 << vcpu_id);
+		vcpu = ioapic->kvm->vcpus[vcpu_id];
+		if (vcpu) {
+			if (entry.fields.delivery_mode ==
+					IOAPIC_LOWEST_PRIORITY ||
+			    entry.fields.delivery_mode == IOAPIC_FIXED) {
 				if (r < 0)
 					r = 0;
-				r += ioapic_inj_irq(ioapic, vcpu, vector,
-					       trig_mode, delivery_mode);
-			}
-		}
-		break;
-	case IOAPIC_NMI:
-		for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
-			if (!(deliver_bitmask & (1 << vcpu_id)))
-				continue;
-			deliver_bitmask &= ~(1 << vcpu_id);
-			vcpu = ioapic->kvm->vcpus[vcpu_id];
-			if (vcpu) {
-				ioapic_inj_nmi(vcpu);
+				r += ioapic_inj_irq(ioapic, vcpu,
+						    entry.fields.vector,
+						    entry.fields.trig_mode,
+						    entry.fields.delivery_mode);
+			} else if (entry.fields.delivery_mode == IOAPIC_NMI) {
 				r = 1;
-			}
-			else
-				ioapic_debug("NMI to vcpu %d failed\n",
-						vcpu->vcpu_id);
-		}
-		break;
-	default:
-		printk(KERN_WARNING "Unsupported delivery mode %d\n",
-		       delivery_mode);
-		break;
+				ioapic_inj_nmi(vcpu);
+			} else
+				ioapic_debug("unsupported delivery mode %x!\n",
+					     entry.fields.delivery_mode);
+		} else
+			ioapic_debug("null destination vcpu: "
+				     "mask=%x vector=%x delivery_mode=%x\n",
+				     entry.fields.deliver_bitmask,
+				     entry.fields.vector,
+				     entry.fields.delivery_mode);
 	}
 	return r;
 }
