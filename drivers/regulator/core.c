@@ -925,9 +925,12 @@ overflow_err:
  * @id: Supply name or regulator ID.
  *
  * Returns a struct regulator corresponding to the regulator producer,
- * or IS_ERR() condition containing errno.  Use of supply names
- * configured via regulator_set_device_supply() is strongly
- * encouraged.
+ * or IS_ERR() condition containing errno.
+ *
+ * Use of supply names configured via regulator_set_device_supply() is
+ * strongly encouraged.  It is recommended that the supply name used
+ * should match the name used for the supply and/or the relevant
+ * device pins in the datasheet.
  */
 struct regulator *regulator_get(struct device *dev, const char *id)
 {
