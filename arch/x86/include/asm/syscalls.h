@@ -29,26 +29,21 @@ asmlinkage int sys_get_thread_area(struct user_desc __user *);
 /* X86_32 only */
 #ifdef CONFIG_X86_32
 /* kernel/process_32.c */
-ptregscall int sys_fork(struct pt_regs *);
-ptregscall int sys_clone(struct pt_regs *, unsigned long,
-			 unsigned long, int __user *,
-			 unsigned long, int __user *);
-ptregscall int sys_vfork(struct pt_regs *);
-ptregscall int sys_execve(struct pt_regs *, char __user *,
-			  char __user * __user *,
-			  char __user * __user *);
+int sys_fork(struct pt_regs *);
+int sys_clone(struct pt_regs *);
+int sys_vfork(struct pt_regs *);
+int sys_execve(struct pt_regs *);
 
 /* kernel/signal_32.c */
 asmlinkage int sys_sigsuspend(int, int, old_sigset_t);
 asmlinkage int sys_sigaction(int, const struct old_sigaction __user *,
 			     struct old_sigaction __user *);
-ptregscall int sys_sigaltstack(struct pt_regs *, const stack_t __user *,
-			       stack_t __user *);
-ptregscall unsigned long sys_sigreturn(struct pt_regs *);
-ptregscall int sys_rt_sigreturn(struct pt_regs *);
+int sys_sigaltstack(struct pt_regs *);
+unsigned long sys_sigreturn(struct pt_regs *);
+int sys_rt_sigreturn(struct pt_regs *);
 
 /* kernel/ioport.c */
-ptregscall long sys_iopl(struct pt_regs *, unsigned int);
+long sys_iopl(struct pt_regs *);
 
 /* kernel/sys_i386_32.c */
 asmlinkage long sys_mmap2(unsigned long, unsigned long, unsigned long,
@@ -64,8 +59,8 @@ struct oldold_utsname;
 asmlinkage int sys_olduname(struct oldold_utsname __user *);
 
 /* kernel/vm86_32.c */
-ptregscall int sys_vm86old(struct pt_regs *, struct vm86_struct __user *);
-ptregscall int sys_vm86(struct pt_regs *, unsigned long, unsigned long);
+int sys_vm86old(struct pt_regs *);
+int sys_vm86(struct pt_regs *);
 
 #else /* CONFIG_X86_32 */
 

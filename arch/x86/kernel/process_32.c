@@ -603,15 +603,21 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	return prev_p;
 }
 
-ptregscall int sys_fork(struct pt_regs *regs)
+int sys_fork(struct pt_regs *regs)
 {
 	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
 }
 
-ptregscall int sys_clone(struct pt_regs *regs, unsigned long clone_flags,
-			 unsigned long newsp, int __user *parent_tidptr,
-			 unsigned long unused, int __user *child_tidptr)
+int sys_clone(struct pt_regs *regs)
 {
+	unsigned long clone_flags;
+	unsigned long newsp;
+	int __user *parent_tidptr, *child_tidptr;
+
+	clone_flags = regs->bx;
+	newsp = regs->cx;
+	parent_tidptr = (int __user *)regs->dx;
+	child_tidptr = (int __user *)regs->di;
 	if (!newsp)
 		newsp = regs->sp;
 	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
@@ -627,7 +633,7 @@ ptregscall int sys_clone(struct pt_regs *regs, unsigned long clone_flags,
  * do not have enough call-clobbered registers to hold all
  * the information you need.
  */
-ptregscall int sys_vfork(struct pt_regs *regs)
+int sys_vfork(struct pt_regs *regs)
 {
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp, regs, 0, NULL, NULL);
 }
@@ -635,18 +641,19 @@ ptregscall int sys_vfork(struct pt_regs *regs)
 /*
  * sys_execve() executes a new program.
  */
-ptregscall int sys_execve(struct pt_regs *regs, char __user *u_filename,
-			  char __user * __user *argv,
-			  char __user * __user *envp)
+int sys_execve(struct pt_regs *regs)
 {
 	int error;
 	char *filename;
 
-	filename = getname(u_filename);
+	filename = getname((char __user *) regs->bx);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename, argv, envp, regs);
+	error = do_execve(filename,
+			(char __user * __user *) regs->cx,
+			(char __user * __user *) regs->dx,
+			regs);
 	if (error == 0) {
 		/* Make sure we don't return using sysenter.. */
 		set_thread_flag(TIF_IRET);

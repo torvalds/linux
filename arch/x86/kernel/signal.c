@@ -549,23 +549,27 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 #endif /* CONFIG_X86_32 */
 
 #ifdef CONFIG_X86_32
-ptregscall int
-sys_sigaltstack(struct pt_regs *regs, const stack_t __user *uss,
-		stack_t __user *uoss)
+int sys_sigaltstack(struct pt_regs *regs)
+{
+	const stack_t __user *uss = (const stack_t __user *)regs->bx;
+	stack_t __user *uoss = (stack_t __user *)regs->cx;
+
+	return do_sigaltstack(uss, uoss, regs->sp);
+}
 #else /* !CONFIG_X86_32 */
 asmlinkage long
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		struct pt_regs *regs)
-#endif /* CONFIG_X86_32 */
 {
 	return do_sigaltstack(uss, uoss, regs->sp);
 }
+#endif /* CONFIG_X86_32 */
 
 /*
  * Do a signal return; undo the signal stack.
  */
 #ifdef CONFIG_X86_32
-ptregscall unsigned long sys_sigreturn(struct pt_regs *regs)
+unsigned long sys_sigreturn(struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
 	unsigned long ax;
@@ -629,13 +633,16 @@ badframe:
 }
 
 #ifdef CONFIG_X86_32
-ptregscall int sys_rt_sigreturn(struct pt_regs *regs)
-#else /* !CONFIG_X86_32 */
-asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
-#endif /* CONFIG_X86_32 */
+int sys_rt_sigreturn(struct pt_regs *regs)
 {
 	return do_rt_sigreturn(regs);
 }
+#else /* !CONFIG_X86_32 */
+asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
+{
+	return do_rt_sigreturn(regs);
+}
+#endif /* CONFIG_X86_32 */
 
 /*
  * OK, we're invoking a handler:
