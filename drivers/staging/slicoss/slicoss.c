@@ -1492,7 +1492,7 @@ static int slic_mcast_add_list(struct adapter *adapter, char *address)
 	}
 
 	/* Doesn't already exist.  Allocate a structure to hold it */
-	mcaddr = kmalloc(sizeof(struct mcast_address), GFP_ATOMIC);
+	mcaddr = kmalloc(sizeof(struct mcast_address), GFP_KERNEL);
 	if (mcaddr == NULL)
 		return 1;
 
@@ -2648,7 +2648,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 
 #if SLIC_DUMP_ENABLED
 	if (!card->dumpbuffer) {
-		card->dumpbuffer = kmalloc(DUMP_PAGE_SIZE, GFP_ATOMIC);
+		card->dumpbuffer = kmalloc(DUMP_PAGE_SIZE, GFP_KERNEL);
 
 		ASSERT(card->dumpbuffer);
 		if (card->dumpbuffer == NULL)
@@ -2667,7 +2667,7 @@ static int slic_card_init(struct sliccard *card, struct adapter *adapter)
 	 *  Allocate COMMAND BUFFER
 	 */
 	if (!card->cmdbuffer) {
-		card->cmdbuffer = kmalloc(sizeof(struct dump_cmd), GFP_ATOMIC);
+		card->cmdbuffer = kmalloc(sizeof(struct dump_cmd), GFP_KERNEL);
 
 		ASSERT(card->cmdbuffer);
 		if (card->cmdbuffer == NULL)
@@ -2808,7 +2808,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 	}
 	if (!physcard) {
 		/* no structure allocated for this physical card yet */
-		physcard = kzalloc(sizeof(struct physcard), GFP_ATOMIC);
+		physcard = kzalloc(sizeof(struct physcard), GFP_KERNEL);
 		ASSERT(physcard);
 
 		DBG_MSG
