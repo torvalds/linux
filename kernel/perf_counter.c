@@ -1567,11 +1567,25 @@ sw_perf_counter_init(struct perf_counter *counter)
 {
 	const struct hw_perf_counter_ops *hw_ops = NULL;
 
+	/*
+	 * Software counters (currently) can't in general distinguish
+	 * between user, kernel and hypervisor events.
+	 * However, context switches and cpu migrations are considered
+	 * to be kernel events, and page faults are never hypervisor
+	 * events.
+	 */
 	switch (counter->hw_event.type) {
 	case PERF_COUNT_CPU_CLOCK:
-		hw_ops = &perf_ops_cpu_clock;
+		if (!(counter->hw_event.exclude_user ||
+		      counter->hw_event.exclude_kernel ||
+		      counter->hw_event.exclude_hv))
+			hw_ops = &perf_ops_cpu_clock;
 		break;
 	case PERF_COUNT_TASK_CLOCK:
+		if (counter->hw_event.exclude_user ||
+		    counter->hw_event.exclude_kernel ||
+		    counter->hw_event.exclude_hv)
+			break;
 		/*
 		 * If the user instantiates this as a per-cpu counter,
 		 * use the cpu_clock counter instead.
@@ -1582,13 +1596,17 @@ sw_perf_counter_init(struct perf_counter *counter)
 			hw_ops = &perf_ops_cpu_clock;
 		break;
 	case PERF_COUNT_PAGE_FAULTS:
-		hw_ops = &perf_ops_page_faults;
+		if (!(counter->hw_event.exclude_user ||
+		      counter->hw_event.exclude_kernel))
+			hw_ops = &perf_ops_page_faults;
 		break;
 	case PERF_COUNT_CONTEXT_SWITCHES:
-		hw_ops = &perf_ops_context_switches;
+		if (!counter->hw_event.exclude_kernel)
+			hw_ops = &perf_ops_context_switches;
 		break;
 	case PERF_COUNT_CPU_MIGRATIONS:
-		hw_ops = &perf_ops_cpu_migrations;
+		if (!counter->hw_event.exclude_kernel)
+			hw_ops = &perf_ops_cpu_migrations;
 		break;
 	default:
 		break;

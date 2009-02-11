@@ -107,21 +107,25 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		return -EINVAL;
 
 	/*
-	 * Count user events, and generate PMC IRQs:
+	 * Generate PMC IRQs:
 	 * (keep 'enabled' bit clear for now)
 	 */
-	hwc->config = ARCH_PERFMON_EVENTSEL_USR | ARCH_PERFMON_EVENTSEL_INT;
+	hwc->config = ARCH_PERFMON_EVENTSEL_INT;
 
 	/*
-	 * If privileged enough, count OS events too, and allow
-	 * NMI events as well:
+	 * Count user and OS events unless requested not to.
+	 */
+	if (!hw_event->exclude_user)
+		hwc->config |= ARCH_PERFMON_EVENTSEL_USR;
+	if (!hw_event->exclude_kernel)
+		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
+
+	/*
+	 * If privileged enough, allow NMI events:
 	 */
 	hwc->nmi = 0;
-	if (capable(CAP_SYS_ADMIN)) {
-		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
-		if (hw_event->nmi)
-			hwc->nmi = 1;
-	}
+	if (capable(CAP_SYS_ADMIN) && hw_event->nmi)
+		hwc->nmi = 1;
 
 	hwc->irq_period		= hw_event->irq_period;
 	/*
@@ -248,10 +252,13 @@ __pmc_fixed_enable(struct perf_counter *counter,
 	int err;
 
 	/*
-	 * Enable IRQ generation (0x8) and ring-3 counting (0x2),
-	 * and enable ring-0 counting if allowed:
+	 * Enable IRQ generation (0x8),
+	 * and enable ring-3 counting (0x2) and ring-0 counting (0x1)
+	 * if requested:
 	 */
-	bits = 0x8ULL | 0x2ULL;
+	bits = 0x8ULL;
+	if (hwc->config & ARCH_PERFMON_EVENTSEL_USR)
+		bits |= 0x2;
 	if (hwc->config & ARCH_PERFMON_EVENTSEL_OS)
 		bits |= 0x1;
 	bits <<= (idx * 4);

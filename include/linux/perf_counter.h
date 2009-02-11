@@ -83,14 +83,17 @@ struct perf_counter_hw_event {
 	u64			irq_period;
 	u32			record_type;
 
-	u32			disabled     :  1, /* off by default      */
-				nmi	     :  1, /* NMI sampling        */
-				raw	     :  1, /* raw event type      */
-				inherit	     :  1, /* children inherit it */
-				pinned	     :  1, /* must always be on PMU */
-				exclusive    :  1, /* only counter on PMU */
+	u32			disabled       :  1, /* off by default        */
+				nmi	       :  1, /* NMI sampling          */
+				raw	       :  1, /* raw event type        */
+				inherit	       :  1, /* children inherit it   */
+				pinned	       :  1, /* must always be on PMU */
+				exclusive      :  1, /* only group on PMU     */
+				exclude_user   :  1, /* don't count user      */
+				exclude_kernel :  1, /* ditto kernel          */
+				exclude_hv     :  1, /* ditto hypervisor      */
 
-				__reserved_1 : 26;
+				__reserved_1 : 23;
 
 	u64			__reserved_2;
 };
