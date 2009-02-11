@@ -335,7 +335,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 {
 	static int cards_found;
 	static int did_version;
-	int err;
+	int err = -ENODEV;
 	struct net_device *netdev;
 	struct adapter *adapter;
 	void __iomem *memmapped_ioaddr = NULL;
@@ -369,7 +369,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 			DBG_MSG
 			    ("No usable DMA configuration, aborting  err[%x]\n",
 			     err);
-			return err;
+			goto err_out_disable_pci;
 		}
 		DBG_MSG("pci_set_dma_mask(DMA_32BIT_MASK) successful\n");
 	}
@@ -379,7 +379,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 	err = pci_request_regions(pcidev, DRV_NAME);
 	if (err) {
 		DBG_MSG("pci_request_regions FAILED err[%x]\n", err);
-		return err;
+		goto err_out_disable_pci;
 	}
 
 	DBG_MSG("call pci_set_master\n");
@@ -413,7 +413,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 	if (!memmapped_ioaddr) {
 		DBG_ERROR("%s cannot remap MMIO region %lx @ %lx\n",
 			  __func__, mmio_len, mmio_start);
-		goto err_out_free_mmio_region;
+		goto err_out_free_netdev;
 	}
 
 	DBG_MSG
@@ -497,16 +497,17 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 
 err_out_unmap:
 	iounmap(memmapped_ioaddr);
-
 err_out_free_mmio_region:
 	release_mem_region(mmio_start, mmio_len);
-
+err_out_free_netdev:
+	free_netdev(netdev);
 err_out_exit_slic_probe:
 	pci_release_regions(pcidev);
 	DBG_ERROR("%s EXIT jiffies[%lx] cpu %d\n", __func__, jiffies,
 		  smp_processor_id());
-
-	return -ENODEV;
+err_out_disable_pci:
+	pci_disable_device(pcidev);
+	return err;
 }
 
 static int slic_entry_open(struct net_device *dev)
