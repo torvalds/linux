@@ -1,26 +1,42 @@
-#ifndef _ASM_POWERPC_MMU_FSL_BOOKE_H_
-#define _ASM_POWERPC_MMU_FSL_BOOKE_H_
+#ifndef _ASM_POWERPC_MMU_BOOK3E_H_
+#define _ASM_POWERPC_MMU_BOOK3E_H_
 /*
- * Freescale Book-E MMU support
+ * Freescale Book-E/Book-3e (ISA 2.06+) MMU support
  */
 
-/* Book-E defined page sizes */
-#define BOOKE_PAGESZ_1K		0
-#define BOOKE_PAGESZ_4K		1
-#define BOOKE_PAGESZ_16K	2
-#define BOOKE_PAGESZ_64K	3
-#define BOOKE_PAGESZ_256K	4
-#define BOOKE_PAGESZ_1M		5
-#define BOOKE_PAGESZ_4M		6
-#define BOOKE_PAGESZ_16M	7
-#define BOOKE_PAGESZ_64M	8
-#define BOOKE_PAGESZ_256M	9
-#define BOOKE_PAGESZ_1GB	10
-#define BOOKE_PAGESZ_4GB	11
-#define BOOKE_PAGESZ_16GB	12
-#define BOOKE_PAGESZ_64GB	13
-#define BOOKE_PAGESZ_256GB	14
-#define BOOKE_PAGESZ_1TB	15
+/* Book-3e defined page sizes */
+#define BOOK3E_PAGESZ_1K	0
+#define BOOK3E_PAGESZ_2K	1
+#define BOOK3E_PAGESZ_4K	2
+#define BOOK3E_PAGESZ_8K	3
+#define BOOK3E_PAGESZ_16K	4
+#define BOOK3E_PAGESZ_32K	5
+#define BOOK3E_PAGESZ_64K	6
+#define BOOK3E_PAGESZ_128K	7
+#define BOOK3E_PAGESZ_256K	8
+#define BOOK3E_PAGESZ_512K	9
+#define BOOK3E_PAGESZ_1M	10
+#define BOOK3E_PAGESZ_2M	11
+#define BOOK3E_PAGESZ_4M	12
+#define BOOK3E_PAGESZ_8M	13
+#define BOOK3E_PAGESZ_16M	14
+#define BOOK3E_PAGESZ_32M	15
+#define BOOK3E_PAGESZ_64M	16
+#define BOOK3E_PAGESZ_128M	17
+#define BOOK3E_PAGESZ_256M	18
+#define BOOK3E_PAGESZ_512M	19
+#define BOOK3E_PAGESZ_1GB	20
+#define BOOK3E_PAGESZ_2GB	21
+#define BOOK3E_PAGESZ_4GB	22
+#define BOOK3E_PAGESZ_8GB	23
+#define BOOK3E_PAGESZ_16GB	24
+#define BOOK3E_PAGESZ_32GB	25
+#define BOOK3E_PAGESZ_64GB	26
+#define BOOK3E_PAGESZ_128GB	27
+#define BOOK3E_PAGESZ_256GB	28
+#define BOOK3E_PAGESZ_512GB	29
+#define BOOK3E_PAGESZ_1TB	30
+#define BOOK3E_PAGESZ_2TB	31
 
 #define MAS0_TLBSEL(x)	((x << 28) & 0x30000000)
 #define MAS0_ESEL(x)	((x << 16) & 0x0FFF0000)
@@ -29,8 +45,9 @@
 #define MAS1_VALID 	0x80000000
 #define MAS1_IPROT	0x40000000
 #define MAS1_TID(x)	((x << 16) & 0x3FFF0000)
+#define MAS1_IND	0x00002000
 #define MAS1_TS		0x00001000
-#define MAS1_TSIZE(x)	((x << 8) & 0x00000F00)
+#define MAS1_TSIZE(x)	((x << 7) & 0x00000F80)
 
 #define MAS2_EPN	0xFFFFF000
 #define MAS2_X0		0x00000040
@@ -40,7 +57,7 @@
 #define MAS2_M		0x00000004
 #define MAS2_G		0x00000002
 #define MAS2_E		0x00000001
-#define MAS2_EPN_MASK(size)		(~0 << (2*(size) + 10))
+#define MAS2_EPN_MASK(size)		(~0 << (size + 10))
 #define MAS2_VAL(addr, size, flags)	((addr) & MAS2_EPN_MASK(size) | (flags))
 
 #define MAS3_RPN	0xFFFFF000
@@ -56,7 +73,7 @@
 #define MAS3_SR		0x00000001
 
 #define MAS4_TLBSELD(x) MAS0_TLBSEL(x)
-#define MAS4_TIDDSEL	0x000F0000
+#define MAS4_INDD	0x00008000
 #define MAS4_TSIZED(x)	MAS1_TSIZE(x)
 #define MAS4_X0D	0x00000040
 #define MAS4_X1D	0x00000020
@@ -68,6 +85,7 @@
 
 #define MAS6_SPID0	0x3FFF0000
 #define MAS6_SPID1	0x00007FFE
+#define MAS6_ISIZE(x)	MAS1_TSIZE(x)
 #define MAS6_SAS	0x00000001
 #define MAS6_SPID	MAS6_SPID0
 
@@ -82,4 +100,4 @@ typedef struct {
 } mm_context_t;
 #endif /* !__ASSEMBLY__ */
 
-#endif /* _ASM_POWERPC_MMU_FSL_BOOKE_H_ */
+#endif /* _ASM_POWERPC_MMU_BOOK3E_H_ */

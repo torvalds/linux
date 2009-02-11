@@ -111,7 +111,7 @@ void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 	unsigned int tsize, lz;
 
 	asm ("cntlzw %0,%1" : "=r" (lz) : "r" (size));
-	tsize = (21 - lz) / 2;
+	tsize = 21 - lz;
 
 #ifdef CONFIG_SMP
 	if ((flags & _PAGE_NO_CACHE) == 0)
