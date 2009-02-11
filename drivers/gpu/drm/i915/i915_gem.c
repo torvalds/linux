@@ -2730,14 +2730,21 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 				DRM_ERROR("Failure to bind: %d\n", ret);
 			return ret;
 		}
-		/*
-		 * Pre-965 chips need a fence register set up in order to
-		 * properly handle tiled surfaces.
-		 */
-		if (!IS_I965G(dev) &&
-		    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
-		    obj_priv->tiling_mode != I915_TILING_NONE)
-			i915_gem_object_get_fence_reg(obj, true);
+	}
+	/*
+	 * Pre-965 chips need a fence register set up in order to
+	 * properly handle tiled surfaces.
+	 */
+	if (!IS_I965G(dev) &&
+	    obj_priv->fence_reg == I915_FENCE_REG_NONE &&
+	    obj_priv->tiling_mode != I915_TILING_NONE) {
+		ret = i915_gem_object_get_fence_reg(obj, true);
+		if (ret != 0) {
+			if (ret != -EBUSY && ret != -ERESTARTSYS)
+				DRM_ERROR("Failure to install fence: %d\n",
+					  ret);
+			return ret;
+		}
 	}
 	obj_priv->pin_count++;
 
