@@ -1713,8 +1713,8 @@ static long sx_fw_ioctl(struct file *filp, unsigned int cmd,
 		for (i = 0; i < SX_NBOARDS; i++)
 			sx_dprintk(SX_DEBUG_FIRMWARE, "<%x> ", boards[i].flags);
 		sx_dprintk(SX_DEBUG_FIRMWARE, "\n");
-		unlock_kernel();
-		return -EIO;
+		rc = -EIO;
+		goto out;
 	}
 
 	switch (cmd) {
@@ -1747,7 +1747,8 @@ static long sx_fw_ioctl(struct file *filp, unsigned int cmd,
 		break;
 	case SXIO_DO_RAMTEST:
 		if (sx_initialized)	/* Already initialized: better not ramtest the board.  */
-			return -EPERM;
+			rc = -EPERM;
+			break;
 		if (IS_SX_BOARD(board)) {
 			rc = do_memtest(board, 0, 0x7000);
 			if (!rc)
@@ -1844,6 +1845,7 @@ static long sx_fw_ioctl(struct file *filp, unsigned int cmd,
 		rc = -ENOTTY;
 		break;
 	}
+out:
 	unlock_kernel();
 	func_exit();
 	return rc;

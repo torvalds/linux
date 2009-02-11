@@ -195,17 +195,17 @@
 struct gpio_port_t {
 	unsigned short port_fer;
 	unsigned short dummy1;
-	unsigned short port_data;
+	unsigned short data;
 	unsigned short dummy2;
-	unsigned short port_set;
+	unsigned short data_set;
 	unsigned short dummy3;
-	unsigned short port_clear;
+	unsigned short data_clear;
 	unsigned short dummy4;
-	unsigned short port_dir_set;
+	unsigned short dir_set;
 	unsigned short dummy5;
-	unsigned short port_dir_clear;
+	unsigned short dir_clear;
 	unsigned short dummy6;
-	unsigned short port_inen;
+	unsigned short inen;
 	unsigned short dummy7;
 	unsigned int port_mux;
 };

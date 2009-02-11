@@ -2528,14 +2528,15 @@ static void irq_complete_move(struct irq_desc **descp)
 
 	vector = ~get_irq_regs()->orig_ax;
 	me = smp_processor_id();
+
+	if (vector == cfg->vector && cpumask_test_cpu(me, cfg->domain)) {
 #ifdef CONFIG_NUMA_MIGRATE_IRQ_DESC
 		*descp = desc = move_irq_desc(desc, me);
 		/* get the new one */
 		cfg = desc->chip_data;
 #endif
-
-	if (vector == cfg->vector && cpumask_test_cpu(me, cfg->domain))
 		send_cleanup_vector(cfg);
+	}
 }
 #else
 static inline void irq_complete_move(struct irq_desc **descp) {}

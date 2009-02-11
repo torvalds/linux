@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
+#include <media/ov772x.h>
 #include <media/soc_camera_platform.h>
 #include <media/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
@@ -216,7 +217,14 @@ static struct platform_device lcdc_device = {
 	},
 };
 
+static void camera_power(int val)
+{
+	gpio_set_value(GPIO_PTZ5, val); /* RST_CAM/RSTB */
+	mdelay(10);
+}
+
 #ifdef CONFIG_I2C
+/* support for the old ncm03j camera */
 static unsigned char camera_ncm03j_magic[] =
 {
 	0x87, 0x00, 0x88, 0x08, 0x89, 0x01, 0x8A, 0xE8,
@@ -237,6 +245,23 @@ static unsigned char camera_ncm03j_magic[] =
 	0x63, 0xD4, 0x64, 0xEA, 0xD6, 0x0F,
 };
 
+static int camera_probe(void)
+{
+	struct i2c_adapter *a = i2c_get_adapter(0);
+	struct i2c_msg msg;
+	int ret;
+
+	camera_power(1);
+	msg.addr = 0x6e;
+	msg.buf = camera_ncm03j_magic;
+	msg.len = 2;
+	msg.flags = 0;
+	ret = i2c_transfer(a, &msg, 1);
+	camera_power(0);
+
+	return ret;
+}
+
 static int camera_set_capture(struct soc_camera_platform_info *info,
 			      int enable)
 {
@@ -245,9 +270,11 @@ static int camera_set_capture(struct soc_camera_platform_info *info,
 	int ret = 0;
 	int i;
 
+	camera_power(0);
 	if (!enable)
 		return 0; /* no disable for now */
 
+	camera_power(1);
 	for (i = 0; i < ARRAY_SIZE(camera_ncm03j_magic); i += 2) {
 		u_int8_t buf[8];
 
@@ -286,7 +313,34 @@ static struct platform_device camera_device = {
 		.platform_data	= &camera_info,
 	},
 };
+
+static int __init camera_setup(void)
+{
+	if (camera_probe() > 0)
+		platform_device_register(&camera_device);
+
+	return 0;
+}
+late_initcall(camera_setup);
+
 #endif /* CONFIG_I2C */
+
+static int ov7725_power(struct device *dev, int mode)
+{
+	camera_power(0);
+	if (mode)
+		camera_power(1);
+
+	return 0;
+}
+
+static struct ov772x_camera_info ov7725_info = {
+	.buswidth  = SOCAM_DATAWIDTH_8,
+	.flags = OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP,
+	.link = {
+		.power  = ov7725_power,
+	},
+};
 
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
 	.flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_HSYNC_ACTIVE_HIGH |
@@ -338,9 +392,6 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 	&ap325rxa_nor_flash_device,
 	&lcdc_device,
 	&ceu_device,
-#ifdef CONFIG_I2C
-	&camera_device,
-#endif
 	&nand_flash_device,
 	&sdcard_cn3_device,
 };
@@ -348,6 +399,10 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("pcf8563", 0x51),
+	},
+	{
+		I2C_BOARD_INFO("ov772x", 0x21),
+		.platform_data = &ov7725_info,
 	},
 };
 
@@ -426,7 +481,7 @@ static int __init ap325rxa_devices_setup(void)
 	gpio_request(GPIO_PTZ6, NULL);
 	gpio_direction_output(GPIO_PTZ6, 0); /* STBY_CAM */
 	gpio_request(GPIO_PTZ5, NULL);
-	gpio_direction_output(GPIO_PTZ5, 1); /* RST_CAM */
+	gpio_direction_output(GPIO_PTZ5, 0); /* RST_CAM */
 	gpio_request(GPIO_PTZ4, NULL);
 	gpio_direction_output(GPIO_PTZ4, 0); /* SADDR */
 
