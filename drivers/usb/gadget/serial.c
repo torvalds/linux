@@ -87,12 +87,12 @@ static struct usb_gadget_strings *dev_strings[] = {
 static struct usb_device_descriptor device_desc = {
 	.bLength =		USB_DT_DEVICE_SIZE,
 	.bDescriptorType =	USB_DT_DEVICE,
-	.bcdUSB =		__constant_cpu_to_le16(0x0200),
+	.bcdUSB =		cpu_to_le16(0x0200),
 	/* .bDeviceClass = f(use_acm) */
 	.bDeviceSubClass =	0,
 	.bDeviceProtocol =	0,
 	/* .bMaxPacketSize0 = f(hardware) */
-	.idVendor =		__constant_cpu_to_le16(GS_VENDOR_ID),
+	.idVendor =		cpu_to_le16(GS_VENDOR_ID),
 	/* .idProduct =	f(use_acm) */
 	/* .bcdDevice = f(hardware) */
 	/* .iManufacturer = DYNAMIC */
@@ -216,7 +216,7 @@ static int __init gs_bind(struct usb_composite_dev *cdev)
 		pr_warning("gs_bind: controller '%s' not recognized\n",
 			gadget->name);
 		device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM | 0x0099);
+			cpu_to_le16(GS_VERSION_NUM | 0x0099);
 	}
 
 	if (gadget_is_otg(cdev->gadget)) {
@@ -255,19 +255,19 @@ static int __init init(void)
 		serial_config_driver.bConfigurationValue = 2;
 		device_desc.bDeviceClass = USB_CLASS_COMM;
 		device_desc.idProduct =
-				__constant_cpu_to_le16(GS_CDC_PRODUCT_ID);
+				cpu_to_le16(GS_CDC_PRODUCT_ID);
 	} else if (use_obex) {
 		serial_config_driver.label = "CDC OBEX config";
 		serial_config_driver.bConfigurationValue = 3;
 		device_desc.bDeviceClass = USB_CLASS_COMM;
 		device_desc.idProduct =
-			__constant_cpu_to_le16(GS_CDC_OBEX_PRODUCT_ID);
+			cpu_to_le16(GS_CDC_OBEX_PRODUCT_ID);
 	} else {
 		serial_config_driver.label = "Generic Serial config";
 		serial_config_driver.bConfigurationValue = 1;
 		device_desc.bDeviceClass = USB_CLASS_VENDOR_SPEC;
 		device_desc.idProduct =
-				__constant_cpu_to_le16(GS_PRODUCT_ID);
+				cpu_to_le16(GS_PRODUCT_ID);
 	}
 	strings_dev[STRING_DESCRIPTION_IDX].s = serial_config_driver.label;
 

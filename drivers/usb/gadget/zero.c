@@ -113,11 +113,11 @@ static struct usb_device_descriptor device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		__constant_cpu_to_le16(0x0200),
+	.bcdUSB =		cpu_to_le16(0x0200),
 	.bDeviceClass =		USB_CLASS_VENDOR_SPEC,
 
-	.idVendor =		__constant_cpu_to_le16(DRIVER_VENDOR_NUM),
-	.idProduct =		__constant_cpu_to_le16(DRIVER_PRODUCT_NUM),
+	.idVendor =		cpu_to_le16(DRIVER_VENDOR_NUM),
+	.idProduct =		cpu_to_le16(DRIVER_PRODUCT_NUM),
 	.bNumConfigurations =	2,
 };
 
@@ -265,7 +265,7 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 		 */
 		pr_warning("%s: controller '%s' not recognized\n",
 			longname, gadget->name);
-		device_desc.bcdDevice = __constant_cpu_to_le16(0x9999);
+		device_desc.bcdDevice = cpu_to_le16(0x9999);
 	}
 
 

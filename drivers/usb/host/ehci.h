@@ -253,7 +253,7 @@ struct ehci_qtd {
 
 /*
  * Now the following defines are not converted using the
- * __constant_cpu_to_le32() macro anymore, since we have to support
+ * cpu_to_le32() macro anymore, since we have to support
  * "dynamic" switching between be and le support, so that the driver
  * can be used on one system with SoC EHCI controller using big-endian
  * descriptors as well as a normal little-endian PCI EHCI controller.

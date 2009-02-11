@@ -118,7 +118,7 @@ static struct usb_endpoint_descriptor hs_source_desc = {
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512),
+	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
 static struct usb_endpoint_descriptor hs_sink_desc = {
@@ -126,7 +126,7 @@ static struct usb_endpoint_descriptor hs_sink_desc = {
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512),
+	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
 static struct usb_descriptor_header *hs_source_sink_descs[] = {

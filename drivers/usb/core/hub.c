@@ -2471,20 +2471,20 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	 */
 	switch (udev->speed) {
 	case USB_SPEED_VARIABLE:	/* fixed at 512 */
-		udev->ep0.desc.wMaxPacketSize = __constant_cpu_to_le16(512);
+		udev->ep0.desc.wMaxPacketSize = cpu_to_le16(512);
 		break;
 	case USB_SPEED_HIGH:		/* fixed at 64 */
-		udev->ep0.desc.wMaxPacketSize = __constant_cpu_to_le16(64);
+		udev->ep0.desc.wMaxPacketSize = cpu_to_le16(64);
 		break;
 	case USB_SPEED_FULL:		/* 8, 16, 32, or 64 */
 		/* to determine the ep0 maxpacket size, try to read
 		 * the device descriptor to get bMaxPacketSize0 and
 		 * then correct our initial guess.
 		 */
-		udev->ep0.desc.wMaxPacketSize = __constant_cpu_to_le16(64);
+		udev->ep0.desc.wMaxPacketSize = cpu_to_le16(64);
 		break;
 	case USB_SPEED_LOW:		/* fixed at 8 */
-		udev->ep0.desc.wMaxPacketSize = __constant_cpu_to_le16(8);
+		udev->ep0.desc.wMaxPacketSize = cpu_to_le16(8);
 		break;
 	default:
 		goto fail;
