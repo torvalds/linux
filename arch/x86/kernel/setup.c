@@ -936,7 +936,7 @@ void __init setup_arch(char **cmdline_p)
 	map_vsyscall();
 #endif
 
-#if defined(CONFIG_X86_32_NON_STANDARD) || defined(CONFIG_X86_BIGSMP)
+#ifdef CONFIG_X86_32
 	generic_apic_probe();
 #endif
 
