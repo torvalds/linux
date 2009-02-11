@@ -3551,7 +3551,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		   cfg->input_pins[AUTO_PIN_FRONT_LINE],
 		   cfg->input_pins[AUTO_PIN_CD],
 		   cfg->input_pins[AUTO_PIN_AUX]);
-	if (cfg->dig_out_pin)
+	if (cfg->dig_in_pin)
 		snd_printd("   dig-in=0x%x\n", cfg->dig_in_pin);
 
 	return 0;
