@@ -254,9 +254,9 @@ static int ocfs2_init_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 			break;
 		}
 
-		if (!ocfs2_buffer_uptodate(bucket->bu_inode,
+		if (!ocfs2_buffer_uptodate(INODE_CACHE(bucket->bu_inode),
 					   bucket->bu_bhs[i]))
-			ocfs2_set_new_buffer_uptodate(bucket->bu_inode,
+			ocfs2_set_new_buffer_uptodate(INODE_CACHE(bucket->bu_inode),
 						      bucket->bu_bhs[i]);
 	}
 
@@ -271,7 +271,7 @@ static int ocfs2_read_xattr_bucket(struct ocfs2_xattr_bucket *bucket,
 {
 	int rc;
 
-	rc = ocfs2_read_blocks(bucket->bu_inode, xb_blkno,
+	rc = ocfs2_read_blocks(INODE_CACHE(bucket->bu_inode), xb_blkno,
 			       bucket->bu_blocks, bucket->bu_bhs, 0,
 			       NULL);
 	if (!rc) {
@@ -399,7 +399,7 @@ static int ocfs2_read_xattr_block(struct inode *inode, u64 xb_blkno,
 	int rc;
 	struct buffer_head *tmp = *bh;
 
-	rc = ocfs2_read_block(inode, xb_blkno, &tmp,
+	rc = ocfs2_read_block(INODE_CACHE(inode), xb_blkno, &tmp,
 			      ocfs2_validate_xattr_block);
 
 	/* If ocfs2_read_block() got us a new bh, pass it up. */
@@ -724,8 +724,8 @@ static int ocfs2_xattr_shrink_size(struct inode *inode,
 		}
 
 		block = ocfs2_clusters_to_blocks(inode->i_sb, phys_cpos);
-		ocfs2_remove_xattr_clusters_from_cache(inode, block,
-						       alloc_size);
+		ocfs2_remove_xattr_clusters_from_cache(INODE_CACHE(inode),
+						       block, alloc_size);
 		cpos += alloc_size;
 		trunc_len -= alloc_size;
 	}
@@ -970,7 +970,8 @@ static int ocfs2_xattr_get_value_outside(struct inode *inode,
 		blkno = ocfs2_clusters_to_blocks(inode->i_sb, p_cluster);
 		/* Copy ocfs2_xattr_value */
 		for (i = 0; i < num_clusters * bpc; i++, blkno++) {
-			ret = ocfs2_read_block(inode, blkno, &bh, NULL);
+			ret = ocfs2_read_block(INODE_CACHE(inode), blkno,
+					       &bh, NULL);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
@@ -1208,7 +1209,8 @@ static int __ocfs2_xattr_set_value_outside(struct inode *inode,
 		blkno = ocfs2_clusters_to_blocks(inode->i_sb, p_cluster);
 
 		for (i = 0; i < num_clusters * bpc; i++, blkno++) {
-			ret = ocfs2_read_block(inode, blkno, &bh, NULL);
+			ret = ocfs2_read_block(INODE_CACHE(inode), blkno,
+					       &bh, NULL);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
@@ -2121,7 +2123,7 @@ static int ocfs2_xattr_block_set(struct inode *inode,
 		}
 
 		new_bh = sb_getblk(inode->i_sb, first_blkno);
-		ocfs2_set_new_buffer_uptodate(inode, new_bh);
+		ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode), new_bh);
 
 		ret = ocfs2_journal_access_xb(handle, inode, new_bh,
 					      OCFS2_JOURNAL_ACCESS_CREATE);
@@ -4845,7 +4847,8 @@ static int ocfs2_rm_xattr_cluster(struct inode *inode,
 	mlog(0, "rm xattr extent rec at %u len = %u, start from %llu\n",
 	     cpos, len, (unsigned long long)blkno);
 
-	ocfs2_remove_xattr_clusters_from_cache(inode, blkno, len);
+	ocfs2_remove_xattr_clusters_from_cache(INODE_CACHE(inode), blkno,
+					       len);
 
 	ret = ocfs2_lock_allocators(inode, &et, 0, 1, NULL, &meta_ac);
 	if (ret) {

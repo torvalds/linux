@@ -862,8 +862,8 @@ int ocfs2_read_virt_blocks(struct inode *inode, u64 v_block, int nr,
 			BUG_ON(bhs[done + i]->b_blocknr != (p_block + i));
 		}
 
-		rc = ocfs2_read_blocks(inode, p_block, count, bhs + done,
-				       flags, validate);
+		rc = ocfs2_read_blocks(INODE_CACHE(inode), p_block, count,
+				       bhs + done, flags, validate);
 		if (rc) {
 			mlog_errno(rc);
 			break;

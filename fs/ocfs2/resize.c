@@ -514,7 +514,7 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 		goto out_unlock;
 	}
 
-	ocfs2_set_new_buffer_uptodate(inode, group_bh);
+	ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode), group_bh);
 
 	ret = ocfs2_verify_group_and_input(main_bm_inode, fe, input, group_bh);
 	if (ret) {

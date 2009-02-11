@@ -310,7 +310,7 @@ int ocfs2_read_group_descriptor(struct inode *inode, struct ocfs2_dinode *di,
 	int rc;
 	struct buffer_head *tmp = *bh;
 
-	rc = ocfs2_read_block(inode, gd_blkno, &tmp,
+	rc = ocfs2_read_block(INODE_CACHE(inode), gd_blkno, &tmp,
 			      ocfs2_validate_group_descriptor);
 	if (rc)
 		goto out;
@@ -476,7 +476,7 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 		mlog_errno(status);
 		goto bail;
 	}
-	ocfs2_set_new_buffer_uptodate(alloc_inode, bg_bh);
+	ocfs2_set_new_buffer_uptodate(INODE_CACHE(alloc_inode), bg_bh);
 
 	status = ocfs2_block_group_fill(handle,
 					alloc_inode,

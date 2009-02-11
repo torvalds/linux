@@ -2127,7 +2127,7 @@ static int ocfs2_inode_lock_update(struct inode *inode,
 
 	/* This will discard any caching information we might have had
 	 * for the inode metadata. */
-	ocfs2_metadata_cache_purge(inode);
+	ocfs2_metadata_cache_purge(INODE_CACHE(inode));
 
 	ocfs2_extent_map_trunc(inode, 0);
 

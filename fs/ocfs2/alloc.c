@@ -859,7 +859,7 @@ int ocfs2_read_extent_block(struct inode *inode, u64 eb_blkno,
 	int rc;
 	struct buffer_head *tmp = *bh;
 
-	rc = ocfs2_read_block(inode, eb_blkno, &tmp,
+	rc = ocfs2_read_block(INODE_CACHE(inode), eb_blkno, &tmp,
 			      ocfs2_validate_extent_block);
 
 	/* If ocfs2_read_block() got us a new bh, pass it up. */
@@ -949,7 +949,8 @@ static int ocfs2_create_new_meta_bhs(struct ocfs2_super *osb,
 				mlog_errno(status);
 				goto bail;
 			}
-			ocfs2_set_new_buffer_uptodate(inode, bhs[i]);
+			ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode),
+						      bhs[i]);
 
 			status = ocfs2_journal_access_eb(handle, inode, bhs[i],
 							 OCFS2_JOURNAL_ACCESS_CREATE);
@@ -2559,7 +2560,7 @@ static void ocfs2_unlink_path(struct inode *inode, handle_t *handle,
 			     le16_to_cpu(el->l_next_free_rec));
 
 			ocfs2_journal_dirty(handle, bh);
-			ocfs2_remove_from_cache(inode, bh);
+			ocfs2_remove_from_cache(INODE_CACHE(inode), bh);
 			continue;
 		}
 
@@ -2572,7 +2573,7 @@ static void ocfs2_unlink_path(struct inode *inode, handle_t *handle,
 		if (ret)
 			mlog_errno(ret);
 
-		ocfs2_remove_from_cache(inode, bh);
+		ocfs2_remove_from_cache(INODE_CACHE(inode), bh);
 	}
 }
 
@@ -6010,7 +6011,7 @@ int ocfs2_begin_truncate_log_recovery(struct ocfs2_super *osb,
 		tl->tl_used = 0;
 
 		ocfs2_compute_meta_ecc(osb->sb, tl_bh->b_data, &di->i_check);
-		status = ocfs2_write_block(osb, tl_bh, tl_inode);
+		status = ocfs2_write_block(osb, tl_bh, INODE_CACHE(tl_inode));
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -6719,7 +6720,7 @@ delete:
 
 			mlog(0, "deleting this extent block.\n");
 
-			ocfs2_remove_from_cache(inode, bh);
+			ocfs2_remove_from_cache(INODE_CACHE(inode), bh);
 
 			BUG_ON(ocfs2_rec_clusters(el, &el->l_recs[0]));
 			BUG_ON(le32_to_cpu(el->l_recs[0].e_cpos));

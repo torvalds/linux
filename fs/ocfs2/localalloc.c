@@ -392,7 +392,7 @@ int ocfs2_begin_local_alloc_recovery(struct ocfs2_super *osb,
 	ocfs2_clear_local_alloc(alloc);
 
 	ocfs2_compute_meta_ecc(osb->sb, alloc_bh->b_data, &alloc->i_check);
-	status = ocfs2_write_block(osb, alloc_bh, inode);
+	status = ocfs2_write_block(osb, alloc_bh, INODE_CACHE(inode));
 	if (status < 0)
 		mlog_errno(status);
 

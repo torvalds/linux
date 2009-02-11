@@ -662,7 +662,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 		goto bail_commit;
 	}
 
-	ocfs2_remove_from_cache(inode, di_bh);
+	ocfs2_remove_from_cache(INODE_CACHE(inode), di_bh);
 	vfs_dq_free_inode(inode);
 
 	status = ocfs2_free_dinode(handle, inode_alloc_inode,
@@ -1112,14 +1112,14 @@ void ocfs2_clear_inode(struct inode *inode)
 	ocfs2_lock_res_free(&oi->ip_inode_lockres);
 	ocfs2_lock_res_free(&oi->ip_open_lockres);
 
-	ocfs2_metadata_cache_purge(inode);
+	ocfs2_metadata_cache_purge(INODE_CACHE(inode));
 
-	mlog_bug_on_msg(oi->ip_metadata_cache.ci_num_cached,
+	mlog_bug_on_msg(INODE_CACHE(inode)->ci_num_cached,
 			"Clear inode of %llu, inode has %u cache items\n",
-			(unsigned long long)oi->ip_blkno, oi->ip_metadata_cache.ci_num_cached);
+			(unsigned long long)oi->ip_blkno,
+			INODE_CACHE(inode)->ci_num_cached);
 
-	mlog_bug_on_msg(!(oi->ip_metadata_cache.ci_flags &
-			  OCFS2_CACHE_FL_INLINE),
+	mlog_bug_on_msg(!(INODE_CACHE(inode)->ci_flags & OCFS2_CACHE_FL_INLINE),
 			"Clear inode of %llu, inode has a bad flag\n",
 			(unsigned long long)oi->ip_blkno);
 
@@ -1381,8 +1381,8 @@ int ocfs2_read_inode_block_full(struct inode *inode, struct buffer_head **bh,
 	int rc;
 	struct buffer_head *tmp = *bh;
 
-	rc = ocfs2_read_blocks(inode, OCFS2_I(inode)->ip_blkno, 1, &tmp,
-			       flags, ocfs2_validate_inode_block);
+	rc = ocfs2_read_blocks(INODE_CACHE(inode), OCFS2_I(inode)->ip_blkno,
+			       1, &tmp, flags, ocfs2_validate_inode_block);
 
 	/* If ocfs2_read_blocks() got us a new bh, pass it up. */
 	if (!rc && !*bh)
@@ -1406,6 +1406,13 @@ static u64 ocfs2_inode_cache_owner(struct ocfs2_caching_info *ci)
 	struct ocfs2_inode_info *oi = cache_info_to_inode(ci);
 
 	return oi->ip_blkno;
+}
+
+static struct super_block *ocfs2_inode_cache_get_super(struct ocfs2_caching_info *ci)
+{
+	struct ocfs2_inode_info *oi = cache_info_to_inode(ci);
+
+	return oi->vfs_inode.i_sb;
 }
 
 static void ocfs2_inode_cache_lock(struct ocfs2_caching_info *ci)
@@ -1438,6 +1445,7 @@ static void ocfs2_inode_cache_io_unlock(struct ocfs2_caching_info *ci)
 
 const struct ocfs2_caching_operations ocfs2_inode_caching_ops = {
 	.co_owner		= ocfs2_inode_cache_owner,
+	.co_get_super		= ocfs2_inode_cache_get_super,
 	.co_cache_lock		= ocfs2_inode_cache_lock,
 	.co_cache_unlock	= ocfs2_inode_cache_unlock,
 	.co_io_lock		= ocfs2_inode_cache_io_lock,

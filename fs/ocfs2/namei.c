@@ -507,7 +507,7 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 		mlog_errno(status);
 		goto leave;
 	}
-	ocfs2_set_new_buffer_uptodate(inode, *new_fe_bh);
+	ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode), *new_fe_bh);
 
 	status = ocfs2_journal_access_di(handle, inode, *new_fe_bh,
 					 OCFS2_JOURNAL_ACCESS_CREATE);
@@ -1527,7 +1527,8 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 			mlog_errno(status);
 			goto bail;
 		}
-		ocfs2_set_new_buffer_uptodate(inode, bhs[virtual]);
+		ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode),
+					      bhs[virtual]);
 
 		status = ocfs2_journal_access(handle, inode, bhs[virtual],
 					      OCFS2_JOURNAL_ACCESS_CREATE);
