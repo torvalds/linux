@@ -330,6 +330,14 @@ parse_dmar_table(void)
 	entry_header = (struct acpi_dmar_header *)(dmar + 1);
 	while (((unsigned long)entry_header) <
 			(((unsigned long)dmar) + dmar_tbl->length)) {
+		/* Avoid looping forever on bad ACPI tables */
+		if (entry_header->length == 0) {
+			printk(KERN_WARNING PREFIX
+				"Invalid 0-length structure\n");
+			ret = -EINVAL;
+			break;
+		}
+
 		dmar_table_print_dmar_entry(entry_header);
 
 		switch (entry_header->type) {
