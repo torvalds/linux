@@ -218,16 +218,23 @@ scan_OF_pci_childs(struct device_node *parent, pci_OF_scan_iterator filter, void
 static struct device_node *scan_OF_for_pci_dev(struct device_node *parent,
 					       unsigned int devfn)
 {
-	struct device_node *np;
+	struct device_node *np, *cnp;
 	const u32 *reg;
 	unsigned int psize;
 
 	for_each_child_of_node(parent, np) {
 		reg = of_get_property(np, "reg", &psize);
-		if (reg == NULL || psize < 4)
-			continue;
-		if (((reg[0] >> 8) & 0xff) == devfn)
+                if (reg && psize >= 4 && ((reg[0] >> 8) & 0xff) == devfn)
 			return np;
+
+		/* Note: some OFs create a parent node "multifunc-device" as
+		 * a fake root for all functions of a multi-function device,
+		 * we go down them as well. */
+                if (!strcmp(np->name, "multifunc-device")) {
+                        cnp = scan_OF_for_pci_dev(np, devfn);
+                        if (cnp)
+                                return cnp;
+                }
 	}
 	return NULL;
 }
