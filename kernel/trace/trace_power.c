@@ -21,15 +21,116 @@
 static struct trace_array *power_trace;
 static int __read_mostly trace_power_enabled;
 
+static void probe_power_start(struct power_trace *it, unsigned int type,
+				unsigned int level)
+{
+	if (!trace_power_enabled)
+		return;
+
+	memset(it, 0, sizeof(struct power_trace));
+	it->state = level;
+	it->type = type;
+	it->stamp = ktime_get();
+}
+
+
+static void probe_power_end(struct power_trace *it)
+{
+	struct ring_buffer_event *event;
+	struct trace_power *entry;
+	struct trace_array_cpu *data;
+	struct trace_array *tr = power_trace;
+
+	if (!trace_power_enabled)
+		return;
+
+	preempt_disable();
+	it->end = ktime_get();
+	data = tr->data[smp_processor_id()];
+
+	event = trace_buffer_lock_reserve(tr, TRACE_POWER,
+					  sizeof(*entry), 0, 0);
+	if (!event)
+		goto out;
+	entry	= ring_buffer_event_data(event);
+	entry->state_data = *it;
+	trace_buffer_unlock_commit(tr, event, 0, 0);
+ out:
+	preempt_enable();
+}
+
+static void probe_power_mark(struct power_trace *it, unsigned int type,
+				unsigned int level)
+{
+	struct ring_buffer_event *event;
+	struct trace_power *entry;
+	struct trace_array_cpu *data;
+	struct trace_array *tr = power_trace;
+
+	if (!trace_power_enabled)
+		return;
+
+	memset(it, 0, sizeof(struct power_trace));
+	it->state = level;
+	it->type = type;
+	it->stamp = ktime_get();
+	preempt_disable();
+	it->end = it->stamp;
+	data = tr->data[smp_processor_id()];
+
+	event = trace_buffer_lock_reserve(tr, TRACE_POWER,
+					  sizeof(*entry), 0, 0);
+	if (!event)
+		goto out;
+	entry	= ring_buffer_event_data(event);
+	entry->state_data = *it;
+	trace_buffer_unlock_commit(tr, event, 0, 0);
+ out:
+	preempt_enable();
+}
+
+static int tracing_power_register(void)
+{
+	int ret;
+
+	ret = register_trace_power_start(probe_power_start);
+	if (ret) {
+		pr_info("power trace: Couldn't activate tracepoint"
+			" probe to trace_power_start\n");
+		return ret;
+	}
+	ret = register_trace_power_end(probe_power_end);
+	if (ret) {
+		pr_info("power trace: Couldn't activate tracepoint"
+			" probe to trace_power_end\n");
+		goto fail_start;
+	}
+	ret = register_trace_power_mark(probe_power_mark);
+	if (ret) {
+		pr_info("power trace: Couldn't activate tracepoint"
+			" probe to trace_power_mark\n");
+		goto fail_end;
+	}
+	return ret;
+fail_end:
+	unregister_trace_power_end(probe_power_end);
+fail_start:
+	unregister_trace_power_start(probe_power_start);
+	return ret;
+}
 
 static void start_power_trace(struct trace_array *tr)
 {
 	trace_power_enabled = 1;
+	tracing_power_register();
 }
 
 static void stop_power_trace(struct trace_array *tr)
 {
 	trace_power_enabled = 0;
+	unregister_trace_power_start(probe_power_start);
+	unregister_trace_power_end(probe_power_end);
+	unregister_trace_power_mark(probe_power_mark);
 }
 
 
@@ -39,6 +140,7 @@ static int power_trace_init(struct trace_array *tr)
 	power_trace = tr;
 
 	trace_power_enabled = 1;
+	tracing_power_register();
 
 	for_each_cpu(cpu, cpu_possible_mask)
 		tracing_reset(tr, cpu);
@@ -95,74 +197,3 @@ static int init_power_trace(void)
 	return register_tracer(&power_tracer);
 }
 device_initcall(init_power_trace);
-
-void trace_power_start(struct power_trace *it, unsigned int type,
-			 unsigned int level)
-{
-	if (!trace_power_enabled)
-		return;
-
-	memset(it, 0, sizeof(struct power_trace));
-	it->state = level;
-	it->type = type;
-	it->stamp = ktime_get();
-}
-EXPORT_SYMBOL_GPL(trace_power_start);
-
-
-void trace_power_end(struct power_trace *it)
-{
-	struct ring_buffer_event *event;
-	struct trace_power *entry;
-	struct trace_array_cpu *data;
-	struct trace_array *tr = power_trace;
-
-	if (!trace_power_enabled)
-		return;
-
-	preempt_disable();
-	it->end = ktime_get();
-	data = tr->data[smp_processor_id()];
-
-	event = trace_buffer_lock_reserve(tr, TRACE_POWER,
-					  sizeof(*entry), 0, 0);
-	if (!event)
-		goto out;
-	entry	= ring_buffer_event_data(event);
-	entry->state_data = *it;
-	trace_buffer_unlock_commit(tr, event, 0, 0);
- out:
-	preempt_enable();
-}
-EXPORT_SYMBOL_GPL(trace_power_end);
-
-void trace_power_mark(struct power_trace *it, unsigned int type,
-			 unsigned int level)
-{
-	struct ring_buffer_event *event;
-	struct trace_power *entry;
-	struct trace_array_cpu *data;
-	struct trace_array *tr = power_trace;
-
-	if (!trace_power_enabled)
-		return;
-
-	memset(it, 0, sizeof(struct power_trace));
-	it->state = level;
-	it->type = type;
-	it->stamp = ktime_get();
-	preempt_disable();
-	it->end = it->stamp;
-	data = tr->data[smp_processor_id()];
-
-	event = trace_buffer_lock_reserve(tr, TRACE_POWER,
-					  sizeof(*entry), 0, 0);
-	if (!event)
-		goto out;
-	entry	= ring_buffer_event_data(event);
-	entry->state_data = *it;
-	trace_buffer_unlock_commit(tr, event, 0, 0);
- out:
-	preempt_enable();
-}
-EXPORT_SYMBOL_GPL(trace_power_mark);
