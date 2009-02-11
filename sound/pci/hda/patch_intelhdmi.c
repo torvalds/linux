@@ -366,10 +366,15 @@ static void hdmi_fill_audio_infoframe(struct hda_codec *codec,
 					struct hdmi_audio_infoframe *ai)
 {
 	u8 *params = (u8 *)ai;
+	u8 sum = 0;
 	int i;
 
 	hdmi_debug_dip_size(codec);
 	hdmi_clear_dip_buffers(codec); /* be paranoid */
+
+	for (i = 0; i < sizeof(ai); i++)
+		sum += params[i];
+	ai->checksum = - sum;
 
 	hdmi_set_dip_index(codec, PIN_NID, 0x0, 0x0);
 	for (i = 0; i < sizeof(ai); i++)
