@@ -40,8 +40,7 @@ static int check_asic_status(struct echoaudio *chip)
 	if (wait_handshake(chip))
 		return -EIO;
 
-	chip->comm_page->ext_box_status =
-		__constant_cpu_to_le32(E3G_ASIC_NOT_LOADED);
+	chip->comm_page->ext_box_status = cpu_to_le32(E3G_ASIC_NOT_LOADED);
 	chip->asic_loaded = FALSE;
 	clear_handshake(chip);
 	send_vector(chip, DSP_VC_TEST_ASIC);

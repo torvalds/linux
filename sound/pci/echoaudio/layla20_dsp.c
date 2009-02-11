@@ -284,10 +284,10 @@ static int set_professional_spdif(struct echoaudio *chip, char prof)
 	DE_ACT(("set_professional_spdif %d\n", prof));
 	if (prof)
 		chip->comm_page->flags |=
-			__constant_cpu_to_le32(DSP_FLAG_PROFESSIONAL_SPDIF);
+			cpu_to_le32(DSP_FLAG_PROFESSIONAL_SPDIF);
 	else
 		chip->comm_page->flags &=
-			~__constant_cpu_to_le32(DSP_FLAG_PROFESSIONAL_SPDIF);
+			~cpu_to_le32(DSP_FLAG_PROFESSIONAL_SPDIF);
 	chip->professional_spdif = prof;
 	return update_flags(chip);
 }
