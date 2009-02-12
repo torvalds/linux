@@ -14,3 +14,27 @@ config ROMFS_FS
 
 	  If you don't know whether you need it, then you don't need it:
 	  answer N.
+
+config ROMFS_ON_BLOCK
+	bool "Block device-backed ROM file system support" if (ROMFS_ON_MTD && EMBEDDED)
+	depends on ROMFS_FS && BLOCK
+	help
+	  This permits ROMFS to use block devices buffered through the page
+	  cache as the medium from which to retrieve data.  It does not allow
+	  direct mapping of the medium.
+
+	  If unsure, answer Y.
+
+config ROMFS_ON_MTD
+	bool "MTD-backed ROM file system support"
+	depends on ROMFS_FS
+	depends on MTD=y || (ROMFS_FS=m && MTD)
+	help
+	  This permits ROMFS to use MTD based devices directly, without the
+	  intercession of the block layer (which may have been disabled).  It
+	  also allows direct mapping of MTD devices through romfs files under
+	  NOMMU conditions if the underlying device is directly addressable by
+	  the CPU.
+
+	  If unsure, answer Y.
+
