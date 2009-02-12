@@ -1009,7 +1009,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 
 #define BNX2X_NUM_STATS			42
-#define BNX2X_NUM_TESTS			8
+#define BNX2X_NUM_TESTS			7
 
 #define BNX2X_MAC_LOOPBACK		0
 #define BNX2X_PHY_LOOPBACK		1

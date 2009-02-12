@@ -8732,8 +8732,7 @@ static const struct {
 	{ "nvram_test (online)" },
 	{ "interrupt_test (online)" },
 	{ "link_test (online)" },
-	{ "idle check (online)" },
-	{ "MC errors (online)" }
+	{ "idle check (online)" }
 };
 
 static int bnx2x_self_test_count(struct net_device *dev)
@@ -9202,9 +9201,6 @@ static void bnx2x_self_test(struct net_device *dev,
 			buf[5] = 1;
 			etest->flags |= ETH_TEST_FL_FAILED;
 		}
-	buf[7] = bnx2x_mc_assert(bp);
-	if (buf[7] != 0)
-		etest->flags |= ETH_TEST_FL_FAILED;
 
 #ifdef BNX2X_EXTRA_DEBUG
 	bnx2x_panic_dump(bp);
