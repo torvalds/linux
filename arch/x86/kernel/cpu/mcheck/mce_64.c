@@ -728,6 +728,29 @@ __setup("mce=", mcheck_enable);
  * Sysfs support
  */
 
+/*
+ * Disable machine checks on suspend and shutdown. We can't really handle
+ * them later.
+ */
+static int mce_disable(void)
+{
+	int i;
+
+	for (i = 0; i < banks; i++)
+		wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
+	return 0;
+}
+
+static int mce_suspend(struct sys_device *dev, pm_message_t state)
+{
+	return mce_disable();
+}
+
+static int mce_shutdown(struct sys_device *dev)
+{
+	return mce_disable();
+}
+
 /* On resume clear all MCE state. Don't want to see leftovers from the BIOS.
    Only one CPU is active at this time, the others get readded later using
    CPU hotplug. */
@@ -752,6 +775,8 @@ static void mce_restart(void)
 }
 
 static struct sysdev_class mce_sysclass = {
+	.suspend = mce_suspend,
+	.shutdown = mce_shutdown,
 	.resume = mce_resume,
 	.name = "machinecheck",
 };
