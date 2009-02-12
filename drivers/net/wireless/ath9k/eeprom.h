@@ -78,6 +78,18 @@
 #define INCREASE_MAXPOW_BY_TWO_CHAIN     6  /* 10*log10(2)*2 */
 #define INCREASE_MAXPOW_BY_THREE_CHAIN   10 /* 10*log10(3)*2 */
 
+/*
+ * For AR9285 and later chipsets, the following bits are not being programmed
+ * in EEPROM and so need to be enabled always.
+ *
+ * Bit 0: en_fcc_mid
+ * Bit 1: en_jap_mid
+ * Bit 2: en_fcc_dfs_ht40
+ * Bit 3: en_jap_ht40
+ * Bit 4: en_jap_dfs_ht40
+ */
+#define AR9285_RDEXT_DEFAULT    0x1F
+
 #define AR_EEPROM_MAC(i)	(0x1d+(i))
 #define ATH9K_POW_SM(_r, _s)	(((_r) & 0x3f) << (_s))
 #define FREQ2FBIN(x, y)		((y) ? ((x) - 2300) : (((x) - 4800) / 5))

@@ -3128,10 +3128,11 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	u16 capField = 0, eeval;
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_0);
-
 	ah->regulatory.current_rd = eeval;
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_REG_1);
+	if (AR_SREV_9285_10_OR_LATER(ah))
+		eeval |= AR9285_RDEXT_DEFAULT;
 	ah->regulatory.current_rd_ext = eeval;
 
 	capField = ah->eep_ops->get_eeprom(ah, EEP_OP_CAP);
