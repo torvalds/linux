@@ -289,9 +289,9 @@ static struct omap_clk omap34xx_clks[] = {
  *
  * Recalculate and propagate the DPLL rate.
  */
-static void omap3_dpll_recalc(struct clk *clk)
+static unsigned long omap3_dpll_recalc(struct clk *clk)
 {
-	clk->rate = omap2_get_dpll_rate(clk);
+	return omap2_get_dpll_rate(clk);
 }
 
 /* _omap3_dpll_write_clken - write clken_bits arg to a DPLL's enable bits */
@@ -787,9 +787,10 @@ static void omap3_dpll_deny_idle(struct clk *clk)
  * Using parent clock DPLL data, look up DPLL state.  If locked, set our
  * rate to the dpll_clk * 2; otherwise, just use dpll_clk.
  */
-static void omap3_clkoutx2_recalc(struct clk *clk)
+static unsigned long omap3_clkoutx2_recalc(struct clk *clk)
 {
 	const struct dpll_data *dd;
+	unsigned long rate;
 	u32 v;
 	struct clk *pclk;
 
@@ -808,9 +809,10 @@ static void omap3_clkoutx2_recalc(struct clk *clk)
 	v = __raw_readl(dd->control_reg) & dd->enable_mask;
 	v >>= __ffs(dd->enable_mask);
 	if (v != DPLL_LOCKED)
-		clk->rate = clk->parent->rate;
+		rate = clk->parent->rate;
 	else
-		clk->rate = clk->parent->rate * 2;
+		rate = clk->parent->rate * 2;
+	return rate;
 }
 
 /* Common clock code */

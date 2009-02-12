@@ -239,11 +239,11 @@ u32 omap2_get_dpll_rate(struct clk *clk)
  * Used for clocks that have the same value as the parent clock,
  * divided by some factor
  */
-void omap2_fixed_divisor_recalc(struct clk *clk)
+unsigned long omap2_fixed_divisor_recalc(struct clk *clk)
 {
 	WARN_ON(!clk->fixed_div);
 
-	clk->rate = clk->parent->rate / clk->fixed_div;
+	return clk->parent->rate / clk->fixed_div;
 }
 
 /**
@@ -449,21 +449,22 @@ err:
  * Used for clocks that are part of CLKSEL_xyz governed clocks.
  * REVISIT: Maybe change to use clk->enable() functions like on omap1?
  */
-void omap2_clksel_recalc(struct clk *clk)
+unsigned long omap2_clksel_recalc(struct clk *clk)
 {
+	unsigned long rate;
 	u32 div = 0;
 
 	pr_debug("clock: recalc'ing clksel clk %s\n", clk->name);
 
 	div = omap2_clksel_get_divisor(clk);
 	if (div == 0)
-		return;
+		return clk->rate;
 
-	if (clk->rate == (clk->parent->rate / div))
-		return;
-	clk->rate = clk->parent->rate / div;
+	rate = clk->parent->rate / div;
 
-	pr_debug("clock: new clock rate is %ld (div %d)\n", clk->rate, div);
+	pr_debug("clock: new clock rate is %ld (div %d)\n", rate, div);
+
+	return rate;
 }
 
 /**

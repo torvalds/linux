@@ -126,7 +126,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 		ret = arch_clock->clk_set_rate(clk, rate);
 	if (ret == 0) {
 		if (clk->recalc)
-			clk->recalc(clk);
+			clk->rate = clk->recalc(clk);
 		propagate_rate(clk);
 	}
 	spin_unlock_irqrestore(&clockfw_lock, flags);
@@ -148,7 +148,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		ret = arch_clock->clk_set_parent(clk, parent);
 	if (ret == 0) {
 		if (clk->recalc)
-			clk->recalc(clk);
+			clk->rate = clk->recalc(clk);
 		propagate_rate(clk);
 	}
 	spin_unlock_irqrestore(&clockfw_lock, flags);
@@ -188,12 +188,9 @@ static int __init omap_clk_setup(char *str)
 __setup("mpurate=", omap_clk_setup);
 
 /* Used for clocks that always have same value as the parent clock */
-void followparent_recalc(struct clk *clk)
+unsigned long followparent_recalc(struct clk *clk)
 {
-	if (clk == NULL || IS_ERR(clk))
-		return;
-
-	clk->rate = clk->parent->rate;
+	return clk->parent->rate;
 }
 
 void clk_reparent(struct clk *child, struct clk *parent)
@@ -214,7 +211,7 @@ void propagate_rate(struct clk * tclk)
 
 	list_for_each_entry(clkp, &tclk->children, sibling) {
 		if (clkp->recalc)
-			clkp->recalc(clkp);
+			clkp->rate = clkp->recalc(clkp);
 		propagate_rate(clkp);
 	}
 }
@@ -234,7 +231,7 @@ void recalculate_root_clocks(void)
 
 	list_for_each_entry(clkp, &root_clks, sibling) {
 		if (clkp->recalc)
-			clkp->recalc(clkp);
+			clkp->rate = clkp->recalc(clkp);
 		propagate_rate(clkp);
 	}
 }

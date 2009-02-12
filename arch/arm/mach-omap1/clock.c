@@ -156,27 +156,25 @@ __u32 arm_idlect1_mask;
  * Omap1 specific clock functions
  *-------------------------------------------------------------------------*/
 
-static void omap1_watchdog_recalc(struct clk * clk)
+static unsigned long omap1_watchdog_recalc(struct clk *clk)
 {
-	clk->rate = clk->parent->rate / 14;
+	return clk->parent->rate / 14;
 }
 
-static void omap1_uart_recalc(struct clk * clk)
+static unsigned long omap1_uart_recalc(struct clk *clk)
 {
 	unsigned int val = __raw_readl(clk->enable_reg);
-	if (val & clk->enable_bit)
-		clk->rate = 48000000;
-	else
-		clk->rate = 12000000;
+	return val & clk->enable_bit ? 48000000 : 12000000;
 }
 
-static void omap1_sossi_recalc(struct clk *clk)
+static unsigned long omap1_sossi_recalc(struct clk *clk)
 {
 	u32 div = omap_readl(MOD_CONF_CTRL_1);
 
 	div = (div >> 17) & 0x7;
 	div++;
-	clk->rate = clk->parent->rate / div;
+
+	return clk->parent->rate / div;
 }
 
 static int omap1_clk_enable_dsp_domain(struct clk *clk)
@@ -344,19 +342,15 @@ static int calc_dsor_exp(struct clk *clk, unsigned long rate)
 	return dsor_exp;
 }
 
-static void omap1_ckctl_recalc(struct clk * clk)
+static unsigned long omap1_ckctl_recalc(struct clk *clk)
 {
-	int dsor;
-
 	/* Calculate divisor encoded as 2-bit exponent */
-	dsor = 1 << (3 & (omap_readw(ARM_CKCTL) >> clk->rate_offset));
+	int dsor = 1 << (3 & (omap_readw(ARM_CKCTL) >> clk->rate_offset));
 
-	if (unlikely(clk->rate == clk->parent->rate / dsor))
-		return; /* No change, quick exit */
-	clk->rate = clk->parent->rate / dsor;
+	return clk->parent->rate / dsor;
 }
 
-static void omap1_ckctl_recalc_dsp_domain(struct clk * clk)
+static unsigned long omap1_ckctl_recalc_dsp_domain(struct clk *clk)
 {
 	int dsor;
 
@@ -371,9 +365,7 @@ static void omap1_ckctl_recalc_dsp_domain(struct clk * clk)
 	dsor = 1 << (3 & (__raw_readw(DSP_CKCTL) >> clk->rate_offset));
 	omap1_clk_disable(&api_ck.clk);
 
-	if (unlikely(clk->rate == clk->parent->rate / dsor))
-		return; /* No change, quick exit */
-	clk->rate = clk->parent->rate / dsor;
+	return clk->parent->rate / dsor;
 }
 
 /* MPU virtual clock functions */

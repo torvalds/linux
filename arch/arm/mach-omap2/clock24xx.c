@@ -369,9 +369,9 @@ static long omap2_dpllcore_round_rate(unsigned long target_rate)
 
 }
 
-static void omap2_dpllcore_recalc(struct clk *clk)
+static unsigned long omap2_dpllcore_recalc(struct clk *clk)
 {
-	clk->rate = omap2_get_dpll_rate_24xx(clk);
+	return omap2_get_dpll_rate_24xx(clk);
 }
 
 static int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate)
@@ -448,9 +448,9 @@ static int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate)
  *
  * Set virt_prcm_set's rate to the mpu_speed field of the current PRCM set.
  */
-static void omap2_table_mpu_recalc(struct clk *clk)
+static unsigned long omap2_table_mpu_recalc(struct clk *clk)
 {
-	clk->rate = curr_prcm_set->mpu_speed;
+	return curr_prcm_set->mpu_speed;
 }
 
 /*
@@ -647,14 +647,14 @@ static u32 omap2_get_sysclkdiv(void)
 	return div;
 }
 
-static void omap2_osc_clk_recalc(struct clk *clk)
+static unsigned long omap2_osc_clk_recalc(struct clk *clk)
 {
-	clk->rate = omap2_get_apll_clkin() * omap2_get_sysclkdiv();
+	return omap2_get_apll_clkin() * omap2_get_sysclkdiv();
 }
 
-static void omap2_sys_clk_recalc(struct clk *clk)
+static unsigned long omap2_sys_clk_recalc(struct clk *clk)
 {
-	clk->rate = clk->parent->rate / omap2_get_sysclkdiv();
+	return clk->parent->rate / omap2_get_sysclkdiv();
 }
 
 /*
@@ -707,9 +707,9 @@ int __init omap2_clk_init(void)
 
 	clk_init(&omap2_clk_functions);
 
-	omap2_osc_clk_recalc(&osc_ck);
+	osc_ck.rate = omap2_osc_clk_recalc(&osc_ck);
 	propagate_rate(&osc_ck);
-	omap2_sys_clk_recalc(&sys_ck);
+	sys_ck.rate = omap2_sys_clk_recalc(&sys_ck);
 	propagate_rate(&sys_ck);
 
 	for (c = omap24xx_clks; c < omap24xx_clks + ARRAY_SIZE(omap24xx_clks); c++)

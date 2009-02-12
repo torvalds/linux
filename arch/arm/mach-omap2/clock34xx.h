@@ -27,8 +27,8 @@
 #include "prm.h"
 #include "prm-regbits-34xx.h"
 
-static void omap3_dpll_recalc(struct clk *clk);
-static void omap3_clkoutx2_recalc(struct clk *clk);
+static unsigned long omap3_dpll_recalc(struct clk *clk);
+static unsigned long omap3_clkoutx2_recalc(struct clk *clk);
 static void omap3_dpll_allow_idle(struct clk *clk);
 static void omap3_dpll_deny_idle(struct clk *clk);
 static u32 omap3_dpll_autoidle_read(struct clk *clk);

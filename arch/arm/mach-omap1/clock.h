@@ -13,14 +13,14 @@
 #ifndef __ARCH_ARM_MACH_OMAP1_CLOCK_H
 #define __ARCH_ARM_MACH_OMAP1_CLOCK_H
 
-static void omap1_ckctl_recalc(struct clk * clk);
-static void omap1_watchdog_recalc(struct clk * clk);
+static unsigned long omap1_ckctl_recalc(struct clk *clk);
+static unsigned long omap1_watchdog_recalc(struct clk *clk);
 static int omap1_set_sossi_rate(struct clk *clk, unsigned long rate);
-static void omap1_sossi_recalc(struct clk *clk);
-static void omap1_ckctl_recalc_dsp_domain(struct clk * clk);
+static unsigned long omap1_sossi_recalc(struct clk *clk);
+static unsigned long omap1_ckctl_recalc_dsp_domain(struct clk *clk);
 static int omap1_clk_set_rate_dsp_domain(struct clk * clk, unsigned long rate);
 static int omap1_set_uart_rate(struct clk * clk, unsigned long rate);
-static void omap1_uart_recalc(struct clk * clk);
+static unsigned long omap1_uart_recalc(struct clk *clk);
 static int omap1_set_ext_clk_rate(struct clk * clk, unsigned long rate);
 static long omap1_round_ext_clk_rate(struct clk * clk, unsigned long rate);
 static void omap1_init_ext_clk(struct clk * clk);

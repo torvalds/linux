@@ -24,13 +24,13 @@
 #include "cm-regbits-24xx.h"
 #include "sdrc.h"
 
-static void omap2_table_mpu_recalc(struct clk *clk);
+static unsigned long omap2_table_mpu_recalc(struct clk *clk);
 static int omap2_select_table_rate(struct clk *clk, unsigned long rate);
 static long omap2_round_to_table_rate(struct clk *clk, unsigned long rate);
-static void omap2_sys_clk_recalc(struct clk *clk);
-static void omap2_osc_clk_recalc(struct clk *clk);
-static void omap2_sys_clk_recalc(struct clk *clk);
-static void omap2_dpllcore_recalc(struct clk *clk);
+static unsigned long omap2_sys_clk_recalc(struct clk *clk);
+static unsigned long omap2_osc_clk_recalc(struct clk *clk);
+static unsigned long omap2_sys_clk_recalc(struct clk *clk);
+static unsigned long omap2_dpllcore_recalc(struct clk *clk);
 static int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate);
 
 /* Key dividers which make up a PRCM set. Ratio's for a PRCM are mandated.
