@@ -1279,9 +1279,9 @@ static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
 };
 
 static int
-mv643xx_eth_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+mv643xx_eth_get_settings_phy(struct mv643xx_eth_private *mp,
+			     struct ethtool_cmd *cmd)
 {
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int err;
 
 	err = phy_read_status(mp->phy);
@@ -1298,10 +1298,9 @@ mv643xx_eth_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 }
 
 static int
-mv643xx_eth_get_settings_phyless(struct net_device *dev,
+mv643xx_eth_get_settings_phyless(struct mv643xx_eth_private *mp,
 				 struct ethtool_cmd *cmd)
 {
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	u32 port_status;
 
 	port_status = rdlp(mp, PORT_STATUS);
@@ -1334,9 +1333,23 @@ mv643xx_eth_get_settings_phyless(struct net_device *dev,
 }
 
 static int
+mv643xx_eth_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+
+	if (mp->phy != NULL)
+		return mv643xx_eth_get_settings_phy(mp, cmd);
+	else
+		return mv643xx_eth_get_settings_phyless(mp, cmd);
+}
+
+static int
 mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
+
+	if (mp->phy == NULL)
+		return -EINVAL;
 
 	/*
 	 * The MAC does not support 1000baseT_Half.
@@ -1344,13 +1357,6 @@ mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	cmd->advertising &= ~ADVERTISED_1000baseT_Half;
 
 	return phy_ethtool_sset(mp->phy, cmd);
-}
-
-static int
-mv643xx_eth_set_settings_phyless(struct net_device *dev,
-				 struct ethtool_cmd *cmd)
-{
-	return -EINVAL;
 }
 
 static void mv643xx_eth_get_drvinfo(struct net_device *dev,
@@ -1367,12 +1373,10 @@ static int mv643xx_eth_nway_reset(struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
-	return genphy_restart_aneg(mp->phy);
-}
+	if (mp->phy == NULL)
+		return -EINVAL;
 
-static int mv643xx_eth_nway_reset_phyless(struct net_device *dev)
-{
-	return -EINVAL;
+	return genphy_restart_aneg(mp->phy);
 }
 
 static u32 mv643xx_eth_get_link(struct net_device *dev)
@@ -1433,18 +1437,6 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.set_settings		= mv643xx_eth_set_settings,
 	.get_drvinfo		= mv643xx_eth_get_drvinfo,
 	.nway_reset		= mv643xx_eth_nway_reset,
-	.get_link		= mv643xx_eth_get_link,
-	.set_sg			= ethtool_op_set_sg,
-	.get_strings		= mv643xx_eth_get_strings,
-	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
-	.get_sset_count		= mv643xx_eth_get_sset_count,
-};
-
-static const struct ethtool_ops mv643xx_eth_ethtool_ops_phyless = {
-	.get_settings		= mv643xx_eth_get_settings_phyless,
-	.set_settings		= mv643xx_eth_set_settings_phyless,
-	.get_drvinfo		= mv643xx_eth_get_drvinfo,
-	.nway_reset		= mv643xx_eth_nway_reset_phyless,
 	.get_link		= mv643xx_eth_get_link,
 	.set_sg			= ethtool_op_set_sg,
 	.get_strings		= mv643xx_eth_get_strings,
@@ -2673,12 +2665,10 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	if (pd->phy_addr != MV643XX_ETH_PHY_NONE)
 		mp->phy = phy_scan(mp, pd->phy_addr);
 
-	if (mp->phy != NULL) {
+	if (mp->phy != NULL)
 		phy_init(mp, pd->speed, pd->duplex);
-		SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops);
-	} else {
-		SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops_phyless);
-	}
+
+	SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops);
 
 	init_pscr(mp, pd->speed, pd->duplex);
 
