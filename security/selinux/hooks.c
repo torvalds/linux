@@ -1270,12 +1270,13 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 		}
 
 		len = INITCONTEXTLEN;
-		context = kmalloc(len, GFP_NOFS);
+		context = kmalloc(len+1, GFP_NOFS);
 		if (!context) {
 			rc = -ENOMEM;
 			dput(dentry);
 			goto out_unlock;
 		}
+		context[len] = '\0';
 		rc = inode->i_op->getxattr(dentry, XATTR_NAME_SELINUX,
 					   context, len);
 		if (rc == -ERANGE) {
@@ -1288,12 +1289,13 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 			}
 			kfree(context);
 			len = rc;
-			context = kmalloc(len, GFP_NOFS);
+			context = kmalloc(len+1, GFP_NOFS);
 			if (!context) {
 				rc = -ENOMEM;
 				dput(dentry);
 				goto out_unlock;
 			}
+			context[len] = '\0';
 			rc = inode->i_op->getxattr(dentry,
 						   XATTR_NAME_SELINUX,
 						   context, len);
