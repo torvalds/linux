@@ -66,9 +66,6 @@
 #include "debug.h"
 #include "initializers.h"
 
-#ifdef CONFIG_USB_STORAGE_FREECOM
-#include "freecom.h"
-#endif
 #ifdef CONFIG_USB_STORAGE_DATAFAB
 #include "datafab.h"
 #endif
@@ -606,15 +603,6 @@ static void get_transport(struct us_data *us)
 		us->transport = usb_stor_Bulk_transport;
 		us->transport_reset = usb_stor_Bulk_reset;
 		break;
-
-#ifdef CONFIG_USB_STORAGE_FREECOM
-	case US_PR_FREECOM:
-		us->transport_name = "Freecom";
-		us->transport = freecom_transport;
-		us->transport_reset = usb_stor_freecom_reset;
-		us->max_lun = 0;
-		break;
-#endif
 
 #ifdef CONFIG_USB_STORAGE_DATAFAB
 	case US_PR_DATAFAB:

@@ -39,11 +39,13 @@ config USB_STORAGE_DATAFAB
 	  Datafab has a web page at <http://www.datafabusa.com/>.
 
 config USB_STORAGE_FREECOM
-	bool "Freecom USB/ATAPI Bridge support"
+	tristate "Freecom USB/ATAPI Bridge support"
 	depends on USB_STORAGE
 	help
 	  Support for the Freecom USB to IDE/ATAPI adaptor.
 	  Freecom has a web page at <http://www.freecom.de/>.
+
+	  If this driver is compiled as a module, it will be named ums-freecom.
 
 config USB_STORAGE_ISD200
 	tristate "ISD-200 USB/ATA Bridge support"

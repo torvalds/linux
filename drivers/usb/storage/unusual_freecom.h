@@ -1,13 +1,4 @@
-/* Driver for Freecom USB/IDE adaptor
- *
- * Freecom v0.1:
- *
- * First release
- *
- * Current development and maintenance by:
- *   (c) 2000 David Brown <usb-storage@davidb.org>
- *
- * See freecom.c for more explanation
+/* Unusual Devices File for the Freecom USB/IDE adaptor
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,11 +15,12 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef _FREECOM_USB_H
-#define _FREECOM_USB_H
+#if defined(CONFIG_USB_STORAGE_FREECOM) || \
+		defined(CONFIG_USB_STORAGE_FREECOM_MODULE)
 
-extern int freecom_transport(struct scsi_cmnd *srb, struct us_data *us);
-extern int usb_stor_freecom_reset(struct us_data *us);
-extern int freecom_init (struct us_data *us);
+UNUSUAL_DEV(  0x07ab, 0xfc01, 0x0000, 0x9999,
+		"Freecom",
+		"USB-IDE",
+		US_SC_QIC, US_PR_FREECOM, init_freecom, 0),
 
-#endif
+#endif /* defined(CONFIG_USB_STORAGE_FREECOM) || ... */

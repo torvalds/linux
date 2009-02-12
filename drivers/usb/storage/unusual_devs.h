@@ -958,13 +958,6 @@ UNUSUAL_DEV(  0x0781, 0x0100, 0x0100, 0x0100,
 		US_SC_SCSI, US_PR_CB, NULL,
 		US_FL_SINGLE_LUN ),
 
-#ifdef CONFIG_USB_STORAGE_FREECOM
-UNUSUAL_DEV(  0x07ab, 0xfc01, 0x0000, 0x9999,
-		"Freecom",
-		"USB-IDE",
-		US_SC_QIC, US_PR_FREECOM, freecom_init, 0),
-#endif
-
 /* Reported by Eero Volotinen <eero@ping-viini.org> */
 UNUSUAL_DEV(  0x07ab, 0xfccd, 0x0000, 0x9999,
 		"Freecom Technologies",

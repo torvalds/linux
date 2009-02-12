@@ -78,6 +78,7 @@ struct ignore_entry {
 
 static struct ignore_entry ignore_ids[] = {
 #	include "unusual_cypress.h"
+#	include "unusual_freecom.h"
 #	include "unusual_isd200.h"
 #	include "unusual_sddr09.h"
 #	include "unusual_sddr55.h"
