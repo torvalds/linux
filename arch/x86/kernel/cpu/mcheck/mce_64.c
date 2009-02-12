@@ -353,18 +353,17 @@ void mce_log_therm_throt_event(unsigned int cpu, __u64 status)
 
 static int check_interval = 5 * 60; /* 5 minutes */
 static int next_interval; /* in jiffies */
-static void mcheck_timer(struct work_struct *work);
-static DECLARE_DELAYED_WORK(mcheck_work, mcheck_timer);
+static void mcheck_timer(unsigned long);
+static DEFINE_PER_CPU(struct timer_list, mce_timer);
 
-static void mcheck_check_cpu(void *info)
+static void mcheck_timer(unsigned long data)
 {
+	struct timer_list *t = &per_cpu(mce_timer, data);
+
+	WARN_ON(smp_processor_id() != data);
+
 	if (mce_available(&current_cpu_data))
 		do_machine_check(NULL, 0);
-}
-
-static void mcheck_timer(struct work_struct *work)
-{
-	on_each_cpu(mcheck_check_cpu, NULL, 1);
 
 	/*
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
@@ -377,7 +376,8 @@ static void mcheck_timer(struct work_struct *work)
 				(int)round_jiffies_relative(check_interval*HZ));
 	}
 
-	schedule_delayed_work(&mcheck_work, next_interval);
+	t->expires = jiffies + next_interval;
+	add_timer(t);
 }
 
 static void mce_do_trigger(struct work_struct *work)
@@ -436,15 +436,10 @@ static struct notifier_block mce_idle_notifier = {
 
 static __init int periodic_mcheck_init(void)
 {
-	next_interval = check_interval * HZ;
-	if (next_interval)
-		schedule_delayed_work(&mcheck_work,
-				      round_jiffies_relative(next_interval));
-	idle_notifier_register(&mce_idle_notifier);
-	return 0;
+       idle_notifier_register(&mce_idle_notifier);
+       return 0;
 }
 __initcall(periodic_mcheck_init);
-
 
 /*
  * Initialize Machine Checks for a CPU.
@@ -515,6 +510,20 @@ static void __cpuinit mce_cpu_features(struct cpuinfo_x86 *c)
 	}
 }
 
+static void mce_init_timer(void)
+{
+	struct timer_list *t = &__get_cpu_var(mce_timer);
+
+	/* data race harmless because everyone sets to the same value */
+	if (!next_interval)
+		next_interval = check_interval * HZ;
+	if (!next_interval)
+		return;
+	setup_timer(t, mcheck_timer, smp_processor_id());
+	t->expires = round_jiffies_relative(jiffies + next_interval);
+	add_timer(t);
+}
+
 /*
  * Called for each booted CPU to set up machine checks.
  * Must be called with preempt off.
@@ -529,6 +538,7 @@ void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 
 	mce_init(NULL);
 	mce_cpu_features(c);
+	mce_init_timer();
 }
 
 /*
@@ -758,17 +768,19 @@ static int mce_resume(struct sys_device *dev)
 	return 0;
 }
 
+static void mce_cpu_restart(void *data)
+{
+	del_timer_sync(&__get_cpu_var(mce_timer));
+	if (mce_available(&current_cpu_data))
+		mce_init(NULL);
+	mce_init_timer();
+}
+
 /* Reinit MCEs after user configuration changes */
 static void mce_restart(void)
 {
-	if (next_interval)
-		cancel_delayed_work(&mcheck_work);
-	/* Timer race is harmless here */
-	on_each_cpu(mce_init, NULL, 1);
 	next_interval = check_interval * HZ;
-	if (next_interval)
-		schedule_delayed_work(&mcheck_work,
-				      round_jiffies_relative(next_interval));
+	on_each_cpu(mce_cpu_restart, NULL, 1);
 }
 
 static struct sysdev_class mce_sysclass = {
@@ -899,6 +911,7 @@ static int __cpuinit mce_cpu_callback(struct notifier_block *nfb,
 				      unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
+	struct timer_list *t = &per_cpu(mce_timer, cpu);
 
 	switch (action) {
 	case CPU_ONLINE:
@@ -912,6 +925,15 @@ static int __cpuinit mce_cpu_callback(struct notifier_block *nfb,
 		if (threshold_cpu_callback)
 			threshold_cpu_callback(action, cpu);
 		mce_remove_device(cpu);
+		break;
+	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
+		del_timer_sync(t);
+		break;
+	case CPU_DOWN_FAILED:
+	case CPU_DOWN_FAILED_FROZEN:
+		t->expires = round_jiffies_relative(jiffies + next_interval);
+		add_timer_on(t, cpu);
 		break;
 	}
 	return NOTIFY_OK;
