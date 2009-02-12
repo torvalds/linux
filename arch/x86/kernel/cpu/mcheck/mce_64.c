@@ -906,6 +906,27 @@ static __cpuinit void mce_remove_device(unsigned int cpu)
 	cpu_clear(cpu, mce_device_initialized);
 }
 
+/* Make sure there are no machine checks on offlined CPUs. */
+static void __cpuexit mce_disable_cpu(void *h)
+{
+	int i;
+
+	if (!mce_available(&current_cpu_data))
+		return;
+	for (i = 0; i < banks; i++)
+		wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
+}
+
+static void __cpuexit mce_reenable_cpu(void *h)
+{
+	int i;
+
+	if (!mce_available(&current_cpu_data))
+		return;
+	for (i = 0; i < banks; i++)
+		wrmsrl(MSR_IA32_MC0_CTL + i*4, bank[i]);
+}
+
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
 static int __cpuinit mce_cpu_callback(struct notifier_block *nfb,
 				      unsigned long action, void *hcpu)
@@ -929,11 +950,13 @@ static int __cpuinit mce_cpu_callback(struct notifier_block *nfb,
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		del_timer_sync(t);
+		smp_call_function_single(cpu, mce_disable_cpu, NULL, 1);
 		break;
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
 		t->expires = round_jiffies_relative(jiffies + next_interval);
 		add_timer_on(t, cpu);
+		smp_call_function_single(cpu, mce_reenable_cpu, NULL, 1);
 		break;
 	}
 	return NOTIFY_OK;
