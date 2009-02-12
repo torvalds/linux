@@ -2059,17 +2059,11 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 	} else {
 		/* Enable Receive Checksum Offload for TCP and UDP */
 		rxcsum = rd32(E1000_RXCSUM);
-		if (adapter->rx_csum) {
-			rxcsum |= E1000_RXCSUM_TUOFL;
+		if (adapter->rx_csum)
+			rxcsum |= E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPPCSE;
+		else
+			rxcsum &= ~(E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPPCSE);
 
-			/* Enable IPv4 payload checksum for UDP fragments
-			 * Must be used in conjunction with packet-split. */
-			if (adapter->rx_ps_hdr_size)
-				rxcsum |= E1000_RXCSUM_IPPCSE;
-		} else {
-			rxcsum &= ~E1000_RXCSUM_TUOFL;
-			/* don't need to clear IPPCSE as it defaults to 0 */
-		}
 		wr32(E1000_RXCSUM, rxcsum);
 	}
 
