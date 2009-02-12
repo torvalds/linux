@@ -575,14 +575,6 @@ static int __change_page_attr(struct cpa_data *cpa, int primary)
 		address = cpa->vaddr[cpa->curpage];
 	else
 		address = *cpa->vaddr;
-
-	/*
-	 * If we're called with lazy mmu updates enabled, the
-	 * in-memory pte state may be stale.  Flush pending updates to
-	 * bring them up to date.
-	 */
-	arch_flush_lazy_mmu_mode();
-
 repeat:
 	kpte = lookup_address(address, &level);
 	if (!kpte)
@@ -818,6 +810,13 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 	kmap_flush_unused();
 
 	vm_unmap_aliases();
+
+	/*
+	 * If we're called with lazy mmu updates enabled, the
+	 * in-memory pte state may be stale.  Flush pending updates to
+	 * bring them up to date.
+	 */
+	arch_flush_lazy_mmu_mode();
 
 	cpa.vaddr = addr;
 	cpa.numpages = numpages;
