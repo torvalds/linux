@@ -1202,10 +1202,23 @@ static u32 ath9k_hw_ini_fixup(struct ath_hw *ah,
 		return ath9k_hw_def_ini_fixup(ah, pEepData, reg, value);
 }
 
+static void ath9k_olc_init(struct ath_hw *ah)
+{
+	u32 i;
+
+	for (i = 0; i < AR9280_TX_GAIN_TABLE_SIZE; i++)
+		ah->originalGain[i] =
+			MS(REG_READ(ah, AR_PHY_TX_GAIN_TBL1 + i * 4),
+					AR_PHY_TX_GAIN);
+	ah->PDADCdelta = 0;
+}
+
 static int ath9k_hw_process_ini(struct ath_hw *ah,
 				struct ath9k_channel *chan,
 				enum ath9k_ht_macmode macmode)
 {
+#define OLC_FOR_AR9280_20_LATER	(AR_SREV_9280_20_OR_LATER(ah) && \
+				ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 	int i, regWrites = 0;
 	struct ieee80211_channel *channel = chan->chan;
 	u32 modesIndex, freqIndex;
@@ -1307,6 +1320,9 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	ath9k_hw_override_ini(ah, chan);
 	ath9k_hw_set_regs(ah, chan, macmode);
 	ath9k_hw_init_chain_masks(ah);
+
+	if (OLC_FOR_AR9280_20_LATER)
+		ath9k_olc_init(ah);
 
 	status = ah->eep_ops->set_txpower(ah, chan,
 				  ath9k_regd_get_ctl(ah, chan),
@@ -1515,6 +1531,7 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 		  AR_RTC_FORCE_WAKE_ON_INT);
 
 	REG_WRITE(ah, AR_RTC_RESET, 0);
+	udelay(2);
 	REG_WRITE(ah, AR_RTC_RESET, 1);
 
 	if (!ath9k_hw_wait(ah,
@@ -1582,7 +1599,10 @@ static void ath9k_hw_set_regs(struct ath_hw *ah, struct ath9k_channel *chan,
 static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 				struct ath9k_channel *chan)
 {
-	if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_WARM))
+	if (OLC_FOR_AR9280_20_LATER) {
+		if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON))
+			return false;
+	} else if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_WARM))
 		return false;
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
@@ -3404,6 +3424,10 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			return 0;
 		}
 		return false;
+	case ATH9K_CAP_DS:
+		return (AR_SREV_9280_20_OR_LATER(ah) &&
+			(ah->eep_ops->get_eeprom(ah, EEP_RC_CHAIN_MASK) == 1))
+			? false : true;
 	default:
 		return false;
 	}

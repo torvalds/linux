@@ -168,6 +168,8 @@
 #define AR5416_EEP4K_PD_GAIN_ICEPTS           5
 #define AR5416_EEP4K_MAX_CHAINS               1
 
+#define AR9280_TX_GAIN_TABLE_SIZE 22
+
 enum eeprom_param {
 	EEP_NFTHRESH_5,
 	EEP_NFTHRESH_2,
@@ -188,6 +190,8 @@ enum eeprom_param {
 	EEP_RX_MASK,
 	EEP_RXGAIN_TYPE,
 	EEP_TXGAIN_TYPE,
+	EEP_OL_PWRCTRL,
+	EEP_RC_CHAIN_MASK,
 	EEP_DAC_HPWR_5G,
 	EEP_FRAC_N_5G
 };
@@ -229,7 +233,7 @@ struct base_eep_header {
 	u8 futureBase_1[2];
 	u8 rxGainType;
 	u8 dacHiPwrMode_5G;
-	u8 futureBase_2;
+	u8 openLoopPwrCntl;
 	u8 dacLpMode;
 	u8 txGainType;
 	u8 rcChainMask;
@@ -308,6 +312,13 @@ struct modal_eep_header {
 	u8 futureModal[6];
 
 	struct spur_chan spurChans[AR5416_EEPROM_MODAL_SPURS];
+} __packed;
+
+struct calDataPerFreqOpLoop {
+	u8 pwrPdg[2][5];
+	u8 vpdPdg[2][5];
+	u8 pcdac[2][5];
+	u8 empty[2][5];
 } __packed;
 
 struct modal_eep_4k_header {

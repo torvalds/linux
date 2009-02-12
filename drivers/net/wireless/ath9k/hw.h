@@ -162,7 +162,8 @@ enum ath9k_capability_type {
 	ATH9K_CAP_WME_TKIPMIC,
 	ATH9K_CAP_RFSILENT,
 	ATH9K_CAP_ANT_CFG_2GHZ,
-	ATH9K_CAP_ANT_CFG_5GHZ
+	ATH9K_CAP_ANT_CFG_5GHZ,
+	ATH9K_CAP_DS
 };
 
 struct ath9k_hw_capabilities {
@@ -550,6 +551,10 @@ struct ath_hw {
 	enum ath9k_ht_extprotspacing extprotspacing;
 	u8 txchainmask;
 	u8 rxchainmask;
+
+	u32 originalGain[22];
+	int initPDADC;
+	int PDADCdelta;
 
 	struct ar5416IniArray iniModes;
 	struct ar5416IniArray iniCommon;

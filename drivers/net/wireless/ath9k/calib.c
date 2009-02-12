@@ -718,10 +718,39 @@ s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan)
 	return nf;
 }
 
+static void ath9k_olc_temp_compensation(struct ath_hw *ah)
+{
+	u32 rddata, i;
+	int delta, currPDADC, regval;
+
+	rddata = REG_READ(ah, AR_PHY_TX_PWRCTRL4);
+
+	currPDADC = MS(rddata, AR_PHY_TX_PWRCTRL_PD_AVG_OUT);
+
+	if (ah->eep_ops->get_eeprom(ah, EEP_DAC_HPWR_5G))
+		delta = (currPDADC - ah->initPDADC + 4) / 8;
+	else
+		delta = (currPDADC - ah->initPDADC + 5) / 10;
+
+	if (delta != ah->PDADCdelta) {
+		ah->PDADCdelta = delta;
+		for (i = 1; i < AR9280_TX_GAIN_TABLE_SIZE; i++) {
+			regval = ah->originalGain[i] - delta;
+			if (regval < 0)
+				regval = 0;
+
+			REG_RMW_FIELD(ah, AR_PHY_TX_GAIN_TBL1 + i * 4,
+					AR_PHY_TX_GAIN, regval);
+		}
+	}
+}
+
 bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 			u8 rxchainmask, bool longcal,
 			bool *isCalDone)
 {
+#define OLC_FOR_AR9280_20_LATER	(AR_SREV_9280_20_OR_LATER(ah) && \
+				ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 	struct hal_cal_list *currCal = ah->cal_list_curr;
 
 	*isCalDone = true;
@@ -742,6 +771,8 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	if (longcal) {
+		if (OLC_FOR_AR9280_20_LATER)
+			ath9k_olc_temp_compensation(ah);
 		ath9k_hw_getnf(ah, chan);
 		ath9k_hw_loadnf(ah, ah->curchan);
 		ath9k_hw_start_nfcal(ah);

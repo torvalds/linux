@@ -1392,6 +1392,7 @@ static void ath_rc_init(struct ath_softc *sc,
 	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
 	u8 *ht_mcs = (u8 *)&ath_rc_priv->neg_ht_rates;
 	u8 i, j, k, hi = 0, hthi = 0;
+	struct ath_hw *ah = sc->sc_ah;
 
 	/* FIXME: Adhoc */
 	if ((sc->sc_ah->opmode == NL80211_IFTYPE_STATION) ||
@@ -1412,7 +1413,8 @@ static void ath_rc_init(struct ath_softc *sc,
 
 	if (sta->ht_cap.ht_supported) {
 		ath_rc_priv->ht_cap = WLAN_RC_HT_FLAG;
-		if (sc->sc_ah->caps.tx_chainmask != 1)
+		if (sc->sc_ah->caps.tx_chainmask != 1 &&
+			ath9k_hw_getcapability(ah, ATH9K_CAP_DS, 0, NULL))
 			ath_rc_priv->ht_cap |= WLAN_RC_DS_FLAG;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 			ath_rc_priv->ht_cap |= WLAN_RC_40_FLAG;
