@@ -74,26 +74,26 @@ static int multi_mode = 1;
 module_param(multi_mode, int, 0);
 
 static int disable_tpa;
-static int poll;
-static int debug;
-static int load_count[3]; /* 0-common, 1-port0, 2-port1 */
-
 module_param(disable_tpa, int, 0);
+MODULE_PARM_DESC(disable_tpa, " Disable the TPA (LRO) feature");
 
 static int int_mode;
 module_param(int_mode, int, 0);
 MODULE_PARM_DESC(int_mode, " Force interrupt mode (1 INT#x; 2 MSI)");
 
+static int poll;
 module_param(poll, int, 0);
+MODULE_PARM_DESC(poll, " Use polling (for debug)");
 
 static int mrrs = -1;
 module_param(mrrs, int, 0);
 MODULE_PARM_DESC(mrrs, " Force Max Read Req Size (0..3) (for debug)");
 
+static int debug;
 module_param(debug, int, 0);
-MODULE_PARM_DESC(disable_tpa, "disable the TPA (LRO) feature");
-MODULE_PARM_DESC(poll, "use polling (for debug)");
-MODULE_PARM_DESC(debug, "default debug msglevel");
+MODULE_PARM_DESC(debug, " Default debug msglevel");
+
+static int load_count[3]; /* 0-common, 1-port0, 2-port1 */
 
 static struct workqueue_struct *bnx2x_wq;
 
