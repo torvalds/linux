@@ -71,9 +71,9 @@ extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
 #elif defined(CONFIG_44x)
 /* 44x-style software loaded TLB */
 #  include <asm/mmu-44x.h>
-#elif defined(CONFIG_FSL_BOOKE)
-/* Freescale Book-E software loaded TLB */
-#  include <asm/mmu-fsl-booke.h>
+#elif defined(CONFIG_PPC_BOOK3E_MMU)
+/* Freescale Book-E software loaded TLB or Book-3e (ISA 2.06+) MMU */
+#  include <asm/mmu-book3e.h>
 #elif defined (CONFIG_PPC_8xx)
 /* Motorola/Freescale 8xx software loaded TLB */
 #  include <asm/mmu-8xx.h>
