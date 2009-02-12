@@ -160,10 +160,6 @@ enum radeon_chip_flags {
 	RADEON_IS_IGPGART = 0x01000000UL,
 };
 
-#define GET_RING_HEAD(dev_priv)	(dev_priv->writeback_works ? \
-        DRM_READ32(  (dev_priv)->ring_rptr, 0 ) : RADEON_READ(RADEON_CP_RB_RPTR))
-#define SET_RING_HEAD(dev_priv,val)	DRM_WRITE32( (dev_priv)->ring_rptr, 0, (val) )
-
 typedef struct drm_radeon_freelist {
 	unsigned int age;
 	struct drm_buf *buf;
@@ -248,7 +244,6 @@ typedef struct drm_radeon_private {
 	drm_radeon_freelist_t *head;
 	drm_radeon_freelist_t *tail;
 	int last_buf;
-	volatile u32 *scratch;
 	int writeback_works;
 
 	int usec_timeout;
@@ -337,6 +332,12 @@ typedef struct drm_radeon_kcmd_buffer {
 extern int radeon_no_wb;
 extern struct drm_ioctl_desc radeon_ioctls[];
 extern int radeon_max_ioctl;
+
+extern u32 radeon_get_ring_head(drm_radeon_private_t *dev_priv);
+extern void radeon_set_ring_head(drm_radeon_private_t *dev_priv, u32 val);
+
+#define GET_RING_HEAD(dev_priv)	radeon_get_ring_head(dev_priv)
+#define SET_RING_HEAD(dev_priv, val) radeon_set_ring_head(dev_priv, val)
 
 /* Check whether the given hardware address is inside the framebuffer or the
  * GART area.
@@ -639,9 +640,9 @@ extern int r300_do_cp_cmdbuf(struct drm_device *dev,
 
 #define RADEON_SCRATCHOFF( x )		(RADEON_SCRATCH_REG_OFFSET + 4*(x))
 
-#define GET_SCRATCH( x )	(dev_priv->writeback_works			\
-				? DRM_READ32( dev_priv->ring_rptr, RADEON_SCRATCHOFF(x) ) \
-				: RADEON_READ( RADEON_SCRATCH_REG0 + 4*(x) ) )
+extern u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index);
+
+#define GET_SCRATCH(dev_priv, x) radeon_get_scratch(dev_priv, x)
 
 #define RADEON_GEN_INT_CNTL		0x0040
 #	define RADEON_CRTC_VBLANK_MASK		(1 << 0)

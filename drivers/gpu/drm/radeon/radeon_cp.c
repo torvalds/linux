@@ -43,6 +43,52 @@
 static int radeon_do_cleanup_cp(struct drm_device * dev);
 static void radeon_do_cp_start(drm_radeon_private_t * dev_priv);
 
+static u32 radeon_read_ring_rptr(drm_radeon_private_t *dev_priv, u32 off)
+{
+	u32 val;
+
+	if (dev_priv->flags & RADEON_IS_AGP) {
+		val = DRM_READ32(dev_priv->ring_rptr, off);
+	} else {
+		val = *(((volatile u32 *)
+			 dev_priv->ring_rptr->handle) +
+			(off / sizeof(u32)));
+		val = le32_to_cpu(val);
+	}
+	return val;
+}
+
+u32 radeon_get_ring_head(drm_radeon_private_t *dev_priv)
+{
+	if (dev_priv->writeback_works)
+		return radeon_read_ring_rptr(dev_priv, 0);
+	else
+		return RADEON_READ(RADEON_CP_RB_RPTR);
+}
+
+static void radeon_write_ring_rptr(drm_radeon_private_t *dev_priv, u32 off, u32 val)
+{
+	if (dev_priv->flags & RADEON_IS_AGP)
+		DRM_WRITE32(dev_priv->ring_rptr, off, val);
+	else
+		*(((volatile u32 *) dev_priv->ring_rptr->handle) +
+		  (off / sizeof(u32))) = cpu_to_le32(val);
+}
+
+void radeon_set_ring_head(drm_radeon_private_t *dev_priv, u32 val)
+{
+	radeon_write_ring_rptr(dev_priv, 0, val);
+}
+
+u32 radeon_get_scratch(drm_radeon_private_t *dev_priv, int index)
+{
+	if (dev_priv->writeback_works)
+		return radeon_read_ring_rptr(dev_priv,
+					     RADEON_SCRATCHOFF(index));
+	else
+		return RADEON_READ(RADEON_SCRATCH_REG0 + 4*index);
+}
+
 static u32 R500_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)
 {
 	u32 ret;
@@ -649,10 +695,6 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 	RADEON_WRITE(RADEON_SCRATCH_ADDR, RADEON_READ(RADEON_CP_RB_RPTR_ADDR)
 		     + RADEON_SCRATCH_REG_OFFSET);
 
-	dev_priv->scratch = ((__volatile__ u32 *)
-			     dev_priv->ring_rptr->handle +
-			     (RADEON_SCRATCH_REG_OFFSET / sizeof(u32)));
-
 	RADEON_WRITE(RADEON_SCRATCH_UMSK, 0x7);
 
 	/* Turn on bus mastering */
@@ -670,13 +712,13 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 		RADEON_WRITE(RADEON_BUS_CNTL, tmp);
 	} /* PCIE cards appears to not need this */
 
-	dev_priv->scratch[0] = 0;
+	radeon_write_ring_rptr(dev_priv, RADEON_SCRATCHOFF(0), 0);
 	RADEON_WRITE(RADEON_LAST_FRAME_REG, 0);
 
-	dev_priv->scratch[1] = 0;
+	radeon_write_ring_rptr(dev_priv, RADEON_SCRATCHOFF(1), 0);
 	RADEON_WRITE(RADEON_LAST_DISPATCH_REG, 0);
 
-	dev_priv->scratch[2] = 0;
+	radeon_write_ring_rptr(dev_priv, RADEON_SCRATCHOFF(2), 0);
 	RADEON_WRITE(RADEON_LAST_CLEAR_REG, 0);
 
 	/* reset sarea copies of these */
@@ -708,12 +750,15 @@ static void radeon_test_writeback(drm_radeon_private_t * dev_priv)
 	/* Writeback doesn't seem to work everywhere, test it here and possibly
 	 * enable it if it appears to work
 	 */
-	DRM_WRITE32(dev_priv->ring_rptr, RADEON_SCRATCHOFF(1), 0);
+	radeon_write_ring_rptr(dev_priv, RADEON_SCRATCHOFF(1), 0);
+
 	RADEON_WRITE(RADEON_SCRATCH_REG1, 0xdeadbeef);
 
 	for (tmp = 0; tmp < dev_priv->usec_timeout; tmp++) {
-		if (DRM_READ32(dev_priv->ring_rptr, RADEON_SCRATCHOFF(1)) ==
-		    0xdeadbeef)
+		u32 val;
+
+		val = radeon_read_ring_rptr(dev_priv, RADEON_SCRATCHOFF(1));
+		if (val == 0xdeadbeef)
 			break;
 		DRM_UDELAY(1);
 	}
@@ -1549,7 +1594,7 @@ struct drm_buf *radeon_freelist_get(struct drm_device * dev)
 	start = dev_priv->last_buf;
 
 	for (t = 0; t < dev_priv->usec_timeout; t++) {
-		u32 done_age = GET_SCRATCH(1);
+		u32 done_age = GET_SCRATCH(dev_priv, 1);
 		DRM_DEBUG("done_age = %d\n", done_age);
 		for (i = start; i < dma->buf_count; i++) {
 			buf = dma->buflist[i];
@@ -1583,8 +1628,9 @@ struct drm_buf *radeon_freelist_get(struct drm_device * dev)
 	struct drm_buf *buf;
 	int i, t;
 	int start;
-	u32 done_age = DRM_READ32(dev_priv->ring_rptr, RADEON_SCRATCHOFF(1));
+	u32 done_age;
 
+	done_age = radeon_read_ring_rptr(dev_priv, RADEON_SCRATCHOFF(1));
 	if (++dev_priv->last_buf >= dma->buf_count)
 		dev_priv->last_buf = 0;
 
