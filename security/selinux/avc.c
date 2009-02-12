@@ -92,12 +92,12 @@ struct avc_entry {
 
 struct avc_node {
 	struct avc_entry	ae;
-	struct list_head	list; /* anchored in avc_cache->slots[i] */
+	struct hlist_node	list; /* anchored in avc_cache->slots[i] */
 	struct rcu_head		rhead;
 };
 
 struct avc_cache {
-	struct list_head	slots[AVC_CACHE_SLOTS]; /* head for avc_node->list */
+	struct hlist_head	slots[AVC_CACHE_SLOTS]; /* head for avc_node->list */
 	spinlock_t		slots_lock[AVC_CACHE_SLOTS]; /* lock for writes */
 	atomic_t		lru_hint;	/* LRU hint for reclaim scan */
 	atomic_t		active_nodes;
@@ -233,7 +233,7 @@ void __init avc_init(void)
 	int i;
 
 	for (i = 0; i < AVC_CACHE_SLOTS; i++) {
-		INIT_LIST_HEAD(&avc_cache.slots[i]);
+		INIT_HLIST_HEAD(&avc_cache.slots[i]);
 		spin_lock_init(&avc_cache.slots_lock[i]);
 	}
 	atomic_set(&avc_cache.active_nodes, 0);
@@ -249,7 +249,7 @@ int avc_get_hash_stats(char *page)
 {
 	int i, chain_len, max_chain_len, slots_used;
 	struct avc_node *node;
-	struct list_head *head;
+	struct hlist_head *head;
 
 	rcu_read_lock();
 
@@ -257,10 +257,12 @@ int avc_get_hash_stats(char *page)
 	max_chain_len = 0;
 	for (i = 0; i < AVC_CACHE_SLOTS; i++) {
 		head = &avc_cache.slots[i];
-		if (!list_empty(head)) {
+		if (!hlist_empty(head)) {
+			struct hlist_node *next;
+
 			slots_used++;
 			chain_len = 0;
-			list_for_each_entry_rcu(node, head, list)
+			hlist_for_each_entry_rcu(node, next, head, list)
 				chain_len++;
 			if (chain_len > max_chain_len)
 				max_chain_len = chain_len;
@@ -284,7 +286,7 @@ static void avc_node_free(struct rcu_head *rhead)
 
 static void avc_node_delete(struct avc_node *node)
 {
-	list_del_rcu(&node->list);
+	hlist_del_rcu(&node->list);
 	call_rcu(&node->rhead, avc_node_free);
 	atomic_dec(&avc_cache.active_nodes);
 }
@@ -298,7 +300,7 @@ static void avc_node_kill(struct avc_node *node)
 
 static void avc_node_replace(struct avc_node *new, struct avc_node *old)
 {
-	list_replace_rcu(&old->list, &new->list);
+	hlist_replace_rcu(&old->list, &new->list);
 	call_rcu(&old->rhead, avc_node_free);
 	atomic_dec(&avc_cache.active_nodes);
 }
@@ -308,7 +310,8 @@ static inline int avc_reclaim_node(void)
 	struct avc_node *node;
 	int hvalue, try, ecx;
 	unsigned long flags;
-	struct list_head *head;
+	struct hlist_head *head;
+	struct hlist_node *next;
 	spinlock_t *lock;
 
 	for (try = 0, ecx = 0; try < AVC_CACHE_SLOTS; try++) {
@@ -320,7 +323,7 @@ static inline int avc_reclaim_node(void)
 			continue;
 
 		rcu_read_lock();
-		list_for_each_entry(node, head, list) {
+		hlist_for_each_entry(node, next, head, list) {
 			avc_node_delete(node);
 			avc_cache_stats_incr(reclaims);
 			ecx++;
@@ -346,7 +349,7 @@ static struct avc_node *avc_alloc_node(void)
 		goto out;
 
 	INIT_RCU_HEAD(&node->rhead);
-	INIT_LIST_HEAD(&node->list);
+	INIT_HLIST_NODE(&node->list);
 	avc_cache_stats_incr(allocations);
 
 	if (atomic_inc_return(&avc_cache.active_nodes) > avc_cache_threshold)
@@ -368,11 +371,12 @@ static inline struct avc_node *avc_search_node(u32 ssid, u32 tsid, u16 tclass)
 {
 	struct avc_node *node, *ret = NULL;
 	int hvalue;
-	struct list_head *head;
+	struct hlist_head *head;
+	struct hlist_node *next;
 
 	hvalue = avc_hash(ssid, tsid, tclass);
 	head = &avc_cache.slots[hvalue];
-	list_for_each_entry_rcu(node, head, list) {
+	hlist_for_each_entry_rcu(node, next, head, list) {
 		if (ssid == node->ae.ssid &&
 		    tclass == node->ae.tclass &&
 		    tsid == node->ae.tsid) {
@@ -461,7 +465,8 @@ static struct avc_node *avc_insert(u32 ssid, u32 tsid, u16 tclass, struct av_dec
 
 	node = avc_alloc_node();
 	if (node) {
-		struct list_head *head;
+		struct hlist_head *head;
+		struct hlist_node *next;
 		spinlock_t *lock;
 
 		hvalue = avc_hash(ssid, tsid, tclass);
@@ -471,7 +476,7 @@ static struct avc_node *avc_insert(u32 ssid, u32 tsid, u16 tclass, struct av_dec
 		lock = &avc_cache.slots_lock[hvalue];
 
 		spin_lock_irqsave(lock, flag);
-		list_for_each_entry(pos, head, list) {
+		hlist_for_each_entry(pos, next, head, list) {
 			if (pos->ae.ssid == ssid &&
 			    pos->ae.tsid == tsid &&
 			    pos->ae.tclass == tclass) {
@@ -479,7 +484,7 @@ static struct avc_node *avc_insert(u32 ssid, u32 tsid, u16 tclass, struct av_dec
 				goto found;
 			}
 		}
-		list_add_rcu(&node->list, head);
+		hlist_add_head_rcu(&node->list, head);
 found:
 		spin_unlock_irqrestore(lock, flag);
 	}
@@ -750,7 +755,8 @@ static int avc_update_node(u32 event, u32 perms, u32 ssid, u32 tsid, u16 tclass,
 	int hvalue, rc = 0;
 	unsigned long flag;
 	struct avc_node *pos, *node, *orig = NULL;
-	struct list_head *head;
+	struct hlist_head *head;
+	struct hlist_node *next;
 	spinlock_t *lock;
 
 	node = avc_alloc_node();
@@ -767,7 +773,7 @@ static int avc_update_node(u32 event, u32 perms, u32 ssid, u32 tsid, u16 tclass,
 
 	spin_lock_irqsave(lock, flag);
 
-	list_for_each_entry(pos, head, list) {
+	hlist_for_each_entry(pos, next, head, list) {
 		if (ssid == pos->ae.ssid &&
 		    tsid == pos->ae.tsid &&
 		    tclass == pos->ae.tclass &&
@@ -827,7 +833,8 @@ int avc_ss_reset(u32 seqno)
 	int i, rc = 0, tmprc;
 	unsigned long flag;
 	struct avc_node *node;
-	struct list_head *head;
+	struct hlist_head *head;
+	struct hlist_node *next;
 	spinlock_t *lock;
 
 	for (i = 0; i < AVC_CACHE_SLOTS; i++) {
@@ -840,7 +847,7 @@ int avc_ss_reset(u32 seqno)
 		 * prevent RCU grace periods from ending.
 		 */
 		rcu_read_lock();
-		list_for_each_entry(node, head, list)
+		hlist_for_each_entry(node, next, head, list)
 			avc_node_delete(node);
 		rcu_read_unlock();
 		spin_unlock_irqrestore(lock, flag);
