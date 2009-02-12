@@ -5239,6 +5239,7 @@
 #define HW_LOCK_RESOURCE_PORT0_ATT_MASK 			 3
 #define HW_LOCK_RESOURCE_SPIO					 2
 #define HW_LOCK_RESOURCE_UNDI					 5
+#define PRS_FLAG_OVERETH_IPV4					 1
 #define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR		      (1<<18)
 #define AEU_INPUTS_ATTN_BITS_CCM_HW_INTERRUPT		      (1<<31)
 #define AEU_INPUTS_ATTN_BITS_CDU_HW_INTERRUPT		      (1<<9)
@@ -5861,6 +5862,10 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_8726_TX_CTRL2		0xca05
 
 
+#define MDIO_PMA_REG_8073_CHIP_REV			0xc801
+#define MDIO_PMA_REG_8073_SPEED_LINK_STATUS		0xc820
+#define MDIO_PMA_REG_8073_XAUI_WA			0xc841
+
 #define MDIO_PMA_REG_7101_RESET 	0xc000
 #define MDIO_PMA_REG_7107_LED_CNTL	0xc007
 #define MDIO_PMA_REG_7101_VER1		0xc026
@@ -5916,6 +5921,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_AN_REG_CL37_AN		0xffe0
 #define MDIO_AN_REG_CL37_FC_LD		0xffe4
 #define MDIO_AN_REG_CL37_FC_LP		0xffe5
+
+#define MDIO_AN_REG_8073_2_5G		0x8329
 
 
 #define IGU_FUNC_BASE			0x0400

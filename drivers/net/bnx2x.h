@@ -446,10 +446,13 @@ struct bnx2x_fastpath {
 #define BNX2X_RX_CSUM_OK(cqe) \
 			(!(BNX2X_L4_CSUM_ERR(cqe) || BNX2X_IP_CSUM_ERR(cqe)))
 
+#define BNX2X_PRS_FLAG_OVERETH_IPV4(flags) \
+				(((le16_to_cpu(flags) & \
+				   PARSING_FLAGS_OVER_ETHERNET_PROTOCOL) >> \
+				  PARSING_FLAGS_OVER_ETHERNET_PROTOCOL_SHIFT) \
+				 == PRS_FLAG_OVERETH_IPV4)
 #define BNX2X_RX_SUM_FIX(cqe) \
-			((le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) & \
-			  PARSING_FLAGS_OVER_ETHERNET_PROTOCOL) == \
-			 (1 << PARSING_FLAGS_OVER_ETHERNET_PROTOCOL_SHIFT))
+	BNX2X_PRS_FLAG_OVERETH_IPV4(cqe->fast_path_cqe.pars_flags.flags)
 
 
 #define FP_USB_FUNC_OFF			(2 + 2*HC_USTORM_SB_NUM_INDICES)
