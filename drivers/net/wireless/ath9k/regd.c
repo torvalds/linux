@@ -371,11 +371,8 @@ ath9k_regd_find_country_by_rd(int regdmn)
 }
 
 /* Returns the map of the EEPROM set RD to a country code */
-static u16 ath9k_regd_get_default_country(struct ath_hw *ah)
+static u16 ath9k_regd_get_default_country(u16 rd)
 {
-	u16 rd;
-
-	rd = ath9k_regd_get_eepromRD(ah);
 	if (rd & COUNTRY_ERD_FLAG) {
 		struct country_code_to_enum_rd *country = NULL;
 		u16 cc = rd & ~COUNTRY_ERD_FLAG;
@@ -405,7 +402,7 @@ ath9k_get_regpair(int regdmn)
 int ath9k_regd_init(struct ath_hw *ah)
 {
 	struct country_code_to_enum_rd *country = NULL;
-	int regdmn;
+	u16 regdmn;
 
 	if (!ath9k_regd_is_eeprom_valid(ah)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
@@ -413,14 +410,14 @@ int ath9k_regd_init(struct ath_hw *ah)
 		return -EINVAL;
 	}
 
-	ah->regulatory.country_code = ath9k_regd_get_default_country(ah);
+	regdmn = ath9k_regd_get_eepromRD(ah);
+	ah->regulatory.country_code = ath9k_regd_get_default_country(regdmn);
 
 	if (ah->regulatory.country_code == CTRY_DEFAULT &&
-	    ath9k_regd_get_eepromRD(ah) == CTRY_DEFAULT)
+	    regdmn == CTRY_DEFAULT)
 		ah->regulatory.country_code = CTRY_UNITED_STATES;
 
 	if (ah->regulatory.country_code == CTRY_DEFAULT) {
-		regdmn = ath9k_regd_get_eepromRD(ah);
 		country = NULL;
 	} else {
 		country = ath9k_regd_find_country(ah->regulatory.country_code);
