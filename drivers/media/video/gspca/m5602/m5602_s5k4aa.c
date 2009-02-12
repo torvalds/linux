@@ -59,6 +59,12 @@ static
 			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "GX700/GX705/EX700")
 		}
+	}, {
+		.ident = "MSI L735",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MS-1717X")
+		}
 	},
 	{ }
 };
