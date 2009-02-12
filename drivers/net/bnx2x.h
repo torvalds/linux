@@ -29,6 +29,12 @@
 
 #define BNX2X_NEW_NAPI
 
+
+#include "bnx2x_reg.h"
+#include "bnx2x_fw_defs.h"
+#include "bnx2x_hsi.h"
+#include "bnx2x_link.h"
+
 /* error/debug prints */
 
 #define DRV_MODULE_NAME		"bnx2x"

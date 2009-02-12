@@ -22,10 +22,6 @@
 #include <linux/ethtool.h>
 #include <linux/mutex.h>
 
-#include "bnx2x_reg.h"
-#include "bnx2x_fw_defs.h"
-#include "bnx2x_hsi.h"
-#include "bnx2x_link.h"
 #include "bnx2x.h"
 
 /********************************************************/
