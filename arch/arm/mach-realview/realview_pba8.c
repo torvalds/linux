@@ -221,6 +221,19 @@ static struct resource realview_pba8_smsc911x_resources[] = {
 	},
 };
 
+static struct resource realview_pba8_isp1761_resources[] = {
+	[0] = {
+		.start		= REALVIEW_PBA8_USB_BASE,
+		.end		= REALVIEW_PBA8_USB_BASE + SZ_128K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= IRQ_PBA8_USB,
+		.end		= IRQ_PBA8_USB,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
 static void __init gic_init_irq(void)
 {
 	/* ARM PB-A8 on-board GIC */
@@ -252,6 +265,7 @@ static void __init realview_pba8_init(void)
 	realview_eth_register(NULL, realview_pba8_smsc911x_resources);
 	platform_device_register(&realview_i2c_device);
 	platform_device_register(&realview_cf_device);
+	realview_usb_register(realview_pba8_isp1761_resources);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

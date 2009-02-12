@@ -264,6 +264,19 @@ static int eth_device_register(void)
 	return realview_eth_register(name, realview_eb_eth_resources);
 }
 
+static struct resource realview_eb_isp1761_resources[] = {
+	[0] = {
+		.start		= REALVIEW_EB_USB_BASE,
+		.end		= REALVIEW_EB_USB_BASE + SZ_128K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= IRQ_EB_USB,
+		.end		= IRQ_EB_USB,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
 static void __init gic_init_irq(void)
 {
 	if (core_tile_eb11mp() || core_tile_a9mp()) {
@@ -323,6 +336,8 @@ static void realview_eb11mp_fixup(void)
 	/* platform devices */
 	realview_eb_eth_resources[1].start	= IRQ_EB11MP_ETH;
 	realview_eb_eth_resources[1].end	= IRQ_EB11MP_ETH;
+	realview_eb_isp1761_resources[1].start	= IRQ_EB11MP_USB;
+	realview_eb_isp1761_resources[1].end	= IRQ_EB11MP_USB;
 }
 
 static void __init realview_eb_timer_init(void)
@@ -366,6 +381,7 @@ static void __init realview_eb_init(void)
 	realview_flash_register(&realview_eb_flash_resource, 1);
 	platform_device_register(&realview_i2c_device);
 	eth_device_register();
+	realview_usb_register(realview_eb_isp1761_resources);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

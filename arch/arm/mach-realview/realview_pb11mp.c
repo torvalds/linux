@@ -230,6 +230,19 @@ static struct resource realview_pb11mp_smsc911x_resources[] = {
 	},
 };
 
+static struct resource realview_pb11mp_isp1761_resources[] = {
+	[0] = {
+		.start		= REALVIEW_PB11MP_USB_BASE,
+		.end		= REALVIEW_PB11MP_USB_BASE + SZ_128K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= IRQ_TC11MP_USB,
+		.end		= IRQ_TC11MP_USB,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
 static void __init gic_init_irq(void)
 {
 	unsigned int pldctrl;
@@ -284,6 +297,7 @@ static void __init realview_pb11mp_init(void)
 	realview_eth_register(NULL, realview_pb11mp_smsc911x_resources);
 	platform_device_register(&realview_i2c_device);
 	platform_device_register(&realview_cf_device);
+	realview_usb_register(realview_pb11mp_isp1761_resources);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

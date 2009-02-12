@@ -63,5 +63,6 @@ extern void realview_leds_event(led_event_t ledevt);
 extern void realview_timer_init(unsigned int timer_irq);
 extern int realview_flash_register(struct resource *res, u32 num);
 extern int realview_eth_register(const char *name, struct resource *res);
+extern int realview_usb_register(struct resource *res);
 
 #endif

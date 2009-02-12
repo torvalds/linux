@@ -151,6 +151,17 @@ int realview_eth_register(const char *name, struct resource *res)
 	return platform_device_register(&realview_eth_device);
 }
 
+struct platform_device realview_usb_device = {
+	.name			= "isp1760",
+	.num_resources		= 2,
+};
+
+int realview_usb_register(struct resource *res)
+{
+	realview_usb_device.resource = res;
+	return platform_device_register(&realview_usb_device);
+}
+
 static struct pata_platform_info pata_platform_data = {
 	.ioport_shift		= 1,
 };
