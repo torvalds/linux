@@ -118,15 +118,31 @@ void ocfs2_metadata_cache_io_unlock(struct ocfs2_caching_info *ci)
 }
 
 
+static void ocfs2_metadata_cache_reset(struct ocfs2_caching_info *ci,
+				       int clear)
+{
+	ci->ci_flags |= OCFS2_CACHE_FL_INLINE;
+	ci->ci_num_cached = 0;
+
+	if (clear)
+		ci->ci_last_trans = 0;
+}
+
 void ocfs2_metadata_cache_init(struct ocfs2_caching_info *ci,
 			       const struct ocfs2_caching_operations *ops)
 {
 	BUG_ON(!ops);
 
 	ci->ci_ops = ops;
-	ci->ci_flags |= OCFS2_CACHE_FL_INLINE;
-	ci->ci_num_cached = 0;
+	ocfs2_metadata_cache_reset(ci, 1);
 }
+
+void ocfs2_metadata_cache_exit(struct ocfs2_caching_info *ci)
+{
+	ocfs2_metadata_cache_purge(ci);
+	ocfs2_metadata_cache_reset(ci, 1);
+}
+
 
 /* No lock taken here as 'root' is not expected to be visible to other
  * processes. */
@@ -177,7 +193,7 @@ void ocfs2_metadata_cache_purge(struct ocfs2_caching_info *ci)
 	if (tree)
 		root = ci->ci_cache.ci_tree;
 
-	ocfs2_metadata_cache_init(ci, ci->ci_ops);
+	ocfs2_metadata_cache_reset(ci, 0);
 	ocfs2_metadata_cache_unlock(ci);
 
 	purged = ocfs2_purge_copied_metadata_tree(&root);

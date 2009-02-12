@@ -1112,7 +1112,7 @@ void ocfs2_clear_inode(struct inode *inode)
 	ocfs2_lock_res_free(&oi->ip_inode_lockres);
 	ocfs2_lock_res_free(&oi->ip_open_lockres);
 
-	ocfs2_metadata_cache_purge(INODE_CACHE(inode));
+	ocfs2_metadata_cache_exit(INODE_CACHE(inode));
 
 	mlog_bug_on_msg(INODE_CACHE(inode)->ci_num_cached,
 			"Clear inode of %llu, inode has %u cache items\n",
@@ -1148,7 +1148,6 @@ void ocfs2_clear_inode(struct inode *inode)
 	/* Clear all other flags. */
 	oi->ip_flags = 0;
 	oi->ip_created_trans = 0;
-	oi->ip_last_trans = 0;
 	oi->ip_dir_start_lookup = 0;
 	oi->ip_blkno = 0ULL;
 

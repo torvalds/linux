@@ -77,6 +77,10 @@ struct ocfs2_caching_info {
 	 */
 	const struct ocfs2_caching_operations *ci_ops;
 
+	/* last transaction we were a part of. */
+	unsigned long		ci_last_trans;
+
+	/* Cache structures */
 	unsigned int		ci_flags;
 	unsigned int		ci_num_cached;
 	union {

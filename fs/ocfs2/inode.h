@@ -63,8 +63,6 @@ struct ocfs2_inode_info
 	/* next two are protected by trans_inc_lock */
 	/* which transaction were we created on? Zero if none. */
 	unsigned long			ip_created_trans;
-	/* last transaction we were a part of. */
-	unsigned long			ip_last_trans;
 
 	struct ocfs2_caching_info	ip_metadata_cache;
 

@@ -61,6 +61,7 @@ void exit_ocfs2_uptodate_cache(void);
 void ocfs2_metadata_cache_init(struct ocfs2_caching_info *ci,
 			       const struct ocfs2_caching_operations *ops);
 void ocfs2_metadata_cache_purge(struct ocfs2_caching_info *ci);
+void ocfs2_metadata_cache_exit(struct ocfs2_caching_info *ci);
 
 u64 ocfs2_metadata_cache_owner(struct ocfs2_caching_info *ci);
 struct super_block *ocfs2_metadata_cache_get_super(struct ocfs2_caching_info *ci);

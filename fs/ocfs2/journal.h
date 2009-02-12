@@ -94,7 +94,7 @@ static inline void ocfs2_set_inode_lock_trans(struct ocfs2_journal *journal,
 					      struct inode *inode)
 {
 	spin_lock(&trans_inc_lock);
-	OCFS2_I(inode)->ip_last_trans = journal->j_trans_id;
+	INODE_CACHE(inode)->ci_last_trans = journal->j_trans_id;
 	spin_unlock(&trans_inc_lock);
 }
 
@@ -109,7 +109,8 @@ static inline int ocfs2_inode_fully_checkpointed(struct inode *inode)
 	struct ocfs2_journal *journal = OCFS2_SB(inode->i_sb)->journal;
 
 	spin_lock(&trans_inc_lock);
-	ret = time_after(journal->j_trans_id, OCFS2_I(inode)->ip_last_trans);
+	ret = time_after(journal->j_trans_id,
+			 INODE_CACHE(inode)->ci_last_trans);
 	spin_unlock(&trans_inc_lock);
 	return ret;
 }
