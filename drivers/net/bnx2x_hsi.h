@@ -2238,16 +2238,6 @@ union eth_ramrod_data {
 
 
 /*
- * Rx Last BD in page (in ETH)
- */
-struct eth_rx_bd_next_page {
-	u32 addr_lo;
-	u32 addr_hi;
-	u8 reserved[8];
-};
-
-
-/*
  * Eth Rx Cqe structure- general structure for ramrods
  */
 struct common_ramrod_eth_rx_cqe {
