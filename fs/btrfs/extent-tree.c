@@ -5658,7 +5658,9 @@ static noinline int relocate_one_extent(struct btrfs_root *extent_root,
 			prev_block = block_start;
 		}
 
+		mutex_lock(&extent_root->fs_info->trans_mutex);
 		btrfs_record_root_in_trans(found_root);
+		mutex_unlock(&extent_root->fs_info->trans_mutex);
 		if (ref_path->owner_objectid >= BTRFS_FIRST_FREE_OBJECTID) {
 			/*
 			 * try to update data extent references while
