@@ -40,7 +40,7 @@ asmlinkage int sys_sigaction(int, const struct old_sigaction __user *,
 			     struct old_sigaction __user *);
 int sys_sigaltstack(struct pt_regs *);
 unsigned long sys_sigreturn(struct pt_regs *);
-int sys_rt_sigreturn(struct pt_regs *);
+long sys_rt_sigreturn(struct pt_regs *);
 
 /* kernel/ioport.c */
 long sys_iopl(struct pt_regs *);

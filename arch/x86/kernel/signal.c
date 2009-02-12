@@ -601,7 +601,7 @@ badframe:
 }
 #endif /* CONFIG_X86_32 */
 
-static long do_rt_sigreturn(struct pt_regs *regs)
+long sys_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	unsigned long ax;
@@ -631,18 +631,6 @@ badframe:
 	signal_fault(regs, frame, "rt_sigreturn");
 	return 0;
 }
-
-#ifdef CONFIG_X86_32
-int sys_rt_sigreturn(struct pt_regs *regs)
-{
-	return do_rt_sigreturn(regs);
-}
-#else /* !CONFIG_X86_32 */
-asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
-{
-	return do_rt_sigreturn(regs);
-}
-#endif /* CONFIG_X86_32 */
 
 /*
  * OK, we're invoking a handler:
