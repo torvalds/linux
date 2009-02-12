@@ -687,6 +687,9 @@ early_param("highmem", parse_highmem);
  */
 void __init lowmem_pfn_init(void)
 {
+	/* max_low_pfn is 0, we already have early_res support */
+	max_low_pfn = max_pfn;
+
 	if (highmem_pages == -1)
 		highmem_pages = 0;
 #ifdef CONFIG_HIGHMEM
@@ -720,6 +723,8 @@ void __init lowmem_pfn_init(void)
  */
 void __init highmem_pfn_init(void)
 {
+	max_low_pfn = MAXMEM_PFN;
+
 	if (highmem_pages == -1)
 		highmem_pages = max_pfn - MAXMEM_PFN;
 
@@ -732,7 +737,6 @@ void __init highmem_pfn_init(void)
 			pages_to_mb(highmem_pages));
 		highmem_pages = 0;
 	}
-	max_low_pfn = MAXMEM_PFN;
 #ifndef CONFIG_HIGHMEM
 	/* Maximum memory usable is what is directly addressable */
 	printk(KERN_WARNING "Warning only %ldMB will be used.\n", MAXMEM>>20);
@@ -758,13 +762,10 @@ void __init find_low_pfn_range(void)
 {
 	/* it could update max_pfn */
 
-	/* max_low_pfn is 0, we already have early_res support */
-	max_low_pfn = max_pfn;
-
-	if (max_low_pfn > MAXMEM_PFN)
-		highmem_pfn_init();
-	else
+	if (max_pfn <= MAXMEM_PFN)
 		lowmem_pfn_init();
+	else
+		highmem_pfn_init();
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
