@@ -98,6 +98,9 @@
  * 		- blacklisted KWorld radio in hid-core.c and hid-ids.h
  * 2008-12-03	Mark Lord <mlord@pobox.com>
  *		- add support for DealExtreme USB Radio
+ * 2009-01-31	Bob Ross <pigiron@gmx.com>
+ *		- correction of stereo detection/setting
+ *		- correction of signal strength indicator scaling
  *
  * ToDo:
  * - add firmware download/update support
@@ -1385,20 +1388,22 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 	};
 
 	/* stereo indicator == stereo (instead of mono) */
-	if ((radio->registers[STATUSRSSI] & STATUSRSSI_ST) == 1)
-		tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-	else
+	if ((radio->registers[STATUSRSSI] & STATUSRSSI_ST) == 0)
 		tuner->rxsubchans = V4L2_TUNER_SUB_MONO;
+	else
+		tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 
 	/* mono/stereo selector */
-	if ((radio->registers[POWERCFG] & POWERCFG_MONO) == 1)
-		tuner->audmode = V4L2_TUNER_MODE_MONO;
-	else
+	if ((radio->registers[POWERCFG] & POWERCFG_MONO) == 0)
 		tuner->audmode = V4L2_TUNER_MODE_STEREO;
+	else
+		tuner->audmode = V4L2_TUNER_MODE_MONO;
 
 	/* min is worst, max is best; signal:0..0xffff; rssi: 0..0xff */
-	tuner->signal = (radio->registers[STATUSRSSI] & STATUSRSSI_RSSI)
-				* 0x0101;
+	/* measured in units of dbµV in 1 db increments (max at ~75 dbµV) */
+	tuner->signal = (radio->registers[STATUSRSSI] & STATUSRSSI_RSSI);
+	/* the ideal factor is 0xffff/75 = 873,8 */
+	tuner->signal = (tuner->signal * 873) + (8 * tuner->signal / 10);
 
 	/* automatic frequency control: -1: freq to low, 1 freq to high */
 	/* AFCRL does only indicate that freq. differs, not if too low/high */
