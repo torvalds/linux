@@ -1671,7 +1671,7 @@ struct xstorm_eth_ag_context {
 };
 
 /*
- * The eth aggregative context section of Tstorm
+ * The eth extra aggregative context section of Tstorm
  */
 struct tstorm_eth_extra_ag_context_section {
 	u32 __agg_val1;

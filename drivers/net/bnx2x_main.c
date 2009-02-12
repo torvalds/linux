@@ -1704,7 +1704,7 @@ static irqreturn_t bnx2x_interrupt(int irq, void *dev_instance)
 		DP(NETIF_MSG_INTR, "not our interrupt!\n");
 		return IRQ_NONE;
 	}
-	DP(NETIF_MSG_INTR, "got an interrupt  status %u\n", status);
+	DP(NETIF_MSG_INTR, "got an interrupt  status 0x%x\n", status);
 
 	/* Return here if interrupt is disabled */
 	if (unlikely(atomic_read(&bp->intr_sem) != 0)) {
@@ -2115,7 +2115,7 @@ static u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 
 		return rc;
 	}
-	BNX2X_ERR("Bootcode is missing -not initializing link\n");
+	BNX2X_ERR("Bootcode is missing - can not initialize link\n");
 	return -EINVAL;
 }
 
@@ -2128,7 +2128,7 @@ static void bnx2x_link_set(struct bnx2x *bp)
 
 		bnx2x_calc_fc_adv(bp);
 	} else
-		BNX2X_ERR("Bootcode is missing -not setting link\n");
+		BNX2X_ERR("Bootcode is missing - can not set link\n");
 }
 
 static void bnx2x__link_reset(struct bnx2x *bp)
@@ -2138,7 +2138,7 @@ static void bnx2x__link_reset(struct bnx2x *bp)
 		bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
 		bnx2x_release_phy_lock(bp);
 	} else
-		BNX2X_ERR("Bootcode is missing -not resetting link\n");
+		BNX2X_ERR("Bootcode is missing - can not reset link\n");
 }
 
 static u8 bnx2x_link_test(struct bnx2x *bp)
@@ -5139,8 +5139,8 @@ static void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 		fp->cl_id = BP_L_ID(bp) + i;
 		fp->sb_id = fp->cl_id;
 		DP(NETIF_MSG_IFUP,
-		   "bnx2x_init_sb(%p,%p) index %d  cl_id %d  sb %d\n",
-		   bp, fp->status_blk, i, fp->cl_id, fp->sb_id);
+		   "queue[%d]:  bnx2x_init_sb(%p,%p)  cl_id %d  sb %d\n",
+		   i, bp, fp->status_blk, fp->cl_id, fp->sb_id);
 		bnx2x_init_sb(bp, fp->status_blk, fp->status_blk_mapping,
 			      fp->sb_id);
 		bnx2x_update_fpsb_idx(fp);
@@ -6904,11 +6904,11 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	} else {
 		int port = BP_PORT(bp);
 
-		DP(NETIF_MSG_IFUP, "NO MCP load counts before us %d, %d, %d\n",
+		DP(NETIF_MSG_IFUP, "NO MCP - load counts      %d, %d, %d\n",
 		   load_count[0], load_count[1], load_count[2]);
 		load_count[0]++;
 		load_count[1 + port]++;
-		DP(NETIF_MSG_IFUP, "NO MCP new load counts       %d, %d, %d\n",
+		DP(NETIF_MSG_IFUP, "NO MCP - new load counts  %d, %d, %d\n",
 		   load_count[0], load_count[1], load_count[2]);
 		if (load_count[0] == 1)
 			load_code = FW_MSG_CODE_DRV_LOAD_COMMON;
@@ -6955,7 +6955,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	if (CHIP_IS_E1H(bp))
 		if (bp->mf_config & FUNC_MF_CFG_FUNC_DISABLED) {
-			BNX2X_ERR("!!!  mf_cfg function disabled\n");
+			DP(NETIF_MSG_IFUP, "mf_cfg function disabled\n");
 			bp->state = BNX2X_STATE_DISABLED;
 		}
 
@@ -7028,8 +7028,6 @@ load_error1:
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
 	bnx2x_free_mem(bp);
 
-	/* TBD we really need to reset the chip
-	   if we want to recover from this */
 	return rc;
 }
 
@@ -7303,11 +7301,11 @@ unload_error:
 	if (!BP_NOMCP(bp))
 		reset_code = bnx2x_fw_command(bp, reset_code);
 	else {
-		DP(NETIF_MSG_IFDOWN, "NO MCP load counts      %d, %d, %d\n",
+		DP(NETIF_MSG_IFDOWN, "NO MCP - load counts      %d, %d, %d\n",
 		   load_count[0], load_count[1], load_count[2]);
 		load_count[0]--;
 		load_count[1 + port]--;
-		DP(NETIF_MSG_IFDOWN, "NO MCP new load counts  %d, %d, %d\n",
+		DP(NETIF_MSG_IFDOWN, "NO MCP - new load counts  %d, %d, %d\n",
 		   load_count[0], load_count[1], load_count[2]);
 		if (load_count[0] == 0)
 			reset_code = FW_MSG_CODE_DRV_UNLOAD_COMMON;
@@ -7615,7 +7613,7 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		bp->flags |= NO_WOL_FLAG;
 	}
 	BNX2X_DEV_INFO("%sWoL capable\n",
-		       (bp->flags & NO_WOL_FLAG) ? "Not " : "");
+		       (bp->flags & NO_WOL_FLAG) ? "not " : "");
 
 	val = SHMEM_RD(bp, dev_info.shared_hw_config.part_num);
 	val2 = SHMEM_RD(bp, dev_info.shared_hw_config.part_num[4]);
@@ -8111,7 +8109,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 				       "(0x%04x)\n",
 				       func, bp->e1hov, bp->e1hov);
 		} else {
-			BNX2X_DEV_INFO("Single function mode\n");
+			BNX2X_DEV_INFO("single function mode\n");
 			if (BP_E1HVN(bp)) {
 				BNX2X_ERR("!!!  No valid E1HOV for func %d,"
 					  "  aborting\n", func);
@@ -9519,7 +9517,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 
 	rc = bnx2x_nvram_read(bp, 0, data, 4);
 	if (rc) {
-		DP(NETIF_MSG_PROBE, "magic value read (rc -%d)\n", -rc);
+		DP(NETIF_MSG_PROBE, "magic value read (rc %d)\n", rc);
 		goto test_nvram_exit;
 	}
 
@@ -9536,7 +9534,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 				      nvram_tbl[i].size);
 		if (rc) {
 			DP(NETIF_MSG_PROBE,
-			   "nvram_tbl[%d] read data (rc -%d)\n", i, -rc);
+			   "nvram_tbl[%d] read data (rc %d)\n", i, rc);
 			goto test_nvram_exit;
 		}
 
@@ -10173,7 +10171,9 @@ static inline u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)
 }
 
 #if (MAX_SKB_FRAGS >= MAX_FETCH_BD - 3)
-/* check if packet requires linearization (packet is too fragmented) */
+/* check if packet requires linearization (packet is too fragmented)
+   no need to check fragmentation if page size > 8K (there will be no
+   violation to FW restrictions) */
 static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			     u32 xmit_type)
 {
@@ -10295,8 +10295,9 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   ip_hdr(skb)->protocol, skb_shinfo(skb)->gso_type, xmit_type);
 
 #if (MAX_SKB_FRAGS >= MAX_FETCH_BD - 3)
-	/* First, check if we need to linearize the skb
-	   (due to FW restrictions) */
+	/* First, check if we need to linearize the skb (due to FW
+	   restrictions). No need to check fragmentation if page size > 8K
+	   (there will be no violation to FW restrictions) */
 	if (bnx2x_pkt_req_lin(bp, skb, xmit_type)) {
 		/* Statistics of linearization */
 		bp->lin_cnt++;
@@ -10557,7 +10558,7 @@ static int bnx2x_close(struct net_device *dev)
 	return 0;
 }
 
-/* called with netif_tx_lock from set_multicast */
+/* called with netif_tx_lock from dev_mcast.c */
 static void bnx2x_set_rx_mode(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);

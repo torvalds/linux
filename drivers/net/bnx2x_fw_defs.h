@@ -194,7 +194,7 @@
 #define COMMON_ASM_INVALID_ASSERT_OPCODE 0x0
 
 /**
-* This file defines HSI constatnts for the ETH flow
+* This file defines HSI constants for the ETH flow
 */
 #ifdef _EVEREST_MICROCODE
 #include "microcode_constants.h"
@@ -212,7 +212,8 @@
 #define IPV6_HASH_TYPE 3
 #define TCP_IPV6_HASH_TYPE 4
 
-/* Ethernet Ring parmaters */
+
+/* Ethernet Ring parameters */
 #define X_ETH_LOCAL_RING_SIZE 13
 #define FIRST_BD_IN_PKT 0
 #define PARSE_BD_INDEX 1
@@ -279,7 +280,7 @@
 
 
 /**
-* This file defines HSI constatnts common to all microcode flows
+* This file defines HSI constants common to all microcode flows
 */
 
 /* Connection types */
@@ -313,7 +314,7 @@
 #define HC_USTORM_SB_NUM_INDICES 4
 #define HC_CSTORM_SB_NUM_INDICES 4
 
-/* index values - which counterto update */
+/* index values - which counter to update */
 
 #define HC_INDEX_U_TOE_RX_CQ_CONS 0
 #define HC_INDEX_U_ETH_RX_CQ_CONS 1

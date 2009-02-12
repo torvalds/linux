@@ -4823,6 +4823,7 @@ u8 bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 			return -EINVAL;
 			break;
 		}
+		DP(NETIF_MSG_LINK, "Phy address = 0x%x\n", params->phy_addr);
 
 		bnx2x_link_initialize(params, vars);
 		msleep(30);
@@ -5179,7 +5180,7 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 
 	/* PART3 - complete TX_POWER_DOWN process, and set GPIO2 back to low */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
-		/* Phase2 of POWER_DOWN_RESET*/
+		/* Phase2 of POWER_DOWN_RESET */
 		/* Release bit 10 (Release Tx power down) */
 		bnx2x_cl45_read(bp, port,
 			      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
@@ -5258,7 +5259,7 @@ u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 	u8 rc = 0;
 	u32 ext_phy_type;
 
-	DP(NETIF_MSG_LINK, "bnx2x_common_init_phy\n");
+	DP(NETIF_MSG_LINK, "Begin common phy init\n");
 
 	/* Read the ext_phy_type for arbitrary port(0) */
 	ext_phy_type = XGXS_EXT_PHY_TYPE(
