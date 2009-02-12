@@ -50,6 +50,9 @@
 
 #define SO_MARK			0x0022
 
+#define SO_TIMESTAMPING		0x0023
+#define SCM_TIMESTAMPING	SO_TIMESTAMPING
+
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001
 #define SO_SECURITY_ENCRYPTION_TRANSPORT	0x5002

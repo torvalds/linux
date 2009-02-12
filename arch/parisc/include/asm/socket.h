@@ -54,6 +54,9 @@
 
 #define SO_MARK			0x401f
 
+#define SO_TIMESTAMPING		0x4020
+#define SCM_TIMESTAMPING	SO_TIMESTAMPING
+
 /* O_NONBLOCK clashes with the bits used for socket types.  Therefore we
  * have to define SOCK_NONBLOCK to a different value here.
  */
