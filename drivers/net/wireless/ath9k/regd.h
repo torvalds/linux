@@ -233,7 +233,6 @@ enum CountryCode {
 	CTRY_BELGIUM2 = 5002
 };
 
-u16 ath9k_regd_get_rd(struct ath_hw *ah);
 bool ath9k_is_world_regd(struct ath_hw *ah);
 const struct ieee80211_regdomain *ath9k_world_regdomain(struct ath_hw *ah);
 const struct ieee80211_regdomain *ath9k_default_world_regdomain(void);

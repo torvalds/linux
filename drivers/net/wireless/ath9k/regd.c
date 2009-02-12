@@ -117,11 +117,6 @@ static u16 ath9k_regd_get_eepromRD(struct ath_hw *ah)
 	return ah->regulatory.current_rd & ~WORLDWIDE_ROAMING_FLAG;
 }
 
-u16 ath9k_regd_get_rd(struct ath_hw *ah)
-{
-	return ath9k_regd_get_eepromRD(ah);
-}
-
 bool ath9k_is_world_regd(struct ath_hw *ah)
 {
 	return is_wwr_sku(ath9k_regd_get_eepromRD(ah));
