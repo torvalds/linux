@@ -88,7 +88,6 @@ struct avc_entry {
 	u32			tsid;
 	u16			tclass;
 	struct av_decision	avd;
-	atomic_t		used;	/* used recently */
 };
 
 struct avc_node {
@@ -316,16 +315,13 @@ static inline int avc_reclaim_node(void)
 
 		rcu_read_lock();
 		list_for_each_entry(node, &avc_cache.slots[hvalue], list) {
-			if (atomic_dec_and_test(&node->ae.used)) {
-				/* Recently Unused */
-				avc_node_delete(node);
-				avc_cache_stats_incr(reclaims);
-				ecx++;
-				if (ecx >= AVC_CACHE_RECLAIM) {
-					rcu_read_unlock();
-					spin_unlock_irqrestore(&avc_cache.slots_lock[hvalue], flags);
-					goto out;
-				}
+			avc_node_delete(node);
+			avc_cache_stats_incr(reclaims);
+			ecx++;
+			if (ecx >= AVC_CACHE_RECLAIM) {
+				rcu_read_unlock();
+				spin_unlock_irqrestore(&avc_cache.slots_lock[hvalue], flags);
+				goto out;
 			}
 		}
 		rcu_read_unlock();
@@ -345,7 +341,6 @@ static struct avc_node *avc_alloc_node(void)
 
 	INIT_RCU_HEAD(&node->rhead);
 	INIT_LIST_HEAD(&node->list);
-	atomic_set(&node->ae.used, 1);
 	avc_cache_stats_incr(allocations);
 
 	if (atomic_inc_return(&avc_cache.active_nodes) > avc_cache_threshold)
@@ -378,15 +373,6 @@ static inline struct avc_node *avc_search_node(u32 ssid, u32 tsid, u16 tclass)
 		}
 	}
 
-	if (ret == NULL) {
-		/* cache miss */
-		goto out;
-	}
-
-	/* cache hit */
-	if (atomic_read(&ret->ae.used) != 1)
-		atomic_set(&ret->ae.used, 1);
-out:
 	return ret;
 }
 
