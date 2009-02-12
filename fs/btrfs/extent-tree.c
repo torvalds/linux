@@ -3416,7 +3416,8 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 
 struct extent_buffer *btrfs_init_new_buffer(struct btrfs_trans_handle *trans,
 					    struct btrfs_root *root,
-					    u64 bytenr, u32 blocksize)
+					    u64 bytenr, u32 blocksize,
+					    int level)
 {
 	struct extent_buffer *buf;
 
@@ -3424,6 +3425,7 @@ struct extent_buffer *btrfs_init_new_buffer(struct btrfs_trans_handle *trans,
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 	btrfs_set_header_generation(buf, trans->transid);
+	btrfs_set_buffer_lockdep_class(buf, level);
 	btrfs_tree_lock(buf);
 	clean_tree_block(trans, root, buf);
 
@@ -3467,7 +3469,8 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 		return ERR_PTR(ret);
 	}
 
-	buf = btrfs_init_new_buffer(trans, root, ins.objectid, blocksize);
+	buf = btrfs_init_new_buffer(trans, root, ins.objectid,
+				    blocksize, level);
 	return buf;
 }
 
