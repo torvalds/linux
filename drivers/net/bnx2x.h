@@ -96,12 +96,10 @@
 
 #define REG_RD(bp, offset)		readl(REG_ADDR(bp, offset))
 #define REG_RD8(bp, offset)		readb(REG_ADDR(bp, offset))
-#define REG_RD64(bp, offset)		readq(REG_ADDR(bp, offset))
 
 #define REG_WR(bp, offset, val)		writel((u32)val, REG_ADDR(bp, offset))
 #define REG_WR8(bp, offset, val)	writeb((u8)val, REG_ADDR(bp, offset))
 #define REG_WR16(bp, offset, val)	writew((u16)val, REG_ADDR(bp, offset))
-#define REG_WR32(bp, offset, val)	REG_WR(bp, offset, val)
 
 #define REG_RD_IND(bp, offset)		bnx2x_reg_rd_ind(bp, offset)
 #define REG_WR_IND(bp, offset, val)	bnx2x_reg_wr_ind(bp, offset, val)
@@ -267,11 +265,6 @@ struct bnx2x_fastpath {
 	u8			index;	/* number in fp array */
 	u8			cl_id;	/* eth client id */
 	u8			sb_id;	/* status block number in HW */
-#define FP_IDX(fp)			(fp->index)
-#define FP_CL_ID(fp)			(fp->cl_id)
-#define BP_CL_ID(bp)			(bp->fp[0].cl_id)
-#define FP_SB_ID(fp)			(fp->sb_id)
-#define CNIC_SB_ID			0
 
 	u16			tx_pkt_prod;
 	u16			tx_pkt_cons;
@@ -1127,9 +1120,6 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 
 #define BNX2X_MCP_ASSERT \
 	GENERAL_ATTEN_OFFSET(MCP_FATAL_ASSERT_ATTENTION_BIT)
-
-#define BNX2X_DOORQ_ASSERT \
-	AEU_INPUTS_ATTN_BITS_DOORBELLQ_HW_INTERRUPT
 
 #define BNX2X_GRC_TIMEOUT	GENERAL_ATTEN_OFFSET(LATCHED_ATTN_TIMEOUT_GRC)
 #define BNX2X_GRC_RSV		(GENERAL_ATTEN_OFFSET(LATCHED_ATTN_RBCR) | \
