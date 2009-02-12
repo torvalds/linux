@@ -119,7 +119,7 @@ config USB_STORAGE_JUMPSHOT
 	  If this driver is compiled as a module, it will be named ums-jumpshot.
 
 config USB_STORAGE_ALAUDA
-	bool "Olympus MAUSB-10/Fuji DPC-R1 support"
+	tristate "Olympus MAUSB-10/Fuji DPC-R1 support"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Olympus MAUSB-10
@@ -127,6 +127,8 @@ config USB_STORAGE_ALAUDA
 
 	  These devices are based on the Alauda chip and support both
 	  XD and SmartMedia cards.
+
+	  If this driver is compiled as a module, it will be named ums-alauda.
 
 config USB_STORAGE_ONETOUCH
 	bool "Support OneTouch Button on Maxtor Hard Drives"

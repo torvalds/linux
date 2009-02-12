@@ -31,6 +31,8 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/module.h>
+
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
@@ -39,7 +41,75 @@
 #include "transport.h"
 #include "protocol.h"
 #include "debug.h"
-#include "alauda.h"
+
+/*
+ * Status bytes
+ */
+#define ALAUDA_STATUS_ERROR		0x01
+#define ALAUDA_STATUS_READY		0x40
+
+/*
+ * Control opcodes (for request field)
+ */
+#define ALAUDA_GET_XD_MEDIA_STATUS	0x08
+#define ALAUDA_GET_SM_MEDIA_STATUS	0x98
+#define ALAUDA_ACK_XD_MEDIA_CHANGE	0x0a
+#define ALAUDA_ACK_SM_MEDIA_CHANGE	0x9a
+#define ALAUDA_GET_XD_MEDIA_SIG		0x86
+#define ALAUDA_GET_SM_MEDIA_SIG		0x96
+
+/*
+ * Bulk command identity (byte 0)
+ */
+#define ALAUDA_BULK_CMD			0x40
+
+/*
+ * Bulk opcodes (byte 1)
+ */
+#define ALAUDA_BULK_GET_REDU_DATA	0x85
+#define ALAUDA_BULK_READ_BLOCK		0x94
+#define ALAUDA_BULK_ERASE_BLOCK		0xa3
+#define ALAUDA_BULK_WRITE_BLOCK		0xb4
+#define ALAUDA_BULK_GET_STATUS2		0xb7
+#define ALAUDA_BULK_RESET_MEDIA		0xe0
+
+/*
+ * Port to operate on (byte 8)
+ */
+#define ALAUDA_PORT_XD			0x00
+#define ALAUDA_PORT_SM			0x01
+
+/*
+ * LBA and PBA are unsigned ints. Special values.
+ */
+#define UNDEF    0xffff
+#define SPARE    0xfffe
+#define UNUSABLE 0xfffd
+
+struct alauda_media_info {
+	unsigned long capacity;		/* total media size in bytes */
+	unsigned int pagesize;		/* page size in bytes */
+	unsigned int blocksize;		/* number of pages per block */
+	unsigned int uzonesize;		/* number of usable blocks per zone */
+	unsigned int zonesize;		/* number of blocks per zone */
+	unsigned int blockmask;		/* mask to get page from address */
+
+	unsigned char pageshift;
+	unsigned char blockshift;
+	unsigned char zoneshift;
+
+	u16 **lba_to_pba;		/* logical to physical block map */
+	u16 **pba_to_lba;		/* physical to logical block map */
+};
+
+struct alauda_info {
+	struct alauda_media_info port[2];
+	int wr_ep;			/* endpoint to write data out of */
+
+	unsigned char sense_key;
+	unsigned long sense_asc;	/* additional sense code */
+	unsigned long sense_ascq;	/* additional sense code qualifier */
+};
 
 #define short_pack(lsb,msb) ( ((u16)(lsb)) | ( ((u16)(msb))<<8 ) )
 #define LSB_of(s) ((s)&0xFF)
@@ -51,6 +121,48 @@
 #define PBA_LO(pba) ((pba & 0xF) << 5)
 #define PBA_HI(pba) (pba >> 3)
 #define PBA_ZONE(pba) (pba >> 11)
+
+static int init_alauda(struct us_data *us);
+
+
+/*
+ * The table of devices
+ */
+#define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
+		    vendorName, productName, useProtocol, useTransport, \
+		    initFunction, flags) \
+{ USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
+  .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
+
+struct usb_device_id alauda_usb_ids[] = {
+#	include "unusual_alauda.h"
+	{ }		/* Terminating entry */
+};
+MODULE_DEVICE_TABLE(usb, alauda_usb_ids);
+
+#undef UNUSUAL_DEV
+
+/*
+ * The flags table
+ */
+#define UNUSUAL_DEV(idVendor, idProduct, bcdDeviceMin, bcdDeviceMax, \
+		    vendor_name, product_name, use_protocol, use_transport, \
+		    init_function, Flags) \
+{ \
+	.vendorName = vendor_name,	\
+	.productName = product_name,	\
+	.useProtocol = use_protocol,	\
+	.useTransport = use_transport,	\
+	.initFunction = init_function,	\
+}
+
+static struct us_unusual_dev alauda_unusual_dev_list[] = {
+#	include "unusual_alauda.h"
+	{ }		/* Terminating entry */
+};
+
+#undef UNUSUAL_DEV
+
 
 /*
  * Media handling
@@ -998,7 +1110,7 @@ static void alauda_info_destructor(void *extra)
 /*
  * Initialize alauda_info struct and find the data-write endpoint
  */
-int init_alauda(struct us_data *us)
+static int init_alauda(struct us_data *us)
 {
 	struct alauda_info *info;
 	struct usb_host_interface *altsetting = us->pusb_intf->cur_altsetting;
@@ -1020,7 +1132,7 @@ int init_alauda(struct us_data *us)
 	return USB_STOR_TRANSPORT_GOOD;
 }
 
-int alauda_transport(struct scsi_cmnd *srb, struct us_data *us)
+static int alauda_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	int rc;
 	struct alauda_info *info = (struct alauda_info *) us->extra;
@@ -1128,3 +1240,48 @@ int alauda_transport(struct scsi_cmnd *srb, struct us_data *us)
 	return USB_STOR_TRANSPORT_FAILED;
 }
 
+static int alauda_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
+{
+	struct us_data *us;
+	int result;
+
+	result = usb_stor_probe1(&us, intf, id,
+			(id - alauda_usb_ids) + alauda_unusual_dev_list);
+	if (result)
+		return result;
+
+	us->transport_name  = "Alauda Control/Bulk";
+	us->transport = alauda_transport;
+	us->transport_reset = usb_stor_Bulk_reset;
+	us->max_lun = 1;
+
+	result = usb_stor_probe2(us);
+	return result;
+}
+
+static struct usb_driver alauda_driver = {
+	.name =		"ums-alauda",
+	.probe =	alauda_probe,
+	.disconnect =	usb_stor_disconnect,
+	.suspend =	usb_stor_suspend,
+	.resume =	usb_stor_resume,
+	.reset_resume =	usb_stor_reset_resume,
+	.pre_reset =	usb_stor_pre_reset,
+	.post_reset =	usb_stor_post_reset,
+	.id_table =	alauda_usb_ids,
+	.soft_unbind =	1,
+};
+
+static int __init alauda_init(void)
+{
+	return usb_register(&alauda_driver);
+}
+
+static void __exit alauda_exit(void)
+{
+	usb_deregister(&alauda_driver);
+}
+
+module_init(alauda_init);
+module_exit(alauda_exit);

@@ -692,13 +692,6 @@ UNUSUAL_DEV(  0x057b, 0x0022, 0x0000, 0x9999,
 		"Silicon Media R/W",
 		US_SC_DEVICE, US_PR_DEVICE, NULL, 0),
 
-#ifdef CONFIG_USB_STORAGE_ALAUDA
-UNUSUAL_DEV(  0x0584, 0x0008, 0x0102, 0x0102,
-		"Fujifilm",
-		"DPC-R1 (Alauda)",
- 		US_SC_SCSI, US_PR_ALAUDA, init_alauda, 0 ),
-#endif
-
 /* Reported by RTE <raszilki@yandex.ru> */
 UNUSUAL_DEV(  0x058f, 0x6387, 0x0141, 0x0141,
 		"JetFlash",
@@ -975,13 +968,6 @@ UNUSUAL_DEV(  0x07af, 0x0006, 0x0100, 0x0100,
 		"CameraMate",
 		US_SC_SCSI, US_PR_CB, NULL,
 		US_FL_SINGLE_LUN ),
-#endif
-
-#ifdef CONFIG_USB_STORAGE_ALAUDA
-UNUSUAL_DEV(  0x07b4, 0x010a, 0x0102, 0x0102,
-		"Olympus",
-		"MAUSB-10 (Alauda)",
- 		US_SC_SCSI, US_PR_ALAUDA, init_alauda, 0 ),
 #endif
 
 /* Datafab KECF-USB / Sagatek DCS-CF / Simpletech Flashlink UCF-100
