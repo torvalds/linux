@@ -49,7 +49,7 @@ config IMA_AUDIT
 
 config IMA_LSM_RULES
 	bool
-	depends on IMA && (SECURITY_SELINUX || SECURITY_SMACK)
+	depends on IMA && AUDIT && (SECURITY_SELINUX || SECURITY_SMACK)
 	default y
 	help
-	  Disabling this option will disregard LSM based policy rules
+	  Disabling this option will disregard LSM based policy rules.
