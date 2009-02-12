@@ -511,6 +511,10 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	struct btrfs_root *root = btrfs_sb(sb);
 	int ret;
 
+	ret = btrfs_parse_options(root, data);
+	if (ret)
+		return -EINVAL;
+
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
 
