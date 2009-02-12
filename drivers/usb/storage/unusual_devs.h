@@ -632,14 +632,6 @@ UNUSUAL_DEV(  0x054c, 0x0025, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
-#ifdef CONFIG_USB_STORAGE_ISD200
-UNUSUAL_DEV(  0x054c, 0x002b, 0x0100, 0x0110,
-		"Sony",
-		"Portable USB Harddrive V2",
-		US_SC_ISD200, US_PR_BULK, isd200_Initialization,
-		0 ),
-#endif
-
 /* Submitted by Olaf Hering, <olh@suse.de> SuSE Bugzilla #49049 */
 UNUSUAL_DEV(  0x054c, 0x002c, 0x0501, 0x2000,
 		"Sony",
@@ -784,32 +776,6 @@ UNUSUAL_DEV(  0x05ab, 0x0060, 0x1104, 0x1110,
 		"PyroGate External CD-ROM Enclosure (FCD-523)",
 		US_SC_SCSI, US_PR_BULK, NULL,
 		US_FL_NEED_OVERRIDE ),
-
-#ifdef CONFIG_USB_STORAGE_ISD200
-UNUSUAL_DEV(  0x05ab, 0x0031, 0x0100, 0x0110,
-		"In-System",
-		"USB/IDE Bridge (ATA/ATAPI)",
-		US_SC_ISD200, US_PR_BULK, isd200_Initialization,
-		0 ),
-
-UNUSUAL_DEV(  0x05ab, 0x0301, 0x0100, 0x0110,
-		"In-System",
-		"Portable USB Harddrive V2",
-		US_SC_ISD200, US_PR_BULK, isd200_Initialization,
-		0 ),
-
-UNUSUAL_DEV(  0x05ab, 0x0351, 0x0100, 0x0110,
-		"In-System",
-		"Portable USB Harddrive V2",
-		US_SC_ISD200, US_PR_BULK, isd200_Initialization,
-		0 ),
-
-UNUSUAL_DEV(  0x05ab, 0x5701, 0x0100, 0x0110,
-		"In-System",
-		"USB Storage Adapter V2",
-		US_SC_ISD200, US_PR_BULK, isd200_Initialization,
-		0 ),
-#endif
 
 /* Submitted by Sven Anderson <sven-linux@anderson.de>
  * There are at least four ProductIDs used for iPods, so I added 0x1202 and
@@ -1374,14 +1340,6 @@ UNUSUAL_DEV( 0x0bc2, 0x3010, 0x0000, 0x0000,
 		"FreeAgent Pro",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SANE_SENSE ),
-
-#ifdef CONFIG_USB_STORAGE_ISD200
-UNUSUAL_DEV(  0x0bf6, 0xa001, 0x0100, 0x0110,
-		"ATI",
-		"USB Cable 205",
-		US_SC_ISD200, US_PR_BULK, isd200_Initialization,
-		0 ),
-#endif
 
 #ifdef CONFIG_USB_STORAGE_DATAFAB
 UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,

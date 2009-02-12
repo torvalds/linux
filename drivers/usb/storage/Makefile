@@ -13,7 +13,6 @@ usb-storage-obj-$(CONFIG_USB_STORAGE_DEBUG)	+= debug.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_USBAT)	+= shuttle_usbat.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_SDDR55)	+= sddr55.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_FREECOM)	+= freecom.o
-usb-storage-obj-$(CONFIG_USB_STORAGE_ISD200)	+= isd200.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_DATAFAB)	+= datafab.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_JUMPSHOT)	+= jumpshot.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_ALAUDA)	+= alauda.o
@@ -30,6 +29,8 @@ else
 	obj-$(CONFIG_USB)	+= libusual.o usual-tables.o
 endif
 
+obj-$(CONFIG_USB_STORAGE_ISD200)	+= ums-isd200.o
 obj-$(CONFIG_USB_STORAGE_SDDR09)	+= ums-sddr09.o
 
+ums-isd200-objs		:= isd200.o
 ums-sddr09-objs		:= sddr09.o

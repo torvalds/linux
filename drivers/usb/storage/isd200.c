@@ -44,6 +44,7 @@
 
 #include <linux/jiffies.h>
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/hdreg.h>
 #include <linux/scatterlist.h>
@@ -57,7 +58,50 @@
 #include "protocol.h"
 #include "debug.h"
 #include "scsiglue.h"
-#include "isd200.h"
+
+
+static int isd200_Initialization(struct us_data *us);
+
+
+/*
+ * The table of devices
+ */
+#define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
+		    vendorName, productName, useProtocol, useTransport, \
+		    initFunction, flags) \
+{ USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
+  .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
+
+struct usb_device_id isd200_usb_ids[] = {
+#	include "unusual_isd200.h"
+	{ }		/* Terminating entry */
+};
+MODULE_DEVICE_TABLE(usb, isd200_usb_ids);
+
+#undef UNUSUAL_DEV
+#undef USUAL_DEV
+
+/*
+ * The flags table
+ */
+#define UNUSUAL_DEV(idVendor, idProduct, bcdDeviceMin, bcdDeviceMax, \
+		    vendor_name, product_name, use_protocol, use_transport, \
+		    init_function, Flags) \
+{ \
+	.vendorName = vendor_name,	\
+	.productName = product_name,	\
+	.useProtocol = use_protocol,	\
+	.useTransport = use_transport,	\
+	.initFunction = init_function,	\
+}
+
+static struct us_unusual_dev isd200_unusual_dev_list[] = {
+#	include "unusual_isd200.h"
+	{ }		/* Terminating entry */
+};
+
+#undef UNUSUAL_DEV
+#undef USUAL_DEV
 
 
 /* Timeout defines (in Seconds) */
@@ -1518,7 +1562,7 @@ static int isd200_init_info(struct us_data *us)
  * Initialization for the ISD200 
  */
 
-int isd200_Initialization(struct us_data *us)
+static int isd200_Initialization(struct us_data *us)
 {
 	US_DEBUGP("ISD200 Initialization...\n");
 
@@ -1549,7 +1593,7 @@ int isd200_Initialization(struct us_data *us)
  *
  */
 
-void isd200_ata_command(struct scsi_cmnd *srb, struct us_data *us)
+static void isd200_ata_command(struct scsi_cmnd *srb, struct us_data *us)
 {
 	int sendToTransport = 1, orig_bufflen;
 	union ata_cdb ataCdb;
@@ -1570,3 +1614,47 @@ void isd200_ata_command(struct scsi_cmnd *srb, struct us_data *us)
 
 	isd200_srb_set_bufflen(srb, orig_bufflen);
 }
+
+static int isd200_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
+{
+	struct us_data *us;
+	int result;
+
+	result = usb_stor_probe1(&us, intf, id,
+			(id - isd200_usb_ids) + isd200_unusual_dev_list);
+	if (result)
+		return result;
+
+	us->protocol_name = "ISD200 ATA/ATAPI";
+	us->proto_handler = isd200_ata_command;
+
+	result = usb_stor_probe2(us);
+	return result;
+}
+
+static struct usb_driver isd200_driver = {
+	.name =		"ums-isd200",
+	.probe =	isd200_probe,
+	.disconnect =	usb_stor_disconnect,
+	.suspend =	usb_stor_suspend,
+	.resume =	usb_stor_resume,
+	.reset_resume =	usb_stor_reset_resume,
+	.pre_reset =	usb_stor_pre_reset,
+	.post_reset =	usb_stor_post_reset,
+	.id_table =	isd200_usb_ids,
+	.soft_unbind =	1,
+};
+
+static int __init isd200_init(void)
+{
+	return usb_register(&isd200_driver);
+}
+
+static void __exit isd200_exit(void)
+{
+	usb_deregister(&isd200_driver);
+}
+
+module_init(isd200_init);
+module_exit(isd200_exit);

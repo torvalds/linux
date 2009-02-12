@@ -75,9 +75,6 @@
 #ifdef CONFIG_USB_STORAGE_FREECOM
 #include "freecom.h"
 #endif
-#ifdef CONFIG_USB_STORAGE_ISD200
-#include "isd200.h"
-#endif
 #ifdef CONFIG_USB_STORAGE_DATAFAB
 #include "datafab.h"
 #endif
@@ -720,13 +717,6 @@ static void get_protocol(struct us_data *us)
 		us->protocol_name = "Uniform Floppy Interface (UFI)";
 		us->proto_handler = usb_stor_ufi_command;
 		break;
-
-#ifdef CONFIG_USB_STORAGE_ISD200
-	case US_SC_ISD200:
-		us->protocol_name = "ISD200 ATA/ATAPI";
-		us->proto_handler = isd200_ata_command;
-		break;
-#endif
 
 #ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
 	case US_SC_CYP_ATACB:
