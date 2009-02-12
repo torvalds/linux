@@ -88,7 +88,6 @@ int security_policycap_supported(unsigned int req_cap);
 #define SEL_VEC_MAX 32
 struct av_decision {
 	u32 allowed;
-	u32 decided;
 	u32 auditallow;
 	u32 auditdeny;
 	u32 seqno;

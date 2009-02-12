@@ -595,7 +595,7 @@ static ssize_t sel_write_access(struct file *file, char *buf, size_t size)
 
 	length = scnprintf(buf, SIMPLE_TRANSACTION_LIMIT,
 			  "%x %x %x %x %u",
-			  avd.allowed, avd.decided,
+			  avd.allowed, 0xffffffff,
 			  avd.auditallow, avd.auditdeny,
 			  avd.seqno);
 out2:

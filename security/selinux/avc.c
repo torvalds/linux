@@ -381,30 +381,25 @@ static inline struct avc_node *avc_search_node(u32 ssid, u32 tsid, u16 tclass)
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
- * @requested: requested permissions, interpreted based on @tclass
  *
  * Look up an AVC entry that is valid for the
- * @requested permissions between the SID pair
  * (@ssid, @tsid), interpreting the permissions
  * based on @tclass.  If a valid AVC entry exists,
  * then this function return the avc_node.
  * Otherwise, this function returns NULL.
  */
-static struct avc_node *avc_lookup(u32 ssid, u32 tsid, u16 tclass, u32 requested)
+static struct avc_node *avc_lookup(u32 ssid, u32 tsid, u16 tclass)
 {
 	struct avc_node *node;
 
 	avc_cache_stats_incr(lookups);
 	node = avc_search_node(ssid, tsid, tclass);
 
-	if (node && ((node->ae.avd.decided & requested) == requested)) {
+	if (node)
 		avc_cache_stats_incr(hits);
-		goto out;
-	}
+	else
+		avc_cache_stats_incr(misses);
 
-	node = NULL;
-	avc_cache_stats_incr(misses);
-out:
 	return node;
 }
 
@@ -875,7 +870,7 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 
 	rcu_read_lock();
 
-	node = avc_lookup(ssid, tsid, tclass, requested);
+	node = avc_lookup(ssid, tsid, tclass);
 	if (!node) {
 		rcu_read_unlock();
 
