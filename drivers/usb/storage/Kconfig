@@ -144,7 +144,7 @@ config USB_STORAGE_ONETOUCH
 	  cuts)
 
 config USB_STORAGE_KARMA
-	bool "Support for Rio Karma music player"
+	tristate "Support for Rio Karma music player"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Rio Karma
@@ -154,6 +154,8 @@ config USB_STORAGE_KARMA
 	  it to be mounted as an ordinary filesystem. Performing an eject
 	  on the resulting scsi device node returns the Karma to normal
 	  operation.
+
+	  If this driver is compiled as a module, it will be named ums-karma.
 
 config USB_STORAGE_CYPRESS_ATACB
 	tristate "SAT emulation on Cypress USB/ATA Bridge with ATACB"

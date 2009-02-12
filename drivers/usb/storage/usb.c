@@ -69,9 +69,6 @@
 #ifdef CONFIG_USB_STORAGE_ONETOUCH
 #include "onetouch.h"
 #endif
-#ifdef CONFIG_USB_STORAGE_KARMA
-#include "karma.h"
-#endif
 #include "sierra_ms.h"
 #include "option_ms.h"
 
@@ -594,15 +591,6 @@ static void get_transport(struct us_data *us)
 		us->transport = usb_stor_Bulk_transport;
 		us->transport_reset = usb_stor_Bulk_reset;
 		break;
-
-#ifdef CONFIG_USB_STORAGE_KARMA
-	case US_PR_KARMA:
-		us->transport_name = "Rio Karma/Bulk";
-		us->transport = rio_karma_transport;
-		us->transport_reset = usb_stor_Bulk_reset;
-		break;
-#endif
-
 	}
 }
 
