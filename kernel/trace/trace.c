@@ -40,7 +40,7 @@
 
 #define TRACE_BUFFER_FLAGS	(RB_FL_OVERWRITE)
 
-unsigned long __read_mostly	tracing_max_latency = (cycle_t)ULONG_MAX;
+unsigned long __read_mostly	tracing_max_latency;
 unsigned long __read_mostly	tracing_thresh;
 
 /*
@@ -3736,7 +3736,7 @@ static struct notifier_block trace_die_notifier = {
  * it if we decide to change what log level the ftrace dump
  * should be at.
  */
-#define KERN_TRACE		KERN_INFO
+#define KERN_TRACE		KERN_EMERG
 
 static void
 trace_printk_seq(struct trace_seq *s)
@@ -3770,6 +3770,7 @@ void ftrace_dump(void)
 	dump_ran = 1;
 
 	/* No turning back! */
+	tracing_off();
 	ftrace_kill();
 
 	for_each_tracing_cpu(cpu) {

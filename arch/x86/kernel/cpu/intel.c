@@ -30,7 +30,7 @@
 static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 {
 	/* Unmask CPUID levels if masked: */
-	if (c->x86 == 6 && c->x86_model >= 15) {
+	if (c->x86 > 6 || (c->x86 == 6 && c->x86_model >= 0xd)) {
 		u64 misc_enable;
 
 		rdmsrl(MSR_IA32_MISC_ENABLE, misc_enable);
@@ -290,6 +290,9 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_PEBS);
 		ds_init_intel(c);
 	}
+
+	if (c->x86 == 6 && c->x86_model == 29 && cpu_has_clflush)
+		set_cpu_cap(c, X86_FEATURE_CLFLUSH_MONITOR);
 
 #ifdef CONFIG_X86_64
 	if (c->x86 == 15)

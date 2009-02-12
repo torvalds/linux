@@ -121,20 +121,22 @@ int __init pxa_init_dma(int num_ch)
 	if (dma_channels == NULL)
 		return -ENOMEM;
 
+	/* dma channel priorities on pxa2xx processors:
+	 * ch 0 - 3,  16 - 19  <--> (0) DMA_PRIO_HIGH
+	 * ch 4 - 7,  20 - 23  <--> (1) DMA_PRIO_MEDIUM
+	 * ch 8 - 15, 24 - 31  <--> (2) DMA_PRIO_LOW
+	 */
+	for (i = 0; i < num_ch; i++) {
+		DCSR(i) = 0;
+		dma_channels[i].prio = min((i & 0xf) >> 2, DMA_PRIO_LOW);
+	}
+
 	ret = request_irq(IRQ_DMA, dma_irq_handler, IRQF_DISABLED, "DMA", NULL);
 	if (ret) {
 		printk (KERN_CRIT "Wow!  Can't register IRQ for DMA\n");
 		kfree(dma_channels);
 		return ret;
 	}
-
-	/* dma channel priorities on pxa2xx processors:
-	 * ch 0 - 3,  16 - 19  <--> (0) DMA_PRIO_HIGH
-	 * ch 4 - 7,  20 - 23  <--> (1) DMA_PRIO_MEDIUM
-	 * ch 8 - 15, 24 - 31  <--> (2) DMA_PRIO_LOW
-	 */
-	for (i = 0; i < num_ch; i++)
-		dma_channels[i].prio = min((i & 0xf) >> 2, DMA_PRIO_LOW);
 
 	num_dma_channels = num_ch;
 	return 0;

@@ -46,7 +46,7 @@
  * Orphans are accumulated in a rb-tree. When an inode's link count drops to
  * zero, the inode number is added to the rb-tree. It is removed from the tree
  * when the inode is deleted.  Any new orphans that are in the orphan tree when
- * the commit is run, are written to the orphan area in 1 or more orph nodes.
+ * the commit is run, are written to the orphan area in 1 or more orphan nodes.
  * If the orphan area is full, it is consolidated to make space.  There is
  * always enough space because validation prevents the user from creating more
  * than the maximum number of orphans allowed.
@@ -231,7 +231,7 @@ static int tot_avail_orphs(struct ubifs_info *c)
 }
 
 /**
- * do_write_orph_node - write a node
+ * do_write_orph_node - write a node to the orphan head.
  * @c: UBIFS file-system description object
  * @len: length of node
  * @atomic: write atomically
@@ -264,11 +264,11 @@ static int do_write_orph_node(struct ubifs_info *c, int len, int atomic)
 }
 
 /**
- * write_orph_node - write an orph node
+ * write_orph_node - write an orphan node.
  * @c: UBIFS file-system description object
  * @atomic: write atomically
  *
- * This function builds an orph node from the cnext list and writes it to the
+ * This function builds an orphan node from the cnext list and writes it to the
  * orphan head. On success, %0 is returned, otherwise a negative error code
  * is returned.
  */
@@ -326,11 +326,11 @@ static int write_orph_node(struct ubifs_info *c, int atomic)
 }
 
 /**
- * write_orph_nodes - write orph nodes until there are no more to commit
+ * write_orph_nodes - write orphan nodes until there are no more to commit.
  * @c: UBIFS file-system description object
  * @atomic: write atomically
  *
- * This function writes orph nodes for all the orphans to commit. On success,
+ * This function writes orphan nodes for all the orphans to commit. On success,
  * %0 is returned, otherwise a negative error code is returned.
  */
 static int write_orph_nodes(struct ubifs_info *c, int atomic)
@@ -478,14 +478,14 @@ int ubifs_orphan_end_commit(struct ubifs_info *c)
 }
 
 /**
- * clear_orphans - erase all LEBs used for orphans.
+ * ubifs_clear_orphans - erase all LEBs used for orphans.
  * @c: UBIFS file-system description object
  *
  * If recovery is not required, then the orphans from the previous session
  * are not needed. This function locates the LEBs used to record
  * orphans, and un-maps them.
  */
-static int clear_orphans(struct ubifs_info *c)
+int ubifs_clear_orphans(struct ubifs_info *c)
 {
 	int lnum, err;
 
@@ -547,9 +547,9 @@ static int insert_dead_orphan(struct ubifs_info *c, ino_t inum)
  * do_kill_orphans - remove orphan inodes from the index.
  * @c: UBIFS file-system description object
  * @sleb: scanned LEB
- * @last_cmt_no: cmt_no of last orph node read is passed and returned here
+ * @last_cmt_no: cmt_no of last orphan node read is passed and returned here
  * @outofdate: whether the LEB is out of date is returned here
- * @last_flagged: whether the end orph node is encountered
+ * @last_flagged: whether the end orphan node is encountered
  *
  * This function is a helper to the 'kill_orphans()' function. It goes through
  * every orphan node in a LEB and for every inode number recorded, removes
@@ -580,8 +580,8 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		/*
 		 * The commit number on the master node may be less, because
 		 * of a failed commit. If there are several failed commits in a
-		 * row, the commit number written on orph nodes will continue to
-		 * increase (because the commit number is adjusted here) even
+		 * row, the commit number written on orphan nodes will continue
+		 * to increase (because the commit number is adjusted here) even
 		 * though the commit number on the master node stays the same
 		 * because the master node has not been re-written.
 		 */
@@ -589,9 +589,9 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 			c->cmt_no = cmt_no;
 		if (cmt_no < *last_cmt_no && *last_flagged) {
 			/*
-			 * The last orph node had a higher commit number and was
-			 * flagged as the last written for that commit number.
-			 * That makes this orph node, out of date.
+			 * The last orphan node had a higher commit number and
+			 * was flagged as the last written for that commit
+			 * number. That makes this orphan node, out of date.
 			 */
 			if (!first) {
 				ubifs_err("out of order commit number %llu in "
@@ -658,10 +658,10 @@ static int kill_orphans(struct ubifs_info *c)
 	/*
 	 * Orph nodes always start at c->orph_first and are written to each
 	 * successive LEB in turn. Generally unused LEBs will have been unmapped
-	 * but may contain out of date orph nodes if the unmap didn't go
-	 * through. In addition, the last orph node written for each commit is
+	 * but may contain out of date orphan nodes if the unmap didn't go
+	 * through. In addition, the last orphan node written for each commit is
 	 * marked (top bit of orph->cmt_no is set to 1). It is possible that
-	 * there are orph nodes from the next commit (i.e. the commit did not
+	 * there are orphan nodes from the next commit (i.e. the commit did not
 	 * complete successfully). In that case, no orphans will have been lost
 	 * due to the way that orphans are written, and any orphans added will
 	 * be valid orphans anyway and so can be deleted.
@@ -718,7 +718,7 @@ int ubifs_mount_orphans(struct ubifs_info *c, int unclean, int read_only)
 	if (unclean)
 		err = kill_orphans(c);
 	else if (!read_only)
-		err = clear_orphans(c);
+		err = ubifs_clear_orphans(c);
 
 	return err;
 }

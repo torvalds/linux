@@ -982,7 +982,7 @@ int __init acpi_ec_ecdt_probe(void)
 		saved_ec = kmalloc(sizeof(struct acpi_ec), GFP_KERNEL);
 		if (!saved_ec)
 			return -ENOMEM;
-		memcpy(&saved_ec, boot_ec, sizeof(saved_ec));
+		memcpy(saved_ec, boot_ec, sizeof(*saved_ec));
 	/* fall through */
 	}
 	/* This workaround is needed only on some broken machines,

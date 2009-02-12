@@ -3,7 +3,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <linux/version.h>
 #include <linux/hardirq.h>
 #include "extent_map.h"
 

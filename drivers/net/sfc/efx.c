@@ -676,9 +676,8 @@ static int efx_init_port(struct efx_nic *efx)
 	rc = efx->phy_op->init(efx);
 	if (rc)
 		return rc;
-	efx->phy_op->reconfigure(efx);
-
 	mutex_lock(&efx->mac_lock);
+	efx->phy_op->reconfigure(efx);
 	rc = falcon_switch_mac(efx);
 	mutex_unlock(&efx->mac_lock);
 	if (rc)
@@ -686,7 +685,7 @@ static int efx_init_port(struct efx_nic *efx)
 	efx->mac_op->reconfigure(efx);
 
 	efx->port_initialized = true;
-	efx->stats_enabled = true;
+	efx_stats_enable(efx);
 	return 0;
 
 fail:
@@ -735,6 +734,7 @@ static void efx_fini_port(struct efx_nic *efx)
 	if (!efx->port_initialized)
 		return;
 
+	efx_stats_disable(efx);
 	efx->phy_op->fini(efx);
 	efx->port_initialized = false;
 
@@ -1361,6 +1361,20 @@ static int efx_net_stop(struct net_device *net_dev)
 	return 0;
 }
 
+void efx_stats_disable(struct efx_nic *efx)
+{
+	spin_lock(&efx->stats_lock);
+	++efx->stats_disable_count;
+	spin_unlock(&efx->stats_lock);
+}
+
+void efx_stats_enable(struct efx_nic *efx)
+{
+	spin_lock(&efx->stats_lock);
+	--efx->stats_disable_count;
+	spin_unlock(&efx->stats_lock);
+}
+
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
 static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 {
@@ -1369,12 +1383,12 @@ static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 	struct net_device_stats *stats = &net_dev->stats;
 
 	/* Update stats if possible, but do not wait if another thread
-	 * is updating them (or resetting the NIC); slightly stale
-	 * stats are acceptable.
+	 * is updating them or if MAC stats fetches are temporarily
+	 * disabled; slightly stale stats are acceptable.
 	 */
 	if (!spin_trylock(&efx->stats_lock))
 		return stats;
-	if (efx->stats_enabled) {
+	if (!efx->stats_disable_count) {
 		efx->mac_op->update_stats(efx);
 		falcon_update_nic_stats(efx);
 	}
@@ -1622,16 +1636,12 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 
 /* Tears down the entire software state and most of the hardware state
  * before reset.  */
-void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+void efx_reset_down(struct efx_nic *efx, enum reset_type method,
+		    struct ethtool_cmd *ecmd)
 {
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
-	/* The net_dev->get_stats handler is quite slow, and will fail
-	 * if a fetch is pending over reset. Serialise against it. */
-	spin_lock(&efx->stats_lock);
-	efx->stats_enabled = false;
-	spin_unlock(&efx->stats_lock);
-
+	efx_stats_disable(efx);
 	efx_stop_all(efx);
 	mutex_lock(&efx->mac_lock);
 	mutex_lock(&efx->spi_lock);
@@ -1639,6 +1649,8 @@ void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	efx->phy_op->get_settings(efx, ecmd);
 
 	efx_fini_channels(efx);
+	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
+		efx->phy_op->fini(efx);
 }
 
 /* This function will always ensure that the locks acquired in
@@ -1646,7 +1658,8 @@ void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
  * that we were unable to reinitialise the hardware, and the
  * driver should be disabled. If ok is false, then the rx and tx
  * engines are not restarted, pending a RESET_DISABLE. */
-int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd, bool ok)
+int efx_reset_up(struct efx_nic *efx, enum reset_type method,
+		 struct ethtool_cmd *ecmd, bool ok)
 {
 	int rc;
 
@@ -1656,6 +1669,15 @@ int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd, bool ok)
 	if (rc) {
 		EFX_ERR(efx, "failed to initialise NIC\n");
 		ok = false;
+	}
+
+	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE) {
+		if (ok) {
+			rc = efx->phy_op->init(efx);
+			if (rc)
+				ok = false;
+		} else
+			efx->port_initialized = false;
 	}
 
 	if (ok) {
@@ -1670,7 +1692,7 @@ int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd, bool ok)
 
 	if (ok) {
 		efx_start_all(efx);
-		efx->stats_enabled = true;
+		efx_stats_enable(efx);
 	}
 	return rc;
 }
@@ -1702,7 +1724,7 @@ static int efx_reset(struct efx_nic *efx)
 
 	EFX_INFO(efx, "resetting (%d)\n", method);
 
-	efx_reset_down(efx, &ecmd);
+	efx_reset_down(efx, method, &ecmd);
 
 	rc = falcon_reset_hw(efx, method);
 	if (rc) {
@@ -1721,10 +1743,10 @@ static int efx_reset(struct efx_nic *efx)
 
 	/* Leave device stopped if necessary */
 	if (method == RESET_TYPE_DISABLE) {
-		efx_reset_up(efx, &ecmd, false);
+		efx_reset_up(efx, method, &ecmd, false);
 		rc = -EIO;
 	} else {
-		rc = efx_reset_up(efx, &ecmd, true);
+		rc = efx_reset_up(efx, method, &ecmd, true);
 	}
 
 out_disable:
@@ -1876,6 +1898,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	efx->rx_checksum_enabled = true;
 	spin_lock_init(&efx->netif_stop_lock);
 	spin_lock_init(&efx->stats_lock);
+	efx->stats_disable_count = 1;
 	mutex_init(&efx->mac_lock);
 	efx->mac_op = &efx_dummy_mac_operations;
 	efx->phy_op = &efx_dummy_phy_operations;

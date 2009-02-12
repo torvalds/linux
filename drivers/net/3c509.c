@@ -1475,6 +1475,7 @@ el3_resume(struct device *pdev)
 	spin_lock_irqsave(&lp->lock, flags);
 
 	outw(PowerUp, ioaddr + EL3_CMD);
+	EL3WINDOW(0);
 	el3_up(dev);
 
 	if (netif_running(dev))
