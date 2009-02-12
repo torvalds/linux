@@ -906,7 +906,7 @@ struct bnx2x {
 	u32			lin_cnt;
 
 	int			state;
-#define BNX2X_STATE_CLOSED		0x0
+#define BNX2X_STATE_CLOSED		0
 #define BNX2X_STATE_OPENING_WAIT4_LOAD	0x1000
 #define BNX2X_STATE_OPENING_WAIT4_PORT	0x2000
 #define BNX2X_STATE_OPEN		0x3000

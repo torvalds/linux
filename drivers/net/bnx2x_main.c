@@ -679,6 +679,7 @@ static void bnx2x_int_disable(struct bnx2x *bp)
 	REG_WR(bp, addr, val);
 	if (REG_RD(bp, addr) != val)
 		BNX2X_ERR("BUG! proper val not read from IGU!\n");
+
 }
 
 static void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw)
@@ -780,7 +781,6 @@ static inline int bnx2x_has_tx_work_unload(struct bnx2x_fastpath *fp)
 	/* Tell compiler that consumer and producer can change */
 	barrier();
 	return (fp->tx_pkt_prod != fp->tx_pkt_cons);
-
 }
 
 /* free skb in the packet ring at pos idx
@@ -2036,13 +2036,16 @@ static void bnx2x_calc_fc_adv(struct bnx2x *bp)
 		bp->port.advertising &= ~(ADVERTISED_Asym_Pause |
 					  ADVERTISED_Pause);
 		break;
+
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH:
 		bp->port.advertising |= (ADVERTISED_Asym_Pause |
 					 ADVERTISED_Pause);
 		break;
+
 	case MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_ASYMMETRIC:
 		bp->port.advertising |= ADVERTISED_Asym_Pause;
 		break;
+
 	default:
 		bp->port.advertising &= ~(ADVERTISED_Asym_Pause |
 					  ADVERTISED_Pause);
@@ -2067,7 +2070,8 @@ static void bnx2x_link_report(struct bnx2x *bp)
 		if (bp->link_vars.flow_ctrl != BNX2X_FLOW_CTRL_NONE) {
 			if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX) {
 				printk(", receive ");
-				if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX)
+				if (bp->link_vars.flow_ctrl &
+				    BNX2X_FLOW_CTRL_TX)
 					printk("& transmit ");
 			} else {
 				printk(", transmit ");
@@ -4454,8 +4458,7 @@ static inline void bnx2x_free_tpa_pool(struct bnx2x *bp,
 		if (fp->tpa_state[i] == BNX2X_TPA_START)
 			pci_unmap_single(bp->pdev,
 					 pci_unmap_addr(rx_buf, mapping),
-					 bp->rx_buf_size,
-					 PCI_DMA_FROMDEVICE);
+					 bp->rx_buf_size, PCI_DMA_FROMDEVICE);
 
 		dev_kfree_skb(skb);
 		rx_buf->skb = NULL;
@@ -4800,18 +4803,22 @@ static void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		tstorm_mac_filter.mcast_drop_all = mask;
 		tstorm_mac_filter.bcast_drop_all = mask;
 		break;
+
 	case BNX2X_RX_MODE_NORMAL:
 		tstorm_mac_filter.bcast_accept_all = mask;
 		break;
+
 	case BNX2X_RX_MODE_ALLMULTI:
 		tstorm_mac_filter.mcast_accept_all = mask;
 		tstorm_mac_filter.bcast_accept_all = mask;
 		break;
+
 	case BNX2X_RX_MODE_PROMISC:
 		tstorm_mac_filter.ucast_accept_all = mask;
 		tstorm_mac_filter.mcast_accept_all = mask;
 		tstorm_mac_filter.bcast_accept_all = mask;
 		break;
+
 	default:
 		BNX2X_ERR("BAD rx mode (%d)\n", mode);
 		break;
@@ -5857,6 +5864,7 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	/* Port CSDM comes here */
 	/* Port USDM comes here */
 	/* Port XSDM comes here */
+
 	bnx2x_init_block(bp, port ? TSEM_PORT1_START : TSEM_PORT0_START,
 			     port ? TSEM_PORT1_END : TSEM_PORT0_END);
 	bnx2x_init_block(bp, port ? USEM_PORT1_START : USEM_PORT0_START,
@@ -5865,6 +5873,7 @@ static int bnx2x_init_port(struct bnx2x *bp)
 			     port ? CSEM_PORT1_END : CSEM_PORT0_END);
 	bnx2x_init_block(bp, port ? XSEM_PORT1_START : XSEM_PORT0_START,
 			     port ? XSEM_PORT1_END : XSEM_PORT0_END);
+
 	/* Port UPB comes here */
 	/* Port XPB comes here */
 
@@ -5923,6 +5932,7 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	/* Port EMAC1 comes here */
 	/* Port DBU comes here */
 	/* Port DBG comes here */
+
 	bnx2x_init_block(bp, port ? NIG_PORT1_START : NIG_PORT0_START,
 			     port ? NIG_PORT1_END : NIG_PORT0_END);
 
@@ -6404,8 +6414,7 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 
 			pci_unmap_single(bp->pdev,
 					 pci_unmap_addr(rx_buf, mapping),
-					 bp->rx_buf_size,
-					 PCI_DMA_FROMDEVICE);
+					 bp->rx_buf_size, PCI_DMA_FROMDEVICE);
 
 			rx_buf->skb = NULL;
 			dev_kfree_skb(skb);
@@ -7325,6 +7334,7 @@ unload_error:
 	/* Report UNLOAD_DONE to MCP */
 	if (!BP_NOMCP(bp))
 		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE);
+
 	bp->port.pmf = 0;
 
 	/* Free SKBs, SGEs, TPA pool and driver internals */
@@ -9035,7 +9045,8 @@ static void bnx2x_get_pauseparam(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	epause->autoneg = (bp->link_params.req_flow_ctrl == BNX2X_FLOW_CTRL_AUTO) &&
+	epause->autoneg = (bp->link_params.req_flow_ctrl ==
+			   BNX2X_FLOW_CTRL_AUTO) &&
 			  (bp->link_params.req_line_speed == SPEED_AUTO_NEG);
 
 	epause->rx_pause = ((bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX) ==
@@ -10059,6 +10070,7 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 
 	if (bnx2x_has_rx_work(fp))
 		work_done = bnx2x_rx_int(fp, budget);
+
 	rmb(); /* BNX2X_HAS_WORK() reads the status block */
 
 	/* must not complete if we consumed full budget */
@@ -10074,6 +10086,7 @@ poll_panic:
 		bnx2x_ack_sb(bp, fp->sb_id, CSTORM_ID,
 			     le16_to_cpu(fp->fp_c_idx), IGU_INT_ENABLE, 1);
 	}
+
 	return work_done;
 }
 
@@ -10232,7 +10245,6 @@ static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 				wnd_sum -=
 					skb_shinfo(skb)->frags[wnd_idx].size;
 			}
-
 		} else {
 			/* in non-LSO too fragmented packet should always
 			   be linearized */
@@ -10824,7 +10836,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_open		= bnx2x_open,
 	.ndo_stop		= bnx2x_close,
 	.ndo_start_xmit		= bnx2x_start_xmit,
-	.ndo_set_multicast_list = bnx2x_set_rx_mode,
+	.ndo_set_multicast_list	= bnx2x_set_rx_mode,
 	.ndo_set_mac_address	= bnx2x_change_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= bnx2x_ioctl,
@@ -10837,7 +10849,6 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
 };
-
 
 static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 				    struct net_device *dev)
@@ -11317,8 +11328,8 @@ static void bnx2x_io_resume(struct pci_dev *pdev)
 
 static struct pci_error_handlers bnx2x_err_handler = {
 	.error_detected = bnx2x_io_error_detected,
-	.slot_reset = bnx2x_io_slot_reset,
-	.resume = bnx2x_io_resume,
+	.slot_reset     = bnx2x_io_slot_reset,
+	.resume         = bnx2x_io_resume,
 };
 
 static struct pci_driver bnx2x_pci_driver = {

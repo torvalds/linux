@@ -1923,9 +1923,6 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
 			{
-			u16 emac_base;
-			emac_base = (params->port) ? GRCBASE_EMAC0 :
-					GRCBASE_EMAC1;
 
 			/* Restore normal power mode*/
 			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
@@ -3806,7 +3803,7 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 					     "an_link_status=0x%x\n",
 					  val2, val1, an1000_status);
 
-					ext_phy_link_up = (((val1 & 4) == 4) ||
+				ext_phy_link_up = (((val1 & 4) == 4) ||
 						(an1000_status & (1<<1)));
 				if (ext_phy_link_up &&
 				    bnx2x_8073_is_snr_needed(params)) {
@@ -4188,7 +4185,7 @@ static void bnx2x_turn_on_ef(struct bnx2x *bp, u8 port, u8 ext_phy_addr,
 			      ext_phy_addr,
 			      MDIO_PMA_DEVAD,
 			      MDIO_PMA_REG_CTRL,
-			       &ctrl);
+			      &ctrl);
 		if (!(ctrl & (1<<15))) {
 			DP(NETIF_MSG_LINK, "Reset completed\n\n");
 				break;

@@ -66,8 +66,6 @@ struct link_params {
 	/* Device parameters */
 	u8 mac_addr[6];
 
-
-
 	/* shmem parameters */
 	u32 shmem_base;
 	u32 speed_cap_mask;
@@ -181,5 +179,6 @@ u8 bnx2x_test_link(struct link_params *input, struct link_vars *vars);
 
 /* One-time initialization for external phy after power up */
 u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base);
+
 
 #endif /* BNX2X_LINK_H */

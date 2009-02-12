@@ -806,11 +806,7 @@ struct mf_cfg {
 
 	struct shared_mf_cfg	shared_mf_config;
 	struct port_mf_cfg	port_mf_config[PORT_MAX];
-#if defined(b710)
-	struct func_mf_cfg	func_mf_config[E1_FUNC_MAX];
-#else
 	struct func_mf_cfg	func_mf_config[E1H_FUNC_MAX];
-#endif
 
 };
 
