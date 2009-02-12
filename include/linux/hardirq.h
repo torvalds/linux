@@ -175,24 +175,24 @@ extern void irq_enter(void);
  */
 extern void irq_exit(void);
 
-#define nmi_enter()				\
-	do {					\
-		ftrace_nmi_enter();		\
-		BUG_ON(in_nmi());		\
-		add_preempt_count(NMI_OFFSET);	\
-		lockdep_off();			\
-		rcu_nmi_enter();		\
-		__irq_enter();			\
+#define nmi_enter()						\
+	do {							\
+		ftrace_nmi_enter();				\
+		BUG_ON(in_nmi());				\
+		add_preempt_count(NMI_OFFSET + HARDIRQ_OFFSET);	\
+		lockdep_off();					\
+		rcu_nmi_enter();				\
+		trace_hardirq_enter();				\
 	} while (0)
 
-#define nmi_exit()				\
-	do {					\
-		__irq_exit();			\
-		rcu_nmi_exit();			\
-		lockdep_on();			\
-		BUG_ON(!in_nmi());		\
-		sub_preempt_count(NMI_OFFSET);	\
-		ftrace_nmi_exit();		\
+#define nmi_exit()						\
+	do {							\
+		trace_hardirq_exit();				\
+		rcu_nmi_exit();					\
+		lockdep_on();					\
+		BUG_ON(!in_nmi());				\
+		sub_preempt_count(NMI_OFFSET + HARDIRQ_OFFSET);	\
+		ftrace_nmi_exit();				\
 	} while (0)
 
 #endif /* LINUX_HARDIRQ_H */
