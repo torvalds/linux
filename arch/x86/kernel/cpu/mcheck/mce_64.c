@@ -151,6 +151,8 @@ static void mce_panic(char *msg, struct mce *backup, unsigned long start)
 
 static int mce_available(struct cpuinfo_x86 *c)
 {
+	if (mce_dont_init)
+		return 0;
 	return cpu_has(c, X86_FEATURE_MCE) && cpu_has(c, X86_FEATURE_MCA);
 }
 
@@ -532,8 +534,7 @@ void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 {
 	mce_cpu_quirks(c);
 
-	if (mce_dont_init ||
-	    !mce_available(c))
+	if (!mce_available(c))
 		return;
 
 	mce_init(NULL);
@@ -710,8 +711,7 @@ static int __init mcheck_disable(char *str)
 	return 1;
 }
 
-/* mce=off disables machine check. Note you can re-enable it later
-   using sysfs.
+/* mce=off disables machine check.
    mce=TOLERANCELEVEL (number, see above)
    mce=bootlog Log MCEs from before booting. Disabled by default on AMD.
    mce=nobootlog Don't log MCEs from before booting. */
