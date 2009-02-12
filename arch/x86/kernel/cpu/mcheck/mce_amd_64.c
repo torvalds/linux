@@ -79,6 +79,8 @@ static unsigned char shared_bank[NR_BANKS] = {
 
 static DEFINE_PER_CPU(unsigned char, bank_map);	/* see which banks are on */
 
+static void amd_threshold_interrupt(void);
+
 /*
  * CPU Initialization
  */
@@ -174,6 +176,8 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 			tr.reset = 0;
 			tr.old_limit = 0;
 			threshold_restart_bank(&tr);
+
+			mce_threshold_vector = amd_threshold_interrupt;
 		}
 	}
 }
@@ -187,15 +191,11 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
  * the interrupt goes off when error_count reaches threshold_limit.
  * the handler will simply log mcelog w/ software defined bank number.
  */
-asmlinkage void mce_threshold_interrupt(void)
+static void amd_threshold_interrupt(void)
 {
 	unsigned int bank, block;
 	struct mce m;
 	u32 low = 0, high = 0, address = 0;
-
-	ack_APIC_irq();
-	exit_idle();
-	irq_enter();
 
 	mce_setup(&m);
 
@@ -241,13 +241,10 @@ asmlinkage void mce_threshold_interrupt(void)
 				       + bank * NR_BLOCKS
 				       + block;
 				mce_log(&m);
-				goto out;
+				return;
 			}
 		}
 	}
-out:
-	inc_irq_stat(irq_threshold_count);
-	irq_exit();
 }
 
 /*

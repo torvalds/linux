@@ -135,5 +135,7 @@ extern void mcheck_init(struct cpuinfo_x86 *c);
 #define mcheck_init(c) do { } while (0)
 #endif
 
+extern void (*mce_threshold_vector)(void);
+
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_MCE_H */
