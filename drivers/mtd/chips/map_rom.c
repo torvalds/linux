@@ -20,6 +20,8 @@ static int maprom_write (struct mtd_info *, loff_t, size_t, size_t *, const u_ch
 static void maprom_nop (struct mtd_info *);
 static struct mtd_info *map_rom_probe(struct map_info *map);
 static int maprom_erase (struct mtd_info *mtd, struct erase_info *info);
+static unsigned long maprom_unmapped_area(struct mtd_info *, unsigned long,
+					  unsigned long, unsigned long);
 
 static struct mtd_chip_driver maprom_chipdrv = {
 	.probe	= map_rom_probe,
@@ -40,6 +42,7 @@ static struct mtd_info *map_rom_probe(struct map_info *map)
 	mtd->name = map->name;
 	mtd->type = MTD_ROM;
 	mtd->size = map->size;
+	mtd->get_unmapped_area = maprom_unmapped_area;
 	mtd->read = maprom_read;
 	mtd->write = maprom_write;
 	mtd->sync = maprom_nop;
@@ -52,6 +55,20 @@ static struct mtd_info *map_rom_probe(struct map_info *map)
 	return mtd;
 }
 
+
+/*
+ * Allow NOMMU mmap() to directly map the device (if not NULL)
+ * - return the address to which the offset maps
+ * - return -ENOSYS to indicate refusal to do the mapping
+ */
+static unsigned long maprom_unmapped_area(struct mtd_info *mtd,
+					  unsigned long len,
+					  unsigned long offset,
+					  unsigned long flags)
+{
+	struct map_info *map = mtd->priv;
+	return (unsigned long) map->virt + offset;
+}
 
 static int maprom_read (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf)
 {
