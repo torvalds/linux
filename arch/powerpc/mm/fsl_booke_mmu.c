@@ -218,7 +218,7 @@ adjust_total_lowmem(void)
 		p += sprintf(p, "0/");
 	p[-1] = '\0';
 
-	pr_info("Memory CAM mapping: %s Mb, residual: %ldMb\n", buf,
-	        (total_lowmem - __max_low_memory) >> 20);
+	pr_info("Memory CAM mapping: %s Mb, residual: %dMb\n", buf,
+	        (unsigned int)((total_lowmem - __max_low_memory) >> 20));
 	__initial_memory_limit_addr = memstart_addr + __max_low_memory;
 }
