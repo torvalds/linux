@@ -485,6 +485,10 @@ bool ath9k_hw_init_rf(struct ath_hw *ah,
 #define AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4    0x0FC00000
 #define AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4_S  22
 
+/* Carrier leak calibration control, do it after AGC calibration */
+#define AR_PHY_CL_CAL_CTL       0xA358
+#define AR_PHY_CL_CAL_ENABLE    0x00000002
+
 #define AR_PHY_POWER_TX_RATE5   0xA38C
 #define AR_PHY_POWER_TX_RATE6   0xA390
 
