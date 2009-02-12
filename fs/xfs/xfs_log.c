@@ -574,7 +574,7 @@ xfs_log_mount(
 	error = xfs_trans_ail_init(mp);
 	if (error) {
 		cmn_err(CE_WARN, "XFS: AIL initialisation failed: error %d", error);
-		goto error;
+		goto out_free_log;
 	}
 	mp->m_log->l_ailp = mp->m_ail;
 
@@ -594,20 +594,22 @@ xfs_log_mount(
 			mp->m_flags |= XFS_MOUNT_RDONLY;
 		if (error) {
 			cmn_err(CE_WARN, "XFS: log mount/recovery failed: error %d", error);
-			goto error;
+			goto out_destroy_ail;
 		}
 	}
 
 	/* Normal transactions can now occur */
 	mp->m_log->l_flags &= ~XLOG_ACTIVE_RECOVERY;
 
-	/* End mounting message in xfs_log_mount_finish */
 	return 0;
-error:
-	xfs_log_unmount_dealloc(mp);
+
+out_destroy_ail:
+	xfs_trans_ail_destroy(mp);
+out_free_log:
+	xlog_dealloc_log(mp->m_log);
 out:
 	return error;
-}	/* xfs_log_mount */
+}
 
 /*
  * Finish the recovery of the file system.  This is separate from
