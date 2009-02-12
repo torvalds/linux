@@ -5173,9 +5173,11 @@
 #define EMAC_RX_MODE_FLOW_EN					 (1L<<2)
 #define EMAC_RX_MODE_KEEP_VLAN_TAG				 (1L<<10)
 #define EMAC_RX_MODE_PROMISCUOUS				 (1L<<8)
+#define EMAC_RX_MODE_RESET					 (1L<<0)
 #define EMAC_RX_MTU_SIZE_JUMBO_ENA				 (1L<<31)
 #define EMAC_TX_MODE_EXT_PAUSE_EN				 (1L<<3)
 #define EMAC_TX_MODE_FLOW_EN					 (1L<<4)
+#define EMAC_TX_MODE_RESET					 (1L<<0)
 #define MISC_REGISTERS_GPIO_0					 0
 #define MISC_REGISTERS_GPIO_1					 1
 #define MISC_REGISTERS_GPIO_2					 2

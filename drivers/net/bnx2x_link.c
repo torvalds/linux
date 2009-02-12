@@ -297,8 +297,10 @@ static u8 bnx2x_emac_enable(struct link_params *params,
 			   port*4, 0);
 	}
 
-	/* enable emac */
-	REG_WR(bp, NIG_REG_NIG_EMAC0_EN + port*4, 1);
+	bnx2x_bits_en(bp, emac_base + EMAC_REG_EMAC_RX_MODE,
+		    EMAC_RX_MODE_RESET);
+	bnx2x_bits_en(bp, emac_base + EMAC_REG_EMAC_TX_MODE,
+		    EMAC_TX_MODE_RESET);
 
 	if (CHIP_REV_IS_SLOW(bp)) {
 		/* config GMII mode */
