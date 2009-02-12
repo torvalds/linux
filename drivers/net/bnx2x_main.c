@@ -2505,9 +2505,8 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 
 		BNX2X_ERR("SPIO5 hw attention\n");
 
-		switch (bp->common.board & SHARED_HW_CFG_BOARD_TYPE_MASK) {
-		case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1021G:
-		case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1022G:
+		switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 			/* Fan failure attention */
 
 			/* The PHY reset is controlled by GPIO 1 */
@@ -5622,9 +5621,8 @@ static int bnx2x_init_common(struct bnx2x *bp)
 		return -EBUSY;
 	}
 
-	switch (bp->common.board & SHARED_HW_CFG_BOARD_TYPE_MASK) {
-	case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1021G:
-	case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1022G:
+	switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 		/* Fan failure is indicated by SPIO 5 */
 		bnx2x_set_spio(bp, MISC_REGISTERS_SPIO_5,
 			       MISC_REGISTERS_SPIO_INPUT_HI_Z);
@@ -5830,9 +5828,8 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	/* Port MCP comes here */
 	/* Port DMAE comes here */
 
-	switch (bp->common.board & SHARED_HW_CFG_BOARD_TYPE_MASK) {
-	case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1021G:
-	case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1022G:
+	switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 		/* add SPIO 5 to group 0 */
 		val = REG_RD(bp, MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0);
 		val |= AEU_INPUTS_ATTN_BITS_SPIO5;
@@ -7433,10 +7430,7 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		BNX2X_ERR("BAD MCP validity signature\n");
 
 	bp->common.hw_config = SHMEM_RD(bp, dev_info.shared_hw_config.config);
-	bp->common.board = SHMEM_RD(bp, dev_info.shared_hw_config.board);
-
-	BNX2X_DEV_INFO("hw_config 0x%08x  board 0x%08x\n",
-		       bp->common.hw_config, bp->common.board);
+	BNX2X_DEV_INFO("hw_config 0x%08x\n", bp->common.hw_config);
 
 	bp->link_params.hw_led_mode = ((bp->common.hw_config &
 					SHARED_HW_CFG_LED_MODE_MASK) >>

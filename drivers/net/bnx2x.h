@@ -523,7 +523,6 @@ struct bnx2x_common {
 	u32			shmem_base;
 
 	u32			hw_config;
-	u32			board;
 
 	u32			bc_ver;
 
