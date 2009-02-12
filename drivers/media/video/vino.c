@@ -289,7 +289,7 @@ struct vino_channel_settings {
 	struct vino_interrupt_data int_data;
 
 	/* V4L support */
-	struct video_device *v4l_device;
+	struct video_device *vdev;
 };
 
 struct vino_client {
@@ -347,8 +347,8 @@ static struct vino_settings *vino_drvdata;
 static const char *vino_driver_name = "vino";
 static const char *vino_driver_description = "SGI VINO";
 static const char *vino_bus_name = "GIO64 bus";
-static const char *vino_v4l_device_name_a = "SGI VINO Channel A";
-static const char *vino_v4l_device_name_b = "SGI VINO Channel B";
+static const char *vino_vdev_name_a = "SGI VINO Channel A";
+static const char *vino_vdev_name_b = "SGI VINO Channel B";
 
 static void vino_capture_tasklet(unsigned long channel);
 
@@ -4227,7 +4227,7 @@ static const struct v4l2_file_operations vino_fops = {
 	.poll		= vino_poll,
 };
 
-static struct video_device v4l_device_template = {
+static struct video_device vdev_template = {
 	.name		= "NOT SET",
 	.fops		= &vino_fops,
 	.ioctl_ops 	= &vino_ioctl_ops,
@@ -4239,24 +4239,24 @@ static void vino_module_cleanup(int stage)
 {
 	switch(stage) {
 	case 10:
-		video_unregister_device(vino_drvdata->b.v4l_device);
-		vino_drvdata->b.v4l_device = NULL;
+		video_unregister_device(vino_drvdata->b.vdev);
+		vino_drvdata->b.vdev = NULL;
 	case 9:
-		video_unregister_device(vino_drvdata->a.v4l_device);
-		vino_drvdata->a.v4l_device = NULL;
+		video_unregister_device(vino_drvdata->a.vdev);
+		vino_drvdata->a.vdev = NULL;
 	case 8:
 		vino_i2c_del_bus();
 	case 7:
 		free_irq(SGI_VINO_IRQ, NULL);
 	case 6:
-		if (vino_drvdata->b.v4l_device) {
-			video_device_release(vino_drvdata->b.v4l_device);
-			vino_drvdata->b.v4l_device = NULL;
+		if (vino_drvdata->b.vdev) {
+			video_device_release(vino_drvdata->b.vdev);
+			vino_drvdata->b.vdev = NULL;
 		}
 	case 5:
-		if (vino_drvdata->a.v4l_device) {
-			video_device_release(vino_drvdata->a.v4l_device);
-			vino_drvdata->a.v4l_device = NULL;
+		if (vino_drvdata->a.vdev) {
+			video_device_release(vino_drvdata->a.vdev);
+			vino_drvdata->a.vdev = NULL;
 		}
 	case 4:
 		/* all entries in dma_cpu dummy table have the same address */
@@ -4398,19 +4398,19 @@ static int vino_init_channel_settings(struct vino_channel_settings *vcs,
 	spin_lock_init(&vcs->fb_queue.queue_lock);
 	init_waitqueue_head(&vcs->fb_queue.frame_wait_queue);
 
-	vcs->v4l_device = video_device_alloc();
-	if (!vcs->v4l_device) {
+	vcs->vdev = video_device_alloc();
+	if (!vcs->vdev) {
 		vino_module_cleanup(vino_init_stage);
 		return -ENOMEM;
 	}
 	vino_init_stage++;
 
-	memcpy(vcs->v4l_device, &v4l_device_template,
+	memcpy(vcs->vdev, &vdev_template,
 	       sizeof(struct video_device));
-	strcpy(vcs->v4l_device->name, name);
-	vcs->v4l_device->release = video_device_release;
+	strcpy(vcs->vdev->name, name);
+	vcs->vdev->release = video_device_release;
 
-	video_set_drvdata(vcs->v4l_device, vcs);
+	video_set_drvdata(vcs->vdev, vcs);
 
 	return 0;
 }
@@ -4436,12 +4436,12 @@ static int __init vino_module_init(void)
 	spin_lock_init(&vino_drvdata->input_lock);
 
 	ret = vino_init_channel_settings(&vino_drvdata->a, VINO_CHANNEL_A,
-				    vino_v4l_device_name_a);
+				    vino_vdev_name_a);
 	if (ret)
 		return ret;
 
 	ret = vino_init_channel_settings(&vino_drvdata->b, VINO_CHANNEL_B,
-				    vino_v4l_device_name_b);
+				    vino_vdev_name_b);
 	if (ret)
 		return ret;
 
@@ -4465,7 +4465,7 @@ static int __init vino_module_init(void)
 	}
 	vino_init_stage++;
 
-	ret = video_register_device(vino_drvdata->a.v4l_device,
+	ret = video_register_device(vino_drvdata->a.vdev,
 				    VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		printk(KERN_ERR "VINO channel A Video4Linux-device "
@@ -4475,7 +4475,7 @@ static int __init vino_module_init(void)
 	}
 	vino_init_stage++;
 
-	ret = video_register_device(vino_drvdata->b.v4l_device,
+	ret = video_register_device(vino_drvdata->b.vdev,
 				    VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		printk(KERN_ERR "VINO channel B Video4Linux-device "
