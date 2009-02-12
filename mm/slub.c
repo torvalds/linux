@@ -1844,6 +1844,7 @@ static inline int calculate_order(int size)
 	int order;
 	int min_objects;
 	int fraction;
+	int max_objects;
 
 	/*
 	 * Attempt to find best configuration for a slab. This
@@ -1856,6 +1857,9 @@ static inline int calculate_order(int size)
 	min_objects = slub_min_objects;
 	if (!min_objects)
 		min_objects = 4 * (fls(nr_cpu_ids) + 1);
+	max_objects = (PAGE_SIZE << slub_max_order)/size;
+	min_objects = min(min_objects, max_objects);
+
 	while (min_objects > 1) {
 		fraction = 16;
 		while (fraction >= 4) {
@@ -1865,7 +1869,7 @@ static inline int calculate_order(int size)
 				return order;
 			fraction /= 2;
 		}
-		min_objects /= 2;
+		min_objects --;
 	}
 
 	/*
