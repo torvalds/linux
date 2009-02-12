@@ -259,6 +259,10 @@
 #define ETH_MAX_AGGREGATION_QUEUES_E1 (32)
 #define ETH_MAX_AGGREGATION_QUEUES_E1H (64)
 
+/* ETH RSS modes */
+#define ETH_RSS_MODE_DISABLED 0
+#define ETH_RSS_MODE_REGULAR 1
+
 
 /**
 * This file defines HSI constatnts common to all microcode flows

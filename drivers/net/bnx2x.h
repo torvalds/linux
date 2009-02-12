@@ -25,6 +25,10 @@
 #endif
 
 
+#define BNX2X_MULTI_QUEUE
+
+#define BNX2X_NEW_NAPI
+
 /* error/debug prints */
 
 #define DRV_MODULE_NAME		"bnx2x"
@@ -266,6 +270,7 @@ struct bnx2x_fastpath {
 	u64			tpa_queue_used;
 #endif
 
+	char			name[IFNAMSIZ];
 	struct bnx2x		*bp; /* parent */
 };
 
@@ -680,11 +685,7 @@ struct bnx2x_eth_stats {
 			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
 
 
-#ifdef BNX2X_MULTI
 #define MAX_CONTEXT			16
-#else
-#define MAX_CONTEXT			1
-#endif
 
 union cdu_context {
 	struct eth_context eth;
@@ -859,8 +860,9 @@ struct bnx2x {
 #define BNX2X_STATE_DIAG		0xe000
 #define BNX2X_STATE_ERROR		0xf000
 
-	int			num_queues;
-#define BP_MAX_QUEUES(bp)		(IS_E1HMF(bp) ? 4 : 16)
+	int			multi_mode;
+	int			num_rx_queues;
+	int			num_tx_queues;
 
 	u32			rx_mode;
 #define BNX2X_RX_MODE_NONE		0
@@ -911,11 +913,19 @@ struct bnx2x {
 };
 
 
-#define for_each_queue(bp, var)	for (var = 0; var < bp->num_queues; var++)
+#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT / E1HVN_MAX) : \
+						 MAX_CONTEXT)
+#define BNX2X_NUM_QUEUES(bp)	max(bp->num_rx_queues, bp->num_tx_queues)
+#define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)
 
+#define for_each_rx_queue(bp, var) \
+			for (var = 0; var < bp->num_rx_queues; var++)
+#define for_each_tx_queue(bp, var) \
+			for (var = 0; var < bp->num_tx_queues; var++)
+#define for_each_queue(bp, var) \
+			for (var = 0; var < BNX2X_NUM_QUEUES(bp); var++)
 #define for_each_nondefault_queue(bp, var) \
-				for (var = 1; var < bp->num_queues; var++)
-#define is_multi(bp)		(bp->num_queues > 1)
+			for (var = 1; var < BNX2X_NUM_QUEUES(bp); var++)
 
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
@@ -1120,12 +1130,13 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 				 AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR)
 
 
-#define MULTI_FLAGS \
+#define MULTI_FLAGS(bp) \
 		(TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV4_CAPABILITY | \
 		 TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV4_TCP_CAPABILITY | \
 		 TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_CAPABILITY | \
 		 TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_TCP_CAPABILITY | \
-		 TSTORM_ETH_FUNCTION_COMMON_CONFIG_DEFAULT_ENABLE)
+		 (bp->multi_mode << \
+		  TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_MODE_SHIFT))
 
 #define MULTI_MASK			0x7f
 
