@@ -166,7 +166,7 @@ static void mce_panic(char *msg, struct mce *backup, unsigned long start)
 	panic(msg);
 }
 
-static int mce_available(struct cpuinfo_x86 *c)
+int mce_available(struct cpuinfo_x86 *c)
 {
 	if (mce_dont_init)
 		return 0;
@@ -1060,9 +1060,12 @@ static __cpuinit void mce_remove_device(unsigned int cpu)
 static void mce_disable_cpu(void *h)
 {
 	int i;
+	unsigned long action = *(unsigned long *)h;
 
 	if (!mce_available(&current_cpu_data))
 		return;
+	if (!(action & CPU_TASKS_FROZEN))
+		cmci_clear();
 	for (i = 0; i < banks; i++)
 		wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
 }
@@ -1070,9 +1073,12 @@ static void mce_disable_cpu(void *h)
 static void mce_reenable_cpu(void *h)
 {
 	int i;
+	unsigned long action = *(unsigned long *)h;
 
 	if (!mce_available(&current_cpu_data))
 		return;
+	if (!(action & CPU_TASKS_FROZEN))
+		cmci_reenable();
 	for (i = 0; i < banks; i++)
 		wrmsrl(MSR_IA32_MC0_CTL + i*4, bank[i]);
 }
@@ -1100,13 +1106,17 @@ static int __cpuinit mce_cpu_callback(struct notifier_block *nfb,
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
 		del_timer_sync(t);
-		smp_call_function_single(cpu, mce_disable_cpu, NULL, 1);
+		smp_call_function_single(cpu, mce_disable_cpu, &action, 1);
 		break;
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
 		t->expires = round_jiffies_relative(jiffies + next_interval);
 		add_timer_on(t, cpu);
-		smp_call_function_single(cpu, mce_reenable_cpu, NULL, 1);
+		smp_call_function_single(cpu, mce_reenable_cpu, &action, 1);
+		break;
+	case CPU_POST_DEAD:
+		/* intentionally ignoring frozen here */
+		cmci_rediscover(cpu);
 		break;
 	}
 	return NOTIFY_OK;

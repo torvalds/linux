@@ -105,8 +105,16 @@ extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
+void cmci_clear(void);
+void cmci_reenable(void);
+void cmci_rediscover(int dying);
+void cmci_recheck(void);
 #else
 static inline void mce_intel_feature_init(struct cpuinfo_x86 *c) { }
+static inline void cmci_clear(void) {}
+static inline void cmci_reenable(void) {}
+static inline void cmci_rediscover(int dying) {}
+static inline void cmci_recheck(void) {}
 #endif
 
 #ifdef CONFIG_X86_MCE_AMD
@@ -114,6 +122,8 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c);
 #else
 static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
 #endif
+
+extern int mce_available(struct cpuinfo_x86 *c);
 
 void mce_log_therm_throt_event(__u64 status);
 
