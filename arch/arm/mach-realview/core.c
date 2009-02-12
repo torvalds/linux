@@ -29,6 +29,7 @@
 #include <linux/clockchips.h>
 #include <linux/io.h>
 #include <linux/smc911x.h>
+#include <linux/ata_platform.h>
 
 #include <asm/clkdev.h>
 #include <asm/system.h>
@@ -149,6 +150,33 @@ int realview_eth_register(const char *name, struct resource *res)
 
 	return platform_device_register(&realview_eth_device);
 }
+
+static struct pata_platform_info pata_platform_data = {
+	.ioport_shift		= 1,
+};
+
+static struct resource pata_resources[] = {
+	[0] = {
+		.start		= REALVIEW_CF_BASE,
+		.end		= REALVIEW_CF_BASE + 0xff,
+		.flags		= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start		= REALVIEW_CF_BASE + 0x100,
+		.end		= REALVIEW_CF_BASE + SZ_4K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device realview_cf_device = {
+	.name			= "pata_platform",
+	.id			= -1,
+	.num_resources		= ARRAY_SIZE(pata_resources),
+	.resource		= pata_resources,
+	.dev			= {
+		.platform_data	= &pata_platform_data,
+	},
+};
 
 static struct resource realview_i2c_resource = {
 	.start		= REALVIEW_I2C_BASE,

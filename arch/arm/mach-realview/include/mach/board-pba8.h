@@ -45,8 +45,6 @@
 #define REALVIEW_PBA8_DMC_BASE			0x100E0000	/* DMC configuration */
 #define REALVIEW_PBA8_SMC_BASE			0x100E1000	/* SMC configuration */
 #define REALVIEW_PBA8_CAN_BASE			0x100E2000	/* CAN bus */
-#define REALVIEW_PBA8_CF_BASE			0x18000000	/* Compact flash */
-#define REALVIEW_PBA8_CF_MEM_BASE		0x18003000	/* SMC for Compact flash */
 #define REALVIEW_PBA8_GIC_CPU_BASE		0x1E000000	/* Generic interrupt controller CPU interface */
 #define REALVIEW_PBA8_FLASH0_BASE		0x40000000
 #define REALVIEW_PBA8_FLASH0_SIZE		SZ_64M

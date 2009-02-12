@@ -204,6 +204,12 @@
 #define REALVIEW_LT_BASE              0x80000000	/* Logic Tile expansion */
 
 /*
+ * CompactFlash
+ */
+#define REALVIEW_CF_BASE		0x18000000	/* CompactFlash */
+#define REALVIEW_CF_MEM_BASE		0x18003000	/* SMC for CompactFlash */
+
+/*
  * Disk on Chip
  */
 #define REALVIEW_DOC_BASE             0x2C000000
