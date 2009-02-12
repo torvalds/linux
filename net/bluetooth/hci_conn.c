@@ -397,11 +397,12 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 {
 	BT_DBG("conn %p", conn);
 
-	if (sec_level > conn->sec_level) {
+	if (sec_level > conn->sec_level)
 		conn->sec_level = sec_level;
-		conn->auth_type = auth_type;
-	} else if (conn->link_mode & HCI_LM_AUTH)
+	else if (conn->link_mode & HCI_LM_AUTH)
 		return 1;
+
+	conn->auth_type = auth_type;
 
 	if (!test_and_set_bit(HCI_CONN_AUTH_PEND, &conn->pend)) {
 		struct hci_cp_auth_requested cp;
@@ -417,9 +418,6 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 {
 	BT_DBG("conn %p", conn);
-
-	if (conn->auth_type == 0xff)
-		conn->auth_type = auth_type;
 
 	if (sec_level == BT_SECURITY_SDP)
 		return 1;
