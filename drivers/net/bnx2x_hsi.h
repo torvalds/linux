@@ -634,6 +634,8 @@ struct drv_port_mb {
 
 	u32 stat_nig_timer;
 
+	/* MCP firmware does not use this field */
+	u32 ext_phy_fw_version;
 
 };
 
