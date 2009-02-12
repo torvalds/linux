@@ -488,7 +488,7 @@ struct port_feat_cfg {			    /* port 0: 0x454  port 1: 0x4c8 */
 /****************************************************************************
  * Device Information							    *
  ****************************************************************************/
-struct dev_info {						    /* size */
+struct shm_dev_info {						    /* size */
 
 	u32    bc_rev; /* 8 bits each: major, minor, build */	       /* 4 */
 
@@ -841,7 +841,7 @@ struct shmem_region {			       /*   SharedMem Offset (size) */
 #define SHR_MEM_VALIDITY_ACTIVE_MFW_NONE	    0x000001c0
 #define SHR_MEM_VALIDITY_ACTIVE_MFW_MASK	    0x000001c0
 
-	struct dev_info 	dev_info;		 /* 0x8     (0x438) */
+	struct shm_dev_info	dev_info;		 /* 0x8     (0x438) */
 
 	u8			reserved[52*PORT_MAX];
 
