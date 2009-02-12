@@ -52,7 +52,6 @@ struct ath9k_regulatory {
 	u32 tp_scale;
 	u16 current_rd;
 	u16 current_rd_ext;
-	u16 current_rd_inuse;
 	int16_t power_limit;
 	struct reg_dmn_pair_mapping *regpair;
 };
