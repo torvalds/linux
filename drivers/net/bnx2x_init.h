@@ -274,6 +274,9 @@ static void bnx2x_init_wr_wb(struct bnx2x *bp, u32 addr, const u32 *data,
 		rc = bnx2x_gunzip(bp, (u8 *)data, len);
 		if (rc) {
 			BNX2X_ERR("gunzip failed ! rc %d\n", rc);
+#ifdef __BIG_ENDIAN
+			kfree(temp);
+#endif
 			return;
 		}
 		len = bp->gunzip_outlen;
