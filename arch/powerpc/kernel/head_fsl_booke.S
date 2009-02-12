@@ -698,7 +698,9 @@ interrupt_base:
 	/* Performance Monitor */
 	EXCEPTION(0x2060, PerformanceMonitor, performance_monitor_exception, EXC_XFER_STD)
 
-	EXCEPTION(0x2070, Doorbell, unknown_exception, EXC_XFER_STD)
+	EXCEPTION(0x2070, Doorbell, doorbell_exception, EXC_XFER_STD)
+
+	CRITICAL_EXCEPTION(0x2080, CriticalDoorbell, unknown_exception)
 
 	/* Debug Interrupt */
 	DEBUG_DEBUG_EXCEPTION
@@ -921,6 +923,8 @@ _GLOBAL(__setup_e500mc_ivors)
 	mtspr	SPRN_IVOR35,r3
 	li	r3,Doorbell@l
 	mtspr	SPRN_IVOR36,r3
+	li	r3,CriticalDoorbell@l
+	mtspr	SPRN_IVOR37,r3
 	sync
 	blr
 

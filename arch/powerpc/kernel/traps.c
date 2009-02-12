@@ -53,6 +53,9 @@
 #endif
 #include <asm/kexec.h>
 #include <asm/ppc-opcode.h>
+#ifdef CONFIG_FSL_BOOKE
+#include <asm/dbell.h>
+#endif
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 int (*__debugger)(struct pt_regs *regs);
@@ -1122,6 +1125,24 @@ void vsx_assist_exception(struct pt_regs *regs)
 #endif /* CONFIG_VSX */
 
 #ifdef CONFIG_FSL_BOOKE
+
+void doorbell_exception(struct pt_regs *regs)
+{
+#ifdef CONFIG_SMP
+	int cpu = smp_processor_id();
+	int msg;
+
+	if (num_online_cpus() < 2)
+		return;
+
+	for (msg = 0; msg < 4; msg++)
+		if (test_and_clear_bit(msg, &dbell_smp_message[cpu]))
+			smp_message_recv(msg);
+#else
+	printk(KERN_WARNING "Received doorbell on non-smp system\n");
+#endif
+}
+
 void CacheLockingException(struct pt_regs *regs, unsigned long address,
 			   unsigned long error_code)
 {
