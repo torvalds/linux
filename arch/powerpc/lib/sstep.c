@@ -172,6 +172,8 @@ int __kprobes emulate_step(struct pt_regs *regs, unsigned int instr)
 			}
 			break;
 		case 0x378:	/* orx */
+			if (instr & 1)
+				break;
 			rs = (instr >> 21) & 0x1f;
 			rb = (instr >> 11) & 0x1f;
 			if (rs == rb) {		/* mr */

@@ -291,6 +291,9 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		ds_init_intel(c);
 	}
 
+	if (c->x86 == 6 && c->x86_model == 29 && cpu_has_clflush)
+		set_cpu_cap(c, X86_FEATURE_CLFLUSH_MONITOR);
+
 #ifdef CONFIG_X86_64
 	if (c->x86 == 15)
 		c->x86_cache_alignment = c->x86_clflush_size * 2;

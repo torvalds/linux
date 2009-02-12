@@ -851,13 +851,14 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->tty_old_pgrp = NULL;
 	sig->tty = NULL;
 
-	sig->cutime = sig->cstime = cputime_zero;
+	sig->utime = sig->stime = sig->cutime = sig->cstime = cputime_zero;
 	sig->gtime = cputime_zero;
 	sig->cgtime = cputime_zero;
 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
 	sig->min_flt = sig->maj_flt = sig->cmin_flt = sig->cmaj_flt = 0;
 	sig->inblock = sig->oublock = sig->cinblock = sig->coublock = 0;
 	task_io_accounting_init(&sig->ioac);
+	sig->sum_sched_runtime = 0;
 	taskstats_tgid_init(sig);
 
 	task_lock(current->group_leader);
@@ -1094,7 +1095,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #ifdef CONFIG_DEBUG_MUTEXES
 	p->blocked_on = NULL; /* not blocked yet */
 #endif
-	if (unlikely(ptrace_reparented(current)))
+	if (unlikely(current->ptrace))
 		ptrace_fork(p, clone_flags);
 
 	/* Perform scheduler related setup. Assign this task to a CPU. */

@@ -677,7 +677,7 @@ static ssize_t dasd_ff_show(struct device *dev, struct device_attribute *attr,
 	struct dasd_devmap *devmap;
 	int ff_flag;
 
-	devmap = dasd_find_busid(dev->bus_id);
+	devmap = dasd_find_busid(dev_name(dev));
 	if (!IS_ERR(devmap))
 		ff_flag = (devmap->features & DASD_FEATURE_FAILFAST) != 0;
 	else

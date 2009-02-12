@@ -174,6 +174,19 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int pipe)
 	return count;
 }
 
+u32 gm45_get_vblank_counter(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	int reg = pipe ? PIPEB_FRMCOUNT_GM45 : PIPEA_FRMCOUNT_GM45;
+
+	if (!i915_pipe_enabled(dev, pipe)) {
+		DRM_ERROR("trying to get vblank count for disabled pipe %d\n", pipe);
+		return 0;
+	}
+
+	return I915_READ(reg);
+}
+
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
