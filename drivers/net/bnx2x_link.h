@@ -77,7 +77,6 @@ struct link_params {
 #define SWITCH_CFG_AUTO_DETECT	PORT_FEATURE_CON_SWITCH_AUTO_DETECT
 
 	u16 hw_led_mode; /* part of the hw_config read from the shmem */
-	u32 serdes_config;
 	u32 lane_config;
 	u32 ext_phy_config;
 #define XGXS_EXT_PHY_TYPE(ext_phy_config)	(ext_phy_config & \
@@ -89,6 +88,9 @@ struct link_params {
 
 	/* phy_addr populated by the CLC */
 	u8 phy_addr;
+	u16 xgxs_config_rx[4]; /* preemphasis values for the rx side */
+
+	u16 xgxs_config_tx[4]; /* preemphasis values for the tx side */
 	u32 feature_config_flags;
 #define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED (1<<0)
 #define FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED	(2<<0)

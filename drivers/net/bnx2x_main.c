@@ -7550,6 +7550,15 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 					SHARED_HW_CFG_LED_MODE_MASK) >>
 				       SHARED_HW_CFG_LED_MODE_SHIFT);
 
+	bp->link_params.feature_config_flags = 0;
+	val = SHMEM_RD(bp, dev_info.shared_feature_config.config);
+	if (val & SHARED_FEAT_CFG_OVERRIDE_PREEMPHASIS_CFG_ENABLED)
+		bp->link_params.feature_config_flags |=
+				FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED;
+	else
+		bp->link_params.feature_config_flags &=
+				~FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED;
+
 	val = SHMEM_RD(bp, dev_info.bc_rev) >> 8;
 	bp->common.bc_ver = val;
 	BNX2X_DEV_INFO("bc_ver %X\n", val);
@@ -7972,12 +7981,11 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 	u32 val, val2;
 	u32 config;
+	u16 i;
 
 	bp->link_params.bp = bp;
 	bp->link_params.port = port;
 
-	bp->link_params.serdes_config =
-		SHMEM_RD(bp, dev_info.port_hw_config[port].serdes_config);
 	bp->link_params.lane_config =
 		SHMEM_RD(bp, dev_info.port_hw_config[port].lane_config);
 	bp->link_params.ext_phy_config =
@@ -7990,6 +7998,19 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 	bp->port.link_config =
 		SHMEM_RD(bp, dev_info.port_feature_config[port].link_config);
 
+	/* Get the 4 lanes xgxs config rx and tx */
+	for (i = 0; i < 2; i++) {
+		val = SHMEM_RD(bp,
+			   dev_info.port_hw_config[port].xgxs_config_rx[i<<1]);
+		bp->link_params.xgxs_config_rx[i << 1] = ((val>>16) & 0xffff);
+		bp->link_params.xgxs_config_rx[(i << 1) + 1] = (val & 0xffff);
+
+		val = SHMEM_RD(bp,
+			   dev_info.port_hw_config[port].xgxs_config_tx[i<<1]);
+		bp->link_params.xgxs_config_tx[i << 1] = ((val>>16) & 0xffff);
+		bp->link_params.xgxs_config_tx[(i << 1) + 1] = (val & 0xffff);
+	}
+
 	config = SHMEM_RD(bp, dev_info.port_feature_config[port].config);
 	if (config & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_ENABLED)
 		bp->link_params.feature_config_flags |=
@@ -7998,10 +8019,8 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 		bp->link_params.feature_config_flags &=
 				~FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED;
 
-	BNX2X_DEV_INFO("serdes_config 0x%08x  lane_config 0x%08x\n"
-	     KERN_INFO "  ext_phy_config 0x%08x  speed_cap_mask 0x%08x"
-		       "  link_config 0x%08x\n",
-		       bp->link_params.serdes_config,
+	BNX2X_DEV_INFO("lane_config 0x%08x  ext_phy_config 0x%08x"
+		       "  speed_cap_mask 0x%08x  link_config 0x%08x\n",
 		       bp->link_params.lane_config,
 		       bp->link_params.ext_phy_config,
 		       bp->link_params.speed_cap_mask, bp->port.link_config);

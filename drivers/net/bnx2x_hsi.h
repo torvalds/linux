@@ -178,36 +178,21 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 	u32 rdma_mac_lower;
 
 	u32 serdes_config;
-	/* for external PHY, or forced mode or during AN */
-#define PORT_HW_CFG_SERDES_TX_DRV_PRE_EMPHASIS_MASK 0xffff0000
-#define PORT_HW_CFG_SERDES_TX_DRV_PRE_EMPHASIS_SHIFT  16
+#define PORT_HW_CFG_SERDES_TX_DRV_PRE_EMPHASIS_MASK	      0x0000FFFF
+#define PORT_HW_CFG_SERDES_TX_DRV_PRE_EMPHASIS_SHIFT	      0
 
-#define PORT_HW_CFG_SERDES_RX_DRV_EQUALIZER_MASK    0x0000ffff
-#define PORT_HW_CFG_SERDES_RX_DRV_EQUALIZER_SHIFT   0
+#define PORT_HW_CFG_SERDES_RX_DRV_EQUALIZER_MASK	      0xFFFF0000
+#define PORT_HW_CFG_SERDES_RX_DRV_EQUALIZER_SHIFT	      16
 
-	u16 serdes_tx_driver_pre_emphasis[16];
-	u16 serdes_rx_driver_equalizer[16];
 
-	u32 xgxs_config_lane0;
-	u32 xgxs_config_lane1;
-	u32 xgxs_config_lane2;
-	u32 xgxs_config_lane3;
-	/* for external PHY, or forced mode or during AN */
-#define PORT_HW_CFG_XGXS_TX_DRV_PRE_EMPHASIS_MASK   0xffff0000
-#define PORT_HW_CFG_XGXS_TX_DRV_PRE_EMPHASIS_SHIFT  16
+	u32 Reserved0[16];				    /* 0x158 */
 
-#define PORT_HW_CFG_XGXS_RX_DRV_EQUALIZER_MASK	    0x0000ffff
-#define PORT_HW_CFG_XGXS_RX_DRV_EQUALIZER_SHIFT     0
+	/*  for external PHY, or forced mode or during AN */
+	u16 xgxs_config_rx[4];				    /* 0x198 */
 
-	u16 xgxs_tx_driver_pre_emphasis_lane0[16];
-	u16 xgxs_tx_driver_pre_emphasis_lane1[16];
-	u16 xgxs_tx_driver_pre_emphasis_lane2[16];
-	u16 xgxs_tx_driver_pre_emphasis_lane3[16];
+	u16 xgxs_config_tx[4];				    /* 0x1A0 */
 
-	u16 xgxs_rx_driver_equalizer_lane0[16];
-	u16 xgxs_rx_driver_equalizer_lane1[16];
-	u16 xgxs_rx_driver_equalizer_lane2[16];
-	u16 xgxs_rx_driver_equalizer_lane3[16];
+	u32 Reserved1[64];				    /* 0x1A8 */
 
 	u32 lane_config;
 #define PORT_HW_CFG_LANE_SWAP_CFG_MASK		    0x0000ffff

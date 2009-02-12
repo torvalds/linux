@@ -1758,33 +1758,39 @@ static void bnx2x_set_gmii_tx_driver(struct link_params *params)
 	struct bnx2x *bp = params->bp;
 	u16 lp_up2;
 	u16 tx_driver;
+	u16 bank;
 
 	/* read precomp */
-
 	CL45_RD_OVER_CL22(bp, params->port,
 			      params->phy_addr,
 			      MDIO_REG_BANK_OVER_1G,
 			      MDIO_OVER_1G_LP_UP2, &lp_up2);
-
-	CL45_RD_OVER_CL22(bp, params->port,
-			      params->phy_addr,
-			      MDIO_REG_BANK_TX0,
-			      MDIO_TX0_TX_DRIVER, &tx_driver);
 
 	/* bits [10:7] at lp_up2, positioned at [15:12] */
 	lp_up2 = (((lp_up2 & MDIO_OVER_1G_LP_UP2_PREEMPHASIS_MASK) >>
 		   MDIO_OVER_1G_LP_UP2_PREEMPHASIS_SHIFT) <<
 		  MDIO_TX0_TX_DRIVER_PREEMPHASIS_SHIFT);
 
-	if ((lp_up2 != 0) &&
-	    (lp_up2 != (tx_driver & MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK))) {
-		/* replace tx_driver bits [15:12] */
-		tx_driver &= ~MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK;
-		tx_driver |= lp_up2;
-		CL45_WR_OVER_CL22(bp, params->port,
+	if (lp_up2 == 0)
+		return;
+
+	for (bank = MDIO_REG_BANK_TX0; bank <= MDIO_REG_BANK_TX3;
+	      bank += (MDIO_REG_BANK_TX1 - MDIO_REG_BANK_TX0)) {
+		CL45_RD_OVER_CL22(bp, params->port,
 				      params->phy_addr,
-				      MDIO_REG_BANK_TX0,
-				      MDIO_TX0_TX_DRIVER, tx_driver);
+				      bank,
+				      MDIO_TX0_TX_DRIVER, &tx_driver);
+
+		/* replace tx_driver bits [15:12] */
+		if (lp_up2 !=
+		    (tx_driver & MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK)) {
+			tx_driver &= ~MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK;
+			tx_driver |= lp_up2;
+			CL45_WR_OVER_CL22(bp, params->port,
+					      params->phy_addr,
+					      bank,
+					      MDIO_TX0_TX_DRIVER, tx_driver);
+		}
 	}
 }
 
@@ -2890,31 +2896,40 @@ static void bnx2x_ext_phy_set_pause(struct link_params *params,
 		       MDIO_AN_DEVAD,
 		       MDIO_AN_REG_ADV_PAUSE, val);
 }
+static void bnx2x_set_preemphasis(struct link_params *params)
+{
+	u16 bank, i = 0;
+	struct bnx2x *bp = params->bp;
 
+	for (bank = MDIO_REG_BANK_RX0, i = 0; bank <= MDIO_REG_BANK_RX3;
+	      bank += (MDIO_REG_BANK_RX1-MDIO_REG_BANK_RX0), i++) {
+			CL45_WR_OVER_CL22(bp, params->port,
+					      params->phy_addr,
+					      bank,
+					      MDIO_RX0_RX_EQ_BOOST,
+					      params->xgxs_config_rx[i]);
+	}
+
+	for (bank = MDIO_REG_BANK_TX0, i = 0; bank <= MDIO_REG_BANK_TX3;
+		      bank += (MDIO_REG_BANK_TX1 - MDIO_REG_BANK_TX0), i++) {
+			CL45_WR_OVER_CL22(bp, params->port,
+					      params->phy_addr,
+					      bank,
+					      MDIO_TX0_TX_DRIVER,
+					      params->xgxs_config_tx[i]);
+	}
+}
 
 static void bnx2x_init_internal_phy(struct link_params *params,
 				struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
-	u8 port = params->port;
 	if (!(vars->phy_flags & PHY_SGMII_FLAG)) {
-		u16 bank, rx_eq;
-
-		rx_eq = ((params->serdes_config &
-			  PORT_HW_CFG_SERDES_RX_DRV_EQUALIZER_MASK) >>
-			 PORT_HW_CFG_SERDES_RX_DRV_EQUALIZER_SHIFT);
-
-		DP(NETIF_MSG_LINK, "setting rx eq to 0x%x\n", rx_eq);
-		for (bank = MDIO_REG_BANK_RX0; bank <= MDIO_REG_BANK_RX_ALL;
-		      bank += (MDIO_REG_BANK_RX1-MDIO_REG_BANK_RX0)) {
-			CL45_WR_OVER_CL22(bp, port,
-					      params->phy_addr,
-					      bank ,
-					      MDIO_RX0_RX_EQ_BOOST,
-					      ((rx_eq &
-				MDIO_RX0_RX_EQ_BOOST_EQUALIZER_CTRL_MASK) |
-				MDIO_RX0_RX_EQ_BOOST_OFFSET_CTRL));
-		}
+		if ((XGXS_EXT_PHY_TYPE(params->ext_phy_config) ==
+		     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) &&
+		    (params->feature_config_flags &
+		     FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED))
+			bnx2x_set_preemphasis(params);
 
 		/* forced speed requested? */
 		if (vars->line_speed != SPEED_AUTO_NEG) {
@@ -3038,6 +3053,35 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 			}
 			DP(NETIF_MSG_LINK, "XGXS 8706 is initialized "
 				"after %d ms\n", cnt);
+			if ((params->feature_config_flags &
+			     FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED)) {
+				u8 i;
+				u16 reg;
+				for (i = 0; i < 4; i++) {
+					reg = MDIO_XS_8706_REG_BANK_RX0 +
+						i*(MDIO_XS_8706_REG_BANK_RX1 -
+						   MDIO_XS_8706_REG_BANK_RX0);
+					bnx2x_cl45_read(bp, params->port,
+						      ext_phy_type,
+						      ext_phy_addr,
+						      MDIO_XS_DEVAD,
+						      reg, &val);
+					/* Clear first 3 bits of the control */
+					val &= ~0x7;
+					/* Set control bits according to
+					configuation */
+					val |= (params->xgxs_config_rx[i] &
+						0x7);
+					DP(NETIF_MSG_LINK, "Setting RX"
+						 "Equalizer to BCM8706 reg 0x%x"
+						 " <-- val 0x%x\n", reg, val);
+					bnx2x_cl45_write(bp, params->port,
+						       ext_phy_type,
+						       ext_phy_addr,
+						       MDIO_XS_DEVAD,
+						       reg, val);
+				}
+			}
 			/* Force speed */
 			/* First enable LASI */
 			bnx2x_cl45_write(bp, params->port,
@@ -3169,6 +3213,28 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 				bnx2x_cl45_write(bp, params->port, ext_phy_type,
 					       ext_phy_addr, MDIO_PMA_DEVAD,
 					       MDIO_PMA_REG_LASI_CTRL, 1);
+			}
+
+			/* Set TX PreEmphasis if needed */
+			if ((params->feature_config_flags &
+			     FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED)) {
+				DP(NETIF_MSG_LINK, "Setting TX_CTRL1 0x%x,"
+					 "TX_CTRL2 0x%x\n",
+					 params->xgxs_config_tx[0],
+					 params->xgxs_config_tx[1]);
+				bnx2x_cl45_write(bp, params->port,
+					       ext_phy_type,
+					       ext_phy_addr,
+					       MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_8726_TX_CTRL1,
+					       params->xgxs_config_tx[0]);
+
+				bnx2x_cl45_write(bp, params->port,
+					       ext_phy_type,
+					       ext_phy_addr,
+					       MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_8726_TX_CTRL2,
+					       params->xgxs_config_tx[1]);
 			}
 			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
