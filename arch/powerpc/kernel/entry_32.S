@@ -1199,9 +1199,11 @@ _GLOBAL(_mcount)
 
 	mtctr	r5
 	bctrl
-
 	nop
 
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	b	ftrace_graph_caller
+#endif
 	MCOUNT_RESTORE_FRAME
 	
 	bctr
@@ -1209,5 +1211,44 @@ _GLOBAL(_mcount)
 
 _GLOBAL(ftrace_stub)
 	blr
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+_GLOBAL(ftrace_graph_caller)
+	/* load r4 with local address */
+	lwz	r4, 44(r1)
+	subi	r4, r4, MCOUNT_INSN_SIZE
+
+	/* get the parent address */
+	addi	r3, r1, 52
+
+	bl	prepare_ftrace_return
+	nop
+
+	MCOUNT_RESTORE_FRAME
+	/* old link register ends up in ctr reg */
+	bctr
+
+_GLOBAL(return_to_handler)
+	/* need to save return values */
+	stwu	r1, -32(r1)
+	stw	r3, 20(r1)
+	stw	r4, 16(r1)
+	stw	r31, 12(r1)
+	mr	r31, r1
+
+	bl	ftrace_return_to_handler
+	nop
+
+	/* return value has real return address */
+	mtlr	r3
+
+	lwz	r3, 20(r1)
+	lwz	r4, 16(r1)
+	lwz	r31,12(r1)
+	lwz	r1, 0(r1)
+
+	/* Jump back to real return address */
+	blr
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #endif /* CONFIG_MCOUNT */

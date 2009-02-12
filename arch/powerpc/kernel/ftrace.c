@@ -603,7 +603,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		"1: " PPC_LL "%[old], 0(%[parent])\n"
 		"2: " PPC_STL "%[return_hooker], 0(%[parent])\n"
 		"   li %[faulted], 0\n"
-		"3:"
+		"3:\n"
 
 		".section .fixup, \"ax\"\n"
 		"4: li %[faulted], 1\n"
