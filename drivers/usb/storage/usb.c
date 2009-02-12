@@ -87,9 +87,6 @@
 #ifdef CONFIG_USB_STORAGE_KARMA
 #include "karma.h"
 #endif
-#ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
-#include "cypress_atacb.h"
-#endif
 #include "sierra_ms.h"
 #include "option_ms.h"
 
@@ -705,14 +702,6 @@ static void get_protocol(struct us_data *us)
 		us->protocol_name = "Uniform Floppy Interface (UFI)";
 		us->proto_handler = usb_stor_ufi_command;
 		break;
-
-#ifdef CONFIG_USB_STORAGE_CYPRESS_ATACB
-	case US_SC_CYP_ATACB:
-		us->protocol_name = "Transparent SCSI with Cypress ATACB";
-		us->proto_handler = cypress_atacb_passthrough;
-		break;
-#endif
-
 	}
 }
 
