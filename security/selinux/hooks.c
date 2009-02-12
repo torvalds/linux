@@ -1315,10 +1315,19 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 							     sbsec->def_sid,
 							     GFP_NOFS);
 			if (rc) {
-				printk(KERN_WARNING "SELinux: %s:  context_to_sid(%s) "
-				       "returned %d for dev=%s ino=%ld\n",
-				       __func__, context, -rc,
-				       inode->i_sb->s_id, inode->i_ino);
+				char *dev = inode->i_sb->s_id;
+				unsigned long ino = inode->i_ino;
+
+				if (rc == -EINVAL) {
+					if (printk_ratelimit())
+						printk(KERN_NOTICE "SELinux: inode=%lu on dev=%s was found to have an invalid "
+							"context=%s.  This indicates you may need to relabel the inode or the "
+							"filesystem in question.\n", ino, dev, context);
+				} else {
+					printk(KERN_WARNING "SELinux: %s:  context_to_sid(%s) "
+					       "returned %d for dev=%s ino=%ld\n",
+					       __func__, context, -rc, dev, ino);
+				}
 				kfree(context);
 				/* Leave with the unlabeled SID */
 				rc = 0;
