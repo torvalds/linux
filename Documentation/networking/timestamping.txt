@@ -56,6 +56,8 @@ and including the link layer, the scm_timestamping control message and
 a sock_extended_err control message with ee_errno==ENOMSG and
 ee_origin==SO_EE_ORIGIN_TIMESTAMPING. A socket with such a pending
 bounced packet is ready for reading as far as select() is concerned.
+If the outgoing packet has to be fragmented, then only the first
+fragment is time stamped and returned to the sending socket.
 
 All three values correspond to the same event in time, but were
 generated in different ways. Each of these values may be empty (= all
