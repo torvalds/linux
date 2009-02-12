@@ -25,13 +25,13 @@ struct svc_rqst;
 #define NLM_MAXCOOKIELEN    	32
 #define NLM_MAXSTRLEN		1024
 
-#define	nlm_granted		__constant_htonl(NLM_LCK_GRANTED)
-#define	nlm_lck_denied		__constant_htonl(NLM_LCK_DENIED)
-#define	nlm_lck_denied_nolocks	__constant_htonl(NLM_LCK_DENIED_NOLOCKS)
-#define	nlm_lck_blocked		__constant_htonl(NLM_LCK_BLOCKED)
-#define	nlm_lck_denied_grace_period	__constant_htonl(NLM_LCK_DENIED_GRACE_PERIOD)
+#define	nlm_granted		cpu_to_be32(NLM_LCK_GRANTED)
+#define	nlm_lck_denied		cpu_to_be32(NLM_LCK_DENIED)
+#define	nlm_lck_denied_nolocks	cpu_to_be32(NLM_LCK_DENIED_NOLOCKS)
+#define	nlm_lck_blocked		cpu_to_be32(NLM_LCK_BLOCKED)
+#define	nlm_lck_denied_grace_period	cpu_to_be32(NLM_LCK_DENIED_GRACE_PERIOD)
 
-#define nlm_drop_reply		__constant_htonl(30000)
+#define nlm_drop_reply		cpu_to_be32(30000)
 
 /* Lock info passed via NLM */
 struct nlm_lock {
