@@ -34,6 +34,8 @@
 #include "e1000_mac.h"
 #include "e1000_82575.h"
 
+#include <linux/clocksource.h>
+
 struct igb_adapter;
 
 /* Interrupt defines */
@@ -251,6 +253,8 @@ struct igb_adapter {
 	struct napi_struct napi;
 	struct pci_dev *pdev;
 	struct net_device_stats net_stats;
+	struct cyclecounter cycles;
+	struct timecounter clock;
 
 	/* structs defined in e1000_hw.h */
 	struct e1000_hw hw;

@@ -175,6 +175,54 @@ MODULE_DESCRIPTION("Intel(R) Gigabit Ethernet Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
+/**
+ * Scale the NIC clock cycle by a large factor so that
+ * relatively small clock corrections can be added or
+ * substracted at each clock tick. The drawbacks of a
+ * large factor are a) that the clock register overflows
+ * more quickly (not such a big deal) and b) that the
+ * increment per tick has to fit into 24 bits.
+ *
+ * Note that
+ *   TIMINCA = IGB_TSYNC_CYCLE_TIME_IN_NANOSECONDS *
+ *             IGB_TSYNC_SCALE
+ *   TIMINCA += TIMINCA * adjustment [ppm] / 1e9
+ *
+ * The base scale factor is intentionally a power of two
+ * so that the division in %struct timecounter can be done with
+ * a shift.
+ */
+#define IGB_TSYNC_SHIFT (19)
+#define IGB_TSYNC_SCALE (1<<IGB_TSYNC_SHIFT)
+
+/**
+ * The duration of one clock cycle of the NIC.
+ *
+ * @todo This hard-coded value is part of the specification and might change
+ * in future hardware revisions. Add revision check.
+ */
+#define IGB_TSYNC_CYCLE_TIME_IN_NANOSECONDS 16
+
+#if (IGB_TSYNC_SCALE * IGB_TSYNC_CYCLE_TIME_IN_NANOSECONDS) >= (1<<24)
+# error IGB_TSYNC_SCALE and/or IGB_TSYNC_CYCLE_TIME_IN_NANOSECONDS are too large to fit into TIMINCA
+#endif
+
+/**
+ * igb_read_clock - read raw cycle counter (to be used by time counter)
+ */
+static cycle_t igb_read_clock(const struct cyclecounter *tc)
+{
+	struct igb_adapter *adapter =
+		container_of(tc, struct igb_adapter, cycles);
+	struct e1000_hw *hw = &adapter->hw;
+	u64 stamp;
+
+	stamp =  rd32(E1000_SYSTIML);
+	stamp |= (u64)rd32(E1000_SYSTIMH) << 32ULL;
+
+	return stamp;
+}
+
 #ifdef DEBUG
 /**
  * igb_get_hw_dev_name - return device name string
@@ -184,6 +232,29 @@ char *igb_get_hw_dev_name(struct e1000_hw *hw)
 {
 	struct igb_adapter *adapter = hw->back;
 	return adapter->netdev->name;
+}
+
+/**
+ * igb_get_time_str - format current NIC and system time as string
+ */
+static char *igb_get_time_str(struct igb_adapter *adapter,
+			      char buffer[160])
+{
+	cycle_t hw = adapter->cycles.read(&adapter->cycles);
+	struct timespec nic = ns_to_timespec(timecounter_read(&adapter->clock));
+	struct timespec sys;
+	struct timespec delta;
+	getnstimeofday(&sys);
+
+	delta = timespec_sub(nic, sys);
+
+	sprintf(buffer,
+		"NIC %ld.%09lus, SYS %ld.%09lus, NIC-SYS %lds + %09luns",
+		(long)nic.tv_sec, nic.tv_nsec,
+		(long)sys.tv_sec, sys.tv_nsec,
+		(long)delta.tv_sec, delta.tv_nsec);
+
+	return buffer;
 }
 #endif
 
@@ -1295,6 +1366,46 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		 * in the CB driver. */
 		wr32(E1000_DCA_CTRL, 2);
 		igb_setup_dca(adapter);
+	}
+#endif
+
+	/*
+	 * Initialize hardware timer: we keep it running just in case
+	 * that some program needs it later on.
+	 */
+	memset(&adapter->cycles, 0, sizeof(adapter->cycles));
+	adapter->cycles.read = igb_read_clock;
+	adapter->cycles.mask = CLOCKSOURCE_MASK(64);
+	adapter->cycles.mult = 1;
+	adapter->cycles.shift = IGB_TSYNC_SHIFT;
+	wr32(E1000_TIMINCA,
+	     (1<<24) |
+	     IGB_TSYNC_CYCLE_TIME_IN_NANOSECONDS * IGB_TSYNC_SCALE);
+#if 0
+	/*
+	 * Avoid rollover while we initialize by resetting the time counter.
+	 */
+	wr32(E1000_SYSTIML, 0x00000000);
+	wr32(E1000_SYSTIMH, 0x00000000);
+#else
+	/*
+	 * Set registers so that rollover occurs soon to test this.
+	 */
+	wr32(E1000_SYSTIML, 0x00000000);
+	wr32(E1000_SYSTIMH, 0xFF800000);
+#endif
+	wrfl();
+	timecounter_init(&adapter->clock,
+			 &adapter->cycles,
+			 ktime_to_ns(ktime_get_real()));
+
+#ifdef DEBUG
+	{
+		char buffer[160];
+		printk(KERN_DEBUG
+			"igb: %s: hw %p initialized timer\n",
+			igb_get_time_str(adapter, buffer),
+			&adapter->hw);
 	}
 #endif
 

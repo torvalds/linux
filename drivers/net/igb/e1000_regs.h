@@ -75,6 +75,34 @@
 #define E1000_FCRTH    0x02168  /* Flow Control Receive Threshold High - RW */
 #define E1000_RDFPCQ(_n)  (0x02430 + (0x4 * (_n)))
 #define E1000_FCRTV    0x02460  /* Flow Control Refresh Timer Value - RW */
+
+/* IEEE 1588 TIMESYNCH */
+#define E1000_TSYNCTXCTL 0x0B614
+#define E1000_TSYNCRXCTL 0x0B620
+#define E1000_TSYNCRXCFG 0x05F50
+
+#define E1000_SYSTIML 0x0B600
+#define E1000_SYSTIMH 0x0B604
+#define E1000_TIMINCA 0x0B608
+
+#define E1000_RXMTRL     0x0B634
+#define E1000_RXSTMPL 0x0B624
+#define E1000_RXSTMPH 0x0B628
+#define E1000_RXSATRL 0x0B62C
+#define E1000_RXSATRH 0x0B630
+
+#define E1000_TXSTMPL 0x0B618
+#define E1000_TXSTMPH 0x0B61C
+
+#define E1000_ETQF0   0x05CB0
+#define E1000_ETQF1   0x05CB4
+#define E1000_ETQF2   0x05CB8
+#define E1000_ETQF3   0x05CBC
+#define E1000_ETQF4   0x05CC0
+#define E1000_ETQF5   0x05CC4
+#define E1000_ETQF6   0x05CC8
+#define E1000_ETQF7   0x05CCC
+
 /* Split and Replication RX Control - RW */
 /*
  * Convenience macros
