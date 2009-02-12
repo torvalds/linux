@@ -3,6 +3,8 @@
  * K8 parts Copyright 2002,2003 Andi Kleen, SuSE Labs.
  * Rest from unknown author(s).
  * 2004 Andi Kleen. Rewrote most of it.
+ * Copyright 2008 Intel Corporation
+ * Author: Andi Kleen
  */
 
 #include <linux/init.h>
@@ -189,7 +191,77 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 }
 
 /*
- * The actual machine check handler
+ * Poll for corrected events or events that happened before reset.
+ * Those are just logged through /dev/mcelog.
+ *
+ * This is executed in standard interrupt context.
+ */
+void machine_check_poll(enum mcp_flags flags)
+{
+	struct mce m;
+	int i;
+
+	mce_setup(&m);
+
+	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
+	for (i = 0; i < banks; i++) {
+		if (!bank[i])
+			continue;
+
+		m.misc = 0;
+		m.addr = 0;
+		m.bank = i;
+		m.tsc = 0;
+
+		barrier();
+		rdmsrl(MSR_IA32_MC0_STATUS + i*4, m.status);
+		if (!(m.status & MCI_STATUS_VAL))
+			continue;
+
+		/*
+		 * Uncorrected events are handled by the exception handler
+		 * when it is enabled. But when the exception is disabled log
+		 * everything.
+		 *
+		 * TBD do the same check for MCI_STATUS_EN here?
+		 */
+		if ((m.status & MCI_STATUS_UC) && !(flags & MCP_UC))
+			continue;
+
+		if (m.status & MCI_STATUS_MISCV)
+			rdmsrl(MSR_IA32_MC0_MISC + i*4, m.misc);
+		if (m.status & MCI_STATUS_ADDRV)
+			rdmsrl(MSR_IA32_MC0_ADDR + i*4, m.addr);
+
+		if (!(flags & MCP_TIMESTAMP))
+			m.tsc = 0;
+		/*
+		 * Don't get the IP here because it's unlikely to
+		 * have anything to do with the actual error location.
+		 */
+
+		mce_log(&m);
+		add_taint(TAINT_MACHINE_CHECK);
+
+		/*
+		 * Clear state for this bank.
+		 */
+		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+	}
+
+	/*
+	 * Don't clear MCG_STATUS here because it's only defined for
+	 * exceptions.
+	 */
+}
+
+/*
+ * The actual machine check handler. This only handles real
+ * exceptions when something got corrupted coming in through int 18.
+ *
+ * This is executed in NMI context not subject to normal locking rules. This
+ * implies that most kernel services cannot be safely used. Don't even
+ * think about putting a printk in there!
  */
 void do_machine_check(struct pt_regs * regs, long error_code)
 {
@@ -207,13 +279,14 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	 * error.
 	 */
 	int kill_it = 0;
+	DECLARE_BITMAP(toclear, MAX_NR_BANKS);
 
 	atomic_inc(&mce_entry);
 
-	if ((regs
-	     && notify_die(DIE_NMI, "machine check", regs, error_code,
+	if (notify_die(DIE_NMI, "machine check", regs, error_code,
 			   18, SIGKILL) == NOTIFY_STOP)
-	    || !banks)
+		goto out2;
+	if (!banks)
 		goto out2;
 
 	mce_setup(&m);
@@ -227,6 +300,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	barrier();
 
 	for (i = 0; i < banks; i++) {
+		__clear_bit(i, toclear);
 		if (!bank[i])
 			continue;
 
@@ -237,6 +311,20 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		rdmsrl(MSR_IA32_MC0_STATUS + i*4, m.status);
 		if ((m.status & MCI_STATUS_VAL) == 0)
 			continue;
+
+		/*
+		 * Non uncorrected errors are handled by machine_check_poll
+		 * Leave them alone.
+		 */
+		if ((m.status & MCI_STATUS_UC) == 0)
+			continue;
+
+		/*
+		 * Set taint even when machine check was not enabled.
+		 */
+		add_taint(TAINT_MACHINE_CHECK);
+
+		__set_bit(i, toclear);
 
 		if (m.status & MCI_STATUS_EN) {
 			/* if PCC was set, there's no way out */
@@ -251,6 +339,12 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 					no_way_out = 1;
 				kill_it = 1;
 			}
+		} else {
+			/*
+			 * Machine check event was not enabled. Clear, but
+			 * ignore.
+			 */
+			continue;
 		}
 
 		if (m.status & MCI_STATUS_MISCV)
@@ -259,10 +353,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 			rdmsrl(MSR_IA32_MC0_ADDR + i*4, m.addr);
 
 		mce_get_rip(&m, regs);
-		if (error_code < 0)
-			m.tsc = 0;
-		if (error_code != -2)
-			mce_log(&m);
+		mce_log(&m);
 
 		/* Did this bank cause the exception? */
 		/* Assume that the bank with uncorrectable errors did it,
@@ -271,13 +362,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 			panicm = m;
 			panicm_found = 1;
 		}
-
-		add_taint(TAINT_MACHINE_CHECK);
 	}
-
-	/* Never do anything final in the polling timer */
-	if (!regs)
-		goto out;
 
 	/* If we didn't find an uncorrectable error, pick
 	   the last one (shouldn't happen, just being safe). */
@@ -325,10 +410,11 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	/* notify userspace ASAP */
 	set_thread_flag(TIF_MCE_NOTIFY);
 
- out:
 	/* the last thing we do is clear state */
-	for (i = 0; i < banks; i++)
-		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+	for (i = 0; i < banks; i++) {
+		if (test_bit(i, toclear))
+			wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+	}
 	wrmsrl(MSR_IA32_MCG_STATUS, 0);
  out2:
 	atomic_dec(&mce_entry);
@@ -377,7 +463,7 @@ static void mcheck_timer(unsigned long data)
 	WARN_ON(smp_processor_id() != data);
 
 	if (mce_available(&current_cpu_data))
-		do_machine_check(NULL, 0);
+		machine_check_poll(MCP_TIMESTAMP);
 
 	/*
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
@@ -494,9 +580,10 @@ static void mce_init(void *dummy)
 	u64 cap;
 	int i;
 
-	/* Log the machine checks left over from the previous reset.
-	   This also clears all registers */
-	do_machine_check(NULL, mce_bootlog ? -1 : -2);
+	/*
+	 * Log the machine checks left over from the previous reset.
+	 */
+	machine_check_poll(MCP_UC);
 
 	set_in_cr4(X86_CR4_MCE);
 

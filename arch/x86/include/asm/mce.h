@@ -112,6 +112,13 @@ void mce_log_therm_throt_event(__u64 status);
 extern atomic_t mce_entry;
 
 extern void do_machine_check(struct pt_regs *, long);
+
+enum mcp_flags {
+	MCP_TIMESTAMP = (1 << 0),	/* log time stamp */
+	MCP_UC = (1 << 1),		/* log uncorrected errors */
+};
+extern void machine_check_poll(enum mcp_flags flags);
+
 extern int mce_notify_user(void);
 
 #endif /* !CONFIG_X86_32 */

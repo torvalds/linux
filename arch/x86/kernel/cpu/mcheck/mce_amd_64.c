@@ -231,7 +231,7 @@ asmlinkage void mce_threshold_interrupt(void)
 
 			/* Log the machine check that caused the threshold
 			   event. */
-			do_machine_check(NULL, 0);
+			machine_check_poll(MCP_TIMESTAMP);
 
 			if (high & MASK_OVERFLOW_HI) {
 				rdmsrl(address, m.misc);
