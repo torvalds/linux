@@ -28,6 +28,7 @@
 #include <linux/kdebug.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include <linux/ratelimit.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
 #include <asm/mce.h>
@@ -488,11 +489,11 @@ static DECLARE_WORK(mce_trigger_work, mce_do_trigger);
  */
 int mce_notify_user(void)
 {
+	/* Not more than two messages every minute */
+	static DEFINE_RATELIMIT_STATE(ratelimit, 60*HZ, 2);
+
 	clear_thread_flag(TIF_MCE_NOTIFY);
 	if (test_and_clear_bit(0, &notify_user)) {
-		static unsigned long last_print;
-		unsigned long now = jiffies;
-
 		wake_up_interruptible(&mce_wait);
 
 		/*
@@ -503,10 +504,8 @@ int mce_notify_user(void)
 		if (trigger[0] && !work_pending(&mce_trigger_work))
 			schedule_work(&mce_trigger_work);
 
-		if (time_after_eq(now, last_print + (check_interval*HZ))) {
-			last_print = now;
+		if (__ratelimit(&ratelimit))
 			printk(KERN_INFO "Machine check events logged\n");
-		}
 
 		return 1;
 	}
