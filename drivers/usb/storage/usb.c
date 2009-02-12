@@ -69,9 +69,6 @@
 #ifdef CONFIG_USB_STORAGE_USBAT
 #include "shuttle_usbat.h"
 #endif
-#ifdef CONFIG_USB_STORAGE_SDDR55
-#include "sddr55.h"
-#endif
 #ifdef CONFIG_USB_STORAGE_FREECOM
 #include "freecom.h"
 #endif
@@ -622,15 +619,6 @@ static void get_transport(struct us_data *us)
 		us->transport = usbat_transport;
 		us->transport_reset = usb_stor_CB_reset;
 		us->max_lun = 1;
-		break;
-#endif
-
-#ifdef CONFIG_USB_STORAGE_SDDR55
-	case US_PR_SDDR55:
-		us->transport_name = "SDDR55";
-		us->transport = sddr55_transport;
-		us->transport_reset = sddr55_reset;
-		us->max_lun = 0;
 		break;
 #endif
 

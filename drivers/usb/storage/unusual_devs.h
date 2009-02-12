@@ -1098,15 +1098,6 @@ UNUSUAL_DEV( 0x07c4, 0xa006, 0x0000, 0xffff,
 		US_SC_SCSI, US_PR_DATAFAB, NULL,
 		0 ),
 #endif
-		
-#ifdef CONFIG_USB_STORAGE_SDDR55
-/* Contributed by Peter Waechtler */
-UNUSUAL_DEV( 0x07c4, 0xa103, 0x0000, 0x9999,
-		"Datafab",
-		"MDSM-B reader",
-		US_SC_SCSI, US_PR_SDDR55, NULL,
-		US_FL_FIX_INQUIRY ),
-#endif
 
 #ifdef CONFIG_USB_STORAGE_DATAFAB
 /* Submitted by Olaf Hering <olh@suse.de> */
@@ -1115,14 +1106,6 @@ UNUSUAL_DEV(  0x07c4, 0xa109, 0x0000, 0xffff,
 		"USB to CF + SM Combo (LC1)",
 		US_SC_SCSI, US_PR_DATAFAB, NULL,
 		0 ),
-#endif
-#ifdef CONFIG_USB_STORAGE_SDDR55
-/* SM part - aeb <Andries.Brouwer@cwi.nl> */
-UNUSUAL_DEV(  0x07c4, 0xa109, 0x0000, 0xffff,
-		"Datafab Systems, Inc.",
-		"USB to CF + SM Combo (LC1)",
-		US_SC_SCSI, US_PR_SDDR55, NULL,
-		US_FL_SINGLE_LUN ),
 #endif
 
 #ifdef CONFIG_USB_STORAGE_DATAFAB
@@ -1346,13 +1329,6 @@ UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
 		"Acomdata",
 		"CF",
 		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		US_FL_SINGLE_LUN ),
-#endif
-#ifdef CONFIG_USB_STORAGE_SDDR55
-UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
-		"Acomdata",
-		"SM",
-		US_SC_SCSI, US_PR_SDDR55, NULL,
 		US_FL_SINGLE_LUN ),
 #endif
 
@@ -2040,14 +2016,6 @@ UNUSUAL_DEV(  0x4146, 0xba01, 0x0100, 0x0100,
 		"Iomega",
 		"Micro Mini 1GB",
 		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
-
-#ifdef CONFIG_USB_STORAGE_SDDR55
-UNUSUAL_DEV(  0x55aa, 0xa103, 0x0000, 0x9999, 
-		"Sandisk",
-		"ImageMate SDDR55",
-		US_SC_SCSI, US_PR_SDDR55, NULL,
-		US_FL_SINGLE_LUN),
-#endif
 
 /* Reported by Andrew Simmons <andrew.simmons@gmail.com> */
 UNUSUAL_DEV(  0xed06, 0x4500, 0x0001, 0x0001,

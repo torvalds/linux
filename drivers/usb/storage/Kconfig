@@ -95,11 +95,13 @@ config USB_STORAGE_SDDR09
 	  If this driver is compiled as a module, it will be named ums-sddr09.
 
 config USB_STORAGE_SDDR55
-	bool "SanDisk SDDR-55 SmartMedia support"
+	tristate "SanDisk SDDR-55 SmartMedia support"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Sandisk SDDR-55
 	  SmartMedia reader in the USB Mass Storage driver.
+
+	  If this driver is compiled as a module, it will be named ums-sddr55.
 
 config USB_STORAGE_JUMPSHOT
 	bool "Lexar Jumpshot Compact Flash Reader"
