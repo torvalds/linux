@@ -5,8 +5,9 @@
  *   - Silicon Labs USB FM Radio Reference Design
  *   - ADS/Tech FM Radio Receiver (formerly Instant FM Music) (RDX-155-EF)
  *   - KWorld USB FM Radio SnapMusic Mobile 700 (FM700)
+ *   - Sanei Electric, Inc. FM USB Radio (sold as DealExtreme.com PCear)
  *
- *  Copyright (c) 2008 Tobias Lorenz <tobias.lorenz@gmx.net>
+ *  Copyright (c) 2009 Tobias Lorenz <tobias.lorenz@gmx.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +30,7 @@
  * 2008-01-12	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.0
  *		- First working version
- * 2008-01-13   Tobias Lorenz <tobias.lorenz@gmx.net>
+ * 2008-01-13	Tobias Lorenz <tobias.lorenz@gmx.net>
  *		Version 1.0.1
  *		- Improved error handling, every function now returns errno
  *		- Improved multi user access (start/mute/stop)
@@ -145,7 +146,7 @@ static struct usb_device_id si470x_usb_driver_id_table[] = {
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x06e1, 0xa155, USB_CLASS_HID, 0, 0) },
 	/* KWorld USB FM Radio SnapMusic Mobile 700 (FM700) */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1b80, 0xd700, USB_CLASS_HID, 0, 0) },
-	/* DealExtreme USB Radio */
+	/* Sanei Electric, Inc. FM USB Radio (sold as DealExtreme.com PCear) */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c5, 0x819a, USB_CLASS_HID, 0, 0) },
 	/* Terminating entry */
 	{ }
@@ -345,7 +346,7 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 
 /* Report 19: stream */
 #define STREAM_REPORT_SIZE	3
-#define	STREAM_REPORT		19
+#define STREAM_REPORT		19
 
 /* Report 20: scratch */
 #define SCRATCH_PAGE_SIZE	63
@@ -414,7 +415,7 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 
 /* bootloader commands */
 #define GET_SW_VERSION_COMMAND	0x00
-#define	SET_PAGE_COMMAND	0x01
+#define SET_PAGE_COMMAND	0x01
 #define ERASE_PAGE_COMMAND	0x02
 #define WRITE_PAGE_COMMAND	0x03
 #define CRC_ON_PAGE_COMMAND	0x04
