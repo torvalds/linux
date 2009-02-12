@@ -917,9 +917,9 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 
 		/* promote the child to a root */
 		child = read_node_slot(root, mid, 0);
+		BUG_ON(!child);
 		btrfs_tree_lock(child);
 		btrfs_set_lock_blocking(child);
-		BUG_ON(!child);
 		ret = btrfs_cow_block(trans, root, child, mid, 0, &child, 0);
 		BUG_ON(ret);
 
