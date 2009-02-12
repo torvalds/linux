@@ -595,7 +595,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 {
 	unsigned long *cpu_tsc;
 	static DEFINE_MUTEX(mce_read_mutex);
-	unsigned next;
+	unsigned prev, next;
 	char __user *buf = ubuf;
 	int i, err;
 
@@ -614,25 +614,32 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	}
 
 	err = 0;
-	for (i = 0; i < next; i++) {
-		unsigned long start = jiffies;
+	prev = 0;
+	do {
+		for (i = prev; i < next; i++) {
+			unsigned long start = jiffies;
 
-		while (!mcelog.entry[i].finished) {
-			if (time_after_eq(jiffies, start + 2)) {
-				memset(mcelog.entry + i,0, sizeof(struct mce));
-				goto timeout;
+			while (!mcelog.entry[i].finished) {
+				if (time_after_eq(jiffies, start + 2)) {
+					memset(mcelog.entry + i, 0,
+					       sizeof(struct mce));
+					goto timeout;
+				}
+				cpu_relax();
 			}
-			cpu_relax();
+			smp_rmb();
+			err |= copy_to_user(buf, mcelog.entry + i,
+					    sizeof(struct mce));
+			buf += sizeof(struct mce);
+timeout:
+			;
 		}
-		smp_rmb();
-		err |= copy_to_user(buf, mcelog.entry + i, sizeof(struct mce));
-		buf += sizeof(struct mce);
- timeout:
-		;
-	}
 
-	memset(mcelog.entry, 0, next * sizeof(struct mce));
-	mcelog.next = 0;
+		memset(mcelog.entry + prev, 0,
+		       (next - prev) * sizeof(struct mce));
+		prev = next;
+		next = cmpxchg(&mcelog.next, prev, 0);
+	} while (next != prev);
 
 	synchronize_sched();
 
