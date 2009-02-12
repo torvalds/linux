@@ -1672,10 +1672,21 @@ static int dev_gso_segment(struct sk_buff *skb)
 	return 0;
 }
 
+static void tstamp_tx(struct sk_buff *skb)
+{
+	union skb_shared_tx *shtx =
+		skb_tx(skb);
+	if (unlikely(shtx->software &&
+			!shtx->in_progress)) {
+		skb_tstamp_tx(skb, NULL);
+	}
+}
+
 int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			struct netdev_queue *txq)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
+	int rc;
 
 	prefetch(&dev->netdev_ops->ndo_start_xmit);
 	if (likely(!skb->next)) {
@@ -1689,13 +1700,29 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 				goto gso;
 		}
 
-		return ops->ndo_start_xmit(skb, dev);
+		rc = ops->ndo_start_xmit(skb, dev);
+		/*
+		 * TODO: if skb_orphan() was called by
+		 * dev->hard_start_xmit() (for example, the unmodified
+		 * igb driver does that; bnx2 doesn't), then
+		 * skb_tx_software_timestamp() will be unable to send
+		 * back the time stamp.
+		 *
+		 * How can this be prevented? Always create another
+		 * reference to the socket before calling
+		 * dev->hard_start_xmit()? Prevent that skb_orphan()
+		 * does anything in dev->hard_start_xmit() by clearing
+		 * the skb destructor before the call and restoring it
+		 * afterwards, then doing the skb_orphan() ourselves?
+		 */
+		if (likely(!rc))
+			tstamp_tx(skb);
+		return rc;
 	}
 
 gso:
 	do {
 		struct sk_buff *nskb = skb->next;
-		int rc;
 
 		skb->next = nskb->next;
 		nskb->next = NULL;
@@ -1705,6 +1732,7 @@ gso:
 			skb->next = nskb;
 			return rc;
 		}
+		tstamp_tx(skb);
 		if (unlikely(netif_tx_queue_stopped(txq) && skb->next))
 			return NETDEV_TX_BUSY;
 	} while (skb->next);

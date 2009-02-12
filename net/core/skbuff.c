@@ -55,6 +55,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
 #include <linux/scatterlist.h>
+#include <linux/errqueue.h>
 
 #include <net/protocol.h>
 #include <net/dst.h>
@@ -215,7 +216,9 @@ struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
 	shinfo->gso_segs = 0;
 	shinfo->gso_type = 0;
 	shinfo->ip6_frag_id = 0;
+	shinfo->tx_flags.flags = 0;
 	shinfo->frag_list = NULL;
+	memset(&shinfo->hwtstamps, 0, sizeof(shinfo->hwtstamps));
 
 	if (fclone) {
 		struct sk_buff *child = skb + 1;
@@ -2944,6 +2947,44 @@ int skb_cow_data(struct sk_buff *skb, int tailbits, struct sk_buff **trailer)
 	return elt;
 }
 EXPORT_SYMBOL_GPL(skb_cow_data);
+
+void skb_tstamp_tx(struct sk_buff *orig_skb,
+		struct skb_shared_hwtstamps *hwtstamps)
+{
+	struct sock *sk = orig_skb->sk;
+	struct sock_exterr_skb *serr;
+	struct sk_buff *skb;
+	int err;
+
+	if (!sk)
+		return;
+
+	skb = skb_clone(orig_skb, GFP_ATOMIC);
+	if (!skb)
+		return;
+
+	if (hwtstamps) {
+		*skb_hwtstamps(skb) =
+			*hwtstamps;
+	} else {
+		/*
+		 * no hardware time stamps available,
+		 * so keep the skb_shared_tx and only
+		 * store software time stamp
+		 */
+		skb->tstamp = ktime_get_real();
+	}
+
+	serr = SKB_EXT_ERR(skb);
+	memset(serr, 0, sizeof(*serr));
+	serr->ee.ee_errno = ENOMSG;
+	serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
+	err = sock_queue_err_skb(sk, skb);
+	if (err)
+		kfree_skb(skb);
+}
+EXPORT_SYMBOL_GPL(skb_tstamp_tx);
+
 
 /**
  * skb_partial_csum_set - set up and verify partial csum values for packet
