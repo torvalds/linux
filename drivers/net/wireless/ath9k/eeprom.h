@@ -125,6 +125,7 @@
 #define AR5416_EEP_MINOR_VER_17      0x11
 #define AR5416_EEP_MINOR_VER_19      0x13
 #define AR5416_EEP_MINOR_VER_20      0x14
+#define AR5416_EEP_MINOR_VER_22      0x16
 
 #define AR5416_NUM_5G_CAL_PIERS         8
 #define AR5416_NUM_2G_CAL_PIERS         4
@@ -188,6 +189,7 @@ enum eeprom_param {
 	EEP_RXGAIN_TYPE,
 	EEP_TXGAIN_TYPE,
 	EEP_DAC_HPWR_5G,
+	EEP_FRAC_N_5G
 };
 
 enum ar5416_rates {
@@ -232,7 +234,9 @@ struct base_eep_header {
 	u8 txGainType;
 	u8 rcChainMask;
 	u8 desiredScaleCCK;
-	u8 futureBase_3[23];
+	u8 power_table_offset;
+	u8 frac_n_5g;
+	u8 futureBase_3[21];
 } __packed;
 
 struct base_eep_header_4k {

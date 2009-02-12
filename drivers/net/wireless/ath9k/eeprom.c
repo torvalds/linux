@@ -466,6 +466,8 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 		return pBase->txMask;
 	case EEP_RX_MASK:
 		return pBase->rxMask;
+	case EEP_FRAC_N_5G:
+		return 0;
 	default:
 		return 0;
 	}
@@ -1597,6 +1599,11 @@ static u32 ath9k_hw_def_get_eeprom(struct ath_hw *ah,
 	case EEP_DAC_HPWR_5G:
 		if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_20)
 			return pBase->dacHiPwrMode_5G;
+		else
+			return 0;
+	case EEP_FRAC_N_5G:
+		if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_22)
+			return pBase->frac_n_5g;
 		else
 			return 0;
 	default:

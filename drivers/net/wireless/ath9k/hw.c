@@ -823,7 +823,16 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 	if (AR_SREV_9280_20(ah))
 		ath9k_hw_init_txgain_ini(ah);
 
-	if (ah->hw_version.devid == AR9280_DEVID_PCI) {
+	if (!ath9k_hw_fill_cap_info(ah)) {
+		DPRINTF(sc, ATH_DBG_RESET, "failed ath9k_hw_fill_cap_info\n");
+		ecode = -EINVAL;
+		goto bad;
+	}
+
+	if ((ah->hw_version.devid == AR9280_DEVID_PCI) &&
+	    test_bit(ATH9K_MODE_11A, ah->caps.wireless_modes)) {
+
+		/* EEPROM Fixup */
 		for (i = 0; i < ah->iniModes.ia_rows; i++) {
 			u32 reg = INI_RA(&ah->iniModes, i, 0);
 
@@ -836,13 +845,6 @@ static struct ath_hw *ath9k_hw_do_attach(u16 devid, struct ath_softc *sc,
 							   reg, val);
 			}
 		}
-	}
-
-	if (!ath9k_hw_fill_cap_info(ah)) {
-		DPRINTF(sc, ATH_DBG_RESET,
-			"failed ath9k_hw_fill_cap_info\n");
-		ecode = -EINVAL;
-		goto bad;
 	}
 
 	ecode = ath9k_hw_init_macaddr(ah);
