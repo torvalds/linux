@@ -1606,6 +1606,7 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.set_ringparam		= mv643xx_eth_set_ringparam,
 	.get_rx_csum		= mv643xx_eth_get_rx_csum,
 	.set_rx_csum		= mv643xx_eth_set_rx_csum,
+	.set_tx_csum		= ethtool_op_set_tx_csum,
 	.set_sg			= ethtool_op_set_sg,
 	.get_strings		= mv643xx_eth_get_strings,
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
