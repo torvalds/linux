@@ -2165,6 +2165,19 @@ static void bnx2x_link_attn(struct bnx2x *bp)
 
 	if (bp->link_vars.link_up) {
 
+		/* dropless flow control */
+		if (CHIP_IS_E1H(bp)) {
+			int port = BP_PORT(bp);
+			u32 pause_enabled = 0;
+
+			if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_TX)
+				pause_enabled = 1;
+
+			REG_WR(bp, BAR_USTRORM_INTMEM +
+			       USTORM_PAUSE_ENABLED_OFFSET(port),
+			       pause_enabled);
+		}
+
 		if (bp->link_vars.mac_type == MAC_TYPE_BMAC) {
 			struct host_port_stats *pstats;
 
@@ -4909,6 +4922,38 @@ static void bnx2x_init_internal_func(struct bnx2x *bp)
 			 max_agg_size);
 	}
 
+	/* dropless flow control */
+	if (CHIP_IS_E1H(bp)) {
+		struct ustorm_eth_rx_pause_data_e1h rx_pause = {0};
+
+		rx_pause.bd_thr_low = 250;
+		rx_pause.cqe_thr_low = 250;
+		rx_pause.cos = 1;
+		rx_pause.sge_thr_low = 0;
+		rx_pause.bd_thr_high = 350;
+		rx_pause.cqe_thr_high = 350;
+		rx_pause.sge_thr_high = 0;
+
+		for_each_rx_queue(bp, i) {
+			struct bnx2x_fastpath *fp = &bp->fp[i];
+
+			if (!fp->disable_tpa) {
+				rx_pause.sge_thr_low = 150;
+				rx_pause.sge_thr_high = 250;
+			}
+
+
+			offset = BAR_USTRORM_INTMEM +
+				 USTORM_ETH_RING_PAUSE_DATA_OFFSET(port,
+								   fp->cl_id);
+			for (j = 0;
+			     j < sizeof(struct ustorm_eth_rx_pause_data_e1h)/4;
+			     j++)
+				REG_WR(bp, offset + j*4,
+				       ((u32 *)&rx_pause)[j]);
+		}
+	}
+
 	memset(&(bp->cmng), 0, sizeof(struct cmng_struct_per_port));
 
 	/* Init rate shaping and fairness contexts */
@@ -5437,14 +5482,6 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	}
 
 	bnx2x_init_block(bp, BRB1_COMMON_START, BRB1_COMMON_END);
-	if (CHIP_REV_IS_SLOW(bp)) {
-		/* fix for emulation and FPGA for no pause */
-		REG_WR(bp, BRB1_REG_PAUSE_HIGH_THRESHOLD_0, 513);
-		REG_WR(bp, BRB1_REG_PAUSE_HIGH_THRESHOLD_1, 513);
-		REG_WR(bp, BRB1_REG_PAUSE_LOW_THRESHOLD_0, 0);
-		REG_WR(bp, BRB1_REG_PAUSE_LOW_THRESHOLD_1, 0);
-	}
-
 	bnx2x_init_block(bp, PRS_COMMON_START, PRS_COMMON_END);
 	REG_WR(bp, PRS_REG_A_PRSU_20, 0xf);
 	/* set NIC mode */
@@ -5626,6 +5663,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 static int bnx2x_init_port(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
+	u32 low, high;
 	u32 val;
 
 	DP(BNX2X_MSG_MCP, "starting port init  port %x\n", port);
@@ -5672,7 +5710,32 @@ static int bnx2x_init_port(struct bnx2x *bp)
 			     func ? TIMERS_PORT1_END : TIMERS_PORT0_END);
 #endif
 	/* Port DQ comes here */
-	/* Port BRB1 comes here */
+
+	bnx2x_init_block(bp, (port ? BRB1_PORT1_START : BRB1_PORT0_START),
+			     (port ? BRB1_PORT1_END : BRB1_PORT0_END));
+	if (CHIP_REV_IS_SLOW(bp) && !CHIP_IS_E1H(bp)) {
+		/* no pause for emulation and FPGA */
+		low = 0;
+		high = 513;
+	} else {
+		if (IS_E1HMF(bp))
+			low = ((bp->flags & ONE_PORT_FLAG) ? 160 : 246);
+		else if (bp->dev->mtu > 4096) {
+			if (bp->flags & ONE_PORT_FLAG)
+				low = 160;
+			else {
+				val = bp->dev->mtu;
+				/* (24*1024 + val*4)/256 */
+				low = 96 + (val/64) + ((val % 64) ? 1 : 0);
+			}
+		} else
+			low = ((bp->flags & ONE_PORT_FLAG) ? 80 : 160);
+		high = low + 56;	/* 14*1024/256 */
+	}
+	REG_WR(bp, BRB1_REG_PAUSE_LOW_THRESHOLD_0 + port*4, low);
+	REG_WR(bp, BRB1_REG_PAUSE_HIGH_THRESHOLD_0 + port*4, high);
+
+
 	/* Port PRS comes here */
 	/* Port TSDM comes here */
 	/* Port CSDM comes here */
@@ -5754,6 +5817,14 @@ static int bnx2x_init_port(struct bnx2x *bp)
 		REG_WR(bp, NIG_REG_LLH0_BRB1_DRV_MASK_MF + port*4,
 		       (IS_E1HMF(bp) ? 0x1 : 0x2));
 
+		/* support pause requests from USDM, TSDM and BRB */
+		REG_WR(bp, NIG_REG_LLFC_EGRESS_SRC_ENABLE_0 + port*4, 0x7);
+
+		{
+			REG_WR(bp, NIG_REG_LLFC_ENABLE_0 + port*4, 0);
+			REG_WR(bp, NIG_REG_LLFC_OUT_EN_0 + port*4, 0);
+			REG_WR(bp, NIG_REG_PAUSE_ENABLE_0 + port*4, 1);
+		}
 	}
 
 	/* Port MCP comes here */
@@ -7330,6 +7401,13 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	bp->common.chip_id = id;
 	bp->link_params.chip_id = bp->common.chip_id;
 	BNX2X_DEV_INFO("chip ID is 0x%x\n", id);
+
+	val = (REG_RD(bp, 0x2874) & 0x55);
+	if ((bp->common.chip_id & 0x1) ||
+	    (CHIP_IS_E1(bp) && val) || (CHIP_IS_E1H(bp) && (val == 0x55))) {
+		bp->flags |= ONE_PORT_FLAG;
+		BNX2X_DEV_INFO("single port device\n");
+	}
 
 	val = REG_RD(bp, MCP_REG_MCPR_NVM_CFG4);
 	bp->common.flash_size = (NVRAM_1MB_SIZE <<

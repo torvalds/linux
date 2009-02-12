@@ -107,6 +107,9 @@
 #define USTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(function) \
 	(IS_E1H_OFFSET ? (0x9508 + ((function>>1) * 0x40) + \
 	((function&1) * 0x100)) : (0x1908 + (function * 0x40)))
+#define USTORM_ETH_RING_PAUSE_DATA_OFFSET(port, clientId) \
+	(IS_E1H_OFFSET ? (0x8020 + (port * 0x4b0) + (clientId * 0x30)) : \
+	0xffffffff)
 #define USTORM_ETH_STATS_QUERY_ADDR_OFFSET(function) \
 	(IS_E1H_OFFSET ? (0x2a50 + (function * 0x8)) : (0x1d98 + \
 	(function * 0x8)))
@@ -120,6 +123,8 @@
 #define USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(function) \
 	(IS_E1H_OFFSET ? (0x2408 + (function * 0x8)) : (0x5308 + \
 	(function * 0x8)))
+#define USTORM_PAUSE_ENABLED_OFFSET(port) \
+	(IS_E1H_OFFSET ? (0x2ad4 + (port * 0x8)) : 0xffffffff)
 #define USTORM_PER_COUNTER_ID_STATS_OFFSET(port, stats_counter_id) \
 	(IS_E1H_OFFSET ? (0x2450 + (port * 0x2d0) + (stats_counter_id * \
 	0x28)) : (0x4740 + (port * 0x2d0) + (stats_counter_id * 0x28)))

@@ -2615,6 +2615,41 @@ struct tstorm_eth_tpa_exist {
 
 
 /*
+ * rx rings pause data for E1h only
+ */
+struct ustorm_eth_rx_pause_data_e1h {
+#if defined(__BIG_ENDIAN)
+	u16 bd_thr_low;
+	u16 cqe_thr_low;
+#elif defined(__LITTLE_ENDIAN)
+	u16 cqe_thr_low;
+	u16 bd_thr_low;
+#endif
+#if defined(__BIG_ENDIAN)
+	u16 cos;
+	u16 sge_thr_low;
+#elif defined(__LITTLE_ENDIAN)
+	u16 sge_thr_low;
+	u16 cos;
+#endif
+#if defined(__BIG_ENDIAN)
+	u16 bd_thr_high;
+	u16 cqe_thr_high;
+#elif defined(__LITTLE_ENDIAN)
+	u16 cqe_thr_high;
+	u16 bd_thr_high;
+#endif
+#if defined(__BIG_ENDIAN)
+	u16 reserved0;
+	u16 sge_thr_high;
+#elif defined(__LITTLE_ENDIAN)
+	u16 sge_thr_high;
+	u16 reserved0;
+#endif
+};
+
+
+/*
  * Three RX producers for ETH
  */
 struct ustorm_eth_rx_producers {

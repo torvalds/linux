@@ -30,8 +30,20 @@
    address BRB1_IND_FREE_LIST_PRS_CRDT+1 initialize free tail. At address
    BRB1_IND_FREE_LIST_PRS_CRDT+2 initialize parser initial credit. */
 #define BRB1_REG_FREE_LIST_PRS_CRDT				 0x60200
+/* [RW 10] The number of free blocks above which the High_llfc signal to
+   interface #n is de-asserted. */
+#define BRB1_REG_HIGH_LLFC_HIGH_THRESHOLD_0			 0x6014c
+/* [RW 10] The number of free blocks below which the High_llfc signal to
+   interface #n is asserted. */
+#define BRB1_REG_HIGH_LLFC_LOW_THRESHOLD_0			 0x6013c
 /* [RW 23] LL RAM data. */
 #define BRB1_REG_LL_RAM 					 0x61000
+/* [RW 10] The number of free blocks above which the Low_llfc signal to
+   interface #n is de-asserted. */
+#define BRB1_REG_LOW_LLFC_HIGH_THRESHOLD_0			 0x6016c
+/* [RW 10] The number of free blocks below which the Low_llfc signal to
+   interface #n is asserted. */
+#define BRB1_REG_LOW_LLFC_LOW_THRESHOLD_0			 0x6015c
 /* [R 24] The number of full blocks. */
 #define BRB1_REG_NUM_OF_FULL_BLOCKS				 0x60090
 /* [ST 32] The number of cycles that the write_full signal towards MAC #0
@@ -1684,6 +1696,19 @@
 /* [RW 4] led mode for port0: 0 MAC; 1-3 PHY1; 4 MAC2; 5-7 PHY4; 8-MAC3;
    9-11PHY7; 12 MAC4; 13-15 PHY10; */
 #define NIG_REG_LED_MODE_P0					 0x102f0
+/* [RW 3] for port0 enable for llfc ppp and pause. b0 - brb1 enable; b1-
+   tsdm enable; b2- usdm enable */
+#define NIG_REG_LLFC_EGRESS_SRC_ENABLE_0			 0x16070
+/* [RW 1] SAFC enable for port0. This register may get 1 only when
+   ~ppp_enable.ppp_enable = 0 and pause_enable.pause_enable =0 for the same
+   port */
+#define NIG_REG_LLFC_ENABLE_0					 0x16208
+/* [RW 16] classes are high-priority for port0 */
+#define NIG_REG_LLFC_HIGH_PRIORITY_CLASSES_0			 0x16058
+/* [RW 16] classes are low-priority for port0 */
+#define NIG_REG_LLFC_LOW_PRIORITY_CLASSES_0			 0x16060
+/* [RW 1] Output enable of message to LLFC BMAC IF for port0 */
+#define NIG_REG_LLFC_OUT_EN_0					 0x160c8
 #define NIG_REG_LLH0_ACPI_PAT_0_CRC				 0x1015c
 #define NIG_REG_LLH0_ACPI_PAT_6_LEN				 0x10154
 #define NIG_REG_LLH0_BRB1_DRV_MASK				 0x10244
@@ -1754,6 +1779,10 @@
 #define NIG_REG_NIG_INT_STS_1					 0x103c0
 /* [R 32] Parity register #0 read */
 #define NIG_REG_NIG_PRTY_STS					 0x103d0
+/* [RW 1] Pause enable for port0. This register may get 1 only when
+   ~safc_enable.safc_enable = 0 and ppp_enable.ppp_enable =0 for the same
+   port */
+#define NIG_REG_PAUSE_ENABLE_0					 0x160c0
 /* [RW 1] Input enable for RX PBF LP IF */
 #define NIG_REG_PBF_LB_IN_EN					 0x100b4
 /* [RW 1] Value of this register will be transmitted to port swap when
