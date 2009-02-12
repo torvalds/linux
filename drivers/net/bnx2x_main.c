@@ -626,8 +626,8 @@ static void bnx2x_int_enable(struct bnx2x *bp)
 		if (IS_E1HMF(bp)) {
 			val = (0xee0f | (1 << (BP_E1HVN(bp) + 4)));
 			if (bp->port.pmf)
-				/* enable nig attention */
-				val |= 0x0100;
+				/* enable nig and gpio3 attention */
+				val |= 0x1100;
 		} else
 			val = 0xffff;
 
@@ -1836,6 +1836,36 @@ static void bnx2x_release_phy_lock(struct bnx2x *bp)
 	mutex_unlock(&bp->port.phy_mutex);
 }
 
+int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port)
+{
+	/* The GPIO should be swapped if swap register is set and active */
+	int gpio_port = (REG_RD(bp, NIG_REG_PORT_SWAP) &&
+			 REG_RD(bp, NIG_REG_STRAP_OVERRIDE)) ^ port;
+	int gpio_shift = gpio_num +
+			(gpio_port ? MISC_REGISTERS_GPIO_PORT_SHIFT : 0);
+	u32 gpio_mask = (1 << gpio_shift);
+	u32 gpio_reg;
+	int value;
+
+	if (gpio_num > MISC_REGISTERS_GPIO_3) {
+		BNX2X_ERR("Invalid GPIO %d\n", gpio_num);
+		return -EINVAL;
+	}
+
+	/* read GPIO value */
+	gpio_reg = REG_RD(bp, MISC_REG_GPIO);
+
+	/* get the requested pin value */
+	if ((gpio_reg & gpio_mask) == gpio_mask)
+		value = 1;
+	else
+		value = 0;
+
+	DP(NETIF_MSG_LINK, "pin %d  value 0x%x\n", gpio_num, value);
+
+	return value;
+}
+
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port)
 {
 	/* The GPIO should be swapped if swap register is set and active */
@@ -1884,6 +1914,52 @@ int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port)
 	}
 
 	REG_WR(bp, MISC_REG_GPIO, gpio_reg);
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_GPIO);
+
+	return 0;
+}
+
+int bnx2x_set_gpio_int(struct bnx2x *bp, int gpio_num, u32 mode, u8 port)
+{
+	/* The GPIO should be swapped if swap register is set and active */
+	int gpio_port = (REG_RD(bp, NIG_REG_PORT_SWAP) &&
+			 REG_RD(bp, NIG_REG_STRAP_OVERRIDE)) ^ port;
+	int gpio_shift = gpio_num +
+			(gpio_port ? MISC_REGISTERS_GPIO_PORT_SHIFT : 0);
+	u32 gpio_mask = (1 << gpio_shift);
+	u32 gpio_reg;
+
+	if (gpio_num > MISC_REGISTERS_GPIO_3) {
+		BNX2X_ERR("Invalid GPIO %d\n", gpio_num);
+		return -EINVAL;
+	}
+
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_GPIO);
+	/* read GPIO int */
+	gpio_reg = REG_RD(bp, MISC_REG_GPIO_INT);
+
+	switch (mode) {
+	case MISC_REGISTERS_GPIO_INT_OUTPUT_CLR:
+		DP(NETIF_MSG_LINK, "Clear GPIO INT %d (shift %d) -> "
+				   "output low\n", gpio_num, gpio_shift);
+		/* clear SET and set CLR */
+		gpio_reg &= ~(gpio_mask << MISC_REGISTERS_GPIO_INT_SET_POS);
+		gpio_reg |=  (gpio_mask << MISC_REGISTERS_GPIO_INT_CLR_POS);
+		break;
+
+	case MISC_REGISTERS_GPIO_INT_OUTPUT_SET:
+		DP(NETIF_MSG_LINK, "Set GPIO INT %d (shift %d) -> "
+				   "output high\n", gpio_num, gpio_shift);
+		/* clear CLR and set SET */
+		gpio_reg &= ~(gpio_mask << MISC_REGISTERS_GPIO_INT_CLR_POS);
+		gpio_reg |=  (gpio_mask << MISC_REGISTERS_GPIO_INT_SET_POS);
+		break;
+
+	default:
+		break;
+	}
+
+	REG_WR(bp, MISC_REG_GPIO_INT, gpio_reg);
 	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_GPIO);
 
 	return 0;

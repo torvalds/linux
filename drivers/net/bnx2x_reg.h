@@ -1438,6 +1438,29 @@
    This is the result value of the pin; not the drive value. Writing these
    bits will have not effect. */
 #define MISC_REG_GPIO						 0xa490
+/* [RW 8] These bits enable the GPIO_INTs to signals event to the
+   IGU/MCP.according to the following map: [0] p0_gpio_0; [1] p0_gpio_1; [2]
+   p0_gpio_2; [3] p0_gpio_3; [4] p1_gpio_0; [5] p1_gpio_1; [6] p1_gpio_2;
+   [7] p1_gpio_3; */
+#define MISC_REG_GPIO_EVENT_EN					 0xa2bc
+/* [RW 32] GPIO INT. [31-28] OLD_CLR port1; [27-24] OLD_CLR port0; Writing a
+   '1' to these bit clears the corresponding bit in the #OLD_VALUE register.
+   This will acknowledge an interrupt on the falling edge of corresponding
+   GPIO input (reset value 0). [23-16] OLD_SET [23-16] port1; OLD_SET port0;
+   Writing a '1' to these bit sets the corresponding bit in the #OLD_VALUE
+   register. This will acknowledge an interrupt on the rising edge of
+   corresponding SPIO input (reset value 0). [15-12] OLD_VALUE [11-8] port1;
+   OLD_VALUE port0; RO; These bits indicate the old value of the GPIO input
+   value. When the ~INT_STATE bit is set; this bit indicates the OLD value
+   of the pin such that if ~INT_STATE is set and this bit is '0'; then the
+   interrupt is due to a low to high edge. If ~INT_STATE is set and this bit
+   is '1'; then the interrupt is due to a high to low edge (reset value 0).
+   [7-4] INT_STATE port1; [3-0] INT_STATE RO port0; These bits indicate the
+   current GPIO interrupt state for each GPIO pin. This bit is cleared when
+   the appropriate #OLD_SET or #OLD_CLR command bit is written. This bit is
+   set when the GPIO input does not match the current value in #OLD_VALUE
+   (reset value 0). */
+#define MISC_REG_GPIO_INT					 0xa494
 /* [R 28] this field hold the last information that caused reserved
    attention. bits [19:0] - address; [22:20] function; [23] reserved;
    [27:24] the master that caused the attention - according to the following
@@ -5162,6 +5185,10 @@
 #define MISC_REGISTERS_GPIO_FLOAT_POS				 24
 #define MISC_REGISTERS_GPIO_HIGH				 1
 #define MISC_REGISTERS_GPIO_INPUT_HI_Z				 2
+#define MISC_REGISTERS_GPIO_INT_CLR_POS 			 24
+#define MISC_REGISTERS_GPIO_INT_OUTPUT_CLR			 0
+#define MISC_REGISTERS_GPIO_INT_OUTPUT_SET			 1
+#define MISC_REGISTERS_GPIO_INT_SET_POS 			 16
 #define MISC_REGISTERS_GPIO_LOW 				 0
 #define MISC_REGISTERS_GPIO_OUTPUT_HIGH 			 1
 #define MISC_REGISTERS_GPIO_OUTPUT_LOW				 0
@@ -5220,6 +5247,8 @@
 #define AEU_INPUTS_ATTN_BITS_DMAE_HW_INTERRUPT		      (1<<11)
 #define AEU_INPUTS_ATTN_BITS_DOORBELLQ_HW_INTERRUPT	      (1<<13)
 #define AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR	      (1<<12)
+#define AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0		      (1<<5)
+#define AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1		      (1<<9)
 #define AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR		      (1<<12)
 #define AEU_INPUTS_ATTN_BITS_MISC_HW_INTERRUPT		      (1<<15)
 #define AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR		      (1<<14)
