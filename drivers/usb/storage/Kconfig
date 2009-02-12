@@ -110,11 +110,13 @@ config USB_STORAGE_SDDR55
 	  If this driver is compiled as a module, it will be named ums-sddr55.
 
 config USB_STORAGE_JUMPSHOT
-	bool "Lexar Jumpshot Compact Flash Reader"
+	tristate "Lexar Jumpshot Compact Flash Reader"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Lexar Jumpshot
 	  USB CompactFlash reader.
+
+	  If this driver is compiled as a module, it will be named ums-jumpshot.
 
 config USB_STORAGE_ALAUDA
 	bool "Olympus MAUSB-10/Fuji DPC-R1 support"

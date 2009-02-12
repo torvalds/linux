@@ -794,14 +794,6 @@ UNUSUAL_DEV(  0x05c6, 0x1000, 0x0000, 0x9999,
 		US_SC_DEVICE, US_PR_DEVICE, option_ms_init,
 		0),
 
-#ifdef CONFIG_USB_STORAGE_JUMPSHOT
-UNUSUAL_DEV(  0x05dc, 0x0001, 0x0000, 0x0001,
-		"Lexar",
-		"Jumpshot USB CF Reader",
-		US_SC_SCSI, US_PR_JUMPSHOT, NULL,
-		US_FL_NEED_OVERRIDE ),
-#endif
-
 /* Reported by Blake Matheny <bmatheny@purdue.edu> */
 UNUSUAL_DEV(  0x05dc, 0xb002, 0x0000, 0x0113,
 		"Lexar",

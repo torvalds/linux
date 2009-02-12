@@ -66,9 +66,6 @@
 #include "debug.h"
 #include "initializers.h"
 
-#ifdef CONFIG_USB_STORAGE_JUMPSHOT
-#include "jumpshot.h"
-#endif
 #ifdef CONFIG_USB_STORAGE_ONETOUCH
 #include "onetouch.h"
 #endif
@@ -600,15 +597,6 @@ static void get_transport(struct us_data *us)
 		us->transport = usb_stor_Bulk_transport;
 		us->transport_reset = usb_stor_Bulk_reset;
 		break;
-
-#ifdef CONFIG_USB_STORAGE_JUMPSHOT
-	case US_PR_JUMPSHOT:
-		us->transport_name  = "Lexar Jumpshot Control/Bulk";
-		us->transport = jumpshot_transport;
-		us->transport_reset = usb_stor_Bulk_reset;
-		us->max_lun = 1;
-		break;
-#endif
 
 #ifdef CONFIG_USB_STORAGE_ALAUDA
 	case US_PR_ALAUDA:

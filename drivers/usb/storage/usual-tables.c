@@ -81,6 +81,7 @@ static struct ignore_entry ignore_ids[] = {
 #	include "unusual_datafab.h"
 #	include "unusual_freecom.h"
 #	include "unusual_isd200.h"
+#	include "unusual_jumpshot.h"
 #	include "unusual_sddr09.h"
 #	include "unusual_sddr55.h"
 #	include "unusual_usbat.h"
