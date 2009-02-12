@@ -48,6 +48,7 @@
 #include <asm/apic.h>
 #include <asm/i8259.h>
 #include <asm/smp.h>
+#include <asm/mce.h>
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
@@ -1270,6 +1271,12 @@ void __cpuinit setup_local_APIC(void)
 	apic_write(APIC_LVT1, value);
 
 	preempt_enable();
+
+#ifdef CONFIG_X86_MCE_INTEL
+	/* Recheck CMCI information after local APIC is up on CPU #0 */
+	if (smp_processor_id() == 0)
+		cmci_recheck();
+#endif
 }
 
 void __cpuinit end_local_APIC_setup(void)
