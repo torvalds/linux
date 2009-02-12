@@ -734,6 +734,7 @@ __setup("mce=", mcheck_enable);
 static int mce_resume(struct sys_device *dev)
 {
 	mce_init(NULL);
+	mce_cpu_features(&current_cpu_data);
 	return 0;
 }
 
