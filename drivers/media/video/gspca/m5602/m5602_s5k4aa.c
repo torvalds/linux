@@ -74,6 +74,17 @@ static struct v4l2_pix_format s5k4aa_modes[] = {
 		.bytesperline = 640,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0
+	},
+	{
+		1280,
+		1024,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			1280 * 1024,
+		.bytesperline = 1280,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
 	}
 };
 
@@ -288,6 +299,10 @@ int s5k4aa_start(struct sd *sd)
 				return -EINVAL;
 			}
 		}
+		err = s5k4aa_set_noise(&sd->gspca_dev, 0);
+		if (err < 0)
+			return err;
+		break;
 
 	case 640:
 		PDEBUG(D_V4L2, "Configuring camera for VGA mode");
@@ -320,6 +335,10 @@ int s5k4aa_start(struct sd *sd)
 				return -EINVAL;
 			}
 		}
+		err = s5k4aa_set_noise(&sd->gspca_dev, 1);
+		if (err < 0)
+			return err;
+		break;
 	}
 	return err;
 }
@@ -371,10 +390,6 @@ int s5k4aa_init(struct sd *sd)
 
 	err = s5k4aa_set_brightness(&sd->gspca_dev,
 				     sensor_settings[BRIGHTNESS_IDX]);
-	if (err < 0)
-		return err;
-
-	err = s5k4aa_set_noise(&sd->gspca_dev, sensor_settings[NOISE_SUPP_IDX]);
 	if (err < 0)
 		return err;
 
