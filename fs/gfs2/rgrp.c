@@ -839,7 +839,7 @@ static void gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 	const unsigned int sects_per_blk = sdp->sd_sb.sb_bsize /
 					   bdev_hardsect_size(sb->s_bdev);
 	u64 blk;
-	sector_t start;
+	sector_t start = 0;
 	sector_t nr_sects = 0;
 	int rv;
 	unsigned int x;

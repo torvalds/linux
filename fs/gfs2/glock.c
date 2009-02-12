@@ -684,10 +684,11 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	gl = search_bucket(hash, sdp, &name);
 	read_unlock(gl_lock_addr(hash));
 
-	if (gl || !create) {
-		*glp = gl;
+	*glp = gl;
+	if (gl)
 		return 0;
-	}
+	if (!create)
+		return -ENOENT;
 
 	gl = kmem_cache_alloc(gfs2_glock_cachep, GFP_KERNEL);
 	if (!gl)

@@ -24,6 +24,7 @@
 #include "glock.h"
 #include "quota.h"
 #include "util.h"
+#include "glops.h"
 
 static ssize_t id_show(struct gfs2_sbd *sdp, char *buf)
 {
@@ -171,6 +172,46 @@ static ssize_t quota_refresh_group_store(struct gfs2_sbd *sdp, const char *buf,
 	return len;
 }
 
+static ssize_t demote_rq_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
+{
+	struct gfs2_glock *gl;
+	const struct gfs2_glock_operations *glops;
+	unsigned int glmode;
+	unsigned int gltype;
+	unsigned long long glnum;
+	char mode[16];
+	int rv;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	rv = sscanf(buf, "%u:%llu %15s", &gltype, &glnum,
+		    mode);
+	if (rv != 3)
+		return -EINVAL;
+
+	if (strcmp(mode, "EX") == 0)
+		glmode = LM_ST_UNLOCKED;
+	else if ((strcmp(mode, "CW") == 0) || (strcmp(mode, "DF") == 0))
+		glmode = LM_ST_DEFERRED;
+	else if ((strcmp(mode, "PR") == 0) || (strcmp(mode, "SH") == 0))
+		glmode = LM_ST_SHARED;
+	else
+		return -EINVAL;
+
+	if (gltype > LM_TYPE_JOURNAL)
+		return -EINVAL;
+	glops = gfs2_glops_list[gltype];
+	if (glops == NULL)
+		return -EINVAL;
+	rv = gfs2_glock_get(sdp, glnum, glops, 0, &gl);
+	if (rv)
+		return rv;
+	gfs2_glock_cb(gl, glmode);
+	gfs2_glock_put(gl);
+	return len;
+}
+
 struct gfs2_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct gfs2_sbd *, char *);
@@ -189,6 +230,7 @@ GFS2_ATTR(statfs_sync,         0200, NULL,          statfs_sync_store);
 GFS2_ATTR(quota_sync,          0200, NULL,          quota_sync_store);
 GFS2_ATTR(quota_refresh_user,  0200, NULL,          quota_refresh_user_store);
 GFS2_ATTR(quota_refresh_group, 0200, NULL,          quota_refresh_group_store);
+GFS2_ATTR(demote_rq,           0200, NULL,	    demote_rq_store);
 
 static struct attribute *gfs2_attrs[] = {
 	&gfs2_attr_id.attr,
@@ -200,6 +242,7 @@ static struct attribute *gfs2_attrs[] = {
 	&gfs2_attr_quota_sync.attr,
 	&gfs2_attr_quota_refresh_user.attr,
 	&gfs2_attr_quota_refresh_group.attr,
+	&gfs2_attr_demote_rq.attr,
 	NULL,
 };
 
