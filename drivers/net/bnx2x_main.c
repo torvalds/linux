@@ -7059,9 +7059,8 @@ static int bnx2x_stop_leading(struct bnx2x *bp)
 			   *bp->dsb_sp_prod, dsb_sp_prod_idx);
 #ifdef BNX2X_STOP_ON_ERROR
 			bnx2x_panic();
-#else
-			rc = -EBUSY;
 #endif
+			rc = -EBUSY;
 			break;
 		}
 		cnt--;
