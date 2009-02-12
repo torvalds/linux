@@ -54,6 +54,8 @@
 #include <asm/xen/hypervisor.h>
 
 struct per_user_data {
+	struct mutex bind_mutex; /* serialize bind/unbind operations */
+
 	/* Notification ring, accessed via /dev/xen/evtchn. */
 #define EVTCHN_RING_SIZE     (PAGE_SIZE / sizeof(evtchn_port_t))
 #define EVTCHN_RING_MASK(_i) ((_i)&(EVTCHN_RING_SIZE-1))
@@ -69,7 +71,7 @@ struct per_user_data {
 
 /* Who's bound to each port? */
 static struct per_user_data *port_user[NR_EVENT_CHANNELS];
-static DEFINE_SPINLOCK(port_user_lock);
+static DEFINE_SPINLOCK(port_user_lock); /* protects port_user[] and ring_prod */
 
 irqreturn_t evtchn_interrupt(int irq, void *data)
 {
@@ -210,22 +212,24 @@ static ssize_t evtchn_write(struct file *file, const char __user *buf,
 
 static int evtchn_bind_to_user(struct per_user_data *u, int port)
 {
-	int irq;
 	int rc = 0;
 
-	spin_lock_irq(&port_user_lock);
-
+	/*
+	 * Ports are never reused, so every caller should pass in a
+	 * unique port.
+	 *
+	 * (Locking not necessary because we haven't registered the
+	 * interrupt handler yet, and our caller has already
+	 * serialized bind operations.)
+	 */
 	BUG_ON(port_user[port] != NULL);
-
-	irq = bind_evtchn_to_irqhandler(port, evtchn_interrupt, IRQF_DISABLED,
-					u->name, (void *)(unsigned long)port);
-	if (rc < 0)
-		goto fail;
-
 	port_user[port] = u;
 
-fail:
-	spin_unlock_irq(&port_user_lock);
+	rc = bind_evtchn_to_irqhandler(port, evtchn_interrupt, IRQF_DISABLED,
+				       u->name, (void *)(unsigned long)port);
+	if (rc >= 0)
+		rc = 0;
+
 	return rc;
 }
 
@@ -234,6 +238,10 @@ static void evtchn_unbind_from_user(struct per_user_data *u, int port)
 	int irq = irq_from_evtchn(port);
 
 	unbind_from_irqhandler(irq, (void *)(unsigned long)port);
+
+	/* make sure we unbind the irq handler before clearing the port */
+	barrier();
+
 	port_user[port] = NULL;
 }
 
@@ -243,6 +251,9 @@ static long evtchn_ioctl(struct file *file,
 	int rc;
 	struct per_user_data *u = file->private_data;
 	void __user *uarg = (void __user *) arg;
+
+	/* Prevent bind from racing with unbind */
+	mutex_lock(&u->bind_mutex);
 
 	switch (cmd) {
 	case IOCTL_EVTCHN_BIND_VIRQ: {
@@ -368,6 +379,7 @@ static long evtchn_ioctl(struct file *file,
 		rc = -ENOSYS;
 		break;
 	}
+	mutex_unlock(&u->bind_mutex);
 
 	return rc;
 }
@@ -414,6 +426,7 @@ static int evtchn_open(struct inode *inode, struct file *filp)
 		return -ENOMEM;
 	}
 
+	mutex_init(&u->bind_mutex);
 	mutex_init(&u->ring_cons_mutex);
 
 	filp->private_data = u;
