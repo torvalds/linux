@@ -655,17 +655,18 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 	REG_WR(bp, PXP2_REG_WR_USDMDP_TH, (0x18 << w_order));
 
 	if (CHIP_IS_E1H(bp)) {
-		REG_WR(bp, PXP2_REG_WR_HC_MPS, w_order+1);
-		REG_WR(bp, PXP2_REG_WR_USDM_MPS, w_order+1);
-		REG_WR(bp, PXP2_REG_WR_CSDM_MPS, w_order+1);
-		REG_WR(bp, PXP2_REG_WR_TSDM_MPS, w_order+1);
-		REG_WR(bp, PXP2_REG_WR_XSDM_MPS, w_order+1);
-		REG_WR(bp, PXP2_REG_WR_QM_MPS, w_order+1);
-		REG_WR(bp, PXP2_REG_WR_TM_MPS, w_order+1);
-		REG_WR(bp, PXP2_REG_WR_SRC_MPS, w_order+1);
-		REG_WR(bp, PXP2_REG_WR_DBG_MPS, w_order+1);
+		val = ((w_order == 0) ? 2 : 3);
+		REG_WR(bp, PXP2_REG_WR_HC_MPS, val);
+		REG_WR(bp, PXP2_REG_WR_USDM_MPS, val);
+		REG_WR(bp, PXP2_REG_WR_CSDM_MPS, val);
+		REG_WR(bp, PXP2_REG_WR_TSDM_MPS, val);
+		REG_WR(bp, PXP2_REG_WR_XSDM_MPS, val);
+		REG_WR(bp, PXP2_REG_WR_QM_MPS, val);
+		REG_WR(bp, PXP2_REG_WR_TM_MPS, val);
+		REG_WR(bp, PXP2_REG_WR_SRC_MPS, val);
+		REG_WR(bp, PXP2_REG_WR_DBG_MPS, val);
 		REG_WR(bp, PXP2_REG_WR_DMAE_MPS, 2); /* DMAE is special */
-		REG_WR(bp, PXP2_REG_WR_CDU_MPS, w_order+1);
+		REG_WR(bp, PXP2_REG_WR_CDU_MPS, val);
 	}
 }
 
