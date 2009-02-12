@@ -221,6 +221,8 @@ struct l2cap_conn {
 	__u8		rx_ident;
 	__u8		tx_ident;
 
+	__u8		disc_reason;
+
 	struct l2cap_chan_list chan_list;
 };
 

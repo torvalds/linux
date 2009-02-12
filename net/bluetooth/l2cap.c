@@ -206,6 +206,8 @@ static void __l2cap_chan_add(struct l2cap_conn *conn, struct sock *sk, struct so
 
 	BT_DBG("conn %p, psm 0x%2.2x, dcid 0x%4.4x", conn, l2cap_pi(sk)->psm, l2cap_pi(sk)->dcid);
 
+	conn->disc_reason = 0x13;
+
 	l2cap_pi(sk)->conn = conn;
 
 	if (sk->sk_type == SOCK_SEQPACKET) {
@@ -490,6 +492,8 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 
 	spin_lock_init(&conn->lock);
 	rwlock_init(&conn->chan_list.lock);
+
+	conn->disc_reason = 0x13;
 
 	return conn;
 }
@@ -1840,6 +1844,7 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	/* Check if the ACL is secure enough (if not SDP) */
 	if (psm != cpu_to_le16(0x0001) &&
 				!hci_conn_check_link_mode(conn->hcon)) {
+		conn->disc_reason = 0x05;
 		result = L2CAP_CR_SEC_BLOCK;
 		goto response;
 	}
@@ -2472,7 +2477,19 @@ static int l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 	return 0;
 }
 
-static int l2cap_disconn_ind(struct hci_conn *hcon, u8 reason)
+static int l2cap_disconn_ind(struct hci_conn *hcon)
+{
+	struct l2cap_conn *conn = hcon->l2cap_data;
+
+	BT_DBG("hcon %p", hcon);
+
+	if (hcon->type != ACL_LINK || !conn)
+		return 0x13;
+
+	return conn->disc_reason;
+}
+
+static int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
 {
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
@@ -2717,6 +2734,7 @@ static struct hci_proto l2cap_hci_proto = {
 	.connect_ind	= l2cap_connect_ind,
 	.connect_cfm	= l2cap_connect_cfm,
 	.disconn_ind	= l2cap_disconn_ind,
+	.disconn_cfm	= l2cap_disconn_cfm,
 	.security_cfm	= l2cap_security_cfm,
 	.recv_acldata	= l2cap_recv_acldata
 };

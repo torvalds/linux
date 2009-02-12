@@ -478,7 +478,8 @@ struct hci_proto {
 
 	int (*connect_ind)	(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 type);
 	int (*connect_cfm)	(struct hci_conn *conn, __u8 status);
-	int (*disconn_ind)	(struct hci_conn *conn, __u8 reason);
+	int (*disconn_ind)	(struct hci_conn *conn);
+	int (*disconn_cfm)	(struct hci_conn *conn, __u8 reason);
 	int (*recv_acldata)	(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
 	int (*recv_scodata)	(struct hci_conn *conn, struct sk_buff *skb);
 	int (*security_cfm)	(struct hci_conn *conn, __u8 status, __u8 encrypt);
@@ -513,17 +514,33 @@ static inline void hci_proto_connect_cfm(struct hci_conn *conn, __u8 status)
 		hp->connect_cfm(conn, status);
 }
 
-static inline void hci_proto_disconn_ind(struct hci_conn *conn, __u8 reason)
+static inline int hci_proto_disconn_ind(struct hci_conn *conn)
+{
+	register struct hci_proto *hp;
+	int reason = 0x13;
+
+	hp = hci_proto[HCI_PROTO_L2CAP];
+	if (hp && hp->disconn_ind)
+		reason = hp->disconn_ind(conn);
+
+	hp = hci_proto[HCI_PROTO_SCO];
+	if (hp && hp->disconn_ind)
+		reason = hp->disconn_ind(conn);
+
+	return reason;
+}
+
+static inline void hci_proto_disconn_cfm(struct hci_conn *conn, __u8 reason)
 {
 	register struct hci_proto *hp;
 
 	hp = hci_proto[HCI_PROTO_L2CAP];
-	if (hp && hp->disconn_ind)
-		hp->disconn_ind(conn, reason);
+	if (hp && hp->disconn_cfm)
+		hp->disconn_cfm(conn, reason);
 
 	hp = hci_proto[HCI_PROTO_SCO];
-	if (hp && hp->disconn_ind)
-		hp->disconn_ind(conn, reason);
+	if (hp && hp->disconn_cfm)
+		hp->disconn_cfm(conn, reason);
 }
 
 static inline void hci_proto_auth_cfm(struct hci_conn *conn, __u8 status)

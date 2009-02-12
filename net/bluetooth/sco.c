@@ -902,7 +902,7 @@ static int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 	return 0;
 }
 
-static int sco_disconn_ind(struct hci_conn *hcon, __u8 reason)
+static int sco_disconn_cfm(struct hci_conn *hcon, __u8 reason)
 {
 	BT_DBG("hcon %p reason %d", hcon, reason);
 
@@ -985,7 +985,7 @@ static struct hci_proto sco_hci_proto = {
 	.id		= HCI_PROTO_SCO,
 	.connect_ind	= sco_connect_ind,
 	.connect_cfm	= sco_connect_cfm,
-	.disconn_ind	= sco_disconn_ind,
+	.disconn_cfm	= sco_disconn_cfm,
 	.recv_scodata	= sco_recv_scodata
 };
 

@@ -159,6 +159,7 @@ static void hci_conn_timeout(unsigned long arg)
 {
 	struct hci_conn *conn = (void *) arg;
 	struct hci_dev *hdev = conn->hdev;
+	__u8 reason;
 
 	BT_DBG("conn %p state %d", conn, conn->state);
 
@@ -177,7 +178,8 @@ static void hci_conn_timeout(unsigned long arg)
 		break;
 	case BT_CONFIG:
 	case BT_CONNECTED:
-		hci_acl_disconn(conn, 0x13);
+		reason = hci_proto_disconn_ind(conn);
+		hci_acl_disconn(conn, reason);
 		break;
 	default:
 		conn->state = BT_CLOSED;
@@ -562,7 +564,7 @@ void hci_conn_hash_flush(struct hci_dev *hdev)
 
 		hci_conn_del_sysfs(c);
 
-		hci_proto_disconn_ind(c, 0x16);
+		hci_proto_disconn_cfm(c, 0x16);
 		hci_conn_del(c);
 	}
 }
