@@ -11,6 +11,8 @@
  */
 
 #define MCG_CTL_P	 (1UL<<8)   /* MCG_CAP register available */
+#define MCG_EXT_P	 (1ULL<<9)   /* Extended registers available */
+#define MCG_CMCI_P	 (1ULL<<10)  /* CMCI supported */
 
 #define MCG_STATUS_RIPV  (1UL<<0)   /* restart ip valid */
 #define MCG_STATUS_EIPV  (1UL<<1)   /* ip points to correct instruction */
