@@ -38,19 +38,12 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 static int del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		   struct btrfs_path *path, int level, int slot);
 
-inline void btrfs_init_path(struct btrfs_path *p)
-{
-	memset(p, 0, sizeof(*p));
-}
-
 struct btrfs_path *btrfs_alloc_path(void)
 {
 	struct btrfs_path *path;
-	path = kmem_cache_alloc(btrfs_path_cachep, GFP_NOFS);
-	if (path) {
-		btrfs_init_path(path);
+	path = kmem_cache_zalloc(btrfs_path_cachep, GFP_NOFS);
+	if (path)
 		path->reada = 1;
-	}
 	return path;
 }
 

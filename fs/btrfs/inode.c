@@ -2531,8 +2531,6 @@ noinline int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	key.offset = (u64)-1;
 	key.type = (u8)-1;
 
-	btrfs_init_path(path);
-
 search_again:
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0)

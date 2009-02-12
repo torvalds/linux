@@ -1834,7 +1834,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p);
 struct btrfs_path *btrfs_alloc_path(void);
 void btrfs_free_path(struct btrfs_path *p);
-void btrfs_init_path(struct btrfs_path *p);
 void btrfs_set_path_blocking(struct btrfs_path *p);
 void btrfs_clear_path_blocking(struct btrfs_path *p);
 void btrfs_unlock_up_safe(struct btrfs_path *p, int level);
