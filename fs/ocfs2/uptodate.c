@@ -124,8 +124,10 @@ static void ocfs2_metadata_cache_reset(struct ocfs2_caching_info *ci,
 	ci->ci_flags |= OCFS2_CACHE_FL_INLINE;
 	ci->ci_num_cached = 0;
 
-	if (clear)
+	if (clear) {
+		ci->ci_created_trans = 0;
 		ci->ci_last_trans = 0;
+	}
 }
 
 void ocfs2_metadata_cache_init(struct ocfs2_caching_info *ci,

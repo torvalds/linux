@@ -77,6 +77,9 @@ struct ocfs2_caching_info {
 	 */
 	const struct ocfs2_caching_operations *ci_ops;
 
+	/* next two are protected by trans_inc_lock */
+	/* which transaction were we created on? Zero if none. */
+	unsigned long		ci_created_trans;
 	/* last transaction we were a part of. */
 	unsigned long		ci_last_trans;
 

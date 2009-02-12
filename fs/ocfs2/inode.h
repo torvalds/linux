@@ -60,10 +60,6 @@ struct ocfs2_inode_info
 
 	u32				ip_dir_start_lookup;
 
-	/* next two are protected by trans_inc_lock */
-	/* which transaction were we created on? Zero if none. */
-	unsigned long			ip_created_trans;
-
 	struct ocfs2_caching_info	ip_metadata_cache;
 
 	struct ocfs2_extent_map		ip_extent_map;

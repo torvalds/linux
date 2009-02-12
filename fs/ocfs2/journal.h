@@ -129,9 +129,9 @@ static inline int ocfs2_inode_is_new(struct inode *inode)
 		return 0;
 	spin_lock(&trans_inc_lock);
 	ret = !(time_after(OCFS2_SB(inode->i_sb)->journal->j_trans_id,
-			   OCFS2_I(inode)->ip_created_trans));
+			   INODE_CACHE(inode)->ci_created_trans));
 	if (!ret)
-		OCFS2_I(inode)->ip_created_trans = 0;
+		INODE_CACHE(inode)->ci_created_trans = 0;
 	spin_unlock(&trans_inc_lock);
 	return ret;
 }
@@ -140,7 +140,7 @@ static inline void ocfs2_inode_set_new(struct ocfs2_super *osb,
 				       struct inode *inode)
 {
 	spin_lock(&trans_inc_lock);
-	OCFS2_I(inode)->ip_created_trans = osb->journal->j_trans_id;
+	INODE_CACHE(inode)->ci_created_trans = osb->journal->j_trans_id;
 	spin_unlock(&trans_inc_lock);
 }
 

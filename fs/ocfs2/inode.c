@@ -1147,7 +1147,6 @@ void ocfs2_clear_inode(struct inode *inode)
 
 	/* Clear all other flags. */
 	oi->ip_flags = 0;
-	oi->ip_created_trans = 0;
 	oi->ip_dir_start_lookup = 0;
 	oi->ip_blkno = 0ULL;
 
