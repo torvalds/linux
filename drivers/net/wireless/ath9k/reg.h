@@ -1385,8 +1385,8 @@ enum {
 #define AR_PHY_COUNTMAX        (3 << 22)
 #define AR_MIBCNT_INTRMASK     (3 << 22)
 
-#define AR_TSF_THRESHOLD       0x813c
-#define AR_TSF_THRESHOLD_VAL   0x0000FFFF
+#define AR_TSFOOR_THRESHOLD       0x813c
+#define AR_TSFOOR_THRESHOLD_VAL   0x0000FFFF
 
 #define AR_PHY_ERR_EIFS_MASK   8144
 

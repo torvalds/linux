@@ -753,6 +753,9 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 		if (bs.bs_sleepduration > bs.bs_dtimperiod)
 			bs.bs_sleepduration = bs.bs_dtimperiod;
 
+		/* TSF out of range threshold fixed at 1 second */
+		bs.bs_tsfoor_threshold = ATH9K_TSFOOR_THRESHOLD;
+
 		DPRINTF(sc, ATH_DBG_BEACON,
 			"tsf %llu "
 			"tsf:tu %u "

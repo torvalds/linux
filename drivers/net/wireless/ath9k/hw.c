@@ -2803,6 +2803,8 @@ bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 				mask2 |= ATH9K_INT_GTT;
 			if (isr2 & AR_ISR_S2_CST)
 				mask2 |= ATH9K_INT_CST;
+			if (isr2 & AR_ISR_S2_TSFOOR)
+				mask2 |= ATH9K_INT_TSFOOR;
 		}
 
 		isr = REG_READ(ah, AR_ISR_RAC);
@@ -2948,7 +2950,9 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 		if (ints & ATH9K_INT_DTIMSYNC)
 			mask2 |= AR_IMR_S2_DTIMSYNC;
 		if (ints & ATH9K_INT_CABEND)
-			mask2 |= (AR_IMR_S2_CABEND);
+			mask2 |= AR_IMR_S2_CABEND;
+		if (ints & ATH9K_INT_TSFOOR)
+			mask2 |= AR_IMR_S2_TSFOOR;
 	}
 
 	if (ints & (ATH9K_INT_GTT | ATH9K_INT_CST)) {
@@ -3118,6 +3122,8 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 		    AR_TBTT_TIMER_EN | AR_TIM_TIMER_EN |
 		    AR_DTIM_TIMER_EN);
 
+	/* TSF Out of Range Threshold */
+	REG_WRITE(ah, AR_TSFOOR_THRESHOLD, bs->bs_tsfoor_threshold);
 }
 
 /*******************/

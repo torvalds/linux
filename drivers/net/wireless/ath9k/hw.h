@@ -249,6 +249,7 @@ enum ath9k_int {
 	ATH9K_INT_DTIMSYNC = 0x00800000,
 	ATH9K_INT_GPIO = 0x01000000,
 	ATH9K_INT_CABEND = 0x02000000,
+	ATH9K_INT_TSFOOR = 0x04000000,
 	ATH9K_INT_CST = 0x10000000,
 	ATH9K_INT_GTT = 0x20000000,
 	ATH9K_INT_FATAL = 0x40000000,
@@ -256,6 +257,7 @@ enum ath9k_int {
 	ATH9K_INT_BMISC = ATH9K_INT_TIM |
 		ATH9K_INT_DTIM |
 		ATH9K_INT_DTIMSYNC |
+		ATH9K_INT_TSFOOR |
 		ATH9K_INT_CABEND,
 	ATH9K_INT_COMMON = ATH9K_INT_RXNOFRM |
 		ATH9K_INT_RXDESC |
@@ -385,6 +387,7 @@ struct ath9k_beacon_state {
 #define ATH9K_BEACON_PERIOD       0x0000ffff
 #define ATH9K_BEACON_ENA          0x00800000
 #define ATH9K_BEACON_RESET_TSF    0x01000000
+#define ATH9K_TSFOOR_THRESHOLD    0x00004240 /* 16k us */
 	u32 bs_dtimperiod;
 	u16 bs_cfpperiod;
 	u16 bs_cfpmaxduration;
@@ -392,6 +395,7 @@ struct ath9k_beacon_state {
 	u16 bs_timoffset;
 	u16 bs_bmissthreshold;
 	u32 bs_sleepduration;
+	u32 bs_tsfoor_threshold;
 };
 
 struct chan_centers {
