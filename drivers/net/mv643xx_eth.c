@@ -1221,6 +1221,85 @@ static void mib_counters_timer_wrapper(unsigned long _mp)
 }
 
 
+/* interrupt coalescing *****************************************************/
+/*
+ * Hardware coalescing parameters are set in units of 64 t_clk
+ * cycles.  I.e.:
+ *
+ *	coal_delay_in_usec = 64000000 * register_value / t_clk_rate
+ *
+ *	register_value = coal_delay_in_usec * t_clk_rate / 64000000
+ *
+ * In the ->set*() methods, we round the computed register value
+ * to the nearest integer.
+ */
+static unsigned int get_rx_coal(struct mv643xx_eth_private *mp)
+{
+	u32 val = rdlp(mp, SDMA_CONFIG);
+	u64 temp;
+
+	if (mp->shared->extended_rx_coal_limit)
+		temp = ((val & 0x02000000) >> 10) | ((val & 0x003fff80) >> 7);
+	else
+		temp = (val & 0x003fff00) >> 8;
+
+	temp *= 64000000;
+	do_div(temp, mp->shared->t_clk);
+
+	return (unsigned int)temp;
+}
+
+static void set_rx_coal(struct mv643xx_eth_private *mp, unsigned int usec)
+{
+	u64 temp;
+	u32 val;
+
+	temp = (u64)usec * mp->shared->t_clk;
+	temp += 31999999;
+	do_div(temp, 64000000);
+
+	val = rdlp(mp, SDMA_CONFIG);
+	if (mp->shared->extended_rx_coal_limit) {
+		if (temp > 0xffff)
+			temp = 0xffff;
+		val &= ~0x023fff80;
+		val |= (temp & 0x8000) << 10;
+		val |= (temp & 0x7fff) << 7;
+	} else {
+		if (temp > 0x3fff)
+			temp = 0x3fff;
+		val &= ~0x003fff00;
+		val |= (temp & 0x3fff) << 8;
+	}
+	wrlp(mp, SDMA_CONFIG, val);
+}
+
+static unsigned int get_tx_coal(struct mv643xx_eth_private *mp)
+{
+	u64 temp;
+
+	temp = (rdlp(mp, TX_FIFO_URGENT_THRESHOLD) & 0x3fff0) >> 4;
+	temp *= 64000000;
+	do_div(temp, mp->shared->t_clk);
+
+	return (unsigned int)temp;
+}
+
+static void set_tx_coal(struct mv643xx_eth_private *mp, unsigned int usec)
+{
+	u64 temp;
+
+	temp = (u64)usec * mp->shared->t_clk;
+	temp += 31999999;
+	do_div(temp, 64000000);
+
+	if (temp > 0x3fff)
+		temp = 0x3fff;
+
+	wrlp(mp, TX_FIFO_URGENT_THRESHOLD, temp << 4);
+}
+
+
 /* ethtool ******************************************************************/
 struct mv643xx_eth_stats {
 	char stat_string[ETH_GSTRING_LEN];
@@ -1384,6 +1463,28 @@ static u32 mv643xx_eth_get_link(struct net_device *dev)
 	return !!netif_carrier_ok(dev);
 }
 
+static int
+mv643xx_eth_get_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+
+	ec->rx_coalesce_usecs = get_rx_coal(mp);
+	ec->tx_coalesce_usecs = get_tx_coal(mp);
+
+	return 0;
+}
+
+static int
+mv643xx_eth_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+
+	set_rx_coal(mp, ec->rx_coalesce_usecs);
+	set_tx_coal(mp, ec->tx_coalesce_usecs);
+
+	return 0;
+}
+
 static void mv643xx_eth_get_strings(struct net_device *dev,
 				    uint32_t stringset, uint8_t *data)
 {
@@ -1438,6 +1539,8 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_drvinfo		= mv643xx_eth_get_drvinfo,
 	.nway_reset		= mv643xx_eth_nway_reset,
 	.get_link		= mv643xx_eth_get_link,
+	.get_coalesce		= mv643xx_eth_get_coalesce,
+	.set_coalesce		= mv643xx_eth_set_coalesce,
 	.set_sg			= ethtool_op_set_sg,
 	.get_strings		= mv643xx_eth_get_strings,
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
@@ -2051,36 +2154,6 @@ static void port_start(struct mv643xx_eth_private *mp)
 
 		rxq_enable(rxq);
 	}
-}
-
-static void set_rx_coal(struct mv643xx_eth_private *mp, unsigned int delay)
-{
-	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
-	u32 val;
-
-	val = rdlp(mp, SDMA_CONFIG);
-	if (mp->shared->extended_rx_coal_limit) {
-		if (coal > 0xffff)
-			coal = 0xffff;
-		val &= ~0x023fff80;
-		val |= (coal & 0x8000) << 10;
-		val |= (coal & 0x7fff) << 7;
-	} else {
-		if (coal > 0x3fff)
-			coal = 0x3fff;
-		val &= ~0x003fff00;
-		val |= (coal & 0x3fff) << 8;
-	}
-	wrlp(mp, SDMA_CONFIG, val);
-}
-
-static void set_tx_coal(struct mv643xx_eth_private *mp, unsigned int delay)
-{
-	unsigned int coal = ((mp->shared->t_clk / 1000000) * delay) / 64;
-
-	if (coal > 0x3fff)
-		coal = 0x3fff;
-	wrlp(mp, TX_FIFO_URGENT_THRESHOLD, (coal & 0x3fff) << 4);
 }
 
 static void mv643xx_eth_recalc_skb_size(struct mv643xx_eth_private *mp)
