@@ -41,7 +41,7 @@
 #include <linux/etherdevice.h>
 #include <asm/uaccess.h>
 
-#include <net/ieee80211.h>
+#include "ieee80211.h"
 
 /*
 

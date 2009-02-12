@@ -50,7 +50,7 @@
 #include <net/net_namespace.h>
 #include <net/arp.h>
 
-#include <net/ieee80211.h>
+#include "ieee80211.h"
 
 #define DRV_DESCRIPTION "802.11 data/management/control stack"
 #define DRV_NAME        "ieee80211"

@@ -49,12 +49,13 @@
 #include <asm/io.h>
 
 #include <net/lib80211.h>
-#include <net/ieee80211.h>
 #include <net/ieee80211_radiotap.h>
 
 #define DRV_NAME	"ipw2200"
 
 #include <linux/workqueue.h>
+
+#include "ieee80211.h"
 
 /* Authentication  and Association States */
 enum connection_manager_assoc_states {
