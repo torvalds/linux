@@ -641,7 +641,8 @@ struct drv_port_mb {
 
 	u32 port_stx;
 
-	u32 reserved[2];
+	u32 stat_nig_timer;
+
 
 };
 
@@ -1429,8 +1430,10 @@ struct ustorm_eth_st_context_config {
 #define USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_TPA_SHIFT 2
 #define USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_SGE_RING (0x1<<3)
 #define USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_SGE_RING_SHIFT 3
-#define __USTORM_ETH_ST_CONTEXT_CONFIG_RESERVED0 (0xF<<4)
-#define __USTORM_ETH_ST_CONTEXT_CONFIG_RESERVED0_SHIFT 4
+#define USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_STATISTICS (0x1<<4)
+#define USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_STATISTICS_SHIFT 4
+#define __USTORM_ETH_ST_CONTEXT_CONFIG_RESERVED0 (0x7<<5)
+#define __USTORM_ETH_ST_CONTEXT_CONFIG_RESERVED0_SHIFT 5
 	u8 status_block_id;
 	u8 clientId;
 	u8 sb_index_numbers;
@@ -1455,8 +1458,10 @@ struct ustorm_eth_st_context_config {
 #define USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_TPA_SHIFT 2
 #define USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_SGE_RING (0x1<<3)
 #define USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_SGE_RING_SHIFT 3
-#define __USTORM_ETH_ST_CONTEXT_CONFIG_RESERVED0 (0xF<<4)
-#define __USTORM_ETH_ST_CONTEXT_CONFIG_RESERVED0_SHIFT 4
+#define USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_STATISTICS (0x1<<4)
+#define USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_STATISTICS_SHIFT 4
+#define __USTORM_ETH_ST_CONTEXT_CONFIG_RESERVED0 (0x7<<5)
+#define __USTORM_ETH_ST_CONTEXT_CONFIG_RESERVED0_SHIFT 5
 #endif
 #if defined(__BIG_ENDIAN)
 	u16 bd_buff_size;
@@ -2764,11 +2769,33 @@ struct tstorm_common_stats {
 };
 
 /*
+ * Protocol-common statistics collected by the Ustorm (per client)
+ */
+struct ustorm_per_client_stats {
+	struct regpair ucast_no_buff_bytes;
+	struct regpair mcast_no_buff_bytes;
+	struct regpair bcast_no_buff_bytes;
+	__le32 ucast_no_buff_pkts;
+	__le32 mcast_no_buff_pkts;
+	__le32 bcast_no_buff_pkts;
+	__le16 stats_counter;
+	__le16 reserved0;
+};
+
+/*
+ * Protocol-common statistics collected by the Ustorm
+ */
+struct ustorm_common_stats {
+ struct ustorm_per_client_stats client_statistics[MAX_U_STAT_COUNTER_ID];
+};
+
+/*
  * Eth statistics query structure for the eth_stats_query ramrod
  */
 struct eth_stats_query {
 	struct xstorm_common_stats xstorm_common;
 	struct tstorm_common_stats tstorm_common;
+	struct ustorm_common_stats ustorm_common;
 };
 
 

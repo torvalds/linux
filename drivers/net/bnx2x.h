@@ -189,6 +189,43 @@ struct sw_rx_page {
 #define NEXT_SGE_MASK_ELEM(el)		(((el) + 1) & RX_SGE_MASK_LEN_MASK)
 
 
+struct bnx2x_eth_q_stats {
+	u32 total_bytes_received_hi;
+	u32 total_bytes_received_lo;
+	u32 total_bytes_transmitted_hi;
+	u32 total_bytes_transmitted_lo;
+	u32 total_unicast_packets_received_hi;
+	u32 total_unicast_packets_received_lo;
+	u32 total_multicast_packets_received_hi;
+	u32 total_multicast_packets_received_lo;
+	u32 total_broadcast_packets_received_hi;
+	u32 total_broadcast_packets_received_lo;
+	u32 total_unicast_packets_transmitted_hi;
+	u32 total_unicast_packets_transmitted_lo;
+	u32 total_multicast_packets_transmitted_hi;
+	u32 total_multicast_packets_transmitted_lo;
+	u32 total_broadcast_packets_transmitted_hi;
+	u32 total_broadcast_packets_transmitted_lo;
+	u32 valid_bytes_received_hi;
+	u32 valid_bytes_received_lo;
+
+	u32 error_bytes_received_hi;
+	u32 error_bytes_received_lo;
+	u32 etherstatsoverrsizepkts_hi;
+	u32 etherstatsoverrsizepkts_lo;
+	u32 no_buff_discard_hi;
+	u32 no_buff_discard_lo;
+
+	u32 driver_xoff;
+	u32 rx_err_discard_pkt;
+	u32 rx_skb_alloc_failed;
+	u32 hw_csum_err;
+};
+
+#define BNX2X_NUM_Q_STATS		11
+#define Q_STATS_OFFSET32(stat_name) \
+			(offsetof(struct bnx2x_eth_q_stats, stat_name) / 4)
+
 struct bnx2x_fastpath {
 
 	struct napi_struct	napi;
@@ -267,6 +304,11 @@ struct bnx2x_fastpath {
 #ifdef BNX2X_STOP_ON_ERROR
 	u64			tpa_queue_used;
 #endif
+
+	struct tstorm_per_client_stats old_tclient;
+	struct ustorm_per_client_stats old_uclient;
+	struct xstorm_per_client_stats old_xclient;
+	struct bnx2x_eth_q_stats eth_q_stats;
 
 	char			name[IFNAMSIZ];
 	struct bnx2x		*bp; /* parent */
@@ -576,6 +618,10 @@ struct bnx2x_eth_stats {
 
 	u32 error_bytes_received_hi;
 	u32 error_bytes_received_lo;
+	u32 etherstatsoverrsizepkts_hi;
+	u32 etherstatsoverrsizepkts_lo;
+	u32 no_buff_discard_hi;
+	u32 no_buff_discard_lo;
 
 	u32 rx_stat_ifhcinbadoctets_hi;
 	u32 rx_stat_ifhcinbadoctets_lo;
@@ -654,19 +700,20 @@ struct bnx2x_eth_stats {
 	u32 tx_stat_bmac_ufl_hi;
 	u32 tx_stat_bmac_ufl_lo;
 
-	u32 brb_drop_hi;
-	u32 brb_drop_lo;
-	u32 brb_truncate_hi;
-	u32 brb_truncate_lo;
-
-	u32 jabber_packets_received;
+	u32 pause_frames_received_hi;
+	u32 pause_frames_received_lo;
+	u32 pause_frames_sent_hi;
+	u32 pause_frames_sent_lo;
 
 	u32 etherstatspkts1024octetsto1522octets_hi;
 	u32 etherstatspkts1024octetsto1522octets_lo;
 	u32 etherstatspktsover1522octets_hi;
 	u32 etherstatspktsover1522octets_lo;
 
-	u32 no_buff_discard;
+	u32 brb_drop_hi;
+	u32 brb_drop_lo;
+	u32 brb_truncate_hi;
+	u32 brb_truncate_lo;
 
 	u32 mac_filter_discard;
 	u32 xxoverflow_discard;
@@ -677,8 +724,11 @@ struct bnx2x_eth_stats {
 	u32 rx_err_discard_pkt;
 	u32 rx_skb_alloc_failed;
 	u32 hw_csum_err;
+
+	u32 nig_timer_max;
 };
 
+#define BNX2X_NUM_STATS			41
 #define STATS_OFFSET32(stat_name) \
 			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
 
@@ -906,8 +956,6 @@ struct bnx2x {
 	int			executer_idx;
 
 	u16			stats_counter;
-	struct tstorm_per_client_stats old_tclient;
-	struct xstorm_per_client_stats old_xclient;
 	struct bnx2x_eth_stats	eth_stats;
 
 	struct z_stream_s	*strm;
@@ -1008,7 +1056,6 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define PCICFG_LINK_SPEED_SHIFT		16
 
 
-#define BNX2X_NUM_STATS			42
 #define BNX2X_NUM_TESTS			7
 
 #define BNX2X_MAC_LOOPBACK		0

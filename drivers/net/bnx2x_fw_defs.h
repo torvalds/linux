@@ -107,6 +107,9 @@
 #define USTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(function) \
 	(IS_E1H_OFFSET ? (0x9508 + ((function>>1) * 0x40) + \
 	((function&1) * 0x100)) : (0x1908 + (function * 0x40)))
+#define USTORM_ETH_STATS_QUERY_ADDR_OFFSET(function) \
+	(IS_E1H_OFFSET ? (0x2a50 + (function * 0x8)) : (0x1d98 + \
+	(function * 0x8)))
 #define USTORM_FUNCTION_MODE_OFFSET \
 	(IS_E1H_OFFSET ? 0x2448 : 0xffffffff)
 #define USTORM_HC_BTR_OFFSET(port) \
@@ -117,6 +120,9 @@
 #define USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(function) \
 	(IS_E1H_OFFSET ? (0x2408 + (function * 0x8)) : (0x5308 + \
 	(function * 0x8)))
+#define USTORM_PER_COUNTER_ID_STATS_OFFSET(port, stats_counter_id) \
+	(IS_E1H_OFFSET ? (0x2450 + (port * 0x2d0) + (stats_counter_id * \
+	0x28)) : (0x4740 + (port * 0x2d0) + (stats_counter_id * 0x28)))
 #define USTORM_RX_PRODS_OFFSET(port, client_id) \
 	(IS_E1H_OFFSET ? (0x8000 + (port * 0x4b0) + (client_id * 0x30)) \
 	: (0x5318 + (port * 0x260) + (client_id * 0x20)))
@@ -134,6 +140,9 @@
 #define USTORM_SB_HOST_STATUS_BLOCK_OFFSET(port, cpu_id) \
 	(IS_E1H_OFFSET ? (0x9008 + (port * 0x280) + (cpu_id * 0x28)) : \
 	(0x1408 + (port * 0x280) + (cpu_id * 0x28)))
+#define USTORM_STATS_FLAGS_OFFSET(function) \
+	(IS_E1H_OFFSET ? (0x29f0 + (function * 0x8)) : (0x1d80 + \
+	(function * 0x8)))
 #define XSTORM_ASSERT_LIST_INDEX_OFFSET \
 	(IS_E1H_OFFSET ? 0x9000 : 0x1000)
 #define XSTORM_ASSERT_LIST_OFFSET(idx) \
