@@ -219,8 +219,8 @@ struct radeon_virt_surface {
 	struct drm_file *file_priv;
 };
 
-#define RADEON_FLUSH_EMITED	(1 < 0)
-#define RADEON_PURGE_EMITED	(1 < 1)
+#define RADEON_FLUSH_EMITED	(1 << 0)
+#define RADEON_PURGE_EMITED	(1 << 1)
 
 struct drm_radeon_master_private {
 	drm_local_map_t *sarea;
