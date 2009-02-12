@@ -101,11 +101,13 @@
  * 2009-01-31	Bob Ross <pigiron@gmx.com>
  *		- correction of stereo detection/setting
  *		- correction of signal strength indicator scaling
+ * 2009-01-31	Rick Bronson <rick@efn.org>
+ *		Tobias Lorenz <tobias.lorenz@gmx.net>
+ *		- add LED status output
  *
  * ToDo:
  * - add firmware download/update support
  * - RDS support: interrupt mode, instead of polling
- * - add LED status output (check if that's not already done in firmware)
  */
 
 
@@ -885,6 +887,30 @@ static int si470x_rds_on(struct si470x_device *radio)
 
 
 /**************************************************************************
+ * General Driver Functions - LED_REPORT
+ **************************************************************************/
+
+/*
+ * si470x_set_led_state - sets the led state
+ */
+static int si470x_set_led_state(struct si470x_device *radio,
+		unsigned char led_state)
+{
+	unsigned char buf[LED_REPORT_SIZE];
+	int retval;
+
+	buf[0] = LED_REPORT;
+	buf[1] = LED_COMMAND;
+	buf[2] = led_state;
+
+	retval = si470x_set_report(radio, (void *) &buf, sizeof(buf));
+
+	return (retval < 0) ? -EINVAL : 0;
+}
+
+
+
+/**************************************************************************
  * RDS Driver Functions
  **************************************************************************/
 
@@ -1637,6 +1663,9 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	/* set initial frequency */
 	si470x_set_freq(radio, 87.5 * FREQ_MUL); /* available in all regions */
 
+	/* set led to connect state */
+	si470x_set_led_state(radio, BLINK_GREEN_LED);
+
 	/* rds buffer allocation */
 	radio->buf_size = rds_buf * 3;
 	radio->buffer = kmalloc(radio->buf_size, GFP_KERNEL);
@@ -1720,6 +1749,9 @@ static void si470x_usb_driver_disconnect(struct usb_interface *intf)
 	cancel_delayed_work_sync(&radio->work);
 	usb_set_intfdata(intf, NULL);
 	if (radio->users == 0) {
+		/* set led to disconnect state */
+		si470x_set_led_state(radio, BLINK_ORANGE_LED);
+
 		video_unregister_device(radio->videodev);
 		kfree(radio->buffer);
 		kfree(radio);
