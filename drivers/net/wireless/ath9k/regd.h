@@ -242,7 +242,5 @@ int ath9k_regd_init(struct ath_hw *ah);
 bool ath9k_regd_is_eeprom_valid(struct ath_hw *ah);
 u32 ath9k_regd_get_ctl(struct ath_hw *ah, struct ath9k_channel *chan);
 int ath9k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
-void ath9k_regd_get_current_country(struct ath_hw *ah,
-				    struct ath9k_country_entry *ctry);
 
 #endif
