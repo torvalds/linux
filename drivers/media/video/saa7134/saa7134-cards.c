@@ -6019,6 +6019,11 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		msleep(10);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
+		saa7134_set_gpio(dev, 23, 0);
+		msleep(10);
+		saa7134_set_gpio(dev, 23, 1);
+		dev->has_remote = SAA7134_REMOTE_I2C;
+		break;
 	case SAA7134_BOARD_AVERMEDIA_M103:
 		saa7134_set_gpio(dev, 23, 0);
 		msleep(10);
