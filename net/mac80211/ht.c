@@ -17,6 +17,7 @@
 #include <net/wireless.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
+#include "rate.h"
 
 void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 				       struct ieee80211_ht_cap *ht_cap_ie,
@@ -93,7 +94,9 @@ u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_bss_ht_conf ht;
+	struct sta_info *sta;
 	u32 changed = 0;
 	bool enable_ht = true, ht_changed;
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
@@ -136,6 +139,16 @@ u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	if (ht_changed) {
                 /* channel_type change automatically detected */
 		ieee80211_hw_config(local, 0);
+
+		rcu_read_lock();
+
+		sta = sta_info_get(local, ifmgd->bssid);
+		if (sta)
+			rate_control_rate_update(local, sband, sta,
+						 IEEE80211_RC_HT_CHANGED);
+
+		rcu_read_unlock();
+
         }
 
 	/* disable HT */
