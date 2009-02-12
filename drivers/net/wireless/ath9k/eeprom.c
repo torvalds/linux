@@ -2615,6 +2615,21 @@ static int ath9k_hw_def_set_txpower(struct ath_hw *ah,
 	else
 		ah->regulatory.max_power_level = ratesArray[i];
 
+	switch(ar5416_get_ntxchains(ah->txchainmask)) {
+	case 1:
+		break;
+	case 2:
+		ah->regulatory.max_power_level += INCREASE_MAXPOW_BY_TWO_CHAIN;
+		break;
+	case 3:
+		ah->regulatory.max_power_level += INCREASE_MAXPOW_BY_THREE_CHAIN;
+		break;
+	default:
+		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
+			"Invalid chainmask configuration\n");
+		break;
+	}
+
 	return 0;
 }
 
