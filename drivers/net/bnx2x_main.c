@@ -1816,22 +1816,16 @@ static int bnx2x_release_hw_lock(struct bnx2x *bp, u32 resource)
 /* HW Lock for shared dual port PHYs */
 static void bnx2x_acquire_phy_lock(struct bnx2x *bp)
 {
-	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
-
 	mutex_lock(&bp->port.phy_mutex);
 
-	if ((ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072) ||
-	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073))
-		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_8072_MDIO);
+	if (bp->port.need_hw_lock)
+		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_MDIO);
 }
 
 static void bnx2x_release_phy_lock(struct bnx2x *bp)
 {
-	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config);
-
-	if ((ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072) ||
-	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073))
-		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_8072_MDIO);
+	if (bp->port.need_hw_lock)
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_MDIO);
 
 	mutex_unlock(&bp->port.phy_mutex);
 }
@@ -5705,6 +5699,12 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	}
 
 	switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+		bp->port.need_hw_lock = 1;
+		break;
+
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 		/* Fan failure is indicated by SPIO 5 */
 		bnx2x_set_spio(bp, MISC_REGISTERS_SPIO_5,
