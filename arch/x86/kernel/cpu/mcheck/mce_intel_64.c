@@ -24,7 +24,7 @@ asmlinkage void smp_thermal_interrupt(void)
 
 	rdmsrl(MSR_IA32_THERM_STATUS, msr_val);
 	if (therm_throt_process(msr_val & 1))
-		mce_log_therm_throt_event(smp_processor_id(), msr_val);
+		mce_log_therm_throt_event(msr_val);
 
 	inc_irq_stat(irq_thermal_count);
 	irq_exit();

@@ -90,6 +90,7 @@ extern int mce_disabled;
 
 #include <asm/atomic.h>
 
+void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct sys_device, device_mce);
 extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
@@ -106,7 +107,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c);
 static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
 #endif
 
-void mce_log_therm_throt_event(unsigned int cpu, __u64 status);
+void mce_log_therm_throt_event(__u64 status);
 
 extern atomic_t mce_entry;
 

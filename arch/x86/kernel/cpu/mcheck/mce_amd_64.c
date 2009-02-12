@@ -197,9 +197,7 @@ asmlinkage void mce_threshold_interrupt(void)
 	exit_idle();
 	irq_enter();
 
-	memset(&m, 0, sizeof(m));
-	rdtscll(m.tsc);
-	m.cpu = smp_processor_id();
+	mce_setup(&m);
 
 	/* assume first bank caused it */
 	for (bank = 0; bank < NR_BANKS; ++bank) {

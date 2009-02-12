@@ -65,6 +65,14 @@ static char *trigger_argv[2] = { trigger, NULL };
 
 static DECLARE_WAIT_QUEUE_HEAD(mce_wait);
 
+/* Do initial initialization of a struct mce */
+void mce_setup(struct mce *m)
+{
+	memset(m, 0, sizeof(struct mce));
+	m->cpu = smp_processor_id();
+	rdtscll(m->tsc);
+}
+
 /*
  * Lockless MCE logging infrastructure.
  * This avoids deadlocks on printk locks without having to break locks. Also
@@ -208,8 +216,8 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 	    || !banks)
 		goto out2;
 
-	memset(&m, 0, sizeof(struct mce));
-	m.cpu = smp_processor_id();
+	mce_setup(&m);
+
 	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
 	/* if the restart IP is not valid, we're done for */
 	if (!(m.mcgstatus & MCG_STATUS_RIPV))
@@ -225,7 +233,6 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		m.misc = 0;
 		m.addr = 0;
 		m.bank = i;
-		m.tsc = 0;
 
 		rdmsrl(MSR_IA32_MC0_STATUS + i*4, m.status);
 		if ((m.status & MCI_STATUS_VAL) == 0)
@@ -252,8 +259,8 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 			rdmsrl(MSR_IA32_MC0_ADDR + i*4, m.addr);
 
 		mce_get_rip(&m, regs);
-		if (error_code >= 0)
-			rdtscll(m.tsc);
+		if (error_code < 0)
+			m.tsc = 0;
 		if (error_code != -2)
 			mce_log(&m);
 
@@ -341,15 +348,13 @@ void do_machine_check(struct pt_regs * regs, long error_code)
  * and historically has been the register value of the
  * MSR_IA32_THERMAL_STATUS (Intel) msr.
  */
-void mce_log_therm_throt_event(unsigned int cpu, __u64 status)
+void mce_log_therm_throt_event(__u64 status)
 {
 	struct mce m;
 
-	memset(&m, 0, sizeof(m));
-	m.cpu = cpu;
+	mce_setup(&m);
 	m.bank = MCE_THERMAL_BANK;
 	m.status = status;
-	rdtscll(m.tsc);
 	mce_log(&m);
 }
 #endif /* CONFIG_X86_MCE_INTEL */
