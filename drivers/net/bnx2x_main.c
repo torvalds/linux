@@ -8027,6 +8027,12 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 		bp->link_params.feature_config_flags &=
 				~FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED;
 
+	/* If the device is capable of WoL, set the default state according
+	 * to the HW
+	 */
+	bp->wol = (!(bp->flags & NO_WOL_FLAG) &&
+		   (config & PORT_FEATURE_WOL_ENABLED));
+
 	BNX2X_DEV_INFO("lane_config 0x%08x  ext_phy_config 0x%08x"
 		       "  speed_cap_mask 0x%08x  link_config 0x%08x\n",
 		       bp->link_params.lane_config,
