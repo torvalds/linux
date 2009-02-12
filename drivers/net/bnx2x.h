@@ -740,6 +740,9 @@ struct bnx2x {
 
 	atomic_t		intr_sem;
 	struct msix_entry	msix_table[MAX_CONTEXT+1];
+#define INT_MODE_INTx			1
+#define INT_MODE_MSI			2
+#define INT_MODE_MSIX			3
 
 	int			tx_ring_size;
 
@@ -794,7 +797,7 @@ struct bnx2x {
 #define NO_WOL_FLAG			8
 #define USING_DAC_FLAG			0x10
 #define USING_MSIX_FLAG			0x20
-#define ASF_ENABLE_FLAG			0x40
+#define USING_MSI_FLAG			0x40
 #define TPA_ENABLE_FLAG			0x80
 #define NO_MCP_FLAG			0x100
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)

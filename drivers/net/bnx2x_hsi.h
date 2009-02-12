@@ -1224,15 +1224,9 @@ struct host_func_stats {
 struct atten_def_status_block {
 	u32 attn_bits;
 	u32 attn_bits_ack;
-#if defined(__BIG_ENDIAN)
-	u16 attn_bits_index;
-	u8 reserved0;
-	u8 status_block_id;
-#elif defined(__LITTLE_ENDIAN)
 	u8 status_block_id;
 	u8 reserved0;
 	u16 attn_bits_index;
-#endif
 	u32 reserved1;
 };
 
