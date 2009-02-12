@@ -64,7 +64,7 @@ config USB_STORAGE_ISD200
 	  If this driver is compiled as a module, it will be named ums-isd200.
 
 config USB_STORAGE_USBAT
-	bool "USBAT/USBAT02-based storage support"
+	tristate "USBAT/USBAT02-based storage support"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support storage devices
@@ -83,6 +83,8 @@ config USB_STORAGE_USBAT
 	  - Microtech ZiO! ICS-45 CF2
 	  - RCA LYRA MP3 portable
 	  - Sandisk ImageMate SDDR-05b
+
+	  If this driver is compiled as a module, it will be named ums-usbat.
 
 config USB_STORAGE_SDDR09
 	tristate "SanDisk SDDR-09 (and other SmartMedia, including DPCM) support"

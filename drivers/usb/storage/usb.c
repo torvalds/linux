@@ -66,9 +66,6 @@
 #include "debug.h"
 #include "initializers.h"
 
-#ifdef CONFIG_USB_STORAGE_USBAT
-#include "shuttle_usbat.h"
-#endif
 #ifdef CONFIG_USB_STORAGE_FREECOM
 #include "freecom.h"
 #endif
@@ -609,15 +606,6 @@ static void get_transport(struct us_data *us)
 		us->transport = usb_stor_Bulk_transport;
 		us->transport_reset = usb_stor_Bulk_reset;
 		break;
-
-#ifdef CONFIG_USB_STORAGE_USBAT
-	case US_PR_USBAT:
-		us->transport_name = "Shuttle USBAT";
-		us->transport = usbat_transport;
-		us->transport_reset = usb_stor_CB_reset;
-		us->max_lun = 1;
-		break;
-#endif
 
 #ifdef CONFIG_USB_STORAGE_FREECOM
 	case US_PR_FREECOM:

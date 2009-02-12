@@ -10,7 +10,6 @@ EXTRA_CFLAGS	:= -Idrivers/scsi
 obj-$(CONFIG_USB_STORAGE)	+= usb-storage.o
 
 usb-storage-obj-$(CONFIG_USB_STORAGE_DEBUG)	+= debug.o
-usb-storage-obj-$(CONFIG_USB_STORAGE_USBAT)	+= shuttle_usbat.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_FREECOM)	+= freecom.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_DATAFAB)	+= datafab.o
 usb-storage-obj-$(CONFIG_USB_STORAGE_JUMPSHOT)	+= jumpshot.o
@@ -31,8 +30,10 @@ obj-$(CONFIG_USB_STORAGE_CYPRESS_ATACB) += ums-cypress.o
 obj-$(CONFIG_USB_STORAGE_ISD200)	+= ums-isd200.o
 obj-$(CONFIG_USB_STORAGE_SDDR09)	+= ums-sddr09.o
 obj-$(CONFIG_USB_STORAGE_SDDR55)	+= ums-sddr55.o
+obj-$(CONFIG_USB_STORAGE_USBAT)		+= ums-usbat.o
 
 ums-cypress-objs	:= cypress_atacb.o
 ums-isd200-objs		:= isd200.o
 ums-sddr09-objs		:= sddr09.o
 ums-sddr55-objs		:= sddr55.o
+ums-usbat-objs		:= shuttle_usbat.o
