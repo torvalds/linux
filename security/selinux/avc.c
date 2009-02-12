@@ -742,13 +742,15 @@ static inline int avc_sidcmp(u32 x, u32 y)
  * @event : Updating event
  * @perms : Permission mask bits
  * @ssid,@tsid,@tclass : identifier of an AVC entry
+ * @seqno : sequence number when decision was made
  *
  * if a valid AVC entry doesn't exist,this function returns -ENOENT.
  * if kmalloc() called internal returns NULL, this function returns -ENOMEM.
  * otherwise, this function update the AVC entry. The original AVC-entry object
  * will release later by RCU.
  */
-static int avc_update_node(u32 event, u32 perms, u32 ssid, u32 tsid, u16 tclass)
+static int avc_update_node(u32 event, u32 perms, u32 ssid, u32 tsid, u16 tclass,
+			   u32 seqno)
 {
 	int hvalue, rc = 0;
 	unsigned long flag;
@@ -767,7 +769,8 @@ static int avc_update_node(u32 event, u32 perms, u32 ssid, u32 tsid, u16 tclass)
 	list_for_each_entry(pos, &avc_cache.slots[hvalue], list) {
 		if (ssid == pos->ae.ssid &&
 		    tsid == pos->ae.tsid &&
-		    tclass == pos->ae.tclass){
+		    tclass == pos->ae.tclass &&
+		    seqno == pos->ae.avd.seqno){
 			orig = pos;
 			break;
 		}
@@ -908,7 +911,7 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 			rc = -EACCES;
 		else if (!selinux_enforcing || security_permissive_sid(ssid))
 			avc_update_node(AVC_CALLBACK_GRANT, requested, ssid,
-					tsid, tclass);
+					tsid, tclass, p_ae->avd.seqno);
 		else
 			rc = -EACCES;
 	}
