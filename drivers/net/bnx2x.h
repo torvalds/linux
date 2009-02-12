@@ -864,6 +864,7 @@ struct bnx2x {
 
 	int			pm_cap;
 	int			pcie_cap;
+	int			mrrs;
 
 	struct delayed_work	sp_task;
 	struct work_struct	reset_task;

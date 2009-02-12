@@ -88,6 +88,11 @@ module_param(int_mode, int, 0);
 MODULE_PARM_DESC(int_mode, " Force interrupt mode (1 INT#x; 2 MSI)");
 
 module_param(poll, int, 0);
+
+static int mrrs = -1;
+module_param(mrrs, int, 0);
+MODULE_PARM_DESC(mrrs, " Force Max Read Req Size (0..3) (for debug)");
+
 module_param(debug, int, 0);
 MODULE_PARM_DESC(disable_tpa, "disable the TPA (LRO) feature");
 MODULE_PARM_DESC(poll, "use polling (for debug)");
@@ -8160,6 +8165,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 		bp->dev->features |= NETIF_F_LRO;
 	}
 
+	bp->mrrs = mrrs;
 
 	bp->tx_ring_size = MAX_TX_AVAIL;
 	bp->rx_ring_size = MAX_RX_AVAIL;
