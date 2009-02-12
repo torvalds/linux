@@ -439,7 +439,7 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 
 	switch (param) {
 	case EEP_NFTHRESH_2:
-		return pModal[1].noiseFloorThreshCh[0];
+		return pModal->noiseFloorThreshCh[0];
 	case AR_EEPROM_MAC(0):
 		return pBase->macAddr[0] << 8 | pBase->macAddr[1];
 	case AR_EEPROM_MAC(1):
