@@ -76,6 +76,8 @@ extern void debug_dma_sync_sg_for_device(struct device *dev,
 					 struct scatterlist *sg,
 					 int nelems, int direction);
 
+extern void debug_dma_dump_mappings(struct device *dev);
+
 #else /* CONFIG_DMA_API_DEBUG */
 
 static inline void dma_debug_init(u32 num_entries)
@@ -153,6 +155,10 @@ static inline void debug_dma_sync_sg_for_cpu(struct device *dev,
 static inline void debug_dma_sync_sg_for_device(struct device *dev,
 						struct scatterlist *sg,
 						int nelems, int direction)
+{
+}
+
+static inline void debug_dma_dump_mappings(struct device *dev)
 {
 }
 

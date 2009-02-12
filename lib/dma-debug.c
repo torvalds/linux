@@ -194,6 +194,36 @@ static void hash_bucket_del(struct dma_debug_entry *entry)
 }
 
 /*
+ * Dump mapping entries for debugging purposes
+ */
+void debug_dma_dump_mappings(struct device *dev)
+{
+	int idx;
+
+	for (idx = 0; idx < HASH_SIZE; idx++) {
+		struct hash_bucket *bucket = &dma_entry_hash[idx];
+		struct dma_debug_entry *entry;
+		unsigned long flags;
+
+		spin_lock_irqsave(&bucket->lock, flags);
+
+		list_for_each_entry(entry, &bucket->list, list) {
+			if (!dev || dev == entry->dev) {
+				dev_info(entry->dev,
+					 "%s idx %d P=%Lx D=%Lx L=%Lx %s\n",
+					 type2name[entry->type], idx,
+					 (unsigned long long)entry->paddr,
+					 entry->dev_addr, entry->size,
+					 dir2name[entry->direction]);
+			}
+		}
+
+		spin_unlock_irqrestore(&bucket->lock, flags);
+	}
+}
+EXPORT_SYMBOL(debug_dma_dump_mappings);
+
+/*
  * Wrapper function for adding an entry to the hash.
  * This function takes care of locking itself.
  */
