@@ -481,7 +481,7 @@ struct si470x_device {
 
 
 /**************************************************************************
- * General Driver Functions
+ * General Driver Functions - REGISTER_REPORTs
  **************************************************************************/
 
 /*
@@ -561,60 +561,6 @@ static int si470x_set_register(struct si470x_device *radio, int regnr)
 	put_unaligned_be16(radio->registers[regnr], &buf[1]);
 
 	retval = si470x_set_report(radio, (void *) &buf, sizeof(buf));
-
-	return (retval < 0) ? -EINVAL : 0;
-}
-
-
-/*
- * si470x_get_all_registers - read entire registers
- */
-static int si470x_get_all_registers(struct si470x_device *radio)
-{
-	unsigned char buf[ENTIRE_REPORT_SIZE];
-	int retval;
-	unsigned char regnr;
-
-	buf[0] = ENTIRE_REPORT;
-
-	retval = si470x_get_report(radio, (void *) &buf, sizeof(buf));
-
-	if (retval >= 0)
-		for (regnr = 0; regnr < RADIO_REGISTER_NUM; regnr++)
-			radio->registers[regnr] = get_unaligned_be16(
-				&buf[regnr * RADIO_REGISTER_SIZE + 1]);
-
-	return (retval < 0) ? -EINVAL : 0;
-}
-
-
-/*
- * si470x_get_rds_registers - read rds registers
- */
-static int si470x_get_rds_registers(struct si470x_device *radio)
-{
-	unsigned char buf[RDS_REPORT_SIZE];
-	int retval;
-	int size;
-	unsigned char regnr;
-
-	buf[0] = RDS_REPORT;
-
-	retval = usb_interrupt_msg(radio->usbdev,
-		usb_rcvintpipe(radio->usbdev, 1),
-		(void *) &buf, sizeof(buf), &size, usb_timeout);
-	if (size != sizeof(buf))
-		printk(KERN_WARNING DRIVER_NAME ": si470x_get_rds_registers: "
-			"return size differs: %d != %zu\n", size, sizeof(buf));
-	if (retval < 0)
-		printk(KERN_WARNING DRIVER_NAME ": si470x_get_rds_registers: "
-			"usb_interrupt_msg returned %d\n", retval);
-
-	if (retval >= 0)
-		for (regnr = 0; regnr < RDS_REGISTER_NUM; regnr++)
-			radio->registers[STATUSRSSI + regnr] =
-				get_unaligned_be16(
-				&buf[regnr * RADIO_REGISTER_SIZE + 1]);
 
 	return (retval < 0) ? -EINVAL : 0;
 }
@@ -912,6 +858,70 @@ static int si470x_set_led_state(struct si470x_device *radio,
 
 
 /**************************************************************************
+ * General Driver Functions - ENTIRE_REPORT
+ **************************************************************************/
+
+/*
+ * si470x_get_all_registers - read entire registers
+ */
+static int si470x_get_all_registers(struct si470x_device *radio)
+{
+	unsigned char buf[ENTIRE_REPORT_SIZE];
+	int retval;
+	unsigned char regnr;
+
+	buf[0] = ENTIRE_REPORT;
+
+	retval = si470x_get_report(radio, (void *) &buf, sizeof(buf));
+
+	if (retval >= 0)
+		for (regnr = 0; regnr < RADIO_REGISTER_NUM; regnr++)
+			radio->registers[regnr] = get_unaligned_be16(
+				&buf[regnr * RADIO_REGISTER_SIZE + 1]);
+
+	return (retval < 0) ? -EINVAL : 0;
+}
+
+
+
+/**************************************************************************
+ * General Driver Functions - RDS_REPORT
+ **************************************************************************/
+
+/*
+ * si470x_get_rds_registers - read rds registers
+ */
+static int si470x_get_rds_registers(struct si470x_device *radio)
+{
+	unsigned char buf[RDS_REPORT_SIZE];
+	int retval;
+	int size;
+	unsigned char regnr;
+
+	buf[0] = RDS_REPORT;
+
+	retval = usb_interrupt_msg(radio->usbdev,
+		usb_rcvintpipe(radio->usbdev, 1),
+		(void *) &buf, sizeof(buf), &size, usb_timeout);
+	if (size != sizeof(buf))
+		printk(KERN_WARNING DRIVER_NAME ": si470x_get_rds_registers: "
+			"return size differs: %d != %zu\n", size, sizeof(buf));
+	if (retval < 0)
+		printk(KERN_WARNING DRIVER_NAME ": si470x_get_rds_registers: "
+			"usb_interrupt_msg returned %d\n", retval);
+
+	if (retval >= 0)
+		for (regnr = 0; regnr < RDS_REGISTER_NUM; regnr++)
+			radio->registers[STATUSRSSI + regnr] =
+				get_unaligned_be16(
+				&buf[regnr * RADIO_REGISTER_SIZE + 1]);
+
+	return (retval < 0) ? -EINVAL : 0;
+}
+
+
+
+/**************************************************************************
  * RDS Driver Functions
  **************************************************************************/
 
@@ -1125,6 +1135,7 @@ static int si470x_fops_open(struct file *file)
 	}
 
 	if (radio->users == 1) {
+		/* start radio */
 		retval = si470x_start(radio);
 		if (retval < 0)
 			usb_autopm_put_interface(radio->intf);
@@ -1166,6 +1177,7 @@ static int si470x_fops_release(struct file *file)
 		/* cancel read processes */
 		wake_up_interruptible(&radio->read_queue);
 
+		/* stop radio */
 		retval = si470x_stop(radio);
 		usb_autopm_put_interface(radio->intf);
 	}
