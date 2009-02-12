@@ -1815,6 +1815,10 @@
 #define NIG_REG_PRS_EOP_OUT_EN					 0x10104
 /* [RW 1] Input enable for RX parser request IF */
 #define NIG_REG_PRS_REQ_IN_EN					 0x100b8
+/* [RW 5] control to serdes - CL45 DEVAD */
+#define NIG_REG_SERDES0_CTRL_MD_DEVAD				 0x10370
+/* [RW 1] control to serdes; 0 - clause 45; 1 - clause 22 */
+#define NIG_REG_SERDES0_CTRL_MD_ST				 0x1036c
 /* [RW 5] control to serdes - CL22 PHY_ADD and CL45 PRTAD */
 #define NIG_REG_SERDES0_CTRL_PHY_ADDR				 0x10374
 /* [R 1] status from serdes0 that inputs to interrupt logic of link status */

@@ -174,13 +174,34 @@
 		(_bank + (_addr & 0xf)), \
 		_val)
 
-static void bnx2x_set_phy_mdio(struct link_params *params)
+static void bnx2x_set_serdes_access(struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
-	REG_WR(bp, NIG_REG_XGXS0_CTRL_MD_ST +
-		   params->port*0x18, 0);
-	REG_WR(bp, NIG_REG_XGXS0_CTRL_MD_DEVAD + params->port*0x18,
-		   DEFAULT_PHY_DEV_ADDR);
+	u32 emac_base = (params->port) ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
+	/* Set Clause 22 */
+	REG_WR(bp, NIG_REG_SERDES0_CTRL_MD_ST + params->port*0x10, 1);
+	REG_WR(bp, emac_base + EMAC_REG_EMAC_MDIO_COMM, 0x245f8000);
+	udelay(500);
+	REG_WR(bp, emac_base + EMAC_REG_EMAC_MDIO_COMM, 0x245d000f);
+	udelay(500);
+	 /* Set Clause 45 */
+	REG_WR(bp, NIG_REG_SERDES0_CTRL_MD_ST + params->port*0x10, 0);
+}
+static void bnx2x_set_phy_mdio(struct link_params *params, u8 phy_flags)
+{
+	struct bnx2x *bp = params->bp;
+	if (phy_flags & PHY_XGXS_FLAG) {
+		REG_WR(bp, NIG_REG_XGXS0_CTRL_MD_ST +
+			   params->port*0x18, 0);
+		REG_WR(bp, NIG_REG_XGXS0_CTRL_MD_DEVAD + params->port*0x18,
+			   DEFAULT_PHY_DEV_ADDR);
+	} else {
+		bnx2x_set_serdes_access(params);
+
+		REG_WR(bp, NIG_REG_SERDES0_CTRL_MD_DEVAD +
+			   params->port*0x10,
+			   DEFAULT_PHY_DEV_ADDR);
+	}
 }
 
 static u32 bnx2x_bits_en(struct bnx2x *bp, u32 reg, u32 bits)
@@ -520,7 +541,7 @@ static void bnx2x_phy_deassert(struct link_params *params, u8 phy_flags)
 	udelay(500);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_3_SET,
 		    val);
-	bnx2x_set_phy_mdio(params);
+	bnx2x_set_phy_mdio(params, phy_flags);
 }
 
 void bnx2x_link_status_update(struct link_params *params,
@@ -995,6 +1016,8 @@ static u8 bnx2x_reset_unicore(struct link_params *params)
 			      MDIO_COMBO_IEEE0_MII_CONTROL,
 			      (mii_control |
 			       MDIO_COMBO_IEEO_MII_CONTROL_RESET));
+
+	bnx2x_set_serdes_access(params);
 
 	/* wait for the reset to self clear */
 	for (i = 0; i < MDIO_ACCESS_TIMEOUT; i++) {
