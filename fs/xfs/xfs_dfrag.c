@@ -79,6 +79,12 @@ xfs_swapext(
 		goto out_put_target_file;
 	}
 
+	if (IS_SWAPFILE(file->f_path.dentry->d_inode) ||
+	    IS_SWAPFILE(target_file->f_path.dentry->d_inode)) {
+		error = XFS_ERROR(EINVAL);
+		goto out_put_target_file;
+	}
+
 	ip = XFS_I(file->f_path.dentry->d_inode);
 	tip = XFS_I(target_file->f_path.dentry->d_inode);
 
