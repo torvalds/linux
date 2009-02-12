@@ -266,6 +266,7 @@ int s5k4aa_start(struct sd *sd)
 	int i, err = 0;
 	u8 data[2];
 	struct cam *cam = &sd->gspca_dev.cam;
+	s32 *sensor_settings = sd->sensor_priv;
 
 	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width) {
 	case 1280:
@@ -340,13 +341,37 @@ int s5k4aa_start(struct sd *sd)
 			return err;
 		break;
 	}
-	return err;
+	if (err < 0)
+		return err;
+
+	err = s5k4aa_set_exposure(&sd->gspca_dev,
+				   sensor_settings[EXPOSURE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = s5k4aa_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
+	if (err < 0)
+		return err;
+
+	err = s5k4aa_set_brightness(&sd->gspca_dev,
+				     sensor_settings[BRIGHTNESS_IDX]);
+	if (err < 0)
+		return err;
+
+	err = s5k4aa_set_noise(&sd->gspca_dev, sensor_settings[NOISE_SUPP_IDX]);
+	if (err < 0)
+		return err;
+
+	err = s5k4aa_set_vflip(&sd->gspca_dev, sensor_settings[VFLIP_IDX]);
+	if (err < 0)
+		return err;
+
+	return s5k4aa_set_hflip(&sd->gspca_dev, sensor_settings[HFLIP_IDX]);
 }
 
 int s5k4aa_init(struct sd *sd)
 {
 	int i, err = 0;
-	s32 *sensor_settings = sd->sensor_priv;
 
 	for (i = 0; i < ARRAY_SIZE(init_s5k4aa) && !err; i++) {
 		u8 data[2] = {0x00, 0x00};
@@ -379,25 +404,7 @@ int s5k4aa_init(struct sd *sd)
 	if (dump_sensor)
 		s5k4aa_dump_registers(sd);
 
-	err = s5k4aa_set_exposure(&sd->gspca_dev,
-				   sensor_settings[EXPOSURE_IDX]);
-	if (err < 0)
-		return err;
-
-	err = s5k4aa_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
-	if (err < 0)
-		return err;
-
-	err = s5k4aa_set_brightness(&sd->gspca_dev,
-				     sensor_settings[BRIGHTNESS_IDX]);
-	if (err < 0)
-		return err;
-
-	err = s5k4aa_set_vflip(&sd->gspca_dev, sensor_settings[VFLIP_IDX]);
-	if (err < 0)
-		return err;
-
-	return s5k4aa_set_hflip(&sd->gspca_dev, sensor_settings[HFLIP_IDX]);
+	return err;
 }
 
 static int s5k4aa_get_exposure(struct gspca_dev *gspca_dev, __s32 *val)
@@ -465,36 +472,19 @@ static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 
-	if (dmi_check_system(s5k4aa_vflip_dmi_table)) {
+	if (dmi_check_system(s5k4aa_vflip_dmi_table))
 		val = !val;
-		data = (data & 0x3f) |
-		       (!sensor_settings[HFLIP_IDX] << 6) |
-		       ((val & 0x01) << 7);
-	} else {
-		data = (data & 0x3f) |
-		(sensor_settings[HFLIP_IDX] << 6) |
-		((val & 0x01) << 7);
-	}
 
+	data = ((data & ~S5K4AA_RM_V_FLIP) | ((val & 0x01) << 7));
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		return err;
 
-	if (val) {
-		err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
-		if (err < 0)
-			return err;
-
-		data++;
-		err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
-	} else {
-		err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
-		if (err < 0)
-			return err;
-
-		data--;
-		err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
-	}
+	err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
+	if (err < 0)
+		return err;
+	data = (data & 0xfe) | !val;
+	err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	return err;
 }
 
@@ -530,37 +520,19 @@ static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	if (err < 0)
 		return err;
 
-	if (dmi_check_system(s5k4aa_vflip_dmi_table)) {
+	if (dmi_check_system(s5k4aa_vflip_dmi_table))
 		val = !val;
-		data = (data & 0x3f) |
-		       (!sensor_settings[VFLIP_IDX] << 7) |
-		       ((val & 0x01) << 6);
-	} else {
-		data = (data & 0x3f) |
-		       (sensor_settings[VFLIP_IDX] << 7) |
-		       ((val & 0x01) << 6);
-	}
 
 	data = ((data & ~S5K4AA_RM_H_FLIP) | ((val & 0x01) << 6));
 	err = m5602_write_sensor(sd, S5K4AA_READ_MODE, &data, 1);
 	if (err < 0)
 		return err;
 
-	if (val) {
-		err = m5602_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
-		if (err < 0)
-			return err;
-		data++;
-		err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
-		if (err < 0)
-			return err;
-	} else {
-		err = m5602_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
-		if (err < 0)
-			return err;
-		data--;
-		err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
-	}
+	err = m5602_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
+	if (err < 0)
+		return err;
+	data = (data & 0xfe) | !val;
+	err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	return err;
 }
 
