@@ -195,19 +195,3 @@ scaling_setspeed.		By "echoing" a new frequency into this
 				you can change the speed of the CPU,
 				but only within the limits of
 				scaling_min_freq and scaling_max_freq.
-				
-
-3.2 Deprecated Interfaces
--------------------------
-
-Depending on your kernel configuration, you might find the following 
-cpufreq-related files:
-/proc/cpufreq
-/proc/sys/cpu/*/speed
-/proc/sys/cpu/*/speed-min
-/proc/sys/cpu/*/speed-max
-
-These are files for deprecated interfaces to cpufreq, which offer far
-less functionality. Because of this, these interfaces aren't described
-here.
-

@@ -27,6 +27,7 @@
 #ifndef __LINUX__AIO_ABI_H
 #define __LINUX__AIO_ABI_H
 
+#include <linux/types.h>
 #include <asm/byteorder.h>
 
 typedef unsigned long	aio_context_t;

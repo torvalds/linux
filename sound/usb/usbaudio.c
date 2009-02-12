@@ -2966,6 +2966,7 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 		return -EINVAL;
 	}
 	alts = &iface->altsetting[fp->altset_idx];
+	fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 	usb_set_interface(chip->dev, fp->iface, 0);
 	init_usb_pitch(chip->dev, fp->iface, alts, fp);
 	init_usb_sample_rate(chip->dev, fp->iface, alts, fp, fp->rate_max);

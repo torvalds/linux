@@ -1,7 +1,7 @@
 /*************************************************************************
  * myri10ge.c: Myricom Myri-10G Ethernet driver.
  *
- * Copyright (C) 2005 - 2007 Myricom, Inc.
+ * Copyright (C) 2005 - 2009 Myricom, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +75,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.4.4-1.398"
+#define MYRI10GE_VERSION_STR "1.4.4-1.401"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -3786,7 +3786,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (status != 0) {
 		dev_err(&pdev->dev, "Error %d writing PCI_EXP_DEVCTL\n",
 			status);
-		goto abort_with_netdev;
+		goto abort_with_enabled;
 	}
 
 	pci_set_master(pdev);
@@ -3801,13 +3801,13 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	if (status != 0) {
 		dev_err(&pdev->dev, "Error %d setting DMA mask\n", status);
-		goto abort_with_netdev;
+		goto abort_with_enabled;
 	}
 	(void)pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
 	mgp->cmd = dma_alloc_coherent(&pdev->dev, sizeof(*mgp->cmd),
 				      &mgp->cmd_bus, GFP_KERNEL);
 	if (mgp->cmd == NULL)
-		goto abort_with_netdev;
+		goto abort_with_enabled;
 
 	mgp->board_span = pci_resource_len(pdev, 0);
 	mgp->iomem_base = pci_resource_start(pdev, 0);
@@ -3943,8 +3943,10 @@ abort_with_mtrr:
 	dma_free_coherent(&pdev->dev, sizeof(*mgp->cmd),
 			  mgp->cmd, mgp->cmd_bus);
 
-abort_with_netdev:
+abort_with_enabled:
+	pci_disable_device(pdev);
 
+abort_with_netdev:
 	free_netdev(netdev);
 	return status;
 }
@@ -3990,6 +3992,7 @@ static void myri10ge_remove(struct pci_dev *pdev)
 			  mgp->cmd, mgp->cmd_bus);
 
 	free_netdev(netdev);
+	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 }
 

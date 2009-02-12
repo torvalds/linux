@@ -301,7 +301,7 @@ void generic_shutdown_super(struct super_block *sb)
 		/*
 		 * wait for asynchronous fs operations to finish before going further
 		 */
-		async_synchronize_full_special(&sb->s_async_list);
+		async_synchronize_full_domain(&sb->s_async_list);
 
 		/* bad name - it should be evict_inodes() */
 		invalidate_inodes(sb);
@@ -470,7 +470,7 @@ restart:
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 		down_read(&sb->s_umount);
-		async_synchronize_full_special(&sb->s_async_list);
+		async_synchronize_full_domain(&sb->s_async_list);
 		if (sb->s_root && (wait || sb->s_dirt))
 			sb->s_op->sync_fs(sb, wait);
 		up_read(&sb->s_umount);
@@ -544,7 +544,7 @@ rescan:
 	return NULL;
 }
 
-asmlinkage long sys_ustat(unsigned dev, struct ustat __user * ubuf)
+SYSCALL_DEFINE2(ustat, unsigned, dev, struct ustat __user *, ubuf)
 {
         struct super_block *s;
         struct ustat tmp;

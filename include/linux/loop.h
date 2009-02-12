@@ -80,7 +80,7 @@ enum {
 };
 
 #include <asm/posix_types.h>	/* for __kernel_old_dev_t */
-#include <asm/types.h>		/* for __u64 */
+#include <linux/types.h>	/* for __u64 */
 
 /* Backwards compatibility version */
 struct loop_info {

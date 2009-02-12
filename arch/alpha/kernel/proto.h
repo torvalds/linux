@@ -145,6 +145,8 @@ extern void smp_percpu_timer_interrupt(struct pt_regs *);
 extern irqreturn_t timer_interrupt(int irq, void *dev);
 extern void common_init_rtc(void);
 extern unsigned long est_cycle_freq;
+extern unsigned int common_get_rtc_time(struct rtc_time *time);
+extern int common_set_rtc_time(struct rtc_time *time);
 
 /* smc37c93x.c */
 extern void SMC93x_Init(void);

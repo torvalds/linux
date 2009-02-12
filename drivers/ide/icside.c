@@ -534,7 +534,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 		d.dma_ops = NULL;
 	}
 
-	ret = ide_host_register(host, NULL, hws);
+	ret = ide_host_register(host, &d, hws);
 	if (ret)
 		goto err_free;
 

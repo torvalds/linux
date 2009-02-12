@@ -155,7 +155,7 @@ xfs_imap_to_bmap(
 			iomapp->iomap_bn = IOMAP_DADDR_NULL;
 			iomapp->iomap_flags |= IOMAP_DELAY;
 		} else {
-			iomapp->iomap_bn = XFS_FSB_TO_DB(ip, start_block);
+			iomapp->iomap_bn = xfs_fsb_to_db(ip, start_block);
 			if (ISUNWRITTEN(imap))
 				iomapp->iomap_flags |= IOMAP_UNWRITTEN;
 		}
@@ -261,7 +261,7 @@ xfs_iomap(
 		xfs_iunlock(ip, lockmode);
 		lockmode = 0;
 
-		if (nimaps && !ISNULLSTARTBLOCK(imap.br_startblock)) {
+		if (nimaps && !isnullstartblock(imap.br_startblock)) {
 			xfs_iomap_map_trace(XFS_IOMAP_WRITE_MAP, ip,
 					offset, count, iomapp, &imap, flags);
 			break;
@@ -491,7 +491,7 @@ xfs_iomap_write_direct(
 	/*
 	 * Issue the xfs_bmapi() call to allocate the blocks
 	 */
-	XFS_BMAP_INIT(&free_list, &firstfsb);
+	xfs_bmap_init(&free_list, &firstfsb);
 	nimaps = 1;
 	error = xfs_bmapi(tp, ip, offset_fsb, count_fsb, bmapi_flag,
 		&firstfsb, 0, &imap, &nimaps, &free_list, NULL);
@@ -751,7 +751,7 @@ xfs_iomap_write_allocate(
 			xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 			xfs_trans_ihold(tp, ip);
 
-			XFS_BMAP_INIT(&free_list, &first_block);
+			xfs_bmap_init(&free_list, &first_block);
 
 			/*
 			 * it is possible that the extents have changed since
@@ -911,7 +911,7 @@ xfs_iomap_write_unwritten(
 		/*
 		 * Modify the unwritten extent state of the buffer.
 		 */
-		XFS_BMAP_INIT(&free_list, &firstfsb);
+		xfs_bmap_init(&free_list, &firstfsb);
 		nimaps = 1;
 		error = xfs_bmapi(tp, ip, offset_fsb, count_fsb,
 				  XFS_BMAPI_WRITE|XFS_BMAPI_CONVERT, &firstfsb,

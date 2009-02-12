@@ -101,6 +101,7 @@ static int two = 2;
 
 static int zero;
 static int one = 1;
+static unsigned long one_ul = 1;
 static int one_hundred = 100;
 
 /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
@@ -144,6 +145,7 @@ extern int acct_parm[];
 
 #ifdef CONFIG_IA64
 extern int no_unaligned_warning;
+extern int unaligned_dump_stack;
 #endif
 
 #ifdef CONFIG_RT_MUTEXES
@@ -781,6 +783,14 @@ static struct ctl_table kern_table[] = {
 	 	.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "unaligned-dump-stack",
+		.data		= &unaligned_dump_stack,
+		.maxlen		= sizeof (int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
 #endif
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 	{
@@ -978,7 +988,7 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &dirty_background_bytes_handler,
 		.strategy	= &sysctl_intvec,
-		.extra1		= &one,
+		.extra1		= &one_ul,
 	},
 	{
 		.ctl_name	= VM_DIRTY_RATIO,
@@ -999,7 +1009,7 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &dirty_bytes_handler,
 		.strategy	= &sysctl_intvec,
-		.extra1		= &one,
+		.extra1		= &one_ul,
 	},
 	{
 		.procname	= "dirty_writeback_centisecs",
@@ -1701,7 +1711,7 @@ int do_sysctl(int __user *name, int nlen, void __user *oldval, size_t __user *ol
 	return error;
 }
 
-asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
+SYSCALL_DEFINE1(sysctl, struct __sysctl_args __user *, args)
 {
 	struct __sysctl_args tmp;
 	int error;
@@ -3002,7 +3012,7 @@ int sysctl_ms_jiffies(struct ctl_table *table,
 #else /* CONFIG_SYSCTL_SYSCALL */
 
 
-asmlinkage long sys_sysctl(struct __sysctl_args __user *args)
+SYSCALL_DEFINE1(sysctl, struct __sysctl_args __user *, args)
 {
 	struct __sysctl_args tmp;
 	int error;

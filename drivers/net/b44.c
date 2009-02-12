@@ -679,6 +679,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 			dev_kfree_skb_any(skb);
 			return -ENOMEM;
 		}
+		bp->force_copybreak = 1;
 	}
 
 	rh = (struct rx_header *) skb->data;
@@ -800,7 +801,7 @@ static int b44_rx(struct b44 *bp, int budget)
 		/* Omit CRC. */
 		len -= 4;
 
-		if (len > RX_COPY_THRESHOLD) {
+		if (!bp->force_copybreak && len > RX_COPY_THRESHOLD) {
 			int skb_size;
 			skb_size = b44_alloc_rx_skb(bp, cons, bp->rx_prod);
 			if (skb_size < 0)
@@ -2152,6 +2153,7 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	bp = netdev_priv(dev);
 	bp->sdev = sdev;
 	bp->dev = dev;
+	bp->force_copybreak = 0;
 
 	bp->msg_enable = netif_msg_init(b44_debug, B44_DEF_MSG_ENABLE);
 

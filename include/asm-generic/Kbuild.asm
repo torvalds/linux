@@ -31,6 +31,7 @@ unifdef-y += socket.h
 unifdef-y += sockios.h
 unifdef-y += stat.h
 unifdef-y += statfs.h
+unifdef-y += swab.h
 unifdef-y += termbits.h
 unifdef-y += termios.h
 unifdef-y += types.h

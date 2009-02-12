@@ -426,9 +426,9 @@ struct ubifs_unclean_leb {
  * LEB properties flags.
  *
  * LPROPS_UNCAT: not categorized
- * LPROPS_DIRTY: dirty > 0, not index
+ * LPROPS_DIRTY: dirty > free, dirty >= @c->dead_wm, not index
  * LPROPS_DIRTY_IDX: dirty + free > @c->min_idx_node_sze and index
- * LPROPS_FREE: free > 0, not empty, not index
+ * LPROPS_FREE: free > 0, dirty < @c->dead_wm, not empty, not index
  * LPROPS_HEAP_CNT: number of heaps used for storing categorized LEBs
  * LPROPS_EMPTY: LEB is empty, not taken
  * LPROPS_FREEABLE: free + dirty == leb_size, not index, not taken
@@ -961,7 +961,6 @@ struct ubifs_debug_info;
  * @cs_lock: commit state lock
  * @cmt_wq: wait queue to sleep on if the log is full and a commit is running
  *
- * @fast_unmount: do not run journal commit before un-mounting
  * @big_lpt: flag that LPT is too big to write whole during commit
  * @no_chk_data_crc: do not check CRCs when reading data nodes (except during
  *                   recovery)
@@ -1202,7 +1201,6 @@ struct ubifs_info {
 	spinlock_t cs_lock;
 	wait_queue_head_t cmt_wq;
 
-	unsigned int fast_unmount:1;
 	unsigned int big_lpt:1;
 	unsigned int no_chk_data_crc:1;
 	unsigned int bulk_read:1;
@@ -1405,13 +1403,13 @@ extern struct list_head ubifs_infos;
 extern spinlock_t ubifs_infos_lock;
 extern atomic_long_t ubifs_clean_zn_cnt;
 extern struct kmem_cache *ubifs_inode_slab;
-extern struct super_operations ubifs_super_operations;
-extern struct address_space_operations ubifs_file_address_operations;
-extern struct file_operations ubifs_file_operations;
-extern struct inode_operations ubifs_file_inode_operations;
-extern struct file_operations ubifs_dir_operations;
-extern struct inode_operations ubifs_dir_inode_operations;
-extern struct inode_operations ubifs_symlink_inode_operations;
+extern const struct super_operations ubifs_super_operations;
+extern const struct address_space_operations ubifs_file_address_operations;
+extern const struct file_operations ubifs_file_operations;
+extern const struct inode_operations ubifs_file_inode_operations;
+extern const struct file_operations ubifs_dir_operations;
+extern const struct inode_operations ubifs_dir_inode_operations;
+extern const struct inode_operations ubifs_symlink_inode_operations;
 extern struct backing_dev_info ubifs_backing_dev_info;
 extern struct ubifs_compressor *ubifs_compressors[UBIFS_COMPR_TYPES_CNT];
 
@@ -1428,7 +1426,7 @@ int ubifs_read_node_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
 int ubifs_write_node(struct ubifs_info *c, void *node, int len, int lnum,
 		     int offs, int dtype);
 int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
-		     int offs, int quiet, int chk_crc);
+		     int offs, int quiet, int must_chk_crc);
 void ubifs_prepare_node(struct ubifs_info *c, void *buf, int len, int pad);
 void ubifs_prep_grp_node(struct ubifs_info *c, void *node, int len, int last);
 int ubifs_io_init(struct ubifs_info *c);
@@ -1495,6 +1493,7 @@ void ubifs_release_ino_dirty(struct ubifs_info *c, struct inode *inode,
 void ubifs_cancel_ino_op(struct ubifs_info *c, struct inode *inode,
 			 struct ubifs_budget_req *req);
 long long ubifs_get_free_space(struct ubifs_info *c);
+long long ubifs_get_free_space_nolock(struct ubifs_info *c);
 int ubifs_calc_min_idx_lebs(struct ubifs_info *c);
 void ubifs_convert_page_budget(struct ubifs_info *c);
 long long ubifs_reported_space(const struct ubifs_info *c, long long free);
@@ -1603,6 +1602,7 @@ void ubifs_delete_orphan(struct ubifs_info *c, ino_t inum);
 int ubifs_orphan_start_commit(struct ubifs_info *c);
 int ubifs_orphan_end_commit(struct ubifs_info *c);
 int ubifs_mount_orphans(struct ubifs_info *c, int unclean, int read_only);
+int ubifs_clear_orphans(struct ubifs_info *c);
 
 /* lpt.c */
 int ubifs_calc_lpt_geom(struct ubifs_info *c);
@@ -1646,7 +1646,7 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 					   const struct ubifs_lprops *lp,
 					   int free, int dirty, int flags,
 					   int idx_gc_cnt);
-void ubifs_get_lp_stats(struct ubifs_info *c, struct ubifs_lp_stats *stats);
+void ubifs_get_lp_stats(struct ubifs_info *c, struct ubifs_lp_stats *lst);
 void ubifs_add_to_cat(struct ubifs_info *c, struct ubifs_lprops *lprops,
 		      int cat);
 void ubifs_replace_cat(struct ubifs_info *c, struct ubifs_lprops *old_lprops,

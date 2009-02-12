@@ -18,6 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-pca-platform.h>
 #include <linux/i2c-algo-pca.h>
+#include <linux/irq.h>
 #include <asm/heartbeat.h>
 #include <mach/sh7785lcr.h>
 

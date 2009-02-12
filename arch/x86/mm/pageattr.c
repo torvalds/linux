@@ -534,6 +534,36 @@ out_unlock:
 	return 0;
 }
 
+static int __cpa_process_fault(struct cpa_data *cpa, unsigned long vaddr,
+			       int primary)
+{
+	/*
+	 * Ignore all non primary paths.
+	 */
+	if (!primary)
+		return 0;
+
+	/*
+	 * Ignore the NULL PTE for kernel identity mapping, as it is expected
+	 * to have holes.
+	 * Also set numpages to '1' indicating that we processed cpa req for
+	 * one virtual address page and its pfn. TBD: numpages can be set based
+	 * on the initial value and the level returned by lookup_address().
+	 */
+	if (within(vaddr, PAGE_OFFSET,
+		   PAGE_OFFSET + (max_pfn_mapped << PAGE_SHIFT))) {
+		cpa->numpages = 1;
+		cpa->pfn = __pa(vaddr) >> PAGE_SHIFT;
+		return 0;
+	} else {
+		WARN(1, KERN_WARNING "CPA: called for zero pte. "
+			"vaddr = %lx cpa->vaddr = %lx\n", vaddr,
+			*cpa->vaddr);
+
+		return -EFAULT;
+	}
+}
+
 static int __change_page_attr(struct cpa_data *cpa, int primary)
 {
 	unsigned long address;
@@ -549,19 +579,11 @@ static int __change_page_attr(struct cpa_data *cpa, int primary)
 repeat:
 	kpte = lookup_address(address, &level);
 	if (!kpte)
-		return 0;
+		return __cpa_process_fault(cpa, address, primary);
 
 	old_pte = *kpte;
-	if (!pte_val(old_pte)) {
-		if (!primary)
-			return 0;
-
-		/*
-		 *  Special error value returned, indicating that the mapping
-		 * did not exist at this address.
-		 */
-		return -EFAULT;
-	}
+	if (!pte_val(old_pte))
+		return __cpa_process_fault(cpa, address, primary);
 
 	if (level == PG_LEVEL_4K) {
 		pte_t new_pte;
@@ -659,12 +681,7 @@ static int cpa_process_alias(struct cpa_data *cpa)
 		vaddr = *cpa->vaddr;
 
 	if (!(within(vaddr, PAGE_OFFSET,
-		    PAGE_OFFSET + (max_low_pfn_mapped << PAGE_SHIFT))
-#ifdef CONFIG_X86_64
-		|| within(vaddr, PAGE_OFFSET + (1UL<<32),
-		    PAGE_OFFSET + (max_pfn_mapped << PAGE_SHIFT))
-#endif
-	)) {
+		    PAGE_OFFSET + (max_pfn_mapped << PAGE_SHIFT)))) {
 
 		alias_cpa = *cpa;
 		temp_cpa_vaddr = (unsigned long) __va(cpa->pfn << PAGE_SHIFT);

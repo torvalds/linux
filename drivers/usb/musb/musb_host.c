@@ -1847,8 +1847,8 @@ static int musb_urb_enqueue(
 		goto done;
 	}
 
-	qh->epnum = epd->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
-	qh->type = epd->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+	qh->epnum = usb_endpoint_num(epd);
+	qh->type = usb_endpoint_type(epd);
 
 	/* NOTE: urb->dev->devnum is wrong during SET_ADDRESS */
 	qh->addr_reg = (u8) usb_pipedevice(urb->pipe);

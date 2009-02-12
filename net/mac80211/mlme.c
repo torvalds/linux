@@ -620,8 +620,8 @@ static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 	if (use_short_slot != bss_conf->use_short_slot) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: switched to %s slot"
-			       " (BSSID=%s)\n",
+			printk(KERN_DEBUG "%s: switched to %s slot time"
+			       " (BSSID=%pM)\n",
 			       sdata->dev->name,
 			       use_short_slot ? "short" : "long",
 			       ifsta->bssid);

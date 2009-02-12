@@ -1028,6 +1028,8 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
  * it's done by reseting the chip.  To accomplish this we must
  * first cleanup any pending DMA, then restart stuff after a la
  * ath5k_init.
+ *
+ * Called with sc->lock.
  */
 static int
 ath5k_chan_set(struct ath5k_softc *sc, struct ieee80211_channel *chan)
@@ -2644,7 +2646,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (skb_headroom(skb) < padsize) {
 			ATH5K_ERR(sc, "tx hdrlen not %%4: %d not enough"
 				  " headroom to pad %d\n", hdrlen, padsize);
-			return -1;
+			return NETDEV_TX_BUSY;
 		}
 		skb_push(skb, padsize);
 		memmove(skb->data, skb->data+padsize, hdrlen);
@@ -2655,7 +2657,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		ATH5K_ERR(sc, "no further txbuf available, dropping packet\n");
 		spin_unlock_irqrestore(&sc->txbuflock, flags);
 		ieee80211_stop_queue(hw, skb_get_queue_mapping(skb));
-		return -1;
+		return NETDEV_TX_BUSY;
 	}
 	bf = list_first_entry(&sc->txbuf, struct ath5k_buf, list);
 	list_del(&bf->list);
@@ -2673,10 +2675,10 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		sc->txbuf_len++;
 		spin_unlock_irqrestore(&sc->txbuflock, flags);
 		dev_kfree_skb_any(skb);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static int
@@ -2814,11 +2816,17 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
+	int ret;
+
+	mutex_lock(&sc->lock);
 
 	sc->bintval = conf->beacon_int;
 	sc->power_level = conf->power_level;
 
-	return ath5k_chan_set(sc, conf->channel);
+	ret = ath5k_chan_set(sc, conf->channel);
+
+	mutex_unlock(&sc->lock);
+	return ret;
 }
 
 static int

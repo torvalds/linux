@@ -62,7 +62,7 @@ int do_getitimer(int which, struct itimerval *value)
 			struct task_cputime cputime;
 			cputime_t utime;
 
-			thread_group_cputime(tsk, &cputime);
+			thread_group_cputimer(tsk, &cputime);
 			utime = cputime.utime;
 			if (cputime_le(cval, utime)) { /* about to fire */
 				cval = jiffies_to_cputime(1);
@@ -82,7 +82,7 @@ int do_getitimer(int which, struct itimerval *value)
 			struct task_cputime times;
 			cputime_t ptime;
 
-			thread_group_cputime(tsk, &times);
+			thread_group_cputimer(tsk, &times);
 			ptime = cputime_add(times.utime, times.stime);
 			if (cputime_le(cval, ptime)) { /* about to fire */
 				cval = jiffies_to_cputime(1);
@@ -100,7 +100,7 @@ int do_getitimer(int which, struct itimerval *value)
 	return 0;
 }
 
-asmlinkage long sys_getitimer(int which, struct itimerval __user *value)
+SYSCALL_DEFINE2(getitimer, int, which, struct itimerval __user *, value)
 {
 	int error = -EFAULT;
 	struct itimerval get_buffer;
@@ -260,9 +260,8 @@ unsigned int alarm_setitimer(unsigned int seconds)
 	return it_old.it_value.tv_sec;
 }
 
-asmlinkage long sys_setitimer(int which,
-			      struct itimerval __user *value,
-			      struct itimerval __user *ovalue)
+SYSCALL_DEFINE3(setitimer, int, which, struct itimerval __user *, value,
+		struct itimerval __user *, ovalue)
 {
 	struct itimerval set_buffer, get_buffer;
 	int error;

@@ -2688,7 +2688,7 @@ int nobh_write_end(struct file *file, struct address_space *mapping,
 	struct buffer_head *bh;
 	BUG_ON(fsdata != NULL && page_has_buffers(page));
 
-	if (unlikely(copied < len) && !page_has_buffers(page))
+	if (unlikely(copied < len) && head)
 		attach_nobh_buffers(page, head);
 	if (page_has_buffers(page))
 		return generic_write_end(file, mapping, pos, len,
@@ -3243,7 +3243,7 @@ void block_sync_page(struct page *page)
  * Use of bdflush() is deprecated and will be removed in a future kernel.
  * The `pdflush' kernel threads fully replace bdflush daemons and this call.
  */
-asmlinkage long sys_bdflush(int func, long data)
+SYSCALL_DEFINE2(bdflush, int, func, long, data)
 {
 	static int msg_count;
 

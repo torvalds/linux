@@ -40,9 +40,8 @@ obj-$(CONFIG_RT_MUTEXES) += rtmutex.o
 obj-$(CONFIG_DEBUG_RT_MUTEXES) += rtmutex-debug.o
 obj-$(CONFIG_RT_MUTEX_TESTER) += rtmutex-tester.o
 obj-$(CONFIG_GENERIC_ISA_DMA) += dma.o
-ifeq ($(CONFIG_USE_GENERIC_SMP_HELPERS),y)
-obj-y += smp.o
-else
+obj-$(CONFIG_USE_GENERIC_SMP_HELPERS) += smp.o
+ifneq ($(CONFIG_SMP),y)
 obj-y += up.o
 endif
 obj-$(CONFIG_SMP) += spinlock.o
