@@ -434,6 +434,26 @@ int __sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 }
 
 /**
+ *	sysfs_pathname - return full path to sysfs dirent
+ *	@sd: sysfs_dirent whose path we want
+ *	@path: caller allocated buffer
+ *
+ *	Gives the name "/" to the sysfs_root entry; any path returned
+ *	is relative to wherever sysfs is mounted.
+ *
+ *	XXX: does no error checking on @path size
+ */
+static char *sysfs_pathname(struct sysfs_dirent *sd, char *path)
+{
+	if (sd->s_parent) {
+		sysfs_pathname(sd->s_parent, path);
+		strcat(path, "/");
+	}
+	strcat(path, sd->s_name);
+	return path;
+}
+
+/**
  *	sysfs_add_one - add sysfs_dirent to parent
  *	@acxt: addrm context to use
  *	@sd: sysfs_dirent to be added
@@ -458,8 +478,16 @@ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 	int ret;
 
 	ret = __sysfs_add_one(acxt, sd);
-	WARN(ret == -EEXIST, KERN_WARNING "sysfs: duplicate filename '%s' "
-		       "can not be created\n", sd->s_name);
+	if (ret == -EEXIST) {
+		char *path = kzalloc(PATH_MAX, GFP_KERNEL);
+		WARN(1, KERN_WARNING
+		     "sysfs: cannot create duplicate filename '%s'\n",
+		     (path == NULL) ? sd->s_name :
+		     strcat(strcat(sysfs_pathname(acxt->parent_sd, path), "/"),
+		            sd->s_name));
+		kfree(path);
+	}
+
 	return ret;
 }
 
