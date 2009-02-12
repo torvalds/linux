@@ -22,33 +22,32 @@
 
 #define PHISON_DEBUG
 
-#define DRV_NAME	"PHISON E-BOX" //#0003
-#define DRV_VERSION     "0.91" //#0003
+#define DRV_NAME		"phison_e-box"	/* #0003 */
+#define DRV_VERSION 		"0.91"		/* #0003 */
 
-#define PCI_VENDOR_ID_PHISON   0x1987
-#define PCI_DEVICE_ID_PS5000   0x5000
+#define PCI_VENDOR_ID_PHISON	0x1987
+#define PCI_DEVICE_ID_PS5000	0x5000
 
-int phison_pre_reset(struct ata_link *link, unsigned long deadline)
+static int phison_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	int ret;
 	struct ata_port *ap = link->ap;
+
 	ap->cbl = ATA_CBL_NONE;
 	ret = ata_std_prereset(link, deadline);
-	#ifdef PHISON_DEBUG
-	printk("****** phison_pre_reset(), ret = %x ******\n", ret);
-	#endif
+	dev_dbg(ap->dev, "phison_pre_reset(), ret = %x\n", ret);
 	return ret;
 }
 
-void phison_error_handler(struct ata_port *ap)
+static void phison_error_handler(struct ata_port *ap)
 {
-	#ifdef PHISON_DEBUG
-	printk("****** phison_error_handler() ******\n");
-	#endif
-	return ata_bmdma_drive_eh(ap, phison_pre_reset, ata_std_softreset, NULL, ata_std_postreset);
+	dev_dbg(ap->dev, "phison_error_handler()\n");
+	return ata_bmdma_drive_eh(ap, phison_pre_reset,
+				  ata_std_softreset, NULL,
+				  ata_std_postreset);
 }
 
-struct scsi_host_template phison_sht = {
+static struct scsi_host_template phison_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -67,22 +66,22 @@ struct scsi_host_template phison_sht = {
 	.bios_param		= ata_std_bios_param,
 };
 
-const struct ata_port_operations phison_ops = {
+static const struct ata_port_operations phison_ops = {
 	/* Task file is PCI ATA format, use helpers */
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
-	.check_status	= ata_check_status,
-	.exec_command	= ata_exec_command,
+	.check_status		= ata_check_status,
+	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
 
 	.freeze			= ata_bmdma_freeze,
 	.thaw			= ata_bmdma_thaw,
-	.error_handler	= phison_error_handler,
+	.error_handler		= phison_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 
 	/* BMDMA handling is PCI ATA format, use helpers */
-	.bmdma_setup	= ata_bmdma_setup,
-	.bmdma_start	= ata_bmdma_start,
+	.bmdma_setup		= ata_bmdma_setup,
+	.bmdma_start		= ata_bmdma_start,
 	.bmdma_stop		= ata_bmdma_stop,
 	.bmdma_status		= ata_bmdma_status,
 	.qc_prep		= ata_qc_prep,
@@ -98,7 +97,7 @@ const struct ata_port_operations phison_ops = {
 	.port_start		= ata_port_start,
 };
 
-int phison_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
+static int phison_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct ata_port_info info = {
 		.sht		= &phison_sht,
@@ -116,105 +115,36 @@ int phison_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = ata_pci_init_one(pdev, ppi);
 
-	#ifdef PHISON_DEBUG
-	printk("****** phison_init_one(), ret = %x ******\n", ret);
-	#endif
+	dev_dbg(&pdev->dev, "phison_init_one(), ret = %x\n", ret);
 
 	return ret;
-
 }
 
-struct pci_device_id phison_pci_tbl[] = {
+static struct pci_device_id phison_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PHISON, PCI_DEVICE_ID_PS5000, PCI_ANY_ID, PCI_ANY_ID,
 	  PCI_CLASS_STORAGE_IDE << 8, 0xffff00, 0 },
 	{ 0, },
 };
-
 MODULE_DEVICE_TABLE(pci, phison_pci_tbl);
 
-struct pci_driver phison_pci_driver = {
+static struct pci_driver phison_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= phison_pci_tbl,
 	.probe		= phison_init_one,
 	.remove		= ata_pci_remove_one,
-#ifdef CONFIG_PM //haven't test it.
+#ifdef CONFIG_PM	/* haven't tested it. */
 	.suspend	= ata_pci_device_suspend,
 	.resume		= ata_pci_device_resume,
 #endif
 };
 
-int phison_ide_init(void)
+static int phison_ide_init(void)
 {
-#if 0 //For Test.
-	struct pci_dev *pci_dev = NULL;
-	struct pci_dev *ps5k_dev = NULL;
-	int i, ret;
-	u16 vid, pid;
-	u32 addr1,addr2,addr3, addr4,addr5,addr6;
-
-	printk("****** phison_ide_init ******\n");
-
-	i = 0;
-
-	while(1)
-	{
-		pci_dev = pci_find_device(PCI_ANY_ID,PCI_ANY_ID, pci_dev);
-
-		if(pci_dev!=NULL)
-		{
-			pci_read_config_word(pci_dev, 0, &pid);
-			pci_read_config_word(pci_dev, 2, &vid);
-			pci_read_config_dword(pci_dev, 16, &addr1);
-			pci_read_config_dword(pci_dev, 16, &addr1);
-			pci_read_config_dword(pci_dev, 16, &addr1);
-			pci_read_config_dword(pci_dev, 16, &addr1);
-			pci_read_config_dword(pci_dev, 20, &addr2);
-			pci_read_config_dword(pci_dev, 24, &addr3);
-			pci_read_config_dword(pci_dev, 28, &addr4);
-			pci_read_config_dword(pci_dev, 32, &addr5);
-			pci_read_config_dword(pci_dev, 36, &addr6);
-
-			printk("****** <0x%02x>, %x, %x, %x,%x,%x,%x,%x,%x ******\n", i, pid, vid, addr1, addr2, addr3, addr4,addr5,addr6);
-			i++;
-
-			if((pid==PCI_VENDOR_ID_PHISON)&&(vid==PCI_DEVICE_ID_PS5000)) ps5k_dev = pci_dev;
-		}
-		else
-		{
-			if(i==0) printk("****** no pci device found ******\n");
-			break;
-		}
-	}
-
-	if(ps5k_dev!=NULL)
-	{
-		ret = pci_register_driver(&phison_pci_driver);
-		printk("****** PS5000 found, Ret = %x ******\n", ret);
-		return true;
-	}
-
-	printk("****** PS5000 not found ******\n");
-	return false;
-#else
-	int ret;
-
-	ret = pci_register_driver(&phison_pci_driver);
-
-	#ifdef PHISON_DEBUG
-	printk("****** phison_ide_init(), ret = %x ******\n", ret);
-	#endif
-
-	return ret;
-#endif
-
-
+	return pci_register_driver(&phison_pci_driver);
 }
 
-void phison_ide_exit(void)
+static void phison_ide_exit(void)
 {
-	#ifdef PHISON_DEBUG
-	printk("****** phison_ide_exit() ******\n");
-	#endif
 	pci_unregister_driver(&phison_pci_driver);
 }
 
@@ -222,6 +152,6 @@ module_init(phison_ide_init);
 module_exit(phison_ide_exit);
 
 MODULE_AUTHOR("Evan Ko");
-MODULE_DESCRIPTION("PCIE driver module for PHISON PS5000 E-BOX");//#0003
+MODULE_DESCRIPTION("PCIE driver module for PHISON PS5000 E-BOX");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
