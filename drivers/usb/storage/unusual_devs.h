@@ -992,84 +992,6 @@ UNUSUAL_DEV(  0x07b4, 0x010a, 0x0102, 0x0102,
  		US_SC_SCSI, US_PR_ALAUDA, init_alauda, 0 ),
 #endif
 
-#ifdef CONFIG_USB_STORAGE_DATAFAB
-UNUSUAL_DEV(  0x07c4, 0xa000, 0x0000, 0x0015,
-		"Datafab",
-		"MDCFE-B USB CF Reader",
-		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		0 ),
-
-/*
- * The following Datafab-based devices may or may not work
- * using the current driver...the 0xffff is arbitrary since I
- * don't know what device versions exist for these guys.
- *
- * The 0xa003 and 0xa004 devices in particular I'm curious about.
- * I'm told they exist but so far nobody has come forward to say that
- * they work with this driver.  Given the success we've had getting
- * other Datafab-based cards operational with this driver, I've decided
- * to leave these two devices in the list.
- */
-UNUSUAL_DEV( 0x07c4, 0xa001, 0x0000, 0xffff,
-		"SIIG/Datafab",
-		"SIIG/Datafab Memory Stick+CF Reader/Writer",
-		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		0 ),
-
-/* Reported by Josef Reisinger <josef.reisinger@netcologne.de> */
-UNUSUAL_DEV( 0x07c4, 0xa002, 0x0000, 0xffff,
-		"Datafab/Unknown",
-		"MD2/MD3 Disk enclosure",
-		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		US_FL_SINGLE_LUN ),
-
-UNUSUAL_DEV( 0x07c4, 0xa003, 0x0000, 0xffff,
-		"Datafab/Unknown",
-		"Datafab-based Reader",
-		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		0 ),
-
-UNUSUAL_DEV( 0x07c4, 0xa004, 0x0000, 0xffff,
-		"Datafab/Unknown",
-		"Datafab-based Reader",
-		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		0 ),
-
-UNUSUAL_DEV( 0x07c4, 0xa005, 0x0000, 0xffff,
-		"PNY/Datafab",
-		"PNY/Datafab CF+SM Reader",
-		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		0 ),
-
-UNUSUAL_DEV( 0x07c4, 0xa006, 0x0000, 0xffff,
-		"Simple Tech/Datafab",
-		"Simple Tech/Datafab CF+SM Reader",
-		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		0 ),
-#endif
-
-#ifdef CONFIG_USB_STORAGE_DATAFAB
-/* Submitted by Olaf Hering <olh@suse.de> */
-UNUSUAL_DEV(  0x07c4, 0xa109, 0x0000, 0xffff,
-		"Datafab Systems, Inc.",
-		"USB to CF + SM Combo (LC1)",
-		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		0 ),
-#endif
-
-#ifdef CONFIG_USB_STORAGE_DATAFAB
-/* Reported by Felix Moeller <felix@derklecks.de>
- * in Germany this is sold by Hama with the productnumber 46952
- * as "DualSlot CompactFlash(TM) & MStick Drive USB"
- */
-UNUSUAL_DEV(  0x07c4, 0xa10b, 0x0000, 0xffff,
-		"DataFab Systems Inc.",
-		"USB CF+MS",
-		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		0 ),
-
-#endif
-
 /* Datafab KECF-USB / Sagatek DCS-CF / Simpletech Flashlink UCF-100
  * Only revision 1.13 tested (same for all of the above devices,
  * based on the Datafab DF-UG-07 chip).  Needed for US_FL_FIX_INQUIRY.
@@ -1272,14 +1194,6 @@ UNUSUAL_DEV( 0x0bc2, 0x3010, 0x0000, 0x0000,
 		"FreeAgent Pro",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SANE_SENSE ),
-
-#ifdef CONFIG_USB_STORAGE_DATAFAB
-UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
-		"Acomdata",
-		"CF",
-		US_SC_SCSI, US_PR_DATAFAB, NULL,
-		US_FL_SINGLE_LUN ),
-#endif
 
 UNUSUAL_DEV(  0x0d49, 0x7310, 0x0000, 0x9999,
 		"Maxtor",

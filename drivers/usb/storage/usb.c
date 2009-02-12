@@ -66,9 +66,6 @@
 #include "debug.h"
 #include "initializers.h"
 
-#ifdef CONFIG_USB_STORAGE_DATAFAB
-#include "datafab.h"
-#endif
 #ifdef CONFIG_USB_STORAGE_JUMPSHOT
 #include "jumpshot.h"
 #endif
@@ -603,15 +600,6 @@ static void get_transport(struct us_data *us)
 		us->transport = usb_stor_Bulk_transport;
 		us->transport_reset = usb_stor_Bulk_reset;
 		break;
-
-#ifdef CONFIG_USB_STORAGE_DATAFAB
-	case US_PR_DATAFAB:
-		us->transport_name  = "Datafab Bulk-Only";
-		us->transport = datafab_transport;
-		us->transport_reset = usb_stor_Bulk_reset;
-		us->max_lun = 1;
-		break;
-#endif
 
 #ifdef CONFIG_USB_STORAGE_JUMPSHOT
 	case US_PR_JUMPSHOT:

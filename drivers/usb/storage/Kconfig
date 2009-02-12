@@ -32,11 +32,13 @@ config USB_STORAGE_DEBUG
 	  verbose debugging messages.
 
 config USB_STORAGE_DATAFAB
-	bool "Datafab Compact Flash Reader support"
+	tristate "Datafab Compact Flash Reader support"
 	depends on USB_STORAGE
 	help
 	  Support for certain Datafab CompactFlash readers.
 	  Datafab has a web page at <http://www.datafabusa.com/>.
+
+	  If this driver is compiled as a module, it will be named ums-datafab.
 
 config USB_STORAGE_FREECOM
 	tristate "Freecom USB/ATAPI Bridge support"
