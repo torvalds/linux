@@ -1089,8 +1089,7 @@ static void bnx2x_reuse_rx_skb(struct bnx2x_fastpath *fp,
 
 	pci_dma_sync_single_for_device(bp->pdev,
 				       pci_unmap_addr(cons_rx_buf, mapping),
-				       bp->rx_offset + RX_COPY_THRESH,
-				       PCI_DMA_FROMDEVICE);
+				       RX_COPY_THRESH, PCI_DMA_FROMDEVICE);
 
 	prod_rx_buf->skb = cons_rx_buf->skb;
 	pci_unmap_addr_set(prod_rx_buf, mapping,
@@ -2403,6 +2402,7 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 	u32 nig_int_mask_addr = port ? NIG_REG_MASK_INTERRUPT_PORT1 :
 				       NIG_REG_MASK_INTERRUPT_PORT0;
 	u32 aeu_mask;
+	u32 nig_mask = 0;
 
 	if (bp->attn_state & asserted)
 		BNX2X_ERR("IGU ERROR\n");
@@ -2428,7 +2428,7 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 			bnx2x_acquire_phy_lock(bp);
 
 			/* save nig interrupt mask */
-			bp->nig_mask = REG_RD(bp, nig_int_mask_addr);
+			nig_mask = REG_RD(bp, nig_int_mask_addr);
 			REG_WR(bp, nig_int_mask_addr, 0);
 
 			bnx2x_link_attn(bp);
@@ -2483,7 +2483,7 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 
 	/* now set back the mask */
 	if (asserted & ATTN_NIG_FOR_FUNC) {
-		REG_WR(bp, nig_int_mask_addr, bp->nig_mask);
+		REG_WR(bp, nig_int_mask_addr, nig_mask);
 		bnx2x_release_phy_lock(bp);
 	}
 }
@@ -4358,7 +4358,7 @@ static void bnx2x_init_rx_rings(struct bnx2x *bp)
 	u16 ring_prod, cqe_ring_prod;
 	int i, j;
 
-	bp->rx_buf_size += bp->rx_offset + ETH_OVREHEAD + BNX2X_RX_ALIGN;
+	bp->rx_buf_size = bp->dev->mtu + ETH_OVREHEAD + BNX2X_RX_ALIGN;
 	DP(NETIF_MSG_IFUP,
 	   "mtu %d  rx_buf_size %d\n", bp->dev->mtu, bp->rx_buf_size);
 
@@ -7947,6 +7947,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 {
 	int func = BP_FUNC(bp);
+	int timer_interval;
 	int rc;
 
 	/* Disable interrupt handling until HW is initialized */
@@ -7994,13 +7995,12 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	bp->rx_ring_size = MAX_RX_AVAIL;
 
 	bp->rx_csum = 1;
-	bp->rx_offset = 0;
 
 	bp->tx_ticks = 50;
 	bp->rx_ticks = 25;
 
-	bp->timer_interval = (CHIP_REV_IS_SLOW(bp) ? 5*HZ : HZ);
-	bp->current_interval = (poll ? poll : bp->timer_interval);
+	timer_interval = (CHIP_REV_IS_SLOW(bp) ? 5*HZ : HZ);
+	bp->current_interval = (poll ? poll : timer_interval);
 
 	init_timer(&bp->timer);
 	bp->timer.expires = jiffies + bp->current_interval;
@@ -10828,9 +10828,8 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 		goto init_one_exit;
 	}
 
-	bp->common.name = board_info[ent->driver_data].name;
 	printk(KERN_INFO "%s: %s (%c%d) PCI-E x%d %s found at mem %lx,"
-	       " IRQ %d, ", dev->name, bp->common.name,
+	       " IRQ %d, ", dev->name, board_info[ent->driver_data].name,
 	       (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
 	       bnx2x_get_pcie_width(bp),
 	       (bnx2x_get_pcie_speed(bp) == 2) ? "5GHz (Gen2)" : "2.5GHz",

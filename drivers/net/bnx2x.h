@@ -525,8 +525,6 @@ struct bnx2x_common {
 	u32			hw_config;
 
 	u32			bc_ver;
-
-	char			*name;
 };
 
 
@@ -798,7 +796,6 @@ struct bnx2x {
 #endif
 
 	u32			rx_csum;
-	u32			rx_offset;
 	u32			rx_buf_size;
 #define ETH_OVREHEAD			(ETH_HLEN + 8)	/* 8 for CRC + VLAN */
 #define ETH_MIN_PACKET_SIZE		60
@@ -819,7 +816,6 @@ struct bnx2x {
 	u16			def_att_idx;
 	u32			attn_state;
 	struct attn_route	attn_group[MAX_DYNAMIC_ATTN_GRPS];
-	u32			nig_mask;
 
 	/* slow path ring */
 	struct eth_spe		*spq;
@@ -869,7 +865,6 @@ struct bnx2x {
 	struct work_struct	reset_task;
 
 	struct timer_list	timer;
-	int			timer_interval;
 	int			current_interval;
 
 	u16			fw_seq;
