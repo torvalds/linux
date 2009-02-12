@@ -2061,6 +2061,19 @@
 #define PXP2_REG_PGL_INT_XSDM_5 				 0x1204e8
 #define PXP2_REG_PGL_INT_XSDM_6 				 0x1204ec
 #define PXP2_REG_PGL_INT_XSDM_7 				 0x1204f0
+/* [RW 3] this field allows one function to pretend being another function
+   when accessing any BAR mapped resource within the device. the value of
+   the field is the number of the function that will be accessed
+   effectively. after software write to this bit it must read it in order to
+   know that the new value is updated */
+#define PXP2_REG_PGL_PRETEND_FUNC_F0				 0x120674
+#define PXP2_REG_PGL_PRETEND_FUNC_F1				 0x120678
+#define PXP2_REG_PGL_PRETEND_FUNC_F2				 0x12067c
+#define PXP2_REG_PGL_PRETEND_FUNC_F3				 0x120680
+#define PXP2_REG_PGL_PRETEND_FUNC_F4				 0x120684
+#define PXP2_REG_PGL_PRETEND_FUNC_F5				 0x120688
+#define PXP2_REG_PGL_PRETEND_FUNC_F6				 0x12068c
+#define PXP2_REG_PGL_PRETEND_FUNC_F7				 0x120690
 /* [R 1] this bit indicates that a read request was blocked because of
    bus_master_en was deasserted */
 #define PXP2_REG_PGL_READ_BLOCKED				 0x120568

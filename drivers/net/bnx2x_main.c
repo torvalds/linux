@@ -7006,6 +7006,64 @@ reset_task_exit:
  * Init service functions
  */
 
+static inline u32 bnx2x_get_pretend_reg(struct bnx2x *bp, int func)
+{
+	switch (func) {
+	case 0: return PXP2_REG_PGL_PRETEND_FUNC_F0;
+	case 1:	return PXP2_REG_PGL_PRETEND_FUNC_F1;
+	case 2:	return PXP2_REG_PGL_PRETEND_FUNC_F2;
+	case 3:	return PXP2_REG_PGL_PRETEND_FUNC_F3;
+	case 4:	return PXP2_REG_PGL_PRETEND_FUNC_F4;
+	case 5:	return PXP2_REG_PGL_PRETEND_FUNC_F5;
+	case 6:	return PXP2_REG_PGL_PRETEND_FUNC_F6;
+	case 7:	return PXP2_REG_PGL_PRETEND_FUNC_F7;
+	default:
+		BNX2X_ERR("Unsupported function index: %d\n", func);
+		return (u32)(-1);
+	}
+}
+
+static void bnx2x_undi_int_disable_e1h(struct bnx2x *bp, int orig_func)
+{
+	u32 reg = bnx2x_get_pretend_reg(bp, orig_func), new_val;
+
+	/* Flush all outstanding writes */
+	mmiowb();
+
+	/* Pretend to be function 0 */
+	REG_WR(bp, reg, 0);
+	/* Flush the GRC transaction (in the chip) */
+	new_val = REG_RD(bp, reg);
+	if (new_val != 0) {
+		BNX2X_ERR("Hmmm... Pretend register wasn't updated: (0,%d)!\n",
+			  new_val);
+		BUG();
+	}
+
+	/* From now we are in the "like-E1" mode */
+	bnx2x_int_disable(bp);
+
+	/* Flush all outstanding writes */
+	mmiowb();
+
+	/* Restore the original funtion settings */
+	REG_WR(bp, reg, orig_func);
+	new_val = REG_RD(bp, reg);
+	if (new_val != orig_func) {
+		BNX2X_ERR("Hmmm... Pretend register wasn't updated: (%d,%d)!\n",
+			  orig_func, new_val);
+		BUG();
+	}
+}
+
+static inline void bnx2x_undi_int_disable(struct bnx2x *bp, int func)
+{
+	if (CHIP_IS_E1H(bp))
+		bnx2x_undi_int_disable_e1h(bp, func);
+	else
+		bnx2x_int_disable(bp);
+}
+
 static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 {
 	u32 val;
@@ -7056,8 +7114,7 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 			/* now it's safe to release the lock */
 			bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 
-			REG_WR(bp, (BP_PORT(bp) ? HC_REG_CONFIG_1 :
-				    HC_REG_CONFIG_0), 0x1000);
+			bnx2x_undi_int_disable(bp, func);
 
 			/* close input traffic and wait for it */
 			/* Do not rcv packets to BRB */
