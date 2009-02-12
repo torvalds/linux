@@ -1528,6 +1528,24 @@ mv643xx_eth_set_ringparam(struct net_device *dev, struct ethtool_ringparam *er)
 	return 0;
 }
 
+static u32
+mv643xx_eth_get_rx_csum(struct net_device *dev)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+
+	return !!(rdlp(mp, PORT_CONFIG) & 0x02000000);
+}
+
+static int
+mv643xx_eth_set_rx_csum(struct net_device *dev, u32 rx_csum)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+
+	wrlp(mp, PORT_CONFIG, rx_csum ? 0x02000000 : 0x00000000);
+
+	return 0;
+}
+
 static void mv643xx_eth_get_strings(struct net_device *dev,
 				    uint32_t stringset, uint8_t *data)
 {
@@ -1586,6 +1604,8 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.set_coalesce		= mv643xx_eth_set_coalesce,
 	.get_ringparam		= mv643xx_eth_get_ringparam,
 	.set_ringparam		= mv643xx_eth_set_ringparam,
+	.get_rx_csum		= mv643xx_eth_get_rx_csum,
+	.set_rx_csum		= mv643xx_eth_set_rx_csum,
 	.set_sg			= ethtool_op_set_sg,
 	.get_strings		= mv643xx_eth_get_strings,
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
