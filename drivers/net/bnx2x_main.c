@@ -2112,7 +2112,7 @@ static void bnx2x__link_reset(struct bnx2x *bp)
 {
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
-		bnx2x_link_reset(&bp->link_params, &bp->link_vars);
+		bnx2x_link_reset(&bp->link_params, &bp->link_vars, 1);
 		bnx2x_release_phy_lock(bp);
 	} else
 		BNX2X_ERR("Bootcode is missing -not resetting link\n");
@@ -2611,6 +2611,13 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 		default:
 			break;
 		}
+	}
+
+	if (attn & (AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0 |
+		    AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1)) {
+		bnx2x_acquire_phy_lock(bp);
+		bnx2x_handle_module_detect_int(&bp->link_params);
+		bnx2x_release_phy_lock(bp);
 	}
 
 	if (attn & HW_INTERRUT_ASSERT_SET_0) {
@@ -5905,6 +5912,37 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	/* Port DMAE comes here */
 
 	switch (XGXS_EXT_PHY_TYPE(bp->link_params.ext_phy_config)) {
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+		{
+		u32 swap_val, swap_override, aeu_gpio_mask, offset;
+
+		bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_3,
+			       MISC_REGISTERS_GPIO_INPUT_HI_Z, port);
+
+		/* The GPIO should be swapped if the swap register is
+		   set and active */
+		swap_val = REG_RD(bp, NIG_REG_PORT_SWAP);
+		swap_override = REG_RD(bp, NIG_REG_STRAP_OVERRIDE);
+
+		/* Select function upon port-swap configuration */
+		if (port == 0) {
+			offset = MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0;
+			aeu_gpio_mask = (swap_val && swap_override) ?
+				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1 :
+				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0;
+		} else {
+			offset = MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0;
+			aeu_gpio_mask = (swap_val && swap_override) ?
+				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0 :
+				AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1;
+		}
+		val = REG_RD(bp, offset);
+		/* add GPIO3 to group */
+		val |= aeu_gpio_mask;
+		REG_WR(bp, offset, val);
+		}
+		break;
+
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 		/* add SPIO 5 to group 0 */
 		val = REG_RD(bp, MISC_REG_AEU_ENABLE1_FUNC_0_OUT_0);
@@ -7623,27 +7661,6 @@ static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 					       SUPPORTED_Asym_Pause);
 			break;
 
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (8705)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
-			BNX2X_DEV_INFO("ext_phy_type 0x%x (8706)\n",
-				       ext_phy_type);
-
-			bp->port.supported |= (SUPPORTED_10000baseT_Full |
-					       SUPPORTED_1000baseT_Full |
-					       SUPPORTED_FIBRE |
-					       SUPPORTED_Pause |
-					       SUPPORTED_Asym_Pause);
-			break;
-
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 			BNX2X_DEV_INFO("ext_phy_type 0x%x (8072)\n",
 				       ext_phy_type);
@@ -7665,6 +7682,39 @@ static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 					       SUPPORTED_1000baseT_Full |
 					       SUPPORTED_FIBRE |
 					       SUPPORTED_Autoneg |
+					       SUPPORTED_Pause |
+					       SUPPORTED_Asym_Pause);
+			break;
+
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
+			BNX2X_DEV_INFO("ext_phy_type 0x%x (8705)\n",
+				       ext_phy_type);
+
+			bp->port.supported |= (SUPPORTED_10000baseT_Full |
+					       SUPPORTED_FIBRE |
+					       SUPPORTED_Pause |
+					       SUPPORTED_Asym_Pause);
+			break;
+
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
+			BNX2X_DEV_INFO("ext_phy_type 0x%x (8706)\n",
+				       ext_phy_type);
+
+			bp->port.supported |= (SUPPORTED_10000baseT_Full |
+					       SUPPORTED_1000baseT_Full |
+					       SUPPORTED_FIBRE |
+					       SUPPORTED_Pause |
+					       SUPPORTED_Asym_Pause);
+			break;
+
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+			BNX2X_DEV_INFO("ext_phy_type 0x%x (8726)\n",
+				       ext_phy_type);
+
+			bp->port.supported |= (SUPPORTED_10000baseT_Full |
+					       SUPPORTED_1000baseT_Full |
+					       SUPPORTED_Autoneg |
+					       SUPPORTED_FIBRE |
 					       SUPPORTED_Pause |
 					       SUPPORTED_Asym_Pause);
 			break;
@@ -7905,6 +7955,7 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 	u32 val, val2;
+	u32 config;
 
 	bp->link_params.bp = bp;
 	bp->link_params.port = port;
@@ -7922,6 +7973,14 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 
 	bp->port.link_config =
 		SHMEM_RD(bp, dev_info.port_feature_config[port].link_config);
+
+	config = SHMEM_RD(bp, dev_info.port_feature_config[port].config);
+	if (config & PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_ENABLED)
+		bp->link_params.feature_config_flags |=
+				FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED;
+	else
+		bp->link_params.feature_config_flags &=
+				~FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED;
 
 	BNX2X_DEV_INFO("serdes_config 0x%08x  lane_config 0x%08x\n"
 	     KERN_INFO "  ext_phy_config 0x%08x  speed_cap_mask 0x%08x"
@@ -8121,10 +8180,11 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 		switch (ext_phy_type) {
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
-		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
 			cmd->port = PORT_FIBRE;
 			break;
 
@@ -8807,7 +8867,7 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 			if ((bp->state == BNX2X_STATE_OPEN) ||
 			    (bp->state == BNX2X_STATE_DISABLED)) {
 				rc |= bnx2x_link_reset(&bp->link_params,
-						       &bp->link_vars);
+						       &bp->link_vars, 1);
 				rc |= bnx2x_phy_init(&bp->link_params,
 						     &bp->link_vars);
 			}

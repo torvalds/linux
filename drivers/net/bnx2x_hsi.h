@@ -245,7 +245,7 @@ struct port_hw_cfg {			    /* port 0: 0x12c  port 1: 0x2bc */
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073	    0x00000300
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705	    0x00000400
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706	    0x00000500
-#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8276	    0x00000600
+#define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726	    0x00000600
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481	    0x00000700
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101	    0x00000800
 #define PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE	    0x0000fd00
@@ -299,6 +299,12 @@ struct shared_feat_cfg {				 /* NVRAM Offset */
 
 	u32 config;						/* 0x450 */
 #define SHARED_FEATURE_BMC_ECHO_MODE_EN 	    0x00000001
+
+	/*  Use the values from options 47 and 48 instead of the HW default
+	  values */
+#define SHARED_FEAT_CFG_OVERRIDE_PREEMPHASIS_CFG_DISABLED     0x00000000
+#define SHARED_FEAT_CFG_OVERRIDE_PREEMPHASIS_CFG_ENABLED      0x00000002
+
 #define SHARED_FEATURE_MF_MODE_DISABLED 	    0x00000100
 
 };
@@ -351,6 +357,11 @@ struct port_feat_cfg {			    /* port 0: 0x454  port 1: 0x4c8 */
 #define PORT_FEATURE_WOL_ENABLED		    0x01000000
 #define PORT_FEATURE_MBA_ENABLED		    0x02000000
 #define PORT_FEATURE_MFW_ENABLED		    0x04000000
+
+	/*  Check the optic vendor via i2c before allowing it to be used by
+	  SW */
+#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_DISABLED 	      0x00000000
+#define PORT_FEAT_CFG_OPT_MDL_ENFRCMNT_ENABLED		      0x08000000
 
 	u32 wol_config;
 	/* Default is used when driver sets to "auto" mode */

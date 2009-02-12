@@ -89,6 +89,9 @@ struct link_params {
 
 	/* phy_addr populated by the CLC */
 	u8 phy_addr;
+	u32 feature_config_flags;
+#define FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED (1<<0)
+#define FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED	(2<<0)
 	/* Device pointer passed to all callback functions */
 	struct bnx2x *bp;
 };
@@ -125,8 +128,11 @@ struct link_vars {
 /* Initialize the phy */
 u8 bnx2x_phy_init(struct link_params *input, struct link_vars *output);
 
-/* Reset the link. Should be called when driver or interface goes down */
-u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars);
+/* Reset the link. Should be called when driver or interface goes down
+   Before calling phy firmware upgrade, the reset_ext_phy should be set
+   to 0 */
+u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
+		  u8 reset_ext_phy);
 
 /* bnx2x_link_update should be called upon link interrupt */
 u8 bnx2x_link_update(struct link_params *input, struct link_vars *output);
@@ -163,6 +169,10 @@ u8 bnx2x_override_led_value(struct bnx2x *bp, u8 port, u32 led_idx, u32 value);
 
 u8 bnx2x_flash_download(struct bnx2x *bp, u8 port, u32 ext_phy_config,
 		      u8 driver_loaded, char data[], u32 size);
+/* bnx2x_handle_module_detect_int should be called upon module detection
+   interrupt */
+void bnx2x_handle_module_detect_int(struct link_params *params);
+
 /* Get the actual link status. In case it returns 0, link is up,
 	otherwise link is down*/
 u8 bnx2x_test_link(struct link_params *input, struct link_vars *vars);
