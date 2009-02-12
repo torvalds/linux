@@ -105,6 +105,7 @@
  * 2009-01-31	Rick Bronson <rick@efn.org>
  *		Tobias Lorenz <tobias.lorenz@gmx.net>
  *		- add LED status output
+ *		- get HW/SW version from scratchpad
  *
  * ToDo:
  * - add firmware download/update support
@@ -115,10 +116,10 @@
 /* driver definitions */
 #define DRIVER_AUTHOR "Tobias Lorenz <tobias.lorenz@gmx.net>"
 #define DRIVER_NAME "radio-si470x"
-#define DRIVER_KERNEL_VERSION KERNEL_VERSION(1, 0, 8)
+#define DRIVER_KERNEL_VERSION KERNEL_VERSION(1, 0, 9)
 #define DRIVER_CARD "Silicon Labs Si470x FM Radio Receiver"
 #define DRIVER_DESC "USB radio driver for Si470x FM Radio Receivers"
-#define DRIVER_VERSION "1.0.8"
+#define DRIVER_VERSION "1.0.9"
 
 
 /* kernel includes */
@@ -354,9 +355,13 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 #define SCRATCH_REPORT		20
 
 /* Reports 19-22: flash upgrade of the C8051F321 */
+#define WRITE_REPORT_SIZE	4
 #define WRITE_REPORT		19
+#define FLASH_REPORT_SIZE	64
 #define FLASH_REPORT		20
+#define CRC_REPORT_SIZE		3
 #define CRC_REPORT		21
+#define RESPONSE_REPORT_SIZE	2
 #define RESPONSE_REPORT		22
 
 /* Report 23: currently unused, but can accept 60 byte reports on the HID */
@@ -429,12 +434,6 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 #define COMMAND_FAILED		0x02
 #define COMMAND_PENDING		0x03
 
-/* buffer sizes */
-#define COMMAND_BUFFER_SIZE	4
-#define RESPONSE_BUFFER_SIZE	2
-#define FLASH_BUFFER_SIZE	64
-#define CRC_BUFFER_SIZE		3
-
 
 
 /**************************************************************************
@@ -466,6 +465,10 @@ struct si470x_device {
 	unsigned int buf_size;
 	unsigned int rd_index;
 	unsigned int wr_index;
+
+	/* scratch page */
+	unsigned char software_version;
+	unsigned char hardware_version;
 };
 
 
@@ -834,30 +837,6 @@ static int si470x_rds_on(struct si470x_device *radio)
 
 
 /**************************************************************************
- * General Driver Functions - LED_REPORT
- **************************************************************************/
-
-/*
- * si470x_set_led_state - sets the led state
- */
-static int si470x_set_led_state(struct si470x_device *radio,
-		unsigned char led_state)
-{
-	unsigned char buf[LED_REPORT_SIZE];
-	int retval;
-
-	buf[0] = LED_REPORT;
-	buf[1] = LED_COMMAND;
-	buf[2] = led_state;
-
-	retval = si470x_set_report(radio, (void *) &buf, sizeof(buf));
-
-	return (retval < 0) ? -EINVAL : 0;
-}
-
-
-
-/**************************************************************************
  * General Driver Functions - ENTIRE_REPORT
  **************************************************************************/
 
@@ -915,6 +894,59 @@ static int si470x_get_rds_registers(struct si470x_device *radio)
 			radio->registers[STATUSRSSI + regnr] =
 				get_unaligned_be16(
 				&buf[regnr * RADIO_REGISTER_SIZE + 1]);
+
+	return (retval < 0) ? -EINVAL : 0;
+}
+
+
+
+/**************************************************************************
+ * General Driver Functions - LED_REPORT
+ **************************************************************************/
+
+/*
+ * si470x_set_led_state - sets the led state
+ */
+static int si470x_set_led_state(struct si470x_device *radio,
+		unsigned char led_state)
+{
+	unsigned char buf[LED_REPORT_SIZE];
+	int retval;
+
+	buf[0] = LED_REPORT;
+	buf[1] = LED_COMMAND;
+	buf[2] = led_state;
+
+	retval = si470x_set_report(radio, (void *) &buf, sizeof(buf));
+
+	return (retval < 0) ? -EINVAL : 0;
+}
+
+
+
+/**************************************************************************
+ * General Driver Functions - SCRATCH_REPORT
+ **************************************************************************/
+
+/*
+ * si470x_get_scratch_versions - gets the scratch page and version infos
+ */
+static int si470x_get_scratch_page_versions(struct si470x_device *radio)
+{
+	unsigned char buf[SCRATCH_REPORT_SIZE];
+	int retval;
+
+	buf[0] = SCRATCH_REPORT;
+
+	retval = si470x_get_report(radio, (void *) &buf, sizeof(buf));
+
+	if (retval < 0)
+		printk(KERN_WARNING DRIVER_NAME ": si470x_get_scratch: "
+			"si470x_get_report returned %d\n", retval);
+	else {
+		radio->software_version = buf[1];
+		radio->hardware_version = buf[2];
+	}
 
 	return (retval < 0) ? -EINVAL : 0;
 }
@@ -1651,7 +1683,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			sizeof(si470x_viddev_template));
 	video_set_drvdata(radio->videodev, radio);
 
-	/* show some infos about the specific device */
+	/* show some infos about the specific si470x device */
 	if (si470x_get_all_registers(radio) < 0) {
 		retval = -EIO;
 		goto err_all;
@@ -1659,7 +1691,16 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	printk(KERN_INFO DRIVER_NAME ": DeviceID=0x%4.4hx ChipID=0x%4.4hx\n",
 			radio->registers[DEVICEID], radio->registers[CHIPID]);
 
-	/* check if firmware is current */
+	/* get software and hardware versions */
+	if (si470x_get_scratch_page_versions(radio) < 0) {
+		retval = -EIO;
+		goto err_all;
+	}
+	printk(KERN_INFO DRIVER_NAME
+			": software version %d, hardware version %d\n",
+			radio->software_version, radio->hardware_version);
+
+	/* check if device and firmware is current */
 	if ((radio->registers[CHIPID] & CHIPID_FIRMWARE)
 			< RADIO_SW_VERSION_CURRENT) {
 		printk(KERN_WARNING DRIVER_NAME
