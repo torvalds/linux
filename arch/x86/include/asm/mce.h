@@ -120,8 +120,6 @@ extern void mcheck_init(struct cpuinfo_x86 *c);
 #else
 #define mcheck_init(c) do { } while (0)
 #endif
-extern void stop_mce(void);
-extern void restart_mce(void);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_X86_MCE_H */
