@@ -83,6 +83,7 @@ enum {
 enum {
 	STAC_92HD83XXX_REF,
 	STAC_92HD83XXX_PWR_REF,
+	STAC_DELL_S14,
 	STAC_92HD83XXX_MODELS
 };
 
@@ -480,10 +481,9 @@ static hda_nid_t stac92hd73xx_pin_nids[13] = {
 	0x14, 0x22, 0x23
 };
 
-static hda_nid_t stac92hd83xxx_pin_nids[14] = {
+static hda_nid_t stac92hd83xxx_pin_nids[10] = {
 	0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
-	0x0f, 0x10, 0x11, 0x12, 0x13,
-	0x1d, 0x1e, 0x1f, 0x20
+	0x0f, 0x10, 0x11, 0x1f, 0x20,
 };
 
 #define STAC92HD71BXX_NUM_PINS 13
@@ -857,9 +857,9 @@ static struct hda_verb stac92hd73xx_10ch_core_init[] = {
 };
 
 static struct hda_verb stac92hd83xxx_core_init[] = {
-	{ 0xa, AC_VERB_SET_CONNECT_SEL, 0x0},
-	{ 0xb, AC_VERB_SET_CONNECT_SEL, 0x0},
-	{ 0xd, AC_VERB_SET_CONNECT_SEL, 0x1},
+	{ 0xa, AC_VERB_SET_CONNECT_SEL, 0x1},
+	{ 0xb, AC_VERB_SET_CONNECT_SEL, 0x1},
+	{ 0xd, AC_VERB_SET_CONNECT_SEL, 0x0},
 
 	/* power state controls amps */
 	{ 0x01, AC_VERB_SET_EAPD, 1 << 2},
@@ -1730,21 +1730,28 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 	{} /* terminator */
 };
 
-static unsigned int ref92hd83xxx_pin_configs[14] = {
+static unsigned int ref92hd83xxx_pin_configs[10] = {
 	0x02214030, 0x02211010, 0x02a19020, 0x02170130,
 	0x01014050, 0x01819040, 0x01014020, 0x90a3014e,
-	0x40f000f0, 0x40f000f0, 0x40f000f0, 0x40f000f0,
 	0x01451160, 0x98560170,
+};
+
+static unsigned int dell_s14_pin_configs[10] = {
+	0x02214030, 0x02211010, 0x02a19020, 0x01014050,
+	0x40f000f0, 0x01819040, 0x40f000f0, 0x90a60160,
+	0x40f000f0, 0x40f000f0,
 };
 
 static unsigned int *stac92hd83xxx_brd_tbl[STAC_92HD83XXX_MODELS] = {
 	[STAC_92HD83XXX_REF] = ref92hd83xxx_pin_configs,
 	[STAC_92HD83XXX_PWR_REF] = ref92hd83xxx_pin_configs,
+	[STAC_DELL_S14] = dell_s14_pin_configs,
 };
 
 static const char *stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 	[STAC_92HD83XXX_REF] = "ref",
 	[STAC_92HD83XXX_PWR_REF] = "mic-ref",
+	[STAC_DELL_S14] = "dell-s14",
 };
 
 static struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
@@ -1753,6 +1760,8 @@ static struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 		      "DFI LanParty", STAC_92HD83XXX_REF),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DFI, 0x3101,
 		      "DFI LanParty", STAC_92HD83XXX_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02ba,
+		      "unknown Dell", STAC_DELL_S14),
 	{} /* terminator */
 };
 
@@ -4822,6 +4831,7 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	hda_nid_t conn[STAC92HD83_DAC_COUNT + 1];
 	int err;
 	int num_dacs;
+	hda_nid_t nid;
 
 	spec  = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
@@ -4839,15 +4849,6 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	spec->pwr_mapping = stac92hd83xxx_pwr_mapping;
 	spec->num_pwrs = ARRAY_SIZE(stac92hd83xxx_pwr_nids);
 	spec->multiout.dac_nids = spec->dac_nids;
-
-
-	/* set port 0xe to select the last DAC
-	 */
-	num_dacs = snd_hda_get_connections(codec, 0x0e,
-		conn, STAC92HD83_DAC_COUNT + 1) - 1;
-
-	snd_hda_codec_write_cache(codec, 0xe, 0,
-		AC_VERB_SET_CONNECT_SEL, num_dacs);
 
 	spec->init = stac92hd83xxx_core_init;
 	spec->mixer = stac92hd83xxx_mixer;
@@ -4899,6 +4900,23 @@ again:
 		stac92xx_free(codec);
 		return err;
 	}
+
+	switch (spec->board_config) {
+	case STAC_DELL_S14:
+		nid = 0xf;
+		break;
+	default:
+		nid = 0xe;
+		break;
+	}
+
+	num_dacs = snd_hda_get_connections(codec, nid,
+				conn, STAC92HD83_DAC_COUNT + 1) - 1;
+
+	/* set port X to select the last DAC
+	 */
+	snd_hda_codec_write_cache(codec, nid, 0,
+			AC_VERB_SET_CONNECT_SEL, num_dacs);
 
 	codec->patch_ops = stac92xx_patch_ops;
 
