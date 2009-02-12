@@ -102,7 +102,13 @@ static int i2c_versatile_probe(struct platform_device *dev)
 	i2c->algo = i2c_versatile_algo;
 	i2c->algo.data = i2c;
 
-	ret = i2c_bit_add_bus(&i2c->adap);
+	if (dev->id >= 0) {
+		/* static bus numbering */
+		i2c->adap.nr = dev->id;
+		ret = i2c_bit_add_numbered_bus(&i2c->adap);
+	} else
+		/* dynamic bus numbering */
+		ret = i2c_bit_add_bus(&i2c->adap);
 	if (ret >= 0) {
 		platform_set_drvdata(dev, i2c);
 		return 0;
@@ -146,7 +152,7 @@ static void __exit i2c_versatile_exit(void)
 	platform_driver_unregister(&i2c_versatile_driver);
 }
 
-module_init(i2c_versatile_init);
+subsys_initcall(i2c_versatile_init);
 module_exit(i2c_versatile_exit);
 
 MODULE_DESCRIPTION("ARM Versatile I2C bus driver");
