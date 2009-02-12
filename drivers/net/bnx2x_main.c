@@ -473,7 +473,7 @@ static int bnx2x_mc_assert(struct bnx2x *bp)
 static void bnx2x_fw_dump(struct bnx2x *bp)
 {
 	u32 mark, offset;
-	u32 data[9];
+	__be32 data[9];
 	int word;
 
 	mark = REG_RD(bp, MCP_REG_MCPR_SCRATCH + 0xf104);
@@ -3000,8 +3000,8 @@ static irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 
 #define UPDATE_EXTEND_TSTAT(s, t) \
 	do { \
-		diff = le32_to_cpu(tclient->s) - old_tclient->s; \
-		old_tclient->s = le32_to_cpu(tclient->s); \
+		diff = le32_to_cpu(tclient->s) - le32_to_cpu(old_tclient->s); \
+		old_tclient->s = tclient->s; \
 		ADD_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
 	} while (0)
 
@@ -3014,8 +3014,8 @@ static irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 
 #define UPDATE_EXTEND_XSTAT(s, t) \
 	do { \
-		diff = le32_to_cpu(xclient->s) - old_xclient->s; \
-		old_xclient->s = le32_to_cpu(xclient->s); \
+		diff = le32_to_cpu(xclient->s) - le32_to_cpu(old_xclient->s); \
+		old_xclient->s = xclient->s; \
 		ADD_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
 	} while (0)
 
@@ -3524,7 +3524,10 @@ static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 	struct bmac_stats *new = bnx2x_sp(bp, mac_stats.bmac_stats);
 	struct host_port_stats *pstats = bnx2x_sp(bp, port_stats);
 	struct bnx2x_eth_stats *estats = &bp->eth_stats;
-	struct regpair diff;
+	struct {
+		u32 lo;
+		u32 hi;
+	} diff;
 
 	UPDATE_STAT64(rx_stat_grerb, rx_stat_ifhcinbadoctets);
 	UPDATE_STAT64(rx_stat_grfcs, rx_stat_dot3statsfcserrors);
@@ -3630,7 +3633,10 @@ static int bnx2x_hw_stats_update(struct bnx2x *bp)
 	struct nig_stats *old = &(bp->port.old_nig_stats);
 	struct host_port_stats *pstats = bnx2x_sp(bp, port_stats);
 	struct bnx2x_eth_stats *estats = &bp->eth_stats;
-	struct regpair diff;
+	struct {
+		u32 lo;
+		u32 hi;
+	} diff;
 	u32 nig_timer_max;
 
 	if (bp->link_vars.mac_type == MAC_TYPE_BMAC)
@@ -3994,12 +4000,12 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 			"mac_discard %u  mac_filter_discard %u  "
 			"xxovrflow_discard %u  brb_truncate_discard %u  "
 			"ttl0_discard %u\n",
-		       old_tclient->checksum_discard,
+		       le32_to_cpu(old_tclient->checksum_discard),
 		       bnx2x_hilo(&qstats->etherstatsoverrsizepkts_hi),
 		       bnx2x_hilo(&qstats->no_buff_discard_hi),
 		       estats->mac_discard, estats->mac_filter_discard,
 		       estats->xxoverflow_discard, estats->brb_truncate_discard,
-		       old_tclient->ttl0_discard);
+		       le32_to_cpu(old_tclient->ttl0_discard));
 
 		for_each_queue(bp, i) {
 			printk(KERN_DEBUG "[%d]: %lu\t%lu\t%lu\n", i,
@@ -6610,9 +6616,9 @@ static void bnx2x_set_mac_addr_e1(struct bnx2x *bp, int set)
 	   config->config_table[0].cam_entry.lsb_mac_addr);
 
 	/* broadcast */
-	config->config_table[1].cam_entry.msb_mac_addr = 0xffff;
-	config->config_table[1].cam_entry.middle_mac_addr = 0xffff;
-	config->config_table[1].cam_entry.lsb_mac_addr = 0xffff;
+	config->config_table[1].cam_entry.msb_mac_addr = cpu_to_le16(0xffff);
+	config->config_table[1].cam_entry.middle_mac_addr = cpu_to_le16(0xffff);
+	config->config_table[1].cam_entry.lsb_mac_addr = cpu_to_le16(0xffff);
 	config->config_table[1].cam_entry.flags = cpu_to_le16(port);
 	if (set)
 		config->config_table[1].target_table_entry.flags =
@@ -7035,7 +7041,7 @@ static int bnx2x_stop_multi(struct bnx2x *bp, int index)
 
 static int bnx2x_stop_leading(struct bnx2x *bp)
 {
-	u16 dsb_sp_prod_idx;
+	__le16 dsb_sp_prod_idx;
 	/* if the other port is handling traffic,
 	   this can take a lot of time */
 	int cnt = 500;
@@ -8625,7 +8631,7 @@ static void bnx2x_disable_nvram_access(struct bnx2x *bp)
 			MCPR_NVM_ACCESS_ENABLE_WR_EN)));
 }
 
-static int bnx2x_nvram_read_dword(struct bnx2x *bp, u32 offset, u32 *ret_val,
+static int bnx2x_nvram_read_dword(struct bnx2x *bp, u32 offset, __be32 *ret_val,
 				  u32 cmd_flags)
 {
 	int count, i, rc;
@@ -8661,8 +8667,7 @@ static int bnx2x_nvram_read_dword(struct bnx2x *bp, u32 offset, u32 *ret_val,
 			/* we read nvram data in cpu order
 			 * but ethtool sees it as an array of bytes
 			 * converting to big-endian will do the work */
-			val = cpu_to_be32(val);
-			*ret_val = val;
+			*ret_val = cpu_to_be32(val);
 			rc = 0;
 			break;
 		}
@@ -8676,7 +8681,7 @@ static int bnx2x_nvram_read(struct bnx2x *bp, u32 offset, u8 *ret_buf,
 {
 	int rc;
 	u32 cmd_flags;
-	u32 val;
+	__be32 val;
 
 	if ((offset & 0x03) || (buf_size & 0x03) || (buf_size == 0)) {
 		DP(BNX2X_MSG_NVM,
@@ -8795,7 +8800,7 @@ static int bnx2x_nvram_write1(struct bnx2x *bp, u32 offset, u8 *data_buf,
 	int rc;
 	u32 cmd_flags;
 	u32 align_offset;
-	u32 val;
+	__be32 val;
 
 	if (offset + buf_size > bp->common.flash_size) {
 		DP(BNX2X_MSG_NVM, "Invalid parameter: offset (0x%x) +"
@@ -9387,11 +9392,9 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode, u8 link_up)
 
 	wmb();
 
-	fp->hw_tx_prods->bds_prod =
-		cpu_to_le16(le16_to_cpu(fp->hw_tx_prods->bds_prod) + 1);
+	le16_add_cpu(&fp->hw_tx_prods->bds_prod, 1);
 	mb(); /* FW restriction: must not reorder writing nbd and packets */
-	fp->hw_tx_prods->packets_prod =
-		cpu_to_le32(le32_to_cpu(fp->hw_tx_prods->packets_prod) + 1);
+	le32_add_cpu(&fp->hw_tx_prods->packets_prod, 1);
 	DOORBELL(bp, fp->index, 0);
 
 	mmiowb();
@@ -9491,7 +9494,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 		{ 0x778,  0x70 },
 		{     0,     0 }
 	};
-	u32 buf[0x350 / 4];
+	__be32 buf[0x350 / 4];
 	u8 *data = (u8 *)buf;
 	int i, rc;
 	u32 magic, csum;
@@ -10130,7 +10133,7 @@ static inline u32 bnx2x_xmit_type(struct bnx2x *bp, struct sk_buff *skb)
 		rc = XMIT_PLAIN;
 
 	else {
-		if (skb->protocol == ntohs(ETH_P_IPV6)) {
+		if (skb->protocol == htons(ETH_P_IPV6)) {
 			rc = XMIT_CSUM_V6;
 			if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
 				rc |= XMIT_CSUM_TCP;
@@ -10340,9 +10343,9 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		hlen = (skb_network_header(skb) - skb->data + vlan_off) / 2;
 
 		/* for now NS flag is not used in Linux */
-		pbd->global_data = (hlen |
-				    ((skb->protocol == ntohs(ETH_P_8021Q)) <<
-				     ETH_TX_PARSE_BD_LLC_SNAP_EN_SHIFT));
+		pbd->global_data =
+			(hlen | ((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<
+				 ETH_TX_PARSE_BD_LLC_SNAP_EN_SHIFT));
 
 		pbd->ip_hlen = (skb_transport_header(skb) -
 				skb_network_header(skb)) / 2;
@@ -10486,11 +10489,9 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	wmb();
 
-	fp->hw_tx_prods->bds_prod =
-		cpu_to_le16(le16_to_cpu(fp->hw_tx_prods->bds_prod) + nbd);
+	le16_add_cpu(&fp->hw_tx_prods->bds_prod, nbd);
 	mb(); /* FW restriction: must not reorder writing nbd and packets */
-	fp->hw_tx_prods->packets_prod =
-		cpu_to_le32(le32_to_cpu(fp->hw_tx_prods->packets_prod) + 1);
+	le32_add_cpu(&fp->hw_tx_prods->packets_prod, 1);
 	DOORBELL(bp, fp->index, 0);
 
 	mmiowb();

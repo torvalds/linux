@@ -1201,12 +1201,12 @@ struct host_func_stats {
  * attention bits
  */
 struct atten_def_status_block {
-	u32 attn_bits;
-	u32 attn_bits_ack;
+	__le32 attn_bits;
+	__le32 attn_bits_ack;
 	u8 status_block_id;
 	u8 reserved0;
-	u16 attn_bits_index;
-	u32 reserved1;
+	__le16 attn_bits_index;
+	__le32 reserved1;
 };
 
 
@@ -1279,7 +1279,7 @@ struct igu_ack_register {
  * Parser parsing flags field
  */
 struct parsing_flags {
-	u16 flags;
+	__le16 flags;
 #define PARSING_FLAGS_ETHERNET_ADDRESS_TYPE (0x1<<0)
 #define PARSING_FLAGS_ETHERNET_ADDRESS_TYPE_SHIFT 0
 #define PARSING_FLAGS_VLAN (0x1<<1)
@@ -1310,8 +1310,8 @@ struct parsing_flags {
 
 
 struct regpair {
-	u32 lo;
-	u32 hi;
+	__le32 lo;
+	__le32 hi;
 };
 
 
@@ -1470,16 +1470,16 @@ struct ustorm_eth_st_context_config {
  * The eth Rx Buffer Descriptor
  */
 struct eth_rx_bd {
-	u32 addr_lo;
-	u32 addr_hi;
+	__le32 addr_lo;
+	__le32 addr_hi;
 };
 
 /*
  * The eth Rx SGE Descriptor
  */
 struct eth_rx_sge {
-	u32 addr_lo;
-	u32 addr_hi;
+	__le32 addr_lo;
+	__le32 addr_hi;
 };
 
 /*
@@ -1882,11 +1882,11 @@ struct eth_tx_bd_flags {
  * The eth Tx Buffer Descriptor
  */
 struct eth_tx_bd {
-	u32 addr_lo;
-	u32 addr_hi;
-	u16 nbd;
-	u16 nbytes;
-	u16 vlan;
+	__le32 addr_lo;
+	__le32 addr_hi;
+	__le16 nbd;
+	__le16 nbytes;
+	__le16 vlan;
 	struct eth_tx_bd_flags bd_flags;
 	u8 general_data;
 #define ETH_TX_BD_HDR_NBDS (0x3F<<0)
@@ -1929,11 +1929,11 @@ struct eth_tx_parse_bd {
 #define ETH_TX_PARSE_BD_CWR_FLG_SHIFT 7
 	u8 ip_hlen;
 	s8 cs_offset;
-	u16 total_hlen;
-	u16 lso_mss;
-	u16 tcp_pseudo_csum;
-	u16 ip_id;
-	u32 tcp_send_seq;
+	__le16 total_hlen;
+	__le16 lso_mss;
+	__le16 tcp_pseudo_csum;
+	__le16 ip_id;
+	__le32 tcp_send_seq;
 };
 
 /*
@@ -2049,44 +2049,44 @@ struct eth_tx_doorbell {
  * ustorm status block
  */
 struct ustorm_def_status_block {
-	u16 index_values[HC_USTORM_DEF_SB_NUM_INDICES];
-	u16 status_block_index;
+	__le16 index_values[HC_USTORM_DEF_SB_NUM_INDICES];
+	__le16 status_block_index;
 	u8 func;
 	u8 status_block_id;
-	u32 __flags;
+	__le32 __flags;
 };
 
 /*
  * cstorm status block
  */
 struct cstorm_def_status_block {
-	u16 index_values[HC_CSTORM_DEF_SB_NUM_INDICES];
-	u16 status_block_index;
+	__le16 index_values[HC_CSTORM_DEF_SB_NUM_INDICES];
+	__le16 status_block_index;
 	u8 func;
 	u8 status_block_id;
-	u32 __flags;
+	__le32 __flags;
 };
 
 /*
  * xstorm status block
  */
 struct xstorm_def_status_block {
-	u16 index_values[HC_XSTORM_DEF_SB_NUM_INDICES];
-	u16 status_block_index;
+	__le16 index_values[HC_XSTORM_DEF_SB_NUM_INDICES];
+	__le16 status_block_index;
 	u8 func;
 	u8 status_block_id;
-	u32 __flags;
+	__le32 __flags;
 };
 
 /*
  * tstorm status block
  */
 struct tstorm_def_status_block {
-	u16 index_values[HC_TSTORM_DEF_SB_NUM_INDICES];
-	u16 status_block_index;
+	__le16 index_values[HC_TSTORM_DEF_SB_NUM_INDICES];
+	__le16 status_block_index;
 	u8 func;
 	u8 status_block_id;
-	u32 __flags;
+	__le32 __flags;
 };
 
 /*
@@ -2105,22 +2105,22 @@ struct host_def_status_block {
  * ustorm status block
  */
 struct ustorm_status_block {
-	u16 index_values[HC_USTORM_SB_NUM_INDICES];
-	u16 status_block_index;
+	__le16 index_values[HC_USTORM_SB_NUM_INDICES];
+	__le16 status_block_index;
 	u8 func;
 	u8 status_block_id;
-	u32 __flags;
+	__le32 __flags;
 };
 
 /*
  * cstorm status block
  */
 struct cstorm_status_block {
-	u16 index_values[HC_CSTORM_SB_NUM_INDICES];
-	u16 status_block_index;
+	__le16 index_values[HC_CSTORM_SB_NUM_INDICES];
+	__le16 status_block_index;
 	u8 func;
 	u8 status_block_id;
-	u32 __flags;
+	__le32 __flags;
 };
 
 /*
@@ -2186,12 +2186,12 @@ struct eth_fast_path_rx_cqe {
 #define ETH_FAST_PATH_RX_CQE_L4_XSUM_NO_VALIDATION_FLG_SHIFT 7
 	u8 placement_offset;
 	u8 queue_index;
-	u32 rss_hash_result;
-	u16 vlan_tag;
-	u16 pkt_len;
-	u16 len_on_bd;
+	__le32 rss_hash_result;
+	__le16 vlan_tag;
+	__le16 pkt_len;
+	__le16 len_on_bd;
 	struct parsing_flags pars_flags;
-	u16 sgl[8];
+	__le16 sgl[8];
 };
 
 
@@ -2225,8 +2225,8 @@ struct eth_query_ramrod_data {
  * Place holder for ramrods protocol specific data
  */
 struct ramrod_data {
-	u32 data_lo;
-	u32 data_hi;
+	__le32 data_lo;
+	__le32 data_hi;
 };
 
 /*
@@ -2257,23 +2257,23 @@ struct common_ramrod_eth_rx_cqe {
 #define COMMON_RAMROD_ETH_RX_CQE_RESERVED0 (0x7F<<1)
 #define COMMON_RAMROD_ETH_RX_CQE_RESERVED0_SHIFT 1
 	u8 conn_type;
-	u16 reserved1;
-	u32 conn_and_cmd_data;
+	__le16 reserved1;
+	__le32 conn_and_cmd_data;
 #define COMMON_RAMROD_ETH_RX_CQE_CID (0xFFFFFF<<0)
 #define COMMON_RAMROD_ETH_RX_CQE_CID_SHIFT 0
 #define COMMON_RAMROD_ETH_RX_CQE_CMD_ID (0xFF<<24)
 #define COMMON_RAMROD_ETH_RX_CQE_CMD_ID_SHIFT 24
 	struct ramrod_data protocol_data;
-	u32 reserved2[4];
+	__le32 reserved2[4];
 };
 
 /*
  * Rx Last CQE in page (in ETH)
  */
 struct eth_rx_cqe_next_page {
-	u32 addr_lo;
-	u32 addr_hi;
-	u32 reserved[6];
+	__le32 addr_lo;
+	__le32 addr_hi;
+	__le32 reserved[6];
 };
 
 /*
@@ -2290,17 +2290,17 @@ union eth_rx_cqe {
  * common data for all protocols
  */
 struct spe_hdr {
-	u32 conn_and_cmd_data;
+	__le32 conn_and_cmd_data;
 #define SPE_HDR_CID (0xFFFFFF<<0)
 #define SPE_HDR_CID_SHIFT 0
 #define SPE_HDR_CMD_ID (0xFF<<24)
 #define SPE_HDR_CMD_ID_SHIFT 24
-	u16 type;
+	__le16 type;
 #define SPE_HDR_CONN_TYPE (0xFF<<0)
 #define SPE_HDR_CONN_TYPE_SHIFT 0
 #define SPE_HDR_COMMON_RAMROD (0xFF<<8)
 #define SPE_HDR_COMMON_RAMROD_SHIFT 8
-	u16 reserved;
+	__le16 reserved;
 };
 
 /*
@@ -2329,9 +2329,9 @@ struct eth_spe {
  * doorbell data in host memory
  */
 struct eth_tx_db_data {
-	u32 packets_prod;
-	u16 bds_prod;
-	u16 reserved;
+	__le32 packets_prod;
+	__le16 bds_prod;
+	__le16 reserved;
 };
 
 
@@ -2410,10 +2410,10 @@ struct mac_configuration_hdr {
  * MAC address in list for ramrod
  */
 struct tstorm_cam_entry {
-	u16 lsb_mac_addr;
-	u16 middle_mac_addr;
-	u16 msb_mac_addr;
-	u16 flags;
+	__le16 lsb_mac_addr;
+	__le16 middle_mac_addr;
+	__le16 msb_mac_addr;
+	__le16 flags;
 #define TSTORM_CAM_ENTRY_PORT_ID (0x1<<0)
 #define TSTORM_CAM_ENTRY_PORT_ID_SHIFT 0
 #define TSTORM_CAM_ENTRY_RSRVVAL0 (0x7<<1)
@@ -2462,11 +2462,11 @@ struct mac_configuration_cmd {
  * MAC address in list for ramrod
  */
 struct mac_configuration_entry_e1h {
-	u16 lsb_mac_addr;
-	u16 middle_mac_addr;
-	u16 msb_mac_addr;
-	u16 vlan_id;
-	u16 e1hov_id;
+	__le16 lsb_mac_addr;
+	__le16 middle_mac_addr;
+	__le16 msb_mac_addr;
+	__le16 vlan_id;
+	__le16 e1hov_id;
 	u8 client_id;
 	u8 flags;
 #define MAC_CONFIGURATION_ENTRY_E1H_PORT (0x1<<0)
@@ -2721,16 +2721,16 @@ struct cmng_struct_per_port {
  */
 struct xstorm_per_client_stats {
 	struct regpair total_sent_bytes;
-	u32 total_sent_pkts;
-	u32 unicast_pkts_sent;
+	__le32 total_sent_pkts;
+	__le32 unicast_pkts_sent;
 	struct regpair unicast_bytes_sent;
 	struct regpair multicast_bytes_sent;
-	u32 multicast_pkts_sent;
-	u32 broadcast_pkts_sent;
+	__le32 multicast_pkts_sent;
+	__le32 broadcast_pkts_sent;
 	struct regpair broadcast_bytes_sent;
-	u16 stats_counter;
-	u16 reserved0;
-	u32 reserved1;
+	__le16 stats_counter;
+	__le16 reserved0;
+	__le32 reserved1;
 };
 
 
@@ -2746,10 +2746,10 @@ struct xstorm_common_stats {
  * Protocol-common statistics collected by the Tstorm (per port)
  */
 struct tstorm_per_port_stats {
-	u32 mac_filter_discard;
-	u32 xxoverflow_discard;
-	u32 brb_truncate_discard;
-	u32 mac_discard;
+	__le32 mac_filter_discard;
+	__le32 xxoverflow_discard;
+	__le32 brb_truncate_discard;
+	__le32 mac_discard;
 };
 
 
@@ -2762,17 +2762,17 @@ struct tstorm_per_client_stats {
 	struct regpair rcv_broadcast_bytes;
 	struct regpair rcv_multicast_bytes;
 	struct regpair rcv_error_bytes;
-	u32 checksum_discard;
-	u32 packets_too_big_discard;
-	u32 total_rcv_pkts;
-	u32 rcv_unicast_pkts;
-	u32 rcv_broadcast_pkts;
-	u32 rcv_multicast_pkts;
-	u32 no_buff_discard;
-	u32 ttl0_discard;
-	u16 stats_counter;
-	u16 reserved0;
-	u32 reserved1;
+	__le32 checksum_discard;
+	__le32 packets_too_big_discard;
+	__le32 total_rcv_pkts;
+	__le32 rcv_unicast_pkts;
+	__le32 rcv_broadcast_pkts;
+	__le32 rcv_multicast_pkts;
+	__le32 no_buff_discard;
+	__le32 ttl0_discard;
+	__le16 stats_counter;
+	__le16 reserved0;
+	__le32 reserved1;
 };
 
 /*

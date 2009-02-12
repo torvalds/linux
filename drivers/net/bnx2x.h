@@ -270,10 +270,10 @@ struct bnx2x_fastpath {
 	u16			tx_pkt_cons;
 	u16			tx_bd_prod;
 	u16			tx_bd_cons;
-	u16			*tx_cons_sb;
+	__le16			*tx_cons_sb;
 
-	u16			fp_c_idx;
-	u16			fp_u_idx;
+	__le16			fp_c_idx;
+	__le16			fp_u_idx;
 
 	u16			rx_bd_prod;
 	u16			rx_bd_cons;
@@ -282,8 +282,8 @@ struct bnx2x_fastpath {
 	u16			rx_sge_prod;
 	/* The last maximal completed SGE */
 	u16			last_max_sge;
-	u16			*rx_cons_sb;
-	u16			*rx_bd_cons_sb;
+	__le16			*rx_cons_sb;
+	__le16			*rx_bd_cons_sb;
 
 	unsigned long		tx_pkt,
 				rx_pkt,
@@ -806,11 +806,11 @@ struct bnx2x {
 
 	struct host_def_status_block *def_status_blk;
 #define DEF_SB_ID			16
-	u16			def_c_idx;
-	u16			def_u_idx;
-	u16			def_x_idx;
-	u16			def_t_idx;
-	u16			def_att_idx;
+	__le16			def_c_idx;
+	__le16			def_u_idx;
+	__le16			def_x_idx;
+	__le16			def_t_idx;
+	__le16			def_att_idx;
 	u32			attn_state;
 	struct attn_route	attn_group[MAX_DYNAMIC_ATTN_GRPS];
 
@@ -820,7 +820,7 @@ struct bnx2x {
 	u16			spq_prod_idx;
 	struct eth_spe		*spq_prod_bd;
 	struct eth_spe		*spq_last_bd;
-	u16			*dsb_sp_prod;
+	__le16			*dsb_sp_prod;
 	u16			spq_left; /* serialize spq */
 	/* used to synchronize spq accesses */
 	spinlock_t		spq_lock;
