@@ -391,7 +391,7 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum);
  */
 #ifdef CONFIG_USB_LIBUSUAL
 
-#define ub_usb_ids  storage_usb_ids
+#define ub_usb_ids  usb_storage_usb_ids
 #else
 
 static struct usb_device_id ub_usb_ids[] = {
