@@ -2640,17 +2640,19 @@ struct ustorm_eth_rx_producers {
  */
 struct cmng_flags_per_port {
 	u8 con_number[NUM_OF_PROTOCOLS];
-#if defined(__BIG_ENDIAN)
-	u8 fairness_enable;
-	u8 rate_shaping_enable;
-	u8 cmng_protocol_enable;
-	u8 cmng_vn_enable;
-#elif defined(__LITTLE_ENDIAN)
-	u8 cmng_vn_enable;
-	u8 cmng_protocol_enable;
-	u8 rate_shaping_enable;
-	u8 fairness_enable;
-#endif
+	u32 cmng_enables;
+#define CMNG_FLAGS_PER_PORT_FAIRNESS_VN (0x1<<0)
+#define CMNG_FLAGS_PER_PORT_FAIRNESS_VN_SHIFT 0
+#define CMNG_FLAGS_PER_PORT_RATE_SHAPING_VN (0x1<<1)
+#define CMNG_FLAGS_PER_PORT_RATE_SHAPING_VN_SHIFT 1
+#define CMNG_FLAGS_PER_PORT_FAIRNESS_PROTOCOL (0x1<<2)
+#define CMNG_FLAGS_PER_PORT_FAIRNESS_PROTOCOL_SHIFT 2
+#define CMNG_FLAGS_PER_PORT_RATE_SHAPING_PROTOCOL (0x1<<3)
+#define CMNG_FLAGS_PER_PORT_RATE_SHAPING_PROTOCOL_SHIFT 3
+#define CMNG_FLAGS_PER_PORT_FAIRNESS_COS (0x1<<4)
+#define CMNG_FLAGS_PER_PORT_FAIRNESS_COS_SHIFT 4
+#define __CMNG_FLAGS_PER_PORT_RESERVED0 (0x7FFFFFF<<5)
+#define __CMNG_FLAGS_PER_PORT_RESERVED0_SHIFT 5
 };
 
 
@@ -2803,6 +2805,7 @@ struct eth_stats_query {
  * per-vnic fairness variables
  */
 struct fairness_vars_per_vn {
+	u32 cos_credit_delta[MAX_COS_NUMBER];
 	u32 protocol_credit_delta[NUM_OF_PROTOCOLS];
 	u32 vn_credit_delta;
 	u32 __reserved0;

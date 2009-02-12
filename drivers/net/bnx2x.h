@@ -883,6 +883,9 @@ struct bnx2x {
 	struct bnx2x_common	common;
 	struct bnx2x_port	port;
 
+	struct cmng_struct_per_port cmng;
+	u32			vn_weight_sum;
+
 	u32			mf_config;
 	u16			e1hov;
 	u8			e1hmf;
