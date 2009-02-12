@@ -46,28 +46,6 @@ extern void w90p910_map_io(struct map_desc *mach_desc, int size);
 extern struct platform_device w90p910_serial_device;
 extern struct sys_timer w90x900_timer;
 
-#define W90X900_RES(name)				\
-struct resource w90x900_##name##_resource[] = {		\
-	[0] = {						\
-		.start = name##_PA,			\
-		.end   = name##_PA + 0x0ff,		\
-		.flags = IORESOURCE_MEM,		\
-	},						\
-	[1] = {						\
-		.start = IRQ_##name,			\
-		.end   = IRQ_##name,			\
-		.flags = IORESOURCE_IRQ,		\
-	}						\
-}
-
-#define W90X900_DEVICE(devname, regname, devid, platdevname)		\
-struct platform_device w90x900_##devname = {				\
-	.name		= platdevname,					\
-	.id		= devid,					\
-	.num_resources 	= ARRAY_SIZE(w90x900_##regname##_resource),	\
-	.resource 	= w90x900_##regname##_resource,			\
-}
-
 #define W90X900_8250PORT(name)					\
 {								\
 	.membase	= name##_BA,				\
