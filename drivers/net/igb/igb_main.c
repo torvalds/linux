@@ -2666,7 +2666,7 @@ static unsigned int igb_update_itr(struct igb_adapter *adapter, u16 itr_setting,
 		if (bytes > 25000) {
 			if (packets > 35)
 				retval = low_latency;
-		} else if (bytes < 6000) {
+		} else if (bytes < 1500) {
 			retval = low_latency;
 		}
 		break;
