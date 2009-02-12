@@ -1017,7 +1017,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		 */
 		if (unlikely(in_nmi())) {
 			if (!__raw_spin_trylock(&cpu_buffer->lock))
-				goto out_unlock;
+				goto out_reset;
 		} else
 			__raw_spin_lock(&cpu_buffer->lock);
 
@@ -1030,7 +1030,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 
 		/* we grabbed the lock before incrementing */
 		if (RB_WARN_ON(cpu_buffer, next_page == reader_page))
-			goto out_unlock;
+			goto out_reset;
 
 		/*
 		 * If for some reason, we had an interrupt storm that made
@@ -1039,12 +1039,12 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		 */
 		if (unlikely(next_page == commit_page)) {
 			WARN_ON_ONCE(1);
-			goto out_unlock;
+			goto out_reset;
 		}
 
 		if (next_page == head_page) {
 			if (!(buffer->flags & RB_FL_OVERWRITE))
-				goto out_unlock;
+				goto out_reset;
 
 			/* tail_page has not moved yet? */
 			if (tail_page == cpu_buffer->tail_page) {
@@ -1118,7 +1118,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 
 	return event;
 
- out_unlock:
+ out_reset:
 	/* reset write */
 	if (tail <= BUF_PAGE_SIZE)
 		local_set(&tail_page->write, tail);
