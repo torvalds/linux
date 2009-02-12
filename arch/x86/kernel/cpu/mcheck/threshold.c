@@ -15,10 +15,11 @@ void (*mce_threshold_vector)(void) = default_threshold_interrupt;
 
 asmlinkage void mce_threshold_interrupt(void)
 {
-	ack_APIC_irq();
 	exit_idle();
 	irq_enter();
 	inc_irq_stat(irq_threshold_count);
 	mce_threshold_vector();
 	irq_exit();
+	/* Ack only at the end to avoid potential reentry */
+	ack_APIC_irq();
 }
