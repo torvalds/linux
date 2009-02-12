@@ -4296,14 +4296,11 @@ static void bnx2x_init_rx_rings(struct bnx2x *bp)
 	u16 ring_prod, cqe_ring_prod;
 	int i, j;
 
-	bp->rx_buf_size = bp->dev->mtu;
-	bp->rx_buf_size += bp->rx_offset + ETH_OVREHEAD +
-		BCM_RX_ETH_PAYLOAD_ALIGN;
+	bp->rx_buf_size += bp->rx_offset + ETH_OVREHEAD + BNX2X_RX_ALIGN;
+	DP(NETIF_MSG_IFUP,
+	   "mtu %d  rx_buf_size %d\n", bp->dev->mtu, bp->rx_buf_size);
 
 	if (bp->flags & TPA_ENABLE_FLAG) {
-		DP(NETIF_MSG_IFUP,
-		   "rx_buf_size %d  effective_mtu %d\n",
-		   bp->rx_buf_size, bp->dev->mtu + ETH_OVREHEAD);
 
 		for_each_rx_queue(bp, j) {
 			struct bnx2x_fastpath *fp = &bp->fp[j];
@@ -4502,7 +4499,7 @@ static void bnx2x_init_context(struct bnx2x *bp)
 		context->ustorm_st_context.common.flags =
 			USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_MC_ALIGNMENT;
 		context->ustorm_st_context.common.mc_alignment_log_size =
-			6 /*BCM_RX_ETH_PAYLOAD_ALIGN*/;
+						BNX2X_RX_ALIGN_SHIFT;
 		context->ustorm_st_context.common.bd_buff_size =
 						bp->rx_buf_size;
 		context->ustorm_st_context.common.bd_page_base_hi =

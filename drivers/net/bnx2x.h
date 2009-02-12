@@ -158,8 +158,6 @@ struct sw_rx_page {
 #define SGE_PAGE_SHIFT			PAGE_SHIFT
 #define SGE_PAGE_ALIGN(addr)		PAGE_ALIGN(addr)
 
-#define BCM_RX_ETH_PAYLOAD_ALIGN	64
-
 /* SGE ring related macros */
 #define NUM_RX_SGE_PAGES		2
 #define RX_SGE_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_rx_sge))
@@ -757,6 +755,11 @@ struct bnx2x {
 #define ETH_MIN_PACKET_SIZE		60
 #define ETH_MAX_PACKET_SIZE		1500
 #define ETH_MAX_JUMBO_PACKET_SIZE	9600
+
+	/* Max supported alignment is 256 (8 shift) */
+#define BNX2X_RX_ALIGN_SHIFT		((L1_CACHE_SHIFT < 8) ? \
+					 L1_CACHE_SHIFT : 8)
+#define BNX2X_RX_ALIGN			(1 << BNX2X_RX_ALIGN_SHIFT)
 
 	struct host_def_status_block *def_status_blk;
 #define DEF_SB_ID			16
