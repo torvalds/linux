@@ -77,7 +77,7 @@ int drm_ati_pcigart_cleanup(struct drm_device *dev, struct drm_ati_pcigart_info 
 			if (!entry->busaddr[i])
 				break;
 			pci_unmap_page(dev->pdev, entry->busaddr[i],
-					 PAGE_SIZE, PCI_DMA_TODEVICE);
+					 PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 		}
 
 		if (gart_info->gart_table_location == DRM_ATI_GART_MAIN)
@@ -145,7 +145,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	for (i = 0; i < pages; i++) {
 		/* we need to support large memory configurations */
 		entry->busaddr[i] = pci_map_page(dev->pdev, entry->pagelist[i],
-						 0, PAGE_SIZE, PCI_DMA_TODEVICE);
+						 0, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 		if (entry->busaddr[i] == 0) {
 			DRM_ERROR("unable to map PCIGART pages!\n");
 			drm_ati_pcigart_cleanup(dev, gart_info);
