@@ -344,9 +344,9 @@ v4l_fbuffer_alloc (struct file *file)
 				SetPageReserved(MAP_NR(mem + off));
 			dprintk(4,
 				KERN_INFO
-				"%s: v4l_fbuffer_alloc() - V4L frame %d mem 0x%lx (bus: 0x%lx)\n",
+				"%s: v4l_fbuffer_alloc() - V4L frame %d mem 0x%lx (bus: 0x%llx)\n",
 				ZR_DEVNAME(zr), i, (unsigned long) mem,
-				virt_to_bus(mem));
+				(unsigned long long)virt_to_bus(mem));
 		} else {
 
 			/* Use high memory which has been left at boot time */
