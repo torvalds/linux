@@ -224,10 +224,12 @@ static int em28xx_cmd(struct em28xx *dev, int cmd, int arg)
 
 	switch (cmd) {
 	case EM28XX_CAPTURE_STREAM_EN:
-		if (dev->adev.capture_stream == STREAM_OFF && arg == EM28XX_START_AUDIO) {
+		if (dev->adev.capture_stream == STREAM_OFF &&
+		    arg == EM28XX_START_AUDIO) {
 			dev->adev.capture_stream = STREAM_ON;
 			em28xx_init_audio_isoc(dev);
-		} else if (dev->adev.capture_stream == STREAM_ON && arg == EM28XX_STOP_AUDIO) {
+		} else if (dev->adev.capture_stream == STREAM_ON &&
+			   arg == EM28XX_STOP_AUDIO) {
 			dev->adev.capture_stream = STREAM_OFF;
 			em28xx_deinit_isoc_audio(dev);
 		} else {
@@ -385,8 +387,8 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
 	int retval;
 
-	dprintk("Should %s capture\n", (cmd == SNDRV_PCM_TRIGGER_START)?
-				       "start": "stop");
+	dprintk("Should %s capture\n", (cmd == SNDRV_PCM_TRIGGER_START) ?
+				       "start" : "stop");
 
 	spin_lock(&dev->adev.slock);
 	switch (cmd) {
