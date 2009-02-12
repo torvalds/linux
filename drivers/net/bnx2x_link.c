@@ -1753,7 +1753,7 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 	return rc;
 }
 
-static void bnx2x_set_sgmii_tx_driver(struct link_params *params)
+static void bnx2x_set_gmii_tx_driver(struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
 	u16 lp_up2;
@@ -4929,7 +4929,7 @@ static u8 bnx2x_update_link_up(struct link_params *params,
 		if (gp_status & MDIO_AN_CL73_OR_37_COMPLETE) {
 			if (!(vars->phy_flags &
 			      PHY_SGMII_FLAG))
-				bnx2x_set_sgmii_tx_driver(params);
+				bnx2x_set_gmii_tx_driver(params);
 		}
 	}
 
