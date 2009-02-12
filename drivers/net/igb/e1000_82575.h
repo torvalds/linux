@@ -116,6 +116,7 @@ union e1000_adv_tx_desc {
 };
 
 /* Adv Transmit Descriptor Config Masks */
+#define E1000_ADVTXD_MAC_TSTAMP   0x00080000 /* IEEE1588 Timestamp packet */
 #define E1000_ADVTXD_DTYP_CTXT    0x00200000 /* Advanced Context Descriptor */
 #define E1000_ADVTXD_DTYP_DATA    0x00300000 /* Advanced Data Descriptor */
 #define E1000_ADVTXD_DCMD_IFCS    0x02000000 /* Insert FCS (Ethernet CRC) */

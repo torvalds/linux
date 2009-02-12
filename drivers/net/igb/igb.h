@@ -35,6 +35,8 @@
 #include "e1000_82575.h"
 
 #include <linux/clocksource.h>
+#include <linux/timecompare.h>
+#include <linux/net_tstamp.h>
 
 struct igb_adapter;
 
@@ -255,6 +257,8 @@ struct igb_adapter {
 	struct net_device_stats net_stats;
 	struct cyclecounter cycles;
 	struct timecounter clock;
+	struct timecompare compare;
+	struct hwtstamp_config hwtstamp_config;
 
 	/* structs defined in e1000_hw.h */
 	struct e1000_hw hw;
