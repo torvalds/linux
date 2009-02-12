@@ -7730,6 +7730,22 @@ static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
 					       SUPPORTED_Asym_Pause);
 			break;
 
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+			BNX2X_DEV_INFO("ext_phy_type 0x%x (BCM8481)\n",
+				       ext_phy_type);
+
+			bp->port.supported |= (SUPPORTED_10baseT_Half |
+					       SUPPORTED_10baseT_Full |
+					       SUPPORTED_100baseT_Half |
+					       SUPPORTED_100baseT_Full |
+					       SUPPORTED_1000baseT_Full |
+					       SUPPORTED_10000baseT_Full |
+					       SUPPORTED_TP |
+					       SUPPORTED_Autoneg |
+					       SUPPORTED_Pause |
+					       SUPPORTED_Asym_Pause);
+			break;
+
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE:
 			BNX2X_ERR("XGXS PHY Failure detected 0x%x\n",
 				  bp->link_params.ext_phy_config);
@@ -8189,6 +8205,7 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			break;
 
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
 			cmd->port = PORT_TP;
 			break;
 
