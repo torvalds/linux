@@ -95,6 +95,12 @@ void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct sys_device, device_mce);
 extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
+/*
+ * To support more than 128 would need to escape the predefined
+ * Linux defined extended banks first.
+ */
+#define MAX_NR_BANKS (MCE_EXTENDED_BANK - 1)
+
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
 #else

@@ -37,12 +37,6 @@
 
 #define MISC_MCELOG_MINOR 227
 
-/*
- * To support more than 128 would need to escape the predefined
- * Linux defined extended banks first.
- */
-#define MAX_NR_BANKS (MCE_EXTENDED_BANK - 1)
-
 atomic_t mce_entry;
 
 static int mce_dont_init;
