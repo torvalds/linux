@@ -106,6 +106,12 @@ static const struct ieee80211_regdomain ath9k_world_regdom_67_68_6A = {
 	}
 };
 
+static inline bool is_wwr_sku(u16 regd)
+{
+	return ((regd & WORLD_SKU_MASK) == WORLD_SKU_PREFIX) ||
+		(regd == WORLD);
+}
+
 static u16 ath9k_regd_get_eepromRD(struct ath_hw *ah)
 {
 	return ah->regulatory.current_rd & ~WORLDWIDE_ROAMING_FLAG;
@@ -118,7 +124,7 @@ u16 ath9k_regd_get_rd(struct ath_hw *ah)
 
 bool ath9k_is_world_regd(struct ath_hw *ah)
 {
-	return isWwrSKU(ah);
+	return is_wwr_sku(ath9k_regd_get_eepromRD(ah));
 }
 
 const struct ieee80211_regdomain *ath9k_default_world_regdomain(void)
@@ -463,7 +469,8 @@ u32 ath9k_regd_get_ctl(struct ath_hw *ah, struct ath9k_channel *chan)
 	u32 ctl = NO_CTL;
 
 	if (!ah->regulatory.regpair ||
-	    (ah->regulatory.country_code == CTRY_DEFAULT && isWwrSKU(ah))) {
+	    (ah->regulatory.country_code == CTRY_DEFAULT &&
+	     is_wwr_sku(ath9k_regd_get_eepromRD(ah)))) {
 		if (IS_CHAN_B(chan))
 			ctl = SD_NO_CTL | CTL_11B;
 		else if (IS_CHAN_G(chan))

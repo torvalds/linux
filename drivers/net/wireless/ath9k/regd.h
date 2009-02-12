@@ -20,11 +20,6 @@
 #define COUNTRY_ERD_FLAG        0x8000
 #define WORLDWIDE_ROAMING_FLAG  0x4000
 
-#define isWwrSKU(_ah) \
-	(((ath9k_regd_get_eepromRD((_ah)) & WORLD_SKU_MASK) == \
-		WORLD_SKU_PREFIX) || \
-		(ath9k_regd_get_eepromRD(_ah) == WORLD))
-
 #define MULTI_DOMAIN_MASK 0xFF00
 
 #define WORLD_SKU_MASK          0x00F0
