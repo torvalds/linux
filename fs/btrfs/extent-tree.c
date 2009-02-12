@@ -2872,7 +2872,8 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 
 	if (data & BTRFS_BLOCK_GROUP_METADATA) {
 		last_ptr = &root->fs_info->last_alloc;
-		empty_cluster = 64 * 1024;
+		if (!btrfs_test_opt(root, SSD))
+			empty_cluster = 64 * 1024;
 	}
 
 	if ((data & BTRFS_BLOCK_GROUP_DATA) && btrfs_test_opt(root, SSD))
