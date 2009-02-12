@@ -53,6 +53,11 @@
  * as opposed to devices that do something strangely or wrongly.
  */
 
+#if !defined(CONFIG_USB_STORAGE_SDDR09) && \
+		!defined(CONFIG_USB_STORAGE_SDDR09_MODULE)
+#define NO_SDDR09
+#endif
+
 /* patch submitted by Vivian Bregier <Vivian.Bregier@imag.fr>
  */
 UNUSUAL_DEV(  0x03eb, 0x2002, 0x0100, 0x0100,
@@ -246,12 +251,7 @@ UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
-#ifdef CONFIG_USB_STORAGE_SDDR09
-UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
-		"Microtech",
-		"CameraMate (DPCM_USB)",
- 		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
-#else
+#ifdef NO_SDDR09
 UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
 		"Microtech",
 		"CameraMate",
@@ -467,20 +467,7 @@ UNUSUAL_DEV(  0x04e6, 0x0002, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_euscsi_init, 
 		US_FL_SCM_MULT_TARG ),
 
-#ifdef CONFIG_USB_STORAGE_SDDR09
-UNUSUAL_DEV(  0x04e6, 0x0003, 0x0000, 0x9999,
-		"Sandisk",
-		"ImageMate SDDR09",
-		US_SC_SCSI, US_PR_EUSB_SDDR09, usb_stor_sddr09_init,
-		0),
-
-/* This entry is from Andries.Brouwer@cwi.nl */
-UNUSUAL_DEV(  0x04e6, 0x0005, 0x0100, 0x0208,
-		"SCM Microsystems",
-		"eUSB SmartMedia / CompactFlash Adapter",
-		US_SC_SCSI, US_PR_DPCM_USB, usb_stor_sddr09_dpcm_init,
-		0),
-#else
+#ifdef NO_SDDR09
 UNUSUAL_DEV(  0x04e6, 0x0005, 0x0100, 0x0208,
 		"SCM Microsystems",
 		"eUSB CompactFlash Adapter",
@@ -935,14 +922,6 @@ UNUSUAL_DEV(  0x0644, 0x0000, 0x0100, 0x0100,
 		"Floppy Drive",
 		US_SC_UFI, US_PR_CB, NULL, 0 ),
 
-#ifdef CONFIG_USB_STORAGE_SDDR09
-UNUSUAL_DEV(  0x066b, 0x0105, 0x0100, 0x0100,
-		"Olympus",
-		"Camedia MAUSB-2",
-		US_SC_SCSI, US_PR_EUSB_SDDR09, usb_stor_sddr09_init,
-		0),
-#endif
-
 /* Reported by Darsen Lu <darsen@micro.ee.nthu.edu.tw> */
 UNUSUAL_DEV( 0x066f, 0x8000, 0x0001, 0x0001,
 		"SigmaTel",
@@ -1057,14 +1036,6 @@ UNUSUAL_DEV(  0x0781, 0x0100, 0x0100, 0x0100,
 		US_SC_SCSI, US_PR_CB, NULL,
 		US_FL_SINGLE_LUN ),
 
-#ifdef CONFIG_USB_STORAGE_SDDR09
-UNUSUAL_DEV(  0x0781, 0x0200, 0x0000, 0x9999,
-		"Sandisk",
-		"ImageMate SDDR-09",
-		US_SC_SCSI, US_PR_EUSB_SDDR09, usb_stor_sddr09_init,
-		0),
-#endif
-
 #ifdef CONFIG_USB_STORAGE_FREECOM
 UNUSUAL_DEV(  0x07ab, 0xfc01, 0x0000, 0x9999,
 		"Freecom",
@@ -1091,12 +1062,7 @@ UNUSUAL_DEV(  0x07af, 0x0005, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, usb_stor_euscsi_init,
 		US_FL_SCM_MULT_TARG ),
 
-#ifdef CONFIG_USB_STORAGE_SDDR09
-UNUSUAL_DEV(  0x07af, 0x0006, 0x0100, 0x0100,
-		"Microtech",
-		"CameraMate (DPCM_USB)",
- 		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
-#else
+#ifdef NO_SDDR09
 UNUSUAL_DEV(  0x07af, 0x0006, 0x0100, 0x0100,
 		"Microtech",
 		"CameraMate",

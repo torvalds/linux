@@ -77,6 +77,7 @@ struct ignore_entry {
 }
 
 static struct ignore_entry ignore_ids[] = {
+#	include "unusual_sddr09.h"
 	{ }		/* Terminating entry */
 };
 

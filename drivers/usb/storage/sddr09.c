@@ -41,6 +41,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 
 #include <scsi/scsi.h>
@@ -51,7 +52,50 @@
 #include "transport.h"
 #include "protocol.h"
 #include "debug.h"
-#include "sddr09.h"
+
+
+static int usb_stor_sddr09_dpcm_init(struct us_data *us);
+static int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us);
+static int usb_stor_sddr09_init(struct us_data *us);
+
+
+/*
+ * The table of devices
+ */
+#define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
+		    vendorName, productName, useProtocol, useTransport, \
+		    initFunction, flags) \
+{ USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
+  .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
+
+struct usb_device_id sddr09_usb_ids[] = {
+#	include "unusual_sddr09.h"
+	{ }		/* Terminating entry */
+};
+MODULE_DEVICE_TABLE(usb, sddr09_usb_ids);
+
+#undef UNUSUAL_DEV
+
+/*
+ * The flags table
+ */
+#define UNUSUAL_DEV(idVendor, idProduct, bcdDeviceMin, bcdDeviceMax, \
+		    vendor_name, product_name, use_protocol, use_transport, \
+		    init_function, Flags) \
+{ \
+	.vendorName = vendor_name,	\
+	.productName = product_name,	\
+	.useProtocol = use_protocol,	\
+	.useTransport = use_transport,	\
+	.initFunction = init_function,	\
+}
+
+static struct us_unusual_dev sddr09_unusual_dev_list[] = {
+#	include "unusual_sddr09.h"
+	{ }		/* Terminating entry */
+};
+
+#undef UNUSUAL_DEV
 
 
 #define short_pack(lsb,msb) ( ((u16)(lsb)) | ( ((u16)(msb))<<8 ) )
@@ -1406,7 +1450,7 @@ sddr09_common_init(struct us_data *us) {
  * unusual devices list but called from here then LUN 0 of the combo reader
  * is not recognized. But I do not know what precisely these calls do.
  */
-int
+static int
 usb_stor_sddr09_dpcm_init(struct us_data *us) {
 	int result;
 	unsigned char *data = us->iobuf;
@@ -1456,7 +1500,7 @@ usb_stor_sddr09_dpcm_init(struct us_data *us) {
 /*
  * Transport for the Microtech DPCM-USB
  */
-int dpcm_transport(struct scsi_cmnd *srb, struct us_data *us)
+static int dpcm_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	int ret;
 
@@ -1498,7 +1542,7 @@ int dpcm_transport(struct scsi_cmnd *srb, struct us_data *us)
 /*
  * Transport for the Sandisk SDDR-09
  */
-int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
+static int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	static unsigned char sensekey = 0, sensecode = 0;
 	static unsigned char havefakesense = 0;
@@ -1697,7 +1741,60 @@ int sddr09_transport(struct scsi_cmnd *srb, struct us_data *us)
 /*
  * Initialization routine for the sddr09 subdriver
  */
-int
+static int
 usb_stor_sddr09_init(struct us_data *us) {
 	return sddr09_common_init(us);
 }
+
+static int sddr09_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
+{
+	struct us_data *us;
+	int result;
+
+	result = usb_stor_probe1(&us, intf, id,
+			(id - sddr09_usb_ids) + sddr09_unusual_dev_list);
+	if (result)
+		return result;
+
+	if (us->protocol == US_PR_DPCM_USB) {
+		us->transport_name = "Control/Bulk-EUSB/SDDR09";
+		us->transport = dpcm_transport;
+		us->transport_reset = usb_stor_CB_reset;
+		us->max_lun = 1;
+	} else {
+		us->transport_name = "EUSB/SDDR09";
+		us->transport = sddr09_transport;
+		us->transport_reset = usb_stor_CB_reset;
+		us->max_lun = 0;
+	}
+
+	result = usb_stor_probe2(us);
+	return result;
+}
+
+static struct usb_driver sddr09_driver = {
+	.name =		"ums-sddr09",
+	.probe =	sddr09_probe,
+	.disconnect =	usb_stor_disconnect,
+	.suspend =	usb_stor_suspend,
+	.resume =	usb_stor_resume,
+	.reset_resume =	usb_stor_reset_resume,
+	.pre_reset =	usb_stor_pre_reset,
+	.post_reset =	usb_stor_post_reset,
+	.id_table =	sddr09_usb_ids,
+	.soft_unbind =	1,
+};
+
+static int __init sddr09_init(void)
+{
+	return usb_register(&sddr09_driver);
+}
+
+static void __exit sddr09_exit(void)
+{
+	usb_deregister(&sddr09_driver);
+}
+
+module_init(sddr09_init);
+module_exit(sddr09_exit);

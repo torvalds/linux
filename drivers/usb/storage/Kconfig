@@ -83,12 +83,14 @@ config USB_STORAGE_USBAT
 	  - Sandisk ImageMate SDDR-05b
 
 config USB_STORAGE_SDDR09
-	bool "SanDisk SDDR-09 (and other SmartMedia, including DPCM) support"
+	tristate "SanDisk SDDR-09 (and other SmartMedia, including DPCM) support"
 	depends on USB_STORAGE
 	help
 	  Say Y here to include additional code to support the Sandisk SDDR-09
 	  SmartMedia reader in the USB Mass Storage driver.
 	  Also works for the Microtech Zio! CompactFlash/SmartMedia reader.
+
+	  If this driver is compiled as a module, it will be named ums-sddr09.
 
 config USB_STORAGE_SDDR55
 	bool "SanDisk SDDR-55 SmartMedia support"

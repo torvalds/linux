@@ -69,9 +69,6 @@
 #ifdef CONFIG_USB_STORAGE_USBAT
 #include "shuttle_usbat.h"
 #endif
-#ifdef CONFIG_USB_STORAGE_SDDR09
-#include "sddr09.h"
-#endif
 #ifdef CONFIG_USB_STORAGE_SDDR55
 #include "sddr55.h"
 #endif
@@ -631,30 +628,12 @@ static void get_transport(struct us_data *us)
 		break;
 #endif
 
-#ifdef CONFIG_USB_STORAGE_SDDR09
-	case US_PR_EUSB_SDDR09:
-		us->transport_name = "EUSB/SDDR09";
-		us->transport = sddr09_transport;
-		us->transport_reset = usb_stor_CB_reset;
-		us->max_lun = 0;
-		break;
-#endif
-
 #ifdef CONFIG_USB_STORAGE_SDDR55
 	case US_PR_SDDR55:
 		us->transport_name = "SDDR55";
 		us->transport = sddr55_transport;
 		us->transport_reset = sddr55_reset;
 		us->max_lun = 0;
-		break;
-#endif
-
-#ifdef CONFIG_USB_STORAGE_DPCM
-	case US_PR_DPCM_USB:
-		us->transport_name = "Control/Bulk-EUSB/SDDR09";
-		us->transport = dpcm_transport;
-		us->transport_reset = usb_stor_CB_reset;
-		us->max_lun = 1;
 		break;
 #endif
 
