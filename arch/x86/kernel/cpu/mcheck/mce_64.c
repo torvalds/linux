@@ -380,11 +380,17 @@ static void mcheck_timer(struct work_struct *work)
 	schedule_delayed_work(&mcheck_work, next_interval);
 }
 
+static void mce_do_trigger(struct work_struct *work)
+{
+	call_usermodehelper(trigger, trigger_argv, NULL, UMH_NO_WAIT);
+}
+
+static DECLARE_WORK(mce_trigger_work, mce_do_trigger);
+
 /*
- * This is only called from process context.  This is where we do
- * anything we need to alert userspace about new MCEs.  This is called
- * directly from the poller and also from entry.S and idle, thanks to
- * TIF_MCE_NOTIFY.
+ * Notify the user(s) about new machine check events.
+ * Can be called from interrupt context, but not from machine check/NMI
+ * context.
  */
 int mce_notify_user(void)
 {
@@ -394,9 +400,14 @@ int mce_notify_user(void)
 		unsigned long now = jiffies;
 
 		wake_up_interruptible(&mce_wait);
-		if (trigger[0])
-			call_usermodehelper(trigger, trigger_argv, NULL,
-						UMH_NO_WAIT);
+
+		/*
+		 * There is no risk of missing notifications because
+		 * work_pending is always cleared before the function is
+		 * executed.
+		 */
+		if (trigger[0] && !work_pending(&mce_trigger_work))
+			schedule_work(&mce_trigger_work);
 
 		if (time_after_eq(now, last_print + (check_interval*HZ))) {
 			last_print = now;
