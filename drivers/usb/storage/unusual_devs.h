@@ -1182,23 +1182,6 @@ UNUSUAL_DEV( 0x0c45, 0x1060, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_SINGLE_LUN ),
 
-/* Submitted by: Nick Sillik <n.sillik@temple.edu>
- * Needed for OneTouch extension to usb-storage
- *
- */
-#ifdef CONFIG_USB_STORAGE_ONETOUCH
-	UNUSUAL_DEV(  0x0d49, 0x7000, 0x0000, 0x9999,
-			"Maxtor",
-			"OneTouch External Harddrive",
-			US_SC_DEVICE, US_PR_DEVICE, onetouch_connect_input,
-			0),
-	UNUSUAL_DEV(  0x0d49, 0x7010, 0x0000, 0x9999,
-			"Maxtor",
-			"OneTouch External Harddrive",
-			US_SC_DEVICE, US_PR_DEVICE, onetouch_connect_input,
-			0),
-#endif
-
 /* Submitted by Joris Struyve <joris@struyve.be> */
 UNUSUAL_DEV( 0x0d96, 0x410a, 0x0001, 0xffff,
 		"Medion",

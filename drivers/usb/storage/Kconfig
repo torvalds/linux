@@ -131,7 +131,7 @@ config USB_STORAGE_ALAUDA
 	  If this driver is compiled as a module, it will be named ums-alauda.
 
 config USB_STORAGE_ONETOUCH
-	bool "Support OneTouch Button on Maxtor Hard Drives"
+	tristate "Support OneTouch Button on Maxtor Hard Drives"
 	depends on USB_STORAGE
 	depends on INPUT=y || INPUT=USB_STORAGE
 	help
@@ -142,6 +142,8 @@ config USB_STORAGE_ONETOUCH
 	  hard drive's as an input device. An action can be associated with
 	  this input in any keybinding software. (e.g. gnome's keyboard short-
 	  cuts)
+
+	  If this driver is compiled as a module, it will be named ums-onetouch.
 
 config USB_STORAGE_KARMA
 	tristate "Support for Rio Karma music player"

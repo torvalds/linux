@@ -66,9 +66,6 @@
 #include "debug.h"
 #include "initializers.h"
 
-#ifdef CONFIG_USB_STORAGE_ONETOUCH
-#include "onetouch.h"
-#endif
 #include "sierra_ms.h"
 #include "option_ms.h"
 
