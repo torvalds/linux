@@ -231,7 +231,8 @@ static void amd_threshold_interrupt(void)
 
 			/* Log the machine check that caused the threshold
 			   event. */
-			machine_check_poll(MCP_TIMESTAMP);
+			machine_check_poll(MCP_TIMESTAMP,
+					&__get_cpu_var(mce_poll_banks));
 
 			if (high & MASK_OVERFLOW_HI) {
 				rdmsrl(address, m.misc);

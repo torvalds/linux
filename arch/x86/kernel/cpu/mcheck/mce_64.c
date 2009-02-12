@@ -62,6 +62,11 @@ static char *trigger_argv[2] = { trigger, NULL };
 
 static DECLARE_WAIT_QUEUE_HEAD(mce_wait);
 
+/* MCA banks polled by the period polling timer for corrected events */
+DEFINE_PER_CPU(mce_banks_t, mce_poll_banks) = {
+	[0 ... BITS_TO_LONGS(MAX_NR_BANKS)-1] = ~0UL
+};
+
 /* Do initial initialization of a struct mce */
 void mce_setup(struct mce *m)
 {
@@ -191,7 +196,7 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
  *
  * This is executed in standard interrupt context.
  */
-void machine_check_poll(enum mcp_flags flags)
+void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 {
 	struct mce m;
 	int i;
@@ -200,7 +205,7 @@ void machine_check_poll(enum mcp_flags flags)
 
 	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
 	for (i = 0; i < banks; i++) {
-		if (!bank[i])
+		if (!bank[i] || !test_bit(i, *b))
 			continue;
 
 		m.misc = 0;
@@ -458,7 +463,8 @@ static void mcheck_timer(unsigned long data)
 	WARN_ON(smp_processor_id() != data);
 
 	if (mce_available(&current_cpu_data))
-		machine_check_poll(MCP_TIMESTAMP);
+		machine_check_poll(MCP_TIMESTAMP,
+				&__get_cpu_var(mce_poll_banks));
 
 	/*
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
@@ -572,11 +578,13 @@ static void mce_init(void *dummy)
 {
 	u64 cap;
 	int i;
+	mce_banks_t all_banks;
 
 	/*
 	 * Log the machine checks left over from the previous reset.
 	 */
-	machine_check_poll(MCP_UC);
+	bitmap_fill(all_banks, MAX_NR_BANKS);
+	machine_check_poll(MCP_UC, &all_banks);
 
 	set_in_cr4(X86_CR4_MCE);
 
