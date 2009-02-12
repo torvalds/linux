@@ -868,6 +868,14 @@ void clear_local_APIC(void)
 		apic_write(APIC_LVTTHMR, v | APIC_LVT_MASKED);
 	}
 #endif
+#ifdef CONFIG_X86_MCE_INTEL
+	if (maxlvt >= 6) {
+		v = apic_read(APIC_LVTCMCI);
+		if (!(v & APIC_LVT_MASKED))
+			apic_write(APIC_LVTCMCI, v | APIC_LVT_MASKED);
+	}
+#endif
+
 	/*
 	 * Clean APIC state for other OSs:
 	 */
