@@ -1183,7 +1183,12 @@ _GLOBAL(ftrace_caller)
 ftrace_call:
 	bl	ftrace_stub
 	nop
-
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+.globl ftrace_graph_call
+ftrace_graph_call:
+	b	ftrace_graph_stub
+_GLOBAL(ftrace_graph_stub)
+#endif
 	MCOUNT_RESTORE_FRAME
 	/* old link register ends up in ctr reg */
 	bctr
@@ -1205,7 +1210,6 @@ _GLOBAL(_mcount)
 	b	ftrace_graph_caller
 #endif
 	MCOUNT_RESTORE_FRAME
-	
 	bctr
 #endif
 
