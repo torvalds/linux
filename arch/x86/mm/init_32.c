@@ -722,7 +722,7 @@ void __init find_low_pfn_range(void)
 			highmem_pages = 0;
 #ifdef CONFIG_HIGHMEM
 		if (highmem_pages >= max_pfn) {
-			printk(KERN_ERR "highmem size specified (%uMB) is "
+			printk(KERN_ERR "highmem size specified (%luMB) is "
 				"bigger than pages available (%luMB)!.\n",
 				pages_to_mb(highmem_pages),
 				pages_to_mb(max_pfn));
@@ -731,7 +731,7 @@ void __init find_low_pfn_range(void)
 		if (highmem_pages) {
 			if (max_low_pfn - highmem_pages <
 			    64*1024*1024/PAGE_SIZE){
-				printk(KERN_ERR "highmem size %uMB results in "
+				printk(KERN_ERR "highmem size %luMB results in "
 				"smaller than 64MB lowmem, ignoring it.\n"
 					, pages_to_mb(highmem_pages));
 				highmem_pages = 0;
