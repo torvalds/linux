@@ -158,10 +158,24 @@ static struct resource realview_i2c_resource = {
 
 struct platform_device realview_i2c_device = {
 	.name		= "versatile-i2c",
-	.id		= -1,
+	.id		= 0,
 	.num_resources	= 1,
 	.resource	= &realview_i2c_resource,
 };
+
+static struct i2c_board_info realview_i2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("rtc-ds1307", 0xd0 >> 1),
+		.type = "ds1338",
+	},
+};
+
+static int __init realview_i2c_init(void)
+{
+	return i2c_register_board_info(0, realview_i2c_board_info,
+				       ARRAY_SIZE(realview_i2c_board_info));
+}
+arch_initcall(realview_i2c_init);
 
 #define REALVIEW_SYSMCI	(__io_address(REALVIEW_SYS_BASE) + REALVIEW_SYS_MCI_OFFSET)
 

@@ -260,6 +260,7 @@ static void __init realview_pb1176_init(void)
 
 	realview_flash_register(&realview_pb1176_flash_resource, 1);
 	realview_eth_register(NULL, realview_pb1176_smsc911x_resources);
+	platform_device_register(&realview_i2c_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
