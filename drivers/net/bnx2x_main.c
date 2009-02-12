@@ -6671,7 +6671,7 @@ static int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
 			     int *state_p, int poll)
 {
 	/* can take a while if any port is running */
-	int cnt = 500;
+	int cnt = 5000;
 
 	DP(NETIF_MSG_IFUP, "%s for state to become %x on IDX [%d]\n",
 	   poll ? "polling" : "waiting", state, idx);
@@ -6689,8 +6689,12 @@ static int bnx2x_wait_ramrod(struct bnx2x *bp, int state, int idx,
 		}
 
 		mb(); /* state is changed by bnx2x_sp_event() */
-		if (*state_p == state)
+		if (*state_p == state) {
+#ifdef BNX2X_STOP_ON_ERROR
+			DP(NETIF_MSG_IFUP, "exit  (cnt %d)\n", 5000 - cnt);
+#endif
 			return 0;
+		}
 
 		msleep(1);
 	}
