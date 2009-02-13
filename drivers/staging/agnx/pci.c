@@ -286,10 +286,10 @@ static void agnx_stop(struct ieee80211_hw *dev)
 	rings_free(priv);
 }
 
-static int agnx_config(struct ieee80211_hw *dev,
-		       struct ieee80211_conf *conf)
+static int agnx_config(struct ieee80211_hw *dev, u32 changed)
 {
 	struct agnx_priv *priv = dev->priv;
+	struct ieee80211_conf *conf = &dev->conf;
 	int channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
 	AGNX_TRACE;
 
