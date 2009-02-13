@@ -21,7 +21,8 @@
 
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 
 #include "saa7191.h"
@@ -49,7 +50,7 @@ I2C_CLIENT_INSMOD;
 #define SAA7191_SYNC_DELAY	100	/* milliseconds */
 
 struct saa7191 {
-	struct i2c_client *client;
+	struct v4l2_subdev sd;
 
 	/* the register values are stored here as the actual
 	 * I2C-registers are write-only */
@@ -58,6 +59,11 @@ struct saa7191 {
 	int input;
 	v4l2_std_id norm;
 };
+
+static inline struct saa7191 *to_saa7191(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct saa7191, sd);
+}
 
 static const u8 initseq[] = {
 	0,	/* Subaddress */
@@ -103,15 +109,14 @@ static const u8 initseq[] = {
 
 /* SAA7191 register handling */
 
-static u8 saa7191_read_reg(struct i2c_client *client,
-			   u8 reg)
+static u8 saa7191_read_reg(struct v4l2_subdev *sd, u8 reg)
 {
-	return ((struct saa7191 *)i2c_get_clientdata(client))->reg[reg];
+	return to_saa7191(sd)->reg[reg];
 }
 
-static int saa7191_read_status(struct i2c_client *client,
-			       u8 *value)
+static int saa7191_read_status(struct v4l2_subdev *sd, u8 *value)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
 	ret = i2c_master_recv(client, value, 1);
@@ -124,21 +129,23 @@ static int saa7191_read_status(struct i2c_client *client,
 }
 
 
-static int saa7191_write_reg(struct i2c_client *client, u8 reg,
-			     u8 value)
+static int saa7191_write_reg(struct v4l2_subdev *sd, u8 reg, u8 value)
 {
-	((struct saa7191 *)i2c_get_clientdata(client))->reg[reg] = value;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	to_saa7191(sd)->reg[reg] = value;
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
 /* the first byte of data must be the first subaddress number (register) */
-static int saa7191_write_block(struct i2c_client *client,
+static int saa7191_write_block(struct v4l2_subdev *sd,
 			       u8 length, const u8 *data)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct saa7191 *decoder = to_saa7191(sd);
 	int i;
 	int ret;
 
-	struct saa7191 *decoder = (struct saa7191 *)i2c_get_clientdata(client);
 	for (i = 0; i < (length - 1); i++) {
 		decoder->reg[data[0] + i] = data[i + 1];
 	}
@@ -155,14 +162,15 @@ static int saa7191_write_block(struct i2c_client *client,
 
 /* Helper functions */
 
-static int saa7191_set_input(struct i2c_client *client, int input)
+static int saa7191_s_routing(struct v4l2_subdev *sd,
+				const struct v4l2_routing *route)
 {
-	struct saa7191 *decoder = i2c_get_clientdata(client);
-	u8 luma = saa7191_read_reg(client, SAA7191_REG_LUMA);
-	u8 iock = saa7191_read_reg(client, SAA7191_REG_IOCK);
+	struct saa7191 *decoder = to_saa7191(sd);
+	u8 luma = saa7191_read_reg(sd, SAA7191_REG_LUMA);
+	u8 iock = saa7191_read_reg(sd, SAA7191_REG_IOCK);
 	int err;
 
-	switch (input) {
+	switch (route->input) {
 	case SAA7191_INPUT_COMPOSITE: /* Set Composite input */
 		iock &= ~(SAA7191_IOCK_CHRS | SAA7191_IOCK_GPSW1
 			  | SAA7191_IOCK_GPSW2);
@@ -178,24 +186,24 @@ static int saa7191_set_input(struct i2c_client *client, int input)
 		return -EINVAL;
 	}
 
-	err = saa7191_write_reg(client, SAA7191_REG_LUMA, luma);
+	err = saa7191_write_reg(sd, SAA7191_REG_LUMA, luma);
 	if (err)
 		return -EIO;
-	err = saa7191_write_reg(client, SAA7191_REG_IOCK, iock);
+	err = saa7191_write_reg(sd, SAA7191_REG_IOCK, iock);
 	if (err)
 		return -EIO;
 
-	decoder->input = input;
+	decoder->input = route->input;
 
 	return 0;
 }
 
-static int saa7191_set_norm(struct i2c_client *client, v4l2_std_id norm)
+static int saa7191_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 {
-	struct saa7191 *decoder = i2c_get_clientdata(client);
-	u8 stdc = saa7191_read_reg(client, SAA7191_REG_STDC);
-	u8 ctl3 = saa7191_read_reg(client, SAA7191_REG_CTL3);
-	u8 chcv = saa7191_read_reg(client, SAA7191_REG_CHCV);
+	struct saa7191 *decoder = to_saa7191(sd);
+	u8 stdc = saa7191_read_reg(sd, SAA7191_REG_STDC);
+	u8 ctl3 = saa7191_read_reg(sd, SAA7191_REG_CTL3);
+	u8 chcv = saa7191_read_reg(sd, SAA7191_REG_CHCV);
 	int err;
 
 	if (norm & V4L2_STD_PAL) {
@@ -215,13 +223,13 @@ static int saa7191_set_norm(struct i2c_client *client, v4l2_std_id norm)
 		return -EINVAL;
 	}
 
-	err = saa7191_write_reg(client, SAA7191_REG_CTL3, ctl3);
+	err = saa7191_write_reg(sd, SAA7191_REG_CTL3, ctl3);
 	if (err)
 		return -EIO;
-	err = saa7191_write_reg(client, SAA7191_REG_STDC, stdc);
+	err = saa7191_write_reg(sd, SAA7191_REG_STDC, stdc);
 	if (err)
 		return -EIO;
-	err = saa7191_write_reg(client, SAA7191_REG_CHCV, chcv);
+	err = saa7191_write_reg(sd, SAA7191_REG_CHCV, chcv);
 	if (err)
 		return -EIO;
 
@@ -234,14 +242,14 @@ static int saa7191_set_norm(struct i2c_client *client, v4l2_std_id norm)
 	return 0;
 }
 
-static int saa7191_wait_for_signal(struct i2c_client *client, u8 *status)
+static int saa7191_wait_for_signal(struct v4l2_subdev *sd, u8 *status)
 {
 	int i = 0;
 
 	dprintk("Checking for signal...\n");
 
 	for (i = 0; i < SAA7191_SYNC_COUNT; i++) {
-		if (saa7191_read_status(client, status))
+		if (saa7191_read_status(sd, status))
 			return -EIO;
 
 		if (((*status) & SAA7191_STATUS_HLCK) == 0) {
@@ -257,12 +265,11 @@ static int saa7191_wait_for_signal(struct i2c_client *client, u8 *status)
 	return -EBUSY;
 }
 
-static int saa7191_autodetect_norm_extended(struct i2c_client *client,
-		v4l2_std_id *norm)
+static int saa7191_querystd(struct v4l2_subdev *sd, v4l2_std_id *norm)
 {
-	struct saa7191 *decoder = i2c_get_clientdata(client);
-	u8 stdc = saa7191_read_reg(client, SAA7191_REG_STDC);
-	u8 ctl3 = saa7191_read_reg(client, SAA7191_REG_CTL3);
+	struct saa7191 *decoder = to_saa7191(sd);
+	u8 stdc = saa7191_read_reg(sd, SAA7191_REG_STDC);
+	u8 ctl3 = saa7191_read_reg(sd, SAA7191_REG_CTL3);
 	u8 status;
 	v4l2_std_id old_norm = decoder->norm;
 	int err = 0;
@@ -273,19 +280,19 @@ static int saa7191_autodetect_norm_extended(struct i2c_client *client,
 	stdc &= ~SAA7191_STDC_SECS;
 	ctl3 &= ~(SAA7191_CTL3_FSEL);
 
-	err = saa7191_write_reg(client, SAA7191_REG_STDC, stdc);
+	err = saa7191_write_reg(sd, SAA7191_REG_STDC, stdc);
 	if (err) {
 		err = -EIO;
 		goto out;
 	}
-	err = saa7191_write_reg(client, SAA7191_REG_CTL3, ctl3);
+	err = saa7191_write_reg(sd, SAA7191_REG_CTL3, ctl3);
 	if (err) {
 		err = -EIO;
 		goto out;
 	}
 
 	ctl3 |= SAA7191_CTL3_AUFD;
-	err = saa7191_write_reg(client, SAA7191_REG_CTL3, ctl3);
+	err = saa7191_write_reg(sd, SAA7191_REG_CTL3, ctl3);
 	if (err) {
 		err = -EIO;
 		goto out;
@@ -293,7 +300,7 @@ static int saa7191_autodetect_norm_extended(struct i2c_client *client,
 
 	msleep(SAA7191_SYNC_DELAY);
 
-	err = saa7191_wait_for_signal(client, &status);
+	err = saa7191_wait_for_signal(sd, &status);
 	if (err)
 		goto out;
 
@@ -308,39 +315,39 @@ static int saa7191_autodetect_norm_extended(struct i2c_client *client,
 	dprintk("50Hz signal: Trying PAL...\n");
 
 	/* try PAL first */
-	err = saa7191_set_norm(client, V4L2_STD_PAL);
+	err = saa7191_s_std(sd, V4L2_STD_PAL);
 	if (err)
 		goto out;
 
 	msleep(SAA7191_SYNC_DELAY);
 
-	err = saa7191_wait_for_signal(client, &status);
+	err = saa7191_wait_for_signal(sd, &status);
 	if (err)
 		goto out;
 
 	/* not 50Hz ? */
 	if (status & SAA7191_STATUS_FIDT) {
 		dprintk("No 50Hz signal\n");
-		saa7191_set_norm(client, old_norm);
+		saa7191_s_std(sd, old_norm);
 		return -EAGAIN;
 	}
 
 	if (status & SAA7191_STATUS_CODE) {
 		dprintk("PAL\n");
 		*norm = V4L2_STD_PAL;
-		return saa7191_set_norm(client, old_norm);
+		return saa7191_s_std(sd, old_norm);
 	}
 
 	dprintk("No color detected with PAL - Trying SECAM...\n");
 
 	/* no color detected ? -> try SECAM */
-	err = saa7191_set_norm(client, V4L2_STD_SECAM);
+	err = saa7191_s_std(sd, V4L2_STD_SECAM);
 	if (err)
 		goto out;
 
 	msleep(SAA7191_SYNC_DELAY);
 
-	err = saa7191_wait_for_signal(client, &status);
+	err = saa7191_wait_for_signal(sd, &status);
 	if (err)
 		goto out;
 
@@ -355,16 +362,16 @@ static int saa7191_autodetect_norm_extended(struct i2c_client *client,
 		/* Color detected -> SECAM */
 		dprintk("SECAM\n");
 		*norm = V4L2_STD_SECAM;
-		return saa7191_set_norm(client, old_norm);
+		return saa7191_s_std(sd, old_norm);
 	}
 
 	dprintk("No color detected with SECAM - Going back to PAL.\n");
 
 out:
-	return saa7191_set_norm(client, old_norm);
+	return saa7191_s_std(sd, old_norm);
 }
 
-static int saa7191_autodetect_norm(struct i2c_client *client)
+static int saa7191_autodetect_norm(struct v4l2_subdev *sd)
 {
 	u8 status;
 
@@ -372,7 +379,7 @@ static int saa7191_autodetect_norm(struct i2c_client *client)
 
 	dprintk("Reading status...\n");
 
-	if (saa7191_read_status(client, &status))
+	if (saa7191_read_status(sd, &status))
 		return -EIO;
 
 	dprintk("Checking for signal...\n");
@@ -388,16 +395,15 @@ static int saa7191_autodetect_norm(struct i2c_client *client)
 	if (status & SAA7191_STATUS_FIDT) {
 		/* 60hz signal -> NTSC */
 		dprintk("NTSC\n");
-		return saa7191_set_norm(client, V4L2_STD_NTSC);
+		return saa7191_s_std(sd, V4L2_STD_NTSC);
 	} else {
 		/* 50hz signal -> PAL */
 		dprintk("PAL\n");
-		return saa7191_set_norm(client, V4L2_STD_PAL);
+		return saa7191_s_std(sd, V4L2_STD_PAL);
 	}
 }
 
-static int saa7191_get_control(struct i2c_client *client,
-			       struct v4l2_control *ctrl)
+static int saa7191_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	u8 reg;
 	int ret = 0;
@@ -406,7 +412,7 @@ static int saa7191_get_control(struct i2c_client *client,
 	case SAA7191_CONTROL_BANDPASS:
 	case SAA7191_CONTROL_BANDPASS_WEIGHT:
 	case SAA7191_CONTROL_CORING:
-		reg = saa7191_read_reg(client, SAA7191_REG_LUMA);
+		reg = saa7191_read_reg(sd, SAA7191_REG_LUMA);
 		switch (ctrl->id) {
 		case SAA7191_CONTROL_BANDPASS:
 			ctrl->value = ((s32)reg & SAA7191_LUMA_BPSS_MASK)
@@ -424,7 +430,7 @@ static int saa7191_get_control(struct i2c_client *client,
 		break;
 	case SAA7191_CONTROL_FORCE_COLOUR:
 	case SAA7191_CONTROL_CHROMA_GAIN:
-		reg = saa7191_read_reg(client, SAA7191_REG_GAIN);
+		reg = saa7191_read_reg(sd, SAA7191_REG_GAIN);
 		if (ctrl->id == SAA7191_CONTROL_FORCE_COLOUR)
 			ctrl->value = ((s32)reg & SAA7191_GAIN_COLO) ? 1 : 0;
 		else
@@ -432,7 +438,7 @@ static int saa7191_get_control(struct i2c_client *client,
 				>> SAA7191_GAIN_LFIS_SHIFT;
 		break;
 	case V4L2_CID_HUE:
-		reg = saa7191_read_reg(client, SAA7191_REG_HUEC);
+		reg = saa7191_read_reg(sd, SAA7191_REG_HUEC);
 		if (reg < 0x80)
 			reg += 0x80;
 		else
@@ -440,18 +446,18 @@ static int saa7191_get_control(struct i2c_client *client,
 		ctrl->value = (s32)reg;
 		break;
 	case SAA7191_CONTROL_VTRC:
-		reg = saa7191_read_reg(client, SAA7191_REG_STDC);
+		reg = saa7191_read_reg(sd, SAA7191_REG_STDC);
 		ctrl->value = ((s32)reg & SAA7191_STDC_VTRC) ? 1 : 0;
 		break;
 	case SAA7191_CONTROL_LUMA_DELAY:
-		reg = saa7191_read_reg(client, SAA7191_REG_CTL3);
+		reg = saa7191_read_reg(sd, SAA7191_REG_CTL3);
 		ctrl->value = ((s32)reg & SAA7191_CTL3_YDEL_MASK)
 			>> SAA7191_CTL3_YDEL_SHIFT;
 		if (ctrl->value >= 4)
 			ctrl->value -= 8;
 		break;
 	case SAA7191_CONTROL_VNR:
-		reg = saa7191_read_reg(client, SAA7191_REG_CTL4);
+		reg = saa7191_read_reg(sd, SAA7191_REG_CTL4);
 		ctrl->value = ((s32)reg & SAA7191_CTL4_VNOI_MASK)
 			>> SAA7191_CTL4_VNOI_SHIFT;
 		break;
@@ -462,8 +468,7 @@ static int saa7191_get_control(struct i2c_client *client,
 	return ret;
 }
 
-static int saa7191_set_control(struct i2c_client *client,
-			       struct v4l2_control *ctrl)
+static int saa7191_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	u8 reg;
 	int ret = 0;
@@ -472,7 +477,7 @@ static int saa7191_set_control(struct i2c_client *client,
 	case SAA7191_CONTROL_BANDPASS:
 	case SAA7191_CONTROL_BANDPASS_WEIGHT:
 	case SAA7191_CONTROL_CORING:
-		reg = saa7191_read_reg(client, SAA7191_REG_LUMA);
+		reg = saa7191_read_reg(sd, SAA7191_REG_LUMA);
 		switch (ctrl->id) {
 		case SAA7191_CONTROL_BANDPASS:
 			reg &= ~SAA7191_LUMA_BPSS_MASK;
@@ -490,11 +495,11 @@ static int saa7191_set_control(struct i2c_client *client,
 				& SAA7191_LUMA_CORI_MASK;
 			break;
 		}
-		ret = saa7191_write_reg(client, SAA7191_REG_LUMA, reg);
+		ret = saa7191_write_reg(sd, SAA7191_REG_LUMA, reg);
 		break;
 	case SAA7191_CONTROL_FORCE_COLOUR:
 	case SAA7191_CONTROL_CHROMA_GAIN:
-		reg = saa7191_read_reg(client, SAA7191_REG_GAIN);
+		reg = saa7191_read_reg(sd, SAA7191_REG_GAIN);
 		if (ctrl->id == SAA7191_CONTROL_FORCE_COLOUR) {
 			if (ctrl->value)
 				reg |= SAA7191_GAIN_COLO;
@@ -505,7 +510,7 @@ static int saa7191_set_control(struct i2c_client *client,
 			reg |= (ctrl->value << SAA7191_GAIN_LFIS_SHIFT)
 				& SAA7191_GAIN_LFIS_MASK;
 		}
-		ret = saa7191_write_reg(client, SAA7191_REG_GAIN, reg);
+		ret = saa7191_write_reg(sd, SAA7191_REG_GAIN, reg);
 		break;
 	case V4L2_CID_HUE:
 		reg = ctrl->value & 0xff;
@@ -513,33 +518,33 @@ static int saa7191_set_control(struct i2c_client *client,
 			reg += 0x80;
 		else
 			reg -= 0x80;
-		ret = saa7191_write_reg(client, SAA7191_REG_HUEC, reg);
+		ret = saa7191_write_reg(sd, SAA7191_REG_HUEC, reg);
 		break;
 	case SAA7191_CONTROL_VTRC:
-		reg = saa7191_read_reg(client, SAA7191_REG_STDC);
+		reg = saa7191_read_reg(sd, SAA7191_REG_STDC);
 		if (ctrl->value)
 			reg |= SAA7191_STDC_VTRC;
 		else
 			reg &= ~SAA7191_STDC_VTRC;
-		ret = saa7191_write_reg(client, SAA7191_REG_STDC, reg);
+		ret = saa7191_write_reg(sd, SAA7191_REG_STDC, reg);
 		break;
 	case SAA7191_CONTROL_LUMA_DELAY: {
 		s32 value = ctrl->value;
 		if (value < 0)
 			value += 8;
-		reg = saa7191_read_reg(client, SAA7191_REG_CTL3);
+		reg = saa7191_read_reg(sd, SAA7191_REG_CTL3);
 		reg &= ~SAA7191_CTL3_YDEL_MASK;
 		reg |= (value << SAA7191_CTL3_YDEL_SHIFT)
 			& SAA7191_CTL3_YDEL_MASK;
-		ret = saa7191_write_reg(client, SAA7191_REG_CTL3, reg);
+		ret = saa7191_write_reg(sd, SAA7191_REG_CTL3, reg);
 		break;
 	}
 	case SAA7191_CONTROL_VNR:
-		reg = saa7191_read_reg(client, SAA7191_REG_CTL4);
+		reg = saa7191_read_reg(sd, SAA7191_REG_CTL4);
 		reg &= ~SAA7191_CTL4_VNOI_MASK;
 		reg |= (ctrl->value << SAA7191_CTL4_VNOI_SHIFT)
 			& SAA7191_CTL4_VNOI_MASK;
-		ret = saa7191_write_reg(client, SAA7191_REG_CTL4, reg);
+		ret = saa7191_write_reg(sd, SAA7191_REG_CTL4, reg);
 		break;
 	default:
 		ret = -EINVAL;
@@ -550,57 +555,64 @@ static int saa7191_set_control(struct i2c_client *client,
 
 /* I2C-interface */
 
-static int saa7191_command(struct i2c_client *client, unsigned int cmd,
-			   void *arg)
+static int saa7191_g_input_status(struct v4l2_subdev *sd, u32 *status)
 {
-	switch (cmd) {
-	case VIDIOC_INT_G_INPUT_STATUS: {
-		u32 *iarg = arg;
-		u8 status;
-		int res = V4L2_IN_ST_NO_SIGNAL;
+	u8 status_reg;
+	int res = V4L2_IN_ST_NO_SIGNAL;
 
-		if (saa7191_read_status(client, &status))
-			return -EIO;
-		if ((status & SAA7191_STATUS_HLCK) == 0)
-			res = 0;
-		if (!(status & SAA7191_STATUS_CODE))
-			res |= V4L2_IN_ST_NO_COLOR;
-		*iarg = res;
-		break;
-	}
-
-	case VIDIOC_QUERYSTD:
-		return saa7191_autodetect_norm_extended(client, arg);
-
-	case VIDIOC_S_STD: {
-		v4l2_std_id *istd = arg;
-
-		return saa7191_set_norm(client, *istd);
-	}
-	case VIDIOC_INT_S_VIDEO_ROUTING: {
-		struct v4l2_routing *route = arg;
-
-		return saa7191_set_input(client, route->input);
-	}
-
-	case VIDIOC_G_CTRL:
-		return saa7191_get_control(client, arg);
-
-	case VIDIOC_S_CTRL:
-		return saa7191_set_control(client, arg);
-
-	default:
-		return -EINVAL;
-	}
-
+	if (saa7191_read_status(sd, &status_reg))
+		return -EIO;
+	if ((status_reg & SAA7191_STATUS_HLCK) == 0)
+		res = 0;
+	if (!(status_reg & SAA7191_STATUS_CODE))
+		res |= V4L2_IN_ST_NO_COLOR;
+	*status = res;
 	return 0;
 }
+
+
+static int saa7191_g_chip_ident(struct v4l2_subdev *sd,
+		struct v4l2_dbg_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_SAA7191, 0);
+}
+
+static int saa7191_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+}
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops saa7191_core_ops = {
+	.g_chip_ident = saa7191_g_chip_ident,
+	.g_ctrl = saa7191_g_ctrl,
+	.s_ctrl = saa7191_s_ctrl,
+};
+
+static const struct v4l2_subdev_tuner_ops saa7191_tuner_ops = {
+	.s_std = saa7191_s_std,
+};
+
+static const struct v4l2_subdev_video_ops saa7191_video_ops = {
+	.s_routing = saa7191_s_routing,
+	.querystd = saa7191_querystd,
+	.g_input_status = saa7191_g_input_status,
+};
+
+static const struct v4l2_subdev_ops saa7191_ops = {
+	.core = &saa7191_core_ops,
+	.video = &saa7191_video_ops,
+};
 
 static int saa7191_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	int err = 0;
 	struct saa7191 *decoder;
+	struct v4l2_subdev *sd;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
@@ -609,11 +621,10 @@ static int saa7191_probe(struct i2c_client *client,
 	if (!decoder)
 		return -ENOMEM;
 
-	i2c_set_clientdata(client, decoder);
+	sd = &decoder->sd;
+	v4l2_i2c_subdev_init(sd, client, &saa7191_ops);
 
-	decoder->client = client;
-
-	err = saa7191_write_block(client, sizeof(initseq), initseq);
+	err = saa7191_write_block(sd, sizeof(initseq), initseq);
 	if (err) {
 		printk(KERN_ERR "SAA7191 initialization failed\n");
 		kfree(decoder);
@@ -625,7 +636,7 @@ static int saa7191_probe(struct i2c_client *client,
 	decoder->input = SAA7191_INPUT_COMPOSITE;
 	decoder->norm = V4L2_STD_PAL;
 
-	err = saa7191_autodetect_norm(client);
+	err = saa7191_autodetect_norm(sd);
 	if (err && (err != -EBUSY))
 		printk(KERN_ERR "SAA7191: Signal auto-detection failed\n");
 
@@ -634,9 +645,10 @@ static int saa7191_probe(struct i2c_client *client,
 
 static int saa7191_remove(struct i2c_client *client)
 {
-	struct saa7191 *decoder = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
-	kfree(decoder);
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_saa7191(sd));
 	return 0;
 }
 
