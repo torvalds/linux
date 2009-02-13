@@ -52,6 +52,10 @@
 
 #endif
 
+#define GLOBAL(name)	\
+	.globl name;	\
+	name:
+
 #ifdef CONFIG_X86_ALIGNMENT_16
 #define __ALIGN .align 16,0x90
 #define __ALIGN_STR ".align 16,0x90"
