@@ -979,7 +979,7 @@ int pohmelfs_setattr_raw(struct inode *inode, struct iattr *attr)
 
 	if ((attr->ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
 	    (attr->ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
-		err = DQUOT_TRANSFER(inode, attr) ? -EDQUOT : 0;
+		err = vfs_dq_transfer(inode, attr) ? -EDQUOT : 0;
 		if (err)
 			goto err_out_exit;
 	}
