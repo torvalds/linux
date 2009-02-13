@@ -406,6 +406,9 @@ struct kvm_trace_rec {
 #define KVM_CAP_IRQ_ROUTING 25
 #endif
 #define KVM_CAP_IRQ_INJECT_STATUS 26
+#ifdef __KVM_HAVE_DEVICE_ASSIGNMENT
+#define KVM_CAP_DEVICE_DEASSIGNMENT 27
+#endif
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -480,6 +483,8 @@ struct kvm_irq_routing {
 #define KVM_ASSIGN_IRQ _IOR(KVMIO, 0x70, \
 			    struct kvm_assigned_irq)
 #define KVM_REINJECT_CONTROL      _IO(KVMIO, 0x71)
+#define KVM_DEASSIGN_PCI_DEVICE _IOR(KVMIO, 0x72, \
+				     struct kvm_assigned_pci_dev)
 
 /*
  * ioctls for vcpu fds
