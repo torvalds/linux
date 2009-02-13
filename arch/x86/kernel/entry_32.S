@@ -47,7 +47,7 @@
 #include <asm/errno.h>
 #include <asm/segment.h>
 #include <asm/smp.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/desc.h>
 #include <asm/percpu.h>
 #include <asm/dwarf2.h>

@@ -7,10 +7,10 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/kexec.h>
 #include <asm/processor-flags.h>
-#include <asm/pgtable.h>
+#include <asm/pgtable_types.h>
 
 /*
  * Must be relocatable PIC code callable as a C function

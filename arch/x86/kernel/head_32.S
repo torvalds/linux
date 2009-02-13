@@ -11,8 +11,8 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
+#include <asm/page_types.h>
+#include <asm/pgtable_types.h>
 #include <asm/desc.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
