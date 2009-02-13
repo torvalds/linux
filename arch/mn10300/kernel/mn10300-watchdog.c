@@ -130,6 +130,7 @@ void watchdog_interrupt(struct pt_regs *regs, enum exception_code excep)
 	 * the stack NMI-atomically, it's safe to use smp_processor_id().
 	 */
 	int sum, cpu = smp_processor_id();
+	int irq = NMIIRQ;
 	u8 wdt, tmp;
 
 	wdt = WDCTR & ~WDCTR_WDCNE;
@@ -138,7 +139,7 @@ void watchdog_interrupt(struct pt_regs *regs, enum exception_code excep)
 	NMICR = NMICR_WDIF;
 
 	nmi_count(cpu)++;
-	kstat_this_cpu.irqs[NMIIRQ]++;
+	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
 	sum = irq_stat[cpu].__irq_count;
 
 	if (last_irq_sums[cpu] == sum) {

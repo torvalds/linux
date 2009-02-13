@@ -1,7 +1,7 @@
 /*
  *	Local APIC handling, local APIC timers
  *
- *	(c) 1999, 2000 Ingo Molnar <mingo@redhat.com>
+ *	(c) 1999, 2000, 2009 Ingo Molnar <mingo@redhat.com>
  *
  *	Fixes
  *	Maciej W. Rozycki	:	Bits for genuine 82489DX APICs;
@@ -14,51 +14,71 @@
  *	Mikael Pettersson	:	PM converted to driver model.
  */
 
-#include <linux/init.h>
-
-#include <linux/mm.h>
-#include <linux/delay.h>
-#include <linux/bootmem.h>
-#include <linux/interrupt.h>
-#include <linux/mc146818rtc.h>
 #include <linux/kernel_stat.h>
-#include <linux/sysdev.h>
-#include <linux/ioport.h>
-#include <linux/cpu.h>
-#include <linux/clockchips.h>
+#include <linux/mc146818rtc.h>
 #include <linux/acpi_pmtmr.h>
-#include <linux/module.h>
-#include <linux/dmi.h>
-#include <linux/dmar.h>
+#include <linux/clockchips.h>
+#include <linux/interrupt.h>
+#include <linux/bootmem.h>
 #include <linux/ftrace.h>
-#include <linux/smp.h>
-#include <linux/nmi.h>
+#include <linux/ioport.h>
+#include <linux/module.h>
+#include <linux/sysdev.h>
+#include <linux/delay.h>
 #include <linux/timex.h>
+#include <linux/dmar.h>
+#include <linux/init.h>
+#include <linux/cpu.h>
+#include <linux/dmi.h>
+#include <linux/nmi.h>
+#include <linux/smp.h>
+#include <linux/mm.h>
 
-#include <asm/atomic.h>
-#include <asm/mtrr.h>
-#include <asm/mpspec.h>
-#include <asm/desc.h>
 #include <asm/arch_hooks.h>
-#include <asm/hpet.h>
 #include <asm/pgalloc.h>
+#include <asm/genapic.h>
+#include <asm/atomic.h>
+#include <asm/mpspec.h>
 #include <asm/i8253.h>
-#include <asm/idle.h>
+#include <asm/i8259.h>
 #include <asm/proto.h>
 #include <asm/apic.h>
-#include <asm/i8259.h>
+#include <asm/desc.h>
+#include <asm/hpet.h>
+#include <asm/idle.h>
+#include <asm/mtrr.h>
 #include <asm/smp.h>
 
-#include <mach_apic.h>
-#include <mach_apicdef.h>
-#include <mach_ipi.h>
+unsigned int num_processors;
+
+unsigned disabled_cpus __cpuinitdata;
+
+/* Processor that is doing the boot up */
+unsigned int boot_cpu_physical_apicid = -1U;
 
 /*
- * Sanity check
+ * The highest APIC ID seen during enumeration.
+ *
+ * This determines the messaging protocol we can use: if all APIC IDs
+ * are in the 0 ... 7 range, then we can use logical addressing which
+ * has some performance advantages (better broadcasting).
+ *
+ * If there's an APIC ID above 8, we use physical addressing.
  */
-#if ((SPURIOUS_APIC_VECTOR & 0x0F) != 0x0F)
-# error SPURIOUS_APIC_VECTOR definition error
-#endif
+unsigned int max_physical_apicid;
+
+/*
+ * Bitmask of physically existing CPUs:
+ */
+physid_mask_t phys_cpu_present_map;
+
+/*
+ * Map cpu index to physical APIC ID
+ */
+DEFINE_EARLY_PER_CPU(u16, x86_cpu_to_apicid, BAD_APICID);
+DEFINE_EARLY_PER_CPU(u16, x86_bios_cpu_apicid, BAD_APICID);
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_apicid);
+EXPORT_EARLY_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
 #ifdef CONFIG_X86_32
 /*
@@ -457,7 +477,7 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 static void lapic_timer_broadcast(const struct cpumask *mask)
 {
 #ifdef CONFIG_SMP
-	send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
+	apic->send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
 #endif
 }
 
@@ -535,7 +555,8 @@ static void __init lapic_cal_handler(struct clock_event_device *dev)
 	}
 }
 
-static int __init calibrate_by_pmtimer(long deltapm, long *delta)
+static int __init
+calibrate_by_pmtimer(long deltapm, long *delta, long *deltatsc)
 {
 	const long pm_100ms = PMTMR_TICKS_PER_SEC / 10;
 	const long pm_thresh = pm_100ms / 100;
@@ -546,7 +567,7 @@ static int __init calibrate_by_pmtimer(long deltapm, long *delta)
 	return -1;
 #endif
 
-	apic_printk(APIC_VERBOSE, "... PM timer delta = %ld\n", deltapm);
+	apic_printk(APIC_VERBOSE, "... PM-Timer delta = %ld\n", deltapm);
 
 	/* Check, if the PM timer is available */
 	if (!deltapm)
@@ -556,19 +577,30 @@ static int __init calibrate_by_pmtimer(long deltapm, long *delta)
 
 	if (deltapm > (pm_100ms - pm_thresh) &&
 	    deltapm < (pm_100ms + pm_thresh)) {
-		apic_printk(APIC_VERBOSE, "... PM timer result ok\n");
-	} else {
-		res = (((u64)deltapm) *  mult) >> 22;
-		do_div(res, 1000000);
-		pr_warning("APIC calibration not consistent "
-			"with PM Timer: %ldms instead of 100ms\n",
-			(long)res);
-		/* Correct the lapic counter value */
-		res = (((u64)(*delta)) * pm_100ms);
+		apic_printk(APIC_VERBOSE, "... PM-Timer result ok\n");
+		return 0;
+	}
+
+	res = (((u64)deltapm) *  mult) >> 22;
+	do_div(res, 1000000);
+	pr_warning("APIC calibration not consistent "
+		   "with PM-Timer: %ldms instead of 100ms\n",(long)res);
+
+	/* Correct the lapic counter value */
+	res = (((u64)(*delta)) * pm_100ms);
+	do_div(res, deltapm);
+	pr_info("APIC delta adjusted to PM-Timer: "
+		"%lu (%ld)\n", (unsigned long)res, *delta);
+	*delta = (long)res;
+
+	/* Correct the tsc counter value */
+	if (cpu_has_tsc) {
+		res = (((u64)(*deltatsc)) * pm_100ms);
 		do_div(res, deltapm);
-		pr_info("APIC delta adjusted to PM-Timer: "
-			"%lu (%ld)\n", (unsigned long)res, *delta);
-		*delta = (long)res;
+		apic_printk(APIC_VERBOSE, "TSC delta adjusted to "
+					  "PM-Timer: %lu (%ld) \n",
+					(unsigned long)res, *deltatsc);
+		*deltatsc = (long)res;
 	}
 
 	return 0;
@@ -579,7 +611,7 @@ static int __init calibrate_APIC_clock(void)
 	struct clock_event_device *levt = &__get_cpu_var(lapic_events);
 	void (*real_handler)(struct clock_event_device *dev);
 	unsigned long deltaj;
-	long delta;
+	long delta, deltatsc;
 	int pm_referenced = 0;
 
 	local_irq_disable();
@@ -609,9 +641,11 @@ static int __init calibrate_APIC_clock(void)
 	delta = lapic_cal_t1 - lapic_cal_t2;
 	apic_printk(APIC_VERBOSE, "... lapic delta = %ld\n", delta);
 
+	deltatsc = (long)(lapic_cal_tsc2 - lapic_cal_tsc1);
+
 	/* we trust the PM based calibration if possible */
 	pm_referenced = !calibrate_by_pmtimer(lapic_cal_pm2 - lapic_cal_pm1,
-					&delta);
+					&delta, &deltatsc);
 
 	/* Calculate the scaled math multiplication factor */
 	lapic_clockevent.mult = div_sc(delta, TICK_NSEC * LAPIC_CAL_LOOPS,
@@ -629,11 +663,10 @@ static int __init calibrate_APIC_clock(void)
 		    calibration_result);
 
 	if (cpu_has_tsc) {
-		delta = (long)(lapic_cal_tsc2 - lapic_cal_tsc1);
 		apic_printk(APIC_VERBOSE, "..... CPU clock speed is "
 			    "%ld.%04ld MHz.\n",
-			    (delta / LAPIC_CAL_LOOPS) / (1000000 / HZ),
-			    (delta / LAPIC_CAL_LOOPS) % (1000000 / HZ));
+			    (deltatsc / LAPIC_CAL_LOOPS) / (1000000 / HZ),
+			    (deltatsc / LAPIC_CAL_LOOPS) % (1000000 / HZ));
 	}
 
 	apic_printk(APIC_VERBOSE, "..... host bus clock speed is "
@@ -991,11 +1024,11 @@ int __init verify_local_APIC(void)
 	 */
 	reg0 = apic_read(APIC_ID);
 	apic_printk(APIC_DEBUG, "Getting ID: %x\n", reg0);
-	apic_write(APIC_ID, reg0 ^ APIC_ID_MASK);
+	apic_write(APIC_ID, reg0 ^ apic->apic_id_mask);
 	reg1 = apic_read(APIC_ID);
 	apic_printk(APIC_DEBUG, "Getting ID: %x\n", reg1);
 	apic_write(APIC_ID, reg0);
-	if (reg1 != (reg0 ^ APIC_ID_MASK))
+	if (reg1 != (reg0 ^ apic->apic_id_mask))
 		return 0;
 
 	/*
@@ -1089,7 +1122,7 @@ static void __cpuinit lapic_setup_esr(void)
 		return;
 	}
 
-	if (esr_disable) {
+	if (apic->disable_esr) {
 		/*
 		 * Something untraceable is creating bad interrupts on
 		 * secondary quads ... for the moment, just leave the
@@ -1130,9 +1163,14 @@ void __cpuinit setup_local_APIC(void)
 	unsigned int value;
 	int i, j;
 
+	if (disable_apic) {
+		arch_disable_smp_support();
+		return;
+	}
+
 #ifdef CONFIG_X86_32
 	/* Pound the ESR really hard over the head with a big hammer - mbligh */
-	if (lapic_is_integrated() && esr_disable) {
+	if (lapic_is_integrated() && apic->disable_esr) {
 		apic_write(APIC_ESR, 0);
 		apic_write(APIC_ESR, 0);
 		apic_write(APIC_ESR, 0);
@@ -1146,7 +1184,7 @@ void __cpuinit setup_local_APIC(void)
 	 * Double-check whether this APIC is really registered.
 	 * This is meaningless in clustered apic mode, so we skip it.
 	 */
-	if (!apic_id_registered())
+	if (!apic->apic_id_registered())
 		BUG();
 
 	/*
@@ -1154,7 +1192,7 @@ void __cpuinit setup_local_APIC(void)
 	 * an APIC.  See e.g. "AP-388 82489DX User's Manual" (Intel
 	 * document number 292116).  So here it goes...
 	 */
-	init_apic_ldr();
+	apic->init_apic_ldr();
 
 	/*
 	 * Set Task Priority to 'accept all'. We never change this
@@ -1570,11 +1608,11 @@ int apic_version[MAX_APICS];
 
 int __init APIC_init_uniprocessor(void)
 {
-#ifdef CONFIG_X86_64
 	if (disable_apic) {
 		pr_info("Apic disabled\n");
 		return -1;
 	}
+#ifdef CONFIG_X86_64
 	if (!cpu_has_apic) {
 		disable_apic = 1;
 		pr_info("Apic disabled by BIOS\n");
@@ -1600,7 +1638,7 @@ int __init APIC_init_uniprocessor(void)
 	enable_IR_x2apic();
 #endif
 #ifdef CONFIG_X86_64
-	setup_apic_routing();
+	default_setup_apic_routing();
 #endif
 
 	verify_local_APIC();
@@ -1738,7 +1776,8 @@ void __init connect_bsp_APIC(void)
 		outb(0x01, 0x23);
 	}
 #endif
-	enable_apic_mode();
+	if (apic->enable_apic_mode)
+		apic->enable_apic_mode();
 }
 
 /**
@@ -1876,28 +1915,38 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	}
 #endif
 
-#if defined(CONFIG_X86_SMP) || defined(CONFIG_X86_64)
-	/* are we being called early in kernel startup? */
-	if (early_per_cpu_ptr(x86_cpu_to_apicid)) {
-		u16 *cpu_to_apicid = early_per_cpu_ptr(x86_cpu_to_apicid);
-		u16 *bios_cpu_apicid = early_per_cpu_ptr(x86_bios_cpu_apicid);
-
-		cpu_to_apicid[cpu] = apicid;
-		bios_cpu_apicid[cpu] = apicid;
-	} else {
-		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
-		per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
-	}
+#if defined(CONFIG_SMP) || defined(CONFIG_X86_64)
+	early_per_cpu(x86_cpu_to_apicid, cpu) = apicid;
+	early_per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
 #endif
 
 	set_cpu_possible(cpu, true);
 	set_cpu_present(cpu, true);
 }
 
-#ifdef CONFIG_X86_64
 int hard_smp_processor_id(void)
 {
 	return read_apic_id();
+}
+
+void default_init_apic_ldr(void)
+{
+	unsigned long val;
+
+	apic_write(APIC_DFR, APIC_DFR_VALUE);
+	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
+	val |= SET_APIC_LOGICAL_ID(1UL << smp_processor_id());
+	apic_write(APIC_LDR, val);
+}
+
+#ifdef CONFIG_X86_32
+int default_apicid_to_node(int logical_apicid)
+{
+#ifdef CONFIG_SMP
+	return apicid_2_node[hard_smp_processor_id()];
+#else
+	return 0;
+#endif
 }
 #endif
 

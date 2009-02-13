@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_SETUP_H
 #define _ASM_X86_SETUP_H
 
+#ifdef __KERNEL__
+
 #define COMMAND_LINE_SIZE 2048
 
 #ifndef __ASSEMBLY__
@@ -8,9 +10,7 @@
 /* Interrupt control for vSMPowered x86_64 systems */
 void vsmp_init(void);
 
-
 void setup_bios_corruption_check(void);
-
 
 #ifdef CONFIG_X86_VISWS
 extern void visws_early_detect(void);
@@ -43,7 +43,7 @@ struct x86_quirks {
 	void (*mpc_oem_bus_info)(struct mpc_bus *m, char *name);
 	void (*mpc_oem_pci_bus)(struct mpc_bus *m);
 	void (*smp_read_mpc_oem)(struct mpc_oemtable *oemtable,
-                                    unsigned short oemsize);
+				unsigned short oemsize);
 	int (*setup_ioapic_ids)(void);
 	int (*update_genapic)(void);
 };
@@ -55,8 +55,6 @@ extern unsigned long saved_video_mode;
 #define paravirt_post_allocator_init()	do {} while (0)
 #endif
 #endif /* __ASSEMBLY__ */
-
-#ifdef __KERNEL__
 
 #ifdef __i386__
 
@@ -100,7 +98,6 @@ extern unsigned long init_pg_tables_start;
 extern unsigned long init_pg_tables_end;
 
 #else
-void __init x86_64_init_pda(void);
 void __init x86_64_start_kernel(char *real_mode);
 void __init x86_64_start_reservations(char *real_mode_data);
 

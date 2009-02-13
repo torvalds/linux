@@ -273,7 +273,7 @@ config MTD_NAND_CAFE
 
 config MTD_NAND_CS553X
 	tristate "NAND support for CS5535/CS5536 (AMD Geode companion chip)"
-	depends on X86_32 && (X86_PC || X86_GENERICARCH)
+	depends on X86_32
 	help
 	  The CS553x companion chips for the AMD Geode processor
 	  include NAND flash controllers with built-in hardware ECC

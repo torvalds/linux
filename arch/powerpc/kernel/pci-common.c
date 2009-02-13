@@ -561,8 +561,21 @@ int pci_mmap_legacy_page_range(struct pci_bus *bus,
 		 (unsigned long long)(offset + size - 1));
 
 	if (mmap_state == pci_mmap_mem) {
-		if ((offset + size) > hose->isa_mem_size)
-			return -ENXIO;
+		/* Hack alert !
+		 *
+		 * Because X is lame and can fail starting if it gets an error trying
+		 * to mmap legacy_mem (instead of just moving on without legacy memory
+		 * access) we fake it here by giving it anonymous memory, effectively
+		 * behaving just like /dev/zero
+		 */
+		if ((offset + size) > hose->isa_mem_size) {
+			printk(KERN_DEBUG
+			       "Process %s (pid:%d) mapped non-existing PCI legacy memory for 0%04x:%02x\n",
+			       current->comm, current->pid, pci_domain_nr(bus), bus->number);
+			if (vma->vm_flags & VM_SHARED)
+				return shmem_zero_setup(vma);
+			return 0;
+		}
 		offset += hose->isa_mem_phys;
 	} else {
 		unsigned long io_offset = (unsigned long)hose->io_base_virt - _IO_BASE;

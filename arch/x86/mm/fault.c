@@ -26,6 +26,7 @@
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
+#include <linux/magic.h>
 
 #include <asm/system.h>
 #include <asm/desc.h>
@@ -91,8 +92,8 @@ static inline int notify_page_fault(struct pt_regs *regs)
  *
  * Opcode checker based on code by Richard Brunner
  */
-static int is_prefetch(struct pt_regs *regs, unsigned long addr,
-		       unsigned long error_code)
+static int is_prefetch(struct pt_regs *regs, unsigned long error_code,
+			unsigned long addr)
 {
 	unsigned char *instr;
 	int scan_more = 1;
@@ -409,17 +410,16 @@ static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 }
 
 #ifdef CONFIG_X86_64
-static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
-				 unsigned long error_code)
+static noinline void pgtable_bad(struct pt_regs *regs,
+			 unsigned long error_code, unsigned long address)
 {
 	unsigned long flags = oops_begin();
 	int sig = SIGKILL;
-	struct task_struct *tsk;
+	struct task_struct *tsk = current;
 
 	printk(KERN_ALERT "%s: Corrupted page table at address %lx\n",
-	       current->comm, address);
+	       tsk->comm, address);
 	dump_pagetable(address);
-	tsk = current;
 	tsk->thread.cr2 = address;
 	tsk->thread.trap_no = 14;
 	tsk->thread.error_code = error_code;
@@ -428,6 +428,196 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 	oops_end(flags, regs, sig);
 }
 #endif
+
+static noinline void no_context(struct pt_regs *regs,
+			unsigned long error_code, unsigned long address)
+{
+	struct task_struct *tsk = current;
+	unsigned long *stackend;
+
+#ifdef CONFIG_X86_64
+	unsigned long flags;
+	int sig;
+#endif
+
+	/* Are we prepared to handle this kernel fault?  */
+	if (fixup_exception(regs))
+		return;
+
+	/*
+	 * X86_32
+	 * Valid to do another page fault here, because if this fault
+	 * had been triggered by is_prefetch fixup_exception would have
+	 * handled it.
+	 *
+	 * X86_64
+	 * Hall of shame of CPU/BIOS bugs.
+	 */
+	if (is_prefetch(regs, error_code, address))
+		return;
+
+	if (is_errata93(regs, address))
+		return;
+
+	/*
+	 * Oops. The kernel tried to access some bad page. We'll have to
+	 * terminate things with extreme prejudice.
+	 */
+#ifdef CONFIG_X86_32
+	bust_spinlocks(1);
+#else
+	flags = oops_begin();
+#endif
+
+	show_fault_oops(regs, error_code, address);
+
+ 	stackend = end_of_stack(tsk);
+	if (*stackend != STACK_END_MAGIC)
+		printk(KERN_ALERT "Thread overran stack, or stack corrupted\n");
+
+	tsk->thread.cr2 = address;
+	tsk->thread.trap_no = 14;
+	tsk->thread.error_code = error_code;
+
+#ifdef CONFIG_X86_32
+	die("Oops", regs, error_code);
+	bust_spinlocks(0);
+	do_exit(SIGKILL);
+#else
+	sig = SIGKILL;
+	if (__die("Oops", regs, error_code))
+		sig = 0;
+	/* Executive summary in case the body of the oops scrolled away */
+	printk(KERN_EMERG "CR2: %016lx\n", address);
+	oops_end(flags, regs, sig);
+#endif
+}
+
+static void __bad_area_nosemaphore(struct pt_regs *regs,
+			unsigned long error_code, unsigned long address,
+			int si_code)
+{
+	struct task_struct *tsk = current;
+
+	/* User mode accesses just cause a SIGSEGV */
+	if (error_code & PF_USER) {
+		/*
+		 * It's possible to have interrupts off here.
+		 */
+		local_irq_enable();
+
+		/*
+		 * Valid to do another page fault here because this one came
+		 * from user space.
+		 */
+		if (is_prefetch(regs, error_code, address))
+			return;
+
+		if (is_errata100(regs, address))
+			return;
+
+		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
+		    printk_ratelimit()) {
+			printk(
+			"%s%s[%d]: segfault at %lx ip %p sp %p error %lx",
+			task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
+			tsk->comm, task_pid_nr(tsk), address,
+			(void *) regs->ip, (void *) regs->sp, error_code);
+			print_vma_addr(" in ", regs->ip);
+			printk("\n");
+		}
+
+		tsk->thread.cr2 = address;
+		/* Kernel addresses are always protection faults */
+		tsk->thread.error_code = error_code | (address >= TASK_SIZE);
+		tsk->thread.trap_no = 14;
+		force_sig_info_fault(SIGSEGV, si_code, address, tsk);
+		return;
+	}
+
+	if (is_f00f_bug(regs, address))
+		return;
+
+	no_context(regs, error_code, address);
+}
+
+static noinline void bad_area_nosemaphore(struct pt_regs *regs,
+			unsigned long error_code, unsigned long address)
+{
+	__bad_area_nosemaphore(regs, error_code, address, SEGV_MAPERR);
+}
+
+static void __bad_area(struct pt_regs *regs,
+			unsigned long error_code, unsigned long address,
+			int si_code)
+{
+	struct mm_struct *mm = current->mm;
+
+	/*
+	 * Something tried to access memory that isn't in our memory map..
+	 * Fix it, but check if it's kernel or user first..
+	 */
+	up_read(&mm->mmap_sem);
+
+	__bad_area_nosemaphore(regs, error_code, address, si_code);
+}
+
+static noinline void bad_area(struct pt_regs *regs,
+			unsigned long error_code, unsigned long address)
+{
+	__bad_area(regs, error_code, address, SEGV_MAPERR);
+}
+
+static noinline void bad_area_access_error(struct pt_regs *regs,
+			unsigned long error_code, unsigned long address)
+{
+	__bad_area(regs, error_code, address, SEGV_ACCERR);
+}
+
+/* TODO: fixup for "mm-invoke-oom-killer-from-page-fault.patch" */
+static void out_of_memory(struct pt_regs *regs,
+			unsigned long error_code, unsigned long address)
+{
+	/*
+	 * We ran out of memory, call the OOM killer, and return the userspace
+	 * (which will retry the fault, or kill us if we got oom-killed).
+	 */
+	up_read(&current->mm->mmap_sem);
+	pagefault_out_of_memory();
+}
+
+static void do_sigbus(struct pt_regs *regs,
+			unsigned long error_code, unsigned long address)
+{
+	struct task_struct *tsk = current;
+	struct mm_struct *mm = tsk->mm;
+
+	up_read(&mm->mmap_sem);
+
+	/* Kernel mode? Handle exceptions or die */
+	if (!(error_code & PF_USER))
+		no_context(regs, error_code, address);
+#ifdef CONFIG_X86_32
+	/* User space => ok to do another page fault */
+	if (is_prefetch(regs, error_code, address))
+		return;
+#endif
+	tsk->thread.cr2 = address;
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = 14;
+	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
+}
+
+static noinline void mm_fault_error(struct pt_regs *regs,
+		unsigned long error_code, unsigned long address, unsigned int fault)
+{
+	if (fault & VM_FAULT_OOM)
+		out_of_memory(regs, error_code, address);
+	else if (fault & VM_FAULT_SIGBUS)
+		do_sigbus(regs, error_code, address);
+	else
+		BUG();
+}
 
 static int spurious_fault_check(unsigned long error_code, pte_t *pte)
 {
@@ -448,8 +638,8 @@ static int spurious_fault_check(unsigned long error_code, pte_t *pte)
  * There are no security implications to leaving a stale TLB when
  * increasing the permissions on a page.
  */
-static int spurious_fault(unsigned long address,
-			  unsigned long error_code)
+static noinline int spurious_fault(unsigned long error_code,
+				unsigned long address)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -494,7 +684,7 @@ static int spurious_fault(unsigned long address,
  *
  * This assumes no large pages in there.
  */
-static int vmalloc_fault(unsigned long address)
+static noinline int vmalloc_fault(unsigned long address)
 {
 #ifdef CONFIG_X86_32
 	unsigned long pgd_paddr;
@@ -573,6 +763,34 @@ static int vmalloc_fault(unsigned long address)
 
 int show_unhandled_signals = 1;
 
+static inline int access_error(unsigned long error_code, int write,
+				struct vm_area_struct *vma)
+{
+	if (write) {
+		/* write, present and write, not present */
+		if (unlikely(!(vma->vm_flags & VM_WRITE)))
+			return 1;
+	} else if (unlikely(error_code & PF_PROT)) {
+		/* read, present */
+		return 1;
+	} else {
+		/* read, not present */
+		if (unlikely(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE))))
+			return 1;
+	}
+
+	return 0;
+}
+
+static int fault_in_kernel_space(unsigned long address)
+{
+#ifdef CONFIG_X86_32
+	return address >= TASK_SIZE;
+#else /* !CONFIG_X86_32 */
+	return address >= TASK_SIZE64;
+#endif /* CONFIG_X86_32 */
+}
+
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
@@ -583,16 +801,12 @@ asmlinkage
 #endif
 void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 {
+	unsigned long address;
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct *vma;
-	unsigned long address;
-	int write, si_code;
+	int write;
 	int fault;
-#ifdef CONFIG_X86_64
-	unsigned long flags;
-	int sig;
-#endif
 
 	tsk = current;
 	mm = tsk->mm;
@@ -600,8 +814,6 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 	/* get the address */
 	address = read_cr2();
-
-	si_code = SEGV_MAPERR;
 
 	if (unlikely(kmmio_fault(regs, address)))
 		return;
@@ -619,17 +831,13 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * (error_code & 4) == 0, and that the fault was not a
 	 * protection error (error_code & 9) == 0.
 	 */
-#ifdef CONFIG_X86_32
-	if (unlikely(address >= TASK_SIZE)) {
-#else
-	if (unlikely(address >= TASK_SIZE64)) {
-#endif
+	if (unlikely(fault_in_kernel_space(address))) {
 		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
 		    vmalloc_fault(address) >= 0)
 			return;
 
 		/* Can handle a stale RO->RW TLB */
-		if (spurious_fault(address, error_code))
+		if (spurious_fault(error_code, address))
 			return;
 
 		/* kprobes don't want to hook the spurious faults. */
@@ -639,13 +847,12 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 		 * Don't take the mm semaphore here. If we fixup a prefetch
 		 * fault we could otherwise deadlock.
 		 */
-		goto bad_area_nosemaphore;
+		bad_area_nosemaphore(regs, error_code, address);
+		return;
 	}
 
-	/* kprobes don't want to hook the spurious faults. */
-	if (notify_page_fault(regs))
+	if (unlikely(notify_page_fault(regs)))
 		return;
-
 	/*
 	 * It's safe to allow irq's after cr2 has been saved and the
 	 * vmalloc fault has been handled.
@@ -661,15 +868,17 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 #ifdef CONFIG_X86_64
 	if (unlikely(error_code & PF_RSVD))
-		pgtable_bad(address, regs, error_code);
+		pgtable_bad(regs, error_code, address);
 #endif
 
 	/*
 	 * If we're in an interrupt, have no user context or are running in an
 	 * atomic region then we must not take the fault.
 	 */
-	if (unlikely(in_atomic() || !mm))
-		goto bad_area_nosemaphore;
+	if (unlikely(in_atomic() || !mm)) {
+		bad_area_nosemaphore(regs, error_code, address);
+		return;
+	}
 
 	/*
 	 * When running in the kernel we expect faults to occur only to
@@ -687,20 +896,32 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * source.  If this is invalid we can skip the address space check,
 	 * thus avoiding the deadlock.
 	 */
-	if (!down_read_trylock(&mm->mmap_sem)) {
+	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
 		if ((error_code & PF_USER) == 0 &&
-		    !search_exception_tables(regs->ip))
-			goto bad_area_nosemaphore;
+		    !search_exception_tables(regs->ip)) {
+			bad_area_nosemaphore(regs, error_code, address);
+			return;
+		}
 		down_read(&mm->mmap_sem);
+	} else {
+		/*
+		 * The above down_read_trylock() might have succeeded in which
+		 * case we'll have missed the might_sleep() from down_read().
+		 */
+		might_sleep();
 	}
 
 	vma = find_vma(mm, address);
-	if (!vma)
-		goto bad_area;
-	if (vma->vm_start <= address)
+	if (unlikely(!vma)) {
+		bad_area(regs, error_code, address);
+		return;
+	}
+	if (likely(vma->vm_start <= address))
 		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
+	if (unlikely(!(vma->vm_flags & VM_GROWSDOWN))) {
+		bad_area(regs, error_code, address);
+		return;
+	}
 	if (error_code & PF_USER) {
 		/*
 		 * Accessing the stack below %sp is always a bug.
@@ -708,31 +929,25 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 		 * and pusha to work.  ("enter $65535,$31" pushes
 		 * 32 pointers and then decrements %sp by 65535.)
 		 */
-		if (address + 65536 + 32 * sizeof(unsigned long) < regs->sp)
-			goto bad_area;
+		if (unlikely(address + 65536 + 32 * sizeof(unsigned long) < regs->sp)) {
+			bad_area(regs, error_code, address);
+			return;
+		}
 	}
-	if (expand_stack(vma, address))
-		goto bad_area;
-/*
- * Ok, we have a good vm_area for this memory access, so
- * we can handle it..
- */
+	if (unlikely(expand_stack(vma, address))) {
+		bad_area(regs, error_code, address);
+		return;
+	}
+
+	/*
+	 * Ok, we have a good vm_area for this memory access, so
+	 * we can handle it..
+	 */
 good_area:
-	si_code = SEGV_ACCERR;
-	write = 0;
-	switch (error_code & (PF_PROT|PF_WRITE)) {
-	default:	/* 3: write, present */
-		/* fall through */
-	case PF_WRITE:		/* write, not present */
-		if (!(vma->vm_flags & VM_WRITE))
-			goto bad_area;
-		write++;
-		break;
-	case PF_PROT:		/* read, present */
-		goto bad_area;
-	case 0:			/* read, not present */
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
-			goto bad_area;
+	write = error_code & PF_WRITE;
+	if (unlikely(access_error(error_code, write, vma))) {
+		bad_area_access_error(regs, error_code, address);
+		return;
 	}
 
 	/*
@@ -742,11 +957,8 @@ good_area:
 	 */
 	fault = handle_mm_fault(mm, vma, address, write);
 	if (unlikely(fault & VM_FAULT_ERROR)) {
-		if (fault & VM_FAULT_OOM)
-			goto out_of_memory;
-		else if (fault & VM_FAULT_SIGBUS)
-			goto do_sigbus;
-		BUG();
+		mm_fault_error(regs, error_code, address, fault);
+		return;
 	}
 	if (fault & VM_FAULT_MAJOR)
 		tsk->maj_flt++;
@@ -764,128 +976,6 @@ good_area:
 	}
 #endif
 	up_read(&mm->mmap_sem);
-	return;
-
-/*
- * Something tried to access memory that isn't in our memory map..
- * Fix it, but check if it's kernel or user first..
- */
-bad_area:
-	up_read(&mm->mmap_sem);
-
-bad_area_nosemaphore:
-	/* User mode accesses just cause a SIGSEGV */
-	if (error_code & PF_USER) {
-		/*
-		 * It's possible to have interrupts off here.
-		 */
-		local_irq_enable();
-
-		/*
-		 * Valid to do another page fault here because this one came
-		 * from user space.
-		 */
-		if (is_prefetch(regs, address, error_code))
-			return;
-
-		if (is_errata100(regs, address))
-			return;
-
-		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
-		    printk_ratelimit()) {
-			printk(
-			"%s%s[%d]: segfault at %lx ip %p sp %p error %lx",
-			task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
-			tsk->comm, task_pid_nr(tsk), address,
-			(void *) regs->ip, (void *) regs->sp, error_code);
-			print_vma_addr(" in ", regs->ip);
-			printk("\n");
-		}
-
-		tsk->thread.cr2 = address;
-		/* Kernel addresses are always protection faults */
-		tsk->thread.error_code = error_code | (address >= TASK_SIZE);
-		tsk->thread.trap_no = 14;
-		force_sig_info_fault(SIGSEGV, si_code, address, tsk);
-		return;
-	}
-
-	if (is_f00f_bug(regs, address))
-		return;
-
-no_context:
-	/* Are we prepared to handle this kernel fault?  */
-	if (fixup_exception(regs))
-		return;
-
-	/*
-	 * X86_32
-	 * Valid to do another page fault here, because if this fault
-	 * had been triggered by is_prefetch fixup_exception would have
-	 * handled it.
-	 *
-	 * X86_64
-	 * Hall of shame of CPU/BIOS bugs.
-	 */
-	if (is_prefetch(regs, address, error_code))
-		return;
-
-	if (is_errata93(regs, address))
-		return;
-
-/*
- * Oops. The kernel tried to access some bad page. We'll have to
- * terminate things with extreme prejudice.
- */
-#ifdef CONFIG_X86_32
-	bust_spinlocks(1);
-#else
-	flags = oops_begin();
-#endif
-
-	show_fault_oops(regs, error_code, address);
-
-	tsk->thread.cr2 = address;
-	tsk->thread.trap_no = 14;
-	tsk->thread.error_code = error_code;
-
-#ifdef CONFIG_X86_32
-	die("Oops", regs, error_code);
-	bust_spinlocks(0);
-	do_exit(SIGKILL);
-#else
-	sig = SIGKILL;
-	if (__die("Oops", regs, error_code))
-		sig = 0;
-	/* Executive summary in case the body of the oops scrolled away */
-	printk(KERN_EMERG "CR2: %016lx\n", address);
-	oops_end(flags, regs, sig);
-#endif
-
-out_of_memory:
-	/*
-	 * We ran out of memory, call the OOM killer, and return the userspace
-	 * (which will retry the fault, or kill us if we got oom-killed).
-	 */
-	up_read(&mm->mmap_sem);
-	pagefault_out_of_memory();
-	return;
-
-do_sigbus:
-	up_read(&mm->mmap_sem);
-
-	/* Kernel mode? Handle exceptions or die */
-	if (!(error_code & PF_USER))
-		goto no_context;
-#ifdef CONFIG_X86_32
-	/* User space => ok to do another page fault */
-	if (is_prefetch(regs, address, error_code))
-		return;
-#endif
-	tsk->thread.cr2 = address;
-	tsk->thread.error_code = error_code;
-	tsk->thread.trap_no = 14;
-	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
 }
 
 DEFINE_SPINLOCK(pgd_lock);

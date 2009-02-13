@@ -24,7 +24,7 @@
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
-#include <mach_apic.h>
+#include <asm/genapic.h>
 #endif
 
 static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
@@ -63,6 +63,18 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
 	}
 
+	/*
+	 * There is a known erratum on Pentium III and Core Solo
+	 * and Core Duo CPUs.
+	 * " Page with PAT set to WC while associated MTRR is UC
+	 *   may consolidate to UC "
+	 * Because of this erratum, it is better to stick with
+	 * setting WC in MTRR rather than using PAT on these CPUs.
+	 *
+	 * Enable PAT WC only on P4, Core 2 or later CPUs.
+	 */
+	if (c->x86 == 6 && c->x86_model < 15)
+		clear_cpu_cap(c, X86_FEATURE_PAT);
 }
 
 #ifdef CONFIG_X86_32
@@ -290,6 +302,9 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_PEBS);
 		ds_init_intel(c);
 	}
+
+	if (c->x86 == 6 && c->x86_model == 29 && cpu_has_clflush)
+		set_cpu_cap(c, X86_FEATURE_CLFLUSH_MONITOR);
 
 #ifdef CONFIG_X86_64
 	if (c->x86 == 15)

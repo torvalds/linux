@@ -191,33 +191,16 @@ static inline int
 execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq) { return 0; }
 #endif
 
-/*
- * do_IRQ handles all normal device IRQ's (the special
- * SMP cross-CPU interrupts have their own specific
- * handlers).
- */
-unsigned int do_IRQ(struct pt_regs *regs)
+bool handle_irq(unsigned irq, struct pt_regs *regs)
 {
-	struct pt_regs *old_regs;
-	/* high bit used in ret_from_ code */
-	int overflow;
-	unsigned vector = ~regs->orig_ax;
 	struct irq_desc *desc;
-	unsigned irq;
-
-
-	old_regs = set_irq_regs(regs);
-	irq_enter();
-	irq = __get_cpu_var(vector_irq)[vector];
+	int overflow;
 
 	overflow = check_stack_overflow();
 
 	desc = irq_to_desc(irq);
-	if (unlikely(!desc)) {
-		printk(KERN_EMERG "%s: cannot handle IRQ %d vector %#x cpu %d\n",
-					__func__, irq, vector, smp_processor_id());
-		BUG();
-	}
+	if (unlikely(!desc))
+		return false;
 
 	if (!execute_on_irq_stack(overflow, desc, irq)) {
 		if (unlikely(overflow))
@@ -225,13 +208,11 @@ unsigned int do_IRQ(struct pt_regs *regs)
 		desc->handle_irq(irq, desc);
 	}
 
-	irq_exit();
-	set_irq_regs(old_regs);
-	return 1;
+	return true;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-#include <mach_apic.h>
+#include <asm/genapic.h>
 
 /* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
 void fixup_irqs(void)
@@ -248,7 +229,7 @@ void fixup_irqs(void)
 		if (irq == 2)
 			continue;
 
-		affinity = &desc->affinity;
+		affinity = desc->affinity;
 		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 			printk("Breaking affinity for irq %i\n", irq);
 			affinity = cpu_all_mask;

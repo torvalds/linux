@@ -1214,7 +1214,7 @@ UNUSUAL_DEV(  0x07c4, 0xa400, 0x0000, 0xffff,
 		"Datafab",
 		"KECF-USB",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_INQUIRY ),
+		US_FL_FIX_INQUIRY | US_FL_FIX_CAPACITY ),
 
 /* Reported by Rauch Wolke <rauchwolke@gmx.net> */
 UNUSUAL_DEV(  0x07c4, 0xa4a5, 0x0000, 0xffff,
@@ -1353,21 +1353,6 @@ UNUSUAL_DEV( 0x0a17, 0x0004, 0x1000, 0x1000,
 		"Optio 2/3/400",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
-
-
-/* Submitted by Per Winkvist <per.winkvist@uk.com> */
-UNUSUAL_DEV( 0x0a17, 0x006, 0x0000, 0xffff,
-		"Pentax",
-		"Optio S/S4",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_INQUIRY ),
-
-/* Reported by Jaak Ristioja <Ristioja@gmail.com> */
-UNUSUAL_DEV( 0x0a17, 0x006e, 0x0100, 0x0100,
-		"Pentax",
-		"K10D",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_FIX_CAPACITY ),
 
 /* These are virtual windows driver CDs, which the zd1211rw driver
  * automatically converts into WLAN devices. */

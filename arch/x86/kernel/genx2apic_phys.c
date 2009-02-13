@@ -55,8 +55,8 @@ static void __x2apic_send_IPI_dest(unsigned int apicid, int vector,
 
 static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
 {
-	unsigned long flags;
 	unsigned long query_cpu;
+	unsigned long flags;
 
 	local_irq_save(flags);
 	for_each_cpu(query_cpu, mask) {
@@ -66,12 +66,12 @@ static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
 	local_irq_restore(flags);
 }
 
-static void x2apic_send_IPI_mask_allbutself(const struct cpumask *mask,
-					    int vector)
+static void
+ x2apic_send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
 {
-	unsigned long flags;
-	unsigned long query_cpu;
 	unsigned long this_cpu = smp_processor_id();
+	unsigned long query_cpu;
+	unsigned long flags;
 
 	local_irq_save(flags);
 	for_each_cpu(query_cpu, mask) {
@@ -85,16 +85,17 @@ static void x2apic_send_IPI_mask_allbutself(const struct cpumask *mask,
 
 static void x2apic_send_IPI_allbutself(int vector)
 {
-	unsigned long flags;
-	unsigned long query_cpu;
 	unsigned long this_cpu = smp_processor_id();
+	unsigned long query_cpu;
+	unsigned long flags;
 
 	local_irq_save(flags);
-	for_each_online_cpu(query_cpu)
-		if (query_cpu != this_cpu)
-			__x2apic_send_IPI_dest(
-				per_cpu(x86_cpu_to_apicid, query_cpu),
-				vector, APIC_DEST_PHYSICAL);
+	for_each_online_cpu(query_cpu) {
+		if (query_cpu == this_cpu)
+			continue;
+		__x2apic_send_IPI_dest(per_cpu(x86_cpu_to_apicid, query_cpu),
+				       vector, APIC_DEST_PHYSICAL);
+	}
 	local_irq_restore(flags);
 }
 
@@ -110,21 +111,21 @@ static int x2apic_apic_id_registered(void)
 
 static unsigned int x2apic_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
-	int cpu;
-
 	/*
 	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
 	 * May as well be the first.
 	 */
-	cpu = cpumask_first(cpumask);
+	int cpu = cpumask_first(cpumask);
+
 	if ((unsigned)cpu < nr_cpu_ids)
 		return per_cpu(x86_cpu_to_apicid, cpu);
 	else
 		return BAD_APICID;
 }
 
-static unsigned int x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
-						  const struct cpumask *andmask)
+static unsigned int
+x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
+			      const struct cpumask *andmask)
 {
 	int cpu;
 
@@ -132,31 +133,28 @@ static unsigned int x2apic_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	 * We're using fixed IRQ delivery, can only return one phys APIC ID.
 	 * May as well be the first.
 	 */
-	for_each_cpu_and(cpu, cpumask, andmask)
+	for_each_cpu_and(cpu, cpumask, andmask) {
 		if (cpumask_test_cpu(cpu, cpu_online_mask))
 			break;
+	}
+
 	if (cpu < nr_cpu_ids)
 		return per_cpu(x86_cpu_to_apicid, cpu);
+
 	return BAD_APICID;
 }
 
-static unsigned int get_apic_id(unsigned long x)
+static unsigned int x2apic_phys_get_apic_id(unsigned long x)
 {
-	unsigned int id;
-
-	id = x;
-	return id;
+	return x;
 }
 
 static unsigned long set_apic_id(unsigned int id)
 {
-	unsigned long x;
-
-	x = id;
-	return x;
+	return id;
 }
 
-static unsigned int phys_pkg_id(int index_msb)
+static int x2apic_phys_pkg_id(int initial_apicid, int index_msb)
 {
 	return current_cpu_data.initial_apicid >> index_msb;
 }
@@ -168,27 +166,58 @@ static void x2apic_send_IPI_self(int vector)
 
 static void init_x2apic_ldr(void)
 {
-	return;
 }
 
 struct genapic apic_x2apic_phys = {
-	.name = "physical x2apic",
-	.acpi_madt_oem_check = x2apic_acpi_madt_oem_check,
-	.int_delivery_mode = dest_Fixed,
-	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
-	.target_cpus = x2apic_target_cpus,
-	.vector_allocation_domain = x2apic_vector_allocation_domain,
-	.apic_id_registered = x2apic_apic_id_registered,
-	.init_apic_ldr = init_x2apic_ldr,
-	.send_IPI_all = x2apic_send_IPI_all,
-	.send_IPI_allbutself = x2apic_send_IPI_allbutself,
-	.send_IPI_mask = x2apic_send_IPI_mask,
-	.send_IPI_mask_allbutself = x2apic_send_IPI_mask_allbutself,
-	.send_IPI_self = x2apic_send_IPI_self,
-	.cpu_mask_to_apicid = x2apic_cpu_mask_to_apicid,
-	.cpu_mask_to_apicid_and = x2apic_cpu_mask_to_apicid_and,
-	.phys_pkg_id = phys_pkg_id,
-	.get_apic_id = get_apic_id,
-	.set_apic_id = set_apic_id,
-	.apic_id_mask = (0xFFFFFFFFu),
+
+	.name				= "physical x2apic",
+	.probe				= NULL,
+	.acpi_madt_oem_check		= x2apic_acpi_madt_oem_check,
+	.apic_id_registered		= x2apic_apic_id_registered,
+
+	.irq_delivery_mode		= dest_Fixed,
+	.irq_dest_mode			= 0, /* physical */
+
+	.target_cpus			= x2apic_target_cpus,
+	.disable_esr			= 0,
+	.dest_logical			= 0,
+	.check_apicid_used		= NULL,
+	.check_apicid_present		= NULL,
+
+	.vector_allocation_domain	= x2apic_vector_allocation_domain,
+	.init_apic_ldr			= init_x2apic_ldr,
+
+	.ioapic_phys_id_map		= NULL,
+	.setup_apic_routing		= NULL,
+	.multi_timer_check		= NULL,
+	.apicid_to_node			= NULL,
+	.cpu_to_logical_apicid		= NULL,
+	.cpu_present_to_apicid		= default_cpu_present_to_apicid,
+	.apicid_to_cpu_present		= NULL,
+	.setup_portio_remap		= NULL,
+	.check_phys_apicid_present	= default_check_phys_apicid_present,
+	.enable_apic_mode		= NULL,
+	.phys_pkg_id			= x2apic_phys_pkg_id,
+	.mps_oem_check			= NULL,
+
+	.get_apic_id			= x2apic_phys_get_apic_id,
+	.set_apic_id			= set_apic_id,
+	.apic_id_mask			= 0xFFFFFFFFu,
+
+	.cpu_mask_to_apicid		= x2apic_cpu_mask_to_apicid,
+	.cpu_mask_to_apicid_and		= x2apic_cpu_mask_to_apicid_and,
+
+	.send_IPI_mask			= x2apic_send_IPI_mask,
+	.send_IPI_mask_allbutself	= x2apic_send_IPI_mask_allbutself,
+	.send_IPI_allbutself		= x2apic_send_IPI_allbutself,
+	.send_IPI_all			= x2apic_send_IPI_all,
+	.send_IPI_self			= x2apic_send_IPI_self,
+
+	.wakeup_cpu			= NULL,
+	.trampoline_phys_low		= DEFAULT_TRAMPOLINE_PHYS_LOW,
+	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
+	.wait_for_init_deassert		= NULL,
+	.smp_callin_clear_local_apic	= NULL,
+	.store_NMI_vector		= NULL,
+	.inquire_remote_apic		= NULL,
 };

@@ -124,7 +124,12 @@ do {								\
 #ifdef CONFIG_GENERIC_LOCKBREAK
 #define spin_is_contended(lock) ((lock)->break_lock)
 #else
+
+#ifdef __raw_spin_is_contended
 #define spin_is_contended(lock)	__raw_spin_is_contended(&(lock)->raw_lock)
+#else
+#define spin_is_contended(lock)	(((void)(lock), 0))
+#endif /*__raw_spin_is_contended*/
 #endif
 
 /**

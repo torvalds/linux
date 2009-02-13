@@ -12,7 +12,7 @@
 # include <asm/cacheflush.h>
 #endif
 
-#include <mach_apic.h>
+#include <asm/genapic.h>
 
 #include "cpu.h"
 

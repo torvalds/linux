@@ -181,7 +181,7 @@ extern void unxlate_dev_mem_ptr(unsigned long phys, void *addr);
 
 extern int ioremap_change_attr(unsigned long vaddr, unsigned long size,
 				unsigned long prot_val);
-extern void __iomem *ioremap_wc(unsigned long offset, unsigned long size);
+extern void __iomem *ioremap_wc(resource_size_t offset, unsigned long size);
 
 /*
  * early_ioremap() and early_iounmap() are for temporary early boot-time
@@ -195,5 +195,6 @@ extern void __iomem *early_memremap(unsigned long offset, unsigned long size);
 extern void early_iounmap(void __iomem *addr, unsigned long size);
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
+#define IO_SPACE_LIMIT 0xffff
 
 #endif /* _ASM_X86_IO_H */
