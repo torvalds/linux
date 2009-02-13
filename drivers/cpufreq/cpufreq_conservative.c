@@ -137,10 +137,21 @@ dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	struct cpu_dbs_info_s *this_dbs_info = &per_cpu(cpu_dbs_info,
 							freq->cpu);
 
+	struct cpufreq_policy *policy;
+
 	if (!this_dbs_info->enable)
 		return 0;
 
-	this_dbs_info->requested_freq = freq->new;
+	policy = this_dbs_info->cur_policy;
+
+	/*
+	 * we only care if our internally tracked freq moves outside
+	 * the 'valid' ranges of freqency available to us otherwise
+	 * we do not change it
+	*/
+	if (this_dbs_info->requested_freq > policy->max
+			|| this_dbs_info->requested_freq < policy->min)
+		this_dbs_info->requested_freq = freq->new;
 
 	return 0;
 }
