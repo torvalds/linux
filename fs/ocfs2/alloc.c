@@ -2308,7 +2308,7 @@ static int ocfs2_leftmost_rec_contains(struct ocfs2_extent_list *el, u32 cpos)
  *   *ret_left_path will contain a valid path which can be passed to
  *   ocfs2_insert_path().
  */
-static int ocfs2_rotate_tree_right(struct inode *inode, handle_t *handle,
+static int ocfs2_rotate_tree_right(handle_t *handle,
 				   struct ocfs2_extent_tree *et,
 				   enum ocfs2_split_type split,
 				   u32 insert_cpos,
@@ -4254,7 +4254,7 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 	 * can wind up skipping both of these two special cases...
 	 */
 	if (rotate) {
-		ret = ocfs2_rotate_tree_right(inode, handle, et, type->ins_split,
+		ret = ocfs2_rotate_tree_right(handle, et, type->ins_split,
 					      le32_to_cpu(insert_rec->e_cpos),
 					      right_path, &left_path);
 		if (ret) {
