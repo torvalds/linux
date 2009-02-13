@@ -444,6 +444,7 @@ static void __perf_install_in_context(void *info)
 
 	list_add_counter(counter, ctx);
 	ctx->nr_counters++;
+	counter->prev_state = PERF_COUNTER_STATE_OFF;
 
 	/*
 	 * Don't put the counter on if it is disabled or if
@@ -562,6 +563,7 @@ static void __perf_counter_enable(void *info)
 	curr_rq_lock_irq_save(&flags);
 	spin_lock(&ctx->lock);
 
+	counter->prev_state = counter->state;
 	if (counter->state >= PERF_COUNTER_STATE_INACTIVE)
 		goto unlock;
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
@@ -733,6 +735,7 @@ group_sched_in(struct perf_counter *group_counter,
 	if (ret)
 		return ret < 0 ? ret : 0;
 
+	group_counter->prev_state = group_counter->state;
 	if (counter_sched_in(group_counter, cpuctx, ctx, cpu))
 		return -EAGAIN;
 
@@ -740,6 +743,7 @@ group_sched_in(struct perf_counter *group_counter,
 	 * Schedule in siblings as one group (if any):
 	 */
 	list_for_each_entry(counter, &group_counter->sibling_list, list_entry) {
+		counter->prev_state = counter->state;
 		if (counter_sched_in(counter, cpuctx, ctx, cpu)) {
 			partial_group = counter;
 			goto group_error;
@@ -1398,9 +1402,9 @@ static void task_clock_perf_counter_read(struct perf_counter *counter)
 
 static int task_clock_perf_counter_enable(struct perf_counter *counter)
 {
-	u64 now = task_clock_perf_counter_val(counter, 0);
-
-	atomic64_set(&counter->hw.prev_count, now);
+	if (counter->prev_state <= PERF_COUNTER_STATE_OFF)
+		atomic64_set(&counter->hw.prev_count,
+			     task_clock_perf_counter_val(counter, 0));
 
 	return 0;
 }
@@ -1455,7 +1459,8 @@ static void page_faults_perf_counter_read(struct perf_counter *counter)
 
 static int page_faults_perf_counter_enable(struct perf_counter *counter)
 {
-	atomic64_set(&counter->hw.prev_count, get_page_faults(counter));
+	if (counter->prev_state <= PERF_COUNTER_STATE_OFF)
+		atomic64_set(&counter->hw.prev_count, get_page_faults(counter));
 	return 0;
 }
 
@@ -1501,7 +1506,9 @@ static void context_switches_perf_counter_read(struct perf_counter *counter)
 
 static int context_switches_perf_counter_enable(struct perf_counter *counter)
 {
-	atomic64_set(&counter->hw.prev_count, get_context_switches(counter));
+	if (counter->prev_state <= PERF_COUNTER_STATE_OFF)
+		atomic64_set(&counter->hw.prev_count,
+			     get_context_switches(counter));
 	return 0;
 }
 
@@ -1547,7 +1554,9 @@ static void cpu_migrations_perf_counter_read(struct perf_counter *counter)
 
 static int cpu_migrations_perf_counter_enable(struct perf_counter *counter)
 {
-	atomic64_set(&counter->hw.prev_count, get_cpu_migrations(counter));
+	if (counter->prev_state <= PERF_COUNTER_STATE_OFF)
+		atomic64_set(&counter->hw.prev_count,
+			     get_cpu_migrations(counter));
 	return 0;
 }
 

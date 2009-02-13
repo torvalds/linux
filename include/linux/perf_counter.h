@@ -173,6 +173,7 @@ struct perf_counter {
 	const struct hw_perf_counter_ops *hw_ops;
 
 	enum perf_counter_active_state	state;
+	enum perf_counter_active_state	prev_state;
 	atomic64_t			count;
 
 	struct perf_counter_hw_event	hw_event;
