@@ -526,6 +526,5 @@ static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.command = saa6588_command,
 	.probe = saa6588_probe,
 	.remove = saa6588_remove,
-	.legacy_class = I2C_CLASS_TV_ANALOG,
 	.id_table = saa6588_id,
 };
