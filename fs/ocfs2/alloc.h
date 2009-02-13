@@ -68,17 +68,17 @@ struct ocfs2_extent_tree {
  * specified object buffer.
  */
 void ocfs2_init_dinode_extent_tree(struct ocfs2_extent_tree *et,
-				   struct inode *inode,
+				   struct ocfs2_caching_info *ci,
 				   struct buffer_head *bh);
 void ocfs2_init_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
-				       struct inode *inode,
+				       struct ocfs2_caching_info *ci,
 				       struct buffer_head *bh);
 struct ocfs2_xattr_value_buf;
 void ocfs2_init_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
-					struct inode *inode,
+					struct ocfs2_caching_info *ci,
 					struct ocfs2_xattr_value_buf *vb);
 void ocfs2_init_dx_root_extent_tree(struct ocfs2_extent_tree *et,
-				    struct inode *inode,
+				    struct ocfs2_caching_info *ci,
 				    struct buffer_head *bh);
 
 /*

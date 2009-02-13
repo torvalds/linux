@@ -366,7 +366,7 @@ static struct ocfs2_extent_tree_operations ocfs2_dx_root_et_ops = {
 };
 
 static void __ocfs2_init_extent_tree(struct ocfs2_extent_tree *et,
-				     struct inode *inode,
+				     struct ocfs2_caching_info *ci,
 				     struct buffer_head *bh,
 				     ocfs2_journal_access_func access,
 				     void *obj,
@@ -374,7 +374,7 @@ static void __ocfs2_init_extent_tree(struct ocfs2_extent_tree *et,
 {
 	et->et_ops = ops;
 	et->et_root_bh = bh;
-	et->et_ci = INODE_CACHE(inode);
+	et->et_ci = ci;
 	et->et_root_journal_access = access;
 	if (!obj)
 		obj = (void *)bh->b_data;
@@ -388,34 +388,34 @@ static void __ocfs2_init_extent_tree(struct ocfs2_extent_tree *et,
 }
 
 void ocfs2_init_dinode_extent_tree(struct ocfs2_extent_tree *et,
-				   struct inode *inode,
+				   struct ocfs2_caching_info *ci,
 				   struct buffer_head *bh)
 {
-	__ocfs2_init_extent_tree(et, inode, bh, ocfs2_journal_access_di,
+	__ocfs2_init_extent_tree(et, ci, bh, ocfs2_journal_access_di,
 				 NULL, &ocfs2_dinode_et_ops);
 }
 
 void ocfs2_init_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
-				       struct inode *inode,
+				       struct ocfs2_caching_info *ci,
 				       struct buffer_head *bh)
 {
-	__ocfs2_init_extent_tree(et, inode, bh, ocfs2_journal_access_xb,
+	__ocfs2_init_extent_tree(et, ci, bh, ocfs2_journal_access_xb,
 				 NULL, &ocfs2_xattr_tree_et_ops);
 }
 
 void ocfs2_init_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
-					struct inode *inode,
+					struct ocfs2_caching_info *ci,
 					struct ocfs2_xattr_value_buf *vb)
 {
-	__ocfs2_init_extent_tree(et, inode, vb->vb_bh, vb->vb_access, vb,
+	__ocfs2_init_extent_tree(et, ci, vb->vb_bh, vb->vb_access, vb,
 				 &ocfs2_xattr_value_et_ops);
 }
 
 void ocfs2_init_dx_root_extent_tree(struct ocfs2_extent_tree *et,
-				    struct inode *inode,
+				    struct ocfs2_caching_info *ci,
 				    struct buffer_head *bh)
 {
-	__ocfs2_init_extent_tree(et, inode, bh, ocfs2_journal_access_dr,
+	__ocfs2_init_extent_tree(et, ci, bh, ocfs2_journal_access_dr,
 				 NULL, &ocfs2_dx_root_et_ops);
 }
 
@@ -7241,7 +7241,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		 * this proves to be false, we could always re-build
 		 * the in-inode data from our pages.
 		 */
-		ocfs2_init_dinode_extent_tree(&et, inode, di_bh);
+		ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode), di_bh);
 		ret = ocfs2_insert_extent(handle, &et, 0, block, 1, 0, NULL);
 		if (ret) {
 			mlog_errno(ret);

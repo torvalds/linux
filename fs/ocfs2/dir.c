@@ -2903,7 +2903,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	struct ocfs2_extent_tree dx_et;
 	int did_quota = 0, bytes_allocated = 0;
 
-	ocfs2_init_dinode_extent_tree(&et, dir, di_bh);
+	ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(dir), di_bh);
 
 	alloc = ocfs2_clusters_for_bytes(sb, bytes);
 	dx_alloc = 0;
@@ -3125,7 +3125,9 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 			ocfs2_dx_dir_index_root_block(dir, dx_root_bh,
 						      dirdata_bh);
 		} else {
-			ocfs2_init_dx_root_extent_tree(&dx_et, dir, dx_root_bh);
+			ocfs2_init_dx_root_extent_tree(&dx_et,
+						       INODE_CACHE(dir),
+						       dx_root_bh);
 			ret = ocfs2_insert_extent(handle, &dx_et, 0,
 						  dx_insert_blkno, 1, 0, NULL);
 			if (ret)
@@ -3345,7 +3347,8 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	spin_lock(&OCFS2_I(dir)->ip_lock);
 	if (dir_i_size == ocfs2_clusters_to_bytes(sb, OCFS2_I(dir)->ip_clusters)) {
 		spin_unlock(&OCFS2_I(dir)->ip_lock);
-		ocfs2_init_dinode_extent_tree(&et, dir, parent_fe_bh);
+		ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(dir),
+					      parent_fe_bh);
 		num_free_extents = ocfs2_num_free_extents(osb, &et);
 		if (num_free_extents < 0) {
 			status = num_free_extents;
@@ -3837,7 +3840,7 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 	     (unsigned long long)OCFS2_I(dir)->ip_blkno,
 	     (unsigned long long)leaf_blkno, insert_hash);
 
-	ocfs2_init_dx_root_extent_tree(&et, dir, dx_root_bh);
+	ocfs2_init_dx_root_extent_tree(&et, INODE_CACHE(dir), dx_root_bh);
 
 	dx_root = (struct ocfs2_dx_root_block *)dx_root_bh->b_data;
 	/*
@@ -4216,7 +4219,7 @@ static int ocfs2_expand_inline_dx_root(struct inode *dir,
 
 	/* This should never fail considering we start with an empty
 	 * dx_root. */
-	ocfs2_init_dx_root_extent_tree(&et, dir, dx_root_bh);
+	ocfs2_init_dx_root_extent_tree(&et, INODE_CACHE(dir), dx_root_bh);
 	ret = ocfs2_insert_extent(handle, &et, 0, insert_blkno, 1, 0, NULL);
 	if (ret)
 		mlog_errno(ret);
@@ -4540,7 +4543,7 @@ int ocfs2_dx_dir_truncate(struct inode *dir, struct buffer_head *di_bh)
 	if (ocfs2_dx_root_inline(dx_root))
 		goto remove_index;
 
-	ocfs2_init_dx_root_extent_tree(&et, dir, dx_root_bh);
+	ocfs2_init_dx_root_extent_tree(&et, INODE_CACHE(dir), dx_root_bh);
 
 	/* XXX: What if dr_clusters is too large? */
 	while (le32_to_cpu(dx_root->dr_clusters)) {

@@ -515,7 +515,7 @@ int ocfs2_add_inode_data(struct ocfs2_super *osb,
 	int ret;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_init_dinode_extent_tree(&et, inode, fe_bh);
+	ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode), fe_bh);
 	ret = ocfs2_add_clusters_in_btree(handle, &et, logical_offset,
 					  clusters_to_add, mark_unwritten,
 					  data_ac, meta_ac, reason_ret);
@@ -563,7 +563,7 @@ restart_all:
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     (long long)i_size_read(inode), le32_to_cpu(fe->i_clusters),
 	     clusters_to_add);
-	ocfs2_init_dinode_extent_tree(&et, inode, bh);
+	ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode), bh);
 	status = ocfs2_lock_allocators(inode, &et, clusters_to_add, 0,
 				       &data_ac, &meta_ac);
 	if (status) {
@@ -1394,7 +1394,7 @@ static int ocfs2_remove_inode_range(struct inode *inode,
 	struct address_space *mapping = inode->i_mapping;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_init_dinode_extent_tree(&et, inode, di_bh);
+	ocfs2_init_dinode_extent_tree(&et, INODE_CACHE(inode), di_bh);
 	ocfs2_init_dealloc_ctxt(&dealloc);
 
 	if (byte_len == 0)
