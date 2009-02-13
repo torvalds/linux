@@ -1,7 +1,7 @@
 #ifndef _BLACKFIN_SWAB_H
 #define _BLACKFIN_SWAB_H
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <linux/compiler.h>
 
 #if defined(__GNUC__) && !defined(__STRICT_ANSI__) || defined(__KERNEL__)
