@@ -516,10 +516,9 @@ int ocfs2_add_inode_data(struct ocfs2_super *osb,
 	struct ocfs2_extent_tree et;
 
 	ocfs2_init_dinode_extent_tree(&et, inode, fe_bh);
-	ret = ocfs2_add_clusters_in_btree(osb, inode, logical_offset,
-					   clusters_to_add, mark_unwritten,
-					   &et, handle,
-					   data_ac, meta_ac, reason_ret);
+	ret = ocfs2_add_clusters_in_btree(handle, &et, logical_offset,
+					  clusters_to_add, mark_unwritten,
+					  data_ac, meta_ac, reason_ret);
 
 	return ret;
 }

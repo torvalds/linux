@@ -597,7 +597,6 @@ static int ocfs2_xattr_extend_allocation(struct inode *inode,
 	int status = 0;
 	handle_t *handle = ctxt->handle;
 	enum ocfs2_alloc_restarted why;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	u32 prev_clusters, logical_start = le32_to_cpu(vb->vb_xv->xr_clusters);
 	struct ocfs2_extent_tree et;
 
@@ -613,13 +612,11 @@ static int ocfs2_xattr_extend_allocation(struct inode *inode,
 	}
 
 	prev_clusters = le32_to_cpu(vb->vb_xv->xr_clusters);
-	status = ocfs2_add_clusters_in_btree(osb,
-					     inode,
+	status = ocfs2_add_clusters_in_btree(handle,
+					     &et,
 					     &logical_start,
 					     clusters_to_add,
 					     0,
-					     &et,
-					     handle,
 					     ctxt->data_ac,
 					     ctxt->meta_ac,
 					     &why);

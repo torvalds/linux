@@ -4758,13 +4758,11 @@ bail:
  * it is not limited to the file storage. Any extent tree can use this
  * function if it implements the proper ocfs2_extent_tree.
  */
-int ocfs2_add_clusters_in_btree(struct ocfs2_super *osb,
-				struct inode *inode,
+int ocfs2_add_clusters_in_btree(handle_t *handle,
+				struct ocfs2_extent_tree *et,
 				u32 *logical_offset,
 				u32 clusters_to_add,
 				int mark_unwritten,
-				struct ocfs2_extent_tree *et,
-				handle_t *handle,
 				struct ocfs2_alloc_context *data_ac,
 				struct ocfs2_alloc_context *meta_ac,
 				enum ocfs2_alloc_restarted *reason_ret)
@@ -4775,6 +4773,8 @@ int ocfs2_add_clusters_in_btree(struct ocfs2_super *osb,
 	u32 bit_off, num_bits;
 	u64 block;
 	u8 flags = 0;
+	struct ocfs2_super *osb =
+		OCFS2_SB(ocfs2_metadata_cache_get_super(et->et_ci));
 
 	BUG_ON(!clusters_to_add);
 
@@ -4826,8 +4826,9 @@ int ocfs2_add_clusters_in_btree(struct ocfs2_super *osb,
 	}
 
 	block = ocfs2_clusters_to_blocks(osb->sb, bit_off);
-	mlog(0, "Allocating %u clusters at block %u for inode %llu\n",
-	     num_bits, bit_off, (unsigned long long)OCFS2_I(inode)->ip_blkno);
+	mlog(0, "Allocating %u clusters at block %u for owner %llu\n",
+	     num_bits, bit_off,
+	     (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci));
 	status = ocfs2_insert_extent(handle, et, *logical_offset, block,
 				     num_bits, flags, meta_ac);
 	if (status < 0) {

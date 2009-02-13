@@ -103,13 +103,11 @@ enum ocfs2_alloc_restarted {
 	RESTART_TRANS,
 	RESTART_META
 };
-int ocfs2_add_clusters_in_btree(struct ocfs2_super *osb,
-				struct inode *inode,
+int ocfs2_add_clusters_in_btree(handle_t *handle,
+				struct ocfs2_extent_tree *et,
 				u32 *logical_offset,
 				u32 clusters_to_add,
 				int mark_unwritten,
-				struct ocfs2_extent_tree *et,
-				handle_t *handle,
 				struct ocfs2_alloc_context *data_ac,
 				struct ocfs2_alloc_context *meta_ac,
 				enum ocfs2_alloc_restarted *reason_ret);
