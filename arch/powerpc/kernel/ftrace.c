@@ -31,11 +31,6 @@
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-static unsigned int ftrace_calc_offset(long ip, long addr)
-{
-	return (int)(addr - ip);
-}
-
 static unsigned int ftrace_nop_replace(void)
 {
 	return PPC_NOP_INSTR;
@@ -46,17 +41,10 @@ ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 {
 	unsigned int op;
 
-	/*
-	 * It would be nice to just use create_function_call, but that will
-	 * update the code itself. Here we need to just return the
-	 * instruction that is going to be modified, without modifying the
-	 * code.
-	 */
 	addr = GET_ADDR(addr);
 
 	/* if (link) set op to 'bl' else 'b' */
-	op = 0x48000000 | (link ? 1 : 0);
-	op |= (ftrace_calc_offset(ip, addr) & 0x03fffffc);
+	op = create_branch((unsigned int *)ip, addr, link ? 1 : 0);
 
 	return op;
 }
