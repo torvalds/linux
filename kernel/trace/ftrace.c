@@ -297,6 +297,19 @@ static struct ftrace_page	*ftrace_pages;
 
 static struct dyn_ftrace *ftrace_free_records;
 
+/*
+ * This is a double for. Do not use 'break' to break out of the loop,
+ * you must use a goto.
+ */
+#define do_for_each_ftrace_rec(pg, rec)					\
+	for (pg = ftrace_pages_start; pg; pg = pg->next) {		\
+		int _____i;						\
+		for (_____i = 0; _____i < pg->index; _____i++) {	\
+			rec = &pg->records[_____i];
+
+#define while_for_each_ftrace_rec()		\
+		}				\
+	}
 
 #ifdef CONFIG_KPROBES
 
@@ -341,7 +354,6 @@ void ftrace_release(void *start, unsigned long size)
 	struct ftrace_page *pg;
 	unsigned long s = (unsigned long)start;
 	unsigned long e = s + size;
-	int i;
 
 	if (ftrace_disabled || !start)
 		return;
@@ -349,14 +361,11 @@ void ftrace_release(void *start, unsigned long size)
 	/* should not be called from interrupt context */
 	spin_lock(&ftrace_lock);
 
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		for (i = 0; i < pg->index; i++) {
-			rec = &pg->records[i];
+	do_for_each_ftrace_rec(pg, rec) {
+		if ((rec->ip >= s) && (rec->ip < e))
+			ftrace_free_rec(rec);
+	} while_for_each_ftrace_rec();
 
-			if ((rec->ip >= s) && (rec->ip < e))
-				ftrace_free_rec(rec);
-		}
-	}
 	spin_unlock(&ftrace_lock);
 }
 
@@ -523,41 +532,37 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 
 static void ftrace_replace_code(int enable)
 {
-	int i, failed;
+	int failed;
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
 
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		for (i = 0; i < pg->index; i++) {
-			rec = &pg->records[i];
+	do_for_each_ftrace_rec(pg, rec) {
+		/*
+		 * Skip over free records and records that have
+		 * failed.
+		 */
+		if (rec->flags & FTRACE_FL_FREE ||
+		    rec->flags & FTRACE_FL_FAILED)
+			continue;
 
-			/*
-			 * Skip over free records and records that have
-			 * failed.
-			 */
-			if (rec->flags & FTRACE_FL_FREE ||
-			    rec->flags & FTRACE_FL_FAILED)
-				continue;
-
-			/* ignore updates to this record's mcount site */
-			if (get_kprobe((void *)rec->ip)) {
-				freeze_record(rec);
-				continue;
-			} else {
-				unfreeze_record(rec);
-			}
-
-			failed = __ftrace_replace_code(rec, enable);
-			if (failed && (rec->flags & FTRACE_FL_CONVERTED)) {
-				rec->flags |= FTRACE_FL_FAILED;
-				if ((system_state == SYSTEM_BOOTING) ||
-				    !core_kernel_text(rec->ip)) {
-					ftrace_free_rec(rec);
-				} else
-					ftrace_bug(failed, rec->ip);
-			}
+		/* ignore updates to this record's mcount site */
+		if (get_kprobe((void *)rec->ip)) {
+			freeze_record(rec);
+			continue;
+		} else {
+			unfreeze_record(rec);
 		}
-	}
+
+		failed = __ftrace_replace_code(rec, enable);
+		if (failed && (rec->flags & FTRACE_FL_CONVERTED)) {
+			rec->flags |= FTRACE_FL_FAILED;
+			if ((system_state == SYSTEM_BOOTING) ||
+			    !core_kernel_text(rec->ip)) {
+				ftrace_free_rec(rec);
+			} else
+				ftrace_bug(failed, rec->ip);
+		}
+	} while_for_each_ftrace_rec();
 }
 
 static int
@@ -956,22 +961,17 @@ static void ftrace_filter_reset(int enable)
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 	unsigned long type = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
-	unsigned i;
 
 	/* should not be called from interrupt context */
 	spin_lock(&ftrace_lock);
 	if (enable)
 		ftrace_filtered = 0;
-	pg = ftrace_pages_start;
-	while (pg) {
-		for (i = 0; i < pg->index; i++) {
-			rec = &pg->records[i];
-			if (rec->flags & FTRACE_FL_FAILED)
-				continue;
-			rec->flags &= ~type;
-		}
-		pg = pg->next;
-	}
+	do_for_each_ftrace_rec(pg, rec) {
+		if (rec->flags & FTRACE_FL_FAILED)
+			continue;
+		rec->flags &= ~type;
+	} while_for_each_ftrace_rec();
+
 	spin_unlock(&ftrace_lock);
 }
 
@@ -1094,44 +1094,39 @@ ftrace_match(unsigned char *buff, int len, int enable)
 	spin_lock(&ftrace_lock);
 	if (enable)
 		ftrace_filtered = 1;
-	pg = ftrace_pages_start;
-	while (pg) {
-		for (i = 0; i < pg->index; i++) {
-			int matched = 0;
-			char *ptr;
+	do_for_each_ftrace_rec(pg, rec) {
+		int matched = 0;
+		char *ptr;
 
-			rec = &pg->records[i];
-			if (rec->flags & FTRACE_FL_FAILED)
-				continue;
-			kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-			switch (type) {
-			case MATCH_FULL:
-				if (strcmp(str, buff) == 0)
-					matched = 1;
-				break;
-			case MATCH_FRONT_ONLY:
-				if (memcmp(str, buff, match) == 0)
-					matched = 1;
-				break;
-			case MATCH_MIDDLE_ONLY:
-				if (strstr(str, search))
-					matched = 1;
-				break;
-			case MATCH_END_ONLY:
-				ptr = strstr(str, search);
-				if (ptr && (ptr[search_len] == 0))
-					matched = 1;
-				break;
-			}
-			if (matched) {
-				if (not)
-					rec->flags &= ~flag;
-				else
-					rec->flags |= flag;
-			}
+		if (rec->flags & FTRACE_FL_FAILED)
+			continue;
+		kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+		switch (type) {
+		case MATCH_FULL:
+			if (strcmp(str, buff) == 0)
+				matched = 1;
+			break;
+		case MATCH_FRONT_ONLY:
+			if (memcmp(str, buff, match) == 0)
+				matched = 1;
+			break;
+		case MATCH_MIDDLE_ONLY:
+			if (strstr(str, search))
+				matched = 1;
+			break;
+		case MATCH_END_ONLY:
+			ptr = strstr(str, search);
+			if (ptr && (ptr[search_len] == 0))
+				matched = 1;
+			break;
 		}
-		pg = pg->next;
-	}
+		if (matched) {
+			if (not)
+				rec->flags &= ~flag;
+			else
+				rec->flags |= flag;
+		}
+	} while_for_each_ftrace_rec();
 	spin_unlock(&ftrace_lock);
 }
 
@@ -1452,7 +1447,7 @@ ftrace_set_func(unsigned long *array, int idx, char *buffer)
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
 	int found = 0;
-	int i, j;
+	int j;
 
 	if (ftrace_disabled)
 		return -ENODEV;
@@ -1460,27 +1455,26 @@ ftrace_set_func(unsigned long *array, int idx, char *buffer)
 	/* should not be called from interrupt context */
 	spin_lock(&ftrace_lock);
 
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		for (i = 0; i < pg->index; i++) {
-			rec = &pg->records[i];
+	do_for_each_ftrace_rec(pg, rec) {
 
-			if (rec->flags & (FTRACE_FL_FAILED | FTRACE_FL_FREE))
-				continue;
+		if (rec->flags & (FTRACE_FL_FAILED | FTRACE_FL_FREE))
+			continue;
 
-			kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-			if (strcmp(str, buffer) == 0) {
-				found = 1;
-				for (j = 0; j < idx; j++)
-					if (array[j] == rec->ip) {
-						found = 0;
-						break;
-					}
-				if (found)
-					array[idx] = rec->ip;
-				break;
-			}
+		kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+		if (strcmp(str, buffer) == 0) {
+			/* Return 1 if we add it to the array */
+			found = 1;
+			for (j = 0; j < idx; j++)
+				if (array[j] == rec->ip) {
+					found = 0;
+					break;
+				}
+			if (found)
+				array[idx] = rec->ip;
+			goto out;
 		}
-	}
+	} while_for_each_ftrace_rec();
+ out:
 	spin_unlock(&ftrace_lock);
 
 	return found ? 0 : -EINVAL;
