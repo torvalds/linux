@@ -4108,8 +4108,7 @@ static void ocfs2_split_record(struct ocfs2_extent_tree *et,
  * in. left_path should only be passed in if we need to update that
  * portion of the tree after an edge insert.
  */
-static int ocfs2_insert_path(struct inode *inode,
-			     handle_t *handle,
+static int ocfs2_insert_path(handle_t *handle,
 			     struct ocfs2_extent_tree *et,
 			     struct ocfs2_path *left_path,
 			     struct ocfs2_path *right_path,
@@ -4198,8 +4197,7 @@ out:
 	return ret;
 }
 
-static int ocfs2_do_insert_extent(struct inode *inode,
-				  handle_t *handle,
+static int ocfs2_do_insert_extent(handle_t *handle,
 				  struct ocfs2_extent_tree *et,
 				  struct ocfs2_extent_rec *insert_rec,
 				  struct ocfs2_insert_type *type)
@@ -4290,7 +4288,7 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 		}
 	}
 
-	ret = ocfs2_insert_path(inode, handle, et, left_path, right_path,
+	ret = ocfs2_insert_path(handle, et, left_path, right_path,
 				insert_rec, type);
 	if (ret) {
 		mlog_errno(ret);
@@ -4718,7 +4716,7 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 	}
 
 	/* Finally, we can add clusters. This might rotate the tree for us. */
-	status = ocfs2_do_insert_extent(inode, handle, et, &rec, &insert);
+	status = ocfs2_do_insert_extent(handle, et, &rec, &insert);
 	if (status < 0)
 		mlog_errno(status);
 	else if (et->et_ops == &ocfs2_dinode_et_ops)
@@ -4933,7 +4931,7 @@ leftright:
 		do_leftright = 1;
 	}
 
-	ret = ocfs2_do_insert_extent(inode, handle, et, &split_rec, &insert);
+	ret = ocfs2_do_insert_extent(handle, et, &split_rec, &insert);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -5237,7 +5235,7 @@ static int ocfs2_split_tree(struct inode *inode, struct ocfs2_extent_tree *et,
 	insert.ins_split = SPLIT_RIGHT;
 	insert.ins_tree_depth = depth;
 
-	ret = ocfs2_do_insert_extent(inode, handle, et, &split_rec, &insert);
+	ret = ocfs2_do_insert_extent(handle, et, &split_rec, &insert);
 	if (ret)
 		mlog_errno(ret);
 
