@@ -4530,8 +4530,7 @@ set_tail_append:
  * All of the information is stored on the ocfs2_insert_type
  * structure.
  */
-static int ocfs2_figure_insert_type(struct inode *inode,
-				    struct ocfs2_extent_tree *et,
+static int ocfs2_figure_insert_type(struct ocfs2_extent_tree *et,
 				    struct buffer_head **last_eb_bh,
 				    struct ocfs2_extent_rec *insert_rec,
 				    int *free_records,
@@ -4691,7 +4690,7 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	status = ocfs2_figure_insert_type(inode, et, &last_eb_bh, &rec,
+	status = ocfs2_figure_insert_type(et, &last_eb_bh, &rec,
 					  &free_records, &insert);
 	if (status < 0) {
 		mlog_errno(status);
