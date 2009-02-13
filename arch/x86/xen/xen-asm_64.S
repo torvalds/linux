@@ -1,14 +1,14 @@
 /*
-	Asm versions of Xen pv-ops, suitable for either direct use or inlining.
-	The inline versions are the same as the direct-use versions, with the
-	pre- and post-amble chopped off.
-
-	This code is encoded for size rather than absolute efficiency,
-	with a view to being able to inline as much as possible.
-
-	We only bother with direct forms (ie, vcpu in pda) of the operations
-	here; the indirect forms are better handled in C, since they're
-	generally too large to inline anyway.
+ * Asm versions of Xen pv-ops, suitable for either direct use or
+ * inlining.  The inline versions are the same as the direct-use
+ * versions, with the pre- and post-amble chopped off.
+ *
+ * This code is encoded for size rather than absolute efficiency, with
+ * a view to being able to inline as much as possible.
+ *
+ * We only bother with direct forms (ie, vcpu in pda) of the
+ * operations here; the indirect forms are better handled in C, since
+ * they're generally too large to inline anyway.
  */
 
 #include <asm/errno.h>
@@ -21,25 +21,25 @@
 #include "xen-asm.h"
 
 ENTRY(xen_adjust_exception_frame)
-	mov 8+0(%rsp),%rcx
-	mov 8+8(%rsp),%r11
+	mov 8+0(%rsp), %rcx
+	mov 8+8(%rsp), %r11
 	ret $16
 
 hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
 /*
-	Xen64 iret frame:
-
-	ss
-	rsp
-	rflags
-	cs
-	rip		<-- standard iret frame
-
-	flags
-
-	rcx		}
-	r11		}<-- pushed by hypercall page
-rsp ->	rax		}
+ * Xen64 iret frame:
+ *
+ *	ss
+ *	rsp
+ *	rflags
+ *	cs
+ *	rip		<-- standard iret frame
+ *
+ *	flags
+ *
+ *	rcx		}
+ *	r11		}<-- pushed by hypercall page
+ * rsp->rax		}
  */
 ENTRY(xen_iret)
 	pushq $0
@@ -48,8 +48,8 @@ ENDPATCH(xen_iret)
 RELOC(xen_iret, 1b+1)
 
 /*
-	sysexit is not used for 64-bit processes, so it's
-	only ever used to return to 32-bit compat userspace.
+ * sysexit is not used for 64-bit processes, so it's only ever used to
+ * return to 32-bit compat userspace.
  */
 ENTRY(xen_sysexit)
 	pushq $__USER32_DS
@@ -64,10 +64,12 @@ ENDPATCH(xen_sysexit)
 RELOC(xen_sysexit, 1b+1)
 
 ENTRY(xen_sysret64)
-	/* We're already on the usermode stack at this point, but still
-	   with the kernel gs, so we can easily switch back */
+	/*
+	 * We're already on the usermode stack at this point, but
+	 * still with the kernel gs, so we can easily switch back
+	 */
 	movq %rsp, PER_CPU_VAR(old_rsp)
-	movq PER_CPU_VAR(kernel_stack),%rsp
+	movq PER_CPU_VAR(kernel_stack), %rsp
 
 	pushq $__USER_DS
 	pushq PER_CPU_VAR(old_rsp)
@@ -81,8 +83,10 @@ ENDPATCH(xen_sysret64)
 RELOC(xen_sysret64, 1b+1)
 
 ENTRY(xen_sysret32)
-	/* We're already on the usermode stack at this point, but still
-	   with the kernel gs, so we can easily switch back */
+	/*
+	 * We're already on the usermode stack at this point, but
+	 * still with the kernel gs, so we can easily switch back
+	 */
 	movq %rsp, PER_CPU_VAR(old_rsp)
 	movq PER_CPU_VAR(kernel_stack), %rsp
 
@@ -98,28 +102,27 @@ ENDPATCH(xen_sysret32)
 RELOC(xen_sysret32, 1b+1)
 
 /*
-	Xen handles syscall callbacks much like ordinary exceptions,
-	which means we have:
-	 - kernel gs
-	 - kernel rsp
-	 - an iret-like stack frame on the stack (including rcx and r11):
-		ss
-		rsp
-		rflags
-		cs
-		rip
-		r11
-	rsp->	rcx
-
-	In all the entrypoints, we undo all that to make it look
-	like a CPU-generated syscall/sysenter and jump to the normal
-	entrypoint.
+ * Xen handles syscall callbacks much like ordinary exceptions, which
+ * means we have:
+ * - kernel gs
+ * - kernel rsp
+ * - an iret-like stack frame on the stack (including rcx and r11):
+ *	ss
+ *	rsp
+ *	rflags
+ *	cs
+ *	rip
+ *	r11
+ * rsp->rcx
+ *
+ * In all the entrypoints, we undo all that to make it look like a
+ * CPU-generated syscall/sysenter and jump to the normal entrypoint.
  */
 
 .macro undo_xen_syscall
-	mov 0*8(%rsp),%rcx
-	mov 1*8(%rsp),%r11
-	mov 5*8(%rsp),%rsp
+	mov 0*8(%rsp), %rcx
+	mov 1*8(%rsp), %r11
+	mov 5*8(%rsp), %rsp
 .endm
 
 /* Normal 64-bit system call target */
@@ -146,7 +149,7 @@ ENDPROC(xen_sysenter_target)
 
 ENTRY(xen_syscall32_target)
 ENTRY(xen_sysenter_target)
-	lea 16(%rsp), %rsp	/* strip %rcx,%r11 */
+	lea 16(%rsp), %rsp	/* strip %rcx, %r11 */
 	mov $-ENOSYS, %rax
 	pushq $VGCF_in_syscall
 	jmp hypercall_iret

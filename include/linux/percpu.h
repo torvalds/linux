@@ -8,8 +8,15 @@
 
 #include <asm/percpu.h>
 
+#ifndef PER_CPU_BASE_SECTION
 #ifdef CONFIG_SMP
 #define PER_CPU_BASE_SECTION ".data.percpu"
+#else
+#define PER_CPU_BASE_SECTION ".data"
+#endif
+#endif
+
+#ifdef CONFIG_SMP
 
 #ifdef MODULE
 #define PER_CPU_SHARED_ALIGNED_SECTION ""
@@ -20,7 +27,6 @@
 
 #else
 
-#define PER_CPU_BASE_SECTION ".data"
 #define PER_CPU_SHARED_ALIGNED_SECTION ""
 #define PER_CPU_FIRST_SECTION ""
 

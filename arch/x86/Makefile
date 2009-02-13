@@ -70,14 +70,17 @@ else
         # this works around some issues with generating unwind tables in older gccs
         # newer gccs do it by default
         KBUILD_CFLAGS += -maccumulate-outgoing-args
+endif
 
-        stackp := $(CONFIG_SHELL) $(srctree)/scripts/gcc-x86_64-has-stack-protector.sh
-        stackp-$(CONFIG_CC_STACKPROTECTOR) := $(shell $(stackp) \
-                "$(CC)" "-fstack-protector -DGCC_HAS_SP" )
-        stackp-$(CONFIG_CC_STACKPROTECTOR_ALL) += $(shell $(stackp) \
-                "$(CC)" -fstack-protector-all )
-
-        KBUILD_CFLAGS += $(stackp-y)
+ifdef CONFIG_CC_STACKPROTECTOR
+	cc_has_sp := $(srctree)/scripts/gcc-x86_$(BITS)-has-stack-protector.sh
+        ifeq ($(shell $(CONFIG_SHELL) $(cc_has_sp) $(CC)),y)
+                stackp-y := -fstack-protector
+                stackp-$(CONFIG_CC_STACKPROTECTOR_ALL) += -fstack-protector-all
+                KBUILD_CFLAGS += $(stackp-y)
+        else
+                $(warning stack protector enabled but no compiler support)
+        endif
 endif
 
 # Stackpointer is addressed different for 32 bit and 64 bit x86

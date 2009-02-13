@@ -50,27 +50,23 @@
 # define FIX_EFLAGS	__FIX_EFLAGS
 #endif
 
-#define COPY(x)			{		\
-	get_user_ex(regs->x, &sc->x);		\
-}
+#define COPY(x)			do {			\
+	get_user_ex(regs->x, &sc->x);			\
+} while (0)
 
-#define COPY_SEG(seg)		{			\
-		unsigned short tmp;			\
-		get_user_ex(tmp, &sc->seg);		\
-		regs->seg = tmp;			\
-}
+#define GET_SEG(seg)		({			\
+	unsigned short tmp;				\
+	get_user_ex(tmp, &sc->seg);			\
+	tmp;						\
+})
 
-#define COPY_SEG_CPL3(seg)	{			\
-		unsigned short tmp;			\
-		get_user_ex(tmp, &sc->seg);		\
-		regs->seg = tmp | 3;			\
-}
+#define COPY_SEG(seg)		do {			\
+	regs->seg = GET_SEG(seg);			\
+} while (0)
 
-#define GET_SEG(seg)		{			\
-		unsigned short tmp;			\
-		get_user_ex(tmp, &sc->seg);		\
-		loadsegment(seg, tmp);			\
-}
+#define COPY_SEG_CPL3(seg)	do {			\
+	regs->seg = GET_SEG(seg) | 3;			\
+} while (0)
 
 static int
 restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
@@ -86,7 +82,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	get_user_try {
 
 #ifdef CONFIG_X86_32
-		GET_SEG(gs);
+		set_user_gs(regs, GET_SEG(gs));
 		COPY_SEG(fs);
 		COPY_SEG(es);
 		COPY_SEG(ds);
@@ -138,12 +134,7 @@ setup_sigcontext(struct sigcontext __user *sc, void __user *fpstate,
 	put_user_try {
 
 #ifdef CONFIG_X86_32
-		{
-			unsigned int tmp;
-
-			savesegment(gs, tmp);
-			put_user_ex(tmp, (unsigned int __user *)&sc->gs);
-		}
+		put_user_ex(get_user_gs(regs), (unsigned int __user *)&sc->gs);
 		put_user_ex(regs->fs, (unsigned int __user *)&sc->fs);
 		put_user_ex(regs->es, (unsigned int __user *)&sc->es);
 		put_user_ex(regs->ds, (unsigned int __user *)&sc->ds);
@@ -558,14 +549,9 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
 #endif /* CONFIG_X86_32 */
 
 #ifdef CONFIG_X86_32
-asmlinkage int sys_sigaltstack(unsigned long bx)
+int sys_sigaltstack(struct pt_regs *regs)
 {
-	/*
-	 * This is needed to make gcc realize it doesn't own the
-	 * "struct pt_regs"
-	 */
-	struct pt_regs *regs = (struct pt_regs *)&bx;
-	const stack_t __user *uss = (const stack_t __user *)bx;
+	const stack_t __user *uss = (const stack_t __user *)regs->bx;
 	stack_t __user *uoss = (stack_t __user *)regs->cx;
 
 	return do_sigaltstack(uss, uoss, regs->sp);
@@ -583,14 +569,12 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
  * Do a signal return; undo the signal stack.
  */
 #ifdef CONFIG_X86_32
-asmlinkage unsigned long sys_sigreturn(unsigned long __unused)
+unsigned long sys_sigreturn(struct pt_regs *regs)
 {
 	struct sigframe __user *frame;
-	struct pt_regs *regs;
 	unsigned long ax;
 	sigset_t set;
 
-	regs = (struct pt_regs *) &__unused;
 	frame = (struct sigframe __user *)(regs->sp - 8);
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
@@ -617,7 +601,7 @@ badframe:
 }
 #endif /* CONFIG_X86_32 */
 
-static long do_rt_sigreturn(struct pt_regs *regs)
+long sys_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	unsigned long ax;
@@ -647,25 +631,6 @@ badframe:
 	signal_fault(regs, frame, "rt_sigreturn");
 	return 0;
 }
-
-#ifdef CONFIG_X86_32
-/*
- * Note: do not pass in pt_regs directly as with tail-call optimization
- * GCC will incorrectly stomp on the caller's frame and corrupt user-space
- * register state:
- */
-asmlinkage int sys_rt_sigreturn(unsigned long __unused)
-{
-	struct pt_regs *regs = (struct pt_regs *)&__unused;
-
-	return do_rt_sigreturn(regs);
-}
-#else /* !CONFIG_X86_32 */
-asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
-{
-	return do_rt_sigreturn(regs);
-}
-#endif /* CONFIG_X86_32 */
 
 /*
  * OK, we're invoking a handler:

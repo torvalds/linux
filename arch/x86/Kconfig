@@ -194,6 +194,10 @@ config X86_TRAMPOLINE
 	depends on SMP || (64BIT && ACPI_SLEEP)
 	default y
 
+config X86_32_LAZY_GS
+	def_bool y
+	depends on X86_32 && !CC_STACKPROTECTOR
+
 config KTIME_SCALAR
 	def_bool X86_32
 source "init/Kconfig"
@@ -1339,7 +1343,6 @@ config CC_STACKPROTECTOR_ALL
 
 config CC_STACKPROTECTOR
 	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
-	depends on X86_64
 	select CC_STACKPROTECTOR_ALL
 	---help---
 	  This option turns on the -fstack-protector GCC feature. This

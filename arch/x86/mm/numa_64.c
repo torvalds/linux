@@ -702,7 +702,7 @@ void __cpuinit numa_set_node(int cpu, int node)
 	}
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
-	if (cpu >= nr_cpu_ids || !per_cpu_offset(cpu)) {
+	if (cpu >= nr_cpu_ids || !cpu_possible(cpu)) {
 		printk(KERN_ERR "numa_set_node: invalid cpu# (%d)\n", cpu);
 		dump_stack();
 		return;
@@ -790,7 +790,7 @@ int early_cpu_to_node(int cpu)
 	if (early_per_cpu_ptr(x86_cpu_to_node_map))
 		return early_per_cpu_ptr(x86_cpu_to_node_map)[cpu];
 
-	if (!per_cpu_offset(cpu)) {
+	if (!cpu_possible(cpu)) {
 		printk(KERN_WARNING
 			"early_cpu_to_node(%d): no per_cpu area!\n", cpu);
 		dump_stack();

@@ -120,12 +120,11 @@ void cpu_idle(void)
 	current_thread_info()->status |= TS_POLLING;
 
 	/*
-	 * If we're the non-boot CPU, nothing set the PDA stack
-	 * canary up for us - and if we are the boot CPU we have
-	 * a 0 stack canary. This is a good place for updating
-	 * it, as we wont ever return from this function (so the
-	 * invalid canaries already on the stack wont ever
-	 * trigger):
+	 * If we're the non-boot CPU, nothing set the stack canary up
+	 * for us.  CPU0 already has it initialized but no harm in
+	 * doing it again.  This is a good place for updating it, as
+	 * we wont ever return from this function (so the invalid
+	 * canaries already on the stack wont ever trigger).
 	 */
 	boot_init_stack_canary();
 

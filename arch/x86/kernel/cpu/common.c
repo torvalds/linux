@@ -39,6 +39,7 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/hypervisor.h>
+#include <asm/stackprotector.h>
 
 #include "cpu.h"
 
@@ -122,6 +123,7 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 
 	[GDT_ENTRY_ESPFIX_SS] = { { { 0x00000000, 0x00c09200 } } },
 	[GDT_ENTRY_PERCPU] = { { { 0x0000ffff, 0x00cf9200 } } },
+	GDT_STACK_CANARY_INIT
 #endif
 } };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
@@ -304,6 +306,7 @@ void load_percpu_segment(int cpu)
 	loadsegment(gs, 0);
 	wrmsrl(MSR_GS_BASE, (unsigned long)per_cpu(irq_stack_union.gs_base, cpu));
 #endif
+	load_stack_canary_segment();
 }
 
 /* Current gdt points %fs at the "master" per-cpu area: after this,
@@ -938,12 +941,8 @@ struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 
 DEFINE_PER_CPU_FIRST(union irq_stack_union,
 		     irq_stack_union) __aligned(PAGE_SIZE);
-#ifdef CONFIG_SMP
-DEFINE_PER_CPU(char *, irq_stack_ptr);	/* will be set during per cpu init */
-#else
 DEFINE_PER_CPU(char *, irq_stack_ptr) =
-	per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
-#endif
+	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
 
 DEFINE_PER_CPU(unsigned long, kernel_stack) =
 	(unsigned long)&init_thread_union - KERNEL_STACK_OFFSET + THREAD_SIZE;
@@ -986,16 +985,21 @@ unsigned long kernel_eflags;
  */
 DEFINE_PER_CPU(struct orig_ist, orig_ist);
 
-#else
+#else	/* x86_64 */
 
-/* Make sure %fs is initialized properly in idle threads */
+#ifdef CONFIG_CC_STACKPROTECTOR
+DEFINE_PER_CPU(unsigned long, stack_canary);
+#endif
+
+/* Make sure %fs and %gs are initialized properly in idle threads */
 struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
 {
 	memset(regs, 0, sizeof(struct pt_regs));
 	regs->fs = __KERNEL_PERCPU;
+	regs->gs = __KERNEL_STACK_CANARY;
 	return regs;
 }
-#endif
+#endif	/* x86_64 */
 
 /*
  * cpu_init() initializes state that is per-CPU. Some data is already
@@ -1156,9 +1160,6 @@ void __cpuinit cpu_init(void)
 	/* Set up doublefault TSS pointer in the GDT */
 	__set_tss_desc(cpu, GDT_ENTRY_DOUBLEFAULT_TSS, &doublefault_tss);
 #endif
-
-	/* Clear %gs. */
-	asm volatile ("mov %0, %%gs" : : "r" (0));
 
 	/* Clear all 6 debug registers: */
 	set_debugreg(0, 0);

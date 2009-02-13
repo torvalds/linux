@@ -23,6 +23,20 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 #ifdef CONFIG_X86_32
 
+#ifdef CONFIG_CC_STACKPROTECTOR
+#define __switch_canary							\
+	"movl %P[task_canary](%[next]), %%ebx\n\t"			\
+	"movl %%ebx, "__percpu_arg([stack_canary])"\n\t"
+#define __switch_canary_oparam						\
+	, [stack_canary] "=m" (per_cpu_var(stack_canary))
+#define __switch_canary_iparam						\
+	, [task_canary] "i" (offsetof(struct task_struct, stack_canary))
+#else	/* CC_STACKPROTECTOR */
+#define __switch_canary
+#define __switch_canary_oparam
+#define __switch_canary_iparam
+#endif	/* CC_STACKPROTECTOR */
+
 /*
  * Saving eflags is important. It switches not only IOPL between tasks,
  * it also protects other tasks from NT leaking through sysenter etc.
@@ -44,6 +58,7 @@ do {									\
 		     "movl %[next_sp],%%esp\n\t"	/* restore ESP   */ \
 		     "movl $1f,%[prev_ip]\n\t"	/* save    EIP   */	\
 		     "pushl %[next_ip]\n\t"	/* restore EIP   */	\
+		     __switch_canary					\
 		     "jmp __switch_to\n"	/* regparm call  */	\
 		     "1:\t"						\
 		     "popl %%ebp\n\t"		/* restore EBP   */	\
@@ -58,6 +73,8 @@ do {									\
 		       "=b" (ebx), "=c" (ecx), "=d" (edx),		\
 		       "=S" (esi), "=D" (edi)				\
 		       							\
+		       __switch_canary_oparam				\
+									\
 		       /* input parameters: */				\
 		     : [next_sp]  "m" (next->thread.sp),		\
 		       [next_ip]  "m" (next->thread.ip),		\
@@ -65,6 +82,8 @@ do {									\
 		       /* regparm parameters for __switch_to(): */	\
 		       [prev]     "a" (prev),				\
 		       [next]     "d" (next)				\
+									\
+		       __switch_canary_iparam				\
 									\
 		     : /* reloaded segment registers */			\
 			"memory");					\
@@ -181,6 +200,25 @@ extern void native_load_gs_index(unsigned);
  */
 #define savesegment(seg, value)				\
 	asm("mov %%" #seg ",%0":"=r" (value) : : "memory")
+
+/*
+ * x86_32 user gs accessors.
+ */
+#ifdef CONFIG_X86_32
+#ifdef CONFIG_X86_32_LAZY_GS
+#define get_user_gs(regs)	(u16)({unsigned long v; savesegment(gs, v); v;})
+#define set_user_gs(regs, v)	loadsegment(gs, (unsigned long)(v))
+#define task_user_gs(tsk)	((tsk)->thread.gs)
+#define lazy_save_gs(v)		savesegment(gs, (v))
+#define lazy_load_gs(v)		loadsegment(gs, (v))
+#else	/* X86_32_LAZY_GS */
+#define get_user_gs(regs)	(u16)((regs)->gs)
+#define set_user_gs(regs, v)	do { (regs)->gs = (v); } while (0)
+#define task_user_gs(tsk)	(task_pt_regs(tsk)->gs)
+#define lazy_save_gs(v)		do { } while (0)
+#define lazy_load_gs(v)		do { } while (0)
+#endif	/* X86_32_LAZY_GS */
+#endif	/* X86_32 */
 
 static inline unsigned long get_limit(unsigned long segment)
 {

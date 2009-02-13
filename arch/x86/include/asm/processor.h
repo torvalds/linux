@@ -393,8 +393,14 @@ union irq_stack_union {
 };
 
 DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
+DECLARE_INIT_PER_CPU(irq_stack_union);
+
 DECLARE_PER_CPU(char *, irq_stack_ptr);
+#else	/* X86_64 */
+#ifdef CONFIG_CC_STACKPROTECTOR
+DECLARE_PER_CPU(unsigned long, stack_canary);
 #endif
+#endif	/* X86_64 */
 
 extern void print_cpu_info(struct cpuinfo_x86 *);
 extern unsigned int xstate_size;
