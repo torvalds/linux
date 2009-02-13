@@ -384,8 +384,8 @@ struct _lowcore
         __u32        panic_magic;              /* 0xe00 */
 
 	/* Per cpu primary space access list */
-	__u8	     pad_0xe04[0xe3c-0xe04];   /* 0xe04 */
-	__u32	     vdso_per_cpu_data;	       /* 0xe3c */
+	__u8	     pad_0xe04[0xe38-0xe04];   /* 0xe04 */
+	__u64	     vdso_per_cpu_data;	       /* 0xe38 */
 	__u32	     paste[16];		       /* 0xe40 */
 
 	__u8	     pad13[0x11b8-0xe80];      /* 0xe80 */

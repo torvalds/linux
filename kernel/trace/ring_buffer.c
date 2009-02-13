@@ -273,8 +273,8 @@ struct ring_buffer {
 	unsigned			pages;
 	unsigned			flags;
 	int				cpus;
-	cpumask_var_t			cpumask;
 	atomic_t			record_disabled;
+	cpumask_var_t			cpumask;
 
 	struct mutex			mutex;
 

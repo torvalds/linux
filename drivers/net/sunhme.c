@@ -2629,6 +2629,14 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 	int i, qfe_slot = -1;
 	int err = -ENODEV;
 
+	sbus_dp = to_of_device(op->dev.parent)->node;
+	if (is_qfe)
+		sbus_dp = to_of_device(op->dev.parent->parent)->node;
+
+	/* We can match PCI devices too, do not accept those here. */
+	if (strcmp(sbus_dp->name, "sbus"))
+		return err;
+
 	if (is_qfe) {
 		qp = quattro_sbus_find(op);
 		if (qp == NULL)
@@ -2733,10 +2741,6 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 
 	if (qp != NULL)
 		hp->happy_flags |= HFLAG_QUATTRO;
-
-	sbus_dp = to_of_device(op->dev.parent)->node;
-	if (is_qfe)
-		sbus_dp = to_of_device(op->dev.parent->parent)->node;
 
 	/* Get the supported DVMA burst sizes from our Happy SBUS. */
 	hp->happy_bursts = of_getintprop_default(sbus_dp,

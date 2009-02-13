@@ -165,7 +165,7 @@ static int cpm2_set_irq_type(unsigned int virq, unsigned int flow_type)
 			edibit = (14 - (src - CPM2_IRQ_EXT1));
 	else
 		if (src >= CPM2_IRQ_PORTC15 && src <= CPM2_IRQ_PORTC0)
-			edibit = (31 - (src - CPM2_IRQ_PORTC15));
+			edibit = (31 - (CPM2_IRQ_PORTC0 - src));
 		else
 			return (flow_type & IRQ_TYPE_LEVEL_LOW) ? 0 : -EINVAL;
 

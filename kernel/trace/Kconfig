@@ -134,6 +134,7 @@ config SYSPROF_TRACER
 	bool "Sysprof Tracer"
 	depends on X86
 	select TRACING
+	select CONTEXT_SWITCH_TRACER
 	help
 	  This tracer provides the trace needed by the 'Sysprof' userspace
 	  tool.
