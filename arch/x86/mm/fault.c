@@ -851,6 +851,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 		return;
 	}
 
+	/* kprobes don't want to hook the spurious faults. */
 	if (unlikely(notify_page_fault(regs)))
 		return;
 	/*
