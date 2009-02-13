@@ -83,6 +83,13 @@ struct ocfs2_extent_tree_operations {
 				   u32 new_clusters);
 
 	/*
+	 * If this extent tree is supported by an extent map, insert
+	 * a record into the map.
+	 */
+	void (*eo_extent_map_insert)(struct ocfs2_extent_tree *et,
+				     struct ocfs2_extent_rec *rec);
+
+	/*
 	 * If this extent tree is supported by an extent map, truncate the
 	 * map to clusters,
 	 */
@@ -127,6 +134,8 @@ static void ocfs2_dinode_set_last_eb_blk(struct ocfs2_extent_tree *et,
 					 u64 blkno);
 static void ocfs2_dinode_update_clusters(struct ocfs2_extent_tree *et,
 					 u32 clusters);
+static void ocfs2_dinode_extent_map_insert(struct ocfs2_extent_tree *et,
+					   struct ocfs2_extent_rec *rec);
 static void ocfs2_dinode_extent_map_truncate(struct ocfs2_extent_tree *et,
 					     u32 clusters);
 static int ocfs2_dinode_insert_check(struct ocfs2_extent_tree *et,
@@ -137,6 +146,7 @@ static struct ocfs2_extent_tree_operations ocfs2_dinode_et_ops = {
 	.eo_set_last_eb_blk	= ocfs2_dinode_set_last_eb_blk,
 	.eo_get_last_eb_blk	= ocfs2_dinode_get_last_eb_blk,
 	.eo_update_clusters	= ocfs2_dinode_update_clusters,
+	.eo_extent_map_insert	= ocfs2_dinode_extent_map_insert,
 	.eo_extent_map_truncate	= ocfs2_dinode_extent_map_truncate,
 	.eo_insert_check	= ocfs2_dinode_insert_check,
 	.eo_sanity_check	= ocfs2_dinode_sanity_check,
@@ -170,6 +180,14 @@ static void ocfs2_dinode_update_clusters(struct ocfs2_extent_tree *et,
 	spin_lock(&oi->ip_lock);
 	oi->ip_clusters = le32_to_cpu(di->i_clusters);
 	spin_unlock(&oi->ip_lock);
+}
+
+static void ocfs2_dinode_extent_map_insert(struct ocfs2_extent_tree *et,
+					   struct ocfs2_extent_rec *rec)
+{
+	struct inode *inode = &cache_info_to_inode(et->et_ci)->vfs_inode;
+
+	ocfs2_extent_map_insert_rec(inode, rec);
 }
 
 static void ocfs2_dinode_extent_map_truncate(struct ocfs2_extent_tree *et,
@@ -416,6 +434,13 @@ static inline void ocfs2_et_update_clusters(struct ocfs2_extent_tree *et,
 					    u32 clusters)
 {
 	et->et_ops->eo_update_clusters(et, clusters);
+}
+
+static inline void ocfs2_et_extent_map_insert(struct ocfs2_extent_tree *et,
+					      struct ocfs2_extent_rec *rec)
+{
+	if (et->et_ops->eo_extent_map_insert)
+		et->et_ops->eo_extent_map_insert(et, rec);
 }
 
 static inline void ocfs2_et_extent_map_truncate(struct ocfs2_extent_tree *et,
@@ -4717,8 +4742,8 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 	status = ocfs2_do_insert_extent(handle, et, &rec, &insert);
 	if (status < 0)
 		mlog_errno(status);
-	else if (et->et_ops == &ocfs2_dinode_et_ops)
-		ocfs2_extent_map_insert_rec(inode, &rec);
+	else
+		ocfs2_et_extent_map_insert(et, &rec);
 
 bail:
 	brelse(last_eb_bh);
