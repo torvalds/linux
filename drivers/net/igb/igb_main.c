@@ -3133,9 +3133,9 @@ static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 
 	if (tso)
 		tx_flags |= IGB_TX_FLAGS_TSO;
-	else if (igb_tx_csum_adv(adapter, tx_ring, skb, tx_flags))
-			if (skb->ip_summed == CHECKSUM_PARTIAL)
-				tx_flags |= IGB_TX_FLAGS_CSUM;
+	else if (igb_tx_csum_adv(adapter, tx_ring, skb, tx_flags) &&
+	         (skb->ip_summed == CHECKSUM_PARTIAL))
+		tx_flags |= IGB_TX_FLAGS_CSUM;
 
 	igb_tx_queue_adv(adapter, tx_ring, tx_flags,
 			 igb_tx_map_adv(adapter, tx_ring, skb, first),
