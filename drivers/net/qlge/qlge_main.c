@@ -1449,12 +1449,12 @@ static void ql_process_mac_rx_intr(struct ql_adapter *qdev,
 	if (qdev->vlgrp && (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_V)) {
 		QPRINTK(qdev, RX_STATUS, DEBUG,
 			"Passing a VLAN packet upstream.\n");
-		vlan_hwaccel_rx(skb, qdev->vlgrp,
+		vlan_hwaccel_receive_skb(skb, qdev->vlgrp,
 				le16_to_cpu(ib_mac_rsp->vlan_id));
 	} else {
 		QPRINTK(qdev, RX_STATUS, DEBUG,
 			"Passing a normal packet upstream.\n");
-		netif_rx(skb);
+		netif_receive_skb(skb);
 	}
 }
 
