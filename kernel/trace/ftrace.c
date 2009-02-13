@@ -1053,79 +1053,114 @@ enum {
 	MATCH_END_ONLY,
 };
 
-static void
-ftrace_match_records(unsigned char *buff, int len, int enable)
+/*
+ * (static function - no need for kernel doc)
+ *
+ * Pass in a buffer containing a glob and this function will
+ * set search to point to the search part of the buffer and
+ * return the type of search it is (see enum above).
+ * This does modify buff.
+ *
+ * Returns enum type.
+ *  search returns the pointer to use for comparison.
+ *  not returns 1 if buff started with a '!'
+ *     0 otherwise.
+ */
+static int
+ftrace_setup_glob(unsigned char *buff, int len, char **search, int *not)
 {
-	char str[KSYM_SYMBOL_LEN];
-	char *search = NULL;
-	struct ftrace_page *pg;
-	struct dyn_ftrace *rec;
 	int type = MATCH_FULL;
-	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
-	unsigned i, match = 0, search_len = 0;
-	int not = 0;
+	int i;
 
 	if (buff[0] == '!') {
-		not = 1;
+		*not = 1;
 		buff++;
 		len--;
-	}
+	} else
+		*not = 0;
+
+	*search = buff;
 
 	for (i = 0; i < len; i++) {
 		if (buff[i] == '*') {
 			if (!i) {
-				search = buff + i + 1;
+				*search = buff + 1;
 				type = MATCH_END_ONLY;
-				search_len = len - (i + 1);
 			} else {
-				if (type == MATCH_END_ONLY) {
+				if (type == MATCH_END_ONLY)
 					type = MATCH_MIDDLE_ONLY;
-				} else {
-					match = i;
+				else
 					type = MATCH_FRONT_ONLY;
-				}
 				buff[i] = 0;
 				break;
 			}
 		}
 	}
 
+	return type;
+}
+
+static int
+ftrace_match_record(struct dyn_ftrace *rec, char *regex, int len, int type)
+{
+	char str[KSYM_SYMBOL_LEN];
+	int matched = 0;
+	char *ptr;
+
+	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+	switch (type) {
+	case MATCH_FULL:
+		if (strcmp(str, regex) == 0)
+			matched = 1;
+		break;
+	case MATCH_FRONT_ONLY:
+		if (strncmp(str, regex, len) == 0)
+			matched = 1;
+		break;
+	case MATCH_MIDDLE_ONLY:
+		if (strstr(str, regex))
+			matched = 1;
+		break;
+	case MATCH_END_ONLY:
+		ptr = strstr(str, regex);
+		if (ptr && (ptr[len] == 0))
+			matched = 1;
+		break;
+	}
+
+	return matched;
+}
+
+static void ftrace_match_records(char *buff, int len, int enable)
+{
+	char *search;
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+	int type;
+	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
+	unsigned search_len;
+	int not;
+
+	type = ftrace_setup_glob(buff, len, &search, &not);
+
+	search_len = strlen(search);
+
 	/* should not be called from interrupt context */
 	spin_lock(&ftrace_lock);
 	if (enable)
 		ftrace_filtered = 1;
 	do_for_each_ftrace_rec(pg, rec) {
-		int matched = 0;
-		char *ptr;
 
 		if (rec->flags & FTRACE_FL_FAILED)
 			continue;
-		kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-		switch (type) {
-		case MATCH_FULL:
-			if (strcmp(str, buff) == 0)
-				matched = 1;
-			break;
-		case MATCH_FRONT_ONLY:
-			if (memcmp(str, buff, match) == 0)
-				matched = 1;
-			break;
-		case MATCH_MIDDLE_ONLY:
-			if (strstr(str, search))
-				matched = 1;
-			break;
-		case MATCH_END_ONLY:
-			ptr = strstr(str, search);
-			if (ptr && (ptr[search_len] == 0))
-				matched = 1;
-			break;
-		}
-		if (matched) {
+
+		if (ftrace_match_record(rec, search, search_len, type)) {
 			if (not)
 				rec->flags &= ~flag;
 			else
 				rec->flags |= flag;
 		}
+
 	} while_for_each_ftrace_rec();
 	spin_unlock(&ftrace_lock);
 }
