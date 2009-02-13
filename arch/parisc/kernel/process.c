@@ -231,8 +231,8 @@ sys_clone(unsigned long clone_flags, unsigned long usp,
 	   
 	   However, these last 3 args are only examined
 	   if the proper flags are set. */
-	int __user *child_tidptr;
-	int __user *parent_tidptr;
+	int __user *parent_tidptr = (int __user *)regs->gr[24];
+	int __user *child_tidptr  = (int __user *)regs->gr[22];
 
 	/* usp must be word aligned.  This also prevents users from
 	 * passing in the value 1 (which is the signal for a special
@@ -242,16 +242,6 @@ sys_clone(unsigned long clone_flags, unsigned long usp,
 	/* A zero value for usp means use the current stack */
 	if (usp == 0)
 	  usp = regs->gr[30];
-
-	if (clone_flags & CLONE_PARENT_SETTID)
-	  parent_tidptr = (int __user *)regs->gr[24];
-	else
-	  parent_tidptr = NULL;
-	
-	if (clone_flags & (CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID))
-	  child_tidptr = (int __user *)regs->gr[22];
-	else
-	  child_tidptr = NULL;
 
 	return do_fork(clone_flags, usp, regs, 0, parent_tidptr, child_tidptr);
 }
