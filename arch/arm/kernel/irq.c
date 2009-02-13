@@ -101,7 +101,7 @@ unlock:
 /* Handle bad interrupts */
 static struct irq_desc bad_irq_desc = {
 	.handle_irq = handle_bad_irq,
-	.lock = SPIN_LOCK_UNLOCKED
+	.lock = __SPIN_LOCK_UNLOCKED(bad_irq_desc.lock),
 };
 
 #ifdef CONFIG_CPUMASK_OFFSTACK

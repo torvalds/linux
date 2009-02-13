@@ -353,7 +353,7 @@ struct i387_soft_struct {
 	u8			no_update;
 	u8			rm;
 	u8			alimit;
-	struct info		*info;
+	struct math_emu_info	*info;
 	u32			entry_eip;
 };
 

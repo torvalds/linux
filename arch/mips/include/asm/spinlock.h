@@ -51,6 +51,7 @@ static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 
 	return (((counters >> 14) - counters) & 0x1fff) > 1;
 }
+#define __raw_spin_is_contended	__raw_spin_is_contended
 
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
