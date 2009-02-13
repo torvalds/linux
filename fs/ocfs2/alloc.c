@@ -352,6 +352,7 @@ static void __ocfs2_init_extent_tree(struct ocfs2_extent_tree *et,
 {
 	et->et_ops = ops;
 	et->et_root_bh = bh;
+	et->et_ci = INODE_CACHE(inode);
 	et->et_root_journal_access = access;
 	if (!obj)
 		obj = (void *)bh->b_data;
@@ -415,11 +416,10 @@ static inline void ocfs2_et_update_clusters(struct inode *inode,
 }
 
 static inline int ocfs2_et_root_journal_access(handle_t *handle,
-					       struct ocfs2_caching_info *ci,
 					       struct ocfs2_extent_tree *et,
 					       int type)
 {
-	return et->et_root_journal_access(handle, ci, et->et_root_bh,
+	return et->et_root_journal_access(handle, et->et_ci, et->et_root_bh,
 					  type);
 }
 
@@ -1209,7 +1209,7 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 		mlog_errno(status);
 		goto bail;
 	}
-	status = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
+	status = ocfs2_et_root_journal_access(handle, et,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1325,7 +1325,7 @@ static int ocfs2_shift_tree_depth(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	status = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
+	status = ocfs2_et_root_journal_access(handle, et,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -2674,7 +2674,7 @@ static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
 		 * We have to update i_last_eb_blk during the meta
 		 * data delete.
 		 */
-		ret = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
+		ret = ocfs2_et_root_journal_access(handle, et,
 						   OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
 			mlog_errno(ret);
@@ -3026,7 +3026,7 @@ static int ocfs2_remove_rightmost_path(struct inode *inode, handle_t *handle,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, path);
+	ret = ocfs2_journal_access_path(et->et_ci, handle, path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -3056,7 +3056,7 @@ static int ocfs2_remove_rightmost_path(struct inode *inode, handle_t *handle,
 			goto out;
 		}
 
-		ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, left_path);
+		ret = ocfs2_journal_access_path(et->et_ci, handle, left_path);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -4212,7 +4212,7 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 
 	el = et->et_root_el;
 
-	ret = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
+	ret = ocfs2_et_root_journal_access(handle, et,
 					   OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -4274,7 +4274,7 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 		 * ocfs2_rotate_tree_right() might have extended the
 		 * transaction without re-journaling our tree root.
 		 */
-		ret = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
+		ret = ocfs2_et_root_journal_access(handle, et,
 						   OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
 			mlog_errno(ret);
@@ -4797,7 +4797,7 @@ int ocfs2_add_clusters_in_btree(struct ocfs2_super *osb,
 	BUG_ON(num_bits > clusters_to_add);
 
 	/* reserve our write early -- insert_extent may update the tree root */
-	status = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
+	status = ocfs2_et_root_journal_access(handle, et,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -5334,13 +5334,13 @@ static int ocfs2_truncate_rec(struct inode *inode, handle_t *handle,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, path);
+	ret = ocfs2_journal_access_path(et->et_ci, handle, path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, left_path);
+	ret = ocfs2_journal_access_path(et->et_ci, handle, left_path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -5575,7 +5575,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
+	ret = ocfs2_et_root_journal_access(handle, et,
 					   OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
