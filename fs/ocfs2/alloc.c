@@ -5026,9 +5026,8 @@ out:
  * have been brought into cache (and pinned via the journal), so the
  * extra overhead is not expressed in terms of disk reads.
  */
-static int __ocfs2_mark_extent_written(struct inode *inode,
+static int __ocfs2_mark_extent_written(handle_t *handle,
 				       struct ocfs2_extent_tree *et,
-				       handle_t *handle,
 				       struct ocfs2_path *path,
 				       int split_index,
 				       struct ocfs2_extent_rec *split_rec,
@@ -5062,7 +5061,7 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 
 	/*
 	 * The core merge / split code wants to know how much room is
-	 * left in this inodes allocation tree, so we pass the
+	 * left in this allocation tree, so we pass the
 	 * rightmost extent list.
 	 */
 	if (path->p_tree_depth) {
@@ -5185,7 +5184,7 @@ int ocfs2_mark_extent_written(struct inode *inode,
 	split_rec.e_flags = path_leaf_el(left_path)->l_recs[index].e_flags;
 	split_rec.e_flags &= ~OCFS2_EXT_UNWRITTEN;
 
-	ret = __ocfs2_mark_extent_written(inode, et, handle, left_path,
+	ret = __ocfs2_mark_extent_written(handle, et, left_path,
 					  index, &split_rec, meta_ac,
 					  dealloc);
 	if (ret)
