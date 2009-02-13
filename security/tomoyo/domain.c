@@ -376,7 +376,7 @@ int tomoyo_write_domain_keeper_policy(char *data, const bool is_not,
 bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head)
 {
 	struct list_head *pos;
-	bool done = false;
+	bool done = true;
 
 	down_read(&tomoyo_domain_keeper_list_lock);
 	list_for_each_cookie(pos, head->read_var2,
