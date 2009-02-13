@@ -160,12 +160,10 @@ struct irq_2_iommu;
  */
 struct irq_desc {
 	unsigned int		irq;
-#ifdef CONFIG_SPARSE_IRQ
 	struct timer_rand_state *timer_rand_state;
 	unsigned int            *kstat_irqs;
-# ifdef CONFIG_INTR_REMAP
+#ifdef CONFIG_INTR_REMAP
 	struct irq_2_iommu      *irq_2_iommu;
-# endif
 #endif
 	irq_flow_handler_t	handle_irq;
 	struct irq_chip		*chip;
@@ -202,12 +200,6 @@ extern void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc
 extern struct irq_desc irq_desc[NR_IRQS];
 #else /* CONFIG_SPARSE_IRQ */
 extern struct irq_desc *move_irq_desc(struct irq_desc *old_desc, int cpu);
-
-#define kstat_irqs_this_cpu(DESC) \
-	((DESC)->kstat_irqs[smp_processor_id()])
-#define kstat_incr_irqs_this_cpu(irqno, DESC) \
-	((DESC)->kstat_irqs[smp_processor_id()]++)
-
 #endif /* CONFIG_SPARSE_IRQ */
 
 extern struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu);

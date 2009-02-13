@@ -83,19 +83,21 @@ static struct irq_desc irq_desc_init = {
 
 void init_kstat_irqs(struct irq_desc *desc, int cpu, int nr)
 {
-	unsigned long bytes;
-	char *ptr;
 	int node;
-
-	/* Compute how many bytes we need per irq and allocate them */
-	bytes = nr * sizeof(unsigned int);
+	void *ptr;
 
 	node = cpu_to_node(cpu);
-	ptr = kzalloc_node(bytes, GFP_ATOMIC, node);
-	printk(KERN_DEBUG "  alloc kstat_irqs on cpu %d node %d\n", cpu, node);
+	ptr = kzalloc_node(nr * sizeof(*desc->kstat_irqs), GFP_ATOMIC, node);
 
-	if (ptr)
-		desc->kstat_irqs = (unsigned int *)ptr;
+	/*
+	 * don't overwite if can not get new one
+	 * init_copy_kstat_irqs() could still use old one
+	 */
+	if (ptr) {
+		printk(KERN_DEBUG "  alloc kstat_irqs on cpu %d node %d\n",
+			 cpu, node);
+		desc->kstat_irqs = ptr;
+	}
 }
 
 static void init_one_irq_desc(int irq, struct irq_desc *desc, int cpu)
@@ -227,6 +229,7 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 	}
 };
 
+static unsigned int kstat_irqs_all[NR_IRQS][NR_CPUS];
 int __init early_irq_init(void)
 {
 	struct irq_desc *desc;
@@ -238,8 +241,10 @@ int __init early_irq_init(void)
 	desc = irq_desc;
 	count = ARRAY_SIZE(irq_desc);
 
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
 		desc[i].irq = i;
+		desc[i].kstat_irqs = kstat_irqs_all[i];
+	}
 
 	return arch_early_irq_init();
 }
@@ -254,6 +259,11 @@ struct irq_desc *irq_to_desc_alloc_cpu(unsigned int irq, int cpu)
 	return irq_to_desc(irq);
 }
 #endif /* !CONFIG_SPARSE_IRQ */
+
+void clear_kstat_irqs(struct irq_desc *desc)
+{
+	memset(desc->kstat_irqs, 0, nr_cpu_ids * sizeof(*(desc->kstat_irqs)));
+}
 
 /*
  * What should we do if we get a hw irq event on an illegal vector?
@@ -467,12 +477,10 @@ void early_init_irq_lock_class(void)
 	}
 }
 
-#ifdef CONFIG_SPARSE_IRQ
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	return desc ? desc->kstat_irqs[cpu] : 0;
 }
-#endif
 EXPORT_SYMBOL(kstat_irqs_cpu);
 

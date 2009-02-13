@@ -462,6 +462,12 @@ static inline void init_irq_proc(void)
 }
 #endif
 
+#if defined(CONFIG_GENERIC_HARDIRQS) && defined(CONFIG_DEBUG_SHIRQ)
+extern void debug_poll_all_shared_irqs(void);
+#else
+static inline void debug_poll_all_shared_irqs(void) { }
+#endif
+
 int show_interrupts(struct seq_file *p, void *v);
 
 struct irq_desc;
