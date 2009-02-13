@@ -4437,11 +4437,10 @@ out:
 	return ret;
 }
 
-static void ocfs2_figure_contig_type(struct inode *inode,
+static void ocfs2_figure_contig_type(struct ocfs2_extent_tree *et,
 				     struct ocfs2_insert_type *insert,
 				     struct ocfs2_extent_list *el,
-				     struct ocfs2_extent_rec *insert_rec,
-				     struct ocfs2_extent_tree *et)
+				     struct ocfs2_extent_rec *insert_rec)
 {
 	int i;
 	enum ocfs2_contig_type contig_type = CONTIG_NONE;
@@ -4449,8 +4448,8 @@ static void ocfs2_figure_contig_type(struct inode *inode,
 	BUG_ON(le16_to_cpu(el->l_tree_depth) != 0);
 
 	for(i = 0; i < le16_to_cpu(el->l_next_free_rec); i++) {
-		contig_type = ocfs2_extent_contig(inode->i_sb, &el->l_recs[i],
-						  insert_rec);
+		contig_type = ocfs2_extent_contig(ocfs2_metadata_cache_get_super(et->et_ci),
+						  &el->l_recs[i], insert_rec);
 		if (contig_type != CONTIG_NONE) {
 			insert->ins_contig_index = i;
 			break;
@@ -4579,7 +4578,7 @@ static int ocfs2_figure_insert_type(struct inode *inode,
 		le16_to_cpu(el->l_next_free_rec);
 
 	if (!insert->ins_tree_depth) {
-		ocfs2_figure_contig_type(inode, insert, el, insert_rec, et);
+		ocfs2_figure_contig_type(et, insert, el, insert_rec);
 		ocfs2_figure_appending_type(insert, el, insert_rec);
 		return 0;
 	}
@@ -4613,7 +4612,7 @@ static int ocfs2_figure_insert_type(struct inode *inode,
          *     into two types of appends: simple record append, or a
          *     rotate inside the tail leaf.
 	 */
-	ocfs2_figure_contig_type(inode, insert, el, insert_rec, et);
+	ocfs2_figure_contig_type(et, insert, el, insert_rec);
 
 	/*
 	 * The insert code isn't quite ready to deal with all cases of
