@@ -4022,7 +4022,7 @@ out:
 	return ret;
 }
 
-static void ocfs2_split_record(struct inode *inode,
+static void ocfs2_split_record(struct ocfs2_extent_tree *et,
 			       struct ocfs2_path *left_path,
 			       struct ocfs2_path *right_path,
 			       struct ocfs2_extent_rec *split_rec,
@@ -4095,7 +4095,8 @@ static void ocfs2_split_record(struct inode *inode,
 	}
 
 	rec = &el->l_recs[index];
-	ocfs2_subtract_from_rec(inode->i_sb, split, rec, split_rec);
+	ocfs2_subtract_from_rec(ocfs2_metadata_cache_get_super(et->et_ci),
+				split, rec, split_rec);
 	ocfs2_rotate_leaf(insert_el, split_rec);
 }
 
@@ -4158,7 +4159,7 @@ static int ocfs2_insert_path(struct inode *inode,
 		 * of splits, but it's easier to just let one separate
 		 * function sort it all out.
 		 */
-		ocfs2_split_record(inode, left_path, right_path,
+		ocfs2_split_record(et, left_path, right_path,
 				   insert_rec, insert->ins_split);
 
 		/*
