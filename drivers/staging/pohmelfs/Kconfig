@@ -1,6 +1,7 @@
 config POHMELFS
 	tristate "POHMELFS filesystem support"
 	select CONNECTOR
+	select CRYPTO
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_HMAC
 	help
