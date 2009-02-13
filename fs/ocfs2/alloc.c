@@ -3809,10 +3809,10 @@ static void ocfs2_subtract_from_rec(struct super_block *sb,
  * list. If this leaf is part of an allocation tree, it is assumed
  * that the tree above has been prepared.
  */
-static void ocfs2_insert_at_leaf(struct ocfs2_extent_rec *insert_rec,
+static void ocfs2_insert_at_leaf(struct ocfs2_extent_tree *et,
+				 struct ocfs2_extent_rec *insert_rec,
 				 struct ocfs2_extent_list *el,
-				 struct ocfs2_insert_type *insert,
-				 struct inode *inode)
+				 struct ocfs2_insert_type *insert)
 {
 	int i = insert->ins_contig_index;
 	unsigned int range;
@@ -3824,7 +3824,8 @@ static void ocfs2_insert_at_leaf(struct ocfs2_extent_rec *insert_rec,
 		i = ocfs2_search_extent_list(el, le32_to_cpu(insert_rec->e_cpos));
 		BUG_ON(i == -1);
 		rec = &el->l_recs[i];
-		ocfs2_subtract_from_rec(inode->i_sb, insert->ins_split, rec,
+		ocfs2_subtract_from_rec(ocfs2_metadata_cache_get_super(et->et_ci),
+					insert->ins_split, rec,
 					insert_rec);
 		goto rotate;
 	}
@@ -3866,10 +3867,10 @@ static void ocfs2_insert_at_leaf(struct ocfs2_extent_rec *insert_rec,
 
 		mlog_bug_on_msg(le16_to_cpu(el->l_next_free_rec) >=
 				le16_to_cpu(el->l_count),
-				"inode %lu, depth %u, count %u, next free %u, "
+				"owner %llu, depth %u, count %u, next free %u, "
 				"rec.cpos %u, rec.clusters %u, "
 				"insert.cpos %u, insert.clusters %u\n",
-				inode->i_ino,
+				ocfs2_metadata_cache_owner(et->et_ci),
 				le16_to_cpu(el->l_tree_depth),
 				le16_to_cpu(el->l_count),
 				le16_to_cpu(el->l_next_free_rec),
@@ -4171,8 +4172,8 @@ static int ocfs2_insert_path(struct inode *inode,
 			if (ret)
 				mlog_errno(ret);
 	} else
-		ocfs2_insert_at_leaf(insert_rec, path_leaf_el(right_path),
-				     insert, inode);
+		ocfs2_insert_at_leaf(et, insert_rec, path_leaf_el(right_path),
+				     insert);
 
 	ret = ocfs2_journal_dirty(handle, leaf_bh);
 	if (ret)
@@ -4218,7 +4219,7 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 	}
 
 	if (le16_to_cpu(el->l_tree_depth) == 0) {
-		ocfs2_insert_at_leaf(insert_rec, el, type, inode);
+		ocfs2_insert_at_leaf(et, insert_rec, el, type);
 		goto out_update_clusters;
 	}
 
