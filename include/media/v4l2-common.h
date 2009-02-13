@@ -297,4 +297,7 @@ struct v4l2_crystal_freq {
    a v4l2_gpio struct if a direction is also needed. */
 #define VIDIOC_INT_S_GPIO		_IOW('d', 117, u32)
 
+/* Get input status. Same as the status field in the v4l2_input struct. */
+#define VIDIOC_INT_G_INPUT_STATUS	_IOR('d', 118, u32)
+
 #endif /* V4L2_COMMON_H_ */

@@ -104,6 +104,10 @@ int v4l2_subdev_command(struct v4l2_subdev *sd, unsigned cmd, void *arg)
 		return v4l2_subdev_call(sd, video, g_fmt, arg);
 	case VIDIOC_INT_S_STD_OUTPUT:
 		return v4l2_subdev_call(sd, video, s_std_output, *(v4l2_std_id *)arg);
+	case VIDIOC_QUERYSTD:
+		return v4l2_subdev_call(sd, video, querystd, arg);
+	case VIDIOC_INT_G_INPUT_STATUS:
+		return v4l2_subdev_call(sd, video, g_input_status, arg);
 	case VIDIOC_STREAMON:
 		return v4l2_subdev_call(sd, video, s_stream, 1);
 	case VIDIOC_STREAMOFF:

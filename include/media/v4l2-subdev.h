@@ -115,6 +115,8 @@ struct v4l2_subdev_video_ops {
 	int (*g_vbi_data)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_data *vbi_data);
 	int (*g_sliced_vbi_cap)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_cap *cap);
 	int (*s_std_output)(struct v4l2_subdev *sd, v4l2_std_id std);
+	int (*querystd)(struct v4l2_subdev *sd, v4l2_std_id *std);
+	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 	int (*s_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
 	int (*g_fmt)(struct v4l2_subdev *sd, struct v4l2_format *fmt);
