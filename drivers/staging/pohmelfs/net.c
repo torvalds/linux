@@ -22,6 +22,7 @@
 #include <linux/poll.h>
 #include <linux/swap.h>
 #include <linux/syscalls.h>
+#include <linux/vmalloc.h>
 
 #include "netfs.h"
 
