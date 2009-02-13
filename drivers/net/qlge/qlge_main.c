@@ -1511,6 +1511,11 @@ void ql_queue_asic_error(struct ql_adapter *qdev)
 	netif_stop_queue(qdev->ndev);
 	netif_carrier_off(qdev->ndev);
 	ql_disable_interrupts(qdev);
+	/* Clear adapter up bit to signal the recovery
+	 * process that it shouldn't kill the reset worker
+	 * thread
+	 */
+	clear_bit(QL_ADAPTER_UP, &qdev->flags);
 	queue_delayed_work(qdev->workqueue, &qdev->asic_reset_work, 0);
 }
 
@@ -3100,7 +3105,11 @@ static int ql_adapter_down(struct ql_adapter *qdev)
 	netif_stop_queue(ndev);
 	netif_carrier_off(ndev);
 
-	cancel_delayed_work_sync(&qdev->asic_reset_work);
+	/* Don't kill the reset worker thread if we
+	 * are in the process of recovery.
+	 */
+	if (test_bit(QL_ADAPTER_UP, &qdev->flags))
+		cancel_delayed_work_sync(&qdev->asic_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_work);
 
@@ -3501,7 +3510,7 @@ static int qlge_set_mac_address(struct net_device *ndev, void *p)
 static void qlge_tx_timeout(struct net_device *ndev)
 {
 	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
-	queue_delayed_work(qdev->workqueue, &qdev->asic_reset_work, 0);
+	ql_queue_asic_error(qdev);
 }
 
 static void ql_asic_reset_work(struct work_struct *work)
