@@ -1386,14 +1386,16 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {
 	int ret = 0;
 	if (tx_power < IWL_TX_POWER_TARGET_POWER_MIN) {
-		IWL_WARN(priv, "Requested user TXPOWER %d below limit.\n",
-			    priv->tx_power_user_lmt);
+		IWL_WARN(priv, "Requested user TXPOWER %d below lower limit %d.\n",
+			 tx_power,
+			 IWL_TX_POWER_TARGET_POWER_MIN);
 		return -EINVAL;
 	}
 
 	if (tx_power > IWL_TX_POWER_TARGET_POWER_MAX) {
-		IWL_WARN(priv, "Requested user TXPOWER %d above limit.\n",
-			    priv->tx_power_user_lmt);
+		IWL_WARN(priv, "Requested user TXPOWER %d above upper limit %d.\n",
+			 tx_power,
+			 IWL_TX_POWER_TARGET_POWER_MAX);
 		return -EINVAL;
 	}
 
