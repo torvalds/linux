@@ -1412,8 +1412,13 @@ static inline int spd_fill_page(struct splice_pipe_desc *spd, struct page *page,
 static inline void __segment_seek(struct page **page, unsigned int *poff,
 				  unsigned int *plen, unsigned int off)
 {
+	unsigned long n;
+
 	*poff += off;
-	*page += *poff / PAGE_SIZE;
+	n = *poff / PAGE_SIZE;
+	if (n)
+		*page = nth_page(*page, n);
+
 	*poff = *poff % PAGE_SIZE;
 	*plen -= off;
 }
