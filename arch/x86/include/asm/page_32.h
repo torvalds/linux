@@ -3,6 +3,8 @@
 
 #include <asm/page_32_types.h>
 
+#ifndef __ASSEMBLY__
+
 #ifdef CONFIG_HUGETLB_PAGE
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 #endif
@@ -18,8 +20,6 @@ extern unsigned long __phys_addr(unsigned long);
 #ifdef CONFIG_FLATMEM
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
 #endif /* CONFIG_FLATMEM */
-
-#ifndef __ASSEMBLY__
 
 #ifdef CONFIG_X86_USE_3DNOW
 #include <asm/mmx.h>
