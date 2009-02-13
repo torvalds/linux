@@ -460,8 +460,8 @@ struct ocfs2_path {
 
 static int ocfs2_find_path(struct ocfs2_caching_info *ci,
 			   struct ocfs2_path *path, u32 cpos);
-static void ocfs2_adjust_rightmost_records(struct inode *inode,
-					   handle_t *handle,
+static void ocfs2_adjust_rightmost_records(handle_t *handle,
+					   struct ocfs2_extent_tree *et,
 					   struct ocfs2_path *path,
 					   struct ocfs2_extent_rec *insert_rec);
 /*
@@ -1009,7 +1009,6 @@ static inline u32 ocfs2_sum_rightmost_rec(struct ocfs2_extent_list  *el)
  * extent block's rightmost record.
  */
 static int ocfs2_adjust_rightmost_branch(handle_t *handle,
-					 struct inode *inode,
 					 struct ocfs2_extent_tree *et)
 {
 	int status;
@@ -1036,7 +1035,7 @@ static int ocfs2_adjust_rightmost_branch(handle_t *handle,
 		goto out;
 	}
 
-	status = ocfs2_journal_access_path(INODE_CACHE(inode), handle, path);
+	status = ocfs2_journal_access_path(et->et_ci, handle, path);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
@@ -1045,7 +1044,7 @@ static int ocfs2_adjust_rightmost_branch(handle_t *handle,
 	el = path_leaf_el(path);
 	rec = &el->l_recs[le32_to_cpu(el->l_next_free_rec) - 1];
 
-	ocfs2_adjust_rightmost_records(inode, handle, path, rec);
+	ocfs2_adjust_rightmost_records(handle, et, path, rec);
 
 out:
 	ocfs2_free_path(path);
@@ -1054,7 +1053,7 @@ out:
 
 /*
  * Add an entire tree branch to our inode. eb_bh is the extent block
- * to start at, if we don't want to start the branch at the dinode
+ * to start at, if we don't want to start the branch at the root
  * structure.
  *
  * last_eb_bh is required as we have to update it's next_leaf pointer
@@ -1063,9 +1062,7 @@ out:
  * the new branch will be 'empty' in the sense that every block will
  * contain a single record with cluster count == 0.
  */
-static int ocfs2_add_branch(struct ocfs2_super *osb,
-			    handle_t *handle,
-			    struct inode *inode,
+static int ocfs2_add_branch(handle_t *handle,
 			    struct ocfs2_extent_tree *et,
 			    struct buffer_head *eb_bh,
 			    struct buffer_head **last_eb_bh,
@@ -1109,7 +1106,7 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 	if (root_end > new_cpos) {
 		mlog(0, "adjust the cluster end from %u to %u\n",
 		     root_end, new_cpos);
-		status = ocfs2_adjust_rightmost_branch(handle, inode, et);
+		status = ocfs2_adjust_rightmost_branch(handle, et);
 		if (status) {
 			mlog_errno(status);
 			goto bail;
@@ -1147,7 +1144,7 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 		BUG_ON(!OCFS2_IS_VALID_EXTENT_BLOCK(eb));
 		eb_el = &eb->h_list;
 
-		status = ocfs2_journal_access_eb(handle, INODE_CACHE(inode), bh,
+		status = ocfs2_journal_access_eb(handle, et->et_ci, bh,
 						 OCFS2_JOURNAL_ACCESS_CREATE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -1187,7 +1184,7 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 	 * journal_dirty erroring as it won't unless we've aborted the
 	 * handle (in which case we would never be here) so reserving
 	 * the write with journal_access is all we need to do. */
-	status = ocfs2_journal_access_eb(handle, INODE_CACHE(inode), *last_eb_bh,
+	status = ocfs2_journal_access_eb(handle, et->et_ci, *last_eb_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1200,7 +1197,7 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 		goto bail;
 	}
 	if (eb_bh) {
-		status = ocfs2_journal_access_eb(handle, INODE_CACHE(inode), eb_bh,
+		status = ocfs2_journal_access_eb(handle, et->et_ci, eb_bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -1260,9 +1257,7 @@ bail:
  * returns back the new extent block so you can add a branch to it
  * after this call.
  */
-static int ocfs2_shift_tree_depth(struct ocfs2_super *osb,
-				  handle_t *handle,
-				  struct inode *inode,
+static int ocfs2_shift_tree_depth(handle_t *handle,
 				  struct ocfs2_extent_tree *et,
 				  struct ocfs2_alloc_context *meta_ac,
 				  struct buffer_head **ret_new_eb_bh)
@@ -1290,7 +1285,7 @@ static int ocfs2_shift_tree_depth(struct ocfs2_super *osb,
 	eb_el = &eb->h_list;
 	root_el = et->et_root_el;
 
-	status = ocfs2_journal_access_eb(handle, INODE_CACHE(inode), new_eb_bh,
+	status = ocfs2_journal_access_eb(handle, et->et_ci, new_eb_bh,
 					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1365,8 +1360,7 @@ bail:
  *
  * return status < 0 indicates an error.
  */
-static int ocfs2_find_branch_target(struct ocfs2_super *osb,
-				    struct ocfs2_extent_tree *et,
+static int ocfs2_find_branch_target(struct ocfs2_extent_tree *et,
 				    struct buffer_head **target_bh)
 {
 	int status = 0, i;
@@ -1447,20 +1441,18 @@ bail:
  *
  * *last_eb_bh will be updated by ocfs2_add_branch().
  */
-static int ocfs2_grow_tree(struct inode *inode, handle_t *handle,
-			   struct ocfs2_extent_tree *et, int *final_depth,
-			   struct buffer_head **last_eb_bh,
+static int ocfs2_grow_tree(handle_t *handle, struct ocfs2_extent_tree *et,
+			   int *final_depth, struct buffer_head **last_eb_bh,
 			   struct ocfs2_alloc_context *meta_ac)
 {
 	int ret, shift;
 	struct ocfs2_extent_list *el = et->et_root_el;
 	int depth = le16_to_cpu(el->l_tree_depth);
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct buffer_head *bh = NULL;
 
 	BUG_ON(meta_ac == NULL);
 
-	shift = ocfs2_find_branch_target(osb, et, &bh);
+	shift = ocfs2_find_branch_target(et, &bh);
 	if (shift < 0) {
 		ret = shift;
 		mlog_errno(ret);
@@ -1477,8 +1469,7 @@ static int ocfs2_grow_tree(struct inode *inode, handle_t *handle,
 		/* ocfs2_shift_tree_depth will return us a buffer with
 		 * the new extent block (so we can pass that to
 		 * ocfs2_add_branch). */
-		ret = ocfs2_shift_tree_depth(osb, handle, inode, et,
-					     meta_ac, &bh);
+		ret = ocfs2_shift_tree_depth(handle, et, meta_ac, &bh);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -1504,7 +1495,7 @@ static int ocfs2_grow_tree(struct inode *inode, handle_t *handle,
 	/* call ocfs2_add_branch to add the final part of the tree with
 	 * the new data. */
 	mlog(0, "add branch. bh = %p\n", bh);
-	ret = ocfs2_add_branch(osb, handle, inode, et, bh, last_eb_bh,
+	ret = ocfs2_add_branch(handle, et, bh, last_eb_bh,
 			       meta_ac);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -3881,8 +3872,8 @@ rotate:
 	ocfs2_rotate_leaf(el, insert_rec);
 }
 
-static void ocfs2_adjust_rightmost_records(struct inode *inode,
-					   handle_t *handle,
+static void ocfs2_adjust_rightmost_records(handle_t *handle,
+					   struct ocfs2_extent_tree *et,
 					   struct ocfs2_path *path,
 					   struct ocfs2_extent_rec *insert_rec)
 {
@@ -3900,9 +3891,9 @@ static void ocfs2_adjust_rightmost_records(struct inode *inode,
 
 		next_free = le16_to_cpu(el->l_next_free_rec);
 		if (next_free == 0) {
-			ocfs2_error(inode->i_sb,
-				    "Dinode %llu has a bad extent list",
-				    (unsigned long long)OCFS2_I(inode)->ip_blkno);
+			ocfs2_error(ocfs2_metadata_cache_get_super(et->et_ci),
+				    "Owner %llu has a bad extent list",
+				    (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci));
 			ret = -EIO;
 			return;
 		}
@@ -3922,7 +3913,8 @@ static void ocfs2_adjust_rightmost_records(struct inode *inode,
 	}
 }
 
-static int ocfs2_append_rec_to_path(struct inode *inode, handle_t *handle,
+static int ocfs2_append_rec_to_path(handle_t *handle,
+				    struct ocfs2_extent_tree *et,
 				    struct ocfs2_extent_rec *insert_rec,
 				    struct ocfs2_path *right_path,
 				    struct ocfs2_path **ret_left_path)
@@ -3950,8 +3942,8 @@ static int ocfs2_append_rec_to_path(struct inode *inode, handle_t *handle,
 	    (next_free == 1 && ocfs2_is_empty_extent(&el->l_recs[0]))) {
 		u32 left_cpos;
 
-		ret = ocfs2_find_cpos_for_left_leaf(inode->i_sb, right_path,
-						    &left_cpos);
+		ret = ocfs2_find_cpos_for_left_leaf(ocfs2_metadata_cache_get_super(et->et_ci),
+						    right_path, &left_cpos);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3973,7 +3965,7 @@ static int ocfs2_append_rec_to_path(struct inode *inode, handle_t *handle,
 				goto out;
 			}
 
-			ret = ocfs2_find_path(INODE_CACHE(inode), left_path,
+			ret = ocfs2_find_path(et->et_ci, left_path,
 					      left_cpos);
 			if (ret) {
 				mlog_errno(ret);
@@ -3987,13 +3979,13 @@ static int ocfs2_append_rec_to_path(struct inode *inode, handle_t *handle,
 		}
 	}
 
-	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, right_path);
+	ret = ocfs2_journal_access_path(et->et_ci, handle, right_path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	ocfs2_adjust_rightmost_records(inode, handle, right_path, insert_rec);
+	ocfs2_adjust_rightmost_records(handle, et, right_path, insert_rec);
 
 	*ret_left_path = left_path;
 	ret = 0;
@@ -4263,7 +4255,7 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 		}
 	} else if (type->ins_appending == APPEND_TAIL
 		   && type->ins_contig != CONTIG_LEFT) {
-		ret = ocfs2_append_rec_to_path(inode, handle, insert_rec,
+		ret = ocfs2_append_rec_to_path(handle, et, insert_rec,
 					       right_path, &left_path);
 		if (ret) {
 			mlog_errno(ret);
@@ -4689,7 +4681,7 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 	     free_records, insert.ins_tree_depth);
 
 	if (insert.ins_contig == CONTIG_NONE && free_records == 0) {
-		status = ocfs2_grow_tree(inode, handle, et,
+		status = ocfs2_grow_tree(handle, et,
 					 &insert.ins_tree_depth, &last_eb_bh,
 					 meta_ac);
 		if (status) {
@@ -4876,7 +4868,7 @@ leftright:
 
 	if (le16_to_cpu(rightmost_el->l_next_free_rec) ==
 	    le16_to_cpu(rightmost_el->l_count)) {
-		ret = ocfs2_grow_tree(inode, handle, et,
+		ret = ocfs2_grow_tree(handle, et,
 				      &depth, last_eb_bh, meta_ac);
 		if (ret) {
 			mlog_errno(ret);
@@ -5208,7 +5200,7 @@ static int ocfs2_split_tree(struct inode *inode, struct ocfs2_extent_tree *et,
 
 	if (le16_to_cpu(rightmost_el->l_next_free_rec) ==
 	    le16_to_cpu(rightmost_el->l_count)) {
-		ret = ocfs2_grow_tree(inode, handle, et, &depth, &last_eb_bh,
+		ret = ocfs2_grow_tree(handle, et, &depth, &last_eb_bh,
 				      meta_ac);
 		if (ret) {
 			mlog_errno(ret);
@@ -5346,7 +5338,7 @@ static int ocfs2_truncate_rec(struct inode *inode, handle_t *handle,
 			 * be deleted by the rotate code.
 			 */
 			rec = &el->l_recs[next_free - 1];
-			ocfs2_adjust_rightmost_records(inode, handle, path,
+			ocfs2_adjust_rightmost_records(handle, et, path,
 						       rec);
 		}
 	} else if (le32_to_cpu(rec->e_cpos) == cpos) {
@@ -5358,7 +5350,7 @@ static int ocfs2_truncate_rec(struct inode *inode, handle_t *handle,
 		/* Remove rightmost portion of the record */
 		le16_add_cpu(&rec->e_leaf_clusters, -len);
 		if (is_rightmost_tree_rec)
-			ocfs2_adjust_rightmost_records(inode, handle, path, rec);
+			ocfs2_adjust_rightmost_records(handle, et, path, rec);
 	} else {
 		/* Caller should have trapped this. */
 		mlog(ML_ERROR, "Inode %llu: Invalid record truncate: (%u, %u) "
