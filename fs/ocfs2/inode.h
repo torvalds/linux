@@ -170,4 +170,10 @@ int ocfs2_read_inode_block(struct inode *inode, struct buffer_head **bh);
 /* The same, but can be passed OCFS2_BH_* flags */
 int ocfs2_read_inode_block_full(struct inode *inode, struct buffer_head **bh,
 				int flags);
+
+static inline struct ocfs2_inode_info *cache_info_to_inode(struct ocfs2_caching_info *ci)
+{
+	return container_of(ci, struct ocfs2_inode_info, ip_metadata_cache);
+}
+
 #endif /* OCFS2_INODE_H */

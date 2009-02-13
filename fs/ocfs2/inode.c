@@ -1395,10 +1395,6 @@ int ocfs2_read_inode_block(struct inode *inode, struct buffer_head **bh)
 	return ocfs2_read_inode_block_full(inode, bh, 0);
 }
 
-static struct ocfs2_inode_info *cache_info_to_inode(struct ocfs2_caching_info *ci)
-{
-	return container_of(ci, struct ocfs2_inode_info, ip_metadata_cache);
-}
 
 static u64 ocfs2_inode_cache_owner(struct ocfs2_caching_info *ci)
 {
