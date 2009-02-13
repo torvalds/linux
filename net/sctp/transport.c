@@ -79,6 +79,7 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	peer->rttvar = 0;
 	peer->srtt = 0;
 	peer->rto_pending = 0;
+	peer->hb_sent = 0;
 	peer->fast_recovery = 0;
 
 	peer->last_time_heard = jiffies;
@@ -608,6 +609,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	t->flight_size = 0;
 	t->error_count = 0;
 	t->rto_pending = 0;
+	t->hb_sent = 0;
 	t->fast_recovery = 0;
 
 	/* Initialize the state information for SFR-CACC */

@@ -461,9 +461,15 @@ static void sctp_do_8_2_transport_strike(struct sctp_association *asoc,
 	 * expires, set RTO <- RTO * 2 ("back off the timer").  The
 	 * maximum value discussed in rule C7 above (RTO.max) may be
 	 * used to provide an upper bound to this doubling operation.
+	 *
+	 * Special Case:  the first HB doesn't trigger exponential backoff.
+	 * The first unacknowleged HB triggers it.  We do this with a flag
+	 * that indicates that we have an outstanding HB.
 	 */
-	transport->last_rto = transport->rto;
-	transport->rto = min((transport->rto * 2), transport->asoc->rto_max);
+	if (transport->hb_sent) {
+		transport->last_rto = transport->rto;
+		transport->rto = min((transport->rto * 2), transport->asoc->rto_max);
+	}
 }
 
 /* Worker routine to handle INIT command failure.  */
@@ -621,6 +627,11 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 	t->error_count = 0;
 	t->asoc->overall_error_count = 0;
 
+	/* Clear the hb_sent flag to signal that we had a good
+	 * acknowledgement.
+	 */
+	t->hb_sent = 0;
+
 	/* Mark the destination transport address as active if it is not so
 	 * marked.
 	 */
@@ -657,6 +668,8 @@ static void sctp_cmd_transport_reset(sctp_cmd_seq_t *cmds,
 
 	/* Mark one strike against a transport.  */
 	sctp_do_8_2_transport_strike(asoc, t);
+
+	t->hb_sent = 1;
 }
 
 /* Helper function to process the process SACK command.  */

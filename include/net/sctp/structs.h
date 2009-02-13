@@ -910,8 +910,10 @@ struct sctp_transport {
 	 *		should be set. Every time the RTT
 	 *		calculation completes (i.e. the DATA chunk
 	 *		is SACK'd) clear this flag.
+	 * hb_sent : a flag that signals that we have a pending heartbeat.
 	 */
 	__u8 rto_pending;
+	__u8 hb_sent;
 
 	/* Flag to track the current fast recovery state */
 	__u8 fast_recovery;
