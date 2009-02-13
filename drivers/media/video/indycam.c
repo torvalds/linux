@@ -22,7 +22,8 @@
 /* IndyCam decodes stream of photons into digital image representation ;-) */
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 
 #include "indycam.h"
@@ -49,9 +50,14 @@ I2C_CLIENT_INSMOD;
 #endif
 
 struct indycam {
-	struct i2c_client *client;
+	struct v4l2_subdev sd;
 	u8 version;
 };
+
+static inline struct indycam *to_indycam(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct indycam, sd);
+}
 
 static const u8 initseq[] = {
 	INDYCAM_CONTROL_AGCENA,		/* INDYCAM_CONTROL */
@@ -66,8 +72,9 @@ static const u8 initseq[] = {
 
 /* IndyCam register handling */
 
-static int indycam_read_reg(struct i2c_client *client, u8 reg, u8 *value)
+static int indycam_read_reg(struct v4l2_subdev *sd, u8 reg, u8 *value)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret;
 
 	if (reg == INDYCAM_REG_RESET) {
@@ -90,12 +97,12 @@ static int indycam_read_reg(struct i2c_client *client, u8 reg, u8 *value)
 	return 0;
 }
 
-static int indycam_write_reg(struct i2c_client *client, u8 reg, u8 value)
+static int indycam_write_reg(struct v4l2_subdev *sd, u8 reg, u8 value)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int err;
 
-	if ((reg == INDYCAM_REG_BRIGHTNESS)
-	    || (reg == INDYCAM_REG_VERSION)) {
+	if (reg == INDYCAM_REG_BRIGHTNESS || reg == INDYCAM_REG_VERSION) {
 		dprintk("indycam_write_reg(): "
 			"skipping read-only register %d\n", reg);
 		return 0;
@@ -111,13 +118,13 @@ static int indycam_write_reg(struct i2c_client *client, u8 reg, u8 value)
 	return err;
 }
 
-static int indycam_write_block(struct i2c_client *client, u8 reg,
+static int indycam_write_block(struct v4l2_subdev *sd, u8 reg,
 			       u8 length, u8 *data)
 {
 	int i, err;
 
 	for (i = 0; i < length; i++) {
-		err = indycam_write_reg(client, reg + i, data[i]);
+		err = indycam_write_reg(sd, reg + i, data[i]);
 		if (err)
 			return err;
 	}
@@ -128,29 +135,28 @@ static int indycam_write_block(struct i2c_client *client, u8 reg,
 /* Helper functions */
 
 #ifdef INDYCAM_DEBUG
-static void indycam_regdump_debug(struct i2c_client *client)
+static void indycam_regdump_debug(struct v4l2_subdev *sd)
 {
 	int i;
 	u8 val;
 
 	for (i = 0; i < 9; i++) {
-		indycam_read_reg(client, i, &val);
+		indycam_read_reg(sd, i, &val);
 		dprintk("Reg %d = 0x%02x\n", i, val);
 	}
 }
 #endif
 
-static int indycam_get_control(struct i2c_client *client,
-			       struct v4l2_control *ctrl)
+static int indycam_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct indycam *camera = i2c_get_clientdata(client);
+	struct indycam *camera = to_indycam(sd);
 	u8 reg;
 	int ret = 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
 	case V4L2_CID_AUTO_WHITE_BALANCE:
-		ret = indycam_read_reg(client, INDYCAM_REG_CONTROL, &reg);
+		ret = indycam_read_reg(sd, INDYCAM_REG_CONTROL, &reg);
 		if (ret)
 			return -EIO;
 		if (ctrl->id == V4L2_CID_AUTOGAIN)
@@ -161,38 +167,38 @@ static int indycam_get_control(struct i2c_client *client,
 				? 1 : 0;
 		break;
 	case V4L2_CID_EXPOSURE:
-		ret = indycam_read_reg(client, INDYCAM_REG_SHUTTER, &reg);
+		ret = indycam_read_reg(sd, INDYCAM_REG_SHUTTER, &reg);
 		if (ret)
 			return -EIO;
 		ctrl->value = ((s32)reg == 0x00) ? 0xff : ((s32)reg - 1);
 		break;
 	case V4L2_CID_GAIN:
-		ret = indycam_read_reg(client, INDYCAM_REG_GAIN, &reg);
+		ret = indycam_read_reg(sd, INDYCAM_REG_GAIN, &reg);
 		if (ret)
 			return -EIO;
 		ctrl->value = (s32)reg;
 		break;
 	case V4L2_CID_RED_BALANCE:
-		ret = indycam_read_reg(client, INDYCAM_REG_RED_BALANCE, &reg);
+		ret = indycam_read_reg(sd, INDYCAM_REG_RED_BALANCE, &reg);
 		if (ret)
 			return -EIO;
 		ctrl->value = (s32)reg;
 		break;
 	case V4L2_CID_BLUE_BALANCE:
-		ret = indycam_read_reg(client, INDYCAM_REG_BLUE_BALANCE, &reg);
+		ret = indycam_read_reg(sd, INDYCAM_REG_BLUE_BALANCE, &reg);
 		if (ret)
 			return -EIO;
 		ctrl->value = (s32)reg;
 		break;
 	case INDYCAM_CONTROL_RED_SATURATION:
-		ret = indycam_read_reg(client,
+		ret = indycam_read_reg(sd,
 				       INDYCAM_REG_RED_SATURATION, &reg);
 		if (ret)
 			return -EIO;
 		ctrl->value = (s32)reg;
 		break;
 	case INDYCAM_CONTROL_BLUE_SATURATION:
-		ret = indycam_read_reg(client,
+		ret = indycam_read_reg(sd,
 				       INDYCAM_REG_BLUE_SATURATION, &reg);
 		if (ret)
 			return -EIO;
@@ -200,7 +206,7 @@ static int indycam_get_control(struct i2c_client *client,
 		break;
 	case V4L2_CID_GAMMA:
 		if (camera->version == CAMERA_VERSION_MOOSE) {
-			ret = indycam_read_reg(client,
+			ret = indycam_read_reg(sd,
 					       INDYCAM_REG_GAMMA, &reg);
 			if (ret)
 				return -EIO;
@@ -216,17 +222,16 @@ static int indycam_get_control(struct i2c_client *client,
 	return ret;
 }
 
-static int indycam_set_control(struct i2c_client *client,
-			       struct v4l2_control *ctrl)
+static int indycam_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	struct indycam *camera = i2c_get_clientdata(client);
+	struct indycam *camera = to_indycam(sd);
 	u8 reg;
 	int ret = 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
 	case V4L2_CID_AUTO_WHITE_BALANCE:
-		ret = indycam_read_reg(client, INDYCAM_REG_CONTROL, &reg);
+		ret = indycam_read_reg(sd, INDYCAM_REG_CONTROL, &reg);
 		if (ret)
 			break;
 
@@ -242,34 +247,34 @@ static int indycam_set_control(struct i2c_client *client,
 				reg &= ~INDYCAM_CONTROL_AWBCTL;
 		}
 
-		ret = indycam_write_reg(client, INDYCAM_REG_CONTROL, reg);
+		ret = indycam_write_reg(sd, INDYCAM_REG_CONTROL, reg);
 		break;
 	case V4L2_CID_EXPOSURE:
 		reg = (ctrl->value == 0xff) ? 0x00 : (ctrl->value + 1);
-		ret = indycam_write_reg(client, INDYCAM_REG_SHUTTER, reg);
+		ret = indycam_write_reg(sd, INDYCAM_REG_SHUTTER, reg);
 		break;
 	case V4L2_CID_GAIN:
-		ret = indycam_write_reg(client, INDYCAM_REG_GAIN, ctrl->value);
+		ret = indycam_write_reg(sd, INDYCAM_REG_GAIN, ctrl->value);
 		break;
 	case V4L2_CID_RED_BALANCE:
-		ret = indycam_write_reg(client, INDYCAM_REG_RED_BALANCE,
+		ret = indycam_write_reg(sd, INDYCAM_REG_RED_BALANCE,
 					ctrl->value);
 		break;
 	case V4L2_CID_BLUE_BALANCE:
-		ret = indycam_write_reg(client, INDYCAM_REG_BLUE_BALANCE,
+		ret = indycam_write_reg(sd, INDYCAM_REG_BLUE_BALANCE,
 					ctrl->value);
 		break;
 	case INDYCAM_CONTROL_RED_SATURATION:
-		ret = indycam_write_reg(client, INDYCAM_REG_RED_SATURATION,
+		ret = indycam_write_reg(sd, INDYCAM_REG_RED_SATURATION,
 					ctrl->value);
 		break;
 	case INDYCAM_CONTROL_BLUE_SATURATION:
-		ret = indycam_write_reg(client, INDYCAM_REG_BLUE_SATURATION,
+		ret = indycam_write_reg(sd, INDYCAM_REG_BLUE_SATURATION,
 					ctrl->value);
 		break;
 	case V4L2_CID_GAMMA:
 		if (camera->version == CAMERA_VERSION_MOOSE) {
-			ret = indycam_write_reg(client, INDYCAM_REG_GAMMA,
+			ret = indycam_write_reg(sd, INDYCAM_REG_GAMMA,
 						ctrl->value);
 		}
 		break;
@@ -282,30 +287,39 @@ static int indycam_set_control(struct i2c_client *client,
 
 /* I2C-interface */
 
-static int indycam_command(struct i2c_client *client, unsigned int cmd,
-			   void *arg)
+static int indycam_g_chip_ident(struct v4l2_subdev *sd,
+		struct v4l2_dbg_chip_ident *chip)
 {
-	/* The old video_decoder interface just isn't enough,
-	 * so we'll use some custom commands. */
-	switch (cmd) {
-	case VIDIOC_G_CTRL:
-		return indycam_get_control(client, arg);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct indycam *camera = to_indycam(sd);
 
-	case VIDIOC_S_CTRL:
-		return indycam_set_control(client, arg);
-
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_INDYCAM,
+		       camera->version);
 }
+
+static int indycam_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+}
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops indycam_core_ops = {
+	.g_chip_ident = indycam_g_chip_ident,
+	.g_ctrl = indycam_g_ctrl,
+	.s_ctrl = indycam_s_ctrl,
+};
+
+static const struct v4l2_subdev_ops indycam_ops = {
+	.core = &indycam_core_ops,
+};
 
 static int indycam_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	int err = 0;
 	struct indycam *camera;
+	struct v4l2_subdev *sd;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
@@ -314,9 +328,8 @@ static int indycam_probe(struct i2c_client *client,
 	if (!camera)
 		return -ENOMEM;
 
-	i2c_set_clientdata(client, camera);
-
-	camera->client = client;
+	sd = &camera->sd;
+	v4l2_i2c_subdev_init(sd, client, &indycam_ops);
 
 	camera->version = i2c_smbus_read_byte_data(client,
 						   INDYCAM_REG_VERSION);
@@ -330,20 +343,20 @@ static int indycam_probe(struct i2c_client *client,
 	       INDYCAM_VERSION_MAJOR(camera->version),
 	       INDYCAM_VERSION_MINOR(camera->version));
 
-	indycam_regdump(client);
+	indycam_regdump(sd);
 
 	// initialize
-	err = indycam_write_block(client, 0, sizeof(initseq), (u8 *)&initseq);
+	err = indycam_write_block(sd, 0, sizeof(initseq), (u8 *)&initseq);
 	if (err) {
 		printk(KERN_ERR "IndyCam initialization failed\n");
 		kfree(camera);
 		return -EIO;
 	}
 
-	indycam_regdump(client);
+	indycam_regdump(sd);
 
 	// white balance
-	err = indycam_write_reg(client, INDYCAM_REG_CONTROL,
+	err = indycam_write_reg(sd, INDYCAM_REG_CONTROL,
 			  INDYCAM_CONTROL_AGCENA | INDYCAM_CONTROL_AWBCTL);
 	if (err) {
 		printk(KERN_ERR "IndyCam: White balancing camera failed\n");
@@ -351,7 +364,7 @@ static int indycam_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	indycam_regdump(client);
+	indycam_regdump(sd);
 
 	printk(KERN_INFO "IndyCam initialized\n");
 
@@ -360,9 +373,10 @@ static int indycam_probe(struct i2c_client *client,
 
 static int indycam_remove(struct i2c_client *client)
 {
-	struct indycam *camera = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
-	kfree(camera);
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_indycam(sd));
 	return 0;
 }
 
