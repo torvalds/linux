@@ -907,6 +907,8 @@ static void ql_update_lbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 						   0, PAGE_SIZE,
 						   PCI_DMA_FROMDEVICE);
 				if (pci_dma_mapping_error(qdev->pdev, map)) {
+					put_page(lbq_desc->p.lbq_page);
+					lbq_desc->p.lbq_page = NULL;
 					QPRINTK(qdev, RX_STATUS, ERR,
 						"PCI mapping failed.\n");
 					return;
