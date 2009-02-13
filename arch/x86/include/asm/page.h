@@ -1,6 +1,8 @@
 #ifndef _ASM_X86_PAGE_H
 #define _ASM_X86_PAGE_H
 
+#include <linux/types.h>
+
 #ifdef __KERNEL__
 
 #include <asm/page_types.h>
