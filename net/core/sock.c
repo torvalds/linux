@@ -696,6 +696,8 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	if (len < 0)
 		return -EINVAL;
 
+	v.val = 0;
+
 	switch(optname) {
 	case SO_DEBUG:
 		v.val = sock_flag(sk, SOCK_DBG);

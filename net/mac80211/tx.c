@@ -1343,6 +1343,8 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev)
 						list) {
 				if (!netif_running(sdata->dev))
 					continue;
+				if (sdata->vif.type != NL80211_IFTYPE_AP)
+					continue;
 				if (compare_ether_addr(sdata->dev->dev_addr,
 						       hdr->addr2)) {
 					dev_hold(sdata->dev);
