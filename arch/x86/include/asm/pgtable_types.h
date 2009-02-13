@@ -2,6 +2,7 @@
 #define _ASM_X86_PGTABLE_DEFS_H
 
 #include <linux/const.h>
+#include <asm/page_types.h>
 
 #define FIRST_USER_ADDRESS	0
 
