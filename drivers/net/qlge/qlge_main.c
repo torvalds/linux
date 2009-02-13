@@ -2884,8 +2884,8 @@ static int ql_start_rss(struct ql_adapter *qdev)
 	/*
 	 * Fill out the Indirection Table.
 	 */
-	for (i = 0; i < 32; i++)
-		hash_id[i] = i & 1;
+	for (i = 0; i < 256; i++)
+		hash_id[i] = i & (qdev->rss_ring_count - 1);
 
 	/*
 	 * Random values for the IPv6 and IPv4 Hash Keys.
