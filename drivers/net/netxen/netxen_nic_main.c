@@ -201,9 +201,9 @@ static int nx_set_dma_mask(struct netxen_adapter *adapter, uint8_t revision_id)
 		adapter->pci_using_dac = 1;
 		return 0;
 	}
+set_32_bit_mask:
 #endif /* CONFIG_IA64 */
 
-set_32_bit_mask:
 	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (!err)
 		err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
