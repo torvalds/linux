@@ -86,7 +86,7 @@ void ocfs2_init_dx_root_extent_tree(struct ocfs2_extent_tree *et,
  * allocated.  This is a cached read.  The extent block will be validated
  * with ocfs2_validate_extent_block().
  */
-int ocfs2_read_extent_block(struct inode *inode, u64 eb_blkno,
+int ocfs2_read_extent_block(struct ocfs2_caching_info *ci, u64 eb_blkno,
 			    struct buffer_head **bh);
 
 struct ocfs2_alloc_context;
@@ -132,7 +132,6 @@ int ocfs2_remove_btree_range(struct inode *inode,
 			     struct ocfs2_cached_dealloc_ctxt *dealloc);
 
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
-			   struct inode *inode,
 			   struct ocfs2_extent_tree *et);
 
 /*

@@ -3346,7 +3346,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	if (dir_i_size == ocfs2_clusters_to_bytes(sb, OCFS2_I(dir)->ip_clusters)) {
 		spin_unlock(&OCFS2_I(dir)->ip_lock);
 		ocfs2_init_dinode_extent_tree(&et, dir, parent_fe_bh);
-		num_free_extents = ocfs2_num_free_extents(osb, dir, &et);
+		num_free_extents = ocfs2_num_free_extents(osb, &et);
 		if (num_free_extents < 0) {
 			status = num_free_extents;
 			mlog_errno(status);
