@@ -2439,6 +2439,14 @@ static int stac92xx_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					     stream_tag, format, substream);
 }
 
+static int stac92xx_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
+					struct hda_codec *codec,
+					struct snd_pcm_substream *substream)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_cleanup(codec, &spec->multiout);
+}
+
 
 /*
  * Analog capture callbacks
@@ -2483,7 +2491,8 @@ static struct hda_pcm_stream stac92xx_pcm_digital_playback = {
 	.ops = {
 		.open = stac92xx_dig_playback_pcm_open,
 		.close = stac92xx_dig_playback_pcm_close,
-		.prepare = stac92xx_dig_playback_pcm_prepare
+		.prepare = stac92xx_dig_playback_pcm_prepare,
+		.cleanup = stac92xx_dig_playback_pcm_cleanup
 	},
 };
 
