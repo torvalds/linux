@@ -3623,15 +3623,13 @@ out:
 	return ret;
 }
 
-static int ocfs2_try_to_merge_extent(struct inode *inode,
-				     handle_t *handle,
+static int ocfs2_try_to_merge_extent(handle_t *handle,
+				     struct ocfs2_extent_tree *et,
 				     struct ocfs2_path *path,
 				     int split_index,
 				     struct ocfs2_extent_rec *split_rec,
 				     struct ocfs2_cached_dealloc_ctxt *dealloc,
-				     struct ocfs2_merge_ctxt *ctxt,
-				     struct ocfs2_extent_tree *et)
-
+				     struct ocfs2_merge_ctxt *ctxt)
 {
 	int ret = 0;
 	struct ocfs2_extent_list *el = path_leaf_el(path);
@@ -5069,9 +5067,9 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 		if (ret)
 			mlog_errno(ret);
 	} else {
-		ret = ocfs2_try_to_merge_extent(inode, handle, path,
+		ret = ocfs2_try_to_merge_extent(handle, et, path,
 						split_index, split_rec,
-						dealloc, &ctxt, et);
+						dealloc, &ctxt);
 		if (ret)
 			mlog_errno(ret);
 	}
