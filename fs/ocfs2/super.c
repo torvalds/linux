@@ -1537,6 +1537,13 @@ static int ocfs2_get_sector(struct super_block *sb,
 	unlock_buffer(*bh);
 	ll_rw_block(READ, 1, bh);
 	wait_on_buffer(*bh);
+	if (!buffer_uptodate(*bh)) {
+		mlog_errno(-EIO);
+		brelse(*bh);
+		*bh = NULL;
+		return -EIO;
+	}
+
 	return 0;
 }
 
