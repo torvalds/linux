@@ -117,9 +117,8 @@ int ocfs2_mark_extent_written(struct inode *inode,
 			      handle_t *handle, u32 cpos, u32 len, u32 phys,
 			      struct ocfs2_alloc_context *meta_ac,
 			      struct ocfs2_cached_dealloc_ctxt *dealloc);
-int ocfs2_remove_extent(struct inode *inode,
-			struct ocfs2_extent_tree *et,
-			u32 cpos, u32 len, handle_t *handle,
+int ocfs2_remove_extent(handle_t *handle, struct ocfs2_extent_tree *et,
+			u32 cpos, u32 len,
 			struct ocfs2_alloc_context *meta_ac,
 			struct ocfs2_cached_dealloc_ctxt *dealloc);
 int ocfs2_remove_btree_range(struct inode *inode,

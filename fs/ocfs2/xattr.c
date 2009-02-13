@@ -663,7 +663,7 @@ static int __ocfs2_remove_xattr_range(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_remove_extent(inode, &et, cpos, len, handle, ctxt->meta_ac,
+	ret = ocfs2_remove_extent(handle, &et, cpos, len, ctxt->meta_ac,
 				  &ctxt->dealloc);
 	if (ret) {
 		mlog_errno(ret);
@@ -4881,7 +4881,7 @@ static int ocfs2_rm_xattr_cluster(struct inode *inode,
 		goto out_commit;
 	}
 
-	ret = ocfs2_remove_extent(inode, &et, cpos, len, handle, meta_ac,
+	ret = ocfs2_remove_extent(handle, &et, cpos, len, meta_ac,
 				  &dealloc);
 	if (ret) {
 		mlog_errno(ret);
