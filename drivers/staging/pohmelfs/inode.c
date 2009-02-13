@@ -914,7 +914,7 @@ ssize_t pohmelfs_write(struct file *file, const char __user *buf,
 	kiocb.ki_pos = pos;
 	kiocb.ki_left = len;
 
-	dprintk("%s: len: %u, pos: %llu.\n", __func__, len, pos);
+	dprintk("%s: len: %zu, pos: %llu.\n", __func__, len, pos);
 
 	mutex_lock(&inode->i_mutex);
 	ret = pohmelfs_data_lock(pi, pos, len, POHMELFS_WRITE_LOCK);
@@ -1033,7 +1033,7 @@ static int pohmelfs_send_xattr_req(struct pohmelfs_inode *pi, u64 id, u64 start,
 	struct netfs_cmd *cmd;
 	void *data;
 
-	dprintk("%s: id: %llu, start: %llu, name: '%s', attrsize: %u, cmd: %d.\n",
+	dprintk("%s: id: %llu, start: %llu, name: '%s', attrsize: %zu, cmd: %d.\n",
 			__func__, id, start, name, attrsize, command);
 
 	path_len = pohmelfs_path_length(pi);

@@ -160,14 +160,14 @@ int netfs_trans_send(struct netfs_trans *t, struct netfs_state *st)
 
 	err = kernel_sendmsg(st->socket, &msg, (struct kvec *)msg.msg_iov, 1, t->iovec.iov_len);
 	if (err <= 0) {
-		printk("%s: failed to send contig transaction: t: %p, gen: %u, size: %u, err: %d.\n",
+		printk("%s: failed to send contig transaction: t: %p, gen: %u, size: %zu, err: %d.\n",
 				__func__, t, t->gen, t->iovec.iov_len, err);
 		if (err == 0)
 			err = -ECONNRESET;
 		goto err_out_unlock_return;
 	}
 
-	dprintk("%s: sent %s transaction: t: %p, gen: %u, size: %u, page_num: %u.\n",
+	dprintk("%s: sent %s transaction: t: %p, gen: %u, size: %zu, page_num: %u.\n",
 			__func__, (t->page_num)?"partial":"full",
 			t, t->gen, t->iovec.iov_len, t->page_num);
 
@@ -514,7 +514,7 @@ int netfs_trans_finish(struct netfs_trans *t, struct pohmelfs_sb *psb)
 		cmd->csize = psb->crypto_attached_size;
 	}
 
-	dprintk("%s: t: %u, size: %u, iov_len: %u, attached_size: %u, attached_pages: %u.\n",
+	dprintk("%s: t: %u, size: %u, iov_len: %zu, attached_size: %u, attached_pages: %u.\n",
 			__func__, t->gen, cmd->size, t->iovec.iov_len, t->attached_size, t->attached_pages);
 	err = pohmelfs_trans_crypt(t, psb);
 	if (err) {
@@ -597,7 +597,7 @@ void *netfs_trans_add(struct netfs_trans *t, unsigned int size)
 	}
 
 	if (io->iov_len + size > t->total_size) {
-		dprintk("%s: too big size t: %p, gen: %u, iov_len: %u, size: %u, total: %u.\n",
+		dprintk("%s: too big size t: %p, gen: %u, iov_len: %zu, size: %u, total: %u.\n",
 				__func__, t, t->gen, io->iov_len, size, t->total_size);
 		ptr = ERR_PTR(-E2BIG);
 		goto out;
@@ -607,7 +607,7 @@ void *netfs_trans_add(struct netfs_trans *t, unsigned int size)
 	io->iov_len += size;
 
 out:
-	dprintk("%s: t: %p, gen: %u, size: %u, total: %u.\n",
+	dprintk("%s: t: %p, gen: %u, size: %u, total: %zu.\n",
 		__func__, t, t->gen, size, io->iov_len);
 	return ptr;
 }
