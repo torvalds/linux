@@ -599,7 +599,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				latency = 1;
 
 			def_sampling_rate =
-				max(10 * latency * LATENCY_MULTIPLIER,
+				max(latency * LATENCY_MULTIPLIER,
 				    MIN_STAT_SAMPLING_RATE);
 
 			dbs_tuners_ins.sampling_rate = def_sampling_rate;
