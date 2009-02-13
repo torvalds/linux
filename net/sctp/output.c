@@ -367,7 +367,6 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	struct sctp_transport *tp = packet->transport;
 	struct sctp_association *asoc = tp->asoc;
 	struct sctphdr *sh;
-	__be32 crc32 = cpu_to_be32(0);
 	struct sk_buff *nskb;
 	struct sctp_chunk *chunk, *tmp;
 	struct sock *sk;
@@ -532,15 +531,14 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	 * by CRC32-C as described in <draft-ietf-tsvwg-sctpcsum-02.txt>.
 	 */
 	if (!sctp_checksum_disable && !(dst->dev->features & NETIF_F_NO_CSUM)) {
-		crc32 = sctp_start_cksum((__u8 *)sh, cksum_buf_len);
-		crc32 = sctp_end_cksum(crc32);
+		__u32 crc32 = sctp_start_cksum((__u8 *)sh, cksum_buf_len);
+
+		/* 3) Put the resultant value into the checksum field in the
+		 *    common header, and leave the rest of the bits unchanged.
+		 */
+		sh->checksum = sctp_end_cksum(crc32);
 	} else
 		nskb->ip_summed = CHECKSUM_UNNECESSARY;
-
-	/* 3) Put the resultant value into the checksum field in the
-	 *    common header, and leave the rest of the bits unchanged.
-	 */
-	sh->checksum = crc32;
 
 	/* IP layer ECN support
 	 * From RFC 2481

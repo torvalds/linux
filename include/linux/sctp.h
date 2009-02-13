@@ -60,7 +60,7 @@ typedef struct sctphdr {
 	__be16 source;
 	__be16 dest;
 	__be32 vtag;
-	__be32 checksum;
+	__le32 checksum;
 } __attribute__((packed)) sctp_sctphdr_t;
 
 #ifdef __KERNEL__
