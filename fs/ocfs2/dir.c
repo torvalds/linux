@@ -805,7 +805,8 @@ static int ocfs2_dx_dir_lookup_rec(struct inode *inode,
 	struct ocfs2_extent_rec *rec = NULL;
 
 	if (el->l_tree_depth) {
-		ret = ocfs2_find_leaf(inode, el, major_hash, &eb_bh);
+		ret = ocfs2_find_leaf(INODE_CACHE(inode), el, major_hash,
+				      &eb_bh);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;

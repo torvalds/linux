@@ -475,8 +475,8 @@ struct ocfs2_path {
 #define path_leaf_el(_path) ((_path)->p_node[(_path)->p_tree_depth].el)
 #define path_num_items(_path) ((_path)->p_tree_depth + 1)
 
-static int ocfs2_find_path(struct inode *inode, struct ocfs2_path *path,
-			   u32 cpos);
+static int ocfs2_find_path(struct ocfs2_caching_info *ci,
+			   struct ocfs2_path *path, u32 cpos);
 static void ocfs2_adjust_rightmost_records(struct inode *inode,
 					   handle_t *handle,
 					   struct ocfs2_path *path,
@@ -1039,7 +1039,7 @@ static int ocfs2_adjust_rightmost_branch(handle_t *handle,
 		return status;
 	}
 
-	status = ocfs2_find_path(inode, path, UINT_MAX);
+	status = ocfs2_find_path(et->et_ci, path, UINT_MAX);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
@@ -1728,7 +1728,7 @@ typedef void (path_insert_t)(void *, struct buffer_head *);
  * This code can be called with a cpos larger than the tree, in which
  * case it will return the rightmost path.
  */
-static int __ocfs2_find_path(struct inode *inode,
+static int __ocfs2_find_path(struct ocfs2_caching_info *ci,
 			     struct ocfs2_extent_list *root_el, u32 cpos,
 			     path_insert_t *func, void *data)
 {
@@ -1739,15 +1739,14 @@ static int __ocfs2_find_path(struct inode *inode,
 	struct ocfs2_extent_block *eb;
 	struct ocfs2_extent_list *el;
 	struct ocfs2_extent_rec *rec;
-	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	el = root_el;
 	while (el->l_tree_depth) {
 		if (le16_to_cpu(el->l_next_free_rec) == 0) {
-			ocfs2_error(inode->i_sb,
-				    "Inode %llu has empty extent list at "
+			ocfs2_error(ocfs2_metadata_cache_get_super(ci),
+				    "Owner %llu has empty extent list at "
 				    "depth %u\n",
-				    (unsigned long long)oi->ip_blkno,
+				    (unsigned long long)ocfs2_metadata_cache_owner(ci),
 				    le16_to_cpu(el->l_tree_depth));
 			ret = -EROFS;
 			goto out;
@@ -1770,10 +1769,10 @@ static int __ocfs2_find_path(struct inode *inode,
 
 		blkno = le64_to_cpu(el->l_recs[i].e_blkno);
 		if (blkno == 0) {
-			ocfs2_error(inode->i_sb,
-				    "Inode %llu has bad blkno in extent list "
+			ocfs2_error(ocfs2_metadata_cache_get_super(ci),
+				    "Owner %llu has bad blkno in extent list "
 				    "at depth %u (index %d)\n",
-				    (unsigned long long)oi->ip_blkno,
+				    (unsigned long long)ocfs2_metadata_cache_owner(ci),
 				    le16_to_cpu(el->l_tree_depth), i);
 			ret = -EROFS;
 			goto out;
@@ -1781,7 +1780,7 @@ static int __ocfs2_find_path(struct inode *inode,
 
 		brelse(bh);
 		bh = NULL;
-		ret = ocfs2_read_extent_block(INODE_CACHE(inode), blkno, &bh);
+		ret = ocfs2_read_extent_block(ci, blkno, &bh);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -1792,10 +1791,10 @@ static int __ocfs2_find_path(struct inode *inode,
 
 		if (le16_to_cpu(el->l_next_free_rec) >
 		    le16_to_cpu(el->l_count)) {
-			ocfs2_error(inode->i_sb,
-				    "Inode %llu has bad count in extent list "
+			ocfs2_error(ocfs2_metadata_cache_get_super(ci),
+				    "Owner %llu has bad count in extent list "
 				    "at block %llu (next free=%u, count=%u)\n",
-				    (unsigned long long)oi->ip_blkno,
+				    (unsigned long long)ocfs2_metadata_cache_owner(ci),
 				    (unsigned long long)bh->b_blocknr,
 				    le16_to_cpu(el->l_next_free_rec),
 				    le16_to_cpu(el->l_count));
@@ -1839,14 +1838,14 @@ static void find_path_ins(void *data, struct buffer_head *bh)
 	ocfs2_path_insert_eb(fp->path, fp->index, bh);
 	fp->index++;
 }
-static int ocfs2_find_path(struct inode *inode, struct ocfs2_path *path,
-			   u32 cpos)
+static int ocfs2_find_path(struct ocfs2_caching_info *ci,
+			   struct ocfs2_path *path, u32 cpos)
 {
 	struct find_path_data data;
 
 	data.index = 1;
 	data.path = path;
-	return __ocfs2_find_path(inode, path_root_el(path), cpos,
+	return __ocfs2_find_path(ci, path_root_el(path), cpos,
 				 find_path_ins, &data);
 }
 
@@ -1871,13 +1870,14 @@ static void find_leaf_ins(void *data, struct buffer_head *bh)
  *
  * This function doesn't handle non btree extent lists.
  */
-int ocfs2_find_leaf(struct inode *inode, struct ocfs2_extent_list *root_el,
-		    u32 cpos, struct buffer_head **leaf_bh)
+int ocfs2_find_leaf(struct ocfs2_caching_info *ci,
+		    struct ocfs2_extent_list *root_el, u32 cpos,
+		    struct buffer_head **leaf_bh)
 {
 	int ret;
 	struct buffer_head *bh = NULL;
 
-	ret = __ocfs2_find_path(inode, root_el, cpos, find_leaf_ins, &bh);
+	ret = __ocfs2_find_path(ci, root_el, cpos, find_leaf_ins, &bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -2382,7 +2382,7 @@ static int ocfs2_rotate_tree_right(struct inode *inode,
 		mlog(0, "Rotating a tree: ins. cpos: %u, left path cpos: %u\n",
 		     insert_cpos, cpos);
 
-		ret = ocfs2_find_path(inode, left_path, cpos);
+		ret = ocfs2_find_path(INODE_CACHE(inode), left_path, cpos);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -2923,7 +2923,7 @@ static int __ocfs2_rotate_tree_left(struct inode *inode,
 	}
 
 	while (right_cpos) {
-		ret = ocfs2_find_path(inode, right_path, right_cpos);
+		ret = ocfs2_find_path(et->et_ci, right_path, right_cpos);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3052,7 +3052,7 @@ static int ocfs2_remove_rightmost_path(struct inode *inode, handle_t *handle,
 			goto out;
 		}
 
-		ret = ocfs2_find_path(inode, left_path, cpos);
+		ret = ocfs2_find_path(et->et_ci, left_path, cpos);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3297,7 +3297,7 @@ static int ocfs2_get_right_path(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_find_path(inode, right_path, right_cpos);
+	ret = ocfs2_find_path(INODE_CACHE(inode), right_path, right_cpos);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -3466,7 +3466,7 @@ static int ocfs2_get_left_path(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_find_path(inode, left_path, left_cpos);
+	ret = ocfs2_find_path(INODE_CACHE(inode), left_path, left_cpos);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -3996,7 +3996,8 @@ static int ocfs2_append_rec_to_path(struct inode *inode, handle_t *handle,
 				goto out;
 			}
 
-			ret = ocfs2_find_path(inode, left_path, left_cpos);
+			ret = ocfs2_find_path(INODE_CACHE(inode), left_path,
+					      left_cpos);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
@@ -4245,7 +4246,7 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 		cpos = UINT_MAX;
 	}
 
-	ret = ocfs2_find_path(inode, right_path, cpos);
+	ret = ocfs2_find_path(et->et_ci, right_path, cpos);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -4342,7 +4343,8 @@ ocfs2_figure_merge_contig_type(struct inode *inode, struct ocfs2_path *path,
 			if (!left_path)
 				goto out;
 
-			status = ocfs2_find_path(inode, left_path, left_cpos);
+			status = ocfs2_find_path(INODE_CACHE(inode),
+						 left_path, left_cpos);
 			if (status)
 				goto out;
 
@@ -4398,7 +4400,7 @@ ocfs2_figure_merge_contig_type(struct inode *inode, struct ocfs2_path *path,
 		if (!right_path)
 			goto out;
 
-		status = ocfs2_find_path(inode, right_path, right_cpos);
+		status = ocfs2_find_path(INODE_CACHE(inode), right_path, right_cpos);
 		if (status)
 			goto out;
 
@@ -4600,7 +4602,7 @@ static int ocfs2_figure_insert_type(struct inode *inode,
 	 * us the rightmost tree path. This is accounted for below in
 	 * the appending code.
 	 */
-	ret = ocfs2_find_path(inode, path, le32_to_cpu(insert_rec->e_cpos));
+	ret = ocfs2_find_path(et->et_ci, path, le32_to_cpu(insert_rec->e_cpos));
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -4950,7 +4952,7 @@ leftright:
 		ocfs2_reinit_path(path, 1);
 
 		cpos = le32_to_cpu(split_rec.e_cpos);
-		ret = ocfs2_find_path(inode, path, cpos);
+		ret = ocfs2_find_path(et->et_ci, path, cpos);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -5148,7 +5150,7 @@ int ocfs2_mark_extent_written(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_find_path(inode, left_path, cpos);
+	ret = ocfs2_find_path(et->et_ci, left_path, cpos);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -5320,7 +5322,8 @@ static int ocfs2_truncate_rec(struct inode *inode, handle_t *handle,
 				goto out;
 			}
 
-			ret = ocfs2_find_path(inode, left_path, left_cpos);
+			ret = ocfs2_find_path(et->et_ci, left_path,
+					      left_cpos);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
@@ -5429,7 +5432,7 @@ int ocfs2_remove_extent(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_find_path(inode, path, cpos);
+	ret = ocfs2_find_path(et->et_ci, path, cpos);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -5494,7 +5497,7 @@ int ocfs2_remove_extent(struct inode *inode,
 		 */
 		ocfs2_reinit_path(path, 1);
 
-		ret = ocfs2_find_path(inode, path, cpos);
+		ret = ocfs2_find_path(et->et_ci, path, cpos);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -6522,7 +6525,7 @@ static int ocfs2_find_new_last_ext_blk(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_find_leaf(inode, path_root_el(path), cpos, &bh);
+	ret = ocfs2_find_leaf(INODE_CACHE(inode), path_root_el(path), cpos, &bh);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -7299,7 +7302,7 @@ start:
 	/*
 	 * Truncate always works against the rightmost tree branch.
 	 */
-	status = ocfs2_find_path(inode, path, UINT_MAX);
+	status = ocfs2_find_path(INODE_CACHE(inode), path, UINT_MAX);
 	if (status) {
 		mlog_errno(status);
 		goto bail;

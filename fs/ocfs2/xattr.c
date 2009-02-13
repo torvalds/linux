@@ -2854,7 +2854,8 @@ static int ocfs2_xattr_get_rec(struct inode *inode,
 	u64 e_blkno = 0;
 
 	if (el->l_tree_depth) {
-		ret = ocfs2_find_leaf(inode, el, name_hash, &eb_bh);
+		ret = ocfs2_find_leaf(INODE_CACHE(inode), el, name_hash,
+				      &eb_bh);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;

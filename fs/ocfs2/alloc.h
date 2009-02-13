@@ -223,8 +223,9 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
 			  unsigned int start, unsigned int end, int trunc);
 
-int ocfs2_find_leaf(struct inode *inode, struct ocfs2_extent_list *root_el,
-		    u32 cpos, struct buffer_head **leaf_bh);
+int ocfs2_find_leaf(struct ocfs2_caching_info *ci,
+		    struct ocfs2_extent_list *root_el, u32 cpos,
+		    struct buffer_head **leaf_bh);
 int ocfs2_search_extent_list(struct ocfs2_extent_list *el, u32 v_cluster);
 
 /*

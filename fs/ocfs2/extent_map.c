@@ -428,7 +428,8 @@ static int ocfs2_get_clusters_nocache(struct inode *inode,
 	tree_height = le16_to_cpu(el->l_tree_depth);
 
 	if (tree_height > 0) {
-		ret = ocfs2_find_leaf(inode, el, v_cluster, &eb_bh);
+		ret = ocfs2_find_leaf(INODE_CACHE(inode), el, v_cluster,
+				      &eb_bh);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -548,7 +549,8 @@ int ocfs2_xattr_get_clusters(struct inode *inode, u32 v_cluster,
 	u32 coff;
 
 	if (el->l_tree_depth) {
-		ret = ocfs2_find_leaf(inode, el, v_cluster, &eb_bh);
+		ret = ocfs2_find_leaf(INODE_CACHE(inode), el, v_cluster,
+				      &eb_bh);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
