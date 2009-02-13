@@ -352,6 +352,7 @@ static int empress_s_ctrl(struct file *file, void *priv,
 static int empress_queryctrl(struct file *file, void *priv,
 					struct v4l2_queryctrl *c)
 {
+	/* Must be sorted from low to high control ID! */
 	static const u32 user_ctrls[] = {
 		V4L2_CID_USER_CLASS,
 		V4L2_CID_BRIGHTNESS,
@@ -364,6 +365,7 @@ static int empress_queryctrl(struct file *file, void *priv,
 		0
 	};
 
+	/* Must be sorted from low to high control ID! */
 	static const u32 mpeg_ctrls[] = {
 		V4L2_CID_MPEG_CLASS,
 		V4L2_CID_MPEG_STREAM_TYPE,

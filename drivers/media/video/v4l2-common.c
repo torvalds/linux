@@ -749,7 +749,7 @@ EXPORT_SYMBOL(v4l2_ctrl_query_menu_valid_items);
 /* ctrl_classes points to an array of u32 pointers, the last element is
    a NULL pointer. Each u32 array is a 0-terminated array of control IDs.
    Each array must be sorted low to high and belong to the same control
-   class. The array of u32 pointer must also be sorted, from low class IDs
+   class. The array of u32 pointers must also be sorted, from low class IDs
    to high class IDs.
 
    This function returns the first ID that follows after the given ID.

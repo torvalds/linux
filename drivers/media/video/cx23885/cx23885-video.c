@@ -244,6 +244,7 @@ static struct cx23885_ctrl cx23885_ctls[] = {
 };
 static const int CX23885_CTLS = ARRAY_SIZE(cx23885_ctls);
 
+/* Must be sorted from low to high control ID! */
 static const u32 cx23885_user_ctrls[] = {
 	V4L2_CID_USER_CLASS,
 	V4L2_CID_BRIGHTNESS,

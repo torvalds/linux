@@ -38,6 +38,7 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
+/* Must be sorted from low to high control ID! */
 const u32 cx2341x_mpeg_ctrls[] = {
 	V4L2_CID_MPEG_CLASS,
 	V4L2_CID_MPEG_STREAM_TYPE,

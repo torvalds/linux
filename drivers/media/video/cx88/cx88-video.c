@@ -298,6 +298,7 @@ static struct cx88_ctrl cx8800_ctls[] = {
 };
 static const int CX8800_CTLS = ARRAY_SIZE(cx8800_ctls);
 
+/* Must be sorted from low to high control ID! */
 const u32 cx88_user_ctrls[] = {
 	V4L2_CID_USER_CLASS,
 	V4L2_CID_BRIGHTNESS,

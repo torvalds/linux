@@ -107,6 +107,11 @@ int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu,
 		struct v4l2_queryctrl *qctrl, const char **menu_items);
 #define V4L2_CTRL_MENU_IDS_END (0xffffffff)
 int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *ids);
+
+/* Note: ctrl_classes points to an array of u32 pointers. Each u32 array is a
+   0-terminated array of control IDs. Each array must be sorted low to high
+   and belong to the same control class. The array of u32 pointers must also
+   be sorted, from low class IDs to high class IDs. */
 u32 v4l2_ctrl_next(const u32 * const *ctrl_classes, u32 id);
 
 /* ------------------------------------------------------------------------- */

@@ -30,6 +30,7 @@
 #include "cx18-mailbox.h"
 #include "cx18-controls.h"
 
+/* Must be sorted from low to high control ID! */
 static const u32 user_ctrls[] = {
 	V4L2_CID_USER_CLASS,
 	V4L2_CID_BRIGHTNESS,
