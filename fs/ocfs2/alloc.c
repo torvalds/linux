@@ -4879,10 +4879,9 @@ static void ocfs2_make_right_split_rec(struct super_block *sb,
 	split_rec->e_flags = rec->e_flags;
 }
 
-static int ocfs2_split_and_insert(struct inode *inode,
-				  handle_t *handle,
-				  struct ocfs2_path *path,
+static int ocfs2_split_and_insert(handle_t *handle,
 				  struct ocfs2_extent_tree *et,
+				  struct ocfs2_path *path,
 				  struct buffer_head **last_eb_bh,
 				  int split_index,
 				  struct ocfs2_extent_rec *orig_split_rec,
@@ -4944,8 +4943,8 @@ leftright:
 		 */
 		insert.ins_split = SPLIT_RIGHT;
 
-		ocfs2_make_right_split_rec(inode->i_sb, &tmprec, insert_range,
-					   &rec);
+		ocfs2_make_right_split_rec(ocfs2_metadata_cache_get_super(et->et_ci),
+					   &tmprec, insert_range, &rec);
 
 		split_rec = tmprec;
 
@@ -5100,7 +5099,7 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 						       path, el,
 						       split_index, split_rec);
 		else
-			ret = ocfs2_split_and_insert(inode, handle, path, et,
+			ret = ocfs2_split_and_insert(handle, et, path,
 						     &last_eb_bh, split_index,
 						     split_rec, meta_ac);
 		if (ret)
