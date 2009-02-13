@@ -2591,7 +2591,6 @@ static int ocfs2_dx_dir_new_cluster(struct inode *dir,
 {
 	int ret;
 	u64 phys_blkno;
-	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
 
 	ret = __ocfs2_dx_dir_new_cluster(dir, cpos, handle, data_ac, dx_leaves,
 					 num_dx_leaves, &phys_blkno);
@@ -2600,7 +2599,7 @@ static int ocfs2_dx_dir_new_cluster(struct inode *dir,
 		goto out;
 	}
 
-	ret = ocfs2_insert_extent(osb, handle, dir, et, cpos, phys_blkno, 1, 0,
+	ret = ocfs2_insert_extent(handle, et, cpos, phys_blkno, 1, 0,
 				  meta_ac);
 	if (ret)
 		mlog_errno(ret);
@@ -3094,7 +3093,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	 * This should never fail as our extent list is empty and all
 	 * related blocks have been journaled already.
 	 */
-	ret = ocfs2_insert_extent(osb, handle, dir, &et, 0, blkno, len,
+	ret = ocfs2_insert_extent(handle, &et, 0, blkno, len,
 				  0, NULL);
 	if (ret) {
 		mlog_errno(ret);
@@ -3127,7 +3126,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 						      dirdata_bh);
 		} else {
 			ocfs2_init_dx_root_extent_tree(&dx_et, dir, dx_root_bh);
-			ret = ocfs2_insert_extent(osb, handle, dir, &dx_et, 0,
+			ret = ocfs2_insert_extent(handle, &dx_et, 0,
 						  dx_insert_blkno, 1, 0, NULL);
 			if (ret)
 				mlog_errno(ret);
@@ -3147,7 +3146,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 		}
 		blkno = ocfs2_clusters_to_blocks(dir->i_sb, bit_off);
 
-		ret = ocfs2_insert_extent(osb, handle, dir, &et, 1,
+		ret = ocfs2_insert_extent(handle, &et, 1,
 					  blkno, len, 0, NULL);
 		if (ret) {
 			mlog_errno(ret);
@@ -4218,8 +4217,7 @@ static int ocfs2_expand_inline_dx_root(struct inode *dir,
 	/* This should never fail considering we start with an empty
 	 * dx_root. */
 	ocfs2_init_dx_root_extent_tree(&et, dir, dx_root_bh);
-	ret = ocfs2_insert_extent(osb, handle, dir, &et, 0,
-				  insert_blkno, 1, 0, NULL);
+	ret = ocfs2_insert_extent(handle, &et, 0, insert_blkno, 1, 0, NULL);
 	if (ret)
 		mlog_errno(ret);
 	did_quota = 0;

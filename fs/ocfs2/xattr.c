@@ -4325,7 +4325,7 @@ static int ocfs2_add_new_xattr_cluster(struct inode *inode,
 
 	mlog(0, "Insert %u clusters at block %llu for xattr at %u\n",
 	     num_bits, (unsigned long long)block, v_start);
-	ret = ocfs2_insert_extent(osb, handle, inode, &et, v_start, block,
+	ret = ocfs2_insert_extent(handle, &et, v_start, block,
 				  num_bits, 0, ctxt->meta_ac);
 	if (ret < 0) {
 		mlog_errno(ret);

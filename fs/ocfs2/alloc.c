@@ -4681,13 +4681,11 @@ out:
 }
 
 /*
- * Insert an extent into an inode btree.
+ * Insert an extent into a btree.
  *
- * The caller needs to update fe->i_clusters
+ * The caller needs to update the owning btree's cluster count.
  */
-int ocfs2_insert_extent(struct ocfs2_super *osb,
-			handle_t *handle,
-			struct inode *inode,
+int ocfs2_insert_extent(handle_t *handle,
 			struct ocfs2_extent_tree *et,
 			u32 cpos,
 			u64 start_blk,
@@ -4701,8 +4699,9 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 	struct ocfs2_insert_type insert = {0, };
 	struct ocfs2_extent_rec rec;
 
-	mlog(0, "add %u clusters at position %u to inode %llu\n",
-	     new_clusters, cpos, (unsigned long long)OCFS2_I(inode)->ip_blkno);
+	mlog(0, "add %u clusters at position %u to owner %llu\n",
+	     new_clusters, cpos,
+	     (unsigned long long)ocfs2_metadata_cache_owner(et->et_ci));
 
 	memset(&rec, 0, sizeof(rec));
 	rec.e_cpos = cpu_to_le32(cpos);
@@ -4829,8 +4828,7 @@ int ocfs2_add_clusters_in_btree(struct ocfs2_super *osb,
 	block = ocfs2_clusters_to_blocks(osb->sb, bit_off);
 	mlog(0, "Allocating %u clusters at block %u for inode %llu\n",
 	     num_bits, bit_off, (unsigned long long)OCFS2_I(inode)->ip_blkno);
-	status = ocfs2_insert_extent(osb, handle, inode, et,
-				     *logical_offset, block,
+	status = ocfs2_insert_extent(handle, et, *logical_offset, block,
 				     num_bits, flags, meta_ac);
 	if (status < 0) {
 		mlog_errno(status);
@@ -7244,8 +7242,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		 * the in-inode data from our pages.
 		 */
 		ocfs2_init_dinode_extent_tree(&et, inode, di_bh);
-		ret = ocfs2_insert_extent(osb, handle, inode, &et,
-					  0, block, 1, 0, NULL);
+		ret = ocfs2_insert_extent(handle, &et, 0, block, 1, 0, NULL);
 		if (ret) {
 			mlog_errno(ret);
 			goto out_commit;

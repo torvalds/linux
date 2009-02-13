@@ -90,9 +90,7 @@ int ocfs2_read_extent_block(struct ocfs2_caching_info *ci, u64 eb_blkno,
 			    struct buffer_head **bh);
 
 struct ocfs2_alloc_context;
-int ocfs2_insert_extent(struct ocfs2_super *osb,
-			handle_t *handle,
-			struct inode *inode,
+int ocfs2_insert_extent(handle_t *handle,
 			struct ocfs2_extent_tree *et,
 			u32 cpos,
 			u64 start_blk,
