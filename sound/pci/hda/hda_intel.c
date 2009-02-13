@@ -381,6 +381,7 @@ struct azx {
 
 	/* HD codec */
 	unsigned short codec_mask;
+	int  codec_probe_mask; /* copied from probe_mask option */
 	struct hda_bus *bus;
 
 	/* CORB/RIRB */
@@ -1228,7 +1229,6 @@ static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] __devinitdata = {
 };
 
 static int __devinit azx_codec_create(struct azx *chip, const char *model,
-				      unsigned int codec_probe_mask,
 				      int no_init)
 {
 	struct hda_bus_template bus_temp;
@@ -1261,7 +1261,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 
 	/* First try to probe all given codec slots */
 	for (c = 0; c < max_slots; c++) {
-		if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
+		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			if (probe_codec(chip, c) < 0) {
 				/* Some BIOSen give you wrong codec addresses
 				 * that don't exist
@@ -1285,7 +1285,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 
 	/* Then create codec instances */
 	for (c = 0; c < max_slots; c++) {
-		if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
+		if ((chip->codec_mask & (1 << c)) & chip->codec_probe_mask) {
 			struct hda_codec *codec;
 			err = snd_hda_codec_new(chip->bus, c, !no_init, &codec);
 			if (err < 0)
@@ -2101,19 +2101,30 @@ static struct snd_pci_quirk probe_mask_list[] __devinitdata = {
 	{}
 };
 
+#define AZX_FORCE_CODEC_MASK	0x100
+
 static void __devinit check_probe_mask(struct azx *chip, int dev)
 {
 	const struct snd_pci_quirk *q;
 
-	if (probe_mask[dev] == -1) {
+	chip->codec_probe_mask = probe_mask[dev];
+	if (chip->codec_probe_mask == -1) {
 		q = snd_pci_quirk_lookup(chip->pci, probe_mask_list);
 		if (q) {
 			printk(KERN_INFO
 			       "hda_intel: probe_mask set to 0x%x "
 			       "for device %04x:%04x\n",
 			       q->value, q->subvendor, q->subdevice);
-			probe_mask[dev] = q->value;
+			chip->codec_probe_mask = q->value;
 		}
+	}
+
+	/* check forced option */
+	if (chip->codec_probe_mask != -1 &&
+	    (chip->codec_probe_mask & AZX_FORCE_CODEC_MASK)) {
+		chip->codec_mask = chip->codec_probe_mask & 0xff;
+		printk(KERN_INFO "hda_intel: codec_mask forced to 0x%x\n",
+		       chip->codec_mask);
 	}
 }
 
@@ -2347,8 +2358,7 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	card->private_data = chip;
 
 	/* create codec instances */
-	err = azx_codec_create(chip, model[dev], probe_mask[dev],
-			       probe_only[dev]);
+	err = azx_codec_create(chip, model[dev], probe_only[dev]);
 	if (err < 0)
 		goto out_free;
 
