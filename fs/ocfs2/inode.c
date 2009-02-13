@@ -562,7 +562,8 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 			goto out;
 		}
 
-		status = ocfs2_journal_access_di(handle, inode, fe_bh,
+		status = ocfs2_journal_access_di(handle, INODE_CACHE(inode),
+						 fe_bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -646,7 +647,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 	}
 
 	/* set the inodes dtime */
-	status = ocfs2_journal_access_di(handle, inode, di_bh,
+	status = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1238,7 +1239,7 @@ int ocfs2_mark_inode_dirty(handle_t *handle,
 	mlog_entry("(inode %llu)\n",
 		   (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
-	status = ocfs2_journal_access_di(handle, inode, bh,
+	status = ocfs2_journal_access_di(handle, INODE_CACHE(inode), bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);

@@ -176,7 +176,7 @@ static int ocfs2_dx_dir_link_trailer(struct inode *dir, handle_t *handle,
 	struct ocfs2_dx_root_block *dx_root;
 	struct ocfs2_dir_block_trailer *trailer;
 
-	ret = ocfs2_journal_access_dr(handle, dir, dx_root_bh,
+	ret = ocfs2_journal_access_dr(handle, INODE_CACHE(dir), dx_root_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1136,7 +1136,8 @@ int ocfs2_update_entry(struct inode *dir, handle_t *handle,
 	if (OCFS2_I(dir)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		access = ocfs2_journal_access_di;
 
-	ret = access(handle, dir, de_bh, OCFS2_JOURNAL_ACCESS_WRITE);
+	ret = access(handle, INODE_CACHE(dir), de_bh,
+		     OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -1179,7 +1180,7 @@ static int __ocfs2_delete_entry(handle_t *handle, struct inode *dir,
 			goto bail;
 		}
 		if (de == de_del)  {
-			status = access(handle, dir, bh,
+			status = access(handle, INODE_CACHE(dir), bh,
 					OCFS2_JOURNAL_ACCESS_WRITE);
 			if (status < 0) {
 				status = -EIO;
@@ -1329,7 +1330,7 @@ static int ocfs2_delete_entry_dx(handle_t *handle, struct inode *dir,
 	 * the entry count needs to be updated. Also, we might be
 	 * adding to the start of the free list.
 	 */
-	ret = ocfs2_journal_access_dr(handle, dir, dx_root_bh,
+	ret = ocfs2_journal_access_dr(handle, INODE_CACHE(dir), dx_root_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1337,7 +1338,7 @@ static int ocfs2_delete_entry_dx(handle_t *handle, struct inode *dir,
 	}
 
 	if (!ocfs2_dx_root_inline(dx_root)) {
-		ret = ocfs2_journal_access_dl(handle, dir,
+		ret = ocfs2_journal_access_dl(handle, INODE_CACHE(dir),
 					      lookup->dl_dx_leaf_bh,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
@@ -1496,7 +1497,7 @@ static int __ocfs2_dx_dir_leaf_insert(struct inode *dir, handle_t *handle,
 	int ret;
 	struct ocfs2_dx_leaf *dx_leaf;
 
-	ret = ocfs2_journal_access_dl(handle, dir, dx_leaf_bh,
+	ret = ocfs2_journal_access_dl(handle, INODE_CACHE(dir), dx_leaf_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1526,7 +1527,7 @@ static int ocfs2_dx_dir_insert(struct inode *dir, handle_t *handle,
 	struct ocfs2_dx_root_block *dx_root;
 	struct buffer_head *dx_root_bh = lookup->dl_dx_root_bh;
 
-	ret = ocfs2_journal_access_dr(handle, dir, dx_root_bh,
+	ret = ocfs2_journal_access_dr(handle, INODE_CACHE(dir), dx_root_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1648,11 +1649,13 @@ int __ocfs2_add_entry(handle_t *handle,
 		 */
 		if (ocfs2_free_list_at_root(lookup)) {
 			bh = lookup->dl_dx_root_bh;
-			retval = ocfs2_journal_access_dr(handle, dir, bh,
+			retval = ocfs2_journal_access_dr(handle,
+						 INODE_CACHE(dir), bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		} else {
 			bh = lookup->dl_prev_leaf_bh;
-			retval = ocfs2_journal_access_db(handle, dir, bh,
+			retval = ocfs2_journal_access_db(handle,
+						 INODE_CACHE(dir), bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		}
 		if (retval) {
@@ -1703,11 +1706,13 @@ int __ocfs2_add_entry(handle_t *handle,
 			}
 
 			if (insert_bh == parent_fe_bh)
-				status = ocfs2_journal_access_di(handle, dir,
+				status = ocfs2_journal_access_di(handle,
+								 INODE_CACHE(dir),
 								 insert_bh,
 								 OCFS2_JOURNAL_ACCESS_WRITE);
 			else {
-				status = ocfs2_journal_access_db(handle, dir,
+				status = ocfs2_journal_access_db(handle,
+								 INODE_CACHE(dir),
 								 insert_bh,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 
@@ -2283,7 +2288,7 @@ static int ocfs2_fill_new_dir_id(struct ocfs2_super *osb,
 	struct ocfs2_inline_data *data = &di->id2.i_data;
 	unsigned int size = le16_to_cpu(data->id_count);
 
-	ret = ocfs2_journal_access_di(handle, inode, di_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -2337,7 +2342,7 @@ static int ocfs2_fill_new_dir_el(struct ocfs2_super *osb,
 
 	ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode), new_bh);
 
-	status = ocfs2_journal_access_db(handle, inode, new_bh,
+	status = ocfs2_journal_access_db(handle, INODE_CACHE(inode), new_bh,
 					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -2423,7 +2428,7 @@ static int ocfs2_dx_dir_attach_index(struct ocfs2_super *osb,
 	}
 	ocfs2_set_new_buffer_uptodate(INODE_CACHE(dir), dx_root_bh);
 
-	ret = ocfs2_journal_access_dr(handle, dir, dx_root_bh,
+	ret = ocfs2_journal_access_dr(handle, INODE_CACHE(dir), dx_root_bh,
 				      OCFS2_JOURNAL_ACCESS_CREATE);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -2457,7 +2462,7 @@ static int ocfs2_dx_dir_attach_index(struct ocfs2_super *osb,
 	if (ret)
 		mlog_errno(ret);
 
-	ret = ocfs2_journal_access_di(handle, dir, di_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(dir), di_bh,
 				      OCFS2_JOURNAL_ACCESS_CREATE);
 	if (ret) {
 		mlog_errno(ret);
@@ -2500,7 +2505,7 @@ static int ocfs2_dx_dir_format_cluster(struct ocfs2_super *osb,
 
 		ocfs2_set_new_buffer_uptodate(INODE_CACHE(dir), bh);
 
-		ret = ocfs2_journal_access_dl(handle, dir, bh,
+		ret = ocfs2_journal_access_dl(handle, INODE_CACHE(dir), bh,
 					      OCFS2_JOURNAL_ACCESS_CREATE);
 		if (ret < 0) {
 			mlog_errno(ret);
@@ -3010,7 +3015,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 
 	ocfs2_set_new_buffer_uptodate(INODE_CACHE(dir), dirdata_bh);
 
-	ret = ocfs2_journal_access_db(handle, dir, dirdata_bh,
+	ret = ocfs2_journal_access_db(handle, INODE_CACHE(dir), dirdata_bh,
 				      OCFS2_JOURNAL_ACCESS_CREATE);
 	if (ret) {
 		mlog_errno(ret);
@@ -3063,7 +3068,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	 * We let the later dirent insert modify c/mtime - to the user
 	 * the data hasn't changed.
 	 */
-	ret = ocfs2_journal_access_di(handle, dir, di_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(dir), di_bh,
 				      OCFS2_JOURNAL_ACCESS_CREATE);
 	if (ret) {
 		mlog_errno(ret);
@@ -3392,7 +3397,7 @@ do_extend:
 
 	ocfs2_set_new_buffer_uptodate(INODE_CACHE(dir), new_bh);
 
-	status = ocfs2_journal_access_db(handle, dir, new_bh,
+	status = ocfs2_journal_access_db(handle, INODE_CACHE(dir), new_bh,
 					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -3888,7 +3893,7 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 	}
 	did_quota = 1;
 
-	ret = ocfs2_journal_access_dl(handle, dir, dx_leaf_bh,
+	ret = ocfs2_journal_access_dl(handle, INODE_CACHE(dir), dx_leaf_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -3952,7 +3957,8 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 	}
 
 	for (i = 0; i < num_dx_leaves; i++) {
-		ret = ocfs2_journal_access_dl(handle, dir, orig_dx_leaves[i],
+		ret = ocfs2_journal_access_dl(handle, INODE_CACHE(dir),
+					      orig_dx_leaves[i],
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
 			mlog_errno(ret);
@@ -4168,7 +4174,7 @@ static int ocfs2_expand_inline_dx_root(struct inode *dir,
 	 * failure to add the dx_root_bh to the journal won't result
 	 * us losing clusters.
 	 */
-	ret = ocfs2_journal_access_dr(handle, dir, dx_root_bh,
+	ret = ocfs2_journal_access_dr(handle, INODE_CACHE(dir), dx_root_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -4472,7 +4478,7 @@ static int ocfs2_dx_dir_remove_index(struct inode *dir,
 		goto out_unlock;
 	}
 
-	ret = ocfs2_journal_access_di(handle, dir, di_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(dir), di_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);

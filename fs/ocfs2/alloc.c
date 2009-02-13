@@ -415,11 +415,11 @@ static inline void ocfs2_et_update_clusters(struct inode *inode,
 }
 
 static inline int ocfs2_et_root_journal_access(handle_t *handle,
-					       struct inode *inode,
+					       struct ocfs2_caching_info *ci,
 					       struct ocfs2_extent_tree *et,
 					       int type)
 {
-	return et->et_root_journal_access(handle, inode, et->et_root_bh,
+	return et->et_root_journal_access(handle, ci, et->et_root_bh,
 					  type);
 }
 
@@ -633,7 +633,7 @@ static struct ocfs2_path *ocfs2_new_path_from_et(struct ocfs2_extent_tree *et)
  * ocfs2_journal_access_path(), but I don't have a better one.
  */
 static int ocfs2_path_bh_journal_access(handle_t *handle,
-					struct inode *inode,
+					struct ocfs2_caching_info *ci,
 					struct ocfs2_path *path,
 					int idx)
 {
@@ -645,14 +645,15 @@ static int ocfs2_path_bh_journal_access(handle_t *handle,
 	if (idx)
 		access = ocfs2_journal_access_eb;
 
-	return access(handle, inode, path->p_node[idx].bh,
+	return access(handle, ci, path->p_node[idx].bh,
 		      OCFS2_JOURNAL_ACCESS_WRITE);
 }
 
 /*
  * Convenience function to journal all components in a path.
  */
-static int ocfs2_journal_access_path(struct inode *inode, handle_t *handle,
+static int ocfs2_journal_access_path(struct ocfs2_caching_info *ci,
+				     handle_t *handle,
 				     struct ocfs2_path *path)
 {
 	int i, ret = 0;
@@ -661,7 +662,7 @@ static int ocfs2_journal_access_path(struct inode *inode, handle_t *handle,
 		goto out;
 
 	for(i = 0; i < path_num_items(path); i++) {
-		ret = ocfs2_path_bh_journal_access(handle, inode, path, i);
+		ret = ocfs2_path_bh_journal_access(handle, ci, path, i);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -952,7 +953,7 @@ static int ocfs2_create_new_meta_bhs(struct ocfs2_super *osb,
 			ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode),
 						      bhs[i]);
 
-			status = ocfs2_journal_access_eb(handle, inode, bhs[i],
+			status = ocfs2_journal_access_eb(handle, INODE_CACHE(inode), bhs[i],
 							 OCFS2_JOURNAL_ACCESS_CREATE);
 			if (status < 0) {
 				mlog_errno(status);
@@ -1051,7 +1052,7 @@ static int ocfs2_adjust_rightmost_branch(handle_t *handle,
 		goto out;
 	}
 
-	status = ocfs2_journal_access_path(inode, handle, path);
+	status = ocfs2_journal_access_path(INODE_CACHE(inode), handle, path);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out;
@@ -1162,7 +1163,7 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 		BUG_ON(!OCFS2_IS_VALID_EXTENT_BLOCK(eb));
 		eb_el = &eb->h_list;
 
-		status = ocfs2_journal_access_eb(handle, inode, bh,
+		status = ocfs2_journal_access_eb(handle, INODE_CACHE(inode), bh,
 						 OCFS2_JOURNAL_ACCESS_CREATE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -1202,20 +1203,20 @@ static int ocfs2_add_branch(struct ocfs2_super *osb,
 	 * journal_dirty erroring as it won't unless we've aborted the
 	 * handle (in which case we would never be here) so reserving
 	 * the write with journal_access is all we need to do. */
-	status = ocfs2_journal_access_eb(handle, inode, *last_eb_bh,
+	status = ocfs2_journal_access_eb(handle, INODE_CACHE(inode), *last_eb_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
-	status = ocfs2_et_root_journal_access(handle, inode, et,
+	status = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
 	if (eb_bh) {
-		status = ocfs2_journal_access_eb(handle, inode, eb_bh,
+		status = ocfs2_journal_access_eb(handle, INODE_CACHE(inode), eb_bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -1305,7 +1306,7 @@ static int ocfs2_shift_tree_depth(struct ocfs2_super *osb,
 	eb_el = &eb->h_list;
 	root_el = et->et_root_el;
 
-	status = ocfs2_journal_access_eb(handle, inode, new_eb_bh,
+	status = ocfs2_journal_access_eb(handle, INODE_CACHE(inode), new_eb_bh,
 					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1324,7 +1325,7 @@ static int ocfs2_shift_tree_depth(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	status = ocfs2_et_root_journal_access(handle, inode, et,
+	status = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -2095,7 +2096,7 @@ static int ocfs2_rotate_subtree_right(struct inode *inode,
 	root_bh = left_path->p_node[subtree_index].bh;
 	BUG_ON(root_bh != right_path->p_node[subtree_index].bh);
 
-	ret = ocfs2_path_bh_journal_access(handle, inode, right_path,
+	ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode), right_path,
 					   subtree_index);
 	if (ret) {
 		mlog_errno(ret);
@@ -2103,14 +2104,14 @@ static int ocfs2_rotate_subtree_right(struct inode *inode,
 	}
 
 	for(i = subtree_index + 1; i < path_num_items(right_path); i++) {
-		ret = ocfs2_path_bh_journal_access(handle, inode,
+		ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
 						   right_path, i);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
 
-		ret = ocfs2_path_bh_journal_access(handle, inode,
+		ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
 						   left_path, i);
 		if (ret) {
 			mlog_errno(ret);
@@ -2503,7 +2504,7 @@ static int ocfs2_update_edge_lengths(struct inode *inode, handle_t *handle,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_path(inode, handle, path);
+	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -2654,7 +2655,7 @@ static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
 			return -EAGAIN;
 
 		if (le16_to_cpu(right_leaf_el->l_next_free_rec) > 1) {
-			ret = ocfs2_journal_access_eb(handle, inode,
+			ret = ocfs2_journal_access_eb(handle, INODE_CACHE(inode),
 						      path_leaf_bh(right_path),
 						      OCFS2_JOURNAL_ACCESS_WRITE);
 			if (ret) {
@@ -2673,7 +2674,7 @@ static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
 		 * We have to update i_last_eb_blk during the meta
 		 * data delete.
 		 */
-		ret = ocfs2_et_root_journal_access(handle, inode, et,
+		ret = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
 						   OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
 			mlog_errno(ret);
@@ -2689,7 +2690,7 @@ static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
 	 */
 	BUG_ON(right_has_empty && !del_right_subtree);
 
-	ret = ocfs2_path_bh_journal_access(handle, inode, right_path,
+	ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode), right_path,
 					   subtree_index);
 	if (ret) {
 		mlog_errno(ret);
@@ -2697,14 +2698,14 @@ static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
 	}
 
 	for(i = subtree_index + 1; i < path_num_items(right_path); i++) {
-		ret = ocfs2_path_bh_journal_access(handle, inode,
+		ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
 						   right_path, i);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
 
-		ret = ocfs2_path_bh_journal_access(handle, inode,
+		ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
 						   left_path, i);
 		if (ret) {
 			mlog_errno(ret);
@@ -2864,7 +2865,7 @@ static int ocfs2_rotate_rightmost_leaf_left(struct inode *inode,
 	if (!ocfs2_is_empty_extent(&el->l_recs[0]))
 		return 0;
 
-	ret = ocfs2_path_bh_journal_access(handle, inode, path,
+	ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode), path,
 					   path_num_items(path) - 1);
 	if (ret) {
 		mlog_errno(ret);
@@ -2947,7 +2948,7 @@ static int __ocfs2_rotate_tree_left(struct inode *inode,
 		 * Caller might still want to make changes to the
 		 * tree root, so re-add it to the journal here.
 		 */
-		ret = ocfs2_path_bh_journal_access(handle, inode,
+		ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
 						   left_path, 0);
 		if (ret) {
 			mlog_errno(ret);
@@ -3025,7 +3026,7 @@ static int ocfs2_remove_rightmost_path(struct inode *inode, handle_t *handle,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_path(inode, handle, path);
+	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -3055,7 +3056,7 @@ static int ocfs2_remove_rightmost_path(struct inode *inode, handle_t *handle,
 			goto out;
 		}
 
-		ret = ocfs2_journal_access_path(inode, handle, left_path);
+		ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, left_path);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3370,7 +3371,7 @@ static int ocfs2_merge_rec_right(struct inode *inode,
 		root_bh = left_path->p_node[subtree_index].bh;
 		BUG_ON(root_bh != right_path->p_node[subtree_index].bh);
 
-		ret = ocfs2_path_bh_journal_access(handle, inode, right_path,
+		ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode), right_path,
 						   subtree_index);
 		if (ret) {
 			mlog_errno(ret);
@@ -3379,14 +3380,14 @@ static int ocfs2_merge_rec_right(struct inode *inode,
 
 		for (i = subtree_index + 1;
 		     i < path_num_items(right_path); i++) {
-			ret = ocfs2_path_bh_journal_access(handle, inode,
+			ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
 							   right_path, i);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
 			}
 
-			ret = ocfs2_path_bh_journal_access(handle, inode,
+			ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
 							   left_path, i);
 			if (ret) {
 				mlog_errno(ret);
@@ -3399,7 +3400,7 @@ static int ocfs2_merge_rec_right(struct inode *inode,
 		right_rec = &el->l_recs[index + 1];
 	}
 
-	ret = ocfs2_path_bh_journal_access(handle, inode, left_path,
+	ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode), left_path,
 					   path_num_items(left_path) - 1);
 	if (ret) {
 		mlog_errno(ret);
@@ -3539,7 +3540,7 @@ static int ocfs2_merge_rec_left(struct inode *inode,
 		root_bh = left_path->p_node[subtree_index].bh;
 		BUG_ON(root_bh != right_path->p_node[subtree_index].bh);
 
-		ret = ocfs2_path_bh_journal_access(handle, inode, right_path,
+		ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode), right_path,
 						   subtree_index);
 		if (ret) {
 			mlog_errno(ret);
@@ -3548,14 +3549,14 @@ static int ocfs2_merge_rec_left(struct inode *inode,
 
 		for (i = subtree_index + 1;
 		     i < path_num_items(right_path); i++) {
-			ret = ocfs2_path_bh_journal_access(handle, inode,
+			ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
 							   right_path, i);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;
 			}
 
-			ret = ocfs2_path_bh_journal_access(handle, inode,
+			ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
 							   left_path, i);
 			if (ret) {
 				mlog_errno(ret);
@@ -3568,7 +3569,7 @@ static int ocfs2_merge_rec_left(struct inode *inode,
 			has_empty_extent = 1;
 	}
 
-	ret = ocfs2_path_bh_journal_access(handle, inode, right_path,
+	ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode), right_path,
 					   path_num_items(right_path) - 1);
 	if (ret) {
 		mlog_errno(ret);
@@ -4006,7 +4007,7 @@ static int ocfs2_append_rec_to_path(struct inode *inode, handle_t *handle,
 		}
 	}
 
-	ret = ocfs2_journal_access_path(inode, handle, right_path);
+	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, right_path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -4135,7 +4136,7 @@ static int ocfs2_insert_path(struct inode *inode,
 			goto out;
 		}
 
-		ret = ocfs2_journal_access_path(inode, handle, left_path);
+		ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, left_path);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -4146,7 +4147,7 @@ static int ocfs2_insert_path(struct inode *inode,
 	 * Pass both paths to the journal. The majority of inserts
 	 * will be touching all components anyway.
 	 */
-	ret = ocfs2_journal_access_path(inode, handle, right_path);
+	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, right_path);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
@@ -4211,7 +4212,7 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 
 	el = et->et_root_el;
 
-	ret = ocfs2_et_root_journal_access(handle, inode, et,
+	ret = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
 					   OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -4273,7 +4274,7 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 		 * ocfs2_rotate_tree_right() might have extended the
 		 * transaction without re-journaling our tree root.
 		 */
-		ret = ocfs2_et_root_journal_access(handle, inode, et,
+		ret = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
 						   OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
 			mlog_errno(ret);
@@ -4796,7 +4797,7 @@ int ocfs2_add_clusters_in_btree(struct ocfs2_super *osb,
 	BUG_ON(num_bits > clusters_to_add);
 
 	/* reserve our write early -- insert_extent may update the tree root */
-	status = ocfs2_et_root_journal_access(handle, inode, et,
+	status = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -4971,7 +4972,7 @@ static int ocfs2_replace_extent_rec(struct inode *inode,
 {
 	int ret;
 
-	ret = ocfs2_path_bh_journal_access(handle, inode, path,
+	ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode), path,
 					   path_num_items(path) - 1);
 	if (ret) {
 		mlog_errno(ret);
@@ -5333,13 +5334,13 @@ static int ocfs2_truncate_rec(struct inode *inode, handle_t *handle,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_path(inode, handle, path);
+	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_path(inode, handle, left_path);
+	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, left_path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -5574,7 +5575,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_et_root_journal_access(handle, inode, et,
+	ret = ocfs2_et_root_journal_access(handle, INODE_CACHE(inode), et,
 					   OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -5691,7 +5692,7 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	status = ocfs2_journal_access_di(handle, tl_inode, tl_bh,
+	status = ocfs2_journal_access_di(handle, INODE_CACHE(tl_inode), tl_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -5753,7 +5754,7 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 	while (i >= 0) {
 		/* Caller has given us at least enough credits to
 		 * update the truncate log dinode */
-		status = ocfs2_journal_access_di(handle, tl_inode, tl_bh,
+		status = ocfs2_journal_access_di(handle, INODE_CACHE(tl_inode), tl_bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -6770,14 +6771,14 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 	 * Each component will be touched, so we might as well journal
 	 * here to avoid having to handle errors later.
 	 */
-	status = ocfs2_journal_access_path(inode, handle, path);
+	status = ocfs2_journal_access_path(INODE_CACHE(inode), handle, path);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
 
 	if (last_eb_bh) {
-		status = ocfs2_journal_access_eb(handle, inode, last_eb_bh,
+		status = ocfs2_journal_access_eb(handle, INODE_CACHE(inode), last_eb_bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -7139,7 +7140,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		goto out_unlock;
 	}
 
-	ret = ocfs2_journal_access_di(handle, inode, di_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -7508,7 +7509,7 @@ int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_di(handle, inode, di_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);

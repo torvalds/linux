@@ -254,7 +254,8 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 	set_buffer_uptodate(bh);
 	unlock_buffer(bh);
 	ocfs2_set_buffer_uptodate(INODE_CACHE(gqinode), bh);
-	err = ocfs2_journal_access_dq(handle, gqinode, bh, ja_type);
+	err = ocfs2_journal_access_dq(handle, INODE_CACHE(gqinode), bh,
+				      ja_type);
 	if (err < 0) {
 		brelse(bh);
 		goto out;

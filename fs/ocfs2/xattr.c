@@ -297,7 +297,8 @@ static int ocfs2_xattr_bucket_journal_access(handle_t *handle,
 	int i, rc = 0;
 
 	for (i = 0; i < bucket->bu_blocks; i++) {
-		rc = ocfs2_journal_access(handle, bucket->bu_inode,
+		rc = ocfs2_journal_access(handle,
+					  INODE_CACHE(bucket->bu_inode),
 					  bucket->bu_bhs[i], type);
 		if (rc) {
 			mlog_errno(rc);
@@ -604,7 +605,7 @@ static int ocfs2_xattr_extend_allocation(struct inode *inode,
 
 	ocfs2_init_xattr_value_extent_tree(&et, inode, vb);
 
-	status = vb->vb_access(handle, inode, vb->vb_bh,
+	status = vb->vb_access(handle, INODE_CACHE(inode), vb->vb_bh,
 			      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -658,7 +659,7 @@ static int __ocfs2_remove_xattr_range(struct inode *inode,
 
 	ocfs2_init_xattr_value_extent_tree(&et, inode, vb);
 
-	ret = vb->vb_access(handle, inode, vb->vb_bh,
+	ret = vb->vb_access(handle, INODE_CACHE(inode), vb->vb_bh,
 			    OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1217,7 +1218,7 @@ static int __ocfs2_xattr_set_value_outside(struct inode *inode,
 			}
 
 			ret = ocfs2_journal_access(handle,
-						   inode,
+						   INODE_CACHE(inode),
 						   bh,
 						   OCFS2_JOURNAL_ACCESS_WRITE);
 			if (ret < 0) {
@@ -1268,7 +1269,7 @@ static int ocfs2_xattr_cleanup(struct inode *inode,
 	void *val = xs->base + offs;
 	size_t size = OCFS2_XATTR_SIZE(name_len) + OCFS2_XATTR_ROOT_SIZE;
 
-	ret = vb->vb_access(handle, inode, vb->vb_bh,
+	ret = vb->vb_access(handle, INODE_CACHE(inode), vb->vb_bh,
 			    OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1296,7 +1297,7 @@ static int ocfs2_xattr_update_entry(struct inode *inode,
 {
 	int ret;
 
-	ret = vb->vb_access(handle, inode, vb->vb_bh,
+	ret = vb->vb_access(handle, INODE_CACHE(inode), vb->vb_bh,
 			    OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1617,7 +1618,7 @@ static int ocfs2_xattr_set_entry(struct inode *inode,
 		}
 	}
 
-	ret = ocfs2_journal_access_di(handle, inode, xs->inode_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), xs->inode_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -1625,7 +1626,7 @@ static int ocfs2_xattr_set_entry(struct inode *inode,
 	}
 
 	if (!(flag & OCFS2_INLINE_XATTR_FL)) {
-		ret = vb.vb_access(handle, inode, vb.vb_bh,
+		ret = vb.vb_access(handle, INODE_CACHE(inode), vb.vb_bh,
 				   OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
 			mlog_errno(ret);
@@ -1898,7 +1899,7 @@ int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 		mlog_errno(ret);
 		goto out;
 	}
-	ret = ocfs2_journal_access_di(handle, inode, di_bh,
+	ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode), di_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -2107,7 +2108,8 @@ static int ocfs2_xattr_block_set(struct inode *inode,
 	int ret;
 
 	if (!xs->xattr_bh) {
-		ret = ocfs2_journal_access_di(handle, inode, xs->inode_bh,
+		ret = ocfs2_journal_access_di(handle, INODE_CACHE(inode),
+					      xs->inode_bh,
 					      OCFS2_JOURNAL_ACCESS_CREATE);
 		if (ret < 0) {
 			mlog_errno(ret);
@@ -2125,7 +2127,8 @@ static int ocfs2_xattr_block_set(struct inode *inode,
 		new_bh = sb_getblk(inode->i_sb, first_blkno);
 		ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode), new_bh);
 
-		ret = ocfs2_journal_access_xb(handle, inode, new_bh,
+		ret = ocfs2_journal_access_xb(handle, INODE_CACHE(inode),
+					      new_bh,
 					      OCFS2_JOURNAL_ACCESS_CREATE);
 		if (ret < 0) {
 			mlog_errno(ret);
@@ -2600,7 +2603,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 
 	if (!ret) {
 		/* Update inode ctime. */
-		ret = ocfs2_journal_access_di(ctxt->handle, inode,
+		ret = ocfs2_journal_access_di(ctxt->handle, INODE_CACHE(inode),
 					      xis->inode_bh,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
@@ -3428,7 +3431,7 @@ static int ocfs2_xattr_create_index_block(struct inode *inode,
 	 */
 	down_write(&oi->ip_alloc_sem);
 
-	ret = ocfs2_journal_access_xb(handle, inode, xb_bh,
+	ret = ocfs2_journal_access_xb(handle, INODE_CACHE(inode), xb_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);
@@ -4267,7 +4270,7 @@ static int ocfs2_add_new_xattr_cluster(struct inode *inode,
 
 	ocfs2_init_xattr_tree_extent_tree(&et, inode, root_bh);
 
-	ret = ocfs2_journal_access_xb(handle, inode, root_bh,
+	ret = ocfs2_journal_access_xb(handle, INODE_CACHE(inode), root_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -4873,7 +4876,7 @@ static int ocfs2_rm_xattr_cluster(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_xb(handle, inode, root_bh,
+	ret = ocfs2_journal_access_xb(handle, INODE_CACHE(inode), root_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (ret) {
 		mlog_errno(ret);

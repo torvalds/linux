@@ -91,6 +91,11 @@ struct ocfs2_caching_info {
 		struct rb_root	ci_tree;
 	} ci_cache;
 };
+/*
+ * Need this prototype here instead of in uptodate.h because journal.h
+ * uses it.
+ */
+struct super_block *ocfs2_metadata_cache_get_super(struct ocfs2_caching_info *ci);
 
 /* this limits us to 256 nodes
  * if we need more, we can do a kmalloc for the map */
@@ -408,7 +413,8 @@ struct ocfs2_super
 #define OCFS2_SB(sb)	    ((struct ocfs2_super *)(sb)->s_fs_info)
 
 /* Useful typedef for passing around journal access functions */
-typedef int (*ocfs2_journal_access_func)(handle_t *handle, struct inode *inode,
+typedef int (*ocfs2_journal_access_func)(handle_t *handle,
+					 struct ocfs2_caching_info *ci,
 					 struct buffer_head *bh, int type);
 
 static inline int ocfs2_should_order_data(struct inode *inode)

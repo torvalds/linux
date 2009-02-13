@@ -48,6 +48,7 @@
 #include "slot_map.h"
 #include "super.h"
 #include "sysfile.h"
+#include "uptodate.h"
 #include "quota.h"
 
 #include "buffer_head_io.h"
@@ -601,14 +602,16 @@ static struct ocfs2_triggers dl_triggers = {
 };
 
 static int __ocfs2_journal_access(handle_t *handle,
-				  struct inode *inode,
+				  struct ocfs2_caching_info *ci,
 				  struct buffer_head *bh,
 				  struct ocfs2_triggers *triggers,
 				  int type)
 {
 	int status;
+	struct ocfs2_super *osb =
+		OCFS2_SB(ocfs2_metadata_cache_get_super(ci));
 
-	BUG_ON(!inode);
+	BUG_ON(!ci || !ci->ci_ops);
 	BUG_ON(!handle);
 	BUG_ON(!bh);
 
@@ -627,15 +630,15 @@ static int __ocfs2_journal_access(handle_t *handle,
 		BUG();
 	}
 
-	/* Set the current transaction information on the inode so
+	/* Set the current transaction information on the ci so
 	 * that the locking code knows whether it can drop it's locks
-	 * on this inode or not. We're protected from the commit
+	 * on this ci or not. We're protected from the commit
 	 * thread updating the current transaction id until
 	 * ocfs2_commit_trans() because ocfs2_start_trans() took
 	 * j_trans_barrier for us. */
-	ocfs2_set_inode_lock_trans(OCFS2_SB(inode->i_sb)->journal, inode);
+	ocfs2_set_ci_lock_trans(osb->journal, ci);
 
-	mutex_lock(&OCFS2_I(inode)->ip_io_mutex);
+	ocfs2_metadata_cache_io_lock(ci);
 	switch (type) {
 	case OCFS2_JOURNAL_ACCESS_CREATE:
 	case OCFS2_JOURNAL_ACCESS_WRITE:
@@ -650,9 +653,9 @@ static int __ocfs2_journal_access(handle_t *handle,
 		status = -EINVAL;
 		mlog(ML_ERROR, "Uknown access type!\n");
 	}
-	if (!status && ocfs2_meta_ecc(OCFS2_SB(inode->i_sb)) && triggers)
+	if (!status && ocfs2_meta_ecc(osb) && triggers)
 		jbd2_journal_set_triggers(bh, &triggers->ot_triggers);
-	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
+	ocfs2_metadata_cache_io_unlock(ci);
 
 	if (status < 0)
 		mlog(ML_ERROR, "Error %d getting %d access to buffer!\n",
@@ -662,66 +665,58 @@ static int __ocfs2_journal_access(handle_t *handle,
 	return status;
 }
 
-int ocfs2_journal_access_di(handle_t *handle, struct inode *inode,
-			       struct buffer_head *bh, int type)
-{
-	return __ocfs2_journal_access(handle, inode, bh, &di_triggers,
-				      type);
-}
-
-int ocfs2_journal_access_eb(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_di(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &eb_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &di_triggers, type);
 }
 
-int ocfs2_journal_access_gd(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_eb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &gd_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &eb_triggers, type);
 }
 
-int ocfs2_journal_access_db(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_gd(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &db_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &gd_triggers, type);
 }
 
-int ocfs2_journal_access_xb(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_db(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &xb_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &db_triggers, type);
 }
 
-int ocfs2_journal_access_dq(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_xb(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &dq_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &xb_triggers, type);
 }
 
-int ocfs2_journal_access_dr(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_dq(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &dr_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &dq_triggers, type);
 }
 
-int ocfs2_journal_access_dl(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_dr(handle_t *handle, struct ocfs2_caching_info *ci,
 			    struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, &dl_triggers,
-				      type);
+	return __ocfs2_journal_access(handle, ci, bh, &dr_triggers, type);
 }
 
-int ocfs2_journal_access(handle_t *handle, struct inode *inode,
+int ocfs2_journal_access_dl(handle_t *handle, struct ocfs2_caching_info *ci,
+			    struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, ci, bh, &dl_triggers, type);
+}
+
+int ocfs2_journal_access(handle_t *handle, struct ocfs2_caching_info *ci,
 			 struct buffer_head *bh, int type)
 {
-	return __ocfs2_journal_access(handle, inode, bh, NULL, type);
+	return __ocfs2_journal_access(handle, ci, bh, NULL, type);
 }
 
 int ocfs2_journal_dirty(handle_t *handle,

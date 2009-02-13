@@ -375,7 +375,8 @@ static int ocfs2_mknod(struct inode *dir,
 			goto leave;
 		}
 
-		status = ocfs2_journal_access_di(handle, dir, parent_fe_bh,
+		status = ocfs2_journal_access_di(handle, INODE_CACHE(dir),
+						 parent_fe_bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -509,7 +510,8 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 	}
 	ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode), *new_fe_bh);
 
-	status = ocfs2_journal_access_di(handle, inode, *new_fe_bh,
+	status = ocfs2_journal_access_di(handle, INODE_CACHE(inode),
+					 *new_fe_bh,
 					 OCFS2_JOURNAL_ACCESS_CREATE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -565,7 +567,7 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 	}
 
 	ocfs2_populate_inode(inode, fe, 1);
-	ocfs2_inode_set_new(osb, inode);
+	ocfs2_ci_set_new(osb, INODE_CACHE(inode));
 	if (!ocfs2_mount_local(osb)) {
 		status = ocfs2_create_new_inode_locks(inode);
 		if (status < 0)
@@ -682,7 +684,7 @@ static int ocfs2_link(struct dentry *old_dentry,
 		goto out_unlock_inode;
 	}
 
-	err = ocfs2_journal_access_di(handle, inode, fe_bh,
+	err = ocfs2_journal_access_di(handle, INODE_CACHE(inode), fe_bh,
 				      OCFS2_JOURNAL_ACCESS_WRITE);
 	if (err < 0) {
 		mlog_errno(err);
@@ -866,7 +868,7 @@ static int ocfs2_unlink(struct inode *dir,
 		goto leave;
 	}
 
-	status = ocfs2_journal_access_di(handle, inode, fe_bh,
+	status = ocfs2_journal_access_di(handle, INODE_CACHE(inode), fe_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1284,7 +1286,8 @@ static int ocfs2_rename(struct inode *old_dir,
 				goto bail;
 			}
 		}
-		status = ocfs2_journal_access_di(handle, new_inode, newfe_bh,
+		status = ocfs2_journal_access_di(handle, INODE_CACHE(new_inode),
+						 newfe_bh,
 						 OCFS2_JOURNAL_ACCESS_WRITE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -1331,7 +1334,8 @@ static int ocfs2_rename(struct inode *old_dir,
 	old_inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(old_inode);
 
-	status = ocfs2_journal_access_di(handle, old_inode, old_inode_bh,
+	status = ocfs2_journal_access_di(handle, INODE_CACHE(old_inode),
+					 old_inode_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status >= 0) {
 		old_di = (struct ocfs2_dinode *) old_inode_bh->b_data;
@@ -1407,9 +1411,10 @@ static int ocfs2_rename(struct inode *old_dir,
 			     (int)old_dir_nlink, old_dir->i_nlink);
 		} else {
 			struct ocfs2_dinode *fe;
-			status = ocfs2_journal_access_di(handle, old_dir,
-						      old_dir_bh,
-						      OCFS2_JOURNAL_ACCESS_WRITE);
+			status = ocfs2_journal_access_di(handle,
+							 INODE_CACHE(old_dir),
+							 old_dir_bh,
+							 OCFS2_JOURNAL_ACCESS_WRITE);
 			fe = (struct ocfs2_dinode *) old_dir_bh->b_data;
 			ocfs2_set_links_count(fe, old_dir->i_nlink);
 			status = ocfs2_journal_dirty(handle, old_dir_bh);
@@ -1530,7 +1535,8 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 		ocfs2_set_new_buffer_uptodate(INODE_CACHE(inode),
 					      bhs[virtual]);
 
-		status = ocfs2_journal_access(handle, inode, bhs[virtual],
+		status = ocfs2_journal_access(handle, INODE_CACHE(inode),
+					      bhs[virtual],
 					      OCFS2_JOURNAL_ACCESS_CREATE);
 		if (status < 0) {
 			mlog_errno(status);
@@ -1918,7 +1924,9 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 		goto leave;
 	}
 
-	status = ocfs2_journal_access_di(handle, orphan_dir_inode, orphan_dir_bh,
+	status = ocfs2_journal_access_di(handle,
+					 INODE_CACHE(orphan_dir_inode),
+					 orphan_dir_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);
@@ -2003,7 +2011,9 @@ int ocfs2_orphan_del(struct ocfs2_super *osb,
 		goto leave;
 	}
 
-	status = ocfs2_journal_access_di(handle,orphan_dir_inode,  orphan_dir_bh,
+	status = ocfs2_journal_access_di(handle,
+					 INODE_CACHE(orphan_dir_inode),
+					 orphan_dir_bh,
 					 OCFS2_JOURNAL_ACCESS_WRITE);
 	if (status < 0) {
 		mlog_errno(status);

@@ -3499,7 +3499,7 @@ static int ocfs2_check_meta_downconvert(struct ocfs2_lock_res *lockres,
 					int new_level)
 {
 	struct inode *inode = ocfs2_lock_res_inode(lockres);
-	int checkpointed = ocfs2_inode_fully_checkpointed(inode);
+	int checkpointed = ocfs2_ci_fully_checkpointed(INODE_CACHE(inode));
 
 	BUG_ON(new_level != DLM_LOCK_NL && new_level != DLM_LOCK_PR);
 	BUG_ON(lockres->l_level != DLM_LOCK_EX && !checkpointed);
