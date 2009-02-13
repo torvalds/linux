@@ -747,7 +747,7 @@ static int ocfs2_extents_adjacent(struct ocfs2_extent_rec *left,
 }
 
 static enum ocfs2_contig_type
-	ocfs2_extent_contig(struct inode *inode,
+	ocfs2_extent_contig(struct super_block *sb,
 			    struct ocfs2_extent_rec *ext,
 			    struct ocfs2_extent_rec *insert_rec)
 {
@@ -762,12 +762,12 @@ static enum ocfs2_contig_type
 		return CONTIG_NONE;
 
 	if (ocfs2_extents_adjacent(ext, insert_rec) &&
-	    ocfs2_block_extent_contig(inode->i_sb, ext, blkno))
+	    ocfs2_block_extent_contig(sb, ext, blkno))
 			return CONTIG_RIGHT;
 
 	blkno = le64_to_cpu(ext->e_blkno);
 	if (ocfs2_extents_adjacent(insert_rec, ext) &&
-	    ocfs2_block_extent_contig(inode->i_sb, insert_rec, blkno))
+	    ocfs2_block_extent_contig(sb, insert_rec, blkno))
 		return CONTIG_LEFT;
 
 	return CONTIG_NONE;
@@ -4374,7 +4374,7 @@ ocfs2_figure_merge_contig_type(struct inode *inode, struct ocfs2_path *path,
 			if (split_rec->e_cpos == el->l_recs[index].e_cpos)
 				ret = CONTIG_RIGHT;
 		} else {
-			ret = ocfs2_extent_contig(inode, rec, split_rec);
+			ret = ocfs2_extent_contig(inode->i_sb, rec, split_rec);
 		}
 	}
 
@@ -4420,7 +4420,7 @@ ocfs2_figure_merge_contig_type(struct inode *inode, struct ocfs2_path *path,
 	if (rec) {
 		enum ocfs2_contig_type contig_type;
 
-		contig_type = ocfs2_extent_contig(inode, rec, split_rec);
+		contig_type = ocfs2_extent_contig(inode->i_sb, rec, split_rec);
 
 		if (contig_type == CONTIG_LEFT && ret == CONTIG_RIGHT)
 			ret = CONTIG_LEFTRIGHT;
@@ -4449,7 +4449,7 @@ static void ocfs2_figure_contig_type(struct inode *inode,
 	BUG_ON(le16_to_cpu(el->l_tree_depth) != 0);
 
 	for(i = 0; i < le16_to_cpu(el->l_next_free_rec); i++) {
-		contig_type = ocfs2_extent_contig(inode, &el->l_recs[i],
+		contig_type = ocfs2_extent_contig(inode->i_sb, &el->l_recs[i],
 						  insert_rec);
 		if (contig_type != CONTIG_NONE) {
 			insert->ins_contig_index = i;
