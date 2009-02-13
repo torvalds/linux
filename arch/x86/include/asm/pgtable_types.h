@@ -173,6 +173,12 @@
 
 #include <linux/types.h>
 
+/* PTE_PFN_MASK extracts the PFN from a (pte|pmd|pud|pgd)val_t */
+#define PTE_PFN_MASK		((pteval_t)PHYSICAL_PAGE_MASK)
+
+/* PTE_FLAGS_MASK extracts the flags from a (pte|pmd|pud|pgd)val_t */
+#define PTE_FLAGS_MASK		(~PTE_PFN_MASK)
+
 typedef struct pgprot { pgprotval_t pgprot; } pgprot_t;
 
 typedef struct { pgdval_t pgd; } pgd_t;

@@ -17,6 +17,7 @@ typedef union {
 #endif	/* !__ASSEMBLY__ */
 
 #define SHARED_KERNEL_PMD	0
+#define PAGETABLE_LEVELS	2
 
 /*
  * traditional i386 two-level paging structure:
@@ -24,6 +25,7 @@ typedef union {
 
 #define PGDIR_SHIFT	22
 #define PTRS_PER_PGD	1024
+
 
 /*
  * the i386 is two-level, so we don't really have any
