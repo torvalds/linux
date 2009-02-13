@@ -2979,6 +2979,14 @@ static int alc880_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					     stream_tag, format, substream);
 }
 
+static int alc880_dig_playback_pcm_cleanup(struct hda_pcm_stream *hinfo,
+					   struct hda_codec *codec,
+					   struct snd_pcm_substream *substream)
+{
+	struct alc_spec *spec = codec->spec;
+	return snd_hda_multi_out_dig_cleanup(codec, &spec->multiout);
+}
+
 static int alc880_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 					 struct hda_codec *codec,
 					 struct snd_pcm_substream *substream)
@@ -3062,7 +3070,8 @@ static struct hda_pcm_stream alc880_pcm_digital_playback = {
 	.ops = {
 		.open = alc880_dig_playback_pcm_open,
 		.close = alc880_dig_playback_pcm_close,
-		.prepare = alc880_dig_playback_pcm_prepare
+		.prepare = alc880_dig_playback_pcm_prepare,
+		.cleanup = alc880_dig_playback_pcm_cleanup
 	},
 };
 
