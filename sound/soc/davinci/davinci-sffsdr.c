@@ -141,7 +141,8 @@ static int __init sffsdr_init(void)
 
 	platform_set_drvdata(sffsdr_snd_device, &sffsdr_snd_devdata);
 	sffsdr_snd_devdata.dev = &sffsdr_snd_device->dev;
-	sffsdr_snd_device->dev.platform_data = &sffsdr_snd_data;
+	platform_device_add_data(sffsdr_snd_device, &sffsdr_snd_data,
+				 sizeof(sffsdr_snd_data));
 
 	ret = platform_device_add_resources(sffsdr_snd_device,
 					    sffsdr_snd_resources,
