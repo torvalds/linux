@@ -105,5 +105,6 @@ extern void __iomem *early_memremap(unsigned long offset, unsigned long size);
 extern void early_iounmap(void __iomem *addr, unsigned long size);
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
+#define IO_SPACE_LIMIT 0xffff
 
 #endif /* _ASM_X86_IO_H */
