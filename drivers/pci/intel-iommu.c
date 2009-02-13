@@ -718,15 +718,17 @@ static void dma_pte_clear_one(struct dmar_domain *domain, u64 addr)
 static void dma_pte_clear_range(struct dmar_domain *domain, u64 start, u64 end)
 {
 	int addr_width = agaw_to_width(domain->agaw);
+	int npages;
 
 	start &= (((u64)1) << addr_width) - 1;
 	end &= (((u64)1) << addr_width) - 1;
 	/* in case it's partial page */
 	start = PAGE_ALIGN(start);
 	end &= PAGE_MASK;
+	npages = (end - start) / VTD_PAGE_SIZE;
 
 	/* we don't need lock here, nobody else touches the iova range */
-	while (start < end) {
+	while (npages--) {
 		dma_pte_clear_one(domain, start);
 		start += VTD_PAGE_SIZE;
 	}
