@@ -1936,10 +1936,6 @@ static int qlge_send(struct sk_buff *skb, struct net_device *ndev)
 	tx_ring_desc = &tx_ring->q[tx_ring->prod_idx];
 	mac_iocb_ptr = tx_ring_desc->queue_entry;
 	memset((void *)mac_iocb_ptr, 0, sizeof(mac_iocb_ptr));
-	if (ql_map_send(qdev, mac_iocb_ptr, skb, tx_ring_desc) != NETDEV_TX_OK) {
-		QPRINTK(qdev, TX_QUEUED, ERR, "Could not map the segments.\n");
-		return NETDEV_TX_BUSY;
-	}
 
 	mac_iocb_ptr->opcode = OPCODE_OB_MAC_IOCB;
 	mac_iocb_ptr->tid = tx_ring_desc->index;
@@ -1964,6 +1960,12 @@ static int qlge_send(struct sk_buff *skb, struct net_device *ndev)
 	} else if (unlikely(!tso) && (skb->ip_summed == CHECKSUM_PARTIAL)) {
 		ql_hw_csum_setup(skb,
 				 (struct ob_mac_tso_iocb_req *)mac_iocb_ptr);
+	}
+	if (ql_map_send(qdev, mac_iocb_ptr, skb, tx_ring_desc) !=
+			NETDEV_TX_OK) {
+		QPRINTK(qdev, TX_QUEUED, ERR,
+				"Could not map the segments.\n");
+		return NETDEV_TX_BUSY;
 	}
 	QL_DUMP_OB_MAC_IOCB(mac_iocb_ptr);
 	tx_ring->prod_idx++;
