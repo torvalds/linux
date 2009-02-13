@@ -206,8 +206,7 @@ static int shrink_tnc_trees(int nr, int age, int *contention)
 		 * Move this one to the end of the list to provide some
 		 * fairness.
 		 */
-		list_del(&c->infos_list);
-		list_add_tail(&c->infos_list, &ubifs_infos);
+		list_move_tail(&c->infos_list, &ubifs_infos);
 		mutex_unlock(&c->umount_mutex);
 		if (freed >= nr)
 			break;
@@ -263,8 +262,7 @@ static int kick_a_thread(void)
 			}
 
 			if (i == 1) {
-				list_del(&c->infos_list);
-				list_add_tail(&c->infos_list, &ubifs_infos);
+				list_move_tail(&c->infos_list, &ubifs_infos);
 				spin_unlock(&ubifs_infos_lock);
 
 				ubifs_request_bg_commit(c);
