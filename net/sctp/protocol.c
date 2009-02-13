@@ -589,46 +589,21 @@ static int sctp_v4_is_ce(const struct sk_buff *skb)
 static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 					     struct sctp_association *asoc)
 {
-	struct inet_sock *inet = inet_sk(sk);
-	struct inet_sock *newinet;
 	struct sock *newsk = sk_alloc(sock_net(sk), PF_INET, GFP_KERNEL,
 			sk->sk_prot);
+	struct inet_sock *newinet;
 
 	if (!newsk)
 		goto out;
 
 	sock_init_data(NULL, newsk);
 
-	newsk->sk_type = SOCK_STREAM;
-
-	newsk->sk_no_check = sk->sk_no_check;
-	newsk->sk_reuse = sk->sk_reuse;
-	newsk->sk_shutdown = sk->sk_shutdown;
-
-	newsk->sk_destruct = inet_sock_destruct;
-	newsk->sk_family = PF_INET;
-	newsk->sk_protocol = IPPROTO_SCTP;
-	newsk->sk_backlog_rcv = sk->sk_prot->backlog_rcv;
+	sctp_copy_sock(newsk, sk, asoc);
 	sock_reset_flag(newsk, SOCK_ZAPPED);
 
 	newinet = inet_sk(newsk);
 
-	/* Initialize sk's sport, dport, rcv_saddr and daddr for
-	 * getsockname() and getpeername()
-	 */
-	newinet->sport = inet->sport;
-	newinet->saddr = inet->saddr;
-	newinet->rcv_saddr = inet->rcv_saddr;
-	newinet->dport = htons(asoc->peer.port);
 	newinet->daddr = asoc->peer.primary_addr.v4.sin_addr.s_addr;
-	newinet->pmtudisc = inet->pmtudisc;
-	newinet->id = asoc->next_tsn ^ jiffies;
-
-	newinet->uc_ttl = -1;
-	newinet->mc_loop = 1;
-	newinet->mc_ttl = 1;
-	newinet->mc_index = 0;
-	newinet->mc_list = NULL;
 
 	sk_refcnt_debug_inc(newsk);
 
