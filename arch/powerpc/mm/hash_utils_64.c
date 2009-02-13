@@ -516,7 +516,7 @@ static int __init htab_dt_scan_pftsize(unsigned long node,
 
 static unsigned long __init htab_get_table_size(void)
 {
-	unsigned long mem_size, rnd_mem_size, pteg_count;
+	unsigned long mem_size, rnd_mem_size, pteg_count, psize;
 
 	/* If hash size isn't already provided by the platform, we try to
 	 * retrieve it from the device-tree. If it's not there neither, we
@@ -534,7 +534,8 @@ static unsigned long __init htab_get_table_size(void)
 		rnd_mem_size <<= 1;
 
 	/* # pages / 2 */
-	pteg_count = max(rnd_mem_size >> (12 + 1), 1UL << 11);
+	psize = mmu_psize_defs[mmu_virtual_psize].shift;
+	pteg_count = max(rnd_mem_size >> (psize + 1), 1UL << 11);
 
 	return pteg_count << 7;
 }
