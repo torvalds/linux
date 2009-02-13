@@ -1054,7 +1054,7 @@ enum {
 };
 
 static void
-ftrace_match(unsigned char *buff, int len, int enable)
+ftrace_match_records(unsigned char *buff, int len, int enable)
 {
 	char str[KSYM_SYMBOL_LEN];
 	char *search = NULL;
@@ -1197,7 +1197,7 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 	if (isspace(ch)) {
 		iter->filtered++;
 		iter->buffer[iter->buffer_idx] = 0;
-		ftrace_match(iter->buffer, iter->buffer_idx, enable);
+		ftrace_match_records(iter->buffer, iter->buffer_idx, enable);
 		iter->buffer_idx = 0;
 	} else
 		iter->flags |= FTRACE_ITER_CONT;
@@ -1236,7 +1236,7 @@ ftrace_set_regex(unsigned char *buf, int len, int reset, int enable)
 	if (reset)
 		ftrace_filter_reset(enable);
 	if (buf)
-		ftrace_match(buf, len, enable);
+		ftrace_match_records(buf, len, enable);
 	mutex_unlock(&ftrace_regex_lock);
 }
 
@@ -1286,7 +1286,7 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 	if (iter->buffer_idx) {
 		iter->filtered++;
 		iter->buffer[iter->buffer_idx] = 0;
-		ftrace_match(iter->buffer, iter->buffer_idx, enable);
+		ftrace_match_records(iter->buffer, iter->buffer_idx, enable);
 	}
 
 	mutex_lock(&ftrace_sysctl_lock);
