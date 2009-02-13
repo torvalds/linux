@@ -22,6 +22,8 @@
 #include <linux/videodev.h>
 #include <linux/video_decoder.h>
 #include <linux/i2c.h>
+#include <media/v4l2-common.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 
 #include "saa7191.h"
 
@@ -31,6 +33,10 @@ MODULE_DESCRIPTION("Philips SAA7191 video decoder driver");
 MODULE_VERSION(SAA7191_MODULE_VERSION);
 MODULE_AUTHOR("Mikael Nousiainen <tmnousia@cc.hut.fi>");
 MODULE_LICENSE("GPL");
+
+static unsigned short normal_i2c[] = { 0x8a >> 1, 0x8e >> 1, I2C_CLIENT_END };
+
+I2C_CLIENT_INSMOD;
 
 // #define SAA7191_DEBUG
 
@@ -53,8 +59,6 @@ struct saa7191 {
 	int input;
 	int norm;
 };
-
-static struct i2c_driver i2c_driver_saa7191;
 
 static const u8 initseq[] = {
 	0,	/* Subaddress */
@@ -561,83 +565,6 @@ static int saa7191_set_control(struct i2c_client *client,
 
 /* I2C-interface */
 
-static int saa7191_attach(struct i2c_adapter *adap, int addr, int kind)
-{
-	int err = 0;
-	struct saa7191 *decoder;
-	struct i2c_client *client;
-
-	printk(KERN_INFO "Philips SAA7191 driver version %s\n",
-	       SAA7191_MODULE_VERSION);
-
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
-	if (!client)
-		return -ENOMEM;
-	decoder = kzalloc(sizeof(*decoder), GFP_KERNEL);
-	if (!decoder) {
-		err = -ENOMEM;
-		goto out_free_client;
-	}
-
-	client->addr = addr;
-	client->adapter = adap;
-	client->driver = &i2c_driver_saa7191;
-	client->flags = 0;
-	strcpy(client->name, "saa7191 client");
-	i2c_set_clientdata(client, decoder);
-
-	decoder->client = client;
-
-	err = i2c_attach_client(client);
-	if (err)
-		goto out_free_decoder;
-
-	err = saa7191_write_block(client, sizeof(initseq), initseq);
-	if (err) {
-		printk(KERN_ERR "SAA7191 initialization failed\n");
-		goto out_detach_client;
-	}
-
-	printk(KERN_INFO "SAA7191 initialized\n");
-
-	decoder->input = SAA7191_INPUT_COMPOSITE;
-	decoder->norm = SAA7191_NORM_PAL;
-
-	err = saa7191_autodetect_norm(client);
-	if (err && (err != -EBUSY)) {
-		printk(KERN_ERR "SAA7191: Signal auto-detection failed\n");
-	}
-
-	return 0;
-
-out_detach_client:
-	i2c_detach_client(client);
-out_free_decoder:
-	kfree(decoder);
-out_free_client:
-	kfree(client);
-	return err;
-}
-
-static int saa7191_probe(struct i2c_adapter *adap)
-{
-	/* Always connected to VINO */
-	if (adap->id == I2C_HW_SGI_VINO)
-		return saa7191_attach(adap, SAA7191_ADDR, 0);
-	/* Feel free to add probe here :-) */
-	return -ENODEV;
-}
-
-static int saa7191_detach(struct i2c_client *client)
-{
-	struct saa7191 *decoder = i2c_get_clientdata(client);
-
-	i2c_detach_client(client);
-	kfree(decoder);
-	kfree(client);
-	return 0;
-}
-
 static int saa7191_command(struct i2c_client *client, unsigned int cmd,
 			   void *arg)
 {
@@ -783,25 +710,67 @@ static int saa7191_command(struct i2c_client *client, unsigned int cmd,
 	return 0;
 }
 
-static struct i2c_driver i2c_driver_saa7191 = {
-	.driver = {
-		.name 	= "saa7191",
-	},
-	.id		= I2C_DRIVERID_SAA7191,
-	.attach_adapter = saa7191_probe,
-	.detach_client	= saa7191_detach,
-	.command	= saa7191_command
+static int saa7191_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
+{
+	int err = 0;
+	struct saa7191 *decoder;
+
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
+
+	decoder = kzalloc(sizeof(*decoder), GFP_KERNEL);
+	if (!decoder)
+		return -ENOMEM;
+
+	i2c_set_clientdata(client, decoder);
+
+	decoder->client = client;
+
+	err = saa7191_write_block(client, sizeof(initseq), initseq);
+	if (err) {
+		printk(KERN_ERR "SAA7191 initialization failed\n");
+		kfree(decoder);
+		return err;
+	}
+
+	printk(KERN_INFO "SAA7191 initialized\n");
+
+	decoder->input = SAA7191_INPUT_COMPOSITE;
+	decoder->norm = SAA7191_NORM_PAL;
+
+	err = saa7191_autodetect_norm(client);
+	if (err && (err != -EBUSY))
+		printk(KERN_ERR "SAA7191: Signal auto-detection failed\n");
+
+	return 0;
+}
+
+static int saa7191_remove(struct i2c_client *client)
+{
+	struct saa7191 *decoder = i2c_get_clientdata(client);
+
+	kfree(decoder);
+	return 0;
+}
+
+static int saa7191_legacy_probe(struct i2c_adapter *adapter)
+{
+	return adapter->id == I2C_HW_SGI_VINO;
+}
+
+static const struct i2c_device_id saa7191_id[] = {
+	{ "saa7191", 0 },
+	{ }
 };
+MODULE_DEVICE_TABLE(i2c, saa7191_id);
 
-static int saa7191_init(void)
-{
-	return i2c_add_driver(&i2c_driver_saa7191);
-}
-
-static void saa7191_exit(void)
-{
-	i2c_del_driver(&i2c_driver_saa7191);
-}
-
-module_init(saa7191_init);
-module_exit(saa7191_exit);
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "saa7191",
+	.driverid = I2C_DRIVERID_SAA7191,
+	.command = saa7191_command,
+	.probe = saa7191_probe,
+	.remove = saa7191_remove,
+	.legacy_probe = saa7191_legacy_probe,
+	.id_table = saa7191_id,
+};
