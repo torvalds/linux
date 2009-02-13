@@ -970,6 +970,8 @@ static void ql_update_sbq(struct ql_adapter *qdev, struct rx_ring *rx_ring)
 				if (pci_dma_mapping_error(qdev->pdev, map)) {
 					QPRINTK(qdev, IFUP, ERR, "PCI mapping failed.\n");
 					rx_ring->sbq_clean_idx = clean_idx;
+					dev_kfree_skb_any(sbq_desc->p.skb);
+					sbq_desc->p.skb = NULL;
 					return;
 				}
 				pci_unmap_addr_set(sbq_desc, mapaddr, map);
