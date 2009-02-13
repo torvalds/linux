@@ -2602,13 +2602,13 @@ static void ocfs2_unlink_subtree(handle_t *handle,
 			  subtree_index + 1);
 }
 
-static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
+static int ocfs2_rotate_subtree_left(handle_t *handle,
+				     struct ocfs2_extent_tree *et,
 				     struct ocfs2_path *left_path,
 				     struct ocfs2_path *right_path,
 				     int subtree_index,
 				     struct ocfs2_cached_dealloc_ctxt *dealloc,
-				     int *deleted,
-				     struct ocfs2_extent_tree *et)
+				     int *deleted)
 {
 	int ret, i, del_right_subtree = 0, right_has_empty = 0;
 	struct buffer_head *root_bh, *et_root_bh = path_root_bh(right_path);
@@ -2644,7 +2644,7 @@ static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
 			return -EAGAIN;
 
 		if (le16_to_cpu(right_leaf_el->l_next_free_rec) > 1) {
-			ret = ocfs2_journal_access_eb(handle, INODE_CACHE(inode),
+			ret = ocfs2_journal_access_eb(handle, et->et_ci,
 						      path_leaf_bh(right_path),
 						      OCFS2_JOURNAL_ACCESS_WRITE);
 			if (ret) {
@@ -2679,7 +2679,7 @@ static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
 	 */
 	BUG_ON(right_has_empty && !del_right_subtree);
 
-	ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode), right_path,
+	ret = ocfs2_path_bh_journal_access(handle, et->et_ci, right_path,
 					   subtree_index);
 	if (ret) {
 		mlog_errno(ret);
@@ -2687,14 +2687,14 @@ static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
 	}
 
 	for(i = subtree_index + 1; i < path_num_items(right_path); i++) {
-		ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
+		ret = ocfs2_path_bh_journal_access(handle, et->et_ci,
 						   right_path, i);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
 
-		ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode),
+		ret = ocfs2_path_bh_journal_access(handle, et->et_ci,
 						   left_path, i);
 		if (ret) {
 			mlog_errno(ret);
@@ -2944,9 +2944,9 @@ static int __ocfs2_rotate_tree_left(struct inode *inode,
 			goto out;
 		}
 
-		ret = ocfs2_rotate_subtree_left(inode, handle, left_path,
+		ret = ocfs2_rotate_subtree_left(handle, et, left_path,
 						right_path, subtree_root,
-						dealloc, &deleted, et);
+						dealloc, &deleted);
 		if (ret == -EAGAIN) {
 			/*
 			 * The rotation has to temporarily stop due to
