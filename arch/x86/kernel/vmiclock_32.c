@@ -256,7 +256,7 @@ void __devinit vmi_time_bsp_init(void)
 	 */
 	clockevents_notify(CLOCK_EVT_NOTIFY_SUSPEND, NULL);
 	local_irq_disable();
-#ifdef CONFIG_X86_SMP
+#ifdef CONFIG_SMP
 	/*
 	 * XXX handle_percpu_irq only defined for SMP; we need to switch over
 	 * to using it, since this is a local interrupt, which each CPU must

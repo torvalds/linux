@@ -42,10 +42,6 @@
 #include <asm/mpspec.h>
 #include <asm/smp.h>
 
-#ifdef CONFIG_X86_LOCAL_APIC
-# include <mach_apic.h>
-#endif
-
 static int __initdata acpi_force = 0;
 u32 acpi_rsdt_forced;
 #ifdef	CONFIG_ACPI
@@ -56,16 +52,7 @@ int acpi_disabled = 1;
 EXPORT_SYMBOL(acpi_disabled);
 
 #ifdef	CONFIG_X86_64
-
-#include <asm/proto.h>
-
-#else				/* X86 */
-
-#ifdef	CONFIG_X86_LOCAL_APIC
-#include <mach_apic.h>
-#include <mach_mpparse.h>
-#endif				/* CONFIG_X86_LOCAL_APIC */
-
+# include <asm/proto.h>
 #endif				/* X86 */
 
 #define BAD_MADT_ENTRY(entry, end) (					    \
@@ -121,35 +108,18 @@ enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_PIC;
  */
 char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 {
-	unsigned long base, offset, mapped_size;
-	int idx;
 
 	if (!phys || !size)
 		return NULL;
 
-	if (phys+size <= (max_low_pfn_mapped << PAGE_SHIFT))
-		return __va(phys);
+	return early_ioremap(phys, size);
+}
+void __init __acpi_unmap_table(char *map, unsigned long size)
+{
+	if (!map || !size)
+		return;
 
-	offset = phys & (PAGE_SIZE - 1);
-	mapped_size = PAGE_SIZE - offset;
-	clear_fixmap(FIX_ACPI_END);
-	set_fixmap(FIX_ACPI_END, phys);
-	base = fix_to_virt(FIX_ACPI_END);
-
-	/*
-	 * Most cases can be covered by the below.
-	 */
-	idx = FIX_ACPI_END;
-	while (mapped_size < size) {
-		if (--idx < FIX_ACPI_BEGIN)
-			return NULL;	/* cannot handle this */
-		phys += PAGE_SIZE;
-		clear_fixmap(idx);
-		set_fixmap(idx, phys);
-		mapped_size += PAGE_SIZE;
-	}
-
-	return ((unsigned char *)base + offset);
+	early_iounmap(map, size);
 }
 
 #ifdef CONFIG_PCI_MMCONFIG
@@ -239,7 +209,8 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 		       madt->address);
 	}
 
-	acpi_madt_oem_check(madt->header.oem_id, madt->header.oem_table_id);
+	default_acpi_madt_oem_check(madt->header.oem_id,
+				    madt->header.oem_table_id);
 
 	return 0;
 }
@@ -884,7 +855,7 @@ static struct {
 	DECLARE_BITMAP(pin_programmed, MP_MAX_IOAPIC_PIN + 1);
 } mp_ioapic_routing[MAX_IO_APICS];
 
-static int mp_find_ioapic(int gsi)
+int mp_find_ioapic(int gsi)
 {
 	int i = 0;
 
@@ -897,6 +868,16 @@ static int mp_find_ioapic(int gsi)
 
 	printk(KERN_ERR "ERROR: Unable to locate IOAPIC for GSI %d\n", gsi);
 	return -1;
+}
+
+int mp_find_ioapic_pin(int ioapic, int gsi)
+{
+	if (WARN_ON(ioapic == -1))
+		return -1;
+	if (WARN_ON(gsi > mp_ioapic_routing[ioapic].gsi_end))
+		return -1;
+
+	return gsi - mp_ioapic_routing[ioapic].gsi_base;
 }
 
 static u8 __init uniq_ioapic_id(u8 id)
@@ -1034,7 +1015,7 @@ void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger, u32 gsi)
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0)
 		return;
-	pin = gsi - mp_ioapic_routing[ioapic].gsi_base;
+	pin = mp_find_ioapic_pin(ioapic, gsi);
 
 	/*
 	 * TBD: This check is for faulty timer entries, where the override
@@ -1154,7 +1135,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 		return gsi;
 	}
 
-	ioapic_pin = gsi - mp_ioapic_routing[ioapic].gsi_base;
+	ioapic_pin = mp_find_ioapic_pin(ioapic, gsi);
 
 #ifdef CONFIG_X86_32
 	if (ioapic_renumber_irq)
@@ -1243,7 +1224,7 @@ int mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
 	mp_irq.srcbusirq = (((devfn >> 3) & 0x1f) << 2) | ((pin - 1) & 3);
 	ioapic = mp_find_ioapic(gsi);
 	mp_irq.dstapic = mp_ioapic_routing[ioapic].apic_id;
-	mp_irq.dstirq = gsi - mp_ioapic_routing[ioapic].gsi_base;
+	mp_irq.dstirq = mp_find_ioapic_pin(ioapic, gsi);
 
 	save_mp_irq(&mp_irq);
 #endif
@@ -1370,7 +1351,7 @@ static void __init acpi_process_madt(void)
 		if (!error) {
 			acpi_lapic = 1;
 
-#ifdef CONFIG_X86_GENERICARCH
+#ifdef CONFIG_X86_BIGSMP
 			generic_bigsmp_probe();
 #endif
 			/*
@@ -1382,9 +1363,8 @@ static void __init acpi_process_madt(void)
 				acpi_ioapic = 1;
 
 				smp_found_config = 1;
-#ifdef CONFIG_X86_32
-				setup_apic_routing();
-#endif
+				if (apic->setup_apic_routing)
+					apic->setup_apic_routing();
 			}
 		}
 		if (error == -EINVAL) {

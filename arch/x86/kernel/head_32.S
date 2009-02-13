@@ -19,6 +19,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/setup.h>
 #include <asm/processor-flags.h>
+#include <asm/percpu.h>
 
 /* Physical address */
 #define pa(X) ((X) - __PAGE_OFFSET)
@@ -437,8 +438,26 @@ is386:	movl $2,%ecx		# set MP
 	movl $(__KERNEL_PERCPU), %eax
 	movl %eax,%fs			# set this cpu's percpu
 
-	xorl %eax,%eax			# Clear GS and LDT
+#ifdef CONFIG_CC_STACKPROTECTOR
+	/*
+	 * The linker can't handle this by relocation.  Manually set
+	 * base address in stack canary segment descriptor.
+	 */
+	cmpb $0,ready
+	jne 1f
+	movl $per_cpu__gdt_page,%eax
+	movl $per_cpu__stack_canary,%ecx
+	subl $20, %ecx
+	movw %cx, 8 * GDT_ENTRY_STACK_CANARY + 2(%eax)
+	shrl $16, %ecx
+	movb %cl, 8 * GDT_ENTRY_STACK_CANARY + 4(%eax)
+	movb %ch, 8 * GDT_ENTRY_STACK_CANARY + 7(%eax)
+1:
+#endif
+	movl $(__KERNEL_STACK_CANARY),%eax
 	movl %eax,%gs
+
+	xorl %eax,%eax			# Clear LDT
 	lldt %ax
 
 	cld			# gcc2 wants the direction flag cleared at all times
@@ -548,11 +567,7 @@ early_fault:
 	pushl %eax
 	pushl %edx		/* trapno */
 	pushl $fault_msg
-#ifdef CONFIG_EARLY_PRINTK
-	call early_printk
-#else
 	call printk
-#endif
 #endif
 	call dump_stack
 hlt_loop:
@@ -580,11 +595,10 @@ ignore_int:
 	pushl 32(%esp)
 	pushl 40(%esp)
 	pushl $int_msg
-#ifdef CONFIG_EARLY_PRINTK
-	call early_printk
-#else
 	call printk
-#endif
+
+	call dump_stack
+
 	addl $(5*4),%esp
 	popl %ds
 	popl %es
@@ -660,7 +674,7 @@ early_recursion_flag:
 	.long 0
 
 int_msg:
-	.asciz "Unknown interrupt or fault at EIP %p %p %p\n"
+	.asciz "Unknown interrupt or fault at: %p %p %p\n"
 
 fault_msg:
 /* fault info: */

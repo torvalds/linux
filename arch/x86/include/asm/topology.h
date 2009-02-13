@@ -74,6 +74,8 @@ static inline const struct cpumask *cpumask_of_node(int node)
 	return &node_to_cpumask_map[node];
 }
 
+static inline void setup_node_to_cpumask_map(void) { }
+
 #else /* CONFIG_X86_64 */
 
 /* Mappings between node number and cpus on that node. */
@@ -119,6 +121,8 @@ static inline cpumask_t node_to_cpumask(int node)
 }
 
 #endif /* !CONFIG_DEBUG_PER_CPU_MAPS */
+
+extern void setup_node_to_cpumask_map(void);
 
 /*
  * Replace default node_to_cpumask_ptr with optimized version
@@ -217,6 +221,8 @@ static inline int node_to_first_cpu(int node)
 {
 	return first_cpu(cpu_online_map);
 }
+
+static inline void setup_node_to_cpumask_map(void) { }
 
 /*
  * Replace default node_to_cpumask_ptr with optimized version

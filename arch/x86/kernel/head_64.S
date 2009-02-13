@@ -205,19 +205,6 @@ ENTRY(secondary_startup_64)
 	pushq $0
 	popfq
 
-#ifdef CONFIG_SMP
-	/*
-	 * Fix up static pointers that need __per_cpu_load added.  The assembler
-	 * is unable to do this directly.  This is only needed for the boot cpu.
-	 * These values are set up with the correct base addresses by C code for
-	 * secondary cpus.
-	 */
-	movq	initial_gs(%rip), %rax
-	cmpl	$0, per_cpu__cpu_number(%rax)
-	jne	1f
-	addq	%rax, early_gdt_descr_base(%rip)
-1:
-#endif
 	/*
 	 * We must switch to a new descriptor in kernel space for the GDT
 	 * because soon the kernel won't have access anymore to the userspace
@@ -275,11 +262,7 @@ ENTRY(secondary_startup_64)
 	ENTRY(initial_code)
 	.quad	x86_64_start_kernel
 	ENTRY(initial_gs)
-#ifdef CONFIG_SMP
-	.quad	__per_cpu_load
-#else
-	.quad	PER_CPU_VAR(irq_stack_union)
-#endif
+	.quad	INIT_PER_CPU_VAR(irq_stack_union)
 	__FINITDATA
 
 	ENTRY(stack_start)
@@ -425,7 +408,7 @@ NEXT_PAGE(level2_spare_pgt)
 early_gdt_descr:
 	.word	GDT_ENTRIES*8-1
 early_gdt_descr_base:
-	.quad	per_cpu__gdt_page
+	.quad	INIT_PER_CPU_VAR(gdt_page)
 
 ENTRY(phys_base)
 	/* This must match the first entry in level2_kernel_pgt */

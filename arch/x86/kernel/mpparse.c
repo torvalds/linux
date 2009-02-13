@@ -3,7 +3,7 @@
  *	compliant MP-table parsing routines.
  *
  *	(c) 1995 Alan Cox, Building #3 <alan@lxorguk.ukuu.org.uk>
- *	(c) 1998, 1999, 2000 Ingo Molnar <mingo@redhat.com>
+ *	(c) 1998, 1999, 2000, 2009 Ingo Molnar <mingo@redhat.com>
  *      (c) 2008 Alexey Starikovskiy <astarikovskiy@suse.de>
  */
 
@@ -29,12 +29,7 @@
 #include <asm/setup.h>
 #include <asm/smp.h>
 
-#include <mach_apic.h>
-#ifdef CONFIG_X86_32
-#include <mach_apicdef.h>
-#include <mach_mpparse.h>
-#endif
-
+#include <asm/genapic.h>
 /*
  * Checksum an MP configuration block.
  */
@@ -292,16 +287,7 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 		return 0;
 
 #ifdef CONFIG_X86_32
-	/*
-	 * need to make sure summit and es7000's mps_oem_check is safe to be
-	 * called early via genericarch 's mps_oem_check
-	 */
-	if (early) {
-#ifdef CONFIG_X86_NUMAQ
-		numaq_mps_oem_check(mpc, oem, str);
-#endif
-	} else
-		mps_oem_check(mpc, oem, str);
+	generic_mps_oem_check(mpc, oem, str);
 #endif
 	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)
@@ -386,13 +372,13 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 			(*x86_quirks->mpc_record)++;
 	}
 
-#ifdef CONFIG_X86_GENERICARCH
-       generic_bigsmp_probe();
+#ifdef CONFIG_X86_BIGSMP
+	generic_bigsmp_probe();
 #endif
 
-#ifdef CONFIG_X86_32
-	setup_apic_routing();
-#endif
+	if (apic->setup_apic_routing)
+		apic->setup_apic_routing();
+
 	if (!num_processors)
 		printk(KERN_ERR "MPTABLE: no processors registered!\n");
 	return num_processors;
@@ -706,8 +692,8 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 #endif
 			mpf_found = mpf;
 
-			printk(KERN_INFO "found SMP MP-table at [%p] %08lx\n",
-			       mpf, virt_to_phys(mpf));
+			printk(KERN_INFO "found SMP MP-table at [%p] %llx\n",
+			       mpf, (u64)virt_to_phys(mpf));
 
 			if (!reserve)
 				return 1;
@@ -1025,7 +1011,7 @@ static int __init update_mp_table(void)
 	if (!smp_check_mpc(mpc, oem, str))
 		return 0;
 
-	printk(KERN_INFO "mpf: %lx\n", virt_to_phys(mpf));
+	printk(KERN_INFO "mpf: %llx\n", (u64)virt_to_phys(mpf));
 	printk(KERN_INFO "physptr: %x\n", mpf->physptr);
 
 	if (mpc_new_phys && mpc->length > mpc_new_length) {

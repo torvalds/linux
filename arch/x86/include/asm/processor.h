@@ -73,7 +73,7 @@ struct cpuinfo_x86 {
 	char			pad0;
 #else
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
-	int			 x86_tlbsize;
+	int			x86_tlbsize;
 	__u8			x86_virt_bits;
 	__u8			x86_phys_bits;
 #endif
@@ -393,16 +393,14 @@ union irq_stack_union {
 };
 
 DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
-DECLARE_PER_CPU(char *, irq_stack_ptr);
+DECLARE_INIT_PER_CPU(irq_stack_union);
 
-static inline void load_gs_base(int cpu)
-{
-	/* Memory clobbers used to order pda/percpu accesses */
-	mb();
-	wrmsrl(MSR_GS_BASE, (unsigned long)per_cpu(irq_stack_union.gs_base, cpu));
-	mb();
-}
+DECLARE_PER_CPU(char *, irq_stack_ptr);
+#else	/* X86_64 */
+#ifdef CONFIG_CC_STACKPROTECTOR
+DECLARE_PER_CPU(unsigned long, stack_canary);
 #endif
+#endif	/* X86_64 */
 
 extern void print_cpu_info(struct cpuinfo_x86 *);
 extern unsigned int xstate_size;
@@ -776,9 +774,9 @@ extern int sysenter_setup(void);
 extern struct desc_ptr		early_gdt_descr;
 
 extern void cpu_set_gdt(int);
-extern void switch_to_new_gdt(void);
+extern void switch_to_new_gdt(int);
+extern void load_percpu_segment(int);
 extern void cpu_init(void);
-extern void init_gdt(int cpu);
 
 static inline unsigned long get_debugctlmsr(void)
 {

@@ -528,8 +528,6 @@ static void __init do_boot_cpu(__u8 cpu)
 	/* init_tasks (in sched.c) is indexed logically */
 	stack_start.sp = (void *)idle->thread.sp;
 
-	init_gdt(cpu);
-	per_cpu(this_cpu_off, cpu) = __per_cpu_offset[cpu];
 	per_cpu(current_task, cpu) = idle;
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 	irq_ctx_init(cpu);
@@ -1746,15 +1744,13 @@ static void __init voyager_smp_prepare_cpus(unsigned int max_cpus)
 
 static void __cpuinit voyager_smp_prepare_boot_cpu(void)
 {
-	init_gdt(smp_processor_id());
-	per_cpu(this_cpu_off, cpu) = __per_cpu_offset[cpu];
-	switch_to_new_gdt();
+	int cpu = smp_processor_id();
+	switch_to_new_gdt(cpu);
 
 	cpu_online_map = cpumask_of_cpu(smp_processor_id());
 	cpu_callout_map = cpumask_of_cpu(smp_processor_id());
 	cpu_callin_map = CPU_MASK_NONE;
 	cpu_present_map = cpumask_of_cpu(smp_processor_id());
-
 }
 
 static int __cpuinit voyager_cpu_up(unsigned int cpu)
@@ -1781,7 +1777,6 @@ static void __init voyager_smp_cpus_done(unsigned int max_cpus)
 void __init smp_setup_processor_id(void)
 {
 	current_thread_info()->cpu = hard_smp_processor_id();
-	percpu_write(cpu_number, hard_smp_processor_id());
 }
 
 static void voyager_send_call_func(const struct cpumask *callmask)

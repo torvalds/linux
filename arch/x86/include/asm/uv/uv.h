@@ -3,6 +3,9 @@
 
 enum uv_system_type {UV_NONE, UV_LEGACY_APIC, UV_X2APIC, UV_NON_UNIQUE_APIC};
 
+struct cpumask;
+struct mm_struct;
+
 #ifdef CONFIG_X86_UV
 
 extern enum uv_system_type get_uv_system_type(void);

@@ -445,10 +445,9 @@
  * section in the linker script will go there too.  @phdr should have
  * a leading colon.
  *
- * This macro defines three symbols, __per_cpu_load, __per_cpu_start
- * and __per_cpu_end.  The first one is the vaddr of loaded percpu
- * init data.  __per_cpu_start equals @vaddr and __per_cpu_end is the
- * end offset.
+ * Note that this macros defines __per_cpu_load as an absolute symbol.
+ * If there is no need to put the percpu section at a predetermined
+ * address, use PERCPU().
  */
 #define PERCPU_VADDR(vaddr, phdr)					\
 	VMLINUX_SYMBOL(__per_cpu_load) = .;				\
@@ -470,7 +469,20 @@
  * Align to @align and outputs output section for percpu area.  This
  * macro doesn't maniuplate @vaddr or @phdr and __per_cpu_load and
  * __per_cpu_start will be identical.
+ *
+ * This macro is equivalent to ALIGN(align); PERCPU_VADDR( , ) except
+ * that __per_cpu_load is defined as a relative symbol against
+ * .data.percpu which is required for relocatable x86_32
+ * configuration.
  */
 #define PERCPU(align)							\
 	. = ALIGN(align);						\
-	PERCPU_VADDR( , )
+	.data.percpu	: AT(ADDR(.data.percpu) - LOAD_OFFSET) {	\
+		VMLINUX_SYMBOL(__per_cpu_load) = .;			\
+		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
+		*(.data.percpu.first)					\
+		*(.data.percpu.page_aligned)				\
+		*(.data.percpu)						\
+		*(.data.percpu.shared_aligned)				\
+		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
+	}

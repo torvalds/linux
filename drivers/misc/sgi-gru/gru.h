@@ -19,8 +19,6 @@
 #ifndef __GRU_H__
 #define __GRU_H__
 
-#include <asm/uv/uv.h>
-
 /*
  * GRU architectural definitions
  */

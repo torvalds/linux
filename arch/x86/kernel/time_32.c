@@ -38,7 +38,7 @@
 #include <asm/time.h>
 #include <asm/timer.h>
 
-#include "do_timer.h"
+#include <asm/do_timer.h>
 
 int timer_ack;
 

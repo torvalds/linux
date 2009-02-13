@@ -20,7 +20,7 @@
 #include <asm/tsc.h>
 #include <asm/irq_vectors.h>
 
-#include <mach_apic.h>
+#include <asm/genapic.h>
 
 static struct bau_control	**uv_bau_table_bases __read_mostly;
 static int			uv_bau_retry_limit __read_mostly;
@@ -259,7 +259,7 @@ const struct cpumask *uv_flush_send_and_wait(int cpu, int this_blade,
 		 * the cpu's, all of which are still in the mask.
 		 */
 		__get_cpu_var(ptcstats).ptc_i++;
-		return 0;
+		return flush_mask;
 	}
 
 	/*

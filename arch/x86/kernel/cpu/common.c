@@ -27,7 +27,7 @@
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
-#include <mach_apic.h>
+#include <asm/genapic.h>
 #include <asm/genapic.h>
 #include <asm/uv/uv.h>
 #endif
@@ -40,6 +40,7 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/hypervisor.h>
+#include <asm/stackprotector.h>
 
 #include "cpu.h"
 
@@ -52,6 +53,15 @@ cpumask_var_t cpu_initialized_mask;
 
 /* representing cpus for which sibling maps can be computed */
 cpumask_var_t cpu_sibling_setup_mask;
+
+/* correctly size the local cpu masks */
+void __init setup_cpu_local_masks(void)
+{
+	alloc_bootmem_cpumask_var(&cpu_initialized_mask);
+	alloc_bootmem_cpumask_var(&cpu_callin_mask);
+	alloc_bootmem_cpumask_var(&cpu_callout_mask);
+	alloc_bootmem_cpumask_var(&cpu_sibling_setup_mask);
+}
 
 #else /* CONFIG_X86_32 */
 
@@ -114,6 +124,7 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 
 	[GDT_ENTRY_ESPFIX_SS] = { { { 0x00000000, 0x00c09200 } } },
 	[GDT_ENTRY_PERCPU] = { { { 0x0000ffff, 0x00cf9200 } } },
+	GDT_STACK_CANARY_INIT
 #endif
 } };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
@@ -216,6 +227,49 @@ static inline void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
 #endif
 
 /*
+ * Some CPU features depend on higher CPUID levels, which may not always
+ * be available due to CPUID level capping or broken virtualization
+ * software.  Add those features to this table to auto-disable them.
+ */
+struct cpuid_dependent_feature {
+	u32 feature;
+	u32 level;
+};
+static const struct cpuid_dependent_feature __cpuinitconst
+cpuid_dependent_features[] = {
+	{ X86_FEATURE_MWAIT,		0x00000005 },
+	{ X86_FEATURE_DCA,		0x00000009 },
+	{ X86_FEATURE_XSAVE,		0x0000000d },
+	{ 0, 0 }
+};
+
+static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
+{
+	const struct cpuid_dependent_feature *df;
+	for (df = cpuid_dependent_features; df->feature; df++) {
+		/*
+		 * Note: cpuid_level is set to -1 if unavailable, but
+		 * extended_extended_level is set to 0 if unavailable
+		 * and the legitimate extended levels are all negative
+		 * when signed; hence the weird messing around with
+		 * signs here...
+		 */
+		if (cpu_has(c, df->feature) &&
+		    ((s32)df->feature < 0 ?
+		     (u32)df->feature > (u32)c->extended_cpuid_level :
+		     (s32)df->feature > (s32)c->cpuid_level)) {
+			clear_cpu_cap(c, df->feature);
+			if (warn)
+				printk(KERN_WARNING
+				       "CPU: CPU feature %s disabled "
+				       "due to lack of CPUID level 0x%x\n",
+				       x86_cap_flags[df->feature],
+				       df->level);
+		}
+	}
+}	
+
+/*
  * Naming convention should be: <Name> [(<Codename>)]
  * This table only is used unless init_<vendor>() below doesn't set it;
  * in particular, if CPUID levels 0x80000002..4 are supported, this isn't used
@@ -245,18 +299,29 @@ static char __cpuinit *table_lookup_model(struct cpuinfo_x86 *c)
 
 __u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
 
+void load_percpu_segment(int cpu)
+{
+#ifdef CONFIG_X86_32
+	loadsegment(fs, __KERNEL_PERCPU);
+#else
+	loadsegment(gs, 0);
+	wrmsrl(MSR_GS_BASE, (unsigned long)per_cpu(irq_stack_union.gs_base, cpu));
+#endif
+	load_stack_canary_segment();
+}
+
 /* Current gdt points %fs at the "master" per-cpu area: after this,
  * it's on the real one. */
-void switch_to_new_gdt(void)
+void switch_to_new_gdt(int cpu)
 {
 	struct desc_ptr gdt_descr;
 
-	gdt_descr.address = (long)get_cpu_gdt_table(smp_processor_id());
+	gdt_descr.address = (long)get_cpu_gdt_table(cpu);
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
-#ifdef CONFIG_X86_32
-	asm("mov %0, %%fs" : : "r" (__KERNEL_PERCPU) : "memory");
-#endif
+	/* Reload the per-cpu base */
+
+	load_percpu_segment(cpu);
 }
 
 static struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
@@ -386,11 +451,7 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		}
 
 		index_msb = get_count_order(smp_num_siblings);
-#ifdef CONFIG_X86_64
-		c->phys_proc_id = phys_pkg_id(index_msb);
-#else
-		c->phys_proc_id = phys_pkg_id(c->initial_apicid, index_msb);
-#endif
+		c->phys_proc_id = apic->phys_pkg_id(c->initial_apicid, index_msb);
 
 		smp_num_siblings = smp_num_siblings / c->x86_max_cores;
 
@@ -398,13 +459,8 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 		core_bits = get_count_order(c->x86_max_cores);
 
-#ifdef CONFIG_X86_64
-		c->cpu_core_id = phys_pkg_id(index_msb) &
+		c->cpu_core_id = apic->phys_pkg_id(c->initial_apicid, index_msb) &
 					       ((1 << core_bits) - 1);
-#else
-		c->cpu_core_id = phys_pkg_id(c->initial_apicid, index_msb) &
-					       ((1 << core_bits) - 1);
-#endif
 	}
 
 out:
@@ -573,11 +629,10 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	if (this_cpu->c_early_init)
 		this_cpu->c_early_init(c);
 
-	validate_pat_support(c);
-
 #ifdef CONFIG_SMP
 	c->cpu_index = boot_cpu_id;
 #endif
+	filter_cpuid_features(c, false);
 }
 
 void __init early_cpu_init(void)
@@ -640,7 +695,7 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 		c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xFF;
 #ifdef CONFIG_X86_32
 # ifdef CONFIG_X86_HT
-		c->apicid = phys_pkg_id(c->initial_apicid, 0);
+		c->apicid = apic->phys_pkg_id(c->initial_apicid, 0);
 # else
 		c->apicid = c->initial_apicid;
 # endif
@@ -687,7 +742,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		this_cpu->c_identify(c);
 
 #ifdef CONFIG_X86_64
-	c->apicid = phys_pkg_id(0);
+	c->apicid = apic->phys_pkg_id(c->initial_apicid, 0);
 #endif
 
 	/*
@@ -710,6 +765,9 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	 * The vendor-specific functions might have changed features.  Now
 	 * we do "generic changes."
 	 */
+
+	/* Filter out anything that depends on CPUID levels we don't have */
+	filter_cpuid_features(c, true);
 
 	/* If the model name is still unset, do table lookup. */
 	if (!c->x86_model_id[0]) {
@@ -885,12 +943,8 @@ struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 
 DEFINE_PER_CPU_FIRST(union irq_stack_union,
 		     irq_stack_union) __aligned(PAGE_SIZE);
-#ifdef CONFIG_SMP
-DEFINE_PER_CPU(char *, irq_stack_ptr);	/* will be set during per cpu init */
-#else
 DEFINE_PER_CPU(char *, irq_stack_ptr) =
-	per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
-#endif
+	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
 
 DEFINE_PER_CPU(unsigned long, kernel_stack) =
 	(unsigned long)&init_thread_union - KERNEL_STACK_OFFSET + THREAD_SIZE;
@@ -933,16 +987,21 @@ unsigned long kernel_eflags;
  */
 DEFINE_PER_CPU(struct orig_ist, orig_ist);
 
-#else
+#else	/* x86_64 */
 
-/* Make sure %fs is initialized properly in idle threads */
+#ifdef CONFIG_CC_STACKPROTECTOR
+DEFINE_PER_CPU(unsigned long, stack_canary);
+#endif
+
+/* Make sure %fs and %gs are initialized properly in idle threads */
 struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
 {
 	memset(regs, 0, sizeof(struct pt_regs));
 	regs->fs = __KERNEL_PERCPU;
+	regs->gs = __KERNEL_STACK_CANARY;
 	return regs;
 }
-#endif
+#endif	/* x86_64 */
 
 /*
  * cpu_init() initializes state that is per-CPU. Some data is already
@@ -960,10 +1019,6 @@ void __cpuinit cpu_init(void)
 	unsigned long v;
 	struct task_struct *me;
 	int i;
-
-	loadsegment(fs, 0);
-	loadsegment(gs, 0);
-	load_gs_base(cpu);
 
 #ifdef CONFIG_NUMA
 	if (cpu != 0 && percpu_read(node_number) == 0 &&
@@ -985,7 +1040,9 @@ void __cpuinit cpu_init(void)
 	 * and set up the GDT descriptor:
 	 */
 
-	switch_to_new_gdt();
+	switch_to_new_gdt(cpu);
+	loadsegment(fs, 0);
+
 	load_idt((const struct desc_ptr *)&idt_descr);
 
 	memset(me->thread.tls_array, 0, GDT_ENTRY_TLS_ENTRIES * 8);
@@ -1043,22 +1100,19 @@ void __cpuinit cpu_init(void)
 	 */
 	if (kgdb_connected && arch_kgdb_ops.correct_hw_break)
 		arch_kgdb_ops.correct_hw_break();
-	else {
+	else
 #endif
-	/*
-	 * Clear all 6 debug registers:
-	 */
-
-	set_debugreg(0UL, 0);
-	set_debugreg(0UL, 1);
-	set_debugreg(0UL, 2);
-	set_debugreg(0UL, 3);
-	set_debugreg(0UL, 6);
-	set_debugreg(0UL, 7);
-#ifdef CONFIG_KGDB
-	/* If the kgdb is connected no debug regs should be altered. */
+	{
+		/*
+		 * Clear all 6 debug registers:
+		 */
+		set_debugreg(0UL, 0);
+		set_debugreg(0UL, 1);
+		set_debugreg(0UL, 2);
+		set_debugreg(0UL, 3);
+		set_debugreg(0UL, 6);
+		set_debugreg(0UL, 7);
 	}
-#endif
 
 	fpu_init();
 
@@ -1088,7 +1142,7 @@ void __cpuinit cpu_init(void)
 		clear_in_cr4(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
 
 	load_idt(&idt_descr);
-	switch_to_new_gdt();
+	switch_to_new_gdt(cpu);
 
 	/*
 	 * Set up and load the per-CPU TSS and LDT
@@ -1108,9 +1162,6 @@ void __cpuinit cpu_init(void)
 	/* Set up doublefault TSS pointer in the GDT */
 	__set_tss_desc(cpu, GDT_ENTRY_DOUBLEFAULT_TSS, &doublefault_tss);
 #endif
-
-	/* Clear %gs. */
-	asm volatile ("mov %0, %%gs" : : "r" (0));
 
 	/* Clear all 6 debug registers: */
 	set_debugreg(0, 0);

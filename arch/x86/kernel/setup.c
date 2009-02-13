@@ -81,7 +81,7 @@
 #include <asm/io_apic.h>
 #include <asm/ist.h>
 #include <asm/vmi.h>
-#include <setup_arch.h>
+#include <asm/setup_arch.h>
 #include <asm/bios_ebda.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
@@ -97,7 +97,7 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 
-#include <mach_apic.h>
+#include <asm/genapic.h>
 #include <asm/paravirt.h>
 #include <asm/hypervisor.h>
 
@@ -110,6 +110,20 @@
 
 #ifndef ARCH_SETUP
 #define ARCH_SETUP
+#endif
+
+unsigned int boot_cpu_id __read_mostly;
+
+#ifdef CONFIG_X86_64
+int default_cpu_present_to_apicid(int mps_cpu)
+{
+	return __default_cpu_present_to_apicid(mps_cpu);
+}
+
+int default_check_phys_apicid_present(int boot_cpu_physical_apicid)
+{
+	return __default_check_phys_apicid_present(boot_cpu_physical_apicid);
+}
 #endif
 
 #ifndef CONFIG_DEBUG_BOOT_PARAMS
@@ -588,10 +602,9 @@ early_param("elfcorehdr", setup_elfcorehdr);
 
 static int __init default_update_genapic(void)
 {
-#ifdef CONFIG_X86_SMP
-# if defined(CONFIG_X86_GENERICARCH) || defined(CONFIG_X86_64)
-	genapic->wakeup_cpu = wakeup_secondary_cpu_via_init;
-# endif
+#ifdef CONFIG_SMP
+	if (!apic->wakeup_cpu)
+		apic->wakeup_cpu = wakeup_secondary_cpu_via_init;
 #endif
 
 	return 0;
@@ -892,12 +905,11 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	acpi_reserve_bootmem();
 #endif
-#ifdef CONFIG_X86_FIND_SMP_CONFIG
 	/*
 	 * Find and reserve possible boot-time SMP configuration:
 	 */
 	find_smp_config();
-#endif
+
 	reserve_crashkernel();
 
 #ifdef CONFIG_X86_64
@@ -924,9 +936,7 @@ void __init setup_arch(char **cmdline_p)
 	map_vsyscall();
 #endif
 
-#ifdef CONFIG_X86_GENERICARCH
 	generic_apic_probe();
-#endif
 
 	early_quirks();
 

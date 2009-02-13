@@ -34,7 +34,7 @@
 
 #include <asm/mce.h>
 
-#include <mach_traps.h>
+#include <asm/mach_traps.h>
 
 int unknown_nmi_panic;
 int nmi_watchdog_enabled;
