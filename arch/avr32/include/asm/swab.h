@@ -4,7 +4,7 @@
 #ifndef __ASM_AVR32_SWAB_H
 #define __ASM_AVR32_SWAB_H
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <linux/compiler.h>
 
 #define __SWAB_64_THRU_32__
