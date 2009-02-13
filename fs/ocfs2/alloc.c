@@ -2465,7 +2465,8 @@ out_ret_path:
 	return ret;
 }
 
-static int ocfs2_update_edge_lengths(struct inode *inode, handle_t *handle,
+static int ocfs2_update_edge_lengths(handle_t *handle,
+				     struct ocfs2_extent_tree *et,
 				     int subtree_index, struct ocfs2_path *path)
 {
 	int i, idx, ret;
@@ -2490,7 +2491,7 @@ static int ocfs2_update_edge_lengths(struct inode *inode, handle_t *handle,
 		goto out;
 	}
 
-	ret = ocfs2_journal_access_path(INODE_CACHE(inode), handle, path);
+	ret = ocfs2_journal_access_path(et->et_ci, handle, path);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
@@ -2732,7 +2733,7 @@ static int ocfs2_rotate_subtree_left(struct inode *inode, handle_t *handle,
 	if (del_right_subtree) {
 		ocfs2_unlink_subtree(handle, et, left_path, right_path,
 				     subtree_index, dealloc);
-		ret = ocfs2_update_edge_lengths(inode, handle, subtree_index,
+		ret = ocfs2_update_edge_lengths(handle, et, subtree_index,
 						left_path);
 		if (ret) {
 			mlog_errno(ret);
@@ -3055,7 +3056,7 @@ static int ocfs2_remove_rightmost_path(struct inode *inode, handle_t *handle,
 
 		ocfs2_unlink_subtree(handle, et, left_path, path,
 				     subtree_index, dealloc);
-		ret = ocfs2_update_edge_lengths(inode, handle, subtree_index,
+		ret = ocfs2_update_edge_lengths(handle, et, subtree_index,
 						left_path);
 		if (ret) {
 			mlog_errno(ret);
