@@ -72,7 +72,7 @@
 #define VD
 #endif
 
-#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
 #define VS "s"
 #else
 #define VS

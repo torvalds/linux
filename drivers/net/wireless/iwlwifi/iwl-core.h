@@ -379,7 +379,7 @@ void iwl_calib_free_results(struct iwl_priv *priv);
 /*******************************************************************************
  * Spectrum Measureemtns in  iwl-spectrum.c
  ******************************************************************************/
-#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
 void iwl_setup_spectrum_handlers(struct iwl_priv *priv);
 #else
 static inline void iwl_setup_spectrum_handlers(struct iwl_priv *priv) {}
