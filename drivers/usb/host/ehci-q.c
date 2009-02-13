@@ -349,7 +349,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 						--qh->xacterrs > 0 &&
 						!urb->unlinked) {
 					ehci_dbg(ehci,
-	"detected XactErr len %d/%d retry %d\n",
+	"detected XactErr len %zu/%zu retry %d\n",
 	qtd->length - QTD_LENGTH(token), qtd->length,
 	QH_XACTERR_MAX - qh->xacterrs);
 
