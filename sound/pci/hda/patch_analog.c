@@ -1885,8 +1885,8 @@ static hda_nid_t ad1988_capsrc_nids[3] = {
 #define AD1988_SPDIF_OUT_HDMI	0x0b
 #define AD1988_SPDIF_IN		0x07
 
-static hda_nid_t ad1989b_slave_dig_outs[2] = {
-	AD1988_SPDIF_OUT, AD1988_SPDIF_OUT_HDMI
+static hda_nid_t ad1989b_slave_dig_outs[] = {
+	AD1988_SPDIF_OUT, AD1988_SPDIF_OUT_HDMI, 0
 };
 
 static struct hda_input_mux ad1988_6stack_capture_source = {
