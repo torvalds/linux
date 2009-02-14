@@ -12,8 +12,8 @@
 #include "cxgb3i.h"
 
 #define DRV_MODULE_NAME         "cxgb3i"
-#define DRV_MODULE_VERSION	"1.0.0"
-#define DRV_MODULE_RELDATE	"Jun. 1, 2008"
+#define DRV_MODULE_VERSION	"1.0.1"
+#define DRV_MODULE_RELDATE	"Jan. 2009"
 
 static char version[] =
 	"Chelsio S3xx iSCSI Driver " DRV_MODULE_NAME
