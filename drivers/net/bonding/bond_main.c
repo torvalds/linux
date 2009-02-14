@@ -4732,7 +4732,7 @@ static void bond_free_all(void)
  */
 int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 {
-	int mode = -1, i, rv;
+	int modeint = -1, i, rv;
 	char *p, modestr[BOND_MAX_MODENAME_LEN + 1] = { 0, };
 
 	for (p = (char *)buf; *p; p++)
@@ -4742,13 +4742,13 @@ int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 	if (*p)
 		rv = sscanf(buf, "%20s", modestr);
 	else
-		rv = sscanf(buf, "%d", &mode);
+		rv = sscanf(buf, "%d", &modeint);
 
 	if (!rv)
 		return -1;
 
 	for (i = 0; tbl[i].modename; i++) {
-		if (mode == tbl[i].mode)
+		if (modeint == tbl[i].mode)
 			return tbl[i].mode;
 		if (strcmp(modestr, tbl[i].modename) == 0)
 			return tbl[i].mode;
