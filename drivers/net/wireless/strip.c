@@ -950,6 +950,7 @@ static struct strip *strip_get_idx(loff_t pos)
 }
 
 static void *strip_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(RCU)
 {
 	rcu_read_lock();
 	return *pos ? strip_get_idx(*pos - 1) : SEQ_START_TOKEN;
@@ -973,6 +974,7 @@ static void *strip_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void strip_seq_stop(struct seq_file *seq, void *v)
+	__releases(RCU)
 {
 	rcu_read_unlock();
 }
