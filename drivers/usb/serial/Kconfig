@@ -515,6 +515,15 @@ config USB_SERIAL_SIERRAWIRELESS
 	  To compile this driver as a module, choose M here: the
 	  module will be called sierra.
 
+config USB_SERIAL_SYMBOL
+	tristate "USB Symbol Barcode driver (serial mode)"
+	help
+	  Say Y here if you want to use a Symbol USB Barcode device
+	  in serial emulation mode.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called symbolserial.
+
 config USB_SERIAL_TI
 	tristate "USB TI 3410/5052 Serial Driver"
 	help
