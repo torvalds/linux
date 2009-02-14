@@ -84,7 +84,7 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 		.maximum       = 65535,
 		.step          = 65535/100,
 		.default_value = 65535,
-		.flags         = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
 	}, {
 		.id            = V4L2_CID_BRIGHTNESS,
@@ -94,7 +94,7 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 		.maximum       = 255,
 		.step          = 1,
 		.default_value = 127,
-		.flags         = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 	}, {
 		.id            = V4L2_CID_CONTRAST,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
@@ -103,7 +103,7 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 		.maximum       = 255,
 		.step          = 0x1,
 		.default_value = 0x10,
-		.flags         = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 	}, {
 		.id            = V4L2_CID_SATURATION,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
@@ -112,7 +112,7 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 		.maximum       = 255,
 		.step          = 0x1,
 		.default_value = 127,
-		.flags         = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 	}, {
 		.id            = V4L2_CID_HUE,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
@@ -121,7 +121,7 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 		.maximum       = 127,
 		.step          = 0x1,
 		.default_value = 0,
-		.flags         = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 	}
 };
 
