@@ -97,7 +97,7 @@ static const struct proto_ops pppoe_ops;
 static struct ppp_channel_ops pppoe_chan_ops;
 
 /* per-net private data for this module */
-static unsigned int pppoe_net_id;
+static int pppoe_net_id;
 struct pppoe_net {
 	/*
 	 * we could use _single_ hash table for all

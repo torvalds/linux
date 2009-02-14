@@ -232,7 +232,7 @@ static struct ppp_channel_ops pppol2tp_chan_ops = { pppol2tp_xmit , NULL };
 static struct proto_ops pppol2tp_ops;
 
 /* per-net private data for this module */
-static unsigned int pppol2tp_net_id;
+static int pppol2tp_net_id;
 struct pppol2tp_net {
 	struct list_head pppol2tp_tunnel_list;
 	rwlock_t pppol2tp_tunnel_list_lock;
