@@ -189,33 +189,12 @@ static const intel_limit_t *intel_limit(struct drm_crtc *crtc)
 	return limit;
 }
 
-/** Derive the pixel clock for the given refclk and divisors for 8xx chips. */
-
-static void i8xx_clock(int refclk, intel_clock_t *clock)
+static void intel_clock(int refclk, intel_clock_t *clock)
 {
 	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
 	clock->p = clock->p1 * clock->p2;
 	clock->vco = refclk * clock->m / (clock->n + 2);
 	clock->dot = clock->vco / clock->p;
-}
-
-/** Derive the pixel clock for the given refclk and divisors for 9xx chips. */
-
-static void i9xx_clock(int refclk, intel_clock_t *clock)
-{
-	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
-	clock->p = clock->p1 * clock->p2;
-	clock->vco = refclk * clock->m / (clock->n + 2);
-	clock->dot = clock->vco / clock->p;
-}
-
-static void intel_clock(struct drm_device *dev, int refclk,
-			intel_clock_t *clock)
-{
-	if (IS_I9XX(dev))
-		i9xx_clock (refclk, clock);
-	else
-		i8xx_clock (refclk, clock);
 }
 
 /**
@@ -318,7 +297,7 @@ static bool intel_find_best_PLL(struct drm_crtc *crtc, int target,
 				     clock.p1 <= limit->p1.max; clock.p1++) {
 					int this_err;
 
-					intel_clock(dev, refclk, &clock);
+					intel_clock(refclk, &clock);
 
 					if (!intel_PLL_is_valid(crtc, &clock))
 						continue;
@@ -1313,7 +1292,7 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 		}
 
 		/* XXX: Handle the 100Mhz refclk */
-		i9xx_clock(96000, &clock);
+		intel_clock(96000, &clock);
 	} else {
 		bool is_lvds = (pipe == 1) && (I915_READ(LVDS) & LVDS_PORT_EN);
 
@@ -1325,9 +1304,9 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 			if ((dpll & PLL_REF_INPUT_MASK) ==
 			    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
 				/* XXX: might not be 66MHz */
-				i8xx_clock(66000, &clock);
+				intel_clock(66000, &clock);
 			} else
-				i8xx_clock(48000, &clock);
+				intel_clock(48000, &clock);
 		} else {
 			if (dpll & PLL_P1_DIVIDE_BY_TWO)
 				clock.p1 = 2;
@@ -1340,7 +1319,7 @@ static int intel_crtc_clock_get(struct drm_device *dev, struct drm_crtc *crtc)
 			else
 				clock.p2 = 2;
 
-			i8xx_clock(48000, &clock);
+			intel_clock(48000, &clock);
 		}
 	}
 
