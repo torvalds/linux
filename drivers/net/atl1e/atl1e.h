@@ -448,7 +448,7 @@ struct atl1e_adapter {
 	/* All Descriptor memory */
 	dma_addr_t  	ring_dma;
 	void     	*ring_vir_addr;
-	int             ring_size;
+	u32             ring_size;
 
 	struct atl1e_tx_ring tx_ring;
 	struct atl1e_rx_ring rx_ring;
