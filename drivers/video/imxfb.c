@@ -495,9 +495,9 @@ static int imxfb_activate_var(struct fb_var_screeninfo *var, struct fb_info *inf
 			info->fix.id, var->lower_margin);
 #endif
 
-	writel(HCR_H_WIDTH(var->hsync_len) |
-		HCR_H_WAIT_1(var->right_margin) |
-		HCR_H_WAIT_2(var->left_margin),
+	writel(HCR_H_WIDTH(var->hsync_len - 1) |
+		HCR_H_WAIT_1(var->right_margin - 1) |
+		HCR_H_WAIT_2(var->left_margin - 3),
 		fbi->regs + LCDC_HCR);
 
 	writel(VCR_V_WIDTH(var->vsync_len) |
