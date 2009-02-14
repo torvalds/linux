@@ -225,6 +225,7 @@ struct sge_opaque_hdr {
 /* for TX: a skb must have a headroom of at least TX_HEADER_LEN bytes */
 #define TX_HEADER_LEN \
 		(sizeof(struct tx_data_wr) + sizeof(struct sge_opaque_hdr))
+#define SKB_TX_HEADROOM		SKB_MAX_HEAD(TX_HEADER_LEN)
 
 /*
  * get and set private ip for iscsi traffic
