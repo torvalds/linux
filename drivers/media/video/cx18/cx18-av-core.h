@@ -25,6 +25,8 @@
 #ifndef _CX18_AV_CORE_H_
 #define _CX18_AV_CORE_H_
 
+#include <media/v4l2-device.h>
+
 struct cx18;
 
 enum cx18_av_video_input {
@@ -73,6 +75,7 @@ enum cx18_av_audio_input {
 };
 
 struct cx18_av_state {
+	struct v4l2_subdev sd;
 	int radio;
 	v4l2_std_id std;
 	enum cx18_av_video_input vid_input;
@@ -315,6 +318,11 @@ struct cx18_av_state {
 #define CXADEC_SELECT_AUDIO_STANDARD_FM    0xF9  /* FM radio */
 #define CXADEC_SELECT_AUDIO_STANDARD_AUTO  0xFF  /* Auto detect */
 
+static inline struct cx18_av_state *to_cx18_av_state(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct cx18_av_state, sd);
+}
+
 /* ----------------------------------------------------------------------- */
 /* cx18_av-core.c 							   */
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value);
@@ -327,8 +335,11 @@ u8 cx18_av_read(struct cx18 *cx, u16 addr);
 u32 cx18_av_read4(struct cx18 *cx, u16 addr);
 int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned mask, u8 value);
 int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 mask, u32 value);
-int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg);
 void cx18_av_std_setup(struct cx18 *cx);
+
+int cx18_av_cmd(struct cx18 *cx, int cmd, void *arg); /* FIXME - Remove */
+int cx18_av_init(struct cx18 *cx);
+void cx18_av_fini(struct cx18 *cx);
 
 /* ----------------------------------------------------------------------- */
 /* cx18_av-firmware.c                                                      */
