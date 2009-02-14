@@ -40,11 +40,11 @@ static u8 wv_irq_to_psa(int irq)
  */
 static int __init wv_psa_to_irq(u8 irqval)
 {
-	int irq;
+	int i;
 
-	for (irq = 0; irq < ARRAY_SIZE(irqvals); irq++)
-		if (irqvals[irq] == irqval)
-			return irq;
+	for (i = 0; i < ARRAY_SIZE(irqvals); i++)
+		if (irqvals[i] == irqval)
+			return i;
 
 	return -1;
 }

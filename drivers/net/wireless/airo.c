@@ -3748,7 +3748,6 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 	Cmd cmd;
 	Resp rsp;
 	int status;
-	int i;
 	SsidRid mySsid;
 	__le16 lastindex;
 	WepKeyRid wkr;
@@ -3790,6 +3789,7 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 	if (lock)
 		up(&ai->sem);
 	if (ai->config.len == 0) {
+		int i;
 		tdsRssiRid rssi_rid;
 		CapabilityRid cap_rid;
 
@@ -3837,14 +3837,12 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 		/* Check to see if there are any insmod configured
 		   rates to add */
 		if ( rates[0] ) {
-			int i = 0;
 			memset(ai->config.rates,0,sizeof(ai->config.rates));
 			for( i = 0; i < 8 && rates[i]; i++ ) {
 				ai->config.rates[i] = rates[i];
 			}
 		}
 		if ( basic_rate > 0 ) {
-			int i;
 			for( i = 0; i < 8; i++ ) {
 				if ( ai->config.rates[i] == basic_rate ||
 				     !ai->config.rates ) {
