@@ -84,12 +84,14 @@ You must register the device instance:
 	v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev);
 
 Registration will initialize the v4l2_device struct and link dev->driver_data
-to v4l2_dev. Registration will also set v4l2_dev->name to a value derived from
-dev (driver name followed by the bus_id, to be precise). You may change the
-name after registration if you want.
+to v4l2_dev. If v4l2_dev->name is empty then it will be set to a value derived
+from dev (driver name followed by the bus_id, to be precise). If you set it
+up before calling v4l2_device_register then it will be untouched. If dev is
+NULL, then you *must* setup v4l2_dev->name before calling v4l2_device_register.
 
 The first 'dev' argument is normally the struct device pointer of a pci_dev,
-usb_device or platform_device.
+usb_device or platform_device. It is rare for dev to be NULL, but it happens
+with ISA devices, for example.
 
 You unregister with:
 

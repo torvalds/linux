@@ -26,15 +26,24 @@
 
 int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 {
-	if (dev == NULL || v4l2_dev == NULL)
+	if (v4l2_dev == NULL)
 		return -EINVAL;
-	/* Warn if we apparently re-register a device */
-	WARN_ON(dev_get_drvdata(dev) != NULL);
+
 	INIT_LIST_HEAD(&v4l2_dev->subdevs);
 	spin_lock_init(&v4l2_dev->lock);
 	v4l2_dev->dev = dev;
-	snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "%s %s",
+	if (dev == NULL) {
+		/* If dev == NULL, then name must be filled in by the caller */
+		WARN_ON(!v4l2_dev->name[0]);
+		return 0;
+	}
+
+	/* Set name to driver name + device name if it is empty. */
+	if (!v4l2_dev->name[0])
+		snprintf(v4l2_dev->name, sizeof(v4l2_dev->name), "%s %s",
 			dev->driver->name, dev_name(dev));
+	if (dev_get_drvdata(dev))
+		v4l2_warn(v4l2_dev, "Non-NULL drvdata on register\n");
 	dev_set_drvdata(dev, v4l2_dev);
 	return 0;
 }
@@ -44,10 +53,11 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 {
 	struct v4l2_subdev *sd, *next;
 
-	if (v4l2_dev == NULL || v4l2_dev->dev == NULL)
+	if (v4l2_dev == NULL)
 		return;
-	dev_set_drvdata(v4l2_dev->dev, NULL);
-	/* unregister subdevs */
+	if (v4l2_dev->dev)
+		dev_set_drvdata(v4l2_dev->dev, NULL);
+	/* Unregister subdevs */
 	list_for_each_entry_safe(sd, next, &v4l2_dev->subdevs, list)
 		v4l2_device_unregister_subdev(sd);
 
@@ -55,19 +65,20 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 
-int v4l2_device_register_subdev(struct v4l2_device *dev, struct v4l2_subdev *sd)
+int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
+						struct v4l2_subdev *sd)
 {
 	/* Check for valid input */
-	if (dev == NULL || sd == NULL || !sd->name[0])
+	if (v4l2_dev == NULL || sd == NULL || !sd->name[0])
 		return -EINVAL;
 	/* Warn if we apparently re-register a subdev */
 	WARN_ON(sd->dev != NULL);
 	if (!try_module_get(sd->owner))
 		return -ENODEV;
-	sd->dev = dev;
-	spin_lock(&dev->lock);
-	list_add_tail(&sd->list, &dev->subdevs);
-	spin_unlock(&dev->lock);
+	sd->dev = v4l2_dev;
+	spin_lock(&v4l2_dev->lock);
+	list_add_tail(&sd->list, &v4l2_dev->subdevs);
+	spin_unlock(&v4l2_dev->lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_device_register_subdev);
