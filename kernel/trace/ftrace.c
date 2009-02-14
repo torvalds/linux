@@ -1239,9 +1239,93 @@ static void ftrace_match_module_records(char *buff, char *mod, int enable)
 	spin_unlock(&ftrace_lock);
 }
 
+/*
+ * We register the module command as a template to show others how
+ * to register the a command as well.
+ */
+
+static int
+ftrace_mod_callback(char *func, char *cmd, char *param, int enable)
+{
+	char *mod;
+
+	/*
+	 * cmd == 'mod' because we only registered this func
+	 * for the 'mod' ftrace_func_command.
+	 * But if you register one func with multiple commands,
+	 * you can tell which command was used by the cmd
+	 * parameter.
+	 */
+
+	/* we must have a module name */
+	if (!param)
+		return -EINVAL;
+
+	mod = strsep(&param, ":");
+	if (!strlen(mod))
+		return -EINVAL;
+
+	ftrace_match_module_records(func, mod, enable);
+	return 0;
+}
+
+static struct ftrace_func_command ftrace_mod_cmd = {
+	.name			= "mod",
+	.func			= ftrace_mod_callback,
+};
+
+static int __init ftrace_mod_cmd_init(void)
+{
+	return register_ftrace_command(&ftrace_mod_cmd);
+}
+device_initcall(ftrace_mod_cmd_init);
+
+static LIST_HEAD(ftrace_commands);
+static DEFINE_MUTEX(ftrace_cmd_mutex);
+
+int register_ftrace_command(struct ftrace_func_command *cmd)
+{
+	struct ftrace_func_command *p;
+	int ret = 0;
+
+	mutex_lock(&ftrace_cmd_mutex);
+	list_for_each_entry(p, &ftrace_commands, list) {
+		if (strcmp(cmd->name, p->name) == 0) {
+			ret = -EBUSY;
+			goto out_unlock;
+		}
+	}
+	list_add(&cmd->list, &ftrace_commands);
+ out_unlock:
+	mutex_unlock(&ftrace_cmd_mutex);
+
+	return ret;
+}
+
+int unregister_ftrace_command(struct ftrace_func_command *cmd)
+{
+	struct ftrace_func_command *p, *n;
+	int ret = -ENODEV;
+
+	mutex_lock(&ftrace_cmd_mutex);
+	list_for_each_entry_safe(p, n, &ftrace_commands, list) {
+		if (strcmp(cmd->name, p->name) == 0) {
+			ret = 0;
+			list_del_init(&p->list);
+			goto out_unlock;
+		}
+	}
+ out_unlock:
+	mutex_unlock(&ftrace_cmd_mutex);
+
+	return ret;
+}
+
 static int ftrace_process_regex(char *buff, int len, int enable)
 {
-	char *func, *mod, *command, *next = buff;
+	struct ftrace_func_command *p;
+	char *func, *command, *next = buff;
+	int ret = -EINVAL;
 
 	func = strsep(&next, ":");
 
@@ -1250,21 +1334,21 @@ static int ftrace_process_regex(char *buff, int len, int enable)
 		return 0;
 	}
 
-	/* command fonud */
+	/* command found */
 
 	command = strsep(&next, ":");
 
-	if (strcmp(command, "mod") == 0) {
-		/* only match modules */
-		if (!next)
-			return -EINVAL;
-
-		mod = strsep(&next, ":");
-		ftrace_match_module_records(func, mod, enable);
-		return 0;
+	mutex_lock(&ftrace_cmd_mutex);
+	list_for_each_entry(p, &ftrace_commands, list) {
+		if (strcmp(p->name, command) == 0) {
+			ret = p->func(func, command, next, enable);
+			goto out_unlock;
+		}
 	}
+ out_unlock:
+	mutex_unlock(&ftrace_cmd_mutex);
 
-	return -EINVAL;
+	return ret;
 }
 
 static ssize_t
