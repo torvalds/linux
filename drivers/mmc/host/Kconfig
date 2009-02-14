@@ -171,6 +171,17 @@ config MMC_TIFM_SD
           To compile this driver as a module, choose M here: the
 	  module will be called tifm_sd.
 
+config MMC_MVSDIO
+	tristate "Marvell MMC/SD/SDIO host driver"
+	depends on PLAT_ORION
+	---help---
+	  This selects the Marvell SDIO host driver.
+	  SDIO may currently be found on the Kirkwood 88F6281 and 88F6192
+	  SoC controllers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mvsdio.
+
 config MMC_SPI
 	tristate "MMC/SD/SDIO over SPI"
 	depends on SPI_MASTER && !HIGHMEM && HAS_DMA
