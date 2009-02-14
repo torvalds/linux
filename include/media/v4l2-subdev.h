@@ -137,7 +137,7 @@ struct v4l2_subdev_ops {
 struct v4l2_subdev {
 	struct list_head list;
 	struct module *owner;
-	struct v4l2_device *dev;
+	struct v4l2_device *v4l2_dev;
 	const struct v4l2_subdev_ops *ops;
 	/* name must be unique */
 	char name[V4L2_SUBDEV_NAME_SIZE];
@@ -176,7 +176,7 @@ static inline void v4l2_subdev_init(struct v4l2_subdev *sd,
 	/* ops->core MUST be set */
 	BUG_ON(!ops || !ops->core);
 	sd->ops = ops;
-	sd->dev = NULL;
+	sd->v4l2_dev = NULL;
 	sd->name[0] = '\0';
 	sd->grp_id = 0;
 	sd->priv = NULL;

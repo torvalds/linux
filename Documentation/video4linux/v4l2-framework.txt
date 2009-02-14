@@ -268,7 +268,7 @@ errors (except -ENOIOCTLCMD) occured, then 0 is returned.
 
 The second argument to both calls is a group ID. If 0, then all subdevs are
 called. If non-zero, then only those whose group ID match that value will
-be called. Before a bridge driver registers a subdev it can set subdev->grp_id
+be called. Before a bridge driver registers a subdev it can set sd->grp_id
 to whatever value it wants (it's 0 by default). This value is owned by the
 bridge driver and the sub-device driver will never modify or use it.
 

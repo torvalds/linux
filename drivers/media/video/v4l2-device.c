@@ -72,10 +72,10 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	if (v4l2_dev == NULL || sd == NULL || !sd->name[0])
 		return -EINVAL;
 	/* Warn if we apparently re-register a subdev */
-	WARN_ON(sd->dev != NULL);
+	WARN_ON(sd->v4l2_dev != NULL);
 	if (!try_module_get(sd->owner))
 		return -ENODEV;
-	sd->dev = v4l2_dev;
+	sd->v4l2_dev = v4l2_dev;
 	spin_lock(&v4l2_dev->lock);
 	list_add_tail(&sd->list, &v4l2_dev->subdevs);
 	spin_unlock(&v4l2_dev->lock);
@@ -86,12 +86,12 @@ EXPORT_SYMBOL_GPL(v4l2_device_register_subdev);
 void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 {
 	/* return if it isn't registered */
-	if (sd == NULL || sd->dev == NULL)
+	if (sd == NULL || sd->v4l2_dev == NULL)
 		return;
-	spin_lock(&sd->dev->lock);
+	spin_lock(&sd->v4l2_dev->lock);
 	list_del(&sd->list);
-	spin_unlock(&sd->dev->lock);
-	sd->dev = NULL;
+	spin_unlock(&sd->v4l2_dev->lock);
+	sd->v4l2_dev = NULL;
 	module_put(sd->owner);
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister_subdev);
