@@ -1002,6 +1002,10 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active, struct 
 static void bond_do_fail_over_mac(struct bonding *bond,
 				  struct slave *new_active,
 				  struct slave *old_active)
+	__releases(&bond->curr_slave_lock)
+	__releases(&bond->lock)
+	__acquires(&bond->lock)
+	__acquires(&bond->curr_slave_lock)
 {
 	u8 tmp_mac[ETH_ALEN];
 	struct sockaddr saddr;
@@ -3193,6 +3197,8 @@ out:
 #ifdef CONFIG_PROC_FS
 
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(&dev_base_lock)
+	__acquires(&bond->lock)
 {
 	struct bonding *bond = seq->private;
 	loff_t off = 0;
@@ -3232,6 +3238,8 @@ static void *bond_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void bond_info_seq_stop(struct seq_file *seq, void *v)
+	__releases(&bond->lock)
+	__releases(&dev_base_lock)
 {
 	struct bonding *bond = seq->private;
 

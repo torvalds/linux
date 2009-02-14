@@ -1628,6 +1628,10 @@ void bond_alb_handle_link_change(struct bonding *bond, struct slave *slave, char
  * no other locks may be held.
  */
 void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave)
+	__releases(&bond->curr_slave_lock)
+	__releases(&bond->lock)
+	__acquires(&bond->lock)
+	__acquires(&bond->curr_slave_lock)
 {
 	struct slave *swap_slave;
 	int i;
@@ -1704,6 +1708,10 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
  * Called with RTNL
  */
 int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
+	__releases(&bond->curr_slave_lock)
+	__releases(&bond->lock)
+	__acquires(&bond->lock)
+	__acquires(&bond->curr_slave_lock)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct sockaddr *sa = addr;
