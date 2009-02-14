@@ -572,15 +572,14 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 static void tenxpress_phy_poll(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	bool change = false, link_ok;
-	unsigned link_fc;
+	bool change = false;
 
 	if (efx->phy_type == PHY_TYPE_SFX7101) {
-		link_ok = sfx7101_link_ok(efx);
+		bool link_ok = sfx7101_link_ok(efx);
 		if (link_ok != efx->link_up) {
 			change = true;
 		} else {
-			link_fc = mdio_clause45_get_pause(efx);
+			unsigned int link_fc = mdio_clause45_get_pause(efx);
 			if (link_fc != efx->link_fc)
 				change = true;
 		}
