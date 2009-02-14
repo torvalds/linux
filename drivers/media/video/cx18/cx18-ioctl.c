@@ -387,20 +387,17 @@ static int cx18_g_chip_ident(struct file *file, void *fh,
 static int cx18_cxc(struct cx18 *cx, unsigned int cmd, void *arg)
 {
 	struct v4l2_dbg_register *regs = arg;
-	unsigned long flags;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 	if (regs->reg >= CX18_MEM_OFFSET + CX18_MEM_SIZE)
 		return -EINVAL;
 
-	spin_lock_irqsave(&cx18_cards_lock, flags);
 	regs->size = 4;
 	if (cmd == VIDIOC_DBG_G_REGISTER)
 		regs->val = cx18_read_enc(cx, regs->reg);
 	else
 		cx18_write_enc(cx, regs->val, regs->reg);
-	spin_unlock_irqrestore(&cx18_cards_lock, flags);
 	return 0;
 }
 
@@ -847,7 +844,7 @@ static int cx18_log_status(struct file *file, void *fh)
 	int i;
 
 	CX18_INFO("=================  START STATUS CARD #%d  "
-		  "=================\n", cx->num);
+		  "=================\n", cx->instance);
 	CX18_INFO("Version: %s  Card: %s\n", CX18_VERSION, cx->card_name);
 	if (cx->hw_flags & CX18_HW_TVEEPROM) {
 		struct tveeprom tv;
@@ -865,7 +862,7 @@ static int cx18_log_status(struct file *file, void *fh)
 	mutex_unlock(&cx->gpio_lock);
 	CX18_INFO("Tuner: %s\n",
 		test_bit(CX18_F_I_RADIO_USER, &cx->i_flags) ?  "Radio" : "TV");
-	cx2341x_log_status(&cx->params, cx->name);
+	cx2341x_log_status(&cx->params, cx->v4l2_dev.name);
 	CX18_INFO("Status flags: 0x%08lx\n", cx->i_flags);
 	for (i = 0; i < CX18_MAX_STREAMS; i++) {
 		struct cx18_stream *s = &cx->streams[i];
@@ -880,7 +877,8 @@ static int cx18_log_status(struct file *file, void *fh)
 	CX18_INFO("Read MPEG/VBI: %lld/%lld bytes\n",
 			(long long)cx->mpg_data_received,
 			(long long)cx->vbi_data_inserted);
-	CX18_INFO("==================  END STATUS CARD #%d  ==================\n", cx->num);
+	CX18_INFO("==================  END STATUS CARD #%d  "
+		  "==================\n", cx->instance);
 	return 0;
 }
 

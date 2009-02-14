@@ -130,7 +130,7 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 	struct cx18_stream *s = &cx->streams[type];
 	u32 cap = cx->v4l2_cap;
 	int num_offset = cx18_stream_info[type].num_offset;
-	int num = cx->num + cx18_first_minor + num_offset;
+	int num = cx->instance + cx18_first_minor + num_offset;
 
 	/* These four fields are always initialized. If video_dev == NULL, then
 	   this stream is not in use. In that case no other fields but these
@@ -170,11 +170,11 @@ static int cx18_prep_dev(struct cx18 *cx, int type)
 		return -ENOMEM;
 	}
 
-	snprintf(s->video_dev->name, sizeof(s->video_dev->name), "cx18-%d",
-			cx->num);
+	snprintf(s->video_dev->name, sizeof(s->video_dev->name), "%s %s",
+		 cx->v4l2_dev.name, s->name);
 
 	s->video_dev->num = num;
-	s->video_dev->parent = &cx->pci_dev->dev;
+	s->video_dev->v4l2_dev = &cx->v4l2_dev;
 	s->video_dev->fops = &cx18_v4l2_enc_fops;
 	s->video_dev->release = video_device_release;
 	s->video_dev->tvnorms = V4L2_STD_ALL;
@@ -239,6 +239,7 @@ static int cx18_reg_dev(struct cx18 *cx, int type)
 			num = s_mpg->video_dev->num
 			    + cx18_stream_info[type].num_offset;
 	}
+	video_set_drvdata(s->video_dev, s);
 
 	/* Register device. First try the desired minor, then any free one. */
 	ret = video_register_device(s->video_dev, vfl_type, num);

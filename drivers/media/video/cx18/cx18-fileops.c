@@ -682,38 +682,15 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 
 int cx18_v4l2_open(struct file *filp)
 {
-	int res, x, y = 0;
-	struct cx18 *cx = NULL;
-	struct cx18_stream *s = NULL;
-	int minor = video_devdata(filp)->minor;
-
-	/* Find which card this open was on */
-	spin_lock(&cx18_cards_lock);
-	for (x = 0; cx == NULL && x < cx18_cards_active; x++) {
-		/* find out which stream this open was on */
-		for (y = 0; y < CX18_MAX_STREAMS; y++) {
-			if (cx18_cards[x] == NULL)
-				continue;
-			s = &cx18_cards[x]->streams[y];
-			if (s->video_dev && s->video_dev->minor == minor) {
-				cx = cx18_cards[x];
-				break;
-			}
-		}
-	}
-	spin_unlock(&cx18_cards_lock);
-
-	if (cx == NULL) {
-		/* Couldn't find a device registered
-		   on that minor, shouldn't happen! */
-		printk(KERN_WARNING "No cx18 device found on minor %d\n",
-				minor);
-		return -ENXIO;
-	}
+	int res;
+	struct video_device *video_dev = video_devdata(filp);
+	struct cx18_stream *s = video_get_drvdata(video_dev);
+	struct cx18 *cx = s->cx;;
 
 	mutex_lock(&cx->serialize_lock);
 	if (cx18_init_on_first_open(cx)) {
-		CX18_ERR("Failed to initialize on minor %d\n", minor);
+		CX18_ERR("Failed to initialize on minor %d\n",
+			 video_dev->minor);
 		mutex_unlock(&cx->serialize_lock);
 		return -ENXIO;
 	}

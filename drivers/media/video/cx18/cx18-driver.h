@@ -144,12 +144,12 @@
 /* Flag to turn on high volume debugging */
 #define CX18_DBGFLG_HIGHVOL (1 << 8)
 
-/* NOTE: extra space before comma in 'cx->num , ## args' is required for
+/* NOTE: extra space before comma in 'fmt , ## args' is required for
    gcc-2.95, otherwise it won't compile. */
 #define CX18_DEBUG(x, type, fmt, args...) \
 	do { \
 		if ((x) & cx18_debug) \
-			printk(KERN_INFO "cx18-%d " type ": " fmt, cx->num , ## args); \
+			v4l2_info(&cx->v4l2_dev, " " type ": " fmt , ## args); \
 	} while (0)
 #define CX18_DEBUG_WARN(fmt, args...)  CX18_DEBUG(CX18_DBGFLG_WARN, "warning", fmt , ## args)
 #define CX18_DEBUG_INFO(fmt, args...)  CX18_DEBUG(CX18_DBGFLG_INFO, "info", fmt , ## args)
@@ -163,7 +163,7 @@
 #define CX18_DEBUG_HIGH_VOL(x, type, fmt, args...) \
 	do { \
 		if (((x) & cx18_debug) && (cx18_debug & CX18_DBGFLG_HIGHVOL)) \
-			printk(KERN_INFO "cx18%d " type ": " fmt, cx->num , ## args); \
+			v4l2_info(&cx->v4l2_dev, " " type ": " fmt , ## args); \
 	} while (0)
 #define CX18_DEBUG_HI_WARN(fmt, args...)  CX18_DEBUG_HIGH_VOL(CX18_DBGFLG_WARN, "warning", fmt , ## args)
 #define CX18_DEBUG_HI_INFO(fmt, args...)  CX18_DEBUG_HIGH_VOL(CX18_DBGFLG_INFO, "info", fmt , ## args)
@@ -175,9 +175,9 @@
 #define CX18_DEBUG_HI_IRQ(fmt, args...)   CX18_DEBUG_HIGH_VOL(CX18_DBGFLG_IRQ, "irq", fmt , ## args)
 
 /* Standard kernel messages */
-#define CX18_ERR(fmt, args...)      printk(KERN_ERR  "cx18-%d: " fmt, cx->num , ## args)
-#define CX18_WARN(fmt, args...)     printk(KERN_WARNING "cx18-%d: " fmt, cx->num , ## args)
-#define CX18_INFO(fmt, args...)     printk(KERN_INFO "cx18-%d: " fmt, cx->num , ## args)
+#define CX18_ERR(fmt, args...)      v4l2_err(&cx->v4l2_dev, fmt , ## args)
+#define CX18_WARN(fmt, args...)     v4l2_warn(&cx->v4l2_dev, fmt , ## args)
+#define CX18_INFO(fmt, args...)     v4l2_info(&cx->v4l2_dev, fmt , ## args)
 
 /* Values for CX18_API_DEC_PLAYBACK_SPEED mpeg_frame_type_mask parameter: */
 #define MPEG_FRAME_TYPE_IFRAME 1
@@ -445,8 +445,7 @@ struct cx18_i2c_algo_callback_data {
 
 /* Struct to hold info about cx18 cards */
 struct cx18 {
-	int num;		/* board number, -1 during init! */
-	char name[8];		/* board name for printk and interrupts (e.g. 'cx180') */
+	int instance;
 	struct pci_dev *pci_dev;
 	struct v4l2_device v4l2_dev;
 
@@ -455,8 +454,8 @@ struct cx18 {
 	const struct cx18_card_tuner_i2c *card_i2c; /* i2c addresses to probe for tuner */
 	u8 is_50hz;
 	u8 is_60hz;
-	u8 is_out_50hz;
-	u8 is_out_60hz;
+	u8 is_out_50hz; /* FIXME - remove, we don't have an output decoder */
+	u8 is_out_60hz; /* FIXME - remove, we don't have an output decoder */
 	u8 nof_inputs;		/* number of video inputs */
 	u8 nof_audio_inputs;	/* number of audio inputs */
 	u16 buffer_id;		/* buffer ID counter */
@@ -547,11 +546,13 @@ struct cx18 {
 	v4l2_std_id tuner_std;	/* The norm of the tuner (fixed) */
 };
 
+static inline struct cx18 *to_cx18(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct cx18, v4l2_dev);
+}
+
 /* Globals */
-extern struct cx18 *cx18_cards[];
-extern int cx18_cards_active;
 extern int cx18_first_minor;
-extern spinlock_t cx18_cards_lock;
 
 /*==============Prototypes==================*/
 

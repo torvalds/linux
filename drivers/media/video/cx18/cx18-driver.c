@@ -39,22 +39,12 @@
 
 #include <media/tveeprom.h>
 
-
-/* var to keep track of the number of array elements in use */
-int cx18_cards_active;
-
 /* If you have already X v4l cards, then set this to X. This way
    the device numbers stay matched. Example: you have a WinTV card
    without radio and a Compro H900 with. Normally this would give a
    video1 device together with a radio0 device for the Compro. By
    setting this to 1 you ensure that radio0 is now also radio1. */
 int cx18_first_minor;
-
-/* Master variable for all cx18 info */
-struct cx18 *cx18_cards[CX18_MAX_CARDS];
-
-/* Protects cx18_cards_active */
-DEFINE_SPINLOCK(cx18_cards_lock);
 
 /* add your revision and whatnot here */
 static struct pci_device_id cx18_pci_tbl[] __devinitdata = {
@@ -64,6 +54,8 @@ static struct pci_device_id cx18_pci_tbl[] __devinitdata = {
 };
 
 MODULE_DEVICE_TABLE(pci, cx18_pci_tbl);
+
+static atomic_t cx18_instance = ATOMIC_INIT(0);
 
 /* Parameter declarations */
 static int cardtype[CX18_MAX_CARDS];
@@ -491,9 +483,9 @@ static void cx18_process_options(struct cx18 *cx)
 		cx->stream_buf_size[i] *= 1024; /* convert from kB to bytes */
 	}
 
-	cx->options.cardtype = cardtype[cx->num];
-	cx->options.tuner = tuner[cx->num];
-	cx->options.radio = radio[cx->num];
+	cx->options.cardtype = cardtype[cx->instance];
+	cx->options.tuner = tuner[cx->instance];
+	cx->options.radio = radio[cx->instance];
 
 	cx->std = cx18_parse_std(cx);
 	if (cx->options.cardtype == -1) {
@@ -550,7 +542,7 @@ done:
 }
 
 /* Precondition: the cx18 structure has been memset to 0. Only
-   the dev and num fields have been filled in.
+   the dev and instance fields have been filled in.
    No assumptions on the card type may be made here (see cx18_init_struct2
    for that).
  */
@@ -567,7 +559,7 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	mutex_init(&cx->epu2apu_mb_lock);
 	mutex_init(&cx->epu2cpu_mb_lock);
 
-	cx->work_queue = create_singlethread_workqueue(cx->name);
+	cx->work_queue = create_singlethread_workqueue(cx->v4l2_dev.name);
 	if (cx->work_queue == NULL) {
 		CX18_ERR("Unable to create work hander thread\n");
 		return -ENOMEM;
@@ -647,15 +639,16 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
 	CX18_DEBUG_INFO("Enabling pci device\n");
 
 	if (pci_enable_device(pci_dev)) {
-		CX18_ERR("Can't enable device %d!\n", cx->num);
+		CX18_ERR("Can't enable device %d!\n", cx->instance);
 		return -EIO;
 	}
 	if (pci_set_dma_mask(pci_dev, 0xffffffff)) {
-		CX18_ERR("No suitable DMA available on card %d.\n", cx->num);
+		CX18_ERR("No suitable DMA available, card %d\n", cx->instance);
 		return -EIO;
 	}
 	if (!request_mem_region(cx->base_addr, CX18_MEM_SIZE, "cx18 encoder")) {
-		CX18_ERR("Cannot request encoder memory region on card %d.\n", cx->num);
+		CX18_ERR("Cannot request encoder memory region, card %d\n",
+			 cx->instance);
 		return -EIO;
 	}
 
@@ -741,44 +734,42 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	u32 devtype;
 	struct cx18 *cx;
 
-	spin_lock(&cx18_cards_lock);
-
-	/* Make sure we've got a place for this card */
-	if (cx18_cards_active == CX18_MAX_CARDS) {
-		printk(KERN_ERR "cx18:  Maximum number of cards detected (%d).\n",
-			      cx18_cards_active);
-		spin_unlock(&cx18_cards_lock);
+	/* FIXME - module parameter arrays constrain max instances */
+	i = atomic_inc_return(&cx18_instance) - 1;
+	if (i >= CX18_MAX_CARDS) {
+		printk(KERN_ERR "cx18: cannot manage card %d, driver has a "
+		       "limit of 0 - %d\n", i, CX18_MAX_CARDS - 1);
 		return -ENOMEM;
 	}
 
 	cx = kzalloc(sizeof(struct cx18), GFP_ATOMIC);
-	if (!cx) {
-		spin_unlock(&cx18_cards_lock);
+	if (cx == NULL) {
+		printk(KERN_ERR "cx18: cannot manage card %d, out of memory\n",
+		       i);
 		return -ENOMEM;
 	}
-	cx18_cards[cx18_cards_active] = cx;
-	cx->num = cx18_cards_active++;
-	snprintf(cx->name, sizeof(cx->name), "cx18-%d", cx->num);
-	CX18_INFO("Initializing card #%d\n", cx->num);
-
-	spin_unlock(&cx18_cards_lock);
-
 	cx->pci_dev = pci_dev;
+	cx->instance = i;
+
 	retval = v4l2_device_register(&pci_dev->dev, &cx->v4l2_dev);
 	if (retval) {
-		CX18_ERR("Call to v4l2_device_register() failed\n");
-		goto err;
+		printk(KERN_ERR "cx18: v4l2_device_register of card %d failed"
+		       "\n", cx->instance);
+		kfree(cx);
+		return retval;
 	}
-	CX18_DEBUG_INFO("registered v4l2_device name: %s\n", cx->v4l2_dev.name);
+	snprintf(cx->v4l2_dev.name, sizeof(cx->v4l2_dev.name), "cx18-%d",
+		 cx->instance);
+	CX18_INFO("Initializing card %d\n", cx->instance);
 
 	cx18_process_options(cx);
 	if (cx->options.cardtype == -1) {
 		retval = -ENODEV;
-		goto unregister_v4l2;
+		goto err;
 	}
 	if (cx18_init_struct1(cx)) {
 		retval = -ENOMEM;
-		goto unregister_v4l2;
+		goto err;
 	}
 
 	CX18_DEBUG_INFO("base addr: 0x%08x\n", cx->base_addr);
@@ -829,8 +820,6 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		goto free_map;
 	}
 
-	CX18_DEBUG_INFO("Active card count: %d.\n", cx18_cards_active);
-
 	if (cx->card->hw_all & CX18_HW_TVEEPROM) {
 		/* Based on the model number the cardtype may be changed.
 		   The PCI IDs are not always reliable. */
@@ -847,7 +836,8 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 
 	/* Register IRQ */
 	retval = request_irq(cx->pci_dev->irq, cx18_irq_handler,
-			     IRQF_SHARED | IRQF_DISABLED, cx->name, (void *)cx);
+			     IRQF_SHARED | IRQF_DISABLED,
+			     cx->v4l2_dev.name, (void *)cx);
 	if (retval) {
 		CX18_ERR("Failed to register irq %d\n", retval);
 		goto free_i2c;
@@ -933,8 +923,7 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		goto free_streams;
 	}
 
-	CX18_INFO("Initialized card #%d: %s\n", cx->num, cx->card_name);
-
+	CX18_INFO("Initialized card: %s\n", cx->card_name);
 	return 0;
 
 free_streams:
@@ -949,18 +938,13 @@ free_mem:
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 free_workqueue:
 	destroy_workqueue(cx->work_queue);
-unregister_v4l2:
-	v4l2_device_unregister(&cx->v4l2_dev);
 err:
 	if (retval == 0)
 		retval = -ENODEV;
 	CX18_ERR("Error %d on initialization\n", retval);
 
-	i = cx->num;
-	spin_lock(&cx18_cards_lock);
-	kfree(cx18_cards[i]);
-	cx18_cards[i] = NULL;
-	spin_unlock(&cx18_cards_lock);
+	v4l2_device_unregister(&cx->v4l2_dev);
+	kfree(cx);
 	return retval;
 }
 
@@ -1069,9 +1053,9 @@ static void cx18_cancel_epu_work_orders(struct cx18 *cx)
 static void cx18_remove(struct pci_dev *pci_dev)
 {
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
-	struct cx18 *cx = container_of(v4l2_dev, struct cx18, v4l2_dev);
+	struct cx18 *cx = to_cx18(v4l2_dev);
 
-	CX18_DEBUG_INFO("Removing Card #%d\n", cx->num);
+	CX18_DEBUG_INFO("Removing Card\n");
 
 	/* Stop all captures */
 	CX18_DEBUG_INFO("Stopping all streams\n");
@@ -1099,10 +1083,12 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 
 	pci_disable_device(cx->pci_dev);
+	/* FIXME - we leak cx->vbi.sliced_mpeg_data[i] allocations */
+
+	CX18_INFO("Removed %s\n", cx->card_name);
 
 	v4l2_device_unregister(v4l2_dev);
-
-	CX18_INFO("Removed %s, card #%d\n", cx->card_name, cx->num);
+	kfree(cx);
 }
 
 /* define a pci_driver for card detection */
@@ -1116,8 +1102,6 @@ static struct pci_driver cx18_pci_driver = {
 static int module_start(void)
 {
 	printk(KERN_INFO "cx18:  Start initialization, version %s\n", CX18_VERSION);
-
-	memset(cx18_cards, 0, sizeof(cx18_cards));
 
 	/* Validate parameters */
 	if (cx18_first_minor < 0 || cx18_first_minor >= CX18_MAX_CARDS) {
@@ -1141,16 +1125,7 @@ static int module_start(void)
 
 static void module_cleanup(void)
 {
-	int i;
-
 	pci_unregister_driver(&cx18_pci_driver);
-
-	for (i = 0; i < cx18_cards_active; i++) {
-		if (cx18_cards[i] == NULL)
-			continue;
-		kfree(cx18_cards[i]);
-	}
-
 }
 
 module_init(module_start);
