@@ -540,6 +540,9 @@ static void uvc_video_decode_bulk(struct urb *urb,
 	u8 *mem;
 	int len, ret;
 
+	if (urb->actual_length == 0)
+		return;
+
 	mem = urb->transfer_buffer;
 	len = urb->actual_length;
 	video->bulk.payload_size += len;
