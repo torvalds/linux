@@ -380,7 +380,6 @@ int arcnet_open(struct net_device *dev)
 		return -ENODEV;
 
 	BUGLVL(D_PROTO) {
-		int count;
 		BUGMSG(D_PROTO, "protocol map (default is '%c'): ",
 		       arc_proto_default->suffix);
 		for (count = 0; count < 256; count++)
