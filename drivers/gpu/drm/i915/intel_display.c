@@ -217,7 +217,7 @@ bool intel_pipe_has_type (struct drm_crtc *crtc, int type)
     return false;
 }
 
-#define INTELPllInvalid(s)   { /* ErrorF (s) */; return false; }
+#define INTELPllInvalid(s)   do { DRM_DEBUG(s); return false; } while (0)
 /**
  * Returns whether the given set of divisors are valid for a given refclk with
  * the given connectors.
@@ -726,7 +726,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	int dspsize_reg = (pipe == 0) ? DSPASIZE : DSPBSIZE;
 	int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
 	int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
-	int refclk;
+	int refclk, num_outputs = 0;
 	intel_clock_t clock;
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
 	bool ok, is_sdvo = false, is_dvo = false;
@@ -763,9 +763,14 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			is_crt = true;
 			break;
 		}
+
+		num_outputs++;
 	}
 
-	if (IS_I9XX(dev)) {
+	if (is_lvds && dev_priv->lvds_use_ssc && num_outputs < 2) {
+		refclk = dev_priv->lvds_ssc_freq * 1000;
+		DRM_DEBUG("using SSC reference clock of %d MHz\n", refclk / 1000);
+	} else if (IS_I9XX(dev)) {
 		refclk = 96000;
 	} else {
 		refclk = 48000;
@@ -824,11 +829,14 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	if (is_tv) {
+	if (is_sdvo && is_tv)
+		dpll |= PLL_REF_INPUT_TVCLKINBC;
+	else if (is_tv)
 		/* XXX: just matching BIOS for now */
-/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
+		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
 		dpll |= 3;
-	}
+	else if (is_lvds && dev_priv->lvds_use_ssc && num_outputs < 2)
+		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
 
