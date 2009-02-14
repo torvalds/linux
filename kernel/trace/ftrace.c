@@ -1153,8 +1153,6 @@ static void ftrace_match_records(char *buff, int len, int enable)
 
 	/* should not be called from interrupt context */
 	spin_lock(&ftrace_lock);
-	if (enable)
-		ftrace_filtered = 1;
 	do_for_each_ftrace_rec(pg, rec) {
 
 		if (rec->flags & FTRACE_FL_FAILED)
@@ -1166,7 +1164,12 @@ static void ftrace_match_records(char *buff, int len, int enable)
 			else
 				rec->flags |= flag;
 		}
-
+		/*
+		 * Only enable filtering if we have a function that
+		 * is filtered on.
+		 */
+		if (enable && (rec->flags & FTRACE_FL_FILTER))
+			ftrace_filtered = 1;
 	} while_for_each_ftrace_rec();
 	spin_unlock(&ftrace_lock);
 }
@@ -1217,9 +1220,6 @@ static void ftrace_match_module_records(char *buff, char *mod, int enable)
 
 	/* should not be called from interrupt context */
 	spin_lock(&ftrace_lock);
-	if (enable)
-		ftrace_filtered = 1;
-
 	do_for_each_ftrace_rec(pg, rec) {
 
 		if (rec->flags & FTRACE_FL_FAILED)
@@ -1232,6 +1232,8 @@ static void ftrace_match_module_records(char *buff, char *mod, int enable)
 			else
 				rec->flags |= flag;
 		}
+		if (enable && (rec->flags & FTRACE_FL_FILTER))
+			ftrace_filtered = 1;
 
 	} while_for_each_ftrace_rec();
 	spin_unlock(&ftrace_lock);
