@@ -315,9 +315,8 @@ config EEEPC_LAPTOP
 
 
 config ACPI_WMI
-	tristate "WMI (EXPERIMENTAL)"
+	tristate "WMI"
 	depends on ACPI
-	depends on EXPERIMENTAL
 	help
 	  This driver adds support for the ACPI-WMI (Windows Management
 	  Instrumentation) mapper device (PNP0C14) found on some systems.
