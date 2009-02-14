@@ -2854,7 +2854,7 @@ static void atl2_force_ps(struct atl2_hw *hw)
 #else
 #define ATL2_PARAM(X, desc) \
     static int __devinitdata X[ATL2_MAX_NIC+1] = ATL2_PARAM_INIT; \
-    static int num_##X = 0; \
+    static unsigned int num_##X; \
     module_param_array_named(X, X, int, &num_##X, 0); \
     MODULE_PARM_DESC(X, desc);
 #endif
