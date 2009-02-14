@@ -1241,6 +1241,9 @@ int usb_serial_register(struct usb_serial_driver *driver)
 	/* must be called with BKL held */
 	int retval;
 
+	if (usb_disabled())
+		return -ENODEV;
+
 	fixup_generic(driver);
 
 	if (!driver->description)
