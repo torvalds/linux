@@ -467,5 +467,22 @@ struct s_smc {
 #endif	/* DEBUG_BRD && DEBUG */
 } ;
 
+extern const struct fddi_addr fddi_broadcast;
+
+extern void all_selection_criteria(struct s_smc *smc);
+extern void card_stop(struct s_smc *smc);
+extern void init_board(struct s_smc *smc, u_char *mac_addr);
+extern int init_fplus(struct s_smc *smc);
+extern void init_plc(struct s_smc *smc);
+extern int init_smt(struct s_smc *smc, u_char * mac_addr);
+extern void mac1_irq(struct s_smc *smc, u_short stu, u_short stl);
+extern void mac2_irq(struct s_smc *smc, u_short code_s2u, u_short code_s2l);
+extern void mac3_irq(struct s_smc *smc, u_short code_s3u, u_short code_s3l);
+extern int pcm_status_twisted(struct s_smc *smc);
+extern void plc1_irq(struct s_smc *smc);
+extern void plc2_irq(struct s_smc *smc);
+extern void read_address(struct s_smc *smc, u_char * mac_addr);
+extern void timer_irq(struct s_smc *smc);
+
 #endif	/* _SCMECM_ */
 

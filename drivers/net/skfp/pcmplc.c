@@ -198,9 +198,6 @@ static int plc_imsk_na = PL_PCM_CODE | PL_TRACE_PROP | PL_PCM_BREAK |
 static const int plc_imsk_act = PL_PCM_CODE | PL_TRACE_PROP | PL_PCM_BREAK |
 			PL_PCM_ENABLED | PL_SELF_TEST | PL_EBUF_ERR;
 
-/* external functions */
-void all_selection_criteria(struct s_smc *smc);
-
 /* internal functions */
 static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd);
 static void pc_rcode_actions(struct s_smc *smc, int bit, struct s_phy *phy);
