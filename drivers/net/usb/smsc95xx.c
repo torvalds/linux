@@ -58,7 +58,7 @@ struct usb_context {
 	struct usbnet *dev;
 };
 
-int turbo_mode = true;
+static int turbo_mode = true;
 module_param(turbo_mode, bool, 0644);
 MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
 
