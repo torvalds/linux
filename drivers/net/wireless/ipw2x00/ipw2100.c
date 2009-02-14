@@ -1910,7 +1910,8 @@ static void isr_indicate_associated(struct ipw2100_priv *priv, u32 status)
 {
 
 #define MAC_ASSOCIATION_READ_DELAY (HZ)
-	int ret, len, essid_len;
+	int ret;
+	unsigned int len, essid_len;
 	char essid[IW_ESSID_MAX_SIZE];
 	u32 txrate;
 	u32 chan;
@@ -4058,7 +4059,7 @@ static ssize_t show_bssinfo(struct device *d, struct device_attribute *attr,
 	u8 bssid[ETH_ALEN];
 	u32 chan = 0;
 	char *out = buf;
-	int length;
+	unsigned int length;
 	int ret;
 
 	if (priv->status & STATUS_RF_KILL_MASK)
@@ -7122,7 +7123,7 @@ static int ipw2100_wx_get_rate(struct net_device *dev,
 {
 	struct ipw2100_priv *priv = ieee80211_priv(dev);
 	int val;
-	int len = sizeof(val);
+	unsigned int len = sizeof(val);
 	int err = 0;
 
 	if (!(priv->status & STATUS_ENABLED) ||
@@ -8297,7 +8298,7 @@ static void ipw2100_wx_event_work(struct work_struct *work)
 	struct ipw2100_priv *priv =
 		container_of(work, struct ipw2100_priv, wx_event_work.work);
 	union iwreq_data wrqu;
-	int len = ETH_ALEN;
+	unsigned int len = ETH_ALEN;
 
 	if (priv->status & STATUS_STOPPING)
 		return;
