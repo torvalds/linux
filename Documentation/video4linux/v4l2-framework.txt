@@ -558,26 +558,38 @@ announcing that a new buffer were filled.
 The irq handling code should handle the videobuf task lists, in order
 to advice videobuf that a new frame were filled, in order to honor to a
 request. The code is generally like this one:
-        if (list_empty(&dma_q->active))
+	if (list_empty(&dma_q->active))
 		return;
 
-        buf = list_entry(dma_q->active.next, struct vbuffer, vb.queue);
+	buf = list_entry(dma_q->active.next, struct vbuffer, vb.queue);
 
-        if (!waitqueue_active(&buf->vb.done))
+	if (!waitqueue_active(&buf->vb.done))
 		return;
 
 	/* Some logic to handle the buf may be needed here */
 
-        list_del(&buf->vb.queue);
-        do_gettimeofday(&buf->vb.ts);
-        wake_up(&buf->vb.done);
+	list_del(&buf->vb.queue);
+	do_gettimeofday(&buf->vb.ts);
+	wake_up(&buf->vb.done);
 
 Those are the videobuffer functions used on drivers, implemented on
 videobuf-core:
 
-- videobuf_queue_core_init()
-  Initializes the videobuf infrastructure. This function should be
-  called before any other videobuf function.
+- Videobuf init functions
+  videobuf_queue_sg_init()
+      Initializes the videobuf infrastructure. This function should be
+      called before any other videobuf function on drivers that uses DMA
+      Scatter/Gather buffers.
+
+  videobuf_queue_dma_contig_init
+      Initializes the videobuf infrastructure. This function should be
+      called before any other videobuf function on drivers that need DMA
+      contiguous buffers.
+
+  videobuf_queue_vmalloc_init()
+      Initializes the videobuf infrastructure. This function should be
+      called before any other videobuf function on USB (and other drivers)
+      that need a vmalloced type of videobuf.
 
 - videobuf_iolock()
   Prepares the videobuf memory for the proper method (read, mmap, overlay).
