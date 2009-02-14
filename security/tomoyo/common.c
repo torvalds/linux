@@ -2177,6 +2177,10 @@ static int __init tomoyo_initerface_init(void)
 {
 	struct dentry *tomoyo_dir;
 
+	/* Don't create securityfs entries unless registered. */
+	if (current_cred()->security != &tomoyo_kernel_domain)
+		return 0;
+
 	tomoyo_dir = securityfs_create_dir("tomoyo", NULL);
 	tomoyo_create_entry("domain_policy",    0600, tomoyo_dir,
 			    TOMOYO_DOMAINPOLICY);
