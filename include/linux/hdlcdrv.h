@@ -215,7 +215,7 @@ struct hdlcdrv_state {
 
 	struct hdlcdrv_hdlctx {
 		struct hdlcdrv_hdlcbuffer hbuf;
-		long in_hdlc_tx;
+		unsigned long in_hdlc_tx;
 		/*
 		 * 0 = send flags
 		 * 1 = send txtail (flags)
