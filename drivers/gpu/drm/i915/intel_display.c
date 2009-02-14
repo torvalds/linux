@@ -90,12 +90,12 @@ typedef struct {
 #define I9XX_DOT_MAX		 400000
 #define I9XX_VCO_MIN		1400000
 #define I9XX_VCO_MAX		2800000
-#define I9XX_N_MIN		      3
-#define I9XX_N_MAX		      8
+#define I9XX_N_MIN		      1
+#define I9XX_N_MAX		      6
 #define I9XX_M_MIN		     70
 #define I9XX_M_MAX		    120
 #define I9XX_M1_MIN		     10
-#define I9XX_M1_MAX		     20
+#define I9XX_M1_MAX		     22
 #define I9XX_M2_MIN		      5
 #define I9XX_M2_MAX		      9
 #define I9XX_P_SDVO_DAC_MIN	      5
