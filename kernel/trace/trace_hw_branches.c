@@ -127,7 +127,7 @@ static struct notifier_block bts_hotcpu_notifier __cpuinitdata = {
 	.notifier_call = bts_hotcpu_handler
 };
 
-static int bts_trace_init(struct trace_array *tr)
+static int __cpuinit bts_trace_init(struct trace_array *tr)
 {
 	hw_branch_trace = tr;
 
@@ -137,7 +137,7 @@ static int bts_trace_init(struct trace_array *tr)
 	return 0;
 }
 
-static void bts_trace_reset(struct trace_array *tr)
+static void __cpuinit bts_trace_reset(struct trace_array *tr)
 {
 	bts_trace_stop(tr);
 	unregister_hotcpu_notifier(&bts_hotcpu_notifier);
