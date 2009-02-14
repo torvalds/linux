@@ -1345,10 +1345,7 @@ static struct video_device vivi_template = {
 
    The real maximum number of virtual drivers will depend on how many drivers
    will succeed. This is limited to the maximum number of devices that
-   videodev supports. Since there are 64 minors for video grabbers, this is
-   currently the theoretical maximum limit. However, a further limit does
-   exist at videodev that forbids any driver to register more than 32 video
-   grabbers.
+   videodev supports, which is equal to VIDEO_NUM_DEVICES.
  */
 static int __init vivi_init(void)
 {
