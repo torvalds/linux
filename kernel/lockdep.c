@@ -2396,6 +2396,10 @@ static inline int separate_irq_context(struct task_struct *curr,
 	return 0;
 }
 
+void lockdep_trace_alloc(gfp_t gfp_mask)
+{
+}
+
 #endif
 
 /*
