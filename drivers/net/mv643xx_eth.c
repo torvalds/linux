@@ -1575,7 +1575,7 @@ oom:
 		return;
 	}
 
-	mc_spec = kmalloc(0x200, GFP_KERNEL);
+	mc_spec = kmalloc(0x200, GFP_ATOMIC);
 	if (mc_spec == NULL)
 		goto oom;
 	mc_other = mc_spec + (0x100 >> 2);
