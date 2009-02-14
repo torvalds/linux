@@ -1565,7 +1565,6 @@ static int speed_duplex_to_caps(int speed, int duplex)
 
 static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
-	int cap;
 	struct port_info *p = netdev_priv(dev);
 	struct link_config *lc = &p->link_config;
 
@@ -1575,7 +1574,7 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 * being requested.
 		 */
 		if (cmd->autoneg == AUTONEG_DISABLE) {
-			cap = speed_duplex_to_caps(cmd->speed, cmd->duplex);
+			int cap = speed_duplex_to_caps(cmd->speed, cmd->duplex);
 			if (lc->supported & cap)
 				return 0;
 		}
