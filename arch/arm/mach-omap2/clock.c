@@ -565,7 +565,7 @@ u32 omap2_clksel_to_divisor(struct clk *clk, u32 field_val)
  *
  * Given a struct clk of a rate-selectable clksel clock, and a clock divisor,
  * find the corresponding register field value.  The return register value is
- * the value before left-shifting.  Returns 0xffffffff on error
+ * the value before left-shifting.  Returns ~0 on error
  */
 u32 omap2_divisor_to_clksel(struct clk *clk, u32 div)
 {
@@ -577,7 +577,7 @@ u32 omap2_divisor_to_clksel(struct clk *clk, u32 div)
 
 	clks = omap2_get_clksel_by_parent(clk, clk->parent);
 	if (clks == NULL)
-		return 0;
+		return ~0;
 
 	for (clkr = clks->rates; clkr->div; clkr++) {
 		if ((clkr->flags & cpu_mask) && (clkr->div == div))
@@ -588,7 +588,7 @@ u32 omap2_divisor_to_clksel(struct clk *clk, u32 div)
 		printk(KERN_ERR "clock: Could not find divisor %d for "
 		       "clock %s parent %s\n", div, clk->name,
 		       clk->parent->name);
-		return 0;
+		return ~0;
 	}
 
 	return clkr->val;
