@@ -919,6 +919,46 @@ static void radeon_set_pcigart(drm_radeon_private_t * dev_priv, int on)
 	}
 }
 
+static int radeon_setup_pcigart_surface(drm_radeon_private_t *dev_priv)
+{
+	struct drm_ati_pcigart_info *gart_info = &dev_priv->gart_info;
+	struct radeon_virt_surface *vp;
+	int i;
+
+	for (i = 0; i < RADEON_MAX_SURFACES * 2; i++) {
+		if (!dev_priv->virt_surfaces[i].file_priv ||
+		    dev_priv->virt_surfaces[i].file_priv == PCIGART_FILE_PRIV)
+			break;
+	}
+	if (i >= 2 * RADEON_MAX_SURFACES)
+		return -ENOMEM;
+	vp = &dev_priv->virt_surfaces[i];
+
+	for (i = 0; i < RADEON_MAX_SURFACES; i++) {
+		struct radeon_surface *sp = &dev_priv->surfaces[i];
+		if (sp->refcount)
+			continue;
+
+		vp->surface_index = i;
+		vp->lower = gart_info->bus_addr;
+		vp->upper = vp->lower + gart_info->table_size;
+		vp->flags = 0;
+		vp->file_priv = PCIGART_FILE_PRIV;
+
+		sp->refcount = 1;
+		sp->lower = vp->lower;
+		sp->upper = vp->upper;
+		sp->flags = 0;
+
+		RADEON_WRITE(RADEON_SURFACE0_INFO + 16 * i, sp->flags);
+		RADEON_WRITE(RADEON_SURFACE0_LOWER_BOUND + 16 * i, sp->lower);
+		RADEON_WRITE(RADEON_SURFACE0_UPPER_BOUND + 16 * i, sp->upper);
+		return 0;
+	}
+
+	return -ENOMEM;
+}
+
 static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 			     struct drm_file *file_priv)
 {
@@ -1212,6 +1252,9 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 	} else
 #endif
 	{
+		u32 sctrl;
+		int ret;
+
 		dev_priv->gart_info.table_mask = DMA_BIT_MASK(32);
 		/* if we have an offset set from userspace */
 		if (dev_priv->pcigart_offset_set) {
@@ -1253,10 +1296,23 @@ static int radeon_do_init_cp(struct drm_device *dev, drm_radeon_init_t *init,
 			}
 		}
 
-		if (!drm_ati_pcigart_init(dev, &dev_priv->gart_info)) {
+		sctrl = RADEON_READ(RADEON_SURFACE_CNTL);
+		RADEON_WRITE(RADEON_SURFACE_CNTL, 0);
+		ret = drm_ati_pcigart_init(dev, &dev_priv->gart_info);
+		RADEON_WRITE(RADEON_SURFACE_CNTL, sctrl);
+
+		if (!ret) {
 			DRM_ERROR("failed to init PCI GART!\n");
 			radeon_do_cleanup_cp(dev);
 			return -ENOMEM;
+		}
+
+		ret = radeon_setup_pcigart_surface(dev_priv);
+		if (ret) {
+			DRM_ERROR("failed to setup GART surface!\n");
+			drm_ati_pcigart_cleanup(dev, &dev_priv->gart_info);
+			radeon_do_cleanup_cp(dev);
+			return ret;
 		}
 
 		/* Turn on PCI GART */

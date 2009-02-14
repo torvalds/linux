@@ -217,6 +217,7 @@ struct radeon_virt_surface {
 	u32 upper;
 	u32 flags;
 	struct drm_file *file_priv;
+#define PCIGART_FILE_PRIV	((void *) -1L)
 };
 
 #define RADEON_FLUSH_EMITED	(1 << 0)

@@ -3155,6 +3155,7 @@ void radeon_driver_preclose(struct drm_device *dev, struct drm_file *file_priv)
 
 void radeon_driver_lastclose(struct drm_device *dev)
 {
+	radeon_surfaces_release(PCIGART_FILE_PRIV, dev->dev_private);
 	radeon_do_release(dev);
 }
 
