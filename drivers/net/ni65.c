@@ -481,8 +481,9 @@ static int __init ni65_probe1(struct net_device *dev,int ioaddr)
 	else {
 		if(dev->dma == 0) {
 		/* 'stuck test' from lance.c */
-			long dma_channels = ((inb(DMA1_STAT_REG) >> 4) & 0x0f) |
-					    (inb(DMA2_STAT_REG) & 0xf0);
+			unsigned long dma_channels =
+				((inb(DMA1_STAT_REG) >> 4) & 0x0f)
+				| (inb(DMA2_STAT_REG) & 0xf0);
 			for(i=1;i<5;i++) {
 				int dma = dmatab[i];
 				if(test_bit(dma,&dma_channels) || request_dma(dma,"ni6510"))
