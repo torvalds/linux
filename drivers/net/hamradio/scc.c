@@ -184,7 +184,8 @@
 
 #include "z8530.h"
 
-static char banner[] __initdata = KERN_INFO "AX.25: Z8530 SCC driver version "VERSION".dl1bke\n";
+static const char banner[] __initdata = KERN_INFO \
+	"AX.25: Z8530 SCC driver version "VERSION".dl1bke\n";
 
 static void t_dwait(unsigned long);
 static void t_txdelay(unsigned long);

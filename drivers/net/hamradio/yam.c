@@ -77,7 +77,8 @@
 /* --------------------------------------------------------------------- */
 
 static const char yam_drvname[] = "yam";
-static char yam_drvinfo[] __initdata = KERN_INFO "YAM driver version 0.8 by F1OAT/F6FBB\n";
+static const char yam_drvinfo[] __initdata = KERN_INFO \
+	"YAM driver version 0.8 by F1OAT/F6FBB\n";
 
 /* --------------------------------------------------------------------- */
 
