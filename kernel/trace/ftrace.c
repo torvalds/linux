@@ -27,6 +27,7 @@
 #include <linux/sysctl.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
+#include <linux/hash.h>
 
 #include <asm/ftrace.h>
 
@@ -1244,6 +1245,252 @@ static int __init ftrace_mod_cmd_init(void)
 	return register_ftrace_command(&ftrace_mod_cmd);
 }
 device_initcall(ftrace_mod_cmd_init);
+
+#define FTRACE_HASH_BITS 7
+#define FTRACE_FUNC_HASHSIZE (1 << FTRACE_HASH_BITS)
+static struct hlist_head ftrace_func_hash[FTRACE_FUNC_HASHSIZE] __read_mostly;
+
+struct ftrace_func_hook {
+	struct hlist_node	node;
+	struct ftrace_hook_ops	*ops;
+	unsigned long		flags;
+	unsigned long		ip;
+	void			*data;
+	struct rcu_head		rcu;
+};
+
+static void
+function_trace_hook_call(unsigned long ip, unsigned long parent_ip)
+{
+	struct ftrace_func_hook *entry;
+	struct hlist_head *hhd;
+	struct hlist_node *n;
+	unsigned long key;
+	int resched;
+
+	key = hash_long(ip, FTRACE_HASH_BITS);
+
+	hhd = &ftrace_func_hash[key];
+
+	if (hlist_empty(hhd))
+		return;
+
+	/*
+	 * Disable preemption for these calls to prevent a RCU grace
+	 * period. This syncs the hash iteration and freeing of items
+	 * on the hash. rcu_read_lock is too dangerous here.
+	 */
+	resched = ftrace_preempt_disable();
+	hlist_for_each_entry_rcu(entry, n, hhd, node) {
+		if (entry->ip == ip)
+			entry->ops->func(ip, parent_ip, &entry->data);
+	}
+	ftrace_preempt_enable(resched);
+}
+
+static struct ftrace_ops trace_hook_ops __read_mostly =
+{
+	.func = function_trace_hook_call,
+};
+
+static int ftrace_hook_registered;
+
+static void __enable_ftrace_function_hook(void)
+{
+	int i;
+
+	if (ftrace_hook_registered)
+		return;
+
+	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
+		struct hlist_head *hhd = &ftrace_func_hash[i];
+		if (hhd->first)
+			break;
+	}
+	/* Nothing registered? */
+	if (i == FTRACE_FUNC_HASHSIZE)
+		return;
+
+	__register_ftrace_function(&trace_hook_ops);
+	ftrace_startup(0);
+	ftrace_hook_registered = 1;
+}
+
+static void __disable_ftrace_function_hook(void)
+{
+	int i;
+
+	if (!ftrace_hook_registered)
+		return;
+
+	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
+		struct hlist_head *hhd = &ftrace_func_hash[i];
+		if (hhd->first)
+			return;
+	}
+
+	/* no more funcs left */
+	__unregister_ftrace_function(&trace_hook_ops);
+	ftrace_shutdown(0);
+	ftrace_hook_registered = 0;
+}
+
+
+static void ftrace_free_entry_rcu(struct rcu_head *rhp)
+{
+	struct ftrace_func_hook *entry =
+		container_of(rhp, struct ftrace_func_hook, rcu);
+
+	if (entry->ops->free)
+		entry->ops->free(&entry->data);
+	kfree(entry);
+}
+
+
+int
+register_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+			      void *data)
+{
+	struct ftrace_func_hook *entry;
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+	unsigned long key;
+	int type, len, not;
+	int count = 0;
+	char *search;
+
+	type = ftrace_setup_glob(glob, strlen(glob), &search, &not);
+	len = strlen(search);
+
+	/* we do not support '!' for function hooks */
+	if (WARN_ON(not))
+		return -EINVAL;
+
+	mutex_lock(&ftrace_lock);
+	do_for_each_ftrace_rec(pg, rec) {
+
+		if (rec->flags & FTRACE_FL_FAILED)
+			continue;
+
+		if (!ftrace_match_record(rec, search, len, type))
+			continue;
+
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		if (!entry) {
+			/* If we did not hook to any, then return error */
+			if (!count)
+				count = -ENOMEM;
+			goto out_unlock;
+		}
+
+		count++;
+
+		entry->data = data;
+
+		/*
+		 * The caller might want to do something special
+		 * for each function we find. We call the callback
+		 * to give the caller an opportunity to do so.
+		 */
+		if (ops->callback) {
+			if (ops->callback(rec->ip, &entry->data) < 0) {
+				/* caller does not like this func */
+				kfree(entry);
+				continue;
+			}
+		}
+
+		entry->ops = ops;
+		entry->ip = rec->ip;
+
+		key = hash_long(entry->ip, FTRACE_HASH_BITS);
+		hlist_add_head_rcu(&entry->node, &ftrace_func_hash[key]);
+
+	} while_for_each_ftrace_rec();
+	__enable_ftrace_function_hook();
+
+ out_unlock:
+	mutex_unlock(&ftrace_lock);
+
+	return count;
+}
+
+enum {
+	HOOK_TEST_FUNC		= 1,
+	HOOK_TEST_DATA		= 2
+};
+
+static void
+__unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+				  void *data, int flags)
+{
+	struct ftrace_func_hook *entry;
+	struct hlist_node *n, *tmp;
+	char str[KSYM_SYMBOL_LEN];
+	int type = MATCH_FULL;
+	int i, len = 0;
+	char *search;
+
+	if (glob && (strcmp(glob, "*") || !strlen(glob)))
+		glob = NULL;
+	else {
+		int not;
+
+		type = ftrace_setup_glob(glob, strlen(glob), &search, &not);
+		len = strlen(search);
+
+		/* we do not support '!' for function hooks */
+		if (WARN_ON(not))
+			return;
+	}
+
+	mutex_lock(&ftrace_lock);
+	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
+		struct hlist_head *hhd = &ftrace_func_hash[i];
+
+		hlist_for_each_entry_safe(entry, n, tmp, hhd, node) {
+
+			/* break up if statements for readability */
+			if ((flags & HOOK_TEST_FUNC) && entry->ops != ops)
+				continue;
+
+			if ((flags & HOOK_TEST_DATA) && entry->data != data)
+				continue;
+
+			/* do this last, since it is the most expensive */
+			if (glob) {
+				kallsyms_lookup(entry->ip, NULL, NULL,
+						NULL, str);
+				if (!ftrace_match(str, glob, len, type))
+					continue;
+			}
+
+			hlist_del(&entry->node);
+			call_rcu(&entry->rcu, ftrace_free_entry_rcu);
+		}
+	}
+	__disable_ftrace_function_hook();
+	mutex_unlock(&ftrace_lock);
+}
+
+void
+unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+				void *data)
+{
+	__unregister_ftrace_function_hook(glob, ops, data,
+					  HOOK_TEST_FUNC | HOOK_TEST_DATA);
+}
+
+void
+unregister_ftrace_function_hook_func(char *glob, struct ftrace_hook_ops *ops)
+{
+	__unregister_ftrace_function_hook(glob, ops, NULL, HOOK_TEST_FUNC);
+}
+
+void unregister_ftrace_function_hook_all(char *glob)
+{
+	__unregister_ftrace_function_hook(glob, NULL, NULL, 0);
+}
 
 static LIST_HEAD(ftrace_commands);
 static DEFINE_MUTEX(ftrace_cmd_mutex);

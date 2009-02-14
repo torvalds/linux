@@ -106,6 +106,24 @@ struct ftrace_func_command {
 /* asm/ftrace.h must be defined for archs supporting dynamic ftrace */
 #include <asm/ftrace.h>
 
+struct ftrace_hook_ops {
+	void			(*func)(unsigned long ip,
+					unsigned long parent_ip,
+					void **data);
+	int			(*callback)(unsigned long ip, void **data);
+	void			(*free)(void **data);
+};
+
+extern int
+register_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+			      void *data);
+extern void
+unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+				void *data);
+extern void
+unregister_ftrace_function_hook_func(char *glob, struct ftrace_hook_ops *ops);
+extern void unregister_ftrace_function_hook_all(char *glob);
+
 enum {
 	FTRACE_FL_FREE		= (1 << 0),
 	FTRACE_FL_FAILED	= (1 << 1),
