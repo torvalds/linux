@@ -699,7 +699,6 @@ static int olympic_open(struct net_device *dev)
 	if (olympic_priv->olympic_network_monitor) { 
 		u8 __iomem *oat;
 		u8 __iomem *opt;
-		int i;
 		u8 addr[6];
 		oat = (olympic_priv->olympic_lap + olympic_priv->olympic_addr_table_addr);
 		opt = (olympic_priv->olympic_lap + olympic_priv->olympic_parms_addr);
