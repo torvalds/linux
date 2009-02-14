@@ -288,37 +288,38 @@ static const struct file_operations v4l2_fops = {
  */
 static int get_index(struct video_device *vdev, int num)
 {
-	u32 used = 0;
-	const int max_index = sizeof(used) * 8 - 1;
+	/* This can be static since this function is called with the global
+	   videodev_lock held. */
+	static DECLARE_BITMAP(used, VIDEO_NUM_DEVICES);
 	int i;
 
-	/* Currently a single v4l driver instance cannot create more than
-	   32 devices.
-	   Increase to u64 or an array of u32 if more are needed. */
-	if (num > max_index) {
+	if (num >= VIDEO_NUM_DEVICES) {
 		printk(KERN_ERR "videodev: %s num is too large\n", __func__);
 		return -EINVAL;
 	}
 
-	/* Some drivers do not set the parent. In that case always return 0. */
+	/* Some drivers do not set the parent. In that case always return
+	   num or 0. */
 	if (vdev->parent == NULL)
-		return 0;
+		return num >= 0 ? num : 0;
+
+	bitmap_zero(used, VIDEO_NUM_DEVICES);
 
 	for (i = 0; i < VIDEO_NUM_DEVICES; i++) {
 		if (video_device[i] != NULL &&
 		    video_device[i]->parent == vdev->parent) {
-			used |= 1 << video_device[i]->index;
+			set_bit(video_device[i]->index, used);
 		}
 	}
 
 	if (num >= 0) {
-		if (used & (1 << num))
+		if (test_bit(num, used))
 			return -ENFILE;
 		return num;
 	}
 
-	i = ffz(used);
-	return i > max_index ? -ENFILE : i;
+	i = find_first_zero_bit(used, VIDEO_NUM_DEVICES);
+	return i == VIDEO_NUM_DEVICES ? -ENFILE : i;
 }
 
 int video_register_device(struct video_device *vdev, int type, int nr)
