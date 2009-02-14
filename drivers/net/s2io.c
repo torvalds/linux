@@ -7220,7 +7220,6 @@ static int s2io_card_up(struct s2io_nic * sp)
 
 	/* Initialise napi */
 	if (config->napi) {
-		int i;
 		if (config->intr_type ==  MSI_X) {
 			for (i = 0; i < sp->config.rx_ring_num; i++)
 				napi_enable(&sp->mac_control.rings[i].napi);
