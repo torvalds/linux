@@ -125,8 +125,6 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 	}
 };
 
-static int qctl_regs[ARRAY_SIZE(vivi_qctrl)];
-
 #define dprintk(dev, level, fmt, arg...) \
 	v4l2_dbg(level, debug, &dev->v4l2_dev, fmt, ## arg)
 
@@ -239,6 +237,9 @@ struct vivi_dev {
 
 	/* Input Number */
 	int			   input;
+
+	/* Control 'registers' */
+	int 			   qctl_regs[ARRAY_SIZE(vivi_qctrl)];
 };
 
 struct vivi_fh {
@@ -1108,12 +1109,14 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 static int vidioc_g_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
+	struct vivi_fh *fh = priv;
+	struct vivi_dev *dev = fh->dev;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
 		if (ctrl->id == vivi_qctrl[i].id) {
-			ctrl->value = qctl_regs[i];
-			return (0);
+			ctrl->value = dev->qctl_regs[i];
+			return 0;
 		}
 
 	return -EINVAL;
@@ -1121,16 +1124,18 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
+	struct vivi_fh *fh = priv;
+	struct vivi_dev *dev = fh->dev;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
 		if (ctrl->id == vivi_qctrl[i].id) {
-			if (ctrl->value < vivi_qctrl[i].minimum
-			    || ctrl->value > vivi_qctrl[i].maximum) {
-					return (-ERANGE);
-				}
-			qctl_regs[i] = ctrl->value;
-			return (0);
+			if (ctrl->value < vivi_qctrl[i].minimum ||
+			    ctrl->value > vivi_qctrl[i].maximum) {
+				return -ERANGE;
+			}
+			dev->qctl_regs[i] = ctrl->value;
+			return 0;
 		}
 	return -EINVAL;
 }
@@ -1143,7 +1148,6 @@ static int vivi_open(struct file *file)
 {
 	struct vivi_dev *dev = video_drvdata(file);
 	struct vivi_fh *fh = NULL;
-	int i;
 	int retval = 0;
 
 	mutex_lock(&dev->mutex);
@@ -1176,10 +1180,6 @@ static int vivi_open(struct file *file)
 	fh->fmt      = &formats[0];
 	fh->width    = 640;
 	fh->height   = 480;
-
-	/* Put all controls at a sane state */
-	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
-		qctl_regs[i] = vivi_qctrl[i].default_value;
 
 	/* Resets frame counters */
 	dev->h = 0;
@@ -1338,18 +1338,18 @@ static int vivi_release(void)
 	return 0;
 }
 
-static int __init vivi_create_instance(int i)
+static int __init vivi_create_instance(int inst)
 {
 	struct vivi_dev *dev;
 	struct video_device *vfd;
-	int ret;
+	int ret, i;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
 
 	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
-			"%s-%03d", VIVI_MODULE_NAME, i);
+			"%s-%03d", VIVI_MODULE_NAME, inst);
 	ret = v4l2_device_register(NULL, &dev->v4l2_dev);
 	if (ret)
 		goto free_dev;
@@ -1374,6 +1374,10 @@ static int __init vivi_create_instance(int i)
 		goto rel_vdev;
 
 	video_set_drvdata(vfd, dev);
+
+	/* Set all controls to their default value. */
+	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
+		dev->qctl_regs[i] = vivi_qctrl[i].default_value;
 
 	/* Now that everything is fine, let's add it to device list */
 	list_add_tail(&dev->vivi_devlist, &vivi_devlist);
