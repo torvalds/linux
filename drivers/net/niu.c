@@ -2284,7 +2284,6 @@ static int serdes_init_10g_serdes(struct niu *np)
 	struct niu_link_config *lp = &np->link_config;
 	unsigned long ctrl_reg, test_cfg_reg, pll_cfg, i;
 	u64 ctrl_val, test_cfg_val, sig, mask, val;
-	int err;
 	u64 reset_val;
 
 	switch (np->port) {
@@ -2337,6 +2336,7 @@ static int serdes_init_10g_serdes(struct niu *np)
 	/* Initialize all 4 lanes of the SERDES.  */
 	for (i = 0; i < 4; i++) {
 		u32 rxtx_ctrl, glue0;
+		int err;
 
 		err = esr_read_rxtx_ctrl(np, i, &rxtx_ctrl);
 		if (err)
