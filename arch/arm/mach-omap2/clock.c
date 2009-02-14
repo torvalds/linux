@@ -708,7 +708,7 @@ static u32 omap2_clksel_get_src_field(void __iomem **src_addr,
 		return 0;
 
 	for (clkr = clks->rates; clkr->div; clkr++) {
-		if (clkr->flags & (cpu_mask | DEFAULT_RATE))
+		if (clkr->flags & cpu_mask && clkr->flags & DEFAULT_RATE)
 			break; /* Found the default rate for this platform */
 	}
 
