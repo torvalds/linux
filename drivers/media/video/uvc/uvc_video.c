@@ -1026,11 +1026,20 @@ int uvc_video_init(struct uvc_video_device *video)
 	 */
 	usb_set_interface(video->dev->udev, video->streaming->intfnum, 0);
 
-	/* Some webcams don't suport GET_DEF requests on the probe control. We
-	 * fall back to GET_CUR if GET_DEF fails.
+	/* Set the streaming probe control with default streaming parameters
+	 * retrieved from the device. Webcams that don't suport GET_DEF
+	 * requests on the probe control will just keep their current streaming
+	 * parameters.
 	 */
-	if ((ret = uvc_get_video_ctrl(video, probe, 1, GET_DEF)) < 0 &&
-	    (ret = uvc_get_video_ctrl(video, probe, 1, GET_CUR)) < 0)
+	if (uvc_get_video_ctrl(video, probe, 1, GET_DEF) == 0)
+		uvc_set_video_ctrl(video, probe, 1);
+
+	/* Initialize the streaming parameters with the probe control current
+	 * value. This makes sure SET_CUR requests on the streaming commit
+	 * control will always use values retrieved from a successful GET_CUR
+	 * request on the probe control, as required by the UVC specification.
+	 */
+	if ((ret = uvc_get_video_ctrl(video, probe, 1, GET_CUR)) < 0)
 		return ret;
 
 	/* Check if the default format descriptor exists. Use the first
