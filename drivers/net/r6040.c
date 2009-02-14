@@ -484,12 +484,12 @@ static int r6040_close(struct net_device *dev)
 	/* Free Descriptor memory */
 	if (lp->rx_ring) {
 		pci_free_consistent(pdev, RX_DESC_SIZE, lp->rx_ring, lp->rx_ring_dma);
-		lp->rx_ring = 0;
+		lp->rx_ring = NULL;
 	}
 
 	if (lp->tx_ring) {
 		pci_free_consistent(pdev, TX_DESC_SIZE, lp->tx_ring, lp->tx_ring_dma);
-		lp->tx_ring = 0;
+		lp->tx_ring = NULL;
 	}
 
 	return 0;
