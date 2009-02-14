@@ -24,6 +24,7 @@
 #include <mach/kirkwood.h>
 #include <plat/cache-feroceon-l2.h>
 #include <plat/ehci-orion.h>
+#include <plat/mvsdio.h>
 #include <plat/mv_xor.h>
 #include <plat/orion_nand.h>
 #include <plat/time.h>
@@ -292,6 +293,50 @@ void __init kirkwood_sata_init(struct mv_sata_platform_data *sata_data)
 	sata_data->dram = &kirkwood_mbus_dram_info;
 	kirkwood_sata.dev.platform_data = sata_data;
 	platform_device_register(&kirkwood_sata);
+}
+
+
+/*****************************************************************************
+ * SD/SDIO/MMC
+ ****************************************************************************/
+static struct resource mvsdio_resources[] = {
+	[0] = {
+		.start	= SDIO_PHYS_BASE,
+		.end	= SDIO_PHYS_BASE + SZ_1K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_KIRKWOOD_SDIO,
+		.end	= IRQ_KIRKWOOD_SDIO,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 mvsdio_dmamask = 0xffffffffUL;
+
+static struct platform_device kirkwood_sdio = {
+	.name		= "mvsdio",
+	.id		= -1,
+	.dev		= {
+		.dma_mask = &mvsdio_dmamask,
+		.coherent_dma_mask = 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(mvsdio_resources),
+	.resource	= mvsdio_resources,
+};
+
+void __init kirkwood_sdio_init(struct mvsdio_platform_data *mvsdio_data)
+{
+	u32 dev, rev;
+
+	kirkwood_pcie_id(&dev, &rev);
+	if (rev == 0)  /* catch all Kirkwood Z0's */
+		mvsdio_data->clock = 100000000;
+	else
+		mvsdio_data->clock = 200000000;
+	mvsdio_data->dram = &kirkwood_mbus_dram_info;
+	kirkwood_sdio.dev.platform_data = mvsdio_data;
+	platform_device_register(&kirkwood_sdio);
 }
 
 

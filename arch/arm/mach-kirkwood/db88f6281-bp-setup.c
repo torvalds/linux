@@ -22,7 +22,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/kirkwood.h>
+#include <plat/mvsdio.h>
 #include "common.h"
+#include "mpp.h"
 
 static struct mv643xx_eth_platform_data db88f6281_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
@@ -32,18 +34,31 @@ static struct mv_sata_platform_data db88f6281_sata_data = {
 	.n_ports	= 2,
 };
 
+static struct mvsdio_platform_data db88f6281_mvsdio_data = {
+	.gpio_write_protect	= 37,
+	.gpio_card_detect	= 38,
+};
+
+static unsigned int db88f6281_mpp_config[] __initdata = {
+	MPP37_GPIO,
+	MPP38_GPIO,
+	0
+};
+
 static void __init db88f6281_init(void)
 {
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
 	kirkwood_init();
+	kirkwood_mpp_conf(db88f6281_mpp_config);
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&db88f6281_ge00_data);
 	kirkwood_rtc_init();
 	kirkwood_sata_init(&db88f6281_sata_data);
 	kirkwood_uart0_init();
+	kirkwood_sdio_init(&db88f6281_mvsdio_data);
 }
 
 static int __init db88f6281_pci_init(void)

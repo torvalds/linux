@@ -24,8 +24,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/kirkwood.h>
+#include <plat/mvsdio.h>
 #include <plat/orion_nand.h>
 #include "common.h"
+#include "mpp.h"
 
 static struct mtd_partition rd88f6281_nand_parts[] = {
 	{
@@ -91,6 +93,15 @@ static struct mv_sata_platform_data rd88f6281_sata_data = {
 	.n_ports	= 2,
 };
 
+static struct mvsdio_platform_data rd88f6281_mvsdio_data = {
+	.gpio_card_detect = 28,
+};
+
+static unsigned int rd88f6281_mpp_config[] __initdata = {
+	MPP28_GPIO,
+	0
+};
+
 static void __init rd88f6281_init(void)
 {
 	u32 dev, rev;
@@ -99,6 +110,7 @@ static void __init rd88f6281_init(void)
 	 * Basic setup. Needs to be called early.
 	 */
 	kirkwood_init();
+	kirkwood_mpp_conf(rd88f6281_mpp_config);
 
 	kirkwood_ehci_init();
 
@@ -114,6 +126,7 @@ static void __init rd88f6281_init(void)
 
 	kirkwood_rtc_init();
 	kirkwood_sata_init(&rd88f6281_sata_data);
+	kirkwood_sdio_init(&rd88f6281_mvsdio_data);
 	kirkwood_uart0_init();
 	kirkwood_xor0_init();
 	kirkwood_xor1_init();
