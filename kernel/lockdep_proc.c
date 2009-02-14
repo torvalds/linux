@@ -601,6 +601,10 @@ static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 static void seq_header(struct seq_file *m)
 {
 	seq_printf(m, "lock_stat version 0.3\n");
+
+	if (unlikely(!debug_locks))
+		seq_printf(m, "*WARNING* lock debugging disabled!! - possibly due to a lockdep warning\n");
+
 	seq_line(m, '-', 0, 40 + 1 + 10 * (14 + 1));
 	seq_printf(m, "%40s %14s %14s %14s %14s %14s %14s %14s %14s "
 			"%14s %14s\n",
