@@ -216,6 +216,8 @@ int driver_register(struct device_driver *drv)
 	int ret;
 	struct device_driver *other;
 
+	BUG_ON(!drv->bus->p);
+
 	if ((drv->bus->probe && drv->probe) ||
 	    (drv->bus->remove && drv->remove) ||
 	    (drv->bus->shutdown && drv->shutdown))

@@ -932,6 +932,7 @@ bus_uevent_fail:
 	kset_unregister(&bus->p->subsys);
 	kfree(bus->p);
 out:
+	bus->p = NULL;
 	return retval;
 }
 EXPORT_SYMBOL_GPL(bus_register);
@@ -953,6 +954,7 @@ void bus_unregister(struct bus_type *bus)
 	bus_remove_file(bus, &bus_attr_uevent);
 	kset_unregister(&bus->p->subsys);
 	kfree(bus->p);
+	bus->p = NULL;
 }
 EXPORT_SYMBOL_GPL(bus_unregister);
 
