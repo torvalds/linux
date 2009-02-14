@@ -15,8 +15,7 @@ menuconfig X86_PLATFORM_DEVICES
 if X86_PLATFORM_DEVICES
 
 config ACER_WMI
-	tristate "Acer WMI Laptop Extras (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Acer WMI Laptop Extras"
 	depends on ACPI
 	depends on LEDS_CLASS
 	depends on NEW_LEDS
