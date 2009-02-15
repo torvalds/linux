@@ -940,11 +940,7 @@ int iwl_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 		goto err;
 
 	if (src == IWL_PWR_SRC_VAUX) {
-		u32 val;
-		ret = pci_read_config_dword(priv->pci_dev, PCI_CFG_POWER_SOURCE,
-					    &val);
-
-		if (val & PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT)
+		if (pci_pme_capable(priv->pci_dev, PCI_D3cold))
 			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 					       APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
 					       ~APMG_PS_CTRL_MSK_PWR_SRC);
@@ -2678,11 +2674,19 @@ static void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 }
 
-static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
+static int iwl_mac_hw_scan(struct ieee80211_hw *hw,
+			   struct cfg80211_scan_request *req)
 {
 	unsigned long flags;
 	struct iwl_priv *priv = hw->priv;
 	int ret;
+	u8 *ssid = NULL;
+	size_t ssid_len = 0;
+
+	if (req->n_ssids) {
+		ssid = req->ssids[0].ssid;
+		ssid_len = req->ssids[0].ssid_len;
+	}
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
@@ -2718,7 +2722,7 @@ static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
 
 	if (ssid_len) {
 		priv->one_direct_scan = 1;
-		priv->direct_ssid_len =  min_t(u8, ssid_len, IW_ESSID_MAX_SIZE);
+		priv->direct_ssid_len = ssid_len;
 		memcpy(priv->direct_ssid, ssid, priv->direct_ssid_len);
 	} else {
 		priv->one_direct_scan = 0;

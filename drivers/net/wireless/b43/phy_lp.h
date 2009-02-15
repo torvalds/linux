@@ -247,6 +247,10 @@
 #define B43_LPPHY_FOURWIRE_CTL			B43_PHY_OFDM(0xA2) /* fourwire Control */
 #define B43_LPPHY_CPA_TAILCOUNT_VAL		B43_PHY_OFDM(0xA3) /* CPA TailCount Value */
 #define B43_LPPHY_TX_PWR_CTL_CMD		B43_PHY_OFDM(0xA4) /* TX Power Control Cmd */
+#define  B43_LPPHY_TX_PWR_CTL_CMD_MODE		0xE000 /* TX power control mode mask */
+#define   B43_LPPHY_TX_PWR_CTL_CMD_MODE_OFF	0x0000 /* TX power control is OFF */
+#define   B43_LPPHY_TX_PWR_CTL_CMD_MODE_SW	0x8000 /* TX power control is SOFTWARE */
+#define   B43_LPPHY_TX_PWR_CTL_CMD_MODE_HW	0xE000 /* TX power control is HARDWARE */
 #define B43_LPPHY_TX_PWR_CTL_NNUM		B43_PHY_OFDM(0xA5) /* TX Power Control Nnum */
 #define B43_LPPHY_TX_PWR_CTL_IDLETSSI		B43_PHY_OFDM(0xA6) /* TX Power Control IdleTssi */
 #define B43_LPPHY_TX_PWR_CTL_TARGETPWR		B43_PHY_OFDM(0xA7) /* TX Power Control TargetPower */
@@ -802,7 +806,17 @@
 
 
 
+enum b43_lpphy_txpctl_mode {
+	B43_LPPHY_TXPCTL_UNKNOWN = 0,
+	B43_LPPHY_TXPCTL_OFF,	/* TX power control is OFF */
+	B43_LPPHY_TXPCTL_SW,	/* TX power control is set to Software */
+	B43_LPPHY_TXPCTL_HW,	/* TX power control is set to Hardware */
+};
+
 struct b43_phy_lp {
+	/* Current TX power control mode. */
+	enum b43_lpphy_txpctl_mode txpctl_mode;
+
 	/* Transmit isolation medium band */
 	u8 tx_isolation_med_band; /* FIXME initial value? */
 	/* Transmit isolation low band */
@@ -814,7 +828,7 @@ struct b43_phy_lp {
 	u8 rx_pwr_offset; /* FIXME initial value? */
 
 	/* TSSI transmit count */
-	u16 tssi_tx_count; /* FIXME initial value? */
+	u16 tssi_tx_count;
 	/* TSSI index */
 	u16 tssi_idx; /* FIXME initial value? */
 	/* TSSI npt */

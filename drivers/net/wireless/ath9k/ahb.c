@@ -19,9 +19,7 @@
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
 #include <linux/ath9k_platform.h>
-#include "core.h"
-#include "reg.h"
-#include "hw.h"
+#include "ath9k.h"
 
 /* return bus cachesize in 4B word units */
 static void ath_ahb_read_cachesize(struct ath_softc *sc, int *csz)
@@ -34,7 +32,7 @@ static void ath_ahb_cleanup(struct ath_softc *sc)
 	iounmap(sc->mem);
 }
 
-static bool ath_ahb_eeprom_read(struct ath_hal *ah, u32 off, u16 *data)
+static bool ath_ahb_eeprom_read(struct ath_hw *ah, u32 off, u16 *data)
 {
 	struct ath_softc *sc = ah->ah_sc;
 	struct platform_device *pdev = to_platform_device(sc->dev);
@@ -67,7 +65,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	int ret = 0;
-	struct ath_hal *ah;
+	struct ath_hw *ah;
 
 	if (!pdev->dev.platform_data) {
 		dev_err(&pdev->dev, "no platform data specified\n");
@@ -134,10 +132,10 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	       "%s: Atheros AR%s MAC/BB Rev:%x, "
 	       "AR%s RF Rev:%x, mem=0x%lx, irq=%d\n",
 	       wiphy_name(hw->wiphy),
-	       ath_mac_bb_name(ah->ah_macVersion),
-	       ah->ah_macRev,
-	       ath_rf_name((ah->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR)),
-	       ah->ah_phyRev,
+	       ath_mac_bb_name(ah->hw_version.macVersion),
+	       ah->hw_version.macRev,
+	       ath_rf_name((ah->hw_version.analog5GhzRev & AR_RADIO_SREV_MAJOR)),
+	       ah->hw_version.phyRev,
 	       (unsigned long)mem, irq);
 
 	return 0;

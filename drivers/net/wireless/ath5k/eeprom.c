@@ -204,7 +204,7 @@ static int ath5k_eeprom_read_ants(struct ath5k_hw *ah, u32 *offset,
 
 	/* Get antenna modes */
 	ah->ah_antenna[mode][0] =
-	    (ee->ee_ant_control[mode][0] << 4) | 0x1;
+	    (ee->ee_ant_control[mode][0] << 4);
 	ah->ah_antenna[mode][AR5K_ANT_FIXED_A] =
 	     ee->ee_ant_control[mode][1] 	|
 	    (ee->ee_ant_control[mode][2] << 6) 	|
@@ -517,9 +517,9 @@ ath5k_eeprom_init_modes(struct ath5k_hw *ah)
 static inline void
 ath5k_get_pcdac_intercepts(struct ath5k_hw *ah, u8 min, u8 max, u8 *vp)
 {
-	const static u16 intercepts3[] =
+	static const u16 intercepts3[] =
 		{ 0, 5, 10, 20, 30, 50, 70, 85, 90, 95, 100 };
-	const static u16 intercepts3_2[] =
+	static const u16 intercepts3_2[] =
 		{ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 };
 	const u16 *ip;
 	int i;
@@ -1412,6 +1412,7 @@ ath5k_eeprom_init(struct ath5k_hw *ah)
 
 	return 0;
 }
+
 /*
  * Read the MAC address from eeprom
  */
@@ -1448,3 +1449,14 @@ int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
 	return 0;
 }
 
+bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah)
+{
+	u16 data;
+
+	ath5k_hw_eeprom_read(ah, AR5K_EEPROM_IS_HB63, &data);
+
+	if ((ah->ah_mac_version == (AR5K_SREV_AR2425 >> 4)) && data)
+		return true;
+	else
+		return false;
+}

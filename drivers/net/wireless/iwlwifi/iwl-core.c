@@ -1271,6 +1271,7 @@ int iwl_setup_mac(struct iwl_priv *priv)
 		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->custom_regulatory = true;
+	hw->wiphy->max_scan_ssids = 1;
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;

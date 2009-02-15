@@ -2209,10 +2209,6 @@ ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf)
  *
  * @sc: struct ath5k_softc pointer we are operating on
  *
- * When operating in station mode we want to receive a BMISS interrupt when we
- * stop seeing beacons from the AP we've associated with so we can look for
- * another AP to associate with.
- *
  * In IBSS mode we use a self-linked tx descriptor if possible. We enable SWBA
  * interrupts to detect TSF updates only.
  */
@@ -2225,9 +2221,7 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 	sc->bmisscount = 0;
 	sc->imask &= ~(AR5K_INT_BMISS | AR5K_INT_SWBA);
 
-	if (sc->opmode == NL80211_IFTYPE_STATION) {
-		sc->imask |= AR5K_INT_BMISS;
-	} else if (sc->opmode == NL80211_IFTYPE_ADHOC ||
+	if (sc->opmode == NL80211_IFTYPE_ADHOC ||
 			sc->opmode == NL80211_IFTYPE_MESH_POINT ||
 			sc->opmode == NL80211_IFTYPE_AP) {
 		/*
@@ -2479,6 +2473,7 @@ ath5k_intr(int irq, void *dev_id)
 					| AR5K_INT_TXERR | AR5K_INT_TXEOL))
 				tasklet_schedule(&sc->txtq);
 			if (status & AR5K_INT_BMISS) {
+				/* TODO */
 			}
 			if (status & AR5K_INT_MIB) {
 				/*
@@ -2518,7 +2513,7 @@ ath5k_calibrate(unsigned long data)
 		ieee80211_frequency_to_channel(sc->curchan->center_freq),
 		sc->curchan->hw_value);
 
-	if (ath5k_hw_get_rf_gain(ah) == AR5K_RFGAIN_NEED_CHANGE) {
+	if (ath5k_hw_gainf_calibrate(ah) == AR5K_RFGAIN_NEED_CHANGE) {
 		/*
 		 * Rfgain is out of bounds, reset the chip
 		 * to load new gain values.
@@ -2889,7 +2884,7 @@ ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&sc->lock);
 	if (sc->vif != vif) {
@@ -2915,9 +2910,7 @@ ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 		ath5k_beacon_update(sc, beacon);
 	}
-	mutex_unlock(&sc->lock);
 
-	return ath5k_reset_wake(sc);
 unlock:
 	mutex_unlock(&sc->lock);
 	return ret;

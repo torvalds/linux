@@ -4,7 +4,7 @@
  * Communications and Intel PRO/Wireless 2011B.
  *
  * The driver implements Symbol firmware download.  The rest is handled
- * in hermes.c and orinoco.c.
+ * in hermes.c and main.c.
  *
  * Utilities for downloading the Symbol firmware are available at
  * http://sourceforge.net/projects/orinoco/
@@ -15,7 +15,7 @@
  * Portions based on Spectrum24tDnld.c from original spectrum24 driver:
  * 	Copyright (C) Symbol Technologies.
  *
- * See copyright notice in file orinoco.c.
+ * See copyright notice in file main.c.
  */
 
 #define DRIVER_NAME "spectrum_cs"

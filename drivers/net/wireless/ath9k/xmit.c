@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "core.h"
+#include "ath9k.h"
 
 #define BITS_PER_BYTE           8
 #define OFDM_PLCP_BITS          22
@@ -308,7 +308,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			 * when perform internal reset in this routine.
 			 * Only enable reset in STA mode for now.
 			 */
-			if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION)
+			if (sc->sc_ah->opmode == NL80211_IFTYPE_STATION)
 				needreset = 1;
 		}
 	}
@@ -809,7 +809,7 @@ static void ath_txq_drain_pending_buffers(struct ath_softc *sc,
 
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_tx_queue_info qi;
 	int qnum;
 
@@ -926,7 +926,7 @@ struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb)
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *qinfo)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	int error = 0;
 	struct ath9k_tx_queue_info qi;
 
@@ -970,14 +970,14 @@ int ath_cabq_update(struct ath_softc *sc)
 	/*
 	 * Ensure the readytime % is within the bounds.
 	 */
-	if (sc->sc_config.cabqReadytime < ATH9K_READY_TIME_LO_BOUND)
-		sc->sc_config.cabqReadytime = ATH9K_READY_TIME_LO_BOUND;
-	else if (sc->sc_config.cabqReadytime > ATH9K_READY_TIME_HI_BOUND)
-		sc->sc_config.cabqReadytime = ATH9K_READY_TIME_HI_BOUND;
+	if (sc->config.cabqReadytime < ATH9K_READY_TIME_LO_BOUND)
+		sc->config.cabqReadytime = ATH9K_READY_TIME_LO_BOUND;
+	else if (sc->config.cabqReadytime > ATH9K_READY_TIME_HI_BOUND)
+		sc->config.cabqReadytime = ATH9K_READY_TIME_HI_BOUND;
 
 	ath_get_beaconconfig(sc, ATH_IF_ID_ANY, &conf);
 	qi.tqi_readyTime =
-		(conf.beacon_interval * sc->sc_config.cabqReadytime) / 100;
+		(conf.beacon_interval * sc->config.cabqReadytime) / 100;
 	ath_txq_update(sc, qnum, &qi);
 
 	return 0;
@@ -1047,7 +1047,7 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 
 void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_txq *txq;
 	int i, npend = 0;
 
@@ -1072,7 +1072,7 @@ void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 		DPRINTF(sc, ATH_DBG_XMIT, "Unable to stop TxDMA. Reset HAL!\n");
 
 		spin_lock_bh(&sc->sc_resetlock);
-		r = ath9k_hw_reset(ah, sc->sc_ah->ah_curchan, true);
+		r = ath9k_hw_reset(ah, sc->sc_ah->curchan, true);
 		if (r)
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"Unable to reset hardware; reset status %u\n",
@@ -1165,7 +1165,7 @@ int ath_tx_setup(struct ath_softc *sc, int haltype)
 static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 			     struct list_head *head)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf;
 
 	/*
@@ -1436,14 +1436,18 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
+	struct ieee80211_hdr *hdr;
 	int i, flags = 0;
 	u8 rix = 0, ctsrate = 0;
+	bool is_pspoll;
 
 	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
 
 	skb = (struct sk_buff *)bf->bf_mpdu;
 	tx_info = IEEE80211_SKB_CB(skb);
 	rates = tx_info->control.rates;
+	hdr = (struct ieee80211_hdr *)skb->data;
+	is_pspoll = ieee80211_is_pspoll(hdr->frame_control);
 
 	/*
 	 * We check if Short Preamble is needed for the CTS rate by
@@ -1467,13 +1471,13 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 		flags = ATH9K_TXDESC_RTSENA;
 
 	/* FIXME: Handle aggregation protection */
-	if (sc->sc_config.ath_aggr_prot &&
+	if (sc->config.ath_aggr_prot &&
 	    (!bf_isaggr(bf) || (bf_isaggr(bf) && bf->bf_al < 8192))) {
 		flags = ATH9K_TXDESC_RTSENA;
 	}
 
 	/* For AR5416 - RTS cannot be followed by a frame larger than 8K */
-	if (bf_isaggr(bf) && (bf->bf_al > sc->sc_ah->ah_caps.rts_aggr_limit))
+	if (bf_isaggr(bf) && (bf->bf_al > sc->sc_ah->caps.rts_aggr_limit))
 		flags &= ~(ATH9K_TXDESC_RTSENA);
 
 	for (i = 0; i < 4; i++) {
@@ -1482,7 +1486,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 
 		rix = rates[i].idx;
 		series[i].Tries = rates[i].count;
-		series[i].ChSel = sc->sc_tx_chainmask;
+		series[i].ChSel = sc->tx_chainmask;
 
 		if (rates[i].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 			series[i].Rate = rt->info[rix].ratecode |
@@ -1506,10 +1510,10 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	/* set dur_update_en for l-sig computation except for PS-Poll frames */
 	ath9k_hw_set11n_ratescenario(sc->sc_ah, bf->bf_desc,
 				     bf->bf_lastbf->bf_desc,
-				     !bf_ispspoll(bf), ctsrate,
+				     !is_pspoll, ctsrate,
 				     0, series, 4, flags);
 
-	if (sc->sc_config.ath_aggr_prot && flags)
+	if (sc->config.ath_aggr_prot && flags)
 		ath9k_hw_set11n_burstduration(sc->sc_ah, bf->bf_desc, 8192);
 }
 
@@ -1534,12 +1538,6 @@ static int ath_tx_setup_buffer(struct ath_softc *sc, struct ath_buf *bf,
 
 	bf->bf_frmlen = skb->len + FCS_LEN - (hdrlen & 3);
 
-	if (ieee80211_is_data(fc))
-		bf->bf_state.bf_type |= BUF_DATA;
-	if (ieee80211_is_back_req(fc))
-		bf->bf_state.bf_type |= BUF_BAR;
-	if (ieee80211_is_pspoll(fc))
-		bf->bf_state.bf_type |= BUF_PSPOLL;
 	if ((conf_is_ht(&sc->hw->conf) && !is_pae(skb) &&
 	     (tx_info->flags & IEEE80211_TX_CTL_AMPDU)))
 		bf->bf_state.bf_type |= BUF_HT;
@@ -1582,7 +1580,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 	struct list_head bf_head;
 	struct ath_desc *ds;
 	struct ath_atx_tid *tid;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	int frm_type;
 
 	frm_type = get_hw_packet_type(skb);
@@ -1843,6 +1841,7 @@ static int ath_tx_num_badfrms(struct ath_softc *sc, struct ath_buf *bf,
 static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds, int nbad)
 {
 	struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
 
@@ -1852,7 +1851,7 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds, int nbad)
 
 	if ((ds->ds_txstat.ts_status & ATH9K_TXERR_FILT) == 0 &&
 	    (bf->bf_flags & ATH9K_TXDESC_NOACK) == 0) {
-		if (bf_isdata(bf)) {
+		if (ieee80211_is_data(hdr->frame_control)) {
 			memcpy(&tx_info_priv->tx, &ds->ds_txstat,
 			       sizeof(tx_info_priv->tx));
 			tx_info_priv->n_frames = bf->bf_nframes;
@@ -1880,7 +1879,7 @@ static void ath_wake_mac80211_queue(struct ath_softc *sc, struct ath_txq *txq)
 
 static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf, *lastbf, *bf_held = NULL;
 	struct list_head bf_head;
 	struct ath_desc *ds;

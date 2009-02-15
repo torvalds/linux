@@ -45,12 +45,6 @@
 
 #include "hermes.h"
 
-MODULE_DESCRIPTION("Low-level driver helper for Lucent Hermes chipset"
-		   " and Prism II HFA384x wireless MAC controller");
-MODULE_AUTHOR("Pavel Roskin <proski@gnu.org>"
-	" & David Gibson <hermes@gibson.dropbear.id.au>");
-MODULE_LICENSE("Dual MPL/GPL");
-
 /* These are maximum timeouts. Most often, card wil react much faster */
 #define CMD_BUSY_TIMEOUT (100) /* In iterations of ~1us */
 #define CMD_INIT_TIMEOUT (50000) /* in iterations of ~10us */
@@ -540,15 +534,3 @@ int hermes_write_ltv(hermes_t *hw, int bap, u16 rid,
 	return err;
 }
 EXPORT_SYMBOL(hermes_write_ltv);
-
-static int __init init_hermes(void)
-{
-	return 0;
-}
-
-static void __exit exit_hermes(void)
-{
-}
-
-module_init(init_hermes);
-module_exit(exit_hermes);

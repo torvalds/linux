@@ -731,6 +731,39 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	return result;
 }
 
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_check_more_data(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_local *local;
+	struct ieee80211_hdr *hdr;
+	struct sk_buff *skb;
+
+	local = rx->local;
+	skb = rx->skb;
+	hdr = (struct ieee80211_hdr *) skb->data;
+
+	if (!local->pspolling)
+		return RX_CONTINUE;
+
+	if (!ieee80211_has_fromds(hdr->frame_control))
+		/* this is not from AP */
+		return RX_CONTINUE;
+
+	if (!ieee80211_is_data(hdr->frame_control))
+		return RX_CONTINUE;
+
+	if (!ieee80211_has_moredata(hdr->frame_control)) {
+		/* AP has no more frames buffered for us */
+		local->pspolling = false;
+		return RX_CONTINUE;
+	}
+
+	/* more data bit is set, let's request a new frame from the AP */
+	ieee80211_send_pspoll(local, rx->sdata);
+
+	return RX_CONTINUE;
+}
+
 static void ap_sta_ps_start(struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
@@ -1640,11 +1673,9 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx)
 		start_seq_num = le16_to_cpu(bar->start_seq_num) >> 4;
 
 		/* reset session timer */
-		if (tid_agg_rx->timeout) {
-			unsigned long expires =
-				jiffies + (tid_agg_rx->timeout / 1000) * HZ;
-			mod_timer(&tid_agg_rx->session_timer, expires);
-		}
+		if (tid_agg_rx->timeout)
+			mod_timer(&tid_agg_rx->session_timer,
+				  TU_TO_EXP_TIME(tid_agg_rx->timeout));
 
 		/* manage reordering buffer according to requested */
 		/* sequence number */
@@ -1737,6 +1768,17 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 	switch (mgmt->u.action.category) {
 	case WLAN_CATEGORY_BACK:
+		/*
+		 * The aggregation code is not prepared to handle
+		 * anything but STA/AP due to the BSSID handling;
+		 * IBSS could work in the code but isn't supported
+		 * by drivers or the standard.
+		 */
+		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
+		    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
+		    sdata->vif.type != NL80211_IFTYPE_AP)
+			return RX_DROP_MONITOR;
+
 		switch (mgmt->u.action.u.addba_req.action_code) {
 		case WLAN_ACTION_ADDBA_REQ:
 			if (len < (IEEE80211_MIN_ACTION_SIZE +
@@ -1987,6 +2029,7 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_sub_if_data *sdata,
 	CALL_RXH(ieee80211_rx_h_passive_scan)
 	CALL_RXH(ieee80211_rx_h_check)
 	CALL_RXH(ieee80211_rx_h_decrypt)
+	CALL_RXH(ieee80211_rx_h_check_more_data)
 	CALL_RXH(ieee80211_rx_h_sta_process)
 	CALL_RXH(ieee80211_rx_h_defragment)
 	CALL_RXH(ieee80211_rx_h_ps_poll)
@@ -2030,9 +2073,10 @@ static void ieee80211_invoke_rx_handlers(struct ieee80211_sub_if_data *sdata,
 /* main receive path */
 
 static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
-				u8 *bssid, struct ieee80211_rx_data *rx,
+				struct ieee80211_rx_data *rx,
 				struct ieee80211_hdr *hdr)
 {
+	u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len, sdata->vif.type);
 	int multicast = is_multicast_ether_addr(hdr->addr1);
 
 	switch (sdata->vif.type) {
@@ -2135,7 +2179,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	int prepares;
 	struct ieee80211_sub_if_data *prev = NULL;
 	struct sk_buff *skb_new;
-	u8 *bssid;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 	memset(&rx, 0, sizeof(rx));
@@ -2174,9 +2217,8 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		if (sdata->vif.type == NL80211_IFTYPE_MONITOR)
 			continue;
 
-		bssid = ieee80211_get_bssid(hdr, skb->len, sdata->vif.type);
 		rx.flags |= IEEE80211_RX_RA_MATCH;
-		prepares = prepare_for_handlers(sdata, bssid, &rx, hdr);
+		prepares = prepare_for_handlers(sdata, &rx, hdr);
 
 		if (!prepares)
 			continue;
@@ -2381,11 +2423,9 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 	/* new un-ordered ampdu frame - process it */
 
 	/* reset session timer */
-	if (tid_agg_rx->timeout) {
-		unsigned long expires =
-			jiffies + (tid_agg_rx->timeout / 1000) * HZ;
-		mod_timer(&tid_agg_rx->session_timer, expires);
-	}
+	if (tid_agg_rx->timeout)
+		mod_timer(&tid_agg_rx->session_timer,
+			  TU_TO_EXP_TIME(tid_agg_rx->timeout));
 
 	/* if this mpdu is fragmented - terminate rx aggregation session */
 	sc = le16_to_cpu(hdr->seq_ctrl);

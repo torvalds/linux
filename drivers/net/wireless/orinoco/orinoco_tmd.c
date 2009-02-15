@@ -27,7 +27,7 @@
  * provisions above, a recipient may use your version of this file
  * under either the MPL or the GPL.
  *
- * The actual driving is done by orinoco.c, this is just resource
+ * The actual driving is done by main.c, this is just resource
  * allocation stuff.
  *
  * This driver is modeled after the orinoco_plx driver. The main

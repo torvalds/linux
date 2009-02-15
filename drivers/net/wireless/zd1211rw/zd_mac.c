@@ -768,13 +768,23 @@ static int zd_op_config_interface(struct ieee80211_hw *hw,
 			if (!beacon)
 				return -ENOMEM;
 			r = zd_mac_config_beacon(hw, beacon);
-			if (r < 0)
-				return r;
-			r = zd_set_beacon_interval(&mac->chip, BCN_MODE_IBSS |
-					hw->conf.beacon_int);
-			if (r < 0)
-				return r;
 			kfree_skb(beacon);
+
+			if (r < 0)
+				return r;
+		}
+
+		if (conf->changed & IEEE80211_IFCC_BEACON_ENABLED) {
+			u32 interval;
+
+			if (conf->enable_beacon)
+				interval = BCN_MODE_IBSS | hw->conf.beacon_int;
+			else
+				interval = 0;
+
+			r = zd_set_beacon_interval(&mac->chip, interval);
+			if (r < 0)
+				return r;
 		}
 	} else
 		associated = is_valid_ether_addr(conf->bssid);
@@ -793,10 +803,9 @@ static void zd_process_intr(struct work_struct *work)
 	struct zd_mac *mac = container_of(work, struct zd_mac, process_intr);
 
 	int_status = le16_to_cpu(*(__le16 *)(mac->intr_buffer+4));
-	if (int_status & INT_CFG_NEXT_BCN) {
-		if (net_ratelimit())
-			dev_dbg_f(zd_mac_dev(mac), "INT_CFG_NEXT_BCN\n");
-	} else
+	if (int_status & INT_CFG_NEXT_BCN)
+		dev_dbg_f_limit(zd_mac_dev(mac), "INT_CFG_NEXT_BCN\n");
+	else
 		dev_dbg_f(zd_mac_dev(mac), "Unsupported interrupt\n");
 
 	zd_chip_enable_hwint(&mac->chip);

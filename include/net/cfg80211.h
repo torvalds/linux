@@ -4,6 +4,10 @@
 #include <linux/netlink.h>
 #include <linux/skbuff.h>
 #include <linux/nl80211.h>
+#include <linux/if_ether.h>
+#include <linux/ieee80211.h>
+#include <linux/wireless.h>
+#include <net/iw_handler.h>
 #include <net/genetlink.h>
 /* remove once we remove the wext stuff */
 #include <net/iw_handler.h>
@@ -505,6 +509,85 @@ struct wiphy;
 struct ieee80211_channel;
 
 /**
+ * struct cfg80211_ssid - SSID description
+ * @ssid: the SSID
+ * @ssid_len: length of the ssid
+ */
+struct cfg80211_ssid {
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 ssid_len;
+};
+
+/**
+ * struct cfg80211_scan_request - scan request description
+ *
+ * @ssids: SSIDs to scan for (active scan only)
+ * @n_ssids: number of SSIDs
+ * @channels: channels to scan on.
+ * @n_channels: number of channels for each band
+ * @wiphy: the wiphy this was for
+ * @ifidx: the interface index
+ */
+struct cfg80211_scan_request {
+	struct cfg80211_ssid *ssids;
+	int n_ssids;
+	struct ieee80211_channel **channels;
+	u32 n_channels;
+
+	/* internal */
+	struct wiphy *wiphy;
+	int ifidx;
+};
+
+/**
+ * enum cfg80211_signal_type - signal type
+ *
+ * @CFG80211_SIGNAL_TYPE_NONE: no signal strength information available
+ * @CFG80211_SIGNAL_TYPE_MBM: signal strength in mBm (100*dBm)
+ * @CFG80211_SIGNAL_TYPE_UNSPEC: signal strength, increasing from 0 through 100
+ */
+enum cfg80211_signal_type {
+	CFG80211_SIGNAL_TYPE_NONE,
+	CFG80211_SIGNAL_TYPE_MBM,
+	CFG80211_SIGNAL_TYPE_UNSPEC,
+};
+
+/**
+ * struct cfg80211_bss - BSS description
+ *
+ * This structure describes a BSS (which may also be a mesh network)
+ * for use in scan results and similar.
+ *
+ * @bssid: BSSID of the BSS
+ * @tsf: timestamp of last received update
+ * @beacon_interval: the beacon interval as from the frame
+ * @capability: the capability field in host byte order
+ * @information_elements: the information elements (Note that there
+ *	is no guarantee that these are well-formed!)
+ * @len_information_elements: total length of the information elements
+ * @signal: signal strength value
+ * @signal_type: signal type
+ * @free_priv: function pointer to free private data
+ * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
+ */
+struct cfg80211_bss {
+	struct ieee80211_channel *channel;
+
+	u8 bssid[ETH_ALEN];
+	u64 tsf;
+	u16 beacon_interval;
+	u16 capability;
+	u8 *information_elements;
+	size_t len_information_elements;
+
+	s32 signal;
+	enum cfg80211_signal_type signal_type;
+
+	void (*free_priv)(struct cfg80211_bss *bss);
+	u8 priv[0] __attribute__((__aligned__(sizeof(void *))));
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -571,6 +654,11 @@ struct ieee80211_channel;
  * @set_channel: Set channel
  *
  * @set_mgmt_extra_ie: Set extra IE data for management frames
+ *
+ * @scan: Request to do a scan. If returning zero, the scan request is given
+ *	the driver, and will be valid until passed to cfg80211_scan_done().
+ *	For scan results, call cfg80211_inform_bss(); you can call this outside
+ *	the scan/scan_done bracket too.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -648,6 +736,9 @@ struct cfg80211_ops {
 	int	(*set_mgmt_extra_ie)(struct wiphy *wiphy,
 				     struct net_device *dev,
 				     struct mgmt_extra_ie_params *params);
+
+	int	(*scan)(struct wiphy *wiphy, struct net_device *dev,
+			struct cfg80211_scan_request *request);
 };
 
 /* temporary wext handlers */
@@ -658,5 +749,68 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 			  u32 *mode, char *extra);
 int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
 			  u32 *mode, char *extra);
+int cfg80211_wext_siwscan(struct net_device *dev,
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra);
+int cfg80211_wext_giwscan(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_point *data, char *extra);
+
+/**
+ * cfg80211_scan_done - notify that scan finished
+ *
+ * @request: the corresponding scan request
+ * @aborted: set to true if the scan was aborted for any reason,
+ *	userspace will be notified of that
+ */
+void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted);
+
+/**
+ * cfg80211_inform_bss - inform cfg80211 of a new BSS
+ *
+ * @wiphy: the wiphy reporting the BSS
+ * @bss: the found BSS
+ * @gfp: context flags
+ *
+ * This informs cfg80211 that BSS information was found and
+ * the BSS should be updated/added.
+ */
+struct cfg80211_bss*
+cfg80211_inform_bss_frame(struct wiphy *wiphy,
+			  struct ieee80211_channel *channel,
+			  struct ieee80211_mgmt *mgmt, size_t len,
+			  s32 signal, enum cfg80211_signal_type sigtype,
+			  gfp_t gfp);
+
+struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
+				      struct ieee80211_channel *channel,
+				      const u8 *bssid,
+				      const u8 *ssid, size_t ssid_len,
+				      u16 capa_mask, u16 capa_val);
+static inline struct cfg80211_bss *
+cfg80211_get_ibss(struct wiphy *wiphy,
+		  struct ieee80211_channel *channel,
+		  const u8 *ssid, size_t ssid_len)
+{
+	return cfg80211_get_bss(wiphy, channel, NULL, ssid, ssid_len,
+				WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
+}
+
+struct cfg80211_bss *cfg80211_get_mesh(struct wiphy *wiphy,
+				       struct ieee80211_channel *channel,
+				       const u8 *meshid, size_t meshidlen,
+				       const u8 *meshcfg);
+void cfg80211_put_bss(struct cfg80211_bss *bss);
+/**
+ * cfg80211_unlink_bss - unlink BSS from internal data structures
+ * @wiphy: the wiphy
+ * @bss: the bss to remove
+ *
+ * This function removes the given BSS from the internal data structures
+ * thereby making it no longer show up in scan results etc. Use this
+ * function when you detect a BSS is gone. Normally BSSes will also time
+ * out, so it is not necessary to use this function at all.
+ */
+void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 
 #endif /* __NET_CFG80211_H */

@@ -196,7 +196,6 @@ struct mesh_rmc {
 
 /* Public interfaces */
 /* Various */
-u8 mesh_id_hash(u8 *mesh_id, int mesh_id_len);
 int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
 int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
 		struct ieee80211_sub_if_data *sdata);

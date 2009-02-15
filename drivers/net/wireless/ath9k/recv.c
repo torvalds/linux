@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "core.h"
+#include "ath9k.h"
 
 /*
  * Setup and link descriptors.
@@ -26,7 +26,7 @@
  */
 static void ath_rx_buf_link(struct ath_softc *sc, struct ath_buf *bf)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_desc *ds;
 	struct sk_buff *skb;
 
@@ -97,11 +97,11 @@ static struct sk_buff *ath_rxbuf_alloc(struct ath_softc *sc, u32 len)
 	 * Unfortunately this means we may get 8 KB here from the
 	 * kernel... and that is actually what is observed on some
 	 * systems :( */
-	skb = dev_alloc_skb(len + sc->sc_cachelsz - 1);
+	skb = dev_alloc_skb(len + sc->cachelsz - 1);
 	if (skb != NULL) {
-		off = ((unsigned long) skb->data) % sc->sc_cachelsz;
+		off = ((unsigned long) skb->data) % sc->cachelsz;
 		if (off != 0)
-			skb_reserve(skb, sc->sc_cachelsz - off);
+			skb_reserve(skb, sc->cachelsz - off);
 	} else {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"skbuff alloc of size %u failed\n", len);
@@ -135,7 +135,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 		 * discard the frame. Enable this if you want to see
 		 * error frames in Monitor mode.
 		 */
-		if (sc->sc_ah->ah_opmode != NL80211_IFTYPE_MONITOR)
+		if (sc->sc_ah->opmode != NL80211_IFTYPE_MONITOR)
 			goto rx_next;
 	} else if (ds->ds_rxstat.rs_status != 0) {
 		if (ds->ds_rxstat.rs_status & ATH9K_RXERR_CRC)
@@ -161,7 +161,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 		 * decryption and MIC failures. For monitor mode,
 		 * we also ignore the CRC error.
 		 */
-		if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_MONITOR) {
+		if (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR) {
 			if (ds->ds_rxstat.rs_status &
 			    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
 			      ATH9K_RXERR_CRC))
@@ -210,7 +210,7 @@ static int ath_rx_prepare(struct sk_buff *skb, struct ath_desc *ds,
 	rx_status->mactime = ath_extend_tsf(sc, ds->ds_rxstat.rs_tstamp);
 	rx_status->band = sc->hw->conf.channel->band;
 	rx_status->freq =  sc->hw->conf.channel->center_freq;
-	rx_status->noise = sc->sc_ani.sc_noise_floor;
+	rx_status->noise = sc->ani.noise_floor;
 	rx_status->signal = rx_status->noise + ds->ds_rxstat.rs_rssi;
 	rx_status->antenna = ds->ds_rxstat.rs_antenna;
 
@@ -233,7 +233,7 @@ rx_next:
 
 static void ath_opmode_init(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	u32 rfilt, mfilt[2];
 
 	/* configure rx filter */
@@ -241,14 +241,14 @@ static void ath_opmode_init(struct ath_softc *sc)
 	ath9k_hw_setrxfilter(ah, rfilt);
 
 	/* configure bssid mask */
-	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
-		ath9k_hw_setbssidmask(ah, sc->sc_bssidmask);
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
+		ath9k_hw_setbssidmask(sc);
 
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);
 
 	/* Handle any link-level address change. */
-	ath9k_hw_setmac(ah, sc->sc_myaddr);
+	ath9k_hw_setmac(ah, sc->sc_ah->macaddr);
 
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
@@ -267,11 +267,11 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 		spin_lock_init(&sc->rx.rxbuflock);
 
 		sc->rx.bufsize = roundup(IEEE80211_MAX_MPDU_LEN,
-					   min(sc->sc_cachelsz,
+					   min(sc->cachelsz,
 					       (u16)64));
 
 		DPRINTF(sc, ATH_DBG_CONFIG, "cachelsz %u rxbufsize %u\n",
-			sc->sc_cachelsz, sc->rx.bufsize);
+			sc->cachelsz, sc->rx.bufsize);
 
 		/* Initialize rx descriptors */
 
@@ -360,25 +360,28 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		| ATH9K_RX_FILTER_MCAST;
 
 	/* If not a STA, enable processing of Probe Requests */
-	if (sc->sc_ah->ah_opmode != NL80211_IFTYPE_STATION)
+	if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
 	/* Can't set HOSTAP into promiscous mode */
-	if (((sc->sc_ah->ah_opmode != NL80211_IFTYPE_AP) &&
+	if (((sc->sc_ah->opmode != NL80211_IFTYPE_AP) &&
 	     (sc->rx.rxfilter & FIF_PROMISC_IN_BSS)) ||
-	    (sc->sc_ah->ah_opmode == NL80211_IFTYPE_MONITOR)) {
+	    (sc->sc_ah->opmode == NL80211_IFTYPE_MONITOR)) {
 		rfilt |= ATH9K_RX_FILTER_PROM;
 		/* ??? To prevent from sending ACK */
 		rfilt &= ~ATH9K_RX_FILTER_UCAST;
 	}
 
-	if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_STATION ||
-	    sc->sc_ah->ah_opmode == NL80211_IFTYPE_ADHOC)
+	if (sc->rx.rxfilter & FIF_CONTROL)
+		rfilt |= ATH9K_RX_FILTER_CONTROL;
+
+	if (sc->sc_ah->opmode == NL80211_IFTYPE_STATION ||
+	    sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
 	/* If in HOSTAP mode, want to enable reception of PSPOLL frames
 	   & beacon frames */
-	if (sc->sc_ah->ah_opmode == NL80211_IFTYPE_AP)
+	if (sc->sc_ah->opmode == NL80211_IFTYPE_AP)
 		rfilt |= (ATH9K_RX_FILTER_BEACON | ATH9K_RX_FILTER_PSPOLL);
 
 	return rfilt;
@@ -388,7 +391,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 
 int ath_startrecv(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ath_buf *bf, *tbf;
 
 	spin_lock_bh(&sc->rx.rxbuflock);
@@ -418,7 +421,7 @@ start_recv:
 
 bool ath_stoprecv(struct ath_softc *sc)
 {
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	bool stopped;
 
 	ath9k_hw_stoppcurecv(ah);
@@ -449,7 +452,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 	struct ath_desc *ds;
 	struct sk_buff *skb = NULL, *requeue_skb;
 	struct ieee80211_rx_status rx_status;
-	struct ath_hal *ah = sc->sc_ah;
+	struct ath_hw *ah = sc->sc_ah;
 	struct ieee80211_hdr *hdr;
 	int hdrlen, padsize, retval;
 	bool decrypt_error = false;
@@ -590,7 +593,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			   && !decrypt_error && skb->len >= hdrlen + 4) {
 			keyix = skb->data[hdrlen + 3] >> 6;
 
-			if (test_bit(keyix, sc->sc_keymap))
+			if (test_bit(keyix, sc->keymap))
 				rx_status.flag |= RX_FLAG_DECRYPTED;
 		}
 		if (ah->sw_mgmt_crypto &&

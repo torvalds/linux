@@ -229,12 +229,6 @@ struct iwl3945_eeprom {
 
 /* End of EEPROM */
 
-
-#define PCI_LINK_CTRL      0x0F0
-#define PCI_POWER_SOURCE   0x0C8
-#define PCI_REG_WUM8       0x0E8
-#define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
-
 #define PCI_CFG_REV_ID_BIT_BASIC_SKU                (0x40)	/* bit 6    */
 #define PCI_CFG_REV_ID_BIT_RTP                      (0x80)	/* bit 7    */
 

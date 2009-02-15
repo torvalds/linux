@@ -57,6 +57,8 @@ struct ieee80211_local;
  */
 #define IEEE80211_SCAN_RESULT_EXPIRE (10 * HZ)
 
+#define TU_TO_EXP_TIME(x)	(jiffies + usecs_to_jiffies((x) * 1024))
+
 struct ieee80211_fragment_entry {
 	unsigned long first_frag_time;
 	unsigned int seq;
@@ -70,43 +72,36 @@ struct ieee80211_fragment_entry {
 
 
 struct ieee80211_bss {
-	struct list_head list;
-	struct ieee80211_bss *hnext;
+	/* Yes, this is a hack */
+	struct cfg80211_bss cbss;
+
+	/* don't want to look up all the time */
 	size_t ssid_len;
-
-	atomic_t users;
-
-	u8 bssid[ETH_ALEN];
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
+
 	u8 dtim_period;
-	u16 capability; /* host byte order */
-	enum ieee80211_band band;
-	int freq;
-	int signal, noise, qual;
-	u8 *ies; /* all information elements from the last Beacon or Probe
-		  * Response frames; note Beacon frame is not allowed to
-		  * override values from Probe Response */
-	size_t ies_len;
+
 	bool wmm_used;
+
+	unsigned long last_probe_resp;
+
 #ifdef CONFIG_MAC80211_MESH
 	u8 *mesh_id;
 	size_t mesh_id_len;
 	u8 *mesh_cfg;
 #endif
+
 #define IEEE80211_MAX_SUPP_RATES 32
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
 	size_t supp_rates_len;
-	u64 timestamp;
-	int beacon_int;
 
-	unsigned long last_probe_resp;
-	unsigned long last_update;
-
-	/* during assocation, we save an ERP value from a probe response so
+	/*
+	 * During assocation, we save an ERP value from a probe response so
 	 * that we can feed ERP info to the driver when handling the
 	 * association completes. these fields probably won't be up-to-date
-	 * otherwise, you probably don't want to use them. */
-	int has_erp_value;
+	 * otherwise, you probably don't want to use them.
+	 */
+	bool has_erp_value;
 	u8 erp_value;
 };
 
@@ -292,8 +287,6 @@ struct ieee80211_if_sta {
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	enum ieee80211_sta_mlme_state state;
 	size_t ssid_len;
-	u8 scan_ssid[IEEE80211_MAX_SSID_LEN];
-	size_t scan_ssid_len;
 	u16 aid;
 	u16 ap_capab, capab;
 	u8 *extra_ie; /* to be added to the end of AssocReq */
@@ -599,7 +592,6 @@ struct ieee80211_local {
 	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss;
 	unsigned int filter_flags; /* FIF_* */
 	struct iw_statistics wstats;
-	u8 wstats_flags;
 	bool tim_in_locked_section; /* see ieee80211_beacon_get() */
 	int tx_headroom; /* required headroom for hardware/radiotap */
 
@@ -656,20 +648,18 @@ struct ieee80211_local {
 
 	/* Scanning and BSS list */
 	bool sw_scanning, hw_scanning;
+	struct cfg80211_ssid scan_ssid;
+	struct cfg80211_scan_request int_scan_req;
+	struct cfg80211_scan_request *scan_req;
+	struct ieee80211_channel *scan_channel;
 	int scan_channel_idx;
-	enum ieee80211_band scan_band;
 
 	enum { SCAN_SET_CHANNEL, SCAN_SEND_PROBE } scan_state;
 	unsigned long last_scan_completed;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data *scan_sdata;
-	struct ieee80211_channel *oper_channel, *scan_channel, *csa_channel;
 	enum nl80211_channel_type oper_channel_type;
-	u8 scan_ssid[IEEE80211_MAX_SSID_LEN];
-	size_t scan_ssid_len;
-	struct list_head bss_list;
-	struct ieee80211_bss *bss_hash[STA_HASH_SIZE];
-	spinlock_t bss_lock;
+	struct ieee80211_channel *oper_channel, *csa_channel;
 
 	/* SNMP counters */
 	/* dot11CountersTable */
@@ -728,6 +718,7 @@ struct ieee80211_local {
 	unsigned int wmm_acm; /* bit field of ACM bits (BIT(802.1D tag)) */
 
 	bool powersave;
+	bool pspolling;
 	struct work_struct dynamic_ps_enable_work;
 	struct work_struct dynamic_ps_disable_work;
 	struct timer_list dynamic_ps_timer;
@@ -921,10 +912,12 @@ u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    enum ieee80211_band band);
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      u8 *ssid, size_t ssid_len);
+void ieee80211_send_pspoll(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *sdata);
 
 /* scan/BSS handling */
 int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
-			   u8 *ssid, size_t ssid_len);
+			   struct cfg80211_scan_request *req);
 int ieee80211_scan_results(struct ieee80211_local *local,
 			   struct iw_request_info *info,
 			   char *buf, size_t len);
@@ -932,29 +925,27 @@ ieee80211_rx_result
 ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata,
 		  struct sk_buff *skb,
 		  struct ieee80211_rx_status *rx_status);
-void ieee80211_rx_bss_list_init(struct ieee80211_local *local);
-void ieee80211_rx_bss_list_deinit(struct ieee80211_local *local);
 int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
 			       char *ie, size_t len);
 
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
 int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
-			 u8 *ssid, size_t ssid_len);
+			 struct cfg80211_scan_request *req);
 struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
 			  struct ieee80211_mgmt *mgmt,
 			  size_t len,
 			  struct ieee802_11_elems *elems,
-			  int freq, bool beacon);
-struct ieee80211_bss *
-ieee80211_rx_bss_add(struct ieee80211_local *local, u8 *bssid, int freq,
-		     u8 *ssid, u8 ssid_len);
+			  struct ieee80211_channel *channel,
+			  bool beacon);
 struct ieee80211_bss *
 ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len);
 void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_bss *bss);
+void ieee80211_rx_bss_remove(struct ieee80211_sub_if_data *sdata, u8 *bssid,
+			     int freq, u8 *ssid, u8 ssid_len);
 
 /* interface handling */
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
@@ -980,10 +971,15 @@ u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 			struct ieee80211_ht_info *hti,
 			u16 ap_ht_cap_flags);
 void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u16 ssn);
+void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
+			  const u8 *da, u16 tid,
+			  u16 initiator, u16 reason_code);
 
 void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,
 				u16 tid, u16 initiator, u16 reason);
-void ieee80211_sta_tear_down_BA_sessions(struct ieee80211_sub_if_data *sdata, u8 *addr);
+void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
+				    u16 initiator, u16 reason);
+void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta);
 void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 			     struct sta_info *sta,
 			     struct ieee80211_mgmt *mgmt, size_t len);
@@ -995,6 +991,9 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 				     struct sta_info *sta,
 				     struct ieee80211_mgmt *mgmt,
 				     size_t len);
+
+int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
+				   enum ieee80211_back_parties initiator);
 
 /* Spectrum management */
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,

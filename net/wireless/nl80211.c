@@ -14,6 +14,7 @@
 #include <linux/nl80211.h>
 #include <linux/rtnetlink.h>
 #include <linux/netlink.h>
+#include <linux/etherdevice.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
 #include "core.h"
@@ -109,6 +110,8 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_MGMT_SUBTYPE] = { .type = NLA_U8 },
 	[NL80211_ATTR_IE] = { .type = NLA_BINARY,
 			      .len = IEEE80211_MAX_DATA_LEN },
+	[NL80211_ATTR_SCAN_FREQUENCIES] = { .type = NLA_NESTED },
+	[NL80211_ATTR_SCAN_SSIDS] = { .type = NLA_NESTED },
 };
 
 /* message building helper */
@@ -141,6 +144,8 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, dev->idx);
 	NLA_PUT_STRING(msg, NL80211_ATTR_WIPHY_NAME, wiphy_name(&dev->wiphy));
+	NLA_PUT_U8(msg, NL80211_ATTR_MAX_NUM_SCAN_SSIDS,
+		   dev->wiphy.max_scan_ssids);
 
 	nl_modes = nla_nest_start(msg, NL80211_ATTR_SUPPORTED_IFTYPES);
 	if (!nl_modes)
@@ -2270,6 +2275,246 @@ static int nl80211_set_mgmt_extra_ie(struct sk_buff *skb,
 	return err;
 }
 
+static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	struct net_device *dev;
+	struct cfg80211_scan_request *request;
+	struct cfg80211_ssid *ssid;
+	struct ieee80211_channel *channel;
+	struct nlattr *attr;
+	struct wiphy *wiphy;
+	int err, tmp, n_ssids = 0, n_channels = 0, i;
+	enum ieee80211_band band;
+
+	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	if (err)
+		return err;
+
+	wiphy = &drv->wiphy;
+
+	if (!drv->ops->scan) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rtnl_lock();
+
+	if (drv->scan_req) {
+		err = -EBUSY;
+		goto out_unlock;
+	}
+
+	if (info->attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
+		nla_for_each_nested(attr, info->attrs[NL80211_ATTR_SCAN_FREQUENCIES], tmp)
+			n_channels++;
+		if (!n_channels) {
+			err = -EINVAL;
+			goto out_unlock;
+		}
+	} else {
+		for (band = 0; band < IEEE80211_NUM_BANDS; band++)
+			if (wiphy->bands[band])
+				n_channels += wiphy->bands[band]->n_channels;
+	}
+
+	if (info->attrs[NL80211_ATTR_SCAN_SSIDS])
+		nla_for_each_nested(attr, info->attrs[NL80211_ATTR_SCAN_SSIDS], tmp)
+			n_ssids++;
+
+	if (n_ssids > wiphy->max_scan_ssids) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
+	request = kzalloc(sizeof(*request)
+			+ sizeof(*ssid) * n_ssids
+			+ sizeof(channel) * n_channels, GFP_KERNEL);
+	if (!request) {
+		err = -ENOMEM;
+		goto out_unlock;
+	}
+
+	request->channels = (void *)((char *)request + sizeof(*request));
+	request->n_channels = n_channels;
+	if (n_ssids)
+		request->ssids = (void *)(request->channels + n_channels);
+	request->n_ssids = n_ssids;
+
+	if (info->attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
+		/* user specified, bail out if channel not found */
+		request->n_channels = n_channels;
+		i = 0;
+		nla_for_each_nested(attr, info->attrs[NL80211_ATTR_SCAN_FREQUENCIES], tmp) {
+			request->channels[i] = ieee80211_get_channel(wiphy, nla_get_u32(attr));
+			if (!request->channels[i]) {
+				err = -EINVAL;
+				goto out_free;
+			}
+			i++;
+		}
+	} else {
+		/* all channels */
+		i = 0;
+		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+			int j;
+			if (!wiphy->bands[band])
+				continue;
+			for (j = 0; j < wiphy->bands[band]->n_channels; j++) {
+				request->channels[i] = &wiphy->bands[band]->channels[j];
+				i++;
+			}
+		}
+	}
+
+	i = 0;
+	if (info->attrs[NL80211_ATTR_SCAN_SSIDS]) {
+		nla_for_each_nested(attr, info->attrs[NL80211_ATTR_SCAN_SSIDS], tmp) {
+			if (request->ssids[i].ssid_len > IEEE80211_MAX_SSID_LEN) {
+				err = -EINVAL;
+				goto out_free;
+			}
+			memcpy(request->ssids[i].ssid, nla_data(attr), nla_len(attr));
+			request->ssids[i].ssid_len = nla_len(attr);
+			i++;
+		}
+	}
+
+	request->ifidx = dev->ifindex;
+	request->wiphy = &drv->wiphy;
+
+	drv->scan_req = request;
+	err = drv->ops->scan(&drv->wiphy, dev, request);
+
+ out_free:
+	if (err) {
+		drv->scan_req = NULL;
+		kfree(request);
+	}
+ out_unlock:
+	rtnl_unlock();
+ out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
+static int nl80211_send_bss(struct sk_buff *msg, u32 pid, u32 seq, int flags,
+			    struct cfg80211_registered_device *rdev,
+			    struct net_device *dev,
+			    struct cfg80211_bss *res)
+{
+	void *hdr;
+	struct nlattr *bss;
+
+	hdr = nl80211hdr_put(msg, pid, seq, flags,
+			     NL80211_CMD_NEW_SCAN_RESULTS);
+	if (!hdr)
+		return -1;
+
+	NLA_PUT_U32(msg, NL80211_ATTR_SCAN_GENERATION,
+		    rdev->bss_generation);
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
+
+	bss = nla_nest_start(msg, NL80211_ATTR_BSS);
+	if (!bss)
+		goto nla_put_failure;
+	if (!is_zero_ether_addr(res->bssid))
+		NLA_PUT(msg, NL80211_BSS_BSSID, ETH_ALEN, res->bssid);
+	if (res->information_elements && res->len_information_elements)
+		NLA_PUT(msg, NL80211_BSS_INFORMATION_ELEMENTS,
+			res->len_information_elements,
+			res->information_elements);
+	if (res->tsf)
+		NLA_PUT_U64(msg, NL80211_BSS_TSF, res->tsf);
+	if (res->beacon_interval)
+		NLA_PUT_U16(msg, NL80211_BSS_BEACON_INTERVAL, res->beacon_interval);
+	NLA_PUT_U16(msg, NL80211_BSS_CAPABILITY, res->capability);
+	NLA_PUT_U32(msg, NL80211_BSS_FREQUENCY, res->channel->center_freq);
+
+	switch (res->signal_type) {
+	case CFG80211_SIGNAL_TYPE_MBM:
+		NLA_PUT_U32(msg, NL80211_BSS_SIGNAL_MBM, res->signal);
+		break;
+	case CFG80211_SIGNAL_TYPE_UNSPEC:
+		NLA_PUT_U8(msg, NL80211_BSS_SIGNAL_UNSPEC, res->signal);
+		break;
+	default:
+		break;
+	}
+
+	nla_nest_end(msg, bss);
+
+	return genlmsg_end(msg, hdr);
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+static int nl80211_dump_scan(struct sk_buff *skb,
+			     struct netlink_callback *cb)
+{
+	struct cfg80211_registered_device *dev;
+	struct net_device *netdev;
+	struct cfg80211_internal_bss *scan;
+	int ifidx = cb->args[0];
+	int start = cb->args[1], idx = 0;
+	int err;
+
+	if (!ifidx) {
+		err = nlmsg_parse(cb->nlh, GENL_HDRLEN + nl80211_fam.hdrsize,
+				  nl80211_fam.attrbuf, nl80211_fam.maxattr,
+				  nl80211_policy);
+		if (err)
+			return err;
+
+		if (!nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX])
+			return -EINVAL;
+
+		ifidx = nla_get_u32(nl80211_fam.attrbuf[NL80211_ATTR_IFINDEX]);
+		if (!ifidx)
+			return -EINVAL;
+		cb->args[0] = ifidx;
+	}
+
+	netdev = dev_get_by_index(&init_net, ifidx);
+	if (!netdev)
+		return -ENODEV;
+
+	dev = cfg80211_get_dev_from_ifindex(ifidx);
+	if (IS_ERR(dev)) {
+		err = PTR_ERR(dev);
+		goto out_put_netdev;
+	}
+
+	spin_lock_bh(&dev->bss_lock);
+	cfg80211_bss_expire(dev);
+
+	list_for_each_entry(scan, &dev->bss_list, list) {
+		if (++idx <= start)
+			continue;
+		if (nl80211_send_bss(skb,
+				NETLINK_CB(cb->skb).pid,
+				cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				dev, netdev, &scan->pub) < 0) {
+			idx--;
+			goto out;
+		}
+	}
+
+ out:
+	spin_unlock_bh(&dev->bss_lock);
+
+	cb->args[1] = idx;
+	err = skb->len;
+	cfg80211_put_dev(dev);
+ out_put_netdev:
+	dev_put(netdev);
+
+	return err;
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -2443,11 +2688,25 @@ static struct genl_ops nl80211_ops[] = {
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},
+	{
+		.cmd = NL80211_CMD_TRIGGER_SCAN,
+		.doit = nl80211_trigger_scan,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_GET_SCAN,
+		.policy = nl80211_policy,
+		.dumpit = nl80211_dump_scan,
+	},
 };
 
 /* multicast groups */
 static struct genl_multicast_group nl80211_config_mcgrp = {
 	.name = "config",
+};
+static struct genl_multicast_group nl80211_scan_mcgrp = {
+	.name = "scan",
 };
 
 /* notification functions */
@@ -2468,6 +2727,66 @@ void nl80211_notify_dev_rename(struct cfg80211_registered_device *rdev)
 	genlmsg_multicast(msg, 0, nl80211_config_mcgrp.id, GFP_KERNEL);
 }
 
+static int nl80211_send_scan_donemsg(struct sk_buff *msg,
+				    struct cfg80211_registered_device *rdev,
+				    struct net_device *netdev,
+				    u32 pid, u32 seq, int flags,
+				    u32 cmd)
+{
+	void *hdr;
+
+	hdr = nl80211hdr_put(msg, pid, seq, flags, cmd);
+	if (!hdr)
+		return -1;
+
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->idx);
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex);
+
+	/* XXX: we should probably bounce back the request? */
+
+	return genlmsg_end(msg, hdr);
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+void nl80211_send_scan_done(struct cfg80211_registered_device *rdev,
+			    struct net_device *netdev)
+{
+	struct sk_buff *msg;
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	if (nl80211_send_scan_donemsg(msg, rdev, netdev, 0, 0, 0,
+				      NL80211_CMD_NEW_SCAN_RESULTS) < 0) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast(msg, 0, nl80211_scan_mcgrp.id, GFP_KERNEL);
+}
+
+void nl80211_send_scan_aborted(struct cfg80211_registered_device *rdev,
+			       struct net_device *netdev)
+{
+	struct sk_buff *msg;
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg)
+		return;
+
+	if (nl80211_send_scan_donemsg(msg, rdev, netdev, 0, 0, 0,
+				      NL80211_CMD_SCAN_ABORTED) < 0) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast(msg, 0, nl80211_scan_mcgrp.id, GFP_KERNEL);
+}
+
 /* initialisation/exit functions */
 
 int nl80211_init(void)
@@ -2485,6 +2804,10 @@ int nl80211_init(void)
 	}
 
 	err = genl_register_mc_group(&nl80211_fam, &nl80211_config_mcgrp);
+	if (err)
+		goto err_out;
+
+	err = genl_register_mc_group(&nl80211_fam, &nl80211_scan_mcgrp);
 	if (err)
 		goto err_out;
 

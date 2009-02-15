@@ -92,19 +92,12 @@
 #define IWL49_RSSI_OFFSET	44
 
 
-
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
-#define PCI_CFG_POWER_SOURCE	0x0C8
-#define PCI_REG_WUM8		0x0E8
-#define PCI_CFG_LINK_CTRL	0x0F0
 
 /* PCI register values */
 #define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
 #define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
-#define PCI_CFG_CMD_REG_INT_DIS_MSK	0x04
-#define PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT         (0x80000000)
-
 
 #define IWL_NUM_SCAN_RATES         (2)
 

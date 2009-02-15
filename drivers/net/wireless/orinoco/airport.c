@@ -3,7 +3,7 @@
  * A driver for "Hermes" chipset based Apple Airport wireless
  * card.
  *
- * Copyright notice & release notes in file orinoco.c
+ * Copyright notice & release notes in file main.c
  *
  * Note specific to airport stub:
  *

@@ -303,6 +303,36 @@ u32 b43_lptab_read(struct b43_wldev *dev, u32 offset)
 	return value;
 }
 
+void b43_lptab_read_bulk(struct b43_wldev *dev, u32 offset,
+			 unsigned int nr_elements, void *_data)
+{
+	u32 type, value;
+	u8 *data = _data;
+	unsigned int i;
+
+	type = offset & B43_LPTAB_TYPEMASK;
+	for (i = 0; i < nr_elements; i++) {
+		value = b43_lptab_read(dev, offset);
+		switch (type) {
+		case B43_LPTAB_8BIT:
+			*data = value;
+			data++;
+			break;
+		case B43_LPTAB_16BIT:
+			*((u16 *)data) = value;
+			data += 2;
+			break;
+		case B43_LPTAB_32BIT:
+			*((u32 *)data) = value;
+			data += 4;
+			break;
+		default:
+			B43_WARN_ON(1);
+		}
+		offset++;
+	}
+}
+
 void b43_lptab_write(struct b43_wldev *dev, u32 offset, u32 value)
 {
 	u32 type;
@@ -329,5 +359,36 @@ void b43_lptab_write(struct b43_wldev *dev, u32 offset, u32 value)
 		break;
 	default:
 		B43_WARN_ON(1);
+	}
+}
+
+void b43_lptab_write_bulk(struct b43_wldev *dev, u32 offset,
+			  unsigned int nr_elements, const void *_data)
+{
+	u32 type, value;
+	const u8 *data = _data;
+	unsigned int i;
+
+	type = offset & B43_LPTAB_TYPEMASK;
+	for (i = 0; i < nr_elements; i++) {
+		switch (type) {
+		case B43_LPTAB_8BIT:
+			value = *data;
+			data++;
+			break;
+		case B43_LPTAB_16BIT:
+			value = *((u16 *)data);
+			data += 2;
+			break;
+		case B43_LPTAB_32BIT:
+			value = *((u32 *)data);
+			data += 4;
+			break;
+		default:
+			B43_WARN_ON(1);
+			value = 0;
+		}
+		b43_lptab_write(dev, offset, value);
+		offset++;
 	}
 }

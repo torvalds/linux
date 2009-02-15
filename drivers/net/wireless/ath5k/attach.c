@@ -169,7 +169,6 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		ah->ah_single_chip = false;
 		ah->ah_radio_2ghz_revision = ath5k_hw_radio_revision(ah,
 							CHANNEL_2GHZ);
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5111;
 		break;
 	case AR5K_SREV_RAD_5112:
 	case AR5K_SREV_RAD_2112:
@@ -177,38 +176,31 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 		ah->ah_single_chip = false;
 		ah->ah_radio_2ghz_revision = ath5k_hw_radio_revision(ah,
 							CHANNEL_2GHZ);
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
 		break;
 	case AR5K_SREV_RAD_2413:
 		ah->ah_radio = AR5K_RF2413;
 		ah->ah_single_chip = true;
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2413;
 		break;
 	case AR5K_SREV_RAD_5413:
 		ah->ah_radio = AR5K_RF5413;
 		ah->ah_single_chip = true;
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5413;
 		break;
 	case AR5K_SREV_RAD_2316:
 		ah->ah_radio = AR5K_RF2316;
 		ah->ah_single_chip = true;
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2316;
 		break;
 	case AR5K_SREV_RAD_2317:
 		ah->ah_radio = AR5K_RF2317;
 		ah->ah_single_chip = true;
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2317;
 		break;
 	case AR5K_SREV_RAD_5424:
 		if (ah->ah_mac_version == AR5K_SREV_AR2425 ||
 		ah->ah_mac_version == AR5K_SREV_AR2417){
 			ah->ah_radio = AR5K_RF2425;
 			ah->ah_single_chip = true;
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2425;
 		} else {
 			ah->ah_radio = AR5K_RF5413;
 			ah->ah_single_chip = true;
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5413;
 		}
 		break;
 	default:
@@ -227,29 +219,25 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 			ah->ah_radio = AR5K_RF2425;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2425;
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2425;
 		} else if (srev == AR5K_SREV_AR5213A &&
-		ah->ah_phy_revision == AR5K_SREV_PHY_2112B) {
+		ah->ah_phy_revision == AR5K_SREV_PHY_5212B) {
 			ah->ah_radio = AR5K_RF5112;
 			ah->ah_single_chip = false;
-			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2112B;
+			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_5112B;
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR2415 >> 4)) {
 			ah->ah_radio = AR5K_RF2316;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2316;
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2316;
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR5414 >> 4) ||
 		ah->ah_phy_revision == AR5K_SREV_PHY_5413) {
 			ah->ah_radio = AR5K_RF5413;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_5413;
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5413;
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR2414 >> 4) ||
 		ah->ah_phy_revision == AR5K_SREV_PHY_2413) {
 			ah->ah_radio = AR5K_RF2413;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2413;
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2413;
 		} else {
 			ATH5K_ERR(sc, "Couldn't identify radio revision.\n");
 			ret = -ENODEV;
@@ -331,7 +319,7 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
 	ath5k_hw_set_opmode(ah);
 
-	ath5k_hw_set_rfgain_opt(ah);
+	ath5k_hw_rfgain_opt_init(ah);
 
 	return ah;
 err_free:
