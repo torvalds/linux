@@ -102,7 +102,7 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 	u32 *pci_gart, page_base, gart_idx;
 	dma_addr_t bus_address = 0;
 	int i, j, ret = 0;
-	int max_pages;
+	int max_ati_pages, max_real_pages;
 
 	if (!entry) {
 		DRM_ERROR("no scatter/gather memory!\n");
@@ -130,14 +130,15 @@ int drm_ati_pcigart_init(struct drm_device *dev, struct drm_ati_pcigart_info *ga
 
 	pci_gart = (u32 *) address;
 
-	max_pages = (gart_info->table_size / sizeof(u32));
-	pages = (entry->pages <= max_pages)
-	    ? entry->pages : max_pages;
+	max_ati_pages = (gart_info->table_size / sizeof(u32));
+	max_real_pages = max_ati_pages / (PAGE_SIZE / ATI_PCIGART_PAGE_SIZE);
+	pages = (entry->pages <= max_real_pages)
+	    ? entry->pages : max_real_pages;
 
 	if (gart_info->gart_table_location == DRM_ATI_GART_MAIN) {
-		memset(pci_gart, 0, max_pages * sizeof(u32));
+		memset(pci_gart, 0, max_ati_pages * sizeof(u32));
 	} else {
-		for (gart_idx = 0; gart_idx < max_pages; gart_idx++)
+		for (gart_idx = 0; gart_idx < max_ati_pages; gart_idx++)
 			DRM_WRITE32(map, gart_idx * sizeof(u32), 0);
 	}
 
