@@ -2408,16 +2408,9 @@ ath5k_intr(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	do {
-		/*
-		 * Figure out the reason(s) for the interrupt.  Note
-		 * that get_isr returns a pseudo-ISR that may include
-		 * bits we haven't explicitly enabled so we mask the
-		 * value to insure we only process bits we requested.
-		 */
 		ath5k_hw_get_isr(ah, &status);		/* NB: clears IRQ too */
 		ATH5K_DBG(sc, ATH5K_DEBUG_INTR, "status 0x%x/0x%x\n",
 				status, sc->imask);
-		status &= sc->imask; /* discard unasked for bits */
 		if (unlikely(status & AR5K_INT_FATAL)) {
 			/*
 			 * Fatal errors are unrecoverable.
