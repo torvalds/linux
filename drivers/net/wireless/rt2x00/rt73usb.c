@@ -2241,13 +2241,6 @@ static int rt73usb_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 	return 0;
 }
 
-#if 0
-/*
- * Mac80211 demands get_tsf must be atomic.
- * This is not possible for rt73usb since all register access
- * functions require sleeping. Untill mac80211 no longer needs
- * get_tsf to be atomic, this function should be disabled.
- */
 static u64 rt73usb_get_tsf(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
@@ -2261,9 +2254,6 @@ static u64 rt73usb_get_tsf(struct ieee80211_hw *hw)
 
 	return tsf;
 }
-#else
-#define rt73usb_get_tsf	NULL
-#endif
 
 static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
