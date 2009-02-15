@@ -169,6 +169,7 @@ struct ath5k_softc {
 	struct ath5k_led	tx_led;		/* tx led */
 
 	spinlock_t		block;		/* protects beacon */
+	struct tasklet_struct	beacontq;	/* beacon intr tasklet */
 	struct ath5k_buf	*bbuf;		/* beacon buffer */
 	unsigned int		bhalq,		/* SW q for outgoing beacons */
 				bmisscount,	/* missed beacon transmits */
