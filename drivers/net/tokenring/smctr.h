@@ -977,7 +977,6 @@ typedef struct net_local {
 	__u8		monitor_state_ready;
 	__u16		ring_status;
 	__u8		ring_status_flags;
-	__u8		current_ring_status;
 	__u8		state;
 
 	__u8		join_state;
