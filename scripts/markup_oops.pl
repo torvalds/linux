@@ -32,6 +32,78 @@ my $module = "";
 my $func_offset;
 my $vmaoffset = 0;
 
+my %regs;
+
+
+sub parse_x86_regs
+{
+	my ($line) = @_;
+	if ($line =~ /EAX: ([0-9a-f]+) EBX: ([0-9a-f]+) ECX: ([0-9a-f]+) EDX: ([0-9a-f]+)/) {
+		$regs{"%eax"} = $1;
+		$regs{"%ebx"} = $2;
+		$regs{"%ecx"} = $3;
+		$regs{"%edx"} = $4;
+	}
+	if ($line =~ /ESI: ([0-9a-f]+) EDI: ([0-9a-f]+) EBP: ([0-9a-f]+) ESP: ([0-9a-f]+)/) {
+		$regs{"%esi"} = $1;
+		$regs{"%edi"} = $2;
+		$regs{"%esp"} = $4;
+	}
+}
+
+sub process_x86_regs
+{
+	my ($line, $cntr) = @_;
+	my $str = "";
+	if (length($line) < 40) {
+		return ""; # not an asm istruction
+	}
+
+	# find the arguments to the instruction
+	if ($line =~ /([0-9a-zA-Z\,\%\(\)\-\+]+)$/) {
+		$lastword = $1;
+	} else {
+		return "";
+	}
+
+	# we need to find the registers that get clobbered,
+	# since their value is no longer relevant for previous
+	# instructions in the stream.
+
+	$clobber = $lastword;
+	# first, remove all memory operands, they're read only
+	$clobber =~ s/\([a-z0-9\%\,]+\)//g;
+	# then, remove everything before the comma, thats the read part
+	$clobber =~ s/.*\,//g;
+
+	# if this is the instruction that faulted, we haven't actually done
+	# the write yet... nothing is clobbered.
+	if ($cntr == 0) {
+		$clobber = "";
+	}
+
+	foreach $reg (keys(%regs)) {
+		my $val = $regs{$reg};
+		# first check if we're clobbering this register; if we do
+		# we print it with a =>, and then delete its value
+		if ($clobber =~ /$reg/) {
+			if (length($val) > 0) {
+				$str = $str . " $reg => $val ";
+			}
+			$regs{$reg} = "";
+			$val = "";
+		}
+		# now check if we're reading this register
+		if ($lastword =~ /$reg/) {
+			if (length($val) > 0) {
+				$str = $str . " $reg = $val ";
+			}
+		}
+	}
+	return $str;
+}
+
+# parse the oops
 while (<STDIN>) {
 	my $line = $_;
 	if ($line =~ /EIP: 0060:\[\<([a-z0-9]+)\>\]/) {
@@ -46,10 +118,11 @@ while (<STDIN>) {
 	if ($line =~ /EIP is at ([a-zA-Z0-9\_]+)\+(0x[0-9a-f]+)\/0x[a-f0-9]+\W\[([a-zA-Z0-9\_\-]+)\]/) {
 		$module = $3;
 	}
+	parse_x86_regs($line);
 }
 
 my $decodestart = hex($target) - hex($func_offset);
-my $decodestop = $decodestart + 8192;
+my $decodestop = hex($target) + 8192;
 if ($target eq "0") {
 	print "No oops found!\n";
 	print "Usage: \n";
@@ -84,6 +157,7 @@ my $counter = 0;
 my $state   = 0;
 my $center  = 0;
 my @lines;
+my @reglines;
 
 sub InRange {
 	my ($address, $target) = @_;
@@ -188,16 +262,36 @@ while ($finish < $counter) {
 
 my $i;
 
-my $fulltext = "";
-$i = $start;
-while ($i < $finish) {
-	if ($i == $center) {
-		$fulltext = $fulltext . "*$lines[$i]     <----- faulting instruction\n";
-	} else {
-		$fulltext = $fulltext .  " $lines[$i]\n";
-	}
-	$i = $i +1;
+
+# start annotating the registers in the asm.
+# this goes from the oopsing point back, so that the annotator
+# can track (opportunistically) which registers got written and
+# whos value no longer is relevant.
+
+$i = $center;
+while ($i >= $start) {
+	$reglines[$i] = process_x86_regs($lines[$i], $center - $i);
+	$i = $i - 1;
 }
 
-print $fulltext;
+$i = $start;
+while ($i < $finish) {
+	my $line;
+	if ($i == $center) {
+		$line =  "*$lines[$i] ";
+	} else {
+		$line =  " $lines[$i] ";
+	}
+	print $line;
+	if (defined($reglines[$i]) && length($reglines[$i]) > 0) {
+		my $c = 60 - length($line);
+		while ($c > 0) { print " "; $c = $c - 1; };
+		print "| $reglines[$i]";
+	}
+	if ($i == $center) {
+		print "<--- faulting instruction";
+	}
+	print "\n";
+	$i = $i +1;
+}
 
