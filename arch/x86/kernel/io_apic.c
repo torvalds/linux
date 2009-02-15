@@ -813,8 +813,9 @@ static void clear_IO_APIC (void)
  */
 
 #define MAX_PIRQS 8
-static int pirq_entries [MAX_PIRQS];
-static int pirqs_enabled;
+static int pirq_entries[MAX_PIRQS] = {
+	[0 ... MAX_PIRQS - 1] = -1
+};
 
 static int __init ioapic_pirq_setup(char *str)
 {
@@ -823,10 +824,6 @@ static int __init ioapic_pirq_setup(char *str)
 
 	get_options(str, ARRAY_SIZE(ints), ints);
 
-	for (i = 0; i < MAX_PIRQS; i++)
-		pirq_entries[i] = -1;
-
-	pirqs_enabled = 1;
 	apic_printk(APIC_VERBOSE, KERN_INFO
 			"PIRQ redirection, working around broken MP-BIOS.\n");
 	max = MAX_PIRQS;
@@ -1975,13 +1972,6 @@ void __init enable_IO_APIC(void)
 	int i8259_apic, i8259_pin;
 	int apic;
 	unsigned long flags;
-
-#ifdef CONFIG_X86_32
-	int i;
-	if (!pirqs_enabled)
-		for (i = 0; i < MAX_PIRQS; i++)
-			pirq_entries[i] = -1;
-#endif
 
 	/*
 	 * The number of IO-APIC IRQ registers (== #pins):
