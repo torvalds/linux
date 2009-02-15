@@ -855,24 +855,6 @@ struct ext4_dir_entry_2 {
 					 ~EXT4_DIR_ROUND)
 #define EXT4_MAX_REC_LEN		((1<<16)-1)
 
-static inline unsigned ext4_rec_len_from_disk(__le16 dlen)
-{
-	unsigned len = le16_to_cpu(dlen);
-
-	if (len == EXT4_MAX_REC_LEN || len == 0)
-		return 1 << 16;
-	return len;
-}
-
-static inline __le16 ext4_rec_len_to_disk(unsigned len)
-{
-	if (len == (1 << 16))
-		return cpu_to_le16(EXT4_MAX_REC_LEN);
-	else if (len > (1 << 16))
-		BUG();
-	return cpu_to_le16(len);
-}
-
 /*
  * Hash Tree Directory indexing
  * (c) Daniel Phillips, 2001
@@ -1097,7 +1079,10 @@ extern long ext4_compat_ioctl(struct file *, unsigned int, unsigned long);
 
 /* migrate.c */
 extern int ext4_ext_migrate(struct inode *);
+
 /* namei.c */
+extern unsigned int ext4_rec_len_from_disk(__le16 dlen, unsigned blocksize);
+extern __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize);
 extern int ext4_orphan_add(handle_t *, struct inode *);
 extern int ext4_orphan_del(handle_t *, struct inode *);
 extern int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
