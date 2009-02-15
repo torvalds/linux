@@ -49,7 +49,6 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 					 u16 agg_size, u16 timeout)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	u16 capab;
@@ -69,8 +68,8 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		memcpy(mgmt->bssid, sdata->dev->dev_addr, ETH_ALEN);
-	else
-		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
+	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
 
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);

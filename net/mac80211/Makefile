@@ -9,6 +9,7 @@ mac80211-y := \
 	wpa.o \
 	scan.o \
 	ht.o agg-tx.o agg-rx.o \
+	ibss.o \
 	mlme.o \
 	iface.o \
 	rate.o \

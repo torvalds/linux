@@ -169,9 +169,10 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 
 	memset(&conf, 0, sizeof(conf));
 
-	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
-	    sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		conf.bssid = sdata->u.sta.bssid;
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		conf.bssid = sdata->u.mgd.bssid;
+	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		conf.bssid = sdata->u.ibss.bssid;
 	else if (sdata->vif.type == NL80211_IFTYPE_AP)
 		conf.bssid = sdata->dev->dev_addr;
 	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
@@ -210,7 +211,7 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 					!!rcu_dereference(sdata->u.ap.beacon);
 				break;
 			case NL80211_IFTYPE_ADHOC:
-				conf.enable_beacon = !!sdata->u.sta.probe_resp;
+				conf.enable_beacon = !!sdata->u.ibss.probe_resp;
 				break;
 			case NL80211_IFTYPE_MESH_POINT:
 				conf.enable_beacon = true;

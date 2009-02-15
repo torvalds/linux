@@ -750,6 +750,27 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 		local->ops->conf_tx(local_to_hw(local), i, &qparam);
 }
 
+void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
+				  const size_t supp_rates_len,
+				  const u8 *supp_rates)
+{
+	struct ieee80211_local *local = sdata->local;
+	int i, have_higher_than_11mbit = 0;
+
+	/* cf. IEEE 802.11 9.2.12 */
+	for (i = 0; i < supp_rates_len; i++)
+		if ((supp_rates[i] & 0x7f) * 5 > 110)
+			have_higher_than_11mbit = 1;
+
+	if (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ &&
+	    have_higher_than_11mbit)
+		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
+	else
+		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
+
+	ieee80211_set_wmm_default(sdata);
+}
+
 void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 		      int encrypt)
 {
@@ -815,4 +836,159 @@ u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 		if (bitrates[i].flags & mandatory_flag)
 			mandatory_rates |= BIT(i);
 	return mandatory_rates;
+}
+
+void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
+			 u16 transaction, u16 auth_alg,
+			 u8 *extra, size_t extra_len,
+			 const u8 *bssid, int encrypt)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	struct ieee80211_mgmt *mgmt;
+	const u8 *ie_auth = NULL;
+	int ie_auth_len = 0;
+
+	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+		ie_auth_len = sdata->u.mgd.ie_auth_len;
+		ie_auth = sdata->u.mgd.ie_auth;
+	}
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom +
+			    sizeof(*mgmt) + 6 + extra_len + ie_auth_len);
+	if (!skb) {
+		printk(KERN_DEBUG "%s: failed to allocate buffer for auth "
+		       "frame\n", sdata->dev->name);
+		return;
+	}
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24 + 6);
+	memset(mgmt, 0, 24 + 6);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_AUTH);
+	if (encrypt)
+		mgmt->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+	memcpy(mgmt->da, bssid, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(mgmt->bssid, bssid, ETH_ALEN);
+	mgmt->u.auth.auth_alg = cpu_to_le16(auth_alg);
+	mgmt->u.auth.auth_transaction = cpu_to_le16(transaction);
+	mgmt->u.auth.status_code = cpu_to_le16(0);
+	if (extra)
+		memcpy(skb_put(skb, extra_len), extra, extra_len);
+	if (ie_auth)
+		memcpy(skb_put(skb, ie_auth_len), ie_auth, ie_auth_len);
+
+	ieee80211_tx_skb(sdata, skb, encrypt);
+}
+
+void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
+			      u8 *ssid, size_t ssid_len)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	struct sk_buff *skb;
+	struct ieee80211_mgmt *mgmt;
+	u8 *pos, *supp_rates, *esupp_rates = NULL, *extra_preq_ie = NULL;
+	int i, extra_preq_ie_len = 0;
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+		extra_preq_ie_len = sdata->u.mgd.ie_probereq_len;
+		extra_preq_ie = sdata->u.mgd.ie_probereq;
+		break;
+	default:
+		break;
+	}
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt) + 200 +
+			    extra_preq_ie_len);
+	if (!skb) {
+		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
+		       "request\n", sdata->dev->name);
+		return;
+	}
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
+	memset(mgmt, 0, 24);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_PROBE_REQ);
+	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	if (dst) {
+		memcpy(mgmt->da, dst, ETH_ALEN);
+		memcpy(mgmt->bssid, dst, ETH_ALEN);
+	} else {
+		memset(mgmt->da, 0xff, ETH_ALEN);
+		memset(mgmt->bssid, 0xff, ETH_ALEN);
+	}
+	pos = skb_put(skb, 2 + ssid_len);
+	*pos++ = WLAN_EID_SSID;
+	*pos++ = ssid_len;
+	memcpy(pos, ssid, ssid_len);
+
+	supp_rates = skb_put(skb, 2);
+	supp_rates[0] = WLAN_EID_SUPP_RATES;
+	supp_rates[1] = 0;
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		struct ieee80211_rate *rate = &sband->bitrates[i];
+		if (esupp_rates) {
+			pos = skb_put(skb, 1);
+			esupp_rates[1]++;
+		} else if (supp_rates[1] == 8) {
+			esupp_rates = skb_put(skb, 3);
+			esupp_rates[0] = WLAN_EID_EXT_SUPP_RATES;
+			esupp_rates[1] = 1;
+			pos = &esupp_rates[2];
+		} else {
+			pos = skb_put(skb, 1);
+			supp_rates[1]++;
+		}
+		*pos = rate->bitrate / 5;
+	}
+
+	if (extra_preq_ie)
+		memcpy(skb_put(skb, extra_preq_ie_len), extra_preq_ie,
+		       extra_preq_ie_len);
+
+	ieee80211_tx_skb(sdata, skb, 0);
+}
+
+u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
+			    struct ieee802_11_elems *elems,
+			    enum ieee80211_band band)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_rate *bitrates;
+	size_t num_rates;
+	u32 supp_rates;
+	int i, j;
+	sband = local->hw.wiphy->bands[band];
+
+	if (!sband) {
+		WARN_ON(1);
+		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	}
+
+	bitrates = sband->bitrates;
+	num_rates = sband->n_bitrates;
+	supp_rates = 0;
+	for (i = 0; i < elems->supp_rates_len +
+		     elems->ext_supp_rates_len; i++) {
+		u8 rate = 0;
+		int own_rate;
+		if (i < elems->supp_rates_len)
+			rate = elems->supp_rates[i];
+		else if (elems->ext_supp_rates)
+			rate = elems->ext_supp_rates
+				[i - elems->supp_rates_len];
+		own_rate = 5 * (rate & 0x7f);
+		for (j = 0; j < num_rates; j++)
+			if (bitrates[j].bitrate == own_rate)
+				supp_rates |= BIT(j);
+	}
+	return supp_rates;
 }

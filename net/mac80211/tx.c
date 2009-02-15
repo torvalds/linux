@@ -1633,7 +1633,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	case NL80211_IFTYPE_STATION:
 		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 		/* BSSID SA DA */
-		memcpy(hdr.addr1, sdata->u.sta.bssid, ETH_ALEN);
+		memcpy(hdr.addr1, sdata->u.mgd.bssid, ETH_ALEN);
 		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
 		memcpy(hdr.addr3, skb->data, ETH_ALEN);
 		hdrlen = 24;
@@ -1642,7 +1642,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		/* DA SA BSSID */
 		memcpy(hdr.addr1, skb->data, ETH_ALEN);
 		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
-		memcpy(hdr.addr3, sdata->u.sta.bssid, ETH_ALEN);
+		memcpy(hdr.addr3, sdata->u.ibss.bssid, ETH_ALEN);
 		hdrlen = 24;
 		break;
 	default:
@@ -1928,7 +1928,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info;
 	struct ieee80211_sub_if_data *sdata = NULL;
 	struct ieee80211_if_ap *ap = NULL;
-	struct ieee80211_if_sta *ifsta = NULL;
 	struct beacon_data *beacon;
 	struct ieee80211_supported_band *sband;
 	enum ieee80211_band band = local->hw.conf.channel->band;
@@ -1980,13 +1979,13 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		} else
 			goto out;
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+		struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 		struct ieee80211_hdr *hdr;
-		ifsta = &sdata->u.sta;
 
-		if (!ifsta->probe_resp)
+		if (!ifibss->probe_resp)
 			goto out;
 
-		skb = skb_copy(ifsta->probe_resp, GFP_ATOMIC);
+		skb = skb_copy(ifibss->probe_resp, GFP_ATOMIC);
 		if (!skb)
 			goto out;
 

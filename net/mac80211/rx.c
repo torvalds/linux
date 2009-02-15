@@ -838,7 +838,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (rx->sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len,
 						NL80211_IFTYPE_ADHOC);
-		if (compare_ether_addr(bssid, rx->sdata->u.sta.bssid) == 0)
+		if (compare_ether_addr(bssid, rx->sdata->u.ibss.bssid) == 0)
 			sta->last_rx = jiffies;
 	} else
 	if (!is_multicast_ether_addr(hdr->addr1) ||
@@ -1702,13 +1702,13 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	if (compare_ether_addr(mgmt->sa, sdata->u.sta.bssid) != 0 ||
-	    compare_ether_addr(mgmt->bssid, sdata->u.sta.bssid) != 0) {
+	if (compare_ether_addr(mgmt->sa, sdata->u.mgd.bssid) != 0 ||
+	    compare_ether_addr(mgmt->bssid, sdata->u.mgd.bssid) != 0) {
 		/* Not from the current AP. */
 		return;
 	}
 
-	if (sdata->u.sta.state == IEEE80211_STA_MLME_ASSOCIATE) {
+	if (sdata->u.mgd.state == IEEE80211_STA_MLME_ASSOCIATE) {
 		/* Association in progress; ignore SA Query */
 		return;
 	}
@@ -1727,7 +1727,7 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 	memset(resp, 0, 24);
 	memcpy(resp->da, mgmt->sa, ETH_ALEN);
 	memcpy(resp->sa, sdata->dev->dev_addr, ETH_ALEN);
-	memcpy(resp->bssid, sdata->u.sta.bssid, ETH_ALEN);
+	memcpy(resp->bssid, sdata->u.mgd.bssid, ETH_ALEN);
 	resp->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
 	skb_put(skb, 1 + sizeof(resp->u.action.u.sa_query));
@@ -1745,7 +1745,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_local *local = rx->local;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
-	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
 	struct ieee80211_bss *bss;
 	int len = rx->skb->len;
@@ -1803,6 +1802,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	case WLAN_CATEGORY_SPECTRUM_MGMT:
 		if (local->hw.conf.channel->band != IEEE80211_BAND_5GHZ)
 			return RX_DROP_MONITOR;
+
+		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+			return RX_DROP_MONITOR;
+
 		switch (mgmt->u.action.u.measurement.action_code) {
 		case WLAN_ACTION_SPCT_MSR_REQ:
 			if (len < (IEEE80211_MIN_ACTION_SIZE +
@@ -1815,12 +1818,13 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 				   sizeof(mgmt->u.action.u.chan_switch)))
 				return RX_DROP_MONITOR;
 
-			if (memcmp(mgmt->bssid, ifsta->bssid, ETH_ALEN) != 0)
+			if (memcmp(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN))
 				return RX_DROP_MONITOR;
 
-			bss = ieee80211_rx_bss_get(local, ifsta->bssid,
+			bss = ieee80211_rx_bss_get(local, sdata->u.mgd.bssid,
 					   local->hw.conf.channel->center_freq,
-					   ifsta->ssid, ifsta->ssid_len);
+					   sdata->u.mgd.ssid,
+					   sdata->u.mgd.ssid_len);
 			if (!bss)
 				return RX_DROP_MONITOR;
 
@@ -1876,11 +1880,14 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
 		return RX_DROP_MONITOR;
 
-	if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME)
-		return RX_DROP_MONITOR;
 
-	ieee80211_sta_rx_mgmt(sdata, rx->skb, rx->status);
-	return RX_QUEUED;
+	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+		if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME)
+			return RX_DROP_MONITOR;
+		return ieee80211_sta_rx_mgmt(sdata, rx->skb, rx->status);
+	}
+
+	return ieee80211_ibss_rx_mgmt(sdata, rx->skb, rx->status);
 }
 
 static void ieee80211_rx_michael_mic_report(struct net_device *dev,
@@ -2083,7 +2090,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 	case NL80211_IFTYPE_STATION:
 		if (!bssid)
 			return 0;
-		if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid)) {
+		if (!ieee80211_bssid_match(bssid, sdata->u.mgd.bssid)) {
 			if (!(rx->flags & IEEE80211_RX_IN_SCAN))
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
@@ -2101,7 +2108,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		if (ieee80211_is_beacon(hdr->frame_control)) {
 			return 1;
 		}
-		else if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid)) {
+		else if (!ieee80211_bssid_match(bssid, sdata->u.ibss.bssid)) {
 			if (!(rx->flags & IEEE80211_RX_IN_SCAN))
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
