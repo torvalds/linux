@@ -2,6 +2,7 @@
 #define _TRACE_POWER_H
 
 #include <linux/ktime.h>
+#include <linux/tracepoint.h>
 
 enum {
 	POWER_NONE = 0,
@@ -18,18 +19,16 @@ struct power_trace {
 #endif
 };
 
-#ifdef CONFIG_POWER_TRACER
-extern void trace_power_start(struct power_trace *it, unsigned int type,
-					unsigned int state);
-extern void trace_power_mark(struct power_trace *it, unsigned int type,
-					unsigned int state);
-extern void trace_power_end(struct power_trace *it);
-#else
-static inline void trace_power_start(struct power_trace *it, unsigned int type,
-					unsigned int state) { }
-static inline void trace_power_mark(struct power_trace *it, unsigned int type,
-					unsigned int state) { }
-static inline void trace_power_end(struct power_trace *it) { }
-#endif
+DECLARE_TRACE(power_start,
+	TPPROTO(struct power_trace *it, unsigned int type, unsigned int state),
+		TPARGS(it, type, state));
+
+DECLARE_TRACE(power_mark,
+	TPPROTO(struct power_trace *it, unsigned int type, unsigned int state),
+		TPARGS(it, type, state));
+
+DECLARE_TRACE(power_end,
+	TPPROTO(struct power_trace *it),
+		TPARGS(it));
 
 #endif /* _TRACE_POWER_H */
