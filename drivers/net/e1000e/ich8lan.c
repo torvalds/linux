@@ -390,8 +390,6 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 }
 
 static DEFINE_MUTEX(nvm_mutex);
-static pid_t nvm_owner_pid = -1;
-static char nvm_owner_name[TASK_COMM_LEN] = "";
 
 /**
  *  e1000_acquire_swflag_ich8lan - Acquire software control flag
@@ -408,16 +406,7 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 
 	might_sleep();
 
-	if (!mutex_trylock(&nvm_mutex)) {
-		WARN(1, KERN_ERR "e1000e mutex contention. Owned by process "
-		     "%s (pid %d), required by process %s (pid %d)\n",
-		     nvm_owner_name, nvm_owner_pid,
-		     current->comm, current->pid);
-
-		mutex_lock(&nvm_mutex);
-	}
-	nvm_owner_pid = current->pid;
-	strncpy(nvm_owner_name, current->comm, TASK_COMM_LEN);
+	mutex_lock(&nvm_mutex);
 
 	while (timeout) {
 		extcnf_ctrl = er32(EXTCNF_CTRL);
@@ -435,8 +424,6 @@ static s32 e1000_acquire_swflag_ich8lan(struct e1000_hw *hw)
 		hw_dbg(hw, "FW or HW has locked the resource for too long.\n");
 		extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
 		ew32(EXTCNF_CTRL, extcnf_ctrl);
-		nvm_owner_pid = -1;
-		strcpy(nvm_owner_name, "");
 		mutex_unlock(&nvm_mutex);
 		return -E1000_ERR_CONFIG;
 	}
@@ -460,8 +447,6 @@ static void e1000_release_swflag_ich8lan(struct e1000_hw *hw)
 	extcnf_ctrl &= ~E1000_EXTCNF_CTRL_SWFLAG;
 	ew32(EXTCNF_CTRL, extcnf_ctrl);
 
-	nvm_owner_pid = -1;
-	strcpy(nvm_owner_name, "");
 	mutex_unlock(&nvm_mutex);
 }
 
