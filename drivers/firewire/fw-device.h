@@ -24,6 +24,7 @@
 #include <linux/idr.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/sysfs.h>
@@ -172,25 +173,11 @@ void fw_csr_iterator_init(struct fw_csr_iterator *ci, u32 *p);
 int fw_csr_iterator_next(struct fw_csr_iterator *ci,
 			 int *key, int *value);
 
-#define FW_MATCH_VENDOR		0x0001
-#define FW_MATCH_MODEL		0x0002
-#define FW_MATCH_SPECIFIER_ID	0x0004
-#define FW_MATCH_VERSION	0x0008
-
-struct fw_device_id {
-	u32 match_flags;
-	u32 vendor;
-	u32 model;
-	u32 specifier_id;
-	u32 version;
-	void *driver_data;
-};
-
 struct fw_driver {
 	struct device_driver driver;
 	/* Called when the parent device sits through a bus reset. */
-	void (*update) (struct fw_unit *unit);
-	const struct fw_device_id *id_table;
+	void (*update)(struct fw_unit *unit);
+	const struct ieee1394_device_id *id_table;
 };
 
 static inline struct fw_driver *fw_driver(struct device_driver *drv)

@@ -26,6 +26,7 @@
 #include <linux/jiffies.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
@@ -57,7 +58,8 @@ EXPORT_SYMBOL(fw_csr_iterator_next);
 
 static int is_fw_unit(struct device *dev);
 
-static int match_unit_directory(u32 * directory, const struct fw_device_id *id)
+static int match_unit_directory(u32 *directory,
+				const struct ieee1394_device_id *id)
 {
 	struct fw_csr_iterator ci;
 	int key, value, match;
@@ -65,14 +67,14 @@ static int match_unit_directory(u32 * directory, const struct fw_device_id *id)
 	match = 0;
 	fw_csr_iterator_init(&ci, directory);
 	while (fw_csr_iterator_next(&ci, &key, &value)) {
-		if (key == CSR_VENDOR && value == id->vendor)
-			match |= FW_MATCH_VENDOR;
-		if (key == CSR_MODEL && value == id->model)
-			match |= FW_MATCH_MODEL;
+		if (key == CSR_VENDOR && value == id->vendor_id)
+			match |= IEEE1394_MATCH_VENDOR_ID;
+		if (key == CSR_MODEL && value == id->model_id)
+			match |= IEEE1394_MATCH_MODEL_ID;
 		if (key == CSR_SPECIFIER_ID && value == id->specifier_id)
-			match |= FW_MATCH_SPECIFIER_ID;
+			match |= IEEE1394_MATCH_SPECIFIER_ID;
 		if (key == CSR_VERSION && value == id->version)
-			match |= FW_MATCH_VERSION;
+			match |= IEEE1394_MATCH_VERSION;
 	}
 
 	return (match & id->match_flags) == id->match_flags;
