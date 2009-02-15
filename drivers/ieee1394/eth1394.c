@@ -438,7 +438,7 @@ static int eth1394_update(struct unit_directory *ud)
 	return eth1394_new_node(hi, ud);
 }
 
-static struct ieee1394_device_id eth1394_id_table[] = {
+static const struct ieee1394_device_id eth1394_id_table[] = {
 	{
 		.match_flags = (IEEE1394_MATCH_SPECIFIER_ID |
 				IEEE1394_MATCH_VERSION),

@@ -285,7 +285,7 @@ static const struct hpsb_address_ops sbp2_physdma_ops = {
 /*
  * Interface to driver core and IEEE 1394 core
  */
-static struct ieee1394_device_id sbp2_id_table[] = {
+static const struct ieee1394_device_id sbp2_id_table[] = {
 	{
 	 .match_flags	= IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION,
 	 .specifier_id	= SBP2_UNIT_SPEC_ID_ENTRY & 0xffffff,
