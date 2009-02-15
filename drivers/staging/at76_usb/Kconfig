@@ -1,6 +1,6 @@
 config USB_ATMEL
 	tristate "Atmel at76c503/at76c505/at76c505a USB cards"
-	depends on MAC80211 && WLAN_80211 && USB
+	depends on WLAN_80211 && USB
 	default N
 	select FW_LOADER
 	---help---

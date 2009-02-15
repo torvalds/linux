@@ -112,7 +112,6 @@ static struct drm_driver driver = {
 	.suspend = i915_suspend,
 	.resume = i915_resume,
 	.device_is_agp = i915_driver_device_is_agp,
-	.get_vblank_counter = i915_get_vblank_counter,
 	.enable_vblank = i915_enable_vblank,
 	.disable_vblank = i915_disable_vblank,
 	.irq_preinstall = i915_driver_irq_preinstall,

@@ -282,6 +282,18 @@ static inline void dmaengine_put(void)
 }
 #endif
 
+#ifdef CONFIG_NET_DMA
+#define net_dmaengine_get()	dmaengine_get()
+#define net_dmaengine_put()	dmaengine_put()
+#else
+static inline void net_dmaengine_get(void)
+{
+}
+static inline void net_dmaengine_put(void)
+{
+}
+#endif
+
 dma_cookie_t dma_async_memcpy_buf_to_buf(struct dma_chan *chan,
 	void *dest, void *src, size_t len);
 dma_cookie_t dma_async_memcpy_buf_to_pg(struct dma_chan *chan,

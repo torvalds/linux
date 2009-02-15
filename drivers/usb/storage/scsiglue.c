@@ -64,6 +64,7 @@
  */
 #define VENDOR_ID_NOKIA		0x0421
 #define VENDOR_ID_NIKON		0x04b0
+#define VENDOR_ID_PENTAX	0x0a17
 #define VENDOR_ID_MOTOROLA	0x22b8
 
 /***********************************************************************
@@ -158,6 +159,7 @@ static int slave_configure(struct scsi_device *sdev)
 		switch (le16_to_cpu(us->pusb_dev->descriptor.idVendor)) {
 		case VENDOR_ID_NOKIA:
 		case VENDOR_ID_NIKON:
+		case VENDOR_ID_PENTAX:
 		case VENDOR_ID_MOTOROLA:
 			if (!(us->fflags & (US_FL_FIX_CAPACITY |
 					US_FL_CAPACITY_OK)))

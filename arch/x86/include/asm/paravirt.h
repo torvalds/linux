@@ -1402,6 +1402,7 @@ static inline int __raw_spin_is_contended(struct raw_spinlock *lock)
 {
 	return PVOP_CALL1(int, pv_lock_ops.spin_is_contended, lock);
 }
+#define __raw_spin_is_contended	__raw_spin_is_contended
 
 static __always_inline void __raw_spin_lock(struct raw_spinlock *lock)
 {

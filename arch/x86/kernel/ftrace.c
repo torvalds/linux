@@ -488,20 +488,21 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	 * ignore such a protection.
 	 */
 	asm volatile(
-		"1: " _ASM_MOV " (%[parent_old]), %[old]\n"
-		"2: " _ASM_MOV " %[return_hooker], (%[parent_replaced])\n"
+		"1: " _ASM_MOV " (%[parent]), %[old]\n"
+		"2: " _ASM_MOV " %[return_hooker], (%[parent])\n"
 		"   movl $0, %[faulted]\n"
+		"3:\n"
 
 		".section .fixup, \"ax\"\n"
-		"3: movl $1, %[faulted]\n"
+		"4: movl $1, %[faulted]\n"
+		"   jmp 3b\n"
 		".previous\n"
 
-		_ASM_EXTABLE(1b, 3b)
-		_ASM_EXTABLE(2b, 3b)
+		_ASM_EXTABLE(1b, 4b)
+		_ASM_EXTABLE(2b, 4b)
 
-		: [parent_replaced] "=r" (parent), [old] "=r" (old),
-		  [faulted] "=r" (faulted)
-		: [parent_old] "0" (parent), [return_hooker] "r" (return_hooker)
+		: [old] "=r" (old), [faulted] "=r" (faulted)
+		: [parent] "r" (parent), [return_hooker] "r" (return_hooker)
 		: "memory"
 	);
 
