@@ -199,7 +199,7 @@ char *__init __acpi_map_table(unsigned long phys_addr, unsigned long size)
 	return __va(phys_addr);
 }
 
-char *__init __acpi_unmap_table(unsigned long virt_addr, unsigned long size)
+void __init __acpi_unmap_table(char *map, unsigned long size)
 {
 }
 
