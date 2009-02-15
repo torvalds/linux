@@ -647,6 +647,8 @@ pci_power_t pci_choose_state(struct pci_dev *dev, pm_message_t state)
 
 EXPORT_SYMBOL(pci_choose_state);
 
+#define PCI_EXP_SAVE_REGS	7
+
 static int pci_save_pcie_state(struct pci_dev *dev)
 {
 	int pos, i = 0;
@@ -668,6 +670,9 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	pci_read_config_word(dev, pos + PCI_EXP_LNKCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_SLTCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_RTCTL, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_DEVCTL2, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_LNKCTL2, &cap[i++]);
+	pci_read_config_word(dev, pos + PCI_EXP_SLTCTL2, &cap[i++]);
 
 	return 0;
 }
@@ -688,6 +693,9 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 	pci_write_config_word(dev, pos + PCI_EXP_LNKCTL, cap[i++]);
 	pci_write_config_word(dev, pos + PCI_EXP_SLTCTL, cap[i++]);
 	pci_write_config_word(dev, pos + PCI_EXP_RTCTL, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL2, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_LNKCTL2, cap[i++]);
+	pci_write_config_word(dev, pos + PCI_EXP_SLTCTL2, cap[i++]);
 }
 
 
@@ -1372,7 +1380,8 @@ void pci_allocate_cap_save_buffers(struct pci_dev *dev)
 {
 	int error;
 
-	error = pci_add_cap_save_buffer(dev, PCI_CAP_ID_EXP, 4 * sizeof(u16));
+	error = pci_add_cap_save_buffer(dev, PCI_CAP_ID_EXP,
+					PCI_EXP_SAVE_REGS * sizeof(u16));
 	if (error)
 		dev_err(&dev->dev,
 			"unable to preallocate PCI Express save buffer\n");
