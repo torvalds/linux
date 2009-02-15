@@ -40,9 +40,6 @@ MODULE_LICENSE("GPL");
 
 static int __devinit aer_probe (struct pcie_device *dev);
 static void aer_remove(struct pcie_device *dev);
-static int aer_suspend(struct pcie_device *dev, pm_message_t state)
-{return 0;}
-static int aer_resume(struct pcie_device *dev) {return 0;}
 static pci_ers_result_t aer_error_detected(struct pci_dev *dev,
 	enum pci_channel_state error);
 static void aer_error_resume(struct pci_dev *dev);
@@ -60,9 +57,6 @@ static struct pcie_port_service_driver aerdriver = {
 
 	.probe		= aer_probe,
 	.remove		= aer_remove,
-
-	.suspend	= aer_suspend,
-	.resume		= aer_resume,
 
 	.err_handler	= &aer_error_handlers,
 

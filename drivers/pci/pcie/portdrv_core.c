@@ -410,13 +410,12 @@ int pcie_port_device_register(struct pci_dev *dev)
 static int suspend_iter(struct device *dev, void *data)
 {
 	struct pcie_port_service_driver *service_driver;
-	pm_message_t state = * (pm_message_t *) data;
 
  	if ((dev->bus == &pcie_port_bus_type) &&
  	    (dev->driver)) {
  		service_driver = to_service_driver(dev->driver);
  		if (service_driver->suspend)
- 			service_driver->suspend(to_pcie_device(dev), state);
+ 			service_driver->suspend(to_pcie_device(dev));
   	}
 	return 0;
 }
@@ -424,11 +423,10 @@ static int suspend_iter(struct device *dev, void *data)
 /**
  * pcie_port_device_suspend - suspend port services associated with a PCIe port
  * @dev: PCI Express port to handle
- * @state: Representation of system power management transition in progress
  */
-int pcie_port_device_suspend(struct pci_dev *dev, pm_message_t state)
+int pcie_port_device_suspend(struct device *dev)
 {
-	return device_for_each_child(&dev->dev, &state, suspend_iter);
+	return device_for_each_child(dev, NULL, suspend_iter);
 }
 
 static int resume_iter(struct device *dev, void *data)
@@ -448,11 +446,11 @@ static int resume_iter(struct device *dev, void *data)
  * pcie_port_device_suspend - resume port services associated with a PCIe port
  * @dev: PCI Express port to handle
  */
-int pcie_port_device_resume(struct pci_dev *dev)
+int pcie_port_device_resume(struct device *dev)
 {
-	return device_for_each_child(&dev->dev, NULL, resume_iter);
+	return device_for_each_child(dev, NULL, resume_iter);
 }
-#endif
+#endif /* PM */
 
 static int remove_iter(struct device *dev, void *data)
 {

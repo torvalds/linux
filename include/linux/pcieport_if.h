@@ -59,7 +59,7 @@ struct pcie_port_service_driver {
 	const char *name;
 	int (*probe) (struct pcie_device *dev);
 	void (*remove) (struct pcie_device *dev);
-	int (*suspend) (struct pcie_device *dev, pm_message_t state);
+	int (*suspend) (struct pcie_device *dev);
 	int (*resume) (struct pcie_device *dev);
 
 	/* Service Error Recovery Handler */
