@@ -553,24 +553,12 @@ static void detach_groups(struct config_group *group)
 
 		child = sd->s_dentry;
 
-		/*
-		 * Note: we hide this from lockdep since we have no way
-		 * to teach lockdep about recursive
-		 * I_MUTEX_PARENT -> I_MUTEX_CHILD patterns along a path
-		 * in an inode tree, which are valid as soon as
-		 * I_MUTEX_PARENT -> I_MUTEX_CHILD is valid from a
-		 * parent inode to one of its children.
-		 */
-		lockdep_off();
 		mutex_lock(&child->d_inode->i_mutex);
-		lockdep_on();
 
 		configfs_detach_group(sd->s_element);
 		child->d_inode->i_flags |= S_DEAD;
 
-		lockdep_off();
 		mutex_unlock(&child->d_inode->i_mutex);
-		lockdep_on();
 
 		d_delete(child);
 		dput(child);
@@ -760,22 +748,11 @@ static int configfs_attach_item(struct config_item *parent_item,
 			 * We are going to remove an inode and its dentry but
 			 * the VFS may already have hit and used them. Thus,
 			 * we must lock them as rmdir() would.
-			 *
-			 * Note: we hide this from lockdep since we have no way
-			 * to teach lockdep about recursive
-			 * I_MUTEX_PARENT -> I_MUTEX_CHILD patterns along a path
-			 * in an inode tree, which are valid as soon as
-			 * I_MUTEX_PARENT -> I_MUTEX_CHILD is valid from a
-			 * parent inode to one of its children.
 			 */
-			lockdep_off();
 			mutex_lock(&dentry->d_inode->i_mutex);
-			lockdep_on();
 			configfs_remove_dir(item);
 			dentry->d_inode->i_flags |= S_DEAD;
-			lockdep_off();
 			mutex_unlock(&dentry->d_inode->i_mutex);
-			lockdep_on();
 			d_delete(dentry);
 		}
 	}
@@ -810,25 +787,14 @@ static int configfs_attach_group(struct config_item *parent_item,
 		 *
 		 * We must also lock the inode to remove it safely in case of
 		 * error, as rmdir() would.
-		 *
-		 * Note: we hide this from lockdep since we have no way
-		 * to teach lockdep about recursive
-		 * I_MUTEX_PARENT -> I_MUTEX_CHILD patterns along a path
-		 * in an inode tree, which are valid as soon as
-		 * I_MUTEX_PARENT -> I_MUTEX_CHILD is valid from a
-		 * parent inode to one of its children.
 		 */
-		lockdep_off();
 		mutex_lock_nested(&dentry->d_inode->i_mutex, I_MUTEX_CHILD);
-		lockdep_on();
 		ret = populate_groups(to_config_group(item));
 		if (ret) {
 			configfs_detach_item(item);
 			dentry->d_inode->i_flags |= S_DEAD;
 		}
-		lockdep_off();
 		mutex_unlock(&dentry->d_inode->i_mutex);
-		lockdep_on();
 		if (ret)
 			d_delete(dentry);
 	}
@@ -990,17 +956,7 @@ static int configfs_depend_prep(struct dentry *origin,
 	BUG_ON(!origin || !sd);
 
 	/* Lock this guy on the way down */
-	/*
-	 * Note: we hide this from lockdep since we have no way
-	 * to teach lockdep about recursive
-	 * I_MUTEX_PARENT -> I_MUTEX_CHILD patterns along a path
-	 * in an inode tree, which are valid as soon as
-	 * I_MUTEX_PARENT -> I_MUTEX_CHILD is valid from a
-	 * parent inode to one of its children.
-	 */
-	lockdep_off();
 	mutex_lock(&sd->s_dentry->d_inode->i_mutex);
-	lockdep_on();
 	if (sd->s_element == target)  /* Boo-yah */
 		goto out;
 
@@ -1014,9 +970,7 @@ static int configfs_depend_prep(struct dentry *origin,
 	}
 
 	/* We looped all our children and didn't find target */
-	lockdep_off();
 	mutex_unlock(&sd->s_dentry->d_inode->i_mutex);
-	lockdep_on();
 	ret = -ENOENT;
 
 out:
@@ -1036,16 +990,11 @@ static void configfs_depend_rollback(struct dentry *origin,
 	struct dentry *dentry = item->ci_dentry;
 
 	while (dentry != origin) {
-		/* See comments in configfs_depend_prep() */
-		lockdep_off();
 		mutex_unlock(&dentry->d_inode->i_mutex);
-		lockdep_on();
 		dentry = dentry->d_parent;
 	}
 
-	lockdep_off();
 	mutex_unlock(&origin->d_inode->i_mutex);
-	lockdep_on();
 }
 
 int configfs_depend_item(struct configfs_subsystem *subsys,
@@ -1380,16 +1329,8 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 			}
 
 			/* Wait until the racing operation terminates */
-			/*
-			 * Note: we hide this from lockdep since we are locked
-			 * with subclass I_MUTEX_NORMAL from vfs_rmdir() (why
-			 * not I_MUTEX_CHILD?), and I_MUTEX_XATTR or
-			 * I_MUTEX_QUOTA are not relevant for the locked inode.
-			 */
-			lockdep_off();
 			mutex_lock(wait_mutex);
 			mutex_unlock(wait_mutex);
-			lockdep_on();
 		}
 	} while (ret == -EAGAIN);
 

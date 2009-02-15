@@ -521,6 +521,7 @@ size_t ksize(const void *block)
 	} else
 		return sp->page.private;
 }
+EXPORT_SYMBOL(ksize);
 
 struct kmem_cache {
 	unsigned int size, align;

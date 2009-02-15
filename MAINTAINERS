@@ -1021,6 +1021,14 @@ M:	mb@bu3sch.de
 W:	http://bu3sch.de/btgpio.php
 S:	Maintained
 
+BTRFS FILE SYSTEM
+P:	Chris Mason
+M:	chris.mason@oracle.com
+L:	linux-btrfs@vger.kernel.org
+W:	http://btrfs.wiki.kernel.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/mason/btrfs-unstable.git
+S:	Maintained
+
 BTTV VIDEO4LINUX DRIVER
 P:	Mauro Carvalho Chehab
 M:	mchehab@infradead.org
@@ -1194,6 +1202,8 @@ S:	Supported
 CONTROL GROUPS (CGROUPS)
 P:	Paul Menage
 M:	menage@google.com
+P:	Li Zefan
+M:	lizf@cn.fujitsu.com
 L:	containers@lists.linux-foundation.org
 S:	Maintained
 
@@ -2212,7 +2222,7 @@ P:	Sean Hefty
 M:	sean.hefty@intel.com
 P:	Hal Rosenstock
 M:	hal.rosenstock@gmail.com
-L:	general@lists.openfabrics.org
+L:	general@lists.openfabrics.org (moderated for non-subscribers)
 W:	http://www.openib.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/roland/infiniband.git
 S:	Supported
@@ -3529,6 +3539,12 @@ S:	Maintained
 PXA MMCI DRIVER
 S:	Orphan
 
+PXA RTC DRIVER
+P:	Robert Jarzmik
+M:	robert.jarzmik@free.fr
+L:	rtc-linux@googlegroups.com
+S:	Maintained
+
 QLOGIC QLA2XXX FC-SCSI DRIVER
 P:	Andrew Vasquez
 M:	linux-driver@qlogic.com
@@ -4277,8 +4293,8 @@ P:	Rajiv Andrade
 M:	srajiv@linux.vnet.ibm.com
 W:	http://tpmdd.sourceforge.net
 P:	Marcel Selhorst
-M:	tpm@selhorst.net
-W:	http://www.prosec.rub.de/tpm/
+M:	m.selhorst@sirrix.com
+W:	http://www.sirrix.com
 L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
 
@@ -4841,6 +4857,7 @@ P:	Ingo Molnar
 M:	mingo@redhat.com
 P:	H. Peter Anvin
 M:	hpa@zytor.com
+M:	x86@kernel.org
 L:	linux-kernel@vger.kernel.org
 T:	git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 S:	Maintained

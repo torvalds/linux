@@ -9,6 +9,7 @@ menuconfig ACPI
 	depends on PCI
 	depends on PM
 	select PNP
+	select CPU_IDLE
 	default y
 	---help---
 	  Advanced Configuration and Power Interface (ACPI) support for 
@@ -287,7 +288,7 @@ config ACPI_CONTAINER
 	  support physical cpu/memory hot-plug.
 
 	  If one selects "m", this driver can be loaded with
-	  "modprobe acpi_container".
+	  "modprobe container".
 
 config ACPI_HOTPLUG_MEMORY
 	tristate "Memory Hotplug"

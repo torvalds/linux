@@ -284,6 +284,7 @@ typedef struct drm_i915_private {
 		struct drm_mm gtt_space;
 
 		struct io_mapping *gtt_mapping;
+		int gtt_mtrr;
 
 		/**
 		 * List of objects currently involved in rendering from the
@@ -534,6 +535,7 @@ extern int i915_vblank_pipe_get(struct drm_device *dev, void *data,
 extern int i915_enable_vblank(struct drm_device *dev, int crtc);
 extern void i915_disable_vblank(struct drm_device *dev, int crtc);
 extern u32 i915_get_vblank_counter(struct drm_device *dev, int crtc);
+extern u32 gm45_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 extern void i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask);
@@ -601,6 +603,7 @@ int i915_gem_init_object(struct drm_gem_object *obj);
 void i915_gem_free_object(struct drm_gem_object *obj);
 int i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment);
 void i915_gem_object_unpin(struct drm_gem_object *obj);
+int i915_gem_object_unbind(struct drm_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 uint32_t i915_get_gem_seqno(struct drm_device *dev);
 void i915_gem_retire_requests(struct drm_device *dev);
@@ -784,6 +787,11 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev))
 
 #define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev))
+/* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
+ * rows, which changed the alignment requirements and fence programming.
+ */
+#define HAS_128_BYTE_Y_TILING(dev) (IS_I9XX(dev) && !(IS_I915G(dev) || \
+						      IS_I915GM(dev)))
 #define SUPPORTS_INTEGRATED_HDMI(dev)	(IS_G4X(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)

@@ -125,6 +125,8 @@ static int __devinit mdio_gpio_bus_init(struct device *dev,
 	if (gpio_request(bitbang->mdio, "mdio"))
 		goto out_free_mdc;
 
+	gpio_direction_output(bitbang->mdc, 0);
+
 	dev_set_drvdata(dev, new_bus);
 
 	ret = mdiobus_register(new_bus);

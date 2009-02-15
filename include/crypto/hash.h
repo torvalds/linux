@@ -222,7 +222,7 @@ static inline struct crypto_tfm *crypto_shash_tfm(struct crypto_shash *tfm)
 
 static inline void crypto_free_shash(struct crypto_shash *tfm)
 {
-	crypto_free_tfm(crypto_shash_tfm(tfm));
+	crypto_destroy_tfm(tfm, crypto_shash_tfm(tfm));
 }
 
 static inline unsigned int crypto_shash_alignmask(

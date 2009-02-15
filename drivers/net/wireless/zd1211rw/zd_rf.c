@@ -86,6 +86,7 @@ int zd_rf_init_hw(struct zd_rf *rf, u8 type)
 	case AL7230B_RF:
 		r = zd_rf_init_al7230b(rf);
 		break;
+	case MAXIM_NEW_RF:
 	case UW2453_RF:
 		r = zd_rf_init_uw2453(rf);
 		break;

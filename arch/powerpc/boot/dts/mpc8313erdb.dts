@@ -191,7 +191,8 @@
 			interrupts = <37 0x8 36 0x8 35 0x8>;
 			interrupt-parent = <&ipic>;
 			tbi-handle = < &tbi0 >;
-			phy-handle = < &phy1 >;
+			/* Vitesse 7385 isn't on the MDIO bus */
+			fixed-link = <1 1 1000 0 0>;
 			fsl,magic-packet;
 
 			mdio@24520 {
@@ -199,12 +200,6 @@
 				#size-cells = <0>;
 				compatible = "fsl,gianfar-mdio";
 				reg = <0x24520 0x20>;
-				phy1: ethernet-phy@1 {
-					interrupt-parent = <&ipic>;
-					interrupts = <19 0x8>;
-					reg = <0x1>;
-					device_type = "ethernet-phy";
-				};
 				phy4: ethernet-phy@4 {
 					interrupt-parent = <&ipic>;
 					interrupts = <20 0x8>;
@@ -219,6 +214,8 @@
 		};
 
 		enet1: ethernet@25000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			cell-index = <1>;
 			device_type = "network";
 			model = "eTSEC";
