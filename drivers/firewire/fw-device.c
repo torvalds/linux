@@ -58,7 +58,7 @@ EXPORT_SYMBOL(fw_csr_iterator_next);
 
 static int is_fw_unit(struct device *dev);
 
-static int match_unit_directory(u32 *directory,
+static int match_unit_directory(u32 *directory, u32 match_flags,
 				const struct ieee1394_device_id *id)
 {
 	struct fw_csr_iterator ci;
@@ -77,21 +77,31 @@ static int match_unit_directory(u32 *directory,
 			match |= IEEE1394_MATCH_VERSION;
 	}
 
-	return (match & id->match_flags) == id->match_flags;
+	return (match & match_flags) == match_flags;
 }
 
 static int fw_unit_match(struct device *dev, struct device_driver *drv)
 {
 	struct fw_unit *unit = fw_unit(dev);
-	struct fw_driver *driver = fw_driver(drv);
-	int i;
+	struct fw_device *device;
+	const struct ieee1394_device_id *id;
 
 	/* We only allow binding to fw_units. */
 	if (!is_fw_unit(dev))
 		return 0;
 
-	for (i = 0; driver->id_table[i].match_flags != 0; i++) {
-		if (match_unit_directory(unit->directory, &driver->id_table[i]))
+	device = fw_device(unit->device.parent);
+
+	for (id = fw_driver(drv)->id_table; id->match_flags != 0; id++) {
+		if (match_unit_directory(unit->directory, id->match_flags, id))
+			return 1;
+
+		/* Also check vendor ID in the root directory. */
+		if ((id->match_flags & IEEE1394_MATCH_VENDOR_ID) &&
+		    match_unit_directory(&device->config_rom[5],
+				IEEE1394_MATCH_VENDOR_ID, id) &&
+		    match_unit_directory(unit->directory, id->match_flags
+				& ~IEEE1394_MATCH_VENDOR_ID, id))
 			return 1;
 	}
 
