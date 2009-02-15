@@ -2107,7 +2107,7 @@ int ad1848_control(int cmd, int arg)
 	switch (cmd)
 	{
 		case AD1848_SET_XTAL:	/* Change clock frequency of AD1845 (only ) */
-			if (devc->model != MD_1845 || devc->model != MD_1845_SSCAPE)
+			if (devc->model != MD_1845 && devc->model != MD_1845_SSCAPE)
 				return -EINVAL;
 			spin_lock_irqsave(&devc->lock,flags);
 			ad_enter_MCE(devc);
