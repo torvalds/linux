@@ -369,6 +369,7 @@ static const char __user *raw1394_compat_write(const char __user *buf)
 {
 	struct compat_raw1394_req __user *cr = (typeof(cr)) buf;
 	struct raw1394_request __user *r;
+
 	r = compat_alloc_user_space(sizeof(struct raw1394_request));
 
 #define C(x) __copy_in_user(&r->x, &cr->x, sizeof(r->x))
@@ -378,7 +379,8 @@ static const char __user *raw1394_compat_write(const char __user *buf)
 	    C(tag) ||
 	    C(sendb) ||
 	    C(recvb))
-		return ERR_PTR(-EFAULT);
+		return (__force const char __user *)ERR_PTR(-EFAULT);
+
 	return (const char __user *)r;
 }
 #undef C
@@ -389,6 +391,7 @@ static int
 raw1394_compat_read(const char __user *buf, struct raw1394_request *r)
 {
 	struct compat_raw1394_req __user *cr = (typeof(cr)) buf;
+
 	if (!access_ok(VERIFY_WRITE, cr, sizeof(struct compat_raw1394_req)) ||
 	    P(type) ||
 	    P(error) ||
@@ -400,6 +403,7 @@ raw1394_compat_read(const char __user *buf, struct raw1394_request *r)
 	    P(sendb) ||
 	    P(recvb))
 		return -EFAULT;
+
 	return sizeof(struct compat_raw1394_req);
 }
 #undef P
@@ -2249,8 +2253,8 @@ static ssize_t raw1394_write(struct file *file, const char __user * buffer,
    	    sizeof(struct compat_raw1394_req) !=
 			sizeof(struct raw1394_request)) {
 		buffer = raw1394_compat_write(buffer);
-		if (IS_ERR(buffer))
-			return PTR_ERR(buffer);
+		if (IS_ERR((__force void *)buffer))
+			return PTR_ERR((__force void *)buffer);
 	} else
 #endif
 	if (count != sizeof(struct raw1394_request)) {
