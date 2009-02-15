@@ -1234,7 +1234,7 @@ static int rtd520_probe_fifo_depth(comedi_device *dev)
 		return -EIO;
 	}
 	RtdAdcClearFifo(dev);
-	if(fifo_size != 0x400 || fifo_size != 0x2000)
+	if(fifo_size != 0x400 && fifo_size != 0x2000)
 	{
 		rt_printk("\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
 			DRV_NAME, fifo_size);
