@@ -122,9 +122,6 @@ static void rt73usb_rf_write(struct rt2x00_dev *rt2x00dev,
 {
 	u32 reg;
 
-	if (!word)
-		return;
-
 	mutex_lock(&rt2x00dev->csr_mutex);
 
 	/*
