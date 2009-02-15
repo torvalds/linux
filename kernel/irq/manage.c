@@ -397,7 +397,7 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
  * allocate special interrupts that are part of the architecture.
  */
 static int
-__setup_irq(unsigned int irq, struct irq_desc * desc, struct irqaction *new)
+__setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 {
 	struct irqaction *old, **p;
 	const char *old_name = NULL;
@@ -687,11 +687,12 @@ int request_irq(unsigned int irq, irq_handler_t handler,
 	 * the behavior is classified as "will not fix" so we need to
 	 * start nudging drivers away from using that idiom.
 	 */
-	if ((irqflags & (IRQF_SHARED|IRQF_DISABLED))
-			== (IRQF_SHARED|IRQF_DISABLED))
-		pr_warning("IRQ %d/%s: IRQF_DISABLED is not "
-				"guaranteed on shared IRQs\n",
-				irq, devname);
+	if ((irqflags & (IRQF_SHARED|IRQF_DISABLED)) ==
+					(IRQF_SHARED|IRQF_DISABLED)) {
+		pr_warning(
+		  "IRQ %d/%s: IRQF_DISABLED is not guaranteed on shared IRQs\n",
+			irq, devname);
+	}
 
 #ifdef CONFIG_LOCKDEP
 	/*
