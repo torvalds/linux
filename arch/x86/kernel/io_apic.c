@@ -3057,13 +3057,9 @@ out:
 void __init setup_IO_APIC(void)
 {
 
-#ifdef CONFIG_X86_32
-	enable_IO_APIC();
-#else
 	/*
 	 * calling enable_IO_APIC() is moved to setup_local_APIC for BP
 	 */
-#endif
 
 	io_apic_irqs = ~PIC_IRQS;
 

@@ -1154,13 +1154,12 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	setup_local_APIC();
 
-#ifdef CONFIG_X86_64
 	/*
 	 * Enable IO APIC before setting up error vector
 	 */
 	if (!skip_ioapic_setup && nr_ioapics)
 		enable_IO_APIC();
-#endif
+
 	end_local_APIC_setup();
 
 	map_cpu_to_logical_apicid();

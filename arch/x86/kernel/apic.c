@@ -1646,19 +1646,19 @@ int __init APIC_init_uniprocessor(void)
 	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 	setup_local_APIC();
 
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_X86_IO_APIC
 	/*
 	 * Now enable IO-APICs, actually call clear_IO_APIC
 	 * We need clear_IO_APIC before enabling vector on BP
 	 */
 	if (!skip_ioapic_setup && nr_ioapics)
 		enable_IO_APIC();
-#endif
 
-#ifdef CONFIG_X86_IO_APIC
 	if (!smp_found_config || skip_ioapic_setup || !nr_ioapics)
-#endif
 		localise_nmi_watchdog();
+#else
+	localise_nmi_watchdog();
+#endif
 	end_local_APIC_setup();
 
 #ifdef CONFIG_X86_IO_APIC
