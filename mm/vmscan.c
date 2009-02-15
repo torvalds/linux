@@ -1963,10 +1963,9 @@ static int kswapd(void *p)
 	struct reclaim_state reclaim_state = {
 		.reclaimed_slab = 0,
 	};
+	node_to_cpumask_ptr(cpumask, pgdat->node_id);
 
 	lockdep_set_current_reclaim_state(GFP_KERNEL);
-
-	node_to_cpumask_ptr(cpumask, pgdat->node_id);
 
 	if (!cpumask_empty(cpumask))
 		set_cpus_allowed_ptr(tsk, cpumask);
