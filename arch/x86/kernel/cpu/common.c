@@ -241,9 +241,9 @@ static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 		 * signs here...
 		 */
 		if (cpu_has(c, df->feature) &&
-		    ((s32)df->feature < 0 ?
-		     (u32)df->feature > (u32)c->extended_cpuid_level :
-		     (s32)df->feature > (s32)c->cpuid_level)) {
+		    ((s32)df->level < 0 ?
+		     (u32)df->level > (u32)c->extended_cpuid_level :
+		     (s32)df->level > (s32)c->cpuid_level)) {
 			clear_cpu_cap(c, df->feature);
 			if (warn)
 				printk(KERN_WARNING
@@ -253,7 +253,7 @@ static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 				       df->level);
 		}
 	}
-}	
+}
 
 /*
  * Naming convention should be: <Name> [(<Codename>)]
