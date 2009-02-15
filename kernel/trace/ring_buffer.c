@@ -98,6 +98,15 @@ void tracing_off_permanent(void)
 	set_bit(RB_BUFFERS_DISABLED_BIT, &ring_buffer_flags);
 }
 
+/**
+ * tracing_is_on - show state of ring buffers enabled
+ */
+int tracing_is_on(void)
+{
+	return ring_buffer_flags == RB_BUFFERS_ON;
+}
+EXPORT_SYMBOL_GPL(tracing_is_on);
+
 #include "trace.h"
 
 /* Up this if you want to test the TIME_EXTENTS and normalization */
