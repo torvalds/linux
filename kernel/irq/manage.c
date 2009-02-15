@@ -575,72 +575,79 @@ int setup_irq(unsigned int irq, struct irqaction *act)
 void free_irq(unsigned int irq, void *dev_id)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	struct irqaction **p;
+	struct irqaction *action, **p, **pp;
 	unsigned long flags;
 
-	WARN_ON(in_interrupt());
+	WARN(in_interrupt(), "Trying to free IRQ %d from IRQ context!\n", irq);
 
 	if (!desc)
 		return;
 
 	spin_lock_irqsave(&desc->lock, flags);
+
+	/*
+	 * There can be multiple actions per IRQ descriptor, find the right
+	 * one based on the dev_id:
+	 */
 	p = &desc->action;
 	for (;;) {
-		struct irqaction *action = *p;
+		action = *p;
+		pp = p;
 
-		if (action) {
-			struct irqaction **pp = p;
-
-			p = &action->next;
-			if (action->dev_id != dev_id)
-				continue;
-
-			/* Found it - now remove it from the list of entries */
-			*pp = action->next;
-
-			/* Currently used only by UML, might disappear one day.*/
-#ifdef CONFIG_IRQ_RELEASE_METHOD
-			if (desc->chip->release)
-				desc->chip->release(irq, dev_id);
-#endif
-
-			if (!desc->action) {
-				desc->status |= IRQ_DISABLED;
-				if (desc->chip->shutdown)
-					desc->chip->shutdown(irq);
-				else
-					desc->chip->disable(irq);
-			}
+		if (!action) {
+			WARN(1, "Trying to free already-free IRQ %d\n", irq);
 			spin_unlock_irqrestore(&desc->lock, flags);
-			unregister_handler_proc(irq, action);
 
-			/* Make sure it's not being used on another CPU */
-			synchronize_irq(irq);
-#ifdef CONFIG_DEBUG_SHIRQ
-			/*
-			 * It's a shared IRQ -- the driver ought to be
-			 * prepared for it to happen even now it's
-			 * being freed, so let's make sure....  We do
-			 * this after actually deregistering it, to
-			 * make sure that a 'real' IRQ doesn't run in
-			 * parallel with our fake
-			 */
-			if (action->flags & IRQF_SHARED) {
-				local_irq_save(flags);
-				action->handler(irq, dev_id);
-				local_irq_restore(flags);
-			}
-#endif
-			kfree(action);
 			return;
 		}
-		printk(KERN_ERR "Trying to free already-free IRQ %d\n", irq);
-#ifdef CONFIG_DEBUG_SHIRQ
-		dump_stack();
-#endif
-		spin_unlock_irqrestore(&desc->lock, flags);
-		return;
+
+		p = &action->next;
+		if (action->dev_id != dev_id)
+			continue;
+
+		break;
 	}
+
+	/* Found it - now remove it from the list of entries: */
+	*pp = action->next;
+
+	/* Currently used only by UML, might disappear one day: */
+#ifdef CONFIG_IRQ_RELEASE_METHOD
+	if (desc->chip->release)
+		desc->chip->release(irq, dev_id);
+#endif
+
+	/* If this was the last handler, shut down the IRQ line: */
+	if (!desc->action) {
+		desc->status |= IRQ_DISABLED;
+		if (desc->chip->shutdown)
+			desc->chip->shutdown(irq);
+		else
+			desc->chip->disable(irq);
+	}
+	spin_unlock_irqrestore(&desc->lock, flags);
+
+	unregister_handler_proc(irq, action);
+
+	/* Make sure it's not being used on another CPU: */
+	synchronize_irq(irq);
+
+#ifdef CONFIG_DEBUG_SHIRQ
+	/*
+	 * It's a shared IRQ -- the driver ought to be prepared for an IRQ
+	 * event to happen even now it's being freed, so let's make sure that
+	 * is so by doing an extra call to the handler ....
+	 *
+	 * ( We do this after actually deregistering it, to make sure that a
+	 *   'real' IRQ doesn't run in * parallel with our fake. )
+	 */
+	if (action->flags & IRQF_SHARED) {
+		local_irq_save(flags);
+		action->handler(irq, dev_id);
+		local_irq_restore(flags);
+	}
+#endif
+	kfree(action);
 }
 EXPORT_SYMBOL(free_irq);
 
