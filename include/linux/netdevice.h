@@ -1863,7 +1863,7 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 
 		if (dev->priv_flags & IFF_SLAVE_INACTIVE) {
 			if ((dev->priv_flags & IFF_SLAVE_NEEDARP) &&
-			    skb->protocol == __constant_htons(ETH_P_ARP))
+			    skb->protocol == __cpu_to_be16(ETH_P_ARP))
 				return 0;
 
 			if (master->priv_flags & IFF_MASTER_ALB) {
@@ -1872,7 +1872,7 @@ static inline int skb_bond_should_drop(struct sk_buff *skb)
 					return 0;
 			}
 			if (master->priv_flags & IFF_MASTER_8023AD &&
-			    skb->protocol == __constant_htons(ETH_P_SLOW))
+			    skb->protocol == __cpu_to_be16(ETH_P_SLOW))
 				return 0;
 
 			return 1;

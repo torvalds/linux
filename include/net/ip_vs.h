@@ -184,8 +184,8 @@ static inline const char *ip_vs_dbg_addr(int af, char *buf, size_t buf_len,
 /*
  *      The port number of FTP service (in network order).
  */
-#define FTPPORT  __constant_htons(21)
-#define FTPDATA  __constant_htons(20)
+#define FTPPORT  cpu_to_be16(21)
+#define FTPDATA  cpu_to_be16(20)
 
 /*
  *      TCP State Values
