@@ -48,6 +48,11 @@ static DEFINE_MUTEX(clocks_mutex);
  *-------------------------------------------------------------------------*/
 
 /*
+ * All the code inside #ifndef CONFIG_COMMON_CLKDEV can be removed once all
+ * MXC architectures have switched to using clkdev.
+ */
+#ifndef CONFIG_COMMON_CLKDEV
+/*
  * Retrieve a clock by name.
  *
  * Note that we first try to use device id on the bus
@@ -110,6 +115,7 @@ found:
 	return clk;
 }
 EXPORT_SYMBOL(clk_get);
+#endif
 
 static void __clk_disable(struct clk *clk)
 {
@@ -187,6 +193,7 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
+#ifndef CONFIG_COMMON_CLKDEV
 /* Decrement the clock's module reference count */
 void clk_put(struct clk *clk)
 {
@@ -194,6 +201,7 @@ void clk_put(struct clk *clk)
 		module_put(clk->owner);
 }
 EXPORT_SYMBOL(clk_put);
+#endif
 
 /* Round the requested clock rate to the nearest supported
  * rate that is less than or equal to the requested rate.
@@ -257,6 +265,7 @@ struct clk *clk_get_parent(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_parent);
 
+#ifndef CONFIG_COMMON_CLKDEV
 /*
  * Add a new clock to the clock tree.
  */
@@ -327,6 +336,7 @@ static int __init mxc_setup_proc_entry(void)
 }
 
 late_initcall(mxc_setup_proc_entry);
+#endif /* CONFIG_PROC_FS */
 #endif
 
 /*
