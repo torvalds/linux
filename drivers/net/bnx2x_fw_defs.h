@@ -50,8 +50,10 @@
 #define TSTORM_ASSERT_LIST_OFFSET(idx) \
 	(IS_E1H_OFFSET ? (0xa020 + (idx * 0x10)) : (0x1020 + (idx * 0x10)))
 #define TSTORM_CLIENT_CONFIG_OFFSET(port, client_id) \
-	(IS_E1H_OFFSET ? (0x3358 + (port * 0x3e8) + (client_id * 0x28)) \
-	: (0x9c8 + (port * 0x2f8) + (client_id * 0x28)))
+	(IS_E1H_OFFSET ? (0x3350 + (port * 0x190) + (client_id * 0x10)) \
+	: (0x9c0 + (port * 0x130) + (client_id * 0x10)))
+#define TSTORM_COMMON_SAFC_WORKAROUND_ENABLE_OFFSET \
+	(IS_E1H_OFFSET ? 0x1ad8 : 0xffffffff)
 #define TSTORM_DEF_SB_HC_DISABLE_OFFSET(function, index) \
 	(IS_E1H_OFFSET ? (0xb01a + ((function>>1) * 0x28) + \
 	((function&1) * 0xa0) + (index * 0x4)) : (0x141a + (function * \
@@ -81,43 +83,43 @@
 	(function * 0x38)))
 #define TSTORM_PER_COUNTER_ID_STATS_OFFSET(port, stats_counter_id) \
 	(IS_E1H_OFFSET ? (0x2010 + (port * 0x5b0) + (stats_counter_id * \
-	0x50)) : (0x4000 + (port * 0x3f0) + (stats_counter_id * 0x38)))
-#define TSTORM_RX_PRODS_OFFSET(port, client_id) \
-	(IS_E1H_OFFSET ? (0x3350 + (port * 0x3e8) + (client_id * 0x28)) \
-	: (0x9c0 + (port * 0x2f8) + (client_id * 0x28)))
+	0x50)) : (0x4080 + (port * 0x5b0) + (stats_counter_id * 0x50)))
 #define TSTORM_STATS_FLAGS_OFFSET(function) \
 	(IS_E1H_OFFSET ? (0x2c00 + (function * 0x8)) : (0x4b88 + \
 	(function * 0x8)))
-#define TSTORM_TPA_EXIST_OFFSET (IS_E1H_OFFSET ? 0x3b30 : 0x1c20)
+#define TSTORM_TPA_EXIST_OFFSET (IS_E1H_OFFSET ? 0x3680 : 0x1c20)
 #define USTORM_AGG_DATA_OFFSET (IS_E1H_OFFSET ? 0xa040 : 0x2c10)
 #define USTORM_AGG_DATA_SIZE (IS_E1H_OFFSET ? 0x2440 : 0x1200)
 #define USTORM_ASSERT_LIST_INDEX_OFFSET \
-	(IS_E1H_OFFSET ? 0x8000 : 0x1000)
+	(IS_E1H_OFFSET ? 0x8960 : 0x1000)
 #define USTORM_ASSERT_LIST_OFFSET(idx) \
-	(IS_E1H_OFFSET ? (0x8020 + (idx * 0x10)) : (0x1020 + (idx * 0x10)))
+	(IS_E1H_OFFSET ? (0x8980 + (idx * 0x10)) : (0x1020 + (idx * 0x10)))
 #define USTORM_CQE_PAGE_BASE_OFFSET(port, clientId) \
-	(IS_E1H_OFFSET ? (0x3298 + (port * 0x258) + (clientId * 0x18)) : \
-	(0x5450 + (port * 0x1c8) + (clientId * 0x18)))
+	(IS_E1H_OFFSET ? (0x8018 + (port * 0x4b0) + (clientId * 0x30)) : \
+	(0x5330 + (port * 0x260) + (clientId * 0x20)))
 #define USTORM_DEF_SB_HC_DISABLE_OFFSET(function, index) \
-	(IS_E1H_OFFSET ? (0x951a + ((function>>1) * 0x28) + \
-	((function&1) * 0xa0) + (index * 0x4)) : (0x191a + (function * \
-	0x28) + (index * 0x4)))
+	(IS_E1H_OFFSET ? (0x9522 + ((function>>1) * 0x40) + \
+	((function&1) * 0x100) + (index * 0x4)) : (0x1922 + (function * \
+	0x40) + (index * 0x4)))
 #define USTORM_DEF_SB_HOST_SB_ADDR_OFFSET(function) \
-	(IS_E1H_OFFSET ? (0x9500 + ((function>>1) * 0x28) + \
-	((function&1) * 0xa0)) : (0x1900 + (function * 0x28)))
+	(IS_E1H_OFFSET ? (0x9500 + ((function>>1) * 0x40) + \
+	((function&1) * 0x100)) : (0x1900 + (function * 0x40)))
 #define USTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(function) \
-	(IS_E1H_OFFSET ? (0x9508 + ((function>>1) * 0x28) + \
-	((function&1) * 0xa0)) : (0x1908 + (function * 0x28)))
+	(IS_E1H_OFFSET ? (0x9508 + ((function>>1) * 0x40) + \
+	((function&1) * 0x100)) : (0x1908 + (function * 0x40)))
 #define USTORM_FUNCTION_MODE_OFFSET \
 	(IS_E1H_OFFSET ? 0x2448 : 0xffffffff)
 #define USTORM_HC_BTR_OFFSET(port) \
-	(IS_E1H_OFFSET ? (0x9644 + (port * 0xd0)) : (0x1954 + (port * 0xb8)))
+	(IS_E1H_OFFSET ? (0x9704 + (port * 0xf0)) : (0x1984 + (port * 0xc0)))
 #define USTORM_MAX_AGG_SIZE_OFFSET(port, clientId) \
-	(IS_E1H_OFFSET ? (0x3290 + (port * 0x258) + (clientId * 0x18)) : \
-	(0x5448 + (port * 0x1c8) + (clientId * 0x18)))
+	(IS_E1H_OFFSET ? (0x8010 + (port * 0x4b0) + (clientId * 0x30)) : \
+	(0x5328 + (port * 0x260) + (clientId * 0x20)))
 #define USTORM_MEM_WORKAROUND_ADDRESS_OFFSET(function) \
-	(IS_E1H_OFFSET ? (0x2408 + (function * 0x8)) : (0x5408 + \
+	(IS_E1H_OFFSET ? (0x2408 + (function * 0x8)) : (0x5308 + \
 	(function * 0x8)))
+#define USTORM_RX_PRODS_OFFSET(port, client_id) \
+	(IS_E1H_OFFSET ? (0x8000 + (port * 0x4b0) + (client_id * 0x30)) \
+	: (0x5318 + (port * 0x260) + (client_id * 0x20)))
 #define USTORM_SB_HC_DISABLE_OFFSET(port, cpu_id, index) \
 	(IS_E1H_OFFSET ? (0x901a + (port * 0x280) + (cpu_id * 0x28) + \
 	(index * 0x4)) : (0x141a + (port * 0x280) + (cpu_id * 0x28) + \
@@ -137,7 +139,7 @@
 #define XSTORM_ASSERT_LIST_OFFSET(idx) \
 	(IS_E1H_OFFSET ? (0x9020 + (idx * 0x10)) : (0x1020 + (idx * 0x10)))
 #define XSTORM_CMNG_PER_PORT_VARS_OFFSET(port) \
-	(IS_E1H_OFFSET ? (0x24a8 + (port * 0x40)) : (0x3ba0 + (port * 0x40)))
+	(IS_E1H_OFFSET ? (0x24a8 + (port * 0x50)) : (0x3ba0 + (port * 0x50)))
 #define XSTORM_DEF_SB_HC_DISABLE_OFFSET(function, index) \
 	(IS_E1H_OFFSET ? (0xa01a + ((function>>1) * 0x28) + \
 	((function&1) * 0xa0) + (index * 0x4)) : (0x141a + (function * \
@@ -149,23 +151,23 @@
 	(IS_E1H_OFFSET ? (0xa008 + ((function>>1) * 0x28) + \
 	((function&1) * 0xa0)) : (0x1408 + (function * 0x28)))
 #define XSTORM_E1HOV_OFFSET(function) \
-	(IS_E1H_OFFSET ? (0x2ab8 + (function * 0x2)) : 0xffffffff)
+	(IS_E1H_OFFSET ? (0x2c10 + (function * 0x2)) : 0xffffffff)
 #define XSTORM_ETH_STATS_QUERY_ADDR_OFFSET(function) \
 	(IS_E1H_OFFSET ? (0x2418 + (function * 0x8)) : (0x3b70 + \
 	(function * 0x8)))
 #define XSTORM_FAIRNESS_PER_VN_VARS_OFFSET(function) \
-	(IS_E1H_OFFSET ? (0x2568 + (function * 0x70)) : (0x3c60 + \
-	(function * 0x70)))
+	(IS_E1H_OFFSET ? (0x2588 + (function * 0x90)) : (0x3c80 + \
+	(function * 0x90)))
 #define XSTORM_FUNCTION_MODE_OFFSET \
-	(IS_E1H_OFFSET ? 0x2ac8 : 0xffffffff)
+	(IS_E1H_OFFSET ? 0x2c20 : 0xffffffff)
 #define XSTORM_HC_BTR_OFFSET(port) \
 	(IS_E1H_OFFSET ? (0xa144 + (port * 0x30)) : (0x1454 + (port * 0x18)))
 #define XSTORM_PER_COUNTER_ID_STATS_OFFSET(port, stats_counter_id) \
 	(IS_E1H_OFFSET ? (0xc000 + (port * 0x3f0) + (stats_counter_id * \
 	0x38)) : (0x3378 + (port * 0x3f0) + (stats_counter_id * 0x38)))
 #define XSTORM_RATE_SHAPING_PER_VN_VARS_OFFSET(function) \
-	(IS_E1H_OFFSET ? (0x2528 + (function * 0x70)) : (0x3c20 + \
-	(function * 0x70)))
+	(IS_E1H_OFFSET ? (0x2548 + (function * 0x90)) : (0x3c40 + \
+	(function * 0x90)))
 #define XSTORM_SPQ_PAGE_BASE_OFFSET(function) \
 	(IS_E1H_OFFSET ? (0x2000 + (function * 0x10)) : (0x3328 + \
 	(function * 0x10)))
@@ -278,9 +280,6 @@
 #define ETH_STATE (ETH_CONNECTION_TYPE << PROTOCOL_STATE_BIT_OFFSET)
 #define TOE_STATE (TOE_CONNECTION_TYPE << PROTOCOL_STATE_BIT_OFFSET)
 #define RDMA_STATE (RDMA_CONNECTION_TYPE << PROTOCOL_STATE_BIT_OFFSET)
-#define ISCSI_STATE \
-	(ISCSI_CONNECTION_TYPE << PROTOCOL_STATE_BIT_OFFSET)
-#define FCOE_STATE (FCOE_CONNECTION_TYPE << PROTOCOL_STATE_BIT_OFFSET)
 
 /* microcode fixed page page size 4K (chains and ring segments) */
 #define MC_PAGE_SIZE (4096)
@@ -289,7 +288,7 @@
 /* Host coalescing constants */
 
 /* index numbers */
-#define HC_USTORM_DEF_SB_NUM_INDICES 4
+#define HC_USTORM_DEF_SB_NUM_INDICES 8
 #define HC_CSTORM_DEF_SB_NUM_INDICES 8
 #define HC_XSTORM_DEF_SB_NUM_INDICES 4
 #define HC_TSTORM_DEF_SB_NUM_INDICES 4
@@ -386,9 +385,12 @@
 #define FW_LOG_LIST_SIZE (50)
 
 #define NUM_OF_PROTOCOLS 4
-#define MAX_COS_NUMBER 16
+#define NUM_OF_SAFC_BITS 16
+#define MAX_COS_NUMBER 4
 #define MAX_T_STAT_COUNTER_ID 18
 #define MAX_X_STAT_COUNTER_ID 18
+#define MAX_U_STAT_COUNTER_ID 18
+
 
 #define UNKNOWN_ADDRESS 0
 #define UNICAST_ADDRESS 1

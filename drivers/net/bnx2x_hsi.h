@@ -1212,8 +1212,9 @@ struct host_func_stats {
 
 
 #define BCM_5710_FW_MAJOR_VERSION			4
-#define BCM_5710_FW_MINOR_VERSION			5
-#define BCM_5710_FW_REVISION_VERSION			1
+#define BCM_5710_FW_MINOR_VERSION			8
+#define BCM_5710_FW_REVISION_VERSION			53
+#define BCM_5710_FW_ENGINEERING_VERSION 		0
 #define BCM_5710_FW_COMPILE_FLAGS			1
 
 
@@ -1465,9 +1466,11 @@ struct ustorm_eth_st_context_config {
 #endif
 #if defined(__BIG_ENDIAN)
 	u16 bd_buff_size;
-	u16 mc_alignment_size;
+	u8 statistics_counter_id;
+	u8 mc_alignment_log_size;
 #elif defined(__LITTLE_ENDIAN)
-	u16 mc_alignment_size;
+	u8 mc_alignment_log_size;
+	u8 statistics_counter_id;
 	u16 bd_buff_size;
 #endif
 #if defined(__BIG_ENDIAN)
@@ -1479,13 +1482,7 @@ struct ustorm_eth_st_context_config {
 	u8 __local_bd_prod;
 	u8 __local_sge_prod;
 #endif
-#if defined(__BIG_ENDIAN)
-	u16 __bd_cons;
-	u16 __sge_cons;
-#elif defined(__LITTLE_ENDIAN)
-	u16 __sge_cons;
-	u16 __bd_cons;
-#endif
+	u32 reserved;
 	u32 bd_page_base_lo;
 	u32 bd_page_base_hi;
 	u32 sge_page_base_lo;
@@ -2162,9 +2159,9 @@ struct host_status_block {
  * The data for RSS setup ramrod
  */
 struct eth_client_setup_ramrod_data {
-	u32 client_id_5b;
-	u8 is_rdma_1b;
-	u8 reserved0;
+	u32 client_id;
+	u8 is_rdma;
+	u8 is_fcoe;
 	u16 reserved1;
 };
 
@@ -2225,7 +2222,7 @@ struct eth_fast_path_rx_cqe {
  * The data for RSS setup ramrod
  */
 struct eth_halt_ramrod_data {
-	u32 client_id_5b;
+	u32 client_id;
 	u32 reserved0;
 };
 
@@ -2236,11 +2233,11 @@ struct eth_halt_ramrod_data {
 struct eth_query_ramrod_data {
 #if defined(__BIG_ENDIAN)
 	u8 reserved0;
-	u8 collect_port_1b;
+	u8 collect_port;
 	u16 drv_counter;
 #elif defined(__LITTLE_ENDIAN)
 	u16 drv_counter;
-	u8 collect_port_1b;
+	u8 collect_port;
 	u8 reserved0;
 #endif
 	u32 ctr_id_vector;
@@ -2282,7 +2279,7 @@ struct common_ramrod_eth_rx_cqe {
 #define COMMON_RAMROD_ETH_RX_CQE_TYPE_SHIFT 0
 #define COMMON_RAMROD_ETH_RX_CQE_RESERVED0 (0x7F<<1)
 #define COMMON_RAMROD_ETH_RX_CQE_RESERVED0_SHIFT 1
-	u8 conn_type_3b;
+	u8 conn_type;
 	u16 reserved1;
 	u32 conn_and_cmd_data;
 #define COMMON_RAMROD_ETH_RX_CQE_CID (0xFFFFFF<<0)
@@ -2377,14 +2374,16 @@ struct tstorm_eth_function_common_config {
 #define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_CAPABILITY_SHIFT 2
 #define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_TCP_CAPABILITY (0x1<<3)
 #define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_TCP_CAPABILITY_SHIFT 3
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_ENABLE (0x1<<4)
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_ENABLE_SHIFT 4
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_DEFAULT_ENABLE (0x1<<5)
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_DEFAULT_ENABLE_SHIFT 5
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_VLAN_IN_CAM (0x1<<6)
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_VLAN_IN_CAM_SHIFT 6
-#define __TSTORM_ETH_FUNCTION_COMMON_CONFIG_RESERVED0 (0x1FF<<7)
-#define __TSTORM_ETH_FUNCTION_COMMON_CONFIG_RESERVED0_SHIFT 7
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_MODE (0x7<<4)
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_MODE_SHIFT 4
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_DEFAULT_ENABLE (0x1<<7)
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_DEFAULT_ENABLE_SHIFT 7
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_VLAN_IN_CAM (0x1<<8)
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_VLAN_IN_CAM_SHIFT 8
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_E1HOV_IN_CAM (0x1<<9)
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_E1HOV_IN_CAM_SHIFT 9
+#define __TSTORM_ETH_FUNCTION_COMMON_CONFIG_RESERVED0 (0x3F<<10)
+#define __TSTORM_ETH_FUNCTION_COMMON_CONFIG_RESERVED0_SHIFT 10
 #elif defined(__LITTLE_ENDIAN)
 	u16 config_flags;
 #define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV4_CAPABILITY (0x1<<0)
@@ -2395,14 +2394,16 @@ struct tstorm_eth_function_common_config {
 #define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_CAPABILITY_SHIFT 2
 #define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_TCP_CAPABILITY (0x1<<3)
 #define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_TCP_CAPABILITY_SHIFT 3
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_ENABLE (0x1<<4)
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_ENABLE_SHIFT 4
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_DEFAULT_ENABLE (0x1<<5)
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_DEFAULT_ENABLE_SHIFT 5
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_VLAN_IN_CAM (0x1<<6)
-#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_VLAN_IN_CAM_SHIFT 6
-#define __TSTORM_ETH_FUNCTION_COMMON_CONFIG_RESERVED0 (0x1FF<<7)
-#define __TSTORM_ETH_FUNCTION_COMMON_CONFIG_RESERVED0_SHIFT 7
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_MODE (0x7<<4)
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_MODE_SHIFT 4
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_DEFAULT_ENABLE (0x1<<7)
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_DEFAULT_ENABLE_SHIFT 7
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_VLAN_IN_CAM (0x1<<8)
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_VLAN_IN_CAM_SHIFT 8
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_E1HOV_IN_CAM (0x1<<9)
+#define TSTORM_ETH_FUNCTION_COMMON_CONFIG_E1HOV_IN_CAM_SHIFT 9
+#define __TSTORM_ETH_FUNCTION_COMMON_CONFIG_RESERVED0 (0x3F<<10)
+#define __TSTORM_ETH_FUNCTION_COMMON_CONFIG_RESERVED0_SHIFT 10
 	u8 rss_result_mask;
 	u8 leading_client_id;
 #endif
@@ -2422,7 +2423,7 @@ struct eth_update_ramrod_data {
  * MAC filtering configuration command header
  */
 struct mac_configuration_hdr {
-	u8 length_6b;
+	u8 length;
 	u8 offset;
 	u16 client_id;
 	u32 reserved1;
@@ -2544,24 +2545,28 @@ struct tstorm_eth_client_config {
 #define __TSTORM_ETH_CLIENT_CONFIG_RESERVED1 (0xFFF<<4)
 #define __TSTORM_ETH_CLIENT_CONFIG_RESERVED1_SHIFT 4
 	u16 config_flags;
-#define TSTORM_ETH_CLIENT_CONFIG_VLAN_REMOVAL_ENABLE (0x1<<0)
-#define TSTORM_ETH_CLIENT_CONFIG_VLAN_REMOVAL_ENABLE_SHIFT 0
-#define TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE (0x1<<1)
-#define TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE_SHIFT 1
-#define TSTORM_ETH_CLIENT_CONFIG_ENABLE_SGE_RING (0x1<<2)
-#define TSTORM_ETH_CLIENT_CONFIG_ENABLE_SGE_RING_SHIFT 2
-#define __TSTORM_ETH_CLIENT_CONFIG_RESERVED0 (0x1FFF<<3)
-#define __TSTORM_ETH_CLIENT_CONFIG_RESERVED0_SHIFT 3
+#define TSTORM_ETH_CLIENT_CONFIG_VLAN_REM_ENABLE (0x1<<0)
+#define TSTORM_ETH_CLIENT_CONFIG_VLAN_REM_ENABLE_SHIFT 0
+#define TSTORM_ETH_CLIENT_CONFIG_E1HOV_REM_ENABLE (0x1<<1)
+#define TSTORM_ETH_CLIENT_CONFIG_E1HOV_REM_ENABLE_SHIFT 1
+#define TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE (0x1<<2)
+#define TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE_SHIFT 2
+#define TSTORM_ETH_CLIENT_CONFIG_ENABLE_SGE_RING (0x1<<3)
+#define TSTORM_ETH_CLIENT_CONFIG_ENABLE_SGE_RING_SHIFT 3
+#define __TSTORM_ETH_CLIENT_CONFIG_RESERVED0 (0xFFF<<4)
+#define __TSTORM_ETH_CLIENT_CONFIG_RESERVED0_SHIFT 4
 #elif defined(__LITTLE_ENDIAN)
 	u16 config_flags;
-#define TSTORM_ETH_CLIENT_CONFIG_VLAN_REMOVAL_ENABLE (0x1<<0)
-#define TSTORM_ETH_CLIENT_CONFIG_VLAN_REMOVAL_ENABLE_SHIFT 0
-#define TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE (0x1<<1)
-#define TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE_SHIFT 1
-#define TSTORM_ETH_CLIENT_CONFIG_ENABLE_SGE_RING (0x1<<2)
-#define TSTORM_ETH_CLIENT_CONFIG_ENABLE_SGE_RING_SHIFT 2
-#define __TSTORM_ETH_CLIENT_CONFIG_RESERVED0 (0x1FFF<<3)
-#define __TSTORM_ETH_CLIENT_CONFIG_RESERVED0_SHIFT 3
+#define TSTORM_ETH_CLIENT_CONFIG_VLAN_REM_ENABLE (0x1<<0)
+#define TSTORM_ETH_CLIENT_CONFIG_VLAN_REM_ENABLE_SHIFT 0
+#define TSTORM_ETH_CLIENT_CONFIG_E1HOV_REM_ENABLE (0x1<<1)
+#define TSTORM_ETH_CLIENT_CONFIG_E1HOV_REM_ENABLE_SHIFT 1
+#define TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE (0x1<<2)
+#define TSTORM_ETH_CLIENT_CONFIG_STATSITICS_ENABLE_SHIFT 2
+#define TSTORM_ETH_CLIENT_CONFIG_ENABLE_SGE_RING (0x1<<3)
+#define TSTORM_ETH_CLIENT_CONFIG_ENABLE_SGE_RING_SHIFT 3
+#define __TSTORM_ETH_CLIENT_CONFIG_RESERVED0 (0xFFF<<4)
+#define __TSTORM_ETH_CLIENT_CONFIG_RESERVED0_SHIFT 4
 	u16 drop_flags;
 #define TSTORM_ETH_CLIENT_CONFIG_DROP_IP_CS_ERR (0x1<<0)
 #define TSTORM_ETH_CLIENT_CONFIG_DROP_IP_CS_ERR_SHIFT 0
@@ -2594,28 +2599,7 @@ struct tstorm_eth_mac_filter_config {
 
 
 /*
- * Three RX producers for ETH
- */
-struct tstorm_eth_rx_producers {
-#if defined(__BIG_ENDIAN)
-	u16 bd_prod;
-	u16 cqe_prod;
-#elif defined(__LITTLE_ENDIAN)
-	u16 cqe_prod;
-	u16 bd_prod;
-#endif
-#if defined(__BIG_ENDIAN)
-	u16 reserved;
-	u16 sge_prod;
-#elif defined(__LITTLE_ENDIAN)
-	u16 sge_prod;
-	u16 reserved;
-#endif
-};
-
-
-/*
- * common flag to indicate existence of TPA.
+ * common flag to indicate existance of TPA.
  */
 struct tstorm_eth_tpa_exist {
 #if defined(__BIG_ENDIAN)
@@ -2628,6 +2612,27 @@ struct tstorm_eth_tpa_exist {
 	u16 reserved1;
 #endif
 	u32 reserved2;
+};
+
+
+/*
+ * Three RX producers for ETH
+ */
+struct ustorm_eth_rx_producers {
+#if defined(__BIG_ENDIAN)
+	u16 bd_prod;
+	u16 cqe_prod;
+#elif defined(__LITTLE_ENDIAN)
+	u16 cqe_prod;
+	u16 bd_prod;
+#endif
+#if defined(__BIG_ENDIAN)
+	u16 reserved;
+	u16 sge_prod;
+#elif defined(__LITTLE_ENDIAN)
+	u16 sge_prod;
+	u16 reserved;
+#endif
 };
 
 
@@ -2674,15 +2679,15 @@ struct fairness_vars_per_port {
  */
 struct safc_struct_per_port {
 #if defined(__BIG_ENDIAN)
-	u16 __reserved0;
-	u8 cur_cos_types;
+	u16 __reserved1;
+	u8 __reserved0;
 	u8 safc_timeout_usec;
 #elif defined(__LITTLE_ENDIAN)
 	u8 safc_timeout_usec;
-	u8 cur_cos_types;
-	u16 __reserved0;
+	u8 __reserved0;
+	u16 __reserved1;
 #endif
-	u8 cos_to_protocol[MAX_COS_NUMBER];
+	u16 cos_to_pause_mask[NUM_OF_SAFC_BITS];
 };
 
 
@@ -2788,13 +2793,15 @@ struct fairness_vars_per_vn {
  */
 struct fw_version {
 #if defined(__BIG_ENDIAN)
-	u16 patch;
-	u8 primary;
-	u8 client;
+	u8 engineering;
+	u8 revision;
+	u8 minor;
+	u8 major;
 #elif defined(__LITTLE_ENDIAN)
-	u8 client;
-	u8 primary;
-	u16 patch;
+	u8 major;
+	u8 minor;
+	u8 revision;
+	u8 engineering;
 #endif
 	u32 flags;
 #define FW_VERSION_OPTIMIZED (0x1<<0)
@@ -2812,9 +2819,10 @@ struct fw_version {
  * FW version stored in first line of pram
  */
 struct pram_fw_version {
-	u8 client;
-	u8 primary;
-	u16 patch;
+	u8 major;
+	u8 minor;
+	u8 revision;
+	u8 engineering;
 	u8 flags;
 #define PRAM_FW_VERSION_OPTIMIZED (0x1<<0)
 #define PRAM_FW_VERSION_OPTIMIZED_SHIFT 0

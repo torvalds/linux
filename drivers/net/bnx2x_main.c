@@ -1377,7 +1377,7 @@ static inline void bnx2x_update_rx_prod(struct bnx2x *bp,
 					u16 bd_prod, u16 rx_comp_prod,
 					u16 rx_sge_prod)
 {
-	struct tstorm_eth_rx_producers rx_prods = {0};
+	struct ustorm_eth_rx_producers rx_prods = {0};
 	int i;
 
 	/* Update producers */
@@ -1395,9 +1395,9 @@ static inline void bnx2x_update_rx_prod(struct bnx2x *bp,
 	 */
 	wmb();
 
-	for (i = 0; i < sizeof(struct tstorm_eth_rx_producers)/4; i++)
-		REG_WR(bp, BAR_TSTRORM_INTMEM +
-		       TSTORM_RX_PRODS_OFFSET(BP_PORT(bp), FP_CL_ID(fp)) + i*4,
+	for (i = 0; i < sizeof(struct ustorm_eth_rx_producers)/4; i++)
+		REG_WR(bp, BAR_USTRORM_INTMEM +
+		       USTORM_RX_PRODS_OFFSET(BP_PORT(bp), FP_CL_ID(fp)) + i*4,
 		       ((u32 *)&rx_prods)[i]);
 
 	mmiowb(); /* keep prod updates ordered */
@@ -2915,7 +2915,7 @@ static irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 		return IRQ_HANDLED;
 	}
 
-	bnx2x_ack_sb(bp, DEF_SB_ID, XSTORM_ID, 0, IGU_INT_DISABLE, 0);
+	bnx2x_ack_sb(bp, DEF_SB_ID, TSTORM_ID, 0, IGU_INT_DISABLE, 0);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (unlikely(bp->panic))
@@ -3043,7 +3043,7 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 		int rc;
 
 		ramrod_data.drv_counter = bp->stats_counter++;
-		ramrod_data.collect_port_1b = bp->port.pmf ? 1 : 0;
+		ramrod_data.collect_port = bp->port.pmf ? 1 : 0;
 		ramrod_data.ctr_id_vector = (1 << BP_CL_ID(bp));
 
 		rc = bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_STAT_QUERY, 0,
@@ -4240,10 +4240,6 @@ static void bnx2x_update_coalesce(struct bnx2x *bp)
 			 USTORM_SB_HC_DISABLE_OFFSET(port, sb_id,
 						     U_SB_ETH_RX_CQ_INDEX),
 			 bp->rx_ticks ? 0 : 1);
-		REG_WR16(bp, BAR_USTRORM_INTMEM +
-			 USTORM_SB_HC_DISABLE_OFFSET(port, sb_id,
-						     U_SB_ETH_RX_BD_INDEX),
-			 bp->rx_ticks ? 0 : 1);
 
 		/* HC_INDEX_C_ETH_TX_CQ_CONS */
 		REG_WR8(bp, BAR_CSTRORM_INTMEM +
@@ -4489,25 +4485,14 @@ static void bnx2x_init_context(struct bnx2x *bp)
 		struct bnx2x_fastpath *fp = &bp->fp[i];
 		u8 sb_id = FP_SB_ID(fp);
 
-		context->xstorm_st_context.tx_bd_page_base_hi =
-						U64_HI(fp->tx_desc_mapping);
-		context->xstorm_st_context.tx_bd_page_base_lo =
-						U64_LO(fp->tx_desc_mapping);
-		context->xstorm_st_context.db_data_addr_hi =
-						U64_HI(fp->tx_prods_mapping);
-		context->xstorm_st_context.db_data_addr_lo =
-						U64_LO(fp->tx_prods_mapping);
-		context->xstorm_st_context.statistics_data = (BP_CL_ID(bp) |
-				XSTORM_ETH_ST_CONTEXT_STATISTICS_ENABLE);
-
 		context->ustorm_st_context.common.sb_index_numbers =
 						BNX2X_RX_SB_INDEX_NUM;
 		context->ustorm_st_context.common.clientId = FP_CL_ID(fp);
 		context->ustorm_st_context.common.status_block_id = sb_id;
 		context->ustorm_st_context.common.flags =
 			USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_MC_ALIGNMENT;
-		context->ustorm_st_context.common.mc_alignment_size =
-			BCM_RX_ETH_PAYLOAD_ALIGN;
+		context->ustorm_st_context.common.mc_alignment_log_size =
+			6 /*BCM_RX_ETH_PAYLOAD_ALIGN*/;
 		context->ustorm_st_context.common.bd_buff_size =
 						bp->rx_buf_size;
 		context->ustorm_st_context.common.bd_page_base_hi =
@@ -4519,13 +4504,29 @@ static void bnx2x_init_context(struct bnx2x *bp)
 				(USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_TPA |
 				 USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_SGE_RING);
 			context->ustorm_st_context.common.sge_buff_size =
-					(u16)(BCM_PAGE_SIZE*PAGES_PER_SGE);
+				(u16)min((u32)SGE_PAGE_SIZE*PAGES_PER_SGE,
+					 (u32)0xffff);
 			context->ustorm_st_context.common.sge_page_base_hi =
 						U64_HI(fp->rx_sge_mapping);
 			context->ustorm_st_context.common.sge_page_base_lo =
 						U64_LO(fp->rx_sge_mapping);
 		}
 
+		context->ustorm_ag_context.cdu_usage =
+			CDU_RSRVD_VALUE_TYPE_A(HW_CID(bp, i),
+					       CDU_REGION_NUMBER_UCM_AG,
+					       ETH_CONNECTION_TYPE);
+
+		context->xstorm_st_context.tx_bd_page_base_hi =
+						U64_HI(fp->tx_desc_mapping);
+		context->xstorm_st_context.tx_bd_page_base_lo =
+						U64_LO(fp->tx_desc_mapping);
+		context->xstorm_st_context.db_data_addr_hi =
+						U64_HI(fp->tx_prods_mapping);
+		context->xstorm_st_context.db_data_addr_lo =
+						U64_LO(fp->tx_prods_mapping);
+		context->xstorm_st_context.statistics_data = (fp->cl_id |
+				XSTORM_ETH_ST_CONTEXT_STATISTICS_ENABLE);
 		context->cstorm_st_context.sb_index_number =
 						C_SB_ETH_TX_CQ_INDEX;
 		context->cstorm_st_context.status_block_id = sb_id;
@@ -4533,10 +4534,6 @@ static void bnx2x_init_context(struct bnx2x *bp)
 		context->xstorm_ag_context.cdu_reserved =
 			CDU_RSRVD_VALUE_TYPE_A(HW_CID(bp, i),
 					       CDU_REGION_NUMBER_XCM_AG,
-					       ETH_CONNECTION_TYPE);
-		context->ustorm_ag_context.cdu_usage =
-			CDU_RSRVD_VALUE_TYPE_A(HW_CID(bp, i),
-					       CDU_REGION_NUMBER_UCM_AG,
 					       ETH_CONNECTION_TYPE);
 	}
 }
@@ -4569,7 +4566,7 @@ static void bnx2x_set_client_config(struct bnx2x *bp)
 #ifdef BCM_VLAN
 	if (bp->rx_mode && bp->vlgrp && (bp->flags & HW_VLAN_RX_FLAG)) {
 		tstorm_client.config_flags |=
-				TSTORM_ETH_CLIENT_CONFIG_VLAN_REMOVAL_ENABLE;
+				TSTORM_ETH_CLIENT_CONFIG_VLAN_REM_ENABLE;
 		DP(NETIF_MSG_IFUP, "vlan removal enabled\n");
 	}
 #endif
@@ -4690,6 +4687,9 @@ static void bnx2x_init_internal_func(struct bnx2x *bp)
 		tstorm_config.config_flags = MULTI_FLAGS;
 		tstorm_config.rss_result_mask = MULTI_MASK;
 	}
+	if (IS_E1HMF(bp))
+		tstorm_config.config_flags |=
+				TSTORM_ETH_FUNCTION_COMMON_CONFIG_E1HOV_IN_CAM;
 
 	tstorm_config.leading_client_id = BP_L_ID(bp);
 
@@ -5338,8 +5338,7 @@ static int bnx2x_init_common(struct bnx2x *bp)
 		REG_WR(bp, i, 0xc0cac01a);
 		/* TODO: replace with something meaningful */
 	}
-	if (CHIP_IS_E1H(bp))
-		bnx2x_init_block(bp, SRCH_COMMON_START, SRCH_COMMON_END);
+	bnx2x_init_block(bp, SRCH_COMMON_START, SRCH_COMMON_END);
 	REG_WR(bp, SRC_REG_SOFT_RST, 0);
 
 	if (sizeof(union cdu_context) != 1024)
@@ -5358,6 +5357,11 @@ static int bnx2x_init_common(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, CFC_COMMON_START, CFC_COMMON_END);
 	REG_WR(bp, CFC_REG_INIT_REG, 0x7FF);
+	/* enable context validation interrupt from CFC */
+	REG_WR(bp, CFC_REG_CFC_INT_MASK, 0);
+
+	/* set the thresholds to prevent CFC/CDU race */
+	REG_WR(bp, CFC_REG_DEBUG0, 0x20020000);
 
 	bnx2x_init_block(bp, HC_COMMON_START, HC_COMMON_END);
 	bnx2x_init_block(bp, MISC_AEU_COMMON_START, MISC_AEU_COMMON_END);
@@ -5485,6 +5489,8 @@ static int bnx2x_init_port(struct bnx2x *bp)
 	REG_WR(bp, PXP2_REG_PSWRQ_SRC0_L2P + func*4, PXP_ONE_ILT(i));
 #endif
 	/* Port CMs come here */
+	bnx2x_init_block(bp, (port ? XCM_PORT1_START : XCM_PORT0_START),
+			     (port ? XCM_PORT1_END : XCM_PORT0_END));
 
 	/* Port QM comes here */
 #ifdef BCM_ISCSI
@@ -5674,9 +5680,6 @@ static int bnx2x_init_func(struct bnx2x *bp)
 		REG_WR(bp, HC_REG_TRAILING_EDGE_0 + port*8, 0);
 	}
 	bnx2x_init_block(bp, hc_limits[func][0], hc_limits[func][1]);
-
-	if (CHIP_IS_E1H(bp))
-		REG_WR(bp, HC_REG_FUNC_NUM_P0 + port*4, func);
 
 	/* Reset PCIE errors for debug */
 	REG_WR(bp, 0x2114, 0xffffffff);
@@ -6171,7 +6174,7 @@ static void bnx2x_set_mac_addr_e1(struct bnx2x *bp, int set)
 	 * unicasts 0-31:port0 32-63:port1
 	 * multicast 64-127:port0 128-191:port1
 	 */
-	config->hdr.length_6b = 2;
+	config->hdr.length = 2;
 	config->hdr.offset = port ? 32 : 0;
 	config->hdr.client_id = BP_CL_ID(bp);
 	config->hdr.reserved1 = 0;
@@ -6229,7 +6232,7 @@ static void bnx2x_set_mac_addr_e1h(struct bnx2x *bp, int set)
 	 * unicasts: by func number
 	 * multicast: 20+FUNC*20, 20 each
 	 */
-	config->hdr.length_6b = 1;
+	config->hdr.length = 1;
 	config->hdr.offset = BP_FUNC(bp);
 	config->hdr.client_id = BP_CL_ID(bp);
 	config->hdr.reserved1 = 0;
@@ -6764,10 +6767,10 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 		bnx2x_set_mac_addr_e1(bp, 0);
 
-		for (i = 0; i < config->hdr.length_6b; i++)
+		for (i = 0; i < config->hdr.length; i++)
 			CAM_INVALIDATE(config->config_table[i]);
 
-		config->hdr.length_6b = i;
+		config->hdr.length = i;
 		if (CHIP_REV_IS_SLOW(bp))
 			config->hdr.offset = BNX2X_MAX_EMUL_MULTI*(1 + port);
 		else
@@ -8959,7 +8962,7 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 	if (!netif_running(bp->dev))
 		return -ENODEV;
 
-	config->hdr.length_6b = 0;
+	config->hdr.length = 0;
 	if (CHIP_IS_E1(bp))
 		config->hdr.offset = (BP_PORT(bp) ? 32 : 0);
 	else
@@ -9921,7 +9924,7 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 				   config->config_table[i].
 						cam_entry.lsb_mac_addr);
 			}
-			old = config->hdr.length_6b;
+			old = config->hdr.length;
 			if (old > i) {
 				for (; i < old; i++) {
 					if (CAM_IS_INVALID(config->
@@ -9940,9 +9943,9 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 			else
 				offset = BNX2X_MAX_MULTICAST*(1 + port);
 
-			config->hdr.length_6b = i;
+			config->hdr.length = i;
 			config->hdr.offset = offset;
-			config->hdr.client_id = BP_CL_ID(bp);
+			config->hdr.client_id = bp->fp->cl_id;
 			config->hdr.reserved1 = 0;
 
 			bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_SET_MAC, 0,
@@ -10487,7 +10490,7 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 		struct mac_configuration_cmd *config =
 						bnx2x_sp(bp, mcast_config);
 
-		for (i = 0; i < config->hdr.length_6b; i++)
+		for (i = 0; i < config->hdr.length; i++)
 			CAM_INVALIDATE(config->config_table[i]);
 	}
 
