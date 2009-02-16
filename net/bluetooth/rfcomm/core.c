@@ -448,6 +448,7 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 		break;
 
 	case BT_OPEN:
+	case BT_CONNECT2:
 		if (test_and_clear_bit(RFCOMM_DEFER_SETUP, &d->flags)) {
 			set_bit(RFCOMM_AUTH_REJECT, &d->flags);
 			rfcomm_schedule(RFCOMM_SCHED_AUTH);
@@ -1208,6 +1209,11 @@ static void rfcomm_check_accept(struct rfcomm_dlc *d)
 		if (d->defer_setup) {
 			set_bit(RFCOMM_DEFER_SETUP, &d->flags);
 			rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
+
+			rfcomm_dlc_lock(d);
+			d->state = BT_CONNECT2;
+			d->state_change(d, 0);
+			rfcomm_dlc_unlock(d);
 		} else
 			rfcomm_dlc_accept(d);
 	} else {
@@ -1749,6 +1755,11 @@ static inline void rfcomm_process_dlcs(struct rfcomm_session *s)
 				if (d->defer_setup) {
 					set_bit(RFCOMM_DEFER_SETUP, &d->flags);
 					rfcomm_dlc_set_timer(d, RFCOMM_AUTH_TIMEOUT);
+
+					rfcomm_dlc_lock(d);
+					d->state = BT_CONNECT2;
+					d->state_change(d, 0);
+					rfcomm_dlc_unlock(d);
 				} else
 					rfcomm_dlc_accept(d);
 			}
