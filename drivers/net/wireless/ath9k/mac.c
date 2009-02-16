@@ -886,7 +886,8 @@ bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set)
 		REG_SET_BIT(ah, AR_DIAG_SW,
 			    (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 
-		if (!ath9k_hw_wait(ah, AR_OBS_BUS_1, AR_OBS_BUS_1_RX_STATE, 0)) {
+		if (!ath9k_hw_wait(ah, AR_OBS_BUS_1, AR_OBS_BUS_1_RX_STATE,
+				   0, AH_WAIT_TIMEOUT)) {
 			REG_CLR_BIT(ah, AR_DIAG_SW,
 				    (AR_DIAG_RX_DIS |
 				     AR_DIAG_RX_ABORT));
@@ -933,15 +934,32 @@ void ath9k_hw_stoppcurecv(struct ath_hw *ah)
 
 bool ath9k_hw_stopdmarecv(struct ath_hw *ah)
 {
+#define AH_RX_STOP_DMA_TIMEOUT 10000   /* usec */
+#define AH_RX_TIME_QUANTUM     100     /* usec */
+
+	int i;
+
 	REG_WRITE(ah, AR_CR, AR_CR_RXD);
 
-	if (!ath9k_hw_wait(ah, AR_CR, AR_CR_RXE, 0)) {
+	/* Wait for rx enable bit to go low */
+	for (i = AH_RX_STOP_DMA_TIMEOUT / AH_TIME_QUANTUM; i != 0; i--) {
+		if ((REG_READ(ah, AR_CR) & AR_CR_RXE) == 0)
+			break;
+		udelay(AH_TIME_QUANTUM);
+	}
+
+	if (i == 0) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE,
-			"dma failed to stop in 10ms\n"
-			"AR_CR=0x%08x\nAR_DIAG_SW=0x%08x\n",
-			REG_READ(ah, AR_CR), REG_READ(ah, AR_DIAG_SW));
+			"dma failed to stop in %d ms "
+			"AR_CR=0x%08x AR_DIAG_SW=0x%08x\n",
+			AH_RX_STOP_DMA_TIMEOUT / 1000,
+			REG_READ(ah, AR_CR),
+			REG_READ(ah, AR_DIAG_SW));
 		return false;
 	} else {
 		return true;
 	}
+
+#undef AH_RX_TIME_QUANTUM
+#undef AH_RX_STOP_DMA_TIMEOUT
 }

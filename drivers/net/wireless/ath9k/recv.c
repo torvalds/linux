@@ -427,7 +427,6 @@ bool ath_stoprecv(struct ath_softc *sc)
 	ath9k_hw_stoppcurecv(ah);
 	ath9k_hw_setrxfilter(ah, 0);
 	stopped = ath9k_hw_stopdmarecv(ah);
-	mdelay(3); /* 3ms is long enough for 1 frame */
 	sc->rx.rxlink = NULL;
 
 	return stopped;

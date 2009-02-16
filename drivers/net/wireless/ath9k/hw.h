@@ -93,7 +93,7 @@
 #define ATH9K_NUM_QUEUES            10
 
 #define MAX_RATE_POWER              63
-#define AH_TIMEOUT                  100000
+#define AH_WAIT_TIMEOUT             100000 /* (us) */
 #define AH_TIME_QUANTUM             10
 #define AR_KEYTABLE_SIZE            128
 #define POWER_UP_TIME               200000
@@ -612,7 +612,7 @@ bool ath9k_hw_setantennaswitch(struct ath_hw *ah,
 			       u8 *antenna_cfgd);
 
 /* General Operation */
-bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val);
+bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
 bool ath9k_get_channel_edges(struct ath_hw *ah, u16 flags, u16 *low, u16 *high);
 u16 ath9k_hw_computetxtime(struct ath_hw *ah, struct ath_rate_table *rates,
