@@ -263,8 +263,7 @@ static void __init mx27ads_timer_init(void)
 	if ((__raw_readw(PBC_VERSION_REG) & CKIH_27MHZ_BIT_SET) == 0)
 		fref = 27000000;
 
-	mxc_clocks_init(fref);
-	mxc_timer_init("gpt_clk.0");
+	mx27_clocks_init(fref);
 }
 
 struct sys_timer mx27ads_timer = {

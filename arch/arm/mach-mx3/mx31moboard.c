@@ -120,8 +120,7 @@ void __init mx31moboard_map_io(void)
 
 static void __init mx31moboard_timer_init(void)
 {
-	mxc_clocks_init(26000000);
-	mxc_timer_init("ipg_clk.0");
+	mx31_clocks_init(26000000);
 }
 
 struct sys_timer mx31moboard_timer = {

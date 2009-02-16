@@ -230,8 +230,7 @@ static void __init pcm038_init(void)
 
 static void __init pcm038_timer_init(void)
 {
-	mxc_clocks_init(26000000);
-	mxc_timer_init("gpt_clk.0");
+	mx27_clocks_init(26000000);
 }
 
 struct sys_timer pcm038_timer = {

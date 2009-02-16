@@ -1551,7 +1551,7 @@ static void __init probe_mxc_clocks(void)
  * must be called very early to get information about the
  * available clock rate when the timer framework starts
  */
-int __init mxc_clocks_init(unsigned long fref)
+int __init mx27_clocks_init(unsigned long fref)
 {
 	u32 cscr;
 	struct clk **clkp;
@@ -1593,5 +1593,8 @@ int __init mxc_clocks_init(unsigned long fref)
 #ifdef CONFIG_DEBUG_LL_CONSOLE
 	clk_enable(&uart1_clk[0]);
 #endif
+
+	mxc_timer_init(&gpt1_clk[0]);
+
 	return 0;
 }

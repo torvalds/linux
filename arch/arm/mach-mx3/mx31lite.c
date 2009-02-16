@@ -82,8 +82,7 @@ static void __init mxc_board_init(void)
 
 static void __init mx31lite_timer_init(void)
 {
-	mxc_clocks_init(26000000);
-	mxc_timer_init("ipg_clk.0");
+	mx31_clocks_init(26000000);
 }
 
 struct sys_timer mx31lite_timer = {

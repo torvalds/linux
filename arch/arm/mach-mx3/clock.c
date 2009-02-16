@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <mach/clock.h>
 #include <mach/hardware.h>
+#include <mach/common.h>
 #include <asm/div64.h>
 
 #include "crm_regs.h"
@@ -1071,7 +1072,7 @@ static struct clk *mxc_clks[] = {
 	&iim_clk,
 };
 
-int __init mxc_clocks_init(unsigned long fref)
+int __init mx31_clocks_init(unsigned long fref)
 {
 	u32 reg;
 	struct clk **clkp;
@@ -1120,6 +1121,8 @@ int __init mxc_clocks_init(unsigned long fref)
 		reg |= MXC_CCM_PMCR1_PLLRDIS | MXC_CCM_PMCR1_EMIRQ_EN;
 		__raw_writel(reg, MXC_CCM_PMCR1);
 	}
+
+	mxc_timer_init(&ipg_clk);
 
 	return 0;
 }

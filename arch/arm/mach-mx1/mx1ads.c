@@ -118,8 +118,7 @@ static void __init mx1ads_init(void)
 
 static void __init mx1ads_timer_init(void)
 {
-	mxc_clocks_init(32000);
-	mxc_timer_init("gpt_clk");
+	mx1_clocks_init(32000);
 }
 
 struct sys_timer mx1ads_timer = {

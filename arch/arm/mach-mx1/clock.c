@@ -25,6 +25,7 @@
 
 #include <mach/clock.h>
 #include <mach/hardware.h>
+#include <mach/common.h>
 #include "crm_regs.h"
 
 static int _clk_enable(struct clk *clk)
@@ -594,7 +595,7 @@ static struct clk *mxc_clks[] = {
 	&rtc_clk,
 };
 
-int __init mxc_clocks_init(unsigned long fref)
+int __init mx1_clocks_init(unsigned long fref)
 {
 	struct clk **clkp;
 	unsigned int reg;
@@ -624,6 +625,8 @@ int __init mxc_clocks_init(unsigned long fref)
 
 	clk_enable(&hclk);
 	clk_enable(&fclk);
+
+	mxc_timer_init(&gpt_clk);
 
 	return 0;
 }
