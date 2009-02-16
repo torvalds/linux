@@ -15,6 +15,7 @@ config ARCH_MX1
 config ARCH_MX2
 	bool "MX2-based"
 	select CPU_ARM926T
+	select COMMON_CLKDEV
 	help
 	  This enables support for systems based on the Freescale i.MX2 family
 
