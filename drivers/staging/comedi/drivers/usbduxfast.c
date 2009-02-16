@@ -154,10 +154,8 @@ typedef struct {
 	int16_t *insnBuffer;
 	// interface number
 	int ifnum;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-	// interface structure in 2.6
+	// interface structure
 	struct usb_interface *interface;
-#endif
 	// comedi device for the interrupt context
 	comedi_device *comedidev;
 	// asynchronous command is running
@@ -222,16 +220,9 @@ static int usbduxfastsub_unlink_InURBs(usbduxfastsub_t * usbduxfastsub_tmp)
 
 	if (usbduxfastsub_tmp && usbduxfastsub_tmp->urbIn) {
 		usbduxfastsub_tmp->ai_cmd_running = 0;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8)
-		j = usb_unlink_urb(usbduxfastsub_tmp->urbIn);
-		if (j < 0) {
-			err = j;
-		}
-#else
 		// waits until a running transfer is over
 		usb_kill_urb(usbduxfastsub_tmp->urbIn);
 		j = 0;
-#endif
 	}
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi: usbduxfast: unlinked InURB: res=%d\n", j);
@@ -296,11 +287,7 @@ static int usbduxfast_ai_cancel(comedi_device * dev, comedi_subdevice * s)
 
 // analogue IN
 // interrupt service routine
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void usbduxfastsub_ai_Irq(struct urb *urb)
-#else
 static void usbduxfastsub_ai_Irq(struct urb *urb PT_REGS_ARG)
-#endif
 {
 	int n, err;
 	usbduxfastsub_t *this_usbduxfastsub;
@@ -1401,22 +1388,17 @@ static void tidy_up(usbduxfastsub_t * usbduxfastsub_tmp)
 	if (!usbduxfastsub_tmp) {
 		return;
 	}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+
 	// shows the usb subsystem that the driver is down
 	if (usbduxfastsub_tmp->interface) {
 		usb_set_intfdata(usbduxfastsub_tmp->interface, NULL);
 	}
-#endif
 
 	usbduxfastsub_tmp->probed = 0;
 
 	if (usbduxfastsub_tmp->urbIn) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,8)
 		// waits until a running transfer is over
-		// thus, under 2.4 hotplugging while a command
-		// is running is not safe
 		usb_kill_urb(usbduxfastsub_tmp->urbIn);
-#endif
 		if (usbduxfastsub_tmp->transfer_buffer) {
 			kfree(usbduxfastsub_tmp->transfer_buffer);
 			usbduxfastsub_tmp->transfer_buffer = NULL;
@@ -1436,16 +1418,10 @@ static void tidy_up(usbduxfastsub_t * usbduxfastsub_tmp)
 }
 
 // allocate memory for the urbs and initialise them
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void *usbduxfastsub_probe(struct usb_device *udev,
-	unsigned int interfnum, const struct usb_device_id *id)
-{
-#else
 static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(uinterf);
-#endif
 	int i;
 	int index;
 
@@ -1480,18 +1456,13 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	// save a pointer to the usb device
 	usbduxfastsub[index].usbdev = udev;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-	// save the interface number
-	usbduxfastsub[index].ifnum = interfnum;
-#else
-	// 2.6: save the interface itself
+	// save the interface itself
 	usbduxfastsub[index].interface = uinterf;
 	// get the interface number from the interface
 	usbduxfastsub[index].ifnum = uinterf->altsetting->desc.bInterfaceNumber;
 	// hand the private data over to the usb subsystem
 	// will be needed for disconnect
 	usb_set_intfdata(uinterf, &(usbduxfastsub[index]));
-#endif
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk("comedi_: usbduxfast: ifnum=%d\n", usbduxfastsub[index].ifnum);
@@ -1542,24 +1513,15 @@ static int usbduxfastsub_probe(struct usb_interface *uinterf,
 	up(&start_stop_sem);
 	printk("comedi_: usbduxfast%d has been successfully initialized.\n",
 		index);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-	return (void *)(&usbduxfastsub[index]);
-#else
 	// success
 	return 0;
-#endif
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
-static void usbduxfastsub_disconnect(struct usb_device *udev, void *ptr)
-{
-	usbduxfastsub_t *usbduxfastsub_tmp = (usbduxfastsub_t *) ptr;
-#else
 static void usbduxfastsub_disconnect(struct usb_interface *intf)
 {
 	usbduxfastsub_t *usbduxfastsub_tmp = usb_get_intfdata(intf);
 	struct usb_device *udev = interface_to_usbdev(intf);
-#endif
+
 	if (!usbduxfastsub_tmp) {
 		printk("comedi_: usbduxfast: disconnect called with null pointer.\n");
 		return;
