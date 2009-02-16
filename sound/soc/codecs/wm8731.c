@@ -36,6 +36,11 @@ struct wm8731_priv {
 	unsigned int sysclk;
 };
 
+#ifdef CONFIG_SPI_MASTER
+static int wm8731_spi_write(struct spi_device *spi, const char *data, int len);
+static struct spi_driver wm8731_spi_driver;
+#endif
+
 /*
  * wm8731 register cache
  * We can't read the WM8731 register space when we are
@@ -544,54 +549,9 @@ pcm_err:
 
 static struct snd_soc_device *wm8731_socdev;
 
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-
-/*
- * WM8731 2 wire address is determined by GPIO5
- * state during powerup.
- *    low  = 0x1a
- *    high = 0x1b
- */
-
-static int wm8731_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
-{
-	struct snd_soc_device *socdev = wm8731_socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret;
-
-	i2c_set_clientdata(i2c, codec);
-	codec->control_data = i2c;
-
-	ret = wm8731_init(socdev);
-	if (ret < 0)
-		pr_err("failed to initialise WM8731\n");
-
-	return ret;
-}
-
-static int wm8731_i2c_remove(struct i2c_client *client)
-{
-	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-	kfree(codec->reg_cache);
-	return 0;
-}
-
-static const struct i2c_device_id wm8731_i2c_id[] = {
-	{ "wm8731", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, wm8731_i2c_id);
-
-static struct i2c_driver wm8731_i2c_driver = {
-	.driver = {
-		.name = "WM8731 I2C Codec",
-		.owner = THIS_MODULE,
-	},
-	.probe =    wm8731_i2c_probe,
-	.remove =   wm8731_i2c_remove,
-	.id_table = wm8731_i2c_id,
-};
+static struct i2c_driver wm8731_i2c_driver;
 
 static int wm8731_add_i2c_device(struct platform_device *pdev,
 				 const struct wm8731_setup_data *setup)
@@ -633,62 +593,6 @@ err_driver:
 	return -ENODEV;
 }
 #endif
-
-#if defined(CONFIG_SPI_MASTER)
-static int __devinit wm8731_spi_probe(struct spi_device *spi)
-{
-	struct snd_soc_device *socdev = wm8731_socdev;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret;
-
-	codec->control_data = spi;
-
-	ret = wm8731_init(socdev);
-	if (ret < 0)
-		dev_err(&spi->dev, "failed to initialise WM8731\n");
-
-	return ret;
-}
-
-static int __devexit wm8731_spi_remove(struct spi_device *spi)
-{
-	return 0;
-}
-
-static struct spi_driver wm8731_spi_driver = {
-	.driver = {
-		.name	= "wm8731",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
-	},
-	.probe		= wm8731_spi_probe,
-	.remove		= __devexit_p(wm8731_spi_remove),
-};
-
-static int wm8731_spi_write(struct spi_device *spi, const char *data, int len)
-{
-	struct spi_transfer t;
-	struct spi_message m;
-	u8 msg[2];
-
-	if (len <= 0)
-		return 0;
-
-	msg[0] = data[0];
-	msg[1] = data[1];
-
-	spi_message_init(&m);
-	memset(&t, 0, (sizeof t));
-
-	t.tx_buf = &msg[0];
-	t.len = len;
-
-	spi_message_add_tail(&t, &m);
-	spi_sync(spi, &m);
-
-	return len;
-}
-#endif /* CONFIG_SPI_MASTER */
 
 static int wm8731_probe(struct platform_device *pdev)
 {
@@ -771,6 +675,111 @@ struct snd_soc_codec_device soc_codec_dev_wm8731 = {
 	.resume =	wm8731_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8731);
+
+#if defined(CONFIG_SPI_MASTER)
+static int __devinit wm8731_spi_probe(struct spi_device *spi)
+{
+	struct snd_soc_device *socdev = wm8731_socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	int ret;
+
+	codec->control_data = spi;
+
+	ret = wm8731_init(socdev);
+	if (ret < 0)
+		dev_err(&spi->dev, "failed to initialise WM8731\n");
+
+	return ret;
+}
+
+static int __devexit wm8731_spi_remove(struct spi_device *spi)
+{
+	return 0;
+}
+
+static struct spi_driver wm8731_spi_driver = {
+	.driver = {
+		.name	= "wm8731",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm8731_spi_probe,
+	.remove		= __devexit_p(wm8731_spi_remove),
+};
+
+static int wm8731_spi_write(struct spi_device *spi, const char *data, int len)
+{
+	struct spi_transfer t;
+	struct spi_message m;
+	u8 msg[2];
+
+	if (len <= 0)
+		return 0;
+
+	msg[0] = data[0];
+	msg[1] = data[1];
+
+	spi_message_init(&m);
+	memset(&t, 0, (sizeof t));
+
+	t.tx_buf = &msg[0];
+	t.len = len;
+
+	spi_message_add_tail(&t, &m);
+	spi_sync(spi, &m);
+
+	return len;
+}
+#endif /* CONFIG_SPI_MASTER */
+
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+/*
+ * WM8731 2 wire address is determined by GPIO5
+ * state during powerup.
+ *    low  = 0x1a
+ *    high = 0x1b
+ */
+
+static int wm8731_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
+{
+	struct snd_soc_device *socdev = wm8731_socdev;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	int ret;
+
+	i2c_set_clientdata(i2c, codec);
+	codec->control_data = i2c;
+
+	ret = wm8731_init(socdev);
+	if (ret < 0)
+		pr_err("failed to initialise WM8731\n");
+
+	return ret;
+}
+
+static int wm8731_i2c_remove(struct i2c_client *client)
+{
+	struct snd_soc_codec *codec = i2c_get_clientdata(client);
+	kfree(codec->reg_cache);
+	return 0;
+}
+
+static const struct i2c_device_id wm8731_i2c_id[] = {
+	{ "wm8731", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, wm8731_i2c_id);
+
+static struct i2c_driver wm8731_i2c_driver = {
+	.driver = {
+		.name = "WM8731 I2C Codec",
+		.owner = THIS_MODULE,
+	},
+	.probe =    wm8731_i2c_probe,
+	.remove =   wm8731_i2c_remove,
+	.id_table = wm8731_i2c_id,
+};
+#endif
 
 static int __init wm8731_modinit(void)
 {
