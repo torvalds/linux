@@ -270,12 +270,11 @@ static inline unsigned int bt_accept_poll(struct sock *parent)
 	struct list_head *p, *n;
 	struct sock *sk;
 
-	if (bt_sk(parent)->defer_setup)
-		return POLLIN | POLLRDNORM;
-
 	list_for_each_safe(p, n, &bt_sk(parent)->accept_q) {
 		sk = (struct sock *) list_entry(p, struct bt_sock, accept_q);
-		if (sk->sk_state == BT_CONNECTED)
+		if (sk->sk_state == BT_CONNECTED ||
+					(bt_sk(parent)->defer_setup &&
+						sk->sk_state == BT_CONNECT2))
 			return POLLIN | POLLRDNORM;
 	}
 
