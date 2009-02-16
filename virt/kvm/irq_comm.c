@@ -21,9 +21,7 @@
 
 #include <linux/kvm_host.h>
 
-#ifdef CONFIG_X86
 #include <asm/msidef.h>
-#endif
 
 #include "irq.h"
 
