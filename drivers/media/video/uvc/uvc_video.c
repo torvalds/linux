@@ -61,7 +61,7 @@ int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 	return 0;
 }
 
-static void uvc_fixup_buffer_size(struct uvc_video_device *video,
+static void uvc_fixup_video_ctrl(struct uvc_video_device *video,
 	struct uvc_streaming_control *ctrl)
 {
 	struct uvc_format *format;
@@ -84,6 +84,31 @@ static void uvc_fixup_buffer_size(struct uvc_video_device *video,
 	      video->dev->uvc_version < 0x0110))
 		ctrl->dwMaxVideoFrameSize =
 			frame->dwMaxVideoFrameBufferSize;
+
+	if (video->dev->quirks & UVC_QUIRK_FIX_BANDWIDTH &&
+	    video->streaming->intf->num_altsetting > 1) {
+		u32 interval;
+		u32 bandwidth;
+
+		interval = (ctrl->dwFrameInterval > 100000)
+			 ? ctrl->dwFrameInterval
+			 : frame->dwFrameInterval[0];
+
+		/* Compute a bandwidth estimation by multiplying the frame
+		 * size by the number of video frames per second, divide the
+		 * result by the number of USB frames (or micro-frames for
+		 * high-speed devices) per second and add the UVC header size
+		 * (assumed to be 12 bytes long).
+		 */
+		bandwidth = frame->wWidth * frame->wHeight / 8 * format->bpp;
+		bandwidth *= 10000000 / interval + 1;
+		bandwidth /= 1000;
+		if (video->dev->udev->speed == USB_SPEED_HIGH)
+			bandwidth /= 8;
+		bandwidth += 12;
+
+		ctrl->dwMaxPayloadTransferSize = bandwidth;
+	}
 }
 
 static int uvc_get_video_ctrl(struct uvc_video_device *video,
@@ -158,10 +183,11 @@ static int uvc_get_video_ctrl(struct uvc_video_device *video,
 		ctrl->bMaxVersion = 0;
 	}
 
-	/* Some broken devices return a null or wrong dwMaxVideoFrameSize.
-	 * Try to get the value from the format and frame descriptors.
+	/* Some broken devices return null or wrong dwMaxVideoFrameSize and
+	 * dwMaxPayloadTransferSize fields. Try to get the value from the
+	 * format and frame descriptors.
 	 */
-	uvc_fixup_buffer_size(video, ctrl);
+	uvc_fixup_video_ctrl(video, ctrl);
 	ret = 0;
 
 out:
