@@ -799,6 +799,9 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	len = min_t(unsigned int, sizeof(la), alen);
 	memcpy(&la, addr, len);
 
+	if (la.l2_cid)
+		return -EINVAL;
+
 	lock_sock(sk);
 
 	if (sk->sk_state != BT_OPEN) {
@@ -929,18 +932,19 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 	struct sockaddr_l2 la;
 	int len, err = 0;
 
-	lock_sock(sk);
-
 	BT_DBG("sk %p", sk);
 
-	if (!addr || addr->sa_family != AF_BLUETOOTH) {
-		err = -EINVAL;
-		goto done;
-	}
+	if (!addr || addr->sa_family != AF_BLUETOOTH)
+		return -EINVAL;
 
 	memset(&la, 0, sizeof(la));
 	len = min_t(unsigned int, sizeof(la), alen);
 	memcpy(&la, addr, len);
+
+	if (la.l2_cid)
+		return -EINVAL;
+
+	lock_sock(sk);
 
 	if (sk->sk_type == SOCK_SEQPACKET && !la.l2_psm) {
 		err = -EINVAL;
