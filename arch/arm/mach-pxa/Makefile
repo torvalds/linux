@@ -76,6 +76,7 @@ obj-$(CONFIG_PXA_EZX)           += ezx.o
 
 obj-$(CONFIG_MACH_INTELMOTE2)   += imote2.o
 obj-$(CONFIG_MACH_CSB726)	+= csb726.o
+obj-$(CONFIG_CSB726_CSB701)	+= csb701.o
 
 # Support for blinky lights
 led-y := leds.o
