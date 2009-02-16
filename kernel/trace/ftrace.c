@@ -773,6 +773,7 @@ enum {
 	FTRACE_ITER_CONT	= (1 << 1),
 	FTRACE_ITER_NOTRACE	= (1 << 2),
 	FTRACE_ITER_FAILURES	= (1 << 3),
+	FTRACE_ITER_PRINTALL	= (1 << 4),
 };
 
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
@@ -793,6 +794,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 	struct dyn_ftrace *rec = NULL;
 
 	(*pos)++;
+
+	if (iter->flags & FTRACE_ITER_PRINTALL)
+		return NULL;
 
 	/* should not be called from interrupt context */
 	spin_lock(&ftrace_lock);
@@ -834,6 +838,19 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 	struct ftrace_iterator *iter = m->private;
 	void *p = NULL;
 
+	/*
+	 * For set_ftrace_filter reading, if we have the filter
+	 * off, we can short cut and just print out that all
+	 * functions are enabled.
+	 */
+	if (iter->flags & FTRACE_ITER_FILTER && !ftrace_filtered) {
+		if (*pos > 0)
+			return NULL;
+		iter->flags |= FTRACE_ITER_PRINTALL;
+		(*pos)++;
+		return iter;
+	}
+
 	if (*pos > 0) {
 		if (iter->idx < 0)
 			return p;
@@ -852,8 +869,14 @@ static void t_stop(struct seq_file *m, void *p)
 
 static int t_show(struct seq_file *m, void *v)
 {
+	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec = v;
 	char str[KSYM_SYMBOL_LEN];
+
+	if (iter->flags & FTRACE_ITER_PRINTALL) {
+		seq_printf(m, "#### all functions enabled ####\n");
+		return 0;
+	}
 
 	if (!rec)
 		return 0;
