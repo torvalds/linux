@@ -302,9 +302,10 @@ void bio_init(struct bio *bio)
 struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 {
 	struct bio *bio = NULL;
+	void *p;
 
 	if (bs) {
-		void *p = mempool_alloc(bs->bio_pool, gfp_mask);
+		p = mempool_alloc(bs->bio_pool, gfp_mask);
 
 		if (p)
 			bio = p + bs->front_pad;
@@ -329,7 +330,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 			}
 			if (unlikely(!bvl)) {
 				if (bs)
-					mempool_free(bio, bs->bio_pool);
+					mempool_free(p, bs->bio_pool);
 				else
 					kfree(bio);
 				bio = NULL;
