@@ -317,18 +317,43 @@ static struct snd_soc_card snd_soc_corgi = {
 	.num_links = 1,
 };
 
-/* corgi audio private data */
-static struct wm8731_setup_data corgi_wm8731_setup = {
-	.i2c_bus = 0,
-	.i2c_address = 0x1b,
-};
-
 /* corgi audio subsystem */
 static struct snd_soc_device corgi_snd_devdata = {
 	.card = &snd_soc_corgi,
 	.codec_dev = &soc_codec_dev_wm8731,
-	.codec_data = &corgi_wm8731_setup,
 };
+
+/*
+ * FIXME: This is a temporary bodge to avoid cross-tree merge issues.
+ * New drivers should register the wm8731 I2C device in the machine
+ * setup code (under arch/arm for ARM systems).
+ */
+static int wm8731_i2c_register(void)
+{
+	struct i2c_board_info info;
+	struct i2c_adapter *adapter;
+	struct i2c_client *client;
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	info.addr = 0x1b;
+	strlcpy(info.type, "wm8731", I2C_NAME_SIZE);
+
+	adapter = i2c_get_adapter(0);
+	if (!adapter) {
+		printk(KERN_ERR "can't get i2c adapter 0\n");
+		return -ENODEV;
+	}
+
+	client = i2c_new_device(adapter, &info);
+	i2c_put_adapter(adapter);
+	if (!client) {
+		printk(KERN_ERR "can't add i2c device at 0x%x\n",
+			(unsigned int)info.addr);
+		return -ENODEV;
+	}
+
+	return 0;
+}
 
 static struct platform_device *corgi_snd_device;
 
@@ -339,6 +364,10 @@ static int __init corgi_init(void)
 	if (!(machine_is_corgi() || machine_is_shepherd() ||
 	      machine_is_husky()))
 		return -ENODEV;
+
+	ret = wm8731_i2c_setup();
+	if (ret != 0)
+		return ret;
 
 	corgi_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!corgi_snd_device)
