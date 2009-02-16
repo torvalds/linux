@@ -2592,8 +2592,9 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 
 	if (!ret) {
 		/* Update inode ctime. */
-		ret = ocfs2_journal_access(ctxt->handle, inode, xis->inode_bh,
-					   OCFS2_JOURNAL_ACCESS_WRITE);
+		ret = ocfs2_journal_access_di(ctxt->handle, inode,
+					      xis->inode_bh,
+					      OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
