@@ -40,16 +40,8 @@
 
 struct igb_adapter;
 
-/* Interrupt defines */
-#define IGB_MIN_DYN_ITR 3000
-#define IGB_MAX_DYN_ITR 96000
-
 /* ((1000000000ns / (6000ints/s * 1024ns)) << 2 = 648 */
 #define IGB_START_ITR 648
-
-#define IGB_DYN_ITR_PACKET_THRESHOLD 2
-#define IGB_DYN_ITR_LENGTH_LOW 200
-#define IGB_DYN_ITR_LENGTH_HIGH 1000
 
 /* TX/RX descriptor defines */
 #define IGB_DEFAULT_TXD                  256
@@ -92,8 +84,6 @@ struct igb_adapter;
 #define IGB_RXBUFFER_512   512
 #define IGB_RXBUFFER_1024  1024
 #define IGB_RXBUFFER_2048  2048
-#define IGB_RXBUFFER_4096  4096
-#define IGB_RXBUFFER_8192  8192
 #define IGB_RXBUFFER_16384 16384
 
 /* Packet Buffer allocations */
@@ -286,10 +276,9 @@ struct igb_adapter {
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)
-#define IGB_FLAG_MSI_ENABLE        (1 << 1)
-#define IGB_FLAG_DCA_ENABLED       (1 << 2)
-#define IGB_FLAG_QUAD_PORT_A       (1 << 3)
-#define IGB_FLAG_NEED_CTX_IDX      (1 << 4)
+#define IGB_FLAG_DCA_ENABLED       (1 << 1)
+#define IGB_FLAG_QUAD_PORT_A       (1 << 2)
+#define IGB_FLAG_NEED_CTX_IDX      (1 << 3)
 
 enum e1000_state_t {
 	__IGB_TESTING,

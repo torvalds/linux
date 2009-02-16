@@ -82,12 +82,7 @@ enum e1000_mng_mode {
 #define E1000_FWSM_MODE_MASK  0xE
 #define E1000_FWSM_MODE_SHIFT 1
 
-#define E1000_MNG_DHCP_COMMAND_TIMEOUT       10
 #define E1000_MNG_DHCP_COOKIE_STATUS_VLAN    0x2
-
-#define E1000_HICR_EN              0x01  /* Enable bit - RO */
-/* Driver sets this bit when done to put command in RAM */
-#define E1000_HICR_C               0x02
 
 extern void e1000_init_function_pointers_82575(struct e1000_hw *hw);
 extern u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr);

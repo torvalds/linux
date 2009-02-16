@@ -58,9 +58,6 @@ extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
     E1000_EICR_RX_QUEUE2 |    \
     E1000_EICR_RX_QUEUE3)
 
-#define E1000_EIMS_RX_QUEUE E1000_EICR_RX_QUEUE
-#define E1000_EIMS_TX_QUEUE E1000_EICR_TX_QUEUE
-
 /* Immediate Interrupt Rx (A.K.A. Low Latency Interrupt) */
 
 /* Receive Descriptor - Advanced */
@@ -94,12 +91,6 @@ union e1000_adv_rx_desc {
 
 #define E1000_RXDADV_HDRBUFLEN_MASK      0x7FE0
 #define E1000_RXDADV_HDRBUFLEN_SHIFT     5
-
-/* RSS Hash results */
-
-/* RSS Packet Types as indicated in the receive descriptor */
-#define E1000_RXDADV_PKTTYPE_IPV4        0x00000010 /* IPV4 hdr present */
-#define E1000_RXDADV_PKTTYPE_TCP         0x00000100 /* TCP hdr present */
 
 /* Transmit Descriptor - Advanced */
 union e1000_adv_tx_desc {
@@ -150,11 +141,8 @@ struct e1000_adv_tx_context_desc {
 #define E1000_RXDCTL_QUEUE_ENABLE  0x02000000 /* Enable specific Rx Queue */
 
 /* Direct Cache Access (DCA) definitions */
-#define E1000_DCA_CTRL_DCA_ENABLE  0x00000000 /* DCA Enable */
-#define E1000_DCA_CTRL_DCA_DISABLE 0x00000001 /* DCA Disable */
-
-#define E1000_DCA_CTRL_DCA_MODE_CB1 0x00 /* DCA Mode CB1 */
-#define E1000_DCA_CTRL_DCA_MODE_CB2 0x02 /* DCA Mode CB2 */
+#define E1000_DCA_CTRL_DCA_MODE_DISABLE 0x01 /* DCA Disable */
+#define E1000_DCA_CTRL_DCA_MODE_CB2     0x02 /* DCA Mode CB2 */
 
 #define E1000_DCA_RXCTRL_CPUID_MASK 0x0000001F /* Rx CPUID Mask */
 #define E1000_DCA_RXCTRL_DESC_DCA_EN (1 << 5) /* DCA Rx Desc enable */

@@ -1305,7 +1305,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	hw->fc.original_type = e1000_fc_default;
 	hw->fc.type = e1000_fc_default;
 
-	adapter->itr_setting = 3;
+	adapter->itr_setting = IGB_DEFAULT_ITR;
 	adapter->itr = IGB_START_ITR;
 
 	igb_validate_mdi_setting(hw);
@@ -1366,7 +1366,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		dev_info(&pdev->dev, "DCA enabled\n");
 		/* Always use CB2 mode, difference is masked
 		 * in the CB driver. */
-		wr32(E1000_DCA_CTRL, 2);
+		wr32(E1000_DCA_CTRL, E1000_DCA_CTRL_DCA_MODE_CB2);
 		igb_setup_dca(adapter);
 	}
 #endif
@@ -1498,7 +1498,7 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 		dev_info(&pdev->dev, "DCA disabled\n");
 		dca_remove_requester(&pdev->dev);
 		adapter->flags &= ~IGB_FLAG_DCA_ENABLED;
-		wr32(E1000_DCA_CTRL, 1);
+		wr32(E1000_DCA_CTRL, E1000_DCA_CTRL_DCA_MODE_DISABLE);
 	}
 #endif
 
@@ -3058,8 +3058,6 @@ static int igb_maybe_stop_tx(struct net_device *netdev,
 	return __igb_maybe_stop_tx(netdev, tx_ring, size);
 }
 
-#define TXD_USE_COUNT(S) (((S) >> (IGB_MAX_TXD_PWR)) + 1)
-
 static int igb_xmit_frame_ring_adv(struct sk_buff *skb,
 				   struct net_device *netdev,
 				   struct igb_ring *tx_ring)
@@ -3586,7 +3584,7 @@ static int __igb_notify_dca(struct device *dev, void *data)
 			break;
 		/* Always use CB2 mode, difference is masked
 		 * in the CB driver. */
-		wr32(E1000_DCA_CTRL, 2);
+		wr32(E1000_DCA_CTRL, E1000_DCA_CTRL_DCA_MODE_CB2);
 		if (dca_add_requester(dev) == 0) {
 			adapter->flags |= IGB_FLAG_DCA_ENABLED;
 			dev_info(&adapter->pdev->dev, "DCA enabled\n");
@@ -3601,7 +3599,7 @@ static int __igb_notify_dca(struct device *dev, void *data)
 			dca_remove_requester(dev);
 			dev_info(&adapter->pdev->dev, "DCA disabled\n");
 			adapter->flags &= ~IGB_FLAG_DCA_ENABLED;
-			wr32(E1000_DCA_CTRL, 1);
+			wr32(E1000_DCA_CTRL, E1000_DCA_CTRL_DCA_MODE_DISABLE);
 		}
 		break;
 	}

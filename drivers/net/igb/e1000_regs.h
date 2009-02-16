@@ -73,7 +73,6 @@
 #define E1000_TCPTIMER 0x0104C  /* TCP Timer - RW */
 #define E1000_FCRTL    0x02160  /* Flow Control Receive Threshold Low - RW */
 #define E1000_FCRTH    0x02168  /* Flow Control Receive Threshold High - RW */
-#define E1000_RDFPCQ(_n)  (0x02430 + (0x4 * (_n)))
 #define E1000_FCRTV    0x02460  /* Flow Control Refresh Timer Value - RW */
 
 /* IEEE 1588 TIMESYNCH */
@@ -178,7 +177,6 @@ enum {
 				    : (0x0E018 + ((_n) * 0x40)))
 #define E1000_TXDCTL(_n)  ((_n) < 4 ? (0x03828 + ((_n) * 0x100)) \
 				    : (0x0E028 + ((_n) * 0x40)))
-#define E1000_TARC(_n)    (0x03840 + (_n << 8))
 #define E1000_DCA_TXCTRL(_n) (0x03814 + (_n << 8))
 #define E1000_DCA_RXCTRL(_n) (0x02814 + (_n << 8))
 #define E1000_TDWBAL(_n)  ((_n) < 4 ? (0x03838 + ((_n) * 0x100)) \
@@ -301,9 +299,7 @@ enum {
 #define E1000_MANC     0x05820  /* Management Control - RW */
 #define E1000_IPAV     0x05838  /* IP Address Valid - RW */
 #define E1000_WUPL     0x05900  /* Wakeup Packet Length - RW */
-#define E1000_HOST_IF  0x08800  /* Host Interface */
 
-#define E1000_MANC2H      0x05860 /* Management Control To Host - RW */
 #define E1000_SW_FW_SYNC  0x05B5C /* Software-Firmware Synchronization - RW */
 #define E1000_CCMCTL      0x05B48 /* CCM Control Register */
 #define E1000_GIOCTL      0x05B44 /* GIO Analog Control Register */
@@ -311,9 +307,7 @@ enum {
 #define E1000_FACTPS    0x05B30 /* Function Active and Power State to MNG */
 #define E1000_SWSM      0x05B50 /* SW Semaphore */
 #define E1000_FWSM      0x05B54 /* FW Semaphore */
-#define E1000_DCA_ID    0x05B70 /* DCA Requester ID Information - RO */
 #define E1000_DCA_CTRL  0x05B74 /* DCA Control - RW */
-#define E1000_HICR      0x08F00 /* Host Inteface Control */
 
 /* RSS registers */
 #define E1000_MRQC      0x05818 /* Multiple Receive Control - RW */
@@ -322,14 +316,6 @@ enum {
 #define E1000_IMIRVP    0x05AC0 /* Immediate Interrupt RX VLAN Priority - RW */
 /* MSI-X Allocation Register (_i) - RW */
 #define E1000_MSIXBM(_i)    (0x01600 + ((_i) * 4))
-/* MSI-X Table entry addr low reg 0 - RW */
-#define E1000_MSIXTADD(_i)  (0x0C000 + ((_i) * 0x10))
-/* MSI-X Table entry addr upper reg 0 - RW */
-#define E1000_MSIXTUADD(_i) (0x0C004 + ((_i) * 0x10))
-/* MSI-X Table entry message reg 0 - RW */
-#define E1000_MSIXTMSG(_i)  (0x0C008 + ((_i) * 0x10))
-/* MSI-X Table entry vector ctrl reg 0 - RW */
-#define E1000_MSIXVCTRL(_i) (0x0C00C + ((_i) * 0x10))
 /* Redirection Table - RW Array */
 #define E1000_RETA(_i)  (0x05C00 + ((_i) * 4))
 #define E1000_RSSRK(_i) (0x05C80 + ((_i) * 4)) /* RSS Random Key - RW Array */

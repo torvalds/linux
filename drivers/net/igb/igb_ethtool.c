@@ -1366,8 +1366,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	wr32(E1000_RDH(0), 0);
 	wr32(E1000_RDT(0), 0);
 	rctl &= ~(E1000_RCTL_LBM_TCVR | E1000_RCTL_LBM_MAC);
-	rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_SZ_2048 |
-		E1000_RCTL_RDMTS_HALF |
+	rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_RDMTS_HALF |
 		(adapter->hw.mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 	wr32(E1000_RCTL, rctl);
 	wr32(E1000_SRRCTL(0), 0);
@@ -1854,9 +1853,6 @@ static int igb_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	return 0;
 }
-
-/* toggle LED 4 times per second = 2 "blinks" per second */
-#define IGB_ID_INTERVAL		(HZ/4)
 
 /* bit defines for adapter->led_status */
 #define IGB_LED_ON		0
