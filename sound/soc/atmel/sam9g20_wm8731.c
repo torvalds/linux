@@ -273,6 +273,7 @@ static int __init at91sam9g20ek_init(void)
 	 */
 	ssc = ssc_request(0);
 	if (IS_ERR(ssc)) {
+		printk(KERN_ERR "ASoC: Failed to request SSC 0\n");
 		ret = PTR_ERR(ssc);
 		ssc = NULL;
 		goto err_ssc;
@@ -281,8 +282,7 @@ static int __init at91sam9g20ek_init(void)
 
 	at91sam9g20ek_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!at91sam9g20ek_snd_device) {
-		printk(KERN_DEBUG
-				"platform device allocation failed\n");
+		printk(KERN_ERR "ASoC: Platform device allocation failed\n");
 		ret = -ENOMEM;
 	}
 
@@ -292,8 +292,7 @@ static int __init at91sam9g20ek_init(void)
 
 	ret = platform_device_add(at91sam9g20ek_snd_device);
 	if (ret) {
-		printk(KERN_DEBUG
-				"platform device allocation failed\n");
+		printk(KERN_ERR "ASoC: Platform device allocation failed\n");
 		platform_device_put(at91sam9g20ek_snd_device);
 	}
 
