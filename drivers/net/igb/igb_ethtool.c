@@ -1272,6 +1272,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	struct igb_ring *tx_ring = &adapter->test_tx_ring;
 	struct igb_ring *rx_ring = &adapter->test_rx_ring;
 	struct pci_dev *pdev = adapter->pdev;
+	struct igb_buffer *buffer_info;
 	u32 rctl;
 	int i, ret_val;
 
@@ -1288,7 +1289,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 		goto err_nomem;
 	}
 
-	tx_ring->size = tx_ring->count * sizeof(struct e1000_tx_desc);
+	tx_ring->size = tx_ring->count * sizeof(union e1000_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 	tx_ring->desc = pci_alloc_consistent(pdev, tx_ring->size,
 					     &tx_ring->dma);
@@ -1302,7 +1303,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 			((u64) tx_ring->dma & 0x00000000FFFFFFFF));
 	wr32(E1000_TDBAH(0), ((u64) tx_ring->dma >> 32));
 	wr32(E1000_TDLEN(0),
-			tx_ring->count * sizeof(struct e1000_tx_desc));
+			tx_ring->count * sizeof(union e1000_adv_tx_desc));
 	wr32(E1000_TDH(0), 0);
 	wr32(E1000_TDT(0), 0);
 	wr32(E1000_TCTL,
@@ -1311,27 +1312,31 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 			E1000_COLLISION_DISTANCE << E1000_COLD_SHIFT);
 
 	for (i = 0; i < tx_ring->count; i++) {
-		struct e1000_tx_desc *tx_desc = E1000_TX_DESC(*tx_ring, i);
+		union e1000_adv_tx_desc *tx_desc;
 		struct sk_buff *skb;
 		unsigned int size = 1024;
 
+		tx_desc = E1000_TX_DESC_ADV(*tx_ring, i);
 		skb = alloc_skb(size, GFP_KERNEL);
 		if (!skb) {
 			ret_val = 3;
 			goto err_nomem;
 		}
 		skb_put(skb, size);
-		tx_ring->buffer_info[i].skb = skb;
-		tx_ring->buffer_info[i].length = skb->len;
-		tx_ring->buffer_info[i].dma =
-			pci_map_single(pdev, skb->data, skb->len,
-				       PCI_DMA_TODEVICE);
-		tx_desc->buffer_addr = cpu_to_le64(tx_ring->buffer_info[i].dma);
-		tx_desc->lower.data = cpu_to_le32(skb->len);
-		tx_desc->lower.data |= cpu_to_le32(E1000_TXD_CMD_EOP |
-						   E1000_TXD_CMD_IFCS |
-						   E1000_TXD_CMD_RS);
-		tx_desc->upper.data = 0;
+		buffer_info = &tx_ring->buffer_info[i];
+		buffer_info->skb = skb;
+		buffer_info->length = skb->len;
+		buffer_info->dma = pci_map_single(pdev, skb->data, skb->len,
+		                                  PCI_DMA_TODEVICE);
+		tx_desc->read.buffer_addr = cpu_to_le64(buffer_info->dma);
+		tx_desc->read.olinfo_status = cpu_to_le32(skb->len) <<
+		                              E1000_ADVTXD_PAYLEN_SHIFT;
+		tx_desc->read.cmd_type_len = cpu_to_le32(skb->len);
+		tx_desc->read.cmd_type_len |= cpu_to_le32(E1000_TXD_CMD_EOP |
+		                                          E1000_TXD_CMD_IFCS |
+		                                          E1000_TXD_CMD_RS |
+		                                          E1000_ADVTXD_DTYP_DATA |
+		                                          E1000_ADVTXD_DCMD_DEXT);
 	}
 
 	/* Setup Rx descriptor ring and Rx buffers */
@@ -1347,7 +1352,7 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 		goto err_nomem;
 	}
 
-	rx_ring->size = rx_ring->count * sizeof(struct e1000_rx_desc);
+	rx_ring->size = rx_ring->count * sizeof(union e1000_adv_rx_desc);
 	rx_ring->desc = pci_alloc_consistent(pdev, rx_ring->size,
 					     &rx_ring->dma);
 	if (!rx_ring->desc) {
@@ -1369,12 +1374,14 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 	rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_RDMTS_HALF |
 		(adapter->hw.mac.mc_filter_type << E1000_RCTL_MO_SHIFT);
 	wr32(E1000_RCTL, rctl);
-	wr32(E1000_SRRCTL(0), 0);
+	wr32(E1000_SRRCTL(0), E1000_SRRCTL_DESCTYPE_ADV_ONEBUF);
 
 	for (i = 0; i < rx_ring->count; i++) {
-		struct e1000_rx_desc *rx_desc = E1000_RX_DESC(*rx_ring, i);
+		union e1000_adv_rx_desc *rx_desc;
 		struct sk_buff *skb;
 
+		buffer_info = &rx_ring->buffer_info[i];
+		rx_desc = E1000_RX_DESC_ADV(*rx_ring, i);
 		skb = alloc_skb(IGB_RXBUFFER_2048 + NET_IP_ALIGN,
 				GFP_KERNEL);
 		if (!skb) {
@@ -1382,11 +1389,11 @@ static int igb_setup_desc_rings(struct igb_adapter *adapter)
 			goto err_nomem;
 		}
 		skb_reserve(skb, NET_IP_ALIGN);
-		rx_ring->buffer_info[i].skb = skb;
-		rx_ring->buffer_info[i].dma =
-			pci_map_single(pdev, skb->data, IGB_RXBUFFER_2048,
-				       PCI_DMA_FROMDEVICE);
-		rx_desc->buffer_addr = cpu_to_le64(rx_ring->buffer_info[i].dma);
+		buffer_info->skb = skb;
+		buffer_info->dma = pci_map_single(pdev, skb->data,
+		                                  IGB_RXBUFFER_2048,
+		                                  PCI_DMA_FROMDEVICE);
+		rx_desc->read.pkt_addr = cpu_to_le64(buffer_info->dma);
 		memset(skb->data, 0x00, skb->len);
 	}
 

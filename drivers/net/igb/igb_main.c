@@ -994,7 +994,7 @@ void igb_reset(struct igb_adapter *adapter)
 		/* the tx fifo also stores 16 bytes of information about the tx
 		 * but don't include ethernet FCS because hardware appends it */
 		min_tx_space = (adapter->max_frame_size +
-				sizeof(struct e1000_tx_desc) -
+				sizeof(union e1000_adv_tx_desc) -
 				ETH_FCS_LEN) * 2;
 		min_tx_space = ALIGN(min_tx_space, 1024);
 		min_tx_space >>= 10;
@@ -1704,7 +1704,7 @@ int igb_setup_tx_resources(struct igb_adapter *adapter,
 	memset(tx_ring->buffer_info, 0, size);
 
 	/* round up to nearest 4K */
-	tx_ring->size = tx_ring->count * sizeof(struct e1000_tx_desc);
+	tx_ring->size = tx_ring->count * sizeof(union e1000_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 
 	tx_ring->desc = pci_alloc_consistent(pdev, tx_ring->size,
@@ -1773,7 +1773,7 @@ static void igb_configure_tx(struct igb_adapter *adapter)
 		struct igb_ring *ring = &adapter->tx_ring[i];
 		j = ring->reg_idx;
 		wr32(E1000_TDLEN(j),
-		     ring->count * sizeof(struct e1000_tx_desc));
+		     ring->count * sizeof(union e1000_adv_tx_desc));
 		tdba = ring->dma;
 		wr32(E1000_TDBAL(j),
 		     tdba & 0x00000000ffffffffULL);

@@ -180,9 +180,6 @@ struct igb_ring {
 	(&(((union e1000_adv_tx_desc *)((R).desc))[i]))
 #define E1000_TX_CTXTDESC_ADV(R, i)	    \
 	(&(((struct e1000_adv_tx_context_desc *)((R).desc))[i]))
-#define E1000_GET_DESC(R, i, type)	(&(((struct type *)((R).desc))[i]))
-#define E1000_TX_DESC(R, i)		E1000_GET_DESC(R, i, e1000_tx_desc)
-#define E1000_RX_DESC(R, i)		E1000_GET_DESC(R, i, e1000_rx_desc)
 
 /* board specific private data structure */
 
