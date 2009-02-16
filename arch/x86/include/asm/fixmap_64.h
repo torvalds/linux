@@ -68,6 +68,8 @@ enum fixed_addresses {
 	__end_of_fixed_addresses
 };
 
+extern void reserve_top_address(unsigned long reserve);
+
 #define FIXADDR_TOP	(VSYSCALL_END-PAGE_SIZE)
 
 #define FIXADDR_SIZE	(__end_of_permanent_fixed_addresses << PAGE_SHIFT)
