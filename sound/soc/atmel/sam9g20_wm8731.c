@@ -45,6 +45,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
+#include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
 
@@ -267,6 +268,9 @@ static int __init at91sam9g20ek_init(void)
 	struct atmel_ssc_info *ssc_p = at91sam9g20ek_dai.cpu_dai->private_data;
 	struct ssc_device *ssc = NULL;
 	int ret;
+
+	if (!machine_is_at91sam9g20ek())
+		return -ENODEV;
 
 	/*
 	 * Request SSC device
