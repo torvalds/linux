@@ -393,7 +393,7 @@ static int ivtv_g_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_fo
 		return 0;
 	}
 
-	v4l2_subdev_call(itv->sd_video, video, s_fmt, fmt);
+	v4l2_subdev_call(itv->sd_video, video, g_fmt, fmt);
 	vbifmt->service_set = ivtv_get_service_set(vbifmt);
 	return 0;
 }
