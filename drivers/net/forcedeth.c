@@ -6011,9 +6011,20 @@ static void nv_shutdown(struct pci_dev *pdev)
 	if (netif_running(dev))
 		nv_close(dev);
 
-	nv_restore_mac_addr(pdev);
+	/*
+	 * Restore the MAC so a kernel started by kexec won't get confused.
+	 * If we really go for poweroff, we must not restore the MAC,
+	 * otherwise the MAC for WOL will be reversed at least on some boards.
+	 */
+	if (system_state != SYSTEM_POWER_OFF) {
+		nv_restore_mac_addr(pdev);
+	}
 
 	pci_disable_device(pdev);
+	/*
+	 * Apparently it is not possible to reinitialise from D3 hot,
+	 * only put the device into D3 if we really go for poweroff.
+	 */
 	if (system_state == SYSTEM_POWER_OFF) {
 		if (pci_enable_wake(pdev, PCI_D3cold, np->wolenabled))
 			pci_enable_wake(pdev, PCI_D3hot, np->wolenabled);
