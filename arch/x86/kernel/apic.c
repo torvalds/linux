@@ -1649,32 +1649,28 @@ int __init APIC_init_uniprocessor(void)
 #ifdef CONFIG_X86_IO_APIC
 	/*
 	 * Now enable IO-APICs, actually call clear_IO_APIC
-	 * We need clear_IO_APIC before enabling vector on BP
+	 * We need clear_IO_APIC before enabling error vector
 	 */
 	if (!skip_ioapic_setup && nr_ioapics)
 		enable_IO_APIC();
-
-	if (!smp_found_config || skip_ioapic_setup || !nr_ioapics)
-		localise_nmi_watchdog();
-#else
-	localise_nmi_watchdog();
 #endif
+
 	end_local_APIC_setup();
 
 #ifdef CONFIG_X86_IO_APIC
 	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
 		setup_IO_APIC();
-# ifdef CONFIG_X86_64
-	else
+	else {
 		nr_ioapics = 0;
-# endif
+		localise_nmi_watchdog();
+	}
+#else
+	localise_nmi_watchdog();
 #endif
 
-#ifdef CONFIG_X86_64
-	setup_boot_APIC_clock();
-	check_nmi_watchdog();
-#else
 	setup_boot_clock();
+#ifdef CONFIG_X86_64
+	check_nmi_watchdog();
 #endif
 
 	return 0;
