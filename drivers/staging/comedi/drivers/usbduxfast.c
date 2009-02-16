@@ -1826,7 +1826,7 @@ static comedi_driver driver_usbduxfast = {
 	.detach		= usbduxfast_detach
 };
 
-static void init_usb_devices(void)
+static void __init init_usb_devices(void)
 {
 	int index;
 
@@ -1875,7 +1875,7 @@ static struct usb_driver usbduxfastsub_driver = {
  * Can't use the nice macro as I have also to initialise the USB subsystem:
  * registering the usb-system _and_ the comedi-driver
  */
-static int init_usbduxfast(void)
+static int __init init_usbduxfast(void)
 {
 	printk(KERN_INFO
 	       KBUILD_MODNAME ": " DRIVER_VERSION ":" DRIVER_DESC "\n");
@@ -1888,7 +1888,7 @@ static int init_usbduxfast(void)
 /*
  * deregistering the comedi driver and the usb-subsystem
  */
-static void exit_usbduxfast(void)
+static void __exit exit_usbduxfast(void)
 {
 	comedi_driver_unregister(&driver_usbduxfast);
 	usb_deregister(&usbduxfastsub_driver);
