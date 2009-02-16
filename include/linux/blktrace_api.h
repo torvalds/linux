@@ -15,6 +15,7 @@ enum blktrace_cat {
 	BLK_TC_WRITE	= 1 << 1,	/* writes */
 	BLK_TC_BARRIER	= 1 << 2,	/* barrier */
 	BLK_TC_SYNC	= 1 << 3,	/* sync IO */
+	BLK_TC_SYNCIO	= BLK_TC_SYNC,
 	BLK_TC_QUEUE	= 1 << 4,	/* queueing/merging */
 	BLK_TC_REQUEUE	= 1 << 5,	/* requeueing */
 	BLK_TC_ISSUE	= 1 << 6,	/* issue */
