@@ -2612,10 +2612,10 @@ static int __devinit dbri_probe(struct of_device *op, const struct of_device_id 
 		return -ENODEV;
 	}
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_dbri));
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_dbri), &card);
+	if (err < 0)
+		return err;
 
 	strcpy(card->driver, "DBRI");
 	strcpy(card->shortname, "Sun DBRI");

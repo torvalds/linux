@@ -957,10 +957,10 @@ static int __devinit snd_mts64_probe(struct platform_device *pdev)
 	if ((err = snd_mts64_probe_port(p)) < 0)
 		return err;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-	if (card == NULL) {
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	if (err < 0) {
 		snd_printd("Cannot create card\n");
-		return -ENOMEM;
+		return err;
 	}
 	strcpy(card->driver, DRIVER_NAME);
 	strcpy(card->shortname, "ESI " CARD_NAME);

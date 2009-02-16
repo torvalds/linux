@@ -90,10 +90,10 @@ static int __devinit snd_virmidi_probe(struct platform_device *devptr)
 	int idx, err;
 	int dev = devptr->id;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_card_virmidi));
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_card_virmidi), &card);
+	if (err < 0)
+		return err;
 	vmidi = (struct snd_card_virmidi *)card->private_data;
 	vmidi->card = card;
 

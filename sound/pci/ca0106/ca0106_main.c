@@ -1707,9 +1707,9 @@ static int __devinit snd_ca0106_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	err = snd_ca0106_create(dev, card, pci, &chip);
 	if (err < 0)
