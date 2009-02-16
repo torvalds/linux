@@ -285,7 +285,7 @@ int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds)
 	ds->ds_txstat.ts_shortretry = MS(ads->ds_txstatus1, AR_RTSFailCnt);
 	ds->ds_txstat.ts_longretry = MS(ads->ds_txstatus1, AR_DataFailCnt);
 	ds->ds_txstat.ts_virtcol = MS(ads->ds_txstatus1, AR_VirtRetryCnt);
-	ds->ds_txstat.ts_antenna = 1;
+	ds->ds_txstat.ts_antenna = 0;
 
 	return 0;
 }
