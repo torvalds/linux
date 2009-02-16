@@ -112,7 +112,7 @@ void cpu_end_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_SMP
-int cpu_check_affinity(unsigned int irq, cpumask_t *dest)
+int cpu_check_affinity(unsigned int irq, const struct cpumask *dest)
 {
 	int cpu_dest;
 
@@ -126,17 +126,19 @@ int cpu_check_affinity(unsigned int irq, cpumask_t *dest)
 
 	/* whatever mask they set, we just allow one CPU */
 	cpu_dest = first_cpu(*dest);
-	*dest = cpumask_of_cpu(cpu_dest);
 
-	return 0;
+	return cpu_dest;
 }
 
 static void cpu_set_affinity_irq(unsigned int irq, const struct cpumask *dest)
 {
-	if (cpu_check_affinity(irq, dest))
+	int cpu_dest;
+
+	cpu_dest = cpu_check_affinity(irq, dest);
+	if (cpu_dest < 0)
 		return;
 
-	cpumask_copy(&irq_desc[irq].affinity, dest);
+	cpumask_copy(&irq_desc[irq].affinity, &cpumask_of_cpu(cpu_dest));
 }
 #endif
 
