@@ -101,7 +101,6 @@ static void __init mxc_board_init(void)
 	default:
 		printk(KERN_ERR "Illegal mx31moboard_baseboard type %d\n", mx31moboard_baseboard);
 	}
-
 }
 
 /*

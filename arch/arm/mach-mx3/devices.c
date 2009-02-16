@@ -242,3 +242,51 @@ struct platform_device mxc_i2c_device2 = {
 	.num_resources = ARRAY_SIZE(mxc_i2c2_resources),
 	.resource = mxc_i2c2_resources,
 };
+
+/* i.MX31 Image Processing Unit */
+
+/* The resource order is important! */
+static struct resource mx3_ipu_rsrc[] = {
+	{
+		.start = IPU_CTRL_BASE_ADDR,
+		.end = IPU_CTRL_BASE_ADDR + 0x5F,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = IPU_CTRL_BASE_ADDR + 0x88,
+		.end = IPU_CTRL_BASE_ADDR + 0xB3,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MXC_INT_IPU_SYN,
+		.end = MXC_INT_IPU_SYN,
+		.flags = IORESOURCE_IRQ,
+	}, {
+		.start = MXC_INT_IPU_ERR,
+		.end = MXC_INT_IPU_ERR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mx3_ipu = {
+	.name = "ipu-core",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(mx3_ipu_rsrc),
+	.resource = mx3_ipu_rsrc,
+};
+
+static struct resource fb_resources[] = {
+	{
+		.start	= IPU_CTRL_BASE_ADDR + 0xB4,
+		.end	= IPU_CTRL_BASE_ADDR + 0x1BF,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device mx3_fb = {
+	.name		= "mx3_sdc_fb",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(fb_resources),
+	.resource	= fb_resources,
+	.dev		= {
+		.coherent_dma_mask = 0xffffffff,
+       },
+};
