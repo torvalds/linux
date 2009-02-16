@@ -59,10 +59,6 @@ Status: testing
 #include "comedi_fc.h"
 #include "../comedidev.h"
 
-// (un)comment this if you want to have debug info.
-//#define CONFIG_COMEDI_DEBUG
-#undef  CONFIG_COMEDI_DEBUG
-
 #define BOARDNAME "usbduxfast"
 
 // timeout for the USB-transfer
@@ -189,26 +185,29 @@ static DECLARE_MUTEX(start_stop_sem);
 
 static int send_dux_commands(usbduxfastsub_t * this_usbduxfastsub, int cmd_type)
 {
-	int result, nsent;
+	int tmp, nsent;
+
 	this_usbduxfastsub->dux_commands[0] = cmd_type;
+
 #ifdef CONFIG_COMEDI_DEBUG
-	int i;
-	printk("comedi%d: usbduxfast: dux_commands: ",
+	printk(KERN_DEBUG "comedi%d: usbduxfast: dux_commands: ",
 		this_usbduxfastsub->comedidev->minor);
-	for (i = 0; i < SIZEOFDUXBUFFER; i++) {
-		printk(" %02x", this_usbduxfastsub->dux_commands[i]);
-	}
+	for (tmp = 0; tmp < SIZEOFDUXBUFFER; tmp++)
+		printk(" %02x", this_usbduxfastsub->dux_commands[tmp]);
 	printk("\n");
 #endif
-	result = usb_bulk_msg(this_usbduxfastsub->usbdev,
+
+	tmp = usb_bulk_msg(this_usbduxfastsub->usbdev,
 			      usb_sndbulkpipe(this_usbduxfastsub->usbdev,
 					      CHANNELLISTEP),
 			      this_usbduxfastsub->dux_commands, SIZEOFDUXBUFFER,
 			      &nsent, 10000);
-	if (result < 0) {
-		printk("comedi%d: could not transmit dux_commands to the usb-device, err=%d\n", this_usbduxfastsub->comedidev->minor, result);
-	}
-	return result;
+	if (tmp < 0)
+		printk(KERN_ERR "comedi%d: could not transmit dux_commands to"
+		       "the usb-device, err=%d\n",
+		       this_usbduxfastsub->comedidev->minor, tmp);
+
+	return tmp;
 }
 
 // Stops the data acquision
@@ -548,10 +547,10 @@ int usbduxfastsub_submit_InURBs(usbduxfastsub_t * usbduxfastsub)
 		SIZEINBUF, usbduxfastsub_ai_Irq, usbduxfastsub->comedidev);
 
 #ifdef CONFIG_COMEDI_DEBUG
-	printk("comedi%d: usbduxfast: submitting in-urb: %x,%x\n",
+	printk("comedi%d: usbduxfast: submitting in-urb: 0x%p,0x%p\n",
 		usbduxfastsub->comedidev->minor,
-		(int)(usbduxfastsub->urbIn->context),
-		(int)(usbduxfastsub->urbIn->dev));
+		usbduxfastsub->urbIn->context,
+		usbduxfastsub->urbIn->dev);
 #endif
 	errFlag = usb_submit_urb(usbduxfastsub->urbIn, GFP_ATOMIC);
 	if (errFlag) {
@@ -826,9 +825,8 @@ static int usbduxfast_ai_cmd(comedi_device * dev, comedi_subdevice * s)
 		return -EINVAL;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
-	printk("comedi%d: usbduxfast: steps=%ld, convert_arg=%u, ai_timer=%u\n",
-		dev->minor,
-		steps, cmd->convert_arg, this_usbduxfastsub->ai_timer);
+	printk("comedi%d: usbduxfast: steps=%ld, convert_arg=%u\n",
+		dev->minor, steps, cmd->convert_arg);
 #endif
 
 	switch (cmd->chanlist_len) {
@@ -1211,10 +1209,10 @@ static int usbduxfast_ai_insn_read(comedi_device * dev,
 		return err;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
-	printk("comedi%d: usbduxfast: submitting in-urb: %x,%x\n",
+	printk("comedi%d: usbduxfast: submitting in-urb: 0x%p,0x%p\n",
 		usbduxfastsub->comedidev->minor,
-		(int)(usbduxfastsub->urbIn->context),
-		(int)(usbduxfastsub->urbIn->dev));
+		usbduxfastsub->urbIn->context,
+		usbduxfastsub->urbIn->dev);
 #endif
 	for (i = 0; i < PACKETS_TO_IGNORE; i++) {
 		err = usb_bulk_msg(usbduxfastsub->usbdev,

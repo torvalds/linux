@@ -6,6 +6,13 @@ config COMEDI
 	  Enable support a wide range of data acquision devices
 	  for Linux.
 
+config COMEDI_DEBUG
+	bool "Comedi debugging"
+	depends on COMEDI != n
+	help
+	  This is an option for use by developers; most people should
+	  say N here. This enables comedi core and driver debugging.
+
 config COMEDI_RT
 	tristate "Comedi Real-time support"
 	depends on COMEDI && RT
