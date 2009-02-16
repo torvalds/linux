@@ -685,7 +685,7 @@ static struct clk per_clk[] = {
 
 struct clk uart1_clk[] = {
 	{
-		.name = "uart_clk",
+		.name = "uart",
 		.id = 0,
 		.parent = &per_clk[0],
 		.secondary = &uart1_clk[1],
@@ -702,7 +702,7 @@ struct clk uart1_clk[] = {
 
 struct clk uart2_clk[] = {
 	{
-		.name = "uart_clk",
+		.name = "uart",
 		.id = 1,
 		.parent = &per_clk[0],
 		.secondary = &uart2_clk[1],
@@ -719,7 +719,7 @@ struct clk uart2_clk[] = {
 
 struct clk uart3_clk[] = {
 	{
-		.name = "uart_clk",
+		.name = "uart",
 		.id = 2,
 		.parent = &per_clk[0],
 		.secondary = &uart3_clk[1],
@@ -736,7 +736,7 @@ struct clk uart3_clk[] = {
 
 struct clk uart4_clk[] = {
 	{
-		.name = "uart_clk",
+		.name = "uart",
 		.id = 3,
 		.parent = &per_clk[0],
 		.secondary = &uart4_clk[1],
@@ -753,7 +753,7 @@ struct clk uart4_clk[] = {
 
 struct clk uart5_clk[] = {
 	{
-		.name = "uart_clk",
+		.name = "uart",
 		.id = 4,
 		.parent = &per_clk[0],
 		.secondary = &uart5_clk[1],
@@ -770,7 +770,7 @@ struct clk uart5_clk[] = {
 
 struct clk uart6_clk[] = {
 	{
-		.name = "uart_clk",
+		.name = "uart",
 		.id = 5,
 		.parent = &per_clk[0],
 		.secondary = &uart6_clk[1],
@@ -1110,7 +1110,7 @@ static struct clk ssi2_clk[] = {
 };
 
 static struct clk nfc_clk = {
-	.name = "nfc_clk",
+	.name = "nfc",
 	.parent = &cpu_clk,
 	.get_rate = _clk_nfc_recalc,
 	.enable = _clk_enable,
@@ -1128,7 +1128,7 @@ static struct clk vpu_clk = {
 };
 
 static struct clk dma_clk = {
-	.name = "dma_clk",
+	.name = "dma",
 	.parent = &ahb_clk,
 	.enable = _clk_dma_enable,
 	.disable = _clk_dma_disable,
@@ -1260,7 +1260,7 @@ static struct clk kpp_clk = {
 };
 
 static struct clk owire_clk = {
-	.name = "owire_clk",
+	.name = "owire",
 	.parent = &ipg_clk,
 	.enable = _clk_enable,
 	.enable_reg = CCM_PCCR0,

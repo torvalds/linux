@@ -462,7 +462,7 @@ static struct clk clko_clk = {
 };
 
 static struct clk dma_clk = {
-	.name = "dma_clk",
+	.name = "dma",
 	.parent = &hclk,
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,
@@ -513,7 +513,7 @@ static struct clk gpt_clk = {
 };
 
 static struct clk uart_clk = {
-	.name = "uart_clk",
+	.name = "uart",
 	.parent = &perclk[0],
 	.round_rate = _clk_parent_round_rate,
 	.set_rate = _clk_parent_set_rate,

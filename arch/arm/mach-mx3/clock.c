@@ -593,7 +593,7 @@ static struct clk epit_clk[] = {
 };
 
 static struct clk nfc_clk = {
-	.name = "nfc_clk",
+	.name = "nfc",
 	.parent = &ahb_clk,
 	.get_rate = _clk_nfc_get_rate,
 };
@@ -667,7 +667,7 @@ static struct clk csi_clk = {
 
 static struct clk uart_clk[] = {
 	{
-	 .name = "uart_clk",
+	 .name = "uart",
 	 .id = 0,
 	 .parent = &perclk_clk,
 	 .enable = _clk_enable,
@@ -675,7 +675,7 @@ static struct clk uart_clk[] = {
 	 .enable_shift = MXC_CCM_CGR0_UART1_OFFSET,
 	 .disable = _clk_disable,},
 	{
-	 .name = "uart_clk",
+	 .name = "uart",
 	 .id = 1,
 	 .parent = &perclk_clk,
 	 .enable = _clk_enable,
@@ -683,7 +683,7 @@ static struct clk uart_clk[] = {
 	 .enable_shift = MXC_CCM_CGR0_UART2_OFFSET,
 	 .disable = _clk_disable,},
 	{
-	 .name = "uart_clk",
+	 .name = "uart",
 	 .id = 2,
 	 .parent = &perclk_clk,
 	 .enable = _clk_enable,
@@ -691,7 +691,7 @@ static struct clk uart_clk[] = {
 	 .enable_shift = MXC_CCM_CGR1_UART3_OFFSET,
 	 .disable = _clk_disable,},
 	{
-	 .name = "uart_clk",
+	 .name = "uart",
 	 .id = 3,
 	 .parent = &perclk_clk,
 	 .enable = _clk_enable,
@@ -699,7 +699,7 @@ static struct clk uart_clk[] = {
 	 .enable_shift = MXC_CCM_CGR1_UART4_OFFSET,
 	 .disable = _clk_disable,},
 	{
-	 .name = "uart_clk",
+	 .name = "uart",
 	 .id = 4,
 	 .parent = &perclk_clk,
 	 .enable = _clk_enable,
@@ -736,7 +736,7 @@ static struct clk i2c_clk[] = {
 };
 
 static struct clk owire_clk = {
-	.name = "owire_clk",
+	.name = "owire",
 	.parent = &perclk_clk,
 	.enable_reg = MXC_CCM_CGR1,
 	.enable_shift = MXC_CCM_CGR1_OWIRE_OFFSET,
