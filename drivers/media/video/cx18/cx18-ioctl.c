@@ -208,7 +208,7 @@ static int cx18_g_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	 * digitizer/slicer.  Note, cx18_av_vbi() wipes the passed in
 	 * fmt->fmt.sliced under valid calling conditions
 	 */
-	if (cx18_av_cmd(cx, VIDIOC_G_FMT, fmt))
+	if (v4l2_subdev_call(cx->sd_av, video, g_fmt, fmt))
 		return -EINVAL;
 
 	/* Ensure V4L2 spec compliant output */
@@ -295,7 +295,7 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 
 	cx->params.width = w;
 	cx->params.height = h;
-	cx18_av_cmd(cx, VIDIOC_S_FMT, fmt);
+	v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
 	return cx18_g_fmt_vid_cap(file, fh, fmt);
 }
 
@@ -322,7 +322,7 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	 * Note cx18_av_vbi_wipes out alot of the passed in fmt under valid
 	 * calling conditions
 	 */
-	ret = cx18_av_cmd(cx, VIDIOC_S_FMT, fmt);
+	ret = v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
 	if (ret)
 		return ret;
 
@@ -359,7 +359,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	 * Note, cx18_av_vbi() wipes some "impossible" service lines in the
 	 * passed in fmt->fmt.sliced under valid calling conditions
 	 */
-	ret = cx18_av_cmd(cx, VIDIOC_S_FMT, fmt);
+	ret = v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
 	if (ret)
 		return ret;
 	/* Store our current v4l2 sliced VBI settings */
@@ -516,7 +516,8 @@ static int cx18_s_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	return cx18_av_cmd(cx, VIDIOC_S_CROP, crop);
+	CX18_DEBUG_WARN("VIDIOC_S_CROP not implemented\n");
+	return -EINVAL;
 }
 
 static int cx18_g_crop(struct file *file, void *fh, struct v4l2_crop *crop)
@@ -525,7 +526,8 @@ static int cx18_g_crop(struct file *file, void *fh, struct v4l2_crop *crop)
 
 	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	return cx18_av_cmd(cx, VIDIOC_G_CROP, crop);
+	CX18_DEBUG_WARN("VIDIOC_G_CROP not implemented\n");
+	return -EINVAL;
 }
 
 static int cx18_enum_fmt_vid_cap(struct file *file, void *fh,

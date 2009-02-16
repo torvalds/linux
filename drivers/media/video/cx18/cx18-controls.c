@@ -67,7 +67,7 @@ int cx18_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *qctrl)
 	case V4L2_CID_HUE:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_CONTRAST:
-		if (cx18_av_cmd(cx, VIDIOC_QUERYCTRL, qctrl))
+		if (v4l2_subdev_call(cx->sd_av, core, queryctrl, qctrl))
 			qctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
 		return 0;
 
@@ -126,7 +126,7 @@ static int cx18_s_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
 	case V4L2_CID_HUE:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_CONTRAST:
-		return cx18_av_cmd(cx, VIDIOC_S_CTRL, vctrl);
+		return v4l2_subdev_call(cx->sd_av, core, s_ctrl, vctrl);
 
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_MUTE:
@@ -151,7 +151,7 @@ static int cx18_g_ctrl(struct cx18 *cx, struct v4l2_control *vctrl)
 	case V4L2_CID_HUE:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_CONTRAST:
-		return cx18_av_cmd(cx, VIDIOC_G_CTRL, vctrl);
+		return v4l2_subdev_call(cx->sd_av, core, g_ctrl, vctrl);
 
 	case V4L2_CID_AUDIO_VOLUME:
 	case V4L2_CID_AUDIO_MUTE:
@@ -278,7 +278,7 @@ int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 			fmt.fmt.pix.width = cx->params.width
 						/ (is_mpeg1 ? 2 : 1);
 			fmt.fmt.pix.height = cx->params.height;
-			cx18_av_cmd(cx, VIDIOC_S_FMT, &fmt);
+			v4l2_subdev_call(cx->sd_av, video, s_fmt, &fmt);
 		}
 		priv.cx = cx;
 		priv.s = &cx->streams[id->type];

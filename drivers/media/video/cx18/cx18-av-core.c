@@ -201,15 +201,45 @@ static int cx18_av_reset(struct v4l2_subdev *sd, u32 val)
 	return 0;
 }
 
-static int cx18_av_init_hardware(struct v4l2_subdev *sd, u32 val)
+static int cx18_av_init(struct v4l2_subdev *sd, u32 val)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
-	if (!state->is_initialized) {
-		/* initialize on first use */
-		state->is_initialized = 1;
-		cx18_av_initialize(cx);
+	switch (val) {
+	case CX18_AV_INIT_PLLS:
+		/*
+		 * The crystal freq used in calculations in this driver will be
+		 * 28.636360 MHz.
+		 * Aim to run the PLLs' VCOs near 400 MHz to minimze errors.
+		 */
+
+		/*
+		 * VDCLK  Integer = 0x0f, Post Divider = 0x04
+		 * AIMCLK Integer = 0x0e, Post Divider = 0x16
+		 */
+		cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
+
+		/* VDCLK Fraction = 0x2be2fe */
+		/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
+		cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
+
+		/* AIMCLK Fraction = 0x05227ad */
+		/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz pre post-div*/
+		cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
+
+		/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
+		cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
+		break;
+
+	case CX18_AV_INIT_NORMAL:
+	default:
+		if (!state->is_initialized) {
+			/* initialize on first use */
+			state->is_initialized = 1;
+			cx18_av_initialize(cx);
+		}
+		break;
 	}
 	return 0;
 }
@@ -1095,14 +1125,11 @@ static inline int cx18_av_dbg_match(const struct v4l2_dbg_match *match)
 static int cx18_av_g_chip_ident(struct v4l2_subdev *sd,
 				struct v4l2_dbg_chip_ident *chip)
 {
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+
 	if (cx18_av_dbg_match(&chip->match)) {
-		/*
-		 * Nothing else is going to claim to be this combination,
-		 * and the real host chip revision will be returned by a host
-		 * match on address 0.
-		 */
-		chip->ident = V4L2_IDENT_CX25843;
-		chip->revision = V4L2_IDENT_CX23418; /* Why not */
+		chip->ident = state->id;
+		chip->revision = state->rev;
 	}
 	return 0;
 }
@@ -1143,7 +1170,7 @@ static int cx18_av_s_register(struct v4l2_subdev *sd,
 static const struct v4l2_subdev_core_ops cx18_av_general_ops = {
 	.g_chip_ident = cx18_av_g_chip_ident,
 	.log_status = cx18_av_log_status,
-	.init = cx18_av_init_hardware,
+	.init = cx18_av_init,
 	.reset = cx18_av_reset,
 	.queryctrl = cx18_av_queryctrl,
 	.g_ctrl = cx18_av_g_ctrl,
@@ -1182,19 +1209,31 @@ static const struct v4l2_subdev_ops cx18_av_ops = {
 	.video = &cx18_av_video_ops,
 };
 
-int cx18_av_init(struct cx18 *cx)
+int cx18_av_probe(struct cx18 *cx, struct v4l2_subdev **sd)
 {
-	struct v4l2_subdev *sd = &cx->av_state.sd;
+	struct cx18_av_state *state = &cx->av_state;
 
-	v4l2_subdev_init(sd, &cx18_av_ops);
-	v4l2_set_subdevdata(sd, cx);
-	snprintf(sd->name, sizeof(sd->name),
-		 "%s-internal A/V decoder", cx->v4l2_dev.name);
-	sd->grp_id = CX18_HW_CX23418;
-	return v4l2_device_register_subdev(&cx->v4l2_dev, sd);
+	state->rev = cx18_av_read4(cx, CXADEC_CHIP_CTRL) & 0xffff;
+	state->id = ((state->rev >> 4) == CXADEC_CHIP_TYPE_MAKO)
+		    ? V4L2_IDENT_CX23418_843 : V4L2_IDENT_UNKNOWN;
+
+	state->vid_input = CX18_AV_COMPOSITE7;
+	state->aud_input = CX18_AV_AUDIO8;
+	state->audclk_freq = 48000;
+	state->audmode = V4L2_TUNER_MODE_LANG1;
+	state->slicer_line_delay = 0;
+	state->slicer_line_offset = (10 + state->slicer_line_delay - 2);
+
+	*sd = &state->sd;
+	v4l2_subdev_init(*sd, &cx18_av_ops);
+	v4l2_set_subdevdata(*sd, cx);
+	snprintf((*sd)->name, sizeof((*sd)->name),
+		 "%s internal A/V decoder", cx->v4l2_dev.name);
+	(*sd)->grp_id = CX18_HW_CX23418;
+	return v4l2_device_register_subdev(&cx->v4l2_dev, *sd);
 }
 
-void cx18_av_fini(struct cx18 *cx)
+void cx18_av_exit(struct cx18 *cx, struct v4l2_subdev *sd)
 {
 	v4l2_device_unregister_subdev(&cx->av_state.sd);
 }

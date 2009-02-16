@@ -323,6 +323,11 @@ static inline struct cx18_av_state *to_cx18_av_state(struct v4l2_subdev *sd)
 	return container_of(sd, struct cx18_av_state, sd);
 }
 
+enum cx18_av_subdev_init_arg {
+	CX18_AV_INIT_NORMAL = 0,
+	CX18_AV_INIT_PLLS = 1,
+};
+
 /* ----------------------------------------------------------------------- */
 /* cx18_av-core.c 							   */
 int cx18_av_write(struct cx18 *cx, u16 addr, u8 value);
@@ -337,9 +342,8 @@ int cx18_av_and_or(struct cx18 *cx, u16 addr, unsigned mask, u8 value);
 int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 mask, u32 value);
 void cx18_av_std_setup(struct cx18 *cx);
 
-int cx18_av_cmd(struct cx18 *cx, int cmd, void *arg); /* FIXME - Remove */
-int cx18_av_init(struct cx18 *cx);
-void cx18_av_fini(struct cx18 *cx);
+int cx18_av_probe(struct cx18 *cx, struct v4l2_subdev **sd);
+void cx18_av_exit(struct cx18 *cx, struct v4l2_subdev *sd);
 
 /* ----------------------------------------------------------------------- */
 /* cx18_av-firmware.c                                                      */

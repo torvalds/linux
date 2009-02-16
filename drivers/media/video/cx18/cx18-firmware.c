@@ -26,7 +26,6 @@
 #include "cx18-irq.h"
 #include "cx18-firmware.h"
 #include "cx18-cards.h"
-#include "cx18-av-core.h"
 #include <linux/firmware.h>
 
 #define CX18_PROC_SOFT_RESET 		0xc70010
@@ -285,23 +284,6 @@ void cx18_init_power(struct cx18 *cx, int lowpwr)
 	cx18_write_reg(cx, 0xF, CX18_MPEG_CLOCK_PLL_INT);
 	cx18_write_reg(cx, 0x2BE2FE, CX18_MPEG_CLOCK_PLL_FRAC);
 	cx18_write_reg(cx, 8, CX18_MPEG_CLOCK_PLL_POST);
-
-	/*
-	 * VDCLK  Integer = 0x0f, Post Divider = 0x04
-	 * AIMCLK Integer = 0x0e, Post Divider = 0x16
-	 */
-	cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
-
-	/* VDCLK Fraction = 0x2be2fe */
-	/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
-	cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
-
-	/* AIMCLK Fraction = 0x05227ad */
-	/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz before post-divide */
-	cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
-
-	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
-	cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
 
 	/* Defaults */
 	/* APU = SC or SC/2 = 125/62.5 */

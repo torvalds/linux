@@ -304,7 +304,7 @@ int cx18_i2c_hw(struct cx18 *cx, u32 hw, unsigned int cmd, void *arg)
 		return cx18_gpio(cx, cmd, arg);
 
 	if (hw == CX18_HW_CX23418)
-		return cx18_av_cmd(cx, cmd, arg);
+		return v4l2_subdev_command(cx->sd_av, cmd, arg);
 
 	addr = cx18_i2c_hw_addr(cx, hw);
 	if (addr < 0) {
@@ -322,7 +322,7 @@ void cx18_call_i2c_clients(struct cx18 *cx, unsigned int cmd, void *arg)
 		CX18_ERR("adapter is not set\n");
 		return;
 	}
-	cx18_av_cmd(cx, cmd, arg);
+	v4l2_subdev_command(cx->sd_av, cmd, arg);
 	i2c_clients_command(&cx->i2c_adap[0], cmd, arg);
 	i2c_clients_command(&cx->i2c_adap[1], cmd, arg);
 	if (cx->hw_flags & CX18_HW_GPIO)

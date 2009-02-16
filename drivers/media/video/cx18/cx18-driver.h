@@ -448,6 +448,7 @@ struct cx18 {
 	int instance;
 	struct pci_dev *pci_dev;
 	struct v4l2_device v4l2_dev;
+	struct v4l2_subdev *sd_av;
 
 	const struct cx18_card *card;	/* card information */
 	const char *card_name;  /* full name of the card */

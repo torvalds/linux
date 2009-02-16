@@ -64,7 +64,8 @@ enum {
 	/* module saa7146: reserved range 300-309 */
 	V4L2_IDENT_SAA7146 = 300,
 
-	/* Conexant MPEG encoder/decoders: reserved range 410-420 */
+	/* Conexant MPEG encoder/decoders: reserved range 400-420 */
+	V4L2_IDENT_CX23418_843 = 403, /* Integrated A/V Decoder on the '418 */
 	V4L2_IDENT_CX23415 = 415,
 	V4L2_IDENT_CX23416 = 416,
 	V4L2_IDENT_CX23418 = 418,

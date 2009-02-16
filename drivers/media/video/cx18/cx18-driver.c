@@ -621,13 +621,6 @@ static void __devinit cx18_init_struct2(struct cx18 *cx)
 		i = 0;
 	cx->active_input = i;
 	cx->audio_input = cx->card->video_inputs[i].audio_index;
-	cx->av_state.vid_input = CX18_AV_COMPOSITE7;
-	cx->av_state.aud_input = CX18_AV_AUDIO8;
-	cx->av_state.audclk_freq = 48000;
-	cx->av_state.audmode = V4L2_TUNER_MODE_LANG1;
-	cx->av_state.slicer_line_delay = 0;
-	cx->av_state.slicer_line_offset =
-		(10 + cx->av_state.slicer_line_delay - 2);
 }
 
 static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
@@ -811,6 +804,14 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	cx18_init_scb(cx);
 
 	cx18_gpio_init(cx);
+
+	retval = cx18_av_probe(cx, &cx->sd_av);
+	if (retval) {
+		CX18_ERR("Could not register A/V decoder subdevice\n");
+		goto free_map;
+	}
+	/* Initialize the A/V decoder PLLs to sane defaults */
+	v4l2_subdev_call(cx->sd_av, core, init, (u32) CX18_AV_INIT_PLLS);
 
 	/* active i2c  */
 	CX18_DEBUG_INFO("activating i2c...\n");
@@ -1019,6 +1020,9 @@ int cx18_init_on_first_open(struct cx18 *cx)
 	cx18_vapi(cx, CX18_APU_START, 2, CX18_APU_ENCODING_METHOD_MPEG|0xb9, 0);
 	cx18_vapi(cx, CX18_APU_RESETAI, 0);
 	cx18_vapi(cx, CX18_APU_STOP, 1, CX18_APU_ENCODING_METHOD_MPEG);
+
+	/* Init the A/V decoder, if it hasn't been already */
+	v4l2_subdev_call(cx->sd_av, core, init, (u32) CX18_AV_INIT_NORMAL);
 
 	vf.tuner = 0;
 	vf.type = V4L2_TUNER_ANALOG_TV;

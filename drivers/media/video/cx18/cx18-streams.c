@@ -348,7 +348,7 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 	}
 
 	/* setup VBI registers */
-	cx18_av_cmd(cx, VIDIOC_S_FMT, &cx->vbi.in);
+	v4l2_subdev_call(cx->sd_av, video, s_fmt, &cx->vbi.in);
 
 	/*
 	 * Send the CX18_CPU_SET_RAW_VBI_PARAM API command to setup Encoder Raw
