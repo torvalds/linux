@@ -53,6 +53,9 @@
 #include "atmel-pcm.h"
 #include "atmel_ssc_dai.h"
 
+#define MCLK_RATE 12000000
+
+static struct clk *mclk;
 
 static int at91sam9g20ek_startup(struct snd_pcm_substream *substream)
 {
@@ -60,11 +63,12 @@ static int at91sam9g20ek_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 	int ret;
 
-	/* codec system clock is supplied by PCK0, set to 12MHz */
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK,
-		12000000, SND_SOC_CLOCK_IN);
-	if (ret < 0)
+		MCLK_RATE, SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		clk_disable(mclk);
 		return ret;
+	}
 
 	return 0;
 }
@@ -190,6 +194,31 @@ static struct snd_soc_ops at91sam9g20ek_ops = {
 	.shutdown = at91sam9g20ek_shutdown,
 };
 
+static int at91sam9g20ek_set_bias_level(struct snd_soc_card *card,
+					enum snd_soc_bias_level level)
+{
+	static int mclk_on;
+	int ret = 0;
+
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+	case SND_SOC_BIAS_PREPARE:
+		if (!mclk_on)
+			ret = clk_enable(mclk);
+		if (ret == 0)
+			mclk_on = 1;
+		break;
+
+	case SND_SOC_BIAS_OFF:
+	case SND_SOC_BIAS_STANDBY:
+		if (mclk_on)
+			clk_disable(mclk);
+		mclk_on = 0;
+		break;
+	}
+
+	return ret;
+}
 
 static const struct snd_soc_dapm_widget at91sam9g20ek_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
@@ -248,6 +277,7 @@ static struct snd_soc_card snd_soc_at91sam9g20ek = {
 	.platform = &atmel_soc_platform,
 	.dai_link = &at91sam9g20ek_dai,
 	.num_links = 1,
+	.set_bias_level = at91sam9g20ek_set_bias_level,
 };
 
 static struct wm8731_setup_data at91sam9g20ek_wm8731_setup = {
@@ -267,10 +297,36 @@ static int __init at91sam9g20ek_init(void)
 {
 	struct atmel_ssc_info *ssc_p = at91sam9g20ek_dai.cpu_dai->private_data;
 	struct ssc_device *ssc = NULL;
+	struct clk *pllb;
 	int ret;
 
 	if (!machine_is_at91sam9g20ek())
 		return -ENODEV;
+
+	/*
+	 * Codec MCLK is supplied by PCK0 - set it up.
+	 */
+	mclk = clk_get(NULL, "pck0");
+	if (IS_ERR(mclk)) {
+		printk(KERN_ERR "ASoC: Failed to get MCLK\n");
+		ret = PTR_ERR(mclk);
+		goto err;
+	}
+
+	pllb = clk_get(NULL, "pllb");
+	if (IS_ERR(mclk)) {
+		printk(KERN_ERR "ASoC: Failed to get PLLB\n");
+		ret = PTR_ERR(mclk);
+		goto err_mclk;
+	}
+	ret = clk_set_parent(mclk, pllb);
+	clk_put(pllb);
+	if (ret != 0) {
+		printk(KERN_ERR "ASoC: Failed to set MCLK parent\n");
+		goto err_mclk;
+	}
+
+	clk_set_rate(mclk, MCLK_RATE);
 
 	/*
 	 * Request SSC device
@@ -303,6 +359,10 @@ static int __init at91sam9g20ek_init(void)
 	return ret;
 
 err_ssc:
+err_mclk:
+	clk_put(mclk);
+	mclk = NULL;
+err:
 	return ret;
 }
 
@@ -320,6 +380,8 @@ static void __exit at91sam9g20ek_exit(void)
 
 	platform_device_unregister(at91sam9g20ek_snd_device);
 	at91sam9g20ek_snd_device = NULL;
+	clk_put(mclk);
+	mclk = NULL;
 }
 
 module_init(at91sam9g20ek_init);
