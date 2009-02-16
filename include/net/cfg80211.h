@@ -525,6 +525,8 @@ struct cfg80211_ssid {
  * @n_ssids: number of SSIDs
  * @channels: channels to scan on.
  * @n_channels: number of channels for each band
+ * @ie: optional information element(s) to add into Probe Request or %NULL
+ * @ie_len: length of ie in octets
  * @wiphy: the wiphy this was for
  * @ifidx: the interface index
  */
@@ -533,6 +535,8 @@ struct cfg80211_scan_request {
 	int n_ssids;
 	struct ieee80211_channel **channels;
 	u32 n_channels;
+	u8 *ie;
+	size_t ie_len;
 
 	/* internal */
 	struct wiphy *wiphy;

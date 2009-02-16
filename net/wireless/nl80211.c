@@ -2286,6 +2286,7 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	struct wiphy *wiphy;
 	int err, tmp, n_ssids = 0, n_channels = 0, i;
 	enum ieee80211_band band;
+	size_t ie_len;
 
 	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
 	if (err)
@@ -2327,9 +2328,15 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 		goto out_unlock;
 	}
 
+	if (info->attrs[NL80211_ATTR_IE])
+		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+	else
+		ie_len = 0;
+
 	request = kzalloc(sizeof(*request)
 			+ sizeof(*ssid) * n_ssids
-			+ sizeof(channel) * n_channels, GFP_KERNEL);
+			+ sizeof(channel) * n_channels
+			+ ie_len, GFP_KERNEL);
 	if (!request) {
 		err = -ENOMEM;
 		goto out_unlock;
@@ -2340,6 +2347,12 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	if (n_ssids)
 		request->ssids = (void *)(request->channels + n_channels);
 	request->n_ssids = n_ssids;
+	if (ie_len) {
+		if (request->ssids)
+			request->ie = (void *)(request->ssids + n_ssids);
+		else
+			request->ie = (void *)(request->channels + n_channels);
+	}
 
 	if (info->attrs[NL80211_ATTR_SCAN_FREQUENCIES]) {
 		/* user specified, bail out if channel not found */
@@ -2378,6 +2391,12 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 			request->ssids[i].ssid_len = nla_len(attr);
 			i++;
 		}
+	}
+
+	if (info->attrs[NL80211_ATTR_IE]) {
+		request->ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+		memcpy(request->ie, nla_data(info->attrs[NL80211_ATTR_IE]),
+		       request->ie_len);
 	}
 
 	request->ifidx = dev->ifindex;

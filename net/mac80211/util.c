@@ -884,7 +884,8 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 }
 
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
-			      u8 *ssid, size_t ssid_len)
+			      u8 *ssid, size_t ssid_len,
+			      u8 *ie, size_t ie_len)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
@@ -903,7 +904,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	}
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt) + 200 +
-			    extra_preq_ie_len);
+			    ie_len + extra_preq_ie_len);
 	if (!skb) {
 		printk(KERN_DEBUG "%s: failed to allocate buffer for probe "
 		       "request\n", sdata->dev->name);
@@ -950,6 +951,8 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 		*pos = rate->bitrate / 5;
 	}
 
+	if (ie)
+		memcpy(skb_put(skb, ie_len), ie, ie_len);
 	if (extra_preq_ie)
 		memcpy(skb_put(skb, extra_preq_ie_len), extra_preq_ie,
 		       extra_preq_ie_len);

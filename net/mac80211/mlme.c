@@ -716,7 +716,7 @@ static void ieee80211_direct_probe(struct ieee80211_sub_if_data *sdata)
 	 * will not answer to direct packet in unassociated state.
 	 */
 	ieee80211_send_probe_req(sdata, NULL,
-				 ifmgd->ssid, ifmgd->ssid_len);
+				 ifmgd->ssid, ifmgd->ssid_len, NULL, 0);
 
 	mod_timer(&ifmgd->timer, jiffies + IEEE80211_AUTH_TIMEOUT);
 }
@@ -946,7 +946,8 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata)
 			} else
 				ieee80211_send_probe_req(sdata, ifmgd->bssid,
 							 ifmgd->ssid,
-							 ifmgd->ssid_len);
+							 ifmgd->ssid_len,
+							 NULL, 0);
 			ifmgd->flags ^= IEEE80211_STA_PROBEREQ_POLL;
 		} else {
 			ifmgd->flags &= ~IEEE80211_STA_PROBEREQ_POLL;
@@ -955,7 +956,8 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata)
 				ifmgd->last_probe = jiffies;
 				ieee80211_send_probe_req(sdata, ifmgd->bssid,
 							 ifmgd->ssid,
-							 ifmgd->ssid_len);
+							 ifmgd->ssid_len,
+							 NULL, 0);
 			}
 		}
 	}

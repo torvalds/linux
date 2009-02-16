@@ -338,7 +338,8 @@ void ieee80211_scan_work(struct work_struct *work)
 			ieee80211_send_probe_req(
 				sdata, NULL,
 				local->scan_req->ssids[i].ssid,
-				local->scan_req->ssids[i].ssid_len);
+				local->scan_req->ssids[i].ssid_len,
+				local->scan_req->ie, local->scan_req->ie_len);
 		next_delay = IEEE80211_CHANNEL_TIME;
 		break;
 	}
