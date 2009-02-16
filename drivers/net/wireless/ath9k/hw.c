@@ -1482,6 +1482,14 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 	u32 rst_flags;
 	u32 tmpReg;
 
+	if (AR_SREV_9100(ah)) {
+		u32 val = REG_READ(ah, AR_RTC_DERIVED_CLK);
+		val &= ~AR_RTC_DERIVED_CLK_PERIOD;
+		val |= SM(1, AR_RTC_DERIVED_CLK_PERIOD);
+		REG_WRITE(ah, AR_RTC_DERIVED_CLK, val);
+		(void)REG_READ(ah, AR_RTC_DERIVED_CLK);
+	}
+
 	REG_WRITE(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN |
 		  AR_RTC_FORCE_WAKE_ON_INT);
 
