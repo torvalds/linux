@@ -396,21 +396,19 @@ static int wm8731_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int wm8731_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	u16 reg = wm8731_read_reg_cache(codec, WM8731_PWR) & 0xff7f;
+	u16 reg;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		/* vref/mid, osc on, dac unmute */
-		wm8731_write(codec, WM8731_PWR, reg);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		/* everything off except vref/vmid, */
+		/* Clear PWROFF, gate CLKOUT, everything else as-is */
+		reg = wm8731_read_reg_cache(codec, WM8731_PWR) & 0xff7f;
 		wm8731_write(codec, WM8731_PWR, reg | 0x0040);
 		break;
 	case SND_SOC_BIAS_OFF:
-		/* everything off, dac mute, inactive */
 		wm8731_write(codec, WM8731_ACTIVE, 0x0);
 		wm8731_write(codec, WM8731_PWR, 0xffff);
 		break;
