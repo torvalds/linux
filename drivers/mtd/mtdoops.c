@@ -44,6 +44,7 @@ static struct mtdoops_context {
 	int oops_pages;
 	int nextpage;
 	int nextcount;
+	char *name;
 
 	void *oops_buf;
 
@@ -273,6 +274,9 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
 
+	if (cxt->name && !strcmp(mtd->name, cxt->name))
+		cxt->mtd_index = mtd->index;
+
 	if ((mtd->index != cxt->mtd_index) || cxt->mtd_index < 0)
 		return;
 
@@ -383,8 +387,12 @@ static int __init mtdoops_console_setup(struct console *co, char *options)
 {
 	struct mtdoops_context *cxt = co->data;
 
-	if (cxt->mtd_index != -1)
+	if (cxt->mtd_index != -1 || cxt->name)
 		return -EBUSY;
+	if (options) {
+		cxt->name = kstrdup(options, GFP_KERNEL);
+		return 0;
+	}
 	if (co->index == -1)
 		return -EINVAL;
 
@@ -432,6 +440,7 @@ static void __exit mtdoops_console_exit(void)
 
 	unregister_mtd_user(&mtdoops_notifier);
 	unregister_console(&mtdoops_console);
+	kfree(cxt->name);
 	vfree(cxt->oops_buf);
 }
 
