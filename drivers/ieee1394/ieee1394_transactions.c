@@ -501,8 +501,6 @@ int hpsb_read(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	if (length == 0)
 		return -EINVAL;
 
-	BUG_ON(in_interrupt());	// We can't be called in an interrupt, yet
-
 	packet = hpsb_make_readpacket(host, node, addr, length);
 
 	if (!packet) {
@@ -550,8 +548,6 @@ int hpsb_write(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 	if (length == 0)
 		return -EINVAL;
 
-	BUG_ON(in_interrupt());	// We can't be called in an interrupt, yet
-
 	packet = hpsb_make_writepacket(host, node, addr, buffer, length);
 
 	if (!packet)
@@ -576,8 +572,6 @@ int hpsb_lock(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 {
 	struct hpsb_packet *packet;
 	int retval = 0;
-
-	BUG_ON(in_interrupt());
 
 	packet = hpsb_make_lockpacket(host, node, addr, extcode, data, arg);
 	if (!packet)
