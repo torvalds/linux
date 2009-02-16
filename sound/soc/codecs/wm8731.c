@@ -29,8 +29,6 @@
 
 #include "wm8731.h"
 
-#define WM8731_VERSION "0.13"
-
 struct snd_soc_codec_device soc_codec_dev_wm8731;
 
 /* codec private data */
@@ -701,8 +699,6 @@ static int wm8731_probe(struct platform_device *pdev)
 	struct snd_soc_codec *codec;
 	struct wm8731_priv *wm8731;
 	int ret = 0;
-
-	pr_info("WM8731 Audio Codec %s", WM8731_VERSION);
 
 	setup = socdev->codec_data;
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
