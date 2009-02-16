@@ -32,6 +32,7 @@
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+#include <mach/board-mx31moboard.h>
 
 #include "devices.h"
 
@@ -64,23 +65,16 @@ static struct platform_device *devices[] __initdata = {
 };
 
 static int mxc_uart0_pins[] = {
-	MX31_PIN_CTS1__CTS1,
-	MX31_PIN_RTS1__RTS1,
-	MX31_PIN_TXD1__TXD1,
-	MX31_PIN_RXD1__RXD1
-};
-static int mxc_uart1_pins[] = {
-	MX31_PIN_CTS2__CTS2,
-	MX31_PIN_RTS2__RTS2,
-	MX31_PIN_TXD2__TXD2,
-	MX31_PIN_RXD2__RXD2
+	MX31_PIN_CTS1__CTS1, MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1, MX31_PIN_RXD1__RXD1,
 };
 static int mxc_uart4_pins[] = {
-	MX31_PIN_PC_RST__CTS5,
-	MX31_PIN_PC_VS2__RTS5,
-	MX31_PIN_PC_BVD2__TXD5,
-	MX31_PIN_PC_BVD1__RXD5
+	MX31_PIN_PC_RST__CTS5, MX31_PIN_PC_VS2__RTS5,
+	MX31_PIN_PC_BVD2__TXD5, MX31_PIN_PC_BVD1__RXD5,
 };
+
+static int mx31moboard_baseboard;
+core_param(mx31moboard_baseboard, mx31moboard_baseboard, int, 0444);
 
 /*
  * Board specific initialization.
@@ -92,11 +86,22 @@ static void __init mxc_board_init(void)
 	mxc_iomux_setup_multiple_pins(mxc_uart0_pins, ARRAY_SIZE(mxc_uart0_pins), "uart0");
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 
-	mxc_iomux_setup_multiple_pins(mxc_uart1_pins, ARRAY_SIZE(mxc_uart1_pins), "uart1");
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
-
 	mxc_iomux_setup_multiple_pins(mxc_uart4_pins, ARRAY_SIZE(mxc_uart4_pins), "uart4");
 	mxc_register_device(&mxc_uart_device4, &uart_pdata);
+
+	switch (mx31moboard_baseboard) {
+	case MX31NOBOARD:
+		break;
+	case MX31DEVBOARD:
+		mx31moboard_devboard_init();
+		break;
+	case MX31MARXBOT:
+		mx31moboard_marxbot_init();
+		break;
+	default:
+		printk(KERN_ERR "Illegal mx31moboard_baseboard type %d\n", mx31moboard_baseboard);
+	}
+
 }
 
 /*
