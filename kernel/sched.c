@@ -5236,7 +5236,7 @@ SYSCALL_DEFINE1(nice, int, increment)
 	if (increment > 40)
 		increment = 40;
 
-	nice = PRIO_TO_NICE(current->static_prio) + increment;
+	nice = TASK_NICE(current) + increment;
 	if (nice < -20)
 		nice = -20;
 	if (nice > 19)
