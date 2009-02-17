@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 
+#include <asm/cacheflush.h>
 #include <asm/ftrace.h>
 #include <linux/ftrace.h>
 #include <asm/nops.h>
@@ -25,6 +26,18 @@
 
 
 #ifdef CONFIG_DYNAMIC_FTRACE
+
+int ftrace_arch_code_modify_prepare(void)
+{
+	set_kernel_text_rw();
+	return 0;
+}
+
+int ftrace_arch_code_modify_post_process(void)
+{
+	set_kernel_text_ro();
+	return 0;
+}
 
 union ftrace_code_union {
 	char code[MCOUNT_INSN_SIZE];
