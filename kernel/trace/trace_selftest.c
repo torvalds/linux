@@ -622,7 +622,7 @@ trace_selftest_startup_sysprof(struct tracer *trace, struct trace_array *tr)
 	ret = tracer_init(trace, tr);
 	if (ret) {
 		warn_failed_init_tracer(trace, ret);
-		return 0;
+		return ret;
 	}
 
 	/* Sleep for a 1/10 of a second */
@@ -633,6 +633,11 @@ trace_selftest_startup_sysprof(struct tracer *trace, struct trace_array *tr)
 	ret = trace_test_buffer(tr, &count);
 	trace->reset(tr);
 	tracing_start();
+
+	if (!ret && !count) {
+		printk(KERN_CONT ".. no entries found ..");
+		ret = -1;
+	}
 
 	return ret;
 }
@@ -660,6 +665,11 @@ trace_selftest_startup_branch(struct tracer *trace, struct trace_array *tr)
 	ret = trace_test_buffer(tr, &count);
 	trace->reset(tr);
 	tracing_start();
+
+	if (!ret && !count) {
+		printk(KERN_CONT ".. no entries found ..");
+		ret = -1;
+	}
 
 	return ret;
 }
