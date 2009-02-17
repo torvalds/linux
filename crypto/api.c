@@ -244,7 +244,7 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 	struct crypto_alg *larval;
 	int ok;
 
-	if (!(mask & CRYPTO_ALG_TESTED)) {
+	if (!((type | mask) & CRYPTO_ALG_TESTED)) {
 		type |= CRYPTO_ALG_TESTED;
 		mask |= CRYPTO_ALG_TESTED;
 	}
