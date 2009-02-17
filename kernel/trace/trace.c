@@ -336,7 +336,7 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	data->rt_priority = tsk->rt_priority;
 
 	/* record this tasks comm */
-	tracing_record_cmdline(current);
+	tracing_record_cmdline(tsk);
 }
 
 static void
