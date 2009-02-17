@@ -238,9 +238,11 @@ extern void ftrace_enable_daemon(void);
 static inline void ftrace_release(void *start, unsigned long size) { }
 static inline int register_ftrace_command(struct ftrace_func_command *cmd)
 {
+	return -EINVAL;
 }
 static inline int unregister_ftrace_command(char *cmd_name)
 {
+	return -EINVAL;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
