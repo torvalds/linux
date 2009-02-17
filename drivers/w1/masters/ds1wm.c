@@ -16,7 +16,6 @@
 #include <linux/irq.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
-#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
@@ -93,7 +92,6 @@ struct ds1wm_data {
 	struct mfd_cell	*cell;
 	int		irq;
 	int		active_high;
-	struct clk	*clk;
 	int		slave_present;
 	void		*reset_complete;
 	void		*read_complete;
@@ -216,17 +214,17 @@ static int ds1wm_find_divisor(int gclk)
 
 static void ds1wm_up(struct ds1wm_data *ds1wm_data)
 {
-	int gclk, divisor;
+	int divisor;
+	struct ds1wm_driver_data *plat = ds1wm_data->cell->driver_data;
 
 	if (ds1wm_data->cell->enable)
 		ds1wm_data->cell->enable(ds1wm_data->pdev);
 
-	gclk = clk_get_rate(ds1wm_data->clk);
-	clk_enable(ds1wm_data->clk);
-	divisor = ds1wm_find_divisor(gclk);
+	divisor = ds1wm_find_divisor(plat->clock_rate);
 	if (divisor == 0) {
 		dev_err(&ds1wm_data->pdev->dev,
-			"no suitable divisor for %dHz clock\n", gclk);
+			"no suitable divisor for %dHz clock\n",
+			plat->clock_rate);
 		return;
 	}
 	ds1wm_write_register(ds1wm_data, DS1WM_CLKDIV, divisor);
@@ -247,8 +245,6 @@ static void ds1wm_down(struct ds1wm_data *ds1wm_data)
 
 	if (ds1wm_data->cell->disable)
 		ds1wm_data->cell->disable(ds1wm_data->pdev);
-
-	clk_disable(ds1wm_data->clk);
 }
 
 /* --------------------------------------------------------------------- */
@@ -385,26 +381,18 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err1;
 
-	ds1wm_data->clk = clk_get(&pdev->dev, "ds1wm");
-	if (IS_ERR(ds1wm_data->clk)) {
-		ret = PTR_ERR(ds1wm_data->clk);
-		goto err2;
-	}
-
 	ds1wm_up(ds1wm_data);
 
 	ds1wm_master.data = (void *)ds1wm_data;
 
 	ret = w1_add_master_device(&ds1wm_master);
 	if (ret)
-		goto err3;
+		goto err2;
 
 	return 0;
 
-err3:
-	ds1wm_down(ds1wm_data);
-	clk_put(ds1wm_data->clk);
 err2:
+	ds1wm_down(ds1wm_data);
 	free_irq(ds1wm_data->irq, ds1wm_data);
 err1:
 	iounmap(ds1wm_data->map);
@@ -443,7 +431,6 @@ static int ds1wm_remove(struct platform_device *pdev)
 
 	w1_remove_master_device(&ds1wm_master);
 	ds1wm_down(ds1wm_data);
-	clk_put(ds1wm_data->clk);
 	free_irq(ds1wm_data->irq, ds1wm_data);
 	iounmap(ds1wm_data->map);
 	kfree(ds1wm_data);
