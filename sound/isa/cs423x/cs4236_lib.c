@@ -88,10 +88,6 @@
 #include <sound/wss.h>
 #include <sound/asoundef.h>
 
-MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>");
-MODULE_DESCRIPTION("Routines for control of CS4235/4236B/4237B/4238B/4239 chips");
-MODULE_LICENSE("GPL");
-
 /*
  *
  */
@@ -1022,23 +1018,3 @@ int snd_cs4236_mixer(struct snd_wss *chip)
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL(snd_cs4236_create);
-EXPORT_SYMBOL(snd_cs4236_pcm);
-EXPORT_SYMBOL(snd_cs4236_mixer);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_cs4236_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_cs4236_exit(void)
-{
-}
-
-module_init(alsa_cs4236_init)
-module_exit(alsa_cs4236_exit)
