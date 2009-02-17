@@ -383,7 +383,6 @@ void __init es7000_enable_apic_mode(void)
 /*
  * APIC driver for the Unisys ES7000 chipset.
  */
-#define APIC_DEFINITION 1
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>

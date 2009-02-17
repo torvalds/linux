@@ -2,7 +2,6 @@
  * APIC driver for "bigsmp" XAPIC machines with more than 8 virtual CPUs.
  * Drives the local APIC in "clustered mode".
  */
-#define APIC_DEFINITION 1
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>
