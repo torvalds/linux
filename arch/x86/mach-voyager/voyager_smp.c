@@ -1747,10 +1747,11 @@ static void __cpuinit voyager_smp_prepare_boot_cpu(void)
 	int cpu = smp_processor_id();
 	switch_to_new_gdt(cpu);
 
-	cpu_online_map = cpumask_of_cpu(smp_processor_id());
-	cpu_callout_map = cpumask_of_cpu(smp_processor_id());
-	cpu_callin_map = CPU_MASK_NONE;
-	cpu_present_map = cpumask_of_cpu(smp_processor_id());
+	cpu_set(cpu, cpu_online_map);
+	cpu_set(cpu, cpu_callout_map);
+	cpu_set(cpu, cpu_possible_map);
+	cpu_set(cpu, cpu_present_map);
+
 }
 
 static int __cpuinit voyager_cpu_up(unsigned int cpu)

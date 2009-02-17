@@ -19,24 +19,27 @@
 #include <linux/dmar.h>
 
 #include <asm/smp.h>
+#include <asm/apic.h>
 #include <asm/ipi.h>
-#include <asm/genapic.h>
 #include <asm/setup.h>
 
-extern struct genapic apic_flat;
-extern struct genapic apic_physflat;
-extern struct genapic apic_x2xpic_uv_x;
-extern struct genapic apic_x2apic_phys;
-extern struct genapic apic_x2apic_cluster;
+extern struct apic apic_flat;
+extern struct apic apic_physflat;
+extern struct apic apic_x2xpic_uv_x;
+extern struct apic apic_x2apic_phys;
+extern struct apic apic_x2apic_cluster;
 
-struct genapic __read_mostly *apic = &apic_flat;
+struct apic __read_mostly *apic = &apic_flat;
+EXPORT_SYMBOL_GPL(apic);
 
-static struct genapic *apic_probe[] __initdata = {
+static struct apic *apic_probe[] __initdata = {
 #ifdef CONFIG_X86_UV
 	&apic_x2apic_uv_x,
 #endif
+#ifdef CONFIG_X86_X2APIC
 	&apic_x2apic_phys,
 	&apic_x2apic_cluster,
+#endif
 	&apic_physflat,
 	NULL,
 };
@@ -46,10 +49,12 @@ static struct genapic *apic_probe[] __initdata = {
  */
 void __init default_setup_apic_routing(void)
 {
+#ifdef CONFIG_X86_X2APIC
 	if (apic == &apic_x2apic_phys || apic == &apic_x2apic_cluster) {
 		if (!intr_remapping_enabled)
 			apic = &apic_flat;
 	}
+#endif
 
 	if (apic == &apic_flat) {
 		if (max_physical_apicid >= 8)
@@ -57,8 +62,8 @@ void __init default_setup_apic_routing(void)
 		printk(KERN_INFO "Setting APIC routing to %s\n", apic->name);
 	}
 
-	if (x86_quirks->update_genapic)
-		x86_quirks->update_genapic();
+	if (x86_quirks->update_apic)
+		x86_quirks->update_apic();
 }
 
 /* Same for both flat and physical. */

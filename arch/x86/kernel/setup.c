@@ -97,7 +97,6 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 
-#include <asm/genapic.h>
 #include <asm/paravirt.h>
 #include <asm/hypervisor.h>
 
@@ -600,7 +599,7 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
-static int __init default_update_genapic(void)
+static int __init default_update_apic(void)
 {
 #ifdef CONFIG_SMP
 	if (!apic->wakeup_cpu)
@@ -611,7 +610,7 @@ static int __init default_update_genapic(void)
 }
 
 static struct x86_quirks default_x86_quirks __initdata = {
-	.update_genapic         = default_update_genapic,
+	.update_apic         = default_update_apic,
 };
 
 struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
@@ -836,8 +835,7 @@ void __init setup_arch(char **cmdline_p)
 #else
 	num_physpages = max_pfn;
 
- 	if (cpu_has_x2apic)
- 		check_x2apic();
+	check_x2apic();
 
 	/* How many end-of-memory variables you have, grandma! */
 	/* need this before calling reserve_initrd */

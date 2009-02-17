@@ -7,21 +7,6 @@
 
 #ifndef __ASSEMBLY__
 
-/* Interrupt control for vSMPowered x86_64 systems */
-void vsmp_init(void);
-
-void setup_bios_corruption_check(void);
-
-#ifdef CONFIG_X86_VISWS
-extern void visws_early_detect(void);
-extern int is_visws_box(void);
-#else
-static inline void visws_early_detect(void) { }
-static inline int is_visws_box(void) { return 0; }
-#endif
-
-extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
-extern int wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip);
 /*
  * Any setup quirks to be performed?
  */
@@ -45,15 +30,9 @@ struct x86_quirks {
 	void (*smp_read_mpc_oem)(struct mpc_oemtable *oemtable,
 				unsigned short oemsize);
 	int (*setup_ioapic_ids)(void);
-	int (*update_genapic)(void);
+	int (*update_apic)(void);
 };
 
-extern struct x86_quirks *x86_quirks;
-extern unsigned long saved_video_mode;
-
-#ifndef CONFIG_PARAVIRT
-#define paravirt_post_allocator_init()	do {} while (0)
-#endif
 #endif /* __ASSEMBLY__ */
 
 #ifdef __i386__
@@ -75,6 +54,28 @@ extern unsigned long saved_video_mode;
 
 #ifndef __ASSEMBLY__
 #include <asm/bootparam.h>
+
+/* Interrupt control for vSMPowered x86_64 systems */
+void vsmp_init(void);
+
+void setup_bios_corruption_check(void);
+
+#ifdef CONFIG_X86_VISWS
+extern void visws_early_detect(void);
+extern int is_visws_box(void);
+#else
+static inline void visws_early_detect(void) { }
+static inline int is_visws_box(void) { return 0; }
+#endif
+
+extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
+extern int wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip);
+extern struct x86_quirks *x86_quirks;
+extern unsigned long saved_video_mode;
+
+#ifndef CONFIG_PARAVIRT
+#define paravirt_post_allocator_init()	do {} while (0)
+#endif
 
 #ifndef _SETUP
 

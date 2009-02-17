@@ -24,11 +24,9 @@
 #include <asm/smp.h>
 #include <asm/cpu.h>
 #include <asm/cpumask.h>
-#ifdef CONFIG_X86_LOCAL_APIC
-#include <asm/mpspec.h>
 #include <asm/apic.h>
-#include <asm/genapic.h>
-#include <asm/genapic.h>
+
+#ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/uv/uv.h>
 #endif
 
@@ -255,9 +253,9 @@ static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 		 * signs here...
 		 */
 		if (cpu_has(c, df->feature) &&
-		    ((s32)df->feature < 0 ?
-		     (u32)df->feature > (u32)c->extended_cpuid_level :
-		     (s32)df->feature > (s32)c->cpuid_level)) {
+		    ((s32)df->level < 0 ?
+		     (u32)df->level > (u32)c->extended_cpuid_level :
+		     (s32)df->level > (s32)c->cpuid_level)) {
 			clear_cpu_cap(c, df->feature);
 			if (warn)
 				printk(KERN_WARNING
@@ -267,7 +265,7 @@ static void __cpuinit filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 				       df->level);
 		}
 	}
-}	
+}
 
 /*
  * Naming convention should be: <Name> [(<Codename>)]
@@ -1053,7 +1051,7 @@ void __cpuinit cpu_init(void)
 	barrier();
 
 	check_efer();
-	if (cpu != 0 && x2apic)
+	if (cpu != 0)
 		enable_x2apic();
 
 	/*

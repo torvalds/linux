@@ -21,8 +21,7 @@
  *
  */
 
-#include <asm/types.h>
-
+#include <linux/types.h>
 #include <linux/ioctl.h>
 
 /* Architectural interrupt line count. */

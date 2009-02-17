@@ -17,8 +17,8 @@
 #include <linux/init.h>
 #include <linux/hardirq.h>
 #include <asm/smp.h>
+#include <asm/apic.h>
 #include <asm/ipi.h>
-#include <asm/genapic.h>
 
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
@@ -178,7 +178,7 @@ static int flat_phys_pkg_id(int initial_apic_id, int index_msb)
 	return hard_smp_processor_id() >> index_msb;
 }
 
-struct genapic apic_flat =  {
+struct apic apic_flat =  {
 	.name				= "flat",
 	.probe				= NULL,
 	.acpi_madt_oem_check		= flat_acpi_madt_oem_check,
@@ -227,8 +227,14 @@ struct genapic apic_flat =  {
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 	.wait_for_init_deassert		= NULL,
 	.smp_callin_clear_local_apic	= NULL,
-	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
+
+	.read				= native_apic_mem_read,
+	.write				= native_apic_mem_write,
+	.icr_read			= native_apic_icr_read,
+	.icr_write			= native_apic_icr_write,
+	.wait_icr_idle			= native_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 };
 
 /*
@@ -321,7 +327,7 @@ physflat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	return BAD_APICID;
 }
 
-struct genapic apic_physflat =  {
+struct apic apic_physflat =  {
 
 	.name				= "physical flat",
 	.probe				= NULL,
@@ -372,6 +378,12 @@ struct genapic apic_physflat =  {
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 	.wait_for_init_deassert		= NULL,
 	.smp_callin_clear_local_apic	= NULL,
-	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
+
+	.read				= native_apic_mem_read,
+	.write				= native_apic_mem_write,
+	.icr_read			= native_apic_icr_read,
+	.icr_write			= native_apic_icr_write,
+	.wait_icr_idle			= native_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 };

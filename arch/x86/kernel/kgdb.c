@@ -46,7 +46,7 @@
 #include <asm/apicdef.h>
 #include <asm/system.h>
 
-#include <asm/genapic.h>
+#include <asm/apic.h>
 
 /*
  * Put the error code here just in case the user cares:

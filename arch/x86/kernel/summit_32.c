@@ -34,13 +34,11 @@
 /*
  * APIC driver for the IBM "Summit" chipset.
  */
-#define APIC_DEFINITION 1
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>
 #include <asm/apic.h>
 #include <asm/smp.h>
-#include <asm/genapic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <asm/ipi.h>
@@ -209,16 +207,12 @@ static inline unsigned long summit_check_apicid_present(int bit)
 	return 1;
 }
 
-#define apicid_cluster(apicid) ((apicid) & XAPIC_DEST_CLUSTER_MASK)
-
-extern u8 cpu_2_logical_apicid[];
-
 static inline void summit_init_apic_ldr(void)
 {
 	unsigned long val, id;
 	int count = 0;
 	u8 my_id = (u8)hard_smp_processor_id();
-	u8 my_cluster = (u8)apicid_cluster(my_id);
+	u8 my_cluster = APIC_CLUSTER(my_id);
 #ifdef CONFIG_SMP
 	u8 lid;
 	int i;
@@ -226,7 +220,7 @@ static inline void summit_init_apic_ldr(void)
 	/* Create logical APIC IDs by counting CPUs already in cluster. */
 	for (count = 0, i = nr_cpu_ids; --i >= 0; ) {
 		lid = cpu_2_logical_apicid[i];
-		if (lid != BAD_APICID && apicid_cluster(lid) == my_cluster)
+		if (lid != BAD_APICID && APIC_CLUSTER(lid) == my_cluster)
 			++count;
 	}
 #endif
@@ -266,7 +260,7 @@ static inline int summit_cpu_to_logical_apicid(int cpu)
 #ifdef CONFIG_SMP
 	if (cpu >= nr_cpu_ids)
 		return BAD_APICID;
-	return (int)cpu_2_logical_apicid[cpu];
+	return cpu_2_logical_apicid[cpu];
 #else
 	return logical_smp_processor_id();
 #endif
@@ -323,8 +317,7 @@ static inline unsigned int summit_cpu_mask_to_apicid(const cpumask_t *cpumask)
 		if (cpu_isset(cpu, *cpumask)) {
 			int new_apicid = summit_cpu_to_logical_apicid(cpu);
 
-			if (apicid_cluster(apicid) !=
-					apicid_cluster(new_apicid)) {
+			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
 				printk ("%s: Not a valid mask!\n", __func__);
 
 				return 0xFF;
@@ -544,7 +537,7 @@ void __init setup_summit(void)
 }
 #endif
 
-struct genapic apic_summit = {
+struct apic apic_summit = {
 
 	.name				= "summit",
 	.probe				= probe_summit,
@@ -597,6 +590,12 @@ struct genapic apic_summit = {
 	.wait_for_init_deassert		= default_wait_for_init_deassert,
 
 	.smp_callin_clear_local_apic	= NULL,
-	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= default_inquire_remote_apic,
+
+	.read				= native_apic_mem_read,
+	.write				= native_apic_mem_write,
+	.icr_read			= native_apic_icr_read,
+	.icr_write			= native_apic_icr_write,
+	.wait_icr_idle			= native_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 };

@@ -2,6 +2,7 @@
  * Written by: Patricia Gaughen, IBM Corporation
  *
  * Copyright (C) 2002, IBM Corp.
+ * Copyright (C) 2009, Red Hat, Inc., Ingo Molnar
  *
  * All rights reserved.
  *
@@ -22,21 +23,81 @@
  *
  * Send feedback to <gone@us.ibm.com>
  */
-
 #include <linux/nodemask.h>
+#include <linux/topology.h>
 #include <linux/bootmem.h>
+#include <linux/threads.h>
+#include <linux/cpumask.h>
+#include <linux/kernel.h>
 #include <linux/mmzone.h>
 #include <linux/module.h>
+#include <linux/string.h>
+#include <linux/init.h>
+#include <linux/numa.h>
+#include <linux/smp.h>
+#include <linux/io.h>
 #include <linux/mm.h>
 
 #include <asm/processor.h>
-#include <asm/topology.h>
-#include <asm/genapic.h>
+#include <asm/fixmap.h>
+#include <asm/mpspec.h>
 #include <asm/numaq.h>
 #include <asm/setup.h>
+#include <asm/apic.h>
 #include <asm/e820.h>
+#include <asm/ipi.h>
 
-#define	MB_TO_PAGES(addr) ((addr) << (20 - PAGE_SHIFT))
+#define	MB_TO_PAGES(addr)		((addr) << (20 - PAGE_SHIFT))
+
+int found_numaq;
+
+/*
+ * Have to match translation table entries to main table entries by counter
+ * hence the mpc_record variable .... can't see a less disgusting way of
+ * doing this ....
+ */
+struct mpc_trans {
+	unsigned char			mpc_type;
+	unsigned char			trans_len;
+	unsigned char			trans_type;
+	unsigned char			trans_quad;
+	unsigned char			trans_global;
+	unsigned char			trans_local;
+	unsigned short			trans_reserved;
+};
+
+/* x86_quirks member */
+static int				mpc_record;
+
+static __cpuinitdata struct mpc_trans	*translation_table[MAX_MPC_ENTRY];
+
+int					mp_bus_id_to_node[MAX_MP_BUSSES];
+int					mp_bus_id_to_local[MAX_MP_BUSSES];
+int					quad_local_to_mp_bus_id[NR_CPUS/4][4];
+
+
+static inline void numaq_register_node(int node, struct sys_cfg_data *scd)
+{
+	struct eachquadmem *eq = scd->eq + node;
+
+	node_set_online(node);
+
+	/* Convert to pages */
+	node_start_pfn[node] =
+		 MB_TO_PAGES(eq->hi_shrd_mem_start - eq->priv_mem_size);
+
+	node_end_pfn[node] =
+		 MB_TO_PAGES(eq->hi_shrd_mem_start + eq->hi_shrd_mem_size);
+
+	e820_register_active_regions(node, node_start_pfn[node],
+						node_end_pfn[node]);
+
+	memory_present(node, node_start_pfn[node], node_end_pfn[node]);
+
+	node_remap_size[node] = node_memmap_size_bytes(node,
+					node_start_pfn[node],
+					node_end_pfn[node]);
+}
 
 /*
  * Function: smp_dump_qct()
@@ -46,33 +107,17 @@
  */
 static void __init smp_dump_qct(void)
 {
+	struct sys_cfg_data *scd;
 	int node;
-	struct eachquadmem *eq;
-	struct sys_cfg_data *scd =
-		(struct sys_cfg_data *)__va(SYS_CFG_DATA_PRIV_ADDR);
+
+	scd = (void *)__va(SYS_CFG_DATA_PRIV_ADDR);
 
 	nodes_clear(node_online_map);
 	for_each_node(node) {
-		if (scd->quads_present31_0 & (1 << node)) {
-			node_set_online(node);
-			eq = &scd->eq[node];
-			/* Convert to pages */
-			node_start_pfn[node] = MB_TO_PAGES(
-				eq->hi_shrd_mem_start - eq->priv_mem_size);
-			node_end_pfn[node] = MB_TO_PAGES(
-				eq->hi_shrd_mem_start + eq->hi_shrd_mem_size);
-
-			e820_register_active_regions(node, node_start_pfn[node],
-							node_end_pfn[node]);
-			memory_present(node,
-				node_start_pfn[node], node_end_pfn[node]);
-			node_remap_size[node] = node_memmap_size_bytes(node,
-							node_start_pfn[node],
-							node_end_pfn[node]);
-		}
+		if (scd->quads_present31_0 & (1 << node))
+			numaq_register_node(node, scd);
 	}
 }
-
 
 void __cpuinit numaq_tsc_disable(void)
 {
@@ -91,28 +136,6 @@ static int __init numaq_pre_time_init(void)
 	return 0;
 }
 
-int found_numaq;
-
-/*
- * Have to match translation table entries to main table entries by counter
- * hence the mpc_record variable .... can't see a less disgusting way of
- * doing this ....
- */
-struct mpc_config_translation {
-	unsigned char		mpc_type;
-	unsigned char		trans_len;
-	unsigned char		trans_type;
-	unsigned char		trans_quad;
-	unsigned char		trans_global;
-	unsigned char		trans_local;
-	unsigned short		trans_reserved;
-};
-
-/* x86_quirks member */
-static int mpc_record;
-static struct mpc_config_translation *translation_table[MAX_MPC_ENTRY]
-    __cpuinitdata;
-
 static inline int generate_logical_apicid(int quad, int phys_apicid)
 {
 	return (quad << 4) + (phys_apicid ? phys_apicid << 1 : 1);
@@ -124,16 +147,14 @@ static int mpc_apic_id(struct mpc_cpu *m)
 	int quad = translation_table[mpc_record]->trans_quad;
 	int logical_apicid = generate_logical_apicid(quad, m->apicid);
 
-	printk(KERN_DEBUG "Processor #%d %u:%u APIC version %d (quad %d, apic %d)\n",
-	       m->apicid, (m->cpufeature & CPU_FAMILY_MASK) >> 8,
-	       (m->cpufeature & CPU_MODEL_MASK) >> 4,
-	       m->apicver, quad, logical_apicid);
+	printk(KERN_DEBUG
+		"Processor #%d %u:%u APIC version %d (quad %d, apic %d)\n",
+		 m->apicid, (m->cpufeature & CPU_FAMILY_MASK) >> 8,
+		(m->cpufeature & CPU_MODEL_MASK) >> 4,
+		 m->apicver, quad, logical_apicid);
+
 	return logical_apicid;
 }
-
-int mp_bus_id_to_node[MAX_MP_BUSSES];
-
-int mp_bus_id_to_local[MAX_MP_BUSSES];
 
 /* x86_quirks member */
 static void mpc_oem_bus_info(struct mpc_bus *m, char *name)
@@ -143,11 +164,9 @@ static void mpc_oem_bus_info(struct mpc_bus *m, char *name)
 
 	mp_bus_id_to_node[m->busid] = quad;
 	mp_bus_id_to_local[m->busid] = local;
-	printk(KERN_INFO "Bus #%d is %s (node %d)\n",
-	       m->busid, name, quad);
-}
 
-int quad_local_to_mp_bus_id [NR_CPUS/4][4];
+	printk(KERN_INFO "Bus #%d is %s (node %d)\n", m->busid, name, quad);
+}
 
 /* x86_quirks member */
 static void mpc_oem_pci_bus(struct mpc_bus *m)
@@ -158,17 +177,18 @@ static void mpc_oem_pci_bus(struct mpc_bus *m)
 	quad_local_to_mp_bus_id[quad][local] = m->busid;
 }
 
-static void __init MP_translation_info(struct mpc_config_translation *m)
+static void __init MP_translation_info(struct mpc_trans *m)
 {
 	printk(KERN_INFO
-	       "Translation: record %d, type %d, quad %d, global %d, local %d\n",
+	    "Translation: record %d, type %d, quad %d, global %d, local %d\n",
 	       mpc_record, m->trans_type, m->trans_quad, m->trans_global,
 	       m->trans_local);
 
 	if (mpc_record >= MAX_MPC_ENTRY)
 		printk(KERN_ERR "MAX_MPC_ENTRY exceeded!\n");
 	else
-		translation_table[mpc_record] = m;	/* stash this for later */
+		translation_table[mpc_record] = m; /* stash this for later */
+
 	if (m->trans_quad < MAX_NUMNODES && !node_online(m->trans_quad))
 		node_set_online(m->trans_quad);
 }
@@ -186,16 +206,16 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 /*
  * Read/parse the MPC oem tables
  */
-
-static void __init smp_read_mpc_oem(struct mpc_oemtable *oemtable,
-				    unsigned short oemsize)
+static void __init
+ smp_read_mpc_oem(struct mpc_oemtable *oemtable, unsigned short oemsize)
 {
 	int count = sizeof(*oemtable);	/* the header size */
 	unsigned char *oemptr = ((unsigned char *)oemtable) + count;
 
 	mpc_record = 0;
-	printk(KERN_INFO "Found an OEM MPC table at %8p - parsing it ... \n",
-	       oemtable);
+	printk(KERN_INFO
+		"Found an OEM MPC table at %8p - parsing it ... \n", oemtable);
+
 	if (memcmp(oemtable->signature, MPC_OEM_SIGNATURE, 4)) {
 		printk(KERN_WARNING
 		       "SMP mpc oemtable: bad signature [%c%c%c%c]!\n",
@@ -203,16 +223,18 @@ static void __init smp_read_mpc_oem(struct mpc_oemtable *oemtable,
 		       oemtable->signature[2], oemtable->signature[3]);
 		return;
 	}
+
 	if (mpf_checksum((unsigned char *)oemtable, oemtable->length)) {
 		printk(KERN_WARNING "SMP oem mptable: checksum error!\n");
 		return;
 	}
+
 	while (count < oemtable->length) {
 		switch (*oemptr) {
 		case MP_TRANSLATION:
 			{
-				struct mpc_config_translation *m =
-				    (struct mpc_config_translation *)oemptr;
+				struct mpc_trans *m = (void *)oemptr;
+
 				MP_translation_info(m);
 				oemptr += sizeof(*m);
 				count += sizeof(*m);
@@ -220,12 +242,10 @@ static void __init smp_read_mpc_oem(struct mpc_oemtable *oemtable,
 				break;
 			}
 		default:
-			{
-				printk(KERN_WARNING
-				       "Unrecognised OEM table entry type! - %d\n",
-				       (int)*oemptr);
-				return;
-			}
+			printk(KERN_WARNING
+			       "Unrecognised OEM table entry type! - %d\n",
+			       (int)*oemptr);
+			return;
 		}
 	}
 }
@@ -236,7 +256,7 @@ static int __init numaq_setup_ioapic_ids(void)
 	return 1;
 }
 
-static int __init numaq_update_genapic(void)
+static int __init numaq_update_apic(void)
 {
 	apic->wakeup_cpu = wakeup_secondary_cpu_via_nmi;
 
@@ -244,30 +264,22 @@ static int __init numaq_update_genapic(void)
 }
 
 static struct x86_quirks numaq_x86_quirks __initdata = {
-	.arch_pre_time_init	= numaq_pre_time_init,
-	.arch_time_init		= NULL,
-	.arch_pre_intr_init	= NULL,
-	.arch_memory_setup	= NULL,
-	.arch_intr_init		= NULL,
-	.arch_trap_init		= NULL,
-	.mach_get_smp_config	= NULL,
-	.mach_find_smp_config	= NULL,
-	.mpc_record		= &mpc_record,
-	.mpc_apic_id		= mpc_apic_id,
-	.mpc_oem_bus_info	= mpc_oem_bus_info,
-	.mpc_oem_pci_bus	= mpc_oem_pci_bus,
-	.smp_read_mpc_oem	= smp_read_mpc_oem,
-	.setup_ioapic_ids	= numaq_setup_ioapic_ids,
-	.update_genapic		= numaq_update_genapic,
+	.arch_pre_time_init		= numaq_pre_time_init,
+	.arch_time_init			= NULL,
+	.arch_pre_intr_init		= NULL,
+	.arch_memory_setup		= NULL,
+	.arch_intr_init			= NULL,
+	.arch_trap_init			= NULL,
+	.mach_get_smp_config		= NULL,
+	.mach_find_smp_config		= NULL,
+	.mpc_record			= &mpc_record,
+	.mpc_apic_id			= mpc_apic_id,
+	.mpc_oem_bus_info		= mpc_oem_bus_info,
+	.mpc_oem_pci_bus		= mpc_oem_pci_bus,
+	.smp_read_mpc_oem		= smp_read_mpc_oem,
+	.setup_ioapic_ids		= numaq_setup_ioapic_ids,
+	.update_apic			= numaq_update_apic,
 };
-
-void numaq_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
-{
-	if (strncmp(oem, "IBM NUMA", 8))
-		printk("Warning!  Not a NUMA-Q system!\n");
-	else
-		found_numaq = 1;
-}
 
 static __init void early_check_numaq(void)
 {
@@ -275,6 +287,7 @@ static __init void early_check_numaq(void)
 	 * Find possible boot-time SMP configuration:
 	 */
 	early_find_smp_config();
+
 	/*
 	 * get boot-time SMP configuration:
 	 */
@@ -291,29 +304,9 @@ int __init get_memcfg_numaq(void)
 	if (!found_numaq)
 		return 0;
 	smp_dump_qct();
+
 	return 1;
 }
-
-/*
- * APIC driver for the IBM NUMAQ chipset.
- */
-#define APIC_DEFINITION 1
-#include <linux/threads.h>
-#include <linux/cpumask.h>
-#include <asm/mpspec.h>
-#include <asm/genapic.h>
-#include <asm/fixmap.h>
-#include <asm/apicdef.h>
-#include <asm/ipi.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/init.h>
-#include <linux/numa.h>
-#include <linux/smp.h>
-#include <asm/numaq.h>
-#include <asm/io.h>
-#include <linux/mmzone.h>
-#include <linux/nodemask.h>
 
 #define NUMAQ_APIC_DFR_VALUE	(APIC_DFR_CLUSTER)
 
@@ -337,10 +330,8 @@ static inline void numaq_send_IPI_all(int vector)
 	numaq_send_IPI_mask(cpu_online_mask, vector);
 }
 
-extern void numaq_mps_oem_check(struct mpc_table *, char *, char *);
-
-#define NUMAQ_TRAMPOLINE_PHYS_LOW (0x8)
-#define NUMAQ_TRAMPOLINE_PHYS_HIGH (0xa)
+#define NUMAQ_TRAMPOLINE_PHYS_LOW	(0x8)
+#define NUMAQ_TRAMPOLINE_PHYS_HIGH	(0xa)
 
 /*
  * Because we use NMIs rather than the INIT-STARTUP sequence to
@@ -349,16 +340,6 @@ extern void numaq_mps_oem_check(struct mpc_table *, char *, char *);
 static inline void numaq_smp_callin_clear_local_apic(void)
 {
 	clear_local_APIC();
-}
-
-static inline void
-numaq_store_NMI_vector(unsigned short *high, unsigned short *low)
-{
-	printk("Storing NMI vector\n");
-	*high =
-	  *((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_HIGH));
-	*low =
-	  *((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_LOW));
 }
 
 static inline const cpumask_t *numaq_target_cpus(void)
@@ -377,8 +358,6 @@ static inline unsigned long numaq_check_apicid_present(int bit)
 	return physid_isset(bit, phys_cpu_present_map);
 }
 
-#define apicid_cluster(apicid) (apicid & 0xF0)
-
 static inline int numaq_apic_id_registered(void)
 {
 	return 1;
@@ -391,8 +370,9 @@ static inline void numaq_init_apic_ldr(void)
 
 static inline void numaq_setup_apic_routing(void)
 {
-	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
-		"NUMA-Q", nr_ioapics);
+	printk(KERN_INFO
+		"Enabling APIC mode:  NUMA-Q.  Using %d I/O APICs\n",
+		nr_ioapics);
 }
 
 /*
@@ -410,14 +390,11 @@ static inline physid_mask_t numaq_ioapic_phys_id_map(physid_mask_t phys_map)
 	return physids_promote(0xFUL);
 }
 
-/* Mapping from cpu number to logical apicid */
-extern u8 cpu_2_logical_apicid[];
-
 static inline int numaq_cpu_to_logical_apicid(int cpu)
 {
 	if (cpu >= nr_cpu_ids)
 		return BAD_APICID;
-	return (int)cpu_2_logical_apicid[cpu];
+	return cpu_2_logical_apicid[cpu];
 }
 
 /*
@@ -433,7 +410,7 @@ static inline int numaq_cpu_present_to_apicid(int mps_cpu)
 		return BAD_APICID;
 }
 
-static inline int numaq_apicid_to_node(int logical_apicid) 
+static inline int numaq_apicid_to_node(int logical_apicid)
 {
 	return logical_apicid >> 4;
 }
@@ -475,9 +452,15 @@ static inline int numaq_phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return cpuid_apic >> index_msb;
 }
-static int __numaq_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
+
+static int
+numaq_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
-	numaq_mps_oem_check(mpc, oem, productid);
+	if (strncmp(oem, "IBM NUMA", 8))
+		printk(KERN_ERR "Warning! Not a NUMA-Q system!\n");
+	else
+		found_numaq = 1;
+
 	return found_numaq;
 }
 
@@ -507,13 +490,17 @@ static void numaq_setup_portio_remap(void)
 	if (num_quads <= 1)
 		return;
 
-	printk("Remapping cross-quad port I/O for %d quads\n", num_quads);
+	printk(KERN_INFO
+		"Remapping cross-quad port I/O for %d quads\n", num_quads);
+
 	xquad_portio = ioremap(XQUAD_PORTIO_BASE, num_quads*XQUAD_PORTIO_QUAD);
-	printk("xquad_portio vaddr 0x%08lx, len %08lx\n",
+
+	printk(KERN_INFO
+		"xquad_portio vaddr 0x%08lx, len %08lx\n",
 		(u_long) xquad_portio, (u_long) num_quads*XQUAD_PORTIO_QUAD);
 }
 
-struct genapic apic_numaq = {
+struct apic apic_numaq = {
 
 	.name				= "NUMAQ",
 	.probe				= probe_numaq,
@@ -544,7 +531,7 @@ struct genapic apic_numaq = {
 	.check_phys_apicid_present	= numaq_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
 	.phys_pkg_id			= numaq_phys_pkg_id,
-	.mps_oem_check			= __numaq_mps_oem_check,
+	.mps_oem_check			= numaq_mps_oem_check,
 
 	.get_apic_id			= numaq_get_apic_id,
 	.set_apic_id			= NULL,
@@ -567,6 +554,12 @@ struct genapic apic_numaq = {
 	.wait_for_init_deassert		= NULL,
 
 	.smp_callin_clear_local_apic	= numaq_smp_callin_clear_local_apic,
-	.store_NMI_vector		= numaq_store_NMI_vector,
 	.inquire_remote_apic		= NULL,
+
+	.read				= native_apic_mem_read,
+	.write				= native_apic_mem_write,
+	.icr_read			= native_apic_icr_read,
+	.icr_write			= native_apic_icr_write,
+	.wait_icr_idle			= native_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 };

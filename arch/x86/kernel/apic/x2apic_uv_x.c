@@ -22,8 +22,8 @@
 #include <linux/proc_fs.h>
 #include <asm/current.h>
 #include <asm/smp.h>
+#include <asm/apic.h>
 #include <asm/ipi.h>
-#include <asm/genapic.h>
 #include <asm/pgtable.h>
 #include <asm/uv/uv.h>
 #include <asm/uv/uv_mmrs.h>
@@ -114,16 +114,15 @@ int uv_wakeup_secondary(int phys_apicid, unsigned int start_rip)
 
 static void uv_send_IPI_one(int cpu, int vector)
 {
-	unsigned long val, apicid, lapicid;
+	unsigned long val, apicid;
 	int pnode;
 
 	apicid = per_cpu(x86_cpu_to_apicid, cpu);
-	lapicid = apicid & 0x3f; /* ZZZ macro needed */
 	pnode = uv_apicid_to_pnode(apicid);
 
-	val = (     1UL << UVH_IPI_INT_SEND_SHFT    ) |
-	      ( lapicid << UVH_IPI_INT_APIC_ID_SHFT ) |
-	      (  vector << UVH_IPI_INT_VECTOR_SHFT  );
+	val = (1UL << UVH_IPI_INT_SEND_SHFT) |
+	      (apicid << UVH_IPI_INT_APIC_ID_SHFT) |
+	      (vector << UVH_IPI_INT_VECTOR_SHFT);
 
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 }
@@ -241,7 +240,7 @@ static void uv_send_IPI_self(int vector)
 	apic_write(APIC_SELF_IPI, vector);
 }
 
-struct genapic apic_x2apic_uv_x = {
+struct apic apic_x2apic_uv_x = {
 
 	.name				= "UV large system",
 	.probe				= NULL,
@@ -291,8 +290,14 @@ struct genapic apic_x2apic_uv_x = {
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 	.wait_for_init_deassert		= NULL,
 	.smp_callin_clear_local_apic	= NULL,
-	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
+
+	.read				= native_apic_msr_read,
+	.write				= native_apic_msr_write,
+	.icr_read			= native_x2apic_icr_read,
+	.icr_write			= native_x2apic_icr_write,
+	.wait_icr_idle			= native_x2apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_x2apic_wait_icr_idle,
 };
 
 static __cpuinit void set_x2apic_extra_bits(int pnode)

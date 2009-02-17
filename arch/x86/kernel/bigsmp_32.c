@@ -1,27 +1,25 @@
 /*
- * APIC driver for "bigsmp" XAPIC machines with more than 8 virtual CPUs.
+ * APIC driver for "bigsmp" xAPIC machines with more than 8 virtual CPUs.
+ *
  * Drives the local APIC in "clustered mode".
  */
-#define APIC_DEFINITION 1
 #include <linux/threads.h>
 #include <linux/cpumask.h>
-#include <asm/mpspec.h>
-#include <asm/genapic.h>
-#include <asm/fixmap.h>
-#include <asm/apicdef.h>
-#include <asm/ipi.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
 #include <linux/smp.h>
 
+#include <asm/apicdef.h>
+#include <asm/fixmap.h>
+#include <asm/mpspec.h>
+#include <asm/apic.h>
+#include <asm/ipi.h>
 
 static inline unsigned bigsmp_get_apic_id(unsigned long x)
 {
 	return (x >> 24) & 0xFF;
 }
-
-#define xapic_phys_to_log_apicid(cpu) (per_cpu(x86_bios_cpu_apicid, cpu))
 
 static inline int bigsmp_apic_id_registered(void)
 {
@@ -37,8 +35,6 @@ static inline const cpumask_t *bigsmp_target_cpus(void)
 #endif
 }
 
-#define APIC_DFR_VALUE		(APIC_DFR_FLAT)
-
 static inline unsigned long
 bigsmp_check_apicid_used(physid_mask_t bitmap, int apicid)
 {
@@ -53,9 +49,11 @@ static inline unsigned long bigsmp_check_apicid_present(int bit)
 static inline unsigned long calculate_ldr(int cpu)
 {
 	unsigned long val, id;
+
 	val = apic_read(APIC_LDR) & ~APIC_LDR_MASK;
-	id = xapic_phys_to_log_apicid(cpu);
+	id = per_cpu(x86_bios_cpu_apicid, cpu);
 	val |= SET_APIC_LOGICAL_ID(id);
+
 	return val;
 }
 
@@ -71,15 +69,16 @@ static inline void bigsmp_init_apic_ldr(void)
 	unsigned long val;
 	int cpu = smp_processor_id();
 
-	apic_write(APIC_DFR, APIC_DFR_VALUE);
+	apic_write(APIC_DFR, APIC_DFR_FLAT);
 	val = calculate_ldr(cpu);
 	apic_write(APIC_LDR, val);
 }
 
 static inline void bigsmp_setup_apic_routing(void)
 {
-	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
-		"Physflat", nr_ioapics);
+	printk(KERN_INFO
+		"Enabling APIC mode:  Physflat.  Using %d I/O APICs\n",
+		nr_ioapics);
 }
 
 static inline int bigsmp_apicid_to_node(int logical_apicid)
@@ -100,7 +99,6 @@ static inline physid_mask_t bigsmp_apicid_to_cpu_present(int phys_apicid)
 	return physid_mask_of_physid(phys_apicid);
 }
 
-extern u8 cpu_2_logical_apicid[];
 /* Mapping from cpu number to logical apicid */
 static inline int bigsmp_cpu_to_logical_apicid(int cpu)
 {
@@ -176,21 +174,24 @@ static int hp_ht_bigsmp(const struct dmi_system_id *d)
 {
 	printk(KERN_NOTICE "%s detected: force use of apic=bigsmp\n", d->ident);
 	dmi_bigsmp = 1;
+
 	return 0;
 }
 
 
 static const struct dmi_system_id bigsmp_dmi_table[] = {
 	{ hp_ht_bigsmp, "HP ProLiant DL760 G2",
-	{ DMI_MATCH(DMI_BIOS_VENDOR, "HP"),
-	DMI_MATCH(DMI_BIOS_VERSION, "P44-"),}
+		{	DMI_MATCH(DMI_BIOS_VENDOR, "HP"),
+			DMI_MATCH(DMI_BIOS_VERSION, "P44-"),
+		}
 	},
 
 	{ hp_ht_bigsmp, "HP ProLiant DL740",
-	{ DMI_MATCH(DMI_BIOS_VENDOR, "HP"),
-	DMI_MATCH(DMI_BIOS_VERSION, "P47-"),}
+		{	DMI_MATCH(DMI_BIOS_VENDOR, "HP"),
+			DMI_MATCH(DMI_BIOS_VERSION, "P47-"),
+		}
 	},
-	 { }
+	{ } /* NULL entry stops DMI scanning */
 };
 
 static void bigsmp_vector_allocation_domain(int cpu, cpumask_t *retmask)
@@ -205,10 +206,11 @@ static int probe_bigsmp(void)
 		dmi_bigsmp = 1;
 	else
 		dmi_check_system(bigsmp_dmi_table);
+
 	return dmi_bigsmp;
 }
 
-struct genapic apic_bigsmp = {
+struct apic apic_bigsmp = {
 
 	.name				= "bigsmp",
 	.probe				= probe_bigsmp,
@@ -261,6 +263,12 @@ struct genapic apic_bigsmp = {
 	.wait_for_init_deassert		= default_wait_for_init_deassert,
 
 	.smp_callin_clear_local_apic	= NULL,
-	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= default_inquire_remote_apic,
+
+	.read				= native_apic_mem_read,
+	.write				= native_apic_mem_write,
+	.icr_read			= native_apic_icr_read,
+	.icr_write			= native_apic_icr_write,
+	.wait_icr_idle			= native_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 };

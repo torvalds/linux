@@ -8,6 +8,7 @@
  */
 #include <linux/threads.h>
 #include <linux/cpumask.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
@@ -16,20 +17,18 @@
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/setup.h>
 
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>
-#include <asm/genapic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/smp.h>
 #include <linux/init.h>
-#include <asm/genapic.h>
 #include <asm/ipi.h>
 
 #include <linux/smp.h>
@@ -40,8 +39,6 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 
-#include <asm/genapic.h>
-
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)
 #else
@@ -51,6 +48,15 @@
 int no_broadcast = DEFAULT_SEND_IPI;
 
 #ifdef CONFIG_X86_LOCAL_APIC
+
+void default_setup_apic_routing(void)
+{
+#ifdef CONFIG_X86_IO_APIC
+	printk(KERN_INFO
+		"Enabling APIC mode:  Flat.  Using %d I/O APICs\n",
+		nr_ioapics);
+#endif
+}
 
 static void default_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
@@ -72,7 +78,7 @@ static int probe_default(void)
 	return 1;
 }
 
-struct genapic apic_default = {
+struct apic apic_default = {
 
 	.name				= "default",
 	.probe				= probe_default,
@@ -125,19 +131,26 @@ struct genapic apic_default = {
 	.wait_for_init_deassert		= default_wait_for_init_deassert,
 
 	.smp_callin_clear_local_apic	= NULL,
-	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= default_inquire_remote_apic,
+
+	.read				= native_apic_mem_read,
+	.write				= native_apic_mem_write,
+	.icr_read			= native_apic_icr_read,
+	.icr_write			= native_apic_icr_write,
+	.wait_icr_idle			= native_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 };
 
-extern struct genapic apic_numaq;
-extern struct genapic apic_summit;
-extern struct genapic apic_bigsmp;
-extern struct genapic apic_es7000;
-extern struct genapic apic_default;
+extern struct apic apic_numaq;
+extern struct apic apic_summit;
+extern struct apic apic_bigsmp;
+extern struct apic apic_es7000;
+extern struct apic apic_default;
 
-struct genapic *apic = &apic_default;
+struct apic *apic = &apic_default;
+EXPORT_SYMBOL_GPL(apic);
 
-static struct genapic *apic_probe[] __initdata = {
+static struct apic *apic_probe[] __initdata = {
 #ifdef CONFIG_X86_NUMAQ
 	&apic_numaq,
 #endif
@@ -170,8 +183,8 @@ static int __init parse_apic(char *arg)
 		}
 	}
 
-	if (x86_quirks->update_genapic)
-		x86_quirks->update_genapic();
+	if (x86_quirks->update_apic)
+		x86_quirks->update_apic();
 
 	/* Parsed again by __setup for debug/verbose */
 	return 0;
@@ -191,8 +204,8 @@ void __init generic_bigsmp_probe(void)
 	if (!cmdline_apic && apic == &apic_default) {
 		if (apic_bigsmp.probe()) {
 			apic = &apic_bigsmp;
-			if (x86_quirks->update_genapic)
-				x86_quirks->update_genapic();
+			if (x86_quirks->update_apic)
+				x86_quirks->update_apic();
 			printk(KERN_INFO "Overriding APIC driver with %s\n",
 			       apic->name);
 		}
@@ -214,8 +227,8 @@ void __init generic_apic_probe(void)
 		if (!apic_probe[i])
 			panic("Didn't find an APIC driver");
 
-		if (x86_quirks->update_genapic)
-			x86_quirks->update_genapic();
+		if (x86_quirks->update_apic)
+			x86_quirks->update_apic();
 	}
 	printk(KERN_INFO "Using APIC driver %s\n", apic->name);
 }
@@ -235,8 +248,8 @@ generic_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 
 		if (!cmdline_apic) {
 			apic = apic_probe[i];
-			if (x86_quirks->update_genapic)
-				x86_quirks->update_genapic();
+			if (x86_quirks->update_apic)
+				x86_quirks->update_apic();
 			printk(KERN_INFO "Switched to APIC driver `%s'.\n",
 			       apic->name);
 		}
@@ -257,8 +270,8 @@ int __init default_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 
 		if (!cmdline_apic) {
 			apic = apic_probe[i];
-			if (x86_quirks->update_genapic)
-				x86_quirks->update_genapic();
+			if (x86_quirks->update_apic)
+				x86_quirks->update_apic();
 			printk(KERN_INFO "Switched to APIC driver `%s'.\n",
 			       apic->name);
 		}
