@@ -334,7 +334,7 @@ config MTD_NAND_ATMEL_ECC_NONE
 endchoice
 
 config MTD_NAND_PXA3xx
-	bool "Support for NAND flash devices on PXA3xx"
+	tristate "Support for NAND flash devices on PXA3xx"
 	depends on MTD_NAND && PXA3xx
 	help
 	  This enables the driver for the NAND flash device found on

@@ -1079,6 +1079,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 
 	this = &info->nand_chip;
 	mtd->priv = info;
+	mtd->owner = THIS_MODULE;
 
 	info->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk)) {
@@ -1187,6 +1188,7 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct pxa3xx_nand_info *info = mtd->priv;
+	struct resource *r;
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -1199,6 +1201,14 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 				info->data_buff, info->data_buff_phys);
 	} else
 		kfree(info->data_buff);
+
+	iounmap(info->mmio_base);
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	release_mem_region(r->start, resource_size(r));
+
+	clk_disable(info->clk);
+	clk_put(info->clk);
+
 	kfree(mtd);
 	return 0;
 }
