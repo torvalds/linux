@@ -1,10 +1,14 @@
 /*
  * Written by: Garry Forsgren, Unisys Corporation
  *             Natalie Protasevich, Unisys Corporation
+ *
  * This file contains the code to configure and interface
  * with Unisys ES7000 series hardware system manager.
  *
- * Copyright (c) 2003 Unisys Corporation.  All Rights Reserved.
+ * Copyright (c) 2003 Unisys Corporation.
+ * Copyright (C) 2009, Red Hat, Inc., Ingo Molnar
+ *
+ *   All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -35,7 +39,9 @@
 #include <linux/errno.h>
 #include <linux/acpi.h>
 #include <linux/init.h>
+#include <linux/nmi.h>
 #include <linux/smp.h>
+#include <linux/io.h>
 
 #include <asm/apicdef.h>
 #include <asm/atomic.h>
@@ -44,9 +50,6 @@
 #include <asm/setup.h>
 #include <asm/apic.h>
 #include <asm/ipi.h>
-#include <asm/nmi.h>
-#include <asm/smp.h>
-#include <asm/io.h>
 
 /*
  * ES7000 chipsets
@@ -93,22 +96,28 @@ struct psai {
 };
 
 #ifdef CONFIG_ACPI
+
 struct es7000_oem_table {
 	struct acpi_table_header	Header;
 	u32				OEMTableAddr;
 	u32				OEMTableSize;
 };
+
+static unsigned long			oem_addrX;
+static unsigned long			oem_size;
+
 #endif
 
 /*
  * ES7000 Globals
  */
 
-static volatile unsigned long		*psai = NULL;
+static volatile unsigned long		*psai;
 static struct mip_reg			*mip_reg;
 static struct mip_reg			*host_reg;
 static int 				mip_port;
-static unsigned long			mip_addr, host_addr;
+static unsigned long			mip_addr;
+static unsigned long			host_addr;
 
 int					es7000_plat;
 
@@ -252,31 +261,35 @@ static int __init parse_unisys_oem(char *oemptr)
 }
 
 #ifdef CONFIG_ACPI
-
-static unsigned long			oem_addrX;
-static unsigned long			oem_size;
-
 static int __init find_unisys_acpi_oem_table(unsigned long *oem_addr)
 {
 	struct acpi_table_header *header = NULL;
-	int i = 0;
+	struct es7000_oem_table *table;
 	acpi_size tbl_size;
+	acpi_status ret;
+	int i = 0;
 
-	while (ACPI_SUCCESS(acpi_get_table_with_size("OEM1", i++, &header, &tbl_size))) {
-		if (!memcmp((char *) &header->oem_id, "UNISYS", 6)) {
-			struct es7000_oem_table *t = (void *)header;
+	for (;;) {
+		ret = acpi_get_table_with_size("OEM1", i++, &header, &tbl_size);
+		if (!ACPI_SUCCESS(ret))
+			return -1;
 
-			oem_addrX = t->OEMTableAddr;
-			oem_size = t->OEMTableSize;
-			early_acpi_os_unmap_memory(header, tbl_size);
+		if (!memcmp((char *) &header->oem_id, "UNISYS", 6))
+			break;
 
-			*oem_addr = (unsigned long)__acpi_map_table(oem_addrX,
-								    oem_size);
-			return 0;
-		}
 		early_acpi_os_unmap_memory(header, tbl_size);
 	}
-	return -1;
+
+	table = (void *)header;
+
+	oem_addrX	= table->OEMTableAddr;
+	oem_size	= table->OEMTableSize;
+
+	early_acpi_os_unmap_memory(header, tbl_size);
+
+	*oem_addr	= (unsigned long)__acpi_map_table(oem_addrX, oem_size);
+
+	return 0;
 }
 
 static void __init unmap_unisys_acpi_oem_table(unsigned long oem_addr)
@@ -286,7 +299,47 @@ static void __init unmap_unisys_acpi_oem_table(unsigned long oem_addr)
 
 	__acpi_unmap_table((char *)oem_addr, oem_size);
 }
-#endif
+
+static int es7000_check_dsdt(void)
+{
+	struct acpi_table_header header;
+
+	if (ACPI_SUCCESS(acpi_get_table_header(ACPI_SIG_DSDT, 0, &header)) &&
+	    !strncmp(header.oem_id, "UNISYS", 6))
+		return 1;
+	return 0;
+}
+
+/* Hook from generic ACPI tables.c */
+static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+	unsigned long oem_addr = 0;
+	int check_dsdt;
+	int ret = 0;
+
+	/* check dsdt at first to avoid clear fix_map for oem_addr */
+	check_dsdt = es7000_check_dsdt();
+
+	if (!find_unisys_acpi_oem_table(&oem_addr)) {
+		if (check_dsdt) {
+			ret = parse_unisys_oem((char *)oem_addr);
+		} else {
+			setup_unisys();
+			ret = 1;
+		}
+		/*
+		 * we need to unmap it
+		 */
+		unmap_unisys_acpi_oem_table(oem_addr);
+	}
+	return ret;
+}
+#else /* !CONFIG_ACPI: */
+static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+	return 0;
+}
+#endif /* !CONFIG_ACPI */
 
 static void es7000_spin(int n)
 {
@@ -305,7 +358,7 @@ es7000_mip_write(struct mip_reg *mip_reg)
 	spin = MIP_SPIN;
 	while ((host_reg->off_0x38 & MIP_VALID) != 0) {
 		if (--spin <= 0) {
-			printk("es7000_mip_write: Timeout waiting for Host Valid Flag");
+			WARN(1,	"Timeout waiting for Host Valid Flag\n");
 			return -1;
 		}
 		es7000_spin(MIP_SPIN);
@@ -318,7 +371,7 @@ es7000_mip_write(struct mip_reg *mip_reg)
 
 	while ((mip_reg->off_0x38 & MIP_VALID) == 0) {
 		if (--spin <= 0) {
-			printk("es7000_mip_write: Timeout waiting for MIP Valid Flag");
+			WARN(1,	"Timeout waiting for MIP Valid Flag\n");
 			return -1;
 		}
 		es7000_spin(MIP_SPIN);
@@ -338,15 +391,13 @@ static void __init es7000_enable_apic_mode(void)
 	if (!es7000_plat)
 		return;
 
-	printk("ES7000: Enabling APIC mode.\n");
+	printk(KERN_INFO "ES7000: Enabling APIC mode.\n");
 	memset(&es7000_mip_reg, 0, sizeof(struct mip_reg));
 	es7000_mip_reg.off_0x00 = MIP_SW_APIC;
 	es7000_mip_reg.off_0x38 = MIP_VALID;
 
-	while ((mip_status = es7000_mip_write(&es7000_mip_reg)) != 0) {
-		printk("es7000_enable_apic_mode: command failed, status = %x\n",
-			mip_status);
-	}
+	while ((mip_status = es7000_mip_write(&es7000_mip_reg)) != 0)
+		WARN(1, "Command failed, status = %x\n", mip_status);
 }
 
 static void es7000_vector_allocation_domain(int cpu, cpumask_t *retmask)
@@ -376,18 +427,6 @@ static unsigned int es7000_get_apic_id(unsigned long x)
 {
 	return (x >> 24) & 0xFF;
 }
-
-#ifdef CONFIG_ACPI
-static int es7000_check_dsdt(void)
-{
-	struct acpi_table_header header;
-
-	if (ACPI_SUCCESS(acpi_get_table_header(ACPI_SIG_DSDT, 0, &header)) &&
-	    !strncmp(header.oem_id, "UNISYS", 6))
-		return 1;
-	return 0;
-}
-#endif
 
 static void es7000_send_IPI_mask(const struct cpumask *mask, int vector)
 {
@@ -466,10 +505,12 @@ static void es7000_init_apic_ldr(void)
 static void es7000_setup_apic_routing(void)
 {
 	int apic = per_cpu(x86_bios_cpu_apicid, smp_processor_id());
-	printk("Enabling APIC mode:  %s. Using %d I/O APICs, target cpus %lx\n",
+
+	printk(KERN_INFO
+	  "Enabling APIC mode:  %s. Using %d I/O APICs, target cpus %lx\n",
 		(apic_version[apic] == 0x14) ?
 			"Physical Cluster" : "Logical Cluster",
-			nr_ioapics, cpus_addr(*es7000_target_cpus())[0]);
+		nr_ioapics, cpus_addr(*es7000_target_cpus())[0]);
 }
 
 static int es7000_apicid_to_node(int logical_apicid)
@@ -488,13 +529,14 @@ static int es7000_cpu_present_to_apicid(int mps_cpu)
 		return BAD_APICID;
 }
 
+static int cpu_id;
+
 static physid_mask_t es7000_apicid_to_cpu_present(int phys_apicid)
 {
-	static int id = 0;
 	physid_mask_t mask;
 
-	mask = physid_mask_of_physid(id);
-	++id;
+	mask = physid_mask_of_physid(cpu_id);
+	++cpu_id;
 
 	return mask;
 }
@@ -547,7 +589,7 @@ es7000_cpu_mask_to_apicid_cluster(const struct cpumask *cpumask)
 			int new_apicid = es7000_cpu_to_logical_apicid(cpu);
 
 			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-				printk("%s: Not a valid mask!\n", __func__);
+				WARN(1, "Not a valid mask!");
 
 				return 0xFF;
 			}
@@ -647,38 +689,6 @@ es7000_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 	}
 	return 0;
 }
-
-#ifdef CONFIG_ACPI
-/* Hook from generic ACPI tables.c */
-static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
-{
-	unsigned long oem_addr = 0;
-	int check_dsdt;
-	int ret = 0;
-
-	/* check dsdt at first to avoid clear fix_map for oem_addr */
-	check_dsdt = es7000_check_dsdt();
-
-	if (!find_unisys_acpi_oem_table(&oem_addr)) {
-		if (check_dsdt) {
-			ret = parse_unisys_oem((char *)oem_addr);
-		} else {
-			setup_unisys();
-			ret = 1;
-		}
-		/*
-		 * we need to unmap it
-		 */
-		unmap_unisys_acpi_oem_table(oem_addr);
-	}
-	return ret;
-}
-#else
-static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
-{
-	return 0;
-}
-#endif
 
 
 struct genapic apic_es7000 = {
