@@ -493,6 +493,19 @@ pci_mmap_legacy_io(struct kobject *kobj, struct bin_attribute *attr,
 }
 
 /**
+ * pci_adjust_legacy_attr - adjustment of legacy file attributes
+ * @b: bus to create files under
+ * @mmap_type: I/O port or memory
+ *
+ * Stub implementation. Can be overridden by arch if necessary.
+ */
+void __weak
+pci_adjust_legacy_attr(struct pci_bus *b, enum pci_mmap_state mmap_type)
+{
+	return;
+}
+
+/**
  * pci_create_legacy_files - create legacy I/O port and memory files
  * @b: bus to create files under
  *
@@ -518,6 +531,7 @@ void pci_create_legacy_files(struct pci_bus *b)
 	b->legacy_io->read = pci_read_legacy_io;
 	b->legacy_io->write = pci_write_legacy_io;
 	b->legacy_io->mmap = pci_mmap_legacy_io;
+	pci_adjust_legacy_attr(b, pci_mmap_io);
 	error = device_create_bin_file(&b->dev, b->legacy_io);
 	if (error)
 		goto legacy_io_err;
@@ -528,6 +542,7 @@ void pci_create_legacy_files(struct pci_bus *b)
 	b->legacy_mem->size = 1024*1024;
 	b->legacy_mem->attr.mode = S_IRUSR | S_IWUSR;
 	b->legacy_mem->mmap = pci_mmap_legacy_mem;
+	pci_adjust_legacy_attr(b, pci_mmap_mem);
 	error = device_create_bin_file(&b->dev, b->legacy_mem);
 	if (error)
 		goto legacy_mem_err;
@@ -719,8 +734,8 @@ static int pci_create_resource_files(struct pci_dev *pdev)
 	return 0;
 }
 #else /* !HAVE_PCI_MMAP */
-static inline int pci_create_resource_files(struct pci_dev *dev) { return 0; }
-static inline void pci_remove_resource_files(struct pci_dev *dev) { return; }
+int __weak pci_create_resource_files(struct pci_dev *dev) { return 0; }
+void __weak pci_remove_resource_files(struct pci_dev *dev) { return; }
 #endif /* HAVE_PCI_MMAP */
 
 /**
