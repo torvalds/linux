@@ -26,6 +26,11 @@
 #include <linux/delay.h>
 #include <linux/smsc911x.h>
 
+#ifdef CONFIG_SMDK6410_WM1190_EV1
+#include <linux/mfd/wm8350/core.h>
+#include <linux/mfd/wm8350/pmic.h>
+#endif
+
 #include <video/platform_lcd.h>
 
 #include <asm/mach/arch.h>
@@ -182,9 +187,135 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&smdk6410_smsc911x,
 };
 
+#ifdef CONFIG_SMDK6410_WM1190_EV1
+/* S3C64xx internal logic & PLL */
+static struct regulator_init_data wm8350_dcdc1_data = {
+	.constraints = {
+		.name = "PVDD_INT/PVDD_PLL",
+		.min_uV = 1200000,
+		.max_uV = 1200000,
+		.always_on = 1,
+		.apply_uV = 1,
+	},
+};
+
+/* Memory */
+static struct regulator_init_data wm8350_dcdc3_data = {
+	.constraints = {
+		.name = "PVDD_MEM",
+		.min_uV = 1800000,
+		.max_uV = 1800000,
+		.always_on = 1,
+		.state_mem = {
+			 .uV = 1800000,
+			 .mode = REGULATOR_MODE_NORMAL,
+			 .enabled = 1,
+		 },
+		.initial_state = PM_SUSPEND_MEM,
+	},
+};
+
+/* USB, EXT, PCM, ADC/DAC, USB, MMC */
+static struct regulator_init_data wm8350_dcdc4_data = {
+	.constraints = {
+		.name = "PVDD_HI/PVDD_EXT/PVDD_SYS/PVCCM2MTV",
+		.min_uV = 3000000,
+		.max_uV = 3000000,
+		.always_on = 1,
+	},
+};
+
+/* ARM core */
+static struct regulator_init_data wm8350_dcdc6_data = {
+	.constraints = {
+		.name = "PVDD_ARM",
+		.min_uV = 1000000,
+		.max_uV = 1300000,
+		.always_on = 1,
+	},
+};
+
+/* Alive */
+static struct regulator_init_data wm8350_ldo1_data = {
+	.constraints = {
+		.name = "PVDD_ALIVE",
+		.min_uV = 1200000,
+		.max_uV = 1200000,
+		.always_on = 1,
+		.apply_uV = 1,
+	},
+};
+
+/* OTG */
+static struct regulator_init_data wm8350_ldo2_data = {
+	.constraints = {
+		.name = "PVDD_OTG",
+		.min_uV = 3300000,
+		.max_uV = 3300000,
+	},
+};
+
+/* LCD */
+static struct regulator_init_data wm8350_ldo3_data = {
+	.constraints = {
+		.name = "PVDD_LCD",
+		.min_uV = 3000000,
+		.max_uV = 3000000,
+	},
+};
+
+/* OTGi/1190-EV1 HPVDD & AVDD */
+static struct regulator_init_data wm8350_ldo4_data = {
+	.constraints = {
+		.name = "PVDD_OTGI/HPVDD/AVDD",
+		.min_uV = 1200000,
+		.max_uV = 1200000,
+		.apply_uV = 1,
+	},
+};
+
+static struct {
+	int regulator;
+	struct regulator_init_data *initdata;
+} wm1190_regulators[] = {
+	{ WM8350_DCDC_1, &wm8350_dcdc1_data },
+	{ WM8350_DCDC_3, &wm8350_dcdc3_data },
+	{ WM8350_DCDC_4, &wm8350_dcdc4_data },
+	{ WM8350_DCDC_6, &wm8350_dcdc6_data },
+	{ WM8350_LDO_1, &wm8350_ldo1_data },
+	{ WM8350_LDO_2, &wm8350_ldo2_data },
+	{ WM8350_LDO_3, &wm8350_ldo3_data },
+	{ WM8350_LDO_4, &wm8350_ldo4_data },
+};
+
+static int __init smdk6410_wm8350_init(struct wm8350 *wm8350)
+{
+	int i;
+
+	/* Instantiate the regulators */
+	for (i = 0; i < ARRAY_SIZE(wm1190_regulators); i++)
+		wm8350_register_regulator(wm8350,
+					  wm1190_regulators[i].regulator,
+					  wm1190_regulators[i].initdata);
+
+	return 0;
+}
+
+static struct wm8350_platform_data __initdata smdk6410_wm8350_pdata = {
+	.init = smdk6410_wm8350_init,
+};
+#endif
+
 static struct i2c_board_info i2c_devs0[] __initdata = {
 	{ I2C_BOARD_INFO("24c08", 0x50), },
 	{ I2C_BOARD_INFO("wm8580", 0x1b), },
+
+#ifdef CONFIG_SMDK6410_WM1190_EV1
+	{ I2C_BOARD_INFO("wm8350", 0x1a),
+	  .platform_data = &smdk6410_wm8350_pdata,
+	  .irq = S3C_EINT(12),
+	},
+#endif
 };
 
 static struct i2c_board_info i2c_devs1[] __initdata = {
