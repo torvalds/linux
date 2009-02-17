@@ -460,8 +460,8 @@ static void ftrace_bug(int failed, unsigned long ip)
 static int
 __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {
-	unsigned long ip, fl;
 	unsigned long ftrace_addr;
+	unsigned long ip, fl;
 
 	ftrace_addr = (unsigned long)FTRACE_ADDR;
 
@@ -530,9 +530,9 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 
 static void ftrace_replace_code(int enable)
 {
-	int failed;
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
+	int failed;
 
 	do_for_each_ftrace_rec(pg, rec) {
 		/*
@@ -1208,14 +1208,15 @@ ftrace_match_record(struct dyn_ftrace *rec, char *regex, int len, int type)
 
 static void ftrace_match_records(char *buff, int len, int enable)
 {
-	char *search;
+	unsigned int search_len;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
+	unsigned long flag;
+	char *search;
 	int type;
-	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
-	unsigned search_len;
 	int not;
 
+	flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
 	type = ftrace_setup_glob(buff, len, &search, &not);
 
 	search_len = strlen(search);
@@ -1263,13 +1264,15 @@ ftrace_match_module_record(struct dyn_ftrace *rec, char *mod,
 
 static void ftrace_match_module_records(char *buff, char *mod, int enable)
 {
-	char *search = buff;
+	unsigned search_len = 0;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 	int type = MATCH_FULL;
-	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
-	unsigned search_len = 0;
+	char *search = buff;
+	unsigned long flag;
 	int not = 0;
+
+	flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
 
 	/* blank or '*' mean the same */
 	if (strcmp(buff, "*") == 0)
@@ -1442,8 +1445,8 @@ register_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
 	struct ftrace_func_hook *entry;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
-	unsigned long key;
 	int type, len, not;
+	unsigned long key;
 	int count = 0;
 	char *search;
 
@@ -1623,8 +1626,8 @@ int unregister_ftrace_command(struct ftrace_func_command *cmd)
 
 static int ftrace_process_regex(char *buff, int len, int enable)
 {
-	struct ftrace_func_command *p;
 	char *func, *command, *next = buff;
+	struct ftrace_func_command *p;
 	int ret = -EINVAL;
 
 	func = strsep(&next, ":");
@@ -2392,7 +2395,6 @@ static __init int ftrace_init_debugfs(void)
 			   "'set_ftrace_pid' entry\n");
 	return 0;
 }
-
 fs_initcall(ftrace_init_debugfs);
 
 /**
