@@ -327,5 +327,5 @@ void init_tracer_sysprof_debugfs(struct dentry *d_tracer)
 			d_tracer, NULL, &sysprof_sample_fops);
 	if (entry)
 		return;
-	pr_warning("Could not create debugfs 'dyn_ftrace_total_info' entry\n");
+	pr_warning("Could not create debugfs 'sysprof_sample_period' entry\n");
 }

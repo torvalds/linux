@@ -107,9 +107,9 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	func();
 
 	/*
-	 * Some archs *cough*PowerPC*cough* add charachters to the
+	 * Some archs *cough*PowerPC*cough* add characters to the
 	 * start of the function names. We simply put a '*' to
-	 * accomodate them.
+	 * accommodate them.
 	 */
 	func_name = "*" STR(DYN_FTRACE_TEST_NAME);
 

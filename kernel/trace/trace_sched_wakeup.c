@@ -284,7 +284,7 @@ static void start_wakeup_tracer(struct trace_array *tr)
 	ret = register_trace_sched_switch(probe_wakeup_sched_switch);
 	if (ret) {
 		pr_info("sched trace: Couldn't activate tracepoint"
-			" probe to kernel_sched_schedule\n");
+			" probe to kernel_sched_switch\n");
 		goto fail_deprobe_wake_new;
 	}
 

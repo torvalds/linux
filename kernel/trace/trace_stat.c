@@ -30,7 +30,7 @@ struct tracer_stat_session {
 	struct dentry		*file;
 };
 
-/* All of the sessions currently in use. Each stat file embeed one session */
+/* All of the sessions currently in use. Each stat file embed one session */
 static LIST_HEAD(all_stat_sessions);
 static DEFINE_MUTEX(all_stat_sessions_mutex);
 
