@@ -1050,7 +1050,7 @@ static int __devinit sm501_gpio_register_chip(struct sm501_devdata *sm,
 	return gpiochip_add(gchip);
 }
 
-static int sm501_register_gpio(struct sm501_devdata *sm)
+static int __devinit sm501_register_gpio(struct sm501_devdata *sm)
 {
 	struct sm501_gpio *gpio = &sm->gpio;
 	resource_size_t iobase = sm->io_res->start + SM501_GPIO;
