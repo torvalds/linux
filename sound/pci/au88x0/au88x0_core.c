@@ -2800,7 +2800,7 @@ vortex_translateformat(vortex_t * vortex, char bits, char nch, int encod)
 {
 	int a, this_194;
 
-	if ((bits != 8) || (bits != 16))
+	if ((bits != 8) && (bits != 16))
 		return -1;
 
 	switch (encod) {
