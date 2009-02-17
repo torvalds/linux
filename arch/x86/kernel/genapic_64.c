@@ -19,8 +19,8 @@
 #include <linux/dmar.h>
 
 #include <asm/smp.h>
-#include <asm/ipi.h>
 #include <asm/genapic.h>
+#include <asm/ipi.h>
 #include <asm/setup.h>
 
 extern struct genapic apic_flat;

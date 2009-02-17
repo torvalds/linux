@@ -5,6 +5,7 @@
 
 #include <asm/mpspec.h>
 #include <asm/atomic.h>
+#include <asm/apic.h>
 
 /*
  * Copyright 2004 James Cleverdon, IBM.
@@ -83,9 +84,69 @@ struct genapic {
 	void (*smp_callin_clear_local_apic)(void);
 	void (*store_NMI_vector)(unsigned short *high, unsigned short *low);
 	void (*inquire_remote_apic)(int apicid);
+
+	/* apic ops */
+	u32 (*read)(u32 reg);
+	void (*write)(u32 reg, u32 v);
+	u64 (*icr_read)(void);
+	void (*icr_write)(u32 low, u32 high);
+	void (*wait_icr_idle)(void);
+	u32 (*safe_wait_icr_idle)(void);
 };
 
 extern struct genapic *apic;
+
+static inline u32 apic_read(u32 reg)
+{
+	return apic->read(reg);
+}
+
+static inline void apic_write(u32 reg, u32 val)
+{
+	apic->write(reg, val);
+}
+
+static inline u64 apic_icr_read(void)
+{
+	return apic->icr_read();
+}
+
+static inline void apic_icr_write(u32 low, u32 high)
+{
+	apic->icr_write(low, high);
+}
+
+static inline void apic_wait_icr_idle(void)
+{
+	apic->wait_icr_idle();
+}
+
+static inline u32 safe_apic_wait_icr_idle(void)
+{
+	return apic->safe_wait_icr_idle();
+}
+
+
+static inline void ack_APIC_irq(void)
+{
+	/*
+	 * ack_APIC_irq() actually gets compiled as a single instruction
+	 * ... yummie.
+	 */
+
+	/* Docs say use 0 for future compatibility */
+	apic_write(APIC_EOI, 0);
+}
+
+static inline unsigned default_get_apic_id(unsigned long x)
+{
+	unsigned int ver = GET_APIC_VERSION(apic_read(APIC_LVR));
+
+	if (APIC_XAPIC(ver))
+		return (x >> 24) & 0xFF;
+	else
+		return (x >> 24) & 0x0F;
+}
 
 /*
  * Warm reset vector default position:

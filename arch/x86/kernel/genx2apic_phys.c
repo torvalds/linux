@@ -7,8 +7,8 @@
 #include <linux/dmar.h>
 
 #include <asm/smp.h>
-#include <asm/ipi.h>
 #include <asm/genapic.h>
+#include <asm/ipi.h>
 
 static int x2apic_phys;
 
@@ -50,7 +50,7 @@ static void __x2apic_send_IPI_dest(unsigned int apicid, int vector,
 	/*
 	 * send the IPI.
 	 */
-	x2apic_icr_write(cfg, apicid);
+	native_x2apic_icr_write(cfg, apicid);
 }
 
 static void x2apic_send_IPI_mask(const struct cpumask *mask, int vector)
@@ -220,4 +220,11 @@ struct genapic apic_x2apic_phys = {
 	.smp_callin_clear_local_apic	= NULL,
 	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
+
+	.read				= native_apic_msr_read,
+	.write				= native_apic_msr_write,
+	.icr_read			= native_x2apic_icr_read,
+	.icr_write			= native_x2apic_icr_write,
+	.wait_icr_idle			= native_x2apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_x2apic_wait_icr_idle,
 };

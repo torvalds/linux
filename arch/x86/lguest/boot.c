@@ -55,7 +55,7 @@
 #include <linux/lguest_launcher.h>
 #include <linux/virtio_console.h>
 #include <linux/pm.h>
-#include <asm/apic.h>
+#include <asm/genapic.h>
 #include <asm/lguest.h>
 #include <asm/paravirt.h>
 #include <asm/param.h>
@@ -828,13 +828,14 @@ static u32 lguest_apic_safe_wait_icr_idle(void)
 	return 0;
 }
 
-static struct apic_ops lguest_basic_apic_ops = {
-	.read = lguest_apic_read,
-	.write = lguest_apic_write,
-	.icr_read = lguest_apic_icr_read,
-	.icr_write = lguest_apic_icr_write,
-	.wait_icr_idle = lguest_apic_wait_icr_idle,
-	.safe_wait_icr_idle = lguest_apic_safe_wait_icr_idle,
+static void set_lguest_basic_apic_ops(void)
+{
+	apic->read = lguest_apic_read;
+	apic->write = lguest_apic_write;
+	apic->icr_read = lguest_apic_icr_read;
+	apic->icr_write = lguest_apic_icr_write;
+	apic->wait_icr_idle = lguest_apic_wait_icr_idle;
+	apic->safe_wait_icr_idle = lguest_apic_safe_wait_icr_idle;
 };
 #endif
 
@@ -1035,7 +1036,7 @@ __init void lguest_init(void)
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* apic read/write intercepts */
-	apic_ops = &lguest_basic_apic_ops;
+	set_lguest_basic_apic_ops();
 #endif
 
 	/* time operations */

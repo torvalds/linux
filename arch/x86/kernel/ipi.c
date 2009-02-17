@@ -15,7 +15,7 @@
 #include <asm/mtrr.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
-#include <asm/apic.h>
+#include <asm/genapic.h>
 #include <asm/proto.h>
 #include <asm/ipi.h>
 

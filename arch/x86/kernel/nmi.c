@@ -11,7 +11,7 @@
  *  Mikael Pettersson	: PM converted to driver model. Disable/enable API.
  */
 
-#include <asm/apic.h>
+#include <asm/genapic.h>
 
 #include <linux/nmi.h>
 #include <linux/mm.h>

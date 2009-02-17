@@ -210,18 +210,13 @@ static int modern_apic(void)
 	return lapic_get_version() >= 0x14;
 }
 
-/*
- * Paravirt kernels also might be using these below ops. So we still
- * use generic apic_read()/apic_write(), which might be pointing to different
- * ops in PARAVIRT case.
- */
-void xapic_wait_icr_idle(void)
+void native_apic_wait_icr_idle(void)
 {
 	while (apic_read(APIC_ICR) & APIC_ICR_BUSY)
 		cpu_relax();
 }
 
-u32 safe_xapic_wait_icr_idle(void)
+u32 native_safe_apic_wait_icr_idle(void)
 {
 	u32 send_status;
 	int timeout;
@@ -237,13 +232,13 @@ u32 safe_xapic_wait_icr_idle(void)
 	return send_status;
 }
 
-void xapic_icr_write(u32 low, u32 id)
+void native_apic_icr_write(u32 low, u32 id)
 {
 	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(id));
 	apic_write(APIC_ICR, low);
 }
 
-static u64 xapic_icr_read(void)
+u64 native_apic_icr_read(void)
 {
 	u32 icr1, icr2;
 
@@ -252,54 +247,6 @@ static u64 xapic_icr_read(void)
 
 	return icr1 | ((u64)icr2 << 32);
 }
-
-static struct apic_ops xapic_ops = {
-	.read = native_apic_mem_read,
-	.write = native_apic_mem_write,
-	.icr_read = xapic_icr_read,
-	.icr_write = xapic_icr_write,
-	.wait_icr_idle = xapic_wait_icr_idle,
-	.safe_wait_icr_idle = safe_xapic_wait_icr_idle,
-};
-
-struct apic_ops __read_mostly *apic_ops = &xapic_ops;
-EXPORT_SYMBOL_GPL(apic_ops);
-
-#ifdef CONFIG_X86_X2APIC
-static void x2apic_wait_icr_idle(void)
-{
-	/* no need to wait for icr idle in x2apic */
-	return;
-}
-
-static u32 safe_x2apic_wait_icr_idle(void)
-{
-	/* no need to wait for icr idle in x2apic */
-	return 0;
-}
-
-void x2apic_icr_write(u32 low, u32 id)
-{
-	wrmsrl(APIC_BASE_MSR + (APIC_ICR >> 4), ((__u64) id) << 32 | low);
-}
-
-static u64 x2apic_icr_read(void)
-{
-	unsigned long val;
-
-	rdmsrl(APIC_BASE_MSR + (APIC_ICR >> 4), val);
-	return val;
-}
-
-static struct apic_ops x2apic_ops = {
-	.read = native_apic_msr_read,
-	.write = native_apic_msr_write,
-	.icr_read = x2apic_icr_read,
-	.icr_write = x2apic_icr_write,
-	.wait_icr_idle = x2apic_wait_icr_idle,
-	.safe_wait_icr_idle = safe_x2apic_wait_icr_idle,
-};
-#endif
 
 /**
  * enable_NMI_through_LVT0 - enable NMI through local vector table 0
@@ -1329,7 +1276,6 @@ void check_x2apic(void)
 	if (msr & X2APIC_ENABLE) {
 		pr_info("x2apic enabled by BIOS, switching to x2apic ops\n");
 		x2apic_preenabled = x2apic = 1;
-		apic_ops = &x2apic_ops;
 	}
 }
 
@@ -1403,7 +1349,6 @@ void __init enable_IR_x2apic(void)
 
 	if (!x2apic) {
 		x2apic = 1;
-		apic_ops = &x2apic_ops;
 		enable_x2apic();
 	}
 

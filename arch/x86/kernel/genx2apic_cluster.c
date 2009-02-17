@@ -7,8 +7,8 @@
 #include <linux/dmar.h>
 
 #include <asm/smp.h>
-#include <asm/ipi.h>
 #include <asm/genapic.h>
+#include <asm/ipi.h>
 
 DEFINE_PER_CPU(u32, x86_cpu_to_logical_apicid);
 
@@ -46,7 +46,7 @@ static void
 	/*
 	 * send the IPI.
 	 */
-	x2apic_icr_write(cfg, apicid);
+	native_x2apic_icr_write(cfg, apicid);
 }
 
 /*
@@ -234,4 +234,11 @@ struct genapic apic_x2apic_cluster = {
 	.smp_callin_clear_local_apic	= NULL,
 	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
+
+	.read				= native_apic_msr_read,
+	.write				= native_apic_msr_write,
+	.icr_read			= native_x2apic_icr_read,
+	.icr_write			= native_x2apic_icr_write,
+	.wait_icr_idle			= native_x2apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_x2apic_wait_icr_idle,
 };

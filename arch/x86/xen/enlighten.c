@@ -36,7 +36,7 @@
 #include <xen/hvc-console.h>
 
 #include <asm/paravirt.h>
-#include <asm/apic.h>
+#include <asm/genapic.h>
 #include <asm/page.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
@@ -554,14 +554,15 @@ static u32 xen_safe_apic_wait_icr_idle(void)
         return 0;
 }
 
-static struct apic_ops xen_basic_apic_ops = {
-	.read = xen_apic_read,
-	.write = xen_apic_write,
-	.icr_read = xen_apic_icr_read,
-	.icr_write = xen_apic_icr_write,
-	.wait_icr_idle = xen_apic_wait_icr_idle,
-	.safe_wait_icr_idle = xen_safe_apic_wait_icr_idle,
-};
+static void set_xen_basic_apic_ops(void)
+{
+	apic->read = xen_apic_read;
+	apic->write = xen_apic_write;
+	apic->icr_read = xen_apic_icr_read;
+	apic->icr_write = xen_apic_icr_write;
+	apic->wait_icr_idle = xen_apic_wait_icr_idle;
+	apic->safe_wait_icr_idle = xen_safe_apic_wait_icr_idle;
+}
 
 #endif
 
@@ -898,7 +899,7 @@ asmlinkage void __init xen_start_kernel(void)
 	/*
 	 * set up the basic apic ops.
 	 */
-	apic_ops = &xen_basic_apic_ops;
+	set_xen_basic_apic_ops();
 #endif
 
 	if (xen_feature(XENFEAT_mmu_pt_update_preserve_ad)) {

@@ -7,7 +7,7 @@
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
 #include <asm/processor.h>
-#include <asm/apic.h>
+#include <asm/genapic.h>
 #include <asm/msr.h>
 #include <asm/mce.h>
 #include <asm/hw_irq.h>

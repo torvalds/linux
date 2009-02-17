@@ -92,6 +92,12 @@ static inline u32 native_apic_mem_read(u32 reg)
 	return *((volatile u32 *)(APIC_BASE + reg));
 }
 
+extern void native_apic_wait_icr_idle(void);
+extern u32 native_safe_apic_wait_icr_idle(void);
+extern void native_apic_icr_write(u32 low, u32 id);
+extern u64 native_apic_icr_read(void);
+
+#ifdef CONFIG_X86_X2APIC
 static inline void native_apic_msr_write(u32 reg, u32 v)
 {
 	if (reg == APIC_DFR || reg == APIC_ID || reg == APIC_LDR ||
@@ -112,7 +118,31 @@ static inline u32 native_apic_msr_read(u32 reg)
 	return low;
 }
 
-#ifdef CONFIG_X86_X2APIC
+static inline void native_x2apic_wait_icr_idle(void)
+{
+	/* no need to wait for icr idle in x2apic */
+	return;
+}
+
+static inline u32 native_safe_x2apic_wait_icr_idle(void)
+{
+	/* no need to wait for icr idle in x2apic */
+	return 0;
+}
+
+static inline void native_x2apic_icr_write(u32 low, u32 id)
+{
+	wrmsrl(APIC_BASE_MSR + (APIC_ICR >> 4), ((__u64) id) << 32 | low);
+}
+
+static inline u64 native_x2apic_icr_read(void)
+{
+	unsigned long val;
+
+	rdmsrl(APIC_BASE_MSR + (APIC_ICR >> 4), val);
+	return val;
+}
+
 extern int x2apic;
 extern void check_x2apic(void);
 extern void enable_x2apic(void);
@@ -146,47 +176,6 @@ static inline int x2apic_enabled(void)
 }
 #endif
 
-struct apic_ops {
-	u32 (*read)(u32 reg);
-	void (*write)(u32 reg, u32 v);
-	u64 (*icr_read)(void);
-	void (*icr_write)(u32 low, u32 high);
-	void (*wait_icr_idle)(void);
-	u32 (*safe_wait_icr_idle)(void);
-};
-
-extern struct apic_ops *apic_ops;
-
-static inline u32 apic_read(u32 reg)
-{
-	return apic_ops->read(reg);
-}
-
-static inline void apic_write(u32 reg, u32 val)
-{
-	apic_ops->write(reg, val);
-}
-
-static inline u64 apic_icr_read(void)
-{
-	return apic_ops->icr_read();
-}
-
-static inline void apic_icr_write(u32 low, u32 high)
-{
-	apic_ops->icr_write(low, high);
-}
-
-static inline void apic_wait_icr_idle(void)
-{
-	apic_ops->wait_icr_idle();
-}
-
-static inline u32 safe_apic_wait_icr_idle(void)
-{
-	return apic_ops->safe_wait_icr_idle();
-}
-
 extern int get_physical_broadcast(void);
 
 #ifdef CONFIG_X86_X2APIC
@@ -196,18 +185,6 @@ static inline void ack_x2APIC_irq(void)
 	native_apic_msr_write(APIC_EOI, 0);
 }
 #endif
-
-
-static inline void ack_APIC_irq(void)
-{
-	/*
-	 * ack_APIC_irq() actually gets compiled as a single instruction
-	 * ... yummie.
-	 */
-
-	/* Docs say use 0 for future compatibility */
-	apic_write(APIC_EOI, 0);
-}
 
 extern int lapic_get_maxlvt(void);
 extern void clear_local_APIC(void);
@@ -255,18 +232,6 @@ static inline void disable_local_APIC(void) { }
 #ifdef CONFIG_X86_64
 #define	SET_APIC_ID(x)		(apic->set_apic_id(x))
 #else
-
-#ifdef CONFIG_X86_LOCAL_APIC
-static inline unsigned default_get_apic_id(unsigned long x)
-{
-	unsigned int ver = GET_APIC_VERSION(apic_read(APIC_LVR));
-
-	if (APIC_XAPIC(ver))
-		return (x >> 24) & 0xFF;
-	else
-		return (x >> 24) & 0x0F;
-}
-#endif
 
 #endif
 

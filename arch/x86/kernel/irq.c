@@ -8,7 +8,7 @@
 #include <linux/smp.h>
 #include <linux/ftrace.h>
 
-#include <asm/apic.h>
+#include <asm/genapic.h>
 #include <asm/io_apic.h>
 #include <asm/irq.h>
 #include <asm/idle.h>

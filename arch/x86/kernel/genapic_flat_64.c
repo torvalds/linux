@@ -17,8 +17,8 @@
 #include <linux/init.h>
 #include <linux/hardirq.h>
 #include <asm/smp.h>
-#include <asm/ipi.h>
 #include <asm/genapic.h>
+#include <asm/ipi.h>
 
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
@@ -229,6 +229,13 @@ struct genapic apic_flat =  {
 	.smp_callin_clear_local_apic	= NULL,
 	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
+
+	.read				= native_apic_mem_read,
+	.write				= native_apic_mem_write,
+	.icr_read			= native_apic_icr_read,
+	.icr_write			= native_apic_icr_write,
+	.wait_icr_idle			= native_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 };
 
 /*
@@ -374,4 +381,11 @@ struct genapic apic_physflat =  {
 	.smp_callin_clear_local_apic	= NULL,
 	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
+
+	.read				= native_apic_mem_read,
+	.write				= native_apic_mem_write,
+	.icr_read			= native_apic_icr_read,
+	.icr_write			= native_apic_icr_write,
+	.wait_icr_idle			= native_apic_wait_icr_idle,
+	.safe_wait_icr_idle		= native_safe_apic_wait_icr_idle,
 };
