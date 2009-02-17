@@ -403,7 +403,6 @@ void __init es7000_enable_apic_mode(void)
 
 extern void es7000_enable_apic_mode(void);
 extern int apic_version [MAX_APICS];
-extern u8 cpu_2_logical_apicid[];
 extern unsigned int boot_cpu_physical_apicid;
 
 extern int parse_unisys_oem (char *oemptr);
@@ -570,7 +569,7 @@ static int es7000_cpu_to_logical_apicid(int cpu)
 #ifdef CONFIG_SMP
 	if (cpu >= nr_cpu_ids)
 		return BAD_APICID;
-	return (int)cpu_2_logical_apicid[cpu];
+	return cpu_2_logical_apicid[cpu];
 #else
 	return logical_smp_processor_id();
 #endif

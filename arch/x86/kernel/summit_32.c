@@ -209,8 +209,6 @@ static inline unsigned long summit_check_apicid_present(int bit)
 
 #define apicid_cluster(apicid) ((apicid) & XAPIC_DEST_CLUSTER_MASK)
 
-extern u8 cpu_2_logical_apicid[];
-
 static inline void summit_init_apic_ldr(void)
 {
 	unsigned long val, id;
@@ -264,7 +262,7 @@ static inline int summit_cpu_to_logical_apicid(int cpu)
 #ifdef CONFIG_SMP
 	if (cpu >= nr_cpu_ids)
 		return BAD_APICID;
-	return (int)cpu_2_logical_apicid[cpu];
+	return cpu_2_logical_apicid[cpu];
 #else
 	return logical_smp_processor_id();
 #endif

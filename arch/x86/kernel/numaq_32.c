@@ -408,14 +408,11 @@ static inline physid_mask_t numaq_ioapic_phys_id_map(physid_mask_t phys_map)
 	return physids_promote(0xFUL);
 }
 
-/* Mapping from cpu number to logical apicid */
-extern u8 cpu_2_logical_apicid[];
-
 static inline int numaq_cpu_to_logical_apicid(int cpu)
 {
 	if (cpu >= nr_cpu_ids)
 		return BAD_APICID;
-	return (int)cpu_2_logical_apicid[cpu];
+	return cpu_2_logical_apicid[cpu];
 }
 
 /*

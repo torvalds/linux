@@ -99,8 +99,6 @@ static inline physid_mask_t bigsmp_apicid_to_cpu_present(int phys_apicid)
 	return physid_mask_of_physid(phys_apicid);
 }
 
-extern u8 cpu_2_logical_apicid[];
-
 /* Mapping from cpu number to logical apicid */
 static inline int bigsmp_cpu_to_logical_apicid(int cpu)
 {

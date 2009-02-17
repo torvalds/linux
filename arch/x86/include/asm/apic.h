@@ -541,4 +541,8 @@ static inline physid_mask_t default_apicid_to_cpu_present(int phys_apicid)
 
 #endif /* CONFIG_X86_LOCAL_APIC */
 
+#ifdef CONFIG_X86_32
+extern u8 cpu_2_logical_apicid[NR_CPUS];
+#endif
+
 #endif /* _ASM_X86_APIC_H */
