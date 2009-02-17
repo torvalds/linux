@@ -421,6 +421,7 @@ static struct ocfs2_system_inode_info ocfs2_system_inodes[NUM_SYSTEM_INODES] = {
 #define OCFS2_LINK_MAX		32000
 #define	OCFS2_DX_LINK_MAX	((1U << 31) - 1U)
 #define	OCFS2_LINKS_HI_SHIFT	16
+#define	OCFS2_DX_ENTRIES_MAX	(0xffffffffU)
 
 #define S_SHIFT			12
 static unsigned char ocfs2_type_by_mode[S_IFMT >> S_SHIFT] = {
@@ -844,7 +845,10 @@ struct ocfs2_dx_root_block {
 	__u8		dr_reserved0;
 	__le16		dr_reserved1;
 	__le64		dr_dir_blkno;		/* Pointer to parent inode */
-	__le64		dr_reserved2;
+	__le32		dr_num_entries;		/* Total number of
+						 * names stored in
+						 * this directory.*/
+	__le32		dr_reserved2;
 	__le64		dr_free_blk;		/* Pointer to head of free
 						 * unindexed block list. */
 	__le64		dr_reserved3[15];
