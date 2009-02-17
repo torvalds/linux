@@ -7,7 +7,8 @@ specified and user does not have access to query information about the
 top of the share.  Fix problem in 2.6.28 resolving DFS paths to
 Samba servers (worked to Windows).  Fix rmdir so that pending search
 (readdir) requests do not get invalid results which include the now
-removed directory.
+removed directory.  Fix oops in cifs_dfs_ref.c when prefixpath is not reachable
+when using DFS.
 
 Version 1.55
 ------------

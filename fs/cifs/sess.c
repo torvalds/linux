@@ -228,7 +228,7 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 
 	kfree(ses->serverOS);
 	/* UTF-8 string will not grow more than four times as big as UCS-16 */
-	ses->serverOS = kzalloc(4 * len, GFP_KERNEL);
+	ses->serverOS = kzalloc((4 * len) + 2 /* trailing null */, GFP_KERNEL);
 	if (ses->serverOS != NULL)
 		cifs_strfromUCS_le(ses->serverOS, (__le16 *)data, len, nls_cp);
 	data += 2 * (len + 1);
@@ -241,7 +241,7 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 		return rc;
 
 	kfree(ses->serverNOS);
-	ses->serverNOS = kzalloc(4 * len, GFP_KERNEL); /* BB this is wrong length FIXME BB */
+	ses->serverNOS = kzalloc((4 * len) + 2 /* trailing null */, GFP_KERNEL);
 	if (ses->serverNOS != NULL) {
 		cifs_strfromUCS_le(ses->serverNOS, (__le16 *)data, len,
 				   nls_cp);
