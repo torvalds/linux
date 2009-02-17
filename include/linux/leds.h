@@ -141,7 +141,8 @@ struct gpio_led {
 	const char *name;
 	const char *default_trigger;
 	unsigned 	gpio;
-	u8 		active_low;
+	u8 		active_low : 1;
+	u8		retain_state_suspended : 1;
 };
 
 struct gpio_led_platform_data {

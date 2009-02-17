@@ -93,7 +93,8 @@ static int __devinit create_gpio_led(const struct gpio_led *template,
 	}
 	led_dat->cdev.brightness_set = gpio_led_set;
 	led_dat->cdev.brightness = LED_OFF;
-	led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
+	if (!template->retain_state_suspended)
+		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
 	ret = gpio_direction_output(led_dat->gpio, led_dat->active_low);
 	if (ret < 0)
