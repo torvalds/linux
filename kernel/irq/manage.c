@@ -399,7 +399,7 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 static int
 __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 {
-	struct irqaction *old, **p;
+	struct irqaction *old, **old_ptr;
 	const char *old_name = NULL;
 	unsigned long flags;
 	int shared = 0;
@@ -431,8 +431,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 	 * The following block of code has to be executed atomically
 	 */
 	spin_lock_irqsave(&desc->lock, flags);
-	p = &desc->action;
-	old = *p;
+	old_ptr = &desc->action;
+	old = *old_ptr;
 	if (old) {
 		/*
 		 * Can't share interrupts unless both agree to and are
@@ -455,8 +455,8 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 
 		/* add new interrupt at end of irq queue */
 		do {
-			p = &old->next;
-			old = *p;
+			old_ptr = &old->next;
+			old = *old_ptr;
 		} while (old);
 		shared = 1;
 	}
@@ -507,7 +507,7 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 				(int)(new->flags & IRQF_TRIGGER_MASK));
 	}
 
-	*p = new;
+	*old_ptr = new;
 
 	/* Reset broken irq detection when installing new handler */
 	desc->irq_count = 0;
@@ -575,7 +575,7 @@ int setup_irq(unsigned int irq, struct irqaction *act)
 void free_irq(unsigned int irq, void *dev_id)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	struct irqaction *action, **p;
+	struct irqaction *action, **action_ptr;
 	unsigned long flags;
 
 	WARN(in_interrupt(), "Trying to free IRQ %d from IRQ context!\n", irq);
@@ -589,9 +589,9 @@ void free_irq(unsigned int irq, void *dev_id)
 	 * There can be multiple actions per IRQ descriptor, find the right
 	 * one based on the dev_id:
 	 */
-	p = &desc->action;
+	action_ptr = &desc->action;
 	for (;;) {
-		action = *p;
+		action = *action_ptr;
 
 		if (!action) {
 			WARN(1, "Trying to free already-free IRQ %d\n", irq);
@@ -602,11 +602,11 @@ void free_irq(unsigned int irq, void *dev_id)
 
 		if (action->dev_id == dev_id)
 			break;
-		p = &action->next;
+		action_ptr = &action->next;
 	}
 
 	/* Found it - now remove it from the list of entries: */
-	*p = action->next;
+	*action_ptr = action->next;
 
 	/* Currently used only by UML, might disappear one day: */
 #ifdef CONFIG_IRQ_RELEASE_METHOD
