@@ -301,7 +301,6 @@ int __init get_memcfg_numaq(void)
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>
-#include <asm/apic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <asm/ipi.h>

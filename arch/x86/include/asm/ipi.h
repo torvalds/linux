@@ -123,8 +123,6 @@ extern void default_send_IPI_mask_sequence_phys(const struct cpumask *mask,
 						 int vector);
 extern void default_send_IPI_mask_allbutself_phys(const struct cpumask *mask,
 							 int vector);
-#include <asm/apic.h>
-
 extern void default_send_IPI_mask_sequence_logical(const struct cpumask *mask,
 							 int vector);
 extern void default_send_IPI_mask_allbutself_logical(const struct cpumask *mask,

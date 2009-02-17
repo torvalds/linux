@@ -29,12 +29,9 @@
 #include <asm/fixmap.h>
 #include <asm/reboot.h>
 #include <asm/setup.h>
+#include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/io.h>
-
-#include <asm/apic.h>
-
-#include <asm/apic.h>
 
 #include <linux/kernel_stat.h>
 
@@ -48,8 +45,6 @@
 #include <linux/pci_ids.h>
 
 extern int no_broadcast;
-
-#include <asm/apic.h>
 
 char visws_board_type	= -1;
 char visws_board_rev	= -1;

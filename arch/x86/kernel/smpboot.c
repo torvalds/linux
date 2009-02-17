@@ -65,7 +65,6 @@
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 
-#include <asm/apic.h>
 #include <asm/smpboot_hooks.h>
 
 #ifdef CONFIG_X86_32

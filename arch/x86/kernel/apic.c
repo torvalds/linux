@@ -36,7 +36,6 @@
 
 #include <asm/arch_hooks.h>
 #include <asm/pgalloc.h>
-#include <asm/apic.h>
 #include <asm/atomic.h>
 #include <asm/mpspec.h>
 #include <asm/i8253.h>

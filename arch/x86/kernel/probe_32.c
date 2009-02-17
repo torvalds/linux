@@ -23,14 +23,12 @@
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>
-#include <asm/apic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/smp.h>
 #include <linux/init.h>
-#include <asm/apic.h>
 #include <asm/ipi.h>
 
 #include <linux/smp.h>
@@ -40,8 +38,6 @@
 #include <asm/arch_hooks.h>
 #include <asm/e820.h>
 #include <asm/setup.h>
-
-#include <asm/apic.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)
