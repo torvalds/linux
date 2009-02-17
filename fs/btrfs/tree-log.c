@@ -2832,7 +2832,9 @@ again:
 		BUG_ON(!wc.replay_dest);
 
 		wc.replay_dest->log_root = log;
+		mutex_lock(&fs_info->trans_mutex);
 		btrfs_record_root_in_trans(wc.replay_dest);
+		mutex_unlock(&fs_info->trans_mutex);
 		ret = walk_log_tree(trans, log, &wc);
 		BUG_ON(ret);
 
