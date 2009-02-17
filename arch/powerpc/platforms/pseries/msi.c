@@ -154,7 +154,11 @@ static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 
 	if (*req_msi < nvec) {
 		pr_debug("rtas_msi: %s requests < %d MSIs\n", prop_name, nvec);
-		return -ENOSPC;
+
+		if (*req_msi == 0) /* Be paranoid */
+			return -ENOSPC;
+
+		return *req_msi;
 	}
 
 	return 0;
