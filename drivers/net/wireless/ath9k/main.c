@@ -1603,6 +1603,7 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 
 	hw->queues = 4;
 	hw->max_rates = 4;
+	hw->channel_change_time = 5000;
 	hw->max_rate_tries = ATH_11N_TXMAXTRY;
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vif);
