@@ -375,8 +375,6 @@ static inline unsigned long numaq_check_apicid_present(int bit)
 	return physid_isset(bit, phys_cpu_present_map);
 }
 
-#define apicid_cluster(apicid) (apicid & 0xF0)
-
 static inline int numaq_apic_id_registered(void)
 {
 	return 1;

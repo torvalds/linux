@@ -146,8 +146,6 @@ extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
 extern void unmap_unisys_acpi_oem_table(unsigned long oem_addr);
 extern void setup_unisys(void);
 
-#define apicid_cluster(apicid)		(apicid & 0xF0)
-
 /*
  * ES7000 Globals
  */
@@ -595,8 +593,7 @@ es7000_cpu_mask_to_apicid_cluster(const struct cpumask *cpumask)
 		if (cpumask_test_cpu(cpu, cpumask)) {
 			int new_apicid = es7000_cpu_to_logical_apicid(cpu);
 
-			if (apicid_cluster(apicid) !=
-					apicid_cluster(new_apicid)) {
+			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
 				printk ("%s: Not a valid mask!\n", __func__);
 
 				return 0xFF;
@@ -630,8 +627,7 @@ static unsigned int es7000_cpu_mask_to_apicid(const cpumask_t *cpumask)
 		if (cpu_isset(cpu, *cpumask)) {
 			int new_apicid = es7000_cpu_to_logical_apicid(cpu);
 
-			if (apicid_cluster(apicid) !=
-					apicid_cluster(new_apicid)) {
+			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
 				printk ("%s: Not a valid mask!\n", __func__);
 
 				return es7000_cpu_to_logical_apicid(0);

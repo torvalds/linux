@@ -207,14 +207,12 @@ static inline unsigned long summit_check_apicid_present(int bit)
 	return 1;
 }
 
-#define apicid_cluster(apicid) ((apicid) & XAPIC_DEST_CLUSTER_MASK)
-
 static inline void summit_init_apic_ldr(void)
 {
 	unsigned long val, id;
 	int count = 0;
 	u8 my_id = (u8)hard_smp_processor_id();
-	u8 my_cluster = (u8)apicid_cluster(my_id);
+	u8 my_cluster = APIC_CLUSTER(my_id);
 #ifdef CONFIG_SMP
 	u8 lid;
 	int i;
@@ -222,7 +220,7 @@ static inline void summit_init_apic_ldr(void)
 	/* Create logical APIC IDs by counting CPUs already in cluster. */
 	for (count = 0, i = nr_cpu_ids; --i >= 0; ) {
 		lid = cpu_2_logical_apicid[i];
-		if (lid != BAD_APICID && apicid_cluster(lid) == my_cluster)
+		if (lid != BAD_APICID && APIC_CLUSTER(lid) == my_cluster)
 			++count;
 	}
 #endif
@@ -319,8 +317,7 @@ static inline unsigned int summit_cpu_mask_to_apicid(const cpumask_t *cpumask)
 		if (cpu_isset(cpu, *cpumask)) {
 			int new_apicid = summit_cpu_to_logical_apicid(cpu);
 
-			if (apicid_cluster(apicid) !=
-					apicid_cluster(new_apicid)) {
+			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
 				printk ("%s: Not a valid mask!\n", __func__);
 
 				return 0xFF;
