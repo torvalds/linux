@@ -341,11 +341,15 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	sinfo->filled = STATION_INFO_INACTIVE_TIME |
 			STATION_INFO_RX_BYTES |
 			STATION_INFO_TX_BYTES |
+			STATION_INFO_RX_PACKETS |
+			STATION_INFO_TX_PACKETS |
 			STATION_INFO_TX_BITRATE;
 
 	sinfo->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
 	sinfo->rx_bytes = sta->rx_bytes;
 	sinfo->tx_bytes = sta->tx_bytes;
+	sinfo->rx_packets = sta->rx_packets;
+	sinfo->tx_packets = sta->tx_packets;
 
 	if (sta->local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
 		sinfo->filled |= STATION_INFO_SIGNAL;

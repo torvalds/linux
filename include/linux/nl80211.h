@@ -526,6 +526,9 @@ enum nl80211_rate_info {
  * @NL80211_STA_INFO_SIGNAL: signal strength of last received PPDU (u8, dBm)
  * @NL80211_STA_INFO_TX_BITRATE: current unicast tx rate, nested attribute
  * 	containing info as possible, see &enum nl80211_sta_info_txrate.
+ * @NL80211_STA_INFO_RX_PACKETS: total received packet (u32, from this station)
+ * @NL80211_STA_INFO_TX_PACKETS: total transmitted packets (u32, to this
+ *	station)
  */
 enum nl80211_sta_info {
 	__NL80211_STA_INFO_INVALID,
@@ -537,6 +540,8 @@ enum nl80211_sta_info {
 	NL80211_STA_INFO_PLINK_STATE,
 	NL80211_STA_INFO_SIGNAL,
 	NL80211_STA_INFO_TX_BITRATE,
+	NL80211_STA_INFO_RX_PACKETS,
+	NL80211_STA_INFO_TX_PACKETS,
 
 	/* keep last */
 	__NL80211_STA_INFO_AFTER_LAST,

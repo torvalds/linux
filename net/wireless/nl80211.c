@@ -1206,6 +1206,12 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 
 		nla_nest_end(msg, txrate);
 	}
+	if (sinfo->filled & STATION_INFO_RX_PACKETS)
+		NLA_PUT_U32(msg, NL80211_STA_INFO_RX_PACKETS,
+			    sinfo->rx_packets);
+	if (sinfo->filled & STATION_INFO_TX_PACKETS)
+		NLA_PUT_U32(msg, NL80211_STA_INFO_TX_PACKETS,
+			    sinfo->tx_packets);
 	nla_nest_end(msg, sinfoattr);
 
 	return genlmsg_end(msg, hdr);

@@ -178,6 +178,8 @@ struct station_parameters {
  * @STATION_INFO_SIGNAL: @signal filled
  * @STATION_INFO_TX_BITRATE: @tx_bitrate fields are filled
  *  (tx_bitrate, tx_bitrate_flags and tx_bitrate_mcs)
+ * @STATION_INFO_RX_PACKETS: @rx_packets filled
+ * @STATION_INFO_TX_PACKETS: @tx_packets filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -188,6 +190,8 @@ enum station_info_flags {
 	STATION_INFO_PLINK_STATE	= 1<<5,
 	STATION_INFO_SIGNAL		= 1<<6,
 	STATION_INFO_TX_BITRATE		= 1<<7,
+	STATION_INFO_RX_PACKETS		= 1<<8,
+	STATION_INFO_TX_PACKETS		= 1<<9,
 };
 
 /**
@@ -235,6 +239,8 @@ struct rate_info {
  * @plink_state: mesh peer link state
  * @signal: signal strength of last received packet in dBm
  * @txrate: current unicast bitrate to this station
+ * @rx_packets: packets received from this station
+ * @tx_packets: packets transmitted to this station
  */
 struct station_info {
 	u32 filled;
@@ -246,6 +252,8 @@ struct station_info {
 	u8 plink_state;
 	s8 signal;
 	struct rate_info txrate;
+	u32 rx_packets;
+	u32 tx_packets;
 };
 
 /**
