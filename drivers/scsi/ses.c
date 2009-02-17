@@ -370,7 +370,7 @@ static void ses_match_to_enclosure(struct enclosure_device *edev,
 		u8 type = desc[1] & 0x0f;
 		u8 len = desc[3];
 
-		if (piv && code_set == 1 && assoc == 1 && code_set == 1
+		if (piv && code_set == 1 && assoc == 1
 		    && proto == SCSI_PROTOCOL_SAS && type == 3 && len == 8)
 			efd.addr = (u64)desc[4] << 56 |
 				(u64)desc[5] << 48 |
