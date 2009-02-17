@@ -13,12 +13,12 @@
 #ifdef CONFIG_ACPI
 static inline acpi_handle acpi_find_root_bridge_handle(struct pci_dev *pdev)
 {
-	/* Find root host bridge */
-	while (pdev->bus->self)
-		pdev = pdev->bus->self;
-
-	return acpi_get_pci_rootbridge_handle(pci_domain_nr(pdev->bus),
-			pdev->bus->number);
+	struct pci_bus *pbus = pdev->bus;
+	/* Find a PCI root bus */
+	while (pbus->parent)
+		pbus = pbus->parent;
+	return acpi_get_pci_rootbridge_handle(pci_domain_nr(pbus),
+					      pbus->number);
 }
 
 static inline acpi_handle acpi_pci_get_bridge_handle(struct pci_bus *pbus)
