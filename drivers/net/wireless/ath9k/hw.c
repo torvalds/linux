@@ -3357,8 +3357,6 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 *result)
 {
-	const struct ath9k_hw_capabilities *pCap = &ah->caps;
-
 	switch (type) {
 	case ATH9K_CAP_CIPHER:
 		switch (capability) {
@@ -3384,16 +3382,10 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 	case ATH9K_CAP_TKIP_SPLIT:
 		return (ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA) ?
 			false : true;
-	case ATH9K_CAP_WME_TKIPMIC:
-		return 0;
-	case ATH9K_CAP_PHYCOUNTERS:
-		return ah->has_hw_phycounters ? 0 : -ENXIO;
 	case ATH9K_CAP_DIVERSITY:
 		return (REG_READ(ah, AR_PHY_CCK_DETECT) &
 			AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV) ?
 			true : false;
-	case ATH9K_CAP_PHYDIAG:
-		return true;
 	case ATH9K_CAP_MCAST_KEYSRCH:
 		switch (capability) {
 		case 0:
@@ -3408,18 +3400,6 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			}
 		}
 		return false;
-	case ATH9K_CAP_TSF_ADJUST:
-		return (ah->misc_mode & AR_PCU_TX_ADD_TSF) ?
-			true : false;
-	case ATH9K_CAP_RFSILENT:
-		if (capability == 3)
-			return false;
-	case ATH9K_CAP_ANT_CFG_2GHZ:
-		*result = pCap->num_antcfg_2ghz;
-		return true;
-	case ATH9K_CAP_ANT_CFG_5GHZ:
-		*result = pCap->num_antcfg_5ghz;
-		return true;
 	case ATH9K_CAP_TXPOW:
 		switch (capability) {
 		case 0:
@@ -3471,12 +3451,6 @@ bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			ah->sta_id1_defaults |= AR_STA_ID1_MCAST_KSRCH;
 		else
 			ah->sta_id1_defaults &= ~AR_STA_ID1_MCAST_KSRCH;
-		return true;
-	case ATH9K_CAP_TSF_ADJUST:
-		if (setting)
-			ah->misc_mode |= AR_PCU_TX_ADD_TSF;
-		else
-			ah->misc_mode &= ~AR_PCU_TX_ADD_TSF;
 		return true;
 	default:
 		return false;
