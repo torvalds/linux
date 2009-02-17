@@ -575,7 +575,7 @@ int setup_irq(unsigned int irq, struct irqaction *act)
 void free_irq(unsigned int irq, void *dev_id)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
-	struct irqaction *action, **p, **pp;
+	struct irqaction *action, **p;
 	unsigned long flags;
 
 	WARN(in_interrupt(), "Trying to free IRQ %d from IRQ context!\n", irq);
@@ -592,7 +592,6 @@ void free_irq(unsigned int irq, void *dev_id)
 	p = &desc->action;
 	for (;;) {
 		action = *p;
-		pp = p;
 
 		if (!action) {
 			WARN(1, "Trying to free already-free IRQ %d\n", irq);
@@ -601,15 +600,13 @@ void free_irq(unsigned int irq, void *dev_id)
 			return;
 		}
 
+		if (action->dev_id == dev_id)
+			break;
 		p = &action->next;
-		if (action->dev_id != dev_id)
-			continue;
-
-		break;
 	}
 
 	/* Found it - now remove it from the list of entries: */
-	*pp = action->next;
+	*p = action->next;
 
 	/* Currently used only by UML, might disappear one day: */
 #ifdef CONFIG_IRQ_RELEASE_METHOD
