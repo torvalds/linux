@@ -53,6 +53,15 @@ int no_broadcast = DEFAULT_SEND_IPI;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 
+void default_setup_apic_routing(void)
+{
+#ifdef CONFIG_X86_IO_APIC
+	printk(KERN_INFO
+		"Enabling APIC mode:  Flat.  Using %d I/O APICs\n",
+		nr_ioapics);
+#endif
+}
+
 static void default_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
 	/*

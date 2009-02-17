@@ -168,8 +168,6 @@ extern void apic_send_IPI_self(int vector);
 extern struct genapic apic_x2apic_uv_x;
 DECLARE_PER_CPU(int, x2apic_extra_bits);
 
-extern void default_setup_apic_routing(void);
-
 extern int default_cpu_present_to_apicid(int mps_cpu);
 extern int default_check_phys_apicid_present(int boot_cpu_physical_apicid);
 #endif
@@ -211,10 +209,9 @@ static inline unsigned int read_apic_id(void)
 	return apic->get_apic_id(reg);
 }
 
-#ifdef CONFIG_X86_64
 extern void default_setup_apic_routing(void);
-#else
 
+#ifdef CONFIG_X86_32
 /*
  * Set up the logical destination ID.
  *
@@ -249,14 +246,6 @@ default_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 static inline int default_phys_pkg_id(int cpuid_apic, int index_msb)
 {
 	return cpuid_apic >> index_msb;
-}
-
-static inline void default_setup_apic_routing(void)
-{
-#ifdef CONFIG_X86_IO_APIC
-	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
-					"Flat", nr_ioapics);
-#endif
 }
 
 extern int default_apicid_to_node(int logical_apicid);
