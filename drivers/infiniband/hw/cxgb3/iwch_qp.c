@@ -263,8 +263,8 @@ static int build_rdma_recv(struct iwch_qp *qhp, union t3_wr *wqe,
 		wqe->recv.sgl[i].len = cpu_to_be32(wr->sg_list[i].length);
 
 		/* to in the WQE == the offset into the page */
-		wqe->recv.sgl[i].to = cpu_to_be64(((u32) wr->sg_list[i].addr) %
-				(1UL << (12 + page_size[i])));
+		wqe->recv.sgl[i].to = cpu_to_be64(((u32)wr->sg_list[i].addr) &
+				((1UL << (12 + page_size[i])) - 1));
 
 		/* pbl_addr is the adapters address in the PBL */
 		wqe->recv.pbl_addr[i] = cpu_to_be32(pbl_addr[i]);
