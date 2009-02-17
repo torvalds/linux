@@ -86,16 +86,13 @@ struct acpi_pci_link_irq {
 };
 
 struct acpi_pci_link {
-	struct list_head		node;
+	struct list_head		list;
 	struct acpi_device		*device;
 	struct acpi_pci_link_irq	irq;
 	int				refcnt;
 };
 
-static struct {
-	int			count;
-	struct list_head	entries;
-} acpi_link;
+static LIST_HEAD(acpi_link_list);
 static DEFINE_MUTEX(acpi_link_lock);
 
 /* --------------------------------------------------------------------------
@@ -479,19 +476,13 @@ static int acpi_irq_penalty[ACPI_MAX_IRQS] = {
 
 int __init acpi_irq_penalty_init(void)
 {
-	struct list_head *node;
 	struct acpi_pci_link *link;
 	int i;
 
 	/*
 	 * Update penalties to facilitate IRQ balancing.
 	 */
-	list_for_each(node, &acpi_link.entries) {
-		link = list_entry(node, struct acpi_pci_link, node);
-		if (!link) {
-			printk(KERN_ERR PREFIX "Invalid link context\n");
-			continue;
-		}
+	list_for_each_entry(link, &acpi_link_list, list) {
 
 		/*
 		 * reflect the possible and active irqs in the penalty table --
@@ -743,9 +734,7 @@ static int acpi_pci_link_add(struct acpi_device *device)
 
 	printk("\n");
 
-	/* TBD: Acquire/release lock */
-	list_add_tail(&link->node, &acpi_link.entries);
-	acpi_link.count++;
+	list_add_tail(&link->list, &acpi_link_list);
 
       end:
 	/* disable all links -- to be activated on use */
@@ -768,15 +757,9 @@ static int acpi_pci_link_resume(struct acpi_pci_link *link)
 
 static int irqrouter_resume(struct sys_device *dev)
 {
-	struct list_head *node;
 	struct acpi_pci_link *link;
 
-	list_for_each(node, &acpi_link.entries) {
-		link = list_entry(node, struct acpi_pci_link, node);
-		if (!link) {
-			printk(KERN_ERR PREFIX "Invalid link context\n");
-			continue;
-		}
+	list_for_each_entry(link, &acpi_link_list, list) {
 		acpi_pci_link_resume(link);
 	}
 	return 0;
@@ -789,7 +772,7 @@ static int acpi_pci_link_remove(struct acpi_device *device, int type)
 	link = acpi_driver_data(device);
 
 	mutex_lock(&acpi_link_lock);
-	list_del(&link->node);
+	list_del(&link->list);
 	mutex_unlock(&acpi_link_lock);
 
 	kfree(link);
@@ -925,9 +908,6 @@ static int __init acpi_pci_link_init(void)
 		else
 			acpi_irq_balance = 0;
 	}
-
-	acpi_link.count = 0;
-	INIT_LIST_HEAD(&acpi_link.entries);
 
 	if (acpi_bus_register_driver(&acpi_pci_link_driver) < 0)
 		return -ENODEV;
