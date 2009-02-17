@@ -772,11 +772,6 @@ bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno)
 /* Queue Management */
 /********************/
 
-static u32 ath_txq_depth(struct ath_softc *sc, int qnum)
-{
-	return sc->tx.txq[qnum].axq_depth;
-}
-
 static void ath_get_beaconconfig(struct ath_softc *sc, int if_id,
 				 struct ath_beacon_config *conf)
 {
@@ -1657,7 +1652,7 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb,
 		 * we will at least have to run TX completionon one buffer
 		 * on the queue */
 		spin_lock_bh(&txq->axq_lock);
-		if (ath_txq_depth(sc, txq->axq_qnum) > 1) {
+		if (sc->tx.txq[txq->axq_qnum].axq_depth > 1) {
 			ieee80211_stop_queue(sc->hw,
 				skb_get_queue_mapping(skb));
 			txq->stopped = 1;
@@ -1867,7 +1862,7 @@ static void ath_wake_mac80211_queue(struct ath_softc *sc, struct ath_txq *txq)
 
 	spin_lock_bh(&txq->axq_lock);
 	if (txq->stopped &&
-	    ath_txq_depth(sc, txq->axq_qnum) <= (ATH_TXBUF - 20)) {
+	    sc->tx.txq[txq->axq_qnum].axq_depth <= (ATH_TXBUF - 20)) {
 		qnum = ath_get_mac80211_qnum(txq->axq_qnum, sc);
 		if (qnum != -1) {
 			ieee80211_wake_queue(sc->hw, qnum);
