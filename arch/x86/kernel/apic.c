@@ -112,11 +112,7 @@ static __init int setup_apicpmtimer(char *s)
 __setup("apicpmtimer", setup_apicpmtimer);
 #endif
 
-#ifdef CONFIG_X86_64
-#define HAVE_X2APIC
-#endif
-
-#ifdef HAVE_X2APIC
+#ifdef CONFIG_X86_X2APIC
 int x2apic;
 /* x2apic enabled before OS handover */
 static int x2apic_preenabled;
@@ -269,7 +265,7 @@ static struct apic_ops xapic_ops = {
 struct apic_ops __read_mostly *apic_ops = &xapic_ops;
 EXPORT_SYMBOL_GPL(apic_ops);
 
-#ifdef HAVE_X2APIC
+#ifdef CONFIG_X86_X2APIC
 static void x2apic_wait_icr_idle(void)
 {
 	/* no need to wait for icr idle in x2apic */
@@ -1320,10 +1316,13 @@ void __cpuinit end_local_APIC_setup(void)
 	apic_pm_activate();
 }
 
-#ifdef HAVE_X2APIC
+#ifdef CONFIG_X86_X2APIC
 void check_x2apic(void)
 {
 	int msr, msr2;
+
+	if (!cpu_has_x2apic)
+		return;
 
 	rdmsr(MSR_IA32_APICBASE, msr, msr2);
 
@@ -1337,6 +1336,9 @@ void check_x2apic(void)
 void enable_x2apic(void)
 {
 	int msr, msr2;
+
+	if (!x2apic)
+		return;
 
 	rdmsr(MSR_IA32_APICBASE, msr, msr2);
 	if (!(msr & X2APIC_ENABLE)) {
@@ -1439,7 +1441,7 @@ end:
 
 	return;
 }
-#endif /* HAVE_X2APIC */
+#endif /* CONFIG_X86_X2APIC */
 
 #ifdef CONFIG_X86_64
 /*
@@ -1570,7 +1572,7 @@ void __init early_init_lapic_mapping(void)
  */
 void __init init_apic_mappings(void)
 {
-#ifdef HAVE_X2APIC
+#ifdef CONFIG_X86_X2APIC
 	if (x2apic) {
 		boot_cpu_physical_apicid = read_apic_id();
 		return;
@@ -1634,9 +1636,7 @@ int __init APIC_init_uniprocessor(void)
 	}
 #endif
 
-#ifdef HAVE_X2APIC
 	enable_IR_x2apic();
-#endif
 #ifdef CONFIG_X86_64
 	default_setup_apic_routing();
 #endif
@@ -2021,7 +2021,7 @@ static int lapic_resume(struct sys_device *dev)
 
 	local_irq_save(flags);
 
-#ifdef HAVE_X2APIC
+#ifdef CONFIG_X86_X2APIC
 	if (x2apic)
 		enable_x2apic();
 	else

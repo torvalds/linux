@@ -35,8 +35,10 @@ static struct genapic *apic_probe[] __initdata = {
 #ifdef CONFIG_X86_UV
 	&apic_x2apic_uv_x,
 #endif
+#ifdef CONFIG_X86_X2APIC
 	&apic_x2apic_phys,
 	&apic_x2apic_cluster,
+#endif
 	&apic_physflat,
 	NULL,
 };
@@ -46,10 +48,12 @@ static struct genapic *apic_probe[] __initdata = {
  */
 void __init default_setup_apic_routing(void)
 {
+#ifdef CONFIG_X86_X2APIC
 	if (apic == &apic_x2apic_phys || apic == &apic_x2apic_cluster) {
 		if (!intr_remapping_enabled)
 			apic = &apic_flat;
 	}
+#endif
 
 	if (apic == &apic_flat) {
 		if (max_physical_apicid >= 8)

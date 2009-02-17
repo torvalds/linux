@@ -112,7 +112,7 @@ static inline u32 native_apic_msr_read(u32 reg)
 	return low;
 }
 
-#ifndef CONFIG_X86_32
+#ifdef CONFIG_X86_X2APIC
 extern int x2apic;
 extern void check_x2apic(void);
 extern void enable_x2apic(void);
@@ -131,7 +131,19 @@ static inline int x2apic_enabled(void)
 	return 0;
 }
 #else
-#define x2apic_enabled()	0
+static inline void check_x2apic(void)
+{
+}
+static inline void enable_x2apic(void)
+{
+}
+static inline void enable_IR_x2apic(void)
+{
+}
+static inline int x2apic_enabled(void)
+{
+	return 0;
+}
 #endif
 
 struct apic_ops {
@@ -177,7 +189,7 @@ static inline u32 safe_apic_wait_icr_idle(void)
 
 extern int get_physical_broadcast(void);
 
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_X86_X2APIC
 static inline void ack_x2APIC_irq(void)
 {
 	/* Docs say use 0 for future compatibility */

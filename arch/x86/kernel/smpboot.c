@@ -1128,8 +1128,8 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	current_thread_info()->cpu = 0;  /* needed? */
 	set_cpu_sibling_map(0);
 
-#ifdef CONFIG_X86_64
 	enable_IR_x2apic();
+#ifdef CONFIG_X86_64
 	default_setup_apic_routing();
 #endif
 

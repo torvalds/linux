@@ -1051,7 +1051,7 @@ void __cpuinit cpu_init(void)
 	barrier();
 
 	check_efer();
-	if (cpu != 0 && x2apic)
+	if (cpu != 0)
 		enable_x2apic();
 
 	/*
