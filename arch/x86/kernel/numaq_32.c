@@ -2,6 +2,7 @@
  * Written by: Patricia Gaughen, IBM Corporation
  *
  * Copyright (C) 2002, IBM Corp.
+ * Copyright (C) 2009, Red Hat, Inc., Ingo Molnar
  *
  * All rights reserved.
  *
@@ -23,6 +24,7 @@
  * Send feedback to <gone@us.ibm.com>
  */
 #include <linux/nodemask.h>
+#include <linux/topology.h>
 #include <linux/bootmem.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
@@ -33,10 +35,10 @@
 #include <linux/init.h>
 #include <linux/numa.h>
 #include <linux/smp.h>
+#include <linux/io.h>
 #include <linux/mm.h>
 
 #include <asm/processor.h>
-#include <asm/topology.h>
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
 #include <asm/numaq.h>
@@ -44,9 +46,35 @@
 #include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/ipi.h>
-#include <asm/io.h>
 
 #define	MB_TO_PAGES(addr)		((addr) << (20 - PAGE_SHIFT))
+
+int found_numaq;
+
+/*
+ * Have to match translation table entries to main table entries by counter
+ * hence the mpc_record variable .... can't see a less disgusting way of
+ * doing this ....
+ */
+struct mpc_trans {
+	unsigned char			mpc_type;
+	unsigned char			trans_len;
+	unsigned char			trans_type;
+	unsigned char			trans_quad;
+	unsigned char			trans_global;
+	unsigned char			trans_local;
+	unsigned short			trans_reserved;
+};
+
+/* x86_quirks member */
+static int				mpc_record;
+
+static __cpuinitdata struct mpc_trans	*translation_table[MAX_MPC_ENTRY];
+
+int					mp_bus_id_to_node[MAX_MP_BUSSES];
+int					mp_bus_id_to_local[MAX_MP_BUSSES];
+int					quad_local_to_mp_bus_id[NR_CPUS/4][4];
+
 
 static inline void numaq_register_node(int node, struct sys_cfg_data *scd)
 {
@@ -108,28 +136,6 @@ static int __init numaq_pre_time_init(void)
 	return 0;
 }
 
-int found_numaq;
-
-/*
- * Have to match translation table entries to main table entries by counter
- * hence the mpc_record variable .... can't see a less disgusting way of
- * doing this ....
- */
-struct mpc_trans {
-	unsigned char			mpc_type;
-	unsigned char			trans_len;
-	unsigned char			trans_type;
-	unsigned char			trans_quad;
-	unsigned char			trans_global;
-	unsigned char			trans_local;
-	unsigned short			trans_reserved;
-};
-
-/* x86_quirks member */
-static int				mpc_record;
-
-static __cpuinitdata struct mpc_trans	*translation_table[MAX_MPC_ENTRY];
-
 static inline int generate_logical_apicid(int quad, int phys_apicid)
 {
 	return (quad << 4) + (phys_apicid ? phys_apicid << 1 : 1);
@@ -150,10 +156,6 @@ static int mpc_apic_id(struct mpc_cpu *m)
 	return logical_apicid;
 }
 
-int mp_bus_id_to_node[MAX_MP_BUSSES];
-
-int mp_bus_id_to_local[MAX_MP_BUSSES];
-
 /* x86_quirks member */
 static void mpc_oem_bus_info(struct mpc_bus *m, char *name)
 {
@@ -165,8 +167,6 @@ static void mpc_oem_bus_info(struct mpc_bus *m, char *name)
 
 	printk(KERN_INFO "Bus #%d is %s (node %d)\n", m->busid, name, quad);
 }
-
-int quad_local_to_mp_bus_id[NR_CPUS/4][4];
 
 /* x86_quirks member */
 static void mpc_oem_pci_bus(struct mpc_bus *m)
@@ -180,7 +180,7 @@ static void mpc_oem_pci_bus(struct mpc_bus *m)
 static void __init MP_translation_info(struct mpc_trans *m)
 {
 	printk(KERN_INFO
-	       "Translation: record %d, type %d, quad %d, global %d, local %d\n",
+	    "Translation: record %d, type %d, quad %d, global %d, local %d\n",
 	       mpc_record, m->trans_type, m->trans_quad, m->trans_global,
 	       m->trans_local);
 
@@ -281,14 +281,6 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.update_genapic			= numaq_update_genapic,
 };
 
-void numaq_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
-{
-	if (strncmp(oem, "IBM NUMA", 8))
-		printk("Warning!  Not a NUMA-Q system!\n");
-	else
-		found_numaq = 1;
-}
-
 static __init void early_check_numaq(void)
 {
 	/*
@@ -338,8 +330,6 @@ static inline void numaq_send_IPI_all(int vector)
 	numaq_send_IPI_mask(cpu_online_mask, vector);
 }
 
-extern void numaq_mps_oem_check(struct mpc_table *, char *, char *);
-
 #define NUMAQ_TRAMPOLINE_PHYS_LOW	(0x8)
 #define NUMAQ_TRAMPOLINE_PHYS_HIGH	(0xa)
 
@@ -355,7 +345,7 @@ static inline void numaq_smp_callin_clear_local_apic(void)
 static inline void
 numaq_store_NMI_vector(unsigned short *high, unsigned short *low)
 {
-	printk("Storing NMI vector\n");
+	printk(KERN_ERR "Storing NMI vector\n");
 	*high =
 	  *((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_HIGH));
 	*low =
@@ -390,8 +380,9 @@ static inline void numaq_init_apic_ldr(void)
 
 static inline void numaq_setup_apic_routing(void)
 {
-	printk("Enabling APIC mode:  %s.  Using %d I/O APICs\n",
-		"NUMA-Q", nr_ioapics);
+	printk(KERN_INFO
+		"Enabling APIC mode:  NUMA-Q.  Using %d I/O APICs\n",
+		nr_ioapics);
 }
 
 /*
@@ -473,9 +464,13 @@ static inline int numaq_phys_pkg_id(int cpuid_apic, int index_msb)
 }
 
 static int
-__numaq_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
+numaq_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 {
-	numaq_mps_oem_check(mpc, oem, productid);
+	if (strncmp(oem, "IBM NUMA", 8))
+		printk(KERN_ERR "Warning! Not a NUMA-Q system!\n");
+	else
+		found_numaq = 1;
+
 	return found_numaq;
 }
 
@@ -505,9 +500,13 @@ static void numaq_setup_portio_remap(void)
 	if (num_quads <= 1)
 		return;
 
-	printk("Remapping cross-quad port I/O for %d quads\n", num_quads);
+	printk(KERN_INFO
+		"Remapping cross-quad port I/O for %d quads\n", num_quads);
+
 	xquad_portio = ioremap(XQUAD_PORTIO_BASE, num_quads*XQUAD_PORTIO_QUAD);
-	printk("xquad_portio vaddr 0x%08lx, len %08lx\n",
+
+	printk(KERN_INFO
+		"xquad_portio vaddr 0x%08lx, len %08lx\n",
 		(u_long) xquad_portio, (u_long) num_quads*XQUAD_PORTIO_QUAD);
 }
 
@@ -542,7 +541,7 @@ struct genapic apic_numaq = {
 	.check_phys_apicid_present	= numaq_check_phys_apicid_present,
 	.enable_apic_mode		= NULL,
 	.phys_pkg_id			= numaq_phys_pkg_id,
-	.mps_oem_check			= __numaq_mps_oem_check,
+	.mps_oem_check			= numaq_mps_oem_check,
 
 	.get_apic_id			= numaq_get_apic_id,
 	.set_apic_id			= NULL,
