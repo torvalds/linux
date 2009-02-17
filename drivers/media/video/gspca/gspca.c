@@ -422,6 +422,7 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
 		if (urb == NULL)
 			break;
 
+		BUG_ON(!gspca_dev->dev);
 		gspca_dev->urb[i] = NULL;
 		if (!gspca_dev->present)
 			usb_kill_urb(urb);
@@ -1950,8 +1951,12 @@ void gspca_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
 
+	mutex_lock(&gspca_dev->usb_lock);
 	gspca_dev->present = 0;
+	mutex_unlock(&gspca_dev->usb_lock);
 
+	destroy_urbs(gspca_dev);
+	gspca_dev->dev = NULL;
 	usb_set_intfdata(intf, NULL);
 
 	/* release the device */
