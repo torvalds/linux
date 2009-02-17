@@ -14,7 +14,7 @@
 #include <linux/nmi.h>
 #include <asm/msr.h>
 #include <asm/fixmap.h>
-#include <asm/apic.h>
+#include <asm/genapic.h>
 
 
 #include "op_x86_model.h"

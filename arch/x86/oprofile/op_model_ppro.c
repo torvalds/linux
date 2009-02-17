@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <asm/ptrace.h>
 #include <asm/msr.h>
-#include <asm/apic.h>
+#include <asm/genapic.h>
 #include <asm/nmi.h>
 #include <asm/intel_arch_perfmon.h>
 

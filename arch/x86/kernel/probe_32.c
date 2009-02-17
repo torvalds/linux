@@ -8,6 +8,7 @@
  */
 #include <linux/threads.h>
 #include <linux/cpumask.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/ctype.h>
@@ -143,6 +144,7 @@ extern struct genapic apic_es7000;
 extern struct genapic apic_default;
 
 struct genapic *apic = &apic_default;
+EXPORT_SYMBOL_GPL(apic);
 
 static struct genapic *apic_probe[] __initdata = {
 #ifdef CONFIG_X86_NUMAQ

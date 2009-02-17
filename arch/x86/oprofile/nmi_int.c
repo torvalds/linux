@@ -19,7 +19,7 @@
 #include <linux/cpu.h>
 #include <asm/nmi.h>
 #include <asm/msr.h>
-#include <asm/apic.h>
+#include <asm/genapic.h>
 
 #include "op_counter.h"
 #include "op_x86_model.h"

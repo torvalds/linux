@@ -30,6 +30,7 @@ extern struct genapic apic_x2apic_phys;
 extern struct genapic apic_x2apic_cluster;
 
 struct genapic __read_mostly *apic = &apic_flat;
+EXPORT_SYMBOL_GPL(apic);
 
 static struct genapic *apic_probe[] __initdata = {
 #ifdef CONFIG_X86_UV
