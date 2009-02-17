@@ -507,7 +507,6 @@ static struct resource pasic3_resources[] = {
 };
 
 static struct pasic3_platform_data pasic3_platform_data = {
-	.bus_shift  = 2,
 	.led_pdata  = &pasic3_leds_info,
 	.clock_rate = 4000000,
 };
