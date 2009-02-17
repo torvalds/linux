@@ -108,7 +108,7 @@ struct ftrace_func_command {
 
 struct seq_file;
 
-struct ftrace_hook_ops {
+struct ftrace_probe_ops {
 	void			(*func)(unsigned long ip,
 					unsigned long parent_ip,
 					void **data);
@@ -116,19 +116,19 @@ struct ftrace_hook_ops {
 	void			(*free)(void **data);
 	int			(*print)(struct seq_file *m,
 					 unsigned long ip,
-					 struct ftrace_hook_ops *ops,
+					 struct ftrace_probe_ops *ops,
 					 void *data);
 };
 
 extern int
-register_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			      void *data);
 extern void
-unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 				void *data);
 extern void
-unregister_ftrace_function_hook_func(char *glob, struct ftrace_hook_ops *ops);
-extern void unregister_ftrace_function_hook_all(char *glob);
+unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
+extern void unregister_ftrace_function_probe_all(char *glob);
 
 enum {
 	FTRACE_FL_FREE		= (1 << 0),
