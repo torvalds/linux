@@ -1932,7 +1932,7 @@ static int __init f71882fg_device_add(unsigned short address,
 	res.name = f71882fg_pdev->name;
 	err = acpi_check_resource_conflict(&res);
 	if (err)
-		return err;
+		goto exit_device_put;
 
 	err = platform_device_add_resources(f71882fg_pdev, &res, 1);
 	if (err) {
