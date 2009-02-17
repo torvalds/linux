@@ -208,6 +208,15 @@ static inline void writeq(unsigned long long q, volatile void __iomem *addr)
 	__raw_writeq(cpu_to_le64(q), addr);
 }
 
+#define	readb	readb
+#define	readw	readw
+#define	readl	readl
+#define readq	readq
+#define writeb	writeb
+#define writew	writew
+#define writel	writel
+#define writeq	writeq
+
 #define readb_relaxed(addr) readb(addr)
 #define readw_relaxed(addr) readw(addr)
 #define readl_relaxed(addr) readl(addr)
