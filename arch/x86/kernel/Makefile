@@ -58,13 +58,12 @@ obj-$(CONFIG_PCI)		+= early-quirks.o
 apm-y				:= apm_32.o
 obj-$(CONFIG_APM)		+= apm.o
 obj-$(CONFIG_SMP)		+= smp.o
-obj-$(CONFIG_SMP)		+= smpboot.o tsc_sync.o ipi.o
+obj-$(CONFIG_SMP)		+= smpboot.o tsc_sync.o
 obj-$(CONFIG_SMP)		+= setup_percpu.o
 obj-$(CONFIG_X86_64_SMP)	+= tsc_sync.o
 obj-$(CONFIG_X86_TRAMPOLINE)	+= trampoline_$(BITS).o
 obj-$(CONFIG_X86_MPPARSE)	+= mpparse.o
-obj-$(CONFIG_X86_LOCAL_APIC)	+= apic.o nmi.o ipi.o
-obj-$(CONFIG_X86_IO_APIC)	+= io_apic.o
+obj-$(CONFIG_X86_LOCAL_APIC)	+= apic/
 obj-$(CONFIG_X86_REBOOTFIXUPS)	+= reboot_fixups_32.o
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER)	+= ftrace.o
@@ -116,17 +115,13 @@ obj-$(CONFIG_SWIOTLB)			+= pci-swiotlb_64.o # NB rename without _64
 ###
 # 64 bit specific files
 ifeq ($(CONFIG_X86_64),y)
-        obj-y				+= genapic_64.o genapic_flat_64.o
-        obj-$(CONFIG_X86_X2APIC)	+= genx2apic_cluster.o
-        obj-$(CONFIG_X86_X2APIC)	+= genx2apic_phys.o
-	obj-$(CONFIG_X86_UV)		+= genx2apic_uv_x.o tlb_uv.o
-	obj-$(CONFIG_X86_UV)		+= bios_uv.o uv_irq.o uv_sysfs.o
-        obj-$(CONFIG_X86_PM_TIMER)	+= pmtimer_64.o
-        obj-$(CONFIG_AUDIT)		+= audit_64.o
+	obj-$(CONFIG_X86_UV)		+= tlb_uv.o bios_uv.o uv_irq.o uv_sysfs.o
+	obj-$(CONFIG_X86_PM_TIMER)	+= pmtimer_64.o
+	obj-$(CONFIG_AUDIT)		+= audit_64.o
 
-        obj-$(CONFIG_GART_IOMMU)	+= pci-gart_64.o aperture_64.o
-        obj-$(CONFIG_CALGARY_IOMMU)	+= pci-calgary_64.o tce_64.o
-        obj-$(CONFIG_AMD_IOMMU)		+= amd_iommu_init.o amd_iommu.o
+	obj-$(CONFIG_GART_IOMMU)	+= pci-gart_64.o aperture_64.o
+	obj-$(CONFIG_CALGARY_IOMMU)	+= pci-calgary_64.o tce_64.o
+	obj-$(CONFIG_AMD_IOMMU)		+= amd_iommu_init.o amd_iommu.o
 
-        obj-$(CONFIG_PCI_MMCONFIG)	+= mmconf-fam10h_64.o
+	obj-$(CONFIG_PCI_MMCONFIG)	+= mmconf-fam10h_64.o
 endif
