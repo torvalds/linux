@@ -745,21 +745,21 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 	complete(&c_idle->done);
 }
 
-static int __cpuinit do_boot_cpu(int apicid, int cpu)
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.
  * Returns zero if CPU booted OK, else error code from ->wakeup_cpu.
  */
+static int __cpuinit do_boot_cpu(int apicid, int cpu)
 {
 	unsigned long boot_error = 0;
-	int timeout;
 	unsigned long start_ip;
-	unsigned short nmi_high = 0, nmi_low = 0;
+	int timeout;
 	struct create_idle c_idle = {
-		.cpu = cpu,
-		.done = COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
+		.cpu	= cpu,
+		.done	= COMPLETION_INITIALIZER_ONSTACK(c_idle.done),
 	};
+
 	INIT_WORK(&c_idle.work, do_fork_idle);
 
 	alternatives_smp_switch(1);
@@ -823,9 +823,6 @@ do_rest:
 	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
 
 		pr_debug("Setting warm reset code and vector.\n");
-
-		if (apic->store_NMI_vector)
-			apic->store_NMI_vector(&nmi_high, &nmi_low);
 
 		smpboot_setup_warm_reset_vector(start_ip);
 		/*

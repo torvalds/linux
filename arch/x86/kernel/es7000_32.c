@@ -746,7 +746,6 @@ struct genapic apic_es7000 = {
 
 	/* Nothing to do for most platforms, since cleared by the INIT cycle: */
 	.smp_callin_clear_local_apic	= NULL,
-	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= default_inquire_remote_apic,
 
 	.read				= native_apic_mem_read,

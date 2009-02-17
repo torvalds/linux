@@ -342,16 +342,6 @@ static inline void numaq_smp_callin_clear_local_apic(void)
 	clear_local_APIC();
 }
 
-static inline void
-numaq_store_NMI_vector(unsigned short *high, unsigned short *low)
-{
-	printk(KERN_ERR "Storing NMI vector\n");
-	*high =
-	  *((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_HIGH));
-	*low =
-	  *((volatile unsigned short *)phys_to_virt(NUMAQ_TRAMPOLINE_PHYS_LOW));
-}
-
 static inline const cpumask_t *numaq_target_cpus(void)
 {
 	return &CPU_MASK_ALL;
@@ -564,7 +554,6 @@ struct genapic apic_numaq = {
 	.wait_for_init_deassert		= NULL,
 
 	.smp_callin_clear_local_apic	= numaq_smp_callin_clear_local_apic,
-	.store_NMI_vector		= numaq_store_NMI_vector,
 	.inquire_remote_apic		= NULL,
 
 	.read				= native_apic_mem_read,

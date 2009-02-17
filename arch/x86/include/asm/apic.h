@@ -313,7 +313,6 @@ struct genapic {
 
 	void (*wait_for_init_deassert)(atomic_t *deassert);
 	void (*smp_callin_clear_local_apic)(void);
-	void (*store_NMI_vector)(unsigned short *high, unsigned short *low);
 	void (*inquire_remote_apic)(int apicid);
 
 	/* apic ops */

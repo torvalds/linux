@@ -232,7 +232,6 @@ struct genapic apic_x2apic_cluster = {
 	.trampoline_phys_high		= DEFAULT_TRAMPOLINE_PHYS_HIGH,
 	.wait_for_init_deassert		= NULL,
 	.smp_callin_clear_local_apic	= NULL,
-	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= NULL,
 
 	.read				= native_apic_msr_read,

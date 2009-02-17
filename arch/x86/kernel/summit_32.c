@@ -590,7 +590,6 @@ struct genapic apic_summit = {
 	.wait_for_init_deassert		= default_wait_for_init_deassert,
 
 	.smp_callin_clear_local_apic	= NULL,
-	.store_NMI_vector		= NULL,
 	.inquire_remote_apic		= default_inquire_remote_apic,
 
 	.read				= native_apic_mem_read,
