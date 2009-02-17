@@ -61,7 +61,7 @@
 /* global iommu list, set NULL for ignored DMAR units */
 static struct intel_iommu **g_iommus;
 
-static int rwbf_quirk = 0;
+static int rwbf_quirk;
 
 /*
  * 0: Present
@@ -3142,8 +3142,10 @@ static struct iommu_ops intel_iommu_ops = {
 
 static void __devinit quirk_iommu_rwbf(struct pci_dev *dev)
 {
-	/* Mobile 4 Series Chipset neglects to set RWBF capability,
-	   but needs it */
+	/*
+	 * Mobile 4 Series Chipset neglects to set RWBF capability,
+	 * but needs it:
+	 */
 	printk(KERN_INFO "DMAR: Forcing write-buffer flush capability\n");
 	rwbf_quirk = 1;
 }
