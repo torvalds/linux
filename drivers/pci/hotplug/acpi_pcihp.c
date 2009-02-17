@@ -372,12 +372,10 @@ EXPORT_SYMBOL_GPL(acpi_get_hp_params_from_firmware);
  *
  * Attempt to take hotplug control from firmware.
  */
-int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags)
+int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 {
 	acpi_status status;
 	acpi_handle chandle, handle;
-	struct pci_dev *pdev = dev;
-	struct pci_bus *parent;
 	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
 
 	flags &= (OSC_PCI_EXPRESS_NATIVE_HP_CONTROL |
@@ -409,26 +407,18 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags)
 		string = (struct acpi_buffer){ ACPI_ALLOCATE_BUFFER, NULL };
 	}
 
-	pdev = dev;
-	handle = DEVICE_ACPI_HANDLE(&dev->dev);
-	while (!handle) {
+	handle = DEVICE_ACPI_HANDLE(&pdev->dev);
+	if (!handle) {
 		/*
 		 * This hotplug controller was not listed in the ACPI name
 		 * space at all. Try to get acpi handle of parent pci bus.
 		 */
-		if (!pdev || !pdev->bus->parent)
-			break;
-		parent = pdev->bus->parent;
-		dbg("Could not find %s in acpi namespace, trying parent\n",
-		    pci_name(pdev));
-		if (!parent->self)
-			/* Parent must be a host bridge */
-			handle = acpi_get_pci_rootbridge_handle(
-					pci_domain_nr(parent),
-					parent->number);
-		else
-			handle = DEVICE_ACPI_HANDLE(&(parent->self->dev));
-		pdev = parent->self;
+		struct pci_bus *pbus;
+		for (pbus = pdev->bus; pbus; pbus = pbus->parent) {
+			handle = acpi_pci_get_bridge_handle(pbus);
+			if (handle)
+				break;
+		}
 	}
 
 	while (handle) {
@@ -447,13 +437,13 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags)
 	}
 
 	dbg("Cannot get control of hotplug hardware for pci %s\n",
-	    pci_name(dev));
+	    pci_name(pdev));
 
 	kfree(string.pointer);
 	return -ENODEV;
 got_one:
-	dbg("Gained control for hotplug HW for pci %s (%s)\n", pci_name(dev),
-			(char *)string.pointer);
+	dbg("Gained control for hotplug HW for pci %s (%s)\n",
+	    pci_name(pdev), (char *)string.pointer);
 	kfree(string.pointer);
 	return 0;
 }
