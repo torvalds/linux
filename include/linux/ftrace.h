@@ -95,9 +95,40 @@ stack_trace_sysctl(struct ctl_table *table, int write,
 		   loff_t *ppos);
 #endif
 
+struct ftrace_func_command {
+	struct list_head	list;
+	char			*name;
+	int			(*func)(char *func, char *cmd,
+					char *params, int enable);
+};
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* asm/ftrace.h must be defined for archs supporting dynamic ftrace */
 #include <asm/ftrace.h>
+
+struct seq_file;
+
+struct ftrace_hook_ops {
+	void			(*func)(unsigned long ip,
+					unsigned long parent_ip,
+					void **data);
+	int			(*callback)(unsigned long ip, void **data);
+	void			(*free)(void **data);
+	int			(*print)(struct seq_file *m,
+					 unsigned long ip,
+					 struct ftrace_hook_ops *ops,
+					 void *data);
+};
+
+extern int
+register_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+			      void *data);
+extern void
+unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+				void *data);
+extern void
+unregister_ftrace_function_hook_func(char *glob, struct ftrace_hook_ops *ops);
+extern void unregister_ftrace_function_hook_all(char *glob);
 
 enum {
 	FTRACE_FL_FREE		= (1 << 0),
@@ -118,6 +149,9 @@ struct dyn_ftrace {
 
 int ftrace_force_update(void);
 void ftrace_set_filter(unsigned char *buf, int len, int reset);
+
+int register_ftrace_command(struct ftrace_func_command *cmd);
+int unregister_ftrace_command(struct ftrace_func_command *cmd);
 
 /* defined in arch */
 extern int ftrace_ip_converted(unsigned long ip);
@@ -202,6 +236,12 @@ extern void ftrace_enable_daemon(void);
 # define ftrace_disable_daemon()		do { } while (0)
 # define ftrace_enable_daemon()			do { } while (0)
 static inline void ftrace_release(void *start, unsigned long size) { }
+static inline int register_ftrace_command(struct ftrace_func_command *cmd)
+{
+}
+static inline int unregister_ftrace_command(char *cmd_name)
+{
+}
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 /* totally disable ftrace - can not re-enable after this */

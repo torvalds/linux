@@ -128,10 +128,12 @@ void ring_buffer_normalize_time_stamp(int cpu, u64 *ts);
 void tracing_on(void);
 void tracing_off(void);
 void tracing_off_permanent(void);
+int tracing_is_on(void);
 #else
 static inline void tracing_on(void) { }
 static inline void tracing_off(void) { }
 static inline void tracing_off_permanent(void) { }
+static inline int tracing_is_on(void) { return 0; }
 #endif
 
 void *ring_buffer_alloc_read_page(struct ring_buffer *buffer);

@@ -27,6 +27,7 @@
 #include <linux/sysctl.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
+#include <linux/hash.h>
 
 #include <asm/ftrace.h>
 
@@ -44,13 +45,13 @@
 			ftrace_kill();		\
 	} while (0)
 
+/* hash bits for specific function selection */
+#define FTRACE_HASH_BITS 7
+#define FTRACE_FUNC_HASHSIZE (1 << FTRACE_HASH_BITS)
+
 /* ftrace_enabled is a method to turn ftrace on or off */
 int ftrace_enabled __read_mostly;
 static int last_ftrace_enabled;
-
-/* set when tracing only a pid */
-struct pid *ftrace_pid_trace;
-static struct pid * const ftrace_swapper_pid = &init_struct_pid;
 
 /* Quick disabling of function tracer. */
 int function_trace_stop;
@@ -61,9 +62,7 @@ int function_trace_stop;
  */
 static int ftrace_disabled __read_mostly;
 
-static DEFINE_SPINLOCK(ftrace_lock);
-static DEFINE_MUTEX(ftrace_sysctl_lock);
-static DEFINE_MUTEX(ftrace_start_lock);
+static DEFINE_MUTEX(ftrace_lock);
 
 static struct ftrace_ops ftrace_list_end __read_mostly =
 {
@@ -134,9 +133,6 @@ static void ftrace_test_stop_func(unsigned long ip, unsigned long parent_ip)
 
 static int __register_ftrace_function(struct ftrace_ops *ops)
 {
-	/* should not be called from interrupt context */
-	spin_lock(&ftrace_lock);
-
 	ops->next = ftrace_list;
 	/*
 	 * We are entering ops into the ftrace_list but another
@@ -172,18 +168,12 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 #endif
 	}
 
-	spin_unlock(&ftrace_lock);
-
 	return 0;
 }
 
 static int __unregister_ftrace_function(struct ftrace_ops *ops)
 {
 	struct ftrace_ops **p;
-	int ret = 0;
-
-	/* should not be called from interrupt context */
-	spin_lock(&ftrace_lock);
 
 	/*
 	 * If we are removing the last function, then simply point
@@ -192,17 +182,15 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 	if (ftrace_list == ops && ops->next == &ftrace_list_end) {
 		ftrace_trace_function = ftrace_stub;
 		ftrace_list = &ftrace_list_end;
-		goto out;
+		return 0;
 	}
 
 	for (p = &ftrace_list; *p != &ftrace_list_end; p = &(*p)->next)
 		if (*p == ops)
 			break;
 
-	if (*p != ops) {
-		ret = -1;
-		goto out;
-	}
+	if (*p != ops)
+		return -1;
 
 	*p = (*p)->next;
 
@@ -223,18 +211,14 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 		}
 	}
 
- out:
-	spin_unlock(&ftrace_lock);
-
-	return ret;
+	return 0;
 }
 
 static void ftrace_update_pid_func(void)
 {
 	ftrace_func_t func;
 
-	/* should not be called from interrupt context */
-	spin_lock(&ftrace_lock);
+	mutex_lock(&ftrace_lock);
 
 	if (ftrace_trace_function == ftrace_stub)
 		goto out;
@@ -256,13 +240,28 @@ static void ftrace_update_pid_func(void)
 #endif
 
  out:
-	spin_unlock(&ftrace_lock);
+	mutex_unlock(&ftrace_lock);
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 #ifndef CONFIG_FTRACE_MCOUNT_RECORD
 # error Dynamic ftrace depends on MCOUNT_RECORD
 #endif
+
+/* set when tracing only a pid */
+struct pid *ftrace_pid_trace;
+static struct pid * const ftrace_swapper_pid = &init_struct_pid;
+static struct hlist_head ftrace_func_hash[FTRACE_FUNC_HASHSIZE] __read_mostly;
+
+struct ftrace_func_hook {
+	struct hlist_node	node;
+	struct ftrace_hook_ops	*ops;
+	unsigned long		flags;
+	unsigned long		ip;
+	void			*data;
+	struct rcu_head		rcu;
+};
+
 
 enum {
 	FTRACE_ENABLE_CALLS		= (1 << 0),
@@ -297,6 +296,19 @@ static struct ftrace_page	*ftrace_pages;
 
 static struct dyn_ftrace *ftrace_free_records;
 
+/*
+ * This is a double for. Do not use 'break' to break out of the loop,
+ * you must use a goto.
+ */
+#define do_for_each_ftrace_rec(pg, rec)					\
+	for (pg = ftrace_pages_start; pg; pg = pg->next) {		\
+		int _____i;						\
+		for (_____i = 0; _____i < pg->index; _____i++) {	\
+			rec = &pg->records[_____i];
+
+#define while_for_each_ftrace_rec()		\
+		}				\
+	}
 
 #ifdef CONFIG_KPROBES
 
@@ -341,23 +353,16 @@ void ftrace_release(void *start, unsigned long size)
 	struct ftrace_page *pg;
 	unsigned long s = (unsigned long)start;
 	unsigned long e = s + size;
-	int i;
 
 	if (ftrace_disabled || !start)
 		return;
 
-	/* should not be called from interrupt context */
-	spin_lock(&ftrace_lock);
-
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		for (i = 0; i < pg->index; i++) {
-			rec = &pg->records[i];
-
-			if ((rec->ip >= s) && (rec->ip < e))
-				ftrace_free_rec(rec);
-		}
-	}
-	spin_unlock(&ftrace_lock);
+	mutex_lock(&ftrace_lock);
+	do_for_each_ftrace_rec(pg, rec) {
+		if ((rec->ip >= s) && (rec->ip < e))
+			ftrace_free_rec(rec);
+	} while_for_each_ftrace_rec();
+	mutex_unlock(&ftrace_lock);
 }
 
 static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
@@ -523,41 +528,37 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 
 static void ftrace_replace_code(int enable)
 {
-	int i, failed;
+	int failed;
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
 
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		for (i = 0; i < pg->index; i++) {
-			rec = &pg->records[i];
+	do_for_each_ftrace_rec(pg, rec) {
+		/*
+		 * Skip over free records and records that have
+		 * failed.
+		 */
+		if (rec->flags & FTRACE_FL_FREE ||
+		    rec->flags & FTRACE_FL_FAILED)
+			continue;
 
-			/*
-			 * Skip over free records and records that have
-			 * failed.
-			 */
-			if (rec->flags & FTRACE_FL_FREE ||
-			    rec->flags & FTRACE_FL_FAILED)
-				continue;
-
-			/* ignore updates to this record's mcount site */
-			if (get_kprobe((void *)rec->ip)) {
-				freeze_record(rec);
-				continue;
-			} else {
-				unfreeze_record(rec);
-			}
-
-			failed = __ftrace_replace_code(rec, enable);
-			if (failed && (rec->flags & FTRACE_FL_CONVERTED)) {
-				rec->flags |= FTRACE_FL_FAILED;
-				if ((system_state == SYSTEM_BOOTING) ||
-				    !core_kernel_text(rec->ip)) {
-					ftrace_free_rec(rec);
-				} else
-					ftrace_bug(failed, rec->ip);
-			}
+		/* ignore updates to this record's mcount site */
+		if (get_kprobe((void *)rec->ip)) {
+			freeze_record(rec);
+			continue;
+		} else {
+			unfreeze_record(rec);
 		}
-	}
+
+		failed = __ftrace_replace_code(rec, enable);
+		if (failed && (rec->flags & FTRACE_FL_CONVERTED)) {
+			rec->flags |= FTRACE_FL_FAILED;
+			if ((system_state == SYSTEM_BOOTING) ||
+			    !core_kernel_text(rec->ip)) {
+				ftrace_free_rec(rec);
+			} else
+				ftrace_bug(failed, rec->ip);
+		}
+	} while_for_each_ftrace_rec();
 }
 
 static int
@@ -623,13 +624,10 @@ static void ftrace_startup(int command)
 	if (unlikely(ftrace_disabled))
 		return;
 
-	mutex_lock(&ftrace_start_lock);
 	ftrace_start_up++;
 	command |= FTRACE_ENABLE_CALLS;
 
 	ftrace_startup_enable(command);
-
-	mutex_unlock(&ftrace_start_lock);
 }
 
 static void ftrace_shutdown(int command)
@@ -637,7 +635,6 @@ static void ftrace_shutdown(int command)
 	if (unlikely(ftrace_disabled))
 		return;
 
-	mutex_lock(&ftrace_start_lock);
 	ftrace_start_up--;
 	if (!ftrace_start_up)
 		command |= FTRACE_DISABLE_CALLS;
@@ -648,11 +645,9 @@ static void ftrace_shutdown(int command)
 	}
 
 	if (!command || !ftrace_enabled)
-		goto out;
+		return;
 
 	ftrace_run_update_code(command);
- out:
-	mutex_unlock(&ftrace_start_lock);
 }
 
 static void ftrace_startup_sysctl(void)
@@ -662,7 +657,6 @@ static void ftrace_startup_sysctl(void)
 	if (unlikely(ftrace_disabled))
 		return;
 
-	mutex_lock(&ftrace_start_lock);
 	/* Force update next time */
 	saved_ftrace_func = NULL;
 	/* ftrace_start_up is true if we want ftrace running */
@@ -670,7 +664,6 @@ static void ftrace_startup_sysctl(void)
 		command |= FTRACE_ENABLE_CALLS;
 
 	ftrace_run_update_code(command);
-	mutex_unlock(&ftrace_start_lock);
 }
 
 static void ftrace_shutdown_sysctl(void)
@@ -680,13 +673,11 @@ static void ftrace_shutdown_sysctl(void)
 	if (unlikely(ftrace_disabled))
 		return;
 
-	mutex_lock(&ftrace_start_lock);
 	/* ftrace_start_up is true if ftrace is running */
 	if (ftrace_start_up)
 		command |= FTRACE_DISABLE_CALLS;
 
 	ftrace_run_update_code(command);
-	mutex_unlock(&ftrace_start_lock);
 }
 
 static cycle_t		ftrace_update_time;
@@ -773,12 +764,15 @@ enum {
 	FTRACE_ITER_CONT	= (1 << 1),
 	FTRACE_ITER_NOTRACE	= (1 << 2),
 	FTRACE_ITER_FAILURES	= (1 << 3),
+	FTRACE_ITER_PRINTALL	= (1 << 4),
+	FTRACE_ITER_HASH	= (1 << 5),
 };
 
 #define FTRACE_BUFF_MAX (KSYM_SYMBOL_LEN+4) /* room for wildcards */
 
 struct ftrace_iterator {
 	struct ftrace_page	*pg;
+	int			hidx;
 	int			idx;
 	unsigned		flags;
 	unsigned char		buffer[FTRACE_BUFF_MAX+1];
@@ -787,15 +781,89 @@ struct ftrace_iterator {
 };
 
 static void *
+t_hash_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct ftrace_iterator *iter = m->private;
+	struct hlist_node *hnd = v;
+	struct hlist_head *hhd;
+
+	WARN_ON(!(iter->flags & FTRACE_ITER_HASH));
+
+	(*pos)++;
+
+ retry:
+	if (iter->hidx >= FTRACE_FUNC_HASHSIZE)
+		return NULL;
+
+	hhd = &ftrace_func_hash[iter->hidx];
+
+	if (hlist_empty(hhd)) {
+		iter->hidx++;
+		hnd = NULL;
+		goto retry;
+	}
+
+	if (!hnd)
+		hnd = hhd->first;
+	else {
+		hnd = hnd->next;
+		if (!hnd) {
+			iter->hidx++;
+			goto retry;
+		}
+	}
+
+	return hnd;
+}
+
+static void *t_hash_start(struct seq_file *m, loff_t *pos)
+{
+	struct ftrace_iterator *iter = m->private;
+	void *p = NULL;
+
+	iter->flags |= FTRACE_ITER_HASH;
+
+	return t_hash_next(m, p, pos);
+}
+
+static int t_hash_show(struct seq_file *m, void *v)
+{
+	struct ftrace_func_hook *rec;
+	struct hlist_node *hnd = v;
+	char str[KSYM_SYMBOL_LEN];
+
+	rec = hlist_entry(hnd, struct ftrace_func_hook, node);
+
+	if (rec->ops->print)
+		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
+
+	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+	seq_printf(m, "%s:", str);
+
+	kallsyms_lookup((unsigned long)rec->ops->func, NULL, NULL, NULL, str);
+	seq_printf(m, "%s", str);
+
+	if (rec->data)
+		seq_printf(m, ":%p", rec->data);
+	seq_putc(m, '\n');
+
+	return 0;
+}
+
+static void *
 t_next(struct seq_file *m, void *v, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec = NULL;
 
+	if (iter->flags & FTRACE_ITER_HASH)
+		return t_hash_next(m, v, pos);
+
 	(*pos)++;
 
-	/* should not be called from interrupt context */
-	spin_lock(&ftrace_lock);
+	if (iter->flags & FTRACE_ITER_PRINTALL)
+		return NULL;
+
  retry:
 	if (iter->idx >= iter->pg->index) {
 		if (iter->pg->next) {
@@ -824,7 +892,6 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 			goto retry;
 		}
 	}
-	spin_unlock(&ftrace_lock);
 
 	return rec;
 }
@@ -833,6 +900,23 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 {
 	struct ftrace_iterator *iter = m->private;
 	void *p = NULL;
+
+	mutex_lock(&ftrace_lock);
+	/*
+	 * For set_ftrace_filter reading, if we have the filter
+	 * off, we can short cut and just print out that all
+	 * functions are enabled.
+	 */
+	if (iter->flags & FTRACE_ITER_FILTER && !ftrace_filtered) {
+		if (*pos > 0)
+			return t_hash_start(m, pos);
+		iter->flags |= FTRACE_ITER_PRINTALL;
+		(*pos)++;
+		return iter;
+	}
+
+	if (iter->flags & FTRACE_ITER_HASH)
+		return t_hash_start(m, pos);
 
 	if (*pos > 0) {
 		if (iter->idx < 0)
@@ -843,17 +927,30 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 
 	p = t_next(m, p, pos);
 
+	if (!p)
+		return t_hash_start(m, pos);
+
 	return p;
 }
 
 static void t_stop(struct seq_file *m, void *p)
 {
+	mutex_unlock(&ftrace_lock);
 }
 
 static int t_show(struct seq_file *m, void *v)
 {
+	struct ftrace_iterator *iter = m->private;
 	struct dyn_ftrace *rec = v;
 	char str[KSYM_SYMBOL_LEN];
+
+	if (iter->flags & FTRACE_ITER_HASH)
+		return t_hash_show(m, v);
+
+	if (iter->flags & FTRACE_ITER_PRINTALL) {
+		seq_printf(m, "#### all functions enabled ####\n");
+		return 0;
+	}
 
 	if (!rec)
 		return 0;
@@ -933,23 +1030,16 @@ static void ftrace_filter_reset(int enable)
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 	unsigned long type = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
-	unsigned i;
 
-	/* should not be called from interrupt context */
-	spin_lock(&ftrace_lock);
+	mutex_lock(&ftrace_lock);
 	if (enable)
 		ftrace_filtered = 0;
-	pg = ftrace_pages_start;
-	while (pg) {
-		for (i = 0; i < pg->index; i++) {
-			rec = &pg->records[i];
-			if (rec->flags & FTRACE_FL_FAILED)
-				continue;
-			rec->flags &= ~type;
-		}
-		pg = pg->next;
-	}
-	spin_unlock(&ftrace_lock);
+	do_for_each_ftrace_rec(pg, rec) {
+		if (rec->flags & FTRACE_FL_FAILED)
+			continue;
+		rec->flags &= ~type;
+	} while_for_each_ftrace_rec();
+	mutex_unlock(&ftrace_lock);
 }
 
 static int
@@ -1030,86 +1120,533 @@ enum {
 	MATCH_END_ONLY,
 };
 
-static void
-ftrace_match(unsigned char *buff, int len, int enable)
+/*
+ * (static function - no need for kernel doc)
+ *
+ * Pass in a buffer containing a glob and this function will
+ * set search to point to the search part of the buffer and
+ * return the type of search it is (see enum above).
+ * This does modify buff.
+ *
+ * Returns enum type.
+ *  search returns the pointer to use for comparison.
+ *  not returns 1 if buff started with a '!'
+ *     0 otherwise.
+ */
+static int
+ftrace_setup_glob(char *buff, int len, char **search, int *not)
 {
-	char str[KSYM_SYMBOL_LEN];
-	char *search = NULL;
-	struct ftrace_page *pg;
-	struct dyn_ftrace *rec;
 	int type = MATCH_FULL;
-	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
-	unsigned i, match = 0, search_len = 0;
-	int not = 0;
+	int i;
 
 	if (buff[0] == '!') {
-		not = 1;
+		*not = 1;
 		buff++;
 		len--;
-	}
+	} else
+		*not = 0;
+
+	*search = buff;
 
 	for (i = 0; i < len; i++) {
 		if (buff[i] == '*') {
 			if (!i) {
-				search = buff + i + 1;
+				*search = buff + 1;
 				type = MATCH_END_ONLY;
-				search_len = len - (i + 1);
 			} else {
-				if (type == MATCH_END_ONLY) {
+				if (type == MATCH_END_ONLY)
 					type = MATCH_MIDDLE_ONLY;
-				} else {
-					match = i;
+				else
 					type = MATCH_FRONT_ONLY;
-				}
 				buff[i] = 0;
 				break;
 			}
 		}
 	}
 
-	/* should not be called from interrupt context */
-	spin_lock(&ftrace_lock);
-	if (enable)
-		ftrace_filtered = 1;
-	pg = ftrace_pages_start;
-	while (pg) {
-		for (i = 0; i < pg->index; i++) {
-			int matched = 0;
-			char *ptr;
+	return type;
+}
 
-			rec = &pg->records[i];
-			if (rec->flags & FTRACE_FL_FAILED)
+static int ftrace_match(char *str, char *regex, int len, int type)
+{
+	int matched = 0;
+	char *ptr;
+
+	switch (type) {
+	case MATCH_FULL:
+		if (strcmp(str, regex) == 0)
+			matched = 1;
+		break;
+	case MATCH_FRONT_ONLY:
+		if (strncmp(str, regex, len) == 0)
+			matched = 1;
+		break;
+	case MATCH_MIDDLE_ONLY:
+		if (strstr(str, regex))
+			matched = 1;
+		break;
+	case MATCH_END_ONLY:
+		ptr = strstr(str, regex);
+		if (ptr && (ptr[len] == 0))
+			matched = 1;
+		break;
+	}
+
+	return matched;
+}
+
+static int
+ftrace_match_record(struct dyn_ftrace *rec, char *regex, int len, int type)
+{
+	char str[KSYM_SYMBOL_LEN];
+
+	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+	return ftrace_match(str, regex, len, type);
+}
+
+static void ftrace_match_records(char *buff, int len, int enable)
+{
+	char *search;
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+	int type;
+	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
+	unsigned search_len;
+	int not;
+
+	type = ftrace_setup_glob(buff, len, &search, &not);
+
+	search_len = strlen(search);
+
+	mutex_lock(&ftrace_lock);
+	do_for_each_ftrace_rec(pg, rec) {
+
+		if (rec->flags & FTRACE_FL_FAILED)
+			continue;
+
+		if (ftrace_match_record(rec, search, search_len, type)) {
+			if (not)
+				rec->flags &= ~flag;
+			else
+				rec->flags |= flag;
+		}
+		/*
+		 * Only enable filtering if we have a function that
+		 * is filtered on.
+		 */
+		if (enable && (rec->flags & FTRACE_FL_FILTER))
+			ftrace_filtered = 1;
+	} while_for_each_ftrace_rec();
+	mutex_unlock(&ftrace_lock);
+}
+
+static int
+ftrace_match_module_record(struct dyn_ftrace *rec, char *mod,
+			   char *regex, int len, int type)
+{
+	char str[KSYM_SYMBOL_LEN];
+	char *modname;
+
+	kallsyms_lookup(rec->ip, NULL, NULL, &modname, str);
+
+	if (!modname || strcmp(modname, mod))
+		return 0;
+
+	/* blank search means to match all funcs in the mod */
+	if (len)
+		return ftrace_match(str, regex, len, type);
+	else
+		return 1;
+}
+
+static void ftrace_match_module_records(char *buff, char *mod, int enable)
+{
+	char *search = buff;
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+	int type = MATCH_FULL;
+	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
+	unsigned search_len = 0;
+	int not = 0;
+
+	/* blank or '*' mean the same */
+	if (strcmp(buff, "*") == 0)
+		buff[0] = 0;
+
+	/* handle the case of 'dont filter this module' */
+	if (strcmp(buff, "!") == 0 || strcmp(buff, "!*") == 0) {
+		buff[0] = 0;
+		not = 1;
+	}
+
+	if (strlen(buff)) {
+		type = ftrace_setup_glob(buff, strlen(buff), &search, &not);
+		search_len = strlen(search);
+	}
+
+	mutex_lock(&ftrace_lock);
+	do_for_each_ftrace_rec(pg, rec) {
+
+		if (rec->flags & FTRACE_FL_FAILED)
+			continue;
+
+		if (ftrace_match_module_record(rec, mod,
+					       search, search_len, type)) {
+			if (not)
+				rec->flags &= ~flag;
+			else
+				rec->flags |= flag;
+		}
+		if (enable && (rec->flags & FTRACE_FL_FILTER))
+			ftrace_filtered = 1;
+
+	} while_for_each_ftrace_rec();
+	mutex_unlock(&ftrace_lock);
+}
+
+/*
+ * We register the module command as a template to show others how
+ * to register the a command as well.
+ */
+
+static int
+ftrace_mod_callback(char *func, char *cmd, char *param, int enable)
+{
+	char *mod;
+
+	/*
+	 * cmd == 'mod' because we only registered this func
+	 * for the 'mod' ftrace_func_command.
+	 * But if you register one func with multiple commands,
+	 * you can tell which command was used by the cmd
+	 * parameter.
+	 */
+
+	/* we must have a module name */
+	if (!param)
+		return -EINVAL;
+
+	mod = strsep(&param, ":");
+	if (!strlen(mod))
+		return -EINVAL;
+
+	ftrace_match_module_records(func, mod, enable);
+	return 0;
+}
+
+static struct ftrace_func_command ftrace_mod_cmd = {
+	.name			= "mod",
+	.func			= ftrace_mod_callback,
+};
+
+static int __init ftrace_mod_cmd_init(void)
+{
+	return register_ftrace_command(&ftrace_mod_cmd);
+}
+device_initcall(ftrace_mod_cmd_init);
+
+static void
+function_trace_hook_call(unsigned long ip, unsigned long parent_ip)
+{
+	struct ftrace_func_hook *entry;
+	struct hlist_head *hhd;
+	struct hlist_node *n;
+	unsigned long key;
+	int resched;
+
+	key = hash_long(ip, FTRACE_HASH_BITS);
+
+	hhd = &ftrace_func_hash[key];
+
+	if (hlist_empty(hhd))
+		return;
+
+	/*
+	 * Disable preemption for these calls to prevent a RCU grace
+	 * period. This syncs the hash iteration and freeing of items
+	 * on the hash. rcu_read_lock is too dangerous here.
+	 */
+	resched = ftrace_preempt_disable();
+	hlist_for_each_entry_rcu(entry, n, hhd, node) {
+		if (entry->ip == ip)
+			entry->ops->func(ip, parent_ip, &entry->data);
+	}
+	ftrace_preempt_enable(resched);
+}
+
+static struct ftrace_ops trace_hook_ops __read_mostly =
+{
+	.func = function_trace_hook_call,
+};
+
+static int ftrace_hook_registered;
+
+static void __enable_ftrace_function_hook(void)
+{
+	int i;
+
+	if (ftrace_hook_registered)
+		return;
+
+	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
+		struct hlist_head *hhd = &ftrace_func_hash[i];
+		if (hhd->first)
+			break;
+	}
+	/* Nothing registered? */
+	if (i == FTRACE_FUNC_HASHSIZE)
+		return;
+
+	__register_ftrace_function(&trace_hook_ops);
+	ftrace_startup(0);
+	ftrace_hook_registered = 1;
+}
+
+static void __disable_ftrace_function_hook(void)
+{
+	int i;
+
+	if (!ftrace_hook_registered)
+		return;
+
+	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
+		struct hlist_head *hhd = &ftrace_func_hash[i];
+		if (hhd->first)
+			return;
+	}
+
+	/* no more funcs left */
+	__unregister_ftrace_function(&trace_hook_ops);
+	ftrace_shutdown(0);
+	ftrace_hook_registered = 0;
+}
+
+
+static void ftrace_free_entry_rcu(struct rcu_head *rhp)
+{
+	struct ftrace_func_hook *entry =
+		container_of(rhp, struct ftrace_func_hook, rcu);
+
+	if (entry->ops->free)
+		entry->ops->free(&entry->data);
+	kfree(entry);
+}
+
+
+int
+register_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+			      void *data)
+{
+	struct ftrace_func_hook *entry;
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+	unsigned long key;
+	int type, len, not;
+	int count = 0;
+	char *search;
+
+	type = ftrace_setup_glob(glob, strlen(glob), &search, &not);
+	len = strlen(search);
+
+	/* we do not support '!' for function hooks */
+	if (WARN_ON(not))
+		return -EINVAL;
+
+	mutex_lock(&ftrace_lock);
+	do_for_each_ftrace_rec(pg, rec) {
+
+		if (rec->flags & FTRACE_FL_FAILED)
+			continue;
+
+		if (!ftrace_match_record(rec, search, len, type))
+			continue;
+
+		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+		if (!entry) {
+			/* If we did not hook to any, then return error */
+			if (!count)
+				count = -ENOMEM;
+			goto out_unlock;
+		}
+
+		count++;
+
+		entry->data = data;
+
+		/*
+		 * The caller might want to do something special
+		 * for each function we find. We call the callback
+		 * to give the caller an opportunity to do so.
+		 */
+		if (ops->callback) {
+			if (ops->callback(rec->ip, &entry->data) < 0) {
+				/* caller does not like this func */
+				kfree(entry);
 				continue;
-			kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-			switch (type) {
-			case MATCH_FULL:
-				if (strcmp(str, buff) == 0)
-					matched = 1;
-				break;
-			case MATCH_FRONT_ONLY:
-				if (memcmp(str, buff, match) == 0)
-					matched = 1;
-				break;
-			case MATCH_MIDDLE_ONLY:
-				if (strstr(str, search))
-					matched = 1;
-				break;
-			case MATCH_END_ONLY:
-				ptr = strstr(str, search);
-				if (ptr && (ptr[search_len] == 0))
-					matched = 1;
-				break;
-			}
-			if (matched) {
-				if (not)
-					rec->flags &= ~flag;
-				else
-					rec->flags |= flag;
 			}
 		}
-		pg = pg->next;
+
+		entry->ops = ops;
+		entry->ip = rec->ip;
+
+		key = hash_long(entry->ip, FTRACE_HASH_BITS);
+		hlist_add_head_rcu(&entry->node, &ftrace_func_hash[key]);
+
+	} while_for_each_ftrace_rec();
+	__enable_ftrace_function_hook();
+
+ out_unlock:
+	mutex_unlock(&ftrace_lock);
+
+	return count;
+}
+
+enum {
+	HOOK_TEST_FUNC		= 1,
+	HOOK_TEST_DATA		= 2
+};
+
+static void
+__unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+				  void *data, int flags)
+{
+	struct ftrace_func_hook *entry;
+	struct hlist_node *n, *tmp;
+	char str[KSYM_SYMBOL_LEN];
+	int type = MATCH_FULL;
+	int i, len = 0;
+	char *search;
+
+	if (glob && (strcmp(glob, "*") || !strlen(glob)))
+		glob = NULL;
+	else {
+		int not;
+
+		type = ftrace_setup_glob(glob, strlen(glob), &search, &not);
+		len = strlen(search);
+
+		/* we do not support '!' for function hooks */
+		if (WARN_ON(not))
+			return;
 	}
-	spin_unlock(&ftrace_lock);
+
+	mutex_lock(&ftrace_lock);
+	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
+		struct hlist_head *hhd = &ftrace_func_hash[i];
+
+		hlist_for_each_entry_safe(entry, n, tmp, hhd, node) {
+
+			/* break up if statements for readability */
+			if ((flags & HOOK_TEST_FUNC) && entry->ops != ops)
+				continue;
+
+			if ((flags & HOOK_TEST_DATA) && entry->data != data)
+				continue;
+
+			/* do this last, since it is the most expensive */
+			if (glob) {
+				kallsyms_lookup(entry->ip, NULL, NULL,
+						NULL, str);
+				if (!ftrace_match(str, glob, len, type))
+					continue;
+			}
+
+			hlist_del(&entry->node);
+			call_rcu(&entry->rcu, ftrace_free_entry_rcu);
+		}
+	}
+	__disable_ftrace_function_hook();
+	mutex_unlock(&ftrace_lock);
+}
+
+void
+unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+				void *data)
+{
+	__unregister_ftrace_function_hook(glob, ops, data,
+					  HOOK_TEST_FUNC | HOOK_TEST_DATA);
+}
+
+void
+unregister_ftrace_function_hook_func(char *glob, struct ftrace_hook_ops *ops)
+{
+	__unregister_ftrace_function_hook(glob, ops, NULL, HOOK_TEST_FUNC);
+}
+
+void unregister_ftrace_function_hook_all(char *glob)
+{
+	__unregister_ftrace_function_hook(glob, NULL, NULL, 0);
+}
+
+static LIST_HEAD(ftrace_commands);
+static DEFINE_MUTEX(ftrace_cmd_mutex);
+
+int register_ftrace_command(struct ftrace_func_command *cmd)
+{
+	struct ftrace_func_command *p;
+	int ret = 0;
+
+	mutex_lock(&ftrace_cmd_mutex);
+	list_for_each_entry(p, &ftrace_commands, list) {
+		if (strcmp(cmd->name, p->name) == 0) {
+			ret = -EBUSY;
+			goto out_unlock;
+		}
+	}
+	list_add(&cmd->list, &ftrace_commands);
+ out_unlock:
+	mutex_unlock(&ftrace_cmd_mutex);
+
+	return ret;
+}
+
+int unregister_ftrace_command(struct ftrace_func_command *cmd)
+{
+	struct ftrace_func_command *p, *n;
+	int ret = -ENODEV;
+
+	mutex_lock(&ftrace_cmd_mutex);
+	list_for_each_entry_safe(p, n, &ftrace_commands, list) {
+		if (strcmp(cmd->name, p->name) == 0) {
+			ret = 0;
+			list_del_init(&p->list);
+			goto out_unlock;
+		}
+	}
+ out_unlock:
+	mutex_unlock(&ftrace_cmd_mutex);
+
+	return ret;
+}
+
+static int ftrace_process_regex(char *buff, int len, int enable)
+{
+	struct ftrace_func_command *p;
+	char *func, *command, *next = buff;
+	int ret = -EINVAL;
+
+	func = strsep(&next, ":");
+
+	if (!next) {
+		ftrace_match_records(func, len, enable);
+		return 0;
+	}
+
+	/* command found */
+
+	command = strsep(&next, ":");
+
+	mutex_lock(&ftrace_cmd_mutex);
+	list_for_each_entry(p, &ftrace_commands, list) {
+		if (strcmp(p->name, command) == 0) {
+			ret = p->func(func, command, next, enable);
+			goto out_unlock;
+		}
+	}
+ out_unlock:
+	mutex_unlock(&ftrace_cmd_mutex);
+
+	return ret;
 }
 
 static ssize_t
@@ -1179,7 +1716,10 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 	if (isspace(ch)) {
 		iter->filtered++;
 		iter->buffer[iter->buffer_idx] = 0;
-		ftrace_match(iter->buffer, iter->buffer_idx, enable);
+		ret = ftrace_process_regex(iter->buffer,
+					   iter->buffer_idx, enable);
+		if (ret)
+			goto out;
 		iter->buffer_idx = 0;
 	} else
 		iter->flags |= FTRACE_ITER_CONT;
@@ -1218,7 +1758,7 @@ ftrace_set_regex(unsigned char *buf, int len, int reset, int enable)
 	if (reset)
 		ftrace_filter_reset(enable);
 	if (buf)
-		ftrace_match(buf, len, enable);
+		ftrace_match_records(buf, len, enable);
 	mutex_unlock(&ftrace_regex_lock);
 }
 
@@ -1268,15 +1808,13 @@ ftrace_regex_release(struct inode *inode, struct file *file, int enable)
 	if (iter->buffer_idx) {
 		iter->filtered++;
 		iter->buffer[iter->buffer_idx] = 0;
-		ftrace_match(iter->buffer, iter->buffer_idx, enable);
+		ftrace_match_records(iter->buffer, iter->buffer_idx, enable);
 	}
 
-	mutex_lock(&ftrace_sysctl_lock);
-	mutex_lock(&ftrace_start_lock);
+	mutex_lock(&ftrace_lock);
 	if (ftrace_start_up && ftrace_enabled)
 		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
-	mutex_unlock(&ftrace_start_lock);
-	mutex_unlock(&ftrace_sysctl_lock);
+	mutex_unlock(&ftrace_lock);
 
 	kfree(iter);
 	mutex_unlock(&ftrace_regex_lock);
@@ -1429,36 +1967,33 @@ ftrace_set_func(unsigned long *array, int idx, char *buffer)
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
 	int found = 0;
-	int i, j;
+	int j;
 
 	if (ftrace_disabled)
 		return -ENODEV;
 
-	/* should not be called from interrupt context */
-	spin_lock(&ftrace_lock);
+	mutex_lock(&ftrace_lock);
+	do_for_each_ftrace_rec(pg, rec) {
 
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		for (i = 0; i < pg->index; i++) {
-			rec = &pg->records[i];
+		if (rec->flags & (FTRACE_FL_FAILED | FTRACE_FL_FREE))
+			continue;
 
-			if (rec->flags & (FTRACE_FL_FAILED | FTRACE_FL_FREE))
-				continue;
-
-			kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-			if (strcmp(str, buffer) == 0) {
-				found = 1;
-				for (j = 0; j < idx; j++)
-					if (array[j] == rec->ip) {
-						found = 0;
-						break;
-					}
-				if (found)
-					array[idx] = rec->ip;
-				break;
-			}
+		kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
+		if (strcmp(str, buffer) == 0) {
+			/* Return 1 if we add it to the array */
+			found = 1;
+			for (j = 0; j < idx; j++)
+				if (array[j] == rec->ip) {
+					found = 0;
+					break;
+				}
+			if (found)
+				array[idx] = rec->ip;
+			goto out;
 		}
-	}
-	spin_unlock(&ftrace_lock);
+	} while_for_each_ftrace_rec();
+ out:
+	mutex_unlock(&ftrace_lock);
 
 	return found ? 0 : -EINVAL;
 }
@@ -1596,7 +2131,7 @@ static int ftrace_convert_nops(struct module *mod,
 	unsigned long addr;
 	unsigned long flags;
 
-	mutex_lock(&ftrace_start_lock);
+	mutex_lock(&ftrace_lock);
 	p = start;
 	while (p < end) {
 		addr = ftrace_call_adjust(*p++);
@@ -1615,7 +2150,7 @@ static int ftrace_convert_nops(struct module *mod,
 	local_irq_save(flags);
 	ftrace_update_code(mod);
 	local_irq_restore(flags);
-	mutex_unlock(&ftrace_start_lock);
+	mutex_unlock(&ftrace_lock);
 
 	return 0;
 }
@@ -1788,7 +2323,7 @@ ftrace_pid_write(struct file *filp, const char __user *ubuf,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&ftrace_start_lock);
+	mutex_lock(&ftrace_lock);
 	if (val < 0) {
 		/* disable pid tracing */
 		if (!ftrace_pid_trace)
@@ -1827,7 +2362,7 @@ ftrace_pid_write(struct file *filp, const char __user *ubuf,
 	ftrace_startup_enable(0);
 
  out:
-	mutex_unlock(&ftrace_start_lock);
+	mutex_unlock(&ftrace_lock);
 
 	return cnt;
 }
@@ -1890,12 +2425,12 @@ int register_ftrace_function(struct ftrace_ops *ops)
 	if (unlikely(ftrace_disabled))
 		return -1;
 
-	mutex_lock(&ftrace_sysctl_lock);
+	mutex_lock(&ftrace_lock);
 
 	ret = __register_ftrace_function(ops);
 	ftrace_startup(0);
 
-	mutex_unlock(&ftrace_sysctl_lock);
+	mutex_unlock(&ftrace_lock);
 	return ret;
 }
 
@@ -1909,10 +2444,10 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 {
 	int ret;
 
-	mutex_lock(&ftrace_sysctl_lock);
+	mutex_lock(&ftrace_lock);
 	ret = __unregister_ftrace_function(ops);
 	ftrace_shutdown(0);
-	mutex_unlock(&ftrace_sysctl_lock);
+	mutex_unlock(&ftrace_lock);
 
 	return ret;
 }
@@ -1927,7 +2462,7 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
-	mutex_lock(&ftrace_sysctl_lock);
+	mutex_lock(&ftrace_lock);
 
 	ret  = proc_dointvec(table, write, file, buffer, lenp, ppos);
 
@@ -1956,7 +2491,7 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 	}
 
  out:
-	mutex_unlock(&ftrace_sysctl_lock);
+	mutex_unlock(&ftrace_lock);
 	return ret;
 }
 
@@ -2068,7 +2603,7 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 {
 	int ret = 0;
 
-	mutex_lock(&ftrace_sysctl_lock);
+	mutex_lock(&ftrace_lock);
 
 	ftrace_suspend_notifier.notifier_call = ftrace_suspend_notifier_call;
 	register_pm_notifier(&ftrace_suspend_notifier);
@@ -2086,13 +2621,13 @@ int register_ftrace_graph(trace_func_graph_ret_t retfunc,
 	ftrace_startup(FTRACE_START_FUNC_RET);
 
 out:
-	mutex_unlock(&ftrace_sysctl_lock);
+	mutex_unlock(&ftrace_lock);
 	return ret;
 }
 
 void unregister_ftrace_graph(void)
 {
-	mutex_lock(&ftrace_sysctl_lock);
+	mutex_lock(&ftrace_lock);
 
 	atomic_dec(&ftrace_graph_active);
 	ftrace_graph_return = (trace_func_graph_ret_t)ftrace_stub;
@@ -2100,7 +2635,7 @@ void unregister_ftrace_graph(void)
 	ftrace_shutdown(FTRACE_STOP_FUNC_RET);
 	unregister_pm_notifier(&ftrace_suspend_notifier);
 
-	mutex_unlock(&ftrace_sysctl_lock);
+	mutex_unlock(&ftrace_lock);
 }
 
 /* Allocate a return stack for newly created task */
