@@ -2,10 +2,9 @@
 # Makefile for local APIC drivers and for the IO-APIC code
 #
 
-obj-y				:= apic.o probe_$(BITS).o ipi.o nmi.o
+obj-$(CONFIG_X86_LOCAL_APIC)	+= apic.o probe_$(BITS).o ipi.o nmi.o
 obj-$(CONFIG_X86_IO_APIC)	+= io_apic.o
 obj-$(CONFIG_SMP)		+= ipi.o
-obj-$
 
 ifeq ($(CONFIG_X86_64),y)
 obj-y				+= apic_flat_64.o
