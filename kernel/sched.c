@@ -6944,20 +6944,26 @@ static void free_rootdomain(struct root_domain *rd)
 
 static void rq_attach_root(struct rq *rq, struct root_domain *rd)
 {
+	struct root_domain *old_rd = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rq->lock, flags);
 
 	if (rq->rd) {
-		struct root_domain *old_rd = rq->rd;
+		old_rd = rq->rd;
 
 		if (cpumask_test_cpu(rq->cpu, old_rd->online))
 			set_rq_offline(rq);
 
 		cpumask_clear_cpu(rq->cpu, old_rd->span);
 
-		if (atomic_dec_and_test(&old_rd->refcount))
-			free_rootdomain(old_rd);
+		/*
+		 * If we dont want to free the old_rt yet then
+		 * set old_rd to NULL to skip the freeing later
+		 * in this function:
+		 */
+		if (!atomic_dec_and_test(&old_rd->refcount))
+			old_rd = NULL;
 	}
 
 	atomic_inc(&rd->refcount);
@@ -6968,6 +6974,9 @@ static void rq_attach_root(struct rq *rq, struct root_domain *rd)
 		set_rq_online(rq);
 
 	spin_unlock_irqrestore(&rq->lock, flags);
+
+	if (old_rd)
+		free_rootdomain(old_rd);
 }
 
 static int __init_refok init_rootdomain(struct root_domain *rd, bool bootmem)
