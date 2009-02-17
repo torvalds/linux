@@ -24,90 +24,96 @@
  * http://www.unisys.com
  */
 
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/smp.h>
-#include <linux/string.h>
-#include <linux/spinlock.h>
-#include <linux/errno.h>
 #include <linux/notifier.h>
+#include <linux/spinlock.h>
+#include <linux/cpumask.h>
+#include <linux/threads.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/reboot.h>
-#include <linux/init.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <linux/errno.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/init.h>
+#include <linux/smp.h>
+
+#include <asm/apicdef.h>
+#include <asm/atomic.h>
+#include <asm/fixmap.h>
+#include <asm/mpspec.h>
+#include <asm/setup.h>
+#include <asm/apic.h>
+#include <asm/ipi.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
-#include <asm/atomic.h>
-#include <asm/apicdef.h>
-#include <asm/apic.h>
-#include <asm/setup.h>
+#include <asm/io.h>
 
 /*
  * ES7000 chipsets
  */
 
-#define NON_UNISYS		0
-#define ES7000_CLASSIC		1
-#define ES7000_ZORRO		2
+#define NON_UNISYS			0
+#define ES7000_CLASSIC			1
+#define ES7000_ZORRO			2
 
+#define	MIP_REG				1
+#define	MIP_PSAI_REG			4
 
-#define	MIP_REG			1
-#define	MIP_PSAI_REG		4
+#define	MIP_BUSY			1
+#define	MIP_SPIN			0xf0000
+#define	MIP_VALID			0x0100000000000000ULL
 
-#define	MIP_BUSY		1
-#define	MIP_SPIN		0xf0000
-#define	MIP_VALID		0x0100000000000000ULL
-#define	MIP_PORT(VALUE)	((VALUE >> 32) & 0xffff)
+#define	MIP_PORT(val)			((val >> 32) & 0xffff)
 
-#define	MIP_RD_LO(VALUE)	(VALUE & 0xffffffff)
+#define	MIP_RD_LO(val)			(val & 0xffffffff)
 
 struct mip_reg_info {
-	unsigned long long mip_info;
-	unsigned long long delivery_info;
-	unsigned long long host_reg;
-	unsigned long long mip_reg;
+	unsigned long long		mip_info;
+	unsigned long long		delivery_info;
+	unsigned long long		host_reg;
+	unsigned long long		mip_reg;
 };
 
 struct part_info {
-	unsigned char type;
-	unsigned char length;
-	unsigned char part_id;
-	unsigned char apic_mode;
-	unsigned long snum;
-	char ptype[16];
-	char sname[64];
-	char pname[64];
+	unsigned char			type;
+	unsigned char			length;
+	unsigned char			part_id;
+	unsigned char			apic_mode;
+	unsigned long			snum;
+	char				ptype[16];
+	char				sname[64];
+	char				pname[64];
 };
 
 struct psai {
-	unsigned long long entry_type;
-	unsigned long long addr;
-	unsigned long long bep_addr;
+	unsigned long long		entry_type;
+	unsigned long long		addr;
+	unsigned long long		bep_addr;
 };
 
 struct es7000_mem_info {
-	unsigned char type;
-	unsigned char length;
-	unsigned char resv[6];
-	unsigned long long  start;
-	unsigned long long  size;
+	unsigned char			type;
+	unsigned char			length;
+	unsigned char			resv[6];
+	unsigned long long		start;
+	unsigned long long		size;
 };
 
 struct es7000_oem_table {
-	unsigned long long hdr;
-	struct mip_reg_info mip;
-	struct part_info pif;
-	struct es7000_mem_info shm;
-	struct psai psai;
+	unsigned long long		hdr;
+	struct mip_reg_info		mip;
+	struct part_info		pif;
+	struct es7000_mem_info		shm;
+	struct psai			psai;
 };
 
 #ifdef CONFIG_ACPI
 
 struct oem_table {
-	struct acpi_table_header Header;
-	u32 OEMTableAddr;
-	u32 OEMTableSize;
+	struct acpi_table_header	Header;
+	u32				OEMTableAddr;
+	u32				OEMTableSize;
 };
 
 extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
@@ -115,36 +121,50 @@ extern void unmap_unisys_acpi_oem_table(unsigned long oem_addr);
 #endif
 
 struct mip_reg {
-	unsigned long long off_0;
-	unsigned long long off_8;
-	unsigned long long off_10;
-	unsigned long long off_18;
-	unsigned long long off_20;
-	unsigned long long off_28;
-	unsigned long long off_30;
-	unsigned long long off_38;
+	unsigned long long		off_0x00;
+	unsigned long long		off_0x08;
+	unsigned long long		off_0x10;
+	unsigned long long		off_0x18;
+	unsigned long long		off_0x20;
+	unsigned long long		off_0x28;
+	unsigned long long		off_0x30;
+	unsigned long long		off_0x38;
 };
 
-#define	MIP_SW_APIC		0x1020b
-#define	MIP_FUNC(VALUE)		(VALUE & 0xff)
+#define	MIP_SW_APIC			0x1020b
+#define	MIP_FUNC(VALUE)			(VALUE & 0xff)
+
+#define APIC_DFR_VALUE_CLUSTER		(APIC_DFR_CLUSTER)
+#define INT_DELIVERY_MODE_CLUSTER	(dest_LowestPrio)
+#define INT_DEST_MODE_CLUSTER		(1) /* logical delivery broadcast to all procs */
+
+#define APIC_DFR_VALUE			(APIC_DFR_FLAT)
+
+extern void es7000_enable_apic_mode(void);
+extern int parse_unisys_oem (char *oemptr);
+extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
+extern void unmap_unisys_acpi_oem_table(unsigned long oem_addr);
+extern void setup_unisys(void);
+
+#define apicid_cluster(apicid)		(apicid & 0xF0)
 
 /*
  * ES7000 Globals
  */
 
-static volatile unsigned long	*psai = NULL;
-static struct mip_reg		*mip_reg;
-static struct mip_reg		*host_reg;
-static int 			mip_port;
-static unsigned long		mip_addr, host_addr;
+static volatile unsigned long		*psai = NULL;
+static struct mip_reg			*mip_reg;
+static struct mip_reg			*host_reg;
+static int 				mip_port;
+static unsigned long			mip_addr, host_addr;
 
-int es7000_plat;
+int					es7000_plat;
 
 /*
  * GSI override for ES7000 platforms.
  */
 
-static unsigned int base;
+static unsigned int			base;
 
 static int
 es7000_rename_gsi(int ioapic, int gsi)
@@ -160,6 +180,7 @@ es7000_rename_gsi(int ioapic, int gsi)
 
 	if (!ioapic && (gsi < 16))
 		gsi += base;
+
 	return gsi;
 }
 
@@ -196,8 +217,7 @@ static int __init es7000_update_genapic(void)
 	return 0;
 }
 
-void __init
-setup_unisys(void)
+void __init setup_unisys(void)
 {
 	/*
 	 * Determine the generation of the ES7000 currently running.
@@ -219,8 +239,7 @@ setup_unisys(void)
  * Parse the OEM Table
  */
 
-int __init
-parse_unisys_oem (char *oemptr)
+int __init parse_unisys_oem (char *oemptr)
 {
 	int                     i;
 	int 			success = 0;
@@ -277,12 +296,15 @@ parse_unisys_oem (char *oemptr)
 		es7000_plat = NON_UNISYS;
 	} else
 		setup_unisys();
+
 	return es7000_plat;
 }
 
 #ifdef CONFIG_ACPI
-static unsigned long oem_addrX;
-static unsigned long oem_size;
+
+static unsigned long			oem_addrX;
+static unsigned long			oem_size;
+
 int __init find_unisys_acpi_oem_table(unsigned long *oem_addr)
 {
 	struct acpi_table_header *header = NULL;
@@ -315,8 +337,7 @@ void __init unmap_unisys_acpi_oem_table(unsigned long oem_addr)
 }
 #endif
 
-static void
-es7000_spin(int n)
+static void es7000_spin(int n)
 {
 	int i = 0;
 
@@ -327,16 +348,15 @@ es7000_spin(int n)
 static int __init
 es7000_mip_write(struct mip_reg *mip_reg)
 {
-	int			status = 0;
-	int			spin;
+	int status = 0;
+	int spin;
 
 	spin = MIP_SPIN;
-	while (((unsigned long long)host_reg->off_38 &
-		(unsigned long long)MIP_VALID) != 0) {
-			if (--spin <= 0) {
-				printk("es7000_mip_write: Timeout waiting for Host Valid Flag");
-				return -1;
-			}
+	while ((host_reg->off_0x38 & MIP_VALID) != 0) {
+		if (--spin <= 0) {
+			printk("es7000_mip_write: Timeout waiting for Host Valid Flag");
+			return -1;
+		}
 		es7000_spin(MIP_SPIN);
 	}
 
@@ -345,8 +365,7 @@ es7000_mip_write(struct mip_reg *mip_reg)
 
 	spin = MIP_SPIN;
 
-	while (((unsigned long long)mip_reg->off_38 &
-		(unsigned long long)MIP_VALID) == 0) {
+	while ((mip_reg->off_0x38 & MIP_VALID) == 0) {
 		if (--spin <= 0) {
 			printk("es7000_mip_write: Timeout waiting for MIP Valid Flag");
 			return -1;
@@ -354,10 +373,9 @@ es7000_mip_write(struct mip_reg *mip_reg)
 		es7000_spin(MIP_SPIN);
 	}
 
-	status = ((unsigned long long)mip_reg->off_0 &
-		(unsigned long long)0xffff0000000000ULL) >> 48;
-	mip_reg->off_38 = ((unsigned long long)mip_reg->off_38 &
-		(unsigned long long)~MIP_VALID);
+	status = (mip_reg->off_0x00 & 0xffff0000000000ULL) >> 48;
+	mip_reg->off_0x38 &= ~MIP_VALID;
+
 	return status;
 }
 
@@ -371,47 +389,14 @@ void __init es7000_enable_apic_mode(void)
 
 	printk("ES7000: Enabling APIC mode.\n");
        	memset(&es7000_mip_reg, 0, sizeof(struct mip_reg));
-       	es7000_mip_reg.off_0 = MIP_SW_APIC;
-       	es7000_mip_reg.off_38 = MIP_VALID;
+       	es7000_mip_reg.off_0x00 = MIP_SW_APIC;
+       	es7000_mip_reg.off_0x38 = MIP_VALID;
 
        	while ((mip_status = es7000_mip_write(&es7000_mip_reg)) != 0) {
 		printk("es7000_enable_apic_mode: command failed, status = %x\n",
 			mip_status);
 	}
 }
-
-/*
- * APIC driver for the Unisys ES7000 chipset.
- */
-#include <linux/threads.h>
-#include <linux/cpumask.h>
-#include <asm/mpspec.h>
-#include <asm/fixmap.h>
-#include <asm/apicdef.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/init.h>
-#include <linux/acpi.h>
-#include <linux/smp.h>
-#include <asm/ipi.h>
-
-#define APIC_DFR_VALUE_CLUSTER		(APIC_DFR_CLUSTER)
-#define INT_DELIVERY_MODE_CLUSTER	(dest_LowestPrio)
-#define INT_DEST_MODE_CLUSTER		(1) /* logical delivery broadcast to all procs */
-
-#define APIC_DFR_VALUE			(APIC_DFR_FLAT)
-
-extern void es7000_enable_apic_mode(void);
-extern int apic_version [MAX_APICS];
-extern unsigned int boot_cpu_physical_apicid;
-
-extern int parse_unisys_oem (char *oemptr);
-extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
-extern void unmap_unisys_acpi_oem_table(unsigned long oem_addr);
-extern void setup_unisys(void);
-
-#define apicid_cluster(apicid)		(apicid & 0xF0)
-#define xapic_phys_to_log_apicid(cpu)	per_cpu(x86_bios_cpu_apicid, cpu)
 
 static void es7000_vector_allocation_domain(int cpu, cpumask_t *retmask)
 {
@@ -495,9 +480,9 @@ static unsigned long es7000_check_apicid_present(int bit)
 
 static unsigned long calculate_ldr(int cpu)
 {
-	unsigned long id = xapic_phys_to_log_apicid(cpu);
+	unsigned long id = per_cpu(x86_bios_cpu_apicid, cpu);
 
-	return (SET_APIC_LOGICAL_ID(id));
+	return SET_APIC_LOGICAL_ID(id);
 }
 
 /*
@@ -547,7 +532,7 @@ static int es7000_cpu_present_to_apicid(int mps_cpu)
 	if (!mps_cpu)
 		return boot_cpu_physical_apicid;
 	else if (mps_cpu < nr_cpu_ids)
-		return (int) per_cpu(x86_bios_cpu_apicid, mps_cpu);
+		return per_cpu(x86_bios_cpu_apicid, mps_cpu);
 	else
 		return BAD_APICID;
 }
@@ -584,7 +569,7 @@ static physid_mask_t es7000_ioapic_phys_id_map(physid_mask_t phys_map)
 static int es7000_check_phys_apicid_present(int cpu_physical_apicid)
 {
 	boot_cpu_physical_apicid = read_apic_id();
-	return (1);
+	return 1;
 }
 
 static unsigned int
