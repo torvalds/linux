@@ -235,8 +235,8 @@ static int __init ram_console_init(struct ram_console_buffer *buffer,
 						ECC_BLOCK_SIZE) + 1) * ECC_SIZE;
 
 	if (ram_console_buffer_size > buffer_size) {
-		pr_err("ram_console: buffer %p, invalid size %d, "
-		       "non-ecc datasize %d\n",
+		pr_err("ram_console: buffer %p, invalid size %zu, "
+		       "non-ecc datasize %zu\n",
 		       buffer, buffer_size, ram_console_buffer_size);
 		return 0;
 	}
