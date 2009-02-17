@@ -179,9 +179,6 @@ static int acpi_pci_link_get_possible(struct acpi_pci_link *link)
 {
 	acpi_status status;
 
-	if (!link)
-		return -EINVAL;
-
 	status = acpi_walk_resources(link->device->handle, METHOD_NAME__PRS,
 				     acpi_pci_link_check_possible, link);
 	if (ACPI_FAILURE(status)) {
@@ -259,9 +256,6 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 	acpi_status status;
 	int irq = 0;
 
-	if (!link)
-		return -EINVAL;
-
 	link->irq.active = 0;
 
 	/* in practice, status disabled is meaningless, ignore it */
@@ -314,7 +308,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 	} *resource;
 	struct acpi_buffer buffer = { 0, NULL };
 
-	if (!link || !irq)
+	if (!irq)
 		return -EINVAL;
 
 	resource = kzalloc(sizeof(*resource) + 1, irqs_disabled() ? GFP_ATOMIC: GFP_KERNEL);
@@ -712,9 +706,6 @@ static int acpi_pci_link_add(struct acpi_device *device)
 	int i;
 	int found = 0;
 
-	if (!device)
-		return -EINVAL;
-
 	link = kzalloc(sizeof(struct acpi_pci_link), GFP_KERNEL);
 	if (!link)
 		return -ENOMEM;
@@ -794,9 +785,6 @@ static int irqrouter_resume(struct sys_device *dev)
 static int acpi_pci_link_remove(struct acpi_device *device, int type)
 {
 	struct acpi_pci_link *link;
-
-	if (!device || !acpi_driver_data(device))
-		return -EINVAL;
 
 	link = acpi_driver_data(device);
 
