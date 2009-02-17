@@ -18,6 +18,13 @@
 #include <linux/smp.h>
 #include <asm/io_apic.h>
 #include <asm/idle.h>
+#include <asm/apic.h>
+
+DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
+EXPORT_PER_CPU_SYMBOL(irq_stat);
+
+DEFINE_PER_CPU(struct pt_regs *, irq_regs);
+EXPORT_PER_CPU_SYMBOL(irq_regs);
 
 /*
  * Probabilistic stack overflow check:
@@ -41,42 +48,18 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 #endif
 }
 
-/*
- * do_IRQ handles all normal device IRQ's (the special
- * SMP cross-CPU interrupts have their own specific
- * handlers).
- */
-asmlinkage unsigned int __irq_entry do_IRQ(struct pt_regs *regs)
+bool handle_irq(unsigned irq, struct pt_regs *regs)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct irq_desc *desc;
-
-	/* high bit used in ret_from_ code  */
-	unsigned vector = ~regs->orig_ax;
-	unsigned irq;
-
-	exit_idle();
-	irq_enter();
-	irq = __get_cpu_var(vector_irq)[vector];
 
 	stack_overflow_check(regs);
 
 	desc = irq_to_desc(irq);
-	if (likely(desc))
-		generic_handle_irq_desc(irq, desc);
-	else {
-		if (!disable_apic)
-			ack_APIC_irq();
+	if (unlikely(!desc))
+		return false;
 
-		if (printk_ratelimit())
-			printk(KERN_EMERG "%s: %d.%d No irq handler for vector\n",
-				__func__, smp_processor_id(), vector);
-	}
-
-	irq_exit();
-
-	set_irq_regs(old_regs);
-	return 1;
+	generic_handle_irq_desc(irq, desc);
+	return true;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -100,7 +83,7 @@ void fixup_irqs(void)
 		/* interrupt's are disabled at this point */
 		spin_lock(&desc->lock);
 
-		affinity = &desc->affinity;
+		affinity = desc->affinity;
 		if (!irq_has_action(irq) ||
 		    cpumask_equal(affinity, cpu_online_mask)) {
 			spin_unlock(&desc->lock);

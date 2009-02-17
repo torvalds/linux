@@ -74,6 +74,9 @@ NORET_TYPE void panic(const char * fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 	printk(KERN_EMERG "Kernel panic - not syncing: %s\n",buf);
+#ifdef CONFIG_DEBUG_BUGVERBOSE
+	dump_stack();
+#endif
 	bust_spinlocks(0);
 
 	/*
@@ -355,15 +358,18 @@ EXPORT_SYMBOL(warn_slowpath);
 #endif
 
 #ifdef CONFIG_CC_STACKPROTECTOR
+
 /*
  * Called when gcc's -fstack-protector feature is used, and
  * gcc detects corruption of the on-stack canary value
  */
 void __stack_chk_fail(void)
 {
-	panic("stack-protector: Kernel stack is corrupted");
+	panic("stack-protector: Kernel stack is corrupted in: %p\n",
+		__builtin_return_address(0));
 }
 EXPORT_SYMBOL(__stack_chk_fail);
+
 #endif
 
 core_param(panic, panic_timeout, int, 0644);

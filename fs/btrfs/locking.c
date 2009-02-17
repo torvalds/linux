@@ -236,25 +236,3 @@ int btrfs_tree_locked(struct extent_buffer *eb)
 	return test_bit(EXTENT_BUFFER_BLOCKING, &eb->bflags) ||
 			spin_is_locked(&eb->lock);
 }
-
-/*
- * btrfs_search_slot uses this to decide if it should drop its locks
- * before doing something expensive like allocating free blocks for cow.
- */
-int btrfs_path_lock_waiting(struct btrfs_path *path, int level)
-{
-	int i;
-	struct extent_buffer *eb;
-
-	for (i = level; i <= level + 1 && i < BTRFS_MAX_LEVEL; i++) {
-		eb = path->nodes[i];
-		if (!eb)
-			break;
-		smp_mb();
-		if (spin_is_contended(&eb->lock) ||
-		    waitqueue_active(&eb->lock_wq))
-			return 1;
-	}
-	return 0;
-}
-

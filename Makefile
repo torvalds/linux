@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 29
-EXTRAVERSION = -rc4
+EXTRAVERSION = -rc5
 NAME = Erotic Pickled Herring
 
 # *DOCUMENTATION*
@@ -532,8 +532,9 @@ KBUILD_CFLAGS += $(call cc-option,-Wframe-larger-than=${CONFIG_FRAME_WARN})
 endif
 
 # Force gcc to behave correct even for buggy distributions
-# Arch Makefiles may override this setting
+ifndef CONFIG_CC_STACKPROTECTOR
 KBUILD_CFLAGS += $(call cc-option, -fno-stack-protector)
+endif
 
 ifdef CONFIG_FRAME_POINTER
 KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls

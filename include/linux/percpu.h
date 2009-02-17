@@ -8,35 +8,46 @@
 
 #include <asm/percpu.h>
 
+#ifndef PER_CPU_BASE_SECTION
 #ifdef CONFIG_SMP
-#define DEFINE_PER_CPU(type, name)					\
-	__attribute__((__section__(".data.percpu")))			\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
+#define PER_CPU_BASE_SECTION ".data.percpu"
+#else
+#define PER_CPU_BASE_SECTION ".data"
+#endif
+#endif
+
+#ifdef CONFIG_SMP
 
 #ifdef MODULE
-#define SHARED_ALIGNED_SECTION ".data.percpu"
+#define PER_CPU_SHARED_ALIGNED_SECTION ""
 #else
-#define SHARED_ALIGNED_SECTION ".data.percpu.shared_aligned"
+#define PER_CPU_SHARED_ALIGNED_SECTION ".shared_aligned"
 #endif
+#define PER_CPU_FIRST_SECTION ".first"
+
+#else
+
+#define PER_CPU_SHARED_ALIGNED_SECTION ""
+#define PER_CPU_FIRST_SECTION ""
+
+#endif
+
+#define DEFINE_PER_CPU_SECTION(type, name, section)			\
+	__attribute__((__section__(PER_CPU_BASE_SECTION section)))	\
+	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
+
+#define DEFINE_PER_CPU(type, name)					\
+	DEFINE_PER_CPU_SECTION(type, name, "")
 
 #define DEFINE_PER_CPU_SHARED_ALIGNED(type, name)			\
-	__attribute__((__section__(SHARED_ALIGNED_SECTION)))		\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name		\
+	DEFINE_PER_CPU_SECTION(type, name, PER_CPU_SHARED_ALIGNED_SECTION) \
 	____cacheline_aligned_in_smp
 
-#define DEFINE_PER_CPU_PAGE_ALIGNED(type, name)			\
-	__attribute__((__section__(".data.percpu.page_aligned")))	\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
-#else
-#define DEFINE_PER_CPU(type, name)					\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
+#define DEFINE_PER_CPU_PAGE_ALIGNED(type, name)				\
+	DEFINE_PER_CPU_SECTION(type, name, ".page_aligned")
 
-#define DEFINE_PER_CPU_SHARED_ALIGNED(type, name)		      \
-	DEFINE_PER_CPU(type, name)
-
-#define DEFINE_PER_CPU_PAGE_ALIGNED(type, name)		      \
-	DEFINE_PER_CPU(type, name)
-#endif
+#define DEFINE_PER_CPU_FIRST(type, name)				\
+	DEFINE_PER_CPU_SECTION(type, name, PER_CPU_FIRST_SECTION)
 
 #define EXPORT_PER_CPU_SYMBOL(var) EXPORT_SYMBOL(per_cpu__##var)
 #define EXPORT_PER_CPU_SYMBOL_GPL(var) EXPORT_SYMBOL_GPL(per_cpu__##var)

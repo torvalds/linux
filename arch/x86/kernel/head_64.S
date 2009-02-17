@@ -19,6 +19,7 @@
 #include <asm/msr.h>
 #include <asm/cache.h>
 #include <asm/processor-flags.h>
+#include <asm/percpu.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/asm-offsets.h>
@@ -226,12 +227,15 @@ ENTRY(secondary_startup_64)
 	movl %eax,%fs
 	movl %eax,%gs
 
-	/* 
-	 * Setup up a dummy PDA. this is just for some early bootup code
-	 * that does in_interrupt() 
-	 */ 
+	/* Set up %gs.
+	 *
+	 * The base of %gs always points to the bottom of the irqstack
+	 * union.  If the stack protector canary is enabled, it is
+	 * located at %gs:40.  Note that, on SMP, the boot cpu uses
+	 * init data section till per cpu areas are set up.
+	 */
 	movl	$MSR_GS_BASE,%ecx
-	movq	$empty_zero_page,%rax
+	movq	initial_gs(%rip),%rax
 	movq    %rax,%rdx
 	shrq	$32,%rdx
 	wrmsr	
@@ -257,6 +261,8 @@ ENTRY(secondary_startup_64)
 	.align	8
 	ENTRY(initial_code)
 	.quad	x86_64_start_kernel
+	ENTRY(initial_gs)
+	.quad	INIT_PER_CPU_VAR(irq_stack_union)
 	__FINITDATA
 
 	ENTRY(stack_start)
@@ -401,7 +407,8 @@ NEXT_PAGE(level2_spare_pgt)
 	.globl early_gdt_descr
 early_gdt_descr:
 	.word	GDT_ENTRIES*8-1
-	.quad   per_cpu__gdt_page
+early_gdt_descr_base:
+	.quad	INIT_PER_CPU_VAR(gdt_page)
 
 ENTRY(phys_base)
 	/* This must match the first entry in level2_kernel_pgt */

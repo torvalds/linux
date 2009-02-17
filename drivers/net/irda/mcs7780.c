@@ -585,7 +585,7 @@ static int mcs_speed_change(struct mcs_cb *mcs)
 		mcs_get_reg(mcs, MCS_RESV_REG, &rval);
 	} while(cnt++ < 100 && (rval & MCS_IRINTX));
 
-	if(cnt >= 100) {
+	if (cnt > 100) {
 		IRDA_ERROR("unable to change speed\n");
 		ret = -EIO;
 		goto error;

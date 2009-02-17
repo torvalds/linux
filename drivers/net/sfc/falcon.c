@@ -338,10 +338,10 @@ static int falcon_alloc_special_buffer(struct efx_nic *efx,
 	nic_data->next_buffer_table += buffer->entries;
 
 	EFX_LOG(efx, "allocating special buffers %d-%d at %llx+%x "
-		"(virt %p phys %lx)\n", buffer->index,
+		"(virt %p phys %llx)\n", buffer->index,
 		buffer->index + buffer->entries - 1,
-		(unsigned long long)buffer->dma_addr, len,
-		buffer->addr, virt_to_phys(buffer->addr));
+		(u64)buffer->dma_addr, len,
+		buffer->addr, (u64)virt_to_phys(buffer->addr));
 
 	return 0;
 }
@@ -353,10 +353,10 @@ static void falcon_free_special_buffer(struct efx_nic *efx,
 		return;
 
 	EFX_LOG(efx, "deallocating special buffers %d-%d at %llx+%x "
-		"(virt %p phys %lx)\n", buffer->index,
+		"(virt %p phys %llx)\n", buffer->index,
 		buffer->index + buffer->entries - 1,
-		(unsigned long long)buffer->dma_addr, buffer->len,
-		buffer->addr, virt_to_phys(buffer->addr));
+		(u64)buffer->dma_addr, buffer->len,
+		buffer->addr, (u64)virt_to_phys(buffer->addr));
 
 	pci_free_consistent(efx->pci_dev, buffer->len, buffer->addr,
 			    buffer->dma_addr);
@@ -2343,10 +2343,10 @@ int falcon_probe_port(struct efx_nic *efx)
 				 FALCON_MAC_STATS_SIZE);
 	if (rc)
 		return rc;
-	EFX_LOG(efx, "stats buffer at %llx (virt %p phys %lx)\n",
-		(unsigned long long)efx->stats_buffer.dma_addr,
+	EFX_LOG(efx, "stats buffer at %llx (virt %p phys %llx)\n",
+		(u64)efx->stats_buffer.dma_addr,
 		efx->stats_buffer.addr,
-		virt_to_phys(efx->stats_buffer.addr));
+		(u64)virt_to_phys(efx->stats_buffer.addr));
 
 	return 0;
 }
@@ -2921,9 +2921,9 @@ int falcon_probe_nic(struct efx_nic *efx)
 		goto fail4;
 	BUG_ON(efx->irq_status.dma_addr & 0x0f);
 
-	EFX_LOG(efx, "INT_KER at %llx (virt %p phys %lx)\n",
-		(unsigned long long)efx->irq_status.dma_addr,
-		efx->irq_status.addr, virt_to_phys(efx->irq_status.addr));
+	EFX_LOG(efx, "INT_KER at %llx (virt %p phys %llx)\n",
+		(u64)efx->irq_status.dma_addr,
+		efx->irq_status.addr, (u64)virt_to_phys(efx->irq_status.addr));
 
 	falcon_probe_spi_devices(efx);
 
