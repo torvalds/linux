@@ -30,7 +30,7 @@ struct x86_quirks {
 	void (*smp_read_mpc_oem)(struct mpc_oemtable *oemtable,
 				unsigned short oemsize);
 	int (*setup_ioapic_ids)(void);
-	int (*update_genapic)(void);
+	int (*update_apic)(void);
 };
 
 #endif /* __ASSEMBLY__ */

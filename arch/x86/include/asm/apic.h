@@ -248,7 +248,7 @@ static inline void disable_local_APIC(void) { }
  * Martin Bligh, Andi Kleen, James Bottomley, John Stultz, and
  * James Cleverdon.
  */
-struct genapic {
+struct apic {
 	char *name;
 
 	int (*probe)(void);
@@ -283,7 +283,7 @@ struct genapic {
 	int (*phys_pkg_id)(int cpuid_apic, int index_msb);
 
 	/*
-	 * When one of the next two hooks returns 1 the genapic
+	 * When one of the next two hooks returns 1 the apic
 	 * is switched to this. Essentially they are additional
 	 * probe functions:
 	 */
@@ -324,7 +324,7 @@ struct genapic {
 	u32 (*safe_wait_icr_idle)(void);
 };
 
-extern struct genapic *apic;
+extern struct apic *apic;
 
 static inline u32 apic_read(u32 reg)
 {
@@ -385,17 +385,17 @@ static inline unsigned default_get_apic_id(unsigned long x)
 #define DEFAULT_TRAMPOLINE_PHYS_HIGH		0x469
 
 #ifdef CONFIG_X86_32
-extern void es7000_update_genapic_to_cluster(void);
+extern void es7000_update_apic_to_cluster(void);
 #else
-extern struct genapic apic_flat;
-extern struct genapic apic_physflat;
-extern struct genapic apic_x2apic_cluster;
-extern struct genapic apic_x2apic_phys;
+extern struct apic apic_flat;
+extern struct apic apic_physflat;
+extern struct apic apic_x2apic_cluster;
+extern struct apic apic_x2apic_phys;
 extern int default_acpi_madt_oem_check(char *, char *);
 
 extern void apic_send_IPI_self(int vector);
 
-extern struct genapic apic_x2apic_uv_x;
+extern struct apic apic_x2apic_uv_x;
 DECLARE_PER_CPU(int, x2apic_extra_bits);
 
 extern int default_cpu_present_to_apicid(int mps_cpu);

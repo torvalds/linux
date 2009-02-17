@@ -210,7 +210,7 @@ static int probe_bigsmp(void)
 	return dmi_bigsmp;
 }
 
-struct genapic apic_bigsmp = {
+struct apic apic_bigsmp = {
 
 	.name				= "bigsmp",
 	.probe				= probe_bigsmp,

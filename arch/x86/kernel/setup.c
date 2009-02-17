@@ -599,7 +599,7 @@ static int __init setup_elfcorehdr(char *arg)
 early_param("elfcorehdr", setup_elfcorehdr);
 #endif
 
-static int __init default_update_genapic(void)
+static int __init default_update_apic(void)
 {
 #ifdef CONFIG_SMP
 	if (!apic->wakeup_cpu)
@@ -610,7 +610,7 @@ static int __init default_update_genapic(void)
 }
 
 static struct x86_quirks default_x86_quirks __initdata = {
-	.update_genapic         = default_update_genapic,
+	.update_apic         = default_update_apic,
 };
 
 struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;

@@ -240,7 +240,7 @@ static void uv_send_IPI_self(int vector)
 	apic_write(APIC_SELF_IPI, vector);
 }
 
-struct genapic apic_x2apic_uv_x = {
+struct apic apic_x2apic_uv_x = {
 
 	.name				= "UV large system",
 	.probe				= NULL,

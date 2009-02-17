@@ -256,7 +256,7 @@ static int __init numaq_setup_ioapic_ids(void)
 	return 1;
 }
 
-static int __init numaq_update_genapic(void)
+static int __init numaq_update_apic(void)
 {
 	apic->wakeup_cpu = wakeup_secondary_cpu_via_nmi;
 
@@ -278,7 +278,7 @@ static struct x86_quirks numaq_x86_quirks __initdata = {
 	.mpc_oem_pci_bus		= mpc_oem_pci_bus,
 	.smp_read_mpc_oem		= smp_read_mpc_oem,
 	.setup_ioapic_ids		= numaq_setup_ioapic_ids,
-	.update_genapic			= numaq_update_genapic,
+	.update_apic			= numaq_update_apic,
 };
 
 static __init void early_check_numaq(void)
@@ -500,7 +500,7 @@ static void numaq_setup_portio_remap(void)
 		(u_long) xquad_portio, (u_long) num_quads*XQUAD_PORTIO_QUAD);
 }
 
-struct genapic apic_numaq = {
+struct apic apic_numaq = {
 
 	.name				= "NUMAQ",
 	.probe				= probe_numaq,

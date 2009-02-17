@@ -537,7 +537,7 @@ void __init setup_summit(void)
 }
 #endif
 
-struct genapic apic_summit = {
+struct apic apic_summit = {
 
 	.name				= "summit",
 	.probe				= probe_summit,

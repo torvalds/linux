@@ -163,14 +163,14 @@ static int wakeup_secondary_cpu_via_mip(int cpu, unsigned long eip)
 	return 0;
 }
 
-static int __init es7000_update_genapic(void)
+static int __init es7000_update_apic(void)
 {
 	apic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
 
 	/* MPENTIUMIII */
 	if (boot_cpu_data.x86 == 6 &&
 	    (boot_cpu_data.x86_model >= 7 || boot_cpu_data.x86_model <= 11)) {
-		es7000_update_genapic_to_cluster();
+		es7000_update_apic_to_cluster();
 		apic->wait_for_init_deassert = NULL;
 		apic->wakeup_cpu = wakeup_secondary_cpu_via_mip;
 	}
@@ -193,7 +193,7 @@ static void __init setup_unisys(void)
 		es7000_plat = ES7000_CLASSIC;
 	ioapic_renumber_irq = es7000_rename_gsi;
 
-	x86_quirks->update_genapic = es7000_update_genapic;
+	x86_quirks->update_apic = es7000_update_apic;
 }
 
 /*
@@ -659,7 +659,7 @@ static int es7000_phys_pkg_id(int cpuid_apic, int index_msb)
 	return cpuid_apic >> index_msb;
 }
 
-void __init es7000_update_genapic_to_cluster(void)
+void __init es7000_update_apic_to_cluster(void)
 {
 	apic->target_cpus = target_cpus_cluster;
 	apic->irq_delivery_mode = dest_LowestPrio;
@@ -691,7 +691,7 @@ es7000_mps_oem_check(struct mpc_table *mpc, char *oem, char *productid)
 }
 
 
-struct genapic apic_es7000 = {
+struct apic apic_es7000 = {
 
 	.name				= "es7000",
 	.probe				= probe_es7000,

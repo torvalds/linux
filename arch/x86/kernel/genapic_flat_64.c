@@ -178,7 +178,7 @@ static int flat_phys_pkg_id(int initial_apic_id, int index_msb)
 	return hard_smp_processor_id() >> index_msb;
 }
 
-struct genapic apic_flat =  {
+struct apic apic_flat =  {
 	.name				= "flat",
 	.probe				= NULL,
 	.acpi_madt_oem_check		= flat_acpi_madt_oem_check,
@@ -327,7 +327,7 @@ physflat_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
 	return BAD_APICID;
 }
 
-struct genapic apic_physflat =  {
+struct apic apic_physflat =  {
 
 	.name				= "physical flat",
 	.probe				= NULL,

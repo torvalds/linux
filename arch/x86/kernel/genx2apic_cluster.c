@@ -182,7 +182,7 @@ static void init_x2apic_ldr(void)
 	per_cpu(x86_cpu_to_logical_apicid, cpu) = apic_read(APIC_LDR);
 }
 
-struct genapic apic_x2apic_cluster = {
+struct apic apic_x2apic_cluster = {
 
 	.name				= "cluster x2apic",
 	.probe				= NULL,

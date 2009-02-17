@@ -168,7 +168,7 @@ static void init_x2apic_ldr(void)
 {
 }
 
-struct genapic apic_x2apic_phys = {
+struct apic apic_x2apic_phys = {
 
 	.name				= "physical x2apic",
 	.probe				= NULL,
