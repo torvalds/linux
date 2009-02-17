@@ -585,6 +585,24 @@ ftrace_code_disable(struct module *mod, struct dyn_ftrace *rec)
 	return 1;
 }
 
+/*
+ * archs can override this function if they must do something
+ * before the modifying code is performed.
+ */
+int __weak ftrace_arch_code_modify_prepare(void)
+{
+	return 0;
+}
+
+/*
+ * archs can override this function if they must do something
+ * after the modifying code is performed.
+ */
+int __weak ftrace_arch_code_modify_post_process(void)
+{
+	return 0;
+}
+
 static int __ftrace_modify_code(void *data)
 {
 	int *command = data;
@@ -607,7 +625,17 @@ static int __ftrace_modify_code(void *data)
 
 static void ftrace_run_update_code(int command)
 {
+	int ret;
+
+	ret = ftrace_arch_code_modify_prepare();
+	FTRACE_WARN_ON(ret);
+	if (ret)
+		return;
+
 	stop_machine(__ftrace_modify_code, &command, NULL);
+
+	ret = ftrace_arch_code_modify_post_process();
+	FTRACE_WARN_ON(ret);
 }
 
 static ftrace_func_t saved_ftrace_func;

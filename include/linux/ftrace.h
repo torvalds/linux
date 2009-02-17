@@ -99,6 +99,9 @@ stack_trace_sysctl(struct ctl_table *table, int write,
 /* asm/ftrace.h must be defined for archs supporting dynamic ftrace */
 #include <asm/ftrace.h>
 
+int ftrace_arch_code_modify_prepare(void);
+int ftrace_arch_code_modify_post_process(void);
+
 enum {
 	FTRACE_FL_FREE		= (1 << 0),
 	FTRACE_FL_FAILED	= (1 << 1),
