@@ -167,15 +167,19 @@ static int __init pasic3_probe(struct platform_device *pdev)
 	/* calculate bus shift from mem resource */
 	asic->bus_shift = (resource_size(r) - 5) >> 3;
 
-	/* the first 5 PASIC3 registers control the DS1WM */
-	ds1wm_resources[0].end = (5 << asic->bus_shift) - 1;
-	ds1wm_cell.platform_data = &ds1wm_cell;
-	ds1wm_cell.data_size = sizeof(ds1wm_cell);
-	ret = mfd_add_devices(&pdev->dev, pdev->id, &ds1wm_cell, 1, r, irq);
-	if (ret < 0)
-		dev_warn(dev, "failed to register DS1WM\n");
+	if (pdata && pdata->clock_rate) {
+		ds1wm_pdata.clock_rate = pdata->clock_rate;
+		/* the first 5 PASIC3 registers control the DS1WM */
+		ds1wm_resources[0].end = (5 << asic->bus_shift) - 1;
+		ds1wm_cell.platform_data = &ds1wm_cell;
+		ds1wm_cell.data_size = sizeof(ds1wm_cell);
+		ret = mfd_add_devices(&pdev->dev, pdev->id,
+				&ds1wm_cell, 1, r, irq);
+		if (ret < 0)
+			dev_warn(dev, "failed to register DS1WM\n");
+	}
 
-	if (pdata->led_pdata) {
+	if (pdata && pdata->led_pdata) {
 		led_cell.driver_data = pdata->led_pdata;
 		led_cell.platform_data = &led_cell;
 		led_cell.data_size = sizeof(ds1wm_cell);
