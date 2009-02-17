@@ -1118,14 +1118,14 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 		goto fail_put_clk;
 	}
 
-	r = request_mem_region(r->start, r->end - r->start + 1, pdev->name);
+	r = request_mem_region(r->start, resource_size(r), pdev->name);
 	if (r == NULL) {
 		dev_err(&pdev->dev, "failed to request memory resource\n");
 		ret = -EBUSY;
 		goto fail_put_clk;
 	}
 
-	info->mmio_base = ioremap(r->start, r->end - r->start + 1);
+	info->mmio_base = ioremap(r->start, resource_size(r));
 	if (info->mmio_base == NULL) {
 		dev_err(&pdev->dev, "ioremap() failed\n");
 		ret = -ENODEV;
@@ -1174,7 +1174,7 @@ fail_free_buf:
 fail_free_io:
 	iounmap(info->mmio_base);
 fail_free_res:
-	release_mem_region(r->start, r->end - r->start + 1);
+	release_mem_region(r->start, resource_size(r));
 fail_put_clk:
 	clk_disable(info->clk);
 	clk_put(info->clk);
