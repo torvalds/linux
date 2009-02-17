@@ -24,7 +24,7 @@
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #endif
 
 static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)

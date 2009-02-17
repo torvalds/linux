@@ -11,7 +11,7 @@
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/msr.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 
 #include <asm/therm_throt.h>
 

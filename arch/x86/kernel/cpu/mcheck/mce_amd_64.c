@@ -24,7 +24,7 @@
 #include <linux/smp.h>
 #include <linux/sysdev.h>
 #include <linux/sysfs.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/percpu.h>

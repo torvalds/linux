@@ -24,7 +24,7 @@
 # include <asm/iommu.h>
 #endif
 
-#include <asm/genapic.h>
+#include <asm/apic.h>
 
 /*
  * Power off function, if any

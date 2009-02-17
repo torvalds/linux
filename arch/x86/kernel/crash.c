@@ -28,7 +28,7 @@
 #include <asm/reboot.h>
 #include <asm/virtext.h>
 
-#include <asm/genapic.h>
+#include <asm/apic.h>
 
 
 #if defined(CONFIG_SMP) && defined(CONFIG_X86_LOCAL_APIC)

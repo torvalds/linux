@@ -32,7 +32,7 @@
 #include <asm/io.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/processor.h>
 #include <asm/timer.h>
 #include <asm/vmi_time.h>

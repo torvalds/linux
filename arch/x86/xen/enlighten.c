@@ -36,7 +36,7 @@
 #include <xen/hvc-console.h>
 
 #include <asm/paravirt.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/page.h>
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>

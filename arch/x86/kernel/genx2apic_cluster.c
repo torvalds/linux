@@ -7,7 +7,7 @@
 #include <linux/dmar.h>
 
 #include <asm/smp.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/ipi.h>
 
 DEFINE_PER_CPU(u32, x86_cpu_to_logical_apicid);

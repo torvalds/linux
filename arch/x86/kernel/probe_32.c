@@ -17,20 +17,20 @@
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
 #include <asm/apicdef.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/setup.h>
 
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/smp.h>
 #include <linux/init.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/ipi.h>
 
 #include <linux/smp.h>
@@ -41,7 +41,7 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 
-#include <asm/genapic.h>
+#include <asm/apic.h>
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)

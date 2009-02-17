@@ -30,7 +30,7 @@
 #include <asm/vmi_time.h>
 #include <asm/arch_hooks.h>
 #include <asm/apicdef.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/timer.h>
 #include <asm/i8253.h>
 #include <asm/irq_vectors.h>

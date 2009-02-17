@@ -15,12 +15,12 @@
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/uv_bau.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/idle.h>
 #include <asm/tsc.h>
 #include <asm/irq_vectors.h>
 
-#include <asm/genapic.h>
+#include <asm/apic.h>
 
 static struct bau_control	**uv_bau_table_bases __read_mostly;
 static int			uv_bau_retry_limit __read_mostly;

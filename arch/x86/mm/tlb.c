@@ -14,7 +14,7 @@
 DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
 			= { &init_mm, 0, };
 
-#include <asm/genapic.h>
+#include <asm/apic.h>
 /*
  *	Smarter SMP flushing macros.
  *		c/o Linus Torvalds.

@@ -32,9 +32,9 @@
 #include <asm/e820.h>
 #include <asm/io.h>
 
-#include <asm/genapic.h>
+#include <asm/apic.h>
 
-#include <asm/genapic.h>
+#include <asm/apic.h>
 
 #include <linux/kernel_stat.h>
 

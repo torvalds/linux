@@ -40,7 +40,7 @@
 #include <asm/mpspec.h>
 #include <asm/apic.h>
 #include <asm/smp.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <asm/ipi.h>

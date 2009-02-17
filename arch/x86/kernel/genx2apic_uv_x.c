@@ -22,7 +22,7 @@
 #include <linux/proc_fs.h>
 #include <asm/current.h>
 #include <asm/smp.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/ipi.h>
 #include <asm/pgtable.h>
 #include <asm/uv/uv.h>

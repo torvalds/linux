@@ -31,7 +31,7 @@
 
 #include <asm/processor.h>
 #include <asm/topology.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/numaq.h>
 #include <asm/setup.h>
 #include <asm/e820.h>
@@ -301,7 +301,7 @@ int __init get_memcfg_numaq(void)
 #include <linux/threads.h>
 #include <linux/cpumask.h>
 #include <asm/mpspec.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <asm/ipi.h>

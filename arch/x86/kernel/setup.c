@@ -97,7 +97,7 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/paravirt.h>
 #include <asm/hypervisor.h>
 

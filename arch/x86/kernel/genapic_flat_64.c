@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/hardirq.h>
 #include <asm/smp.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/ipi.h>
 
 #ifdef CONFIG_ACPI

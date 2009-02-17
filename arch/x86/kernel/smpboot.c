@@ -60,12 +60,12 @@
 #include <asm/tlbflush.h>
 #include <asm/mtrr.h>
 #include <asm/vmi.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/setup.h>
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/smpboot_hooks.h>
 
 #ifdef CONFIG_X86_32

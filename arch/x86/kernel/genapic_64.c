@@ -19,7 +19,7 @@
 #include <linux/dmar.h>
 
 #include <asm/smp.h>
-#include <asm/genapic.h>
+#include <asm/apic.h>
 #include <asm/ipi.h>
 #include <asm/setup.h>
 
