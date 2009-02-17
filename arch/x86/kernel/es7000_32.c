@@ -23,7 +23,6 @@
  *
  * http://www.unisys.com
  */
-
 #include <linux/notifier.h>
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
@@ -63,60 +62,11 @@
 #define	MIP_BUSY			1
 #define	MIP_SPIN			0xf0000
 #define	MIP_VALID			0x0100000000000000ULL
+#define	MIP_SW_APIC			0x1020b
 
 #define	MIP_PORT(val)			((val >> 32) & 0xffff)
 
 #define	MIP_RD_LO(val)			(val & 0xffffffff)
-
-struct mip_reg_info {
-	unsigned long long		mip_info;
-	unsigned long long		delivery_info;
-	unsigned long long		host_reg;
-	unsigned long long		mip_reg;
-};
-
-struct part_info {
-	unsigned char			type;
-	unsigned char			length;
-	unsigned char			part_id;
-	unsigned char			apic_mode;
-	unsigned long			snum;
-	char				ptype[16];
-	char				sname[64];
-	char				pname[64];
-};
-
-struct psai {
-	unsigned long long		entry_type;
-	unsigned long long		addr;
-	unsigned long long		bep_addr;
-};
-
-struct es7000_mem_info {
-	unsigned char			type;
-	unsigned char			length;
-	unsigned char			resv[6];
-	unsigned long long		start;
-	unsigned long long		size;
-};
-
-struct es7000_oem_table {
-	unsigned long long		hdr;
-	struct mip_reg_info		mip;
-	struct part_info		pif;
-	struct es7000_mem_info		shm;
-	struct psai			psai;
-};
-
-#ifdef CONFIG_ACPI
-
-struct oem_table {
-	struct acpi_table_header	Header;
-	u32				OEMTableAddr;
-	u32				OEMTableSize;
-};
-
-#endif
 
 struct mip_reg {
 	unsigned long long		off_0x00;
@@ -129,14 +79,26 @@ struct mip_reg {
 	unsigned long long		off_0x38;
 };
 
-#define	MIP_SW_APIC			0x1020b
-#define	MIP_FUNC(VALUE)			(VALUE & 0xff)
+struct mip_reg_info {
+	unsigned long long		mip_info;
+	unsigned long long		delivery_info;
+	unsigned long long		host_reg;
+	unsigned long long		mip_reg;
+};
 
-#define APIC_DFR_VALUE_CLUSTER		(APIC_DFR_CLUSTER)
-#define INT_DELIVERY_MODE_CLUSTER	(dest_LowestPrio)
-#define INT_DEST_MODE_CLUSTER		(1) /* logical delivery broadcast to all procs */
+struct psai {
+	unsigned long long		entry_type;
+	unsigned long long		addr;
+	unsigned long long		bep_addr;
+};
 
-#define APIC_DFR_VALUE			(APIC_DFR_FLAT)
+#ifdef CONFIG_ACPI
+struct es7000_oem_table {
+	struct acpi_table_header	Header;
+	u32				OEMTableAddr;
+	u32				OEMTableSize;
+};
+#endif
 
 /*
  * ES7000 Globals
@@ -228,14 +190,14 @@ static void __init setup_unisys(void)
 /*
  * Parse the OEM Table:
  */
-static int __init parse_unisys_oem (char *oemptr)
+static int __init parse_unisys_oem(char *oemptr)
 {
-	int                     i;
+	int			i;
 	int 			success = 0;
-	unsigned char           type, size;
-	unsigned long           val;
-	char                    *tp = NULL;
-	struct psai             *psaip = NULL;
+	unsigned char		type, size;
+	unsigned long		val;
+	char			*tp = NULL;
+	struct psai		*psaip = NULL;
 	struct mip_reg_info 	*mi;
 	struct mip_reg		*host, *mip;
 
@@ -243,7 +205,7 @@ static int __init parse_unisys_oem (char *oemptr)
 
 	tp += 8;
 
-	for (i=0; i <= 6; i++) {
+	for (i = 0; i <= 6; i++) {
 		type = *tp++;
 		size = *tp++;
 		tp -= 2;
@@ -302,7 +264,7 @@ static int __init find_unisys_acpi_oem_table(unsigned long *oem_addr)
 
 	while (ACPI_SUCCESS(acpi_get_table_with_size("OEM1", i++, &header, &tbl_size))) {
 		if (!memcmp((char *) &header->oem_id, "UNISYS", 6)) {
-			struct oem_table *t = (struct oem_table *)header;
+			struct es7000_oem_table *t = (void *)header;
 
 			oem_addrX = t->OEMTableAddr;
 			oem_size = t->OEMTableSize;
@@ -377,11 +339,11 @@ static void __init es7000_enable_apic_mode(void)
 		return;
 
 	printk("ES7000: Enabling APIC mode.\n");
-       	memset(&es7000_mip_reg, 0, sizeof(struct mip_reg));
-       	es7000_mip_reg.off_0x00 = MIP_SW_APIC;
-       	es7000_mip_reg.off_0x38 = MIP_VALID;
+	memset(&es7000_mip_reg, 0, sizeof(struct mip_reg));
+	es7000_mip_reg.off_0x00 = MIP_SW_APIC;
+	es7000_mip_reg.off_0x38 = MIP_VALID;
 
-       	while ((mip_status = es7000_mip_write(&es7000_mip_reg)) != 0) {
+	while ((mip_status = es7000_mip_write(&es7000_mip_reg)) != 0) {
 		printk("es7000_enable_apic_mode: command failed, status = %x\n",
 			mip_status);
 	}
@@ -444,7 +406,7 @@ static void es7000_send_IPI_all(int vector)
 
 static int es7000_apic_id_registered(void)
 {
-	        return 1;
+	return 1;
 }
 
 static const cpumask_t *target_cpus_cluster(void)
@@ -486,7 +448,7 @@ static void es7000_init_apic_ldr_cluster(void)
 	unsigned long val;
 	int cpu = smp_processor_id();
 
-	apic_write(APIC_DFR, APIC_DFR_VALUE_CLUSTER);
+	apic_write(APIC_DFR, APIC_DFR_CLUSTER);
 	val = calculate_ldr(cpu);
 	apic_write(APIC_LDR, val);
 }
@@ -496,7 +458,7 @@ static void es7000_init_apic_ldr(void)
 	unsigned long val;
 	int cpu = smp_processor_id();
 
-	apic_write(APIC_DFR, APIC_DFR_VALUE);
+	apic_write(APIC_DFR, APIC_DFR_FLAT);
 	val = calculate_ldr(cpu);
 	apic_write(APIC_LDR, val);
 }
@@ -585,7 +547,7 @@ es7000_cpu_mask_to_apicid_cluster(const struct cpumask *cpumask)
 			int new_apicid = es7000_cpu_to_logical_apicid(cpu);
 
 			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-				printk ("%s: Not a valid mask!\n", __func__);
+				printk("%s: Not a valid mask!\n", __func__);
 
 				return 0xFF;
 			}
@@ -619,7 +581,7 @@ static unsigned int es7000_cpu_mask_to_apicid(const cpumask_t *cpumask)
 			int new_apicid = es7000_cpu_to_logical_apicid(cpu);
 
 			if (APIC_CLUSTER(apicid) != APIC_CLUSTER(new_apicid)) {
-				printk ("%s: Not a valid mask!\n", __func__);
+				printk("%s: Not a valid mask!\n", __func__);
 
 				return es7000_cpu_to_logical_apicid(0);
 			}
@@ -658,8 +620,9 @@ static int es7000_phys_pkg_id(int cpuid_apic, int index_msb)
 void __init es7000_update_genapic_to_cluster(void)
 {
 	apic->target_cpus = target_cpus_cluster;
-	apic->irq_delivery_mode = INT_DELIVERY_MODE_CLUSTER;
-	apic->irq_dest_mode = INT_DEST_MODE_CLUSTER;
+	apic->irq_delivery_mode = dest_LowestPrio;
+	/* logical delivery broadcast to all procs: */
+	apic->irq_dest_mode = 1;
 
 	apic->init_apic_ldr = es7000_init_apic_ldr_cluster;
 
