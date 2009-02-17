@@ -116,8 +116,6 @@ struct oem_table {
 	u32				OEMTableSize;
 };
 
-extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
-extern void unmap_unisys_acpi_oem_table(unsigned long oem_addr);
 #endif
 
 struct mip_reg {
@@ -139,12 +137,6 @@ struct mip_reg {
 #define INT_DEST_MODE_CLUSTER		(1) /* logical delivery broadcast to all procs */
 
 #define APIC_DFR_VALUE			(APIC_DFR_FLAT)
-
-extern void es7000_enable_apic_mode(void);
-extern int parse_unisys_oem (char *oemptr);
-extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
-extern void unmap_unisys_acpi_oem_table(unsigned long oem_addr);
-extern void setup_unisys(void);
 
 /*
  * ES7000 Globals
@@ -215,7 +207,7 @@ static int __init es7000_update_genapic(void)
 	return 0;
 }
 
-void __init setup_unisys(void)
+static void __init setup_unisys(void)
 {
 	/*
 	 * Determine the generation of the ES7000 currently running.
@@ -234,10 +226,9 @@ void __init setup_unisys(void)
 }
 
 /*
- * Parse the OEM Table
+ * Parse the OEM Table:
  */
-
-int __init parse_unisys_oem (char *oemptr)
+static int __init parse_unisys_oem (char *oemptr)
 {
 	int                     i;
 	int 			success = 0;
@@ -290,9 +281,9 @@ int __init parse_unisys_oem (char *oemptr)
 		tp += size;
 	}
 
-	if (success < 2) {
+	if (success < 2)
 		es7000_plat = NON_UNISYS;
-	} else
+	else
 		setup_unisys();
 
 	return es7000_plat;
@@ -303,7 +294,7 @@ int __init parse_unisys_oem (char *oemptr)
 static unsigned long			oem_addrX;
 static unsigned long			oem_size;
 
-int __init find_unisys_acpi_oem_table(unsigned long *oem_addr)
+static int __init find_unisys_acpi_oem_table(unsigned long *oem_addr)
 {
 	struct acpi_table_header *header = NULL;
 	int i = 0;
@@ -326,7 +317,7 @@ int __init find_unisys_acpi_oem_table(unsigned long *oem_addr)
 	return -1;
 }
 
-void __init unmap_unisys_acpi_oem_table(unsigned long oem_addr)
+static void __init unmap_unisys_acpi_oem_table(unsigned long oem_addr)
 {
 	if (!oem_addr)
 		return;
@@ -377,7 +368,7 @@ es7000_mip_write(struct mip_reg *mip_reg)
 	return status;
 }
 
-void __init es7000_enable_apic_mode(void)
+static void __init es7000_enable_apic_mode(void)
 {
 	struct mip_reg es7000_mip_reg;
 	int mip_status;
@@ -706,9 +697,9 @@ static int __init es7000_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	check_dsdt = es7000_check_dsdt();
 
 	if (!find_unisys_acpi_oem_table(&oem_addr)) {
-		if (check_dsdt)
+		if (check_dsdt) {
 			ret = parse_unisys_oem((char *)oem_addr);
-		else {
+		} else {
 			setup_unisys();
 			ret = 1;
 		}
