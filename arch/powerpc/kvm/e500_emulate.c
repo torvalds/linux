@@ -105,6 +105,11 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_HID1:
 		vcpu_e500->hid1 = vcpu->arch.gpr[rs]; break;
 
+	case SPRN_MMUCSR0:
+		emulated = kvmppc_e500_emul_mt_mmucsr0(vcpu_e500,
+				vcpu->arch.gpr[rs]);
+		break;
+
 	/* extra exceptions */
 	case SPRN_IVOR32:
 		vcpu->arch.ivor[BOOKE_IRQPRIO_SPE_UNAVAIL] = vcpu->arch.gpr[rs];
@@ -171,6 +176,9 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		vcpu->arch.gpr[rt] = vcpu_e500->hid0; break;
 	case SPRN_HID1:
 		vcpu->arch.gpr[rt] = vcpu_e500->hid1; break;
+
+	case SPRN_MMUCSR0:
+		vcpu->arch.gpr[rt] = 0; break;
 
 	/* extra exceptions */
 	case SPRN_IVOR32:

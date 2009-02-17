@@ -44,6 +44,7 @@
 	   | E500_TLB_USER_PERM_MASK | E500_TLB_SUPER_PERM_MASK)
 
 extern void kvmppc_dump_tlbs(struct kvm_vcpu *);
+extern int kvmppc_e500_emul_mt_mmucsr0(struct kvmppc_vcpu_e500 *, ulong);
 extern int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *);
 extern int kvmppc_e500_emul_tlbre(struct kvm_vcpu *);
 extern int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *, int, int);
