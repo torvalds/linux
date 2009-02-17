@@ -106,12 +106,18 @@ struct ftrace_func_command {
 /* asm/ftrace.h must be defined for archs supporting dynamic ftrace */
 #include <asm/ftrace.h>
 
+struct seq_file;
+
 struct ftrace_hook_ops {
 	void			(*func)(unsigned long ip,
 					unsigned long parent_ip,
 					void **data);
 	int			(*callback)(unsigned long ip, void **data);
 	void			(*free)(void **data);
+	int			(*print)(struct seq_file *m,
+					 unsigned long ip,
+					 struct ftrace_hook_ops *ops,
+					 void *data);
 };
 
 extern int

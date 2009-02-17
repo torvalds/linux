@@ -834,6 +834,9 @@ static int t_hash_show(struct seq_file *m, void *v)
 
 	rec = hlist_entry(hnd, struct ftrace_func_hook, node);
 
+	if (rec->ops->print)
+		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
+
 	kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
 	seq_printf(m, "%s:", str);
 
