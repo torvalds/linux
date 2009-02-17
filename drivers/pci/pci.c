@@ -1504,7 +1504,7 @@ u8 pci_common_swizzle(struct pci_dev *dev, u8 *pinp)
 {
 	u8 pin = *pinp;
 
-	while (dev->bus->self) {
+	while (dev->bus->parent) {
 		pin = pci_swizzle_interrupt_pin(dev, pin);
 		dev = dev->bus->self;
 	}
