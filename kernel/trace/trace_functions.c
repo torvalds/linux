@@ -267,13 +267,41 @@ ftrace_traceoff(unsigned long ip, unsigned long parent_ip, void **data)
 	tracing_off();
 }
 
+static int
+ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
+			 struct ftrace_hook_ops *ops, void *data);
+
 static struct ftrace_hook_ops traceon_hook_ops = {
 	.func			= ftrace_traceon,
+	.print			= ftrace_trace_onoff_print,
 };
 
 static struct ftrace_hook_ops traceoff_hook_ops = {
 	.func			= ftrace_traceoff,
+	.print			= ftrace_trace_onoff_print,
 };
+
+static int
+ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
+			 struct ftrace_hook_ops *ops, void *data)
+{
+	char str[KSYM_SYMBOL_LEN];
+	long count = (long)data;
+
+	kallsyms_lookup(ip, NULL, NULL, NULL, str);
+	seq_printf(m, "%s:", str);
+
+	if (ops == &traceon_hook_ops)
+		seq_printf(m, "traceon");
+	else
+		seq_printf(m, "traceoff");
+
+	if (count != -1)
+		seq_printf(m, ":count=%ld", count);
+	seq_putc(m, '\n');
+
+	return 0;
+}
 
 static int
 ftrace_trace_onoff_unreg(char *glob, char *cmd, char *param)
