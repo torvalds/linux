@@ -332,19 +332,14 @@ acpi_status acpi_get_hp_params_from_firmware(struct pci_bus *bus,
 {
 	acpi_status status = AE_NOT_FOUND;
 	acpi_handle handle, phandle;
-	struct pci_bus *pbus = bus;
-	struct pci_dev *pdev;
+	struct pci_bus *pbus;
 
-	do {
-		pdev = pbus->self;
-		if (!pdev) {
-			handle = acpi_get_pci_rootbridge_handle(
-				pci_domain_nr(pbus), pbus->number);
+	handle = NULL;
+	for (pbus = bus; pbus; pbus = pbus->parent) {
+		handle = acpi_pci_get_bridge_handle(pbus);
+		if (handle)
 			break;
-		}
-		handle = DEVICE_ACPI_HANDLE(&(pdev->dev));
-		pbus = pbus->parent;
-	} while (!handle);
+	}
 
 	/*
 	 * _HPP settings apply to all child buses, until another _HPP is
