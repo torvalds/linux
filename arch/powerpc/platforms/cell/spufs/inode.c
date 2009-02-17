@@ -186,8 +186,9 @@ static int spufs_rmdir(struct inode *parent, struct dentry *dir)
 	return simple_rmdir(parent, dir);
 }
 
-static int spufs_fill_dir(struct dentry *dir, struct spufs_tree_descr *files,
-			  int mode, struct spu_context *ctx)
+static int spufs_fill_dir(struct dentry *dir,
+		const struct spufs_tree_descr *files, int mode,
+		struct spu_context *ctx)
 {
 	struct dentry *dentry, *tmp;
 	int ret;
