@@ -2131,8 +2131,6 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 	if (fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_MJPEG)
 		return -EINVAL;
 
-	fmt->fmt.pix.bytesperline = 0;
-
 	mutex_lock(&zr->resource_lock);
 	settings = fh->jpg_settings;
 
@@ -2157,6 +2155,14 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 	else
 		settings.field_per_buff = 1;
 
+	if (settings.HorDcm > 1) {
+		settings.img_x = (BUZ_MAX_WIDTH == 720) ? 8 : 0;
+		settings.img_width = (BUZ_MAX_WIDTH == 720) ? 704 : BUZ_MAX_WIDTH;
+	} else {
+		settings.img_x = 0;
+		settings.img_width = BUZ_MAX_WIDTH;
+	}
+
 	/* check */
 	res = zoran_check_jpg_settings(zr, &settings, 1);
 	if (res)
@@ -2174,6 +2180,8 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 				V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM);
 
 	fmt->fmt.pix.sizeimage = zoran_v4l2_calc_bufsize(&settings);
+	fmt->fmt.pix.bytesperline = 0;
+	fmt->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 tryfmt_unlock_and_return:
 	mutex_unlock(&zr->resource_lock);
 	return res;
