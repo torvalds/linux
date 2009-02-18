@@ -238,9 +238,6 @@ enum gpcs_type {
 
 struct zoran_format {
 	char *name;
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	int palette;
-#endif
 	__u32 fourcc;
 	int colorspace;
 	int depth;

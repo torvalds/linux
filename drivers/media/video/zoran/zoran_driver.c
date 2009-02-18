@@ -58,16 +58,6 @@
 #include <linux/i2c-algo-bit.h>
 
 #include <linux/spinlock.h>
-#define     MAP_NR(x)       virt_to_page(x)
-#define     ZORAN_VID_TYPE  ( \
-				VID_TYPE_CAPTURE | \
-				VID_TYPE_OVERLAY | \
-				VID_TYPE_CLIPPING | \
-				VID_TYPE_FRAMERAM | \
-				VID_TYPE_SCALES | \
-				VID_TYPE_MJPEG_DECODER | \
-				VID_TYPE_MJPEG_ENCODER \
-			     )
 
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
@@ -86,29 +76,12 @@
 #include "zoran_device.h"
 #include "zoran_card.h"
 
-	/* we declare some card type definitions here, they mean
-	 * the same as the v4l1 ZORAN_VID_TYPE above, except it's v4l2 */
-#define ZORAN_V4L2_VID_FLAGS ( \
-				V4L2_CAP_STREAMING |\
-				V4L2_CAP_VIDEO_CAPTURE |\
-				V4L2_CAP_VIDEO_OUTPUT |\
-				V4L2_CAP_VIDEO_OVERLAY \
-			      )
-
-
-#if defined(CONFIG_VIDEO_V4L1_COMPAT)
-#define ZFMT(pal, fcc, cs) \
-	.palette = (pal), .fourcc = (fcc), .colorspace = (cs)
-#else
-#define ZFMT(pal, fcc, cs) \
-	.fourcc = (fcc), .colorspace = (cs)
-#endif
 
 const struct zoran_format zoran_formats[] = {
 	{
 		.name = "15-bit RGB LE",
-		ZFMT(VIDEO_PALETTE_RGB555,
-		     V4L2_PIX_FMT_RGB555, V4L2_COLORSPACE_SRGB),
+		.fourcc = V4L2_PIX_FMT_RGB555,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 15,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
@@ -116,16 +89,16 @@ const struct zoran_format zoran_formats[] = {
 			   ZR36057_VFESPFR_LittleEndian,
 	}, {
 		.name = "15-bit RGB BE",
-		ZFMT(-1,
-		     V4L2_PIX_FMT_RGB555X, V4L2_COLORSPACE_SRGB),
+		.fourcc = V4L2_PIX_FMT_RGB555X,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 15,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
 		.vfespfr = ZR36057_VFESPFR_RGB555|ZR36057_VFESPFR_ErrDif,
 	}, {
 		.name = "16-bit RGB LE",
-		ZFMT(VIDEO_PALETTE_RGB565,
-		     V4L2_PIX_FMT_RGB565, V4L2_COLORSPACE_SRGB),
+		.fourcc = V4L2_PIX_FMT_RGB565,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
@@ -133,56 +106,56 @@ const struct zoran_format zoran_formats[] = {
 			   ZR36057_VFESPFR_LittleEndian,
 	}, {
 		.name = "16-bit RGB BE",
-		ZFMT(-1,
-		     V4L2_PIX_FMT_RGB565X, V4L2_COLORSPACE_SRGB),
+		.fourcc = V4L2_PIX_FMT_RGB565X,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
 		.vfespfr = ZR36057_VFESPFR_RGB565|ZR36057_VFESPFR_ErrDif,
 	}, {
 		.name = "24-bit RGB",
-		ZFMT(VIDEO_PALETTE_RGB24,
-		     V4L2_PIX_FMT_BGR24, V4L2_COLORSPACE_SRGB),
+		.fourcc = V4L2_PIX_FMT_BGR24,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 24,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
 		.vfespfr = ZR36057_VFESPFR_RGB888|ZR36057_VFESPFR_Pack24,
 	}, {
 		.name = "32-bit RGB LE",
-		ZFMT(VIDEO_PALETTE_RGB32,
-		     V4L2_PIX_FMT_BGR32, V4L2_COLORSPACE_SRGB),
+		.fourcc = V4L2_PIX_FMT_BGR32,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 32,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
 		.vfespfr = ZR36057_VFESPFR_RGB888|ZR36057_VFESPFR_LittleEndian,
 	}, {
 		.name = "32-bit RGB BE",
-		ZFMT(-1,
-		     V4L2_PIX_FMT_RGB32, V4L2_COLORSPACE_SRGB),
+		.fourcc = V4L2_PIX_FMT_RGB32,
+		.colorspace = V4L2_COLORSPACE_SRGB,
 		.depth = 32,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
 		.vfespfr = ZR36057_VFESPFR_RGB888,
 	}, {
 		.name = "4:2:2, packed, YUYV",
-		ZFMT(VIDEO_PALETTE_YUV422,
-		     V4L2_PIX_FMT_YUYV, V4L2_COLORSPACE_SMPTE170M),
+		.fourcc = V4L2_PIX_FMT_YUYV,
+		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
 		.vfespfr = ZR36057_VFESPFR_YUV422,
 	}, {
 		.name = "4:2:2, packed, UYVY",
-		ZFMT(VIDEO_PALETTE_UYVY,
-		     V4L2_PIX_FMT_UYVY, V4L2_COLORSPACE_SMPTE170M),
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
 		.vfespfr = ZR36057_VFESPFR_YUV422|ZR36057_VFESPFR_LittleEndian,
 	}, {
 		.name = "Hardware-encoded Motion-JPEG",
-		ZFMT(-1,
-		     V4L2_PIX_FMT_MJPEG, V4L2_COLORSPACE_SMPTE170M),
+		.fourcc = V4L2_PIX_FMT_MJPEG,
+		.colorspace = V4L2_COLORSPACE_SMPTE170M,
 		.depth = 0,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_PLAYBACK |
@@ -260,7 +233,7 @@ v4l_fbuffer_alloc (struct file *file)
 		    virt_to_bus(mem);
 		for (off = 0; off < fh->v4l_buffers.buffer_size;
 		     off += PAGE_SIZE)
-			SetPageReserved(MAP_NR(mem + off));
+			SetPageReserved(virt_to_page(mem + off));
 		dprintk(4,
 			KERN_INFO
 			"%s: v4l_fbuffer_alloc() - V4L frame %d mem 0x%lx (bus: 0x%lx)\n",
@@ -291,7 +264,7 @@ v4l_fbuffer_free (struct file *file)
 		mem = fh->v4l_buffers.buffer[i].fbuffer;
 		for (off = 0; off < fh->v4l_buffers.buffer_size;
 		     off += PAGE_SIZE)
-			ClearPageReserved(MAP_NR(mem + off));
+			ClearPageReserved(virt_to_page(mem + off));
 		kfree((void *) fh->v4l_buffers.buffer[i].fbuffer);
 		fh->v4l_buffers.buffer[i].fbuffer = NULL;
 	}
@@ -377,7 +350,7 @@ jpg_fbuffer_alloc (struct file *file)
 			    cpu_to_le32(((fh->jpg_buffers.buffer_size / 4) << 1) | 1);
 			for (off = 0; off < fh->jpg_buffers.buffer_size;
 			     off += PAGE_SIZE)
-				SetPageReserved(MAP_NR(mem + off));
+				SetPageReserved(virt_to_page(mem + off));
 		} else {
 			/* jpg_bufsize is already page aligned */
 			for (j = 0;
@@ -398,7 +371,7 @@ jpg_fbuffer_alloc (struct file *file)
 				fh->jpg_buffers.buffer[i].frag_tab[2 * j +
 								   1] =
 				    cpu_to_le32((PAGE_SIZE / 4) << 1);
-				SetPageReserved(MAP_NR(mem));
+				SetPageReserved(virt_to_page(mem));
 			}
 
 			fh->jpg_buffers.buffer[i].frag_tab[2 * j - 1] |= cpu_to_le32(1);
@@ -424,6 +397,7 @@ jpg_fbuffer_free (struct file *file)
 	struct zoran *zr = fh->zr;
 	int i, j, off;
 	unsigned char *mem;
+	__le32 frag_tab;
 
 	dprintk(4, KERN_DEBUG "%s: jpg_fbuffer_free()\n", ZR_DEVNAME(zr));
 
@@ -431,48 +405,31 @@ jpg_fbuffer_free (struct file *file)
 		if (!fh->jpg_buffers.buffer[i].frag_tab)
 			continue;
 
-		//if (alloc_contig) {
 		if (fh->jpg_buffers.need_contiguous) {
-			if (fh->jpg_buffers.buffer[i].frag_tab[0]) {
-				mem = (unsigned char *) bus_to_virt(le32_to_cpu(
-					fh->jpg_buffers.buffer[i].frag_tab[0]));
-				for (off = 0;
-				     off < fh->jpg_buffers.buffer_size;
-				     off += PAGE_SIZE)
-					ClearPageReserved(MAP_NR
-							  (mem + off));
+			frag_tab = fh->jpg_buffers.buffer[i].frag_tab[0];
+
+			if (frag_tab) {
+				mem = (unsigned char *)bus_to_virt(le32_to_cpu(frag_tab));
+				for (off = 0; off < fh->jpg_buffers.buffer_size; off += PAGE_SIZE)
+					ClearPageReserved(virt_to_page(mem + off));
 				kfree(mem);
 				fh->jpg_buffers.buffer[i].frag_tab[0] = 0;
 				fh->jpg_buffers.buffer[i].frag_tab[1] = 0;
 			}
 		} else {
-			for (j = 0;
-			     j < fh->jpg_buffers.buffer_size / PAGE_SIZE;
-			     j++) {
-				if (!fh->jpg_buffers.buffer[i].
-				    frag_tab[2 * j])
+			for (j = 0; j < fh->jpg_buffers.buffer_size / PAGE_SIZE; j++) {
+				frag_tab = fh->jpg_buffers.buffer[i].frag_tab[2 * j];
+
+				if (!frag_tab)
 					break;
-				ClearPageReserved(MAP_NR
-						  (bus_to_virt
-						   (le32_to_cpu
-						    (fh->jpg_buffers.
-						     buffer[i].frag_tab[2 *
-								       j]))));
-				free_page((unsigned long)
-					  bus_to_virt
-						  (le32_to_cpu
-						   (fh->jpg_buffers.
-						      buffer[i].
-						      frag_tab[2 * j])));
-				fh->jpg_buffers.buffer[i].frag_tab[2 * j] =
-				    0;
-				fh->jpg_buffers.buffer[i].frag_tab[2 * j +
-								   1] = 0;
+				ClearPageReserved(virt_to_page(bus_to_virt(le32_to_cpu(frag_tab))));
+				free_page((unsigned long)bus_to_virt(le32_to_cpu(frag_tab)));
+				fh->jpg_buffers.buffer[i].frag_tab[2 * j] = 0;
+				fh->jpg_buffers.buffer[i].frag_tab[2 * j + 1] = 0;
 			}
 		}
 
-		free_page((unsigned long) fh->jpg_buffers.buffer[i].
-			  frag_tab);
+		free_page((unsigned long)fh->jpg_buffers.buffer[i].frag_tab);
 		fh->jpg_buffers.buffer[i].frag_tab = NULL;
 	}
 
@@ -2016,11 +1973,10 @@ static int zoran_querycap(struct file *file, void *__fh, struct v4l2_capability 
 	strncpy(cap->driver, "zoran", sizeof(cap->driver)-1);
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(zr->pci_dev));
-	cap->version =
-	    KERNEL_VERSION(MAJOR_VERSION, MINOR_VERSION,
+	cap->version = KERNEL_VERSION(MAJOR_VERSION, MINOR_VERSION,
 			   RELEASE_VERSION);
-	cap->capabilities = ZORAN_V4L2_VID_FLAGS;
-
+	cap->capabilities = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE |
+			    V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_VIDEO_OVERLAY;
 	return 0;
 }
 
