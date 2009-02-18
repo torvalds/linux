@@ -255,9 +255,9 @@ static struct pid * const ftrace_swapper_pid = &init_struct_pid;
 
 static struct hlist_head ftrace_func_hash[FTRACE_FUNC_HASHSIZE] __read_mostly;
 
-struct ftrace_func_hook {
+struct ftrace_func_probe {
 	struct hlist_node	node;
-	struct ftrace_hook_ops	*ops;
+	struct ftrace_probe_ops	*ops;
 	unsigned long		flags;
 	unsigned long		ip;
 	void			*data;
@@ -460,8 +460,8 @@ static void ftrace_bug(int failed, unsigned long ip)
 static int
 __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {
-	unsigned long ip, fl;
 	unsigned long ftrace_addr;
+	unsigned long ip, fl;
 
 	ftrace_addr = (unsigned long)FTRACE_ADDR;
 
@@ -530,9 +530,9 @@ __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 
 static void ftrace_replace_code(int enable)
 {
-	int failed;
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
+	int failed;
 
 	do_for_each_ftrace_rec(pg, rec) {
 		/*
@@ -830,11 +830,11 @@ static void *t_hash_start(struct seq_file *m, loff_t *pos)
 
 static int t_hash_show(struct seq_file *m, void *v)
 {
-	struct ftrace_func_hook *rec;
+	struct ftrace_func_probe *rec;
 	struct hlist_node *hnd = v;
 	char str[KSYM_SYMBOL_LEN];
 
-	rec = hlist_entry(hnd, struct ftrace_func_hook, node);
+	rec = hlist_entry(hnd, struct ftrace_func_probe, node);
 
 	if (rec->ops->print)
 		return rec->ops->print(m, rec->ip, rec->ops, rec->data);
@@ -1208,14 +1208,15 @@ ftrace_match_record(struct dyn_ftrace *rec, char *regex, int len, int type)
 
 static void ftrace_match_records(char *buff, int len, int enable)
 {
-	char *search;
+	unsigned int search_len;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
+	unsigned long flag;
+	char *search;
 	int type;
-	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
-	unsigned search_len;
 	int not;
 
+	flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
 	type = ftrace_setup_glob(buff, len, &search, &not);
 
 	search_len = strlen(search);
@@ -1263,13 +1264,15 @@ ftrace_match_module_record(struct dyn_ftrace *rec, char *mod,
 
 static void ftrace_match_module_records(char *buff, char *mod, int enable)
 {
-	char *search = buff;
+	unsigned search_len = 0;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
 	int type = MATCH_FULL;
-	unsigned long flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
-	unsigned search_len = 0;
+	char *search = buff;
+	unsigned long flag;
 	int not = 0;
+
+	flag = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
 
 	/* blank or '*' mean the same */
 	if (strcmp(buff, "*") == 0)
@@ -1348,9 +1351,9 @@ static int __init ftrace_mod_cmd_init(void)
 device_initcall(ftrace_mod_cmd_init);
 
 static void
-function_trace_hook_call(unsigned long ip, unsigned long parent_ip)
+function_trace_probe_call(unsigned long ip, unsigned long parent_ip)
 {
-	struct ftrace_func_hook *entry;
+	struct ftrace_func_probe *entry;
 	struct hlist_head *hhd;
 	struct hlist_node *n;
 	unsigned long key;
@@ -1376,18 +1379,18 @@ function_trace_hook_call(unsigned long ip, unsigned long parent_ip)
 	ftrace_preempt_enable(resched);
 }
 
-static struct ftrace_ops trace_hook_ops __read_mostly =
+static struct ftrace_ops trace_probe_ops __read_mostly =
 {
-	.func = function_trace_hook_call,
+	.func = function_trace_probe_call,
 };
 
-static int ftrace_hook_registered;
+static int ftrace_probe_registered;
 
-static void __enable_ftrace_function_hook(void)
+static void __enable_ftrace_function_probe(void)
 {
 	int i;
 
-	if (ftrace_hook_registered)
+	if (ftrace_probe_registered)
 		return;
 
 	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
@@ -1399,16 +1402,16 @@ static void __enable_ftrace_function_hook(void)
 	if (i == FTRACE_FUNC_HASHSIZE)
 		return;
 
-	__register_ftrace_function(&trace_hook_ops);
+	__register_ftrace_function(&trace_probe_ops);
 	ftrace_startup(0);
-	ftrace_hook_registered = 1;
+	ftrace_probe_registered = 1;
 }
 
-static void __disable_ftrace_function_hook(void)
+static void __disable_ftrace_function_probe(void)
 {
 	int i;
 
-	if (!ftrace_hook_registered)
+	if (!ftrace_probe_registered)
 		return;
 
 	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
@@ -1418,16 +1421,16 @@ static void __disable_ftrace_function_hook(void)
 	}
 
 	/* no more funcs left */
-	__unregister_ftrace_function(&trace_hook_ops);
+	__unregister_ftrace_function(&trace_probe_ops);
 	ftrace_shutdown(0);
-	ftrace_hook_registered = 0;
+	ftrace_probe_registered = 0;
 }
 
 
 static void ftrace_free_entry_rcu(struct rcu_head *rhp)
 {
-	struct ftrace_func_hook *entry =
-		container_of(rhp, struct ftrace_func_hook, rcu);
+	struct ftrace_func_probe *entry =
+		container_of(rhp, struct ftrace_func_probe, rcu);
 
 	if (entry->ops->free)
 		entry->ops->free(&entry->data);
@@ -1436,21 +1439,21 @@ static void ftrace_free_entry_rcu(struct rcu_head *rhp)
 
 
 int
-register_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			      void *data)
 {
-	struct ftrace_func_hook *entry;
+	struct ftrace_func_probe *entry;
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
-	unsigned long key;
 	int type, len, not;
+	unsigned long key;
 	int count = 0;
 	char *search;
 
 	type = ftrace_setup_glob(glob, strlen(glob), &search, &not);
 	len = strlen(search);
 
-	/* we do not support '!' for function hooks */
+	/* we do not support '!' for function probes */
 	if (WARN_ON(not))
 		return -EINVAL;
 
@@ -1465,7 +1468,7 @@ register_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
 
 		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 		if (!entry) {
-			/* If we did not hook to any, then return error */
+			/* If we did not process any, then return error */
 			if (!count)
 				count = -ENOMEM;
 			goto out_unlock;
@@ -1495,7 +1498,7 @@ register_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
 		hlist_add_head_rcu(&entry->node, &ftrace_func_hash[key]);
 
 	} while_for_each_ftrace_rec();
-	__enable_ftrace_function_hook();
+	__enable_ftrace_function_probe();
 
  out_unlock:
 	mutex_unlock(&ftrace_lock);
@@ -1504,15 +1507,15 @@ register_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
 }
 
 enum {
-	HOOK_TEST_FUNC		= 1,
-	HOOK_TEST_DATA		= 2
+	PROBE_TEST_FUNC		= 1,
+	PROBE_TEST_DATA		= 2
 };
 
 static void
-__unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+__unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 				  void *data, int flags)
 {
-	struct ftrace_func_hook *entry;
+	struct ftrace_func_probe *entry;
 	struct hlist_node *n, *tmp;
 	char str[KSYM_SYMBOL_LEN];
 	int type = MATCH_FULL;
@@ -1527,7 +1530,7 @@ __unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
 		type = ftrace_setup_glob(glob, strlen(glob), &search, &not);
 		len = strlen(search);
 
-		/* we do not support '!' for function hooks */
+		/* we do not support '!' for function probes */
 		if (WARN_ON(not))
 			return;
 	}
@@ -1539,10 +1542,10 @@ __unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
 		hlist_for_each_entry_safe(entry, n, tmp, hhd, node) {
 
 			/* break up if statements for readability */
-			if ((flags & HOOK_TEST_FUNC) && entry->ops != ops)
+			if ((flags & PROBE_TEST_FUNC) && entry->ops != ops)
 				continue;
 
-			if ((flags & HOOK_TEST_DATA) && entry->data != data)
+			if ((flags & PROBE_TEST_DATA) && entry->data != data)
 				continue;
 
 			/* do this last, since it is the most expensive */
@@ -1557,27 +1560,27 @@ __unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
 			call_rcu(&entry->rcu, ftrace_free_entry_rcu);
 		}
 	}
-	__disable_ftrace_function_hook();
+	__disable_ftrace_function_probe();
 	mutex_unlock(&ftrace_lock);
 }
 
 void
-unregister_ftrace_function_hook(char *glob, struct ftrace_hook_ops *ops,
+unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 				void *data)
 {
-	__unregister_ftrace_function_hook(glob, ops, data,
-					  HOOK_TEST_FUNC | HOOK_TEST_DATA);
+	__unregister_ftrace_function_probe(glob, ops, data,
+					  PROBE_TEST_FUNC | PROBE_TEST_DATA);
 }
 
 void
-unregister_ftrace_function_hook_func(char *glob, struct ftrace_hook_ops *ops)
+unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops)
 {
-	__unregister_ftrace_function_hook(glob, ops, NULL, HOOK_TEST_FUNC);
+	__unregister_ftrace_function_probe(glob, ops, NULL, PROBE_TEST_FUNC);
 }
 
-void unregister_ftrace_function_hook_all(char *glob)
+void unregister_ftrace_function_probe_all(char *glob)
 {
-	__unregister_ftrace_function_hook(glob, NULL, NULL, 0);
+	__unregister_ftrace_function_probe(glob, NULL, NULL, 0);
 }
 
 static LIST_HEAD(ftrace_commands);
@@ -1623,8 +1626,8 @@ int unregister_ftrace_command(struct ftrace_func_command *cmd)
 
 static int ftrace_process_regex(char *buff, int len, int enable)
 {
-	struct ftrace_func_command *p;
 	char *func, *command, *next = buff;
+	struct ftrace_func_command *p;
 	int ret = -EINVAL;
 
 	func = strsep(&next, ":");
@@ -2392,7 +2395,6 @@ static __init int ftrace_init_debugfs(void)
 			   "'set_ftrace_pid' entry\n");
 	return 0;
 }
-
 fs_initcall(ftrace_init_debugfs);
 
 /**
