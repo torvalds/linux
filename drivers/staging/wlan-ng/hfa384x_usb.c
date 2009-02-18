@@ -647,10 +647,10 @@ static int
 usbctlx_get_status(const hfa384x_usb_cmdresp_t *cmdresp,
 		   hfa384x_cmdresult_t *result)
 {
-	result->status = hfa384x2host_16(cmdresp->status);
-	result->resp0 = hfa384x2host_16(cmdresp->resp0);
-	result->resp1 = hfa384x2host_16(cmdresp->resp1);
-	result->resp2 = hfa384x2host_16(cmdresp->resp2);
+	result->status = le16_to_cpu(cmdresp->status);
+	result->resp0 = le16_to_cpu(cmdresp->resp0);
+	result->resp1 = le16_to_cpu(cmdresp->resp1);
+	result->resp2 = le16_to_cpu(cmdresp->resp2);
 
 	pr_debug("cmdresult:status=0x%04x "
 	       "resp0=0x%04x resp1=0x%04x resp2=0x%04x\n",
@@ -663,9 +663,9 @@ static void
 usbctlx_get_rridresult(const hfa384x_usb_rridresp_t *rridresp,
 		       hfa384x_rridresult_t *result)
 {
-	result->rid = hfa384x2host_16(rridresp->rid);
+	result->rid = le16_to_cpu(rridresp->rid);
 	result->riddata = rridresp->data;
-	result->riddata_len = ((hfa384x2host_16(rridresp->frmlen) - 1) * 2);
+	result->riddata_len = ((le16_to_cpu(rridresp->frmlen) - 1) * 2);
 
 }
 
@@ -865,7 +865,7 @@ static void hfa384x_cb_rrid(hfa384x_t *hw, const hfa384x_usbctlx_t *ctlx)
 		if (ctlx->state != CTLX_COMPLETE) {
 			memset(&rridresult, 0, sizeof(rridresult));
 			rridresult.rid =
-			    hfa384x2host_16(ctlx->outbuf.rridreq.rid);
+			    le16_to_cpu(ctlx->outbuf.rridreq.rid);
 		} else {
 			usbctlx_get_rridresult(&ctlx->inbuf.rridresp,
 					       &rridresult);
@@ -1321,7 +1321,7 @@ cleanup:
 			result = completor->complete(completor);
 		} else {
 			printk(KERN_WARNING "CTLX[%d] error: state(%s)\n",
-			       hfa384x2host_16(ctlx->outbuf.type),
+			       le16_to_cpu(ctlx->outbuf.type),
 			       ctlxstr(ctlx->state));
 			result = -EIO;
 		}
@@ -1382,11 +1382,11 @@ hfa384x_docmd(hfa384x_t *hw,
 	}
 
 	/* Initialize the command */
-	ctlx->outbuf.cmdreq.type = host2hfa384x_16(HFA384x_USB_CMDREQ);
-	ctlx->outbuf.cmdreq.cmd = host2hfa384x_16(cmd->cmd);
-	ctlx->outbuf.cmdreq.parm0 = host2hfa384x_16(cmd->parm0);
-	ctlx->outbuf.cmdreq.parm1 = host2hfa384x_16(cmd->parm1);
-	ctlx->outbuf.cmdreq.parm2 = host2hfa384x_16(cmd->parm2);
+	ctlx->outbuf.cmdreq.type = cpu_to_le16(HFA384x_USB_CMDREQ);
+	ctlx->outbuf.cmdreq.cmd = cpu_to_le16(cmd->cmd);
+	ctlx->outbuf.cmdreq.parm0 = cpu_to_le16(cmd->parm0);
+	ctlx->outbuf.cmdreq.parm1 = cpu_to_le16(cmd->parm1);
+	ctlx->outbuf.cmdreq.parm2 = cpu_to_le16(cmd->parm2);
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.cmdreq);
 
@@ -1473,10 +1473,10 @@ hfa384x_dorrid(hfa384x_t *hw,
 	}
 
 	/* Initialize the command */
-	ctlx->outbuf.rridreq.type = host2hfa384x_16(HFA384x_USB_RRIDREQ);
+	ctlx->outbuf.rridreq.type = cpu_to_le16(HFA384x_USB_RRIDREQ);
 	ctlx->outbuf.rridreq.frmlen =
-	    host2hfa384x_16(sizeof(ctlx->outbuf.rridreq.rid));
-	ctlx->outbuf.rridreq.rid = host2hfa384x_16(rid);
+	    cpu_to_le16(sizeof(ctlx->outbuf.rridreq.rid));
+	ctlx->outbuf.rridreq.rid = cpu_to_le16(rid);
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.rridreq);
 
@@ -1554,12 +1554,12 @@ hfa384x_dowrid(hfa384x_t *hw,
 	}
 
 	/* Initialize the command */
-	ctlx->outbuf.wridreq.type = host2hfa384x_16(HFA384x_USB_WRIDREQ);
-	ctlx->outbuf.wridreq.frmlen = host2hfa384x_16((sizeof
+	ctlx->outbuf.wridreq.type = cpu_to_le16(HFA384x_USB_WRIDREQ);
+	ctlx->outbuf.wridreq.frmlen = cpu_to_le16((sizeof
 						       (ctlx->outbuf.wridreq.
 							rid) + riddatalen +
 						       1) / 2);
-	ctlx->outbuf.wridreq.rid = host2hfa384x_16(rid);
+	ctlx->outbuf.wridreq.rid = cpu_to_le16(rid);
 	memcpy(ctlx->outbuf.wridreq.data, riddata, riddatalen);
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.wridreq.type) +
@@ -1643,12 +1643,12 @@ hfa384x_dormem(hfa384x_t *hw,
 	}
 
 	/* Initialize the command */
-	ctlx->outbuf.rmemreq.type = host2hfa384x_16(HFA384x_USB_RMEMREQ);
+	ctlx->outbuf.rmemreq.type = cpu_to_le16(HFA384x_USB_RMEMREQ);
 	ctlx->outbuf.rmemreq.frmlen =
-	    host2hfa384x_16(sizeof(ctlx->outbuf.rmemreq.offset) +
+	    cpu_to_le16(sizeof(ctlx->outbuf.rmemreq.offset) +
 			    sizeof(ctlx->outbuf.rmemreq.page) + len);
-	ctlx->outbuf.rmemreq.offset = host2hfa384x_16(offset);
-	ctlx->outbuf.rmemreq.page = host2hfa384x_16(page);
+	ctlx->outbuf.rmemreq.offset = cpu_to_le16(offset);
+	ctlx->outbuf.rmemreq.page = cpu_to_le16(page);
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.rmemreq);
 
@@ -1739,12 +1739,12 @@ hfa384x_dowmem(hfa384x_t *hw,
 	}
 
 	/* Initialize the command */
-	ctlx->outbuf.wmemreq.type = host2hfa384x_16(HFA384x_USB_WMEMREQ);
+	ctlx->outbuf.wmemreq.type = cpu_to_le16(HFA384x_USB_WMEMREQ);
 	ctlx->outbuf.wmemreq.frmlen =
-	    host2hfa384x_16(sizeof(ctlx->outbuf.wmemreq.offset) +
+	    cpu_to_le16(sizeof(ctlx->outbuf.wmemreq.offset) +
 			    sizeof(ctlx->outbuf.wmemreq.page) + len);
-	ctlx->outbuf.wmemreq.offset = host2hfa384x_16(offset);
-	ctlx->outbuf.wmemreq.page = host2hfa384x_16(page);
+	ctlx->outbuf.wmemreq.offset = cpu_to_le16(offset);
+	ctlx->outbuf.wmemreq.page = cpu_to_le16(page);
 	memcpy(ctlx->outbuf.wmemreq.data, data, len);
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.wmemreq.type) +
@@ -1927,14 +1927,14 @@ int hfa384x_drvr_flashdl_enable(hfa384x_t *hw)
 					     sizeof(hw->bufinfo)))) {
 		return result;
 	}
-	hw->bufinfo.page = hfa384x2host_16(hw->bufinfo.page);
-	hw->bufinfo.offset = hfa384x2host_16(hw->bufinfo.offset);
-	hw->bufinfo.len = hfa384x2host_16(hw->bufinfo.len);
+	hw->bufinfo.page = le16_to_cpu(hw->bufinfo.page);
+	hw->bufinfo.offset = le16_to_cpu(hw->bufinfo.offset);
+	hw->bufinfo.len = le16_to_cpu(hw->bufinfo.len);
 	if ((result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_MAXLOADTIME,
 					       &(hw->dltimeout)))) {
 		return result;
 	}
-	hw->dltimeout = hfa384x2host_16(hw->dltimeout);
+	hw->dltimeout = le16_to_cpu(hw->dltimeout);
 
 	pr_debug("flashdl_enable\n");
 
@@ -2477,8 +2477,8 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len)
 		pdaok = 1;	/* initially assume good */
 		morepdrs = 1;
 		while (pdaok && morepdrs) {
-			pdrlen = hfa384x2host_16(pda[currpdr]) * 2;
-			pdrcode = hfa384x2host_16(pda[currpdr + 1]);
+			pdrlen = le16_to_cpu(pda[currpdr]) * 2;
+			pdrcode = le16_to_cpu(pda[currpdr + 1]);
 			/* Test the record length */
 			if (pdrlen > HFA384x_PDR_LEN_MAX || pdrlen == 0) {
 				printk(KERN_ERR "pdrlen invalid=%d\n", pdrlen);
@@ -2499,7 +2499,7 @@ int hfa384x_drvr_readpda(hfa384x_t *hw, void *buf, unsigned int len)
 			/* Move to the next pdr (if necessary) */
 			if (morepdrs) {
 				/* note the access to pda[], need words here */
-				currpdr += hfa384x2host_16(pda[currpdr]) + 1;
+				currpdr += le16_to_cpu(pda[currpdr]) + 1;
 			}
 		}
 		if (pdaok) {
@@ -2741,7 +2741,7 @@ int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
 	memset(&hw->txbuff.txfrm.desc, 0, sizeof(hw->txbuff.txfrm.desc));
 
 	/* Setup the usb type field */
-	hw->txbuff.type = host2hfa384x_16(HFA384x_USB_TXFRM);
+	hw->txbuff.type = cpu_to_le16(HFA384x_USB_TXFRM);
 
 	/* Set up the sw_support field to identify this frame */
 	hw->txbuff.txfrm.desc.sw_support = 0x0123;
@@ -2764,7 +2764,7 @@ int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
 	    HFA384x_TX_TXEX_SET(0) | HFA384x_TX_TXOK_SET(0);
 #endif
 	hw->txbuff.txfrm.desc.tx_control =
-	    host2hfa384x_16(hw->txbuff.txfrm.desc.tx_control);
+	    cpu_to_le16(hw->txbuff.txfrm.desc.tx_control);
 
 	/* copy the header over to the txdesc */
 	memcpy(&(hw->txbuff.txfrm.desc.frame_control), p80211_hdr,
@@ -2772,10 +2772,10 @@ int hfa384x_drvr_txframe(hfa384x_t *hw, struct sk_buff *skb,
 
 	/* if we're using host WEP, increase size by IV+ICV */
 	if (p80211_wep->data) {
-		hw->txbuff.txfrm.desc.data_len = host2hfa384x_16(skb->len + 8);
+		hw->txbuff.txfrm.desc.data_len = cpu_to_le16(skb->len + 8);
 		usbpktlen += 8;
 	} else {
-		hw->txbuff.txfrm.desc.data_len = host2hfa384x_16(skb->len);
+		hw->txbuff.txfrm.desc.data_len = cpu_to_le16(skb->len);
 	}
 
 	usbpktlen += skb->len;
@@ -3030,7 +3030,7 @@ static void unlocked_usbctlx_complete(hfa384x_t *hw, hfa384x_usbctlx_t *ctlx)
 
 	default:
 		printk(KERN_ERR "CTLX[%d] not in a terminating state(%s)\n",
-		       hfa384x2host_16(ctlx->outbuf.type),
+		       le16_to_cpu(ctlx->outbuf.type),
 		       ctlxstr(ctlx->state));
 		break;
 	}			/* switch */
@@ -3128,7 +3128,7 @@ static void hfa384x_usbctlxq_run(hfa384x_t *hw)
 		}
 
 		printk(KERN_ERR "Failed to submit CTLX[%d]: error=%d\n",
-		       hfa384x2host_16(head->outbuf.type), result);
+		       le16_to_cpu(head->outbuf.type), result);
 		unlocked_usbctlx_complete(hw, head);
 	}			/* while */
 
@@ -3257,7 +3257,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 	/* Note: the check of the sw_support field, the type field doesn't
 	 *       have bit 12 set like the docs suggest.
 	 */
-	type = hfa384x2host_16(usbin->type);
+	type = le16_to_cpu(usbin->type);
 	if (HFA384x_USB_ISRXFRM(type)) {
 		if (action == HANDLE) {
 			if (usbin->txfrm.desc.sw_support == 0x0123) {
@@ -3378,7 +3378,7 @@ retry:
 		if (unlocked_usbctlx_cancel_async(hw, ctlx) == 0)
 			run_queue = 1;
 	} else {
-		const u16 intype = (usbin->type & ~host2hfa384x_16(0x8000));
+		const u16 intype = (usbin->type & ~cpu_to_le16(0x8000));
 
 		/*
 		 * Check that our message is what we're expecting ...
@@ -3386,8 +3386,8 @@ retry:
 		if (ctlx->outbuf.type != intype) {
 			printk(KERN_WARNING
 			       "Expected IN[%d], received IN[%d] - ignored.\n",
-			       hfa384x2host_16(ctlx->outbuf.type),
-			       hfa384x2host_16(intype));
+			       le16_to_cpu(ctlx->outbuf.type),
+			       le16_to_cpu(intype));
 			goto unlock;
 		}
 
@@ -3424,7 +3424,7 @@ retry:
 			printk(KERN_ERR
 			       "Matched IN URB, CTLX[%d] in invalid state(%s)."
 			       " Discarded.\n",
-			       hfa384x2host_16(ctlx->outbuf.type),
+			       le16_to_cpu(ctlx->outbuf.type),
 			       ctlxstr(ctlx->state));
 			if (unlocked_usbctlx_cancel_async(hw, ctlx) == 0)
 				run_queue = 1;
@@ -3461,7 +3461,7 @@ static void hfa384x_usbin_txcompl(wlandevice_t *wlandev,
 {
 	u16 status;
 
-	status = hfa384x2host_16(usbin->type);	/* yeah I know it says type... */
+	status = le16_to_cpu(usbin->type);	/* yeah I know it says type... */
 
 	/* Was there an error? */
 	if (HFA384x_TXSTATUS_ISERROR(status))
@@ -3497,8 +3497,8 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 	u16 fc;
 
 	/* Byte order convert once up front. */
-	usbin->rxfrm.desc.status = hfa384x2host_16(usbin->rxfrm.desc.status);
-	usbin->rxfrm.desc.time = hfa384x2host_32(usbin->rxfrm.desc.time);
+	usbin->rxfrm.desc.status = le16_to_cpu(usbin->rxfrm.desc.status);
+	usbin->rxfrm.desc.time = le32_to_cpu(usbin->rxfrm.desc.time);
 
 	/* Now handle frame based on port# */
 	switch (HFA384x_RXSTATUS_MACPORT_GET(usbin->rxfrm.desc.status)) {
@@ -3511,7 +3511,7 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 			goto done;
 		}
 
-		data_len = hfa384x2host_16(usbin->rxfrm.desc.data_len);
+		data_len = le16_to_cpu(usbin->rxfrm.desc.data_len);
 
 		/* How much header data do we have? */
 		hdrlen = p80211_headerlen(fc);
@@ -3607,7 +3607,7 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 	/* Figure out how big the frame is */
 	fc = le16_to_cpu(rxdesc->frame_control);
 	hdrlen = p80211_headerlen(fc);
-	datalen = hfa384x2host_16(rxdesc->data_len);
+	datalen = le16_to_cpu(rxdesc->data_len);
 
 	/* Allocate an ind message+framesize skb */
 	skblen = sizeof(p80211_caphdr_t) + hdrlen + datalen + WLAN_CRC_LEN;
@@ -3698,7 +3698,7 @@ static void hfa384x_int_rxmonitor(wlandevice_t *wlandev,
 static void hfa384x_usbin_info(wlandevice_t * wlandev, hfa384x_usbin_t * usbin)
 {
 	usbin->infofrm.info.framelen =
-	    hfa384x2host_16(usbin->infofrm.info.framelen);
+	    le16_to_cpu(usbin->infofrm.info.framelen);
 	prism2sta_ev_info(wlandev, &usbin->infofrm.info);
 }
 
@@ -3866,7 +3866,7 @@ retry:
 			/* This is NOT a valid CTLX "success" state! */
 			printk(KERN_ERR
 			       "Illegal CTLX[%d] success state(%s, %d) in OUT URB\n",
-			       hfa384x2host_16(ctlx->outbuf.type),
+			       le16_to_cpu(ctlx->outbuf.type),
 			       ctlxstr(ctlx->state), urb->status);
 			break;
 		}		/* switch */

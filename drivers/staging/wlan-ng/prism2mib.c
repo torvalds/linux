@@ -730,10 +730,10 @@ static int prism2mib_priv(mibrec_t *mib,
 						       HFA384x_RID_CNFWPADATA,
 						       (u8 *)&wpa,
 						       sizeof(wpa));
-				pstr->len = hfa384x2host_16(wpa.datalen);
+				pstr->len = le16_to_cpu(wpa.datalen);
 				memcpy(pstr->data, wpa.data, pstr->len);
 			} else {
-				wpa.datalen = host2hfa384x_16(pstr->len);
+				wpa.datalen = cpu_to_le16(pstr->len);
 				memcpy(wpa.data, pstr->data, pstr->len);
 
 				result =
@@ -768,7 +768,7 @@ static int prism2mib_priv(mibrec_t *mib,
 
 void prism2mgmt_pstr2bytestr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 {
-	bytestr->len = host2hfa384x_16((u16) (pstr->len));
+	bytestr->len = cpu_to_le16((u16) (pstr->len));
 	memcpy(bytestr->data, pstr->data, pstr->len);
 }
 
@@ -809,7 +809,7 @@ void prism2mgmt_pstr2bytearea(u8 *bytearea, p80211pstrd_t *pstr)
 
 void prism2mgmt_bytestr2pstr(hfa384x_bytestr_t *bytestr, p80211pstrd_t *pstr)
 {
-	pstr->len = (u8) (hfa384x2host_16((u16) (bytestr->len)));
+	pstr->len = (u8) (le16_to_cpu((u16) (bytestr->len)));
 	memcpy(pstr->data, bytestr->data, pstr->len);
 }
 

@@ -328,14 +328,6 @@ PD Record codes
 
 #define		HFA384x_STATUS_RESULT_SET(value)	(((u16)(value)) << 8)
 
-/* Byte Order */
-#ifdef __KERNEL__
-#define hfa384x2host_16(n)	(__le16_to_cpu((u16)(n)))
-#define hfa384x2host_32(n)	(__le32_to_cpu((u32)(n)))
-#define host2hfa384x_16(n)	(__cpu_to_le16((u16)(n)))
-#define host2hfa384x_32(n)	(__cpu_to_le32((u32)(n)))
-#endif
-
 /* Host Maintained State Info */
 #define HFA384x_STATE_PREINIT	0
 #define HFA384x_STATE_INIT	1
@@ -1143,13 +1135,13 @@ static inline int hfa384x_drvr_getconfig16(hfa384x_t *hw, u16 rid, void *val)
 	int result = 0;
 	result = hfa384x_drvr_getconfig(hw, rid, val, sizeof(u16));
 	if (result == 0)
-		*((u16 *) val) = hfa384x2host_16(*((u16 *) val));
+		*((u16 *) val) = le16_to_cpu(*((u16 *) val));
 	return result;
 }
 
 static inline int hfa384x_drvr_setconfig16(hfa384x_t *hw, u16 rid, u16 val)
 {
-	u16 value = host2hfa384x_16(val);
+	u16 value = cpu_to_le16(val);
 	return hfa384x_drvr_setconfig(hw, rid, &value, sizeof(value));
 }
 
@@ -1166,7 +1158,7 @@ hfa384x_drvr_setconfig_async(hfa384x_t *hw,
 static inline int
 hfa384x_drvr_setconfig16_async(hfa384x_t *hw, u16 rid, u16 val)
 {
-	u16 value = host2hfa384x_16(val);
+	u16 value = cpu_to_le16(val);
 	return hfa384x_drvr_setconfig_async(hw, rid, &value, sizeof(value),
 					    NULL, NULL);
 }

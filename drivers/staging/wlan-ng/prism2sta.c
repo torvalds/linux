@@ -402,11 +402,11 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 			    P80211ENUM_msgitem_status_data_ok;
 
 			qualmsg->link.data =
-			    hfa384x2host_16(hw->qual.CQ_currBSS);
+			    le16_to_cpu(hw->qual.CQ_currBSS);
 			qualmsg->level.data =
-			    hfa384x2host_16(hw->qual.ASL_currBSS);
+			    le16_to_cpu(hw->qual.ASL_currBSS);
 			qualmsg->noise.data =
-			    hfa384x2host_16(hw->qual.ANL_currFC);
+			    le16_to_cpu(hw->qual.ANL_currFC);
 
 			break;
 		}
@@ -630,10 +630,10 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	}
 
 	/* get all the nic id fields in host byte order */
-	hw->ident_nic.id = hfa384x2host_16(hw->ident_nic.id);
-	hw->ident_nic.variant = hfa384x2host_16(hw->ident_nic.variant);
-	hw->ident_nic.major = hfa384x2host_16(hw->ident_nic.major);
-	hw->ident_nic.minor = hfa384x2host_16(hw->ident_nic.minor);
+	hw->ident_nic.id = le16_to_cpu(hw->ident_nic.id);
+	hw->ident_nic.variant = le16_to_cpu(hw->ident_nic.variant);
+	hw->ident_nic.major = le16_to_cpu(hw->ident_nic.major);
+	hw->ident_nic.minor = le16_to_cpu(hw->ident_nic.minor);
 
 	printk(KERN_INFO "ident: nic h/w: id=0x%02x %d.%d.%d\n",
 	       hw->ident_nic.id, hw->ident_nic.major,
@@ -649,10 +649,10 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	}
 
 	/* get all the private fw id fields in host byte order */
-	hw->ident_pri_fw.id = hfa384x2host_16(hw->ident_pri_fw.id);
-	hw->ident_pri_fw.variant = hfa384x2host_16(hw->ident_pri_fw.variant);
-	hw->ident_pri_fw.major = hfa384x2host_16(hw->ident_pri_fw.major);
-	hw->ident_pri_fw.minor = hfa384x2host_16(hw->ident_pri_fw.minor);
+	hw->ident_pri_fw.id = le16_to_cpu(hw->ident_pri_fw.id);
+	hw->ident_pri_fw.variant = le16_to_cpu(hw->ident_pri_fw.variant);
+	hw->ident_pri_fw.major = le16_to_cpu(hw->ident_pri_fw.major);
+	hw->ident_pri_fw.minor = le16_to_cpu(hw->ident_pri_fw.minor);
 
 	printk(KERN_INFO "ident: pri f/w: id=0x%02x %d.%d.%d\n",
 	       hw->ident_pri_fw.id, hw->ident_pri_fw.major,
@@ -675,10 +675,10 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 	}
 
 	/* get all the station fw id fields in host byte order */
-	hw->ident_sta_fw.id = hfa384x2host_16(hw->ident_sta_fw.id);
-	hw->ident_sta_fw.variant = hfa384x2host_16(hw->ident_sta_fw.variant);
-	hw->ident_sta_fw.major = hfa384x2host_16(hw->ident_sta_fw.major);
-	hw->ident_sta_fw.minor = hfa384x2host_16(hw->ident_sta_fw.minor);
+	hw->ident_sta_fw.id = le16_to_cpu(hw->ident_sta_fw.id);
+	hw->ident_sta_fw.variant = le16_to_cpu(hw->ident_sta_fw.variant);
+	hw->ident_sta_fw.major = le16_to_cpu(hw->ident_sta_fw.major);
+	hw->ident_sta_fw.minor = le16_to_cpu(hw->ident_sta_fw.minor);
 
 	/* strip out the 'special' variant bits */
 	hw->mm_mods = hw->ident_sta_fw.variant & (BIT(14) | BIT(15));
@@ -709,11 +709,11 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	/* get all the Compatibility range, modem interface supplier
 	   fields in byte order */
-	hw->cap_sup_mfi.role = hfa384x2host_16(hw->cap_sup_mfi.role);
-	hw->cap_sup_mfi.id = hfa384x2host_16(hw->cap_sup_mfi.id);
-	hw->cap_sup_mfi.variant = hfa384x2host_16(hw->cap_sup_mfi.variant);
-	hw->cap_sup_mfi.bottom = hfa384x2host_16(hw->cap_sup_mfi.bottom);
-	hw->cap_sup_mfi.top = hfa384x2host_16(hw->cap_sup_mfi.top);
+	hw->cap_sup_mfi.role = le16_to_cpu(hw->cap_sup_mfi.role);
+	hw->cap_sup_mfi.id = le16_to_cpu(hw->cap_sup_mfi.id);
+	hw->cap_sup_mfi.variant = le16_to_cpu(hw->cap_sup_mfi.variant);
+	hw->cap_sup_mfi.bottom = le16_to_cpu(hw->cap_sup_mfi.bottom);
+	hw->cap_sup_mfi.top = le16_to_cpu(hw->cap_sup_mfi.top);
 
 	printk(KERN_INFO
 	       "MFI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
@@ -732,11 +732,11 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	/* get all the Compatibility range, controller interface supplier
 	   fields in byte order */
-	hw->cap_sup_cfi.role = hfa384x2host_16(hw->cap_sup_cfi.role);
-	hw->cap_sup_cfi.id = hfa384x2host_16(hw->cap_sup_cfi.id);
-	hw->cap_sup_cfi.variant = hfa384x2host_16(hw->cap_sup_cfi.variant);
-	hw->cap_sup_cfi.bottom = hfa384x2host_16(hw->cap_sup_cfi.bottom);
-	hw->cap_sup_cfi.top = hfa384x2host_16(hw->cap_sup_cfi.top);
+	hw->cap_sup_cfi.role = le16_to_cpu(hw->cap_sup_cfi.role);
+	hw->cap_sup_cfi.id = le16_to_cpu(hw->cap_sup_cfi.id);
+	hw->cap_sup_cfi.variant = le16_to_cpu(hw->cap_sup_cfi.variant);
+	hw->cap_sup_cfi.bottom = le16_to_cpu(hw->cap_sup_cfi.bottom);
+	hw->cap_sup_cfi.top = le16_to_cpu(hw->cap_sup_cfi.top);
 
 	printk(KERN_INFO
 	       "CFI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
@@ -755,11 +755,11 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	/* get all the Compatibility range, primary firmware supplier
 	   fields in byte order */
-	hw->cap_sup_pri.role = hfa384x2host_16(hw->cap_sup_pri.role);
-	hw->cap_sup_pri.id = hfa384x2host_16(hw->cap_sup_pri.id);
-	hw->cap_sup_pri.variant = hfa384x2host_16(hw->cap_sup_pri.variant);
-	hw->cap_sup_pri.bottom = hfa384x2host_16(hw->cap_sup_pri.bottom);
-	hw->cap_sup_pri.top = hfa384x2host_16(hw->cap_sup_pri.top);
+	hw->cap_sup_pri.role = le16_to_cpu(hw->cap_sup_pri.role);
+	hw->cap_sup_pri.id = le16_to_cpu(hw->cap_sup_pri.id);
+	hw->cap_sup_pri.variant = le16_to_cpu(hw->cap_sup_pri.variant);
+	hw->cap_sup_pri.bottom = le16_to_cpu(hw->cap_sup_pri.bottom);
+	hw->cap_sup_pri.top = le16_to_cpu(hw->cap_sup_pri.top);
 
 	printk(KERN_INFO
 	       "PRI:SUP:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
@@ -778,11 +778,11 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	/* get all the Compatibility range, station firmware supplier
 	   fields in byte order */
-	hw->cap_sup_sta.role = hfa384x2host_16(hw->cap_sup_sta.role);
-	hw->cap_sup_sta.id = hfa384x2host_16(hw->cap_sup_sta.id);
-	hw->cap_sup_sta.variant = hfa384x2host_16(hw->cap_sup_sta.variant);
-	hw->cap_sup_sta.bottom = hfa384x2host_16(hw->cap_sup_sta.bottom);
-	hw->cap_sup_sta.top = hfa384x2host_16(hw->cap_sup_sta.top);
+	hw->cap_sup_sta.role = le16_to_cpu(hw->cap_sup_sta.role);
+	hw->cap_sup_sta.id = le16_to_cpu(hw->cap_sup_sta.id);
+	hw->cap_sup_sta.variant = le16_to_cpu(hw->cap_sup_sta.variant);
+	hw->cap_sup_sta.bottom = le16_to_cpu(hw->cap_sup_sta.bottom);
+	hw->cap_sup_sta.top = le16_to_cpu(hw->cap_sup_sta.top);
 
 	if (hw->cap_sup_sta.id == 0x04) {
 		printk(KERN_INFO
@@ -809,13 +809,13 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	/* get all the Compatibility range, primary f/w actor, CFI supplier
 	   fields in byte order */
-	hw->cap_act_pri_cfi.role = hfa384x2host_16(hw->cap_act_pri_cfi.role);
-	hw->cap_act_pri_cfi.id = hfa384x2host_16(hw->cap_act_pri_cfi.id);
+	hw->cap_act_pri_cfi.role = le16_to_cpu(hw->cap_act_pri_cfi.role);
+	hw->cap_act_pri_cfi.id = le16_to_cpu(hw->cap_act_pri_cfi.id);
 	hw->cap_act_pri_cfi.variant =
-	    hfa384x2host_16(hw->cap_act_pri_cfi.variant);
+	    le16_to_cpu(hw->cap_act_pri_cfi.variant);
 	hw->cap_act_pri_cfi.bottom =
-	    hfa384x2host_16(hw->cap_act_pri_cfi.bottom);
-	hw->cap_act_pri_cfi.top = hfa384x2host_16(hw->cap_act_pri_cfi.top);
+	    le16_to_cpu(hw->cap_act_pri_cfi.bottom);
+	hw->cap_act_pri_cfi.top = le16_to_cpu(hw->cap_act_pri_cfi.top);
 
 	printk(KERN_INFO
 	       "PRI-CFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
@@ -834,13 +834,13 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	/* get all the Compatibility range, station f/w actor, CFI supplier
 	   fields in byte order */
-	hw->cap_act_sta_cfi.role = hfa384x2host_16(hw->cap_act_sta_cfi.role);
-	hw->cap_act_sta_cfi.id = hfa384x2host_16(hw->cap_act_sta_cfi.id);
+	hw->cap_act_sta_cfi.role = le16_to_cpu(hw->cap_act_sta_cfi.role);
+	hw->cap_act_sta_cfi.id = le16_to_cpu(hw->cap_act_sta_cfi.id);
 	hw->cap_act_sta_cfi.variant =
-	    hfa384x2host_16(hw->cap_act_sta_cfi.variant);
+	    le16_to_cpu(hw->cap_act_sta_cfi.variant);
 	hw->cap_act_sta_cfi.bottom =
-	    hfa384x2host_16(hw->cap_act_sta_cfi.bottom);
-	hw->cap_act_sta_cfi.top = hfa384x2host_16(hw->cap_act_sta_cfi.top);
+	    le16_to_cpu(hw->cap_act_sta_cfi.bottom);
+	hw->cap_act_sta_cfi.top = le16_to_cpu(hw->cap_act_sta_cfi.top);
 
 	printk(KERN_INFO
 	       "STA-CFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
@@ -859,13 +859,13 @@ static int prism2sta_getcardinfo(wlandevice_t *wlandev)
 
 	/* get all the Compatibility range, station f/w actor, MFI supplier
 	   fields in byte order */
-	hw->cap_act_sta_mfi.role = hfa384x2host_16(hw->cap_act_sta_mfi.role);
-	hw->cap_act_sta_mfi.id = hfa384x2host_16(hw->cap_act_sta_mfi.id);
+	hw->cap_act_sta_mfi.role = le16_to_cpu(hw->cap_act_sta_mfi.role);
+	hw->cap_act_sta_mfi.id = le16_to_cpu(hw->cap_act_sta_mfi.id);
 	hw->cap_act_sta_mfi.variant =
-	    hfa384x2host_16(hw->cap_act_sta_mfi.variant);
+	    le16_to_cpu(hw->cap_act_sta_mfi.variant);
 	hw->cap_act_sta_mfi.bottom =
-	    hfa384x2host_16(hw->cap_act_sta_mfi.bottom);
-	hw->cap_act_sta_mfi.top = hfa384x2host_16(hw->cap_act_sta_mfi.top);
+	    le16_to_cpu(hw->cap_act_sta_mfi.bottom);
+	hw->cap_act_sta_mfi.top = le16_to_cpu(hw->cap_act_sta_mfi.top);
 
 	printk(KERN_INFO
 	       "STA-MFI:ACT:role=0x%02x:id=0x%02x:var=0x%02x:b/t=%d/%d\n",
@@ -1034,12 +1034,12 @@ static void prism2sta_inf_tallies(wlandevice_t *wlandev,
 		dst = (u32 *)&hw->tallies;
 		src32 = (u32 *)&inf->info.commtallies32;
 		for (i = 0; i < cnt; i++, dst++, src32++)
-			*dst += hfa384x2host_32(*src32);
+			*dst += le32_to_cpu(*src32);
 	} else {
 		dst = (u32 *)&hw->tallies;
 		src16 = (u16 *)&inf->info.commtallies16;
 		for (i = 0; i < cnt; i++, dst++, src16++)
-			*dst += hfa384x2host_16(*src16);
+			*dst += le16_to_cpu(*src16);
 	}
 
 	return;
@@ -1169,24 +1169,24 @@ static void prism2sta_inf_chinforesults(wlandevice_t *wlandev,
 	unsigned int i, n;
 
 	hw->channel_info.results.scanchannels =
-	    hfa384x2host_16(inf->info.chinforesult.scanchannels);
+	    le16_to_cpu(inf->info.chinforesult.scanchannels);
 
 	for (i = 0, n = 0; i < HFA384x_CHINFORESULT_MAX; i++) {
 		if (hw->channel_info.results.scanchannels & (1 << i)) {
 			int channel =
-			    hfa384x2host_16(inf->info.chinforesult.result[n].
+			    le16_to_cpu(inf->info.chinforesult.result[n].
 					    chid) - 1;
 			hfa384x_ChInfoResultSub_t *chinforesult =
 			    &hw->channel_info.results.result[channel];
 			chinforesult->chid = channel;
 			chinforesult->anl =
-			    hfa384x2host_16(inf->info.chinforesult.result[n].
+			    le16_to_cpu(inf->info.chinforesult.result[n].
 					    anl);
 			chinforesult->pnl =
-			    hfa384x2host_16(inf->info.chinforesult.result[n].
+			    le16_to_cpu(inf->info.chinforesult.result[n].
 					    pnl);
 			chinforesult->active =
-			    hfa384x2host_16(inf->info.chinforesult.result[n].
+			    le16_to_cpu(inf->info.chinforesult.result[n].
 					    active);
 			printk(KERN_DEBUG
 			       "chinfo: channel %d, %s level (avg/peak)=%d/%d dB, pcf %d\n",
@@ -1487,7 +1487,7 @@ static void prism2sta_inf_linkstatus(wlandevice_t *wlandev,
 {
 	hfa384x_t *hw = (hfa384x_t *) wlandev->priv;
 
-	hw->link_status_new = hfa384x2host_16(inf->info.linkstatus.linkstatus);
+	hw->link_status_new = le16_to_cpu(inf->info.linkstatus.linkstatus);
 
 	schedule_work(&hw->link_bh);
 
@@ -1520,8 +1520,8 @@ static void prism2sta_inf_assocstatus(wlandevice_t *wlandev,
 	int i;
 
 	memcpy(&rec, &inf->info.assocstatus, sizeof(rec));
-	rec.assocstatus = hfa384x2host_16(rec.assocstatus);
-	rec.reason = hfa384x2host_16(rec.reason);
+	rec.assocstatus = le16_to_cpu(rec.assocstatus);
+	rec.reason = le16_to_cpu(rec.reason);
 
 	/*
 	 ** Find the address in the list of authenticated stations.  If it wasn't
@@ -1730,7 +1730,7 @@ static void prism2sta_inf_authreq_defer(wlandevice_t *wlandev,
 	 ** it was added.
 	 */
 
-	rec.status = host2hfa384x_16(rec.status);
+	rec.status = cpu_to_le16(rec.status);
 	rec.algorithm = inf->info.authreq.algorithm;
 
 	result = hfa384x_drvr_setconfig(hw, HFA384x_RID_AUTHENTICATESTA,
@@ -1768,7 +1768,7 @@ static void prism2sta_inf_psusercnt(wlandevice_t *wlandev,
 {
 	hfa384x_t *hw = (hfa384x_t *) wlandev->priv;
 
-	hw->psusercount = hfa384x2host_16(inf->info.psusercnt.usercnt);
+	hw->psusercount = le16_to_cpu(inf->info.psusercnt.usercnt);
 
 	return;
 }
@@ -1792,7 +1792,7 @@ static void prism2sta_inf_psusercnt(wlandevice_t *wlandev,
 ----------------------------------------------------------------*/
 void prism2sta_ev_info(wlandevice_t *wlandev, hfa384x_InfFrame_t *inf)
 {
-	inf->infotype = hfa384x2host_16(inf->infotype);
+	inf->infotype = le16_to_cpu(inf->infotype);
 	/* Dispatch */
 	switch (inf->infotype) {
 	case HFA384x_IT_HANDOVERADDR:
@@ -2020,9 +2020,9 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 		}
 
 		pr_debug("commsqual %d %d %d\n",
-		       hfa384x2host_16(hw->qual.CQ_currBSS),
-		       hfa384x2host_16(hw->qual.ASL_currBSS),
-		       hfa384x2host_16(hw->qual.ANL_currFC));
+		       le16_to_cpu(hw->qual.CQ_currBSS),
+		       le16_to_cpu(hw->qual.ASL_currBSS),
+		       le16_to_cpu(hw->qual.ANL_currFC));
 	}
 
 	/* Lastly, we need to make sure the BSSID didn't change on us */
