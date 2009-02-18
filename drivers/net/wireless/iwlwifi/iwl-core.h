@@ -421,6 +421,7 @@ int iwl_send_card_state(struct iwl_priv *priv, u32 flags,
  *****************************************************/
 void iwl_disable_interrupts(struct iwl_priv *priv);
 void iwl_enable_interrupts(struct iwl_priv *priv);
+irqreturn_t iwl_isr(int irq, void *data);
 static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 {
 	int pos;
