@@ -2314,7 +2314,7 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 	}
 
 	/* we actually need to set 'real' parameters now */
-	if ((fmt->fmt.pix.height * 2) > BUZ_MAX_HEIGHT)
+	if (fmt->fmt.pix.height * 2 > BUZ_MAX_HEIGHT)
 		settings.TmpDcm = 1;
 	else
 		settings.TmpDcm = 2;
@@ -2501,7 +2501,7 @@ static int zoran_reqbufs(struct file *file, void *__fh, struct v4l2_requestbuffe
 	if (fh->v4l_buffers.allocated || fh->jpg_buffers.allocated) {
 		dprintk(1,
 				KERN_ERR
-				"%s: VIDIOC_REQBUFS - buffers allready allocated\n",
+				"%s: VIDIOC_REQBUFS - buffers already allocated\n",
 				ZR_DEVNAME(zr));
 		res = -EBUSY;
 		goto v4l2reqbuf_unlock_and_return;

@@ -919,15 +919,12 @@ zoran_check_jpg_settings (struct zoran              *zr,
 			err0++;
 		if (settings->img_x + settings->img_width > BUZ_MAX_WIDTH)
 			err0++;
-		if (settings->img_y + settings->img_height >
-		    BUZ_MAX_HEIGHT / 2)
+		if (settings->img_y + settings->img_height > BUZ_MAX_HEIGHT / 2)
 			err0++;
 		if (settings->HorDcm && settings->VerDcm) {
-			if (settings->img_width %
-			    (16 * settings->HorDcm) != 0)
+			if (settings->img_width % (16 * settings->HorDcm) != 0)
 				err0++;
-			if (settings->img_height %
-			    (8 * settings->VerDcm) != 0)
+			if (settings->img_height % (8 * settings->VerDcm) != 0)
 				err0++;
 		}
 
