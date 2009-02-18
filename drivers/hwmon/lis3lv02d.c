@@ -53,9 +53,6 @@
  * joystick.
  */
 
-/* Maximum value our axis may get for the input device (signed 12 bits) */
-#define MDPS_MAX_VAL 2048
-
 struct acpi_lis3lv02d adev = {
 	.misc_wait   = __WAIT_QUEUE_HEAD_INITIALIZER(adev.misc_wait),
 };
@@ -63,16 +60,6 @@ struct acpi_lis3lv02d adev = {
 EXPORT_SYMBOL_GPL(adev);
 
 static int lis3lv02d_add_fs(struct acpi_device *device);
-
-static s16 lis3lv02d_read_16(acpi_handle handle, int reg)
-{
-	u8 lo, hi;
-
-	adev.read(handle, reg, &lo);
-	adev.read(handle, reg + 1, &hi);
-	/* In "12 bit right justified" mode, bit 6, bit 7, bit 8 = bit 5 */
-	return (s16)((hi << 8) | lo);
-}
 
 /**
  * lis3lv02d_get_axis - For the given axis, give the value converted
@@ -102,9 +89,9 @@ static void lis3lv02d_get_xyz(acpi_handle handle, int *x, int *y, int *z)
 {
 	int position[3];
 
-	position[0] = lis3lv02d_read_16(handle, OUTX_L);
-	position[1] = lis3lv02d_read_16(handle, OUTY_L);
-	position[2] = lis3lv02d_read_16(handle, OUTZ_L);
+	position[0] = adev.read_data(handle, OUTX);
+	position[1] = adev.read_data(handle, OUTY);
+	position[2] = adev.read_data(handle, OUTZ);
 
 	*x = lis3lv02d_get_axis(adev.ac.x, position);
 	*y = lis3lv02d_get_axis(adev.ac.y, position);
@@ -355,9 +342,9 @@ int lis3lv02d_joystick_enable(void)
 	adev.idev->close      = lis3lv02d_joystick_close;
 
 	set_bit(EV_ABS, adev.idev->evbit);
-	input_set_abs_params(adev.idev, ABS_X, -MDPS_MAX_VAL, MDPS_MAX_VAL, 3, 3);
-	input_set_abs_params(adev.idev, ABS_Y, -MDPS_MAX_VAL, MDPS_MAX_VAL, 3, 3);
-	input_set_abs_params(adev.idev, ABS_Z, -MDPS_MAX_VAL, MDPS_MAX_VAL, 3, 3);
+	input_set_abs_params(adev.idev, ABS_X, -adev.mdps_max_val, adev.mdps_max_val, 3, 3);
+	input_set_abs_params(adev.idev, ABS_Y, -adev.mdps_max_val, adev.mdps_max_val, 3, 3);
+	input_set_abs_params(adev.idev, ABS_Z, -adev.mdps_max_val, adev.mdps_max_val, 3, 3);
 
 	err = input_register_device(adev.idev);
 	if (err) {

@@ -237,9 +237,25 @@ static void lis3lv02d_enum_resources(struct acpi_device *device)
 		printk(KERN_DEBUG DRIVER_NAME ": Error getting resources\n");
 }
 
+static s16 lis3lv02d_read_16(acpi_handle handle, int reg)
+{
+	u8 lo, hi;
+
+	adev.read(handle, reg - 1, &lo);
+	adev.read(handle, reg, &hi);
+	/* In "12 bit right justified" mode, bit 6, bit 7, bit 8 = bit 5 */
+	return (s16)((hi << 8) | lo);
+}
+
+static s16 lis3lv02d_read_8(acpi_handle handle, int reg)
+{
+	s8 lo;
+	adev.read(handle, reg, &lo);
+	return lo;
+}
+
 static int lis3lv02d_add(struct acpi_device *device)
 {
-	u8 val;
 	int ret;
 
 	if (!device)
@@ -253,10 +269,22 @@ static int lis3lv02d_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_MDPS_CLASS);
 	device->driver_data = &adev;
 
-	lis3lv02d_acpi_read(device->handle, WHO_AM_I, &val);
-	if ((val != LIS3LV02DL_ID) && (val != LIS302DL_ID)) {
+	lis3lv02d_acpi_read(device->handle, WHO_AM_I, &adev.whoami);
+	switch (adev.whoami) {
+	case LIS_DOUBLE_ID:
+		printk(KERN_INFO DRIVER_NAME ": 2-byte sensor found\n");
+		adev.read_data = lis3lv02d_read_16;
+		adev.mdps_max_val = 2048;
+		break;
+	case LIS_SINGLE_ID:
+		printk(KERN_INFO DRIVER_NAME ": 1-byte sensor found\n");
+		adev.read_data = lis3lv02d_read_8;
+		adev.mdps_max_val = 128;
+		break;
+	default:
 		printk(KERN_ERR DRIVER_NAME
-				": Accelerometer chip not LIS3LV02D{L,Q}\n");
+			": unknown sensor type 0x%X\n", adev.whoami);
+		return -EINVAL;
 	}
 
 	/* If possible use a "standard" axes order */
