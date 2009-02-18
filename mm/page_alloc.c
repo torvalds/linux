@@ -2989,7 +2989,7 @@ static int __meminit next_active_region_index_in_nid(int index, int nid)
  * was used and there are no special requirements, this is a convenient
  * alternative
  */
-int __meminit early_pfn_to_nid(unsigned long pfn)
+int __meminit __early_pfn_to_nid(unsigned long pfn)
 {
 	int i;
 
@@ -3004,6 +3004,12 @@ int __meminit early_pfn_to_nid(unsigned long pfn)
 	return 0;
 }
 #endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
+
+int __meminit early_pfn_to_nid(unsigned long pfn)
+{
+	return __early_pfn_to_nid(pfn);
+}
+
 
 /* Basic iterator support to walk early_node_map[] */
 #define for_each_active_range_index_in_nid(i, nid) \
