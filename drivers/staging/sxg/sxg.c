@@ -1078,6 +1078,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	netdev->get_stats = sxg_get_stats;
 	netdev->set_multicast_list = sxg_mcast_set_list;
 	SET_ETHTOOL_OPS(netdev, &sxg_nic_ethtool_ops);
+ 	netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	err = sxg_set_interrupt_capability(adapter);
 	if (err != STATUS_SUCCESS)
 		DBG_ERROR("Cannot enable MSI-X capability\n");
@@ -1433,6 +1434,31 @@ static int sxg_process_isr(struct adapter_t *adapter, u32 MessageId)
 }
 
 /*
+ * sxg_rcv_checksum - Set the checksum for received packet
+ *
+ * Arguements:
+ * 		@skb - Packet which is receieved
+ * 		@Event - Event read from hardware
+ */
+
+void sxg_rcv_checksum(struct sk_buff *skb, struct sxg_event *Event)
+{
+	skb->ip_summed = CHECKSUM_NONE;
+	if(Event->Status & EVENT_STATUS_TCPIP) {
+		if(!(Event->Status & EVENT_STATUS_TCPBAD)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		}
+		if(!(Event->Status & EVENT_STATUS_IPBAD)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		}
+	} else if(Event->Status & EVENT_STATUS_IPONLY) {
+		if(!(Event->Status & EVENT_STATUS_IPBAD)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		}
+	}
+}
+
+/*
  * sxg_process_event_queue - Process our event queue
  *
  * Arguments:
@@ -1506,9 +1532,7 @@ static u32 sxg_process_event_queue(struct adapter_t *adapter, u32 RssId,
 				rx_bytes = Event->Length;
 				adapter->stats.rx_packets++;
 				adapter->stats.rx_bytes += rx_bytes;
-#if SXG_OFFLOAD_IP_CHECKSUM
-				skb->ip_summed = CHECKSUM_UNNECESSARY;
-#endif
+				sxg_rcv_checksum(skb, Event);
 				skb->dev = adapter->netdev;
 				netif_receive_skb(skb);
 #endif
@@ -2555,7 +2579,7 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 						SXG_LARGE_SEND_QUEUE_MASK));
 		}
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
-		if ( (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) && (DataLength >=
+		if ((ipv6_hdr(skb)->nexthdr == IPPROTO_TCP) && (DataLength >=
 						 sizeof(struct tcphdr)) ) {
 			queue_id = ((ntohs(tcp_hdr(skb)->dest) == ISCSI_PORT) ?
 					(ntohs (tcp_hdr(skb)->source) &
@@ -2629,6 +2653,20 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 	XmtCmd->Buffer.TotalLength = DataLength;
 	XmtCmd->SgEntries = 1;
 	XmtCmd->Flags = 0;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		/*
+		 * We need to set the Checkum in IP  header to 0. This is
+		 * required by hardware.
+		 */
+		ip_hdr(skb)->check = 0x0;
+		XmtCmd->CsumFlags.Flags |= SXG_SLOWCMD_CSUM_IP;
+		XmtCmd->CsumFlags.Flags |= SXG_SLOWCMD_CSUM_TCP;
+		/* Dont know if length will require a change in case of VLAN */
+		XmtCmd->CsumFlags.MacLen = ETH_HLEN;
+		XmtCmd->CsumFlags.IpHl = skb_network_header_len(skb) >>
+							SXG_NW_HDR_LEN_SHIFT;
+	}
 	/*
 	 * Advance transmit cmd descripter by 1.
 	 * NOTE - See comments in SxgTcpOutput where we write
@@ -4063,6 +4101,8 @@ static int sxg_initialize_adapter(struct adapter_t *adapter)
 	 */
 	WRITE_REG(adapter->UcodeRegs[0].ReceiveChecksum,
 		  SXG_RCV_TCP_CSUM_ENABLED | SXG_RCV_IP_CSUM_ENABLED, TRUE);
+
+	adapter->flags |= (SXG_RCV_TCP_CSUM_ENABLED | SXG_RCV_IP_CSUM_ENABLED );
 
 	/* Initialize the MAC, XAUI */
 	DBG_ERROR("sxg: %s ENTER sxg_initialize_link\n", __func__);

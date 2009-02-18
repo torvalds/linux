@@ -1004,4 +1004,8 @@ struct sxg_ucode_stats {
 	u32  XNoBufs;		/* Xmt drop due to no DRAM Xmit buffer or PxyBuf */
 };
 
-
+/*
+ * Macros for handling the Offload engine values
+ */
+/* Number of positions to shift Network Header Length before passing to card */
+#define SXG_NW_HDR_LEN_SHIFT		2
