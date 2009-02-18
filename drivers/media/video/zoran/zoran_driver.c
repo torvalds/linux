@@ -2549,11 +2549,10 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 	struct zoran_jpg_settings settings;
 	int res = 0;
 
-	if (fmt->fmt.pix.bytesperline > 0)
-		return -EINVAL;
-
 	if (fmt->fmt.pix.pixelformat != V4L2_PIX_FMT_MJPEG)
 		return -EINVAL;
+
+	fmt->fmt.pix.bytesperline = 0;
 
 	mutex_lock(&zr->resource_lock);
 	settings = fh->jpg_settings;
@@ -2607,9 +2606,6 @@ static int zoran_try_fmt_vid_cap(struct file *file, void *__fh,
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
 	int i;
-
-	if (fmt->fmt.pix.bytesperline > 0)
-		return -EINVAL;
 
 	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
 		return zoran_try_fmt_vid_out(file, fh, fmt);
