@@ -2872,6 +2872,13 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		return -EBADF;
 	}
 
+	/* Update the active list for the hardware's current position.
+	 * Otherwise this only updates on a delayed timer or when irqs are
+	 * actually unmasked, and our working set ends up being larger than
+	 * required.
+	 */
+	i915_gem_retire_requests(dev);
+
 	obj_priv = obj->driver_private;
 	/* Don't count being on the flushing list against the object being
 	 * done.  Otherwise, a buffer left on the flushing list but not getting
