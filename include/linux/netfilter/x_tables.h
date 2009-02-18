@@ -349,9 +349,6 @@ struct xt_table
 {
 	struct list_head list;
 
-	/* A unique name... */
-	const char name[XT_TABLE_MAXNAMELEN];
-
 	/* What hooks you will enter on */
 	unsigned int valid_hooks;
 
@@ -359,13 +356,15 @@ struct xt_table
 	rwlock_t lock;
 
 	/* Man behind the curtain... */
-	//struct ip6t_table_info *private;
-	void *private;
+	struct xt_table_info *private;
 
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
 	u_int8_t af;		/* address/protocol family */
+
+	/* A unique name... */
+	const char name[XT_TABLE_MAXNAMELEN];
 };
 
 #include <linux/netfilter_ipv4.h>
