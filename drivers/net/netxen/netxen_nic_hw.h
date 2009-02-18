@@ -54,30 +54,6 @@ static inline void writeq(u64 val, void __iomem * addr)
 }
 #endif
 
-static inline void netxen_nic_hw_block_write64(u64 __iomem * data_ptr,
-					       u64 __iomem * addr,
-					       int num_words)
-{
-	int num;
-	for (num = 0; num < num_words; num++) {
-		writeq(readq((void __iomem *)data_ptr), addr);
-		addr++;
-		data_ptr++;
-	}
-}
-
-static inline void netxen_nic_hw_block_read64(u64 __iomem * data_ptr,
-					      u64 __iomem * addr, int num_words)
-{
-	int num;
-	for (num = 0; num < num_words; num++) {
-		writeq(readq((void __iomem *)addr), data_ptr);
-		addr++;
-		data_ptr++;
-	}
-
-}
-
 struct netxen_adapter;
 
 #define NETXEN_PCI_MAPSIZE_BYTES  (NETXEN_PCI_MAPSIZE << 20)
