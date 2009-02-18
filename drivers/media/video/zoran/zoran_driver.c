@@ -191,9 +191,6 @@ const struct zoran_format zoran_formats[] = {
 };
 #define NUM_FORMATS ARRAY_SIZE(zoran_formats)
 
-// RJ: Test only - want to test BUZ_USE_HIMEM even when CONFIG_BIGPHYS_AREA is defined
-
-
 static int lock_norm;	/* 0 = default 1 = Don't change TV standard (norm) */
 module_param(lock_norm, int, 0644);
 MODULE_PARM_DESC(lock_norm, "Prevent norm changes (1 = ignore, >1 = fail)");
@@ -229,76 +226,7 @@ static void jpg_fbuffer_free(struct file *file);
  *   Allocate the V4L grab buffers
  *
  *   These have to be pysically contiguous.
- *   If v4l_bufsize <= MAX_KMALLOC_MEM we use kmalloc
- *   else we try to allocate them with bigphysarea_alloc_pages
- *   if the bigphysarea patch is present in the kernel,
- *   else we try to use high memory (if the user has bootet
- *   Linux with the necessary memory left over).
  */
-
-static unsigned long
-get_high_mem (unsigned long size)
-{
-/*
- * Check if there is usable memory at the end of Linux memory
- * of at least size. Return the physical address of this memory,
- * return 0 on failure.
- *
- * The idea is from Alexandro Rubini's book "Linux device drivers".
- * The driver from him which is downloadable from O'Reilly's
- * web site misses the "virt_to_phys(high_memory)" part
- * (and therefore doesn't work at all - at least with 2.2.x kernels).
- *
- * It should be unnecessary to mention that THIS IS DANGEROUS,
- * if more than one driver at a time has the idea to use this memory!!!!
- */
-
-	volatile unsigned char __iomem *mem;
-	unsigned char c;
-	unsigned long hi_mem_ph;
-	unsigned long i;
-
-	/* Map the high memory to user space */
-
-	hi_mem_ph = virt_to_phys(high_memory);
-
-	mem = ioremap(hi_mem_ph, size);
-	if (!mem) {
-		dprintk(1,
-			KERN_ERR "%s: get_high_mem() - ioremap failed\n",
-			ZORAN_NAME);
-		return 0;
-	}
-
-	for (i = 0; i < size; i++) {
-		/* Check if it is memory */
-		c = i & 0xff;
-		writeb(c, mem + i);
-		if (readb(mem + i) != c)
-			break;
-		c = 255 - c;
-		writeb(c, mem + i);
-		if (readb(mem + i) != c)
-			break;
-		writeb(0, mem + i);	/* zero out memory */
-
-		/* give the kernel air to breath */
-		if ((i & 0x3ffff) == 0x3ffff)
-			schedule();
-	}
-
-	iounmap(mem);
-
-	if (i != size) {
-		dprintk(1,
-			KERN_ERR
-			"%s: get_high_mem() - requested %lu, avail %lu\n",
-			ZORAN_NAME, size, i);
-		return 0;
-	}
-
-	return hi_mem_ph;
-}
 
 static int
 v4l_fbuffer_alloc (struct file *file)
@@ -307,82 +235,37 @@ v4l_fbuffer_alloc (struct file *file)
 	struct zoran *zr = fh->zr;
 	int i, off;
 	unsigned char *mem;
-	unsigned long pmem = 0;
 
 	for (i = 0; i < fh->v4l_buffers.num_buffers; i++) {
 		if (fh->v4l_buffers.buffer[i].fbuffer)
 			dprintk(2,
 				KERN_WARNING
-				"%s: v4l_fbuffer_alloc() - buffer %d allready allocated!?\n",
+				"%s: v4l_fbuffer_alloc() - buffer %d already allocated!?\n",
 				ZR_DEVNAME(zr), i);
 
 		//udelay(20);
-		if (fh->v4l_buffers.buffer_size <= MAX_KMALLOC_MEM) {
-			/* Use kmalloc */
-
-			mem = kmalloc(fh->v4l_buffers.buffer_size, GFP_KERNEL);
-			if (!mem) {
-				dprintk(1,
-					KERN_ERR
-					"%s: v4l_fbuffer_alloc() - kmalloc for V4L buf %d failed\n",
-					ZR_DEVNAME(zr), i);
-				v4l_fbuffer_free(file);
-				return -ENOBUFS;
-			}
-			fh->v4l_buffers.buffer[i].fbuffer = mem;
-			fh->v4l_buffers.buffer[i].fbuffer_phys =
-			    virt_to_phys(mem);
-			fh->v4l_buffers.buffer[i].fbuffer_bus =
-			    virt_to_bus(mem);
-			for (off = 0; off < fh->v4l_buffers.buffer_size;
-			     off += PAGE_SIZE)
-				SetPageReserved(MAP_NR(mem + off));
-			dprintk(4,
-				KERN_INFO
-				"%s: v4l_fbuffer_alloc() - V4L frame %d mem 0x%lx (bus: 0x%llx)\n",
-				ZR_DEVNAME(zr), i, (unsigned long) mem,
-				(unsigned long long)virt_to_bus(mem));
-		} else {
-
-			/* Use high memory which has been left at boot time */
-
-			/* Ok., Ok. this is an evil hack - we make
-			 * the assumption that physical addresses are
-			 * the same as bus addresses (true at least
-			 * for Intel processors). The whole method of
-			 * obtaining and using this memory is not very
-			 * nice - but I hope it saves some poor users
-			 * from kernel hacking, which might have even
-			 * more evil results */
-
-			if (i == 0) {
-				int size =
-				    fh->v4l_buffers.num_buffers *
-				    fh->v4l_buffers.buffer_size;
-
-				pmem = get_high_mem(size);
-				if (pmem == 0) {
-					dprintk(1,
-						KERN_ERR
-						"%s: v4l_fbuffer_alloc() - get_high_mem (size = %d KB) for V4L bufs failed\n",
-						ZR_DEVNAME(zr), size >> 10);
-					return -ENOBUFS;
-				}
-				fh->v4l_buffers.buffer[0].fbuffer = NULL;
-				fh->v4l_buffers.buffer[0].fbuffer_phys = pmem;
-				fh->v4l_buffers.buffer[0].fbuffer_bus = pmem;
-				dprintk(4,
-					KERN_INFO
-					"%s: v4l_fbuffer_alloc() - using %d KB high memory\n",
-					ZR_DEVNAME(zr), size >> 10);
-			} else {
-				fh->v4l_buffers.buffer[i].fbuffer = NULL;
-				fh->v4l_buffers.buffer[i].fbuffer_phys =
-				    pmem + i * fh->v4l_buffers.buffer_size;
-				fh->v4l_buffers.buffer[i].fbuffer_bus =
-				    pmem + i * fh->v4l_buffers.buffer_size;
-			}
+		mem = kmalloc(fh->v4l_buffers.buffer_size, GFP_KERNEL);
+		if (!mem) {
+			dprintk(1,
+				KERN_ERR
+				"%s: v4l_fbuffer_alloc() - kmalloc for V4L buf %d failed\n",
+				ZR_DEVNAME(zr), i);
+			v4l_fbuffer_free(file);
+			return -ENOBUFS;
 		}
+		fh->v4l_buffers.buffer[i].fbuffer = mem;
+		fh->v4l_buffers.buffer[i].fbuffer_phys =
+		    virt_to_phys(mem);
+		fh->v4l_buffers.buffer[i].fbuffer_bus =
+		    virt_to_bus(mem);
+		for (off = 0; off < fh->v4l_buffers.buffer_size;
+		     off += PAGE_SIZE)
+			SetPageReserved(MAP_NR(mem + off));
+		dprintk(4,
+			KERN_INFO
+			"%s: v4l_fbuffer_alloc() - V4L frame %d mem 0x%lx (bus: 0x%lx)\n",
+			ZR_DEVNAME(zr), i, (unsigned long) mem,
+			virt_to_bus(mem));
 	}
 
 	fh->v4l_buffers.allocated = 1;
@@ -405,13 +288,11 @@ v4l_fbuffer_free (struct file *file)
 		if (!fh->v4l_buffers.buffer[i].fbuffer)
 			continue;
 
-		if (fh->v4l_buffers.buffer_size <= MAX_KMALLOC_MEM) {
-			mem = fh->v4l_buffers.buffer[i].fbuffer;
-			for (off = 0; off < fh->v4l_buffers.buffer_size;
-			     off += PAGE_SIZE)
-				ClearPageReserved(MAP_NR(mem + off));
-			kfree((void *) fh->v4l_buffers.buffer[i].fbuffer);
-		}
+		mem = fh->v4l_buffers.buffer[i].fbuffer;
+		for (off = 0; off < fh->v4l_buffers.buffer_size;
+		     off += PAGE_SIZE)
+			ClearPageReserved(MAP_NR(mem + off));
+		kfree((void *) fh->v4l_buffers.buffer[i].fbuffer);
 		fh->v4l_buffers.buffer[i].fbuffer = NULL;
 	}
 
@@ -421,16 +302,10 @@ v4l_fbuffer_free (struct file *file)
 /*
  *   Allocate the MJPEG grab buffers.
  *
- *   If the requested buffer size is smaller than MAX_KMALLOC_MEM,
- *   kmalloc is used to request a physically contiguous area,
- *   else we allocate the memory in framgents with get_zeroed_page.
- *
  *   If a Natoma chipset is present and this is a revision 1 zr36057,
  *   each MJPEG buffer needs to be physically contiguous.
  *   (RJ: This statement is from Dave Perks' original driver,
  *   I could never check it because I have a zr36067)
- *   The driver cares about this because it reduces the buffer
- *   size to MAX_KMALLOC_MEM in that case (which forces contiguous allocation).
  *
  *   RJ: The contents grab buffers needs never be accessed in the driver.
  *       Therefore there is no need to allocate them with vmalloc in order
@@ -464,7 +339,7 @@ jpg_fbuffer_alloc (struct file *file)
 		if (fh->jpg_buffers.buffer[i].frag_tab)
 			dprintk(2,
 				KERN_WARNING
-				"%s: jpg_fbuffer_alloc() - buffer %d allready allocated!?\n",
+				"%s: jpg_fbuffer_alloc() - buffer %d already allocated!?\n",
 				ZR_DEVNAME(zr), i);
 
 		/* Allocate fragment table for this buffer */
@@ -504,7 +379,7 @@ jpg_fbuffer_alloc (struct file *file)
 			     off += PAGE_SIZE)
 				SetPageReserved(MAP_NR(mem + off));
 		} else {
-			/* jpg_bufsize is allreay page aligned */
+			/* jpg_bufsize is already page aligned */
 			for (j = 0;
 			     j < fh->jpg_buffers.buffer_size / PAGE_SIZE;
 			     j++) {
@@ -2173,6 +2048,7 @@ schan_unlock_and_return:
 		return res;
 	}
 
+
 	case VIDIOCGMBUF:
 	{
 		struct video_mbuf *vmbuf = arg;
@@ -2369,16 +2245,13 @@ sparams_unlock_and_return:
 		 * tables to a Maximum of 2 MB */
 		if (breq->size > jpg_bufsize)
 			breq->size = jpg_bufsize;
-		if (fh->jpg_buffers.need_contiguous &&
-		    breq->size > MAX_KMALLOC_MEM)
-			breq->size = MAX_KMALLOC_MEM;
 
 		mutex_lock(&zr->resource_lock);
 
 		if (fh->jpg_buffers.allocated || fh->v4l_buffers.allocated) {
 			dprintk(1,
 				KERN_ERR
-				"%s: BUZIOC_REQBUFS - buffers allready allocated\n",
+				"%s: BUZIOC_REQBUFS - buffers already allocated\n",
 				ZR_DEVNAME(zr));
 			res = -EBUSY;
 			goto jpgreqbuf_unlock_and_return;

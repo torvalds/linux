@@ -170,8 +170,6 @@ Private IOCTL to set up for displaying MJPEG
 #endif
 #define   V4L_MASK_FRAME   (V4L_MAX_FRAME - 1)
 
-#define MAX_KMALLOC_MEM (128*1024)
-
 #include "zr36057.h"
 
 enum card_type {
