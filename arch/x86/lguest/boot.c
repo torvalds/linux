@@ -153,10 +153,10 @@ static void lguest_leave_lazy_mmu_mode(void)
 	paravirt_leave_lazy_mmu();
 }
 
-static void lguest_leave_lazy_cpu_mode(void)
+static void lguest_end_context_switch(struct task_struct *next)
 {
 	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
-	paravirt_leave_lazy_cpu();
+	paravirt_end_context_switch(next);
 }
 
 /*G:033
@@ -1031,8 +1031,8 @@ __init void lguest_init(void)
 	pv_cpu_ops.write_gdt_entry = lguest_write_gdt_entry;
 	pv_cpu_ops.write_idt_entry = lguest_write_idt_entry;
 	pv_cpu_ops.wbinvd = lguest_wbinvd;
-	pv_cpu_ops.lazy_mode.enter = paravirt_enter_lazy_cpu;
-	pv_cpu_ops.lazy_mode.leave = lguest_leave_lazy_cpu_mode;
+	pv_cpu_ops.start_context_switch = paravirt_start_context_switch;
+	pv_cpu_ops.end_context_switch = lguest_end_context_switch;
 
 	/* pagetable management */
 	pv_mmu_ops.write_cr3 = lguest_write_cr3;
