@@ -472,6 +472,15 @@ config USB_SERIAL_OTI6858
 	  To compile this driver as a module, choose M here: the
 	  module will be called oti6858.
 
+config USB_SERIAL_QUALCOMM
+	tristate "USB Qualcomm Serial modem"
+	help
+	  Say Y here if you have a Qualcomm USB modem device.  These are
+	  usually wireless cellular modems.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qcserial.
+
 config USB_SERIAL_SPCP8X5
 	tristate "USB SPCP8x5 USB To Serial Driver"
 	help
