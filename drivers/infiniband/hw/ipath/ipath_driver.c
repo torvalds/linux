@@ -2715,7 +2715,7 @@ static void ipath_hol_signal_up(struct ipath_devdata *dd)
  * to prevent HoL blocking, then start the HoL timer that
  * periodically continues, then stop procs, so they can detect
  * link down if they want, and do something about it.
- * Timer may already be running, so use __mod_timer, not add_timer.
+ * Timer may already be running, so use mod_timer, not add_timer.
  */
 void ipath_hol_down(struct ipath_devdata *dd)
 {
@@ -2724,7 +2724,7 @@ void ipath_hol_down(struct ipath_devdata *dd)
 	dd->ipath_hol_next = IPATH_HOL_DOWNCONT;
 	dd->ipath_hol_timer.expires = jiffies +
 		msecs_to_jiffies(ipath_hol_timeout_ms);
-	__mod_timer(&dd->ipath_hol_timer, dd->ipath_hol_timer.expires);
+	mod_timer(&dd->ipath_hol_timer, dd->ipath_hol_timer.expires);
 }
 
 /*
@@ -2763,7 +2763,7 @@ void ipath_hol_event(unsigned long opaque)
 	else {
 		dd->ipath_hol_timer.expires = jiffies +
 			msecs_to_jiffies(ipath_hol_timeout_ms);
-		__mod_timer(&dd->ipath_hol_timer,
+		mod_timer(&dd->ipath_hol_timer,
 			dd->ipath_hol_timer.expires);
 	}
 }
