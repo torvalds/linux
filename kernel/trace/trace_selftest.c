@@ -57,11 +57,20 @@ static int trace_test_buffer(struct trace_array *tr, unsigned long *count)
 
 	cnt = ring_buffer_entries(tr->buffer);
 
+	/*
+	 * The trace_test_buffer_cpu runs a while loop to consume all data.
+	 * If the calling tracer is broken, and is constantly filling
+	 * the buffer, this will run forever, and hard lock the box.
+	 * We disable the ring buffer while we do this test to prevent
+	 * a hard lock up.
+	 */
+	tracing_off();
 	for_each_possible_cpu(cpu) {
 		ret = trace_test_buffer_cpu(tr, cpu);
 		if (ret)
 			break;
 	}
+	tracing_on();
 	__raw_spin_unlock(&ftrace_max_lock);
 	local_irq_restore(flags);
 
