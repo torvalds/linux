@@ -763,8 +763,8 @@ enum usb_device_state {
 	/* chapter 9 and authentication (wireless) device states */
 	USB_STATE_ATTACHED,
 	USB_STATE_POWERED,			/* wired */
-	USB_STATE_UNAUTHENTICATED,		/* auth */
 	USB_STATE_RECONNECTING,			/* auth */
+	USB_STATE_UNAUTHENTICATED,		/* auth */
 	USB_STATE_DEFAULT,			/* limited function */
 	USB_STATE_ADDRESS,
 	USB_STATE_CONFIGURED,			/* most functions */

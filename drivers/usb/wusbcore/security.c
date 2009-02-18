@@ -312,6 +312,7 @@ int wusb_dev_update_address(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 	result = wusb_set_dev_addr(wusbhc, wusb_dev, 0);
 	if (result < 0)
 		goto error_addr0;
+	usb_set_device_state(usb_dev, USB_STATE_DEFAULT);
 	usb_ep0_reinit(usb_dev);
 
 	/* Set new (authenticated) address. */
@@ -327,6 +328,7 @@ int wusb_dev_update_address(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev)
 	result = wusb_set_dev_addr(wusbhc, wusb_dev, new_address);
 	if (result < 0)
 		goto error_addr;
+	usb_set_device_state(usb_dev, USB_STATE_ADDRESS);
 	usb_ep0_reinit(usb_dev);
 	usb_dev->authenticated = 1;
 error_addr:

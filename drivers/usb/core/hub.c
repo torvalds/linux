@@ -1305,6 +1305,7 @@ void usb_set_device_state(struct usb_device *udev,
 		recursively_mark_NOTATTACHED(udev);
 	spin_unlock_irqrestore(&device_state_lock, flags);
 }
+EXPORT_SYMBOL_GPL(usb_set_device_state);
 
 /*
  * WUSB devices are simple: they have no hubs behind, so the mapping
