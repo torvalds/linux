@@ -312,7 +312,6 @@ struct zoran_jpg_struct {
 	struct zoran_jpg_buffer buffer[BUZ_MAX_FRAME];	/* buffers */
 	int num_buffers, buffer_size;
 	u8 allocated;		/* Flag if buffers are allocated  */
-	u8 ready_to_be_freed;	/* hack - see zoran_driver.c */
 	u8 need_contiguous;	/* Flag if contiguous buffers are needed */
 };
 
@@ -321,7 +320,6 @@ struct zoran_v4l_struct {
 	struct zoran_v4l_buffer buffer[VIDEO_MAX_FRAME];	/* buffers */
 	int num_buffers, buffer_size;
 	u8 allocated;		/* Flag if buffers are allocated  */
-	u8 ready_to_be_freed;	/* hack - see zoran_driver.c */
 };
 
 struct zoran;
