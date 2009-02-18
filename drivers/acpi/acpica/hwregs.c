@@ -71,7 +71,6 @@ acpi_hw_write_multiple(u32 value,
  * RETURN:      Status
  *
  * DESCRIPTION: Clears all fixed and general purpose status bits
- *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
  ******************************************************************************/
 
@@ -82,28 +81,18 @@ acpi_status acpi_hw_clear_acpi_status(void)
 
 	ACPI_FUNCTION_TRACE(hw_clear_acpi_status);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_IO, "About to write %04X to %04X\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_IO, "About to write %04X to %0llX\n",
 			  ACPI_BITMASK_ALL_FIXED_STATUS,
-			  (u16) acpi_gbl_xpm1a_status.address));
+			  acpi_gbl_xpm1a_status.address));
 
 	lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
 
-	/* Clear the fixed events */
+	/* Clear the fixed events in PM1 A/B */
 
 	status = acpi_hw_register_write(ACPI_REGISTER_PM1_STATUS,
 					ACPI_BITMASK_ALL_FIXED_STATUS);
 	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
-	}
-
-	/* Write PM1B register if present */
-
-	if (acpi_gbl_xpm1b_status.address) {
-		status = acpi_write(ACPI_BITMASK_ALL_FIXED_STATUS,
-				    &acpi_gbl_xpm1b_status);
-		if (ACPI_FAILURE(status)) {
-			goto unlock_and_exit;
-		}
 	}
 
 	/* Clear the GPE Bits in all GPE registers in all GPE blocks */
