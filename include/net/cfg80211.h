@@ -765,6 +765,9 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 int cfg80211_wext_giwscan(struct net_device *dev,
 			  struct iw_request_info *info,
 			  struct iw_point *data, char *extra);
+int cfg80211_wext_giwrange(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_point *data, char *extra);
 
 /**
  * cfg80211_scan_done - notify that scan finished
