@@ -92,15 +92,6 @@ config IP_NF_MATCH_ECN
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_MATCH_TTL
-	tristate '"ttl" match support'
-	depends on NETFILTER_ADVANCED
-	help
-	  This adds CONFIG_IP_NF_MATCH_TTL option, which enabled the user
-	  to match packets by their TTL value.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 # `filter', generic and specific targets
 config IP_NF_FILTER
 	tristate "Packet filtering"

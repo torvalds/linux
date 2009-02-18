@@ -620,6 +620,14 @@ config NETFILTER_XT_MATCH_HELPER
 
 	  To compile it as a module, choose M here.  If unsure, say Y.
 
+config NETFILTER_XT_MATCH_HL
+	tristate '"hl" hoplimit/TTL match support'
+	depends on NETFILTER_ADVANCED
+	---help---
+	HL matching allows you to match packets based on the hoplimit
+	in the IPv6 header, or the time-to-live field in the IPv4
+	header of the packet.
+
 config NETFILTER_XT_MATCH_IPRANGE
 	tristate '"iprange" address range match support'
 	depends on NETFILTER_ADVANCED
