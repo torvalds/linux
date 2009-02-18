@@ -247,7 +247,6 @@ static DEFINE_PER_CPU(enum paravirt_lazy_mode, paravirt_lazy_mode) = PARAVIRT_LA
 static inline void enter_lazy(enum paravirt_lazy_mode mode)
 {
 	BUG_ON(__get_cpu_var(paravirt_lazy_mode) != PARAVIRT_LAZY_NONE);
-	BUG_ON(preemptible());
 
 	__get_cpu_var(paravirt_lazy_mode) = mode;
 }
@@ -255,7 +254,6 @@ static inline void enter_lazy(enum paravirt_lazy_mode mode)
 static void leave_lazy(enum paravirt_lazy_mode mode)
 {
 	BUG_ON(__get_cpu_var(paravirt_lazy_mode) != mode);
-	BUG_ON(preemptible());
 
 	__get_cpu_var(paravirt_lazy_mode) = PARAVIRT_LAZY_NONE;
 }
@@ -272,6 +270,8 @@ void paravirt_leave_lazy_mmu(void)
 
 void paravirt_start_context_switch(struct task_struct *prev)
 {
+	BUG_ON(preemptible());
+
 	if (percpu_read(paravirt_lazy_mode) == PARAVIRT_LAZY_MMU) {
 		arch_leave_lazy_mmu_mode();
 		set_ti_thread_flag(task_thread_info(prev), TIF_LAZY_MMU_UPDATES);
@@ -281,6 +281,8 @@ void paravirt_start_context_switch(struct task_struct *prev)
 
 void paravirt_end_context_switch(struct task_struct *next)
 {
+	BUG_ON(preemptible());
+
 	leave_lazy(PARAVIRT_LAZY_CPU);
 
 	if (test_and_clear_ti_thread_flag(task_thread_info(next), TIF_LAZY_MMU_UPDATES))
@@ -300,7 +302,6 @@ void arch_flush_lazy_mmu_mode(void)
 	preempt_disable();
 
 	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
-		WARN_ON(preempt_count() == 1);
 		arch_leave_lazy_mmu_mode();
 		arch_enter_lazy_mmu_mode();
 	}
