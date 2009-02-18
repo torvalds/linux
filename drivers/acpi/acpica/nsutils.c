@@ -872,7 +872,7 @@ acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
 				(flags | ACPI_NS_DONT_OPEN_SCOPE), NULL,
 				return_node);
 	if (ACPI_FAILURE(status)) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "%s, %s\n",
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s, %s\n",
 				  pathname, acpi_format_exception(status)));
 	}
 

@@ -310,7 +310,7 @@ u8 acpi_ut_valid_internal_object(void *object)
 	/* Check for a null pointer */
 
 	if (!object) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "**** Null Object Ptr\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "**** Null Object Ptr\n"));
 		return (FALSE);
 	}
 
@@ -324,7 +324,7 @@ u8 acpi_ut_valid_internal_object(void *object)
 		return (TRUE);
 
 	default:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "%p is not not an ACPI operand obj [%s]\n",
 				  object, acpi_ut_get_descriptor_name(object)));
 		break;
