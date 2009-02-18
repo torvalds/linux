@@ -1156,56 +1156,6 @@ drop:
 	return -1;
 }
 
-static void iwl3945_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
-{
-	unsigned long flags;
-
-	if (!!disable_radio == test_bit(STATUS_RF_KILL_SW, &priv->status))
-		return;
-
-	IWL_DEBUG_RF_KILL(priv, "Manual SW RF KILL set to: RADIO %s\n",
-			  disable_radio ? "OFF" : "ON");
-
-	if (disable_radio) {
-		iwl_scan_cancel(priv);
-		/* FIXME: This is a workaround for AP */
-		if (priv->iw_mode != NL80211_IFTYPE_AP) {
-			spin_lock_irqsave(&priv->lock, flags);
-			iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
-				    CSR_UCODE_SW_BIT_RFKILL);
-			spin_unlock_irqrestore(&priv->lock, flags);
-			iwl_send_card_state(priv, CARD_STATE_CMD_DISABLE, 0);
-			set_bit(STATUS_RF_KILL_SW, &priv->status);
-		}
-		return;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-
-	clear_bit(STATUS_RF_KILL_SW, &priv->status);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* wake up ucode */
-	msleep(10);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl_read32(priv, CSR_UCODE_DRV_GP1);
-	if (!iwl_grab_nic_access(priv))
-		iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
-		IWL_DEBUG_RF_KILL(priv, "Can not turn radio back on - "
-				  "disabled by HW switch\n");
-		return;
-	}
-
-	if (priv->is_open)
-		queue_work(priv->workqueue, &priv->restart);
-	return;
-}
-
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 
 #include "iwl-spectrum.h"
@@ -3879,9 +3829,13 @@ static int iwl3945_mac_config(struct ieee80211_hw *hw, u32 changed)
 	}
 #endif
 
-	iwl3945_radio_kill_sw(priv, !conf->radio_enabled);
+	if (conf->radio_enabled && iwl_radio_kill_sw_enable_radio(priv)) {
+		IWL_DEBUG_MAC80211(priv, "leave - RF-KILL - waiting for uCode\n");
+		goto out;
+	}
 
 	if (!conf->radio_enabled) {
+		iwl_radio_kill_sw_disable_radio(priv);
 		IWL_DEBUG_MAC80211(priv, "leave - radio disabled\n");
 		goto out;
 	}
