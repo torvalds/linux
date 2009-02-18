@@ -281,6 +281,8 @@ static int saa7185_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 		switch (*iarg) {
 		case 0:
+			/* turn off colorbar */
+			saa7185_write(client, 0x3a, 0x0f);
 			/* Switch RTCE to 1 */
 			saa7185_write(client, 0x61,
 				      (encoder->reg[0x61] & 0xf7) | 0x08);
@@ -288,11 +290,23 @@ static int saa7185_command(struct i2c_client *client, unsigned cmd, void *arg)
 			break;
 
 		case 1:
+			/* turn off colorbar */
+			saa7185_write(client, 0x3a, 0x0f);
 			/* Switch RTCE to 0 */
 			saa7185_write(client, 0x61,
 				      (encoder->reg[0x61] & 0xf7) | 0x00);
 			/* SW: a slight sync problem... */
 			saa7185_write(client, 0x6e, 0x00);
+			break;
+
+		case 2:
+			/* turn on colorbar */
+			saa7185_write(client, 0x3a, 0x8f);
+			/* Switch RTCE to 0 */
+			saa7185_write(client, 0x61,
+				      (encoder->reg[0x61] & 0xf7) | 0x08);
+			/* SW: a slight sync problem... */
+			saa7185_write(client, 0x6e, 0x01);
 			break;
 
 		default:
