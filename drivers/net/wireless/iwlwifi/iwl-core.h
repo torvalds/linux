@@ -250,6 +250,14 @@ int iwl_init_drv(struct iwl_priv *priv);
 void iwl_uninit_drv(struct iwl_priv *priv);
 
 /*****************************************************
+ * RX handlers.
+ * **************************************************/
+void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
+			   struct iwl_rx_mem_buffer *rxb);
+void iwl_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
+				      struct iwl_rx_mem_buffer *rxb);
+
+/*****************************************************
 * RX
 ******************************************************/
 void iwl_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
