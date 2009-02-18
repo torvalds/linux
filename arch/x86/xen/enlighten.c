@@ -203,10 +203,10 @@ static unsigned long xen_get_debugreg(int reg)
 	return HYPERVISOR_get_debugreg(reg);
 }
 
-void xen_leave_lazy(void)
+static void xen_leave_lazy_cpu(void)
 {
-	paravirt_leave_lazy(paravirt_get_lazy_mode());
 	xen_mc_flush();
+	paravirt_leave_lazy_cpu();
 }
 
 static unsigned long xen_store_tr(void)
@@ -819,7 +819,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 
 	.lazy_mode = {
 		.enter = paravirt_enter_lazy_cpu,
-		.leave = xen_leave_lazy,
+		.leave = xen_leave_lazy_cpu,
 	},
 };
 

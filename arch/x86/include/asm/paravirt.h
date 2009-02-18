@@ -1418,7 +1418,6 @@ void paravirt_enter_lazy_cpu(void);
 void paravirt_leave_lazy_cpu(void);
 void paravirt_enter_lazy_mmu(void);
 void paravirt_leave_lazy_mmu(void);
-void paravirt_leave_lazy(enum paravirt_lazy_mode mode);
 
 #define  __HAVE_ARCH_START_CONTEXT_SWITCH
 static inline void arch_start_context_switch(void)

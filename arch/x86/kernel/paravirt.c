@@ -252,7 +252,7 @@ static inline void enter_lazy(enum paravirt_lazy_mode mode)
 	__get_cpu_var(paravirt_lazy_mode) = mode;
 }
 
-void paravirt_leave_lazy(enum paravirt_lazy_mode mode)
+static void leave_lazy(enum paravirt_lazy_mode mode)
 {
 	BUG_ON(__get_cpu_var(paravirt_lazy_mode) != mode);
 	BUG_ON(preemptible());
@@ -267,17 +267,24 @@ void paravirt_enter_lazy_mmu(void)
 
 void paravirt_leave_lazy_mmu(void)
 {
-	paravirt_leave_lazy(PARAVIRT_LAZY_MMU);
+	leave_lazy(PARAVIRT_LAZY_MMU);
 }
 
 void paravirt_enter_lazy_cpu(void)
 {
+	if (percpu_read(paravirt_lazy_mode) == PARAVIRT_LAZY_MMU) {
+		arch_leave_lazy_mmu_mode();
+		set_thread_flag(TIF_LAZY_MMU_UPDATES);
+	}
 	enter_lazy(PARAVIRT_LAZY_CPU);
 }
 
 void paravirt_leave_lazy_cpu(void)
 {
-	paravirt_leave_lazy(PARAVIRT_LAZY_CPU);
+	leave_lazy(PARAVIRT_LAZY_CPU);
+
+	if (test_and_clear_thread_flag(TIF_LAZY_MMU_UPDATES))
+		arch_enter_lazy_mmu_mode();
 }
 
 enum paravirt_lazy_mode paravirt_get_lazy_mode(void)

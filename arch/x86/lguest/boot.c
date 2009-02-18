@@ -147,10 +147,16 @@ static void lazy_hcall(unsigned long call,
 
 /* When lazy mode is turned off reset the per-cpu lazy mode variable and then
  * issue the do-nothing hypercall to flush any stored calls. */
-static void lguest_leave_lazy_mode(void)
+static void lguest_leave_lazy_mmu_mode(void)
 {
-	paravirt_leave_lazy(paravirt_get_lazy_mode());
 	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
+	paravirt_leave_lazy_mmu();
+}
+
+static void lguest_leave_lazy_cpu_mode(void)
+{
+	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
+	paravirt_leave_lazy_cpu();
 }
 
 /*G:033
@@ -1026,7 +1032,7 @@ __init void lguest_init(void)
 	pv_cpu_ops.write_idt_entry = lguest_write_idt_entry;
 	pv_cpu_ops.wbinvd = lguest_wbinvd;
 	pv_cpu_ops.lazy_mode.enter = paravirt_enter_lazy_cpu;
-	pv_cpu_ops.lazy_mode.leave = lguest_leave_lazy_mode;
+	pv_cpu_ops.lazy_mode.leave = lguest_leave_lazy_cpu_mode;
 
 	/* pagetable management */
 	pv_mmu_ops.write_cr3 = lguest_write_cr3;
@@ -1039,7 +1045,7 @@ __init void lguest_init(void)
 	pv_mmu_ops.read_cr2 = lguest_read_cr2;
 	pv_mmu_ops.read_cr3 = lguest_read_cr3;
 	pv_mmu_ops.lazy_mode.enter = paravirt_enter_lazy_mmu;
-	pv_mmu_ops.lazy_mode.leave = lguest_leave_lazy_mode;
+	pv_mmu_ops.lazy_mode.leave = lguest_leave_lazy_mmu_mode;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* apic read/write intercepts */
