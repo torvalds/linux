@@ -357,6 +357,21 @@ config NETFILTER_XT_TARGET_DSCP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_TARGET_HL
+	tristate '"HL" hoplimit target support'
+	depends on IP_NF_MANGLE || IP6_NF_MANGLE
+	depends on NETFILTER_ADVANCED
+	---help---
+	This option adds the "HL" (for IPv6) and "TTL" (for IPv4)
+	targets, which enable the user to change the
+	hoplimit/time-to-live value of the IP header.
+
+	While it is safe to decrement the hoplimit/TTL value, the
+	modules also allow to increment and set the hoplimit value of
+	the header to arbitrary values. This is EXTREMELY DANGEROUS
+	since you can easily create immortal packets that loop
+	forever on the network.
+
 config NETFILTER_XT_TARGET_MARK
 	tristate '"MARK" target support'
 	default m if NETFILTER_ADVANCED=n
