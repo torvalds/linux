@@ -282,6 +282,9 @@ void paravirt_leave_lazy_cpu(void)
 
 enum paravirt_lazy_mode paravirt_get_lazy_mode(void)
 {
+	if (in_interrupt())
+		return PARAVIRT_LAZY_NONE;
+
 	return __get_cpu_var(paravirt_lazy_mode);
 }
 
