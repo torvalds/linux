@@ -23,7 +23,7 @@
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
 #include "saa7191.h"
 
@@ -34,9 +34,6 @@ MODULE_VERSION(SAA7191_MODULE_VERSION);
 MODULE_AUTHOR("Mikael Nousiainen <tmnousia@cc.hut.fi>");
 MODULE_LICENSE("GPL");
 
-static unsigned short normal_i2c[] = { 0x8a >> 1, 0x8e >> 1, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 // #define SAA7191_DEBUG
 
@@ -579,11 +576,6 @@ static int saa7191_g_chip_ident(struct v4l2_subdev *sd,
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_SAA7191, 0);
 }
 
-static int saa7191_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops saa7191_core_ops = {
@@ -652,11 +644,6 @@ static int saa7191_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int saa7191_legacy_probe(struct i2c_adapter *adapter)
-{
-	return adapter->id == I2C_HW_SGI_VINO;
-}
-
 static const struct i2c_device_id saa7191_id[] = {
 	{ "saa7191", 0 },
 	{ }
@@ -665,10 +652,7 @@ MODULE_DEVICE_TABLE(i2c, saa7191_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa7191",
-	.driverid = I2C_DRIVERID_SAA7191,
-	.command = saa7191_command,
 	.probe = saa7191_probe,
 	.remove = saa7191_remove,
-	.legacy_probe = saa7191_legacy_probe,
 	.id_table = saa7191_id,
 };
