@@ -3260,6 +3260,7 @@ static int zoran_queryctrl(struct file *file, void *__fh,
 	ctrl->step = 1;
 	ctrl->default_value = 32768;
 	ctrl->type = V4L2_CTRL_TYPE_INTEGER;
+	ctrl->flags = V4L2_CTRL_FLAG_SLIDER;
 
 	return 0;
 }
