@@ -1562,8 +1562,8 @@ static int wm8903_resume(struct platform_device *pdev)
 
 static struct snd_soc_codec *wm8903_codec;
 
-static int wm8903_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
+				      const struct i2c_device_id *id)
 {
 	struct wm8903_priv *wm8903;
 	struct snd_soc_codec *codec;
@@ -1669,7 +1669,7 @@ err:
 	return ret;
 }
 
-static int wm8903_i2c_remove(struct i2c_client *client)
+static __devexit int wm8903_i2c_remove(struct i2c_client *client)
 {
 	struct snd_soc_codec *codec = i2c_get_clientdata(client);
 
@@ -1699,7 +1699,7 @@ static struct i2c_driver wm8903_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe    = wm8903_i2c_probe,
-	.remove   = wm8903_i2c_remove,
+	.remove   = __devexit_p(wm8903_i2c_remove),
 	.id_table = wm8903_i2c_id,
 };
 

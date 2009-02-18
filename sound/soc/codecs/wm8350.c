@@ -1574,7 +1574,7 @@ struct snd_soc_codec_device soc_codec_dev_wm8350 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8350);
 
-static int wm8350_codec_probe(struct platform_device *pdev)
+static __devinit int wm8350_codec_probe(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_data *priv;

@@ -686,8 +686,8 @@ static struct spi_driver wm8731_spi_driver = {
 #endif /* CONFIG_SPI_MASTER */
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static int wm8731_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static __devinit int wm8731_i2c_probe(struct i2c_client *i2c,
+				      const struct i2c_device_id *id)
 {
 	struct wm8731_priv *wm8731;
 	struct snd_soc_codec *codec;
@@ -707,7 +707,7 @@ static int wm8731_i2c_probe(struct i2c_client *i2c,
 	return wm8731_register(wm8731);
 }
 
-static int wm8731_i2c_remove(struct i2c_client *client)
+static __devexit int wm8731_i2c_remove(struct i2c_client *client)
 {
 	struct wm8731_priv *wm8731 = i2c_get_clientdata(client);
 	wm8731_unregister(wm8731);
@@ -726,7 +726,7 @@ static struct i2c_driver wm8731_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8731_i2c_probe,
-	.remove =   wm8731_i2c_remove,
+	.remove =   __devexit_p(wm8731_i2c_remove),
 	.id_table = wm8731_i2c_id,
 };
 #endif

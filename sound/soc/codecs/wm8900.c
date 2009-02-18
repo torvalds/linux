@@ -1272,8 +1272,8 @@ static int wm8900_resume(struct platform_device *pdev)
 
 static struct snd_soc_codec *wm8900_codec;
 
-static int wm8900_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
+				      const struct i2c_device_id *id)
 {
 	struct wm8900_priv *wm8900;
 	struct snd_soc_codec *codec;
@@ -1372,7 +1372,7 @@ err:
 	return ret;
 }
 
-static int wm8900_i2c_remove(struct i2c_client *client)
+static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_dai(&wm8900_dai);
 	snd_soc_unregister_codec(wm8900_codec);
@@ -1398,7 +1398,7 @@ static struct i2c_driver wm8900_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm8900_i2c_probe,
-	.remove = wm8900_i2c_remove,
+	.remove = __devexit_p(wm8900_i2c_remove),
 	.id_table = wm8900_i2c_id,
 };
 
