@@ -22,6 +22,7 @@ config ARCH_MX2
 config ARCH_MX3
 	bool "MX3-based"
 	select CPU_V6
+	select COMMON_CLKDEV
 	help
 	  This enables support for systems based on the Freescale i.MX3 family
 
