@@ -2463,7 +2463,7 @@ static int zoran_g_fmt_vid_out(struct file *file, void *__fh,
 	fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
 	if (fh->jpg_settings.TmpDcm == 1)
 		fmt->fmt.pix.field = (fh->jpg_settings.odd_even ?
-				V4L2_FIELD_SEQ_BT : V4L2_FIELD_SEQ_BT);
+				V4L2_FIELD_SEQ_TB : V4L2_FIELD_SEQ_BT);
 	else
 		fmt->fmt.pix.field = (fh->jpg_settings.odd_even ?
 				V4L2_FIELD_TOP : V4L2_FIELD_BOTTOM);
