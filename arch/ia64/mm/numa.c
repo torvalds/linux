@@ -70,7 +70,7 @@ int __meminit __early_pfn_to_nid(unsigned long pfn)
 			return node_memblk[i].nid;
 	}
 
-	return 0;
+	return -1;
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
