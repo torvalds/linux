@@ -1310,11 +1310,12 @@ static int saa711x_s_stream(struct v4l2_subdev *sd, int enable)
 	v4l2_dbg(1, debug, sd, "%s output\n",
 			enable ? "enable" : "disable");
 
-	if (state->enable != enable) {
-		state->enable = enable;
-		saa711x_write(sd, R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED,
-				state->enable);
-	}
+	if (state->enable == enable)
+		return 0;
+	state->enable = enable;
+	if (!saa711x_has_reg(state->ident, R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED))
+		return 0;
+	saa711x_write(sd, R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED, state->enable);
 	return 0;
 }
 
