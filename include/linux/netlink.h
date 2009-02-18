@@ -103,6 +103,7 @@ struct nlmsgerr
 #define NETLINK_ADD_MEMBERSHIP	1
 #define NETLINK_DROP_MEMBERSHIP	2
 #define NETLINK_PKTINFO		3
+#define NETLINK_BROADCAST_ERROR	4
 
 struct nl_pktinfo
 {

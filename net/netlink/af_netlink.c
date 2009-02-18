@@ -85,6 +85,7 @@ struct netlink_sock {
 
 #define NETLINK_KERNEL_SOCKET	0x1
 #define NETLINK_RECV_PKTINFO	0x2
+#define NETLINK_BROADCAST_SEND_ERROR	0x4
 
 static inline struct netlink_sock *nlk_sk(struct sock *sk)
 {
@@ -995,12 +996,15 @@ static inline int do_one_broadcast(struct sock *sk,
 		netlink_overrun(sk);
 		/* Clone failed. Notify ALL listeners. */
 		p->failure = 1;
+		if (nlk->flags & NETLINK_BROADCAST_SEND_ERROR)
+			p->delivery_failure = 1;
 	} else if (sk_filter(sk, p->skb2)) {
 		kfree_skb(p->skb2);
 		p->skb2 = NULL;
 	} else if ((val = netlink_broadcast_deliver(sk, p->skb2)) < 0) {
 		netlink_overrun(sk);
-		p->delivery_failure = 1;
+		if (nlk->flags & NETLINK_BROADCAST_SEND_ERROR)
+			p->delivery_failure = 1;
 	} else {
 		p->congested |= val;
 		p->delivered = 1;
@@ -1048,7 +1052,7 @@ int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, u32 pid,
 	if (info.skb2)
 		kfree_skb(info.skb2);
 
-	if (info.delivery_failure || info.failure)
+	if (info.delivery_failure)
 		return -ENOBUFS;
 
 	if (info.delivered) {
@@ -1163,6 +1167,13 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 		err = 0;
 		break;
 	}
+	case NETLINK_BROADCAST_ERROR:
+		if (val)
+			nlk->flags |= NETLINK_BROADCAST_SEND_ERROR;
+		else
+			nlk->flags &= ~NETLINK_BROADCAST_SEND_ERROR;
+		err = 0;
+		break;
 	default:
 		err = -ENOPROTOOPT;
 	}
@@ -1190,6 +1201,16 @@ static int netlink_getsockopt(struct socket *sock, int level, int optname,
 			return -EINVAL;
 		len = sizeof(int);
 		val = nlk->flags & NETLINK_RECV_PKTINFO ? 1 : 0;
+		if (put_user(len, optlen) ||
+		    put_user(val, optval))
+			return -EFAULT;
+		err = 0;
+		break;
+	case NETLINK_BROADCAST_ERROR:
+		if (len < sizeof(int))
+			return -EINVAL;
+		len = sizeof(int);
+		val = nlk->flags & NETLINK_BROADCAST_SEND_ERROR ? 1 : 0;
 		if (put_user(len, optlen) ||
 		    put_user(val, optval))
 			return -EFAULT;
