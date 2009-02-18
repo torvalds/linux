@@ -607,7 +607,7 @@ struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
 static int __init dmi_low_memory_corruption(const struct dmi_system_id *d)
 {
 	printk(KERN_NOTICE
-		"%s detected: BIOS may corrupt low RAM, working it around.\n",
+		"%s detected: BIOS may corrupt low RAM, working around it.\n",
 		d->ident);
 
 	e820_update_range(0, 0x10000, E820_RAM, E820_RESERVED);

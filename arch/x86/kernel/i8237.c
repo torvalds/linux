@@ -28,10 +28,10 @@ static int i8237A_resume(struct sys_device *dev)
 
 	flags = claim_dma_lock();
 
-	dma_outb(DMA1_RESET_REG, 0);
-	dma_outb(DMA2_RESET_REG, 0);
+	dma_outb(0, DMA1_RESET_REG);
+	dma_outb(0, DMA2_RESET_REG);
 
-	for (i = 0;i < 8;i++) {
+	for (i = 0; i < 8; i++) {
 		set_dma_addr(i, 0x000000);
 		/* DMA count is a bit weird so this is not 0 */
 		set_dma_count(i, 1);
@@ -51,14 +51,14 @@ static int i8237A_suspend(struct sys_device *dev, pm_message_t state)
 }
 
 static struct sysdev_class i8237_sysdev_class = {
-	.name = "i8237",
-	.suspend = i8237A_suspend,
-	.resume = i8237A_resume,
+	.name		= "i8237",
+	.suspend	= i8237A_suspend,
+	.resume		= i8237A_resume,
 };
 
 static struct sys_device device_i8237A = {
-	.id	= 0,
-	.cls	= &i8237_sysdev_class,
+	.id		= 0,
+	.cls		= &i8237_sysdev_class,
 };
 
 static int __init i8237A_init_sysfs(void)
@@ -68,5 +68,4 @@ static int __init i8237A_init_sysfs(void)
 		error = sysdev_register(&device_i8237A);
 	return error;
 }
-
 device_initcall(i8237A_init_sysfs);
