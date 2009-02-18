@@ -548,9 +548,6 @@ struct crypto_attr_u32 {
  * Transform user interface.
  */
  
-struct crypto_tfm *crypto_alloc_tfm(const char *alg_name,
-				    const struct crypto_type *frontend,
-				    u32 type, u32 mask);
 struct crypto_tfm *crypto_alloc_base(const char *alg_name, u32 type, u32 mask);
 void crypto_destroy_tfm(void *mem, struct crypto_tfm *tfm);
 
