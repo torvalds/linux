@@ -351,11 +351,11 @@ acpi_status acpi_get_register_unlocked(u32 register_id, u32 *return_value);
 
 acpi_status acpi_set_register(u32 register_id, u32 value);
 
-acpi_status
-acpi_set_firmware_waking_vector(u32 physical_address);
+acpi_status acpi_set_firmware_waking_vector(u32 physical_address);
 
-acpi_status
-acpi_set_firmware_waking_vector64(u64 physical_address);
+#if ACPI_MACHINE_WIDTH == 64
+acpi_status acpi_set_firmware_waking_vector64(u64 physical_address);
+#endif
 
 acpi_status acpi_read(u32 *value, struct acpi_generic_address *reg);
 

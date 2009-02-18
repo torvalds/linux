@@ -90,6 +90,7 @@ acpi_set_firmware_waking_vector(u32 physical_address)
 
 ACPI_EXPORT_SYMBOL(acpi_set_firmware_waking_vector)
 
+#if ACPI_MACHINE_WIDTH == 64
 /*******************************************************************************
  *
  * FUNCTION:    acpi_set_firmware_waking_vector64
@@ -100,7 +101,8 @@ ACPI_EXPORT_SYMBOL(acpi_set_firmware_waking_vector)
  * RETURN:      Status
  *
  * DESCRIPTION: Sets the 64-bit X_firmware_waking_vector field of the FACS, if
- *              it exists in the table.
+ *              it exists in the table. This function is intended for use with
+ *              64-bit host operating systems.
  *
  ******************************************************************************/
 acpi_status
@@ -124,6 +126,7 @@ acpi_set_firmware_waking_vector64(u64 physical_address)
 }
 
 ACPI_EXPORT_SYMBOL(acpi_set_firmware_waking_vector64)
+#endif
 
 /*******************************************************************************
  *
