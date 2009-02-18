@@ -2001,7 +2001,7 @@ S:	Maintained
 
 HIBERNATION (aka Software Suspend, aka swsusp)
 P:	Pavel Machek
-M:	pavel@suse.cz
+M:	pavel@ucw.cz
 P:	Rafael J. Wysocki
 M:	rjw@sisk.pl
 L:	linux-pm@lists.linux-foundation.org
@@ -4172,7 +4172,7 @@ SUSPEND TO RAM
 P:	Len Brown
 M:	len.brown@intel.com
 P:	Pavel Machek
-M:	pavel@suse.cz
+M:	pavel@ucw.cz
 P:	Rafael J. Wysocki
 M:	rjw@sisk.pl
 L:	linux-pm@lists.linux-foundation.org
