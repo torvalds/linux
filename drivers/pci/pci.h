@@ -16,21 +16,21 @@ extern int pci_mmap_fits(struct pci_dev *pdev, int resno,
 #endif
 
 /**
- * Firmware PM callbacks
+ * struct pci_platform_pm_ops - Firmware PM callbacks
  *
- * @is_manageable - returns 'true' if given device is power manageable by the
- *                  platform firmware
+ * @is_manageable: returns 'true' if given device is power manageable by the
+ *                 platform firmware
  *
- * @set_state - invokes the platform firmware to set the device's power state
+ * @set_state: invokes the platform firmware to set the device's power state
  *
- * @choose_state - returns PCI power state of given device preferred by the
- *                 platform; to be used during system-wide transitions from a
- *                 sleeping state to the working state and vice versa
+ * @choose_state: returns PCI power state of given device preferred by the
+ *                platform; to be used during system-wide transitions from a
+ *                sleeping state to the working state and vice versa
  *
- * @can_wakeup - returns 'true' if given device is capable of waking up the
- *               system from a sleeping state
+ * @can_wakeup: returns 'true' if given device is capable of waking up the
+ *              system from a sleeping state
  *
- * @sleep_wake - enables/disables the system wake up capability of given device
+ * @sleep_wake: enables/disables the system wake up capability of given device
  *
  * If given platform is generally capable of power managing PCI devices, all of
  * these callbacks are mandatory.

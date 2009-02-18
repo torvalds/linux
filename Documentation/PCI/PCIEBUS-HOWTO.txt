@@ -93,7 +93,7 @@ the PCI Express Port Bus driver from loading a service driver.
 
 int pcie_port_service_register(struct pcie_port_service_driver *new)
 
-This API replaces the Linux Driver Model's pci_module_init API. A
+This API replaces the Linux Driver Model's pci_register_driver API. A
 service driver should always calls pcie_port_service_register at
 module init. Note that after service driver being loaded, calls
 such as pci_enable_device(dev) and pci_set_master(dev) are no longer

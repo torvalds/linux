@@ -201,9 +201,9 @@ static int nx_set_dma_mask(struct netxen_adapter *adapter, uint8_t revision_id)
 		adapter->pci_using_dac = 1;
 		return 0;
 	}
+set_32_bit_mask:
 #endif /* CONFIG_IA64 */
 
-set_32_bit_mask:
 	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (!err)
 		err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
@@ -370,67 +370,6 @@ static void netxen_set_port_mode(struct netxen_adapter *adapter)
 		adapter->hw_write_wx(adapter, NETXEN_WOL_PORT_MODE,
 			&wol_port_mode, 4);
 	}
-}
-
-#define PCI_CAP_ID_GEN  0x10
-
-static void netxen_pcie_strap_init(struct netxen_adapter *adapter)
-{
-	u32 pdevfuncsave;
-	u32 c8c9value = 0;
-	u32 chicken = 0;
-	u32 control = 0;
-	int i, pos;
-	struct pci_dev *pdev;
-
-	pdev = adapter->pdev;
-
-	adapter->hw_read_wx(adapter,
-		NETXEN_PCIE_REG(PCIE_CHICKEN3), &chicken, 4);
-	/* clear chicken3.25:24 */
-	chicken &= 0xFCFFFFFF;
-	/*
-	 * if gen1 and B0, set F1020 - if gen 2, do nothing
-	 * if gen2 set to F1000
-	 */
-	pos = pci_find_capability(pdev, PCI_CAP_ID_GEN);
-	if (pos == 0xC0) {
-		pci_read_config_dword(pdev, pos + 0x10, &control);
-		if ((control & 0x000F0000) != 0x00020000) {
-			/*  set chicken3.24 if gen1 */
-			chicken |= 0x01000000;
-		}
-		printk(KERN_INFO "%s Gen2 strapping detected\n",
-				netxen_nic_driver_name);
-		c8c9value = 0xF1000;
-	} else {
-		/* set chicken3.24 if gen1 */
-		chicken |= 0x01000000;
-		printk(KERN_INFO "%s Gen1 strapping detected\n",
-				netxen_nic_driver_name);
-		if (adapter->ahw.revision_id == NX_P3_B0)
-			c8c9value = 0xF1020;
-		else
-			c8c9value = 0;
-
-	}
-	adapter->hw_write_wx(adapter,
-		NETXEN_PCIE_REG(PCIE_CHICKEN3), &chicken, 4);
-
-	if (!c8c9value)
-		return;
-
-	pdevfuncsave = pdev->devfn;
-	if (pdevfuncsave & 0x07)
-		return;
-
-	for (i = 0; i < 8; i++) {
-		pci_read_config_dword(pdev, pos + 8, &control);
-		pci_read_config_dword(pdev, pos + 8, &control);
-		pci_write_config_dword(pdev, pos + 8, c8c9value);
-		pdev->devfn++;
-	}
-	pdev->devfn = pdevfuncsave;
 }
 
 static void netxen_set_msix_bit(struct pci_dev *pdev, int enable)
@@ -811,9 +750,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			msleep(1);
 		}
 		netxen_load_firmware(adapter);
-
-		if (NX_IS_REVISION_P3(revision_id))
-			netxen_pcie_strap_init(adapter);
 
 		if (NX_IS_REVISION_P2(revision_id)) {
 

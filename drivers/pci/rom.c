@@ -55,6 +55,7 @@ void pci_disable_rom(struct pci_dev *pdev)
 
 /**
  * pci_get_rom_size - obtain the actual size of the ROM image
+ * @pdev: target PCI device
  * @rom: kernel virtual pointer to image of ROM
  * @size: size of PCI window
  *  return: size of actual ROM image

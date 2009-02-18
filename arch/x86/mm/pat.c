@@ -211,6 +211,33 @@ chk_conflict(struct memtype *new, struct memtype *entry, unsigned long *type)
 static struct memtype *cached_entry;
 static u64 cached_start;
 
+static int pat_pagerange_is_ram(unsigned long start, unsigned long end)
+{
+	int ram_page = 0, not_rampage = 0;
+	unsigned long page_nr;
+
+	for (page_nr = (start >> PAGE_SHIFT); page_nr < (end >> PAGE_SHIFT);
+	     ++page_nr) {
+		/*
+		 * For legacy reasons, physical address range in the legacy ISA
+		 * region is tracked as non-RAM. This will allow users of
+		 * /dev/mem to map portions of legacy ISA region, even when
+		 * some of those portions are listed(or not even listed) with
+		 * different e820 types(RAM/reserved/..)
+		 */
+		if (page_nr >= (ISA_END_ADDRESS >> PAGE_SHIFT) &&
+		    page_is_ram(page_nr))
+			ram_page = 1;
+		else
+			not_rampage = 1;
+
+		if (ram_page == not_rampage)
+			return -1;
+	}
+
+	return ram_page;
+}
+
 /*
  * For RAM pages, mark the pages as non WB memory type using
  * PageNonWB (PG_arch_1). We allow only one set_memory_uc() or
@@ -336,20 +363,12 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 	if (new_type)
 		*new_type = actual_type;
 
-	/*
-	 * For legacy reasons, some parts of the physical address range in the
-	 * legacy 1MB region is treated as non-RAM (even when listed as RAM in
-	 * the e820 tables).  So we will track the memory attributes of this
-	 * legacy 1MB region using the linear memtype_list always.
-	 */
-	if (end >= ISA_END_ADDRESS) {
-		is_range_ram = pagerange_is_ram(start, end);
-		if (is_range_ram == 1)
-			return reserve_ram_pages_type(start, end, req_type,
-						      new_type);
-		else if (is_range_ram < 0)
-			return -EINVAL;
-	}
+	is_range_ram = pat_pagerange_is_ram(start, end);
+	if (is_range_ram == 1)
+		return reserve_ram_pages_type(start, end, req_type,
+					      new_type);
+	else if (is_range_ram < 0)
+		return -EINVAL;
 
 	new  = kmalloc(sizeof(struct memtype), GFP_KERNEL);
 	if (!new)
@@ -446,19 +465,11 @@ int free_memtype(u64 start, u64 end)
 	if (is_ISA_range(start, end - 1))
 		return 0;
 
-	/*
-	 * For legacy reasons, some parts of the physical address range in the
-	 * legacy 1MB region is treated as non-RAM (even when listed as RAM in
-	 * the e820 tables).  So we will track the memory attributes of this
-	 * legacy 1MB region using the linear memtype_list always.
-	 */
-	if (end >= ISA_END_ADDRESS) {
-		is_range_ram = pagerange_is_ram(start, end);
-		if (is_range_ram == 1)
-			return free_ram_pages_type(start, end);
-		else if (is_range_ram < 0)
-			return -EINVAL;
-	}
+	is_range_ram = pat_pagerange_is_ram(start, end);
+	if (is_range_ram == 1)
+		return free_ram_pages_type(start, end);
+	else if (is_range_ram < 0)
+		return -EINVAL;
 
 	spin_lock(&memtype_lock);
 	list_for_each_entry(entry, &memtype_list, nd) {
@@ -626,17 +637,13 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 	unsigned long flags;
 	unsigned long want_flags = (pgprot_val(*vma_prot) & _PAGE_CACHE_MASK);
 
-	is_ram = pagerange_is_ram(paddr, paddr + size);
+	is_ram = pat_pagerange_is_ram(paddr, paddr + size);
 
-	if (is_ram != 0) {
-		/*
-		 * For mapping RAM pages, drivers need to call
-		 * set_memory_[uc|wc|wb] directly, for reserve and free, before
-		 * setting up the PTE.
-		 */
-		WARN_ON_ONCE(1);
-		return 0;
-	}
+	/*
+	 * reserve_pfn_range() doesn't support RAM pages.
+	 */
+	if (is_ram != 0)
+		return -EINVAL;
 
 	ret = reserve_memtype(paddr, paddr + size, want_flags, &flags);
 	if (ret)
@@ -693,7 +700,7 @@ static void free_pfn_range(u64 paddr, unsigned long size)
 {
 	int is_ram;
 
-	is_ram = pagerange_is_ram(paddr, paddr + size);
+	is_ram = pat_pagerange_is_ram(paddr, paddr + size);
 	if (is_ram == 0)
 		free_memtype(paddr, paddr + size);
 }

@@ -3046,14 +3046,17 @@ static void ext4_write_super(struct super_block *sb)
 static int ext4_sync_fs(struct super_block *sb, int wait)
 {
 	int ret = 0;
+	tid_t target;
 
 	trace_mark(ext4_sync_fs, "dev %s wait %d", sb->s_id, wait);
 	sb->s_dirt = 0;
 	if (EXT4_SB(sb)->s_journal) {
-		if (wait)
-			ret = ext4_force_commit(sb);
-		else
- 			jbd2_journal_start_commit(EXT4_SB(sb)->s_journal, NULL);
+		if (jbd2_journal_start_commit(EXT4_SB(sb)->s_journal,
+					      &target)) {
+			if (wait)
+				jbd2_log_wait_commit(EXT4_SB(sb)->s_journal,
+						     target);
+		}
 	} else {
 		ext4_commit_super(sb, EXT4_SB(sb)->s_es, wait);
 	}

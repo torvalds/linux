@@ -646,10 +646,15 @@ static int emulate_vsx(unsigned char __user *addr, unsigned int reg,
 		       unsigned int areg, struct pt_regs *regs,
 		       unsigned int flags, unsigned int length)
 {
-	char *ptr = (char *) &current->thread.TS_FPR(reg);
+	char *ptr;
 	int ret = 0;
 
 	flush_vsx_to_thread(current);
+
+	if (reg < 32)
+		ptr = (char *) &current->thread.TS_FPR(reg);
+	else
+		ptr = (char *) &current->thread.vr[reg - 32];
 
 	if (flags & ST)
 		ret = __copy_to_user(addr, ptr, length);

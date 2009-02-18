@@ -379,7 +379,6 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	btrfs_start_delalloc_inodes(root);
 	btrfs_wait_ordered_extents(root, 0);
 
-	btrfs_clean_old_snapshots(root);
 	trans = btrfs_start_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 	sb->s_dirt = 0;
@@ -510,6 +509,10 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
 	int ret;
+
+	ret = btrfs_parse_options(root, data);
+	if (ret)
+		return -EINVAL;
 
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		return 0;
