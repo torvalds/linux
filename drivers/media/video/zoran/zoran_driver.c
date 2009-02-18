@@ -613,64 +613,6 @@ zoran_v4l_queue_frame (struct file *file,
 	return res;
 }
 
-static int
-v4l_grab (struct file       *file,
-	  struct video_mmap *mp)
-{
-	struct zoran_fh *fh = file->private_data;
-	struct zoran *zr = fh->zr;
-	int res = 0, i;
-
-	for (i = 0; i < NUM_FORMATS; i++) {
-		if (zoran_formats[i].palette == mp->format &&
-		    zoran_formats[i].flags & ZORAN_FORMAT_CAPTURE &&
-		    !(zoran_formats[i].flags & ZORAN_FORMAT_COMPRESSED))
-			break;
-	}
-	if (i == NUM_FORMATS || zoran_formats[i].depth == 0) {
-		dprintk(1,
-			KERN_ERR
-			"%s: v4l_grab() - wrong bytes-per-pixel format\n",
-			ZR_DEVNAME(zr));
-		return -EINVAL;
-	}
-
-	/*
-	 * To minimize the time spent in the IRQ routine, we avoid setting up
-	 * the video front end there.
-	 * If this grab has different parameters from a running streaming capture
-	 * we stop the streaming capture and start it over again.
-	 */
-	if (zr->v4l_memgrab_active &&
-	    (zr->v4l_settings.width != mp->width ||
-	     zr->v4l_settings.height != mp->height ||
-	     zr->v4l_settings.format->palette != mp->format)) {
-		res = wait_grab_pending(zr);
-		if (res)
-			return res;
-	}
-	if ((res = zoran_v4l_set_format(file,
-					mp->width,
-					mp->height,
-					&zoran_formats[i])))
-		return res;
-	zr->v4l_settings = fh->v4l_settings;
-
-	/* queue the frame in the pending queue */
-	if ((res = zoran_v4l_queue_frame(file, mp->frame))) {
-		fh->v4l_buffers.active = ZORAN_FREE;
-		return res;
-	}
-
-	/* put the 36057 into frame grabbing mode */
-	if (!res && !zr->v4l_memgrab_active)
-		zr36057_set_memgrab(zr, 1);
-
-	//dprintk(4, KERN_INFO "%s: Frame grab 3...\n", ZR_DEVNAME(zr));
-
-	return res;
-}
-
 /*
  * Sync on a V4L buffer
  */
@@ -1760,6 +1702,7 @@ zoran_set_input (struct zoran *zr,
  *   ioctl routine
  */
 
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 static long zoran_default(struct file *file, void *__fh, int cmd, void *arg)
 {
 	struct zoran_fh *fh = __fh;
@@ -1767,363 +1710,6 @@ static long zoran_default(struct file *file, void *__fh, int cmd, void *arg)
 	struct zoran_jpg_settings settings;
 
 	switch (cmd) {
-	case VIDIOCGCAP:
-	{
-		struct video_capability *vcap = arg;
-
-		dprintk(3, KERN_DEBUG "%s: VIDIOCGCAP\n", ZR_DEVNAME(zr));
-
-		memset(vcap, 0, sizeof(struct video_capability));
-		strncpy(vcap->name, ZR_DEVNAME(zr), sizeof(vcap->name)-1);
-		vcap->type = ZORAN_VID_TYPE;
-
-		vcap->channels = zr->card.inputs;
-		vcap->audios = 0;
-		mutex_lock(&zr->resource_lock);
-		vcap->maxwidth = BUZ_MAX_WIDTH;
-		vcap->maxheight = BUZ_MAX_HEIGHT;
-		vcap->minwidth = BUZ_MIN_WIDTH;
-		vcap->minheight = BUZ_MIN_HEIGHT;
-		mutex_unlock(&zr->resource_lock);
-
-		return 0;
-	}
-
-	case VIDIOCGCHAN:
-	{
-		struct video_channel *vchan = arg;
-		int channel = vchan->channel;
-
-		dprintk(3, KERN_DEBUG "%s: VIDIOCGCHAN - channel=%d\n",
-			ZR_DEVNAME(zr), vchan->channel);
-
-		memset(vchan, 0, sizeof(struct video_channel));
-		if (channel > zr->card.inputs || channel < 0) {
-			dprintk(1,
-				KERN_ERR
-				"%s: VIDIOCGCHAN on not existing channel %d\n",
-				ZR_DEVNAME(zr), channel);
-			return -EINVAL;
-		}
-
-		strcpy(vchan->name, zr->card.input[channel].name);
-
-		vchan->tuners = 0;
-		vchan->flags = 0;
-		vchan->type = VIDEO_TYPE_CAMERA;
-		mutex_lock(&zr->resource_lock);
-		vchan->norm = zr->norm;
-		mutex_unlock(&zr->resource_lock);
-		vchan->channel = channel;
-
-		return 0;
-	}
-
-		/* RJ: the documentation at http://roadrunner.swansea.linux.org.uk/v4lapi.shtml says:
-		 *
-		 * * "The VIDIOCSCHAN ioctl takes an integer argument and switches the capture to this input."
-		 * *                                 ^^^^^^^
-		 * * The famos BTTV driver has it implemented with a struct video_channel argument
-		 * * and we follow it for compatibility reasons
-		 * *
-		 * * BTW: this is the only way the user can set the norm!
-		 */
-
-	case VIDIOCSCHAN:
-	{
-		struct video_channel *vchan = arg;
-		int res;
-
-		dprintk(3,
-			KERN_DEBUG
-			"%s: VIDIOCSCHAN - channel=%d, norm=%d\n",
-			ZR_DEVNAME(zr), vchan->channel, vchan->norm);
-
-		mutex_lock(&zr->resource_lock);
-		if ((res = zoran_set_input(zr, vchan->channel)))
-			goto schan_unlock_and_return;
-		if ((res = zoran_set_norm(zr, vchan->norm)))
-			goto schan_unlock_and_return;
-
-		/* Make sure the changes come into effect */
-		res = wait_grab_pending(zr);
-schan_unlock_and_return:
-		mutex_unlock(&zr->resource_lock);
-		return res;
-	}
-
-	case VIDIOCGPICT:
-	{
-		struct video_picture *vpict = arg;
-
-		dprintk(3, KERN_DEBUG "%s: VIDIOCGPICT\n", ZR_DEVNAME(zr));
-
-		memset(vpict, 0, sizeof(struct video_picture));
-		mutex_lock(&zr->resource_lock);
-		vpict->hue = zr->hue;
-		vpict->brightness = zr->brightness;
-		vpict->contrast = zr->contrast;
-		vpict->colour = zr->saturation;
-		if (fh->overlay_settings.format) {
-			vpict->depth = fh->overlay_settings.format->depth;
-			vpict->palette = fh->overlay_settings.format->palette;
-		} else {
-			vpict->depth = 0;
-		}
-		mutex_unlock(&zr->resource_lock);
-
-		return 0;
-	}
-
-	case VIDIOCSPICT:
-	{
-		struct video_picture *vpict = arg;
-		int i;
-
-		dprintk(3,
-			KERN_DEBUG
-			"%s: VIDIOCSPICT - bri=%d, hue=%d, col=%d, con=%d, dep=%d, pal=%d\n",
-			ZR_DEVNAME(zr), vpict->brightness, vpict->hue,
-			vpict->colour, vpict->contrast, vpict->depth,
-			vpict->palette);
-
-		for (i = 0; i < NUM_FORMATS; i++) {
-			const struct zoran_format *fmt = &zoran_formats[i];
-
-			if (fmt->palette != -1 &&
-			    fmt->flags & ZORAN_FORMAT_OVERLAY &&
-			    fmt->palette == vpict->palette &&
-			    fmt->depth == vpict->depth)
-				break;
-		}
-		if (i == NUM_FORMATS) {
-			dprintk(1,
-				KERN_ERR
-				"%s: VIDIOCSPICT - Invalid palette %d\n",
-				ZR_DEVNAME(zr), vpict->palette);
-			return -EINVAL;
-		}
-
-		mutex_lock(&zr->resource_lock);
-
-		decoder_command(zr, DECODER_SET_PICTURE, vpict);
-
-		zr->hue = vpict->hue;
-		zr->contrast = vpict->contrast;
-		zr->saturation = vpict->colour;
-		zr->brightness = vpict->brightness;
-
-		fh->overlay_settings.format = &zoran_formats[i];
-
-		mutex_unlock(&zr->resource_lock);
-
-		return 0;
-	}
-
-	case VIDIOCCAPTURE:
-	{
-		int *on = arg, res;
-
-		dprintk(3, KERN_DEBUG "%s: VIDIOCCAPTURE - on=%d\n",
-			ZR_DEVNAME(zr), *on);
-
-		mutex_lock(&zr->resource_lock);
-		res = setup_overlay(file, *on);
-		mutex_unlock(&zr->resource_lock);
-
-		return res;
-	}
-
-	case VIDIOCGWIN:
-	{
-		struct video_window *vwin = arg;
-
-		dprintk(3, KERN_DEBUG "%s: VIDIOCGWIN\n", ZR_DEVNAME(zr));
-
-		memset(vwin, 0, sizeof(struct video_window));
-		mutex_lock(&zr->resource_lock);
-		vwin->x = fh->overlay_settings.x;
-		vwin->y = fh->overlay_settings.y;
-		vwin->width = fh->overlay_settings.width;
-		vwin->height = fh->overlay_settings.height;
-		mutex_unlock(&zr->resource_lock);
-		vwin->clipcount = 0;
-		return 0;
-	}
-
-	case VIDIOCSWIN:
-	{
-		struct video_window *vwin = arg;
-		int res;
-
-		dprintk(3,
-			KERN_DEBUG
-			"%s: VIDIOCSWIN - x=%d, y=%d, w=%d, h=%d, clipcount=%d\n",
-			ZR_DEVNAME(zr), vwin->x, vwin->y, vwin->width,
-			vwin->height, vwin->clipcount);
-
-		mutex_lock(&zr->resource_lock);
-		res =
-		    setup_window(file, vwin->x, vwin->y, vwin->width,
-				 vwin->height, vwin->clips,
-				 vwin->clipcount, NULL);
-		mutex_unlock(&zr->resource_lock);
-
-		return res;
-	}
-
-	case VIDIOCGFBUF:
-	{
-		struct video_buffer *vbuf = arg;
-
-		dprintk(3, KERN_DEBUG "%s: VIDIOCGFBUF\n", ZR_DEVNAME(zr));
-
-		mutex_lock(&zr->resource_lock);
-		*vbuf = zr->buffer;
-		mutex_unlock(&zr->resource_lock);
-		return 0;
-	}
-
-	case VIDIOCSFBUF:
-	{
-		struct video_buffer *vbuf = arg;
-		int i, res = 0;
-
-		dprintk(3,
-			KERN_DEBUG
-			"%s: VIDIOCSFBUF - base=%p, w=%d, h=%d, depth=%d, bpl=%d\n",
-			ZR_DEVNAME(zr), vbuf->base, vbuf->width,
-			vbuf->height, vbuf->depth, vbuf->bytesperline);
-
-		for (i = 0; i < NUM_FORMATS; i++)
-			if (zoran_formats[i].depth == vbuf->depth)
-				break;
-		if (i == NUM_FORMATS) {
-			dprintk(1,
-				KERN_ERR
-				"%s: VIDIOCSFBUF - invalid fbuf depth %d\n",
-				ZR_DEVNAME(zr), vbuf->depth);
-			return -EINVAL;
-		}
-
-		mutex_lock(&zr->resource_lock);
-		res =
-		    setup_fbuffer(file, vbuf->base, &zoran_formats[i],
-				  vbuf->width, vbuf->height,
-				  vbuf->bytesperline);
-		mutex_unlock(&zr->resource_lock);
-
-		return res;
-	}
-
-	case VIDIOCSYNC:
-	{
-		int *frame = arg, res;
-
-		dprintk(3, KERN_DEBUG "%s: VIDIOCSYNC - frame=%d\n",
-			ZR_DEVNAME(zr), *frame);
-
-		mutex_lock(&zr->resource_lock);
-		res = v4l_sync(file, *frame);
-		mutex_unlock(&zr->resource_lock);
-		if (!res)
-			zr->v4l_sync_tail++;
-		return res;
-	}
-
-	case VIDIOCMCAPTURE:
-	{
-		struct video_mmap *vmap = arg;
-		int res;
-
-		dprintk(3,
-			KERN_DEBUG
-			"%s: VIDIOCMCAPTURE - frame=%d, geom=%dx%d, fmt=%d\n",
-			ZR_DEVNAME(zr), vmap->frame, vmap->width, vmap->height,
-			vmap->format);
-
-		mutex_lock(&zr->resource_lock);
-		res = v4l_grab(file, vmap);
-		mutex_unlock(&zr->resource_lock);
-		return res;
-	}
-
-
-	case VIDIOCGMBUF:
-	{
-		struct video_mbuf *vmbuf = arg;
-		int i, res = 0;
-
-		dprintk(3, KERN_DEBUG "%s: VIDIOCGMBUF\n", ZR_DEVNAME(zr));
-
-		vmbuf->size =
-		    fh->v4l_buffers.num_buffers *
-		    fh->v4l_buffers.buffer_size;
-		vmbuf->frames = fh->v4l_buffers.num_buffers;
-		for (i = 0; i < vmbuf->frames; i++) {
-			vmbuf->offsets[i] =
-			    i * fh->v4l_buffers.buffer_size;
-		}
-
-		mutex_lock(&zr->resource_lock);
-
-		if (fh->jpg_buffers.allocated || fh->v4l_buffers.allocated) {
-			dprintk(1,
-				KERN_ERR
-				"%s: VIDIOCGMBUF - buffers already allocated\n",
-				ZR_DEVNAME(zr));
-			res = -EINVAL;
-			goto v4l1reqbuf_unlock_and_return;
-		}
-
-		if (v4l_fbuffer_alloc(file)) {
-			res = -ENOMEM;
-			goto v4l1reqbuf_unlock_and_return;
-		}
-
-		/* The next mmap will map the V4L buffers */
-		fh->map_mode = ZORAN_MAP_MODE_RAW;
-v4l1reqbuf_unlock_and_return:
-		mutex_unlock(&zr->resource_lock);
-
-		return res;
-	}
-
-	case VIDIOCGUNIT:
-	{
-		struct video_unit *vunit = arg;
-
-		dprintk(3, KERN_DEBUG "%s: VIDIOCGUNIT\n", ZR_DEVNAME(zr));
-
-		vunit->video = zr->video_dev->minor;
-		vunit->vbi = VIDEO_NO_UNIT;
-		vunit->radio = VIDEO_NO_UNIT;
-		vunit->audio = VIDEO_NO_UNIT;
-		vunit->teletext = VIDEO_NO_UNIT;
-
-		return 0;
-	}
-
-		/*
-		 * RJ: In principal we could support subcaptures for V4L grabbing.
-		 *     Not even the famous BTTV driver has them, however.
-		 *     If there should be a strong demand, one could consider
-		 *     to implement them.
-		 */
-	case VIDIOCGCAPTURE:
-	{
-		dprintk(3, KERN_ERR "%s: VIDIOCGCAPTURE not supported\n",
-			ZR_DEVNAME(zr));
-		return -EINVAL;
-	}
-
-	case VIDIOCSCAPTURE:
-	{
-		dprintk(3, KERN_ERR "%s: VIDIOCSCAPTURE not supported\n",
-			ZR_DEVNAME(zr));
-		return -EINVAL;
-	}
-
 	case BUZIOC_G_PARAMS:
 	{
 		struct zoran_params *bparams = arg;
@@ -2382,6 +1968,46 @@ gstat_unlock_and_return:
 		return -EINVAL;
 	}
 }
+
+static int zoran_vidiocgmbuf(struct file *file, void *__fh, struct video_mbuf *vmbuf)
+{
+	struct zoran_fh *fh = __fh;
+	struct zoran *zr = fh->zr;
+	int i, res = 0;
+
+	vmbuf->size =
+	    fh->v4l_buffers.num_buffers *
+	    fh->v4l_buffers.buffer_size;
+	vmbuf->frames = fh->v4l_buffers.num_buffers;
+	for (i = 0; i < vmbuf->frames; i++) {
+		vmbuf->offsets[i] =
+		    i * fh->v4l_buffers.buffer_size;
+	}
+
+	mutex_lock(&zr->resource_lock);
+
+	if (fh->jpg_buffers.allocated || fh->v4l_buffers.allocated) {
+		dprintk(1,
+			KERN_ERR
+			"%s: VIDIOCGMBUF - buffers already allocated\n",
+			ZR_DEVNAME(zr));
+		res = -EINVAL;
+		goto v4l1reqbuf_unlock_and_return;
+	}
+
+	if (v4l_fbuffer_alloc(file)) {
+		res = -ENOMEM;
+		goto v4l1reqbuf_unlock_and_return;
+	}
+
+	/* The next mmap will map the V4L buffers */
+	fh->map_mode = ZORAN_MAP_MODE_RAW;
+v4l1reqbuf_unlock_and_return:
+	mutex_unlock(&zr->resource_lock);
+
+	return res;
+}
+#endif
 
 static int zoran_querycap(struct file *file, void *__fh, struct v4l2_capability *cap)
 {
@@ -4118,7 +3744,10 @@ static const struct v4l2_ioctl_ops zoran_ioctl_ops = {
 	.vidioc_queryctrl 		    = zoran_queryctrl,
 	.vidioc_s_ctrl       		    = zoran_s_ctrl,
 	.vidioc_g_ctrl       		    = zoran_g_ctrl,
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidioc_default 		    = zoran_default,
+	.vidiocgmbuf 			    = zoran_vidiocgmbuf,
+#endif
 };
 
 static const struct v4l2_file_operations zoran_fops = {
