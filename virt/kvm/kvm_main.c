@@ -535,8 +535,10 @@ static inline int valid_vcpu(int n)
 
 inline int kvm_is_mmio_pfn(pfn_t pfn)
 {
-	if (pfn_valid(pfn))
-		return PageReserved(pfn_to_page(pfn));
+	if (pfn_valid(pfn)) {
+		struct page *page = compound_head(pfn_to_page(pfn));
+		return PageReserved(page);
+	}
 
 	return true;
 }
