@@ -210,6 +210,10 @@ config PPC_MMU_NOHASH
 	def_bool y
 	depends on !PPC_STD_MMU
 
+config PPC_BOOK3E_MMU
+	def_bool y
+	depends on FSL_BOOKE
+
 config PPC_MM_SLICES
 	bool
 	default y if HUGETLB_PAGE || (PPC_STD_MMU_64 && PPC_64K_PAGES)

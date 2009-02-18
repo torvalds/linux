@@ -1,7 +1,7 @@
 /*
  * MPC8572 DS Device Tree Source
  *
- * Copyright 2007, 2008 Freescale Semiconductor Inc.
+ * Copyright 2007-2009 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -643,7 +643,7 @@
 
 				  0x1000000 0x0 0x0
 				  0x1000000 0x0 0x0
-				  0x0 0x100000>;
+				  0x0 0x10000>;
 			uli1575@0 {
 				reg = <0x0 0x0 0x0 0x0 0x0>;
 				#size-cells = <2>;
@@ -654,7 +654,7 @@
 
 					  0x1000000 0x0 0x0
 					  0x1000000 0x0 0x0
-					  0x0 0x100000>;
+					  0x0 0x10000>;
 				isa@1e {
 					device_type = "isa";
 					#interrupt-cells = <2>;
@@ -744,7 +744,7 @@
 
 				  0x1000000 0x0 0x0
 				  0x1000000 0x0 0x0
-				  0x0 0x100000>;
+				  0x0 0x10000>;
 		};
 	};
 
@@ -781,7 +781,7 @@
 
 				  0x1000000 0x0 0x0
 				  0x1000000 0x0 0x0
-				  0x0 0x100000>;
+				  0x0 0x10000>;
 		};
 	};
 };

@@ -63,7 +63,7 @@ debug_transfer_to_handler:
 
 	.globl	crit_transfer_to_handler
 crit_transfer_to_handler:
-#ifdef CONFIG_FSL_BOOKE
+#ifdef CONFIG_PPC_BOOK3E_MMU
 	mfspr	r0,SPRN_MAS0
 	stw	r0,MAS0(r11)
 	mfspr	r0,SPRN_MAS1
@@ -78,7 +78,7 @@ crit_transfer_to_handler:
 	mfspr	r0,SPRN_MAS7
 	stw	r0,MAS7(r11)
 #endif /* CONFIG_PHYS_64BIT */
-#endif /* CONFIG_FSL_BOOKE */
+#endif /* CONFIG_PPC_BOOK3E_MMU */
 #ifdef CONFIG_44x
 	mfspr	r0,SPRN_MMUCR
 	stw	r0,MMUCR(r11)
@@ -914,7 +914,7 @@ exc_exit_restart_end:
 	mtspr	SPRN_##exc_lvl_srr0,r9;					\
 	mtspr	SPRN_##exc_lvl_srr1,r10;
 
-#if defined(CONFIG_FSL_BOOKE)
+#if defined(CONFIG_PPC_BOOK3E_MMU)
 #ifdef CONFIG_PHYS_64BIT
 #define	RESTORE_MAS7							\
 	lwz	r11,MAS7(r1);						\
