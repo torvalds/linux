@@ -36,7 +36,7 @@
 #include <linux/i2c-algo-sgi.h>
 
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 
@@ -295,6 +295,7 @@ struct vino_client {
 };
 
 struct vino_settings {
+	struct v4l2_device v4l2_dev;
 	struct vino_channel_settings a;
 	struct vino_channel_settings b;
 
@@ -3995,7 +3996,6 @@ over:
 		ret = POLLIN | POLLRDNORM;
 
 error:
-
 	return ret;
 }
 
@@ -4052,7 +4052,7 @@ static const struct v4l2_file_operations vino_fops = {
 	.owner		= THIS_MODULE,
 	.open		= vino_open,
 	.release	= vino_close,
-	.ioctl		= vino_ioctl,
+	.unlocked_ioctl	= vino_ioctl,
 	.mmap		= vino_mmap,
 	.poll		= vino_poll,
 };
@@ -4068,27 +4068,27 @@ static struct video_device vdev_template = {
 static void vino_module_cleanup(int stage)
 {
 	switch(stage) {
-	case 10:
+	case 11:
 		video_unregister_device(vino_drvdata->b.vdev);
 		vino_drvdata->b.vdev = NULL;
-	case 9:
+	case 10:
 		video_unregister_device(vino_drvdata->a.vdev);
 		vino_drvdata->a.vdev = NULL;
-	case 8:
+	case 9:
 		vino_i2c_del_bus();
-	case 7:
+	case 8:
 		free_irq(SGI_VINO_IRQ, NULL);
-	case 6:
+	case 7:
 		if (vino_drvdata->b.vdev) {
 			video_device_release(vino_drvdata->b.vdev);
 			vino_drvdata->b.vdev = NULL;
 		}
-	case 5:
+	case 6:
 		if (vino_drvdata->a.vdev) {
 			video_device_release(vino_drvdata->a.vdev);
 			vino_drvdata->a.vdev = NULL;
 		}
-	case 4:
+	case 5:
 		/* all entries in dma_cpu dummy table have the same address */
 		dma_unmap_single(NULL,
 				 vino_drvdata->dummy_desc_table.dma_cpu[0],
@@ -4098,8 +4098,10 @@ static void vino_module_cleanup(int stage)
 				  (void *)vino_drvdata->
 				  dummy_desc_table.dma_cpu,
 				  vino_drvdata->dummy_desc_table.dma);
-	case 3:
+	case 4:
 		free_page(vino_drvdata->dummy_page);
+	case 3:
+		v4l2_device_unregister(&vino_drvdata->v4l2_dev);
 	case 2:
 		kfree(vino_drvdata);
 	case 1:
@@ -4154,6 +4156,7 @@ static int vino_probe(void)
 static int vino_init(void)
 {
 	dma_addr_t dma_dummy_address;
+	int err;
 	int i;
 
 	vino_drvdata = kzalloc(sizeof(struct vino_settings), GFP_KERNEL);
@@ -4161,6 +4164,12 @@ static int vino_init(void)
 		vino_module_cleanup(vino_init_stage);
 		return -ENOMEM;
 	}
+	vino_init_stage++;
+	strlcpy(vino_drvdata->v4l2_dev.name, "vino",
+			sizeof(vino_drvdata->v4l2_dev.name));
+	err = v4l2_device_register(NULL, &vino_drvdata->v4l2_dev);
+	if (err)
+		return err;
 	vino_init_stage++;
 
 	/* create a dummy dma descriptor */
@@ -4239,6 +4248,7 @@ static int vino_init_channel_settings(struct vino_channel_settings *vcs,
 	       sizeof(struct video_device));
 	strcpy(vcs->vdev->name, name);
 	vcs->vdev->release = video_device_release;
+	vcs->vdev->v4l2_dev = &vino_drvdata->v4l2_dev;
 
 	video_set_drvdata(vcs->vdev, vcs);
 
@@ -4293,6 +4303,7 @@ static int __init vino_module_init(void)
 		vino_module_cleanup(vino_init_stage);
 		return ret;
 	}
+	i2c_set_adapdata(&vino_i2c_adapter, &vino_drvdata->v4l2_dev);
 	vino_init_stage++;
 
 	ret = video_register_device(vino_drvdata->a.vdev,
