@@ -4212,6 +4212,21 @@ static int sxg_fill_descriptor_block(struct adapter_t *adapter,
 		  adapter->FreeRcvBufferCount, adapter->AllRcvBlockCount);
 	return (STATUS_SUCCESS);
 no_memory:
+	for (; i >= 0 ; i--) {
+		if (RcvDescriptorBlock->Descriptors[i].VirtualAddress) {
+			RcvDataBufferHdr = (struct sxg_rcv_data_buffer_hdr *)
+					    RcvDescriptorBlock->Descriptors[i].
+								VirtualAddress;
+			RcvDescriptorBlock->Descriptors[i].PhysicalAddress =
+					    (dma_addr_t)NULL;
+			RcvDescriptorBlock->Descriptors[i].VirtualAddress=NULL;
+		}
+		SXG_FREE_RCV_DATA_BUFFER(adapter, RcvDataBufferHdr);
+	}
+	RcvDescriptorBlockHdr->State = SXG_BUFFER_FREE;
+	SXG_RETURN_CMD(RingZero, RcvRingInfo, RingDescriptorCmd,
+			RcvDescriptorBlockHdr);
+
 	return (-ENOMEM);
 }
 
