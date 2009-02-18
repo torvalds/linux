@@ -574,9 +574,14 @@ static int wm8731_register(struct wm8731_priv *wm8731)
 
 	memcpy(codec->reg_cache, wm8731_reg, sizeof(wm8731_reg));
 
+	ret = wm8731_reset(codec);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to issue reset\n");
+		return ret;
+	}
+
 	wm8731_dai.dev = codec->dev;
 
-	wm8731_reset(codec);
 	wm8731_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Latch the update bits */
