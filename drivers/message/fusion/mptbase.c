@@ -91,9 +91,9 @@ MODULE_PARM_DESC(mpt_msi_enable_fc, " Enable MSI Support for FC \
 		controllers (default=0)");
 
 static int mpt_msi_enable_sas;
-module_param(mpt_msi_enable_sas, int, 1);
+module_param(mpt_msi_enable_sas, int, 0);
 MODULE_PARM_DESC(mpt_msi_enable_sas, " Enable MSI Support for SAS \
-		controllers (default=1)");
+		controllers (default=0)");
 
 
 static int mpt_channel_mapping;
