@@ -1330,6 +1330,15 @@ static int hid_post_reset(struct usb_interface *intf)
 	return 0;
 }
 
+static int hid_reset_resume(struct usb_interface *intf)
+{
+	struct hid_device *hid = usb_get_intfdata(intf);
+	struct usbhid_device *usbhid = hid->driver_data;
+
+	clear_bit(HID_REPORTED_IDLE, &usbhid->iofl);
+	return hid_post_reset(intf);
+}
+
 int usbhid_get_power(struct hid_device *hid)
 {
 	struct usbhid_device *usbhid = hid->driver_data;
@@ -1359,7 +1368,7 @@ static struct usb_driver hid_driver = {
 #ifdef CONFIG_PM
 	.suspend =	hid_suspend,
 	.resume =	hid_resume,
-	.reset_resume =	hid_post_reset,
+	.reset_resume =	hid_reset_resume,
 #endif
 	.pre_reset =	hid_pre_reset,
 	.post_reset =	hid_post_reset,
