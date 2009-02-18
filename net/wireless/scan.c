@@ -614,7 +614,7 @@ ieee80211_bss(struct iw_request_info *info,
 	struct iw_event iwe;
 	u8 *buf, *cfg, *p;
 	u8 *ie = bss->pub.information_elements;
-	int rem = bss->pub.len_information_elements, i;
+	int rem = bss->pub.len_information_elements, i, sig;
 	bool ismesh = false;
 
 	memset(&iwe, 0, sizeof(iwe));
@@ -643,14 +643,23 @@ ieee80211_bss(struct iw_request_info *info,
 		iwe.cmd = IWEVQUAL;
 		iwe.u.qual.updated = IW_QUAL_LEVEL_UPDATED |
 				     IW_QUAL_NOISE_INVALID |
-				     IW_QUAL_QUAL_INVALID;
+				     IW_QUAL_QUAL_UPDATED;
 		switch (bss->pub.signal_type) {
 		case CFG80211_SIGNAL_TYPE_MBM:
-			iwe.u.qual.level = bss->pub.signal / 100;
+			sig = bss->pub.signal / 100;
+			iwe.u.qual.level = sig;
 			iwe.u.qual.updated |= IW_QUAL_DBM;
+			if (sig < -110)		/* rather bad */
+				sig = -110;
+			else if (sig > -40)	/* perfect */
+				sig = -40;
+			/* will give a range of 0 .. 70 */
+			iwe.u.qual.qual = sig + 110;
 			break;
 		case CFG80211_SIGNAL_TYPE_UNSPEC:
 			iwe.u.qual.level = bss->pub.signal;
+			/* will give range 0 .. 100 */
+			iwe.u.qual.qual = bss->pub.signal;
 			break;
 		default:
 			/* not reached */

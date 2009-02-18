@@ -200,10 +200,24 @@ static int ieee80211_ioctl_giwrange(struct net_device *dev,
 	else
 		range->max_qual.noise = 0;
 
-	range->max_qual.qual = 100;
 	range->max_qual.updated = ieee80211_get_wstats_flags(local);
 
-	range->avg_qual.qual = 50;
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
+		/*
+		 * cfg80211 assumes -110 to -40 dBm and clamps to that range
+		 * for qual.qual, so tell userspace this is what we give it
+		 * but take into account that we have to start from 0.
+		 */
+		range->max_qual.qual = 70;
+		range->avg_qual.qual = 35;
+	} else {
+		/*
+		 * cfg80211 just uses the level value for qual too, and it
+		 * requires the level value to be 0 .. 100.
+		 */
+		range->max_qual.qual = 100;
+		range->avg_qual.qual = 50;
+	}
 	/* not always true but better than nothing */
 	range->avg_qual.level = range->max_qual.level / 2;
 	range->avg_qual.noise = range->max_qual.noise / 2;
