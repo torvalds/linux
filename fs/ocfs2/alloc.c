@@ -4983,8 +4983,8 @@ out:
 	return ret;
 }
 
-static int ocfs2_replace_extent_rec(struct inode *inode,
-				    handle_t *handle,
+static int ocfs2_replace_extent_rec(handle_t *handle,
+				    struct ocfs2_extent_tree *et,
 				    struct ocfs2_path *path,
 				    struct ocfs2_extent_list *el,
 				    int split_index,
@@ -4992,7 +4992,7 @@ static int ocfs2_replace_extent_rec(struct inode *inode,
 {
 	int ret;
 
-	ret = ocfs2_path_bh_journal_access(handle, INODE_CACHE(inode), path,
+	ret = ocfs2_path_bh_journal_access(handle, et->et_ci, path,
 					   path_num_items(path) - 1);
 	if (ret) {
 		mlog_errno(ret);
@@ -5095,8 +5095,7 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 
 	if (ctxt.c_contig_type == CONTIG_NONE) {
 		if (ctxt.c_split_covers_rec)
-			ret = ocfs2_replace_extent_rec(inode, handle,
-						       path, el,
+			ret = ocfs2_replace_extent_rec(handle, et, path, el,
 						       split_index, split_rec);
 		else
 			ret = ocfs2_split_and_insert(handle, et, path,
