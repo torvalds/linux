@@ -1385,38 +1385,6 @@ static void iwl3945_rx_reply_add_sta(struct iwl_priv *priv,
 	return;
 }
 
-static void iwl3945_rx_reply_error(struct iwl_priv *priv,
-			       struct iwl_rx_mem_buffer *rxb)
-{
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-
-	IWL_ERR(priv, "Error Reply type 0x%08X cmd %s (0x%02X) "
-		"seq 0x%04X ser 0x%08X\n",
-		le32_to_cpu(pkt->u.err_resp.error_type),
-		get_cmd_string(pkt->u.err_resp.cmd_id),
-		pkt->u.err_resp.cmd_id,
-		le16_to_cpu(pkt->u.err_resp.bad_cmd_seq_num),
-		le32_to_cpu(pkt->u.err_resp.error_info));
-}
-
-static void iwl3945_rx_spectrum_measure_notif(struct iwl_priv *priv,
-					  struct iwl_rx_mem_buffer *rxb)
-{
-#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
-	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
-	struct iwl_spectrum_notification *report = &(pkt->u.spectrum_notif);
-
-	if (!report->state) {
-		IWL_DEBUG(priv, IWL_DL_11H | IWL_DL_INFO,
-			  "Spectrum Measure Notification: Start\n");
-		return;
-	}
-
-	memcpy(&priv->measure_report, report, sizeof(*report));
-	priv->measurement_status |= MEASUREMENT_READY;
-#endif
-}
-
 static void iwl3945_bg_beacon_update(struct work_struct *work)
 {
 	struct iwl_priv *priv =
@@ -1515,10 +1483,8 @@ static void iwl3945_setup_rx_handlers(struct iwl_priv *priv)
 {
 	priv->rx_handlers[REPLY_ALIVE] = iwl3945_rx_reply_alive;
 	priv->rx_handlers[REPLY_ADD_STA] = iwl3945_rx_reply_add_sta;
-	priv->rx_handlers[REPLY_ERROR] = iwl3945_rx_reply_error;
+	priv->rx_handlers[REPLY_ERROR] = iwl_rx_reply_error;
 	priv->rx_handlers[CHANNEL_SWITCH_NOTIFICATION] = iwl_rx_csa;
-	priv->rx_handlers[SPECTRUM_MEASURE_NOTIFICATION] =
-	    iwl3945_rx_spectrum_measure_notif;
 	priv->rx_handlers[PM_SLEEP_NOTIFICATION] = iwl_rx_pm_sleep_notif;
 	priv->rx_handlers[PM_DEBUG_STATISTIC_NOTIFIC] =
 	    iwl_rx_pm_debug_statistics_notif;
@@ -1532,6 +1498,7 @@ static void iwl3945_setup_rx_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl3945_hw_rx_statistics;
 	priv->rx_handlers[STATISTICS_NOTIFICATION] = iwl3945_hw_rx_statistics;
 
+	iwl_setup_spectrum_handlers(priv);
 	iwl_setup_rx_scan_handlers(priv);
 	priv->rx_handlers[CARD_STATE_NOTIFICATION] = iwl3945_rx_card_state_notif;
 

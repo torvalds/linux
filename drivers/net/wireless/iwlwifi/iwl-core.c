@@ -2002,3 +2002,19 @@ void iwl_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
 	iwl_print_hex_dump(priv, IWL_DL_RADIO, pkt->u.raw, le32_to_cpu(pkt->len));
 }
 EXPORT_SYMBOL(iwl_rx_pm_debug_statistics_notif);
+
+void iwl_rx_reply_error(struct iwl_priv *priv,
+			struct iwl_rx_mem_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
+
+	IWL_ERR(priv, "Error Reply type 0x%08X cmd %s (0x%02X) "
+		"seq 0x%04X ser 0x%08X\n",
+		le32_to_cpu(pkt->u.err_resp.error_type),
+		get_cmd_string(pkt->u.err_resp.cmd_id),
+		pkt->u.err_resp.cmd_id,
+		le16_to_cpu(pkt->u.err_resp.bad_cmd_seq_num),
+		le32_to_cpu(pkt->u.err_resp.error_info));
+}
+EXPORT_SYMBOL(iwl_rx_reply_error);
+

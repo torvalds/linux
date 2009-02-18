@@ -256,6 +256,8 @@ void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
 			   struct iwl_rx_mem_buffer *rxb);
 void iwl_rx_pm_debug_statistics_notif(struct iwl_priv *priv,
 				      struct iwl_rx_mem_buffer *rxb);
+void iwl_rx_reply_error(struct iwl_priv *priv,
+			struct iwl_rx_mem_buffer *rxb);
 
 /*****************************************************
 * RX
