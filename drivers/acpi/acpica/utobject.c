@@ -457,7 +457,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 	 * must be accessed bytewise or there may be alignment problems on
 	 * certain processors
 	 */
-	switch (ACPI_GET_OBJECT_TYPE(internal_object)) {
+	switch (internal_object->common.type) {
 	case ACPI_TYPE_STRING:
 
 		length += (acpi_size) internal_object->string.length + 1;
@@ -518,8 +518,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 		ACPI_ERROR((AE_INFO, "Cannot convert to external object - "
 			    "unsupported type [%s] %X in object %p",
 			    acpi_ut_get_object_type_name(internal_object),
-			    ACPI_GET_OBJECT_TYPE(internal_object),
-			    internal_object));
+			    internal_object->common.type, internal_object));
 		status = AE_TYPE;
 		break;
 	}
@@ -664,7 +663,7 @@ acpi_ut_get_object_size(union acpi_operand_object *internal_object,
 
 	if ((ACPI_GET_DESCRIPTOR_TYPE(internal_object) ==
 	     ACPI_DESC_TYPE_OPERAND)
-	    && (ACPI_GET_OBJECT_TYPE(internal_object) == ACPI_TYPE_PACKAGE)) {
+	    && (internal_object->common.type == ACPI_TYPE_PACKAGE)) {
 		status =
 		    acpi_ut_get_package_object_size(internal_object,
 						    obj_length);

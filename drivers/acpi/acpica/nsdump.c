@@ -515,7 +515,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 		case ACPI_DESC_TYPE_OPERAND:
 
-			obj_type = ACPI_GET_OBJECT_TYPE(obj_desc);
+			obj_type = obj_desc->common.type;
 
 			if (obj_type > ACPI_TYPE_LOCAL_MAX) {
 				acpi_os_printf

@@ -532,7 +532,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 
 	/* It must be of type Package */
 
-	else if (ACPI_GET_OBJECT_TYPE(info->return_object) != ACPI_TYPE_PACKAGE) {
+	else if (info->return_object->common.type != ACPI_TYPE_PACKAGE) {
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return object is not a Package"));
 		status = AE_AML_OPERAND_TYPE;
@@ -553,9 +553,9 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 
 	/* The first two elements must both be of type Integer */
 
-	else if ((ACPI_GET_OBJECT_TYPE(info->return_object->package.elements[0])
+	else if (((info->return_object->package.elements[0])->common.type
 		  != ACPI_TYPE_INTEGER) ||
-		 (ACPI_GET_OBJECT_TYPE(info->return_object->package.elements[1])
+		 ((info->return_object->package.elements[1])->common.type
 		  != ACPI_TYPE_INTEGER)) {
 		ACPI_ERROR((AE_INFO,
 			    "Sleep State return package elements are not both Integers (%s, %s)",

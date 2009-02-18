@@ -691,7 +691,7 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 
 	/* Devices are handled different than regions */
 
-	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_DEVICE) {
+	if (obj_desc->common.type == ACPI_TYPE_DEVICE) {
 
 		/* Check if this Device already has a handler for this address space */
 

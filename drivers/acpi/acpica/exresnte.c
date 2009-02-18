@@ -136,7 +136,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 	switch (entry_type) {
 	case ACPI_TYPE_PACKAGE:
 
-		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_PACKAGE) {
+		if (source_desc->common.type != ACPI_TYPE_PACKAGE) {
 			ACPI_ERROR((AE_INFO, "Object not a Package, type %s",
 				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
@@ -154,7 +154,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 	case ACPI_TYPE_BUFFER:
 
-		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_BUFFER) {
+		if (source_desc->common.type != ACPI_TYPE_BUFFER) {
 			ACPI_ERROR((AE_INFO, "Object not a Buffer, type %s",
 				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
@@ -172,7 +172,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 	case ACPI_TYPE_STRING:
 
-		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_STRING) {
+		if (source_desc->common.type != ACPI_TYPE_STRING) {
 			ACPI_ERROR((AE_INFO, "Object not a String, type %s",
 				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
@@ -186,7 +186,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 
 	case ACPI_TYPE_INTEGER:
 
-		if (ACPI_GET_OBJECT_TYPE(source_desc) != ACPI_TYPE_INTEGER) {
+		if (source_desc->common.type != ACPI_TYPE_INTEGER) {
 			ACPI_ERROR((AE_INFO, "Object not a Integer, type %s",
 				    acpi_ut_get_object_type_name(source_desc)));
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);

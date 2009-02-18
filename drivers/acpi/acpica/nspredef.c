@@ -221,7 +221,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 
 	/* For returned Package objects, check the type of all sub-objects */
 
-	if (ACPI_GET_OBJECT_TYPE(return_object) == ACPI_TYPE_PACKAGE) {
+	if (return_object->common.type == ACPI_TYPE_PACKAGE) {
 		status =
 		    acpi_ns_check_package(pathname, return_object_ptr,
 					  predefined);
@@ -858,7 +858,7 @@ acpi_ns_check_object_type(char *pathname,
 	 * from all of the predefined names (including elements of returned
 	 * packages)
 	 */
-	switch (ACPI_GET_OBJECT_TYPE(return_object)) {
+	switch (return_object->common.type) {
 	case ACPI_TYPE_INTEGER:
 		return_btype = ACPI_RTYPE_INTEGER;
 		break;
@@ -901,7 +901,7 @@ acpi_ns_check_object_type(char *pathname,
 
 	/* For reference objects, check that the reference type is correct */
 
-	if (ACPI_GET_OBJECT_TYPE(return_object) == ACPI_TYPE_LOCAL_REFERENCE) {
+	if (return_object->common.type == ACPI_TYPE_LOCAL_REFERENCE) {
 		status = acpi_ns_check_reference(pathname, return_object);
 	}
 
@@ -1006,7 +1006,7 @@ acpi_ns_repair_object(u32 expected_btypes,
 	union acpi_operand_object *new_object;
 	acpi_size length;
 
-	switch (ACPI_GET_OBJECT_TYPE(return_object)) {
+	switch (return_object->common.type) {
 	case ACPI_TYPE_BUFFER:
 
 		if (!(expected_btypes & ACPI_RTYPE_STRING)) {

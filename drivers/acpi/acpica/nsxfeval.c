@@ -387,8 +387,7 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 
 	/* We are interested in reference objects only */
 
-	if (ACPI_GET_OBJECT_TYPE(info->return_object) !=
-	    ACPI_TYPE_LOCAL_REFERENCE) {
+	if ((info->return_object)->common.type != ACPI_TYPE_LOCAL_REFERENCE) {
 		return;
 	}
 

@@ -492,7 +492,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	/* Decode object type */
 
-	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+	switch (obj_desc->common.type) {
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
 		acpi_os_printf("Reference: [%s] ",
@@ -531,7 +531,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 			acpi_os_printf("%X", obj_desc->reference.value);
 
-			if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
+			if (obj_desc->common.type == ACPI_TYPE_INTEGER) {
 
 				/* Value is an Integer */
 
@@ -548,7 +548,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 			acpi_os_printf("%X", obj_desc->reference.value);
 
-			if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
+			if (obj_desc->common.type == ACPI_TYPE_INTEGER) {
 
 				/* Value is an Integer */
 
@@ -686,9 +686,8 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		if (!obj_desc->buffer_field.buffer_obj) {
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "*NULL*\n"));
-		} else
-		    if (ACPI_GET_OBJECT_TYPE(obj_desc->buffer_field.buffer_obj)
-			!= ACPI_TYPE_BUFFER) {
+		} else if ((obj_desc->buffer_field.buffer_obj)->common.type !=
+			   ACPI_TYPE_BUFFER) {
 			acpi_os_printf("*not a Buffer*\n");
 		} else {
 			acpi_ex_dump_operand(obj_desc->buffer_field.buffer_obj,
@@ -737,8 +736,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	default:
 		/* Unknown Type */
 
-		acpi_os_printf("Unknown Type %X\n",
-			       ACPI_GET_OBJECT_TYPE(obj_desc));
+		acpi_os_printf("Unknown Type %X\n", obj_desc->common.type);
 		break;
 	}
 
@@ -939,7 +937,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 
 	/* Packages may only contain a few object types */
 
-	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+	switch (obj_desc->common.type) {
 	case ACPI_TYPE_INTEGER:
 
 		acpi_os_printf("[Integer] = %8.8X%8.8X\n",
@@ -990,8 +988,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 
 	default:
 
-		acpi_os_printf("[Unknown Type] %X\n",
-			       ACPI_GET_OBJECT_TYPE(obj_desc));
+		acpi_os_printf("[Unknown Type] %X\n", obj_desc->common.type);
 		break;
 	}
 }

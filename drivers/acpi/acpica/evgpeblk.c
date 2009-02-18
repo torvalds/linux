@@ -408,7 +408,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 	 */
 	obj_desc = pkg_desc->package.elements[0];
 
-	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
+	if (obj_desc->common.type == ACPI_TYPE_INTEGER) {
 
 		/* Use FADT-defined GPE device (from definition of _PRW) */
 
@@ -417,14 +417,14 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 		/* Integer is the GPE number in the FADT described GPE blocks */
 
 		gpe_number = (u32) obj_desc->integer.value;
-	} else if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_PACKAGE) {
+	} else if (obj_desc->common.type == ACPI_TYPE_PACKAGE) {
 
 		/* Package contains a GPE reference and GPE number within a GPE block */
 
 		if ((obj_desc->package.count < 2) ||
-		    (ACPI_GET_OBJECT_TYPE(obj_desc->package.elements[0]) !=
+		    ((obj_desc->package.elements[0])->common.type !=
 		     ACPI_TYPE_LOCAL_REFERENCE)
-		    || (ACPI_GET_OBJECT_TYPE(obj_desc->package.elements[1]) !=
+		    || ((obj_desc->package.elements[1])->common.type !=
 			ACPI_TYPE_INTEGER)) {
 			goto cleanup;
 		}

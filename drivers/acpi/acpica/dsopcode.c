@@ -484,7 +484,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	/* Host object must be a Buffer */
 
-	if (ACPI_GET_OBJECT_TYPE(buffer_desc) != ACPI_TYPE_BUFFER) {
+	if (buffer_desc->common.type != ACPI_TYPE_BUFFER) {
 		ACPI_ERROR((AE_INFO,
 			    "Target of Create Field is not a Buffer object - %s",
 			    acpi_ut_get_object_type_name(buffer_desc)));
@@ -1365,10 +1365,8 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 			if ((ACPI_GET_DESCRIPTOR_TYPE
 			     (walk_state->results->results.obj_desc[0]) ==
 			     ACPI_DESC_TYPE_OPERAND)
-			    &&
-			    (ACPI_GET_OBJECT_TYPE
-			     (walk_state->results->results.obj_desc[0]) ==
-			     ACPI_TYPE_LOCAL_REFERENCE)
+			    && ((walk_state->results->results.obj_desc[0])->
+				common.type == ACPI_TYPE_LOCAL_REFERENCE)
 			    && ((walk_state->results->results.obj_desc[0])->
 				reference.class != ACPI_REFCLASS_INDEX)) {
 				status =

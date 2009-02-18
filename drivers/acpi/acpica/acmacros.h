@@ -292,10 +292,6 @@
 #define ACPI_GET_DESCRIPTOR_TYPE(d)     (((union acpi_descriptor *)(void *)(d))->common.descriptor_type)
 #define ACPI_SET_DESCRIPTOR_TYPE(d, t)  (((union acpi_descriptor *)(void *)(d))->common.descriptor_type = t)
 
-/* Macro to test the object type */
-
-#define ACPI_GET_OBJECT_TYPE(d)         (((union acpi_operand_object *)(void *)(d))->common.type)
-
 /*
  * Macros for the master AML opcode table
  */

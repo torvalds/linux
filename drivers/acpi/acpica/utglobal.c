@@ -473,7 +473,7 @@ char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 		return ("[NULL Object Descriptor]");
 	}
 
-	return (acpi_ut_get_type_name(ACPI_GET_OBJECT_TYPE(obj_desc)));
+	return (acpi_ut_get_type_name(obj_desc->common.type));
 }
 
 /*******************************************************************************
