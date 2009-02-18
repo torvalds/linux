@@ -590,8 +590,10 @@ nfulnl_log_packet(u_int8_t pf,
 
 	qthreshold = inst->qthreshold;
 	/* per-rule qthreshold overrides per-instance */
-	if (qthreshold > li->u.ulog.qthreshold)
-		qthreshold = li->u.ulog.qthreshold;
+	if (li->u.ulog.qthreshold)
+		if (qthreshold > li->u.ulog.qthreshold)
+			qthreshold = li->u.ulog.qthreshold;
+
 
 	switch (inst->copy_mode) {
 	case NFULNL_COPY_META:
