@@ -52,9 +52,8 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 struct adv7170 {
 	unsigned char reg[128];
 
-	int norm;
+	v4l2_std_id norm;
 	int input;
-	int enable;
 	int bright;
 	int contrast;
 	int hue;
@@ -62,7 +61,6 @@ struct adv7170 {
 };
 
 static char *inputs[] = { "pass_through", "play_back" };
-static char *norms[] = { "PAL", "NTSC" };
 
 /* ----------------------------------------------------------------------- */
 
@@ -191,7 +189,7 @@ static int adv7170_command(struct i2c_client *client, unsigned cmd, void *arg)
 	struct adv7170 *encoder = i2c_get_clientdata(client);
 
 	switch (cmd) {
-	case 0:
+	case VIDIOC_INT_INIT:
 #if 0
 		/* This is just for testing!!! */
 		adv7170_write_block(client, init_common,
@@ -201,63 +199,47 @@ static int adv7170_command(struct i2c_client *client, unsigned cmd, void *arg)
 #endif
 		break;
 
-	case ENCODER_GET_CAPABILITIES:
+	case VIDIOC_INT_S_STD_OUTPUT:
 	{
-		struct video_encoder_capability *cap = arg;
+		v4l2_std_id iarg = *(v4l2_std_id *) arg;
 
-		cap->flags = VIDEO_ENCODER_PAL |
-			     VIDEO_ENCODER_NTSC;
-		cap->inputs = 2;
-		cap->outputs = 1;
-		break;
-	}
+		v4l_dbg(1, debug, client, "set norm %llx\n", iarg);
 
-	case ENCODER_SET_NORM:
-	{
-		int iarg = *(int *) arg;
-
-		v4l_dbg(1, debug, client, "set norm %d\n", iarg);
-
-		switch (iarg) {
-		case VIDEO_MODE_NTSC:
+		if (iarg & V4L2_STD_NTSC) {
 			adv7170_write_block(client, init_NTSC,
 					    sizeof(init_NTSC));
 			if (encoder->input == 0)
 				adv7170_write(client, 0x02, 0x0e);	// Enable genlock
 			adv7170_write(client, 0x07, TR0MODE | TR0RST);
 			adv7170_write(client, 0x07, TR0MODE);
-			break;
-
-		case VIDEO_MODE_PAL:
+		} else if (iarg & V4L2_STD_PAL) {
 			adv7170_write_block(client, init_PAL,
 					    sizeof(init_PAL));
 			if (encoder->input == 0)
 				adv7170_write(client, 0x02, 0x0e);	// Enable genlock
 			adv7170_write(client, 0x07, TR0MODE | TR0RST);
 			adv7170_write(client, 0x07, TR0MODE);
-			break;
-
-		default:
-			v4l_dbg(1, debug, client, "illegal norm: %d\n", iarg);
+		} else {
+			v4l_dbg(1, debug, client, "illegal norm: %llx\n", iarg);
 			return -EINVAL;
 		}
-		v4l_dbg(1, debug, client, "switched to %s\n", norms[iarg]);
+		v4l_dbg(1, debug, client, "switched to %llx\n", iarg);
 		encoder->norm = iarg;
 		break;
 	}
 
-	case ENCODER_SET_INPUT:
+	case VIDIOC_INT_S_VIDEO_ROUTING:
 	{
-		int iarg = *(int *) arg;
+		struct v4l2_routing *route = arg;
 
 		/* RJ: *iarg = 0: input is from decoder
 		 *iarg = 1: input is from ZR36060
 		 *iarg = 2: color bar */
 
 		v4l_dbg(1, debug, client, "set input from %s\n",
-			iarg == 0 ? "decoder" : "ZR36060");
+			route->input == 0 ? "decoder" : "ZR36060");
 
-		switch (iarg) {
+		switch (route->input) {
 		case 0:
 			adv7170_write(client, 0x01, 0x20);
 			adv7170_write(client, 0x08, TR1CAPT);	/* TR1 */
@@ -277,30 +259,11 @@ static int adv7170_command(struct i2c_client *client, unsigned cmd, void *arg)
 			break;
 
 		default:
-			v4l_dbg(1, debug, client, "illegal input: %d\n", iarg);
+			v4l_dbg(1, debug, client, "illegal input: %d\n", route->input);
 			return -EINVAL;
 		}
-		v4l_dbg(1, debug, client, "switched to %s\n", inputs[iarg]);
-		encoder->input = iarg;
-		break;
-	}
-
-	case ENCODER_SET_OUTPUT:
-	{
-		int *iarg = arg;
-
-		/* not much choice of outputs */
-		if (*iarg != 0) {
-			return -EINVAL;
-		}
-		break;
-	}
-
-	case ENCODER_ENABLE_OUTPUT:
-	{
-		int *iarg = arg;
-
-		encoder->enable = !!*iarg;
+		v4l_dbg(1, debug, client, "switched to %s\n", inputs[route->input]);
+		encoder->input = route->input;
 		break;
 	}
 
@@ -337,9 +300,8 @@ static int adv7170_probe(struct i2c_client *client,
 	encoder = kzalloc(sizeof(struct adv7170), GFP_KERNEL);
 	if (encoder == NULL)
 		return -ENOMEM;
-	encoder->norm = VIDEO_MODE_NTSC;
+	encoder->norm = V4L2_STD_NTSC;
 	encoder->input = 0;
-	encoder->enable = 1;
 	i2c_set_clientdata(client, encoder);
 
 	i = adv7170_write_block(client, init_NTSC, sizeof(init_NTSC));

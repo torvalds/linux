@@ -32,7 +32,7 @@ config VIDEO_ZORAN_ZR36060
 config VIDEO_ZORAN_BUZ
 	tristate "Iomega Buz support"
 	depends on VIDEO_ZORAN_ZR36060
-	select VIDEO_SAA7111 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_SAA7185 if VIDEO_HELPER_CHIPS_AUTO
 	help
 	  Support for the Iomega Buz MJPEG capture/playback card.
@@ -58,7 +58,7 @@ config VIDEO_ZORAN_LML33
 config VIDEO_ZORAN_LML33R10
 	tristate "Linux Media Labs LML33R10 support"
 	depends on VIDEO_ZORAN_ZR36060
-	select VIDEO_SAA7114 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_ADV7170 if VIDEO_HELPER_CHIPS_AUTO
 	help
 	  support for the Linux Media Labs LML33R10 MJPEG capture/playback

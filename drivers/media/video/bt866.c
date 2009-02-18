@@ -52,8 +52,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 struct bt866 {
 	u8 reg[256];
 
-	int norm;
-	int enable;
+	v4l2_std_id norm;
 	int bright;
 	int contrast;
 	int hue;
@@ -94,44 +93,21 @@ static int bt866_command(struct i2c_client *client, unsigned cmd, void *arg)
 	struct bt866 *encoder = i2c_get_clientdata(client);
 
 	switch (cmd) {
-	case ENCODER_GET_CAPABILITIES:
+	case VIDIOC_INT_S_STD_OUTPUT:
 	{
-		struct video_encoder_capability *cap = arg;
+		v4l2_std_id *iarg = arg;
 
-		v4l_dbg(1, debug, client, "get capabilities\n");
+		v4l_dbg(1, debug, client, "set norm %llx\n", *iarg);
 
-		cap->flags
-			= VIDEO_ENCODER_PAL
-			| VIDEO_ENCODER_NTSC
-			| VIDEO_ENCODER_CCIR;
-		cap->inputs = 2;
-		cap->outputs = 1;
-		break;
-	}
-
-	case ENCODER_SET_NORM:
-	{
-		int *iarg = arg;
-
-		v4l_dbg(1, debug, client, "set norm %d\n", *iarg);
-
-		switch (*iarg) {
-		case VIDEO_MODE_NTSC:
-			break;
-
-		case VIDEO_MODE_PAL:
-			break;
-
-		default:
+		if (!(*iarg & (V4L2_STD_NTSC | V4L2_STD_PAL)))
 			return -EINVAL;
-		}
 		encoder->norm = *iarg;
 		break;
 	}
 
-	case ENCODER_SET_INPUT:
+	case VIDIOC_INT_S_VIDEO_ROUTING:
 	{
-		int *iarg = arg;
+		struct v4l2_routing *route = arg;
 		static const __u8 init[] = {
 			0xc8, 0xcc, /* CRSCALE */
 			0xca, 0x91, /* CBSCALE */
@@ -167,7 +143,7 @@ static int bt866_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 		val = encoder->reg[0xdc];
 
-		if (*iarg == 0)
+		if (route->input == 0)
 			val |= 0x40; /* CBSWAP */
 		else
 			val &= ~0x40; /* !CBSWAP */
@@ -175,15 +151,15 @@ static int bt866_command(struct i2c_client *client, unsigned cmd, void *arg)
 		bt866_write(client, 0xdc, val);
 
 		val = encoder->reg[0xcc];
-		if (*iarg == 2)
+		if (route->input == 2)
 			val |= 0x01; /* OSDBAR */
 		else
 			val &= ~0x01; /* !OSDBAR */
 		bt866_write(client, 0xcc, val);
 
-		v4l_dbg(1, debug, client, "set input %d\n", *iarg);
+		v4l_dbg(1, debug, client, "set input %d\n", route->input);
 
-		switch (*iarg) {
+		switch (route->input) {
 		case 0:
 			break;
 		case 1:
@@ -191,27 +167,6 @@ static int bt866_command(struct i2c_client *client, unsigned cmd, void *arg)
 		default:
 			return -EINVAL;
 		}
-		break;
-	}
-
-	case ENCODER_SET_OUTPUT:
-	{
-		int *iarg = arg;
-
-		v4l_dbg(1, debug, client, "set output %d\n", *iarg);
-
-		/* not much choice of outputs */
-		if (*iarg != 0)
-			return -EINVAL;
-		break;
-	}
-
-	case ENCODER_ENABLE_OUTPUT:
-	{
-		int *iarg = arg;
-		encoder->enable = !!*iarg;
-
-		v4l_dbg(1, debug, client, "enable output %d\n", encoder->enable);
 		break;
 	}
 

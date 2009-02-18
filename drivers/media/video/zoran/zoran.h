@@ -352,7 +352,7 @@ struct card_info {
 		char name[32];
 	} input[BUZ_MAX_INPUT];
 
-	int norms;
+	v4l2_std_id norms;
 	struct tvnorm *tvn[3];	/* supported TV norms */
 
 	u32 jpeg_int;		/* JPEG interrupt */
@@ -401,8 +401,8 @@ struct zoran {
 	spinlock_t spinlock;	/* Spinlock */
 
 	/* Video for Linux parameters */
-	int input, norm;	/* card's norm and input - norm=VIDEO_MODE_* */
-	int hue, saturation, contrast, brightness;	/* Current picture params */
+	int input;	/* card's norm and input - norm=VIDEO_MODE_* */
+	v4l2_std_id norm;
 	struct video_buffer buffer;	/* Current buffer params */
 	struct zoran_overlay_settings overlay_settings;
 	u32 *overlay_mask;	/* overlay mask */

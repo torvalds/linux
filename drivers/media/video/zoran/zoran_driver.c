@@ -1145,9 +1145,10 @@ zoran_close(struct file  *file)
 		zoran_set_pci_master(zr, 0);
 
 		if (!pass_through) {	/* Switch to color bar */
-			int zero = 0, two = 2;
-			decoder_command(zr, DECODER_ENABLE_OUTPUT, &zero);
-			encoder_command(zr, ENCODER_SET_INPUT, &two);
+			struct v4l2_routing route = { 2, 0 };
+
+			decoder_command(zr, VIDIOC_STREAMOFF, 0);
+			encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 		}
 	}
 
@@ -1569,9 +1570,9 @@ zoran_v4l2_buffer_status (struct file        *file,
 
 static int
 zoran_set_norm (struct zoran *zr,
-		int           norm) /* VIDEO_MODE_* */
+		v4l2_std_id norm)
 {
-	int norm_encoder, on;
+	int on;
 
 	if (zr->v4l_buffers.active != ZORAN_FREE ||
 	    zr->jpg_buffers.active != ZORAN_FREE) {
@@ -1598,52 +1599,42 @@ zoran_set_norm (struct zoran *zr,
 		}
 	}
 
-	if (norm != VIDEO_MODE_AUTO &&
-	    (norm < 0 || norm >= zr->card.norms ||
-	     !zr->card.tvn[norm])) {
+	if (!(norm & zr->card.norms)) {
 		dprintk(1,
-			KERN_ERR "%s: set_norm() - unsupported norm %d\n",
+			KERN_ERR "%s: set_norm() - unsupported norm %llx\n",
 			ZR_DEVNAME(zr), norm);
 		return -EINVAL;
 	}
 
-	if (norm == VIDEO_MODE_AUTO) {
-		int status;
+	if (norm == V4L2_STD_ALL) {
+		int status = 0;
+		v4l2_std_id std = 0;
 
-		/* if we have autodetect, ... */
-		struct video_decoder_capability caps;
-		decoder_command(zr, DECODER_GET_CAPABILITIES, &caps);
-		if (!(caps.flags & VIDEO_DECODER_AUTO)) {
-			dprintk(1, KERN_ERR "%s: norm=auto unsupported\n",
-				ZR_DEVNAME(zr));
-			return -EINVAL;
-		}
-
-		decoder_command(zr, DECODER_SET_NORM, &norm);
+		decoder_command(zr, VIDIOC_QUERYSTD, &std);
+		decoder_command(zr, VIDIOC_S_STD, &std);
 
 		/* let changes come into effect */
 		ssleep(2);
 
-		decoder_command(zr, DECODER_GET_STATUS, &status);
-		if (!(status & DECODER_STATUS_GOOD)) {
+		decoder_command(zr, VIDIOC_INT_G_INPUT_STATUS, &status);
+		if (status & V4L2_IN_ST_NO_SIGNAL) {
 			dprintk(1,
 				KERN_ERR
 				"%s: set_norm() - no norm detected\n",
 				ZR_DEVNAME(zr));
 			/* reset norm */
-			decoder_command(zr, DECODER_SET_NORM, &zr->norm);
+			decoder_command(zr, VIDIOC_S_STD, &zr->norm);
 			return -EIO;
 		}
 
-		if (status & DECODER_STATUS_NTSC)
-			norm = VIDEO_MODE_NTSC;
-		else if (status & DECODER_STATUS_SECAM)
-			norm = VIDEO_MODE_SECAM;
-		else
-			norm = VIDEO_MODE_PAL;
+		norm = std;
 	}
-	zr->timing = zr->card.tvn[norm];
-	norm_encoder = norm;
+	if (norm & V4L2_STD_SECAM)
+		zr->timing = zr->card.tvn[2];
+	else if (norm & V4L2_STD_NTSC)
+		zr->timing = zr->card.tvn[1];
+	else
+		zr->timing = zr->card.tvn[0];
 
 	/* We switch overlay off and on since a change in the
 	 * norm needs different VFE settings */
@@ -1651,8 +1642,8 @@ zoran_set_norm (struct zoran *zr,
 	if (on)
 		zr36057_overlay(zr, 0);
 
-	decoder_command(zr, DECODER_SET_NORM, &norm);
-	encoder_command(zr, ENCODER_SET_NORM, &norm_encoder);
+	decoder_command(zr, VIDIOC_S_STD, &norm);
+	encoder_command(zr, VIDIOC_INT_S_STD_OUTPUT, &norm);
 
 	if (on)
 		zr36057_overlay(zr, 1);
@@ -1667,7 +1658,7 @@ static int
 zoran_set_input (struct zoran *zr,
 		 int           input)
 {
-	int realinput;
+	struct v4l2_routing route = { 0, 0 };
 
 	if (input == zr->input) {
 		return 0;
@@ -1690,10 +1681,10 @@ zoran_set_input (struct zoran *zr,
 		return -EINVAL;
 	}
 
-	realinput = zr->card.input[input].muxsel;
+	route.input = zr->card.input[input].muxsel;
 	zr->input = input;
 
-	decoder_command(zr, DECODER_SET_INPUT, &realinput);
+	decoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
 	return 0;
 }
@@ -1722,7 +1713,13 @@ static long zoran_default(struct file *file, void *__fh, int cmd, void *arg)
 
 		mutex_lock(&zr->resource_lock);
 
-		bparams->norm = zr->norm;
+		if (zr->norm & V4L2_STD_NTSC)
+			bparams->norm = VIDEO_MODE_NTSC;
+		else if (zr->norm & V4L2_STD_PAL)
+			bparams->norm = VIDEO_MODE_PAL;
+		else
+			bparams->norm = VIDEO_MODE_SECAM;
+
 		bparams->input = zr->input;
 
 		bparams->decimation = fh->jpg_settings.decimation;
@@ -1905,7 +1902,9 @@ jpgreqbuf_unlock_and_return:
 	case BUZIOC_G_STATUS:
 	{
 		struct zoran_status *bstat = arg;
-		int norm, input, status, res = 0;
+		struct v4l2_routing route = { 0, 0 };
+		int status = 0, res = 0;
+		v4l2_std_id norm;
 
 		dprintk(3, KERN_DEBUG "%s: BUZIOC_G_STATUS\n", ZR_DEVNAME(zr));
 
@@ -1917,8 +1916,7 @@ jpgreqbuf_unlock_and_return:
 			return -EINVAL;
 		}
 
-		input = zr->card.input[bstat->input].muxsel;
-		norm = VIDEO_MODE_AUTO;
+		route.input = zr->card.input[bstat->input].muxsel;
 
 		mutex_lock(&zr->resource_lock);
 
@@ -1931,34 +1929,33 @@ jpgreqbuf_unlock_and_return:
 			goto gstat_unlock_and_return;
 		}
 
-		decoder_command(zr, DECODER_SET_INPUT, &input);
-		decoder_command(zr, DECODER_SET_NORM, &norm);
+		decoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
 		/* sleep 1 second */
 		ssleep(1);
 
 		/* Get status of video decoder */
-		decoder_command(zr, DECODER_GET_STATUS, &status);
+		decoder_command(zr, VIDIOC_QUERYSTD, &norm);
+		decoder_command(zr, VIDIOC_INT_G_INPUT_STATUS, &status);
 
 		/* restore previous input and norm */
-		input = zr->card.input[zr->input].muxsel;
-		decoder_command(zr, DECODER_SET_INPUT, &input);
-		decoder_command(zr, DECODER_SET_NORM, &zr->norm);
+		route.input = zr->card.input[zr->input].muxsel;
+		decoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 gstat_unlock_and_return:
 		mutex_unlock(&zr->resource_lock);
 
 		if (!res) {
 			bstat->signal =
-			    (status & DECODER_STATUS_GOOD) ? 1 : 0;
-			if (status & DECODER_STATUS_NTSC)
+			    (status & V4L2_IN_ST_NO_SIGNAL) ? 0 : 1;
+			if (norm & V4L2_STD_NTSC)
 				bstat->norm = VIDEO_MODE_NTSC;
-			else if (status & DECODER_STATUS_SECAM)
+			else if (norm & V4L2_STD_SECAM)
 				bstat->norm = VIDEO_MODE_SECAM;
 			else
 				bstat->norm = VIDEO_MODE_PAL;
 
 			bstat->color =
-			    (status & DECODER_STATUS_COLOR) ? 1 : 0;
+			    (status & V4L2_IN_ST_NO_COLOR) ? 0 : 1;
 		}
 
 		return res;
@@ -2867,37 +2864,15 @@ strmoff_unlock_and_return:
 static int zoran_queryctrl(struct file *file, void *__fh,
 					struct v4l2_queryctrl *ctrl)
 {
+	struct zoran_fh *fh = __fh;
+	struct zoran *zr = fh->zr;
+
 	/* we only support hue/saturation/contrast/brightness */
 	if (ctrl->id < V4L2_CID_BRIGHTNESS ||
 	    ctrl->id > V4L2_CID_HUE)
 		return -EINVAL;
-	else {
-		int id = ctrl->id;
-		memset(ctrl, 0, sizeof(*ctrl));
-		ctrl->id = id;
-	}
 
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		strncpy(ctrl->name, "Brightness", sizeof(ctrl->name)-1);
-		break;
-	case V4L2_CID_CONTRAST:
-		strncpy(ctrl->name, "Contrast", sizeof(ctrl->name)-1);
-		break;
-	case V4L2_CID_SATURATION:
-		strncpy(ctrl->name, "Saturation", sizeof(ctrl->name)-1);
-		break;
-	case V4L2_CID_HUE:
-		strncpy(ctrl->name, "Hue", sizeof(ctrl->name)-1);
-		break;
-	}
-
-	ctrl->minimum = 0;
-	ctrl->maximum = 65535;
-	ctrl->step = 1;
-	ctrl->default_value = 32768;
-	ctrl->type = V4L2_CTRL_TYPE_INTEGER;
-	ctrl->flags = V4L2_CTRL_FLAG_SLIDER;
+	decoder_command(zr, VIDIOC_QUERYCTRL, ctrl);
 
 	return 0;
 }
@@ -2913,20 +2888,7 @@ static int zoran_g_ctrl(struct file *file, void *__fh, struct v4l2_control *ctrl
 		return -EINVAL;
 
 	mutex_lock(&zr->resource_lock);
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = zr->brightness;
-		break;
-	case V4L2_CID_CONTRAST:
-		ctrl->value = zr->contrast;
-		break;
-	case V4L2_CID_SATURATION:
-		ctrl->value = zr->saturation;
-		break;
-	case V4L2_CID_HUE:
-		ctrl->value = zr->hue;
-		break;
-	}
+	decoder_command(zr, VIDIOC_G_CTRL, ctrl);
 	mutex_unlock(&zr->resource_lock);
 
 	return 0;
@@ -2936,42 +2898,14 @@ static int zoran_s_ctrl(struct file *file, void *__fh, struct v4l2_control *ctrl
 {
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
-	struct video_picture pict;
 
 	/* we only support hue/saturation/contrast/brightness */
 	if (ctrl->id < V4L2_CID_BRIGHTNESS ||
 	    ctrl->id > V4L2_CID_HUE)
 		return -EINVAL;
 
-	if (ctrl->value < 0 || ctrl->value > 65535) {
-		dprintk(1, KERN_ERR
-			"%s: VIDIOC_S_CTRL - invalid value %d for id=%d\n",
-			ZR_DEVNAME(zr), ctrl->value, ctrl->id);
-		return -EINVAL;
-	}
-
 	mutex_lock(&zr->resource_lock);
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		zr->brightness = ctrl->value;
-		break;
-	case V4L2_CID_CONTRAST:
-		zr->contrast = ctrl->value;
-		break;
-	case V4L2_CID_SATURATION:
-		zr->saturation = ctrl->value;
-		break;
-	case V4L2_CID_HUE:
-		zr->hue = ctrl->value;
-		break;
-	}
-	pict.brightness = zr->brightness;
-	pict.contrast = zr->contrast;
-	pict.colour = zr->saturation;
-	pict.hue = zr->hue;
-
-	decoder_command(zr, DECODER_SET_PICTURE, &pict);
-
+	decoder_command(zr, VIDIOC_S_CTRL, ctrl);
 	mutex_unlock(&zr->resource_lock);
 
 	return 0;
@@ -2981,24 +2915,10 @@ static int zoran_g_std(struct file *file, void *__fh, v4l2_std_id *std)
 {
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
-	int norm;
 
 	mutex_lock(&zr->resource_lock);
-	norm = zr->norm;
+	*std = zr->norm;
 	mutex_unlock(&zr->resource_lock);
-
-	switch (norm) {
-	case VIDEO_MODE_PAL:
-		*std = V4L2_STD_PAL;
-		break;
-	case VIDEO_MODE_NTSC:
-		*std = V4L2_STD_NTSC;
-		break;
-	case VIDEO_MODE_SECAM:
-		*std = V4L2_STD_SECAM;
-		break;
-	}
-
 	return 0;
 }
 
@@ -3006,25 +2926,10 @@ static int zoran_s_std(struct file *file, void *__fh, v4l2_std_id *std)
 {
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
-	int norm = -1, res = 0;
-
-	if ((*std & V4L2_STD_PAL) && !(*std & ~V4L2_STD_PAL))
-		norm = VIDEO_MODE_PAL;
-	else if ((*std & V4L2_STD_NTSC) && !(*std & ~V4L2_STD_NTSC))
-		norm = VIDEO_MODE_NTSC;
-	else if ((*std & V4L2_STD_SECAM) && !(*std & ~V4L2_STD_SECAM))
-		norm = VIDEO_MODE_SECAM;
-	else if (*std == V4L2_STD_ALL)
-		norm = VIDEO_MODE_AUTO;
-	else {
-		dprintk(1, KERN_ERR
-			"%s: VIDIOC_S_STD - invalid norm 0x%llx\n",
-			ZR_DEVNAME(zr), (unsigned long long)*std);
-		return -EINVAL;
-	}
+	int res = 0;
 
 	mutex_lock(&zr->resource_lock);
-	res = zoran_set_norm(zr, norm);
+	res = zoran_set_norm(zr, *std);
 	if (res)
 		goto sstd_unlock_and_return;
 
@@ -3039,7 +2944,6 @@ static int zoran_enum_input(struct file *file, void *__fh,
 {
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
-	int status;
 
 	if (inp->index < 0 || inp->index >= zr->card.inputs)
 		return -EINVAL;
@@ -3056,16 +2960,8 @@ static int zoran_enum_input(struct file *file, void *__fh,
 
 	/* Get status of video decoder */
 	mutex_lock(&zr->resource_lock);
-	decoder_command(zr, DECODER_GET_STATUS, &status);
+	decoder_command(zr, VIDIOC_INT_G_INPUT_STATUS, &inp->status);
 	mutex_unlock(&zr->resource_lock);
-
-	if (!(status & DECODER_STATUS_GOOD)) {
-		inp->status |= V4L2_IN_ST_NO_POWER;
-		inp->status |= V4L2_IN_ST_NO_SIGNAL;
-	}
-	if (!(status & DECODER_STATUS_COLOR))
-		inp->status |= V4L2_IN_ST_NO_COLOR;
-
 	return 0;
 }
 

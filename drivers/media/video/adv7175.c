@@ -46,9 +46,8 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 /* ----------------------------------------------------------------------- */
 
 struct adv7175 {
-	int norm;
+	v4l2_std_id norm;
 	int input;
-	int enable;
 	int bright;
 	int contrast;
 	int hue;
@@ -59,7 +58,6 @@ struct adv7175 {
 #define   I2C_ADV7176        0x54
 
 static char *inputs[] = { "pass_through", "play_back", "color_bar" };
-static char *norms[] = { "PAL", "NTSC", "SECAM->PAL (may not work!)" };
 
 /* ----------------------------------------------------------------------- */
 
@@ -189,7 +187,7 @@ static int adv7175_command(struct i2c_client *client, unsigned cmd, void *arg)
 	struct adv7175 *encoder = i2c_get_clientdata(client);
 
 	switch (cmd) {
-	case 0:
+	case VIDIOC_INT_INIT:
 		/* This is just for testing!!! */
 		adv7175_write_block(client, init_common,
 				    sizeof(init_common));
@@ -197,42 +195,25 @@ static int adv7175_command(struct i2c_client *client, unsigned cmd, void *arg)
 		adv7175_write(client, 0x07, TR0MODE);
 		break;
 
-	case ENCODER_GET_CAPABILITIES:
+	case VIDIOC_INT_S_STD_OUTPUT:
 	{
-		struct video_encoder_capability *cap = arg;
+		v4l2_std_id iarg = *(v4l2_std_id *) arg;
 
-		cap->flags = VIDEO_ENCODER_PAL |
-			     VIDEO_ENCODER_NTSC |
-			     VIDEO_ENCODER_SECAM; /* well, hacky */
-		cap->inputs = 2;
-		cap->outputs = 1;
-		break;
-	}
-
-	case ENCODER_SET_NORM:
-	{
-		int iarg = *(int *) arg;
-
-		switch (iarg) {
-		case VIDEO_MODE_NTSC:
+		if (iarg & V4L2_STD_NTSC) {
 			adv7175_write_block(client, init_ntsc,
 					    sizeof(init_ntsc));
 			if (encoder->input == 0)
 				adv7175_write(client, 0x0d, 0x4f);	// Enable genlock
 			adv7175_write(client, 0x07, TR0MODE | TR0RST);
 			adv7175_write(client, 0x07, TR0MODE);
-			break;
-
-		case VIDEO_MODE_PAL:
+		} else if (iarg & V4L2_STD_PAL) {
 			adv7175_write_block(client, init_pal,
 					    sizeof(init_pal));
 			if (encoder->input == 0)
 				adv7175_write(client, 0x0d, 0x4f);	// Enable genlock
 			adv7175_write(client, 0x07, TR0MODE | TR0RST);
 			adv7175_write(client, 0x07, TR0MODE);
-			break;
-
-		case VIDEO_MODE_SECAM:	// WARNING! ADV7176 does not support SECAM.
+		} else if (iarg & V4L2_STD_SECAM) {
 			/* This is an attempt to convert
 			 * SECAM->PAL (typically it does not work
 			 * due to genlock: when decoder is in SECAM
@@ -245,33 +226,32 @@ static int adv7175_command(struct i2c_client *client, unsigned cmd, void *arg)
 				adv7175_write(client, 0x0d, 0x49);	// Disable genlock
 			adv7175_write(client, 0x07, TR0MODE | TR0RST);
 			adv7175_write(client, 0x07, TR0MODE);
-			break;
-		default:
-			v4l_dbg(1, debug, client, "illegal norm: %d\n", iarg);
+		} else {
+			v4l_dbg(1, debug, client, "illegal norm: %llx\n", iarg);
 			return -EINVAL;
 		}
-		v4l_dbg(1, debug, client, "switched to %s\n", norms[iarg]);
+		v4l_dbg(1, debug, client, "switched to %llx\n", iarg);
 		encoder->norm = iarg;
 		break;
 	}
 
-	case ENCODER_SET_INPUT:
+	case VIDIOC_INT_S_VIDEO_ROUTING:
 	{
-		int iarg = *(int *) arg;
+		struct v4l2_routing *route = arg;
 
 		/* RJ: *iarg = 0: input is from SAA7110
 		 *iarg = 1: input is from ZR36060
 		 *iarg = 2: color bar */
 
-		switch (iarg) {
+		switch (route->input) {
 		case 0:
 			adv7175_write(client, 0x01, 0x00);
 
-			if (encoder->norm == VIDEO_MODE_NTSC)
+			if (encoder->norm & V4L2_STD_NTSC)
 				set_subcarrier_freq(client, 1);
 
 			adv7175_write(client, 0x0c, TR1CAPT);	/* TR1 */
-			if (encoder->norm == VIDEO_MODE_SECAM)
+			if (encoder->norm & V4L2_STD_SECAM)
 				adv7175_write(client, 0x0d, 0x49);	// Disable genlock
 			else
 				adv7175_write(client, 0x0d, 0x4f);	// Enable genlock
@@ -283,7 +263,7 @@ static int adv7175_command(struct i2c_client *client, unsigned cmd, void *arg)
 		case 1:
 			adv7175_write(client, 0x01, 0x00);
 
-			if (encoder->norm == VIDEO_MODE_NTSC)
+			if (encoder->norm & V4L2_STD_NTSC)
 				set_subcarrier_freq(client, 0);
 
 			adv7175_write(client, 0x0c, TR1PLAY);	/* TR1 */
@@ -296,7 +276,7 @@ static int adv7175_command(struct i2c_client *client, unsigned cmd, void *arg)
 		case 2:
 			adv7175_write(client, 0x01, 0x80);
 
-			if (encoder->norm == VIDEO_MODE_NTSC)
+			if (encoder->norm & V4L2_STD_NTSC)
 				set_subcarrier_freq(client, 0);
 
 			adv7175_write(client, 0x0d, 0x49);
@@ -306,29 +286,11 @@ static int adv7175_command(struct i2c_client *client, unsigned cmd, void *arg)
 			break;
 
 		default:
-			v4l_dbg(1, debug, client, "illegal input: %d\n", iarg);
+			v4l_dbg(1, debug, client, "illegal input: %d\n", route->input);
 			return -EINVAL;
 		}
-		v4l_dbg(1, debug, client, "switched to %s\n", inputs[iarg]);
-		encoder->input = iarg;
-		break;
-	}
-
-	case ENCODER_SET_OUTPUT:
-	{
-		int *iarg = arg;
-
-		/* not much choice of outputs */
-		if (*iarg != 0)
-			return -EINVAL;
-		break;
-	}
-
-	case ENCODER_ENABLE_OUTPUT:
-	{
-		int *iarg = arg;
-
-		encoder->enable = !!*iarg;
+		v4l_dbg(1, debug, client, "switched to %s\n", inputs[route->input]);
+		encoder->input = route->input;
 		break;
 	}
 
@@ -369,9 +331,8 @@ static int adv7175_probe(struct i2c_client *client,
 	encoder = kzalloc(sizeof(struct adv7175), GFP_KERNEL);
 	if (encoder == NULL)
 		return -ENOMEM;
-	encoder->norm = VIDEO_MODE_PAL;
+	encoder->norm = V4L2_STD_NTSC;
 	encoder->input = 0;
-	encoder->enable = 1;
 	i2c_set_clientdata(client, encoder);
 
 	i = adv7175_write_block(client, init_common, sizeof(init_common));

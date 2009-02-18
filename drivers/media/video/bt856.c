@@ -55,8 +55,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 struct bt856 {
 	unsigned char reg[BT856_NR_REG];
 
-	int norm;
-	int enable;
+	v4l2_std_id norm;
 };
 
 /* ----------------------------------------------------------------------- */
@@ -96,7 +95,7 @@ static int bt856_command(struct i2c_client *client, unsigned cmd, void *arg)
 	struct bt856 *encoder = i2c_get_clientdata(client);
 
 	switch (cmd) {
-	case 0:
+	case VIDIOC_INT_INIT:
 		/* This is just for testing!!! */
 		v4l_dbg(1, debug, client, "init\n");
 		bt856_write(client, 0xdc, 0x18);
@@ -107,15 +106,10 @@ static int bt856_command(struct i2c_client *client, unsigned cmd, void *arg)
 		//bt856_setbit(client, 0xdc, 6, 0);
 		bt856_setbit(client, 0xdc, 4, 1);
 
-		switch (encoder->norm) {
-		case VIDEO_MODE_NTSC:
+		if (encoder->norm & V4L2_STD_NTSC)
 			bt856_setbit(client, 0xdc, 2, 0);
-			break;
-
-		case VIDEO_MODE_PAL:
+		else
 			bt856_setbit(client, 0xdc, 2, 1);
-			break;
-		}
 
 		bt856_setbit(client, 0xdc, 1, 1);
 		bt856_setbit(client, 0xde, 4, 0);
@@ -124,38 +118,19 @@ static int bt856_command(struct i2c_client *client, unsigned cmd, void *arg)
 			bt856_dump(client);
 		break;
 
-	case ENCODER_GET_CAPABILITIES:
+	case VIDIOC_INT_S_STD_OUTPUT:
 	{
-		struct video_encoder_capability *cap = arg;
+		v4l2_std_id *iarg = arg;
 
-		v4l_dbg(1, debug, client, "get capabilities\n");
+		v4l_dbg(1, debug, client, "set norm %llx\n", *iarg);
 
-		cap->flags = VIDEO_ENCODER_PAL |
-			     VIDEO_ENCODER_NTSC |
-			     VIDEO_ENCODER_CCIR;
-		cap->inputs = 2;
-		cap->outputs = 1;
-		break;
-	}
-
-	case ENCODER_SET_NORM:
-	{
-		int *iarg = arg;
-
-		v4l_dbg(1, debug, client, "set norm %d\n", *iarg);
-
-		switch (*iarg) {
-		case VIDEO_MODE_NTSC:
+		if (*iarg & V4L2_STD_NTSC) {
 			bt856_setbit(client, 0xdc, 2, 0);
-			break;
-
-		case VIDEO_MODE_PAL:
+		} else if (*iarg & V4L2_STD_PAL) {
 			bt856_setbit(client, 0xdc, 2, 1);
 			bt856_setbit(client, 0xda, 0, 0);
 			//bt856_setbit(client, 0xda, 0, 1);
-			break;
-
-		default:
+		} else {
 			return -EINVAL;
 		}
 		encoder->norm = *iarg;
@@ -164,16 +139,16 @@ static int bt856_command(struct i2c_client *client, unsigned cmd, void *arg)
 		break;
 	}
 
-	case ENCODER_SET_INPUT:
+	case VIDIOC_INT_S_VIDEO_ROUTING:
 	{
-		int *iarg = arg;
+		struct v4l2_routing *route = arg;
 
-		v4l_dbg(1, debug, client, "set input %d\n", *iarg);
+		v4l_dbg(1, debug, client, "set input %d\n", route->input);
 
 		/* We only have video bus.
-		 * iarg = 0: input is from bt819
-		 * iarg = 1: input is from ZR36060 */
-		switch (*iarg) {
+		 * route->input= 0: input is from bt819
+		 * route->input= 1: input is from ZR36060 */
+		switch (route->input) {
 		case 0:
 			bt856_setbit(client, 0xde, 4, 0);
 			bt856_setbit(client, 0xde, 3, 1);
@@ -196,28 +171,6 @@ static int bt856_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 		if (debug != 0)
 			bt856_dump(client);
-		break;
-	}
-
-	case ENCODER_SET_OUTPUT:
-	{
-		int *iarg = arg;
-
-		v4l_dbg(1, debug, client, "set output %d\n", *iarg);
-
-		/* not much choice of outputs */
-		if (*iarg != 0)
-			return -EINVAL;
-		break;
-	}
-
-	case ENCODER_ENABLE_OUTPUT:
-	{
-		int *iarg = arg;
-
-		encoder->enable = !!*iarg;
-
-		v4l_dbg(1, debug, client, "enable output %d\n", encoder->enable);
 		break;
 	}
 
@@ -249,8 +202,7 @@ static int bt856_probe(struct i2c_client *client,
 	encoder = kzalloc(sizeof(struct bt856), GFP_KERNEL);
 	if (encoder == NULL)
 		return -ENOMEM;
-	encoder->norm = VIDEO_MODE_NTSC;
-	encoder->enable = 1;
+	encoder->norm = V4L2_STD_NTSC;
 	i2c_set_clientdata(client, encoder);
 
 	bt856_write(client, 0xdc, 0x18);
@@ -261,16 +213,10 @@ static int bt856_probe(struct i2c_client *client,
 	//bt856_setbit(client, 0xdc, 6, 0);
 	bt856_setbit(client, 0xdc, 4, 1);
 
-	switch (encoder->norm) {
-
-	case VIDEO_MODE_NTSC:
+	if (encoder->norm & V4L2_STD_NTSC)
 		bt856_setbit(client, 0xdc, 2, 0);
-		break;
-
-	case VIDEO_MODE_PAL:
+	else
 		bt856_setbit(client, 0xdc, 2, 1);
-		break;
-	}
 
 	bt856_setbit(client, 0xdc, 1, 1);
 	bt856_setbit(client, 0xde, 4, 0);

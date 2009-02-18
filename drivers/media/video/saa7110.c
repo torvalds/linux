@@ -54,7 +54,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 struct saa7110 {
 	u8 reg[SAA7110_NR_REG];
 
-	int norm;
+	v4l2_std_id norm;
 	int input;
 	int enable;
 	int bright;
@@ -176,7 +176,7 @@ static const unsigned char initseq[1 + SAA7110_NR_REG] = {
 	/* 0x30 */ 0x44, 0x71, 0x02, 0x8C, 0x02
 };
 
-static int determine_norm(struct i2c_client *client)
+static v4l2_std_id determine_norm(struct i2c_client *client)
 {
 	DEFINE_WAIT(wait);
 	struct saa7110 *decoder = i2c_get_clientdata(client);
@@ -198,11 +198,11 @@ static int determine_norm(struct i2c_client *client)
 		if (status & 0x20) {
 			v4l_dbg(1, debug, client, "status=0x%02x (NTSC/no color)\n", status);
 			//saa7110_write(client,0x2E,0x81);
-			return VIDEO_MODE_NTSC;
+			return V4L2_STD_NTSC;
 		}
 		v4l_dbg(1, debug, client, "status=0x%02x (PAL/no color)\n", status);
 		//saa7110_write(client,0x2E,0x9A);
-		return VIDEO_MODE_PAL;
+		return V4L2_STD_PAL;
 	}
 	//saa7110_write(client,0x06,0x03);
 	if (status & 0x20) {	/* 60Hz */
@@ -211,7 +211,7 @@ static int determine_norm(struct i2c_client *client)
 		saa7110_write(client, 0x0F, 0x50);
 		saa7110_write(client, 0x11, 0x2C);
 		//saa7110_write(client,0x2E,0x81);
-		return VIDEO_MODE_NTSC;
+		return V4L2_STD_NTSC;
 	}
 
 	/* 50Hz -> PAL/SECAM */
@@ -228,10 +228,10 @@ static int determine_norm(struct i2c_client *client)
 	if ((status & 0x03) == 0x01) {
 		v4l_dbg(1, debug, client, "status=0x%02x (SECAM)\n", status);
 		saa7110_write(client, 0x0D, 0x87);
-		return VIDEO_MODE_SECAM;
+		return V4L2_STD_SECAM;
 	}
 	v4l_dbg(1, debug, client, "status=0x%02x (PAL)\n", status);
-	return VIDEO_MODE_PAL;
+	return V4L2_STD_PAL;
 }
 
 static int
@@ -240,112 +240,81 @@ saa7110_command (struct i2c_client *client,
 		 void              *arg)
 {
 	struct saa7110 *decoder = i2c_get_clientdata(client);
+	struct v4l2_routing *route = arg;
+	v4l2_std_id std;
 	int v;
 
 	switch (cmd) {
-	case 0:
+	case VIDIOC_INT_INIT:
 		//saa7110_write_block(client, initseq, sizeof(initseq));
 		break;
 
-	case DECODER_GET_CAPABILITIES:
+	case VIDIOC_INT_G_INPUT_STATUS:
 	{
-		struct video_decoder_capability *dc = arg;
-
-		dc->flags =
-		    VIDEO_DECODER_PAL | VIDEO_DECODER_NTSC |
-		    VIDEO_DECODER_SECAM | VIDEO_DECODER_AUTO;
-		dc->inputs = SAA7110_MAX_INPUT;
-		dc->outputs = SAA7110_MAX_OUTPUT;
-		break;
-	}
-
-	case DECODER_GET_STATUS:
-	{
+		int res = V4L2_IN_ST_NO_SIGNAL;
 		int status;
-		int res = 0;
 
 		status = saa7110_read(client);
-		v4l_dbg(1, debug, client, "status=0x%02x norm=%d\n",
+		v4l_dbg(1, debug, client, "status=0x%02x norm=%llx\n",
 			       status, decoder->norm);
 		if (!(status & 0x40))
-			res |= DECODER_STATUS_GOOD;
-		if (status & 0x03)
-			res |= DECODER_STATUS_COLOR;
+			res = 0;
+		if (!(status & 0x03))
+			res |= V4L2_IN_ST_NO_COLOR;
 
-		switch (decoder->norm) {
-		case VIDEO_MODE_NTSC:
-			res |= DECODER_STATUS_NTSC;
-			break;
-		case VIDEO_MODE_PAL:
-			res |= DECODER_STATUS_PAL;
-			break;
-		case VIDEO_MODE_SECAM:
-			res |= DECODER_STATUS_SECAM;
-			break;
-		}
 		*(int *) arg = res;
 		break;
 	}
 
-	case DECODER_SET_NORM:
-		v = *(int *) arg;
-		if (decoder->norm != v) {
-			decoder->norm = v;
+	case VIDIOC_QUERYSTD:
+	{
+		*(v4l2_std_id *)arg = determine_norm(client);
+		break;
+	}
+
+	case VIDIOC_S_STD:
+		std = *(v4l2_std_id *) arg;
+		if (decoder->norm != std) {
+			decoder->norm = std;
 			//saa7110_write(client, 0x06, 0x03);
-			switch (v) {
-			case VIDEO_MODE_NTSC:
+			if (std & V4L2_STD_NTSC) {
 				saa7110_write(client, 0x0D, 0x86);
 				saa7110_write(client, 0x0F, 0x50);
 				saa7110_write(client, 0x11, 0x2C);
 				//saa7110_write(client, 0x2E, 0x81);
 				v4l_dbg(1, debug, client, "switched to NTSC\n");
-				break;
-			case VIDEO_MODE_PAL:
+			} else if (std & V4L2_STD_PAL) {
 				saa7110_write(client, 0x0D, 0x86);
 				saa7110_write(client, 0x0F, 0x10);
 				saa7110_write(client, 0x11, 0x59);
 				//saa7110_write(client, 0x2E, 0x9A);
 				v4l_dbg(1, debug, client, "switched to PAL\n");
-				break;
-			case VIDEO_MODE_SECAM:
+			} else if (std & V4L2_STD_SECAM) {
 				saa7110_write(client, 0x0D, 0x87);
 				saa7110_write(client, 0x0F, 0x10);
 				saa7110_write(client, 0x11, 0x59);
 				//saa7110_write(client, 0x2E, 0x9A);
 				v4l_dbg(1, debug, client, "switched to SECAM\n");
-				break;
-			case VIDEO_MODE_AUTO:
-				v4l_dbg(1, debug, client, "switched to AUTO\n");
-				decoder->norm = determine_norm(client);
-				*(int *) arg = decoder->norm;
-				break;
-			default:
-				return -EPERM;
+			} else {
+				return -EINVAL;
 			}
 		}
 		break;
 
-	case DECODER_SET_INPUT:
-		v = *(int *) arg;
-		if (v < 0 || v >= SAA7110_MAX_INPUT) {
-			v4l_dbg(1, debug, client, "input=%d not available\n", v);
+	case VIDIOC_INT_S_VIDEO_ROUTING:
+		if (route->input < 0 || route->input >= SAA7110_MAX_INPUT) {
+			v4l_dbg(1, debug, client, "input=%d not available\n", route->input);
 			return -EINVAL;
 		}
-		if (decoder->input != v) {
-			saa7110_selmux(client, v);
-			v4l_dbg(1, debug, client, "switched to input=%d\n", v);
+		if (decoder->input != route->input) {
+			saa7110_selmux(client, route->input);
+			v4l_dbg(1, debug, client, "switched to input=%d\n", route->input);
 		}
 		break;
 
-	case DECODER_SET_OUTPUT:
-		v = *(int *) arg;
-		/* not much choice of outputs */
-		if (v != 0)
-			return -EINVAL;
-		break;
-
-	case DECODER_ENABLE_OUTPUT:
-		v = *(int *) arg;
+	case VIDIOC_STREAMON:
+	case VIDIOC_STREAMOFF:
+		v = cmd == VIDIOC_STREAMON;
 		if (decoder->enable != v) {
 			decoder->enable = v;
 			saa7110_write(client, 0x0E, v ? 0x18 : 0x80);
@@ -353,46 +322,81 @@ saa7110_command (struct i2c_client *client,
 		}
 		break;
 
-	case DECODER_SET_PICTURE:
+	case VIDIOC_QUERYCTRL:
 	{
-		struct video_picture *pic = arg;
+		struct v4l2_queryctrl *qc = arg;
 
-		if (decoder->bright != pic->brightness) {
-			/* We want 0 to 255 we get 0-65535 */
-			decoder->bright = pic->brightness;
-			saa7110_write(client, 0x19, decoder->bright >> 8);
-		}
-		if (decoder->contrast != pic->contrast) {
-			/* We want 0 to 127 we get 0-65535 */
-			decoder->contrast = pic->contrast;
-			saa7110_write(client, 0x13,
-				      decoder->contrast >> 9);
-		}
-		if (decoder->sat != pic->colour) {
-			/* We want 0 to 127 we get 0-65535 */
-			decoder->sat = pic->colour;
-			saa7110_write(client, 0x12, decoder->sat >> 9);
-		}
-		if (decoder->hue != pic->hue) {
-			/* We want -128 to 127 we get 0-65535 */
-			decoder->hue = pic->hue;
-			saa7110_write(client, 0x07,
-				      (decoder->hue >> 8) - 128);
+		switch (qc->id) {
+	        case V4L2_CID_BRIGHTNESS:
+	                return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
+	        case V4L2_CID_CONTRAST:
+	        case V4L2_CID_SATURATION:
+	                return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
+	        case V4L2_CID_HUE:
+	                return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
+		default:
+			return -EINVAL;
 		}
 		break;
 	}
 
-	case DECODER_DUMP:
-		if (!debug)
+	case VIDIOC_G_CTRL:
+	{
+		struct v4l2_control *ctrl = arg;
+
+		switch (ctrl->id) {
+		case V4L2_CID_BRIGHTNESS:
+			ctrl->value = decoder->bright;
 			break;
-		for (v = 0; v < SAA7110_NR_REG; v += 16) {
-			int j;
-			v4l_dbg(1, debug, client, "%02x:", v);
-			for (j = 0; j < 16 && v + j < SAA7110_NR_REG; j++)
-				printk(KERN_CONT " %02x", decoder->reg[v + j]);
-			printk(KERN_CONT "\n");
+		case V4L2_CID_CONTRAST:
+			ctrl->value = decoder->contrast;
+			break;
+		case V4L2_CID_SATURATION:
+			ctrl->value = decoder->sat;
+			break;
+		case V4L2_CID_HUE:
+			ctrl->value = decoder->hue;
+			break;
+		default:
+			return -EINVAL;
 		}
 		break;
+	}
+
+	case VIDIOC_S_CTRL:
+	{
+		struct v4l2_control *ctrl = arg;
+
+		switch (ctrl->id) {
+		case V4L2_CID_BRIGHTNESS:
+			if (decoder->bright != ctrl->value) {
+				decoder->bright = ctrl->value;
+				saa7110_write(client, 0x19, decoder->bright);
+			}
+			break;
+		case V4L2_CID_CONTRAST:
+			if (decoder->contrast != ctrl->value) {
+				decoder->contrast = ctrl->value;
+				saa7110_write(client, 0x13, decoder->contrast);
+			}
+			break;
+		case V4L2_CID_SATURATION:
+			if (decoder->sat != ctrl->value) {
+				decoder->sat = ctrl->value;
+				saa7110_write(client, 0x12, decoder->sat);
+			}
+			break;
+		case V4L2_CID_HUE:
+			if (decoder->hue != ctrl->value) {
+				decoder->hue = ctrl->value;
+				saa7110_write(client, 0x07, decoder->hue);
+			}
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	}
 
 	default:
 		v4l_dbg(1, debug, client, "unknown command %08x\n", cmd);
@@ -429,7 +433,7 @@ static int saa7110_probe(struct i2c_client *client,
 	decoder = kzalloc(sizeof(struct saa7110), GFP_KERNEL);
 	if (!decoder)
 		return -ENOMEM;
-	decoder->norm = VIDEO_MODE_PAL;
+	decoder->norm = V4L2_STD_PAL;
 	decoder->input = 0;
 	decoder->enable = 1;
 	decoder->bright = 32768;

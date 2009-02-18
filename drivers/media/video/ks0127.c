@@ -201,7 +201,7 @@ struct ks0127 {
 	int		format_height;
 	int		cap_width;
 	int		cap_height;
-	int		norm;
+	v4l2_std_id	norm;
 	int		ks_type;
 	u8 		regs[256];
 };
@@ -408,20 +408,22 @@ static void ks0127_reset(struct i2c_client *c)
 static int ks0127_command(struct i2c_client *c, unsigned cmd, void *arg)
 {
 	struct ks0127 *ks = i2c_get_clientdata(c);
+	struct v4l2_routing *route = arg;
 	int		*iarg = (int *)arg;
+	v4l2_std_id 	*istd = arg;
 	int		status;
 
 	if (!ks)
 		return -ENODEV;
 
 	switch (cmd) {
-	case DECODER_INIT:
-		v4l_dbg(1, debug, c, "DECODER_INIT\n");
+	case VIDIOC_INT_INIT:
+		v4l_dbg(1, debug, c, "VIDIOC_INT_INIT\n");
 		ks0127_reset(c);
 		break;
 
-	case DECODER_SET_INPUT:
-		switch(*iarg) {
+	case VIDIOC_INT_S_VIDEO_ROUTING:
+		switch (route->input) {
 		case KS_INPUT_COMPOSITE_1:
 		case KS_INPUT_COMPOSITE_2:
 		case KS_INPUT_COMPOSITE_3:
@@ -429,7 +431,7 @@ static int ks0127_command(struct i2c_client *c, unsigned cmd, void *arg)
 		case KS_INPUT_COMPOSITE_5:
 		case KS_INPUT_COMPOSITE_6:
 			v4l_dbg(1, debug, c,
-				"DECODER_SET_INPUT %d: Composite\n", *iarg);
+				"VIDIOC_S_INPUT %d: Composite\n", *iarg);
 			/* autodetect 50/60 Hz */
 			ks0127_and_or(c, KS_CMDA,   0xfc, 0x00);
 			/* VSE=0 */
@@ -463,7 +465,7 @@ static int ks0127_command(struct i2c_client *c, unsigned cmd, void *arg)
 		case KS_INPUT_SVIDEO_2:
 		case KS_INPUT_SVIDEO_3:
 			v4l_dbg(1, debug, c,
-				"DECODER_SET_INPUT %d: S-Video\n", *iarg);
+				"VIDIOC_S_INPUT %d: S-Video\n", *iarg);
 			/* autodetect 50/60 Hz */
 			ks0127_and_or(c, KS_CMDA,   0xfc, 0x00);
 			/* VSE=0 */
@@ -495,9 +497,8 @@ static int ks0127_command(struct i2c_client *c, unsigned cmd, void *arg)
 
 		case KS_INPUT_YUV656:
 			v4l_dbg(1, debug, c,
-				"DECODER_SET_INPUT 15: YUV656\n");
-			if (ks->norm == VIDEO_MODE_NTSC ||
-			    ks->norm == KS_STD_PAL_M)
+				"VIDIOC_S_INPUT 15: YUV656\n");
+			if (ks->norm & V4L2_STD_525_60)
 				/* force 60 Hz */
 				ks0127_and_or(c, KS_CMDA,   0xfc, 0x03);
 			else
@@ -541,7 +542,7 @@ static int ks0127_command(struct i2c_client *c, unsigned cmd, void *arg)
 
 		default:
 			v4l_dbg(1, debug, c,
-				"DECODER_SET_INPUT: Unknown input %d\n", *iarg);
+				"VIDIOC_INT_S_VIDEO_ROUTING: Unknown input %d\n", route->input);
 			break;
 		}
 
@@ -550,77 +551,37 @@ static int ks0127_command(struct i2c_client *c, unsigned cmd, void *arg)
 		ks0127_write(c, KS_DEMOD, reg_defaults[KS_DEMOD]);
 		break;
 
-	case DECODER_SET_OUTPUT:
-		switch(*iarg) {
-		case KS_OUTPUT_YUV656E:
-			v4l_dbg(1, debug, c,
-				"DECODER_SET_OUTPUT: OUTPUT_YUV656E (Missing)\n");
-			return -EINVAL;
-
-		case KS_OUTPUT_EXV:
-			v4l_dbg(1, debug, c,
-				"DECODER_SET_OUTPUT: OUTPUT_EXV\n");
-			ks0127_and_or(c, KS_OFMTA, 0xf0, 0x09);
-			break;
-		}
-		break;
-
-	case DECODER_SET_NORM: /* sam This block mixes old and new norm names... */
+	case VIDIOC_S_STD: /* sam This block mixes old and new norm names... */
 		/* Set to automatic SECAM/Fsc mode */
 		ks0127_and_or(c, KS_DEMOD, 0xf0, 0x00);
 
-		ks->norm = *iarg;
-		switch (*iarg) {
-		/* this is untested !! */
-		/* It just detects PAL_N/NTSC_M (no special frequencies) */
-		/* And you have to set the standard a second time afterwards */
-		case VIDEO_MODE_AUTO:
-			v4l_dbg(1, debug, c,
-				"DECODER_SET_NORM: AUTO\n");
+		ks->norm = *istd;
 
-			/* The chip determines the format */
-			/* based on the current field rate */
-			ks0127_and_or(c, KS_CMDA,   0xfc, 0x00);
-			ks0127_and_or(c, KS_CHROMA, 0x9f, 0x20);
-			/* This is wrong for PAL ! As I said, */
-			/* you need to set the standard once again !! */
-			ks->format_height = 240;
-			ks->format_width = 704;
-			break;
-
-		case VIDEO_MODE_NTSC:
+		if (*istd & V4L2_STD_NTSC) {
 			v4l_dbg(1, debug, c,
-				"DECODER_SET_NORM: NTSC_M\n");
+				"VIDIOC_S_STD: NTSC_M\n");
 			ks0127_and_or(c, KS_CHROMA, 0x9f, 0x20);
 			ks->format_height = 240;
 			ks->format_width = 704;
-			break;
-
-		case KS_STD_NTSC_N:
+		} else if (*istd & V4L2_STD_PAL_N) {
 			v4l_dbg(1, debug, c,
 				"KS0127_SET_NORM: NTSC_N (fixme)\n");
 			ks0127_and_or(c, KS_CHROMA, 0x9f, 0x40);
 			ks->format_height = 240;
 			ks->format_width = 704;
-			break;
-
-		case VIDEO_MODE_PAL:
+		} else if (*istd & V4L2_STD_PAL) {
 			v4l_dbg(1, debug, c,
-				"DECODER_SET_NORM: PAL_N\n");
+				"VIDIOC_S_STD: PAL_N\n");
 			ks0127_and_or(c, KS_CHROMA, 0x9f, 0x20);
 			ks->format_height = 290;
 			ks->format_width = 704;
-			break;
-
-		case KS_STD_PAL_M:
+		} else if (*istd & V4L2_STD_PAL_M) {
 			v4l_dbg(1, debug, c,
 				"KS0127_SET_NORM: PAL_M (fixme)\n");
 			ks0127_and_or(c, KS_CHROMA, 0x9f, 0x40);
 			ks->format_height = 290;
 			ks->format_width = 704;
-			break;
-
-		case VIDEO_MODE_SECAM:
+		} else if (*istd & V4L2_STD_SECAM) {
 			v4l_dbg(1, debug, c,
 				"KS0127_SET_NORM: SECAM\n");
 			ks->format_height = 290;
@@ -632,29 +593,34 @@ static int ks0127_command(struct i2c_client *c, unsigned cmd, void *arg)
 			schedule_timeout_interruptible(HZ/10+1);
 
 			/* did it autodetect? */
-			if (ks0127_read(c, KS_DEMOD) & 0x40)
-				break;
-
-			/* force to secam mode */
-			ks0127_and_or(c, KS_DEMOD, 0xf0, 0x0f);
-			break;
-
-		default:
+			if (!(ks0127_read(c, KS_DEMOD) & 0x40))
+				/* force to secam mode */
+				ks0127_and_or(c, KS_DEMOD, 0xf0, 0x0f);
+		} else {
 			v4l_dbg(1, debug, c,
-				"DECODER_SET_NORM: Unknown norm %d\n", *iarg);
-			break;
+				"VIDIOC_S_STD: Unknown norm %llx\n", *istd);
 		}
 		break;
 
-	case DECODER_SET_PICTURE:
+	case VIDIOC_QUERYCTRL:
+	{
+		return -EINVAL;
+	}
+
+	case VIDIOC_S_CTRL:
 		v4l_dbg(1, debug, c,
-			"DECODER_SET_PICTURE: not yet supported\n");
+			"VIDIOC_S_CTRL: not yet supported\n");
 		return -EINVAL;
 
-	/* sam todo: KS0127_SET_BRIGHTNESS: Merge into DECODER_SET_PICTURE */
-	/* sam todo: KS0127_SET_CONTRAST: Merge into DECODER_SET_PICTURE */
-	/* sam todo: KS0127_SET_HUE: Merge into DECODER_SET_PICTURE? */
-	/* sam todo: KS0127_SET_SATURATION: Merge into DECODER_SET_PICTURE */
+	case VIDIOC_G_CTRL:
+		v4l_dbg(1, debug, c,
+			"VIDIOC_G_CTRL: not yet supported\n");
+		return -EINVAL;
+
+	/* sam todo: KS0127_SET_BRIGHTNESS: Merge into VIDIOC_S_CTRL */
+	/* sam todo: KS0127_SET_CONTRAST: Merge into VIDIOC_S_CTRL */
+	/* sam todo: KS0127_SET_HUE: Merge into VIDIOC_S_CTRL? */
+	/* sam todo: KS0127_SET_SATURATION: Merge into VIDIOC_S_CTRL */
 	/* sam todo: KS0127_SET_AGC_MODE: */
 	/* sam todo: KS0127_SET_AGC: */
 	/* sam todo: KS0127_SET_CHROMA_MODE: */
@@ -670,22 +636,21 @@ static int ks0127_command(struct i2c_client *c, unsigned cmd, void *arg)
 	/* sam todo: KS0127_SET_UNUSEV: */
 	/* sam todo: KS0127_SET_VSALIGN_MODE: */
 
-	case DECODER_ENABLE_OUTPUT:
+	case VIDIOC_STREAMON:
+	case VIDIOC_STREAMOFF:
 	{
-		int enable;
+		int enable = cmd == VIDIOC_STREAMON;
 
-		iarg = arg;
-		enable = (*iarg != 0);
 		if (enable) {
 			v4l_dbg(1, debug, c,
-				"DECODER_ENABLE_OUTPUT on\n");
+				"VIDIOC_STREAMON\n");
 			/* All output pins on */
 			ks0127_and_or(c, KS_OFMTA, 0xcf, 0x30);
 			/* Obey the OEN pin */
 			ks0127_and_or(c, KS_CDEM, 0x7f, 0x00);
 		} else {
 			v4l_dbg(1, debug, c,
-				"DECODER_ENABLE_OUTPUT off\n");
+				"VIDIOC_STREAMOFF\n");
 			/* Video output pins off */
 			ks0127_and_or(c, KS_OFMTA, 0xcf, 0x00);
 			/* Ignore the OEN pin */
@@ -699,19 +664,26 @@ static int ks0127_command(struct i2c_client *c, unsigned cmd, void *arg)
 	/* sam todo: KS0127_SET_HEIGHT: */
 	/* sam todo: KS0127_SET_HSCALE: */
 
-	case DECODER_GET_STATUS:
-		v4l_dbg(1, debug, c, "DECODER_GET_STATUS\n");
-		*iarg = 0;
+	case VIDIOC_QUERYSTD:
+	case VIDIOC_INT_G_INPUT_STATUS: {
+		int stat = V4L2_IN_ST_NO_SIGNAL;
+		v4l2_std_id std = V4L2_STD_ALL;
+		v4l_dbg(1, debug, c, "VIDIOC_QUERYSTD/VIDIOC_INT_G_INPUT_STATUS\n");
 		status = ks0127_read(c, KS_STAT);
 		if (!(status & 0x20))		 /* NOVID not set */
-			*iarg = (*iarg | DECODER_STATUS_GOOD);
-		if ((status & 0x01))		      /* CLOCK set */
-			*iarg = (*iarg | DECODER_STATUS_COLOR);
+			stat = 0;
+		if (!(status & 0x01))		      /* CLOCK set */
+			stat |= V4L2_IN_ST_NO_COLOR;
 		if ((status & 0x08))		   /* PALDET set */
-			*iarg = (*iarg | DECODER_STATUS_PAL);
+			std = V4L2_STD_PAL;
 		else
-			*iarg = (*iarg | DECODER_STATUS_NTSC);
+			std = V4L2_STD_NTSC;
+		if (cmd == VIDIOC_QUERYSTD)
+			*istd = std;
+		else
+			*iarg = stat;
 		break;
+	}
 
 	/* Catch any unknown command */
 	default:

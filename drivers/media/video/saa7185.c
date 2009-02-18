@@ -49,8 +49,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 struct saa7185 {
 	unsigned char reg[128];
 
-	int norm;
-	int enable;
+	v4l2_std_id norm;
 	int bright;
 	int contrast;
 	int hue;
@@ -218,68 +217,43 @@ static int saa7185_command(struct i2c_client *client, unsigned cmd, void *arg)
 	struct saa7185 *encoder = i2c_get_clientdata(client);
 
 	switch (cmd) {
-	case 0:
+	case VIDIOC_INT_INIT:
 		saa7185_write_block(client, init_common,
 				    sizeof(init_common));
-		switch (encoder->norm) {
-
-		case VIDEO_MODE_NTSC:
+		if (encoder->norm & V4L2_STD_NTSC)
 			saa7185_write_block(client, init_ntsc,
 					    sizeof(init_ntsc));
-			break;
-
-		case VIDEO_MODE_PAL:
+		else
 			saa7185_write_block(client, init_pal,
 					    sizeof(init_pal));
-			break;
-		}
 		break;
 
-	case ENCODER_GET_CAPABILITIES:
+	case VIDIOC_INT_S_STD_OUTPUT:
 	{
-		struct video_encoder_capability *cap = arg;
-
-		cap->flags =
-		    VIDEO_ENCODER_PAL | VIDEO_ENCODER_NTSC |
-		    VIDEO_ENCODER_SECAM | VIDEO_ENCODER_CCIR;
-		cap->inputs = 1;
-		cap->outputs = 1;
-		break;
-	}
-
-	case ENCODER_SET_NORM:
-	{
-		int *iarg = arg;
+		v4l2_std_id *iarg = arg;
 
 		//saa7185_write_block(client, init_common, sizeof(init_common));
 
-		switch (*iarg) {
-		case VIDEO_MODE_NTSC:
+		if (*iarg & V4L2_STD_NTSC)
 			saa7185_write_block(client, init_ntsc,
 					    sizeof(init_ntsc));
-			break;
-
-		case VIDEO_MODE_PAL:
+		else if (*iarg & V4L2_STD_PAL)
 			saa7185_write_block(client, init_pal,
 					    sizeof(init_pal));
-			break;
-
-		case VIDEO_MODE_SECAM:
-		default:
+		else
 			return -EINVAL;
-		}
 		encoder->norm = *iarg;
 		break;
 	}
 
-	case ENCODER_SET_INPUT:
+	case VIDIOC_INT_S_VIDEO_ROUTING:
 	{
-		int *iarg = arg;
+		struct v4l2_routing *route = arg;
 
-		/* RJ: *iarg = 0: input is from SA7111
-		 *iarg = 1: input is from ZR36060 */
+		/* RJ: route->input = 0: input is from SA7111
+		 route->input = 1: input is from ZR36060 */
 
-		switch (*iarg) {
+		switch (route->input) {
 		case 0:
 			/* turn off colorbar */
 			saa7185_write(client, 0x3a, 0x0f);
@@ -315,27 +289,6 @@ static int saa7185_command(struct i2c_client *client, unsigned cmd, void *arg)
 		break;
 	}
 
-	case ENCODER_SET_OUTPUT:
-	{
-		int *iarg = arg;
-
-		/* not much choice of outputs */
-		if (*iarg != 0)
-			return -EINVAL;
-		break;
-	}
-
-	case ENCODER_ENABLE_OUTPUT:
-	{
-		int *iarg = arg;
-
-		encoder->enable = !!*iarg;
-		saa7185_write(client, 0x61,
-			      (encoder->reg[0x61] & 0xbf) |
-			      (encoder->enable ? 0x00 : 0x40));
-		break;
-	}
-
 	default:
 		return -EINVAL;
 	}
@@ -365,8 +318,7 @@ static int saa7185_probe(struct i2c_client *client,
 	encoder = kzalloc(sizeof(struct saa7185), GFP_KERNEL);
 	if (encoder == NULL)
 		return -ENOMEM;
-	encoder->norm = VIDEO_MODE_NTSC;
-	encoder->enable = 1;
+	encoder->norm = V4L2_STD_NTSC;
 	i2c_set_clientdata(client, encoder);
 
 	i = saa7185_write_block(client, init_common, sizeof(init_common));

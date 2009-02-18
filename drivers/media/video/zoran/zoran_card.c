@@ -340,11 +340,8 @@ i2cid_to_modulename (u16 i2c_id)
 	case I2C_DRIVERID_SAA7110:
 		name = "saa7110";
 		break;
-	case I2C_DRIVERID_SAA7111A:
-		name = "saa7111";
-		break;
-	case I2C_DRIVERID_SAA7114:
-		name = "saa7114";
+	case I2C_DRIVERID_SAA711X:
+		name = "saa7115";
 		break;
 	case I2C_DRIVERID_SAA7185B:
 		name = "saa7185";
@@ -439,7 +436,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 2, "S-Video" },
 			{ 0, "Internal/comp" }
 		},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel_dc10,
 			&f60sqpixel_dc10,
@@ -467,7 +464,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 				{ 7, "S-Video" },
 				{ 5, "Internal/comp" }
 			},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 				&f50sqpixel,
 				&f60sqpixel,
@@ -494,7 +491,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 7, "S-Video" },
 			{ 5, "Internal/comp" }
 		},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel,
 			&f60sqpixel,
@@ -523,7 +520,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 2, "S-Video" },
 			{ 0, "Internal/comp" }
 		},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel_dc10,
 			&f60sqpixel_dc10,
@@ -552,7 +549,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 2, "S-Video" },
 			{ 0, "Internal/comp" }
 		},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel_dc10,
 			&f60sqpixel_dc10,
@@ -579,7 +576,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 0, "Composite" },
 			{ 7, "S-Video" }
 		},
-		.norms = 2,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL,
 		.tvn = {
 			&f50ccir601_lml33,
 			&f60ccir601_lml33,
@@ -597,7 +594,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = LML33R10,
 		.name = "LML33R10",
-		.i2c_decoder = I2C_DRIVERID_SAA7114,
+		.i2c_decoder = I2C_DRIVERID_SAA711X,
 		.i2c_encoder = I2C_DRIVERID_ADV7170,
 		.video_codec = CODEC_TYPE_ZR36060,
 
@@ -606,7 +603,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 0, "Composite" },
 			{ 7, "S-Video" }
 		},
-		.norms = 2,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL,
 		.tvn = {
 			&f50ccir601_lm33r10,
 			&f60ccir601_lm33r10,
@@ -624,7 +621,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = BUZ,
 		.name = "Buz",
-		.i2c_decoder = I2C_DRIVERID_SAA7111A,
+		.i2c_decoder = I2C_DRIVERID_SAA711X,
 		.i2c_encoder = I2C_DRIVERID_SAA7185B,
 		.video_codec = CODEC_TYPE_ZR36060,
 
@@ -633,7 +630,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 3, "Composite" },
 			{ 7, "S-Video" }
 		},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 			&f50ccir601,
 			&f60ccir601,
@@ -670,7 +667,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{10, "S-Video 3" },
 			{15, "YCbCr" }
 		},
-		.norms = 2,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL,
 		.tvn = {
 			&f50ccir601_avs6eyes,
 			&f60ccir601_avs6eyes,
@@ -1086,8 +1083,6 @@ static int __devinit
 zr36057_init (struct zoran *zr)
 {
 	int j, err;
-	int two = 2;
-	int zero = 0;
 
 	dprintk(1,
 		KERN_INFO
@@ -1113,14 +1108,23 @@ zr36057_init (struct zoran *zr)
 	if (default_norm < VIDEO_MODE_PAL &&
 	    default_norm > VIDEO_MODE_SECAM)
 		default_norm = VIDEO_MODE_PAL;
-	zr->norm = default_norm;
-	if (!(zr->timing = zr->card.tvn[zr->norm])) {
+	if (default_norm == VIDEO_MODE_PAL) {
+		zr->norm = V4L2_STD_PAL;
+		zr->timing = zr->card.tvn[0];
+	} else if (default_norm == VIDEO_MODE_NTSC) {
+		zr->norm = V4L2_STD_NTSC;
+		zr->timing = zr->card.tvn[1];
+	} else {
+		zr->norm = V4L2_STD_SECAM;
+		zr->timing = zr->card.tvn[2];
+	}
+	if (zr->timing == NULL) {
 		dprintk(1,
 			KERN_WARNING
 			"%s: zr36057_init() - default TV standard not supported by hardware. PAL will be used.\n",
 			ZR_DEVNAME(zr));
-		zr->norm = VIDEO_MODE_PAL;
-		zr->timing = zr->card.tvn[zr->norm];
+		zr->norm = V4L2_STD_PAL;
+		zr->timing = zr->card.tvn[0];
 	}
 
 	if (default_input > zr->card.inputs-1) {
@@ -1131,12 +1135,6 @@ zr36057_init (struct zoran *zr)
 		default_input = 0;
 	}
 	zr->input = default_input;
-
-	/* Should the following be reset at every open ? */
-	zr->hue = 32768;
-	zr->contrast = 32768;
-	zr->saturation = 32768;
-	zr->brightness = 32768;
 
 	/* default setup (will be repeated at every open) */
 	zoran_open_init_params(zr);
@@ -1173,8 +1171,10 @@ zr36057_init (struct zoran *zr)
 		detect_guest_activity(zr);
 	test_interrupts(zr);
 	if (!pass_through) {
-		decoder_command(zr, DECODER_ENABLE_OUTPUT, &zero);
-		encoder_command(zr, ENCODER_SET_INPUT, &two);
+		struct v4l2_routing route = { 2, 0 };
+
+		decoder_command(zr, VIDIOC_STREAMOFF, 0);
+		encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 	}
 
 	zr->zoran_proc = NULL;

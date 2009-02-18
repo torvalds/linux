@@ -27,6 +27,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 #include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/video_decoder.h>
 
 MODULE_DESCRIPTION("vpx3220a/vpx3216b/vpx3214c video decoder driver");
@@ -44,7 +45,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 struct vpx3220 {
 	unsigned char reg[255];
 
-	int norm;
+	v4l2_std_id norm;
 	int input;
 	int enable;
 	int bright;
@@ -259,79 +260,41 @@ static const unsigned short init_fp[] = {
 	0x4b, 0x298,		/* PLL gain */
 };
 
-static void vpx3220_dump_i2c(struct i2c_client *client)
-{
-	int len = sizeof(init_common);
-	const unsigned char *data = init_common;
-
-	while (len > 1) {
-		v4l_dbg(1, debug, client, "i2c reg 0x%02x data 0x%02x\n",
-			*data, vpx3220_read(client, *data));
-		data += 2;
-		len -= 2;
-	}
-}
 
 static int vpx3220_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
 	struct vpx3220 *decoder = i2c_get_clientdata(client);
 
 	switch (cmd) {
-	case 0:
+	case VIDIOC_INT_INIT:
 	{
 		vpx3220_write_block(client, init_common,
 				    sizeof(init_common));
 		vpx3220_write_fp_block(client, init_fp,
 				       sizeof(init_fp) >> 1);
-		switch (decoder->norm) {
-		case VIDEO_MODE_NTSC:
+		if (decoder->norm & V4L2_STD_NTSC) {
 			vpx3220_write_fp_block(client, init_ntsc,
 					       sizeof(init_ntsc) >> 1);
-			break;
-
-		case VIDEO_MODE_PAL:
+		} else if (decoder->norm & V4L2_STD_PAL) {
 			vpx3220_write_fp_block(client, init_pal,
 					       sizeof(init_pal) >> 1);
-			break;
-		case VIDEO_MODE_SECAM:
+		} else if (decoder->norm & V4L2_STD_SECAM) {
 			vpx3220_write_fp_block(client, init_secam,
 					       sizeof(init_secam) >> 1);
-			break;
-		default:
+		} else {
 			vpx3220_write_fp_block(client, init_pal,
 					       sizeof(init_pal) >> 1);
-			break;
 		}
 		break;
 	}
 
-	case DECODER_DUMP:
+	case VIDIOC_QUERYSTD:
+	case VIDIOC_INT_G_INPUT_STATUS:
 	{
-		vpx3220_dump_i2c(client);
-		break;
-	}
+		int res = V4L2_IN_ST_NO_SIGNAL, status;
+		v4l2_std_id std = 0;
 
-	case DECODER_GET_CAPABILITIES:
-	{
-		struct video_decoder_capability *cap = arg;
-
-		v4l_dbg(1, debug, client, "DECODER_GET_CAPABILITIES\n");
-
-		cap->flags = VIDEO_DECODER_PAL |
-			     VIDEO_DECODER_NTSC |
-			     VIDEO_DECODER_SECAM |
-			     VIDEO_DECODER_AUTO |
-			     VIDEO_DECODER_CCIR;
-		cap->inputs = 3;
-		cap->outputs = 1;
-		break;
-	}
-
-	case DECODER_GET_STATUS:
-	{
-		int res = 0, status;
-
-		v4l_dbg(1, debug, client, "DECODER_GET_STATUS\n");
+		v4l_dbg(1, debug, client, "VIDIOC_QUERYSTD/VIDIOC_INT_G_INPUT_STATUS\n");
 
 		status = vpx3220_fp_read(client, 0x0f3);
 
@@ -341,35 +304,38 @@ static int vpx3220_command(struct i2c_client *client, unsigned cmd, void *arg)
 			return status;
 
 		if ((status & 0x20) == 0) {
-			res |= DECODER_STATUS_GOOD | DECODER_STATUS_COLOR;
+			res = 0;
 
 			switch (status & 0x18) {
 			case 0x00:
 			case 0x10:
 			case 0x14:
 			case 0x18:
-				res |= DECODER_STATUS_PAL;
+				std = V4L2_STD_PAL;
 				break;
 
 			case 0x08:
-				res |= DECODER_STATUS_SECAM;
+				std = V4L2_STD_SECAM;
 				break;
 
 			case 0x04:
 			case 0x0c:
 			case 0x1c:
-				res |= DECODER_STATUS_NTSC;
+				std = V4L2_STD_NTSC;
 				break;
 			}
 		}
 
-		*(int *) arg = res;
+		if (cmd == VIDIOC_QUERYSTD)
+			*(v4l2_std_id *)arg = std;
+		else
+			*(int *)arg = res;
 		break;
 	}
 
-	case DECODER_SET_NORM:
+	case VIDIOC_S_STD:
 	{
-		int *iarg = arg, data;
+		v4l2_std_id *iarg = arg;
 		int temp_input;
 
 		/* Here we back up the input selection because it gets
@@ -377,36 +343,23 @@ static int vpx3220_command(struct i2c_client *client, unsigned cmd, void *arg)
 		   choosen video norm */
 		temp_input = vpx3220_fp_read(client, 0xf2);
 
-		v4l_dbg(1, debug, client, "DECODER_SET_NORM %d\n", *iarg);
-		switch (*iarg) {
-		case VIDEO_MODE_NTSC:
+		v4l_dbg(1, debug, client, "VIDIOC_S_STD %llx\n", *iarg);
+		if (*iarg & V4L2_STD_NTSC) {
 			vpx3220_write_fp_block(client, init_ntsc,
 					       sizeof(init_ntsc) >> 1);
 			v4l_dbg(1, debug, client, "norm switched to NTSC\n");
-			break;
-
-		case VIDEO_MODE_PAL:
+		} else if (*iarg & V4L2_STD_PAL) {
 			vpx3220_write_fp_block(client, init_pal,
 					       sizeof(init_pal) >> 1);
 			v4l_dbg(1, debug, client, "norm switched to PAL\n");
-			break;
-
-		case VIDEO_MODE_SECAM:
+		} else if (*iarg & V4L2_STD_SECAM) {
 			vpx3220_write_fp_block(client, init_secam,
 					       sizeof(init_secam) >> 1);
 			v4l_dbg(1, debug, client, "norm switched to SECAM\n");
-			break;
-
-		case VIDEO_MODE_AUTO:
-			/* FIXME This is only preliminary support */
-			data = vpx3220_fp_read(client, 0xf2) & 0x20;
-			vpx3220_fp_write(client, 0xf2, 0x00c0 | data);
-			v4l_dbg(1, debug, client, "norm switched to AUTO\n");
-			break;
-
-		default:
+		} else {
 			return -EINVAL;
 		}
+
 		decoder->norm = *iarg;
 
 		/* And here we set the backed up video input again */
@@ -415,9 +368,10 @@ static int vpx3220_command(struct i2c_client *client, unsigned cmd, void *arg)
 		break;
 	}
 
-	case DECODER_SET_INPUT:
+	case VIDIOC_INT_S_VIDEO_ROUTING:
 	{
-		int *iarg = arg, data;
+		struct v4l2_routing *route = arg;
+		int data;
 
 		/* RJ:  *iarg = 0: ST8 (PCTV) input
 		 *iarg = 1: COMPOSITE  input
@@ -429,73 +383,117 @@ static int vpx3220_command(struct i2c_client *client, unsigned cmd, void *arg)
 			{0x0e, 1}
 		};
 
-		if (*iarg < 0 || *iarg > 2)
+		if (route->input < 0 || route->input > 2)
 			return -EINVAL;
 
-		v4l_dbg(1, debug, client, "input switched to %s\n", inputs[*iarg]);
+		v4l_dbg(1, debug, client, "input switched to %s\n", inputs[route->input]);
 
-		vpx3220_write(client, 0x33, input[*iarg][0]);
+		vpx3220_write(client, 0x33, input[route->input][0]);
 
 		data = vpx3220_fp_read(client, 0xf2) & ~(0x0020);
 		if (data < 0)
 			return data;
 		/* 0x0010 is required to latch the setting */
 		vpx3220_fp_write(client, 0xf2,
-				 data | (input[*iarg][1] << 5) | 0x0010);
+				 data | (input[route->input][1] << 5) | 0x0010);
 
 		udelay(10);
 		break;
 	}
 
-	case DECODER_SET_OUTPUT:
+	case VIDIOC_STREAMON:
+	case VIDIOC_STREAMOFF:
 	{
-		int *iarg = arg;
+		int on = cmd == VIDIOC_STREAMON;
+		v4l_dbg(1, debug, client, "VIDIOC_STREAM%s\n", on ? "ON" : "OFF");
 
-		/* not much choice of outputs */
-		if (*iarg != 0) {
+		vpx3220_write(client, 0xf2, (on ? 0x1b : 0x00));
+		break;
+	}
+
+	case VIDIOC_QUERYCTRL:
+	{
+		struct v4l2_queryctrl *qc = arg;
+
+		switch (qc->id) {
+		case V4L2_CID_BRIGHTNESS:
+			v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
+			break;
+
+		case V4L2_CID_CONTRAST:
+			v4l2_ctrl_query_fill(qc, 0, 63, 1, 32);
+			break;
+
+		case V4L2_CID_SATURATION:
+			v4l2_ctrl_query_fill(qc, 0, 4095, 1, 2048);
+			break;
+
+		case V4L2_CID_HUE:
+			v4l2_ctrl_query_fill(qc, -512, 511, 1, 0);
+			break;
+
+		default:
 			return -EINVAL;
 		}
 		break;
 	}
 
-	case DECODER_ENABLE_OUTPUT:
+	case VIDIOC_G_CTRL:
 	{
-		int *iarg = arg;
+		struct v4l2_control *ctrl = arg;
 
-		v4l_dbg(1, debug, client, "DECODER_ENABLE_OUTPUT %d\n", *iarg);
-
-		vpx3220_write(client, 0xf2, (*iarg ? 0x1b : 0x00));
+		switch (ctrl->id) {
+		case V4L2_CID_BRIGHTNESS:
+			ctrl->value = decoder->bright;
+			break;
+		case V4L2_CID_CONTRAST:
+			ctrl->value = decoder->contrast;
+			break;
+		case V4L2_CID_SATURATION:
+			ctrl->value = decoder->sat;
+			break;
+		case V4L2_CID_HUE:
+			ctrl->value = decoder->hue;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	}
 
-	case DECODER_SET_PICTURE:
+	case VIDIOC_S_CTRL:
 	{
-		struct video_picture *pic = arg;
+		struct v4l2_control *ctrl = arg;
 
-		if (decoder->bright != pic->brightness) {
-			/* We want -128 to 128 we get 0-65535 */
-			decoder->bright = pic->brightness;
-			vpx3220_write(client, 0xe6,
-				      (decoder->bright - 32768) >> 8);
-		}
-		if (decoder->contrast != pic->contrast) {
-			/* We want 0 to 64 we get 0-65535 */
-			/* Bit 7 and 8 is for noise shaping */
-			decoder->contrast = pic->contrast;
-			vpx3220_write(client, 0xe7,
-				      (decoder->contrast >> 10) + 192);
-		}
-		if (decoder->sat != pic->colour) {
-			/* We want 0 to 4096 we get 0-65535 */
-			decoder->sat = pic->colour;
-			vpx3220_fp_write(client, 0xa0,
-					 decoder->sat >> 4);
-		}
-		if (decoder->hue != pic->hue) {
-			/* We want -512 to 512 we get 0-65535 */
-			decoder->hue = pic->hue;
-			vpx3220_fp_write(client, 0x1c,
-					 ((decoder->hue - 32768) >> 6) & 0xFFF);
+		switch (ctrl->id) {
+		case V4L2_CID_BRIGHTNESS:
+			if (decoder->bright != ctrl->value) {
+				decoder->bright = ctrl->value;
+				vpx3220_write(client, 0xe6, decoder->bright);
+			}
+			break;
+		case V4L2_CID_CONTRAST:
+			if (decoder->contrast != ctrl->value) {
+				/* Bit 7 and 8 is for noise shaping */
+				decoder->contrast = ctrl->value;
+				vpx3220_write(client, 0xe7,
+						decoder->contrast + 192);
+			}
+			break;
+		case V4L2_CID_SATURATION:
+			if (decoder->sat != ctrl->value) {
+				decoder->sat = ctrl->value;
+				vpx3220_fp_write(client, 0xa0, decoder->sat);
+			}
+			break;
+		case V4L2_CID_HUE:
+			if (decoder->hue != ctrl->value) {
+				decoder->hue = ctrl->value;
+				vpx3220_fp_write(client, 0x1c, decoder->hue);
+			}
+			break;
+		default:
+			return -EINVAL;
 		}
 		break;
 	}
@@ -541,7 +539,7 @@ static int vpx3220_probe(struct i2c_client *client,
 	decoder = kzalloc(sizeof(struct vpx3220), GFP_KERNEL);
 	if (decoder == NULL)
 		return -ENOMEM;
-	decoder->norm = VIDEO_MODE_PAL;
+	decoder->norm = V4L2_STD_PAL;
 	decoder->input = 0;
 	decoder->enable = 1;
 	decoder->bright = 32768;

@@ -37,6 +37,8 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/videodev.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-common.h>
 #include <linux/spinlock.h>
 #include <linux/sem.h>
 
@@ -312,9 +314,9 @@ zr36057_adjust_vfe (struct zoran          *zr,
 	case BUZ_MODE_MOTION_COMPRESS:
 	case BUZ_MODE_IDLE:
 	default:
-		if (zr->norm == VIDEO_MODE_NTSC ||
+		if ((zr->norm & V4L2_STD_NTSC) ||
 		    (zr->card.type == LML33R10 &&
-		     zr->norm == VIDEO_MODE_PAL))
+		     (zr->norm & V4L2_STD_PAL)))
 			btand(~ZR36057_VFESPFR_ExtFl, ZR36057_VFESPFR);
 		else
 			btor(ZR36057_VFESPFR_ExtFl, ZR36057_VFESPFR);
@@ -355,14 +357,6 @@ zr36057_set_vfe (struct zoran              *zr,
 	dprintk(2, KERN_INFO "%s: set_vfe() - width = %d, height = %d\n",
 		ZR_DEVNAME(zr), video_width, video_height);
 
-	if (zr->norm != VIDEO_MODE_PAL &&
-	    zr->norm != VIDEO_MODE_NTSC &&
-	    zr->norm != VIDEO_MODE_SECAM) {
-		dprintk(1,
-			KERN_ERR "%s: set_vfe() - norm = %d not valid\n",
-			ZR_DEVNAME(zr), zr->norm);
-		return;
-	}
 	if (video_width < BUZ_MIN_WIDTH ||
 	    video_height < BUZ_MIN_HEIGHT ||
 	    video_width > Wa || video_height > Ha) {
@@ -426,7 +420,7 @@ zr36057_set_vfe (struct zoran              *zr,
 	 * we get the correct colors when uncompressing to the screen  */
 	//reg |= ZR36057_VFESPFR_VCLKPol; /**/
 	/* RJ: Don't know if that is needed for NTSC also */
-	if (zr->norm != VIDEO_MODE_NTSC)
+	if (!(zr->norm & V4L2_STD_NTSC))
 		reg |= ZR36057_VFESPFR_ExtFl;	// NEEDED!!!!!!! Wolfgang
 	reg |= ZR36057_VFESPFR_TopField;
 	if (HorDcm >= 48) {
@@ -981,11 +975,10 @@ void
 zr36057_enable_jpg (struct zoran          *zr,
 		    enum zoran_codec_mode  mode)
 {
-	static int zero;
-	static int one = 1;
 	struct vfe_settings cap;
 	int field_size =
 	    zr->jpg_buffers.buffer_size / zr->jpg_settings.field_per_buff;
+	struct v4l2_routing route = { 0, 0 };
 
 	zr->codec_mode = mode;
 
@@ -1007,8 +1000,9 @@ zr36057_enable_jpg (struct zoran          *zr,
 		 * the video bus direction set to input.
 		 */
 		set_videobus_dir(zr, 0);
-		decoder_command(zr, DECODER_ENABLE_OUTPUT, &one);
-		encoder_command(zr, ENCODER_SET_INPUT, &zero);
+		decoder_command(zr, VIDIOC_STREAMON, 0);
+		route.input = 0;
+		encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
 		/* Take the JPEG codec and the VFE out of sleep */
 		jpeg_codec_sleep(zr, 0);
@@ -1054,9 +1048,10 @@ zr36057_enable_jpg (struct zoran          *zr,
 		/* In motion decompression mode, the decoder output must be disabled, and
 		 * the video bus direction set to output.
 		 */
-		decoder_command(zr, DECODER_ENABLE_OUTPUT, &zero);
+		decoder_command(zr, VIDIOC_STREAMOFF, 0);
 		set_videobus_dir(zr, 1);
-		encoder_command(zr, ENCODER_SET_INPUT, &one);
+		route.input = 1;
+		encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
 		/* Take the JPEG codec and the VFE out of sleep */
 		jpeg_codec_sleep(zr, 0);
@@ -1100,8 +1095,9 @@ zr36057_enable_jpg (struct zoran          *zr,
 		jpeg_codec_sleep(zr, 1);
 		zr36057_adjust_vfe(zr, mode);
 
-		decoder_command(zr, DECODER_ENABLE_OUTPUT, &one);
-		encoder_command(zr, ENCODER_SET_INPUT, &zero);
+		decoder_command(zr, VIDIOC_STREAMON, 0);
+		route.input = 0;
+		encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
 		dprintk(2, KERN_INFO "%s: enable_jpg(IDLE)\n", ZR_DEVNAME(zr));
 		break;
@@ -1211,17 +1207,17 @@ zoran_reap_stat_com (struct zoran *zr)
 static void zoran_restart(struct zoran *zr)
 {
 	/* Now the stat_comm buffer is ready for restart */
-	int status, mode;
+	int status = 0, mode;
 
 	if (zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {
-		decoder_command(zr, DECODER_GET_STATUS, &status);
+		decoder_command(zr, VIDIOC_INT_G_INPUT_STATUS, &status);
 		mode = CODEC_DO_COMPRESSION;
 	} else {
-		status = 0;
+		status = V4L2_IN_ST_NO_SIGNAL;
 		mode = CODEC_DO_EXPANSION;
 	}
 	if (zr->codec_mode == BUZ_MODE_MOTION_DECOMPRESS ||
-	    (status & DECODER_STATUS_GOOD)) {
+	    !(status & V4L2_IN_ST_NO_SIGNAL)) {
 		/********** RESTART code *************/
 		jpeg_codec_reset(zr);
 		zr->codec->set_mode(zr->codec, mode);
@@ -1582,7 +1578,7 @@ zoran_set_pci_master (struct zoran *zr,
 void
 zoran_init_hardware (struct zoran *zr)
 {
-	int j, zero = 0;
+	struct v4l2_routing route = { 0, 0 };
 
 	/* Enable bus-mastering */
 	zoran_set_pci_master(zr, 1);
@@ -1592,15 +1588,16 @@ zoran_init_hardware (struct zoran *zr)
 		zr->card.init(zr);
 	}
 
-	j = zr->card.input[zr->input].muxsel;
+	route.input = zr->card.input[zr->input].muxsel;
 
-	decoder_command(zr, 0, NULL);
-	decoder_command(zr, DECODER_SET_NORM, &zr->norm);
-	decoder_command(zr, DECODER_SET_INPUT, &j);
+	decoder_command(zr, VIDIOC_INT_INIT, NULL);
+	decoder_command(zr, VIDIOC_S_STD, &zr->norm);
+	decoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
-	encoder_command(zr, 0, NULL);
-	encoder_command(zr, ENCODER_SET_NORM, &zr->norm);
-	encoder_command(zr, ENCODER_SET_INPUT, &zero);
+	encoder_command(zr, VIDIOC_INT_INIT, NULL);
+	encoder_command(zr, VIDIOC_INT_S_STD_OUTPUT, &zr->norm);
+	route.input = 0;
+	encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
 	/* toggle JPEG codec sleep to sync PLL */
 	jpeg_codec_sleep(zr, 1);
@@ -1674,7 +1671,7 @@ decoder_command (struct zoran *zr,
 		return -EIO;
 
 	if (zr->card.type == LML33 &&
-	    (cmd == DECODER_SET_NORM || cmd == DECODER_SET_INPUT)) {
+	    (cmd == VIDIOC_S_STD || cmd == VIDIOC_INT_S_VIDEO_ROUTING)) {
 		int res;
 
 		// Bt819 needs to reset its FIFO buffer using #FRST pin and
