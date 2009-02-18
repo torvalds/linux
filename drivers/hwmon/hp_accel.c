@@ -213,6 +213,30 @@ static struct delayed_led_classdev hpled_led = {
 	.set_brightness = hpled_set,
 };
 
+static acpi_status
+lis3lv02d_get_resource(struct acpi_resource *resource, void *context)
+{
+	if (resource->type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ) {
+		struct acpi_resource_extended_irq *irq;
+		u32 *device_irq = context;
+
+		irq = &resource->data.extended_irq;
+		*device_irq = irq->interrupts[0];
+	}
+
+	return AE_OK;
+}
+
+static void lis3lv02d_enum_resources(struct acpi_device *device)
+{
+	acpi_status status;
+
+	status = acpi_walk_resources(device->handle, METHOD_NAME__CRS,
+					lis3lv02d_get_resource, &adev.irq);
+	if (ACPI_FAILURE(status))
+		printk(KERN_DEBUG DRIVER_NAME ": Error getting resources\n");
+}
+
 static int lis3lv02d_add(struct acpi_device *device)
 {
 	u8 val;
@@ -246,6 +270,9 @@ static int lis3lv02d_add(struct acpi_device *device)
 	ret = led_classdev_register(NULL, &hpled_led.led_classdev);
 	if (ret)
 		return ret;
+
+	/* obtain IRQ number of our device from ACPI */
+	lis3lv02d_enum_resources(adev.device);
 
 	ret = lis3lv02d_init_device(&adev);
 	if (ret) {
