@@ -156,9 +156,7 @@ static int __init config_pas_hw(struct address_info *hw_config)
 						 * 0x80
 						 */ , 0xB88);
 
-	pas_write(0x80
-		  | joystick?0x40:0
-		  ,0xF388);
+	pas_write(0x80 | (joystick ? 0x40 : 0), 0xF388);
 
 	if (pas_irq < 0 || pas_irq > 15)
 	{
