@@ -818,7 +818,7 @@ struct acpi_bit_register_info {
 #define ACPI_BITMASK_SCI_ENABLE                 0x0001
 #define ACPI_BITMASK_BUS_MASTER_RLD             0x0002
 #define ACPI_BITMASK_GLOBAL_LOCK_RELEASE        0x0004
-#define ACPI_BITMASK_SLEEP_TYPE_X               0x1C00
+#define ACPI_BITMASK_SLEEP_TYPE                 0x1C00
 #define ACPI_BITMASK_SLEEP_ENABLE               0x2000
 
 #define ACPI_BITMASK_ARB_DISABLE                0x0001
@@ -844,7 +844,7 @@ struct acpi_bit_register_info {
 #define ACPI_BITPOSITION_SCI_ENABLE             0x00
 #define ACPI_BITPOSITION_BUS_MASTER_RLD         0x01
 #define ACPI_BITPOSITION_GLOBAL_LOCK_RELEASE    0x02
-#define ACPI_BITPOSITION_SLEEP_TYPE_X           0x0A
+#define ACPI_BITPOSITION_SLEEP_TYPE             0x0A
 #define ACPI_BITPOSITION_SLEEP_ENABLE           0x0D
 
 #define ACPI_BITPOSITION_ARB_DISABLE            0x00

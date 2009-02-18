@@ -242,7 +242,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 	}
 
 	sleep_type_reg_info =
-	    acpi_hw_get_bit_register_info(ACPI_BITREG_SLEEP_TYPE_A);
+	    acpi_hw_get_bit_register_info(ACPI_BITREG_SLEEP_TYPE);
 	sleep_enable_reg_info =
 	    acpi_hw_get_bit_register_info(ACPI_BITREG_SLEEP_ENABLE);
 
@@ -486,7 +486,7 @@ acpi_status acpi_leave_sleep_state_prep(u8 sleep_state)
 					  &acpi_gbl_sleep_type_b);
 	if (ACPI_SUCCESS(status)) {
 		sleep_type_reg_info =
-		    acpi_hw_get_bit_register_info(ACPI_BITREG_SLEEP_TYPE_A);
+		    acpi_hw_get_bit_register_info(ACPI_BITREG_SLEEP_TYPE);
 		sleep_enable_reg_info =
 		    acpi_hw_get_bit_register_info(ACPI_BITREG_SLEEP_ENABLE);
 

@@ -777,15 +777,14 @@ typedef u8 acpi_adr_space_type;
 #define ACPI_BITREG_SCI_ENABLE                  0x0E
 #define ACPI_BITREG_BUS_MASTER_RLD              0x0F
 #define ACPI_BITREG_GLOBAL_LOCK_RELEASE         0x10
-#define ACPI_BITREG_SLEEP_TYPE_A                0x11
-#define ACPI_BITREG_SLEEP_TYPE_B                0x12
-#define ACPI_BITREG_SLEEP_ENABLE                0x13
+#define ACPI_BITREG_SLEEP_TYPE                  0x11
+#define ACPI_BITREG_SLEEP_ENABLE                0x12
 
 /* PM2 Control register */
 
-#define ACPI_BITREG_ARB_DISABLE                 0x14
+#define ACPI_BITREG_ARB_DISABLE                 0x13
 
-#define ACPI_BITREG_MAX                         0x14
+#define ACPI_BITREG_MAX                         0x13
 #define ACPI_NUM_BITREG                         ACPI_BITREG_MAX + 1
 
 /*
