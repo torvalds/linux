@@ -1,21 +1,14 @@
 /**
- * \file drm_proc.c
- * /proc support for DRM
+ * \file drm_debugfs.c
+ * debugfs support for DRM
  *
- * \author Rickard E. (Rik) Faith <faith@valinux.com>
- * \author Gareth Hughes <gareth@valinux.com>
- *
- * \par Acknowledgements:
- *    Matthew J Sottek <matthew.j.sottek@intel.com> sent in a patch to fix
- *    the problem with the proc files not outputting all their information.
+ * \author Ben Gamari <bgamari@gmail.com>
  */
 
 /*
- * Created: Mon Jan 11 09:48:47 1999 by faith@valinux.com
+ * Created: Sun Dec 21 13:08:50 2008 by bgamari@gmail.com
  *
- * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
- * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
- * All Rights Reserved.
+ * Copyright 2008 Ben Gamari <bgamari@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -37,18 +30,17 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include "drmP.h"
 
+#if defined(CONFIG_DEBUG_FS)
 
 /***************************************************
  * Initialization, etc.
  **************************************************/
 
-/**
- * Proc file list.
- */
-static struct drm_info_list drm_proc_list[] = {
+static struct drm_info_list drm_debugfs_list[] = {
 	{"name", drm_name_info, 0},
 	{"vm", drm_vm_info, 0},
 	{"clients", drm_clients_info, 0},
@@ -60,18 +52,20 @@ static struct drm_info_list drm_proc_list[] = {
 	{"vma", drm_vma_info, 0},
 #endif
 };
-#define DRM_PROC_ENTRIES ARRAY_SIZE(drm_proc_list)
+#define DRM_DEBUGFS_ENTRIES ARRAY_SIZE(drm_debugfs_list)
 
-static int drm_proc_open(struct inode *inode, struct file *file)
+
+static int drm_debugfs_open(struct inode *inode, struct file *file)
 {
-	struct drm_info_node* node = PDE(inode)->data;
+	struct drm_info_node *node = inode->i_private;
 
 	return single_open(file, node->info_ent->show, node);
 }
 
-static const struct file_operations drm_proc_fops = {
+
+static const struct file_operations drm_debugfs_fops = {
 	.owner = THIS_MODULE,
-	.open = drm_proc_open,
+	.open = drm_debugfs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -79,22 +73,22 @@ static const struct file_operations drm_proc_fops = {
 
 
 /**
- * Initialize a given set of proc files for a device
+ * Initialize a given set of debugfs files for a device
  *
  * \param files The array of files to create
  * \param count The number of files given
- * \param root DRI proc dir entry.
+ * \param root DRI debugfs dir entry.
  * \param minor device minor number
  * \return Zero on success, non-zero on failure
  *
- * Create a given set of proc files represented by an array of
- * gdm_proc_lists in the given root directory.
+ * Create a given set of debugfs files represented by an array of
+ * gdm_debugfs_lists in the given root directory.
  */
-int drm_proc_create_files(struct drm_info_list *files, int count,
-			  struct proc_dir_entry *root, struct drm_minor *minor)
+int drm_debugfs_create_files(struct drm_info_list *files, int count,
+			     struct dentry *root, struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
-	struct proc_dir_entry *ent;
+	struct dentry *ent;
 	struct drm_info_node *tmp;
 	char name[64];
 	int i, ret;
@@ -106,10 +100,12 @@ int drm_proc_create_files(struct drm_info_list *files, int count,
 		    (dev->driver->driver_features & features) != features)
 			continue;
 
-		tmp = drm_alloc(sizeof(struct drm_info_node), _DRM_DRIVER);
-		ent = create_proc_entry(files[i].name, S_IFREG | S_IRUGO, root);
+		tmp = drm_alloc(sizeof(struct drm_info_node),
+				_DRM_DRIVER);
+		ent = debugfs_create_file(files[i].name, S_IFREG | S_IRUGO,
+					  root, tmp, &drm_debugfs_fops);
 		if (!ent) {
-			DRM_ERROR("Cannot create /proc/dri/%s/%s\n",
+			DRM_ERROR("Cannot create /debugfs/dri/%s/%s\n",
 				  name, files[i].name);
 			drm_free(tmp, sizeof(struct drm_info_node),
 				 _DRM_DRIVER);
@@ -117,81 +113,88 @@ int drm_proc_create_files(struct drm_info_list *files, int count,
 			goto fail;
 		}
 
-		ent->proc_fops = &drm_proc_fops;
-		ent->data = tmp;
 		tmp->minor = minor;
+		tmp->dent = ent;
 		tmp->info_ent = &files[i];
-		list_add(&(tmp->list), &(minor->proc_nodes.list));
+		list_add(&(tmp->list), &(minor->debugfs_nodes.list));
 	}
 	return 0;
 
 fail:
-	for (i = 0; i < count; i++)
-		remove_proc_entry(drm_proc_list[i].name, minor->proc_root);
+	drm_debugfs_remove_files(files, count, minor);
 	return ret;
 }
+EXPORT_SYMBOL(drm_debugfs_create_files);
 
 /**
- * Initialize the DRI proc filesystem for a device
+ * Initialize the DRI debugfs filesystem for a device
  *
  * \param dev DRM device
  * \param minor device minor number
- * \param root DRI proc dir entry.
- * \param dev_root resulting DRI device proc dir entry.
- * \return root entry pointer on success, or NULL on failure.
+ * \param root DRI debugfs dir entry.
  *
- * Create the DRI proc root entry "/proc/dri", the device proc root entry
- * "/proc/dri/%minor%/", and each entry in proc_list as
- * "/proc/dri/%minor%/%name%".
+ * Create the DRI debugfs root entry "/debugfs/dri", the device debugfs root entry
+ * "/debugfs/dri/%minor%/", and each entry in debugfs_list as
+ * "/debugfs/dri/%minor%/%name%".
  */
-int drm_proc_init(struct drm_minor *minor, int minor_id,
-		  struct proc_dir_entry *root)
+int drm_debugfs_init(struct drm_minor *minor, int minor_id,
+		     struct dentry *root)
 {
 	struct drm_device *dev = minor->dev;
 	char name[64];
 	int ret;
 
-	INIT_LIST_HEAD(&minor->proc_nodes.list);
+	INIT_LIST_HEAD(&minor->debugfs_nodes.list);
 	sprintf(name, "%d", minor_id);
-	minor->proc_root = proc_mkdir(name, root);
-	if (!minor->proc_root) {
-		DRM_ERROR("Cannot create /proc/dri/%s\n", name);
+	minor->debugfs_root = debugfs_create_dir(name, root);
+	if (!minor->debugfs_root) {
+		DRM_ERROR("Cannot create /debugfs/dri/%s\n", name);
 		return -1;
 	}
 
-	ret = drm_proc_create_files(drm_proc_list, DRM_PROC_ENTRIES,
-				    minor->proc_root, minor);
+	ret = drm_debugfs_create_files(drm_debugfs_list, DRM_DEBUGFS_ENTRIES,
+				       minor->debugfs_root, minor);
 	if (ret) {
-		remove_proc_entry(name, root);
-		minor->proc_root = NULL;
-		DRM_ERROR("Failed to create core drm proc files\n");
+		debugfs_remove(minor->debugfs_root);
+		minor->debugfs_root = NULL;
+		DRM_ERROR("Failed to create core drm debugfs files\n");
 		return ret;
 	}
 
-	if (dev->driver->proc_init) {
-		ret = dev->driver->proc_init(minor);
+	if (dev->driver->debugfs_init) {
+		ret = dev->driver->debugfs_init(minor);
 		if (ret) {
 			DRM_ERROR("DRM: Driver failed to initialize "
-				  "/proc/dri.\n");
+				  "/debugfs/dri.\n");
 			return ret;
 		}
 	}
 	return 0;
 }
 
-int drm_proc_remove_files(struct drm_info_list *files, int count,
-			  struct drm_minor *minor)
+
+/**
+ * Remove a list of debugfs files
+ *
+ * \param files The list of files
+ * \param count The number of files
+ * \param minor The minor of which we should remove the files
+ * \return always zero.
+ *
+ * Remove all debugfs entries created by debugfs_init().
+ */
+int drm_debugfs_remove_files(struct drm_info_list *files, int count,
+			     struct drm_minor *minor)
 {
 	struct list_head *pos, *q;
 	struct drm_info_node *tmp;
 	int i;
 
 	for (i = 0; i < count; i++) {
-		list_for_each_safe(pos, q, &minor->proc_nodes.list) {
+		list_for_each_safe(pos, q, &minor->debugfs_nodes.list) {
 			tmp = list_entry(pos, struct drm_info_node, list);
 			if (tmp->info_ent == &files[i]) {
-				remove_proc_entry(files[i].name,
-						  minor->proc_root);
+				debugfs_remove(tmp->dent);
 				list_del(pos);
 				drm_free(tmp, sizeof(struct drm_info_node),
 					 _DRM_DRIVER);
@@ -200,33 +203,33 @@ int drm_proc_remove_files(struct drm_info_list *files, int count,
 	}
 	return 0;
 }
+EXPORT_SYMBOL(drm_debugfs_remove_files);
 
 /**
- * Cleanup the proc filesystem resources.
+ * Cleanup the debugfs filesystem resources.
  *
  * \param minor device minor number.
- * \param root DRI proc dir entry.
- * \param dev_root DRI device proc dir entry.
  * \return always zero.
  *
- * Remove all proc entries created by proc_init().
+ * Remove all debugfs entries created by debugfs_init().
  */
-int drm_proc_cleanup(struct drm_minor *minor, struct proc_dir_entry *root)
+int drm_debugfs_cleanup(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
-	char name[64];
 
-	if (!root || !minor->proc_root)
+	if (!minor->debugfs_root)
 		return 0;
 
-	if (dev->driver->proc_cleanup)
-		dev->driver->proc_cleanup(minor);
+	if (dev->driver->debugfs_cleanup)
+		dev->driver->debugfs_cleanup(minor);
 
-	drm_proc_remove_files(drm_proc_list, DRM_PROC_ENTRIES, minor);
+	drm_debugfs_remove_files(drm_debugfs_list, DRM_DEBUGFS_ENTRIES, minor);
 
-	sprintf(name, "%d", minor->index);
-	remove_proc_entry(name, root);
+	debugfs_remove(minor->debugfs_root);
+	minor->debugfs_root = NULL;
 
 	return 0;
 }
+
+#endif /* CONFIG_DEBUG_FS */
 
