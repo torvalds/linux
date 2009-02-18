@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/timer.h>
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
@@ -330,7 +331,7 @@ static int __init poodle_init(void)
 	if (!machine_is_poodle())
 		return -ENODEV;
 
-	ret = wm8731_i2c_setup();
+	ret = wm8731_i2c_register();
 	if (ret != 0)
 		return ret;
 
