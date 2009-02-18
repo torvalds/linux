@@ -2083,7 +2083,7 @@ static int zoran_g_fmt_vid_out(struct file *file, void *__fh,
 	mutex_lock(&zr->resource_lock);
 
 	fmt->fmt.pix.width = fh->jpg_settings.img_width / fh->jpg_settings.HorDcm;
-	fmt->fmt.pix.height = fh->jpg_settings.img_height /
+	fmt->fmt.pix.height = fh->jpg_settings.img_height * 2 /
 		(fh->jpg_settings.VerDcm * fh->jpg_settings.TmpDcm);
 	fmt->fmt.pix.sizeimage = zoran_v4l2_calc_bufsize(&fh->jpg_settings);
 	fmt->fmt.pix.pixelformat = V4L2_PIX_FMT_MJPEG;
