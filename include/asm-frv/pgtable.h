@@ -73,8 +73,8 @@ static inline int pte_file(pte_t pte) { return 0; }
 #define pgtable_cache_init()		do {} while (0)
 #define arch_enter_lazy_mmu_mode()	do {} while (0)
 #define arch_leave_lazy_mmu_mode()	do {} while (0)
-#define arch_enter_lazy_cpu_mode()	do {} while (0)
-#define arch_leave_lazy_cpu_mode()	do {} while (0)
+
+#define arch_start_context_switch()	do {} while (0)
 
 #else /* !CONFIG_MMU */
 /*****************************************************************************/

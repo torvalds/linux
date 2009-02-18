@@ -2746,7 +2746,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	 * combine the page table reload and the switch backend into
 	 * one hypercall.
 	 */
-	arch_enter_lazy_cpu_mode();
+	arch_start_context_switch();
 
 	if (unlikely(!mm)) {
 		next->active_mm = oldmm;
