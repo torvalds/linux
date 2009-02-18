@@ -504,6 +504,25 @@ static const struct snd_kcontrol_new twl4030_dapm_abypassr2_control =
 static const struct snd_kcontrol_new twl4030_dapm_abypassl2_control =
 	SOC_DAPM_SINGLE("Switch", TWL4030_REG_ARXL2_APGA_CTL, 2, 1, 0);
 
+/* Digital bypass gain, 0 mutes the bypass */
+static const unsigned int twl4030_dapm_dbypass_tlv[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0, 3, TLV_DB_SCALE_ITEM(-2400, 0, 1),
+	4, 7, TLV_DB_SCALE_ITEM(-1800, 600, 0),
+};
+
+/* Digital bypass left (TX1L -> RX2L) */
+static const struct snd_kcontrol_new twl4030_dapm_dbypassl_control =
+	SOC_DAPM_SINGLE_TLV("Volume",
+			TWL4030_REG_ATX2ARXPGA, 3, 7, 0,
+			twl4030_dapm_dbypass_tlv);
+
+/* Digital bypass right (TX1R -> RX2R) */
+static const struct snd_kcontrol_new twl4030_dapm_dbypassr_control =
+	SOC_DAPM_SINGLE_TLV("Volume",
+			TWL4030_REG_ATX2ARXPGA, 0, 7, 0,
+			twl4030_dapm_dbypass_tlv);
+
 static int micpath_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -608,12 +627,22 @@ static int bypass_event(struct snd_soc_dapm_widget *w,
 	unsigned char reg;
 
 	reg = twl4030_read_reg_cache(w->codec, m->reg);
-	if (reg & (1 << m->shift))
-		twl4030->bypass_state |=
-			(1 << (m->reg - TWL4030_REG_ARXL1_APGA_CTL));
-	else
-		twl4030->bypass_state &=
-			~(1 << (m->reg - TWL4030_REG_ARXL1_APGA_CTL));
+
+	if (m->reg <= TWL4030_REG_ARXR2_APGA_CTL) {
+		/* Analog bypass */
+		if (reg & (1 << m->shift))
+			twl4030->bypass_state |=
+				(1 << (m->reg - TWL4030_REG_ARXL1_APGA_CTL));
+		else
+			twl4030->bypass_state &=
+				~(1 << (m->reg - TWL4030_REG_ARXL1_APGA_CTL));
+	} else {
+		/* Digital bypass */
+		if (reg & (0x7 << m->shift))
+			twl4030->bypass_state |= (1 << (m->shift ? 5 : 4));
+		else
+			twl4030->bypass_state &= ~(1 << (m->shift ? 5 : 4));
+	}
 
 	if (w->codec->bias_level == SND_SOC_BIAS_STANDBY) {
 		if (twl4030->bypass_state)
@@ -934,6 +963,14 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 			&twl4030_dapm_abypassl2_control,
 			bypass_event, SND_SOC_DAPM_POST_REG),
 
+	/* Digital bypasses */
+	SND_SOC_DAPM_SWITCH_E("Left Digital Loopback", SND_SOC_NOPM, 0, 0,
+			&twl4030_dapm_dbypassl_control, bypass_event,
+			SND_SOC_DAPM_POST_REG),
+	SND_SOC_DAPM_SWITCH_E("Right Digital Loopback", SND_SOC_NOPM, 0, 0,
+			&twl4030_dapm_dbypassr_control, bypass_event,
+			SND_SOC_DAPM_POST_REG),
+
 	SND_SOC_DAPM_MIXER("Analog R1 Playback Mixer", TWL4030_REG_AVDAC_CTL,
 			0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("Analog L1 Playback Mixer", TWL4030_REG_AVDAC_CTL,
@@ -1117,6 +1154,13 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Analog L1 Playback Mixer", NULL, "Left1 Analog Loopback"},
 	{"Analog R2 Playback Mixer", NULL, "Right2 Analog Loopback"},
 	{"Analog L2 Playback Mixer", NULL, "Left2 Analog Loopback"},
+
+	/* Digital bypass routes */
+	{"Right Digital Loopback", "Volume", "TX1 Capture Route"},
+	{"Left Digital Loopback", "Volume", "TX1 Capture Route"},
+
+	{"Analog R2 Playback Mixer", NULL, "Right Digital Loopback"},
+	{"Analog L2 Playback Mixer", NULL, "Left Digital Loopback"},
 
 };
 
