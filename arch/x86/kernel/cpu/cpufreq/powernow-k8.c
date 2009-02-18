@@ -1254,21 +1254,18 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 					"BIOS vendor.\n");
 				print_once++;
 			}
-			kfree(data);
-			return -ENODEV;
+			goto err_out;
 		}
 		if (pol->cpu != 0) {
 			printk(KERN_ERR FW_BUG PFX "No ACPI _PSS objects for "
 			       "CPU other than CPU0. Complain to your BIOS "
 			       "vendor.\n");
-			kfree(data);
-			return -ENODEV;
+			goto err_out;
 		}
 		rc = find_psb_table(data);
-		if (rc) {
-			kfree(data);
-			return -ENODEV;
-		}
+		if (rc)
+			goto err_out;
+
 		/* Take a crude guess here.
 		 * That guess was in microseconds, so multiply with 1000 */
 		pol->cpuinfo.transition_latency = (
@@ -1283,16 +1280,16 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 	if (smp_processor_id() != pol->cpu) {
 		printk(KERN_ERR PFX "limiting to cpu %u failed\n", pol->cpu);
-		goto err_out;
+		goto err_out_unmask;
 	}
 
 	if (pending_bit_stuck()) {
 		printk(KERN_ERR PFX "failing init, change pending bit set\n");
-		goto err_out;
+		goto err_out_unmask;
 	}
 
 	if (query_current_values_with_pending_wait(data))
-		goto err_out;
+		goto err_out_unmask;
 
 	if (cpu_family == CPU_OPTERON)
 		fidvid_msr_init();
@@ -1335,10 +1332,11 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 	return 0;
 
-err_out:
+err_out_unmask:
 	set_cpus_allowed_ptr(current, &oldmask);
 	powernow_k8_cpu_exit_acpi(data);
 
+err_out:
 	kfree(data);
 	return -ENODEV;
 }
