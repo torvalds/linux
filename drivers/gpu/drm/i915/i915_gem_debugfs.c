@@ -70,18 +70,27 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 
 	list_for_each_entry(obj_priv, head, list)
 	{
+		char *pin_description;
 		struct drm_gem_object *obj = obj_priv->obj;
-		if (obj->name) {
-			seq_printf(m, "    %p(%d): %08x %08x %d\n",
-					obj, obj->name,
-					obj->read_domains, obj->write_domain,
-					obj_priv->last_rendering_seqno);
-		} else {
-			seq_printf(m, "       %p: %08x %08x %d\n",
-					obj,
-					obj->read_domains, obj->write_domain,
-					obj_priv->last_rendering_seqno);
-		}
+
+		if (obj_priv->user_pin_count > 0)
+			pin_description = "P";
+		else if (obj_priv->pin_count > 0)
+			pin_description = "p";
+		else
+			pin_description = " ";
+
+		seq_printf(m, "    %p: %s %08x %08x %d",
+			   obj,
+			   pin_description,
+			   obj->read_domains, obj->write_domain,
+			   obj_priv->last_rendering_seqno);
+
+		if (obj->name)
+			seq_printf(m, " (name: %d)", obj->name);
+		if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
+			seq_printf(m, " (fence: %d\n", obj_priv->fence_reg);
+		seq_printf(m, "\n");
 	}
 	return 0;
 }
