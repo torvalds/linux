@@ -81,14 +81,14 @@
 #include "sxg.h"
 #include "sxgdbg.h"
 
-#include "sxgphycode.h"
+#include "sxgphycode-1.2.h"
 #define SXG_UCODE_DBG			0	/* Turn on for debugging */
 #ifdef SXG_UCODE_DBG
-#include "saharadbgdownload.c"
-#include "saharadbgdownloadB.c"
+#include "saharadbgdownload-1.71.c"
+#include "saharadbgdownloadB-1.10.c"
 #else
-#include "saharadownload.c"
-#include "saharadownloadB.c"
+#include "saharadownload-1.55.c"
+#include "saharadownloadB-1.8.c"
 #endif
 
 static int sxg_allocate_buffer_memory(struct adapter_t *adapter, u32 Size,
@@ -410,22 +410,42 @@ static bool sxg_download_microcode(struct adapter_t *adapter,
 	DBG_ERROR("sxg: %s ENTER\n", __func__);
 
 	switch (UcodeSel) {
-	case SXG_UCODE_SAHARA:	/* Sahara operational ucode */
-		numSections = SNumSections;
-		for (i = 0; i < numSections; i++) {
-			sectionSize[i] = SSectionSize[i];
-			sectionStart[i] = SSectionStart[i];
-		}
-		break;
-	default:
-		printk(KERN_ERR KBUILD_MODNAME
-		       ": Woah, big error with the microcode!\n");
-		break;
+		case SXG_UCODE_SYSTEM:      // System (operational) ucode
+			switch (adapter->asictype) {
+				case SAHARA_REV_A:
+					DBG_ERROR("%s SAHARA CARD REVISION A\n",
+						 __func__);
+					numSections = SNumSections;
+					for (i = 0; i < numSections; i++) {
+						sectionSize[i] =
+							SSectionSize[i];
+						sectionStart[i] =
+							SSectionStart[i];
+					}
+					break;
+				case SAHARA_REV_B:
+					DBG_ERROR("%s SAHARA CARD REVISION B\n",
+						 __func__);
+					numSections = SBNumSections;
+					for (i = 0; i < numSections; i++) {
+						sectionSize[i] =
+							SBSectionSize[i];
+						sectionStart[i] =
+							SBSectionStart[i];
+					}
+					break;
+			}
+			break;
+		default:
+			printk(KERN_ERR KBUILD_MODNAME
+				": Woah, big error with the microcode!\n");
+			break;
 	}
 
 	DBG_ERROR("sxg: RESET THE CARD\n");
 	/* First, reset the card */
 	WRITE_REG(HwRegs->Reset, 0xDEAD, FLUSH);
+	udelay(50);
 
 	/*
 	 * Download each section of the microcode as specified in
@@ -436,13 +456,21 @@ static bool sxg_download_microcode(struct adapter_t *adapter,
 	for (Section = 0; Section < numSections; Section++) {
 		DBG_ERROR("sxg: SECTION # %d\n", Section);
 		switch (UcodeSel) {
-		case SXG_UCODE_SAHARA:
-			Instruction = (u32 *) & SaharaUCode[Section][0];
+		case SXG_UCODE_SYSTEM:
+			switch (adapter->asictype) {
+				case SAHARA_REV_A:
+					Instruction = (u32 *) & SaharaUCode[Section][0];
+					break;
+				case SAHARA_REV_B:
+					Instruction = (u32 *) & SaharaUCodeB[Section][0];
+					break;
+			}
 			break;
 		default:
 			ASSERT(0);
 			break;
 		}
+
 		BaseAddress = sectionStart[Section];
 		/* Size in instructions */
 		ThisSectionSize = sectionSize[Section] / 12;
@@ -481,12 +509,21 @@ static bool sxg_download_microcode(struct adapter_t *adapter,
 	for (Section = 0; Section < numSections; Section++) {
 		DBG_ERROR("sxg: check SECTION # %d\n", Section);
 		switch (UcodeSel) {
-		case SXG_UCODE_SAHARA:
-			Instruction = (u32 *) & SaharaUCode[Section][0];
-			break;
-		default:
-			ASSERT(0);
-			break;
+			case SXG_UCODE_SYSTEM:
+				switch (adapter->asictype) {
+					case SAHARA_REV_A:
+						Instruction = (u32 *) &
+						    SaharaUCode[Section][0];
+						break;
+					case SAHARA_REV_B:
+						Instruction = (u32 *) &
+						    SaharaUCodeB[Section][0];
+						break;
+				}
+				break;
+			default:
+				ASSERT(0);
+				break;
 		}
 		BaseAddress = sectionStart[Section];
 		/* Size in instructions */
@@ -555,7 +592,7 @@ static bool sxg_download_microcode(struct adapter_t *adapter,
 	 * synchronize with the card so it can scribble on the memory
 	 * that contained 0xCAFE from the "CardUp" step above
 	 */
-	if (UcodeSel == SXG_UCODE_SAHARA) {
+	if (UcodeSel == SXG_UCODE_SYSTEM) {
 		WRITE_REG(adapter->UcodeRegs[0].LoadSync, 0, FLUSH);
 	}
 
@@ -891,6 +928,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	u32 status = 0;
 	ulong mmio_start = 0;
 	ulong mmio_len = 0;
+	unsigned char revision_id;
 
 	DBG_ERROR("sxg: %s 2.6 VERSION ENTER jiffies[%lx] cpu %d\n",
 		  __func__, jiffies, smp_processor_id());
@@ -914,6 +952,8 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 		printk(KERN_INFO "%s\n", sxg_banner);
 		printk(KERN_INFO "%s\n", SXG_DRV_VERSION);
 	}
+
+	pci_read_config_byte(pcidev, PCI_REVISION_ID, &revision_id);
 
 	if (!(err = pci_set_dma_mask(pcidev, DMA_64BIT_MASK))) {
 		DBG_ERROR("pci_set_dma_mask(DMA_64BIT_MASK) successful\n");
@@ -950,6 +990,15 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 
 	pci_set_drvdata(pcidev, netdev);
 	adapter = netdev_priv(netdev);
+	if (revision_id == 1) {
+		adapter->asictype = SAHARA_REV_A;
+	} else if (revision_id == 2) {
+		adapter->asictype = SAHARA_REV_B;
+	} else {
+		ASSERT(0);
+		DBG_ERROR("%s Unexpected revision ID %x\n", __FUNCTION__, revision_id);
+		goto err_out_exit_sxg_probe;
+	}
 	adapter->netdev = netdev;
 	adapter->pcidev = pcidev;
 
@@ -1054,7 +1103,7 @@ static int sxg_entry_probe(struct pci_dev *pcidev,
 	}
 
 	DBG_ERROR("sxg: %s ENTER sxg_download_microcode\n", __func__);
-	if (sxg_download_microcode(adapter, SXG_UCODE_SAHARA)) {
+	if (sxg_download_microcode(adapter, SXG_UCODE_SYSTEM)) {
 		DBG_ERROR("sxg: %s ENTER sxg_adapter_set_hwaddr\n",
 			  __func__);
 		sxg_read_config(adapter);
@@ -1762,9 +1811,6 @@ static struct sk_buff *sxg_slow_receive(struct adapter_t *adapter,
 	if (Event->Status & EVENT_STATUS_RCVERR) {
 		SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "RcvError",
 			  Event, Event->Status, Event->HostHandle, 0);
-		/* XXXTODO - Remove this print later */
-		DBG_ERROR("SXG: Receive error %x\n", *(u32 *)
-			  SXG_RECEIVE_DATA_LOCATION(RcvDataBufferHdr));
 		sxg_process_rcv_error(adapter, *(u32 *)
 				      SXG_RECEIVE_DATA_LOCATION
 				      (RcvDataBufferHdr));
@@ -2144,7 +2190,7 @@ static int sxg_entry_open(struct net_device *dev)
 	 * The microcode expects it to be downloaded on every open.
 	 */
 	DBG_ERROR("sxg: %s ENTER sxg_download_microcode\n", __FUNCTION__);
-	if (sxg_download_microcode(adapter, SXG_UCODE_SAHARA)) {
+	if (sxg_download_microcode(adapter, SXG_UCODE_SYSTEM)) {
 		DBG_ERROR("sxg: %s ENTER sxg_adapter_set_hwaddr\n",
 				__FUNCTION__);
 		sxg_read_config(adapter);
@@ -2639,7 +2685,8 @@ static int sxg_dumb_sgl(struct sxg_x64_sgl *pSgl,
 	 * the start of the next 64k boundary and continue
  	 */
 
-	if (SXG_INVALID_SGL(phys_addr,skb->data_len))
+	if ((adapter->asictype == SAHARA_REV_A) &&
+		(SXG_INVALID_SGL(phys_addr,skb->data_len)))
 	{
 		spin_unlock_irqrestore(&adapter->XmtZeroLock, flags);
 		/* Silently drop this packet */
@@ -2725,6 +2772,7 @@ static int sxg_initialize_link(struct adapter_t *adapter)
 	u32 Value;
 	u32 ConfigData;
 	u32 MaxFrame;
+	u32 AxgMacReg1;
 	int status;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "InitLink",
@@ -2771,24 +2819,27 @@ static int sxg_initialize_link(struct adapter_t *adapter)
 	WRITE_REG(HwRegs->MacConfig0, 0, TRUE);
 
 	/* Configure MAC */
-	WRITE_REG(HwRegs->MacConfig1, (
-					/* Allow sending of pause */
-					AXGMAC_CFG1_XMT_PAUSE |
-					/* Enable XMT */
-				       	AXGMAC_CFG1_XMT_EN |
-					/* Enable detection of pause */
-				       	AXGMAC_CFG1_RCV_PAUSE |
-					/* Enable receive */
-				       	AXGMAC_CFG1_RCV_EN |
-					/* short frame detection */
-					AXGMAC_CFG1_SHORT_ASSERT |
-					/* Verify frame length */
-				       	AXGMAC_CFG1_CHECK_LEN |
-					/* Generate FCS */
-				       	AXGMAC_CFG1_GEN_FCS |
-					/* Pad frames to 64 bytes */
-				       	AXGMAC_CFG1_PAD_64),
-				  TRUE);
+	AxgMacReg1 = (  /* Enable XMT */
+			AXGMAC_CFG1_XMT_EN |
+			/* Enable receive */
+			AXGMAC_CFG1_RCV_EN |
+			/* short frame detection */
+			AXGMAC_CFG1_SHORT_ASSERT |
+			/* Verify frame length */
+			AXGMAC_CFG1_CHECK_LEN |
+			/* Generate FCS */
+			AXGMAC_CFG1_GEN_FCS |
+			/* Pad frames to 64 bytes */
+			AXGMAC_CFG1_PAD_64);
+
+ 	if (adapter->XmtFcEnabled) {
+		AxgMacReg1 |=  AXGMAC_CFG1_XMT_PAUSE;  /* Allow sending of pause */
+ 	}
+ 	if (adapter->RcvFcEnabled) {
+		AxgMacReg1 |=  AXGMAC_CFG1_RCV_PAUSE;  /* Enable detection of pause */
+ 	}
+
+ 	WRITE_REG(HwRegs->MacConfig1, AxgMacReg1, TRUE);
 
 	/* Set AXGMAC max frame length if jumbo.  Not needed for standard MTU */
 	if (adapter->JumboEnabled) {
@@ -2806,13 +2857,20 @@ static int sxg_initialize_link(struct adapter_t *adapter)
 	 * This value happens to be the default value for this register, so we
 	 * really don't have to do this.
 	 */
-	WRITE_REG(HwRegs->MacAmiimConfig, 0x0000003E, TRUE);
+	if (adapter->asictype == SAHARA_REV_B) {
+		WRITE_REG(HwRegs->MacAmiimConfig, 0x0000001F, TRUE);
+	} else {
+		WRITE_REG(HwRegs->MacAmiimConfig, 0x0000003E, TRUE);
+	}
 
 	/* Power up and enable PHY and XAUI/XGXS/Serdes logic */
 	WRITE_REG(HwRegs->LinkStatus,
-		  (LS_PHY_CLR_RESET |
-		   LS_XGXS_ENABLE |
-		   LS_XGXS_CTL | LS_PHY_CLK_EN | LS_ATTN_ALARM), TRUE);
+		   (LS_PHY_CLR_RESET |
+		    LS_XGXS_ENABLE |
+		    LS_XGXS_CTL |
+		    LS_PHY_CLK_EN |
+		    LS_ATTN_ALARM),
+		    TRUE);
 	DBG_ERROR("After Power Up and enable PHY in sxg_initialize_link\n");
 
 	/*
@@ -2886,6 +2944,11 @@ static int sxg_initialize_link(struct adapter_t *adapter)
 		      RCV_CONFIG_TZIPV4 |
 		      RCV_CONFIG_HASH_16 |
 		      RCV_CONFIG_SOCKET | RCV_CONFIG_BUFSIZE(MaxFrame));
+
+	if (adapter->asictype == SAHARA_REV_B) {
+		ConfigData |= (RCV_CONFIG_HIPRICTL  |
+				RCV_CONFIG_NEWSTATUSFMT);
+	}
 	WRITE_REG(HwRegs->RcvConfig, ConfigData, TRUE);
 
 	WRITE_REG(HwRegs->XmtConfig, XMT_CONFIG_ENABLE, TRUE);
@@ -2994,7 +3057,16 @@ static void sxg_link_event(struct adapter_t *adapter)
 			sxg_link_state(adapter, SXG_LINK_DOWN);
 		/* ASSERT(0); */
 		}
-		ASSERT(Value & LASI_STATUS_LS_ALARM);
+		/*
+		 * We used to assert that the LASI_LS_ALARM bit was set, as
+		 * it should be.  But there appears to be cases during
+		 * initialization (when the PHY is reset and re-initialized)
+		 * when we get a link alarm, but the status bit is 0 when we
+		 * read it.  Rather than trying to assure this never happens
+		 * (and nver being certain), just ignore it.
+
+		 * ASSERT(Value & LASI_STATUS_LS_ALARM);
+		 */
 
 		/* Now get and set the link state */
 		LinkState = sxg_get_link_state(adapter);
@@ -4118,6 +4190,9 @@ static int sxg_initialize_adapter(struct adapter_t *adapter)
 	 */
 	adapter->Dead = FALSE;
 	adapter->PingOutstanding = FALSE;
+	adapter->XmtFcEnabled = TRUE;
+	adapter->RcvFcEnabled = TRUE;
+
 	adapter->State = SXG_STATE_RUNNING;
 
 	SXG_TRACE(TRACE_SXG, SxgTraceBuffer, TRACE_NOISY, "XInit",

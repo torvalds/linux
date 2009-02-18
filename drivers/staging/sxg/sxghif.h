@@ -150,13 +150,16 @@ struct sxg_ucode_regs {
 /* Disable interrupt aggregation on xmt */
 #define SXG_AGG_XMT_DISABLE	0x80000000
 
-/* The Microcode supports up to 8 RSS queues */
-#define SXG_MAX_RSS				8
+/* The Microcode supports up to 16 RSS queues (RevB) */
+#define SXG_MAX_RSS			16
+#define SXG_MAX_RSS_REVA		8
 
 #define SXG_MAX_RSS_TABLE_SIZE	256		/* 256-byte max */
 
-#define SXG_RSS_TCP6		0x00000001	/* RSS TCP over IPv6 */
-#define SXG_RSS_TCP4		0x00000002	/* RSS TCP over IPv4 */
+#define SXG_RSS_REVA_TCP6	0x00000001	/* RSS TCP over IPv6 */
+#define SXG_RSS_REVA_TCP4	0x00000002	/* RSS TCP over IPv4 */
+#define SXG_RSS_IP		0x00000001	/* RSS TCP over IPv6 */
+#define SXG_RSS_TCP		0x00000002	/* RSS TCP over IPv4 */
 #define SXG_RSS_LEGACY		0x00000004	/* Line-base interrupts */
 #define SXG_RSS_TABLE_SIZE	0x0000FF00	/* Table size mask */
 

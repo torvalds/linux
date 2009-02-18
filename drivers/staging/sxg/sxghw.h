@@ -18,6 +18,22 @@
 /*  PCI Device ID */
 #define SXG_DEVICE_ID			0x0009	/* Sahara Device ID */
 
+
+/* Type of ASIC in use */
+enum asic_type {
+	SAHARA_REV_A,
+	SAHARA_REV_B
+};
+
+/* Type of Xcvr in fiber card */
+enum xcvr_type {
+	XCVR_UNKNOWN,
+	XCVR_NONE,
+	XCVR_SR,
+	XCVR_LR,
+	XCVR_LRM,
+	XCVR_CR
+};
 /*
  * Subsystem IDs.
  *
@@ -265,9 +281,11 @@ struct sxg_hw_regs {
 #define	RCV_CONFIG_HASH_4		0x00020000 /* Hash depth 4 */
 #define	RCV_CONFIG_HASH_2		0x00030000 /* Hash depth 2 */
 /* Buffer length bits 15:4. ie multiple of 16. */
-#define	RCV_CONFIG_BUFLEN_MASK		0x0000FFF0
+#define	RCV_CONFIG_BUFLEN_MASK		0x0000FFE0
 /* Disable socket detection on attn */
 #define RCV_CONFIG_SKT_DIS		0x00000008
+#define RCV_CONFIG_HIPRICTL     0x00000002 /* Ctrl frames on high-prioirty RcvQ */
+#define RCV_CONFIG_NEWSTATUSFMT 0x00000001 /* Use RevB status format */
 /*
  * Macro to determine RCV_CONFIG_BUFLEN based on maximum frame size.
  * We add 18 bytes for Sahara receive status and padding, plus 4 bytes for CRC,
@@ -640,6 +658,9 @@ struct sxg_hw_regs {
 /* PHY_XS_LANE_STATUS register bit definitions */
 #define	XS_LANE_ALIGN		0x1000		/* XS transmit lanes aligned */
 
+#define XCVR_VENDOR_LEN		16  /* xcvr vendor len */
+#define XCVR_MODEL_LEN		16  /* xcvr model len */
+
 /* PHY Microcode download data structure */
 struct phy_ucode {
 	ushort	Addr;
@@ -970,6 +991,10 @@ struct adapt_userinfo {
 	/* u32  	    LinkState; */
 	u32 		    LinkSpeed;		/* not currently needed */
 	u32 		    LinkDuplex;		/* not currently needed */
+ 	enum xcvr_type	    XcvrType;		/* type of xcvr on fiber card */
+	/* fiber card xcvr vendor */
+	unsigned char		XcvrVendor[XCVR_VENDOR_LEN];
+	unsigned char		XcvrMode[XCVR_MODEL_LEN];
 	u32 		    Port;		/* not currently needed */
 	u32 		    PhysPort;		/* not currently needed */
 	ushort		    PciLanes;
@@ -984,11 +1009,7 @@ struct adapt_userinfo {
 
 /* Miscellaneous Hardware definitions */
 
-/* Type of ASIC in use */
-enum ASIC_TYPE{
-	SAHARA_REV_A,
-	SAHARA_REV_B
-};
+/* Hardware Type definitions  */
 
 /* Sahara (ASIC level) defines */
 #define SAHARA_GRAM_SIZE	0x020000	/* GRAM size - 128 KB */

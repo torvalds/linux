@@ -369,9 +369,9 @@ enum SXG_LINK_STATE {
 
 /* Microcode file selection codes */
 enum SXG_UCODE_SEL {
-	SXG_UCODE_SAHARA,	/* Sahara ucode */
-	SXG_UCODE_SDIAGCPU,	/* Sahara CPU diagnostic ucode */
-	SXG_UCODE_SDIAGSYS	/* Sahara system diagnostic ucode */
+	SXG_UCODE_SYSTEM,	/* System (operational) uucode */
+	SXG_UCODE_SDIAGCPU,	/* System CPU diagnostic ucode */
+	SXG_UCODE_SDIAGSYS	/* System diagnostic ucode */
 };
 
 
@@ -537,6 +537,7 @@ struct adapter_t {
 	u32             memorylength;
 	u32             drambase;
 	u32             dramlength;
+	enum asic_type	asictype;      /* type of ASIC (chip) */
 	unsigned int                activated;
 	u32             intrregistered;
 	unsigned int                isp_initialized;
@@ -680,6 +681,8 @@ struct adapter_t {
 	u32		RssEnabled:1;		/* RSS Enabled */
 	u32		FailOnBadEeprom:1;	/* Fail on Bad Eeprom */
 	u32		DiagStart:1;		/* Init adapter for diagnostic start */
+ 	u32 		XmtFcEnabled:1;
+ 	u32 		RcvFcEnabled:1;
 	/* Stats */
 	u32		PendingRcvCount;	/* Outstanding rcv indications */
 	u32		PendingXmtCount;	/* Outstanding send requests */
