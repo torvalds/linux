@@ -2493,6 +2493,8 @@ static int zoran_overlay(struct file *file, void *__fh, unsigned int on)
 	return res;
 }
 
+static int zoran_streamoff(struct file *file, void *__fh, enum v4l2_buf_type type);
+
 static int zoran_reqbufs(struct file *file, void *__fh, struct v4l2_requestbuffers *req)
 {
 	struct zoran_fh *fh = __fh;
@@ -2500,17 +2502,19 @@ static int zoran_reqbufs(struct file *file, void *__fh, struct v4l2_requestbuffe
 	int res = 0;
 
 	if (req->memory != V4L2_MEMORY_MMAP) {
-		dprintk(1,
+		dprintk(2,
 				KERN_ERR
 				"%s: only MEMORY_MMAP capture is supported, not %d\n",
 				ZR_DEVNAME(zr), req->memory);
 		return -EINVAL;
 	}
 
-	mutex_lock(&zr->resource_lock);
+	if (req->count == 0)
+		return zoran_streamoff(file, fh, req->type);
 
+	mutex_lock(&zr->resource_lock);
 	if (fh->v4l_buffers.allocated || fh->jpg_buffers.allocated) {
-		dprintk(1,
+		dprintk(2,
 				KERN_ERR
 				"%s: VIDIOC_REQBUFS - buffers already allocated\n",
 				ZR_DEVNAME(zr));
