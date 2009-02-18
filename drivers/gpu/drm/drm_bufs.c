@@ -34,6 +34,8 @@
  */
 
 #include <linux/vmalloc.h>
+#include <linux/log2.h>
+#include <asm/shmparam.h>
 #include "drmP.h"
 
 resource_size_t drm_get_resource_start(struct drm_device *dev, unsigned int resource)
@@ -83,9 +85,11 @@ static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 }
 
 static int drm_map_handle(struct drm_device *dev, struct drm_hash_item *hash,
-			  unsigned long user_token, int hashed_handle)
+			  unsigned long user_token, int hashed_handle, int shm)
 {
-	int use_hashed_handle;
+	int use_hashed_handle, shift;
+	unsigned long add;
+
 #if (BITS_PER_LONG == 64)
 	use_hashed_handle = ((user_token & 0xFFFFFFFF00000000UL) || hashed_handle);
 #elif (BITS_PER_LONG == 32)
@@ -101,9 +105,31 @@ static int drm_map_handle(struct drm_device *dev, struct drm_hash_item *hash,
 		if (ret != -EINVAL)
 			return ret;
 	}
+
+	shift = 0;
+	add = DRM_MAP_HASH_OFFSET >> PAGE_SHIFT;
+	if (shm && (SHMLBA > PAGE_SIZE)) {
+		int bits = ilog2(SHMLBA >> PAGE_SHIFT) + 1;
+
+		/* For shared memory, we have to preserve the SHMLBA
+		 * bits of the eventual vma->vm_pgoff value during
+		 * mmap().  Otherwise we run into cache aliasing problems
+		 * on some platforms.  On these platforms, the pgoff of
+		 * a mmap() request is used to pick a suitable virtual
+		 * address for the mmap() region such that it will not
+		 * cause cache aliasing problems.
+		 *
+		 * Therefore, make sure the SHMLBA relevant bits of the
+		 * hash value we use are equal to those in the original
+		 * kernel virtual address.
+		 */
+		shift = bits;
+		add |= ((user_token >> PAGE_SHIFT) & ((1UL << bits) - 1UL));
+	}
+
 	return drm_ht_just_insert_please(&dev->map_hash, hash,
 					 user_token, 32 - PAGE_SHIFT - 3,
-					 0, DRM_MAP_HASH_OFFSET >> PAGE_SHIFT);
+					 shift, add);
 }
 
 /**
@@ -323,7 +349,8 @@ static int drm_addmap_core(struct drm_device * dev, resource_size_t offset,
 	/* We do it here so that dev->struct_mutex protects the increment */
 	user_token = (map->type == _DRM_SHM) ? (unsigned long)map->handle :
 		map->offset;
-	ret = drm_map_handle(dev, &list->hash, user_token, 0);
+	ret = drm_map_handle(dev, &list->hash, user_token, 0,
+			     (map->type == _DRM_SHM));
 	if (ret) {
 		if (map->type == _DRM_REGISTERS)
 			iounmap(map->handle);
