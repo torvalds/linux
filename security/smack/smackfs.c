@@ -245,7 +245,7 @@ out:
 
 /**
  * smk_write_load - write() for /smack/load
- * @filp: file pointer, not actually used
+ * @file: file pointer, not actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start - must be 0
@@ -402,6 +402,7 @@ static void smk_cipso_doi(void)
 
 /**
  * smk_unlbl_ambient - initialize the unlabeled domain
+ * @oldambient: previous domain string
  */
 static void smk_unlbl_ambient(char *oldambient)
 {
@@ -513,7 +514,7 @@ static int smk_open_cipso(struct inode *inode, struct file *file)
 
 /**
  * smk_write_cipso - write() for /smack/cipso
- * @filp: file pointer, not actually used
+ * @file: file pointer, not actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start
@@ -703,7 +704,7 @@ static int smk_open_netlbladdr(struct inode *inode, struct file *file)
 
 /**
  * smk_write_netlbladdr - write() for /smack/netlabel
- * @filp: file pointer, not actually used
+ * @file: file pointer, not actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start
@@ -850,7 +851,7 @@ static ssize_t smk_read_doi(struct file *filp, char __user *buf,
 
 /**
  * smk_write_doi - write() for /smack/doi
- * @filp: file pointer, not actually used
+ * @file: file pointer, not actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start
@@ -915,7 +916,7 @@ static ssize_t smk_read_direct(struct file *filp, char __user *buf,
 
 /**
  * smk_write_direct - write() for /smack/direct
- * @filp: file pointer, not actually used
+ * @file: file pointer, not actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start
@@ -990,7 +991,7 @@ static ssize_t smk_read_ambient(struct file *filp, char __user *buf,
 
 /**
  * smk_write_ambient - write() for /smack/ambient
- * @filp: file pointer, not actually used
+ * @file: file pointer, not actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start
@@ -1065,7 +1066,7 @@ static ssize_t smk_read_onlycap(struct file *filp, char __user *buf,
 
 /**
  * smk_write_onlycap - write() for /smack/onlycap
- * @filp: file pointer, not actually used
+ * @file: file pointer, not actually used
  * @buf: where to get the data from
  * @count: bytes sent
  * @ppos: where to start

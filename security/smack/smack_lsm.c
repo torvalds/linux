@@ -91,6 +91,7 @@ struct inode_smack *new_inode_smack(char *smack)
 /**
  * smack_ptrace_may_access - Smack approval on PTRACE_ATTACH
  * @ctp: child task pointer
+ * @mode: ptrace attachment mode
  *
  * Returns 0 if access is OK, an error code otherwise
  *
@@ -203,9 +204,8 @@ static void smack_sb_free_security(struct super_block *sb)
 
 /**
  * smack_sb_copy_data - copy mount options data for processing
- * @type: file system type
  * @orig: where to start
- * @smackopts
+ * @smackopts: mount options string
  *
  * Returns 0 on success or -ENOMEM on error.
  *
@@ -331,7 +331,7 @@ static int smack_sb_statfs(struct dentry *dentry)
 /**
  * smack_sb_mount - Smack check for mounting
  * @dev_name: unused
- * @nd: mount point
+ * @path: mount point
  * @type: unused
  * @flags: unused
  * @data: unused
@@ -370,7 +370,7 @@ static int smack_sb_umount(struct vfsmount *mnt, int flags)
 
 /**
  * smack_inode_alloc_security - allocate an inode blob
- * @inode - the inode in need of a blob
+ * @inode: the inode in need of a blob
  *
  * Returns 0 if it gets a blob, -ENOMEM otherwise
  */
@@ -384,7 +384,7 @@ static int smack_inode_alloc_security(struct inode *inode)
 
 /**
  * smack_inode_free_security - free an inode blob
- * @inode - the inode with a blob
+ * @inode: the inode with a blob
  *
  * Clears the blob pointer in inode
  */
@@ -538,7 +538,6 @@ static int smack_inode_rename(struct inode *old_inode,
  * smack_inode_permission - Smack version of permission()
  * @inode: the inode in question
  * @mask: the access requested
- * @nd: unused
  *
  * This is the important Smack hook.
  *
@@ -701,8 +700,7 @@ static int smack_inode_removexattr(struct dentry *dentry, const char *name)
  * @inode: the object
  * @name: attribute name
  * @buffer: where to put the result
- * @size: size of the buffer
- * @err: unused
+ * @alloc: unused
  *
  * Returns the size of the attribute or an error code
  */
@@ -864,7 +862,7 @@ static int smack_file_ioctl(struct file *file, unsigned int cmd,
 /**
  * smack_file_lock - Smack check on file locking
  * @file: the object
- * @cmd unused
+ * @cmd: unused
  *
  * Returns 0 if current has write access, error code otherwise
  */
@@ -1003,8 +1001,8 @@ static int smack_cred_prepare(struct cred *new, const struct cred *old,
 	return 0;
 }
 
-/*
- * commit new credentials
+/**
+ * smack_cred_commit - commit new credentials
  * @new: the new credentials
  * @old: the original credentials
  */
@@ -1014,8 +1012,8 @@ static void smack_cred_commit(struct cred *new, const struct cred *old)
 
 /**
  * smack_kernel_act_as - Set the subjective context in a set of credentials
- * @new points to the set of credentials to be modified.
- * @secid specifies the security ID to be set
+ * @new: points to the set of credentials to be modified.
+ * @secid: specifies the security ID to be set
  *
  * Set the security data for a kernel service.
  */
@@ -1032,8 +1030,8 @@ static int smack_kernel_act_as(struct cred *new, u32 secid)
 
 /**
  * smack_kernel_create_files_as - Set the file creation label in a set of creds
- * @new points to the set of credentials to be modified
- * @inode points to the inode to use as a reference
+ * @new: points to the set of credentials to be modified
+ * @inode: points to the inode to use as a reference
  *
  * Set the file creation context in a set of credentials to the same
  * as the objective context of the specified inode
@@ -1242,7 +1240,7 @@ static int smack_task_wait(struct task_struct *p)
 /**
  * smack_task_to_inode - copy task smack into the inode blob
  * @p: task to copy from
- * inode: inode to copy to
+ * @inode: inode to copy to
  *
  * Sets the smack pointer in the inode security blob
  */
@@ -1260,7 +1258,7 @@ static void smack_task_to_inode(struct task_struct *p, struct inode *inode)
  * smack_sk_alloc_security - Allocate a socket blob
  * @sk: the socket
  * @family: unused
- * @priority: memory allocation priority
+ * @gfp_flags: memory allocation flags
  *
  * Assign Smack pointers to current
  *
@@ -2001,7 +1999,7 @@ static int smack_ipc_permission(struct kern_ipc_perm *ipp, short flag)
 
 /**
  * smack_ipc_getsecid - Extract smack security id
- * @ipcp: the object permissions
+ * @ipp: the object permissions
  * @secid: where result will be saved
  */
 static void smack_ipc_getsecid(struct kern_ipc_perm *ipp, u32 *secid)
@@ -2278,7 +2276,7 @@ static int smack_unix_may_send(struct socket *sock, struct socket *other)
 /**
  * smack_socket_sendmsg - Smack check based on destination host
  * @sock: the socket
- * @msghdr: the message
+ * @msg: the message
  * @size: the size of the message
  *
  * Return 0 if the current subject can write to the destination
@@ -2319,8 +2317,7 @@ static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 
 
 /**
- * smack_from_secattr - Convert a netlabel attr.mls.lvl/attr.mls.cat
- * 	pair to smack
+ * smack_from_secattr - Convert a netlabel attr.mls.lvl/attr.mls.cat pair to smack
  * @sap: netlabel secattr
  * @sip: where to put the result
  *
@@ -2441,7 +2438,7 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
  * @sock: the socket
  * @optval: user's destination
  * @optlen: size thereof
- * @len: max thereoe
+ * @len: max thereof
  *
  * returns zero on success, an error code otherwise
  */
@@ -2776,7 +2773,7 @@ static void smack_audit_rule_free(void *vrule)
 
 #endif /* CONFIG_AUDIT */
 
-/*
+/**
  * smack_secid_to_secctx - return the smack label for a secid
  * @secid: incoming integer
  * @secdata: destination
@@ -2793,7 +2790,7 @@ static int smack_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	return 0;
 }
 
-/*
+/**
  * smack_secctx_to_secid - return the secid for a smack label
  * @secdata: smack label
  * @seclen: how long result is
@@ -2807,11 +2804,10 @@ static int smack_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 	return 0;
 }
 
-/*
+/**
  * smack_release_secctx - don't do anything.
- * @key_ref: unused
- * @context: unused
- * @perm: unused
+ * @secdata: unused
+ * @seclen: unused
  *
  * Exists to make sure nothing gets done, and properly
  */
