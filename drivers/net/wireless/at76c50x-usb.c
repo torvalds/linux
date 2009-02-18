@@ -109,7 +109,7 @@
 		}							 \
 	} while (0)
 
-static int at76_debug = DBG_DEFAULTS;
+static uint at76_debug = DBG_DEFAULTS;
 
 /* Protect against concurrent firmware loading and parsing */
 static struct mutex fw_mutex;
@@ -2459,7 +2459,7 @@ static void __exit at76_mod_exit(void)
 	led_trigger_unregister_simple(ledtrig_tx);
 }
 
-module_param_named(debug, at76_debug, int, 0600);
+module_param_named(debug, at76_debug, uint, 0600);
 MODULE_PARM_DESC(debug, "Debugging level");
 
 module_init(at76_mod_init);
