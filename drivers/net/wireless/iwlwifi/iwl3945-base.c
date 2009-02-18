@@ -726,38 +726,6 @@ static void iwl3945_setup_rxon_timing(struct iwl_priv *priv)
 		le16_to_cpu(priv->rxon_timing.atim_window));
 }
 
-static int iwl3945_scan_initiate(struct iwl_priv *priv)
-{
-	if (!iwl_is_ready_rf(priv)) {
-		IWL_DEBUG_SCAN(priv, "Aborting scan due to not ready.\n");
-		return -EIO;
-	}
-
-	if (test_bit(STATUS_SCANNING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
-		return -EAGAIN;
-	}
-
-	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan request while abort pending.  "
-			       "Queuing.\n");
-		return -EAGAIN;
-	}
-
-	IWL_DEBUG_INFO(priv, "Starting scan...\n");
-	if (priv->cfg->sku & IWL_SKU_G)
-		priv->scan_bands |= BIT(IEEE80211_BAND_2GHZ);
-	if (priv->cfg->sku & IWL_SKU_A)
-		priv->scan_bands |= BIT(IEEE80211_BAND_5GHZ);
-	set_bit(STATUS_SCANNING, &priv->status);
-	priv->scan_start = jiffies;
-	priv->scan_pass_start = priv->scan_start;
-
-	queue_work(priv->workqueue, &priv->request_scan);
-
-	return 0;
-}
-
 static int iwl3945_set_mode(struct iwl_priv *priv, int mode)
 {
 	if (mode == NL80211_IFTYPE_ADHOC) {
@@ -4316,66 +4284,6 @@ static void iwl3945_bss_info_changed(struct ieee80211_hw *hw,
 
 }
 
-static int iwl3945_mac_hw_scan(struct ieee80211_hw *hw,
-			       struct cfg80211_scan_request *req)
-{
-	int rc = 0;
-	unsigned long flags;
-	struct iwl_priv *priv = hw->priv;
-	size_t len = 0;
-	u8 *ssid = NULL;
-	DECLARE_SSID_BUF(ssid_buf);
-
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	if (req->n_ssids) {
-		ssid = req->ssids[0].ssid;
-		len = req->ssids[0].ssid_len;
-	}
-
-	mutex_lock(&priv->mutex);
-	spin_lock_irqsave(&priv->lock, flags);
-
-	if (!iwl_is_ready_rf(priv)) {
-		rc = -EIO;
-		IWL_DEBUG_MAC80211(priv, "leave - not ready or exit pending\n");
-		goto out_unlock;
-	}
-
-	/* we don't schedule scan within next_scan_jiffies period */
-	if (priv->next_scan_jiffies &&
-			time_after(priv->next_scan_jiffies, jiffies)) {
-		rc = -EAGAIN;
-		goto out_unlock;
-	}
-	/* if we just finished scan ask for delay for a broadcast scan */
-	if ((len == 0) && priv->last_scan_jiffies &&
-	    time_after(priv->last_scan_jiffies + IWL_DELAY_NEXT_SCAN,
-		       jiffies)) {
-		rc = -EAGAIN;
-		goto out_unlock;
-	}
-	if (len) {
-		IWL_DEBUG_SCAN(priv, "direct scan for %s [%zd]\n ",
-			       print_ssid(ssid_buf, ssid, len), len);
-
-		priv->one_direct_scan = 1;
-		priv->direct_ssid_len = len;
-		memcpy(priv->direct_ssid, ssid, len);
-	} else
-		priv->one_direct_scan = 0;
-
-	rc = iwl3945_scan_initiate(priv);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
-
-out_unlock:
-	spin_unlock_irqrestore(&priv->lock, flags);
-	mutex_unlock(&priv->mutex);
-
-	return rc;
-}
-
 static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_sta *sta,
@@ -5149,7 +5057,7 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.conf_tx = iwl3945_mac_conf_tx,
 	.reset_tsf = iwl3945_mac_reset_tsf,
 	.bss_info_changed = iwl3945_bss_info_changed,
-	.hw_scan = iwl3945_mac_hw_scan
+	.hw_scan = iwl_mac_hw_scan
 };
 
 static int iwl3945_init_drv(struct iwl_priv *priv)
