@@ -131,6 +131,42 @@ struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
 
 /******************************************************************************
  *
+ * FUNCTION:    acpi_hw_write_pm1_control
+ *
+ * PARAMETERS:  pm1a_control        - Value to be written to PM1A control
+ *              pm1b_control        - Value to be written to PM1B control
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Write the PM1 A/B control registers. These registers are
+ *              different than than the PM1 A/B status and enable registers
+ *              in that different values can be written to the A/B registers.
+ *              Most notably, the SLP_TYP bits can be different, as per the
+ *              values returned from the _Sx predefined methods.
+ *
+ ******************************************************************************/
+
+acpi_status acpi_hw_write_pm1_control(u32 pm1a_control, u32 pm1b_control)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(hw_write_pm1_control);
+
+	status = acpi_write(pm1a_control, &acpi_gbl_FADT.xpm1a_control_block);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	if (acpi_gbl_FADT.xpm1b_control_block.address) {
+		status =
+		    acpi_write(pm1b_control,
+			       &acpi_gbl_FADT.xpm1b_control_block);
+	}
+	return_ACPI_STATUS(status);
+}
+
+/******************************************************************************
+ *
  * FUNCTION:    acpi_hw_register_read
  *
  * PARAMETERS:  register_id         - ACPI Register ID
@@ -293,16 +329,6 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 						xpm1a_control_block,
 						&acpi_gbl_FADT.
 						xpm1b_control_block);
-		break;
-
-	case ACPI_REGISTER_PM1A_CONTROL:	/* 16-bit access */
-
-		status = acpi_write(value, &acpi_gbl_FADT.xpm1a_control_block);
-		break;
-
-	case ACPI_REGISTER_PM1B_CONTROL:	/* 16-bit access */
-
-		status = acpi_write(value, &acpi_gbl_FADT.xpm1b_control_block);
 		break;
 
 	case ACPI_REGISTER_PM2_CONTROL:	/* 8-bit access */

@@ -64,8 +64,9 @@ u32 acpi_hw_get_mode(void);
  */
 struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id);
 
-acpi_status
-acpi_hw_register_read(u32 register_id, u32 * return_value);
+acpi_status acpi_hw_write_pm1_control(u32 pm1a_control, u32 pm1b_control);
+
+acpi_status acpi_hw_register_read(u32 register_id, u32 *return_value);
 
 acpi_status acpi_hw_register_write(u32 register_id, u32 value);
 

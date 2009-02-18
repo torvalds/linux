@@ -781,12 +781,10 @@ struct acpi_bit_register_info {
 #define ACPI_REGISTER_PM1_STATUS                0x01
 #define ACPI_REGISTER_PM1_ENABLE                0x02
 #define ACPI_REGISTER_PM1_CONTROL               0x03
-#define ACPI_REGISTER_PM1A_CONTROL              0x04
-#define ACPI_REGISTER_PM1B_CONTROL              0x05
-#define ACPI_REGISTER_PM2_CONTROL               0x06
-#define ACPI_REGISTER_PM_TIMER                  0x07
-#define ACPI_REGISTER_PROCESSOR_BLOCK           0x08
-#define ACPI_REGISTER_SMI_COMMAND_BLOCK         0x09
+#define ACPI_REGISTER_PM2_CONTROL               0x04
+#define ACPI_REGISTER_PM_TIMER                  0x05
+#define ACPI_REGISTER_PROCESSOR_BLOCK           0x06
+#define ACPI_REGISTER_SMI_COMMAND_BLOCK         0x07
 
 /* Masks used to access the bit_registers */
 
