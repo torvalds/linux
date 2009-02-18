@@ -242,24 +242,35 @@ ACPI_EXPORT_SYMBOL(acpi_write)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_get_register_unlocked
+ * FUNCTION:    acpi_get_register
  *
- * PARAMETERS:  register_id     - ID of ACPI bit_register to access
- *              return_value    - Value that was read from the register
+ * PARAMETERS:  register_id     - ID of ACPI Bit Register to access
+ *              return_value    - Value that was read from the register,
+ *                                normalized to bit position zero.
  *
- * RETURN:      Status and the value read from specified Register. Value
+ * RETURN:      Status and the value read from the specified Register. Value
  *              returned is normalized to bit0 (is shifted all the way right)
  *
  * DESCRIPTION: ACPI bit_register read function. Does not acquire the HW lock.
  *
+ * SUPPORTS:    Bit fields in PM1 Status, PM1 Enable, PM1 Control, and
+ *              PM2 Control.
+ *
+ * Note: The hardware lock is not required when reading the ACPI bit registers
+ *       since almost all of them are single bit and it does not matter that
+ *       the parent hardware register can be split across two physical
+ *       registers. The only multi-bit field is SLP_TYP in the PM1 control
+ *       register, but this field does not cross an 8-bit boundary (nor does
+ *       it make much sense to actually read this field.)
+ *
  ******************************************************************************/
-acpi_status acpi_get_register_unlocked(u32 register_id, u32 *return_value)
+acpi_status acpi_get_register(u32 register_id, u32 *return_value)
 {
 	u32 register_value = 0;
 	struct acpi_bit_register_info *bit_reg_info;
 	acpi_status status;
 
-	ACPI_FUNCTION_TRACE(acpi_get_register_unlocked);
+	ACPI_FUNCTION_TRACE(acpi_get_register);
 
 	/* Get the info structure corresponding to the requested ACPI Register */
 
@@ -268,7 +279,7 @@ acpi_status acpi_get_register_unlocked(u32 register_id, u32 *return_value)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/* Read from the register */
+	/* Read the entire parent register */
 
 	status = acpi_hw_register_read(bit_reg_info->parent_register,
 				       &register_value);
@@ -291,46 +302,24 @@ acpi_status acpi_get_register_unlocked(u32 register_id, u32 *return_value)
 	return_ACPI_STATUS(status);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_get_register_unlocked)
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_get_register
- *
- * PARAMETERS:  register_id     - ID of ACPI bit_register to access
- *              return_value    - Value that was read from the register
- *
- * RETURN:      Status and the value read from specified Register. Value
- *              returned is normalized to bit0 (is shifted all the way right)
- *
- * DESCRIPTION: ACPI bit_register read function.
- *
- ******************************************************************************/
-acpi_status acpi_get_register(u32 register_id, u32 *return_value)
-{
-	acpi_status status;
-	acpi_cpu_flags flags;
-
-	flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
-	status = acpi_get_register_unlocked(register_id, return_value);
-	acpi_os_release_lock(acpi_gbl_hardware_lock, flags);
-
-	return (status);
-}
-
 ACPI_EXPORT_SYMBOL(acpi_get_register)
 
 /*******************************************************************************
  *
  * FUNCTION:    acpi_set_register
  *
- * PARAMETERS:  register_id     - ID of ACPI bit_register to access
- *              Value           - (only used on write) value to write to the
- *                                Register, NOT pre-normalized to the bit pos
+ * PARAMETERS:  register_id     - ID of ACPI Bit Register to access
+ *              Value           - Value to write to the register, in bit
+ *                                position zero. The bit is automaticallly
+ *                                shifted to the correct position.
  *
  * RETURN:      Status
  *
- * DESCRIPTION: ACPI Bit Register write function.
+ * DESCRIPTION: ACPI Bit Register write function. Acquires the hardware lock
+ *              since most operations require a read/modify/write sequence.
+ *
+ * SUPPORTS:    Bit fields in PM1 Status, PM1 Enable, PM1 Control, and
+ *              PM2 Control.
  *
  ******************************************************************************/
 acpi_status acpi_set_register(u32 register_id, u32 value)

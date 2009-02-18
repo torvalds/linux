@@ -800,7 +800,7 @@ static int acpi_idle_bm_check(void)
 {
 	u32 bm_status = 0;
 
-	acpi_get_register_unlocked(ACPI_BITREG_BUS_MASTER_STATUS, &bm_status);
+	acpi_get_register(ACPI_BITREG_BUS_MASTER_STATUS, &bm_status);
 	if (bm_status)
 		acpi_set_register(ACPI_BITREG_BUS_MASTER_STATUS, 1);
 	/*

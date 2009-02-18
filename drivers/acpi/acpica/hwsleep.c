@@ -365,7 +365,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 	/* Wait until we enter sleep state */
 
 	do {
-		status = acpi_get_register_unlocked(ACPI_BITREG_WAKE_STATUS,
+		status = acpi_get_register(ACPI_BITREG_WAKE_STATUS,
 						    &in_value);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
