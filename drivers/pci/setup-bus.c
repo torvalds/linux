@@ -27,7 +27,7 @@
 #include <linux/slab.h>
 
 
-static void pbus_assign_resources_sorted(struct pci_bus *bus)
+static void pbus_assign_resources_sorted(const struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	struct resource *res;
@@ -495,7 +495,7 @@ void __ref pci_bus_size_bridges(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_size_bridges);
 
-void __ref pci_bus_assign_resources(struct pci_bus *bus)
+void __ref pci_bus_assign_resources(const struct pci_bus *bus)
 {
 	struct pci_bus *b;
 	struct pci_dev *dev;
