@@ -1373,6 +1373,47 @@ static int saa711x_g_vbi_data(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_dat
 	}
 }
 
+static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
+{
+	struct saa711x_state *state = to_state(sd);
+	int reg1e;
+
+	*std = V4L2_STD_ALL;
+	if (state->ident != V4L2_IDENT_SAA7115)
+		return 0;
+	reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
+
+	switch (reg1e & 0x03) {
+	case 1:
+		*std = V4L2_STD_NTSC;
+		break;
+	case 2:
+		*std = V4L2_STD_PAL;
+		break;
+	case 3:
+		*std = V4L2_STD_SECAM;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int saa711x_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	struct saa711x_state *state = to_state(sd);
+	int reg1e = 0x80;
+	int reg1f;
+
+	*status = V4L2_IN_ST_NO_SIGNAL;
+	if (state->ident == V4L2_IDENT_SAA7115)
+		reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
+	reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
+	if ((reg1f & 0xc1) == 0x81 && (reg1e & 0xc0) == 0x80)
+		*status = 0;
+	return 0;
+}
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int saa711x_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
@@ -1496,6 +1537,8 @@ static const struct v4l2_subdev_video_ops saa711x_video_ops = {
 	.g_vbi_data = saa711x_g_vbi_data,
 	.decode_vbi_line = saa711x_decode_vbi_line,
 	.s_stream = saa711x_s_stream,
+	.querystd = saa711x_querystd,
+	.g_input_status = saa711x_g_input_status,
 };
 
 static const struct v4l2_subdev_ops saa711x_ops = {
