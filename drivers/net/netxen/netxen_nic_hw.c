@@ -1579,8 +1579,9 @@ netxen_nic_pci_mem_write_128M(struct netxen_adapter *adapter,
 		}
 
 		if (j >= MAX_CTL_CHECK) {
-			printk("%s: %s Fail to write through agent\n",
-					__func__, netxen_nic_driver_name);
+			if (printk_ratelimit())
+				dev_err(&adapter->pdev->dev,
+					"failed to write through agent\n");
 			ret = -1;
 			break;
 		}
@@ -1637,8 +1638,9 @@ netxen_nic_pci_mem_read_128M(struct netxen_adapter *adapter,
 		}
 
 		if (j >= MAX_CTL_CHECK) {
-			printk(KERN_ERR "%s: %s Fail to read through agent\n",
-					__func__, netxen_nic_driver_name);
+			if (printk_ratelimit())
+				dev_err(&adapter->pdev->dev,
+					"failed to read through agent\n");
 			break;
 		}
 
@@ -1773,8 +1775,9 @@ netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
 		}
 
 		if (j >= MAX_CTL_CHECK) {
-			printk(KERN_ERR "%s: Fail to write through agent\n",
-					netxen_nic_driver_name);
+			if (printk_ratelimit())
+				dev_err(&adapter->pdev->dev,
+					"failed to write through agent\n");
 			ret = -1;
 			break;
 		}
@@ -1843,8 +1846,9 @@ netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
 		}
 
 		if (j >= MAX_CTL_CHECK) {
-			printk(KERN_ERR "%s: Fail to read through agent\n",
-					netxen_nic_driver_name);
+			if (printk_ratelimit())
+				dev_err(&adapter->pdev->dev,
+					"failed to read through agent\n");
 			break;
 		}
 
