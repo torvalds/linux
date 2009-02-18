@@ -835,7 +835,8 @@ zoran_unregister_i2c (struct zoran *zr)
 
 int
 zoran_check_jpg_settings (struct zoran              *zr,
-			  struct zoran_jpg_settings *settings)
+			  struct zoran_jpg_settings *settings,
+			  int try)
 {
 	int err = 0, err0 = 0;
 
@@ -900,35 +901,61 @@ zoran_check_jpg_settings (struct zoran              *zr,
 		/* We have to check the data the user has set */
 
 		if (settings->HorDcm != 1 && settings->HorDcm != 2 &&
-		    (zr->card.type == DC10_new || settings->HorDcm != 4))
+		    (zr->card.type == DC10_new || settings->HorDcm != 4)) {
+			settings->HorDcm = clamp(settings->HorDcm, 1, 2);
 			err0++;
-		if (settings->VerDcm != 1 && settings->VerDcm != 2)
+		}
+		if (settings->VerDcm != 1 && settings->VerDcm != 2) {
+			settings->VerDcm = clamp(settings->VerDcm, 1, 2);
 			err0++;
-		if (settings->TmpDcm != 1 && settings->TmpDcm != 2)
+		}
+		if (settings->TmpDcm != 1 && settings->TmpDcm != 2) {
+			settings->TmpDcm = clamp(settings->TmpDcm, 1, 2);
 			err0++;
+		}
 		if (settings->field_per_buff != 1 &&
-		    settings->field_per_buff != 2)
+		    settings->field_per_buff != 2) {
+			settings->field_per_buff = clamp(settings->field_per_buff, 1, 2);
 			err0++;
-		if (settings->img_x < 0)
+		}
+		if (settings->img_x < 0) {
+			settings->img_x = 0;
 			err0++;
-		if (settings->img_y < 0)
+		}
+		if (settings->img_y < 0) {
+			settings->img_y = 0;
 			err0++;
-		if (settings->img_width < 0)
+		}
+		if (settings->img_width < 0 || settings->img_width > BUZ_MAX_WIDTH) {
+			settings->img_width = clamp(settings->img_width, 0, (int)BUZ_MAX_WIDTH);
 			err0++;
-		if (settings->img_height < 0)
+		}
+		if (settings->img_height < 0 || settings->img_height > BUZ_MAX_HEIGHT / 2) {
+			settings->img_height = clamp(settings->img_height, 0, BUZ_MAX_HEIGHT / 2);
 			err0++;
-		if (settings->img_x + settings->img_width > BUZ_MAX_WIDTH)
+		}
+		if (settings->img_x + settings->img_width > BUZ_MAX_WIDTH) {
+			settings->img_x = BUZ_MAX_WIDTH - settings->img_width;
 			err0++;
-		if (settings->img_y + settings->img_height > BUZ_MAX_HEIGHT / 2)
+		}
+		if (settings->img_y + settings->img_height > BUZ_MAX_HEIGHT / 2) {
+			settings->img_y = BUZ_MAX_HEIGHT / 2 - settings->img_height;
 			err0++;
-		if (settings->HorDcm && settings->VerDcm) {
-			if (settings->img_width % (16 * settings->HorDcm) != 0)
-				err0++;
-			if (settings->img_height % (8 * settings->VerDcm) != 0)
-				err0++;
+		}
+		if (settings->img_width % (16 * settings->HorDcm) != 0) {
+			settings->img_width -= settings->img_width % (16 * settings->HorDcm);
+			if (settings->img_width == 0)
+				settings->img_width = 16 * settings->HorDcm;
+			err0++;
+		}
+		if (settings->img_height % (8 * settings->VerDcm) != 0) {
+			settings->img_height -= settings->img_height % (8 * settings->VerDcm);
+			if (settings->img_height == 0)
+				settings->img_height = 8 * settings->VerDcm;
+			err0++;
 		}
 
-		if (err0) {
+		if (!try && err0) {
 			dprintk(1,
 				KERN_ERR
 				"%s: check_jpg_settings() - error in params for decimation = 0\n",
@@ -1018,7 +1045,7 @@ zoran_open_init_params (struct zoran *zr)
 	       sizeof(zr->jpg_settings.jpg_comp.COM_data));
 	zr->jpg_settings.jpg_comp.jpeg_markers =
 	    JPEG_MARKER_DHT | JPEG_MARKER_DQT;
-	i = zoran_check_jpg_settings(zr, &zr->jpg_settings);
+	i = zoran_check_jpg_settings(zr, &zr->jpg_settings, 0);
 	if (i)
 		dprintk(1,
 			KERN_ERR

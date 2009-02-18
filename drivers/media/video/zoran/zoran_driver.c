@@ -1797,7 +1797,7 @@ static long zoran_default(struct file *file, void *__fh, int cmd, void *arg)
 
 		/* Check the params first before overwriting our
 		 * nternal values */
-		if (zoran_check_jpg_settings(zr, &settings)) {
+		if (zoran_check_jpg_settings(zr, &settings, 0)) {
 			res = -EINVAL;
 			goto sparams_unlock_and_return;
 		}
@@ -2205,7 +2205,7 @@ static int zoran_try_fmt_vid_out(struct file *file, void *__fh,
 		settings.field_per_buff = 1;
 
 	/* check */
-	res = zoran_check_jpg_settings(zr, &settings);
+	res = zoran_check_jpg_settings(zr, &settings, 1);
 	if (res)
 		goto tryfmt_unlock_and_return;
 
@@ -2231,6 +2231,7 @@ static int zoran_try_fmt_vid_cap(struct file *file, void *__fh,
 {
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
+	int bpp;
 	int i;
 
 	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_MJPEG)
@@ -2247,6 +2248,8 @@ static int zoran_try_fmt_vid_cap(struct file *file, void *__fh,
 		return -EINVAL;
 	}
 
+	bpp = (zoran_formats[i].depth + 7) / 8;
+	fmt->fmt.pix.width &= ~((bpp == 2) ? 1 : 3);
 	if (fmt->fmt.pix.width > BUZ_MAX_WIDTH)
 		fmt->fmt.pix.width = BUZ_MAX_WIDTH;
 	if (fmt->fmt.pix.width < BUZ_MIN_WIDTH)
@@ -2334,8 +2337,16 @@ static int zoran_s_fmt_vid_out(struct file *file, void *__fh,
 	else
 		settings.field_per_buff = 1;
 
+	if (settings.HorDcm > 1) {
+		settings.img_x = (BUZ_MAX_WIDTH == 720) ? 8 : 0;
+		settings.img_width = (BUZ_MAX_WIDTH == 720) ? 704 : BUZ_MAX_WIDTH;
+	} else {
+		settings.img_x = 0;
+		settings.img_width = BUZ_MAX_WIDTH;
+	}
+
 	/* check */
-	res = zoran_check_jpg_settings(zr, &settings);
+	res = zoran_check_jpg_settings(zr, &settings, 0);
 	if (res)
 		goto sfmtjpg_unlock_and_return;
 
@@ -3216,7 +3227,7 @@ static int zoran_s_crop(struct file *file, void *__fh, struct v4l2_crop *crop)
 	settings.img_height = crop->c.height;
 
 	/* check validity */
-	res = zoran_check_jpg_settings(zr, &settings);
+	res = zoran_check_jpg_settings(zr, &settings, 0);
 	if (res)
 		goto scrop_unlock_and_return;
 
@@ -3278,7 +3289,7 @@ static int zoran_s_jpegcomp(struct file *file, void *__fh,
 		goto sjpegc_unlock_and_return;
 	}
 
-	res = zoran_check_jpg_settings(zr, &settings);
+	res = zoran_check_jpg_settings(zr, &settings, 0);
 	if (res)
 		goto sjpegc_unlock_and_return;
 	if (!fh->jpg_buffers.allocated)
