@@ -370,7 +370,6 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 		found->pub.beacon_interval = res->pub.beacon_interval;
 		found->pub.tsf = res->pub.tsf;
 		found->pub.signal = res->pub.signal;
-		found->pub.signal_type = res->pub.signal_type;
 		found->pub.capability = res->pub.capability;
 		found->ts = res->ts;
 		kref_put(&res->ref, bss_release);
@@ -392,8 +391,7 @@ struct cfg80211_bss *
 cfg80211_inform_bss_frame(struct wiphy *wiphy,
 			  struct ieee80211_channel *channel,
 			  struct ieee80211_mgmt *mgmt, size_t len,
-			  s32 signal, enum cfg80211_signal_type sigtype,
-			  gfp_t gfp)
+			  s32 signal, gfp_t gfp)
 {
 	struct cfg80211_internal_bss *res;
 	size_t ielen = len - offsetof(struct ieee80211_mgmt,
@@ -401,7 +399,7 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 	bool overwrite;
 	size_t privsz = wiphy->bss_priv_size;
 
-	if (WARN_ON(sigtype == NL80211_BSS_SIGNAL_UNSPEC &&
+	if (WARN_ON(wiphy->signal_type == NL80211_BSS_SIGNAL_UNSPEC &&
 	            (signal < 0 || signal > 100)))
 		return NULL;
 
@@ -415,7 +413,6 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 
 	memcpy(res->pub.bssid, mgmt->bssid, ETH_ALEN);
 	res->pub.channel = channel;
-	res->pub.signal_type = sigtype;
 	res->pub.signal = signal;
 	res->pub.tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
 	res->pub.beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
@@ -607,9 +604,9 @@ static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 }
 
 static char *
-ieee80211_bss(struct iw_request_info *info,
-		      struct cfg80211_internal_bss *bss,
-		      char *current_ev, char *end_buf)
+ieee80211_bss(struct wiphy *wiphy, struct iw_request_info *info,
+	      struct cfg80211_internal_bss *bss, char *current_ev,
+	      char *end_buf)
 {
 	struct iw_event iwe;
 	u8 *buf, *cfg, *p;
@@ -638,13 +635,13 @@ ieee80211_bss(struct iw_request_info *info,
 	current_ev = iwe_stream_add_event(info, current_ev, end_buf, &iwe,
 					  IW_EV_FREQ_LEN);
 
-	if (bss->pub.signal_type != CFG80211_SIGNAL_TYPE_NONE) {
+	if (wiphy->signal_type != CFG80211_SIGNAL_TYPE_NONE) {
 		memset(&iwe, 0, sizeof(iwe));
 		iwe.cmd = IWEVQUAL;
 		iwe.u.qual.updated = IW_QUAL_LEVEL_UPDATED |
 				     IW_QUAL_NOISE_INVALID |
 				     IW_QUAL_QUAL_UPDATED;
-		switch (bss->pub.signal_type) {
+		switch (wiphy->signal_type) {
 		case CFG80211_SIGNAL_TYPE_MBM:
 			sig = bss->pub.signal / 100;
 			iwe.u.qual.level = sig;
@@ -823,8 +820,8 @@ static int ieee80211_scan_results(struct cfg80211_registered_device *dev,
 			spin_unlock_bh(&dev->bss_lock);
 			return -E2BIG;
 		}
-		current_ev = ieee80211_bss(info, bss,
-						   current_ev, end_buf);
+		current_ev = ieee80211_bss(&dev->wiphy, info, bss,
+					   current_ev, end_buf);
 	}
 	spin_unlock_bh(&dev->bss_lock);
 	return current_ev - buf;

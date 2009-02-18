@@ -861,6 +861,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	/* mac80211 always supports monitor */
 	local->hw.wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
 
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
+	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
+		local->hw.wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
+
 	result = wiphy_register(local->hw.wiphy);
 	if (result < 0)
 		goto fail_wiphy_register;

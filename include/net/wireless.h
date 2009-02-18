@@ -200,6 +200,7 @@ struct ieee80211_supported_band {
  * 	the regulatory_hint() API. This can be used by the driver
  *	on the reg_notifier() if it chooses to ignore future
  *	regulatory domain changes caused by other drivers.
+ * @signal_type: signal type reported in &struct cfg80211_bss.
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -212,6 +213,8 @@ struct wiphy {
 
 	bool custom_regulatory;
 	bool strict_regulatory;
+
+	enum cfg80211_signal_type signal_type;
 
 	int bss_priv_size;
 	u8 max_scan_ssids;

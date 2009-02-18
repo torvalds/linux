@@ -577,8 +577,7 @@ enum cfg80211_signal_type {
  * @information_elements: the information elements (Note that there
  *	is no guarantee that these are well-formed!)
  * @len_information_elements: total length of the information elements
- * @signal: signal strength value
- * @signal_type: signal type
+ * @signal: signal strength value (type depends on the wiphy's signal_type)
  * @free_priv: function pointer to free private data
  * @priv: private area for driver use, has at least wiphy->bss_priv_size bytes
  */
@@ -593,7 +592,6 @@ struct cfg80211_bss {
 	size_t len_information_elements;
 
 	s32 signal;
-	enum cfg80211_signal_type signal_type;
 
 	void (*free_priv)(struct cfg80211_bss *bss);
 	u8 priv[0] __attribute__((__aligned__(sizeof(void *))));
@@ -782,6 +780,7 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted);
  *
  * @wiphy: the wiphy reporting the BSS
  * @bss: the found BSS
+ * @signal: the signal strength, type depends on the wiphy's signal_type
  * @gfp: context flags
  *
  * This informs cfg80211 that BSS information was found and
@@ -791,8 +790,7 @@ struct cfg80211_bss*
 cfg80211_inform_bss_frame(struct wiphy *wiphy,
 			  struct ieee80211_channel *channel,
 			  struct ieee80211_mgmt *mgmt, size_t len,
-			  s32 signal, enum cfg80211_signal_type sigtype,
-			  gfp_t gfp);
+			  s32 signal, gfp_t gfp);
 
 struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
 				      struct ieee80211_channel *channel,

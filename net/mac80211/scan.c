@@ -63,20 +63,15 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 {
 	struct ieee80211_bss *bss;
 	int clen;
-	enum cfg80211_signal_type sigtype = CFG80211_SIGNAL_TYPE_NONE;
 	s32 signal = 0;
 
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
-		sigtype = CFG80211_SIGNAL_TYPE_MBM;
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		signal = rx_status->signal * 100;
-	} else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC) {
-		sigtype = CFG80211_SIGNAL_TYPE_UNSPEC;
+	else if (local->hw.flags & IEEE80211_HW_SIGNAL_UNSPEC)
 		signal = (rx_status->signal * 100) / local->hw.max_signal;
-	}
 
 	bss = (void *)cfg80211_inform_bss_frame(local->hw.wiphy, channel,
-						mgmt, len, signal, sigtype,
-						GFP_ATOMIC);
+						mgmt, len, signal, GFP_ATOMIC);
 
 	if (!bss)
 		return NULL;
