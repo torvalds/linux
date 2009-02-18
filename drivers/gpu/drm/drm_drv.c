@@ -46,8 +46,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <linux/debugfs.h>
 #include "drmP.h"
 #include "drm_core.h"
+
 
 static int drm_version(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
@@ -178,7 +180,7 @@ int drm_lastclose(struct drm_device * dev)
 
 	/* Clear AGP information */
 	if (drm_core_has_AGP(dev) && dev->agp &&
-	    !drm_core_check_feature(dev, DRIVER_MODESET)) {
+			!drm_core_check_feature(dev, DRIVER_MODESET)) {
 		struct drm_agp_mem *entry, *tempe;
 
 		/* Remove AGP resources, but leave dev->agp
@@ -335,6 +337,13 @@ static int __init drm_core_init(void)
 		goto err_p3;
 	}
 
+	drm_debugfs_root = debugfs_create_dir("dri", NULL);
+	if (!drm_debugfs_root) {
+		DRM_ERROR("Cannot create /debugfs/dri\n");
+		ret = -1;
+		goto err_p3;
+	}
+
 	drm_mem_init();
 
 	DRM_INFO("Initialized %s %d.%d.%d %s\n",
@@ -353,6 +362,7 @@ err_p1:
 static void __exit drm_core_exit(void)
 {
 	remove_proc_entry("dri", NULL);
+	debugfs_remove(drm_debugfs_root);
 	drm_sysfs_destroy();
 
 	unregister_chrdev(DRM_MAJOR, "drm");

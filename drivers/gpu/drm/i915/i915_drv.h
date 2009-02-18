@@ -604,8 +604,6 @@ int i915_gem_get_tiling(struct drm_device *dev, void *data,
 int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
-int i915_gem_proc_init(struct drm_minor *minor);
-void i915_gem_proc_cleanup(struct drm_minor *minor);
 int i915_gem_init_object(struct drm_gem_object *obj);
 void i915_gem_free_object(struct drm_gem_object *obj);
 int i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment);
@@ -648,6 +646,10 @@ void i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle);
 void i915_gem_dump_object(struct drm_gem_object *obj, int len,
 			  const char *where, uint32_t mark);
 void i915_dump_lru(struct drm_device *dev, const char *where);
+
+/* i915_debugfs.c */
+int i915_gem_debugfs_init(struct drm_minor *minor);
+void i915_gem_debugfs_cleanup(struct drm_minor *minor);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
