@@ -166,6 +166,15 @@ config BACKLIGHT_HP680
 	  If you have a HP Jornada 680, say y to enable the
 	  backlight driver.
 
+config BACKLIGHT_HP700
+	tristate "HP Jornada 700 series Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on SA1100_JORNADA720_SSP && !PREEMPT
+	default y
+	help
+	  If you have an HP Jornada 700 series,
+	  say Y to include backlight control driver.
+
 config BACKLIGHT_PROGEAR
 	tristate "Frontpath ProGear Backlight Driver"
 	depends on BACKLIGHT_CLASS_DEVICE && PCI && X86
