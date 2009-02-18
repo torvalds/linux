@@ -264,7 +264,7 @@ xfs_buf_free(
 		uint		i;
 
 		if ((bp->b_flags & XBF_MAPPED) && (bp->b_page_count > 1))
-                       vm_unmap_ram(bp->b_addr - bp->b_offset, bp->b_page_count);
+                       vunmap(bp->b_addr - bp->b_offset);
 
 		for (i = 0; i < bp->b_page_count; i++) {
 			struct page	*page = bp->b_pages[i];
@@ -386,8 +386,8 @@ _xfs_buf_map_pages(
 		bp->b_addr = page_address(bp->b_pages[0]) + bp->b_offset;
 		bp->b_flags |= XBF_MAPPED;
 	} else if (flags & XBF_MAPPED) {
-               bp->b_addr = vm_map_ram(bp->b_pages, bp->b_page_count,
-                                       -1, PAGE_KERNEL);
+		bp->b_addr = vmap(bp->b_pages, bp->b_page_count,
+					VM_MAP, PAGE_KERNEL);
 		if (unlikely(bp->b_addr == NULL))
 			return -ENOMEM;
 		bp->b_addr += bp->b_offset;
