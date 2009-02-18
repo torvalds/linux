@@ -57,6 +57,8 @@ static void acpi_tb_convert_fadt(void);
 
 static void acpi_tb_validate_fadt(void);
 
+static void acpi_tb_setup_fadt_registers(void);
+
 /* Table for conversion of FADT to common internal format and FADT validation */
 
 typedef struct acpi_fadt_info {
@@ -131,6 +133,35 @@ static struct acpi_fadt_info fadt_info_table[] = {
 };
 
 #define ACPI_FADT_INFO_ENTRIES        (sizeof (fadt_info_table) / sizeof (struct acpi_fadt_info))
+
+/* Table used to split Event Blocks into separate status/enable registers */
+
+typedef struct acpi_fadt_pm_info {
+	struct acpi_generic_address *target;
+	u8 source;
+	u8 register_num;
+
+} acpi_fadt_pm_info;
+
+static struct acpi_fadt_pm_info fadt_pm_info_table[] = {
+	{&acpi_gbl_xpm1a_status,
+	 ACPI_FADT_OFFSET(xpm1a_event_block),
+	 0},
+
+	{&acpi_gbl_xpm1a_enable,
+	 ACPI_FADT_OFFSET(xpm1a_event_block),
+	 1},
+
+	{&acpi_gbl_xpm1b_status,
+	 ACPI_FADT_OFFSET(xpm1b_event_block),
+	 0},
+
+	{&acpi_gbl_xpm1b_enable,
+	 ACPI_FADT_OFFSET(xpm1b_event_block),
+	 1}
+};
+
+#define ACPI_FADT_PM_INFO_ENTRIES   (sizeof (fadt_pm_info_table) / sizeof (struct acpi_fadt_pm_info))
 
 /*******************************************************************************
  *
@@ -207,7 +238,7 @@ void acpi_tb_parse_fadt(u32 table_index)
 	 */
 	(void)acpi_tb_verify_checksum(table, length);
 
-	/* Obtain a local copy of the FADT in common ACPI 2.0+ format */
+	/* Create a local copy of the FADT in common ACPI 2.0+ format */
 
 	acpi_tb_create_local_fadt(table, length);
 
@@ -265,11 +296,17 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 	ACPI_MEMCPY(&acpi_gbl_FADT, table,
 		    ACPI_MIN(length, sizeof(struct acpi_table_fadt)));
 
-	/*
-	 * 1) Convert the local copy of the FADT to the common internal format
-	 * 2) Validate some of the important values within the FADT
-	 */
+	/* Convert the local copy of the FADT to the common internal format */
+
 	acpi_tb_convert_fadt();
+
+	/* Validate FADT values now, before we make any changes */
+
+	acpi_tb_validate_fadt();
+
+	/* Initialize the global ACPI register structures */
+
+	acpi_tb_setup_fadt_registers();
 }
 
 /*******************************************************************************
@@ -303,8 +340,6 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 
 static void acpi_tb_convert_fadt(void)
 {
-	u8 pm1_register_bit_width;
-	u8 pm1_register_byte_width;
 	struct acpi_generic_address *target64;
 	u32 i;
 
@@ -378,112 +413,6 @@ static void acpi_tb_convert_fadt(void)
 									  [i].
 									  address32));
 		}
-	}
-
-	/* Validate FADT values now, before we make any changes */
-
-	acpi_tb_validate_fadt();
-
-	/*
-	 * Optionally check all register lengths against the default values and
-	 * update them if they are incorrect.
-	 */
-	if (acpi_gbl_use_default_register_widths) {
-		for (i = 0; i < ACPI_FADT_INFO_ENTRIES; i++) {
-			target64 =
-			    ACPI_ADD_PTR(struct acpi_generic_address,
-					 &acpi_gbl_FADT,
-					 fadt_info_table[i].address64);
-
-			/*
-			 * If a valid register (Address != 0) and the (default_length > 0)
-			 * (Not a GPE register), then check the width against the default.
-			 */
-			if ((target64->address) &&
-			    (fadt_info_table[i].default_length > 0) &&
-			    (fadt_info_table[i].default_length !=
-			     target64->bit_width)) {
-				ACPI_WARNING((AE_INFO,
-					      "Invalid length for %s: %d, using default %d",
-					      fadt_info_table[i].name,
-					      target64->bit_width,
-					      fadt_info_table[i].
-					      default_length));
-
-				/* Incorrect size, set width to the default */
-
-				target64->bit_width =
-				    fadt_info_table[i].default_length;
-			}
-		}
-	}
-
-	/*
-	 * Get the length of the individual PM1 registers (enable and status).
-	 * Each register is defined to be (event block length / 2).
-	 */
-	pm1_register_bit_width =
-	    (u8)ACPI_DIV_2(acpi_gbl_FADT.xpm1a_event_block.bit_width);
-	pm1_register_byte_width = (u8)ACPI_DIV_8(pm1_register_bit_width);
-
-	/*
-	 * Adjust the lengths of the PM1 Event Blocks so that they can be used to
-	 * access the PM1 status register(s). Use (width / 2)
-	 */
-	acpi_gbl_FADT.xpm1a_event_block.bit_width = pm1_register_bit_width;
-	acpi_gbl_FADT.xpm1b_event_block.bit_width = pm1_register_bit_width;
-
-	/*
-	 * Calculate separate GAS structs for the PM1 Enable registers.
-	 * These addresses do not appear (directly) in the FADT, so it is
-	 * useful to calculate them once, here.
-	 *
-	 * The PM event blocks are split into two register blocks, first is the
-	 * PM Status Register block, followed immediately by the PM Enable
-	 * Register block. Each is of length (xpm1x_event_block.bit_width/2).
-	 *
-	 * On various systems the v2 fields (and particularly the bit widths)
-	 * cannot be relied upon, though. Hence resort to using the v1 length
-	 * here (and warn about the inconsistency).
-	 */
-	if (acpi_gbl_FADT.xpm1a_event_block.bit_width
-	    != acpi_gbl_FADT.pm1_event_length * 8)
-		printk(KERN_WARNING "FADT: "
-		       "X_PM1a_EVT_BLK.bit_width (%u) does not match"
-		       " PM1_EVT_LEN (%u)\n",
-		       acpi_gbl_FADT.xpm1a_event_block.bit_width,
-		       acpi_gbl_FADT.pm1_event_length);
-
-	/* The PM1A register block is required */
-
-	acpi_tb_init_generic_address(&acpi_gbl_xpm1a_enable,
-				     acpi_gbl_FADT.xpm1a_event_block.space_id,
-				     pm1_register_byte_width,
-				     (acpi_gbl_FADT.xpm1a_event_block.address +
-				      pm1_register_byte_width));
-	/* Don't forget to copy space_id of the GAS */
-	acpi_gbl_xpm1a_enable.space_id =
-	    acpi_gbl_FADT.xpm1a_event_block.space_id;
-
-	/* The PM1B register block is optional, ignore if not present */
-
-	if (acpi_gbl_FADT.xpm1b_event_block.address) {
-		if (acpi_gbl_FADT.xpm1b_event_block.bit_width
-		    != acpi_gbl_FADT.pm1_event_length * 8)
-			printk(KERN_WARNING "FADT: "
-			       "X_PM1b_EVT_BLK.bit_width (%u) does not match"
-			       " PM1_EVT_LEN (%u)\n",
-			       acpi_gbl_FADT.xpm1b_event_block.bit_width,
-			       acpi_gbl_FADT.pm1_event_length);
-		acpi_tb_init_generic_address(&acpi_gbl_xpm1b_enable,
-					     acpi_gbl_FADT.xpm1b_event_block.space_id,
-					     pm1_register_byte_width,
-					     (acpi_gbl_FADT.xpm1b_event_block.
-					      address + pm1_register_byte_width));
-		/* Don't forget to copy space_id of the GAS */
-		acpi_gbl_xpm1b_enable.space_id =
-		    acpi_gbl_FADT.xpm1b_event_block.space_id;
-
 	}
 }
 
@@ -605,5 +534,96 @@ static void acpi_tb_validate_fadt(void)
 				    name, *address32,
 				    ACPI_FORMAT_UINT64(address64->address)));
 		}
+	}
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_setup_fadt_registers
+ *
+ * PARAMETERS:  None, uses acpi_gbl_FADT.
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Initialize global ACPI PM1 register definitions. Optionally,
+ *              force FADT register definitions to their default lengths.
+ *
+ ******************************************************************************/
+
+static void acpi_tb_setup_fadt_registers(void)
+{
+	struct acpi_generic_address *target64;
+	struct acpi_generic_address *source64;
+	u8 pm1_register_byte_width;
+	u32 i;
+
+	/*
+	 * Optionally check all register lengths against the default values and
+	 * update them if they are incorrect.
+	 */
+	if (acpi_gbl_use_default_register_widths) {
+		for (i = 0; i < ACPI_FADT_INFO_ENTRIES; i++) {
+			target64 =
+			    ACPI_ADD_PTR(struct acpi_generic_address,
+					 &acpi_gbl_FADT,
+					 fadt_info_table[i].address64);
+
+			/*
+			 * If a valid register (Address != 0) and the (default_length > 0)
+			 * (Not a GPE register), then check the width against the default.
+			 */
+			if ((target64->address) &&
+			    (fadt_info_table[i].default_length > 0) &&
+			    (fadt_info_table[i].default_length !=
+			     target64->bit_width)) {
+				ACPI_WARNING((AE_INFO,
+					      "Invalid length for %s: %d, using default %d",
+					      fadt_info_table[i].name,
+					      target64->bit_width,
+					      fadt_info_table[i].
+					      default_length));
+
+				/* Incorrect size, set width to the default */
+
+				target64->bit_width =
+				    fadt_info_table[i].default_length;
+			}
+		}
+	}
+
+	/*
+	 * Get the length of the individual PM1 registers (enable and status).
+	 * Each register is defined to be (event block length / 2). Extra divide
+	 * by 8 converts bits to bytes.
+	 */
+	pm1_register_byte_width =
+	    (u8)ACPI_DIV_16(acpi_gbl_FADT.xpm1a_event_block.bit_width);
+
+	/*
+	 * Calculate separate GAS structs for the PM1x (A/B) Status and Enable
+	 * registers. These addresses do not appear (directly) in the FADT, so it
+	 * is useful to pre-calculate them from the PM1 Event Block definitions.
+	 *
+	 * The PM event blocks are split into two register blocks, first is the
+	 * PM Status Register block, followed immediately by the PM Enable
+	 * Register block. Each is of length (pm1_event_length/2)
+	 *
+	 * Note: The PM1A event block is required by the ACPI specification.
+	 * However, the PM1B event block is optional and is rarely, if ever,
+	 * used.
+	 */
+
+	for (i = 0; i < ACPI_FADT_PM_INFO_ENTRIES; i++) {
+		source64 =
+		    ACPI_ADD_PTR(struct acpi_generic_address, &acpi_gbl_FADT,
+				 fadt_pm_info_table[i].source);
+
+		acpi_tb_init_generic_address(fadt_pm_info_table[i].target,
+					     source64->space_id,
+					     pm1_register_byte_width,
+					     source64->address +
+					     (fadt_pm_info_table[i].
+					      register_num *
+					      pm1_register_byte_width));
 	}
 }

@@ -72,9 +72,11 @@ acpi_status acpi_hw_clear_acpi_status(void)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_IO, "About to write %04X to %04X\n",
 			  ACPI_BITMASK_ALL_FIXED_STATUS,
-			  (u16) acpi_gbl_FADT.xpm1a_event_block.address));
+			  (u16) acpi_gbl_xpm1a_status.address));
 
 	lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
+
+	/* Clear the fixed events */
 
 	status = acpi_hw_register_write(ACPI_REGISTER_PM1_STATUS,
 					ACPI_BITMASK_ALL_FIXED_STATUS);
@@ -82,11 +84,11 @@ acpi_status acpi_hw_clear_acpi_status(void)
 		goto unlock_and_exit;
 	}
 
-	/* Clear the fixed events */
+	/* Write PM1B register if present */
 
-	if (acpi_gbl_FADT.xpm1b_event_block.address) {
+	if (acpi_gbl_xpm1b_status.address) {
 		status = acpi_write(ACPI_BITMASK_ALL_FIXED_STATUS,
-				    &acpi_gbl_FADT.xpm1b_event_block);
+				    &acpi_gbl_xpm1b_status);
 		if (ACPI_FAILURE(status)) {
 			goto unlock_and_exit;
 		}
@@ -150,14 +152,14 @@ acpi_hw_register_read(u32 register_id, u32 * return_value)
 	switch (register_id) {
 	case ACPI_REGISTER_PM1_STATUS:	/* 16-bit access */
 
-		status = acpi_read(&value1, &acpi_gbl_FADT.xpm1a_event_block);
+		status = acpi_read(&value1, &acpi_gbl_xpm1a_status);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
 		}
 
 		/* PM1B is optional */
 
-		status = acpi_read(&value2, &acpi_gbl_FADT.xpm1b_event_block);
+		status = acpi_read(&value2, &acpi_gbl_xpm1b_status);
 		value1 |= value2;
 		break;
 
@@ -267,14 +269,14 @@ acpi_status acpi_hw_register_write(u32 register_id, u32 value)
 
 		/* Now we can write the data */
 
-		status = acpi_write(value, &acpi_gbl_FADT.xpm1a_event_block);
+		status = acpi_write(value, &acpi_gbl_xpm1a_status);
 		if (ACPI_FAILURE(status)) {
 			goto exit;
 		}
 
 		/* PM1B is optional */
 
-		status = acpi_write(value, &acpi_gbl_FADT.xpm1b_event_block);
+		status = acpi_write(value, &acpi_gbl_xpm1b_status);
 		break;
 
 	case ACPI_REGISTER_PM1_ENABLE:	/* 16-bit access */
