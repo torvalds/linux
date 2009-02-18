@@ -1137,6 +1137,7 @@ zr36057_init (struct zoran *zr)
 	 *   Now add the template and register the device unit.
 	 */
 	memcpy(zr->video_dev, &zoran_template, sizeof(zoran_template));
+	zr->video_dev->parent = &zr->pci_dev->dev;
 	strcpy(zr->video_dev->name, ZR_DEVNAME(zr));
 	err = video_register_device(zr->video_dev, VFL_TYPE_GRABBER, video_nr[zr->id]);
 	if (err < 0)
