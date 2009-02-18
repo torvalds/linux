@@ -496,8 +496,9 @@ acpi_ut_copy_esimple_to_isimple(union acpi_object *external_object,
 	case ACPI_TYPE_STRING:
 
 		internal_object->string.pointer =
-		    ACPI_ALLOCATE_ZEROED((acpi_size) external_object->string.
-					 length + 1);
+		    ACPI_ALLOCATE_ZEROED((acpi_size)
+					 external_object->string.length + 1);
+
 		if (!internal_object->string.pointer) {
 			goto error_exit;
 		}

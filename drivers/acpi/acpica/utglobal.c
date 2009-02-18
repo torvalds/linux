@@ -746,7 +746,10 @@ acpi_status acpi_ut_init_globals(void)
 	for (i = 0; i < ACPI_NUM_OWNERID_MASKS; i++) {
 		acpi_gbl_owner_id_mask[i] = 0;
 	}
-	acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS - 1] = 0x80000000;	/* Last ID is never valid */
+
+	/* Last owner_iD is never valid */
+
+	acpi_gbl_owner_id_mask[ACPI_NUM_OWNERID_MASKS - 1] = 0x80000000;
 
 	/* GPE support */
 

@@ -273,8 +273,9 @@ acpi_status acpi_tb_resize_root_table_list(void)
 	/* Increase the Table Array size */
 
 	tables = ACPI_ALLOCATE_ZEROED(((acpi_size) acpi_gbl_root_table_list.
-				       size + ACPI_ROOT_TABLE_SIZE_INCREMENT)
-				      * sizeof(struct acpi_table_desc));
+				       size +
+				       ACPI_ROOT_TABLE_SIZE_INCREMENT) *
+				      sizeof(struct acpi_table_desc));
 	if (!tables) {
 		ACPI_ERROR((AE_INFO,
 			    "Could not allocate new root table array"));
@@ -561,8 +562,8 @@ u8 acpi_tb_is_table_loaded(u32 table_index)
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 	if (table_index < acpi_gbl_root_table_list.count) {
 		is_loaded = (u8)
-		    (acpi_gbl_root_table_list.tables[table_index].
-		     flags & ACPI_TABLE_IS_LOADED);
+		    (acpi_gbl_root_table_list.tables[table_index].flags &
+		     ACPI_TABLE_IS_LOADED);
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);

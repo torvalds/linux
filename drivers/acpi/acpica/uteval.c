@@ -124,9 +124,8 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 	/* Compare input string to static table of supported interfaces */
 
 	for (i = 0; i < ACPI_ARRAY_LENGTH(acpi_interfaces_supported); i++) {
-		if (!ACPI_STRCMP
-		    (string_desc->string.pointer,
-		     acpi_interfaces_supported[i])) {
+		if (!ACPI_STRCMP(string_desc->string.pointer,
+				 acpi_interfaces_supported[i])) {
 
 			/* The interface is supported */
 

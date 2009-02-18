@@ -413,7 +413,8 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
 	} else {
 		/*
 		 * 32-bit platform, XSDT: Truncate 64-bit to 32-bit and return
-		 * 64-bit platform, XSDT: Move (unaligned) 64-bit to local, return 64-bit
+		 * 64-bit platform, XSDT: Move (unaligned) 64-bit to local,
+		 *  return 64-bit
 		 */
 		ACPI_MOVE_64_TO_64(&address64, table_entry);
 
@@ -423,7 +424,8 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
 			/* Will truncate 64-bit address to 32 bits, issue warning */
 
 			ACPI_WARNING((AE_INFO,
-				      "64-bit Physical Address in XSDT is too large (%8.8X%8.8X), truncating",
+				      "64-bit Physical Address in XSDT is too large (%8.8X%8.8X),"
+				      " truncating",
 				      ACPI_FORMAT_UINT64(address64)));
 		}
 #endif
@@ -546,13 +548,12 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 
 	/* Calculate the number of tables described in the root table */
 
-	table_count =
-	    (u32) ((table->length -
-		    sizeof(struct acpi_table_header)) / table_entry_size);
-
+	table_count = (u32)((table->length - sizeof(struct acpi_table_header)) /
+			    table_entry_size);
 	/*
-	 * First two entries in the table array are reserved for the DSDT and FACS,
-	 * which are not actually present in the RSDT/XSDT - they come from the FADT
+	 * First two entries in the table array are reserved for the DSDT
+	 * and FACS, which are not actually present in the RSDT/XSDT - they
+	 * come from the FADT
 	 */
 	table_entry =
 	    ACPI_CAST_PTR(u8, table) + sizeof(struct acpi_table_header);
