@@ -589,7 +589,7 @@ print_graph_entry(struct ftrace_graph_ent_entry *field, struct trace_seq *s,
 
 	/* Proc */
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_PROC) {
-		ret = print_graph_proc(s, pid);
+		ret = print_graph_proc(s, ent->pid);
 		if (ret == TRACE_TYPE_PARTIAL_LINE)
 			return TRACE_TYPE_PARTIAL_LINE;
 
