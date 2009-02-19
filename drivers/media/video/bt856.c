@@ -37,7 +37,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("Brooktree-856A video encoder driver");
 MODULE_AUTHOR("Mike Bernson & Dave Perks");
@@ -47,9 +47,6 @@ static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
 
@@ -187,11 +184,6 @@ static int bt856_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_BT856, 0);
 }
 
-static int bt856_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops bt856_core_ops = {
@@ -270,8 +262,6 @@ MODULE_DEVICE_TABLE(i2c, bt856_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "bt856",
-	.driverid = I2C_DRIVERID_BT856,
-	.command = bt856_command,
 	.probe = bt856_probe,
 	.remove = bt856_remove,
 	.id_table = bt856_id,

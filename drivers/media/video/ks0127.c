@@ -42,24 +42,17 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include "ks0127.h"
 
 MODULE_DESCRIPTION("KS0127 video decoder driver");
 MODULE_AUTHOR("Ryan Drake");
 MODULE_LICENSE("GPL");
 
-/* Addresses to scan */
+/* Addresses */
 #define I2C_KS0127_ADDON   0xD8
 #define I2C_KS0127_ONBOARD 0xDA
 
-static unsigned short normal_i2c[] = {
-	I2C_KS0127_ADDON >> 1,
-	I2C_KS0127_ONBOARD >> 1,
-	I2C_CLIENT_END
-};
-
-I2C_CLIENT_INSMOD;
 
 /* ks0127 control registers */
 #define KS_STAT     0x00
@@ -650,11 +643,6 @@ static int ks0127_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_iden
 	return v4l2_chip_ident_i2c_client(client, chip, ks->ident, 0);
 }
 
-static int ks0127_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops ks0127_core_ops = {
@@ -717,11 +705,6 @@ static int ks0127_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int ks0127_legacy_probe(struct i2c_adapter *adapter)
-{
-	return adapter->id == I2C_HW_B_ZR36067;
-}
-
 static const struct i2c_device_id ks0127_id[] = {
 	{ "ks0127", 0 },
 	{ "ks0127b", 0 },
@@ -732,10 +715,7 @@ MODULE_DEVICE_TABLE(i2c, ks0127_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "ks0127",
-	.driverid = I2C_DRIVERID_KS0127,
-	.command = ks0127_command,
 	.probe = ks0127_probe,
 	.remove = ks0127_remove,
-	.legacy_probe = ks0127_legacy_probe,
 	.id_table = ks0127_id,
 };

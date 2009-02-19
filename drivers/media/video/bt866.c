@@ -37,7 +37,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("Brooktree-866 video encoder driver");
 MODULE_AUTHOR("Mike Bernson & Dave Perks");
@@ -47,9 +47,6 @@ static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
 
@@ -185,11 +182,6 @@ static int bt866_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_BT866, 0);
 }
 
-static int bt866_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops bt866_core_ops = {
@@ -232,11 +224,6 @@ static int bt866_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int bt866_legacy_probe(struct i2c_adapter *adapter)
-{
-	return adapter->id == I2C_HW_B_ZR36067;
-}
-
 static const struct i2c_device_id bt866_id[] = {
 	{ "bt866", 0 },
 	{ }
@@ -245,10 +232,7 @@ MODULE_DEVICE_TABLE(i2c, bt866_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "bt866",
-	.driverid = I2C_DRIVERID_BT866,
-	.command = bt866_command,
 	.probe = bt866_probe,
 	.remove = bt866_remove,
-	.legacy_probe = bt866_legacy_probe,
 	.id_table = bt866_id,
 };
