@@ -22,7 +22,7 @@
 
 #include <linux/i2c.h>
 #include <linux/delay.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include "tuner-i2c.h"
 #include "tda8290.h"
 #include "tda827x.h"

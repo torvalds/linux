@@ -59,7 +59,7 @@
 
 #include <linux/spinlock.h>
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include "videocodec.h"
@@ -69,8 +69,6 @@
 #include <asm/uaccess.h>
 #include <linux/proc_fs.h>
 
-#include <linux/video_decoder.h>
-#include <linux/video_encoder.h>
 #include <linux/mutex.h>
 #include "zoran.h"
 #include "zoran_device.h"
@@ -1170,12 +1168,12 @@ setup_fbuffer (struct file               *file,
 		return -EINVAL;
 	}
 
-	zr->buffer.base = (void *) ((unsigned long) base & ~3);
-	zr->buffer.height = height;
-	zr->buffer.width = width;
-	zr->buffer.depth = fmt->depth;
+	zr->vbuf_base = (void *) ((unsigned long) base & ~3);
+	zr->vbuf_height = height;
+	zr->vbuf_width = width;
+	zr->vbuf_depth = fmt->depth;
 	zr->overlay_settings.format = fmt;
-	zr->buffer.bytesperline = bytesperline;
+	zr->vbuf_bytesperline = bytesperline;
 
 	/* The user should set new window parameters */
 	zr->overlay_settings.is_set = 0;
@@ -1190,17 +1188,17 @@ setup_window (struct file       *file,
 	      int                y,
 	      int                width,
 	      int                height,
-	      struct video_clip __user *clips,
+	      struct v4l2_clip __user *clips,
 	      int                clipcount,
 	      void              __user *bitmap)
 {
 	struct zoran_fh *fh = file->private_data;
 	struct zoran *zr = fh->zr;
-	struct video_clip *vcp = NULL;
+	struct v4l2_clip *vcp = NULL;
 	int on, end;
 
 
-	if (!zr->buffer.base) {
+	if (!zr->vbuf_base) {
 		dprintk(1,
 			KERN_ERR
 			"%s: setup_window() - frame buffer has to be set first\n",
@@ -1220,13 +1218,13 @@ setup_window (struct file       *file,
 	 * The video front end needs 4-byte alinged line sizes, we correct that
 	 * silently here if necessary
 	 */
-	if (zr->buffer.depth == 15 || zr->buffer.depth == 16) {
+	if (zr->vbuf_depth == 15 || zr->vbuf_depth == 16) {
 		end = (x + width) & ~1;	/* round down */
 		x = (x + 1) & ~1;	/* round up */
 		width = end - x;
 	}
 
-	if (zr->buffer.depth == 24) {
+	if (zr->vbuf_depth == 24) {
 		end = (x + width) & ~3;	/* round down */
 		x = (x + 3) & ~3;	/* round up */
 		width = end - x;
@@ -1281,7 +1279,7 @@ setup_window (struct file       *file,
 		}
 	} else if (clipcount > 0) {
 		/* write our own bitmap from the clips */
-		vcp = vmalloc(sizeof(struct video_clip) * (clipcount + 4));
+		vcp = vmalloc(sizeof(struct v4l2_clip) * (clipcount + 4));
 		if (vcp == NULL) {
 			dprintk(1,
 				KERN_ERR
@@ -1290,7 +1288,7 @@ setup_window (struct file       *file,
 			return -ENOMEM;
 		}
 		if (copy_from_user
-		    (vcp, clips, sizeof(struct video_clip) * clipcount)) {
+		    (vcp, clips, sizeof(struct v4l2_clip) * clipcount)) {
 			vfree(vcp);
 			return -EFAULT;
 		}
@@ -1349,7 +1347,7 @@ setup_overlay (struct file *file,
 			zr36057_overlay(zr, 0);
 		zr->overlay_mask = NULL;
 	} else {
-		if (!zr->buffer.base || !fh->overlay_settings.is_set) {
+		if (!zr->vbuf_base || !fh->overlay_settings.is_set) {
 			dprintk(1,
 				KERN_ERR
 				"%s: setup_overlay() - buffer or window not set\n",
@@ -2200,7 +2198,7 @@ static int zoran_s_fmt_vid_overlay(struct file *file, void *__fh,
 			fmt->fmt.win.w.top,
 			fmt->fmt.win.w.width,
 			fmt->fmt.win.w.height,
-			(struct video_clip __user *)
+			(struct v4l2_clip __user *)
 			fmt->fmt.win.clips,
 			fmt->fmt.win.clipcount,
 			fmt->fmt.win.bitmap);
@@ -2357,12 +2355,12 @@ static int zoran_g_fbuf(struct file *file, void *__fh,
 
 	memset(fb, 0, sizeof(*fb));
 	mutex_lock(&zr->resource_lock);
-	fb->base = zr->buffer.base;
-	fb->fmt.width = zr->buffer.width;
-	fb->fmt.height = zr->buffer.height;
+	fb->base = zr->vbuf_base;
+	fb->fmt.width = zr->vbuf_width;
+	fb->fmt.height = zr->vbuf_height;
 	if (zr->overlay_settings.format)
 		fb->fmt.pixelformat = fh->overlay_settings.format->fourcc;
-	fb->fmt.bytesperline = zr->buffer.bytesperline;
+	fb->fmt.bytesperline = zr->vbuf_bytesperline;
 	mutex_unlock(&zr->resource_lock);
 	fb->fmt.colorspace = V4L2_COLORSPACE_SRGB;
 	fb->fmt.field = V4L2_FIELD_INTERLACED;

@@ -408,7 +408,13 @@ struct zoran {
 	/* Video for Linux parameters */
 	int input;	/* card's norm and input - norm=VIDEO_MODE_* */
 	v4l2_std_id norm;
-	struct video_buffer buffer;	/* Current buffer params */
+
+	/* Current buffer params */
+	void    *vbuf_base;
+	int     vbuf_height, vbuf_width;
+	int     vbuf_depth;
+	int     vbuf_bytesperline;
+
 	struct zoran_overlay_settings overlay_settings;
 	u32 *overlay_mask;	/* overlay mask */
 	enum zoran_lock_activity overlay_active;	/* feature currently in use? */

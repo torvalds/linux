@@ -38,7 +38,7 @@
 #include <linux/proc_fs.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/spinlock.h>
 #include <linux/sem.h>
@@ -47,8 +47,6 @@
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/video_decoder.h>
-#include <linux/video_encoder.h>
 #include <linux/mutex.h>
 
 #include <asm/io.h>
@@ -107,23 +105,6 @@ MODULE_PARM_DESC(default_norm, "Default norm (0=PAL, 1=NTSC, 2=SECAM)");
 static int video_nr[BUZ_MAX] = { [0 ... (BUZ_MAX-1)] = -1 };
 module_param_array(video_nr, int, NULL, 0444);
 MODULE_PARM_DESC(video_nr, "Video device number (-1=Auto)");
-
-/*
-   Number and size of grab buffers for Video 4 Linux
-   The vast majority of applications should not need more than 2,
-   the very popular BTTV driver actually does ONLY have 2.
-   Time sensitive applications might need more, the maximum
-   is VIDEO_MAX_FRAME (defined in <linux/videodev.h>).
-
-   The size is set so that the maximum possible request
-   can be satisfied. Decrease  it, if bigphys_area alloc'd
-   memory is low. If you don't have the bigphys_area patch,
-   set it to 128 KB. Will you allow only to grab small
-   images with V4L, but that's better than nothing.
-
-   v4l_bufsize has to be given in KB !
-
-*/
 
 int v4l_nbufs = 4;
 int v4l_bufsize = 810;		/* Everybody should be able to work with this setting */
@@ -1036,20 +1017,19 @@ zr36057_init (struct zoran *zr)
 	zr->jpg_buffers.allocated = 0;
 	zr->v4l_buffers.allocated = 0;
 
-	zr->buffer.base = (void *) vidmem;
-	zr->buffer.width = 0;
-	zr->buffer.height = 0;
-	zr->buffer.depth = 0;
-	zr->buffer.bytesperline = 0;
+	zr->vbuf_base = (void *) vidmem;
+	zr->vbuf_width = 0;
+	zr->vbuf_height = 0;
+	zr->vbuf_depth = 0;
+	zr->vbuf_bytesperline = 0;
 
 	/* Avoid nonsense settings from user for default input/norm */
-	if (default_norm < VIDEO_MODE_PAL &&
-	    default_norm > VIDEO_MODE_SECAM)
-		default_norm = VIDEO_MODE_PAL;
-	if (default_norm == VIDEO_MODE_PAL) {
+	if (default_norm < 0 && default_norm > 2)
+		default_norm = 0;
+	if (default_norm == 0) {
 		zr->norm = V4L2_STD_PAL;
 		zr->timing = zr->card.tvn[0];
-	} else if (default_norm == VIDEO_MODE_NTSC) {
+	} else if (default_norm == 1) {
 		zr->norm = V4L2_STD_NTSC;
 		zr->timing = zr->card.tvn[1];
 	} else {
@@ -1546,9 +1526,6 @@ static int __init zoran_init(void)
 			"%s: Using supplied video memory base address @ 0x%lx\n",
 			ZORAN_NAME, vidmem);
 	}
-
-	/* random nonsense */
-	dprintk(6, KERN_DEBUG "Jotti is een held!\n");
 
 	/* some mainboards might not do PCI-PCI data transfer well */
 	if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL|PCIPCI_ALIMAGIK)) {

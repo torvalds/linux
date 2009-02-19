@@ -488,11 +488,11 @@ zr36057_overlay (struct zoran *zr,
 		 * All error messages are internal driver checking only! */
 
 		/* video display top and bottom registers */
-		reg = (long) zr->buffer.base +
+		reg = (long) zr->vbuf_base +
 		    zr->overlay_settings.x *
 		    ((zr->overlay_settings.format->depth + 7) / 8) +
 		    zr->overlay_settings.y *
-		    zr->buffer.bytesperline;
+		    zr->vbuf_bytesperline;
 		btwrite(reg, ZR36057_VDTR);
 		if (reg & 3)
 			dprintk(1,
@@ -500,15 +500,15 @@ zr36057_overlay (struct zoran *zr,
 				"%s: zr36057_overlay() - video_address not aligned\n",
 				ZR_DEVNAME(zr));
 		if (zr->overlay_settings.height > BUZ_MAX_HEIGHT / 2)
-			reg += zr->buffer.bytesperline;
+			reg += zr->vbuf_bytesperline;
 		btwrite(reg, ZR36057_VDBR);
 
 		/* video stride, status, and frame grab register */
-		reg = zr->buffer.bytesperline -
+		reg = zr->vbuf_bytesperline -
 		    zr->overlay_settings.width *
 		    ((zr->overlay_settings.format->depth + 7) / 8);
 		if (zr->overlay_settings.height > BUZ_MAX_HEIGHT / 2)
-			reg += zr->buffer.bytesperline;
+			reg += zr->vbuf_bytesperline;
 		if (reg & 3)
 			dprintk(1,
 				KERN_ERR
@@ -537,7 +537,7 @@ zr36057_overlay (struct zoran *zr,
 
 void
 write_overlay_mask (struct file       *file,
-		    struct video_clip *vp,
+		    struct v4l2_clip *vp,
 		    int                count)
 {
 	struct zoran_fh *fh = file->private_data;
@@ -554,10 +554,10 @@ write_overlay_mask (struct file       *file,
 
 	for (i = 0; i < count; ++i) {
 		/* pick up local copy of clip */
-		x = vp[i].x;
-		y = vp[i].y;
-		width = vp[i].width;
-		height = vp[i].height;
+		x = vp[i].c.left;
+		y = vp[i].c.top;
+		width = vp[i].c.width;
+		height = vp[i].c.height;
 
 		/* trim clips that extend beyond the window */
 		if (x < 0) {
