@@ -23,10 +23,20 @@ static int trace_test_buffer_cpu(struct trace_array *tr, int cpu)
 {
 	struct ring_buffer_event *event;
 	struct trace_entry *entry;
+	unsigned int loops = 0;
 
 	while ((event = ring_buffer_consume(tr->buffer, cpu, NULL))) {
 		entry = ring_buffer_event_data(event);
 
+		/*
+		 * The ring buffer is a size of trace_buf_size, if
+		 * we loop more than the size, there's something wrong
+		 * with the ring buffer.
+		 */
+		if (loops++ > trace_buf_size) {
+			printk(KERN_CONT ".. bad ring buffer ");
+			goto failed;
+		}
 		if (!trace_valid_entry(entry)) {
 			printk(KERN_CONT ".. invalid entry %d ",
 				entry->type);
