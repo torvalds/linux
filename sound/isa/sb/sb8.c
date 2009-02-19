@@ -103,10 +103,10 @@ static int __devinit snd_sb8_probe(struct device *pdev, unsigned int dev)
 	struct snd_opl3 *opl3;
 	int err;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_sb8));
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_sb8), &card);
+	if (err < 0)
+		return err;
 	acard = card->private_data;
 	card->private_free = snd_sb8_free;
 

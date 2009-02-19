@@ -1387,9 +1387,8 @@ static int __devinit snd_sis7019_probe(struct pci_dev *pci,
 	if (!enable)
 		goto error_out;
 
-	rc = -ENOMEM;
-	card = snd_card_new(index, id, THIS_MODULE, sizeof(*sis));
-	if (!card)
+	rc = snd_card_create(index, id, THIS_MODULE, sizeof(*sis), &card);
+	if (rc < 0)
 		goto error_out;
 
 	strcpy(card->driver, "SiS7019");

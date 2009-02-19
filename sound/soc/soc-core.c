@@ -1311,17 +1311,17 @@ int snd_soc_new_pcms(struct snd_soc_device *socdev, int idx, const char *xid)
 {
 	struct snd_soc_codec *codec = socdev->codec;
 	struct snd_soc_card *card = socdev->card;
-	int ret = 0, i;
+	int ret, i;
 
 	mutex_lock(&codec->mutex);
 
 	/* register a sound card */
-	codec->card = snd_card_new(idx, xid, codec->owner, 0);
-	if (!codec->card) {
+	ret = snd_card_create(idx, xid, codec->owner, 0, &codec->card);
+	if (ret < 0) {
 		printk(KERN_ERR "asoc: can't create sound card for codec %s\n",
 			codec->name);
 		mutex_unlock(&codec->mutex);
-		return -ENODEV;
+		return ret;
 	}
 
 	codec->card->dev = socdev->dev;

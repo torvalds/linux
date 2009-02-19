@@ -459,10 +459,10 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	struct oxygen *chip;
 	int err;
 
-	card = snd_card_new(index, id, model->owner,
-			    sizeof *chip + model->model_data_size);
-	if (!card)
-		return -ENOMEM;
+	err = snd_card_create(index, id, model->owner,
+			      sizeof(*chip) + model->model_data_size, &card);
+	if (err < 0)
+		return err;
 
 	chip = card->private_data;
 	chip->card = card;

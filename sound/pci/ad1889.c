@@ -995,10 +995,10 @@ snd_ad1889_probe(struct pci_dev *pci,
 	}
 
 	/* (2) */
-	card = snd_card_new(index[devno], id[devno], THIS_MODULE, 0);
+	err = snd_card_create(index[devno], id[devno], THIS_MODULE, 0, &card);
 	/* XXX REVISIT: we can probably allocate chip in this call */
-	if (card == NULL)
-		return -ENOMEM;
+	if (err < 0)
+		return err;
 
 	strcpy(card->driver, "AD1889");
 	strcpy(card->shortname, "Analog Devices AD1889");

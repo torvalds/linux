@@ -448,9 +448,10 @@ static int em28xx_audio_init(struct em28xx *dev)
 	printk(KERN_INFO "em28xx-audio.c: Copyright (C) 2006 Markus "
 			 "Rechberger\n");
 
-	card = snd_card_new(index[devnr], "Em28xx Audio", THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[devnr], "Em28xx Audio", THIS_MODULE, 0,
+			      &card);
+	if (err < 0)
+		return err;
 
 	spin_lock_init(&adev->slock);
 	err = snd_pcm_new(card, "Em28xx Audio", 0, 0, 1, &pcm);

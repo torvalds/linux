@@ -969,11 +969,9 @@ static int __init snd_ps3_driver_probe(struct ps3_system_bus_device *dev)
 	}
 
 	/* create card instance */
-	the_card.card = snd_card_new(index, id, THIS_MODULE, 0);
-	if (!the_card.card) {
-		ret = -ENXIO;
+	ret = snd_card_create(index, id, THIS_MODULE, 0, &the_card.card);
+	if (ret < 0)
 		goto clean_irq;
-	}
 
 	strcpy(the_card.card->driver, "PS3");
 	strcpy(the_card.card->shortname, "PS3");
