@@ -37,10 +37,8 @@ enum {
 	/* module saa7110: just ident 100 */
 	V4L2_IDENT_SAA7110 = 100,
 
-	/* module saa7111: just ident 101 */
+	/* module saa7115: reserved range 101-149 */
 	V4L2_IDENT_SAA7111 = 101,
-
-	/* module saa7115: reserved range 102-149 */
 	V4L2_IDENT_SAA7113 = 103,
 	V4L2_IDENT_SAA7114 = 104,
 	V4L2_IDENT_SAA7115 = 105,
