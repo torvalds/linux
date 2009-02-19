@@ -2456,7 +2456,7 @@ static int niu_determine_phy_disposition(struct niu *np)
 
 		case NIU_FLAGS_10G:
 			/* 10G copper */
-			tp = &phy_template_1g_copper;
+			tp = &phy_template_10g_copper;
 			break;
 
 		case NIU_FLAGS_FIBER:
