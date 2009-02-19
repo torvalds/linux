@@ -302,7 +302,7 @@ void bio_init(struct bio *bio)
 struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 {
 	struct bio *bio = NULL;
-	void *p;
+	void *uninitialized_var(p);
 
 	if (bs) {
 		p = mempool_alloc(bs->bio_pool, gfp_mask);
