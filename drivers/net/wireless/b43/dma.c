@@ -74,8 +74,7 @@ static void op32_fill_descriptor(struct b43_dmaring *ring,
 	addrext = (u32) (dmaaddr & SSB_DMA_TRANSLATION_MASK)
 	    >> SSB_DMA_TRANSLATION_SHIFT;
 	addr |= ssb_dma_translation(ring->dev->dev);
-	ctl = (bufsize - ring->frameoffset)
-	    & B43_DMA32_DCTL_BYTECNT;
+	ctl = bufsize & B43_DMA32_DCTL_BYTECNT;
 	if (slot == ring->nr_slots - 1)
 		ctl |= B43_DMA32_DCTL_DTABLEEND;
 	if (start)
@@ -177,8 +176,7 @@ static void op64_fill_descriptor(struct b43_dmaring *ring,
 		ctl0 |= B43_DMA64_DCTL0_FRAMEEND;
 	if (irq)
 		ctl0 |= B43_DMA64_DCTL0_IRQ;
-	ctl1 |= (bufsize - ring->frameoffset)
-	    & B43_DMA64_DCTL1_BYTECNT;
+	ctl1 |= bufsize & B43_DMA64_DCTL1_BYTECNT;
 	ctl1 |= (addrext << B43_DMA64_DCTL1_ADDREXT_SHIFT)
 	    & B43_DMA64_DCTL1_ADDREXT_MASK;
 
@@ -830,9 +828,6 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 		if (ring->index == 0) {
 			ring->rx_buffersize = B43_DMA0_RX_BUFFERSIZE;
 			ring->frameoffset = B43_DMA0_RX_FRAMEOFFSET;
-		} else if (ring->index == 3) {
-			ring->rx_buffersize = B43_DMA3_RX_BUFFERSIZE;
-			ring->frameoffset = B43_DMA3_RX_FRAMEOFFSET;
 		} else
 			B43_WARN_ON(1);
 	}
