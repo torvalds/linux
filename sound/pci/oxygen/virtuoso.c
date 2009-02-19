@@ -816,7 +816,6 @@ static int xonar_model_probe(struct oxygen *chip, unsigned long driver_data)
 static const struct oxygen_model model_xonar_d2 = {
 	.longname = "Asus Virtuoso 200",
 	.chip = "AV200",
-	.owner = THIS_MODULE,
 	.probe = xonar_model_probe,
 	.init = xonar_d2_init,
 	.control_filter = xonar_d2_control_filter,
@@ -849,7 +848,6 @@ static const struct oxygen_model model_xonar_d2 = {
 static const struct oxygen_model model_xonar_d1 = {
 	.longname = "Asus Virtuoso 100",
 	.chip = "AV200",
-	.owner = THIS_MODULE,
 	.probe = xonar_model_probe,
 	.init = xonar_d1_init,
 	.control_filter = xonar_d1_control_filter,
@@ -878,7 +876,6 @@ static const struct oxygen_model model_xonar_d1 = {
 static const struct oxygen_model model_xonar_hdav = {
 	.longname = "Asus Virtuoso 200",
 	.chip = "AV200",
-	.owner = THIS_MODULE,
 	.probe = xonar_model_probe,
 	.init = xonar_hdav_init,
 	.cleanup = xonar_hdav_cleanup,
@@ -925,7 +922,7 @@ static int __devinit xonar_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 	BUG_ON(pci_id->driver_data >= ARRAY_SIZE(models));
-	err = oxygen_pci_probe(pci, index[dev], id[dev],
+	err = oxygen_pci_probe(pci, index[dev], id[dev], THIS_MODULE,
 			       models[pci_id->driver_data],
 			       pci_id->driver_data);
 	if (err >= 0)

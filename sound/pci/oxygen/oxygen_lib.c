@@ -452,6 +452,7 @@ static void oxygen_card_free(struct snd_card *card)
 }
 
 int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
+		     struct module *owner,
 		     const struct oxygen_model *model,
 		     unsigned long driver_data)
 {
@@ -459,7 +460,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	struct oxygen *chip;
 	int err;
 
-	err = snd_card_create(index, id, model->owner,
+	err = snd_card_create(index, id, owner,
 			      sizeof(*chip) + model->model_data_size, &card);
 	if (err < 0)
 		return err;

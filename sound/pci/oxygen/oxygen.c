@@ -315,7 +315,6 @@ static const struct oxygen_model model_generic = {
 	.shortname = "C-Media CMI8788",
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8788",
-	.owner = THIS_MODULE,
 	.probe = generic_probe,
 	.init = generic_init,
 	.cleanup = generic_cleanup,
@@ -353,7 +352,7 @@ static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	err = oxygen_pci_probe(pci, index[dev], id[dev],
+	err = oxygen_pci_probe(pci, index[dev], id[dev], THIS_MODULE,
 			       &model_generic, pci_id->driver_data);
 	if (err >= 0)
 		++dev;

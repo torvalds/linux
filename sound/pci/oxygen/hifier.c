@@ -151,7 +151,6 @@ static const struct oxygen_model model_hifier = {
 	.shortname = "C-Media CMI8787",
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8788",
-	.owner = THIS_MODULE,
 	.init = hifier_init,
 	.control_filter = hifier_control_filter,
 	.cleanup = hifier_cleanup,
@@ -185,7 +184,7 @@ static int __devinit hifier_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	err = oxygen_pci_probe(pci, index[dev], id[dev], &model_hifier, 0);
+	err = oxygen_pci_probe(pci, index[dev], id[dev], THIS_MODULE, &model_hifier, 0);
 	if (err >= 0)
 		++dev;
 	return err;

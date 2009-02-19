@@ -62,7 +62,6 @@ struct oxygen_model {
 	const char *shortname;
 	const char *longname;
 	const char *chip;
-	struct module *owner;
 	int (*probe)(struct oxygen *chip, unsigned long driver_data);
 	void (*init)(struct oxygen *chip);
 	int (*control_filter)(struct snd_kcontrol_new *template);
@@ -134,6 +133,7 @@ struct oxygen {
 /* oxygen_lib.c */
 
 int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
+		     struct module *owner,
 		     const struct oxygen_model *model,
 		     unsigned long driver_data);
 void oxygen_pci_remove(struct pci_dev *pci);
