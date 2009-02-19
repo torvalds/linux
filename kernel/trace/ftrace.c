@@ -1895,6 +1895,10 @@ static void *g_start(struct seq_file *m, loff_t *pos)
 
 	mutex_lock(&graph_lock);
 
+	/* Nothing, tell g_show to print all functions are enabled */
+	if (!ftrace_graph_count && !*pos)
+		return (void *)1;
+
 	p = g_next(m, p, pos);
 
 	return p;
@@ -1912,6 +1916,11 @@ static int g_show(struct seq_file *m, void *v)
 
 	if (!ptr)
 		return 0;
+
+	if (ptr == (unsigned long *)1) {
+		seq_printf(m, "#### all functions enabled ####\n");
+		return 0;
+	}
 
 	kallsyms_lookup(*ptr, NULL, NULL, NULL, str);
 
@@ -1966,38 +1975,51 @@ ftrace_graph_read(struct file *file, char __user *ubuf,
 }
 
 static int
-ftrace_set_func(unsigned long *array, int idx, char *buffer)
+ftrace_set_func(unsigned long *array, int *idx, char *buffer)
 {
-	char str[KSYM_SYMBOL_LEN];
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
+	int search_len;
 	int found = 0;
-	int j;
+	int type, not;
+	char *search;
+	bool exists;
+	int i;
 
 	if (ftrace_disabled)
 		return -ENODEV;
 
+	/* decode regex */
+	type = ftrace_setup_glob(buffer, strlen(buffer), &search, &not);
+	if (not)
+		return -EINVAL;
+
+	search_len = strlen(search);
+
 	mutex_lock(&ftrace_lock);
 	do_for_each_ftrace_rec(pg, rec) {
+
+		if (*idx >= FTRACE_GRAPH_MAX_FUNCS)
+			break;
 
 		if (rec->flags & (FTRACE_FL_FAILED | FTRACE_FL_FREE))
 			continue;
 
-		kallsyms_lookup(rec->ip, NULL, NULL, NULL, str);
-		if (strcmp(str, buffer) == 0) {
-			/* Return 1 if we add it to the array */
-			found = 1;
-			for (j = 0; j < idx; j++)
-				if (array[j] == rec->ip) {
-					found = 0;
+		if (ftrace_match_record(rec, search, search_len, type)) {
+			/* ensure it is not already in the array */
+			exists = false;
+			for (i = 0; i < *idx; i++)
+				if (array[i] == rec->ip) {
+					exists = true;
 					break;
 				}
-			if (found)
-				array[idx] = rec->ip;
-			goto out;
+			if (!exists) {
+				array[(*idx)++] = rec->ip;
+				found = 1;
+			}
 		}
 	} while_for_each_ftrace_rec();
- out:
+
 	mutex_unlock(&ftrace_lock);
 
 	return found ? 0 : -EINVAL;
@@ -2066,12 +2088,10 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 	}
 	buffer[index] = 0;
 
-	/* we allow only one at a time */
-	ret = ftrace_set_func(array, ftrace_graph_count, buffer);
+	/* we allow only one expression at a time */
+	ret = ftrace_set_func(array, &ftrace_graph_count, buffer);
 	if (ret)
 		goto out;
-
-	ftrace_graph_count++;
 
 	file->f_pos += read;
 
