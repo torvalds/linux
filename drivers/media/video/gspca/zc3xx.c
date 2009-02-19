@@ -7141,6 +7141,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			PDEBUG(D_PROBE, "Find Sensor OV7620");
 			sd->sensor = SENSOR_OV7620;
 			break;
+		case 0x7631:
+			PDEBUG(D_PROBE, "Find Sensor OV7630C");
+			sd->sensor = SENSOR_OV7630C;
+			break;
 		case 0x7648:
 			PDEBUG(D_PROBE, "Find Sensor OV7648");
 			sd->sensor = SENSOR_OV7620;	/* same sensor (?) */
