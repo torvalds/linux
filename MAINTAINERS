@@ -692,6 +692,13 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/NUVOTON W90X900 ARM ARCHITECTURE
+P:      Wan ZongShun
+M:      mcuos.com@gmail.com
+L:      linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+W:      http://www.mcuos.com
+S:      Maintained
+
 ARPD SUPPORT
 P:	Jonathan Layes
 L:	netdev@vger.kernel.org
