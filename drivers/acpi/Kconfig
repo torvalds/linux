@@ -254,13 +254,6 @@ config ACPI_PCI_SLOT
 	  help you correlate PCI bus addresses with the physical geography
 	  of your slots. If you are unsure, say N.
 
-config ACPI_SYSTEM
-	bool
-	default y
-	help
-	  This driver will enable your system to shut down using ACPI, and
-	  dump your ACPI DSDT table using /proc/acpi/dsdt.
-
 config X86_PM_TIMER
 	bool "Power Management Timer Support" if EMBEDDED
 	depends on X86
