@@ -254,3 +254,18 @@ void oxygen_write_uart(struct oxygen *chip, u8 data)
 	_write_uart(chip, 0, data);
 }
 EXPORT_SYMBOL(oxygen_write_uart);
+
+u16 oxygen_read_eeprom(struct oxygen *chip, unsigned int index)
+{
+	unsigned int timeout;
+
+	oxygen_write8(chip, OXYGEN_EEPROM_CONTROL,
+		      index | OXYGEN_EEPROM_DIR_READ);
+	for (timeout = 0; timeout < 100; ++timeout) {
+		udelay(1);
+		if (!(oxygen_read8(chip, OXYGEN_EEPROM_STATUS)
+		      & OXYGEN_EEPROM_BUSY))
+			break;
+	}
+	return oxygen_read16(chip, OXYGEN_EEPROM_DATA);
+}

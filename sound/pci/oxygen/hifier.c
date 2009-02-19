@@ -45,6 +45,7 @@ MODULE_PARM_DESC(enable, "enable card");
 static struct pci_device_id hifier_ids[] __devinitdata = {
 	{ OXYGEN_PCI_SUBID(0x14c3, 0x1710) },
 	{ OXYGEN_PCI_SUBID(0x14c3, 0x1711) },
+	{ OXYGEN_PCI_SUBID_BROKEN_EEPROM },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, hifier_ids);
@@ -172,6 +173,13 @@ static const struct oxygen_model model_hifier = {
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
+static int __devinit get_hifier_model(struct oxygen *chip,
+				      const struct pci_device_id *id)
+{
+	chip->model = model_hifier;
+	return 0;
+}
+
 static int __devinit hifier_probe(struct pci_dev *pci,
 				  const struct pci_device_id *pci_id)
 {
@@ -184,7 +192,8 @@ static int __devinit hifier_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	err = oxygen_pci_probe(pci, index[dev], id[dev], THIS_MODULE, &model_hifier, 0);
+	err = oxygen_pci_probe(pci, index[dev], id[dev], THIS_MODULE,
+			       hifier_ids, get_hifier_model);
 	if (err >= 0)
 		++dev;
 	return err;

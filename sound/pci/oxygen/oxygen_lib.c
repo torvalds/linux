@@ -244,6 +244,34 @@ static void oxygen_proc_init(struct oxygen *chip)
 #define oxygen_proc_init(chip)
 #endif
 
+static const struct pci_device_id *
+oxygen_search_pci_id(struct oxygen *chip, const struct pci_device_id ids[])
+{
+	u16 subdevice;
+
+	/*
+	 * Make sure the EEPROM pins are available, i.e., not used for SPI.
+	 * (This function is called before we initialize or use SPI.)
+	 */
+	oxygen_clear_bits8(chip, OXYGEN_FUNCTION,
+			   OXYGEN_FUNCTION_ENABLE_SPI_4_5);
+	/*
+	 * Read the subsystem device ID directly from the EEPROM, because the
+	 * chip didn't if the first EEPROM word was overwritten.
+	 */
+	subdevice = oxygen_read_eeprom(chip, 2);
+	/*
+	 * We use only the subsystem device ID for searching because it is
+	 * unique even without the subsystem vendor ID, which may have been
+	 * overwritten in the EEPROM.
+	 */
+	for (; ids->vendor; ++ids)
+		if (ids->subdevice == subdevice &&
+		    ids->driver_data != BROKEN_EEPROM_DRIVER_DATA)
+			return ids;
+	return NULL;
+}
+
 static void oxygen_init(struct oxygen *chip)
 {
 	unsigned int i;
@@ -455,11 +483,15 @@ static void oxygen_card_free(struct snd_card *card)
 
 int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		     struct module *owner,
-		     const struct oxygen_model *model,
-		     unsigned long driver_data)
+		     const struct pci_device_id *ids,
+		     int (*get_model)(struct oxygen *chip,
+				      const struct pci_device_id *id
+				     )
+		    )
 {
 	struct snd_card *card;
 	struct oxygen *chip;
+	const struct pci_device_id *pci_id;
 	int err;
 
 	err = snd_card_create(index, id, owner, sizeof(*chip), &card);
@@ -470,7 +502,6 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	chip->model = *model;
 	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->mutex);
 	INIT_WORK(&chip->spdif_input_bits_work,
@@ -496,6 +527,15 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	}
 	chip->addr = pci_resource_start(pci, 0);
 
+	pci_id = oxygen_search_pci_id(chip, ids);
+	if (!pci_id) {
+		err = -ENODEV;
+		goto err_pci_regions;
+	}
+	err = get_model(chip, pci_id);
+	if (err < 0)
+		goto err_pci_regions;
+
 	if (chip->model.model_data_size) {
 		chip->model_data = kmalloc(chip->model.model_data_size,
 					   GFP_KERNEL);
@@ -509,11 +549,6 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	snd_card_set_dev(card, &pci->dev);
 	card->private_free = oxygen_card_free;
 
-	if (chip->model.probe) {
-		err = chip->model.probe(chip, driver_data);
-		if (err < 0)
-			goto err_card;
-	}
 	oxygen_init(chip);
 	chip->model.init(chip);
 

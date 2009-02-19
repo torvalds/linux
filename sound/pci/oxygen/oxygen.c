@@ -293,29 +293,10 @@ static void set_ak5385_params(struct oxygen *chip,
 
 static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);
 
-static int generic_probe(struct oxygen *chip, unsigned long driver_data)
-{
-	if (driver_data == MODEL_MERIDIAN) {
-		chip->model.init = meridian_init;
-		chip->model.resume = meridian_resume;
-		chip->model.set_adc_params = set_ak5385_params;
-		chip->model.device_config = PLAYBACK_0_TO_I2S |
-					    PLAYBACK_1_TO_SPDIF |
-					    CAPTURE_0_FROM_I2S_2 |
-					    CAPTURE_1_FROM_SPDIF;
-	}
-	if (driver_data == MODEL_MERIDIAN || driver_data == MODEL_HALO) {
-		chip->model.misc_flags = OXYGEN_MISC_MIDI;
-		chip->model.device_config |= MIDI_OUTPUT | MIDI_INPUT;
-	}
-	return 0;
-}
-
 static const struct oxygen_model model_generic = {
 	.shortname = "C-Media CMI8788",
 	.longname = "C-Media Oxygen HD Audio",
 	.chip = "CMI8788",
-	.probe = generic_probe,
 	.init = generic_init,
 	.cleanup = generic_cleanup,
 	.resume = generic_resume,
@@ -340,6 +321,29 @@ static const struct oxygen_model model_generic = {
 	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
+static int __devinit get_oxygen_model(struct oxygen *chip,
+				      const struct pci_device_id *id)
+{
+	chip->model = model_generic;
+	switch (id->driver_data) {
+	case MODEL_MERIDIAN:
+		chip->model.init = meridian_init;
+		chip->model.resume = meridian_resume;
+		chip->model.set_adc_params = set_ak5385_params;
+		chip->model.device_config = PLAYBACK_0_TO_I2S |
+					    PLAYBACK_1_TO_SPDIF |
+					    CAPTURE_0_FROM_I2S_2 |
+					    CAPTURE_1_FROM_SPDIF;
+		break;
+	}
+	if (id->driver_data == MODEL_MERIDIAN ||
+	    id->driver_data == MODEL_HALO) {
+		chip->model.misc_flags = OXYGEN_MISC_MIDI;
+		chip->model.device_config |= MIDI_OUTPUT | MIDI_INPUT;
+	}
+	return 0;
+}
+
 static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 					  const struct pci_device_id *pci_id)
 {
@@ -353,7 +357,7 @@ static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 	err = oxygen_pci_probe(pci, index[dev], id[dev], THIS_MODULE,
-			       &model_generic, pci_id->driver_data);
+			       oxygen_ids, get_oxygen_model);
 	if (err >= 0)
 		++dev;
 	return err;
