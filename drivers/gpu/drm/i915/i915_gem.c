@@ -2067,8 +2067,14 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 		i915_gem_clflush_object(obj);
 	}
 
-	if ((obj->pending_write_domain | flush_domains) != 0)
-		obj->write_domain = obj->pending_write_domain;
+	/* The actual obj->write_domain will be updated with
+	 * pending_write_domain after we emit the accumulated flush for all
+	 * of our domain changes in execbuffers (which clears objects'
+	 * write_domains).  So if we have a current write domain that we
+	 * aren't changing, set pending_write_domain to that.
+	 */
+	if (flush_domains == 0 && obj->pending_write_domain == 0)
+		obj->pending_write_domain = obj->write_domain;
 	obj->read_domains = obj->pending_read_domains;
 
 	dev->invalidate_domains |= invalidate_domains;
@@ -2596,6 +2602,12 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 			       dev->flush_domains);
 		if (dev->flush_domains)
 			(void)i915_add_request(dev, dev->flush_domains);
+	}
+
+	for (i = 0; i < args->buffer_count; i++) {
+		struct drm_gem_object *obj = object_list[i];
+
+		obj->write_domain = obj->pending_write_domain;
 	}
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
