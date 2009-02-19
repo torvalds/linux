@@ -561,8 +561,11 @@ static void ftrace_replace_code(int enable)
 				if ((system_state == SYSTEM_BOOTING) ||
 				    !core_kernel_text(rec->ip)) {
 					ftrace_free_rec(rec);
-				} else
+				} else {
 					ftrace_bug(failed, rec->ip);
+					/* Stop processing */
+					return;
+				}
 			}
 		}
 	}
