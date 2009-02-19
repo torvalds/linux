@@ -39,8 +39,9 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
-#include <linux/video_decoder.h>
-#include <media/v4l2-common.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 #include "ks0127.h"
 
@@ -48,10 +49,17 @@ MODULE_DESCRIPTION("KS0127 video decoder driver");
 MODULE_AUTHOR("Ryan Drake");
 MODULE_LICENSE("GPL");
 
-#define KS_TYPE_UNKNOWN	0
-#define KS_TYPE_0122S	1
-#define KS_TYPE_0127	2
-#define KS_TYPE_0127B	3
+/* Addresses to scan */
+#define I2C_KS0127_ADDON   0xD8
+#define I2C_KS0127_ONBOARD 0xDA
+
+static unsigned short normal_i2c[] = {
+	I2C_KS0127_ADDON >> 1,
+	I2C_KS0127_ONBOARD >> 1,
+	I2C_CLIENT_END
+};
+
+I2C_CLIENT_INSMOD;
 
 /* ks0127 control registers */
 #define KS_STAT     0x00
@@ -197,14 +205,16 @@ struct adjust {
 };
 
 struct ks0127 {
-	int		format_width;
-	int		format_height;
-	int		cap_width;
-	int		cap_height;
+	struct v4l2_subdev sd;
 	v4l2_std_id	norm;
-	int		ks_type;
+	int		ident;
 	u8 		regs[256];
 };
+
+static inline struct ks0127 *to_ks0127(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct ks0127, sd);
+}
 
 
 static int debug; /* insmod parameter */
@@ -311,43 +321,45 @@ static void init_reg_defaults(void)
  */
 
 
-static u8 ks0127_read(struct i2c_client *c, u8 reg)
+static u8 ks0127_read(struct v4l2_subdev *sd, u8 reg)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	char val = 0;
 	struct i2c_msg msgs[] = {
-		{ c->addr, 0, sizeof(reg), &reg },
-		{ c->addr, I2C_M_RD | I2C_M_NO_RD_ACK, sizeof(val), &val }
+		{ client->addr, 0, sizeof(reg), &reg },
+		{ client->addr, I2C_M_RD | I2C_M_NO_RD_ACK, sizeof(val), &val }
 	};
 	int ret;
 
-	ret = i2c_transfer(c->adapter, msgs, ARRAY_SIZE(msgs));
+	ret = i2c_transfer(client->adapter, msgs, ARRAY_SIZE(msgs));
 	if (ret != ARRAY_SIZE(msgs))
-		v4l_dbg(1, debug, c, "read error\n");
+		v4l2_dbg(1, debug, sd, "read error\n");
 
 	return val;
 }
 
 
-static void ks0127_write(struct i2c_client *c, u8 reg, u8 val)
+static void ks0127_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 {
-	struct ks0127 *ks = i2c_get_clientdata(c);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct ks0127 *ks = to_ks0127(sd);
 	char msg[] = { reg, val };
 
-	if (i2c_master_send(c, msg, sizeof(msg)) != sizeof(msg))
-		v4l_dbg(1, debug, c, "write error\n");
+	if (i2c_master_send(client, msg, sizeof(msg)) != sizeof(msg))
+		v4l2_dbg(1, debug, sd, "write error\n");
 
 	ks->regs[reg] = val;
 }
 
 
 /* generic bit-twiddling */
-static void ks0127_and_or(struct i2c_client *client, u8 reg, u8 and_v, u8 or_v)
+static void ks0127_and_or(struct v4l2_subdev *sd, u8 reg, u8 and_v, u8 or_v)
 {
-	struct ks0127 *ks = i2c_get_clientdata(client);
+	struct ks0127 *ks = to_ks0127(sd);
 
 	u8 val = ks->regs[reg];
 	val = (val & and_v) | or_v;
-	ks0127_write(client, reg, val);
+	ks0127_write(sd, reg, val);
 }
 
 
@@ -355,391 +367,353 @@ static void ks0127_and_or(struct i2c_client *client, u8 reg, u8 and_v, u8 or_v)
 /****************************************************************************
 * ks0127 private api
 ****************************************************************************/
-static void ks0127_reset(struct i2c_client *c)
+static void ks0127_init(struct v4l2_subdev *sd)
 {
-	struct ks0127 *ks = i2c_get_clientdata(c);
+	struct ks0127 *ks = to_ks0127(sd);
 	u8 *table = reg_defaults;
 	int i;
 
-	ks->ks_type = KS_TYPE_UNKNOWN;
+	ks->ident = V4L2_IDENT_KS0127;
 
-	v4l_dbg(1, debug, c, "reset\n");
+	v4l2_dbg(1, debug, sd, "reset\n");
 	msleep(1);
 
 	/* initialize all registers to known values */
 	/* (except STAT, 0x21, 0x22, TEST and 0x38,0x39) */
 
 	for (i = 1; i < 33; i++)
-		ks0127_write(c, i, table[i]);
+		ks0127_write(sd, i, table[i]);
 
 	for (i = 35; i < 40; i++)
-		ks0127_write(c, i, table[i]);
+		ks0127_write(sd, i, table[i]);
 
 	for (i = 41; i < 56; i++)
-		ks0127_write(c, i, table[i]);
+		ks0127_write(sd, i, table[i]);
 
 	for (i = 58; i < 64; i++)
-		ks0127_write(c, i, table[i]);
+		ks0127_write(sd, i, table[i]);
 
 
-	if ((ks0127_read(c, KS_STAT) & 0x80) == 0) {
-		ks->ks_type = KS_TYPE_0122S;
-		v4l_dbg(1, debug, c, "ks0122s found\n");
+	if ((ks0127_read(sd, KS_STAT) & 0x80) == 0) {
+		ks->ident = V4L2_IDENT_KS0122S;
+		v4l2_dbg(1, debug, sd, "ks0122s found\n");
 		return;
 	}
 
-	switch (ks0127_read(c, KS_CMDE) & 0x0f) {
+	switch (ks0127_read(sd, KS_CMDE) & 0x0f) {
 	case 0:
-		ks->ks_type = KS_TYPE_0127;
-		v4l_dbg(1, debug, c, "ks0127 found\n");
+		v4l2_dbg(1, debug, sd, "ks0127 found\n");
 		break;
 
 	case 9:
-		ks->ks_type = KS_TYPE_0127B;
-		v4l_dbg(1, debug, c, "ks0127B Revision A found\n");
+		ks->ident = V4L2_IDENT_KS0127B;
+		v4l2_dbg(1, debug, sd, "ks0127B Revision A found\n");
 		break;
 
 	default:
-		v4l_dbg(1, debug, c, "unknown revision\n");
+		v4l2_dbg(1, debug, sd, "unknown revision\n");
 		break;
 	}
 }
 
-static int ks0127_command(struct i2c_client *c, unsigned cmd, void *arg)
+static int ks0127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
 {
-	struct ks0127 *ks = i2c_get_clientdata(c);
-	struct v4l2_routing *route = arg;
-	int		*iarg = (int *)arg;
-	v4l2_std_id 	*istd = arg;
-	int		status;
+	struct ks0127 *ks = to_ks0127(sd);
 
-	if (!ks)
-		return -ENODEV;
+	switch (route->input) {
+	case KS_INPUT_COMPOSITE_1:
+	case KS_INPUT_COMPOSITE_2:
+	case KS_INPUT_COMPOSITE_3:
+	case KS_INPUT_COMPOSITE_4:
+	case KS_INPUT_COMPOSITE_5:
+	case KS_INPUT_COMPOSITE_6:
+		v4l2_dbg(1, debug, sd,
+			"VIDIOC_S_INPUT %d: Composite\n", route->input);
+		/* autodetect 50/60 Hz */
+		ks0127_and_or(sd, KS_CMDA,   0xfc, 0x00);
+		/* VSE=0 */
+		ks0127_and_or(sd, KS_CMDA,   ~0x40, 0x00);
+		/* set input line */
+		ks0127_and_or(sd, KS_CMDB,   0xb0, route->input);
+		/* non-freerunning mode */
+		ks0127_and_or(sd, KS_CMDC,   0x70, 0x0a);
+		/* analog input */
+		ks0127_and_or(sd, KS_CMDD,   0x03, 0x00);
+		/* enable chroma demodulation */
+		ks0127_and_or(sd, KS_CTRACK, 0xcf, 0x00);
+		/* chroma trap, HYBWR=1 */
+		ks0127_and_or(sd, KS_LUMA,   0x00,
+			       (reg_defaults[KS_LUMA])|0x0c);
+		/* scaler fullbw, luma comb off */
+		ks0127_and_or(sd, KS_VERTIA, 0x08, 0x81);
+		/* manual chroma comb .25 .5 .25 */
+		ks0127_and_or(sd, KS_VERTIC, 0x0f, 0x90);
 
-	switch (cmd) {
-	case VIDIOC_INT_INIT:
-		v4l_dbg(1, debug, c, "VIDIOC_INT_INIT\n");
-		ks0127_reset(c);
+		/* chroma path delay */
+		ks0127_and_or(sd, KS_CHROMB, 0x0f, 0x90);
+
+		ks0127_write(sd, KS_UGAIN, reg_defaults[KS_UGAIN]);
+		ks0127_write(sd, KS_VGAIN, reg_defaults[KS_VGAIN]);
+		ks0127_write(sd, KS_UVOFFH, reg_defaults[KS_UVOFFH]);
+		ks0127_write(sd, KS_UVOFFL, reg_defaults[KS_UVOFFL]);
 		break;
 
-	case VIDIOC_INT_S_VIDEO_ROUTING:
-		switch (route->input) {
-		case KS_INPUT_COMPOSITE_1:
-		case KS_INPUT_COMPOSITE_2:
-		case KS_INPUT_COMPOSITE_3:
-		case KS_INPUT_COMPOSITE_4:
-		case KS_INPUT_COMPOSITE_5:
-		case KS_INPUT_COMPOSITE_6:
-			v4l_dbg(1, debug, c,
-				"VIDIOC_S_INPUT %d: Composite\n", *iarg);
-			/* autodetect 50/60 Hz */
-			ks0127_and_or(c, KS_CMDA,   0xfc, 0x00);
-			/* VSE=0 */
-			ks0127_and_or(c, KS_CMDA,   ~0x40, 0x00);
-			/* set input line */
-			ks0127_and_or(c, KS_CMDB,   0xb0, *iarg);
-			/* non-freerunning mode */
-			ks0127_and_or(c, KS_CMDC,   0x70, 0x0a);
-			/* analog input */
-			ks0127_and_or(c, KS_CMDD,   0x03, 0x00);
-			/* enable chroma demodulation */
-			ks0127_and_or(c, KS_CTRACK, 0xcf, 0x00);
-			/* chroma trap, HYBWR=1 */
-			ks0127_and_or(c, KS_LUMA,   0x00,
-				       (reg_defaults[KS_LUMA])|0x0c);
-			/* scaler fullbw, luma comb off */
-			ks0127_and_or(c, KS_VERTIA, 0x08, 0x81);
-			/* manual chroma comb .25 .5 .25 */
-			ks0127_and_or(c, KS_VERTIC, 0x0f, 0x90);
+	case KS_INPUT_SVIDEO_1:
+	case KS_INPUT_SVIDEO_2:
+	case KS_INPUT_SVIDEO_3:
+		v4l2_dbg(1, debug, sd,
+			"VIDIOC_S_INPUT %d: S-Video\n", route->input);
+		/* autodetect 50/60 Hz */
+		ks0127_and_or(sd, KS_CMDA,   0xfc, 0x00);
+		/* VSE=0 */
+		ks0127_and_or(sd, KS_CMDA,   ~0x40, 0x00);
+		/* set input line */
+		ks0127_and_or(sd, KS_CMDB,   0xb0, route->input);
+		/* non-freerunning mode */
+		ks0127_and_or(sd, KS_CMDC,   0x70, 0x0a);
+		/* analog input */
+		ks0127_and_or(sd, KS_CMDD,   0x03, 0x00);
+		/* enable chroma demodulation */
+		ks0127_and_or(sd, KS_CTRACK, 0xcf, 0x00);
+		ks0127_and_or(sd, KS_LUMA, 0x00,
+			       reg_defaults[KS_LUMA]);
+		/* disable luma comb */
+		ks0127_and_or(sd, KS_VERTIA, 0x08,
+			       (reg_defaults[KS_VERTIA]&0xf0)|0x01);
+		ks0127_and_or(sd, KS_VERTIC, 0x0f,
+			       reg_defaults[KS_VERTIC]&0xf0);
 
-			/* chroma path delay */
-			ks0127_and_or(c, KS_CHROMB, 0x0f, 0x90);
+		ks0127_and_or(sd, KS_CHROMB, 0x0f,
+			       reg_defaults[KS_CHROMB]&0xf0);
 
-			ks0127_write(c, KS_UGAIN, reg_defaults[KS_UGAIN]);
-			ks0127_write(c, KS_VGAIN, reg_defaults[KS_VGAIN]);
-			ks0127_write(c, KS_UVOFFH, reg_defaults[KS_UVOFFH]);
-			ks0127_write(c, KS_UVOFFL, reg_defaults[KS_UVOFFL]);
-			break;
-
-		case KS_INPUT_SVIDEO_1:
-		case KS_INPUT_SVIDEO_2:
-		case KS_INPUT_SVIDEO_3:
-			v4l_dbg(1, debug, c,
-				"VIDIOC_S_INPUT %d: S-Video\n", *iarg);
-			/* autodetect 50/60 Hz */
-			ks0127_and_or(c, KS_CMDA,   0xfc, 0x00);
-			/* VSE=0 */
-			ks0127_and_or(c, KS_CMDA,   ~0x40, 0x00);
-			/* set input line */
-			ks0127_and_or(c, KS_CMDB,   0xb0, *iarg);
-			/* non-freerunning mode */
-			ks0127_and_or(c, KS_CMDC,   0x70, 0x0a);
-			/* analog input */
-			ks0127_and_or(c, KS_CMDD,   0x03, 0x00);
-			/* enable chroma demodulation */
-			ks0127_and_or(c, KS_CTRACK, 0xcf, 0x00);
-			ks0127_and_or(c, KS_LUMA, 0x00,
-				       reg_defaults[KS_LUMA]);
-			/* disable luma comb */
-			ks0127_and_or(c, KS_VERTIA, 0x08,
-				       (reg_defaults[KS_VERTIA]&0xf0)|0x01);
-			ks0127_and_or(c, KS_VERTIC, 0x0f,
-				       reg_defaults[KS_VERTIC]&0xf0);
-
-			ks0127_and_or(c, KS_CHROMB, 0x0f,
-				       reg_defaults[KS_CHROMB]&0xf0);
-
-			ks0127_write(c, KS_UGAIN, reg_defaults[KS_UGAIN]);
-			ks0127_write(c, KS_VGAIN, reg_defaults[KS_VGAIN]);
-			ks0127_write(c, KS_UVOFFH, reg_defaults[KS_UVOFFH]);
-			ks0127_write(c, KS_UVOFFL, reg_defaults[KS_UVOFFL]);
-			break;
-
-		case KS_INPUT_YUV656:
-			v4l_dbg(1, debug, c,
-				"VIDIOC_S_INPUT 15: YUV656\n");
-			if (ks->norm & V4L2_STD_525_60)
-				/* force 60 Hz */
-				ks0127_and_or(c, KS_CMDA,   0xfc, 0x03);
-			else
-				/* force 50 Hz */
-				ks0127_and_or(c, KS_CMDA,   0xfc, 0x02);
-
-			ks0127_and_or(c, KS_CMDA,   0xff, 0x40); /* VSE=1 */
-			/* set input line and VALIGN */
-			ks0127_and_or(c, KS_CMDB,   0xb0, (*iarg | 0x40));
-			/* freerunning mode, */
-			/* TSTGEN = 1 TSTGFR=11 TSTGPH=0 TSTGPK=0  VMEM=1*/
-			ks0127_and_or(c, KS_CMDC,   0x70, 0x87);
-			/* digital input, SYNDIR = 0 INPSL=01 CLKDIR=0 EAV=0 */
-			ks0127_and_or(c, KS_CMDD,   0x03, 0x08);
-			/* disable chroma demodulation */
-			ks0127_and_or(c, KS_CTRACK, 0xcf, 0x30);
-			/* HYPK =01 CTRAP = 0 HYBWR=0 PED=1 RGBH=1 UNIT=1 */
-			ks0127_and_or(c, KS_LUMA,   0x00, 0x71);
-			ks0127_and_or(c, KS_VERTIC, 0x0f,
-				       reg_defaults[KS_VERTIC]&0xf0);
-
-			/* scaler fullbw, luma comb off */
-			ks0127_and_or(c, KS_VERTIA, 0x08, 0x81);
-
-			ks0127_and_or(c, KS_CHROMB, 0x0f,
-				       reg_defaults[KS_CHROMB]&0xf0);
-
-			ks0127_and_or(c, KS_CON, 0x00, 0x00);
-			ks0127_and_or(c, KS_BRT, 0x00, 32);	/* spec: 34 */
-				/* spec: 229 (e5) */
-			ks0127_and_or(c, KS_SAT, 0x00, 0xe8);
-			ks0127_and_or(c, KS_HUE, 0x00, 0);
-
-			ks0127_and_or(c, KS_UGAIN, 0x00, 238);
-			ks0127_and_or(c, KS_VGAIN, 0x00, 0x00);
-
-			/*UOFF:0x30, VOFF:0x30, TSTCGN=1 */
-			ks0127_and_or(c, KS_UVOFFH, 0x00, 0x4f);
-			ks0127_and_or(c, KS_UVOFFL, 0x00, 0x00);
-			break;
-
-		default:
-			v4l_dbg(1, debug, c,
-				"VIDIOC_INT_S_VIDEO_ROUTING: Unknown input %d\n", route->input);
-			break;
-		}
-
-		/* hack: CDMLPF sometimes spontaneously switches on; */
-		/* force back off */
-		ks0127_write(c, KS_DEMOD, reg_defaults[KS_DEMOD]);
+		ks0127_write(sd, KS_UGAIN, reg_defaults[KS_UGAIN]);
+		ks0127_write(sd, KS_VGAIN, reg_defaults[KS_VGAIN]);
+		ks0127_write(sd, KS_UVOFFH, reg_defaults[KS_UVOFFH]);
+		ks0127_write(sd, KS_UVOFFL, reg_defaults[KS_UVOFFL]);
 		break;
 
-	case VIDIOC_S_STD: /* sam This block mixes old and new norm names... */
-		/* Set to automatic SECAM/Fsc mode */
-		ks0127_and_or(c, KS_DEMOD, 0xf0, 0x00);
-
-		ks->norm = *istd;
-
-		if (*istd & V4L2_STD_NTSC) {
-			v4l_dbg(1, debug, c,
-				"VIDIOC_S_STD: NTSC_M\n");
-			ks0127_and_or(c, KS_CHROMA, 0x9f, 0x20);
-			ks->format_height = 240;
-			ks->format_width = 704;
-		} else if (*istd & V4L2_STD_PAL_N) {
-			v4l_dbg(1, debug, c,
-				"KS0127_SET_NORM: NTSC_N (fixme)\n");
-			ks0127_and_or(c, KS_CHROMA, 0x9f, 0x40);
-			ks->format_height = 240;
-			ks->format_width = 704;
-		} else if (*istd & V4L2_STD_PAL) {
-			v4l_dbg(1, debug, c,
-				"VIDIOC_S_STD: PAL_N\n");
-			ks0127_and_or(c, KS_CHROMA, 0x9f, 0x20);
-			ks->format_height = 290;
-			ks->format_width = 704;
-		} else if (*istd & V4L2_STD_PAL_M) {
-			v4l_dbg(1, debug, c,
-				"KS0127_SET_NORM: PAL_M (fixme)\n");
-			ks0127_and_or(c, KS_CHROMA, 0x9f, 0x40);
-			ks->format_height = 290;
-			ks->format_width = 704;
-		} else if (*istd & V4L2_STD_SECAM) {
-			v4l_dbg(1, debug, c,
-				"KS0127_SET_NORM: SECAM\n");
-			ks->format_height = 290;
-			ks->format_width = 704;
-
-			/* set to secam autodetection */
-			ks0127_and_or(c, KS_CHROMA, 0xdf, 0x20);
-			ks0127_and_or(c, KS_DEMOD, 0xf0, 0x00);
-			schedule_timeout_interruptible(HZ/10+1);
-
-			/* did it autodetect? */
-			if (!(ks0127_read(c, KS_DEMOD) & 0x40))
-				/* force to secam mode */
-				ks0127_and_or(c, KS_DEMOD, 0xf0, 0x0f);
-		} else {
-			v4l_dbg(1, debug, c,
-				"VIDIOC_S_STD: Unknown norm %llx\n", *istd);
-		}
-		break;
-
-	case VIDIOC_QUERYCTRL:
-	{
-		return -EINVAL;
-	}
-
-	case VIDIOC_S_CTRL:
-		v4l_dbg(1, debug, c,
-			"VIDIOC_S_CTRL: not yet supported\n");
-		return -EINVAL;
-
-	case VIDIOC_G_CTRL:
-		v4l_dbg(1, debug, c,
-			"VIDIOC_G_CTRL: not yet supported\n");
-		return -EINVAL;
-
-	/* sam todo: KS0127_SET_BRIGHTNESS: Merge into VIDIOC_S_CTRL */
-	/* sam todo: KS0127_SET_CONTRAST: Merge into VIDIOC_S_CTRL */
-	/* sam todo: KS0127_SET_HUE: Merge into VIDIOC_S_CTRL? */
-	/* sam todo: KS0127_SET_SATURATION: Merge into VIDIOC_S_CTRL */
-	/* sam todo: KS0127_SET_AGC_MODE: */
-	/* sam todo: KS0127_SET_AGC: */
-	/* sam todo: KS0127_SET_CHROMA_MODE: */
-	/* sam todo: KS0127_SET_PIXCLK_MODE: */
-	/* sam todo: KS0127_SET_GAMMA_MODE: */
-	/* sam todo: KS0127_SET_UGAIN: */
-	/* sam todo: KS0127_SET_VGAIN: */
-	/* sam todo: KS0127_SET_INVALY: */
-	/* sam todo: KS0127_SET_INVALU: */
-	/* sam todo: KS0127_SET_INVALV: */
-	/* sam todo: KS0127_SET_UNUSEY: */
-	/* sam todo: KS0127_SET_UNUSEU: */
-	/* sam todo: KS0127_SET_UNUSEV: */
-	/* sam todo: KS0127_SET_VSALIGN_MODE: */
-
-	case VIDIOC_STREAMON:
-	case VIDIOC_STREAMOFF:
-	{
-		int enable = cmd == VIDIOC_STREAMON;
-
-		if (enable) {
-			v4l_dbg(1, debug, c,
-				"VIDIOC_STREAMON\n");
-			/* All output pins on */
-			ks0127_and_or(c, KS_OFMTA, 0xcf, 0x30);
-			/* Obey the OEN pin */
-			ks0127_and_or(c, KS_CDEM, 0x7f, 0x00);
-		} else {
-			v4l_dbg(1, debug, c,
-				"VIDIOC_STREAMOFF\n");
-			/* Video output pins off */
-			ks0127_and_or(c, KS_OFMTA, 0xcf, 0x00);
-			/* Ignore the OEN pin */
-			ks0127_and_or(c, KS_CDEM, 0x7f, 0x80);
-		}
-		break;
-	}
-
-	/* sam todo: KS0127_SET_OUTPUT_MODE: */
-	/* sam todo: KS0127_SET_WIDTH: */
-	/* sam todo: KS0127_SET_HEIGHT: */
-	/* sam todo: KS0127_SET_HSCALE: */
-
-	case VIDIOC_QUERYSTD:
-	case VIDIOC_INT_G_INPUT_STATUS: {
-		int stat = V4L2_IN_ST_NO_SIGNAL;
-		v4l2_std_id std = V4L2_STD_ALL;
-		v4l_dbg(1, debug, c, "VIDIOC_QUERYSTD/VIDIOC_INT_G_INPUT_STATUS\n");
-		status = ks0127_read(c, KS_STAT);
-		if (!(status & 0x20))		 /* NOVID not set */
-			stat = 0;
-		if (!(status & 0x01))		      /* CLOCK set */
-			stat |= V4L2_IN_ST_NO_COLOR;
-		if ((status & 0x08))		   /* PALDET set */
-			std = V4L2_STD_PAL;
+	case KS_INPUT_YUV656:
+		v4l2_dbg(1, debug, sd, "VIDIOC_S_INPUT 15: YUV656\n");
+		if (ks->norm & V4L2_STD_525_60)
+			/* force 60 Hz */
+			ks0127_and_or(sd, KS_CMDA,   0xfc, 0x03);
 		else
-			std = V4L2_STD_NTSC;
-		if (cmd == VIDIOC_QUERYSTD)
-			*istd = std;
-		else
-			*iarg = stat;
-		break;
-	}
+			/* force 50 Hz */
+			ks0127_and_or(sd, KS_CMDA,   0xfc, 0x02);
 
-	/* Catch any unknown command */
+		ks0127_and_or(sd, KS_CMDA,   0xff, 0x40); /* VSE=1 */
+		/* set input line and VALIGN */
+		ks0127_and_or(sd, KS_CMDB,   0xb0, (route->input | 0x40));
+		/* freerunning mode, */
+		/* TSTGEN = 1 TSTGFR=11 TSTGPH=0 TSTGPK=0  VMEM=1*/
+		ks0127_and_or(sd, KS_CMDC,   0x70, 0x87);
+		/* digital input, SYNDIR = 0 INPSL=01 CLKDIR=0 EAV=0 */
+		ks0127_and_or(sd, KS_CMDD,   0x03, 0x08);
+		/* disable chroma demodulation */
+		ks0127_and_or(sd, KS_CTRACK, 0xcf, 0x30);
+		/* HYPK =01 CTRAP = 0 HYBWR=0 PED=1 RGBH=1 UNIT=1 */
+		ks0127_and_or(sd, KS_LUMA,   0x00, 0x71);
+		ks0127_and_or(sd, KS_VERTIC, 0x0f,
+			       reg_defaults[KS_VERTIC]&0xf0);
+
+		/* scaler fullbw, luma comb off */
+		ks0127_and_or(sd, KS_VERTIA, 0x08, 0x81);
+
+		ks0127_and_or(sd, KS_CHROMB, 0x0f,
+			       reg_defaults[KS_CHROMB]&0xf0);
+
+		ks0127_and_or(sd, KS_CON, 0x00, 0x00);
+		ks0127_and_or(sd, KS_BRT, 0x00, 32);	/* spec: 34 */
+			/* spec: 229 (e5) */
+		ks0127_and_or(sd, KS_SAT, 0x00, 0xe8);
+		ks0127_and_or(sd, KS_HUE, 0x00, 0);
+
+		ks0127_and_or(sd, KS_UGAIN, 0x00, 238);
+		ks0127_and_or(sd, KS_VGAIN, 0x00, 0x00);
+
+		/*UOFF:0x30, VOFF:0x30, TSTCGN=1 */
+		ks0127_and_or(sd, KS_UVOFFH, 0x00, 0x4f);
+		ks0127_and_or(sd, KS_UVOFFL, 0x00, 0x00);
+		break;
+
 	default:
-		v4l_dbg(1, debug, c, "unknown: 0x%08x\n", cmd);
-		return -EINVAL;
+		v4l2_dbg(1, debug, sd,
+			"VIDIOC_INT_S_VIDEO_ROUTING: Unknown input %d\n", route->input);
+		break;
+	}
+
+	/* hack: CDMLPF sometimes spontaneously switches on; */
+	/* force back off */
+	ks0127_write(sd, KS_DEMOD, reg_defaults[KS_DEMOD]);
+	return 0;
+}
+
+static int ks0127_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
+{
+	struct ks0127 *ks = to_ks0127(sd);
+
+	/* Set to automatic SECAM/Fsc mode */
+	ks0127_and_or(sd, KS_DEMOD, 0xf0, 0x00);
+
+	ks->norm = std;
+	if (std & V4L2_STD_NTSC) {
+		v4l2_dbg(1, debug, sd,
+			"VIDIOC_S_STD: NTSC_M\n");
+		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x20);
+	} else if (std & V4L2_STD_PAL_N) {
+		v4l2_dbg(1, debug, sd,
+			"KS0127_SET_NORM: NTSC_N (fixme)\n");
+		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x40);
+	} else if (std & V4L2_STD_PAL) {
+		v4l2_dbg(1, debug, sd,
+			"VIDIOC_S_STD: PAL_N\n");
+		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x20);
+	} else if (std & V4L2_STD_PAL_M) {
+		v4l2_dbg(1, debug, sd,
+			"KS0127_SET_NORM: PAL_M (fixme)\n");
+		ks0127_and_or(sd, KS_CHROMA, 0x9f, 0x40);
+	} else if (std & V4L2_STD_SECAM) {
+		v4l2_dbg(1, debug, sd,
+			"KS0127_SET_NORM: SECAM\n");
+
+		/* set to secam autodetection */
+		ks0127_and_or(sd, KS_CHROMA, 0xdf, 0x20);
+		ks0127_and_or(sd, KS_DEMOD, 0xf0, 0x00);
+		schedule_timeout_interruptible(HZ/10+1);
+
+		/* did it autodetect? */
+		if (!(ks0127_read(sd, KS_DEMOD) & 0x40))
+			/* force to secam mode */
+			ks0127_and_or(sd, KS_DEMOD, 0xf0, 0x0f);
+	} else {
+		v4l2_dbg(1, debug, sd,
+			"VIDIOC_S_STD: Unknown norm %llx\n", std);
 	}
 	return 0;
 }
 
+static int ks0127_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	v4l2_dbg(1, debug, sd, "s_stream(%d)\n", enable);
+	if (enable) {
+		/* All output pins on */
+		ks0127_and_or(sd, KS_OFMTA, 0xcf, 0x30);
+		/* Obey the OEN pin */
+		ks0127_and_or(sd, KS_CDEM, 0x7f, 0x00);
+	} else {
+		/* Video output pins off */
+		ks0127_and_or(sd, KS_OFMTA, 0xcf, 0x00);
+		/* Ignore the OEN pin */
+		ks0127_and_or(sd, KS_CDEM, 0x7f, 0x80);
+	}
+	return 0;
+}
 
-/* Addresses to scan */
-#define I2C_KS0127_ADDON   0xD8
-#define I2C_KS0127_ONBOARD 0xDA
+static int ks0127_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd)
+{
+	int stat = V4L2_IN_ST_NO_SIGNAL;
+	u8 status;
+	v4l2_std_id std = V4L2_STD_ALL;
 
-static unsigned short normal_i2c[] = {
-	I2C_KS0127_ADDON >> 1,
-	I2C_KS0127_ONBOARD >> 1,
-	I2C_CLIENT_END
+	v4l2_dbg(1, debug, sd, "VIDIOC_QUERYSTD/VIDIOC_INT_G_INPUT_STATUS\n");
+	status = ks0127_read(sd, KS_STAT);
+	if (!(status & 0x20))		 /* NOVID not set */
+		stat = 0;
+	if (!(status & 0x01))		      /* CLOCK set */
+		stat |= V4L2_IN_ST_NO_COLOR;
+	if ((status & 0x08))		   /* PALDET set */
+		std = V4L2_STD_PAL;
+	else
+		std = V4L2_STD_NTSC;
+	if (pstd)
+		*pstd = std;
+	if (pstatus)
+		*pstatus = stat;
+	return 0;
+}
+
+static int ks0127_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
+{
+	return ks0127_status(sd, NULL, std);
+}
+
+static int ks0127_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	return ks0127_status(sd, status, NULL);
+}
+
+static int ks0127_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct ks0127 *ks = to_ks0127(sd);
+
+	return v4l2_chip_ident_i2c_client(client, chip, ks->ident, 0);
+}
+
+static int ks0127_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+}
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops ks0127_core_ops = {
+	.g_chip_ident = ks0127_g_chip_ident,
 };
 
-I2C_CLIENT_INSMOD;
+static const struct v4l2_subdev_tuner_ops ks0127_tuner_ops = {
+	.s_std = ks0127_s_std,
+};
 
-static int ks0127_probe(struct i2c_client *c, const struct i2c_device_id *id)
+static const struct v4l2_subdev_video_ops ks0127_video_ops = {
+	.s_routing = ks0127_s_routing,
+	.s_stream = ks0127_s_stream,
+	.querystd = ks0127_querystd,
+	.g_input_status = ks0127_g_input_status,
+};
+
+static const struct v4l2_subdev_ops ks0127_ops = {
+	.core = &ks0127_core_ops,
+	.tuner = &ks0127_tuner_ops,
+	.video = &ks0127_video_ops,
+};
+
+/* ----------------------------------------------------------------------- */
+
+
+static int ks0127_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct ks0127 *ks;
+	struct v4l2_subdev *sd;
 
-	v4l_info(c, "%s chip found @ 0x%x (%s)\n",
-		c->addr == (I2C_KS0127_ADDON >> 1) ? "addon" : "on-board",
-		c->addr << 1, c->adapter->name);
+	v4l_info(client, "%s chip found @ 0x%x (%s)\n",
+		client->addr == (I2C_KS0127_ADDON >> 1) ? "addon" : "on-board",
+		client->addr << 1, client->adapter->name);
 
 	ks = kzalloc(sizeof(*ks), GFP_KERNEL);
 	if (ks == NULL)
 		return -ENOMEM;
-
-	i2c_set_clientdata(c, ks);
-
-	ks->ks_type = KS_TYPE_UNKNOWN;
+	sd = &ks->sd;
+	v4l2_i2c_subdev_init(sd, client, &ks0127_ops);
 
 	/* power up */
 	init_reg_defaults();
-	ks0127_write(c, KS_CMDA, 0x2c);
+	ks0127_write(sd, KS_CMDA, 0x2c);
 	mdelay(10);
 
 	/* reset the device */
-	ks0127_reset(c);
+	ks0127_init(sd);
 	return 0;
 }
 
-static int ks0127_remove(struct i2c_client *c)
+static int ks0127_remove(struct i2c_client *client)
 {
-	struct ks0127 *ks = i2c_get_clientdata(c);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
-	ks0127_write(c, KS_OFMTA, 0x20); /* tristate */
-	ks0127_write(c, KS_CMDA, 0x2c | 0x80); /* power down */
-
-	kfree(ks);
+	v4l2_device_unregister_subdev(sd);
+	ks0127_write(sd, KS_OFMTA, 0x20); /* tristate */
+	ks0127_write(sd, KS_CMDA, 0x2c | 0x80); /* power down */
+	kfree(to_ks0127(sd));
 	return 0;
 }
 

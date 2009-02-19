@@ -82,6 +82,11 @@ enum {
 	/* module bt866: just ident 866 */
 	V4L2_IDENT_BT866 = 866,
 
+	/* module ks0127: reserved range 1120-1129 */
+	V4L2_IDENT_KS0122S = 1122,
+	V4L2_IDENT_KS0127  = 1127,
+	V4L2_IDENT_KS0127B = 1128,
+
 	/* module vp27smpx: just ident 2700 */
 	V4L2_IDENT_VP27SMPX = 2700,
 
