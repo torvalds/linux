@@ -136,11 +136,11 @@ static void print_mce(struct mce *m)
 			print_symbol("{%s}", m->ip);
 		printk("\n");
 	}
-	printk(KERN_EMERG "TSC %Lx ", m->tsc);
+	printk(KERN_EMERG "TSC %llx ", m->tsc);
 	if (m->addr)
-		printk("ADDR %Lx ", m->addr);
+		printk("ADDR %llx ", m->addr);
 	if (m->misc)
-		printk("MISC %Lx ", m->misc);
+		printk("MISC %llx ", m->misc);
 	printk("\n");
 	printk(KERN_EMERG "This is not a software problem!\n");
 	printk(KERN_EMERG "Run through mcelog --ascii to decode "
@@ -945,7 +945,7 @@ static ssize_t show_bank(struct sys_device *s, struct sysdev_attribute *attr,
 			 char *buf)
 {
 	u64 b = bank[attr - bank_attrs];
-	return sprintf(buf, "%Lx\n", b);
+	return sprintf(buf, "%llx\n", b);
 }
 
 static ssize_t set_bank(struct sys_device *s, struct sysdev_attribute *attr,
