@@ -89,6 +89,25 @@ ip6t_ext_hdr(u8 nexthdr)
 		 (nexthdr == IPPROTO_DSTOPTS) );
 }
 
+static unsigned long ifname_compare(const char *_a, const char *_b,
+				    const unsigned char *_mask)
+{
+	const unsigned long *a = (const unsigned long *)_a;
+	const unsigned long *b = (const unsigned long *)_b;
+	const unsigned long *mask = (const unsigned long *)_mask;
+	unsigned long ret;
+
+	ret = (a[0] ^ b[0]) & mask[0];
+	if (IFNAMSIZ > sizeof(unsigned long))
+		ret |= (a[1] ^ b[1]) & mask[1];
+	if (IFNAMSIZ > 2 * sizeof(unsigned long))
+		ret |= (a[2] ^ b[2]) & mask[2];
+	if (IFNAMSIZ > 3 * sizeof(unsigned long))
+		ret |= (a[3] ^ b[3]) & mask[3];
+	BUILD_BUG_ON(IFNAMSIZ > 4 * sizeof(unsigned long));
+	return ret;
+}
+
 /* Returns whether matches rule or not. */
 /* Performance critical - called for every packet */
 static inline bool
@@ -99,7 +118,6 @@ ip6_packet_match(const struct sk_buff *skb,
 		 unsigned int *protoff,
 		 int *fragoff, bool *hotdrop)
 {
-	size_t i;
 	unsigned long ret;
 	const struct ipv6hdr *ipv6 = ipv6_hdr(skb);
 
@@ -120,12 +138,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		return false;
 	}
 
-	/* Look for ifname matches; this should unroll nicely. */
-	for (i = 0, ret = 0; i < IFNAMSIZ/sizeof(unsigned long); i++) {
-		ret |= (((const unsigned long *)indev)[i]
-			^ ((const unsigned long *)ip6info->iniface)[i])
-			& ((const unsigned long *)ip6info->iniface_mask)[i];
-	}
+	ret = ifname_compare(indev, ip6info->iniface, ip6info->iniface_mask);
 
 	if (FWINV(ret != 0, IP6T_INV_VIA_IN)) {
 		dprintf("VIA in mismatch (%s vs %s).%s\n",
@@ -134,11 +147,7 @@ ip6_packet_match(const struct sk_buff *skb,
 		return false;
 	}
 
-	for (i = 0, ret = 0; i < IFNAMSIZ/sizeof(unsigned long); i++) {
-		ret |= (((const unsigned long *)outdev)[i]
-			^ ((const unsigned long *)ip6info->outiface)[i])
-			& ((const unsigned long *)ip6info->outiface_mask)[i];
-	}
+	ret = ifname_compare(outdev, ip6info->outiface, ip6info->outiface_mask);
 
 	if (FWINV(ret != 0, IP6T_INV_VIA_OUT)) {
 		dprintf("VIA out mismatch (%s vs %s).%s\n",
