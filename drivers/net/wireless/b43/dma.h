@@ -162,7 +162,7 @@ struct b43_dmadesc_generic {
 #define B43_DMA0_RX_FRAMEOFFSET		30
 
 /* DMA engine tuning knobs */
-#define B43_TXRING_SLOTS		128
+#define B43_TXRING_SLOTS		256
 #define B43_RXRING_SLOTS		64
 #define B43_DMA0_RX_BUFFERSIZE		IEEE80211_MAX_FRAME_LEN
 
@@ -212,7 +212,7 @@ struct b43_dmaring {
 	void *descbase;
 	/* Meta data about all descriptors. */
 	struct b43_dmadesc_meta *meta;
-	/* Cache of TX headers for each slot.
+	/* Cache of TX headers for each TX frame.
 	 * This is to avoid an allocation on each TX.
 	 * This is NULL for an RX ring.
 	 */
