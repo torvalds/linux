@@ -93,7 +93,7 @@ static int tracing_sched_register(void)
 	ret = register_trace_sched_switch(probe_sched_switch);
 	if (ret) {
 		pr_info("sched trace: Couldn't activate tracepoint"
-			" probe to kernel_sched_schedule\n");
+			" probe to kernel_sched_switch\n");
 		goto fail_deprobe_wake_new;
 	}
 
@@ -221,6 +221,7 @@ static struct tracer sched_switch_trace __read_mostly =
 	.reset		= sched_switch_trace_reset,
 	.start		= sched_switch_trace_start,
 	.stop		= sched_switch_trace_stop,
+	.wait_pipe	= poll_wait_pipe,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_sched_switch,
 #endif

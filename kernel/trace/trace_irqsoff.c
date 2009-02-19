@@ -1,5 +1,5 @@
 /*
- * trace irqs off criticall timings
+ * trace irqs off critical timings
  *
  * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
  * Copyright (C) 2008 Ingo Molnar <mingo@redhat.com>

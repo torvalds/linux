@@ -336,7 +336,7 @@ __update_max_tr(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	data->rt_priority = tsk->rt_priority;
 
 	/* record this tasks comm */
-	tracing_record_cmdline(current);
+	tracing_record_cmdline(tsk);
 }
 
 static void
@@ -499,6 +499,9 @@ __acquires(kernel_lock)
 	else
 		if (!type->flags->opts)
 			type->flags->opts = dummy_tracer_opt;
+	if (!type->wait_pipe)
+		type->wait_pipe = default_wait_pipe;
+
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
 	if (type->selftest && !tracing_selftest_disabled) {
@@ -1064,7 +1067,10 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->next_prio		= wakee->prio;
 	entry->next_state		= wakee->state;
 	entry->next_cpu			= task_cpu(wakee);
-	trace_buffer_unlock_commit(tr, event, flags, pc);
+
+	ring_buffer_unlock_commit(tr->buffer, event);
+	ftrace_trace_stack(tr, flags, 6, pc);
+	ftrace_trace_userstack(tr, flags, pc);
 }
 
 void
@@ -2392,6 +2398,38 @@ tracing_poll_pipe(struct file *filp, poll_table *poll_table)
 	}
 }
 
+
+void default_wait_pipe(struct trace_iterator *iter)
+{
+	DEFINE_WAIT(wait);
+
+	prepare_to_wait(&trace_wait, &wait, TASK_INTERRUPTIBLE);
+
+	if (trace_empty(iter))
+		schedule();
+
+	finish_wait(&trace_wait, &wait);
+}
+
+/*
+ * This is a make-shift waitqueue.
+ * A tracer might use this callback on some rare cases:
+ *
+ *  1) the current tracer might hold the runqueue lock when it wakes up
+ *     a reader, hence a deadlock (sched, function, and function graph tracers)
+ *  2) the function tracers, trace all functions, we don't want
+ *     the overhead of calling wake_up and friends
+ *     (and tracing them too)
+ *
+ *     Anyway, this is really very primitive wakeup.
+ */
+void poll_wait_pipe(struct trace_iterator *iter)
+{
+	set_current_state(TASK_INTERRUPTIBLE);
+	/* sleep for 100 msecs, and try again. */
+	schedule_timeout(HZ / 10);
+}
+
 /* Must be called with trace_types_lock mutex held. */
 static int tracing_wait_pipe(struct file *filp)
 {
@@ -2403,30 +2441,14 @@ static int tracing_wait_pipe(struct file *filp)
 			return -EAGAIN;
 		}
 
-		/*
-		 * This is a make-shift waitqueue. The reason we don't use
-		 * an actual wait queue is because:
-		 *  1) we only ever have one waiter
-		 *  2) the tracing, traces all functions, we don't want
-		 *     the overhead of calling wake_up and friends
-		 *     (and tracing them too)
-		 *     Anyway, this is really very primitive wakeup.
-		 */
-		set_current_state(TASK_INTERRUPTIBLE);
-		iter->tr->waiter = current;
-
 		mutex_unlock(&trace_types_lock);
 
-		/* sleep for 100 msecs, and try again. */
-		schedule_timeout(HZ/10);
+		iter->trace->wait_pipe(iter);
 
 		mutex_lock(&trace_types_lock);
 
-		iter->tr->waiter = NULL;
-
-		if (signal_pending(current)) {
+		if (signal_pending(current))
 			return -EINTR;
-		}
 
 		if (iter->trace != current_trace)
 			return 0;
@@ -2442,8 +2464,6 @@ static int tracing_wait_pipe(struct file *filp)
 		 */
 		if (!tracer_enabled && iter->pos)
 			break;
-
-		continue;
 	}
 
 	return 1;
@@ -2551,8 +2571,7 @@ static struct pipe_buf_operations tracing_pipe_buf_ops = {
 };
 
 static size_t
-tracing_fill_pipe_page(struct page *pages, size_t rem,
-			struct trace_iterator *iter)
+tracing_fill_pipe_page(size_t rem, struct trace_iterator *iter)
 {
 	size_t count;
 	int ret;
@@ -2629,7 +2648,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 		if (!pages[i])
 			break;
 
-		rem = tracing_fill_pipe_page(pages[i], rem, iter);
+		rem = tracing_fill_pipe_page(rem, iter);
 
 		/* Copy the data into the page, so we can start over. */
 		ret = trace_seq_to_buffer(&iter->seq,

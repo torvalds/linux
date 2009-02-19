@@ -284,7 +284,7 @@ static void start_wakeup_tracer(struct trace_array *tr)
 	ret = register_trace_sched_switch(probe_wakeup_sched_switch);
 	if (ret) {
 		pr_info("sched trace: Couldn't activate tracepoint"
-			" probe to kernel_sched_schedule\n");
+			" probe to kernel_sched_switch\n");
 		goto fail_deprobe_wake_new;
 	}
 
@@ -380,6 +380,7 @@ static struct tracer wakeup_rt_tracer __read_mostly =
 	.reset		= wakeup_tracer_reset,
 	.start		= wakeup_tracer_start,
 	.stop		= wakeup_tracer_stop,
+	.wait_pipe	= poll_wait_pipe,
 	.print_max	= 1,
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,

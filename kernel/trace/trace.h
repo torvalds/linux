@@ -337,18 +337,34 @@ struct tracer_flags {
 #define TRACER_OPT(s, b)	.name = #s, .bit = b
 
 
-/*
- * A specific tracer, represented by methods that operate on a trace array:
+/**
+ * struct tracer - a specific tracer and its callbacks to interact with debugfs
+ * @name: the name chosen to select it on the available_tracers file
+ * @init: called when one switches to this tracer (echo name > current_tracer)
+ * @reset: called when one switches to another tracer
+ * @start: called when tracing is unpaused (echo 1 > tracing_enabled)
+ * @stop: called when tracing is paused (echo 0 > tracing_enabled)
+ * @open: called when the trace file is opened
+ * @pipe_open: called when the trace_pipe file is opened
+ * @wait_pipe: override how the user waits for traces on trace_pipe
+ * @close: called when the trace file is released
+ * @read: override the default read callback on trace_pipe
+ * @splice_read: override the default splice_read callback on trace_pipe
+ * @selftest: selftest to run on boot (see trace_selftest.c)
+ * @print_headers: override the first lines that describe your columns
+ * @print_line: callback that prints a trace
+ * @set_flag: signals one of your private flags changed (trace_options file)
+ * @flags: your private flags
  */
 struct tracer {
 	const char		*name;
-	/* Your tracer should raise a warning if init fails */
 	int			(*init)(struct trace_array *tr);
 	void			(*reset)(struct trace_array *tr);
 	void			(*start)(struct trace_array *tr);
 	void			(*stop)(struct trace_array *tr);
 	void			(*open)(struct trace_iterator *iter);
 	void			(*pipe_open)(struct trace_iterator *iter);
+	void			(*wait_pipe)(struct trace_iterator *iter);
 	void			(*close)(struct trace_iterator *iter);
 	ssize_t			(*read)(struct trace_iterator *iter,
 					struct file *filp, char __user *ubuf,
@@ -431,6 +447,9 @@ struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 void tracing_generic_entry_update(struct trace_entry *entry,
 				  unsigned long flags,
 				  int pc);
+
+void default_wait_pipe(struct trace_iterator *iter);
+void poll_wait_pipe(struct trace_iterator *iter);
 
 void ftrace(struct trace_array *tr,
 			    struct trace_array_cpu *data,

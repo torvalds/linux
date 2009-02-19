@@ -225,6 +225,7 @@ static struct tracer function_trace __read_mostly =
 	.init		= function_trace_init,
 	.reset		= function_trace_reset,
 	.start		= function_trace_start,
+	.wait_pipe	= poll_wait_pipe,
 	.flags		= &func_flags,
 	.set_flag	= func_set_flag,
 #ifdef CONFIG_FTRACE_SELFTEST
@@ -269,21 +270,21 @@ ftrace_traceoff(unsigned long ip, unsigned long parent_ip, void **data)
 
 static int
 ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
-			 struct ftrace_hook_ops *ops, void *data);
+			 struct ftrace_probe_ops *ops, void *data);
 
-static struct ftrace_hook_ops traceon_hook_ops = {
+static struct ftrace_probe_ops traceon_probe_ops = {
 	.func			= ftrace_traceon,
 	.print			= ftrace_trace_onoff_print,
 };
 
-static struct ftrace_hook_ops traceoff_hook_ops = {
+static struct ftrace_probe_ops traceoff_probe_ops = {
 	.func			= ftrace_traceoff,
 	.print			= ftrace_trace_onoff_print,
 };
 
 static int
 ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
-			 struct ftrace_hook_ops *ops, void *data)
+			 struct ftrace_probe_ops *ops, void *data)
 {
 	char str[KSYM_SYMBOL_LEN];
 	long count = (long)data;
@@ -291,12 +292,14 @@ ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
 	kallsyms_lookup(ip, NULL, NULL, NULL, str);
 	seq_printf(m, "%s:", str);
 
-	if (ops == &traceon_hook_ops)
+	if (ops == &traceon_probe_ops)
 		seq_printf(m, "traceon");
 	else
 		seq_printf(m, "traceoff");
 
-	if (count != -1)
+	if (count == -1)
+		seq_printf(m, ":unlimited\n");
+	else
 		seq_printf(m, ":count=%ld", count);
 	seq_putc(m, '\n');
 
@@ -306,15 +309,15 @@ ftrace_trace_onoff_print(struct seq_file *m, unsigned long ip,
 static int
 ftrace_trace_onoff_unreg(char *glob, char *cmd, char *param)
 {
-	struct ftrace_hook_ops *ops;
+	struct ftrace_probe_ops *ops;
 
 	/* we register both traceon and traceoff to this callback */
 	if (strcmp(cmd, "traceon") == 0)
-		ops = &traceon_hook_ops;
+		ops = &traceon_probe_ops;
 	else
-		ops = &traceoff_hook_ops;
+		ops = &traceoff_probe_ops;
 
-	unregister_ftrace_function_hook_func(glob, ops);
+	unregister_ftrace_function_probe_func(glob, ops);
 
 	return 0;
 }
@@ -322,7 +325,7 @@ ftrace_trace_onoff_unreg(char *glob, char *cmd, char *param)
 static int
 ftrace_trace_onoff_callback(char *glob, char *cmd, char *param, int enable)
 {
-	struct ftrace_hook_ops *ops;
+	struct ftrace_probe_ops *ops;
 	void *count = (void *)-1;
 	char *number;
 	int ret;
@@ -336,9 +339,9 @@ ftrace_trace_onoff_callback(char *glob, char *cmd, char *param, int enable)
 
 	/* we register both traceon and traceoff to this callback */
 	if (strcmp(cmd, "traceon") == 0)
-		ops = &traceon_hook_ops;
+		ops = &traceon_probe_ops;
 	else
-		ops = &traceoff_hook_ops;
+		ops = &traceoff_probe_ops;
 
 	if (!param)
 		goto out_reg;
@@ -357,7 +360,7 @@ ftrace_trace_onoff_callback(char *glob, char *cmd, char *param, int enable)
 		return ret;
 
  out_reg:
-	ret = register_ftrace_function_hook(glob, ops, count);
+	ret = register_ftrace_function_probe(glob, ops, count);
 
 	return ret;
 }
@@ -397,6 +400,5 @@ static __init int init_function_trace(void)
 	init_func_cmd_traceon();
 	return register_tracer(&function_trace);
 }
-
 device_initcall(init_function_trace);
 
