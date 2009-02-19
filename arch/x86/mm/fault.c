@@ -455,6 +455,7 @@ static int spurious_fault(unsigned long address,
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+	int ret;
 
 	/* Reserved-bit violation or user access to kernel space? */
 	if (error_code & (PF_USER | PF_RSVD))
@@ -482,7 +483,17 @@ static int spurious_fault(unsigned long address,
 	if (!pte_present(*pte))
 		return 0;
 
-	return spurious_fault_check(error_code, pte);
+	ret = spurious_fault_check(error_code, pte);
+	if (!ret)
+		return 0;
+
+	/*
+	 * Make sure we have permissions in PMD
+	 * If not, then there's a bug in the page tables.
+	 */
+	ret = spurious_fault_check(error_code, (pte_t *) pmd);
+	WARN_ONCE(!ret, "PMD has incorrect permission bits\n");
+	return ret;
 }
 
 /*
