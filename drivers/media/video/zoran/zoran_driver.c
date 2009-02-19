@@ -963,41 +963,11 @@ static int zoran_open(struct file *file)
 
 	lock_kernel();
 
-	/* see fs/device.c - the kernel already locks during open(),
-	 * so locking ourselves only causes deadlocks */
-	/*mutex_lock(&zr->resource_lock);*/
-
 	if (zr->user >= 2048) {
 		dprintk(1, KERN_ERR "%s: too many users (%d) on device\n",
 			ZR_DEVNAME(zr), zr->user);
 		res = -EBUSY;
 		goto fail_unlock;
-	}
-
-	if (!zr->decoder) {
-		dprintk(1,
-			KERN_ERR "%s: no TV decoder loaded for device!\n",
-			ZR_DEVNAME(zr));
-		res = -EIO;
-		goto fail_unlock;
-	}
-
-	if (!try_module_get(zr->decoder->driver->driver.owner)) {
-		dprintk(1,
-			KERN_ERR
-			"%s: failed to grab ownership of video decoder\n",
-			ZR_DEVNAME(zr));
-		res = -EIO;
-		goto fail_unlock;
-	}
-	if (zr->encoder &&
-	    !try_module_get(zr->encoder->driver->driver.owner)) {
-		dprintk(1,
-			KERN_ERR
-			"%s: failed to grab ownership of video encoder\n",
-			ZR_DEVNAME(zr));
-		res = -EIO;
-		goto fail_decoder;
 	}
 
 	/* now, create the open()-specific file_ops struct */
@@ -1008,7 +978,7 @@ static int zoran_open(struct file *file)
 			"%s: zoran_open() - allocation of zoran_fh failed\n",
 			ZR_DEVNAME(zr));
 		res = -ENOMEM;
-		goto fail_encoder;
+		goto fail_unlock;
 	}
 	/* used to be BUZ_MAX_WIDTH/HEIGHT, but that gives overflows
 	 * on norm-change! */
@@ -1047,11 +1017,6 @@ static int zoran_open(struct file *file)
 
 fail_fh:
 	kfree(fh);
-fail_encoder:
-	if (zr->encoder)
-		module_put(zr->encoder->driver->driver.owner);
-fail_decoder:
-	module_put(zr->decoder->driver->driver.owner);
 fail_unlock:
 	unlock_kernel();
 
@@ -1104,21 +1069,14 @@ zoran_close(struct file  *file)
 		if (!pass_through) {	/* Switch to color bar */
 			struct v4l2_routing route = { 2, 0 };
 
-			decoder_command(zr, VIDIOC_STREAMOFF, 0);
-			encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+			decoder_call(zr, video, s_stream, 0);
+			encoder_call(zr, video, s_routing, &route);
 		}
 	}
 
 	file->private_data = NULL;
 	kfree(fh->overlay_mask);
 	kfree(fh);
-
-	/* release locks on the i2c modules */
-	module_put(zr->decoder->driver->driver.owner);
-	if (zr->encoder)
-		module_put(zr->encoder->driver->driver.owner);
-
-	/*mutex_unlock(&zr->resource_lock);*/
 
 	dprintk(4, KERN_INFO "%s: zoran_close() done\n", ZR_DEVNAME(zr));
 
@@ -1567,20 +1525,20 @@ zoran_set_norm (struct zoran *zr,
 		int status = 0;
 		v4l2_std_id std = 0;
 
-		decoder_command(zr, VIDIOC_QUERYSTD, &std);
-		decoder_command(zr, VIDIOC_S_STD, &std);
+		decoder_call(zr, video, querystd, &std);
+		decoder_s_std(zr, std);
 
 		/* let changes come into effect */
 		ssleep(2);
 
-		decoder_command(zr, VIDIOC_INT_G_INPUT_STATUS, &status);
+		decoder_call(zr, video, g_input_status, &status);
 		if (status & V4L2_IN_ST_NO_SIGNAL) {
 			dprintk(1,
 				KERN_ERR
 				"%s: set_norm() - no norm detected\n",
 				ZR_DEVNAME(zr));
 			/* reset norm */
-			decoder_command(zr, VIDIOC_S_STD, &zr->norm);
+			decoder_s_std(zr, zr->norm);
 			return -EIO;
 		}
 
@@ -1599,8 +1557,8 @@ zoran_set_norm (struct zoran *zr,
 	if (on)
 		zr36057_overlay(zr, 0);
 
-	decoder_command(zr, VIDIOC_S_STD, &norm);
-	encoder_command(zr, VIDIOC_INT_S_STD_OUTPUT, &norm);
+	decoder_s_std(zr, norm);
+	encoder_call(zr, video, s_std_output, norm);
 
 	if (on)
 		zr36057_overlay(zr, 1);
@@ -1641,7 +1599,7 @@ zoran_set_input (struct zoran *zr,
 	route.input = zr->card.input[input].muxsel;
 	zr->input = input;
 
-	decoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+	decoder_s_routing(zr, &route);
 
 	return 0;
 }
@@ -1886,18 +1844,18 @@ jpgreqbuf_unlock_and_return:
 			goto gstat_unlock_and_return;
 		}
 
-		decoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+		decoder_s_routing(zr, &route);
 
 		/* sleep 1 second */
 		ssleep(1);
 
 		/* Get status of video decoder */
-		decoder_command(zr, VIDIOC_QUERYSTD, &norm);
-		decoder_command(zr, VIDIOC_INT_G_INPUT_STATUS, &status);
+		decoder_call(zr, video, querystd, &norm);
+		decoder_call(zr, video, g_input_status, &status);
 
 		/* restore previous input and norm */
 		route.input = zr->card.input[zr->input].muxsel;
-		decoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+		decoder_s_routing(zr, &route);
 gstat_unlock_and_return:
 		mutex_unlock(&zr->resource_lock);
 
@@ -2836,7 +2794,7 @@ static int zoran_queryctrl(struct file *file, void *__fh,
 	    ctrl->id > V4L2_CID_HUE)
 		return -EINVAL;
 
-	decoder_command(zr, VIDIOC_QUERYCTRL, ctrl);
+	decoder_call(zr, core, queryctrl, ctrl);
 
 	return 0;
 }
@@ -2852,7 +2810,7 @@ static int zoran_g_ctrl(struct file *file, void *__fh, struct v4l2_control *ctrl
 		return -EINVAL;
 
 	mutex_lock(&zr->resource_lock);
-	decoder_command(zr, VIDIOC_G_CTRL, ctrl);
+	decoder_call(zr, core, g_ctrl, ctrl);
 	mutex_unlock(&zr->resource_lock);
 
 	return 0;
@@ -2869,7 +2827,7 @@ static int zoran_s_ctrl(struct file *file, void *__fh, struct v4l2_control *ctrl
 		return -EINVAL;
 
 	mutex_lock(&zr->resource_lock);
-	decoder_command(zr, VIDIOC_S_CTRL, ctrl);
+	decoder_call(zr, core, s_ctrl, ctrl);
 	mutex_unlock(&zr->resource_lock);
 
 	return 0;
@@ -2924,7 +2882,7 @@ static int zoran_enum_input(struct file *file, void *__fh,
 
 	/* Get status of video decoder */
 	mutex_lock(&zr->resource_lock);
-	decoder_command(zr, VIDIOC_INT_G_INPUT_STATUS, &inp->status);
+	decoder_call(zr, video, g_input_status, &inp->status);
 	mutex_unlock(&zr->resource_lock);
 	return 0;
 }

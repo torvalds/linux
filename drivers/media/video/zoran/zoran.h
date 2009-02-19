@@ -31,6 +31,8 @@
 #ifndef _BUZ_H_
 #define _BUZ_H_
 
+#include <media/v4l2-device.h>
+
 struct zoran_requestbuffers {
 	unsigned long count;	/* Number of buffers for MJPEG grabbing */
 	unsigned long size;	/* Size PER BUFFER in bytes */
@@ -339,7 +341,12 @@ struct zoran_fh {
 struct card_info {
 	enum card_type type;
 	char name[32];
-	u16 i2c_decoder, i2c_encoder;			/* I2C types */
+	const char *i2c_decoder;	/* i2c decoder device */
+	const char *mod_decoder;	/* i2c decoder module */
+	const unsigned short *addrs_decoder;
+	const char *i2c_encoder;	/* i2c encoder device */
+	const char *mod_encoder;	/* i2c encoder module */
+	const unsigned short *addrs_encoder;
 	u16 video_vfe, video_codec;			/* videocodec types */
 	u16 audio_chip;					/* audio type */
 
@@ -370,14 +377,15 @@ struct card_info {
 };
 
 struct zoran {
+	struct v4l2_device v4l2_dev;
 	struct video_device *video_dev;
 
 	struct i2c_adapter i2c_adapter;	/* */
 	struct i2c_algo_bit_data i2c_algo;	/* */
 	u32 i2cbr;
 
-	struct i2c_client *decoder;	/* video decoder i2c client */
-	struct i2c_client *encoder;	/* video encoder i2c client */
+	struct v4l2_subdev *decoder;	/* video decoder sub-device */
+	struct v4l2_subdev *encoder;	/* video encoder sub-device */
 
 	struct videocodec *codec;	/* video codec */
 	struct videocodec *vfe;	/* video front end */
@@ -480,6 +488,11 @@ struct zoran {
 
 	wait_queue_head_t test_q;
 };
+
+static inline struct zoran *to_zoran(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct zoran, v4l2_dev);
+}
 
 /* There was something called _ALPHA_BUZ that used the PCI address instead of
  * the kernel iomapped address for btread/btwrite.  */

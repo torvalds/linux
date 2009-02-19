@@ -87,11 +87,12 @@ extern int jpg_bufsize;
 extern int pass_through;
 
 /* i2c */
-extern int decoder_command(struct zoran *zr,
-			   int cmd,
-			   void *data);
-extern int encoder_command(struct zoran *zr,
-			   int cmd,
-			   void *data);
+#define decoder_call(zr, o, f, args...) \
+	v4l2_subdev_call(zr->decoder, o, f, ##args)
+#define encoder_call(zr, o, f, args...) \
+	v4l2_subdev_call(zr->encoder, o, f, ##args)
+
+int decoder_s_std(struct zoran *zr, v4l2_std_id std);
+int decoder_s_routing(struct zoran *zr, struct v4l2_routing *route);
 
 #endif				/* __ZORAN_DEVICE_H__ */

@@ -36,15 +36,12 @@
 #include <linux/proc_fs.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/videodev.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/spinlock.h>
 #include <linux/sem.h>
 
 #include <linux/pci.h>
-#include <linux/video_decoder.h>
-#include <linux/video_encoder.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
 
@@ -1000,9 +997,9 @@ zr36057_enable_jpg (struct zoran          *zr,
 		 * the video bus direction set to input.
 		 */
 		set_videobus_dir(zr, 0);
-		decoder_command(zr, VIDIOC_STREAMON, 0);
+		decoder_call(zr, video, s_stream, 1);
 		route.input = 0;
-		encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+		encoder_call(zr, video, s_routing, &route);
 
 		/* Take the JPEG codec and the VFE out of sleep */
 		jpeg_codec_sleep(zr, 0);
@@ -1048,10 +1045,10 @@ zr36057_enable_jpg (struct zoran          *zr,
 		/* In motion decompression mode, the decoder output must be disabled, and
 		 * the video bus direction set to output.
 		 */
-		decoder_command(zr, VIDIOC_STREAMOFF, 0);
+		decoder_call(zr, video, s_stream, 0);
 		set_videobus_dir(zr, 1);
 		route.input = 1;
-		encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+		encoder_call(zr, video, s_routing, &route);
 
 		/* Take the JPEG codec and the VFE out of sleep */
 		jpeg_codec_sleep(zr, 0);
@@ -1095,9 +1092,9 @@ zr36057_enable_jpg (struct zoran          *zr,
 		jpeg_codec_sleep(zr, 1);
 		zr36057_adjust_vfe(zr, mode);
 
-		decoder_command(zr, VIDIOC_STREAMON, 0);
+		decoder_call(zr, video, s_stream, 1);
 		route.input = 0;
-		encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+		encoder_call(zr, video, s_routing, &route);
 
 		dprintk(2, KERN_INFO "%s: enable_jpg(IDLE)\n", ZR_DEVNAME(zr));
 		break;
@@ -1210,7 +1207,7 @@ static void zoran_restart(struct zoran *zr)
 	int status = 0, mode;
 
 	if (zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {
-		decoder_command(zr, VIDIOC_INT_G_INPUT_STATUS, &status);
+		decoder_call(zr, video, g_input_status, &status);
 		mode = CODEC_DO_COMPRESSION;
 	} else {
 		status = V4L2_IN_ST_NO_SIGNAL;
@@ -1590,14 +1587,14 @@ zoran_init_hardware (struct zoran *zr)
 
 	route.input = zr->card.input[zr->input].muxsel;
 
-	decoder_command(zr, VIDIOC_INT_INIT, NULL);
-	decoder_command(zr, VIDIOC_S_STD, &zr->norm);
-	decoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+	decoder_call(zr, core, init, 0);
+	decoder_s_std(zr, zr->norm);
+	decoder_s_routing(zr, &route);
 
-	encoder_command(zr, VIDIOC_INT_INIT, NULL);
-	encoder_command(zr, VIDIOC_INT_S_STD_OUTPUT, &zr->norm);
+	encoder_call(zr, core, init, 0);
+	encoder_call(zr, video, s_std_output, zr->norm);
 	route.input = 0;
-	encoder_command(zr, VIDIOC_INT_S_VIDEO_ROUTING, &route);
+	encoder_call(zr, video, s_routing, &route);
 
 	/* toggle JPEG codec sleep to sync PLL */
 	jpeg_codec_sleep(zr, 1);
@@ -1662,37 +1659,30 @@ zr36057_init_vfe (struct zoran *zr)
  * Interface to decoder and encoder chips using i2c bus
  */
 
-int
-decoder_command (struct zoran *zr,
-		 int           cmd,
-		 void         *data)
+int decoder_s_std(struct zoran *zr, v4l2_std_id std)
 {
-	if (zr->decoder == NULL)
-		return -EIO;
+	int res;
 
-	if (zr->card.type == LML33 &&
-	    (cmd == VIDIOC_S_STD || cmd == VIDIOC_INT_S_VIDEO_ROUTING)) {
-		int res;
-
-		// Bt819 needs to reset its FIFO buffer using #FRST pin and
-		// LML33 card uses GPIO(7) for that.
+	/* Bt819 needs to reset its FIFO buffer using #FRST pin and
+	   LML33 card uses GPIO(7) for that. */
+	if (zr->card.type == LML33)
 		GPIO(zr, 7, 0);
-		res = zr->decoder->driver->command(zr->decoder, cmd, data);
-		// Pull #FRST high.
-		GPIO(zr, 7, 1);
-		return res;
-	} else
-		return zr->decoder->driver->command(zr->decoder, cmd,
-						    data);
+	res = decoder_call(zr, tuner, s_std, std);
+	if (zr->card.type == LML33)
+		GPIO(zr, 7, 1); /* Pull #FRST high. */
+	return res;
 }
 
-int
-encoder_command (struct zoran *zr,
-		 int           cmd,
-		 void         *data)
+int decoder_s_routing(struct zoran *zr, struct v4l2_routing *route)
 {
-	if (zr->encoder == NULL)
-		return -1;
+	int res;
 
-	return zr->encoder->driver->command(zr->encoder, cmd, data);
+	/* Bt819 needs to reset its FIFO buffer using #FRST pin and
+	   LML33 card uses GPIO(7) for that. */
+	if (zr->card.type == LML33)
+		GPIO(zr, 7, 0);
+	res = decoder_call(zr, video, s_routing, route);
+	if (zr->card.type == LML33)
+		GPIO(zr, 7, 1); /* Pull #FRST high. */
+	return res;
 }
