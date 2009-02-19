@@ -11824,9 +11824,14 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 					   alc268_ignore);
 	if (err < 0)
 		return err;
-	if (!spec->autocfg.line_outs)
+	if (!spec->autocfg.line_outs) {
+		if (spec->autocfg.dig_outs || spec->autocfg.dig_in_pin) {
+			spec->multiout.max_channels = 2;
+			spec->no_analog = 1;
+			goto dig_only;
+		}
 		return 0; /* can't find valid BIOS pin config */
-
+	}
 	err = alc268_auto_create_multi_out_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
@@ -11836,10 +11841,12 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = 2;
 
+ dig_only:
 	/* digital only support output */
-	if (spec->autocfg.dig_outs)
+	if (spec->autocfg.dig_outs) {
 		spec->multiout.dig_out_nid = ALC268_DIGOUT_NID;
-
+		spec->dig_out_type = spec->autocfg.dig_out_type[0];
+	}
 	if (spec->kctls.list)
 		add_mixer(spec, spec->kctls.list);
 
@@ -12140,7 +12147,7 @@ static int patch_alc268(struct hda_codec *codec)
 					  (0 << AC_AMPCAP_MUTE_SHIFT));
 	}
 
-	if (!spec->adc_nids && spec->input_mux) {
+	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
 		/* check whether NID 0x07 is valid */
 		unsigned int wcap = get_wcaps(codec, 0x07);
 		int i;
@@ -12764,7 +12771,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	if (!spec->cap_mixer)
+	if (!spec->cap_mixer && !spec->no_analog)
 		set_capture_mixer(spec);
 
 	store_pin_configs(codec);
