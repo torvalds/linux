@@ -3941,8 +3941,7 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 		goto out_commit;
 	}
 
-	orig_leaves_start = leaf_blkno & ~(osb->s_clustersize_bits -
-				      osb->sb->s_blocksize_bits);
+	orig_leaves_start = ocfs2_block_to_cluster_start(dir->i_sb, leaf_blkno);
 	ret = ocfs2_read_dx_leaves(dir, orig_leaves_start, num_dx_leaves,
 				   orig_dx_leaves);
 	if (ret) {

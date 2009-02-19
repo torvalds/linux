@@ -582,6 +582,16 @@ static inline u64 ocfs2_clusters_to_bytes(struct super_block *sb,
 	return (u64)clusters << OCFS2_SB(sb)->s_clustersize_bits;
 }
 
+static inline u64 ocfs2_block_to_cluster_start(struct super_block *sb,
+					       u64 blocks)
+{
+	int bits = OCFS2_SB(sb)->s_clustersize_bits - sb->s_blocksize_bits;
+	unsigned int clusters;
+
+	clusters = ocfs2_blocks_to_clusters(sb, blocks);
+	return (u64)clusters << bits;
+}
+
 static inline u64 ocfs2_align_bytes_to_clusters(struct super_block *sb,
 						u64 bytes)
 {
