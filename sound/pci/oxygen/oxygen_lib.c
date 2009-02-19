@@ -446,6 +446,7 @@ static void oxygen_card_free(struct snd_card *card)
 		free_irq(chip->irq, chip);
 	flush_scheduled_work();
 	chip->model.cleanup(chip);
+	kfree(chip->model_data);
 	mutex_destroy(&chip->mutex);
 	pci_release_regions(chip->pci);
 	pci_disable_device(chip->pci);
@@ -460,8 +461,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	struct oxygen *chip;
 	int err;
 
-	err = snd_card_create(index, id, owner,
-			      sizeof(*chip) + model->model_data_size, &card);
+	err = snd_card_create(index, id, owner, sizeof(*chip), &card);
 	if (err < 0)
 		return err;
 
@@ -470,7 +470,6 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	chip->pci = pci;
 	chip->irq = -1;
 	chip->model = *model;
-	chip->model_data = chip + 1;
 	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->mutex);
 	INIT_WORK(&chip->spdif_input_bits_work,
@@ -495,6 +494,15 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		goto err_pci_regions;
 	}
 	chip->addr = pci_resource_start(pci, 0);
+
+	if (chip->model.model_data_size) {
+		chip->model_data = kmalloc(chip->model.model_data_size,
+					   GFP_KERNEL);
+		if (!chip->model_data) {
+			err = -ENOMEM;
+			goto err_pci_regions;
+		}
+	}
 
 	pci_set_master(pci);
 	snd_card_set_dev(card, &pci->dev);
