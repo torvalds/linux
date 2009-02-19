@@ -34,6 +34,7 @@ MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("C-Media CMI8788 helper library");
 MODULE_LICENSE("GPL v2");
 
+#define DRIVER "oxygen"
 
 static inline int oxygen_uart_input_ready(struct oxygen *chip)
 {
@@ -481,7 +482,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	if (err < 0)
 		goto err_card;
 
-	err = pci_request_regions(pci, model->chip);
+	err = pci_request_regions(pci, DRIVER);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot reserve PCI resources\n");
 		goto err_pci_enable;
@@ -517,7 +518,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	chip->model.init(chip);
 
 	err = request_irq(pci->irq, oxygen_interrupt, IRQF_SHARED,
-			  chip->model.chip, chip);
+			  DRIVER, chip);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot grab interrupt %d\n", pci->irq);
 		goto err_card;
