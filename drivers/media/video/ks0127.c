@@ -724,6 +724,8 @@ static int ks0127_legacy_probe(struct i2c_adapter *adapter)
 
 static const struct i2c_device_id ks0127_id[] = {
 	{ "ks0127", 0 },
+	{ "ks0127b", 0 },
+	{ "ks0122s", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ks0127_id);
