@@ -292,7 +292,8 @@ if [ ! -z ${output_file} ]; then
 	if [ "${is_cpio_compressed}" = "compressed" ]; then
 		cat ${cpio_tfile} > ${output_file}
 	else
-		cat ${cpio_tfile} | ${compr}  - > ${output_file}
+		(cat ${cpio_tfile} | ${compr}  - > ${output_file}) \
+		|| (rm -f ${output_file} ; false)
 	fi
 	[ -z ${cpio_file} ] && rm ${cpio_tfile}
 fi
