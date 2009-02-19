@@ -114,6 +114,7 @@ config CRYPTO_CRYPTD
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_HASH
 	select CRYPTO_MANAGER
+	select CRYPTO_WORKQUEUE
 	help
 	  This is a generic software asynchronous crypto daemon that
 	  converts an arbitrary synchronous software crypto algorithm
