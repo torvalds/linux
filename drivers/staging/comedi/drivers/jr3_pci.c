@@ -56,7 +56,7 @@ static void comedi_fw_release(struct device *dev)
 }
 
 static struct device comedi_fw_device = {
-	.bus_id = "comedi",
+	.init_name = "comedi",
 	.release = comedi_fw_release
 };
 
