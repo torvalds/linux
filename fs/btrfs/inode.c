@@ -2531,8 +2531,6 @@ noinline int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	key.offset = (u64)-1;
 	key.type = (u8)-1;
 
-	btrfs_init_path(path);
-
 search_again:
 	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 	if (ret < 0)
@@ -4263,7 +4261,7 @@ static int btrfs_releasepage(struct page *page, gfp_t gfp_flags)
 {
 	if (PageWriteback(page) || PageDirty(page))
 		return 0;
-	return __btrfs_releasepage(page, gfp_flags);
+	return __btrfs_releasepage(page, gfp_flags & GFP_NOFS);
 }
 
 static void btrfs_invalidatepage(struct page *page, unsigned long offset)

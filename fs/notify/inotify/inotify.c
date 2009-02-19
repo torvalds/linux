@@ -156,7 +156,7 @@ static int inotify_handle_get_wd(struct inotify_handle *ih,
 	int ret;
 
 	do {
-		if (unlikely(!idr_pre_get(&ih->idr, GFP_KERNEL)))
+		if (unlikely(!idr_pre_get(&ih->idr, GFP_NOFS)))
 			return -ENOSPC;
 		ret = idr_get_new_above(&ih->idr, watch, ih->last_wd+1, &watch->wd);
 	} while (ret == -EAGAIN);

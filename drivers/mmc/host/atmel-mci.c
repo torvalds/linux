@@ -1548,9 +1548,10 @@ static bool filter(struct dma_chan *chan, void *slave)
 {
 	struct dw_dma_slave *dws = slave;
 
-	if (dws->dma_dev == chan->device->dev)
+	if (dws->dma_dev == chan->device->dev) {
+		chan->private = dws;
 		return true;
-	else
+	} else
 		return false;
 }
 #endif

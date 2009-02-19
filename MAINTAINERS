@@ -1905,10 +1905,10 @@ W:	http://gigaset307x.sourceforge.net/
 S:	Maintained
 
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
-P:	Robert Love
-M:	rlove@rlove.org
-M:	linux-kernel@vger.kernel.org
-W:	http://www.kernel.org/pub/linux/kernel/people/rml/hdaps/
+P:	Frank Seidel
+M:	frank@f-seidel.de
+L:	lm-sensors@lm-sensors.org
+W:	http://www.kernel.org/pub/linux/kernel/people/fseidel/hdaps/
 S:	Maintained
 
 GSPCA FINEPIX SUBDRIVER
@@ -2001,7 +2001,7 @@ S:	Maintained
 
 HIBERNATION (aka Software Suspend, aka swsusp)
 P:	Pavel Machek
-M:	pavel@suse.cz
+M:	pavel@ucw.cz
 P:	Rafael J. Wysocki
 M:	rjw@sisk.pl
 L:	linux-pm@lists.linux-foundation.org
@@ -4178,7 +4178,7 @@ SUSPEND TO RAM
 P:	Len Brown
 M:	len.brown@intel.com
 P:	Pavel Machek
-M:	pavel@suse.cz
+M:	pavel@ucw.cz
 P:	Rafael J. Wysocki
 M:	rjw@sisk.pl
 L:	linux-pm@lists.linux-foundation.org
@@ -4930,11 +4930,11 @@ L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 ZR36067 VIDEO FOR LINUX DRIVER
-P:	Ronald Bultje
-M:	rbultje@ronald.bitfreak.net
 L:	mjpeg-users@lists.sourceforge.net
+L:	linux-media@vger.kernel.org
 W:	http://mjpeg.sourceforge.net/driver-zoran/
-S:	Maintained
+T:	Mercurial http://linuxtv.org/hg/v4l-dvb
+S:	Odd Fixes
 
 ZS DECSTATION Z85C30 SERIAL DRIVER
 P:	Maciej W. Rozycki

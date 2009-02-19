@@ -1872,7 +1872,7 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 
 	devid = superio_inw(sioaddr, SIO_REG_MANID);
 	if (devid != SIO_FINTEK_ID) {
-		printk(KERN_INFO DRVNAME ": Not a Fintek device\n");
+		pr_debug(DRVNAME ": Not a Fintek device\n");
 		goto exit;
 	}
 
@@ -1932,7 +1932,7 @@ static int __init f71882fg_device_add(unsigned short address,
 	res.name = f71882fg_pdev->name;
 	err = acpi_check_resource_conflict(&res);
 	if (err)
-		return err;
+		goto exit_device_put;
 
 	err = platform_device_add_resources(f71882fg_pdev, &res, 1);
 	if (err) {
