@@ -746,7 +746,7 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 		return -EINVAL;
 
 	if (clk->usecount > 0)
-		_omap2_clk_disable(clk);
+		omap2_clk_disable(clk);
 
 	/* Set new source value (previous dividers if any in effect) */
 	reg_val = __raw_readl(src_addr) & ~field_mask;
@@ -759,10 +759,10 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 		wmb();
 	}
 
-	if (clk->usecount > 0)
-		_omap2_clk_enable(clk);
-
 	clk->parent = new_parent;
+
+	if (clk->usecount > 0)
+		omap2_clk_enable(clk);
 
 	/* CLKSEL clocks follow their parents' rates, divided by a divisor */
 	clk->rate = new_parent->rate;
