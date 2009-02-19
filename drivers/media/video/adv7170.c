@@ -34,14 +34,22 @@
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
-#include <linux/videodev.h>
-#include <linux/video_encoder.h>
-#include <media/v4l2-common.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-chip-ident.h>
 #include <media/v4l2-i2c-drv-legacy.h>
 
 MODULE_DESCRIPTION("Analog Devices ADV7170 video encoder driver");
 MODULE_AUTHOR("Maxim Yevtyushkin");
 MODULE_LICENSE("GPL");
+
+static unsigned short normal_i2c[] = {
+	0xd4 >> 1, 0xd6 >> 1,	/* adv7170 IDs */
+	0x54 >> 1, 0x56 >> 1,	/* adv7171 IDs */
+	I2C_CLIENT_END
+};
+
+I2C_CLIENT_INSMOD;
 
 static int debug;
 module_param(debug, int, 0);
@@ -50,36 +58,43 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 /* ----------------------------------------------------------------------- */
 
 struct adv7170 {
+	struct v4l2_subdev sd;
 	unsigned char reg[128];
 
 	v4l2_std_id norm;
 	int input;
-	int bright;
-	int contrast;
-	int hue;
-	int sat;
 };
+
+static inline struct adv7170 *to_adv7170(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct adv7170, sd);
+}
 
 static char *inputs[] = { "pass_through", "play_back" };
 
 /* ----------------------------------------------------------------------- */
 
-static inline int adv7170_write(struct i2c_client *client, u8 reg, u8 value)
+static inline int adv7170_write(struct v4l2_subdev *sd, u8 reg, u8 value)
 {
-	struct adv7170 *encoder = i2c_get_clientdata(client);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct adv7170 *encoder = to_adv7170(sd);
 
 	encoder->reg[reg] = value;
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
-static inline int adv7170_read(struct i2c_client *client, u8 reg)
+static inline int adv7170_read(struct v4l2_subdev *sd, u8 reg)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 	return i2c_smbus_read_byte_data(client, reg);
 }
 
-static int adv7170_write_block(struct i2c_client *client,
+static int adv7170_write_block(struct v4l2_subdev *sd,
 		     const u8 *data, unsigned int len)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct adv7170 *encoder = to_adv7170(sd);
 	int ret = -1;
 	u8 reg;
 
@@ -87,7 +102,6 @@ static int adv7170_write_block(struct i2c_client *client,
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		/* do raw I2C, not smbus compatible */
-		struct adv7170 *encoder = i2c_get_clientdata(client);
 		u8 block_data[32];
 		int block_len;
 
@@ -108,7 +122,7 @@ static int adv7170_write_block(struct i2c_client *client,
 		/* do some slow I2C emulation kind of thing */
 		while (len >= 2) {
 			reg = *data++;
-			ret = adv7170_write(client, reg, *data++);
+			ret = adv7170_write(sd, reg, *data++);
 			if (ret < 0)
 				break;
 			len -= 2;
@@ -126,168 +140,165 @@ static int adv7170_write_block(struct i2c_client *client,
 #define TR1PLAY	    0x00
 
 static const unsigned char init_NTSC[] = {
-	0x00, 0x10,		// MR0
-	0x01, 0x20,		// MR1
-	0x02, 0x0e,		// MR2 RTC control: bits 2 and 1
-	0x03, 0x80,		// MR3
-	0x04, 0x30,		// MR4
-	0x05, 0x00,		// Reserved
-	0x06, 0x00,		// Reserved
-	0x07, TR0MODE,		// TM0
-	0x08, TR1CAPT,		// TM1
-	0x09, 0x16,		// Fsc0
-	0x0a, 0x7c,		// Fsc1
-	0x0b, 0xf0,		// Fsc2
-	0x0c, 0x21,		// Fsc3
-	0x0d, 0x00,		// Subcarrier Phase
-	0x0e, 0x00,		// Closed Capt. Ext 0
-	0x0f, 0x00,		// Closed Capt. Ext 1
-	0x10, 0x00,		// Closed Capt. 0
-	0x11, 0x00,		// Closed Capt. 1
-	0x12, 0x00,		// Pedestal Ctl 0
-	0x13, 0x00,		// Pedestal Ctl 1
-	0x14, 0x00,		// Pedestal Ctl 2
-	0x15, 0x00,		// Pedestal Ctl 3
-	0x16, 0x00,		// CGMS_WSS_0
-	0x17, 0x00,		// CGMS_WSS_1
-	0x18, 0x00,		// CGMS_WSS_2
-	0x19, 0x00,		// Teletext Ctl
+	0x00, 0x10,		/* MR0 */
+	0x01, 0x20,		/* MR1 */
+	0x02, 0x0e,		/* MR2 RTC control: bits 2 and 1 */
+	0x03, 0x80,		/* MR3 */
+	0x04, 0x30,		/* MR4 */
+	0x05, 0x00,		/* Reserved */
+	0x06, 0x00,		/* Reserved */
+	0x07, TR0MODE,		/* TM0 */
+	0x08, TR1CAPT,		/* TM1 */
+	0x09, 0x16,		/* Fsc0 */
+	0x0a, 0x7c,		/* Fsc1 */
+	0x0b, 0xf0,		/* Fsc2 */
+	0x0c, 0x21,		/* Fsc3 */
+	0x0d, 0x00,		/* Subcarrier Phase */
+	0x0e, 0x00,		/* Closed Capt. Ext 0 */
+	0x0f, 0x00,		/* Closed Capt. Ext 1 */
+	0x10, 0x00,		/* Closed Capt. 0 */
+	0x11, 0x00,		/* Closed Capt. 1 */
+	0x12, 0x00,		/* Pedestal Ctl 0 */
+	0x13, 0x00,		/* Pedestal Ctl 1 */
+	0x14, 0x00,		/* Pedestal Ctl 2 */
+	0x15, 0x00,		/* Pedestal Ctl 3 */
+	0x16, 0x00,		/* CGMS_WSS_0 */
+	0x17, 0x00,		/* CGMS_WSS_1 */
+	0x18, 0x00,		/* CGMS_WSS_2 */
+	0x19, 0x00,		/* Teletext Ctl */
 };
 
 static const unsigned char init_PAL[] = {
-	0x00, 0x71,		// MR0
-	0x01, 0x20,		// MR1
-	0x02, 0x0e,		// MR2 RTC control: bits 2 and 1
-	0x03, 0x80,		// MR3
-	0x04, 0x30,		// MR4
-	0x05, 0x00,		// Reserved
-	0x06, 0x00,		// Reserved
-	0x07, TR0MODE,		// TM0
-	0x08, TR1CAPT,		// TM1
-	0x09, 0xcb,		// Fsc0
-	0x0a, 0x8a,		// Fsc1
-	0x0b, 0x09,		// Fsc2
-	0x0c, 0x2a,		// Fsc3
-	0x0d, 0x00,		// Subcarrier Phase
-	0x0e, 0x00,		// Closed Capt. Ext 0
-	0x0f, 0x00,		// Closed Capt. Ext 1
-	0x10, 0x00,		// Closed Capt. 0
-	0x11, 0x00,		// Closed Capt. 1
-	0x12, 0x00,		// Pedestal Ctl 0
-	0x13, 0x00,		// Pedestal Ctl 1
-	0x14, 0x00,		// Pedestal Ctl 2
-	0x15, 0x00,		// Pedestal Ctl 3
-	0x16, 0x00,		// CGMS_WSS_0
-	0x17, 0x00,		// CGMS_WSS_1
-	0x18, 0x00,		// CGMS_WSS_2
-	0x19, 0x00,		// Teletext Ctl
+	0x00, 0x71,		/* MR0 */
+	0x01, 0x20,		/* MR1 */
+	0x02, 0x0e,		/* MR2 RTC control: bits 2 and 1 */
+	0x03, 0x80,		/* MR3 */
+	0x04, 0x30,		/* MR4 */
+	0x05, 0x00,		/* Reserved */
+	0x06, 0x00,		/* Reserved */
+	0x07, TR0MODE,		/* TM0 */
+	0x08, TR1CAPT,		/* TM1 */
+	0x09, 0xcb,		/* Fsc0 */
+	0x0a, 0x8a,		/* Fsc1 */
+	0x0b, 0x09,		/* Fsc2 */
+	0x0c, 0x2a,		/* Fsc3 */
+	0x0d, 0x00,		/* Subcarrier Phase */
+	0x0e, 0x00,		/* Closed Capt. Ext 0 */
+	0x0f, 0x00,		/* Closed Capt. Ext 1 */
+	0x10, 0x00,		/* Closed Capt. 0 */
+	0x11, 0x00,		/* Closed Capt. 1 */
+	0x12, 0x00,		/* Pedestal Ctl 0 */
+	0x13, 0x00,		/* Pedestal Ctl 1 */
+	0x14, 0x00,		/* Pedestal Ctl 2 */
+	0x15, 0x00,		/* Pedestal Ctl 3 */
+	0x16, 0x00,		/* CGMS_WSS_0 */
+	0x17, 0x00,		/* CGMS_WSS_1 */
+	0x18, 0x00,		/* CGMS_WSS_2 */
+	0x19, 0x00,		/* Teletext Ctl */
 };
 
 
-static int adv7170_command(struct i2c_client *client, unsigned cmd, void *arg)
+static int adv7170_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 {
-	struct adv7170 *encoder = i2c_get_clientdata(client);
+	struct adv7170 *encoder = to_adv7170(sd);
 
-	switch (cmd) {
-	case VIDIOC_INT_INIT:
-#if 0
-		/* This is just for testing!!! */
-		adv7170_write_block(client, init_common,
-				    sizeof(init_common));
-		adv7170_write(client, 0x07, TR0MODE | TR0RST);
-		adv7170_write(client, 0x07, TR0MODE);
-#endif
-		break;
+	v4l2_dbg(1, debug, sd, "set norm %llx\n", std);
 
-	case VIDIOC_INT_S_STD_OUTPUT:
-	{
-		v4l2_std_id iarg = *(v4l2_std_id *) arg;
-
-		v4l_dbg(1, debug, client, "set norm %llx\n", iarg);
-
-		if (iarg & V4L2_STD_NTSC) {
-			adv7170_write_block(client, init_NTSC,
-					    sizeof(init_NTSC));
-			if (encoder->input == 0)
-				adv7170_write(client, 0x02, 0x0e);	// Enable genlock
-			adv7170_write(client, 0x07, TR0MODE | TR0RST);
-			adv7170_write(client, 0x07, TR0MODE);
-		} else if (iarg & V4L2_STD_PAL) {
-			adv7170_write_block(client, init_PAL,
-					    sizeof(init_PAL));
-			if (encoder->input == 0)
-				adv7170_write(client, 0x02, 0x0e);	// Enable genlock
-			adv7170_write(client, 0x07, TR0MODE | TR0RST);
-			adv7170_write(client, 0x07, TR0MODE);
-		} else {
-			v4l_dbg(1, debug, client, "illegal norm: %llx\n", iarg);
-			return -EINVAL;
-		}
-		v4l_dbg(1, debug, client, "switched to %llx\n", iarg);
-		encoder->norm = iarg;
-		break;
-	}
-
-	case VIDIOC_INT_S_VIDEO_ROUTING:
-	{
-		struct v4l2_routing *route = arg;
-
-		/* RJ: *iarg = 0: input is from decoder
-		 *iarg = 1: input is from ZR36060
-		 *iarg = 2: color bar */
-
-		v4l_dbg(1, debug, client, "set input from %s\n",
-			route->input == 0 ? "decoder" : "ZR36060");
-
-		switch (route->input) {
-		case 0:
-			adv7170_write(client, 0x01, 0x20);
-			adv7170_write(client, 0x08, TR1CAPT);	/* TR1 */
-			adv7170_write(client, 0x02, 0x0e);	// Enable genlock
-			adv7170_write(client, 0x07, TR0MODE | TR0RST);
-			adv7170_write(client, 0x07, TR0MODE);
-			/* udelay(10); */
-			break;
-
-		case 1:
-			adv7170_write(client, 0x01, 0x00);
-			adv7170_write(client, 0x08, TR1PLAY);	/* TR1 */
-			adv7170_write(client, 0x02, 0x08);
-			adv7170_write(client, 0x07, TR0MODE | TR0RST);
-			adv7170_write(client, 0x07, TR0MODE);
-			/* udelay(10); */
-			break;
-
-		default:
-			v4l_dbg(1, debug, client, "illegal input: %d\n", route->input);
-			return -EINVAL;
-		}
-		v4l_dbg(1, debug, client, "switched to %s\n", inputs[route->input]);
-		encoder->input = route->input;
-		break;
-	}
-
-	default:
+	if (std & V4L2_STD_NTSC) {
+		adv7170_write_block(sd, init_NTSC, sizeof(init_NTSC));
+		if (encoder->input == 0)
+			adv7170_write(sd, 0x02, 0x0e);	/* Enable genlock */
+		adv7170_write(sd, 0x07, TR0MODE | TR0RST);
+		adv7170_write(sd, 0x07, TR0MODE);
+	} else if (std & V4L2_STD_PAL) {
+		adv7170_write_block(sd, init_PAL, sizeof(init_PAL));
+		if (encoder->input == 0)
+			adv7170_write(sd, 0x02, 0x0e);	/* Enable genlock */
+		adv7170_write(sd, 0x07, TR0MODE | TR0RST);
+		adv7170_write(sd, 0x07, TR0MODE);
+	} else {
+		v4l2_dbg(1, debug, sd, "illegal norm: %llx\n", std);
 		return -EINVAL;
 	}
-
+	v4l2_dbg(1, debug, sd, "switched to %llx\n", std);
+	encoder->norm = std;
 	return 0;
+}
+
+static int adv7170_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+{
+	struct adv7170 *encoder = to_adv7170(sd);
+
+	/* RJ: route->input = 0: input is from decoder
+	   route->input = 1: input is from ZR36060
+	   route->input = 2: color bar */
+
+	v4l2_dbg(1, debug, sd, "set input from %s\n",
+			route->input == 0 ? "decoder" : "ZR36060");
+
+	switch (route->input) {
+	case 0:
+		adv7170_write(sd, 0x01, 0x20);
+		adv7170_write(sd, 0x08, TR1CAPT);	/* TR1 */
+		adv7170_write(sd, 0x02, 0x0e);	/* Enable genlock */
+		adv7170_write(sd, 0x07, TR0MODE | TR0RST);
+		adv7170_write(sd, 0x07, TR0MODE);
+		/* udelay(10); */
+		break;
+
+	case 1:
+		adv7170_write(sd, 0x01, 0x00);
+		adv7170_write(sd, 0x08, TR1PLAY);	/* TR1 */
+		adv7170_write(sd, 0x02, 0x08);
+		adv7170_write(sd, 0x07, TR0MODE | TR0RST);
+		adv7170_write(sd, 0x07, TR0MODE);
+		/* udelay(10); */
+		break;
+
+	default:
+		v4l2_dbg(1, debug, sd, "illegal input: %d\n", route->input);
+		return -EINVAL;
+	}
+	v4l2_dbg(1, debug, sd, "switched to %s\n", inputs[route->input]);
+	encoder->input = route->input;
+	return 0;
+}
+
+static int adv7170_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_BT866, 0);
+}
+
+static int adv7170_command(struct i2c_client *client, unsigned cmd, void *arg)
+{
+	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
 }
 
 /* ----------------------------------------------------------------------- */
 
-static unsigned short normal_i2c[] = {
-	0xd4 >> 1, 0xd6 >> 1,	/* adv7170 IDs */
-	0x54 >> 1, 0x56 >> 1,	/* adv7171 IDs */
-	I2C_CLIENT_END
+static const struct v4l2_subdev_core_ops adv7170_core_ops = {
+	.g_chip_ident = adv7170_g_chip_ident,
 };
 
-I2C_CLIENT_INSMOD;
+static const struct v4l2_subdev_video_ops adv7170_video_ops = {
+	.s_std_output = adv7170_s_std_output,
+	.s_routing = adv7170_s_routing,
+};
+
+static const struct v4l2_subdev_ops adv7170_ops = {
+	.core = &adv7170_core_ops,
+	.video = &adv7170_video_ops,
+};
+
+/* ----------------------------------------------------------------------- */
 
 static int adv7170_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct adv7170 *encoder;
+	struct v4l2_subdev *sd;
 	int i;
 
 	/* Check if the adapter supports the needed features */
@@ -300,25 +311,29 @@ static int adv7170_probe(struct i2c_client *client,
 	encoder = kzalloc(sizeof(struct adv7170), GFP_KERNEL);
 	if (encoder == NULL)
 		return -ENOMEM;
+	sd = &encoder->sd;
+	v4l2_i2c_subdev_init(sd, client, &adv7170_ops);
 	encoder->norm = V4L2_STD_NTSC;
 	encoder->input = 0;
-	i2c_set_clientdata(client, encoder);
 
-	i = adv7170_write_block(client, init_NTSC, sizeof(init_NTSC));
+	i = adv7170_write_block(sd, init_NTSC, sizeof(init_NTSC));
 	if (i >= 0) {
-		i = adv7170_write(client, 0x07, TR0MODE | TR0RST);
-		i = adv7170_write(client, 0x07, TR0MODE);
-		i = adv7170_read(client, 0x12);
-		v4l_dbg(1, debug, client, "revision %d\n", i & 1);
+		i = adv7170_write(sd, 0x07, TR0MODE | TR0RST);
+		i = adv7170_write(sd, 0x07, TR0MODE);
+		i = adv7170_read(sd, 0x12);
+		v4l2_dbg(1, debug, sd, "revision %d\n", i & 1);
 	}
 	if (i < 0)
-		v4l_dbg(1, debug, client, "init error 0x%x\n", i);
+		v4l2_dbg(1, debug, sd, "init error 0x%x\n", i);
 	return 0;
 }
 
 static int adv7170_remove(struct i2c_client *client)
 {
-	kfree(i2c_get_clientdata(client));
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_adv7170(sd));
 	return 0;
 }
 
