@@ -688,12 +688,14 @@ config RTC_DRV_RS5C313
 	help
 	  If you say yes here you get support for the Ricoh RS5C313 RTC chips.
 
-config RTC_DRV_PARISC
-	tristate "PA-RISC firmware RTC support"
+config RTC_DRV_GENERIC
+	tristate "Generic RTC support"
+	# Please consider writing a new RTC driver instead of using the generic
+	# RTC abstraction
 	depends on PARISC
 	help
-	  Say Y or M here to enable RTC support on PA-RISC systems using
-	  firmware calls. If you do not know what you are doing, you should
+	  Say Y or M here to enable RTC support on systems using the generic
+	  RTC abstraction. If you do not know what you are doing, you should
 	  just say Y.
 
 config RTC_DRV_PPC
