@@ -306,9 +306,9 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			continue;
 
 		if (is_large_pte(*sptep)) {
+			rmap_remove(vcpu->kvm, sptep);
 			set_shadow_pte(sptep, shadow_trap_nonpresent_pte);
 			kvm_flush_remote_tlbs(vcpu->kvm);
-			rmap_remove(vcpu->kvm, sptep);
 		}
 
 		if (level == PT_DIRECTORY_LEVEL
