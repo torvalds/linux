@@ -29,7 +29,7 @@
 #include <mach/sram.h>
 
 #include "prm.h"
-
+#include "clock.h"
 #include <mach/sdrc.h>
 #include "sdrc.h"
 

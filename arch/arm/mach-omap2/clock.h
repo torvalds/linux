@@ -21,6 +21,21 @@
 /* The maximum error between a target DPLL rate and the rounded rate in Hz */
 #define DEFAULT_DPLL_RATE_TOLERANCE	50000
 
+/* CM_CLKSEL2_PLL.CORE_CLK_SRC bits (2XXX) */
+#define CORE_CLK_SRC_32K		0x0
+#define CORE_CLK_SRC_DPLL		0x1
+#define CORE_CLK_SRC_DPLL_X2		0x2
+
+/* OMAP2xxx CM_CLKEN_PLL.EN_DPLL bits - for omap2_get_dpll_rate() */
+#define OMAP2XXX_EN_DPLL_LPBYPASS		0x1
+#define OMAP2XXX_EN_DPLL_FRBYPASS		0x2
+#define OMAP2XXX_EN_DPLL_LOCKED			0x3
+
+/* OMAP3xxx CM_CLKEN_PLL*.EN_*_DPLL bits - for omap2_get_dpll_rate() */
+#define OMAP3XXX_EN_DPLL_LPBYPASS		0x5
+#define OMAP3XXX_EN_DPLL_FRBYPASS		0x6
+#define OMAP3XXX_EN_DPLL_LOCKED			0x7
+
 int omap2_clk_init(void);
 int omap2_clk_enable(struct clk *clk);
 void omap2_clk_disable(struct clk *clk);

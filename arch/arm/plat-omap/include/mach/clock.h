@@ -39,6 +39,10 @@ struct dpll_data {
 	void __iomem		*mult_div1_reg;
 	u32			mult_mask;
 	u32			div1_mask;
+	struct clk		*clk_bypass;
+	struct clk		*clk_ref;
+	void __iomem		*control_reg;
+	u32			enable_mask;
 	unsigned int		rate_tolerance;
 	unsigned long		last_rounded_rate;
 	u16			last_rounded_m;
@@ -49,10 +53,8 @@ struct dpll_data {
 	u16			max_multiplier;
 #  if defined(CONFIG_ARCH_OMAP3)
 	u8			modes;
-	void __iomem		*control_reg;
 	void __iomem		*autoidle_reg;
 	void __iomem		*idlest_reg;
-	u32			enable_mask;
 	u32			autoidle_mask;
 	u32			freqsel_mask;
 	u32			idlest_mask;
@@ -153,10 +155,5 @@ extern const struct clkops clkops_null;
 
 #define RATE_IN_24XX		(RATE_IN_242X | RATE_IN_243X)
 
-
-/* CM_CLKSEL2_PLL.CORE_CLK_SRC options (24XX) */
-#define CORE_CLK_SRC_32K		0
-#define CORE_CLK_SRC_DPLL		1
-#define CORE_CLK_SRC_DPLL_X2		2
 
 #endif

@@ -236,19 +236,32 @@ static struct clk *sclk;
  * Omap24xx specific clock functions
  *-------------------------------------------------------------------------*/
 
-/* This actually returns the rate of core_ck, not dpll_ck. */
-static u32 omap2_get_dpll_rate_24xx(struct clk *tclk)
+/**
+ * omap2xxx_clk_get_core_rate - return the CORE_CLK rate
+ * @clk: pointer to the combined dpll_ck + core_ck (currently "dpll_ck")
+ *
+ * Returns the CORE_CLK rate.  CORE_CLK can have one of three rate
+ * sources on OMAP2xxx: the DPLL CLKOUT rate, DPLL CLKOUTX2, or 32KHz
+ * (the latter is unusual).  This currently should be called with
+ * struct clk *dpll_ck, which is a composite clock of dpll_ck and
+ * core_ck.
+ */
+static unsigned long omap2xxx_clk_get_core_rate(struct clk *clk)
 {
-	long long dpll_clk;
-	u8 amult;
+	long long core_clk;
+	u32 v;
 
-	dpll_clk = omap2_get_dpll_rate(tclk);
+	core_clk = omap2_get_dpll_rate(clk);
 
-	amult = cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
-	amult &= OMAP24XX_CORE_CLK_SRC_MASK;
-	dpll_clk *= amult;
+	v = cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
+	v &= OMAP24XX_CORE_CLK_SRC_MASK;
 
-	return dpll_clk;
+	if (v == CORE_CLK_SRC_32K)
+		core_clk = 32768;
+	else
+		core_clk *= v;
+
+	return core_clk;
 }
 
 static int omap2_enable_osc_ck(struct clk *clk)
@@ -371,7 +384,7 @@ static long omap2_dpllcore_round_rate(unsigned long target_rate)
 
 static unsigned long omap2_dpllcore_recalc(struct clk *clk)
 {
-	return omap2_get_dpll_rate_24xx(clk);
+	return omap2xxx_clk_get_core_rate(clk);
 }
 
 static int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate)
@@ -381,7 +394,7 @@ static int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate)
 	struct prcm_config tmpset;
 	const struct dpll_data *dd;
 
-	cur_rate = omap2_get_dpll_rate_24xx(&dpll_ck);
+	cur_rate = omap2xxx_clk_get_core_rate(&dpll_ck);
 	mult = cm_read_mod_reg(PLL_MOD, CM_CLKSEL2);
 	mult &= OMAP24XX_CORE_CLK_SRC_MASK;
 
@@ -516,7 +529,7 @@ static int omap2_select_table_rate(struct clk *clk, unsigned long rate)
 	}
 
 	curr_prcm_set = prcm;
-	cur_rate = omap2_get_dpll_rate_24xx(&dpll_ck);
+	cur_rate = omap2xxx_clk_get_core_rate(&dpll_ck);
 
 	if (prcm->dpll_speed == cur_rate / 2) {
 		omap2xxx_sdrc_reprogram(CORE_CLK_SRC_DPLL, 1);
@@ -728,7 +741,7 @@ int __init omap2_clk_init(void)
 		}
 
 	/* Check the MPU rate set by bootloader */
-	clkrate = omap2_get_dpll_rate_24xx(&dpll_ck);
+	clkrate = omap2xxx_clk_get_core_rate(&dpll_ck);
 	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
 		if (!(prcm->flags & cpu_mask))
 			continue;

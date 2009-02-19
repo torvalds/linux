@@ -93,7 +93,6 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"omap_96m_alwon_fck", &omap_96m_alwon_fck, CK_343X),
 	CLK(NULL,	"omap_96m_fck",	&omap_96m_fck,	CK_343X),
 	CLK(NULL,	"cm_96m_fck",	&cm_96m_fck,	CK_343X),
-	CLK(NULL,	"virt_omap_54m_fck", &virt_omap_54m_fck, CK_343X),
 	CLK(NULL,	"omap_54m_fck",	&omap_54m_fck,	CK_343X),
 	CLK(NULL,	"omap_48m_fck",	&omap_48m_fck,	CK_343X),
 	CLK(NULL,	"omap_12m_fck",	&omap_12m_fck,	CK_343X),
@@ -110,7 +109,6 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"emu_per_alwon_ck", &emu_per_alwon_ck, CK_343X),
 	CLK(NULL,	"dpll5_ck",	&dpll5_ck,	CK_3430ES2),
 	CLK(NULL,	"dpll5_m2_ck",	&dpll5_m2_ck,	CK_3430ES2),
-	CLK(NULL,	"omap_120m_fck", &omap_120m_fck, CK_3430ES2),
 	CLK(NULL,	"clkout2_src_ck", &clkout2_src_ck, CK_343X),
 	CLK(NULL,	"sys_clkout2",	&sys_clkout2,	CK_343X),
 	CLK(NULL,	"corex2_fck",	&corex2_fck,	CK_343X),
@@ -344,7 +342,7 @@ static u16 _omap3_dpll_compute_freqsel(struct clk *clk, u8 n)
 	unsigned long fint;
 	u16 f = 0;
 
-	fint = clk->parent->rate / (n + 1);
+	fint = clk->dpll_data->clk_ref->rate / (n + 1);
 
 	pr_debug("clock: fint is %lu\n", fint);
 
@@ -411,7 +409,7 @@ static int _omap3_noncore_dpll_lock(struct clk *clk)
 }
 
 /*
- * omap3_noncore_dpll_bypass - instruct a DPLL to bypass and wait for readiness
+ * _omap3_noncore_dpll_bypass - instruct a DPLL to bypass and wait for readiness
  * @clk: pointer to a DPLL struct clk
  *
  * Instructs a non-CORE DPLL to enter low-power bypass mode.  In
@@ -501,14 +499,25 @@ static int _omap3_noncore_dpll_stop(struct clk *clk)
 static int omap3_noncore_dpll_enable(struct clk *clk)
 {
 	int r;
+	struct dpll_data *dd;
 
 	if (clk == &dpll3_ck)
 		return -EINVAL;
 
-	if (clk->parent->rate == omap2_get_dpll_rate(clk))
+	dd = clk->dpll_data;
+	if (!dd)
+		return -EINVAL;
+
+	if (clk->rate == dd->clk_bypass->rate) {
+		WARN_ON(clk->parent != dd->clk_bypass);
 		r = _omap3_noncore_dpll_bypass(clk);
-	else
+	} else {
+		WARN_ON(clk->parent != dd->clk_ref);
 		r = _omap3_noncore_dpll_lock(clk);
+	}
+	/* FIXME: this is dubious - if clk->rate has changed, what about propagating? */
+	if (!r)
+		clk->rate = omap2_get_dpll_rate(clk);
 
 	return r;
 }
@@ -583,13 +592,18 @@ static int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
  * @clk: struct clk * of DPLL to set
  * @rate: rounded target rate
  *
- * Program the DPLL with the rounded target rate.  Returns -EINVAL upon
- * error, or 0 upon success.
+ * Set the DPLL CLKOUT to the target rate.  If the DPLL can enter
+ * low-power bypass, and the target rate is the bypass source clock
+ * rate, then configure the DPLL for bypass.  Otherwise, round the
+ * target rate if it hasn't been done already, then program and lock
+ * the DPLL.  Returns -EINVAL upon error, or 0 upon success.
  */
 static int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate)
 {
+	struct clk *new_parent = NULL;
 	u16 freqsel;
 	struct dpll_data *dd;
+	int ret;
 
 	if (!clk || !rate)
 		return -EINVAL;
@@ -601,18 +615,56 @@ static int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate)
 	if (rate == omap2_get_dpll_rate(clk))
 		return 0;
 
-	if (dd->last_rounded_rate != rate)
-		omap2_dpll_round_rate(clk, rate);
+	/*
+	 * Ensure both the bypass and ref clocks are enabled prior to
+	 * doing anything; we need the bypass clock running to reprogram
+	 * the DPLL.
+	 */
+	omap2_clk_enable(dd->clk_bypass);
+	omap2_clk_enable(dd->clk_ref);
 
-	if (dd->last_rounded_rate == 0)
-		return -EINVAL;
+	if (dd->clk_bypass->rate == rate &&
+	    (clk->dpll_data->modes & (1 << DPLL_LOW_POWER_BYPASS))) {
+		pr_debug("clock: %s: set rate: entering bypass.\n", clk->name);
 
-	freqsel = _omap3_dpll_compute_freqsel(clk, dd->last_rounded_n);
-	if (!freqsel)
-		WARN_ON(1);
+		ret = _omap3_noncore_dpll_bypass(clk);
+		if (!ret)
+			new_parent = dd->clk_bypass;
+	} else {
+		if (dd->last_rounded_rate != rate)
+			omap2_dpll_round_rate(clk, rate);
 
-	omap3_noncore_dpll_program(clk, dd->last_rounded_m, dd->last_rounded_n,
-				   freqsel);
+		if (dd->last_rounded_rate == 0)
+			return -EINVAL;
+
+		freqsel = _omap3_dpll_compute_freqsel(clk, dd->last_rounded_n);
+		if (!freqsel)
+			WARN_ON(1);
+
+		pr_debug("clock: %s: set rate: locking rate to %lu.\n",
+			 clk->name, rate);
+
+		ret = omap3_noncore_dpll_program(clk, dd->last_rounded_m,
+						 dd->last_rounded_n, freqsel);
+		if (!ret)
+			new_parent = dd->clk_ref;
+	}
+	if (!ret) {
+		/*
+		 * Switch the parent clock in the heirarchy, and make sure
+		 * that the new parent's usecount is correct.  Note: we
+		 * enable the new parent before disabling the old to avoid
+		 * any unnecessary hardware disable->enable transitions.
+		 */
+		if (clk->usecount) {
+			omap2_clk_enable(new_parent);
+			omap2_clk_disable(clk->parent);
+		}
+		clk_reparent(clk, new_parent);
+		clk->rate = rate;
+	}
+	omap2_clk_disable(dd->clk_ref);
+	omap2_clk_disable(dd->clk_bypass);
 
 	return 0;
 }
@@ -804,11 +856,11 @@ static unsigned long omap3_clkoutx2_recalc(struct clk *clk)
 
 	dd = pclk->dpll_data;
 
-	WARN_ON(!dd->control_reg || !dd->enable_mask);
+	WARN_ON(!dd->enable_mask);
 
 	v = __raw_readl(dd->control_reg) & dd->enable_mask;
 	v >>= __ffs(dd->enable_mask);
-	if (v != DPLL_LOCKED)
+	if (v != OMAP3XXX_EN_DPLL_LOCKED)
 		rate = clk->parent->rate;
 	else
 		rate = clk->parent->rate * 2;
