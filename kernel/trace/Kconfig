@@ -52,6 +52,7 @@ config FUNCTION_TRACER
 	depends on HAVE_FUNCTION_TRACER
 	depends on DEBUG_KERNEL
 	select FRAME_POINTER
+	select KALLSYMS
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
 	help
@@ -238,6 +239,7 @@ config STACK_TRACER
 	depends on DEBUG_KERNEL
 	select FUNCTION_TRACER
 	select STACKTRACE
+	select KALLSYMS
 	help
 	  This special tracer records the maximum stack footprint of the
 	  kernel and displays it in debugfs/tracing/stack_trace.
