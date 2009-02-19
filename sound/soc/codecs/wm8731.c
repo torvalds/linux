@@ -594,6 +594,10 @@ static int wm8731_register(struct wm8731_priv *wm8731)
 	reg = wm8731_read_reg_cache(codec, WM8731_RINVOL);
 	wm8731_write(codec, WM8731_RINVOL, reg & ~0x0100);
 
+	/* Disable bypass path by default */
+	reg = wm8731_read_reg_cache(codec, WM8731_APANA);
+	wm8731_write(codec, WM8731_APANA, reg & ~0x4);
+
 	wm8731_codec = codec;
 
 	ret = snd_soc_register_codec(codec);
