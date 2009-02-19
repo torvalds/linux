@@ -3131,16 +3131,19 @@ struct niu_ops {
 };
 
 struct niu_link_config {
+	u32				supported;
+
 	/* Describes what we're trying to get. */
 	u32				advertising;
-	u32				supported;
 	u16				speed;
 	u8				duplex;
 	u8				autoneg;
 
 	/* Describes what we actually have. */
+	u32				active_advertising;
 	u16				active_speed;
 	u8				active_duplex;
+	u8				active_autoneg;
 #define SPEED_INVALID		0xffff
 #define DUPLEX_INVALID		0xff
 #define AUTONEG_INVALID		0xff
