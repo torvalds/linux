@@ -124,6 +124,10 @@ static void ftrace_mod_code(void)
 	 */
 	mod_code_status = probe_kernel_write(mod_code_ip, mod_code_newcode,
 					     MCOUNT_INSN_SIZE);
+
+	/* if we fail, then kill any new writers */
+	if (mod_code_status)
+		mod_code_write = 0;
 }
 
 void ftrace_nmi_enter(void)
