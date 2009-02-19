@@ -76,6 +76,9 @@ enum {
 	V4L2_IDENT_BT817A = 817,
 	V4L2_IDENT_BT819A = 819,
 
+	/* module bt856: just ident 856 */
+	V4L2_IDENT_BT856 = 856,
+
 	/* module bt866: just ident 866 */
 	V4L2_IDENT_BT866 = 866,
 
