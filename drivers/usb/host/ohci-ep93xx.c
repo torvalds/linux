@@ -28,8 +28,6 @@
 #include <linux/signal.h>
 #include <linux/platform_device.h>
 
-#include <mach/hardware.h>
-
 static struct clk *usb_host_clock;
 
 static void ep93xx_start_hc(struct device *dev)
