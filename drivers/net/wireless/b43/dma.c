@@ -1306,16 +1306,18 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	}
 
 	spin_lock_irqsave(&ring->lock, flags);
+
 	B43_WARN_ON(!ring->tx);
+	/* Check if the queue was stopped in mac80211,
+	 * but we got called nevertheless.
+	 * That would be a mac80211 bug. */
+	B43_WARN_ON(ring->stopped);
+
 	if (unlikely(free_slots(ring) < SLOTS_PER_PACKET)) {
 		b43warn(dev->wl, "DMA queue overflow\n");
 		err = -ENOSPC;
 		goto out_unlock;
 	}
-	/* Check if the queue was stopped in mac80211,
-	 * but we got called nevertheless.
-	 * That would be a mac80211 bug. */
-	B43_WARN_ON(ring->stopped);
 
 	/* Assign the queue number to the ring (if not already done before)
 	 * so TX status handling can use it. The queue to ring mapping is
