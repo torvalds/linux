@@ -36,6 +36,8 @@ enum {
 	Opt_quota_off,
 	Opt_quota_account,
 	Opt_quota_on,
+	Opt_quota,
+	Opt_noquota,
 	Opt_suiddir,
 	Opt_nosuiddir,
 	Opt_data_writeback,
@@ -62,6 +64,8 @@ static const match_table_t tokens = {
 	{Opt_quota_off, "quota=off"},
 	{Opt_quota_account, "quota=account"},
 	{Opt_quota_on, "quota=on"},
+	{Opt_quota, "quota"},
+	{Opt_noquota, "noquota"},
 	{Opt_suiddir, "suiddir"},
 	{Opt_nosuiddir, "nosuiddir"},
 	{Opt_data_writeback, "data=writeback"},
@@ -138,12 +142,14 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 			args->ar_posix_acl = 0;
 			break;
 		case Opt_quota_off:
+		case Opt_noquota:
 			args->ar_quota = GFS2_QUOTA_OFF;
 			break;
 		case Opt_quota_account:
 			args->ar_quota = GFS2_QUOTA_ACCOUNT;
 			break;
 		case Opt_quota_on:
+		case Opt_quota:
 			args->ar_quota = GFS2_QUOTA_ON;
 			break;
 		case Opt_suiddir:
