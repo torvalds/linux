@@ -1745,16 +1745,10 @@ out_kfree_skb:
 }
 
 static u32 skb_tx_hashrnd;
-static int skb_tx_hashrnd_initialized = 0;
 
 static u16 skb_tx_hash(struct net_device *dev, struct sk_buff *skb)
 {
 	u32 hash;
-
-	if (unlikely(!skb_tx_hashrnd_initialized)) {
-		get_random_bytes(&skb_tx_hashrnd, 4);
-		skb_tx_hashrnd_initialized = 1;
-	}
 
 	if (skb_rx_queue_recorded(skb)) {
 		hash = skb_get_rx_queue(skb);
@@ -5290,6 +5284,14 @@ out:
 }
 
 subsys_initcall(net_dev_init);
+
+static int __init initialize_hashrnd(void)
+{
+	get_random_bytes(&skb_tx_hashrnd, sizeof(skb_tx_hashrnd));
+	return 0;
+}
+
+late_initcall_sync(initialize_hashrnd);
 
 EXPORT_SYMBOL(__dev_get_by_index);
 EXPORT_SYMBOL(__dev_get_by_name);
