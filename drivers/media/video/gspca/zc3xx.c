@@ -6987,7 +6987,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 static int zcxx_probeSensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int sensor, sensor2;
+	int sensor;
 
 	switch (sd->sensor) {
 	case SENSOR_MC501CB:
@@ -7002,16 +7002,9 @@ static int zcxx_probeSensor(struct gspca_dev *gspca_dev)
 		break;
 	}
 	sensor = vga_2wr_probe(gspca_dev);
-	if (sensor >= 0) {
-		if (sensor < 0x7600)
-			return sensor;
-		/* next probe is needed for OmniVision ? */
-	}
-	sensor2 = vga_3wr_probe(gspca_dev);
-	if (sensor2 >= 0
-	    && sensor >= 0)
+	if (sensor >= 0)
 		return sensor;
-	return sensor2;
+	return vga_3wr_probe(gspca_dev);
 }
 
 /* this function is called at probe time */
