@@ -1087,6 +1087,14 @@ dev_t blk_lookup_devt(const char *name, int partno)
 		if (strcmp(dev_name(dev), name))
 			continue;
 
+		if (partno < disk->minors) {
+			/* We need to return the right devno, even
+			 * if the partition doesn't exist yet.
+			 */
+			devt = MKDEV(MAJOR(dev->devt),
+				     MINOR(dev->devt) + partno);
+			break;
+		}
 		part = disk_get_part(disk, partno);
 		if (part) {
 			devt = part_devt(part);
