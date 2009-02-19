@@ -5,24 +5,18 @@
 klibcdirs:;
 PHONY += klibcdirs
 
-# Find out "preferred" ramdisk compressor. Order of preference is
-#  1. bzip2 efficient, and likely to be present
-#  2. gzip former default
-#  3. lzma
-#  4. none
 
-# None of the above
-suffix_y                   =
-
-# Lzma, but no gzip nor bzip2
-suffix_$(CONFIG_RD_LZMA)   = .lzma
+# No compression
+suffix_$(CONFIG_INITRAMFS_COMPRESSION_NONE)   =
 
 # Gzip, but no bzip2
-suffix_$(CONFIG_RD_GZIP)   = .gz
+suffix_$(CONFIG_INITRAMFS_COMPRESSION_GZIP)   = .gz
 
 # Bzip2
-suffix_$(CONFIG_RD_BZIP2)  = .bz2
+suffix_$(CONFIG_INITRAMFS_COMPRESSION_BZIP2)  = .bz2
 
+# Lzma
+suffix_$(CONFIG_INITRAMFS_COMPRESSION_LZMA)   = .lzma
 
 # Generate builtin.o based on initramfs_data.o
 obj-$(CONFIG_BLK_DEV_INITRD) := initramfs_data$(suffix_y).o
