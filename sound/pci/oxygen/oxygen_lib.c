@@ -272,6 +272,34 @@ oxygen_search_pci_id(struct oxygen *chip, const struct pci_device_id ids[])
 	return NULL;
 }
 
+static void oxygen_restore_eeprom(struct oxygen *chip,
+				  const struct pci_device_id *id)
+{
+	if (oxygen_read_eeprom(chip, 0) != OXYGEN_EEPROM_ID) {
+		/*
+		 * This function gets called only when a known card model has
+		 * been detected, i.e., we know there is a valid subsystem
+		 * product ID at index 2 in the EEPROM.  Therefore, we have
+		 * been able to deduce the correct subsystem vendor ID, and
+		 * this is enough information to restore the original EEPROM
+		 * contents.
+		 */
+		oxygen_write_eeprom(chip, 1, id->subvendor);
+		oxygen_write_eeprom(chip, 0, OXYGEN_EEPROM_ID);
+
+		oxygen_set_bits8(chip, OXYGEN_MISC,
+				 OXYGEN_MISC_WRITE_PCI_SUBID);
+		pci_write_config_word(chip->pci, PCI_SUBSYSTEM_VENDOR_ID,
+				      id->subvendor);
+		pci_write_config_word(chip->pci, PCI_SUBSYSTEM_ID,
+				      id->subdevice);
+		oxygen_clear_bits8(chip, OXYGEN_MISC,
+				   OXYGEN_MISC_WRITE_PCI_SUBID);
+
+		snd_printk(KERN_INFO "EEPROM ID restored\n");
+	}
+}
+
 static void oxygen_init(struct oxygen *chip)
 {
 	unsigned int i;
@@ -532,6 +560,7 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 		err = -ENODEV;
 		goto err_pci_regions;
 	}
+	oxygen_restore_eeprom(chip, pci_id);
 	err = get_model(chip, pci_id);
 	if (err < 0)
 		goto err_pci_regions;
