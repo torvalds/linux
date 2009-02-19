@@ -479,8 +479,7 @@ config HOLES_IN_ZONE
 	default y if VIRTUAL_MEM_MAP
 
 config HAVE_ARCH_EARLY_PFN_TO_NID
-	def_bool y
-	depends on NEED_MULTIPLE_NODES
+	def_bool NUMA && SPARSEMEM
 
 config HAVE_ARCH_NODEDATA_EXTENSION
 	def_bool y
