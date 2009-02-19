@@ -92,6 +92,15 @@ config IP_NF_MATCH_ECN
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_NF_MATCH_TTL
+	tristate '"ttl" match support'
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_MATCH_HL
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	COFNIG_NETFILTER_XT_MATCH_HL.
+
 # `filter', generic and specific targets
 config IP_NF_FILTER
 	tristate "Packet filtering"
@@ -312,6 +321,15 @@ config IP_NF_TARGET_ECN
 	  ECN support in general.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config IP_NF_TARGET_TTL
+	tristate '"TTL" target support'
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_TARGET_HL
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	COFNIG_NETFILTER_XT_TARGET_HL.
 
 # raw + specific targets
 config IP_NF_RAW
