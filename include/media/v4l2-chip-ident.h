@@ -88,6 +88,11 @@ enum {
 	/* module vp27smpx: just ident 2700 */
 	V4L2_IDENT_VP27SMPX = 2700,
 
+	/* module vpx3220: reserved range: 3210-3229 */
+	V4L2_IDENT_VPX3214C = 3214,
+	V4L2_IDENT_VPX3216B = 3216,
+	V4L2_IDENT_VPX3220A = 3220,
+
 	/* module tvp5150 */
 	V4L2_IDENT_TVP5150 = 5150,
 
