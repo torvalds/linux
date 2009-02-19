@@ -268,7 +268,7 @@ static int adv7170_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ide
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_BT866, 0);
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_ADV7170, 0);
 }
 
 static int adv7170_command(struct i2c_client *client, unsigned cmd, void *arg)
