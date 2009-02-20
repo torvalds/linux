@@ -365,10 +365,22 @@ modelname::
   to this file.
 init_verbs::
   The extra verbs to execute at initialization.  You can add a verb by
-  writing to this file.  Pass tree numbers, nid, verb and parameter.
+  writing to this file.  Pass three numbers: nid, verb and parameter.
 hints::
   Shows hint strings for codec parsers for any use.  Right now it's
   not used.
+init_pin_configs::
+  Shows the initial pin default config values set by BIOS.
+override_pin_configs::
+  Shows the pin default config values to override the BIOS setup.
+  Writing this (with two numbers, NID and value) appends the new
+  value.  The given will be used instead of the initial BIOS value at
+  the next reconfiguration time.
+cur_pin_configs::
+  Shows the pin default values set by the codec parser explicitly.
+  This doesn't show all pin values but only the changed values by
+  the parser.  That is, if the parser doesn't change the pin default
+  config values by itself, this will contain nothing.
 reconfig::
   Triggers the codec re-configuration.  When any value is written to
   this file, the driver re-initialize and parses the codec tree
