@@ -302,7 +302,7 @@ static void sysfs_d_iput(struct dentry * dentry, struct inode * inode)
 	iput(inode);
 }
 
-static struct dentry_operations sysfs_dentry_ops = {
+static const struct dentry_operations sysfs_dentry_ops = {
 	.d_iput		= sysfs_d_iput,
 };
 
