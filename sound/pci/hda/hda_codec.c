@@ -682,10 +682,131 @@ static int read_widget_caps(struct hda_codec *codec, hda_nid_t fg_node)
 	return 0;
 }
 
+/* read all pin default configurations and save codec->init_pins */
+static int read_pin_defaults(struct hda_codec *codec)
+{
+	int i;
+	hda_nid_t nid = codec->start_nid;
+
+	for (i = 0; i < codec->num_nodes; i++, nid++) {
+		struct hda_pincfg *pin;
+		unsigned int wcaps = get_wcaps(codec, nid);
+		unsigned int wid_type = (wcaps & AC_WCAP_TYPE) >>
+				AC_WCAP_TYPE_SHIFT;
+		if (wid_type != AC_WID_PIN)
+			continue;
+		pin = snd_array_new(&codec->init_pins);
+		if (!pin)
+			return -ENOMEM;
+		pin->nid = nid;
+		pin->cfg = snd_hda_codec_read(codec, nid, 0,
+					      AC_VERB_GET_CONFIG_DEFAULT, 0);
+	}
+	return 0;
+}
+
+/* look up the given pin config list and return the item matching with NID */
+static struct hda_pincfg *look_up_pincfg(struct hda_codec *codec,
+					 struct snd_array *array,
+					 hda_nid_t nid)
+{
+	int i;
+	for (i = 0; i < array->used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(array, i);
+		if (pin->nid == nid)
+			return pin;
+	}
+	return NULL;
+}
+
+/* write a config value for the given NID */
+static void set_pincfg(struct hda_codec *codec, hda_nid_t nid,
+		       unsigned int cfg)
+{
+	int i;
+	for (i = 0; i < 4; i++) {
+		snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_CONFIG_DEFAULT_BYTES_0 + i,
+				    cfg & 0xff);
+		cfg >>= 8;
+	}
+}
+
+/* set the current pin config value for the given NID.
+ * the value is cached, and read via snd_hda_codec_get_pincfg()
+ */
+int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
+		       hda_nid_t nid, unsigned int cfg)
+{
+	struct hda_pincfg *pin;
+
+	pin = look_up_pincfg(codec, list, nid);
+	if (!pin) {
+		pin = snd_array_new(list);
+		if (!pin)
+			return -ENOMEM;
+		pin->nid = nid;
+	}
+	pin->cfg = cfg;
+	set_pincfg(codec, nid, cfg);
+	return 0;
+}
+
+int snd_hda_codec_set_pincfg(struct hda_codec *codec,
+			     hda_nid_t nid, unsigned int cfg)
+{
+	return snd_hda_add_pincfg(codec, &codec->cur_pins, nid, cfg);
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_set_pincfg);
+
+/* get the current pin config value of the given pin NID */
+unsigned int snd_hda_codec_get_pincfg(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct hda_pincfg *pin;
+
+	pin = look_up_pincfg(codec, &codec->cur_pins, nid);
+	if (pin)
+		return pin->cfg;
+#ifdef CONFIG_SND_HDA_HWDEP
+	pin = look_up_pincfg(codec, &codec->override_pins, nid);
+	if (pin)
+		return pin->cfg;
+#endif
+	pin = look_up_pincfg(codec, &codec->init_pins, nid);
+	if (pin)
+		return pin->cfg;
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_codec_get_pincfg);
+
+/* restore all current pin configs */
+static void restore_pincfgs(struct hda_codec *codec)
+{
+	int i;
+	for (i = 0; i < codec->init_pins.used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+		set_pincfg(codec, pin->nid,
+			   snd_hda_codec_get_pincfg(codec, pin->nid));
+	}
+}
 
 static void init_hda_cache(struct hda_cache_rec *cache,
 			   unsigned int record_size);
 static void free_hda_cache(struct hda_cache_rec *cache);
+
+/* restore the initial pin cfgs and release all pincfg lists */
+static void restore_init_pincfgs(struct hda_codec *codec)
+{
+	/* first free cur_pins and override_pins, then call restore_pincfg
+	 * so that only the values in init_pins are restored
+	 */
+	snd_array_free(&codec->cur_pins);
+#ifdef CONFIG_SND_HDA_HWDEP
+	snd_array_free(&codec->override_pins);
+#endif
+	restore_pincfgs(codec);
+	snd_array_free(&codec->init_pins);
+}
 
 /*
  * codec destructor
@@ -694,6 +815,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 {
 	if (!codec)
 		return;
+	restore_init_pincfgs(codec);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	cancel_delayed_work(&codec->power_work);
 	flush_workqueue(codec->bus->workq);
@@ -751,6 +873,8 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
 	snd_array_init(&codec->mixers, sizeof(struct snd_kcontrol *), 32);
+	snd_array_init(&codec->init_pins, sizeof(struct hda_pincfg), 16);
+	snd_array_init(&codec->cur_pins, sizeof(struct hda_pincfg), 16);
 	if (codec->bus->modelname) {
 		codec->modelname = kstrdup(codec->bus->modelname, GFP_KERNEL);
 		if (!codec->modelname) {
@@ -787,15 +911,18 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 	setup_fg_nodes(codec);
 	if (!codec->afg && !codec->mfg) {
 		snd_printdd("hda_codec: no AFG or MFG node found\n");
-		snd_hda_codec_free(codec);
-		return -ENODEV;
+		err = -ENODEV;
+		goto error;
 	}
 
-	if (read_widget_caps(codec, codec->afg ? codec->afg : codec->mfg) < 0) {
+	err = read_widget_caps(codec, codec->afg ? codec->afg : codec->mfg);
+	if (err < 0) {
 		snd_printk(KERN_ERR "hda_codec: cannot malloc\n");
-		snd_hda_codec_free(codec);
-		return -ENOMEM;
+		goto error;
 	}
+	err = read_pin_defaults(codec);
+	if (err < 0)
+		goto error;
 
 	if (!codec->subsystem_id) {
 		hda_nid_t nid = codec->afg ? codec->afg : codec->mfg;
@@ -808,10 +935,8 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 
 	if (do_init) {
 		err = snd_hda_codec_configure(codec);
-		if (err < 0) {
-			snd_hda_codec_free(codec);
-			return err;
-		}
+		if (err < 0)
+			goto error;
 	}
 	snd_hda_codec_proc_new(codec);
 
@@ -824,6 +949,10 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr
 	if (codecp)
 		*codecp = codec;
 	return 0;
+
+ error:
+	snd_hda_codec_free(codec);
+	return err;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_new);
 
@@ -1334,6 +1463,9 @@ void snd_hda_codec_reset(struct hda_codec *codec)
 	free_hda_cache(&codec->cmd_cache);
 	init_hda_cache(&codec->amp_cache, sizeof(struct hda_amp_info));
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
+	/* free only cur_pins so that init_pins + override_pins are restored */
+	snd_array_free(&codec->cur_pins);
+	restore_pincfgs(codec);
 	codec->num_pcms = 0;
 	codec->pcm_info = NULL;
 	codec->preset = NULL;
@@ -2175,6 +2307,7 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	hda_set_power_state(codec,
 			    codec->afg ? codec->afg : codec->mfg,
 			    AC_PWRST_D0);
+	restore_pincfgs(codec); /* restore all current pin configs */
 	hda_exec_init_verbs(codec);
 	if (codec->patch_ops.resume)
 		codec->patch_ops.resume(codec);
