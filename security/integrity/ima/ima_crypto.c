@@ -68,7 +68,7 @@ int ima_calc_hash(struct file *file, char *digest)
 			break;
 		}
 		offset += rbuf_len;
-		sg_set_buf(sg, rbuf, rbuf_len);
+		sg_init_one(sg, rbuf, rbuf_len);
 
 		rc = crypto_hash_update(&desc, sg, rbuf_len);
 		if (rc)
@@ -95,7 +95,7 @@ int ima_calc_template_hash(int template_len, void *template, char *digest)
 	if (rc != 0)
 		return rc;
 
-	sg_set_buf(sg, template, template_len);
+	sg_init_one(sg, template, template_len);
 	rc = crypto_hash_update(&desc, sg, template_len);
 	if (!rc)
 		rc = crypto_hash_final(&desc, digest);
