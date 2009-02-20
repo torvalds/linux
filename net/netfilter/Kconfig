@@ -372,6 +372,30 @@ config NETFILTER_XT_TARGET_HL
 	since you can easily create immortal packets that loop
 	forever on the network.
 
+config NETFILTER_XT_TARGET_LED
+	tristate '"LED" target support'
+	depends on LEDS_CLASS
+	depends on NETFILTER_ADVANCED
+	help
+	  This option adds a `LED' target, which allows you to blink LEDs in
+	  response to particular packets passing through your machine.
+
+	  This can be used to turn a spare LED into a network activity LED,
+	  which only flashes in response to FTP transfers, for example.  Or
+	  you could have an LED which lights up for a minute or two every time
+	  somebody connects to your machine via SSH.
+
+	  You will need support for the "led" class to make this work.
+
+	  To create an LED trigger for incoming SSH traffic:
+	    iptables -A INPUT -p tcp --dport 22 -j LED --led-trigger-id ssh --led-delay 1000
+
+	  Then attach the new trigger to an LED on your system:
+	    echo netfilter-ssh > /sys/class/leds/<ledname>/trigger
+
+	  For more information on the LEDs available on your system, see
+	  Documentation/leds-class.txt
+
 config NETFILTER_XT_TARGET_MARK
 	tristate '"MARK" target support'
 	default m if NETFILTER_ADVANCED=n

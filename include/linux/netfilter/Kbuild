@@ -7,6 +7,7 @@ header-y += xt_CLASSIFY.h
 header-y += xt_CONNMARK.h
 header-y += xt_CONNSECMARK.h
 header-y += xt_DSCP.h
+header-y += xt_LED.h
 header-y += xt_MARK.h
 header-y += xt_NFLOG.h
 header-y += xt_NFQUEUE.h
