@@ -699,16 +699,22 @@ accept_source_route - BOOLEAN
 	default TRUE (router)
 		FALSE (host)
 
-rp_filter - BOOLEAN
-	1 - do source validation by reversed path, as specified in RFC1812
-	    Recommended option for single homed hosts and stub network
-	    routers. Could cause troubles for complicated (not loop free)
-	    networks running a slow unreliable protocol (sort of RIP),
-	    or using static routes.
-
+rp_filter - INTEGER
 	0 - No source validation.
+	1 - Strict mode as defined in RFC3704 Strict Reverse Path
+	    Each incoming packet is tested against the FIB and if the interface
+	    is not the best reverse path the packet check will fail.
+	    By default failed packets are discarded.
+	2 - Loose mode as defined in RFC3704 Loose Reverse Path
+	    Each incoming packet's source address is also tested against the FIB
+	    and if the source address is not reachable via any interface
+	    the packet check will fail.
 
-	conf/all/rp_filter must also be set to TRUE to do source validation
+        Current recommended practice in RFC3704 is to enable strict mode
+	to prevent IP spoofin from DDos attacks. If using asymmetric routing
+        or other complicated routing,t hen loose mode is recommended.
+
+	conf/all/rp_filter must also be set to non-zero to do source validation
 	on the interface
 
 	Default value is 0. Note that some distributions enable it
