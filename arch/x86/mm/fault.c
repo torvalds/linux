@@ -836,11 +836,9 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address)
 	if (!(error_code & PF_USER))
 		no_context(regs, error_code, address);
 
-#ifdef CONFIG_X86_32
-	/* User space => ok to do another page fault: */
+	/* User-space => ok to do another page fault: */
 	if (is_prefetch(regs, error_code, address))
 		return;
-#endif
 
 	tsk->thread.cr2		= address;
 	tsk->thread.error_code	= error_code;
