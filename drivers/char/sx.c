@@ -1789,7 +1789,7 @@ static long sx_fw_ioctl(struct file *filp, unsigned int cmd,
 						nbytes - i : SX_CHUNK_SIZE)) {
 					kfree(tmp);
 					rc = -EFAULT;
-					break;
+					goto out;
 				}
 				memcpy_toio(board->base2 + offset + i, tmp,
 						(i + SX_CHUNK_SIZE > nbytes) ?
