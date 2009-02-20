@@ -489,8 +489,7 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 		if (saved == 0xFFFF)
 			saved = 4;
 	} else {
-		b43_radio_write16(dev, 0x007A,
-				  b43_radio_read16(dev, 0x007A) & 0x007F);
+		b43_radio_mask(dev, 0x007A, 0x007F);
 		if (phy->rev != 1) {	/* Not in specs, but needed to prevent PPC machine check */
 			b43_phy_set(dev, 0x0814, 0x0001);
 			b43_phy_mask(dev, 0x0815, 0xFFFE);
@@ -626,8 +625,7 @@ static void b43_calc_nrssi_slope(struct b43_wldev *dev)
 	}
 	b43_radio_set(dev, 0x007A, 0x0070);
 	b43_set_all_gains(dev, 0, 8, 0);
-	b43_radio_write16(dev, 0x007A,
-			  b43_radio_read16(dev, 0x007A) & 0x00F7);
+	b43_radio_mask(dev, 0x007A, 0x00F7);
 	if (phy->rev >= 2) {
 		b43_phy_maskset(dev, 0x0811, 0xFFCF, 0x0030);
 		b43_phy_maskset(dev, 0x0812, 0xFFCF, 0x0010);
@@ -639,8 +637,7 @@ static void b43_calc_nrssi_slope(struct b43_wldev *dev)
 	if (nrssi0 >= 0x0020)
 		nrssi0 -= 0x0040;
 
-	b43_radio_write16(dev, 0x007A,
-			  b43_radio_read16(dev, 0x007A) & 0x007F);
+	b43_radio_mask(dev, 0x007A, 0x007F);
 	if (phy->rev >= 2) {
 		b43_phy_maskset(dev, 0x0003, 0xFF9F, 0x0040);
 	}
@@ -1803,8 +1800,7 @@ static void b43_calc_loopback_gain(struct b43_wldev *dev)
 			b43_phy_set(dev, B43_PHY_RFOVERVAL, 0x8000);
 		}
 	}
-	b43_radio_write16(dev, 0x7A, b43_radio_read16(dev, 0x7A)
-			  & 0x00F7);
+	b43_radio_mask(dev, 0x7A, 0x00F7);
 
 	j = 0;
 	loop_i_max = (phy->radio_rev == 8) ? 15 : 9;
@@ -1992,9 +1988,7 @@ static void b43_phy_init_pctl(struct b43_wldev *dev)
 			}
 		}
 		if (phy->radio_ver == 0x2050 && phy->analog == 0) {
-			b43_radio_write16(dev, 0x0076,
-					  b43_radio_read16(dev, 0x0076)
-					  & 0xFF7B);
+			b43_radio_mask(dev, 0x0076, 0xFF7B);
 		} else {
 			b43_set_txpower_g(dev, &old_bbatt,
 					  &old_rfatt, old_tx_control);

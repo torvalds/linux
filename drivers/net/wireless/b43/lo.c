@@ -231,8 +231,7 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 
 	reg = lo_txctl_register_table(dev, &mask, NULL);
 	mask = ~mask;
-	b43_radio_write16(dev, reg, b43_radio_read16(dev, reg)
-			  & mask);
+	b43_radio_mask(dev, reg, mask);
 
 	if (has_tx_magnification(phy)) {
 		int i, j;
@@ -269,8 +268,7 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 	} else {
 		lo->tx_magn = 0;
 		lo->tx_bias = 0;
-		b43_radio_write16(dev, 0x52, b43_radio_read16(dev, 0x52)
-				  & 0xFFF0);	/* TX bias == 0 */
+		b43_radio_mask(dev, 0x52, 0xFFF0);	/* TX bias == 0 */
 	}
 	lo->txctl_measured_time = jiffies;
 }

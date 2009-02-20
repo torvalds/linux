@@ -134,12 +134,10 @@ static void aphy_channel_switch(struct b43_wldev *dev, unsigned int channel)
 	b43_radio_write16(dev, 0x003A, (b43_radio_read16(dev, 0x003A)
 					& 0xFF20) |
 			  freq_r3A_value(freq));
-	b43_radio_write16(dev, 0x003D,
-			  b43_radio_read16(dev, 0x003D) & 0x00FF);
+	b43_radio_mask(dev, 0x003D, 0x00FF);
 	b43_radio_write16(dev, 0x0081, (b43_radio_read16(dev, 0x0081)
 					& 0xFF7F) | 0x0080);
-	b43_radio_write16(dev, 0x0035,
-			  b43_radio_read16(dev, 0x0035) & 0xFFEF);
+	b43_radio_mask(dev, 0x0035, 0xFFEF);
 	b43_radio_write16(dev, 0x0035, (b43_radio_read16(dev, 0x0035)
 					& 0xFFEF) | 0x0010);
 	b43_radio_set_tx_iq(dev);
@@ -160,10 +158,10 @@ static void b43_radio_init2060(struct b43_wldev *dev)
 	b43_radio_write16(dev, 0x0082, 0x0080);
 	b43_radio_write16(dev, 0x0080, 0x0000);
 	b43_radio_write16(dev, 0x003F, 0x00DA);
-	b43_radio_write16(dev, 0x0005, b43_radio_read16(dev, 0x0005) & ~0x0008);
-	b43_radio_write16(dev, 0x0081, b43_radio_read16(dev, 0x0081) & ~0x0010);
-	b43_radio_write16(dev, 0x0081, b43_radio_read16(dev, 0x0081) & ~0x0020);
-	b43_radio_write16(dev, 0x0081, b43_radio_read16(dev, 0x0081) & ~0x0020);
+	b43_radio_mask(dev, 0x0005, ~0x0008);
+	b43_radio_mask(dev, 0x0081, ~0x0010);
+	b43_radio_mask(dev, 0x0081, ~0x0020);
+	b43_radio_mask(dev, 0x0081, ~0x0020);
 	msleep(1);		/* delay 400usec */
 
 	b43_radio_write16(dev, 0x0081,
@@ -172,9 +170,9 @@ static void b43_radio_init2060(struct b43_wldev *dev)
 
 	b43_radio_write16(dev, 0x0005,
 			  (b43_radio_read16(dev, 0x0005) & ~0x0008) | 0x0008);
-	b43_radio_write16(dev, 0x0085, b43_radio_read16(dev, 0x0085) & ~0x0010);
-	b43_radio_write16(dev, 0x0005, b43_radio_read16(dev, 0x0005) & ~0x0008);
-	b43_radio_write16(dev, 0x0081, b43_radio_read16(dev, 0x0081) & ~0x0040);
+	b43_radio_mask(dev, 0x0085, ~0x0010);
+	b43_radio_mask(dev, 0x0005, ~0x0008);
+	b43_radio_mask(dev, 0x0081, ~0x0040);
 	b43_radio_write16(dev, 0x0081,
 			  (b43_radio_read16(dev, 0x0081) & ~0x0040) | 0x0040);
 	b43_radio_write16(dev, 0x0005,
@@ -247,8 +245,7 @@ static void b43_phy_ww(struct b43_wldev *dev)
 			best_s = curr_s;
 	}
 	b43_phy_write(dev, B43_PHY_PWRDOWN, b);
-	b43_radio_write16(dev, 0x0004,
-		b43_radio_read16(dev, 0x0004) & 0xFFFB);
+	b43_radio_mask(dev, 0x0004, 0xFFFB);
 	b43_radio_write16(dev, 0x0013, best_s);
 	b43_ofdmtab_write16(dev, B43_OFDMTAB_AGC1_R1, 0, 0xFFEC);
 	b43_phy_write(dev, B43_PHY_OFDM(0xB7), 0x1E80);
