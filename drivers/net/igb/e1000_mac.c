@@ -118,6 +118,30 @@ void igb_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 }
 
 /**
+ *  igb_vfta_set - enable or disable vlan in VLAN filter table
+ *  @hw: pointer to the HW structure
+ *  @vid: VLAN id to add or remove
+ *  @add: if true add filter, if false remove
+ *
+ *  Sets or clears a bit in the VLAN filter table array based on VLAN id
+ *  and if we are adding or removing the filter
+ **/
+void igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add)
+{
+	u32 index = (vid >> E1000_VFTA_ENTRY_SHIFT) & E1000_VFTA_ENTRY_MASK;
+	u32 mask = 1 < (vid & E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
+	u32 vfta;
+
+	vfta = array_rd32(E1000_VFTA, index);
+	if (add)
+		vfta |= mask;
+	else
+		vfta &= ~mask;
+
+	igb_write_vfta(hw, index, vfta);
+}
+
+/**
  *  igb_check_alt_mac_addr - Check for alternate MAC addr
  *  @hw: pointer to the HW structure
  *

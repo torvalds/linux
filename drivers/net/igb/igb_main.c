@@ -122,10 +122,16 @@ static void igb_vlan_rx_register(struct net_device *, struct vlan_group *);
 static void igb_vlan_rx_add_vid(struct net_device *, u16);
 static void igb_vlan_rx_kill_vid(struct net_device *, u16);
 static void igb_restore_vlan(struct igb_adapter *);
+static void igb_ping_all_vfs(struct igb_adapter *);
+static void igb_msg_task(struct igb_adapter *);
+static int igb_rcv_msg_from_vf(struct igb_adapter *, u32);
 static inline void igb_set_rah_pool(struct e1000_hw *, int , int);
 static void igb_set_mc_list_pools(struct igb_adapter *, int, u16);
+static void igb_vmm_control(struct igb_adapter *);
 static inline void igb_set_vmolr(struct e1000_hw *, int);
-static inline void igb_set_vf_rlpml(struct igb_adapter *, int, int);
+static inline int igb_set_vf_rlpml(struct igb_adapter *, int, int);
+static int igb_set_vf_mac(struct igb_adapter *adapter, int, unsigned char *);
+static void igb_restore_vf_multicasts(struct igb_adapter *adapter);
 
 static int igb_suspend(struct pci_dev *, pm_message_t);
 #ifdef CONFIG_PM
@@ -768,7 +774,10 @@ static void igb_irq_enable(struct igb_adapter *adapter)
 		wr32(E1000_EIAC, adapter->eims_enable_mask);
 		wr32(E1000_EIAM, adapter->eims_enable_mask);
 		wr32(E1000_EIMS, adapter->eims_enable_mask);
-		wr32(E1000_IMS, E1000_IMS_LSC | E1000_IMS_DOUTSYNC);
+		if (adapter->vfs_allocated_count)
+			wr32(E1000_MBVFIMR, 0xFF);
+		wr32(E1000_IMS, (E1000_IMS_LSC | E1000_IMS_VMMB |
+		                 E1000_IMS_DOUTSYNC));
 	} else {
 		wr32(E1000_IMS, IMS_ENABLE_MASK);
 		wr32(E1000_IAM, IMS_ENABLE_MASK);
@@ -892,6 +901,7 @@ int igb_up(struct igb_adapter *adapter)
 	if (adapter->msix_entries)
 		igb_configure_msix(adapter);
 
+	igb_vmm_control(adapter);
 	igb_set_rah_pool(hw, adapter->vfs_allocated_count, 0);
 	igb_set_vmolr(hw, adapter->vfs_allocated_count);
 
@@ -1046,6 +1056,20 @@ void igb_reset(struct igb_adapter *adapter)
 	fc->pause_time = 0xFFFF;
 	fc->send_xon = 1;
 	fc->type = fc->original_type;
+
+	/* disable receive for all VFs and wait one second */
+	if (adapter->vfs_allocated_count) {
+		int i;
+		for (i = 0 ; i < adapter->vfs_allocated_count; i++)
+			adapter->vf_data[i].clear_to_send = false;
+
+		/* ping all the active vfs to let them know we are going down */
+			igb_ping_all_vfs(adapter);
+
+		/* disable transmits and receives */
+		wr32(E1000_VFRE, 0);
+		wr32(E1000_VFTE, 0);
+	}
 
 	/* Allow time for pending master requests to run */
 	adapter->hw.mac.ops.reset_hw(&adapter->hw);
@@ -1624,6 +1648,7 @@ static int igb_open(struct net_device *netdev)
 	 * clean_rx handler before we do so.  */
 	igb_configure(adapter);
 
+	igb_vmm_control(adapter);
 	igb_set_rah_pool(hw, adapter->vfs_allocated_count, 0);
 	igb_set_vmolr(hw, adapter->vfs_allocated_count);
 
@@ -2456,6 +2481,8 @@ static void igb_set_multi(struct net_device *netdev)
 	                        mac->rar_entry_count);
 
 	igb_set_mc_list_pools(adapter, i, mac->rar_entry_count);
+	igb_restore_vf_multicasts(adapter);
+
 	kfree(mta_list);
 }
 
@@ -2571,6 +2598,8 @@ static void igb_watchdog_task(struct work_struct *work)
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
 
+			igb_ping_all_vfs(adapter);
+
 			/* link state has changed, schedule phy info update */
 			if (!test_bit(__IGB_DOWN, &adapter->state))
 				mod_timer(&adapter->phy_info_timer,
@@ -2585,6 +2614,8 @@ static void igb_watchdog_task(struct work_struct *work)
 			       netdev->name);
 			netif_carrier_off(netdev);
 			netif_tx_stop_all_queues(netdev);
+
+			igb_ping_all_vfs(adapter);
 
 			/* link state has changed, schedule phy info update */
 			if (!test_bit(__IGB_DOWN, &adapter->state))
@@ -3523,15 +3554,19 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 		/* HW is reporting DMA is out of sync */
 		adapter->stats.doosync++;
 	}
-	if (!(icr & E1000_ICR_LSC))
-		goto no_link_interrupt;
-	hw->mac.get_link_status = 1;
-	/* guard against interrupt when we're going down */
-	if (!test_bit(__IGB_DOWN, &adapter->state))
-		mod_timer(&adapter->watchdog_timer, jiffies + 1);
 
-no_link_interrupt:
-	wr32(E1000_IMS, E1000_IMS_LSC | E1000_IMS_DOUTSYNC);
+	/* Check for a mailbox event */
+	if (icr & E1000_ICR_VMMB)
+		igb_msg_task(adapter);
+
+	if (icr & E1000_ICR_LSC) {
+		hw->mac.get_link_status = 1;
+		/* guard against interrupt when we're going down */
+		if (!test_bit(__IGB_DOWN, &adapter->state))
+			mod_timer(&adapter->watchdog_timer, jiffies + 1);
+	}
+
+	wr32(E1000_IMS, E1000_IMS_LSC | E1000_IMS_DOUTSYNC | E1000_IMS_VMMB);
 	wr32(E1000_EIMS, adapter->eims_other);
 
 	return IRQ_HANDLED;
@@ -3718,6 +3753,317 @@ static int igb_notify_dca(struct notifier_block *nb, unsigned long event,
 	return ret_val ? NOTIFY_BAD : NOTIFY_DONE;
 }
 #endif /* CONFIG_IGB_DCA */
+
+static void igb_ping_all_vfs(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 ping;
+	int i;
+
+	for (i = 0 ; i < adapter->vfs_allocated_count; i++) {
+		ping = E1000_PF_CONTROL_MSG;
+		if (adapter->vf_data[i].clear_to_send)
+			ping |= E1000_VT_MSGTYPE_CTS;
+		igb_write_mbx(hw, &ping, 1, i);
+	}
+}
+
+static int igb_set_vf_multicasts(struct igb_adapter *adapter,
+				  u32 *msgbuf, u32 vf)
+{
+	int n = (msgbuf[0] & E1000_VT_MSGINFO_MASK) >> E1000_VT_MSGINFO_SHIFT;
+	u16 *hash_list = (u16 *)&msgbuf[1];
+	struct vf_data_storage *vf_data = &adapter->vf_data[vf];
+	int i;
+
+	/* only up to 30 hash values supported */
+	if (n > 30)
+		n = 30;
+
+	/* salt away the number of multi cast addresses assigned
+	 * to this VF for later use to restore when the PF multi cast
+	 * list changes
+	 */
+	vf_data->num_vf_mc_hashes = n;
+
+	/* VFs are limited to using the MTA hash table for their multicast
+	 * addresses */
+	for (i = 0; i < n; i++)
+		vf_data->vf_mc_hashes[i] = hash_list[i];;
+
+	/* Flush and reset the mta with the new values */
+	igb_set_multi(adapter->netdev);
+
+	return 0;
+}
+
+static void igb_restore_vf_multicasts(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	struct vf_data_storage *vf_data;
+	int i, j;
+
+	for (i = 0; i < adapter->vfs_allocated_count; i++) {
+		vf_data = &adapter->vf_data[i];
+		for (j = 0; j < vf_data[i].num_vf_mc_hashes; j++)
+			igb_mta_set(hw, vf_data->vf_mc_hashes[j]);
+	}
+}
+
+static void igb_clear_vf_vfta(struct igb_adapter *adapter, u32 vf)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 pool_mask, reg, vid;
+	int i;
+
+	pool_mask = 1 << (E1000_VLVF_POOLSEL_SHIFT + vf);
+
+	/* Find the vlan filter for this id */
+	for (i = 0; i < E1000_VLVF_ARRAY_SIZE; i++) {
+		reg = rd32(E1000_VLVF(i));
+
+		/* remove the vf from the pool */
+		reg &= ~pool_mask;
+
+		/* if pool is empty then remove entry from vfta */
+		if (!(reg & E1000_VLVF_POOLSEL_MASK) &&
+		    (reg & E1000_VLVF_VLANID_ENABLE)) {
+			reg = 0;
+			vid = reg & E1000_VLVF_VLANID_MASK;
+			igb_vfta_set(hw, vid, false);
+		}
+
+		wr32(E1000_VLVF(i), reg);
+	}
+}
+
+static s32 igb_vlvf_set(struct igb_adapter *adapter, u32 vid, bool add, u32 vf)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 reg, i;
+
+	/* It is an error to call this function when VFs are not enabled */
+	if (!adapter->vfs_allocated_count)
+		return -1;
+
+	/* Find the vlan filter for this id */
+	for (i = 0; i < E1000_VLVF_ARRAY_SIZE; i++) {
+		reg = rd32(E1000_VLVF(i));
+		if ((reg & E1000_VLVF_VLANID_ENABLE) &&
+		    vid == (reg & E1000_VLVF_VLANID_MASK))
+			break;
+	}
+
+	if (add) {
+		if (i == E1000_VLVF_ARRAY_SIZE) {
+			/* Did not find a matching VLAN ID entry that was
+			 * enabled.  Search for a free filter entry, i.e.
+			 * one without the enable bit set
+			 */
+			for (i = 0; i < E1000_VLVF_ARRAY_SIZE; i++) {
+				reg = rd32(E1000_VLVF(i));
+				if (!(reg & E1000_VLVF_VLANID_ENABLE))
+					break;
+			}
+		}
+		if (i < E1000_VLVF_ARRAY_SIZE) {
+			/* Found an enabled/available entry */
+			reg |= 1 << (E1000_VLVF_POOLSEL_SHIFT + vf);
+
+			/* if !enabled we need to set this up in vfta */
+			if (!(reg & E1000_VLVF_VLANID_ENABLE)) {
+				/* add VID to filter table */
+				igb_vfta_set(hw, vid, true);
+				reg |= E1000_VLVF_VLANID_ENABLE;
+			}
+
+			wr32(E1000_VLVF(i), reg);
+			return 0;
+		}
+	} else {
+		if (i < E1000_VLVF_ARRAY_SIZE) {
+			/* remove vf from the pool */
+			reg &= ~(1 << (E1000_VLVF_POOLSEL_SHIFT + vf));
+			/* if pool is empty then remove entry from vfta */
+			if (!(reg & E1000_VLVF_POOLSEL_MASK)) {
+				reg = 0;
+				igb_vfta_set(hw, vid, false);
+			}
+			wr32(E1000_VLVF(i), reg);
+			return 0;
+		}
+	}
+	return -1;
+}
+
+static int igb_set_vf_vlan(struct igb_adapter *adapter, u32 *msgbuf, u32 vf)
+{
+	int add = (msgbuf[0] & E1000_VT_MSGINFO_MASK) >> E1000_VT_MSGINFO_SHIFT;
+	int vid = (msgbuf[1] & E1000_VLVF_VLANID_MASK);
+
+	return igb_vlvf_set(adapter, vid, add, vf);
+}
+
+static inline void igb_vf_reset_event(struct igb_adapter *adapter, u32 vf)
+{
+	struct e1000_hw *hw = &adapter->hw;
+
+	/* disable mailbox functionality for vf */
+	adapter->vf_data[vf].clear_to_send = false;
+
+	/* reset offloads to defaults */
+	igb_set_vmolr(hw, vf);
+
+	/* reset vlans for device */
+	igb_clear_vf_vfta(adapter, vf);
+
+	/* reset multicast table array for vf */
+	adapter->vf_data[vf].num_vf_mc_hashes = 0;
+
+	/* Flush and reset the mta with the new values */
+	igb_set_multi(adapter->netdev);
+}
+
+static inline void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	unsigned char *vf_mac = adapter->vf_data[vf].vf_mac_addresses;
+	u32 reg, msgbuf[3];
+	u8 *addr = (u8 *)(&msgbuf[1]);
+
+	/* process all the same items cleared in a function level reset */
+	igb_vf_reset_event(adapter, vf);
+
+	/* set vf mac address */
+	igb_rar_set(hw, vf_mac, vf + 1);
+	igb_set_rah_pool(hw, vf, vf + 1);
+
+	/* enable transmit and receive for vf */
+	reg = rd32(E1000_VFTE);
+	wr32(E1000_VFTE, reg | (1 << vf));
+	reg = rd32(E1000_VFRE);
+	wr32(E1000_VFRE, reg | (1 << vf));
+
+	/* enable mailbox functionality for vf */
+	adapter->vf_data[vf].clear_to_send = true;
+
+	/* reply to reset with ack and vf mac address */
+	msgbuf[0] = E1000_VF_RESET | E1000_VT_MSGTYPE_ACK;
+	memcpy(addr, vf_mac, 6);
+	igb_write_mbx(hw, msgbuf, 3, vf);
+}
+
+static int igb_set_vf_mac_addr(struct igb_adapter *adapter, u32 *msg, int vf)
+{
+		unsigned char *addr = (char *)&msg[1];
+		int err = -1;
+
+		if (is_valid_ether_addr(addr))
+			err = igb_set_vf_mac(adapter, vf, addr);
+
+		return err;
+
+}
+
+static void igb_rcv_ack_from_vf(struct igb_adapter *adapter, u32 vf)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 msg = E1000_VT_MSGTYPE_NACK;
+
+	/* if device isn't clear to send it shouldn't be reading either */
+	if (!adapter->vf_data[vf].clear_to_send)
+		igb_write_mbx(hw, &msg, 1, vf);
+}
+
+
+static void igb_msg_task(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 vf;
+
+	for (vf = 0; vf < adapter->vfs_allocated_count; vf++) {
+		/* process any reset requests */
+		if (!igb_check_for_rst(hw, vf)) {
+			adapter->vf_data[vf].clear_to_send = false;
+			igb_vf_reset_event(adapter, vf);
+		}
+
+		/* process any messages pending */
+		if (!igb_check_for_msg(hw, vf))
+			igb_rcv_msg_from_vf(adapter, vf);
+
+		/* process any acks */
+		if (!igb_check_for_ack(hw, vf))
+			igb_rcv_ack_from_vf(adapter, vf);
+
+	}
+}
+
+static int igb_rcv_msg_from_vf(struct igb_adapter *adapter, u32 vf)
+{
+	u32 mbx_size = E1000_VFMAILBOX_SIZE;
+	u32 msgbuf[mbx_size];
+	struct e1000_hw *hw = &adapter->hw;
+	s32 retval;
+
+	retval = igb_read_mbx(hw, msgbuf, mbx_size, vf);
+
+	if (retval)
+		dev_err(&adapter->pdev->dev,
+		        "Error receiving message from VF\n");
+
+	/* this is a message we already processed, do nothing */
+	if (msgbuf[0] & (E1000_VT_MSGTYPE_ACK | E1000_VT_MSGTYPE_NACK))
+		return retval;
+
+	/*
+	 * until the vf completes a reset it should not be
+	 * allowed to start any configuration.
+	 */
+
+	if (msgbuf[0] == E1000_VF_RESET) {
+		igb_vf_reset_msg(adapter, vf);
+
+		return retval;
+	}
+
+	if (!adapter->vf_data[vf].clear_to_send) {
+		msgbuf[0] |= E1000_VT_MSGTYPE_NACK;
+		igb_write_mbx(hw, msgbuf, 1, vf);
+		return retval;
+	}
+
+	switch ((msgbuf[0] & 0xFFFF)) {
+	case E1000_VF_SET_MAC_ADDR:
+		retval = igb_set_vf_mac_addr(adapter, msgbuf, vf);
+		break;
+	case E1000_VF_SET_MULTICAST:
+		retval = igb_set_vf_multicasts(adapter, msgbuf, vf);
+		break;
+	case E1000_VF_SET_LPE:
+		retval = igb_set_vf_rlpml(adapter, msgbuf[1], vf);
+		break;
+	case E1000_VF_SET_VLAN:
+		retval = igb_set_vf_vlan(adapter, msgbuf, vf);
+		break;
+	default:
+		dev_err(&adapter->pdev->dev, "Unhandled Msg %08x\n", msgbuf[0]);
+		retval = -1;
+		break;
+	}
+
+	/* notify the VF of the results of what it sent us */
+	if (retval)
+		msgbuf[0] |= E1000_VT_MSGTYPE_NACK;
+	else
+		msgbuf[0] |= E1000_VT_MSGTYPE_ACK;
+
+	msgbuf[0] |= E1000_VT_MSGTYPE_CTS;
+
+	igb_write_mbx(hw, msgbuf, 1, vf);
+
+	return retval;
+}
 
 /**
  * igb_intr_msi - Interrupt Handler
@@ -4582,24 +4928,25 @@ static void igb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 vfta, index;
+	int pf_id = adapter->vfs_allocated_count;
 
 	if ((hw->mng_cookie.status &
 	     E1000_MNG_DHCP_COOKIE_STATUS_VLAN) &&
 	    (vid == adapter->mng_vlan_id))
 		return;
-	/* add VID to filter table */
-	index = (vid >> 5) & 0x7F;
-	vfta = array_rd32(E1000_VFTA, index);
-	vfta |= (1 << (vid & 0x1F));
-	igb_write_vfta(&adapter->hw, index, vfta);
+
+	/* add vid to vlvf if sr-iov is enabled,
+	 * if that fails add directly to filter table */
+	if (igb_vlvf_set(adapter, vid, true, pf_id))
+		igb_vfta_set(hw, vid, true);
+
 }
 
 static void igb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 vfta, index;
+	int pf_id = adapter->vfs_allocated_count;
 
 	igb_irq_disable(adapter);
 	vlan_group_set_device(adapter->vlgrp, vid, NULL);
@@ -4615,11 +4962,10 @@ static void igb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 		return;
 	}
 
-	/* remove VID from filter table */
-	index = (vid >> 5) & 0x7F;
-	vfta = array_rd32(E1000_VFTA, index);
-	vfta &= ~(1 << (vid & 0x1F));
-	igb_write_vfta(&adapter->hw, index, vfta);
+	/* remove vid from vlvf if sr-iov is enabled,
+	 * if not in vlvf remove from vfta */
+	if (igb_vlvf_set(adapter, vid, false, pf_id))
+		igb_vfta_set(hw, vid, false);
 }
 
 static void igb_restore_vlan(struct igb_adapter *adapter)
@@ -4950,8 +5296,8 @@ static inline void igb_set_vmolr(struct e1000_hw *hw, int vfn)
 	wr32(E1000_VMOLR(vfn), reg_data);
 }
 
-static inline void igb_set_vf_rlpml(struct igb_adapter *adapter, int size,
-                                    int vfn)
+static inline int igb_set_vf_rlpml(struct igb_adapter *adapter, int size,
+                                 int vfn)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 vmolr;
@@ -4960,6 +5306,8 @@ static inline void igb_set_vf_rlpml(struct igb_adapter *adapter, int size,
 	vmolr &= ~E1000_VMOLR_RLPML_MASK;
 	vmolr |= size | E1000_VMOLR_LPE;
 	wr32(E1000_VMOLR(vfn), vmolr);
+
+	return 0;
 }
 
 static inline void igb_set_rah_pool(struct e1000_hw *hw, int pool, int entry)
@@ -4983,6 +5331,39 @@ static void igb_set_mc_list_pools(struct igb_adapter *adapter,
 
 	for (; i < total_rar_filters; i++)
 		igb_set_rah_pool(hw, adapter->vfs_allocated_count, i);
+}
+
+static int igb_set_vf_mac(struct igb_adapter *adapter,
+                          int vf, unsigned char *mac_addr)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	int rar_entry = vf + 1; /* VF MAC addresses start at entry 1 */
+
+	igb_rar_set(hw, mac_addr, rar_entry);
+
+	memcpy(adapter->vf_data[vf].vf_mac_addresses, mac_addr, 6);
+
+	igb_set_rah_pool(hw, vf, rar_entry);
+
+	return 0;
+}
+
+static void igb_vmm_control(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 reg_data;
+
+	if (!adapter->vfs_allocated_count)
+		return;
+
+	/* VF's need PF reset indication before they
+	 * can send/receive mail */
+	reg_data = rd32(E1000_CTRL_EXT);
+	reg_data |= E1000_CTRL_EXT_PFRSTD;
+	wr32(E1000_CTRL_EXT, reg_data);
+
+	igb_vmdq_set_loopback_pf(hw, true);
+	igb_vmdq_set_replication_pf(hw, true);
 }
 
 /* igb_main.c */

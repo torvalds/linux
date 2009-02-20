@@ -62,6 +62,17 @@ struct igb_adapter;
 #define IGB_MAX_TX_QUEUES     IGB_MAX_RX_QUEUES
 #define IGB_ABS_MAX_TX_QUEUES     4
 
+#define IGB_MAX_VF_MC_ENTRIES              30
+#define IGB_MAX_VF_FUNCTIONS               8
+#define IGB_MAX_VFTA_ENTRIES               128
+
+struct vf_data_storage {
+	unsigned char vf_mac_addresses[ETH_ALEN];
+	u16 vf_mc_hashes[IGB_MAX_VF_MC_ENTRIES];
+	u16 num_vf_mc_hashes;
+	bool clear_to_send;
+};
+
 /* RX descriptor control thresholds.
  * PTHRESH - MAC will consider prefetch if it has fewer than this number of
  *           descriptors available in its onboard memory.
@@ -272,6 +283,7 @@ struct igb_adapter {
 	unsigned int tx_ring_count;
 	unsigned int rx_ring_count;
 	unsigned int vfs_allocated_count;
+	struct vf_data_storage *vf_data;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)

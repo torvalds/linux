@@ -213,6 +213,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		return -E1000_ERR_PHY;
 	}
 
+	/* if 82576 then initialize mailbox parameters */
+	if (mac->type == e1000_82576)
+		igb_init_mbx_params_pf(hw);
+
 	return 0;
 }
 
@@ -1411,6 +1415,44 @@ void igb_rx_fifo_flush_82575(struct e1000_hw *hw)
 	rd32(E1000_ROC);
 	rd32(E1000_RNBC);
 	rd32(E1000_MPC);
+}
+
+/**
+ *  igb_vmdq_set_loopback_pf - enable or disable vmdq loopback
+ *  @hw: pointer to the hardware struct
+ *  @enable: state to enter, either enabled or disabled
+ *
+ *  enables/disables L2 switch loopback functionality.
+ **/
+void igb_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable)
+{
+	u32 dtxswc = rd32(E1000_DTXSWC);
+
+	if (enable)
+		dtxswc |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+	else
+		dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+
+	wr32(E1000_DTXSWC, dtxswc);
+}
+
+/**
+ *  igb_vmdq_set_replication_pf - enable or disable vmdq replication
+ *  @hw: pointer to the hardware struct
+ *  @enable: state to enter, either enabled or disabled
+ *
+ *  enables/disables replication of packets across multiple pools.
+ **/
+void igb_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable)
+{
+	u32 vt_ctl = rd32(E1000_VT_CTL);
+
+	if (enable)
+		vt_ctl |= E1000_VT_CTL_VM_REPL_EN;
+	else
+		vt_ctl &= ~E1000_VT_CTL_VM_REPL_EN;
+
+	wr32(E1000_VT_CTL, vt_ctl);
 }
 
 static struct e1000_mac_operations e1000_mac_ops_82575 = {
