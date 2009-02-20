@@ -1627,7 +1627,7 @@ static struct inode_operations cgroup_dir_inode_operations = {
 static int cgroup_create_file(struct dentry *dentry, int mode,
 				struct super_block *sb)
 {
-	static struct dentry_operations cgroup_dops = {
+	static const struct dentry_operations cgroup_dops = {
 		.d_iput = cgroup_diput,
 	};
 
