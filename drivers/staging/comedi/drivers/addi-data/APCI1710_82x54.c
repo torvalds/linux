@@ -1,61 +1,21 @@
-/**
-@verbatim
-
-Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
-
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
-
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
-
-@endverbatim
-*/
 /*
-
-  +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstraße 3       D-77833 Ottersweier  |
-  +-----------------------------------------------------------------------+
-  | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
-  | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
-  +-----------------------------------------------------------------------+
-  | Project     : API APCI1710    | Compiler : gcc                        |
-  | Module name : 82X54.C         | Version  : 2.96                       |
-  +-------------------------------+---------------------------------------+
-  | Project manager: Eric Stolz   | Date     :  02/12/2002                |
-  +-----------------------------------------------------------------------+
+ *  Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+ *
+ *	ADDI-DATA GmbH
+ *	Dieselstrasse 3
+ *	D-77833 Ottersweier
+ *	Tel: +19(0)7223/9493-0
+ *	Fax: +49(0)7223/9493-92
+ *	http://www.addi-data-com
+ *	info@addi-data.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ */
+/*
   | Description :   APCI-1710 82X54 timer module                          |
-  |                                                                       |
-  |                                                                       |
-  +-----------------------------------------------------------------------+
-  |                             UPDATES                                   |
-  +-----------------------------------------------------------------------+
-  |   Date   |   Author  |          Description of updates                |
-  +----------+-----------+------------------------------------------------+
-  | 29/06/98 | S. Weber  | Digital input / output implementation          |
-  |----------|-----------|------------------------------------------------|
-  | 08/05/00 | Guinot C  | - 0400/0228 All Function in RING 0             |
-  |          |           |   available                                    |
-  +-----------------------------------------------------------------------+
-  | 27.10.03 | J. Krauth |  Add the possibility to use a 40 Mhz quartz    |
-  |          |           |                                                |
-  +-----------------------------------------------------------------------+
-*/
-
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
 */
 
 #include "APCI1710_82x54.h"
@@ -260,7 +220,7 @@ INT i_InsnConfig_InitTimer(comedi_device *dev,comedi_subdevice *s,
 */
 
 INT i_APCI1710_InsnConfigInitTimer(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+				   comedi_insn * insn, lsampl_t * data)
 {
 
 	INT i_ReturnValue = 0;
@@ -287,96 +247,47 @@ INT i_APCI1710_InsnConfigInitTimer(comedi_device * dev, comedi_subdevice * s,
 	b_OutputLevel = (BYTE) data[4];
 	b_HardwareGateLevel = (BYTE) data[5];
 
-	/**************************/
 	/* Test the module number */
-	/**************************/
-
 	if (b_ModulNbr < 4) {
-	   /***********************/
 		/* Test if 82X54 timer */
-	   /***********************/
-
-		if ((devpriv->s_BoardInfos.
-				dw_MolduleConfiguration[b_ModulNbr] &
-				0xFFFF0000UL) == APCI1710_82X54_TIMER) {
-	      /*************************/
+		if ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF0000UL) == APCI1710_82X54_TIMER) {
 			/* Test the timer number */
-	      /*************************/
 
 			if (b_TimerNbr <= 2) {
-		 /***********************/
 				/* Test the timer mode */
-		 /***********************/
-
 				if (b_TimerMode <= 5) {
 					//BEGIN JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
-		    /*********************************/
 					/* Test te imput clock selection */
-		    /*********************************/
 					/*
 					   if (((b_TimerNbr == 0) && (b_InputClockSelection == 0)) ||
 					   ((b_TimerNbr != 0) && ((b_InputClockSelection == 0) || (b_InputClockSelection == 1))))
 					 */
 
-					if (((b_TimerNbr == 0)
-							&&
-							(b_InputClockSelection
-								==
-								APCI1710_PCI_BUS_CLOCK))
-						|| ((b_TimerNbr == 0)
-							&&
-							(b_InputClockSelection
-								==
-								APCI1710_10MHZ))
-						|| ((b_TimerNbr != 0)
-							&&
-							((b_InputClockSelection
-									==
-									APCI1710_PCI_BUS_CLOCK)
-								||
-								(b_InputClockSelection
-									==
-									APCI1710_FRONT_CONNECTOR_INPUT)
-								||
-								(b_InputClockSelection
-									==
-									APCI1710_10MHZ))))
-						//END JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
-					{
+					if (((b_TimerNbr == 0) &&
+					     (b_InputClockSelection == APCI1710_PCI_BUS_CLOCK)) ||
+					    ((b_TimerNbr == 0) &&
+					     (b_InputClockSelection == APCI1710_10MHZ)) ||
+					    ((b_TimerNbr != 0) &&
+					     ((b_InputClockSelection == APCI1710_PCI_BUS_CLOCK) ||
+					      (b_InputClockSelection == APCI1710_FRONT_CONNECTOR_INPUT) ||
+					      (b_InputClockSelection == APCI1710_10MHZ)))) {
 						//BEGIN JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
-						if (((b_InputClockSelection ==
-									APCI1710_10MHZ)
-								&& ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0x0000FFFFUL) >= 0x3131)) || (b_InputClockSelection != APCI1710_10MHZ)) {
+						if (((b_InputClockSelection == APCI1710_10MHZ) &&
+						     ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0x0000FFFFUL) >= 0x3131)) ||
+						     (b_InputClockSelection != APCI1710_10MHZ)) {
 							//END JK 27.10.2003 : Add the possibility to use a 40 Mhz quartz
-			  /****************************************/
 							/* Test the input clock level selection */
-			  /****************************************/
 
-							if ((b_InputClockLevel
-									== 0)
-								||
-								(b_InputClockLevel
-									== 1)) {
-			     /*****************************************/
+							if ((b_InputClockLevel == 0) ||
+							    (b_InputClockLevel == 1)) {
 								/* Test the output clock level selection */
-			     /*****************************************/
-
 								if ((b_OutputLevel == 0) || (b_OutputLevel == 1)) {
-				/******************************************/
 									/* Test the hardware gate level selection */
-				/******************************************/
-
 									if ((b_HardwareGateLevel == 0) || (b_HardwareGateLevel == 1)) {
 										//BEGIN JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
-				   /*****************************************************/
 										/* Test if version > 1.1 and clock selection = 10MHz */
-				   /*****************************************************/
-
 										if ((b_InputClockSelection == APCI1710_10MHZ) && ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0x0000FFFFUL) > 0x3131)) {
-				      /*********************************/
 											/* Test if 40MHz quartz on board */
-				      /*********************************/
-
 											dw_Test = inl(devpriv->s_BoardInfos.ui_Address + (16 + (b_TimerNbr * 4) + (64 * b_ModulNbr)));
 
 											dw_Test = (dw_Test >> 16) & 1;
@@ -384,87 +295,25 @@ INT i_APCI1710_InsnConfigInitTimer(comedi_device * dev, comedi_subdevice * s,
 											dw_Test = 1;
 										}
 
-				   /************************/
 										/* Test if detection OK */
-				   /************************/
-
 										if (dw_Test == 1) {
 											//END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
-				      /*********************/
 											/* Initialisation OK */
-				      /*********************/
+											devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_82X54Init = 1;
 
-											devpriv->
-												s_ModuleInfo
-												[b_ModulNbr].
-												s_82X54ModuleInfo.
-												s_82X54TimerInfo
-												[b_TimerNbr].
-												b_82X54Init
-												=
-												1;
-
-				      /**********************************/
 											/* Save the input clock selection */
-				      /**********************************/
-											devpriv->
-												s_ModuleInfo
-												[b_ModulNbr].
-												s_82X54ModuleInfo.
-												s_82X54TimerInfo
-												[b_TimerNbr].
-												b_InputClockSelection
-												=
-												b_InputClockSelection;
+											devpriv-> s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_InputClockSelection = b_InputClockSelection;
 
-				      /******************************/
 											/* Save the input clock level */
-				      /******************************/
-											devpriv->
-												s_ModuleInfo
-												[b_ModulNbr].
-												s_82X54ModuleInfo.
-												s_82X54TimerInfo
-												[b_TimerNbr].
-												b_InputClockLevel
-												=
-												~b_InputClockLevel
-												&
-												1;
+											devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_InputClockLevel = ~b_InputClockLevel & 1;
 
-				      /*************************/
 											/* Save the output level */
-				      /*************************/
+											devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_OutputLevel = ~b_OutputLevel & 1;
 
-											devpriv->
-												s_ModuleInfo
-												[b_ModulNbr].
-												s_82X54ModuleInfo.
-												s_82X54TimerInfo
-												[b_TimerNbr].
-												b_OutputLevel
-												=
-												~b_OutputLevel
-												&
-												1;
-
-				      /***********************/
 											/* Save the gate level */
-				      /***********************/
+											devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_HardwareGateLevel = b_HardwareGateLevel;
 
-											devpriv->
-												s_ModuleInfo
-												[b_ModulNbr].
-												s_82X54ModuleInfo.
-												s_82X54TimerInfo
-												[b_TimerNbr].
-												b_HardwareGateLevel
-												=
-												b_HardwareGateLevel;
-
-				      /****************************************************/
 											/* Set the configuration word and disable the timer */
-				      /****************************************************/
 											//BEGIN JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
 											/*
 											   devpriv->s_ModuleInfo [b_ModulNbr].
@@ -475,132 +324,74 @@ INT i_APCI1710_InsnConfigInitTimer(comedi_device * dev, comedi_subdevice * s,
 											   (((~b_OutputLevel       & 1)  << 2) & 0x4) |
 											   ((b_InputClockSelection       << 4) & 0x10));
 											 */
-				      /**************************/
 											/* Test if 10MHz selected */
-				      /**************************/
-
 											if (b_InputClockSelection == APCI1710_10MHZ) {
-												b_InputClockSelection
-													=
-													2;
+												b_InputClockSelection = 2;
 											}
 
-											devpriv->
-												s_ModuleInfo
-												[b_ModulNbr].
-												s_82X54ModuleInfo.
-												s_82X54TimerInfo
-												[b_TimerNbr].
-												dw_ConfigurationWord
-												=
-												(DWORD)
-												(
-												((b_HardwareGateLevel << 0) & 0x1) | ((b_InputClockLevel << 1) & 0x2) | (((~b_OutputLevel & 1) << 2) & 0x4) | ((b_InputClockSelection << 4) & 0x30));
+											devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord = (DWORD)(((b_HardwareGateLevel << 0) & 0x1) | ((b_InputClockLevel << 1) & 0x2) | (((~b_OutputLevel & 1) << 2) & 0x4) | ((b_InputClockSelection << 4) & 0x30));
 											//END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
 											outl(devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord, devpriv->s_BoardInfos.ui_Address + 32 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
-				      /******************************/
 											/* Initialise the 82X54 Timer */
-				      /******************************/
-
 											outl((DWORD) b_TimerMode, devpriv->s_BoardInfos.ui_Address + 16 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
-				      /**************************/
 											/* Write the reload value */
-				      /**************************/
-
 											outl(ul_ReloadValue, devpriv->s_BoardInfos.ui_Address + 0 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 											//BEGIN JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
 										}	// if (dw_Test == 1)
 										else {
-				      /****************************************/
 											/* Input timer clock selection is wrong */
-				      /****************************************/
-
-											i_ReturnValue
-												=
-												-6;
+											i_ReturnValue = -6;
 										}	// if (dw_Test == 1)
 										//END JK 27.10.03 : Add the possibility to use a 40 Mhz quartz
 									}	// if ((b_HardwareGateLevel == 0) || (b_HardwareGateLevel == 1))
 									else {
-				/***********************************************/
 										/* Selection from hardware gate level is wrong */
-				/***********************************************/
-
 										DPRINTK("Selection from hardware gate level is wrong\n");
-										i_ReturnValue
-											=
-											-9;
+										i_ReturnValue = -9;
 									}	// if ((b_HardwareGateLevel == 0) || (b_HardwareGateLevel == 1))
 								}	// if ((b_OutputLevel == 0) || (b_OutputLevel == 1))
 								else {
-			     /**********************************************/
 									/* Selection from output clock level is wrong */
-			     /**********************************************/
-
 									DPRINTK("Selection from output clock level is wrong\n");
-									i_ReturnValue
-										=
-										-8;
+									i_ReturnValue = -8;
 								}	// if ((b_OutputLevel == 0) || (b_OutputLevel == 1))
 							}	// if ((b_InputClockLevel == 0) || (b_InputClockLevel == 1))
 							else {
-			  /*********************************************/
 								/* Selection from input clock level is wrong */
-			  /*********************************************/
-
 								DPRINTK("Selection from input clock level is wrong\n");
-								i_ReturnValue =
-									-7;
+								i_ReturnValue = -7;
 							}	// if ((b_InputClockLevel == 0) || (b_InputClockLevel == 1))
 						} else {
-		       /****************************************/
 							/* Input timer clock selection is wrong */
-		       /****************************************/
-
 							DPRINTK("Input timer clock selection is wrong\n");
 							i_ReturnValue = -6;
 						}
 					} else {
-		    /****************************************/
 						/* Input timer clock selection is wrong */
-		    /****************************************/
-
 						DPRINTK("Input timer clock selection is wrong\n");
 						i_ReturnValue = -6;
 					}
 				}	// if ((b_TimerMode >= 0) && (b_TimerMode <= 5))
 				else {
-		 /*********************************/
 					/* Timer mode selection is wrong */
-		 /*********************************/
-
 					DPRINTK("Timer mode selection is wrong\n");
 					i_ReturnValue = -5;
 				}	// if ((b_TimerMode >= 0) && (b_TimerMode <= 5))
 			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
 			else {
-	      /*************************/
 				/* Timer selection wrong */
-	      /*************************/
-
 				DPRINTK("Timer selection wrong\n");
 				i_ReturnValue = -3;
 			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
 		} else {
-	   /************************************/
 			/* The module is not a TIMER module */
-	   /************************************/
-
 			DPRINTK("The module is not a TIMER module\n");
 			i_ReturnValue = -4;
 		}
 	} else {
-	   /***********************/
 		/* Module number error */
-	   /***********************/
-
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
@@ -658,7 +449,8 @@ i_ReturnValue=insn->n;
 */
 
 INT i_APCI1710_InsnWriteEnableDisableTimer(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data)
+					   comedi_subdevice * s,
+					   comedi_insn * insn, lsampl_t * data)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_DummyRead;
@@ -671,304 +463,91 @@ INT i_APCI1710_InsnWriteEnableDisableTimer(comedi_device * dev,
 	b_ModulNbr = (BYTE) CR_AREF(insn->chanspec);
 	b_TimerNbr = (BYTE) CR_CHAN(insn->chanspec);
 	b_ActionType = (BYTE) data[0];	// enable disable
-	/**************************/
+
 	/* Test the module number */
-	/**************************/
-
 	if (b_ModulNbr < 4) {
-	   /***********************/
 		/* Test if 82X54 timer */
-	   /***********************/
-
-		if ((devpriv->s_BoardInfos.
-				dw_MolduleConfiguration[b_ModulNbr] &
-				0xFFFF0000UL) == APCI1710_82X54_TIMER) {
-	      /*************************/
+		if ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF0000UL) == APCI1710_82X54_TIMER) {
 			/* Test the timer number */
-	      /*************************/
-
 			if (b_TimerNbr <= 2) {
-		 /*****************************/
 				/* Test if timer initialised */
-		 /*****************************/
-
-				if (devpriv->s_ModuleInfo[b_ModulNbr].
-					s_82X54ModuleInfo.
-					s_82X54TimerInfo[b_TimerNbr].
-					b_82X54Init == 1) {
+				if (devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_82X54Init == 1) {
 
 					switch (b_ActionType) {
 					case APCI1710_ENABLE:
-
-						b_InterruptEnable =
-							(BYTE) data[1];
-		    /********************************/
+						b_InterruptEnable = (BYTE) data[1];
 						/* Test the interrupt selection */
-		    /********************************/
+						if ((b_InterruptEnable == APCI1710_ENABLE) ||
+						    (b_InterruptEnable == APCI1710_DISABLE)) {
+							if (b_InterruptEnable == APCI1710_ENABLE) {
 
-						if ((b_InterruptEnable ==
-								APCI1710_ENABLE)
-							|| (b_InterruptEnable ==
-								APCI1710_DISABLE))
-						{
-							if (b_InterruptEnable ==
-								APCI1710_ENABLE)
-							{
+								dw_DummyRead = inl(devpriv->s_BoardInfos.ui_Address + 12 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
-								dw_DummyRead =
-									inl
-									(devpriv->
-									s_BoardInfos.
-									ui_Address
-									+ 12 +
-									(b_TimerNbr
-										*
-										4)
-									+
-									(64 * b_ModulNbr));
-
-			     /************************/
 								/* Enable the interrupt */
-			     /************************/
+								devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord = devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord | 0x8;
 
-								devpriv->
-									s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									s_82X54TimerInfo
-									[b_TimerNbr].
-									dw_ConfigurationWord
-									=
-									devpriv->
-									s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									s_82X54TimerInfo
-									[b_TimerNbr].
-									dw_ConfigurationWord
-									| 0x8;
-
-								outl(devpriv->
-									s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									s_82X54TimerInfo
-									[b_TimerNbr].
-									dw_ConfigurationWord,
-									devpriv->
-									s_BoardInfos.
-									ui_Address
-									+ 32 +
-									(b_TimerNbr
-										*
-										4)
-									+
-									(64 * b_ModulNbr));
+								outl(devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord, devpriv->s_BoardInfos.ui_Address + 32 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 								devpriv->tsk_Current = current;	// Save the current process task structure
 
 							}	// if (b_InterruptEnable == APCI1710_ENABLE)
 							else {
-			  /*************************/
 								/* Disable the interrupt */
-			  /*************************/
+								devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord = devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord & 0xF7;
 
-								devpriv->
-									s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									s_82X54TimerInfo
-									[b_TimerNbr].
-									dw_ConfigurationWord
-									=
-									devpriv->
-									s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									s_82X54TimerInfo
-									[b_TimerNbr].
-									dw_ConfigurationWord
-									& 0xF7;
+								outl(devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord, devpriv->s_BoardInfos.ui_Address + 32 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
-								outl(devpriv->
-									s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									s_82X54TimerInfo
-									[b_TimerNbr].
-									dw_ConfigurationWord,
-									devpriv->
-									s_BoardInfos.
-									ui_Address
-									+ 32 +
-									(b_TimerNbr
-										*
-										4)
-									+
-									(64 * b_ModulNbr));
-
-			  /***************************/
 								/* Save the interrupt flag */
-			  /***************************/
-
-								devpriv->
-									s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									b_InterruptMask
-									=
-									devpriv->
-									s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									b_InterruptMask
-									& (0xFF
-									-
-									(1 << b_TimerNbr));
+								devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.b_InterruptMask = devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.b_InterruptMask & (0xFF - (1 << b_TimerNbr));
 							}	// if (b_InterruptEnable == APCI1710_ENABLE)
 
-		       /***********************/
 							/* Test if error occur */
-		       /***********************/
-
 							if (i_ReturnValue >= 0) {
-			  /***************************/
 								/* Save the interrupt flag */
-			  /***************************/
+								devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.b_InterruptMask = devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.b_InterruptMask | ((1 & b_InterruptEnable) << b_TimerNbr);
 
-								devpriv->
-									s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									b_InterruptMask
-									=
-									devpriv->
-									s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									b_InterruptMask
-									| ((1 & b_InterruptEnable) << b_TimerNbr);
-
-			  /********************/
 								/* Enable the timer */
-			  /********************/
-
 								outl(1, devpriv->s_BoardInfos.ui_Address + 44 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 							}
 						} else {
-		       /********************************/
 							/* Interrupt parameter is wrong */
-		       /********************************/
-
 							DPRINTK("\n");
 							i_ReturnValue = -6;
 						}
 						break;
 					case APCI1710_DISABLE:
-			/***************************/
 						/* Test the interrupt flag */
-		    /***************************/
-
-						if (((devpriv->s_ModuleInfo
-									[b_ModulNbr].
-									s_82X54ModuleInfo.
-									b_InterruptMask
-									>>
-									b_TimerNbr)
-								& 1) == 1) {
-		       /*************************/
+						if (((devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.b_InterruptMask >> b_TimerNbr) & 1) == 1) {
 							/* Disable the interrupt */
-		       /*************************/
 
-							devpriv->
-								s_ModuleInfo
-								[b_ModulNbr].
-								s_82X54ModuleInfo.
-								s_82X54TimerInfo
-								[b_TimerNbr].
-								dw_ConfigurationWord
-								=
-								devpriv->
-								s_ModuleInfo
-								[b_ModulNbr].
-								s_82X54ModuleInfo.
-								s_82X54TimerInfo
-								[b_TimerNbr].
-								dw_ConfigurationWord
-								& 0xF7;
+							devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr]. dw_ConfigurationWord = devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord & 0xF7;
 
-							outl(devpriv->
-								s_ModuleInfo
-								[b_ModulNbr].
-								s_82X54ModuleInfo.
-								s_82X54TimerInfo
-								[b_TimerNbr].
-								dw_ConfigurationWord,
-								devpriv->
-								s_BoardInfos.
-								ui_Address +
-								32 +
-								(b_TimerNbr *
-									4) +
-								(64 * b_ModulNbr));
+							outl(devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].dw_ConfigurationWord, devpriv->s_BoardInfos.ui_Address + 32 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
-		       /***************************/
 							/* Save the interrupt flag */
-		       /***************************/
-
-							devpriv->
-								s_ModuleInfo
-								[b_ModulNbr].
-								s_82X54ModuleInfo.
-								b_InterruptMask
-								=
-								devpriv->
-								s_ModuleInfo
-								[b_ModulNbr].
-								s_82X54ModuleInfo.
-								b_InterruptMask
-								& (0xFF -
-								(1 << b_TimerNbr));
+							devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.b_InterruptMask = devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.b_InterruptMask & (0xFF - (1 << b_TimerNbr));
 						}
 
-		    /*********************/
 						/* Disable the timer */
-		    /*********************/
-
-						outl(0, devpriv->s_BoardInfos.
-							ui_Address + 44 +
-							(b_TimerNbr * 4) +
-							(64 * b_ModulNbr));
+						outl(0, devpriv->s_BoardInfos.ui_Address + 44 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 						break;
 					}	// Switch end
 				} else {
-		    /**************************************/
 					/* Timer not initialised see function */
-		    /**************************************/
-
-					DPRINTK("Timer not initialised see function\n");
+					DPRINTK ("Timer not initialised see function\n");
 					i_ReturnValue = -5;
 				}
 			} else {
-		 /*************************/
 				/* Timer selection wrong */
-		 /*************************/
-
 				DPRINTK("Timer selection wrong\n");
 				i_ReturnValue = -3;
 			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
 		} else {
-	      /************************************/
 			/* The module is not a TIMER module */
-	      /************************************/
-
 			DPRINTK("The module is not a TIMER module\n");
 			i_ReturnValue = -4;
 		}
 	} else {
-	   /***********************/
 		/* Module number error */
-	   /***********************/
-
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
@@ -1011,8 +590,8 @@ INT i_APCI1710_InsnReadAllTimerValue(comedi_device *dev,comedi_subdevice *s,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_InsnReadAllTimerValue(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+INT i_APCI1710_InsnReadAllTimerValue(comedi_device *dev, comedi_subdevice *s,
+				     comedi_insn *insn, lsampl_t *data)
 {
 	INT i_ReturnValue = 0;
 	BYTE b_ModulNbr, b_ReadType;
@@ -1026,143 +605,59 @@ INT i_APCI1710_InsnReadAllTimerValue(comedi_device * dev, comedi_subdevice * s,
 	switch (b_ReadType) {
 	case APCI1710_TIMER_READINTERRUPT:
 
-		data[0] = devpriv->s_InterruptParameters.
-			s_FIFOInterruptParameters[devpriv->
-			s_InterruptParameters.ui_Read].b_OldModuleMask;
-		data[1] = devpriv->s_InterruptParameters.
-			s_FIFOInterruptParameters[devpriv->
-			s_InterruptParameters.ui_Read].ul_OldInterruptMask;
-		data[2] = devpriv->s_InterruptParameters.
-			s_FIFOInterruptParameters[devpriv->
-			s_InterruptParameters.ui_Read].ul_OldCounterLatchValue;
+		data[0] = devpriv->s_InterruptParameters.s_FIFOInterruptParameters[devpriv->s_InterruptParameters.ui_Read].b_OldModuleMask;
+		data[1] = devpriv->s_InterruptParameters.s_FIFOInterruptParameters[devpriv->s_InterruptParameters.ui_Read].ul_OldInterruptMask;
+		data[2] = devpriv->s_InterruptParameters.s_FIFOInterruptParameters[devpriv->s_InterruptParameters.ui_Read].ul_OldCounterLatchValue;
 
-			     /**************************/
 		/* Increment the read FIFO */
-			     /***************************/
-
-		devpriv->
-			s_InterruptParameters.
-			ui_Read = (devpriv->
-			s_InterruptParameters.
-			ui_Read + 1) % APCI1710_SAVE_INTERRUPT;
+		devpriv->s_InterruptParameters.ui_Read = (devpriv->s_InterruptParameters.ui_Read + 1) % APCI1710_SAVE_INTERRUPT;
 
 		break;
 
 	case APCI1710_TIMER_READALLTIMER:
-	/**************************/
 		/* Test the module number */
-	/**************************/
-
 		if (b_ModulNbr < 4) {
-	   /***********************/
 			/* Test if 82X54 timer */
-	   /***********************/
-
-			if ((devpriv->s_BoardInfos.
-					dw_MolduleConfiguration[b_ModulNbr] &
-					0xFFFF0000UL) == APCI1710_82X54_TIMER) {
-	      /********************************/
+			if ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF0000UL) == APCI1710_82X54_TIMER) {
 				/* Test if timer 0 iniutialised */
-	      /********************************/
-
-				if (devpriv->s_ModuleInfo[b_ModulNbr].
-					s_82X54ModuleInfo.
-					s_82X54TimerInfo[0].b_82X54Init == 1) {
-		 /********************************/
+				if (devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[0].b_82X54Init == 1) {
 					/* Test if timer 1 iniutialised */
-		 /********************************/
-
-					if (devpriv->s_ModuleInfo[b_ModulNbr].
-						s_82X54ModuleInfo.
-						s_82X54TimerInfo[1].
-						b_82X54Init == 1) {
-		    /********************************/
+					if (devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[1].b_82X54Init == 1) {
 						/* Test if timer 2 iniutialised */
-		    /********************************/
-
-						if (devpriv->
-							s_ModuleInfo
-							[b_ModulNbr].
-							s_82X54ModuleInfo.
-							s_82X54TimerInfo[2].
-							b_82X54Init == 1) {
-		       /*********************/
+						if (devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[2].b_82X54Init == 1) {
 							/* Latch all counter */
-		       /*********************/
+							outl(0x17, devpriv->s_BoardInfos.ui_Address + 12 + (64 * b_ModulNbr));
 
-							outl(0x17,
-								devpriv->
-								s_BoardInfos.
-								ui_Address +
-								12 +
-								(64 * b_ModulNbr));
-
-		       /**************************/
 							/* Read the timer 0 value */
-		       /**************************/
+							pul_TimerValueArray[0] = inl(devpriv->s_BoardInfos.ui_Address + 0 + (64 * b_ModulNbr));
 
-							pul_TimerValueArray[0] =
-								inl(devpriv->
-								s_BoardInfos.
-								ui_Address + 0 +
-								(64 * b_ModulNbr));
-
-		       /**************************/
 							/* Read the timer 1 value */
-		       /**************************/
+							pul_TimerValueArray[1] = inl(devpriv->s_BoardInfos.ui_Address + 4 + (64 * b_ModulNbr));
 
-							pul_TimerValueArray[1] =
-								inl(devpriv->
-								s_BoardInfos.
-								ui_Address + 4 +
-								(64 * b_ModulNbr));
-
-		       /**************************/
 							/* Read the timer 2 value */
-		       /**************************/
-
-							pul_TimerValueArray[2] =
-								inl(devpriv->
-								s_BoardInfos.
-								ui_Address + 8 +
-								(64 * b_ModulNbr));
+							pul_TimerValueArray[2] = inl(devpriv->s_BoardInfos.ui_Address + 8 + (64 * b_ModulNbr));
 						} else {
-		       /****************************************/
 							/* Timer 2 not initialised see function */
-		       /****************************************/
-
 							DPRINTK("Timer 2 not initialised see function\n");
 							i_ReturnValue = -6;
 						}
 					} else {
-		    /****************************************/
 						/* Timer 1 not initialised see function */
-		    /****************************************/
-
 						DPRINTK("Timer 1 not initialised see function\n");
 						i_ReturnValue = -5;
 					}
 				} else {
-		 /****************************************/
 					/* Timer 0 not initialised see function */
-		 /****************************************/
-
 					DPRINTK("Timer 0 not initialised see function\n");
 					i_ReturnValue = -4;
 				}
 			} else {
-	      /************************************/
 				/* The module is not a TIMER module */
-	      /************************************/
-
 				DPRINTK("The module is not a TIMER module\n");
 				i_ReturnValue = -3;
 			}
 		} else {
-	   /***********************/
 			/* Module number error */
-	   /***********************/
-
 			DPRINTK("Module number error\n");
 			i_ReturnValue = -2;
 		}
@@ -1187,7 +682,7 @@ comedi_subdevice *s,comedi_insn *insn,lsampl_t *data)                   |
 */
 
 INT i_APCI1710_InsnBitsTimer(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data)
+			     comedi_insn * insn, lsampl_t * data)
 {
 	BYTE b_BitsType;
 	INT i_ReturnValue = 0;
@@ -1198,26 +693,30 @@ INT i_APCI1710_InsnBitsTimer(comedi_device * dev, comedi_subdevice * s,
 	switch (b_BitsType) {
 	case APCI1710_TIMER_READVALUE:
 		i_ReturnValue = i_APCI1710_ReadTimerValue(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) CR_CHAN(insn->chanspec), (PULONG) & data[0]);
+							  (BYTE)CR_AREF(insn->chanspec),
+							  (BYTE)CR_CHAN(insn->chanspec),
+							  (PULONG) & data[0]);
 		break;
 
 	case APCI1710_TIMER_GETOUTPUTLEVEL:
 		i_ReturnValue = i_APCI1710_GetTimerOutputLevel(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) CR_CHAN(insn->chanspec), (PBYTE) & data[0]);
+							       (BYTE)CR_AREF(insn->chanspec),
+							       (BYTE)CR_CHAN(insn->chanspec),
+							       (PBYTE) &data[0]);
 		break;
 
 	case APCI1710_TIMER_GETPROGRESSSTATUS:
 		i_ReturnValue = i_APCI1710_GetTimerProgressStatus(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) CR_CHAN(insn->chanspec), (PBYTE) & data[0]);
+								  (BYTE)CR_AREF(insn->chanspec),
+								  (BYTE)CR_CHAN(insn->chanspec),
+								  (PBYTE)&data[0]);
 		break;
 
 	case APCI1710_TIMER_WRITEVALUE:
 		i_ReturnValue = i_APCI1710_WriteTimerValue(dev,
-			(BYTE) CR_AREF(insn->chanspec),
-			(BYTE) CR_CHAN(insn->chanspec), (ULONG) data[1]);
+							   (BYTE)CR_AREF(insn->chanspec),
+							   (BYTE)CR_CHAN(insn->chanspec),
+							   (ULONG)data[1]);
 
 		break;
 
@@ -1262,78 +761,53 @@ INT i_APCI1710_InsnBitsTimer(comedi_device * dev, comedi_subdevice * s,
 */
 
 INT i_APCI1710_ReadTimerValue(comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_TimerNbr, PULONG pul_TimerValue)
+			      BYTE b_ModulNbr, BYTE b_TimerNbr,
+			      PULONG pul_TimerValue)
 {
 	INT i_ReturnValue = 0;
 
-	/**************************/
 	/* Test the module number */
-	/**************************/
-
 	if (b_ModulNbr < 4) {
-	   /***********************/
 		/* Test if 82X54 timer */
-	   /***********************/
-
 		if ((devpriv->s_BoardInfos.
-				dw_MolduleConfiguration[b_ModulNbr] &
-				0xFFFF0000UL) == APCI1710_82X54_TIMER) {
-	      /*************************/
+		     dw_MolduleConfiguration[b_ModulNbr] &
+		     0xFFFF0000UL) == APCI1710_82X54_TIMER) {
 			/* Test the timer number */
-	      /*************************/
-
 			if (b_TimerNbr <= 2) {
-		 /*****************************/
 				/* Test if timer initialised */
-		 /*****************************/
-
 				if (devpriv->
-					s_ModuleInfo[b_ModulNbr].
-					s_82X54ModuleInfo.
-					s_82X54TimerInfo[b_TimerNbr].
-					b_82X54Init == 1) {
-		    /*************************/
+				    s_ModuleInfo[b_ModulNbr].
+				    s_82X54ModuleInfo.
+				    s_82X54TimerInfo[b_TimerNbr].
+				    b_82X54Init == 1) {
 					/* Latch the timer value */
-		    /*************************/
-
 					outl((2 << b_TimerNbr) | 0xD0,
-						devpriv->s_BoardInfos.
-						ui_Address + 12 +
-						(64 * b_ModulNbr));
+					     devpriv->s_BoardInfos.
+					     ui_Address + 12 +
+					     (64 * b_ModulNbr));
 
-		    /**************************/
 					/* Read the counter value */
-		    /**************************/
-
 					*pul_TimerValue =
-						inl(devpriv->s_BoardInfos.
+					    inl(devpriv->s_BoardInfos.
 						ui_Address + (b_TimerNbr * 4) +
 						(64 * b_ModulNbr));
 				} else {
-		    /**************************************/
 					/* Timer not initialised see function */
-		    /**************************************/
 					DPRINTK("Timer not initialised see function\n");
 					i_ReturnValue = -5;
 				}
 			} else {
-		 /*************************/
 				/* Timer selection wrong */
-		 /*************************/
 				DPRINTK("Timer selection wrong\n");
 				i_ReturnValue = -3;
 			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
 		} else {
-	      /************************************/
 			/* The module is not a TIMER module */
-	      /************************************/
 			DPRINTK("The module is not a TIMER module\n");
 			i_ReturnValue = -4;
 		}
 	} else {
-	   /***********************/
 		/* Module number error */
-	   /***********************/
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
@@ -1375,88 +849,44 @@ INT i_APCI1710_ReadTimerValue(comedi_device * dev,
 	 */
 
 INT i_APCI1710_GetTimerOutputLevel(comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_TimerNbr, PBYTE pb_OutputLevel)
+				   BYTE b_ModulNbr, BYTE b_TimerNbr,
+				   PBYTE pb_OutputLevel)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_TimerStatus;
 
-	/**************************/
 	/* Test the module number */
-	/**************************/
-
 	if (b_ModulNbr < 4) {
-	   /***********************/
 		/* Test if 82X54 timer */
-	   /***********************/
-
-		if ((devpriv->s_BoardInfos.
-				dw_MolduleConfiguration[b_ModulNbr] &
-				0xFFFF0000UL) == APCI1710_82X54_TIMER) {
-	      /*************************/
+		if ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF0000UL) == APCI1710_82X54_TIMER) {
 			/* Test the timer number */
-	      /*************************/
-
 			if (b_TimerNbr <= 2) {
-		 /*****************************/
 				/* Test if timer initialised */
-		 /*****************************/
-
-				if (devpriv->
-					s_ModuleInfo[b_ModulNbr].
-					s_82X54ModuleInfo.
-					s_82X54TimerInfo[b_TimerNbr].
-					b_82X54Init == 1) {
-		    /*************************/
+				if (devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_82X54Init == 1) {
 					/* Latch the timer value */
-		    /*************************/
+					outl((2 << b_TimerNbr) | 0xE0, devpriv->s_BoardInfos.ui_Address + 12 + (64 * b_ModulNbr));
 
-					outl((2 << b_TimerNbr) | 0xE0,
-						devpriv->s_BoardInfos.
-						ui_Address + 12 +
-						(64 * b_ModulNbr));
-
-		    /*************************/
 					/* Read the timer status */
-		    /*************************/
+					dw_TimerStatus = inl(devpriv->s_BoardInfos.ui_Address + 16 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
-					dw_TimerStatus =
-						inl(devpriv->s_BoardInfos.
-						ui_Address + 16 +
-						(b_TimerNbr * 4) +
-						(64 * b_ModulNbr));
-
-					*pb_OutputLevel =
-						(BYTE) (((dw_TimerStatus >> 7) &
-							1) ^ devpriv->
-						s_ModuleInfo[b_ModulNbr].
-						s_82X54ModuleInfo.
-						s_82X54TimerInfo[b_TimerNbr].
-						b_OutputLevel);
+					*pb_OutputLevel = (BYTE) (((dw_TimerStatus >> 7) & 1) ^ devpriv-> s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_OutputLevel);
 				} else {
-		    /**************************************/
 					/* Timer not initialised see function */
-		    /**************************************/
 					DPRINTK("Timer not initialised see function\n");
 					i_ReturnValue = -5;
 				}
 			} else {
-		 /*************************/
 				/* Timer selection wrong */
-		 /*************************/
 				DPRINTK("Timer selection wrong\n");
 				i_ReturnValue = -3;
 			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
 		} else {
-	      /************************************/
 			/* The module is not a TIMER module */
-	      /************************************/
 			DPRINTK("The module is not a TIMER module\n");
 			i_ReturnValue = -4;
 		}
 	} else {
-	   /***********************/
 		/* Module number error */
-	   /***********************/
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
@@ -1497,92 +927,50 @@ INT i_APCI1710_GetTimerOutputLevel(comedi_device * dev,
 +----------------------------------------------------------------------------+
 */
 
-INT i_APCI1710_GetTimerProgressStatus(comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_TimerNbr, PBYTE pb_TimerStatus)
+INT i_APCI1710_GetTimerProgressStatus(comedi_device *dev,
+				      BYTE b_ModulNbr, BYTE b_TimerNbr,
+				      PBYTE pb_TimerStatus)
 {
 	INT i_ReturnValue = 0;
 	DWORD dw_TimerStatus;
 
-	/**************************/
 	/* Test the module number */
-	/**************************/
-
 	if (b_ModulNbr < 4) {
-	   /***********************/
 		/* Test if 82X54 timer */
-	   /***********************/
 
-		if ((devpriv->s_BoardInfos.
-				dw_MolduleConfiguration[b_ModulNbr] &
-				0xFFFF0000UL) == APCI1710_82X54_TIMER) {
-	      /*************************/
+		if ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF0000UL) == APCI1710_82X54_TIMER) {
 			/* Test the timer number */
-	      /*************************/
-
 			if (b_TimerNbr <= 2) {
-		 /*****************************/
 				/* Test if timer initialised */
-		 /*****************************/
-
-				if (devpriv->
-					s_ModuleInfo[b_ModulNbr].
-					s_82X54ModuleInfo.
-					s_82X54TimerInfo[b_TimerNbr].
-					b_82X54Init == 1) {
-		    /*************************/
+				if (devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_82X54Init == 1) {
 					/* Latch the timer value */
-		    /*************************/
+					outl((2 << b_TimerNbr) | 0xE0, devpriv->s_BoardInfos.ui_Address + 12 + (64 * b_ModulNbr));
 
-					outl((2 << b_TimerNbr) | 0xE0,
-						devpriv->s_BoardInfos.
-						ui_Address + 12 +
-						(64 * b_ModulNbr));
-
-		    /*************************/
 					/* Read the timer status */
-		    /*************************/
+					dw_TimerStatus = inl(devpriv->s_BoardInfos.ui_Address + 16 + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 
-					dw_TimerStatus =
-						inl(devpriv->s_BoardInfos.
-						ui_Address + 16 +
-						(b_TimerNbr * 4) +
-						(64 * b_ModulNbr));
-
-					*pb_TimerStatus =
-						(BYTE) ((dw_TimerStatus) >> 8) &
-						1;
-					printk("ProgressStatus : %d",
-						*pb_TimerStatus);
+					*pb_TimerStatus = (BYTE) ((dw_TimerStatus) >> 8) & 1;
+					printk("ProgressStatus : %d", *pb_TimerStatus);
 				} else {
-		    /**************************************/
 					/* Timer not initialised see function */
-		    /**************************************/
-
 					i_ReturnValue = -5;
 				}
 			} else {
-		 /*************************/
 				/* Timer selection wrong */
-		 /*************************/
-
 				i_ReturnValue = -3;
 			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
 		} else {
-	      /************************************/
 			/* The module is not a TIMER module */
-	      /************************************/
 
 			i_ReturnValue = -4;
 		}
 	} else {
-	   /***********************/
 		/* Module number error */
-	   /***********************/
 
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1619,72 +1007,41 @@ INT i_APCI1710_GetTimerProgressStatus(comedi_device * dev,
 */
 
 INT i_APCI1710_WriteTimerValue(comedi_device * dev,
-	BYTE b_ModulNbr, BYTE b_TimerNbr, ULONG ul_WriteValue)
+			       BYTE b_ModulNbr, BYTE b_TimerNbr,
+			       ULONG ul_WriteValue)
 {
 	INT i_ReturnValue = 0;
 
-	/**************************/
 	/* Test the module number */
-	/**************************/
-
 	if (b_ModulNbr < 4) {
-	   /***********************/
 		/* Test if 82X54 timer */
-	   /***********************/
-
-		if ((devpriv->s_BoardInfos.
-				dw_MolduleConfiguration[b_ModulNbr] &
-				0xFFFF0000UL) == APCI1710_82X54_TIMER) {
-	      /*************************/
+		if ((devpriv->s_BoardInfos.dw_MolduleConfiguration[b_ModulNbr] & 0xFFFF0000UL) == APCI1710_82X54_TIMER) {
 			/* Test the timer number */
-	      /*************************/
-
 			if (b_TimerNbr <= 2) {
-		 /*****************************/
 				/* Test if timer initialised */
-		 /*****************************/
-
-				if (devpriv->
-					s_ModuleInfo[b_ModulNbr].
-					s_82X54ModuleInfo.
-					s_82X54TimerInfo[b_TimerNbr].
-					b_82X54Init == 1) {
-		    /*******************/
+				if (devpriv->s_ModuleInfo[b_ModulNbr].s_82X54ModuleInfo.s_82X54TimerInfo[b_TimerNbr].b_82X54Init == 1) {
 					/* Write the value */
-		    /*******************/
-
-					outl(ul_WriteValue,
-						devpriv->s_BoardInfos.
-						ui_Address + (b_TimerNbr * 4) +
-						(64 * b_ModulNbr));
+					outl(ul_WriteValue, devpriv->s_BoardInfos.ui_Address + (b_TimerNbr * 4) + (64 * b_ModulNbr));
 				} else {
-		    /**************************************/
 					/* Timer not initialised see function */
-		    /**************************************/
 					DPRINTK("Timer not initialised see function\n");
 					i_ReturnValue = -5;
 				}
 			} else {
-		 /*************************/
 				/* Timer selection wrong */
-		 /*************************/
 				DPRINTK("Timer selection wrong\n");
 				i_ReturnValue = -3;
 			}	// if ((b_TimerNbr >= 0) && (b_TimerNbr <= 2))
 		} else {
-	      /************************************/
 			/* The module is not a TIMER module */
-	      /************************************/
 			DPRINTK("The module is not a TIMER module\n");
 			i_ReturnValue = -4;
 		}
 	} else {
-	   /***********************/
 		/* Module number error */
-	   /***********************/
 		DPRINTK("Module number error\n");
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
