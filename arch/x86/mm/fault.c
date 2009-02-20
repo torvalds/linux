@@ -659,11 +659,8 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 {
 	struct task_struct *tsk = current;
 	unsigned long *stackend;
-
-#ifdef CONFIG_X86_64
 	unsigned long flags;
 	int sig;
-#endif
 
 	/* Are we prepared to handle this kernel fault? */
 	if (fixup_exception(regs))
@@ -690,11 +687,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 	 * Oops. The kernel tried to access some bad page. We'll have to
 	 * terminate things with extreme prejudice:
 	 */
-#ifdef CONFIG_X86_32
-	bust_spinlocks(1);
-#else
 	flags = oops_begin();
-#endif
 
 	show_fault_oops(regs, error_code, address);
 
@@ -702,15 +695,10 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 	if (*stackend != STACK_END_MAGIC)
 		printk(KERN_ALERT "Thread overran stack, or stack corrupted\n");
 
-	tsk->thread.cr2 = address;
-	tsk->thread.trap_no = 14;
-	tsk->thread.error_code = error_code;
+	tsk->thread.cr2		= address;
+	tsk->thread.trap_no	= 14;
+	tsk->thread.error_code	= error_code;
 
-#ifdef CONFIG_X86_32
-	die("Oops", regs, error_code);
-	bust_spinlocks(0);
-	do_exit(SIGKILL);
-#else
 	sig = SIGKILL;
 	if (__die("Oops", regs, error_code))
 		sig = 0;
@@ -719,7 +707,6 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 	printk(KERN_EMERG "CR2: %016lx\n", address);
 
 	oops_end(flags, regs, sig);
-#endif
 }
 
 /*
