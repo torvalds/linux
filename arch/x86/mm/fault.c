@@ -68,11 +68,10 @@ static inline int kmmio_fault(struct pt_regs *regs, unsigned long addr)
 
 static inline int notify_page_fault(struct pt_regs *regs)
 {
-#ifdef CONFIG_KPROBES
 	int ret = 0;
 
 	/* kprobe_running() needs smp_processor_id() */
-	if (!user_mode_vm(regs)) {
+	if (kprobes_built_in() && !user_mode_vm(regs)) {
 		preempt_disable();
 		if (kprobe_running() && kprobe_fault_handler(regs, 14))
 			ret = 1;
@@ -80,9 +79,6 @@ static inline int notify_page_fault(struct pt_regs *regs)
 	}
 
 	return ret;
-#else
-	return 0;
-#endif
 }
 
 /*
