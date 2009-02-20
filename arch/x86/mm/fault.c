@@ -595,28 +595,24 @@ static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
 	return 0;
 }
 
+static const char nx_warning[] = KERN_CRIT
+"kernel tried to execute NX-protected page - exploit attempt? (uid: %d)\n";
+
 static void
 show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 		unsigned long address)
 {
-#ifdef CONFIG_X86_32
 	if (!oops_may_print())
 		return;
-#endif
 
-#ifdef CONFIG_X86_PAE
 	if (error_code & PF_INSTR) {
 		unsigned int level;
 
 		pte_t *pte = lookup_address(address, &level);
 
-		if (pte && pte_present(*pte) && !pte_exec(*pte)) {
-			printk(KERN_CRIT "kernel tried to execute "
-				"NX-protected page - exploit attempt? "
-				"(uid: %d)\n", current_uid());
-		}
+		if (pte && pte_present(*pte) && !pte_exec(*pte))
+			printk(nx_warning, current_uid());
 	}
-#endif
 
 	printk(KERN_ALERT "BUG: unable to handle kernel ");
 	if (address < PAGE_SIZE)
