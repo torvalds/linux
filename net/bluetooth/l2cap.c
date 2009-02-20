@@ -1308,7 +1308,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 
 	switch (optname) {
 	case BT_SECURITY:
-		if (sk->sk_type != SOCK_SEQPACKET) {
+		if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_RAW) {
 			err = -EINVAL;
 			break;
 		}
@@ -1455,7 +1455,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 
 	switch (optname) {
 	case BT_SECURITY:
-		if (sk->sk_type != SOCK_SEQPACKET) {
+		if (sk->sk_type != SOCK_SEQPACKET && sk->sk_type != SOCK_RAW) {
 			err = -EINVAL;
 			break;
 		}
