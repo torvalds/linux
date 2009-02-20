@@ -1210,6 +1210,56 @@ static void hid_cease_io(struct usbhid_device *usbhid)
 	flush_scheduled_work();
 }
 
+/* Treat USB reset pretty much the same as suspend/resume */
+static int hid_pre_reset(struct usb_interface *intf)
+{
+	struct hid_device *hid = usb_get_intfdata(intf);
+	struct usbhid_device *usbhid = hid->driver_data;
+
+	spin_lock_irq(&usbhid->lock);
+	set_bit(HID_RESET_PENDING, &usbhid->iofl);
+	spin_unlock_irq(&usbhid->lock);
+	hid_cease_io(usbhid);
+
+	return 0;
+}
+
+/* Same routine used for post_reset and reset_resume */
+static int hid_post_reset(struct usb_interface *intf)
+{
+	struct usb_device *dev = interface_to_usbdev (intf);
+	struct hid_device *hid = usb_get_intfdata(intf);
+	struct usbhid_device *usbhid = hid->driver_data;
+	int status;
+ 
+	spin_lock_irq(&usbhid->lock);
+	clear_bit(HID_RESET_PENDING, &usbhid->iofl);
+	spin_unlock_irq(&usbhid->lock);
+	hid_set_idle(dev, intf->cur_altsetting->desc.bInterfaceNumber, 0, 0);
+	/* FIXME: Any more reinitialization needed? */
+	status = hid_start_in(hid);
+	if (status < 0)
+		hid_io_error(hid);
+	usbhid_restart_queues(usbhid);
+
+	return 0;
+}
+
+int usbhid_get_power(struct hid_device *hid)
+{
+	struct usbhid_device *usbhid = hid->driver_data;
+ 
+	return usb_autopm_get_interface(usbhid->intf);
+}
+
+void usbhid_put_power(struct hid_device *hid)
+{
+	struct usbhid_device *usbhid = hid->driver_data;
+ 
+	usb_autopm_put_interface(usbhid->intf);
+}
+
+
 #ifdef CONFIG_PM
 static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 {
@@ -1293,43 +1343,6 @@ static int hid_resume(struct usb_interface *intf)
 	return 0;
 }
 
-#endif /* CONFIG_PM */
-
-/* Treat USB reset pretty much the same as suspend/resume */
-static int hid_pre_reset(struct usb_interface *intf)
-{
-	struct hid_device *hid = usb_get_intfdata(intf);
-	struct usbhid_device *usbhid = hid->driver_data;
-
-	spin_lock_irq(&usbhid->lock);
-	set_bit(HID_RESET_PENDING, &usbhid->iofl);
-	spin_unlock_irq(&usbhid->lock);
-	hid_cease_io(usbhid);
-
-	return 0;
-}
-
-/* Same routine used for post_reset and reset_resume */
-static int hid_post_reset(struct usb_interface *intf)
-{
-	struct usb_device *dev = interface_to_usbdev (intf);
-	struct hid_device *hid = usb_get_intfdata(intf);
-	struct usbhid_device *usbhid = hid->driver_data;
-	int status;
- 
-	spin_lock_irq(&usbhid->lock);
-	clear_bit(HID_RESET_PENDING, &usbhid->iofl);
-	spin_unlock_irq(&usbhid->lock);
-	hid_set_idle(dev, intf->cur_altsetting->desc.bInterfaceNumber, 0, 0);
-	/* FIXME: Any more reinitialization needed? */
-	status = hid_start_in(hid);
-	if (status < 0)
-		hid_io_error(hid);
-	usbhid_restart_queues(usbhid);
-
-	return 0;
-}
-
 static int hid_reset_resume(struct usb_interface *intf)
 {
 	struct hid_device *hid = usb_get_intfdata(intf);
@@ -1339,19 +1352,7 @@ static int hid_reset_resume(struct usb_interface *intf)
 	return hid_post_reset(intf);
 }
 
-int usbhid_get_power(struct hid_device *hid)
-{
-	struct usbhid_device *usbhid = hid->driver_data;
- 
-	return usb_autopm_get_interface(usbhid->intf);
-}
-
-void usbhid_put_power(struct hid_device *hid)
-{
-	struct usbhid_device *usbhid = hid->driver_data;
- 
-	usb_autopm_put_interface(usbhid->intf);
-}
+#endif /* CONFIG_PM */
 
 static struct usb_device_id hid_usb_ids [] = {
 	{ .match_flags = USB_DEVICE_ID_MATCH_INT_CLASS,
