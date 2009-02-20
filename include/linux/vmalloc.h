@@ -106,5 +106,6 @@ extern long vwrite(char *buf, char *addr, unsigned long count);
  */
 extern rwlock_t vmlist_lock;
 extern struct vm_struct *vmlist;
+extern __init void vm_area_register_early(struct vm_struct *vm);
 
 #endif /* _LINUX_VMALLOC_H */

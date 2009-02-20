@@ -24,6 +24,7 @@
 #include <linux/radix-tree.h>
 #include <linux/rcupdate.h>
 #include <linux/bootmem.h>
+#include <linux/pfn.h>
 
 #include <asm/atomic.h>
 #include <asm/uaccess.h>
@@ -981,6 +982,29 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
 	return mem;
 }
 EXPORT_SYMBOL(vm_map_ram);
+
+/**
+ * vm_area_register_early - register vmap area early during boot
+ * @vm: vm_struct to register
+ * @size: size of area to register
+ *
+ * This function is used to register kernel vm area before
+ * vmalloc_init() is called.  @vm->size and @vm->flags should contain
+ * proper values on entry and other fields should be zero.  On return,
+ * vm->addr contains the allocated address.
+ *
+ * DO NOT USE THIS FUNCTION UNLESS YOU KNOW WHAT YOU'RE DOING.
+ */
+void __init vm_area_register_early(struct vm_struct *vm)
+{
+	static size_t vm_init_off __initdata;
+
+	vm->addr = (void *)VMALLOC_START + vm_init_off;
+	vm_init_off = PFN_ALIGN(vm_init_off + vm->size);
+
+	vm->next = vmlist;
+	vmlist = vm;
+}
 
 void __init vmalloc_init(void)
 {
