@@ -191,6 +191,25 @@ static void radeon_write_agp_base(drm_radeon_private_t *dev_priv, u64 agp_base)
 	}
 }
 
+static void radeon_enable_bm(struct drm_radeon_private *dev_priv)
+{
+	u32 tmp;
+	/* Turn on bus mastering */
+	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
+	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740)) {
+		/* rs600/rs690/rs740 */
+		tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RS600_BUS_MASTER_DIS;
+		RADEON_WRITE(RADEON_BUS_CNTL, tmp);
+	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV350) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R420) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS400) ||
+		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS480)) {
+		/* r1xx, r2xx, r300, r(v)350, r420/r481, rs400/rs480 */
+		tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
+		RADEON_WRITE(RADEON_BUS_CNTL, tmp);
+	} /* PCIE cards appears to not need this */
+}
+
 static int RADEON_READ_PLL(struct drm_device * dev, int addr)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -608,7 +627,6 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 {
 	struct drm_radeon_master_private *master_priv;
 	u32 ring_start, cur_read_ptr;
-	u32 tmp;
 
 	/* Initialize the memory controller. With new memory map, the fb location
 	 * is not changed, it should have been properly initialized already. Part
@@ -690,20 +708,7 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 
 	RADEON_WRITE(RADEON_SCRATCH_UMSK, 0x7);
 
-	/* Turn on bus mastering */
-	if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS690) ||
-	    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS740)) {
-		/* rs600/rs690/rs740 */
-		tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RS600_BUS_MASTER_DIS;
-		RADEON_WRITE(RADEON_BUS_CNTL, tmp);
-	} else if (((dev_priv->flags & RADEON_FAMILY_MASK) <= CHIP_RV350) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R420) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS400) ||
-		   ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RS480)) {
-		/* r1xx, r2xx, r300, r(v)350, r420/r481, rs400/rs480 */
-		tmp = RADEON_READ(RADEON_BUS_CNTL) & ~RADEON_BUS_MASTER_DIS;
-		RADEON_WRITE(RADEON_BUS_CNTL, tmp);
-	} /* PCIE cards appears to not need this */
+	radeon_enable_bm(dev_priv);
 
 	radeon_write_ring_rptr(dev_priv, RADEON_SCRATCHOFF(0), 0);
 	RADEON_WRITE(RADEON_LAST_FRAME_REG, 0);
