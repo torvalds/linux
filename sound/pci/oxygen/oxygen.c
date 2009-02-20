@@ -196,6 +196,12 @@ static void meridian_init(struct oxygen *chip)
 	ak5385_init(chip);
 }
 
+static void halo_init(struct oxygen *chip)
+{
+	ak4396_init(chip);
+	ak5385_init(chip);
+}
+
 static void generic_cleanup(struct oxygen *chip)
 {
 }
@@ -207,6 +213,11 @@ static void generic_resume(struct oxygen *chip)
 }
 
 static void meridian_resume(struct oxygen *chip)
+{
+	ak4396_registers_init(chip);
+}
+
+static void halo_resume(struct oxygen *chip)
 {
 	ak4396_registers_init(chip);
 }
@@ -334,6 +345,11 @@ static int __devinit get_oxygen_model(struct oxygen *chip,
 					    PLAYBACK_1_TO_SPDIF |
 					    CAPTURE_0_FROM_I2S_2 |
 					    CAPTURE_1_FROM_SPDIF;
+		break;
+	case MODEL_HALO:
+		chip->model.init = halo_init;
+		chip->model.resume = halo_resume;
+		chip->model.set_adc_params = set_ak5385_params;
 		break;
 	}
 	if (id->driver_data == MODEL_MERIDIAN ||
