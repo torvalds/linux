@@ -61,38 +61,56 @@ static inline void setup_percpu_segment(int cpu)
  */
 void __init setup_per_cpu_areas(void)
 {
-	ssize_t size;
-	char *ptr;
-	int cpu;
-
-	/* Copy section for each CPU (we discard the original) */
-	size = roundup(PERCPU_ENOUGH_ROOM, PAGE_SIZE);
+	ssize_t size = __per_cpu_end - __per_cpu_start;
+	unsigned int nr_cpu_pages = DIV_ROUND_UP(size, PAGE_SIZE);
+	static struct page **pages;
+	size_t pages_size;
+	unsigned int cpu, i, j;
+	unsigned long delta;
+	size_t pcpu_unit_size;
 
 	pr_info("NR_CPUS:%d nr_cpumask_bits:%d nr_cpu_ids:%d nr_node_ids:%d\n",
 		NR_CPUS, nr_cpumask_bits, nr_cpu_ids, nr_node_ids);
+	pr_info("PERCPU: Allocating %zd bytes for static per cpu data\n", size);
 
-	pr_info("PERCPU: Allocating %zd bytes of per cpu data\n", size);
+	pages_size = nr_cpu_pages * num_possible_cpus() * sizeof(pages[0]);
+	pages = alloc_bootmem(pages_size);
 
+	j = 0;
 	for_each_possible_cpu(cpu) {
-#ifndef CONFIG_NEED_MULTIPLE_NODES
-		ptr = alloc_bootmem_pages(size);
-#else
-		int node = early_cpu_to_node(cpu);
-		if (!node_online(node) || !NODE_DATA(node)) {
-			ptr = alloc_bootmem_pages(size);
-			pr_info("cpu %d has no node %d or node-local memory\n",
-				cpu, node);
-			pr_debug("per cpu data for cpu%d at %016lx\n",
-				 cpu, __pa(ptr));
-		} else {
-			ptr = alloc_bootmem_pages_node(NODE_DATA(node), size);
-			pr_debug("per cpu data for cpu%d on node%d at %016lx\n",
-				cpu, node, __pa(ptr));
-		}
-#endif
+		void *ptr;
 
-		memcpy(ptr, __per_cpu_load, __per_cpu_end - __per_cpu_start);
-		per_cpu_offset(cpu) = ptr - __per_cpu_start;
+		for (i = 0; i < nr_cpu_pages; i++) {
+#ifndef CONFIG_NEED_MULTIPLE_NODES
+			ptr = alloc_bootmem_pages(PAGE_SIZE);
+#else
+			int node = early_cpu_to_node(cpu);
+
+			if (!node_online(node) || !NODE_DATA(node)) {
+				ptr = alloc_bootmem_pages(PAGE_SIZE);
+				pr_info("cpu %d has no node %d or node-local "
+					"memory\n", cpu, node);
+				pr_debug("per cpu data for cpu%d at %016lx\n",
+					 cpu, __pa(ptr));
+			} else {
+				ptr = alloc_bootmem_pages_node(NODE_DATA(node),
+							       PAGE_SIZE);
+				pr_debug("per cpu data for cpu%d on node%d "
+					 "at %016lx\n", cpu, node, __pa(ptr));
+			}
+#endif
+			memcpy(ptr, __per_cpu_load + i * PAGE_SIZE, PAGE_SIZE);
+			pages[j++] = virt_to_page(ptr);
+		}
+	}
+
+	pcpu_unit_size = pcpu_setup_static(populate_extra_pte, pages, size);
+
+	free_bootmem(__pa(pages), pages_size);
+
+	delta = (unsigned long)pcpu_base_addr - (unsigned long)__per_cpu_start;
+	for_each_possible_cpu(cpu) {
+		per_cpu_offset(cpu) = delta + cpu * pcpu_unit_size;
 		per_cpu(this_cpu_off, cpu) = per_cpu_offset(cpu);
 		per_cpu(cpu_number, cpu) = cpu;
 		setup_percpu_segment(cpu);

@@ -402,6 +402,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 
 /* Install a pte for a particular vaddr in kernel space. */
 void set_pte_vaddr(unsigned long vaddr, pte_t pte);
+void populate_extra_pte(unsigned long vaddr);
 
 #ifdef CONFIG_X86_32
 extern void native_pagetable_setup_start(pgd_t *base);

@@ -223,6 +223,25 @@ set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 	set_pte_vaddr_pud(pud_page, vaddr, pteval);
 }
 
+void __init populate_extra_pte(unsigned long vaddr)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+
+	pgd = pgd_offset_k(vaddr);
+	if (pgd_none(*pgd)) {
+		pud = (pud_t *)spp_getpage();
+		pgd_populate(&init_mm, pgd, pud);
+		if (pud != pud_offset(pgd, 0)) {
+			printk(KERN_ERR "PAGETABLE BUG #00! %p <-> %p\n",
+			       pud, pud_offset(pgd, 0));
+			return;
+		}
+	}
+
+	set_pte_vaddr_pud((pud_t *)pgd_page_vaddr(*pgd), vaddr, __pte(0));
+}
+
 /*
  * Create large page table mappings for a range of physical addresses.
  */
