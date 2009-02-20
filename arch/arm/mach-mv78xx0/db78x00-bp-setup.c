@@ -28,15 +28,11 @@ static struct mv643xx_eth_platform_data db78x00_ge01_data = {
 };
 
 static struct mv643xx_eth_platform_data db78x00_ge10_data = {
-	.phy_addr	= MV643XX_ETH_PHY_NONE,
-	.speed		= SPEED_1000,
-	.duplex		= DUPLEX_FULL,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(10),
 };
 
 static struct mv643xx_eth_platform_data db78x00_ge11_data = {
-	.phy_addr	= MV643XX_ETH_PHY_NONE,
-	.speed		= SPEED_1000,
-	.duplex		= DUPLEX_FULL,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(11),
 };
 
 static struct mv_sata_platform_data db78x00_sata_data = {
