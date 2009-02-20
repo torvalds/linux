@@ -226,8 +226,7 @@ static void b43_phy_ww(struct b43_wldev *dev)
 
 	b43_phy_write(dev, B43_PHY_CRS0,
 		b43_phy_read(dev, B43_PHY_CRS0) & ~B43_PHY_CRS0_EN);
-	b43_phy_write(dev, B43_PHY_OFDM(0x1B),
-		b43_phy_read(dev, B43_PHY_OFDM(0x1B)) | 0x1000);
+	b43_phy_set(dev, B43_PHY_OFDM(0x1B), 0x1000);
 	b43_phy_write(dev, B43_PHY_OFDM(0x82),
 		(b43_phy_read(dev, B43_PHY_OFDM(0x82)) & 0xF0FF) | 0x0300);
 	b43_radio_write16(dev, 0x0009,
@@ -276,8 +275,7 @@ static void b43_phy_ww(struct b43_wldev *dev)
 	b43_ofdmtab_write16(dev, B43_OFDMTAB_AGC1, 0x0E, 0x0011);
 	b43_ofdmtab_write16(dev, B43_OFDMTAB_AGC1, 0x0F, 0x0013);
 	b43_phy_write(dev, B43_PHY_OFDM(0x33), 0x5030);
-	b43_phy_write(dev, B43_PHY_CRS0,
-		b43_phy_read(dev, B43_PHY_CRS0) | B43_PHY_CRS0_EN);
+	b43_phy_set(dev, B43_PHY_CRS0, B43_PHY_CRS0_EN);
 }
 
 static void hardware_pctl_init_aphy(struct b43_wldev *dev)
@@ -303,8 +301,7 @@ void b43_phy_inita(struct b43_wldev *dev)
 			b43_phy_write(dev, B43_PHY_OFDM(0x1B),
 				b43_phy_read(dev, B43_PHY_OFDM(0x1B)) & ~0x1000);
 		if (b43_phy_read(dev, B43_PHY_ENCORE) & B43_PHY_ENCORE_EN)
-			b43_phy_write(dev, B43_PHY_ENCORE,
-				b43_phy_read(dev, B43_PHY_ENCORE) | 0x0010);
+			b43_phy_set(dev, B43_PHY_ENCORE, 0x0010);
 		else
 			b43_phy_write(dev, B43_PHY_ENCORE,
 				b43_phy_read(dev, B43_PHY_ENCORE) & ~0x1010);
@@ -314,12 +311,10 @@ void b43_phy_inita(struct b43_wldev *dev)
 
 	if (phy->type == B43_PHYTYPE_A) {
 		if (phy->gmode && (phy->rev < 3))
-			b43_phy_write(dev, 0x0034,
-				b43_phy_read(dev, 0x0034) | 0x0001);
+			b43_phy_set(dev, 0x0034, 0x0001);
 		b43_phy_rssiagc(dev, 0);
 
-		b43_phy_write(dev, B43_PHY_CRS0,
-			b43_phy_read(dev, B43_PHY_CRS0) | B43_PHY_CRS0_EN);
+		b43_phy_set(dev, B43_PHY_CRS0, B43_PHY_CRS0_EN);
 
 		b43_radio_init2060(dev);
 
@@ -526,8 +521,8 @@ static void b43_aphy_op_software_rfkill(struct b43_wldev *dev,
 	} else {
 		b43_radio_write16(dev, 0x0004, 0x00FF);
 		b43_radio_write16(dev, 0x0005, 0x00FB);
-		b43_phy_write(dev, 0x0010, b43_phy_read(dev, 0x0010) | 0x0008);
-		b43_phy_write(dev, 0x0011, b43_phy_read(dev, 0x0011) | 0x0008);
+		b43_phy_set(dev, 0x0010, 0x0008);
+		b43_phy_set(dev, 0x0011, 0x0008);
 	}
 }
 

@@ -406,18 +406,10 @@ static void lo_measure_setup(struct b43_wldev *dev,
 		sav->phy_cck_14 = b43_phy_read(dev, B43_PHY_CCK(0x14));
 		sav->phy_hpwr_tssictl = b43_phy_read(dev, B43_PHY_HPWR_TSSICTL);
 
-		b43_phy_write(dev, B43_PHY_HPWR_TSSICTL,
-			      b43_phy_read(dev, B43_PHY_HPWR_TSSICTL)
-			      | 0x100);
-		b43_phy_write(dev, B43_PHY_EXTG(0x01),
-			      b43_phy_read(dev, B43_PHY_EXTG(0x01))
-			      | 0x40);
-		b43_phy_write(dev, B43_PHY_DACCTL,
-			      b43_phy_read(dev, B43_PHY_DACCTL)
-			      | 0x40);
-		b43_phy_write(dev, B43_PHY_CCK(0x14),
-			      b43_phy_read(dev, B43_PHY_CCK(0x14))
-			      | 0x200);
+		b43_phy_set(dev, B43_PHY_HPWR_TSSICTL, 0x100);
+		b43_phy_set(dev, B43_PHY_EXTG(0x01), 0x40);
+		b43_phy_set(dev, B43_PHY_DACCTL, 0x40);
+		b43_phy_set(dev, B43_PHY_CCK(0x14), 0x200);
 	}
 	if (phy->type == B43_PHYTYPE_B &&
 	    phy->radio_ver == 0x2050 && phy->radio_rev < 6) {
@@ -439,9 +431,7 @@ static void lo_measure_setup(struct b43_wldev *dev,
 			      & 0xFFFC);
 		b43_phy_write(dev, B43_PHY_CRS0, b43_phy_read(dev, B43_PHY_CRS0)
 			      & 0x7FFF);
-		b43_phy_write(dev, B43_PHY_ANALOGOVER,
-			      b43_phy_read(dev, B43_PHY_ANALOGOVER)
-			      | 0x0003);
+		b43_phy_set(dev, B43_PHY_ANALOGOVER, 0x0003);
 		b43_phy_write(dev, B43_PHY_ANALOGOVERVAL,
 			      b43_phy_read(dev, B43_PHY_ANALOGOVERVAL)
 			      & 0xFFFC);

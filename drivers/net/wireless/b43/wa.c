@@ -318,16 +318,12 @@ static void b43_wa_crs_ed(struct b43_wldev *dev)
 	} else if (phy->rev == 2) {
 		b43_phy_write(dev, B43_PHY_CRSTHRES1, 0x1861);
 		b43_phy_write(dev, B43_PHY_CRSTHRES2, 0x0271);
-		b43_phy_write(dev, B43_PHY_ANTDWELL,
-				  b43_phy_read(dev, B43_PHY_ANTDWELL)
-				  | 0x0800);
+		b43_phy_set(dev, B43_PHY_ANTDWELL, 0x0800);
 	} else {
 		b43_phy_write(dev, B43_PHY_CRSTHRES1, 0x0098);
 		b43_phy_write(dev, B43_PHY_CRSTHRES2, 0x0070);
 		b43_phy_write(dev, B43_PHY_OFDM(0xC9), 0x0080);
-		b43_phy_write(dev, B43_PHY_ANTDWELL,
-				  b43_phy_read(dev, B43_PHY_ANTDWELL)
-				  | 0x0800);
+		b43_phy_set(dev, B43_PHY_ANTDWELL, 0x0800);
 	}
 }
 
