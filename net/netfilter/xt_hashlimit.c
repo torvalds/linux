@@ -149,7 +149,7 @@ dsthash_alloc_init(struct xt_hashlimit_htable *ht,
 	/* initialize hash with random val at the time we allocate
 	 * the first hashtable entry */
 	if (!ht->rnd_initialized) {
-		get_random_bytes(&ht->rnd, 4);
+		get_random_bytes(&ht->rnd, sizeof(ht->rnd));
 		ht->rnd_initialized = 1;
 	}
 

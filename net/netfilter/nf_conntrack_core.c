@@ -472,7 +472,8 @@ struct nf_conn *nf_conntrack_alloc(struct net *net,
 	struct nf_conn *ct;
 
 	if (unlikely(!nf_conntrack_hash_rnd_initted)) {
-		get_random_bytes(&nf_conntrack_hash_rnd, 4);
+		get_random_bytes(&nf_conntrack_hash_rnd,
+				sizeof(nf_conntrack_hash_rnd));
 		nf_conntrack_hash_rnd_initted = 1;
 	}
 
@@ -1103,7 +1104,7 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 
 	/* We have to rehahs for the new table anyway, so we also can
 	 * use a newrandom seed */
-	get_random_bytes(&rnd, 4);
+	get_random_bytes(&rnd, sizeof(rnd));
 
 	/* Lookups in the old hash might happen in parallel, which means we
 	 * might get false negatives during connection lookup. New connections
