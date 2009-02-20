@@ -1913,7 +1913,6 @@ i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj, int write)
 static int
 i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 {
-	struct drm_device *dev = obj->dev;
 	int ret;
 
 	i915_gem_object_flush_gpu_write_domain(obj);
@@ -1932,7 +1931,6 @@ i915_gem_object_set_to_cpu_domain(struct drm_gem_object *obj, int write)
 	/* Flush the CPU cache if it's still invalid. */
 	if ((obj->read_domains & I915_GEM_DOMAIN_CPU) == 0) {
 		i915_gem_clflush_object(obj);
-		drm_agp_chipset_flush(dev);
 
 		obj->read_domains |= I915_GEM_DOMAIN_CPU;
 	}
@@ -2144,7 +2142,6 @@ i915_gem_object_set_to_gpu_domain(struct drm_gem_object *obj)
 static void
 i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
 
 	if (!obj_priv->page_cpu_valid)
@@ -2160,7 +2157,6 @@ i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj)
 				continue;
 			drm_clflush_pages(obj_priv->page_list + i, 1);
 		}
-		drm_agp_chipset_flush(dev);
 	}
 
 	/* Free the page_cpu_valid mappings which are now stale, whether
