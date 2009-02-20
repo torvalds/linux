@@ -1430,6 +1430,29 @@ continue_rmode:
 	init_rmode(vcpu->kvm);
 }
 
+static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct kvm_msr_entry *msr = find_msr_entry(vmx, MSR_EFER);
+
+	vcpu->arch.shadow_efer = efer;
+	if (!msr)
+		return;
+	if (efer & EFER_LMA) {
+		vmcs_write32(VM_ENTRY_CONTROLS,
+			     vmcs_read32(VM_ENTRY_CONTROLS) |
+			     VM_ENTRY_IA32E_MODE);
+		msr->data = efer;
+	} else {
+		vmcs_write32(VM_ENTRY_CONTROLS,
+			     vmcs_read32(VM_ENTRY_CONTROLS) &
+			     ~VM_ENTRY_IA32E_MODE);
+
+		msr->data = efer & ~EFER_LME;
+	}
+	setup_msrs(vmx);
+}
+
 #ifdef CONFIG_X86_64
 
 static void enter_lmode(struct kvm_vcpu *vcpu)
@@ -1444,13 +1467,8 @@ static void enter_lmode(struct kvm_vcpu *vcpu)
 			     (guest_tr_ar & ~AR_TYPE_MASK)
 			     | AR_TYPE_BUSY_64_TSS);
 	}
-
 	vcpu->arch.shadow_efer |= EFER_LMA;
-
-	find_msr_entry(to_vmx(vcpu), MSR_EFER)->data |= EFER_LMA | EFER_LME;
-	vmcs_write32(VM_ENTRY_CONTROLS,
-		     vmcs_read32(VM_ENTRY_CONTROLS)
-		     | VM_ENTRY_IA32E_MODE);
+	vmx_set_efer(vcpu, vcpu->arch.shadow_efer);
 }
 
 static void exit_lmode(struct kvm_vcpu *vcpu)
@@ -1607,30 +1625,6 @@ static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 
 	vmcs_writel(CR4_READ_SHADOW, cr4);
 	vmcs_writel(GUEST_CR4, hw_cr4);
-}
-
-static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	struct kvm_msr_entry *msr = find_msr_entry(vmx, MSR_EFER);
-
-	vcpu->arch.shadow_efer = efer;
-	if (!msr)
-		return;
-	if (efer & EFER_LMA) {
-		vmcs_write32(VM_ENTRY_CONTROLS,
-				     vmcs_read32(VM_ENTRY_CONTROLS) |
-				     VM_ENTRY_IA32E_MODE);
-		msr->data = efer;
-
-	} else {
-		vmcs_write32(VM_ENTRY_CONTROLS,
-				     vmcs_read32(VM_ENTRY_CONTROLS) &
-				     ~VM_ENTRY_IA32E_MODE);
-
-		msr->data = efer & ~EFER_LME;
-	}
-	setup_msrs(vmx);
 }
 
 static u64 vmx_get_segment_base(struct kvm_vcpu *vcpu, int seg)
