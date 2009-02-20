@@ -47,7 +47,7 @@ static int snd_jack_dev_register(struct snd_device *device)
 	int err;
 
 	snprintf(jack->name, sizeof(jack->name), "%s %s",
-		 card->longname, jack->id);
+		 card->shortname, jack->id);
 	jack->input_dev->name = jack->name;
 
 	/* Default to the sound card device. */

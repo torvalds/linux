@@ -967,7 +967,6 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_MMU_SHADOW_CACHE_CONTROL:
 	case KVM_CAP_SET_TSS_ADDR:
 	case KVM_CAP_EXT_CPUID:
-	case KVM_CAP_CLOCKSOURCE:
 	case KVM_CAP_PIT:
 	case KVM_CAP_NOP_IO_DELAY:
 	case KVM_CAP_MP_STATE:
@@ -991,6 +990,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 		break;
 	case KVM_CAP_IOMMU:
 		r = iommu_found();
+		break;
+	case KVM_CAP_CLOCKSOURCE:
+		r = boot_cpu_has(X86_FEATURE_CONSTANT_TSC);
 		break;
 	default:
 		r = 0;
@@ -4127,9 +4129,13 @@ static void kvm_free_vcpus(struct kvm *kvm)
 
 }
 
-void kvm_arch_destroy_vm(struct kvm *kvm)
+void kvm_arch_sync_events(struct kvm *kvm)
 {
 	kvm_free_all_assigned_devices(kvm);
+}
+
+void kvm_arch_destroy_vm(struct kvm *kvm)
+{
 	kvm_iommu_unmap_guest(kvm);
 	kvm_free_pit(kvm);
 	kfree(kvm->arch.vpic);

@@ -1041,10 +1041,23 @@ extern void free_bootmem_with_active_regions(int nid,
 typedef int (*work_fn_t)(unsigned long, unsigned long, void *);
 extern void work_with_active_regions(int nid, work_fn_t work_fn, void *data);
 extern void sparse_memory_present_with_active_regions(int nid);
-#ifndef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
-extern int early_pfn_to_nid(unsigned long pfn);
-#endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
 #endif /* CONFIG_ARCH_POPULATES_NODE_MAP */
+
+#if !defined(CONFIG_ARCH_POPULATES_NODE_MAP) && \
+    !defined(CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID)
+static inline int __early_pfn_to_nid(unsigned long pfn)
+{
+	return 0;
+}
+#else
+/* please see mm/page_alloc.c */
+extern int __meminit early_pfn_to_nid(unsigned long pfn);
+#ifdef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+/* there is a per-arch backend function. */
+extern int __meminit __early_pfn_to_nid(unsigned long pfn);
+#endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
+#endif
+
 extern void set_dma_reserve(unsigned long new_dma_reserve);
 extern void memmap_init_zone(unsigned long, int, unsigned long,
 				unsigned long, enum memmap_context);
@@ -1159,6 +1172,7 @@ extern int filemap_fault(struct vm_area_struct *, struct vm_fault *);
 
 /* mm/page-writeback.c */
 int write_one_page(struct page *page, int wait);
+void task_dirty_inc(struct task_struct *tsk);
 
 /* readahead.c */
 #define VM_MAX_READAHEAD	128	/* kbytes */
