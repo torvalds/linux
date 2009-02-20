@@ -8,7 +8,9 @@ top of the share.  Fix problem in 2.6.28 resolving DFS paths to
 Samba servers (worked to Windows).  Fix rmdir so that pending search
 (readdir) requests do not get invalid results which include the now
 removed directory.  Fix oops in cifs_dfs_ref.c when prefixpath is not reachable
-when using DFS.
+when using DFS.  Add better file create support to servers which support
+the CIFS POSIX protocol extensions (this adds support for new flags
+on create, and improves semantics for write of locked ranges).
 
 Version 1.55
 ------------
