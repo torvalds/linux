@@ -653,7 +653,6 @@ static unsigned int hdsp_read(struct hdsp *hdsp, int reg)
 
 static int hdsp_check_for_iobox (struct hdsp *hdsp)
 {
-
 	if (hdsp->io_type == H9652 || hdsp->io_type == H9632) return 0;
 	if (hdsp_read (hdsp, HDSP_statusRegister) & HDSP_ConfigError) {
 		snd_printk ("Hammerfall-DSP: no Digiface or Multiface connected!\n");
@@ -661,7 +660,29 @@ static int hdsp_check_for_iobox (struct hdsp *hdsp)
 		return -EIO;
 	}
 	return 0;
+}
 
+static int hdsp_wait_for_iobox(struct hdsp *hdsp, unsigned int loops,
+			       unsigned int delay)
+{
+	unsigned int i;
+
+	if (hdsp->io_type == H9652 || hdsp->io_type == H9632)
+		return 0;
+
+	for (i = 0; i != loops; ++i) {
+		if (hdsp_read(hdsp, HDSP_statusRegister) & HDSP_ConfigError)
+			msleep(delay);
+		else {
+			snd_printd("Hammerfall-DSP: iobox found after %ums!\n",
+				   i * delay);
+			return 0;
+		}
+	}
+
+	snd_printk("Hammerfall-DSP: no Digiface or Multiface connected!\n");
+	hdsp->state &= ~HDSP_FirmwareLoaded;
+	return -EIO;
 }
 
 static int snd_hdsp_load_firmware_from_cache(struct hdsp *hdsp) {
@@ -5046,10 +5067,10 @@ static int __devinit snd_hdsp_create(struct snd_card *card,
 		return err;
 	
 	if (!is_9652 && !is_9632) {
-		/* we wait 2 seconds to let freshly inserted cardbus cards do their hardware init */
-		ssleep(2);
+		/* we wait a maximum of 10 seconds to let freshly
+		 * inserted cardbus cards do their hardware init */
+		err = hdsp_wait_for_iobox(hdsp, 1000, 10);
 
-		err = hdsp_check_for_iobox(hdsp);
 		if (err < 0)
 			return err;
 
