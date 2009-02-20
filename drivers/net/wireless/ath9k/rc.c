@@ -1267,7 +1267,8 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 		ath_rc_priv->per_down_time = now_msec;
 	}
 
-	ath_debug_stat_retries(sc, tx_rate, xretries, retries);
+	ath_debug_stat_retries(sc, tx_rate, xretries, retries,
+			       ath_rc_priv->state[tx_rate].per);
 
 #undef CHK_RSSI
 }

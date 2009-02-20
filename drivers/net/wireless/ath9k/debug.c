@@ -258,13 +258,14 @@ void ath_debug_stat_rc(struct ath_softc *sc, struct sk_buff *skb)
 
 /* FIXME: legacy rates, later on .. */
 void ath_debug_stat_retries(struct ath_softc *sc, int rix,
-			    int xretries, int retries)
+			    int xretries, int retries, u8 per)
 {
 	if (conf_is_ht(&sc->hw->conf)) {
 		int idx = sc->cur_rate_table->info[rix].dot11rate;
 
 		sc->debug.stats.n_rcstats[idx].xretries += xretries;
 		sc->debug.stats.n_rcstats[idx].retries += retries;
+		sc->debug.stats.n_rcstats[idx].per = per;
 	}
 }
 
@@ -277,15 +278,16 @@ static ssize_t ath_read_file_stat_11n_rc(struct file *file,
 	unsigned int len = 0;
 	int i = 0;
 
-	len += sprintf(buf, "%7s %13s %8s %8s\n\n", "Rate", "Success",
-		       "Retries", "XRetries");
+	len += sprintf(buf, "%7s %13s %8s %8s %6s\n\n", "Rate", "Success",
+		       "Retries", "XRetries", "PER");
 
 	for (i = 0; i <= 15; i++) {
 		len += snprintf(buf + len, sizeof(buf) - len,
-				"%5s%3d: %8u %8u %8u\n", "MCS", i,
+				"%5s%3d: %8u %8u %8u %8u\n", "MCS", i,
 				sc->debug.stats.n_rcstats[i].success,
 				sc->debug.stats.n_rcstats[i].retries,
-				sc->debug.stats.n_rcstats[i].xretries);
+				sc->debug.stats.n_rcstats[i].xretries,
+				sc->debug.stats.n_rcstats[i].per);
 	}
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
