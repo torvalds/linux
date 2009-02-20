@@ -227,16 +227,14 @@ static void b43_phy_ww(struct b43_wldev *dev)
 	b43_phy_mask(dev, B43_PHY_CRS0, ~B43_PHY_CRS0_EN);
 	b43_phy_set(dev, B43_PHY_OFDM(0x1B), 0x1000);
 	b43_phy_maskset(dev, B43_PHY_OFDM(0x82), 0xF0FF, 0x0300);
-	b43_radio_write16(dev, 0x0009,
-		b43_radio_read16(dev, 0x0009) | 0x0080);
+	b43_radio_set(dev, 0x0009, 0x0080);
 	b43_radio_write16(dev, 0x0012,
 		(b43_radio_read16(dev, 0x0012) & 0xFFFC) | 0x0002);
 	b43_wa_initgains(dev);
 	b43_phy_write(dev, B43_PHY_OFDM(0xBA), 0x3ED5);
 	b = b43_phy_read(dev, B43_PHY_PWRDOWN);
 	b43_phy_write(dev, B43_PHY_PWRDOWN, (b & 0xFFF8) | 0x0005);
-	b43_radio_write16(dev, 0x0004,
-		b43_radio_read16(dev, 0x0004) | 0x0004);
+	b43_radio_set(dev, 0x0004, 0x0004);
 	for (i = 0x10; i <= 0x20; i++) {
 		b43_radio_write16(dev, 0x0013, i);
 		curr_s = b43_phy_read(dev, B43_PHY_OTABLEQ) & 0x00FF;

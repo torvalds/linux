@@ -386,8 +386,7 @@ static void b43_wa_altagc(struct b43_wldev *dev)
 	b43_phy_maskset(dev, B43_PHY_OFDM(0x1A), ~0x007F, 0x000F);
 	b43_phy_maskset(dev, B43_PHY_OFDM(0x1A), ~0x3F80, 0x2B80);
 	b43_phy_maskset(dev, B43_PHY_ANTWRSETT, 0xF0FF, 0x0300);
-	b43_radio_write16(dev, 0x7A,
-		b43_radio_read16(dev, 0x7A) | 0x0008);
+	b43_radio_set(dev, 0x7A, 0x0008);
 	b43_phy_maskset(dev, B43_PHY_N1P1GAIN, ~0x000F, 0x0008);
 	b43_phy_maskset(dev, B43_PHY_P1P2GAIN, ~0x0F00, 0x0600);
 	b43_phy_maskset(dev, B43_PHY_N1N2GAIN, ~0x0F00, 0x0700);

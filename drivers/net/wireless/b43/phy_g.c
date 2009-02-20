@@ -468,8 +468,8 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 		b43_phy_set(dev, 0x0060, 0x0040);
 		b43_phy_set(dev, 0x0014, 0x0200);
 	}
-	b43_radio_write16(dev, 0x007A, b43_radio_read16(dev, 0x007A) | 0x0070);
-	b43_radio_write16(dev, 0x007A, b43_radio_read16(dev, 0x007A) | 0x0080);
+	b43_radio_set(dev, 0x007A, 0x0070);
+	b43_radio_set(dev, 0x007A, 0x0080);
 	udelay(30);
 
 	v47F = (s16) ((b43_phy_read(dev, 0x047F) >> 8) & 0x003F);
@@ -512,8 +512,7 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 			b43_phy_mask(dev, 0x0815, 0xFFFB);
 		}
 		b43_phy_maskset(dev, 0x0003, 0xFF9F, 0x0040);
-		b43_radio_write16(dev, 0x007A,
-				  b43_radio_read16(dev, 0x007A) | 0x000F);
+		b43_radio_set(dev, 0x007A, 0x000F);
 		b43_set_all_gains(dev, 3, 0, 1);
 		b43_radio_write16(dev, 0x0043, (b43_radio_read16(dev, 0x0043)
 						& 0x00F0) | 0x000F);
@@ -625,8 +624,7 @@ static void b43_calc_nrssi_slope(struct b43_wldev *dev)
 		b43_phy_set(dev, 0x0060, 0x0040);
 		b43_phy_set(dev, 0x0014, 0x0200);
 	}
-	b43_radio_write16(dev, 0x007A,
-			  b43_radio_read16(dev, 0x007A) | 0x0070);
+	b43_radio_set(dev, 0x007A, 0x0070);
 	b43_set_all_gains(dev, 0, 8, 0);
 	b43_radio_write16(dev, 0x007A,
 			  b43_radio_read16(dev, 0x007A) & 0x00F7);
@@ -634,8 +632,7 @@ static void b43_calc_nrssi_slope(struct b43_wldev *dev)
 		b43_phy_maskset(dev, 0x0811, 0xFFCF, 0x0030);
 		b43_phy_maskset(dev, 0x0812, 0xFFCF, 0x0010);
 	}
-	b43_radio_write16(dev, 0x007A,
-			  b43_radio_read16(dev, 0x007A) | 0x0080);
+	b43_radio_set(dev, 0x007A, 0x0080);
 	udelay(20);
 
 	nrssi0 = (s16) ((b43_phy_read(dev, 0x047F) >> 8) & 0x003F);
@@ -651,8 +648,7 @@ static void b43_calc_nrssi_slope(struct b43_wldev *dev)
 	b43_write16(dev, B43_MMIO_CHANNEL_EXT,
 		    b43_read16(dev, B43_MMIO_CHANNEL_EXT)
 		    | 0x2000);
-	b43_radio_write16(dev, 0x007A,
-			  b43_radio_read16(dev, 0x007A) | 0x000F);
+	b43_radio_set(dev, 0x007A, 0x000F);
 	b43_phy_write(dev, 0x0015, 0xF330);
 	if (phy->rev >= 2) {
 		b43_phy_maskset(dev, 0x0812, 0xFFCF, 0x0020);
@@ -1355,8 +1351,7 @@ static u16 b43_radio_init2050(struct b43_wldev *dev)
 						   LPD(0, 0, 1)));
 	}
 	b43_phy_write(dev, B43_PHY_PGACTL, 0xBFA0);
-	b43_radio_write16(dev, 0x51, b43_radio_read16(dev, 0x51)
-			  | 0x0004);
+	b43_radio_set(dev, 0x51, 0x0004);
 	if (phy->radio_rev == 8) {
 		b43_radio_write16(dev, 0x43, 0x1F);
 	} else {
@@ -1511,8 +1506,7 @@ static void b43_phy_initb5(struct b43_wldev *dev)
 	u8 old_channel;
 
 	if (phy->analog == 1) {
-		b43_radio_write16(dev, 0x007A, b43_radio_read16(dev, 0x007A)
-				  | 0x0050);
+		b43_radio_set(dev, 0x007A, 0x0050);
 	}
 	if ((bus->boardinfo.vendor != SSB_BOARDVENDOR_BCM) &&
 	    (bus->boardinfo.type != SSB_BOARD_BU4306)) {
@@ -1528,12 +1522,8 @@ static void b43_phy_initb5(struct b43_wldev *dev)
 
 	if (phy->gmode || phy->rev >= 2) {
 		if (phy->radio_ver == 0x2050) {
-			b43_radio_write16(dev, 0x007A,
-					  b43_radio_read16(dev, 0x007A)
-					  | 0x0020);
-			b43_radio_write16(dev, 0x0051,
-					  b43_radio_read16(dev, 0x0051)
-					  | 0x0004);
+			b43_radio_set(dev, 0x007A, 0x0020);
+			b43_radio_set(dev, 0x0051, 0x0004);
 		}
 		b43_write16(dev, B43_MMIO_PHY_RADIO, 0x0000);
 
@@ -1590,7 +1580,7 @@ static void b43_phy_initb5(struct b43_wldev *dev)
 	b43_radio_write16(dev, 0x005B, 0x007B);
 	b43_radio_write16(dev, 0x005C, 0x00B0);
 
-	b43_radio_write16(dev, 0x007A, b43_radio_read16(dev, 0x007A) | 0x0007);
+	b43_radio_set(dev, 0x007A, 0x0007);
 
 	b43_gphy_channel_switch(dev, old_channel, 0);
 
@@ -1666,10 +1656,8 @@ static void b43_phy_initb6(struct b43_wldev *dev)
 		val += 0x0202;
 	}
 	if (phy->type == B43_PHYTYPE_G) {
-		b43_radio_write16(dev, 0x007A,
-				  b43_radio_read16(dev, 0x007A) | 0x0020);
-		b43_radio_write16(dev, 0x0051,
-				  b43_radio_read16(dev, 0x0051) | 0x0004);
+		b43_radio_set(dev, 0x007A, 0x0020);
+		b43_radio_set(dev, 0x0051, 0x0004);
 		b43_phy_set(dev, 0x0802, 0x0100);
 		b43_phy_set(dev, 0x042B, 0x2000);
 		b43_phy_write(dev, 0x5B, 0);
