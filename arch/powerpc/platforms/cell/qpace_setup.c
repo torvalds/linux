@@ -141,6 +141,8 @@ define_machine(qpace) {
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
 	.get_boot_time		= rtas_get_boot_time,
+	.get_rtc_time		= rtas_get_rtc_time,
+	.set_rtc_time		= rtas_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= qpace_progress,
 	.init_IRQ		= iic_init_IRQ,
