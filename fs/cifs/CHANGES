@@ -1,3 +1,13 @@
+Version 1.57
+------------
+Improve support for multiple security contexts to the same server. We
+used to use the same "vcnumber" for all connections which could cause
+the server to treat subsequent connections, especially those that
+are authenticated as guest, as reconnections, invalidating the earlier
+user's smb session.  This fix allows cifs to mount multiple times to the
+same server with different userids without risking invalidating earlier
+established security contexts.
+
 Version 1.56
 ------------
 Add "forcemandatorylock" mount option to allow user to use mandatory
