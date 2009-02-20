@@ -334,6 +334,12 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"Aperture Priority Mode",
 		NULL
 	};
+	static const char *colorfx[] = {
+		"None",
+		"Black & White",
+		"Sepia",
+		NULL
+	};
 
 	switch (id) {
 		case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
@@ -370,6 +376,8 @@ const char **v4l2_ctrl_get_menu(u32 id)
 			return camera_power_line_frequency;
 		case V4L2_CID_EXPOSURE_AUTO:
 			return camera_exposure_auto;
+		case V4L2_CID_COLORFX:
+			return colorfx;
 		default:
 			return NULL;
 	}
@@ -412,6 +420,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_BACKLIGHT_COMPENSATION:	return "Backlight Compensation";
 	case V4L2_CID_CHROMA_AGC:		return "Chroma AGC";
 	case V4L2_CID_COLOR_KILLER:		return "Color Killer";
+	case V4L2_CID_COLORFX:			return "Color Effects";
 
 	/* MPEG controls */
 	case V4L2_CID_MPEG_CLASS: 		return "MPEG Encoder Controls";
@@ -517,6 +526,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_STREAM_TYPE:
 	case V4L2_CID_MPEG_STREAM_VBI_FMT:
 	case V4L2_CID_EXPOSURE_AUTO:
+	case V4L2_CID_COLORFX:
 		qctrl->type = V4L2_CTRL_TYPE_MENU;
 		step = 1;
 		break;
@@ -585,6 +595,8 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 		return v4l2_ctrl_query_fill(qctrl, 0, 127, 1, 64);
 	case V4L2_CID_HUE:
 		return v4l2_ctrl_query_fill(qctrl, -128, 127, 1, 0);
+	case V4L2_CID_COLORFX:
+		return v4l2_ctrl_query_fill(qctrl, 0, 1, 1, 0);
 
 	/* MPEG controls */
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
