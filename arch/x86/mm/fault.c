@@ -328,14 +328,41 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 
 	return pmd_k;
 }
-#endif
 
-#ifdef CONFIG_X86_64
+/*
+ * Did it hit the DOS screen memory VA from vm86 mode?
+ */
+static inline void
+check_v8086_mode(struct pt_regs *regs, unsigned long address,
+		 struct task_struct *tsk)
+{
+	unsigned long bit;
+
+	if (!v8086_mode(regs))
+		return;
+
+	bit = (address - 0xA0000) >> PAGE_SHIFT;
+	if (bit < 32)
+		tsk->thread.screen_bitmap |= 1 << bit;
+}
+
+#else /* CONFIG_X86_64: */
+
 static const char errata93_warning[] =
 KERN_ERR "******* Your BIOS seems to not contain a fix for K8 errata #93\n"
 KERN_ERR "******* Working around it, but it may cause SEGVs or burn power.\n"
 KERN_ERR "******* Please consider a BIOS update.\n"
 KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
+
+/*
+ * No vm86 mode in 64-bit mode:
+ */
+static inline void
+check_v8086_mode(struct pt_regs *regs, unsigned long address,
+		 struct task_struct *tsk)
+{
+}
+
 #endif
 
 /*
@@ -1091,16 +1118,8 @@ good_area:
 	else
 		tsk->min_flt++;
 
-#ifdef CONFIG_X86_32
-	/*
-	 * Did it hit the DOS screen memory VA from vm86 mode?
-	 */
-	if (v8086_mode(regs)) {
-		unsigned long bit = (address - 0xA0000) >> PAGE_SHIFT;
-		if (bit < 32)
-			tsk->thread.screen_bitmap |= 1 << bit;
-	}
-#endif
+	check_v8086_mode(regs, address, tsk);
+
 	up_read(&mm->mmap_sem);
 }
 
