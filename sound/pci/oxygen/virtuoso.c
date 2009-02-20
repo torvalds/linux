@@ -758,8 +758,8 @@ static void xonar_line_mic_ac97_switch(struct oxygen *chip,
 	}
 }
 
-static const DECLARE_TLV_DB_SCALE(pcm1796_db_scale, -12000, 50, 0);
-static const DECLARE_TLV_DB_SCALE(cs4362a_db_scale, -12700, 100, 0);
+static const DECLARE_TLV_DB_SCALE(pcm1796_db_scale, -6000, 50, 0);
+static const DECLARE_TLV_DB_SCALE(cs4362a_db_scale, -6000, 100, 0);
 
 static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 {
@@ -808,8 +808,8 @@ static const struct oxygen_model model_xonar_d2 = {
 			 MIDI_OUTPUT |
 			 MIDI_INPUT,
 	.dac_channels = 8,
-	.dac_volume_min = 0x0f,
-	.dac_volume_max = 0xff,
+	.dac_volume_min = 255 - 2*60,
+	.dac_volume_max = 255,
 	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_SPI |
 			  OXYGEN_FUNCTION_ENABLE_SPI_4_5,
@@ -837,7 +837,7 @@ static const struct oxygen_model model_xonar_d1 = {
 			 PLAYBACK_1_TO_SPDIF |
 			 CAPTURE_0_FROM_I2S_2,
 	.dac_channels = 8,
-	.dac_volume_min = 0,
+	.dac_volume_min = 127 - 60,
 	.dac_volume_max = 127,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
@@ -864,8 +864,8 @@ static const struct oxygen_model model_xonar_hdav = {
 			 PLAYBACK_1_TO_SPDIF |
 			 CAPTURE_0_FROM_I2S_2,
 	.dac_channels = 8,
-	.dac_volume_min = 0x0f,
-	.dac_volume_max = 0xff,
+	.dac_volume_min = 255 - 2*60,
+	.dac_volume_max = 255,
 	.misc_flags = OXYGEN_MISC_MIDI,
 	.function_flags = OXYGEN_FUNCTION_2WIRE,
 	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
