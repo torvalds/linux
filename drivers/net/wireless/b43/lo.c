@@ -225,8 +225,7 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 				radio_pctl_reg = tmp;
 		}
 	}
-	b43_radio_write16(dev, 0x43, (b43_radio_read16(dev, 0x43)
-				      & 0xFFF0) | radio_pctl_reg);
+	b43_radio_maskset(dev, 0x43, 0xFFF0, radio_pctl_reg);
 	b43_gphy_set_baseband_attenuation(dev, 2);
 
 	reg = lo_txctl_register_table(dev, &mask, NULL);
@@ -241,14 +240,10 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 
 		for (i = 0; i < ARRAY_SIZE(tx_magn_values); i++) {
 			tx_magn = tx_magn_values[i];
-			b43_radio_write16(dev, 0x52,
-					  (b43_radio_read16(dev, 0x52)
-					   & 0xFF0F) | tx_magn);
+			b43_radio_maskset(dev, 0x52, 0xFF0F, tx_magn);
 			for (j = 0; j < ARRAY_SIZE(tx_bias_values); j++) {
 				tx_bias = tx_bias_values[j];
-				b43_radio_write16(dev, 0x52,
-						  (b43_radio_read16(dev, 0x52)
-						   & 0xFFF0) | tx_bias);
+				b43_radio_maskset(dev, 0x52, 0xFFF0, tx_bias);
 				feedthrough =
 				    lo_measure_feedthrough(dev, 0, pga,
 							   trsw_rx);
@@ -541,8 +536,7 @@ static void lo_measure_restore(struct b43_wldev *dev,
 	b43_radio_write16(dev, 0x7A, sav->radio_7A);
 	if (!has_tx_magnification(phy)) {
 		tmp = sav->radio_52;
-		b43_radio_write16(dev, 0x52, (b43_radio_read16(dev, 0x52)
-					      & 0xFF0F) | tmp);
+		b43_radio_maskset(dev, 0x52, 0xFF0F, tmp);
 	}
 	b43_write16(dev, 0x3E2, sav->reg_3E2);
 	if (phy->type == B43_PHYTYPE_B &&
@@ -761,12 +755,8 @@ struct b43_lo_calib * b43_calibrate_lo_setting(struct b43_wldev *dev,
 
 	txctl_reg = lo_txctl_register_table(dev, &txctl_value, &pad_mix_gain);
 
-	b43_radio_write16(dev, 0x43,
-			  (b43_radio_read16(dev, 0x43) & 0xFFF0)
-			  | rfatt->att);
-	b43_radio_write16(dev, txctl_reg,
-			  (b43_radio_read16(dev, txctl_reg) & ~txctl_value)
-			  | (rfatt->with_padmix ? txctl_value : 0));
+	b43_radio_maskset(dev, 0x43, 0xFFF0, rfatt->att);
+	b43_radio_maskset(dev, txctl_reg, ~txctl_value, (rfatt->with_padmix ? txctl_value :0));
 
 	max_rx_gain = rfatt->att * 2;
 	max_rx_gain += bbatt->att / 2;

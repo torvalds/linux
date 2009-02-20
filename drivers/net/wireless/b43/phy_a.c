@@ -121,25 +121,18 @@ static void aphy_channel_switch(struct b43_wldev *dev, unsigned int channel)
 	b43_radio_write16(dev, 0x0007, (r8 << 4) | r8);
 	b43_radio_write16(dev, 0x0020, (r8 << 4) | r8);
 	b43_radio_write16(dev, 0x0021, (r8 << 4) | r8);
-	b43_radio_write16(dev, 0x0022, (b43_radio_read16(dev, 0x0022)
-					& 0x000F) | (r8 << 4));
+	b43_radio_maskset(dev, 0x0022, 0x000F, (r8 << 4));
 	b43_radio_write16(dev, 0x002A, (r8 << 4));
 	b43_radio_write16(dev, 0x002B, (r8 << 4));
-	b43_radio_write16(dev, 0x0008, (b43_radio_read16(dev, 0x0008)
-					& 0x00F0) | (r8 << 4));
-	b43_radio_write16(dev, 0x0029, (b43_radio_read16(dev, 0x0029)
-					& 0xFF0F) | 0x00B0);
+	b43_radio_maskset(dev, 0x0008, 0x00F0, (r8 << 4));
+	b43_radio_maskset(dev, 0x0029, 0xFF0F, 0x00B0);
 	b43_radio_write16(dev, 0x0035, 0x00AA);
 	b43_radio_write16(dev, 0x0036, 0x0085);
-	b43_radio_write16(dev, 0x003A, (b43_radio_read16(dev, 0x003A)
-					& 0xFF20) |
-			  freq_r3A_value(freq));
+	b43_radio_maskset(dev, 0x003A, 0xFF20, freq_r3A_value(freq));
 	b43_radio_mask(dev, 0x003D, 0x00FF);
-	b43_radio_write16(dev, 0x0081, (b43_radio_read16(dev, 0x0081)
-					& 0xFF7F) | 0x0080);
+	b43_radio_maskset(dev, 0x0081, 0xFF7F, 0x0080);
 	b43_radio_mask(dev, 0x0035, 0xFFEF);
-	b43_radio_write16(dev, 0x0035, (b43_radio_read16(dev, 0x0035)
-					& 0xFFEF) | 0x0010);
+	b43_radio_maskset(dev, 0x0035, 0xFFEF, 0x0010);
 	b43_radio_set_tx_iq(dev);
 	//TODO: TSSI2dbm workaround
 //FIXME	b43_phy_xmitpower(dev);
@@ -164,17 +157,14 @@ static void b43_radio_init2060(struct b43_wldev *dev)
 	b43_radio_mask(dev, 0x0081, ~0x0020);
 	msleep(1);		/* delay 400usec */
 
-	b43_radio_write16(dev, 0x0081,
-			  (b43_radio_read16(dev, 0x0081) & ~0x0020) | 0x0010);
+	b43_radio_maskset(dev, 0x0081, ~0x0020, 0x0010);
 	msleep(1);		/* delay 400usec */
 
-	b43_radio_write16(dev, 0x0005,
-			  (b43_radio_read16(dev, 0x0005) & ~0x0008) | 0x0008);
+	b43_radio_maskset(dev, 0x0005, ~0x0008, 0x0008);
 	b43_radio_mask(dev, 0x0085, ~0x0010);
 	b43_radio_mask(dev, 0x0005, ~0x0008);
 	b43_radio_mask(dev, 0x0081, ~0x0040);
-	b43_radio_write16(dev, 0x0081,
-			  (b43_radio_read16(dev, 0x0081) & ~0x0040) | 0x0040);
+	b43_radio_maskset(dev, 0x0081, ~0x0040, 0x0040);
 	b43_radio_write16(dev, 0x0005,
 			  (b43_radio_read16(dev, 0x0081) & ~0x0008) | 0x0008);
 	b43_phy_write(dev, 0x0063, 0xDDC6);
@@ -226,8 +216,7 @@ static void b43_phy_ww(struct b43_wldev *dev)
 	b43_phy_set(dev, B43_PHY_OFDM(0x1B), 0x1000);
 	b43_phy_maskset(dev, B43_PHY_OFDM(0x82), 0xF0FF, 0x0300);
 	b43_radio_set(dev, 0x0009, 0x0080);
-	b43_radio_write16(dev, 0x0012,
-		(b43_radio_read16(dev, 0x0012) & 0xFFFC) | 0x0002);
+	b43_radio_maskset(dev, 0x0012, 0xFFFC, 0x0002);
 	b43_wa_initgains(dev);
 	b43_phy_write(dev, B43_PHY_OFDM(0xBA), 0x3ED5);
 	b = b43_phy_read(dev, B43_PHY_PWRDOWN);

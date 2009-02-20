@@ -248,17 +248,13 @@ static void b43_set_txpower_g(struct b43_wldev *dev,
 		b43_radio_write16(dev, 0x43,
 				  (rf & 0x000F) | (tx_control & 0x0070));
 	} else {
-		b43_radio_write16(dev, 0x43, (b43_radio_read16(dev, 0x43)
-					      & 0xFFF0) | (rf & 0x000F));
-		b43_radio_write16(dev, 0x52, (b43_radio_read16(dev, 0x52)
-					      & ~0x0070) | (tx_control &
-							    0x0070));
+		b43_radio_maskset(dev, 0x43, 0xFFF0, (rf & 0x000F));
+		b43_radio_maskset(dev, 0x52, ~0x0070, (tx_control & 0x0070));
 	}
 	if (has_tx_magnification(phy)) {
 		b43_radio_write16(dev, 0x52, tx_magn | tx_bias);
 	} else {
-		b43_radio_write16(dev, 0x52, (b43_radio_read16(dev, 0x52)
-					      & 0xFFF0) | (tx_bias & 0x000F));
+		b43_radio_maskset(dev, 0x52, 0xFFF0, (tx_bias & 0x000F));
 	}
 	b43_lo_g_adjust(dev);
 }
@@ -513,8 +509,7 @@ static void b43_calc_nrssi_offset(struct b43_wldev *dev)
 		b43_phy_maskset(dev, 0x0003, 0xFF9F, 0x0040);
 		b43_radio_set(dev, 0x007A, 0x000F);
 		b43_set_all_gains(dev, 3, 0, 1);
-		b43_radio_write16(dev, 0x0043, (b43_radio_read16(dev, 0x0043)
-						& 0x00F0) | 0x000F);
+		b43_radio_maskset(dev, 0x0043, 0x00F0, 0x000F);
 		udelay(30);
 		v47F = (s16) ((b43_phy_read(dev, 0x047F) >> 8) & 0x003F);
 		if (v47F >= 0x20)
@@ -1353,8 +1348,7 @@ static u16 b43_radio_init2050(struct b43_wldev *dev)
 		b43_radio_write16(dev, 0x43, 0x1F);
 	} else {
 		b43_radio_write16(dev, 0x52, 0);
-		b43_radio_write16(dev, 0x43, (b43_radio_read16(dev, 0x43)
-					      & 0xFFF0) | 0x0009);
+		b43_radio_maskset(dev, 0x43, 0xFFF0, 0x0009);
 	}
 	b43_phy_write(dev, B43_PHY_CCK(0x58), 0);
 
@@ -1681,8 +1675,7 @@ static void b43_phy_initb6(struct b43_wldev *dev)
 		b43_radio_write16(dev, 0x5B, 0x7B);
 		b43_radio_write16(dev, 0x5C, 0xB0);
 	}
-	b43_radio_write16(dev, 0x007A,
-			  (b43_radio_read16(dev, 0x007A) & 0x00F8) | 0x0007);
+	b43_radio_maskset(dev, 0x007A, 0x00F8, 0x0007);
 
 	b43_gphy_channel_switch(dev, old_channel, 0);
 
@@ -1777,8 +1770,7 @@ static void b43_calc_loopback_gain(struct b43_wldev *dev)
 		b43_radio_write16(dev, 0x43, 0x000F);
 	} else {
 		b43_radio_write16(dev, 0x52, 0);
-		b43_radio_write16(dev, 0x43, (b43_radio_read16(dev, 0x43)
-					      & 0xFFF0) | 0x9);
+		b43_radio_maskset(dev, 0x43, 0xFFF0, 0x9);
 	}
 	b43_gphy_set_baseband_attenuation(dev, 11);
 
@@ -1953,9 +1945,7 @@ static void b43_phy_init_pctl(struct b43_wldev *dev)
 	b43_hardware_pctl_early_init(dev);
 	if (gphy->cur_idle_tssi == 0) {
 		if (phy->radio_ver == 0x2050 && phy->analog == 0) {
-			b43_radio_write16(dev, 0x0076,
-					  (b43_radio_read16(dev, 0x0076)
-					   & 0x00F7) | 0x0084);
+			b43_radio_maskset(dev, 0x0076, 0x00F7, 0x0084);
 		} else {
 			struct b43_rfatt rfatt;
 			struct b43_bbatt bbatt;
@@ -2057,9 +2047,7 @@ static void b43_phy_initg(struct b43_wldev *dev)
 				  | gphy->lo_control->tx_bias | gphy->
 				  lo_control->tx_magn);
 	} else {
-		b43_radio_write16(dev, 0x52,
-				  (b43_radio_read16(dev, 0x52) & 0xFFF0)
-				  | gphy->lo_control->tx_bias);
+		b43_radio_maskset(dev, 0x52, 0xFFF0, gphy->lo_control->tx_bias);
 	}
 	if (phy->rev >= 6) {
 		b43_phy_maskset(dev, B43_PHY_CCK(0x36), 0x0FFF, (gphy->lo_control->tx_bias << 12));
