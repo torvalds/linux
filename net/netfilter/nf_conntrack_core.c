@@ -54,7 +54,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_lock);
 unsigned int nf_conntrack_htable_size __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_htable_size);
 
-int nf_conntrack_max __read_mostly;
+unsigned int nf_conntrack_max __read_mostly;
 EXPORT_SYMBOL_GPL(nf_conntrack_max);
 
 struct nf_conn nf_conntrack_untracked __read_mostly;
