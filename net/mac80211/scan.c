@@ -245,6 +245,9 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	netif_addr_unlock(local->mdev);
 	netif_tx_unlock_bh(local->mdev);
 
+	if (local->ops->sw_scan_complete)
+		local->ops->sw_scan_complete(local_to_hw(local));
+
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (!netif_running(sdata->dev))
@@ -395,6 +398,8 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 	}
 
 	local->sw_scanning = true;
+	if (local->ops->sw_scan_start)
+		local->ops->sw_scan_start(local_to_hw(local));
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {

@@ -1324,6 +1324,12 @@ enum ieee80211_ampdu_mlme_action {
  *	because the hardware is turned off! Anything else is a bug!
  *	Returns a negative error code which will be seen in userspace.
  *
+ * @sw_scan_start: Notifier function that is called just before a software scan
+ *	is started. Can be NULL, if the driver doesn't need this notification.
+ *
+ * @sw_scan_complete: Notifier function that is called just after a software scan
+ *	finished. Can be NULL, if the driver doesn't need this notification.
+ *
  * @get_stats: Return low-level statistics.
  * 	Returns zero if statistics are available.
  *
@@ -1403,6 +1409,8 @@ struct ieee80211_ops {
 			u32 iv32, u16 *phase1key);
 	int (*hw_scan)(struct ieee80211_hw *hw,
 		       struct cfg80211_scan_request *req);
+	void (*sw_scan_start)(struct ieee80211_hw *hw);
+	void (*sw_scan_complete)(struct ieee80211_hw *hw);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
