@@ -308,23 +308,23 @@ static int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
  */
 static void ath_ani_calibrate(unsigned long data)
 {
-	struct ath_softc *sc;
-	struct ath_hw *ah;
+	struct ath_softc *sc = (struct ath_softc *)data;
+	struct ath_hw *ah = sc->sc_ah;
 	bool longcal = false;
 	bool shortcal = false;
 	bool aniflag = false;
 	unsigned int timestamp = jiffies_to_msecs(jiffies);
-	u32 cal_interval;
+	u32 cal_interval, short_cal_interval;
 
-	sc = (struct ath_softc *)data;
-	ah = sc->sc_ah;
+	short_cal_interval = (ah->opmode == NL80211_IFTYPE_AP) ?
+		ATH_AP_SHORT_CALINTERVAL : ATH_STA_SHORT_CALINTERVAL;
 
 	/*
 	* don't calibrate when we're scanning.
 	* we are most likely not on our home channel.
 	*/
 	if (sc->rx.rxfilter & FIF_BCN_PRBRESP_PROMISC)
-		return;
+		goto set_timer;
 
 	/* Long calibration runs independently of short calibration. */
 	if ((timestamp - sc->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
@@ -335,8 +335,7 @@ static void ath_ani_calibrate(unsigned long data)
 
 	/* Short calibration applies only while caldone is false */
 	if (!sc->ani.caldone) {
-		if ((timestamp - sc->ani.shortcal_timer) >=
-		    ATH_SHORT_CALINTERVAL) {
+		if ((timestamp - sc->ani.shortcal_timer) >= short_cal_interval) {
 			shortcal = true;
 			DPRINTF(sc, ATH_DBG_ANI, "shortcal @%lu\n", jiffies);
 			sc->ani.shortcal_timer = timestamp;
@@ -352,8 +351,7 @@ static void ath_ani_calibrate(unsigned long data)
 	}
 
 	/* Verify whether we must check ANI */
-	if ((timestamp - sc->ani.checkani_timer) >=
-	   ATH_ANI_POLLINTERVAL) {
+	if ((timestamp - sc->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
 		aniflag = true;
 		sc->ani.checkani_timer = timestamp;
 	}
@@ -362,8 +360,7 @@ static void ath_ani_calibrate(unsigned long data)
 	if (longcal || shortcal || aniflag) {
 		/* Call ANI routine if necessary */
 		if (aniflag)
-			ath9k_hw_ani_monitor(ah, &sc->nodestats,
-					     ah->curchan);
+			ath9k_hw_ani_monitor(ah, &sc->nodestats, ah->curchan);
 
 		/* Perform calibration if necessary */
 		if (longcal || shortcal) {
@@ -392,6 +389,7 @@ static void ath_ani_calibrate(unsigned long data)
 		}
 	}
 
+set_timer:
 	/*
 	* Set timer interval based on previous results.
 	* The interval must be the shortest necessary to satisfy ANI,
@@ -401,7 +399,7 @@ static void ath_ani_calibrate(unsigned long data)
 	if (sc->sc_ah->config.enable_ani)
 		cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
 	if (!sc->ani.caldone)
-		cal_interval = min(cal_interval, (u32)ATH_SHORT_CALINTERVAL);
+		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
 	mod_timer(&sc->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
 }
@@ -924,8 +922,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 
 		/* Start ANI */
 		mod_timer(&sc->ani.timer,
-			jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
-
+			  jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
 	} else {
 		DPRINTF(sc, ATH_DBG_CONFIG, "Bss Info DISSOC\n");
 		sc->curaid = 0;
