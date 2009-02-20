@@ -226,8 +226,7 @@ static void b43_phy_ww(struct b43_wldev *dev)
 
 	b43_phy_mask(dev, B43_PHY_CRS0, ~B43_PHY_CRS0_EN);
 	b43_phy_set(dev, B43_PHY_OFDM(0x1B), 0x1000);
-	b43_phy_write(dev, B43_PHY_OFDM(0x82),
-		(b43_phy_read(dev, B43_PHY_OFDM(0x82)) & 0xF0FF) | 0x0300);
+	b43_phy_maskset(dev, B43_PHY_OFDM(0x82), 0xF0FF, 0x0300);
 	b43_radio_write16(dev, 0x0009,
 		b43_radio_read16(dev, 0x0009) | 0x0080);
 	b43_radio_write16(dev, 0x0012,
@@ -259,14 +258,10 @@ static void b43_phy_ww(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_PHY_OFDM(0xB5), 0x0EC0);
 	b43_phy_write(dev, B43_PHY_OFDM(0xB2), 0x00C0);
 	b43_phy_write(dev, B43_PHY_OFDM(0xB9), 0x1FFF);
-	b43_phy_write(dev, B43_PHY_OFDM(0xBB),
-		(b43_phy_read(dev, B43_PHY_OFDM(0xBB)) & 0xF000) | 0x0053);
-	b43_phy_write(dev, B43_PHY_OFDM61,
-		(b43_phy_read(dev, B43_PHY_OFDM61) & 0xFE1F) | 0x0120);
-	b43_phy_write(dev, B43_PHY_OFDM(0x13),
-		(b43_phy_read(dev, B43_PHY_OFDM(0x13)) & 0x0FFF) | 0x3000);
-	b43_phy_write(dev, B43_PHY_OFDM(0x14),
-		(b43_phy_read(dev, B43_PHY_OFDM(0x14)) & 0x0FFF) | 0x3000);
+	b43_phy_maskset(dev, B43_PHY_OFDM(0xBB), 0xF000, 0x0053);
+	b43_phy_maskset(dev, B43_PHY_OFDM61, 0xFE1F, 0x0120);
+	b43_phy_maskset(dev, B43_PHY_OFDM(0x13), 0x0FFF, 0x3000);
+	b43_phy_maskset(dev, B43_PHY_OFDM(0x14), 0x0FFF, 0x3000);
 	b43_ofdmtab_write16(dev, B43_OFDMTAB_AGC1, 6, 0x0017);
 	for (i = 0; i < 6; i++)
 		b43_ofdmtab_write16(dev, B43_OFDMTAB_AGC1, i, 0x000F);
@@ -331,9 +326,7 @@ void b43_phy_inita(struct b43_wldev *dev)
 
 	if ((phy->type == B43_PHYTYPE_G) &&
 	    (dev->dev->bus->sprom.boardflags_lo & B43_BFL_PACTRL)) {
-		b43_phy_write(dev, B43_PHY_OFDM(0x6E),
-				  (b43_phy_read(dev, B43_PHY_OFDM(0x6E))
-				   & 0xE000) | 0x3CF);
+		b43_phy_maskset(dev, B43_PHY_OFDM(0x6E), 0xE000, 0x3CF);
 	}
 }
 
