@@ -4177,6 +4177,8 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 		if (phy->radio_rev < 6)
 			hf |= B43_HF_VCORECALC;
 	}
+	if (sprom->boardflags_lo & B43_BFL_XTAL_NOSLOW)
+		hf |= B43_HF_DSCRQ; /* Disable slowclock requests from ucode. */
 	b43_hf_write(dev, hf);
 
 	b43_set_retry_limits(dev, B43_DEFAULT_SHORT_RETRY_LIMIT,
@@ -4215,7 +4217,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	b43_set_synth_pu_delay(dev, 1);
 	b43_bluetooth_coext_enable(dev);
 
-	ssb_bus_powerup(bus, 1);	/* Enable dynamic PCTL */
+	ssb_bus_powerup(bus, !(sprom->boardflags_lo & B43_BFL_XTAL_NOSLOW));
 	b43_upload_card_macaddress(dev);
 	b43_security_init(dev);
 	if (!dev->suspend_in_progress)
