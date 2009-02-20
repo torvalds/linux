@@ -108,7 +108,7 @@ static int gfs2_dhash(struct dentry *dentry, struct qstr *str)
 	return 0;
 }
 
-struct dentry_operations gfs2_dops = {
+const struct dentry_operations gfs2_dops = {
 	.d_revalidate = gfs2_drevalidate,
 	.d_hash = gfs2_dhash,
 };

@@ -47,7 +47,7 @@ extern struct file_system_type gfs2_fs_type;
 extern struct file_system_type gfs2meta_fs_type;
 extern const struct export_operations gfs2_export_ops;
 extern const struct super_operations gfs2_super_ops;
-extern struct dentry_operations gfs2_dops;
+extern const struct dentry_operations gfs2_dops;
 
 #endif /* __SUPER_DOT_H__ */
 
