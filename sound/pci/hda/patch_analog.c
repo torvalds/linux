@@ -1047,8 +1047,7 @@ static struct hda_amp_list ad1986a_loopbacks[] = {
 
 static int is_jack_available(struct hda_codec *codec, hda_nid_t nid)
 {
-	unsigned int conf = snd_hda_codec_read(codec, nid, 0,
-					       AC_VERB_GET_CONFIG_DEFAULT, 0);
+	unsigned int conf = snd_hda_codec_get_pincfg(codec, nid);
 	return get_defcfg_connect(conf) != AC_JACK_PORT_NONE;
 }
 
