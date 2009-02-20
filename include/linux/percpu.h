@@ -76,22 +76,36 @@
 
 #ifdef CONFIG_SMP
 
+#ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
+
+extern void *pcpu_base_addr;
+
+typedef void (*pcpu_populate_pte_fn_t)(unsigned long addr);
+
+extern size_t __init pcpu_setup_static(pcpu_populate_pte_fn_t populate_pte_fn,
+				       struct page **pages, size_t cpu_size);
+/*
+ * Use this to get to a cpu's version of the per-cpu object
+ * dynamically allocated. Non-atomic access to the current CPU's
+ * version should probably be combined with get_cpu()/put_cpu().
+ */
+#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
+
+#else /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+
 struct percpu_data {
 	void *ptrs[1];
 };
 
 #define __percpu_disguise(pdata) (struct percpu_data *)~(unsigned long)(pdata)
 
-/*
- * Use this to get to a cpu's version of the per-cpu object
- * dynamically allocated. Non-atomic access to the current CPU's
- * version should probably be combined with get_cpu()/put_cpu().
- */
 #define per_cpu_ptr(ptr, cpu)						\
 ({									\
         struct percpu_data *__p = __percpu_disguise(ptr);		\
         (__typeof__(ptr))__p->ptrs[(cpu)];				\
 })
+
+#endif /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
 
 extern void *__alloc_percpu(size_t size, size_t align);
 extern void free_percpu(void *__pdata);
