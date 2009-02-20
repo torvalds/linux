@@ -170,6 +170,7 @@ failed:
 	wlandev = NULL;
 
 done:
+	p80211_allow_ioctls(wlandev);
 	usb_set_intfdata(interface, wlandev);
 	return result;
 }
