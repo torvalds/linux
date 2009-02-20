@@ -106,7 +106,6 @@ static irqreturn_t igb_intr_msi(int irq, void *);
 static irqreturn_t igb_msix_other(int irq, void *);
 static irqreturn_t igb_msix_rx(int irq, void *);
 static irqreturn_t igb_msix_tx(int irq, void *);
-static int igb_clean_rx_ring_msix(struct napi_struct *, int);
 #ifdef CONFIG_IGB_DCA
 static void igb_update_rx_dca(struct igb_ring *);
 static void igb_update_tx_dca(struct igb_ring *);
@@ -3688,6 +3687,26 @@ static irqreturn_t igb_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static inline void igb_rx_irq_enable(struct igb_ring *rx_ring)
+{
+	struct igb_adapter *adapter = rx_ring->adapter;
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (adapter->itr_setting & 3) {
+		if (adapter->num_rx_queues == 1)
+			igb_set_itr(adapter);
+		else
+			igb_update_ring_itr(rx_ring);
+	}
+
+	if (!test_bit(__IGB_DOWN, &adapter->state)) {
+		if (adapter->msix_entries)
+			wr32(E1000_EIMS, rx_ring->eims_value);
+		else
+			igb_irq_enable(adapter);
+	}
+}
+
 /**
  * igb_poll - NAPI Rx polling callback
  * @napi: napi polling structure
@@ -3698,41 +3717,6 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	struct igb_ring *rx_ring = container_of(napi, struct igb_ring, napi);
 	struct igb_adapter *adapter = rx_ring->adapter;
 	struct net_device *netdev = adapter->netdev;
-	int tx_clean_complete, work_done = 0;
-
-	/* this poll routine only supports one tx and one rx queue */
-#ifdef CONFIG_IGB_DCA
-	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
-		igb_update_tx_dca(&adapter->tx_ring[0]);
-#endif
-	tx_clean_complete = igb_clean_tx_irq(&adapter->tx_ring[0]);
-
-#ifdef CONFIG_IGB_DCA
-	if (adapter->flags & IGB_FLAG_DCA_ENABLED)
-		igb_update_rx_dca(&adapter->rx_ring[0]);
-#endif
-	igb_clean_rx_irq_adv(&adapter->rx_ring[0], &work_done, budget);
-
-	/* If no Tx and not enough Rx work done, exit the polling mode */
-	if ((tx_clean_complete && (work_done < budget)) ||
-	    !netif_running(netdev)) {
-		if (adapter->itr_setting & 3)
-			igb_set_itr(adapter);
-		napi_complete(napi);
-		if (!test_bit(__IGB_DOWN, &adapter->state))
-			igb_irq_enable(adapter);
-		return 0;
-	}
-
-	return 1;
-}
-
-static int igb_clean_rx_ring_msix(struct napi_struct *napi, int budget)
-{
-	struct igb_ring *rx_ring = container_of(napi, struct igb_ring, napi);
-	struct igb_adapter *adapter = rx_ring->adapter;
-	struct e1000_hw *hw = &adapter->hw;
-	struct net_device *netdev = adapter->netdev;
 	int work_done = 0;
 
 #ifdef CONFIG_IGB_DCA
@@ -3741,23 +3725,22 @@ static int igb_clean_rx_ring_msix(struct napi_struct *napi, int budget)
 #endif
 	igb_clean_rx_irq_adv(rx_ring, &work_done, budget);
 
-	/* If not enough Rx work done, exit the polling mode */
-	if ((work_done == 0) || !netif_running(netdev)) {
-		napi_complete(napi);
-
-		if (adapter->itr_setting & 3) {
-			if (adapter->num_rx_queues == 1)
-				igb_set_itr(adapter);
-			else
-				igb_update_ring_itr(rx_ring);
-		}
-		if (!test_bit(__IGB_DOWN, &adapter->state))
-			wr32(E1000_EIMS, rx_ring->eims_value);
-
-		return 0;
+	if (rx_ring->buddy) {
+#ifdef CONFIG_IGB_DCA
+		if (adapter->flags & IGB_FLAG_DCA_ENABLED)
+			igb_update_tx_dca(rx_ring->buddy);
+#endif
+		if (!igb_clean_tx_irq(rx_ring->buddy))
+			work_done = budget;
 	}
 
-	return 1;
+	/* If not enough Rx work done, exit the polling mode */
+	if ((work_done < budget) || !netif_running(netdev)) {
+		napi_complete(napi);
+		igb_rx_irq_enable(rx_ring);
+	}
+
+	return work_done;
 }
 
 /**
