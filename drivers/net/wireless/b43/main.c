@@ -4182,6 +4182,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	if ((bus->bustype == SSB_BUSTYPE_PCI) &&
 	    (bus->pcicore.dev->id.revision <= 10))
 		hf |= B43_HF_PCISCW; /* PCI slow clock workaround. */
+	hf &= ~B43_HF_SKCFPUP;
 	b43_hf_write(dev, hf);
 
 	b43_set_retry_limits(dev, B43_DEFAULT_SHORT_RETRY_LIMIT,
@@ -4404,6 +4405,34 @@ static void b43_op_sta_notify(struct ieee80211_hw *hw,
 	B43_WARN_ON(!vif || wl->vif != vif);
 }
 
+static void b43_op_sw_scan_start_notifier(struct ieee80211_hw *hw)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+	struct b43_wldev *dev;
+
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (dev && (b43_status(dev) >= B43_STAT_INITIALIZED)) {
+		/* Disable CFP update during scan on other channels. */
+		b43_hf_write(dev, b43_hf_read(dev) | B43_HF_SKCFPUP);
+	}
+	mutex_unlock(&wl->mutex);
+}
+
+static void b43_op_sw_scan_complete_notifier(struct ieee80211_hw *hw)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+	struct b43_wldev *dev;
+
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (dev && (b43_status(dev) >= B43_STAT_INITIALIZED)) {
+		/* Re-enable CFP update. */
+		b43_hf_write(dev, b43_hf_read(dev) & ~B43_HF_SKCFPUP);
+	}
+	mutex_unlock(&wl->mutex);
+}
+
 static const struct ieee80211_ops b43_hw_ops = {
 	.tx			= b43_op_tx,
 	.conf_tx		= b43_op_conf_tx,
@@ -4422,6 +4451,8 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.stop			= b43_op_stop,
 	.set_tim		= b43_op_beacon_set_tim,
 	.sta_notify		= b43_op_sta_notify,
+	.sw_scan_start		= b43_op_sw_scan_start_notifier,
+	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
 };
 
 /* Hard-reset the chip. Do not call this directly.
