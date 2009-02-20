@@ -48,7 +48,7 @@
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/hw_irq.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/irqflags.h>
 #include <asm/paravirt.h>
 #include <asm/ftrace.h>

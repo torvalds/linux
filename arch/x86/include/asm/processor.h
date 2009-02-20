@@ -403,7 +403,6 @@ DECLARE_PER_CPU(unsigned long, stack_canary);
 #endif
 #endif	/* X86_64 */
 
-extern void print_cpu_info(struct cpuinfo_x86 *);
 extern unsigned int xstate_size;
 extern void free_thread_xstate(struct task_struct *);
 extern struct kmem_cache *task_xstate_cachep;

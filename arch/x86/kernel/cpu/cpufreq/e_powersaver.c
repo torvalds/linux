@@ -204,12 +204,12 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	}
 	/* Enable Enhanced PowerSaver */
 	rdmsrl(MSR_IA32_MISC_ENABLE, val);
-	if (!(val & 1 << 16)) {
-		val |= 1 << 16;
+	if (!(val & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
+		val |= MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP;
 		wrmsrl(MSR_IA32_MISC_ENABLE, val);
 		/* Can be locked at 0 */
 		rdmsrl(MSR_IA32_MISC_ENABLE, val);
-		if (!(val & 1 << 16)) {
+		if (!(val & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
 			printk(KERN_INFO "eps: Can't enable Enhanced PowerSaver\n");
 			return -ENODEV;
 		}

@@ -124,10 +124,15 @@ static inline void *phys_to_virt(phys_addr_t address)
 
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
+ * However, we truncate the address to unsigned int to avoid undesirable
+ * promitions in legacy drivers.
  */
-#define isa_virt_to_bus (unsigned long)virt_to_phys
-#define isa_page_to_bus page_to_phys
-#define isa_bus_to_virt phys_to_virt
+static inline unsigned int isa_virt_to_bus(volatile void *address)
+{
+	return (unsigned int)virt_to_phys(address);
+}
+#define isa_page_to_bus(page)	((unsigned int)page_to_phys(page))
+#define isa_bus_to_virt		phys_to_virt
 
 /*
  * However PCI ones are not necessarily 1:1 and therefore these interfaces
