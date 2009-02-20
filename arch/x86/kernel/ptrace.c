@@ -268,7 +268,7 @@ static unsigned long debugreg_addr_limit(struct task_struct *task)
 	if (test_tsk_thread_flag(task, TIF_IA32))
 		return IA32_PAGE_OFFSET - 3;
 #endif
-	return TASK_SIZE64 - 7;
+	return TASK_SIZE_MAX - 7;
 }
 
 #endif	/* CONFIG_X86_32 */
