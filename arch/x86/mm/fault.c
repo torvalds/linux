@@ -99,12 +99,58 @@ static inline int notify_page_fault(struct pt_regs *regs)
  *
  * Opcode checker based on code by Richard Brunner.
  */
+static inline int
+check_prefetch_opcode(struct pt_regs *regs, unsigned char *instr,
+		      unsigned char opcode, int *prefetch)
+{
+	unsigned char instr_hi = opcode & 0xf0;
+	unsigned char instr_lo = opcode & 0x0f;
+
+	switch (instr_hi) {
+	case 0x20:
+	case 0x30:
+		/*
+		 * Values 0x26,0x2E,0x36,0x3E are valid x86 prefixes.
+		 * In X86_64 long mode, the CPU will signal invalid
+		 * opcode if some of these prefixes are present so
+		 * X86_64 will never get here anyway
+		 */
+		return ((instr_lo & 7) == 0x6);
+#ifdef CONFIG_X86_64
+	case 0x40:
+		/*
+		 * In AMD64 long mode 0x40..0x4F are valid REX prefixes
+		 * Need to figure out under what instruction mode the
+		 * instruction was issued. Could check the LDT for lm,
+		 * but for now it's good enough to assume that long
+		 * mode only uses well known segments or kernel.
+		 */
+		return (!user_mode(regs)) || (regs->cs == __USER_CS);
+#endif
+	case 0x60:
+		/* 0x64 thru 0x67 are valid prefixes in all modes. */
+		return (instr_lo & 0xC) == 0x4;
+	case 0xF0:
+		/* 0xF0, 0xF2, 0xF3 are valid prefixes in all modes. */
+		return !instr_lo || (instr_lo>>1) == 1;
+	case 0x00:
+		/* Prefetch instruction is 0x0F0D or 0x0F18 */
+		if (probe_kernel_address(instr, opcode))
+			return 0;
+
+		*prefetch = (instr_lo == 0xF) &&
+			(opcode == 0x0D || opcode == 0x18);
+		return 0;
+	default:
+		return 0;
+	}
+}
+
 static int
 is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
 {
 	unsigned char *max_instr;
 	unsigned char *instr;
-	int scan_more = 1;
 	int prefetch = 0;
 
 	/*
@@ -114,68 +160,22 @@ is_prefetch(struct pt_regs *regs, unsigned long error_code, unsigned long addr)
 	if (error_code & PF_INSTR)
 		return 0;
 
-	instr = (unsigned char *)convert_ip_to_linear(current, regs);
+	instr = (void *)convert_ip_to_linear(current, regs);
 	max_instr = instr + 15;
 
 	if (user_mode(regs) && instr >= (unsigned char *)TASK_SIZE)
 		return 0;
 
-	while (scan_more && instr < max_instr) {
-		unsigned char instr_hi;
-		unsigned char instr_lo;
+	while (instr < max_instr) {
 		unsigned char opcode;
 
 		if (probe_kernel_address(instr, opcode))
 			break;
 
-		instr_hi = opcode & 0xf0;
-		instr_lo = opcode & 0x0f;
 		instr++;
 
-		switch (instr_hi) {
-		case 0x20:
-		case 0x30:
-			/*
-			 * Values 0x26,0x2E,0x36,0x3E are valid x86 prefixes.
-			 * In X86_64 long mode, the CPU will signal invalid
-			 * opcode if some of these prefixes are present so
-			 * X86_64 will never get here anyway
-			 */
-			scan_more = ((instr_lo & 7) == 0x6);
+		if (!check_prefetch_opcode(regs, instr, opcode, &prefetch))
 			break;
-#ifdef CONFIG_X86_64
-		case 0x40:
-			/*
-			 * In AMD64 long mode 0x40..0x4F are valid REX prefixes
-			 * Need to figure out under what instruction mode the
-			 * instruction was issued. Could check the LDT for lm,
-			 * but for now it's good enough to assume that long
-			 * mode only uses well known segments or kernel.
-			 */
-			scan_more = (!user_mode(regs)) || (regs->cs == __USER_CS);
-			break;
-#endif
-		case 0x60:
-			/* 0x64 thru 0x67 are valid prefixes in all modes. */
-			scan_more = (instr_lo & 0xC) == 0x4;
-			break;
-		case 0xF0:
-			/* 0xF0, 0xF2, 0xF3 are valid prefixes in all modes. */
-			scan_more = !instr_lo || (instr_lo>>1) == 1;
-			break;
-		case 0x00:
-			/* Prefetch instruction is 0x0F0D or 0x0F18 */
-			scan_more = 0;
-
-			if (probe_kernel_address(instr, opcode))
-				break;
-			prefetch = (instr_lo == 0xF) &&
-				(opcode == 0x0D || opcode == 0x18);
-			break;
-		default:
-			scan_more = 0;
-			break;
-		}
 	}
 	return prefetch;
 }
