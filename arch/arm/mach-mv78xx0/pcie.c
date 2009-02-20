@@ -33,6 +33,12 @@ static struct resource pcie_io_space;
 static struct resource pcie_mem_space;
 
 
+void __init mv78xx0_pcie_id(u32 *dev, u32 *rev)
+{
+	*dev = orion_pcie_dev_id((void __iomem *)PCIE00_VIRT_BASE);
+	*rev = orion_pcie_rev((void __iomem *)PCIE00_VIRT_BASE);
+}
+
 static void __init mv78xx0_pcie_preinit(void)
 {
 	int i;

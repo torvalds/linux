@@ -719,6 +719,32 @@ struct sys_timer mv78xx0_timer = {
 /*****************************************************************************
  * General
  ****************************************************************************/
+static char * __init mv78xx0_id(void)
+{
+	u32 dev, rev;
+
+	mv78xx0_pcie_id(&dev, &rev);
+
+	if (dev == MV78X00_Z0_DEV_ID) {
+		if (rev == MV78X00_REV_Z0)
+			return "MV78X00-Z0";
+		else
+			return "MV78X00-Rev-Unsupported";
+	} else if (dev == MV78100_DEV_ID) {
+		if (rev == MV78100_REV_A0)
+			return "MV78100-A0";
+		else
+			return "MV78100-Rev-Unsupported";
+	} else if (dev == MV78200_DEV_ID) {
+		if (rev == MV78100_REV_A0)
+			return "MV78200-A0";
+		else
+			return "MV78200-Rev-Unsupported";
+	} else {
+		return "Device-Unknown";
+	}
+}
+
 static int __init is_l2_writethrough(void)
 {
 	return !!(readl(CPU_CONTROL) & L2_WRITETHROUGH);
@@ -737,7 +763,8 @@ void __init mv78xx0_init(void)
 	get_pclk_l2clk(hclk, core_index, &pclk, &l2clk);
 	tclk = get_tclk();
 
-	printk(KERN_INFO "MV78xx0 core #%d, ", core_index);
+	printk(KERN_INFO "%s ", mv78xx0_id());
+	printk("core #%d, ", core_index);
 	printk("PCLK = %dMHz, ", (pclk + 499999) / 1000000);
 	printk("L2 = %dMHz, ", (l2clk + 499999) / 1000000);
 	printk("HCLK = %dMHz, ", (hclk + 499999) / 1000000);

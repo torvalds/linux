@@ -80,6 +80,18 @@
 #define  TIMER_VIRT_BASE	(BRIDGE_VIRT_BASE | 0x0300)
 
 /*
+ * Supported devices and revisions.
+ */
+#define MV78X00_Z0_DEV_ID	0x6381
+#define MV78X00_REV_Z0		1
+
+#define MV78100_DEV_ID		0x7810
+#define MV78100_REV_A0		1
+
+#define MV78200_DEV_ID		0x7820
+#define MV78200_REV_A0		1
+
+/*
  * Register Map
  */
 #define DDR_VIRT_BASE		(MV78XX0_REGS_VIRT_BASE | 0x00000)
