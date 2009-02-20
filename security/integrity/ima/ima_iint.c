@@ -73,8 +73,10 @@ out:
 	if (rc < 0) {
 		kmem_cache_free(iint_cache, iint);
 		if (rc == -EEXIST) {
+			spin_lock(&ima_iint_lock);
 			iint = radix_tree_lookup(&ima_iint_store,
 						 (unsigned long)inode);
+			spin_unlock(&ima_iint_lock);
 		} else
 			iint = NULL;
 	}
