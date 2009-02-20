@@ -115,7 +115,7 @@
 
 
 unsigned musb_debug;
-module_param(musb_debug, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, musb_debug, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_AUTHOR "Mentor Graphics, Texas Instruments, Nokia"
@@ -2243,10 +2243,10 @@ static int __init musb_init(void)
 	return platform_driver_probe(&musb_driver, musb_probe);
 }
 
-/* make us init after usbcore and before usb
- * gadget and host-side drivers start to register
+/* make us init after usbcore and i2c (transceivers, regulators, etc)
+ * and before usb gadget and host-side drivers start to register
  */
-subsys_initcall(musb_init);
+fs_initcall(musb_init);
 
 static void __exit musb_cleanup(void)
 {
