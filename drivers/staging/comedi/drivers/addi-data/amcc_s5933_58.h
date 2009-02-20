@@ -219,21 +219,25 @@ struct pcilst_struct *amcc_devices;	// ptr to root list of all amcc devices
 void v_pci_card_list_init(unsigned short pci_vendor, char display);
 void v_pci_card_list_cleanup(unsigned short pci_vendor);
 struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id,
-	unsigned short device_id);
+						       unsigned short
+						       device_id);
 int i_find_free_pci_card_by_position(unsigned short vendor_id,
-	unsigned short device_id, unsigned short pci_bus,
-	unsigned short pci_slot, struct pcilst_struct **card);
+				     unsigned short device_id,
+				     unsigned short pci_bus,
+				     unsigned short pci_slot,
+				     struct pcilst_struct **card);
 struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
-	unsigned short device_id, unsigned short pci_bus,
-	unsigned short pci_slot);
+						    unsigned short device_id,
+						    unsigned short pci_bus,
+						    unsigned short pci_slot);
 
 int i_pci_card_alloc(struct pcilst_struct *amcc);
 int i_pci_card_free(struct pcilst_struct *amcc);
 void v_pci_card_list_display(void);
 int i_pci_card_data(struct pcilst_struct *amcc,
-	unsigned char *pci_bus, unsigned char *pci_slot,
-	unsigned char *pci_func, unsigned short *io_addr, unsigned short *irq,
-	unsigned short *master);
+		    unsigned char *pci_bus, unsigned char *pci_slot,
+		    unsigned char *pci_func, unsigned short *io_addr,
+		    unsigned short *irq, unsigned short *master);
 
 /****************************************************************************/
 
@@ -273,7 +277,7 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 			amcc->pci_func = PCI_FUNC(pcidev->devfn);
 			for (i = 0; i < 5; i++)
 				amcc->io_addr[i] =
-					pcidev->base_address[i] & ~3UL;
+				    pcidev->base_address[i] & ~3UL;
 			amcc->irq = pcidev->irq;
 #else
 			amcc->vendor = pcidev->vendor;
@@ -286,7 +290,7 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 			amcc->pci_func = PCI_FUNC(pcidev->devfn);
 			for (i = 0; i < 5; i++)
 				amcc->io_addr[i] =
-					pcidev->resource[i].start & ~3UL;
+				    pcidev->resource[i].start & ~3UL;
 			amcc->irq = pcidev->irq;
 #endif
 
@@ -314,14 +318,14 @@ void v_pci_card_list_cleanup(unsigned short pci_vendor)
 /****************************************************************************/
 /* find first unused card with this device_id */
 struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id,
-	unsigned short device_id)
+						       unsigned short device_id)
 {
 	struct pcilst_struct *amcc, *next;
 
 	for (amcc = amcc_devices; amcc; amcc = next) {
 		next = amcc->next;
 		if ((!amcc->used) && (amcc->device == device_id)
-			&& (amcc->vendor == vendor_id))
+		    && (amcc->vendor == vendor_id))
 			return amcc;
 
 	}
@@ -332,8 +336,10 @@ struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id,
 /****************************************************************************/
 /* find card on requested position */
 int i_find_free_pci_card_by_position(unsigned short vendor_id,
-	unsigned short device_id, unsigned short pci_bus,
-	unsigned short pci_slot, struct pcilst_struct **card)
+				     unsigned short device_id,
+				     unsigned short pci_bus,
+				     unsigned short pci_slot,
+				     struct pcilst_struct **card)
 {
 	struct pcilst_struct *amcc, *next;
 
@@ -341,15 +347,15 @@ int i_find_free_pci_card_by_position(unsigned short vendor_id,
 	for (amcc = amcc_devices; amcc; amcc = next) {
 		next = amcc->next;
 		if ((amcc->vendor == vendor_id) && (amcc->device == device_id)
-			&& (amcc->pci_bus == pci_bus)
-			&& (amcc->pci_slot == pci_slot)) {
+		    && (amcc->pci_bus == pci_bus)
+		    && (amcc->pci_slot == pci_slot)) {
 			if (!(amcc->used)) {
 				*card = amcc;
 				return 0;	// ok, card is found
 			} else {
 				rt_printk
-					(" - \nCard on requested position is used b:s %d:%d!\n",
-					pci_bus, pci_slot);
+				    (" - \nCard on requested position is used b:s %d:%d!\n",
+				     pci_bus, pci_slot);
 				return 2;	// card exist but is used
 			}
 		}
@@ -395,7 +401,11 @@ void v_pci_card_list_display(void)
 
 	for (amcc = amcc_devices; amcc; amcc = next) {
 		next = amcc->next;
-		printk("%2d   %2d   %2d  0x%4x 0x%4x   %3s   0x%4x 0x%4x  %2d  %2d\n", amcc->pci_bus, amcc->pci_slot, amcc->pci_func, amcc->vendor, amcc->device, amcc->master ? "yes" : "no", amcc->io_addr[0], amcc->io_addr[2], amcc->irq, amcc->used);
+		printk
+		    ("%2d   %2d   %2d  0x%4x 0x%4x   %3s   0x%4x 0x%4x  %2d  %2d\n",
+		     amcc->pci_bus, amcc->pci_slot, amcc->pci_func,
+		     amcc->vendor, amcc->device, amcc->master ? "yes" : "no",
+		     amcc->io_addr[0], amcc->io_addr[2], amcc->irq, amcc->used);
 
 	}
 }
@@ -403,9 +413,9 @@ void v_pci_card_list_display(void)
 /****************************************************************************/
 /* return all card information for driver */
 int i_pci_card_data(struct pcilst_struct *amcc,
-	unsigned char *pci_bus, unsigned char *pci_slot,
-	unsigned char *pci_func, unsigned short *io_addr, unsigned short *irq,
-	unsigned short *master)
+		    unsigned char *pci_bus, unsigned char *pci_slot,
+		    unsigned char *pci_func, unsigned short *io_addr,
+		    unsigned short *irq, unsigned short *master)
 {
 	int i;
 
@@ -424,29 +434,32 @@ int i_pci_card_data(struct pcilst_struct *amcc,
 /****************************************************************************/
 /* select and alloc card */
 struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
-	unsigned short device_id, unsigned short pci_bus,
-	unsigned short pci_slot)
+						    unsigned short device_id,
+						    unsigned short pci_bus,
+						    unsigned short pci_slot)
 {
 	struct pcilst_struct *card;
 
 	if ((pci_bus < 1) & (pci_slot < 1)) {	// use autodetection
 		if ((card = ptr_find_free_pci_card_by_device(vendor_id,
-					device_id)) == NULL) {
+							     device_id)) ==
+		    NULL) {
 			rt_printk(" - Unused card not found in system!\n");
 			return NULL;
 		}
 	} else {
 		switch (i_find_free_pci_card_by_position(vendor_id, device_id,
-				pci_bus, pci_slot, &card)) {
+							 pci_bus, pci_slot,
+							 &card)) {
 		case 1:
 			rt_printk
-				(" - Card not found on requested position b:s %d:%d!\n",
-				pci_bus, pci_slot);
+			    (" - Card not found on requested position b:s %d:%d!\n",
+			     pci_bus, pci_slot);
 			return NULL;
 		case 2:
 			rt_printk
-				(" - Card on requested position is used b:s %d:%d!\n",
-				pci_bus, pci_slot);
+			    (" - Card on requested position is used b:s %d:%d!\n",
+			     pci_bus, pci_slot);
 			return NULL;
 		}
 	}

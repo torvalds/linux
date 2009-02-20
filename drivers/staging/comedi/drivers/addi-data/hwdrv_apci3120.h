@@ -1,81 +1,43 @@
 
 // hwdrv_apci3120.h
 
-/**
-@verbatim
-
-Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
-
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
-
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
-
-@endverbatim
-*/
 /*
-
-  +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstrasse 3      D-77833 Ottersweier  |
-  +-----------------------------------------------------------------------+
-  | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
-  | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
-  +-----------------------------------------------------------------------+
-  | Project   : ADDI DATA         | Compiler : GCC 			              |
-  | Modulname : hwdrv_apci3120.h  | Version  : 2.96  Redhat Linux         |
-  |                               |                    kernel-2.4.2       |
-  +-------------------------------+---------------------------------------+
-  | Author    :           		  | Date     :                    		  |
-  +-----------------------------------------------------------------------+
-  | Description :Header file for apci3120 hardware abstraction layer      |
-  +-----------------------------------------------------------------------+
-  |                             UPDATE'S                                  |
-  +-----------------------------------------------------------------------+
-  |   Date   |   Author  |          Description of updates                |
-  +----------+-----------+------------------------------------------------+
-  |          | 			 | 												  |
-  |          |           | 												  |
-  |          |           | 			                                      |
-  |          |           | 												  |
-  |          |           | 					                              |
-  +----------+-----------+------------------------------------------------+
-  | 	     | 			 | 						                          |
-  |          |           | 												  |
-  |          |           | 								                  |
-  +----------+-----------+------------------------------------------------+
-*/
+ * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+ *
+ *	ADDI-DATA GmbH
+ *	Dieselstrasse 3
+ *	D-77833 Ottersweier
+ *	Tel: +19(0)7223/9493-0
+ *	Fax: +49(0)7223/9493-92
+ *	http://www.addi-data-com
+ *	info@addi-data.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ */
 
 // comedi related defines
 
 //ANALOG INPUT RANGE
 static const comedi_lrange range_apci3120_ai = { 8, {
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2),
-			BIP_RANGE(1),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2),
-			UNI_RANGE(1)
-	}
+						     BIP_RANGE(10),
+						     BIP_RANGE(5),
+						     BIP_RANGE(2),
+						     BIP_RANGE(1),
+						     UNI_RANGE(10),
+						     UNI_RANGE(5),
+						     UNI_RANGE(2),
+						     UNI_RANGE(1)
+						     }
 };
 
 // ANALOG OUTPUT RANGE
 static const comedi_lrange range_apci3120_ao = { 2, {
-			BIP_RANGE(10),
-			UNI_RANGE(10)
-	}
+						     BIP_RANGE(10),
+						     UNI_RANGE(10)
+						     }
 };
 
 #define APCI3120_BIPOLAR_RANGES	4	// used for test on mixture of BIP/UNI ranges
@@ -216,61 +178,64 @@ typedef struct {
 // Function Declaration For APCI-3120
 
 // Internal functions
-int i_APCI3120_SetupChannelList(comedi_device * dev, comedi_subdevice * s,
-	int n_chan, unsigned int *chanlist, char check);
-int i_APCI3120_ExttrigEnable(comedi_device * dev);
-int i_APCI3120_ExttrigDisable(comedi_device * dev);
-int i_APCI3120_StopCyclicAcquisition(comedi_device * dev, comedi_subdevice * s);
-int i_APCI3120_Reset(comedi_device * dev);
-int i_APCI3120_CyclicAnalogInput(int mode, comedi_device * dev,
-	comedi_subdevice * s);
+int i_APCI3120_SetupChannelList(comedi_device *dev, comedi_subdevice *s,
+				int n_chan, unsigned int *chanlist, char check);
+int i_APCI3120_ExttrigEnable(comedi_device *dev);
+int i_APCI3120_ExttrigDisable(comedi_device *dev);
+int i_APCI3120_StopCyclicAcquisition(comedi_device *dev, comedi_subdevice *s);
+int i_APCI3120_Reset(comedi_device *dev);
+int i_APCI3120_CyclicAnalogInput(int mode, comedi_device *dev,
+				 comedi_subdevice *s);
 // Interrupt functions
 void v_APCI3120_Interrupt(int irq, void *d);
 //UPDATE-0.7.57->0.7.68 void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,comedi_subdevice *s,sampl_t *dma,sampl_t *data,int n);
-void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device * dev,
-	comedi_subdevice * s, sampl_t * dma_buffer, unsigned int num_samples);
-int i_APCI3120_InterruptHandleEos(comedi_device * dev);
+void v_APCI3120_InterruptDmaMoveBlock16bit(comedi_device *dev,
+					   comedi_subdevice *s,
+					   sampl_t *dma_buffer,
+					   unsigned int num_samples);
+int i_APCI3120_InterruptHandleEos(comedi_device *dev);
 void v_APCI3120_InterruptDma(int irq, void *d);
 
 // TIMER
 
-int i_APCI3120_InsnConfigTimer(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-int i_APCI3120_InsnWriteTimer(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-int i_APCI3120_InsnReadTimer(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_InsnConfigTimer(comedi_device *dev, comedi_subdevice *s,
+			       comedi_insn *insn, lsampl_t *data);
+int i_APCI3120_InsnWriteTimer(comedi_device *dev, comedi_subdevice *s,
+			      comedi_insn *insn, lsampl_t *data);
+int i_APCI3120_InsnReadTimer(comedi_device *dev, comedi_subdevice *s,
+			     comedi_insn *insn, lsampl_t *data);
 
 //DI
 // for di read
 
-int i_APCI3120_InsnBitsDigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-int i_APCI3120_InsnReadDigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_InsnBitsDigitalInput(comedi_device *dev, comedi_subdevice *s,
+				    comedi_insn *insn, lsampl_t *data);
+int i_APCI3120_InsnReadDigitalInput(comedi_device *dev, comedi_subdevice *s,
+				    comedi_insn *insn, lsampl_t *data);
 
 //DO
 //int i_APCI3120_WriteDigitalOutput(comedi_device *dev, BYTE data);
-int i_APCI3120_InsnConfigDigitalOutput(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-int i_APCI3120_InsnBitsDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-int i_APCI3120_InsnWriteDigitalOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_InsnConfigDigitalOutput(comedi_device *dev,
+				       comedi_subdevice *s, comedi_insn *insn,
+				       lsampl_t *data);
+int i_APCI3120_InsnBitsDigitalOutput(comedi_device *dev, comedi_subdevice *s,
+				     comedi_insn *insn, lsampl_t *data);
+int i_APCI3120_InsnWriteDigitalOutput(comedi_device *dev, comedi_subdevice *s,
+				      comedi_insn *insn, lsampl_t *data);
 
 //AO
 //int i_APCI3120_Write1AnalogValue(comedi_device *dev,UINT ui_Range,UINT ui_Channel,UINT data );
-int i_APCI3120_InsnWriteAnalogOutput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+int i_APCI3120_InsnWriteAnalogOutput(comedi_device *dev, comedi_subdevice *s,
+				     comedi_insn *insn, lsampl_t *data);
 
 //AI HArdware layer
 
-int i_APCI3120_InsnConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-int i_APCI3120_InsnReadAnalogInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-int i_APCI3120_CommandTestAnalogInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_cmd * cmd);
-int i_APCI3120_CommandAnalogInput(comedi_device * dev, comedi_subdevice * s);
-//int i_APCI3120_CancelAnalogInput(comedi_device * dev, comedi_subdevice * s);
-int i_APCI3120_StopCyclicAcquisition(comedi_device * dev, comedi_subdevice * s);
+int i_APCI3120_InsnConfigAnalogInput(comedi_device *dev, comedi_subdevice *s,
+				     comedi_insn *insn, lsampl_t *data);
+int i_APCI3120_InsnReadAnalogInput(comedi_device *dev, comedi_subdevice *s,
+				   comedi_insn *insn, lsampl_t *data);
+int i_APCI3120_CommandTestAnalogInput(comedi_device *dev, comedi_subdevice *s,
+				      comedi_cmd *cmd);
+int i_APCI3120_CommandAnalogInput(comedi_device *dev, comedi_subdevice *s);
+//int i_APCI3120_CancelAnalogInput(comedi_device *dev, comedi_subdevice *s);
+int i_APCI3120_StopCyclicAcquisition(comedi_device *dev, comedi_subdevice *s);

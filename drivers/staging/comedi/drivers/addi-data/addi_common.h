@@ -1,50 +1,24 @@
-/**
-@verbatim
-
-Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
-
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
-
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
-
-@endverbatim
-*/
 /*
-
-  +-----------------------------------------------------------------------+
-  | (C) ADDI-DATA GmbH          Dieselstrasse 3      D-77833 Ottersweier  |
-  +-----------------------------------------------------------------------+
-  | Tel : +49 (0) 7223/9493-0     | email    : info@addi-data.com         |
-  | Fax : +49 (0) 7223/9493-92    | Internet : http://www.addi-data.com   |
-  +-----------------------------------------------------------------------+
-  | Project   : ADDI-DATA	  | Compiler : GCC 		          |
-  | Modulname : addi_common.h     | Version  : 2.96                       |
-  +-------------------------------+---------------------------------------+
-  | Project manager: Eric Stolz   | Date     :  02/12/2002                |
-  +-----------------------------------------------------------------------+
-  | Description : ADDI COMMON Header File                                 |
-  +-----------------------------------------------------------------------+
-*/
-
-//including header files
+ *  Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+ *
+ *	ADDI-DATA GmbH
+ *	Dieselstrasse 3
+ *	D-77833 Ottersweier
+ *	Tel: +19(0)7223/9493-0
+ *	Fax: +49(0)7223/9493-92
+ *	http://www.addi-data-com
+ *	info@addi-data.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-//#include <linux/malloc.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
@@ -53,17 +27,16 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/kmod.h>
+#include <linux/uaccess.h>
 #include "../../comedidev.h"
 #include "addi_amcc_s5933.h"
-#include <linux/kmod.h>
-#include <asm/uaccess.h>
 
-#define ERROR  -1
-#define SUCCESS 1
+#define ERROR	-1
+#define SUCCESS	1
 
-// variable type definition
-
+/* variable type definition */
 typedef void VOID, *PVOID;
 typedef char CHAR, *PCHAR;
 typedef const CHAR *PCSTR;
@@ -73,38 +46,39 @@ typedef unsigned short USHORT, *PUSHORT;
 typedef unsigned short WORD, *PWORD;
 typedef int INT, *PINT;;
 typedef unsigned int UINT, *PUINT;
-typedef int LONG, *PLONG;	/* 32-bit */
+typedef int LONG, *PLONG;		/* 32-bit */
 typedef unsigned int ULONG, *PULONG;	/* 32-bit */
 typedef unsigned int DWORD, *PDWORD;	/* 32-bit */
 typedef unsigned long ULONG_PTR;
 
 typedef const comedi_lrange *PCRANGE;
-#define LOBYTE(W)								 (BYTE         )((W)&0xFF)
-#define HIBYTE(W)                                (BYTE         )(((W)>>8)&0xFF)
-#define MAKEWORD(H,L)                            (USHORT       )((L)|( (H)<<8) )
-#define LOWORD(W)								 (USHORT       )((W)&0xFFFF)
-#define HIWORD(W)                                (USHORT       )(((W)>>16)&0xFFFF)
-#define MAKEDWORD(H,L)  						(UINT         )((L)|( (H)<<16) )
 
-#define ADDI_ENABLE   1
-#define ADDI_DISABLE  0
-#define APCI1710_SAVE_INTERRUPT 1
+#define LOBYTE(W)	(BYTE)((W) & 0xFF)
+#define HIBYTE(W)	(BYTE)(((W) >> 8) & 0xFF)
+#define MAKEWORD(H, L)	(USHORT)((L) | ((H) << 8))
+#define LOWORD(W)	(USHORT)((W) & 0xFFFF)
+#define HIWORD(W)	(USHORT)(((W) >> 16) & 0xFFFF)
+#define MAKEDWORD(H, L)	(UINT)((L) | ((H) << 16))
 
-#define ADDIDATA_EEPROM    	  1
-#define ADDIDATA_NO_EEPROM    0
-#define ADDIDATA_93C76        "93C76"
-#define ADDIDATA_S5920        "S5920"
-#define ADDIDATA_S5933        "S5933"
-#define ADDIDATA_9054         "9054"
+#define ADDI_ENABLE		1
+#define ADDI_DISABLE		0
+#define APCI1710_SAVE_INTERRUPT	1
 
-//ADDIDATA Enable Disable
-#define ADDIDATA_ENABLE                            1
-#define ADDIDATA_DISABLE                           0
+#define ADDIDATA_EEPROM		1
+#define ADDIDATA_NO_EEPROM	0
+#define ADDIDATA_93C76		"93C76"
+#define ADDIDATA_S5920		"S5920"
+#define ADDIDATA_S5933		"S5933"
+#define ADDIDATA_9054		"9054"
 
-// Structures
-// structure for the boardtype
+/* ADDIDATA Enable Disable */
+#define ADDIDATA_ENABLE		1
+#define ADDIDATA_DISABLE	0
+
+/* Structures */
+
+/* structure for the boardtype */
 typedef struct {
-
 	PCSTR pc_DriverName;	// driver name
 	INT i_VendorId;		//PCI vendor a device ID of card
 	INT i_DeviceId;
@@ -136,84 +110,118 @@ typedef struct {
 	UINT ui_MinAcquisitiontimeNs;	// Minimum Acquisition in Nano secs
 	UINT ui_MinDelaytimeNs;	// Minimum Delay in Nano secs
 
-// interrupt and reset
-	void (*v_hwdrv_Interrupt) (int irq, void *d);
-	int (*i_hwdrv_Reset) (comedi_device * dev);
+	/* interrupt and reset */
+	void (*v_hwdrv_Interrupt)(int irq, void *d);
+	int (*i_hwdrv_Reset)(comedi_device *dev);
 
-//Subdevice functions
-//ANALOG INPUT
+	/* Subdevice functions */
 
-	int (*i_hwdrv_InsnConfigAnalogInput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnReadAnalogInput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnWriteAnalogInput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnBitsAnalogInput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_CommandTestAnalogInput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_cmd * cmd);
-	int (*i_hwdrv_CommandAnalogInput) (comedi_device * dev,
-		comedi_subdevice * s);
-	int (*i_hwdrv_CancelAnalogInput) (comedi_device * dev,
-		comedi_subdevice * s);
+	/* ANALOG INPUT */
+	int (*i_hwdrv_InsnConfigAnalogInput)(comedi_device *dev,
+					     comedi_subdevice *s,
+					     comedi_insn *insn,
+					     lsampl_t *data);
+	int (*i_hwdrv_InsnReadAnalogInput)(comedi_device *dev,
+					    comedi_subdevice *s,
+					    comedi_insn *insn,
+					    lsampl_t *data);
+	int (*i_hwdrv_InsnWriteAnalogInput)(comedi_device *dev,
+					    comedi_subdevice *s,
+					    comedi_insn *insn,
+					    lsampl_t *data);
+	int (*i_hwdrv_InsnBitsAnalogInput)(comedi_device *dev,
+					   comedi_subdevice *s,
+					   comedi_insn *insn,
+					   lsampl_t *data);
+	int (*i_hwdrv_CommandTestAnalogInput)(comedi_device *dev,
+					      comedi_subdevice *s,
+					      comedi_cmd *cmd);
+	int (*i_hwdrv_CommandAnalogInput)(comedi_device *dev,
+					  comedi_subdevice *s);
+	int (*i_hwdrv_CancelAnalogInput)(comedi_device *dev,
+					 comedi_subdevice *s);
 
-//Analog Output
-	int (*i_hwdrv_InsnConfigAnalogOutput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnWriteAnalogOutput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnBitsAnalogOutput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+	/* Analog Output */
+	int (*i_hwdrv_InsnConfigAnalogOutput)(comedi_device *dev,
+					      comedi_subdevice *s,
+					      comedi_insn *insn,
+					      lsampl_t *data);
+	int (*i_hwdrv_InsnWriteAnalogOutput)(comedi_device *dev,
+					     comedi_subdevice *s,
+					     comedi_insn *insn,
+					     lsampl_t *data);
+	int (*i_hwdrv_InsnBitsAnalogOutput)(comedi_device *dev,
+					    comedi_subdevice *s,
+					    comedi_insn *insn,
+					    lsampl_t *data);
 
-//Digital Input
-	int (*i_hwdrv_InsnConfigDigitalInput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnReadDigitalInput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnWriteDigitalInput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnBitsDigitalInput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+	/* Digital Input */
+	int (*i_hwdrv_InsnConfigDigitalInput) (comedi_device *dev,
+					       comedi_subdevice *s,
+					       comedi_insn *insn,
+					       lsampl_t *data);
+	int (*i_hwdrv_InsnReadDigitalInput) (comedi_device *dev,
+					     comedi_subdevice *s,
+					     comedi_insn *insn,
+					     lsampl_t *data);
+	int (*i_hwdrv_InsnWriteDigitalInput) (comedi_device *dev,
+					      comedi_subdevice *s,
+					      comedi_insn *insn,
+					      lsampl_t *data);
+	int (*i_hwdrv_InsnBitsDigitalInput) (comedi_device *dev,
+					     comedi_subdevice *s,
+					     comedi_insn *insn,
+					     lsampl_t *data);
 
-//Digital Output
-	int (*i_hwdrv_InsnConfigDigitalOutput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnWriteDigitalOutput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnBitsDigitalOutput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnReadDigitalOutput) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+	/* Digital Output */
+	int (*i_hwdrv_InsnConfigDigitalOutput)(comedi_device *dev,
+					       comedi_subdevice *s,
+					       comedi_insn *insn,
+					       lsampl_t *data);
+	int (*i_hwdrv_InsnWriteDigitalOutput)(comedi_device *dev,
+					      comedi_subdevice *s,
+					      comedi_insn *insn,
+					      lsampl_t *data);
+	int (*i_hwdrv_InsnBitsDigitalOutput)(comedi_device *dev,
+					     comedi_subdevice *s,
+					     comedi_insn *insn,
+					     lsampl_t *data);
+	int (*i_hwdrv_InsnReadDigitalOutput)(comedi_device *dev,
+					     comedi_subdevice *s,
+					     comedi_insn *insn,
+					     lsampl_t *data);
 
-//TIMER
-	int (*i_hwdrv_InsnConfigTimer) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnWriteTimer) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnReadTimer) (comedi_device * dev, comedi_subdevice * s,
-		comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdrv_InsnBitsTimer) (comedi_device * dev, comedi_subdevice * s,
-		comedi_insn * insn, lsampl_t * data);
+	/* TIMER */
+	int (*i_hwdrv_InsnConfigTimer)(comedi_device *dev,
+				       comedi_subdevice *s,
+				       comedi_insn *insn, lsampl_t *data);
+	int (*i_hwdrv_InsnWriteTimer)(comedi_device *dev,
+				      comedi_subdevice *s, comedi_insn *insn,
+				      lsampl_t *data);
+	int (*i_hwdrv_InsnReadTimer)(comedi_device *dev, comedi_subdevice *s,
+				     comedi_insn *insn, lsampl_t *data);
+	int (*i_hwdrv_InsnBitsTimer)(comedi_device *dev, comedi_subdevice *s,
+				     comedi_insn *insn, lsampl_t *data);
 
-//TTL IO
-	int (*i_hwdr_ConfigInitTTLIO) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdr_ReadTTLIOBits) (comedi_device * dev, comedi_subdevice * s,
-		comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdr_ReadTTLIOAllPortValue) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-	int (*i_hwdr_WriteTTLIOChlOnOff) (comedi_device * dev,
-		comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+	/* TTL IO */
+	int (*i_hwdr_ConfigInitTTLIO)(comedi_device *dev,
+				      comedi_subdevice *s, comedi_insn *insn,
+				      lsampl_t *data);
+	int (*i_hwdr_ReadTTLIOBits)(comedi_device *dev, comedi_subdevice *s,
+				    comedi_insn *insn, lsampl_t *data);
+	int (*i_hwdr_ReadTTLIOAllPortValue)(comedi_device *dev,
+					    comedi_subdevice *s,
+					    comedi_insn *insn,
+					    lsampl_t *data);
+	int (*i_hwdr_WriteTTLIOChlOnOff)(comedi_device *dev,
+					 comedi_subdevice *s,
+					 comedi_insn *insn, lsampl_t *data);
 } boardtype;
 
 //MODULE INFO STRUCTURE
 
 typedef union {
-      /*****************************/
 	/* Incremental counter infos */
-      /*****************************/
-
 	struct {
 		union {
 			struct {
@@ -237,10 +245,7 @@ typedef union {
 
 	} s_SiemensCounterInfo;
 
-      /*************/
 	/* SSI infos */
-      /*************/
-
 	struct {
 		BYTE b_SSIProfile;
 		BYTE b_PositionTurnLength;
@@ -248,19 +253,13 @@ typedef union {
 		BYTE b_SSIInit;
 	} s_SSICounterInfo;
 
-      /*****************/
 	/* TTL I/O infos */
-      /*****************/
-
 	struct {
 		BYTE b_TTLInit;
 		BYTE b_PortConfiguration[4];
 	} s_TTLIOInfo;
 
-      /*********************/
 	/* Digital I/O infos */
-      /*********************/
-
 	struct {
 		BYTE b_DigitalInit;
 		BYTE b_ChannelAMode;
@@ -312,10 +311,7 @@ typedef union {
 		DWORD dw_StatusRegister;
 	} s_PulseEncoderModuleInfo;
 
-      /********************/
 	/* Tor conter infos */
-      /********************/
-
 	struct {
 		struct {
 			BYTE b_TorCounterInit;
@@ -327,10 +323,7 @@ typedef union {
 		BYTE b_PCIInputClock;
 	} s_TorCounterModuleInfo;
 
-      /*************/
 	/* PWM infos */
-      /*************/
-
 	struct {
 		struct {
 			BYTE b_PWMInit;
@@ -344,10 +337,7 @@ typedef union {
 		BYTE b_ClockSelection;
 	} s_PWMModuleInfo;
 
-      /*************/
 	/* ETM infos */
-      /*************/
-
 	struct {
 		struct {
 			BYTE b_ETMEnable;
@@ -360,10 +350,7 @@ typedef union {
 		ULONG ul_Timing;
 	} s_ETMModuleInfo;
 
-      /*************/
 	/* CDA infos */
-      /*************/
-
 	struct {
 		BYTE b_CDAEnable;
 		BYTE b_CDAInterrupt;
@@ -373,8 +360,8 @@ typedef union {
 	} s_CDAModuleInfo;
 
 } str_ModuleInfo;
-// Private structure for the addi_apci3120 driver
 
+/* Private structure for the addi_apci3120 driver */
 typedef struct {
 
 	INT iobase;
@@ -432,34 +419,31 @@ typedef struct {
 	UINT ui_EocEosConversionTime;
 	BYTE b_EocEosConversionTimeBase;
 	BYTE b_SingelDiff;
-	BYTE b_ExttrigEnable;	//  To enable or disable external trigger
+	BYTE b_ExttrigEnable;	/* To enable or disable external trigger */
 
-	struct task_struct *tsk_Current;	// Pointer to the current process
+	/* Pointer to the current process */
+	struct task_struct *tsk_Current;
 	boardtype *ps_BoardInfo;
 
-	// Hardware board infos for 1710
-
+	/* Hardware board infos for 1710 */
 	struct {
-		UINT ui_Address;	// Board address
+		UINT ui_Address;	/* Board address */
 		UINT ui_FlashAddress;
-		BYTE b_InterruptNbr;	// Board interrupt number
-		BYTE b_SlotNumber;	// PCI slot number
+		BYTE b_InterruptNbr;	/* Board interrupt number */
+		BYTE b_SlotNumber;	/* PCI slot number */
 		BYTE b_BoardVersion;
-		DWORD dw_MolduleConfiguration[4];	// Module configuration
+		DWORD dw_MolduleConfiguration[4];	/* Module config */
 	} s_BoardInfos;
 
-	    /*******************/
 	/* Interrupt infos */
-	   /*******************/
-
 	struct {
-		ULONG ul_InterruptOccur;	/* 0   : No interrupt occur  */
-		/* > 0 : Interrupt occur     */
-		UINT ui_Read;	/* Read FIFO                 */
-		UINT ui_Write;	/* Write FIFO                */
+		ULONG ul_InterruptOccur;	/* 0   : No interrupt occur */
+						/* > 0 : Interrupt occur */
+		UINT ui_Read;	/* Read FIFO */
+		UINT ui_Write;	/* Write FIFO */
 		struct {
 			BYTE b_OldModuleMask;
-			ULONG ul_OldInterruptMask;	/* Interrupt mask          */
+			ULONG ul_OldInterruptMask;	/* Interrupt mask */
 			ULONG ul_OldCounterLatchValue;	/* Interrupt counter value */
 		} s_FIFOInterruptParameters[APCI1710_SAVE_INTERRUPT];
 	} s_InterruptParameters;
@@ -469,14 +453,13 @@ typedef struct {
 
 } addi_private;
 
-static unsigned short pci_list_builded = 0;	/* set to 1 when list of card is known */
+static unsigned short pci_list_builded;	/* set to 1 when list of card is known */
 
-//Function declarations
-
-static int i_ADDI_Attach(comedi_device * dev, comedi_devconfig * it);
-static int i_ADDI_Detach(comedi_device * dev);
-static int i_ADDI_Reset(comedi_device * dev);
+/* Function declarations */
+static int i_ADDI_Attach(comedi_device *dev, comedi_devconfig *it);
+static int i_ADDI_Detach(comedi_device *dev);
+static int i_ADDI_Reset(comedi_device *dev);
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d PT_REGS_ARG);
-static int i_ADDIDATA_InsnReadEeprom(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+static int i_ADDIDATA_InsnReadEeprom(comedi_device *dev, comedi_subdevice *s,
+				     comedi_insn *insn, lsampl_t *data);

@@ -1,26 +1,19 @@
-/**
-@verbatim
-
-Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
-
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
-
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
-
-@endverbatim
-*/
+/*
+ * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+ *
+ *	ADDI-DATA GmbH
+ *	Dieselstrasse 3
+ *	D-77833 Ottersweier
+ *	Tel: +19(0)7223/9493-0
+ *	Fax: +49(0)7223/9493-92
+ *	http://www.addi-data-com
+ *	info@addi-data.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ */
 
 // Card Specific information
 #define APCI3200_BOARD_VENDOR_ID                 0x15B8
@@ -39,27 +32,27 @@ struct {
 	INT i_Interrupt;
 	INT i_ModuleSelection;
 } Config_Parameters_Module1, Config_Parameters_Module2,
-	Config_Parameters_Module3, Config_Parameters_Module4;
+    Config_Parameters_Module3, Config_Parameters_Module4;
 
 //ANALOG INPUT RANGE
 static const comedi_lrange range_apci3200_ai = { 8, {
-			BIP_RANGE(10),
-			BIP_RANGE(5),
-			BIP_RANGE(2),
-			BIP_RANGE(1),
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2),
-			UNI_RANGE(1)
-	}
+						     BIP_RANGE(10),
+						     BIP_RANGE(5),
+						     BIP_RANGE(2),
+						     BIP_RANGE(1),
+						     UNI_RANGE(10),
+						     UNI_RANGE(5),
+						     UNI_RANGE(2),
+						     UNI_RANGE(1)
+						     }
 };
 
 static const comedi_lrange range_apci3300_ai = { 4, {
-			UNI_RANGE(10),
-			UNI_RANGE(5),
-			UNI_RANGE(2),
-			UNI_RANGE(1)
-	}
+						     UNI_RANGE(10),
+						     UNI_RANGE(5),
+						     UNI_RANGE(2),
+						     UNI_RANGE(1)
+						     }
 };
 
 //Analog Input related Defines
@@ -161,31 +154,34 @@ typedef struct {
 
 //AI
 
-INT i_APCI3200_ConfigAnalogInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-INT i_APCI3200_ReadAnalogInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-INT i_APCI3200_InsnWriteReleaseAnalogInput(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-INT i_APCI3200_InsnBits_AnalogInput_Test(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-INT i_APCI3200_StopCyclicAcquisition(comedi_device * dev, comedi_subdevice * s);
-INT i_APCI3200_InterruptHandleEos(comedi_device * dev);
-INT i_APCI3200_CommandTestAnalogInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_cmd * cmd);
-INT i_APCI3200_CommandAnalogInput(comedi_device * dev, comedi_subdevice * s);
-INT i_APCI3200_ReadDigitalInput(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
+INT i_APCI3200_ConfigAnalogInput(comedi_device *dev, comedi_subdevice *s,
+				 comedi_insn *insn, lsampl_t *data);
+INT i_APCI3200_ReadAnalogInput(comedi_device *dev, comedi_subdevice *s,
+			       comedi_insn *insn, lsampl_t *data);
+INT i_APCI3200_InsnWriteReleaseAnalogInput(comedi_device *dev,
+					   comedi_subdevice *s,
+					   comedi_insn *insn, lsampl_t *data);
+INT i_APCI3200_InsnBits_AnalogInput_Test(comedi_device *dev,
+					 comedi_subdevice *s,
+					 comedi_insn *insn, lsampl_t *data);
+INT i_APCI3200_StopCyclicAcquisition(comedi_device *dev, comedi_subdevice *s);
+INT i_APCI3200_InterruptHandleEos(comedi_device *dev);
+INT i_APCI3200_CommandTestAnalogInput(comedi_device *dev, comedi_subdevice *s,
+				      comedi_cmd *cmd);
+INT i_APCI3200_CommandAnalogInput(comedi_device *dev, comedi_subdevice *s);
+INT i_APCI3200_ReadDigitalInput(comedi_device *dev, comedi_subdevice *s,
+				comedi_insn *insn, lsampl_t *data);
 //Interrupt
 void v_APCI3200_Interrupt(int irq, void *d);
-int i_APCI3200_InterruptHandleEos(comedi_device * dev);
+int i_APCI3200_InterruptHandleEos(comedi_device *dev);
 //Reset functions
-INT i_APCI3200_Reset(comedi_device * dev);
+INT i_APCI3200_Reset(comedi_device *dev);
 
-int i_APCI3200_ReadCJCCalOffset(comedi_device * dev, lsampl_t * data);
-int i_APCI3200_ReadCJCValue(comedi_device * dev, lsampl_t * data);
-int i_APCI3200_ReadCalibrationGainValue(comedi_device * dev, UINT * data);
-int i_APCI3200_ReadCalibrationOffsetValue(comedi_device * dev, UINT * data);
-int i_APCI3200_Read1AnalogInputChannel(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-int i_APCI3200_ReadCJCCalGain(comedi_device * dev, lsampl_t * data);
+int i_APCI3200_ReadCJCCalOffset(comedi_device *dev, lsampl_t *data);
+int i_APCI3200_ReadCJCValue(comedi_device *dev, lsampl_t *data);
+int i_APCI3200_ReadCalibrationGainValue(comedi_device *dev, UINT *data);
+int i_APCI3200_ReadCalibrationOffsetValue(comedi_device *dev, UINT *data);
+int i_APCI3200_Read1AnalogInputChannel(comedi_device *dev,
+				       comedi_subdevice *s, comedi_insn *insn,
+				       lsampl_t *data);
+int i_APCI3200_ReadCJCCalGain(comedi_device *dev, lsampl_t *data);

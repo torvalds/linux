@@ -1,26 +1,19 @@
-/**
-@verbatim
-
-Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
-
-        ADDI-DATA GmbH
-        Dieselstrasse 3
-        D-77833 Ottersweier
-        Tel: +19(0)7223/9493-0
-        Fax: +49(0)7223/9493-92
-        http://www.addi-data-com
-        info@addi-data.com
-
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-You shoud also find the complete GPL in the COPYING file accompanying this source code.
-
-@endverbatim
-*/
+/*
+ * Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
+ *
+ *	ADDI-DATA GmbH
+ *	Dieselstrasse 3
+ *	D-77833 Ottersweier
+ *	Tel: +19(0)7223/9493-0
+ *	Fax: +49(0)7223/9493-92
+ *	http://www.addi-data-com
+ *	info@addi-data.com
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ */
 
 /*********      Definitions for APCI-1500 card  *****/
 
@@ -53,9 +46,10 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 #define  START                       		    0
 #define  STOP                       		    1
 #define  TRIGGER                       		    2
-   /**************************/
-   /* Zillog I/O enumeration */
-   /**************************/
+
+/*
+ * Zillog I/O enumeration
+ */
 enum {
 	APCI1500_Z8536_PORT_C,
 	APCI1500_Z8536_PORT_B,
@@ -63,10 +57,9 @@ enum {
 	APCI1500_Z8536_CONTROL_REGISTER
 };
 
-      /******************************/
-      /* Z8536 CIO Internal Address */
-      /******************************/
-
+/*
+ * Z8536 CIO Internal Address
+ */
 enum {
 	APCI1500_RW_MASTER_INTERRUPT_CONTROL,
 	APCI1500_RW_MASTER_CONFIGURATION_CONTROL,
@@ -123,35 +116,50 @@ enum {
 };
 
  /*----------DIGITAL INPUT----------------*/
-static int i_APCI1500_Initialisation(comedi_device * dev, comedi_subdevice * s,
-	comedi_insn * insn, lsampl_t * data);
-static int i_APCI1500_ConfigDigitalInputEvent(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+static int i_APCI1500_Initialisation(comedi_device *dev, comedi_subdevice *s,
+				     comedi_insn *insn, lsampl_t *data);
+static int i_APCI1500_ConfigDigitalInputEvent(comedi_device *dev,
+					      comedi_subdevice *s,
+					      comedi_insn *insn,
+					      lsampl_t *data);
 
-static int i_APCI1500_StartStopInputEvent(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-static int i_APCI1500_ReadMoreDigitalInput(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+static int i_APCI1500_StartStopInputEvent(comedi_device *dev,
+					  comedi_subdevice *s,
+					  comedi_insn *insn, lsampl_t *data);
+static int i_APCI1500_ReadMoreDigitalInput(comedi_device *dev,
+					   comedi_subdevice *s,
+					   comedi_insn *insn, lsampl_t *data);
 
 /*----------	DIGITAL OUTPUT------------*/
-static int i_APCI1500_ConfigDigitalOutputErrorInterrupt(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-static int i_APCI1500_WriteDigitalOutput(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+static int i_APCI1500_ConfigDigitalOutputErrorInterrupt(comedi_device *dev,
+							comedi_subdevice *s,
+							comedi_insn *insn,
+							lsampl_t *data);
+static int i_APCI1500_WriteDigitalOutput(comedi_device *dev,
+					 comedi_subdevice *s,
+					 comedi_insn *insn, lsampl_t *data);
 
 /*----------TIMER----------------*/
-static int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-static int i_APCI1500_StartStopTriggerTimerCounterWatchdog(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-static int i_APCI1500_ReadCounterTimerWatchdog(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
-static int i_APCI1500_ReadInterruptMask(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+static int i_APCI1500_ConfigCounterTimerWatchdog(comedi_device *dev,
+						 comedi_subdevice *s,
+						 comedi_insn *insn,
+						 lsampl_t *data);
+static int i_APCI1500_StartStopTriggerTimerCounterWatchdog(comedi_device *dev,
+							   comedi_subdevice *s,
+							   comedi_insn *insn,
+							   lsampl_t *data);
+static int i_APCI1500_ReadCounterTimerWatchdog(comedi_device *dev,
+					       comedi_subdevice *s,
+					       comedi_insn *insn,
+					       lsampl_t *data);
+static int i_APCI1500_ReadInterruptMask(comedi_device *dev,
+					comedi_subdevice *s,
+					comedi_insn *insn, lsampl_t *data);
 
 /*----------INTERRUPT HANDLER------*/
 static void v_APCI1500_Interrupt(int irq, void *d);
-static int i_APCI1500_ConfigureInterrupt(comedi_device * dev,
-	comedi_subdevice * s, comedi_insn * insn, lsampl_t * data);
+static int i_APCI1500_ConfigureInterrupt(comedi_device *dev,
+					 comedi_subdevice *s,
+					 comedi_insn *insn, lsampl_t *data);
 /*----------RESET---------------*/
-static int i_APCI1500_Reset(comedi_device * dev);
+static int i_APCI1500_Reset(comedi_device *dev);
