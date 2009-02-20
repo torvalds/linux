@@ -107,7 +107,7 @@ module_param_array(video_nr, int, NULL, 0444);
 MODULE_PARM_DESC(video_nr, "Video device number (-1=Auto)");
 
 int v4l_nbufs = 4;
-int v4l_bufsize = 810;		/* Everybody should be able to work with this setting */
+int v4l_bufsize = 864;		/* Everybody should be able to work with this setting */
 module_param(v4l_nbufs, int, 0644);
 MODULE_PARM_DESC(v4l_nbufs, "Maximum number of V4L buffers to use");
 module_param(v4l_bufsize, int, 0644);
