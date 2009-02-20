@@ -1091,19 +1091,24 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		WARN_ON(num_pages > nrptrs);
 		memset(pages, 0, sizeof(struct page *) * nrptrs);
 
-		ret = btrfs_check_free_space(root, write_bytes, 0);
+		ret = btrfs_check_data_free_space(root, inode, write_bytes);
 		if (ret)
 			goto out;
 
 		ret = prepare_pages(root, file, pages, num_pages,
 				    pos, first_index, last_index,
 				    write_bytes);
-		if (ret)
+		if (ret) {
+			btrfs_free_reserved_data_space(root, inode,
+						       write_bytes);
 			goto out;
+		}
 
 		ret = btrfs_copy_from_user(pos, num_pages,
 					   write_bytes, pages, buf);
 		if (ret) {
+			btrfs_free_reserved_data_space(root, inode,
+						       write_bytes);
 			btrfs_drop_pages(pages, num_pages);
 			goto out;
 		}
@@ -1111,8 +1116,11 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		ret = dirty_and_release_pages(NULL, root, file, pages,
 					      num_pages, pos, write_bytes);
 		btrfs_drop_pages(pages, num_pages);
-		if (ret)
+		if (ret) {
+			btrfs_free_reserved_data_space(root, inode,
+						       write_bytes);
 			goto out;
+		}
 
 		if (will_write) {
 			btrfs_fdatawrite_range(inode->i_mapping, pos,
@@ -1136,6 +1144,8 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	}
 out:
 	mutex_unlock(&inode->i_mutex);
+	if (ret)
+		err = ret;
 
 out_nolock:
 	kfree(pages);
