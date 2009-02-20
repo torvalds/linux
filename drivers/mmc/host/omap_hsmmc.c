@@ -56,6 +56,7 @@
 #define SDVS18			(0x5 << 9)
 #define SDVS30			(0x6 << 9)
 #define SDVS33			(0x7 << 9)
+#define SDVS_MASK		0x00000E00
 #define SDVSCLR			0xFFFFF1FF
 #define SDVSDET			0x00000400
 #define AUTOIDLE		0x1
@@ -874,6 +875,34 @@ static int omap_hsmmc_get_ro(struct mmc_host *mmc)
 	return pdata->slots[0].get_ro(host->dev, 0);
 }
 
+static void omap_hsmmc_init(struct mmc_omap_host *host)
+{
+	u32 hctl, capa, value;
+
+	/* Only MMC1 supports 3.0V */
+	if (host->id == OMAP_MMC1_DEVID) {
+		hctl = SDVS30;
+		capa = VS30 | VS18;
+	} else {
+		hctl = SDVS18;
+		capa = VS18;
+	}
+
+	value = OMAP_HSMMC_READ(host->base, HCTL) & ~SDVS_MASK;
+	OMAP_HSMMC_WRITE(host->base, HCTL, value | hctl);
+
+	value = OMAP_HSMMC_READ(host->base, CAPA);
+	OMAP_HSMMC_WRITE(host->base, CAPA, value | capa);
+
+	/* Set the controller to AUTO IDLE mode */
+	value = OMAP_HSMMC_READ(host->base, SYSCONFIG);
+	OMAP_HSMMC_WRITE(host->base, SYSCONFIG, value | AUTOIDLE);
+
+	/* Set SD bus power bit */
+	value = OMAP_HSMMC_READ(host->base, HCTL);
+	OMAP_HSMMC_WRITE(host->base, HCTL, value | SDBP);
+}
+
 static struct mmc_host_ops mmc_omap_ops = {
 	.request = omap_mmc_request,
 	.set_ios = omap_mmc_set_ios,
@@ -889,7 +918,6 @@ static int __init omap_mmc_probe(struct platform_device *pdev)
 	struct mmc_omap_host *host = NULL;
 	struct resource *res;
 	int ret = 0, irq;
-	u32 hctl, capa;
 
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "Platform Data is missing\n");
@@ -994,28 +1022,7 @@ static int __init omap_mmc_probe(struct platform_device *pdev)
 	if (pdata->slots[host->slot_id].wires >= 4)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
-	/* Only MMC1 supports 3.0V */
-	if (host->id == OMAP_MMC1_DEVID) {
-		hctl = SDVS30;
-		capa = VS30 | VS18;
-	} else {
-		hctl = SDVS18;
-		capa = VS18;
-	}
-
-	OMAP_HSMMC_WRITE(host->base, HCTL,
-			OMAP_HSMMC_READ(host->base, HCTL) | hctl);
-
-	OMAP_HSMMC_WRITE(host->base, CAPA,
-			OMAP_HSMMC_READ(host->base, CAPA) | capa);
-
-	/* Set the controller to AUTO IDLE mode */
-	OMAP_HSMMC_WRITE(host->base, SYSCONFIG,
-			OMAP_HSMMC_READ(host->base, SYSCONFIG) | AUTOIDLE);
-
-	/* Set SD bus power bit */
-	OMAP_HSMMC_WRITE(host->base, HCTL,
-			OMAP_HSMMC_READ(host->base, HCTL) | SDBP);
+	omap_hsmmc_init(host);
 
 	/* Request IRQ for MMC operations */
 	ret = request_irq(host->irq, mmc_omap_irq, IRQF_DISABLED,
@@ -1204,6 +1211,8 @@ static int omap_mmc_resume(struct platform_device *pdev)
 		if (clk_enable(host->dbclk) != 0)
 			dev_dbg(mmc_dev(host->mmc),
 					"Enabling debounce clk failed\n");
+
+		omap_hsmmc_init(host);
 
 		if (host->pdata->resume) {
 			ret = host->pdata->resume(&pdev->dev, host->slot_id);
