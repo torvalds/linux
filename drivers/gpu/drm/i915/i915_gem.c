@@ -3143,16 +3143,20 @@ static void
 i915_gem_cleanup_hws(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_gem_object *obj = dev_priv->hws_obj;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj_priv;
 
 	if (dev_priv->hws_obj == NULL)
 		return;
+
+	obj = dev_priv->hws_obj;
+	obj_priv = obj->driver_private;
 
 	kunmap(obj_priv->page_list[0]);
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(obj);
 	dev_priv->hws_obj = NULL;
+
 	memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
 	dev_priv->hw_status_page = NULL;
 
