@@ -147,10 +147,10 @@ static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
 	 */
 	if ((c->x86 == 15) && (c->x86_model == 1) && (c->x86_mask == 1)) {
 		rdmsr(MSR_IA32_MISC_ENABLE, lo, hi);
-		if ((lo & (1<<9)) == 0) {
+		if ((lo & MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE) == 0) {
 			printk (KERN_INFO "CPU: C0 stepping P4 Xeon detected.\n");
 			printk (KERN_INFO "CPU: Disabling hardware prefetching (Errata 037)\n");
-			lo |= (1<<9);	/* Disable hw prefetching */
+			lo |= MSR_IA32_MISC_ENABLE_PREFETCH_DISABLE;
 			wrmsr (MSR_IA32_MISC_ENABLE, lo, hi);
 		}
 	}

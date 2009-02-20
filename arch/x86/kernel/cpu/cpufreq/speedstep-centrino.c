@@ -390,14 +390,14 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 	   enable it if not. */
 	rdmsr(MSR_IA32_MISC_ENABLE, l, h);
 
-	if (!(l & (1<<16))) {
-		l |= (1<<16);
+	if (!(l & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
+		l |= MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP;
 		dprintk("trying to enable Enhanced SpeedStep (%x)\n", l);
 		wrmsr(MSR_IA32_MISC_ENABLE, l, h);
 
 		/* check to see if it stuck */
 		rdmsr(MSR_IA32_MISC_ENABLE, l, h);
-		if (!(l & (1<<16))) {
+		if (!(l & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
 			printk(KERN_INFO PFX
 				"couldn't enable Enhanced SpeedStep\n");
 			return -ENODEV;
