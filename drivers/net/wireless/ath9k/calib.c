@@ -749,8 +749,6 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 			u8 rxchainmask, bool longcal,
 			bool *isCalDone)
 {
-#define OLC_FOR_AR9280_20_LATER	(AR_SREV_9280_20_OR_LATER(ah) && \
-				ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 	struct hal_cal_list *currCal = ah->cal_list_curr;
 
 	*isCalDone = true;
