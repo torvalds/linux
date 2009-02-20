@@ -3119,7 +3119,7 @@ static int zoran_s_jpegcomp(struct file *file, void *__fh,
 sjpegc_unlock_and_return:
 	mutex_unlock(&zr->resource_lock);
 
-	return 0;
+	return res;
 }
 
 static unsigned int
