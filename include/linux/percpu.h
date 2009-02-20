@@ -82,46 +82,43 @@ struct percpu_data {
 
 #define __percpu_disguise(pdata) (struct percpu_data *)~(unsigned long)(pdata)
 
-extern void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask);
-extern void percpu_free(void *__pdata);
-
-#else /* CONFIG_SMP */
-
-#define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
-
-static __always_inline void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask)
-{
-	return kzalloc(size, gfp);
-}
-
-static inline void percpu_free(void *__pdata)
-{
-	kfree(__pdata);
-}
-
-#endif /* CONFIG_SMP */
-
-#define percpu_alloc_mask(size, gfp, mask) \
-	__percpu_alloc_mask((size), (gfp), &(mask))
-
-#define percpu_alloc(size, gfp) percpu_alloc_mask((size), (gfp), cpu_online_map)
-
-/* (legacy) interface for use without CPU hotplug handling */
-
-#define __alloc_percpu(size, align)	percpu_alloc_mask((size), GFP_KERNEL, \
-						  cpu_possible_map)
-#define alloc_percpu(type)	(type *)__alloc_percpu(sizeof(type), \
-						       __alignof__(type))
-#define free_percpu(ptr)	percpu_free((ptr))
 /*
- * Use this to get to a cpu's version of the per-cpu object dynamically
- * allocated. Non-atomic access to the current CPU's version should
- * probably be combined with get_cpu()/put_cpu().
+ * Use this to get to a cpu's version of the per-cpu object
+ * dynamically allocated. Non-atomic access to the current CPU's
+ * version should probably be combined with get_cpu()/put_cpu().
  */
 #define per_cpu_ptr(ptr, cpu)						\
 ({									\
         struct percpu_data *__p = __percpu_disguise(ptr);		\
         (__typeof__(ptr))__p->ptrs[(cpu)];				\
 })
+
+extern void *__alloc_percpu(size_t size, size_t align);
+extern void free_percpu(void *__pdata);
+
+#else /* CONFIG_SMP */
+
+#define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
+
+static inline void *__alloc_percpu(size_t size, size_t align)
+{
+	/*
+	 * Can't easily make larger alignment work with kmalloc.  WARN
+	 * on it.  Larger alignment should only be used for module
+	 * percpu sections on SMP for which this path isn't used.
+	 */
+	WARN_ON_ONCE(align > __alignof__(unsigned long long));
+	return kzalloc(size, gfp);
+}
+
+static inline void free_percpu(void *p)
+{
+	kfree(p);
+}
+
+#endif /* CONFIG_SMP */
+
+#define alloc_percpu(type)	(type *)__alloc_percpu(sizeof(type), \
+						       __alignof__(type))
 
 #endif /* __LINUX_PERCPU_H */
