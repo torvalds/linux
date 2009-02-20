@@ -426,15 +426,10 @@ static void lo_measure_setup(struct b43_wldev *dev,
 		sav->phy_cck_3E = b43_phy_read(dev, B43_PHY_CCK(0x3E));
 		sav->phy_crs0 = b43_phy_read(dev, B43_PHY_CRS0);
 
-		b43_phy_write(dev, B43_PHY_CLASSCTL,
-			      b43_phy_read(dev, B43_PHY_CLASSCTL)
-			      & 0xFFFC);
-		b43_phy_write(dev, B43_PHY_CRS0, b43_phy_read(dev, B43_PHY_CRS0)
-			      & 0x7FFF);
+		b43_phy_mask(dev, B43_PHY_CLASSCTL, 0xFFFC);
+		b43_phy_mask(dev, B43_PHY_CRS0, 0x7FFF);
 		b43_phy_set(dev, B43_PHY_ANALOGOVER, 0x0003);
-		b43_phy_write(dev, B43_PHY_ANALOGOVERVAL,
-			      b43_phy_read(dev, B43_PHY_ANALOGOVERVAL)
-			      & 0xFFFC);
+		b43_phy_mask(dev, B43_PHY_ANALOGOVERVAL, 0xFFFC);
 		if (phy->type == B43_PHYTYPE_G) {
 			if ((phy->rev >= 7) &&
 			    (sprom->boardflags_lo & B43_BFL_EXTLNA)) {

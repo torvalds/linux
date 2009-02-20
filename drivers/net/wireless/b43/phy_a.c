@@ -224,8 +224,7 @@ static void b43_phy_ww(struct b43_wldev *dev)
 	u16 b, curr_s, best_s = 0xFFFF;
 	int i;
 
-	b43_phy_write(dev, B43_PHY_CRS0,
-		b43_phy_read(dev, B43_PHY_CRS0) & ~B43_PHY_CRS0_EN);
+	b43_phy_mask(dev, B43_PHY_CRS0, ~B43_PHY_CRS0_EN);
 	b43_phy_set(dev, B43_PHY_OFDM(0x1B), 0x1000);
 	b43_phy_write(dev, B43_PHY_OFDM(0x82),
 		(b43_phy_read(dev, B43_PHY_OFDM(0x82)) & 0xF0FF) | 0x0300);
@@ -298,13 +297,11 @@ void b43_phy_inita(struct b43_wldev *dev)
 
 	if (phy->rev >= 6) {
 		if (phy->type == B43_PHYTYPE_A)
-			b43_phy_write(dev, B43_PHY_OFDM(0x1B),
-				b43_phy_read(dev, B43_PHY_OFDM(0x1B)) & ~0x1000);
+			b43_phy_mask(dev, B43_PHY_OFDM(0x1B), ~0x1000);
 		if (b43_phy_read(dev, B43_PHY_ENCORE) & B43_PHY_ENCORE_EN)
 			b43_phy_set(dev, B43_PHY_ENCORE, 0x0010);
 		else
-			b43_phy_write(dev, B43_PHY_ENCORE,
-				b43_phy_read(dev, B43_PHY_ENCORE) & ~0x1010);
+			b43_phy_mask(dev, B43_PHY_ENCORE, ~0x1010);
 	}
 
 	b43_wa_all(dev);
@@ -515,8 +512,8 @@ static void b43_aphy_op_software_rfkill(struct b43_wldev *dev,
 			return;
 		b43_radio_write16(dev, 0x0004, 0x00C0);
 		b43_radio_write16(dev, 0x0005, 0x0008);
-		b43_phy_write(dev, 0x0010, b43_phy_read(dev, 0x0010) & 0xFFF7);
-		b43_phy_write(dev, 0x0011, b43_phy_read(dev, 0x0011) & 0xFFF7);
+		b43_phy_mask(dev, 0x0010, 0xFFF7);
+		b43_phy_mask(dev, 0x0011, 0xFFF7);
 		b43_radio_init2060(dev);
 	} else {
 		b43_radio_write16(dev, 0x0004, 0x00FF);

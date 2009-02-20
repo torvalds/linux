@@ -62,8 +62,7 @@ void b43_wa_initgains(struct b43_wldev *dev)
 	struct b43_phy *phy = &dev->phy;
 
 	b43_phy_write(dev, B43_PHY_LNAHPFCTL, 0x1FF9);
-	b43_phy_write(dev, B43_PHY_LPFGAINCTL,
-		b43_phy_read(dev, B43_PHY_LPFGAINCTL) & 0xFF0F);
+	b43_phy_mask(dev, B43_PHY_LPFGAINCTL, 0xFF0F);
 	if (phy->rev <= 2)
 		b43_ofdmtab_write16(dev, B43_OFDMTAB_LPFGAIN, 0, 0x1FBF);
 	b43_radio_write16(dev, 0x0002, 0x1FBF);
@@ -86,7 +85,7 @@ void b43_wa_initgains(struct b43_wldev *dev)
 
 static void b43_wa_divider(struct b43_wldev *dev)
 {
-	b43_phy_write(dev, 0x002B, b43_phy_read(dev, 0x002B) & ~0x0100);
+	b43_phy_mask(dev, 0x002B, ~0x0100);
 	b43_phy_write(dev, 0x008E, 0x58C1);
 }
 
@@ -433,8 +432,7 @@ static void b43_wa_altagc(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_OFDM(0x1B),
 			(b43_phy_read(dev, B43_PHY_OFDM(0x1B)) & ~0x001E) | 0x0002);
 	} else {
-		b43_phy_write(dev, B43_PHY_OFDM(0x1B),
-			b43_phy_read(dev, B43_PHY_OFDM(0x1B)) & ~0x001E);
+		b43_phy_mask(dev, B43_PHY_OFDM(0x1B), ~0x001E);
 		b43_phy_write(dev, B43_PHY_OFDM(0x1F), 0x287A);
 		b43_phy_write(dev, B43_PHY_LPFGAINCTL,
 			(b43_phy_read(dev, B43_PHY_LPFGAINCTL) & ~0x000F) | 0x0004);
@@ -465,10 +463,8 @@ static void b43_wa_altagc(struct b43_wldev *dev)
 		b43_ofdmtab_write16(dev, B43_OFDMTAB_AGC3, 3, 28);
 	}
 	if (phy->rev >= 6) {
-		b43_phy_write(dev, B43_PHY_OFDM(0x26),
-			b43_phy_read(dev, B43_PHY_OFDM(0x26)) & ~0x0003);
-		b43_phy_write(dev, B43_PHY_OFDM(0x26),
-			b43_phy_read(dev, B43_PHY_OFDM(0x26)) & ~0x1000);
+		b43_phy_mask(dev, B43_PHY_OFDM(0x26), ~0x0003);
+		b43_phy_mask(dev, B43_PHY_OFDM(0x26), ~0x1000);
 	}
 	b43_phy_read(dev, B43_PHY_VERSION_OFDM); /* Dummy read */
 }
@@ -534,8 +530,7 @@ static void b43_wa_boards_g(struct b43_wldev *dev)
 			b43_ofdmtab_write16(dev, B43_OFDMTAB_GAINX, 2, 0x0001);
 			if ((bus->sprom.boardflags_lo & B43_BFL_EXTLNA) &&
 			    (phy->rev >= 7)) {
-				b43_phy_write(dev, B43_PHY_EXTG(0x11),
-					b43_phy_read(dev, B43_PHY_EXTG(0x11)) & 0xF7FF);
+				b43_phy_mask(dev, B43_PHY_EXTG(0x11), 0xF7FF);
 				b43_ofdmtab_write16(dev, B43_OFDMTAB_GAINX, 0x0020, 0x0001);
 				b43_ofdmtab_write16(dev, B43_OFDMTAB_GAINX, 0x0021, 0x0001);
 				b43_ofdmtab_write16(dev, B43_OFDMTAB_GAINX, 0x0022, 0x0001);
