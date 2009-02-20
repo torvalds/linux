@@ -1,6 +1,6 @@
 config ROMFS_FS
 	tristate "ROM file system support"
-	depends on BLOCK
+	depends on BLOCK || MTD
 	---help---
 	  This is a very small read-only file system mainly intended for
 	  initial ram disks of installation disks, but it could be used for
@@ -15,9 +15,19 @@ config ROMFS_FS
 	  If you don't know whether you need it, then you don't need it:
 	  answer N.
 
-config ROMFS_ON_BLOCK
-	bool "Block device-backed ROM file system support" if (ROMFS_ON_MTD && EMBEDDED)
-	depends on ROMFS_FS && BLOCK
+#
+# Select the backing stores to be supported
+#
+choice
+	prompt "RomFS backing stores"
+	depends on ROMFS_FS
+	default ROMFS_BACKED_BY_BLOCK
+	help
+	  Select the backing stores to be supported.
+
+config ROMFS_BACKED_BY_BLOCK
+	bool "Block device-backed ROM file system support"
+	depends on BLOCK
 	help
 	  This permits ROMFS to use block devices buffered through the page
 	  cache as the medium from which to retrieve data.  It does not allow
@@ -25,9 +35,8 @@ config ROMFS_ON_BLOCK
 
 	  If unsure, answer Y.
 
-config ROMFS_ON_MTD
+config ROMFS_BACKED_BY_MTD
 	bool "MTD-backed ROM file system support"
-	depends on ROMFS_FS
 	depends on MTD=y || (ROMFS_FS=m && MTD)
 	help
 	  This permits ROMFS to use MTD based devices directly, without the
@@ -38,3 +47,16 @@ config ROMFS_ON_MTD
 
 	  If unsure, answer Y.
 
+config ROMFS_BACKED_BY_BOTH
+	bool "Both the above"
+	depends on BLOCK && (MTD=y || (ROMFS_FS=m && MTD))
+endchoice
+
+
+config ROMFS_ON_BLOCK
+	bool
+	default y if ROMFS_BACKED_BY_BLOCK || ROMFS_BACKED_BY_BOTH
+
+config ROMFS_ON_MTD
+	bool
+	default y if ROMFS_BACKED_BY_MTD || ROMFS_BACKED_BY_BOTH
