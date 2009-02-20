@@ -191,18 +191,124 @@ force_sig_info_fault(int si_signo, int si_code, unsigned long address,
 	force_sig_info(si_signo, &info, tsk);
 }
 
-#ifdef CONFIG_X86_64
-static int bad_address(void *p)
-{
-	unsigned long dummy;
+DEFINE_SPINLOCK(pgd_lock);
+LIST_HEAD(pgd_list);
 
-	return probe_kernel_address((unsigned long *)p, dummy);
+#ifdef CONFIG_X86_32
+static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
+{
+	unsigned index = pgd_index(address);
+	pgd_t *pgd_k;
+	pud_t *pud, *pud_k;
+	pmd_t *pmd, *pmd_k;
+
+	pgd += index;
+	pgd_k = init_mm.pgd + index;
+
+	if (!pgd_present(*pgd_k))
+		return NULL;
+
+	/*
+	 * set_pgd(pgd, *pgd_k); here would be useless on PAE
+	 * and redundant with the set_pmd() on non-PAE. As would
+	 * set_pud.
+	 */
+	pud = pud_offset(pgd, address);
+	pud_k = pud_offset(pgd_k, address);
+	if (!pud_present(*pud_k))
+		return NULL;
+
+	pmd = pmd_offset(pud, address);
+	pmd_k = pmd_offset(pud_k, address);
+	if (!pmd_present(*pmd_k))
+		return NULL;
+
+	if (!pmd_present(*pmd)) {
+		set_pmd(pmd, *pmd_k);
+		arch_flush_lazy_mmu_mode();
+	} else {
+		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
+	}
+
+	return pmd_k;
 }
-#endif
+
+void vmalloc_sync_all(void)
+{
+	unsigned long address;
+
+	if (SHARED_KERNEL_PMD)
+		return;
+
+	for (address = VMALLOC_START & PMD_MASK;
+	     address >= TASK_SIZE && address < FIXADDR_TOP;
+	     address += PMD_SIZE) {
+
+		unsigned long flags;
+		struct page *page;
+
+		spin_lock_irqsave(&pgd_lock, flags);
+		list_for_each_entry(page, &pgd_list, lru) {
+			if (!vmalloc_sync_one(page_address(page), address))
+				break;
+		}
+		spin_unlock_irqrestore(&pgd_lock, flags);
+	}
+}
+
+/*
+ * 32-bit:
+ *
+ *   Handle a fault on the vmalloc or module mapping area
+ */
+static noinline int vmalloc_fault(unsigned long address)
+{
+	unsigned long pgd_paddr;
+	pmd_t *pmd_k;
+	pte_t *pte_k;
+
+	/* Make sure we are in vmalloc area: */
+	if (!(address >= VMALLOC_START && address < VMALLOC_END))
+		return -1;
+
+	/*
+	 * Synchronize this task's top level page-table
+	 * with the 'reference' page table.
+	 *
+	 * Do _not_ use "current" here. We might be inside
+	 * an interrupt in the middle of a task switch..
+	 */
+	pgd_paddr = read_cr3();
+	pmd_k = vmalloc_sync_one(__va(pgd_paddr), address);
+	if (!pmd_k)
+		return -1;
+
+	pte_k = pte_offset_kernel(pmd_k, address);
+	if (!pte_present(*pte_k))
+		return -1;
+
+	return 0;
+}
+
+/*
+ * Did it hit the DOS screen memory VA from vm86 mode?
+ */
+static inline void
+check_v8086_mode(struct pt_regs *regs, unsigned long address,
+		 struct task_struct *tsk)
+{
+	unsigned long bit;
+
+	if (!v8086_mode(regs))
+		return;
+
+	bit = (address - 0xA0000) >> PAGE_SHIFT;
+	if (bit < 32)
+		tsk->thread.screen_bitmap |= 1 << bit;
+}
 
 static void dump_pagetable(unsigned long address)
 {
-#ifdef CONFIG_X86_32
 	__typeof__(pte_val(__pte(0))) page;
 
 	page = read_cr3();
@@ -239,7 +345,132 @@ static void dump_pagetable(unsigned long address)
 	}
 
 	printk("\n");
-#else /* CONFIG_X86_64 */
+}
+
+#else /* CONFIG_X86_64: */
+
+void vmalloc_sync_all(void)
+{
+	unsigned long address;
+
+	for (address = VMALLOC_START & PGDIR_MASK; address <= VMALLOC_END;
+	     address += PGDIR_SIZE) {
+
+		const pgd_t *pgd_ref = pgd_offset_k(address);
+		unsigned long flags;
+		struct page *page;
+
+		if (pgd_none(*pgd_ref))
+			continue;
+
+		spin_lock_irqsave(&pgd_lock, flags);
+		list_for_each_entry(page, &pgd_list, lru) {
+			pgd_t *pgd;
+			pgd = (pgd_t *)page_address(page) + pgd_index(address);
+			if (pgd_none(*pgd))
+				set_pgd(pgd, *pgd_ref);
+			else
+				BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
+		}
+		spin_unlock_irqrestore(&pgd_lock, flags);
+	}
+}
+
+/*
+ * 64-bit:
+ *
+ *   Handle a fault on the vmalloc area
+ *
+ * This assumes no large pages in there.
+ */
+static noinline int vmalloc_fault(unsigned long address)
+{
+	pgd_t *pgd, *pgd_ref;
+	pud_t *pud, *pud_ref;
+	pmd_t *pmd, *pmd_ref;
+	pte_t *pte, *pte_ref;
+
+	/* Make sure we are in vmalloc area: */
+	if (!(address >= VMALLOC_START && address < VMALLOC_END))
+		return -1;
+
+	/*
+	 * Copy kernel mappings over when needed. This can also
+	 * happen within a race in page table update. In the later
+	 * case just flush:
+	 */
+	pgd = pgd_offset(current->active_mm, address);
+	pgd_ref = pgd_offset_k(address);
+	if (pgd_none(*pgd_ref))
+		return -1;
+
+	if (pgd_none(*pgd))
+		set_pgd(pgd, *pgd_ref);
+	else
+		BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
+
+	/*
+	 * Below here mismatches are bugs because these lower tables
+	 * are shared:
+	 */
+
+	pud = pud_offset(pgd, address);
+	pud_ref = pud_offset(pgd_ref, address);
+	if (pud_none(*pud_ref))
+		return -1;
+
+	if (pud_none(*pud) || pud_page_vaddr(*pud) != pud_page_vaddr(*pud_ref))
+		BUG();
+
+	pmd = pmd_offset(pud, address);
+	pmd_ref = pmd_offset(pud_ref, address);
+	if (pmd_none(*pmd_ref))
+		return -1;
+
+	if (pmd_none(*pmd) || pmd_page(*pmd) != pmd_page(*pmd_ref))
+		BUG();
+
+	pte_ref = pte_offset_kernel(pmd_ref, address);
+	if (!pte_present(*pte_ref))
+		return -1;
+
+	pte = pte_offset_kernel(pmd, address);
+
+	/*
+	 * Don't use pte_page here, because the mappings can point
+	 * outside mem_map, and the NUMA hash lookup cannot handle
+	 * that:
+	 */
+	if (!pte_present(*pte) || pte_pfn(*pte) != pte_pfn(*pte_ref))
+		BUG();
+
+	return 0;
+}
+
+static const char errata93_warning[] =
+KERN_ERR "******* Your BIOS seems to not contain a fix for K8 errata #93\n"
+KERN_ERR "******* Working around it, but it may cause SEGVs or burn power.\n"
+KERN_ERR "******* Please consider a BIOS update.\n"
+KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
+
+/*
+ * No vm86 mode in 64-bit mode:
+ */
+static inline void
+check_v8086_mode(struct pt_regs *regs, unsigned long address,
+		 struct task_struct *tsk)
+{
+}
+
+static int bad_address(void *p)
+{
+	unsigned long dummy;
+
+	return probe_kernel_address((unsigned long *)p, dummy);
+}
+
+static void dump_pagetable(unsigned long address)
+{
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -284,83 +515,9 @@ out:
 	return;
 bad:
 	printk("BAD\n");
-#endif
 }
 
-#ifdef CONFIG_X86_32
-static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
-{
-	unsigned index = pgd_index(address);
-	pgd_t *pgd_k;
-	pud_t *pud, *pud_k;
-	pmd_t *pmd, *pmd_k;
-
-	pgd += index;
-	pgd_k = init_mm.pgd + index;
-
-	if (!pgd_present(*pgd_k))
-		return NULL;
-
-	/*
-	 * set_pgd(pgd, *pgd_k); here would be useless on PAE
-	 * and redundant with the set_pmd() on non-PAE. As would
-	 * set_pud.
-	 */
-	pud = pud_offset(pgd, address);
-	pud_k = pud_offset(pgd_k, address);
-	if (!pud_present(*pud_k))
-		return NULL;
-
-	pmd = pmd_offset(pud, address);
-	pmd_k = pmd_offset(pud_k, address);
-	if (!pmd_present(*pmd_k))
-		return NULL;
-
-	if (!pmd_present(*pmd)) {
-		set_pmd(pmd, *pmd_k);
-		arch_flush_lazy_mmu_mode();
-	} else {
-		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
-	}
-
-	return pmd_k;
-}
-
-/*
- * Did it hit the DOS screen memory VA from vm86 mode?
- */
-static inline void
-check_v8086_mode(struct pt_regs *regs, unsigned long address,
-		 struct task_struct *tsk)
-{
-	unsigned long bit;
-
-	if (!v8086_mode(regs))
-		return;
-
-	bit = (address - 0xA0000) >> PAGE_SHIFT;
-	if (bit < 32)
-		tsk->thread.screen_bitmap |= 1 << bit;
-}
-
-#else /* CONFIG_X86_64: */
-
-static const char errata93_warning[] =
-KERN_ERR "******* Your BIOS seems to not contain a fix for K8 errata #93\n"
-KERN_ERR "******* Working around it, but it may cause SEGVs or burn power.\n"
-KERN_ERR "******* Please consider a BIOS update.\n"
-KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
-
-/*
- * No vm86 mode in 64-bit mode:
- */
-static inline void
-check_v8086_mode(struct pt_regs *regs, unsigned long address,
-		 struct task_struct *tsk)
-{
-}
-
-#endif
+#endif /* CONFIG_X86_64 */
 
 /*
  * Workaround for K8 erratum #93 & buggy BIOS.
@@ -795,109 +952,6 @@ spurious_fault(unsigned long error_code, unsigned long address)
 	return ret;
 }
 
-/*
- * 32-bit:
- *
- *   Handle a fault on the vmalloc or module mapping area
- *
- * 64-bit:
- *
- *   Handle a fault on the vmalloc area
- *
- * This assumes no large pages in there.
- */
-static noinline int vmalloc_fault(unsigned long address)
-{
-#ifdef CONFIG_X86_32
-	unsigned long pgd_paddr;
-	pmd_t *pmd_k;
-	pte_t *pte_k;
-
-	/* Make sure we are in vmalloc area: */
-	if (!(address >= VMALLOC_START && address < VMALLOC_END))
-		return -1;
-
-	/*
-	 * Synchronize this task's top level page-table
-	 * with the 'reference' page table.
-	 *
-	 * Do _not_ use "current" here. We might be inside
-	 * an interrupt in the middle of a task switch..
-	 */
-	pgd_paddr = read_cr3();
-	pmd_k = vmalloc_sync_one(__va(pgd_paddr), address);
-	if (!pmd_k)
-		return -1;
-
-	pte_k = pte_offset_kernel(pmd_k, address);
-	if (!pte_present(*pte_k))
-		return -1;
-
-	return 0;
-#else
-	pgd_t *pgd, *pgd_ref;
-	pud_t *pud, *pud_ref;
-	pmd_t *pmd, *pmd_ref;
-	pte_t *pte, *pte_ref;
-
-	/* Make sure we are in vmalloc area: */
-	if (!(address >= VMALLOC_START && address < VMALLOC_END))
-		return -1;
-
-	/*
-	 * Copy kernel mappings over when needed. This can also
-	 * happen within a race in page table update. In the later
-	 * case just flush:
-	 */
-	pgd = pgd_offset(current->active_mm, address);
-	pgd_ref = pgd_offset_k(address);
-	if (pgd_none(*pgd_ref))
-		return -1;
-
-	if (pgd_none(*pgd))
-		set_pgd(pgd, *pgd_ref);
-	else
-		BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
-
-	/*
-	 * Below here mismatches are bugs because these lower tables
-	 * are shared:
-	 */
-
-	pud = pud_offset(pgd, address);
-	pud_ref = pud_offset(pgd_ref, address);
-	if (pud_none(*pud_ref))
-		return -1;
-
-	if (pud_none(*pud) || pud_page_vaddr(*pud) != pud_page_vaddr(*pud_ref))
-		BUG();
-
-	pmd = pmd_offset(pud, address);
-	pmd_ref = pmd_offset(pud_ref, address);
-	if (pmd_none(*pmd_ref))
-		return -1;
-
-	if (pmd_none(*pmd) || pmd_page(*pmd) != pmd_page(*pmd_ref))
-		BUG();
-
-	pte_ref = pte_offset_kernel(pmd_ref, address);
-	if (!pte_present(*pte_ref))
-		return -1;
-
-	pte = pte_offset_kernel(pmd, address);
-
-	/*
-	 * Don't use pte_page here, because the mappings can point
-	 * outside mem_map, and the NUMA hash lookup cannot handle
-	 * that:
-	 */
-	if (!pte_present(*pte) || pte_pfn(*pte) != pte_pfn(*pte_ref))
-		BUG();
-
-	return 0;
-#endif
-}
-
 int show_unhandled_signals = 1;
 
 static inline int
@@ -1114,54 +1168,4 @@ good_area:
 	check_v8086_mode(regs, address, tsk);
 
 	up_read(&mm->mmap_sem);
-}
-
-DEFINE_SPINLOCK(pgd_lock);
-LIST_HEAD(pgd_list);
-
-void vmalloc_sync_all(void)
-{
-	unsigned long address;
-
-#ifdef CONFIG_X86_32
-	if (SHARED_KERNEL_PMD)
-		return;
-
-	for (address = VMALLOC_START & PMD_MASK;
-	     address >= TASK_SIZE && address < FIXADDR_TOP;
-	     address += PMD_SIZE) {
-
-		unsigned long flags;
-		struct page *page;
-
-		spin_lock_irqsave(&pgd_lock, flags);
-		list_for_each_entry(page, &pgd_list, lru) {
-			if (!vmalloc_sync_one(page_address(page), address))
-				break;
-		}
-		spin_unlock_irqrestore(&pgd_lock, flags);
-	}
-#else /* CONFIG_X86_64 */
-	for (address = VMALLOC_START & PGDIR_MASK; address <= VMALLOC_END;
-	     address += PGDIR_SIZE) {
-
-		const pgd_t *pgd_ref = pgd_offset_k(address);
-		unsigned long flags;
-		struct page *page;
-
-		if (pgd_none(*pgd_ref))
-			continue;
-
-		spin_lock_irqsave(&pgd_lock, flags);
-		list_for_each_entry(page, &pgd_list, lru) {
-			pgd_t *pgd;
-			pgd = (pgd_t *)page_address(page) + pgd_index(address);
-			if (pgd_none(*pgd))
-				set_pgd(pgd, *pgd_ref);
-			else
-				BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
-		}
-		spin_unlock_irqrestore(&pgd_lock, flags);
-	}
-#endif
 }
