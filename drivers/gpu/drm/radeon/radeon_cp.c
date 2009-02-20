@@ -1950,3 +1950,35 @@ int radeon_driver_unload(struct drm_device *dev)
 	dev->dev_private = NULL;
 	return 0;
 }
+
+void radeon_commit_ring(drm_radeon_private_t *dev_priv)
+{
+	int i;
+	u32 *ring;
+	int tail_aligned;
+
+	/* check if the ring is padded out to 16-dword alignment */
+
+	tail_aligned = dev_priv->ring.tail & 0xf;
+	if (tail_aligned) {
+		int num_p2 = 16 - tail_aligned;
+
+		ring = dev_priv->ring.start;
+		/* pad with some CP_PACKET2 */
+		for (i = 0; i < num_p2; i++)
+			ring[dev_priv->ring.tail + i] = CP_PACKET2();
+
+		dev_priv->ring.tail += i;
+
+		dev_priv->ring.space -= num_p2 * sizeof(u32);
+	}
+
+	dev_priv->ring.tail &= dev_priv->ring.tail_mask;
+
+	DRM_MEMORYBARRIER();
+	GET_RING_HEAD( dev_priv );
+
+	RADEON_WRITE( RADEON_CP_RB_WPTR, dev_priv->ring.tail );
+	/* read from PCI bus to ensure correct posting */
+	RADEON_READ( RADEON_CP_RB_RPTR );
+}

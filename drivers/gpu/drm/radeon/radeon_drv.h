@@ -1376,15 +1376,16 @@ do {								\
 
 #define RADEON_VERBOSE	0
 
-#define RING_LOCALS	int write, _nr; unsigned int mask; u32 *ring;
+#define RING_LOCALS	int write, _nr, _align_nr; unsigned int mask; u32 *ring;
 
 #define BEGIN_RING( n ) do {						\
 	if ( RADEON_VERBOSE ) {						\
 		DRM_INFO( "BEGIN_RING( %d )\n", (n));			\
 	}								\
-	if ( dev_priv->ring.space <= (n) * sizeof(u32) ) {		\
+	_align_nr = (n + 0xf) & ~0xf;					\
+	if (dev_priv->ring.space <= (_align_nr * sizeof(u32))) {	\
                 COMMIT_RING();						\
-		radeon_wait_ring( dev_priv, (n) * sizeof(u32) );	\
+		radeon_wait_ring( dev_priv, _align_nr * sizeof(u32));	\
 	}								\
 	_nr = n; dev_priv->ring.space -= (n) * sizeof(u32);		\
 	ring = dev_priv->ring.start;					\
@@ -1401,19 +1402,16 @@ do {								\
 		DRM_ERROR(						\
 			"ADVANCE_RING(): mismatch: nr: %x write: %x line: %d\n",	\
 			((dev_priv->ring.tail + _nr) & mask),		\
-			write, __LINE__);						\
+			write, __LINE__);				\
 	} else								\
 		dev_priv->ring.tail = write;				\
 } while (0)
 
+extern void radeon_commit_ring(drm_radeon_private_t *dev_priv);
+
 #define COMMIT_RING() do {						\
-	/* Flush writes to ring */					\
-	DRM_MEMORYBARRIER();						\
-	GET_RING_HEAD( dev_priv );					\
-	RADEON_WRITE( RADEON_CP_RB_WPTR, dev_priv->ring.tail );		\
-	/* read from PCI bus to ensure correct posting */		\
-	RADEON_READ( RADEON_CP_RB_RPTR );				\
-} while (0)
+		radeon_commit_ring(dev_priv);				\
+	} while(0)
 
 #define OUT_RING( x ) do {						\
 	if ( RADEON_VERBOSE ) {						\
