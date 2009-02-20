@@ -107,7 +107,6 @@ MODULE_PARM_DESC(ignore_ctl_error,
 #define MAX_PACKS_HS	(MAX_PACKS * 8)	/* in high speed mode */
 #define MAX_URBS	8
 #define SYNC_URBS	4	/* always four urbs for sync */
-#define MIN_PACKS_URB	1	/* minimum 1 packet per urb */
 #define MAX_QUEUE	24	/* try not to exceed this queue length, in ms */
 
 struct audioformat {
@@ -1071,8 +1070,7 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 	subs->packs_per_ms = packs_per_ms;
 
 	if (is_playback) {
-		urb_packs = nrpacks;
-		urb_packs = max(urb_packs, (unsigned int)MIN_PACKS_URB);
+		urb_packs = max(nrpacks, 1);
 		urb_packs = min(urb_packs, (unsigned int)MAX_PACKS);
 	} else
 		urb_packs = 1;
@@ -1093,9 +1091,9 @@ static int init_substream_urbs(struct snd_usb_substream *subs, unsigned int peri
 		total_packs = (total_packs + packs_per_ms - 1)
 				& ~(packs_per_ms - 1);
 		/* we need at least two URBs for queueing */
-		if (total_packs < 2 * MIN_PACKS_URB * packs_per_ms)
-			total_packs = 2 * MIN_PACKS_URB * packs_per_ms;
-		else {
+		if (total_packs < 2 * packs_per_ms) {
+			total_packs = 2 * packs_per_ms;
+		} else {
 			/* and we don't want too long a queue either */
 			maxpacks = max((unsigned int)MAX_QUEUE, urb_packs * 2);
 			if (total_packs > maxpacks * packs_per_ms)
@@ -1909,7 +1907,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 	 * in the current code assume the 1ms period.
 	 */
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-				     1000 * MIN_PACKS_URB,
+				     1000,
 				     /*(nrpacks * MAX_URBS) * 1000*/ UINT_MAX);
 
 	err = check_hw_params_convention(subs);
@@ -3753,7 +3751,7 @@ static int usb_audio_resume(struct usb_interface *intf)
 
 static int __init snd_usb_audio_init(void)
 {
-	if (nrpacks < MIN_PACKS_URB || nrpacks > MAX_PACKS) {
+	if (nrpacks < 1 || nrpacks > MAX_PACKS) {
 		printk(KERN_WARNING "invalid nrpacks value.\n");
 		return -EINVAL;
 	}
