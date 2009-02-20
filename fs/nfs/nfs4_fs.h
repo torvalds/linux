@@ -179,7 +179,7 @@ struct nfs4_state_recovery_ops {
 	int (*recover_lock)(struct nfs4_state *, struct file_lock *);
 };
 
-extern struct dentry_operations nfs4_dentry_operations;
+extern const struct dentry_operations nfs4_dentry_operations;
 extern const struct inode_operations nfs4_dir_inode_operations;
 
 /* inode.c */
