@@ -972,10 +972,8 @@ static int fault_in_kernel_space(unsigned long address)
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  */
-#ifdef CONFIG_X86_64
-asmlinkage
-#endif
-void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
+dotraplinkage void __kprobes
+do_page_fault(struct pt_regs *regs, unsigned long error_code)
 {
 	struct vm_area_struct *vma;
 	struct task_struct *tsk;
