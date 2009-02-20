@@ -57,8 +57,10 @@ struct igb_adapter;
 #define IGB_MIN_ITR_USECS                 10
 
 /* Transmit and receive queues */
-#define IGB_MAX_RX_QUEUES                  4
-#define IGB_MAX_TX_QUEUES                  4
+#define IGB_MAX_RX_QUEUES     (adapter->vfs_allocated_count ? \
+                               (adapter->vfs_allocated_count > 6 ? 1 : 2) : 4)
+#define IGB_MAX_TX_QUEUES     IGB_MAX_RX_QUEUES
+#define IGB_ABS_MAX_TX_QUEUES     4
 
 /* RX descriptor control thresholds.
  * PTHRESH - MAC will consider prefetch if it has fewer than this number of
@@ -267,9 +269,10 @@ struct igb_adapter {
 	unsigned int flags;
 	u32 eeprom_wol;
 
-	struct igb_ring *multi_tx_table[IGB_MAX_TX_QUEUES];
+	struct igb_ring *multi_tx_table[IGB_ABS_MAX_TX_QUEUES];
 	unsigned int tx_ring_count;
 	unsigned int rx_ring_count;
+	unsigned int vfs_allocated_count;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)

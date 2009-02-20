@@ -312,6 +312,7 @@ module_exit(igb_exit_module);
 static void igb_cache_ring_register(struct igb_adapter *adapter)
 {
 	int i;
+	unsigned int rbase_offset = adapter->vfs_allocated_count;
 
 	switch (adapter->hw.mac.type) {
 	case e1000_82576:
@@ -321,9 +322,11 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 		 * and continue consuming queues in the same sequence
 		 */
 		for (i = 0; i < adapter->num_rx_queues; i++)
-			adapter->rx_ring[i].reg_idx = Q_IDX_82576(i);
+			adapter->rx_ring[i].reg_idx = rbase_offset +
+			                              Q_IDX_82576(i);
 		for (i = 0; i < adapter->num_tx_queues; i++)
-			adapter->tx_ring[i].reg_idx = Q_IDX_82576(i);
+			adapter->tx_ring[i].reg_idx = rbase_offset +
+			                              Q_IDX_82576(i);
 		break;
 	case e1000_82575:
 	default:
@@ -423,7 +426,7 @@ static void igb_assign_vector(struct igb_adapter *adapter, int rx_queue,
 		   a vector number along with a "valid" bit.  Sadly, the layout
 		   of the table is somewhat counterintuitive. */
 		if (rx_queue > IGB_N0_QUEUE) {
-			index = (rx_queue >> 1);
+			index = (rx_queue >> 1) + adapter->vfs_allocated_count;
 			ivar = array_rd32(E1000_IVAR0, index);
 			if (rx_queue & 0x1) {
 				/* vector goes into third byte of register */
@@ -438,7 +441,7 @@ static void igb_assign_vector(struct igb_adapter *adapter, int rx_queue,
 			array_wr32(E1000_IVAR0, index, ivar);
 		}
 		if (tx_queue > IGB_N0_QUEUE) {
-			index = (tx_queue >> 1);
+			index = (tx_queue >> 1) + adapter->vfs_allocated_count;
 			ivar = array_rd32(E1000_IVAR0, index);
 			if (tx_queue & 0x1) {
 				/* vector goes into high byte of register */
@@ -1157,7 +1160,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	pci_save_state(pdev);
 
 	err = -ENOMEM;
-	netdev = alloc_etherdev_mq(sizeof(struct igb_adapter), IGB_MAX_TX_QUEUES);
+	netdev = alloc_etherdev_mq(sizeof(struct igb_adapter),
+	                           IGB_ABS_MAX_TX_QUEUES);
 	if (!netdev)
 		goto err_alloc_etherdev;
 
@@ -2029,6 +2033,7 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 				writel(reta.dword,
 				       hw->hw_addr + E1000_RETA(0) + (j & ~3));
 		}
+
 		mrqc = E1000_MRQC_ENABLE_RSS_4Q;
 
 		/* Fill out hash function seeds */
@@ -3150,7 +3155,7 @@ static int igb_xmit_frame_adv(struct sk_buff *skb, struct net_device *netdev)
 	struct igb_ring *tx_ring;
 
 	int r_idx = 0;
-	r_idx = skb->queue_mapping & (IGB_MAX_TX_QUEUES - 1);
+	r_idx = skb->queue_mapping & (IGB_ABS_MAX_TX_QUEUES - 1);
 	tx_ring = adapter->multi_tx_table[r_idx];
 
 	/* This goes back to the question of how to logically map a tx queue
