@@ -3517,12 +3517,14 @@ static int ehea_mem_notifier(struct notifier_block *nb,
 		/* Readd canceled memory block */
 	case MEM_ONLINE:
 		ehea_info("memory is going online");
+		set_bit(__EHEA_STOP_XFER, &ehea_driver_flags);
 		if (ehea_add_sect_bmap(arg->start_pfn, arg->nr_pages))
 			return NOTIFY_BAD;
 		ehea_rereg_mrs(NULL);
 		break;
 	case MEM_GOING_OFFLINE:
 		ehea_info("memory is going offline");
+		set_bit(__EHEA_STOP_XFER, &ehea_driver_flags);
 		if (ehea_rem_sect_bmap(arg->start_pfn, arg->nr_pages))
 			return NOTIFY_BAD;
 		ehea_rereg_mrs(NULL);
