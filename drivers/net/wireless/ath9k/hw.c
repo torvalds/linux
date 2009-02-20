@@ -3220,14 +3220,11 @@ bool ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	pCap->tx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_TX_MASK);
-	if ((ah->is_pciexpress)
-	    || (eeval & AR5416_OPFLAGS_11A)) {
-		pCap->rx_chainmask =
-			ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
-	} else {
-		pCap->rx_chainmask =
-			(ath9k_hw_gpio_get(ah, 0)) ? 0x5 : 0x7;
-	}
+	if ((ah->hw_version.devid == AR5416_DEVID_PCI) &&
+	    !(eeval & AR5416_OPFLAGS_11A))
+		pCap->rx_chainmask = ath9k_hw_gpio_get(ah, 0) ? 0x5 : 0x7;
+	else
+		pCap->rx_chainmask = ah->eep_ops->get_eeprom(ah, EEP_RX_MASK);
 
 	if (!(AR_SREV_9280(ah) && (ah->hw_version.macRev == 0)))
 		ah->misc_mode |= AR_PCU_MIC_NEW_LOC_ENA;
