@@ -10,8 +10,8 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/sysfs.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
 #include <linux/m48t86.h>
@@ -21,6 +21,7 @@
 #include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
+#include "ts78xx-fpga.h"
 
 /*****************************************************************************
  * TS-78xx Info
@@ -33,18 +34,11 @@
 #define TS78XX_FPGA_REGS_VIRT_BASE	0xff900000
 #define TS78XX_FPGA_REGS_SIZE		SZ_1M
 
-#define TS78XX_FPGA_REGS_SYSCON_ID	(TS78XX_FPGA_REGS_VIRT_BASE | 0x000)
-#define TS78XX_FPGA_REGS_SYSCON_LCDI	(TS78XX_FPGA_REGS_VIRT_BASE | 0x004)
-#define TS78XX_FPGA_REGS_SYSCON_LCDO	(TS78XX_FPGA_REGS_VIRT_BASE | 0x008)
-
-#define TS78XX_FPGA_REGS_RTC_CTRL	(TS78XX_FPGA_REGS_VIRT_BASE | 0x808)
-#define TS78XX_FPGA_REGS_RTC_DATA	(TS78XX_FPGA_REGS_VIRT_BASE | 0x80c)
-
-/*
- * 512kB NOR flash Device
- */
-#define TS78XX_NOR_BOOT_BASE		0xff800000
-#define TS78XX_NOR_BOOT_SIZE		SZ_512K
+static struct ts78xx_fpga_data ts78xx_fpga = {
+	.id		= 0,
+	.state		= 1,
+/*	.supports	= ... - populated by ts78xx_fpga_supports() */
+};
 
 /*****************************************************************************
  * I/O Address Mapping
@@ -65,41 +59,6 @@ void __init ts78xx_map_io(void)
 }
 
 /*****************************************************************************
- * 512kB NOR Boot Flash - the chip is a M25P40
- ****************************************************************************/
-static struct mtd_partition ts78xx_nor_boot_flash_resources[] = {
-	{
-		.name		= "ts-bootrom",
-		.offset		= 0,
-		/* only the first 256kB is used */
-		.size		= SZ_256K,
-		.mask_flags	= MTD_WRITEABLE,
-	},
-};
-
-static struct physmap_flash_data ts78xx_nor_boot_flash_data = {
-	.width		= 1,
-	.parts		= ts78xx_nor_boot_flash_resources,
-	.nr_parts	= ARRAY_SIZE(ts78xx_nor_boot_flash_resources),
-};
-
-static struct resource ts78xx_nor_boot_flash_resource = {
-	.flags		= IORESOURCE_MEM,
-	.start		= TS78XX_NOR_BOOT_BASE,
-	.end		= TS78XX_NOR_BOOT_BASE + TS78XX_NOR_BOOT_SIZE - 1,
-};
-
-static struct platform_device ts78xx_nor_boot_flash = {
-	.name		= "physmap-flash",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &ts78xx_nor_boot_flash_data,
-	},
-	.num_resources	= 1,
-	.resource	= &ts78xx_nor_boot_flash_resource,
-};
-
-/*****************************************************************************
  * Ethernet
  ****************************************************************************/
 static struct mv643xx_eth_platform_data ts78xx_eth_data = {
@@ -107,31 +66,41 @@ static struct mv643xx_eth_platform_data ts78xx_eth_data = {
 };
 
 /*****************************************************************************
+ * SATA
+ ****************************************************************************/
+static struct mv_sata_platform_data ts78xx_sata_data = {
+	.n_ports	= 2,
+};
+
+/*****************************************************************************
  * RTC M48T86 - nicked^Wborrowed from arch/arm/mach-ep93xx/ts72xx.c
  ****************************************************************************/
 #ifdef CONFIG_RTC_DRV_M48T86
-static unsigned char ts78xx_rtc_readbyte(unsigned long addr)
+#define TS_RTC_CTRL	(TS78XX_FPGA_REGS_VIRT_BASE | 0x808)
+#define TS_RTC_DATA	(TS78XX_FPGA_REGS_VIRT_BASE | 0x80c)
+
+static unsigned char ts78xx_ts_rtc_readbyte(unsigned long addr)
 {
-	writeb(addr, TS78XX_FPGA_REGS_RTC_CTRL);
-	return readb(TS78XX_FPGA_REGS_RTC_DATA);
+	writeb(addr, TS_RTC_CTRL);
+	return readb(TS_RTC_DATA);
 }
 
-static void ts78xx_rtc_writebyte(unsigned char value, unsigned long addr)
+static void ts78xx_ts_rtc_writebyte(unsigned char value, unsigned long addr)
 {
-	writeb(addr, TS78XX_FPGA_REGS_RTC_CTRL);
-	writeb(value, TS78XX_FPGA_REGS_RTC_DATA);
+	writeb(addr, TS_RTC_CTRL);
+	writeb(value, TS_RTC_DATA);
 }
 
-static struct m48t86_ops ts78xx_rtc_ops = {
-	.readbyte	= ts78xx_rtc_readbyte,
-	.writebyte	= ts78xx_rtc_writebyte,
+static struct m48t86_ops ts78xx_ts_rtc_ops = {
+	.readbyte	= ts78xx_ts_rtc_readbyte,
+	.writebyte	= ts78xx_ts_rtc_writebyte,
 };
 
-static struct platform_device ts78xx_rtc_device = {
+static struct platform_device ts78xx_ts_rtc_device = {
 	.name		= "rtc-m48t86",
 	.id		= -1,
 	.dev		= {
-		.platform_data	= &ts78xx_rtc_ops,
+		.platform_data	= &ts78xx_ts_rtc_ops,
 	},
 	.num_resources	= 0,
 };
@@ -146,58 +115,184 @@ static struct platform_device ts78xx_rtc_device = {
  * TODO: track down a guinea pig without an RTC to see if we can work out a
  * 		better RTC detection routine
  */
-static int __init ts78xx_rtc_init(void)
+static int ts78xx_ts_rtc_load(void)
 {
 	unsigned char tmp_rtc0, tmp_rtc1;
 
-	tmp_rtc0 = ts78xx_rtc_readbyte(126);
-	tmp_rtc1 = ts78xx_rtc_readbyte(127);
+	tmp_rtc0 = ts78xx_ts_rtc_readbyte(126);
+	tmp_rtc1 = ts78xx_ts_rtc_readbyte(127);
 
-	ts78xx_rtc_writebyte(0x00, 126);
-	ts78xx_rtc_writebyte(0x55, 127);
-	if (ts78xx_rtc_readbyte(127) == 0x55) {
-		ts78xx_rtc_writebyte(0xaa, 127);
-		if (ts78xx_rtc_readbyte(127) == 0xaa
-				&& ts78xx_rtc_readbyte(126) == 0x00) {
-			ts78xx_rtc_writebyte(tmp_rtc0, 126);
-			ts78xx_rtc_writebyte(tmp_rtc1, 127);
-			platform_device_register(&ts78xx_rtc_device);
-			return 1;
+	ts78xx_ts_rtc_writebyte(0x00, 126);
+	ts78xx_ts_rtc_writebyte(0x55, 127);
+	if (ts78xx_ts_rtc_readbyte(127) == 0x55) {
+		ts78xx_ts_rtc_writebyte(0xaa, 127);
+		if (ts78xx_ts_rtc_readbyte(127) == 0xaa
+				&& ts78xx_ts_rtc_readbyte(126) == 0x00) {
+			ts78xx_ts_rtc_writebyte(tmp_rtc0, 126);
+			ts78xx_ts_rtc_writebyte(tmp_rtc1, 127);
+			if (ts78xx_fpga.supports.ts_rtc.init == 0) {
+				ts78xx_fpga.supports.ts_rtc.init = 1;
+				platform_device_register(&ts78xx_ts_rtc_device);
+			} else
+				platform_device_add(&ts78xx_ts_rtc_device);
+			return 0;
 		}
 	}
 
-	return 0;
+	ts78xx_fpga.supports.ts_rtc.present = 0;
+	return -ENODEV;
 };
+
+static void ts78xx_ts_rtc_unload(void)
+{
+	platform_device_del(&ts78xx_ts_rtc_device);
+}
 #else
-static int __init ts78xx_rtc_init(void)
+static int ts78xx_ts_rtc_load(void)
 {
 	return 0;
+}
+
+static void ts78xx_ts_rtc_unload(void)
+{
 }
 #endif
 
 /*****************************************************************************
- * SATA
+ * FPGA 'hotplug' support code
  ****************************************************************************/
-static struct mv_sata_platform_data ts78xx_sata_data = {
-	.n_ports	= 2,
-};
-
-/*****************************************************************************
- * print some information regarding the board
- ****************************************************************************/
-static void __init ts78xx_print_board_id(void)
+static void ts78xx_fpga_devices_zero_init(void)
 {
-	unsigned int board_info;
+	ts78xx_fpga.supports.ts_rtc.init = 0;
+}
 
-	board_info = readl(TS78XX_FPGA_REGS_SYSCON_ID);
-	printk(KERN_INFO "TS-78xx Info: FPGA rev=%.2x, Board Magic=%.6x, ",
-				board_info & 0xff,
-				(board_info >> 8) & 0xffffff);
-	board_info = readl(TS78XX_FPGA_REGS_SYSCON_LCDI);
-	printk("JP1=%d, JP2=%d\n",
-				(board_info >> 30) & 0x1,
-				(board_info >> 31) & 0x1);
+static void ts78xx_fpga_supports(void)
+{
+	/* TODO: put this 'table' into ts78xx-fpga.h */
+	switch (ts78xx_fpga.id) {
+	case TS7800_REV_B:
+		ts78xx_fpga.supports.ts_rtc.present = 1;
+		break;
+	default:
+		ts78xx_fpga.supports.ts_rtc.present = 0;
+	}
+}
+
+static int ts78xx_fpga_load_devices(void)
+{
+	int tmp, ret = 0;
+
+	if (ts78xx_fpga.supports.ts_rtc.present == 1) {
+		tmp = ts78xx_ts_rtc_load();
+		if (tmp)
+			printk(KERN_INFO "TS-78xx RTC not detected or enabled\n");
+		ret |= tmp;
+	}
+
+	return ret;
+}
+
+static int ts78xx_fpga_unload_devices(void)
+{
+	int ret = 0;
+
+	if (ts78xx_fpga.supports.ts_rtc.present == 1)
+		ts78xx_ts_rtc_unload();
+
+	return ret;
+}
+
+static int ts78xx_fpga_load(void)
+{
+	ts78xx_fpga.id = readl(TS78XX_FPGA_REGS_VIRT_BASE);
+
+	printk(KERN_INFO "TS-78xx FPGA: magic=0x%.6x, rev=0x%.2x\n",
+			(ts78xx_fpga.id >> 8) & 0xffffff,
+			ts78xx_fpga.id & 0xff);
+
+	ts78xx_fpga_supports();
+
+	if (ts78xx_fpga_load_devices()) {
+		ts78xx_fpga.state = -1;
+		return -EBUSY;
+	}
+
+	return 0;
 };
+
+static int ts78xx_fpga_unload(void)
+{
+	unsigned int fpga_id;
+
+	fpga_id = readl(TS78XX_FPGA_REGS_VIRT_BASE);
+
+	/*
+	 * There does not seem to be a feasible way to block access to the GPIO
+	 * pins from userspace (/dev/mem).  This if clause should hopefully warn
+	 * those foolish enough not to follow 'policy' :)
+	 *
+	 * UrJTAG SVN since r1381 can be used to reprogram the FPGA
+	 */
+	if (ts78xx_fpga.id != fpga_id) {
+		printk(KERN_ERR	"TS-78xx FPGA: magic/rev mismatch\n"
+			"TS-78xx FPGA: was 0x%.6x/%.2x but now 0x%.6x/%.2x\n",
+			(ts78xx_fpga.id >> 8) & 0xffffff, ts78xx_fpga.id & 0xff,
+			(fpga_id >> 8) & 0xffffff, fpga_id & 0xff);
+		ts78xx_fpga.state = -1;
+		return -EBUSY;
+	}
+
+	if (ts78xx_fpga_unload_devices()) {
+		ts78xx_fpga.state = -1;
+		return -EBUSY;
+	}
+
+	return 0;
+};
+
+static ssize_t ts78xx_fpga_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+	if (ts78xx_fpga.state < 0)
+		return sprintf(buf, "borked\n");
+
+	return sprintf(buf, "%s\n", (ts78xx_fpga.state) ? "online" : "offline");
+}
+
+static ssize_t ts78xx_fpga_store(struct kobject *kobj,
+			struct kobj_attribute *attr, const char *buf, size_t n)
+{
+	int value, ret;
+
+	if (ts78xx_fpga.state < 0) {
+		printk(KERN_ERR "TS-78xx FPGA: borked, you must powercycle asap\n");
+		return -EBUSY;
+	}
+
+	if (strncmp(buf, "online", sizeof("online") - 1) == 0)
+		value = 1;
+	else if (strncmp(buf, "offline", sizeof("offline") - 1) == 0)
+		value = 0;
+	else {
+		printk(KERN_ERR "ts78xx_fpga_store: Invalid value\n");
+		return -EINVAL;
+	}
+
+	if (ts78xx_fpga.state == value)
+		return n;
+
+	ret = (ts78xx_fpga.state == 0)
+		? ts78xx_fpga_load()
+		: ts78xx_fpga_unload();
+
+	if (!(ret < 0))
+		ts78xx_fpga.state = value;
+
+	return n;
+}
+
+static struct kobj_attribute ts78xx_fpga_attr =
+	__ATTR(ts78xx_fpga, 0644, ts78xx_fpga_show, ts78xx_fpga_store);
 
 /*****************************************************************************
  * General Setup
@@ -223,20 +318,6 @@ static struct orion5x_mpp_mode ts78xx_mpp_modes[] __initdata = {
 	{ 17, MPP_UART },
 	{ 18, MPP_UART },
 	{ 19, MPP_UART },
-	{ -1 },
-};
-
-static void __init ts78xx_init(void)
-{
-	/*
-	 * Setup basic Orion functions. Need to be called early.
-	 */
-	orion5x_init();
-
-	ts78xx_print_board_id();
-
-	orion5x_mpp_conf(ts78xx_mpp_modes);
-
 	/*
 	 * MPP[20] PCI Clock Out 1
 	 * MPP[21] PCI Clock Out 0
@@ -245,6 +326,19 @@ static void __init ts78xx_init(void)
 	 * MPP[24] Unused
 	 * MPP[25] Unused
 	 */
+	{ -1 },
+};
+
+static void __init ts78xx_init(void)
+{
+	int ret;
+
+	/*
+	 * Setup basic Orion functions. Need to be called early.
+	 */
+	orion5x_init();
+
+	orion5x_mpp_conf(ts78xx_mpp_modes);
 
 	/*
 	 * Configure peripherals.
@@ -257,12 +351,12 @@ static void __init ts78xx_init(void)
 	orion5x_uart1_init();
 	orion5x_xor_init();
 
-	orion5x_setup_dev_boot_win(TS78XX_NOR_BOOT_BASE,
-				   TS78XX_NOR_BOOT_SIZE);
-	platform_device_register(&ts78xx_nor_boot_flash);
-
-	if (!ts78xx_rtc_init())
-		printk(KERN_INFO "TS-78xx RTC not detected or enabled\n");
+	/* FPGA init */
+	ts78xx_fpga_devices_zero_init();
+	ret = ts78xx_fpga_load();
+	ret = sysfs_create_file(power_kobj, &ts78xx_fpga_attr.attr);
+	if (ret)
+		printk(KERN_ERR "sysfs_create_file failed: %d\n", ret);
 }
 
 MACHINE_START(TS78XX, "Technologic Systems TS-78xx SBC")
