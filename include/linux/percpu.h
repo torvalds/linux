@@ -81,23 +81,13 @@ struct percpu_data {
 };
 
 #define __percpu_disguise(pdata) (struct percpu_data *)~(unsigned long)(pdata)
-/* 
- * Use this to get to a cpu's version of the per-cpu object dynamically
- * allocated. Non-atomic access to the current CPU's version should
- * probably be combined with get_cpu()/put_cpu().
- */ 
-#define percpu_ptr(ptr, cpu)                              \
-({                                                        \
-        struct percpu_data *__p = __percpu_disguise(ptr); \
-        (__typeof__(ptr))__p->ptrs[(cpu)];	          \
-})
 
 extern void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask);
 extern void percpu_free(void *__pdata);
 
 #else /* CONFIG_SMP */
 
-#define percpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
+#define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
 
 static __always_inline void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask)
 {
@@ -122,6 +112,15 @@ static inline void percpu_free(void *__pdata)
 						  cpu_possible_map)
 #define alloc_percpu(type)	(type *)__alloc_percpu(sizeof(type))
 #define free_percpu(ptr)	percpu_free((ptr))
-#define per_cpu_ptr(ptr, cpu)	percpu_ptr((ptr), (cpu))
+/*
+ * Use this to get to a cpu's version of the per-cpu object dynamically
+ * allocated. Non-atomic access to the current CPU's version should
+ * probably be combined with get_cpu()/put_cpu().
+ */
+#define per_cpu_ptr(ptr, cpu)						\
+({									\
+        struct percpu_data *__p = __percpu_disguise(ptr);		\
+        (__typeof__(ptr))__p->ptrs[(cpu)];				\
+})
 
 #endif /* __LINUX_PERCPU_H */

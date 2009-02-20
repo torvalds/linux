@@ -170,7 +170,7 @@ int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
 	 * doesn't hit this CPU until we're ready. */
 	get_cpu();
 	for_each_online_cpu(i) {
-		sm_work = percpu_ptr(stop_machine_work, i);
+		sm_work = per_cpu_ptr(stop_machine_work, i);
 		INIT_WORK(sm_work, stop_cpu);
 		queue_work_on(i, stop_machine_wq, sm_work);
 	}
