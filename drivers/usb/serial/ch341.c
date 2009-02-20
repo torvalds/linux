@@ -529,12 +529,34 @@ static int ch341_tiocmget(struct tty_struct *tty, struct file *file)
 	return result;
 }
 
+
+static int ch341_reset_resume(struct usb_interface *intf)
+{
+	struct usb_device *dev = interface_to_usbdev(intf);
+	struct usb_serial *serial = NULL;
+	struct ch341_private *priv;
+
+	serial = usb_get_intfdata(intf);
+	priv = usb_get_serial_port_data(serial->port[0]);
+
+	/*reconfigure ch341 serial port after bus-reset*/
+	ch341_configure(dev, priv);
+
+	usb_serial_resume(intf);
+
+	return 0;
+}
+
 static struct usb_driver ch341_driver = {
 	.name		= "ch341",
 	.probe		= usb_serial_probe,
 	.disconnect	= usb_serial_disconnect,
+	.suspend	= usb_serial_suspend,
+	.resume		= usb_serial_resume,
+	.reset_resume	= ch341_reset_resume,
 	.id_table	= id_table,
 	.no_dynamic_id	= 1,
+	.supports_autosuspend =	1,
 };
 
 static struct usb_serial_driver ch341_device = {
