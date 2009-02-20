@@ -842,6 +842,9 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 #endif
 
 	if (for_tx) {
+		/* Assumption: B43_TXRING_SLOTS can be divided by TX_SLOTS_PER_FRAME */
+		BUILD_BUG_ON(B43_TXRING_SLOTS % TX_SLOTS_PER_FRAME != 0);
+
 		ring->txhdr_cache = kcalloc(ring->nr_slots / TX_SLOTS_PER_FRAME,
 					    b43_txhdr_size(dev),
 					    GFP_KERNEL);
