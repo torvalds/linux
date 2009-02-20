@@ -15,6 +15,7 @@
 #include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
+#include <linux/ethtool.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <mach/mv78xx0.h>
@@ -430,8 +431,21 @@ static struct platform_device mv78xx0_ge10 = {
 
 void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
 {
+	u32 dev, rev;
+
 	eth_data->shared = &mv78xx0_ge10_shared;
 	mv78xx0_ge10.dev.platform_data = eth_data;
+
+	/*
+	 * On the Z0, ge10 and ge11 are internally connected back
+	 * to back, and not brought out.
+	 */
+	mv78xx0_pcie_id(&dev, &rev);
+	if (dev == MV78X00_Z0_DEV_ID) {
+		eth_data->phy_addr = MV643XX_ETH_PHY_NONE;
+		eth_data->speed = SPEED_1000;
+		eth_data->duplex = DUPLEX_FULL;
+	}
 
 	platform_device_register(&mv78xx0_ge10_shared);
 	platform_device_register(&mv78xx0_ge10);
@@ -484,8 +498,21 @@ static struct platform_device mv78xx0_ge11 = {
 
 void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)
 {
+	u32 dev, rev;
+
 	eth_data->shared = &mv78xx0_ge11_shared;
 	mv78xx0_ge11.dev.platform_data = eth_data;
+
+	/*
+	 * On the Z0, ge10 and ge11 are internally connected back
+	 * to back, and not brought out.
+	 */
+	mv78xx0_pcie_id(&dev, &rev);
+	if (dev == MV78X00_Z0_DEV_ID) {
+		eth_data->phy_addr = MV643XX_ETH_PHY_NONE;
+		eth_data->speed = SPEED_1000;
+		eth_data->duplex = DUPLEX_FULL;
+	}
 
 	platform_device_register(&mv78xx0_ge11_shared);
 	platform_device_register(&mv78xx0_ge11);
