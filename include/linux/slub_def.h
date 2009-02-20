@@ -129,9 +129,9 @@ struct kmem_cache {
  * This should be dropped to PAGE_SIZE / 2 once the page allocator
  * "fastpath" becomes competitive with the slab allocator fastpaths.
  */
-#define SLUB_MAX_SIZE (PAGE_SIZE)
+#define SLUB_MAX_SIZE (2 * PAGE_SIZE)
 
-#define SLUB_PAGE_SHIFT (PAGE_SHIFT + 1)
+#define SLUB_PAGE_SHIFT (PAGE_SHIFT + 2)
 
 /*
  * We keep the general caches in an array of slab caches that are used for
