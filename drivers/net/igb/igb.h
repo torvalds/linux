@@ -88,8 +88,7 @@ struct igb_adapter;
 #define IGB_RXBUFFER_2048  2048
 #define IGB_RXBUFFER_16384 16384
 
-/* Packet Buffer allocations */
-
+#define MAX_STD_JUMBO_FRAME_SIZE 9234
 
 /* How many Tx Descriptors do we need to call netif_wake_queue ? */
 #define IGB_TX_QUEUE_WAKE	16

@@ -398,7 +398,7 @@ static void igb_get_regs(struct net_device *netdev,
 	regs_buff[34] = rd32(E1000_RLPML);
 	regs_buff[35] = rd32(E1000_RFCTL);
 	regs_buff[36] = rd32(E1000_MRQC);
-	regs_buff[37] = rd32(E1000_VMD_CTL);
+	regs_buff[37] = rd32(E1000_VT_CTL);
 
 	/* Transmit */
 	regs_buff[38] = rd32(E1000_TCTL);

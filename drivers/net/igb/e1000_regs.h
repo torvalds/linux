@@ -292,7 +292,7 @@ enum {
 #define E1000_RAH(_i)  (((_i) <= 15) ? (0x05404 + ((_i) * 8)) : \
                                        (0x054E4 + ((_i - 16) * 8)))
 #define E1000_VFTA     0x05600  /* VLAN Filter Table Array - RW Array */
-#define E1000_VMD_CTL  0x0581C  /* VMDq Control - RW */
+#define E1000_VT_CTL   0x0581C  /* VMDq Control - RW */
 #define E1000_WUC      0x05800  /* Wakeup Control - RW */
 #define E1000_WUFC     0x05808  /* Wakeup Filter Control - RW */
 #define E1000_WUS      0x05810  /* Wakeup Status - RO */
@@ -319,6 +319,11 @@ enum {
 /* Redirection Table - RW Array */
 #define E1000_RETA(_i)  (0x05C00 + ((_i) * 4))
 #define E1000_RSSRK(_i) (0x05C80 + ((_i) * 4)) /* RSS Random Key - RW Array */
+
+/* VT Registers */
+#define E1000_QDE       0x02408 /* Queue Drop Enable - RW */
+/* These act per VF so an array friendly macro is used */
+#define E1000_VMOLR(_n)        (0x05AD0 + (4 * (_n)))
 
 #define wr32(reg, value) (writel(value, hw->hw_addr + reg))
 #define rd32(reg) (readl(hw->hw_addr + reg))

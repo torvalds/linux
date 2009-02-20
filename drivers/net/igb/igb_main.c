@@ -122,6 +122,10 @@ static void igb_vlan_rx_register(struct net_device *, struct vlan_group *);
 static void igb_vlan_rx_add_vid(struct net_device *, u16);
 static void igb_vlan_rx_kill_vid(struct net_device *, u16);
 static void igb_restore_vlan(struct igb_adapter *);
+static inline void igb_set_rah_pool(struct e1000_hw *, int , int);
+static void igb_set_mc_list_pools(struct igb_adapter *, int, u16);
+static inline void igb_set_vmolr(struct e1000_hw *, int);
+static inline void igb_set_vf_rlpml(struct igb_adapter *, int, int);
 
 static int igb_suspend(struct pci_dev *, pm_message_t);
 #ifdef CONFIG_PM
@@ -888,6 +892,9 @@ int igb_up(struct igb_adapter *adapter)
 	if (adapter->msix_entries)
 		igb_configure_msix(adapter);
 
+	igb_set_rah_pool(hw, adapter->vfs_allocated_count, 0);
+	igb_set_vmolr(hw, adapter->vfs_allocated_count);
+
 	/* Clear any pending interrupts. */
 	rd32(E1000_ICR);
 	igb_irq_enable(adapter);
@@ -1617,6 +1624,9 @@ static int igb_open(struct net_device *netdev)
 	 * clean_rx handler before we do so.  */
 	igb_configure(adapter);
 
+	igb_set_rah_pool(hw, adapter->vfs_allocated_count, 0);
+	igb_set_vmolr(hw, adapter->vfs_allocated_count);
+
 	err = igb_request_irq(adapter);
 	if (err)
 		goto err_req_irq;
@@ -1797,10 +1807,11 @@ static void igb_configure_tx(struct igb_adapter *adapter)
 		wr32(E1000_DCA_TXCTRL(j), txctrl);
 	}
 
-	/* Use the default values for the Tx Inter Packet Gap (IPG) timer */
+	/* disable queue 0 to prevent tail bump w/o re-configuration */
+	if (adapter->vfs_allocated_count)
+		wr32(E1000_TXDCTL(0), 0);
 
 	/* Program the Transmit Control Register */
-
 	tctl = rd32(E1000_TCTL);
 	tctl &= ~E1000_TCTL_CT;
 	tctl |= E1000_TCTL_PSP | E1000_TCTL_RTLC |
@@ -1954,12 +1965,84 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 		srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 	}
 
+	/* Attention!!!  For SR-IOV PF driver operations you must enable
+	 * queue drop for all VF and PF queues to prevent head of line blocking
+	 * if an un-trusted VF does not provide descriptors to hardware.
+	 */
+	if (adapter->vfs_allocated_count) {
+		u32 vmolr;
+
+		j = adapter->rx_ring[0].reg_idx;
+
+		/* set all queue drop enable bits */
+		wr32(E1000_QDE, ALL_QUEUES);
+		srrctl |= E1000_SRRCTL_DROP_EN;
+
+		/* disable queue 0 to prevent tail write w/o re-config */
+		wr32(E1000_RXDCTL(0), 0);
+
+		vmolr = rd32(E1000_VMOLR(j));
+		if (rctl & E1000_RCTL_LPE)
+			vmolr |= E1000_VMOLR_LPE;
+		if (adapter->num_rx_queues > 0)
+			vmolr |= E1000_VMOLR_RSSE;
+		wr32(E1000_VMOLR(j), vmolr);
+	}
+
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		j = adapter->rx_ring[i].reg_idx;
 		wr32(E1000_SRRCTL(j), srrctl);
 	}
 
 	wr32(E1000_RCTL, rctl);
+}
+
+/**
+ * igb_rlpml_set - set maximum receive packet size
+ * @adapter: board private structure
+ *
+ * Configure maximum receivable packet size.
+ **/
+static void igb_rlpml_set(struct igb_adapter *adapter)
+{
+	u32 max_frame_size = adapter->max_frame_size;
+	struct e1000_hw *hw = &adapter->hw;
+	u16 pf_id = adapter->vfs_allocated_count;
+
+	if (adapter->vlgrp)
+		max_frame_size += VLAN_TAG_SIZE;
+
+	/* if vfs are enabled we set RLPML to the largest possible request
+	 * size and set the VMOLR RLPML to the size we need */
+	if (pf_id) {
+		igb_set_vf_rlpml(adapter, max_frame_size, pf_id);
+		max_frame_size = MAX_STD_JUMBO_FRAME_SIZE + VLAN_TAG_SIZE;
+	}
+
+	wr32(E1000_RLPML, max_frame_size);
+}
+
+/**
+ * igb_configure_vt_default_pool - Configure VT default pool
+ * @adapter: board private structure
+ *
+ * Configure the default pool
+ **/
+static void igb_configure_vt_default_pool(struct igb_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u16 pf_id = adapter->vfs_allocated_count;
+	u32 vtctl;
+
+	/* not in sr-iov mode - do nothing */
+	if (!pf_id)
+		return;
+
+	vtctl = rd32(E1000_VT_CTL);
+	vtctl &= ~(E1000_VT_CTL_DEFAULT_POOL_MASK |
+		   E1000_VT_CTL_DISABLE_DEF_POOL);
+	vtctl |= pf_id << E1000_VT_CTL_DEFAULT_POOL_SHIFT;
+	wr32(E1000_VT_CTL, vtctl);
 }
 
 /**
@@ -2033,8 +2116,10 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 				writel(reta.dword,
 				       hw->hw_addr + E1000_RETA(0) + (j & ~3));
 		}
-
-		mrqc = E1000_MRQC_ENABLE_RSS_4Q;
+		if (adapter->vfs_allocated_count)
+			mrqc = E1000_MRQC_ENABLE_VMDQ_RSS_2Q;
+		else
+			mrqc = E1000_MRQC_ENABLE_RSS_4Q;
 
 		/* Fill out hash function seeds */
 		for (j = 0; j < 10; j++)
@@ -2059,6 +2144,9 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 		rxcsum |= E1000_RXCSUM_PCSD;
 		wr32(E1000_RXCSUM, rxcsum);
 	} else {
+		/* Enable multi-queue for sr-iov */
+		if (adapter->vfs_allocated_count)
+			wr32(E1000_MRQC, E1000_MRQC_ENABLE_VMDQ);
 		/* Enable Receive Checksum Offload for TCP and UDP */
 		rxcsum = rd32(E1000_RXCSUM);
 		if (adapter->rx_csum)
@@ -2069,11 +2157,10 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 		wr32(E1000_RXCSUM, rxcsum);
 	}
 
-	if (adapter->vlgrp)
-		wr32(E1000_RLPML,
-				adapter->max_frame_size + VLAN_TAG_SIZE);
-	else
-		wr32(E1000_RLPML, adapter->max_frame_size);
+	/* Set the default pool for the PF's first queue */
+	igb_configure_vt_default_pool(adapter);
+
+	igb_rlpml_set(adapter);
 
 	/* Enable Receives */
 	wr32(E1000_RCTL, rctl);
@@ -2303,6 +2390,8 @@ static int igb_set_mac(struct net_device *netdev, void *p)
 
 	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
 
+	igb_set_rah_pool(hw, adapter->vfs_allocated_count, 0);
+
 	return 0;
 }
 
@@ -2362,7 +2451,11 @@ static void igb_set_multi(struct net_device *netdev)
 		memcpy(mta_list + (i*ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
 		mc_ptr = mc_ptr->next;
 	}
-	igb_update_mc_addr_list(hw, mta_list, i, 1, mac->rar_entry_count);
+	igb_update_mc_addr_list(hw, mta_list, i,
+	                        adapter->vfs_allocated_count + 1,
+	                        mac->rar_entry_count);
+
+	igb_set_mc_list_pools(adapter, i, mac->rar_entry_count);
 	kfree(mta_list);
 }
 
@@ -3222,7 +3315,6 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 		return -EINVAL;
 	}
 
-#define MAX_STD_JUMBO_FRAME_SIZE 9234
 	if (max_frame > MAX_STD_JUMBO_FRAME_SIZE) {
 		dev_err(&adapter->pdev->dev, "MTU > 9216 not supported.\n");
 		return -EINVAL;
@@ -3256,6 +3348,12 @@ static int igb_change_mtu(struct net_device *netdev, int new_mtu)
 #else
 		adapter->rx_buffer_len = PAGE_SIZE / 2;
 #endif
+
+	/* if sr-iov is enabled we need to force buffer size to 1K or larger */
+	if (adapter->vfs_allocated_count &&
+	    (adapter->rx_buffer_len < IGB_RXBUFFER_1024))
+		adapter->rx_buffer_len = IGB_RXBUFFER_1024;
+
 	/* adjust allocation if LPE protects us, and we aren't using SBP */
 	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN) ||
 	     (max_frame == MAXIMUM_ETHERNET_VLAN_SIZE))
@@ -4462,8 +4560,6 @@ static void igb_vlan_rx_register(struct net_device *netdev,
 		rctl &= ~E1000_RCTL_CFIEN;
 		wr32(E1000_RCTL, rctl);
 		igb_update_mng_vlan(adapter);
-		wr32(E1000_RLPML,
-				adapter->max_frame_size + VLAN_TAG_SIZE);
 	} else {
 		/* disable VLAN tag insert/strip */
 		ctrl = rd32(E1000_CTRL);
@@ -4474,9 +4570,9 @@ static void igb_vlan_rx_register(struct net_device *netdev,
 			igb_vlan_rx_kill_vid(netdev, adapter->mng_vlan_id);
 			adapter->mng_vlan_id = IGB_MNG_VLAN_NONE;
 		}
-		wr32(E1000_RLPML,
-				adapter->max_frame_size);
 	}
+
+	igb_rlpml_set(adapter);
 
 	if (!test_bit(__IGB_DOWN, &adapter->state))
 		igb_irq_enable(adapter);
@@ -4839,6 +4935,54 @@ static void igb_io_resume(struct pci_dev *pdev)
 	/* let the f/w know that the h/w is now under the control of the
 	 * driver. */
 	igb_get_hw_control(adapter);
+}
+
+static inline void igb_set_vmolr(struct e1000_hw *hw, int vfn)
+{
+	u32 reg_data;
+
+	reg_data = rd32(E1000_VMOLR(vfn));
+	reg_data |= E1000_VMOLR_BAM |	 /* Accept broadcast */
+	            E1000_VMOLR_ROPE |   /* Accept packets matched in UTA */
+	            E1000_VMOLR_ROMPE |  /* Accept packets matched in MTA */
+	            E1000_VMOLR_AUPE |   /* Accept untagged packets */
+	            E1000_VMOLR_STRVLAN; /* Strip vlan tags */
+	wr32(E1000_VMOLR(vfn), reg_data);
+}
+
+static inline void igb_set_vf_rlpml(struct igb_adapter *adapter, int size,
+                                    int vfn)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	u32 vmolr;
+
+	vmolr = rd32(E1000_VMOLR(vfn));
+	vmolr &= ~E1000_VMOLR_RLPML_MASK;
+	vmolr |= size | E1000_VMOLR_LPE;
+	wr32(E1000_VMOLR(vfn), vmolr);
+}
+
+static inline void igb_set_rah_pool(struct e1000_hw *hw, int pool, int entry)
+{
+	u32 reg_data;
+
+	reg_data = rd32(E1000_RAH(entry));
+	reg_data &= ~E1000_RAH_POOL_MASK;
+	reg_data |= E1000_RAH_POOL_1 << pool;;
+	wr32(E1000_RAH(entry), reg_data);
+}
+
+static void igb_set_mc_list_pools(struct igb_adapter *adapter,
+				  int entry_count, u16 total_rar_filters)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	int i = adapter->vfs_allocated_count + 1;
+
+	if ((i + entry_count) < total_rar_filters)
+		total_rar_filters = i + entry_count;
+
+	for (; i < total_rar_filters; i++)
+		igb_set_rah_pool(hw, adapter->vfs_allocated_count, i);
 }
 
 /* igb_main.c */
