@@ -960,11 +960,7 @@ access_error(unsigned long error_code, int write, struct vm_area_struct *vma)
 
 static int fault_in_kernel_space(unsigned long address)
 {
-#ifdef CONFIG_X86_32
-	return address >= TASK_SIZE;
-#else
 	return address >= TASK_SIZE_MAX;
-#endif
 }
 
 /*
