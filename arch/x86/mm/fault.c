@@ -55,13 +55,14 @@ enum x86_pf_error_code {
 	PF_INSTR	=		1 << 4,
 };
 
+/*
+ * (returns 0 if mmiotrace is disabled)
+ */
 static inline int kmmio_fault(struct pt_regs *regs, unsigned long addr)
 {
-#ifdef CONFIG_MMIOTRACE
 	if (unlikely(is_kmmio_active()))
 		if (kmmio_handler(regs, addr) == 1)
 			return -1;
-#endif
 	return 0;
 }
 
