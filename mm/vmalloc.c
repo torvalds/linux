@@ -153,8 +153,8 @@ static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
  *
  * Ie. pte at addr+N*PAGE_SIZE shall point to pfn corresponding to pages[N]
  */
-static int vmap_page_range(unsigned long start, unsigned long end,
-				pgprot_t prot, struct page **pages)
+static int vmap_page_range_noflush(unsigned long start, unsigned long end,
+				   pgprot_t prot, struct page **pages)
 {
 	pgd_t *pgd;
 	unsigned long next;
@@ -170,11 +170,20 @@ static int vmap_page_range(unsigned long start, unsigned long end,
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
-	flush_cache_vmap(start, end);
 
 	if (unlikely(err))
 		return err;
 	return nr;
+}
+
+static int vmap_page_range(unsigned long start, unsigned long end,
+			   pgprot_t prot, struct page **pages)
+{
+	int ret;
+
+	ret = vmap_page_range_noflush(start, end, prot, pages);
+	flush_cache_vmap(start, end);
+	return ret;
 }
 
 static inline int is_vmalloc_or_module_addr(const void *x)
@@ -1033,6 +1042,58 @@ void __init vmalloc_init(void)
 	vmap_initialized = true;
 }
 
+/**
+ * map_kernel_range_noflush - map kernel VM area with the specified pages
+ * @addr: start of the VM area to map
+ * @size: size of the VM area to map
+ * @prot: page protection flags to use
+ * @pages: pages to map
+ *
+ * Map PFN_UP(@size) pages at @addr.  The VM area @addr and @size
+ * specify should have been allocated using get_vm_area() and its
+ * friends.
+ *
+ * NOTE:
+ * This function does NOT do any cache flushing.  The caller is
+ * responsible for calling flush_cache_vmap() on to-be-mapped areas
+ * before calling this function.
+ *
+ * RETURNS:
+ * The number of pages mapped on success, -errno on failure.
+ */
+int map_kernel_range_noflush(unsigned long addr, unsigned long size,
+			     pgprot_t prot, struct page **pages)
+{
+	return vmap_page_range_noflush(addr, addr + size, prot, pages);
+}
+
+/**
+ * unmap_kernel_range_noflush - unmap kernel VM area
+ * @addr: start of the VM area to unmap
+ * @size: size of the VM area to unmap
+ *
+ * Unmap PFN_UP(@size) pages at @addr.  The VM area @addr and @size
+ * specify should have been allocated using get_vm_area() and its
+ * friends.
+ *
+ * NOTE:
+ * This function does NOT do any cache flushing.  The caller is
+ * responsible for calling flush_cache_vunmap() on to-be-mapped areas
+ * before calling this function and flush_tlb_kernel_range() after.
+ */
+void unmap_kernel_range_noflush(unsigned long addr, unsigned long size)
+{
+	vunmap_page_range(addr, addr + size);
+}
+
+/**
+ * unmap_kernel_range - unmap kernel VM area and flush cache and TLB
+ * @addr: start of the VM area to unmap
+ * @size: size of the VM area to unmap
+ *
+ * Similar to unmap_kernel_range_noflush() but flushes vcache before
+ * the unmapping and tlb after.
+ */
 void unmap_kernel_range(unsigned long addr, unsigned long size)
 {
 	unsigned long end = addr + size;
