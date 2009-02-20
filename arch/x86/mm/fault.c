@@ -477,7 +477,6 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 	dump_pagetable(address);
 }
 
-#ifdef CONFIG_X86_64
 static noinline void
 pgtable_bad(struct pt_regs *regs, unsigned long error_code,
 	    unsigned long address)
@@ -503,7 +502,6 @@ pgtable_bad(struct pt_regs *regs, unsigned long error_code,
 
 	oops_end(flags, regs, sig);
 }
-#endif
 
 static noinline void
 no_context(struct pt_regs *regs, unsigned long error_code,
@@ -1015,10 +1013,8 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 			local_irq_enable();
 	}
 
-#ifdef CONFIG_X86_64
 	if (unlikely(error_code & PF_RSVD))
 		pgtable_bad(regs, error_code, address);
-#endif
 
 	/*
 	 * If we're in an interrupt, have no user context or are running
