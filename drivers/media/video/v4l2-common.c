@@ -390,16 +390,16 @@ const char *v4l2_ctrl_get_name(u32 id)
 	switch (id) {
 	/* USER controls */
 	case V4L2_CID_USER_CLASS: 		return "User Controls";
-	case V4L2_CID_AUDIO_VOLUME: 		return "Volume";
-	case V4L2_CID_AUDIO_MUTE: 		return "Mute";
-	case V4L2_CID_AUDIO_BALANCE: 		return "Balance";
-	case V4L2_CID_AUDIO_BASS: 		return "Bass";
-	case V4L2_CID_AUDIO_TREBLE: 		return "Treble";
-	case V4L2_CID_AUDIO_LOUDNESS: 		return "Loudness";
 	case V4L2_CID_BRIGHTNESS: 		return "Brightness";
 	case V4L2_CID_CONTRAST: 		return "Contrast";
 	case V4L2_CID_SATURATION: 		return "Saturation";
 	case V4L2_CID_HUE: 			return "Hue";
+	case V4L2_CID_AUDIO_VOLUME: 		return "Volume";
+	case V4L2_CID_AUDIO_BALANCE: 		return "Balance";
+	case V4L2_CID_AUDIO_BASS: 		return "Bass";
+	case V4L2_CID_AUDIO_TREBLE: 		return "Treble";
+	case V4L2_CID_AUDIO_MUTE: 		return "Mute";
+	case V4L2_CID_AUDIO_LOUDNESS: 		return "Loudness";
 	case V4L2_CID_BLACK_LEVEL:		return "Black Level";
 	case V4L2_CID_AUTO_WHITE_BALANCE:	return "White Balance, Automatic";
 	case V4L2_CID_DO_WHITE_BALANCE:		return "Do White Balance";
@@ -499,15 +499,24 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_HFLIP:
 	case V4L2_CID_VFLIP:
 	case V4L2_CID_HUE_AUTO:
+	case V4L2_CID_CHROMA_AGC:
+	case V4L2_CID_COLOR_KILLER:
 	case V4L2_CID_MPEG_AUDIO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_MUTE:
 	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE:
 	case V4L2_CID_MPEG_VIDEO_PULLDOWN:
 	case V4L2_CID_EXPOSURE_AUTO_PRIORITY:
+	case V4L2_CID_FOCUS_AUTO:
 	case V4L2_CID_PRIVACY:
 		qctrl->type = V4L2_CTRL_TYPE_BOOLEAN;
 		min = 0;
 		max = step = 1;
+		break;
+	case V4L2_CID_PAN_RESET:
+	case V4L2_CID_TILT_RESET:
+		qctrl->type = V4L2_CTRL_TYPE_BUTTON;
+		qctrl->flags |= V4L2_CTRL_FLAG_WRITE_ONLY;
+		min = max = step = def = 0;
 		break;
 	case V4L2_CID_POWER_LINE_FREQUENCY:
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
@@ -557,7 +566,16 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_CONTRAST:
 	case V4L2_CID_SATURATION:
 	case V4L2_CID_HUE:
+	case V4L2_CID_RED_BALANCE:
+	case V4L2_CID_BLUE_BALANCE:
+	case V4L2_CID_GAMMA:
 		qctrl->flags |= V4L2_CTRL_FLAG_SLIDER;
+		break;
+	case V4L2_CID_PAN_RELATIVE:
+	case V4L2_CID_TILT_RELATIVE:
+	case V4L2_CID_FOCUS_RELATIVE:
+	case V4L2_CID_ZOOM_RELATIVE:
+		qctrl->flags |= V4L2_CTRL_FLAG_WRITE_ONLY;
 		break;
 	}
 	qctrl->minimum = min;
@@ -578,6 +596,7 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 	/* USER controls */
 	case V4L2_CID_USER_CLASS:
 	case V4L2_CID_MPEG_CLASS:
+	case V4L2_CID_CAMERA_CLASS:
 		return v4l2_ctrl_query_fill(qctrl, 0, 0, 0, 0);
 	case V4L2_CID_AUDIO_VOLUME:
 		return v4l2_ctrl_query_fill(qctrl, 0, 65535, 65535 / 100, 58880);
