@@ -3,10 +3,15 @@
  *
  * This is an implementation of the CIPSO 2.2 protocol as specified in
  * draft-ietf-cipso-ipsecurity-01.txt with additional tag types as found in
- * FIPS-188, copies of both documents can be found in the Documentation
- * directory.  While CIPSO never became a full IETF RFC standard many vendors
+ * FIPS-188.  While CIPSO never became a full IETF RFC standard many vendors
  * have chosen to adopt the protocol and over the years it has become a
  * de-facto standard for labeled networking.
+ *
+ * The CIPSO draft specification can be found in the kernel's Documentation
+ * directory as well as the following URL:
+ *   http://netlabel.sourceforge.net/files/draft-ietf-cipso-ipsecurity-01.txt
+ * The FIPS-188 specification can be found at the following URL:
+ *   http://www.itl.nist.gov/fipspubs/fip188.htm
  *
  * Author: Paul Moore <paul.moore@hp.com>
  *
