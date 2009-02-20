@@ -945,7 +945,7 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 		 union iwreq_data *wrqu, char *extra)
 {
 	DECLARE_SSID_BUF(ssid);
-	struct lbs_private *priv = netdev_priv(dev);
+	struct lbs_private *priv = dev->ml_priv;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
@@ -1008,7 +1008,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 		 struct iw_point *dwrq, char *extra)
 {
 #define SCAN_ITEM_SIZE 128
-	struct lbs_private *priv = netdev_priv(dev);
+	struct lbs_private *priv = dev->ml_priv;
 	int err = 0;
 	char *ev = extra;
 	char *stop = ev + dwrq->length;

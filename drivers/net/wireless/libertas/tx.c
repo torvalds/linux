@@ -60,7 +60,7 @@ static u32 convert_radiotap_rate_to_mv(u8 rate)
 int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	unsigned long flags;
-	struct lbs_private *priv = netdev_priv(dev);
+	struct lbs_private *priv = dev->ml_priv;
 	struct txpd *txpd;
 	char *p802x_hdr;
 	uint16_t pkt_len;

@@ -18,7 +18,7 @@
 static int mesh_get_default_parameters(struct device *dev,
 				       struct mrvl_mesh_defaults *defs)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct cmd_ds_mesh_config cmd;
 	int ret;
 
@@ -57,7 +57,7 @@ static ssize_t bootflag_get(struct device *dev,
 static ssize_t bootflag_set(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct cmd_ds_mesh_config cmd;
 	uint32_t datum;
 	int ret;
@@ -100,7 +100,7 @@ static ssize_t boottime_get(struct device *dev,
 static ssize_t boottime_set(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct cmd_ds_mesh_config cmd;
 	uint32_t datum;
 	int ret;
@@ -152,7 +152,7 @@ static ssize_t channel_get(struct device *dev,
 static ssize_t channel_set(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	struct cmd_ds_mesh_config cmd;
 	uint32_t datum;
 	int ret;
@@ -210,7 +210,7 @@ static ssize_t mesh_id_set(struct device *dev, struct device_attribute *attr,
 	struct cmd_ds_mesh_config cmd;
 	struct mrvl_mesh_defaults defs;
 	struct mrvl_meshie *ie;
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	int len;
 	int ret;
 
@@ -269,7 +269,7 @@ static ssize_t protocol_id_set(struct device *dev,
 	struct cmd_ds_mesh_config cmd;
 	struct mrvl_mesh_defaults defs;
 	struct mrvl_meshie *ie;
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	uint32_t datum;
 	int ret;
 
@@ -323,7 +323,7 @@ static ssize_t metric_id_set(struct device *dev, struct device_attribute *attr,
 	struct cmd_ds_mesh_config cmd;
 	struct mrvl_mesh_defaults defs;
 	struct mrvl_meshie *ie;
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	uint32_t datum;
 	int ret;
 
@@ -377,7 +377,7 @@ static ssize_t capability_set(struct device *dev, struct device_attribute *attr,
 	struct cmd_ds_mesh_config cmd;
 	struct mrvl_mesh_defaults defs;
 	struct mrvl_meshie *ie;
-	struct lbs_private *priv = netdev_priv(to_net_dev(dev));
+	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	uint32_t datum;
 	int ret;
 
