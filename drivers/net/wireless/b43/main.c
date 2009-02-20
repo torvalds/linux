@@ -4170,10 +4170,12 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 			hf |= B43_HF_GDCW;
 		if (sprom->boardflags_lo & B43_BFL_PACTRL)
 			hf |= B43_HF_OFDMPABOOST;
-	} else if (phy->type == B43_PHYTYPE_B) {
-		hf |= B43_HF_SYMW;
-		if (phy->rev >= 2 && phy->radio_ver == 0x2050)
-			hf &= ~B43_HF_GDCW;
+	}
+	if (phy->radio_ver == 0x2050) {
+		if (phy->radio_rev == 6)
+			hf |= B43_HF_4318TSSI;
+		if (phy->radio_rev < 6)
+			hf |= B43_HF_VCORECALC;
 	}
 	b43_hf_write(dev, hf);
 
