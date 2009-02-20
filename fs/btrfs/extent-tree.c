@@ -2017,26 +2017,49 @@ int btrfs_check_metadata_free_space(struct btrfs_root *root)
 	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_space_info *meta_sinfo;
 	u64 alloc_target, thresh;
+	int committed = 0, ret;
 
 	/* get the space info for where the metadata will live */
 	alloc_target = btrfs_get_alloc_profile(root, 0);
 	meta_sinfo = __find_space_info(info, alloc_target);
 
-	/*
-	 * if the metadata area isn't maxed out then there is no sense in
-	 * checking how much is used, since we can always allocate a new chunk
-	 */
-	if (!meta_sinfo->full)
-		return 0;
-
+again:
 	spin_lock(&meta_sinfo->lock);
-	thresh = meta_sinfo->total_bytes * 95;
+	if (!meta_sinfo->full)
+		thresh = meta_sinfo->total_bytes * 80;
+	else
+		thresh = meta_sinfo->total_bytes * 95;
 
 	do_div(thresh, 100);
 
 	if (meta_sinfo->bytes_used + meta_sinfo->bytes_reserved +
 	    meta_sinfo->bytes_pinned + meta_sinfo->bytes_readonly > thresh) {
+		struct btrfs_trans_handle *trans;
+		if (!meta_sinfo->full) {
+			meta_sinfo->force_alloc = 1;
+			spin_unlock(&meta_sinfo->lock);
+
+			trans = btrfs_start_transaction(root, 1);
+			if (!trans)
+				return -ENOMEM;
+
+			ret = do_chunk_alloc(trans, root->fs_info->extent_root,
+					     2 * 1024 * 1024, alloc_target, 0);
+			btrfs_end_transaction(trans, root);
+			goto again;
+		}
 		spin_unlock(&meta_sinfo->lock);
+
+		if (!committed) {
+			committed = 1;
+			trans = btrfs_join_transaction(root, 1);
+			if (!trans)
+				return -ENOMEM;
+			ret = btrfs_commit_transaction(trans, root);
+			if (ret)
+				return ret;
+			goto again;
+		}
 		return -ENOSPC;
 	}
 	spin_unlock(&meta_sinfo->lock);
@@ -2052,7 +2075,7 @@ int btrfs_check_data_free_space(struct btrfs_root *root, struct inode *inode,
 				u64 bytes)
 {
 	struct btrfs_space_info *data_sinfo;
-	int ret = 0;
+	int ret = 0, committed = 0;
 
 	/* make sure bytes are sectorsize aligned */
 	bytes = (bytes + root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
@@ -2065,13 +2088,14 @@ again:
 	    data_sinfo->bytes_delalloc - data_sinfo->bytes_reserved -
 	    data_sinfo->bytes_pinned - data_sinfo->bytes_readonly -
 	    data_sinfo->bytes_may_use < bytes) {
+		struct btrfs_trans_handle *trans;
+
 		/*
 		 * if we don't have enough free bytes in this space then we need
 		 * to alloc a new chunk.
 		 */
 		if (!data_sinfo->full) {
 			u64 alloc_target;
-			struct btrfs_trans_handle *trans;
 
 			data_sinfo->force_alloc = 1;
 			spin_unlock(&data_sinfo->lock);
@@ -2090,6 +2114,19 @@ again:
 			goto again;
 		}
 		spin_unlock(&data_sinfo->lock);
+
+		/* commit the current transaction and try again */
+		if (!committed) {
+			committed = 1;
+			trans = btrfs_join_transaction(root, 1);
+			if (!trans)
+				return -ENOMEM;
+			ret = btrfs_commit_transaction(trans, root);
+			if (ret)
+				return ret;
+			goto again;
+		}
+
 		printk(KERN_ERR "no space left, need %llu, %llu delalloc bytes"
 		       ", %llu bytes_used, %llu bytes_reserved, "
 		       "%llu bytes_pinned, %llu bytes_readonly, %llu may use"
