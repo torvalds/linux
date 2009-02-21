@@ -83,7 +83,7 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	const struct firmware *fw_entry;
 	const struct orinoco_fw_header *hdr;
 	const unsigned char *first_block;
-	const unsigned char *end;
+	const void *end;
 	const char *firmware;
 	const char *fw_err;
 	struct net_device *dev = priv->ndev;
@@ -152,7 +152,8 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 		       le16_to_cpu(hdr->headersize) +
 		       le32_to_cpu(hdr->pdr_offset));
 
-	err = hermes_apply_pda_with_defaults(hw, first_block, pda);
+	err = hermes_apply_pda_with_defaults(hw, first_block, end, pda,
+					     &pda[fw->pda_size / sizeof(*pda)]);
 	printk(KERN_DEBUG "%s: Apply PDA returned %d\n", dev->name, err);
 	if (err)
 		goto abort;
@@ -184,7 +185,7 @@ free:
  */
 static int
 symbol_dl_image(struct orinoco_private *priv, const struct fw_info *fw,
-		const unsigned char *image, const unsigned char *end,
+		const unsigned char *image, const void *end,
 		int secondary)
 {
 	hermes_t *hw = &priv->hw;
@@ -225,9 +226,10 @@ symbol_dl_image(struct orinoco_private *priv, const struct fw_info *fw,
 
 	/* Write the PDA to the adapter */
 	if (secondary) {
-		size_t len = hermes_blocks_length(first_block);
+		size_t len = hermes_blocks_length(first_block, end);
 		ptr = first_block + len;
-		ret = hermes_apply_pda(hw, ptr, pda);
+		ret = hermes_apply_pda(hw, ptr, end, pda,
+				       &pda[fw->pda_size / sizeof(*pda)]);
 		kfree(pda);
 		if (ret)
 			return ret;
