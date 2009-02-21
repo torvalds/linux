@@ -7,7 +7,6 @@
 #include <linux/if.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/nl80211.h>
 #include <linux/debugfs.h>
@@ -50,6 +49,8 @@ cfg80211_drv_by_wiphy_idx(int wiphy_idx)
 	if (!wiphy_idx_valid(wiphy_idx))
 		return NULL;
 
+	assert_cfg80211_lock();
+
 	list_for_each_entry(drv, &cfg80211_drv_list, list) {
 		if (drv->wiphy_idx == wiphy_idx) {
 			result = drv;
@@ -68,6 +69,8 @@ __cfg80211_drv_from_info(struct genl_info *info)
 	struct cfg80211_registered_device *bywiphyidx = NULL, *byifidx = NULL;
 	struct net_device *dev;
 	int err = -EINVAL;
+
+	assert_cfg80211_lock();
 
 	if (info->attrs[NL80211_ATTR_WIPHY]) {
 		bywiphyidx = cfg80211_drv_by_wiphy_idx(

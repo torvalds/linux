@@ -276,6 +276,8 @@ static bool alpha2_equal(const char *alpha2_x, const char *alpha2_y)
 
 static bool regdom_changed(const char *alpha2)
 {
+	assert_cfg80211_lock();
+
 	if (!cfg80211_regdomain)
 		return true;
 	if (alpha2_equal(cfg80211_regdomain->alpha2, alpha2))
@@ -830,6 +832,8 @@ static void handle_channel(struct wiphy *wiphy, enum ieee80211_band band,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
 
+	assert_cfg80211_lock();
+
 	sband = wiphy->bands[band];
 	BUG_ON(chan_idx >= sband->n_channels);
 	chan = &sband->channels[chan_idx];
@@ -1042,6 +1046,9 @@ static int reg_copy_regd(const struct ieee80211_regdomain **dst_regd,
 static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
 			  const char *alpha2)
 {
+
+	assert_cfg80211_lock();
+
 	/* All initial requests are respected */
 	if (!last_request)
 		return 0;
@@ -1121,6 +1128,8 @@ int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
 	struct regulatory_request *request;
 	bool intersect = false;
 	int r = 0;
+
+	assert_cfg80211_lock();
 
 	r = ignore_request(wiphy, set_by, alpha2);
 
@@ -1217,6 +1226,8 @@ EXPORT_SYMBOL(regulatory_hint);
 static bool reg_same_country_ie_hint(struct wiphy *wiphy,
 			u32 country_ie_checksum)
 {
+	assert_cfg80211_lock();
+
 	if (!last_request->wiphy)
 		return false;
 	if (likely(last_request->wiphy != wiphy))
@@ -1583,6 +1594,8 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 {
 	int r;
 
+	assert_cfg80211_lock();
+
 	/* Note that this doesn't update the wiphys, this is done below */
 	r = __set_regdom(rd);
 	if (r) {
@@ -1605,6 +1618,8 @@ int set_regdom(const struct ieee80211_regdomain *rd)
 /* Caller must hold cfg80211_mutex */
 void reg_device_remove(struct wiphy *wiphy)
 {
+	assert_cfg80211_lock();
+
 	kfree(wiphy->regd);
 	if (!last_request || !last_request->wiphy)
 		return;

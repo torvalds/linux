@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 #include <linux/kref.h>
 #include <linux/rbtree.h>
+#include <linux/mutex.h>
 #include <net/genetlink.h>
 #include <net/wireless.h>
 #include <net/cfg80211.h>
@@ -72,6 +73,11 @@ bool wiphy_idx_valid(int wiphy_idx)
 
 extern struct mutex cfg80211_mutex;
 extern struct list_head cfg80211_drv_list;
+
+static inline void assert_cfg80211_lock(void)
+{
+	BUG_ON(!mutex_is_locked(&cfg80211_mutex));
+}
 
 struct cfg80211_internal_bss {
 	struct list_head list;
