@@ -18,14 +18,10 @@
  *
  * Some iw_handler code was taken from airo.c, (C) 1999 Benjamin Reed
  *
- * TODO for the mac80211 port:
- * o adhoc support
- * o RTS/CTS support
- * o Power Save Mode support
- * o support for short/long preambles
- * o export variables through debugfs/sysfs
- * o remove hex2str
- * o remove mac2str
+ * TODO list is at the wiki:
+ *
+ * http://wireless.kernel.org/en/users/Drivers/at76c50x-usb#TODO
+ *
  */
 
 #include <linux/init.h>
