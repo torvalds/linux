@@ -69,6 +69,9 @@ enum ieee80211_channel_flags {
  * @band: band this channel belongs to.
  * @max_antenna_gain: maximum antenna gain in dBi
  * @max_power: maximum transmission power (in dBm)
+ * @beacon_found: helper to regulatory code to indicate when a beacon
+ *	has been found on this channel. Use regulatory_hint_found_beacon()
+ *	to enable this, this is is useful only on 5 GHz band.
  * @orig_mag: internal use
  * @orig_mpwr: internal use
  */
@@ -80,6 +83,7 @@ struct ieee80211_channel {
 	u32 flags;
 	int max_antenna_gain;
 	int max_power;
+	bool beacon_found;
 	u32 orig_flags;
 	int orig_mag, orig_mpwr;
 };
@@ -425,7 +429,6 @@ extern int regulatory_hint(struct wiphy *wiphy, const char *alpha2);
 extern void regulatory_hint_11d(struct wiphy *wiphy,
 				u8 *country_ie,
 				u8 country_ie_len);
-
 /**
  * wiphy_apply_custom_regulatory - apply a custom driver regulatory domain
  * @wiphy: the wireless device we want to process the regulatory domain on

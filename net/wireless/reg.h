@@ -38,4 +38,25 @@ extern int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
 			     const char *alpha2, u32 country_ie_checksum,
 			     enum environment_cap country_ie_env);
 
+/**
+ * regulatory_hint_found_beacon - hints a beacon was found on a channel
+ * @wiphy: the wireless device where the beacon was found on
+ * @beacon_chan: the channel on which the beacon was found on
+ * @gfp: context flags
+ *
+ * This informs the wireless core that a beacon from an AP was found on
+ * the channel provided. This allows the wireless core to make educated
+ * guesses on regulatory to help with world roaming. This is only used for
+ * world roaming -- when we do not know our current location. This is
+ * only useful on channels 12, 13 and 14 on the 2 GHz band as channels
+ * 1-11 are already enabled by the world regulatory domain; and on
+ * non-radar 5 GHz channels.
+ *
+ * Drivers do not need to call this, cfg80211 will do it for after a scan
+ * on a newly found BSS.
+ */
+int regulatory_hint_found_beacon(struct wiphy *wiphy,
+					struct ieee80211_channel *beacon_chan,
+					gfp_t gfp);
+
 #endif  /* __NET_WIRELESS_REG_H */

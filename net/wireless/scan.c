@@ -430,6 +430,9 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 	if (!res)
 		return NULL;
 
+	if (res->pub.capability & WLAN_CAPABILITY_ESS)
+		regulatory_hint_found_beacon(wiphy, channel, gfp);
+
 	/* cfg80211_bss_update gives us a referenced result */
 	return &res->pub;
 }

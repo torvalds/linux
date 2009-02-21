@@ -68,8 +68,21 @@ const struct ieee80211_regdomain *cfg80211_regdomain;
  */
 static const struct ieee80211_regdomain *country_ie_regdomain;
 
+/* Used to queue up regulatory hints */
 static LIST_HEAD(reg_requests_list);
 static spinlock_t reg_requests_lock;
+
+/* Used to queue up beacon hints for review */
+static LIST_HEAD(reg_pending_beacons);
+static spinlock_t reg_pending_beacons_lock;
+
+/* Used to keep track of processed beacon hints */
+static LIST_HEAD(reg_beacon_list);
+
+struct reg_beacon {
+	struct list_head list;
+	struct ieee80211_channel chan;
+};
 
 /* We keep a static world regulatory domain in case of the absence of CRDA */
 static const struct ieee80211_regdomain world_regdom = {
@@ -1011,16 +1024,120 @@ static void update_all_wiphy_regulatory(enum reg_set_by setby)
 		wiphy_update_regulatory(&drv->wiphy, setby);
 }
 
+static void handle_reg_beacon(struct wiphy *wiphy,
+			      unsigned int chan_idx,
+			      struct reg_beacon *reg_beacon)
+{
+#ifdef CONFIG_CFG80211_REG_DEBUG
+#define REG_DEBUG_BEACON_FLAG(desc) \
+	printk(KERN_DEBUG "cfg80211: Enabling " desc " on " \
+		"frequency: %d MHz (Ch %d) on %s\n", \
+		reg_beacon->chan.center_freq, \
+		ieee80211_frequency_to_channel(reg_beacon->chan.center_freq), \
+		wiphy_name(wiphy));
+#else
+#define REG_DEBUG_BEACON_FLAG(desc) do {} while (0)
+#endif
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *chan;
+
+	assert_cfg80211_lock();
+
+	sband = wiphy->bands[reg_beacon->chan.band];
+	chan = &sband->channels[chan_idx];
+
+	if (likely(chan->center_freq != reg_beacon->chan.center_freq))
+		return;
+
+	if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN) {
+		chan->flags &= ~IEEE80211_CHAN_PASSIVE_SCAN;
+		REG_DEBUG_BEACON_FLAG("active scanning");
+	}
+
+	if (chan->flags & IEEE80211_CHAN_NO_IBSS) {
+		chan->flags &= ~IEEE80211_CHAN_NO_IBSS;
+		REG_DEBUG_BEACON_FLAG("beaconing");
+	}
+
+	chan->beacon_found = true;
+#undef REG_DEBUG_BEACON_FLAG
+}
+
+/*
+ * Called when a scan on a wiphy finds a beacon on
+ * new channel
+ */
+static void wiphy_update_new_beacon(struct wiphy *wiphy,
+				    struct reg_beacon *reg_beacon)
+{
+	unsigned int i;
+	struct ieee80211_supported_band *sband;
+
+	assert_cfg80211_lock();
+
+	if (!wiphy->bands[reg_beacon->chan.band])
+		return;
+
+	sband = wiphy->bands[reg_beacon->chan.band];
+
+	for (i = 0; i < sband->n_channels; i++)
+		handle_reg_beacon(wiphy, i, reg_beacon);
+}
+
+/*
+ * Called upon reg changes or a new wiphy is added
+ */
+static void wiphy_update_beacon_reg(struct wiphy *wiphy)
+{
+	unsigned int i;
+	struct ieee80211_supported_band *sband;
+	struct reg_beacon *reg_beacon;
+
+	assert_cfg80211_lock();
+
+	if (list_empty(&reg_beacon_list))
+		return;
+
+	list_for_each_entry(reg_beacon, &reg_beacon_list, list) {
+		if (!wiphy->bands[reg_beacon->chan.band])
+			continue;
+		sband = wiphy->bands[reg_beacon->chan.band];
+		for (i = 0; i < sband->n_channels; i++)
+			handle_reg_beacon(wiphy, i, reg_beacon);
+	}
+}
+
+static bool reg_is_world_roaming(struct wiphy *wiphy)
+{
+	if (is_world_regdom(cfg80211_regdomain->alpha2) ||
+	    (wiphy->regd && is_world_regdom(wiphy->regd->alpha2)))
+		return true;
+	if (last_request->initiator != REGDOM_SET_BY_COUNTRY_IE &&
+	    wiphy->custom_regulatory)
+		return true;
+	return false;
+}
+
+/* Reap the advantages of previously found beacons */
+static void reg_process_beacons(struct wiphy *wiphy)
+{
+	if (!reg_is_world_roaming(wiphy))
+		return;
+	wiphy_update_beacon_reg(wiphy);
+}
+
 void wiphy_update_regulatory(struct wiphy *wiphy, enum reg_set_by setby)
 {
 	enum ieee80211_band band;
 
 	if (ignore_reg_update(wiphy, setby))
-		return;
+		goto out;
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (wiphy->bands[band])
 			handle_band(wiphy, band);
 	}
+out:
+	reg_process_beacons(wiphy);
 	if (wiphy->reg_notifier)
 		wiphy->reg_notifier(wiphy, last_request);
 }
@@ -1314,6 +1431,7 @@ out:
 	return r;
 }
 
+/* Processes regulatory hints, this is all the REGDOM_SET_BY_* */
 static void reg_process_pending_hints(void)
 	{
 	struct regulatory_request *reg_request;
@@ -1344,9 +1462,44 @@ static void reg_process_pending_hints(void)
 	spin_unlock(&reg_requests_lock);
 }
 
+/* Processes beacon hints -- this has nothing to do with country IEs */
+static void reg_process_pending_beacon_hints(void)
+{
+	struct cfg80211_registered_device *drv;
+	struct reg_beacon *pending_beacon, *tmp;
+
+	mutex_lock(&cfg80211_mutex);
+
+	/* This goes through the _pending_ beacon list */
+	spin_lock_bh(&reg_pending_beacons_lock);
+
+	if (list_empty(&reg_pending_beacons)) {
+		spin_unlock_bh(&reg_pending_beacons_lock);
+		goto out;
+	}
+
+	list_for_each_entry_safe(pending_beacon, tmp,
+				 &reg_pending_beacons, list) {
+
+		list_del_init(&pending_beacon->list);
+
+		/* Applies the beacon hint to current wiphys */
+		list_for_each_entry(drv, &cfg80211_drv_list, list)
+			wiphy_update_new_beacon(&drv->wiphy, pending_beacon);
+
+		/* Remembers the beacon hint for new wiphys or reg changes */
+		list_add_tail(&pending_beacon->list, &reg_beacon_list);
+	}
+
+	spin_unlock_bh(&reg_pending_beacons_lock);
+out:
+	mutex_unlock(&cfg80211_mutex);
+}
+
 static void reg_todo(struct work_struct *work)
 {
 	reg_process_pending_hints();
+	reg_process_pending_beacon_hints();
 }
 
 static DECLARE_WORK(reg_work, reg_todo);
@@ -1586,6 +1739,55 @@ out:
 	mutex_unlock(&cfg80211_mutex);
 }
 EXPORT_SYMBOL(regulatory_hint_11d);
+
+static bool freq_is_chan_12_13_14(u16 freq)
+{
+	if (freq == ieee80211_channel_to_frequency(12) ||
+	    freq == ieee80211_channel_to_frequency(13) ||
+	    freq == ieee80211_channel_to_frequency(14))
+		return true;
+	return false;
+}
+
+int regulatory_hint_found_beacon(struct wiphy *wiphy,
+				 struct ieee80211_channel *beacon_chan,
+				 gfp_t gfp)
+{
+	struct reg_beacon *reg_beacon;
+
+	if (likely((beacon_chan->beacon_found ||
+	    (beacon_chan->flags & IEEE80211_CHAN_RADAR) ||
+	    (beacon_chan->band == IEEE80211_BAND_2GHZ &&
+	     !freq_is_chan_12_13_14(beacon_chan->center_freq)))))
+		return 0;
+
+	reg_beacon = kzalloc(sizeof(struct reg_beacon), gfp);
+	if (!reg_beacon)
+		return -ENOMEM;
+
+#ifdef CONFIG_CFG80211_REG_DEBUG
+	printk(KERN_DEBUG "cfg80211: Found new beacon on "
+		"frequency: %d MHz (Ch %d) on %s\n",
+		beacon_chan->center_freq,
+		ieee80211_frequency_to_channel(beacon_chan->center_freq),
+		wiphy_name(wiphy));
+#endif
+	memcpy(&reg_beacon->chan, beacon_chan,
+		sizeof(struct ieee80211_channel));
+
+
+	/*
+	 * Since we can be called from BH or and non-BH context
+	 * we must use spin_lock_bh()
+	 */
+	spin_lock_bh(&reg_pending_beacons_lock);
+	list_add_tail(&reg_beacon->list, &reg_pending_beacons);
+	spin_unlock_bh(&reg_pending_beacons_lock);
+
+	schedule_work(&reg_work);
+
+	return 0;
+}
 
 static void print_rd_rules(const struct ieee80211_regdomain *rd)
 {
@@ -1908,6 +2110,7 @@ int regulatory_init(void)
 		return PTR_ERR(reg_pdev);
 
 	spin_lock_init(&reg_requests_lock);
+	spin_lock_init(&reg_pending_beacons_lock);
 
 #ifdef CONFIG_WIRELESS_OLD_REGULATORY
 	cfg80211_regdomain = static_regdom(ieee80211_regdom);
@@ -1951,6 +2154,7 @@ int regulatory_init(void)
 void regulatory_exit(void)
 {
 	struct regulatory_request *reg_request, *tmp;
+	struct reg_beacon *reg_beacon, *btmp;
 
 	cancel_work_sync(&reg_work);
 
@@ -1964,6 +2168,24 @@ void regulatory_exit(void)
 	kfree(last_request);
 
 	platform_device_unregister(reg_pdev);
+
+	spin_lock_bh(&reg_pending_beacons_lock);
+	if (!list_empty(&reg_pending_beacons)) {
+		list_for_each_entry_safe(reg_beacon, btmp,
+					 &reg_pending_beacons, list) {
+			list_del(&reg_beacon->list);
+			kfree(reg_beacon);
+		}
+	}
+	spin_unlock_bh(&reg_pending_beacons_lock);
+
+	if (!list_empty(&reg_beacon_list)) {
+		list_for_each_entry_safe(reg_beacon, btmp,
+					 &reg_beacon_list, list) {
+			list_del(&reg_beacon->list);
+			kfree(reg_beacon);
+		}
+	}
 
 	spin_lock(&reg_requests_lock);
 	if (!list_empty(&reg_requests_list)) {
