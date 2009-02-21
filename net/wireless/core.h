@@ -70,7 +70,7 @@ bool wiphy_idx_valid(int wiphy_idx)
 	return (wiphy_idx >= 0);
 }
 
-extern struct mutex cfg80211_drv_mutex;
+extern struct mutex cfg80211_mutex;
 extern struct list_head cfg80211_drv_list;
 
 struct cfg80211_internal_bss {
@@ -89,13 +89,13 @@ struct cfg80211_internal_bss {
  * the driver's mutex!
  *
  * This means that you need to call cfg80211_put_dev()
- * before being allowed to acquire &cfg80211_drv_mutex!
+ * before being allowed to acquire &cfg80211_mutex!
  *
  * This is necessary because we need to lock the global
  * mutex to get an item off the list safely, and then
  * we lock the drv mutex so it doesn't go away under us.
  *
- * We don't want to keep cfg80211_drv_mutex locked
+ * We don't want to keep cfg80211_mutex locked
  * for all the time in order to allow requests on
  * other interfaces to go through at the same time.
  *

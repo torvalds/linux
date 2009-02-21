@@ -31,7 +31,12 @@ MODULE_DESCRIPTION("wireless configuration support");
  * only read the list, and that can happen quite
  * often because we need to do it for each command */
 LIST_HEAD(cfg80211_drv_list);
-DEFINE_MUTEX(cfg80211_drv_mutex);
+
+/*
+ * This is used to protect the cfg80211_drv_list, cfg80211_regdomain, and
+ * the last reguluatory request receipt in regd.c
+ */
+DEFINE_MUTEX(cfg80211_mutex);
 
 /* for debugfs */
 static struct dentry *ieee80211_debugfs_dir;
@@ -55,7 +60,7 @@ cfg80211_drv_by_wiphy_idx(int wiphy_idx)
 	return result;
 }
 
-/* requires cfg80211_drv_mutex to be held! */
+/* requires cfg80211_mutex to be held! */
 static struct cfg80211_registered_device *
 __cfg80211_drv_from_info(struct genl_info *info)
 {
@@ -102,7 +107,7 @@ cfg80211_get_dev_from_info(struct genl_info *info)
 {
 	struct cfg80211_registered_device *drv;
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 	drv = __cfg80211_drv_from_info(info);
 
 	/* if it is not an error we grab the lock on
@@ -111,7 +116,7 @@ cfg80211_get_dev_from_info(struct genl_info *info)
 	if (!IS_ERR(drv))
 		mutex_lock(&drv->mtx);
 
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 
 	return drv;
 }
@@ -122,7 +127,7 @@ cfg80211_get_dev_from_ifindex(int ifindex)
 	struct cfg80211_registered_device *drv = ERR_PTR(-ENODEV);
 	struct net_device *dev;
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 	dev = dev_get_by_index(&init_net, ifindex);
 	if (!dev)
 		goto out;
@@ -133,7 +138,7 @@ cfg80211_get_dev_from_ifindex(int ifindex)
 		drv = ERR_PTR(-ENODEV);
 	dev_put(dev);
  out:
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 	return drv;
 }
 
@@ -149,7 +154,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 	struct cfg80211_registered_device *drv;
 	int wiphy_idx, taken = -1, result, digits;
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 
 	/* prohibit calling the thing phy%d when %d is not its number */
 	sscanf(newname, PHY_NAME "%d%n", &wiphy_idx, &taken);
@@ -197,7 +202,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 
 	result = 0;
 out_unlock:
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 	if (result == 0)
 		nl80211_notify_dev_rename(rdev);
 
@@ -224,19 +229,19 @@ struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 
 	drv->ops = ops;
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 
 	drv->wiphy_idx = wiphy_counter++;
 
 	if (unlikely(!wiphy_idx_valid(drv->wiphy_idx))) {
 		wiphy_counter--;
-		mutex_unlock(&cfg80211_drv_mutex);
+		mutex_unlock(&cfg80211_mutex);
 		/* ugh, wrapped! */
 		kfree(drv);
 		return NULL;
 	}
 
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 
 	/* give it a proper name */
 	dev_set_name(&drv->wiphy.dev, PHY_NAME "%d", drv->wiphy_idx);
@@ -314,7 +319,7 @@ int wiphy_register(struct wiphy *wiphy)
 	/* check and set up bitrates */
 	ieee80211_set_bitrate_flags(wiphy);
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 
 	/* set up regulatory info */
 	wiphy_update_regulatory(wiphy, REGDOM_SET_BY_CORE);
@@ -334,7 +339,7 @@ int wiphy_register(struct wiphy *wiphy)
 
 	res = 0;
 out_unlock:
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 	return res;
 }
 EXPORT_SYMBOL(wiphy_register);
@@ -344,7 +349,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	struct cfg80211_registered_device *drv = wiphy_to_dev(wiphy);
 
 	/* protect the device list */
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 
 	BUG_ON(!list_empty(&drv->netdev_list));
 
@@ -370,7 +375,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	device_del(&drv->wiphy.dev);
 	debugfs_remove(drv->wiphy.debugfsdir);
 
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 }
 EXPORT_SYMBOL(wiphy_unregister);
 

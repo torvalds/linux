@@ -256,7 +256,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 	int start = cb->args[0];
 	struct cfg80211_registered_device *dev;
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 	list_for_each_entry(dev, &cfg80211_drv_list, list) {
 		if (++idx <= start)
 			continue;
@@ -267,7 +267,7 @@ static int nl80211_dump_wiphy(struct sk_buff *skb, struct netlink_callback *cb)
 			break;
 		}
 	}
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 
 	cb->args[0] = idx;
 
@@ -470,7 +470,7 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 	struct cfg80211_registered_device *dev;
 	struct wireless_dev *wdev;
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 	list_for_each_entry(dev, &cfg80211_drv_list, list) {
 		if (wp_idx < wp_start) {
 			wp_idx++;
@@ -497,7 +497,7 @@ static int nl80211_dump_interface(struct sk_buff *skb, struct netlink_callback *
 		wp_idx++;
 	}
  out:
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 
 	cb->args[0] = wp_idx;
 	cb->args[1] = if_idx;
@@ -1916,9 +1916,9 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 	if (is_world_regdom(data))
 		return -EINVAL;
 #endif
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 	r = __regulatory_hint(NULL, REGDOM_SET_BY_USER, data, 0, ENVIRON_ANY);
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 	/* This means the regulatory domain was already set, however
 	 * we don't want to confuse userspace with a "successful error"
 	 * message so lets just treat it as a success */
@@ -2112,7 +2112,7 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 	unsigned int i;
 	int err = -EINVAL;
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 
 	if (!cfg80211_regdomain)
 		goto out;
@@ -2175,7 +2175,7 @@ nla_put_failure:
 	genlmsg_cancel(msg, hdr);
 	err = -EMSGSIZE;
 out:
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 	return err;
 }
 
@@ -2234,9 +2234,9 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 
 	BUG_ON(rule_idx != num_rules);
 
-	mutex_lock(&cfg80211_drv_mutex);
+	mutex_lock(&cfg80211_mutex);
 	r = set_regdom(rd);
-	mutex_unlock(&cfg80211_drv_mutex);
+	mutex_unlock(&cfg80211_mutex);
 	return r;
 
  bad_reg:
