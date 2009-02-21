@@ -1812,8 +1812,10 @@ __init void xen_post_allocator_init(void)
 
 static void xen_leave_lazy_mmu(void)
 {
+	preempt_disable();
 	xen_mc_flush();
 	paravirt_leave_lazy_mmu();
+	preempt_enable();
 }
 
 const struct pv_mmu_ops xen_mmu_ops __initdata = {
