@@ -2059,9 +2059,6 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 	struct inode *ino = current_fh->fh_dentry->d_inode;
 	__be32 status;
 
-	dprintk("NFSD: preprocess_stateid_op: stateid = (%08x/%08x/%08x/%08x)\n",
-		stateid->si_boot, stateid->si_stateownerid, 
-		stateid->si_fileid, stateid->si_generation); 
 	if (filpp)
 		*filpp = NULL;
 
@@ -2078,10 +2075,8 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 	status = nfserr_bad_stateid;
 	if (!stateid->si_fileid) { /* delegation stateid */
 		dp = find_delegation_stateid(ino, stateid);
-		if (!dp) {
-			dprintk("NFSD: delegation stateid not found\n");
+		if (!dp)
 			goto out;
-		}
 		status = check_stateid_generation(stateid, &dp->dl_stateid);
 		if (status)
 			goto out;
@@ -2095,10 +2090,8 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 			*filpp = dp->dl_vfs_file;
 	} else { /* open or lock stateid */
 		stp = find_stateid(stateid, flags);
-		if (!stp) {
-			dprintk("NFSD: open or lock stateid not found\n");
+		if (!stp)
 			goto out;
-		}
 		if ((flags & CHECK_FH) && nfs4_check_fh(current_fh, stp))
 			goto out;
 		if (!stp->st_stateowner->so_confirmed)
