@@ -2000,10 +2000,7 @@ out:
 static inline __be32
 check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
 {
-	/* Trying to call delegreturn with a special stateid? Yuch: */
-	if (!(flags & (RD_STATE | WR_STATE)))
-		return nfserr_bad_stateid;
-	else if (ONE_STATEID(stateid) && (flags & RD_STATE))
+	if (ONE_STATEID(stateid) && (flags & RD_STATE))
 		return nfs_ok;
 	else if (locks_in_grace()) {
 		/* Answer in remaining cases depends on existance of
@@ -2024,8 +2021,7 @@ check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
 static inline int
 io_during_grace_disallowed(struct inode *inode, int flags)
 {
-	return locks_in_grace() && (flags & (RD_STATE | WR_STATE))
-		&& mandatory_lock(inode);
+	return locks_in_grace() && mandatory_lock(inode);
 }
 
 static int check_stateid_generation(stateid_t *in, stateid_t *ref)
@@ -2089,8 +2085,6 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 		if (status)
 			goto out;
 		renew_client(dp->dl_client);
-		if (flags & DELEG_RET)
-			unhash_delegation(dp);
 		if (filpp)
 			*filpp = dp->dl_vfs_file;
 	} else { /* open or lock stateid */
@@ -2408,16 +2402,38 @@ __be32
 nfsd4_delegreturn(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		  struct nfsd4_delegreturn *dr)
 {
+	struct nfs4_delegation *dp;
+	stateid_t *stateid = &dr->dr_stateid;
+	struct inode *inode;
 	__be32 status;
 
 	if ((status = fh_verify(rqstp, &cstate->current_fh, S_IFREG, 0)))
-		goto out;
+		return status;
+	inode = cstate->current_fh.fh_dentry->d_inode;
 
 	nfs4_lock_state();
-	status = nfs4_preprocess_stateid_op(&cstate->current_fh,
-					    &dr->dr_stateid, DELEG_RET, NULL);
-	nfs4_unlock_state();
+	status = nfserr_bad_stateid;
+	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
+		goto out;
+	status = nfserr_stale_stateid;
+	if (STALE_STATEID(stateid))
+		goto out;
+	status = nfs_ok;
+	if (!is_delegation_stateid(stateid))
+		goto out;
+	status = nfserr_bad_stateid;
+	dp = find_delegation_stateid(inode, stateid);
+	if (!dp)
+		goto out;
+	status = check_stateid_generation(stateid, &dp->dl_stateid);
+	if (status)
+		goto out;
+	renew_client(dp->dl_client);
+
+	unhash_delegation(dp);
 out:
+	nfs4_unlock_state();
+
 	return status;
 }
 
