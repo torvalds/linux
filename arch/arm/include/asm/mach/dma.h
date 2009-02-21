@@ -43,19 +43,6 @@ struct dma_struct {
 	const struct dma_ops *d_ops;
 };
 
-struct floppy_dma {
-	struct dma_struct	dma;
-	unsigned int		fiq;
-};
-
-struct iomd_dma {
-	struct dma_struct	dma;
-	unsigned int		state;
-	unsigned long		base;		/* Controller base address */
-	int			irq;		/* Controller IRQ */
-	struct scatterlist	cur_sg;		/* Current controller buffer */
-};
-
 /*
  * isa_dma_add - add an ISA-style DMA channel
  */

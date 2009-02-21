@@ -26,6 +26,14 @@
 #include <asm/mach/dma.h>
 #include <asm/hardware/iomd.h>
 
+struct iomd_dma {
+	struct dma_struct	dma;
+	unsigned int		state;
+	unsigned long		base;		/* Controller base address */
+	int			irq;		/* Controller IRQ */
+	struct scatterlist	cur_sg;		/* Current controller buffer */
+};
+
 #if 0
 typedef enum {
 	dma_size_8	= 1,
@@ -240,6 +248,11 @@ static struct dma_ops iomd_dma_ops = {
 
 static struct fiq_handler fh = {
 	.name	= "floppydma"
+};
+
+struct floppy_dma {
+	struct dma_struct	dma;
+	unsigned int		fiq;
 };
 
 static void floppy_enable_dma(unsigned int chan, dma_t *dma)
