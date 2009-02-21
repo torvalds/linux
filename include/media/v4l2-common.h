@@ -154,6 +154,8 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
 /* Initialize an v4l2_subdev with data from an i2c_client struct */
 void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops);
+/* Return i2c client address of v4l2_subdev. */
+unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd);
 
 enum v4l2_i2c_tuner_type {
 	ADDRS_RADIO,	/* Radio tuner addresses */

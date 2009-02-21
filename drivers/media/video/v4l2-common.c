@@ -1022,6 +1022,15 @@ struct v4l2_subdev *v4l2_i2c_new_probed_subdev(struct i2c_adapter *adapter,
 }
 EXPORT_SYMBOL_GPL(v4l2_i2c_new_probed_subdev);
 
+/* Return i2c client address of v4l2_subdev. */
+unsigned short v4l2_i2c_subdev_addr(struct v4l2_subdev *sd)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return client ? client->addr : I2C_CLIENT_END;
+}
+EXPORT_SYMBOL_GPL(v4l2_i2c_subdev_addr);
+
 /* Return a list of I2C tuner addresses to probe. Use only if the tuner
    addresses are unknown. */
 const unsigned short *v4l2_i2c_tuner_addrs(enum v4l2_i2c_tuner_type type)
