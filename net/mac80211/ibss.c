@@ -788,6 +788,23 @@ void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata)
 			IEEE80211_IBSS_AUTO_CHANNEL_SEL;
 }
 
+int ieee80211_ibss_commit(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
+
+	ifibss->flags &= ~IEEE80211_IBSS_PREV_BSSID_SET;
+
+	if (ifibss->ssid_len)
+		ifibss->flags |= IEEE80211_IBSS_SSID_SET;
+	else
+		ifibss->flags &= ~IEEE80211_IBSS_SSID_SET;
+
+	ifibss->ibss_join_req = jiffies;
+	ifibss->state = IEEE80211_IBSS_MLME_SEARCH;
+
+	return ieee80211_sta_find_ibss(sdata);
+}
+
 int ieee80211_ibss_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
@@ -801,16 +818,7 @@ int ieee80211_ibss_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, siz
 		ifibss->ssid_len = len;
 	}
 
-	ifibss->flags &= ~IEEE80211_IBSS_PREV_BSSID_SET;
-
-	if (len)
-		ifibss->flags |= IEEE80211_IBSS_SSID_SET;
-	else
-		ifibss->flags &= ~IEEE80211_IBSS_SSID_SET;
-
-	ifibss->ibss_join_req = jiffies;
-	ifibss->state = IEEE80211_IBSS_MLME_SEARCH;
-	return ieee80211_sta_find_ibss(sdata);
+	return ieee80211_ibss_commit(sdata);
 }
 
 int ieee80211_ibss_get_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t *len)
@@ -842,7 +850,7 @@ int ieee80211_ibss_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid)
 		}
 	}
 
-	return ieee80211_ibss_set_ssid(sdata, ifibss->ssid, ifibss->ssid_len);
+	return ieee80211_ibss_commit(sdata);
 }
 
 /* scan finished notification */

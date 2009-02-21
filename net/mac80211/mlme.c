@@ -1855,6 +1855,20 @@ void ieee80211_sta_req_auth(struct ieee80211_sub_if_data *sdata)
 	}
 }
 
+int ieee80211_sta_commit(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	ifmgd->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
+
+	if (ifmgd->ssid_len)
+		ifmgd->flags |= IEEE80211_STA_SSID_SET;
+	else
+		ifmgd->flags &= ~IEEE80211_STA_SSID_SET;
+
+	return 0;
+}
+
 int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len)
 {
 	struct ieee80211_if_managed *ifmgd;
@@ -1870,14 +1884,7 @@ int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size
 		ifmgd->ssid_len = len;
 	}
 
-	ifmgd->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
-
-	if (len)
-		ifmgd->flags |= IEEE80211_STA_SSID_SET;
-	else
-		ifmgd->flags &= ~IEEE80211_STA_SSID_SET;
-
-	return 0;
+	return ieee80211_sta_commit(sdata);
 }
 
 int ieee80211_sta_get_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t *len)
@@ -1907,7 +1914,7 @@ int ieee80211_sta_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid)
 		}
 	}
 
-	return ieee80211_sta_set_ssid(sdata, ifmgd->ssid, ifmgd->ssid_len);
+	return ieee80211_sta_commit(sdata);
 }
 
 int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata, char *ie, size_t len)
