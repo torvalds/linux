@@ -136,7 +136,7 @@ static void cx18_dualwatch(struct cx18 *cx)
 
 	new_stereo_mode = cx->params.audio_properties & stereo_mask;
 	memset(&vt, 0, sizeof(vt));
-	cx18_call_i2c_clients(cx, VIDIOC_G_TUNER, &vt);
+	cx18_call_all(cx, tuner, g_tuner, &vt);
 	if (vt.audmode == V4L2_TUNER_MODE_LANG1_LANG2 &&
 			(vt.rxsubchans & V4L2_TUNER_SUB_LANG2))
 		new_stereo_mode = dual;
@@ -608,7 +608,7 @@ int cx18_v4l2_close(struct file *filp)
 		/* Mark that the radio is no longer in use */
 		clear_bit(CX18_F_I_RADIO_USER, &cx->i_flags);
 		/* Switch tuner to TV */
-		cx18_call_i2c_clients(cx, VIDIOC_S_STD, &cx->std);
+		cx18_call_all(cx, tuner, s_std, cx->std);
 		/* Select correct audio input (i.e. TV tuner or Line in) */
 		cx18_audio_set_io(cx);
 		if (atomic_read(&cx->ana_capturing) > 0) {
@@ -671,7 +671,7 @@ static int cx18_serialized_open(struct cx18_stream *s, struct file *filp)
 		/* We have the radio */
 		cx18_mute(cx);
 		/* Switch tuner to radio */
-		cx18_call_i2c_clients(cx, AUDC_SET_RADIO, NULL);
+		cx18_call_all(cx, tuner, s_radio);
 		/* Select the correct audio input (i.e. radio tuner) */
 		cx18_audio_set_io(cx);
 		/* Done! Unmute and continue. */

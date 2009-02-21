@@ -53,9 +53,9 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 	.name = "Hauppauge HVR-1600",
 	.comment = "Simultaneous Digital and Analog TV capture supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
-	.hw_audio_ctrl = CX18_HW_CX23418,
+	.hw_audio_ctrl = CX18_HW_418_AV,
 	.hw_muxer = CX18_HW_CS5345,
-	.hw_all = CX18_HW_TVEEPROM | CX18_HW_TUNER |
+	.hw_all = CX18_HW_TVEEPROM | CX18_HW_418_AV | CX18_HW_TUNER |
 		  CX18_HW_CS5345 | CX18_HW_DVB,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE7 },
@@ -99,9 +99,9 @@ static const struct cx18_card cx18_card_hvr1600_samsung = {
 	.name = "Hauppauge HVR-1600 (Preproduction)",
 	.comment = "Simultaneous Digital and Analog TV capture supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
-	.hw_audio_ctrl = CX18_HW_CX23418,
+	.hw_audio_ctrl = CX18_HW_418_AV,
 	.hw_muxer = CX18_HW_CS5345,
-	.hw_all = CX18_HW_TVEEPROM | CX18_HW_TUNER |
+	.hw_all = CX18_HW_TVEEPROM | CX18_HW_418_AV | CX18_HW_TUNER |
 		  CX18_HW_CS5345 | CX18_HW_DVB,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE7 },
@@ -154,8 +154,8 @@ static const struct cx18_card cx18_card_h900 = {
 	.name = "Compro VideoMate H900",
 	.comment = "Analog TV capture supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
-	.hw_audio_ctrl = CX18_HW_CX23418,
-	.hw_all = CX18_HW_TUNER,
+	.hw_audio_ctrl = CX18_HW_418_AV,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
@@ -201,8 +201,8 @@ static const struct cx18_card cx18_card_mpc718 = {
 	.name = "Yuan MPC718",
 	.comment = "Analog video capture works; some audio line in may not.\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
-	.hw_audio_ctrl = CX18_HW_CX23418,
-	.hw_all = CX18_HW_TUNER,
+	.hw_audio_ctrl = CX18_HW_418_AV,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
@@ -251,9 +251,9 @@ static const struct cx18_card cx18_card_cnxt_raptor_pal = {
 	.name = "Conexant Raptor PAL/SECAM",
 	.comment = "Analog TV capture supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
-	.hw_audio_ctrl = CX18_HW_CX23418,
-	.hw_muxer = CX18_HW_GPIO,
-	.hw_all = CX18_HW_TUNER | CX18_HW_GPIO,
+	.hw_audio_ctrl = CX18_HW_418_AV,
+	.hw_muxer = CX18_HW_GPIO_AUDIO_MUX,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_AUDIO_MUX,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
@@ -306,8 +306,8 @@ static const struct cx18_card cx18_card_toshiba_qosmio_dvbt = {
 	.comment = "Experimenters and photos needed for device to work well.\n"
 		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
-	.hw_audio_ctrl = CX18_HW_CX23418,
-	.hw_all = CX18_HW_TUNER,
+	.hw_audio_ctrl = CX18_HW_418_AV,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE6 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
@@ -350,9 +350,9 @@ static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 	.comment = "Experimenters and photos needed for device to work well.\n"
 		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
-	.hw_audio_ctrl = CX18_HW_CX23418,
-	.hw_muxer = CX18_HW_GPIO,
-	.hw_all = CX18_HW_TUNER | CX18_HW_GPIO,
+	.hw_audio_ctrl = CX18_HW_418_AV,
+	.hw_muxer = CX18_HW_GPIO_AUDIO_MUX,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_AUDIO_MUX,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,

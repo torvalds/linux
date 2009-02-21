@@ -372,15 +372,52 @@ static int cx18_g_chip_ident(struct file *file, void *fh,
 				struct v4l2_dbg_chip_ident *chip)
 {
 	struct cx18 *cx = ((struct cx18_open_id *)fh)->cx;
+	int err = 0;
 
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
-	if (v4l2_chip_match_host(&chip->match)) {
-		chip->ident = V4L2_IDENT_CX23418;
-		return 0;
+	switch (chip->match.type) {
+	case V4L2_CHIP_MATCH_HOST:
+		switch (chip->match.addr) {
+		case 0:
+			chip->ident = V4L2_IDENT_CX23418;
+			chip->revision = cx18_read_reg(cx, 0xC72028);
+			break;
+		case 1:
+			/*
+			 * The A/V decoder is always present, but in the rare
+			 * case that the card doesn't have analog, we don't
+			 * use it.  We find it w/o using the cx->sd_av pointer
+			 */
+			cx18_call_hw(cx, CX18_HW_418_AV,
+				     core, g_chip_ident, chip);
+			break;
+		default:
+			/*
+			 * Could return ident = V4L2_IDENT_UNKNOWN if we had
+			 * other host chips at higher addresses, but we don't
+			 */
+			err = -EINVAL; /* per V4L2 spec */
+			break;
+		}
+		break;
+	case V4L2_CHIP_MATCH_I2C_DRIVER:
+		/* If needed, returns V4L2_IDENT_AMBIGUOUS without extra work */
+		cx18_call_all(cx, core, g_chip_ident, chip);
+		break;
+	case V4L2_CHIP_MATCH_I2C_ADDR:
+		/*
+		 * We could return V4L2_IDENT_UNKNOWN, but we don't do the work
+		 * to look if a chip is at the address with no driver.  That's a
+		 * dangerous thing to do with EEPROMs anyway.
+		 */
+		cx18_call_all(cx, core, g_chip_ident, chip);
+		break;
+	default:
+		err = -EINVAL;
+		break;
 	}
-	cx18_call_i2c_clients(cx, VIDIOC_DBG_G_CHIP_IDENT, chip);
-	return 0;
+	return err;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -394,10 +431,10 @@ static int cx18_cxc(struct cx18 *cx, unsigned int cmd, void *arg)
 		return -EINVAL;
 
 	regs->size = 4;
-	if (cmd == VIDIOC_DBG_G_REGISTER)
-		regs->val = cx18_read_enc(cx, regs->reg);
-	else
+	if (cmd == VIDIOC_DBG_S_REGISTER)
 		cx18_write_enc(cx, regs->val, regs->reg);
+	else
+		regs->val = cx18_read_enc(cx, regs->reg);
 	return 0;
 }
 
@@ -408,7 +445,8 @@ static int cx18_g_register(struct file *file, void *fh,
 
 	if (v4l2_chip_match_host(&reg->match))
 		return cx18_cxc(cx, VIDIOC_DBG_G_REGISTER, reg);
-	cx18_call_i2c_clients(cx, VIDIOC_DBG_G_REGISTER, reg);
+	/* FIXME - errors shouldn't be ignored */
+	cx18_call_all(cx, core, g_register, reg);
 	return 0;
 }
 
@@ -419,7 +457,8 @@ static int cx18_s_register(struct file *file, void *fh,
 
 	if (v4l2_chip_match_host(&reg->match))
 		return cx18_cxc(cx, VIDIOC_DBG_S_REGISTER, reg);
-	cx18_call_i2c_clients(cx, VIDIOC_DBG_S_REGISTER, reg);
+	/* FIXME - errors shouldn't be ignored */
+	cx18_call_all(cx, core, s_register, reg);
 	return 0;
 }
 #endif
@@ -598,7 +637,7 @@ static int cx18_g_frequency(struct file *file, void *fh,
 	if (vf->tuner != 0)
 		return -EINVAL;
 
-	cx18_call_i2c_clients(cx, VIDIOC_G_FREQUENCY, vf);
+	cx18_call_all(cx, tuner, g_frequency, vf);
 	return 0;
 }
 
@@ -617,7 +656,7 @@ int cx18_s_frequency(struct file *file, void *fh, struct v4l2_frequency *vf)
 
 	cx18_mute(cx);
 	CX18_DEBUG_INFO("v4l2 ioctl: set frequency %d\n", vf->frequency);
-	cx18_call_i2c_clients(cx, VIDIOC_S_FREQUENCY, vf);
+	cx18_call_all(cx, tuner, s_frequency, vf);
 	cx18_unmute(cx);
 	return 0;
 }
@@ -666,7 +705,7 @@ int cx18_s_std(struct file *file, void *fh, v4l2_std_id *std)
 			(unsigned long long) cx->std);
 
 	/* Tuner */
-	cx18_call_i2c_clients(cx, VIDIOC_S_STD, &cx->std);
+	cx18_call_all(cx, tuner, s_std, cx->std);
 	return 0;
 }
 
@@ -683,9 +722,7 @@ static int cx18_s_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	if (vt->index != 0)
 		return -EINVAL;
 
-	/* Setting tuner can only set audio mode */
-	cx18_call_i2c_clients(cx, VIDIOC_S_TUNER, vt);
-
+	cx18_call_all(cx, tuner, s_tuner, vt);
 	return 0;
 }
 
@@ -696,7 +733,7 @@ static int cx18_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	if (vt->index != 0)
 		return -EINVAL;
 
-	cx18_call_i2c_clients(cx, VIDIOC_G_TUNER, vt);
+	cx18_call_all(cx, tuner, g_tuner, vt);
 
 	if (test_bit(CX18_F_I_RADIO_USER, &cx->i_flags)) {
 		strlcpy(vt->name, "cx18 Radio Tuner", sizeof(vt->name));
@@ -853,7 +890,7 @@ static int cx18_log_status(struct file *file, void *fh)
 
 		cx18_read_eeprom(cx, &tv);
 	}
-	cx18_call_i2c_clients(cx, VIDIOC_LOG_STATUS, NULL);
+	cx18_call_all(cx, core, log_status);
 	cx18_get_input(cx, cx->active_input, &vidin);
 	cx18_get_audio_input(cx, cx->audio_input, &audin);
 	CX18_INFO("Video Input: %s\n", vidin.name);
@@ -894,7 +931,8 @@ static long cx18_default(struct file *file, void *fh, int cmd, void *arg)
 
 		CX18_DEBUG_IOCTL("VIDIOC_INT_S_AUDIO_ROUTING(%d, %d)\n",
 			route->input, route->output);
-		cx18_audio_set_route(cx, route);
+		cx18_call_hw(cx, cx->card->hw_audio_ctrl, audio, s_routing,
+			     route);
 		break;
 	}
 
@@ -921,6 +959,8 @@ long cx18_v4l2_ioctl(struct file *filp, unsigned int cmd,
 	long res;
 
 	mutex_lock(&cx->serialize_lock);
+
+	/* FIXME - consolidate v4l2_prio_check()'s here */
 
 	if (cx18_debug & CX18_DBGFLG_IOCTL)
 		vfd->debug = V4L2_DEBUG_IOCTL | V4L2_DEBUG_IOCTL_ARG;

@@ -269,11 +269,16 @@ static void cx18_iounmap(struct cx18 *cx)
 /* Hauppauge card? get values from tveeprom */
 void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv)
 {
+	struct i2c_client c;
 	u8 eedata[256];
 
-	cx->i2c_client[0].addr = 0xA0 >> 1;
-	tveeprom_read(&cx->i2c_client[0], eedata, sizeof(eedata));
-	tveeprom_hauppauge_analog(&cx->i2c_client[0], tv, eedata);
+	strncpy(c.name, "cx18 tveeprom tmp", sizeof(c.name));
+	c.name[sizeof(c.name)-1] = '\0';
+	c.adapter = &cx->i2c_adap[0];
+	c.addr = 0xA0 >> 1;
+
+	tveeprom_read(&c, eedata, sizeof(eedata));
+	tveeprom_hauppauge_analog(&c, tv, eedata);
 }
 
 static void cx18_process_eeprom(struct cx18 *cx)
@@ -553,8 +558,6 @@ static int __devinit cx18_init_struct1(struct cx18 *cx)
 	cx->base_addr = pci_resource_start(cx->pci_dev, 0);
 
 	mutex_init(&cx->serialize_lock);
-	mutex_init(&cx->i2c_bus_lock[0]);
-	mutex_init(&cx->i2c_bus_lock[1]);
 	mutex_init(&cx->gpio_lock);
 	mutex_init(&cx->epu2apu_mb_lock);
 	mutex_init(&cx->epu2cpu_mb_lock);
@@ -669,54 +672,41 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
 	return 0;
 }
 
-#ifdef MODULE
-static u32 cx18_request_module(struct cx18 *cx, u32 hw,
-		const char *name, u32 id)
-{
-	if ((hw & id) == 0)
-		return hw;
-	if (request_module("%s", name) != 0) {
-		CX18_ERR("Failed to load module %s\n", name);
-		return hw & ~id;
-	}
-	CX18_DEBUG_INFO("Loaded module %s\n", name);
-	return hw;
-}
-#endif
-
-static void cx18_load_and_init_modules(struct cx18 *cx)
+static void cx18_init_subdevs(struct cx18 *cx)
 {
 	u32 hw = cx->card->hw_all;
+	u32 device;
 	int i;
 
-#ifdef MODULE
-	/* load modules */
-#ifdef CONFIG_MEDIA_TUNER_MODULE
-	hw = cx18_request_module(cx, hw, "tuner", CX18_HW_TUNER);
-#endif
-#ifdef CONFIG_VIDEO_CS5345_MODULE
-	hw = cx18_request_module(cx, hw, "cs5345", CX18_HW_CS5345);
-#endif
-#endif
-
-	/* check which i2c devices are actually found */
-	for (i = 0; i < 32; i++) {
-		u32 device = 1 << i;
+	for (i = 0, device = 1; i < 32; i++, device <<= 1) {
 
 		if (!(device & hw))
 			continue;
-		if (device == CX18_HW_GPIO || device == CX18_HW_TVEEPROM ||
-		    device == CX18_HW_CX23418 || device == CX18_HW_DVB) {
-			/* These 'devices' do not use i2c probing */
+
+		switch (device) {
+		case CX18_HW_GPIO_AUDIO_MUX:
+		case CX18_HW_DVB:
+		case CX18_HW_TVEEPROM:
+			/* These subordinate devices do not use probing */
 			cx->hw_flags |= device;
-			continue;
+			break;
+		case CX18_HW_418_AV:
+			/* The A/V decoder gets probed earlier to set PLLs */
+			/* Just note that the card uses it (i.e. has analog) */
+			cx->hw_flags |= device;
+			break;
+		default:
+			if (cx18_i2c_register(cx, i) == 0)
+				cx->hw_flags |= device;
+			break;
 		}
-		cx18_i2c_register(cx, i);
-		if (cx18_i2c_hw_addr(cx, device) > 0)
-			cx->hw_flags |= device;
 	}
 
-	hw = cx->hw_flags;
+	if (cx->hw_flags & CX18_HW_418_AV)
+		cx->sd_av = cx18_find_hw(cx, CX18_HW_418_AV);
+
+	if (cx->card->hw_muxer != 0)
+		cx->sd_extmux = cx18_find_hw(cx, cx->card->hw_muxer);
 }
 
 static int __devinit cx18_probe(struct pci_dev *pci_dev,
@@ -803,15 +793,17 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	cx->scb = (struct cx18_scb __iomem *)(cx->enc_mem + SCB_OFFSET);
 	cx18_init_scb(cx);
 
+	/* Initialize GPIO early so I2C device resets can be performed */
 	cx18_gpio_init(cx);
 
-	retval = cx18_av_probe(cx, &cx->sd_av);
+	/* Initialize integrated A/V decoder early to set PLLs, just in case */
+	retval = cx18_av_probe(cx);
 	if (retval) {
 		CX18_ERR("Could not register A/V decoder subdevice\n");
 		goto free_map;
 	}
 	/* Initialize the A/V decoder PLLs to sane defaults */
-	v4l2_subdev_call(cx->sd_av, core, init, (u32) CX18_AV_INIT_PLLS);
+	cx18_call_hw(cx, CX18_HW_418_AV, core, init, (u32) CX18_AV_INIT_PLLS);
 
 	/* active i2c  */
 	CX18_DEBUG_INFO("activating i2c...\n");
@@ -873,7 +865,7 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	   initialization. */
 	cx18_init_struct2(cx);
 
-	cx18_load_and_init_modules(cx);
+	cx18_init_subdevs(cx);
 
 	if (cx->std & V4L2_STD_525_60) {
 		cx->is_60hz = 1;
@@ -895,7 +887,7 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		setup.mode_mask = T_ANALOG_TV;  /* matches TV tuners */
 		setup.tuner_callback = (setup.type == TUNER_XC2028) ?
 			cx18_reset_tuner_gpio : NULL;
-		cx18_call_i2c_clients(cx, TUNER_SET_TYPE_ADDR, &setup);
+		cx18_call_all(cx, tuner, s_type_addr, &setup);
 		if (setup.type == TUNER_XC2028) {
 			static struct xc2028_ctrl ctrl = {
 				.fname = XC2028_DEFAULT_FIRMWARE,
@@ -905,7 +897,7 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 				.tuner = cx->options.tuner,
 				.priv = &ctrl,
 			};
-			cx18_call_i2c_clients(cx, TUNER_SET_CONFIG, &cfg);
+			cx18_call_all(cx, tuner, s_config, &cfg);
 		}
 	}
 

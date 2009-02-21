@@ -1209,9 +1209,10 @@ static const struct v4l2_subdev_ops cx18_av_ops = {
 	.video = &cx18_av_video_ops,
 };
 
-int cx18_av_probe(struct cx18 *cx, struct v4l2_subdev **sd)
+int cx18_av_probe(struct cx18 *cx)
 {
 	struct cx18_av_state *state = &cx->av_state;
+	struct v4l2_subdev *sd;
 
 	state->rev = cx18_av_read4(cx, CXADEC_CHIP_CTRL) & 0xffff;
 	state->id = ((state->rev >> 4) == CXADEC_CHIP_TYPE_MAKO)
@@ -1224,13 +1225,13 @@ int cx18_av_probe(struct cx18 *cx, struct v4l2_subdev **sd)
 	state->slicer_line_delay = 0;
 	state->slicer_line_offset = (10 + state->slicer_line_delay - 2);
 
-	*sd = &state->sd;
-	v4l2_subdev_init(*sd, &cx18_av_ops);
-	v4l2_set_subdevdata(*sd, cx);
-	snprintf((*sd)->name, sizeof((*sd)->name),
+	sd = &state->sd;
+	v4l2_subdev_init(sd, &cx18_av_ops);
+	v4l2_set_subdevdata(sd, cx);
+	snprintf(sd->name, sizeof(sd->name),
 		 "%s internal A/V decoder", cx->v4l2_dev.name);
-	(*sd)->grp_id = CX18_HW_CX23418;
-	return v4l2_device_register_subdev(&cx->v4l2_dev, *sd);
+	sd->grp_id = CX18_HW_418_AV;
+	return v4l2_device_register_subdev(&cx->v4l2_dev, sd);
 }
 
 void cx18_av_exit(struct cx18 *cx, struct v4l2_subdev *sd)

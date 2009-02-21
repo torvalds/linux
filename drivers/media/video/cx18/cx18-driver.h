@@ -448,7 +448,8 @@ struct cx18 {
 	int instance;
 	struct pci_dev *pci_dev;
 	struct v4l2_device v4l2_dev;
-	struct v4l2_subdev *sd_av;
+	struct v4l2_subdev *sd_av;     /* A/V decoder/digitizer sub-device */
+	struct v4l2_subdev *sd_extmux; /* External audio multiplexer sub-dev */
 
 	const struct cx18_card *card;	/* card information */
 	const char *card_name;  /* full name of the card */
@@ -528,9 +529,6 @@ struct cx18 {
 	struct i2c_adapter i2c_adap[2];
 	struct i2c_algo_bit_data i2c_algo[2];
 	struct cx18_i2c_algo_callback_data i2c_algo_cb_data[2];
-	struct i2c_client i2c_client[2];
-	struct mutex i2c_bus_lock[2];
-	struct i2c_client *i2c_clients[I2C_CLIENTS_MAX];
 
 	/* gpio */
 	u32 gpio_dir;
@@ -572,5 +570,23 @@ static inline int cx18_raw_vbi(const struct cx18 *cx)
 {
 	return cx->vbi.in.type == V4L2_BUF_TYPE_VBI_CAPTURE;
 }
+
+/* Call the specified callback for all subdevs with a grp_id bit matching the
+ * mask in hw (if 0, then match them all). Ignore any errors. */
+#define cx18_call_hw(cx, hw, o, f, args...) \
+	__v4l2_device_call_subdevs(&(cx)->v4l2_dev, \
+				   !(hw) || (sd->grp_id & (hw)), o, f , ##args)
+
+#define cx18_call_all(cx, o, f, args...) cx18_call_hw(cx, 0, o, f , ##args)
+
+/* Call the specified callback for all subdevs with a grp_id bit matching the
+ * mask in hw (if 0, then match them all). If the callback returns an error
+ * other than 0 or -ENOIOCTLCMD, then return with that error code. */
+#define cx18_call_hw_err(cx, hw, o, f, args...) \
+	__v4l2_device_call_subdevs_until_err( \
+		   &(cx)->v4l2_dev, !(hw) || (sd->grp_id & (hw)), o, f , ##args)
+
+#define cx18_call_all_err(cx, o, f, args...) \
+	cx18_call_hw_err(cx, 0, o, f , ##args)
 
 #endif /* CX18_DRIVER_H */
