@@ -73,11 +73,22 @@ static spinlock_t reg_requests_lock;
 
 /* We keep a static world regulatory domain in case of the absence of CRDA */
 static const struct ieee80211_regdomain world_regdom = {
-	.n_reg_rules = 1,
+	.n_reg_rules = 3,
 	.alpha2 =  "00",
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..11 */
 		REG_RULE(2412-10, 2462+10, 40, 6, 20, 0),
+		/* IEEE 802.11a, channel 36..48 */
+		REG_RULE(5180-10, 5240+10, 40, 6, 23,
+			NL80211_RRF_PASSIVE_SCAN |
+			NL80211_RRF_NO_IBSS),
+
+		/* NB: 5260 MHz - 5700 MHz requies DFS */
+
+		/* IEEE 802.11a, channel 149..165 */
+		REG_RULE(5745-10, 5825+10, 40, 6, 23,
+			NL80211_RRF_PASSIVE_SCAN |
+			NL80211_RRF_NO_IBSS),
 	}
 };
 
