@@ -432,7 +432,7 @@ musb_advance_schedule(struct musb *musb, struct urb *urb,
 	else
 		qh = musb_giveback(qh, urb, urb->status);
 
-	if (qh && qh->is_ready && !list_empty(&qh->hep->urb_list)) {
+	if (qh != NULL && qh->is_ready) {
 		DBG(4, "... next ep%d %cX urb %p\n",
 				hw_ep->epnum, is_in ? 'R' : 'T',
 				next_urb(qh));
@@ -2038,9 +2038,9 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		goto done;
 
 	/* Any URB not actively programmed into endpoint hardware can be
-	 * immediately given back.  Such an URB must be at the head of its
+	 * immediately given back; that's any URB not at the head of an
 	 * endpoint queue, unless someday we get real DMA queues.  And even
-	 * then, it might not be known to the hardware...
+	 * if it's at the head, it might not be known to the hardware...
 	 *
 	 * Otherwise abort current transfer, pending dma, etc.; urb->status
 	 * has already been updated.  This is a synchronous abort; it'd be
@@ -2079,6 +2079,15 @@ static int musb_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		qh->is_ready = 0;
 		__musb_giveback(musb, urb, 0);
 		qh->is_ready = ready;
+
+		/* If nothing else (usually musb_giveback) is using it
+		 * and its URB list has emptied, recycle this qh.
+		 */
+		if (ready && list_empty(&qh->hep->urb_list)) {
+			qh->hep->hcpriv = NULL;
+			list_del(&qh->ring);
+			kfree(qh);
+		}
 	} else
 		ret = musb_cleanup_urb(urb, qh, urb->pipe & USB_DIR_IN);
 done:
