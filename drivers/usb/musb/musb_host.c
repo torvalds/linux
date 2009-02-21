@@ -1161,7 +1161,8 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 	struct urb		*urb;
 	struct musb_hw_ep	*hw_ep = musb->endpoints + epnum;
 	void __iomem		*epio = hw_ep->regs;
-	struct musb_qh		*qh = hw_ep->out_qh;
+	struct musb_qh		*qh = hw_ep->is_shared_fifo ? hw_ep->in_qh
+							    : hw_ep->out_qh;
 	u32			status = 0;
 	void __iomem		*mbase = musb->mregs;
 	struct dma_channel	*dma;
