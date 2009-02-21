@@ -22,11 +22,9 @@
  */
 
 #include "cx18-driver.h"
-#include "cx18-av-core.h"
 #include "cx18-cards.h"
 #include "cx18-ioctl.h"
 #include "cx18-audio.h"
-#include "cx18-i2c.h"
 #include "cx18-mailbox.h"
 #include "cx18-controls.h"
 

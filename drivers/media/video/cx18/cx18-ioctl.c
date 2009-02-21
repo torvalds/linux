@@ -940,7 +940,8 @@ static long cx18_default(struct file *file, void *fh, int cmd, void *arg)
 		u32 val = *(u32 *)arg;
 
 		if ((val == 0) || (val & 0x01))
-			cx18_reset_ir_gpio(&cx->i2c_algo_cb_data[0]);
+			cx18_call_hw(cx, CX18_HW_GPIO_RESET_CTRL, core, reset,
+				     (u32) CX18_GPIO_RESET_Z8F0811);
 		break;
 	}
 

@@ -21,7 +21,6 @@
 
 #include "cx18-driver.h"
 #include "cx18-video.h"
-#include "cx18-av-core.h"
 #include "cx18-cards.h"
 
 void cx18_video_set_io(struct cx18 *cx)

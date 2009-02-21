@@ -449,7 +449,7 @@ struct cx18 {
 	struct pci_dev *pci_dev;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_subdev *sd_av;     /* A/V decoder/digitizer sub-device */
-	struct v4l2_subdev *sd_extmux; /* External audio multiplexer sub-dev */
+	struct v4l2_subdev *sd_extmux; /* External multiplexer sub-dev */
 
 	const struct cx18_card *card;	/* card information */
 	const char *card_name;  /* full name of the card */
@@ -534,6 +534,8 @@ struct cx18 {
 	u32 gpio_dir;
 	u32 gpio_val;
 	struct mutex gpio_lock;
+	struct v4l2_subdev sd_gpiomux;
+	struct v4l2_subdev sd_resetctrl;
 
 	/* v4l2 and User settings */
 

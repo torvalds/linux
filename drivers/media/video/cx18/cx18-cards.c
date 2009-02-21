@@ -56,7 +56,7 @@ static const struct cx18_card cx18_card_hvr1600_esmt = {
 	.hw_audio_ctrl = CX18_HW_418_AV,
 	.hw_muxer = CX18_HW_CS5345,
 	.hw_all = CX18_HW_TVEEPROM | CX18_HW_418_AV | CX18_HW_TUNER |
-		  CX18_HW_CS5345 | CX18_HW_DVB,
+		  CX18_HW_CS5345 | CX18_HW_DVB | CX18_HW_GPIO_RESET_CTRL,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE7 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1, CX18_AV_SVIDEO1    },
@@ -102,7 +102,7 @@ static const struct cx18_card cx18_card_hvr1600_samsung = {
 	.hw_audio_ctrl = CX18_HW_418_AV,
 	.hw_muxer = CX18_HW_CS5345,
 	.hw_all = CX18_HW_TVEEPROM | CX18_HW_418_AV | CX18_HW_TUNER |
-		  CX18_HW_CS5345 | CX18_HW_DVB,
+		  CX18_HW_CS5345 | CX18_HW_DVB | CX18_HW_GPIO_RESET_CTRL,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE7 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1, CX18_AV_SVIDEO1    },
@@ -155,7 +155,7 @@ static const struct cx18_card cx18_card_h900 = {
 	.comment = "Analog TV capture supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_418_AV,
-	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_RESET_CTRL,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
@@ -202,7 +202,7 @@ static const struct cx18_card cx18_card_mpc718 = {
 	.comment = "Analog video capture works; some audio line in may not.\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_418_AV,
-	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_RESET_CTRL,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
@@ -252,8 +252,8 @@ static const struct cx18_card cx18_card_cnxt_raptor_pal = {
 	.comment = "Analog TV capture supported\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_418_AV,
-	.hw_muxer = CX18_HW_GPIO_AUDIO_MUX,
-	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_AUDIO_MUX,
+	.hw_muxer = CX18_HW_GPIO_MUX,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_MUX,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
@@ -307,7 +307,7 @@ static const struct cx18_card cx18_card_toshiba_qosmio_dvbt = {
 		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_418_AV,
-	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_RESET_CTRL,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE6 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,
@@ -351,8 +351,9 @@ static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 		  "\tTo help, mail the ivtv-devel list (www.ivtvdriver.org).\n",
 	.v4l2_capabilities = CX18_CAP_ENCODER,
 	.hw_audio_ctrl = CX18_HW_418_AV,
-	.hw_muxer = CX18_HW_GPIO_AUDIO_MUX,
-	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_AUDIO_MUX,
+	.hw_muxer = CX18_HW_GPIO_MUX,
+	.hw_all = CX18_HW_418_AV | CX18_HW_TUNER | CX18_HW_GPIO_MUX |
+		  CX18_HW_GPIO_RESET_CTRL,
 	.video_inputs = {
 		{ CX18_CARD_INPUT_VID_TUNER,  0, CX18_AV_COMPOSITE2 },
 		{ CX18_CARD_INPUT_SVIDEO1,    1,

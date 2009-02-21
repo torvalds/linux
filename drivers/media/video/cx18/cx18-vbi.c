@@ -25,7 +25,6 @@
 #include "cx18-vbi.h"
 #include "cx18-ioctl.h"
 #include "cx18-queue.h"
-#include "cx18-av-core.h"
 
 /*
  * Raster Reference/Protection (RP) bytes, used in Start/End Active

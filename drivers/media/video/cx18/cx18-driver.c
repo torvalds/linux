@@ -684,7 +684,6 @@ static void cx18_init_subdevs(struct cx18 *cx)
 			continue;
 
 		switch (device) {
-		case CX18_HW_GPIO_AUDIO_MUX:
 		case CX18_HW_DVB:
 		case CX18_HW_TVEEPROM:
 			/* These subordinate devices do not use probing */
@@ -694,6 +693,16 @@ static void cx18_init_subdevs(struct cx18 *cx)
 			/* The A/V decoder gets probed earlier to set PLLs */
 			/* Just note that the card uses it (i.e. has analog) */
 			cx->hw_flags |= device;
+			break;
+		case CX18_HW_GPIO_RESET_CTRL:
+			/*
+			 * The Reset Controller gets probed and added to
+			 * hw_flags earlier for i2c adapter/bus initialization
+			 */
+			break;
+		case CX18_HW_GPIO_MUX:
+			if (cx18_gpio_register(cx, device) == 0)
+				cx->hw_flags |= device;
 			break;
 		default:
 			if (cx18_i2c_register(cx, i) == 0)
@@ -793,7 +802,6 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 	cx->scb = (struct cx18_scb __iomem *)(cx->enc_mem + SCB_OFFSET);
 	cx18_init_scb(cx);
 
-	/* Initialize GPIO early so I2C device resets can be performed */
 	cx18_gpio_init(cx);
 
 	/* Initialize integrated A/V decoder early to set PLLs, just in case */
@@ -802,8 +810,16 @@ static int __devinit cx18_probe(struct pci_dev *pci_dev,
 		CX18_ERR("Could not register A/V decoder subdevice\n");
 		goto free_map;
 	}
-	/* Initialize the A/V decoder PLLs to sane defaults */
 	cx18_call_hw(cx, CX18_HW_418_AV, core, init, (u32) CX18_AV_INIT_PLLS);
+
+	/* Initialize GPIO Reset Controller to do chip resets during i2c init */
+	if (cx->card->hw_all & CX18_HW_GPIO_RESET_CTRL) {
+		if (cx18_gpio_register(cx, CX18_HW_GPIO_RESET_CTRL) != 0)
+			CX18_WARN("Could not register GPIO reset controller"
+				  "subdevice; proceeding anyway.\n");
+		else
+			cx->hw_flags |= CX18_HW_GPIO_RESET_CTRL;
+	}
 
 	/* active i2c  */
 	CX18_DEBUG_INFO("activating i2c...\n");

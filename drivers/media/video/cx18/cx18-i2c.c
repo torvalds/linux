@@ -26,7 +26,6 @@
 #include "cx18-io.h"
 #include "cx18-cards.h"
 #include "cx18-gpio.h"
-#include "cx18-av-core.h"
 #include "cx18-i2c.h"
 #include "cx18-irq.h"
 
@@ -49,7 +48,8 @@ static const u8 hw_addrs[] = {
 	CX18_CS5345_I2C_ADDR,	/* CX18_HW_CS5345 */
 	0,			/* CX18_HW_DVB */
 	0,			/* CX18_HW_418_AV */
-	0,			/* CX18_HW_GPIO_AUDIO_MUX */
+	0,			/* CX18_HW_GPIO_MUX */
+	0,			/* CX18_HW_GPIO_RESET_CTRL */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -60,7 +60,8 @@ static const u8 hw_bus[] = {
 	0,	/* CX18_HW_CS5345 */
 	0,	/* CX18_HW_DVB */
 	0,	/* CX18_HW_418_AV */
-	0,	/* CX18_HW_GPIO_AUDIO_MUX */
+	0,	/* CX18_HW_GPIO_MUX */
+	0,	/* CX18_HW_GPIO_RESET_CTRL */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -70,7 +71,8 @@ static const char * const hw_modules[] = {
 	"cs5345",	/* CX18_HW_CS5345 */
 	NULL,		/* CX18_HW_DVB */
 	NULL,		/* CX18_HW_418_AV */
-	NULL,		/* CX18_HW_GPIO_AUDIO_MUX */
+	NULL,		/* CX18_HW_GPIO_MUX */
+	NULL,		/* CX18_HW_GPIO_RESET_CTRL */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -80,7 +82,8 @@ static const char * const hw_devicenames[] = {
 	"cs5345",
 	"cx23418_DTV",
 	"cx23418_AV",
-	"gpio_audio_mux",
+	"gpio_mux",
+	"gpio_reset_ctrl",
 };
 
 int cx18_i2c_register(struct cx18 *cx, unsigned idx)
@@ -262,7 +265,8 @@ int init_cx18_i2c(struct cx18 *cx)
 	cx18_setscl(&cx->i2c_algo_cb_data[1], 1);
 	cx18_setsda(&cx->i2c_algo_cb_data[1], 1);
 
-	cx18_reset_i2c_slaves_gpio(cx);
+	cx18_call_hw(cx, CX18_HW_GPIO_RESET_CTRL,
+		     core, reset, (u32) CX18_GPIO_RESET_I2C);
 
 	return i2c_bit_add_bus(&cx->i2c_adap[0]) ||
 		i2c_bit_add_bus(&cx->i2c_adap[1]);
