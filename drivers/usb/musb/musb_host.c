@@ -2103,14 +2103,15 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 	unsigned long		flags;
 	struct musb		*musb = hcd_to_musb(hcd);
 	u8			is_in = epnum & USB_DIR_IN;
-	struct musb_qh		*qh = hep->hcpriv;
-	struct urb		*urb, *tmp;
+	struct musb_qh		*qh;
+	struct urb		*urb;
 	struct list_head	*sched;
 
-	if (!qh)
-		return;
-
 	spin_lock_irqsave(&musb->lock, flags);
+
+	qh = hep->hcpriv;
+	if (qh == NULL)
+		goto exit;
 
 	switch (qh->type) {
 	case USB_ENDPOINT_XFER_CONTROL:
@@ -2145,13 +2146,28 @@ musb_h_disable(struct usb_hcd *hcd, struct usb_host_endpoint *hep)
 
 		/* cleanup */
 		musb_cleanup_urb(urb, qh, urb->pipe & USB_DIR_IN);
-	} else
-		urb = NULL;
 
-	/* then just nuke all the others */
-	list_for_each_entry_safe_from(urb, tmp, &hep->urb_list, urb_list)
-		musb_giveback(qh, urb, -ESHUTDOWN);
+		/* Then nuke all the others ... and advance the
+		 * queue on hw_ep (e.g. bulk ring) when we're done.
+		 */
+		while (!list_empty(&hep->urb_list)) {
+			urb = next_urb(qh);
+			urb->status = -ESHUTDOWN;
+			musb_advance_schedule(musb, urb, qh->hw_ep, is_in);
+		}
+	} else {
+		/* Just empty the queue; the hardware is busy with
+		 * other transfers, and since !qh->is_ready nothing
+		 * will activate any of these as it advances.
+		 */
+		while (!list_empty(&hep->urb_list))
+			__musb_giveback(musb, next_urb(qh), -ESHUTDOWN);
 
+		hep->hcpriv = NULL;
+		list_del(&qh->ring);
+		kfree(qh);
+	}
+exit:
 	spin_unlock_irqrestore(&musb->lock, flags);
 }
 
