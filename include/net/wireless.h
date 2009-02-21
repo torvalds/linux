@@ -401,8 +401,15 @@ ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
  * domain should be in or by providing a completely build regulatory domain.
  * If the driver provides an ISO/IEC 3166 alpha2 userspace will be queried
  * for a regulatory domain structure for the respective country.
+ *
+ * The wiphy must have been registered to cfg80211 prior to this call.
+ * For cfg80211 drivers this means you must first use wiphy_register(),
+ * for mac80211 drivers you must first use ieee80211_register_hw().
+ *
+ * Drivers should check the return value, its possible you can get
+ * an -ENOMEM.
  */
-extern void regulatory_hint(struct wiphy *wiphy, const char *alpha2);
+extern int regulatory_hint(struct wiphy *wiphy, const char *alpha2);
 
 /**
  * regulatory_hint_11d - hints a country IE as a regulatory domain

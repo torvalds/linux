@@ -404,6 +404,7 @@ enum environment_cap {
  * 	country IE
  * @country_ie_env: lets us know if the AP is telling us we are outdoor,
  * 	indoor, or if it doesn't matter
+ * @list: used to insert into the reg_requests_list linked list
  */
 struct regulatory_request {
 	int wiphy_idx;
@@ -412,6 +413,7 @@ struct regulatory_request {
 	bool intersect;
 	u32 country_ie_checksum;
 	enum environment_cap country_ie_env;
+	struct list_head list;
 };
 
 struct ieee80211_freq_range {

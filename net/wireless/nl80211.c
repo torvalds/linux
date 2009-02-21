@@ -1915,34 +1915,24 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 	 */
 	mutex_lock(&cfg80211_mutex);
 	if (unlikely(!cfg80211_regdomain)) {
-		r = -EINPROGRESS;
-		goto out;
+		mutex_unlock(&cfg80211_mutex);
+		return -EINPROGRESS;
 	}
+	mutex_unlock(&cfg80211_mutex);
 
-	if (!info->attrs[NL80211_ATTR_REG_ALPHA2]) {
-		r = -EINVAL;
-		goto out;
-	}
+	if (!info->attrs[NL80211_ATTR_REG_ALPHA2])
+		return -EINVAL;
 
 	data = nla_data(info->attrs[NL80211_ATTR_REG_ALPHA2]);
 
 #ifdef CONFIG_WIRELESS_OLD_REGULATORY
 	/* We ignore world regdom requests with the old regdom setup */
-	if (is_world_regdom(data)) {
-		r = -EINVAL;
-		goto out;
-	}
+	if (is_world_regdom(data))
+		return -EINVAL;
 #endif
-	r = __regulatory_hint(NULL, REGDOM_SET_BY_USER, data, 0, ENVIRON_ANY);
-	/*
-	 * This means the regulatory domain was already set, however
-	 * we don't want to confuse userspace with a "successful error"
-	 * message so lets just treat it as a success
-	 */
-	if (r == -EALREADY)
-		r = 0;
-out:
-	mutex_unlock(&cfg80211_mutex);
+
+	r = regulatory_hint_user(data);
+
 	return r;
 }
 
