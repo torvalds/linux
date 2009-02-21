@@ -424,7 +424,7 @@ static int __init nforce2_init(void)
 
 	/* detect chipset */
 	if (nforce2_detect_chipset()) {
-		printk(KERN_ERR PFX "No nForce2 chipset.\n");
+		printk(KERN_INFO PFX "No nForce2 chipset.\n");
 		return -ENODEV;
 	}
 
