@@ -456,16 +456,9 @@ int pcie_port_device_resume(struct pci_dev *dev)
 
 static int remove_iter(struct device *dev, void *data)
 {
-	struct pcie_port_service_driver *service_driver;
-
 	if (dev->bus == &pcie_port_bus_type) {
-		if (dev->driver) {
-			service_driver = to_service_driver(dev->driver);
-			if (service_driver->remove)
-				service_driver->remove(to_pcie_device(dev));
-		}
-		*(unsigned long*)data = (unsigned long)dev;
-		return 1;
+		put_device(dev);
+		device_unregister(dev);
 	}
 	return 0;
 }
@@ -480,18 +473,8 @@ static int remove_iter(struct device *dev, void *data)
 void pcie_port_device_remove(struct pci_dev *dev)
 {
 	struct pcie_port_data *port_data = pci_get_drvdata(dev);
-	int status;
 
-	do {
-		unsigned long device_addr;
-
-		status = device_for_each_child(&dev->dev, &device_addr, remove_iter);
-		if (status) {
-			struct device *device = (struct device*)device_addr;
-			put_device(device);
-			device_unregister(device);
-		}
-	} while (status);
+	device_for_each_child(&dev->dev, NULL, remove_iter);
 
 	switch (port_data->port_irq_mode) {
 	case PCIE_PORT_MSIX_MODE:
