@@ -1863,19 +1863,21 @@ static int musb_urb_enqueue(
 	}
 	qh->type_reg = type_reg;
 
-	/* precompute rxinterval/txinterval register */
-	interval = min((u8)16, epd->bInterval);	/* log encoding */
+	/* Precompute RXINTERVAL/TXINTERVAL register */
 	switch (qh->type) {
 	case USB_ENDPOINT_XFER_INT:
-		/* fullspeed uses linear encoding */
-		if (USB_SPEED_FULL == urb->dev->speed) {
-			interval = epd->bInterval;
-			if (!interval)
-				interval = 1;
+		/*
+		 * Full/low speeds use the  linear encoding,
+		 * high speed uses the logarithmic encoding.
+		 */
+		if (urb->dev->speed <= USB_SPEED_FULL) {
+			interval = max_t(u8, epd->bInterval, 1);
+			break;
 		}
 		/* FALLTHROUGH */
 	case USB_ENDPOINT_XFER_ISOC:
-		/* iso always uses log encoding */
+		/* ISO always uses logarithmic encoding */
+		interval = min_t(u8, epd->bInterval, 16);
 		break;
 	default:
 		/* REVISIT we actually want to use NAK limits, hinting to the
