@@ -575,7 +575,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	struct usb_request	*request = &req->request;
 	struct musb_ep		*musb_ep = &musb->endpoints[epnum].ep_out;
 	void __iomem		*epio = musb->endpoints[epnum].regs;
-	u16			fifo_count = 0;
+	unsigned		fifo_count = 0;
 	u16			len = musb_ep->packet_sz;
 
 	csr = musb_readw(epio, MUSB_RXCSR);
@@ -687,7 +687,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 					len, fifo_count,
 					musb_ep->packet_sz);
 
-			fifo_count = min(len, fifo_count);
+			fifo_count = min_t(unsigned, len, fifo_count);
 
 #ifdef	CONFIG_USB_TUSB_OMAP_DMA
 			if (tusb_dma_omap() && musb_ep->dma) {
