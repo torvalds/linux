@@ -644,6 +644,9 @@ static u16 iwl_adjust_beacon_interval(u16 beacon_val)
 					/ MAX_UCODE_BEACON_INTERVAL;
 	new_val = beacon_val / beacon_factor;
 
+	if (!new_val)
+		new_val = MAX_UCODE_BEACON_INTERVAL;
+
 	return new_val;
 }
 
