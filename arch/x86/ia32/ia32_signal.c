@@ -33,8 +33,6 @@
 #include <asm/sigframe.h>
 #include <asm/sys_ia32.h>
 
-#define DEBUG_SIG 0
-
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 #define FIX_EFLAGS	(X86_EFLAGS_AC | X86_EFLAGS_OF | \
@@ -219,12 +217,6 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
-#if DEBUG_SIG
-	printk(KERN_DEBUG "SIG restore_sigcontext: "
-	       "sc=%p err(%x) eip(%x) cs(%x) flg(%x)\n",
-	       sc, sc->err, sc->ip, sc->cs, sc->flags);
-#endif
 
 	get_user_try {
 		/*
@@ -488,11 +480,6 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	regs->cs = __USER32_CS;
 	regs->ss = __USER32_DS;
 
-#if DEBUG_SIG
-	printk(KERN_DEBUG "SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
-	       current->comm, current->pid, frame, regs->ip, frame->pretcode);
-#endif
-
 	return 0;
 }
 
@@ -573,11 +560,6 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	regs->cs = __USER32_CS;
 	regs->ss = __USER32_DS;
-
-#if DEBUG_SIG
-	printk(KERN_DEBUG "SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
-	       current->comm, current->pid, frame, regs->ip, frame->pretcode);
-#endif
 
 	return 0;
 }
