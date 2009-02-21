@@ -31,6 +31,7 @@
 
 #include <asm/processor.h>
 #include <asm/msr.h>
+#include <asm/timer.h>
 
 #include "speedstep-lib.h"
 
@@ -224,6 +225,12 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 		dprintk("has errata -- disabling low frequencies\n");
 	}
 
+	if (speedstep_detect_processor() == SPEEDSTEP_CPU_P4D &&
+	    c->x86_model < 2) {
+		/* switch to maximum frequency and measure result */
+		cpufreq_p4_setdc(policy->cpu, DC_DISABLE);
+		recalibrate_cpu_khz();
+	}
 	/* get max frequency */
 	stock_freq = cpufreq_p4_get_frequency(c);
 	if (!stock_freq)

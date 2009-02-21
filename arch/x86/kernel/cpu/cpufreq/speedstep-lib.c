@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 
 #include <asm/msr.h>
+#include <asm/tsc.h>
 #include "speedstep-lib.h"
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
@@ -178,6 +179,15 @@ static unsigned int pentium4_get_frequency(void)
 	u32 msr_lo, msr_hi, mult;
 	unsigned int fsb = 0;
 	unsigned int ret;
+	u8 fsb_code;
+
+	/* Pentium 4 Model 0 and 1 do not have the Core Clock Frequency
+	 * to System Bus Frequency Ratio Field in the Processor Frequency
+	 * Configuration Register of the MSR. Therefore the current
+	 * frequency cannot be calculated and has to be measured.
+	 */
+	if (c->x86_model < 2)
+		return cpu_khz;
 
 	rdmsr(0x2c, msr_lo, msr_hi);
 
@@ -188,21 +198,17 @@ static unsigned int pentium4_get_frequency(void)
 	 * revision #12 in Table B-1: MSRs in the Pentium 4 and
 	 * Intel Xeon Processors, on page B-4 and B-5.
 	 */
-	if (c->x86_model < 2)
+	fsb_code = (msr_lo >> 16) & 0x7;
+	switch (fsb_code) {
+	case 0:
 		fsb = 100 * 1000;
-	else {
-		u8 fsb_code = (msr_lo >> 16) & 0x7;
-		switch (fsb_code) {
-		case 0:
-			fsb = 100 * 1000;
-			break;
-		case 1:
-			fsb = 13333 * 10;
-			break;
-		case 2:
-			fsb = 200 * 1000;
-			break;
-		}
+		break;
+	case 1:
+		fsb = 13333 * 10;
+		break;
+	case 2:
+		fsb = 200 * 1000;
+		break;
 	}
 
 	if (!fsb)

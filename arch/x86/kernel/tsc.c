@@ -523,8 +523,6 @@ unsigned long native_calibrate_tsc(void)
 	return tsc_pit_min;
 }
 
-#ifdef CONFIG_X86_32
-/* Only called from the Powernow K7 cpu freq driver */
 int recalibrate_cpu_khz(void)
 {
 #ifndef CONFIG_SMP
@@ -546,7 +544,6 @@ int recalibrate_cpu_khz(void)
 
 EXPORT_SYMBOL(recalibrate_cpu_khz);
 
-#endif /* CONFIG_X86_32 */
 
 /* Accelerators for sched_clock()
  * convert from cycles(64bits) => nanoseconds (64bits)
