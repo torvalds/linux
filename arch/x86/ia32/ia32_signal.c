@@ -192,11 +192,15 @@ asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
 	get_user_ex(regs->x, &sc->x);		\
 }
 
-#define COPY_SEG_CPL3(seg)	{			\
-		unsigned short tmp;			\
-		get_user_ex(tmp, &sc->seg);		\
-		regs->seg = tmp | 3;			\
-}
+#define GET_SEG(seg)		({			\
+	unsigned short tmp;				\
+	get_user_ex(tmp, &sc->seg);			\
+	tmp;						\
+})
+
+#define COPY_SEG_CPL3(seg)	do {			\
+	regs->seg = GET_SEG(seg) | 3;			\
+} while (0)
 
 #define RELOAD_SEG(seg)		{		\
 	unsigned int cur, pre;			\
