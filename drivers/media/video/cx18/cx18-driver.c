@@ -1066,6 +1066,7 @@ static void cx18_remove(struct pci_dev *pci_dev)
 {
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pci_dev);
 	struct cx18 *cx = to_cx18(v4l2_dev);
+	int i;
 
 	CX18_DEBUG_INFO("Removing Card\n");
 
@@ -1095,7 +1096,10 @@ static void cx18_remove(struct pci_dev *pci_dev)
 	release_mem_region(cx->base_addr, CX18_MEM_SIZE);
 
 	pci_disable_device(cx->pci_dev);
-	/* FIXME - we leak cx->vbi.sliced_mpeg_data[i] allocations */
+
+	if (cx->vbi.sliced_mpeg_data[0] != NULL)
+		for (i = 0; i < CX18_VBI_FRAMES; i++)
+			kfree(cx->vbi.sliced_mpeg_data[i]);
 
 	CX18_INFO("Removed %s\n", cx->card_name);
 
