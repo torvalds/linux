@@ -40,9 +40,8 @@ DEFINE_MUTEX(cfg80211_mutex);
 /* for debugfs */
 static struct dentry *ieee80211_debugfs_dir;
 
-/* requires cfg80211_drv_mutex to be held! */
-static struct cfg80211_registered_device *
-cfg80211_drv_by_wiphy_idx(int wiphy_idx)
+/* requires cfg80211_mutex to be held! */
+struct cfg80211_registered_device *cfg80211_drv_by_wiphy_idx(int wiphy_idx)
 {
 	struct cfg80211_registered_device *result = NULL, *drv;
 
@@ -59,6 +58,31 @@ cfg80211_drv_by_wiphy_idx(int wiphy_idx)
 	}
 
 	return result;
+}
+
+int get_wiphy_idx(struct wiphy *wiphy)
+{
+	struct cfg80211_registered_device *drv;
+	if (!wiphy)
+		return WIPHY_IDX_STALE;
+	drv = wiphy_to_dev(wiphy);
+	return drv->wiphy_idx;
+}
+
+/* requires cfg80211_drv_mutex to be held! */
+struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx)
+{
+	struct cfg80211_registered_device *drv;
+
+	if (!wiphy_idx_valid(wiphy_idx))
+		return NULL;
+
+	assert_cfg80211_lock();
+
+	drv = cfg80211_drv_by_wiphy_idx(wiphy_idx);
+	if (!drv)
+		return NULL;
+	return &drv->wiphy;
 }
 
 /* requires cfg80211_mutex to be held! */

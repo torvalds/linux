@@ -79,6 +79,12 @@ static inline void assert_cfg80211_lock(void)
 	BUG_ON(!mutex_is_locked(&cfg80211_mutex));
 }
 
+/*
+ * You can use this to mark a wiphy_idx as not having an associated wiphy.
+ * It guarantees cfg80211_drv_by_wiphy_idx(wiphy_idx) will return NULL
+ */
+#define WIPHY_IDX_STALE -1
+
 struct cfg80211_internal_bss {
 	struct list_head list;
 	struct rb_node rbn;
@@ -87,6 +93,9 @@ struct cfg80211_internal_bss {
 	/* must be last because of priv member */
 	struct cfg80211_bss pub;
 };
+
+struct cfg80211_registered_device *cfg80211_drv_by_wiphy_idx(int wiphy_idx);
+int get_wiphy_idx(struct wiphy *wiphy);
 
 /*
  * This function returns a pointer to the driver
@@ -110,6 +119,9 @@ struct cfg80211_internal_bss {
  */
 extern struct cfg80211_registered_device *
 cfg80211_get_dev_from_info(struct genl_info *info);
+
+/* requires cfg80211_drv_mutex to be held! */
+struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx);
 
 /* identical to cfg80211_get_dev_from_info but only operate on ifindex */
 extern struct cfg80211_registered_device *
