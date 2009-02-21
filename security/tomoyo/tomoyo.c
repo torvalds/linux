@@ -287,6 +287,7 @@ static int __init tomoyo_init(void)
 		panic("Failure registering TOMOYO Linux");
 	printk(KERN_INFO "TOMOYO Linux initialized\n");
 	cred->security = &tomoyo_kernel_domain;
+	tomoyo_realpath_init();
 	return 0;
 }
 

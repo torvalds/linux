@@ -60,4 +60,7 @@ int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head);
 /* Set memory quota. */
 int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head);
 
+/* Initialize realpath related code. */
+void __init tomoyo_realpath_init(void);
+
 #endif /* !defined(_SECURITY_TOMOYO_REALPATH_H) */

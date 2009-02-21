@@ -371,10 +371,8 @@ const struct tomoyo_path_info *tomoyo_save_name(const char *name)
 
 /**
  * tomoyo_realpath_init - Initialize realpath related code.
- *
- * Returns 0.
  */
-static int __init tomoyo_realpath_init(void)
+void __init tomoyo_realpath_init(void)
 {
 	int i;
 
@@ -388,10 +386,7 @@ static int __init tomoyo_realpath_init(void)
 	if (tomoyo_find_domain(TOMOYO_ROOT_NAME) != &tomoyo_kernel_domain)
 		panic("Can't register tomoyo_kernel_domain");
 	up_read(&tomoyo_domain_list_lock);
-	return 0;
 }
-
-security_initcall(tomoyo_realpath_init);
 
 /* Memory allocated for temporary purpose. */
 static atomic_t tomoyo_dynamic_memory_size;
