@@ -713,22 +713,24 @@ static int msp_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	struct msp_state *state = to_state(sd);
 
 	switch (qc->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-		case V4L2_CID_AUDIO_MUTE:
-			return v4l2_ctrl_query_fill_std(qc);
-		default:
-			break;
+	case V4L2_CID_AUDIO_VOLUME:
+		return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 58880);
+	case V4L2_CID_AUDIO_MUTE:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
+	default:
+		break;
 	}
 	if (!state->has_sound_processing)
 		return -EINVAL;
 	switch (qc->id) {
-		case V4L2_CID_AUDIO_LOUDNESS:
-		case V4L2_CID_AUDIO_BALANCE:
-		case V4L2_CID_AUDIO_BASS:
-		case V4L2_CID_AUDIO_TREBLE:
-			return v4l2_ctrl_query_fill_std(qc);
-		default:
-			return -EINVAL;
+	case V4L2_CID_AUDIO_LOUDNESS:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
+	case V4L2_CID_AUDIO_BALANCE:
+	case V4L2_CID_AUDIO_BASS:
+	case V4L2_CID_AUDIO_TREBLE:
+		return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
+	default:
+		return -EINVAL;
 	}
 	return 0;
 }

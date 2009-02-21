@@ -102,7 +102,6 @@ int v4l2_ctrl_check(struct v4l2_ext_control *ctrl, struct v4l2_queryctrl *qctrl,
 const char *v4l2_ctrl_get_name(u32 id);
 const char **v4l2_ctrl_get_menu(u32 id);
 int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 step, s32 def);
-int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl);
 int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu,
 		struct v4l2_queryctrl *qctrl, const char **menu_items);
 #define V4L2_CTRL_MENU_IDS_END (0xffffffff)

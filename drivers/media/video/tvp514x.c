@@ -725,10 +725,9 @@ ioctl_queryctrl(struct v4l2_int_device *s, struct v4l2_queryctrl *qctrl)
 
 	switch (qctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		/* Brightness supported is same as standard one (0-255),
-		 * so make use of standard API provided.
+		/* Brightness supported is (0-255),
 		 */
-		err = v4l2_ctrl_query_fill_std(qctrl);
+		err = v4l2_ctrl_query_fill(qctrl, 0, 255, 1, 128);
 		break;
 	case V4L2_CID_CONTRAST:
 	case V4L2_CID_SATURATION:

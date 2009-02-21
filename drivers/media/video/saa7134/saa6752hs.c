@@ -592,7 +592,7 @@ static int saa6752hs_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc
 				V4L2_MPEG_VIDEO_ASPECT_4x3);
 
 	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
-		err = v4l2_ctrl_query_fill_std(qctrl);
+		err = v4l2_ctrl_query_fill(qctrl, 0, 27000000, 1, 8000000);
 		if (err == 0 &&
 		    params->vi_bitrate_mode ==
 				V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
@@ -606,12 +606,20 @@ static int saa6752hs_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc
 				V4L2_MPEG_STREAM_TYPE_MPEG2_TS);
 
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_VIDEO_BITRATE_MODE_VBR,
+				V4L2_MPEG_VIDEO_BITRATE_MODE_CBR, 1,
+				V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
 	case V4L2_CID_MPEG_VIDEO_BITRATE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 27000000, 1, 6000000);
 	case V4L2_CID_MPEG_STREAM_PID_PMT:
+		return v4l2_ctrl_query_fill(qctrl, 0, (1 << 14) - 1, 1, 16);
 	case V4L2_CID_MPEG_STREAM_PID_AUDIO:
+		return v4l2_ctrl_query_fill(qctrl, 0, (1 << 14) - 1, 1, 260);
 	case V4L2_CID_MPEG_STREAM_PID_VIDEO:
+		return v4l2_ctrl_query_fill(qctrl, 0, (1 << 14) - 1, 1, 256);
 	case V4L2_CID_MPEG_STREAM_PID_PCR:
-		return v4l2_ctrl_query_fill_std(qctrl);
+		return v4l2_ctrl_query_fill(qctrl, 0, (1 << 14) - 1, 1, 259);
 
 	default:
 		break;

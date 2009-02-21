@@ -313,9 +313,10 @@ static int tda9875_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 {
 	switch (qc->id) {
 	case V4L2_CID_AUDIO_VOLUME:
+		return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 58880);
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
-		return v4l2_ctrl_query_fill_std(qc);
+		return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
 	}
 	return -EINVAL;
 }

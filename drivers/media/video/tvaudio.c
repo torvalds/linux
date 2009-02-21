@@ -1636,21 +1636,24 @@ static int tvaudio_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 
 	switch (qc->id) {
 	case V4L2_CID_AUDIO_MUTE:
-		break;
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
 	case V4L2_CID_AUDIO_VOLUME:
+		if (desc->flags & CHIP_HAS_VOLUME)
+			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 58880);
+		break;
 	case V4L2_CID_AUDIO_BALANCE:
-		if (!(desc->flags & CHIP_HAS_VOLUME))
-			return -EINVAL;
+		if (desc->flags & CHIP_HAS_VOLUME)
+			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
 		break;
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
-		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
-			return -EINVAL;
+		if (desc->flags & CHIP_HAS_BASSTREBLE)
+			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
 		break;
 	default:
-		return -EINVAL;
+		break;
 	}
-	return v4l2_ctrl_query_fill_std(qc);
+	return -EINVAL;
 }
 
 static int tvaudio_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *rt)

@@ -390,7 +390,7 @@ static int empress_queryctrl(struct file *file, void *priv,
 	if (c->id == 0)
 		return -EINVAL;
 	if (c->id == V4L2_CID_USER_CLASS || c->id == V4L2_CID_MPEG_CLASS)
-		return v4l2_ctrl_query_fill_std(c);
+		return v4l2_ctrl_query_fill(c, 0, 0, 0, 0);
 	if (V4L2_CTRL_ID2CLASS(c->id) != V4L2_CTRL_CLASS_MPEG)
 		return saa7134_queryctrl(file, priv, c);
 	return saa_call_empress(dev, core, queryctrl, c);

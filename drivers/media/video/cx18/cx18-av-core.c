@@ -788,10 +788,12 @@ int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg)
 
 		switch (qc->id) {
 		case V4L2_CID_BRIGHTNESS:
+			return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
 		case V4L2_CID_CONTRAST:
 		case V4L2_CID_SATURATION:
+			return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
 		case V4L2_CID_HUE:
-			return v4l2_ctrl_query_fill_std(qc);
+			return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
 		default:
 			break;
 		}
@@ -801,10 +803,11 @@ int cx18_av_cmd(struct cx18 *cx, unsigned int cmd, void *arg)
 			return v4l2_ctrl_query_fill(qc, 0, 65535,
 				65535 / 100, state->default_volume);
 		case V4L2_CID_AUDIO_MUTE:
+			return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
 		case V4L2_CID_AUDIO_BALANCE:
 		case V4L2_CID_AUDIO_BASS:
 		case V4L2_CID_AUDIO_TREBLE:
-			return v4l2_ctrl_query_fill_std(qc);
+			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
 		default:
 			return -EINVAL;
 		}
