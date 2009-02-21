@@ -1341,7 +1341,7 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	 * it as it would indicate a mistake in the current design
 	 */
 	if (WARN_ON(reg_same_country_ie_hint(wiphy, checksum)))
-		goto out;
+		goto free_rd_out;
 
 	/* We keep this around for when CRDA comes back with a response so
 	 * we can intersect with that */
@@ -1350,6 +1350,10 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	__regulatory_hint(wiphy, REGDOM_SET_BY_COUNTRY_IE,
 		country_ie_regdomain->alpha2, checksum, env);
 
+	goto out;
+
+free_rd_out:
+	kfree(rd);
 out:
 	mutex_unlock(&cfg80211_mutex);
 }
