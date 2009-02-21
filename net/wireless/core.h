@@ -63,6 +63,13 @@ struct cfg80211_registered_device *wiphy_to_dev(struct wiphy *wiphy)
 	return container_of(wiphy, struct cfg80211_registered_device, wiphy);
 }
 
+/* Note 0 is valid, hence phy0 */
+static inline
+bool wiphy_idx_valid(int wiphy_idx)
+{
+	return (wiphy_idx >= 0);
+}
+
 extern struct mutex cfg80211_drv_mutex;
 extern struct list_head cfg80211_drv_list;
 
