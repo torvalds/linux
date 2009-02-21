@@ -335,15 +335,10 @@ musb_save_toggle(struct musb_hw_ep *ep, int is_in, struct urb *urb)
 static struct musb_qh *
 musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 {
-	int			is_in;
 	struct musb_hw_ep	*ep = qh->hw_ep;
 	struct musb		*musb = ep->musb;
+	int			is_in = usb_pipein(urb->pipe);
 	int			ready = qh->is_ready;
-
-	if (ep->is_shared_fifo)
-		is_in = 1;
-	else
-		is_in = usb_pipein(urb->pipe);
 
 	/* save toggle eagerly, for paranoia */
 	switch (qh->type) {
