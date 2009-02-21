@@ -188,6 +188,14 @@ asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
 /*
  * Do a signal return; undo the signal stack.
  */
+#define loadsegment_gs(v)	load_gs_index(v)
+#define loadsegment_fs(v)	loadsegment(fs, v)
+#define loadsegment_ds(v)	loadsegment(ds, v)
+#define loadsegment_es(v)	loadsegment(es, v)
+
+#define get_user_seg(seg)	({ unsigned int v; savesegment(seg, v); v; })
+#define set_user_seg(seg, v)	loadsegment_##seg(v)
+
 #define COPY(x)			{		\
 	get_user_ex(regs->x, &sc->x);		\
 }
@@ -203,19 +211,18 @@ asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
 } while (0)
 
 #define RELOAD_SEG(seg)		{		\
-	unsigned int cur, pre;			\
-	get_user_ex(pre, &sc->seg);		\
-	savesegment(seg, cur);			\
+	unsigned int pre = GET_SEG(seg);	\
+	unsigned int cur = get_user_seg(seg);	\
 	pre |= 3;				\
 	if (pre != cur)				\
-		loadsegment(seg, pre);		\
+		set_user_seg(seg, pre);		\
 }
 
 static int ia32_restore_sigcontext(struct pt_regs *regs,
 				   struct sigcontext_ia32 __user *sc,
 				   unsigned int *pax)
 {
-	unsigned int tmpflags, gs, oldgs, err = 0;
+	unsigned int tmpflags, err = 0;
 	void __user *buf;
 	u32 tmp;
 
@@ -229,12 +236,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 		 * the handler, but does not clobber them at least in the
 		 * normal case.
 		 */
-		get_user_ex(gs, &sc->gs);
-		gs |= 3;
-		savesegment(gs, oldgs);
-		if (gs != oldgs)
-			load_gs_index(gs);
-
+		RELOAD_SEG(gs);
 		RELOAD_SEG(fs);
 		RELOAD_SEG(ds);
 		RELOAD_SEG(es);
@@ -333,17 +335,13 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 				 void __user *fpstate,
 				 struct pt_regs *regs, unsigned int mask)
 {
-	int tmp, err = 0;
+	int err = 0;
 
 	put_user_try {
-		savesegment(gs, tmp);
-		put_user_ex(tmp, (unsigned int __user *)&sc->gs);
-		savesegment(fs, tmp);
-		put_user_ex(tmp, (unsigned int __user *)&sc->fs);
-		savesegment(ds, tmp);
-		put_user_ex(tmp, (unsigned int __user *)&sc->ds);
-		savesegment(es, tmp);
-		put_user_ex(tmp, (unsigned int __user *)&sc->es);
+		put_user_ex(get_user_seg(gs), (unsigned int __user *)&sc->gs);
+		put_user_ex(get_user_seg(fs), (unsigned int __user *)&sc->fs);
+		put_user_ex(get_user_seg(ds), (unsigned int __user *)&sc->ds);
+		put_user_ex(get_user_seg(es), (unsigned int __user *)&sc->es);
 
 		put_user_ex(regs->di, &sc->di);
 		put_user_ex(regs->si, &sc->si);
