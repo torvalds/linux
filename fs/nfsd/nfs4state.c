@@ -2084,6 +2084,9 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 			goto out;
 		}
 		stidp = &dp->dl_stateid;
+		status = check_stateid_generation(stateid, stidp);
+		if (status)
+			goto out;
 	} else { /* open or lock stateid */
 		stp = find_stateid(stateid, flags);
 		if (!stp) {
@@ -2095,10 +2098,10 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 		if (!stp->st_stateowner->so_confirmed)
 			goto out;
 		stidp = &stp->st_stateid;
+		status = check_stateid_generation(stateid, stidp);
+		if (status)
+			goto out;
 	}
-	status = check_stateid_generation(stateid, stidp);
-	if (status)
-		goto out;
 	if (stp) {
 		status = nfs4_check_openmode(stp, flags);
 		if (status)
