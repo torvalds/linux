@@ -2091,7 +2091,7 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 		stp = find_stateid(stateid, flags);
 		if (!stp)
 			goto out;
-		if ((flags & CHECK_FH) && nfs4_check_fh(current_fh, stp))
+		if (nfs4_check_fh(current_fh, stp))
 			goto out;
 		if (!stp->st_stateowner->so_confirmed)
 			goto out;
