@@ -1019,8 +1019,6 @@ static inline void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff
 	if (conn) {
 		conn->state = BT_CLOSED;
 
-		hci_conn_del_sysfs(conn);
-
 		hci_proto_disconn_cfm(conn, ev->reason);
 		hci_conn_del(conn);
 	}

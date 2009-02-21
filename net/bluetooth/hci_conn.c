@@ -287,6 +287,8 @@ int hci_conn_del(struct hci_conn *conn)
 
 	skb_queue_purge(&conn->data_q);
 
+	hci_conn_del_sysfs(conn);
+
 	return 0;
 }
 
@@ -559,8 +561,6 @@ void hci_conn_hash_flush(struct hci_dev *hdev)
 		p = p->next;
 
 		c->state = BT_CLOSED;
-
-		hci_conn_del_sysfs(c);
 
 		hci_proto_disconn_cfm(c, 0x16);
 		hci_conn_del(c);
