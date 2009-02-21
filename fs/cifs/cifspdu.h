@@ -43,6 +43,7 @@
 #define SMB_COM_CREATE_DIRECTORY      0x00 /* trivial response */
 #define SMB_COM_DELETE_DIRECTORY      0x01 /* trivial response */
 #define SMB_COM_CLOSE                 0x04 /* triv req/rsp, timestamp ignored */
+#define SMB_COM_FLUSH                 0x05 /* triv req/rsp */
 #define SMB_COM_DELETE                0x06 /* trivial response */
 #define SMB_COM_RENAME                0x07 /* trivial response */
 #define SMB_COM_QUERY_INFORMATION     0x08 /* aka getattr */
@@ -789,6 +790,12 @@ typedef struct smb_com_close_rsp {
 	struct smb_hdr hdr;	/* wct = 0 */
 	__u16 ByteCount;	/* bct = 0 */
 } __attribute__((packed)) CLOSE_RSP;
+
+typedef struct smb_com_flush_req {
+	struct smb_hdr hdr;	/* wct = 1 */
+	__u16 FileID;
+	__u16 ByteCount;	/* 0 */
+} __attribute__((packed)) FLUSH_REQ;
 
 typedef struct smb_com_findclose_req {
 	struct smb_hdr hdr; /* wct = 1 */

@@ -1523,6 +1523,9 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 {
 	int xid;
 	int rc = 0;
+	struct cifsTconInfo *tcon;
+	struct cifsFileInfo *smbfile =
+		(struct cifsFileInfo *)file->private_data;
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	xid = GetXid();
@@ -1534,7 +1537,11 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	if (rc == 0) {
 		rc = CIFS_I(inode)->write_behind_rc;
 		CIFS_I(inode)->write_behind_rc = 0;
+		tcon = CIFS_SB(inode->i_sb)->tcon;
+		if (!rc && tcon && smbfile)
+			rc = CIFSSMBFlush(xid, tcon, smbfile->netfid);
 	}
+
 	FreeXid(xid);
 	return rc;
 }

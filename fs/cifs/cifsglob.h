@@ -254,6 +254,7 @@ struct cifsTconInfo {
 	atomic_t num_smbs_sent;
 	atomic_t num_writes;
 	atomic_t num_reads;
+	atomic_t num_flushes;
 	atomic_t num_oplock_brks;
 	atomic_t num_opens;
 	atomic_t num_closes;

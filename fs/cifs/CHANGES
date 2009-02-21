@@ -6,7 +6,9 @@ the server to treat subsequent connections, especially those that
 are authenticated as guest, as reconnections, invalidating the earlier
 user's smb session.  This fix allows cifs to mount multiple times to the
 same server with different userids without risking invalidating earlier
-established security contexts.
+established security contexts.  fsync now sends SMB Flush operation
+to better ensure that we wait for server to write all of the data to
+server disk (not just write it over the network).
 
 Version 1.56
 ------------
