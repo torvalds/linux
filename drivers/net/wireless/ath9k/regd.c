@@ -507,7 +507,7 @@ u32 ath9k_regd_get_ctl(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (IS_CHAN_B(chan))
 		ctl = ah->regulatory.regpair->reg_2ghz_ctl | CTL_11B;
 	else if (IS_CHAN_G(chan))
-		ctl = ah->regulatory.regpair->reg_5ghz_ctl | CTL_11G;
+		ctl = ah->regulatory.regpair->reg_2ghz_ctl | CTL_11G;
 	else
 		ctl = ah->regulatory.regpair->reg_5ghz_ctl | CTL_11A;
 
