@@ -291,6 +291,10 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 				sdata->u.ibss.ssid_len))
 		goto put_bss;
 
+	/* same BSSID */
+	if (memcmp(bss->cbss.bssid, sdata->u.ibss.bssid, ETH_ALEN) == 0)
+		goto put_bss;
+
 	if (rx_status->flag & RX_FLAG_TSFT) {
 		/*
 		 * For correct IBSS merging we need mactime; since mactime is
