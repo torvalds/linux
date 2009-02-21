@@ -185,7 +185,8 @@ static inline u64 gfs2_bit_search(const __le64 *ptr, u64 mask, u8 state)
  * Return: the block number (bitmap buffer scope) that was found
  */
 
-u32 gfs2_bitfit(const u8 *buf, const unsigned int len, u32 goal, u8 state)
+static u32 gfs2_bitfit(const u8 *buf, const unsigned int len,
+		       u32 goal, u8 state)
 {
 	u32 spoint = (goal << 1) & ((8*sizeof(u64)) - 1);
 	const __le64 *ptr = ((__le64 *)buf) + (goal >> 5);
