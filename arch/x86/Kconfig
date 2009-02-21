@@ -285,6 +285,7 @@ config X86_BIGSMP
 	---help---
 	  This option is needed for the systems that have more than 8 CPUs
 
+if X86_32
 config X86_EXTENDED_PLATFORM
 	bool "Support for extended (non-PC) x86 platforms"
 	default y
@@ -293,12 +294,37 @@ config X86_EXTENDED_PLATFORM
 	  standard PC platforms. (which covers the vast majority of
 	  systems out there.)
 
-	  If you enable this option then you'll be able to select a number
-	  of non-PC x86 platforms.
+	  If you enable this option then you'll be able to select support
+	  for the following (non-PC) 32 bit x86 platforms:
+		AMD Elan
+		NUMAQ (IBM/Sequent)
+		RDC R-321x SoC
+		SGI 320/540 (Visual Workstation)
+		Summit/EXA (IBM x440)
+		Unisys ES7000 IA32 series
+		Voyager (NCR)
 
 	  If you have one of these systems, or if you want to build a
 	  generic distribution kernel, say Y here - otherwise say N.
+endif
 
+if X86_64
+config X86_EXTENDED_PLATFORM
+	bool "Support for extended (non-PC) x86 platforms"
+	default y
+	---help---
+	  If you disable this option then the kernel will only support
+	  standard PC platforms. (which covers the vast majority of
+	  systems out there.)
+
+	  If you enable this option then you'll be able to select support
+	  for the following (non-PC) 64 bit x86 platforms:
+		ScaleMP vSMP
+		SGI Ultraviolet
+
+	  If you have one of these systems, or if you want to build a
+	  generic distribution kernel, say Y here - otherwise say N.
+endif
 # This is an alphabetically sorted list of 64 bit extended platforms
 # Please maintain the alphabetic order if and when there are additions
 
