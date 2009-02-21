@@ -31,7 +31,7 @@ static ssize_t name ## _show(struct device *dev,			\
 	return sprintf(buf, fmt "\n", dev_to_rdev(dev)->member);	\
 }
 
-SHOW_FMT(index, "%d", idx);
+SHOW_FMT(index, "%d", wiphy_idx);
 SHOW_FMT(macaddress, "%pM", wiphy.perm_addr);
 
 static struct device_attribute ieee80211_dev_attrs[] = {

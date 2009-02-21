@@ -37,12 +37,13 @@ DEFINE_MUTEX(cfg80211_drv_mutex);
 static struct dentry *ieee80211_debugfs_dir;
 
 /* requires cfg80211_drv_mutex to be held! */
-static struct cfg80211_registered_device *cfg80211_drv_by_wiphy(int wiphy)
+static struct cfg80211_registered_device *
+cfg80211_drv_by_wiphy_idx(int wiphy_idx)
 {
 	struct cfg80211_registered_device *result = NULL, *drv;
 
 	list_for_each_entry(drv, &cfg80211_drv_list, list) {
-		if (drv->idx == wiphy) {
+		if (drv->wiphy_idx == wiphy_idx) {
 			result = drv;
 			break;
 		}
@@ -56,12 +57,12 @@ static struct cfg80211_registered_device *
 __cfg80211_drv_from_info(struct genl_info *info)
 {
 	int ifindex;
-	struct cfg80211_registered_device *bywiphy = NULL, *byifidx = NULL;
+	struct cfg80211_registered_device *bywiphyidx = NULL, *byifidx = NULL;
 	struct net_device *dev;
 	int err = -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_WIPHY]) {
-		bywiphy = cfg80211_drv_by_wiphy(
+		bywiphyidx = cfg80211_drv_by_wiphy_idx(
 				nla_get_u32(info->attrs[NL80211_ATTR_WIPHY]));
 		err = -ENODEV;
 	}
@@ -78,14 +79,14 @@ __cfg80211_drv_from_info(struct genl_info *info)
 		err = -ENODEV;
 	}
 
-	if (bywiphy && byifidx) {
-		if (bywiphy != byifidx)
+	if (bywiphyidx && byifidx) {
+		if (bywiphyidx != byifidx)
 			return ERR_PTR(-EINVAL);
 		else
-			return bywiphy; /* == byifidx */
+			return bywiphyidx; /* == byifidx */
 	}
-	if (bywiphy)
-		return bywiphy;
+	if (bywiphyidx)
+		return bywiphyidx;
 
 	if (byifidx)
 		return byifidx;
@@ -143,16 +144,16 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			char *newname)
 {
 	struct cfg80211_registered_device *drv;
-	int idx, taken = -1, result, digits;
+	int wiphy_idx, taken = -1, result, digits;
 
 	mutex_lock(&cfg80211_drv_mutex);
 
 	/* prohibit calling the thing phy%d when %d is not its number */
-	sscanf(newname, PHY_NAME "%d%n", &idx, &taken);
-	if (taken == strlen(newname) && idx != rdev->idx) {
-		/* count number of places needed to print idx */
+	sscanf(newname, PHY_NAME "%d%n", &wiphy_idx, &taken);
+	if (taken == strlen(newname) && wiphy_idx != rdev->wiphy_idx) {
+		/* count number of places needed to print wiphy_idx */
 		digits = 1;
-		while (idx /= 10)
+		while (wiphy_idx /= 10)
 			digits++;
 		/*
 		 * deny the name if it is phy<idx> where <idx> is printed
@@ -222,9 +223,9 @@ struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 
 	mutex_lock(&cfg80211_drv_mutex);
 
-	drv->idx = wiphy_counter++;
+	drv->wiphy_idx = wiphy_counter++;
 
-	if (unlikely(drv->idx < 0)) {
+	if (unlikely(drv->wiphy_idx < 0)) {
 		wiphy_counter--;
 		mutex_unlock(&cfg80211_drv_mutex);
 		/* ugh, wrapped! */
@@ -235,7 +236,7 @@ struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 	mutex_unlock(&cfg80211_drv_mutex);
 
 	/* give it a proper name */
-	dev_set_name(&drv->wiphy.dev, PHY_NAME "%d", drv->idx);
+	dev_set_name(&drv->wiphy.dev, PHY_NAME "%d", drv->wiphy_idx);
 
 	mutex_init(&drv->mtx);
 	mutex_init(&drv->devlist_mtx);
