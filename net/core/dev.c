@@ -1672,16 +1672,6 @@ static int dev_gso_segment(struct sk_buff *skb)
 	return 0;
 }
 
-static void tstamp_tx(struct sk_buff *skb)
-{
-	union skb_shared_tx *shtx =
-		skb_tx(skb);
-	if (unlikely(shtx->software &&
-			!shtx->in_progress)) {
-		skb_tstamp_tx(skb, NULL);
-	}
-}
-
 int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			struct netdev_queue *txq)
 {
@@ -1715,8 +1705,6 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 		 * the skb destructor before the call and restoring it
 		 * afterwards, then doing the skb_orphan() ourselves?
 		 */
-		if (likely(!rc))
-			tstamp_tx(skb);
 		return rc;
 	}
 
@@ -1732,7 +1720,6 @@ gso:
 			skb->next = nskb;
 			return rc;
 		}
-		tstamp_tx(skb);
 		if (unlikely(netif_tx_queue_stopped(txq) && skb->next))
 			return NETDEV_TX_BUSY;
 	} while (skb->next);
