@@ -1906,24 +1906,42 @@ static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
 	int r;
 	char *data = NULL;
 
-	if (!info->attrs[NL80211_ATTR_REG_ALPHA2])
-		return -EINVAL;
+	/*
+	 * You should only get this when cfg80211 hasn't yet initialized
+	 * completely when built-in to the kernel right between the time
+	 * window between nl80211_init() and regulatory_init(), if that is
+	 * even possible.
+	 */
+	mutex_lock(&cfg80211_mutex);
+	if (unlikely(!cfg80211_regdomain)) {
+		r = -EINPROGRESS;
+		goto out;
+	}
+
+	if (!info->attrs[NL80211_ATTR_REG_ALPHA2]) {
+		r = -EINVAL;
+		goto out;
+	}
 
 	data = nla_data(info->attrs[NL80211_ATTR_REG_ALPHA2]);
 
 #ifdef CONFIG_WIRELESS_OLD_REGULATORY
 	/* We ignore world regdom requests with the old regdom setup */
-	if (is_world_regdom(data))
-		return -EINVAL;
+	if (is_world_regdom(data)) {
+		r = -EINVAL;
+		goto out;
+	}
 #endif
-	mutex_lock(&cfg80211_mutex);
 	r = __regulatory_hint(NULL, REGDOM_SET_BY_USER, data, 0, ENVIRON_ANY);
-	mutex_unlock(&cfg80211_mutex);
-	/* This means the regulatory domain was already set, however
+	/*
+	 * This means the regulatory domain was already set, however
 	 * we don't want to confuse userspace with a "successful error"
-	 * message so lets just treat it as a success */
+	 * message so lets just treat it as a success
+	 */
 	if (r == -EALREADY)
 		r = 0;
+out:
+	mutex_unlock(&cfg80211_mutex);
 	return r;
 }
 
