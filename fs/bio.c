@@ -301,48 +301,51 @@ void bio_init(struct bio *bio)
  **/
 struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 {
+	struct bio_vec *bvl = NULL;
 	struct bio *bio = NULL;
-	void *uninitialized_var(p);
+	unsigned long idx = 0;
+	void *p = NULL;
 
 	if (bs) {
 		p = mempool_alloc(bs->bio_pool, gfp_mask);
-
-		if (p)
-			bio = p + bs->front_pad;
-	} else
+		if (!p)
+			goto err;
+		bio = p + bs->front_pad;
+	} else {
 		bio = kmalloc(sizeof(*bio), gfp_mask);
-
-	if (likely(bio)) {
-		struct bio_vec *bvl = NULL;
-
-		bio_init(bio);
-		if (likely(nr_iovecs)) {
-			unsigned long uninitialized_var(idx);
-
-			if (nr_iovecs <= BIO_INLINE_VECS) {
-				idx = 0;
-				bvl = bio->bi_inline_vecs;
-				nr_iovecs = BIO_INLINE_VECS;
-			} else {
-				bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx,
-							bs);
-				nr_iovecs = bvec_nr_vecs(idx);
-			}
-			if (unlikely(!bvl)) {
-				if (bs)
-					mempool_free(p, bs->bio_pool);
-				else
-					kfree(bio);
-				bio = NULL;
-				goto out;
-			}
-			bio->bi_flags |= idx << BIO_POOL_OFFSET;
-			bio->bi_max_vecs = nr_iovecs;
-		}
-		bio->bi_io_vec = bvl;
+		if (!bio)
+			goto err;
 	}
-out:
+
+	bio_init(bio);
+
+	if (unlikely(!nr_iovecs))
+		goto out_set;
+
+	if (nr_iovecs <= BIO_INLINE_VECS) {
+		bvl = bio->bi_inline_vecs;
+		nr_iovecs = BIO_INLINE_VECS;
+	} else {
+		bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx, bs);
+		if (unlikely(!bvl))
+			goto err_free;
+
+		nr_iovecs = bvec_nr_vecs(idx);
+	}
+	bio->bi_flags |= idx << BIO_POOL_OFFSET;
+	bio->bi_max_vecs = nr_iovecs;
+out_set:
+	bio->bi_io_vec = bvl;
+
 	return bio;
+
+err_free:
+	if (bs)
+		mempool_free(p, bs->bio_pool);
+	else
+		kfree(bio);
+err:
+	return NULL;
 }
 
 struct bio *bio_alloc(gfp_t gfp_mask, int nr_iovecs)
