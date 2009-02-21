@@ -937,8 +937,8 @@ static bool musb_h_ep0_continue(struct musb *musb, u16 len, struct urb *urb)
 	switch (musb->ep0_stage) {
 	case MUSB_EP0_IN:
 		fifo_dest = urb->transfer_buffer + urb->actual_length;
-		fifo_count = min(len, ((u16) (urb->transfer_buffer_length
-					- urb->actual_length)));
+		fifo_count = min_t(size_t, len, urb->transfer_buffer_length -
+				   urb->actual_length);
 		if (fifo_count < len)
 			urb->status = -EOVERFLOW;
 
@@ -971,10 +971,9 @@ static bool musb_h_ep0_continue(struct musb *musb, u16 len, struct urb *urb)
 		}
 		/* FALLTHROUGH */
 	case MUSB_EP0_OUT:
-		fifo_count = min(qh->maxpacket, ((u16)
-				(urb->transfer_buffer_length
-				- urb->actual_length)));
-
+		fifo_count = min_t(size_t, qh->maxpacket,
+				   urb->transfer_buffer_length -
+				   urb->actual_length);
 		if (fifo_count) {
 			fifo_dest = (u8 *) (urb->transfer_buffer
 					+ urb->actual_length);
@@ -1304,7 +1303,8 @@ void musb_host_tx(struct musb *musb, u8 epnum)
 		 * packets before updating TXCSR ... other docs disagree ...
 		 */
 		/* PIO:  start next packet in this URB */
-		wLength = min(qh->maxpacket, (u16) wLength);
+		if (wLength > qh->maxpacket)
+			wLength = qh->maxpacket;
 		musb_write_fifo(hw_ep, wLength, buf);
 		qh->segsize = wLength;
 
