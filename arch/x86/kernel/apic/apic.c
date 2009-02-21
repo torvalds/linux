@@ -1265,14 +1265,7 @@ void __cpuinit end_local_APIC_setup(void)
 #ifdef CONFIG_X86_X2APIC
 void check_x2apic(void)
 {
-	int msr, msr2;
-
-	if (!cpu_has_x2apic)
-		return;
-
-	rdmsr(MSR_IA32_APICBASE, msr, msr2);
-
-	if (msr & X2APIC_ENABLE) {
+	if (x2apic_enabled()) {
 		pr_info("x2apic enabled by BIOS, switching to x2apic ops\n");
 		x2apic_preenabled = x2apic = 1;
 	}

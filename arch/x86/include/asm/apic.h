@@ -146,7 +146,7 @@ static inline u64 native_x2apic_icr_read(void)
 	return val;
 }
 
-extern int x2apic;
+extern int x2apic, x2apic_phys;
 extern void check_x2apic(void);
 extern void enable_x2apic(void);
 extern void enable_IR_x2apic(void);
