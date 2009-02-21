@@ -2633,7 +2633,7 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 	}
 	route.input = mode[channel];
 	route.output = 0;
-	call_i2c_clients(usbvision, VIDIOC_INT_S_VIDEO_ROUTING,&route);
+	call_all(usbvision, video, s_routing, &route);
 	usbvision_set_audio(usbvision, audio[channel]);
 	return 0;
 }

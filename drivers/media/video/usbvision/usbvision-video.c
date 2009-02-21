@@ -212,7 +212,7 @@ static ssize_t show_hue(struct device *cd,
 	ctrl.id = V4L2_CID_HUE;
 	ctrl.value = 0;
 	if(usbvision->user)
-		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
+		call_all(usbvision, core, g_ctrl, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value);
 }
 static DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
@@ -227,7 +227,7 @@ static ssize_t show_contrast(struct device *cd,
 	ctrl.id = V4L2_CID_CONTRAST;
 	ctrl.value = 0;
 	if(usbvision->user)
-		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
+		call_all(usbvision, core, g_ctrl, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value);
 }
 static DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
@@ -242,7 +242,7 @@ static ssize_t show_brightness(struct device *cd,
 	ctrl.id = V4L2_CID_BRIGHTNESS;
 	ctrl.value = 0;
 	if(usbvision->user)
-		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
+		call_all(usbvision, core, g_ctrl, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value);
 }
 static DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
@@ -257,7 +257,7 @@ static ssize_t show_saturation(struct device *cd,
 	ctrl.id = V4L2_CID_SATURATION;
 	ctrl.value = 0;
 	if(usbvision->user)
-		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
+		call_all(usbvision, core, g_ctrl, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value);
 }
 static DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
@@ -622,8 +622,7 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 	usbvision->tvnormId=*id;
 
 	mutex_lock(&usbvision->lock);
-	call_i2c_clients(usbvision, VIDIOC_S_STD,
-			 &usbvision->tvnormId);
+	call_all(usbvision, tuner, s_std, usbvision->tvnormId);
 	mutex_unlock(&usbvision->lock);
 	/* propagate the change to the decoder */
 	usbvision_muxsel(usbvision, usbvision->ctl_input);
@@ -645,7 +644,7 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 		strcpy(vt->name, "Television");
 	}
 	/* Let clients fill in the remainder of this struct */
-	call_i2c_clients(usbvision,VIDIOC_G_TUNER,vt);
+	call_all(usbvision, tuner, g_tuner, vt);
 
 	return 0;
 }
@@ -659,7 +658,7 @@ static int vidioc_s_tuner (struct file *file, void *priv,
 	if (!usbvision->have_tuner || vt->index)
 		return -EINVAL;
 	/* let clients handle this */
-	call_i2c_clients(usbvision,VIDIOC_S_TUNER,vt);
+	call_all(usbvision, tuner, s_tuner, vt);
 
 	return 0;
 }
@@ -690,7 +689,7 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 		return -EINVAL;
 
 	usbvision->freq = freq->frequency;
-	call_i2c_clients(usbvision, VIDIOC_S_FREQUENCY, freq);
+	call_all(usbvision, tuner, s_frequency, freq);
 
 	return 0;
 }
@@ -728,7 +727,7 @@ static int vidioc_queryctrl (struct file *file, void *priv,
 	memset(ctrl,0,sizeof(*ctrl));
 	ctrl->id=id;
 
-	call_i2c_clients(usbvision, VIDIOC_QUERYCTRL, ctrl);
+	call_all(usbvision, core, queryctrl, ctrl);
 
 	if (!ctrl->type)
 		return -EINVAL;
@@ -740,7 +739,7 @@ static int vidioc_g_ctrl (struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
-	call_i2c_clients(usbvision, VIDIOC_G_CTRL, ctrl);
+	call_all(usbvision, core, g_ctrl, ctrl);
 
 	return 0;
 }
@@ -749,7 +748,7 @@ static int vidioc_s_ctrl (struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
-	call_i2c_clients(usbvision, VIDIOC_S_CTRL, ctrl);
+	call_all(usbvision, core, s_ctrl, ctrl);
 
 	return 0;
 }
@@ -900,10 +899,9 @@ static int vidioc_dqbuf (struct file *file, void *priv, struct v4l2_buffer *vb)
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
-	int b=V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 	usbvision->streaming = Stream_On;
-	call_i2c_clients(usbvision,VIDIOC_STREAMON , &b);
+	call_all(usbvision, video, s_stream, 1);
 
 	return 0;
 }
@@ -912,7 +910,6 @@ static int vidioc_streamoff(struct file *file,
 			    void *priv, enum v4l2_buf_type type)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
-	int b=V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -920,7 +917,7 @@ static int vidioc_streamoff(struct file *file,
 	if(usbvision->streaming == Stream_On) {
 		usbvision_stream_interrupt(usbvision);
 		/* Stop all video streamings */
-		call_i2c_clients(usbvision,VIDIOC_STREAMOFF , &b);
+		call_all(usbvision, video, s_stream, 0);
 	}
 	usbvision_empty_framequeues(usbvision);
 
@@ -1043,7 +1040,7 @@ static ssize_t usbvision_v4l2_read(struct file *file, char __user *buf,
 	if(usbvision->streaming != Stream_On) {
 		/* no stream is running, make it running ! */
 		usbvision->streaming = Stream_On;
-		call_i2c_clients(usbvision,VIDIOC_STREAMON , NULL);
+		call_all(usbvision, video, s_stream, 1);
 	}
 
 	/* Then, enqueue as many frames as possible
@@ -1214,7 +1211,7 @@ static int usbvision_radio_open(struct file *file)
 
 		// If so far no errors then we shall start the radio
 		usbvision->radio = 1;
-		call_i2c_clients(usbvision,AUDC_SET_RADIO,&usbvision->tuner_type);
+		call_all(usbvision, tuner, s_radio);
 		usbvision_set_audio(usbvision, USBVISION_AUDIO_RADIO);
 		usbvision->user++;
 	}
@@ -1427,7 +1424,7 @@ static struct video_device *usbvision_vdev_init(struct usb_usbvision *usbvision,
 	}
 	*vdev = *vdev_template;
 //	vdev->minor   = -1;
-	vdev->parent  = &usb_dev->dev;
+	vdev->v4l2_dev = &usbvision->v4l2_dev;
 	snprintf(vdev->name, sizeof(vdev->name), "%s", name);
 	video_set_drvdata(vdev, usbvision);
 	return vdev;
@@ -1548,33 +1545,30 @@ static struct usb_usbvision *usbvision_alloc(struct usb_device *dev)
 {
 	struct usb_usbvision *usbvision;
 
-	if ((usbvision = kzalloc(sizeof(struct usb_usbvision), GFP_KERNEL)) ==
-	    NULL) {
-		goto err_exit;
-	}
+	usbvision = kzalloc(sizeof(struct usb_usbvision), GFP_KERNEL);
+	if (usbvision == NULL)
+		return NULL;
 
 	usbvision->dev = dev;
+	if (v4l2_device_register(&dev->dev, &usbvision->v4l2_dev))
+		goto err_free;
 
 	mutex_init(&usbvision->lock);	/* available */
 
 	// prepare control urb for control messages during interrupts
 	usbvision->ctrlUrb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
-	if (usbvision->ctrlUrb == NULL) {
-		goto err_exit;
-	}
+	if (usbvision->ctrlUrb == NULL)
+		goto err_unreg;
 	init_waitqueue_head(&usbvision->ctrlUrb_wq);
 
 	usbvision_init_powerOffTimer(usbvision);
 
 	return usbvision;
 
-err_exit:
-	if (usbvision && usbvision->ctrlUrb) {
-		usb_free_urb(usbvision->ctrlUrb);
-	}
-	if (usbvision) {
-		kfree(usbvision);
-	}
+err_unreg:
+	v4l2_device_unregister(&usbvision->v4l2_dev);
+err_free:
+	kfree(usbvision);
 	return NULL;
 }
 
@@ -1604,6 +1598,7 @@ static void usbvision_release(struct usb_usbvision *usbvision)
 		usb_free_urb(usbvision->ctrlUrb);
 	}
 
+	v4l2_device_unregister(&usbvision->v4l2_dev);
 	kfree(usbvision);
 
 	PDEBUG(DBG_PROBE, "success");
@@ -1738,8 +1733,6 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 	if (usbvision->have_tuner) {
 		usbvision->tuner_type = usbvision_device_data[model].TunerType;
 	}
-
-	usbvision->tuner_addr = ADDR_UNSET;
 
 	usbvision->DevModel = model;
 	usbvision->remove_pending = 0;
