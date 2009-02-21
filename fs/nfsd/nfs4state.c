@@ -2072,21 +2072,21 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
 		return check_special_stateids(current_fh, stateid, flags);
 
-	/* STALE STATEID */
 	status = nfserr_stale_stateid;
 	if (STALE_STATEID(stateid)) 
 		goto out;
 
-	/* BAD STATEID */
 	status = nfserr_bad_stateid;
 	if (!stateid->si_fileid) { /* delegation stateid */
-		if(!(dp = find_delegation_stateid(ino, stateid))) {
+		dp = find_delegation_stateid(ino, stateid);
+		if (!dp) {
 			dprintk("NFSD: delegation stateid not found\n");
 			goto out;
 		}
 		stidp = &dp->dl_stateid;
 	} else { /* open or lock stateid */
-		if (!(stp = find_stateid(stateid, flags))) {
+		stp = find_stateid(stateid, flags);
+		if (!stp) {
 			dprintk("NFSD: open or lock stateid not found\n");
 			goto out;
 		}
@@ -2100,13 +2100,15 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 	if (status)
 		goto out;
 	if (stp) {
-		if ((status = nfs4_check_openmode(stp,flags)))
+		status = nfs4_check_openmode(stp, flags);
+		if (status)
 			goto out;
 		renew_client(stp->st_stateowner->so_client);
 		if (filpp)
 			*filpp = stp->st_vfs_file;
 	} else {
-		if ((status = nfs4_check_delegmode(dp, flags)))
+		status = nfs4_check_delegmode(dp, flags);
+		if (status)
 			goto out;
 		renew_client(dp->dl_client);
 		if (flags & DELEG_RET)
