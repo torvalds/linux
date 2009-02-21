@@ -1331,14 +1331,16 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	if (!rd)
 		goto out;
 
-	/* This will not happen right now but we leave it here for the
+	/*
+	 * This will not happen right now but we leave it here for the
 	 * the future when we want to add suspend/resume support and having
 	 * the user move to another country after doing so, or having the user
-	 * move to another AP. Right now we just trust the first AP. This is why
-	 * this is marked as likley(). If we hit this before we add this support
-	 * we want to be informed of it as it would indicate a mistake in the
-	 * current design  */
-	if (likely(WARN_ON(reg_same_country_ie_hint(wiphy, checksum))))
+	 * move to another AP. Right now we just trust the first AP.
+	 *
+	 * If we hit this before we add this support we want to be informed of
+	 * it as it would indicate a mistake in the current design
+	 */
+	if (WARN_ON(reg_same_country_ie_hint(wiphy, checksum)))
 		goto out;
 
 	/* We keep this around for when CRDA comes back with a response so
