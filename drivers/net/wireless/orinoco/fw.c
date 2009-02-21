@@ -43,6 +43,33 @@ struct orinoco_fw_header {
 	char signature[0];      /* FW signature length headersize-20 */
 } __attribute__ ((packed));
 
+/* Check the range of various header entries. Return a pointer to a
+ * description of the problem, or NULL if everything checks out. */
+static const char *validate_fw(const struct orinoco_fw_header *hdr, size_t len)
+{
+	u16 hdrsize;
+
+	if (len < sizeof(*hdr))
+		return "image too small";
+	if (memcmp(hdr->hdr_vers, "HFW", 3) != 0)
+		return "format not recognised";
+
+	hdrsize = le16_to_cpu(hdr->headersize);
+	if (hdrsize > len)
+		return "bad headersize";
+	if ((hdrsize + le32_to_cpu(hdr->block_offset)) > len)
+		return "bad block offset";
+	if ((hdrsize + le32_to_cpu(hdr->pdr_offset)) > len)
+		return "bad PDR offset";
+	if ((hdrsize + le32_to_cpu(hdr->pri_offset)) > len)
+		return "bad PRI offset";
+	if ((hdrsize + le32_to_cpu(hdr->compat_offset)) > len)
+		return "bad compat offset";
+
+	/* TODO: consider adding a checksum or CRC to the firmware format */
+	return NULL;
+}
+
 /* Download either STA or AP firmware into the card. */
 static int
 orinoco_dl_firmware(struct orinoco_private *priv,
@@ -58,6 +85,7 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 	const unsigned char *first_block;
 	const unsigned char *end;
 	const char *firmware;
+	const char *fw_err;
 	struct net_device *dev = priv->ndev;
 	int err = 0;
 
@@ -92,6 +120,15 @@ orinoco_dl_firmware(struct orinoco_private *priv,
 		fw_entry = priv->cached_fw;
 
 	hdr = (const struct orinoco_fw_header *) fw_entry->data;
+
+	fw_err = validate_fw(hdr, fw_entry->size);
+	if (fw_err) {
+		printk(KERN_WARNING "%s: Invalid firmware image detected (%s). "
+		       "Aborting download\n",
+		       dev->name, fw_err);
+		err = -EINVAL;
+		goto abort;
+	}
 
 	/* Enable aux port to allow programming */
 	err = hermesi_program_init(hw, le32_to_cpu(hdr->entry_point));
