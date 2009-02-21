@@ -936,7 +936,16 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 	struct net_device *netdev = data;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 eicr = IXGBE_READ_REG(hw, IXGBE_EICR);
+	u32 eicr;
+
+	/*
+	 * Workaround for Silicon errata.  Use clear-by-write instead
+	 * of clear-by-read.  Reading with EICS will return the
+	 * interrupt causes without clearing, which later be done
+	 * with the write to EICR.
+	 */
+	eicr = IXGBE_READ_REG(hw, IXGBE_EICS);
+	IXGBE_WRITE_REG(hw, IXGBE_EICR, eicr);
 
 	if (eicr & IXGBE_EICR_LSC)
 		ixgbe_check_lsc(adapter);
@@ -1354,6 +1363,12 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 eicr;
+
+	/*
+	 * Workaround for silicon errata.  Mask the interrupts
+	 * before the read of EICR.
+	 */
+	IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_IRQ_CLEAR_MASK);
 
 	/* for NAPI, using EIAM to auto-mask tx/rx interrupt bits on read
 	 * therefore no explict interrupt disable is necessary */
