@@ -490,8 +490,8 @@ out_put_cred:
 	 * Success or failure, now we're either waiting for lease expiration
 	 * or deleg_return.
 	 */
-	nfs4_lock_state();
 	put_nfs4_client(clp);
+	nfs4_lock_state();
 	nfs4_put_delegation(dp);
 	nfs4_unlock_state();
 	return;
