@@ -32,11 +32,13 @@
 #include <linux/kvm_host.h>
 
 static void pic_lock(struct kvm_pic *s)
+	__acquires(&s->lock)
 {
 	spin_lock(&s->lock);
 }
 
 static void pic_unlock(struct kvm_pic *s)
+	__releases(&s->lock)
 {
 	struct kvm *kvm = s->kvm;
 	unsigned acks = s->pending_acks;
