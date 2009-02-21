@@ -2048,6 +2048,11 @@ static int check_stateid_generation(stateid_t *in, stateid_t *ref)
 	return nfs_ok;
 }
 
+static int is_delegation_stateid(stateid_t *stateid)
+{
+	return stateid->si_fileid == 0;
+}
+
 /*
 * Checks for stateid operations
 */
@@ -2073,7 +2078,7 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 		goto out;
 
 	status = nfserr_bad_stateid;
-	if (!stateid->si_fileid) { /* delegation stateid */
+	if (is_delegation_stateid(stateid)) {
 		dp = find_delegation_stateid(ino, stateid);
 		if (!dp)
 			goto out;
