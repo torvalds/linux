@@ -32,6 +32,8 @@ struct iomd_dma {
 	unsigned long		base;		/* Controller base address */
 	int			irq;		/* Controller IRQ */
 	struct scatterlist	cur_sg;		/* Current controller buffer */
+	dma_addr_t		dma_addr;
+	unsigned int		dma_len;
 };
 
 #if 0
@@ -57,10 +59,10 @@ static void iomd_get_next_sg(struct scatterlist *sg, struct iomd_dma *idma)
 	unsigned long end, offset, flags = 0;
 
 	if (idma->dma.sg) {
-		sg->dma_address = idma->dma.sg->dma_address;
+		sg->dma_address = idma->dma_addr;
 		offset = sg->dma_address & ~PAGE_MASK;
 
-		end = offset + idma->dma.sg->length;
+		end = offset + idma->dma_len;
 
 		if (end > PAGE_SIZE)
 			end = PAGE_SIZE;
@@ -70,12 +72,14 @@ static void iomd_get_next_sg(struct scatterlist *sg, struct iomd_dma *idma)
 
 		sg->length = end - TRANSFER_SIZE;
 
-		idma->dma.sg->length -= end - offset;
-		idma->dma.sg->dma_address += end - offset;
+		idma->dma_len -= end - offset;
+		idma->dma_addr += end - offset;
 
-		if (idma->dma.sg->length == 0) {
+		if (idma->dma_len == 0) {
 			if (idma->dma.sgcount > 1) {
 				idma->dma.sg = sg_next(idma->dma.sg);
+				idma->dma_addr = idma->dma.sg->dma_address;
+				idma->dma_len = idma->dma.sg->length;
 				idma->dma.sgcount--;
 			} else {
 				idma->dma.sg = NULL;
