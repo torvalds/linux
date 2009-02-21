@@ -119,7 +119,7 @@ static struct rb_root pcpu_addr_root = RB_ROOT;	/* chunks by address */
 
 static int pcpu_size_to_slot(int size)
 {
-	int highbit = fls(size);
+	int highbit = fls(size);	/* size is in bytes */
 	return max(highbit - PCPU_SLOT_BASE_SHIFT + 2, 1);
 }
 
@@ -158,8 +158,8 @@ static bool pcpu_chunk_page_occupied(struct pcpu_chunk *chunk,
 /**
  * pcpu_realloc - versatile realloc
  * @p: the current pointer (can be NULL for new allocations)
- * @size: the current size (can be 0 for new allocations)
- * @new_size: the wanted new size (can be 0 for free)
+ * @size: the current size in bytes (can be 0 for new allocations)
+ * @new_size: the wanted new size in bytes (can be 0 for free)
  *
  * More robust realloc which can be used to allocate, resize or free a
  * memory area of arbitrary size.  If the needed size goes over
@@ -290,8 +290,8 @@ static void pcpu_chunk_addr_insert(struct pcpu_chunk *new)
  * pcpu_split_block - split a map block
  * @chunk: chunk of interest
  * @i: index of map block to split
- * @head: head size (can be 0)
- * @tail: tail size (can be 0)
+ * @head: head size in bytes (can be 0)
+ * @tail: tail size in bytes (can be 0)
  *
  * Split the @i'th map block into two or three blocks.  If @head is
  * non-zero, @head bytes block is inserted before block @i moving it
@@ -346,7 +346,7 @@ static int pcpu_split_block(struct pcpu_chunk *chunk, int i, int head, int tail)
 /**
  * pcpu_alloc_area - allocate area from a pcpu_chunk
  * @chunk: chunk of interest
- * @size: wanted size
+ * @size: wanted size in bytes
  * @align: wanted align
  *
  * Try to allocate @size bytes area aligned at @align from @chunk.
@@ -540,15 +540,15 @@ static void pcpu_unmap(struct pcpu_chunk *chunk, int page_start, int page_end,
  * pcpu_depopulate_chunk - depopulate and unmap an area of a pcpu_chunk
  * @chunk: chunk to depopulate
  * @off: offset to the area to depopulate
- * @size: size of the area to depopulate
+ * @size: size of the area to depopulate in bytes
  * @flush: whether to flush cache and tlb or not
  *
  * For each cpu, depopulate and unmap pages [@page_start,@page_end)
  * from @chunk.  If @flush is true, vcache is flushed before unmapping
  * and tlb after.
  */
-static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, size_t off,
-				  size_t size, bool flush)
+static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size,
+				  bool flush)
 {
 	int page_start = PFN_DOWN(off);
 	int page_end = PFN_UP(off + size);
@@ -617,7 +617,7 @@ static int pcpu_map(struct pcpu_chunk *chunk, int page_start, int page_end)
  * pcpu_populate_chunk - populate and map an area of a pcpu_chunk
  * @chunk: chunk of interest
  * @off: offset to the area to populate
- * @size: size of the area to populate
+ * @size: size of the area to populate in bytes
  *
  * For each cpu, populate and map pages [@page_start,@page_end) into
  * @chunk.  The area is cleared on return.
@@ -707,7 +707,7 @@ static struct pcpu_chunk *alloc_pcpu_chunk(void)
 
 /**
  * __alloc_percpu - allocate percpu area
- * @size: size of area to allocate
+ * @size: size of area to allocate in bytes
  * @align: alignment of area (max PAGE_SIZE)
  *
  * Allocate percpu area of @size bytes aligned at @align.  Might
@@ -819,6 +819,7 @@ EXPORT_SYMBOL_GPL(free_percpu);
  * pcpu_setup_static - initialize kernel static percpu area
  * @populate_pte_fn: callback to allocate pagetable
  * @pages: num_possible_cpus() * PFN_UP(cpu_size) pages
+ * @cpu_size: the size of static percpu area in bytes
  *
  * Initialize kernel static percpu area.  The caller should allocate
  * all the necessary pages and pass them in @pages.
