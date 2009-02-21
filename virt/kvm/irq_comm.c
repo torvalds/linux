@@ -233,8 +233,8 @@ void kvm_free_irq_routing(struct kvm *kvm)
 	__kvm_free_irq_routing(&kvm->irq_routing);
 }
 
-int setup_routing_entry(struct kvm_kernel_irq_routing_entry *e,
-			const struct kvm_irq_routing_entry *ue)
+static int setup_routing_entry(struct kvm_kernel_irq_routing_entry *e,
+			       const struct kvm_irq_routing_entry *ue)
 {
 	int r = -EINVAL;
 	int delta;

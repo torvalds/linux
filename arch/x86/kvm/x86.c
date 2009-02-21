@@ -2043,8 +2043,8 @@ static struct kvm_io_device *vcpu_find_mmio_dev(struct kvm_vcpu *vcpu,
 	return dev;
 }
 
-int kvm_read_guest_virt(gva_t addr, void *val, unsigned int bytes,
-			struct kvm_vcpu *vcpu)
+static int kvm_read_guest_virt(gva_t addr, void *val, unsigned int bytes,
+			       struct kvm_vcpu *vcpu)
 {
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
@@ -2073,8 +2073,8 @@ out:
 	return r;
 }
 
-int kvm_write_guest_virt(gva_t addr, void *val, unsigned int bytes,
-			 struct kvm_vcpu *vcpu)
+static int kvm_write_guest_virt(gva_t addr, void *val, unsigned int bytes,
+				struct kvm_vcpu *vcpu)
 {
 	void *data = val;
 	int r = X86EMUL_CONTINUE;

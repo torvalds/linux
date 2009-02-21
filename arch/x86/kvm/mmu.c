@@ -989,8 +989,8 @@ struct kvm_mmu_pages {
 	     idx < 512;					\
 	     idx = find_next_bit(bitmap, 512, idx+1))
 
-int mmu_pages_add(struct kvm_mmu_pages *pvec, struct kvm_mmu_page *sp,
-		   int idx)
+static int mmu_pages_add(struct kvm_mmu_pages *pvec, struct kvm_mmu_page *sp,
+			 int idx)
 {
 	int i;
 
@@ -1121,8 +1121,9 @@ struct mmu_page_path {
 			i < pvec.nr && ({ sp = pvec.page[i].sp; 1;});	\
 			i = mmu_pages_next(&pvec, &parents, i))
 
-int mmu_pages_next(struct kvm_mmu_pages *pvec, struct mmu_page_path *parents,
-		   int i)
+static int mmu_pages_next(struct kvm_mmu_pages *pvec,
+			  struct mmu_page_path *parents,
+			  int i)
 {
 	int n;
 
@@ -1141,7 +1142,7 @@ int mmu_pages_next(struct kvm_mmu_pages *pvec, struct mmu_page_path *parents,
 	return n;
 }
 
-void mmu_pages_clear_parents(struct mmu_page_path *parents)
+static void mmu_pages_clear_parents(struct mmu_page_path *parents)
 {
 	struct kvm_mmu_page *sp;
 	unsigned int level = 0;
