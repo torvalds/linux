@@ -2087,6 +2087,14 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 		status = check_stateid_generation(stateid, stidp);
 		if (status)
 			goto out;
+		status = nfs4_check_delegmode(dp, flags);
+		if (status)
+			goto out;
+		renew_client(dp->dl_client);
+		if (flags & DELEG_RET)
+			unhash_delegation(dp);
+		if (filpp)
+			*filpp = dp->dl_vfs_file;
 	} else { /* open or lock stateid */
 		stp = find_stateid(stateid, flags);
 		if (!stp) {
@@ -2101,23 +2109,12 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 		status = check_stateid_generation(stateid, stidp);
 		if (status)
 			goto out;
-	}
-	if (stp) {
 		status = nfs4_check_openmode(stp, flags);
 		if (status)
 			goto out;
 		renew_client(stp->st_stateowner->so_client);
 		if (filpp)
 			*filpp = stp->st_vfs_file;
-	} else {
-		status = nfs4_check_delegmode(dp, flags);
-		if (status)
-			goto out;
-		renew_client(dp->dl_client);
-		if (flags & DELEG_RET)
-			unhash_delegation(dp);
-		if (filpp)
-			*filpp = dp->dl_vfs_file;
 	}
 	status = nfs_ok;
 out:
