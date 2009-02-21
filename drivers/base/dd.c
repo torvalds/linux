@@ -172,16 +172,12 @@ int driver_probe_done(void)
 /**
  * wait_for_device_probe
  * Wait for device probing to be completed.
- *
- * Note: this function polls at 100 msec intervals.
  */
-int wait_for_device_probe(void)
+void wait_for_device_probe(void)
 {
 	/* wait for the known devices to complete their probing */
-	while (driver_probe_done() != 0)
-		msleep(100);
+	wait_event(probe_waitqueue, atomic_read(&probe_count) == 0);
 	async_synchronize_full();
-	return 0;
 }
 
 /**
