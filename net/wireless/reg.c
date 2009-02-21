@@ -1050,11 +1050,7 @@ static int ignore_request(struct wiphy *wiphy, enum reg_set_by set_by,
 	case REGDOM_SET_BY_INIT:
 		return -EINVAL;
 	case REGDOM_SET_BY_CORE:
-		/*
-		 * Always respect new wireless core hints, should only happen
-		 * when updating the world regulatory domain at init.
-		 */
-		return 0;
+		return -EINVAL;
 	case REGDOM_SET_BY_COUNTRY_IE:
 		if (unlikely(!is_an_alpha2(alpha2)))
 			return -EINVAL;
@@ -1180,6 +1176,26 @@ new_request:
 	 *
 	 * to intersect with the static rd
 	 */
+	return call_crda(alpha2);
+}
+
+static int regulatory_hint_core(const char *alpha2)
+{
+	struct regulatory_request *request;
+
+	BUG_ON(last_request);
+
+	request = kzalloc(sizeof(struct regulatory_request),
+			  GFP_KERNEL);
+	if (!request)
+		return -ENOMEM;
+
+	request->alpha2[0] = alpha2[0];
+	request->alpha2[1] = alpha2[1];
+	request->initiator = REGDOM_SET_BY_CORE;
+
+	last_request = request;
+
 	return call_crda(alpha2);
 }
 
@@ -1616,16 +1632,16 @@ int regulatory_init(void)
 	 * stuck with the static values. We ignore "EU" code as
 	 * that is not a valid ISO / IEC 3166 alpha2 */
 	if (ieee80211_regdom[0] != 'E' || ieee80211_regdom[1] != 'U')
-		err = __regulatory_hint(NULL, REGDOM_SET_BY_CORE,
-					ieee80211_regdom, 0, ENVIRON_ANY);
+		err = regulatory_hint_core(ieee80211_regdom);
 #else
 	cfg80211_regdomain = cfg80211_world_regdom;
 
-	err = __regulatory_hint(NULL, REGDOM_SET_BY_CORE, "00", 0, ENVIRON_ANY);
-	if (err)
+	err = regulatory_hint_core("00");
+	if (err) {
 		printk(KERN_ERR "cfg80211: calling CRDA failed - "
 		       "unable to update world regulatory domain, "
 		       "using static definition\n");
+	}
 #endif
 
 	return 0;
