@@ -2056,7 +2056,6 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 {
 	struct nfs4_stateid *stp = NULL;
 	struct nfs4_delegation *dp = NULL;
-	stateid_t *stidp;
 	struct inode *ino = current_fh->fh_dentry->d_inode;
 	__be32 status;
 
@@ -2083,8 +2082,7 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 			dprintk("NFSD: delegation stateid not found\n");
 			goto out;
 		}
-		stidp = &dp->dl_stateid;
-		status = check_stateid_generation(stateid, stidp);
+		status = check_stateid_generation(stateid, &dp->dl_stateid);
 		if (status)
 			goto out;
 		status = nfs4_check_delegmode(dp, flags);
@@ -2105,8 +2103,7 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 			goto out;
 		if (!stp->st_stateowner->so_confirmed)
 			goto out;
-		stidp = &stp->st_stateid;
-		status = check_stateid_generation(stateid, stidp);
+		status = check_stateid_generation(stateid, &stp->st_stateid);
 		if (status)
 			goto out;
 		status = nfs4_check_openmode(stp, flags);
