@@ -2019,7 +2019,7 @@ check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
  * that are not able to provide mandatory locking.
  */
 static inline int
-io_during_grace_disallowed(struct inode *inode, int flags)
+grace_disallows_io(struct inode *inode)
 {
 	return locks_in_grace() && mandatory_lock(inode);
 }
@@ -2063,7 +2063,7 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 	if (filpp)
 		*filpp = NULL;
 
-	if (io_during_grace_disallowed(ino, flags))
+	if (grace_disallows_io(ino))
 		return nfserr_grace;
 
 	if (ZERO_STATEID(stateid) || ONE_STATEID(stateid))
