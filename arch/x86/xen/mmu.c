@@ -1819,7 +1819,6 @@ __init void xen_post_allocator_init(void)
 	xen_mark_init_mm_pinned();
 }
 
-
 const struct pv_mmu_ops xen_mmu_ops __initdata = {
 	.pagetable_setup_start = xen_pagetable_setup_start,
 	.pagetable_setup_done = xen_pagetable_setup_done,
