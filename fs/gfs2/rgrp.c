@@ -153,10 +153,10 @@ static inline u64 gfs2_bit_search(const __le64 *ptr, u64 mask, u8 state)
 {
 	u64 tmp;
 	static const u64 search[] = {
-		[0] = 0xffffffffffffffff,
-		[1] = 0xaaaaaaaaaaaaaaaa,
-		[2] = 0x5555555555555555,
-		[3] = 0x0000000000000000,
+		[0] = 0xffffffffffffffffULL,
+		[1] = 0xaaaaaaaaaaaaaaaaULL,
+		[2] = 0x5555555555555555ULL,
+		[3] = 0x0000000000000000ULL,
 	};
 	tmp = le64_to_cpu(*ptr) ^ search[state];
 	tmp &= (tmp >> 1);
@@ -191,7 +191,7 @@ u32 gfs2_bitfit(const u8 *buf, const unsigned int len, u32 goal, u8 state)
 	const __le64 *ptr = ((__le64 *)buf) + (goal >> 5);
 	const __le64 *end = (__le64 *)(buf + ALIGN(len, sizeof(u64)));
 	u64 tmp;
-	u64 mask = 0x5555555555555555;
+	u64 mask = 0x5555555555555555ULL;
 	u32 bit;
 
 	BUG_ON(state > 3);
@@ -201,7 +201,7 @@ u32 gfs2_bitfit(const u8 *buf, const unsigned int len, u32 goal, u8 state)
 	tmp = gfs2_bit_search(ptr, mask, state);
 	ptr++;
 	while(tmp == 0 && ptr < end) {
-		tmp = gfs2_bit_search(ptr, 0x5555555555555555, state);
+		tmp = gfs2_bit_search(ptr, 0x5555555555555555ULL, state);
 		ptr++;
 	}
 	/* Mask off any bits which are more than len bytes from the start */
