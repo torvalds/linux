@@ -103,20 +103,19 @@ static void ntp_update_frequency(void)
 	tick_length_base	 = new_base;
 }
 
-static inline s64 ntp_update_offset_fll(s64 freq_adj, s64 offset64, long secs)
+static inline s64 ntp_update_offset_fll(s64 offset64, long secs)
 {
 	time_status &= ~STA_MODE;
 
 	if (secs < MINSEC)
-		return freq_adj;
+		return 0;
 
 	if (!(time_status & STA_FLL) && (secs <= MAXSEC))
-		return freq_adj;
+		return 0;
 
-	freq_adj += div_s64(offset64 << (NTP_SCALE_SHIFT - SHIFT_FLL), secs);
 	time_status |= STA_MODE;
 
-	return freq_adj;
+	return div_s64(offset64 << (NTP_SCALE_SHIFT - SHIFT_FLL), secs);
 }
 
 static void ntp_update_offset(long offset)
@@ -152,7 +151,7 @@ static void ntp_update_offset(long offset)
 	freq_adj    = (offset64 * secs) <<
 			(NTP_SCALE_SHIFT - 2 * (SHIFT_PLL + 2 + time_constant));
 
-	freq_adj    = ntp_update_offset_fll(freq_adj, offset64, secs);
+	freq_adj    += ntp_update_offset_fll(offset64, secs);
 
 	freq_adj    = min(freq_adj + time_freq, MAXFREQ_SCALED);
 
