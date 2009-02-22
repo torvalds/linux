@@ -154,6 +154,13 @@ static inline void set_restore_sigmask(void)
 	ti->local_flags |= _TLF_RESTORE_SIGMASK;
 	set_bit(TIF_SIGPENDING, &ti->flags);
 }
+
+#ifdef CONFIG_PPC64
+#define is_32bit_task()	(test_thread_flag(TIF_32BIT))
+#else
+#define is_32bit_task()	(1)
+#endif
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
