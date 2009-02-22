@@ -232,19 +232,24 @@ void second_overflow(void)
 	time_offset	-= time_adj;
 	tick_length	+= time_adj;
 
-	if (unlikely(time_adjust)) {
-		if (time_adjust > MAX_TICKADJ) {
-			time_adjust -= MAX_TICKADJ;
-			tick_length += MAX_TICKADJ_SCALED;
-		} else if (time_adjust < -MAX_TICKADJ) {
-			time_adjust += MAX_TICKADJ;
-			tick_length -= MAX_TICKADJ_SCALED;
-		} else {
-			tick_length += (s64)(time_adjust * NSEC_PER_USEC /
-					NTP_INTERVAL_FREQ) << NTP_SCALE_SHIFT;
-			time_adjust = 0;
-		}
+	if (!time_adjust)
+		return;
+
+	if (time_adjust > MAX_TICKADJ) {
+		time_adjust -= MAX_TICKADJ;
+		tick_length += MAX_TICKADJ_SCALED;
+		return;
 	}
+
+	if (time_adjust < -MAX_TICKADJ) {
+		time_adjust += MAX_TICKADJ;
+		tick_length -= MAX_TICKADJ_SCALED;
+		return;
+	}
+
+	tick_length += (s64)(time_adjust * NSEC_PER_USEC / NTP_INTERVAL_FREQ)
+							 << NTP_SCALE_SHIFT;
+	time_adjust = 0;
 }
 
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
