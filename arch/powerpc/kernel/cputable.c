@@ -1788,22 +1788,27 @@ static struct cpu_spec the_cpu_spec;
 static void __init setup_cpu_spec(unsigned long offset, struct cpu_spec *s)
 {
 	struct cpu_spec *t = &the_cpu_spec;
+	struct cpu_spec old;
+
 	t = PTRRELOC(t);
+	old = *t;
+
+	/* Copy everything, then do fixups */
+	*t = *s;
 
 	/*
 	 * If we are overriding a previous value derived from the real
 	 * PVR with a new value obtained using a logical PVR value,
 	 * don't modify the performance monitor fields.
 	 */
-	if (t->num_pmcs && !s->num_pmcs) {
-		t->cpu_name = s->cpu_name;
-		t->cpu_features = s->cpu_features;
-		t->cpu_user_features = s->cpu_user_features;
-		t->icache_bsize = s->icache_bsize;
-		t->dcache_bsize = s->dcache_bsize;
-		t->cpu_setup = s->cpu_setup;
-		t->cpu_restore = s->cpu_restore;
-		t->platform = s->platform;
+	if (old.num_pmcs && !s->num_pmcs) {
+		t->num_pmcs = old.num_pmcs;
+		t->pmc_type = old.pmc_type;
+		t->oprofile_type = old.oprofile_type;
+		t->oprofile_mmcra_sihv = old.oprofile_mmcra_sihv;
+		t->oprofile_mmcra_sipr = old.oprofile_mmcra_sipr;
+		t->oprofile_mmcra_clear = old.oprofile_mmcra_clear;
+
 		/*
 		 * If we have passed through this logic once before and
 		 * have pulled the default case because the real PVR was
@@ -1817,10 +1822,9 @@ static void __init setup_cpu_spec(unsigned long offset, struct cpu_spec *s)
 		 * and, in that case, keep the current value for
 		 * oprofile_cpu_type.
 		 */
-		if (t->oprofile_cpu_type == NULL)
+		if (old.oprofile_cpu_type == NULL)
 			t->oprofile_cpu_type = s->oprofile_cpu_type;
-	} else
-		*t = *s;
+	}
 
 	*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
 
